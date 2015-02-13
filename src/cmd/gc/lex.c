@@ -95,7 +95,7 @@ enum
 void
 usage(void)
 {
-	print("usage: %cg [options] file.go...\n", arch.thechar);
+	print("usage: %cg [options] file.go...\n", thearch.thechar);
 	flagprint(1);
 	exits("usage");
 }
@@ -140,7 +140,7 @@ doversion(void)
 	sep = "";
 	if(*p)
 		sep = " ";
-	print("%cg version %s%s%s\n", arch.thechar, getgoversion(), sep, p);
+	print("%cg version %s%s%s\n", thearch.thechar, getgoversion(), sep, p);
 	exits(0);
 }
 
@@ -161,15 +161,15 @@ gcmain(int argc, char *argv[])
 	// Tell the FPU to handle all exceptions.
 	setfcr(FPPDBL|FPRNR);
 #endif
-	// Allow GOARCH=arch.thestring or GOARCH=arch.thestringsuffix,
+	// Allow GOARCH=thearch.thestring or GOARCH=thearch.thestringsuffix,
 	// but not other values.	
 	p = getgoarch();
-	if(strncmp(p, arch.thestring, strlen(arch.thestring)) != 0)
-		sysfatal("cannot use %cg with GOARCH=%s", arch.thechar, p);
+	if(strncmp(p, thearch.thestring, strlen(thearch.thestring)) != 0)
+		sysfatal("cannot use %cg with GOARCH=%s", thearch.thechar, p);
 	goarch = p;
 
-	arch.linkarchinit();
-	ctxt = linknew(arch.thelinkarch);
+	thearch.linkarchinit();
+	ctxt = linknew(thearch.thelinkarch);
 	ctxt->diag = yyerror;
 	ctxt->bso = &bstdout;
 	Binit(&bstdout, 1, OWRITE);
@@ -179,6 +179,7 @@ gcmain(int argc, char *argv[])
 	
 	// pseudo-package, for scoping
 	builtinpkg = mkpkg(newstrlit("go.builtin"));
+	builtinpkg->prefix = "go.builtin"; // not go%2ebuiltin
 
 	// pseudo-package, accessed by import "unsafe"
 	unsafepkg = mkpkg(newstrlit("unsafe"));
@@ -267,7 +268,7 @@ gcmain(int argc, char *argv[])
 	flagcount("wb", "enable write barrier", &use_writebarrier);
 	flagcount("x", "debug lexer", &debug['x']);
 	flagcount("y", "debug declarations in canned imports (with -d)", &debug['y']);
-	if(arch.thechar == '6')
+	if(thearch.thechar == '6')
 		flagcount("largemodel", "generate code that assumes a large memory model", &flag_largemodel);
 
 	flagparse(&argc, &argv, usage);
@@ -308,7 +309,7 @@ gcmain(int argc, char *argv[])
 	if(debug['l'] <= 1)
 		debug['l'] = 1 - debug['l'];
 
-	if(arch.thechar == '8') {
+	if(thearch.thechar == '8') {
 		p = getgo386();
 		if(strcmp(p, "387") == 0)
 			use_sse = 0;
@@ -319,7 +320,7 @@ gcmain(int argc, char *argv[])
 	}
 
 	fmtinstallgo();
-	arch.betypeinit();
+	thearch.betypeinit();
 	if(widthptr == 0)
 		fatal("betypeinit failed");
 
@@ -404,8 +405,9 @@ gcmain(int argc, char *argv[])
 		}
 	}
 
-	// Phase 4: Decide how to capture variables
-	// and transform closure bodies accordingly.
+	// Phase 4: Decide how to capture closed variables.
+	// This needs to run before escape analysis,
+	// because variables captured by value do not escape.
 	for(l=xtop; l; l=l->next) {
 		if(l->n->op == ODCLFUNC && l->n->closure) {
 			curfn = l->n;
@@ -456,15 +458,26 @@ gcmain(int argc, char *argv[])
 	// Move large values off stack too.
 	movelarge(xtop);
 
-	// Phase 7: Compile top level functions.
+	// Phase 7: Transform closure bodies to properly reference captured variables.
+	// This needs to happen before walk, because closures must be transformed
+	// before walk reaches a call of a closure.
+	for(l=xtop; l; l=l->next) {
+		if(l->n->op == ODCLFUNC && l->n->closure) {
+			curfn = l->n;
+			transformclosure(l->n);
+		}
+	}
+	curfn = N;
+
+	// Phase 8: Compile top level functions.
 	for(l=xtop; l; l=l->next)
 		if(l->n->op == ODCLFUNC)
-			funccompile(l->n, 0);
+			funccompile(l->n);
 
 	if(nsavederrors+nerrors == 0)
 		fninit(xtop);
 
-	// Phase 8: Check external declarations.
+	// Phase 9: Check external declarations.
 	for(l=externdcl; l; l=l->next)
 		if(l->n->op == ONAME)
 			typecheck(&l->n, Erv);
@@ -588,7 +601,7 @@ findpkg(Strlit *name)
 		snprint(namebuf, sizeof(namebuf), "%Z.a", name);
 		if(access(namebuf, 0) >= 0)
 			return 1;
-		snprint(namebuf, sizeof(namebuf), "%Z.%c", name, arch.thechar);
+		snprint(namebuf, sizeof(namebuf), "%Z.%c", name, thearch.thechar);
 		if(access(namebuf, 0) >= 0)
 			return 1;
 		return 0;
@@ -610,7 +623,7 @@ findpkg(Strlit *name)
 		snprint(namebuf, sizeof(namebuf), "%s/%Z.a", p->dir, name);
 		if(access(namebuf, 0) >= 0)
 			return 1;
-		snprint(namebuf, sizeof(namebuf), "%s/%Z.%c", p->dir, name, arch.thechar);
+		snprint(namebuf, sizeof(namebuf), "%s/%Z.%c", p->dir, name, thearch.thechar);
 		if(access(namebuf, 0) >= 0)
 			return 1;
 	}
@@ -627,7 +640,7 @@ findpkg(Strlit *name)
 		snprint(namebuf, sizeof(namebuf), "%s/pkg/%s_%s%s%s/%Z.a", goroot, goos, goarch, suffixsep, suffix, name);
 		if(access(namebuf, 0) >= 0)
 			return 1;
-		snprint(namebuf, sizeof(namebuf), "%s/pkg/%s_%s%s%s/%Z.%c", goroot, goos, goarch, suffixsep, suffix, name, arch.thechar);
+		snprint(namebuf, sizeof(namebuf), "%s/pkg/%s_%s%s%s/%Z.%c", goroot, goos, goarch, suffixsep, suffix, name, thearch.thechar);
 		if(access(namebuf, 0) >= 0)
 			return 1;
 	}
@@ -647,7 +660,7 @@ importfile(Val *f, int line)
 	Biobuf *imp;
 	char *file, *p, *q, *tag;
 	int32 c;
-	int len;
+	int n;
 	Strlit *path;
 	char *cleanbuf, *prefix;
 
@@ -745,8 +758,8 @@ importfile(Val *f, int line)
 	}
 	file = strdup(namebuf);
 
-	len = strlen(namebuf);
-	if(len > 2 && namebuf[len-2] == '.' && namebuf[len-1] == 'a') {
+	n = strlen(namebuf);
+	if(n > 2 && namebuf[n-2] == '.' && namebuf[n-1] == 'a') {
 		if(!skiptopkgdef(imp)) {
 			yyerror("import %s: not a package file", file);
 			errorexit();
@@ -770,7 +783,7 @@ importfile(Val *f, int line)
 
 	// assume files move (get installed)
 	// so don't record the full path.
-	linehist(file + len - path->len - 2, -1, 1);	// acts as #pragma lib
+	linehist(file + n - path->len - 2, -1, 1);	// acts as #pragma lib
 
 	/*
 	 * position the input right
@@ -974,17 +987,7 @@ l0:
 			rune = c;
 			clen += runetochar(cp+clen, &rune);
 		}
-
-	strlit:
-		*(int32*)cp = clen-sizeof(int32);	// length
-		do {
-			cp[clen++] = 0;
-		} while(clen & MAXALIGN);
-		yylval.val.u.sval = (Strlit*)cp;
-		yylval.val.ctype = CTSTR;
-		DBG("lex: string literal\n");
-		strcpy(litbuf, "string literal");
-		return LLITERAL;
+		goto strlit;
 
 	case '\'':
 		/* '.' */
@@ -1279,7 +1282,7 @@ talph:
 		if(c >= Runeself) {
 			ungetc(c);
 			rune = getr();
-			// 0xb7 Â· is used for internal names
+			// 0xb7 · is used for internal names
 			if(!isalpharune(rune) && !isdigitrune(rune) && (importpkg == nil || rune != 0xb7))
 				yyerror("invalid identifier character U+%04x", rune);
 			cp += runetochar(cp, &rune);
@@ -1466,6 +1469,17 @@ caseout:
 	DBG("lex: floating literal\n");
 	strcpy(litbuf, "literal ");
 	strcat(litbuf, lexbuf);
+	return LLITERAL;
+
+strlit:
+	*(int32*)cp = clen-sizeof(int32);	// length
+	do {
+		cp[clen++] = 0;
+	} while(clen & MAXALIGN);
+	yylval.val.u.sval = (Strlit*)cp;
+	yylval.val.ctype = CTSTR;
+	DBG("lex: string literal\n");
+	strcpy(litbuf, "string literal");
 	return LLITERAL;
 }
 
@@ -2270,10 +2284,10 @@ lexfini(void)
 	}
 
 	// backend-specific builtin types (e.g. int).
-	for(i=0; arch.typedefs[i].name; i++) {
-		s = lookup(arch.typedefs[i].name);
+	for(i=0; thearch.typedefs[i].name; i++) {
+		s = lookup(thearch.typedefs[i].name);
 		if(s->def == N) {
-			s->def = typenod(types[arch.typedefs[i].etype]);
+			s->def = typenod(types[thearch.typedefs[i].etype]);
 			s->origpkg = builtinpkg;
 		}
 	}
@@ -2571,6 +2585,6 @@ mkpackage(char* pkgname)
 		p = strrchr(namebuf, '.');
 		if(p != nil)
 			*p = 0;
-		outfile = smprint("%s.%c", namebuf, arch.thechar);
+		outfile = smprint("%s.%c", namebuf, thearch.thechar);
 	}
 }

@@ -117,16 +117,29 @@ enum {
 };
 
 static Type*
+makefield(char *name, Type *t)
+{
+	Type *f;
+
+	f = typ(TFIELD);
+	f->type = t;
+	f->sym = mal(sizeof(Sym));
+	f->sym->name = name;
+	return f;
+}
+
+Type*
 mapbucket(Type *t)
 {
 	Type *keytype, *valtype;
-	Type *bucket;
-	Type *overflowfield, *keysfield, *valuesfield;
-	int32 offset;
+	Type *bucket, *arr;
+	Type *field[4];
+	int32 n;
 
 	if(t->bucket != T)
 		return t->bucket;
 
+	bucket = typ(TSTRUCT);
 	keytype = t->down;
 	valtype = t->type;
 	dowidth(keytype);
@@ -136,119 +149,74 @@ mapbucket(Type *t)
 	if(valtype->width > MAXVALSIZE)
 		valtype = ptrto(valtype);
 
-	bucket = typ(TSTRUCT);
-	bucket->noalg = 1;
-
 	// The first field is: uint8 topbits[BUCKETSIZE].
-	// We don't need to encode it as GC doesn't care about it.
-	offset = BUCKETSIZE * 1;
-
-	keysfield = typ(TFIELD);
-	keysfield->type = typ(TARRAY);
-	keysfield->type->type = keytype;
-	keysfield->type->bound = BUCKETSIZE;
-	keysfield->type->width = BUCKETSIZE * keytype->width;
-	keysfield->width = offset;
-	keysfield->sym = mal(sizeof(Sym));
-	keysfield->sym->name = "keys";
-	offset += BUCKETSIZE * keytype->width;
-
-	valuesfield = typ(TFIELD);
-	valuesfield->type = typ(TARRAY);
-	valuesfield->type->type = valtype;
-	valuesfield->type->bound = BUCKETSIZE;
-	valuesfield->type->width = BUCKETSIZE * valtype->width;
-	valuesfield->width = offset;
-	valuesfield->sym = mal(sizeof(Sym));
-	valuesfield->sym->name = "values";
-	offset += BUCKETSIZE * valtype->width;
-
-	overflowfield = typ(TFIELD);
-	overflowfield->type = ptrto(bucket);
-	overflowfield->width = offset;         // "width" is offset in structure
-	overflowfield->sym = mal(sizeof(Sym)); // not important but needs to be set to give this type a name
-	overflowfield->sym->name = "overflow";
-	offset += widthptr;
-	
-	// Pad to the native integer alignment.
-	// This is usually the same as widthptr; the exception (as usual) is nacl/amd64.
-	if(widthreg > widthptr)
-		offset += widthreg - widthptr;
+	arr = typ(TARRAY);
+	arr->type = types[TUINT8];
+	arr->bound = BUCKETSIZE;
+	field[0] = makefield("topbits", arr);
+	arr = typ(TARRAY);
+	arr->type = keytype;
+	arr->bound = BUCKETSIZE;
+	field[1] = makefield("keys", arr);
+	arr = typ(TARRAY);
+	arr->type = valtype;
+	arr->bound = BUCKETSIZE;
+	field[2] = makefield("values", arr);
+	field[3] = makefield("overflow", ptrto(bucket));
 
 	// link up fields
-	bucket->type = keysfield;
-	keysfield->down = valuesfield;
-	valuesfield->down = overflowfield;
-	overflowfield->down = T;
+	bucket->noalg = 1;
+	bucket->local = t->local;
+	bucket->type = field[0];
+	for(n = 0; n < nelem(field)-1; n++)
+		field[n]->down = field[n+1];
+	field[nelem(field)-1]->down = T;
+	dowidth(bucket);
+
+	// Pad to the native integer alignment.
+	// This is usually the same as widthptr; the exception (as usual) is amd64p32.
+	if(widthreg > widthptr)
+		bucket->width += widthreg - widthptr;
 
 	// See comment on hmap.overflow in ../../runtime/hashmap.go.
 	if(!haspointers(t->type) && !haspointers(t->down))
 		bucket->haspointers = 1;  // no pointers
 
-	bucket->width = offset;
-	bucket->local = t->local;
 	t->bucket = bucket;
 	bucket->map = t;
 	return bucket;
 }
 
-// Builds a type respresenting a Hmap structure for
-// the given map type.  This type is not visible to users -
-// we include only enough information to generate a correct GC
-// program for it.
+// Builds a type representing a Hmap structure for the given map type.
 // Make sure this stays in sync with ../../runtime/hashmap.go!
-static Type*
+Type*
 hmap(Type *t)
 {
 	Type *h, *bucket;
-	Type *bucketsfield, *oldbucketsfield, *overflowfield;
-	int32 offset;
+	Type *field[8];
+	int32 n;
 
 	if(t->hmap != T)
 		return t->hmap;
 
 	bucket = mapbucket(t);
+	field[0] = makefield("count", types[TINT]);
+	field[1] = makefield("flags", types[TUINT8]);
+	field[2] = makefield("B", types[TUINT8]);
+	field[3] = makefield("hash0", types[TUINT32]);
+	field[4] = makefield("buckets", ptrto(bucket));
+	field[5] = makefield("oldbuckets", ptrto(bucket));
+	field[6] = makefield("nevacuate", types[TUINTPTR]);
+	field[7] = makefield("overflow", types[TUNSAFEPTR]);
+
 	h = typ(TSTRUCT);
 	h->noalg = 1;
-
-	offset = widthint; // count
-	offset += 1;       // flags
-	offset += 1;       // B
-	offset += 2;       // padding
-	offset += 4;       // hash0
-	offset = (offset + widthptr - 1) / widthptr * widthptr;
-	
-	bucketsfield = typ(TFIELD);
-	bucketsfield->type = ptrto(bucket);
-	bucketsfield->width = offset;
-	bucketsfield->sym = mal(sizeof(Sym));
-	bucketsfield->sym->name = "buckets";
-	offset += widthptr;
-
-	oldbucketsfield = typ(TFIELD);
-	oldbucketsfield->type = ptrto(bucket);
-	oldbucketsfield->width = offset;
-	oldbucketsfield->sym = mal(sizeof(Sym));
-	oldbucketsfield->sym->name = "oldbuckets";
-	offset += widthptr;
-
-	offset += widthptr; // nevacuate
-
-	overflowfield = typ(TFIELD);
-	overflowfield->type = types[TUNSAFEPTR];
-	overflowfield->width = offset;
-	overflowfield->sym = mal(sizeof(Sym));
-	overflowfield->sym->name = "overflow";
-	offset += widthptr;
-
-	// link up fields
-	h->type = bucketsfield;
-	bucketsfield->down = oldbucketsfield;
-	oldbucketsfield->down = overflowfield;
-	overflowfield->down = T;
-
-	h->width = offset;
 	h->local = t->local;
+	h->type = field[0];
+	for(n = 0; n < nelem(field)-1; n++)
+		field[n]->down = field[n+1];
+	field[nelem(field)-1]->down = T;
+	dowidth(h);
 	t->hmap = h;
 	h->map = t;
 	return h;
@@ -257,8 +225,8 @@ hmap(Type *t)
 Type*
 hiter(Type *t)
 {
-	int32 n, off;
-	Type *field[9];
+	int32 n;
+	Type *field[12];
 	Type *i;
 
 	if(t->hiter != T)
@@ -272,73 +240,37 @@ hiter(Type *t)
 	//    h *Hmap
 	//    buckets *Bucket
 	//    bptr *Bucket
-	//    overflow unsafe.Pointer
-	//    other [4]uintptr
+	//    overflow0 unsafe.Pointer
+	//    overflow1 unsafe.Pointer
+	//    startBucket uintptr
+	//    stuff uintptr
+	//    bucket uintptr
+	//    checkBucket uintptr
 	// }
 	// must match ../../runtime/hashmap.c:hash_iter.
-	field[0] = typ(TFIELD);
-	field[0]->type = ptrto(t->down);
-	field[0]->sym = mal(sizeof(Sym));
-	field[0]->sym->name = "key";
-	
-	field[1] = typ(TFIELD);
-	field[1]->type = ptrto(t->type);
-	field[1]->sym = mal(sizeof(Sym));
-	field[1]->sym->name = "val";
-	
-	field[2] = typ(TFIELD);
-	field[2]->type = ptrto(types[TUINT8]); // TODO: is there a Type type?
-	field[2]->sym = mal(sizeof(Sym));
-	field[2]->sym->name = "t";
-	
-	field[3] = typ(TFIELD);
-	field[3]->type = ptrto(hmap(t));
-	field[3]->sym = mal(sizeof(Sym));
-	field[3]->sym->name = "h";
-	
-	field[4] = typ(TFIELD);
-	field[4]->type = ptrto(mapbucket(t));
-	field[4]->sym = mal(sizeof(Sym));
-	field[4]->sym->name = "buckets";
-	
-	field[5] = typ(TFIELD);
-	field[5]->type = ptrto(mapbucket(t));
-	field[5]->sym = mal(sizeof(Sym));
-	field[5]->sym->name = "bptr";
-	
-	field[6] = typ(TFIELD);
-	field[6]->type = types[TUNSAFEPTR];
-	field[6]->sym = mal(sizeof(Sym));
-	field[6]->sym->name = "overflow0";
-
-	field[7] = typ(TFIELD);
-	field[7]->type = types[TUNSAFEPTR];
-	field[7]->sym = mal(sizeof(Sym));
-	field[7]->sym->name = "overflow1";
-
-	// all other non-pointer fields
-	field[8] = typ(TFIELD);
-	field[8]->type = typ(TARRAY);
-	field[8]->type->type = types[TUINTPTR];
-	field[8]->type->bound = 4;
-	field[8]->type->width = 4 * widthptr;
-	field[8]->sym = mal(sizeof(Sym));
-	field[8]->sym->name = "other";
+	field[0] = makefield("key", ptrto(t->down));
+	field[1] = makefield("val", ptrto(t->type));
+	field[2] = makefield("t", ptrto(types[TUINT8]));
+	field[3] = makefield("h", ptrto(hmap(t)));
+	field[4] = makefield("buckets", ptrto(mapbucket(t)));
+	field[5] = makefield("bptr", ptrto(mapbucket(t)));
+	field[6] = makefield("overflow0", types[TUNSAFEPTR]);
+	field[7] = makefield("overflow1", types[TUNSAFEPTR]);
+	field[8] = makefield("startBucket", types[TUINTPTR]);
+	field[9] = makefield("stuff", types[TUINTPTR]); // offset+wrapped+B+I
+	field[10] = makefield("bucket", types[TUINTPTR]);
+	field[11] = makefield("checkBucket", types[TUINTPTR]);
 	
 	// build iterator struct holding the above fields
 	i = typ(TSTRUCT);
 	i->noalg = 1;
 	i->type = field[0];
-	off = 0;
-	for(n = 0; n < nelem(field)-1; n++) {
+	for(n = 0; n < nelem(field)-1; n++)
 		field[n]->down = field[n+1];
-		field[n]->width = off;
-		off += field[n]->type->width;
-	}
 	field[nelem(field)-1]->down = T;
-	off += field[nelem(field)-1]->type->width;
-	if(off != 12 * widthptr)
-		yyerror("hash_iter size not correct %d %d", off, 11 * widthptr);
+	dowidth(i);
+	if(i->width != 12 * widthptr)
+		yyerror("hash_iter size not correct %d %d", i->width, 12 * widthptr);
 	t->hiter = i;
 	i->map = t;
 	return i;
@@ -547,15 +479,15 @@ dimportpath(Pkg *p)
 	n->xoffset = 0;
 	p->pathsym = n->sym;
 
-	arch.gdatastring(n, p->path);
-	arch.ggloblsym(n->sym, types[TSTRING]->width, DUPOK|RODATA);
+	gdatastring(n, p->path);
+	ggloblsym(n->sym, types[TSTRING]->width, DUPOK|RODATA);
 }
 
 static int
 dgopkgpath(Sym *s, int ot, Pkg *pkg)
 {
 	if(pkg == nil)
-		return arch.dgostringptr(s, ot, nil);
+		return dgostringptr(s, ot, nil);
 
 	// Emit reference to go.importpath.""., which 6l will
 	// rewrite using the correct import path.  Every package
@@ -565,11 +497,11 @@ dgopkgpath(Sym *s, int ot, Pkg *pkg)
 
 		if(ns == nil)
 			ns = pkglookup("importpath.\"\".", mkpkg(newstrlit("go")));
-		return arch.dsymptr(s, ot, ns, 0);
+		return dsymptr(s, ot, ns, 0);
 	}
 
 	dimportpath(pkg);
-	return arch.dsymptr(s, ot, pkg->pathsym, 0);
+	return dsymptr(s, ot, pkg->pathsym, 0);
 }
 
 /*
@@ -589,7 +521,7 @@ dextratype(Sym *sym, int off, Type *t, int ptroff)
 
 	// fill in *extraType pointer in header
 	off = rnd(off, widthptr);
-	arch.dsymptr(sym, ptroff, sym, off);
+	dsymptr(sym, ptroff, sym, off);
 
 	n = 0;
 	for(a=m; a; a=a->link) {
@@ -600,18 +532,18 @@ dextratype(Sym *sym, int off, Type *t, int ptroff)
 	ot = off;
 	s = sym;
 	if(t->sym) {
-		ot = arch.dgostringptr(s, ot, t->sym->name);
+		ot = dgostringptr(s, ot, t->sym->name);
 		if(t != types[t->etype] && t != errortype)
 			ot = dgopkgpath(s, ot, t->sym->pkg);
 		else
-			ot = arch.dgostringptr(s, ot, nil);
+			ot = dgostringptr(s, ot, nil);
 	} else {
-		ot = arch.dgostringptr(s, ot, nil);
-		ot = arch.dgostringptr(s, ot, nil);
+		ot = dgostringptr(s, ot, nil);
+		ot = dgostringptr(s, ot, nil);
 	}
 
 	// slice header
-	ot = arch.dsymptr(s, ot, s, ot + widthptr + 2*widthint);
+	ot = dsymptr(s, ot, s, ot + widthptr + 2*widthint);
 	ot = duintxx(s, ot, n, widthint);
 	ot = duintxx(s, ot, n, widthint);
 
@@ -619,16 +551,16 @@ dextratype(Sym *sym, int off, Type *t, int ptroff)
 	for(a=m; a; a=a->link) {
 		// method
 		// ../../runtime/type.go:/method
-		ot = arch.dgostringptr(s, ot, a->name);
+		ot = dgostringptr(s, ot, a->name);
 		ot = dgopkgpath(s, ot, a->pkg);
-		ot = arch.dsymptr(s, ot, dtypesym(a->mtype), 0);
-		ot = arch.dsymptr(s, ot, dtypesym(a->type), 0);
+		ot = dsymptr(s, ot, dtypesym(a->mtype), 0);
+		ot = dsymptr(s, ot, dtypesym(a->type), 0);
 		if(a->isym)
-			ot = arch.dsymptr(s, ot, a->isym, 0);
+			ot = dsymptr(s, ot, a->isym, 0);
 		else
 			ot = duintptr(s, ot, 0);
 		if(a->tsym)
-			ot = arch.dsymptr(s, ot, a->tsym, 0);
+			ot = dsymptr(s, ot, a->tsym, 0);
 		else
 			ot = duintptr(s, ot, 0);
 	}
@@ -816,43 +748,43 @@ dcommontype(Sym *s, int ot, Type *t)
 		i |= KindGCProg;
 	ot = duint8(s, ot, i);  // kind
 	if(algsym == S)
-		ot = arch.dsymptr(s, ot, algarray, alg*sizeofAlg);
+		ot = dsymptr(s, ot, algarray, alg*sizeofAlg);
 	else
-		ot = arch.dsymptr(s, ot, algsym, 0);
+		ot = dsymptr(s, ot, algsym, 0);
 	// gc
 	if(gcprog) {
 		gengcprog(t, &gcprog0, &gcprog1);
 		if(gcprog0 != S)
-			ot = arch.dsymptr(s, ot, gcprog0, 0);
+			ot = dsymptr(s, ot, gcprog0, 0);
 		else
 			ot = duintptr(s, ot, 0);
-		ot = arch.dsymptr(s, ot, gcprog1, 0);
+		ot = dsymptr(s, ot, gcprog1, 0);
 	} else {
 		gengcmask(t, gcmask);
 		x1 = 0;
 		for(i=0; i<8; i++)
 			x1 = x1<<8 | gcmask[i];
 		if(widthptr == 4) {
-			p = smprint("gcbits.%#016llux", x1);
+			p = smprint("gcbits.0x%016llux", x1);
 		} else {
 			x2 = 0;
 			for(i=0; i<8; i++)
 				x2 = x2<<8 | gcmask[i+8];
-			p = smprint("gcbits.%#016llux%016llux", x1, x2);
+			p = smprint("gcbits.0x%016llux%016llux", x1, x2);
 		}
 		sbits = pkglookup(p, runtimepkg);
 		if((sbits->flags & SymUniq) == 0) {
 			sbits->flags |= SymUniq;
 			for(i = 0; i < 2*widthptr; i++)
 				duint8(sbits, i, gcmask[i]);
-			arch.ggloblsym(sbits, 2*widthptr, DUPOK|RODATA);
+			ggloblsym(sbits, 2*widthptr, DUPOK|RODATA);
 		}
-		ot = arch.dsymptr(s, ot, sbits, 0);
+		ot = dsymptr(s, ot, sbits, 0);
 		ot = duintptr(s, ot, 0);
 	}
 	p = smprint("%-uT", t);
 	//print("dcommontype: %s\n", p);
-	ot = arch.dgostringptr(s, ot, p);	// string
+	ot = dgostringptr(s, ot, p);	// string
 	free(p);
 
 	// skip pointer to extraType,
@@ -861,8 +793,8 @@ dcommontype(Sym *s, int ot, Type *t)
 	// otherwise linker will assume 0.
 	ot += widthptr;
 
-	ot = arch.dsymptr(s, ot, sptr, 0);  // ptrto type
-	ot = arch.dsymptr(s, ot, zero, 0);  // ptr to zero value
+	ot = dsymptr(s, ot, sptr, 0);  // ptrto type
+	ot = dsymptr(s, ot, zero, 0);  // ptr to zero value
 	return ot;
 }
 
@@ -1092,15 +1024,15 @@ ok:
 			s2 = dtypesym(t2);
 			ot = dcommontype(s, ot, t);
 			xt = ot - 3*widthptr;
-			ot = arch.dsymptr(s, ot, s1, 0);
-			ot = arch.dsymptr(s, ot, s2, 0);
+			ot = dsymptr(s, ot, s1, 0);
+			ot = dsymptr(s, ot, s2, 0);
 			ot = duintptr(s, ot, t->bound);
 		} else {
 			// ../../runtime/type.go:/SliceType
 			s1 = dtypesym(t->type);
 			ot = dcommontype(s, ot, t);
 			xt = ot - 3*widthptr;
-			ot = arch.dsymptr(s, ot, s1, 0);
+			ot = dsymptr(s, ot, s1, 0);
 		}
 		break;
 
@@ -1109,7 +1041,7 @@ ok:
 		s1 = dtypesym(t->type);
 		ot = dcommontype(s, ot, t);
 		xt = ot - 3*widthptr;
-		ot = arch.dsymptr(s, ot, s1, 0);
+		ot = dsymptr(s, ot, s1, 0);
 		ot = duintptr(s, ot, t->chan);
 		break;
 
@@ -1130,21 +1062,21 @@ ok:
 
 		// two slice headers: in and out.
 		ot = rnd(ot, widthptr);
-		ot = arch.dsymptr(s, ot, s, ot+2*(widthptr+2*widthint));
+		ot = dsymptr(s, ot, s, ot+2*(widthptr+2*widthint));
 		n = t->thistuple + t->intuple;
 		ot = duintxx(s, ot, n, widthint);
 		ot = duintxx(s, ot, n, widthint);
-		ot = arch.dsymptr(s, ot, s, ot+1*(widthptr+2*widthint)+n*widthptr);
+		ot = dsymptr(s, ot, s, ot+1*(widthptr+2*widthint)+n*widthptr);
 		ot = duintxx(s, ot, t->outtuple, widthint);
 		ot = duintxx(s, ot, t->outtuple, widthint);
 
 		// slice data
 		for(t1=getthisx(t)->type; t1; t1=t1->down, n++)
-			ot = arch.dsymptr(s, ot, dtypesym(t1->type), 0);
+			ot = dsymptr(s, ot, dtypesym(t1->type), 0);
 		for(t1=getinargx(t)->type; t1; t1=t1->down, n++)
-			ot = arch.dsymptr(s, ot, dtypesym(t1->type), 0);
+			ot = dsymptr(s, ot, dtypesym(t1->type), 0);
 		for(t1=getoutargx(t)->type; t1; t1=t1->down, n++)
-			ot = arch.dsymptr(s, ot, dtypesym(t1->type), 0);
+			ot = dsymptr(s, ot, dtypesym(t1->type), 0);
 		break;
 
 	case TINTER:
@@ -1158,14 +1090,14 @@ ok:
 		// ../../runtime/type.go:/InterfaceType
 		ot = dcommontype(s, ot, t);
 		xt = ot - 3*widthptr;
-		ot = arch.dsymptr(s, ot, s, ot+widthptr+2*widthint);
+		ot = dsymptr(s, ot, s, ot+widthptr+2*widthint);
 		ot = duintxx(s, ot, n, widthint);
 		ot = duintxx(s, ot, n, widthint);
 		for(a=m; a; a=a->link) {
 			// ../../runtime/type.go:/imethod
-			ot = arch.dgostringptr(s, ot, a->name);
+			ot = dgostringptr(s, ot, a->name);
 			ot = dgopkgpath(s, ot, a->pkg);
-			ot = arch.dsymptr(s, ot, dtypesym(a->type), 0);
+			ot = dsymptr(s, ot, dtypesym(a->type), 0);
 		}
 		break;
 
@@ -1177,10 +1109,10 @@ ok:
 		s4 = dtypesym(hmap(t));
 		ot = dcommontype(s, ot, t);
 		xt = ot - 3*widthptr;
-		ot = arch.dsymptr(s, ot, s1, 0);
-		ot = arch.dsymptr(s, ot, s2, 0);
-		ot = arch.dsymptr(s, ot, s3, 0);
-		ot = arch.dsymptr(s, ot, s4, 0);
+		ot = dsymptr(s, ot, s1, 0);
+		ot = dsymptr(s, ot, s2, 0);
+		ot = dsymptr(s, ot, s3, 0);
+		ot = dsymptr(s, ot, s4, 0);
 		if(t->down->width > MAXKEYSIZE) {
 			ot = duint8(s, ot, widthptr);
 			ot = duint8(s, ot, 1); // indirect
@@ -1210,7 +1142,7 @@ ok:
 		s1 = dtypesym(t->type);
 		ot = dcommontype(s, ot, t);
 		xt = ot - 3*widthptr;
-		ot = arch.dsymptr(s, ot, s1, 0);
+		ot = dsymptr(s, ot, s1, 0);
 		break;
 
 	case TSTRUCT:
@@ -1223,32 +1155,32 @@ ok:
 		}
 		ot = dcommontype(s, ot, t);
 		xt = ot - 3*widthptr;
-		ot = arch.dsymptr(s, ot, s, ot+widthptr+2*widthint);
+		ot = dsymptr(s, ot, s, ot+widthptr+2*widthint);
 		ot = duintxx(s, ot, n, widthint);
 		ot = duintxx(s, ot, n, widthint);
 		for(t1=t->type; t1!=T; t1=t1->down) {
 			// ../../runtime/type.go:/structField
 			if(t1->sym && !t1->embedded) {
-				ot = arch.dgostringptr(s, ot, t1->sym->name);
+				ot = dgostringptr(s, ot, t1->sym->name);
 				if(exportname(t1->sym->name))
-					ot = arch.dgostringptr(s, ot, nil);
+					ot = dgostringptr(s, ot, nil);
 				else
 					ot = dgopkgpath(s, ot, t1->sym->pkg);
 			} else {
-				ot = arch.dgostringptr(s, ot, nil);
+				ot = dgostringptr(s, ot, nil);
 				if(t1->type->sym != S && t1->type->sym->pkg == builtinpkg)
 					ot = dgopkgpath(s, ot, localpkg);
 				else
-					ot = arch.dgostringptr(s, ot, nil);
+					ot = dgostringptr(s, ot, nil);
 			}
-			ot = arch.dsymptr(s, ot, dtypesym(t1->type), 0);
-			ot = arch.dgostrlitptr(s, ot, t1->note);
+			ot = dsymptr(s, ot, dtypesym(t1->type), 0);
+			ot = dgostrlitptr(s, ot, t1->note);
 			ot = duintptr(s, ot, t1->width);	// field offset
 		}
 		break;
 	}
 	ot = dextratype(s, ot, t, xt);
-	arch.ggloblsym(s, ot, dupok|RODATA);
+	ggloblsym(s, ot, dupok|RODATA);
 
 	// generate typelink.foo pointing at s = type.foo.
 	// The linker will leave a table of all the typelinks for
@@ -1261,8 +1193,8 @@ ok:
 		case TCHAN:
 		case TMAP:
 			slink = typelinksym(t);
-			arch.dsymptr(slink, 0, s, 0);
-			arch.ggloblsym(slink, widthptr, dupok|RODATA);
+			dsymptr(slink, 0, s, 0);
+			ggloblsym(slink, widthptr, dupok|RODATA);
 		}
 	}
 
@@ -1354,18 +1286,18 @@ dalgsym(Type *t)
 		hashfunc = pkglookup(p, typepkg);
 		free(p);
 		ot = 0;
-		ot = arch.dsymptr(hashfunc, ot, pkglookup("memhash_varlen", runtimepkg), 0);
+		ot = dsymptr(hashfunc, ot, pkglookup("memhash_varlen", runtimepkg), 0);
 		ot = duintxx(hashfunc, ot, t->width, widthptr); // size encoded in closure
-		arch.ggloblsym(hashfunc, ot, DUPOK|RODATA);
+		ggloblsym(hashfunc, ot, DUPOK|RODATA);
 
 		// make equality closure
 		p = smprint(".eqfunc%lld", t->width);
 		eqfunc = pkglookup(p, typepkg);
 		free(p);
 		ot = 0;
-		ot = arch.dsymptr(eqfunc, ot, pkglookup("memequal_varlen", runtimepkg), 0);
+		ot = dsymptr(eqfunc, ot, pkglookup("memequal_varlen", runtimepkg), 0);
 		ot = duintxx(eqfunc, ot, t->width, widthptr);
-		arch.ggloblsym(eqfunc, ot, DUPOK|RODATA);
+		ggloblsym(eqfunc, ot, DUPOK|RODATA);
 	} else {
 		// generate an alg table specific to this type
 		s = typesymprefix(".alg", t);
@@ -1378,16 +1310,16 @@ dalgsym(Type *t)
 		geneq(eq, t);
 
 		// make Go funcs (closures) for calling hash and equal from Go
-		arch.dsymptr(hashfunc, 0, hash, 0);
-		arch.ggloblsym(hashfunc, widthptr, DUPOK|RODATA);
-		arch.dsymptr(eqfunc, 0, eq, 0);
-		arch.ggloblsym(eqfunc, widthptr, DUPOK|RODATA);
+		dsymptr(hashfunc, 0, hash, 0);
+		ggloblsym(hashfunc, widthptr, DUPOK|RODATA);
+		dsymptr(eqfunc, 0, eq, 0);
+		ggloblsym(eqfunc, widthptr, DUPOK|RODATA);
 	}
 	// ../../runtime/alg.go:/typeAlg
 	ot = 0;
-	ot = arch.dsymptr(s, ot, hashfunc, 0);
-	ot = arch.dsymptr(s, ot, eqfunc, 0);
-	arch.ggloblsym(s, ot, DUPOK|RODATA);
+	ot = dsymptr(s, ot, hashfunc, 0);
+	ot = dsymptr(s, ot, eqfunc, 0);
+	ggloblsym(s, ot, DUPOK|RODATA);
 	return s;
 }
 
@@ -1417,7 +1349,7 @@ usegcprog(Type *t)
 
 // Generates sparse GC bitmask (4 bits per word).
 static void
-gengcmask(Type *t, uint8 gcmask[16])
+gengcmask(Type *t, uint8 *gcmask)
 {
 	Bvec *vec;
 	vlong xoffset, nptr, i, j;
@@ -1570,7 +1502,7 @@ gengcprog(Type *t, Sym **pgc0, Sym **pgc1)
 	// Don't generate it if it's too large, runtime will unroll directly into GC bitmap.
 	if(size <= MaxGCMask) {
 		gc0 = typesymprefix(".gc", t);
-		arch.ggloblsym(gc0, size, DUPOK|NOPTR);
+		ggloblsym(gc0, size, DUPOK|NOPTR);
 		*pgc0 = gc0;
 	}
 
@@ -1580,7 +1512,7 @@ gengcprog(Type *t, Sym **pgc0, Sym **pgc1)
 	xoffset = 0;
 	gengcprog1(&g, t, &xoffset);
 	ot = proggenfini(&g);
-	arch.ggloblsym(gc1, ot, DUPOK|RODATA);
+	ggloblsym(gc1, ot, DUPOK|RODATA);
 	*pgc1 = gc1;
 }
 

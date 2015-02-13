@@ -7,7 +7,7 @@
 // Test that a syntax error caused by an unexpected EOF
 // gives an error message with the correct line number.
 //
-// https://code.google.com/p/go/issues/detail?id=3392
+// https://golang.org/issue/3392
 
 package main
 

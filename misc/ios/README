@@ -1,0 +1,44 @@
+Go on iOS
+=========
+
+To build a cross compiling toolchain for iOS on OS X, first modify clangwrap.sh
+in misc/ios to match your setup. And then run:
+
+	GOARM=7 CGO_ENABLED=1 GOARCH=arm CC_FOR_TARGET=`pwd`/../misc/ios/clangwrap.sh \
+	CXX_FOR_TARGET=`pwd`/../misc/ios/clangwrap.sh ./make.bash
+
+To build a program, use the normal go build command:
+
+	CGO_ENABLED=1 GOARCH=arm go build import/path
+
+To run a program on an iDevice, first make sure you have a valid developer
+certificate and have setup your iDevice properly to run apps signed by your
+developer certificate. Then install https://github.com/phonegap/ios-deploy.
+At a first step, you can try building the famous hello world program to run
+on your test device.
+(The needed files are provided at https://github.com/minux/go-ios-examples.)
+
+	# assume your program binary is helloworld.go, build it into the
+	# example hello.app bundle.
+	CGO_ENABLED=1 GOARCH=arm go build -o hello.app/hello helloworld.go
+	# sign the executable using your developer certificate
+	codesign -f -s "iPhone Developer" --entitlements hello.app/Entitlements.plist hello.app/hello
+	# run the program inside lldb on iDevice, run `ios-deploy` for more
+	# command options
+	ios-deploy --debug --uninstall --bundle hello.app
+	# Depending on your ios-deploy version, you might need to enter "run"
+	# into lldb to run your program, and its output will be shown by lldb.
+
+Notes:
+ - A dummy hello.app bundle is provided in this directory to help you get started.
+ - Running the program on an iDevice requires code sign and thus external linking,
+   if your program uses cgo, then it will automatically use external linking.
+   However, if your program does not use cgo, please make sure to add
+	import _ "runtime/cgo"
+   so that external linking will be used.
+
+Known issues
+============
+ - crypto/x509 won't build, I don't yet know how to get system root on iOS.
+ - Because I still want to be able to do native build, CGO_ENABLED=1 is not the
+   default, yet.

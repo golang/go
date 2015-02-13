@@ -99,7 +99,7 @@ func mallocinit() {
 	var reserved bool
 
 	// limit = runtime.memlimit();
-	// See https://code.google.com/p/go/issues/detail?id=5049
+	// See https://golang.org/issue/5049
 	// TODO(rsc): Fix after 1.1.
 	limit = 0
 

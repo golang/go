@@ -321,6 +321,8 @@ func (l *UnixListener) Close() error {
 }
 
 // Addr returns the listener's network address.
+// The Addr returned is shared by all invocations of Addr, so
+// do not modify it.
 func (l *UnixListener) Addr() Addr { return l.fd.laddr }
 
 // SetDeadline sets the deadline associated with the listener.

@@ -2,9 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include	"l.h"
+#include	<u.h>
+#include	<libc.h>
+#include	<bio.h>
+#include	<link.h>
 #include	"lib.h"
-#include	"../ld/pe.h"
+#include	"pe.h"
 
 #define IMAGE_SCN_MEM_DISCARDABLE 0x2000000
 
@@ -363,7 +366,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 		if(sect == nil) 
 			return;
 
-		if(s->outer != S) {
+		if(s->outer != nil) {
 			if(s->dupok)
 				continue;
 			diag("%s: duplicate symbol reference: %s in both %s and %s", pn, s->name, s->outer->name, sect->sym->name);
@@ -386,7 +389,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 	// This keeps textp in increasing address order.
 	for(i=0; i<obj->nsect; i++) {
 		s = obj->sect[i].sym;
-		if(s == S)
+		if(s == nil)
 			continue;
 		if(s->sub)
 			s->sub = listsort(s->sub, valuecmp, offsetof(LSym, sub));
@@ -399,7 +402,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 			else
 				ctxt->textp = s;
 			ctxt->etextp = s;
-			for(s = s->sub; s != S; s = s->sub) {
+			for(s = s->sub; s != nil; s = s->sub) {
 				if(s->onlist)
 					sysfatal("symbol %s listed multiple times", s->name);
 				s->onlist = 1;
@@ -458,7 +461,7 @@ readsym(PeObj *obj, int i, PeSym **y)
 		name = sym->name;
 		if(strncmp(name, "__imp_", 6) == 0)
 			name = &name[6]; // __imp_Name => Name
-		if(thechar == '8' && name[0] == '_')
+		if(thearch.thechar == '8' && name[0] == '_')
 			name = &name[1]; // _Name => Name
 	}
 	// remove last @XXX

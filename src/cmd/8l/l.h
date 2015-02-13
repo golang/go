@@ -32,7 +32,6 @@
 #include	<libc.h>
 #include	<bio.h>
 #include	<link.h>
-#include	"8.out.h"
 
 #ifndef	EXTERN
 #define	EXTERN	extern
@@ -45,30 +44,10 @@ enum
 	IntSize = 4,
 	RegSize = 4,
 	MaxAlign = 32,	// max data alignment
-	FuncAlign = 16
-};
-
-#define	P		((Prog*)0)
-#define	S		((LSym*)0)
-
-enum
-{
+	FuncAlign = 16,
 	MINLC		= 1,
 };
 
-#pragma	varargck	type	"I"	uchar*
-
-EXTERN	LSym*	datap;
-EXTERN	int	debug[128];
-EXTERN	char	literal[32];
-EXTERN	Prog*	firstp;
-EXTERN	int32	lcsize;
-EXTERN	char*	rpath;
-EXTERN	int32	spsize;
-EXTERN	LSym*	symlist;
-EXTERN	int32	symsize;
-
-int	Iconv(Fmt *fp);
 void	adddynlib(char *lib);
 void	adddynrel(LSym *s, Reloc *r);
 void	adddynrela(LSym *rela, LSym *s, Reloc *r);
@@ -80,14 +59,6 @@ int	elfreloc1(Reloc *r, vlong sectoff);
 void	elfsetupplt(void);
 void	listinit(void);
 int	machoreloc1(Reloc *r, vlong sectoff);
-int32	rnd(int32 v, int32 r);
-void	s8put(char *n);
-char*	xsymname(LSym *s);
-
-/* Native is little-endian */
-#define	LPUT(a)	lputl(a)
-#define	WPUT(a)	wputl(a)
-#define	VPUT(a)	vputl(a)
 
 /* Used by ../ld/dwarf.c */
 enum

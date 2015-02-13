@@ -13,6 +13,7 @@
 void
 typecheckrange(Node *n)
 {
+	int toomany;
 	char *why;
 	Type *t, *t1, *t2;
 	Node *v1, *v2;
@@ -41,6 +42,7 @@ typecheckrange(Node *n)
 		t = t->type;
 	n->type = t;
 
+	toomany = 0;
 	switch(t->etype) {
 	default:
 		yyerror("cannot range over %lN", n->right);
@@ -64,7 +66,7 @@ typecheckrange(Node *n)
 		t1 = t->type;
 		t2 = nil;
 		if(count(n->list) == 2)
-			goto toomany;
+			toomany = 1;
 		break;
 
 	case TSTRING:
@@ -73,10 +75,8 @@ typecheckrange(Node *n)
 		break;
 	}
 
-	if(count(n->list) > 2) {
-	toomany:
+	if(count(n->list) > 2 || toomany)
 		yyerror("too many variables in range");
-	}
 
 	v1 = N;
 	if(n->list)

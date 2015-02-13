@@ -105,6 +105,7 @@ typecheckclosure(Node *func, int top)
 	oldfn = curfn;
 	typecheck(&func->ntype, Etype);
 	func->type = func->ntype->type;
+	func->top = top;
 
 	// Type check the body now, but only if we're inside a function.
 	// At top level (in a variable initialization: curfn==nil) we're not
@@ -118,9 +119,6 @@ typecheckclosure(Node *func, int top)
 		decldepth = olddd;
 		curfn = oldfn;
 	}
-
-	// Remember closure context for capturevars.
-	func->etype = (top & (Ecall|Eproc)) == Ecall;
 
 	// Create top-level function 
 	xtop = list(xtop, makeclosure(func));
@@ -172,22 +170,17 @@ makeclosure(Node *func)
 // It decides whether each variable captured by a closure should be captured
 // by value or by reference.
 // We use value capturing for values <= 128 bytes that are never reassigned
-// after declaration.
+// after capturing (effectively constant).
 void
 capturevars(Node *xfunc)
 {
-	Node *func, *v, *addr, *cv, *outer;
-	NodeList *l, *body;
-	char *p;
-	vlong offset;
-	int nvar, lno;
+	Node *func, *v, *outer;
+	NodeList *l;
+	int lno;
 
 	lno = lineno;
 	lineno = xfunc->lineno;
 
-	nvar = 0;
-	body = nil;
-	offset = widthptr;
 	func = xfunc->closure;
 	func->enter = nil;
 	for(l=func->cvars; l; l=l->next) {
@@ -202,7 +195,6 @@ capturevars(Node *xfunc)
 			v->op = OXXX;
 			continue;
 		}
-		nvar++;
 
 		// type check the & of closed variables outside the closure,
 		// so that the outer frame also grabs them and knows they escape.
@@ -213,53 +205,150 @@ capturevars(Node *xfunc)
 		if(outer->class != PPARAMOUT && !v->closure->addrtaken && !v->closure->assigned && v->type->width <= 128)
 			v->byval = 1;
 		else {
+			v->closure->addrtaken = 1;
 			outer = nod(OADDR, outer, N);
-			// For a closure that is called in place, but not
-			// inside a go statement, avoid moving variables to the heap.
-			outer->etype = func->etype;
 		}
-		if(debug['m'] > 1)
+		if(debug['m'] > 1) {
+			Sym *name;
+			char *how;
+			name = nil;
+			if(v->curfn && v->curfn->nname)
+				name = v->curfn->nname->sym;
+			how = "ref";
+			if(v->byval)
+				how = "value";
 			warnl(v->lineno, "%S capturing by %s: %S (addr=%d assign=%d width=%d)",
-				(v->curfn && v->curfn->nname) ? v->curfn->nname->sym : S, v->byval ? "value" : "ref",
+				name, how,
 				v->sym, v->closure->addrtaken, v->closure->assigned, (int32)v->type->width);
+		}
 		typecheck(&outer, Erv);
 		func->enter = list(func->enter, outer);
-
-		// declare variables holding addresses taken from closure
-		// and initialize in entry prologue.
-		addr = nod(ONAME, N, N);
-		p = smprint("&%s", v->sym->name);
-		addr->sym = lookup(p);
-		free(p);
-		addr->ntype = nod(OIND, typenod(v->type), N);
-		addr->class = PAUTO;
-		addr->addable = 1;
-		addr->ullman = 1;
-		addr->used = 1;
-		addr->curfn = xfunc;
-		xfunc->dcl = list(xfunc->dcl, addr);
-		v->heapaddr = addr;
-		cv = nod(OCLOSUREVAR, N, N);
-		if(v->byval) {
-			cv->type = v->type;
-			offset = rnd(offset, v->type->align);
-			cv->xoffset = offset;
-			offset += v->type->width;
-			body = list(body, nod(OAS, addr, nod(OADDR, cv, N)));
-		} else {
-			v->closure->addrtaken = 1;
-			cv->type = ptrto(v->type);
-			offset = rnd(offset, widthptr);
-			cv->xoffset = offset;
-			offset += widthptr;
-			body = list(body, nod(OAS, addr, cv));
-		}
 	}
-	typechecklist(body, Etop);
-	walkstmtlist(body);
-	xfunc->enter = body;
-	xfunc->needctxt = nvar > 0;
-	func->etype = 0;
+
+	lineno = lno;
+}
+
+// transformclosure is called in a separate phase after escape analysis.
+// It transform closure bodies to properly reference captured variables.
+void
+transformclosure(Node *xfunc)
+{
+	Node *func, *cv, *addr, *v, *f;
+	NodeList *l, *body;
+	Type **param, *fld;
+	vlong offset;
+	int lno, nvar;
+
+	lno = lineno;
+	lineno = xfunc->lineno;
+	func = xfunc->closure;
+
+	if(func->top&Ecall) {
+		// If the closure is directly called, we transform it to a plain function call
+		// with variables passed as args. This avoids allocation of a closure object.
+		// Here we do only a part of the transformation. Walk of OCALLFUNC(OCLOSURE)
+		// will complete the transformation later.
+		// For illustration, the following closure:
+		//	func(a int) {
+		//		println(byval)
+		//		byref++
+		//	}(42)
+		// becomes:
+		//	func(a int, byval int, &byref *int) {
+		//		println(byval)
+		//		(*&byref)++
+		//	}(42, byval, &byref)
+
+		// f is ONAME of the actual function.
+		f = xfunc->nname;
+		// Get pointer to input arguments and rewind to the end.
+		// We are going to append captured variables to input args.
+		param = &getinargx(f->type)->type;
+		for(; *param; param = &(*param)->down) {
+		}
+		for(l=func->cvars; l; l=l->next) {
+			v = l->n;
+			if(v->op == OXXX)
+				continue;
+			fld = typ(TFIELD);
+			fld->funarg = 1;
+			if(v->byval) {
+				// If v is captured by value, we merely downgrade it to PPARAM.
+				v->class = PPARAM;
+				v->ullman = 1;
+				fld->nname = v;
+			} else {
+				// If v of type T is captured by reference,
+				// we introduce function param &v *T
+				// and v remains PPARAMREF with &v heapaddr
+				// (accesses will implicitly deref &v).
+				snprint(namebuf, sizeof namebuf, "&%s", v->sym->name);
+				addr = newname(lookup(namebuf));
+				addr->type = ptrto(v->type);
+				addr->class = PPARAM;
+				v->heapaddr = addr;
+				fld->nname = addr;
+			}
+			fld->type = fld->nname->type;
+			fld->sym = fld->nname->sym;
+			// Declare the new param and append it to input arguments.
+			xfunc->dcl = list(xfunc->dcl, fld->nname);
+			*param = fld;
+			param = &fld->down;
+		}
+		// Recalculate param offsets.
+		if(f->type->width > 0)
+			fatal("transformclosure: width is already calculated");
+		dowidth(f->type);
+		xfunc->type = f->type; // update type of ODCLFUNC
+	} else {
+		// The closure is not called, so it is going to stay as closure.
+		nvar = 0;
+		body = nil;
+		offset = widthptr;
+		for(l=func->cvars; l; l=l->next) {
+			v = l->n;
+			if(v->op == OXXX)
+				continue;
+			nvar++;
+			// cv refers to the field inside of closure OSTRUCTLIT.
+			cv = nod(OCLOSUREVAR, N, N);
+			cv->type = v->type;
+			if(!v->byval)
+				cv->type = ptrto(v->type);
+			offset = rnd(offset, cv->type->align);
+			cv->xoffset = offset;
+			offset += cv->type->width;
+
+			if(v->byval && v->type->width <= 2*widthptr && thearch.thechar == '6') {
+				//  If it is a small variable captured by value, downgrade it to PAUTO.
+				// This optimization is currently enabled only for amd64, see:
+				// https://github.com/golang/go/issues/9865
+				v->class = PAUTO;
+				v->ullman = 1;
+				xfunc->dcl = list(xfunc->dcl, v);
+				body = list(body, nod(OAS, v, cv));
+			} else {
+				// Declare variable holding addresses taken from closure
+				// and initialize in entry prologue.
+				snprint(namebuf, sizeof namebuf, "&%s", v->sym->name);
+				addr = newname(lookup(namebuf));
+				addr->ntype = nod(OIND, typenod(v->type), N);
+				addr->class = PAUTO;
+				addr->used = 1;
+				addr->curfn = xfunc;
+				xfunc->dcl = list(xfunc->dcl, addr);
+				v->heapaddr = addr;
+				if(v->byval)
+					cv = nod(OADDR, cv, N);
+				body = list(body, nod(OAS, addr, cv));
+			}
+		}
+		typechecklist(body, Etop);
+		walkstmtlist(body);
+		xfunc->enter = body;
+		xfunc->needctxt = nvar > 0;
+	}
 
 	lineno = lno;
 }

@@ -31,10 +31,11 @@
 #include <u.h>
 #include <libc.h>
 #include "gg.h"
-#include "opt.h"
+#include "../gc/popt.h"
 
 enum {
 	REGEXT = 0,
+	exregoffset = REG_DI,
 };
 
 static void	conprop(Flow *r);
@@ -45,6 +46,7 @@ static int	copy1(Adr*, Adr*, Flow*, int);
 static int	copyas(Adr*, Adr*);
 static int	copyau(Adr*, Adr*);
 static int	copysub(Adr*, Adr*, Adr*, int);
+static int	copyu(Prog*, Adr*, Adr*);
 
 static uint32	gactive;
 
@@ -92,7 +94,7 @@ peep(Prog *firstp)
 	Prog *p, *p1;
 	int t;
 
-	g = flowstart(firstp, sizeof(Flow));
+	g = flowstart(firstp, 0);
 	if(g == nil)
 		return;
 	gactive = 0;
@@ -535,7 +537,7 @@ copy1(Adr *v1, Adr *v2, Flow *r, int f)
  * 4 if set and used
  * 0 otherwise (not touched)
  */
-int
+static int
 copyu(Prog *p, Adr *v, Adr *s)
 {
 	ProgInfo info;
@@ -559,7 +561,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 	case ACALL:
 		if(REGEXT && v->type == TYPE_REG && v->reg <= REGEXT && v->reg > exregoffset)
 			return 2;
-		if(REGARG >= 0 && v->type == TYPE_REG && v->reg == (uchar)REGARG)
+		if(REGARG >= 0 && v->type == TYPE_REG && v->reg == REGARG)
 			return 2;
 		if(v->type == p->from.type && v->reg == p->from.reg)
 			return 2;
@@ -574,7 +576,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 		return 3;
 
 	case ATEXT:
-		if(REGARG >= 0 && v->type == TYPE_REG && v->reg == (uchar)REGARG)
+		if(REGARG >= 0 && v->type == TYPE_REG && v->reg == REGARG)
 			return 3;
 		return 0;
 	}

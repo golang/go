@@ -790,7 +790,7 @@ agenr(Node *n, Node *a, Node *res)
 void
 agen(Node *n, Node *res)
 {
-	Node *nl, *nr;
+	Node *nl;
 	Node n1, n2;
 
 	if(debug['g']) {
@@ -827,8 +827,6 @@ agen(Node *n, Node *res)
 	}
 
 	nl = n->left;
-	nr = n->right;
-	USED(nr);
 
 	switch(n->op) {
 	default:
@@ -1065,17 +1063,7 @@ bgen(Node *n, int true, int likely, Prog *to)
 
 	switch(n->op) {
 	default:
-	def:
-		regalloc(&n1, n->type, N);
-		cgen(n, &n1);
-		nodconst(&n2, n->type, 0);
-		gins(optoas(OCMP, n->type), &n1, &n2);
-		a = AJNE;
-		if(!true)
-			a = AJEQ;
-		patch(gbranch(a, n->type, likely), to);
-		regfree(&n1);
-		goto ret;
+		goto def;
 
 	case OLITERAL:
 		// need to ask if it is bool?
@@ -1095,27 +1083,20 @@ bgen(Node *n, int true, int likely, Prog *to)
 		goto ret;
 
 	case OANDAND:
-		if(!true)
-			goto caseor;
-
-	caseand:
-		p1 = gbranch(AJMP, T, 0);
-		p2 = gbranch(AJMP, T, 0);
-		patch(p1, pc);
-		bgen(n->left, !true, -likely, p2);
-		bgen(n->right, !true, -likely, p2);
-		p1 = gbranch(AJMP, T, 0);
-		patch(p1, to);
-		patch(p2, pc);
-		goto ret;
-
 	case OOROR:
-		if(!true)
-			goto caseand;
-
-	caseor:
-		bgen(n->left, true, likely, to);
-		bgen(n->right, true, likely, to);
+		if((n->op == OANDAND) == true) {
+			p1 = gbranch(AJMP, T, 0);
+			p2 = gbranch(AJMP, T, 0);
+			patch(p1, pc);
+			bgen(n->left, !true, -likely, p2);
+			bgen(n->right, !true, -likely, p2);
+			p1 = gbranch(AJMP, T, 0);
+			patch(p1, to);
+			patch(p2, pc);
+		} else {
+			bgen(n->left, true, likely, to);
+			bgen(n->right, true, likely, to);
+		}
 		goto ret;
 
 	case OEQ:
@@ -1273,6 +1254,18 @@ bgen(Node *n, int true, int likely, Prog *to)
 	}
 	goto ret;
 
+def:
+	regalloc(&n1, n->type, N);
+	cgen(n, &n1);
+	nodconst(&n2, n->type, 0);
+	gins(optoas(OCMP, n->type), &n1, &n2);
+	a = AJNE;
+	if(!true)
+		a = AJEQ;
+	patch(gbranch(a, n->type, likely), to);
+	regfree(&n1);
+	goto ret;
+
 ret:
 	;
 }
@@ -1390,22 +1383,25 @@ sgen(Node *n, Node *ns, int64 w)
 		return;
 	}
 
+	nodreg(&noddi, types[tptr], REG_DI);
+	nodreg(&nodsi, types[tptr], REG_SI);
+
 	if(n->ullman >= ns->ullman) {
-		agenr(n, &nodr, N);
+		agenr(n, &nodr, &nodsi);
 		if(ns->op == ONAME)
 			gvardef(ns);
-		agenr(ns, &nodl, N);
+		agenr(ns, &nodl, &noddi);
 	} else {
 		if(ns->op == ONAME)
 			gvardef(ns);
-		agenr(ns, &nodl, N);
-		agenr(n, &nodr, N);
+		agenr(ns, &nodl, &noddi);
+		agenr(n, &nodr, &nodsi);
 	}
 	
-	nodreg(&noddi, types[tptr], REG_DI);
-	nodreg(&nodsi, types[tptr], REG_SI);
-	gmove(&nodl, &noddi);
-	gmove(&nodr, &nodsi);
+	if(nodl.val.u.reg != REG_DI)
+		gmove(&nodl, &noddi);
+	if(nodr.val.u.reg != REG_SI)
+		gmove(&nodr, &nodsi);
 	regfree(&nodl);
 	regfree(&nodr);
 
@@ -1454,6 +1450,18 @@ sgen(Node *n, Node *ns, int64 w)
 			p->to.sym = linksym(pkglookup("duffcopy", runtimepkg));
 			// 14 and 128 = magic constants: see ../../runtime/asm_amd64.s
 			p->to.offset = 14*(128-q);
+		} else if(!nacl && c == 0) {
+			// We don't need the MOVSQ side-effect of updating SI and DI,
+			// and issuing a sequence of MOVQs directly is faster.
+			nodsi.op = OINDREG;
+			noddi.op = OINDREG;
+			while(q > 0) {
+				gmove(&nodsi, &cx); // MOVQ x+(SI),CX
+				gmove(&cx, &noddi); // MOVQ CX,x+(DI)
+				nodsi.xoffset += 8;
+				noddi.xoffset += 8;
+				q--;
+			}
 		} else
 		while(q > 0) {
 			gins(AMOVSQ, N, N);	// MOVQ *(SI)+,*(DI)+
@@ -1468,24 +1476,29 @@ sgen(Node *n, Node *ns, int64 w)
 		} else if(w < 8 || c <= 4) {
 			nodsi.op = OINDREG;
 			noddi.op = OINDREG;
+			cx.type = types[TINT32];
 			nodsi.type = types[TINT32];
 			noddi.type = types[TINT32];
 			if(c > 4) {
 				nodsi.xoffset = 0;
 				noddi.xoffset = 0;
-				gmove(&nodsi, &noddi);
+				gmove(&nodsi, &cx);
+				gmove(&cx, &noddi);
 			}
 			nodsi.xoffset = c-4;
 			noddi.xoffset = c-4;
-			gmove(&nodsi, &noddi);
+			gmove(&nodsi, &cx);
+			gmove(&cx, &noddi);
 		} else {
 			nodsi.op = OINDREG;
 			noddi.op = OINDREG;
+			cx.type = types[TINT64];
 			nodsi.type = types[TINT64];
 			noddi.type = types[TINT64];
 			nodsi.xoffset = c-8;
 			noddi.xoffset = c-8;
-			gmove(&nodsi, &noddi);
+			gmove(&nodsi, &cx);
+			gmove(&cx, &noddi);
 		}
 	}
 
@@ -1519,7 +1532,7 @@ cadable(Node *n)
 int
 componentgen(Node *nr, Node *nl)
 {
-	Node nodl, nodr;
+	Node nodl, nodr, tmp;
 	Type *t;
 	int freel, freer;
 	vlong fldcount;
@@ -1567,7 +1580,7 @@ componentgen(Node *nr, Node *nl)
 
 	nodl = *nl;
 	if(!cadable(nl)) {
-		if(nr == N || !cadable(nr))
+		if(nr != N && !cadable(nr))
 			goto no;
 		igen(nl, &nodl, N);
 		freel = 1;
@@ -1579,6 +1592,12 @@ componentgen(Node *nr, Node *nl)
 			igen(nr, &nodr, N);
 			freer = 1;
 		}
+	} else {
+		// When zeroing, prepare a register containing zero.
+		nodconst(&tmp, nl->type, 0);
+		regalloc(&nodr, types[TUINT], N);
+		gmove(&tmp, &nodr);
+		freer = 1;
 	}
 	
 	// nl and nr are 'cadable' which basically means they are names (variables) now.
@@ -1615,8 +1634,7 @@ componentgen(Node *nr, Node *nl)
 		if(nr != N) {
 			nodr.xoffset += Array_array;
 			nodr.type = nodl.type;
-		} else
-			nodconst(&nodr, nodl.type, 0);
+		}
 		gmove(&nodr, &nodl);
 
 		nodl.xoffset += Array_nel-Array_array;
@@ -1625,8 +1643,7 @@ componentgen(Node *nr, Node *nl)
 		if(nr != N) {
 			nodr.xoffset += Array_nel-Array_array;
 			nodr.type = nodl.type;
-		} else
-			nodconst(&nodr, nodl.type, 0);
+		}
 		gmove(&nodr, &nodl);
 
 		nodl.xoffset += Array_cap-Array_nel;
@@ -1635,8 +1652,7 @@ componentgen(Node *nr, Node *nl)
 		if(nr != N) {
 			nodr.xoffset += Array_cap-Array_nel;
 			nodr.type = nodl.type;
-		} else
-			nodconst(&nodr, nodl.type, 0);
+		}
 		gmove(&nodr, &nodl);
 
 		goto yes;
@@ -1650,8 +1666,7 @@ componentgen(Node *nr, Node *nl)
 		if(nr != N) {
 			nodr.xoffset += Array_array;
 			nodr.type = nodl.type;
-		} else
-			nodconst(&nodr, nodl.type, 0);
+		}
 		gmove(&nodr, &nodl);
 
 		nodl.xoffset += Array_nel-Array_array;
@@ -1660,8 +1675,7 @@ componentgen(Node *nr, Node *nl)
 		if(nr != N) {
 			nodr.xoffset += Array_nel-Array_array;
 			nodr.type = nodl.type;
-		} else
-			nodconst(&nodr, nodl.type, 0);
+		}
 		gmove(&nodr, &nodl);
 
 		goto yes;
@@ -1675,8 +1689,7 @@ componentgen(Node *nr, Node *nl)
 		if(nr != N) {
 			nodr.xoffset += Array_array;
 			nodr.type = nodl.type;
-		} else
-			nodconst(&nodr, nodl.type, 0);
+		}
 		gmove(&nodr, &nodl);
 
 		nodl.xoffset += Array_nel-Array_array;
@@ -1685,8 +1698,7 @@ componentgen(Node *nr, Node *nl)
 		if(nr != N) {
 			nodr.xoffset += Array_nel-Array_array;
 			nodr.type = nodl.type;
-		} else
-			nodconst(&nodr, nodl.type, 0);
+		}
 		gmove(&nodr, &nodl);
 
 		goto yes;

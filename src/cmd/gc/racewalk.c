@@ -24,7 +24,6 @@ static void racewalknode(Node **np, NodeList **init, int wr, int skip);
 static int callinstr(Node **n, NodeList **init, int wr, int skip);
 static Node* uintptraddr(Node *n);
 static void makeaddable(Node *n);
-static Node* basenod(Node *n);
 static void foreach(Node *n, void(*f)(Node*, void*), void *c);
 static void hascallspred(Node *n, void *c);
 static void appendinit(Node **np, NodeList *init);
@@ -155,12 +154,8 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	default:
 		fatal("racewalk: unknown node type %O", n->op);
 
-	case OASOP:
 	case OAS:
-	case OAS2:
-	case OAS2RECV:
 	case OAS2FUNC:
-	case OAS2MAPR:
 		racewalknode(&n->left, init, 1, 0);
 		racewalknode(&n->right, init, 0, 0);
 		goto ret;
@@ -210,6 +205,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	case OCALLFUNC:
 		// Instrument dst argument of runtime.writebarrier* calls
 		// as we do not instrument runtime code.
+		// typedslicecopy is instrumented in runtime.
 		if(n->left->sym != S && n->left->sym->pkg == runtimepkg && 
 		(strncmp(n->left->sym->name, "writebarrier", 12) == 0 || strcmp(n->left->sym->name, "typedmemmove") == 0)) {
 			// Find the dst argument.
@@ -350,7 +346,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 		goto ret;
 
 	case OEFACE:
-		racewalknode(&n->left, init, 0, 0);
+		// n->left is Type* which is not interesting.
 		racewalknode(&n->right, init, 0, 0);
 		goto ret;
 
@@ -393,6 +389,10 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	case OARRAYLIT: // lowered to assignments
 	case OMAPLIT:
 	case OSTRUCTLIT:
+	case OAS2:
+	case OAS2RECV:
+	case OAS2MAPR:
+	case OASOP:
 		yyerror("racewalk: %O must be lowered by now", n->op);
 		goto ret;
 
@@ -489,7 +489,7 @@ callinstr(Node **np, NodeList **init, int wr, int skip)
 	if(isartificial(n))
 		return 0;
 
-	b = basenod(n);
+	b = outervalue(n);
 	// it skips e.g. stores to ... parameter array
 	if(isartificial(b))
 		return 0;
@@ -499,7 +499,7 @@ callinstr(Node **np, NodeList **init, int wr, int skip)
 	// that has got a pointer inside. Whether it points to
 	// the heap or not is impossible to know at compile time
 	if((class&PHEAP) || class == PPARAMREF || class == PEXTERN
-		|| b->op == OINDEX || b->op == ODOTPTR || b->op == OIND || b->op == OXDOT) {
+		|| b->op == OINDEX || b->op == ODOTPTR || b->op == OIND) {
 		hascalls = 0;
 		foreach(n, hascallspred, &hascalls);
 		if(hascalls) {
@@ -566,25 +566,6 @@ uintptraddr(Node *n)
 	r = conv(r, types[TUNSAFEPTR]);
 	r = conv(r, types[TUINTPTR]);
 	return r;
-}
-
-// basenod returns the simplest child node of n pointing to the same
-// memory area.
-static Node*
-basenod(Node *n)
-{
-	for(;;) {
-		if(n->op == ODOT || n->op == OXDOT || n->op == OCONVNOP || n->op == OCONV || n->op == OPAREN) {
-			n = n->left;
-			continue;
-		}
-		if(n->op == OINDEX && isfixedarray(n->type)) {
-			n = n->left;
-			continue;
-		}
-		break;
-	}
-	return n;
 }
 
 static Node*

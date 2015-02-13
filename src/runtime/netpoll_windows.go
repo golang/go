@@ -10,16 +10,6 @@ import (
 
 const _DWORD_MAX = 0xffffffff
 
-//go:cgo_import_dynamic runtime._CreateIoCompletionPort CreateIoCompletionPort "kernel32.dll"
-//go:cgo_import_dynamic runtime._GetQueuedCompletionStatus GetQueuedCompletionStatus "kernel32.dll"
-//go:cgo_import_dynamic runtime._WSAGetOverlappedResult WSAGetOverlappedResult "ws2_32.dll"
-
-var (
-	_CreateIoCompletionPort,
-	_GetQueuedCompletionStatus,
-	_WSAGetOverlappedResult stdFunction
-)
-
 const _INVALID_HANDLE_VALUE = ^uintptr(0)
 
 // net_op must be the same as beginning of net.operation. Keep these in sync.

@@ -414,7 +414,7 @@ func main() {
 
 	if gohostarch == "" {
 		// Default Unix system.
-		out := run("", CheckExit, "uname", "-m")
+		out := run("", CheckExit, "uname", "-m", "-v")
 		switch {
 		case strings.Contains(out, "x86_64"), strings.Contains(out, "amd64"):
 			gohostarch = "amd64"
@@ -426,6 +426,10 @@ func main() {
 			gohostarch = "ppc64le"
 		case strings.Contains(out, "ppc64"):
 			gohostarch = "ppc64"
+		case gohostos == "darwin":
+			if strings.Contains(out, "RELEASE_ARM_") {
+				gohostarch = "arm"
+			}
 		default:
 			fatal("unknown architecture: %s", out)
 		}
@@ -491,6 +495,12 @@ func xgetgoarm() string {
 		// NaCl guarantees VFPv3 and is always cross-compiled.
 		return "7"
 	}
+	if goos == "darwin" {
+		// Assume all darwin/arm devices are have VFPv3. This
+		// port is also mostly cross-compiled, so it makes little
+		// sense to auto-detect the setting.
+		return "7"
+	}
 	if gohostarch != "arm" || goos != gohostos {
 		// Conservative default for cross-compilation.
 		return "5"
@@ -499,24 +509,38 @@ func xgetgoarm() string {
 		// FreeBSD has broken VFP support.
 		return "5"
 	}
-	if xtryexecfunc(useVFPv3) {
+	if goos != "linux" {
+		// All other arm platforms that we support
+		// require ARMv7.
 		return "7"
 	}
-	if xtryexecfunc(useVFPv1) {
-		return "6"
+	cpuinfo := readfile("/proc/cpuinfo")
+	goarm := "5"
+	for _, line := range splitlines(cpuinfo) {
+		line := strings.SplitN(line, ":", 2)
+		if len(line) < 2 {
+			continue
+		}
+		if strings.TrimSpace(line[0]) != "Features" {
+			continue
+		}
+		features := splitfields(line[1])
+		sort.Strings(features) // so vfpv3 sorts after vfp
+
+		// Infer GOARM value from the vfp features available
+		// on this host. Values of GOARM detected are:
+		// 5: no vfp support was found
+		// 6: vfp (v1) support was detected, but no higher
+		// 7: vfpv3 support was detected.
+		// This matches the assertions in runtime.checkarm.
+		for _, f := range features {
+			switch f {
+			case "vfp":
+				goarm = "6"
+			case "vfpv3":
+				goarm = "7"
+			}
+		}
 	}
-	return "5"
+	return goarm
 }
-
-func xtryexecfunc(f func()) bool {
-	// TODO(rsc): Implement.
-	// The C cmd/dist used this to test whether certain assembly
-	// sequences could be executed properly. It used signals and
-	// timers and sigsetjmp, which is basically not possible in Go.
-	// We probably have to invoke ourselves as a subprocess instead,
-	// to contain the fault/timeout.
-	return false
-}
-
-func useVFPv1()
-func useVFPv3()

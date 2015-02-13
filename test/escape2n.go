@@ -212,7 +212,7 @@ func foo21() func() int {
 func foo21a() func() int {
 	x := 42             // ERROR "moved to heap: x"
 	return func() int { // ERROR "func literal escapes to heap"
-		x++  // ERROR "&x escapes to heap"
+		x++ // ERROR "&x escapes to heap"
 		return x
 	}
 }
@@ -1560,14 +1560,14 @@ func ptrlitNoescape() {
 
 func ptrlitNoEscape2() {
 	// Literal does not escape, but element does.
-	i := 0 // ERROR "moved to heap: i"
+	i := 0        // ERROR "moved to heap: i"
 	x := &Lit{&i} // ERROR "&Lit literal does not escape" "&i escapes to heap"
 	sink = *x
 }
 
 func ptrlitEscape() {
 	// Both literal and element escape.
-	i := 0 // ERROR "moved to heap: i"
+	i := 0        // ERROR "moved to heap: i"
 	x := &Lit{&i} // ERROR "&Lit literal escapes to heap" "&i escapes to heap"
 	sink = x
 }
@@ -1619,7 +1619,7 @@ type StructWithString struct {
 // to just x, and thus &i looks escaping.
 func fieldFlowTracking() {
 	var x StructWithString
-	i := 0 // ERROR "moved to heap: i"
+	i := 0   // ERROR "moved to heap: i"
 	x.p = &i // ERROR "&i escapes to heap"
 	sink = x.s
 }
@@ -1702,4 +1702,69 @@ func intstring2() {
 	x := '0'
 	s := string(x) // ERROR "string\(x\) escapes to heap" "moved to heap: s"
 	sink = &s      // ERROR "&s escapes to heap"
+}
+
+func stringtoslicebyte0() {
+	s := "foo"
+	x := []byte(s) // ERROR "\(\[\]byte\)\(s\) does not escape"
+	_ = x
+}
+
+func stringtoslicebyte1() []byte {
+	s := "foo"
+	return []byte(s) // ERROR "\(\[\]byte\)\(s\) escapes to heap"
+}
+
+func stringtoslicebyte2() {
+	s := "foo"
+	sink = []byte(s) // ERROR "\(\[\]byte\)\(s\) escapes to heap"
+}
+
+func stringtoslicerune0() {
+	s := "foo"
+	x := []rune(s) // ERROR "\(\[\]rune\)\(s\) does not escape"
+	_ = x
+}
+
+func stringtoslicerune1() []rune {
+	s := "foo"
+	return []rune(s) // ERROR "\(\[\]rune\)\(s\) escapes to heap"
+}
+
+func stringtoslicerune2() {
+	s := "foo"
+	sink = []rune(s) // ERROR "\(\[\]rune\)\(s\) escapes to heap"
+}
+
+func slicerunetostring0() {
+	r := []rune{1, 2, 3} // ERROR "\[\]rune literal does not escape"
+	s := string(r)       // ERROR "string\(r\) does not escape"
+	_ = s
+}
+
+func slicerunetostring1() string {
+	r := []rune{1, 2, 3} // ERROR "\[\]rune literal does not escape"
+	return string(r)     // ERROR "string\(r\) escapes to heap"
+}
+
+func slicerunetostring2() {
+	r := []rune{1, 2, 3} // ERROR "\[\]rune literal does not escape"
+	sink = string(r)     // ERROR "string\(r\) escapes to heap"
+}
+
+func makemap0() {
+	m := make(map[int]int) // ERROR "make\(map\[int\]int\, 0\) does not escape"
+	m[0] = 0
+	m[1]++
+	delete(m, 1)
+	sink = m[0]
+}
+
+func makemap1() map[int]int {
+	return make(map[int]int) // ERROR "make\(map\[int\]int\, 0\) escapes to heap"
+}
+
+func makemap2() {
+	m := make(map[int]int) // ERROR "make\(map\[int\]int\, 0\) escapes to heap"
+	sink = m
 }

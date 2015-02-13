@@ -24,6 +24,8 @@
 // unnecessary rechecks of sig.mask, but it cannot lead to missed signals
 // nor deadlocks.
 
+// +build !plan9
+
 package runtime
 
 import "unsafe"

@@ -37,31 +37,4 @@ void
 listinit(void)
 {
 	listinit8();
-	fmtinstall('I', Iconv);
-}
-
-int
-Iconv(Fmt *fp)
-{
-	int i, n;
-	uchar *p;
-	char *s;
-	Fmt fmt;
-	
-	n = fp->prec;
-	fp->prec = 0;
-	if(!(fp->flags&FmtPrec) || n < 0)
-		return fmtstrcpy(fp, "%I");
-	fp->flags &= ~FmtPrec;
-	p = va_arg(fp->args, uchar*);
-
-	// format into temporary buffer and
-	// call fmtstrcpy to handle padding.
-	fmtstrinit(&fmt);
-	for(i=0; i<n; i++)
-		fmtprint(&fmt, "%.2ux", *p++);
-	s = fmtstrflush(&fmt);
-	fmtstrcpy(fp, s);
-	free(s);
-	return 0;
 }

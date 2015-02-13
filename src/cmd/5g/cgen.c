@@ -1148,27 +1148,20 @@ bgen(Node *n, int true, int likely, Prog *to)
 		goto ret;
 
 	case OANDAND:
-		if(!true)
-			goto caseor;
-
-	caseand:
-		p1 = gbranch(AB, T, 0);
-		p2 = gbranch(AB, T, 0);
-		patch(p1, pc);
-		bgen(n->left, !true, -likely, p2);
-		bgen(n->right, !true, -likely, p2);
-		p1 = gbranch(AB, T, 0);
-		patch(p1, to);
-		patch(p2, pc);
-		goto ret;
-
 	case OOROR:
-		if(!true)
-			goto caseand;
-
-	caseor:
-		bgen(n->left, true, likely, to);
-		bgen(n->right, true, likely, to);
+		if((n->op == OANDAND) == true) {
+			p1 = gbranch(AJMP, T, 0);
+			p2 = gbranch(AJMP, T, 0);
+			patch(p1, pc);
+			bgen(n->left, !true, -likely, p2);
+			bgen(n->right, !true, -likely, p2);
+			p1 = gbranch(AJMP, T, 0);
+			patch(p1, to);
+			patch(p2, pc);
+		} else {
+			bgen(n->left, true, likely, to);
+			bgen(n->right, true, likely, to);
+		}
 		goto ret;
 
 	case OEQ:
@@ -1626,6 +1619,8 @@ cadable(Node *n)
 /*
  * copy a composite value by moving its individual components.
  * Slices, strings and interfaces are supported.
+ * Small structs or arrays with elements of basic type are
+ * also supported.
  * nr is N when assigning a zero value.
  * return 1 if can do, 0 if cant.
  */
@@ -1680,7 +1675,7 @@ componentgen(Node *nr, Node *nl)
 
 	nodl = *nl;
 	if(!cadable(nl)) {
-		if(nr == N || !cadable(nr))
+		if(nr != N && !cadable(nr))
 			goto no;
 		igen(nl, &nodl, N);
 		freel = 1;
@@ -1700,7 +1695,6 @@ componentgen(Node *nr, Node *nl)
 		freer = 1;
 	}
 
-	
 	// nl and nr are 'cadable' which basically means they are names (variables) now.
 	// If they are the same variable, don't generate any code, because the
 	// VARDEF we generate will mark the old value as dead incorrectly.

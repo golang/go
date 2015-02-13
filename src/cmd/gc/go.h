@@ -331,6 +331,7 @@ struct	Node
 	// ONAME closure param with PPARAMREF
 	Node*	outer;	// outer PPARAMREF in nested closure
 	Node*	closure;	// ONAME/PHEAP <-> ONAME/PPARAMREF
+	int	top;	// top context (Ecall, Eproc, etc)
 
 	// ONAME substitute while inlining
 	Node* inlvar;
@@ -598,7 +599,7 @@ enum
 	OCHECKNIL, // emit code to ensure pointer/interface not nil
 	OVARKILL, // variable is dead
 
-	// arch-specific registers
+	// thearch-specific registers
 	OREGISTER,	// a register, such as AX.
 	OINDREG,	// offset plus indirect of a register, such as 8(SP).
 
@@ -742,6 +743,7 @@ struct	Var
 	Node*	node;
 	Var*	nextinnode;
 	int	width;
+	int	id;
 	char	name;
 	char	etype;
 	char	addr;
@@ -1075,6 +1077,7 @@ Node*	closurebody(NodeList *body);
 void	closurehdr(Node *ntype);
 void	typecheckclosure(Node *func, int top);
 void	capturevars(Node *func);
+void	transformclosure(Node *func);
 Node*	walkclosure(Node *func, NodeList **init);
 void	typecheckpartialcall(Node*, Node*);
 Node*	walkpartialcall(Node*, NodeList**);
@@ -1128,7 +1131,7 @@ void	dumpdcl(char *st);
 Node*	embedded(Sym *s, Pkg *pkg);
 Node*	fakethis(void);
 void	funcbody(Node *n);
-void	funccompile(Node *n, int isclosure);
+void	funccompile(Node *n);
 void	funchdr(Node *n);
 Type*	functype(Node *this, NodeList *in, NodeList *out);
 void	ifacedcl(Node *n);
@@ -1321,7 +1324,9 @@ Sym*	typenamesym(Type *t);
 Sym*	tracksym(Type *t);
 Sym*	typesymprefix(char *prefix, Type *t);
 int	haspointers(Type *t);
+Type*	hmap(Type *t);
 Type*	hiter(Type* t);
+Type*	mapbucket(Type *t);
 
 /*
  *	select.c
@@ -1444,6 +1449,7 @@ void	warn(char *fmt, ...);
 void	warnl(int line, char *fmt, ...);
 void	yyerror(char *fmt, ...);
 void	yyerrorl(int line, char *fmt, ...);
+void	adderrorname(Node*);
 
 /*
  *	swt.c
@@ -1492,7 +1498,7 @@ Node*	outervalue(Node*);
 void	usefield(Node*);
 
 /*
- *	arch-specific ggen.c/gsubr.c/gobj.c/pgen.c/plive.c
+ *	thearch-specific ggen.c/gsubr.c/gobj.c/pgen.c/plive.c
  */
 #define	P	((Prog*)0)
 
@@ -1514,7 +1520,6 @@ void	gvarkill(Node*);
 void	movelarge(NodeList*);
 void	liveness(Node*, Prog*, Sym*, Sym*);
 void	twobitwalktype1(Type*, vlong*, Bvec*);
-void	nopout(Prog*);
 
 #pragma	varargck	type	"B"	Mpint*
 #pragma	varargck	type	"E"	int
@@ -1558,9 +1563,12 @@ struct Flow {
 	
 	int32	active;	// usable by client
 
+	int32	id;		// sequence number in flow graph
 	int32	rpo;		// reverse post ordering
 	uint16	loop;		// x5 for every loop
 	uchar	refset;		// diagnostic generated
+	
+	void*	data;	// for use by client
 };
 
 struct Graph
@@ -1659,61 +1667,83 @@ struct Arch
 	LinkArch *thelinkarch;
 	Typedef *typedefs;
 
+	int	REGSP;
+	int	REGCTXT;
 	vlong MAXWIDTH;
 
-	void (*afunclit)(Addr*, Node*);
 	int (*anyregalloc)(void);
 	void (*betypeinit)(void);
 	void (*bgen)(Node*, int, int, Prog*);
 	void (*cgen)(Node*, Node*);
-	void (*cgen_asop)(Node*);
 	void (*cgen_call)(Node*, int);
 	void (*cgen_callinter)(Node*, Node*, int);
 	void (*cgen_ret)(Node*);
 	void (*clearfat)(Node*);
-	void (*clearp)(Prog*);
 	void (*defframe)(Prog*);
-	int (*dgostringptr)(Sym*, int, char*);
-	int (*dgostrlitptr)(Sym*, int, Strlit*);
-	int (*dsname)(Sym*, int, char*, int);
-	int (*dsymptr)(Sym*, int, Sym*, int);
-	void (*dumpdata)(void);
-	void (*dumpit)(char*, Flow*, int);
 	void (*excise)(Flow*);
 	void (*expandchecks)(Prog*);
-	void (*fixautoused)(Prog*);
 	void (*gclean)(void);
-	void	(*gdata)(Node*, Node*, int);
-	void	(*gdatacomplex)(Node*, Mpcplx*);
-	void	(*gdatastring)(Node*, Strlit*);
-	void	(*ggloblnod)(Node*);
-	void	(*ggloblsym)(Sym*, int32, int8);
 	void (*ginit)(void);
 	Prog*	(*gins)(int, Node*, Node*);
 	void	(*ginscall)(Node*, int);
-	Prog*	(*gjmp)(Prog*);
-	void (*gtrack)(Sym*);
-	void	(*gused)(Node*);
 	void	(*igen)(Node*, Node*, Node*);
-	int (*isfat)(Type*);
 	void (*linkarchinit)(void);
-	void (*markautoused)(Prog*);
-	void (*naddr)(Node*, Addr*, int);
-	Plist* (*newplist)(void);
-	Node* (*nodarg)(Type*, int);
-	void (*patch)(Prog*, Prog*);
+	void (*peep)(Prog*);
 	void (*proginfo)(ProgInfo*, Prog*);
 	void (*regalloc)(Node*, Type*, Node*);
 	void (*regfree)(Node*);
-	void (*regopt)(Prog*);
 	int (*regtyp)(Addr*);
 	int (*sameaddr)(Addr*, Addr*);
 	int (*smallindir)(Addr*, Addr*);
 	int (*stackaddr)(Addr*);
-	Prog* (*unpatch)(Prog*);
+	uint64 (*excludedregs)(void);
+	uint64 (*RtoB)(int);
+	uint64 (*FtoB)(int);
+	int (*BtoR)(uint64);
+	int (*BtoF)(uint64);
+	int (*optoas)(int, Type*);
+	uint64 (*doregbits)(int);
+	char **(*regnames)(int*);
 };
 
-EXTERN Arch arch;
+void afunclit(Addr*, Node*);
+void clearp(Prog*);
+int dgostringptr(Sym*, int, char*);
+int dgostrlitptr(Sym*, int, Strlit*);
+int dsname(Sym*, int, char*, int);
+int dsymptr(Sym*, int, Sym*, int);
+void dumpdata(void);
+void fixautoused(Prog*);
+void	gdata(Node*, Node*, int);
+void	gdatacomplex(Node*, Mpcplx*);
+void	gdatastring(Node*, Strlit*);
+void	ggloblnod(Node*);
+void	ggloblsym(Sym*, int32, int8);
+Prog*	gjmp(Prog*);
+void gtrack(Sym*);
+void	gused(Node*);
+int isfat(Type*);
+void markautoused(Prog*);
+void naddr(Node*, Addr*, int);
+Plist* newplist(void);
+Node* nodarg(Type*, int);
+void patch(Prog*, Prog*);
+Prog* unpatch(Prog*);
+void datagostring(Strlit *sval, Addr *a);
+int ismem(Node*);
+int samereg(Node*, Node*);
+void	regopt(Prog*);
+int	Tconv(Fmt*);
+int	Oconv(Fmt*);
+Prog*	gbranch(int as, Type *t, int likely);
+void	nodindreg(Node *n, Type *t, int r);
+void	nodreg(Node *n, Type *t, int r);
+Prog*	prog(int as);
+void	datastring(char*, int, Addr*);
+
+EXTERN int32	pcloc;
+
+EXTERN Arch thearch;
 
 EXTERN Node *newproc;
 EXTERN Node *deferproc;

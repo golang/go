@@ -628,6 +628,26 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OCALLFUNC:
+		if(n->left->op == OCLOSURE) {
+			// Transform direct call of a closure to call of a normal function.
+			// transformclosure already did all preparation work.
+
+			// Append captured variables to argument list.
+			n->list = concat(n->list, n->left->enter);
+			n->left->enter = NULL;
+			// Replace OCLOSURE with ONAME/PFUNC.
+			n->left = n->left->closure->nname;
+			// Update type of OCALLFUNC node.
+			// Output arguments had not changed, but their offsets could.
+			if(n->left->type->outtuple == 1) {
+				t = getoutargx(n->left->type)->type;
+				if(t->etype == TFIELD)
+					t = t->type;
+				n->type = t;
+			} else
+				n->type = getoutargx(n->left->type);
+		}
+
 		t = n->left->type;
 		if(n->list && n->list->n->op == OAS)
 			goto ret;
@@ -927,7 +947,7 @@ walkexpr(Node **np, NodeList **init)
 				l->class = PEXTERN;
 				l->xoffset = 0;
 				sym->def = l;
-				arch.ggloblsym(sym, widthptr, DUPOK|NOPTR);
+				ggloblsym(sym, widthptr, DUPOK|NOPTR);
 			}
 			l = nod(OADDR, sym->def, N);
 			l->addable = 1;
@@ -995,7 +1015,7 @@ walkexpr(Node **np, NodeList **init)
 
 	case OCONV:
 	case OCONVNOP:
-		if(arch.thechar == '5') {
+		if(thearch.thechar == '5') {
 			if(isfloat[n->left->type->etype]) {
 				if(n->type->etype == TINT64) {
 					n = mkcall("float64toint64", n->type, init, conv(n->left, types[TFLOAT64]));
@@ -1273,6 +1293,7 @@ walkexpr(Node **np, NodeList **init)
 				conv(n->right, types[TSTRING]));
 
 			// quick check of len before full compare for == or !=
+			// eqstring assumes that the lengths are equal
 			if(n->etype == OEQ) {
 				// len(left) == len(right) && eqstring(left, right)
 				r = nod(OANDAND, nod(OEQ, nod(OLEN, n->left, N), nod(OLEN, n->right, N)), r);
@@ -1329,12 +1350,32 @@ walkexpr(Node **np, NodeList **init)
 		t = n->type;
 
 		fn = syslook("makemap", 1);
-		argtype(fn, t->down);	// any-1
-		argtype(fn, t->type);	// any-2
 
-		n = mkcall1(fn, n->type, init,
-			typename(n->type),
-			conv(n->left, types[TINT64]));
+		a = nodnil(); // hmap buffer
+		r = nodnil(); // bucket buffer
+		if(n->esc == EscNone) {
+			// Allocate hmap buffer on stack.
+			var = temp(hmap(t));
+			a = nod(OAS, var, N); // zero temp
+			typecheck(&a, Etop);
+			*init = list(*init, a);
+			a = nod(OADDR, var, N);
+
+			// Allocate one bucket on stack.
+			// Maximum key/value size is 128 bytes, larger objects
+			// are stored with an indirection. So max bucket size is 2048+eps.
+			var = temp(mapbucket(t));
+			r = nod(OAS, var, N); // zero temp
+			typecheck(&r, Etop);
+			*init = list(*init, r);
+			r = nod(OADDR, var, N);
+		}
+
+		argtype(fn, hmap(t));	// hmap buffer
+		argtype(fn, mapbucket(t));	// bucket buffer
+		argtype(fn, t->down);	// key type
+		argtype(fn, t->type);	// value type
+		n = mkcall1(fn, n->type, init, typename(n->type), conv(n->left, types[TINT64]), a, r);
 		goto ret;
 
 	case OMAKESLICE:
@@ -1397,13 +1438,25 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OARRAYRUNESTR:
-		// slicerunetostring([]rune) string;
-		n = mkcall("slicerunetostring", n->type, init, n->left);
+		// slicerunetostring(*[32]byte, []rune) string;
+		a = nodnil();
+		if(n->esc == EscNone) {
+			// Create temporary buffer for string on stack.
+			t = aindex(nodintconst(tmpstringbufsize), types[TUINT8]);
+			a = nod(OADDR, temp(t), N);
+		}
+		n = mkcall("slicerunetostring", n->type, init, a, n->left);
 		goto ret;
 
 	case OSTRARRAYBYTE:
-		// stringtoslicebyte(string) []byte;
-		n = mkcall("stringtoslicebyte", n->type, init, conv(n->left, types[TSTRING]));
+		// stringtoslicebyte(*32[byte], string) []byte;
+		a = nodnil();
+		if(n->esc == EscNone) {
+			// Create temporary buffer for slice on stack.
+			t = aindex(nodintconst(tmpstringbufsize), types[TUINT8]);
+			a = nod(OADDR, temp(t), N);
+		}
+		n = mkcall("stringtoslicebyte", n->type, init, a, conv(n->left, types[TSTRING]));
 		goto ret;
 
 	case OSTRARRAYBYTETMP:
@@ -1412,8 +1465,14 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OSTRARRAYRUNE:
-		// stringtoslicerune(string) []rune
-		n = mkcall("stringtoslicerune", n->type, init, n->left);
+		// stringtoslicerune(*[32]rune, string) []rune
+		a = nodnil();
+		if(n->esc == EscNone) {
+			// Create temporary buffer for slice on stack.
+			t = aindex(nodintconst(tmpstringbufsize), types[TINT32]);
+			a = nod(OADDR, temp(t), N);
+		}
+		n = mkcall("stringtoslicerune", n->type, init, a, n->left);
 		goto ret;
 
 	case OCMPIFACE:
@@ -1601,7 +1660,7 @@ ascompatet(int op, NodeList *nl, Type **nr, int fp, NodeList **init)
 			l = tmp;
 		}
 
-		a = nod(OAS, l, arch.nodarg(r, fp));
+		a = nod(OAS, l, nodarg(r, fp));
 		a = convas(a, init);
 		ullmancalc(a);
 		if(a->ullman >= UINF) {
@@ -1654,7 +1713,7 @@ mkdotargslice(NodeList *lr0, NodeList *nn, Type *l, int fp, NodeList **init, Nod
 		walkexpr(&n, init);
 	}
 
-	a = nod(OAS, arch.nodarg(l, fp), n);
+	a = nod(OAS, nodarg(l, fp), n);
 	nn = list(nn, convas(a, init));
 	return nn;
 }
@@ -1734,7 +1793,7 @@ ascompatte(int op, Node *call, int isddd, Type **nl, NodeList *lr, int fp, NodeL
 	if(r != N && lr->next == nil && r->type->etype == TSTRUCT && r->type->funarg) {
 		// optimization - can do block copy
 		if(eqtypenoname(r->type, *nl)) {
-			a = arch.nodarg(*nl, fp);
+			a = nodarg(*nl, fp);
 			r = nod(OCONVNOP, r, N);
 			r->type = a->type;
 			nn = list1(convas(nod(OAS, a, r), init));
@@ -1771,7 +1830,7 @@ loop:
 		// argument to a ddd parameter then it is
 		// passed thru unencapsulated
 		if(r != N && lr->next == nil && isddd && eqtype(l->type, r->type)) {
-			a = nod(OAS, arch.nodarg(l, fp), r);
+			a = nod(OAS, nodarg(l, fp), r);
 			a = convas(a, init);
 			nn = list(nn, a);
 			goto ret;
@@ -1796,7 +1855,7 @@ loop:
 		goto ret;
 	}
 
-	a = nod(OAS, arch.nodarg(l, fp), r);
+	a = nod(OAS, nodarg(l, fp), r);
 	a = convas(a, init);
 	nn = list(nn, a);
 
@@ -1944,8 +2003,7 @@ isstack(Node *n)
 {
 	Node *defn;
 
-	while(n->op == ODOT || n->op == OPAREN || n->op == OCONVNOP || n->op == OINDEX && isfixedarray(n->left->type))
-		n = n->left;
+	n = outervalue(n);
 
 	// If n is *autotmp and autotmp = &foo, replace n with foo.
 	// We introduce such temps when initializing struct literals.
@@ -1976,8 +2034,7 @@ isstack(Node *n)
 static int
 isglobal(Node *n)
 {
-	while(n->op == ODOT || n->op == OPAREN || n->op == OCONVNOP || n->op == OINDEX && isfixedarray(n->left->type))
-		n = n->left;
+	n = outervalue(n);
 
 	switch(n->op) {
 	case ONAME:
@@ -2336,7 +2393,9 @@ Node*
 outervalue(Node *n)
 {	
 	for(;;) {
-		if(n->op == ODOT || n->op == OPAREN) {
+		if(n->op == OXDOT)
+			fatal("OXDOT in walk");
+		if(n->op == ODOT || n->op == OPAREN || n->op == OCONVNOP) {
 			n = n->left;
 			continue;
 		}
@@ -2559,7 +2618,7 @@ paramstoheap(Type **argin, int out)
 			// Defer might stop a panic and show the
 			// return values as they exist at the time of panic.
 			// Make sure to zero them on entry to the function.
-			nn = list(nn, nod(OAS, arch.nodarg(t, 1), N));
+			nn = list(nn, nod(OAS, nodarg(t, 1), N));
 		}
 		if(v == N || !(v->class & PHEAP))
 			continue;
@@ -3300,10 +3359,51 @@ static void
 walkcompare(Node **np, NodeList **init)
 {
 	Node *n, *l, *r, *call, *a, *li, *ri, *expr, *cmpl, *cmpr;
+	Node *x, *ok;
 	int andor, i, needsize;
 	Type *t, *t1;
 	
 	n = *np;
+
+	// Given interface value l and concrete value r, rewrite
+	//   l == r
+	// to
+	//   x, ok := l.(type(r)); ok && x == r
+	// Handle != similarly.
+	// This avoids the allocation that would be required
+	// to convert r to l for comparison.
+	l = N;
+	r = N;
+	if(isinter(n->left->type) && !isinter(n->right->type)) {
+		l = n->left;
+		r = n->right;
+	} else if(!isinter(n->left->type) && isinter(n->right->type)) {
+		l = n->right;
+		r = n->left;
+	}
+	if(l != N) {
+		x = temp(r->type);
+		ok = temp(types[TBOOL]);
+
+		// l.(type(r))
+		a = nod(ODOTTYPE, l, N);
+		a->type = r->type;
+
+		// x, ok := l.(type(r))
+		expr = nod(OAS2, N, N);
+		expr->list = list1(x);
+		expr->list = list(expr->list, ok);
+		expr->rlist = list1(a);
+		typecheck(&expr, Etop);
+		walkexpr(&expr, init);
+
+		if(n->op == OEQ)
+			r = nod(OANDAND, ok, nod(OEQ, x, r));
+		else
+			r = nod(OOROR, nod(ONOT, ok, N), nod(ONE, x, r));
+		*init = list(*init, expr);
+		goto ret;
+	}
 	
 	// Must be comparison of array or struct.
 	// Otherwise back end handles it.
@@ -3447,7 +3547,7 @@ walkrotate(Node **np)
 	Node *l, *r;
 	Node *n;
 
-	if(arch.thechar == '9')
+	if(thearch.thechar == '9')
 		return;
 	
 	n = *np;
@@ -3575,7 +3675,7 @@ walkdiv(Node **np, NodeList **init)
 	Magic m;
 
 	// TODO(minux)
-	if(arch.thechar == '9')
+	if(thearch.thechar == '9')
 		return;
 
 	n = *np;

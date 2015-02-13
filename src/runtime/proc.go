@@ -32,7 +32,9 @@ func main() {
 		maxstacksize = 250000000
 	}
 
-	systemstack(newsysmon)
+	systemstack(func() {
+		newm(sysmon, nil)
+	})
 
 	// Lock the main goroutine onto this, the main OS thread,
 	// during initialization.  Most programs won't care, but a few
@@ -110,7 +112,6 @@ func init() {
 
 func forcegchelper() {
 	forcegc.g = getg()
-	forcegc.g.issystem = true
 	for {
 		lock(&forcegc.lock)
 		if forcegc.idle != 0 {

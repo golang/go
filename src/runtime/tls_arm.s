@@ -15,8 +15,14 @@
 // Note: both functions will clobber R0 and R11 and
 // can be called from 5c ABI code.
 
-// On android, runtime.tlsg is a normal variable.
+// On android and darwin, runtime.tlsg is a normal variable.
 // TLS offset is computed in x_cgo_inittls.
+#ifdef GOOS_android
+#define TLSG_IS_VARIABLE
+#endif
+#ifdef GOOS_darwin
+#define TLSG_IS_VARIABLE
+#endif
 
 // save_g saves the g register into pthread-provided
 // thread-local memory, so that we can call externally compiled
@@ -34,10 +40,11 @@ TEXT runtime·save_g(SB),NOSPLIT,$-4
 	// a call to runtime.read_tls_fallback which jumps to __kuser_get_tls.
 	// The replacement function saves LR in R11 over the call to read_tls_fallback.
 	MRC	15, 0, R0, C13, C0, 3 // fetch TLS base pointer
+	BIC $3, R0 // Darwin/ARM might return unaligned pointer
 	// $runtime.tlsg(SB) is a special linker symbol.
 	// It is the offset from the TLS base pointer to our
 	// thread-local storage for g.
-#ifdef GOOS_android
+#ifdef TLSG_IS_VARIABLE
 	MOVW	runtime·tlsg(SB), R11
 #else
 	MOVW	$runtime·tlsg(SB), R11
@@ -57,10 +64,11 @@ TEXT runtime·load_g(SB),NOSPLIT,$0
 #endif
 	// See save_g
 	MRC	15, 0, R0, C13, C0, 3 // fetch TLS base pointer
+	BIC $3, R0 // Darwin/ARM might return unaligned pointer
 	// $runtime.tlsg(SB) is a special linker symbol.
 	// It is the offset from the TLS base pointer to our
 	// thread-local storage for g.
-#ifdef GOOS_android
+#ifdef TLSG_IS_VARIABLE
 	MOVW	runtime·tlsg(SB), R11
 #else
 	MOVW	$runtime·tlsg(SB), R11
@@ -68,3 +76,28 @@ TEXT runtime·load_g(SB),NOSPLIT,$0
 	ADD	R11, R0
 	MOVW	0(R0), g
 	RET
+
+TEXT runtime·_initcgo(SB),NOSPLIT,$0
+#ifndef GOOS_nacl
+	// if there is an _cgo_init, call it.
+	MOVW	_cgo_init(SB), R4
+	CMP	$0, R4
+	B.EQ	nocgo
+	MRC     15, 0, R0, C13, C0, 3 	// load TLS base pointer
+	MOVW 	R0, R3 			// arg 3: TLS base pointer
+	MOVW 	$runtime·tlsg(SB), R2 	// arg 2: tlsg
+	MOVW	$setg_gcc<>(SB), R1 	// arg 1: setg
+	MOVW	g, R0 			// arg 0: G
+	BL	(R4) // will clobber R0-R3
+#endif
+nocgo:
+	RET
+
+// void setg_gcc(G*); set g called from gcc.
+TEXT setg_gcc<>(SB),NOSPLIT,$0
+	MOVW	R0, g
+	B		runtime·save_g(SB)
+
+#ifdef TLSG_IS_VARIABLE
+GLOBL runtime·tlsg+0(SB), NOPTR, $4
+#endif

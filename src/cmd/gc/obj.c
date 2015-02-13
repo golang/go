@@ -95,9 +95,9 @@ dumpobj(void)
 	externdcl = tmp;
 
 	zero = pkglookup("zerovalue", runtimepkg);
-	arch.ggloblsym(zero, zerosize, DUPOK|RODATA);
+	ggloblsym(zero, zerosize, DUPOK|RODATA);
 
-	arch.dumpdata();
+	dumpdata();
 	writeobj(ctxt, bout);
 
 	if(writearchive) {
@@ -106,7 +106,7 @@ dumpobj(void)
 		if(size&1)
 			Bputc(bout, 0);
 		Bseek(bout, startobj - ArhdrSize, 0);
-		snprint(namebuf, sizeof namebuf, "_go_.%c", arch.thechar);
+		snprint(namebuf, sizeof namebuf, "_go_.%c", thearch.thechar);
 		formathdr(arhdr, namebuf, size);
 		Bwrite(bout, arhdr, ArhdrSize);
 	}
@@ -133,13 +133,13 @@ dumpglobls(void)
 			continue;
 		dowidth(n->type);
 
-		arch.ggloblnod(n);
+		ggloblnod(n);
 	}
 	
 	for(l=funcsyms; l; l=l->next) {
 		n = l->n;
-		arch.dsymptr(n->sym, 0, n->sym->def->shortname->sym, 0);
-		arch.ggloblsym(n->sym, widthptr, DUPOK|RODATA);
+		dsymptr(n->sym, 0, n->sym->def->shortname->sym, 0);
+		ggloblsym(n->sym, widthptr, DUPOK|RODATA);
 	}
 	
 	// Do not reprocess funcsyms on next dumpglobls call.
@@ -250,7 +250,7 @@ stringsym(char *s, int len)
 	off = 0;
 	
 	// string header
-	off = arch.dsymptr(sym, off, sym, widthptr+widthint);
+	off = dsymptr(sym, off, sym, widthptr+widthint);
 	off = duintxx(sym, off, len, widthint);
 	
 	// string data
@@ -258,11 +258,11 @@ stringsym(char *s, int len)
 		m = 8;
 		if(m > len-n)
 			m = len-n;
-		off = arch.dsname(sym, off, s+n, m);
+		off = dsname(sym, off, s+n, m);
 	}
 	off = duint8(sym, off, 0);  // terminating NUL for runtime
 	off = (off+widthptr-1)&~(widthptr-1);  // round to pointer alignment
-	arch.ggloblsym(sym, off, DUPOK|RODATA);
+	ggloblsym(sym, off, DUPOK|RODATA);
 
 	return sym;	
 }
@@ -283,14 +283,216 @@ slicebytes(Node *nam, char *s, int len)
 		m = 8;
 		if(m > len-n)
 			m = len-n;
-		off = arch.dsname(sym, off, s+n, m);
+		off = dsname(sym, off, s+n, m);
 	}
-	arch.ggloblsym(sym, off, NOPTR);
+	ggloblsym(sym, off, NOPTR);
 	
 	if(nam->op != ONAME)
 		fatal("slicebytes %N", nam);
 	off = nam->xoffset;
-	off = arch.dsymptr(nam->sym, off, sym, 0);
+	off = dsymptr(nam->sym, off, sym, 0);
 	off = duintxx(nam->sym, off, len, widthint);
 	duintxx(nam->sym, off, len, widthint);
+}
+
+int
+dsname(Sym *s, int off, char *t, int n)
+{
+	Prog *p;
+
+	p = thearch.gins(ADATA, N, N);
+	p->from.type = TYPE_MEM;
+	p->from.name = NAME_EXTERN;
+	p->from.offset = off;
+	p->from.sym = linksym(s);
+	p->from3.type = TYPE_CONST;
+	p->from3.offset = n;
+	
+	p->to.type = TYPE_SCONST;
+	memmove(p->to.u.sval, t, n);
+	return off + n;
+}
+
+/*
+ * make a refer to the data s, s+len
+ * emitting DATA if needed.
+ */
+void
+datastring(char *s, int len, Addr *a)
+{
+	Sym *sym;
+	
+	sym = stringsym(s, len);
+	a->type = TYPE_MEM;
+	a->name = NAME_EXTERN;
+	a->sym = linksym(sym);
+	a->node = sym->def;
+	a->offset = widthptr+widthint;  // skip header
+	a->etype = simtype[TINT];
+}
+
+/*
+ * make a refer to the string sval,
+ * emitting DATA if needed.
+ */
+void
+datagostring(Strlit *sval, Addr *a)
+{
+	Sym *sym;
+
+	sym = stringsym(sval->s, sval->len);
+	a->type = TYPE_MEM;
+	a->name = NAME_EXTERN;
+	a->sym = linksym(sym);
+	a->node = sym->def;
+	a->offset = 0;  // header
+	a->etype = TSTRING;
+}
+
+void
+gdata(Node *nam, Node *nr, int wid)
+{
+	Prog *p;
+
+	if(nr->op == OLITERAL) {
+		switch(nr->val.ctype) {
+		case CTCPLX:
+			gdatacomplex(nam, nr->val.u.cval);
+			return;
+		case CTSTR:
+			gdatastring(nam, nr->val.u.sval);
+			return;
+		}
+	}
+	p = thearch.gins(ADATA, nam, nr);
+	p->from3.type = TYPE_CONST;
+	p->from3.offset = wid;
+}
+
+void
+gdatacomplex(Node *nam, Mpcplx *cval)
+{
+	Prog *p;
+	int w;
+
+	w = cplxsubtype(nam->type->etype);
+	w = types[w]->width;
+
+	p = thearch.gins(ADATA, nam, N);
+	p->from3.type = TYPE_CONST;
+	p->from3.offset = w;
+	p->to.type = TYPE_FCONST;
+	p->to.u.dval = mpgetflt(&cval->real);
+
+	p = thearch.gins(ADATA, nam, N);
+	p->from3.type = TYPE_CONST;
+	p->from3.offset = w;
+	p->from.offset += w;
+	p->to.type = TYPE_FCONST;
+	p->to.u.dval = mpgetflt(&cval->imag);
+}
+
+void
+gdatastring(Node *nam, Strlit *sval)
+{
+	Prog *p;
+	Node nod1;
+
+	p = thearch.gins(ADATA, nam, N);
+	datastring(sval->s, sval->len, &p->to);
+	p->from3.type = TYPE_CONST;
+	p->from3.offset = types[tptr]->width;
+	p->to.type = TYPE_ADDR;
+//print("%P\n", p);
+
+	nodconst(&nod1, types[TINT], sval->len);
+	p = thearch.gins(ADATA, nam, &nod1);
+	p->from3.type = TYPE_CONST;
+	p->from3.offset = widthint;
+	p->from.offset += widthptr;
+}
+
+int
+dstringptr(Sym *s, int off, char *str)
+{
+	Prog *p;
+
+	off = rnd(off, widthptr);
+	p = thearch.gins(ADATA, N, N);
+	p->from.type = TYPE_MEM;
+	p->from.name = NAME_EXTERN;
+	p->from.sym = linksym(s);
+	p->from.offset = off;
+	p->from3.type = TYPE_CONST;
+	p->from3.offset = widthptr;
+
+	datastring(str, strlen(str)+1, &p->to);
+	p->to.type = TYPE_ADDR;
+	p->to.etype = simtype[TINT];
+	off += widthptr;
+
+	return off;
+}
+
+int
+dgostrlitptr(Sym *s, int off, Strlit *lit)
+{
+	Prog *p;
+
+	if(lit == nil)
+		return duintptr(s, off, 0);
+
+	off = rnd(off, widthptr);
+	p = thearch.gins(ADATA, N, N);
+	p->from.type = TYPE_MEM;
+	p->from.name = NAME_EXTERN;
+	p->from.sym = linksym(s);
+	p->from.offset = off;
+	p->from3.type = TYPE_CONST;
+	p->from3.offset = widthptr;
+	datagostring(lit, &p->to);
+	p->to.type = TYPE_ADDR;
+	p->to.etype = simtype[TINT];
+	off += widthptr;
+
+	return off;
+}
+
+int
+dgostringptr(Sym *s, int off, char *str)
+{
+	int n;
+	Strlit *lit;
+
+	if(str == nil)
+		return duintptr(s, off, 0);
+
+	n = strlen(str);
+	lit = mal(sizeof *lit + n);
+	strcpy(lit->s, str);
+	lit->len = n;
+	return dgostrlitptr(s, off, lit);
+}
+
+int
+dsymptr(Sym *s, int off, Sym *x, int xoff)
+{
+	Prog *p;
+
+	off = rnd(off, widthptr);
+
+	p = thearch.gins(ADATA, N, N);
+	p->from.type = TYPE_MEM;
+	p->from.name = NAME_EXTERN;
+	p->from.sym = linksym(s);
+	p->from.offset = off;
+	p->from3.type = TYPE_CONST;
+	p->from3.offset = widthptr;
+	p->to.type = TYPE_ADDR;
+	p->to.name = NAME_EXTERN;
+	p->to.sym = linksym(x);
+	p->to.offset = xoff;
+	off += widthptr;
+
+	return off;
 }

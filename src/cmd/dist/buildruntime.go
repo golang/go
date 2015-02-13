@@ -28,7 +28,7 @@ func mkzversion(dir, file string) {
 			"const defaultGoroot = `%s`\n"+
 			"const theVersion = `%s`\n"+
 			"const goexperiment = `%s`\n"+
-			"var buildVersion = theVersion\n", goroot_final, goversion, os.Getenv("GOEXPERIMENT"))
+			"var buildVersion = theVersion\n", goroot_final, findgoversion(), os.Getenv("GOEXPERIMENT"))
 
 	writefile(out, file, 0)
 }
@@ -56,7 +56,7 @@ func mkzbootstrap(file string) {
 			"const defaultGOARCH = `%s`\n"+
 			"const version = `%s`\n"+
 			"const goexperiment = `%s`\n",
-		goroot_final, goarm, gohostos, gohostarch, goversion, os.Getenv("GOEXPERIMENT"))
+		goroot_final, goarm, gohostos, gohostarch, findgoversion(), os.Getenv("GOEXPERIMENT"))
 
 	writefile(out, file, 0)
 }

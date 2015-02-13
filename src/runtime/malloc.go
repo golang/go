@@ -312,6 +312,7 @@ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
 
 // For now this must be bracketed with a stoptheworld and a starttheworld to ensure
 // all go routines see the new barrier.
+//go:nowritebarrier
 func gcinstallmarkwb() {
 	gcphase = _GCmark
 }
@@ -389,6 +390,7 @@ func gcwork(force int32) {
 		gctimer.cycle.installmarkwb = nanotime()
 		systemstack(stoptheworld)
 		systemstack(gcinstallmarkwb)
+		systemstack(harvestwbufs)
 		systemstack(starttheworld)
 		gctimer.cycle.mark = nanotime()
 		systemstack(gcmark_m)

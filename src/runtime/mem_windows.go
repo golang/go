@@ -18,16 +18,6 @@ const (
 	_PAGE_NOACCESS  = 0x0001
 )
 
-//go:cgo_import_dynamic runtime._VirtualAlloc VirtualAlloc "kernel32.dll"
-//go:cgo_import_dynamic runtime._VirtualFree VirtualFree "kernel32.dll"
-//go:cgo_import_dynamic runtime._VirtualProtect VirtualProtect "kernel32.dll"
-
-var (
-	_VirtualAlloc,
-	_VirtualFree,
-	_VirtualProtect stdFunction
-)
-
 //go:nosplit
 func sysAlloc(n uintptr, stat *uint64) unsafe.Pointer {
 	xadd64(stat, int64(n))

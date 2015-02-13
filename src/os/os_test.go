@@ -21,7 +21,6 @@ import (
 	"sync"
 	"syscall"
 	"testing"
-	"text/template"
 	"time"
 )
 
@@ -491,6 +490,30 @@ func TestReaddirStatFailures(t *testing.T) {
 	}
 }
 
+// Readdir on a regular file should fail.
+func TestReaddirOfFile(t *testing.T) {
+	f, err := ioutil.TempFile("", "_Go_ReaddirOfFile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer Remove(f.Name())
+	f.Write([]byte("foo"))
+	f.Close()
+	reg, err := Open(f.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reg.Close()
+
+	names, err := reg.Readdirnames(-1)
+	if err == nil {
+		t.Error("Readdirnames succeeded; want non-nil error")
+	}
+	if len(names) > 0 {
+		t.Errorf("unexpected dir names in regular file: %q", names)
+	}
+}
+
 func TestHardLink(t *testing.T) {
 	// Hardlinks are not supported under windows or Plan 9.
 	if runtime.GOOS == "plan9" {
@@ -922,7 +945,7 @@ func TestSeek(t *testing.T) {
 		if off != tt.out || err != nil {
 			if e, ok := err.(*PathError); ok && e.Err == syscall.EINVAL && tt.out > 1<<32 {
 				// Reiserfs rejects the big seeks.
-				// http://code.google.com/p/go/issues/detail?id=91
+				// http://golang.org/issue/91
 				break
 			}
 			t.Errorf("#%d: Seek(%v, %v) = %v, %v want %v, nil", i, tt.in, tt.whence, off, err, tt.out)
@@ -1304,39 +1327,9 @@ func testKillProcess(t *testing.T, processKiller func(p *Process)) {
 		t.Skipf("skipping on %s", runtime.GOOS)
 	}
 
-	dir, err := ioutil.TempDir("", "go-build")
-	if err != nil {
-		t.Fatalf("Failed to create temp directory: %v", err)
-	}
-	defer RemoveAll(dir)
-
-	src := filepath.Join(dir, "main.go")
-	f, err := Create(src)
-	if err != nil {
-		t.Fatalf("Failed to create %v: %v", src, err)
-	}
-	st := template.Must(template.New("source").Parse(`
-package main
-import "time"
-func main() {
-	time.Sleep(time.Second)
-}
-`))
-	err = st.Execute(f, nil)
-	if err != nil {
-		f.Close()
-		t.Fatalf("Failed to execute template: %v", err)
-	}
-	f.Close()
-
-	exe := filepath.Join(dir, "main.exe")
-	output, err := osexec.Command("go", "build", "-o", exe, src).CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to build exe %v: %v %v", exe, err, string(output))
-	}
-
-	cmd := osexec.Command(exe)
-	err = cmd.Start()
+	// Re-exec the test binary itself to emulate "sleep 1".
+	cmd := osexec.Command(Args[0], "-test.run", "TestSleep")
+	err := cmd.Start()
 	if err != nil {
 		t.Fatalf("Failed to start test process: %v", err)
 	}
@@ -1348,6 +1341,15 @@ func main() {
 	if err == nil {
 		t.Errorf("Test process succeeded, but expected to fail")
 	}
+}
+
+// TestSleep emulates "sleep 1". It is a helper for testKillProcess, so we
+// don't have to rely on an external "sleep" command being available.
+func TestSleep(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
+	time.Sleep(time.Second)
 }
 
 func TestKillStartProcess(t *testing.T) {

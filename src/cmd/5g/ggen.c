@@ -7,7 +7,7 @@
 #include <u.h>
 #include <libc.h>
 #include "gg.h"
-#include "opt.h"
+#include "../gc/popt.h"
 
 static Prog* appendpp(Prog*, int, int, int, int32, int, int, int32);
 static Prog *zerorange(Prog *p, vlong frame, vlong lo, vlong hi, uint32 *r0);
@@ -117,52 +117,6 @@ appendpp(Prog *p, int as, int ftype, int freg, int32 foffset, int ttype, int tre
 	return q;	
 }
 
-// Sweep the prog list to mark any used nodes.
-void
-markautoused(Prog* p)
-{
-	for (; p; p = p->link) {
-		if (p->as == ATYPE || p->as == AVARDEF || p->as == AVARKILL)
-			continue;
-
-		if (p->from.node)
-			((Node*)(p->from.node))->used = 1;
-
-		if (p->to.node)
-			((Node*)(p->to.node))->used = 1;
-	}
-}
-
-// Fixup instructions after allocauto (formerly compactframe) has moved all autos around.
-void
-fixautoused(Prog* p)
-{
-	Prog **lp;
-
-	for (lp=&p; (p=*lp) != P; ) {
-		if (p->as == ATYPE && p->from.node && p->from.name == NAME_AUTO && !((Node*)(p->from.node))->used) {
-			*lp = p->link;
-			continue;
-		}
-		if ((p->as == AVARDEF || p->as == AVARKILL) && p->to.node && !((Node*)(p->to.node))->used) {
-			// Cannot remove VARDEF instruction, because - unlike TYPE handled above -
-			// VARDEFs are interspersed with other code, and a jump might be using the
-			// VARDEF as a target. Replace with a no-op instead. A later pass will remove
-			// the no-ops.
-			nopout(p);
-			continue;
-		}
-
-		if (p->from.name == NAME_AUTO && p->from.node)
-			p->from.offset += ((Node*)(p->from.node))->stkdelta;
-
-		if (p->to.name == NAME_AUTO && p->to.node)
-			p->to.offset += ((Node*)(p->to.node))->stkdelta;
-
-		lp = &p->link;
-	}
-}
-
 /*
  * generate:
  *	call f
@@ -176,7 +130,7 @@ void
 ginscall(Node *f, int proc)
 {
 	Prog *p;
-	Node n1, r, r1, con;
+	Node r, r1, con;
 	int32 extra;
 
 	if(f->type != T) {
@@ -238,10 +192,7 @@ ginscall(Node *f, int proc)
 		p->to.reg = REGSP;
 		p->to.offset = 4;
 
-		memset(&n1, 0, sizeof n1);
-		n1.op = OADDR;
-		n1.left = f;
-		gins(AMOVW, &n1, &r);
+		gins(AMOVW, f, &r);
 		p = gins(AMOVW, &r, N);
 		p->to.type = TYPE_MEM;
 		p->to.reg = REGSP;
@@ -484,147 +435,6 @@ cgen_ret(Node *n)
 		p->to.type = TYPE_ADDR;
 		p->to.sym = linksym(n->left->sym);
 	}
-}
-
-/*
- * generate += *= etc.
- */
-void
-cgen_asop(Node *n)
-{
-	Node n1, n2, n3, n4;
-	Node *nl, *nr;
-	Prog *p1;
-	Addr addr;
-	int a, w;
-
-	nl = n->left;
-	nr = n->right;
-
-	if(nr->ullman >= UINF && nl->ullman >= UINF) {
-		tempname(&n1, nr->type);
-		cgen(nr, &n1);
-		n2 = *n;
-		n2.right = &n1;
-		cgen_asop(&n2);
-		goto ret;
-	}
-
-	if(!isint[nl->type->etype])
-		goto hard;
-	if(!isint[nr->type->etype])
-		goto hard;
-	if(is64(nl->type) || is64(nr->type))
-		goto hard64;
-
-	switch(n->etype) {
-	case OADD:
-	case OSUB:
-	case OXOR:
-	case OAND:
-	case OOR:
-		a = optoas(n->etype, nl->type);
-		if(nl->addable) {
-			if(smallintconst(nr))
-				n3 = *nr;
-			else {
-				regalloc(&n3, nr->type, N);
-				cgen(nr, &n3);
-			}
-			regalloc(&n2, nl->type, N);
-			cgen(nl, &n2);
-			gins(a, &n3, &n2);
-			cgen(&n2, nl);
-			regfree(&n2);
-			if(n3.op != OLITERAL)
-				regfree(&n3);
-			goto ret;
-		}
-		if(nr->ullman < UINF)
-		if(sudoaddable(a, nl, &addr, &w)) {
-			w = optoas(OAS, nl->type);
-			regalloc(&n2, nl->type, N);
-			p1 = gins(w, N, &n2);
-			p1->from = addr;
-			regalloc(&n3, nr->type, N);
-			cgen(nr, &n3);
-			gins(a, &n3, &n2);
-			p1 = gins(w, &n2, N);
-			p1->to = addr;
-			regfree(&n2);
-			regfree(&n3);
-			sudoclean();
-			goto ret;
-		}
-	}
-
-hard:
-	n2.op = 0;
-	n1.op = 0;
-	if(nr->op == OLITERAL) {
-		// don't allocate a register for literals.
-	} else if(nr->ullman >= nl->ullman || nl->addable) {
-		regalloc(&n2, nr->type, N);
-		cgen(nr, &n2);
-		nr = &n2;
-	} else {
-		tempname(&n2, nr->type);
-		cgen(nr, &n2);
-		nr = &n2;
-	}
-	if(!nl->addable) {
-		igen(nl, &n1, N);
-		nl = &n1;
-	}
-
-	n3 = *n;
-	n3.left = nl;
-	n3.right = nr;
-	n3.op = n->etype;
-
-	regalloc(&n4, nl->type, N);
-	cgen(&n3, &n4);
-	gmove(&n4, nl);
-
-	if(n1.op)
-		regfree(&n1);
-	if(n2.op == OREGISTER)
-		regfree(&n2);
-	regfree(&n4);
-	goto ret;
-
-hard64:
-	if(nr->ullman > nl->ullman) {
-		tempname(&n2, nr->type);
-		cgen(nr, &n2);
-		igen(nl, &n1, N);
-	} else {
-		igen(nl, &n1, N);
-		tempname(&n2, nr->type);
-		cgen(nr, &n2);
-	}
-
-	n3 = *n;
-	n3.left = &n1;
-	n3.right = &n2;
-	n3.op = n->etype;
-
-	cgen(&n3, &n1);
-
-ret:
-	;
-}
-
-int
-samereg(Node *a, Node *b)
-{
-	if(a->op != OREGISTER)
-		return 0;
-	if(b->op != OREGISTER)
-		return 0;
-	if(a->val.u.reg != b->val.u.reg)
-		return 0;
-	return 1;
 }
 
 /*

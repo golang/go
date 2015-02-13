@@ -383,8 +383,9 @@ TEXT	runtime·racesymbolizethunk(SB), NOSPLIT, $56-8
 	MOVQ	g_m(R13), R13
 	MOVQ	m_g0(R13), R14
 	MOVQ	R14, g(R12)	// g = m->g0
-	MOVQ	RARG0, 0(SP)	// func arg
+	PUSHQ	RARG0	// func arg
 	CALL	runtime·racesymbolize(SB)
+	POPQ	R12
 	// All registers are smashed after Go code, reload.
 	get_tls(R12)
 	MOVQ	g(R12), R13

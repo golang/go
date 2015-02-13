@@ -956,17 +956,7 @@ bgen(Node *n, int true, int likely, Prog *to)
 
 	switch(n->op) {
 	default:
-	def:
-		regalloc(&n1, n->type, N);
-		cgen(n, &n1);
-		nodconst(&n2, n->type, 0);
-		gins(optoas(OCMP, n->type), &n1, &n2);
-		a = AJNE;
-		if(!true)
-			a = AJEQ;
-		patch(gbranch(a, n->type, likely), to);
-		regfree(&n1);
-		return;
+		goto def;
 
 	case OLITERAL:
 		// need to ask if it is bool?
@@ -986,27 +976,20 @@ bgen(Node *n, int true, int likely, Prog *to)
 		return;
 
 	case OANDAND:
-		if(!true)
-			goto caseor;
-
-	caseand:
-		p1 = gbranch(AJMP, T, 0);
-		p2 = gbranch(AJMP, T, 0);
-		patch(p1, pc);
-		bgen(n->left, !true, -likely, p2);
-		bgen(n->right, !true, -likely, p2);
-		p1 = gbranch(AJMP, T, 0);
-		patch(p1, to);
-		patch(p2, pc);
-		return;
-
 	case OOROR:
-		if(!true)
-			goto caseand;
-
-	caseor:
-		bgen(n->left, true, likely, to);
-		bgen(n->right, true, likely, to);
+		if((n->op == OANDAND) == true) {
+			p1 = gbranch(AJMP, T, 0);
+			p2 = gbranch(AJMP, T, 0);
+			patch(p1, pc);
+			bgen(n->left, !true, -likely, p2);
+			bgen(n->right, !true, -likely, p2);
+			p1 = gbranch(AJMP, T, 0);
+			patch(p1, to);
+			patch(p2, pc);
+		} else {
+			bgen(n->left, true, likely, to);
+			bgen(n->right, true, likely, to);
+		}
 		return;
 
 	case OEQ:
@@ -1150,6 +1133,19 @@ cmp:
 		regfree(nr);
 		break;
 	}
+	return;
+
+def:
+	regalloc(&n1, n->type, N);
+	cgen(n, &n1);
+	nodconst(&n2, n->type, 0);
+	gins(optoas(OCMP, n->type), &n1, &n2);
+	a = AJNE;
+	if(!true)
+		a = AJEQ;
+	patch(gbranch(a, n->type, likely), to);
+	regfree(&n1);
+	return;
 }
 
 /*
@@ -1213,7 +1209,7 @@ stkof(Node *n)
 void
 sgen(Node *n, Node *res, int64 w)
 {
-	Node dst, src, tdst, tsrc;
+	Node dst, src, tdst, tsrc, cx;
 	int32 c, q, odst, osrc;
 	NodeList *l;
 	Prog *p;
@@ -1329,6 +1325,19 @@ sgen(Node *n, Node *res, int64 w)
 			p->to.sym = linksym(pkglookup("duffcopy", runtimepkg));
 			// 10 and 128 = magic constants: see ../../runtime/asm_386.s
 			p->to.offset = 10*(128-q);
+		} else if(!nacl && c == 0) {
+			nodreg(&cx, types[TINT32], REG_CX);
+			// We don't need the MOVSL side-effect of updating SI and DI,
+			// and issuing a sequence of MOVLs directly is faster.
+			src.op = OINDREG;
+			dst.op = OINDREG;
+			while(q > 0) {
+				gmove(&src, &cx); // MOVL x+(SI),CX
+				gmove(&cx, &dst); // MOVL CX,x+(DI)
+				src.xoffset += 4;
+				dst.xoffset += 4;
+				q--;
+			}
 		} else
 		while(q > 0) {
 			gins(AMOVSL, N, N);	// MOVL *(SI)+,*(DI)+
@@ -1360,13 +1369,15 @@ cadable(Node *n)
 /*
  * copy a composite value by moving its individual components.
  * Slices, strings and interfaces are supported.
+ * Small structs or arrays with elements of basic type are
+ * also supported.
  * nr is N when assigning a zero value.
  * return 1 if can do, 0 if can't.
  */
 int
 componentgen(Node *nr, Node *nl)
 {
-	Node nodl, nodr;
+	Node nodl, nodr, tmp;
 	Type *t;
 	int freel, freer;
 	vlong fldcount;
@@ -1414,7 +1425,7 @@ componentgen(Node *nr, Node *nl)
 
 	nodl = *nl;
 	if(!cadable(nl)) {
-		if(nr == N || !cadable(nr))
+		if(nr != N && !cadable(nr))
 			goto no;
 		igen(nl, &nodl, N);
 		freel = 1;
@@ -1426,6 +1437,12 @@ componentgen(Node *nr, Node *nl)
 			igen(nr, &nodr, N);
 			freer = 1;
 		}
+	} else {
+		// When zeroing, prepare a register containing zero.
+		nodconst(&tmp, nl->type, 0);
+		regalloc(&nodr, types[TUINT], N);
+		gmove(&tmp, &nodr);
+		freer = 1;
 	}
 	
 	// nl and nr are 'cadable' which basically means they are names (variables) now.
@@ -1462,8 +1479,7 @@ componentgen(Node *nr, Node *nl)
 		if(nr != N) {
 			nodr.xoffset += Array_array;
 			nodr.type = nodl.type;
-		} else
-			nodconst(&nodr, nodl.type, 0);
+		}
 		gmove(&nodr, &nodl);
 
 		nodl.xoffset += Array_nel-Array_array;
@@ -1472,8 +1488,7 @@ componentgen(Node *nr, Node *nl)
 		if(nr != N) {
 			nodr.xoffset += Array_nel-Array_array;
 			nodr.type = nodl.type;
-		} else
-			nodconst(&nodr, nodl.type, 0);
+		}
 		gmove(&nodr, &nodl);
 
 		nodl.xoffset += Array_cap-Array_nel;
@@ -1482,8 +1497,7 @@ componentgen(Node *nr, Node *nl)
 		if(nr != N) {
 			nodr.xoffset += Array_cap-Array_nel;
 			nodr.type = nodl.type;
-		} else
-			nodconst(&nodr, nodl.type, 0);
+		}
 		gmove(&nodr, &nodl);
 
 		goto yes;
@@ -1497,8 +1511,7 @@ componentgen(Node *nr, Node *nl)
 		if(nr != N) {
 			nodr.xoffset += Array_array;
 			nodr.type = nodl.type;
-		} else
-			nodconst(&nodr, nodl.type, 0);
+		}
 		gmove(&nodr, &nodl);
 
 		nodl.xoffset += Array_nel-Array_array;
@@ -1507,8 +1520,7 @@ componentgen(Node *nr, Node *nl)
 		if(nr != N) {
 			nodr.xoffset += Array_nel-Array_array;
 			nodr.type = nodl.type;
-		} else
-			nodconst(&nodr, nodl.type, 0);
+		}
 		gmove(&nodr, &nodl);
 
 		goto yes;
@@ -1522,8 +1534,7 @@ componentgen(Node *nr, Node *nl)
 		if(nr != N) {
 			nodr.xoffset += Array_array;
 			nodr.type = nodl.type;
-		} else
-			nodconst(&nodr, nodl.type, 0);
+		}
 		gmove(&nodr, &nodl);
 
 		nodl.xoffset += Array_nel-Array_array;
@@ -1532,8 +1543,7 @@ componentgen(Node *nr, Node *nl)
 		if(nr != N) {
 			nodr.xoffset += Array_nel-Array_array;
 			nodr.type = nodl.type;
-		} else
-			nodconst(&nodr, nodl.type, 0);
+		}
 		gmove(&nodr, &nodl);
 
 		goto yes;

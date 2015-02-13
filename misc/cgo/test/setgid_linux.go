@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Test that setgid does not hang on GNU/Linux.
-// See http://code.google.com/p/go/issues/detail?id=3871 for details.
+// See http://golang.org/issue/3871 for details.
 
 package cgotest
 

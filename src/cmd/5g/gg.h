@@ -17,10 +17,7 @@ enum
 	REGALLOC_FMAX = FREGEXT,
 };
 
-EXTERN	int32	dynloc;
 EXTERN	uchar	reg[REGALLOC_FMAX+1];
-EXTERN	int32	pcloc;		// instruction counter
-EXTERN	Strlit	emptystring;
 extern	long	unmappedzero;
 
 /*
@@ -118,7 +115,6 @@ int anyregalloc(void);
 void betypeinit(void);
 void bgen(Node*, int, int, Prog*);
 void cgen(Node*, Node*);
-void cgen_asop(Node*);
 void cgen_call(Node*, int);
 void cgen_callinter(Node*, Node*, int);
 void cgen_ret(Node*);
@@ -163,3 +159,19 @@ int sameaddr(Addr*, Addr*);
 int smallindir(Addr*, Addr*);
 int stackaddr(Addr*);
 Prog* unpatch(Prog*);
+
+/*
+ * reg.c
+ */
+uint64 excludedregs(void);
+uint64 RtoB(int);
+uint64 FtoB(int);
+int BtoR(uint64);
+int BtoF(uint64);
+uint64 doregbits(int);
+char** regnames(int*);
+
+/*
+ * peep.c
+ */
+void peep(Prog*);

@@ -179,17 +179,24 @@ var (
 )
 
 // EncodeToken writes the given XML token to the stream.
-// It returns an error if StartElement and EndElement tokens are not properly matched.
+// It returns an error if StartElement and EndElement tokens are not
+// properly matched.
 //
-// EncodeToken does not call Flush, because usually it is part of a larger operation
-// such as Encode or EncodeElement (or a custom Marshaler's MarshalXML invoked
-// during those), and those will call Flush when finished.
-// Callers that create an Encoder and then invoke EncodeToken directly, without
-// using Encode or EncodeElement, need to call Flush when finished to ensure
-// that the XML is written to the underlying writer.
+// EncodeToken does not call Flush, because usually it is part of a
+// larger operation such as Encode or EncodeElement (or a custom
+// Marshaler's MarshalXML invoked during those), and those will call
+// Flush when finished. Callers that create an Encoder and then invoke
+// EncodeToken directly, without using Encode or EncodeElement, need to
+// call Flush when finished to ensure that the XML is written to the
+// underlying writer.
 //
-// EncodeToken allows writing a ProcInst with Target set to "xml" only as the first token
-// in the stream.
+// EncodeToken allows writing a ProcInst with Target set to "xml" only
+// as the first token in the stream.
+//
+// When encoding a StartElement holding an XML namespace prefix
+// declaration for a prefix that is not already declared, contained
+// elements (including the StartElement itself) will use the declared
+// prefix when encoding names with matching namespace URIs.
 func (enc *Encoder) EncodeToken(t Token) error {
 	p := &enc.p
 	switch t := t.(type) {
@@ -256,19 +263,27 @@ type printer struct {
 	depth      int
 	indentedIn bool
 	putNewline bool
+	defaultNS  string
 	attrNS     map[string]string // map prefix -> name space
 	attrPrefix map[string]string // map name space -> prefix
-	prefixes   []string
+	prefixes   []printerPrefix
 	tags       []Name
 }
 
-// createAttrPrefix finds the name space prefix attribute to use for the given name space,
-// defining a new prefix if necessary. It returns the prefix.
-func (p *printer) createAttrPrefix(url string) string {
-	if prefix := p.attrPrefix[url]; prefix != "" {
-		return prefix
-	}
+// printerPrefix holds a namespace undo record.
+// When an element is popped, the prefix record
+// is set back to the recorded URL. The empty
+// prefix records the URL for the default name space.
+//
+// The start of an element is recorded with an element
+// that has mark=true.
+type printerPrefix struct {
+	prefix string
+	url    string
+	mark   bool
+}
 
+func (p *printer) prefixForNS(url string, isAttr bool) string {
 	// The "http://www.w3.org/XML/1998/namespace" name space is predefined as "xml"
 	// and must be referred to that way.
 	// (The "http://www.w3.org/2000/xmlns/" name space is also predefined as "xmlns",
@@ -276,12 +291,97 @@ func (p *printer) createAttrPrefix(url string) string {
 	if url == xmlURL {
 		return "xml"
 	}
-
-	// Need to define a new name space.
-	if p.attrPrefix == nil {
-		p.attrPrefix = make(map[string]string)
-		p.attrNS = make(map[string]string)
+	if !isAttr && url == p.defaultNS {
+		// We can use the default name space.
+		return ""
 	}
+	return p.attrPrefix[url]
+}
+
+// defineNS pushes any namespace definition found in the given attribute.
+// If ignoreNonEmptyDefault is true, an xmlns="nonempty"
+// attribute will be ignored.
+func (p *printer) defineNS(attr Attr, ignoreNonEmptyDefault bool) error {
+	var prefix string
+	if attr.Name.Local == "xmlns" {
+		if attr.Name.Space != "" && attr.Name.Space != "xml" && attr.Name.Space != xmlURL {
+			return fmt.Errorf("xml: cannot redefine xmlns attribute prefix")
+		}
+	} else if attr.Name.Space == "xmlns" && attr.Name.Local != "" {
+		prefix = attr.Name.Local
+		if attr.Value == "" {
+			// Technically, an empty XML namespace is allowed for an attribute.
+			// From http://www.w3.org/TR/xml-names11/#scoping-defaulting:
+			//
+			// 	The attribute value in a namespace declaration for a prefix may be
+			//	empty. This has the effect, within the scope of the declaration, of removing
+			//	any association of the prefix with a namespace name.
+			//
+			// However our namespace prefixes here are used only as hints. There's
+			// no need to respect the removal of a namespace prefix, so we ignore it.
+			return nil
+		}
+	} else {
+		// Ignore: it's not a namespace definition
+		return nil
+	}
+	if prefix == "" {
+		if attr.Value == p.defaultNS {
+			// No need for redefinition.
+			return nil
+		}
+		if attr.Value != "" && ignoreNonEmptyDefault {
+			// We have an xmlns="..." value but
+			// it can't define a name space in this context,
+			// probably because the element has an empty
+			// name space. In this case, we just ignore
+			// the name space declaration.
+			return nil
+		}
+	} else if _, ok := p.attrPrefix[attr.Value]; ok {
+		// There's already a prefix for the given name space,
+		// so use that. This prevents us from
+		// having two prefixes for the same name space
+		// so attrNS and attrPrefix can remain bijective.
+		return nil
+	}
+	p.pushPrefix(prefix, attr.Value)
+	return nil
+}
+
+// createNSPrefix creates a name space prefix attribute
+// to use for the given name space, defining a new prefix
+// if necessary.
+// If isAttr is true, the prefix is to be created for an attribute
+// prefix, which means that the default name space cannot
+// be used.
+func (p *printer) createNSPrefix(url string, isAttr bool) {
+	if _, ok := p.attrPrefix[url]; ok {
+		// We already have a prefix for the given URL.
+		return
+	}
+	switch {
+	case !isAttr && url == p.defaultNS:
+		// We can use the default name space.
+		return
+	case url == "":
+		// The only way we can encode names in the empty
+		// name space is by using the default name space,
+		// so we must use that.
+		if p.defaultNS != "" {
+			// The default namespace is non-empty, so we
+			// need to set it to empty.
+			p.pushPrefix("", "")
+		}
+		return
+	case url == xmlURL:
+		return
+	}
+	// TODO If the URL is an existing prefix, we could
+	// use it as is. That would enable the
+	// marshaling of elements that had been unmarshaled
+	// and with a name space prefix that was not found.
+	// although technically it would be incorrect.
 
 	// Pick a name. We try to use the final element of the path
 	// but fall back to _.
@@ -306,39 +406,98 @@ func (p *printer) createAttrPrefix(url string) string {
 		}
 	}
 
-	p.attrPrefix[url] = prefix
-	p.attrNS[prefix] = url
-
-	p.WriteString(`xmlns:`)
-	p.WriteString(prefix)
-	p.WriteString(`="`)
-	EscapeText(p, []byte(url))
-	p.WriteString(`" `)
-
-	p.prefixes = append(p.prefixes, prefix)
-
-	return prefix
+	p.pushPrefix(prefix, url)
 }
 
-// deleteAttrPrefix removes an attribute name space prefix.
-func (p *printer) deleteAttrPrefix(prefix string) {
-	delete(p.attrPrefix, p.attrNS[prefix])
-	delete(p.attrNS, prefix)
+// writeNamespaces writes xmlns attributes for all the
+// namespace prefixes that have been defined in
+// the current element.
+func (p *printer) writeNamespaces() {
+	for i := len(p.prefixes) - 1; i >= 0; i-- {
+		prefix := p.prefixes[i]
+		if prefix.mark {
+			return
+		}
+		p.WriteString(" ")
+		if prefix.prefix == "" {
+			// Default name space.
+			p.WriteString(`xmlns="`)
+		} else {
+			p.WriteString("xmlns:")
+			p.WriteString(prefix.prefix)
+			p.WriteString(`="`)
+		}
+		EscapeText(p, []byte(p.nsForPrefix(prefix.prefix)))
+		p.WriteString(`"`)
+	}
 }
 
+// pushPrefix pushes a new prefix on the prefix stack
+// without checking to see if it is already defined.
+func (p *printer) pushPrefix(prefix, url string) {
+	p.prefixes = append(p.prefixes, printerPrefix{
+		prefix: prefix,
+		url:    p.nsForPrefix(prefix),
+	})
+	p.setAttrPrefix(prefix, url)
+}
+
+// nsForPrefix returns the name space for the given
+// prefix. Note that this is not valid for the
+// empty attribute prefix, which always has an empty
+// name space.
+func (p *printer) nsForPrefix(prefix string) string {
+	if prefix == "" {
+		return p.defaultNS
+	}
+	return p.attrNS[prefix]
+}
+
+// markPrefix marks the start of an element on the prefix
+// stack.
 func (p *printer) markPrefix() {
-	p.prefixes = append(p.prefixes, "")
+	p.prefixes = append(p.prefixes, printerPrefix{
+		mark: true,
+	})
 }
 
+// popPrefix pops all defined prefixes for the current
+// element.
 func (p *printer) popPrefix() {
 	for len(p.prefixes) > 0 {
 		prefix := p.prefixes[len(p.prefixes)-1]
 		p.prefixes = p.prefixes[:len(p.prefixes)-1]
-		if prefix == "" {
+		if prefix.mark {
 			break
 		}
-		p.deleteAttrPrefix(prefix)
+		p.setAttrPrefix(prefix.prefix, prefix.url)
 	}
+}
+
+// setAttrPrefix sets an attribute name space prefix.
+// If url is empty, the attribute is removed.
+// If prefix is empty, the default name space is set.
+func (p *printer) setAttrPrefix(prefix, url string) {
+	if prefix == "" {
+		p.defaultNS = url
+		return
+	}
+	if url == "" {
+		delete(p.attrPrefix, p.attrNS[prefix])
+		delete(p.attrNS, prefix)
+		return
+	}
+	if p.attrPrefix == nil {
+		// Need to define a new name space.
+		p.attrPrefix = make(map[string]string)
+		p.attrNS = make(map[string]string)
+	}
+	// Remove any old prefix value. This is OK because we maintain a
+	// strict one-to-one mapping between prefix and URL (see
+	// defineNS)
+	delete(p.attrPrefix, p.attrNS[prefix])
+	p.attrPrefix[url] = prefix
+	p.attrNS[prefix] = url
 }
 
 var (
@@ -376,23 +535,23 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 
 	// Check for marshaler.
 	if val.CanInterface() && typ.Implements(marshalerType) {
-		return p.marshalInterface(val.Interface().(Marshaler), defaultStart(typ, finfo, startTemplate))
+		return p.marshalInterface(val.Interface().(Marshaler), p.defaultStart(typ, finfo, startTemplate))
 	}
 	if val.CanAddr() {
 		pv := val.Addr()
 		if pv.CanInterface() && pv.Type().Implements(marshalerType) {
-			return p.marshalInterface(pv.Interface().(Marshaler), defaultStart(pv.Type(), finfo, startTemplate))
+			return p.marshalInterface(pv.Interface().(Marshaler), p.defaultStart(pv.Type(), finfo, startTemplate))
 		}
 	}
 
 	// Check for text marshaler.
 	if val.CanInterface() && typ.Implements(textMarshalerType) {
-		return p.marshalTextInterface(val.Interface().(encoding.TextMarshaler), defaultStart(typ, finfo, startTemplate))
+		return p.marshalTextInterface(val.Interface().(encoding.TextMarshaler), p.defaultStart(typ, finfo, startTemplate))
 	}
 	if val.CanAddr() {
 		pv := val.Addr()
 		if pv.CanInterface() && pv.Type().Implements(textMarshalerType) {
-			return p.marshalTextInterface(pv.Interface().(encoding.TextMarshaler), defaultStart(pv.Type(), finfo, startTemplate))
+			return p.marshalTextInterface(pv.Interface().(encoding.TextMarshaler), p.defaultStart(pv.Type(), finfo, startTemplate))
 		}
 	}
 
@@ -419,6 +578,10 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 	// 3. type name
 	var start StartElement
 
+	// Historic behaviour: elements use the default name space
+	// they are contained in by default.
+	start.Name.Space = p.defaultNS
+
 	if startTemplate != nil {
 		start.Name = startTemplate.Name
 		start.Attr = append(start.Attr, startTemplate.Attr...)
@@ -431,7 +594,10 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 		}
 	}
 	if start.Name.Local == "" && finfo != nil {
-		start.Name.Space, start.Name.Local = finfo.xmlns, finfo.name
+		start.Name.Local = finfo.name
+		if finfo.xmlns != "" {
+			start.Name.Space = finfo.xmlns
+		}
 	}
 	if start.Name.Local == "" {
 		name := typ.Name()
@@ -440,6 +606,9 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 		}
 		start.Name.Local = name
 	}
+	// Historic behaviour: an element that's in a namespace sets
+	// the default namespace for all elements contained within it.
+	start.setDefaultNamespace()
 
 	// Attributes
 	for i := range tinfo.fields {
@@ -552,7 +721,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 
 // defaultStart returns the default start element to use,
 // given the reflect type, field info, and start template.
-func defaultStart(typ reflect.Type, finfo *fieldInfo, startTemplate *StartElement) StartElement {
+func (p *printer) defaultStart(typ reflect.Type, finfo *fieldInfo, startTemplate *StartElement) StartElement {
 	var start StartElement
 	// Precedence for the XML element name is as above,
 	// except that we do not look inside structs for the first field.
@@ -569,6 +738,12 @@ func defaultStart(typ reflect.Type, finfo *fieldInfo, startTemplate *StartElemen
 		// since it has the Marshaler methods.
 		start.Name.Local = typ.Elem().Name()
 	}
+	// Historic behaviour: elements use the name space of
+	// the element they are contained in by default.
+	if start.Name.Space == "" {
+		start.Name.Space = p.defaultNS
+	}
+	start.setDefaultNamespace()
 	return start
 }
 
@@ -613,35 +788,60 @@ func (p *printer) writeStart(start *StartElement) error {
 
 	p.tags = append(p.tags, start.Name)
 	p.markPrefix()
+	// Define any name spaces explicitly declared in the attributes.
+	// We do this as a separate pass so that explicitly declared prefixes
+	// will take precedence over implicitly declared prefixes
+	// regardless of the order of the attributes.
+	ignoreNonEmptyDefault := start.Name.Space == ""
+	for _, attr := range start.Attr {
+		if err := p.defineNS(attr, ignoreNonEmptyDefault); err != nil {
+			return err
+		}
+	}
+	// Define any new name spaces implied by the attributes.
+	for _, attr := range start.Attr {
+		name := attr.Name
+		// From http://www.w3.org/TR/xml-names11/#defaulting
+		// "Default namespace declarations do not apply directly
+		// to attribute names; the interpretation of unprefixed
+		// attributes is determined by the element on which they
+		// appear."
+		// This means we don't need to create a new namespace
+		// when an attribute name space is empty.
+		if name.Space != "" && !name.isNamespace() {
+			p.createNSPrefix(name.Space, true)
+		}
+	}
+	p.createNSPrefix(start.Name.Space, false)
 
 	p.writeIndent(1)
 	p.WriteByte('<')
-	p.WriteString(start.Name.Local)
-
-	if start.Name.Space != "" {
-		p.WriteString(` xmlns="`)
-		p.EscapeString(start.Name.Space)
-		p.WriteByte('"')
-	}
-
-	// Attributes
+	p.writeName(start.Name, false)
+	p.writeNamespaces()
 	for _, attr := range start.Attr {
 		name := attr.Name
-		if name.Local == "" {
+		if name.Local == "" || name.isNamespace() {
+			// Namespaces have already been written by writeNamespaces above.
 			continue
 		}
 		p.WriteByte(' ')
-		if name.Space != "" {
-			p.WriteString(p.createAttrPrefix(name.Space))
-			p.WriteByte(':')
-		}
-		p.WriteString(name.Local)
+		p.writeName(name, true)
 		p.WriteString(`="`)
 		p.EscapeString(attr.Value)
 		p.WriteByte('"')
 	}
 	p.WriteByte('>')
 	return nil
+}
+
+// writeName writes the given name. It assumes
+// that p.createNSPrefix(name) has already been called.
+func (p *printer) writeName(name Name, isAttr bool) {
+	if prefix := p.prefixForNS(name.Space, isAttr); prefix != "" {
+		p.WriteString(prefix)
+		p.WriteByte(':')
+	}
+	p.WriteString(name.Local)
 }
 
 func (p *printer) writeEnd(name Name) error {
@@ -662,7 +862,7 @@ func (p *printer) writeEnd(name Name) error {
 	p.writeIndent(-1)
 	p.WriteByte('<')
 	p.WriteByte('/')
-	p.WriteString(name.Local)
+	p.writeName(name, false)
 	p.WriteByte('>')
 	p.popPrefix()
 	return nil

@@ -416,7 +416,7 @@ func TestServeMuxHandlerRedirects(t *testing.T) {
 	}
 }
 
-// Tests for http://code.google.com/p/go/issues/detail?id=900
+// Tests for http://golang.org/issue/900
 func TestMuxRedirectLeadingSlashes(t *testing.T) {
 	paths := []string{"//foo.txt", "///foo.txt", "/../../foo.txt"}
 	for _, path := range paths {
@@ -2124,7 +2124,7 @@ func TestDoubleHijack(t *testing.T) {
 	<-conn.closec
 }
 
-// http://code.google.com/p/go/issues/detail?id=5955
+// http://golang.org/issue/5955
 // Note that this does not test the "request too large"
 // exit path from the http server. This is intentional;
 // not sending Connection: close is just a minor wire

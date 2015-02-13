@@ -185,14 +185,6 @@ linkcase(Prog *casep)
 }
 
 static void
-nocache5(Prog *p)
-{
-	p->optab = 0;
-	p->from.class = 0;
-	p->to.class = 0;
-}
-
-static void
 preprocess(Link *ctxt, LSym *cursym)
 {
 	Prog *p, *pl, *p1, *p2, *q, *q1, *q2;
@@ -478,7 +470,7 @@ preprocess(Link *ctxt, LSym *cursym)
 			break;
 
 		case ARET:
-			nocache5(p);
+			nocache(p);
 			if(cursym->text->mark & LEAF) {
 				if(!autosize) {
 					p->as = AB;

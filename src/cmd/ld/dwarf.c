@@ -12,13 +12,16 @@
 //   - file:line info for variables
 //   - make strings a typedef so prettyprinters can see the underlying string type
 //
-#include	"l.h"
+#include	<u.h>
+#include	<libc.h>
+#include	<bio.h>
+#include	<link.h>
 #include	"lib.h"
-#include	"../ld/dwarf.h"
-#include	"../ld/dwarf_defs.h"
-#include	"../ld/elf.h"
-#include	"../ld/macho.h"
-#include	"../ld/pe.h"
+#include	"dwarf.h"
+#include	"dwarf_defs.h"
+#include	"elf.h"
+#include	"macho.h"
+#include	"pe.h"
 #include	"../../runtime/typekind.h"
 
 /*
@@ -75,12 +78,12 @@ static char  gdbscript[1024];
 static void
 addrput(vlong addr)
 {
-	switch(PtrSize) {
+	switch(thearch.ptrsize) {
 	case 4:
-		LPUT(addr);
+		thearch.lput(addr);
 		break;
 	case 8:
-		VPUT(addr);
+		thearch.vput(addr);
 		break;
 	}
 }
@@ -629,14 +632,14 @@ adddwarfrel(LSym* sec, LSym* sym, vlong offsetbase, int siz, vlong addend)
 	r->type = R_ADDR;
 	r->add = addend;
 	r->xadd = addend;
-	if(iself && thechar == '6')
+	if(iself && thearch.thechar == '6')
 		addend = 0;
 	switch(siz) {
 	case 4:
-		LPUT(addend);
+		thearch.lput(addend);
 		break;
 	case 8:
-		VPUT(addend);
+		thearch.vput(addend);
 		break;
 	default:
 		diag("bad size in adddwarfrel");
@@ -663,7 +666,7 @@ putattr(int abbrev, int form, int cls, vlong value, char *data)
 	case DW_FORM_addr:	// address
 		if(linkmode == LinkExternal) {
 			value -= ((LSym*)data)->value;
-			adddwarfrel(infosec, (LSym*)data, infoo, PtrSize, value);
+			adddwarfrel(infosec, (LSym*)data, infoo, thearch.ptrsize, value);
 			break;
 		}
 		addrput(value);
@@ -671,11 +674,11 @@ putattr(int abbrev, int form, int cls, vlong value, char *data)
 
 	case DW_FORM_block1:	// block
 		if(cls == DW_CLS_ADDRESS) {
-			cput(1+PtrSize);
+			cput(1+thearch.ptrsize);
 			cput(DW_OP_addr);
 			if(linkmode == LinkExternal) {
 				value -= ((LSym*)data)->value;
-				adddwarfrel(infosec, (LSym*)data, infoo, PtrSize, value);
+				adddwarfrel(infosec, (LSym*)data, infoo, thearch.ptrsize, value);
 				break;
 			}
 			addrput(value);
@@ -689,14 +692,14 @@ putattr(int abbrev, int form, int cls, vlong value, char *data)
 
 	case DW_FORM_block2:	// block
 		value &= 0xffff;
-		WPUT(value);
+		thearch.wput(value);
 		while(value--)
 			cput(*data++);
 		break;
 
 	case DW_FORM_block4:	// block
 		value &= 0xffffffff;
-		LPUT(value);
+		thearch.lput(value);
 		while(value--)
 			cput(*data++);
 		break;
@@ -712,7 +715,7 @@ putattr(int abbrev, int form, int cls, vlong value, char *data)
 		break;
 
 	case DW_FORM_data2:	// constant
-		WPUT(value);
+		thearch.wput(value);
 		break;
 
 	case DW_FORM_data4:	// constant, {line,loclist,mac,rangelist}ptr
@@ -720,11 +723,11 @@ putattr(int abbrev, int form, int cls, vlong value, char *data)
 			adddwarfrel(infosec, linesym, infoo, 4, value);
 			break;
 		}
-		LPUT(value);
+		thearch.lput(value);
 		break;
 
 	case DW_FORM_data8:	// constant, {line,loclist,mac,rangelist}ptr
-		VPUT(value);
+		thearch.vput(value);
 		break;
 
 	case DW_FORM_sdata:	// constant
@@ -750,16 +753,16 @@ putattr(int abbrev, int form, int cls, vlong value, char *data)
 		// (> 4 GB of debug info aka "64-bit") unit, which we don't implement.
 		if (data == nil) {
 			diag("dwarf: null reference in %d", abbrev);
-			if(PtrSize == 8)
-				VPUT(0); // invalid dwarf, gdb will complain.
+			if(thearch.ptrsize == 8)
+				thearch.vput(0); // invalid dwarf, gdb will complain.
 			else
-				LPUT(0); // invalid dwarf, gdb will complain.
+				thearch.lput(0); // invalid dwarf, gdb will complain.
 		} else {
 			off = ((DWDie*)data)->offs;
 			if (off == 0)
 				fwdcount++;
 			if(linkmode == LinkExternal) {
-				adddwarfrel(infosec, infosym, infoo, PtrSize, off);
+				adddwarfrel(infosec, infosym, infoo, thearch.ptrsize, off);
 				break;
 			}
 			addrput(off);
@@ -1236,17 +1239,17 @@ synthesizemaptypes(DWDie *die)
 
 		// compute size info like hashmap.c does.
 		a = getattr(keytype, DW_AT_byte_size);
-		keysize = a ? a->value : PtrSize;  // We don't store size with Pointers
+		keysize = a ? a->value : thearch.ptrsize;  // We don't store size with Pointers
 		a = getattr(valtype, DW_AT_byte_size);
-		valsize = a ? a->value : PtrSize;
+		valsize = a ? a->value : thearch.ptrsize;
 		indirect_key = 0;
 		indirect_val = 0;
 		if(keysize > MaxKeySize) {
-			keysize = PtrSize;
+			keysize = thearch.ptrsize;
 			indirect_key = 1;
 		}
 		if(valsize > MaxValSize) {
-			valsize = PtrSize;
+			valsize = thearch.ptrsize;
 			indirect_val = 1;
 		}
 
@@ -1288,12 +1291,12 @@ synthesizemaptypes(DWDie *die)
 		fld = newdie(dwhb, DW_ABRV_STRUCTFIELD, "overflow");
 		newrefattr(fld, DW_AT_type, defptrto(dwhb));
 		newmemberoffsetattr(fld, BucketSize + BucketSize * (keysize + valsize));
-		if(RegSize > PtrSize) {
+		if(thearch.regsize > thearch.ptrsize) {
 			fld = newdie(dwhb, DW_ABRV_STRUCTFIELD, "pad");
 			newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"));
-			newmemberoffsetattr(fld, BucketSize + BucketSize * (keysize + valsize) + PtrSize);
+			newmemberoffsetattr(fld, BucketSize + BucketSize * (keysize + valsize) + thearch.ptrsize);
 		}
-		newattr(dwhb, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize + BucketSize * keysize + BucketSize * valsize + RegSize, 0);
+		newattr(dwhb, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize + BucketSize * keysize + BucketSize * valsize + thearch.regsize, 0);
 
 		// Construct hash<K,V>
 		dwh = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
@@ -1332,7 +1335,7 @@ synthesizechantypes(DWDie *die)
 			continue;
 		elemtype = (DWDie*) getattr(die, DW_AT_go_elem)->data;
 		a = getattr(elemtype, DW_AT_byte_size);
-		elemsize = a ? a->value : PtrSize;
+		elemsize = a ? a->value : thearch.ptrsize;
 
 		// sudog<T>
 		dws = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
@@ -1414,7 +1417,7 @@ movetomodule(DWDie *parent)
 	die->link = parent->child;
 }
 
-// If the pcln table contains runtime/string.goc, use that to set gdbscript path.
+// If the pcln table contains runtime/runtime.go, use that to set gdbscript path.
 static void
 finddebugruntimepath(LSym *s)
 {
@@ -1427,7 +1430,7 @@ finddebugruntimepath(LSym *s)
 
 	for(i=0; i<s->pcln->nfile; i++) {
 		f = s->pcln->file[i];
-		if((p = strstr(f->name, "runtime/string.goc")) != nil) {
+		if((p = strstr(f->name, "runtime/runtime.go")) != nil) {
 			*p = '\0';
 			snprint(gdbscript, sizeof gdbscript, "%sruntime/runtime-gdb.py", f->name);
 			*p = 'r';
@@ -1519,9 +1522,9 @@ flushunit(DWDie *dwinfo, vlong pc, LSym *pcsym, vlong unitstart, int32 header_le
 
 		here = cpos();
 		cseek(unitstart);
-		LPUT(here - unitstart - sizeof(int32));	 // unit_length
-		WPUT(2);  // dwarf version
-		LPUT(header_length); // header length starting here
+		thearch.lput(here - unitstart - sizeof(int32));	 // unit_length
+		thearch.wput(2);  // dwarf version
+		thearch.lput(header_length); // header length starting here
 		cseek(here);
 	}
 }
@@ -1540,14 +1543,14 @@ writelines(void)
 	Pciter pcfile, pcline;
 	LSym **files, *f;
 
-	if(linesec == S)
+	if(linesec == nil)
 		linesec = linklookup(ctxt, ".dwarfline", 0);
 	linesec->nr = 0;
 
 	unitstart = -1;
 	headerend = -1;
 	epc = 0;
-	epcs = S;
+	epcs = nil;
 	lineo = cpos();
 	dwinfo = nil;
 	
@@ -1565,9 +1568,9 @@ writelines(void)
 
 	// Write .debug_line Line Number Program Header (sec 6.2.4)
 	// Fields marked with (*) must be changed for 64-bit dwarf
-	LPUT(0);   // unit_length (*), will be filled in by flushunit.
-	WPUT(2);   // dwarf version (appendix F)
-	LPUT(0);   // header_length (*), filled in by flushunit.
+	thearch.lput(0);   // unit_length (*), will be filled in by flushunit.
+	thearch.wput(2);   // dwarf version (appendix F)
+	thearch.lput(0);   // header_length (*), filled in by flushunit.
 	// cpos == unitstart + 4 + 2 + 4
 	cput(1);   // minimum_instruction_length
 	cput(1);   // default_is_stmt
@@ -1598,14 +1601,14 @@ writelines(void)
 	headerend = cpos();
 
 	cput(0);  // start extended opcode
-	uleb128put(1 + PtrSize);
+	uleb128put(1 + thearch.ptrsize);
 	cput(DW_LNE_set_address);
 
 	pc = s->value;
 	line = 1;
 	file = 1;
 	if(linkmode == LinkExternal)
-		adddwarfrel(linesec, s, lineo, PtrSize, 0);
+		adddwarfrel(linesec, s, lineo, thearch.ptrsize, 0);
 	else
 		addrput(pc);
 
@@ -1661,7 +1664,7 @@ writelines(void)
 			switch (a->name) {
 			case A_AUTO:
 				dt = DW_ABRV_AUTO;
-				offs = a->aoffset - PtrSize;
+				offs = a->aoffset - thearch.ptrsize;
 				break;
 			case A_PARAM:
 				dt = DW_ABRV_PARAM;
@@ -1710,7 +1713,7 @@ writelines(void)
 enum
 {
 	CIERESERVE = 16,
-	DATAALIGNMENTFACTOR = -4,	// TODO -PtrSize?
+	DATAALIGNMENTFACTOR = -4,	// TODO -thearch.ptrsize?
 	FAKERETURNCOLUMN = 16		// TODO gdb6 doesn't like > 15?
 };
 
@@ -1727,10 +1730,10 @@ putpccfadelta(vlong deltapc, vlong cfa)
 		cput(deltapc);
 	} else if (deltapc < 0x10000) {
 		cput(DW_CFA_advance_loc2);
-		WPUT(deltapc);
+		thearch.wput(deltapc);
 	} else {
 		cput(DW_CFA_advance_loc4);
-		LPUT(deltapc);
+		thearch.lput(deltapc);
 	}
 }
 
@@ -1742,14 +1745,14 @@ writeframes(void)
 	Pciter pcsp;
 	uint32 nextpc;
 
-	if(framesec == S)
+	if(framesec == nil)
 		framesec = linklookup(ctxt, ".dwarfframe", 0);
 	framesec->nr = 0;
 	frameo = cpos();
 
 	// Emit the CIE, Section 6.4.1
-	LPUT(CIERESERVE);	// initial length, must be multiple of PtrSize
-	LPUT(0xffffffff);	// cid.
+	thearch.lput(CIERESERVE);	// initial length, must be multiple of thearch.ptrsize
+	thearch.lput(0xffffffff);	// cid.
 	cput(3);		// dwarf version (appendix F)
 	cput(0);		// augmentation ""
 	uleb128put(1);		// code_alignment_factor
@@ -1757,11 +1760,11 @@ writeframes(void)
 	uleb128put(FAKERETURNCOLUMN);	// return_address_register
 
 	cput(DW_CFA_def_cfa);
-	uleb128put(DWARFREGSP);	// register SP (**ABI-dependent, defined in l.h)
-	uleb128put(PtrSize);	// offset
+	uleb128put(thearch.dwarfregsp);	// register SP (**ABI-dependent, defined in l.h)
+	uleb128put(thearch.ptrsize);	// offset
 
 	cput(DW_CFA_offset + FAKERETURNCOLUMN);	 // return address
-	uleb128put(-PtrSize / DATAALIGNMENTFACTOR);  // at cfa - x*4
+	uleb128put(-thearch.ptrsize / DATAALIGNMENTFACTOR);  // at cfa - x*4
 
 	// 4 is to exclude the length field.
 	pad = CIERESERVE + frameo + 4 - cpos();
@@ -1778,8 +1781,8 @@ writeframes(void)
 
 		fdeo = cpos();
 		// Emit a FDE, Section 6.4.1, starting wit a placeholder.
-		LPUT(0);	// length, must be multiple of PtrSize
-		LPUT(0);	// Pointer to the CIE above, at offset 0
+		thearch.lput(0);	// length, must be multiple of thearch.ptrsize
+		thearch.lput(0);	// Pointer to the CIE above, at offset 0
 		addrput(0);	// initial location
 		addrput(0);	// address range
 
@@ -1792,23 +1795,23 @@ writeframes(void)
 				if(nextpc < pcsp.pc)
 					continue;
 			}
-			putpccfadelta(nextpc - pcsp.pc, PtrSize + pcsp.value);
+			putpccfadelta(nextpc - pcsp.pc, thearch.ptrsize + pcsp.value);
 		}
 
 		fdesize = cpos() - fdeo - 4;	// exclude the length field.
-		pad = rnd(fdesize, PtrSize) - fdesize;
+		pad = rnd(fdesize, thearch.ptrsize) - fdesize;
 		strnput("", pad);
 		fdesize += pad;
 
 		// Emit the FDE header for real, Section 6.4.1.
 		cseek(fdeo);
-		LPUT(fdesize);
+		thearch.lput(fdesize);
 		if(linkmode == LinkExternal) {
 			adddwarfrel(framesec, framesym, frameo, 4, 0);
-			adddwarfrel(framesec, s, frameo, PtrSize, 0);
+			adddwarfrel(framesec, s, frameo, thearch.ptrsize, 0);
 		}
 		else {
-			LPUT(0);
+			thearch.lput(0);
 			addrput(s->value);
 		}
 		addrput(s->size);
@@ -1834,11 +1837,11 @@ writeinfo(void)
 	vlong unitstart, here;
 
 	fwdcount = 0;
-	if (infosec == S)
+	if (infosec == nil)
 		infosec = linklookup(ctxt, ".dwarfinfo", 0);
 	infosec->nr = 0;
 
-	if(arangessec == S)
+	if(arangessec == nil)
 		arangessec = linklookup(ctxt, ".dwarfaranges", 0);
 	arangessec->nr = 0;
 
@@ -1848,22 +1851,22 @@ writeinfo(void)
 		// Write .debug_info Compilation Unit Header (sec 7.5.1)
 		// Fields marked with (*) must be changed for 64-bit dwarf
 		// This must match COMPUNITHEADERSIZE above.
-		LPUT(0);	// unit_length (*), will be filled in later.
-		WPUT(2);	// dwarf version (appendix F)
+		thearch.lput(0);	// unit_length (*), will be filled in later.
+		thearch.wput(2);	// dwarf version (appendix F)
 
 		// debug_abbrev_offset (*)
 		if(linkmode == LinkExternal)
 			adddwarfrel(infosec, abbrevsym, infoo, 4, 0);
 		else
-			LPUT(0);
+			thearch.lput(0);
 
-		cput(PtrSize);	// address_size
+		cput(thearch.ptrsize);	// address_size
 
 		putdie(compunit);
 
 		here = cpos();
 		cseek(unitstart);
-		LPUT(here - unitstart - 4);	// exclude the length field.
+		thearch.lput(here - unitstart - 4);	// exclude the length field.
 		cseek(here);
 	}
 	cflush();
@@ -1910,22 +1913,22 @@ writepub(int (*ispub)(DWDie*))
 			unitend = infoo + infosize;
 
 		// Write .debug_pubnames/types	Header (sec 6.1.1)
-		LPUT(0);			// unit_length (*), will be filled in later.
-		WPUT(2);			// dwarf version (appendix F)
-		LPUT(unitstart);		// debug_info_offset (of the Comp unit Header)
-		LPUT(unitend - unitstart);	// debug_info_length
+		thearch.lput(0);			// unit_length (*), will be filled in later.
+		thearch.wput(2);			// dwarf version (appendix F)
+		thearch.lput(unitstart);		// debug_info_offset (of the Comp unit Header)
+		thearch.lput(unitend - unitstart);	// debug_info_length
 
 		for (die = compunit->child; die != nil; die = die->link) {
 			if (!ispub(die)) continue;
-			LPUT(die->offs - unitstart);
+			thearch.lput(die->offs - unitstart);
 			dwa = getattr(die, DW_AT_name);
 			strnput(dwa->data, dwa->value + 1);
 		}
-		LPUT(0);
+		thearch.lput(0);
 
 		here = cpos();
 		cseek(sectionstart);
-		LPUT(here - sectionstart - 4);	// exclude the length field.
+		thearch.lput(here - sectionstart - 4);	// exclude the length field.
 		cseek(here);
 
 	}
@@ -1947,7 +1950,7 @@ writearanges(void)
 	vlong value;
 
 	sectionstart = cpos();
-	headersize = rnd(4+2+4+1+1, PtrSize);  // don't count unit_length field itself
+	headersize = rnd(4+2+4+1+1, thearch.ptrsize);  // don't count unit_length field itself
 
 	for (compunit = dwroot.child; compunit != nil; compunit = compunit->link) {
 		b = getattr(compunit,  DW_AT_low_pc);
@@ -1958,21 +1961,21 @@ writearanges(void)
 			continue;
 
 		// Write .debug_aranges	 Header + entry	 (sec 6.1.2)
-		LPUT(headersize + 4*PtrSize - 4);	// unit_length (*)
-		WPUT(2);	// dwarf version (appendix F)
+		thearch.lput(headersize + 4*thearch.ptrsize - 4);	// unit_length (*)
+		thearch.wput(2);	// dwarf version (appendix F)
 
 		value = compunit->offs - COMPUNITHEADERSIZE;	// debug_info_offset
 		if(linkmode == LinkExternal)
 			adddwarfrel(arangessec, infosym, sectionstart, 4, value);
 		else
-			LPUT(value);
+			thearch.lput(value);
 
-		cput(PtrSize);	// address_size
+		cput(thearch.ptrsize);	// address_size
 		cput(0);	// segment_size
-		strnput("", headersize - (4+2+4+1+1));	// align to PtrSize
+		strnput("", headersize - (4+2+4+1+1));	// align to thearch.ptrsize
 
 		if(linkmode == LinkExternal)
-			adddwarfrel(arangessec, (LSym*)b->data, sectionstart, PtrSize, b->value-((LSym*)b->data)->value);
+			adddwarfrel(arangessec, (LSym*)b->data, sectionstart, thearch.ptrsize, b->value-((LSym*)b->data)->value);
 		else
 			addrput(b->value);
 
@@ -2016,9 +2019,9 @@ writedwarfreloc(LSym* s)
 	start = cpos();
 	for(r = s->r; r < s->r+s->nr; r++) {
 		if(iself)
-			i = elfreloc1(r, r->off);
+			i = thearch.elfreloc1(r, r->off);
 		else if(HEADTYPE == Hdarwin)
-			i = machoreloc1(r, r->off);
+			i = thearch.machoreloc1(r, r->off);
 		else
 			i = -1;
 		if(i < 0)
@@ -2062,7 +2065,7 @@ dwarfemitdebugsections(void)
 
 	die = newdie(&dwtypes, DW_ABRV_BASETYPE, "uintptr");  // needed for array size
 	newattr(die, DW_AT_encoding,  DW_CLS_CONSTANT, DW_ATE_unsigned, 0);
-	newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, PtrSize, 0);
+	newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, thearch.ptrsize, 0);
 	newattr(die, DW_AT_go_kind, DW_CLS_CONSTANT, KindUintptr, 0);
 
 	// Needed by the prettyprinter code for interface inspection.
@@ -2196,7 +2199,7 @@ dwarfaddshstrings(LSym *shstrtab)
 	elfstrdbg[ElfStrDebugStr]      = addstring(shstrtab, ".debug_str");
 	elfstrdbg[ElfStrGDBScripts]    = addstring(shstrtab, ".debug_gdb_scripts");
 	if(linkmode == LinkExternal) {
-		if(thechar == '6' || thechar == '9') {
+		if(thearch.thechar == '6' || thearch.thechar == '9') {
 			elfstrdbg[ElfStrRelDebugInfo] = addstring(shstrtab, ".rela.debug_info");
 			elfstrdbg[ElfStrRelDebugAranges] = addstring(shstrtab, ".rela.debug_aranges");
 			elfstrdbg[ElfStrRelDebugLine] = addstring(shstrtab, ".rela.debug_line");
@@ -2251,17 +2254,17 @@ dwarfaddelfrelocheader(int elfstr, ElfShdr *shdata, vlong off, vlong size)
 	ElfShdr *sh;
 
 	sh = newElfShdr(elfstrdbg[elfstr]);
-	if(thechar == '6' || thechar == '9') {
+	if(thearch.thechar == '6' || thearch.thechar == '9') {
 		sh->type = SHT_RELA;
 	} else {
 		sh->type = SHT_REL;
 	}
-	sh->entsize = PtrSize*(2+(sh->type==SHT_RELA));
+	sh->entsize = thearch.ptrsize*(2+(sh->type==SHT_RELA));
 	sh->link = elfshname(".symtab")->shnum;
 	sh->info = shdata->shnum;
 	sh->off = off;
 	sh->size = size;
-	sh->addralign = PtrSize;
+	sh->addralign = thearch.ptrsize;
 	
 }
 

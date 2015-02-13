@@ -81,26 +81,26 @@ func TestWriteToUDP(t *testing.T) {
 		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
-	l, err := ListenPacket("udp", "127.0.0.1:0")
+	c, err := ListenPacket("udp", "127.0.0.1:0")
 	if err != nil {
-		t.Fatalf("Listen failed: %v", err)
+		t.Fatal(err)
 	}
-	defer l.Close()
+	defer c.Close()
 
-	testWriteToConn(t, l.LocalAddr().String())
-	testWriteToPacketConn(t, l.LocalAddr().String())
+	testWriteToConn(t, c.LocalAddr().String())
+	testWriteToPacketConn(t, c.LocalAddr().String())
 }
 
 func testWriteToConn(t *testing.T, raddr string) {
 	c, err := Dial("udp", raddr)
 	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
+		t.Fatal(err)
 	}
 	defer c.Close()
 
 	ra, err := ResolveUDPAddr("udp", raddr)
 	if err != nil {
-		t.Fatalf("ResolveUDPAddr failed: %v", err)
+		t.Fatal(err)
 	}
 
 	_, err = c.(*UDPConn).WriteToUDP([]byte("Connection-oriented mode socket"), ra)
@@ -121,35 +121,69 @@ func testWriteToConn(t *testing.T, raddr string) {
 
 	_, err = c.Write([]byte("Connection-oriented mode socket"))
 	if err != nil {
-		t.Fatalf("Write failed: %v", err)
+		t.Fatal(err)
+	}
+
+	_, _, err = c.(*UDPConn).WriteMsgUDP([]byte("Connection-oriented mode socket"), nil, ra)
+	if err == nil {
+		t.Fatal("WriteMsgUDP should fail")
+	}
+	if err != nil && err.(*OpError).Err != ErrWriteToConnected {
+		t.Fatalf("WriteMsgUDP should fail as ErrWriteToConnected: %v", err)
+	}
+	_, _, err = c.(*UDPConn).WriteMsgUDP([]byte("Connection-oriented mode socket"), nil, nil)
+	switch runtime.GOOS {
+	case "nacl", "windows": // see golang.org/issue/9252
+		t.Skipf("not implemented yet on %s", runtime.GOOS)
+	default:
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
 func testWriteToPacketConn(t *testing.T, raddr string) {
 	c, err := ListenPacket("udp", "127.0.0.1:0")
 	if err != nil {
-		t.Fatalf("ListenPacket failed: %v", err)
+		t.Fatal(err)
 	}
 	defer c.Close()
 
 	ra, err := ResolveUDPAddr("udp", raddr)
 	if err != nil {
-		t.Fatalf("ResolveUDPAddr failed: %v", err)
+		t.Fatal(err)
 	}
 
 	_, err = c.(*UDPConn).WriteToUDP([]byte("Connection-less mode socket"), ra)
 	if err != nil {
-		t.Fatalf("WriteToUDP failed: %v", err)
+		t.Fatal(err)
 	}
 
 	_, err = c.WriteTo([]byte("Connection-less mode socket"), ra)
 	if err != nil {
-		t.Fatalf("WriteTo failed: %v", err)
+		t.Fatal(err)
 	}
 
 	_, err = c.(*UDPConn).Write([]byte("Connection-less mode socket"))
 	if err == nil {
 		t.Fatal("Write should fail")
+	}
+
+	_, _, err = c.(*UDPConn).WriteMsgUDP([]byte("Connection-less mode socket"), nil, nil)
+	if err == nil {
+		t.Fatal("WriteMsgUDP should fail")
+	}
+	if err != nil && err.(*OpError).Err != errMissingAddress {
+		t.Fatalf("WriteMsgUDP should fail as errMissingAddress: %v", err)
+	}
+	_, _, err = c.(*UDPConn).WriteMsgUDP([]byte("Connection-less mode socket"), nil, ra)
+	switch runtime.GOOS {
+	case "nacl", "windows": // see golang.org/issue/9252
+		t.Skipf("not implemented yet on %s", runtime.GOOS)
+	default:
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 

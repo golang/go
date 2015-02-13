@@ -42,7 +42,7 @@ extern "C" {
 #define _NETBSD_SOURCE 1	/* NetBSD */
 #define _DEFAULT_SOURCE 1	/* glibc > 2.19 */
 #define _SVID_SOURCE 1
-#if !defined(__APPLE__) && !defined(__OpenBSD__)
+#if !defined(__APPLE__) && !defined(__OpenBSD__) && !defined(__sun__)
 #	define _XOPEN_SOURCE 1000
 #	define _XOPEN_SOURCE_EXTENDED 1
 #endif

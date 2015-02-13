@@ -96,6 +96,7 @@ static Optab	optab[] =
 	{ ABL,		C_NONE,	C_NONE,	C_SBRA,		 5, 4, 0 },
 	{ ABX,		C_NONE,	C_NONE,	C_SBRA,		 74, 20, 0 },
 	{ ABEQ,		C_NONE,	C_NONE,	C_SBRA,		 5, 4, 0 },
+	{ ABEQ,		C_RCON,	C_NONE,	C_SBRA,		 5, 4, 0 }, // prediction hinted form, hint ignored
 
 	{ AB,		C_NONE,	C_NONE,	C_ROREG,	 6, 4, 0,	LPOOL },
 	{ ABL,		C_NONE,	C_NONE,	C_ROREG,	 7, 4, 0 },
@@ -352,14 +353,6 @@ static	Oprang	oprange[ALAST];
 static	uchar	xcmp[C_GOK+1][C_GOK+1];
 
 static LSym *deferreturn;
-
-static void
-nocache(Prog *p)
-{
-	p->optab = 0;
-	p->from.class = 0;
-	p->to.class = 0;
-}
 
 /* size of a case statement including jump table */
 static int32
@@ -1638,8 +1631,11 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
 			// runtime.tlsg is special.
 			// Its "address" is the offset from the TLS thread pointer
 			// to the thread-local g and m pointers.
-			// Emit a TLS relocation instead of a standard one.
-			if(rel->sym == ctxt->tlsg) {
+			// Emit a TLS relocation instead of a standard one if its
+			// type is not explicitly set by runtime. This assumes that
+			// all references to runtime.tlsg should be accompanied with
+			// its type declaration if necessary.
+			if(rel->sym == ctxt->tlsg && ctxt->tlsg->type == 0) {
 				rel->type = R_TLS;
 				if(ctxt->flag_shared)
 					rel->add += ctxt->pc - p->pcrel->pc - 8 - rel->siz;

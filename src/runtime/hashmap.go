@@ -182,8 +182,14 @@ func (h *hmap) createOverflow() {
 	}
 }
 
-func makemap(t *maptype, hint int64) *hmap {
+// makemap implements a Go map creation make(map[k]v, hint)
+// If the compiler has determined that the map or the first bucket
+// can be created on the stack, h and/or bucket may be non-nil.
+// If h != nil, the map can be created directly in h.
+// If bucket != nil, bucket can be used as the first bucket.
+func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
 	if sz := unsafe.Sizeof(hmap{}); sz > 48 || sz != uintptr(t.hmap.size) {
+		println("runtime: sizeof(hmap) =", sz, ", t.hmap.size =", t.hmap.size)
 		throw("bad hmap size")
 	}
 
@@ -238,7 +244,7 @@ func makemap(t *maptype, hint int64) *hmap {
 	// allocate initial hash table
 	// if B == 0, the buckets field is allocated lazily later (in mapassign)
 	// If hint is large zeroing this memory could take a while.
-	var buckets unsafe.Pointer
+	buckets := bucket
 	if B != 0 {
 		if checkgc {
 			memstats.next_gc = memstats.heap_alloc
@@ -250,7 +256,9 @@ func makemap(t *maptype, hint int64) *hmap {
 	if checkgc {
 		memstats.next_gc = memstats.heap_alloc
 	}
-	h := (*hmap)(newobject(t.hmap))
+	if h == nil {
+		h = (*hmap)(newobject(t.hmap))
+	}
 	h.count = 0
 	h.B = B
 	h.flags = 0
@@ -956,7 +964,7 @@ func ismapkey(t *_type) bool {
 
 //go:linkname reflect_makemap reflect.makemap
 func reflect_makemap(t *maptype) *hmap {
-	return makemap(t, 0)
+	return makemap(t, 0, nil, nil)
 }
 
 //go:linkname reflect_mapaccess reflect.mapaccess

@@ -693,12 +693,10 @@ esc(EscState *e, Node *n, Node *up)
 	case OMAKEMAP:
 	case OMAKESLICE:
 	case ONEW:
-		n->escloopdepth = e->loopdepth;
-		n->esc = EscNone;  // until proven otherwise
-		e->noesc = list(e->noesc, n);
-		break;
-
+	case OARRAYRUNESTR:
 	case OARRAYBYTESTR:
+	case OSTRARRAYRUNE:
+	case OSTRARRAYBYTE:
 	case ORUNESTR:
 		n->escloopdepth = e->loopdepth;
 		n->esc = EscNone;  // until proven otherwise
@@ -824,7 +822,10 @@ escassign(EscState *e, Node *dst, Node *src)
 	case OMAKECHAN:
 	case OMAKEMAP:
 	case OMAKESLICE:
+	case OARRAYRUNESTR:
 	case OARRAYBYTESTR:
+	case OSTRARRAYRUNE:
+	case OSTRARRAYBYTE:
 	case OADDSTR:
 	case ONEW:
 	case OCLOSURE:
@@ -1249,7 +1250,10 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
 	case OMAKECHAN:
 	case OMAKEMAP:
 	case OMAKESLICE:
+	case OARRAYRUNESTR:
 	case OARRAYBYTESTR:
+	case OSTRARRAYRUNE:
+	case OSTRARRAYBYTE:
 	case OADDSTR:
 	case OMAPLIT:
 	case ONEW:

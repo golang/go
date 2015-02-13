@@ -38,12 +38,50 @@
 #include	"../ld/pe.h"
 #include	<ar.h>
 
-char*	thestring 	= "386";
-LinkArch*	thelinkarch = &link386;
+void
+main(int argc, char **argv)
+{
+	linkarchinit();
+	ldmain(argc, argv);
+}
 
 void
 linkarchinit(void)
 {
+	thestring 	= "386";
+	thelinkarch = &link386;
+
+	thearch.thechar = thechar;
+	thearch.ptrsize = thelinkarch->ptrsize;
+	thearch.intsize = thelinkarch->ptrsize;
+	thearch.regsize = thelinkarch->regsize;
+	thearch.funcalign = FuncAlign;
+	thearch.maxalign = MaxAlign;
+	thearch.minlc = MINLC;
+	thearch.dwarfregsp = DWARFREGSP;
+
+	thearch.adddynlib = adddynlib;
+	thearch.adddynrel = adddynrel;
+	thearch.adddynsym = adddynsym;
+	thearch.archinit = archinit;
+	thearch.archreloc = archreloc;
+	thearch.archrelocvariant = archrelocvariant;
+	thearch.asmb = asmb;
+	thearch.elfreloc1 = elfreloc1;
+	thearch.elfsetupplt = elfsetupplt;
+	thearch.gentext = gentext;
+	thearch.listinit = listinit;
+	thearch.machoreloc1 = machoreloc1;
+	thearch.lput = lputl;
+	thearch.wput = wputl;
+	thearch.vput = vputl;
+
+	thearch.linuxdynld = "/lib/ld-linux.so.2";
+	thearch.freebsddynld = "/usr/libexec/ld-elf.so.1";
+	thearch.openbsddynld = "/usr/libexec/ld.so";
+	thearch.netbsddynld = "/usr/libexec/ld.elf_so";
+	thearch.dragonflydynld = "/usr/libexec/ld-elf.so.2";
+	thearch.solarisdynld = "/lib/ld.so.1";
 }
 
 void

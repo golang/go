@@ -39,6 +39,11 @@ var (
 	mstartPC             uintptr
 	rt0_goPC             uintptr
 	sigpanicPC           uintptr
+	runfinqPC            uintptr
+	backgroundgcPC       uintptr
+	bgsweepPC            uintptr
+	forcegchelperPC      uintptr
+	timerprocPC          uintptr
 	systemstack_switchPC uintptr
 
 	externalthreadhandlerp uintptr // initialized elsewhere
@@ -56,6 +61,11 @@ func tracebackinit() {
 	mstartPC = funcPC(mstart)
 	rt0_goPC = funcPC(rt0_go)
 	sigpanicPC = funcPC(sigpanic)
+	runfinqPC = funcPC(runfinq)
+	backgroundgcPC = funcPC(backgroundgc)
+	bgsweepPC = funcPC(bgsweep)
+	forcegchelperPC = funcPC(forcegchelper)
+	timerprocPC = funcPC(timerproc)
 	systemstack_switchPC = funcPC(systemstack_switch)
 }
 
@@ -606,7 +616,7 @@ func tracebackothers(me *g) {
 
 	lock(&allglock)
 	for _, gp := range allgs {
-		if gp == me || gp == g.m.curg || readgstatus(gp) == _Gdead || gp.issystem && level < 2 {
+		if gp == me || gp == g.m.curg || readgstatus(gp) == _Gdead || isSystemGoroutine(gp) && level < 2 {
 			continue
 		}
 		print("\n")
@@ -630,4 +640,15 @@ func topofstack(f *_func) bool {
 		pc == morestackPC ||
 		pc == rt0_goPC ||
 		externalthreadhandlerp != 0 && pc == externalthreadhandlerp
+}
+
+// isSystemGoroutine returns true if the goroutine g must be omitted in
+// stack dumps and deadlock detector.
+func isSystemGoroutine(gp *g) bool {
+	pc := gp.startpc
+	return pc == runfinqPC && !fingRunning ||
+		pc == backgroundgcPC ||
+		pc == bgsweepPC ||
+		pc == forcegchelperPC ||
+		pc == timerprocPC
 }

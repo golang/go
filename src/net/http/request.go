@@ -673,7 +673,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err error) {
 // MaxBytesReader is similar to io.LimitReader but is intended for
 // limiting the size of incoming request bodies. In contrast to
 // io.LimitReader, MaxBytesReader's result is a ReadCloser, returns a
-// non-EOF error for a Read beyond the limit, and Closes the
+// non-EOF error for a Read beyond the limit, and closes the
 // underlying reader when its Close method is called.
 //
 // MaxBytesReader prevents clients from accidentally or maliciously

@@ -39,20 +39,8 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$-4
 
 	BL	runtime·emptyfunc(SB)	// fault if stack check is wrong
 
-#ifndef GOOS_nacl
-	// if there is an _cgo_init, call it.
-	MOVW	_cgo_init(SB), R4
-	CMP	$0, R4
-	B.EQ	nocgo
-	MRC     15, 0, R0, C13, C0, 3 	// load TLS base pointer
-	MOVW 	R0, R3 			// arg 3: TLS base pointer
-	MOVW 	$runtime·tlsg(SB), R2 	// arg 2: tlsg
-	MOVW	$setg_gcc<>(SB), R1 	// arg 1: setg
-	MOVW	g, R0 			// arg 0: G
-	BL	(R4) // will clobber R0-R3
-#endif
+	BL	runtime·_initcgo(SB)	// will clobber R0-R3
 
-nocgo:
 	// update stackguard after _cgo_init
 	MOVW	(g_stack+stack_lo)(g), R0
 	ADD	$const__StackGuard, R0
@@ -806,21 +794,18 @@ eq:
 	RET
 
 // eqstring tests whether two strings are equal.
+// The compiler guarantees that strings passed
+// to eqstring have equal length.
 // See runtime_test.go:eqstring_generic for
 // equivalent Go code.
 TEXT runtime·eqstring(SB),NOSPLIT,$-4-17
-	MOVW	s1len+4(FP), R0
-	MOVW	s2len+12(FP), R1
-	MOVW	$0, R7
-	CMP	R0, R1
-	MOVB.NE R7, v+16(FP)
-	RET.NE
 	MOVW	s1str+0(FP), R2
 	MOVW	s2str+8(FP), R3
 	MOVW	$1, R8
 	MOVB	R8, v+16(FP)
 	CMP	R2, R3
 	RET.EQ
+	MOVW	s1len+4(FP), R0
 	ADD	R2, R0, R6
 loop:
 	CMP	R2, R6
@@ -829,13 +814,9 @@ loop:
 	MOVBU.P	1(R3), R5
 	CMP	R4, R5
 	BEQ	loop
-	MOVB	R7, v+16(FP)
+	MOVW	$0, R8
+	MOVB	R8, v+16(FP)
 	RET
-
-// void setg_gcc(G*); set g called from gcc.
-TEXT setg_gcc<>(SB),NOSPLIT,$0
-	MOVW	R0, g
-	B		runtime·save_g(SB)
 
 // TODO: share code with memeq?
 TEXT bytes·Equal(SB),NOSPLIT,$0

@@ -7,7 +7,6 @@
 package time
 
 import (
-	"errors"
 	"runtime"
 	"syscall"
 )
@@ -148,11 +147,12 @@ func initLocal() {
 }
 
 func loadLocation(name string) (*Location, error) {
-	if z, err := loadZoneFile(runtime.GOROOT()+"/lib/time/zoneinfo.zip", name); err == nil {
-		z.name = name
-		return z, nil
+	z, err := loadZoneFile(runtime.GOROOT()+"/lib/time/zoneinfo.zip", name)
+	if err != nil {
+		return nil, err
 	}
-	return nil, errors.New("unknown time zone " + name)
+	z.name = name
+	return z, nil
 }
 
 func forceZipFileForTesting(zipOnly bool) {

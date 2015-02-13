@@ -78,8 +78,8 @@ complexmove(Node *f, Node *t)
 		subnode(&n1, &n2, f);
 		subnode(&n3, &n4, t);
 
-		arch.cgen(&n1, &n3);
-		arch.cgen(&n2, &n4);
+		thearch.cgen(&n1, &n3);
+		thearch.cgen(&n2, &n4);
 		break;
 	}
 }
@@ -151,9 +151,9 @@ complexgen(Node *n, Node *res)
 		if(res->addable) {
 			subnode(&n1, &n2, res);
 			tempname(&tmp, n1.type);
-			arch.cgen(n->left, &tmp);
-			arch.cgen(n->right, &n2);
-			arch.cgen(&tmp, &n1);
+			thearch.cgen(n->left, &tmp);
+			thearch.cgen(n->right, &n2);
+			thearch.cgen(&tmp, &n1);
 			return;
 		}
 		break;
@@ -168,10 +168,10 @@ complexgen(Node *n, Node *res)
 		}
 		subnode(&n1, &n2, nl);
 		if(n->op == OREAL) {
-			arch.cgen(&n1, res);
+			thearch.cgen(&n1, res);
 			return;
 		}
-		arch.cgen(&n2, res);
+		thearch.cgen(&n2, res);
 		return;
 	}
 
@@ -191,9 +191,9 @@ complexgen(Node *n, Node *res)
 	}
 
 	if(!res->addable) {
-		arch.igen(res, &n1, N);
-		arch.cgen(n, &n1);
-		arch.regfree(&n1);
+		thearch.igen(res, &n1, N);
+		thearch.cgen(n, &n1);
+		thearch.regfree(&n1);
 		return;
 	}
 	if(n->addable) {
@@ -214,9 +214,9 @@ complexgen(Node *n, Node *res)
 	case OCALLFUNC:
 	case OCALLMETH:
 	case OCALLINTER:
-		arch.igen(n, &n1, res);
+		thearch.igen(n, &n1, res);
 		complexmove(&n1, res);
-		arch.regfree(&n1);
+		thearch.regfree(&n1);
 		return;
 
 	case OCONV:
@@ -239,18 +239,18 @@ complexgen(Node *n, Node *res)
 	if(nr != N) {
 		if(nl->ullman > nr->ullman && !nl->addable) {
 			tempname(&tnl, nl->type);
-			arch.cgen(nl, &tnl);
+			thearch.cgen(nl, &tnl);
 			nl = &tnl;
 		}
 		if(!nr->addable) {
 			tempname(&tnr, nr->type);
-			arch.cgen(nr, &tnr);
+			thearch.cgen(nr, &tnr);
 			nr = &tnr;
 		}
 	}
 	if(!nl->addable) {
 		tempname(&tnl, nl->type);
-		arch.cgen(nl, &tnl);
+		thearch.cgen(nl, &tnl);
 		nl = &tnl;
 	}
 
@@ -289,18 +289,18 @@ complexbool(int op, Node *nl, Node *nr, int true, int likely, Prog *to)
 	if(nr != N) {
 		if(nl->ullman > nr->ullman && !nl->addable) {
 			tempname(&tnl, nl->type);
-			arch.cgen(nl, &tnl);
+			thearch.cgen(nl, &tnl);
 			nl = &tnl;
 		}
 		if(!nr->addable) {
 			tempname(&tnr, nr->type);
-			arch.cgen(nr, &tnr);
+			thearch.cgen(nr, &tnr);
 			nr = &tnr;
 		}
 	}
 	if(!nl->addable) {
 		tempname(&tnl, nl->type);
-		arch.cgen(nl, &tnl);
+		thearch.cgen(nl, &tnl);
 		nl = &tnl;
 	}
 
@@ -331,7 +331,7 @@ complexbool(int op, Node *nl, Node *nr, int true, int likely, Prog *to)
 	if(op == ONE)
 		true = !true;
 
-	arch.bgen(&na, true, likely, to);
+	thearch.bgen(&na, true, likely, to);
 }
 
 void
@@ -387,7 +387,7 @@ minus(Node *nl, Node *res)
 	ra.op = OMINUS;
 	ra.left = nl;
 	ra.type = nl->type;
-	arch.cgen(&ra, res);
+	thearch.cgen(&ra, res);
 }
 
 // build and execute tree
@@ -424,14 +424,14 @@ complexadd(int op, Node *nl, Node *nr, Node *res)
 	ra.left = &n1;
 	ra.right = &n3;
 	ra.type = n1.type;
-	arch.cgen(&ra, &n5);
+	thearch.cgen(&ra, &n5);
 
 	memset(&ra, 0, sizeof(ra));
 	ra.op = op;
 	ra.left = &n2;
 	ra.right = &n4;
 	ra.type = n2.type;
-	arch.cgen(&ra, &n6);
+	thearch.cgen(&ra, &n6);
 }
 
 // build and execute tree
@@ -467,7 +467,7 @@ complexmul(Node *nl, Node *nr, Node *res)
 	ra.left = &rm1;
 	ra.right = &rm2;
 	ra.type = rm1.type;
-	arch.cgen(&ra, &tmp);
+	thearch.cgen(&ra, &tmp);
 
 	// imag part
 	memset(&rm1, 0, sizeof(rm1));
@@ -487,8 +487,8 @@ complexmul(Node *nl, Node *nr, Node *res)
 	ra.left = &rm1;
 	ra.right = &rm2;
 	ra.type = rm1.type;
-	arch.cgen(&ra, &n6);
+	thearch.cgen(&ra, &n6);
 
 	// tmp ->real part
-	arch.cgen(&tmp, &n5);
+	thearch.cgen(&tmp, &n5);
 }
