@@ -10,11 +10,11 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 	_g_ := getg()
 	var t sigTabT
 	var docrash bool
-	var length int
 	var sig int
 	var flags int
 
 	c := &sigctxt{_ureg}
+	notestr := gostringnocopy(note)
 
 	// The kernel will never pass us a nil note or ureg so we probably
 	// made a mistake somewhere in sigtramp.
@@ -24,8 +24,7 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 	}
 	// Check that the note is no more than ERRMAX bytes (including
 	// the trailing NUL). We should never receive a longer note.
-	length = findnull(note)
-	if length > _ERRMAX-1 {
+	if len(notestr) > _ERRMAX-1 {
 		print("sighandler: note is longer than ERRMAX\n")
 		goto Throw
 	}
@@ -34,11 +33,7 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 	// level by the program but will otherwise be ignored.
 	flags = _SigNotify
 	for sig, t = range sigtable {
-		n := len(t.name)
-		if length < n {
-			continue
-		}
-		if strncmp(note, &t.name[0], uintptr(n)) == 0 {
+		if hasprefix(notestr, t.name) {
 			flags = t.flags
 			break
 		}
@@ -49,7 +44,7 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 	if flags&_SigPanic != 0 {
 		// Copy the error string from sigtramp's stack into m->notesig so
 		// we can reliably access it from the panic routines.
-		memmove(unsafe.Pointer(_g_.m.notesig), unsafe.Pointer(note), uintptr(length+1))
+		memmove(unsafe.Pointer(_g_.m.notesig), unsafe.Pointer(note), uintptr(len(notestr)+1))
 		gp.sig = uint32(sig)
 		gp.sigpc = c.pc()
 		// Only push sigpanic if PC != 0.
@@ -86,7 +81,7 @@ Throw:
 	_g_.m.throwing = 1
 	_g_.m.caughtsig = gp
 	startpanic()
-	print(gostringnocopy(note), "\n")
+	print(notestr, "\n")
 	print("PC=", hex(c.pc()), "\n")
 	print("\n")
 	if gotraceback(&docrash) > 0 {
