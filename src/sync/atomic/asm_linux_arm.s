@@ -24,7 +24,7 @@
 // http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=b49c0f24cf6744a3f4fd09289fe7cade349dead5
 //
 TEXT cas<>(SB),NOSPLIT,$0
-	MOVW	$0xffff0fc0, PC
+	MOVW	$0xffff0fc0, R15
 
 TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0
 	B	·CompareAndSwapUint32(SB)
@@ -95,7 +95,7 @@ TEXT ·SwapUintptr(SB),NOSPLIT,$0
 	B	·SwapUint32(SB)
 
 TEXT cas64<>(SB),NOSPLIT,$0
-	MOVW	$0xffff0f60, PC // __kuser_cmpxchg64: Linux-3.1 and above
+	MOVW	$0xffff0f60, R15 // R15 = hardware PC. __kuser_cmpxchg64: Linux-3.1 and above
 
 TEXT kernelCAS64<>(SB),NOSPLIT,$0-21
 	// int (*__kuser_cmpxchg64_t)(const int64_t *oldval, const int64_t *newval, volatile int64_t *ptr);
@@ -127,17 +127,17 @@ TEXT setupAndCallCAS64<>(SB),NOSPLIT,$-4-21
 	CMP 	$5, R0
 	MOVW.CS	$kernelCAS64<>(SB), R1
 	MOVW.CS	R1, armCAS64(SB)
-	MOVW.CS	R1, PC
+	MOVW.CS	R1, R15 // R15 = hardware PC
 	MOVB	runtime·armArch(SB), R0
 	// LDREXD, STREXD only present on ARMv6K or higher
 	CMP	$6, R0 // TODO(minux): how to differentiate ARMv6 with ARMv6K?
 	MOVW.CS	$·armCompareAndSwapUint64(SB), R1
 	MOVW.CS	R1, armCAS64(SB)
-	MOVW.CS	R1, PC
+	MOVW.CS	R1, R15
 	// we are out of luck, can only use runtime's emulated 64-bit cas
 	MOVW	$·generalCAS64(SB), R1
 	MOVW	R1, armCAS64(SB)
-	MOVW	R1, PC
+	MOVW	R1, R15
 
 TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0
 	B   	·CompareAndSwapUint64(SB)
@@ -145,7 +145,7 @@ TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0
 TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$-4-21
 	MOVW	armCAS64(SB), R0
 	CMP 	$0, R0
-	MOVW.NE	R0, PC
+	MOVW.NE	R0, R15 // R15 = hardware PC
 	B	setupAndCallCAS64<>(SB)
 
 TEXT ·AddInt64(SB),NOSPLIT,$0
