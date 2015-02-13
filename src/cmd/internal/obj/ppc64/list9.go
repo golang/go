@@ -181,8 +181,7 @@ func Dconv(p *obj.Prog, flag int, a *obj.Addr) string {
 		str = fmt.Sprintf("$%.17g", a.U.Dval)
 
 	case obj.TYPE_SCONST:
-		str = fmt.Sprintf("$\"%q\"", a.U.Sval)
-		break
+		str = fmt.Sprintf("$%q", a.U.Sval)
 	}
 
 	fp += str
@@ -241,7 +240,6 @@ func Mconv(a *obj.Addr) string {
 		} else {
 			str = fmt.Sprintf("%s+%d(FP)", s.Name, a.Offset)
 		}
-		break
 	}
 
 	//out:

@@ -4,7 +4,7 @@ package ppc64
  * this is the ranlib header
  */
 var Anames = []string{
-	"XXX ",
+	"XXX",
 	"CALL",
 	"CHECKNIL",
 	"DATA",
@@ -23,7 +23,7 @@ var Anames = []string{
 	"USEFIELD",
 	"VARDEF",
 	"VARKILL",
-	"ADD ",
+	"ADD",
 	"ADDCC",
 	"ADDV",
 	"ADDVCC",

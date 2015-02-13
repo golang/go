@@ -189,7 +189,7 @@ func Dconv(p *obj.Prog, flag int, a *obj.Addr) string {
 		str = fmt.Sprintf("$%.17g", a.U.Dval)
 
 	case obj.TYPE_SCONST:
-		str = fmt.Sprintf("$\"%q\"", a.U.Sval)
+		str = fmt.Sprintf("$%q", a.U.Sval)
 
 	case obj.TYPE_REGREG:
 		str = fmt.Sprintf("(%v, %v)", Rconv(int(a.Reg)), Rconv(int(a.Offset)))
@@ -318,7 +318,6 @@ func Mconv(a *obj.Addr) string {
 
 	case obj.NAME_PARAM:
 		str = fmt.Sprintf("%s+%d(FP)", s.Name, int(a.Offset))
-		break
 	}
 
 out:

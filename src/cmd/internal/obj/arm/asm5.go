@@ -87,6 +87,8 @@ var optab = []Optab{
 	Optab{ABL, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0},
 	Optab{ABX, C_NONE, C_NONE, C_SBRA, 74, 20, 0, 0, 0},
 	Optab{ABEQ, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0},
+	Optab{ABEQ, C_RCON, C_NONE, C_SBRA, 5, 4, 0, 0, 0}, // prediction hinted form, hint ignored
+
 	Optab{AB, C_NONE, C_NONE, C_ROREG, 6, 4, 0, LPOOL, 0},
 	Optab{ABL, C_NONE, C_NONE, C_ROREG, 7, 4, 0, 0, 0},
 	Optab{ABL, C_REG, C_NONE, C_ROREG, 7, 4, 0, 0, 0},
@@ -272,12 +274,6 @@ var xcmp [C_GOK + 1][C_GOK + 1]uint8
 
 var deferreturn *obj.LSym
 
-func nocache(p *obj.Prog) {
-	p.Optab = 0
-	p.From.Class = 0
-	p.To.Class = 0
-}
-
 /* size of a case statement including jump table */
 func casesz(ctxt *obj.Link, p *obj.Prog) int32 {
 	var jt int = 0
@@ -341,7 +337,6 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 
 			case APLD:
 				out[0] = 0xe1a01001 // (MOVW R1, R1)
-				break
 			}
 		}
 
@@ -452,8 +447,8 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 			} else {
 				a2 = &q.From
 			}
-			nocache(q)
-			nocache(p)
+			obj.Nocache(q)
+			obj.Nocache(p)
 
 			// insert q after p
 			q.Link = p.Link
@@ -526,8 +521,8 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 				} else {
 					a2 = &q.From
 				}
-				nocache(q)
-				nocache(p)
+				obj.Nocache(q)
+				obj.Nocache(p)
 
 				// insert q after p
 				q.Link = p.Link
@@ -557,7 +552,6 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 		} else if out != nil {
 			asmout(ctxt, p, o, out)
 		}
-		break
 	}
 
 	// destination register specific
@@ -574,7 +568,6 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 				p.Pc += 4
 			}
 			size += 4
-			break
 		}
 	}
 
@@ -667,7 +660,6 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
 			if p.Scond&C_SCOND == C_SCOND_NONE {
 				flushpool(ctxt, p, 0, 0)
 			}
-			break
 		}
 
 		if p.As == AMOVW && p.To.Type == obj.TYPE_REG && p.To.Reg == REGPC && p.Scond&C_SCOND == C_SCOND_NONE {
@@ -936,7 +928,6 @@ func addpool(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 		C_LACON:
 		t.To.Type = obj.TYPE_CONST
 		t.To.Offset = ctxt.Instoffset
-		break
 	}
 
 	if t.Pcrel == nil {
@@ -1719,8 +1710,11 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			// runtime.tlsg is special.
 			// Its "address" is the offset from the TLS thread pointer
 			// to the thread-local g and m pointers.
-			// Emit a TLS relocation instead of a standard one.
-			if rel.Sym == ctxt.Tlsg {
+			// Emit a TLS relocation instead of a standard one if its
+			// type is not explicitly set by runtime. This assumes that
+			// all references to runtime.tlsg should be accompanied with
+			// its type declaration if necessary.
+			if rel.Sym == ctxt.Tlsg && ctxt.Tlsg.Type == 0 {
 				rel.Type = obj.R_TLS
 				if ctxt.Flag_shared != 0 {
 					rel.Add += ctxt.Pc - p.Pcrel.Pc - 8 - int64(rel.Siz)
@@ -1932,7 +1926,6 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			o1 |= uint32(p.To.Offset & 0xffff)
 			o1 |= (uint32(p.From.Reg) & 15) << 16
 			aclass(ctxt, &p.From)
-			break
 		}
 
 		if ctxt.Instoffset != 0 {
@@ -2473,7 +2466,6 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		if p.As == ADATABUNDLE {
 			o1 = 0xe125be70
 		}
-		break
 	}
 
 	out[0] = o1

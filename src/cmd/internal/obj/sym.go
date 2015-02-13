@@ -100,7 +100,7 @@ var headers = []struct {
 	}{"windowsgui", Hwindows},
 }
 
-func headtype(name string) int {
+func Headtype(name string) int {
 	var i int
 
 	for i = 0; i < len(headers); i++ {
@@ -111,8 +111,9 @@ func headtype(name string) int {
 	return -1
 }
 
+var headstr_buf string
+
 func Headstr(v int) string {
-	var buf string
 	var i int
 
 	for i = 0; i < len(headers); i++ {
@@ -120,8 +121,8 @@ func Headstr(v int) string {
 			return headers[i].name
 		}
 	}
-	buf = fmt.Sprintf("%d", v)
-	return buf
+	headstr_buf = fmt.Sprintf("%d", v)
+	return headstr_buf
 }
 
 func Linknew(arch *LinkArch) *Link {
@@ -145,7 +146,7 @@ func Linknew(arch *LinkArch) *Link {
 
 	ctxt.Pathname = buf
 
-	ctxt.Headtype = headtype(Getgoos())
+	ctxt.Headtype = Headtype(Getgoos())
 	if ctxt.Headtype < 0 {
 		log.Fatalf("unknown goos %s", Getgoos())
 	}
@@ -178,15 +179,14 @@ func Linknew(arch *LinkArch) *Link {
 		default:
 			log.Fatalf("unknown thread-local storage offset for nacl/%s", ctxt.Arch.Name)
 
+		case '5':
+			ctxt.Tlsoffset = 0
+
 		case '6':
 			ctxt.Tlsoffset = 0
 
 		case '8':
 			ctxt.Tlsoffset = -8
-
-		case '5':
-			ctxt.Tlsoffset = 0
-			break
 		}
 
 		/*
@@ -203,10 +203,10 @@ func Linknew(arch *LinkArch) *Link {
 
 		case '8':
 			ctxt.Tlsoffset = 0x468
-			break
-		}
 
-		break
+		case '5':
+			ctxt.Tlsoffset = 0 // dummy value, not needed
+		}
 	}
 
 	// On arm, record goarm.
@@ -222,7 +222,7 @@ func Linknew(arch *LinkArch) *Link {
 	return ctxt
 }
 
-func linknewsym(ctxt *Link, symb string, v int) *LSym {
+func Linknewsym(ctxt *Link, symb string, v int) *LSym {
 	var s *LSym
 
 	s = new(LSym)
@@ -265,7 +265,7 @@ func _lookup(ctxt *Link, symb string, v int, creat int) *LSym {
 		return nil
 	}
 
-	s = linknewsym(ctxt, symb, v)
+	s = Linknewsym(ctxt, symb, v)
 	s.Extname = s.Name
 	s.Hash = ctxt.Hash[h]
 	ctxt.Hash[h] = s
@@ -278,6 +278,13 @@ func Linklookup(ctxt *Link, name string, v int) *LSym {
 }
 
 // read-only lookup
-func linkrlookup(ctxt *Link, name string, v int) *LSym {
+func Linkrlookup(ctxt *Link, name string, v int) *LSym {
 	return _lookup(ctxt, name, v, 0)
+}
+
+func Linksymfmt(s *LSym) string {
+	if s == nil {
+		return "<nil>"
+	}
+	return s.Name
 }

@@ -2443,7 +2443,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o3 = LOP_RRR(OP_EXTSB, uint32(p.To.Reg), uint32(p.To.Reg), 0)
 
 		//if(dlm) reloc(&p->from, p->pc, 1);
-		break
+
 	}
 
 	out[0] = o1

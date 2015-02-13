@@ -241,6 +241,8 @@ type Plist struct {
 
 type LinkArch struct {
 	Pconv      func(*Prog) string
+	Dconv      func(*Prog, int, *Addr) string
+	Rconv      func(int) string
 	ByteOrder  binary.ByteOrder
 	Name       string
 	Thechar    int
@@ -278,14 +280,14 @@ type Pcdata struct {
 }
 
 type Pciter struct {
-	d       Pcdata
-	p       []byte
-	pc      uint32
-	nextpc  uint32
-	pcscale uint32
-	value   int32
-	start   int
-	done    int
+	D       Pcdata
+	P       []byte
+	Pc      uint32
+	Nextpc  uint32
+	Pcscale uint32
+	Value   int32
+	Start   int
+	Done    int
 }
 
 // An Addr is an argument to an instruction.

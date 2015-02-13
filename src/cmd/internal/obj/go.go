@@ -15,7 +15,7 @@ import (
 
 var Framepointer_enabled int
 
-var fieldtrack_enabled int
+var Fieldtrack_enabled int
 
 var Zprog Prog
 
@@ -30,7 +30,7 @@ var exper = []struct {
 	struct {
 		name string
 		val  *int
-	}{"fieldtrack", &fieldtrack_enabled},
+	}{"fieldtrack", &Fieldtrack_enabled},
 	struct {
 		name string
 		val  *int
@@ -61,7 +61,79 @@ func linksetexp() {
 	}
 }
 
-func expstring() string {
+// replace all "". with pkg.
+func Expandpkg(t0 string, pkg string) string {
+	return strings.Replace(t0, `"".`, pkg+".", -1)
+}
+
+func double2ieee(ieee *uint64, f float64) {
+	*ieee = math.Float64bits(f)
+}
+
+func Nopout(p *Prog) {
+	p.As = ANOP
+	p.Scond = Zprog.Scond
+	p.From = Zprog.From
+	p.From3 = Zprog.From3
+	p.Reg = Zprog.Reg
+	p.To = Zprog.To
+}
+
+func Nocache(p *Prog) {
+	p.Optab = 0
+	p.From.Class = 0
+	p.From3.Class = 0
+	p.To.Class = 0
+}
+
+/*
+ *	bv.c
+ */
+
+/*
+ *	closure.c
+ */
+
+/*
+ *	const.c
+ */
+
+/*
+ *	cplx.c
+ */
+
+/*
+ *	dcl.c
+ */
+
+/*
+ *	esc.c
+ */
+
+/*
+ *	export.c
+ */
+
+/*
+ *	fmt.c
+ */
+
+/*
+ *	gen.c
+ */
+
+/*
+ *	init.c
+ */
+
+/*
+ *	inl.c
+ */
+
+/*
+ *	lex.c
+ */
+func Expstring() string {
 	buf := "X"
 	for i := range exper {
 		if *exper[i].val != 0 {
@@ -72,13 +144,4 @@ func expstring() string {
 		buf += ",none"
 	}
 	return "X:" + buf[2:]
-}
-
-// replace all "". with pkg.
-func expandpkg(t0 string, pkg string) string {
-	return strings.Replace(t0, `"".`, pkg+".", -1)
-}
-
-func double2ieee(ieee *uint64, f float64) {
-	*ieee = math.Float64bits(f)
 }

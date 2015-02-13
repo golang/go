@@ -38,16 +38,6 @@ import (
 	"math"
 )
 
-func nopout(p *obj.Prog) {
-	p.As = obj.ANOP
-	p.From.Type = obj.TYPE_NONE
-	p.From.Reg = 0
-	p.From.Name = 0
-	p.To.Type = obj.TYPE_NONE
-	p.To.Reg = 0
-	p.To.Name = 0
-}
-
 func canuselocaltls(ctxt *obj.Link) int {
 	switch ctxt.Headtype {
 	case obj.Hplan9,
@@ -109,7 +99,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		// guarantee we are producing byte-identical binaries as before this code.
 		// But it should be unnecessary.
 		if (p.As == AMOVQ || p.As == AMOVL) && p.From.Type == obj.TYPE_REG && p.From.Reg == REG_TLS && p.To.Type == obj.TYPE_REG && REG_AX <= p.To.Reg && p.To.Reg <= REG_R15 && ctxt.Headtype != obj.Hsolaris {
-			nopout(p)
+			obj.Nopout(p)
 		}
 		if p.From.Type == obj.TYPE_MEM && p.From.Index == REG_TLS && REG_AX <= p.From.Reg && p.From.Reg <= REG_R15 {
 			p.From.Reg = REG_TLS
@@ -175,12 +165,10 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 				32,
 				64:
 				ctxt.Mode = int(p.From.Offset)
-				break
 			}
 		}
 
-		nopout(p)
-		break
+		obj.Nopout(p)
 	}
 
 	// Rewrite CALL/JMP/RET to symbol as TYPE_BRANCH.
@@ -191,7 +179,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		if p.To.Type == obj.TYPE_MEM && (p.To.Name == obj.NAME_EXTERN || p.To.Name == obj.NAME_STATIC) && p.To.Sym != nil {
 			p.To.Type = obj.TYPE_BRANCH
 		}
-		break
 	}
 
 	// Rewrite float constants to values stored in memory.
@@ -290,8 +277,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			p.From.Sym = s
 			p.From.Offset = 0
 		}
-
-		break
 	}
 }
 
@@ -325,7 +310,6 @@ func nacladdr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 				a.Scale = 1
 			}
 			a.Reg = REG_R15
-			break
 		}
 	}
 }
@@ -1063,7 +1047,6 @@ loop:
 		q.To.Type = obj.TYPE_BRANCH
 		q.To.Offset = p.Pc
 		q.Pcond = p
-		q.Ctxt = p.Ctxt
 		p = q
 	}
 
@@ -1128,6 +1111,8 @@ loop:
 }
 
 var Linkamd64 = obj.LinkArch{
+	Dconv:      Dconv,
+	Rconv:      Rconv,
 	ByteOrder:  binary.LittleEndian,
 	Pconv:      Pconv,
 	Name:       "amd64",
@@ -1143,6 +1128,8 @@ var Linkamd64 = obj.LinkArch{
 }
 
 var Linkamd64p32 = obj.LinkArch{
+	Dconv:      Dconv,
+	Rconv:      Rconv,
 	ByteOrder:  binary.LittleEndian,
 	Pconv:      Pconv,
 	Name:       "amd64p32",

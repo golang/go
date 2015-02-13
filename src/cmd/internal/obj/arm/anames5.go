@@ -1,7 +1,7 @@
 package arm
 
 var Anames = []string{
-	"XXX ",
+	"XXX",
 	"CALL",
 	"CHECKNIL",
 	"DATA",
