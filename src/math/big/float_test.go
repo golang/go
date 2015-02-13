@@ -728,6 +728,18 @@ func TestFloatNeg(t *testing.T) {
 	}
 }
 
+func TestFloatInc(t *testing.T) {
+	var x, one Float
+	// x.prec = 256 TODO(gri) This doesn't work at the moment
+	one.SetInt64(1)
+	for i := 0; i < 10; i++ {
+		x.Add(&x, &one)
+	}
+	if s := x.Format('g', 10); s != "10" {
+		t.Errorf("got %s; want 10", s)
+	}
+}
+
 // Selected precisions with which to run various tests.
 var precList = [...]uint{1, 2, 5, 8, 10, 16, 23, 24, 32, 50, 53, 64, 100, 128, 500, 511, 512, 513, 1000, 10000}
 
