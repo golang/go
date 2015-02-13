@@ -152,7 +152,7 @@ func runTests() ([]byte, error) {
 		}
 		cmd.Env = append(cmd.Env, env)
 	}
-	cmd.Env = append(cmd.Env, `GORACE="suppress_equal_stacks=0 suppress_equal_addresses=0 exitcode=0"`)
+	cmd.Env = append(cmd.Env, `GORACE=suppress_equal_stacks=0 suppress_equal_addresses=0 exitcode=0`)
 	return cmd.CombinedOutput()
 }
 
