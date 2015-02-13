@@ -23,21 +23,26 @@ import (
 // which are commands, and entries beginning with internal/, which are
 // packages supporting the commands.
 var bootstrapDirs = []string{
-	"internal/asm",
-	"internal/obj",
-	"internal/obj/arm",
-	"internal/obj/i386",
-	"internal/obj/ppc64",
-	"internal/obj/x86",
 	"asm",
 	"asm/internal/arch",
 	"asm/internal/asm",
 	"asm/internal/flags",
 	"asm/internal/lex",
+	"internal/asm",
+	"internal/gc",
+	"internal/obj",
+	"internal/obj/arm",
+	"internal/obj/i386",
+	"internal/obj/ppc64",
+	"internal/obj/x86",
 	"new5a",
 	"new6a",
 	"new8a",
 	"new9a",
+	"new5g",
+	"new6g",
+	"new8g",
+	"new9g",
 	"objwriter",
 }
 
