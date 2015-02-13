@@ -351,21 +351,21 @@ loop2:
 			bit.b[z] = LOAD(r) & ~(r->act.b[z] | addrs.b[z]);
 		while(bany(&bit)) {
 			i = bnum(bit);
-			rgp->enter = f;
-			rgp->varno = i;
 			change = 0;
 			paint1(f, i);
 			biclr(&bit, i);
 			if(change <= 0)
 				continue;
-			rgp->cost = change;
-			nregion++;
 			if(nregion >= NRGN) {
 				if(debug['R'] && debug['v'])
 					print("too many regions\n");
 				goto brk;
 			}
+			rgp->enter = f;
+			rgp->varno = i;
+			rgp->cost = change;
 			rgp++;
+			nregion++;
 		}
 	}
 brk:
