@@ -29,7 +29,7 @@ const debugFloat = true // enable for debugging
 //
 // Each Float value also has a precision, rounding mode, and accuracy.
 //
-// The precision is the (maximum) number of mantissa bits available to
+// The precision is the maximum number of mantissa bits available to
 // represent the value. The rounding mode specifies how a result should
 // be rounded to fit into the mantissa bits, and accuracy describes the
 // rounding error with respect to the exact result.
@@ -39,8 +39,10 @@ const debugFloat = true // enable for debugging
 // and according to its rounding mode, unless specified otherwise. If the
 // result precision is 0 (see below), it is set to the precision of the
 // argument with the largest precision value before any rounding takes
-// place.
-// TODO(gri) should the rounding mode also be copied in this case?
+// place. The rounding mode remains unchanged, thus uninitialized Floats
+// provided as result arguments will "inherit" a reasonble precision from
+// the incoming arguments and their mode is the zero value for RoundingMode
+// (ToNearestEven).
 //
 // By setting the desired precision to 24 or 53 and using ToNearestEven
 // rounding, Float operations produce the same results as the corresponding
@@ -68,24 +70,6 @@ type Float struct {
 // Thus, if the mantissa has trailing 0 bits or x.prec is not a multiple
 // of the the Word size _W, x.mant[0] has trailing zero bits. Zero and Inf
 // values have an empty mantissa and a 0 or infExp exponent, respectively.
-
-// NewFloat returns a new Float with value x rounded
-// to prec bits according to the given rounding mode.
-// If prec == 0, the result has value 0.0 independent
-// of the value of x.
-// BUG(gri) For prec == 0 and x == Inf, the result
-// should be Inf as well.
-// TODO(gri) rethink this signature.
-func NewFloat(x float64, prec uint, mode RoundingMode) *Float {
-	var z Float
-	if prec > 0 {
-		// TODO(gri) should make this more efficient
-		z.SetFloat64(x)
-		return z.Round(&z, prec, mode)
-	}
-	z.mode = mode // TODO(gri) don't do this twice for prec > 0
-	return &z
-}
 
 const (
 	MaxExp = math.MaxInt32 // largest supported exponent magnitude
@@ -158,14 +142,33 @@ func (mode RoundingMode) String() string {
 	panic("unreachable")
 }
 
-// Precision returns the mantissa precision of x in bits.
-// The precision may be 0 for |x| == 0 or |x| == Inf.
-func (x *Float) Precision() uint {
+// SetPrec sets z's precision to prec and returns the (possibly) rounded
+// value of z. Rounding occurs according to z's rounding mode if the mantissa
+// cannot be represented in prec bits without loss of precision.
+func (z *Float) SetPrec(prec uint) *Float {
+	old := z.prec
+	z.prec = prec
+	if prec < old {
+		z.round(0)
+	}
+	return z
+}
+
+// SetMode sets z's rounding mode to mode and returns z.
+// z remains unchanged otherwise.
+func (z *Float) SetMode(mode RoundingMode) *Float {
+	z.mode = mode
+	return z
+}
+
+// Prec returns the mantissa precision of x in bits.
+// The result may be 0 for |x| == 0 or |x| == Inf.
+func (x *Float) Prec() uint {
 	return uint(x.prec)
 }
 
-// Accuracy returns the accuracy of x produced by the most recent operation.
-func (x *Float) Accuracy() Accuracy {
+// Acc returns the accuracy of x produced by the most recent operation.
+func (x *Float) Acc() Accuracy {
 	return x.acc
 }
 

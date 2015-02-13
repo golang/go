@@ -37,16 +37,18 @@ func TestFloatZeroValue(t *testing.T) {
 	}
 
 	// zero value has precision 0
-	if prec := x.Precision(); prec != 0 {
+	if prec := x.Prec(); prec != 0 {
 		t.Errorf("prec = %d; want 0", prec)
 	}
 
 	// zero value can be used in any and all positions of binary operations
 	make := func(x int) *Float {
-		if x == 0 {
-			return new(Float) // 0 translates into the zero value
+		var f Float
+		if x != 0 {
+			f.SetInt64(int64(x))
 		}
-		return NewFloat(float64(x), 10, 0)
+		// x == 0 translates into the zero value
+		return &f
 	}
 	for _, test := range []struct {
 		z, x, y, want int
@@ -95,7 +97,7 @@ func makeFloat(s string) *Float {
 		return NewInf(-1)
 	}
 	var x Float
-	x.prec = 1000 // TODO(gri) find a better way to do this
+	x.SetPrec(1000)
 	if _, ok := x.SetString(s); !ok {
 		panic(fmt.Sprintf("%q is not a valid float", s))
 	}
@@ -266,8 +268,8 @@ func testFloatRound(t *testing.T, x, r int64, prec uint, mode RoundingMode) {
 
 	// check result
 	r1 := f.int64()
-	p1 := f.Precision()
-	a1 := f.Accuracy()
+	p1 := f.Prec()
+	a1 := f.Acc()
 	if r1 != r || p1 != prec || a1 != a {
 		t.Errorf("Round(%s, %d, %s): got %s (%d bits, %s); want %s (%d bits, %s)",
 			toBinary(x), prec, mode,
@@ -412,7 +414,7 @@ func TestFloatSetUint64(t *testing.T) {
 	// test basic rounding behavior (exhaustive rounding testing is done elsewhere)
 	const x uint64 = 0x8765432187654321 // 64 bits needed
 	for prec := uint(1); prec <= 64; prec++ {
-		f := NewFloat(0, prec, ToZero).SetUint64(x)
+		f := new(Float).SetPrec(prec).SetMode(ToZero).SetUint64(x)
 		got := f.uint64()
 		want := x &^ (1<<(64-prec) - 1) // cut off (round to zero) low 64-prec bits
 		if got != want {
@@ -447,7 +449,7 @@ func TestFloatSetInt64(t *testing.T) {
 	// test basic rounding behavior (exhaustive rounding testing is done elsewhere)
 	const x int64 = 0x7654321076543210 // 63 bits needed
 	for prec := uint(1); prec <= 63; prec++ {
-		f := NewFloat(0, prec, ToZero).SetInt64(x)
+		f := new(Float).SetPrec(prec).SetMode(ToZero).SetInt64(x)
 		got := f.int64()
 		want := x &^ (1<<(63-prec) - 1) // cut off (round to zero) low 63-prec bits
 		if got != want {
@@ -486,7 +488,7 @@ func TestFloatSetFloat64(t *testing.T) {
 	// test basic rounding behavior (exhaustive rounding testing is done elsewhere)
 	const x uint64 = 0x8765432143218 // 53 bits needed
 	for prec := uint(1); prec <= 52; prec++ {
-		f := NewFloat(0, prec, ToZero).SetFloat64(float64(x))
+		f := new(Float).SetPrec(prec).SetMode(ToZero).SetFloat64(float64(x))
 		got, _ := f.Float64()
 		want := float64(x &^ (1<<(52-prec) - 1)) // cut off (round to zero) low 53-prec bits
 		if got != want {
@@ -519,7 +521,7 @@ func TestFloatSetInt(t *testing.T) {
 		if n < 64 {
 			n = 64
 		}
-		if prec := f.Precision(); prec != uint(n) {
+		if prec := f.Prec(); prec != uint(n) {
 			t.Errorf("got prec = %d; want %d", prec, n)
 		}
 
@@ -553,8 +555,8 @@ func TestFloatSetRat(t *testing.T) {
 		}
 		n := max(x.Num().BitLen(), x.Denom().BitLen())
 
-		var f1 Float
-		var f2 = NewFloat(0, 1000, 0) // set a high precision - TODO(gri) find a cleaner way
+		var f1, f2 Float
+		f2.SetPrec(1000)
 		f1.SetRat(&x)
 		f2.SetRat(&x)
 
@@ -562,7 +564,7 @@ func TestFloatSetRat(t *testing.T) {
 		if n < 64 {
 			n = 64
 		}
-		if prec := f1.Precision(); prec != uint(n) {
+		if prec := f1.Prec(); prec != uint(n) {
 			t.Errorf("got prec = %d; want %d", prec, n)
 		}
 
@@ -735,7 +737,7 @@ func TestFloatInc(t *testing.T) {
 			continue // prec must be large enough to hold all numbers from 0 to n
 		}
 		var x, one Float
-		x.prec = prec
+		x.SetPrec(prec)
 		one.SetInt64(1)
 		for i := 0; i < n; i++ {
 			x.Add(&x, &one)
@@ -778,7 +780,7 @@ func TestFloatAdd(t *testing.T) {
 
 			for i, mode := range [...]RoundingMode{ToZero, ToNearestEven, AwayFromZero} {
 				for _, prec := range precList {
-					got := NewFloat(0, prec, mode)
+					got := new(Float).SetPrec(prec).SetMode(mode)
 					got.Add(x, y)
 					want := roundBits(zbits, prec, mode)
 					if got.Cmp(want) != 0 {
@@ -818,7 +820,7 @@ func TestFloatAdd32(t *testing.T) {
 
 			x := new(Float).SetFloat64(x0)
 			y := new(Float).SetFloat64(y0)
-			z := NewFloat(0, 24, ToNearestEven)
+			z := new(Float).SetPrec(24)
 
 			z.Add(x, y)
 			got, acc := z.Float64()
@@ -851,7 +853,7 @@ func TestFloatAdd64(t *testing.T) {
 
 			x := new(Float).SetFloat64(x0)
 			y := new(Float).SetFloat64(y0)
-			z := NewFloat(0, 53, ToNearestEven)
+			z := new(Float).SetPrec(53)
 
 			z.Add(x, y)
 			got, acc := z.Float64()
@@ -903,7 +905,7 @@ func TestFloatMul64(t *testing.T) {
 
 			x := new(Float).SetFloat64(x0)
 			y := new(Float).SetFloat64(y0)
-			z := NewFloat(0, 53, ToNearestEven)
+			z := new(Float).SetPrec(53)
 
 			z.Mul(x, y)
 			got, _ := z.Float64()
@@ -927,15 +929,15 @@ func TestFloatMul64(t *testing.T) {
 
 func TestIssue6866(t *testing.T) {
 	for _, prec := range precList {
-		two := NewFloat(2, prec, ToNearestEven)
-		one := NewFloat(1, prec, ToNearestEven)
-		three := NewFloat(3, prec, ToNearestEven)
-		msix := NewFloat(-6, prec, ToNearestEven)
-		psix := NewFloat(+6, prec, ToNearestEven)
+		two := new(Float).SetPrec(prec).SetInt64(2)
+		one := new(Float).SetPrec(prec).SetInt64(1)
+		three := new(Float).SetPrec(prec).SetInt64(3)
+		msix := new(Float).SetPrec(prec).SetInt64(-6)
+		psix := new(Float).SetPrec(prec).SetInt64(+6)
 
-		p := NewFloat(0, prec, ToNearestEven)
-		z1 := NewFloat(0, prec, ToNearestEven)
-		z2 := NewFloat(0, prec, ToNearestEven)
+		p := new(Float).SetPrec(prec)
+		z1 := new(Float).SetPrec(prec)
+		z2 := new(Float).SetPrec(prec)
 
 		// z1 = 2 + 1.0/3*-6
 		p.Quo(one, three)
@@ -981,13 +983,13 @@ func TestFloatQuo(t *testing.T) {
 		// compute accurate x as z*y
 		y := new(Float).SetFloat64(3.14159265358979323e123)
 
-		x := NewFloat(0, z.Precision()+y.Precision(), ToZero)
+		x := new(Float).SetPrec(z.Prec() + y.Prec()).SetMode(ToZero)
 		x.Mul(z, y)
 
 		// leave for debugging
 		// fmt.Printf("x = %s\ny = %s\nz = %s\n", x, y, z)
 
-		if got := x.Accuracy(); got != Exact {
+		if got := x.Acc(); got != Exact {
 			t.Errorf("got acc = %s; want exact", got)
 		}
 
@@ -996,7 +998,7 @@ func TestFloatQuo(t *testing.T) {
 		for _, mode := range [...]RoundingMode{ToZero, ToNearestEven, AwayFromZero} {
 			for d := -5; d < 5; d++ {
 				prec := uint(preci + d)
-				got := NewFloat(0, prec, mode).Quo(x, y)
+				got := new(Float).SetPrec(prec).SetMode(mode).Quo(x, y)
 				want := roundBits(bits, prec, mode)
 				if got.Cmp(want) != 0 {
 					t.Errorf("i = %d, prec = %d, %s:\n\t     %s\n\t/    %s\n\t=    %s\n\twant %s",
@@ -1030,9 +1032,9 @@ func TestFloatQuoSmoke(t *testing.T) {
 			// vary operand precision (only ok as long as a, b can be represented correctly)
 			for ad := -dprec; ad <= dprec; ad++ {
 				for bd := -dprec; bd <= dprec; bd++ {
-					A := NewFloat(a, uint(prec+ad), 0)
-					B := NewFloat(b, uint(prec+bd), 0)
-					C := NewFloat(0, 53, 0).Quo(A, B) // C has float64 mantissa width
+					A := new(Float).SetPrec(uint(prec + ad)).SetFloat64(a)
+					B := new(Float).SetPrec(uint(prec + bd)).SetFloat64(b)
+					C := new(Float).SetPrec(53).Quo(A, B) // C has float64 mantissa width
 
 					cc, acc := C.Float64()
 					if cc != c {
@@ -1143,7 +1145,7 @@ func roundBits(x []int, prec uint, mode RoundingMode) *Float {
 	}
 	if mode == ToNearestEven && rbit == 1 && (sbit == 1 || sbit == 0 && bit0 != 0) || mode == AwayFromZero {
 		// round away from zero
-		f.Round(f, prec, ToZero) // extend precision // TODO(gri) better approach?
+		f.SetMode(ToZero).SetPrec(prec)
 		f.Add(f, fromBits(int(r)+1))
 	}
 	return f
@@ -1157,7 +1159,6 @@ func fromBits(bits ...int) *Float {
 	// handle 0
 	if len(bits) == 0 {
 		return new(Float)
-		// z.prec = ?
 	}
 	// len(bits) > 0
 
