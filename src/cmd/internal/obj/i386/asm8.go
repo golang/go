@@ -2237,7 +2237,6 @@ func asmidx(ctxt *obj.Link, scale int, index int, base int) {
 		REG_SI,
 		REG_DI:
 		i = reg[index] << 3
-		break
 	}
 
 	switch scale {
@@ -2255,7 +2254,6 @@ func asmidx(ctxt *obj.Link, scale int, index int, base int) {
 
 	case 8:
 		i |= 3 << 6
-		break
 	}
 
 bas:
@@ -2275,7 +2273,6 @@ bas:
 		REG_SI,
 		REG_DI:
 		i |= reg[base]
-		break
 	}
 
 	ctxt.Andptr[0] = byte(i)
@@ -2404,7 +2401,6 @@ func asmand(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int) {
 		case obj.NAME_AUTO,
 			obj.NAME_PARAM:
 			base = REG_SP
-			break
 		}
 
 		if base == REG_NONE {
@@ -2446,7 +2442,6 @@ func asmand(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int) {
 	case obj.NAME_AUTO,
 		obj.NAME_PARAM:
 		base = REG_SP
-		break
 	}
 
 	if base == REG_TLS {
@@ -3166,7 +3161,6 @@ func byteswapreg(ctxt *obj.Link, a *obj.Addr) int {
 			REG_DL,
 			REG_DH:
 			cand = 0
-			break
 		}
 	}
 
@@ -3183,7 +3177,6 @@ func byteswapreg(ctxt *obj.Link, a *obj.Addr) int {
 
 		case REG_DX:
 			cand = 0
-			break
 		}
 	}
 
@@ -3259,7 +3252,6 @@ func mediaop(ctxt *obj.Link, o *Optab, op int, osize int, z int) int {
 			ctxt.Andptr[0] = Pm
 			ctxt.Andptr = ctxt.Andptr[1:]
 		}
-		break
 	}
 
 	ctxt.Andptr[0] = byte(op)
@@ -3900,7 +3892,6 @@ mfound:
 			ctxt.Andptr = ctxt.Andptr[1:]
 			ctxt.Andptr[0] = 0xb5
 			ctxt.Andptr = ctxt.Andptr[1:]
-			break
 		}
 
 		asmand(ctxt, p, &p.From, reg[p.To.Reg])
@@ -3931,10 +3922,7 @@ mfound:
 				ctxt.Andptr[0] = t[5]
 				ctxt.Andptr = ctxt.Andptr[1:]
 				asmand(ctxt, p, &p.To, reg[p.From.Index])
-				break
 			}
-
-			break
 		}
 
 	case 7: /* imul rm,r */
@@ -4004,10 +3992,7 @@ mfound:
 			ctxt.Andptr[0] = 0x8B
 			ctxt.Andptr = ctxt.Andptr[1:]
 			asmand(ctxt, p, &pp.From, reg[p.To.Reg])
-			break
 		}
-
-		break
 	}
 }
 

@@ -38,10 +38,11 @@ import (
 	"math"
 )
 
+var progedit_tlsfallback *obj.LSym
+
 func progedit(ctxt *obj.Link, p *obj.Prog) {
 	var literal string
 	var s *obj.LSym
-	var tlsfallback *obj.LSym
 
 	p.From.Class = 0
 	p.To.Class = 0
@@ -55,7 +56,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		if p.To.Type == obj.TYPE_MEM && (p.To.Name == obj.NAME_EXTERN || p.To.Name == obj.NAME_STATIC) && p.To.Sym != nil {
 			p.To.Type = obj.TYPE_BRANCH
 		}
-		break
 	}
 
 	// Replace TLS register fetches on older ARM procesors.
@@ -71,8 +71,8 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 
 			if ctxt.Goarm < 7 {
 				// Replace it with BL runtime.read_tls_fallback(SB) for ARM CPUs that lack the tls extension.
-				if tlsfallback == nil {
-					tlsfallback = obj.Linklookup(ctxt, "runtime.read_tls_fallback", 0)
+				if progedit_tlsfallback == nil {
+					progedit_tlsfallback = obj.Linklookup(ctxt, "runtime.read_tls_fallback", 0)
 				}
 
 				// MOVW	LR, R11
@@ -88,7 +88,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 
 				p.As = ABL
 				p.To.Type = obj.TYPE_BRANCH
-				p.To.Sym = tlsfallback
+				p.To.Sym = progedit_tlsfallback
 				p.To.Offset = 0
 
 				// MOVW	R11, LR
@@ -105,8 +105,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 
 		// Otherwise, MRC/MCR instructions need no further treatment.
 		p.As = AWORD
-
-		break
 	}
 
 	// Rewrite float constants to values stored in memory.
@@ -148,8 +146,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Offset = 0
 		}
-
-		break
 	}
 
 	if ctxt.Flag_shared != 0 {
@@ -189,12 +185,6 @@ func linkcase(casep *obj.Prog) {
 			break
 		}
 	}
-}
-
-func nocache5(p *obj.Prog) {
-	p.Optab = 0
-	p.From.Class = 0
-	p.To.Class = 0
 }
 
 func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
@@ -363,8 +353,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 					p.Pcond = q1
 				}
 			}
-
-			break
 		}
 
 		q = p
@@ -503,7 +491,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			}
 
 		case obj.ARET:
-			nocache5(p)
+			obj.Nocache(p)
 			if cursym.Text.Mark&LEAF != 0 {
 				if !(autosize != 0) {
 					p.As = AB
@@ -609,7 +597,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 			case AMODU:
 				p.To.Sym = ctxt.Sym_modu
-				break
 			}
 
 			/* MOV REGTMP, b */
@@ -671,7 +658,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			if p.From.Type == obj.TYPE_ADDR && p.From.Reg == REGSP && p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP {
 				p.Spadj = int32(-p.From.Offset)
 			}
-			break
 		}
 	}
 }
@@ -1076,6 +1062,8 @@ loop:
 }
 
 var Linkarm = obj.LinkArch{
+	Dconv:      Dconv,
+	Rconv:      Rconv,
 	ByteOrder:  binary.LittleEndian,
 	Pconv:      Pconv,
 	Name:       "arm",

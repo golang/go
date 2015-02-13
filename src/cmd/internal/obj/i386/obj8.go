@@ -124,7 +124,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		if p.To.Type == obj.TYPE_MEM && (p.To.Name == obj.NAME_EXTERN || p.To.Name == obj.NAME_STATIC) && p.To.Sym != nil {
 			p.To.Type = obj.TYPE_BRANCH
 		}
-		break
 	}
 
 	// Rewrite float constants to values stored in memory.
@@ -224,8 +223,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			p.From.Sym = s
 			p.From.Offset = 0
 		}
-
-		break
 	}
 }
 
@@ -912,6 +909,8 @@ loop:
 }
 
 var Link386 = obj.LinkArch{
+	Dconv:      Dconv,
+	Rconv:      Rconv,
 	ByteOrder:  binary.LittleEndian,
 	Pconv:      Pconv,
 	Name:       "386",

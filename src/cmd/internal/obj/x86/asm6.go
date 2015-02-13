@@ -2864,7 +2864,6 @@ func asmidx(ctxt *obj.Link, scale int, index int, base int) {
 		REG_SI,
 		REG_DI:
 		i = reg[index] << 3
-		break
 	}
 
 	switch scale {
@@ -2882,7 +2881,6 @@ func asmidx(ctxt *obj.Link, scale int, index int, base int) {
 
 	case 8:
 		i |= 3 << 6
-		break
 	}
 
 bas:
@@ -2915,7 +2913,6 @@ bas:
 		REG_SI,
 		REG_DI:
 		i |= reg[base]
-		break
 	}
 
 	ctxt.Andptr[0] = byte(i)
@@ -3086,7 +3083,6 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 		case obj.NAME_AUTO,
 			obj.NAME_PARAM:
 			base = REG_SP
-			break
 		}
 
 		ctxt.Rexflag |= regrex[int(a.Index)]&Rxx | regrex[base]&Rxb | rex
@@ -3132,7 +3128,6 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 	case obj.NAME_AUTO,
 		obj.NAME_PARAM:
 		base = REG_SP
-		break
 	}
 
 	if base == REG_TLS {
@@ -3443,7 +3438,6 @@ func mediaop(ctxt *obj.Link, o *Optab, op int, osize int, z int) int {
 			ctxt.Andptr[0] = Pm
 			ctxt.Andptr = ctxt.Andptr[1:]
 		}
-		break
 	}
 
 	ctxt.Andptr[0] = byte(op)
@@ -3569,7 +3563,6 @@ found:
 		if p.Mode != 64 {
 			ctxt.Diag("asmins: illegal in %d-bit mode: %v", p.Mode, p)
 		}
-		break
 	}
 
 	if z >= len(o.op) {
@@ -4075,8 +4068,6 @@ found:
 				}
 			}
 		}
-
-		break
 	}
 
 	return
@@ -4231,7 +4222,6 @@ mfound:
 			ctxt.Andptr = ctxt.Andptr[1:]
 			ctxt.Andptr[0] = 0xb5
 			ctxt.Andptr = ctxt.Andptr[1:]
-			break
 		}
 
 		asmand(ctxt, p, &p.From, &p.To)
@@ -4274,7 +4264,6 @@ mfound:
 				ctxt.Andptr[0] = t[1]
 				ctxt.Andptr = ctxt.Andptr[1:]
 				asmandsz(ctxt, p, &p.To, reg[int(p.From.Index)], regrex[int(p.From.Index)], 0)
-				break
 			}
 		}
 
@@ -4335,10 +4324,7 @@ mfound:
 			ctxt.Andptr[0] = 0x8B
 			ctxt.Andptr = ctxt.Andptr[1:]
 			asmand(ctxt, p, &pp.From, &p.To)
-			break
 		}
-
-		break
 	}
 }
 
@@ -4512,7 +4498,6 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
 			AMOVSQ:
 			copy(ctxt.Andptr, naclmovs)
 			ctxt.Andptr = ctxt.Andptr[len(naclmovs):]
-			break
 		}
 
 		if ctxt.Rep != 0 {
@@ -4585,7 +4570,6 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
 		case REG_BP:
 			copy(ctxt.Andptr, naclbpfix)
 			ctxt.Andptr = ctxt.Andptr[len(naclbpfix):]
-			break
 		}
 	}
 }

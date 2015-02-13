@@ -71,13 +71,13 @@ func Pconv(p *obj.Prog) string {
 
 	default:
 		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%v", p.Pc, p.Line(), Aconv(int(p.As)), Dconv(p, 0, &p.From), Dconv(p, 0, &p.To))
+
 		// TODO(rsc): This special case is for SHRQ $32, AX:DX, which encodes as
 		//	SHRQ $32(DX*0), AX
 		// Remove.
-		if (p.From.Type == obj.TYPE_REG || p.From.Type == obj.TYPE_CONST) && p.From.Index != 0 {
-			str += fmt.Sprintf(":%s", Rconv(int(p.From.Index)))
+		if (p.From.Type == obj.TYPE_REG || p.From.Type == obj.TYPE_CONST) && p.From.Index != REG_NONE {
+			str += fmt.Sprintf(":%v", Rconv(int(p.From.Index)))
 		}
-		break
 	}
 
 	fp += str
@@ -157,7 +157,6 @@ func Dconv(p *obj.Prog, flag int, a *obj.Addr) string {
 			} else {
 				str = fmt.Sprintf("%d(FP)", a.Offset)
 			}
-			break
 		}
 
 		if a.Index != REG_NONE {
@@ -179,13 +178,12 @@ func Dconv(p *obj.Prog, flag int, a *obj.Addr) string {
 		str = fmt.Sprintf("$(%.17g)", a.U.Dval)
 
 	case obj.TYPE_SCONST:
-		str = fmt.Sprintf("$\"%q\"", a.U.Sval)
+		str = fmt.Sprintf("$%q", a.U.Sval)
 
 	case obj.TYPE_ADDR:
 		a.Type = obj.TYPE_MEM
 		str = fmt.Sprintf("$%v", Dconv(p, 0, a))
 		a.Type = obj.TYPE_ADDR
-		break
 	}
 
 	fp += str

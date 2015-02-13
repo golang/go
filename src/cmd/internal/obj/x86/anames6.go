@@ -4,7 +4,7 @@ package x86
  * this is the ranlib header
  */
 var Anames = []string{
-	"XXX ",
+	"XXX",
 	"CALL",
 	"CHECKNIL",
 	"DATA",
@@ -23,7 +23,7 @@ var Anames = []string{
 	"USEFIELD",
 	"VARDEF",
 	"VARKILL",
-	"AAA ",
+	"AAA",
 	"AAD",
 	"AAM",
 	"AAS",

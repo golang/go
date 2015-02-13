@@ -72,7 +72,7 @@ func addlib(ctxt *Link, src, obj, pathname string) {
 	if ctxt.Debugvlog > 1 && ctxt.Bso != nil {
 		fmt.Fprintf(ctxt.Bso, "%5.2f addlib: %s %s pulls in %s\n", Cputime(), obj, src, pname)
 	}
-	addlibpath(ctxt, src, obj, pname, name)
+	Addlibpath(ctxt, src, obj, pname, name)
 }
 
 /*
@@ -82,7 +82,7 @@ func addlib(ctxt *Link, src, obj, pathname string) {
  *	file: object file, e.g., /home/rsc/go/pkg/container/vector.a
  *	pkg: package import path, e.g. container/vector
  */
-func addlibpath(ctxt *Link, srcref, objref, file, pkg string) {
+func Addlibpath(ctxt *Link, srcref, objref, file, pkg string) {
 	for _, lib := range ctxt.Library {
 		if lib.File == file {
 			return

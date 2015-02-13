@@ -53,7 +53,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		if p.To.Sym != nil {
 			p.To.Type = obj.TYPE_BRANCH
 		}
-		break
 	}
 
 	// Rewrite float constants to values stored in memory.
@@ -118,8 +117,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			p.From.Offset = -p.From.Offset
 			p.As = AADD
 		}
-
-		break
 	}
 }
 
@@ -596,7 +593,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.From.Type == obj.TYPE_CONST {
 				p.Spadj = int32(-p.From.Offset)
 			}
-			break
 		}
 	}
 }
@@ -969,6 +965,8 @@ loop:
 }
 
 var Linkppc64 = obj.LinkArch{
+	Dconv:      Dconv,
+	Rconv:      Rconv,
 	ByteOrder:  binary.BigEndian,
 	Pconv:      Pconv,
 	Name:       "ppc64",
@@ -984,6 +982,8 @@ var Linkppc64 = obj.LinkArch{
 }
 
 var Linkppc64le = obj.LinkArch{
+	Dconv:      Dconv,
+	Rconv:      Rconv,
 	ByteOrder:  binary.LittleEndian,
 	Pconv:      Pconv,
 	Name:       "ppc64le",

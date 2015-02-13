@@ -4,10 +4,6 @@
 
 package x86
 
-const (
-	fmtLong = 1 << iota
-)
-
 func bool2int(b bool) int {
 	if b {
 		return 1
