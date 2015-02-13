@@ -227,6 +227,7 @@ func BenchmarkAppendFloatNegExp(b *testing.B)  { benchmarkAppendFloat(b, -5.11e-
 func BenchmarkAppendFloatBig(b *testing.B) {
 	benchmarkAppendFloat(b, 123456789123456789123456789, 'g', -1, 64)
 }
+func BenchmarkAppendFloatBinaryExp(b *testing.B) { benchmarkAppendFloat(b, -1, 'b', -1, 64) }
 
 func BenchmarkAppendFloat32Integer(b *testing.B)       { benchmarkAppendFloat(b, 33909, 'g', -1, 32) }
 func BenchmarkAppendFloat32ExactFraction(b *testing.B) { benchmarkAppendFloat(b, 3.375, 'g', -1, 32) }
