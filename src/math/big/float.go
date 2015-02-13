@@ -29,10 +29,10 @@ const debugFloat = true // enable for debugging
 //
 // Each Float value also has a precision, rounding mode, and accuracy.
 //
-// The precision is the number of mantissa bits used to represent the
-// value. The rounding mode specifies how a result should be rounded
-// to fit into the mantissa bits, and accuracy describes the rounding
-// error with respect to the exact result.
+// The precision is the (maximum) number of mantissa bits available to
+// represent the value. The rounding mode specifies how a result should
+// be rounded to fit into the mantissa bits, and accuracy describes the
+// rounding error with respect to the exact result.
 //
 // All operations, including setters, that specify a *Float for the result,
 // usually via the receiver, round their result to the result's precision
@@ -48,8 +48,8 @@ const debugFloat = true // enable for debugging
 // or denormalized numbers). Additionally, positive and negative zeros and
 // infinities are fully supported.
 //
-// The zero (uninitialized) value for a Float is ready to use and
-// represents the number +0.0 of 0 bit precision.
+// The zero (uninitialized) value for a Float is ready to use and represents
+// the number +0.0 exactly, with precision 0 and rounding mode ToNearestEven.
 //
 type Float struct {
 	mode RoundingMode
@@ -60,11 +60,13 @@ type Float struct {
 	prec uint // TODO(gri) make this a 32bit field
 }
 
-// Internal representation details: The mantissa bits x.mant of a Float x
-// are stored in the shortest nat slice long enough to hold x.prec bits.
+// Internal representation: The mantissa bits x.mant of a Float x are stored
+// in a nat slice long enough to hold up to x.prec bits; the slice may (but
+// doesn't have to) be shorter if the mantissa contains trailing 0 bits.
 // Unless x is a zero or an infinity, x.mant is normalized such that the
-// msb of x.mant == 1. Thus, if the precision is not a multiple of the
-// the Word size _W, x.mant[0] contains trailing zero bits. Zero and Inf
+// msb of x.mant == 1 (i.e., the msb is shifted all the way "to the left").
+// Thus, if the mantissa has trailing 0 bits or x.prec is not a multiple
+// of the the Word size _W, x.mant[0] has trailing zero bits. Zero and Inf
 // values have an empty mantissa and a 0 or infExp exponent, respectively.
 
 // NewFloat returns a new Float with value x rounded
@@ -292,52 +294,35 @@ func validate(args ...*Float) {
 // have before calling round. z's mantissa must be normalized (with the msb set)
 // or empty.
 func (z *Float) round(sbit uint) {
+	if debugFloat {
+		validate(z)
+	}
+
 	z.acc = Exact
 
 	// handle zero and Inf
-	m := uint(len(z.mant)) // mantissa length in words for current precision
+	m := uint(len(z.mant)) // present mantissa length in words
 	if m == 0 {
 		if z.exp != infExp {
 			z.exp = 0
 		}
 		return
 	}
-	// z.prec > 0
+	// m > 0 implies z.prec > 0 (checked by validate)
 
-	if debugFloat {
-		validate(z)
-	}
-
-	bits := m * _W // available mantissa bits
-	if bits == z.prec {
-		// mantissa fits Exactly => nothing to do
+	bits := m * _W // present mantissa bits
+	if bits <= z.prec {
+		// mantissa fits => nothing to do
 		return
 	}
+	// bits > z.prec
 
 	n := (z.prec + (_W - 1)) / _W // mantissa length in words for desired precision
-	if bits < z.prec {
-		// mantissa too small => extend
-		if m < n {
-			// slice too short => extend slice
-			if int(n) <= cap(z.mant) {
-				// reuse existing slice
-				z.mant = z.mant[:n]
-				copy(z.mant[n-m:], z.mant[:m])
-				z.mant[:n-m].clear()
-			} else {
-				// n > cap(z.mant) => allocate new slice
-				const e = 4 // extra capacity (see nat.make)
-				new := make(nat, n, n+e)
-				copy(new[n-m:], z.mant)
-			}
-		}
-		return
-	}
 
 	// Rounding is based on two bits: the rounding bit (rbit) and the
 	// sticky bit (sbit). The rbit is the bit immediately before the
-	// mantissa bits (the "0.5"). The sbit is set if any of the bits
-	// before the rbit are set (the "0.25", "0.125", etc.):
+	// z.prec leading mantissa bits (the "0.5"). The sbit is set if any
+	// of the bits before the rbit are set (the "0.25", "0.125", etc.):
 	//
 	//   rbit  sbit  => "fractional part"
 	//
@@ -875,14 +860,16 @@ func (z *Float) uadd(x, y *Float) {
 	//           could make this code significantly faster
 	switch {
 	case ex < ey:
-		t := z.mant.shl(y.mant, uint(ey-ex))
-		z.mant = t.add(x.mant, t)
+		// cannot re-use z.mant w/o testing for aliasing
+		t := nat(nil).shl(y.mant, uint(ey-ex))
+		z.mant = z.mant.add(x.mant, t)
 	default:
 		// ex == ey, no shift needed
 		z.mant = z.mant.add(x.mant, y.mant)
 	case ex > ey:
-		t := z.mant.shl(x.mant, uint(ex-ey))
-		z.mant = t.add(t, y.mant)
+		// cannot re-use z.mant w/o testing for aliasing
+		t := nat(nil).shl(x.mant, uint(ex-ey))
+		z.mant = z.mant.add(t, y.mant)
 		ex = ey
 	}
 	// len(z.mant) > 0
@@ -908,13 +895,15 @@ func (z *Float) usub(x, y *Float) {
 
 	switch {
 	case ex < ey:
-		t := z.mant.shl(y.mant, uint(ey-ex))
+		// cannot re-use z.mant w/o testing for aliasing
+		t := nat(nil).shl(y.mant, uint(ey-ex))
 		z.mant = t.sub(x.mant, t)
 	default:
 		// ex == ey, no shift needed
 		z.mant = z.mant.sub(x.mant, y.mant)
 	case ex > ey:
-		t := z.mant.shl(x.mant, uint(ex-ey))
+		// cannot re-use z.mant w/o testing for aliasing
+		t := nat(nil).shl(x.mant, uint(ex-ey))
 		z.mant = t.sub(t, y.mant)
 		ex = ey
 	}
@@ -1072,11 +1061,11 @@ func (z *Float) Add(x, y *Float) *Float {
 	// TODO(gri) what about -0?
 	if len(y.mant) == 0 {
 		// TODO(gri) handle Inf
-		return z.Round(x, z.prec, z.mode)
+		return z.Set(x)
 	}
 	if len(x.mant) == 0 {
 		// TODO(gri) handle Inf
-		return z.Round(y, z.prec, z.mode)
+		return z.Set(y)
 	}
 
 	// x, y != 0
@@ -1113,13 +1102,10 @@ func (z *Float) Sub(x, y *Float) *Float {
 	// TODO(gri) what about -0?
 	if len(y.mant) == 0 {
 		// TODO(gri) handle Inf
-		return z.Round(x, z.prec, z.mode)
+		return z.Set(x)
 	}
 	if len(x.mant) == 0 {
-		prec := z.prec
-		mode := z.mode
-		z.Neg(y)
-		return z.Round(z, prec, mode)
+		return z.Neg(y)
 	}
 
 	// x, y != 0

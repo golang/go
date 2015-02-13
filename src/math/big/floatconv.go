@@ -215,9 +215,9 @@ func (x *Float) Append(buf []byte, format byte, prec int) []byte {
 	return x.bigFtoa(buf, format, prec)
 }
 
-// BUG(gri): Currently, String uses the 'p' (rather than 'g') format.
+// BUG(gri): Currently, String uses x.Format('g', 10) rather than x.Format('g', -1).
 func (x *Float) String() string {
-	return x.Format('p', 0)
+	return x.Format('g', 10)
 }
 
 // bstring appends the string of x in the format ["-"] mantissa "p" exponent
