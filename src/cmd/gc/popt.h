@@ -118,7 +118,8 @@ EXTERN	Bits	ovar;
 EXTERN	int	change;
 EXTERN	int32	maxnr;
 
-EXTERN	struct
+typedef struct OptStats OptStats;
+struct OptStats
 {
 	int32	ncvtreg;
 	int32	nspill;
@@ -126,7 +127,9 @@ EXTERN	struct
 	int32	ndelmov;
 	int32	nvar;
 	int32	naddr;
-} ostats;
+};
+
+EXTERN	OptStats ostats;
 
 /*
  * reg.c
