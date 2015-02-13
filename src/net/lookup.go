@@ -27,8 +27,16 @@ func LookupHost(host string) (addrs []string, err error) {
 
 // LookupIP looks up host using the local resolver.
 // It returns an array of that host's IPv4 and IPv6 addresses.
-func LookupIP(host string) (addrs []IP, err error) {
-	return lookupIPMerge(host)
+func LookupIP(host string) (ips []IP, err error) {
+	addrs, err := lookupIPMerge(host)
+	if err != nil {
+		return
+	}
+	ips = make([]IP, len(addrs))
+	for i, addr := range addrs {
+		ips[i] = addr.IP
+	}
+	return
 }
 
 var lookupGroup singleflight
@@ -36,7 +44,7 @@ var lookupGroup singleflight
 // lookupIPMerge wraps lookupIP, but makes sure that for any given
 // host, only one lookup is in-flight at a time. The returned memory
 // is always owned by the caller.
-func lookupIPMerge(host string) (addrs []IP, err error) {
+func lookupIPMerge(host string) (addrs []IPAddr, err error) {
 	addrsi, err, shared := lookupGroup.Do(host, func() (interface{}, error) {
 		return lookupIP(host)
 	})
@@ -45,13 +53,13 @@ func lookupIPMerge(host string) (addrs []IP, err error) {
 
 // lookupIPReturn turns the return values from singleflight.Do into
 // the return values from LookupIP.
-func lookupIPReturn(addrsi interface{}, err error, shared bool) ([]IP, error) {
+func lookupIPReturn(addrsi interface{}, err error, shared bool) ([]IPAddr, error) {
 	if err != nil {
 		return nil, err
 	}
-	addrs := addrsi.([]IP)
+	addrs := addrsi.([]IPAddr)
 	if shared {
-		clone := make([]IP, len(addrs))
+		clone := make([]IPAddr, len(addrs))
 		copy(clone, addrs)
 		addrs = clone
 	}
@@ -59,7 +67,7 @@ func lookupIPReturn(addrsi interface{}, err error, shared bool) ([]IP, error) {
 }
 
 // lookupIPDeadline looks up a hostname with a deadline.
-func lookupIPDeadline(host string, deadline time.Time) (addrs []IP, err error) {
+func lookupIPDeadline(host string, deadline time.Time) (addrs []IPAddr, err error) {
 	if deadline.IsZero() {
 		return lookupIPMerge(host)
 	}

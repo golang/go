@@ -60,7 +60,7 @@ func lookupHost(host string) (addrs []string, err error) {
 	return
 }
 
-func lookupIP(host string) (addrs []IP, err error) {
+func lookupIP(host string) (addrs []IPAddr, err error) {
 	addrs, err, ok := cgoLookupIP(host)
 	if !ok {
 		addrs, err = goLookupIP(host)
