@@ -383,7 +383,7 @@ TEXT runtime·usleep(SB),NOSPLIT,$12
 // Use kernel version instead of native armcas in asm_arm.s.
 // See ../sync/atomic/asm_linux_arm.s for details.
 TEXT cas<>(SB),NOSPLIT,$0
-	MOVW	$0xffff0fc0, PC
+	MOVW	$0xffff0fc0, R15 // R15 is hardware PC.
 
 TEXT runtime·cas(SB),NOSPLIT,$0
 	MOVW	ptr+0(FP), R2

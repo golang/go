@@ -77,7 +77,7 @@ DATA bad_abi_msg+0x2c(SB)/1, $0xa
 GLOBL bad_abi_msg(SB), RODATA, $45
 
 TEXT oabi_syscall<>(SB),NOSPLIT,$-4
-	ADD $1, PC, R4
+	ADD $1, R15, R4 // R15 is hardware PC
 	WORD $0xe12fff14 //BX	(R4) // enter thumb mode
 	// TODO(minux): only supports little-endian CPUs
 	WORD $0x4770df01 // swi $1; bx lr

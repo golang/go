@@ -107,7 +107,7 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
 // save state in Gobuf; setjmp
 TEXT runtime·gosave(SB),NOSPLIT,$-4-4
 	MOVW	0(FP), R0		// gobuf
-	MOVW	SP, gobuf_sp(R0)
+	MOVW	R13, gobuf_sp(R0)
 	MOVW	LR, gobuf_pc(R0)
 	MOVW	g, gobuf_g(R0)
 	MOVW	$0, R11
@@ -133,7 +133,7 @@ TEXT runtime·gogo(SB),NOSPLIT,$-4-4
 	// after this point: it must be straight-line code until the
 	// final B instruction.
 	// See large comment in sigprof for more details.
-	MOVW	gobuf_sp(R1), SP	// restore SP
+	MOVW	gobuf_sp(R1), R13	// restore SP==R13
 	MOVW	gobuf_lr(R1), LR
 	MOVW	gobuf_ret(R1), R0
 	MOVW	gobuf_ctxt(R1), R7
@@ -152,7 +152,7 @@ TEXT runtime·gogo(SB),NOSPLIT,$-4-4
 // to keep running g.
 TEXT runtime·mcall(SB),NOSPLIT,$-4-4
 	// Save caller state in g->sched.
-	MOVW	SP, (g_sched+gobuf_sp)(g)
+	MOVW	R13, (g_sched+gobuf_sp)(g)
 	MOVW	LR, (g_sched+gobuf_pc)(g)
 	MOVW	$0, R11
 	MOVW	R11, (g_sched+gobuf_lr)(g)
@@ -170,8 +170,8 @@ TEXT runtime·mcall(SB),NOSPLIT,$-4-4
 	CMP	$0, R11
 	BL.NE	runtime·save_g(SB)
 	MOVW	fn+0(FP), R0
-	MOVW	(g_sched+gobuf_sp)(g), SP
-	SUB	$8, SP
+	MOVW	(g_sched+gobuf_sp)(g), R13
+	SUB	$8, R13
 	MOVW	R1, 4(SP)
 	MOVW	R0, R7
 	MOVW	0(R0), R0
@@ -217,7 +217,7 @@ switch:
 	MOVW	$runtime·systemstack_switch(SB), R3
 	ADD	$4, R3, R3 // get past push {lr}
 	MOVW	R3, (g_sched+gobuf_pc)(g)
-	MOVW	SP, (g_sched+gobuf_sp)(g)
+	MOVW	R13, (g_sched+gobuf_sp)(g)
 	MOVW	LR, (g_sched+gobuf_lr)(g)
 	MOVW	g, (g_sched+gobuf_g)(g)
 
@@ -231,7 +231,7 @@ switch:
 	SUB	$4, R3, R3
 	MOVW	$runtime·mstart(SB), R4
 	MOVW	R4, 0(R3)
-	MOVW	R3, SP
+	MOVW	R3, R13
 
 	// call target function
 	MOVW	R0, R7
@@ -242,7 +242,7 @@ switch:
 	MOVW	g_m(g), R1
 	MOVW	m_curg(R1), R0
 	BL	setg<>(SB)
-	MOVW	(g_sched+gobuf_sp)(g), SP
+	MOVW	(g_sched+gobuf_sp)(g), R13
 	MOVW	$0, R3
 	MOVW	R3, (g_sched+gobuf_sp)(g)
 	RET
@@ -284,21 +284,21 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
 	// Called from f.
 	// Set g->sched to context in f.
 	MOVW	R7, (g_sched+gobuf_ctxt)(g)
-	MOVW	SP, (g_sched+gobuf_sp)(g)
+	MOVW	R13, (g_sched+gobuf_sp)(g)
 	MOVW	LR, (g_sched+gobuf_pc)(g)
 	MOVW	R3, (g_sched+gobuf_lr)(g)
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
 	MOVW	R3, (m_morebuf+gobuf_pc)(R8)	// f's caller's PC
-	MOVW	SP, (m_morebuf+gobuf_sp)(R8)	// f's caller's SP
+	MOVW	R13, (m_morebuf+gobuf_sp)(R8)	// f's caller's SP
 	MOVW	$4(SP), R3			// f's argument pointer
 	MOVW	g, (m_morebuf+gobuf_g)(R8)
 
 	// Call newstack on m->g0's stack.
 	MOVW	m_g0(R8), R0
 	BL	setg<>(SB)
-	MOVW	(g_sched+gobuf_sp)(g), SP
+	MOVW	(g_sched+gobuf_sp)(g), R13
 	BL	runtime·newstack(SB)
 
 	// Not reached, but make sure the return PC from the call to newstack
@@ -362,7 +362,7 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-20;		\
 	/* copy arguments to stack */		\
 	MOVW	argptr+8(FP), R0;		\
 	MOVW	argsize+12(FP), R2;		\
-	ADD	$4, SP, R1;			\
+	ADD	$4, R13, R1;			\
 	CMP	$0, R2;				\
 	B.EQ	5(PC);				\
 	MOVBU.P	1(R0), R5;			\
@@ -378,7 +378,7 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-20;		\
 	MOVW	argptr+8(FP), R0;		\
 	MOVW	argsize+12(FP), R2;		\
 	MOVW	retoffset+16(FP), R3;		\
-	ADD	$4, SP, R1;			\
+	ADD	$4, R13, R1;			\
 	ADD	R3, R1;				\
 	ADD	R3, R0;				\
 	SUB	R3, R2;				\
@@ -443,8 +443,8 @@ TEXT runtime·jmpdefer(SB),NOSPLIT,$0-8
 	MOVW	0(SP), LR
 	MOVW	$-4(LR), LR	// BL deferreturn
 	MOVW	fv+0(FP), R7
-	MOVW	argp+4(FP), SP
-	MOVW	$-4(SP), SP	// SP is 4 below argp, due to saved LR
+	MOVW	argp+4(FP), R13
+	MOVW	$-4(SP), R13	// SP is 4 below argp, due to saved LR
 	MOVW	0(R7), R1
 	B	(R1)
 
