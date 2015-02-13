@@ -634,7 +634,7 @@ walkexpr(Node **np, NodeList **init)
 
 			// Append captured variables to argument list.
 			n->list = concat(n->list, n->left->enter);
-			n->left->enter = NULL;
+			n->left->enter = nil;
 			// Replace OCLOSURE with ONAME/PFUNC.
 			n->left = n->left->closure->nname;
 			// Update type of OCALLFUNC node.
