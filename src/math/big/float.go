@@ -232,7 +232,7 @@ func (z *Float) SetMantExp(mant *Float, exp int) *Float {
 // ±Inf are not considered integers.
 func (x *Float) IsInt() bool {
 	if debugFloat {
-		x.validate()
+		validate(x)
 	}
 	// pick off easy cases
 	if x.exp <= 0 {
@@ -267,21 +267,23 @@ func (z *Float) setExp(e int64) {
 }
 
 // debugging support
-func (x *Float) validate() {
-	const msb = 1 << (_W - 1)
-	m := len(x.mant)
-	if m == 0 {
-		// 0.0 or Inf
-		if x.exp != 0 && x.exp != infExp {
-			panic(fmt.Sprintf("empty matissa with invalid exponent %d", x.exp))
+func validate(args ...*Float) {
+	for i, x := range args {
+		const msb = 1 << (_W - 1)
+		m := len(x.mant)
+		if m == 0 {
+			// 0.0 or Inf
+			if x.exp != 0 && x.exp != infExp {
+				panic(fmt.Sprintf("#%d: %empty matissa with invalid exponent %d", i, x.exp))
+			}
+			continue
 		}
-		return
-	}
-	if x.mant[m-1]&msb == 0 {
-		panic(fmt.Sprintf("msb not set in last word %#x of %s", x.mant[m-1], x.Format('p', 0)))
-	}
-	if x.prec <= 0 {
-		panic(fmt.Sprintf("invalid precision %d", x.prec))
+		if x.mant[m-1]&msb == 0 {
+			panic(fmt.Sprintf("#%d: msb not set in last word %#x of %s", i, x.mant[m-1], x.Format('p', 0)))
+		}
+		if x.prec <= 0 {
+			panic(fmt.Sprintf("#%d: invalid precision %d", i, x.prec))
+		}
 	}
 }
 
@@ -303,7 +305,7 @@ func (z *Float) round(sbit uint) {
 	// z.prec > 0
 
 	if debugFloat {
-		z.validate()
+		validate(z)
 	}
 
 	bits := m * _W // available mantissa bits
@@ -440,7 +442,7 @@ func (z *Float) round(sbit uint) {
 	}
 
 	if debugFloat {
-		z.validate()
+		validate(z)
 	}
 
 	return
@@ -668,7 +670,7 @@ func (x *Float) minPrec() uint {
 // for x > math.MaxUint64.
 func (x *Float) Uint64() (uint64, Accuracy) {
 	if debugFloat {
-		x.validate()
+		validate(x)
 	}
 	switch x.ord() {
 	case -2, -1:
@@ -707,7 +709,7 @@ func (x *Float) Uint64() (uint64, Accuracy) {
 // (math.MaxInt64, Below) for x > math.MaxInt64.
 func (x *Float) Int64() (int64, Accuracy) {
 	if debugFloat {
-		x.validate()
+		validate(x)
 	}
 
 	switch x.ord() {
@@ -786,7 +788,7 @@ func (x *Float) Float64() (float64, Accuracy) {
 // otherwise it is Below for x > 0, and Above for x < 0.
 func (x *Float) Int() (res *Int, acc Accuracy) {
 	if debugFloat {
-		x.validate()
+		validate(x)
 	}
 	// accuracy for inexact results
 	acc = Below // truncation
@@ -1059,6 +1061,10 @@ func (x *Float) ucmp(y *Float) int {
 // result error relative to the exact (not rounded)
 // result.
 func (z *Float) Add(x, y *Float) *Float {
+	if debugFloat {
+		validate(x, y)
+	}
+
 	if z.prec == 0 {
 		z.prec = umax(x.prec, y.prec)
 	}
@@ -1096,6 +1102,10 @@ func (z *Float) Add(x, y *Float) *Float {
 // Sub sets z to the rounded difference x-y and returns z.
 // Precision, rounding, and accuracy reporting are as for Add.
 func (z *Float) Sub(x, y *Float) *Float {
+	if debugFloat {
+		validate(x, y)
+	}
+
 	if z.prec == 0 {
 		z.prec = umax(x.prec, y.prec)
 	}
@@ -1135,6 +1145,10 @@ func (z *Float) Sub(x, y *Float) *Float {
 // Mul sets z to the rounded product x*y and returns z.
 // Precision, rounding, and accuracy reporting are as for Add.
 func (z *Float) Mul(x, y *Float) *Float {
+	if debugFloat {
+		validate(x, y)
+	}
+
 	if z.prec == 0 {
 		z.prec = umax(x.prec, y.prec)
 	}
@@ -1159,6 +1173,10 @@ func (z *Float) Mul(x, y *Float) *Float {
 // Quo sets z to the rounded quotient x/y and returns z.
 // Precision, rounding, and accuracy reporting are as for Add.
 func (z *Float) Quo(x, y *Float) *Float {
+	if debugFloat {
+		validate(x, y)
+	}
+
 	if z.prec == 0 {
 		z.prec = umax(x.prec, y.prec)
 	}
@@ -1191,28 +1209,38 @@ func (z *Float) Quo(x, y *Float) *Float {
 // and rounding mode; and z's accuracy reports the
 // result error relative to the exact (not rounded)
 // result.
-func (z *Float) Lsh(x *Float, s uint, mode RoundingMode) *Float {
+// BUG(gri) Lsh is not tested and may not work correctly.
+func (z *Float) Lsh(x *Float, s uint) *Float {
+	if debugFloat {
+		validate(x)
+	}
+
 	if z.prec == 0 {
 		z.prec = x.prec
 	}
 
 	// TODO(gri) handle Inf
 
-	z.Round(x, z.prec, mode)
+	z.round(0)
 	z.setExp(int64(z.exp) + int64(s))
 	return z
 }
 
 // Rsh sets z to the rounded x / (1<<s) and returns z.
 // Precision, rounding, and accuracy reporting are as for Lsh.
-func (z *Float) Rsh(x *Float, s uint, mode RoundingMode) *Float {
+// BUG(gri) Rsh is not tested and may not work correctly.
+func (z *Float) Rsh(x *Float, s uint) *Float {
+	if debugFloat {
+		validate(x)
+	}
+
 	if z.prec == 0 {
 		z.prec = x.prec
 	}
 
 	// TODO(gri) handle Inf
 
-	z.Round(x, z.prec, mode)
+	z.round(0)
 	z.setExp(int64(z.exp) - int64(s))
 	return z
 }
@@ -1226,8 +1254,7 @@ func (z *Float) Rsh(x *Float, s uint, mode RoundingMode) *Float {
 // Infinities with matching sign are equal.
 func (x *Float) Cmp(y *Float) int {
 	if debugFloat {
-		x.validate()
-		y.validate()
+		validate(x, y)
 	}
 
 	mx := x.ord()
