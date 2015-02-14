@@ -89,6 +89,10 @@ func (t *Tokenizer) Line() int {
 	return t.line
 }
 
+func (t *Tokenizer) Col() int {
+	return t.s.Pos().Column
+}
+
 func (t *Tokenizer) SetPos(line int, file string) {
 	t.line = line
 	t.fileName = file

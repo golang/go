@@ -43,6 +43,11 @@ func (s *Slice) Line() int {
 	return s.line
 }
 
+func (s *Slice) Col() int {
+	// Col is only called when defining a macro, which can't reach here.
+	panic("cannot happen: slice col")
+}
+
 func (s *Slice) SetPos(line int, file string) {
 	// Cannot happen because we only have slices of already-scanned
 	// text, but be prepared.

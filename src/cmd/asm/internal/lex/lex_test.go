@@ -42,6 +42,16 @@ var lexTests = []lexTest{
 		"1234.\n",
 	},
 	{
+		"macro with just parens as body",
+		"#define A () \n" + "A\n",
+		"(.).\n",
+	},
+	{
+		"macro with parens but no arguments",
+		"#define A (x) \n" + "A\n",
+		"(.x.).\n",
+	},
+	{
 		"macro with arguments",
 		"#define A(x, y, z) x+z+y\n" + "A(1, 2, 3)\n",
 		"1.+.3.+.2.\n",

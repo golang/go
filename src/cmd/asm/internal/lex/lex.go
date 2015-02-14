@@ -29,6 +29,11 @@ const (
 	macroName                          // name of macro that should not be expanded
 )
 
+// IsRegisterShift reports whether the token is one of the ARM register shift operators.
+func IsRegisterShift(r ScanToken) bool {
+	return ROT <= r && r <= LSH // Order looks backwards because these are negative.
+}
+
 func (t ScanToken) String() string {
 	switch t {
 	case scanner.EOF:
@@ -94,6 +99,8 @@ type TokenReader interface {
 	File() string
 	// Line reports the source line number of the token.
 	Line() int
+	// Col reports the source column number of the token.
+	Col() int
 	// SetPos sets the file and line number.
 	SetPos(line int, file string)
 	// Close does any teardown required.
