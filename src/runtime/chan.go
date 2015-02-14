@@ -14,7 +14,24 @@ const (
 	debugChan = false
 )
 
-// TODO(khr): make hchan.buf an unsafe.Pointer, not a *uint8
+type hchan struct {
+	qcount   uint           // total data in the queue
+	dataqsiz uint           // size of the circular queue
+	buf      unsafe.Pointer // points to an array of dataqsiz elements
+	elemsize uint16
+	closed   uint32
+	elemtype *_type // element type
+	sendx    uint   // send index
+	recvx    uint   // receive index
+	recvq    waitq  // list of recv waiters
+	sendq    waitq  // list of send waiters
+	lock     mutex
+}
+
+type waitq struct {
+	first *sudog
+	last  *sudog
+}
 
 //go:linkname reflect_makechan reflect.makechan
 func reflect_makechan(t *chantype, size int64) *hchan {
@@ -44,15 +61,15 @@ func makechan(t *chantype, size int64) *hchan {
 		// TODO(dvyukov,rlh): Rethink when collector can move allocated objects.
 		c = (*hchan)(mallocgc(hchanSize+uintptr(size)*uintptr(elem.size), nil, flagNoScan))
 		if size > 0 && elem.size != 0 {
-			c.buf = (*uint8)(add(unsafe.Pointer(c), hchanSize))
+			c.buf = add(unsafe.Pointer(c), hchanSize)
 		} else {
 			// race detector uses this location for synchronization
 			// Also prevents us from pointing beyond the allocation (see issue 9401).
-			c.buf = (*uint8)(unsafe.Pointer(c))
+			c.buf = unsafe.Pointer(c)
 		}
 	} else {
 		c = new(hchan)
-		c.buf = (*uint8)(newarray(elem, uintptr(size)))
+		c.buf = newarray(elem, uintptr(size))
 	}
 	c.elemsize = uint16(elem.size)
 	c.elemtype = elem
@@ -66,7 +83,7 @@ func makechan(t *chantype, size int64) *hchan {
 
 // chanbuf(c, i) is pointer to the i'th slot in the buffer.
 func chanbuf(c *hchan, i uint) unsafe.Pointer {
-	return add(unsafe.Pointer(c.buf), uintptr(i)*uintptr(c.elemsize))
+	return add(c.buf, uintptr(i)*uintptr(c.elemsize))
 }
 
 // entry point for c <- x from compiled code
