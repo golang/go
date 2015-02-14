@@ -6,8 +6,10 @@ package arch
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/obj/arm"
 	"cmd/internal/obj/i386" // == 386
 	"cmd/internal/obj/x86"  // == amd64
+	"fmt"
 )
 
 // Pseudo-registers whose names are the constant name without the leading R.
@@ -27,6 +29,12 @@ type Arch struct {
 	Registers map[string]int16
 	// Instructions that take one operand whose result is a destination.
 	UnaryDestination map[int]bool
+	// Instruction is a jump.
+	IsJump func(word string) bool
+	// Aconv pretty-prints an instruction opcode for this architecture.
+	Aconv func(int) string
+	// Dconv pretty-prints an address for this architecture.
+	Dconv func(p *obj.Prog, flag int, a *obj.Addr) string
 }
 
 var Pseudos = map[string]int{
@@ -46,12 +54,21 @@ func Set(GOARCH string) *Arch {
 		return arch386()
 	case "amd64":
 		return archAmd64()
+	case "amd64p32":
+		a := archAmd64()
+		a.LinkArch = &x86.Linkamd64p32
+		return a
+	case "arm":
+		return archArm()
 	}
 	return nil
 }
 
-func arch386() *Arch {
+func jump386(word string) bool {
+	return word[0] == 'J' || word == "CALL"
+}
 
+func arch386() *Arch {
 	registers := make(map[string]int16)
 	// Create maps for easy lookup of instruction names etc.
 	// TODO: Should this be done in obj for us?
@@ -147,11 +164,13 @@ func arch386() *Arch {
 		Instructions:     instructions,
 		Registers:        registers,
 		UnaryDestination: unaryDestination,
+		IsJump:           jump386,
+		Aconv:            i386.Aconv,
+		Dconv:            i386.Dconv,
 	}
 }
 
 func archAmd64() *Arch {
-
 	registers := make(map[string]int16)
 	// Create maps for easy lookup of instruction names etc.
 	// TODO: Should this be done in obj for us?
@@ -254,5 +273,55 @@ func archAmd64() *Arch {
 		Instructions:     instructions,
 		Registers:        registers,
 		UnaryDestination: unaryDestination,
+		IsJump:           jump386,
+		Aconv:            x86.Aconv,
+		Dconv:            x86.Dconv,
+	}
+}
+
+func archArm() *Arch {
+	registers := make(map[string]int16)
+	// Create maps for easy lookup of instruction names etc.
+	// TODO: Should this be done in obj for us?
+	// Note that there is no list of names as there is for 386 and amd64.
+	// TODO: Are there aliases we need to add?
+	for i := arm.REG_R0; i < arm.REG_SPSR; i++ {
+		registers[arm.Rconv(i)] = int16(i)
+	}
+	// Avoid unintentionally clobbering g using R10.
+	delete(registers, "R10")
+	registers["g"] = arm.REG_R10
+	for i := 0; i < 16; i++ {
+		registers[fmt.Sprintf("C%d", i)] = int16(i)
+	}
+
+	// Pseudo-registers.
+	registers["SB"] = RSB
+	registers["FP"] = RFP
+	registers["PC"] = RPC
+	registers["SP"] = RSP
+
+	instructions := make(map[string]int)
+	for i, s := range arm.Anames {
+		instructions[s] = i
+	}
+	// Annoying aliases.
+	instructions["B"] = obj.AJMP
+	instructions["BL"] = obj.ACALL
+
+	unaryDestination := make(map[int]bool) // Instruction takes one operand and result is a destination.
+	// These instructions write to prog.To.
+	// TODO: These are silly. Fix once C assembler is gone.
+	unaryDestination[arm.ASWI] = true
+	unaryDestination[arm.AWORD] = true
+
+	return &Arch{
+		LinkArch:         &arm.Linkarm,
+		Instructions:     instructions,
+		Registers:        registers,
+		UnaryDestination: unaryDestination,
+		IsJump:           jumpArm,
+		Aconv:            arm.Aconv,
+		Dconv:            arm.Dconv,
 	}
 }
