@@ -58,6 +58,7 @@ TEXT	runtime·racereadpc(SB), NOSPLIT, $0-24
 	MOVQ	addr+0(FP), RARG1
 	MOVQ	callpc+8(FP), RARG2
 	MOVQ	pc+16(FP), RARG3
+	ADDQ	$1, RARG3 // pc is function start, tsan wants return address
 	// void __tsan_read_pc(ThreadState *thr, void *addr, void *callpc, void *pc);
 	MOVQ	$__tsan_read_pc(SB), AX
 	JMP	racecalladdr<>(SB)
@@ -81,6 +82,7 @@ TEXT	runtime·racewritepc(SB), NOSPLIT, $0-24
 	MOVQ	addr+0(FP), RARG1
 	MOVQ	callpc+8(FP), RARG2
 	MOVQ	pc+16(FP), RARG3
+	ADDQ	$1, RARG3 // pc is function start, tsan wants return address
 	// void __tsan_write_pc(ThreadState *thr, void *addr, void *callpc, void *pc);
 	MOVQ	$__tsan_write_pc(SB), AX
 	JMP	racecalladdr<>(SB)
@@ -105,6 +107,7 @@ TEXT	runtime·racereadrangepc1(SB), NOSPLIT, $0-24
 	MOVQ	addr+0(FP), RARG1
 	MOVQ	size+8(FP), RARG2
 	MOVQ	pc+16(FP), RARG3
+	ADDQ	$1, RARG3 // pc is function start, tsan wants return address
 	// void __tsan_read_range(ThreadState *thr, void *addr, uintptr size, void *pc);
 	MOVQ	$__tsan_read_range(SB), AX
 	JMP	racecalladdr<>(SB)
@@ -129,6 +132,7 @@ TEXT	runtime·racewriterangepc1(SB), NOSPLIT, $0-24
 	MOVQ	addr+0(FP), RARG1
 	MOVQ	size+8(FP), RARG2
 	MOVQ	pc+16(FP), RARG3
+	ADDQ	$1, RARG3 // pc is function start, tsan wants return address
 	// void __tsan_write_range(ThreadState *thr, void *addr, uintptr size, void *pc);
 	MOVQ	$__tsan_write_range(SB), AX
 	JMP	racecalladdr<>(SB)
