@@ -1659,7 +1659,8 @@ const (
 func bucketOf(ktyp, etyp *rtype) *rtype {
 	// See comment on hmap.overflow in ../runtime/hashmap.go.
 	var kind uint8
-	if ktyp.kind&kindNoPointers != 0 && etyp.kind&kindNoPointers != 0 {
+	if ktyp.kind&kindNoPointers != 0 && etyp.kind&kindNoPointers != 0 &&
+		ktyp.size <= maxKeySize && etyp.size <= maxValSize {
 		kind = kindNoPointers
 	}
 
