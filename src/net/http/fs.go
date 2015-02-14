@@ -423,6 +423,11 @@ func localRedirect(w ResponseWriter, r *Request, newPath string) {
 }
 
 // ServeFile replies to the request with the contents of the named file or directory.
+// 
+// Wach out: if the file name ends with `index.html` then ServeFile will generate a 
+// 301 redirect to the closest directory.
+// For example: if `/public/blog/index.html` is requested then ServeFile will
+// generate a 301 redirect to `/public/blog/`
 func ServeFile(w ResponseWriter, r *Request, name string) {
 	dir, file := filepath.Split(name)
 	serveFile(w, r, Dir(dir), file, false)
