@@ -49,3 +49,8 @@ a:link:after, a:visited:after {
 body {
   background: rgb(255,255,255) !important;
 }
+
+#help {
+  display: none;
+  visibility: hidden;
+}

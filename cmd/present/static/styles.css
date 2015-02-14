@@ -459,3 +459,21 @@ figcaption {
   text-align: center;
   font-size: 0.75em;
 }
+
+#help {
+  font-family: 'Open Sans', Arial, sans-serif;
+  text-align: center;
+  color: white;
+  background: #000;
+  opacity: 0.5;
+  position: fixed;
+  bottom: 25px;
+  left: 50px;
+  right: 50px;
+  padding: 20px;
+
+  border-radius: 10px;
+  -o-border-radius: 10px;
+  -moz-border-radius: 10px;
+  -webkit-border-radius: 10px;
+}
