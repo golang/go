@@ -537,7 +537,7 @@ func (z *Float) SetFloat64(x float64) *Float {
 // fnorm normalizes mantissa m by shifting it to the left
 // such that the msb of the most-significant word (msw) is 1.
 // It returns the shift amount. It assumes that len(m) != 0.
-func fnorm(m nat) uint {
+func fnorm(m nat) int64 {
 	if debugFloat && (len(m) == 0 || m[len(m)-1] == 0) {
 		panic("msw of mantissa is 0")
 	}
@@ -548,7 +548,7 @@ func fnorm(m nat) uint {
 			panic("nlz or shlVU incorrect")
 		}
 	}
-	return s
+	return int64(s)
 }
 
 // SetInt sets z to the (possibly rounded) value of x and returns z.
@@ -884,7 +884,7 @@ func (z *Float) uadd(x, y *Float) {
 	}
 	// len(z.mant) > 0
 
-	z.setExp(ex + int64(len(z.mant))*_W - int64(fnorm(z.mant)))
+	z.setExp(ex + int64(len(z.mant))*_W - fnorm(z.mant))
 	z.round(0)
 }
 
@@ -926,7 +926,7 @@ func (z *Float) usub(x, y *Float) {
 	}
 	// len(z.mant) > 0
 
-	z.setExp(ex + int64(len(z.mant))*_W - int64(fnorm(z.mant)))
+	z.setExp(ex + int64(len(z.mant))*_W - fnorm(z.mant))
 	z.round(0)
 }
 
@@ -947,7 +947,7 @@ func (z *Float) umul(x, y *Float) {
 	z.mant = z.mant.mul(x.mant, y.mant)
 
 	// normalize mantissa
-	z.setExp(e - int64(fnorm(z.mant)))
+	z.setExp(e - fnorm(z.mant))
 	z.round(0)
 }
 
@@ -986,7 +986,7 @@ func (z *Float) uquo(x, y *Float) {
 	e := int64(x.exp) - int64(y.exp) - int64(d-len(z.mant))*_W
 
 	// normalize mantissa
-	z.setExp(e - int64(fnorm(z.mant)))
+	z.setExp(e - fnorm(z.mant))
 
 	// The result is long enough to include (at least) the rounding bit.
 	// If there's a non-zero remainder, the corresponding fractional part

@@ -25,7 +25,7 @@ func (z *Float) SetString(s string) (*Float, bool) {
 	}
 
 	// there should be no unread characters left
-	if _, _, err = r.ReadRune(); err != io.EOF {
+	if _, err = r.ReadByte(); err != io.EOF {
 		return nil, false
 	}
 
@@ -35,8 +35,10 @@ func (z *Float) SetString(s string) (*Float, bool) {
 // Scan scans the number corresponding to the longest possible prefix
 // of r representing a floating-point number with a mantissa in the
 // given conversion base (the exponent is always a decimal number).
-// It returns the corresponding Float f, the actual base b, and an
-// error err, if any. The number must be of the form:
+// It sets z to the (possibly rounded) value of the corresponding
+// floating-point number, and returns z, the actual base b, and an
+// error err, if any. If z's precision is 0, it is changed to 64
+// before rounding takes effect. The number must be of the form:
 //
 //	number   = [ sign ] [ prefix ] mantissa [ exponent ] .
 //	sign     = "+" | "-" .
@@ -50,16 +52,23 @@ func (z *Float) SetString(s string) (*Float, bool) {
 // argument will lead to a run-time panic.
 //
 // For base 0, the number prefix determines the actual base: A prefix of
-// ``0x'' or ``0X'' selects base 16, and a ``0b'' or ``0B'' prefix selects
+// "0x" or "0X" selects base 16, and a "0b" or "0B" prefix selects
 // base 2; otherwise, the actual base is 10 and no prefix is accepted.
-// The octal prefix ``0'' is not supported.
+// The octal prefix "0" is not supported (a leading "0" is simply
+// considered a "0").
 //
-// A "p" exponent indicates power of 2 for the exponent; for instance "1.2p3"
-// with base 0 or 10 corresponds to the value 1.2 * 2**3.
+// A "p" exponent indicates a binary (rather then decimal) exponent;
+// for instance "0x1.fffffffffffffp1023" (using base 0) represents the
+// maximum float64 value. For hexadecimal mantissae, the exponent must
+// be binary, if present (an "e" or "E" exponent indicator cannot be
+// distinguished from a mantissa digit).
 //
 // BUG(gri) This signature conflicts with Scan(s fmt.ScanState, ch rune) error.
-// TODO(gri) What should the default precision be?
 func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
+	if z.prec == 0 {
+		z.prec = 64
+	}
+
 	// sign
 	z.neg, err = scanSign(r)
 	if err != nil {
@@ -67,8 +76,8 @@ func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 	}
 
 	// mantissa
-	var ecorr int // decimal exponent correction; valid if <= 0
-	z.mant, b, ecorr, err = z.mant.scan(r, base, true)
+	var fcount int // fractional digit count; valid if <= 0
+	z.mant, b, fcount, err = z.mant.scan(r, base, true)
 	if err != nil {
 		return
 	}
@@ -80,48 +89,82 @@ func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 	if err != nil {
 		return
 	}
+
+	// set result
+	f = z
+
 	// special-case 0
 	if len(z.mant) == 0 {
+		z.acc = Exact
 		z.exp = 0
-		f = z
 		return
 	}
 	// len(z.mant) > 0
 
-	// determine binary (exp2) and decimal (exp) exponent
-	exp2 := int64(len(z.mant)*_W - int(fnorm(z.mant)))
+	// The mantissa may have a decimal point (fcount <= 0) and there
+	// may be a nonzero exponent exp. The decimal point amounts to a
+	// division by b**(-fcount). An exponent means multiplication by
+	// ebase**exp. Finally, mantissa normalization (shift left) requires
+	// a correcting multiplication by 2**(-shiftcount). Multiplications
+	// are commutative, so we can apply them in any order as long as there
+	// is no loss of precision. We only have powers of 2 and 10; keep
+	// track via separate exponents exp2 and exp10.
+
+	// normalize mantissa and get initial binary exponent
+	var exp2 = int64(len(z.mant))*_W - fnorm(z.mant)
+
+	// determine binary or decimal exponent contribution of decimal point
+	var exp10 int64
+	if fcount < 0 {
+		// The mantissa has a "decimal" point ddd.dddd; and
+		// -fcount is the number of digits to the right of '.'.
+		// Adjust relevant exponent accodingly.
+		switch b {
+		case 16:
+			fcount *= 4 // hexadecimal digits are 4 bits each
+			fallthrough
+		case 2:
+			exp2 += int64(fcount)
+		default: // b == 10
+			exp10 = int64(fcount)
+		}
+		// we don't need fcount anymore
+	}
+
+	// take actual exponent into account
 	if ebase == 2 {
 		exp2 += exp
-		exp = 0
+	} else { // ebase == 10
+		exp10 += exp
 	}
-	if ecorr < 0 {
-		exp += int64(ecorr)
-	}
+	// we don't need exp anymore
 
+	// apply 2**exp2
 	z.setExp(exp2)
-	if exp == 0 {
-		// no decimal exponent
+
+	if exp10 == 0 {
+		// no decimal exponent to consider
 		z.round(0)
-		f = z
 		return
 	}
-	// exp != 0
+	// exp10 != 0
 
 	// compute decimal exponent power
-	expabs := exp
+	expabs := exp10
 	if expabs < 0 {
 		expabs = -expabs
 	}
-	powTen := new(Float).SetInt(new(Int).SetBits(nat(nil).expNN(natTen, nat(nil).setWord(Word(expabs)), nil)))
+	powTen := nat(nil).expNN(natTen, nat(nil).setUint64(uint64(expabs)), nil)
+	fpowTen := new(Float).SetInt(new(Int).SetBits(powTen))
 
-	// correct result
-	if exp < 0 {
-		z.uquo(z, powTen)
+	// apply 10**exp10
+	// (uquo and umul do the rounding)
+	if exp10 < 0 {
+		z.uquo(z, fpowTen)
 	} else {
-		z.umul(z, powTen)
+		z.umul(z, fpowTen)
 	}
 
-	f = z
 	return
 }
 
