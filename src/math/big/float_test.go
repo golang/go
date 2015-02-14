@@ -1077,6 +1077,58 @@ func TestFloatQuoSmoke(t *testing.T) {
 	}
 }
 
+// For rounding modes ToNegativeInf and ToPositiveInf, rounding is affected
+// by the sign of the value to be rounded. Test that rounding happens after
+// the sign of a result has been set.
+// This test uses specific values that are known to fail if rounding is
+// "factored" out before setting the result sign.
+func TestFloatArithmeticRounding(t *testing.T) {
+	for _, test := range []struct {
+		mode       RoundingMode
+		prec       uint
+		x, y, want int64
+		op         byte
+	}{
+		{ToZero, 3, -0x8, -0x1, -0x8, '+'},
+		{AwayFromZero, 3, -0x8, -0x1, -0xa, '+'},
+		{ToNegativeInf, 3, -0x8, -0x1, -0xa, '+'},
+
+		{ToZero, 3, -0x8, 0x1, -0x8, '-'},
+		{AwayFromZero, 3, -0x8, 0x1, -0xa, '-'},
+		{ToNegativeInf, 3, -0x8, 0x1, -0xa, '-'},
+
+		{ToZero, 3, -0x9, 0x1, -0x8, '*'},
+		{AwayFromZero, 3, -0x9, 0x1, -0xa, '*'},
+		{ToNegativeInf, 3, -0x9, 0x1, -0xa, '*'},
+
+		{ToZero, 3, -0x9, 0x1, -0x8, '/'},
+		{AwayFromZero, 3, -0x9, 0x1, -0xa, '/'},
+		{ToNegativeInf, 3, -0x9, 0x1, -0xa, '/'},
+	} {
+		var x, y, z Float
+		x.SetInt64(test.x)
+		y.SetInt64(test.y)
+		z.SetPrec(test.prec).SetMode(test.mode)
+		switch test.op {
+		case '+':
+			z.Add(&x, &y)
+		case '-':
+			z.Sub(&x, &y)
+		case '*':
+			z.Mul(&x, &y)
+		case '/':
+			z.Quo(&x, &y)
+		default:
+			panic("unreachable")
+		}
+		if got, acc := z.Int64(); got != test.want || acc != Exact {
+			t.Errorf("%s, %d bits: %d %c %d = %d (%s); want %d (Exact)",
+				test.mode, test.prec, test.x, test.op, test.y, got, acc, test.want,
+			)
+		}
+	}
+}
+
 func TestFloatCmp(t *testing.T) {
 	// TODO(gri) implement this
 }
