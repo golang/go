@@ -66,7 +66,7 @@ aligned:
 
 // a += (((c^d)&b)^d) + X[index] + const
 // a = a<<shift | a>>(32-shift) + b
-#define ROUND1(a, b, c, d, index, shift, Rconst) \
+#define ROUND1(Ra, Rb, Rc, Rd, index, shift, Rconst) \
 	EOR	Rc, Rd, Rt0		; \
 	AND	Rb, Rt0			; \
 	EOR	Rd, Rt0			; \
@@ -77,28 +77,28 @@ aligned:
 	ADD	Ra@>(32-shift), Rb, Ra	;
 
 	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
-	ROUND1(a, b, c, d,  0,	7, Rc0)
-	ROUND1(d, a, b, c,  1, 12, Rc1)
-	ROUND1(c, d, a, b,  2, 17, Rc2)
-	ROUND1(b, c, d, a,  3, 22, Rc3)
+	ROUND1(Ra, Rb, Rc, Rd,  0,	7, Rc0)
+	ROUND1(Rd, Ra, Rb, Rc,  1, 12, Rc1)
+	ROUND1(Rc, Rd, Ra, Rb,  2, 17, Rc2)
+	ROUND1(Rb, Rc, Rd, Ra,  3, 22, Rc3)
 
 	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
-	ROUND1(a, b, c, d,  4,	7, Rc0)
-	ROUND1(d, a, b, c,  5, 12, Rc1)
-	ROUND1(c, d, a, b,  6, 17, Rc2)
-	ROUND1(b, c, d, a,  7, 22, Rc3)
+	ROUND1(Ra, Rb, Rc, Rd,  4,	7, Rc0)
+	ROUND1(Rd, Ra, Rb, Rc,  5, 12, Rc1)
+	ROUND1(Rc, Rd, Ra, Rb,  6, 17, Rc2)
+	ROUND1(Rb, Rc, Rd, Ra,  7, 22, Rc3)
 
 	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
-	ROUND1(a, b, c, d,  8,	7, Rc0)
-	ROUND1(d, a, b, c,  9, 12, Rc1)
-	ROUND1(c, d, a, b, 10, 17, Rc2)
-	ROUND1(b, c, d, a, 11, 22, Rc3)
+	ROUND1(Ra, Rb, Rc, Rd,  8,	7, Rc0)
+	ROUND1(Rd, Ra, Rb, Rc,  9, 12, Rc1)
+	ROUND1(Rc, Rd, Ra, Rb, 10, 17, Rc2)
+	ROUND1(Rb, Rc, Rd, Ra, 11, 22, Rc3)
 
 	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
-	ROUND1(a, b, c, d, 12,	7, Rc0)
-	ROUND1(d, a, b, c, 13, 12, Rc1)
-	ROUND1(c, d, a, b, 14, 17, Rc2)
-	ROUND1(b, c, d, a, 15, 22, Rc3)
+	ROUND1(Ra, Rb, Rc, Rd, 12,	7, Rc0)
+	ROUND1(Rd, Ra, Rb, Rc, 13, 12, Rc1)
+	ROUND1(Rc, Rd, Ra, Rb, 14, 17, Rc2)
+	ROUND1(Rb, Rc, Rd, Ra, 15, 22, Rc3)
 
 // a += (((b^c)&d)^c) + X[index] + const
 // a = a<<shift | a>>(32-shift) + b
@@ -173,7 +173,7 @@ aligned:
 
 // a += (c^(b|^d)) + X[index] + const
 // a = a<<shift | a>>(32-shift) + b
-#define ROUND4(Ra, Rb, Rc, d, index, shift, Rconst) \
+#define ROUND4(Ra, Rb, Rc, Rd, index, shift, Rconst) \
 	MVN	Rd, Rt0			; \
 	ORR	Rb, Rt0			; \
 	EOR	Rc, Rt0			; \
