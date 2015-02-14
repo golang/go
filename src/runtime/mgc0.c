@@ -350,6 +350,9 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 				x -= (uintptr)arena_start>>PageShift;
 				s = runtime·mheap.spans[x];
 				if(s == nil || k < s->start || obj >= s->limit || s->state != MSpanInUse) {
+					// Sometimes 32-bit heaps have holes.  See issue 9872
+					if(PtrSize == 4 && s == nil)
+						continue;
 					// Stack pointers lie within the arena bounds but are not part of the GC heap.
 					// Ignore them.
 					if(s != nil && s->state == MSpanStack)
