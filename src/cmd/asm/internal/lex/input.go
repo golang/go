@@ -203,12 +203,21 @@ func (in *Input) defineMacro(name string, args []string, tokens []Token) {
 // The argument list is nil for no parens on the definition; otherwise a list of
 // formal argument names.
 func (in *Input) macroDefinition(name string) ([]string, []Token) {
+	prevCol := in.Stack.Col()
 	tok := in.Stack.Next()
 	if tok == '\n' || tok == scanner.EOF {
 		in.Error("no definition for macro:", name)
 	}
 	var args []string
-	if tok == '(' {
+	// The C preprocessor treats
+	//	#define A(x)
+	// and
+	//	#define A (x)
+	// distinctly: the first is a macro with arguments, the second without.
+	// Distinguish these cases using the column number, since we don't
+	// see the space itself. Note that text/scanner reports the position at the
+	// end of the token. It's where you are now, and you just read this token.
+	if tok == '(' && in.Stack.Col() == prevCol+1 {
 		// Macro has arguments. Scan list of formals.
 		acceptArg := true
 		args = []string{} // Zero length but not nil.

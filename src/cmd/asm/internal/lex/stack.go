@@ -41,6 +41,10 @@ func (s *Stack) Line() int {
 	return s.tr[len(s.tr)-1].Line()
 }
 
+func (s *Stack) Col() int {
+	return s.tr[len(s.tr)-1].Col()
+}
+
 func (s *Stack) SetPos(line int, file string) {
 	s.tr[len(s.tr)-1].SetPos(line, file)
 }
