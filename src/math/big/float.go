@@ -298,6 +298,10 @@ func validate(args ...*Float) {
 // sbit must be 0 or 1 and summarizes any "sticky bit" information one might
 // have before calling round. z's mantissa must be normalized (with the msb set)
 // or empty.
+//
+// CAUTION: The rounding modes ToNegativeInf, ToPositiveInf are affected by the
+// sign of z. For correct rounding, the sign of z must be set correctly before
+// calling round.
 func (z *Float) round(sbit uint) {
 	if debugFloat {
 		validate(z)
@@ -1076,7 +1080,7 @@ func (z *Float) Add(x, y *Float) *Float {
 	}
 
 	// x, y != 0
-	neg := x.neg
+	z.neg = x.neg
 	if x.neg == y.neg {
 		// x + y == x + y
 		// (-x) + (-y) == -(x + y)
@@ -1087,11 +1091,10 @@ func (z *Float) Add(x, y *Float) *Float {
 		if x.ucmp(y) >= 0 {
 			z.usub(x, y)
 		} else {
-			neg = !neg
+			z.neg = !z.neg
 			z.usub(y, x)
 		}
 	}
-	z.neg = neg
 	return z
 }
 
@@ -1116,7 +1119,7 @@ func (z *Float) Sub(x, y *Float) *Float {
 	}
 
 	// x, y != 0
-	neg := x.neg
+	z.neg = x.neg
 	if x.neg != y.neg {
 		// x - (-y) == x + y
 		// (-x) - y == -(x + y)
@@ -1127,11 +1130,10 @@ func (z *Float) Sub(x, y *Float) *Float {
 		if x.ucmp(y) >= 0 {
 			z.usub(x, y)
 		} else {
-			neg = !neg
+			z.neg = !z.neg
 			z.usub(y, x)
 		}
 	}
-	z.neg = neg
 	return z
 }
 
@@ -1158,8 +1160,8 @@ func (z *Float) Mul(x, y *Float) *Float {
 	}
 
 	// x, y != 0
-	z.umul(x, y)
 	z.neg = x.neg != y.neg
+	z.umul(x, y)
 	return z
 }
 
