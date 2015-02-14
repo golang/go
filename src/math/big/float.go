@@ -967,12 +967,16 @@ func (z *Float) uquo(x, y *Float) {
 	// to shorten x for faster division. But we must be extra careful
 	// with rounding in that case.
 
+	// Compute d before division since there may be aliasing of x.mant
+	// (via xadj) or y.mant with z.mant.
+	d := len(xadj) - len(y.mant)
+
 	// divide
 	var r nat
 	z.mant, r = z.mant.div(nil, xadj, y.mant)
 
 	// determine exponent
-	e := int64(x.exp) - int64(y.exp) - int64(len(xadj)-len(y.mant)-len(z.mant))*_W
+	e := int64(x.exp) - int64(y.exp) - int64(d-len(z.mant))*_W
 
 	// normalize mantissa
 	z.setExp(e - int64(fnorm(z.mant)))
