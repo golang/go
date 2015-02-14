@@ -263,18 +263,46 @@ func testFloatRound(t *testing.T, x, r int64, prec uint, mode RoundingMode) {
 	}
 
 	// round
-	f := new(Float).SetInt64(x)
-	f.Round(f, prec, mode)
+	f := new(Float).SetMode(mode).SetInt64(x).SetPrec(prec)
 
 	// check result
 	r1 := f.int64()
 	p1 := f.Prec()
 	a1 := f.Acc()
 	if r1 != r || p1 != prec || a1 != a {
-		t.Errorf("Round(%s, %d, %s): got %s (%d bits, %s); want %s (%d bits, %s)",
+		t.Errorf("round %s (%d bits, %s) incorrect: got %s (%d bits, %s); want %s (%d bits, %s)",
 			toBinary(x), prec, mode,
 			toBinary(r1), p1, a1,
 			toBinary(r), prec, a)
+		return
+	}
+
+	// g and f should be the same
+	// (rounding by SetPrec after SetInt64 using default precision
+	// should be the same as rounding by SetInt64 after setting the
+	// precision)
+	g := new(Float).SetMode(mode).SetPrec(prec).SetInt64(x)
+	if !feq(g, f) {
+		t.Errorf("round %s (%d bits, %s) not symmetric: got %s and %s; want %s",
+			toBinary(x), prec, mode,
+			toBinary(g.int64()),
+			toBinary(r1),
+			toBinary(r),
+		)
+		return
+	}
+
+	// h and f should be the same
+	// (repeated rounding should be idempotent)
+	h := new(Float).SetMode(mode).SetPrec(prec).Set(f)
+	if !feq(h, f) {
+		t.Errorf("round %s (%d bits, %s) not idempotent: got %s and %s; want %s",
+			toBinary(x), prec, mode,
+			toBinary(h.int64()),
+			toBinary(r1),
+			toBinary(r),
+		)
+		return
 	}
 }
 
@@ -383,8 +411,7 @@ func TestFloatRound24(t *testing.T) {
 	const x0 = 1<<26 - 0x10 // 11...110000 (26 bits)
 	for d := 0; d <= 0x10; d++ {
 		x := float64(x0 + d)
-		f := new(Float).SetFloat64(x)
-		f.Round(f, 24, ToNearestEven)
+		f := new(Float).SetPrec(24).SetFloat64(x)
 		got, _ := f.Float64()
 		want := float64(float32(x))
 		if got != want {

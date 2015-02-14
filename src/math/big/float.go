@@ -147,6 +147,7 @@ func (mode RoundingMode) String() string {
 // cannot be represented in prec bits without loss of precision.
 func (z *Float) SetPrec(prec uint) *Float {
 	old := z.prec
+	z.acc = Exact
 	z.prec = prec
 	if prec < old {
 		z.round(0)
@@ -154,9 +155,10 @@ func (z *Float) SetPrec(prec uint) *Float {
 	return z
 }
 
-// SetMode sets z's rounding mode to mode and returns z.
+// SetMode sets z's rounding mode to mode and returns an exact z.
 // z remains unchanged otherwise.
 func (z *Float) SetMode(mode RoundingMode) *Float {
+	z.acc = Exact
 	z.mode = mode
 	return z
 }
@@ -436,16 +438,6 @@ func (z *Float) round(sbit uint) {
 	return
 }
 
-// Round sets z to the value of x rounded according to mode to prec bits and returns z.
-// TODO(gri) rethink this signature.
-func (z *Float) Round(x *Float, prec uint, mode RoundingMode) *Float {
-	z.Copy(x)
-	z.prec = prec
-	z.mode = mode
-	z.round(0)
-	return z
-}
-
 // nlz returns the number of leading zero bits in x.
 func nlz(x Word) uint {
 	return _W - uint(bitLen(x))
@@ -465,15 +457,12 @@ func nlz64(x uint64) uint {
 	panic("unreachable")
 }
 
-// SetUint64 sets z to the (possibly rounded) value of x and returns z.
-// If z's precision is 0, it is changed to 64 (and rounding will have
-// no effect).
-func (z *Float) SetUint64(x uint64) *Float {
+func (z *Float) setBits64(neg bool, x uint64) *Float {
 	if z.prec == 0 {
 		z.prec = 64
 	}
 	z.acc = Exact
-	z.neg = false
+	z.neg = neg
 	if x == 0 {
 		z.mant = z.mant[:0]
 		z.exp = 0
@@ -489,6 +478,13 @@ func (z *Float) SetUint64(x uint64) *Float {
 	return z
 }
 
+// SetUint64 sets z to the (possibly rounded) value of x and returns z.
+// If z's precision is 0, it is changed to 64 (and rounding will have
+// no effect).
+func (z *Float) SetUint64(x uint64) *Float {
+	return z.setBits64(false, x)
+}
+
 // SetInt64 sets z to the (possibly rounded) value of x and returns z.
 // If z's precision is 0, it is changed to 64 (and rounding will have
 // no effect).
@@ -497,9 +493,9 @@ func (z *Float) SetInt64(x int64) *Float {
 	if u < 0 {
 		u = -u
 	}
-	z.SetUint64(uint64(u))
-	z.neg = x < 0
-	return z
+	// We cannot simply call z.SetUint64(uint64(u)) and change
+	// the sign afterwards because the sign affects rounding.
+	return z.setBits64(x < 0, uint64(u))
 }
 
 // SetFloat64 sets z to the (possibly rounded) value of x and returns z.
@@ -599,6 +595,7 @@ func (z *Float) SetRat(x *Rat) *Float {
 // mode; and z's accuracy reports the result error relative to the
 // exact (not rounded) result.
 func (z *Float) Set(x *Float) *Float {
+	// TODO(gri) what about z.acc? should it be always Exact?
 	if z != x {
 		if z.prec == 0 {
 			z.prec = x.prec
@@ -617,6 +614,7 @@ func (z *Float) Set(x *Float) *Float {
 // Copy sets z to x, with the same precision and rounding mode as x,
 // and returns z.
 func (z *Float) Copy(x *Float) *Float {
+	// TODO(gri) what about z.acc? should it be always Exact?
 	if z != x {
 		z.acc = Exact
 		z.neg = x.neg
@@ -761,7 +759,9 @@ func (x *Float) Float64() (float64, Accuracy) {
 		return 0, Exact
 	}
 	// x != 0
-	r := new(Float).Round(x, 53, ToNearestEven)
+	var r Float
+	r.prec = 53
+	r.Set(x)
 	var s uint64
 	if r.neg {
 		s = 1 << 63
