@@ -15,6 +15,7 @@ func TestFloatSetFloat64String(t *testing.T) {
 		s string
 		x float64
 	}{
+		// basics
 		{"0", 0},
 		{"-0", -0},
 		{"+0", 0},
@@ -28,34 +29,69 @@ func TestFloatSetFloat64String(t *testing.T) {
 		{"1.", 1},
 		{"+1.", 1},
 
+		// various zeros
 		{"0e100", 0},
 		{"-0e+100", 0},
 		{"+0e-100", 0},
 		{"0E100", 0},
 		{"-0E+100", 0},
 		{"+0E-100", 0},
-		{"0p100", 0},
-		{"-0p+100", 0},
-		{"+0p-100", 0},
 
+		// various decimal exponent formats
 		{"1.e10", 1e10},
 		{"1e+10", 1e10},
 		{"+1e-10", 1e-10},
 		{"1E10", 1e10},
 		{"1.E+10", 1e10},
 		{"+1E-10", 1e-10},
-		{"1p10", 1 << 10},
-		{"1p+10", 1 << 10},
-		{"+1.p-10", 1.0 / (1 << 10)},
 
+		// misc decimal values
+		{"3.14159265", 3.14159265},
 		{"-687436.79457e-245", -687436.79457e-245},
 		{"-687436.79457E245", -687436.79457e245},
-		{"1024.p-12", 0.25},
-		{"-1.p10", -1024},
-		{"0.25p2", 1},
-
 		{".0000000000000000000000000000000000000001", 1e-40},
 		{"+10000000000000000000000000000000000000000e-0", 1e40},
+
+		// decimal mantissa, binary exponent
+		{"0p0", 0},
+		{"-0p0", -0},
+		{"1p10", 1 << 10},
+		{"1p+10", 1 << 10},
+		{"+1p-10", 1.0 / (1 << 10)},
+		{"1024p-12", 0.25},
+		{"-1p10", -1024},
+		{"1.5p1", 3},
+
+		// binary mantissa, decimal exponent
+		{"0b0", 0},
+		{"-0b0", -0},
+		{"0b0e+10", 0},
+		{"-0b0e-10", -0},
+		{"0b1010", 10},
+		{"0B1010E2", 1000},
+		{"0b.1", 0.5},
+		{"0b.001", 0.125},
+		{"0b.001e3", 125},
+
+		// binary mantissa, binary exponent
+		{"0b0p+10", 0},
+		{"-0b0p-10", -0},
+		{"0b.1010p4", 10},
+		{"0b1p-1", 0.5},
+		{"0b001p-3", 0.125},
+		{"0b.001p3", 1},
+		{"0b0.01p2", 1},
+
+		// hexadecimal mantissa and exponent
+		{"0x0", 0},
+		{"-0x0", -0},
+		{"0x0p+10", 0},
+		{"-0x0p-10", -0},
+		{"0xff", 255},
+		{"0X.8p1", 1},
+		{"-0X0.00008p16", -0.5},
+		{"0x0.0000000000001p-1022", math.SmallestNonzeroFloat64},
+		{"0x1.fffffffffffffp1023", math.MaxFloat64},
 	} {
 		var x Float
 		x.SetPrec(53)
@@ -341,7 +377,11 @@ func TestFloatFormat(t *testing.T) {
 		// and its output for 0.0 prints a biased exponent value
 		// as in 0p-1074 which makes no sense to emulate here)
 		if test.prec == 53 && test.format != 'p' && f.Sign() != 0 {
-			f64, _ := f.Float64()
+			f64, acc := f.Float64()
+			if acc != Exact {
+				t.Errorf("%v: expected exact conversion to float64", test)
+				continue
+			}
 			got := strconv.FormatFloat(f64, test.format, test.digits, 64)
 			if got != test.want {
 				t.Errorf("%v: got %s; want %s", test, got, test.want)
