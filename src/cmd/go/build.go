@@ -1693,7 +1693,7 @@ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 			return err
 		}
 		switch goarch {
-		case "386", "amd64": // Asm only supports these architectures so far.
+		case "386", "amd64", "amd64p32", "arm": // Asm only supports these architectures so far.
 			if err := asmVerify(b, p, "asm", ofile, args); err != nil {
 				return err
 			}
