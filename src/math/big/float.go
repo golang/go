@@ -582,7 +582,9 @@ func (z *Float) SetInt(x *Int) *Float {
 // If z's precision is 0, it is changed to the largest of a.BitLen(),
 // b.BitLen(), or 64; with x = a/b.
 func (z *Float) SetRat(x *Rat) *Float {
-	// TODO(gri) can be more efficient if x is an integer
+	if x.IsInt() {
+		return z.SetInt(x.Num())
+	}
 	var a, b Float
 	a.SetInt(x.Num())
 	b.SetInt(x.Denom())
