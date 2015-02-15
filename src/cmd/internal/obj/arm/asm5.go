@@ -865,6 +865,7 @@ func flushpool(ctxt *obj.Link, p *obj.Prog, skip int, force int) int {
 			q.Pcond = p.Link
 			q.Link = ctxt.Blitrl
 			q.Lineno = p.Lineno
+			q.Ctxt = p.Ctxt
 			ctxt.Blitrl = q
 		} else if !(force != 0) && (p.Pc+int64(12+pool.size)-int64(pool.start) < 2048) { // 12 take into account the maximum nacl literal pool alignment padding size
 			return 0
@@ -874,6 +875,7 @@ func flushpool(ctxt *obj.Link, p *obj.Prog, skip int, force int) int {
 			q = new(obj.Prog)
 
 			q.As = ADATABUNDLEEND
+			q.Ctxt = p.Ctxt
 			ctxt.Elitrl.Link = q
 			ctxt.Elitrl = q
 		}
@@ -909,6 +911,7 @@ func addpool(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 
 	t = obj.Zprog
 	t.As = AWORD
+	t.Ctxt = p.Ctxt
 
 	switch c {
 	default:
@@ -952,6 +955,7 @@ func addpool(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 		*q = obj.Zprog
 		q.As = ADATABUNDLE
 		q.Pc = int64(pool.size)
+		q.Ctxt = p.Ctxt
 		pool.size += 4
 		if ctxt.Blitrl == nil {
 			ctxt.Blitrl = q
