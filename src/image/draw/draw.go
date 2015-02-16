@@ -392,6 +392,8 @@ func drawNRGBASrc(dst *image.RGBA, r image.Rectangle, src *image.NRGBA, sp image
 	}
 }
 
+// TODO(nigeltao): this function is copy/pasted to image/jpeg/reader.go. We
+// should un-copy/paste it.
 func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Point) (ok bool) {
 	// An image.YCbCr is always fully opaque, and so if the mask is implicitly nil
 	// (i.e. fully opaque) then the op is effectively always Src.
