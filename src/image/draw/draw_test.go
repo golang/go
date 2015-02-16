@@ -74,6 +74,16 @@ func vgradCr() image.Image {
 	return m
 }
 
+func vgradMagenta() image.Image {
+	m := image.NewCMYK(image.Rect(0, 0, 16, 16))
+	for y := 0; y < 16; y++ {
+		for x := 0; x < 16; x++ {
+			m.Set(x, y, color.CMYK{0, uint8(y * 0x11), 0, 0x3f})
+		}
+	}
+	return m
+}
+
 func hgradRed(alpha int) Image {
 	m := image.NewRGBA(image.Rect(0, 0, 16, 16))
 	for y := 0; y < 16; y++ {
@@ -147,6 +157,16 @@ var drawTests = []drawTest{
 	{"ycbcrAlphaSrc", vgradCr(), fillAlpha(192), Src, color.RGBA{8, 28, 0, 192}},
 	{"ycbcrNil", vgradCr(), nil, Over, color.RGBA{11, 38, 0, 255}},
 	{"ycbcrNilSrc", vgradCr(), nil, Src, color.RGBA{11, 38, 0, 255}},
+	// Uniform mask (100%, 75%, nil) and variable CMYK source.
+	// At (x, y) == (8, 8):
+	// The destination pixel is {136, 0, 0, 255}.
+	// The source pixel is {0, 136, 0, 63} in CMYK-space, which is {192, 89, 192} in RGB-space.
+	{"cmyk", vgradMagenta(), fillAlpha(255), Over, color.RGBA{192, 89, 192, 255}},
+	{"cmykSrc", vgradMagenta(), fillAlpha(255), Src, color.RGBA{192, 89, 192, 255}},
+	{"cmykAlpha", vgradMagenta(), fillAlpha(192), Over, color.RGBA{178, 67, 145, 255}},
+	{"cmykAlphaSrc", vgradMagenta(), fillAlpha(192), Src, color.RGBA{145, 67, 145, 192}},
+	{"cmykNil", vgradMagenta(), nil, Over, color.RGBA{192, 89, 192, 255}},
+	{"cmykNilSrc", vgradMagenta(), nil, Src, color.RGBA{192, 89, 192, 255}},
 	// Variable mask and variable source.
 	// At (x, y) == (8, 8):
 	// The destination pixel is {136, 0, 0, 255}.
