@@ -492,11 +492,18 @@ func (p *Parser) symbolReference(a *obj.Addr, name string, prefix rune) {
 	p.get('(')
 	reg := p.get(scanner.Ident).String()
 	p.get(')')
-	p.setPseudoRegister(a, p.arch.Registers[reg], isStatic != 0, prefix)
+	// On some machines, SP is a real register, on some it's pseudo. Make sure
+	// setPseudoRegister sees the pseudo always.
+	// TODO: Set up a pseudo-register map analogous to the register map in arch?
+	r := p.arch.Registers[reg]
+	if reg == "SP" {
+		r = arch.RSP
+	}
+	p.setPseudoRegister(a, reg, r, isStatic != 0, prefix)
 }
 
 // setPseudoRegister sets the NAME field of addr for a pseudo-register reference such as (SB).
-func (p *Parser) setPseudoRegister(addr *obj.Addr, reg int16, isStatic bool, prefix rune) {
+func (p *Parser) setPseudoRegister(addr *obj.Addr, name string, reg int16, isStatic bool, prefix rune) {
 	if addr.Reg != 0 {
 		p.errorf("internal error: reg already set in psuedo")
 	}
@@ -517,7 +524,7 @@ func (p *Parser) setPseudoRegister(addr *obj.Addr, reg int16, isStatic bool, pre
 	case arch.RSP:
 		addr.Name = obj.NAME_AUTO // The pseudo-stack.
 	default:
-		p.errorf("expected pseudo-register; found %d", reg)
+		p.errorf("expected pseudo-register; found %s", name)
 	}
 	if prefix == '$' {
 		addr.Type = obj.TYPE_ADDR
@@ -531,7 +538,8 @@ func (p *Parser) setPseudoRegister(addr *obj.Addr, reg int16, isStatic bool, pre
 // The opening parenthesis has already been consumed.
 func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 	tok := p.next()
-	r1, r2, scale, ok := p.register(tok.String(), 0)
+	name := tok.String()
+	r1, r2, scale, ok := p.register(name, 0)
 	if !ok {
 		p.errorf("indirect through non-register %s", tok)
 	}
@@ -543,7 +551,7 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 			p.errorf("cannot use pseudo-register in pair")
 			return
 		}
-		p.setPseudoRegister(a, r1, false, prefix)
+		p.setPseudoRegister(a, name, r1, false, prefix)
 		return
 	}
 	a.Reg = r1
