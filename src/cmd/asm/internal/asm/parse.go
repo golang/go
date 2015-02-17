@@ -494,39 +494,32 @@ func (p *Parser) symbolReference(a *obj.Addr, name string, prefix rune) {
 	p.get('(')
 	reg := p.get(scanner.Ident).String()
 	p.get(')')
-	// On some machines, SP is a real register, on some it's pseudo. Make sure
-	// setPseudoRegister sees the pseudo always.
-	// TODO: Set up a pseudo-register map analogous to the register map in arch?
-	r := p.arch.Registers[reg]
-	if reg == "SP" {
-		r = arch.RSP
-	}
-	p.setPseudoRegister(a, reg, r, isStatic != 0, prefix)
+	p.setPseudoRegister(a, reg, isStatic != 0, prefix)
 }
 
 // setPseudoRegister sets the NAME field of addr for a pseudo-register reference such as (SB).
-func (p *Parser) setPseudoRegister(addr *obj.Addr, name string, reg int16, isStatic bool, prefix rune) {
+func (p *Parser) setPseudoRegister(addr *obj.Addr, reg string, isStatic bool, prefix rune) {
 	if addr.Reg != 0 {
-		p.errorf("internal error: reg %s already set in pseudo", name)
+		p.errorf("internal error: reg %s already set in pseudo", reg)
 	}
 	switch reg {
-	case arch.RFP:
+	case "FP":
 		addr.Name = obj.NAME_PARAM
-	case arch.RPC:
+	case "PC":
 		// Fine as is.
 		if prefix != 0 {
 			p.errorf("illegal addressing mode for PC")
 		}
 		addr.Reg = arch.RPC // Tells asmJump how to interpret this address.
-	case arch.RSB:
+	case "SB":
 		addr.Name = obj.NAME_EXTERN
 		if isStatic {
 			addr.Name = obj.NAME_STATIC
 		}
-	case arch.RSP:
+	case "SP":
 		addr.Name = obj.NAME_AUTO // The pseudo-stack.
 	default:
-		p.errorf("expected pseudo-register; found %s", name)
+		p.errorf("expected pseudo-register; found %s", reg)
 	}
 	if prefix == '$' {
 		addr.Type = obj.TYPE_ADDR
@@ -554,7 +547,7 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 			p.errorf("cannot use pseudo-register in pair")
 			return
 		}
-		p.setPseudoRegister(a, name, r1, false, prefix)
+		p.setPseudoRegister(a, name, false, prefix)
 		return
 	}
 	a.Reg = r1
@@ -641,7 +634,11 @@ func (p *Parser) registerNumber(name string) uint16 {
 		p.errorf("expected register; found %s", name)
 	}
 	// Register must be of the form R0 through R15.
-	if name[0] != 'R' && name != "g" {
+	// On ARM, g is register 10.
+	if p.arch.Thechar == '5' && name == "g" {
+		return 10
+	}
+	if name[0] != 'R' {
 		p.errorf("expected g or R0 through R15; found %s", name)
 	}
 	num, err := strconv.ParseUint(name[1:], 10, 8)
