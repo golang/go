@@ -313,6 +313,9 @@ func (p *Parser) operand(a *obj.Addr) bool {
 		rname := p.next().String()
 		p.back()
 		haveConstant = !p.isRegister(rname)
+		if !haveConstant {
+			p.back() // Put back the '('.
+		}
 	}
 	if haveConstant {
 		p.back()
@@ -355,10 +358,9 @@ func (p *Parser) operand(a *obj.Addr) bool {
 			return true
 		}
 		// fmt.Printf("offset %d \n", a.Offset)
-		p.get('(')
 	}
 
-	// Register indirection: (reg) or (index*scale). We have consumed the opening paren.
+	// Register indirection: (reg) or (index*scale). We are on the opening paren.
 	p.registerIndirect(a, prefix)
 	// fmt.Printf("DONE %s\n", p.arch.Dconv(&emptyProg, 0, a))
 
@@ -505,7 +507,7 @@ func (p *Parser) symbolReference(a *obj.Addr, name string, prefix rune) {
 // setPseudoRegister sets the NAME field of addr for a pseudo-register reference such as (SB).
 func (p *Parser) setPseudoRegister(addr *obj.Addr, name string, reg int16, isStatic bool, prefix rune) {
 	if addr.Reg != 0 {
-		p.errorf("internal error: reg already set in psuedo")
+		p.errorf("internal error: reg %s already set in pseudo", name)
 	}
 	switch reg {
 	case arch.RFP:
@@ -535,8 +537,9 @@ func (p *Parser) setPseudoRegister(addr *obj.Addr, name string, reg int16, isSta
 // It is can be (R1), (R2*scale), or (R1)(R2*scale) where R1 may be a simple
 // register or register pair R:R or (R, R).
 // Or it might be a pseudo-indirection like (FP).
-// The opening parenthesis has already been consumed.
+// We are sitting on the opening parenthesis.
 func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
+	p.get('(')
 	tok := p.next()
 	name := tok.String()
 	r1, r2, scale, ok := p.register(name, 0)
