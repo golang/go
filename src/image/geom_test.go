@@ -39,6 +39,18 @@ func TestRectangle(t *testing.T) {
 		Rect(6, 5, 4, 3),
 	}
 
+	// r.Eq(s) should be equivalent to every point in r being in s, and every
+	// point in s being in r.
+	for _, r := range rects {
+		for _, s := range rects {
+			got := r.Eq(s)
+			want := in(r, s) == nil && in(s, r) == nil
+			if got != want {
+				t.Errorf("Eq: r=%s, s=%s: got %t, want %t", r, s, got, want)
+			}
+		}
+	}
+
 	// The intersection should be the largest rectangle a such that every point
 	// in a is both in r and in s.
 	for _, r := range rects {
