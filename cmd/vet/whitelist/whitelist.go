@@ -39,6 +39,7 @@ var UnkeyedLiteral = map[string]bool{
 	// These image and image/color struct types are frozen. We will never add fields to them.
 	"image/color.Alpha16": true,
 	"image/color.Alpha":   true,
+	"image/color.CMYK":    true,
 	"image/color.Gray16":  true,
 	"image/color.Gray":    true,
 	"image/color.NRGBA64": true,
