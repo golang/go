@@ -27,6 +27,21 @@ func TestAMD64OperandParser(t *testing.T) {
 			t.Errorf("fail at %s: got %s; expected %s\n", test.input, result, test.output)
 		}
 	}
+
+	// Special case for AX:DX, which is really two operands so isn't print correcctly
+	// by Aconv, but is OK by the -S output.
+	parser.start(lex.Tokenize("AX:BX)"))
+	addr := obj.Addr{}
+	parser.operand(&addr)
+	want := obj.Addr{
+		Type:  obj.TYPE_REG,
+		Reg:   int16(architecture.Registers["AX"]),
+		Class: int8(architecture.Registers["BX"]),
+	}
+	if want != addr {
+		t.Errorf("AX:DX: expected %+v got %+v", want, addr)
+	}
+
 }
 
 type operandTest struct {
@@ -86,13 +101,14 @@ var amd64operandTests = []operandTest{
 	{"(SP)", "(SP)"},
 	{"(6+8)(AX)", "14(AX)"},
 	{"(8*4)(BP)", "32(BP)"},
-	// {"+3(PC)", "+3(PC)"}, TODO: Need to parse this knowing it's a branch.
+	{"+3(PC)", "3(PC)"},
+	{"-3(PC)", "-3(PC)"},
 	{"-1(DI)(BX*1)", "-1(DI)(BX*1)"},
 	{"-64(SI)(BX*1)", "-64(SI)(BX*1)"},
 	{"-96(SI)(BX*1)", "-96(SI)(BX*1)"},
 	{"AL", "AL"},
 	{"AX", "AX"},
-	// {"AX:DX", "AX:DX"}, TODO: prints as AX although -S output is correct.
+	// {"AX:DX", "AX:DX"}, Handled in TestAMD64OperandParser directly.
 	{"BP", "BP"},
 	{"BX", "BX"},
 	{"CX", "CX"},

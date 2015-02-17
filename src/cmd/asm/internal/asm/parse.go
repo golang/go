@@ -126,7 +126,7 @@ func (p *Parser) line() bool {
 					continue
 				}
 				if tok == ':' {
-					// LABELS
+					// Labels.
 					p.pendingLabels = append(p.pendingLabels, word)
 					return true
 				}
@@ -506,11 +506,10 @@ func (p *Parser) setPseudoRegister(addr *obj.Addr, reg string, isStatic bool, pr
 	case "FP":
 		addr.Name = obj.NAME_PARAM
 	case "PC":
-		// Fine as is.
 		if prefix != 0 {
 			p.errorf("illegal addressing mode for PC")
 		}
-		addr.Reg = arch.RPC // Tells asmJump how to interpret this address.
+		addr.Type = obj.TYPE_BRANCH // We set the type and leave NAME untouched. See asmJump.
 	case "SB":
 		addr.Name = obj.NAME_EXTERN
 		if isStatic {
