@@ -304,6 +304,12 @@ func (p *Parser) asmJump(op int, cond string, a []obj.Addr) {
 		As:     int16(op),
 	}
 	switch {
+	case target.Type == obj.TYPE_BRANCH:
+		// JMP 4(PC)
+		prog.To = obj.Addr{
+			Type:   obj.TYPE_BRANCH,
+			Offset: p.pc + 1 + target.Offset, // +1 because p.pc is incremented in link, below.
+		}
 	case target.Type == obj.TYPE_REG:
 		// JMP R1
 		prog.To = *target
@@ -324,14 +330,7 @@ func (p *Parser) asmJump(op int, cond string, a []obj.Addr) {
 		}
 	case target.Type == obj.TYPE_MEM && target.Name == obj.NAME_NONE:
 		// JMP 4(PC)
-		if target.Reg == arch.RPC {
-			prog.To = obj.Addr{
-				Type:   obj.TYPE_BRANCH,
-				Offset: p.pc + 1 + target.Offset, // +1 because p.pc is incremented in link, below.
-			}
-		} else {
-			prog.To = *target
-		}
+		prog.To = *target
 	default:
 		p.errorf("cannot assemble jump %+v", target)
 	}
