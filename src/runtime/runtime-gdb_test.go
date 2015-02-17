@@ -75,7 +75,7 @@ func TestGdbPython(t *testing.T) {
 		blocks[string(subs[1])] = string(subs[2])
 	}
 
-	infoGoroutinesRe := regexp.MustCompile(`\d+\s+running\s+runtime`)
+	infoGoroutinesRe := regexp.MustCompile(`\*\s+\d+\s+running\s+`)
 	if bl := blocks["info goroutines"]; !infoGoroutinesRe.MatchString(bl) {
 		t.Fatalf("info goroutines failed: %s", bl)
 	}
