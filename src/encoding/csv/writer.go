@@ -114,7 +114,7 @@ func (w *Writer) WriteAll(records [][]string) (err error) {
 	return w.w.Flush()
 }
 
-// fieldNeedsQuotes returns true if our field must be enclosed in quotes.
+// fieldNeedsQuotes reports whether our field must be enclosed in quotes.
 // Fields with a Comma, fields with a quote or newline, and
 // fields which start with a space must be enclosed in quotes.
 // We used to quote empty strings, but we do not anymore (as of Go 1.4).

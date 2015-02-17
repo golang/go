@@ -144,7 +144,7 @@ func (p *printer) nextComment() {
 	p.commentOffset = infinity
 }
 
-// commentBefore returns true iff the current comment group occurs
+// commentBefore reports whether the current comment group occurs
 // before the next position in the source code and printing it does
 // not introduce implicit semicolons.
 //

@@ -320,7 +320,7 @@ func parsePrintableString(bytes []byte) (ret string, err error) {
 	return
 }
 
-// isPrintable returns true iff the given b is in the ASN.1 PrintableString set.
+// isPrintable reports whether the given b is in the ASN.1 PrintableString set.
 func isPrintable(b byte) bool {
 	return 'a' <= b && b <= 'z' ||
 		'A' <= b && b <= 'Z' ||

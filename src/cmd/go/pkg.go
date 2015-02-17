@@ -176,7 +176,7 @@ func (s *importStack) copy() []string {
 	return append([]string{}, *s...)
 }
 
-// shorterThan returns true if sp is shorter than t.
+// shorterThan reports whether sp is shorter than t.
 // We use this to record the shortest import sequence
 // that leads to a particular package.
 func (sp *importStack) shorterThan(t []string) bool {

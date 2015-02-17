@@ -646,7 +646,7 @@ func topofstack(f *_func) bool {
 		externalthreadhandlerp != 0 && pc == externalthreadhandlerp
 }
 
-// isSystemGoroutine returns true if the goroutine g must be omitted in
+// isSystemGoroutine reports whether the goroutine g must be omitted in
 // stack dumps and deadlock detector.
 func isSystemGoroutine(gp *g) bool {
 	pc := gp.startpc

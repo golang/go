@@ -288,7 +288,7 @@ var longMonthNames = []string{
 	"December",
 }
 
-// match returns true if s1 and s2 match ignoring case.
+// match reports whether s1 and s2 match ignoring case.
 // It is assumed s1 and s2 are the same length.
 func match(s1, s2 string) bool {
 	for i := 0; i < len(s1); i++ {
@@ -620,8 +620,7 @@ func (e *ParseError) Error() string {
 		quote(e.Value) + e.Message
 }
 
-// isDigit returns true if s[i] is a decimal digit, false if not or
-// if s[i] is out of range.
+// isDigit reports whether s[i] is in range and is a decimal digit.
 func isDigit(s string, i int) bool {
 	if len(s) <= i {
 		return false

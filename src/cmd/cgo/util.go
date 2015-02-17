@@ -55,7 +55,7 @@ func error_(pos token.Pos, msg string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, "\n")
 }
 
-// isName returns true if s is a valid C identifier
+// isName reports whether s is a valid C identifier
 func isName(s string) bool {
 	for i, v := range s {
 		if v != '_' && (v < 'A' || v > 'Z') && (v < 'a' || v > 'z') && (v < '0' || v > '9') {

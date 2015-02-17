@@ -923,7 +923,7 @@ func Parse() {
 	CommandLine.Parse(os.Args[1:])
 }
 
-// Parsed returns true if the command-line flags have been parsed.
+// Parsed reports whether the command-line flags have been parsed.
 func Parsed() bool {
 	return CommandLine.Parsed()
 }

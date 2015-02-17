@@ -25,7 +25,7 @@ const (
 	surrSelf = 0x10000
 )
 
-// IsSurrogate returns true if the specified Unicode code point
+// IsSurrogate reports whether the specified Unicode code point
 // can appear in a surrogate pair.
 func IsSurrogate(r rune) bool {
 	return surr1 <= r && r < surr3

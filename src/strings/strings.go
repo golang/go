@@ -126,17 +126,17 @@ func Count(s, sep string) int {
 	return n
 }
 
-// Contains returns true if substr is within s.
+// Contains reports whether substr is within s.
 func Contains(s, substr string) bool {
 	return Index(s, substr) >= 0
 }
 
-// ContainsAny returns true if any Unicode code points in chars are within s.
+// ContainsAny reports whether any Unicode code points in chars are within s.
 func ContainsAny(s, chars string) bool {
 	return IndexAny(s, chars) >= 0
 }
 
-// ContainsRune returns true if the Unicode code point r is within s.
+// ContainsRune reports whether the Unicode code point r is within s.
 func ContainsRune(s string, r rune) bool {
 	return IndexRune(s, r) >= 0
 }
