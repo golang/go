@@ -20,7 +20,7 @@ var Anames = []string{
 	"USEFIELD",
 	"VARDEF",
 	"VARKILL",
-	"AND ",
+	"AND",
 	"EOR",
 	"SUB",
 	"RSB",
