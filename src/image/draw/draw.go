@@ -127,6 +127,9 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
 					if drawYCbCr(dst0, r, src0, sp) {
 						return
 					}
+				case *image.CMYK:
+					drawCMYK(dst0, r, src0, sp)
+					return
 				}
 			} else if mask0, ok := mask.(*image.Alpha); ok {
 				switch src0 := src.(type) {
@@ -151,6 +154,9 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
 					if drawYCbCr(dst0, r, src0, sp) {
 						return
 					}
+				case *image.CMYK:
+					drawCMYK(dst0, r, src0, sp)
+					return
 				}
 			}
 		}
@@ -460,6 +466,28 @@ func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
 		return false
 	}
 	return true
+}
+
+func drawCMYK(dst *image.RGBA, r image.Rectangle, src *image.CMYK, sp image.Point) {
+	// An image.CMYK is always fully opaque, and so if the mask is implicitly nil
+	// (i.e. fully opaque) then the op is effectively always Src.
+	i0 := (r.Min.X - dst.Rect.Min.X) * 4
+	i1 := (r.Max.X - dst.Rect.Min.X) * 4
+	si0 := (sp.X - src.Rect.Min.X) * 4
+	yMax := r.Max.Y - dst.Rect.Min.Y
+
+	y := r.Min.Y - dst.Rect.Min.Y
+	sy := sp.Y - src.Rect.Min.Y
+	for ; y != yMax; y, sy = y+1, sy+1 {
+		dpix := dst.Pix[y*dst.Stride:]
+		spix := src.Pix[sy*src.Stride:]
+
+		for i, si := i0, si0; i < i1; i, si = i+4, si+4 {
+			dpix[i+0], dpix[i+1], dpix[i+2] =
+				color.CMYKToRGB(spix[si+0], spix[si+1], spix[si+2], spix[si+3])
+			dpix[i+3] = 255
+		}
+	}
 }
 
 func drawGlyphOver(dst *image.RGBA, r image.Rectangle, src *image.Uniform, mask *image.Alpha, mp image.Point) {
