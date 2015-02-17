@@ -88,11 +88,11 @@ class SliceTypePrinter:
 		return str(self.val.type)[6:]  # skip 'struct '
 
 	def children(self):
-		if self.val["len"] > self.val["cap"]:
+		sval = SliceValue(self.val)
+		if sval.len > sval.cap:
 			return
-		ptr = self.val["array"]
-		for idx in range(int(self.val["len"])):
-			yield ('[{0}]'.format(idx), (ptr + idx).dereference())
+		for idx, item in enumerate(sval):
+			yield ('[{0}]'.format(idx), item)
 
 
 class MapTypePrinter:
