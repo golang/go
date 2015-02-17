@@ -30,6 +30,19 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	CPUID
 	CMPL	AX, $0
 	JE	nocpuinfo
+
+	// Figure out how to serialize RDTSC.
+	// On Intel processors LFENCE is enough. AMD requires MFENCE.
+	// Don't know about the rest, so let's do MFENCE.
+	CMPL	BX, $0x756E6547  // "Genu"
+	JNE	notintel
+	CMPL	DX, $0x49656E69  // "ineI"
+	JNE	notintel
+	CMPL	CX, $0x6C65746E  // "ntel"
+	JNE	notintel
+	MOVB	$1, runtime·lfenceBeforeRdtsc(SB)
+notintel:
+
 	MOVL	$1, AX
 	CPUID
 	MOVL	CX, runtime·cpuid_ecx(SB)
@@ -868,9 +881,17 @@ TEXT runtime·gogetcallersp(SB),NOSPLIT,$0-8
 	MOVL	AX, ret+4(FP)
 	RET
 
-// int64 runtime·cputicks(void), so really
-// void runtime·cputicks(int64 *ticks)
+// func cputicks() int64
 TEXT runtime·cputicks(SB),NOSPLIT,$0-8
+	TESTL	$0x4000000, runtime·cpuid_edx(SB) // no sse2, no mfence
+	JEQ	done
+	CMPB	runtime·lfenceBeforeRdtsc(SB), $1
+	JNE	mfence
+	BYTE	$0x0f; BYTE $0xae; BYTE $0xe8 // LFENCE
+	JMP	done
+mfence:
+	BYTE	$0x0f; BYTE $0xae; BYTE $0xf0 // MFENCE
+done:
 	RDTSC
 	MOVL	AX, ret_lo+0(FP)
 	MOVL	DX, ret_hi+4(FP)
