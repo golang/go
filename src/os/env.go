@@ -33,7 +33,7 @@ func ExpandEnv(s string) string {
 	return Expand(s, Getenv)
 }
 
-// isSpellSpecialVar reports whether the character identifies a special
+// isShellSpecialVar reports whether the character identifies a special
 // shell variable such as $*.
 func isShellSpecialVar(c uint8) bool {
 	switch c {

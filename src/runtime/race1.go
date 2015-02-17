@@ -314,7 +314,7 @@ func RaceReleaseMerge(addr unsafe.Pointer) {
 
 //go:nosplit
 
-// RaceEnable re-enables handling of race events in the current goroutine.
+// RaceDisable disables handling of race events in the current goroutine.
 func RaceDisable() {
 	_g_ := getg()
 	if _g_.raceignore == 0 {
@@ -325,7 +325,7 @@ func RaceDisable() {
 
 //go:nosplit
 
-// RaceDisable disables handling of race events in the current goroutine.
+// RaceEnable re-enables handling of race events in the current goroutine.
 func RaceEnable() {
 	_g_ := getg()
 	_g_.raceignore--
