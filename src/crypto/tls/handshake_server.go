@@ -238,7 +238,7 @@ Curves:
 	return false, nil
 }
 
-// checkForResumption returns true if we should perform resumption on this connection.
+// checkForResumption reports whether we should perform resumption on this connection.
 func (hs *serverHandshakeState) checkForResumption() bool {
 	c := hs.c
 

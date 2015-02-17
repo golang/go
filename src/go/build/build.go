@@ -1228,7 +1228,7 @@ func splitQuoted(s string) (r []string, err error) {
 	return args, err
 }
 
-// match returns true if the name is one of:
+// match reports whether the name is one of:
 //
 //	$GOOS
 //	$GOARCH

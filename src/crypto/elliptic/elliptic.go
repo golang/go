@@ -24,7 +24,7 @@ import (
 type Curve interface {
 	// Params returns the parameters for the curve.
 	Params() *CurveParams
-	// IsOnCurve returns true if the given (x,y) lies on the curve.
+	// IsOnCurve reports whether the given (x,y) lies on the curve.
 	IsOnCurve(x, y *big.Int) bool
 	// Add returns the sum of (x1,y1) and (x2,y2)
 	Add(x1, y1, x2, y2 *big.Int) (x, y *big.Int)

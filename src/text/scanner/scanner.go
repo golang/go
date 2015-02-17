@@ -43,7 +43,7 @@ type Position struct {
 	Column   int    // column number, starting at 1 (character count per line)
 }
 
-// IsValid returns true if the position is valid.
+// IsValid reports whether the position is valid.
 func (pos *Position) IsValid() bool { return pos.Line > 0 }
 
 func (pos Position) String() string {

@@ -13,7 +13,7 @@ func isSlash(c uint8) bool {
 	return c == '\\' || c == '/'
 }
 
-// IsAbs returns true if the path is absolute.
+// IsAbs reports whether the path is absolute.
 func IsAbs(path string) (b bool) {
 	l := volumeNameLen(path)
 	if l == 0 {
@@ -141,7 +141,7 @@ func joinNonEmpty(elem []string) string {
 	return head + string(Separator) + tail
 }
 
-// isUNC returns true if path is a UNC path.
+// isUNC reports whether path is a UNC path.
 func isUNC(path string) bool {
 	return volumeNameLen(path) > 2
 }

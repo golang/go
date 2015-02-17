@@ -189,7 +189,7 @@ Loop:
 
 const noMatch = -1
 
-// MatchRune returns true if the instruction matches (and consumes) r.
+// MatchRune reports whether the instruction matches (and consumes) r.
 // It should only be called when i.Op == InstRune.
 func (i *Inst) MatchRune(r rune) bool {
 	return i.MatchRunePos(r) != noMatch
@@ -256,7 +256,7 @@ func wordRune(r rune) bool {
 		('0' <= r && r <= '9')
 }
 
-// MatchEmptyWidth returns true if the instruction matches
+// MatchEmptyWidth reports whether the instruction matches
 // an empty string between the runes before and after.
 // It should only be called when i.Op == InstEmptyWidth.
 func (i *Inst) MatchEmptyWidth(before rune, after rune) bool {

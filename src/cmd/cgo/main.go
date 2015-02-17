@@ -87,7 +87,7 @@ type Name struct {
 	Const    string // constant definition
 }
 
-// IsVar returns true if Kind is either "var" or "fpvar"
+// IsVar reports whether Kind is either "var" or "fpvar"
 func (n *Name) IsVar() bool {
 	return n.Kind == "var" || n.Kind == "fpvar"
 }
