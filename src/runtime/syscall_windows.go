@@ -54,11 +54,13 @@ func compileCallback(fn eface, cleanstack bool) (code uintptr) {
 		panic("compilecallback: output parameter size is wrong")
 	}
 	argsize := uintptr(0)
-	for _, t := range (*[1024](*_type))(unsafe.Pointer(&ft.in[0]))[:len(ft.in)] {
-		if (*t).size > uintptrSize {
-			panic("compilecallback: input parameter size is wrong")
+	if len(ft.in) > 0 {
+		for _, t := range (*[1024](*_type))(unsafe.Pointer(&ft.in[0]))[:len(ft.in)] {
+			if (*t).size > uintptrSize {
+				panic("compilecallback: input parameter size is wrong")
+			}
+			argsize += uintptrSize
 		}
-		argsize += uintptrSize
 	}
 
 	lock(&cbs.lock)

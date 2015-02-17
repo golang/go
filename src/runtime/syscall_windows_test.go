@@ -533,3 +533,11 @@ func main() {
 	println(z)
 }
 `
+
+func TestCallbackWithNoInputParameters(t *testing.T) {
+	// Test that NewCallback and NewCallbackCDecl can accept functions without
+	// input parameters, see issue 9871.
+	cb := func() uintptr { return 0 }
+	_ = syscall.NewCallback(cb)
+	_ = syscall.NewCallbackCDecl(cb)
+}
