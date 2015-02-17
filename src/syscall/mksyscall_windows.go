@@ -736,6 +736,8 @@ package {{packagename}}
 import "unsafe"{{if syscalldot}}
 import "syscall"{{end}}
 
+var _ unsafe.Pointer
+
 var (
 {{template "dlls" .}}
 {{template "funcnames" .}})
