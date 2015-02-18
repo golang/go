@@ -33,6 +33,10 @@ func main() {
 `
 
 func TestGdbPython(t *testing.T) {
+	if runtime.GOOS == "darwin" {
+		t.Skip("gdb does not work on darwin")
+	}
+
 	checkGdbPython(t)
 
 	dir, err := ioutil.TempDir("", "go-build")
