@@ -84,7 +84,11 @@ func crack(file string, t *testing.T) (*elf.File, *Table) {
 }
 
 func parse(file string, f *elf.File, t *testing.T) (*elf.File, *Table) {
-	symdat, err := f.Section(".gosymtab").Data()
+	s := f.Section(".gosymtab")
+	if s == nil {
+		t.Skip("no .gosymtab section")
+	}
+	symdat, err := s.Data()
 	if err != nil {
 		f.Close()
 		t.Fatalf("reading %s gosymtab: %v", file, err)
