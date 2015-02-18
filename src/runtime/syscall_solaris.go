@@ -16,6 +16,7 @@ var (
 	libc_fcntl,
 	libc_forkx,
 	libc_gethostname,
+	libc_getpid,
 	libc_ioctl,
 	libc_pipe,
 	libc_setgid,
@@ -181,6 +182,17 @@ func syscall_gethostname() (name string, err uintptr) {
 	}
 	cname[_MAXHOSTNAMELEN-1] = 0
 	return gostringnocopy(&cname[0]), 0
+}
+
+//go:nosplit
+func syscall_getpid() (pid, err uintptr) {
+	call := libcall{
+		fn:   uintptr(unsafe.Pointer(libc_getpid)),
+		n:    0,
+		args: uintptr(unsafe.Pointer(libc_getpid)), // it's unused but must be non-nil, otherwise crashes
+	}
+	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
+	return call.r1, call.err
 }
 
 //go:nosplit
