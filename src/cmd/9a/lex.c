@@ -672,7 +672,7 @@ outcode(int a, Addr *g1, int reg, Addr *g2)
 
 	p = emallocz(sizeof(Prog));
 	p->as = a;
-	p->lineno = lineno;
+	p->lineno = stmtline;
 	if(nosched)
 		p->mark |= NOSCHED;
 	p->from = *g1;
@@ -702,7 +702,7 @@ outgcode(int a, Addr *g1, int reg, Addr *g2, Addr *g3)
 
 	p = emallocz(sizeof(Prog));
 	p->as = a;
-	p->lineno = lineno;
+	p->lineno = stmtline;
 	if(nosched)
 		p->mark |= NOSCHED;
 	p->from = *g1;

@@ -118,6 +118,7 @@ EXTERN	char*	outfile;
 EXTERN	int	pass;
 EXTERN	int32	pc;
 EXTERN	int	peekc;
+EXTERN	int32	stmtline;
 EXTERN	int	sym;
 EXTERN	char*	symb;
 EXTERN	int	thechar;
