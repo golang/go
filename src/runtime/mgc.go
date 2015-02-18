@@ -494,9 +494,9 @@ func gcDrain(wbuf *workbuf) {
 // gcDrainN scans n objects starting with those in wbuf, blackening
 // grey objects.
 //go:nowritebarrier
-func gcDrainN(wbuf *workbuf, n uintptr) *workbuf {
+func gcDrainN(wbuf *workbuf, n int) *workbuf {
 	checknocurrentwbuf()
-	for i := uintptr(0); i < n; i++ {
+	for i := 0; i < n; i++ {
 		if wbuf.nobj == 0 {
 			putempty(wbuf, 544)
 			wbuf = trygetfull(545)
@@ -817,7 +817,7 @@ func gchelpwork() {
 			wbuf = trygetfull(1228)
 		}
 		if wbuf != nil {
-			wbuf = gcDrainN(wbuf, uintptr(len(wbuf.obj))) // drain upto one buffer's worth of objects
+			wbuf = gcDrainN(wbuf, len(wbuf.obj)) // drain upto one buffer's worth of objects
 			if wbuf != nil {
 				if wbuf.nobj != 0 {
 					putfull(wbuf, 1175)
