@@ -107,12 +107,12 @@ TEXT kernelCAS64<>(SB),NOSPLIT,$0-21
 	AND.S	$7, R2, R1
 	BEQ 	2(PC)
 	MOVW	R1, (R1)
-	MOVW	$4(FP), R0 // oldval
-	MOVW	$12(FP), R1 // newval
+	MOVW	$oldval+4(FP), R0
+	MOVW	$newval+12(FP), R1
 	BL	cas64<>(SB)
 	MOVW.CS	$1, R0 // C is set if the kernel has changed *ptr
 	MOVW.CC	$0, R0
-	MOVW	R0, 20(FP)
+	MOVW	R0, ret+20(FP)
 	RET
 
 TEXT ·generalCAS64(SB),NOSPLIT,$0-21

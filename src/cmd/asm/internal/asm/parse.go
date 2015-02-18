@@ -546,6 +546,10 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 			p.errorf("cannot use pseudo-register in pair")
 			return
 		}
+		// For SB, SP, and FP, there must be a name here. 0(FP) is not legal.
+		if name != "PC" && a.Name == obj.NAME_NONE {
+			p.errorf("cannot reference %s without a symbol", name)
+		}
 		p.setPseudoRegister(a, name, false, prefix)
 		return
 	}

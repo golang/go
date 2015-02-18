@@ -226,7 +226,7 @@ TEXT _divu(SB), NOSPLIT, $16
 	MOVW	RM, 16(R13)
 
 	MOVW	RTMP, Rr		/* numerator */
-	MOVW	0(FP), Rq 		/* denominator */
+	MOVW	den+0(FP), Rq 		/* denominator */
 	BL  	udiv<>(SB)
 	MOVW	Rq, RTMP
 	MOVW	4(R13), Rq
@@ -242,7 +242,7 @@ TEXT _modu(SB), NOSPLIT, $16
 	MOVW	RM, 16(R13)
 
 	MOVW	RTMP, Rr		/* numerator */
-	MOVW	0(FP), Rq 		/* denominator */
+	MOVW	den+0(FP), Rq 		/* denominator */
 	BL  	udiv<>(SB)
 	MOVW	Rr, RTMP
 	MOVW	4(R13), Rq
@@ -257,7 +257,7 @@ TEXT _div(SB),NOSPLIT,$16
 	MOVW	Rs, 12(R13)
 	MOVW	RM, 16(R13)
 	MOVW	RTMP, Rr		/* numerator */
-	MOVW	0(FP), Rq 		/* denominator */
+	MOVW	den+0(FP), Rq 		/* denominator */
 	CMP 	$0, Rr
 	BGE 	d1
 	RSB 	$0, Rr, Rr
@@ -288,7 +288,7 @@ TEXT _mod(SB),NOSPLIT,$16
 	MOVW	Rs, 12(R13)
 	MOVW	RM, 16(R13)
 	MOVW	RTMP, Rr		/* numerator */
-	MOVW	0(FP), Rq 		/* denominator */
+	MOVW	den+0(FP), Rq 		/* denominator */
 	CMP 	$0, Rq
 	RSB.LT	$0, Rq, Rq
 	CMP 	$0, Rr

@@ -141,7 +141,7 @@ TEXT	·block(SB), 0, $352-16
 	MOVW	p+4(FP), Rdata	// pointer to the data
 	MOVW	p_len+8(FP), Rt0	// number of bytes
 	ADD	Rdata, Rt0
-	MOVW	Rt0, p_end(SP)	// pointer to end of data
+	MOVW	Rt0, p_end(R13)	// pointer to end of data
 
 	// Load up initial SHA1 accumulator
 	MOVW	dig+0(FP), Rt0
@@ -151,7 +151,7 @@ loop:
 	// Save registers at SP+4 onwards
 	MOVM.IB [Ra,Rb,Rc,Rd,Re], (R13)
 
-	MOVW	$w_buf(SP), Rw
+	MOVW	$w_buf(R13), Rw
 	MOVW	$0x5A827999, Rconst
 	MOVW	$3, Rctr
 loop1:	ROUND1(Ra, Rb, Rc, Rd, Re)
@@ -206,7 +206,7 @@ loop4:	ROUND4(Ra, Rb, Rc, Rd, Re)
 	ADD	Rctr, Rd
 	ADD	Rw, Re
 
-	MOVW	p_end(SP), Rt0
+	MOVW	p_end(R13), Rt0
 	CMP	Rt0, Rdata
 	BLO	loop
 

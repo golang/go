@@ -106,7 +106,7 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
 // void gosave(Gobuf*)
 // save state in Gobuf; setjmp
 TEXT runtime·gosave(SB),NOSPLIT,$-4-4
-	MOVW	0(FP), R0		// gobuf
+	MOVW	gobuf+0(FP), R0
 	MOVW	R13, gobuf_sp(R0)
 	MOVW	LR, gobuf_pc(R0)
 	MOVW	g, gobuf_g(R0)
@@ -119,7 +119,7 @@ TEXT runtime·gosave(SB),NOSPLIT,$-4-4
 // void gogo(Gobuf*)
 // restore state from Gobuf; longjmp
 TEXT runtime·gogo(SB),NOSPLIT,$-4-4
-	MOVW	0(FP), R1		// gobuf
+	MOVW	gobuf+0(FP), R1
 	MOVW	gobuf_g(R1), R0
 	BL	setg<>(SB)
 
@@ -172,7 +172,7 @@ TEXT runtime·mcall(SB),NOSPLIT,$-4-4
 	MOVW	fn+0(FP), R0
 	MOVW	(g_sched+gobuf_sp)(g), R13
 	SUB	$8, R13
-	MOVW	R1, 4(SP)
+	MOVW	R1, 4(R13)
 	MOVW	R0, R7
 	MOVW	0(R0), R0
 	BL	(R0)
@@ -292,7 +292,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
 	// Set m->morebuf to f's caller.
 	MOVW	R3, (m_morebuf+gobuf_pc)(R8)	// f's caller's PC
 	MOVW	R13, (m_morebuf+gobuf_sp)(R8)	// f's caller's SP
-	MOVW	$4(SP), R3			// f's argument pointer
+	MOVW	$4(R13), R3			// f's argument pointer
 	MOVW	g, (m_morebuf+gobuf_g)(R8)
 
 	// Call newstack on m->g0's stack.
@@ -440,11 +440,11 @@ CALLFN(·call1073741824, 1073741824)
 // interrupt can never see mismatched SP/LR/PC.
 // (And double-check that pop is atomic in that way.)
 TEXT runtime·jmpdefer(SB),NOSPLIT,$0-8
-	MOVW	0(SP), LR
+	MOVW	0(R13), LR
 	MOVW	$-4(LR), LR	// BL deferreturn
 	MOVW	fv+0(FP), R7
 	MOVW	argp+4(FP), R13
-	MOVW	$-4(SP), R13	// SP is 4 below argp, due to saved LR
+	MOVW	$-4(R13), R13	// SP is 4 below argp, due to saved LR
 	MOVW	0(R7), R1
 	B	(R1)
 
@@ -646,7 +646,7 @@ TEXT setg<>(SB),NOSPLIT,$-4-0
 	RET
 
 TEXT runtime·getcallerpc(SB),NOSPLIT,$-4-4
-	MOVW	0(SP), R0
+	MOVW	0(R13), R0
 	MOVW	R0, ret+4(FP)
 	RET
 
@@ -656,18 +656,18 @@ TEXT runtime·gogetcallerpc(SB),NOSPLIT,$-4-8
 
 TEXT runtime·setcallerpc(SB),NOSPLIT,$-4-8
 	MOVW	pc+4(FP), R0
-	MOVW	R0, 0(SP)
+	MOVW	R0, 0(R13)
 	RET
 
 TEXT runtime·getcallersp(SB),NOSPLIT,$-4-4
-	MOVW	0(FP), R0
+	MOVW	addr+0(FP), R0
 	MOVW	$-4(R0), R0
 	MOVW	R0, ret+4(FP)
 	RET
 
 // func gogetcallersp(p unsafe.Pointer) uintptr
 TEXT runtime·gogetcallersp(SB),NOSPLIT,$-4-8
-	MOVW	0(FP), R0
+	MOVW	addr+0(FP), R0
 	MOVW	$-4(R0), R0
 	MOVW	R0, ret+4(FP)
 	RET

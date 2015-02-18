@@ -21,12 +21,12 @@
 
 // func xorKeyStream(dst, src *byte, n int, state *[256]byte, i, j *uint8)
 TEXT ·xorKeyStream(SB),NOSPLIT,$0
-	MOVW 0(FP), Rdst
-	MOVW 4(FP), Rsrc
-	MOVW 8(FP), Rn
-	MOVW 12(FP), Rstate
-	MOVW 16(FP), Rpi
-	MOVW 20(FP), Rpj
+	MOVW dst+0(FP), Rdst
+	MOVW src+4(FP), Rsrc
+	MOVW n+8(FP), Rn
+	MOVW state+12(FP), Rstate
+	MOVW pi+16(FP), Rpi
+	MOVW pj+20(FP), Rpj
 	MOVBU (Rpi), Ri
 	MOVBU (Rpj), Rj
 	MOVW $0, Rk
