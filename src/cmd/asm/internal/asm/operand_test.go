@@ -14,11 +14,15 @@ import (
 
 // A simple in-out test: Do we print what we parse?
 
-func TestAMD64OperandParser(t *testing.T) {
-	architecture := arch.Set("amd64")
+func newParser(goarch string) *Parser {
+	architecture := arch.Set(goarch)
 	ctxt := obj.Linknew(architecture.LinkArch)
 	parser := NewParser(ctxt, architecture, nil)
-	for _, test := range amd64operandTests {
+	return parser
+}
+
+func testOperandParser(t *testing.T, parser *Parser, tests []operandTest) {
+	for _, test := range tests {
 		parser.start(lex.Tokenize(test.input))
 		addr := obj.Addr{}
 		parser.operand(&addr)
@@ -27,7 +31,9 @@ func TestAMD64OperandParser(t *testing.T) {
 			t.Errorf("fail at %s: got %s; expected %s\n", test.input, result, test.output)
 		}
 	}
+}
 
+func testX86RegisterPair(t *testing.T, parser *Parser) {
 	// Special case for AX:DX, which is really two operands so isn't print correcctly
 	// by Aconv, but is OK by the -S output.
 	parser.start(lex.Tokenize("AX:BX)"))
@@ -35,13 +41,29 @@ func TestAMD64OperandParser(t *testing.T) {
 	parser.operand(&addr)
 	want := obj.Addr{
 		Type:  obj.TYPE_REG,
-		Reg:   int16(architecture.Registers["AX"]),
-		Class: int8(architecture.Registers["BX"]),
+		Reg:   parser.arch.Registers["AX"],
+		Class: int8(parser.arch.Registers["BX"]), // TODO: clean up how this is encoded in parse.go
 	}
 	if want != addr {
 		t.Errorf("AX:DX: expected %+v got %+v", want, addr)
 	}
+}
 
+func TestAMD64OperandParser(t *testing.T) {
+	parser := newParser("amd64")
+	testOperandParser(t, parser, amd64OperandTests)
+	testX86RegisterPair(t, parser)
+}
+
+func Test386OperandParser(t *testing.T) {
+	parser := newParser("386")
+	testOperandParser(t, parser, x86OperandTests)
+	testX86RegisterPair(t, parser)
+}
+
+func TestARMOperandParser(t *testing.T) {
+	parser := newParser("arm")
+	testOperandParser(t, parser, armOperandTests)
 }
 
 type operandTest struct {
@@ -50,7 +72,8 @@ type operandTest struct {
 
 // Examples collected by scanning all the assembly in the standard repo.
 
-var amd64operandTests = []operandTest{
+var amd64OperandTests = []operandTest{
+	// {"AX:DX", "AX:DX"}, Handled in TestAMD64OperandParser directly.
 	{"$(-1.0)", "$(-1)"}, // TODO: Should print as a float.
 	{"$(0.0)", "$(0)"},   // TODO: Should print as a float.
 	{"$(0x2000000+116)", "$33554548"},
@@ -84,6 +107,8 @@ var amd64operandTests = []operandTest{
 	{"$~15", "$-16"},
 	{"(((8)&0xf)*4)(SP)", "32(SP)"},
 	{"(((8-14)&0xf)*4)(SP)", "40(SP)"},
+	{"(6+8)(AX)", "14(AX)"},
+	{"(8*4)(BP)", "32(BP)"},
 	{"(AX)", "(AX)"},
 	{"(AX)(CX*8)", "(AX)(CX*8)"},
 	{"(BP)(CX*4)", "(BP)(CX*4)"},
@@ -99,16 +124,13 @@ var amd64operandTests = []operandTest{
 	{"(SI)(BX*1)", "(SI)(BX*1)"},
 	{"(SI)(DX*1)", "(SI)(DX*1)"},
 	{"(SP)", "(SP)"},
-	{"(6+8)(AX)", "14(AX)"},
-	{"(8*4)(BP)", "32(BP)"},
 	{"+3(PC)", "3(PC)"},
-	{"-3(PC)", "-3(PC)"},
 	{"-1(DI)(BX*1)", "-1(DI)(BX*1)"},
+	{"-3(PC)", "-3(PC)"},
 	{"-64(SI)(BX*1)", "-64(SI)(BX*1)"},
 	{"-96(SI)(BX*1)", "-96(SI)(BX*1)"},
 	{"AL", "AL"},
 	{"AX", "AX"},
-	// {"AX:DX", "AX:DX"}, Handled in TestAMD64OperandParser directly.
 	{"BP", "BP"},
 	{"BX", "BX"},
 	{"CX", "CX"},
@@ -162,4 +184,105 @@ var amd64operandTests = []operandTest{
 	{"y+56(FP)", "y+56(FP)"},
 	{"·AddUint32(SB", "\"\".AddUint32+0(SB)"},
 	{"·callReflect(SB)", "\"\".callReflect+0(SB)"},
+}
+
+var x86OperandTests = []operandTest{
+	{"$(2.928932188134524e-01)", "$(0.29289321881345243)"},
+	{"$-1", "$-1"},
+	{"$0", "$0"},
+	{"$0x00000000", "$0"},
+	{"$runtime·badmcall(SB)", "$runtime.badmcall+0(SB)"},
+	{"$setg_gcc<>(SB)", "$setg_gcc<>+0(SB)"},
+	{"$~15", "$-16"},
+	{"(-64*1024+104)(SP)", "-65432(SP)"},
+	{"(0*4)(BP)", "(BP)"},
+	{"(1*4)(DI)", "4(DI)"},
+	{"(4*4)(BP)", "16(BP)"},
+	{"(AX)", "(AX)"},
+	{"(BP)(CX*4)", "(BP)(CX*4)"},
+	{"(BP*8)", "(NONE)(BP*8)"}, // TODO: odd printout.
+	{"(BX)", "(BX)"},
+	{"(SP)", "(SP)"},
+	{"*runtime·_GetStdHandle(SB)", "type=16"}, // TODO: bizarre
+	{"-(4+12)(DI)", "-16(DI)"},
+	{"-1(DI)(BX*1)", "-1(DI)(BX*1)"},
+	{"-96(DI)(BX*1)", "-96(DI)(BX*1)"},
+	{"0(AX)", "(AX)"},
+	{"0(BP)", "(BP)"},
+	{"0(BX)", "(BX)"},
+	{"4(AX)", "4(AX)"},
+	{"AL", "AL"},
+	{"AX", "AX"},
+	{"BP", "BP"},
+	{"BX", "BX"},
+	{"CX", "CX"},
+	{"DI", "DI"},
+	{"DX", "DX"},
+	{"F0", "F0"},
+	{"GS", "GS"},
+	{"SI", "SI"},
+	{"SP", "SP"},
+	{"X0", "X0"},
+	{"X1", "X1"},
+	{"X2", "X2"},
+	{"X3", "X3"},
+	{"X4", "X4"},
+	{"X5", "X5"},
+	{"X6", "X6"},
+	{"X7", "X7"},
+	{"asmcgocall<>(SB)", "asmcgocall<>+0(SB)"},
+	{"ax+4(FP)", "ax+4(FP)"},
+	{"ptime-12(SP)", "ptime+-12(SP)"},
+	{"runtime·_NtWaitForSingleObject(SB)", "runtime._NtWaitForSingleObject+0(SB)"},
+	{"s(FP)", "s+0(FP)"},
+	{"sec+4(FP)", "sec+4(FP)"},
+	{"shifts<>(SB)(CX*8)", "shifts<>+0(SB)(CX*8)"},
+	{"x+4(FP)", "x+4(FP)"},
+	{"·AddUint32(SB)", "\"\".AddUint32+0(SB)"},
+	{"·reflectcall(SB)", "\"\".reflectcall+0(SB)"},
+}
+
+var armOperandTests = []operandTest{
+	{"$0", "$0"},
+	{"$256", "$256"},
+	{"(R0)", "0(R0)"},
+	{"(R11)", "0(R11)"},
+	{"(g)", "0(R10)"}, // TODO: Should print 0(g).
+	{"-12(R4)", "-12(R4)"},
+	{"0(PC)", "0(PC)"},
+	{"1024", "1024"},
+	{"12(R1)", "12(R1)"},
+	{"12(R13)", "12(R13)"},
+	{"R0", "R0"},
+	{"R0->(32-1)", "R0->31"},
+	{"R0<<R1", "R0<<R1"},
+	{"R0>>R1", "R0>>R1"},
+	{"R0@>(32-1)", "R0@>31"},
+	{"R1", "R1"},
+	{"R11", "R11"},
+	{"R12", "R12"},
+	{"R13", "R13"},
+	{"R14", "R14"},
+	{"R15", "R15"},
+	{"R1<<2(R0)", "R1<<2(R0)"},
+	{"R2", "R2"},
+	{"R3", "R3"},
+	{"R4", "R4"},
+	{"R5", "R5"},
+	{"R6", "R6"},
+	{"R7", "R7"},
+	{"R8", "R8"},
+	// TODO: Fix Dconv to handle these. MOVM print shows the registers.
+	{"[R0,R1,g,R15]", "$33795"},
+	{"[R0-R7]", "$255"},
+	{"[R0]", "$1"},
+	{"[R1-R12]", "$8190"},
+	{"armCAS64(SB)", "armCAS64+0(SB)"},
+	{"asmcgocall<>(SB)", "asmcgocall<>+0(SB)"},
+	{"c+28(FP)", "c+28(FP)"},
+	{"g", "R10"}, // TODO: Should print g.
+	{"gosave<>(SB)", "gosave<>+0(SB)"},
+	{"retlo+12(FP)", "retlo+12(FP)"},
+	{"runtime·_sfloat2(SB)", "runtime._sfloat2+0(SB)"},
+	{"·AddUint32(SB)", "\"\".AddUint32+0(SB)"},
 }
