@@ -18,20 +18,6 @@ import (
 	"golang.org/x/tools/go/types/typeutil"
 )
 
-// BuilderMode is a bitmask of options for diagnostics and checking.
-type BuilderMode uint
-
-const (
-	PrintPackages        BuilderMode = 1 << iota // Print package inventory to stdout
-	PrintFunctions                               // Print function SSA code to stdout
-	LogSource                                    // Log source locations as SSA builder progresses
-	SanityCheckFunctions                         // Perform sanity checking of function bodies
-	NaiveForm                                    // Build naïve SSA form: don't replace local loads/stores with registers
-	BuildSerially                                // Build packages serially, not in parallel.
-	GlobalDebug                                  // Enable debug info for all packages
-	BareInits                                    // Build init functions without guards or calls to dependent inits
-)
-
 // Create returns a new SSA Program.  An SSA Package is created for
 // each transitively error-free package of iprog.
 //
@@ -257,7 +243,7 @@ func (prog *Program) CreatePackage(info *loader.PackageInfo) *Package {
 	return p
 }
 
-// printMu serializes printing of Packages/Functions to stdout
+// printMu serializes printing of Packages/Functions to stdout.
 var printMu sync.Mutex
 
 // AllPackages returns a new slice containing all packages in the

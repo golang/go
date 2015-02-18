@@ -19,28 +19,23 @@ import (
 	"golang.org/x/tools/go/types"
 )
 
-var buildFlag = flag.String("build", "", `Options controlling the SSA builder.
-The value is a sequence of zero or more of these letters:
-C	perform sanity [C]hecking of the SSA form.
-D	include [D]ebug info for every function.
-P	print [P]ackage inventory.
-F	print [F]unction SSA code.
-S	log [S]ource locations as SSA builder progresses.
-G	use binary object files from gc to provide imports (no code).
-L	build distinct packages seria[L]ly instead of in parallel.
-N	build [N]aive SSA form: don't replace local loads/stores with registers.
-I	build bare [I]nit functions: no init guards or calls to dependent inits.
-`)
+var (
+	importbinFlag = flag.Bool("importbin", false,
+		"Import binary export data from gc's object files, not source. "+
+			"Imported functions will have no bodies.")
 
-var testFlag = flag.Bool("test", false, "Loads test code (*_test.go) for imported packages.")
+	modeFlag = ssa.BuilderModeFlag(flag.CommandLine, "build", 0)
 
-var runFlag = flag.Bool("run", false, "Invokes the SSA interpreter on the program.")
+	testFlag = flag.Bool("test", false, "Loads test code (*_test.go) for imported packages.")
 
-var interpFlag = flag.String("interp", "", `Options controlling the SSA test interpreter.
+	runFlag = flag.Bool("run", false, "Invokes the SSA interpreter on the program.")
+
+	interpFlag = flag.String("interp", "", `Options controlling the SSA test interpreter.
 The value is a sequence of zero or more more of these letters:
 R	disable [R]ecover() from panic; show interpreter crash instead.
 T	[T]race execution of the program.  Best for single-threaded programs!
 `)
+)
 
 const usage = `SSA builder and interpreter.
 Usage: ssadump [<flag> ...] <args> ...
@@ -85,7 +80,7 @@ func doMain() error {
 
 	conf := loader.Config{
 		Build:         &build.Default,
-		SourceImports: true,
+		SourceImports: !*importbinFlag,
 	}
 	// TODO(adonovan): make go/types choose its default Sizes from
 	// build.Default or a specified *build.Context.
@@ -97,32 +92,6 @@ func doMain() error {
 	conf.TypeChecker.Sizes = &types.StdSizes{
 		MaxAlign: 8,
 		WordSize: wordSize,
-	}
-
-	var mode ssa.BuilderMode
-	for _, c := range *buildFlag {
-		switch c {
-		case 'D':
-			mode |= ssa.GlobalDebug
-		case 'P':
-			mode |= ssa.PrintPackages
-		case 'F':
-			mode |= ssa.PrintFunctions
-		case 'S':
-			mode |= ssa.LogSource | ssa.BuildSerially
-		case 'C':
-			mode |= ssa.SanityCheckFunctions
-		case 'N':
-			mode |= ssa.NaiveForm
-		case 'G':
-			conf.SourceImports = false
-		case 'L':
-			mode |= ssa.BuildSerially
-		case 'I':
-			mode |= ssa.BareInits
-		default:
-			return fmt.Errorf("unknown -build option: '%c'", c)
-		}
 	}
 
 	var interpMode interp.Mode
@@ -171,7 +140,7 @@ func doMain() error {
 	}
 
 	// Create and build SSA-form program representation.
-	prog := ssa.Create(iprog, mode)
+	prog := ssa.Create(iprog, *modeFlag)
 	prog.BuildAll()
 
 	// Run the interpreter.
