@@ -35,11 +35,11 @@ package obj
 // THE SOFTWARE.
 
 type ar_hdr struct {
-	Name string
-	Date string
-	Uid  string
-	Gid  string
-	Mode string
-	Size string
-	Fmag string
+	name string
+	date string
+	uid  string
+	gid  string
+	mode string
+	size string
+	fmag string
 }

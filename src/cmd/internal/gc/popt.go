@@ -179,7 +179,7 @@ void proginfo(ProgInfo*, Prog*);
 
 var noreturn_symlist [10]*Sym
 
-func Noreturn(p *obj.Prog) int {
+func Noreturn(p *obj.Prog) bool {
 	var s *Sym
 	var i int
 
@@ -195,18 +195,18 @@ func Noreturn(p *obj.Prog) int {
 	}
 
 	if p.To.Node == nil {
-		return 0
+		return false
 	}
 	s = ((p.To.Node).(*Node)).Sym
 	if s == nil {
-		return 0
+		return false
 	}
 	for i = 0; noreturn_symlist[i] != nil; i++ {
 		if s == noreturn_symlist[i] {
-			return 1
+			return true
 		}
 	}
-	return 0
+	return false
 }
 
 // JMP chasing and removal.
@@ -325,7 +325,7 @@ func fixjmp(firstp *obj.Prog) {
 
 	// pass 4: elide JMP to next instruction.
 	// only safe if there are no jumps to JMPs anymore.
-	if !(jmploop != 0) {
+	if jmploop == 0 {
 		last = nil
 		for p = firstp; p != nil; p = p.Link {
 			if p.As == obj.AJMP && p.To.Type == obj.TYPE_BRANCH && p.To.U.Branch == p.Link {
@@ -434,7 +434,7 @@ func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
 	for f = start; f != nil; f = f.Link {
 		p = f.Prog
 		Thearch.Proginfo(&info, p)
-		if !(info.Flags&Break != 0) {
+		if info.Flags&Break == 0 {
 			f1 = f.Link
 			f.S1 = f1
 			f1.P1 = f
@@ -492,11 +492,11 @@ func postorder(r *Flow, rpo2r []*Flow, n int32) int32 {
 
 	r.Rpo = 1
 	r1 = r.S1
-	if r1 != nil && !(r1.Rpo != 0) {
+	if r1 != nil && r1.Rpo == 0 {
 		n = postorder(r1, rpo2r, n)
 	}
 	r1 = r.S2
-	if r1 != nil && !(r1.Rpo != 0) {
+	if r1 != nil && r1.Rpo == 0 {
 		n = postorder(r1, rpo2r, n)
 	}
 	rpo2r[n] = r
@@ -529,26 +529,26 @@ func rpolca(idom []int32, rpo1 int32, rpo2 int32) int32 {
 	return rpo1
 }
 
-func doms(idom []int32, r int32, s int32) int {
+func doms(idom []int32, r int32, s int32) bool {
 	for s > r {
 		s = idom[s]
 	}
-	return bool2int(s == r)
+	return s == r
 }
 
-func loophead(idom []int32, r *Flow) int {
+func loophead(idom []int32, r *Flow) bool {
 	var src int32
 
 	src = r.Rpo
-	if r.P1 != nil && doms(idom, src, r.P1.Rpo) != 0 {
-		return 1
+	if r.P1 != nil && doms(idom, src, r.P1.Rpo) {
+		return true
 	}
 	for r = r.P2; r != nil; r = r.P2link {
-		if doms(idom, src, r.Rpo) != 0 {
-			return 1
+		if doms(idom, src, r.Rpo) {
+			return true
 		}
 	}
-	return 0
+	return false
 }
 
 func loopmark(rpo2r **Flow, head int32, r *Flow) {
@@ -620,7 +620,7 @@ func flowrpo(g *Graph) {
 	for i = 0; i < nr; i++ {
 		r1 = rpo2r[i]
 		r1.Loop++
-		if r1.P2 != nil && loophead(idom, r1) != 0 {
+		if r1.P2 != nil && loophead(idom, r1) {
 			loopmark(&rpo2r[0], i, r1)
 		}
 	}
@@ -718,8 +718,8 @@ func (x startcmp) Less(i, j int) bool {
 }
 
 // Is n available for merging?
-func canmerge(n *Node) int {
-	return bool2int(n.Class == PAUTO && strings.HasPrefix(n.Sym.Name, "autotmp"))
+func canmerge(n *Node) bool {
+	return n.Class == PAUTO && strings.HasPrefix(n.Sym.Name, "autotmp")
 }
 
 func mergetemp(firstp *obj.Prog) {
@@ -757,7 +757,7 @@ func mergetemp(firstp *obj.Prog) {
 	// Build list of all mergeable variables.
 	nvar = 0
 	for l = Curfn.Dcl; l != nil; l = l.Next {
-		if canmerge(l.N) != 0 {
+		if canmerge(l.N) {
 			nvar++
 		}
 	}
@@ -766,7 +766,7 @@ func mergetemp(firstp *obj.Prog) {
 	nvar = 0
 	for l = Curfn.Dcl; l != nil; l = l.Next {
 		n = l.N
-		if canmerge(n) != 0 {
+		if canmerge(n) {
 			v = &var_[nvar]
 			nvar++
 			n.Opt = v
@@ -826,9 +826,9 @@ func mergetemp(firstp *obj.Prog) {
 		if f != nil && f.Data.(*Flow) == nil {
 			p = f.Prog
 			Thearch.Proginfo(&info, p)
-			if p.To.Node == v.node && (info.Flags&RightWrite != 0) && !(info.Flags&RightRead != 0) {
+			if p.To.Node == v.node && (info.Flags&RightWrite != 0) && info.Flags&RightRead == 0 {
 				p.As = obj.ANOP
-				p.To = obj.Zprog.To
+				p.To = obj.Addr{}
 				v.removed = 1
 				if debugmerge > 0 && Debug['v'] != 0 {
 					fmt.Printf("drop write-only %v\n", Sconv(v.node.Sym, 0))
@@ -851,7 +851,7 @@ func mergetemp(firstp *obj.Prog) {
 			const (
 				SizeAny = SizeB | SizeW | SizeL | SizeQ | SizeF | SizeD
 			)
-			if p.From.Node == v.node && p1.To.Node == v.node && (info.Flags&Move != 0) && !((info.Flags|info1.Flags)&(LeftAddr|RightAddr) != 0) && info.Flags&SizeAny == info1.Flags&SizeAny {
+			if p.From.Node == v.node && p1.To.Node == v.node && (info.Flags&Move != 0) && (info.Flags|info1.Flags)&(LeftAddr|RightAddr) == 0 && info.Flags&SizeAny == info1.Flags&SizeAny {
 				p1.From = p.From
 				Thearch.Excise(f)
 				v.removed = 1
@@ -1010,7 +1010,7 @@ func mergetemp(firstp *obj.Prog) {
 	// Delete merged nodes from declaration list.
 	for lp = &Curfn.Dcl; ; {
 		l = *lp
-		if !(l != nil) {
+		if l == nil {
 			break
 		}
 
@@ -1126,11 +1126,11 @@ func nilopt(firstp *obj.Prog) {
 	nkill = 0
 	for f = g.Start; f != nil; f = f.Link {
 		p = f.Prog
-		if p.As != obj.ACHECKNIL || !(Thearch.Regtyp(&p.From) != 0) {
+		if p.As != obj.ACHECKNIL || !Thearch.Regtyp(&p.From) {
 			continue
 		}
 		ncheck++
-		if Thearch.Stackaddr(&p.From) != 0 {
+		if Thearch.Stackaddr(&p.From) {
 			if Debug_checknil != 0 && p.Lineno > 1 {
 				Warnl(int(p.Lineno), "removed nil check of SP address")
 			}
@@ -1177,13 +1177,13 @@ func nilwalkback(fcheck *Flow) {
 	for f = fcheck; f != nil; f = Uniqp(f) {
 		p = f.Prog
 		Thearch.Proginfo(&info, p)
-		if (info.Flags&RightWrite != 0) && Thearch.Sameaddr(&p.To, &fcheck.Prog.From) != 0 {
+		if (info.Flags&RightWrite != 0) && Thearch.Sameaddr(&p.To, &fcheck.Prog.From) {
 			// Found initialization of value we're checking for nil.
 			// without first finding the check, so this one is unchecked.
 			return
 		}
 
-		if f != fcheck && p.As == obj.ACHECKNIL && Thearch.Sameaddr(&p.From, &fcheck.Prog.From) != 0 {
+		if f != fcheck && p.As == obj.ACHECKNIL && Thearch.Sameaddr(&p.From, &fcheck.Prog.From) {
 			fcheck.Data = &killed
 			return
 		}
@@ -1249,12 +1249,12 @@ func nilwalkfwd(fcheck *Flow) {
 		p = f.Prog
 		Thearch.Proginfo(&info, p)
 
-		if (info.Flags&LeftRead != 0) && Thearch.Smallindir(&p.From, &fcheck.Prog.From) != 0 {
+		if (info.Flags&LeftRead != 0) && Thearch.Smallindir(&p.From, &fcheck.Prog.From) {
 			fcheck.Data = &killed
 			return
 		}
 
-		if (info.Flags&(RightRead|RightWrite) != 0) && Thearch.Smallindir(&p.To, &fcheck.Prog.From) != 0 {
+		if (info.Flags&(RightRead|RightWrite) != 0) && Thearch.Smallindir(&p.To, &fcheck.Prog.From) {
 			fcheck.Data = &killed
 			return
 		}
@@ -1265,12 +1265,12 @@ func nilwalkfwd(fcheck *Flow) {
 		}
 
 		// Stop if value is lost.
-		if (info.Flags&RightWrite != 0) && Thearch.Sameaddr(&p.To, &fcheck.Prog.From) != 0 {
+		if (info.Flags&RightWrite != 0) && Thearch.Sameaddr(&p.To, &fcheck.Prog.From) {
 			return
 		}
 
 		// Stop if memory write.
-		if (info.Flags&RightWrite != 0) && !(Thearch.Regtyp(&p.To) != 0) {
+		if (info.Flags&RightWrite != 0) && !Thearch.Regtyp(&p.To) {
 			return
 		}
 

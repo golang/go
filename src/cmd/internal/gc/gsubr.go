@@ -41,7 +41,7 @@ var dpc *obj.Prog
 /*
  * Is this node a memory operand?
  */
-func Ismem(n *Node) int {
+func Ismem(n *Node) bool {
 	switch n.Op {
 	case OITAB,
 		OSPTR,
@@ -51,29 +51,29 @@ func Ismem(n *Node) int {
 		ONAME,
 		OPARAM,
 		OCLOSUREVAR:
-		return 1
+		return true
 
 	case OADDR:
-		return bool2int(Thearch.Thechar == '6' || Thearch.Thechar == '9') // because 6g uses PC-relative addressing; TODO(rsc): not sure why 9g too
+		return Thearch.Thechar == '6' || Thearch.Thechar == '9' // because 6g uses PC-relative addressing; TODO(rsc): not sure why 9g too
 	}
 
-	return 0
+	return false
 }
 
-func Samereg(a *Node, b *Node) int {
+func Samereg(a *Node, b *Node) bool {
 	if a == nil || b == nil {
-		return 0
+		return false
 	}
 	if a.Op != OREGISTER {
-		return 0
+		return false
 	}
 	if b.Op != OREGISTER {
-		return 0
+		return false
 	}
 	if a.Val.U.Reg != b.Val.U.Reg {
-		return 0
+		return false
 	}
-	return 1
+	return true
 }
 
 /*
@@ -174,15 +174,15 @@ func fixautoused(p *obj.Prog) {
 
 	for lp = &p; ; {
 		p = *lp
-		if !(p != nil) {
+		if p == nil {
 			break
 		}
-		if p.As == obj.ATYPE && p.From.Node != nil && p.From.Name == obj.NAME_AUTO && !(((p.From.Node).(*Node)).Used != 0) {
+		if p.As == obj.ATYPE && p.From.Node != nil && p.From.Name == obj.NAME_AUTO && ((p.From.Node).(*Node)).Used == 0 {
 			*lp = p.Link
 			continue
 		}
 
-		if (p.As == obj.AVARDEF || p.As == obj.AVARKILL) && p.To.Node != nil && !(((p.To.Node).(*Node)).Used != 0) {
+		if (p.As == obj.AVARDEF || p.As == obj.AVARKILL) && p.To.Node != nil && ((p.To.Node).(*Node)).Used == 0 {
 			// Cannot remove VARDEF instruction, because - unlike TYPE handled above -
 			// VARDEFs are interspersed with other code, and a jump might be using the
 			// VARDEF as a target. Replace with a no-op instead. A later pass will remove
@@ -256,18 +256,18 @@ func gused(n *Node) {
 	Thearch.Gins(obj.ANOP, n, nil) // used
 }
 
-func Isfat(t *Type) int {
+func Isfat(t *Type) bool {
 	if t != nil {
 		switch t.Etype {
 		case TSTRUCT,
 			TARRAY,
 			TSTRING,
 			TINTER: // maybe remove later
-			return 1
+			return true
 		}
 	}
 
-	return 0
+	return false
 }
 
 func markautoused(p *obj.Prog) {
@@ -289,7 +289,7 @@ func markautoused(p *obj.Prog) {
 func Naddr(n *Node, a *obj.Addr, canemitcode int) {
 	var s *Sym
 
-	*a = obj.Zprog.From
+	*a = obj.Addr{}
 	if n == nil {
 		return
 	}
@@ -343,7 +343,7 @@ func Naddr(n *Node, a *obj.Addr, canemitcode int) {
 		a.Node = n.Left.Orig
 
 	case OCLOSUREVAR:
-		if !(Curfn.Needctxt != 0) {
+		if !Curfn.Needctxt {
 			Fatal("closurevar without needctxt")
 		}
 		a.Type = obj.TYPE_MEM
@@ -383,7 +383,6 @@ func Naddr(n *Node, a *obj.Addr, canemitcode int) {
 		switch n.Class {
 		default:
 			Fatal("naddr: ONAME class %v %d\n", Sconv(n.Sym, 0), n.Class)
-			fallthrough
 
 		case PEXTERN:
 			a.Name = obj.NAME_EXTERN

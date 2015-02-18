@@ -289,7 +289,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 					p.Pcond = q1
 				}
 
-				if !(q1.Mark&LEAF != 0) {
+				if q1.Mark&LEAF == 0 {
 					q1.Mark |= LABEL
 				}
 			} else {
@@ -341,15 +341,15 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			}
 			p.To.Offset = int64(autosize) - 8
 
-			if !(p.From3.Offset&obj.NOSPLIT != 0) {
-				p = stacksplit(ctxt, p, autosize, bool2int(!(cursym.Text.From3.Offset&obj.NEEDCTXT != 0))) // emit split check
+			if p.From3.Offset&obj.NOSPLIT == 0 {
+				p = stacksplit(ctxt, p, autosize, cursym.Text.From3.Offset&obj.NEEDCTXT == 0) // emit split check
 			}
 
 			q = p
 
 			if autosize != 0 {
 				/* use MOVDU to adjust R1 when saving R31, if autosize is small */
-				if !(cursym.Text.Mark&LEAF != 0) && autosize >= -BIG && autosize <= BIG {
+				if cursym.Text.Mark&LEAF == 0 && autosize >= -BIG && autosize <= BIG {
 					mov = AMOVDU
 					aoffset = int(-autosize)
 				} else {
@@ -362,7 +362,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 					q.To.Reg = REGSP
 					q.Spadj = +autosize
 				}
-			} else if !(cursym.Text.Mark&LEAF != 0) {
+			} else if cursym.Text.Mark&LEAF == 0 {
 				if ctxt.Debugvlog != 0 {
 					fmt.Fprintf(ctxt.Bso, "save suppressed in: %s\n", cursym.Name)
 					obj.Bflush(ctxt.Bso)
@@ -499,9 +499,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			}
 
 			if cursym.Text.Mark&LEAF != 0 {
-				if !(autosize != 0) {
+				if autosize == 0 {
 					p.As = ABR
-					p.From = obj.Zprog.From
+					p.From = obj.Addr{}
 					p.To.Type = obj.TYPE_REG
 					p.To.Reg = REG_LR
 					p.Mark |= BRANCH
@@ -515,7 +515,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				p.To.Reg = REGSP
 				p.Spadj = -autosize
 
-				q = p.Ctxt.NewProg()
+				q = ctxt.NewProg()
 				q.As = ABR
 				q.Lineno = p.Lineno
 				q.To.Type = obj.TYPE_REG
@@ -535,7 +535,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = REGTMP
 
-			q = p.Ctxt.NewProg()
+			q = ctxt.NewProg()
 			q.As = AMOVD
 			q.Lineno = p.Lineno
 			q.From.Type = obj.TYPE_REG
@@ -549,7 +549,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 			if false {
 				// Debug bad returns
-				q = p.Ctxt.NewProg()
+				q = ctxt.NewProg()
 				q.As = AMOVD
 				q.Lineno = p.Lineno
 				q.From.Type = obj.TYPE_MEM
@@ -564,7 +564,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			}
 
 			if autosize != 0 {
-				q = p.Ctxt.NewProg()
+				q = ctxt.NewProg()
 				q.As = AADD
 				q.Lineno = p.Lineno
 				q.From.Type = obj.TYPE_CONST
@@ -577,7 +577,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				p.Link = q
 			}
 
-			q1 = p.Ctxt.NewProg()
+			q1 = ctxt.NewProg()
 			q1.As = ABR
 			q1.Lineno = p.Lineno
 			q1.To.Type = obj.TYPE_REG
@@ -641,7 +641,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		q = p;
 	}
 */
-func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt int) *obj.Prog {
+func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt bool) *obj.Prog {
 	var q *obj.Prog
 	var q1 *obj.Prog
 
@@ -774,7 +774,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt int) *obj.P
 	if ctxt.Cursym.Cfunc != 0 {
 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
 	} else {
-		p.To.Sym = ctxt.Symmorestack[noctxt]
+		p.To.Sym = ctxt.Symmorestack[bool2int(noctxt)]
 	}
 
 	// BR	start
@@ -799,7 +799,7 @@ func follow(ctxt *obj.Link, s *obj.LSym) {
 
 	ctxt.Cursym = s
 
-	firstp = new(obj.Prog)
+	firstp = ctxt.NewProg()
 	lastp = firstp
 	xfol(ctxt, s.Text, &lastp)
 	lastp.Link = nil
@@ -853,7 +853,7 @@ loop:
 			p = p.Link
 			xfol(ctxt, p, last)
 			p = q
-			if p != nil && !(p.Mark&FOLL != 0) {
+			if p != nil && p.Mark&FOLL == 0 {
 				goto loop
 			}
 			return
@@ -862,7 +862,7 @@ loop:
 		if q != nil {
 			p.Mark |= FOLL
 			p = q
-			if !(p.Mark&FOLL != 0) {
+			if p.Mark&FOLL == 0 {
 				goto loop
 			}
 		}
@@ -885,19 +885,19 @@ loop:
 			if a == ABR || a == ARETURN || a == ARFI || a == ARFCI || a == ARFID || a == AHRFID {
 				goto copy
 			}
-			if !(q.Pcond != nil) || (q.Pcond.Mark&FOLL != 0) {
+			if q.Pcond == nil || (q.Pcond.Mark&FOLL != 0) {
 				continue
 			}
 			b = relinv(a)
-			if !(b != 0) {
+			if b == 0 {
 				continue
 			}
 
 		copy:
 			for {
-				r = new(obj.Prog)
+				r = ctxt.NewProg()
 				*r = *p
-				if !(r.Mark&FOLL != 0) {
+				if r.Mark&FOLL == 0 {
 					fmt.Printf("cant happen 1\n")
 				}
 				r.Mark |= FOLL
@@ -916,10 +916,10 @@ loop:
 				r.As = int16(b)
 				r.Pcond = p.Link
 				r.Link = p.Pcond
-				if !(r.Link.Mark&FOLL != 0) {
+				if r.Link.Mark&FOLL == 0 {
 					xfol(ctxt, r.Link, last)
 				}
-				if !(r.Pcond.Mark&FOLL != 0) {
+				if r.Pcond.Mark&FOLL == 0 {
 					fmt.Printf("cant happen 2\n")
 				}
 				return
@@ -927,7 +927,7 @@ loop:
 		}
 
 		a = ABR
-		q = p.Ctxt.NewProg()
+		q = ctxt.NewProg()
 		q.As = int16(a)
 		q.Lineno = p.Lineno
 		q.To.Type = obj.TYPE_BRANCH

@@ -280,14 +280,14 @@ type Pcdata struct {
 }
 
 type Pciter struct {
-	D       Pcdata
-	P       []byte
-	Pc      uint32
-	Nextpc  uint32
-	Pcscale uint32
-	Value   int32
-	Start   int
-	Done    int
+	d       Pcdata
+	p       []byte
+	pc      uint32
+	nextpc  uint32
+	pcscale uint32
+	value   int32
+	start   int
+	done    int
 }
 
 // An Addr is an argument to an instruction.

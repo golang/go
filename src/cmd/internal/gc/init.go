@@ -53,7 +53,7 @@ func renameinit() *Sym {
  *		return					(11)
  *	}
  */
-func anyinit(n *NodeList) int {
+func anyinit(n *NodeList) bool {
 	var h uint32
 	var s *Sym
 	var l *NodeList
@@ -68,20 +68,20 @@ func anyinit(n *NodeList) int {
 			break
 
 		case OAS:
-			if isblank(l.N.Left) && candiscard(l.N.Right) != 0 {
+			if isblank(l.N.Left) && candiscard(l.N.Right) {
 				break
 			}
 			fallthrough
 
 			// fall through
 		default:
-			return 1
+			return true
 		}
 	}
 
 	// is this main
 	if localpkg.Name == "main" {
-		return 1
+		return true
 	}
 
 	// is there an explicit init function
@@ -89,7 +89,7 @@ func anyinit(n *NodeList) int {
 
 	s = Lookup(namebuf)
 	if s.Def != nil {
-		return 1
+		return true
 	}
 
 	// are there any imported init functions
@@ -101,12 +101,12 @@ func anyinit(n *NodeList) int {
 			if s.Def == nil {
 				continue
 			}
-			return 1
+			return true
 		}
 	}
 
 	// then none
-	return 0
+	return false
 }
 
 func fninit(n *NodeList) {
@@ -126,7 +126,7 @@ func fninit(n *NodeList) {
 	}
 
 	n = initfix(n)
-	if !(anyinit(n) != 0) {
+	if !anyinit(n) {
 		return
 	}
 

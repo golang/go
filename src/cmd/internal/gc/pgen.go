@@ -272,7 +272,7 @@ func allocauto(ptxt *obj.Prog) {
 	ll = Curfn.Dcl
 
 	n = ll.N
-	if n.Class == PAUTO && n.Op == ONAME && !(n.Used != 0) {
+	if n.Class == PAUTO && n.Op == ONAME && n.Used == 0 {
 		// No locals used at all
 		Curfn.Dcl = nil
 
@@ -282,7 +282,7 @@ func allocauto(ptxt *obj.Prog) {
 
 	for ll = Curfn.Dcl; ll.Next != nil; ll = ll.Next {
 		n = ll.Next.N
-		if n.Class == PAUTO && n.Op == ONAME && !(n.Used != 0) {
+		if n.Class == PAUTO && n.Op == ONAME && n.Used == 0 {
 			ll.Next = nil
 			Curfn.Dcl.End = ll
 			break
@@ -360,12 +360,12 @@ func Cgen_checknil(n *Node) {
 	}
 
 	// Ideally we wouldn't see any integer types here, but we do.
-	if n.Type == nil || (!(Isptr[n.Type.Etype] != 0) && !(Isint[n.Type.Etype] != 0) && n.Type.Etype != TUNSAFEPTR) {
+	if n.Type == nil || (Isptr[n.Type.Etype] == 0 && Isint[n.Type.Etype] == 0 && n.Type.Etype != TUNSAFEPTR) {
 		Dump("checknil", n)
 		Fatal("bad checknil")
 	}
 
-	if ((Thearch.Thechar == '5' || Thearch.Thechar == '9') && n.Op != OREGISTER) || !(n.Addable != 0) || n.Op == OLITERAL {
+	if ((Thearch.Thechar == '5' || Thearch.Thechar == '9') && n.Op != OREGISTER) || n.Addable == 0 || n.Op == OLITERAL {
 		Thearch.Regalloc(&reg, Types[Tptr], n)
 		Thearch.Cgen(n, &reg)
 		Thearch.Gins(obj.ACHECKNIL, &reg, nil)
@@ -478,7 +478,7 @@ func compile(fn *Node) {
 	if fn.Wrapper != 0 {
 		ptxt.From3.Offset |= obj.WRAPPER
 	}
-	if fn.Needctxt != 0 {
+	if fn.Needctxt {
 		ptxt.From3.Offset |= obj.NEEDCTXT
 	}
 	if fn.Nosplit {
@@ -557,7 +557,7 @@ func compile(fn *Node) {
 	Pc.Lineno = lineno
 
 	fixjmp(ptxt)
-	if !(Debug['N'] != 0) || Debug['R'] != 0 || Debug['P'] != 0 {
+	if Debug['N'] == 0 || Debug['R'] != 0 || Debug['P'] != 0 {
 		regopt(ptxt)
 		nilopt(ptxt)
 	}

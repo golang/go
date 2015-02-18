@@ -66,15 +66,15 @@ bnot(Bits a)
 	return c;
 }
 */
-func bany(a *Bits) int {
+func bany(a *Bits) bool {
 	var i int
 
 	for i = 0; i < BITS; i++ {
 		if a.b[i] != 0 {
-			return 1
+			return true
 		}
 	}
-	return 0
+	return false
 }
 
 /*
@@ -112,8 +112,8 @@ func blsh(n uint) Bits {
 	return c
 }
 
-func btest(a *Bits, n uint) int {
-	return bool2int(a.b[n/64]&(1<<(n%64)) != 0)
+func btest(a *Bits, n uint) bool {
+	return a.b[n/64]&(1<<(n%64)) != 0
 }
 
 func biset(a *Bits, n uint) {
@@ -144,7 +144,7 @@ func Qconv(bits Bits, flag int) string {
 
 	first = 1
 
-	for bany(&bits) != 0 {
+	for bany(&bits) {
 		i = bnum(bits)
 		if first != 0 {
 			first = 0

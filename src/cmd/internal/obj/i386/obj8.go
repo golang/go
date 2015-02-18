@@ -38,16 +38,16 @@ import (
 	"math"
 )
 
-func canuselocaltls(ctxt *obj.Link) int {
+func canuselocaltls(ctxt *obj.Link) bool {
 	switch ctxt.Headtype {
 	case obj.Hlinux,
 		obj.Hnacl,
 		obj.Hplan9,
 		obj.Hwindows:
-		return 0
+		return false
 	}
 
-	return 1
+	return true
 }
 
 func progedit(ctxt *obj.Link, p *obj.Prog) {
@@ -56,7 +56,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 	var q *obj.Prog
 
 	// See obj6.c for discussion of TLS.
-	if canuselocaltls(ctxt) != 0 {
+	if canuselocaltls(ctxt) {
 		// Reduce TLS initial exec model to TLS local exec model.
 		// Sequences like
 		//	MOVL TLS, BX
@@ -261,13 +261,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 	q = nil
 
-	if !(p.From3.Offset&obj.NOSPLIT != 0) || (p.From3.Offset&obj.WRAPPER != 0) {
+	if p.From3.Offset&obj.NOSPLIT == 0 || (p.From3.Offset&obj.WRAPPER != 0) {
 		p = obj.Appendp(ctxt, p)
 		p = load_g_cx(ctxt, p) // load g into CX
 	}
 
-	if !(cursym.Text.From3.Offset&obj.NOSPLIT != 0) {
-		p = stacksplit(ctxt, p, autoffset, bool2int(!(cursym.Text.From3.Offset&obj.NEEDCTXT != 0)), &q) // emit split check
+	if cursym.Text.From3.Offset&obj.NOSPLIT == 0 {
+		p = stacksplit(ctxt, p, autoffset, cursym.Text.From3.Offset&obj.NEEDCTXT == 0, &q) // emit split check
 	}
 
 	if autoffset != 0 {
@@ -367,7 +367,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		p2.Pcond = p
 	}
 
-	if ctxt.Debugzerostack != 0 && autoffset != 0 && !(cursym.Text.From3.Offset&obj.NOSPLIT != 0) {
+	if ctxt.Debugzerostack != 0 && autoffset != 0 && cursym.Text.From3.Offset&obj.NOSPLIT == 0 {
 		// 8l -Z means zero the stack frame on entry.
 		// This slows down function calls but can help avoid
 		// false positives in garbage collection.
@@ -507,7 +507,7 @@ func load_g_cx(ctxt *obj.Link, p *obj.Prog) *obj.Prog {
 // Returns last new instruction.
 // On return, *jmpok is the instruction that should jump
 // to the stack frame allocation if no split is needed.
-func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt int, jmpok **obj.Prog) *obj.Prog {
+func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt bool, jmpok **obj.Prog) *obj.Prog {
 	var q *obj.Prog
 	var q1 *obj.Prog
 
@@ -659,7 +659,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt int, jmpok 
 	if ctxt.Cursym.Cfunc != 0 {
 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
 	} else {
-		p.To.Sym = ctxt.Symmorestack[noctxt]
+		p.To.Sym = ctxt.Symmorestack[bool2int(noctxt)]
 	}
 
 	p = obj.Appendp(ctxt, p)
@@ -684,27 +684,27 @@ func follow(ctxt *obj.Link, s *obj.LSym) {
 
 	ctxt.Cursym = s
 
-	firstp = new(obj.Prog)
+	firstp = ctxt.NewProg()
 	lastp = firstp
 	xfol(ctxt, s.Text, &lastp)
 	lastp.Link = nil
 	s.Text = firstp.Link
 }
 
-func nofollow(a int) int {
+func nofollow(a int) bool {
 	switch a {
 	case obj.AJMP,
 		obj.ARET,
 		AIRETL,
 		AIRETW,
 		obj.AUNDEF:
-		return 1
+		return true
 	}
 
-	return 0
+	return false
 }
 
-func pushpop(a int) int {
+func pushpop(a int) bool {
 	switch a {
 	case APUSHL,
 		APUSHFL,
@@ -714,10 +714,10 @@ func pushpop(a int) int {
 		APOPFL,
 		APOPW,
 		APOPFW:
-		return 1
+		return true
 	}
 
-	return 0
+	return false
 }
 
 func relinv(a int) int {
@@ -802,7 +802,7 @@ loop:
 				continue
 			}
 
-			if nofollow(a) != 0 || pushpop(a) != 0 {
+			if nofollow(a) || pushpop(a) {
 				break // NOTE(rsc): arm does goto copy
 			}
 			if q.Pcond == nil || q.Pcond.Mark != 0 {
@@ -839,7 +839,7 @@ loop:
 				/* */
 			}
 		}
-		q = new(obj.Prog)
+		q = ctxt.NewProg()
 		q.As = obj.AJMP
 		q.Lineno = p.Lineno
 		q.To.Type = obj.TYPE_BRANCH
@@ -856,7 +856,7 @@ loop:
 	a = int(p.As)
 
 	/* continue loop with what comes after p */
-	if nofollow(a) != 0 {
+	if nofollow(a) {
 		return
 	}
 	if p.Pcond != nil && a != obj.ACALL {

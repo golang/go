@@ -48,7 +48,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	}
 
 	l = n.Left
-	if !(l.Addable != 0) {
+	if l.Addable == 0 {
 		gc.Tempname(&t1, l.Type)
 		cgen(l, &t1)
 		l = &t1
@@ -58,7 +58,6 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	switch n.Op {
 	default:
 		gc.Fatal("cgen64 %v", gc.Oconv(int(n.Op), 0))
-		fallthrough
 
 	case gc.OMINUS:
 		split64(res, &lo2, &hi2)
@@ -124,13 +123,13 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	// setup for binary operators
 	r = n.Right
 
-	if r != nil && !(r.Addable != 0) {
+	if r != nil && r.Addable == 0 {
 		gc.Tempname(&t2, r.Type)
 		cgen(r, &t2)
 		r = &t2
 	}
 
-	if gc.Is64(r.Type) != 0 {
+	if gc.Is64(r.Type) {
 		split64(r, &lo2, &hi2)
 	}
 
@@ -141,7 +140,6 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	switch n.Op {
 	default:
 		gc.Fatal("cgen64: not implemented: %v\n", gc.Nconv(n, 0))
-		fallthrough
 
 		// TODO: Constants
 	case gc.OADD:
@@ -316,7 +314,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 		regalloc(&s, gc.Types[gc.TUINT32], nil)
 		regalloc(&creg, gc.Types[gc.TUINT32], nil)
-		if gc.Is64(r.Type) != 0 {
+		if gc.Is64(r.Type) {
 			// shift is >= 1<<32
 			split64(r, &cl, &ch)
 
@@ -487,7 +485,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 		regalloc(&s, gc.Types[gc.TUINT32], nil)
 		regalloc(&creg, gc.Types[gc.TUINT32], nil)
-		if gc.Is64(r.Type) != 0 {
+		if gc.Is64(r.Type) {
 			// shift is >= 1<<32
 			split64(r, &cl, &ch)
 
@@ -721,7 +719,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		regfree(&n1)
 	}
 
-	if gc.Is64(r.Type) != 0 {
+	if gc.Is64(r.Type) {
 		splitclean()
 	}
 	splitclean()
@@ -770,7 +768,6 @@ func cmp64(nl *gc.Node, nr *gc.Node, op int, likely int, to *obj.Prog) {
 	switch op {
 	default:
 		gc.Fatal("cmp64 %v %v", gc.Oconv(int(op), 0), gc.Tconv(t, 0))
-		fallthrough
 
 		// cmp hi
 	// bne L

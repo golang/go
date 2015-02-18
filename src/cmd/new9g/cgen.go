@@ -56,7 +56,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 		gc.OSLICESTR,
 		gc.OSLICE3,
 		gc.OSLICE3ARR:
-		if res.Op != gc.ONAME || !(res.Addable != 0) {
+		if res.Op != gc.ONAME || res.Addable == 0 {
 			gc.Tempname(&n1, n.Type)
 			gc.Cgen_slice(n, &n1)
 			cgen(&n1, res)
@@ -66,7 +66,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 		goto ret
 
 	case gc.OEFACE:
-		if res.Op != gc.ONAME || !(res.Addable != 0) {
+		if res.Op != gc.ONAME || res.Addable == 0 {
 			gc.Tempname(&n1, n.Type)
 			gc.Cgen_eface(n, &n1)
 			cgen(&n1, res)
@@ -88,7 +88,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 		}
 	}
 
-	if gc.Isfat(n.Type) != 0 {
+	if gc.Isfat(n.Type) {
 		if n.Type.Width < 0 {
 			gc.Fatal("forgot to compute width for %v", gc.Tconv(n.Type, 0))
 		}
@@ -96,7 +96,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 		goto ret
 	}
 
-	if !(res.Addable != 0) {
+	if res.Addable == 0 {
 		if n.Ullman > res.Ullman {
 			regalloc(&n1, n.Type, res)
 			cgen(n, &n1)
@@ -115,7 +115,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 			goto gen
 		}
 
-		if gc.Complexop(n, res) != 0 {
+		if gc.Complexop(n, res) {
 			gc.Complexgen(n, res)
 			goto ret
 		}
@@ -123,7 +123,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 		f = 1 // gen thru register
 		switch n.Op {
 		case gc.OLITERAL:
-			if gc.Smallintconst(n) != 0 {
+			if gc.Smallintconst(n) {
 				f = 0
 			}
 
@@ -131,9 +131,9 @@ func cgen(n *gc.Node, res *gc.Node) {
 			f = 0
 		}
 
-		if !(gc.Iscomplex[n.Type.Etype] != 0) {
+		if gc.Iscomplex[n.Type.Etype] == 0 {
 			a = optoas(gc.OAS, res.Type)
-			if sudoaddable(a, res, &addr) != 0 {
+			if sudoaddable(a, res, &addr) {
 				if f != 0 {
 					regalloc(&n2, res.Type, nil)
 					cgen(n, &n2)
@@ -164,12 +164,12 @@ func cgen(n *gc.Node, res *gc.Node) {
 	switch n.Op {
 	case gc.OSPTR,
 		gc.OLEN:
-		if gc.Isslice(n.Left.Type) != 0 || gc.Istype(n.Left.Type, gc.TSTRING) != 0 {
+		if gc.Isslice(n.Left.Type) || gc.Istype(n.Left.Type, gc.TSTRING) {
 			n.Addable = n.Left.Addable
 		}
 
 	case gc.OCAP:
-		if gc.Isslice(n.Left.Type) != 0 {
+		if gc.Isslice(n.Left.Type) {
 			n.Addable = n.Left.Addable
 		}
 
@@ -177,7 +177,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 		n.Addable = n.Left.Addable
 	}
 
-	if gc.Complexop(n, res) != 0 {
+	if gc.Complexop(n, res) {
 		gc.Complexgen(n, res)
 		goto ret
 	}
@@ -210,9 +210,9 @@ func cgen(n *gc.Node, res *gc.Node) {
 		}
 	}
 
-	if !(gc.Iscomplex[n.Type.Etype] != 0) {
+	if gc.Iscomplex[n.Type.Etype] == 0 {
 		a = optoas(gc.OAS, n.Type)
-		if sudoaddable(a, n, &addr) != 0 {
+		if sudoaddable(a, n, &addr) {
 			if res.Op == gc.OREGISTER {
 				p1 = gins(a, nil, res)
 				p1.From = addr
@@ -251,11 +251,11 @@ func cgen(n *gc.Node, res *gc.Node) {
 		p1 = gc.Gbranch(ppc64.ABR, nil, 0)
 
 		p2 = gc.Pc
-		gmove(gc.Nodbool(1), res)
+		gmove(gc.Nodbool(true), res)
 		p3 = gc.Gbranch(ppc64.ABR, nil, 0)
 		gc.Patch(p1, gc.Pc)
 		bgen(n, true, 0, p2)
-		gmove(gc.Nodbool(0), res)
+		gmove(gc.Nodbool(false), res)
 		gc.Patch(p3, gc.Pc)
 		goto ret
 
@@ -358,7 +358,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 
 		// pointer is the first word of string or slice.
 	case gc.OSPTR:
-		if gc.Isconst(nl, gc.CTSTR) != 0 {
+		if gc.Isconst(nl, gc.CTSTR) {
 			regalloc(&n1, gc.Types[gc.Tptr], res)
 			p1 = gins(ppc64.AMOVD, nil, &n1)
 			gc.Datastring(nl.Val.U.Sval.S, &p1.From)
@@ -373,7 +373,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 		regfree(&n1)
 
 	case gc.OLEN:
-		if gc.Istype(nl.Type, gc.TMAP) != 0 || gc.Istype(nl.Type, gc.TCHAN) != 0 {
+		if gc.Istype(nl.Type, gc.TMAP) || gc.Istype(nl.Type, gc.TCHAN) {
 			// map and chan have len in the first int-sized word.
 			// a zero pointer means zero length
 			regalloc(&n1, gc.Types[gc.Tptr], res)
@@ -396,7 +396,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 			break
 		}
 
-		if gc.Istype(nl.Type, gc.TSTRING) != 0 || gc.Isslice(nl.Type) != 0 {
+		if gc.Istype(nl.Type, gc.TSTRING) || gc.Isslice(nl.Type) {
 			// both slice and string have len one pointer into the struct.
 			// a zero pointer means zero length
 			igen(nl, &n1, res)
@@ -411,7 +411,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 		gc.Fatal("cgen: OLEN: unknown type %v", gc.Tconv(nl.Type, obj.FmtLong))
 
 	case gc.OCAP:
-		if gc.Istype(nl.Type, gc.TCHAN) != 0 {
+		if gc.Istype(nl.Type, gc.TCHAN) {
 			// chan has cap in the second int-sized word.
 			// a zero pointer means zero length
 			regalloc(&n1, gc.Types[gc.Tptr], res)
@@ -435,7 +435,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 			break
 		}
 
-		if gc.Isslice(nl.Type) != 0 {
+		if gc.Isslice(nl.Type) {
 			igen(nl, &n1, res)
 			n1.Type = gc.Types[gc.Simtype[gc.TUINT]]
 			n1.Xoffset += int64(gc.Array_cap)
@@ -447,11 +447,11 @@ func cgen(n *gc.Node, res *gc.Node) {
 		gc.Fatal("cgen: OCAP: unknown type %v", gc.Tconv(nl.Type, obj.FmtLong))
 
 	case gc.OADDR:
-		if n.Bounded != 0 { // let race detector avoid nil checks
+		if n.Bounded { // let race detector avoid nil checks
 			gc.Disable_checknil++
 		}
 		agen(nl, res)
-		if n.Bounded != 0 {
+		if n.Bounded {
 			gc.Disable_checknil--
 		}
 
@@ -480,7 +480,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 			cgen_div(int(n.Op), &n1, nr, res)
 			regfree(&n1)
 		} else {
-			if !(gc.Smallintconst(nr) != 0) {
+			if !gc.Smallintconst(nr) {
 				regalloc(&n2, nr.Type, res)
 				cgen(nr, &n2)
 			} else {
@@ -496,7 +496,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 	case gc.OLSH,
 		gc.ORSH,
 		gc.OLROT:
-		cgen_shift(int(n.Op), int(n.Bounded), nl, nr, res)
+		cgen_shift(int(n.Op), n.Bounded, nl, nr, res)
 	}
 
 	goto ret
@@ -518,7 +518,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 	 * register for the computation.
 	 */
 sbop: // symmetric binary
-	if nl.Ullman < nr.Ullman || (nl.Ullman == nr.Ullman && (gc.Smallintconst(nl) != 0 || (nr.Op == gc.OLITERAL && !(gc.Smallintconst(nr) != 0)))) {
+	if nl.Ullman < nr.Ullman || (nl.Ullman == nr.Ullman && (gc.Smallintconst(nl) || (nr.Op == gc.OLITERAL && !gc.Smallintconst(nr)))) {
 		r = nl
 		nl = nr
 		nr = r
@@ -612,7 +612,7 @@ func cgenr(n *gc.Node, a *gc.Node, res *gc.Node) {
 		gc.Dump("cgenr-n", n)
 	}
 
-	if gc.Isfat(n.Type) != 0 {
+	if gc.Isfat(n.Type) {
 		gc.Fatal("cgenr on fat node")
 	}
 
@@ -688,33 +688,33 @@ func agenr(n *gc.Node, a *gc.Node, res *gc.Node) {
 
 		//bounded = debug['B'] || n->bounded;
 		if nr.Addable != 0 {
-			if !(gc.Isconst(nr, gc.CTINT) != 0) {
+			if !gc.Isconst(nr, gc.CTINT) {
 				gc.Tempname(&tmp, gc.Types[gc.TINT64])
 			}
-			if !(gc.Isconst(nl, gc.CTSTR) != 0) {
+			if !gc.Isconst(nl, gc.CTSTR) {
 				agenr(nl, &n3, res)
 			}
-			if !(gc.Isconst(nr, gc.CTINT) != 0) {
+			if !gc.Isconst(nr, gc.CTINT) {
 				cgen(nr, &tmp)
 				regalloc(&n1, tmp.Type, nil)
 				gmove(&tmp, &n1)
 			}
 		} else if nl.Addable != 0 {
-			if !(gc.Isconst(nr, gc.CTINT) != 0) {
+			if !gc.Isconst(nr, gc.CTINT) {
 				gc.Tempname(&tmp, gc.Types[gc.TINT64])
 				cgen(nr, &tmp)
 				regalloc(&n1, tmp.Type, nil)
 				gmove(&tmp, &n1)
 			}
 
-			if !(gc.Isconst(nl, gc.CTSTR) != 0) {
+			if !gc.Isconst(nl, gc.CTSTR) {
 				agenr(nl, &n3, res)
 			}
 		} else {
 			gc.Tempname(&tmp, gc.Types[gc.TINT64])
 			cgen(nr, &tmp)
 			nr = &tmp
-			if !(gc.Isconst(nl, gc.CTSTR) != 0) {
+			if !gc.Isconst(nl, gc.CTSTR) {
 				agenr(nl, &n3, res)
 			}
 			regalloc(&n1, tmp.Type, nil)
@@ -726,13 +726,13 @@ func agenr(n *gc.Node, a *gc.Node, res *gc.Node) {
 		// w is width
 
 		// constant index
-		if gc.Isconst(nr, gc.CTINT) != 0 {
-			if gc.Isconst(nl, gc.CTSTR) != 0 {
+		if gc.Isconst(nr, gc.CTINT) {
+			if gc.Isconst(nl, gc.CTSTR) {
 				gc.Fatal("constant string constant index")
 			}
 			v = uint64(gc.Mpgetfix(nr.Val.U.Xval))
-			if gc.Isslice(nl.Type) != 0 || nl.Type.Etype == gc.TSTRING {
-				if !(gc.Debug['B'] != 0) && !(n.Bounded != 0) {
+			if gc.Isslice(nl.Type) || nl.Type.Etype == gc.TSTRING {
+				if gc.Debug['B'] == 0 && !n.Bounded {
 					n1 = n3
 					n1.Op = gc.OINDREG
 					n1.Type = gc.Types[gc.Tptr]
@@ -765,11 +765,11 @@ func agenr(n *gc.Node, a *gc.Node, res *gc.Node) {
 		gmove(&n1, &n2)
 		regfree(&n1)
 
-		if !(gc.Debug['B'] != 0) && !(n.Bounded != 0) {
+		if gc.Debug['B'] == 0 && !n.Bounded {
 			// check bounds
-			if gc.Isconst(nl, gc.CTSTR) != 0 {
+			if gc.Isconst(nl, gc.CTSTR) {
 				gc.Nodconst(&n4, gc.Types[gc.TUINT64], int64(len(nl.Val.U.Sval.S)))
-			} else if gc.Isslice(nl.Type) != 0 || nl.Type.Etype == gc.TSTRING {
+			} else if gc.Isslice(nl.Type) || nl.Type.Etype == gc.TSTRING {
 				n1 = n3
 				n1.Op = gc.OINDREG
 				n1.Type = gc.Types[gc.Tptr]
@@ -799,12 +799,12 @@ func agenr(n *gc.Node, a *gc.Node, res *gc.Node) {
 			gc.Patch(p1, gc.Pc)
 		}
 
-		if gc.Isconst(nl, gc.CTSTR) != 0 {
+		if gc.Isconst(nl, gc.CTSTR) {
 			regalloc(&n3, gc.Types[gc.Tptr], res)
 			p1 = gins(ppc64.AMOVD, nil, &n3)
 			gc.Datastring(nl.Val.U.Sval.S, &p1.From)
 			p1.From.Type = obj.TYPE_ADDR
-		} else if gc.Isslice(nl.Type) != 0 || nl.Type.Etype == gc.TSTRING {
+		} else if gc.Isslice(nl.Type) || nl.Type.Etype == gc.TSTRING {
 			n1 = n3
 			n1.Op = gc.OINDREG
 			n1.Type = gc.Types[gc.Tptr]
@@ -872,7 +872,7 @@ func agen(n *gc.Node, res *gc.Node) {
 		n = n.Left
 	}
 
-	if gc.Isconst(n, gc.CTNIL) != 0 && n.Type.Width > int64(gc.Widthptr) {
+	if gc.Isconst(n, gc.CTNIL) && n.Type.Width > int64(gc.Widthptr) {
 		// Use of a nil interface or nil slice.
 		// Create a temporary we can take the address of and read.
 		// The generated code is just going to panic, so it need not
@@ -950,7 +950,7 @@ func agen(n *gc.Node, res *gc.Node) {
 		}
 
 		// should only get here for heap vars or paramref
-		if !(n.Class&gc.PHEAP != 0) && n.Class != gc.PPARAMREF {
+		if n.Class&gc.PHEAP == 0 && n.Class != gc.PPARAMREF {
 			gc.Dump("bad agen", n)
 			gc.Fatal("agen: bad ONAME class %#x", n.Class)
 		}
@@ -1060,10 +1060,10 @@ func igen(n *gc.Node, a *gc.Node, res *gc.Node) {
 	// Could do the same for slice except that we need
 	// to use the real index for the bounds checking.
 	case gc.OINDEX:
-		if gc.Isfixedarray(n.Left.Type) != 0 || (gc.Isptr[n.Left.Type.Etype] != 0 && gc.Isfixedarray(n.Left.Left.Type) != 0) {
-			if gc.Isconst(n.Right, gc.CTINT) != 0 {
+		if gc.Isfixedarray(n.Left.Type) || (gc.Isptr[n.Left.Type.Etype] != 0 && gc.Isfixedarray(n.Left.Left.Type)) {
+			if gc.Isconst(n.Right, gc.CTINT) {
 				// Compute &a.
-				if !(gc.Isptr[n.Left.Type.Etype] != 0) {
+				if gc.Isptr[n.Left.Type.Etype] == 0 {
 					igen(n.Left, a, res)
 				} else {
 					igen(n.Left, &n1, res)
@@ -1112,7 +1112,7 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
 	}
 
 	if n == nil {
-		n = gc.Nodbool(1)
+		n = gc.Nodbool(true)
 	}
 
 	if n.Ninit != nil {
@@ -1158,7 +1158,7 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
 
 		// need to ask if it is bool?
 	case gc.OLITERAL:
-		if !true_ == !(n.Val.U.Bval != 0) {
+		if !true_ == (n.Val.U.Bval == 0) {
 			gc.Patch(gc.Gbranch(ppc64.ABR, nil, likely), to)
 		}
 		goto ret
@@ -1241,7 +1241,7 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
 			nr = r
 		}
 
-		if gc.Isslice(nl.Type) != 0 {
+		if gc.Isslice(nl.Type) {
 			// front end should only leave cmp to literal nil
 			if (a != gc.OEQ && a != gc.ONE) || nr.Op != gc.OLITERAL {
 				gc.Yyerror("illegal slice comparison")
@@ -1262,7 +1262,7 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
 			break
 		}
 
-		if gc.Isinter(nl.Type) != 0 {
+		if gc.Isinter(nl.Type) {
 			// front end should only leave cmp to literal nil
 			if (a != gc.OEQ && a != gc.ONE) || nr.Op != gc.OLITERAL {
 				gc.Yyerror("illegal interface comparison")
@@ -1376,14 +1376,14 @@ func stkof(n *gc.Node) int64 {
 
 	case gc.OINDEX:
 		t = n.Left.Type
-		if !(gc.Isfixedarray(t) != 0) {
+		if !gc.Isfixedarray(t) {
 			break
 		}
 		off = stkof(n.Left)
 		if off == -1000 || off == 1000 {
 			return off
 		}
-		if gc.Isconst(n.Right, gc.CTINT) != 0 {
+		if gc.Isconst(n.Right, gc.CTINT) {
 			return off + t.Type.Width*gc.Mpgetfix(n.Right.Val.U.Xval)
 		}
 		return 1000
@@ -1473,7 +1473,6 @@ func sgen(n *gc.Node, ns *gc.Node, w int64) {
 	switch align {
 	default:
 		gc.Fatal("sgen: invalid alignment %d for %v", align, gc.Tconv(n.Type, 0))
-		fallthrough
 
 	case 1:
 		op = ppc64.AMOVBU
@@ -1598,7 +1597,7 @@ func sgen(n *gc.Node, ns *gc.Node, w int64) {
 		for {
 			tmp14 := c
 			c--
-			if !(tmp14 > 0) {
+			if tmp14 <= 0 {
 				break
 			}
 
@@ -1617,19 +1616,19 @@ func sgen(n *gc.Node, ns *gc.Node, w int64) {
 	regfree(&tmp)
 }
 
-func cadable(n *gc.Node) int {
-	if !(n.Addable != 0) {
+func cadable(n *gc.Node) bool {
+	if n.Addable == 0 {
 		// dont know how it happens,
 		// but it does
-		return 0
+		return false
 	}
 
 	switch n.Op {
 	case gc.ONAME:
-		return 1
+		return true
 	}
 
-	return 0
+	return false
 }
 
 /*
@@ -1640,7 +1639,7 @@ func cadable(n *gc.Node) int {
  * nr is N when assigning a zero value.
  * return 1 if can do, 0 if can't.
  */
-func componentgen(nr *gc.Node, nl *gc.Node) int {
+func componentgen(nr *gc.Node, nl *gc.Node) bool {
 	var nodl gc.Node
 	var nodr gc.Node
 	var tmp gc.Node
@@ -1662,12 +1661,12 @@ func componentgen(nr *gc.Node, nl *gc.Node) int {
 		t = nl.Type
 
 		// Slices are ok.
-		if gc.Isslice(t) != 0 {
+		if gc.Isslice(t) {
 			break
 		}
 
 		// Small arrays are ok.
-		if t.Bound > 0 && t.Bound <= 3 && !(gc.Isfat(t.Type) != 0) {
+		if t.Bound > 0 && t.Bound <= 3 && !gc.Isfat(t.Type) {
 			break
 		}
 
@@ -1679,7 +1678,7 @@ func componentgen(nr *gc.Node, nl *gc.Node) int {
 		fldcount = 0
 
 		for t = nl.Type.Type; t != nil; t = t.Down {
-			if gc.Isfat(t.Type) != 0 {
+			if gc.Isfat(t.Type) {
 				goto no
 			}
 			if t.Etype != gc.TFIELD {
@@ -1698,8 +1697,8 @@ func componentgen(nr *gc.Node, nl *gc.Node) int {
 	}
 
 	nodl = *nl
-	if !(cadable(nl) != 0) {
-		if nr != nil && !(cadable(nr) != 0) {
+	if !cadable(nl) {
+		if nr != nil && !cadable(nr) {
 			goto no
 		}
 		igen(nl, &nodl, nil)
@@ -1708,7 +1707,7 @@ func componentgen(nr *gc.Node, nl *gc.Node) int {
 
 	if nr != nil {
 		nodr = *nr
-		if !(cadable(nr) != 0) {
+		if !cadable(nr) {
 			igen(nr, &nodr, nil)
 			freer = 1
 		}
@@ -1736,7 +1735,7 @@ func componentgen(nr *gc.Node, nl *gc.Node) int {
 			gc.Gvardef(nl)
 		}
 		t = nl.Type
-		if !(gc.Isslice(t) != 0) {
+		if !gc.Isslice(t) {
 			nodl.Type = t.Type
 			nodr.Type = nodl.Type
 			for fldcount = 0; fldcount < t.Bound; fldcount++ {
@@ -1876,7 +1875,7 @@ no:
 	if freel != 0 {
 		regfree(&nodl)
 	}
-	return 0
+	return false
 
 yes:
 	if freer != 0 {
@@ -1885,5 +1884,5 @@ yes:
 	if freel != 0 {
 		regfree(&nodl)
 	}
-	return 1
+	return true
 }

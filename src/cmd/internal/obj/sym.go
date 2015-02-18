@@ -100,7 +100,7 @@ var headers = []struct {
 	}{"windowsgui", Hwindows},
 }
 
-func Headtype(name string) int {
+func headtype(name string) int {
 	var i int
 
 	for i = 0; i < len(headers); i++ {
@@ -146,7 +146,7 @@ func Linknew(arch *LinkArch) *Link {
 
 	ctxt.Pathname = buf
 
-	ctxt.Headtype = Headtype(Getgoos())
+	ctxt.Headtype = headtype(Getgoos())
 	if ctxt.Headtype < 0 {
 		log.Fatalf("unknown goos %s", Getgoos())
 	}
@@ -222,7 +222,7 @@ func Linknew(arch *LinkArch) *Link {
 	return ctxt
 }
 
-func Linknewsym(ctxt *Link, symb string, v int) *LSym {
+func linknewsym(ctxt *Link, symb string, v int) *LSym {
 	var s *LSym
 
 	s = new(LSym)
@@ -261,11 +261,11 @@ func _lookup(ctxt *Link, symb string, v int, creat int) *LSym {
 			return s
 		}
 	}
-	if !(creat != 0) {
+	if creat == 0 {
 		return nil
 	}
 
-	s = Linknewsym(ctxt, symb, v)
+	s = linknewsym(ctxt, symb, v)
 	s.Extname = s.Name
 	s.Hash = ctxt.Hash[h]
 	ctxt.Hash[h] = s
@@ -278,7 +278,7 @@ func Linklookup(ctxt *Link, name string, v int) *LSym {
 }
 
 // read-only lookup
-func Linkrlookup(ctxt *Link, name string, v int) *LSym {
+func linkrlookup(ctxt *Link, name string, v int) *LSym {
 	return _lookup(ctxt, name, v, 0)
 }
 

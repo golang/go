@@ -188,7 +188,7 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 			}
 		}
 
-		if !(found != 0) {
+		if found == 0 {
 			p = Appendp(ctxt, s.Text)
 			p.As = AFUNCDATA
 			p.From.Type = TYPE_CONST

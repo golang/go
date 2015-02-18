@@ -2118,9 +2118,9 @@ var opindex [ALAST + 1]*Optab
 // It does not seem to be necessary for any other systems. This is probably working
 // around a Solaris-specific bug that should be fixed differently, but we don't know
 // what that bug is. And this does fix it.
-func isextern(s *obj.LSym) int {
+func isextern(s *obj.LSym) bool {
 	// All the Solaris dynamic imports from libc.so begin with "libc_".
-	return bool2int(strings.HasPrefix(s.Name, "libc_"))
+	return strings.HasPrefix(s.Name, "libc_")
 }
 
 // single-instruction no-ops of various lengths.
@@ -2348,7 +2348,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 			ctxt.Diag("span must be looping")
 			log.Fatalf("loop")
 		}
-		if !(loop != 0) {
+		if loop == 0 {
 			break
 		}
 	}
@@ -2589,7 +2589,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 		switch a.Name {
 		case obj.NAME_EXTERN,
 			obj.NAME_STATIC:
-			if a.Sym != nil && isextern(a.Sym) != 0 {
+			if a.Sym != nil && isextern(a.Sym) {
 				return Yi32
 			}
 			return Yiauto // use pc-relative addressing
@@ -2997,7 +2997,7 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
 			log.Fatalf("reloc")
 		}
 
-		if isextern(s) != 0 {
+		if isextern(s) {
 			r.Siz = 4
 			r.Type = obj.R_ADDR
 		} else {
@@ -3074,7 +3074,7 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 		switch a.Name {
 		case obj.NAME_EXTERN,
 			obj.NAME_STATIC:
-			if !(isextern(a.Sym) != 0) {
+			if !isextern(a.Sym) {
 				goto bad
 			}
 			base = REG_NONE
@@ -3136,7 +3136,7 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 
 	ctxt.Rexflag |= regrex[base]&Rxb | rex
 	if base == REG_NONE || (REG_CS <= base && base <= REG_GS) || base == REG_TLS {
-		if (a.Sym == nil || !(isextern(a.Sym) != 0)) && base == REG_NONE && (a.Name == obj.NAME_STATIC || a.Name == obj.NAME_EXTERN) || ctxt.Asmode != 64 {
+		if (a.Sym == nil || !isextern(a.Sym)) && base == REG_NONE && (a.Name == obj.NAME_STATIC || a.Name == obj.NAME_EXTERN) || ctxt.Asmode != 64 {
 			ctxt.Andptr[0] = byte(0<<6 | 5<<0 | r<<3)
 			ctxt.Andptr = ctxt.Andptr[1:]
 			goto putrelv
@@ -3370,18 +3370,18 @@ var ymovtab = []Movtab{
 	Movtab{0, 0, 0, 0, [4]uint8{}},
 }
 
-func isax(a *obj.Addr) int {
+func isax(a *obj.Addr) bool {
 	switch a.Reg {
 	case REG_AX,
 		REG_AL,
 		REG_AH:
-		return 1
+		return true
 	}
 
 	if a.Index == REG_AX {
-		return 1
+		return true
 	}
-	return 0
+	return false
 }
 
 func subreg(p *obj.Prog, from int, to int) {
@@ -3587,7 +3587,7 @@ found:
 	case Zlit:
 		for ; ; z++ {
 			op = int(o.op[z])
-			if !(op != 0) {
+			if op == 0 {
 				break
 			}
 			ctxt.Andptr[0] = byte(op)
@@ -3597,7 +3597,7 @@ found:
 	case Zlitm_r:
 		for ; ; z++ {
 			op = int(o.op[z])
-			if !(op != 0) {
+			if op == 0 {
 				break
 			}
 			ctxt.Andptr[0] = byte(op)
@@ -3652,7 +3652,7 @@ found:
 			tmp1 := z
 			z++
 			op = int(o.op[tmp1])
-			if !(op != 0) {
+			if op == 0 {
 				break
 			}
 			ctxt.Andptr[0] = byte(op)
@@ -4097,7 +4097,7 @@ bad:
 
 		z = int(p.From.Reg)
 		if p.From.Type == obj.TYPE_REG && z >= REG_BP && z <= REG_DI {
-			if isax(&p.To) != 0 || p.To.Type == obj.TYPE_NONE {
+			if isax(&p.To) || p.To.Type == obj.TYPE_NONE {
 				// We certainly don't want to exchange
 				// with AX if the op is MUL or DIV.
 				ctxt.Andptr[0] = 0x87
@@ -4122,7 +4122,7 @@ bad:
 
 		z = int(p.To.Reg)
 		if p.To.Type == obj.TYPE_REG && z >= REG_BP && z <= REG_DI {
-			if isax(&p.From) != 0 {
+			if isax(&p.From) {
 				ctxt.Andptr[0] = 0x87
 				ctxt.Andptr = ctxt.Andptr[1:] /* xchg rhs,bx */
 				asmando(ctxt, p, &p.To, reg[REG_BX])

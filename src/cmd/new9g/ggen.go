@@ -37,7 +37,7 @@ func defframe(ptxt *obj.Prog) {
 	// iterate through declarations - they are sorted in decreasing xoffset order.
 	for l = gc.Curfn.Dcl; l != nil; l = l.Next {
 		n = l.N
-		if !(n.Needzero != 0) {
+		if n.Needzero == 0 {
 			continue
 		}
 		if n.Class != gc.PAUTO {
@@ -187,7 +187,7 @@ func ginscall(f *gc.Node, proc int) {
 
 			p = gins(ppc64.ABL, nil, f)
 			gc.Afunclit(&p.To, f)
-			if proc == -1 || gc.Noreturn(p) != 0 {
+			if proc == -1 || gc.Noreturn(p) {
 				gins(obj.AUNDEF, nil, nil)
 			}
 			break
@@ -226,7 +226,7 @@ func ginscall(f *gc.Node, proc int) {
 		if proc == 1 {
 			ginscall(gc.Newproc, 0)
 		} else {
-			if !(gc.Hasdefer != 0) {
+			if gc.Hasdefer == 0 {
 				gc.Fatal("hasdefer=0 but has defer")
 			}
 			ginscall(gc.Deferproc, 0)
@@ -270,7 +270,7 @@ func cgen_callinter(n *gc.Node, res *gc.Node, proc int) {
 
 	i = i.Left // interface
 
-	if !(i.Addable != 0) {
+	if i.Addable == 0 {
 		gc.Tempname(&tmpi, i.Type)
 		cgen(i, &tmpi)
 		i = &tmpi
@@ -503,9 +503,9 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	check = 0
 	if gc.Issigned[t.Etype] != 0 {
 		check = 1
-		if gc.Isconst(nl, gc.CTINT) != 0 && gc.Mpgetfix(nl.Val.U.Xval) != -(1<<uint64(t.Width*8-1)) {
+		if gc.Isconst(nl, gc.CTINT) && gc.Mpgetfix(nl.Val.U.Xval) != -(1<<uint64(t.Width*8-1)) {
 			check = 0
-		} else if gc.Isconst(nr, gc.CTINT) != 0 && gc.Mpgetfix(nr.Val.U.Xval) != -1 {
+		} else if gc.Isconst(nr, gc.CTINT) && gc.Mpgetfix(nr.Val.U.Xval) != -1 {
 			check = 0
 		}
 	}
@@ -723,7 +723,7 @@ longmod:
 	// use 2-operand 16-bit multiply
 	// because there is no 2-operand 8-bit multiply
 	//a = AIMULW;
-	if !(gc.Smallintconst(nr) != 0) {
+	if !gc.Smallintconst(nr) {
 		regalloc(&n3, nl.Type, nil)
 		cgen(nr, &n3)
 		gins(a, &n3, &n2)
@@ -799,7 +799,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
  *	res = nl << nr
  *	res = nl >> nr
  */
-func cgen_shift(op int, bounded int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	var n1 gc.Node
 	var n2 gc.Node
 	var n3 gc.Node
@@ -869,7 +869,7 @@ func cgen_shift(op int, bounded int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	regfree(&n3)
 
 	// test and fix up large shifts
-	if !(bounded != 0) {
+	if !bounded {
 		gc.Nodconst(&n3, tcount, nl.Type.Width*8)
 		gins(optoas(gc.OCMP, tcount), &n1, &n3)
 		p1 = gc.Gbranch(optoas(gc.OLT, tcount), nil, +1)

@@ -44,21 +44,21 @@ const (
 )
 
 // do we need the carry bit
-func needc(p *obj.Prog) int {
+func needc(p *obj.Prog) bool {
 	var info gc.ProgInfo
 
 	for p != nil {
 		proginfo(&info, p)
 		if info.Flags&gc.UseCarry != 0 {
-			return 1
+			return true
 		}
 		if info.Flags&(gc.SetCarry|gc.KillCarry) != 0 {
-			return 0
+			return false
 		}
 		p = p.Link
 	}
 
-	return 0
+	return false
 }
 
 func rnops(r *gc.Flow) *gc.Flow {
@@ -108,7 +108,7 @@ func peep(firstp *obj.Prog) {
 		switch p.As {
 		case x86.ALEAL,
 			x86.ALEAQ:
-			if regtyp(&p.To) != 0 {
+			if regtyp(&p.To) {
 				if p.From.Sym != nil {
 					if p.From.Index == x86.REG_NONE {
 						conprop(r)
@@ -122,7 +122,7 @@ func peep(firstp *obj.Prog) {
 			x86.AMOVQ,
 			x86.AMOVSS,
 			x86.AMOVSD:
-			if regtyp(&p.To) != 0 {
+			if regtyp(&p.To) {
 				if p.From.Type == obj.TYPE_CONST || p.From.Type == obj.TYPE_FCONST {
 					conprop(r)
 				}
@@ -143,12 +143,12 @@ loop1:
 			x86.AMOVQ,
 			x86.AMOVSS,
 			x86.AMOVSD:
-			if regtyp(&p.To) != 0 {
-				if regtyp(&p.From) != 0 {
-					if copyprop(g, r) != 0 {
+			if regtyp(&p.To) {
+				if regtyp(&p.From) {
+					if copyprop(g, r) {
 						excise(r)
 						t++
-					} else if subprop(r) != 0 && copyprop(g, r) != 0 {
+					} else if subprop(r) && copyprop(g, r) {
 						excise(r)
 						t++
 					}
@@ -159,7 +159,7 @@ loop1:
 			x86.AMOVWLZX,
 			x86.AMOVBLSX,
 			x86.AMOVWLSX:
-			if regtyp(&p.To) != 0 {
+			if regtyp(&p.To) {
 				r1 = rnops(gc.Uniqs(r))
 				if r1 != nil {
 					p1 = r1.Prog
@@ -177,7 +177,7 @@ loop1:
 			x86.AMOVLQSX,
 			x86.AMOVLQZX,
 			x86.AMOVQL:
-			if regtyp(&p.To) != 0 {
+			if regtyp(&p.To) {
 				r1 = rnops(gc.Uniqs(r))
 				if r1 != nil {
 					p1 = r1.Prog
@@ -191,7 +191,7 @@ loop1:
 		case x86.AADDL,
 			x86.AADDQ,
 			x86.AADDW:
-			if p.From.Type != obj.TYPE_CONST || needc(p.Link) != 0 {
+			if p.From.Type != obj.TYPE_CONST || needc(p.Link) {
 				break
 			}
 			if p.From.Offset == -1 {
@@ -202,7 +202,7 @@ loop1:
 				} else {
 					p.As = x86.ADECW
 				}
-				p.From = obj.Zprog.From
+				p.From = obj.Addr{}
 				break
 			}
 
@@ -214,14 +214,14 @@ loop1:
 				} else {
 					p.As = x86.AINCW
 				}
-				p.From = obj.Zprog.From
+				p.From = obj.Addr{}
 				break
 			}
 
 		case x86.ASUBL,
 			x86.ASUBQ,
 			x86.ASUBW:
-			if p.From.Type != obj.TYPE_CONST || needc(p.Link) != 0 {
+			if p.From.Type != obj.TYPE_CONST || needc(p.Link) {
 				break
 			}
 			if p.From.Offset == -1 {
@@ -232,7 +232,7 @@ loop1:
 				} else {
 					p.As = x86.AINCW
 				}
-				p.From = obj.Zprog.From
+				p.From = obj.Addr{}
 				break
 			}
 
@@ -244,7 +244,7 @@ loop1:
 				} else {
 					p.As = x86.ADECW
 				}
-				p.From = obj.Zprog.From
+				p.From = obj.Addr{}
 				break
 			}
 		}
@@ -269,9 +269,9 @@ loop1:
 	for r = g.Start; r != nil; r = r.Link {
 		p = r.Prog
 		if p.As == x86.AMOVLQZX {
-			if regtyp(&p.From) != 0 {
+			if regtyp(&p.From) {
 				if p.From.Type == p.To.Type && p.From.Reg == p.To.Reg {
-					if prevl(r, int(p.From.Reg)) != 0 {
+					if prevl(r, int(p.From.Reg)) {
 						excise(r)
 					}
 				}
@@ -279,8 +279,8 @@ loop1:
 		}
 
 		if p.As == x86.AMOVSD {
-			if regtyp(&p.From) != 0 {
-				if regtyp(&p.To) != 0 {
+			if regtyp(&p.From) {
+				if regtyp(&p.To) {
 					p.As = x86.AMOVAPD
 				}
 			}
@@ -298,7 +298,7 @@ loop1:
 			x86.AMOVL,
 			x86.AMOVQ,
 			x86.AMOVLQZX:
-			if regtyp(&p.To) != 0 && !(regconsttyp(&p.From) != 0) {
+			if regtyp(&p.To) && !regconsttyp(&p.From) {
 				pushback(r)
 			}
 		}
@@ -319,7 +319,7 @@ func pushback(r0 *gc.Flow) {
 	for r = gc.Uniqp(r0); r != nil && gc.Uniqs(r) != nil; r = gc.Uniqp(r) {
 		p = r.Prog
 		if p.As != obj.ANOP {
-			if !(regconsttyp(&p.From) != 0) || !(regtyp(&p.To) != 0) {
+			if !regconsttyp(&p.From) || !regtyp(&p.To) {
 				break
 			}
 			if copyu(p, &p0.To, nil) != 0 || copyu(p0, &p.To, nil) != 0 {
@@ -398,8 +398,8 @@ func excise(r *gc.Flow) {
 	gc.Ostats.Ndelmov++
 }
 
-func regtyp(a *obj.Addr) int {
-	return bool2int(a.Type == obj.TYPE_REG && (x86.REG_AX <= a.Reg && a.Reg <= x86.REG_R15 || x86.REG_X0 <= a.Reg && a.Reg <= x86.REG_X15))
+func regtyp(a *obj.Addr) bool {
+	return a.Type == obj.TYPE_REG && (x86.REG_AX <= a.Reg && a.Reg <= x86.REG_R15 || x86.REG_X0 <= a.Reg && a.Reg <= x86.REG_X15)
 }
 
 // movb elimination.
@@ -418,7 +418,7 @@ func elimshortmov(g *gc.Graph) {
 
 	for r = g.Start; r != nil; r = r.Link {
 		p = r.Prog
-		if regtyp(&p.To) != 0 {
+		if regtyp(&p.To) {
 			switch p.As {
 			case x86.AINCB,
 				x86.AINCW:
@@ -437,7 +437,7 @@ func elimshortmov(g *gc.Graph) {
 				p.As = x86.ANOTQ
 			}
 
-			if regtyp(&p.From) != 0 || p.From.Type == obj.TYPE_CONST {
+			if regtyp(&p.From) || p.From.Type == obj.TYPE_CONST {
 				// move or artihmetic into partial register.
 				// from another register or constant can be movl.
 				// we don't switch to 64-bit arithmetic if it can
@@ -449,13 +449,13 @@ func elimshortmov(g *gc.Graph) {
 
 				case x86.AADDB,
 					x86.AADDW:
-					if !(needc(p.Link) != 0) {
+					if !needc(p.Link) {
 						p.As = x86.AADDQ
 					}
 
 				case x86.ASUBB,
 					x86.ASUBW:
-					if !(needc(p.Link) != 0) {
+					if !needc(p.Link) {
 						p.As = x86.ASUBQ
 					}
 
@@ -500,23 +500,23 @@ func elimshortmov(g *gc.Graph) {
 }
 
 // is 'a' a register or constant?
-func regconsttyp(a *obj.Addr) int {
-	if regtyp(a) != 0 {
-		return 1
+func regconsttyp(a *obj.Addr) bool {
+	if regtyp(a) {
+		return true
 	}
 	switch a.Type {
 	case obj.TYPE_CONST,
 		obj.TYPE_FCONST,
 		obj.TYPE_SCONST,
 		obj.TYPE_ADDR: // TODO(rsc): Not all TYPE_ADDRs are constants.
-		return 1
+		return true
 	}
 
-	return 0
+	return false
 }
 
 // is reg guaranteed to be truncated by a previous L instruction?
-func prevl(r0 *gc.Flow, reg int) int {
+func prevl(r0 *gc.Flow, reg int) bool {
 	var p *obj.Prog
 	var r *gc.Flow
 	var info gc.ProgInfo
@@ -527,14 +527,14 @@ func prevl(r0 *gc.Flow, reg int) int {
 			proginfo(&info, p)
 			if info.Flags&gc.RightWrite != 0 {
 				if info.Flags&gc.SizeL != 0 {
-					return 1
+					return true
 				}
-				return 0
+				return false
 			}
 		}
 	}
 
-	return 0
+	return false
 }
 
 /*
@@ -551,7 +551,7 @@ func prevl(r0 *gc.Flow, reg int) int {
  * hopefully, then the former or latter MOV
  * will be eliminated by copy propagation.
  */
-func subprop(r0 *gc.Flow) int {
+func subprop(r0 *gc.Flow) bool {
 	var p *obj.Prog
 	var info gc.ProgInfo
 	var v1 *obj.Addr
@@ -564,19 +564,19 @@ func subprop(r0 *gc.Flow) int {
 	}
 	p = r0.Prog
 	v1 = &p.From
-	if !(regtyp(v1) != 0) {
+	if !regtyp(v1) {
 		if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 			fmt.Printf("\tnot regtype %v; return 0\n", gc.Ctxt.Dconv(v1))
 		}
-		return 0
+		return false
 	}
 
 	v2 = &p.To
-	if !(regtyp(v2) != 0) {
+	if !regtyp(v2) {
 		if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 			fmt.Printf("\tnot regtype %v; return 0\n", gc.Ctxt.Dconv(v2))
 		}
-		return 0
+		return false
 	}
 
 	for r = gc.Uniqp(r0); r != nil; r = gc.Uniqp(r) {
@@ -599,21 +599,21 @@ func subprop(r0 *gc.Flow) int {
 			if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 				fmt.Printf("\tfound %v; return 0\n", p)
 			}
-			return 0
+			return false
 		}
 
 		if info.Reguse|info.Regset != 0 {
 			if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 				fmt.Printf("\tfound %v; return 0\n", p)
 			}
-			return 0
+			return false
 		}
 
 		if (info.Flags&gc.Move != 0) && (info.Flags&(gc.SizeL|gc.SizeQ|gc.SizeF|gc.SizeD) != 0) && p.To.Type == v1.Type && p.To.Reg == v1.Reg {
 			goto gotit
 		}
 
-		if copyau(&p.From, v2) != 0 || copyau(&p.To, v2) != 0 {
+		if copyau(&p.From, v2) || copyau(&p.To, v2) {
 			if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 				fmt.Printf("\tcopyau %v failed\n", gc.Ctxt.Dconv(v2))
 			}
@@ -631,7 +631,7 @@ func subprop(r0 *gc.Flow) int {
 	if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 		fmt.Printf("\tran off end; return 0\n")
 	}
-	return 0
+	return false
 
 gotit:
 	copysub(&p.To, v1, v2, 1)
@@ -658,7 +658,7 @@ gotit:
 	if gc.Debug['P'] != 0 {
 		fmt.Printf("%v last\n", r.Prog)
 	}
-	return 1
+	return true
 }
 
 /*
@@ -673,7 +673,7 @@ gotit:
  *	set v1	F=1
  *	set v2	return success
  */
-func copyprop(g *gc.Graph, r0 *gc.Flow) int {
+func copyprop(g *gc.Graph, r0 *gc.Flow) bool {
 	var p *obj.Prog
 	var v1 *obj.Addr
 	var v2 *obj.Addr
@@ -684,14 +684,14 @@ func copyprop(g *gc.Graph, r0 *gc.Flow) int {
 	p = r0.Prog
 	v1 = &p.From
 	v2 = &p.To
-	if copyas(v1, v2) != 0 {
-		return 1
+	if copyas(v1, v2) {
+		return true
 	}
 	gactive++
 	return copy1(v1, v2, r0.S1, 0)
 }
 
-func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) int {
+func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) bool {
 	var t int
 	var p *obj.Prog
 
@@ -699,7 +699,7 @@ func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) int {
 		if gc.Debug['P'] != 0 {
 			fmt.Printf("act set; return 1\n")
 		}
-		return 1
+		return true
 	}
 
 	r.Active = int32(gactive)
@@ -711,7 +711,7 @@ func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) int {
 		if gc.Debug['P'] != 0 {
 			fmt.Printf("%v", p)
 		}
-		if !(f != 0) && gc.Uniqp(r) == nil {
+		if f == 0 && gc.Uniqp(r) == nil {
 			f = 1
 			if gc.Debug['P'] != 0 {
 				fmt.Printf("; merge; f=%d", f)
@@ -724,33 +724,33 @@ func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) int {
 			if gc.Debug['P'] != 0 {
 				fmt.Printf("; %v rar; return 0\n", gc.Ctxt.Dconv(v2))
 			}
-			return 0
+			return false
 
 		case 3: /* set */
 			if gc.Debug['P'] != 0 {
 				fmt.Printf("; %v set; return 1\n", gc.Ctxt.Dconv(v2))
 			}
-			return 1
+			return true
 
 		case 1, /* used, substitute */
 			4: /* use and set */
 			if f != 0 {
-				if !(gc.Debug['P'] != 0) {
-					return 0
+				if gc.Debug['P'] == 0 {
+					return false
 				}
 				if t == 4 {
 					fmt.Printf("; %v used+set and f=%d; return 0\n", gc.Ctxt.Dconv(v2), f)
 				} else {
 					fmt.Printf("; %v used and f=%d; return 0\n", gc.Ctxt.Dconv(v2), f)
 				}
-				return 0
+				return false
 			}
 
 			if copyu(p, v2, v1) != 0 {
 				if gc.Debug['P'] != 0 {
 					fmt.Printf("; sub fail; return 0\n")
 				}
-				return 0
+				return false
 			}
 
 			if gc.Debug['P'] != 0 {
@@ -760,13 +760,13 @@ func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) int {
 				if gc.Debug['P'] != 0 {
 					fmt.Printf("; %v used+set; return 1\n", gc.Ctxt.Dconv(v2))
 				}
-				return 1
+				return true
 			}
 		}
 
-		if !(f != 0) {
+		if f == 0 {
 			t = copyu(p, v1, nil)
-			if !(f != 0) && (t == 2 || t == 3 || t == 4) {
+			if f == 0 && (t == 2 || t == 3 || t == 4) {
 				f = 1
 				if gc.Debug['P'] != 0 {
 					fmt.Printf("; %v set and !f; f=%d", gc.Ctxt.Dconv(v1), f)
@@ -778,13 +778,13 @@ func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) int {
 			fmt.Printf("\n")
 		}
 		if r.S2 != nil {
-			if !(copy1(v1, v2, r.S2, f) != 0) {
-				return 0
+			if !copy1(v1, v2, r.S2, f) {
+				return false
 			}
 		}
 	}
 
-	return 1
+	return true
 }
 
 /*
@@ -807,7 +807,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 			return 0
 		}
 
-		if copyau(&p.To, v) != 0 {
+		if copyau(&p.To, v) {
 			return 1
 		}
 		return 0
@@ -836,7 +836,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 			return 0
 		}
 
-		if copyau(&p.To, v) != 0 {
+		if copyau(&p.To, v) {
 			return 4
 		}
 		return 3
@@ -858,23 +858,23 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 	}
 
 	if info.Flags&gc.LeftAddr != 0 {
-		if copyas(&p.From, v) != 0 {
+		if copyas(&p.From, v) {
 			return 2
 		}
 	}
 
 	if info.Flags&(gc.RightRead|gc.RightWrite) == gc.RightRead|gc.RightWrite {
-		if copyas(&p.To, v) != 0 {
+		if copyas(&p.To, v) {
 			return 2
 		}
 	}
 
 	if info.Flags&gc.RightWrite != 0 {
-		if copyas(&p.To, v) != 0 {
+		if copyas(&p.To, v) {
 			if s != nil {
 				return copysub(&p.From, v, s, 1)
 			}
-			if copyau(&p.From, v) != 0 {
+			if copyau(&p.From, v) {
 				return 4
 			}
 			return 3
@@ -889,10 +889,10 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 			return copysub(&p.To, v, s, 1)
 		}
 
-		if copyau(&p.From, v) != 0 {
+		if copyau(&p.From, v) {
 			return 1
 		}
-		if copyau(&p.To, v) != 0 {
+		if copyau(&p.To, v) {
 			return 1
 		}
 	}
@@ -905,7 +905,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
  * could be set/use depending on
  * semantics
  */
-func copyas(a *obj.Addr, v *obj.Addr) int {
+func copyas(a *obj.Addr, v *obj.Addr) bool {
 	if x86.REG_AL <= a.Reg && a.Reg <= x86.REG_R15B {
 		gc.Fatal("use of byte register")
 	}
@@ -914,62 +914,62 @@ func copyas(a *obj.Addr, v *obj.Addr) int {
 	}
 
 	if a.Type != v.Type || a.Name != v.Name || a.Reg != v.Reg {
-		return 0
+		return false
 	}
-	if regtyp(v) != 0 {
-		return 1
+	if regtyp(v) {
+		return true
 	}
 	if v.Type == obj.TYPE_MEM && (v.Name == obj.NAME_AUTO || v.Name == obj.NAME_PARAM) {
 		if v.Offset == a.Offset {
-			return 1
+			return true
 		}
 	}
-	return 0
+	return false
 }
 
-func sameaddr(a *obj.Addr, v *obj.Addr) int {
+func sameaddr(a *obj.Addr, v *obj.Addr) bool {
 	if a.Type != v.Type || a.Name != v.Name || a.Reg != v.Reg {
-		return 0
+		return false
 	}
-	if regtyp(v) != 0 {
-		return 1
+	if regtyp(v) {
+		return true
 	}
 	if v.Type == obj.TYPE_MEM && (v.Name == obj.NAME_AUTO || v.Name == obj.NAME_PARAM) {
 		if v.Offset == a.Offset {
-			return 1
+			return true
 		}
 	}
-	return 0
+	return false
 }
 
 /*
  * either direct or indirect
  */
-func copyau(a *obj.Addr, v *obj.Addr) int {
-	if copyas(a, v) != 0 {
+func copyau(a *obj.Addr, v *obj.Addr) bool {
+	if copyas(a, v) {
 		if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 			fmt.Printf("\tcopyau: copyas returned 1\n")
 		}
-		return 1
+		return true
 	}
 
-	if regtyp(v) != 0 {
+	if regtyp(v) {
 		if a.Type == obj.TYPE_MEM && a.Reg == v.Reg {
 			if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 				fmt.Printf("\tcopyau: found indir use - return 1\n")
 			}
-			return 1
+			return true
 		}
 
 		if a.Index == v.Reg {
 			if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 				fmt.Printf("\tcopyau: found index use - return 1\n")
 			}
-			return 1
+			return true
 		}
 	}
 
-	return 0
+	return false
 }
 
 /*
@@ -979,7 +979,7 @@ func copyau(a *obj.Addr, v *obj.Addr) int {
 func copysub(a *obj.Addr, v *obj.Addr, s *obj.Addr, f int) int {
 	var reg int
 
-	if copyas(a, v) != 0 {
+	if copyas(a, v) {
 		reg = int(s.Reg)
 		if reg >= x86.REG_AX && reg <= x86.REG_R15 || reg >= x86.REG_X0 && reg <= x86.REG_X0+15 {
 			if f != 0 {
@@ -990,7 +990,7 @@ func copysub(a *obj.Addr, v *obj.Addr, s *obj.Addr, f int) int {
 		return 0
 	}
 
-	if regtyp(v) != 0 {
+	if regtyp(v) {
 		reg = int(v.Reg)
 		if a.Type == obj.TYPE_MEM && int(a.Reg) == reg {
 			if (s.Reg == x86.REG_BP || s.Reg == x86.REG_R13) && a.Index != x86.REG_NONE {
@@ -1068,10 +1068,10 @@ loop:
 	}
 }
 
-func smallindir(a *obj.Addr, reg *obj.Addr) int {
-	return bool2int(regtyp(reg) != 0 && a.Type == obj.TYPE_MEM && a.Reg == reg.Reg && a.Index == x86.REG_NONE && 0 <= a.Offset && a.Offset < 4096)
+func smallindir(a *obj.Addr, reg *obj.Addr) bool {
+	return regtyp(reg) && a.Type == obj.TYPE_MEM && a.Reg == reg.Reg && a.Index == x86.REG_NONE && 0 <= a.Offset && a.Offset < 4096
 }
 
-func stackaddr(a *obj.Addr) int {
-	return bool2int(a.Type == obj.TYPE_REG && a.Reg == x86.REG_SP)
+func stackaddr(a *obj.Addr) bool {
+	return a.Type == obj.TYPE_REG && a.Reg == x86.REG_SP
 }

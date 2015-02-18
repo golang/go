@@ -10,12 +10,12 @@ func CASE(a int, b int) int {
 	return a<<16 | b
 }
 
-func overlap_cplx(f *Node, t *Node) int {
+func overlap_cplx(f *Node, t *Node) bool {
 	// check whether f and t could be overlapping stack references.
 	// not exact, because it's hard to check for the stack register
 	// in portable code.  close enough: worst case we will allocate
 	// an extra temporary and the registerizer will clean it up.
-	return bool2int(f.Op == OINDREG && t.Op == OINDREG && f.Xoffset+f.Type.Width >= t.Xoffset && t.Xoffset+t.Type.Width >= f.Xoffset)
+	return f.Op == OINDREG && t.Op == OINDREG && f.Xoffset+f.Type.Width >= t.Xoffset && t.Xoffset+t.Type.Width >= f.Xoffset
 }
 
 func Complexbool(op int, nl *Node, nr *Node, true_ bool, likely int, to *obj.Prog) {
@@ -31,20 +31,20 @@ func Complexbool(op int, nl *Node, nr *Node, true_ bool, likely int, to *obj.Pro
 
 	// make both sides addable in ullman order
 	if nr != nil {
-		if nl.Ullman > nr.Ullman && !(nl.Addable != 0) {
+		if nl.Ullman > nr.Ullman && nl.Addable == 0 {
 			Tempname(&tnl, nl.Type)
 			Thearch.Cgen(nl, &tnl)
 			nl = &tnl
 		}
 
-		if !(nr.Addable != 0) {
+		if nr.Addable == 0 {
 			Tempname(&tnr, nr.Type)
 			Thearch.Cgen(nr, &tnr)
 			nr = &tnr
 		}
 	}
 
-	if !(nl.Addable != 0) {
+	if nl.Addable == 0 {
 		Tempname(&tnl, nl.Type)
 		Thearch.Cgen(nl, &tnl)
 		nl = &tnl
@@ -87,7 +87,7 @@ func subnode(nr *Node, ni *Node, nc *Node) {
 	var tc int
 	var t *Type
 
-	if !(nc.Addable != 0) {
+	if nc.Addable == 0 {
 		Fatal("subnode not addable")
 	}
 
@@ -243,7 +243,7 @@ func nodfconst(n *Node, t *Type, fval *Mpflt) {
 	n.Val.Ctype = CTFLT
 	n.Type = t
 
-	if !(Isfloat[t.Etype] != 0) {
+	if Isfloat[t.Etype] == 0 {
 		Fatal("nodfconst: bad type %v", Tconv(t, 0))
 	}
 }
@@ -251,7 +251,7 @@ func nodfconst(n *Node, t *Type, fval *Mpflt) {
 /*
  * cplx.c
  */
-func Complexop(n *Node, res *Node) int {
+func Complexop(n *Node, res *Node) bool {
 	if n != nil && n.Type != nil {
 		if Iscomplex[n.Type.Etype] != 0 {
 			goto maybe
@@ -292,11 +292,11 @@ maybe:
 
 	//dump("\ncomplex-no", n);
 no:
-	return 0
+	return false
 
 	//dump("\ncomplex-yes", n);
 yes:
-	return 1
+	return true
 }
 
 func Complexmove(f *Node, t *Node) {
@@ -313,7 +313,7 @@ func Complexmove(f *Node, t *Node) {
 		Dump("complexmove-t", t)
 	}
 
-	if !(t.Addable != 0) {
+	if t.Addable == 0 {
 		Fatal("complexmove: to not addable")
 	}
 
@@ -322,7 +322,6 @@ func Complexmove(f *Node, t *Node) {
 	switch uint32(ft)<<16 | uint32(tt) {
 	default:
 		Fatal("complexmove: unknown conversion: %v -> %v\n", Tconv(f.Type, 0), Tconv(t.Type, 0))
-		fallthrough
 
 		// complex to complex move/convert.
 	// make f addable.
@@ -331,7 +330,7 @@ func Complexmove(f *Node, t *Node) {
 		TCOMPLEX64<<16 | TCOMPLEX128,
 		TCOMPLEX128<<16 | TCOMPLEX64,
 		TCOMPLEX128<<16 | TCOMPLEX128:
-		if !(f.Addable != 0) || overlap_cplx(f, t) != 0 {
+		if f.Addable == 0 || overlap_cplx(f, t) {
 			Tempname(&tmp, f.Type)
 			Complexmove(f, &tmp)
 			f = &tmp
@@ -380,7 +379,7 @@ func Complexgen(n *Node, res *Node) {
 	case OREAL,
 		OIMAG:
 		nl = n.Left
-		if !(nl.Addable != 0) {
+		if nl.Addable == 0 {
 			Tempname(&tmp, nl.Type)
 			Complexgen(nl, &tmp)
 			nl = &tmp
@@ -403,7 +402,7 @@ func Complexgen(n *Node, res *Node) {
 	tr = Simsimtype(n.Type)
 	tr = cplxsubtype(tr)
 	if tl != tr {
-		if !(n.Addable != 0) {
+		if n.Addable == 0 {
 			Tempname(&n1, n.Type)
 			Complexmove(n, &n1)
 			n = &n1
@@ -413,7 +412,7 @@ func Complexgen(n *Node, res *Node) {
 		return
 	}
 
-	if !(res.Addable != 0) {
+	if res.Addable == 0 {
 		Thearch.Igen(res, &n1, nil)
 		Thearch.Cgen(n, &n1)
 		Thearch.Regfree(&n1)
@@ -429,7 +428,6 @@ func Complexgen(n *Node, res *Node) {
 	default:
 		Dump("complexgen: unknown op", n)
 		Fatal("complexgen: unknown op %v", Oconv(int(n.Op), 0))
-		fallthrough
 
 	case ODOT,
 		ODOTPTR,
@@ -464,20 +462,20 @@ func Complexgen(n *Node, res *Node) {
 
 	// make both sides addable in ullman order
 	if nr != nil {
-		if nl.Ullman > nr.Ullman && !(nl.Addable != 0) {
+		if nl.Ullman > nr.Ullman && nl.Addable == 0 {
 			Tempname(&tnl, nl.Type)
 			Thearch.Cgen(nl, &tnl)
 			nl = &tnl
 		}
 
-		if !(nr.Addable != 0) {
+		if nr.Addable == 0 {
 			Tempname(&tnr, nr.Type)
 			Thearch.Cgen(nr, &tnr)
 			nr = &tnr
 		}
 	}
 
-	if !(nl.Addable != 0) {
+	if nl.Addable == 0 {
 		Tempname(&tnl, nl.Type)
 		Thearch.Cgen(nl, &tnl)
 		nl = &tnl

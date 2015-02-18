@@ -31,50 +31,6 @@
 
 package obj
 
-import (
-	"fmt"
-	"os"
-	"path"
-	"strings"
-)
-
-func addlib(ctxt *Link, src, obj, pathname string) {
-	name := path.Clean(pathname)
-
-	// runtime.a -> runtime
-	short := strings.TrimSuffix(name, ".a")
-
-	// already loaded?
-	for i := range ctxt.Library {
-		if ctxt.Library[i].Pkg == short {
-			return
-		}
-	}
-
-	var pname string
-	// runtime -> runtime.a for search
-	if (!(ctxt.Windows != 0) && name[0] == '/') || (ctxt.Windows != 0 && name[1] == ':') {
-		pname = name
-	} else {
-		// try dot, -L "libdir", and then goroot.
-		for _, dir := range ctxt.Libdir {
-			pname = dir + "/" + name
-			if _, err := os.Stat(pname); !os.IsNotExist(err) {
-				break
-			}
-		}
-	}
-	pname = path.Clean(pname)
-
-	// runtime.a -> runtime
-	pname = strings.TrimSuffix(pname, ".a")
-
-	if ctxt.Debugvlog > 1 && ctxt.Bso != nil {
-		fmt.Fprintf(ctxt.Bso, "%5.2f addlib: %s %s pulls in %s\n", Cputime(), obj, src, pname)
-	}
-	Addlibpath(ctxt, src, obj, pname, name)
-}
-
 /*
  * add library to library list.
  *	srcref: src file referring to package
@@ -82,24 +38,6 @@ func addlib(ctxt *Link, src, obj, pathname string) {
  *	file: object file, e.g., /home/rsc/go/pkg/container/vector.a
  *	pkg: package import path, e.g. container/vector
  */
-func Addlibpath(ctxt *Link, srcref, objref, file, pkg string) {
-	for _, lib := range ctxt.Library {
-		if lib.File == file {
-			return
-		}
-	}
-
-	if ctxt.Debugvlog > 1 && ctxt.Bso != nil {
-		fmt.Fprintf(ctxt.Bso, "%5.2f addlibpath: srcref: %s objref: %s file: %s pkg: %s\n", Cputime(), srcref, objref, file, pkg)
-	}
-
-	ctxt.Library = append(ctxt.Library, Library{
-		Objref: objref,
-		Srcref: srcref,
-		File:   file,
-		Pkg:    pkg,
-	})
-}
 
 const (
 	LOG = 5

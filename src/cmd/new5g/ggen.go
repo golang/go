@@ -36,7 +36,7 @@ func defframe(ptxt *obj.Prog) {
 	r0 = 0
 	for l = gc.Curfn.Dcl; l != nil; l = l.Next {
 		n = l.N
-		if !(n.Needzero != 0) {
+		if n.Needzero == 0 {
 			continue
 		}
 		if n.Class != gc.PAUTO {
@@ -176,7 +176,7 @@ func ginscall(f *gc.Node, proc int) {
 
 			p = gins(arm.ABL, nil, f)
 			gc.Afunclit(&p.To, f)
-			if proc == -1 || gc.Noreturn(p) != 0 {
+			if proc == -1 || gc.Noreturn(p) {
 				gins(obj.AUNDEF, nil, nil)
 			}
 			break
@@ -265,7 +265,7 @@ func cgen_callinter(n *gc.Node, res *gc.Node, proc int) {
 		reg[r]--
 	}
 
-	if !(i.Addable != 0) {
+	if i.Addable == 0 {
 		gc.Tempname(&tmpi, i.Type)
 		cgen(i, &tmpi)
 		i = &tmpi
@@ -529,7 +529,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
  *	res = nl << nr
  *	res = nl >> nr
  */
-func cgen_shift(op int, bounded int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	var n1 gc.Node
 	var n2 gc.Node
 	var n3 gc.Node
@@ -709,7 +709,7 @@ func clearfat(nl *gc.Node) {
 	w = uint32(nl.Type.Width)
 
 	// Avoid taking the address for simple enough types.
-	if componentgen(nil, nl) != 0 {
+	if componentgen(nil, nl) {
 		return
 	}
 

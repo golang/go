@@ -93,7 +93,7 @@ func gclean() {
 	}
 }
 
-func anyregalloc() int {
+func anyregalloc() bool {
 	var i int
 	var j int
 
@@ -106,11 +106,11 @@ func anyregalloc() int {
 				goto ok
 			}
 		}
-		return 1
+		return true
 	ok:
 	}
 
-	return 0
+	return false
 }
 
 /*
@@ -176,7 +176,6 @@ func regalloc(n *gc.Node, t *gc.Type, o *gc.Node) {
 			fmt.Printf("R%d %p\n", i, regpc[i-ppc64.REG_R0])
 		}
 		gc.Fatal("out of fixed registers")
-		fallthrough
 
 	case gc.TFLOAT32,
 		gc.TFLOAT64:
@@ -199,7 +198,6 @@ func regalloc(n *gc.Node, t *gc.Type, o *gc.Node) {
 			fmt.Printf("F%d %p\n", i, regpc[i-ppc64.REG_R0])
 		}
 		gc.Fatal("out of floating registers")
-		fallthrough
 
 	case gc.TCOMPLEX64,
 		gc.TCOMPLEX128:
@@ -277,7 +275,6 @@ func ginscon2(as int, n2 *gc.Node, c int64) {
 	switch as {
 	default:
 		gc.Fatal("ginscon2")
-		fallthrough
 
 	case ppc64.ACMP:
 		if -ppc64.BIG <= c && c <= ppc64.BIG {
@@ -356,7 +353,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 	}
 
 	// cannot have two memory operands
-	if gc.Ismem(f) != 0 && gc.Ismem(t) != 0 {
+	if gc.Ismem(f) && gc.Ismem(t) {
 		goto hard
 	}
 
@@ -391,7 +388,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 		ft = tt // so big switch will choose a simple mov
 
 		// constants can't move directly to memory.
-		if gc.Ismem(t) != 0 {
+		if gc.Ismem(t) {
 			goto hard
 		}
 	}
@@ -422,7 +419,6 @@ func gmove(f *gc.Node, t *gc.Node) {
 	switch uint32(ft)<<16 | uint32(tt) {
 	default:
 		gc.Fatal("gmove %v -> %v", gc.Tconv(f.Type, obj.FmtLong), gc.Tconv(t.Type, obj.FmtLong))
-		fallthrough
 
 		/*
 		 * integer copy and truncate
@@ -1140,10 +1136,10 @@ const (
 	OAddable = 1 << 1
 )
 
-func xgen(n *gc.Node, a *gc.Node, o int) int {
+func xgen(n *gc.Node, a *gc.Node, o int) bool {
 	// TODO(minux)
 
-	return -1
+	return -1 != 0 /*TypeKind(100016)*/
 }
 
 func sudoclean() {
@@ -1161,9 +1157,9 @@ func sudoclean() {
  * after successful sudoaddable,
  * to release the register used for a.
  */
-func sudoaddable(as int, n *gc.Node, a *obj.Addr) int {
+func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
 	// TODO(minux)
 
 	*a = obj.Addr{}
-	return 0
+	return false
 }

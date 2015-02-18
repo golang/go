@@ -161,18 +161,18 @@ ret:
 	return n
 }
 
-func isunsafebuiltin(n *Node) int {
+func isunsafebuiltin(n *Node) bool {
 	if n == nil || n.Op != ONAME || n.Sym == nil || n.Sym.Pkg != unsafepkg {
-		return 0
+		return false
 	}
 	if n.Sym.Name == "Sizeof" {
-		return 1
+		return true
 	}
 	if n.Sym.Name == "Offsetof" {
-		return 1
+		return true
 	}
 	if n.Sym.Name == "Alignof" {
-		return 1
+		return true
 	}
-	return 0
+	return false
 }

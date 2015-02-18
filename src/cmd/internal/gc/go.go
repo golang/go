@@ -7,7 +7,6 @@ package gc
 import (
 	"bytes"
 	"cmd/internal/obj"
-	"encoding/binary"
 )
 
 // Copyright 2009 The Go Authors. All rights reserved.
@@ -162,7 +161,7 @@ type Node struct {
 	Addable        uint8
 	Trecur         uint8
 	Etype          uint8
-	Bounded        uint8
+	Bounded        bool
 	Class          uint8
 	Method         uint8
 	Embedded       uint8
@@ -191,7 +190,7 @@ type Node struct {
 	Likely         int8
 	Hasbreak       uint8
 	Needzero       uint8
-	Needctxt       uint8
+	Needctxt       bool
 	Esc            uint
 	Funcdepth      int
 	Type           *Type
@@ -245,7 +244,7 @@ type NodeList struct {
 
 type Type struct {
 	Etype       uint8
-	Nointerface uint8
+	Nointerface bool
 	Noalg       uint8
 	Chan        uint8
 	Trecur      uint8
@@ -918,6 +917,10 @@ var nblank *Node
 
 var Use_sse int
 
+var hunk string
+
+var nhunk int32
+
 var thunk int32
 
 var Funcdepth int
@@ -1119,7 +1122,6 @@ const (
 )
 
 type Arch struct {
-	ByteOrder      binary.ByteOrder
 	Thechar        int
 	Thestring      string
 	Thelinkarch    *obj.LinkArch
@@ -1127,7 +1129,7 @@ type Arch struct {
 	REGSP          int
 	REGCTXT        int
 	MAXWIDTH       int64
-	Anyregalloc    func() int
+	Anyregalloc    func() bool
 	Betypeinit     func()
 	Bgen           func(*Node, bool, int, *obj.Prog)
 	Cgen           func(*Node, *Node)
@@ -1148,10 +1150,10 @@ type Arch struct {
 	Proginfo       func(*ProgInfo, *obj.Prog)
 	Regalloc       func(*Node, *Type, *Node)
 	Regfree        func(*Node)
-	Regtyp         func(*obj.Addr) int
-	Sameaddr       func(*obj.Addr, *obj.Addr) int
-	Smallindir     func(*obj.Addr, *obj.Addr) int
-	Stackaddr      func(*obj.Addr) int
+	Regtyp         func(*obj.Addr) bool
+	Sameaddr       func(*obj.Addr, *obj.Addr) bool
+	Smallindir     func(*obj.Addr, *obj.Addr) bool
+	Stackaddr      func(*obj.Addr) bool
 	Excludedregs   func() uint64
 	RtoB           func(int) uint64
 	FtoB           func(int) uint64

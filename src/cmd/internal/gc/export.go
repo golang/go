@@ -42,19 +42,19 @@ func exportname(s string) bool {
 	return unicode.IsUpper(r)
 }
 
-func initname(s string) int {
-	return bool2int(s == "init")
+func initname(s string) bool {
+	return s == "init"
 }
 
 // exportedsym reports whether a symbol will be visible
 // to files that import our package.
-func exportedsym(sym *Sym) int {
+func exportedsym(sym *Sym) bool {
 	// Builtins are visible everywhere.
 	if sym.Pkg == builtinpkg || sym.Origpkg == builtinpkg {
-		return 1
+		return true
 	}
 
-	return bool2int(sym.Pkg == localpkg && exportname(sym.Name))
+	return sym.Pkg == localpkg && exportname(sym.Name)
 }
 
 func autoexport(n *Node, ctxt int) {
@@ -69,10 +69,10 @@ func autoexport(n *Node, ctxt int) {
 	}
 
 	// -A is for cmd/gc/mkbuiltin script, so export everything
-	if Debug['A'] != 0 || exportname(n.Sym.Name) || initname(n.Sym.Name) != 0 {
+	if Debug['A'] != 0 || exportname(n.Sym.Name) || initname(n.Sym.Name) {
 		exportsym(n)
 	}
-	if asmhdr != "" && n.Sym.Pkg == localpkg && !(n.Sym.Flags&SymAsm != 0) {
+	if asmhdr != "" && n.Sym.Pkg == localpkg && n.Sym.Flags&SymAsm == 0 {
 		n.Sym.Flags |= SymAsm
 		asmlist = list(asmlist, n)
 	}
@@ -86,7 +86,7 @@ func dumppkg(p *Pkg) {
 	}
 	p.Exported = 1
 	suffix = ""
-	if !(p.Direct != 0) {
+	if p.Direct == 0 {
 		suffix = " // indirect"
 	}
 	fmt.Fprintf(bout, "\timport %s \"%v\"%s\n", p.Name, Zconv(p.Path, 0), suffix)
@@ -102,7 +102,7 @@ func reexportdeplist(ll *NodeList) {
 func reexportdep(n *Node) {
 	var t *Type
 
-	if !(n != nil) {
+	if n == nil {
 		return
 	}
 
@@ -118,14 +118,14 @@ func reexportdep(n *Node) {
 			}
 
 			// nodes for method calls.
-			if !(n.Type != nil) || n.Type.Thistuple > 0 {
+			if n.Type == nil || n.Type.Thistuple > 0 {
 				break
 			}
 			fallthrough
 
 			// fallthrough
 		case PEXTERN:
-			if n.Sym != nil && !(exportedsym(n.Sym) != 0) {
+			if n.Sym != nil && !exportedsym(n.Sym) {
 				if Debug['E'] != 0 {
 					fmt.Printf("reexport name %v\n", Sconv(n.Sym, 0))
 				}
@@ -141,7 +141,7 @@ func reexportdep(n *Node) {
 			if Isptr[t.Etype] != 0 {
 				t = t.Type
 			}
-			if t != nil && t.Sym != nil && t.Sym.Def != nil && !(exportedsym(t.Sym) != 0) {
+			if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
 				if Debug['E'] != 0 {
 					fmt.Printf("reexport type %v from declaration\n", Sconv(t.Sym, 0))
 				}
@@ -155,7 +155,7 @@ func reexportdep(n *Node) {
 			if Isptr[t.Etype] != 0 {
 				t = t.Type
 			}
-			if t != nil && t.Sym != nil && t.Sym.Def != nil && !(exportedsym(t.Sym) != 0) {
+			if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
 				if Debug['E'] != 0 {
 					fmt.Printf("reexport literal type %v\n", Sconv(t.Sym, 0))
 				}
@@ -166,7 +166,7 @@ func reexportdep(n *Node) {
 
 		// fallthrough
 	case OTYPE:
-		if n.Sym != nil && !(exportedsym(n.Sym) != 0) {
+		if n.Sym != nil && !exportedsym(n.Sym) {
 			if Debug['E'] != 0 {
 				fmt.Printf("reexport literal/type %v\n", Sconv(n.Sym, 0))
 			}
@@ -192,10 +192,10 @@ func reexportdep(n *Node) {
 		OMAKECHAN:
 		t = n.Type
 
-		if !(t.Sym != nil) && t.Type != nil {
+		if t.Sym == nil && t.Type != nil {
 			t = t.Type
 		}
-		if t != nil && t.Sym != nil && t.Sym.Def != nil && !(exportedsym(t.Sym) != 0) {
+		if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
 			if Debug['E'] != 0 {
 				fmt.Printf("reexport type for expression %v\n", Sconv(t.Sym, 0))
 			}
@@ -227,7 +227,7 @@ func dumpexportconst(s *Sym) {
 	t = n.Type // may or may not be specified
 	dumpexporttype(t)
 
-	if t != nil && !(isideal(t) != 0) {
+	if t != nil && !isideal(t) {
 		fmt.Fprintf(bout, "\tconst %v %v = %v\n", Sconv(s, obj.FmtSharp), Tconv(t, obj.FmtSharp), Vconv(&n.Val, obj.FmtSharp))
 	} else {
 		fmt.Fprintf(bout, "\tconst %v = %v\n", Sconv(s, obj.FmtSharp), Vconv(&n.Val, obj.FmtSharp))
@@ -329,7 +329,7 @@ func dumpexporttype(t *Type) {
 	fmt.Fprintf(bout, "\ttype %v %v\n", Sconv(t.Sym, obj.FmtSharp), Tconv(t, obj.FmtSharp|obj.FmtLong))
 	for i = 0; i < n; i++ {
 		f = m[i]
-		if f.Nointerface != 0 {
+		if f.Nointerface {
 			fmt.Fprintf(bout, "\t//go:nointerface\n")
 		}
 		if f.Type.Nname != nil && f.Type.Nname.Inl != nil { // nname was set by caninl
@@ -428,7 +428,7 @@ func importsym(s *Sym, op int) *Sym {
 
 	// mark the symbol so it is not reexported
 	if s.Def == nil {
-		if exportname(s.Name) || initname(s.Name) != 0 {
+		if exportname(s.Name) || initname(s.Name) {
 			s.Flags |= SymExport
 		} else {
 			s.Flags |= SymPackage // package scope
@@ -474,7 +474,7 @@ func importimport(s *Sym, z *Strlit) {
 		Yyerror("conflicting names %s and %s for package \"%v\"", p.Name, s.Name, Zconv(p.Path, 0))
 	}
 
-	if !(incannedimport != 0) && myimportpath != "" && z.S == myimportpath {
+	if incannedimport == 0 && myimportpath != "" && z.S == myimportpath {
 		Yyerror("import \"%v\": package depends on \"%v\" (import cycle)", Zconv(importpkg.Path, 0), Zconv(z, 0))
 		errorexit()
 	}

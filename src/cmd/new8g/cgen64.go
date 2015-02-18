@@ -44,7 +44,6 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	switch n.Op {
 	default:
 		gc.Fatal("cgen64 %v", gc.Oconv(int(n.Op), 0))
-		fallthrough
 
 	case gc.OMINUS:
 		cgen(n.Left, res)
@@ -79,13 +78,13 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 	l = n.Left
 	r = n.Right
-	if !(l.Addable != 0) {
+	if l.Addable == 0 {
 		gc.Tempname(&t1, l.Type)
 		cgen(l, &t1)
 		l = &t1
 	}
 
-	if r != nil && !(r.Addable != 0) {
+	if r != nil && r.Addable == 0 {
 		gc.Tempname(&t2, r.Type)
 		cgen(r, &t2)
 		r = &t2
@@ -98,7 +97,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	// Setup for binary operation.
 	split64(l, &lo1, &hi1)
 
-	if gc.Is64(r.Type) != 0 {
+	if gc.Is64(r.Type) {
 		split64(r, &lo2, &hi2)
 	}
 
@@ -196,7 +195,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		if r.Op == gc.OLITERAL {
 			v = uint64(gc.Mpgetfix(r.Val.U.Xval))
 			if v >= 64 {
-				if gc.Is64(r.Type) != 0 {
+				if gc.Is64(r.Type) {
 					splitclean()
 				}
 				splitclean()
@@ -208,7 +207,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 			}
 
 			if v >= 32 {
-				if gc.Is64(r.Type) != 0 {
+				if gc.Is64(r.Type) {
 					splitclean()
 				}
 				split64(res, &lo2, &hi2)
@@ -243,7 +242,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		// if high bits are set, zero value.
 		p1 = nil
 
-		if gc.Is64(r.Type) != 0 {
+		if gc.Is64(r.Type) {
 			gins(i386.ACMPL, &hi2, ncon(0))
 			p1 = gc.Gbranch(i386.AJNE, nil, +1)
 			gins(i386.AMOVL, &lo2, &cx)
@@ -285,7 +284,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		if r.Op == gc.OLITERAL {
 			v = uint64(gc.Mpgetfix(r.Val.U.Xval))
 			if v >= 64 {
-				if gc.Is64(r.Type) != 0 {
+				if gc.Is64(r.Type) {
 					splitclean()
 				}
 				splitclean()
@@ -305,7 +304,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 			}
 
 			if v >= 32 {
-				if gc.Is64(r.Type) != 0 {
+				if gc.Is64(r.Type) {
 					splitclean()
 				}
 				split64(res, &lo2, &hi2)
@@ -344,7 +343,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		// if high bits are set, zero value.
 		p1 = nil
 
-		if gc.Is64(r.Type) != 0 {
+		if gc.Is64(r.Type) {
 			gins(i386.ACMPL, &hi2, ncon(0))
 			p1 = gc.Gbranch(i386.AJNE, nil, +1)
 			gins(i386.AMOVL, &lo2, &cx)
@@ -496,7 +495,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		gins(optoas(int(n.Op), lo1.Type), &hi2, &dx)
 	}
 
-	if gc.Is64(r.Type) != 0 {
+	if gc.Is64(r.Type) {
 		splitclean()
 	}
 	splitclean()
@@ -542,7 +541,6 @@ func cmp64(nl *gc.Node, nr *gc.Node, op int, likely int, to *obj.Prog) {
 	switch op {
 	default:
 		gc.Fatal("cmp64 %v %v", gc.Oconv(int(op), 0), gc.Tconv(t, 0))
-		fallthrough
 
 		// cmp hi
 	// jne L

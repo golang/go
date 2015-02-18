@@ -470,16 +470,14 @@ func span9(ctxt *obj.Link, cursym *obj.LSym) {
 			if (o.type_ == 16 || o.type_ == 17) && p.Pcond != nil {
 				otxt = p.Pcond.Pc - c
 				if otxt < -(1<<15)+10 || otxt >= (1<<15)-10 {
-					q = new(obj.Prog)
-					q.Ctxt = p.Ctxt
+					q = ctxt.NewProg()
 					q.Link = p.Link
 					p.Link = q
 					q.As = ABR
 					q.To.Type = obj.TYPE_BRANCH
 					q.Pcond = p.Pcond
 					p.Pcond = q
-					q = new(obj.Prog)
-					q.Ctxt = p.Ctxt
+					q = ctxt.NewProg()
 					q.Link = p.Link
 					p.Link = q
 					q.As = ABR
@@ -534,12 +532,12 @@ func span9(ctxt *obj.Link, cursym *obj.LSym) {
 	}
 }
 
-func isint32(v int64) int {
-	return bool2int(int64(int32(v)) == v)
+func isint32(v int64) bool {
+	return int64(int32(v)) == v
 }
 
-func isuint32(v uint64) int {
-	return bool2int(uint64(uint32(v)) == v)
+func isuint32(v uint64) bool {
+	return uint64(uint32(v)) == v
 }
 
 func aclass(ctxt *obj.Link, a *obj.Addr) int {
@@ -637,7 +635,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 				if -BIG <= ctxt.Instoffset && ctxt.Instoffset <= BIG {
 					return C_SACON
 				}
-				if isint32(ctxt.Instoffset) != 0 {
+				if isint32(ctxt.Instoffset) {
 					return C_LACON
 				}
 				return C_DACON
@@ -689,10 +687,10 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 			if ctxt.Instoffset <= 0xffff {
 				return C_ANDCON
 			}
-			if ctxt.Instoffset&0xffff == 0 && isuint32(uint64(ctxt.Instoffset)) != 0 { /* && (instoffset & (1<<31)) == 0) */
+			if ctxt.Instoffset&0xffff == 0 && isuint32(uint64(ctxt.Instoffset)) { /* && (instoffset & (1<<31)) == 0) */
 				return C_UCON
 			}
-			if isint32(ctxt.Instoffset) != 0 || isuint32(uint64(ctxt.Instoffset)) != 0 {
+			if isint32(ctxt.Instoffset) || isuint32(uint64(ctxt.Instoffset)) {
 				return C_LCON
 			}
 			return C_DCON
@@ -701,10 +699,10 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 		if ctxt.Instoffset >= -0x8000 {
 			return C_ADDCON
 		}
-		if ctxt.Instoffset&0xffff == 0 && isint32(ctxt.Instoffset) != 0 {
+		if ctxt.Instoffset&0xffff == 0 && isint32(ctxt.Instoffset) {
 			return C_UCON
 		}
-		if isint32(ctxt.Instoffset) != 0 {
+		if isint32(ctxt.Instoffset) {
 			return C_LCON
 		}
 		return C_DCON
@@ -1407,20 +1405,20 @@ func addaddrreloc(ctxt *obj.Link, s *obj.LSym, o1 *uint32, o2 *uint32) {
 /*
  * 32-bit masks
  */
-func getmask(m []byte, v uint32) int {
+func getmask(m []byte, v uint32) bool {
 	var i int
 
 	m[1] = 0
 	m[0] = m[1]
 	if v != ^uint32(0) && v&(1<<31) != 0 && v&1 != 0 { /* MB > ME */
-		if getmask(m, ^v) != 0 {
+		if getmask(m, ^v) {
 			i = int(m[0])
 			m[0] = m[1] + 1
 			m[1] = byte(i - 1)
-			return 1
+			return true
 		}
 
-		return 0
+		return false
 	}
 
 	for i = 0; i < 32; i++ {
@@ -1429,25 +1427,25 @@ func getmask(m []byte, v uint32) int {
 			for {
 				m[1] = byte(i)
 				i++
-				if !(i < 32 && v&(1<<uint(31-i)) != 0) {
+				if i >= 32 || v&(1<<uint(31-i)) == 0 {
 					break
 				}
 			}
 
 			for ; i < 32; i++ {
 				if v&(1<<uint(31-i)) != 0 {
-					return 0
+					return false
 				}
 			}
-			return 1
+			return true
 		}
 	}
 
-	return 0
+	return false
 }
 
 func maskgen(ctxt *obj.Link, p *obj.Prog, m []byte, v uint32) {
-	if !(getmask(m, v) != 0) {
+	if !getmask(m, v) {
 		ctxt.Diag("cannot generate mask #%x\n%v", v, p)
 	}
 }
@@ -1455,7 +1453,7 @@ func maskgen(ctxt *obj.Link, p *obj.Prog, m []byte, v uint32) {
 /*
  * 64-bit masks (rldic etc)
  */
-func getmask64(m []byte, v uint64) int {
+func getmask64(m []byte, v uint64) bool {
 	var i int
 
 	m[1] = 0
@@ -1466,25 +1464,25 @@ func getmask64(m []byte, v uint64) int {
 			for {
 				m[1] = byte(i)
 				i++
-				if !(i < 64 && v&(uint64(1)<<uint(63-i)) != 0) {
+				if i >= 64 || v&(uint64(1)<<uint(63-i)) == 0 {
 					break
 				}
 			}
 
 			for ; i < 64; i++ {
 				if v&(uint64(1)<<uint(63-i)) != 0 {
-					return 0
+					return false
 				}
 			}
-			return 1
+			return true
 		}
 	}
 
-	return 0
+	return false
 }
 
 func maskgen64(ctxt *obj.Link, p *obj.Prog, m []byte, v uint64) {
-	if !(getmask64(m, v) != 0) {
+	if !getmask64(m, v) {
 		ctxt.Diag("cannot generate mask #%x\n%v", v, p)
 	}
 }
@@ -1493,7 +1491,7 @@ func loadu32(r int, d int64) uint32 {
 	var v int32
 
 	v = int32(d >> 16)
-	if isuint32(uint64(d)) != 0 {
+	if isuint32(uint64(d)) {
 		return LOP_IRR(OP_ORIS, uint32(r), REGZERO, uint32(v))
 	}
 	return AOP_IRR(OP_ADDIS, uint32(r), REGZERO, uint32(v))
@@ -1574,7 +1572,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 				log.Fatalf("invalid handling of %v", p)
 			}
 			v >>= 16
-			if r == REGZERO && isuint32(uint64(d)) != 0 {
+			if r == REGZERO && isuint32(uint64(d)) {
 				o1 = LOP_IRR(OP_ORIS, uint32(p.To.Reg), REGZERO, uint32(v))
 				break
 			}
@@ -1862,7 +1860,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		if r == 0 {
 			r = int(p.To.Reg)
 		}
-		if p.As == AADD && (!(r0iszero != 0 /*TypeKind(100016)*/) && p.Reg == 0 || r0iszero != 0 /*TypeKind(100016)*/ && p.To.Reg == 0) {
+		if p.As == AADD && (r0iszero == 0 /*TypeKind(100016)*/ && p.Reg == 0 || r0iszero != 0 /*TypeKind(100016)*/ && p.To.Reg == 0) {
 			ctxt.Diag("literal operation on R0\n%v", p)
 		}
 		o1 = AOP_IRR(uint32(opirr(ctxt, int(p.As)+ALAST)), uint32(p.To.Reg), uint32(r), uint32(v)>>16)

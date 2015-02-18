@@ -183,18 +183,13 @@ func printblock(bb *BasicBlock) {
 // are two criteria for termination.  If the end of basic block is reached a
 // value of zero is returned.  If the callback returns a non-zero value, the
 // iteration is stopped and the value of the callback is returned.
-func blockany(bb *BasicBlock, callback func(*obj.Prog) int) int {
-	var p *obj.Prog
-	var result int
-
-	for p = bb.last; p != nil; p = p.Opt.(*obj.Prog) {
-		result = callback(p)
-		if result != 0 {
-			return result
+func blockany(bb *BasicBlock, f func(*obj.Prog) bool) bool {
+	for p := bb.last; p != nil; p = p.Opt.(*obj.Prog) {
+		if f(p) {
+			return true
 		}
 	}
-
-	return 0
+	return false
 }
 
 // Collects and returns and array of Node*s for functions arguments and local
@@ -303,7 +298,7 @@ func iscall(prog *obj.Prog, name *obj.LSym) bool {
 
 var isselectcommcasecall_names [5]*obj.LSym
 
-func isselectcommcasecall(prog *obj.Prog) int {
+func isselectcommcasecall(prog *obj.Prog) bool {
 	var i int32
 
 	if isselectcommcasecall_names[0] == nil {
@@ -315,41 +310,41 @@ func isselectcommcasecall(prog *obj.Prog) int {
 
 	for i = 0; isselectcommcasecall_names[i] != nil; i++ {
 		if iscall(prog, isselectcommcasecall_names[i]) {
-			return 1
+			return true
 		}
 	}
-	return 0
+	return false
 }
 
 // Returns true for call instructions that target runtime·newselect.
 
 var isnewselect_sym *obj.LSym
 
-func isnewselect(prog *obj.Prog) int {
+func isnewselect(prog *obj.Prog) bool {
 	if isnewselect_sym == nil {
 		isnewselect_sym = Linksym(Pkglookup("newselect", Runtimepkg))
 	}
-	return bool2int(iscall(prog, isnewselect_sym))
+	return iscall(prog, isnewselect_sym)
 }
 
 // Returns true for call instructions that target runtime·selectgo.
 
 var isselectgocall_sym *obj.LSym
 
-func isselectgocall(prog *obj.Prog) int {
+func isselectgocall(prog *obj.Prog) bool {
 	if isselectgocall_sym == nil {
 		isselectgocall_sym = Linksym(Pkglookup("selectgo", Runtimepkg))
 	}
-	return bool2int(iscall(prog, isselectgocall_sym))
+	return iscall(prog, isselectgocall_sym)
 }
 
 var isdeferreturn_sym *obj.LSym
 
-func isdeferreturn(prog *obj.Prog) int {
+func isdeferreturn(prog *obj.Prog) bool {
 	if isdeferreturn_sym == nil {
 		isdeferreturn_sym = Linksym(Pkglookup("deferreturn", Runtimepkg))
 	}
-	return bool2int(iscall(prog, isdeferreturn_sym))
+	return iscall(prog, isdeferreturn_sym)
 }
 
 // Walk backwards from a runtime·selectgo call up to its immediately dominating
@@ -366,7 +361,7 @@ func addselectgosucc(selectgo *BasicBlock) {
 			Fatal("selectgo does not have a newselect")
 		}
 		pred = pred.pred[0]
-		if blockany(pred, isselectcommcasecall) != 0 {
+		if blockany(pred, isselectcommcasecall) {
 			// A select comm case block should have exactly one
 			// successor.
 			if len(pred.succ) != 1 {
@@ -386,7 +381,7 @@ func addselectgosucc(selectgo *BasicBlock) {
 			addedge(selectgo, succ)
 		}
 
-		if blockany(pred, isnewselect) != 0 {
+		if blockany(pred, isnewselect) {
 			// Reached the matching newselect.
 			break
 		}
@@ -451,7 +446,7 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
 				p.Link.Opt = newblock(p.Link)
 				cfg = append(cfg, p.Link.Opt.(*BasicBlock))
 			}
-		} else if isselectcommcasecall(p) != 0 || isselectgocall(p) != 0 {
+		} else if isselectcommcasecall(p) || isselectgocall(p) {
 			// Accommodate implicit selectgo control flow.
 			if p.Link.Opt == nil {
 				p.Link.Opt = newblock(p.Link)
@@ -478,7 +473,7 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
 			}
 
 			// Collect basic blocks with selectgo calls.
-			if isselectgocall(p) != 0 {
+			if isselectgocall(p) {
 				selectgo = append(selectgo, bb)
 			}
 		}
@@ -627,7 +622,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar *Bvec, varkill *Bvec, avari
 			// non-tail-call return instructions; see note above
 			// the for loop for details.
 			case PPARAMOUT:
-				if !(node.Addrtaken != 0) && prog.To.Type == obj.TYPE_NONE {
+				if node.Addrtaken == 0 && prog.To.Type == obj.TYPE_NONE {
 					bvset(uevar, i)
 				}
 			}
@@ -674,7 +669,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar *Bvec, varkill *Bvec, avari
 						bvset(uevar, pos)
 					}
 					if info.Flags&LeftWrite != 0 {
-						if from.Node != nil && !(Isfat(((from.Node).(*Node)).Type) != 0) {
+						if from.Node != nil && !Isfat(((from.Node).(*Node)).Type) {
 							bvset(varkill, pos)
 						}
 					}
@@ -718,7 +713,7 @@ Next:
 						bvset(uevar, pos)
 					}
 					if info.Flags&RightWrite != 0 {
-						if to.Node != nil && (!(Isfat(((to.Node).(*Node)).Type) != 0) || prog.As == obj.AVARDEF) {
+						if to.Node != nil && (!Isfat(((to.Node).(*Node)).Type) || prog.As == obj.AVARDEF) {
 							bvset(varkill, pos)
 						}
 					}
@@ -1050,7 +1045,7 @@ func twobitwalktype1(t *Type, xoffset *int64, bv *Bvec) {
 		if t.Bound < -1 {
 			Fatal("twobitwalktype1: invalid bound, %v", Tconv(t, 0))
 		}
-		if Isslice(t) != 0 {
+		if Isslice(t) {
 			// struct { byte *array; uintgo len; uintgo cap; }
 			if *xoffset&int64(Widthptr-1) != 0 {
 				Fatal("twobitwalktype1: invalid TARRAY alignment, %v", Tconv(t, 0))
@@ -1101,7 +1096,7 @@ func twobitlivepointermap(lv *Liveness, liveout *Bvec, vars []*Node, args *Bvec,
 
 	for i = 0; ; i++ {
 		i = int32(bvnext(liveout, i))
-		if !(i >= 0) {
+		if i < 0 {
 			break
 		}
 		node = vars[i]
@@ -1163,8 +1158,8 @@ func newpcdataprog(prog *obj.Prog, index int32) *obj.Prog {
 
 // Returns true for instructions that are safe points that must be annotated
 // with liveness information.
-func issafepoint(prog *obj.Prog) int {
-	return bool2int(prog.As == obj.ATEXT || prog.As == obj.ACALL)
+func issafepoint(prog *obj.Prog) bool {
+	return prog.As == obj.ATEXT || prog.As == obj.ACALL
 }
 
 // Initializes the sets for solving the live variables.  Visits all the
@@ -1332,7 +1327,7 @@ func livenesssolve(lv *Liveness) {
 
 // This function is slow but it is only used for generating debug prints.
 // Check whether n is marked live in args/locals.
-func islive(n *Node, args *Bvec, locals *Bvec) int {
+func islive(n *Node, args *Bvec, locals *Bvec) bool {
 	var i int
 
 	switch n.Class {
@@ -1340,19 +1335,19 @@ func islive(n *Node, args *Bvec, locals *Bvec) int {
 		PPARAMOUT:
 		for i = 0; int64(i) < n.Type.Width/int64(Widthptr)*obj.BitsPerPointer; i++ {
 			if bvget(args, int32(n.Xoffset/int64(Widthptr)*obj.BitsPerPointer+int64(i))) != 0 {
-				return 1
+				return true
 			}
 		}
 
 	case PAUTO:
 		for i = 0; int64(i) < n.Type.Width/int64(Widthptr)*obj.BitsPerPointer; i++ {
 			if bvget(locals, int32((n.Xoffset+stkptrsize)/int64(Widthptr)*obj.BitsPerPointer+int64(i))) != 0 {
-				return 1
+				return true
 			}
 		}
 	}
 
-	return 0
+	return false
 }
 
 // Visits all instructions in a basic block and computes a bit vector of live
@@ -1427,21 +1422,21 @@ func livenessepilogue(lv *Liveness) {
 			bvor(any, any, avarinit)
 			bvor(all, all, avarinit)
 
-			if issafepoint(p) != 0 {
+			if issafepoint(p) {
 				// Annotate ambiguously live variables so that they can
 				// be zeroed at function entry.
 				// livein and liveout are dead here and used as temporaries.
 				bvresetall(livein)
 
 				bvandnot(liveout, any, all)
-				if !(bvisempty(liveout) != 0) {
+				if !bvisempty(liveout) {
 					for pos = 0; pos < liveout.n; pos++ {
-						if !(bvget(liveout, pos) != 0) {
+						if bvget(liveout, pos) == 0 {
 							continue
 						}
 						bvset(all, pos) // silence future warnings in this block
 						n = lv.vars[pos]
-						if !(n.Needzero != 0) {
+						if n.Needzero == 0 {
 							n.Needzero = 1
 							if debuglive >= 1 {
 								Warnl(int(p.Lineno), "%v: %v is ambiguously live", Nconv(Curfn.Nname, 0), Nconv(n, obj.FmtLong))
@@ -1517,7 +1512,7 @@ func livenessepilogue(lv *Liveness) {
 			bvcopy(liveout, livein)
 			bvandnot(livein, liveout, varkill)
 			bvor(livein, livein, uevar)
-			if debuglive >= 3 && issafepoint(p) != 0 {
+			if debuglive >= 3 && issafepoint(p) {
 				fmt.Printf("%v\n", p)
 				printvars("uevar", uevar, lv.vars)
 				printvars("varkill", varkill, lv.vars)
@@ -1525,7 +1520,7 @@ func livenessepilogue(lv *Liveness) {
 				printvars("liveout", liveout, lv.vars)
 			}
 
-			if issafepoint(p) != 0 {
+			if issafepoint(p) {
 				// Found an interesting instruction, record the
 				// corresponding liveness information.
 
@@ -1534,7 +1529,7 @@ func livenessepilogue(lv *Liveness) {
 				// input parameters.
 				if p.As == obj.ATEXT {
 					for j = 0; j < liveout.n; j++ {
-						if !(bvget(liveout, j) != 0) {
+						if bvget(liveout, j) == 0 {
 							continue
 						}
 						n = lv.vars[j]
@@ -1574,7 +1569,7 @@ func livenessepilogue(lv *Liveness) {
 					numlive = 0
 					for j = 0; j < int32(len(lv.vars)); j++ {
 						n = lv.vars[j]
-						if islive(n, args, locals) != 0 {
+						if islive(n, args, locals) {
 							fmt_ += fmt.Sprintf(" %v", Nconv(n, 0))
 							numlive++
 						}
@@ -1592,7 +1587,7 @@ func livenessepilogue(lv *Liveness) {
 				// Only CALL instructions need a PCDATA annotation.
 				// The TEXT instruction annotation is implicit.
 				if p.As == obj.ACALL {
-					if isdeferreturn(p) != 0 {
+					if isdeferreturn(p) {
 						// runtime.deferreturn modifies its return address to return
 						// back to the CALL, not to the subsequent instruction.
 						// Because the return comes back one instruction early,
@@ -1760,11 +1755,11 @@ func printbitset(printed int, name string, vars []*Node, bits *Bvec) int {
 
 	started = 0
 	for i = 0; i < len(vars); i++ {
-		if !(bvget(bits, int32(i)) != 0) {
+		if bvget(bits, int32(i)) == 0 {
 			continue
 		}
-		if !(started != 0) {
-			if !(printed != 0) {
+		if started == 0 {
+			if printed == 0 {
 				fmt.Printf("\t")
 			} else {
 				fmt.Printf(" ")
@@ -1856,14 +1851,14 @@ func livenessprintdebug(lv *Liveness) {
 			if printed != 0 {
 				fmt.Printf("\n")
 			}
-			if issafepoint(p) != 0 {
+			if issafepoint(p) {
 				args = lv.argslivepointers[pcdata]
 				locals = lv.livepointers[pcdata]
 				fmt.Printf("\tlive=")
 				printed = 0
 				for j = 0; j < len(lv.vars); j++ {
 					n = lv.vars[j]
-					if islive(n, args, locals) != 0 {
+					if islive(n, args, locals) {
 						tmp9 := printed
 						printed++
 						if tmp9 != 0 {
