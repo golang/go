@@ -144,9 +144,6 @@ ordersafeexpr(Node *n, Order *order)
 	Node *l, *r, *a;
 	
 	switch(n->op) {
-	default:
-		fatal("ordersafeexpr %O", n->op);
-
 	case ONAME:
 	case OLITERAL:
 		return n;
@@ -191,6 +188,9 @@ ordersafeexpr(Node *n, Order *order)
 		typecheck(&a, Erv);
 		return a;
 	}
+
+	fatal("ordersafeexpr %O", n->op);
+	return nil; // not reached
 }		
 
 // Istemp reports whether n is a temporary variable.
