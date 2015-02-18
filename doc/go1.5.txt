@@ -14,6 +14,7 @@ crypto/tls: change default minimum version to TLS 1.0. (https://golang.org/cl/17
 encoding/base64: add unpadded encodings (https://golang.org/cl/1511)
 log: add SetOutput functions (https://golang.org/cl/2686, https://golang.org/cl/3023)
 net/http: support for setting trailers from a server Handler (https://golang.org/cl/2157)
+net/http/cgi: fix REMOTE_ADDR, REMOTE_HOST, add REMOTE_PORT (https://golang.org/cl/4933)
 net/smtp: add TLSConnectionState accessor (https://golang.org/cl/2151)
 os/signal: add Ignore and Reset (https://golang.org/cl/3580)
 runtime, syscall: use SYSCALL instruction on FreeBSD (Go 1.5 now requires FreeBSD 8-STABLE+) (https://golang.org/cl/3020)
