@@ -64,7 +64,11 @@
 %type	<addr>	imm ximm fimm rel psr lcr cbit fpscr msr mask
 %%
 prog:
-|	prog line
+|	prog
+	{
+		stmtline = lineno;
+	}
+	line
 
 line:
 	LNAME ':'
