@@ -471,6 +471,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym) {
 				otxt = p.Pcond.Pc - c
 				if otxt < -(1<<15)+10 || otxt >= (1<<15)-10 {
 					q = new(obj.Prog)
+					q.Ctxt = p.Ctxt
 					q.Link = p.Link
 					p.Link = q
 					q.As = ABR
@@ -478,6 +479,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym) {
 					q.Pcond = p.Pcond
 					p.Pcond = q
 					q = new(obj.Prog)
+					q.Ctxt = p.Ctxt
 					q.Link = p.Link
 					p.Link = q
 					q.As = ABR

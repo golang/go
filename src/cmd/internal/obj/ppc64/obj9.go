@@ -515,7 +515,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				p.To.Reg = REGSP
 				p.Spadj = -autosize
 
-				q = new(obj.Prog)
+				q = p.Ctxt.NewProg()
 				q.As = ABR
 				q.Lineno = p.Lineno
 				q.To.Type = obj.TYPE_REG
@@ -535,7 +535,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = REGTMP
 
-			q = new(obj.Prog)
+			q = p.Ctxt.NewProg()
 			q.As = AMOVD
 			q.Lineno = p.Lineno
 			q.From.Type = obj.TYPE_REG
@@ -549,8 +549,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 			if false {
 				// Debug bad returns
-				q = new(obj.Prog)
-
+				q = p.Ctxt.NewProg()
 				q.As = AMOVD
 				q.Lineno = p.Lineno
 				q.From.Type = obj.TYPE_MEM
@@ -565,7 +564,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			}
 
 			if autosize != 0 {
-				q = new(obj.Prog)
+				q = p.Ctxt.NewProg()
 				q.As = AADD
 				q.Lineno = p.Lineno
 				q.From.Type = obj.TYPE_CONST
@@ -578,7 +577,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				p.Link = q
 			}
 
-			q1 = new(obj.Prog)
+			q1 = p.Ctxt.NewProg()
 			q1.As = ABR
 			q1.Lineno = p.Lineno
 			q1.To.Type = obj.TYPE_REG
@@ -928,7 +927,7 @@ loop:
 		}
 
 		a = ABR
-		q = new(obj.Prog)
+		q = p.Ctxt.NewProg()
 		q.As = int16(a)
 		q.Lineno = p.Lineno
 		q.To.Type = obj.TYPE_BRANCH
