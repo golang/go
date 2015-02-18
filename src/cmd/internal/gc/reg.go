@@ -74,7 +74,7 @@ func setaddrs(bit Bits) {
 	var v *Var
 	var node *Node
 
-	for bany(&bit) != 0 {
+	for bany(&bit) {
 		// convert each bit to a variable
 		i = bnum(bit)
 
@@ -169,9 +169,9 @@ func addmove(r *Flow, bn int, rn int, f int) {
 	p1.From.Type = obj.TYPE_REG
 	p1.From.Reg = int16(rn)
 	p1.From.Name = obj.NAME_NONE
-	if !(f != 0) {
+	if f == 0 {
 		p1.From = *a
-		*a = obj.Zprog.From
+		*a = obj.Addr{}
 		a.Type = obj.TYPE_REG
 		a.Reg = int16(rn)
 	}
@@ -182,18 +182,18 @@ func addmove(r *Flow, bn int, rn int, f int) {
 	Ostats.Nspill++
 }
 
-func overlap_reg(o1 int64, w1 int, o2 int64, w2 int) int {
+func overlap_reg(o1 int64, w1 int, o2 int64, w2 int) bool {
 	var t1 int64
 	var t2 int64
 
 	t1 = o1 + int64(w1)
 	t2 = o2 + int64(w2)
 
-	if !(t1 > o2 && t2 > o1) {
-		return 0
+	if t1 <= o2 || t2 <= o1 {
+		return false
 	}
 
-	return 1
+	return true
 }
 
 func mkvar(f *Flow, a *obj.Addr) Bits {
@@ -292,7 +292,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 				if int(v.etype) == et {
 					if int64(v.width) == w {
 						// TODO(rsc): Remove special case for arm here.
-						if !(flag != 0) || Thearch.Thechar != '5' {
+						if flag == 0 || Thearch.Thechar != '5' {
 							return blsh(uint(i))
 						}
 					}
@@ -300,7 +300,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 			}
 
 			// if they overlap, disable both
-			if overlap_reg(v.offset, v.width, o, int(w)) != 0 {
+			if overlap_reg(v.offset, v.width, o, int(w)) {
 				//				print("disable overlap %s %d %d %d %d, %E != %E\n", s->name, v->offset, v->width, o, w, v->etype, et);
 				v.addr = 1
 
@@ -446,7 +446,7 @@ func prop(f *Flow, ref Bits, cal Bits) {
 
 		switch f1.Prog.As {
 		case obj.ACALL:
-			if Noreturn(f1.Prog) != 0 {
+			if Noreturn(f1.Prog) {
 				break
 			}
 
@@ -499,7 +499,7 @@ func prop(f *Flow, ref Bits, cal Bits) {
 					// This will set the bits at most twice, keeping the overall loop linear.
 					v1, _ = v.node.Opt.(*Var)
 
-					if v == v1 || !(btest(&cal, uint(v1.id)) != 0) {
+					if v == v1 || !btest(&cal, uint(v1.id)) {
 						for ; v1 != nil; v1 = v1.nextinnode {
 							biset(&cal, uint(v1.id))
 						}
@@ -633,7 +633,7 @@ func paint1(f *Flow, bn int) {
 		return
 	}
 	for {
-		if !(r.refbehind.b[z]&bb != 0) {
+		if r.refbehind.b[z]&bb == 0 {
 			break
 		}
 		f1 = f.P1
@@ -641,7 +641,7 @@ func paint1(f *Flow, bn int) {
 			break
 		}
 		r1 = f1.Data.(*Reg)
-		if !(r1.refahead.b[z]&bb != 0) {
+		if r1.refahead.b[z]&bb == 0 {
 			break
 		}
 		if r1.act.b[z]&bb != 0 {
@@ -679,7 +679,7 @@ func paint1(f *Flow, bn int) {
 			}
 		}
 
-		if !(r.refahead.b[z]&bb != 0) {
+		if r.refahead.b[z]&bb == 0 {
 			break
 		}
 		f1 = f.S2
@@ -696,7 +696,7 @@ func paint1(f *Flow, bn int) {
 		if r.act.b[z]&bb != 0 {
 			break
 		}
-		if !(r.refbehind.b[z]&bb != 0) {
+		if r.refbehind.b[z]&bb == 0 {
 			break
 		}
 	}
@@ -714,11 +714,11 @@ func paint2(f *Flow, bn int, depth int) uint64 {
 	bb = 1 << uint(bn%64)
 	vreg = regbits
 	r = f.Data.(*Reg)
-	if !(r.act.b[z]&bb != 0) {
+	if r.act.b[z]&bb == 0 {
 		return vreg
 	}
 	for {
-		if !(r.refbehind.b[z]&bb != 0) {
+		if r.refbehind.b[z]&bb == 0 {
 			break
 		}
 		f1 = f.P1
@@ -726,10 +726,10 @@ func paint2(f *Flow, bn int, depth int) uint64 {
 			break
 		}
 		r1 = f1.Data.(*Reg)
-		if !(r1.refahead.b[z]&bb != 0) {
+		if r1.refahead.b[z]&bb == 0 {
 			break
 		}
-		if !(r1.act.b[z]&bb != 0) {
+		if r1.act.b[z]&bb == 0 {
 			break
 		}
 		f = f1
@@ -753,7 +753,7 @@ func paint2(f *Flow, bn int, depth int) uint64 {
 			}
 		}
 
-		if !(r.refahead.b[z]&bb != 0) {
+		if r.refahead.b[z]&bb == 0 {
 			break
 		}
 		f1 = f.S2
@@ -767,10 +767,10 @@ func paint2(f *Flow, bn int, depth int) uint64 {
 			break
 		}
 		r = f.Data.(*Reg)
-		if !(r.act.b[z]&bb != 0) {
+		if r.act.b[z]&bb == 0 {
 			break
 		}
-		if !(r.refbehind.b[z]&bb != 0) {
+		if r.refbehind.b[z]&bb == 0 {
 			break
 		}
 	}
@@ -793,7 +793,7 @@ func paint3(f *Flow, bn int, rb uint64, rn int) {
 		return
 	}
 	for {
-		if !(r.refbehind.b[z]&bb != 0) {
+		if r.refbehind.b[z]&bb == 0 {
 			break
 		}
 		f1 = f.P1
@@ -801,7 +801,7 @@ func paint3(f *Flow, bn int, rb uint64, rn int) {
 			break
 		}
 		r1 = f1.Data.(*Reg)
-		if !(r1.refahead.b[z]&bb != 0) {
+		if r1.refahead.b[z]&bb == 0 {
 			break
 		}
 		if r1.act.b[z]&bb != 0 {
@@ -851,7 +851,7 @@ func paint3(f *Flow, bn int, rb uint64, rn int) {
 			}
 		}
 
-		if !(r.refahead.b[z]&bb != 0) {
+		if r.refahead.b[z]&bb == 0 {
 			break
 		}
 		f1 = f.S2
@@ -868,7 +868,7 @@ func paint3(f *Flow, bn int, rb uint64, rn int) {
 		if r.act.b[z]&bb != 0 {
 			break
 		}
-		if !(r.refbehind.b[z]&bb != 0) {
+		if r.refbehind.b[z]&bb == 0 {
 			break
 		}
 	}
@@ -896,33 +896,33 @@ func dumpone(f *Flow, isreg int) {
 		for z = 0; z < BITS; z++ {
 			bit.b[z] = r.set.b[z] | r.use1.b[z] | r.use2.b[z] | r.refbehind.b[z] | r.refahead.b[z] | r.calbehind.b[z] | r.calahead.b[z] | r.regdiff.b[z] | r.act.b[z] | 0
 		}
-		if bany(&bit) != 0 {
+		if bany(&bit) {
 			fmt.Printf("\t")
-			if bany(&r.set) != 0 {
+			if bany(&r.set) {
 				fmt.Printf(" s:%v", Qconv(r.set, 0))
 			}
-			if bany(&r.use1) != 0 {
+			if bany(&r.use1) {
 				fmt.Printf(" u1:%v", Qconv(r.use1, 0))
 			}
-			if bany(&r.use2) != 0 {
+			if bany(&r.use2) {
 				fmt.Printf(" u2:%v", Qconv(r.use2, 0))
 			}
-			if bany(&r.refbehind) != 0 {
+			if bany(&r.refbehind) {
 				fmt.Printf(" rb:%v ", Qconv(r.refbehind, 0))
 			}
-			if bany(&r.refahead) != 0 {
+			if bany(&r.refahead) {
 				fmt.Printf(" ra:%v ", Qconv(r.refahead, 0))
 			}
-			if bany(&r.calbehind) != 0 {
+			if bany(&r.calbehind) {
 				fmt.Printf(" cb:%v ", Qconv(r.calbehind, 0))
 			}
-			if bany(&r.calahead) != 0 {
+			if bany(&r.calahead) {
 				fmt.Printf(" ca:%v ", Qconv(r.calahead, 0))
 			}
-			if bany(&r.regdiff) != 0 {
+			if bany(&r.regdiff) {
 				fmt.Printf(" d:%v ", Qconv(r.regdiff, 0))
 			}
-			if bany(&r.act) != 0 {
+			if bany(&r.act) {
 				fmt.Printf(" a:%v ", Qconv(r.act, 0))
 			}
 		}
@@ -1052,7 +1052,7 @@ func regopt(firstp *obj.Prog) {
 		r.set.b[0] |= info.Regset
 
 		bit = mkvar(f, &p.From)
-		if bany(&bit) != 0 {
+		if bany(&bit) {
 			if info.Flags&LeftAddr != 0 {
 				setaddrs(bit)
 			}
@@ -1080,7 +1080,7 @@ func regopt(firstp *obj.Prog) {
 		}
 
 		bit = mkvar(f, &p.To)
-		if bany(&bit) != 0 {
+		if bany(&bit) {
 			if info.Flags&RightAddr != 0 {
 				setaddrs(bit)
 			}
@@ -1143,7 +1143,7 @@ func regopt(firstp *obj.Prog) {
 
 	for f = firstf; f != nil; f = f.Link {
 		p = f.Prog
-		if p.As == obj.AVARDEF && Isfat(((p.To.Node).(*Node)).Type) != 0 && ((p.To.Node).(*Node)).Opt != nil {
+		if p.As == obj.AVARDEF && Isfat(((p.To.Node).(*Node)).Type) && ((p.To.Node).(*Node)).Opt != nil {
 			active++
 			walkvardef(p.To.Node.(*Node), f, active)
 		}
@@ -1172,7 +1172,7 @@ loop11:
 
 	for f = firstf; f != nil; f = f1 {
 		f1 = f.Link
-		if f1 != nil && f1.Active != 0 && !(f.Active != 0) {
+		if f1 != nil && f1.Active != 0 && f.Active == 0 {
 			prop(f, zbits, zbits)
 			i = 1
 		}
@@ -1244,7 +1244,7 @@ loop2:
 		for z = 0; z < BITS; z++ {
 			bit.b[z] = (r.refahead.b[z] | r.calahead.b[z]) &^ (externs.b[z] | params.b[z] | addrs.b[z] | consts.b[z])
 		}
-		if bany(&bit) != 0 && !(f.Refset != 0) {
+		if bany(&bit) && f.Refset == 0 {
 			// should never happen - all variables are preset
 			if Debug['w'] != 0 {
 				fmt.Printf("%v: used and not set: %v\n", f.Prog.Line(), Qconv(bit, 0))
@@ -1262,7 +1262,7 @@ loop2:
 		for z = 0; z < BITS; z++ {
 			bit.b[z] = r.set.b[z] &^ (r.refahead.b[z] | r.calahead.b[z] | addrs.b[z])
 		}
-		if bany(&bit) != 0 && !(f.Refset != 0) {
+		if bany(&bit) && f.Refset == 0 {
 			if Debug['w'] != 0 {
 				fmt.Printf("%v: set and not used: %v\n", f.Prog.Line(), Qconv(bit, 0))
 			}
@@ -1273,7 +1273,7 @@ loop2:
 		for z = 0; z < BITS; z++ {
 			bit.b[z] = LOAD(r, z) &^ (r.act.b[z] | addrs.b[z])
 		}
-		for bany(&bit) != 0 {
+		for bany(&bit) {
 			i = bnum(bit)
 			change = 0
 			paint1(f, i)
@@ -1354,7 +1354,7 @@ brk:
 	 * pass 7
 	 * peep-hole on basic block
 	 */
-	if !(Debug['R'] != 0) || Debug['P'] != 0 {
+	if Debug['R'] == 0 || Debug['P'] != 0 {
 		Thearch.Peep(firstp)
 	}
 

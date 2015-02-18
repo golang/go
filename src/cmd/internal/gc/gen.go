@@ -109,7 +109,7 @@ func addrescapes(n *Node) {
 	// is always a heap pointer anyway.
 	case ODOT,
 		OINDEX:
-		if !(Isslice(n.Left.Type) != 0) {
+		if !Isslice(n.Left.Type) {
 			addrescapes(n.Left)
 		}
 	}
@@ -253,7 +253,6 @@ func cgen_proc(n *Node, proc int) {
 	switch n.Left.Op {
 	default:
 		Fatal("cgen_proc: unknown call %v", Oconv(int(n.Left.Op), 0))
-		fallthrough
 
 	case OCALLMETH:
 		Cgen_callmeth(n.Left, proc)
@@ -280,7 +279,7 @@ func cgen_dcl(n *Node) {
 		Fatal("cgen_dcl")
 	}
 
-	if !(n.Class&PHEAP != 0) {
+	if n.Class&PHEAP == 0 {
 		return
 	}
 	if compiling_runtime != 0 {
@@ -304,7 +303,7 @@ func cgen_discard(nr *Node) {
 
 	switch nr.Op {
 	case ONAME:
-		if !(nr.Class&PHEAP != 0) && nr.Class != PEXTERN && nr.Class != PFUNC && nr.Class != PPARAMREF {
+		if nr.Class&PHEAP == 0 && nr.Class != PEXTERN && nr.Class != PFUNC && nr.Class != PPARAMREF {
 			gused(nr)
 		}
 
@@ -480,7 +479,7 @@ func Cgen_slice(n *Node, res *Node) {
 		tmpcap = tmplen
 	}
 
-	if isnil(n.Left) != 0 {
+	if isnil(n.Left) {
 		Tempname(&src, n.Left.Type)
 		Thearch.Cgen(n.Left, &src)
 	} else {
@@ -491,7 +490,7 @@ func Cgen_slice(n *Node, res *Node) {
 	}
 
 	if n.Op == OSLICEARR || n.Op == OSLICE3ARR {
-		if !(Isptr[n.Left.Type.Etype] != 0) {
+		if Isptr[n.Left.Type.Etype] == 0 {
 			Fatal("slicearr is supposed to work on pointer: %v\n", Nconv(n, obj.FmtSign))
 		}
 		Thearch.Cgen(&src, base)
@@ -668,13 +667,12 @@ func gen(n *Node) {
 	var p2 *obj.Prog
 	var p3 *obj.Prog
 	var lab *Label
-	var wasregalloc int32
 
 	//dump("gen", n);
 
 	lno = setlineno(n)
 
-	wasregalloc = int32(Thearch.Anyregalloc())
+	wasregalloc := Thearch.Anyregalloc()
 
 	if n == nil {
 		goto ret
@@ -879,7 +877,7 @@ func gen(n *Node) {
 		cgen_dcl(n.Left)
 
 	case OAS:
-		if gen_as_init(n) != 0 {
+		if gen_as_init(n) {
 			break
 		}
 		Cgen_as(n.Left, n.Right)
@@ -911,7 +909,7 @@ func gen(n *Node) {
 	}
 
 ret:
-	if int32(Thearch.Anyregalloc()) != wasregalloc {
+	if Thearch.Anyregalloc() != wasregalloc {
 		Dump("node", n)
 		Fatal("registers left allocated")
 	}
@@ -936,7 +934,7 @@ func Cgen_as(nl *Node, nr *Node) {
 		return
 	}
 
-	if nr == nil || iszero(nr) != 0 {
+	if nr == nil || iszero(nr) {
 		// heaps should already be clear
 		if nr == nil && (nl.Class&PHEAP != 0) {
 			return
@@ -946,7 +944,7 @@ func Cgen_as(nl *Node, nr *Node) {
 		if tl == nil {
 			return
 		}
-		if Isfat(tl) != 0 {
+		if Isfat(tl) {
 			if nl.Op == ONAME {
 				Gvardef(nl)
 			}
@@ -1002,7 +1000,7 @@ func checklabels() {
 			continue
 		}
 
-		if lab.Use == nil && !(lab.Used != 0) {
+		if lab.Use == nil && lab.Used == 0 {
 			yyerrorl(int(lab.Def.Lineno), "label %v defined and not used", Sconv(lab.Sym, 0))
 			continue
 		}

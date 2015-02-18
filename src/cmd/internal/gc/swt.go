@@ -281,7 +281,7 @@ func casebody(sw *Node, typeswvar *Node) {
 	var go_ *Node
 	var br *Node
 	var lno int32
-	var needvar int32
+	var needvar bool
 
 	if sw.List == nil {
 		return
@@ -301,7 +301,7 @@ func casebody(sw *Node, typeswvar *Node) {
 			Fatal("casebody %v", Oconv(int(n.Op), 0))
 		}
 		n.Op = OCASE
-		needvar = int32(bool2int(count(n.List) != 1 || n.List.N.Op == OLITERAL))
+		needvar = count(n.List) != 1 || n.List.N.Op == OLITERAL
 
 		go_ = Nod(OGOTO, newlabel_swt(), nil)
 		if n.List == nil {
@@ -332,7 +332,7 @@ func casebody(sw *Node, typeswvar *Node) {
 		}
 
 		stat = list(stat, Nod(OLABEL, go_.Left, nil))
-		if typeswvar != nil && needvar != 0 && n.Nname != nil {
+		if typeswvar != nil && needvar && n.Nname != nil {
 			var l *NodeList
 
 			l = list1(Nod(ODCL, n.Nname, nil))
@@ -410,7 +410,7 @@ func mkcaselist(sw *Node, arg int) *Case {
 				continue
 			}
 
-			if Istype(n.Left.Type, TINTER) != 0 {
+			if Istype(n.Left.Type, TINTER) {
 				c.type_ = Ttypevar
 				continue
 			}
@@ -552,7 +552,7 @@ func exprswitch(sw *Node) {
 	casebody(sw, nil)
 
 	arg = Snorm
-	if Isconst(sw.Ntest, CTBOOL) != 0 {
+	if Isconst(sw.Ntest, CTBOOL) {
 		arg = Strue
 		if sw.Ntest.Val.U.Bval == 0 {
 			arg = Sfalse
@@ -572,7 +572,7 @@ func exprswitch(sw *Node) {
 
 	cas = nil
 	if arg == Strue || arg == Sfalse {
-		exprname = Nodbool(bool2int(arg == Strue))
+		exprname = Nodbool(arg == Strue)
 	} else if consttype(sw.Ntest) >= 0 {
 		// leave constants to enable dead code elimination (issue 9608)
 		exprname = sw.Ntest
@@ -600,7 +600,7 @@ loop:
 	}
 
 	// deal with the variables one-at-a-time
-	if !(okforcmp[t.Etype] != 0) || c0.type_ != Texprconst {
+	if okforcmp[t.Etype] == 0 || c0.type_ != Texprconst {
 		a = exprbsw(c0, 1, arg)
 		cas = list(cas, a)
 		c0 = c0.link
@@ -738,7 +738,7 @@ func typeswitch(sw *Node) {
 	}
 
 	walkexpr(&sw.Ntest.Right, &sw.Ninit)
-	if !(Istype(sw.Ntest.Right.Type, TINTER) != 0) {
+	if !Istype(sw.Ntest.Right.Type, TINTER) {
 		Yyerror("type switch must be on an interface")
 		return
 	}
@@ -764,7 +764,7 @@ func typeswitch(sw *Node) {
 	typecheck(&hashname, Erv)
 
 	t = sw.Ntest.Right.Type
-	if isnilinter(t) != 0 {
+	if isnilinter(t) {
 		a = syslook("efacethash", 1)
 	} else {
 		a = syslook("ifacethash", 1)
@@ -871,7 +871,7 @@ func walkswitch(sw *Node) {
 	 * both have inserted OBREAK statements
 	 */
 	if sw.Ntest == nil {
-		sw.Ntest = Nodbool(1)
+		sw.Ntest = Nodbool(true)
 		typecheck(&sw.Ntest, Erv)
 	}
 
@@ -933,11 +933,11 @@ func typecheckswitch(n *Node) {
 			t = Types[TBOOL]
 		}
 		if t != nil {
-			if !(okforeq[t.Etype] != 0) {
+			if okforeq[t.Etype] == 0 {
 				Yyerror("cannot switch on %v", Nconv(n.Ntest, obj.FmtLong))
-			} else if t.Etype == TARRAY && !(Isfixedarray(t) != 0) {
+			} else if t.Etype == TARRAY && !Isfixedarray(t) {
 				nilonly = "slice"
-			} else if t.Etype == TARRAY && Isfixedarray(t) != 0 && algtype1(t, nil) == ANOEQ {
+			} else if t.Etype == TARRAY && Isfixedarray(t) && algtype1(t, nil) == ANOEQ {
 				Yyerror("cannot switch on %v", Nconv(n.Ntest, obj.FmtLong))
 			} else if t.Etype == TSTRUCT && algtype1(t, &badtype) == ANOEQ {
 				Yyerror("cannot switch on %v (struct containing %v cannot be compared)", Nconv(n.Ntest, obj.FmtLong), Tconv(badtype, 0))
@@ -976,27 +976,27 @@ func typecheckswitch(n *Node) {
 
 					if ll.N.Op == OTYPE {
 						Yyerror("type %v is not an expression", Tconv(ll.N.Type, 0))
-					} else if ll.N.Type != nil && !(assignop(ll.N.Type, t, nil) != 0) && !(assignop(t, ll.N.Type, nil) != 0) {
+					} else if ll.N.Type != nil && assignop(ll.N.Type, t, nil) == 0 && assignop(t, ll.N.Type, nil) == 0 {
 						if n.Ntest != nil {
 							Yyerror("invalid case %v in switch on %v (mismatched types %v and %v)", Nconv(ll.N, 0), Nconv(n.Ntest, 0), Tconv(ll.N.Type, 0), Tconv(t, 0))
 						} else {
 							Yyerror("invalid case %v in switch (mismatched types %v and bool)", Nconv(ll.N, 0), Tconv(ll.N.Type, 0))
 						}
-					} else if nilonly != "" && !(Isconst(ll.N, CTNIL) != 0) {
+					} else if nilonly != "" && !Isconst(ll.N, CTNIL) {
 						Yyerror("invalid case %v in switch (can only compare %s %v to nil)", Nconv(ll.N, 0), nilonly, Nconv(n.Ntest, 0))
 					}
 
 				case Etype: // type switch
-					if ll.N.Op == OLITERAL && Istype(ll.N.Type, TNIL) != 0 {
+					if ll.N.Op == OLITERAL && Istype(ll.N.Type, TNIL) {
 					} else if ll.N.Op != OTYPE && ll.N.Type != nil { // should this be ||?
 						Yyerror("%v is not a type", Nconv(ll.N, obj.FmtLong))
 
 						// reset to original type
 						ll.N = n.Ntest.Right
-					} else if ll.N.Type.Etype != TINTER && t.Etype == TINTER && !(implements(ll.N.Type, t, &missing, &have, &ptr) != 0) {
-						if have != nil && !(missing.Broke != 0) && !(have.Broke != 0) {
+					} else if ll.N.Type.Etype != TINTER && t.Etype == TINTER && !implements(ll.N.Type, t, &missing, &have, &ptr) {
+						if have != nil && missing.Broke == 0 && have.Broke == 0 {
 							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (wrong type for %v method)\n\thave %v%v\n\twant %v%v", Nconv(n.Ntest.Right, obj.FmtLong), Tconv(ll.N.Type, 0), Sconv(missing.Sym, 0), Sconv(have.Sym, 0), Tconv(have.Type, obj.FmtShort), Sconv(missing.Sym, 0), Tconv(missing.Type, obj.FmtShort))
-						} else if !(missing.Broke != 0) {
+						} else if missing.Broke == 0 {
 							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (missing %v method)", Nconv(n.Ntest.Right, obj.FmtLong), Tconv(ll.N.Type, 0), Sconv(missing.Sym, 0))
 						}
 					}
@@ -1008,7 +1008,7 @@ func typecheckswitch(n *Node) {
 			ll = ncase.List
 			nvar = ncase.Nname
 			if nvar != nil {
-				if ll != nil && ll.Next == nil && ll.N.Type != nil && !(Istype(ll.N.Type, TNIL) != 0) {
+				if ll != nil && ll.Next == nil && ll.N.Type != nil && !Istype(ll.N.Type, TNIL) {
 					// single entry type switch
 					nvar.Ntype = typenod(ll.N.Type)
 				} else {

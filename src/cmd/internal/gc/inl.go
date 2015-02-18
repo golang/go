@@ -56,7 +56,7 @@ func fnpkg(fn *Node) *Pkg {
 		if Isptr[rcvr.Etype] != 0 {
 			rcvr = rcvr.Type
 		}
-		if !(rcvr.Sym != nil) {
+		if rcvr.Sym == nil {
 			Fatal("receiver with no sym: [%v] %v  (%v)", Sconv(fn.Sym, 0), Nconv(fn, obj.FmtLong), Tconv(rcvr, 0))
 		}
 		return rcvr.Sym.Pkg
@@ -114,7 +114,7 @@ func caninl(fn *Node) {
 	if fn.Op != ODCLFUNC {
 		Fatal("caninl %v", Nconv(fn, 0))
 	}
-	if !(fn.Nname != nil) {
+	if fn.Nname == nil {
 		Fatal("caninl no nname %v", Nconv(fn, obj.FmtSign))
 	}
 
@@ -137,7 +137,7 @@ func caninl(fn *Node) {
 	}
 
 	budget = 40 // allowed hairyness
-	if ishairylist(fn.Nbody, &budget) != 0 {
+	if ishairylist(fn.Nbody, &budget) {
 		return
 	}
 
@@ -162,18 +162,18 @@ func caninl(fn *Node) {
 }
 
 // Look for anything we want to punt on.
-func ishairylist(ll *NodeList, budget *int) int {
+func ishairylist(ll *NodeList, budget *int) bool {
 	for ; ll != nil; ll = ll.Next {
-		if ishairy(ll.N, budget) != 0 {
-			return 1
+		if ishairy(ll.N, budget) {
+			return true
 		}
 	}
-	return 0
+	return false
 }
 
-func ishairy(n *Node, budget *int) int {
-	if !(n != nil) {
-		return 0
+func ishairy(n *Node, budget *int) bool {
+	if n == nil {
+		return false
 	}
 
 	// Things that are too hairy, irrespective of the budget
@@ -185,7 +185,7 @@ func ishairy(n *Node, budget *int) int {
 		OPANIC,
 		ORECOVER:
 		if Debug['l'] < 4 {
-			return 1
+			return true
 		}
 
 	case OCLOSURE,
@@ -199,12 +199,12 @@ func ishairy(n *Node, budget *int) int {
 		ODCLTYPE,  // can't print yet
 		ODCLCONST, // can't print yet
 		ORETJMP:
-		return 1
+		return true
 	}
 
 	(*budget)--
 
-	return bool2int(*budget < 0 || ishairy(n.Left, budget) != 0 || ishairy(n.Right, budget) != 0 || ishairylist(n.List, budget) != 0 || ishairylist(n.Rlist, budget) != 0 || ishairylist(n.Ninit, budget) != 0 || ishairy(n.Ntest, budget) != 0 || ishairy(n.Nincr, budget) != 0 || ishairylist(n.Nbody, budget) != 0 || ishairylist(n.Nelse, budget) != 0)
+	return *budget < 0 || ishairy(n.Left, budget) || ishairy(n.Right, budget) || ishairylist(n.List, budget) || ishairylist(n.Rlist, budget) || ishairylist(n.Ninit, budget) || ishairy(n.Ntest, budget) || ishairy(n.Nincr, budget) || ishairylist(n.Nbody, budget) || ishairylist(n.Nelse, budget)
 }
 
 // Inlcopy and inlcopylist recursively copy the body of a function.
@@ -506,7 +506,7 @@ func mkinlcall(np **Node, fn *Node, isddd int) {
 
 func tinlvar(t *Type) *Node {
 	if t.Nname != nil && !isblank(t.Nname) {
-		if !(t.Nname.Inlvar != nil) {
+		if t.Nname.Inlvar == nil {
 			Fatal("missing inlvar for %v\n", Nconv(t.Nname, 0))
 		}
 		return t.Nname.Inlvar
@@ -524,7 +524,7 @@ var inlgen int
 // parameters.
 func mkinlcall1(np **Node, fn *Node, isddd int) {
 	var i int
-	var chkargcount int
+	var chkargcount bool
 	var n *Node
 	var call *Node
 	var saveinlfn *Node
@@ -535,7 +535,7 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 	var ninit *NodeList
 	var body *NodeList
 	var t *Type
-	var variadic int
+	var variadic bool
 	var varargcount int
 	var multiret int
 	var vararg *Node
@@ -623,10 +623,10 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 		// method call with a receiver.
 		t = getthisx(fn.Type).Type
 
-		if t != nil && t.Nname != nil && !isblank(t.Nname) && !(t.Nname.Inlvar != nil) {
+		if t != nil && t.Nname != nil && !isblank(t.Nname) && t.Nname.Inlvar == nil {
 			Fatal("missing inlvar for %v\n", Nconv(t.Nname, 0))
 		}
-		if !(n.Left.Left != nil) {
+		if n.Left.Left == nil {
 			Fatal("method call without receiver: %v", Nconv(n, obj.FmtSign))
 		}
 		if t == nil {
@@ -640,26 +640,26 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 	}
 
 	// check if inlined function is variadic.
-	variadic = 0
+	variadic = false
 
 	varargtype = nil
 	varargcount = 0
 	for t = fn.Type.Type.Down.Down.Type; t != nil; t = t.Down {
 		if t.Isddd != 0 {
-			variadic = 1
+			variadic = true
 			varargtype = t.Type
 		}
 	}
 
 	// but if argument is dotted too forget about variadicity.
-	if variadic != 0 && isddd != 0 {
-		variadic = 0
+	if variadic && isddd != 0 {
+		variadic = false
 	}
 
 	// check if argument is actually a returned tuple from call.
 	multiret = 0
 
-	if n.List != nil && !(n.List.Next != nil) {
+	if n.List != nil && n.List.Next == nil {
 		switch n.List.N.Op {
 		case OCALL,
 			OCALLFUNC,
@@ -671,7 +671,7 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 		}
 	}
 
-	if variadic != 0 {
+	if variadic {
 		varargcount = count(n.List) + multiret
 		if n.Left.Op != ODOTMETH {
 			varargcount -= fn.Type.Thistuple
@@ -688,14 +688,14 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 	// TODO: if len(nlist) == 1 but multiple args, check that n->list->n is a call?
 	if fn.Type.Thistuple != 0 && n.Left.Op != ODOTMETH {
 		// non-method call to method
-		if !(n.List != nil) {
+		if n.List == nil {
 			Fatal("non-method call to method without first arg: %v", Nconv(n, obj.FmtSign))
 		}
 
 		// append receiver inlvar to LHS.
 		t = getthisx(fn.Type).Type
 
-		if t != nil && t.Nname != nil && !isblank(t.Nname) && !(t.Nname.Inlvar != nil) {
+		if t != nil && t.Nname != nil && !isblank(t.Nname) && t.Nname.Inlvar == nil {
 			Fatal("missing inlvar for %v\n", Nconv(t.Nname, 0))
 		}
 		if t == nil {
@@ -706,14 +706,14 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 	}
 
 	// append ordinary arguments to LHS.
-	chkargcount = bool2int(n.List != nil && n.List.Next != nil)
+	chkargcount = n.List != nil && n.List.Next != nil
 
 	vararg = nil  // the slice argument to a variadic call
 	varargs = nil // the list of LHS names to put in vararg.
-	if !(chkargcount != 0) {
+	if !chkargcount {
 		// 0 or 1 expression on RHS.
 		for t = getinargx(fn.Type).Type; t != nil; t = t.Down {
-			if variadic != 0 && t.Isddd != 0 {
+			if variadic && t.Isddd != 0 {
 				vararg = tinlvar(t)
 				for i = 0; i < varargcount && ll != nil; i++ {
 					m = argvar(varargtype, i)
@@ -729,10 +729,10 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 	} else {
 		// match arguments except final variadic (unless the call is dotted itself)
 		for t = getinargx(fn.Type).Type; t != nil; {
-			if !(ll != nil) {
+			if ll == nil {
 				break
 			}
-			if variadic != 0 && t.Isddd != 0 {
+			if variadic && t.Isddd != 0 {
 				break
 			}
 			as.List = list(as.List, tinlvar(t))
@@ -741,7 +741,7 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 		}
 
 		// match varargcount arguments with variadic parameters.
-		if variadic != 0 && t != nil && t.Isddd != 0 {
+		if variadic && t != nil && t.Isddd != 0 {
 			vararg = tinlvar(t)
 			for i = 0; i < varargcount && ll != nil; i++ {
 				m = argvar(varargtype, i)
@@ -766,9 +766,9 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 	}
 
 	// turn the variadic args into a slice.
-	if variadic != 0 {
+	if variadic {
 		as = Nod(OAS, vararg, nil)
-		if !(varargcount != 0) {
+		if varargcount == 0 {
 			as.Right = nodnil()
 			as.Right.Type = varargtype
 		} else {
@@ -1019,7 +1019,7 @@ func setlnolist(ll *NodeList, lno int) {
 }
 
 func setlno(n *Node, lno int) {
-	if !(n != nil) {
+	if n == nil {
 		return
 	}
 

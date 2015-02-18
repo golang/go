@@ -120,15 +120,15 @@ func bvnext(bv *Bvec, i int32) int {
 	return int(i)
 }
 
-func bvisempty(bv *Bvec) int {
+func bvisempty(bv *Bvec) bool {
 	var i int32
 
 	for i = 0; i < bv.n; i += WORDBITS {
 		if bv.b[i>>WORDSHIFT] != 0 {
-			return 0
+			return false
 		}
 	}
-	return 1
+	return true
 }
 
 func bvnot(bv *Bvec) {

@@ -43,7 +43,7 @@ func typecheckrange(n *Node) {
 		}
 	}
 
-	if Isptr[t.Etype] != 0 && Isfixedarray(t.Type) != 0 {
+	if Isptr[t.Etype] != 0 && Isfixedarray(t.Type) {
 		t = t.Type
 	}
 	n.Type = t
@@ -63,7 +63,7 @@ func typecheckrange(n *Node) {
 		t2 = t.Type
 
 	case TCHAN:
-		if !(t.Chan&Crecv != 0) {
+		if t.Chan&Crecv == 0 {
 			Yyerror("invalid operation: range %v (receive from send-only type %v)", Nconv(n.Right, 0), Tconv(n.Right.Type, 0))
 			goto out
 		}
@@ -184,7 +184,6 @@ func walkrange(n *Node) {
 	switch t.Etype {
 	default:
 		Fatal("walkrange")
-		fallthrough
 
 		// Lower n into runtime·memclr if possible, for
 	// fast zeroing of slices and arrays (issue 5373).
@@ -196,8 +195,8 @@ func walkrange(n *Node) {
 	//
 	// in which the evaluation of a is side-effect-free.
 	case TARRAY:
-		if !(Debug['N'] != 0) {
-			if !(flag_race != 0) {
+		if Debug['N'] == 0 {
+			if flag_race == 0 {
 				if v1 != nil {
 					if v2 == nil {
 						if n.Nbody != nil {
@@ -206,10 +205,10 @@ func walkrange(n *Node) {
 									tmp = n.Nbody.N // first statement of body
 									if tmp.Op == OAS {
 										if tmp.Left.Op == OINDEX {
-											if samesafeexpr(tmp.Left.Left, a) != 0 {
-												if samesafeexpr(tmp.Left.Right, v1) != 0 {
+											if samesafeexpr(tmp.Left.Left, a) {
+												if samesafeexpr(tmp.Left.Right, v1) {
 													if t.Type.Width > 0 {
-														if iszero(tmp.Right) != 0 {
+														if iszero(tmp.Right) {
 															// Convert to
 															// if len(a) != 0 {
 															// 	hp = &a[0]
@@ -227,7 +226,7 @@ func walkrange(n *Node) {
 															hp = temp(Ptrto(Types[TUINT8]))
 
 															tmp = Nod(OINDEX, a, Nodintconst(0))
-															tmp.Bounded = 1
+															tmp.Bounded = true
 															tmp = Nod(OADDR, tmp, nil)
 															tmp = Nod(OCONVNOP, tmp, nil)
 															tmp.Type = Ptrto(Types[TUINT8])
@@ -282,7 +281,7 @@ func walkrange(n *Node) {
 		if v2 != nil {
 			hp = temp(Ptrto(n.Type.Type))
 			tmp = Nod(OINDEX, ha, Nodintconst(0))
-			tmp.Bounded = 1
+			tmp.Bounded = true
 			init = list(init, Nod(OAS, hp, Nod(OADDR, tmp, nil)))
 		}
 
@@ -369,7 +368,7 @@ func walkrange(n *Node) {
 		}
 		hb = temp(Types[TBOOL])
 
-		n.Ntest = Nod(ONE, hb, Nodbool(0))
+		n.Ntest = Nod(ONE, hb, Nodbool(false))
 		a = Nod(OAS2RECV, nil, nil)
 		a.Typecheck = 1
 		a.List = list(list1(hv1), hb)

@@ -119,7 +119,7 @@ func yyerrorl(line int, fmt_ string, args ...interface{}) {
 
 	hcrash()
 	nerrors++
-	if nsavederrors+nerrors >= 10 && !(Debug['e'] != 0) {
+	if nsavederrors+nerrors >= 10 && Debug['e'] == 0 {
 		Flusherrors()
 		fmt.Printf("%v: too many errors\n", Ctxt.Line(line))
 		errorexit()
@@ -192,7 +192,7 @@ func Yyerror(fmt_ string, args ...interface{}) {
 
 	hcrash()
 	nerrors++
-	if nsavederrors+nerrors >= 10 && !(Debug['e'] != 0) {
+	if nsavederrors+nerrors >= 10 && Debug['e'] == 0 {
 		Flusherrors()
 		fmt.Printf("%v: too many errors\n", Ctxt.Line(parserline()))
 		errorexit()
@@ -248,7 +248,7 @@ func linehist(file string, off int32, relative int) {
 		fmt.Printf(" at line %v\n", Ctxt.Line(int(lexlineno)))
 	}
 
-	if off < 0 && file[0] != '/' && !(relative != 0) {
+	if off < 0 && file[0] != '/' && relative == 0 {
 		file = fmt.Sprintf("%s/%s", Ctxt.Pathname, file)
 	}
 	obj.Linklinehist(Ctxt, int(lexlineno), file, int(off))
@@ -384,6 +384,26 @@ func importdot(opkg *Pkg, pack *Node) {
 	}
 }
 
+func gethunk() {
+	var h string
+	var nh int32
+
+	nh = NHUNK
+	if thunk >= 10*NHUNK {
+		nh = 10 * NHUNK
+	}
+	h = string(make([]byte, nh))
+	if h == "" {
+		Flusherrors()
+		Yyerror("out of memory")
+		errorexit()
+	}
+
+	hunk = h
+	nhunk = nh
+	thunk += nh
+}
+
 func Nod(op int, nleft *Node, nright *Node) *Node {
 	var n *Node
 
@@ -412,14 +432,14 @@ func saveorignode(n *Node) {
 // ispaddedfield reports whether the given field
 // is followed by padding. For the case where t is
 // the last field, total gives the size of the enclosing struct.
-func ispaddedfield(t *Type, total int64) int {
+func ispaddedfield(t *Type, total int64) bool {
 	if t.Etype != TFIELD {
 		Fatal("ispaddedfield called non-field %v", Tconv(t, 0))
 	}
 	if t.Down == nil {
-		return bool2int(t.Width+t.Type.Width != total)
+		return t.Width+t.Type.Width != total
 	}
-	return bool2int(t.Width+t.Type.Width != t.Down.Width)
+	return t.Width+t.Type.Width != t.Down.Width
 }
 
 func algtype1(t *Type, bad **Type) int {
@@ -486,13 +506,13 @@ func algtype1(t *Type, bad **Type) int {
 		return ASTRING
 
 	case TINTER:
-		if isnilinter(t) != 0 {
+		if isnilinter(t) {
 			return ANILINTER
 		}
 		return AINTER
 
 	case TARRAY:
-		if Isslice(t) != 0 {
+		if Isslice(t) {
 			if bad != nil {
 				*bad = t
 			}
@@ -526,7 +546,7 @@ func algtype1(t *Type, bad **Type) int {
 
 			// Blank fields, padded fields, fields with non-memory
 			// equality need special compare.
-			if a != AMEM || isblanksym(t1.Sym) || ispaddedfield(t1, t.Width) != 0 {
+			if a != AMEM || isblanksym(t1.Sym) || ispaddedfield(t1, t.Width) {
 				ret = -1
 				continue
 			}
@@ -544,7 +564,7 @@ func algtype(t *Type) int {
 
 	a = algtype1(t, nil)
 	if a == AMEM || a == ANOEQ {
-		if Isslice(t) != 0 {
+		if Isslice(t) {
 			return ASLICE
 		}
 		switch t.Width {
@@ -687,7 +707,7 @@ func sortinter(t *Type) *Type {
 	for {
 		tmp11 := i
 		i--
-		if !(tmp11 > 0) {
+		if tmp11 <= 0 {
 			break
 		}
 		a[i].Down = f
@@ -748,12 +768,12 @@ func nodnil() *Node {
 	return c
 }
 
-func Nodbool(b int) *Node {
+func Nodbool(b bool) *Node {
 	var c *Node
 
 	c = Nodintconst(0)
 	c.Val.Ctype = CTBOOL
-	c.Val.U.Bval = int16(b)
+	c.Val.U.Bval = int16(bool2int(b))
 	c.Type = idealbool
 	return c
 }
@@ -829,46 +849,46 @@ func treecopy(n *Node) *Node {
 	return m
 }
 
-func isnil(n *Node) int {
+func isnil(n *Node) bool {
 	if n == nil {
-		return 0
+		return false
 	}
 	if n.Op != OLITERAL {
-		return 0
+		return false
 	}
 	if n.Val.Ctype != CTNIL {
-		return 0
+		return false
 	}
-	return 1
+	return true
 }
 
-func isptrto(t *Type, et int) int {
+func isptrto(t *Type, et int) bool {
 	if t == nil {
-		return 0
+		return false
 	}
-	if !(Isptr[t.Etype] != 0) {
-		return 0
+	if Isptr[t.Etype] == 0 {
+		return false
 	}
 	t = t.Type
 	if t == nil {
-		return 0
+		return false
 	}
 	if int(t.Etype) != et {
-		return 0
+		return false
 	}
-	return 1
+	return true
 }
 
-func Istype(t *Type, et int) int {
-	return bool2int(t != nil && int(t.Etype) == et)
+func Istype(t *Type, et int) bool {
+	return t != nil && int(t.Etype) == et
 }
 
-func Isfixedarray(t *Type) int {
-	return bool2int(t != nil && t.Etype == TARRAY && t.Bound >= 0)
+func Isfixedarray(t *Type) bool {
+	return t != nil && t.Etype == TARRAY && t.Bound >= 0
 }
 
-func Isslice(t *Type) int {
-	return bool2int(t != nil && t.Etype == TARRAY && t.Bound < 0)
+func Isslice(t *Type) bool {
+	return t != nil && t.Etype == TARRAY && t.Bound < 0
 }
 
 func isblank(n *Node) bool {
@@ -882,34 +902,34 @@ func isblanksym(s *Sym) bool {
 	return s != nil && s.Name == "_"
 }
 
-func Isinter(t *Type) int {
-	return bool2int(t != nil && t.Etype == TINTER)
+func Isinter(t *Type) bool {
+	return t != nil && t.Etype == TINTER
 }
 
-func isnilinter(t *Type) int {
-	if !(Isinter(t) != 0) {
-		return 0
+func isnilinter(t *Type) bool {
+	if !Isinter(t) {
+		return false
 	}
 	if t.Type != nil {
-		return 0
+		return false
 	}
-	return 1
+	return true
 }
 
-func isideal(t *Type) int {
+func isideal(t *Type) bool {
 	if t == nil {
-		return 0
+		return false
 	}
 	if t == idealstring || t == idealbool {
-		return 1
+		return true
 	}
 	switch t.Etype {
 	case TNIL,
 		TIDEAL:
-		return 1
+		return true
 	}
 
-	return 0
+	return false
 }
 
 /*
@@ -938,7 +958,7 @@ func methtype(t *Type, mustname int) *Type {
 	}
 
 	// check types
-	if !(issimple[t.Etype] != 0) {
+	if issimple[t.Etype] == 0 {
 		switch t.Etype {
 		default:
 			return nil
@@ -979,13 +999,13 @@ type TypePairList struct {
 	next *TypePairList
 }
 
-func onlist(l *TypePairList, t1 *Type, t2 *Type) int {
+func onlist(l *TypePairList, t1 *Type, t2 *Type) bool {
 	for ; l != nil; l = l.next {
 		if (l.t1 == t1 && l.t2 == t2) || (l.t1 == t2 && l.t2 == t1) {
-			return 1
+			return true
 		}
 	}
-	return 0
+	return false
 }
 
 // Return 1 if t1 and t2 are identical, following the spec rules.
@@ -995,17 +1015,17 @@ func onlist(l *TypePairList, t1 *Type, t2 *Type) int {
 // pointer (t1 == t2), so there's no chance of chasing cycles
 // ad infinitum, so no need for a depth counter.
 func Eqtype(t1 *Type, t2 *Type) bool {
-	return eqtype1(t1, t2, nil) != 0
+	return eqtype1(t1, t2, nil)
 }
 
-func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) int {
+func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
 	var l TypePairList
 
 	if t1 == t2 {
-		return 1
+		return true
 	}
 	if t1 == nil || t2 == nil || t1.Etype != t2.Etype {
-		return 0
+		return false
 	}
 	if t1.Sym != nil || t2.Sym != nil {
 		// Special case: we keep byte and uint8 separate
@@ -1013,21 +1033,21 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) int {
 		switch t1.Etype {
 		case TUINT8:
 			if (t1 == Types[TUINT8] || t1 == bytetype) && (t2 == Types[TUINT8] || t2 == bytetype) {
-				return 1
+				return true
 			}
 
 		case TINT,
 			TINT32:
 			if (t1 == Types[runetype.Etype] || t1 == runetype) && (t2 == Types[runetype.Etype] || t2 == runetype) {
-				return 1
+				return true
 			}
 		}
 
-		return 0
+		return false
 	}
 
-	if onlist(assumed_equal, t1, t2) != 0 {
-		return 1
+	if onlist(assumed_equal, t1, t2) {
+		return true
 	}
 	l.next = assumed_equal
 	l.t1 = t1
@@ -1042,7 +1062,7 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) int {
 			if t1.Etype != TFIELD || t2.Etype != TFIELD {
 				Fatal("struct/interface missing field: %v %v", Tconv(t1, 0), Tconv(t2, 0))
 			}
-			if t1.Sym != t2.Sym || t1.Embedded != t2.Embedded || !(eqtype1(t1.Type, t2.Type, &l) != 0) || !eqnote(t1.Note, t2.Note) {
+			if t1.Sym != t2.Sym || t1.Embedded != t2.Embedded || !eqtype1(t1.Type, t2.Type, &l) || !eqnote(t1.Note, t2.Note) {
 				goto no
 			}
 		}
@@ -1071,7 +1091,7 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) int {
 				if ta.Etype != TFIELD || tb.Etype != TFIELD {
 					Fatal("func struct missing field: %v %v", Tconv(ta, 0), Tconv(tb, 0))
 				}
-				if ta.Isddd != tb.Isddd || !(eqtype1(ta.Type, tb.Type, &l) != 0) {
+				if ta.Isddd != tb.Isddd || !eqtype1(ta.Type, tb.Type, &l) {
 					goto no
 				}
 			}
@@ -1097,34 +1117,34 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) int {
 		}
 	}
 
-	if eqtype1(t1.Down, t2.Down, &l) != 0 && eqtype1(t1.Type, t2.Type, &l) != 0 {
+	if eqtype1(t1.Down, t2.Down, &l) && eqtype1(t1.Type, t2.Type, &l) {
 		goto yes
 	}
 	goto no
 
 yes:
-	return 1
+	return true
 
 no:
-	return 0
+	return false
 }
 
 // Are t1 and t2 equal struct types when field names are ignored?
 // For deciding whether the result struct from g can be copied
 // directly when compiling f(g()).
-func eqtypenoname(t1 *Type, t2 *Type) int {
+func eqtypenoname(t1 *Type, t2 *Type) bool {
 	if t1 == nil || t2 == nil || t1.Etype != TSTRUCT || t2.Etype != TSTRUCT {
-		return 0
+		return false
 	}
 
 	t1 = t1.Type
 	t2 = t2.Type
 	for {
 		if !Eqtype(t1, t2) {
-			return 0
+			return false
 		}
 		if t1 == nil {
-			return 1
+			return true
 		}
 		t1 = t1.Down
 		t2 = t2.Down
@@ -1167,13 +1187,13 @@ func assignop(src *Type, dst *Type, why *string) int {
 	// both are empty interface types.
 	// For assignable but different non-empty interface types,
 	// we want to recompute the itab.
-	if Eqtype(src.Orig, dst.Orig) && (src.Sym == nil || dst.Sym == nil || isnilinter(src) != 0) {
+	if Eqtype(src.Orig, dst.Orig) && (src.Sym == nil || dst.Sym == nil || isnilinter(src)) {
 		return OCONVNOP
 	}
 
 	// 3. dst is an interface type and src implements dst.
 	if dst.Etype == TINTER && src.Etype != TNIL {
-		if implements(src, dst, &missing, &have, &ptr) != 0 {
+		if implements(src, dst, &missing, &have, &ptr) {
 			return OCONVIFACE
 		}
 
@@ -1183,9 +1203,9 @@ func assignop(src *Type, dst *Type, why *string) int {
 		}
 
 		if why != nil {
-			if isptrto(src, TINTER) != 0 {
+			if isptrto(src, TINTER) {
 				*why = fmt.Sprintf(":\n\t%v is pointer to interface, not interface", Tconv(src, 0))
-			} else if have != nil && have.Sym == missing.Sym && have.Nointerface != 0 {
+			} else if have != nil && have.Sym == missing.Sym && have.Nointerface {
 				*why = fmt.Sprintf(":\n\t%v does not implement %v (%v method is marked 'nointerface')", Tconv(src, 0), Tconv(dst, 0), Sconv(missing.Sym, 0))
 			} else if have != nil && have.Sym == missing.Sym {
 				*why = fmt.Sprintf(":\n\t%v does not implement %v (wrong type for %v method)\n"+"\t\thave %v%v\n\t\twant %v%v", Tconv(src, 0), Tconv(dst, 0), Sconv(missing.Sym, 0), Sconv(have.Sym, 0), Tconv(have.Type, obj.FmtShort|obj.FmtByte), Sconv(missing.Sym, 0), Tconv(missing.Type, obj.FmtShort|obj.FmtByte))
@@ -1201,7 +1221,7 @@ func assignop(src *Type, dst *Type, why *string) int {
 		return 0
 	}
 
-	if isptrto(dst, TINTER) != 0 {
+	if isptrto(dst, TINTER) {
 		if why != nil {
 			*why = fmt.Sprintf(":\n\t%v is pointer to interface, not interface", Tconv(dst, 0))
 		}
@@ -1209,7 +1229,7 @@ func assignop(src *Type, dst *Type, why *string) int {
 	}
 
 	if src.Etype == TINTER && dst.Etype != TBLANK {
-		if why != nil && implements(dst, src, &missing, &have, &ptr) != 0 {
+		if why != nil && implements(dst, src, &missing, &have, &ptr) {
 			*why = ": need type assertion"
 		}
 		return 0
@@ -1322,7 +1342,7 @@ func convertop(src *Type, dst *Type, why *string) int {
 		return ORUNESTR
 	}
 
-	if Isslice(src) != 0 && dst.Etype == TSTRING {
+	if Isslice(src) && dst.Etype == TSTRING {
 		if src.Type.Etype == bytetype.Etype {
 			return OARRAYBYTESTR
 		}
@@ -1333,7 +1353,7 @@ func convertop(src *Type, dst *Type, why *string) int {
 
 	// 7. src is a string and dst is []byte or []rune.
 	// String to slice.
-	if src.Etype == TSTRING && Isslice(dst) != 0 {
+	if src.Etype == TSTRING && Isslice(dst) {
 		if dst.Type.Etype == bytetype.Etype {
 			return OSTRARRAYBYTE
 		}
@@ -1408,23 +1428,23 @@ func assignconv(n *Node, t *Type, context string) *Node {
 	return r
 }
 
-func subtype(stp **Type, t *Type, d int) int {
+func subtype(stp **Type, t *Type, d int) bool {
 	var st *Type
 
 loop:
 	st = *stp
 	if st == nil {
-		return 0
+		return false
 	}
 
 	d++
 	if d >= 10 {
-		return 0
+		return false
 	}
 
 	switch st.Etype {
 	default:
-		return 0
+		return false
 
 	case TPTR32,
 		TPTR64,
@@ -1434,13 +1454,13 @@ loop:
 		goto loop
 
 	case TANY:
-		if !(st.Copyany != 0) {
-			return 0
+		if st.Copyany == 0 {
+			return false
 		}
 		*stp = t
 
 	case TMAP:
-		if subtype(&st.Down, t, d) != 0 {
+		if subtype(&st.Down, t, d) {
 			break
 		}
 		stp = &st.Type
@@ -1448,51 +1468,51 @@ loop:
 
 	case TFUNC:
 		for {
-			if subtype(&st.Type, t, d) != 0 {
+			if subtype(&st.Type, t, d) {
 				break
 			}
-			if subtype(&st.Type.Down.Down, t, d) != 0 {
+			if subtype(&st.Type.Down.Down, t, d) {
 				break
 			}
-			if subtype(&st.Type.Down, t, d) != 0 {
+			if subtype(&st.Type.Down, t, d) {
 				break
 			}
-			return 0
+			return false
 		}
 
 	case TSTRUCT:
 		for st = st.Type; st != nil; st = st.Down {
-			if subtype(&st.Type, t, d) != 0 {
-				return 1
+			if subtype(&st.Type, t, d) {
+				return true
 			}
 		}
-		return 0
+		return false
 	}
 
-	return 1
+	return true
 }
 
 /*
  * Is this a 64-bit type?
  */
-func Is64(t *Type) int {
+func Is64(t *Type) bool {
 	if t == nil {
-		return 0
+		return false
 	}
 	switch Simtype[t.Etype] {
 	case TINT64,
 		TUINT64,
 		TPTR64:
-		return 1
+		return true
 	}
 
-	return 0
+	return false
 }
 
 /*
  * Is a conversion between t1 and t2 a no-op?
  */
-func Noconv(t1 *Type, t2 *Type) int {
+func Noconv(t1 *Type, t2 *Type) bool {
 	var e1 int
 	var e2 int
 
@@ -1502,35 +1522,35 @@ func Noconv(t1 *Type, t2 *Type) int {
 	switch e1 {
 	case TINT8,
 		TUINT8:
-		return bool2int(e2 == TINT8 || e2 == TUINT8)
+		return e2 == TINT8 || e2 == TUINT8
 
 	case TINT16,
 		TUINT16:
-		return bool2int(e2 == TINT16 || e2 == TUINT16)
+		return e2 == TINT16 || e2 == TUINT16
 
 	case TINT32,
 		TUINT32,
 		TPTR32:
-		return bool2int(e2 == TINT32 || e2 == TUINT32 || e2 == TPTR32)
+		return e2 == TINT32 || e2 == TUINT32 || e2 == TPTR32
 
 	case TINT64,
 		TUINT64,
 		TPTR64:
-		return bool2int(e2 == TINT64 || e2 == TUINT64 || e2 == TPTR64)
+		return e2 == TINT64 || e2 == TUINT64 || e2 == TPTR64
 
 	case TFLOAT32:
-		return bool2int(e2 == TFLOAT32)
+		return e2 == TFLOAT32
 
 	case TFLOAT64:
-		return bool2int(e2 == TFLOAT64)
+		return e2 == TFLOAT64
 	}
 
-	return 0
+	return false
 }
 
 func argtype(on *Node, t *Type) {
 	dowidth(t)
-	if !(subtype(&on.Type, t, 0) != 0) {
+	if !subtype(&on.Type, t, 0) {
 		Fatal("argtype: failed %v %v\n", Nconv(on, 0), Tconv(t, 0))
 	}
 }
@@ -1607,7 +1627,7 @@ func syslook(name string, copy int) *Node {
 		Fatal("syslook: can't find runtime.%s", name)
 	}
 
-	if !(copy != 0) {
+	if copy == 0 {
 		return s.Def
 	}
 
@@ -1886,7 +1906,7 @@ func funcnext(s *Iter) *Type {
 	var fp *Type
 
 	fp = structnext(s)
-	if fp == nil && !(s.Done != 0) {
+	if fp == nil && s.Done == 0 {
 		s.Done = 1
 		fp = Structfirst(s, getinarg(s.Tfunc))
 	}
@@ -2039,7 +2059,7 @@ func safeexpr(n *Node, init **NodeList) *Node {
 	}
 
 	// make a copy; must not be used as an lvalue
-	if islvalue(n) != 0 {
+	if islvalue(n) {
 		Fatal("missing lvalue case in safeexpr: %v", Nconv(n, 0))
 	}
 	return cheapexpr(n, init)
@@ -2077,7 +2097,7 @@ func cheapexpr(n *Node, init **NodeList) *Node {
  * assignment to it.
  */
 func localexpr(n *Node, t *Type, init **NodeList) *Node {
-	if n.Op == ONAME && (!(n.Addrtaken != 0) || strings.HasPrefix(n.Sym.Name, "autotmp_")) && (n.Class == PAUTO || n.Class == PPARAM || n.Class == PPARAMOUT) && convertop(n.Type, t, nil) == OCONVNOP {
+	if n.Op == ONAME && (n.Addrtaken == 0 || strings.HasPrefix(n.Sym.Name, "autotmp_")) && (n.Class == PAUTO || n.Class == PPARAM || n.Class == PPARAMOUT) && convertop(n.Type, t, nil) == OCONVNOP {
 		return n
 	}
 
@@ -2182,7 +2202,7 @@ func adddot1(s *Sym, t *Type, d int, save **Type, ignorecase int) int {
 
 	d--
 	for f = u.Type; f != nil; f = f.Down {
-		if !(f.Embedded != 0) {
+		if f.Embedded == 0 {
 			continue
 		}
 		if f.Sym == nil {
@@ -2343,7 +2363,7 @@ func expand1(t *Type, d int, followptr int) {
 	}
 
 	for f = u.Type; f != nil; f = f.Down {
-		if !(f.Embedded != 0) {
+		if f.Embedded == 0 {
 			continue
 		}
 		if f.Sym == nil {
@@ -2583,10 +2603,10 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 	dot = adddot(Nod(OXDOT, this.Left, newname(method.Sym)))
 
 	// generate call
-	if !(flag_race != 0) && Isptr[rcvr.Etype] != 0 && Isptr[methodrcvr.Etype] != 0 && method.Embedded != 0 && !(isifacemethod(method.Type) != 0) {
+	if flag_race == 0 && Isptr[rcvr.Etype] != 0 && Isptr[methodrcvr.Etype] != 0 && method.Embedded != 0 && !isifacemethod(method.Type) {
 		// generate tail call: adjust pointer receiver and jump to embedded method.
 		dot = dot.Left // skip final .M
-		if !(Isptr[dotlist[0].field.Type.Etype] != 0) {
+		if Isptr[dotlist[0].field.Type.Etype] == 0 {
 			dot = Nod(OADDR, dot, nil)
 		}
 		as = Nod(OAS, this.Left, Nod(OCONVNOP, dot, nil))
@@ -2625,7 +2645,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 
 	// Set inl_nonlocal to whether we are calling a method on a
 	// type defined in a different package.  Checked in inlvar.
-	if !(methodrcvr.Local != 0) {
+	if methodrcvr.Local == 0 {
 		inl_nonlocal = 1
 	}
 
@@ -2666,7 +2686,6 @@ func hashfor(t *Type) *Node {
 	switch a {
 	case AMEM:
 		Fatal("hashfor with AMEM type")
-		fallthrough
 
 	case AINTER:
 		sym = Pkglookup("interhash", Runtimepkg)
@@ -2760,10 +2779,9 @@ func genhash(sym *Sym, t *Type) {
 	switch t.Etype {
 	default:
 		Fatal("genhash %v", Tconv(t, 0))
-		fallthrough
 
 	case TARRAY:
-		if Isslice(t) != 0 {
+		if Isslice(t) {
 			Fatal("genhash %v", Tconv(t, 0))
 		}
 
@@ -2798,7 +2816,7 @@ func genhash(sym *Sym, t *Type) {
 		call = Nod(OCALL, hashel, nil)
 
 		nx = Nod(OINDEX, np, ni)
-		nx.Bounded = 1
+		nx.Bounded = true
 		na = Nod(OADDR, nx, nil)
 		na.Etype = 1 // no escape to heap
 		call.List = list(call.List, na)
@@ -2821,7 +2839,7 @@ func genhash(sym *Sym, t *Type) {
 				}
 
 				// If it's a memory field but it's padded, stop here.
-				if ispaddedfield(t1, t.Width) != 0 {
+				if ispaddedfield(t1, t.Width) {
 					t1 = t1.Down
 				} else {
 					continue
@@ -2924,7 +2942,7 @@ func eqfield(p *Node, q *Node, field *Node) *Node {
 	nif = Nod(OIF, nil, nil)
 	nif.Ntest = Nod(ONE, nx, ny)
 	r = Nod(ORETURN, nil, nil)
-	r.List = list(r.List, Nodbool(0))
+	r.List = list(r.List, Nodbool(false))
 	nif.Nbody = list(nif.Nbody, r)
 	return nif
 }
@@ -2981,7 +2999,7 @@ func eqmem(p *Node, q *Node, field *Node, size int64) *Node {
 	nif.Ninit = list(nif.Ninit, call)
 	nif.Ntest = Nod(ONOT, call, nil)
 	r = Nod(ORETURN, nil, nil)
-	r.List = list(r.List, Nodbool(0))
+	r.List = list(r.List, Nodbool(false))
 	nif.Nbody = list(nif.Nbody, r)
 	return nif
 }
@@ -3040,10 +3058,9 @@ func geneq(sym *Sym, t *Type) {
 	switch t.Etype {
 	default:
 		Fatal("geneq %v", Tconv(t, 0))
-		fallthrough
 
 	case TARRAY:
-		if Isslice(t) != 0 {
+		if Isslice(t) {
 			Fatal("geneq %v", Tconv(t, 0))
 		}
 
@@ -3064,14 +3081,14 @@ func geneq(sym *Sym, t *Type) {
 		// if p[i] != q[i] { return false }
 		nx = Nod(OINDEX, np, ni)
 
-		nx.Bounded = 1
+		nx.Bounded = true
 		ny = Nod(OINDEX, nq, ni)
-		ny.Bounded = 1
+		ny.Bounded = true
 
 		nif = Nod(OIF, nil, nil)
 		nif.Ntest = Nod(ONE, nx, ny)
 		r = Nod(ORETURN, nil, nil)
-		r.List = list(r.List, Nodbool(0))
+		r.List = list(r.List, Nodbool(false))
 		nif.Nbody = list(nif.Nbody, r)
 		nrange.Nbody = list(nrange.Nbody, nif)
 		fn.Nbody = list(fn.Nbody, nrange)
@@ -3091,7 +3108,7 @@ func geneq(sym *Sym, t *Type) {
 				}
 
 				// If it's a memory field but it's padded, stop here.
-				if ispaddedfield(t1, t.Width) != 0 {
+				if ispaddedfield(t1, t.Width) {
 					t1 = t1.Down
 				} else {
 					continue
@@ -3134,7 +3151,7 @@ func geneq(sym *Sym, t *Type) {
 	// return true
 	r = Nod(ORETURN, nil, nil)
 
-	r.List = list(r.List, Nodbool(1))
+	r.List = list(r.List, Nodbool(true))
 	fn.Nbody = list(fn.Nbody, r)
 
 	if Debug['r'] != 0 {
@@ -3199,7 +3216,7 @@ func ifacelookdot(s *Sym, t *Type, followptr *int, ignorecase int) *Type {
 	return nil
 }
 
-func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) int {
+func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) bool {
 	var t0 *Type
 	var im *Type
 	var tm *Type
@@ -3209,7 +3226,7 @@ func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) int {
 
 	t0 = t
 	if t == nil {
-		return 0
+		return false
 	}
 
 	// if this is too slow,
@@ -3226,18 +3243,18 @@ func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) int {
 					*m = im
 					*samename = tm
 					*ptr = 0
-					return 0
+					return false
 				}
 			}
 
 			*m = im
 			*samename = nil
 			*ptr = 0
-			return 0
+			return false
 		found:
 		}
 
-		return 1
+		return true
 	}
 
 	t = methtype(t, 0)
@@ -3247,21 +3264,21 @@ func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) int {
 	for im = iface.Type; im != nil; im = im.Down {
 		imtype = methodfunc(im.Type, nil)
 		tm = ifacelookdot(im.Sym, t, &followptr, 0)
-		if tm == nil || tm.Nointerface != 0 || !Eqtype(methodfunc(tm.Type, nil), imtype) {
+		if tm == nil || tm.Nointerface || !Eqtype(methodfunc(tm.Type, nil), imtype) {
 			if tm == nil {
 				tm = ifacelookdot(im.Sym, t, &followptr, 1)
 			}
 			*m = im
 			*samename = tm
 			*ptr = 0
-			return 0
+			return false
 		}
 
 		// if pointer receiver in method,
 		// the method does not exist for value types.
 		rcvr = getthisx(tm.Type).Type.Type
 
-		if Isptr[rcvr.Etype] != 0 && !(Isptr[t0.Etype] != 0) && !(followptr != 0) && !(isifacemethod(tm.Type) != 0) {
+		if Isptr[rcvr.Etype] != 0 && Isptr[t0.Etype] == 0 && followptr == 0 && !isifacemethod(tm.Type) {
 			if false && Debug['r'] != 0 {
 				Yyerror("interface pointer mismatch")
 			}
@@ -3269,11 +3286,11 @@ func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) int {
 			*m = im
 			*samename = nil
 			*ptr = 1
-			return 0
+			return false
 		}
 	}
 
-	return 1
+	return true
 }
 
 /*
@@ -3470,7 +3487,7 @@ func powtwo(n *Node) int {
 	if n == nil || n.Op != OLITERAL || n.Type == nil {
 		goto no
 	}
-	if !(Isint[n.Type.Etype] != 0) {
+	if Isint[n.Type.Etype] == 0 {
 		goto no
 	}
 
@@ -3483,7 +3500,7 @@ func powtwo(n *Node) int {
 		b = b << 1
 	}
 
-	if !(Issigned[n.Type.Etype] != 0) {
+	if Issigned[n.Type.Etype] == 0 {
 		goto no
 	}
 
@@ -3895,7 +3912,7 @@ func isbadimport(path_ *Strlit) bool {
 func checknil(x *Node, init **NodeList) {
 	var n *Node
 
-	if Isinter(x.Type) != 0 {
+	if Isinter(x.Type) {
 		x = Nod(OITAB, x, nil)
 		typecheck(&x, Erv)
 	}
@@ -3909,7 +3926,7 @@ func checknil(x *Node, init **NodeList) {
  * Can this type be stored directly in an interface word?
  * Yes, if the representation is a single pointer.
  */
-func isdirectiface(t *Type) int {
+func isdirectiface(t *Type) bool {
 	switch t.Etype {
 	case TPTR32,
 		TPTR64,
@@ -3917,16 +3934,16 @@ func isdirectiface(t *Type) int {
 		TMAP,
 		TFUNC,
 		TUNSAFEPTR:
-		return 1
+		return true
 
 		// Array of 1 direct iface type can be direct.
 	case TARRAY:
-		return bool2int(t.Bound == 1 && isdirectiface(t.Type) != 0)
+		return t.Bound == 1 && isdirectiface(t.Type)
 
 		// Struct with 1 field of direct iface type can be direct.
 	case TSTRUCT:
-		return bool2int(t.Type != nil && t.Type.Down == nil && isdirectiface(t.Type.Type) != 0)
+		return t.Type != nil && t.Type.Down == nil && isdirectiface(t.Type.Type)
 	}
 
-	return 0
+	return false
 }

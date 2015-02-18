@@ -601,7 +601,7 @@ func gclean() {
 	}
 }
 
-func anyregalloc() int {
+func anyregalloc() bool {
 	var i int
 	var j int
 
@@ -614,16 +614,16 @@ func anyregalloc() int {
 				goto ok
 			}
 		}
-		return 1
+		return true
 	ok:
 	}
 
 	for i = i386.REG_X0; i <= i386.REG_X7; i++ {
 		if reg[i] != 0 {
-			return 1
+			return true
 		}
 	}
-	return 0
+	return false
 }
 
 /*
@@ -644,7 +644,6 @@ func regalloc(n *gc.Node, t *gc.Type, o *gc.Node) {
 	case gc.TINT64,
 		gc.TUINT64:
 		gc.Fatal("regalloc64")
-		fallthrough
 
 	case gc.TINT8,
 		gc.TUINT8,
@@ -677,7 +676,7 @@ func regalloc(n *gc.Node, t *gc.Type, o *gc.Node) {
 
 	case gc.TFLOAT32,
 		gc.TFLOAT64:
-		if !(gc.Use_sse != 0) {
+		if gc.Use_sse == 0 {
 			i = i386.REG_F0
 			goto out
 		}
@@ -798,7 +797,7 @@ func split64(n *gc.Node, lo *gc.Node, hi *gc.Node) {
 	var n1 gc.Node
 	var i int64
 
-	if !(gc.Is64(n.Type) != 0) {
+	if !gc.Is64(n.Type) {
 		gc.Fatal("split64 %v", gc.Tconv(n.Type, 0))
 	}
 
@@ -811,7 +810,7 @@ func split64(n *gc.Node, lo *gc.Node, hi *gc.Node) {
 	default:
 		switch n.Op {
 		default:
-			if !(dotaddable(n, &n1) != 0) {
+			if !dotaddable(n, &n1) {
 				igen(n, &n1, nil)
 				sclean[nsclean-1] = n1
 			}
@@ -934,7 +933,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 
 	// cannot have two integer memory operands;
 	// except 64-bit, which always copies via registers anyway.
-	if gc.Isint[ft] != 0 && gc.Isint[tt] != 0 && !(gc.Is64(f.Type) != 0) && !(gc.Is64(t.Type) != 0) && gc.Ismem(f) != 0 && gc.Ismem(t) != 0 {
+	if gc.Isint[ft] != 0 && gc.Isint[tt] != 0 && !gc.Is64(f.Type) && !gc.Is64(t.Type) && gc.Ismem(f) && gc.Ismem(t) {
 		goto hard
 	}
 
@@ -1200,7 +1199,7 @@ func floatmove(f *gc.Node, t *gc.Node) {
 	cvt = t.Type
 
 	// cannot have two floating point memory operands.
-	if gc.Isfloat[ft] != 0 && gc.Isfloat[tt] != 0 && gc.Ismem(f) != 0 && gc.Ismem(t) != 0 {
+	if gc.Isfloat[ft] != 0 && gc.Isfloat[tt] != 0 && gc.Ismem(f) && gc.Ismem(t) {
 		goto hard
 	}
 
@@ -1211,7 +1210,7 @@ func floatmove(f *gc.Node, t *gc.Node) {
 		ft = gc.Simsimtype(con.Type)
 
 		// some constants can't move directly to memory.
-		if gc.Ismem(t) != 0 {
+		if gc.Ismem(t) {
 			// float constants come from memory.
 			if gc.Isfloat[tt] != 0 {
 				goto hard
@@ -1269,7 +1268,7 @@ func floatmove(f *gc.Node, t *gc.Node) {
 
 	case gc.TFLOAT32<<16 | gc.TUINT64,
 		gc.TFLOAT64<<16 | gc.TUINT64:
-		if !(gc.Ismem(f) != 0) {
+		if !gc.Ismem(f) {
 			cvt = f.Type
 			goto hardmem
 		}
@@ -1500,7 +1499,6 @@ func floatmove_387(f *gc.Node, t *gc.Node) {
 		switch tt {
 		default:
 			gc.Fatal("gmove %v", gc.Nconv(t, 0))
-			fallthrough
 
 		case gc.TINT8:
 			gins(i386.ACMPL, &t1, ncon(-0x80&(1<<32-1)))
@@ -1595,7 +1593,7 @@ func floatmove_387(f *gc.Node, t *gc.Node) {
 	 */
 	case gc.TFLOAT32<<16 | gc.TFLOAT32,
 		gc.TFLOAT64<<16 | gc.TFLOAT64:
-		if gc.Ismem(f) != 0 && gc.Ismem(t) != 0 {
+		if gc.Ismem(f) && gc.Ismem(t) {
 			goto hard
 		}
 		if f.Op == gc.OREGISTER && t.Op == gc.OREGISTER {
@@ -1609,7 +1607,7 @@ func floatmove_387(f *gc.Node, t *gc.Node) {
 		if ft == gc.TFLOAT64 {
 			a = i386.AFMOVD
 		}
-		if gc.Ismem(t) != 0 {
+		if gc.Ismem(t) {
 			if f.Op != gc.OREGISTER || f.Val.U.Reg != i386.REG_F0 {
 				gc.Fatal("gmove %v", gc.Nconv(f, 0))
 			}
@@ -1620,7 +1618,7 @@ func floatmove_387(f *gc.Node, t *gc.Node) {
 		}
 
 	case gc.TFLOAT32<<16 | gc.TFLOAT64:
-		if gc.Ismem(f) != 0 && gc.Ismem(t) != 0 {
+		if gc.Ismem(f) && gc.Ismem(t) {
 			goto hard
 		}
 		if f.Op == gc.OREGISTER && t.Op == gc.OREGISTER {
@@ -1638,7 +1636,7 @@ func floatmove_387(f *gc.Node, t *gc.Node) {
 		return
 
 	case gc.TFLOAT64<<16 | gc.TFLOAT32:
-		if gc.Ismem(f) != 0 && gc.Ismem(t) != 0 {
+		if gc.Ismem(f) && gc.Ismem(t) {
 			goto hard
 		}
 		if f.Op == gc.OREGISTER && t.Op == gc.OREGISTER {
@@ -1810,9 +1808,9 @@ rdst:
 	return
 }
 
-func samaddr(f *gc.Node, t *gc.Node) int {
+func samaddr(f *gc.Node, t *gc.Node) bool {
 	if f.Op != t.Op {
-		return 0
+		return false
 	}
 
 	switch f.Op {
@@ -1820,10 +1818,10 @@ func samaddr(f *gc.Node, t *gc.Node) int {
 		if f.Val.U.Reg != t.Val.U.Reg {
 			break
 		}
-		return 1
+		return true
 	}
 
-	return 0
+	return false
 }
 
 /*
@@ -1850,12 +1848,12 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 	case i386.AMOVB,
 		i386.AMOVW,
 		i386.AMOVL:
-		if f != nil && t != nil && samaddr(f, t) != 0 {
+		if f != nil && t != nil && samaddr(f, t) {
 			return nil
 		}
 
 	case i386.ALEAL:
-		if f != nil && gc.Isconst(f, gc.CTNIL) != 0 {
+		if f != nil && gc.Isconst(f, gc.CTNIL) {
 			gc.Fatal("gins LEAL nil %v", gc.Tconv(f.Type, 0))
 		}
 	}
@@ -1904,13 +1902,13 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 	return p
 }
 
-func dotaddable(n *gc.Node, n1 *gc.Node) int {
+func dotaddable(n *gc.Node, n1 *gc.Node) bool {
 	var o int
 	var oary [10]int64
 	var nn *gc.Node
 
 	if n.Op != gc.ODOT {
-		return 0
+		return false
 	}
 
 	o = gc.Dotoffset(n, oary[:], &nn)
@@ -1918,16 +1916,16 @@ func dotaddable(n *gc.Node, n1 *gc.Node) int {
 		*n1 = *nn
 		n1.Type = n.Type
 		n1.Xoffset += oary[0]
-		return 1
+		return true
 	}
 
-	return 0
+	return false
 }
 
 func sudoclean() {
 }
 
-func sudoaddable(as int, n *gc.Node, a *obj.Addr) int {
+func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
 	*a = obj.Addr{}
-	return 0
+	return false
 }

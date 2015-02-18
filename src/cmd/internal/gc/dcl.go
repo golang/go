@@ -10,17 +10,17 @@ import (
 	"strings"
 )
 
-func dflag() int {
-	if !(Debug['d'] != 0) {
-		return 0
+func dflag() bool {
+	if Debug['d'] == 0 {
+		return false
 	}
 	if Debug['y'] != 0 {
-		return 1
+		return true
 	}
 	if incannedimport != 0 {
-		return 0
+		return false
 	}
-	return 1
+	return true
 }
 
 /*
@@ -49,7 +49,7 @@ func pushdcl(s *Sym) *Sym {
 
 	d = push()
 	dcopy(d, s)
-	if dflag() != 0 {
+	if dflag() {
 		fmt.Printf("\t%v push %v %p\n", Ctxt.Line(int(lineno)), Sconv(s, 0), s.Def)
 	}
 	return d
@@ -71,7 +71,7 @@ func popdcl() {
 		lno = int(s.Lastlineno)
 		dcopy(s, d)
 		d.Lastlineno = int32(lno)
-		if dflag() != 0 {
+		if dflag() {
 			fmt.Printf("\t%v pop %v %p\n", Ctxt.Line(int(lineno)), Sconv(s, 0), s.Def)
 		}
 	}
@@ -195,7 +195,7 @@ func declare(n *Node, ctxt int) {
 	s = n.Sym
 
 	// kludgy: typecheckok means we're past parsing.  Eg genwrapper may declare out of package names later.
-	if importpkg == nil && !(typecheckok != 0) && s.Pkg != localpkg {
+	if importpkg == nil && typecheckok == 0 && s.Pkg != localpkg {
 		Yyerror("cannot declare name %v", Sconv(s, 0))
 	}
 
@@ -206,7 +206,7 @@ func declare(n *Node, ctxt int) {
 	gen = 0
 	if ctxt == PEXTERN {
 		externdcl = list(externdcl, n)
-		if dflag() != 0 {
+		if dflag() {
 			fmt.Printf("\t%v global decl %v %p\n", Ctxt.Line(int(lineno)), Sconv(s, 0), n)
 		}
 	} else {
@@ -264,14 +264,14 @@ func addvar(n *Node, t *Type, ctxt int) {
  * new_name_list (type | [type] = expr_list)
  */
 func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
-	var doexpr int
+	var doexpr bool
 	var v *Node
 	var e *Node
 	var as2 *Node
 	var init *NodeList
 
 	init = nil
-	doexpr = bool2int(el != nil)
+	doexpr = el != nil
 
 	if count(el) == 1 && count(vl) > 1 {
 		e = el.N
@@ -293,7 +293,7 @@ func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
 	}
 
 	for ; vl != nil; vl = vl.Next {
-		if doexpr != 0 {
+		if doexpr {
 			if el == nil {
 				Yyerror("missing expression in var declaration")
 				break
@@ -479,17 +479,17 @@ func oldname(s *Sym) *Node {
 /*
  * := declarations
  */
-func colasname(n *Node) int {
+func colasname(n *Node) bool {
 	switch n.Op {
 	case ONAME,
 		ONONAME,
 		OPACK,
 		OTYPE,
 		OLITERAL:
-		return bool2int(n.Sym != nil)
+		return n.Sym != nil
 	}
 
-	return 0
+	return false
 }
 
 func colasdefn(left *NodeList, defn *Node) {
@@ -511,7 +511,7 @@ func colasdefn(left *NodeList, defn *Node) {
 		if isblank(n) {
 			continue
 		}
-		if !(colasname(n) != 0) {
+		if !colasname(n) {
 			yyerrorl(int(defn.Lineno), "non-name %v on left side of :=", Nconv(n, 0))
 			nerr++
 			continue
@@ -735,7 +735,7 @@ func funcargs2(t *Type) {
 
 	if t.Thistuple != 0 {
 		for ft = getthisx(t).Type; ft != nil; ft = ft.Down {
-			if !(ft.Nname != nil) || !(ft.Nname.Sym != nil) {
+			if ft.Nname == nil || ft.Nname.Sym == nil {
 				continue
 			}
 			n = ft.Nname // no need for newname(ft->nname->sym)
@@ -746,7 +746,7 @@ func funcargs2(t *Type) {
 
 	if t.Intuple != 0 {
 		for ft = getinargx(t).Type; ft != nil; ft = ft.Down {
-			if !(ft.Nname != nil) || !(ft.Nname.Sym != nil) {
+			if ft.Nname == nil || ft.Nname.Sym == nil {
 				continue
 			}
 			n = ft.Nname
@@ -757,7 +757,7 @@ func funcargs2(t *Type) {
 
 	if t.Outtuple != 0 {
 		for ft = getoutargx(t).Type; ft != nil; ft = ft.Down {
-			if !(ft.Nname != nil) || !(ft.Nname.Sym != nil) {
+			if ft.Nname == nil || ft.Nname.Sym == nil {
 				continue
 			}
 			n = ft.Nname
@@ -925,7 +925,7 @@ func tostruct(l *NodeList) *Type {
 		tp = &f.Down
 	}
 
-	for f = t.Type; f != nil && !(t.Broke != 0); f = f.Down {
+	for f = t.Type; f != nil && t.Broke == 0; f = f.Down {
 		if f.Broke != 0 {
 			t.Broke = 1
 		}
@@ -934,7 +934,7 @@ func tostruct(l *NodeList) *Type {
 	uniqgen++
 	checkdupfields(t.Type, "field")
 
-	if !(t.Broke != 0) {
+	if t.Broke == 0 {
 		checkwidth(t)
 	}
 
@@ -962,7 +962,7 @@ func tofunargs(l *NodeList) *Type {
 		tp = &f.Down
 	}
 
-	for f = t.Type; f != nil && !(t.Broke != 0); f = f.Down {
+	for f = t.Type; f != nil && t.Broke == 0; f = f.Down {
 		if f.Broke != 0 {
 			t.Broke = 1
 		}
@@ -1072,7 +1072,7 @@ func tointerface(l *NodeList) *Type {
 		}
 	}
 
-	for f = t.Type; f != nil && !(t.Broke != 0); f = f.Down {
+	for f = t.Type; f != nil && t.Broke == 0; f = f.Down {
 		if f.Broke != 0 {
 			t.Broke = 1
 		}
@@ -1199,7 +1199,7 @@ func checkarglist(all *NodeList, input int) *NodeList {
 		}
 		n = Nod(ODCLFIELD, n, t)
 		if n.Right != nil && n.Right.Op == ODDD {
-			if !(input != 0) {
+			if input == 0 {
 				Yyerror("cannot use ... in output argument list")
 			} else if l.Next != nil {
 				Yyerror("can only use ... as final argument in list")
@@ -1232,23 +1232,23 @@ func fakethis() *Node {
  * *struct{} as the receiver.
  * (See fakethis above.)
  */
-func isifacemethod(f *Type) int {
+func isifacemethod(f *Type) bool {
 	var rcvr *Type
 	var t *Type
 
 	rcvr = getthisx(f).Type
 	if rcvr.Sym != nil {
-		return 0
+		return false
 	}
 	t = rcvr.Type
-	if !(Isptr[t.Etype] != 0) {
-		return 0
+	if Isptr[t.Etype] == 0 {
+		return false
 	}
 	t = t.Type
 	if t.Sym != nil || t.Etype != TSTRUCT || t.Type != nil {
-		return 0
+		return false
 	}
-	return 1
+	return true
 }
 
 /*
@@ -1480,7 +1480,7 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
 		}
 	}
 
-	if local && !(pa.Local != 0) {
+	if local && pa.Local == 0 {
 		// defining method on non-local type.
 		Yyerror("cannot define new methods on non-local type %v", Tconv(pa, 0))
 
@@ -1506,7 +1506,7 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
 	}
 
 	f = structfield(n)
-	f.Nointerface = uint8(bool2int(nointerface))
+	f.Nointerface = nointerface
 
 	// during import unexported method names should be in the type's package
 	if importpkg != nil && f.Sym != nil && !exportname(f.Sym.Name) && f.Sym.Pkg != structpkg {

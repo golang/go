@@ -17,8 +17,6 @@ var Framepointer_enabled int
 
 var Fieldtrack_enabled int
 
-var Zprog Prog
-
 // Toolchain experiments.
 // These are controlled by the GOEXPERIMENT environment
 // variable recorded when the toolchain is built.
@@ -72,11 +70,11 @@ func double2ieee(ieee *uint64, f float64) {
 
 func Nopout(p *Prog) {
 	p.As = ANOP
-	p.Scond = Zprog.Scond
-	p.From = Zprog.From
-	p.From3 = Zprog.From3
-	p.Reg = Zprog.Reg
-	p.To = Zprog.To
+	p.Scond = 0
+	p.From = Addr{}
+	p.From3 = Addr{}
+	p.Reg = 0
+	p.To = Addr{}
 }
 
 func Nocache(p *Prog) {

@@ -851,6 +851,7 @@ type yyLexer interface {
 }
 
 type yyParser interface {
+	Parse(yyLexer) int
 	Lookahead() int
 }
 
@@ -860,6 +861,13 @@ type yyParserImpl struct {
 
 func (p *yyParserImpl) Lookahead() int {
 	return p.lookahead()
+}
+
+func yyNewParser() yyParser {
+	p := &yyParserImpl{
+		lookahead: func() int { return -1 },
+	}
+	return p
 }
 
 const yyFlag = -1000
@@ -919,6 +927,10 @@ out:
 }
 
 func yyParse(yylex yyLexer) int {
+	return yyNewParser().Parse(yylex)
+}
+
+func (yyrcvr *yyParserImpl) Parse(yylex yyLexer) int {
 	var yyn int
 	var yylval yySymType
 	var yyVAL yySymType
@@ -930,19 +942,12 @@ func yyParse(yylex yyLexer) int {
 	yystate := 0
 	yychar := -1
 	yytoken := -1 // yychar translated into internal numbering
-	if lx, ok := yylex.(interface {
-		SetParser(yyParser)
-	}); ok {
-		p := &yyParserImpl{
-			lookahead: func() int { return yychar },
-		}
-		lx.SetParser(p)
-		defer func() {
-			// Make sure we report no lookahead when not parsing.
-			yychar = -1
-			yytoken = -1
-		}()
-	}
+	yyrcvr.lookahead = func() int { return yychar }
+	defer func() {
+		// Make sure we report no lookahead when not parsing.
+		yychar = -1
+		yytoken = -1
+	}()
 	yyp := -1
 	goto yystack
 

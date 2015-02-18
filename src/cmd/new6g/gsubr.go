@@ -103,7 +103,7 @@ func gclean() {
 	}
 }
 
-func anyregalloc() int {
+func anyregalloc() bool {
 	var i int
 	var j int
 
@@ -116,11 +116,11 @@ func anyregalloc() int {
 				goto ok
 			}
 		}
-		return 1
+		return true
 	ok:
 	}
 
-	return 0
+	return false
 }
 
 var regpc [x86.REG_R15 + 1 - x86.REG_AX]uint32
@@ -170,7 +170,6 @@ func regalloc(n *gc.Node, t *gc.Type, o *gc.Node) {
 			fmt.Printf("%d %p\n", i, regpc[i])
 		}
 		gc.Fatal("out of fixed registers")
-		fallthrough
 
 	case gc.TFLOAT32,
 		gc.TFLOAT64:
@@ -187,7 +186,6 @@ func regalloc(n *gc.Node, t *gc.Type, o *gc.Node) {
 			}
 		}
 		gc.Fatal("out of floating registers")
-		fallthrough
 
 	case gc.TCOMPLEX64,
 		gc.TCOMPLEX128:
@@ -339,7 +337,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 	}
 
 	// cannot have two memory operands
-	if gc.Ismem(f) != 0 && gc.Ismem(t) != 0 {
+	if gc.Ismem(f) && gc.Ismem(t) {
 		goto hard
 	}
 
@@ -350,7 +348,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 		ft = tt // so big switch will choose a simple mov
 
 		// some constants can't move directly to memory.
-		if gc.Ismem(t) != 0 {
+		if gc.Ismem(t) {
 			// float constants come from memory.
 			if gc.Isfloat[tt] != 0 {
 				goto hard
@@ -379,7 +377,6 @@ func gmove(f *gc.Node, t *gc.Node) {
 	switch uint32(ft)<<16 | uint32(tt) {
 	default:
 		gc.Fatal("gmove %v -> %v", gc.Tconv(f.Type, obj.FmtLong), gc.Tconv(t.Type, obj.FmtLong))
-		fallthrough
 
 		/*
 		 * integer copy and truncate
@@ -699,9 +696,9 @@ hard:
 	return
 }
 
-func samaddr(f *gc.Node, t *gc.Node) int {
+func samaddr(f *gc.Node, t *gc.Node) bool {
 	if f.Op != t.Op {
-		return 0
+		return false
 	}
 
 	switch f.Op {
@@ -709,10 +706,10 @@ func samaddr(f *gc.Node, t *gc.Node) int {
 		if f.Val.U.Reg != t.Val.U.Reg {
 			break
 		}
-		return 1
+		return true
 	}
 
-	return 0
+	return false
 }
 
 /*
@@ -722,9 +719,9 @@ func samaddr(f *gc.Node, t *gc.Node) int {
 func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 	var w int32
 	var p *obj.Prog
+	var af obj.Addr
 	//	Node nod;
 
-	var af obj.Addr
 	var at obj.Addr
 
 	//	if(f != N && f->op == OINDEX) {
@@ -751,12 +748,12 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 		x86.AMOVQ,
 		x86.AMOVSS,
 		x86.AMOVSD:
-		if f != nil && t != nil && samaddr(f, t) != 0 {
+		if f != nil && t != nil && samaddr(f, t) {
 			return nil
 		}
 
 	case x86.ALEAQ:
-		if f != nil && gc.Isconst(f, gc.CTNIL) != 0 {
+		if f != nil && gc.Isconst(f, gc.CTNIL) {
 			gc.Fatal("gins LEAQ nil %v", gc.Tconv(f.Type, 0))
 		}
 	}
@@ -1326,21 +1323,21 @@ var clean [20]gc.Node
 
 var cleani int = 0
 
-func xgen(n *gc.Node, a *gc.Node, o int) int {
+func xgen(n *gc.Node, a *gc.Node, o int) bool {
 	regalloc(a, gc.Types[gc.Tptr], nil)
 
 	if o&ODynam != 0 {
 		if n.Addable != 0 {
 			if n.Op != gc.OINDREG {
 				if n.Op != gc.OREGISTER {
-					return 1
+					return true
 				}
 			}
 		}
 	}
 
 	agen(n, a)
-	return 0
+	return false
 }
 
 func sudoclean() {
@@ -1364,7 +1361,7 @@ func sudoclean() {
  * after successful sudoaddable,
  * to release the register used for a.
  */
-func sudoaddable(as int, n *gc.Node, a *obj.Addr) int {
+func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
 	var o int
 	var i int
 	var oary [10]int64
@@ -1383,14 +1380,14 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr) int {
 	var t *gc.Type
 
 	if n.Type == nil {
-		return 0
+		return false
 	}
 
 	*a = obj.Addr{}
 
 	switch n.Op {
 	case gc.OLITERAL:
-		if !(gc.Isconst(n, gc.CTINT) != 0) {
+		if !gc.Isconst(n, gc.CTINT) {
 			break
 		}
 		v = gc.Mpgetfix(n.Val.U.Xval)
@@ -1409,22 +1406,22 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr) int {
 		goto odot
 
 	case gc.OINDEX:
-		return 0
+		return false
 
 		// disabled: OINDEX case is now covered by agenr
 		// for a more suitable register allocation pattern.
 		if n.Left.Type.Etype == gc.TSTRING {
-			return 0
+			return false
 		}
 		goto oindex
 	}
 
-	return 0
+	return false
 
 lit:
 	switch as {
 	default:
-		return 0
+		return false
 
 	case x86.AADDB,
 		x86.AADDW,
@@ -1516,7 +1513,7 @@ oindex:
 	l = n.Left
 	r = n.Right
 	if l.Ullman >= gc.UINF && r.Ullman >= gc.UINF {
-		return 0
+		return false
 	}
 
 	// set o to type of array
@@ -1533,13 +1530,13 @@ oindex:
 	}
 
 	w = n.Type.Width
-	if gc.Isconst(r, gc.CTINT) != 0 {
+	if gc.Isconst(r, gc.CTINT) {
 		goto oindex_const
 	}
 
 	switch w {
 	default:
-		return 0
+		return false
 
 	case 1,
 		2,
@@ -1556,7 +1553,7 @@ oindex:
 
 	// load the array (reg)
 	if l.Ullman > r.Ullman {
-		if xgen(l, reg, o) != 0 {
+		if xgen(l, reg, o) {
 			o |= OAddable
 		}
 	}
@@ -1575,13 +1572,13 @@ oindex:
 
 	// load the array (reg)
 	if l.Ullman <= r.Ullman {
-		if xgen(l, reg, o) != 0 {
+		if xgen(l, reg, o) {
 			o |= OAddable
 		}
 	}
 
 	// check bounds
-	if !(gc.Debug['B'] != 0) && !(n.Bounded != 0) {
+	if gc.Debug['B'] == 0 && !n.Bounded {
 		// check bounds
 		n4.Op = gc.OXXX
 
@@ -1598,7 +1595,7 @@ oindex:
 				n2.Type = gc.Types[gc.Simtype[gc.TUINT]]
 			}
 		} else {
-			if gc.Is64(r.Type) != 0 {
+			if gc.Is64(r.Type) {
 				t = gc.Types[gc.TUINT64]
 			}
 			gc.Nodconst(&n2, gc.Types[gc.TUINT64], l.Type.Bound)
@@ -1653,7 +1650,7 @@ oindex:
 oindex_const:
 	v = gc.Mpgetfix(r.Val.U.Xval)
 
-	if sudoaddable(as, l, a) != 0 {
+	if sudoaddable(as, l, a) {
 		goto oindex_const_sudo
 	}
 
@@ -1667,7 +1664,7 @@ oindex_const:
 		regalloc(reg, gc.Types[gc.Tptr], nil)
 		agen(l, reg)
 
-		if !(gc.Debug['B'] != 0) && !(n.Bounded != 0) {
+		if gc.Debug['B'] == 0 && !n.Bounded {
 			n1 = *reg
 			n1.Op = gc.OINDREG
 			n1.Type = gc.Types[gc.Tptr]
@@ -1717,7 +1714,7 @@ oindex_const_sudo:
 	}
 
 	// slice indexed by a constant
-	if !(gc.Debug['B'] != 0) && !(n.Bounded != 0) {
+	if gc.Debug['B'] == 0 && !n.Bounded {
 		a.Offset += int64(gc.Array_nel)
 		gc.Nodconst(&n2, gc.Types[gc.TUINT64], v)
 		p1 = gins(optoas(gc.OCMP, gc.Types[gc.Simtype[gc.TUINT]]), nil, &n2)
@@ -1747,9 +1744,9 @@ oindex_const_sudo:
 	goto yes
 
 yes:
-	return 1
+	return true
 
 no:
 	sudoclean()
-	return 0
+	return false
 }

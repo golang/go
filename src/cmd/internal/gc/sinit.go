@@ -155,7 +155,7 @@ func init1(n *Node, out **NodeList) {
 			if n.Defn.Left != n {
 				goto bad
 			}
-			if isblank(n.Defn.Left) && candiscard(n.Defn.Right) != 0 {
+			if isblank(n.Defn.Left) && candiscard(n.Defn.Right) {
 				n.Defn.Op = OEMPTY
 				n.Defn.Left = nil
 				n.Defn.Right = nil
@@ -166,7 +166,7 @@ func init1(n *Node, out **NodeList) {
 			if Debug['j'] != 0 {
 				fmt.Printf("%v\n", Sconv(n.Sym, 0))
 			}
-			if isblank(n) || !(staticinit(n, out) != 0) {
+			if isblank(n) || !staticinit(n, out) {
 				if Debug['%'] != 0 {
 					Dump("nonstatic", n.Defn)
 				}
@@ -275,7 +275,7 @@ func initfix(l *NodeList) *NodeList {
  * compilation of top-level (static) assignments
  * into DATA statements if at all possible.
  */
-func staticinit(n *Node, out **NodeList) int {
+func staticinit(n *Node, out **NodeList) bool {
 	var l *Node
 	var r *Node
 
@@ -291,7 +291,7 @@ func staticinit(n *Node, out **NodeList) int {
 
 // like staticassign but we are copying an already
 // initialized value r.
-func staticcopy(l *Node, r *Node, out **NodeList) int {
+func staticcopy(l *Node, r *Node, out **NodeList) bool {
 	var i int
 	var e *InitEntry
 	var p *InitPlan
@@ -302,37 +302,37 @@ func staticcopy(l *Node, r *Node, out **NodeList) int {
 	var n1 Node
 
 	if r.Op != ONAME || r.Class != PEXTERN || r.Sym.Pkg != localpkg {
-		return 0
+		return false
 	}
 	if r.Defn == nil { // probably zeroed but perhaps supplied externally and of unknown value
-		return 0
+		return false
 	}
 	if r.Defn.Op != OAS {
-		return 0
+		return false
 	}
 	orig = r
 	r = r.Defn.Right
 
 	switch r.Op {
 	case ONAME:
-		if staticcopy(l, r, out) != 0 {
-			return 1
+		if staticcopy(l, r, out) {
+			return true
 		}
 		*out = list(*out, Nod(OAS, l, r))
-		return 1
+		return true
 
 	case OLITERAL:
-		if iszero(r) != 0 {
-			return 1
+		if iszero(r) {
+			return true
 		}
 		gdata(l, r, int(l.Type.Width))
-		return 1
+		return true
 
 	case OADDR:
 		switch r.Left.Op {
 		case ONAME:
 			gdata(l, r, int(l.Type.Width))
-			return 1
+			return true
 		}
 
 	case OPTRLIT:
@@ -347,11 +347,11 @@ func staticcopy(l *Node, r *Node, out **NodeList) int {
 			OMAPLIT:
 			gdata(l, Nod(OADDR, r.Nname, nil), int(l.Type.Width))
 
-			return 1
+			return true
 		}
 
 	case OARRAYLIT:
-		if Isslice(r.Type) != 0 {
+		if Isslice(r.Type) {
 			// copy slice
 			a = r.Nname
 
@@ -362,7 +362,7 @@ func staticcopy(l *Node, r *Node, out **NodeList) int {
 			gdata(&n1, r.Right, Widthint)
 			n1.Xoffset = l.Xoffset + int64(Array_cap)
 			gdata(&n1, r.Right, Widthint)
-			return 1
+			return true
 		}
 		fallthrough
 
@@ -381,7 +381,7 @@ func staticcopy(l *Node, r *Node, out **NodeList) int {
 				ll = Nod(OXXX, nil, nil)
 				*ll = n1
 				ll.Orig = ll // completely separate copy
-				if !(staticassign(ll, e.Expr, out) != 0) {
+				if !staticassign(ll, e.Expr, out) {
 					// Requires computation, but we're
 					// copying someone else's computation.
 					rr = Nod(OXXX, nil, nil)
@@ -395,13 +395,13 @@ func staticcopy(l *Node, r *Node, out **NodeList) int {
 			}
 		}
 
-		return 1
+		return true
 	}
 
-	return 0
+	return false
 }
 
-func staticassign(l *Node, r *Node, out **NodeList) int {
+func staticassign(l *Node, r *Node, out **NodeList) bool {
 	var a *Node
 	var n1 Node
 	var nam Node
@@ -422,18 +422,18 @@ func staticassign(l *Node, r *Node, out **NodeList) int {
 		}
 
 	case OLITERAL:
-		if iszero(r) != 0 {
-			return 1
+		if iszero(r) {
+			return true
 		}
 		gdata(l, r, int(l.Type.Width))
-		return 1
+		return true
 
 	case OADDR:
-		if stataddr(&nam, r.Left) != 0 {
+		if stataddr(&nam, r.Left) {
 			n1 = *r
 			n1.Left = &nam
 			gdata(l, &n1, int(l.Type.Width))
-			return 1
+			return true
 		}
 		fallthrough
 
@@ -453,22 +453,22 @@ func staticassign(l *Node, r *Node, out **NodeList) int {
 			gdata(l, Nod(OADDR, a, nil), int(l.Type.Width))
 
 			// Init underlying literal.
-			if !(staticassign(a, r.Left, out) != 0) {
+			if !staticassign(a, r.Left, out) {
 				*out = list(*out, Nod(OAS, a, r.Left))
 			}
-			return 1
+			return true
 		}
 
 	case OSTRARRAYBYTE:
 		if l.Class == PEXTERN && r.Left.Op == OLITERAL {
 			sval = r.Left.Val.U.Sval
 			slicebytes(l, sval.S, len(sval.S))
-			return 1
+			return true
 		}
 
 	case OARRAYLIT:
 		initplan(r)
-		if Isslice(r.Type) != 0 {
+		if Isslice(r.Type) {
 			// Init slice.
 			ta = typ(TARRAY)
 
@@ -505,20 +505,20 @@ func staticassign(l *Node, r *Node, out **NodeList) int {
 				a = Nod(OXXX, nil, nil)
 				*a = n1
 				a.Orig = a // completely separate copy
-				if !(staticassign(a, e.Expr, out) != 0) {
+				if !staticassign(a, e.Expr, out) {
 					*out = list(*out, Nod(OAS, a, e.Expr))
 				}
 			}
 		}
 
-		return 1
+		return true
 
 		// TODO: Table-driven map insert.
 	case OMAPLIT:
 		break
 	}
 
-	return 0
+	return false
 }
 
 /*
@@ -534,27 +534,27 @@ func staticname(t *Type, ctxt int) *Node {
 	namebuf = fmt.Sprintf("statictmp_%.4d", statuniqgen)
 	statuniqgen++
 	n = newname(Lookup(namebuf))
-	if !(ctxt != 0) {
+	if ctxt == 0 {
 		n.Readonly = 1
 	}
 	addvar(n, t, PEXTERN)
 	return n
 }
 
-func isliteral(n *Node) int {
+func isliteral(n *Node) bool {
 	if n.Op == OLITERAL {
 		if n.Val.Ctype != CTNIL {
-			return 1
+			return true
 		}
 	}
-	return 0
+	return false
 }
 
-func simplename(n *Node) int {
+func simplename(n *Node) bool {
 	if n.Op != ONAME {
 		goto no
 	}
-	if !(n.Addable != 0) {
+	if n.Addable == 0 {
 		goto no
 	}
 	if n.Class&PHEAP != 0 {
@@ -563,10 +563,10 @@ func simplename(n *Node) int {
 	if n.Class == PPARAMREF {
 		goto no
 	}
-	return 1
+	return true
 
 no:
-	return 0
+	return false
 }
 
 func litas(l *Node, r *Node, init **NodeList) {
@@ -591,13 +591,13 @@ func getdyn(n *Node, top int) int {
 	mode = 0
 	switch n.Op {
 	default:
-		if isliteral(n) != 0 {
+		if isliteral(n) {
 			return MODECONST
 		}
 		return MODEDYNAM
 
 	case OARRAYLIT:
-		if !(top != 0) && n.Type.Bound < 0 {
+		if top == 0 && n.Type.Bound < 0 {
 			return MODEDYNAM
 		}
 		fallthrough
@@ -657,7 +657,7 @@ func structlit(ctxt int, pass int, n *Node, var_ *Node, init **NodeList) {
 			continue
 		}
 
-		if isliteral(value) != 0 {
+		if isliteral(value) {
 			if pass == 2 {
 				continue
 			}
@@ -725,7 +725,7 @@ func arraylit(ctxt int, pass int, n *Node, var_ *Node, init **NodeList) {
 			continue
 		}
 
-		if isliteral(index) != 0 && isliteral(value) != 0 {
+		if isliteral(index) && isliteral(value) {
 			if pass == 2 {
 				continue
 			}
@@ -881,7 +881,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 		index = r.Left
 		value = r.Right
 		a = Nod(OINDEX, var_, index)
-		a.Bounded = 1
+		a.Bounded = true
 
 		// TODO need to check bounds?
 
@@ -898,7 +898,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 			continue
 		}
 
-		if isliteral(index) != 0 && isliteral(value) != 0 {
+		if isliteral(index) && isliteral(value) {
 			continue
 		}
 
@@ -951,7 +951,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 		index = r.Left
 		value = r.Right
 
-		if isliteral(index) != 0 && isliteral(value) != 0 {
+		if isliteral(index) && isliteral(value) {
 			b++
 		}
 	}
@@ -999,7 +999,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 			index = r.Left
 			value = r.Right
 
-			if isliteral(index) != 0 && isliteral(value) != 0 {
+			if isliteral(index) && isliteral(value) {
 				// build vstat[b].a = key;
 				a = Nodintconst(b)
 
@@ -1033,11 +1033,11 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 		index = temp(Types[TINT])
 
 		a = Nod(OINDEX, vstat, index)
-		a.Bounded = 1
+		a.Bounded = true
 		a = Nod(ODOT, a, newname(symb))
 
 		r = Nod(OINDEX, vstat, index)
-		r.Bounded = 1
+		r.Bounded = true
 		r = Nod(ODOT, r, newname(syma))
 		r = Nod(OINDEX, var_, r)
 
@@ -1068,7 +1068,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 		index = r.Left
 		value = r.Right
 
-		if isliteral(index) != 0 && isliteral(value) != 0 {
+		if isliteral(index) && isliteral(value) {
 			continue
 		}
 
@@ -1118,10 +1118,9 @@ func anylit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 	switch n.Op {
 	default:
 		Fatal("anylit: not lit")
-		fallthrough
 
 	case OPTRLIT:
-		if !(Isptr[t.Etype] != 0) {
+		if Isptr[t.Etype] == 0 {
 			Fatal("anylit: not ptr")
 		}
 
@@ -1150,7 +1149,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 			Fatal("anylit: not struct")
 		}
 
-		if simplename(var_) != 0 && count(n.List) > 4 {
+		if simplename(var_) && count(n.List) > 4 {
 			if ctxt == 0 {
 				// lay out static data
 				vstat = staticname(t, ctxt)
@@ -1176,7 +1175,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 		}
 
 		// initialize of not completely specified
-		if simplename(var_) != 0 || count(n.List) < structcount(t) {
+		if simplename(var_) || count(n.List) < structcount(t) {
 			a = Nod(OAS, var_, nil)
 			typecheck(&a, Etop)
 			walkexpr(&a, init)
@@ -1194,7 +1193,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 			break
 		}
 
-		if simplename(var_) != 0 && count(n.List) > 4 {
+		if simplename(var_) && count(n.List) > 4 {
 			if ctxt == 0 {
 				// lay out static data
 				vstat = staticname(t, ctxt)
@@ -1220,7 +1219,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 		}
 
 		// initialize of not completely specified
-		if simplename(var_) != 0 || int64(count(n.List)) < t.Bound {
+		if simplename(var_) || int64(count(n.List)) < t.Bound {
 			a = Nod(OAS, var_, nil)
 			typecheck(&a, Etop)
 			walkexpr(&a, init)
@@ -1237,7 +1236,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 	}
 }
 
-func oaslit(n *Node, init **NodeList) int {
+func oaslit(n *Node, init **NodeList) bool {
 	var ctxt int
 
 	if n.Left == nil || n.Right == nil {
@@ -1246,7 +1245,7 @@ func oaslit(n *Node, init **NodeList) int {
 	if n.Left.Type == nil || n.Right.Type == nil {
 		goto no
 	}
-	if !(simplename(n.Left) != 0) {
+	if !simplename(n.Left) {
 		goto no
 	}
 	if !Eqtype(n.Left.Type, n.Right.Type) {
@@ -1268,28 +1267,28 @@ func oaslit(n *Node, init **NodeList) int {
 	case OSTRUCTLIT,
 		OARRAYLIT,
 		OMAPLIT:
-		if vmatch1(n.Left, n.Right) != 0 {
+		if vmatch1(n.Left, n.Right) {
 			goto no
 		}
 		anylit(ctxt, n.Right, n.Left, init)
 	}
 
 	n.Op = OEMPTY
-	return 1
+	return true
 
 	// not a special composit literal assignment
 no:
-	return 0
+	return false
 }
 
 func getlit(lit *Node) int {
-	if Smallintconst(lit) != 0 {
+	if Smallintconst(lit) {
 		return int(Mpgetfix(lit.Val.U.Xval))
 	}
 	return -1
 }
 
-func stataddr(nam *Node, n *Node) int {
+func stataddr(nam *Node, n *Node) bool {
 	var l int
 
 	if n == nil {
@@ -1299,21 +1298,21 @@ func stataddr(nam *Node, n *Node) int {
 	switch n.Op {
 	case ONAME:
 		*nam = *n
-		return int(n.Addable)
+		return n.Addable != 0
 
 	case ODOT:
-		if !(stataddr(nam, n.Left) != 0) {
+		if !stataddr(nam, n.Left) {
 			break
 		}
 		nam.Xoffset += n.Xoffset
 		nam.Type = n.Type
-		return 1
+		return true
 
 	case OINDEX:
 		if n.Left.Type.Bound < 0 {
 			break
 		}
-		if !(stataddr(nam, n.Left) != 0) {
+		if !stataddr(nam, n.Left) {
 			break
 		}
 		l = getlit(n.Right)
@@ -1327,11 +1326,11 @@ func stataddr(nam *Node, n *Node) int {
 		}
 		nam.Xoffset += int64(l) * n.Type.Width
 		nam.Type = n.Type
-		return 1
+		return true
 	}
 
 no:
-	return 0
+	return false
 }
 
 func initplan(n *Node) {
@@ -1347,12 +1346,11 @@ func initplan(n *Node) {
 	switch n.Op {
 	default:
 		Fatal("initplan")
-		fallthrough
 
 	case OARRAYLIT:
 		for l = n.List; l != nil; l = l.Next {
 			a = l.N
-			if a.Op != OKEY || !(Smallintconst(a.Left) != 0) {
+			if a.Op != OKEY || !Smallintconst(a.Left) {
 				Fatal("initplan arraylit")
 			}
 			addvalue(p, n.Type.Type.Width*Mpgetfix(a.Left.Val.U.Xval), nil, a.Right)
@@ -1384,13 +1382,13 @@ func addvalue(p *InitPlan, xoffset int64, key *Node, n *Node) {
 	var e *InitEntry
 
 	// special case: zero can be dropped entirely
-	if iszero(n) != 0 {
+	if iszero(n) {
 		p.Zero += n.Type.Width
 		return
 	}
 
 	// special case: inline struct and array (not slice) literals
-	if isvaluelit(n) != 0 {
+	if isvaluelit(n) {
 		initplan(n)
 		q = n.Initplan
 		for i = 0; i < len(q.E); i++ {
@@ -1414,7 +1412,7 @@ func addvalue(p *InitPlan, xoffset int64, key *Node, n *Node) {
 	e.Expr = n
 }
 
-func iszero(n *Node) int {
+func iszero(n *Node) bool {
 	var l *NodeList
 
 	switch n.Op {
@@ -1423,30 +1421,29 @@ func iszero(n *Node) int {
 		default:
 			Dump("unexpected literal", n)
 			Fatal("iszero")
-			fallthrough
 
 		case CTNIL:
-			return 1
+			return true
 
 		case CTSTR:
-			return bool2int(n.Val.U.Sval == nil || len(n.Val.U.Sval.S) == 0)
+			return n.Val.U.Sval == nil || len(n.Val.U.Sval.S) == 0
 
 		case CTBOOL:
-			return bool2int(n.Val.U.Bval == 0)
+			return n.Val.U.Bval == 0
 
 		case CTINT,
 			CTRUNE:
-			return bool2int(mpcmpfixc(n.Val.U.Xval, 0) == 0)
+			return mpcmpfixc(n.Val.U.Xval, 0) == 0
 
 		case CTFLT:
-			return bool2int(mpcmpfltc(n.Val.U.Fval, 0) == 0)
+			return mpcmpfltc(n.Val.U.Fval, 0) == 0
 
 		case CTCPLX:
-			return bool2int(mpcmpfltc(&n.Val.U.Cval.Real, 0) == 0 && mpcmpfltc(&n.Val.U.Cval.Imag, 0) == 0)
+			return mpcmpfltc(&n.Val.U.Cval.Real, 0) == 0 && mpcmpfltc(&n.Val.U.Cval.Imag, 0) == 0
 		}
 
 	case OARRAYLIT:
-		if Isslice(n.Type) != 0 {
+		if Isslice(n.Type) {
 			break
 		}
 		fallthrough
@@ -1454,18 +1451,18 @@ func iszero(n *Node) int {
 		// fall through
 	case OSTRUCTLIT:
 		for l = n.List; l != nil; l = l.Next {
-			if !(iszero(l.N.Right) != 0) {
-				return 0
+			if !iszero(l.N.Right) {
+				return false
 			}
 		}
-		return 1
+		return true
 	}
 
-	return 0
+	return false
 }
 
-func isvaluelit(n *Node) int {
-	return bool2int((n.Op == OARRAYLIT && Isfixedarray(n.Type) != 0) || n.Op == OSTRUCTLIT)
+func isvaluelit(n *Node) bool {
+	return (n.Op == OARRAYLIT && Isfixedarray(n.Type)) || n.Op == OSTRUCTLIT
 }
 
 func entry(p *InitPlan) *InitEntry {
@@ -1473,7 +1470,7 @@ func entry(p *InitPlan) *InitEntry {
 	return &p.E[len(p.E)-1]
 }
 
-func gen_as_init(n *Node) int {
+func gen_as_init(n *Node) bool {
 	var nr *Node
 	var nl *Node
 	var nam Node
@@ -1486,7 +1483,7 @@ func gen_as_init(n *Node) int {
 	nr = n.Right
 	nl = n.Left
 	if nr == nil {
-		if !(stataddr(&nam, nl) != 0) {
+		if !stataddr(&nam, nl) {
 			goto no
 		}
 		if nam.Class != PEXTERN {
@@ -1499,7 +1496,7 @@ func gen_as_init(n *Node) int {
 		goto no
 	}
 
-	if !(stataddr(&nam, nl) != 0) {
+	if !stataddr(&nam, nl) {
 		goto no
 	}
 
@@ -1562,7 +1559,7 @@ func gen_as_init(n *Node) int {
 	}
 
 yes:
-	return 1
+	return true
 
 slice:
 	gused(nil) // in case the data is the dest of a goto
@@ -1598,5 +1595,5 @@ no:
 		Fatal("gen_as_init couldnt make data statement")
 	}
 
-	return 0
+	return false
 }

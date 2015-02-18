@@ -44,7 +44,7 @@ func mplsh(a *Mpint, quiet int) {
 	}
 
 	a.Ovf = uint8(c)
-	if a.Ovf != 0 && !(quiet != 0) {
+	if a.Ovf != 0 && quiet == 0 {
 		Yyerror("constant shift overflow")
 	}
 }
@@ -59,7 +59,7 @@ func mplshw(a *Mpint, quiet int) {
 	i = Mpprec - 1
 	if a.A[i] != 0 {
 		a.Ovf = 1
-		if !(quiet != 0) {
+		if quiet == 0 {
 			Yyerror("constant shift overflow")
 		}
 	}
@@ -223,7 +223,7 @@ func mpaddfixfix(a *Mpint, b *Mpint, quiet int) {
 	}
 
 	a.Ovf = uint8(c)
-	if a.Ovf != 0 && !(quiet != 0) {
+	if a.Ovf != 0 && quiet == 0 {
 		Yyerror("constant addition overflow")
 	}
 
@@ -663,15 +663,15 @@ func mpdivmodfixfix(q *Mpint, r *Mpint, n *Mpint, d *Mpint) {
 	q.Neg = uint8(ns ^ ds)
 }
 
-func mpiszero(a *Mpint) int {
+func mpiszero(a *Mpint) bool {
 	var i int
 
 	for i = Mpprec - 1; i >= 0; i-- {
 		if a.A[i] != 0 {
-			return 0
+			return false
 		}
 	}
-	return 1
+	return true
 }
 
 func mpdivfract(a *Mpint, b *Mpint) {
@@ -694,7 +694,7 @@ func mpdivfract(a *Mpint, b *Mpint) {
 		for j = 0; j < Mpscale; j++ {
 			x <<= 1
 			if mpcmp(&d, &n) <= 0 {
-				if !(mpiszero(&d) != 0) {
+				if !mpiszero(&d) {
 					x |= 1
 				}
 				mpsubfixfix(&n, &d)

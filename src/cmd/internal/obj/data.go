@@ -142,7 +142,7 @@ func Setuintxx(ctxt *Link, s *LSym, off int64, v uint64, wid int64) int64 {
 	return off + wid
 }
 
-func Adduintxx(ctxt *Link, s *LSym, v uint64, wid int) int64 {
+func adduintxx(ctxt *Link, s *LSym, v uint64, wid int) int64 {
 	var off int64
 
 	off = s.Size
@@ -150,23 +150,23 @@ func Adduintxx(ctxt *Link, s *LSym, v uint64, wid int) int64 {
 	return off
 }
 
-func Adduint8(ctxt *Link, s *LSym, v uint8) int64 {
-	return Adduintxx(ctxt, s, uint64(v), 1)
+func adduint8(ctxt *Link, s *LSym, v uint8) int64 {
+	return adduintxx(ctxt, s, uint64(v), 1)
 }
 
-func Adduint16(ctxt *Link, s *LSym, v uint16) int64 {
-	return Adduintxx(ctxt, s, uint64(v), 2)
+func adduint16(ctxt *Link, s *LSym, v uint16) int64 {
+	return adduintxx(ctxt, s, uint64(v), 2)
 }
 
 func Adduint32(ctxt *Link, s *LSym, v uint32) int64 {
-	return Adduintxx(ctxt, s, uint64(v), 4)
+	return adduintxx(ctxt, s, uint64(v), 4)
 }
 
 func Adduint64(ctxt *Link, s *LSym, v uint64) int64 {
-	return Adduintxx(ctxt, s, v, 8)
+	return adduintxx(ctxt, s, v, 8)
 }
 
-func Setuint8(ctxt *Link, s *LSym, r int64, v uint8) int64 {
+func setuint8(ctxt *Link, s *LSym, r int64, v uint8) int64 {
 	return Setuintxx(ctxt, s, r, uint64(v), 1)
 }
 
@@ -174,7 +174,7 @@ func setuint16(ctxt *Link, s *LSym, r int64, v uint16) int64 {
 	return Setuintxx(ctxt, s, r, uint64(v), 2)
 }
 
-func Setuint32(ctxt *Link, s *LSym, r int64, v uint32) int64 {
+func setuint32(ctxt *Link, s *LSym, r int64, v uint32) int64 {
 	return Setuintxx(ctxt, s, r, uint64(v), 4)
 }
 
@@ -182,7 +182,7 @@ func setuint64(ctxt *Link, s *LSym, r int64, v uint64) int64 {
 	return Setuintxx(ctxt, s, r, v, 8)
 }
 
-func Addaddrplus(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
+func addaddrplus(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
 	var i int64
 	var r *Reloc
 
@@ -222,11 +222,11 @@ func addpcrelplus(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
 	return i + int64(r.Siz)
 }
 
-func Addaddr(ctxt *Link, s *LSym, t *LSym) int64 {
-	return Addaddrplus(ctxt, s, t, 0)
+func addaddr(ctxt *Link, s *LSym, t *LSym) int64 {
+	return addaddrplus(ctxt, s, t, 0)
 }
 
-func Setaddrplus(ctxt *Link, s *LSym, off int64, t *LSym, add int64) int64 {
+func setaddrplus(ctxt *Link, s *LSym, off int64, t *LSym, add int64) int64 {
 	var r *Reloc
 
 	if s.Type == 0 {
@@ -247,11 +247,11 @@ func Setaddrplus(ctxt *Link, s *LSym, off int64, t *LSym, add int64) int64 {
 	return off + int64(r.Siz)
 }
 
-func Setaddr(ctxt *Link, s *LSym, off int64, t *LSym) int64 {
-	return Setaddrplus(ctxt, s, off, t, 0)
+func setaddr(ctxt *Link, s *LSym, off int64, t *LSym) int64 {
+	return setaddrplus(ctxt, s, off, t, 0)
 }
 
-func Addsize(ctxt *Link, s *LSym, t *LSym) int64 {
+func addsize(ctxt *Link, s *LSym, t *LSym) int64 {
 	var i int64
 	var r *Reloc
 
@@ -270,7 +270,7 @@ func Addsize(ctxt *Link, s *LSym, t *LSym) int64 {
 	return i + int64(r.Siz)
 }
 
-func Addaddrplus4(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
+func addaddrplus4(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
 	var i int64
 	var r *Reloc
 

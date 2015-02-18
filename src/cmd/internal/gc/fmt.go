@@ -207,15 +207,15 @@ func Jconv(n *Node, flag int) string {
 
 	c = flag & obj.FmtShort
 
-	if !(c != 0) && n.Ullman != 0 {
+	if c == 0 && n.Ullman != 0 {
 		fp += fmt.Sprintf(" u(%d)", n.Ullman)
 	}
 
-	if !(c != 0) && n.Addable != 0 {
+	if c == 0 && n.Addable != 0 {
 		fp += fmt.Sprintf(" a(%d)", n.Addable)
 	}
 
-	if !(c != 0) && n.Vargen != 0 {
+	if c == 0 && n.Vargen != 0 {
 		fp += fmt.Sprintf(" g(%d)", n.Vargen)
 	}
 
@@ -223,7 +223,7 @@ func Jconv(n *Node, flag int) string {
 		fp += fmt.Sprintf(" l(%d)", n.Lineno)
 	}
 
-	if !(c != 0) && n.Xoffset != BADWIDTH {
+	if c == 0 && n.Xoffset != BADWIDTH {
 		fp += fmt.Sprintf(" x(%d%+d)", n.Xoffset, n.Stkdelta)
 	}
 
@@ -261,7 +261,7 @@ func Jconv(n *Node, flag int) string {
 		fp += fmt.Sprintf(" esc(no)")
 
 	case EscNever:
-		if !(c != 0) {
+		if c == 0 {
 			fp += fmt.Sprintf(" esc(N)")
 		}
 
@@ -273,11 +273,11 @@ func Jconv(n *Node, flag int) string {
 		fp += fmt.Sprintf(" ld(%d)", n.Escloopdepth)
 	}
 
-	if !(c != 0) && n.Typecheck != 0 {
+	if c == 0 && n.Typecheck != 0 {
 		fp += fmt.Sprintf(" tc(%d)", n.Typecheck)
 	}
 
-	if !(c != 0) && n.Dodata != 0 {
+	if c == 0 && n.Dodata != 0 {
 		fp += fmt.Sprintf(" dd(%d)", n.Dodata)
 	}
 
@@ -301,7 +301,7 @@ func Jconv(n *Node, flag int) string {
 		fp += fmt.Sprintf(" assigned")
 	}
 
-	if !(c != 0) && n.Used != 0 {
+	if c == 0 && n.Used != 0 {
 		fp += fmt.Sprintf(" used(%d)", n.Used)
 	}
 	return fp
@@ -497,7 +497,7 @@ func symfmt(s *Sym, flag int) string {
 
 	var p string
 
-	if s.Pkg != nil && !(flag&obj.FmtShort != 0 /*untyped*/) {
+	if s.Pkg != nil && flag&obj.FmtShort == 0 /*untyped*/ {
 		switch fmtmode {
 		case FErr: // This is for the user
 			if s.Pkg == localpkg {
@@ -608,7 +608,7 @@ func typefmt(t *Type, flag int) string {
 	}
 
 	// Unless the 'l' flag was specified, if the type has a name, just print that name.
-	if !(flag&obj.FmtLong != 0 /*untyped*/) && t.Sym != nil && t.Etype != TFIELD && t != Types[t.Etype] {
+	if flag&obj.FmtLong == 0 /*untyped*/ && t.Sym != nil && t.Etype != TFIELD && t != Types[t.Etype] {
 		switch fmtmode {
 		case FTypeId:
 			if flag&obj.FmtShort != 0 /*untyped*/ {
@@ -802,7 +802,7 @@ func typefmt(t *Type, flag int) string {
 		return fp
 
 	case TFIELD:
-		if !(flag&obj.FmtShort != 0 /*untyped*/) {
+		if flag&obj.FmtShort == 0 /*untyped*/ {
 			s = t.Sym
 
 			// Take the name from the original, lest we substituted it with ~r%d or ~b%d.
@@ -822,7 +822,7 @@ func typefmt(t *Type, flag int) string {
 				}
 			}
 
-			if s != nil && !(t.Embedded != 0) {
+			if s != nil && t.Embedded == 0 {
 				if t.Funarg != 0 {
 					fp += fmt.Sprintf("%v ", Nconv(t.Nname, 0))
 				} else if flag&obj.FmtLong != 0 /*untyped*/ {
@@ -850,7 +850,7 @@ func typefmt(t *Type, flag int) string {
 			fp += fmt.Sprintf("%v", Tconv(t.Type, 0))
 		}
 
-		if !(flag&obj.FmtShort != 0 /*untyped*/) && t.Note != nil {
+		if flag&obj.FmtShort == 0 /*untyped*/ && t.Note != nil {
 			fp += fmt.Sprintf(" \"%v\"", Zconv(t.Note, 0))
 		}
 		return fp
@@ -882,23 +882,23 @@ func typefmt(t *Type, flag int) string {
 }
 
 // Statements which may be rendered with a simplestmt as init.
-func stmtwithinit(op int) int {
+func stmtwithinit(op int) bool {
 	switch op {
 	case OIF,
 		OFOR,
 		OSWITCH:
-		return 1
+		return true
 	}
 
-	return 0
+	return false
 }
 
 func stmtfmt(n *Node) string {
 	var f string
 
-	var complexinit int
-	var simpleinit int
-	var extrablock int
+	var complexinit bool
+	var simpleinit bool
+	var extrablock bool
 
 	// some statements allow for an init, but at most one,
 	// but we may have an arbitrary number added, eg by typecheck
@@ -906,19 +906,19 @@ func stmtfmt(n *Node) string {
 	// block starting with the init statements.
 
 	// if we can just say "for" n->ninit; ... then do so
-	simpleinit = bool2int(n.Ninit != nil && !(n.Ninit.Next != nil) && !(n.Ninit.N.Ninit != nil) && stmtwithinit(int(n.Op)) != 0)
+	simpleinit = n.Ninit != nil && n.Ninit.Next == nil && n.Ninit.N.Ninit == nil && stmtwithinit(int(n.Op))
 
 	// otherwise, print the inits as separate statements
-	complexinit = bool2int(n.Ninit != nil && !(simpleinit != 0) && (fmtmode != FErr))
+	complexinit = n.Ninit != nil && !simpleinit && (fmtmode != FErr)
 
 	// but if it was for if/for/switch, put in an extra surrounding block to limit the scope
-	extrablock = bool2int(complexinit != 0 && stmtwithinit(int(n.Op)) != 0)
+	extrablock = complexinit && stmtwithinit(int(n.Op))
 
-	if extrablock != 0 {
+	if extrablock {
 		f += "{"
 	}
 
-	if complexinit != 0 {
+	if complexinit {
 		f += fmt.Sprintf(" %v; ", Hconv(n.Ninit, 0))
 	}
 
@@ -951,7 +951,7 @@ func stmtfmt(n *Node) string {
 			break
 		}
 
-		if n.Colas != 0 && !(complexinit != 0) {
+		if n.Colas != 0 && !complexinit {
 			f += fmt.Sprintf("%v := %v", Nconv(n.Left, 0), Nconv(n.Right, 0))
 		} else {
 			f += fmt.Sprintf("%v = %v", Nconv(n.Left, 0), Nconv(n.Right, 0))
@@ -970,7 +970,7 @@ func stmtfmt(n *Node) string {
 		f += fmt.Sprintf("%v %v= %v", Nconv(n.Left, 0), Oconv(int(n.Etype), obj.FmtSharp), Nconv(n.Right, 0))
 
 	case OAS2:
-		if n.Colas != 0 && !(complexinit != 0) {
+		if n.Colas != 0 && !complexinit {
 			f += fmt.Sprintf("%v := %v", Hconv(n.List, obj.FmtComma), Hconv(n.Rlist, obj.FmtComma))
 			break
 		}
@@ -996,7 +996,7 @@ func stmtfmt(n *Node) string {
 		f += fmt.Sprintf("defer %v", Nconv(n.Left, 0))
 
 	case OIF:
-		if simpleinit != 0 {
+		if simpleinit {
 			f += fmt.Sprintf("if %v; %v { %v }", Nconv(n.Ninit.N, 0), Nconv(n.Ntest, 0), Hconv(n.Nbody, 0))
 		} else {
 			f += fmt.Sprintf("if %v { %v }", Nconv(n.Ntest, 0), Hconv(n.Nbody, 0))
@@ -1012,7 +1012,7 @@ func stmtfmt(n *Node) string {
 		}
 
 		f += "for"
-		if simpleinit != 0 {
+		if simpleinit {
 			f += fmt.Sprintf(" %v;", Nconv(n.Ninit.N, 0))
 		} else if n.Nincr != nil {
 			f += " ;"
@@ -1024,7 +1024,7 @@ func stmtfmt(n *Node) string {
 
 		if n.Nincr != nil {
 			f += fmt.Sprintf("; %v", Nconv(n.Nincr, 0))
-		} else if simpleinit != 0 {
+		} else if simpleinit {
 			f += ";"
 		}
 
@@ -1051,7 +1051,7 @@ func stmtfmt(n *Node) string {
 		}
 
 		f += fmt.Sprintf("%v", Oconv(int(n.Op), obj.FmtSharp))
-		if simpleinit != 0 {
+		if simpleinit {
 			f += fmt.Sprintf(" %v;", Nconv(n.Ninit.N, 0))
 		}
 		if n.Ntest != nil {
@@ -1087,7 +1087,7 @@ func stmtfmt(n *Node) string {
 	}
 
 ret:
-	if extrablock != 0 {
+	if extrablock {
 		f += "}"
 	}
 
@@ -1211,7 +1211,7 @@ func exprfmt(n *Node, prec int) string {
 	var f string
 
 	var nprec int
-	var ptrlit int
+	var ptrlit bool
 	var l *NodeList
 
 	for n != nil && n.Implicit != 0 && (n.Op == OIND || n.Op == OADDR) {
@@ -1368,10 +1368,10 @@ func exprfmt(n *Node, prec int) string {
 		return f
 
 	case OCOMPLIT:
-		ptrlit = bool2int(n.Right != nil && n.Right.Implicit != 0 && n.Right.Type != nil && Isptr[n.Right.Type.Etype] != 0)
+		ptrlit = n.Right != nil && n.Right.Implicit != 0 && n.Right.Type != nil && Isptr[n.Right.Type.Etype] != 0
 		if fmtmode == FErr {
-			if n.Right != nil && n.Right.Type != nil && !(n.Implicit != 0) {
-				if ptrlit != 0 {
+			if n.Right != nil && n.Right.Type != nil && n.Implicit == 0 {
+				if ptrlit {
 					f += fmt.Sprintf("&%v literal", Tconv(n.Right.Type.Type, 0))
 					return f
 				} else {
@@ -1384,7 +1384,7 @@ func exprfmt(n *Node, prec int) string {
 			return f
 		}
 
-		if fmtmode == FExp && ptrlit != 0 {
+		if fmtmode == FExp && ptrlit {
 			// typecheck has overwritten OIND by OTYPE with pointer type.
 			f += fmt.Sprintf("(&%v{ %v })", Tconv(n.Right.Type.Type, 0), Hconv(n.List, obj.FmtComma))
 			return f
@@ -1418,7 +1418,7 @@ func exprfmt(n *Node, prec int) string {
 				}
 			}
 
-			if !(n.Implicit != 0) {
+			if n.Implicit == 0 {
 				f += "})"
 				return f
 			}
@@ -1454,11 +1454,11 @@ func exprfmt(n *Node, prec int) string {
 			}
 		}
 
-		if !(n.Left != nil) && n.Right != nil {
+		if n.Left == nil && n.Right != nil {
 			f += fmt.Sprintf(":%v", Nconv(n.Right, 0))
 			return f
 		}
-		if n.Left != nil && !(n.Right != nil) {
+		if n.Left != nil && n.Right == nil {
 			f += fmt.Sprintf("%v:", Nconv(n.Left, 0))
 			return f
 		}
@@ -1686,15 +1686,15 @@ func indent(s string) string {
 func nodedump(n *Node, flag int) string {
 	var fp string
 
-	var recur int
+	var recur bool
 
 	if n == nil {
 		return fp
 	}
 
-	recur = bool2int(!(flag&obj.FmtShort != 0 /*untyped*/))
+	recur = flag&obj.FmtShort == 0 /*untyped*/
 
-	if recur != 0 {
+	if recur {
 		fp = indent(fp)
 		if dumpdepth > 10 {
 			fp += "..."
@@ -1727,7 +1727,7 @@ func nodedump(n *Node, flag int) string {
 		} else {
 			fp += fmt.Sprintf("%v%v", Oconv(int(n.Op), 0), Jconv(n, 0))
 		}
-		if recur != 0 && n.Type == nil && n.Ntype != nil {
+		if recur && n.Type == nil && n.Ntype != nil {
 			fp = indent(fp)
 			fp += fmt.Sprintf("%v-ntype%v", Oconv(int(n.Op), 0), Nconv(n.Ntype, 0))
 		}
@@ -1737,7 +1737,7 @@ func nodedump(n *Node, flag int) string {
 
 	case OTYPE:
 		fp += fmt.Sprintf("%v %v%v type=%v", Oconv(int(n.Op), 0), Sconv(n.Sym, 0), Jconv(n, 0), Tconv(n.Type, 0))
-		if recur != 0 && n.Type == nil && n.Ntype != nil {
+		if recur && n.Type == nil && n.Ntype != nil {
 			fp = indent(fp)
 			fp += fmt.Sprintf("%v-ntype%v", Oconv(int(n.Op), 0), Nconv(n.Ntype, 0))
 		}
@@ -1751,7 +1751,7 @@ func nodedump(n *Node, flag int) string {
 		fp += fmt.Sprintf(" %v", Tconv(n.Type, 0))
 	}
 
-	if recur != 0 {
+	if recur {
 		if n.Left != nil {
 			fp += fmt.Sprintf("%v", Nconv(n.Left, 0))
 		}

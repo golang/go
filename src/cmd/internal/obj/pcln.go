@@ -307,7 +307,7 @@ func getvarint(pp *[]byte) uint32 {
 		v |= uint32(p[0]&0x7F) << uint(shift)
 		tmp7 := p
 		p = p[1:]
-		if !(tmp7[0]&0x80 != 0) {
+		if tmp7[0]&0x80 == 0 {
 			break
 		}
 	}
@@ -316,45 +316,45 @@ func getvarint(pp *[]byte) uint32 {
 	return v
 }
 
-func Pciternext(it *Pciter) {
+func pciternext(it *Pciter) {
 	var v uint32
 	var dv int32
 
-	it.Pc = it.Nextpc
-	if it.Done != 0 {
+	it.pc = it.nextpc
+	if it.done != 0 {
 		return
 	}
-	if -cap(it.P) >= -cap(it.D.P[len(it.D.P):]) {
-		it.Done = 1
+	if -cap(it.p) >= -cap(it.d.P[len(it.d.P):]) {
+		it.done = 1
 		return
 	}
 
 	// value delta
-	v = getvarint(&it.P)
+	v = getvarint(&it.p)
 
-	if v == 0 && !(it.Start != 0) {
-		it.Done = 1
+	if v == 0 && it.start == 0 {
+		it.done = 1
 		return
 	}
 
-	it.Start = 0
+	it.start = 0
 	dv = int32(v>>1) ^ (int32(v<<31) >> 31)
-	it.Value += dv
+	it.value += dv
 
 	// pc delta
-	v = getvarint(&it.P)
+	v = getvarint(&it.p)
 
-	it.Nextpc = it.Pc + v*it.Pcscale
+	it.nextpc = it.pc + v*it.pcscale
 }
 
-func Pciterinit(ctxt *Link, it *Pciter, d *Pcdata) {
-	it.D = *d
-	it.P = it.D.P
-	it.Pc = 0
-	it.Nextpc = 0
-	it.Value = -1
-	it.Start = 1
-	it.Done = 0
-	it.Pcscale = uint32(ctxt.Arch.Minlc)
-	Pciternext(it)
+func pciterinit(ctxt *Link, it *Pciter, d *Pcdata) {
+	it.d = *d
+	it.p = it.d.P
+	it.pc = 0
+	it.nextpc = 0
+	it.value = -1
+	it.start = 1
+	it.done = 0
+	it.pcscale = uint32(ctxt.Arch.Minlc)
+	pciternext(it)
 }

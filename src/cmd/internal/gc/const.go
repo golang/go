@@ -47,7 +47,7 @@ func truncfltlit(oldv *Mpflt, t *Type) *Mpflt {
  * implicit conversion.
  */
 func Convlit(np **Node, t *Type) {
-	convlit1(np, t, 0)
+	convlit1(np, t, false)
 }
 
 /*
@@ -55,17 +55,17 @@ func Convlit(np **Node, t *Type) {
  * return a new node if necessary
  * (if n is a named constant, can't edit n->type directly).
  */
-func convlit1(np **Node, t *Type, explicit int) {
+func convlit1(np **Node, t *Type, explicit bool) {
 	var ct int
 	var et int
 	var n *Node
 	var nn *Node
 
 	n = *np
-	if n == nil || t == nil || n.Type == nil || isideal(t) != 0 || n.Type == t {
+	if n == nil || t == nil || n.Type == nil || isideal(t) || n.Type == t {
 		return
 	}
-	if !(explicit != 0) && !(isideal(n.Type) != 0) {
+	if !explicit && !isideal(n.Type) {
 		return
 	}
 
@@ -96,7 +96,7 @@ func convlit1(np **Node, t *Type, explicit int) {
 
 		// target is invalid type for a constant?  leave alone.
 	case OLITERAL:
-		if !(okforconst[t.Etype] != 0) && n.Type.Etype != TNIL {
+		if okforconst[t.Etype] == 0 && n.Type.Etype != TNIL {
 			defaultlit(&n, nil)
 			*np = n
 			return
@@ -104,12 +104,12 @@ func convlit1(np **Node, t *Type, explicit int) {
 
 	case OLSH,
 		ORSH:
-		convlit1(&n.Left, t, bool2int(explicit != 0 && isideal(n.Left.Type) != 0))
+		convlit1(&n.Left, t, explicit && isideal(n.Left.Type))
 		t = n.Left.Type
 		if t != nil && t.Etype == TIDEAL && n.Val.Ctype != CTINT {
 			n.Val = toint(n.Val)
 		}
-		if t != nil && !(Isint[t.Etype] != 0) {
+		if t != nil && Isint[t.Etype] == 0 {
 			Yyerror("invalid operation: %v (shift of type %v)", Nconv(n, 0), Tconv(t, 0))
 			t = nil
 		}
@@ -179,7 +179,7 @@ func convlit1(np **Node, t *Type, explicit int) {
 			return
 
 		case TARRAY:
-			if !(Isslice(t) != 0) {
+			if !Isslice(t) {
 				goto bad
 			}
 
@@ -258,7 +258,7 @@ func convlit1(np **Node, t *Type, explicit int) {
 			case CTCPLX:
 				overflow(n.Val, t)
 			}
-		} else if et == TSTRING && (ct == CTINT || ct == CTRUNE) && explicit != 0 {
+		} else if et == TSTRING && (ct == CTINT || ct == CTRUNE) && explicit {
 			n.Val = tostr(n.Val)
 		} else {
 			goto bad
@@ -269,14 +269,14 @@ func convlit1(np **Node, t *Type, explicit int) {
 	return
 
 bad:
-	if !(n.Diag != 0) {
-		if !(t.Broke != 0) {
+	if n.Diag == 0 {
+		if t.Broke == 0 {
 			Yyerror("cannot convert %v to type %v", Nconv(n, 0), Tconv(t, 0))
 		}
 		n.Diag = 1
 	}
 
-	if isideal(n.Type) != 0 {
+	if isideal(n.Type) {
 		defaultlit(&n, nil)
 		*np = n
 	}
@@ -388,35 +388,35 @@ func toint(v Val) Val {
 	return v
 }
 
-func doesoverflow(v Val, t *Type) int {
+func doesoverflow(v Val, t *Type) bool {
 	switch v.Ctype {
 	case CTINT,
 		CTRUNE:
-		if !(Isint[t.Etype] != 0) {
+		if Isint[t.Etype] == 0 {
 			Fatal("overflow: %v integer constant", Tconv(t, 0))
 		}
 		if Mpcmpfixfix(v.U.Xval, Minintval[t.Etype]) < 0 || Mpcmpfixfix(v.U.Xval, Maxintval[t.Etype]) > 0 {
-			return 1
+			return true
 		}
 
 	case CTFLT:
-		if !(Isfloat[t.Etype] != 0) {
+		if Isfloat[t.Etype] == 0 {
 			Fatal("overflow: %v floating-point constant", Tconv(t, 0))
 		}
 		if mpcmpfltflt(v.U.Fval, minfltval[t.Etype]) <= 0 || mpcmpfltflt(v.U.Fval, maxfltval[t.Etype]) >= 0 {
-			return 1
+			return true
 		}
 
 	case CTCPLX:
-		if !(Iscomplex[t.Etype] != 0) {
+		if Iscomplex[t.Etype] == 0 {
 			Fatal("overflow: %v complex constant", Tconv(t, 0))
 		}
 		if mpcmpfltflt(&v.U.Cval.Real, minfltval[t.Etype]) <= 0 || mpcmpfltflt(&v.U.Cval.Real, maxfltval[t.Etype]) >= 0 || mpcmpfltflt(&v.U.Cval.Imag, minfltval[t.Etype]) <= 0 || mpcmpfltflt(&v.U.Cval.Imag, maxfltval[t.Etype]) >= 0 {
-			return 1
+			return true
 		}
 	}
 
-	return 0
+	return false
 }
 
 func overflow(v Val, t *Type) {
@@ -426,7 +426,7 @@ func overflow(v Val, t *Type) {
 		return
 	}
 
-	if !(doesoverflow(v, t) != 0) {
+	if !doesoverflow(v, t) {
 		return
 	}
 
@@ -479,14 +479,14 @@ func consttype(n *Node) int {
 	return int(n.Val.Ctype)
 }
 
-func Isconst(n *Node, ct int) int {
+func Isconst(n *Node, ct int) bool {
 	var t int
 
 	t = consttype(n)
 
 	// If the caller is asking for CTINT, allow CTRUNE too.
 	// Makes life easier for back ends.
-	return bool2int(t == ct || (ct == CTINT && t == CTRUNE))
+	return t == ct || (ct == CTINT && t == CTRUNE)
 }
 
 func saveorig(n *Node) *Node {
@@ -557,18 +557,18 @@ func evconst(n *Node) {
 		if n.Type == nil {
 			return
 		}
-		if !(okforconst[n.Type.Etype] != 0) && n.Type.Etype != TNIL {
+		if okforconst[n.Type.Etype] == 0 && n.Type.Etype != TNIL {
 			return
 		}
 
 		// merge adjacent constants in the argument list.
 	case OADDSTR:
 		for l1 = n.List; l1 != nil; l1 = l1.Next {
-			if Isconst(l1.N, CTSTR) != 0 && l1.Next != nil && Isconst(l1.Next.N, CTSTR) != 0 {
+			if Isconst(l1.N, CTSTR) && l1.Next != nil && Isconst(l1.Next.N, CTSTR) {
 				// merge from l1 up to but not including l2
 				str = new(Strlit)
 				l2 = l1
-				for l2 != nil && Isconst(l2.N, CTSTR) != 0 {
+				for l2 != nil && Isconst(l2.N, CTSTR) {
 					nr = l2.N
 					str.S += nr.Val.U.Sval.S
 					l2 = l2.Next
@@ -590,7 +590,7 @@ func evconst(n *Node) {
 		}
 
 		// collapse single-constant list to single constant.
-		if count(n.List) == 1 && Isconst(n.List.N, CTSTR) != 0 {
+		if count(n.List) == 1 && Isconst(n.List.N, CTSTR) {
 			n.Op = OLITERAL
 			n.Val = n.List.N.Val
 		}
@@ -655,7 +655,7 @@ func evconst(n *Node) {
 		defaultlit(&nr, Types[TUINT])
 
 		n.Right = nr
-		if nr.Type != nil && (Issigned[nr.Type.Etype] != 0 || !(Isint[nr.Type.Etype] != 0)) {
+		if nr.Type != nil && (Issigned[nr.Type.Etype] != 0 || Isint[nr.Type.Etype] == 0) {
 			goto illegal
 		}
 		if nl.Val.Ctype != CTRUNE {
@@ -787,7 +787,7 @@ func evconst(n *Node) {
 		// The default case above would print 'ideal % ideal',
 	// which is not quite an ideal error.
 	case OMOD<<16 | CTFLT:
-		if !(n.Diag != 0) {
+		if n.Diag == 0 {
 			Yyerror("illegal constant expression: floating-point % operation")
 			n.Diag = 1
 		}
@@ -985,7 +985,7 @@ unary:
 
 	switch uint32(n.Op)<<16 | uint32(v.Ctype) {
 	default:
-		if !(n.Diag != 0) {
+		if n.Diag == 0 {
 			Yyerror("illegal constant expression %v %v", Oconv(int(n.Op), 0), Tconv(nl.Type, 0))
 			n.Diag = 1
 		}
@@ -1006,7 +1006,7 @@ unary:
 		OCONV<<16 | CTRUNE,
 		OCONV<<16 | CTFLT,
 		OCONV<<16 | CTSTR:
-		convlit1(&nl, n.Type, 1)
+		convlit1(&nl, n.Type, true)
 
 		v = nl.Val
 
@@ -1058,7 +1058,7 @@ unary:
 		mpnegflt(&v.U.Cval.Imag)
 
 	case ONOT<<16 | CTBOOL:
-		if !(v.U.Bval != 0) {
+		if v.U.Bval == 0 {
 			goto settrue
 		}
 		goto setfalse
@@ -1087,18 +1087,18 @@ ret:
 
 settrue:
 	norig = saveorig(n)
-	*n = *Nodbool(1)
+	*n = *Nodbool(true)
 	n.Orig = norig
 	return
 
 setfalse:
 	norig = saveorig(n)
-	*n = *Nodbool(0)
+	*n = *Nodbool(false)
 	n.Orig = norig
 	return
 
 illegal:
-	if !(n.Diag != 0) {
+	if n.Diag == 0 {
 		Yyerror("illegal constant expression: %v %v %v", Tconv(nl.Type, 0), Oconv(int(n.Op), 0), Tconv(nr.Type, 0))
 		n.Diag = 1
 	}
@@ -1114,7 +1114,6 @@ func nodlit(v Val) *Node {
 	switch v.Ctype {
 	default:
 		Fatal("nodlit ctype %d", v.Ctype)
-		fallthrough
 
 	case CTSTR:
 		n.Type = idealstring
@@ -1163,7 +1162,7 @@ func idealkind(n *Node) int {
 	var k1 int
 	var k2 int
 
-	if n == nil || !(isideal(n.Type) != 0) {
+	if n == nil || !isideal(n.Type) {
 		return CTxxx
 	}
 
@@ -1235,7 +1234,7 @@ func defaultlit(np **Node, t *Type) {
 	var t1 *Type
 
 	n = *np
-	if n == nil || !(isideal(n.Type) != 0) {
+	if n == nil || !isideal(n.Type) {
 		return
 	}
 
@@ -1257,7 +1256,7 @@ func defaultlit(np **Node, t *Type) {
 
 		if n.Val.Ctype == CTNIL {
 			lineno = int32(lno)
-			if !(n.Diag != 0) {
+			if n.Diag == 0 {
 				Yyerror("use of untyped nil")
 				n.Diag = 1
 			}
@@ -1341,17 +1340,17 @@ func defaultlit2(lp **Node, rp **Node, force int) {
 	if l.Type == nil || r.Type == nil {
 		return
 	}
-	if !(isideal(l.Type) != 0) {
+	if !isideal(l.Type) {
 		Convlit(rp, l.Type)
 		return
 	}
 
-	if !(isideal(r.Type) != 0) {
+	if !isideal(r.Type) {
 		Convlit(lp, r.Type)
 		return
 	}
 
-	if !(force != 0) {
+	if force == 0 {
 		return
 	}
 	if l.Type.Etype == TBOOL {
@@ -1387,8 +1386,8 @@ func cmpslit(l, r *Node) int {
 	return stringsCompare(l.Val.U.Sval.S, r.Val.U.Sval.S)
 }
 
-func Smallintconst(n *Node) int {
-	if n.Op == OLITERAL && Isconst(n, CTINT) != 0 && n.Type != nil {
+func Smallintconst(n *Node) bool {
+	if n.Op == OLITERAL && Isconst(n, CTINT) && n.Type != nil {
 		switch Simtype[n.Type.Etype] {
 		case TINT8,
 			TUINT8,
@@ -1398,7 +1397,7 @@ func Smallintconst(n *Node) int {
 			TUINT32,
 			TBOOL,
 			TPTR32:
-			return 1
+			return true
 
 		case TIDEAL,
 			TINT64,
@@ -1407,11 +1406,11 @@ func Smallintconst(n *Node) int {
 			if Mpcmpfixfix(n.Val.U.Xval, Minintval[TINT32]) < 0 || Mpcmpfixfix(n.Val.U.Xval, Maxintval[TINT32]) > 0 {
 				break
 			}
-			return 1
+			return true
 		}
 	}
 
-	return 0
+	return false
 }
 
 func nonnegconst(n *Node) int {
@@ -1491,7 +1490,6 @@ func Convconst(con *Node, t *Type, val *Val) {
 		switch val.Ctype {
 		default:
 			Fatal("convconst ctype=%d %v", val.Ctype, Tconv(t, obj.FmtLong))
-			fallthrough
 
 		case CTINT,
 			CTRUNE:
@@ -1615,7 +1613,7 @@ func cmplxdiv(v *Mpcplx, rv *Mpcplx) {
 // may be known at compile time, are not Go language constants.
 // Only called for expressions known to evaluated to compile-time
 // constants.
-func isgoconst(n *Node) int {
+func isgoconst(n *Node) bool {
 	var l *Node
 	var t *Type
 
@@ -1652,20 +1650,20 @@ func isgoconst(n *Node) int {
 		OCOMPLEX,
 		OREAL,
 		OIMAG:
-		if isgoconst(n.Left) != 0 && (n.Right == nil || isgoconst(n.Right) != 0) {
-			return 1
+		if isgoconst(n.Left) && (n.Right == nil || isgoconst(n.Right)) {
+			return true
 		}
 
 	case OCONV:
-		if okforconst[n.Type.Etype] != 0 && isgoconst(n.Left) != 0 {
-			return 1
+		if okforconst[n.Type.Etype] != 0 && isgoconst(n.Left) {
+			return true
 		}
 
 	case OLEN,
 		OCAP:
 		l = n.Left
-		if isgoconst(l) != 0 {
-			return 1
+		if isgoconst(l) {
+			return true
 		}
 
 		// Special case: len/cap is constant when applied to array or
@@ -1676,24 +1674,24 @@ func isgoconst(n *Node) int {
 		if t != nil && Isptr[t.Etype] != 0 {
 			t = t.Type
 		}
-		if Isfixedarray(t) != 0 && !(hascallchan(l) != 0) {
-			return 1
+		if Isfixedarray(t) && !hascallchan(l) {
+			return true
 		}
 
 	case OLITERAL:
 		if n.Val.Ctype != CTNIL {
-			return 1
+			return true
 		}
 
 	case ONAME:
 		l = n.Sym.Def
 		if l != nil && l.Op == OLITERAL && n.Val.Ctype != CTNIL {
-			return 1
+			return true
 		}
 
 	case ONONAME:
 		if n.Sym.Def != nil && n.Sym.Def.Op == OIOTA {
-			return 1
+			return true
 		}
 
 		// Only constant calls are unsafe.Alignof, Offsetof, and Sizeof.
@@ -1707,19 +1705,19 @@ func isgoconst(n *Node) int {
 			break
 		}
 		if l.Sym.Name == "Alignof" || l.Sym.Name == "Offsetof" || l.Sym.Name == "Sizeof" {
-			return 1
+			return true
 		}
 	}
 
 	//dump("nonconst", n);
-	return 0
+	return false
 }
 
-func hascallchan(n *Node) int {
+func hascallchan(n *Node) bool {
 	var l *NodeList
 
 	if n == nil {
-		return 0
+		return false
 	}
 	switch n.Op {
 	case OAPPEND,
@@ -1742,23 +1740,23 @@ func hascallchan(n *Node) int {
 		OREAL,
 		ORECOVER,
 		ORECV:
-		return 1
+		return true
 	}
 
-	if hascallchan(n.Left) != 0 || hascallchan(n.Right) != 0 {
-		return 1
+	if hascallchan(n.Left) || hascallchan(n.Right) {
+		return true
 	}
 
 	for l = n.List; l != nil; l = l.Next {
-		if hascallchan(l.N) != 0 {
-			return 1
+		if hascallchan(l.N) {
+			return true
 		}
 	}
 	for l = n.Rlist; l != nil; l = l.Next {
-		if hascallchan(l.N) != 0 {
-			return 1
+		if hascallchan(l.N) {
+			return true
 		}
 	}
 
-	return 0
+	return false
 }

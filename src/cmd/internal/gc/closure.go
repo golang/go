@@ -91,7 +91,7 @@ func typecheckclosure(func_ *Node, top int) {
 
 	for l = func_.Cvars; l != nil; l = l.Next {
 		n = l.N.Closure
-		if !(n.Captured != 0) {
+		if n.Captured == 0 {
 			n.Captured = 1
 			if n.Decldepth == 0 {
 				Fatal("typecheckclosure: var %v does not have decldepth assigned", Nconv(n, obj.FmtShort))
@@ -218,7 +218,7 @@ func capturevars(xfunc *Node) {
 		v.Outerexpr = nil
 
 		// out parameters will be assigned to implicitly upon return.
-		if outer.Class != PPARAMOUT && !(v.Closure.Addrtaken != 0) && !(v.Closure.Assigned != 0) && v.Type.Width <= 128 {
+		if outer.Class != PPARAMOUT && v.Closure.Addrtaken == 0 && v.Closure.Assigned == 0 && v.Type.Width <= 128 {
 			v.Byval = 1
 		} else {
 			v.Closure.Addrtaken = 1
@@ -351,7 +351,7 @@ func transformclosure(xfunc *Node) {
 			cv = Nod(OCLOSUREVAR, nil, nil)
 
 			cv.Type = v.Type
-			if !(v.Byval != 0) {
+			if v.Byval == 0 {
 				cv.Type = Ptrto(v.Type)
 			}
 			offset = Rnd(offset, int64(cv.Type.Align))
@@ -389,7 +389,7 @@ func transformclosure(xfunc *Node) {
 		typechecklist(body, Etop)
 		walkstmtlist(body)
 		xfunc.Enter = body
-		xfunc.Needctxt = uint8(bool2int(nvar > 0))
+		xfunc.Needctxt = nvar > 0
 	}
 
 	lineno = int32(lno)
@@ -430,7 +430,7 @@ func walkclosure(func_ *Node, init **NodeList) *Node {
 			continue
 		}
 		typ1 = typenod(v.Type)
-		if !(v.Byval != 0) {
+		if v.Byval == 0 {
 			typ1 = Nod(OIND, typ1, nil)
 		}
 		typ.List = list(typ.List, Nod(ODCLFIELD, newname(v.Sym), typ1))
@@ -594,7 +594,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	// Declare and initialize variable holding receiver.
 	body = nil
 
-	xfunc.Needctxt = 1
+	xfunc.Needctxt = true
 	cv = Nod(OCLOSUREVAR, nil, nil)
 	cv.Xoffset = int64(Widthptr)
 	cv.Type = rcvrtype
@@ -609,7 +609,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	ptr.Used = 1
 	ptr.Curfn = xfunc
 	xfunc.Dcl = list(xfunc.Dcl, ptr)
-	if Isptr[rcvrtype.Etype] != 0 || Isinter(rcvrtype) != 0 {
+	if Isptr[rcvrtype.Etype] != 0 || Isinter(rcvrtype) {
 		ptr.Ntype = typenod(rcvrtype)
 		body = list(body, Nod(OAS, ptr, cv))
 	} else {
@@ -652,7 +652,7 @@ func walkpartialcall(n *Node, init **NodeList) *Node {
 	//
 	// Like walkclosure above.
 
-	if Isinter(n.Left.Type) != 0 {
+	if Isinter(n.Left.Type) {
 		// Trigger panic for method on nil interface now.
 		// Otherwise it happens in the wrapper and is confusing.
 		n.Left = cheapexpr(n.Left, init)

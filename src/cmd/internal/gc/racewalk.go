@@ -30,27 +30,27 @@ var omit_pkgs = []string{"runtime", "runtime/race"}
 // Memory accesses in the packages are either uninteresting or will cause false positives.
 var noinst_pkgs = []string{"sync", "sync/atomic"}
 
-func ispkgin(pkgs []string) int {
+func ispkgin(pkgs []string) bool {
 	var i int
 
 	if myimportpath != "" {
 		for i = 0; i < len(pkgs); i++ {
 			if myimportpath == pkgs[i] {
-				return 1
+				return true
 			}
 		}
 	}
 
-	return 0
+	return false
 }
 
-func isforkfunc(fn *Node) int {
+func isforkfunc(fn *Node) bool {
 	// Special case for syscall.forkAndExecInChild.
 	// In the child, this function must not acquire any locks, because
 	// they might have been locked at the time of the fork.  This means
 	// no rescheduling, no malloc calls, and no new stack segments.
 	// Race instrumentation does all of the above.
-	return bool2int(myimportpath != "" && myimportpath == "syscall" && fn.Nname.Sym.Name == "forkAndExecInChild")
+	return myimportpath != "" && myimportpath == "syscall" && fn.Nname.Sym.Name == "forkAndExecInChild"
 }
 
 func racewalk(fn *Node) {
@@ -58,11 +58,11 @@ func racewalk(fn *Node) {
 	var nodpc *Node
 	var s string
 
-	if ispkgin(omit_pkgs) != 0 || isforkfunc(fn) != 0 {
+	if ispkgin(omit_pkgs) || isforkfunc(fn) {
 		return
 	}
 
-	if !(ispkgin(noinst_pkgs) != 0) {
+	if !ispkgin(noinst_pkgs) {
 		racewalklist(fn.Nbody, nil)
 
 		// nothing interesting for race detector in fn->enter
@@ -147,7 +147,6 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 	switch n.Op {
 	default:
 		Fatal("racewalk: unknown node type %v", Oconv(int(n.Op), 0))
-		fallthrough
 
 	case OAS,
 		OAS2FUNC:
@@ -263,7 +262,7 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 		OLEN,
 		OCAP:
 		racewalknode(&n.Left, init, 0, 0)
-		if Istype(n.Left.Type, TMAP) != 0 {
+		if Istype(n.Left.Type, TMAP) {
 			n1 = Nod(OCONVNOP, n.Left, nil)
 			n1.Type = Ptrto(Types[TUINT8])
 			n1 = Nod(OIND, n1, nil)
@@ -326,9 +325,9 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 		goto ret
 
 	case OINDEX:
-		if !(Isfixedarray(n.Left.Type) != 0) {
+		if !Isfixedarray(n.Left.Type) {
 			racewalknode(&n.Left, init, 0, 0)
-		} else if !(islvalue(n.Left) != 0) {
+		} else if !islvalue(n.Left) {
 			// index of unaddressable array, like Map[k][i].
 			racewalknode(&n.Left, init, wr, 0)
 
@@ -468,34 +467,34 @@ ret:
 	*np = n
 }
 
-func isartificial(n *Node) int {
+func isartificial(n *Node) bool {
 	// compiler-emitted artificial things that we do not want to instrument,
 	// cant' possibly participate in a data race.
 	if n.Op == ONAME && n.Sym != nil && n.Sym.Name != "" {
 		if n.Sym.Name == "_" {
-			return 1
+			return true
 		}
 
 		// autotmp's are always local
 		if strings.HasPrefix(n.Sym.Name, "autotmp_") {
-			return 1
+			return true
 		}
 
 		// statictmp's are read-only
 		if strings.HasPrefix(n.Sym.Name, "statictmp_") {
-			return 1
+			return true
 		}
 
 		// go.itab is accessed only by the compiler and runtime (assume safe)
 		if n.Sym.Pkg != nil && n.Sym.Pkg.Name != "" && n.Sym.Pkg.Name == "go.itab" {
-			return 1
+			return true
 		}
 	}
 
-	return 0
+	return false
 }
 
-func callinstr(np **Node, init **NodeList, wr int, skip int) int {
+func callinstr(np **Node, init **NodeList, wr int, skip int) bool {
 	var name string
 	var f *Node
 	var b *Node
@@ -510,18 +509,18 @@ func callinstr(np **Node, init **NodeList, wr int, skip int) int {
 	//	  n, n->op, n->type ? n->type->etype : -1, n->class);
 
 	if skip != 0 || n.Type == nil || n.Type.Etype >= TIDEAL {
-		return 0
+		return false
 	}
 	t = n.Type
-	if isartificial(n) != 0 {
-		return 0
+	if isartificial(n) {
+		return false
 	}
 
 	b = outervalue(n)
 
 	// it skips e.g. stores to ... parameter array
-	if isartificial(b) != 0 {
-		return 0
+	if isartificial(b) {
+		return false
 	}
 	class = int(b.Class)
 
@@ -539,7 +538,7 @@ func callinstr(np **Node, init **NodeList, wr int, skip int) int {
 
 		n = treecopy(n)
 		makeaddable(n)
-		if t.Etype == TSTRUCT || Isfixedarray(t) != 0 {
+		if t.Etype == TSTRUCT || Isfixedarray(t) {
 			name = "racereadrange"
 			if wr != 0 {
 				name = "racewriterange"
@@ -554,10 +553,10 @@ func callinstr(np **Node, init **NodeList, wr int, skip int) int {
 		}
 
 		*init = list(*init, f)
-		return 1
+		return true
 	}
 
-	return 0
+	return false
 }
 
 // makeaddable returns a node whose memory location is the
@@ -572,7 +571,7 @@ func makeaddable(n *Node) {
 	// an addressable value.
 	switch n.Op {
 	case OINDEX:
-		if Isfixedarray(n.Left.Type) != 0 {
+		if Isfixedarray(n.Left.Type) {
 			makeaddable(n.Left)
 		}
 
@@ -596,7 +595,7 @@ func uintptraddr(n *Node) *Node {
 	var r *Node
 
 	r = Nod(OADDR, n, nil)
-	r.Bounded = 1
+	r.Bounded = true
 	r = conv(r, Types[TUNSAFEPTR])
 	r = conv(r, Types[TUINTPTR])
 	return r

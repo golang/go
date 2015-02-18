@@ -134,7 +134,6 @@ func walkselect(sel *Node) {
 			switch n.Op {
 			default:
 				Fatal("select %v", Oconv(int(n.Op), 0))
-				fallthrough
 
 				// ok already
 			case OSEND:
@@ -232,7 +231,6 @@ func walkselect(sel *Node) {
 		switch n.Op {
 		default:
 			Fatal("select %v", Oconv(int(n.Op), 0))
-			fallthrough
 
 			// if selectnbsend(c, v) { body } else { default body }
 		case OSEND:
@@ -299,7 +297,6 @@ func walkselect(sel *Node) {
 			switch n.Op {
 			default:
 				Fatal("select %v", Oconv(int(n.Op), 0))
-				fallthrough
 
 				// selectsend(sel *byte, hchan *chan any, elem *any) (selected bool);
 			case OSEND:

@@ -225,7 +225,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	cursym.Args = p.To.U.Argsize
 
 	if ctxt.Debugzerostack != 0 {
-		if autoffset != 0 && !(p.From3.Offset&obj.NOSPLIT != 0) {
+		if autoffset != 0 && p.From3.Offset&obj.NOSPLIT == 0 {
 			// MOVW $4(R13), R1
 			p = obj.Appendp(ctxt, p)
 
@@ -370,7 +370,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				}
 			}
 
-			if !(autosize != 0) && !(cursym.Text.Mark&LEAF != 0) {
+			if autosize == 0 && cursym.Text.Mark&LEAF == 0 {
 				if ctxt.Debugvlog != 0 {
 					fmt.Fprintf(ctxt.Bso, "save suppressed in: %s\n", cursym.Name)
 					obj.Bflush(ctxt.Bso)
@@ -381,13 +381,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 			if cursym.Text.Mark&LEAF != 0 {
 				cursym.Leaf = 1
-				if !(autosize != 0) {
+				if autosize == 0 {
 					break
 				}
 			}
 
-			if !(p.From3.Offset&obj.NOSPLIT != 0) {
-				p = stacksplit(ctxt, p, autosize, bool2int(!(cursym.Text.From3.Offset&obj.NEEDCTXT != 0))) // emit split check
+			if p.From3.Offset&obj.NOSPLIT == 0 {
+				p = stacksplit(ctxt, p, autosize, cursym.Text.From3.Offset&obj.NEEDCTXT == 0) // emit split check
 			}
 
 			// MOVW.W		R14,$-autosize(SP)
@@ -493,9 +493,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		case obj.ARET:
 			obj.Nocache(p)
 			if cursym.Text.Mark&LEAF != 0 {
-				if !(autosize != 0) {
+				if autosize == 0 {
 					p.As = AB
-					p.From = obj.Zprog.From
+					p.From = obj.Addr{}
 					if p.To.Sym != nil { // retjmp
 						p.To.Type = obj.TYPE_BRANCH
 					} else {
@@ -662,8 +662,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	}
 }
 
-func isfloatreg(a *obj.Addr) int {
-	return bool2int(a.Type == obj.TYPE_REG && REG_F0 <= a.Reg && a.Reg <= REG_F15)
+func isfloatreg(a *obj.Addr) bool {
+	return a.Type == obj.TYPE_REG && REG_F0 <= a.Reg && a.Reg <= REG_F15
 }
 
 func softfloat(ctxt *obj.Link, cursym *obj.LSym) {
@@ -687,7 +687,7 @@ func softfloat(ctxt *obj.Link, cursym *obj.LSym) {
 	for p = cursym.Text; p != nil; p = p.Link {
 		switch p.As {
 		case AMOVW:
-			if isfloatreg(&p.To) != 0 || isfloatreg(&p.From) != 0 {
+			if isfloatreg(&p.To) || isfloatreg(&p.From) {
 				goto soft
 			}
 			goto notsoft
@@ -721,13 +721,13 @@ func softfloat(ctxt *obj.Link, cursym *obj.LSym) {
 		}
 
 	soft:
-		if !(wasfloat != 0) || (p.Mark&LABEL != 0) {
-			next = new(obj.Prog)
+		if wasfloat == 0 || (p.Mark&LABEL != 0) {
+			next = ctxt.NewProg()
 			*next = *p
 
 			// BL _sfloat(SB)
-			*p = obj.Zprog
-
+			*p = obj.Prog{}
+			p.Ctxt = ctxt
 			p.Link = next
 			p.As = ABL
 			p.To.Type = obj.TYPE_BRANCH
@@ -745,7 +745,7 @@ func softfloat(ctxt *obj.Link, cursym *obj.LSym) {
 	}
 }
 
-func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt int) *obj.Prog {
+func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt bool) *obj.Prog {
 	// MOVW			g_stackguard(g), R1
 	p = obj.Appendp(ctxt, p)
 
@@ -856,7 +856,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt int) *obj.P
 	if ctxt.Cursym.Cfunc != 0 {
 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
 	} else {
-		p.To.Sym = ctxt.Symmorestack[noctxt]
+		p.To.Sym = ctxt.Symmorestack[bool2int(noctxt)]
 	}
 
 	// BLS	start
@@ -885,7 +885,7 @@ func follow(ctxt *obj.Link, s *obj.LSym) {
 
 	ctxt.Cursym = s
 
-	firstp = new(obj.Prog)
+	firstp = ctxt.NewProg()
 	lastp = firstp
 	xfol(ctxt, s.Text, &lastp)
 	lastp.Link = nil
@@ -948,7 +948,7 @@ loop:
 		if q != nil && q.As != obj.ATEXT {
 			p.Mark |= FOLL
 			p = q
-			if !(p.Mark&FOLL != 0) {
+			if p.Mark&FOLL == 0 {
 				goto loop
 			}
 		}
@@ -979,9 +979,9 @@ loop:
 
 		copy:
 			for {
-				r = new(obj.Prog)
+				r = ctxt.NewProg()
 				*r = *p
-				if !(r.Mark&FOLL != 0) {
+				if r.Mark&FOLL == 0 {
 					fmt.Printf("can't happen 1\n")
 				}
 				r.Mark |= FOLL
@@ -1003,10 +1003,10 @@ loop:
 				}
 				r.Pcond = p.Link
 				r.Link = p.Pcond
-				if !(r.Link.Mark&FOLL != 0) {
+				if r.Link.Mark&FOLL == 0 {
 					xfol(ctxt, r.Link, last)
 				}
-				if !(r.Pcond.Mark&FOLL != 0) {
+				if r.Pcond.Mark&FOLL == 0 {
 					fmt.Printf("can't happen 2\n")
 				}
 				return
@@ -1014,13 +1014,12 @@ loop:
 		}
 
 		a = AB
-		q = new(obj.Prog)
+		q = ctxt.NewProg()
 		q.As = int16(a)
 		q.Lineno = p.Lineno
 		q.To.Type = obj.TYPE_BRANCH
 		q.To.Offset = p.Pc
 		q.Pcond = p
-		q.Ctxt = p.Ctxt
 		p = q
 	}
 

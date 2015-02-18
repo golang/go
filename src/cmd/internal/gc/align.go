@@ -138,7 +138,7 @@ func dowidth(t *Type) {
 	if t.Width == -2 {
 		lno = int(lineno)
 		lineno = int32(t.Lineno)
-		if !(t.Broke != 0) {
+		if t.Broke == 0 {
 			t.Broke = 1
 			Yyerror("invalid recursive type %v", Tconv(t, 0))
 		}
@@ -253,14 +253,14 @@ func dowidth(t *Type) {
 		checkwidth(t.Down)
 
 	case TFORW: // should have been filled in
-		if !(t.Broke != 0) {
+		if t.Broke == 0 {
 			Yyerror("invalid recursive type %v", Tconv(t, 0))
 		}
 		w = 1 // anything will do
 
 		// dummy type; should be replaced before use.
 	case TANY:
-		if !(Debug['A'] != 0) {
+		if Debug['A'] == 0 {
 			Fatal("dowidth any")
 		}
 		w = 1 // anything will do
@@ -294,7 +294,7 @@ func dowidth(t *Type) {
 			checkwidth(t.Type)
 			t.Align = uint8(Widthptr)
 		} else if t.Bound == -100 {
-			if !(t.Broke != 0) {
+			if t.Broke == 0 {
 				Yyerror("use of [...] array outside of array literal")
 				t.Broke = 1
 			}
@@ -394,7 +394,7 @@ func checkwidth(t *Type) {
 		Fatal("checkwidth %v", Tconv(t, 0))
 	}
 
-	if !(defercalc != 0) {
+	if defercalc == 0 {
 		dowidth(t)
 		return
 	}
@@ -427,7 +427,7 @@ func defercheckwidth() {
 func resumecheckwidth() {
 	var l *TypeList
 
-	if !(defercalc != 0) {
+	if defercalc == 0 {
 		Fatal("resumecheckwidth")
 	}
 	for l = tlq; l != nil; l = tlq {

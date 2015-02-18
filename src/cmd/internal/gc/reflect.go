@@ -355,7 +355,7 @@ func methods(t *Type) *Sig {
 	// type stored in interface word
 	it = t
 
-	if !(isdirectiface(it) != 0) {
+	if !isdirectiface(it) {
 		it = Ptrto(t)
 	}
 
@@ -370,10 +370,10 @@ func methods(t *Type) *Sig {
 		if f.Type.Etype != TFUNC || f.Type.Thistuple == 0 {
 			Fatal("non-method on %v method %v %v\n", Tconv(mt, 0), Sconv(f.Sym, 0), Tconv(f, 0))
 		}
-		if !(getthisx(f.Type).Type != nil) {
+		if getthisx(f.Type).Type == nil {
 			Fatal("receiver with no type on %v method %v %v\n", Tconv(mt, 0), Sconv(f.Sym, 0), Tconv(f, 0))
 		}
-		if f.Nointerface != 0 {
+		if f.Nointerface {
 			continue
 		}
 
@@ -391,7 +391,7 @@ func methods(t *Type) *Sig {
 		if Isptr[this.Etype] != 0 && this.Type == t {
 			continue
 		}
-		if Isptr[this.Etype] != 0 && !(Isptr[t.Etype] != 0) && f.Embedded != 2 && !(isifacemethod(f.Type) != 0) {
+		if Isptr[this.Etype] != 0 && Isptr[t.Etype] == 0 && f.Embedded != 2 && !isifacemethod(f.Type) {
 			continue
 		}
 
@@ -412,7 +412,7 @@ func methods(t *Type) *Sig {
 		a.type_ = methodfunc(f.Type, t)
 		a.mtype = methodfunc(f.Type, nil)
 
-		if !(a.isym.Flags&SymSiggen != 0) {
+		if a.isym.Flags&SymSiggen == 0 {
 			a.isym.Flags |= SymSiggen
 			if !Eqtype(this, it) || this.Width < Types[Tptr].Width {
 				compiling_wrappers = 1
@@ -421,7 +421,7 @@ func methods(t *Type) *Sig {
 			}
 		}
 
-		if !(a.tsym.Flags&SymSiggen != 0) {
+		if a.tsym.Flags&SymSiggen == 0 {
 			a.tsym.Flags |= SymSiggen
 			if !Eqtype(this, t) {
 				compiling_wrappers = 1
@@ -489,7 +489,7 @@ func imethods(t *Type) *Sig {
 		// code can refer to it.
 		isym = methodsym(method, t, 0)
 
-		if !(isym.Flags&SymSiggen != 0) {
+		if isym.Flags&SymSiggen == 0 {
 			isym.Flags |= SymSiggen
 			genwrapper(t, f, isym, 0)
 		}
@@ -649,7 +649,7 @@ var kinds = []int{
 
 func haspointers(t *Type) bool {
 	var t1 *Type
-	var ret int
+	var ret bool
 
 	if t.Haspointers != 0 {
 		return t.Haspointers-1 != 0
@@ -672,26 +672,26 @@ func haspointers(t *Type) bool {
 		TCOMPLEX64,
 		TCOMPLEX128,
 		TBOOL:
-		ret = 0
+		ret = false
 
 	case TARRAY:
 		if t.Bound < 0 { // slice
-			ret = 1
+			ret = true
 			break
 		}
 
 		if t.Bound == 0 { // empty array
-			ret = 0
+			ret = false
 			break
 		}
 
-		ret = bool2int(haspointers(t.Type))
+		ret = haspointers(t.Type)
 
 	case TSTRUCT:
-		ret = 0
+		ret = false
 		for t1 = t.Type; t1 != nil; t1 = t1.Down {
 			if haspointers(t1.Type) {
-				ret = 1
+				ret = true
 				break
 			}
 		}
@@ -706,11 +706,11 @@ func haspointers(t *Type) bool {
 		TFUNC:
 		fallthrough
 	default:
-		ret = 1
+		ret = true
 	}
 
-	t.Haspointers = uint8(1 + ret)
-	return ret != 0
+	t.Haspointers = 1 + uint8(bool2int(ret))
+	return ret
 }
 
 /*
@@ -724,7 +724,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	var i int
 	var alg int
 	var sizeofAlg int
-	var gcprog int
+	var gcprog bool
 	var sptr *Sym
 	var algsym *Sym
 	var zero *Sym
@@ -751,7 +751,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 		algsym = dalgsym(t)
 	}
 
-	if t.Sym != nil && !(Isptr[t.Etype] != 0) {
+	if t.Sym != nil && Isptr[t.Etype] == 0 {
 		sptr = dtypesym(Ptrto(t))
 	} else {
 		sptr = weaktypesym(Ptrto(t))
@@ -811,10 +811,10 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	if !haspointers(t) {
 		i |= obj.KindNoPointers
 	}
-	if isdirectiface(t) != 0 {
+	if isdirectiface(t) {
 		i |= obj.KindDirectIface
 	}
-	if gcprog != 0 {
+	if gcprog {
 		i |= obj.KindGCProg
 	}
 	ot = duint8(s, ot, uint8(i)) // kind
@@ -825,7 +825,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	}
 
 	// gc
-	if gcprog != 0 {
+	if gcprog {
 		gengcprog(t, &gcprog0, &gcprog1)
 		if gcprog0 != nil {
 			ot = dsymptr(s, ot, gcprog0, 0)
@@ -937,7 +937,7 @@ func typenamesym(t *Type) *Sym {
 	var s *Sym
 	var n *Node
 
-	if t == nil || (Isptr[t.Etype] != 0 && t.Type == nil) || isideal(t) != 0 {
+	if t == nil || (Isptr[t.Etype] != 0 && t.Type == nil) || isideal(t) {
 		Fatal("typename %v", Tconv(t, 0))
 	}
 	s = typesym(t)
@@ -987,7 +987,7 @@ func weaktypesym(t *Type) *Sym {
  * Returns 1 if t has a reflexive equality operator.
  * That is, if x==x for all x of type t.
  */
-func isreflexive(t *Type) int {
+func isreflexive(t *Type) bool {
 	var t1 *Type
 	switch t.Etype {
 	case TBOOL,
@@ -1007,33 +1007,33 @@ func isreflexive(t *Type) int {
 		TUNSAFEPTR,
 		TSTRING,
 		TCHAN:
-		return 1
+		return true
 
 	case TFLOAT32,
 		TFLOAT64,
 		TCOMPLEX64,
 		TCOMPLEX128,
 		TINTER:
-		return 0
+		return false
 
 	case TARRAY:
-		if Isslice(t) != 0 {
+		if Isslice(t) {
 			Fatal("slice can't be a map key: %v", Tconv(t, 0))
 		}
 		return isreflexive(t.Type)
 
 	case TSTRUCT:
 		for t1 = t.Type; t1 != nil; t1 = t1.Down {
-			if !(isreflexive(t1.Type) != 0) {
-				return 0
+			if !isreflexive(t1.Type) {
+				return false
 			}
 		}
 
-		return 1
+		return true
 
 	default:
 		Fatal("bad type for map key: %v", Tconv(t, 0))
-		return 0
+		return false
 	}
 }
 
@@ -1062,7 +1062,7 @@ func dtypesym(t *Type) *Sym {
 		t = Types[t.Etype]
 	}
 
-	if isideal(t) != 0 {
+	if isideal(t) {
 		Fatal("dtypesym %v", Tconv(t, 0))
 	}
 
@@ -1090,7 +1090,7 @@ func dtypesym(t *Type) *Sym {
 	}
 
 	// named types from other files are defined only by those files
-	if tbase.Sym != nil && !(tbase.Local != 0) {
+	if tbase.Sym != nil && tbase.Local == 0 {
 		return s
 	}
 	if isforw[tbase.Etype] != 0 {
@@ -1230,7 +1230,7 @@ ok:
 		}
 
 		ot = duint16(s, ot, uint16(mapbucket(t).Width))
-		ot = duint8(s, ot, uint8(isreflexive(t.Down)))
+		ot = duint8(s, ot, uint8(bool2int(isreflexive(t.Down))))
 
 	case TPTR32,
 		TPTR64:
@@ -1265,7 +1265,7 @@ ok:
 		ot = duintxx(s, ot, uint64(n), Widthint)
 		for t1 = t.Type; t1 != nil; t1 = t1.Down {
 			// ../../runtime/type.go:/structField
-			if t1.Sym != nil && !(t1.Embedded != 0) {
+			if t1.Sym != nil && t1.Embedded == 0 {
 				ot = dgostringptr(s, ot, t1.Sym.Name)
 				if exportname(t1.Sym.Name) {
 					ot = dgostringptr(s, ot, "")
@@ -1447,12 +1447,12 @@ func dalgsym(t *Type) *Sym {
 	return s
 }
 
-func usegcprog(t *Type) int {
+func usegcprog(t *Type) bool {
 	var size int64
 	var nptr int64
 
 	if !haspointers(t) {
-		return 0
+		return false
 	}
 	if t.Width == BADWIDTH {
 		dowidth(t)
@@ -1473,7 +1473,7 @@ func usegcprog(t *Type) int {
 	// While large objects usually contain arrays; and even if it don't
 	// the program uses 2-bits per word while mask uses 4-bits per word,
 	// so the program is still smaller.
-	return bool2int(size > int64(2*Widthptr))
+	return size > int64(2*Widthptr)
 }
 
 // Generates sparse GC bitmask (4 bits per word).
@@ -1483,7 +1483,7 @@ func gengcmask(t *Type, gcmask []byte) {
 	var nptr int64
 	var i int64
 	var j int64
-	var half int
+	var half bool
 	var bits uint8
 	var pos []byte
 
@@ -1505,7 +1505,7 @@ func gengcmask(t *Type, gcmask []byte) {
 	pos = gcmask
 
 	nptr = (t.Width + int64(Widthptr) - 1) / int64(Widthptr)
-	half = 0
+	half = false
 
 	// If number of words is odd, repeat the mask.
 	// This makes simpler handling of arrays in runtime.
@@ -1520,12 +1520,12 @@ func gengcmask(t *Type, gcmask []byte) {
 				bits = obj.BitsScalar
 			}
 			bits <<= 2
-			if half != 0 {
+			if half {
 				bits <<= 4
 			}
 			pos[0] |= byte(bits)
-			half = bool2int(!(half != 0))
-			if !(half != 0) {
+			half = !half
+			if !half {
 				pos = pos[1:]
 			}
 		}
@@ -1699,7 +1699,7 @@ func gengcprog1(g *ProgGen, t *Type, xoffset *int64) {
 		*xoffset += t.Width
 
 	case TARRAY:
-		if Isslice(t) != 0 {
+		if Isslice(t) {
 			proggendata(g, obj.BitsPointer)
 			proggendata(g, obj.BitsScalar)
 			proggendata(g, obj.BitsScalar)

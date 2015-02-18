@@ -504,20 +504,20 @@ func arsize(b *obj.Biobuf, name string) int {
 	return i
 }
 
-func skiptopkgdef(b *obj.Biobuf) int {
+func skiptopkgdef(b *obj.Biobuf) bool {
 	var p string
 	var sz int
 
 	/* archive header */
 	p = obj.Brdline(b, '\n')
 	if p == "" {
-		return 0
+		return false
 	}
 	if obj.Blinelen(b) != 8 {
-		return 0
+		return false
 	}
 	if p != "!<arch>\n" {
-		return 0
+		return false
 	}
 
 	/* symbol table may be first; skip it */
@@ -533,9 +533,9 @@ func skiptopkgdef(b *obj.Biobuf) int {
 	sz = arsize(b, "__.PKGDEF")
 
 	if sz <= 0 {
-		return 0
+		return false
 	}
-	return 1
+	return true
 }
 
 func addidir(dir string) {
@@ -560,7 +560,7 @@ func islocalname(name *Strlit) bool {
 		strings.HasPrefix(name.S, "../") || name.S == ".."
 }
 
-func findpkg(name *Strlit) int {
+func findpkg(name *Strlit) bool {
 	var p *Idir
 	var q string
 	var suffix string
@@ -568,7 +568,7 @@ func findpkg(name *Strlit) int {
 
 	if islocalname(name) {
 		if safemode != 0 || nolocalimports != 0 {
-			return 0
+			return false
 		}
 
 		// try .a before .6.  important for building libraries:
@@ -577,13 +577,13 @@ func findpkg(name *Strlit) int {
 		namebuf = fmt.Sprintf("%v.a", Zconv(name, 0))
 
 		if obj.Access(namebuf, 0) >= 0 {
-			return 1
+			return true
 		}
 		namebuf = fmt.Sprintf("%v.%c", Zconv(name, 0), Thearch.Thechar)
 		if obj.Access(namebuf, 0) >= 0 {
-			return 1
+			return true
 		}
-		return 0
+		return false
 	}
 
 	// local imports should be canonicalized already.
@@ -592,17 +592,17 @@ func findpkg(name *Strlit) int {
 	_ = q
 	if path.Clean(name.S) != name.S {
 		Yyerror("non-canonical import path %v (should be %s)", Zconv(name, 0), q)
-		return 0
+		return false
 	}
 
 	for p = idirs; p != nil; p = p.link {
 		namebuf = fmt.Sprintf("%s/%v.a", p.dir, Zconv(name, 0))
 		if obj.Access(namebuf, 0) >= 0 {
-			return 1
+			return true
 		}
 		namebuf = fmt.Sprintf("%s/%v.%c", p.dir, Zconv(name, 0), Thearch.Thechar)
 		if obj.Access(namebuf, 0) >= 0 {
-			return 1
+			return true
 		}
 	}
 
@@ -619,15 +619,15 @@ func findpkg(name *Strlit) int {
 
 		namebuf = fmt.Sprintf("%s/pkg/%s_%s%s%s/%v.a", goroot, goos, goarch, suffixsep, suffix, Zconv(name, 0))
 		if obj.Access(namebuf, 0) >= 0 {
-			return 1
+			return true
 		}
 		namebuf = fmt.Sprintf("%s/pkg/%s_%s%s%s/%v.%c", goroot, goos, goarch, suffixsep, suffix, Zconv(name, 0), Thearch.Thechar)
 		if obj.Access(namebuf, 0) >= 0 {
-			return 1
+			return true
 		}
 	}
 
-	return 0
+	return false
 }
 
 func fakeimport() {
@@ -714,7 +714,7 @@ func importfile(f *Val, line int) {
 		}
 	}
 
-	if !(findpkg(path_) != 0) {
+	if !findpkg(path_) {
 		Yyerror("can't find import: \"%v\"", Zconv(f.U.Sval, 0))
 		errorexit()
 	}
@@ -748,7 +748,7 @@ func importfile(f *Val, line int) {
 
 	n = len(namebuf)
 	if n > 2 && namebuf[n-2] == '.' && namebuf[n-1] == 'a' {
-		if !(skiptopkgdef(imp) != 0) {
+		if !skiptopkgdef(imp) {
 			Yyerror("import %s: not a package file", file)
 			errorexit()
 		}
@@ -946,7 +946,7 @@ l0:
 
 		for {
 
-			if escchar('"', &escflag, &v) != 0 {
+			if escchar('"', &escflag, &v) {
 				break
 			}
 			if v < utf8.RuneSelf || escflag != 0 {
@@ -988,12 +988,12 @@ l0:
 
 		/* '.' */
 	case '\'':
-		if escchar('\'', &escflag, &v) != 0 {
+		if escchar('\'', &escflag, &v) {
 			Yyerror("empty character literal or unescaped ' in character literal")
 			v = '\''
 		}
 
-		if !(escchar('\'', &escflag, &v) != 0) {
+		if !escchar('\'', &escflag, &v) {
 			Yyerror("missing '")
 			ungetc(int(v))
 		}
@@ -1629,7 +1629,7 @@ go_:
 	}
 
 	if verb == "go:linkname" {
-		if !(imported_unsafe != 0) {
+		if imported_unsafe == 0 {
 			Yyerror("//go:linkname only allowed in Go files that import \"unsafe\"")
 		}
 		f := strings.Fields(cmd)
@@ -1658,7 +1658,7 @@ go_:
 	}
 
 	if verb == "go:nowritebarrier" {
-		if !(compiling_runtime != 0) {
+		if compiling_runtime == 0 {
 			Yyerror("//go:nowritebarrier only allowed in runtime")
 		}
 		nowritebarrier = true
@@ -1961,7 +1961,7 @@ func getr() int32 {
 	}
 }
 
-func escchar(e int, escflg *int, val *int64) int {
+func escchar(e int, escflg *int, val *int64) bool {
 	var i int
 	var u int
 	var c int
@@ -1973,21 +1973,21 @@ func escchar(e int, escflg *int, val *int64) int {
 	switch c {
 	case EOF:
 		Yyerror("eof in string")
-		return 1
+		return true
 
 	case '\n':
 		Yyerror("newline in string")
-		return 1
+		return true
 
 	case '\\':
 		break
 
 	default:
 		if c == e {
-			return 1
+			return true
 		}
 		*val = int64(c)
-		return 0
+		return false
 	}
 
 	u = 0
@@ -2043,7 +2043,7 @@ func escchar(e int, escflg *int, val *int64) int {
 	}
 
 	*val = int64(c)
-	return 0
+	return false
 
 hex:
 	l = 0
@@ -2075,7 +2075,7 @@ hex:
 	}
 
 	*val = l
-	return 0
+	return false
 
 oct:
 	l = int64(c) - '0'
@@ -2095,7 +2095,7 @@ oct:
 	}
 
 	*val = l
-	return 0
+	return false
 }
 
 var syms = []struct {
@@ -2530,12 +2530,12 @@ func lexinit() {
 	idealbool = typ(TBOOL)
 
 	s = Pkglookup("true", builtinpkg)
-	s.Def = Nodbool(1)
+	s.Def = Nodbool(true)
 	s.Def.Sym = Lookup("true")
 	s.Def.Type = idealbool
 
 	s = Pkglookup("false", builtinpkg)
-	s.Def = Nodbool(0)
+	s.Def = Nodbool(false)
 	s.Def.Sym = Lookup("false")
 	s.Def.Type = idealbool
 
@@ -2704,14 +2704,14 @@ func lexfini() {
 
 	s = Lookup("true")
 	if s.Def == nil {
-		s.Def = Nodbool(1)
+		s.Def = Nodbool(true)
 		s.Def.Sym = s
 		s.Origpkg = builtinpkg
 	}
 
 	s = Lookup("false")
 	if s.Def == nil {
-		s.Def = Nodbool(0)
+		s.Def = Nodbool(false)
 		s.Def.Sym = s
 		s.Origpkg = builtinpkg
 	}
@@ -3163,7 +3163,7 @@ func mkpackage(pkgname string) {
 					// leave s->block set to cause redeclaration
 					// errors if a conflicting top-level name is
 					// introduced by a different file.
-					if !(s.Def.Used != 0) && !(nsyntaxerrors != 0) {
+					if s.Def.Used == 0 && nsyntaxerrors == 0 {
 						pkgnotused(int(s.Def.Lineno), s.Def.Pkg.Path, s.Name)
 					}
 					s.Def = nil
@@ -3173,7 +3173,7 @@ func mkpackage(pkgname string) {
 				if s.Def.Sym != s {
 					// throw away top-level name left over
 					// from previous import . "x"
-					if s.Def.Pack != nil && !(s.Def.Pack.Used != 0) && !(nsyntaxerrors != 0) {
+					if s.Def.Pack != nil && s.Def.Pack.Used == 0 && nsyntaxerrors == 0 {
 						pkgnotused(int(s.Def.Pack.Lineno), s.Def.Pack.Pkg.Path, "")
 						s.Def.Pack.Used = 1
 					}

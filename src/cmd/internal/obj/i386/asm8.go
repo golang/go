@@ -1853,7 +1853,7 @@ func span8(ctxt *obj.Link, s *obj.LSym) {
 			ctxt.Diag("span must be looping")
 			log.Fatalf("bad code")
 		}
-		if !(loop != 0) {
+		if loop == 0 {
 			break
 		}
 	}
@@ -3355,7 +3355,7 @@ found:
 	case Zlit:
 		for ; ; z++ {
 			op = int(o.op[z])
-			if !(op != 0) {
+			if op == 0 {
 				break
 			}
 			ctxt.Andptr[0] = byte(op)
@@ -3365,7 +3365,7 @@ found:
 	case Zlitm_r:
 		for ; ; z++ {
 			op = int(o.op[z])
-			if !(op != 0) {
+			if op == 0 {
 				break
 			}
 			ctxt.Andptr[0] = byte(op)
@@ -3400,7 +3400,7 @@ found:
 			tmp2 := z
 			z++
 			op = int(o.op[tmp2])
-			if !(op != 0) {
+			if op == 0 {
 				break
 			}
 			ctxt.Andptr[0] = byte(op)
