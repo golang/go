@@ -140,8 +140,8 @@ closurename(Node *n)
 	if(n->sym != S)
 		return n->sym;
 	gen = 0;
-	outer = NULL;
-	prefix = NULL;
+	outer = nil;
+	prefix = nil;
 	if(n->outerfunc == N) {
 		// Global closure.
 		outer = "glob";
