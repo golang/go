@@ -2,6 +2,84 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Memory allocator, based on tcmalloc.
+// http://goog-perftools.sourceforge.net/doc/tcmalloc.html
+
+// The main allocator works in runs of pages.
+// Small allocation sizes (up to and including 32 kB) are
+// rounded to one of about 100 size classes, each of which
+// has its own free list of objects of exactly that size.
+// Any free page of memory can be split into a set of objects
+// of one size class, which are then managed using free list
+// allocators.
+//
+// The allocator's data structures are:
+//
+//	FixAlloc: a free-list allocator for fixed-size objects,
+//		used to manage storage used by the allocator.
+//	MHeap: the malloc heap, managed at page (4096-byte) granularity.
+//	MSpan: a run of pages managed by the MHeap.
+//	MCentral: a shared free list for a given size class.
+//	MCache: a per-thread (in Go, per-P) cache for small objects.
+//	MStats: allocation statistics.
+//
+// Allocating a small object proceeds up a hierarchy of caches:
+//
+//	1. Round the size up to one of the small size classes
+//	   and look in the corresponding MCache free list.
+//	   If the list is not empty, allocate an object from it.
+//	   This can all be done without acquiring a lock.
+//
+//	2. If the MCache free list is empty, replenish it by
+//	   taking a bunch of objects from the MCentral free list.
+//	   Moving a bunch amortizes the cost of acquiring the MCentral lock.
+//
+//	3. If the MCentral free list is empty, replenish it by
+//	   allocating a run of pages from the MHeap and then
+//	   chopping that memory into objects of the given size.
+//	   Allocating many objects amortizes the cost of locking
+//	   the heap.
+//
+//	4. If the MHeap is empty or has no page runs large enough,
+//	   allocate a new group of pages (at least 1MB) from the
+//	   operating system.  Allocating a large run of pages
+//	   amortizes the cost of talking to the operating system.
+//
+// Freeing a small object proceeds up the same hierarchy:
+//
+//	1. Look up the size class for the object and add it to
+//	   the MCache free list.
+//
+//	2. If the MCache free list is too long or the MCache has
+//	   too much memory, return some to the MCentral free lists.
+//
+//	3. If all the objects in a given span have returned to
+//	   the MCentral list, return that span to the page heap.
+//
+//	4. If the heap has too much memory, return some to the
+//	   operating system.
+//
+//	TODO(rsc): Step 4 is not implemented.
+//
+// Allocating and freeing a large object uses the page heap
+// directly, bypassing the MCache and MCentral free lists.
+//
+// The small objects on the MCache and MCentral free lists
+// may or may not be zeroed.  They are zeroed if and only if
+// the second word of the object is zero.  A span in the
+// page heap is zeroed unless s->needzero is set. When a span
+// is allocated to break into small objects, it is zeroed if needed
+// and s->needzero is set. There are two main benefits to delaying the
+// zeroing this way:
+//
+//	1. stack frames allocated from the small object lists
+//	   or the page heap can avoid zeroing altogether.
+//	2. the cost of zeroing when reusing a small object is
+//	   charged to the mutator, not the garbage collector.
+//
+// This code was written with an eye toward translating to Go
+// in the future.  Methods have the form Type_Method(Type *t, ...).
+
 package runtime
 
 import "unsafe"
@@ -25,29 +103,369 @@ const (
 	concurrentSweep = _ConcurrentSweep
 )
 
+const (
+	_PageShift = 13
+	_PageSize  = 1 << _PageShift
+	_PageMask  = _PageSize - 1
+)
+
+const (
+	// _64bit = 1 on 64-bit systems, 0 on 32-bit systems
+	_64bit = 1 << (^uintptr(0) >> 63) / 2
+
+	// Computed constant.  The definition of MaxSmallSize and the
+	// algorithm in msize.c produce some number of different allocation
+	// size classes.  NumSizeClasses is that number.  It's needed here
+	// because there are static arrays of this length; when msize runs its
+	// size choosing algorithm it double-checks that NumSizeClasses agrees.
+	_NumSizeClasses = 67
+
+	// Tunable constants.
+	_MaxSmallSize = 32 << 10
+
+	// Tiny allocator parameters, see "Tiny allocator" comment in malloc.go.
+	_TinySize      = 16
+	_TinySizeClass = 2
+
+	_FixAllocChunk  = 16 << 10               // Chunk size for FixAlloc
+	_MaxMHeapList   = 1 << (20 - _PageShift) // Maximum page length for fixed-size list in MHeap.
+	_HeapAllocChunk = 1 << 20                // Chunk size for heap growth
+
+	// Per-P, per order stack segment cache size.
+	_StackCacheSize = 32 * 1024
+
+	// Number of orders that get caching.  Order 0 is FixedStack
+	// and each successive order is twice as large.
+	// We want to cache 2KB, 4KB, 8KB, and 16KB stacks.  Larger stacks
+	// will be allocated directly.
+	// Since FixedStack is different on different systems, we
+	// must vary NumStackOrders to keep the same maximum cached size.
+	//   OS               | FixedStack | NumStackOrders
+	//   -----------------+------------+---------------
+	//   linux/darwin/bsd | 2KB        | 4
+	//   windows/32       | 4KB        | 3
+	//   windows/64       | 8KB        | 2
+	//   plan9            | 4KB        | 3
+	_NumStackOrders = 4 - ptrSize/4*goos_windows - 1*goos_plan9
+
+	// Number of bits in page to span calculations (4k pages).
+	// On Windows 64-bit we limit the arena to 32GB or 35 bits.
+	// Windows counts memory used by page table into committed memory
+	// of the process, so we can't reserve too much memory.
+	// See http://golang.org/issue/5402 and http://golang.org/issue/5236.
+	// On other 64-bit platforms, we limit the arena to 128GB, or 37 bits.
+	// On 32-bit, we don't bother limiting anything, so we use the full 32-bit address.
+	_MHeapMap_TotalBits = (_64bit*goos_windows)*35 + (_64bit*(1-goos_windows))*37 + (1-_64bit)*32
+	_MHeapMap_Bits      = _MHeapMap_TotalBits - _PageShift
+
+	_MaxMem = uintptr(1<<_MHeapMap_TotalBits - 1)
+
+	// Max number of threads to run garbage collection.
+	// 2, 3, and 4 are all plausible maximums depending
+	// on the hardware details of the machine.  The garbage
+	// collector scales well to 32 cpus.
+	_MaxGcproc = 32
+)
+
 // Page number (address>>pageShift)
 type pageID uintptr
+
+const _MaxArena32 = 2 << 30
+
+// OS-defined helpers:
+//
+// sysAlloc obtains a large chunk of zeroed memory from the
+// operating system, typically on the order of a hundred kilobytes
+// or a megabyte.
+// NOTE: sysAlloc returns OS-aligned memory, but the heap allocator
+// may use larger alignment, so the caller must be careful to realign the
+// memory obtained by sysAlloc.
+//
+// SysUnused notifies the operating system that the contents
+// of the memory region are no longer needed and can be reused
+// for other purposes.
+// SysUsed notifies the operating system that the contents
+// of the memory region are needed again.
+//
+// SysFree returns it unconditionally; this is only used if
+// an out-of-memory error has been detected midway through
+// an allocation.  It is okay if SysFree is a no-op.
+//
+// SysReserve reserves address space without allocating memory.
+// If the pointer passed to it is non-nil, the caller wants the
+// reservation there, but SysReserve can still choose another
+// location if that one is unavailable.  On some systems and in some
+// cases SysReserve will simply check that the address space is
+// available and not actually reserve it.  If SysReserve returns
+// non-nil, it sets *reserved to true if the address space is
+// reserved, false if it has merely been checked.
+// NOTE: SysReserve returns OS-aligned memory, but the heap allocator
+// may use larger alignment, so the caller must be careful to realign the
+// memory obtained by sysAlloc.
+//
+// SysMap maps previously reserved address space for use.
+// The reserved argument is true if the address space was really
+// reserved, not merely checked.
+//
+// SysFault marks a (already sysAlloc'd) region to fault
+// if accessed.  Used only for debugging the runtime.
+
+func mallocinit() {
+	initSizes()
+
+	if class_to_size[_TinySizeClass] != _TinySize {
+		throw("bad TinySizeClass")
+	}
+
+	var p, bitmapSize, spansSize, pSize, limit uintptr
+	var reserved bool
+
+	// limit = runtime.memlimit();
+	// See https://golang.org/issue/5049
+	// TODO(rsc): Fix after 1.1.
+	limit = 0
+
+	// Set up the allocation arena, a contiguous area of memory where
+	// allocated data will be found.  The arena begins with a bitmap large
+	// enough to hold 4 bits per allocated word.
+	if ptrSize == 8 && (limit == 0 || limit > 1<<30) {
+		// On a 64-bit machine, allocate from a single contiguous reservation.
+		// 128 GB (MaxMem) should be big enough for now.
+		//
+		// The code will work with the reservation at any address, but ask
+		// SysReserve to use 0x0000XXc000000000 if possible (XX=00...7f).
+		// Allocating a 128 GB region takes away 37 bits, and the amd64
+		// doesn't let us choose the top 17 bits, so that leaves the 11 bits
+		// in the middle of 0x00c0 for us to choose.  Choosing 0x00c0 means
+		// that the valid memory addresses will begin 0x00c0, 0x00c1, ..., 0x00df.
+		// In little-endian, that's c0 00, c1 00, ..., df 00. None of those are valid
+		// UTF-8 sequences, and they are otherwise as far away from
+		// ff (likely a common byte) as possible.  If that fails, we try other 0xXXc0
+		// addresses.  An earlier attempt to use 0x11f8 caused out of memory errors
+		// on OS X during thread allocations.  0x00c0 causes conflicts with
+		// AddressSanitizer which reserves all memory up to 0x0100.
+		// These choices are both for debuggability and to reduce the
+		// odds of the conservative garbage collector not collecting memory
+		// because some non-pointer block of memory had a bit pattern
+		// that matched a memory address.
+		//
+		// Actually we reserve 136 GB (because the bitmap ends up being 8 GB)
+		// but it hardly matters: e0 00 is not valid UTF-8 either.
+		//
+		// If this fails we fall back to the 32 bit memory mechanism
+		arenaSize := round(_MaxMem, _PageSize)
+		bitmapSize = arenaSize / (ptrSize * 8 / 4)
+		spansSize = arenaSize / _PageSize * ptrSize
+		spansSize = round(spansSize, _PageSize)
+		for i := 0; i <= 0x7f; i++ {
+			p = uintptr(i)<<40 | uintptrMask&(0x00c0<<32)
+			pSize = bitmapSize + spansSize + arenaSize + _PageSize
+			p = uintptr(sysReserve(unsafe.Pointer(p), pSize, &reserved))
+			if p != 0 {
+				break
+			}
+		}
+	}
+
+	if p == 0 {
+		// On a 32-bit machine, we can't typically get away
+		// with a giant virtual address space reservation.
+		// Instead we map the memory information bitmap
+		// immediately after the data segment, large enough
+		// to handle another 2GB of mappings (256 MB),
+		// along with a reservation for an initial arena.
+		// When that gets used up, we'll start asking the kernel
+		// for any memory anywhere and hope it's in the 2GB
+		// following the bitmap (presumably the executable begins
+		// near the bottom of memory, so we'll have to use up
+		// most of memory before the kernel resorts to giving out
+		// memory before the beginning of the text segment).
+		//
+		// Alternatively we could reserve 512 MB bitmap, enough
+		// for 4GB of mappings, and then accept any memory the
+		// kernel threw at us, but normally that's a waste of 512 MB
+		// of address space, which is probably too much in a 32-bit world.
+
+		// If we fail to allocate, try again with a smaller arena.
+		// This is necessary on Android L where we share a process
+		// with ART, which reserves virtual memory aggressively.
+		arenaSizes := []uintptr{
+			512 << 20,
+			256 << 20,
+		}
+
+		for _, arenaSize := range arenaSizes {
+			bitmapSize = _MaxArena32 / (ptrSize * 8 / 4)
+			spansSize = _MaxArena32 / _PageSize * ptrSize
+			if limit > 0 && arenaSize+bitmapSize+spansSize > limit {
+				bitmapSize = (limit / 9) &^ ((1 << _PageShift) - 1)
+				arenaSize = bitmapSize * 8
+				spansSize = arenaSize / _PageSize * ptrSize
+			}
+			spansSize = round(spansSize, _PageSize)
+
+			// SysReserve treats the address we ask for, end, as a hint,
+			// not as an absolute requirement.  If we ask for the end
+			// of the data segment but the operating system requires
+			// a little more space before we can start allocating, it will
+			// give out a slightly higher pointer.  Except QEMU, which
+			// is buggy, as usual: it won't adjust the pointer upward.
+			// So adjust it upward a little bit ourselves: 1/4 MB to get
+			// away from the running binary image and then round up
+			// to a MB boundary.
+			p = round(uintptr(unsafe.Pointer(&end))+(1<<18), 1<<20)
+			pSize = bitmapSize + spansSize + arenaSize + _PageSize
+			p = uintptr(sysReserve(unsafe.Pointer(p), pSize, &reserved))
+			if p != 0 {
+				break
+			}
+		}
+		if p == 0 {
+			throw("runtime: cannot reserve arena virtual address space")
+		}
+	}
+
+	// PageSize can be larger than OS definition of page size,
+	// so SysReserve can give us a PageSize-unaligned pointer.
+	// To overcome this we ask for PageSize more and round up the pointer.
+	p1 := round(p, _PageSize)
+
+	mheap_.spans = (**mspan)(unsafe.Pointer(p1))
+	mheap_.bitmap = p1 + spansSize
+	mheap_.arena_start = p1 + (spansSize + bitmapSize)
+	mheap_.arena_used = mheap_.arena_start
+	mheap_.arena_end = p + pSize
+	mheap_.arena_reserved = reserved
+
+	if mheap_.arena_start&(_PageSize-1) != 0 {
+		println("bad pagesize", hex(p), hex(p1), hex(spansSize), hex(bitmapSize), hex(_PageSize), "start", hex(mheap_.arena_start))
+		throw("misrounded allocation in mallocinit")
+	}
+
+	// Initialize the rest of the allocator.
+	mHeap_Init(&mheap_, spansSize)
+	_g_ := getg()
+	_g_.m.mcache = allocmcache()
+}
+
+// sysReserveHigh reserves space somewhere high in the address space.
+// sysReserve doesn't actually reserve the full amount requested on
+// 64-bit systems, because of problems with ulimit. Instead it checks
+// that it can get the first 64 kB and assumes it can grab the rest as
+// needed. This doesn't work well with the "let the kernel pick an address"
+// mode, so don't do that. Pick a high address instead.
+func sysReserveHigh(n uintptr, reserved *bool) unsafe.Pointer {
+	if ptrSize == 4 {
+		return sysReserve(nil, n, reserved)
+	}
+
+	for i := 0; i <= 0x7f; i++ {
+		p := uintptr(i)<<40 | uintptrMask&(0x00c0<<32)
+		*reserved = false
+		p = uintptr(sysReserve(unsafe.Pointer(p), n, reserved))
+		if p != 0 {
+			return unsafe.Pointer(p)
+		}
+	}
+
+	return sysReserve(nil, n, reserved)
+}
+
+func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
+	if n > uintptr(h.arena_end)-uintptr(h.arena_used) {
+		// We are in 32-bit mode, maybe we didn't use all possible address space yet.
+		// Reserve some more space.
+		p_size := round(n+_PageSize, 256<<20)
+		new_end := h.arena_end + p_size
+		if new_end <= h.arena_start+_MaxArena32 {
+			// TODO: It would be bad if part of the arena
+			// is reserved and part is not.
+			var reserved bool
+			p := uintptr(sysReserve((unsafe.Pointer)(h.arena_end), p_size, &reserved))
+			if p == h.arena_end {
+				h.arena_end = new_end
+				h.arena_reserved = reserved
+			} else if p+p_size <= h.arena_start+_MaxArena32 {
+				// Keep everything page-aligned.
+				// Our pages are bigger than hardware pages.
+				h.arena_end = p + p_size
+				h.arena_used = p + (-uintptr(p) & (_PageSize - 1))
+				h.arena_reserved = reserved
+			} else {
+				var stat uint64
+				sysFree((unsafe.Pointer)(p), p_size, &stat)
+			}
+		}
+	}
+
+	if n <= uintptr(h.arena_end)-uintptr(h.arena_used) {
+		// Keep taking from our reservation.
+		p := h.arena_used
+		sysMap((unsafe.Pointer)(p), n, h.arena_reserved, &memstats.heap_sys)
+		h.arena_used += n
+		mHeap_MapBits(h)
+		mHeap_MapSpans(h)
+		if raceenabled {
+			racemapshadow((unsafe.Pointer)(p), n)
+		}
+		if mheap_.shadow_enabled {
+			sysMap(unsafe.Pointer(p+mheap_.shadow_heap), n, h.shadow_reserved, &memstats.other_sys)
+		}
+
+		if uintptr(p)&(_PageSize-1) != 0 {
+			throw("misrounded allocation in MHeap_SysAlloc")
+		}
+		return (unsafe.Pointer)(p)
+	}
+
+	// If using 64-bit, our reservation is all we have.
+	if uintptr(h.arena_end)-uintptr(h.arena_start) >= _MaxArena32 {
+		return nil
+	}
+
+	// On 32-bit, once the reservation is gone we can
+	// try to get memory at a location chosen by the OS
+	// and hope that it is in the range we allocated bitmap for.
+	p_size := round(n, _PageSize) + _PageSize
+	p := uintptr(sysAlloc(p_size, &memstats.heap_sys))
+	if p == 0 {
+		return nil
+	}
+
+	if p < h.arena_start || uintptr(p)+p_size-uintptr(h.arena_start) >= _MaxArena32 {
+		print("runtime: memory allocated by OS (", p, ") not in usable range [", hex(h.arena_start), ",", hex(h.arena_start+_MaxArena32), ")\n")
+		sysFree((unsafe.Pointer)(p), p_size, &memstats.heap_sys)
+		return nil
+	}
+
+	p_end := p + p_size
+	p += -p & (_PageSize - 1)
+	if uintptr(p)+n > uintptr(h.arena_used) {
+		h.arena_used = p + n
+		if p_end > h.arena_end {
+			h.arena_end = p_end
+		}
+		mHeap_MapBits(h)
+		mHeap_MapSpans(h)
+		if raceenabled {
+			racemapshadow((unsafe.Pointer)(p), n)
+		}
+	}
+
+	if uintptr(p)&(_PageSize-1) != 0 {
+		throw("misrounded allocation in MHeap_SysAlloc")
+	}
+	return (unsafe.Pointer)(p)
+}
 
 // base address for all 0-byte allocations
 var zerobase uintptr
 
-// Trigger the concurrent GC when 1/triggerratio memory is available to allocate.
-// Adjust this ratio as part of a scheme to ensure that mutators have enough
-// memory to allocate in durring a concurrent GC cycle.
-var triggerratio = int64(8)
-
-// Determine whether to initiate a GC.
-// If the GC is already working no need to trigger another one.
-// This should establish a feedback loop where if the GC does not
-// have sufficient time to complete then more memory will be
-// requested from the OS increasing heap size thus allow future
-// GCs more time to complete.
-// memstat.heap_alloc and memstat.next_gc reads have benign races
-// A false negative simple does not start a GC, a false positive
-// will start a GC needlessly. Neither have correctness issues.
-func shouldtriggergc() bool {
-	return triggerratio*(int64(memstats.next_gc)-int64(memstats.heap_alloc)) <= int64(memstats.next_gc) && atomicloaduint(&bggc.working) == 0
-}
+const (
+	// flags to malloc
+	_FlagNoScan = 1 << 0 // GC doesn't have to scan object
+	_FlagNoZero = 1 << 1 // don't zero memory
+)
 
 // Allocate an object of size bytes.
 // Small objects are allocated from the per-P cache's free lists.
@@ -250,6 +668,25 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 	return x
 }
 
+func largeAlloc(size uintptr, flag uint32) *mspan {
+	// print("largeAlloc size=", size, "\n")
+
+	if size+_PageSize < size {
+		throw("out of memory")
+	}
+	npages := size >> _PageShift
+	if size&_PageMask != 0 {
+		npages++
+	}
+	s := mHeap_Alloc(&mheap_, npages, 0, true, flag&_FlagNoZero == 0)
+	if s == nil {
+		throw("out of memory")
+	}
+	s.limit = uintptr(s.start)<<_PageShift + size
+	heapBitsForSpan(s.base()).initSpan(s.layout())
+	return s
+}
+
 // implementation of new builtin
 func newobject(typ *_type) unsafe.Pointer {
 	flags := uint32(0)
@@ -308,289 +745,6 @@ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
 	}
 
 	mProf_Malloc(x, size)
-}
-
-// For now this must be bracketed with a stoptheworld and a starttheworld to ensure
-// all go routines see the new barrier.
-//go:nowritebarrier
-func gcinstallmarkwb() {
-	gcphase = _GCmark
-}
-
-// force = 0 - start concurrent GC
-// force = 1 - do STW GC regardless of current heap usage
-// force = 2 - go STW GC and eager sweep
-func gogc(force int32) {
-	// The gc is turned off (via enablegc) until the bootstrap has completed.
-	// Also, malloc gets called in the guts of a number of libraries that might be
-	// holding locks. To avoid deadlocks during stoptheworld, don't bother
-	// trying to run gc while holding a lock. The next mallocgc without a lock
-	// will do the gc instead.
-
-	mp := acquirem()
-	if gp := getg(); gp == mp.g0 || mp.locks > 1 || !memstats.enablegc || panicking != 0 || gcpercent < 0 {
-		releasem(mp)
-		return
-	}
-	releasem(mp)
-	mp = nil
-
-	if force == 0 {
-		lock(&bggc.lock)
-		if !bggc.started {
-			bggc.working = 1
-			bggc.started = true
-			go backgroundgc()
-		} else if bggc.working == 0 {
-			bggc.working = 1
-			ready(bggc.g)
-		}
-		unlock(&bggc.lock)
-	} else {
-		gcwork(force)
-	}
-}
-
-func gcwork(force int32) {
-
-	semacquire(&worldsema, false)
-
-	// Pick up the remaining unswept/not being swept spans concurrently
-	for gosweepone() != ^uintptr(0) {
-		sweep.nbgsweep++
-	}
-
-	// Ok, we're doing it!  Stop everybody else
-
-	mp := acquirem()
-	mp.preemptoff = "gcing"
-	releasem(mp)
-	gctimer.count++
-	if force == 0 {
-		gctimer.cycle.sweepterm = nanotime()
-	}
-
-	if trace.enabled {
-		traceGoSched()
-		traceGCStart()
-	}
-
-	// Pick up the remaining unswept/not being swept spans before we STW
-	for gosweepone() != ^uintptr(0) {
-		sweep.nbgsweep++
-	}
-	systemstack(stoptheworld)
-	systemstack(finishsweep_m) // finish sweep before we start concurrent scan.
-	if force == 0 {            // Do as much work concurrently as possible
-		gcphase = _GCscan
-		systemstack(starttheworld)
-		gctimer.cycle.scan = nanotime()
-		// Do a concurrent heap scan before we stop the world.
-		systemstack(gcscan_m)
-		gctimer.cycle.installmarkwb = nanotime()
-		systemstack(stoptheworld)
-		systemstack(gcinstallmarkwb)
-		systemstack(harvestwbufs)
-		systemstack(starttheworld)
-		gctimer.cycle.mark = nanotime()
-		systemstack(gcmark_m)
-		gctimer.cycle.markterm = nanotime()
-		systemstack(stoptheworld)
-		systemstack(gcinstalloffwb_m)
-	} else {
-		// For non-concurrent GC (force != 0) g stack have not been scanned so
-		// set gcscanvalid such that mark termination scans all stacks.
-		// No races here since we are in a STW phase.
-		for _, gp := range allgs {
-			gp.gcworkdone = false  // set to true in gcphasework
-			gp.gcscanvalid = false // stack has not been scanned
-		}
-	}
-
-	startTime := nanotime()
-	if mp != acquirem() {
-		throw("gogc: rescheduled")
-	}
-
-	clearpools()
-
-	// Run gc on the g0 stack.  We do this so that the g stack
-	// we're currently running on will no longer change.  Cuts
-	// the root set down a bit (g0 stacks are not scanned, and
-	// we don't need to scan gc's internal state).  We also
-	// need to switch to g0 so we can shrink the stack.
-	n := 1
-	if debug.gctrace > 1 {
-		n = 2
-	}
-	eagersweep := force >= 2
-	for i := 0; i < n; i++ {
-		if i > 0 {
-			// refresh start time if doing a second GC
-			startTime = nanotime()
-		}
-		// switch to g0, call gc, then switch back
-		systemstack(func() {
-			gc_m(startTime, eagersweep)
-		})
-	}
-
-	systemstack(func() {
-		gccheckmark_m(startTime, eagersweep)
-	})
-
-	if trace.enabled {
-		traceGCDone()
-		traceGoStart()
-	}
-
-	// all done
-	mp.preemptoff = ""
-
-	if force == 0 {
-		gctimer.cycle.sweep = nanotime()
-	}
-
-	semrelease(&worldsema)
-
-	if force == 0 {
-		if gctimer.verbose > 1 {
-			GCprinttimes()
-		} else if gctimer.verbose > 0 {
-			calctimes() // ignore result
-		}
-	}
-
-	systemstack(starttheworld)
-
-	releasem(mp)
-	mp = nil
-
-	// now that gc is done, kick off finalizer thread if needed
-	if !concurrentSweep {
-		// give the queued finalizers, if any, a chance to run
-		Gosched()
-	}
-}
-
-// gctimes records the time in nanoseconds of each phase of the concurrent GC.
-type gctimes struct {
-	sweepterm     int64 // stw
-	scan          int64
-	installmarkwb int64 // stw
-	mark          int64
-	markterm      int64 // stw
-	sweep         int64
-}
-
-// gcchronograph holds timer information related to GC phases
-// max records the maximum time spent in each GC phase since GCstarttimes.
-// total records the total time spent in each GC phase since GCstarttimes.
-// cycle records the absolute time (as returned by nanoseconds()) that each GC phase last started at.
-type gcchronograph struct {
-	count    int64
-	verbose  int64
-	maxpause int64
-	max      gctimes
-	total    gctimes
-	cycle    gctimes
-}
-
-var gctimer gcchronograph
-
-// GCstarttimes initializes the gc times. All previous times are lost.
-func GCstarttimes(verbose int64) {
-	gctimer = gcchronograph{verbose: verbose}
-}
-
-// GCendtimes stops the gc timers.
-func GCendtimes() {
-	gctimer.verbose = 0
-}
-
-// calctimes converts gctimer.cycle into the elapsed times, updates gctimer.total
-// and updates gctimer.max with the max pause time.
-func calctimes() gctimes {
-	var times gctimes
-
-	var max = func(a, b int64) int64 {
-		if a > b {
-			return a
-		}
-		return b
-	}
-
-	times.sweepterm = gctimer.cycle.scan - gctimer.cycle.sweepterm
-	gctimer.total.sweepterm += times.sweepterm
-	gctimer.max.sweepterm = max(gctimer.max.sweepterm, times.sweepterm)
-	gctimer.maxpause = max(gctimer.maxpause, gctimer.max.sweepterm)
-
-	times.scan = gctimer.cycle.installmarkwb - gctimer.cycle.scan
-	gctimer.total.scan += times.scan
-	gctimer.max.scan = max(gctimer.max.scan, times.scan)
-
-	times.installmarkwb = gctimer.cycle.mark - gctimer.cycle.installmarkwb
-	gctimer.total.installmarkwb += times.installmarkwb
-	gctimer.max.installmarkwb = max(gctimer.max.installmarkwb, times.installmarkwb)
-	gctimer.maxpause = max(gctimer.maxpause, gctimer.max.installmarkwb)
-
-	times.mark = gctimer.cycle.markterm - gctimer.cycle.mark
-	gctimer.total.mark += times.mark
-	gctimer.max.mark = max(gctimer.max.mark, times.mark)
-
-	times.markterm = gctimer.cycle.sweep - gctimer.cycle.markterm
-	gctimer.total.markterm += times.markterm
-	gctimer.max.markterm = max(gctimer.max.markterm, times.markterm)
-	gctimer.maxpause = max(gctimer.maxpause, gctimer.max.markterm)
-
-	return times
-}
-
-// GCprinttimes prints latency information in nanoseconds about various
-// phases in the GC. The information for each phase includes the maximum pause
-// and total time since the most recent call to GCstarttimes as well as
-// the information from the most recent Concurent GC cycle. Calls from the
-// application to runtime.GC() are ignored.
-func GCprinttimes() {
-	if gctimer.verbose == 0 {
-		println("GC timers not enabled")
-		return
-	}
-
-	// Explicitly put times on the heap so printPhase can use it.
-	times := new(gctimes)
-	*times = calctimes()
-	cycletime := gctimer.cycle.sweep - gctimer.cycle.sweepterm
-	pause := times.sweepterm + times.installmarkwb + times.markterm
-	gomaxprocs := GOMAXPROCS(-1)
-
-	printlock()
-	print("GC: #", gctimer.count, " ", cycletime, "ns @", gctimer.cycle.sweepterm, " pause=", pause, " maxpause=", gctimer.maxpause, " goroutines=", allglen, " gomaxprocs=", gomaxprocs, "\n")
-	printPhase := func(label string, get func(*gctimes) int64, procs int) {
-		print("GC:     ", label, " ", get(times), "ns\tmax=", get(&gctimer.max), "\ttotal=", get(&gctimer.total), "\tprocs=", procs, "\n")
-	}
-	printPhase("sweep term:", func(t *gctimes) int64 { return t.sweepterm }, gomaxprocs)
-	printPhase("scan:      ", func(t *gctimes) int64 { return t.scan }, 1)
-	printPhase("install wb:", func(t *gctimes) int64 { return t.installmarkwb }, gomaxprocs)
-	printPhase("mark:      ", func(t *gctimes) int64 { return t.mark }, 1)
-	printPhase("mark term: ", func(t *gctimes) int64 { return t.markterm }, gomaxprocs)
-	printunlock()
-}
-
-// GC runs a garbage collection.
-func GC() {
-	gogc(2)
-}
-
-// linker-provided
-var noptrdata struct{}
-var enoptrdata struct{}
-var noptrbss struct{}
-var enoptrbss struct{}
-
-// round n up to a multiple of a.  a must be a power of 2.
-func round(n, a uintptr) uintptr {
-	return (n + a - 1) &^ (a - 1)
 }
 
 var persistent struct {

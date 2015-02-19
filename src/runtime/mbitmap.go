@@ -82,6 +82,12 @@ const (
 	typeShift       = 2
 )
 
+// Information from the compiler about the layout of stack frames.
+type bitvector struct {
+	n        int32 // # of bits
+	bytedata *uint8
+}
+
 // addb returns the byte pointer p+n.
 //go:nowritebarrier
 func addb(p *byte, n uintptr) *byte {

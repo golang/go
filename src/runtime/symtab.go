@@ -299,3 +299,17 @@ func readvarint(p []byte) (newp []byte, val uint32) {
 	}
 	return p, v
 }
+
+type stackmap struct {
+	n        int32   // number of bitmaps
+	nbit     int32   // number of bits in each bitmap
+	bytedata [1]byte // bitmaps, each starting on a 32-bit boundary
+}
+
+//go:nowritebarrier
+func stackmapdata(stkmap *stackmap, n int32) bitvector {
+	if n < 0 || n >= stkmap.n {
+		throw("stackmapdata: index out of range")
+	}
+	return bitvector{stkmap.nbit, (*byte)(add(unsafe.Pointer(&stkmap.bytedata), uintptr(n*((stkmap.nbit+31)/32*4))))}
+}

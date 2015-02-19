@@ -4,7 +4,72 @@
 
 // Page heap.
 //
-// See malloc.h for overview.
+// See malloc.go for overview.
+
+package runtime
+
+import "unsafe"
+
+// Main malloc heap.
+// The heap itself is the "free[]" and "large" arrays,
+// but all the other global data is here too.
+type mheap struct {
+	lock      mutex
+	free      [_MaxMHeapList]mspan // free lists of given length
+	freelarge mspan                // free lists length >= _MaxMHeapList
+	busy      [_MaxMHeapList]mspan // busy lists of large objects of given length
+	busylarge mspan                // busy lists of large objects length >= _MaxMHeapList
+	allspans  **mspan              // all spans out there
+	gcspans   **mspan              // copy of allspans referenced by gc marker or sweeper
+	nspan     uint32
+	sweepgen  uint32 // sweep generation, see comment in mspan
+	sweepdone uint32 // all spans are swept
+
+	// span lookup
+	spans        **mspan
+	spans_mapped uintptr
+
+	// range of addresses we might see in the heap
+	bitmap         uintptr
+	bitmap_mapped  uintptr
+	arena_start    uintptr
+	arena_used     uintptr
+	arena_end      uintptr
+	arena_reserved bool
+
+	// write barrier shadow data+heap.
+	// 64-bit systems only, enabled by GODEBUG=wbshadow=1.
+	shadow_enabled  bool    // shadow should be updated and checked
+	shadow_reserved bool    // shadow memory is reserved
+	shadow_heap     uintptr // heap-addr + shadow_heap = shadow heap addr
+	shadow_data     uintptr // data-addr + shadow_data = shadow data addr
+	data_start      uintptr // start of shadowed data addresses
+	data_end        uintptr // end of shadowed data addresses
+
+	// central free lists for small size classes.
+	// the padding makes sure that the MCentrals are
+	// spaced CacheLineSize bytes apart, so that each MCentral.lock
+	// gets its own cache line.
+	central [_NumSizeClasses]struct {
+		mcentral mcentral
+		pad      [_CacheLineSize]byte
+	}
+
+	spanalloc             fixalloc // allocator for span*
+	cachealloc            fixalloc // allocator for mcache*
+	specialfinalizeralloc fixalloc // allocator for specialfinalizer*
+	specialprofilealloc   fixalloc // allocator for specialprofile*
+	speciallock           mutex    // lock for sepcial record allocators.
+
+	// Malloc stats.
+	largefree  uint64                  // bytes freed for large objects (>maxsmallsize)
+	nlargefree uint64                  // number of frees for large objects (>maxsmallsize)
+	nsmallfree [_NumSizeClasses]uint64 // number of frees for small objects (<=maxsmallsize)
+}
+
+var mheap_ mheap
+
+// An MSpan is a run of pages.
 //
 // When a MSpan is in the heap free list, state == MSpanFree
 // and heapmap(s->start) == span, heapmap(s->start+s->npages-1) == span.
@@ -12,9 +77,55 @@
 // When a MSpan is allocated, state == MSpanInUse or MSpanStack
 // and heapmap(i) == span for all s->start <= i < s->start+s->npages.
 
-package runtime
+// Every MSpan is in one doubly-linked list,
+// either one of the MHeap's free lists or one of the
+// MCentral's span lists.  We use empty MSpan structures as list heads.
 
-import "unsafe"
+const (
+	_MSpanInUse = iota // allocated for garbage collected heap
+	_MSpanStack        // allocated for use by stack allocator
+	_MSpanFree
+	_MSpanListHead
+	_MSpanDead
+)
+
+type mspan struct {
+	next     *mspan    // in a span linked list
+	prev     *mspan    // in a span linked list
+	start    pageID    // starting page number
+	npages   uintptr   // number of pages in span
+	freelist gclinkptr // list of free objects
+	// sweep generation:
+	// if sweepgen == h->sweepgen - 2, the span needs sweeping
+	// if sweepgen == h->sweepgen - 1, the span is currently being swept
+	// if sweepgen == h->sweepgen, the span is swept and ready to use
+	// h->sweepgen is incremented by 2 after every GC
+	sweepgen    uint32
+	ref         uint16   // capacity - number of objects in freelist
+	sizeclass   uint8    // size class
+	incache     bool     // being used by an mcache
+	state       uint8    // mspaninuse etc
+	needzero    uint8    // needs to be zeroed before allocation
+	elemsize    uintptr  // computed from sizeclass or from npages
+	unusedsince int64    // first time spotted by gc in mspanfree state
+	npreleased  uintptr  // number of pages released to the os
+	limit       uintptr  // end of data in span
+	speciallock mutex    // guards specials list
+	specials    *special // linked list of special records sorted by offset.
+}
+
+func (s *mspan) base() uintptr {
+	return uintptr(s.start << _PageShift)
+}
+
+func (s *mspan) layout() (size, n, total uintptr) {
+	total = s.npages << _PageShift
+	size = s.elemsize
+	if size > 0 {
+		n = total / size
+	}
+	return
+}
 
 var h_allspans []*mspan // TODO: make this h.allspans once mheap can be defined in Go
 var h_spans []*mspan    // TODO: make this h.spans once mheap can be defined in Go
@@ -48,6 +159,73 @@ func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
 	}
 	h_allspans = append(h_allspans, s)
 	h.nspan = uint32(len(h_allspans))
+}
+
+// inheap reports whether b is a pointer into a (potentially dead) heap object.
+// It returns false for pointers into stack spans.
+//go:nowritebarrier
+func inheap(b uintptr) bool {
+	if b == 0 || b < mheap_.arena_start || b >= mheap_.arena_used {
+		return false
+	}
+	// Not a beginning of a block, consult span table to find the block beginning.
+	k := b >> _PageShift
+	x := k
+	x -= mheap_.arena_start >> _PageShift
+	s := h_spans[x]
+	if s == nil || pageID(k) < s.start || b >= s.limit || s.state != mSpanInUse {
+		return false
+	}
+	return true
+}
+
+func mlookup(v uintptr, base *uintptr, size *uintptr, sp **mspan) int32 {
+	_g_ := getg()
+
+	_g_.m.mcache.local_nlookup++
+	if ptrSize == 4 && _g_.m.mcache.local_nlookup >= 1<<30 {
+		// purge cache stats to prevent overflow
+		lock(&mheap_.lock)
+		purgecachedstats(_g_.m.mcache)
+		unlock(&mheap_.lock)
+	}
+
+	s := mHeap_LookupMaybe(&mheap_, unsafe.Pointer(v))
+	if sp != nil {
+		*sp = s
+	}
+	if s == nil {
+		if base != nil {
+			*base = 0
+		}
+		if size != nil {
+			*size = 0
+		}
+		return 0
+	}
+
+	p := uintptr(s.start) << _PageShift
+	if s.sizeclass == 0 {
+		// Large object.
+		if base != nil {
+			*base = p
+		}
+		if size != nil {
+			*size = s.npages << _PageShift
+		}
+		return 1
+	}
+
+	n := s.elemsize
+	if base != nil {
+		i := (uintptr(v) - uintptr(p)) / n
+		*base = p + i*n
+	}
+	if size != nil {
+		*size = n
+	}
+
+	return 1
 }
 
 // Initialize the heap.
@@ -635,6 +813,21 @@ func mSpanList_InsertBack(list *mspan, span *mspan) {
 	span.prev.next = span
 }
 
+const (
+	_KindSpecialFinalizer = 1
+	_KindSpecialProfile   = 2
+	// Note: The finalizer special must be first because if we're freeing
+	// an object, a finalizer special will cause the freeing operation
+	// to abort, and we want to keep the other special records around
+	// if that happens.
+)
+
+type special struct {
+	next   *special // linked list in span
+	offset uint16   // span offset of object
+	kind   byte     // kind of special
+}
+
 // Adds the special record s to the list of special records for
 // the object p.  All fields of s should be filled in except for
 // offset & next, which this routine will fill in.
@@ -723,6 +916,15 @@ func removespecial(p unsafe.Pointer, kind uint8) *special {
 	return nil
 }
 
+// The described object has a finalizer set for it.
+type specialfinalizer struct {
+	special special
+	fn      *funcval
+	nret    uintptr
+	fint    *_type
+	ot      *ptrtype
+}
+
 // Adds a finalizer to the object p.  Returns true if it succeeded.
 func addfinalizer(p unsafe.Pointer, f *funcval, nret uintptr, fint *_type, ot *ptrtype) bool {
 	lock(&mheap_.speciallock)
@@ -753,6 +955,12 @@ func removefinalizer(p unsafe.Pointer) {
 	lock(&mheap_.speciallock)
 	fixAlloc_Free(&mheap_.specialfinalizeralloc, (unsafe.Pointer)(s))
 	unlock(&mheap_.speciallock)
+}
+
+// The described object is being heap profiled.
+type specialprofile struct {
+	special special
+	b       *bucket
 }
 
 // Set the heap profile bucket associated with addr to b.

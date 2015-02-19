@@ -528,6 +528,21 @@ func quiesce(mastergp *g) {
 	mcall(mquiesce)
 }
 
+// Holding worldsema grants an M the right to try to stop the world.
+// The procedure is:
+//
+//	semacquire(&worldsema);
+//	m.preemptoff = "reason";
+//	stoptheworld();
+//
+//	... do stuff ...
+//
+//	m.preemptoff = "";
+//	semrelease(&worldsema);
+//	starttheworld();
+//
+var worldsema uint32 = 1
+
 // This is used by the GC as well as the routines that do stack dumps. In the case
 // of GC all the routines can be reliably stopped. This is not always the case
 // when the system is in panic or being exited.
