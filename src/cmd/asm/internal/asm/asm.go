@@ -13,6 +13,7 @@ import (
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm"
+	"cmd/internal/obj/ppc64"
 )
 
 // TODO: configure the architecture
@@ -292,23 +293,37 @@ func (p *Parser) asmFuncData(word string, operands [][]lex.Token) {
 // JMP	3(PC)
 func (p *Parser) asmJump(op int, cond string, a []obj.Addr) {
 	var target *obj.Addr
-	switch len(a) {
-	case 1:
-		target = &a[0]
-	default:
-		p.errorf("wrong number of arguments to %s instruction", p.arch.Aconv(op))
-	}
 	prog := &obj.Prog{
 		Ctxt:   p.linkCtxt,
 		Lineno: p.histLineNum,
 		As:     int16(op),
+	}
+	switch len(a) {
+	case 1:
+		target = &a[0]
+	case 3:
+		if p.arch.Thechar == '9' {
+			target = &a[2]
+			// Special 3-operand jumps.
+			// First two must be constants.
+			prog.From = obj.Addr{
+				Type:   obj.TYPE_CONST,
+				Offset: p.getConstant(prog, op, &a[0]),
+			}
+			prog.Reg = int16(ppc64.REG_R0 + p.getConstant(prog, op, &a[1]))
+			break
+		}
+		fallthrough
+	default:
+		p.errorf("wrong number of arguments to %s instruction", p.arch.Aconv(op))
+		return
 	}
 	switch {
 	case target.Type == obj.TYPE_BRANCH:
 		// JMP 4(PC)
 		prog.To = obj.Addr{
 			Type:   obj.TYPE_BRANCH,
-			Offset: p.pc + 1 + target.Offset, // +1 because p.pc is incremented in link, below.
+			Offset: p.pc + 1 + target.Offset, // +1 because p.pc is incremented in append, below.
 		}
 	case target.Type == obj.TYPE_REG:
 		// JMP R1
@@ -322,6 +337,10 @@ func (p *Parser) asmJump(op int, cond string, a []obj.Addr) {
 		prog.To.Type = obj.TYPE_INDIR
 	case target.Type == obj.TYPE_MEM && target.Reg == 0 && target.Offset == 0:
 		// JMP exit
+		if target.Sym == nil {
+			// Parse error left name unset.
+			return
+		}
 		targetProg := p.labels[target.Sym.Name]
 		if targetProg == nil {
 			p.toPatch = append(p.toPatch, Patch{prog, target.Sym.Name})
@@ -329,8 +348,12 @@ func (p *Parser) asmJump(op int, cond string, a []obj.Addr) {
 			p.branch(prog, targetProg)
 		}
 	case target.Type == obj.TYPE_MEM && target.Name == obj.NAME_NONE:
-		// JMP 4(PC)
+		// JMP 4(R0)
 		prog.To = *target
+		// On the ppc64, 9a encodes BR (CTR) as BR CTR. We do the same.
+		if p.arch.Thechar == '9' && target.Offset == 0 {
+			prog.To.Type = obj.TYPE_REG
+		}
 	default:
 		p.errorf("cannot assemble jump %+v", target)
 	}
@@ -452,6 +475,31 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 			default:
 				p.errorf("expected offset or register for 3rd operand")
 			}
+		case '9':
+			if arch.IsPPC64CMP(op) {
+				// CMPW etc.; third argument is a CR register that goes into prog.Reg.
+				prog.From = a[0]
+				prog.Reg = p.getRegister(prog, op, &a[2])
+				prog.To = a[1]
+				break
+			}
+			// Arithmetic. Choices are:
+			// reg reg reg
+			// imm reg reg
+			// reg imm reg
+			// If the immediate is the middle argument, use From3.
+			switch a[1].Type {
+			case obj.TYPE_REG:
+				prog.From = a[0]
+				prog.Reg = p.getRegister(prog, op, &a[1])
+				prog.To = a[2]
+			case obj.TYPE_CONST:
+				prog.From = a[0]
+				prog.From3 = a[1]
+				prog.To = a[2]
+			default:
+				p.errorf("invalid addressing modes for %s instruction", p.arch.Aconv(op))
+			}
 		default:
 			p.errorf("TODO: implement three-operand instructions for this architecture")
 		}
@@ -467,6 +515,14 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 			prog.To.Type = obj.TYPE_REGREG2
 			prog.To.Offset = int64(r3)
 			prog.Reg = r1
+			break
+		}
+		if p.arch.Thechar == '9' && arch.IsPPC64RLD(op) {
+			// 2nd operand is always a register.
+			prog.From = a[0]
+			prog.Reg = p.getRegister(prog, op, &a[1])
+			prog.From3 = a[2]
+			prog.To = a[3]
 			break
 		}
 		p.errorf("can't handle %s instruction with 4 operands", p.arch.Aconv(op))

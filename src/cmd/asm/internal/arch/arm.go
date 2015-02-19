@@ -188,3 +188,16 @@ func parseARMCondition(cond string) (uint8, bool) {
 	}
 	return bits, true
 }
+
+func armRegisterNumber(name string, n int16) (int16, bool) {
+	if n < 0 || 15 < n {
+		return 0, false
+	}
+	switch name {
+	case "R":
+		return arm.REG_R0 + n, true
+	case "F":
+		return arm.REG_F0 + n, true
+	}
+	return 0, false
+}

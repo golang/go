@@ -8,7 +8,8 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm"
 	"cmd/internal/obj/i386" // == 386
-	"cmd/internal/obj/x86"  // == amd64
+	"cmd/internal/obj/ppc64"
+	"cmd/internal/obj/x86" // == amd64
 	"fmt"
 )
 
@@ -26,7 +27,11 @@ type Arch struct {
 	// Map of instruction names to enumeration.
 	Instructions map[string]int
 	// Map of register names to enumeration.
-	Registers map[string]int16
+	Register map[string]int16
+	// Table of register prefix names. These are things like R for R(0) and SPR for SPR(268).
+	RegisterPrefix map[string]bool
+	// RegisterNumber converts R(10) into arm.REG_R10.
+	RegisterNumber func(string, int16) (int16, bool)
 	// Instructions that take one operand whose result is a destination.
 	UnaryDestination map[int]bool
 	// Instruction is a jump.
@@ -35,6 +40,12 @@ type Arch struct {
 	Aconv func(int) string
 	// Dconv pretty-prints an address for this architecture.
 	Dconv func(p *obj.Prog, flag int, a *obj.Addr) string
+}
+
+// nilRegisterNumber is the register number function for architectures
+// that do not accept the R(N) notation. It always returns failure.
+func nilRegisterNumber(name string, n int16) (int16, bool) {
+	return 0, false
 }
 
 var Pseudos = map[string]int{
@@ -60,6 +71,10 @@ func Set(GOARCH string) *Arch {
 		return a
 	case "arm":
 		return archArm()
+	case "ppc64":
+		a := archPPC64()
+		a.LinkArch = &ppc64.Linkppc64
+		return a
 	}
 	return nil
 }
@@ -69,16 +84,17 @@ func jump386(word string) bool {
 }
 
 func arch386() *Arch {
-	registers := make(map[string]int16)
+	register := make(map[string]int16)
 	// Create maps for easy lookup of instruction names etc.
 	// TODO: Should this be done in obj for us?
 	for i, s := range i386.Register {
-		registers[s] = int16(i + i386.REG_AL)
+		register[s] = int16(i + i386.REG_AL)
 	}
 	// Pseudo-registers.
-	registers["SB"] = RSB
-	registers["FP"] = RFP
-	registers["PC"] = RPC
+	register["SB"] = RSB
+	register["FP"] = RFP
+	register["PC"] = RPC
+	// Prefixes not used on this architecture.
 
 	instructions := make(map[string]int)
 	for i, s := range i386.Anames {
@@ -162,7 +178,9 @@ func arch386() *Arch {
 	return &Arch{
 		LinkArch:         &i386.Link386,
 		Instructions:     instructions,
-		Registers:        registers,
+		Register:         register,
+		RegisterPrefix:   nil,
+		RegisterNumber:   nilRegisterNumber,
 		UnaryDestination: unaryDestination,
 		IsJump:           jump386,
 		Aconv:            i386.Aconv,
@@ -171,16 +189,17 @@ func arch386() *Arch {
 }
 
 func archAmd64() *Arch {
-	registers := make(map[string]int16)
+	register := make(map[string]int16)
 	// Create maps for easy lookup of instruction names etc.
 	// TODO: Should this be done in obj for us?
 	for i, s := range x86.Register {
-		registers[s] = int16(i + x86.REG_AL)
+		register[s] = int16(i + x86.REG_AL)
 	}
 	// Pseudo-registers.
-	registers["SB"] = RSB
-	registers["FP"] = RFP
-	registers["PC"] = RPC
+	register["SB"] = RSB
+	register["FP"] = RFP
+	register["PC"] = RPC
+	// Register prefix not used on this architecture.
 
 	instructions := make(map[string]int)
 	for i, s := range x86.Anames {
@@ -271,7 +290,9 @@ func archAmd64() *Arch {
 	return &Arch{
 		LinkArch:         &x86.Linkamd64,
 		Instructions:     instructions,
-		Registers:        registers,
+		Register:         register,
+		RegisterPrefix:   nil,
+		RegisterNumber:   nilRegisterNumber,
 		UnaryDestination: unaryDestination,
 		IsJump:           jump386,
 		Aconv:            x86.Aconv,
@@ -280,26 +301,30 @@ func archAmd64() *Arch {
 }
 
 func archArm() *Arch {
-	registers := make(map[string]int16)
+	register := make(map[string]int16)
 	// Create maps for easy lookup of instruction names etc.
 	// TODO: Should this be done in obj for us?
 	// Note that there is no list of names as there is for 386 and amd64.
 	// TODO: Are there aliases we need to add?
 	for i := arm.REG_R0; i < arm.REG_SPSR; i++ {
-		registers[arm.Rconv(i)] = int16(i)
+		register[arm.Rconv(i)] = int16(i)
 	}
 	// Avoid unintentionally clobbering g using R10.
-	delete(registers, "R10")
-	registers["g"] = arm.REG_R10
+	delete(register, "R10")
+	register["g"] = arm.REG_R10
 	for i := 0; i < 16; i++ {
-		registers[fmt.Sprintf("C%d", i)] = int16(i)
+		register[fmt.Sprintf("C%d", i)] = int16(i)
 	}
 
 	// Pseudo-registers.
-	registers["SB"] = RSB
-	registers["FP"] = RFP
-	registers["PC"] = RPC
-	registers["SP"] = RSP
+	register["SB"] = RSB
+	register["FP"] = RFP
+	register["PC"] = RPC
+	register["SP"] = RSP
+	registerPrefix := map[string]bool{
+		"F": true,
+		"R": true,
+	}
 
 	instructions := make(map[string]int)
 	for i, s := range arm.Anames {
@@ -318,10 +343,72 @@ func archArm() *Arch {
 	return &Arch{
 		LinkArch:         &arm.Linkarm,
 		Instructions:     instructions,
-		Registers:        registers,
+		Register:         register,
+		RegisterPrefix:   registerPrefix,
+		RegisterNumber:   armRegisterNumber,
 		UnaryDestination: unaryDestination,
 		IsJump:           jumpArm,
 		Aconv:            arm.Aconv,
 		Dconv:            arm.Dconv,
+	}
+}
+
+func archPPC64() *Arch {
+	register := make(map[string]int16)
+	// Create maps for easy lookup of instruction names etc.
+	// TODO: Should this be done in obj for us?
+	// Note that there is no list of names as there is for 386 and amd64.
+	for i := ppc64.REG_R0; i <= ppc64.REG_R31; i++ {
+		register[ppc64.Rconv(i)] = int16(i)
+	}
+	for i := ppc64.REG_F0; i <= ppc64.REG_F31; i++ {
+		register[ppc64.Rconv(i)] = int16(i)
+	}
+	for i := ppc64.REG_C0; i <= ppc64.REG_C7; i++ {
+		// TODO: Rconv prints these as C7 but the input syntax requires CR7.
+		register[fmt.Sprintf("CR%d", i-ppc64.REG_C0)] = int16(i)
+	}
+	for i := ppc64.REG_MSR; i <= ppc64.REG_CR; i++ {
+		register[ppc64.Rconv(i)] = int16(i)
+	}
+	register["CR"] = ppc64.REG_CR
+	register["XER"] = ppc64.REG_XER
+	register["LR"] = ppc64.REG_LR
+	register["CTR"] = ppc64.REG_CTR
+	register["FPSCR"] = ppc64.REG_FPSCR
+	register["MSR"] = ppc64.REG_MSR
+	// Pseudo-registers.
+	register["SB"] = RSB
+	register["FP"] = RFP
+	register["PC"] = RPC
+	// Avoid unintentionally clobbering g using R30.
+	delete(register, "R30")
+	register["g"] = ppc64.REG_R30
+	registerPrefix := map[string]bool{
+		"CR":  true,
+		"F":   true,
+		"R":   true,
+		"SPR": true,
+	}
+
+	instructions := make(map[string]int)
+	for i, s := range ppc64.Anames {
+		instructions[s] = i
+	}
+	// Annoying aliases.
+	instructions["BR"] = ppc64.ABR
+	instructions["BL"] = ppc64.ABL
+	instructions["RETURN"] = ppc64.ARETURN
+
+	return &Arch{
+		LinkArch:         &ppc64.Linkppc64,
+		Instructions:     instructions,
+		Register:         register,
+		RegisterPrefix:   registerPrefix,
+		RegisterNumber:   ppc64RegisterNumber,
+		UnaryDestination: nil,
+		IsJump:           jumpPPC64,
+		Aconv:            ppc64.Aconv,
+		Dconv:            ppc64.Dconv,
 	}
 }
