@@ -655,7 +655,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 	}
 
 	if shouldtriggergc() {
-		gogc(0)
+		startGC(gcBackgroundMode)
 	} else if shouldhelpgc && atomicloaduint(&bggc.working) == 1 {
 		// bggc.lock not taken since race on bggc.working is benign.
 		// At worse we don't call gchelpwork.
