@@ -106,7 +106,9 @@ func PProf(flagset plugin.FlagSet, fetch plugin.Fetcher, sym plugin.Symbolizer, 
 		return err
 	}
 
-	prof.RemoveUninteresting()
+	if !*f.flagRuntime {
+		prof.RemoveUninteresting()
+	}
 
 	if *f.flagInteractive {
 		return interactive(prof, obj, ui, f)
@@ -445,6 +447,7 @@ type flags struct {
 	flagNodeFraction *float64 // Hide nodes below <f>*total
 	flagEdgeFraction *float64 // Hide edges below <f>*total
 	flagTrim         *bool    // Set to false to ignore NodeCount/*Fraction
+	flagRuntime      *bool    // Show runtime call frames in memory profiles
 	flagFocus        *string  // Restricts to paths going through a node matching regexp
 	flagIgnore       *string  // Skips paths going through any nodes matching regexp
 	flagHide         *string  // Skips sample locations matching regexp
@@ -640,6 +643,7 @@ func getFlags(flag plugin.FlagSet, overrides commands.Commands, ui plugin.UI) (*
 		flagNodeFraction: flag.Float64("nodefraction", 0.005, "Hide nodes below <f>*total"),
 		flagEdgeFraction: flag.Float64("edgefraction", 0.001, "Hide edges below <f>*total"),
 		flagTrim:         flag.Bool("trim", true, "Honor nodefraction/edgefraction/nodecount defaults"),
+		flagRuntime:      flag.Bool("runtime", false, "Show runtime call frames in memory profiles"),
 		flagFocus:        flag.String("focus", "", "Restricts to paths going through a node matching regexp"),
 		flagIgnore:       flag.String("ignore", "", "Skips paths going through any nodes matching regexp"),
 		flagHide:         flag.String("hide", "", "Skips nodes matching regexp"),
@@ -877,6 +881,7 @@ var usageMsg = "Output file parameters (for file-based output formats):\n" +
 	"  -contentions      Display number of delays at each region\n" +
 	"  -mean_delay       Display mean delay at each region\n" +
 	"Filtering options:\n" +
+	"  -runtime          Show runtime call frames in memory profiles\n" +
 	"  -focus=r          Restricts to paths going through a node matching regexp\n" +
 	"  -ignore=r         Skips paths going through any nodes matching regexp\n" +
 	"  -tagfocus=r       Restrict to samples tagged with key:value matching regexp\n" +
