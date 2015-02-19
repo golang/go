@@ -653,9 +653,15 @@ func esc(e *EscState, n *Node, up *Node) {
 			}
 		}
 
-	case OCONV,
-		OCONVNOP,
-		OCONVIFACE:
+	case OCONV, OCONVNOP:
+		escassign(e, n, n.Left)
+
+	case OCONVIFACE:
+		// We don't allocate storage for OCONVIFACE on stack yet,
+		// but mark it as EscNone merely to get debug output for tests.
+		n.Esc = EscNone // until proven otherwise
+		e.noesc = list(e.noesc, n)
+		n.Escloopdepth = e.loopdepth
 		escassign(e, n, n.Left)
 
 	case OARRAYLIT:
@@ -878,7 +884,8 @@ func escassign(e *EscState, dst *Node, src *Node) {
 		ONEW,
 		OCLOSURE,
 		OCALLPART,
-		ORUNESTR:
+		ORUNESTR,
+		OCONVIFACE:
 		escflows(e, dst, src)
 
 		// Flowing multiple returns to a single dst happens when
@@ -900,7 +907,6 @@ func escassign(e *EscState, dst *Node, src *Node) {
 		// Conversions, field access, slice all preserve the input value.
 	// fallthrough
 	case OCONV,
-		OCONVIFACE,
 		OCONVNOP,
 		ODOTMETH,
 		// treat recv.meth as a value with recv in it, only happens in ODEFER and OPROC
@@ -1342,7 +1348,8 @@ func escwalk(e *EscState, level int, dst *Node, src *Node) {
 		ONEW,
 		OCLOSURE,
 		OCALLPART,
-		ORUNESTR:
+		ORUNESTR,
+		OCONVIFACE:
 		if leaks {
 			src.Esc = EscHeap
 			if Debug['m'] != 0 {

@@ -134,7 +134,8 @@ func f8(p *T1) (k T2) { // ERROR "leaking param: p to result k" "leaking param: 
 		return
 	}
 
-	global = p // should make p leak always
+	// should make p leak always
+	global = p // ERROR "p escapes to heap"
 	return T2{p}
 }
 
