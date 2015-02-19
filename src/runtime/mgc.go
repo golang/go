@@ -616,22 +616,21 @@ func gc(start_time int64, eagersweep bool) {
 		sweep.npausesweep = 0
 	}
 
+	if debug.gccheckmark > 0 {
+		if !checkmarkphase {
+			// first half of two-pass; don't set up sweep
+			return
+		}
+		checkmarkphase = false // done checking marks
+		clearCheckmarks()
+	}
+
 	// See the comment in the beginning of this function as to why we need the following.
 	// Even if this is still stop-the-world, a concurrent exitsyscall can allocate a stack from heap.
 	lock(&mheap_.lock)
 	// Free the old cached mark array if necessary.
 	if work.spans != nil && &work.spans[0] != &h_allspans[0] {
 		sysFree(unsafe.Pointer(&work.spans[0]), uintptr(len(work.spans))*unsafe.Sizeof(work.spans[0]), &memstats.other_sys)
-	}
-
-	if debug.gccheckmark > 0 {
-		if !checkmarkphase {
-			// first half of two-pass; don't set up sweep
-			unlock(&mheap_.lock)
-			return
-		}
-		checkmarkphase = false // done checking marks
-		clearCheckmarks()
 	}
 
 	// Cache the current array for sweeping.
