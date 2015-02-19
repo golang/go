@@ -120,7 +120,6 @@ import "unsafe"
 
 const (
 	_DebugGC         = 0
-	_DebugGCPtrs     = false // if true, print trace of every pointer load during GC
 	_ConcurrentSweep = true
 	_FinBlockSize    = 4 * 1024
 	_RootData        = 0
@@ -357,41 +356,39 @@ func gc(mode int) {
 	// TODO(rsc): Should the concurrent GC clear pools earlier?
 	clearpools()
 
+	_g_ := getg()
+	_g_.m.traceback = 2
+	gp := _g_.m.curg
+	casgstatus(gp, _Grunning, _Gwaiting)
+	gp.waitreason = "garbage collection"
+
 	// Run gc on the g0 stack.  We do this so that the g stack
 	// we're currently running on will no longer change.  Cuts
 	// the root set down a bit (g0 stacks are not scanned, and
 	// we don't need to scan gc's internal state).  We also
 	// need to switch to g0 so we can shrink the stack.
 	systemstack(func() {
-		gc_m(startTime, mode == gcForceBlockMode)
+		gcMark(startTime)
+		if debug.gccheckmark > 0 {
+			// Run a full stop-the-world mark using checkmark bits,
+			// to check that we didn't forget to mark anything during
+			// the concurrent mark process.
+			initCheckmarks()
+			gcMark(startTime)
+			clearCheckmarks()
+		}
+		gcSweep(mode)
+
+		if debug.gctrace > 1 {
+			startTime = nanotime()
+			finishsweep_m()
+			gcMark(startTime)
+			gcSweep(mode)
+		}
 	})
 
-	systemstack(func() {
-		// Called from malloc.go using systemstack.
-		// The world is stopped. Rerun the scan and mark phases
-		// using the bitMarkedCheck bit instead of the
-		// bitMarked bit. If the marking encounters an
-		// bitMarked bit that is not set then we throw.
-		//go:nowritebarrier
-		if debug.gccheckmark == 0 {
-			return
-		}
-
-		if checkmarkphase {
-			throw("gccheckmark_m, entered with checkmarkphase already true")
-		}
-
-		checkmarkphase = true
-		initCheckmarks()
-		gc_m(startTime, mode == gcForceBlockMode) // turns off checkmarkphase + calls clearcheckmarkbits
-	})
-
-	if debug.gctrace > 1 {
-		startTime = nanotime()
-		systemstack(func() {
-			gc_m(startTime, mode == gcForceBlockMode)
-		})
-	}
+	_g_.m.traceback = 0
+	casgstatus(gp, _Gwaiting, _Grunning)
 
 	if trace.enabled {
 		traceGCDone()
@@ -427,56 +424,24 @@ func gc(mode int) {
 	}
 }
 
+// gcMark runs the mark (or, for concurrent GC, mark termination)
 // STW is in effect at this point.
 //TODO go:nowritebarrier
-func gc_m(start_time int64, eagersweep bool) {
-	if _DebugGCPtrs {
-		print("GC start\n")
-	}
-
-	_g_ := getg()
-	gp := _g_.m.curg
-	casgstatus(gp, _Grunning, _Gwaiting)
-	gp.waitreason = "garbage collection"
-
-	gcphase = _GCmarktermination
+func gcMark(start_time int64) {
 	if debug.allocfreetrace > 0 {
 		tracegc()
 	}
 
-	_g_.m.traceback = 2
 	t0 := start_time
 	work.tstart = start_time
+	gcphase = _GCmarktermination
 
 	var t1 int64
 	if debug.gctrace > 0 {
 		t1 = nanotime()
 	}
 
-	if !checkmarkphase {
-		// TODO(austin) This is a noop beceause we should
-		// already have swept everything to the current
-		// sweepgen.
-		finishsweep_m() // skip during checkmark debug phase.
-	}
-
-	// Cache runtime.mheap_.allspans in work.spans to avoid conflicts with
-	// resizing/freeing allspans.
-	// New spans can be created while GC progresses, but they are not garbage for
-	// this round:
-	//  - new stack spans can be created even while the world is stopped.
-	//  - new malloc spans can be created during the concurrent sweep
-
-	// Even if this is stop-the-world, a concurrent exitsyscall can allocate a stack from heap.
-	lock(&mheap_.lock)
-	// Free the old cached sweep array if necessary.
-	if work.spans != nil && &work.spans[0] != &h_allspans[0] {
-		sysFree(unsafe.Pointer(&work.spans[0]), uintptr(len(work.spans))*unsafe.Sizeof(work.spans[0]), &memstats.other_sys)
-	}
-	// Cache the current array for marking.
-	mheap_.gcspans = mheap_.allspans
-	work.spans = h_allspans
-	unlock(&mheap_.lock)
+	gcCopySpans()
 
 	work.nwait = 0
 	work.ndone = 0
@@ -584,60 +549,59 @@ func gc_m(start_time int64, eagersweep bool) {
 		sweep.nbgsweep = 0
 		sweep.npausesweep = 0
 	}
+}
 
-	if debug.gccheckmark > 0 {
-		if !checkmarkphase {
-			// first half of two-pass; don't set up sweep
-			casgstatus(gp, _Gwaiting, _Grunning)
-			return
-		}
-		checkmarkphase = false // done checking marks
-		clearCheckmarks()
-	}
+func gcSweep(mode int) {
+	gcCopySpans()
 
-	// See the comment in the beginning of this function as to why we need the following.
-	// Even if this is still stop-the-world, a concurrent exitsyscall can allocate a stack from heap.
 	lock(&mheap_.lock)
-	// Free the old cached mark array if necessary.
-	if work.spans != nil && &work.spans[0] != &h_allspans[0] {
-		sysFree(unsafe.Pointer(&work.spans[0]), uintptr(len(work.spans))*unsafe.Sizeof(work.spans[0]), &memstats.other_sys)
-	}
-
-	// Cache the current array for sweeping.
-	mheap_.gcspans = mheap_.allspans
 	mheap_.sweepgen += 2
 	mheap_.sweepdone = 0
-	work.spans = h_allspans
 	sweep.spanidx = 0
 	unlock(&mheap_.lock)
 
-	if _ConcurrentSweep && !eagersweep {
-		lock(&gclock)
-		if !sweep.started {
-			go bgsweep()
-			sweep.started = true
-		} else if sweep.parked {
-			sweep.parked = false
-			ready(sweep.g)
-		}
-		unlock(&gclock)
-	} else {
+	if !_ConcurrentSweep || mode == gcForceBlockMode {
+		// Special case synchronous sweep.
 		// Sweep all spans eagerly.
 		for sweepone() != ^uintptr(0) {
 			sweep.npausesweep++
 		}
 		// Do an additional mProf_GC, because all 'free' events are now real as well.
 		mProf_GC()
+		mProf_GC()
+		return
 	}
 
+	// Background sweep.
+	lock(&sweep.lock)
+	if !sweep.started {
+		go bgsweep()
+		sweep.started = true
+	} else if sweep.parked {
+		sweep.parked = false
+		ready(sweep.g)
+	}
+	unlock(&sweep.lock)
 	mProf_GC()
-	_g_.m.traceback = 0
+}
 
-	if _DebugGCPtrs {
-		print("GC end\n")
+func gcCopySpans() {
+	// Cache runtime.mheap_.allspans in work.spans to avoid conflicts with
+	// resizing/freeing allspans.
+	// New spans can be created while GC progresses, but they are not garbage for
+	// this round:
+	//  - new stack spans can be created even while the world is stopped.
+	//  - new malloc spans can be created during the concurrent sweep
+	// Even if this is stop-the-world, a concurrent exitsyscall can allocate a stack from heap.
+	lock(&mheap_.lock)
+	// Free the old cached mark array if necessary.
+	if work.spans != nil && &work.spans[0] != &h_allspans[0] {
+		sysFree(unsafe.Pointer(&work.spans[0]), uintptr(len(work.spans))*unsafe.Sizeof(work.spans[0]), &memstats.other_sys)
 	}
-
-	casgstatus(gp, _Gwaiting, _Grunning)
+	// Cache the current array for sweeping.
+	mheap_.gcspans = mheap_.allspans
+	work.spans = h_allspans
+	unlock(&mheap_.lock)
 }
 
 // Hooks for other packages

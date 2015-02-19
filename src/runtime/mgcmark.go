@@ -86,7 +86,7 @@ func markroot(desc *parfor, i uint32) {
 			if s.state != mSpanInUse {
 				continue
 			}
-			if !checkmarkphase && s.sweepgen != sg {
+			if !useCheckmark && s.sweepgen != sg {
 				// sweepgen was updated (+2) during non-checkmark GC pass
 				print("sweep ", s.sweepgen, " ", sg, "\n")
 				throw("gc: unswept span")
@@ -458,7 +458,7 @@ func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWorkProducer) {
 		}
 
 		if bits&typePointer != typePointer {
-			print("gc checkmarkphase=", checkmarkphase, " b=", hex(b), " ptrmask=", ptrmask, "\n")
+			print("gc useCheckmark=", useCheckmark, " b=", hex(b), " ptrmask=", ptrmask, "\n")
 			throw("unexpected garbage collection bits")
 		}
 
@@ -470,7 +470,7 @@ func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWorkProducer) {
 			continue
 		}
 
-		if mheap_.shadow_enabled && debug.wbshadow >= 2 && debug.gccheckmark > 0 && checkmarkphase {
+		if mheap_.shadow_enabled && debug.wbshadow >= 2 && debug.gccheckmark > 0 && useCheckmark {
 			checkwbshadow((*uintptr)(unsafe.Pointer(b + i)))
 		}
 
@@ -528,7 +528,7 @@ func greyobject(obj, base, off uintptr, hbits heapBits, gcw *gcWorkProducer) {
 		throw("greyobject: obj not pointer-aligned")
 	}
 
-	if checkmarkphase {
+	if useCheckmark {
 		if !hbits.isMarked() {
 			print("runtime:greyobject: checkmarks finds unexpected unmarked object obj=", hex(obj), "\n")
 			print("runtime: found obj at *(", hex(base), "+", hex(off), ")\n")
@@ -591,7 +591,7 @@ func greyobject(obj, base, off uintptr, hbits heapBits, gcw *gcWorkProducer) {
 		hbits.setMarked()
 	}
 
-	if !checkmarkphase && hbits.typeBits() == typeDead {
+	if !useCheckmark && hbits.typeBits() == typeDead {
 		return // noscan object
 	}
 
@@ -611,7 +611,7 @@ func gcmarknewobject_m(obj uintptr) {
 	if gcphase != _GCmarktermination {
 		throw("marking new object while not in mark termination phase")
 	}
-	if checkmarkphase { // The world should be stopped so this should not happen.
+	if useCheckmark { // The world should be stopped so this should not happen.
 		throw("gcmarknewobject called while doing checkmark")
 	}
 
@@ -636,13 +636,14 @@ func gcmarknewobject_m(obj uintptr) {
 // there are no more pointers in the object. This information is held
 // in the second nibble.
 
-// When marking an object if the bool checkmarkphase is true one uses the above
-// encoding, otherwise one uses the bitMarked bit in the lower two bits
-// of the nibble.
-var checkmarkphase = false
+// If useCheckmark is true, marking of an object uses the
+// checkmark bits (encoding above) instead of the standard
+// mark bits.
+var useCheckmark = false
 
 //go:nowritebarrier
 func initCheckmarks() {
+	useCheckmark = true
 	for _, s := range work.spans {
 		if s.state == _MSpanInUse {
 			heapBitsForSpan(s.base()).initCheckmarkSpan(s.layout())
@@ -651,6 +652,7 @@ func initCheckmarks() {
 }
 
 func clearCheckmarks() {
+	useCheckmark = false
 	for _, s := range work.spans {
 		if s.state == _MSpanInUse {
 			heapBitsForSpan(s.base()).clearCheckmarkSpan(s.layout())
