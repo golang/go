@@ -54,6 +54,7 @@ const (
 	soiMarker  = 0xd8 // Start Of Image.
 	eoiMarker  = 0xd9 // End Of Image.
 	sof0Marker = 0xc0 // Start Of Frame (Baseline).
+	sof1Marker = 0xc1 // Start Of Frame (Extended Sequential).
 	sof2Marker = 0xc2 // Start Of Frame (Progressive).
 	dhtMarker  = 0xc4 // Define Huffman Table.
 	dqtMarker  = 0xdb // Define Quantization Table.
@@ -139,7 +140,7 @@ type decoder struct {
 	progCoeffs [maxComponents][]block // Saved state between progressive-mode scans.
 	huff       [maxTc + 1][maxTh + 1]huffman
 	quant      [maxTq + 1]block // Quantization tables, in zig-zag order.
-	tmp        [blockSize + 1]byte
+	tmp        [2 * blockSize]byte
 }
 
 // fill fills up the d.bytes.buf buffer from the underlying io.Reader. It
@@ -387,21 +388,42 @@ func (d *decoder) processSOF(n int) error {
 
 // Specified in section B.2.4.1.
 func (d *decoder) processDQT(n int) error {
-	const qtLength = 1 + blockSize
-	for ; n >= qtLength; n -= qtLength {
-		if err := d.readFull(d.tmp[:qtLength]); err != nil {
+loop:
+	for n > 0 {
+		n--
+		x, err := d.readByte()
+		if err != nil {
 			return err
 		}
-		pq := d.tmp[0] >> 4
-		if pq != 0 {
-			return UnsupportedError("bad Pq value")
-		}
-		tq := d.tmp[0] & 0x0f
+		tq := x & 0x0f
 		if tq > maxTq {
 			return FormatError("bad Tq value")
 		}
-		for i := range d.quant[tq] {
-			d.quant[tq][i] = int32(d.tmp[i+1])
+		switch x >> 4 {
+		default:
+			return FormatError("bad Pq value")
+		case 0:
+			if n < blockSize {
+				break loop
+			}
+			n -= blockSize
+			if err := d.readFull(d.tmp[:blockSize]); err != nil {
+				return err
+			}
+			for i := range d.quant[tq] {
+				d.quant[tq][i] = int32(d.tmp[i])
+			}
+		case 1:
+			if n < 2*blockSize {
+				break loop
+			}
+			n -= 2 * blockSize
+			if err := d.readFull(d.tmp[:2*blockSize]); err != nil {
+				return err
+			}
+			for i := range d.quant[tq] {
+				d.quant[tq][i] = int32(d.tmp[2*i])<<8 | int32(d.tmp[2*i+1])
+			}
 		}
 	}
 	if n != 0 {
@@ -524,7 +546,7 @@ func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, error) {
 		}
 
 		switch marker {
-		case sof0Marker, sof2Marker:
+		case sof0Marker, sof1Marker, sof2Marker:
 			d.progressive = marker == sof2Marker
 			err = d.processSOF(n)
 			if configOnly {
