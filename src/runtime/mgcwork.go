@@ -14,7 +14,6 @@ const (
 type workbufhdr struct {
 	node  lfnode // must be first
 	nobj  uintptr
-	id    uintptr
 	inuse bool       // This workbuf is in use by some gorotuine and is not on the work.empty/partial/full queues.
 	log   [4]uintptr // line numbers forming a history of ownership changes to workbuf
 }
