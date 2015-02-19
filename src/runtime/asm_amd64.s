@@ -756,7 +756,7 @@ havem:
 	MOVQ	BX, -8(DI)
 	// Compute the size of the frame, including return PC and, if
 	// GOEXPERIMENT=framepointer, the saved based pointer
-	LEAQ	x+0(FP), AX
+	LEAQ	fv+0(FP), AX
 	SUBQ	SP, AX
 	SUBQ	AX, DI
 	MOVQ	DI, SP
@@ -768,7 +768,7 @@ havem:
 	// Compute the size of the frame again.  FP and SP have
 	// completely different values here than they did above,
 	// but only their difference matters.
-	LEAQ	x+0(FP), AX
+	LEAQ	fv+0(FP), AX
 	SUBQ	SP, AX
 
 	// Restore g->sched (== m->curg->sched) from saved values.

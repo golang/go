@@ -106,7 +106,7 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
 // void gosave(Gobuf*)
 // save state in Gobuf; setjmp
 TEXT runtime·gosave(SB),NOSPLIT,$-4-4
-	MOVW	gobuf+0(FP), R0
+	MOVW	buf+0(FP), R0
 	MOVW	R13, gobuf_sp(R0)
 	MOVW	LR, gobuf_pc(R0)
 	MOVW	g, gobuf_g(R0)
@@ -119,7 +119,7 @@ TEXT runtime·gosave(SB),NOSPLIT,$-4-4
 // void gogo(Gobuf*)
 // restore state from Gobuf; longjmp
 TEXT runtime·gogo(SB),NOSPLIT,$-4-4
-	MOVW	gobuf+0(FP), R1
+	MOVW	buf+0(FP), R1
 	MOVW	gobuf_g(R1), R0
 	BL	setg<>(SB)
 
@@ -645,7 +645,7 @@ TEXT setg<>(SB),NOSPLIT,$-4-0
 	MOVW	g, R0
 	RET
 
-TEXT runtime·getcallerpc(SB),NOSPLIT,$-4-4
+TEXT runtime·getcallerpc(SB),NOSPLIT,$-4-8
 	MOVW	0(R13), R0
 	MOVW	R0, ret+4(FP)
 	RET
@@ -659,8 +659,8 @@ TEXT runtime·setcallerpc(SB),NOSPLIT,$-4-8
 	MOVW	R0, 0(R13)
 	RET
 
-TEXT runtime·getcallersp(SB),NOSPLIT,$-4-4
-	MOVW	addr+0(FP), R0
+TEXT runtime·getcallersp(SB),NOSPLIT,$-4-8
+	MOVW	argp+0(FP), R0
 	MOVW	$-4(R0), R0
 	MOVW	R0, ret+4(FP)
 	RET

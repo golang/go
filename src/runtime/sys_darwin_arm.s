@@ -97,7 +97,7 @@ TEXT runtime·raise(SB),NOSPLIT,$24
 	MOVW	$SYS_getpid, R12
 	SWI	$0x80
 	// arg 1 pid already in R0 from getpid
-	MOVW	sig+0(FP), R1	// arg 2 - signal
+	MOVW	unnamed+0(FP), R1	// arg 2 - signal
 	MOVW	$1, R2	// arg 3 - posix
 	MOVW	$SYS_kill, R12
 	SWI $0x80
@@ -118,7 +118,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
 
 TEXT runtime·munmap(SB),NOSPLIT,$0
 	MOVW	addr+0(FP), R0
-	MOVW	len+4(FP), R1
+	MOVW	n+4(FP), R1
 	MOVW	$SYS_munmap, R12
 	SWI	$0x80
 	BL.CS	notok<>(SB)
@@ -126,27 +126,28 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
 
 TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVW	addr+0(FP), R0
-	MOVW	len+4(FP), R1
-	MOVW	advice+8(FP), R2
+	MOVW	n+4(FP), R1
+	MOVW	flags+8(FP), R2
 	MOVW	$SYS_madvise, R12
 	SWI	$0x80
 	BL.CS	notok<>(SB)
 	RET
 
 TEXT runtime·setitimer(SB),NOSPLIT,$0
-	MOVW	which+0(FP), R0
-	MOVW	value+4(FP), R1
-	MOVW	ovalue+8(FP), R2
+	MOVW	mode+0(FP), R0
+	MOVW	new+4(FP), R1
+	MOVW	old+8(FP), R2
 	MOVW	$SYS_setitimer, R12
 	SWI	$0x80
 	RET
 
 TEXT runtime·mincore(SB),NOSPLIT,$0
 	MOVW	addr+0(FP), R0
-	MOVW	len+4(FP), R1
-	MOVW	vec+8(FP), R2
+	MOVW	n+4(FP), R1
+	MOVW	dst+8(FP), R2
 	MOVW	$SYS_mincore, R12
 	SWI	$0x80
+	MOVW	R0, ret+12(FP)
 	RET
 
 TEXT time·now(SB), 7, $32
@@ -180,8 +181,8 @@ TEXT runtime·nanotime(SB),NOSPLIT,$32
 	ADD.S	R2, R0
 	ADC	R4, R1
 
-	MOVW	R0, sec0+0(FP)
-	MOVW	R1, sec1+4(FP)
+	MOVW	R0, ret_lo+0(FP)
+	MOVW	R1, ret_hi+4(FP)
 	RET
 
 // Sigtramp's job is to call the actual signal handler.
@@ -255,18 +256,18 @@ ret:
 	B	runtime·exit(SB)
 
 TEXT runtime·sigprocmask(SB),NOSPLIT,$0
-	MOVW	how+0(FP), R0
-	MOVW	set+4(FP), R1
-	MOVW	oset+8(FP), R2
+	MOVW	sig+0(FP), R0
+	MOVW	new+4(FP), R1
+	MOVW	old+8(FP), R2
 	MOVW	$SYS_sigprocmask, R12
 	SWI	$0x80
 	BL.CS	notok<>(SB)
 	RET
 
 TEXT runtime·sigaction(SB),NOSPLIT,$0
-	MOVW	sig+0(FP), R0
-	MOVW	act+4(FP), R1
-	MOVW	oact+8(FP), R2
+	MOVW	mode+0(FP), R0
+	MOVW	new+4(FP), R1
+	MOVW	old+8(FP), R2
 	MOVW	$SYS_sigaction, R12
 	SWI	$0x80
 	RET
@@ -297,12 +298,12 @@ TEXT runtime·casp1(SB),NOSPLIT,$0
 	B	runtime·cas(SB)
 
 TEXT runtime·sysctl(SB),NOSPLIT,$0
-	MOVW	name+0(FP), R0
-	MOVW	len+4(FP), R1
-	MOVW	oldp+8(FP), R2
-	MOVW	oldlenp+12(FP), R3
-	MOVW	newp+16(FP), R4
-	MOVW	newlen+20(FP), R5
+	MOVW	mib+0(FP), R0
+	MOVW	miblen+4(FP), R1
+	MOVW	out+8(FP), R2
+	MOVW	size+12(FP), R3
+	MOVW	dst+16(FP), R4
+	MOVW	ndst+20(FP), R5
 	MOVW	$SYS___sysctl, R12 // syscall entry
 	SWI	$0x80
 	BCC     sysctl_ret
@@ -376,16 +377,16 @@ TEXT runtime·bsdthread_register(SB),NOSPLIT,$0
 
 // uint32 mach_msg_trap(void*, uint32, uint32, uint32, uint32, uint32, uint32)
 TEXT runtime·mach_msg_trap(SB),NOSPLIT,$0
-	MOVW    a+0(FP), R0
-	MOVW    b+4(FP), R1
-	MOVW    c+8(FP), R2
-	MOVW    d+12(FP), R3
-	MOVW    e+16(FP), R4
-	MOVW    f+20(FP), R5
-	MOVW    h+24(FP), R6
+	MOVW    h+0(FP), R0
+	MOVW    op+4(FP), R1
+	MOVW    send_size+8(FP), R2
+	MOVW    rcv_size+12(FP), R3
+	MOVW    rcv_name+16(FP), R4
+	MOVW    timeout+20(FP), R5
+	MOVW    notify+24(FP), R6
 	MVN     $30, R12
 	SWI	$0x80
-	MOVW	R0, i+28(FP)
+	MOVW	R0, ret+28(FP)
 	RET
 
 TEXT runtime·mach_task_self(SB),NOSPLIT,$0
@@ -411,7 +412,7 @@ TEXT runtime·mach_reply_port(SB),NOSPLIT,$0
 
 // uint32 mach_semaphore_wait(uint32)
 TEXT runtime·mach_semaphore_wait(SB),NOSPLIT,$0
-	MOVW	a+0(FP), R0
+	MOVW	sema+0(FP), R0
 	MVN 	$35, R12	// semaphore_wait_trap
 	SWI	$0x80
 	MOVW	R0, ret+4(FP)
@@ -419,9 +420,9 @@ TEXT runtime·mach_semaphore_wait(SB),NOSPLIT,$0
 
 // uint32 mach_semaphore_timedwait(uint32, uint32, uint32)
 TEXT runtime·mach_semaphore_timedwait(SB),NOSPLIT,$0
-	MOVW	a+0(FP), R0
-	MOVW	b+4(FP), R1
-	MOVW	c+8(FP), R2
+	MOVW	sema+0(FP), R0
+	MOVW	sec+4(FP), R1
+	MOVW	nsec+8(FP), R2
 	MVN 	$37, R12	// semaphore_timedwait_trap
 	SWI	$0x80
 	MOVW	R0, ret+12(FP)
@@ -429,7 +430,7 @@ TEXT runtime·mach_semaphore_timedwait(SB),NOSPLIT,$0
 
 // uint32 mach_semaphore_signal(uint32)
 TEXT runtime·mach_semaphore_signal(SB),NOSPLIT,$0
-	MOVW    a+0(FP), R0
+	MOVW    sema+0(FP), R0
 	MVN 	$32, R12	// semaphore_signal_trap
 	SWI	$0x80
 	MOVW	R0, ret+4(FP)
@@ -437,7 +438,7 @@ TEXT runtime·mach_semaphore_signal(SB),NOSPLIT,$0
 
 // uint32 mach_semaphore_signal_all(uint32)
 TEXT runtime·mach_semaphore_signal_all(SB),NOSPLIT,$0
-	MOVW	a+0(FP), R0
+	MOVW	sema+0(FP), R0
 	MVN 	$33, R12	// semaphore_signal_all_trap
 	SWI	$0x80
 	MOVW	R0, ret+4(FP)
@@ -455,11 +456,11 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
 TEXT runtime·kevent(SB),NOSPLIT,$0
 	MOVW	$SYS_kevent, R12
 	MOVW	kq+0(FP), R0
-	MOVW	changelist+4(FP), R1
-	MOVW	nchanges+8(FP), R2
-	MOVW	eventlist+12(FP), R3
-	MOVW	nevents+16(FP), R4
-	MOVW	timeout+20(FP), R5
+	MOVW	ch+4(FP), R1
+	MOVW	nch+8(FP), R2
+	MOVW	ev+12(FP), R3
+	MOVW	nev+16(FP), R4
+	MOVW	ts+20(FP), R5
 	SWI	$0x80
 	RSB.CS	$0, R0, R0
 	MOVW	R0, ret+24(FP)
