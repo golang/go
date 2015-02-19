@@ -2848,7 +2848,6 @@ func eqmem(p *Node, q *Node, field *Node, size int64) *Node {
 	}
 
 	nif := Nod(OIF, nil, nil)
-	nif.Ninit = list(nif.Ninit, call)
 	nif.Ntest = Nod(ONOT, call, nil)
 	r := Nod(ORETURN, nil, nil)
 	r.List = list(r.List, Nodbool(false))
