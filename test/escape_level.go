@@ -23,7 +23,7 @@ func level1() {
 	p0 := &i  // ERROR "moved to heap: p0" "&i escapes to heap"
 	p1 := &p0 // ERROR "moved to heap: p1" "&p0 escapes to heap"
 	p2 := &p1 // ERROR "&p1 escapes to heap"
-	sink = p2
+	sink = p2 // ERROR "p2 escapes to heap"
 }
 
 func level2() {
@@ -31,7 +31,7 @@ func level2() {
 	p0 := &i  // ERROR "moved to heap: p0" "&i escapes to heap"
 	p1 := &p0 // ERROR "&p0 escapes to heap"
 	p2 := &p1 // ERROR "&p1 does not escape"
-	sink = *p2
+	sink = *p2 // ERROR "\*p2 escapes to heap"
 }
 
 func level3() {
@@ -39,7 +39,7 @@ func level3() {
 	p0 := &i  // ERROR "&i escapes to heap"
 	p1 := &p0 // ERROR "&p0 does not escape"
 	p2 := &p1 // ERROR "&p1 does not escape"
-	sink = **p2
+	sink = **p2 // ERROR "\* \(\*p2\) escapes to heap"
 }
 
 func level4() {
@@ -55,7 +55,7 @@ func level5() {
 	p0 := &i  // ERROR "moved to heap: p0" "&i escapes to heap"
 	p1 := &p0 // ERROR "&p0 escapes to heap"
 	p2 := p1
-	sink = p2
+	sink = p2 // ERROR "p2 escapes to heap"
 }
 
 func level6() {
@@ -63,7 +63,7 @@ func level6() {
 	p0 := &i  // ERROR "&i escapes to heap"
 	p1 := &p0 // ERROR "&p0 does not escape"
 	p2 := p1
-	sink = *p2
+	sink = *p2 // ERROR "\*p2 escapes to heap"
 }
 
 func level7() {
@@ -80,7 +80,7 @@ func level8() {
 	p0 := &i  // ERROR "&i escapes to heap"
 	p1 := &p0 // ERROR "&p0 does not escape"
 	p2 := *p1
-	sink = p2
+	sink = p2 // ERROR "p2 escapes to heap"
 }
 
 func level9() {
@@ -88,7 +88,7 @@ func level9() {
 	p0 := &i  // ERROR "&i does not escape"
 	p1 := &p0 // ERROR "&p0 does not escape"
 	p2 := *p1
-	sink = *p2
+	sink = *p2 // ERROR "\*p2 escapes to heap"
 }
 
 func level10() {
@@ -96,7 +96,7 @@ func level10() {
 	p0 := &i // ERROR "&i does not escape"
 	p1 := *p0
 	p2 := &p1 // ERROR "&p1 does not escape"
-	sink = *p2
+	sink = *p2 // ERROR "\*p2 escapes to heap"
 }
 
 func level11() {
