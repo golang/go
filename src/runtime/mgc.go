@@ -362,20 +362,9 @@ func gc(mode int) {
 	// the root set down a bit (g0 stacks are not scanned, and
 	// we don't need to scan gc's internal state).  We also
 	// need to switch to g0 so we can shrink the stack.
-	n := 1
-	if debug.gctrace > 1 {
-		n = 2
-	}
-	for i := 0; i < n; i++ {
-		if i > 0 {
-			// refresh start time if doing a second GC
-			startTime = nanotime()
-		}
-		// switch to g0, call gc, then switch back
-		systemstack(func() {
-			gc_m(startTime, mode == gcForceBlockMode)
-		})
-	}
+	systemstack(func() {
+		gc_m(startTime, mode == gcForceBlockMode)
+	})
 
 	systemstack(func() {
 		// Called from malloc.go using systemstack.
@@ -396,6 +385,13 @@ func gc(mode int) {
 		initCheckmarks()
 		gc_m(startTime, mode == gcForceBlockMode) // turns off checkmarkphase + calls clearcheckmarkbits
 	})
+
+	if debug.gctrace > 1 {
+		startTime = nanotime()
+		systemstack(func() {
+			gc_m(startTime, mode == gcForceBlockMode)
+		})
+	}
 
 	if trace.enabled {
 		traceGCDone()
