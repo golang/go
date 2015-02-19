@@ -84,7 +84,7 @@ func (ww *gcWorkProducer) put(obj uintptr) {
 	wbuf.obj[wbuf.nobj] = obj
 	wbuf.nobj++
 
-	if wbuf.nobj == uintptr(len(wbuf.obj)) {
+	if wbuf.nobj == len(wbuf.obj) {
 		putfull(wbuf, 50)
 		w.wbuf = 0
 	}
@@ -199,9 +199,9 @@ func (w *gcWork) balance() {
 
 type workbufhdr struct {
 	node  lfnode // must be first
-	nobj  uintptr
-	inuse bool       // This workbuf is in use by some gorotuine and is not on the work.empty/partial/full queues.
-	log   [4]uintptr // line numbers forming a history of ownership changes to workbuf
+	nobj  int
+	inuse bool   // This workbuf is in use by some gorotuine and is not on the work.empty/partial/full queues.
+	log   [4]int // line numbers forming a history of ownership changes to workbuf
 }
 
 type workbuf struct {
@@ -222,7 +222,7 @@ type workbuf struct {
 
 // logget records the past few values of entry to aid in debugging.
 // logget checks the buffer b is not currently in use.
-func (b *workbuf) logget(entry uintptr) {
+func (b *workbuf) logget(entry int) {
 	if !_Debugwbufs {
 		return
 	}
@@ -239,7 +239,7 @@ func (b *workbuf) logget(entry uintptr) {
 
 // logput records the past few values of entry to aid in debugging.
 // logput checks the buffer b is currently in use.
-func (b *workbuf) logput(entry uintptr) {
+func (b *workbuf) logput(entry int) {
 	if !_Debugwbufs {
 		return
 	}
@@ -283,7 +283,7 @@ func checknocurrentwbuf() {
 // allocating new buffers if none are available.
 // entry is used to record a brief history of ownership.
 //go:nowritebarrier
-func getempty(entry uintptr) *workbuf {
+func getempty(entry int) *workbuf {
 	var b *workbuf
 	if work.empty != 0 {
 		b = (*workbuf)(lfstackpop(&work.empty))
@@ -301,7 +301,7 @@ func getempty(entry uintptr) *workbuf {
 // putempty puts a workbuf onto the work.empty list.
 // Upon entry this go routine owns b. The lfstackpush relinquishes ownership.
 //go:nowritebarrier
-func putempty(b *workbuf, entry uintptr) {
+func putempty(b *workbuf, entry int) {
 	b.checkempty()
 	b.logput(entry)
 	lfstackpush(&work.empty, &b.node)
@@ -311,7 +311,7 @@ func putempty(b *workbuf, entry uintptr) {
 // putfull accepts partially full buffers so the GC can avoid competing
 // with the mutators for ownership of partially full buffers.
 //go:nowritebarrier
-func putfull(b *workbuf, entry uintptr) {
+func putfull(b *workbuf, entry int) {
 	b.checknonempty()
 	b.logput(entry)
 	lfstackpush(&work.full, &b.node)
@@ -323,7 +323,7 @@ func putfull(b *workbuf, entry uintptr) {
 // using entry + xxx00000 to
 // indicating that two line numbers in the call chain.
 //go:nowritebarrier
-func getpartialorempty(entry uintptr) *workbuf {
+func getpartialorempty(entry int) *workbuf {
 	var b *workbuf
 	// If this m has a buf in currentwbuf then as an optimization
 	// simply return that buffer. If it turns out currentwbuf
@@ -332,7 +332,7 @@ func getpartialorempty(entry uintptr) *workbuf {
 	if getg().m.currentwbuf != 0 {
 		b = (*workbuf)(unsafe.Pointer(xchguintptr(&getg().m.currentwbuf, 0)))
 		if b != nil {
-			if b.nobj <= uintptr(len(b.obj)) {
+			if b.nobj <= len(b.obj) {
 				return b
 			}
 			putfull(b, entry+80100000)
@@ -357,13 +357,13 @@ func getpartialorempty(entry uintptr) *workbuf {
 // using entry + xxx00000 to
 // indicating that two call chain line numbers.
 //go:nowritebarrier
-func putpartial(b *workbuf, entry uintptr) {
+func putpartial(b *workbuf, entry int) {
 	if b.nobj == 0 {
 		putempty(b, entry+81500000)
-	} else if b.nobj < uintptr(len(b.obj)) {
+	} else if b.nobj < len(b.obj) {
 		b.logput(entry)
 		lfstackpush(&work.partial, &b.node)
-	} else if b.nobj == uintptr(len(b.obj)) {
+	} else if b.nobj == len(b.obj) {
 		b.logput(entry)
 		lfstackpush(&work.full, &b.node)
 	} else {
@@ -374,7 +374,7 @@ func putpartial(b *workbuf, entry uintptr) {
 // trygetfull tries to get a full or partially empty workbuffer.
 // If one is not immediately available return nil
 //go:nowritebarrier
-func trygetfull(entry uintptr) *workbuf {
+func trygetfull(entry int) *workbuf {
 	b := (*workbuf)(lfstackpop(&work.full))
 	if b == nil {
 		b = (*workbuf)(lfstackpop(&work.partial))
@@ -415,7 +415,7 @@ func trygetfull(entry uintptr) *workbuf {
 // This is in fact the termination condition for the STW mark
 // phase.
 //go:nowritebarrier
-func getfull(entry uintptr) *workbuf {
+func getfull(entry int) *workbuf {
 	b := (*workbuf)(lfstackpop(&work.full))
 	if b != nil {
 		b.logget(entry)
@@ -480,7 +480,7 @@ func handoff(b *workbuf) *workbuf {
 	n := b.nobj / 2
 	b.nobj -= n
 	b1.nobj = n
-	memmove(unsafe.Pointer(&b1.obj[0]), unsafe.Pointer(&b.obj[b.nobj]), n*unsafe.Sizeof(b1.obj[0]))
+	memmove(unsafe.Pointer(&b1.obj[0]), unsafe.Pointer(&b.obj[b.nobj]), uintptr(n)*unsafe.Sizeof(b1.obj[0]))
 	_g_ := getg()
 	_g_.m.gcstats.nhandoff++
 	_g_.m.gcstats.nhandoffcnt += uint64(n)
