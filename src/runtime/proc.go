@@ -123,7 +123,7 @@ func forcegchelper() {
 		if debug.gctrace > 0 {
 			println("GC forced")
 		}
-		gogc(1)
+		startGC(gcForceMode)
 	}
 }
 
