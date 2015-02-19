@@ -949,7 +949,7 @@ name:
 		$$ = nullgen;
 		$$.type = TYPE_MEM;
 		$$.name = NAME_STATIC;
-		$$.sym = linklookup(ctxt, $1->name, 0);
+		$$.sym = linklookup(ctxt, $1->name, 1);
 		$$.offset = $4;
 	}
 

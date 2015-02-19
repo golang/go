@@ -1827,7 +1827,7 @@ yydefault:
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_MEM
 			yyVAL.addr.Name = obj.NAME_STATIC
-			yyVAL.addr.Sym = obj.Linklookup(asm.Ctxt, yyDollar[1].sym.Name, 0)
+			yyVAL.addr.Sym = obj.Linklookup(asm.Ctxt, yyDollar[1].sym.Name, 1)
 			yyVAL.addr.Offset = yyDollar[4].lval
 		}
 	case 164:

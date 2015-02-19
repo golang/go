@@ -3116,7 +3116,7 @@ yyreduce:
 		(yyval.addr) = nullgen;
 		(yyval.addr).type = TYPE_MEM;
 		(yyval.addr).name = NAME_STATIC;
-		(yyval.addr).sym = linklookup(ctxt, (yyvsp[(1) - (7)].sym)->name, 0);
+		(yyval.addr).sym = linklookup(ctxt, (yyvsp[(1) - (7)].sym)->name, 1);
 		(yyval.addr).offset = (yyvsp[(4) - (7)].lval);
 	}
     break;

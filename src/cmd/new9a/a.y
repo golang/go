@@ -963,7 +963,7 @@ name:
 		$$ = nullgen;
 		$$.Type = obj.TYPE_MEM;
 		$$.Name = obj.NAME_STATIC;
-		$$.Sym = obj.Linklookup(asm.Ctxt, $1.Name, 0);
+		$$.Sym = obj.Linklookup(asm.Ctxt, $1.Name, 1);
 		$$.Offset = $4;
 	}
 
