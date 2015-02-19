@@ -226,6 +226,7 @@ func (p *Parser) parseScale(s string) int8 {
 
 // operand parses a general operand and stores the result in *a.
 func (p *Parser) operand(a *obj.Addr) bool {
+	// fmt.Printf("Operand: %v\n", p.input)
 	if len(p.input) == 0 {
 		p.errorf("empty operand: cannot happen")
 		return false
@@ -250,9 +251,10 @@ func (p *Parser) operand(a *obj.Addr) bool {
 
 	// Symbol: sym±offset(SB)
 	tok := p.next()
-	if tok.ScanToken == scanner.Ident && !p.isRegister(tok.String()) {
+	name := tok.String()
+	if tok.ScanToken == scanner.Ident && !p.atStartOfRegister(name) {
 		// We have a symbol. Parse $sym±offset(symkind)
-		p.symbolReference(a, tok.String(), prefix)
+		p.symbolReference(a, name, prefix)
 		// fmt.Printf("SYM %s\n", p.arch.Dconv(&emptyProg, 0, a))
 		if p.peek() == scanner.EOF {
 			return true
@@ -270,7 +272,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
 	}
 
 	// Register: R1
-	if tok.ScanToken == scanner.Ident && p.isRegister(tok.String()) {
+	if tok.ScanToken == scanner.Ident && p.atStartOfRegister(name) {
 		if lex.IsRegisterShift(p.peek()) {
 			// ARM shifted register such as R1<<R2 or R1>>2.
 			a.Type = obj.TYPE_SHIFT
@@ -280,10 +282,10 @@ func (p *Parser) operand(a *obj.Addr) bool {
 				p.next()
 				tok := p.next()
 				name := tok.String()
-				if !p.isRegister(name) {
+				if !p.atStartOfRegister(name) {
 					p.errorf("expected register; found %s", name)
 				}
-				a.Reg = p.arch.Registers[name]
+				a.Reg, _ = p.registerReference(name)
 				p.get(')')
 			}
 		} else if r1, r2, scale, ok := p.register(tok.String(), prefix); ok {
@@ -312,7 +314,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
 		// Could be parenthesized expression or (R).
 		rname := p.next().String()
 		p.back()
-		haveConstant = !p.isRegister(rname)
+		haveConstant = !p.atStartOfRegister(rname)
 		if !haveConstant {
 			p.back() // Put back the '('.
 		}
@@ -368,18 +370,49 @@ func (p *Parser) operand(a *obj.Addr) bool {
 	return true
 }
 
-// isRegister reports whether the token is a register.
-func (p *Parser) isRegister(name string) bool {
-	_, present := p.arch.Registers[name]
-	return present
+// atStartOfRegister reports whether the parser is at the start of a register definition.
+func (p *Parser) atStartOfRegister(name string) bool {
+	// Simple register: R10.
+	_, present := p.arch.Register[name]
+	if present {
+		return true
+	}
+	// Parenthesized register: R(10).
+	return p.arch.RegisterPrefix[name] && p.peek() == '('
 }
 
-// register parses a register reference where there is no symbol present (as in 4(R0) not sym(SB)).
+// registerReference parses a register given either the name, R10, or a parenthesized form, SPR(10).
+func (p *Parser) registerReference(name string) (int16, bool) {
+	r, present := p.arch.Register[name]
+	if present {
+		return r, true
+	}
+	if !p.arch.RegisterPrefix[name] {
+		p.errorf("expected register; found %s", name)
+		return 0, false
+	}
+	p.get('(')
+	tok := p.get(scanner.Int)
+	num, err := strconv.ParseInt(tok.String(), 10, 16)
+	p.get(')')
+	if err != nil {
+		p.errorf("parsing register list: %s", err)
+		return 0, false
+	}
+	r, ok := p.arch.RegisterNumber(name, int16(num))
+	if !ok {
+		p.errorf("illegal register %s(%d)", name, r)
+		return 0, false
+	}
+	return r, true
+}
+
+// register parses a full register reference where there is no symbol present (as in 4(R0) or R(10) but not sym(SB))
+// including forms involving multiple registers such as R1:R2.
 func (p *Parser) register(name string, prefix rune) (r1, r2 int16, scale int8, ok bool) {
-	// R1 or R1:R2 R1,R2 or R1*scale.
-	var present bool
-	r1, present = p.arch.Registers[name]
-	if !present {
+	// R1 or R(1) R1:R2 R1,R2 or R1*scale.
+	r1, ok = p.registerReference(name)
+	if !ok {
 		return
 	}
 	if prefix != 0 {
@@ -392,16 +425,18 @@ func (p *Parser) register(name string, prefix rune) (r1, r2 int16, scale int8, o
 		case ':':
 			if char != '6' && char != '8' {
 				p.errorf("illegal register pair syntax")
+				return
 			}
 		case ',':
 			if char != '5' {
 				p.errorf("illegal register pair syntax")
+				return
 			}
 		}
 		name := p.next().String()
-		r2, present = p.arch.Registers[name]
-		if !present {
-			p.errorf("%s not a register", name)
+		r2, ok = p.registerReference(name)
+		if !ok {
+			return
 		}
 	}
 	if p.peek() == '*' {
@@ -415,18 +450,18 @@ func (p *Parser) register(name string, prefix rune) (r1, r2 int16, scale int8, o
 // registerShift parses an ARM shifted register reference and returns the encoded representation.
 // There is known to be a register (current token) and a shift operator (peeked token).
 func (p *Parser) registerShift(name string, prefix rune) int64 {
+	if prefix != 0 {
+		p.errorf("prefix %c not allowed for shifted register: $%s", prefix, name)
+	}
 	// R1 op R2 or r1 op constant.
 	// op is:
 	//	"<<" == 0
 	//	">>" == 1
 	//	"->" == 2
 	//	"@>" == 3
-	r1, present := p.arch.Registers[name]
-	if !present {
-		p.errorf("shift of non-register %s", name)
-	}
-	if prefix != 0 {
-		p.errorf("prefix %c not allowed for shifted register: $%s", prefix, name)
+	r1, ok := p.registerReference(name)
+	if !ok {
+		return 0
 	}
 	var op int16
 	switch p.next().ScanToken {
@@ -444,8 +479,8 @@ func (p *Parser) registerShift(name string, prefix rune) int64 {
 	var count int16
 	switch tok.ScanToken {
 	case scanner.Ident:
-		r2, present := p.arch.Registers[str]
-		if !present {
+		r2, ok := p.registerReference(str)
+		if !ok {
 			p.errorf("rhs of shift must be register or integer: %s", str)
 		}
 		count = (r2&15)<<8 | 1<<4
@@ -632,26 +667,19 @@ func (p *Parser) registerList(a *obj.Addr) {
 	a.Offset = int64(bits)
 }
 
+// register number is ARM-specific. It returns the number of the specified register.
 func (p *Parser) registerNumber(name string) uint16 {
-	if !p.isRegister(name) {
-		p.errorf("expected register; found %s", name)
-	}
-	// Register must be of the form R0 through R15.
-	// On ARM, g is register 10.
 	if p.arch.Thechar == '5' && name == "g" {
 		return 10
 	}
 	if name[0] != 'R' {
 		p.errorf("expected g or R0 through R15; found %s", name)
 	}
-	num, err := strconv.ParseUint(name[1:], 10, 8)
-	if err != nil {
-		p.errorf("parsing register list: %s", err)
+	r, ok := p.registerReference(name)
+	if !ok {
+		return 0
 	}
-	if num > 15 {
-		p.errorf("illegal register %s in register list", name)
-	}
-	return uint16(num)
+	return uint16(r - p.arch.Register["R0"])
 }
 
 // Note: There are two changes in the expression handling here
