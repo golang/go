@@ -206,7 +206,7 @@ func (in *Input) macroDefinition(name string) ([]string, []Token) {
 	prevCol := in.Stack.Col()
 	tok := in.Stack.Next()
 	if tok == '\n' || tok == scanner.EOF {
-		in.Error("no definition for macro:", name)
+		return nil, nil // No definition for macro
 	}
 	var args []string
 	// The C preprocessor treats
