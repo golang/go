@@ -115,8 +115,12 @@ var vcsGit = &vcsCmd{
 	tagLookupCmd: []tagCmd{
 		{"show-ref tags/{tag} origin/{tag}", `((?:tags|origin)/\S+)$`},
 	},
-	tagSyncCmd:     "checkout {tag}",
-	tagSyncDefault: "checkout master",
+	tagSyncCmd: "checkout {tag}",
+	// both createCmd and downloadCmd update the working dir.
+	// No need to do more here. We used to 'checkout master'
+	// but that doesn't work if the default branch is not named master.
+	// See golang.org/issue/9032.
+	tagSyncDefault: "",
 
 	scheme:     []string{"git", "https", "http", "git+ssh"},
 	pingCmd:    "ls-remote {scheme}://{repo}",
