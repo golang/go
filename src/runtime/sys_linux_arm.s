@@ -53,8 +53,8 @@
 
 TEXT runtime·open(SB),NOSPLIT,$0
 	MOVW	name+0(FP), R0
-	MOVW	flag+4(FP), R1
-	MOVW	mode+8(FP), R2
+	MOVW	mode+4(FP), R1
+	MOVW	perm+8(FP), R2
 	MOVW	$SYS_open, R7
 	SWI	$0
 	MOVW	R0, ret+12(FP)
@@ -69,7 +69,7 @@ TEXT runtime·close(SB),NOSPLIT,$0
 
 TEXT runtime·write(SB),NOSPLIT,$0
 	MOVW	fd+0(FP), R0
-	MOVW	buf+4(FP), R1
+	MOVW	p+4(FP), R1
 	MOVW	n+8(FP), R2
 	MOVW	$SYS_write, R7
 	SWI	$0
@@ -78,7 +78,7 @@ TEXT runtime·write(SB),NOSPLIT,$0
 
 TEXT runtime·read(SB),NOSPLIT,$0
 	MOVW	fd+0(FP), R0
-	MOVW	buf+4(FP), R1
+	MOVW	p+4(FP), R1
 	MOVW	n+8(FP), R2
 	MOVW	$SYS_read, R7
 	SWI	$0
@@ -86,8 +86,8 @@ TEXT runtime·read(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·getrlimit(SB),NOSPLIT,$0
-	MOVW	res+0(FP), R0
-	MOVW	rlp+4(FP), R1
+	MOVW	kind+0(FP), R0
+	MOVW	limit+4(FP), R1
 	MOVW	$SYS_ugetrlimit, R7
 	SWI	$0
 	MOVW	R0, ret+8(FP)
@@ -129,7 +129,7 @@ TEXT	runtime·raiseproc(SB),NOSPLIT,$-4
 
 TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVW	addr+0(FP), R0
-	MOVW	len+4(FP), R1
+	MOVW	n+4(FP), R1
 	MOVW	prot+8(FP), R2
 	MOVW	flags+12(FP), R3
 	MOVW	fd+16(FP), R4
@@ -144,7 +144,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
 
 TEXT runtime·munmap(SB),NOSPLIT,$0
 	MOVW	addr+0(FP), R0
-	MOVW	len+4(FP), R1
+	MOVW	n+4(FP), R1
 	MOVW	$SYS_munmap, R7
 	SWI	$0
 	MOVW	$0xfffff001, R6
@@ -155,25 +155,25 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
 
 TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVW	addr+0(FP), R0
-	MOVW	len+4(FP), R1
-	MOVW	advice+8(FP), R2
+	MOVW	n+4(FP), R1
+	MOVW	flags+8(FP), R2
 	MOVW	$SYS_madvise, R7
 	SWI	$0
 	// ignore failure - maybe pages are locked
 	RET
 
 TEXT runtime·setitimer(SB),NOSPLIT,$0
-	MOVW	which+0(FP), R0
-	MOVW	value+4(FP), R1
-	MOVW	ovalue+8(FP), R2
+	MOVW	mode+0(FP), R0
+	MOVW	new+4(FP), R1
+	MOVW	old+8(FP), R2
 	MOVW	$SYS_setitimer, R7
 	SWI	$0
 	RET
 
 TEXT runtime·mincore(SB),NOSPLIT,$0
 	MOVW	addr+0(FP), R0
-	MOVW	len+4(FP), R1
-	MOVW	vec+8(FP), R2
+	MOVW	n+4(FP), R1
+	MOVW	dst+8(FP), R2
 	MOVW	$SYS_mincore, R7
 	SWI	$0
 	MOVW	R0, ret+12(FP)
@@ -217,6 +217,7 @@ TEXT runtime·nanotime(SB),NOSPLIT,$32
 // int32 futex(int32 *uaddr, int32 op, int32 val,
 //	struct timespec *timeout, int32 *uaddr2, int32 val2);
 TEXT runtime·futex(SB),NOSPLIT,$0
+	// TODO: Rewrite to use FP references. Vet complains.
 	MOVW	4(R13), R0
 	MOVW	8(R13), R1
 	MOVW	12(R13), R2
@@ -297,8 +298,8 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	MOVW	R0, (R1)
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$0
-	MOVW	ss+0(FP), R0
-	MOVW	oss+4(FP), R1
+	MOVW	new+0(FP), R0
+	MOVW	old+4(FP), R1
 	MOVW	$SYS_sigaltstack, R7
 	SWI	$0
 	MOVW	$0xfffff001, R6
@@ -345,19 +346,19 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$24
 	RET
 
 TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0
-	MOVW	mask+0(FP), R0
-	MOVW	how+4(FP), R1
-	MOVW	set+8(FP), R2
-	MOVW	oldset+12(FP), R3
+	MOVW	sig+0(FP), R0
+	MOVW	new+4(FP), R1
+	MOVW	old+8(FP), R2
+	MOVW	size+12(FP), R3
 	MOVW	$SYS_rt_sigprocmask, R7
 	SWI	$0
 	RET
 
 TEXT runtime·rt_sigaction(SB),NOSPLIT,$0
-	MOVW	mask+0(FP), R0
-	MOVW	signum+4(FP), R1
-	MOVW	act+8(FP), R2
-	MOVW	oldact+12(FP), R3
+	MOVW	sig+0(FP), R0
+	MOVW	new+4(FP), R1
+	MOVW	old+8(FP), R2
+	MOVW	size+12(FP), R3
 	MOVW	$SYS_rt_sigaction, R7
 	SWI	$0
 	MOVW	R0, ret+16(FP)
@@ -416,8 +417,8 @@ TEXT runtime·osyield(SB),NOSPLIT,$0
 
 TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
 	MOVW	pid+0(FP), R0
-	MOVW	setsize+4(FP), R1
-	MOVW	mask+8(FP), R2
+	MOVW	len+4(FP), R1
+	MOVW	buf+8(FP), R2
 	MOVW	$SYS_sched_getaffinity, R7
 	SWI	$0
 	MOVW	R0, ret+12(FP)
@@ -433,7 +434,7 @@ TEXT runtime·epollcreate(SB),NOSPLIT,$0
 
 // int32 runtime·epollcreate1(int32 flags)
 TEXT runtime·epollcreate1(SB),NOSPLIT,$0
-	MOVW	size+0(FP), R0
+	MOVW	flags+0(FP), R0
 	MOVW	$SYS_epoll_create1, R7
 	SWI	$0
 	MOVW	R0, ret+4(FP)
@@ -453,8 +454,8 @@ TEXT runtime·epollctl(SB),NOSPLIT,$0
 // int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout)
 TEXT runtime·epollwait(SB),NOSPLIT,$0
 	MOVW	epfd+0(FP), R0
-	MOVW	events+4(FP), R1
-	MOVW	maxevents+8(FP), R2
+	MOVW	ev+4(FP), R1
+	MOVW	nev+8(FP), R2
 	MOVW	timeout+12(FP), R3
 	MOVW	$SYS_epoll_wait, R7
 	SWI	$0

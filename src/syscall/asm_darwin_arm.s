@@ -9,7 +9,7 @@
 //
 
 // func Syscall(syscall uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr)
-TEXT	·Syscall(SB),NOSPLIT,$0-32
+TEXT	·Syscall(SB),NOSPLIT,$0-28
 	BL		runtime·entersyscall(SB)
 	MOVW	syscall+4(SP), R12
 	MOVW	a1+8(SP), R0
@@ -33,7 +33,7 @@ ok:
 	RET
 
 // func RawSyscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr)
-TEXT ·RawSyscall(SB),NOSPLIT,$0-32
+TEXT ·RawSyscall(SB),NOSPLIT,$0-28
 	MOVW	syscall+4(SP), R12	// syscall entry
 	MOVW	a1+8(SP), R0
 	MOVW	a2+12(SP), R1
@@ -54,7 +54,7 @@ ok1:
 	RET
 
 // func Syscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
-TEXT	·Syscall6(SB),NOSPLIT,$0-44
+TEXT	·Syscall6(SB),NOSPLIT,$0-40
 	BL		runtime·entersyscall(SB)
 	MOVW	syscall+4(SP), R12	// syscall entry
 	MOVW	a1+8(SP), R0
@@ -81,7 +81,7 @@ ok6:
 	RET
 
 // func RawSyscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
-TEXT	·RawSyscall6(SB),NOSPLIT,$0-44
+TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
 	MOVW	trap+4(SP), R12	// syscall entry
 	MOVW	a1+8(SP), R0
 	MOVW	a2+12(SP), R1
@@ -105,7 +105,7 @@ ok2:
 	RET
 
 // Actually Syscall7.
-TEXT	·Syscall9(SB),NOSPLIT,$0-56
+TEXT	·Syscall9(SB),NOSPLIT,$0-52
 	BL runtime·entersyscall(SB)
 	MOVW	syscall+4(SP), R12	// syscall entry
 	MOVW	a1+8(SP), R0
