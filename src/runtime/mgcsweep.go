@@ -11,8 +11,8 @@ import "unsafe"
 var sweep sweepdata
 
 // State of background sweep.
-// Protected by gclock.
 type sweepdata struct {
+	lock    mutex
 	g       *g
 	parked  bool
 	started bool
@@ -22,8 +22,6 @@ type sweepdata struct {
 	nbgsweep    uint32
 	npausesweep uint32
 }
-
-var gclock mutex
 
 //go:nowritebarrier
 func finishsweep_m() {
@@ -51,16 +49,16 @@ func bgsweep() {
 			sweep.nbgsweep++
 			Gosched()
 		}
-		lock(&gclock)
+		lock(&sweep.lock)
 		if !gosweepdone() {
 			// This can happen if a GC runs between
 			// gosweepone returning ^0 above
 			// and the lock being acquired.
-			unlock(&gclock)
+			unlock(&sweep.lock)
 			continue
 		}
 		sweep.parked = true
-		goparkunlock(&gclock, "GC sweep wait", traceEvGoBlock)
+		goparkunlock(&sweep.lock, "GC sweep wait", traceEvGoBlock)
 	}
 }
 
@@ -145,10 +143,6 @@ func mSpan_EnsureSwept(s *mspan) {
 // caller takes care of it.
 //TODO go:nowritebarrier
 func mSpan_Sweep(s *mspan, preserve bool) bool {
-	if checkmarkphase {
-		throw("MSpan_Sweep: checkmark only runs in STW and after the sweep")
-	}
-
 	// It's critical that we enter this function with preemption disabled,
 	// GC must not start while we are in the middle of this function.
 	_g_ := getg()
