@@ -423,7 +423,9 @@ func gcinstallmarkwb() {
 // This is the concurrent mark phase.
 //go:nowritebarrier
 func gcmark_m() {
-	gcDrain(nil)
+	var gcw gcWork
+	gcDrain(&gcw)
+	gcw.dispose()
 	// TODO add another harvestwbuf and reset work.nwait=0, work.ndone=0, and work.nproc=1
 	// and repeat the above gcDrain.
 }
