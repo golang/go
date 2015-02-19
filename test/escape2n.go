@@ -610,11 +610,11 @@ func foo74c() {
 	}
 }
 
-func myprint(y *int, x ...interface{}) *int { // ERROR "x does not escape" "leaking param: y"
+func myprint(y *int, x ...interface{}) *int { // ERROR "x does not escape" "leaking param: y to result ~r2"
 	return y
 }
 
-func myprint1(y *int, x ...interface{}) *interface{} { // ERROR "y does not escape" "leaking param: x"
+func myprint1(y *int, x ...interface{}) *interface{} { // ERROR "y does not escape" "leaking param: x to result ~r2"
 	return &x[0] // ERROR "&x.0. escapes to heap"
 }
 
@@ -635,10 +635,16 @@ func foo75aesc(z *int) { // ERROR "z does not escape"
 	*ppi = myprint1(z, 1, 2, 3) // ERROR "[.][.][.] argument escapes to heap"
 }
 
+func foo75aesc1(z *int) { // ERROR "z does not escape"
+	sink = myprint1(z, 1, 2, 3) // ERROR "[.][.][.] argument escapes to heap"
+}
+
+// BAD: z does not escape here
 func foo76(z *int) { // ERROR "leaking param: z"
 	myprint(nil, z) // ERROR "[.][.][.] argument does not escape"
 }
 
+// BAD: z does not escape here
 func foo76a(z *int) { // ERROR "leaking param: z"
 	myprint1(nil, z) // ERROR "[.][.][.] argument does not escape"
 }
@@ -683,6 +689,20 @@ func foo77a(z []interface{}) { // ERROR "z does not escape"
 func foo77b(z []interface{}) { // ERROR "leaking param: z"
 	var ppi **interface{}
 	*ppi = myprint1(nil, z...)
+}
+
+func foo77c(z []interface{}) { // ERROR "leaking param: z"
+	sink = myprint1(nil, z...)
+}
+
+func dotdotdot() {
+	// BAD: i should not escape here
+	i := 0           // ERROR "moved to heap: i"
+	myprint(nil, &i) // ERROR "&i escapes to heap" "\.\.\. argument does not escape"
+
+	// BAD: j should not escape here
+	j := 0            // ERROR "moved to heap: j"
+	myprint1(nil, &j) // ERROR "&j escapes to heap" "\.\.\. argument does not escape"
 }
 
 func foo78(z int) *int { // ERROR "moved to heap: z"
