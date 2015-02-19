@@ -37,6 +37,11 @@ var lexTests = []lexTest{
 		"1234.\n",
 	},
 	{
+		"define without value",
+		"#define A",
+		"",
+	},
+	{
 		"macro without arguments",
 		"#define A() 1234\n" + "A()\n",
 		"1234.\n",
