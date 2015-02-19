@@ -12,6 +12,14 @@
 
 package runtime
 
+// Central list of free objects of a given size.
+type mcentral struct {
+	lock      mutex
+	sizeclass int32
+	nonempty  mspan // list of spans with a free object
+	empty     mspan // list of spans with no free objects (or cached in an mcache)
+}
+
 // Initialize a single central free list.
 func mCentral_Init(c *mcentral, sizeclass int32) {
 	c.sizeclass = sizeclass

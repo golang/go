@@ -8,6 +8,14 @@ package runtime
 
 import "unsafe"
 
+type finblock struct {
+	alllink *finblock
+	next    *finblock
+	cnt     int32
+	_       int32
+	fin     [(_FinBlockSize - 2*ptrSize - 2*4) / unsafe.Sizeof(finalizer{})]finalizer
+}
+
 var finlock mutex  // protects the following variables
 var fing *g        // goroutine that runs finalizers
 var finq *finblock // list of finalizers that are to be executed
@@ -16,6 +24,15 @@ var finptrmask [_FinBlockSize / typeBitmapScale]byte
 var fingwait bool
 var fingwake bool
 var allfin *finblock // list of all blocks
+
+// NOTE: Layout known to queuefinalizer.
+type finalizer struct {
+	fn   *funcval       // function to call
+	arg  unsafe.Pointer // ptr to object
+	nret uintptr        // bytes of return values from fn
+	fint *_type         // type of first argument of fn
+	ot   *ptrtype       // type of ptr to object
+}
 
 var finalizer1 = [...]byte{
 	// Each Finalizer is 5 words, ptr ptr uintptr ptr ptr.
