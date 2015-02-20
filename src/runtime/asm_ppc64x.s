@@ -1241,6 +1241,8 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$-8
 TEXT runtime·goexit(SB),NOSPLIT,$-8-0
 	MOVD	R0, R0	// NOP
 	BL	runtime·goexit1(SB)	// does not return
+	// traceback from goexit1 must hit code range of goexit
+	MOVD	R0, R0	// NOP
 
 TEXT runtime·getg(SB),NOSPLIT,$-8-8
 	MOVD	g, ret+0(FP)
