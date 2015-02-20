@@ -549,7 +549,9 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 			break
 		}
 		if p.arch.Thechar == '9' && arch.IsPPC64RLD(op) {
-			// 2nd operand is always a register.
+			// 2nd operand must always be a register.
+			// TODO: Do we need to guard this with the instruction type?
+			// That is, are there 4-operand instructions without this property?
 			prog.From = a[0]
 			prog.Reg = p.getRegister(prog, op, &a[1])
 			prog.From3 = a[2]
