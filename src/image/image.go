@@ -826,6 +826,92 @@ func NewGray16(r Rectangle) *Gray16 {
 	return &Gray16{pix, 2 * w, r}
 }
 
+// CMYK is an in-memory image whose At method returns color.CMYK values.
+type CMYK struct {
+	// Pix holds the image's pixels, in C, M, Y, K order. The pixel at
+	// (x, y) starts at Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)*4].
+	Pix []uint8
+	// Stride is the Pix stride (in bytes) between vertically adjacent pixels.
+	Stride int
+	// Rect is the image's bounds.
+	Rect Rectangle
+}
+
+func (p *CMYK) ColorModel() color.Model { return color.CMYKModel }
+
+func (p *CMYK) Bounds() Rectangle { return p.Rect }
+
+func (p *CMYK) At(x, y int) color.Color {
+	return p.CMYKAt(x, y)
+}
+
+func (p *CMYK) CMYKAt(x, y int) color.CMYK {
+	if !(Point{x, y}.In(p.Rect)) {
+		return color.CMYK{}
+	}
+	i := p.PixOffset(x, y)
+	return color.CMYK{p.Pix[i+0], p.Pix[i+1], p.Pix[i+2], p.Pix[i+3]}
+}
+
+// PixOffset returns the index of the first element of Pix that corresponds to
+// the pixel at (x, y).
+func (p *CMYK) PixOffset(x, y int) int {
+	return (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*4
+}
+
+func (p *CMYK) Set(x, y int, c color.Color) {
+	if !(Point{x, y}.In(p.Rect)) {
+		return
+	}
+	i := p.PixOffset(x, y)
+	c1 := color.CMYKModel.Convert(c).(color.CMYK)
+	p.Pix[i+0] = c1.C
+	p.Pix[i+1] = c1.M
+	p.Pix[i+2] = c1.Y
+	p.Pix[i+3] = c1.K
+}
+
+func (p *CMYK) SetCMYK(x, y int, c color.CMYK) {
+	if !(Point{x, y}.In(p.Rect)) {
+		return
+	}
+	i := p.PixOffset(x, y)
+	p.Pix[i+0] = c.C
+	p.Pix[i+1] = c.M
+	p.Pix[i+2] = c.Y
+	p.Pix[i+3] = c.K
+}
+
+// SubImage returns an image representing the portion of the image p visible
+// through r. The returned value shares pixels with the original image.
+func (p *CMYK) SubImage(r Rectangle) Image {
+	r = r.Intersect(p.Rect)
+	// If r1 and r2 are Rectangles, r1.Intersect(r2) is not guaranteed to be inside
+	// either r1 or r2 if the intersection is empty. Without explicitly checking for
+	// this, the Pix[i:] expression below can panic.
+	if r.Empty() {
+		return &CMYK{}
+	}
+	i := p.PixOffset(r.Min.X, r.Min.Y)
+	return &CMYK{
+		Pix:    p.Pix[i:],
+		Stride: p.Stride,
+		Rect:   r,
+	}
+}
+
+// Opaque scans the entire image and reports whether it is fully opaque.
+func (p *CMYK) Opaque() bool {
+	return true
+}
+
+// NewCMYK returns a new CMYK with the given bounds.
+func NewCMYK(r Rectangle) *CMYK {
+	w, h := r.Dx(), r.Dy()
+	buf := make([]uint8, 4*w*h)
+	return &CMYK{buf, 4 * w, r}
+}
+
 // Paletted is an in-memory image of uint8 indices into a given palette.
 type Paletted struct {
 	// Pix holds the image's pixels, as palette indices. The pixel at

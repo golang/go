@@ -43,6 +43,7 @@ func TestHostingOurselves(t *testing.T) {
 		"env-QUERY_STRING":      "foo=bar&a=b",
 		"env-REMOTE_ADDR":       "1.2.3.4",
 		"env-REMOTE_HOST":       "1.2.3.4",
+		"env-REMOTE_PORT":       "1234",
 		"env-REQUEST_METHOD":    "GET",
 		"env-REQUEST_URI":       "/test.go?foo=bar&a=b",
 		"env-SCRIPT_FILENAME":   os.Args[0],

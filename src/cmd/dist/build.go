@@ -297,6 +297,11 @@ func findgoversion() string {
 		return chomp(readfile(path))
 	}
 
+	// Show a nicer error message if this isn't a Git repo.
+	if !isGitRepo() {
+		fatal("FAILED: not a Git repo; must put a VERSION file in $GOROOT")
+	}
+
 	// Otherwise, use Git.
 	// What is the current branch?
 	branch := chomp(run(goroot, CheckExit, "git", "rev-parse", "--abbrev-ref", "HEAD"))
@@ -320,6 +325,22 @@ func findgoversion() string {
 	writefile(tag, path, 0)
 
 	return tag
+}
+
+// isGitRepo reports whether the working directory is inside a Git repository.
+func isGitRepo() bool {
+	p := ".git"
+	for {
+		fi, err := os.Stat(p)
+		if os.IsNotExist(err) {
+			p = filepath.Join("..", p)
+			continue
+		}
+		if err != nil || !fi.IsDir() {
+			return false
+		}
+		return true
+	}
 }
 
 /*

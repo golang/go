@@ -46,11 +46,12 @@ func (z *Float) SetString(s string) (*Float, bool) {
 //	digits   = digit { digit } .
 //	digit    = "0" ... "9" | "a" ... "z" | "A" ... "Z" .
 //
-// The base argument must be 0 or a value between 2 through MaxBase.
+// The base argument must be 0, 2, 10, or 16. Providing an invalid base
+// argument will lead to a run-time panic.
 //
 // For base 0, the number prefix determines the actual base: A prefix of
 // ``0x'' or ``0X'' selects base 16, and a ``0b'' or ``0B'' prefix selects
-// base 2; otherwise, the actual base is 10 and no prefix is permitted.
+// base 2; otherwise, the actual base is 10 and no prefix is accepted.
 // The octal prefix ``0'' is not supported.
 //
 // A "p" exponent indicates power of 2 for the exponent; for instance "1.2p3"
@@ -75,7 +76,7 @@ func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 	// exponent
 	var exp int64
 	var ebase int
-	exp, ebase, err = scanExponent(r)
+	exp, ebase, err = scanExponent(r, true)
 	if err != nil {
 		return
 	}
@@ -151,13 +152,13 @@ func (z *Float) Parse(s string, base int) (f *Float, b int, err error) {
 // ScanFloat is like f.Scan(r, base) with f set to the given precision
 // and rounding mode.
 func ScanFloat(r io.ByteScanner, base int, prec uint, mode RoundingMode) (f *Float, b int, err error) {
-	return NewFloat(0, prec, mode).Scan(r, base)
+	return new(Float).SetPrec(prec).SetMode(mode).Scan(r, base)
 }
 
 // ParseFloat is like f.Parse(s, base) with f set to the given precision
 // and rounding mode.
 func ParseFloat(s string, base int, prec uint, mode RoundingMode) (f *Float, b int, err error) {
-	return NewFloat(0, prec, mode).Parse(s, base)
+	return new(Float).SetPrec(prec).SetMode(mode).Parse(s, base)
 }
 
 // Format converts the floating-point number x to a string according
@@ -215,9 +216,9 @@ func (x *Float) Append(buf []byte, format byte, prec int) []byte {
 	return x.bigFtoa(buf, format, prec)
 }
 
-// BUG(gri): Currently, String uses the 'p' (rather than 'g') format.
+// BUG(gri): Currently, String uses x.Format('g', 10) rather than x.Format('g', -1).
 func (x *Float) String() string {
-	return x.Format('p', 0)
+	return x.Format('g', 10)
 }
 
 // bstring appends the string of x in the format ["-"] mantissa "p" exponent

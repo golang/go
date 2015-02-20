@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Routing sockets and messages for OpenBSD
-
 package syscall
 
 import "unsafe"
@@ -12,6 +10,8 @@ func (any *anyMessage) toRoutingMessage(b []byte) RoutingMessage {
 	switch any.Type {
 	case RTM_ADD, RTM_DELETE, RTM_CHANGE, RTM_GET, RTM_LOSING, RTM_REDIRECT, RTM_MISS, RTM_LOCK, RTM_RESOLVE:
 		p := (*RouteMessage)(unsafe.Pointer(any))
+		// We don't support sockaddr_rtlabel for now.
+		p.Header.Addrs &= RTA_DST | RTA_GATEWAY | RTA_NETMASK | RTA_GENMASK | RTA_IFA | RTA_IFP | RTA_BRD | RTA_AUTHOR | RTA_SRC | RTA_SRCMASK
 		return &RouteMessage{Header: p.Header, Data: b[p.Header.Hdrlen:any.Msglen]}
 	case RTM_IFINFO:
 		p := (*InterfaceMessage)(unsafe.Pointer(any))
@@ -32,4 +32,4 @@ type InterfaceAnnounceMessage struct {
 	Header IfAnnounceMsghdr
 }
 
-func (m *InterfaceAnnounceMessage) sockaddr() (sas []Sockaddr) { return nil }
+func (m *InterfaceAnnounceMessage) sockaddr() ([]Sockaddr, error) { return nil, nil }

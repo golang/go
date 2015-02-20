@@ -27,8 +27,15 @@
 
 package runtime
 
-//var class_to_size [_NumSizeClasses]int32
-//var class_to_allocnpages [_NumSizeClasses]int32
+// Size classes.  Computed and initialized by InitSizes.
+//
+// SizeToClass(0 <= n <= MaxSmallSize) returns the size class,
+//	1 <= sizeclass < NumSizeClasses, for n.
+//	Size class 0 is reserved to mean "not small".
+//
+// class_to_size[i] = largest size in class i
+// class_to_allocnpages[i] = number of pages to allocate when
+//	making new objects in class i
 
 // The SizeToClass lookup is implemented using two arrays,
 // one mapping sizes <= 1024 to their class and one mapping
@@ -38,8 +45,11 @@ package runtime
 // are 128-aligned, so the second array is indexed by the
 // size divided by 128 (rounded up).  The arrays are filled in
 // by InitSizes.
-//var size_to_class8 [1024/8 + 1]int8
-//var size_to_class128 [(_MaxSmallSize-1024)/128 + 1]int8
+
+var class_to_size [_NumSizeClasses]int32
+var class_to_allocnpages [_NumSizeClasses]int32
+var size_to_class8 [1024/8 + 1]int8
+var size_to_class128 [(_MaxSmallSize-1024)/128 + 1]int8
 
 func sizeToClass(size int32) int32 {
 	if size > _MaxSmallSize {

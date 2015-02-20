@@ -7,16 +7,16 @@ package runtime
 import "unsafe"
 
 const (
-	ESRCH       = 3
-	EAGAIN      = 35
-	EWOULDBLOCK = EAGAIN
-	ENOTSUP     = 91
+	_ESRCH       = 3
+	_EAGAIN      = 35
+	_EWOULDBLOCK = _EAGAIN
+	_ENOTSUP     = 91
 
 	// From OpenBSD's sys/time.h
-	CLOCK_REALTIME  = 0
-	CLOCK_VIRTUAL   = 1
-	CLOCK_PROF      = 2
-	CLOCK_MONOTONIC = 3
+	_CLOCK_REALTIME  = 0
+	_CLOCK_VIRTUAL   = 1
+	_CLOCK_PROF      = 2
+	_CLOCK_MONOTONIC = 3
 )
 
 var sigset_none = uint32(0)
@@ -24,12 +24,12 @@ var sigset_all = ^sigset_none
 
 // From OpenBSD's <sys/sysctl.h>
 const (
-	CTL_HW  = 6
-	HW_NCPU = 3
+	_CTL_HW  = 6
+	_HW_NCPU = 3
 )
 
 func getncpu() int32 {
-	mib := [2]uint32{CTL_HW, HW_NCPU}
+	mib := [2]uint32{_CTL_HW, _HW_NCPU}
 	out := uint32(0)
 	nout := unsafe.Sizeof(out)
 
@@ -80,8 +80,8 @@ func semasleep(ns int64) int32 {
 
 		// sleep until semaphore != 0 or timeout.
 		// thrsleep unlocks m.waitsemalock.
-		ret := thrsleep((uintptr)(unsafe.Pointer(&_g_.m.waitsemacount)), CLOCK_MONOTONIC, tsp, (uintptr)(unsafe.Pointer(&_g_.m.waitsemalock)), (*int32)(unsafe.Pointer(&_g_.m.waitsemacount)))
-		if ret == EWOULDBLOCK {
+		ret := thrsleep(uintptr(unsafe.Pointer(&_g_.m.waitsemacount)), _CLOCK_MONOTONIC, tsp, uintptr(unsafe.Pointer(&_g_.m.waitsemalock)), (*int32)(unsafe.Pointer(&_g_.m.waitsemacount)))
+		if ret == _EWOULDBLOCK {
 			return -1
 		}
 	}
@@ -98,7 +98,7 @@ func semawakeup(mp *m) {
 	}
 	mp.waitsemacount++
 	ret := thrwakeup(uintptr(unsafe.Pointer(&mp.waitsemacount)), 1)
-	if ret != 0 && ret != ESRCH {
+	if ret != 0 && ret != _ESRCH {
 		// semawakeup can be called on signal stack.
 		systemstack(func() {
 			print("thrwakeup addr=", &mp.waitsemacount, " sem=", mp.waitsemacount, " ret=", ret, "\n")
@@ -127,7 +127,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 
 	if ret < 0 {
 		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", -ret, ")\n")
-		if ret == -ENOTSUP {
+		if ret == -_ENOTSUP {
 			print("runtime: is kern.rthreads disabled?\n")
 		}
 		throw("runtime.newosproc")

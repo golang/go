@@ -11,12 +11,197 @@ const (
 	_WorkbufSize = 1 * 256 // in bytes - if small wbufs are passed to GC in a timely fashion.
 )
 
+// Garbage collector work pool abstraction.
+//
+// This implements a producer/consumer model for pointers to grey
+// objects.  A grey object is one that is marked and on a work
+// queue.  A black object is marked and not on a work queue.
+//
+// Write barriers, root discovery, stack scanning, and object scanning
+// produce pointers to grey objects.  Scanning consumes pointers to
+// grey objects, thus blackening them, and then scans them,
+// potentially producing new pointers to grey objects.
+
+// A wbufptr holds a workbuf*, but protects it from write barriers.
+// workbufs never live on the heap, so write barriers are unnecessary.
+// Write barriers on workbuf pointers may also be dangerous in the GC.
+type wbufptr uintptr
+
+func wbufptrOf(w *workbuf) wbufptr {
+	return wbufptr(unsafe.Pointer(w))
+}
+
+func (wp wbufptr) ptr() *workbuf {
+	return (*workbuf)(unsafe.Pointer(wp))
+}
+
+// A gcWorkProducer provides the interface to produce work for the
+// garbage collector.
+//
+// The usual pattern for using gcWorkProducer is:
+//
+//     var gcw gcWorkProducer
+//     .. call gcw.put() ..
+//     gcw.dispose()
+type gcWorkProducer struct {
+	// Invariant: wbuf is never full or empty
+	wbuf wbufptr
+}
+
+// A gcWork provides the interface to both produce and consume work
+// for the garbage collector.
+//
+// The pattern for using gcWork is the same as gcWorkProducer.
+type gcWork struct {
+	gcWorkProducer
+}
+
+// Note that there is no need for a gcWorkConsumer because everything
+// that consumes pointers also produces them.
+
+// initFromCache fetches work from this M's currentwbuf cache.
+//go:nowritebarrier
+func (w *gcWorkProducer) initFromCache() {
+	// TODO: Instead of making gcWorkProducer pull from the
+	// currentwbuf cache, use a gcWorkProducer as the cache and
+	// make shade pass around that gcWorkProducer.
+	if w.wbuf == 0 {
+		w.wbuf = wbufptr(xchguintptr(&getg().m.currentwbuf, 0))
+	}
+}
+
+// put enqueues a pointer for the garbage collector to trace.
+//go:nowritebarrier
+func (ww *gcWorkProducer) put(obj uintptr) {
+	w := (*gcWorkProducer)(noescape(unsafe.Pointer(ww))) // TODO: remove when escape analysis is fixed
+
+	wbuf := w.wbuf.ptr()
+	if wbuf == nil {
+		wbuf = getpartialorempty(42)
+		w.wbuf = wbufptrOf(wbuf)
+	}
+
+	wbuf.obj[wbuf.nobj] = obj
+	wbuf.nobj++
+
+	if wbuf.nobj == len(wbuf.obj) {
+		putfull(wbuf, 50)
+		w.wbuf = 0
+	}
+}
+
+// dispose returns any cached pointers to the global queue.
+//go:nowritebarrier
+func (w *gcWorkProducer) dispose() {
+	if wbuf := w.wbuf; wbuf != 0 {
+		putpartial(wbuf.ptr(), 58)
+		w.wbuf = 0
+	}
+}
+
+// disposeToCache returns any cached pointers to this M's currentwbuf.
+// It calls throw if currentwbuf is non-nil.
+//go:nowritebarrier
+func (w *gcWorkProducer) disposeToCache() {
+	if wbuf := w.wbuf; wbuf != 0 {
+		wbuf = wbufptr(xchguintptr(&getg().m.currentwbuf, uintptr(wbuf)))
+		if wbuf != 0 {
+			throw("m.currentwbuf non-nil in disposeToCache")
+		}
+		w.wbuf = 0
+	}
+}
+
+// tryGet dequeues a pointer for the garbage collector to trace.
+//
+// If there are no pointers remaining in this gcWork or in the global
+// queue, tryGet returns 0.  Note that there may still be pointers in
+// other gcWork instances or other caches.
+//go:nowritebarrier
+func (ww *gcWork) tryGet() uintptr {
+	w := (*gcWork)(noescape(unsafe.Pointer(ww))) // TODO: remove when escape analysis is fixed
+
+	wbuf := w.wbuf.ptr()
+	if wbuf == nil {
+		wbuf = trygetfull(74)
+		if wbuf == nil {
+			return 0
+		}
+		w.wbuf = wbufptrOf(wbuf)
+	}
+
+	wbuf.nobj--
+	obj := wbuf.obj[wbuf.nobj]
+
+	if wbuf.nobj == 0 {
+		putempty(wbuf, 86)
+		w.wbuf = 0
+	}
+
+	return obj
+}
+
+// get dequeues a pointer for the garbage collector to trace, blocking
+// if necessary to ensure all pointers from all queues and caches have
+// been retrieved.  get returns 0 if there are no pointers remaining.
+//go:nowritebarrier
+func (ww *gcWork) get() uintptr {
+	w := (*gcWork)(noescape(unsafe.Pointer(ww))) // TODO: remove when escape analysis is fixed
+
+	wbuf := w.wbuf.ptr()
+	if wbuf == nil {
+		wbuf = getfull(103)
+		if wbuf == nil {
+			return 0
+		}
+		wbuf.checknonempty()
+		w.wbuf = wbufptrOf(wbuf)
+	}
+
+	// TODO: This might be a good place to add prefetch code
+
+	wbuf.nobj--
+	obj := wbuf.obj[wbuf.nobj]
+
+	if wbuf.nobj == 0 {
+		putempty(wbuf, 115)
+		w.wbuf = 0
+	}
+
+	return obj
+}
+
+// dispose returns any cached pointers to the global queue.
+//go:nowritebarrier
+func (w *gcWork) dispose() {
+	if wbuf := w.wbuf; wbuf != 0 {
+		// Even though wbuf may only be partially full, we
+		// want to keep it on the consumer's queues rather
+		// than putting it back on the producer's queues.
+		// Hence, we use putfull here.
+		putfull(wbuf.ptr(), 133)
+		w.wbuf = 0
+	}
+}
+
+// balance moves some work that's cached in this gcWork back on the
+// global queue.
+//go:nowritebarrier
+func (w *gcWork) balance() {
+	if wbuf := w.wbuf; wbuf != 0 && wbuf.ptr().nobj > 4 {
+		w.wbuf = wbufptrOf(handoff(wbuf.ptr()))
+	}
+}
+
+// Internally, the GC work pool is kept in arrays in work buffers.
+// The gcWork interface caches a work buffer until full (or empty) to
+// avoid contending on the global work buffer lists.
+
 type workbufhdr struct {
 	node  lfnode // must be first
-	nobj  uintptr
-	id    uintptr
-	inuse bool       // This workbuf is in use by some gorotuine and is not on the work.empty/partial/full queues.
-	log   [4]uintptr // line numbers forming a history of ownership changes to workbuf
+	nobj  int
+	inuse bool   // This workbuf is in use by some gorotuine and is not on the work.empty/partial/full queues.
+	log   [4]int // line numbers forming a history of ownership changes to workbuf
 }
 
 type workbuf struct {
@@ -37,7 +222,7 @@ type workbuf struct {
 
 // logget records the past few values of entry to aid in debugging.
 // logget checks the buffer b is not currently in use.
-func (b *workbuf) logget(entry uintptr) {
+func (b *workbuf) logget(entry int) {
 	if !_Debugwbufs {
 		return
 	}
@@ -54,7 +239,7 @@ func (b *workbuf) logget(entry uintptr) {
 
 // logput records the past few values of entry to aid in debugging.
 // logput checks the buffer b is currently in use.
-func (b *workbuf) logput(entry uintptr) {
+func (b *workbuf) logput(entry int) {
 	if !_Debugwbufs {
 		return
 	}
@@ -98,7 +283,7 @@ func checknocurrentwbuf() {
 // allocating new buffers if none are available.
 // entry is used to record a brief history of ownership.
 //go:nowritebarrier
-func getempty(entry uintptr) *workbuf {
+func getempty(entry int) *workbuf {
 	var b *workbuf
 	if work.empty != 0 {
 		b = (*workbuf)(lfstackpop(&work.empty))
@@ -116,7 +301,7 @@ func getempty(entry uintptr) *workbuf {
 // putempty puts a workbuf onto the work.empty list.
 // Upon entry this go routine owns b. The lfstackpush relinquishes ownership.
 //go:nowritebarrier
-func putempty(b *workbuf, entry uintptr) {
+func putempty(b *workbuf, entry int) {
 	b.checkempty()
 	b.logput(entry)
 	lfstackpush(&work.empty, &b.node)
@@ -126,7 +311,7 @@ func putempty(b *workbuf, entry uintptr) {
 // putfull accepts partially full buffers so the GC can avoid competing
 // with the mutators for ownership of partially full buffers.
 //go:nowritebarrier
-func putfull(b *workbuf, entry uintptr) {
+func putfull(b *workbuf, entry int) {
 	b.checknonempty()
 	b.logput(entry)
 	lfstackpush(&work.full, &b.node)
@@ -138,7 +323,7 @@ func putfull(b *workbuf, entry uintptr) {
 // using entry + xxx00000 to
 // indicating that two line numbers in the call chain.
 //go:nowritebarrier
-func getpartialorempty(entry uintptr) *workbuf {
+func getpartialorempty(entry int) *workbuf {
 	var b *workbuf
 	// If this m has a buf in currentwbuf then as an optimization
 	// simply return that buffer. If it turns out currentwbuf
@@ -147,7 +332,7 @@ func getpartialorempty(entry uintptr) *workbuf {
 	if getg().m.currentwbuf != 0 {
 		b = (*workbuf)(unsafe.Pointer(xchguintptr(&getg().m.currentwbuf, 0)))
 		if b != nil {
-			if b.nobj <= uintptr(len(b.obj)) {
+			if b.nobj <= len(b.obj) {
 				return b
 			}
 			putfull(b, entry+80100000)
@@ -172,13 +357,13 @@ func getpartialorempty(entry uintptr) *workbuf {
 // using entry + xxx00000 to
 // indicating that two call chain line numbers.
 //go:nowritebarrier
-func putpartial(b *workbuf, entry uintptr) {
+func putpartial(b *workbuf, entry int) {
 	if b.nobj == 0 {
 		putempty(b, entry+81500000)
-	} else if b.nobj < uintptr(len(b.obj)) {
+	} else if b.nobj < len(b.obj) {
 		b.logput(entry)
 		lfstackpush(&work.partial, &b.node)
-	} else if b.nobj == uintptr(len(b.obj)) {
+	} else if b.nobj == len(b.obj) {
 		b.logput(entry)
 		lfstackpush(&work.full, &b.node)
 	} else {
@@ -189,7 +374,7 @@ func putpartial(b *workbuf, entry uintptr) {
 // trygetfull tries to get a full or partially empty workbuffer.
 // If one is not immediately available return nil
 //go:nowritebarrier
-func trygetfull(entry uintptr) *workbuf {
+func trygetfull(entry int) *workbuf {
 	b := (*workbuf)(lfstackpop(&work.full))
 	if b == nil {
 		b = (*workbuf)(lfstackpop(&work.partial))
@@ -230,7 +415,7 @@ func trygetfull(entry uintptr) *workbuf {
 // This is in fact the termination condition for the STW mark
 // phase.
 //go:nowritebarrier
-func getfull(entry uintptr) *workbuf {
+func getfull(entry int) *workbuf {
 	b := (*workbuf)(lfstackpop(&work.full))
 	if b != nil {
 		b.logget(entry)
@@ -295,7 +480,7 @@ func handoff(b *workbuf) *workbuf {
 	n := b.nobj / 2
 	b.nobj -= n
 	b1.nobj = n
-	memmove(unsafe.Pointer(&b1.obj[0]), unsafe.Pointer(&b.obj[b.nobj]), n*unsafe.Sizeof(b1.obj[0]))
+	memmove(unsafe.Pointer(&b1.obj[0]), unsafe.Pointer(&b.obj[b.nobj]), uintptr(n)*unsafe.Sizeof(b1.obj[0]))
 	_g_ := getg()
 	_g_.m.gcstats.nhandoff++
 	_g_.m.gcstats.nhandoffcnt += uint64(n)

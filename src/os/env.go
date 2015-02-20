@@ -33,7 +33,7 @@ func ExpandEnv(s string) string {
 	return Expand(s, Getenv)
 }
 
-// isSpellSpecialVar reports whether the character identifies a special
+// isShellSpecialVar reports whether the character identifies a special
 // shell variable such as $*.
 func isShellSpecialVar(c uint8) bool {
 	switch c {
@@ -48,7 +48,7 @@ func isAlphaNum(c uint8) bool {
 	return c == '_' || '0' <= c && c <= '9' || 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z'
 }
 
-// getName returns the name that begins the string and the number of bytes
+// getShellName returns the name that begins the string and the number of bytes
 // consumed to extract it.  If the name is enclosed in {}, it's part of a ${}
 // expansion and two more bytes are needed than the length of the name.
 func getShellName(s string) (string, int) {

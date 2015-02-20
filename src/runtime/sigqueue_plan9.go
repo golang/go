@@ -113,3 +113,7 @@ func signal_enable(s uint32) {
 // Must only be called from a single goroutine at a time.
 func signal_disable(s uint32) {
 }
+
+// Must only be called from a single goroutine at a time.
+func signal_ignore(s uint32) {
+}

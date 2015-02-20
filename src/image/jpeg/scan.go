@@ -10,11 +10,12 @@ import (
 
 // makeImg allocates and initializes the destination image.
 func (d *decoder) makeImg(h0, v0, mxx, myy int) {
-	if d.nComp == nGrayComponent {
+	if d.nComp == 1 {
 		m := image.NewGray(image.Rect(0, 0, 8*mxx, 8*myy))
 		d.img1 = m.SubImage(image.Rect(0, 0, d.width, d.height)).(*image.Gray)
 		return
 	}
+
 	var subsampleRatio image.YCbCrSubsampleRatio
 	switch {
 	case h0 == 1 && v0 == 1:
@@ -30,6 +31,12 @@ func (d *decoder) makeImg(h0, v0, mxx, myy int) {
 	}
 	m := image.NewYCbCr(image.Rect(0, 0, 8*h0*mxx, 8*v0*myy), subsampleRatio)
 	d.img3 = m.SubImage(image.Rect(0, 0, d.width, d.height)).(*image.YCbCr)
+
+	if d.nComp == 4 {
+		h3, v3 := d.comp[3].h, d.comp[3].v
+		d.blackPix = make([]byte, 8*h3*mxx*8*v3*myy)
+		d.blackStride = 8 * h3 * mxx
+	}
 }
 
 // Specified in section B.2.3.
@@ -47,7 +54,7 @@ func (d *decoder) processSOS(n int) error {
 	if n != 4+2*nComp {
 		return FormatError("SOS length inconsistent with number of components")
 	}
-	var scan [nColorComponent]struct {
+	var scan [maxComponents]struct {
 		compIndex uint8
 		td        uint8 // DC table selector.
 		ta        uint8 // AC table selector.
@@ -128,7 +135,7 @@ func (d *decoder) processSOS(n int) error {
 	var (
 		// b is the decoded coefficients, in natural (not zig-zag) order.
 		b  block
-		dc [nColorComponent]int32
+		dc [maxComponents]int32
 		// bx and by are the location of the current (in terms of 8x8 blocks).
 		// For example, with 4:2:0 chroma subsampling, the block whose top left
 		// pixel co-ordinates are (16, 8) is the third block in the first row:
@@ -276,7 +283,7 @@ func (d *decoder) processSOS(n int) error {
 					}
 					idct(&b)
 					dst, stride := []byte(nil), 0
-					if d.nComp == nGrayComponent {
+					if d.nComp == 1 {
 						dst, stride = d.img1.Pix[8*(by*d.img1.Stride+bx):], d.img1.Stride
 					} else {
 						switch compIndex {
@@ -286,6 +293,8 @@ func (d *decoder) processSOS(n int) error {
 							dst, stride = d.img3.Cb[8*(by*d.img3.CStride+bx):], d.img3.CStride
 						case 2:
 							dst, stride = d.img3.Cr[8*(by*d.img3.CStride+bx):], d.img3.CStride
+						case 3:
+							dst, stride = d.blackPix[8*(by*d.blackStride+bx):], d.blackStride
 						default:
 							return UnsupportedError("too many components")
 						}
@@ -325,7 +334,7 @@ func (d *decoder) processSOS(n int) error {
 				// Reset the Huffman decoder.
 				d.bits = bits{}
 				// Reset the DC components, as per section F.2.1.3.1.
-				dc = [nColorComponent]int32{}
+				dc = [maxComponents]int32{}
 				// Reset the progressive decoder state, as per section G.1.2.2.
 				d.eobRun = 0
 			}

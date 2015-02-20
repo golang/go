@@ -97,3 +97,58 @@ func yCbCrModel(c Color) Color {
 	y, u, v := RGBToYCbCr(uint8(r>>8), uint8(g>>8), uint8(b>>8))
 	return YCbCr{y, u, v}
 }
+
+// RGBToCMYK converts an RGB triple to a CMYK quadruple.
+func RGBToCMYK(r, g, b uint8) (uint8, uint8, uint8, uint8) {
+	rr := uint32(r)
+	gg := uint32(g)
+	bb := uint32(b)
+	w := rr
+	if w < gg {
+		w = gg
+	}
+	if w < bb {
+		w = bb
+	}
+	if w == 0 {
+		return 0, 0, 0, 255
+	}
+	c := (w - rr) * 255 / w
+	m := (w - gg) * 255 / w
+	y := (w - bb) * 255 / w
+	return uint8(c), uint8(m), uint8(y), uint8(255 - w)
+}
+
+// CMYKToRGB converts a CMYK quadruple to an RGB triple.
+func CMYKToRGB(c, m, y, k uint8) (uint8, uint8, uint8) {
+	w := uint32(255 - k)
+	r := uint32(255-c) * w / 255
+	g := uint32(255-m) * w / 255
+	b := uint32(255-y) * w / 255
+	return uint8(r), uint8(g), uint8(b)
+}
+
+// CMYK represents a fully opaque CMYK color, having 8 bits for each of cyan,
+// magenta, yellow and black.
+//
+// It is not associated with any particular color profile.
+type CMYK struct {
+	C, M, Y, K uint8
+}
+
+func (c CMYK) RGBA() (uint32, uint32, uint32, uint32) {
+	r, g, b := CMYKToRGB(c.C, c.M, c.Y, c.K)
+	return uint32(r) * 0x101, uint32(g) * 0x101, uint32(b) * 0x101, 0xffff
+}
+
+// CMYKModel is the Model for CMYK colors.
+var CMYKModel Model = ModelFunc(cmykModel)
+
+func cmykModel(c Color) Color {
+	if _, ok := c.(CMYK); ok {
+		return c
+	}
+	r, g, b, _ := c.RGBA()
+	cc, mm, yy, kk := RGBToCMYK(uint8(r>>8), uint8(g>>8), uint8(b>>8))
+	return CMYK{cc, mm, yy, kk}
+}

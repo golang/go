@@ -2,13 +2,62 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Per-P malloc cache for small objects.
-//
-// See malloc.h for an overview.
-
 package runtime
 
 import "unsafe"
+
+// Per-thread (in Go, per-P) cache for small objects.
+// No locking needed because it is per-thread (per-P).
+type mcache struct {
+	// The following members are accessed on every malloc,
+	// so they are grouped here for better caching.
+	next_sample      int32  // trigger heap sample after allocating this many bytes
+	local_cachealloc intptr // bytes allocated (or freed) from cache since last lock of heap
+	// Allocator cache for tiny objects w/o pointers.
+	// See "Tiny allocator" comment in malloc.go.
+	tiny             unsafe.Pointer
+	tinyoffset       uintptr
+	local_tinyallocs uintptr // number of tiny allocs not counted in other stats
+
+	// The rest is not accessed on every malloc.
+	alloc [_NumSizeClasses]*mspan // spans to allocate from
+
+	stackcache [_NumStackOrders]stackfreelist
+
+	sudogcache *sudog
+
+	// Local allocator stats, flushed during GC.
+	local_nlookup    uintptr                  // number of pointer lookups
+	local_largefree  uintptr                  // bytes freed for large objects (>maxsmallsize)
+	local_nlargefree uintptr                  // number of frees for large objects (>maxsmallsize)
+	local_nsmallfree [_NumSizeClasses]uintptr // number of frees for small objects (<=maxsmallsize)
+}
+
+// A gclink is a node in a linked list of blocks, like mlink,
+// but it is opaque to the garbage collector.
+// The GC does not trace the pointers during collection,
+// and the compiler does not emit write barriers for assignments
+// of gclinkptr values. Code should store references to gclinks
+// as gclinkptr, not as *gclink.
+type gclink struct {
+	next gclinkptr
+}
+
+// A gclinkptr is a pointer to a gclink, but it is opaque
+// to the garbage collector.
+type gclinkptr uintptr
+
+// ptr returns the *gclink form of p.
+// The result should be used for accessing fields, not stored
+// in other data structures.
+func (p gclinkptr) ptr() *gclink {
+	return (*gclink)(unsafe.Pointer(p))
+}
+
+type stackfreelist struct {
+	list gclinkptr // linked list of free stacks
+	size uintptr   // total size of stacks in list
+}
 
 // dummy MSpan that contains no free objects.
 var emptymspan mspan

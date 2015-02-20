@@ -50,6 +50,9 @@ func tool(toolName string) string {
 	if toolIsWindows {
 		toolPath += toolWindowsExtension
 	}
+	if len(buildToolExec) > 0 {
+		return toolPath
+	}
 	// Give a nice message if there is no tool with that name.
 	if _, err := os.Stat(toolPath); err != nil {
 		if isInGoToolsRepo(toolName) {

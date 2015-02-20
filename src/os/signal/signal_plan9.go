@@ -14,6 +14,7 @@ var sigtab = make(map[os.Signal]int)
 // In sig.s; jumps to runtime.
 func signal_disable(uint32)
 func signal_enable(uint32)
+func signal_ignore(uint32)
 func signal_recv() string
 
 func init() {
@@ -52,4 +53,8 @@ func enableSignal(sig int) {
 
 func disableSignal(sig int) {
 	signal_disable(uint32(sig))
+}
+
+func ignoreSignal(sig int) {
+	signal_ignore(uint32(sig))
 }

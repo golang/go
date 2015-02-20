@@ -17,22 +17,30 @@ func init() {
 	go send(c)
 	<-c
 
-	const chunk = 1 << 20
-	memstats := new(runtime.MemStats)
-	runtime.ReadMemStats(memstats)
-	sys := memstats.Sys
-	b := make([]byte, chunk)
+	const N = 1000
+	const MB = 1 << 20
+	b := make([]byte, MB)
 	for i := range b {
 		b[i] = byte(i%10 + '0')
 	}
 	s := string(b)
-	for i := 0; i < 1000; i++ {
+
+	memstats := new(runtime.MemStats)
+	runtime.ReadMemStats(memstats)
+	sys, numGC := memstats.Sys, memstats.NumGC
+
+	// Generate 1,000 MB of garbage, only retaining 1 MB total.
+	for i := 0; i < N; i++ {
 		x = []byte(s)
 	}
+
+	// Verify that the garbage collector ran by seeing if we
+	// allocated fewer than N*MB bytes from the system.
 	runtime.ReadMemStats(memstats)
-	sys1 := memstats.Sys
-	if sys1-sys > chunk*500 {
-		println("allocated 1000 chunks of", chunk, "and used ", sys1-sys, "memory")
+	sys1, numGC1 := memstats.Sys, memstats.NumGC
+	if sys1-sys >= N*MB || numGC1 == numGC {
+		println("allocated 1000 chunks of", MB, "and used ", sys1-sys, "memory")
+		println("numGC went", numGC, "to", numGC)
 		panic("init1")
 	}
 }

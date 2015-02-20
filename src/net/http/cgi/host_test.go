@@ -29,7 +29,7 @@ func newRequest(httpreq string) *http.Request {
 	if err != nil {
 		panic("cgi: bogus http request in test: " + httpreq)
 	}
-	req.RemoteAddr = "1.2.3.4"
+	req.RemoteAddr = "1.2.3.4:1234"
 	return req
 }
 
@@ -37,7 +37,11 @@ func runCgiTest(t *testing.T, h *Handler, httpreq string, expectedMap map[string
 	rw := httptest.NewRecorder()
 	req := newRequest(httpreq)
 	h.ServeHTTP(rw, req)
+	runResponseChecks(t, rw, expectedMap)
+	return rw
+}
 
+func runResponseChecks(t *testing.T, rw *httptest.ResponseRecorder, expectedMap map[string]string) {
 	// Make a map to hold the test map that the CGI returns.
 	m := make(map[string]string)
 	m["_body"] = rw.Body.String()
@@ -75,7 +79,6 @@ readlines:
 			t.Errorf("for key %q got %q; expected %q", key, got, expected)
 		}
 	}
-	return rw
 }
 
 var cgiTested, cgiWorks bool
@@ -108,6 +111,7 @@ func TestCGIBasicGet(t *testing.T) {
 		"env-QUERY_STRING":      "foo=bar&a=b",
 		"env-REMOTE_ADDR":       "1.2.3.4",
 		"env-REMOTE_HOST":       "1.2.3.4",
+		"env-REMOTE_PORT":       "1234",
 		"env-REQUEST_METHOD":    "GET",
 		"env-REQUEST_URI":       "/test.cgi?foo=bar&a=b",
 		"env-SCRIPT_FILENAME":   "testdata/test.cgi",
@@ -124,6 +128,39 @@ func TestCGIBasicGet(t *testing.T) {
 	if expected, got := "X-Test-Value", replay.Header().Get("X-Test-Header"); got != expected {
 		t.Errorf("got a X-Test-Header of %q; expected %q", got, expected)
 	}
+}
+
+func TestCGIEnvIPv6(t *testing.T) {
+	check(t)
+	h := &Handler{
+		Path: "testdata/test.cgi",
+		Root: "/test.cgi",
+	}
+	expectedMap := map[string]string{
+		"test":                  "Hello CGI",
+		"param-a":               "b",
+		"param-foo":             "bar",
+		"env-GATEWAY_INTERFACE": "CGI/1.1",
+		"env-HTTP_HOST":         "example.com",
+		"env-PATH_INFO":         "",
+		"env-QUERY_STRING":      "foo=bar&a=b",
+		"env-REMOTE_ADDR":       "2000::3000",
+		"env-REMOTE_HOST":       "2000::3000",
+		"env-REMOTE_PORT":       "12345",
+		"env-REQUEST_METHOD":    "GET",
+		"env-REQUEST_URI":       "/test.cgi?foo=bar&a=b",
+		"env-SCRIPT_FILENAME":   "testdata/test.cgi",
+		"env-SCRIPT_NAME":       "/test.cgi",
+		"env-SERVER_NAME":       "example.com",
+		"env-SERVER_PORT":       "80",
+		"env-SERVER_SOFTWARE":   "go",
+	}
+
+	rw := httptest.NewRecorder()
+	req := newRequest("GET /test.cgi?foo=bar&a=b HTTP/1.0\nHost: example.com\n\n")
+	req.RemoteAddr = "[2000::3000]:12345"
+	h.ServeHTTP(rw, req)
+	runResponseChecks(t, rw, expectedMap)
 }
 
 func TestCGIBasicGetAbsPath(t *testing.T) {
@@ -289,7 +326,7 @@ func TestInternalRedirect(t *testing.T) {
 	}
 	expectedMap := map[string]string{
 		"basepath":   "/foo",
-		"remoteaddr": "1.2.3.4",
+		"remoteaddr": "1.2.3.4:1234",
 	}
 	runCgiTest(t, h, "GET /test.cgi?loc=/foo HTTP/1.0\nHost: example.com\n\n", expectedMap)
 }

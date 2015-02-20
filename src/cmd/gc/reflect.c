@@ -179,7 +179,8 @@ mapbucket(Type *t)
 		bucket->width += widthreg - widthptr;
 
 	// See comment on hmap.overflow in ../../runtime/hashmap.go.
-	if(!haspointers(t->type) && !haspointers(t->down))
+	if(!haspointers(t->type) && !haspointers(t->down) &&
+		t->type->width <= MAXKEYSIZE && t->down->width <= MAXVALSIZE)
 		bucket->haspointers = 1;  // no pointers
 
 	t->bucket = bucket;

@@ -78,6 +78,18 @@ func sigdisable(sig uint32) {
 	}
 }
 
+func sigignore(sig uint32) {
+	if sig >= uint32(len(sigtable)) {
+		return
+	}
+
+	t := &sigtable[sig]
+	if t.flags&_SigNotify != 0 {
+		t.flags &^= _SigHandling
+		setsig(int32(sig), _SIG_IGN, true)
+	}
+}
+
 func resetcpuprofiler(hz int32) {
 	var it itimerval
 	if hz == 0 {

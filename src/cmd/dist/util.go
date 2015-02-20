@@ -414,7 +414,7 @@ func main() {
 
 	if gohostarch == "" {
 		// Default Unix system.
-		out := run("", CheckExit, "uname", "-m", "-v")
+		out := run("", CheckExit, "uname", "-m")
 		switch {
 		case strings.Contains(out, "x86_64"), strings.Contains(out, "amd64"):
 			gohostarch = "amd64"
@@ -427,7 +427,7 @@ func main() {
 		case strings.Contains(out, "ppc64"):
 			gohostarch = "ppc64"
 		case gohostos == "darwin":
-			if strings.Contains(out, "RELEASE_ARM_") {
+			if strings.Contains(run("", CheckExit, "uname", "-v"), "RELEASE_ARM_") {
 				gohostarch = "arm"
 			}
 		default:
