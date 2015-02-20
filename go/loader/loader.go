@@ -290,6 +290,15 @@ type Config struct {
 	// to Program.Created.
 	ImportPkgs map[string]bool
 
+	// FindPackage is called during Load to create the build.Package
+	// for a given import path.  If nil, a default implementation
+	// based on ctxt.Import is used.  A client may use this hook to
+	// adapt to a proprietary build system that does not follow the
+	// "go build" layout conventions, for example.
+	//
+	// It must be safe to call concurrently from multiple goroutines.
+	FindPackage func(ctxt *build.Context, importPath string) (*build.Package, error)
+
 	// PackageCreated is a hook called when a types.Package
 	// is created but before it has been populated.
 	//
@@ -625,6 +634,10 @@ func (conf *Config) Load() (*Program, error) {
 		conf.TypeChecker.Error = func(e error) { fmt.Fprintln(os.Stderr, e) }
 	}
 
+	if conf.FindPackage == nil {
+		conf.FindPackage = defaultFindPackage
+	}
+
 	prog := &Program{
 		Fset:        conf.fset(),
 		Imported:    make(map[string]*PackageInfo),
@@ -663,7 +676,7 @@ func (conf *Config) Load() (*Program, error) {
 			continue
 		}
 
-		bp, err := conf.findSourcePackage(path)
+		bp, err := conf.FindPackage(conf.build(), path)
 		if err != nil {
 			// Package not found, or can't even parse package declaration.
 			// Already reported by previous loop; ignore it.
@@ -820,12 +833,11 @@ func (conf *Config) build() *build.Context {
 	return &build.Default
 }
 
-// findSourcePackage locates the specified (possibly empty) package
+// defaultFindPackage locates the specified (possibly empty) package
 // using go/build logic.  It returns an error if not found.
-//
-func (conf *Config) findSourcePackage(path string) (*build.Package, error) {
+func defaultFindPackage(ctxt *build.Context, path string) (*build.Package, error) {
 	// Import(srcDir="") disables local imports, e.g. import "./foo".
-	bp, err := conf.build().Import(path, "", 0)
+	bp, err := ctxt.Import(path, "", 0)
 	if _, ok := err.(*build.NoGoError); ok {
 		return bp, nil // empty directory is not an error
 	}
@@ -1058,7 +1070,7 @@ func (imp *importer) importFromBinary(path string) (*PackageInfo, error) {
 // The returned PackageInfo's typeCheck function must be called.
 //
 func (imp *importer) loadFromSource(path string) (*PackageInfo, error) {
-	bp, err := imp.conf.findSourcePackage(path)
+	bp, err := imp.conf.FindPackage(imp.conf.build(), path)
 	if err != nil {
 		return nil, err // package not found
 	}
