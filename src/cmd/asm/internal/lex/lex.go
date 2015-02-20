@@ -83,6 +83,11 @@ func NewLexer(name string, ctxt *obj.Link) TokenReader {
 	return input
 }
 
+// InitHist sets the line count to 1, for reproducible testing.
+func InitHist() {
+	histLine = 1
+}
+
 // The other files in this directory each contain an implementation of TokenReader.
 
 // A TokenReader is like a reader, but returns lex tokens of type Token. It also can tell you what

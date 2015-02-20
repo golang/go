@@ -5,6 +5,7 @@
 package asm
 
 import (
+	"bytes"
 	"fmt"
 	"text/scanner"
 
@@ -17,6 +18,8 @@ import (
 )
 
 // TODO: configure the architecture
+
+var testOut *bytes.Buffer // Gathers output when testing.
 
 // append adds the Prog to the end of the program-thus-far.
 // If doLabel is set, it also defines the labels collect for this Prog.
@@ -45,6 +48,9 @@ func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
 	prog.Pc = int64(p.pc)
 	if *flags.Debug {
 		fmt.Println(p.histLineNum, prog)
+	}
+	if testOut != nil {
+		fmt.Fprintln(testOut, p.histLineNum, prog)
 	}
 }
 
