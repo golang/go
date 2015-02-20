@@ -772,6 +772,10 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		recompileForTest(pmain, p, ptest, testDir)
 	}
 
+	if buildContext.GOOS == "darwin" && buildContext.GOARCH == "arm" {
+		t.NeedCgo = true
+	}
+
 	for _, cp := range pmain.imports {
 		if len(cp.coverVars) > 0 {
 			t.Cover = append(t.Cover, coverInfo{cp, cp.coverVars})
@@ -1207,6 +1211,7 @@ type testFuncs struct {
 	NeedTest    bool
 	ImportXtest bool
 	NeedXtest   bool
+	NeedCgo     bool
 	Cover       []coverInfo
 }
 
@@ -1309,6 +1314,10 @@ import (
 {{end}}
 {{range $i, $p := .Cover}}
 	_cover{{$i}} {{$p.Package.ImportPath | printf "%q"}}
+{{end}}
+
+{{if .NeedCgo}}
+	_ "runtime/cgo"
 {{end}}
 )
 
