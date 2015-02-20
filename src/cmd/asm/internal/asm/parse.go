@@ -410,7 +410,7 @@ func (p *Parser) registerReference(name string) (int16, bool) {
 // register parses a full register reference where there is no symbol present (as in 4(R0) or R(10) but not sym(SB))
 // including forms involving multiple registers such as R1:R2.
 func (p *Parser) register(name string, prefix rune) (r1, r2 int16, scale int8, ok bool) {
-	// R1 or R(1) R1:R2 R1,R2 or R1*scale.
+	// R1 or R(1) R1:R2 R1,R2 R1+R2, or R1*scale.
 	r1, ok = p.registerReference(name)
 	if !ok {
 		return
@@ -418,8 +418,10 @@ func (p *Parser) register(name string, prefix rune) (r1, r2 int16, scale int8, o
 	if prefix != 0 {
 		p.errorf("prefix %c not allowed for register: $%s", prefix, name)
 	}
-	if p.peek() == ':' || p.peek() == ',' {
-		// 2nd register; syntax (R1:R2). Check the architectures match.
+	c := p.peek()
+	if c == ':' || c == ',' || c == '+' {
+		// 2nd register; syntax (R1:R2) etc. No two architectures agree.
+		// Check the architectures match the syntax.
 		char := p.arch.Thechar
 		switch p.next().ScanToken {
 		case ':':
@@ -429,6 +431,11 @@ func (p *Parser) register(name string, prefix rune) (r1, r2 int16, scale int8, o
 			}
 		case ',':
 			if char != '5' {
+				p.errorf("illegal register pair syntax")
+				return
+			}
+		case '+':
+			if char != '9' {
 				p.errorf("illegal register pair syntax")
 				return
 			}
@@ -589,16 +596,31 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 		return
 	}
 	a.Reg = r1
-	if r2 != 0 && p.arch.Thechar == '5' {
-		// Special form for ARM: destination register pair (R1, R2).
-		if prefix != 0 || scale != 0 {
-			p.errorf("illegal address mode for register pair")
+	if r2 != 0 {
+		// TODO: Consistency in the encoding would be nice here.
+		if p.arch.Thechar == '5' {
+			// Special form for ARM: destination register pair (R1, R2).
+			if prefix != 0 || scale != 0 {
+				p.errorf("illegal address mode for register pair")
+				return
+			}
+			a.Type = obj.TYPE_REGREG
+			a.Offset = int64(r2)
+			// Nothing may follow; this is always a pure destination.
 			return
 		}
-		a.Type = obj.TYPE_REGREG
-		a.Offset = int64(r2)
-		// Nothing may follow; this is always a pure destination.
-		return
+		if p.arch.Thechar == '9' {
+			// Special form for PPC64: register pair (R1+R2).
+			if prefix != 0 || scale != 0 {
+				p.errorf("illegal address mode for register pair")
+				return
+			}
+			// TODO: This is rewritten in asm. Clumsy.
+			a.Type = obj.TYPE_MEM
+			a.Scale = int8(r2)
+			// Nothing may follow.
+			return
+		}
 	}
 	if r2 != 0 {
 		p.errorf("indirect through register pair")

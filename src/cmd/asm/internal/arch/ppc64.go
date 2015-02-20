@@ -40,6 +40,24 @@ func IsPPC64CMP(op int) bool {
 	return false
 }
 
+// IsPPC64NEG reports whether the op (as defined by an ppc64.A* constant) is
+// one of the NEG-like instructions that require special handling.
+func IsPPC64NEG(op int) bool {
+	switch op {
+	case ppc64.AADDMECC, ppc64.AADDMEVCC, ppc64.AADDMEV, ppc64.AADDME,
+		ppc64.AADDZECC, ppc64.AADDZEVCC, ppc64.AADDZEV, ppc64.AADDZE,
+		ppc64.ACNTLZDCC, ppc64.ACNTLZD, ppc64.ACNTLZWCC, ppc64.ACNTLZW,
+		ppc64.AEXTSBCC, ppc64.AEXTSB, ppc64.AEXTSHCC, ppc64.AEXTSH,
+		ppc64.AEXTSWCC, ppc64.AEXTSW, ppc64.ANEGCC, ppc64.ANEGVCC,
+		ppc64.ANEGV, ppc64.ANEG, ppc64.ASLBMFEE, ppc64.ASLBMFEV,
+		ppc64.ASLBMTE, ppc64.ASUBMECC, ppc64.ASUBMEVCC, ppc64.ASUBMEV,
+		ppc64.ASUBME, ppc64.ASUBZECC, ppc64.ASUBZEVCC, ppc64.ASUBZEV,
+		ppc64.ASUBZE:
+		return true
+	}
+	return false
+}
+
 func ppc64RegisterNumber(name string, n int16) (int16, bool) {
 	switch name {
 	case "CR":
