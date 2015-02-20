@@ -48,15 +48,31 @@ func (m *Mutex) Lock() {
 	}
 
 	awoke := false
+	iter := 0
 	for {
 		old := m.state
 		new := old | mutexLocked
 		if old&mutexLocked != 0 {
+			if runtime_canSpin(iter) {
+				// Active spinning makes sense.
+				// Try to set mutexWoken flag to inform Unlock
+				// to not wake other blocked goroutines.
+				if !awoke && old&mutexWoken == 0 && old>>mutexWaiterShift != 0 &&
+					atomic.CompareAndSwapInt32(&m.state, old, old|mutexWoken) {
+					awoke = true
+				}
+				runtime_doSpin()
+				iter++
+				continue
+			}
 			new = old + 1<<mutexWaiterShift
 		}
 		if awoke {
 			// The goroutine has been woken from sleep,
 			// so we need to reset the flag in either case.
+			if new&mutexWoken == 0 {
+				panic("sync: inconsistent mutex state")
+			}
 			new &^= mutexWoken
 		}
 		if atomic.CompareAndSwapInt32(&m.state, old, new) {
@@ -65,6 +81,7 @@ func (m *Mutex) Lock() {
 			}
 			runtime_Semacquire(&m.sema)
 			awoke = true
+			iter = 0
 		}
 	}
 
