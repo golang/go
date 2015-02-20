@@ -1553,8 +1553,6 @@ func gopreempt_m(gp *g) {
 }
 
 // Finishes execution of the current goroutine.
-// Must be NOSPLIT because it is called from Go. (TODO - probably not anymore)
-//go:nosplit
 func goexit1() {
 	if raceenabled {
 		racegoend()
