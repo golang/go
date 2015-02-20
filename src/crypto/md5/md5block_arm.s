@@ -29,31 +29,31 @@
 //12(FP) is p.cap
 //
 // Stack frame
-#define p_end	-4	// -4(R13==SP) pointer to the end of data
-#define p_data	-8	// -8(R13) current data pointer
-#define buf	(-8-4*16)	//-72(R13) 16 words temporary buffer
+#define p_end	end-4(SP)	// pointer to the end of data
+#define p_data	data-8(SP)	// current data pointer
+#define buf	buffer-(8+4*16)(SP)	//16 words temporary buffer
 		// 3 words at 4..12(R13) for called routine parameters
 
 TEXT	·block(SB), NOSPLIT, $84-16
 	MOVW	p+4(FP), Rdata	// pointer to the data
 	MOVW	p_len+8(FP), Rt0	// number of bytes
 	ADD	Rdata, Rt0
-	MOVW	Rt0, p_end(R13)	// pointer to end of data
+	MOVW	Rt0, p_end	// pointer to end of data
 
 loop:
-	MOVW	Rdata, p_data(R13)	// Save Rdata
+	MOVW	Rdata, p_data	// Save Rdata
 	AND.S	$3, Rdata, Rt0	// TST $3, Rdata not working see issue 5921
 	BEQ	aligned			// aligned detected - skip copy
 
 	// Copy the unaligned source data into the aligned temporary buffer
 	// memove(to=4(R13), from=8(R13), n=12(R13)) - Corrupts all registers
-	MOVW	$buf(R13), Rtable	// to
+	MOVW	$buf, Rtable	// to
 	MOVW	$64, Rc0		// n
 	MOVM.IB	[Rtable,Rdata,Rc0], (R13)
 	BL	runtime·memmove(SB)
 
 	// Point to the local aligned copy of the data
-	MOVW	$buf(R13), Rdata
+	MOVW	$buf, Rdata
 
 aligned:
 	// Point to the table of constants
@@ -217,8 +217,8 @@ aligned:
 
 	MOVM.IA [Ra,Rb,Rc,Rd], (Rt0)
 
-	MOVW	p_data(R13), Rdata
-	MOVW	p_end(R13), Rt0
+	MOVW	p_data, Rdata
+	MOVW	p_end, Rt0
 	ADD	$64, Rdata
 	CMP	Rt0, Rdata
 	BLO	loop
