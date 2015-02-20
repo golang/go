@@ -20,7 +20,6 @@ import (
 )
 
 // A Program is a partial or complete Go program converted to SSA form.
-//
 type Program struct {
 	Fset       *token.FileSet              // position information for the files of this Program
 	imported   map[string]*Package         // all importable Packages, keyed by import path
@@ -47,7 +46,7 @@ type Package struct {
 	Members map[string]Member      // all package members keyed by name
 	values  map[types.Object]Value // package members (incl. types and methods), keyed by object
 	init    *Function              // Func("init"); the package's init function
-	debug   bool                   // include full debug info in this package.
+	debug   bool                   // include full debug info in this package
 
 	// The following fields are set transiently, then cleared
 	// after building.
@@ -68,7 +67,7 @@ type Member interface {
 	Pos() token.Pos                  // position of member's declaration, if known
 	Type() types.Type                // type of the package member
 	Token() token.Token              // token.{VAR,FUNC,CONST,TYPE}
-	Package() *Package               // returns the containing package. (TODO: rename Pkg)
+	Package() *Package               // the containing package
 }
 
 // A Type is a Member of a Package representing a package-level named type.
@@ -80,8 +79,8 @@ type Type struct {
 	pkg    *Package
 }
 
-// A NamedConst is a Member of Package representing a package-level
-// named constant value.
+// A NamedConst is a Member of a Package representing a package-level
+// named constant.
 //
 // Pos() returns the position of the declaring ast.ValueSpec.Names[*]
 // identifier.
@@ -156,7 +155,6 @@ type Value interface {
 	// corresponds to an ast.Expr; use Function.ValueForExpr
 	// instead.  NB: it requires that the function was built with
 	// debug information.)
-	//
 	Pos() token.Pos
 }
 
@@ -168,21 +166,21 @@ type Value interface {
 // does not.
 //
 type Instruction interface {
-	// String returns the disassembled form of this value.  e.g.
+	// String returns the disassembled form of this value.
 	//
-	// Examples of Instructions that define a Value:
-	// e.g.  "x + y"     (BinOp)
+	// Examples of Instructions that are Values:
+	//       "x + y"     (BinOp)
 	//       "len([])"   (Call)
 	// Note that the name of the Value is not printed.
 	//
-	// Examples of Instructions that do define (are) Values:
-	// e.g.  "return x"  (Return)
+	// Examples of Instructions that are not Values:
+	//       "return x"  (Return)
 	//       "*y = x"    (Store)
 	//
-	// (This separation is useful for some analyses which
-	// distinguish the operation from the value it
-	// defines. e.g. 'y = local int' is both an allocation of
-	// memory 'local int' and a definition of a pointer y.)
+	// (The separation Value.Name() from Value.String() is useful
+	// for some analyses which distinguish the operation from the
+	// value it defines, e.g., 'y = local int' is both an allocation
+	// of memory 'local int' and a definition of a pointer y.)
 	String() string
 
 	// Parent returns the function to which this instruction
@@ -230,7 +228,6 @@ type Instruction interface {
 	// This position may be used to determine which non-Value
 	// Instruction corresponds to some ast.Stmts, but not all: If
 	// and Jump instructions have no Pos(), for example.)
-	//
 	Pos() token.Pos
 }
 
@@ -256,12 +253,12 @@ type Node interface {
 	Referrers() *[]Instruction        // nil for non-Values
 }
 
-// Function represents the parameters, results and code of a function
+// Function represents the parameters, results, and code of a function
 // or method.
 //
 // If Blocks is nil, this indicates an external function for which no
 // Go source code is available.  In this case, FreeVars and Locals
-// will be nil too.  Clients performing whole-program analysis must
+// are nil too.  Clients performing whole-program analysis must
 // handle external functions specially.
 //
 // Blocks contains the function's control-flow graph (CFG).
@@ -276,8 +273,8 @@ type Node interface {
 // parameters, if any.
 //
 // A nested function (Parent()!=nil) that refers to one or more
-// lexically enclosing local variables ("free variables") has FreeVar
-// parameters.  Such functions cannot be called directly but require a
+// lexically enclosing local variables ("free variables") has FreeVars.
+// Such functions cannot be called directly but require a
 // value created by MakeClosure which, via its Bindings, supplies
 // values for these parameters.
 //
@@ -321,13 +318,13 @@ type Function struct {
 	lblocks      map[*ast.Object]*lblock // labelled blocks
 }
 
-// An SSA basic block.
+// BasicBlock represents an SSA basic block.
 //
 // The final element of Instrs is always an explicit transfer of
-// control (If, Jump, Return or Panic).
+// control (If, Jump, Return, or Panic).
 //
 // A block may contain no Instructions only if it is unreachable,
-// i.e. Preds is nil.  Empty blocks are typically pruned.
+// i.e., Preds is nil.  Empty blocks are typically pruned.
 //
 // BasicBlocks and their Preds/Succs relation form a (possibly cyclic)
 // graph independent of the SSA Value graph: the control-flow graph or
@@ -347,9 +344,9 @@ type BasicBlock struct {
 	parent       *Function      // parent function
 	Instrs       []Instruction  // instructions in order
 	Preds, Succs []*BasicBlock  // predecessors and successors
-	succs2       [2]*BasicBlock // initial space for Succs.
+	succs2       [2]*BasicBlock // initial space for Succs
 	dom          domInfo        // dominator tree info
-	gaps         int            // number of nil Instrs (transient).
+	gaps         int            // number of nil Instrs (transient)
 	rundefers    int            // number of rundefers (transient)
 }
 
@@ -397,11 +394,11 @@ type Parameter struct {
 //
 // The underlying type of a constant may be any boolean, numeric, or
 // string type.  In addition, a Const may represent the nil value of
-// any reference type: interface, map, channel, pointer, slice, or
+// any reference type---interface, map, channel, pointer, slice, or
 // function---but not "untyped nil".
 //
 // All source-level constant expressions are represented by a Const
-// of equal type and value.
+// of the same type and value.
 //
 // Value holds the exact value of the constant, independent of its
 // Type(), using the same representation as package go/exact uses for
@@ -460,11 +457,12 @@ type Builtin struct {
 
 // Value-defining instructions  ----------------------------------------
 
-// The Alloc instruction reserves space for a value of the given type,
+// The Alloc instruction reserves space for a variable of the given type,
 // zero-initializes it, and yields its address.
 //
 // Alloc values are always addresses, and have pointer types, so the
-// type of the allocated space is actually indirect(Type()).
+// type of the allocated variable is actually
+// Type().Underlying().(*types.Pointer).Elem().
 //
 // If Heap is false, Alloc allocates space in the function's
 // activation record (frame); we refer to an Alloc(Heap=false) as a
@@ -472,7 +470,7 @@ type Builtin struct {
 // it is executed within the same activation; the space is
 // re-initialized to zero.
 //
-// If Heap is true, Alloc allocates space in the heap, and returns; we
+// If Heap is true, Alloc allocates space in the heap; we
 // refer to an Alloc(Heap=true) as a "new" alloc.  Each new Alloc
 // returns a different address each time it is executed.
 //
@@ -506,7 +504,7 @@ type Alloc struct {
 // during SSA renaming.
 //
 // Example printed form:
-// 	t2 = phi [0.start: t0, 1.if.then: t1, ...]
+// 	t2 = phi [0: t0, 1: t1]
 //
 type Phi struct {
 	register
@@ -516,8 +514,8 @@ type Phi struct {
 
 // The Call instruction represents a function or method call.
 //
-// The Call instruction yields the function result, if there is
-// exactly one, or a tuple (empty or len>1) whose components are
+// The Call instruction yields the function result if there is exactly
+// one.  Otherwise it returns a tuple, the components of which are
 // accessed via Extract.
 //
 // See CallCommon for generic function call documentation.
@@ -1359,7 +1357,7 @@ func (c *CallCommon) StaticCallee() *Function {
 }
 
 // Description returns a description of the mode of this call suitable
-// for a user interface, e.g. "static method call".
+// for a user interface, e.g., "static method call".
 func (c *CallCommon) Description() string {
 	switch fn := c.Value.(type) {
 	case *Builtin:
