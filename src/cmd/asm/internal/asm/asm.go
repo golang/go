@@ -301,11 +301,20 @@ func (p *Parser) asmJump(op int, cond string, a []obj.Addr) {
 	switch len(a) {
 	case 1:
 		target = &a[0]
+	case 2:
+		if p.arch.Thechar == '9' {
+			// Special 2-operand jumps.
+			target = &a[1]
+			prog.From = a[0]
+			break
+		}
+		p.errorf("wrong number of arguments to %s instruction", p.arch.Aconv(op))
+		return
 	case 3:
 		if p.arch.Thechar == '9' {
-			target = &a[2]
 			// Special 3-operand jumps.
-			// First two must be constants.
+			// First two must be constants; a[1] is a register number.
+			target = &a[2]
 			prog.From = obj.Addr{
 				Type:   obj.TYPE_CONST,
 				Offset: p.getConstant(prog, op, &a[0]),
@@ -384,7 +393,7 @@ func (p *Parser) branch(jmp, target *obj.Prog) {
 // asmInstruction assembles an instruction.
 // MOVW R9, (R10)
 func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
-	// fmt.Printf("%+v\n", a)
+	// fmt.Printf("%s %+v\n", p.arch.Aconv(op), a)
 	prog := &obj.Prog{
 		Ctxt:   p.linkCtxt,
 		Lineno: p.histLineNum,
@@ -400,6 +409,12 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 		} else {
 			prog.From = a[0]
 			// prog.To is no address.
+		}
+		if p.arch.Thechar == '9' && arch.IsPPC64NEG(op) {
+			// NEG: From and To are both a[0].
+			prog.To = a[0]
+			prog.From = a[0]
+			break
 		}
 	case 2:
 		if p.arch.Thechar == '5' {
@@ -432,15 +447,31 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 		}
 		prog.From = a[0]
 		prog.To = a[1]
-		// DX:AX as a register pair can only appear on the RHS.
-		// Bizarrely, to obj it's specified by setting index on the LHS.
-		// TODO: can we fix this?
-		if a[1].Class != 0 {
-			if a[0].Class != 0 {
-				p.errorf("register pair must be on LHS")
+		switch p.arch.Thechar {
+		case '6', '8':
+			// DX:AX as a register pair can only appear on the RHS.
+			// Bizarrely, to obj it's specified by setting index on the LHS.
+			// TODO: can we fix this?
+			if a[1].Class != 0 {
+				if a[0].Class != 0 {
+					p.errorf("register pair must be on LHS")
+				}
+				prog.From.Index = int16(a[1].Class)
+				prog.To.Class = 0
 			}
-			prog.From.Index = int16(a[1].Class)
-			prog.To.Class = 0
+		case '9':
+			var reg0, reg1 int16
+			// Handle (R1+R2)
+			if a[0].Scale != 0 {
+				reg0 = int16(a[0].Scale)
+				prog.Reg = reg0
+			} else if a[1].Scale != 0 {
+				reg1 = int16(a[1].Scale)
+				prog.Reg = reg1
+			}
+			if reg0 != 0 && reg1 != 0 {
+				p.errorf("register pair cannot be both left and right operands")
+			}
 		}
 	case 3:
 		switch p.arch.Thechar {
@@ -526,6 +557,27 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 			break
 		}
 		p.errorf("can't handle %s instruction with 4 operands", p.arch.Aconv(op))
+	case 5:
+		if p.arch.Thechar == '9' && arch.IsPPC64RLD(op) {
+			// Always reg, reg, con, con, reg.  (con, con is a 'mask').
+			prog.From = a[0]
+			prog.Reg = p.getRegister(prog, op, &a[1])
+			mask1 := p.getConstant(prog, op, &a[2])
+			mask2 := p.getConstant(prog, op, &a[3])
+			var mask uint32
+			if mask1 < mask2 {
+				mask = (^uint32(0) >> uint(mask1)) & (^uint32(0) << uint(31-mask2))
+			} else {
+				mask = (^uint32(0) >> uint(mask2+1)) & (^uint32(0) << uint(31-(mask1-1)))
+			}
+			prog.From3 = obj.Addr{
+				Type:   obj.TYPE_CONST,
+				Offset: int64(mask),
+			}
+			prog.To = a[4]
+			break
+		}
+		p.errorf("can't handle %s instruction with 5 operands", p.arch.Aconv(op))
 	case 6:
 		// MCR and MRC on ARM
 		if p.arch.Thechar == '5' && arch.IsARMMRC(op) {
