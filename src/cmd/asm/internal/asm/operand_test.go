@@ -15,10 +15,17 @@ import (
 
 // A simple in-out test: Do we print what we parse?
 
-func newParser(goarch string) *Parser {
+func setArch(goarch string) (*arch.Arch, *obj.Link) {
 	os.Setenv("GOOS", "linux") // obj can handle this OS for all architectures.
 	architecture := arch.Set(goarch)
-	ctxt := obj.Linknew(architecture.LinkArch)
+	if architecture == nil {
+		panic("asm: unrecognized architecture " + goarch)
+	}
+	return architecture, obj.Linknew(architecture.LinkArch)
+}
+
+func newParser(goarch string) *Parser {
+	architecture, ctxt := setArch(goarch)
 	return NewParser(ctxt, architecture, nil)
 }
 
