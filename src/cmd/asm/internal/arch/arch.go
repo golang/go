@@ -75,6 +75,10 @@ func Set(GOARCH string) *Arch {
 		a := archPPC64()
 		a.LinkArch = &ppc64.Linkppc64
 		return a
+	case "ppc64le":
+		a := archPPC64()
+		a.LinkArch = &ppc64.Linkppc64le
+		return a
 	}
 	return nil
 }
