@@ -45,10 +45,10 @@
 //12(FP) is p.cap
 //
 // Stack frame
-#define p_end	-4		// -4(SP) pointer to the end of data
-#define p_data	(p_end - 4)	// -8(SP) current data pointer
-#define w_buf	(p_data - 4*80)	// -328(SP) 80 words temporary buffer w uint32[80]
-#define saved	(w_buf - 4*5)	// -348(SP) saved sha1 registers a,b,c,d,e - these must be last
+#define p_end	end-4(SP)		// pointer to the end of data
+#define p_data	data-8(SP)	// current data pointer (unused?)
+#define w_buf	buf-(8+4*80)(SP)	//80 words temporary buffer w uint32[80]
+#define saved	abcde-(8+4*80+4*5)(SP)	// saved sha1 registers a,b,c,d,e - these must be last (unused?)
 // Total size +4 for saved LR is 352
 
 	// w[i] = p[j]<<24 | p[j+1]<<16 | p[j+2]<<8 | p[j+3]
@@ -141,7 +141,7 @@ TEXT	·block(SB), 0, $352-16
 	MOVW	p+4(FP), Rdata	// pointer to the data
 	MOVW	p_len+8(FP), Rt0	// number of bytes
 	ADD	Rdata, Rt0
-	MOVW	Rt0, p_end(R13)	// pointer to end of data
+	MOVW	Rt0, p_end	// pointer to end of data
 
 	// Load up initial SHA1 accumulator
 	MOVW	dig+0(FP), Rt0
@@ -151,7 +151,7 @@ loop:
 	// Save registers at SP+4 onwards
 	MOVM.IB [Ra,Rb,Rc,Rd,Re], (R13)
 
-	MOVW	$w_buf(R13), Rw
+	MOVW	$w_buf, Rw
 	MOVW	$0x5A827999, Rconst
 	MOVW	$3, Rctr
 loop1:	ROUND1(Ra, Rb, Rc, Rd, Re)
@@ -206,7 +206,7 @@ loop4:	ROUND4(Ra, Rb, Rc, Rd, Re)
 	ADD	Rctr, Rd
 	ADD	Rw, Re
 
-	MOVW	p_end(R13), Rt0
+	MOVW	p_end, Rt0
 	CMP	Rt0, Rdata
 	BLO	loop
 
