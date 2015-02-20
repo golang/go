@@ -188,7 +188,7 @@ func mapbucket(t *Type) *Type {
 	}
 
 	// See comment on hmap.overflow in ../../runtime/hashmap.go.
-	if !haspointers(t.Type) && !haspointers(t.Down) {
+	if !haspointers(t.Type) && !haspointers(t.Down) && t.Type.Width <= MAXKEYSIZE && t.Down.Width <= MAXVALSIZE {
 		bucket.Haspointers = 1 // no pointers
 	}
 

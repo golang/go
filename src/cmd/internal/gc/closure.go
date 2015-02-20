@@ -21,6 +21,7 @@ func closurehdr(ntype *Node) {
 	n = Nod(OCLOSURE, nil, nil)
 	n.Ntype = ntype
 	n.Funcdepth = Funcdepth
+	n.Outerfunc = Curfn
 
 	funchdr(n)
 
@@ -133,7 +134,62 @@ func typecheckclosure(func_ *Node, top int) {
 	xtop = list(xtop, makeclosure(func_))
 }
 
-var makeclosure_closgen int
+// closurename returns name for OCLOSURE n.
+// It is not as simple as it ought to be, because we typecheck nested closures
+// starting from the innermost one. So when we check the inner closure,
+// we don't yet have name for the outer closure. This function uses recursion
+// to generate names all the way up if necessary.
+
+var closurename_closgen int
+
+func closurename(n *Node) *Sym {
+	var outer string
+	var prefix string
+	var gen int
+
+	if n.Sym != nil {
+		return n.Sym
+	}
+	gen = 0
+	outer = ""
+	prefix = ""
+	if n.Outerfunc == nil {
+		// Global closure.
+		outer = "glob"
+
+		prefix = "func"
+		closurename_closgen++
+		gen = closurename_closgen
+	} else if n.Outerfunc.Op == ODCLFUNC {
+		// The outermost closure inside of a named function.
+		outer = n.Outerfunc.Nname.Sym.Name
+
+		prefix = "func"
+
+		// Yes, functions can be named _.
+		// Can't use function closgen in such case,
+		// because it would lead to name clashes.
+		if !isblank(n.Outerfunc.Nname) {
+			n.Outerfunc.Closgen++
+			gen = n.Outerfunc.Closgen
+		} else {
+			closurename_closgen++
+			gen = closurename_closgen
+		}
+	} else if n.Outerfunc.Op == OCLOSURE {
+		// Nested closure, recurse.
+		outer = closurename(n.Outerfunc).Name
+
+		prefix = ""
+		n.Outerfunc.Closgen++
+		gen = n.Outerfunc.Closgen
+	} else {
+		Fatal("closurename called for %v", Nconv(n, obj.FmtShort))
+	}
+	namebuf = fmt.Sprintf("%s.%s%d", outer, prefix, gen)
+	n.Sym = Lookup(namebuf)
+	return n.Sym
+}
 
 func makeclosure(func_ *Node) *Node {
 	var xtype *Node
@@ -151,9 +207,7 @@ func makeclosure(func_ *Node) *Node {
 	// create the function
 	xfunc = Nod(ODCLFUNC, nil, nil)
 
-	makeclosure_closgen++
-	namebuf = fmt.Sprintf("func·%.3d", makeclosure_closgen)
-	xfunc.Nname = newname(Lookup(namebuf))
+	xfunc.Nname = newname(closurename(func_))
 	xfunc.Nname.Sym.Flags |= SymExported // disable export
 	xfunc.Nname.Ntype = xtype
 	xfunc.Nname.Defn = xfunc
@@ -412,7 +466,7 @@ func walkclosure(func_ *Node, init **NodeList) *Node {
 	// and has one float64 argument and no results,
 	// the generated code looks like:
 	//
-	//	clos = &struct{F uintptr; A0 *int; A1 *string}{func·001, &i, &s}
+	//	clos = &struct{.F uintptr; i *int; s *string}{func.1, &i, &s}
 	//
 	// The use of the struct provides type information to the garbage
 	// collector so that it can walk the closure. We could use (in this case)
@@ -423,7 +477,7 @@ func walkclosure(func_ *Node, init **NodeList) *Node {
 
 	typ = Nod(OTSTRUCT, nil, nil)
 
-	typ.List = list1(Nod(ODCLFIELD, newname(Lookup("F")), typenod(Types[TUINTPTR])))
+	typ.List = list1(Nod(ODCLFIELD, newname(Lookup(".F")), typenod(Types[TUINTPTR])))
 	for l = func_.Cvars; l != nil; l = l.Next {
 		v = l.N
 		if v.Op == OXXX {
@@ -508,13 +562,11 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	var i int
 	var ddd int
 
-	// TODO: names are not right
 	rcvrtype = fn.Left.Type
-
 	if exportname(meth.Sym.Name) {
-		p = fmt.Sprintf("%v.%s·fm", Tconv(rcvrtype, obj.FmtLeft|obj.FmtShort), meth.Sym.Name)
+		p = fmt.Sprintf("(%v).%s-fm", Tconv(rcvrtype, obj.FmtLeft|obj.FmtShort), meth.Sym.Name)
 	} else {
-		p = fmt.Sprintf("%v.(%v)·fm", Tconv(rcvrtype, obj.FmtLeft|obj.FmtShort), Sconv(meth.Sym, obj.FmtLeft))
+		p = fmt.Sprintf("(%v).(%v)-fm", Tconv(rcvrtype, obj.FmtLeft|obj.FmtShort), Sconv(meth.Sym, obj.FmtLeft))
 	}
 	basetype = rcvrtype
 	if Isptr[rcvrtype.Etype] != 0 {
