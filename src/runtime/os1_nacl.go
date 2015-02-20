@@ -174,6 +174,7 @@ func munmap(addr unsafe.Pointer, n uintptr)               {}
 func resetcpuprofiler(hz int32)                           {}
 func sigdisable(uint32)                                   {}
 func sigenable(uint32)                                    {}
+func sigignore(uint32)                                    {}
 func closeonexec(int32)                                   {}
 
 var writelock uint32 // test-and-set spin lock for write

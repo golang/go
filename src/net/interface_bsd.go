@@ -54,24 +54,22 @@ func newLink(m *syscall.InterfaceMessage) (*Interface, error) {
 		return nil, os.NewSyscallError("route sockaddr", err)
 	}
 	ifi := &Interface{Index: int(m.Header.Index), Flags: linkFlags(m.Header.Flags)}
-	for _, sa := range sas {
-		switch sa := sa.(type) {
-		case *syscall.SockaddrDatalink:
-			// NOTE: SockaddrDatalink.Data is minimum work area,
-			// can be larger.
-			m.Data = m.Data[unsafe.Offsetof(sa.Data):]
-			var name [syscall.IFNAMSIZ]byte
-			for i := 0; i < int(sa.Nlen); i++ {
-				name[i] = byte(m.Data[i])
-			}
-			ifi.Name = string(name[:sa.Nlen])
-			ifi.MTU = int(m.Header.Data.Mtu)
-			addr := make([]byte, sa.Alen)
-			for i := 0; i < int(sa.Alen); i++ {
-				addr[i] = byte(m.Data[int(sa.Nlen)+i])
-			}
-			ifi.HardwareAddr = addr[:sa.Alen]
+	sa, _ := sas[syscall.RTAX_IFP].(*syscall.SockaddrDatalink)
+	if sa != nil {
+		// NOTE: SockaddrDatalink.Data is minimum work area,
+		// can be larger.
+		m.Data = m.Data[unsafe.Offsetof(sa.Data):]
+		var name [syscall.IFNAMSIZ]byte
+		for i := 0; i < int(sa.Nlen); i++ {
+			name[i] = byte(m.Data[i])
 		}
+		ifi.Name = string(name[:sa.Nlen])
+		ifi.MTU = int(m.Header.Data.Mtu)
+		addr := make([]byte, sa.Alen)
+		for i := 0; i < int(sa.Alen); i++ {
+			addr[i] = byte(m.Data[int(sa.Nlen)+i])
+		}
+		ifi.HardwareAddr = addr[:sa.Alen]
 	}
 	return ifi, nil
 }
@@ -144,39 +142,34 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
 	return ifat, nil
 }
 
-func newAddr(ifi *Interface, m *syscall.InterfaceAddrMessage) (Addr, error) {
+func newAddr(ifi *Interface, m *syscall.InterfaceAddrMessage) (*IPNet, error) {
 	sas, err := syscall.ParseRoutingSockaddr(m)
 	if err != nil {
 		return nil, os.NewSyscallError("route sockaddr", err)
 	}
 	ifa := &IPNet{}
-	for i, sa := range sas {
-		switch sa := sa.(type) {
-		case *syscall.SockaddrInet4:
-			switch i {
-			case 0:
-				ifa.Mask = IPv4Mask(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3])
-			case 1:
-				ifa.IP = IPv4(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3])
-			}
-		case *syscall.SockaddrInet6:
-			switch i {
-			case 0:
-				ifa.Mask = make(IPMask, IPv6len)
-				copy(ifa.Mask, sa.Addr[:])
-			case 1:
-				ifa.IP = make(IP, IPv6len)
-				copy(ifa.IP, sa.Addr[:])
-				// NOTE: KAME based IPv6 protcol stack usually embeds
-				// the interface index in the interface-local or link-
-				// local address as the kernel-internal form.
-				if ifa.IP.IsLinkLocalUnicast() {
-					ifa.IP[2], ifa.IP[3] = 0, 0
-				}
-			}
-		default: // Sockaddrs contain syscall.SockaddrDatalink on NetBSD
-			return nil, nil
+	switch sa := sas[syscall.RTAX_NETMASK].(type) {
+	case *syscall.SockaddrInet4:
+		ifa.Mask = IPv4Mask(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3])
+	case *syscall.SockaddrInet6:
+		ifa.Mask = make(IPMask, IPv6len)
+		copy(ifa.Mask, sa.Addr[:])
+	}
+	switch sa := sas[syscall.RTAX_IFA].(type) {
+	case *syscall.SockaddrInet4:
+		ifa.IP = IPv4(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3])
+	case *syscall.SockaddrInet6:
+		ifa.IP = make(IP, IPv6len)
+		copy(ifa.IP, sa.Addr[:])
+		// NOTE: KAME based IPv6 protcol stack usually embeds
+		// the interface index in the interface-local or
+		// link-local address as the kernel-internal form.
+		if ifa.IP.IsLinkLocalUnicast() {
+			ifa.IP[2], ifa.IP[3] = 0, 0
 		}
+	}
+	if ifa.IP == nil || ifa.Mask == nil {
+		return nil, nil // Sockaddrs contain syscall.SockaddrDatalink on NetBSD
 	}
 	return ifa, nil
 }

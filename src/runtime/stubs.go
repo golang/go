@@ -239,3 +239,13 @@ func prefetcht0(addr uintptr)
 func prefetcht1(addr uintptr)
 func prefetcht2(addr uintptr)
 func prefetchnta(addr uintptr)
+
+func unixnanotime() int64 {
+	sec, nsec := time_now()
+	return sec*1e9 + int64(nsec)
+}
+
+// round n up to a multiple of a.  a must be a power of 2.
+func round(n, a uintptr) uintptr {
+	return (n + a - 1) &^ (a - 1)
+}

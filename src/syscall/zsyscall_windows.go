@@ -4,6 +4,8 @@ package syscall
 
 import "unsafe"
 
+var _ unsafe.Pointer
+
 var (
 	modkernel32 = NewLazyDLL("kernel32.dll")
 	modadvapi32 = NewLazyDLL("advapi32.dll")

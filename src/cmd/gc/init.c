@@ -11,14 +11,14 @@
  * it is called by the initialization before
  * main is run. to make it unique within a
  * package and also uncallable, the name,
- * normally "pkg.init", is altered to "pkg.init·1".
+ * normally "pkg.init", is altered to "pkg.init.1".
  */
 Sym*
 renameinit(void)
 {
 	static int initgen;
 
-	snprint(namebuf, sizeof(namebuf), "init·%d", ++initgen);
+	snprint(namebuf, sizeof(namebuf), "init.%d", ++initgen);
 	return lookup(namebuf);
 }
 
@@ -35,7 +35,7 @@ renameinit(void)
  *		// over all matching imported symbols
  *			<pkg>.init()			(7)
  *		{ <init stmts> }			(8)
- *		init·<n>() // if any			(9)
+ *		init.<n>() // if any			(9)
  *		initdone· = 2;				(10)
  *		return					(11)
  *	}
@@ -69,8 +69,7 @@ anyinit(NodeList *n)
 		return 1;
 
 	// is there an explicit init function
-	snprint(namebuf, sizeof(namebuf), "init·1");
-	s = lookup(namebuf);
+	s = lookup("init.1");
 	if(s->def != N)
 		return 1;
 
@@ -167,7 +166,7 @@ fninit(NodeList *n)
 	// (9)
 	// could check that it is fn of no args/returns
 	for(i=1;; i++) {
-		snprint(namebuf, sizeof(namebuf), "init·%d", i);
+		snprint(namebuf, sizeof(namebuf), "init.%d", i);
 		s = lookup(namebuf);
 		if(s->def == N)
 			break;

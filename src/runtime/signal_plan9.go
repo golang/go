@@ -6,7 +6,7 @@ package runtime
 
 type sigTabT struct {
 	flags int
-	name  []byte
+	name  string
 }
 
 // Incoming notes are compared against this table using strncmp, so the
@@ -18,37 +18,37 @@ type sigTabT struct {
 // and also update the constant values is os2_plan9.go.
 var sigtable = [...]sigTabT{
 	// Traps that we cannot be recovered.
-	{_SigThrow, []byte("sys: trap: debug exception")},
-	{_SigThrow, []byte("sys: trap: invalid opcode")},
+	{_SigThrow, "sys: trap: debug exception"},
+	{_SigThrow, "sys: trap: invalid opcode"},
 
 	// We can recover from some memory errors in runtime·sigpanic.
-	{_SigPanic, []byte("sys: trap: fault read addr")},  // SIGRFAULT
-	{_SigPanic, []byte("sys: trap: fault write addr")}, // SIGWFAULT
+	{_SigPanic, "sys: trap: fault read addr"},  // SIGRFAULT
+	{_SigPanic, "sys: trap: fault write addr"}, // SIGWFAULT
 
 	// We can also recover from math errors.
-	{_SigPanic, []byte("sys: trap: divide error")}, // SIGINTDIV
-	{_SigPanic, []byte("sys: fp:")},                // SIGFLOAT
+	{_SigPanic, "sys: trap: divide error"}, // SIGINTDIV
+	{_SigPanic, "sys: fp:"},                // SIGFLOAT
 
 	// All other traps are normally handled as if they were marked SigThrow.
 	// We mark them SigPanic here so that debug.SetPanicOnFault will work.
-	{_SigPanic, []byte("sys: trap:")}, // SIGTRAP
+	{_SigPanic, "sys: trap:"}, // SIGTRAP
 
 	// Writes to a closed pipe can be handled if desired, otherwise they're ignored.
-	{_SigNotify, []byte("sys: write on closed pipe")},
+	{_SigNotify, "sys: write on closed pipe"},
 
 	// Other system notes are more serious and cannot be recovered.
-	{_SigThrow, []byte("sys:")},
+	{_SigThrow, "sys:"},
 
 	// Issued to all other procs when calling runtime·exit.
-	{_SigGoExit, []byte("go: exit ")},
+	{_SigGoExit, "go: exit "},
 
 	// Kill is sent by external programs to cause an exit.
-	{_SigKill, []byte("kill")},
+	{_SigKill, "kill"},
 
 	// Interrupts can be handled if desired, otherwise they cause an exit.
-	{_SigNotify + _SigKill, []byte("interrupt")},
-	{_SigNotify + _SigKill, []byte("hangup")},
+	{_SigNotify + _SigKill, "interrupt"},
+	{_SigNotify + _SigKill, "hangup"},
 
 	// Alarms can be handled if desired, otherwise they're ignored.
-	{_SigNotify, []byte("alarm")},
+	{_SigNotify, "alarm"},
 }

@@ -153,6 +153,15 @@ func signal_disable(s uint32) {
 	sigdisable(s)
 }
 
+// Must only be called from a single goroutine at a time.
+func signal_ignore(s uint32) {
+	if int(s) >= len(sig.wanted)*32 {
+		return
+	}
+	sig.wanted[s/32] &^= 1 << (s & 31)
+	sigignore(s)
+}
+
 // This runs on a foreign stack, without an m or a g.  No stack split.
 //go:nosplit
 func badsignal(sig uintptr) {

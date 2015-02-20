@@ -10,7 +10,7 @@ visit https://golang.org/ or load doc/install-source.html
 in your web browser.
 
 Our canonical Git repository is located at https://go.googlesource.com/go.
-(There is a mirror of the repository at https://github.com/golang/go.)
+There is a mirror of the repository at https://github.com/golang/go.
 
 Please report issues here: https://golang.org/issue/new
 
@@ -43,4 +43,3 @@ put the following in your .profile:
 	export PATH=$PATH:$GOROOT/bin
 
 See https://golang.org/doc/install or doc/install.html for more details.
-

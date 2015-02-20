@@ -19,6 +19,7 @@ closurehdr(Node *ntype)
 	n = nod(OCLOSURE, N, N);
 	n->ntype = ntype;
 	n->funcdepth = funcdepth;
+	n->outerfunc = curfn;
 
 	funchdr(n);
 
@@ -124,11 +125,55 @@ typecheckclosure(Node *func, int top)
 	xtop = list(xtop, makeclosure(func));
 }
 
+// closurename returns name for OCLOSURE n.
+// It is not as simple as it ought to be, because we typecheck nested closures
+// starting from the innermost one. So when we check the inner closure,
+// we don't yet have name for the outer closure. This function uses recursion
+// to generate names all the way up if necessary.
+static Sym*
+closurename(Node *n)
+{
+	static int closgen;
+	char *outer, *prefix;
+	int gen;
+
+	if(n->sym != S)
+		return n->sym;
+	gen = 0;
+	outer = nil;
+	prefix = nil;
+	if(n->outerfunc == N) {
+		// Global closure.
+		outer = "glob";
+		prefix = "func";
+		gen = ++closgen;
+	} else if(n->outerfunc->op == ODCLFUNC) {
+		// The outermost closure inside of a named function.
+		outer = n->outerfunc->nname->sym->name;
+		prefix = "func";
+		// Yes, functions can be named _.
+		// Can't use function closgen in such case,
+		// because it would lead to name clashes.
+		if(!isblank(n->outerfunc->nname))
+			gen = ++n->outerfunc->closgen;
+		else
+			gen = ++closgen;
+	} else if(n->outerfunc->op == OCLOSURE) {
+		// Nested closure, recurse.
+		outer = closurename(n->outerfunc)->name;
+		prefix = "";
+		gen = ++n->outerfunc->closgen;
+	} else
+		fatal("closurename called for %hN", n);
+	snprint(namebuf, sizeof namebuf, "%s.%s%d", outer, prefix, gen);
+	n->sym = lookup(namebuf);
+	return n->sym;
+}
+
 static Node*
 makeclosure(Node *func)
 {
 	Node *xtype, *xfunc;
-	static int closgen;
 
 	/*
 	 * wrap body in external function
@@ -140,8 +185,7 @@ makeclosure(Node *func)
 
 	// create the function
 	xfunc = nod(ODCLFUNC, N, N);
-	snprint(namebuf, sizeof namebuf, "func·%.3d", ++closgen);
-	xfunc->nname = newname(lookup(namebuf));
+	xfunc->nname = newname(closurename(func));
 	xfunc->nname->sym->flags |= SymExported; // disable export
 	xfunc->nname->ntype = xtype;
 	xfunc->nname->defn = xfunc;
@@ -158,7 +202,7 @@ makeclosure(Node *func)
 
 	xfunc->closure = func;
 	func->closure = xfunc;
-	
+
 	func->nbody = nil;
 	func->list = nil;
 	func->rlist = nil;
@@ -368,7 +412,7 @@ walkclosure(Node *func, NodeList **init)
 	// and has one float64 argument and no results,
 	// the generated code looks like:
 	//
-	//	clos = &struct{F uintptr; A0 *int; A1 *string}{func·001, &i, &s}
+	//	clos = &struct{.F uintptr; i *int; s *string}{func.1, &i, &s}
 	//
 	// The use of the struct provides type information to the garbage
 	// collector so that it can walk the closure. We could use (in this case)
@@ -378,7 +422,7 @@ walkclosure(Node *func, NodeList **init)
 	// same struct type can share the descriptor.
 
 	typ = nod(OTSTRUCT, N, N);
-	typ->list = list1(nod(ODCLFIELD, newname(lookup("F")), typenod(types[TUINTPTR])));
+	typ->list = list1(nod(ODCLFIELD, newname(lookup(".F")), typenod(types[TUINTPTR])));
 	for(l=func->cvars; l; l=l->next) {
 		v = l->n;
 		if(v->op == OXXX)
@@ -447,12 +491,11 @@ makepartialcall(Node *fn, Type *t0, Node *meth)
 	static Pkg* gopkg;
 	int i, ddd;
 
-	// TODO: names are not right
 	rcvrtype = fn->left->type;
 	if(exportname(meth->sym->name))
-		p = smprint("%-hT.%s·fm", rcvrtype, meth->sym->name);
+		p = smprint("(%-hT).%s-fm", rcvrtype, meth->sym->name);
 	else
-		p = smprint("%-hT.(%-S)·fm", rcvrtype, meth->sym);
+		p = smprint("(%-hT).(%-S)-fm", rcvrtype, meth->sym);
 	basetype = rcvrtype;
 	if(isptr[rcvrtype->etype])
 		basetype = basetype->type;

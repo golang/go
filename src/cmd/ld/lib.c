@@ -269,11 +269,13 @@ loadlib(void)
 	
 	tlsg = linklookup(ctxt, "runtime.tlsg", 0);
 	// For most ports, runtime.tlsg is a placeholder symbol for TLS
-	// relocation. However, the Android and Darwin ports need it to
-	// be a real variable. Instead of hard-coding which platforms
-	// need it to be a real variable, we set the type to STLSBSS only
-	// when the runtime has not declared its type already.
-	if(tlsg->type == 0)
+	// relocation. However, the Android and Darwin arm ports need it
+	// to be a real variable.
+	//
+	// TODO(crawshaw): android should require leaving the tlsg->type
+	// alone (as the runtime-provided SNOPTRBSS) just like darwin/arm.
+	// But some other part of the linker is expecting STLSBSS.
+	if (!(strcmp(goos, "darwin") == 0 && thearch.thechar == '5'))
 		tlsg->type = STLSBSS;
 	tlsg->size = thearch.ptrsize;
 	tlsg->hide = 1;

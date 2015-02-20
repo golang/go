@@ -13,6 +13,24 @@ package runtime
 
 import "unsafe"
 
+//go:linkname runtime_debug_WriteHeapDump runtime/debug.WriteHeapDump
+func runtime_debug_WriteHeapDump(fd uintptr) {
+	semacquire(&worldsema, false)
+	gp := getg()
+	gp.m.preemptoff = "write heap dump"
+	systemstack(stoptheworld)
+
+	systemstack(func() {
+		writeheapdump_m(fd)
+	})
+
+	gp.m.preemptoff = ""
+	gp.m.locks++
+	semrelease(&worldsema)
+	systemstack(starttheworld)
+	gp.m.locks--
+}
+
 const (
 	fieldKindEol       = 0
 	fieldKindPtr       = 1

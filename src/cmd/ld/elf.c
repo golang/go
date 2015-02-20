@@ -1363,6 +1363,7 @@ asmbelf(vlong symo)
 			sh->type = SHT_REL;
 			sh->flags = SHF_ALLOC;
 			sh->entsize = ELF32RELSIZE;
+			sh->addralign = 4;
 			sh->link = elfshname(".dynsym")->shnum;
 			shsym(sh, linklookup(ctxt, ".rel.plt", 0));
 

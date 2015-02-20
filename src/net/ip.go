@@ -132,7 +132,7 @@ func (ip IP) IsMulticast() bool {
 	return ip[0] == 0xff
 }
 
-// IsInterfaceLinkLocalMulticast returns true if ip is
+// IsInterfaceLocalMulticast returns true if ip is
 // an interface-local multicast address.
 func (ip IP) IsInterfaceLocalMulticast() bool {
 	return len(ip) == IPv6len && ip[0] == 0xff && ip[1]&0x0f == 0x01

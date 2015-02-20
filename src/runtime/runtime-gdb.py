@@ -28,6 +28,31 @@ goobjfile = gdb.current_objfile() or gdb.objfiles()[0]
 goobjfile.pretty_printers = []
 
 #
+#  Value wrappers
+#
+
+class SliceValue:
+	"Wrapper for slice values."
+
+	def __init__(self, val):
+		self.val = val
+
+	@property
+	def len(self):
+		return int(self.val['len'])
+
+	@property
+	def cap(self):
+		return int(self.val['cap'])
+
+	def __getitem__(self, i):
+		if i < 0 or i >= self.len:
+			raise IndexError(i)
+		ptr = self.val["array"]
+		return (ptr + i).dereference()
+
+
+#
 #  Pretty Printers
 #
 
@@ -63,11 +88,11 @@ class SliceTypePrinter:
 		return str(self.val.type)[6:]  # skip 'struct '
 
 	def children(self):
-		if self.val["len"] > self.val["cap"]:
+		sval = SliceValue(self.val)
+		if sval.len > sval.cap:
 			return
-		ptr = self.val["array"]
-		for idx in range(int(self.val["len"])):
-			yield ('[{0}]'.format(idx), (ptr + idx).dereference())
+		for idx, item in enumerate(sval):
+			yield ('[{0}]'.format(idx), item)
 
 
 class MapTypePrinter:
@@ -355,8 +380,8 @@ class GoroutinesCmd(gdb.Command):
 	def invoke(self, _arg, _from_tty):
 		# args = gdb.string_to_argv(arg)
 		vp = gdb.lookup_type('void').pointer()
-		for ptr in linked_list(gdb.parse_and_eval("'runtime.allg'"), 'alllink'):
-			if ptr['status'] == 6:  # 'gdead'
+		for ptr in SliceValue(gdb.parse_and_eval("'runtime.allgs'")):
+			if ptr['atomicstatus'] == 6:  # 'gdead'
 				continue
 			s = ' '
 			if ptr['m']:
@@ -370,9 +395,12 @@ class GoroutinesCmd(gdb.Command):
 				#python3 / newer versions of gdb
 				pc = int(pc)
 			except gdb.error:
-				pc = int(str(pc), 16)
+				# str(pc) can return things like
+				# "0x429d6c <runtime.gopark+284>", so
+				# chop at first space.
+				pc = int(str(pc).split(None, 1)[0], 16)
 			blk = gdb.block_for_pc(pc)
-			print(s, ptr['goid'], "{0:8s}".format(sts[int(ptr['status'])]), blk.function)
+			print(s, ptr['goid'], "{0:8s}".format(sts[int(ptr['atomicstatus'])]), blk.function)
 
 
 def find_goroutine(goid):
@@ -386,8 +414,8 @@ def find_goroutine(goid):
 	@return tuple (gdb.Value, gdb.Value)
 	"""
 	vp = gdb.lookup_type('void').pointer()
-	for ptr in linked_list(gdb.parse_and_eval("'runtime.allg'"), 'alllink'):
-		if ptr['status'] == 6:  # 'gdead'
+	for ptr in SliceValue(gdb.parse_and_eval("'runtime.allgs'")):
+		if ptr['atomicstatus'] == 6:  # 'gdead'
 			continue
 		if ptr['goid'] == goid:
 			return (ptr['sched'][x].cast(vp) for x in ('pc', 'sp'))
