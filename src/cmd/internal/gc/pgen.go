@@ -409,7 +409,7 @@ func compile(fn *Node) {
 	dowidth(Curfn.Type)
 
 	if fn.Nbody == nil {
-		if pure_go != 0 || strings.HasPrefix(fn.Nname.Sym.Name, "init·") {
+		if pure_go != 0 || strings.HasPrefix(fn.Nname.Sym.Name, "init.") {
 			Yyerror("missing function body", fn)
 			goto ret
 		}

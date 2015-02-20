@@ -550,6 +550,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			if false {
 				// Debug bad returns
 				q = ctxt.NewProg()
+
 				q.As = AMOVD
 				q.Lineno = p.Lineno
 				q.From.Type = obj.TYPE_MEM

@@ -1177,8 +1177,8 @@ var opprec = []int{
 	OSEND:         3,
 	OANDAND:       2,
 	OOROR:         1,
-	OAS:// Statements handled by stmtfmt
-	-1,
+	// Statements handled by stmtfmt
+	OAS:         -1,
 	OAS2:        -1,
 	OAS2DOTTYPE: -1,
 	OAS2FUNC:    -1,

@@ -203,6 +203,8 @@ type Node struct {
 	Dcl            *NodeList
 	Inl            *NodeList
 	Inldcl         *NodeList
+	Closgen        int
+	Outerfunc      *Node
 	Val            Val
 	Ntype          *Node
 	Defn           *Node

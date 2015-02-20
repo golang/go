@@ -24,14 +24,14 @@ import "fmt"
  * it is called by the initialization before
  * main is run. to make it unique within a
  * package and also uncallable, the name,
- * normally "pkg.init", is altered to "pkg.init·1".
+ * normally "pkg.init", is altered to "pkg.init.1".
  */
 
 var renameinit_initgen int
 
 func renameinit() *Sym {
 	renameinit_initgen++
-	namebuf = fmt.Sprintf("init·%d", renameinit_initgen)
+	namebuf = fmt.Sprintf("init.%d", renameinit_initgen)
 	return Lookup(namebuf)
 }
 
@@ -48,7 +48,7 @@ func renameinit() *Sym {
  *		// over all matching imported symbols
  *			<pkg>.init()			(7)
  *		{ <init stmts> }			(8)
- *		init·<n>() // if any			(9)
+ *		init.<n>() // if any			(9)
  *		initdone· = 2;				(10)
  *		return					(11)
  *	}
@@ -85,9 +85,8 @@ func anyinit(n *NodeList) bool {
 	}
 
 	// is there an explicit init function
-	namebuf = fmt.Sprintf("init·1")
+	s = Lookup("init.1")
 
-	s = Lookup(namebuf)
 	if s.Def != nil {
 		return true
 	}
@@ -201,7 +200,7 @@ func fninit(n *NodeList) {
 	// (9)
 	// could check that it is fn of no args/returns
 	for i = 1; ; i++ {
-		namebuf = fmt.Sprintf("init·%d", i)
+		namebuf = fmt.Sprintf("init.%d", i)
 		s = Lookup(namebuf)
 		if s.Def == nil {
 			break

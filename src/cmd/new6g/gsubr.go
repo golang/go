@@ -719,9 +719,9 @@ func samaddr(f *gc.Node, t *gc.Node) bool {
 func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 	var w int32
 	var p *obj.Prog
-	var af obj.Addr
 	//	Node nod;
 
+	var af obj.Addr
 	var at obj.Addr
 
 	//	if(f != N && f->op == OINDEX) {
