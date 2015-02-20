@@ -393,6 +393,7 @@ const (
 var goTools = map[string]targetDir{
 	"cmd/addr2line":                        toTool,
 	"cmd/api":                              toTool,
+	"cmd/asm":                              toTool,
 	"cmd/cgo":                              toTool,
 	"cmd/dist":                             toTool,
 	"cmd/fix":                              toTool,
