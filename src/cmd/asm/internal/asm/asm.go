@@ -586,10 +586,15 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 			// Strange special case: MCR, MRC.
 			// TODO: Move this to arch? (It will be hard to disentangle.)
 			prog.To.Type = obj.TYPE_CONST
+			bits, ok := uint8(0), false
 			if cond != "" {
-				p.errorf("TODO: can't handle ARM condition code for instruction %s", p.arch.Aconv(op))
+				// Cond is handled specially for this instruction.
+				bits, ok = arch.ParseARMCondition(cond)
+				if !ok {
+					p.errorf("unrecognized condition code .%q", cond)
+				}
+				cond = ""
 			}
-			cond = ""
 			// First argument is a condition code as a constant.
 			x0 := p.getConstant(prog, op, &a[0])
 			x1 := p.getConstant(prog, op, &a[1])
@@ -605,7 +610,7 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 			prog.To.Offset =
 				(0xe << 24) | // opcode
 					(op1 << 20) | // MCR/MRC
-					((0 ^ arm.C_SCOND_XOR) << 28) | // scond TODO; should use cond.
+					((int64(bits) ^ arm.C_SCOND_XOR) << 28) | // scond
 					((x0 & 15) << 8) | //coprocessor number
 					((x1 & 7) << 21) | // coprocessor operation
 					((x2 & 15) << 12) | // ARM register
