@@ -202,7 +202,7 @@ func selparkcommit(gp *g, sel unsafe.Pointer) bool {
 }
 
 func block() {
-	gopark(nil, nil, "select (no cases)", traceEvGoStop) // forever
+	gopark(nil, nil, "select (no cases)", traceEvGoStop, 1) // forever
 }
 
 // overwrites return pc on stack to signal which case of the select
@@ -392,7 +392,7 @@ loop:
 
 	// wait for someone to wake us up
 	gp.param = nil
-	gopark(selparkcommit, unsafe.Pointer(sel), "select", traceEvGoBlockSelect)
+	gopark(selparkcommit, unsafe.Pointer(sel), "select", traceEvGoBlockSelect, 2)
 
 	// someone woke us up
 	sellock(sel)
@@ -493,7 +493,7 @@ asyncrecv:
 		if sg.releasetime != 0 {
 			sg.releasetime = cputicks()
 		}
-		goready(gp)
+		goready(gp, 3)
 	} else {
 		selunlock(sel)
 	}
@@ -519,7 +519,7 @@ asyncsend:
 		if sg.releasetime != 0 {
 			sg.releasetime = cputicks()
 		}
-		goready(gp)
+		goready(gp, 3)
 	} else {
 		selunlock(sel)
 	}
@@ -549,7 +549,7 @@ syncrecv:
 	if sg.releasetime != 0 {
 		sg.releasetime = cputicks()
 	}
-	goready(gp)
+	goready(gp, 3)
 	goto retc
 
 rclose:
@@ -585,7 +585,7 @@ syncsend:
 	if sg.releasetime != 0 {
 		sg.releasetime = cputicks()
 	}
-	goready(gp)
+	goready(gp, 3)
 
 retc:
 	if cas.releasetime > 0 {

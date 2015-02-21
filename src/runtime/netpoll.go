@@ -237,10 +237,10 @@ func net_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
 	}
 	unlock(&pd.lock)
 	if rg != nil {
-		goready(rg)
+		goready(rg, 3)
 	}
 	if wg != nil {
-		goready(wg)
+		goready(wg, 3)
 	}
 }
 
@@ -266,10 +266,10 @@ func net_runtime_pollUnblock(pd *pollDesc) {
 	}
 	unlock(&pd.lock)
 	if rg != nil {
-		goready(rg)
+		goready(rg, 3)
 	}
 	if wg != nil {
-		goready(wg)
+		goready(wg, 3)
 	}
 }
 
@@ -333,7 +333,7 @@ func netpollblock(pd *pollDesc, mode int32, waitio bool) bool {
 	// this is necessary because runtime_pollUnblock/runtime_pollSetDeadline/deadlineimpl
 	// do the opposite: store to closing/rd/wd, membarrier, load of rg/wg
 	if waitio || netpollcheckerr(pd, mode) == 0 {
-		gopark(netpollblockcommit, unsafe.Pointer(gpp), "IO wait", traceEvGoBlockNet)
+		gopark(netpollblockcommit, unsafe.Pointer(gpp), "IO wait", traceEvGoBlockNet, 5)
 	}
 	// be careful to not lose concurrent READY notification
 	old := xchguintptr(gpp, 0)
@@ -401,10 +401,10 @@ func netpolldeadlineimpl(pd *pollDesc, seq uintptr, read, write bool) {
 	}
 	unlock(&pd.lock)
 	if rg != nil {
-		goready(rg)
+		goready(rg, 0)
 	}
 	if wg != nil {
-		goready(wg)
+		goready(wg, 0)
 	}
 }
 

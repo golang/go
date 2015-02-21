@@ -128,9 +128,9 @@ func mcommoninit(mp *m) {
 }
 
 // Mark gp ready to run.
-func ready(gp *g) {
+func ready(gp *g, traceskip int) {
 	if trace.enabled {
-		traceGoUnpark(gp)
+		traceGoUnpark(gp, traceskip)
 	}
 
 	status := readgstatus(gp)
@@ -447,7 +447,7 @@ func restartg(gp *g) {
 			throw("processing Gscanenqueue on wrong m")
 		}
 		dropg()
-		ready(gp)
+		ready(gp, 0)
 	}
 }
 
@@ -1218,7 +1218,7 @@ top:
 	}
 	if fingwait && fingwake {
 		if gp := wakefing(); gp != nil {
-			ready(gp)
+			ready(gp, 0)
 		}
 	}
 
@@ -1249,7 +1249,7 @@ top:
 			injectglist(gp.schedlink)
 			casgstatus(gp, _Gwaiting, _Grunnable)
 			if trace.enabled {
-				traceGoUnpark(gp)
+				traceGoUnpark(gp, 0)
 			}
 			return gp
 		}
@@ -1336,7 +1336,7 @@ stop:
 				injectglist(gp.schedlink)
 				casgstatus(gp, _Gwaiting, _Grunnable)
 				if trace.enabled {
-					traceGoUnpark(gp)
+					traceGoUnpark(gp, 0)
 				}
 				return gp
 			}
@@ -1376,7 +1376,7 @@ func injectglist(glist *g) {
 	}
 	if trace.enabled {
 		for gp := glist; gp != nil; gp = gp.schedlink {
-			traceGoUnpark(gp)
+			traceGoUnpark(gp, 0)
 		}
 	}
 	lock(&sched.lock)
@@ -1418,7 +1418,7 @@ top:
 		gp = traceReader()
 		if gp != nil {
 			casgstatus(gp, _Gwaiting, _Grunnable)
-			traceGoUnpark(gp)
+			traceGoUnpark(gp, 0)
 			resetspinning()
 		}
 	}
@@ -1472,27 +1472,9 @@ func dropg() {
 	}
 }
 
-// Puts the current goroutine into a waiting state and calls unlockf.
-// If unlockf returns false, the goroutine is resumed.
-func park(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason string, traceev byte) {
-	_g_ := getg()
-
-	_g_.m.waitlock = lock
-	_g_.m.waitunlockf = *(*unsafe.Pointer)(unsafe.Pointer(&unlockf))
-	_g_.m.waittraceev = traceev
-	_g_.waitreason = reason
-	mcall(park_m)
-}
-
 func parkunlock_c(gp *g, lock unsafe.Pointer) bool {
 	unlock((*mutex)(lock))
 	return true
-}
-
-// Puts the current goroutine into a waiting state and unlocks the lock.
-// The goroutine can be made runnable again by calling ready(gp).
-func parkunlock(lock *mutex, reason string, traceev byte) {
-	park(parkunlock_c, unsafe.Pointer(lock), reason, traceev)
 }
 
 // park continuation on g0.
@@ -1500,7 +1482,7 @@ func park_m(gp *g) {
 	_g_ := getg()
 
 	if trace.enabled {
-		traceGoPark(_g_.m.waittraceev, gp)
+		traceGoPark(_g_.m.waittraceev, _g_.m.waittraceskip, gp)
 	}
 
 	casgstatus(gp, _Grunning, _Gwaiting)
@@ -1513,7 +1495,7 @@ func park_m(gp *g) {
 		_g_.m.waitlock = nil
 		if !ok {
 			if trace.enabled {
-				traceGoUnpark(gp)
+				traceGoUnpark(gp, 2)
 			}
 			casgstatus(gp, _Gwaiting, _Grunnable)
 			execute(gp) // Schedule it back, never returns.

@@ -609,7 +609,7 @@ const (
 	EvGoBlockNet     = 27 // goroutine blocks on network [timestamp, stack]
 	EvGoSysCall      = 28 // syscall enter [timestamp, stack]
 	EvGoSysExit      = 29 // syscall exit [timestamp, goroutine id]
-	EvGoSysBlock     = 30 // syscall blocks [timestamp, stack]
+	EvGoSysBlock     = 30 // syscall blocks [timestamp]
 	EvGoWaiting      = 31 // denotes that goroutine is blocked when tracing starts [goroutine id]
 	EvGoInSyscall    = 32 // denotes that goroutine is in syscall when tracing starts [goroutine id]
 	EvHeapAlloc      = 33 // memstats.heap_alloc change [timestamp, heap_alloc]
@@ -653,7 +653,7 @@ var EventDescriptions = [EvCount]struct {
 	EvGoBlockNet:     {"GoBlockNet", true, []string{}},
 	EvGoSysCall:      {"GoSysCall", true, []string{}},
 	EvGoSysExit:      {"GoSysExit", false, []string{"g"}},
-	EvGoSysBlock:     {"GoSysBlock", true, []string{}},
+	EvGoSysBlock:     {"GoSysBlock", false, []string{}},
 	EvGoWaiting:      {"GoWaiting", false, []string{"g"}},
 	EvGoInSyscall:    {"GoInSyscall", false, []string{"g"}},
 	EvHeapAlloc:      {"HeapAlloc", false, []string{"mem"}},

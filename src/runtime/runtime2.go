@@ -280,6 +280,7 @@ type m struct {
 	waitunlockf   unsafe.Pointer // todo go func(*g, unsafe.pointer) bool
 	waitlock      unsafe.Pointer
 	waittraceev   byte
+	waittraceskip int
 	syscalltick   uint32
 	//#ifdef GOOS_windows
 	thread uintptr // thread handle

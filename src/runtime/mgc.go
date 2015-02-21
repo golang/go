@@ -270,7 +270,7 @@ func startGC(mode int) {
 		go backgroundgc()
 	} else if bggc.working == 0 {
 		bggc.working = 1
-		ready(bggc.g)
+		ready(bggc.g, 0)
 	}
 	unlock(&bggc.lock)
 }
@@ -291,7 +291,7 @@ func backgroundgc() {
 		gc(gcBackgroundMode)
 		lock(&bggc.lock)
 		bggc.working = 0
-		goparkunlock(&bggc.lock, "Concurrent GC wait", traceEvGoBlock)
+		goparkunlock(&bggc.lock, "Concurrent GC wait", traceEvGoBlock, 1)
 	}
 }
 
@@ -580,7 +580,7 @@ func gcSweep(mode int) {
 	lock(&sweep.lock)
 	if sweep.parked {
 		sweep.parked = false
-		ready(sweep.g)
+		ready(sweep.g, 0)
 	}
 	unlock(&sweep.lock)
 	mProf_GC()

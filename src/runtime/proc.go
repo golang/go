@@ -95,7 +95,7 @@ func main() {
 	// let the other goroutine finish printing the panic trace.
 	// Once it does, it will exit. See issue 3934.
 	if panicking != 0 {
-		gopark(nil, nil, "panicwait", traceEvGoStop)
+		gopark(nil, nil, "panicwait", traceEvGoStop, 1)
 	}
 
 	exit(0)
@@ -118,7 +118,7 @@ func forcegchelper() {
 			throw("forcegc: phase error")
 		}
 		atomicstore(&forcegc.idle, 1)
-		goparkunlock(&forcegc.lock, "force gc (idle)", traceEvGoBlock)
+		goparkunlock(&forcegc.lock, "force gc (idle)", traceEvGoBlock, 1)
 		// this goroutine is explicitly resumed by sysmon
 		if debug.gctrace > 0 {
 			println("GC forced")
@@ -137,7 +137,7 @@ func Gosched() {
 
 // Puts the current goroutine into a waiting state and calls unlockf.
 // If unlockf returns false, the goroutine is resumed.
-func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason string, traceEv byte) {
+func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason string, traceEv byte, traceskip int) {
 	mp := acquirem()
 	gp := mp.curg
 	status := readgstatus(gp)
@@ -148,6 +148,7 @@ func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason s
 	mp.waitunlockf = *(*unsafe.Pointer)(unsafe.Pointer(&unlockf))
 	gp.waitreason = reason
 	mp.waittraceev = traceEv
+	mp.waittraceskip = traceskip
 	releasem(mp)
 	// can't do anything that might move the G between Ms here.
 	mcall(park_m)
@@ -155,13 +156,13 @@ func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason s
 
 // Puts the current goroutine into a waiting state and unlocks the lock.
 // The goroutine can be made runnable again by calling goready(gp).
-func goparkunlock(lock *mutex, reason string, traceEv byte) {
-	gopark(parkunlock_c, unsafe.Pointer(lock), reason, traceEv)
+func goparkunlock(lock *mutex, reason string, traceEv byte, traceskip int) {
+	gopark(parkunlock_c, unsafe.Pointer(lock), reason, traceEv, traceskip)
 }
 
-func goready(gp *g) {
+func goready(gp *g, traceskip int) {
 	systemstack(func() {
-		ready(gp)
+		ready(gp, traceskip)
 	})
 }
 
