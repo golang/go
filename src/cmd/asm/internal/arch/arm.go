@@ -150,7 +150,7 @@ func ARMConditionCodes(prog *obj.Prog, cond string) bool {
 	if cond == "" {
 		return true
 	}
-	bits, ok := parseARMCondition(cond)
+	bits, ok := ParseARMCondition(cond)
 	if !ok {
 		return false
 	}
@@ -163,10 +163,10 @@ func ARMConditionCodes(prog *obj.Prog, cond string) bool {
 	return true
 }
 
-// parseARMCondition parses the conditions attached to an ARM instruction.
+// ParseARMCondition parses the conditions attached to an ARM instruction.
 // The input is a single string consisting of period-separated condition
 // codes, such as ".P.W". An initial period is ignored.
-func parseARMCondition(cond string) (uint8, bool) {
+func ParseARMCondition(cond string) (uint8, bool) {
 	if strings.HasPrefix(cond, ".") {
 		cond = cond[1:]
 	}

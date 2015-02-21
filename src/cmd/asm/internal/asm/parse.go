@@ -273,7 +273,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
 
 	// Register: R1
 	if tok.ScanToken == scanner.Ident && p.atStartOfRegister(name) {
-		if lex.IsRegisterShift(p.peek()) {
+		if p.atRegisterShift() {
 			// ARM shifted register such as R1<<R2 or R1>>2.
 			a.Type = obj.TYPE_SHIFT
 			a.Offset = p.registerShift(tok.String(), prefix)
@@ -379,6 +379,25 @@ func (p *Parser) atStartOfRegister(name string) bool {
 	}
 	// Parenthesized register: R(10).
 	return p.arch.RegisterPrefix[name] && p.peek() == '('
+}
+
+// atRegisterShift reports whether we are at the start of an ARM shifted register.
+// We have consumed the register or R prefix.
+func (p *Parser) atRegisterShift() bool {
+	// ARM only.
+	if p.arch.Thechar != '5' {
+		return false
+	}
+	// R1<<...
+	if lex.IsRegisterShift(p.peek()) {
+		return true
+	}
+	// R(1)<<...   Ugly check. TODO: Rethink how we handle ARM register shifts to be
+	// less special.
+	if p.peek() != '(' || len(p.input)-p.inputPos < 4 {
+		return false
+	}
+	return p.at('(', scanner.Int, ')') && lex.IsRegisterShift(p.input[p.inputPos+3].ScanToken)
 }
 
 // registerReference parses a register given either the name, R10, or a parenthesized form, SPR(10).
@@ -655,7 +674,7 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 
 // registerList parses an ARM register list expression, a list of registers in [].
 // There may be comma-separated ranges or individual registers, as in
-// [R1,R3-R5,R7]. Only R0 through R15 may appear.
+// [R1,R3-R5]. Only R0 through R15 may appear.
 // The opening bracket has been consumed.
 func (p *Parser) registerList(a *obj.Addr) {
 	// One range per loop.
@@ -916,4 +935,17 @@ func (p *Parser) have(token lex.ScanToken) bool {
 		}
 	}
 	return false
+}
+
+// at reports whether the next tokens are as requested.
+func (p *Parser) at(next ...lex.ScanToken) bool {
+	if len(p.input)-p.inputPos < len(next) {
+		return false
+	}
+	for i, r := range next {
+		if p.input[p.inputPos+i].ScanToken != r {
+			return false
+		}
+	}
+	return true
 }
