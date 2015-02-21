@@ -343,12 +343,12 @@ func (ctx *traceContext) proc(ev *trace.Event) uint64 {
 
 func (ctx *traceContext) emitSlice(ev *trace.Event, name string) {
 	ctx.emit(&ViewerEvent{
-		Name:  name,
-		Phase: "X",
-		Time:  ctx.time(ev),
-		Dur:   ctx.time(ev.Link) - ctx.time(ev),
-		Tid:   ctx.proc(ev),
-		//Stack: ctx.stack(ev.Stk),
+		Name:     name,
+		Phase:    "X",
+		Time:     ctx.time(ev),
+		Dur:      ctx.time(ev.Link) - ctx.time(ev),
+		Tid:      ctx.proc(ev),
+		Stack:    ctx.stack(ev.Stk),
 		EndStack: ctx.stack(ev.Link.Stk),
 	})
 }

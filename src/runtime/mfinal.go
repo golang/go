@@ -146,7 +146,7 @@ func runfinq() {
 			gp := getg()
 			fing = gp
 			fingwait = true
-			goparkunlock(&finlock, "finalizer wait", traceEvGoBlock)
+			goparkunlock(&finlock, "finalizer wait", traceEvGoBlock, 1)
 			continue
 		}
 		unlock(&finlock)

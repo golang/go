@@ -11,7 +11,6 @@ import (
 	"os"
 	"runtime"
 	. "runtime/pprof"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -344,43 +343,4 @@ func TestTraceStressStartStop(t *testing.T) {
 		}
 	}
 	<-outerDone
-}
-
-func TestTraceSymbolize(t *testing.T) {
-	skipTraceTestsIfNeeded(t)
-	if runtime.GOOS == "nacl" {
-		t.Skip("skipping: nacl tests fail with 'failed to symbolize trace: failed to start addr2line'")
-	}
-	buf := new(bytes.Buffer)
-	if err := StartTrace(buf); err != nil {
-		t.Fatalf("failed to start tracing: %v", err)
-	}
-	runtime.GC()
-	StopTrace()
-	events, err := trace.Parse(buf)
-	if err != nil {
-		t.Fatalf("failed to parse trace: %v", err)
-	}
-	err = trace.Symbolize(events, os.Args[0])
-	if err != nil {
-		t.Fatalf("failed to symbolize trace: %v", err)
-	}
-	found := false
-eventLoop:
-	for _, ev := range events {
-		if ev.Type != trace.EvGCStart {
-			continue
-		}
-		for _, f := range ev.Stk {
-			if strings.HasSuffix(f.File, "trace_test.go") &&
-				strings.HasSuffix(f.Fn, "pprof_test.TestTraceSymbolize") &&
-				f.Line == 358 {
-				found = true
-				break eventLoop
-			}
-		}
-	}
-	if !found {
-		t.Fatalf("the trace does not contain GC event")
-	}
 }

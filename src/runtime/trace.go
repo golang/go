@@ -46,7 +46,7 @@ const (
 	traceEvGoBlockNet     = 27 // goroutine blocks on network [timestamp, stack]
 	traceEvGoSysCall      = 28 // syscall enter [timestamp, stack]
 	traceEvGoSysExit      = 29 // syscall exit [timestamp, goroutine id]
-	traceEvGoSysBlock     = 30 // syscall blocks [timestamp, stack]
+	traceEvGoSysBlock     = 30 // syscall blocks [timestamp]
 	traceEvGoWaiting      = 31 // denotes that goroutine is blocked when tracing starts [goroutine id]
 	traceEvGoInSyscall    = 32 // denotes that goroutine is in syscall when tracing starts [goroutine id]
 	traceEvHeapAlloc      = 33 // memstats.heap_alloc change [timestamp, heap_alloc]
@@ -151,10 +151,10 @@ func StartTrace() error {
 			traceGoCreate(gp, gp.startpc)
 		}
 		if status == _Gwaiting {
-			traceEvent(traceEvGoWaiting, false, uint64(gp.goid))
+			traceEvent(traceEvGoWaiting, -1, uint64(gp.goid))
 		}
 		if status == _Gsyscall {
-			traceEvent(traceEvGoInSyscall, false, uint64(gp.goid))
+			traceEvent(traceEvGoInSyscall, -1, uint64(gp.goid))
 		}
 	}
 	traceProcStart()
@@ -302,7 +302,7 @@ func ReadTrace() []byte {
 	// Wait for new data.
 	if trace.fullHead == nil && !trace.shutdown {
 		trace.reader = getg()
-		goparkunlock(&trace.lock, "trace reader (blocked)", traceEvGoBlock)
+		goparkunlock(&trace.lock, "trace reader (blocked)", traceEvGoBlock, 2)
 		lock(&trace.lock)
 	}
 	// Write a buffer.
@@ -405,8 +405,10 @@ func traceFullDequeue() *traceBuf {
 
 // traceEvent writes a single event to trace buffer, flushing the buffer if necessary.
 // ev is event type.
-// If stack, write current stack id as the last argument.
-func traceEvent(ev byte, stack bool, args ...uint64) {
+// If skip > 0, write current stack id as the last argument (skipping skip top frames).
+// If skip = 0, this event type should contain a stack, but we don't want
+// to collect and remember it for this particular call.
+func traceEvent(ev byte, skip int, args ...uint64) {
 	mp, pid, bufp := traceAcquireBuffer()
 	// Double-check trace.enabled now that we've done m.locks++ and acquired bufLock.
 	// This protects from races between traceEvent and StartTrace/StopTrace.
@@ -440,7 +442,7 @@ func traceEvent(ev byte, stack bool, args ...uint64) {
 	}
 	buf.lastTicks = ticks
 	narg := byte(len(args))
-	if stack {
+	if skip >= 0 {
 		narg++
 	}
 	// We have only 2 bits for number of arguments.
@@ -460,17 +462,23 @@ func traceEvent(ev byte, stack bool, args ...uint64) {
 	for _, a := range args {
 		data = traceAppend(data, a)
 	}
-	if stack {
+	if skip == 0 {
+		data = append(data, 0)
+	} else if skip > 0 {
 		_g_ := getg()
 		gp := mp.curg
-		if gp == nil && ev == traceEvGoSysBlock {
-			gp = _g_
-		}
 		var nstk int
 		if gp == _g_ {
-			nstk = callers(1, buf.stk[:])
+			nstk = callers(skip, buf.stk[:])
 		} else if gp != nil {
-			nstk = gcallers(mp.curg, 1, buf.stk[:])
+			gp = mp.curg
+			nstk = gcallers(gp, skip, buf.stk[:])
+		}
+		if nstk > 0 {
+			nstk-- // skip runtime.goexit
+		}
+		if nstk > 0 && gp.goid == 1 {
+			nstk-- // skip runtime.main
 		}
 		id := trace.stackTab.put(buf.stk[:nstk])
 		data = traceAppend(data, uint64(id))
@@ -704,11 +712,11 @@ func (a *traceAlloc) drop() {
 // The following functions write specific events to trace.
 
 func traceGomaxprocs(procs int32) {
-	traceEvent(traceEvGomaxprocs, true, uint64(procs))
+	traceEvent(traceEvGomaxprocs, 1, uint64(procs))
 }
 
 func traceProcStart() {
-	traceEvent(traceEvProcStart, false)
+	traceEvent(traceEvProcStart, -1)
 }
 
 func traceProcStop(pp *p) {
@@ -717,73 +725,69 @@ func traceProcStop(pp *p) {
 	mp := acquirem()
 	oldp := mp.p
 	mp.p = pp
-	traceEvent(traceEvProcStop, false)
+	traceEvent(traceEvProcStop, -1)
 	mp.p = oldp
 	releasem(mp)
 }
 
 func traceGCStart() {
-	traceEvent(traceEvGCStart, true)
+	traceEvent(traceEvGCStart, 4)
 }
 
 func traceGCDone() {
-	traceEvent(traceEvGCDone, false)
+	traceEvent(traceEvGCDone, -1)
 }
 
 func traceGCScanStart() {
-	traceEvent(traceEvGCScanStart, false)
+	traceEvent(traceEvGCScanStart, -1)
 }
 
 func traceGCScanDone() {
-	traceEvent(traceEvGCScanDone, false)
+	traceEvent(traceEvGCScanDone, -1)
 }
 
 func traceGCSweepStart() {
-	traceEvent(traceEvGCSweepStart, true)
+	traceEvent(traceEvGCSweepStart, 1)
 }
 
 func traceGCSweepDone() {
-	traceEvent(traceEvGCSweepDone, false)
+	traceEvent(traceEvGCSweepDone, -1)
 }
 
 func traceGoCreate(newg *g, pc uintptr) {
-	traceEvent(traceEvGoCreate, true, uint64(newg.goid), uint64(pc))
+	traceEvent(traceEvGoCreate, 2, uint64(newg.goid), uint64(pc))
 }
 
 func traceGoStart() {
-	traceEvent(traceEvGoStart, false, uint64(getg().m.curg.goid))
+	traceEvent(traceEvGoStart, -1, uint64(getg().m.curg.goid))
 }
 
 func traceGoEnd() {
-	traceEvent(traceEvGoEnd, false)
+	traceEvent(traceEvGoEnd, -1)
 }
 
 func traceGoSched() {
-	traceEvent(traceEvGoSched, true)
+	traceEvent(traceEvGoSched, 1)
 }
 
 func traceGoPreempt() {
-	traceEvent(traceEvGoPreempt, true)
+	traceEvent(traceEvGoPreempt, 1)
 }
 
-func traceGoStop() {
-	traceEvent(traceEvGoStop, true)
+func traceGoPark(traceEv byte, skip int, gp *g) {
+	traceEvent(traceEv, skip)
 }
 
-func traceGoPark(traceEv byte, gp *g) {
-	traceEvent(traceEv, true)
-}
-
-func traceGoUnpark(gp *g) {
-	traceEvent(traceEvGoUnblock, true, uint64(gp.goid))
+func traceGoUnpark(gp *g, skip int) {
+	traceEvent(traceEvGoUnblock, skip, uint64(gp.goid))
 }
 
 func traceGoSysCall() {
-	traceEvent(traceEvGoSysCall, true)
+	traceEvent(traceEvGoSysCall, 4)
 }
 
 func traceGoSysExit() {
-	traceEvent(traceEvGoSysExit, false, uint64(getg().m.curg.goid))
+	traceEvent(traceEvGoSysExit, -1, uint64(getg().m.curg.goid))
 }
 
 func traceGoSysBlock(pp *p) {
@@ -792,15 +796,15 @@ func traceGoSysBlock(pp *p) {
 	mp := acquirem()
 	oldp := mp.p
 	mp.p = pp
-	traceEvent(traceEvGoSysBlock, true)
+	traceEvent(traceEvGoSysBlock, -1)
 	mp.p = oldp
 	releasem(mp)
 }
 
 func traceHeapAlloc() {
-	traceEvent(traceEvHeapAlloc, false, memstats.heap_alloc)
+	traceEvent(traceEvHeapAlloc, -1, memstats.heap_alloc)
 }
 
 func traceNextGC() {
-	traceEvent(traceEvNextGC, false, memstats.next_gc)
+	traceEvent(traceEvNextGC, -1, memstats.next_gc)
 }
