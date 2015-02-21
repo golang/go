@@ -10,6 +10,11 @@ usr	src=../misc/nacl/testdata
 go	src=..
 	src
 		cmd
+			asm
+				internal
+					asm
+						testdata
+							+
 			internal
 				objfile
 					objfile.go
