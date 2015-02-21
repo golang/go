@@ -225,8 +225,7 @@ TEXT	foo(SB), 0, $0
 //			(1<<4));			/* must be set */
 //		outcode(AMRC, Always, &nullgen, 0, &g);
 //	}
-// TODO: Representation in printout differs between 32- and 64-bit machines.
-// Fix the output in obj/arm and restore this.
+// TODO: Disabled until printout for this instruction is the same for 32 and 64 bits.
 //	MRC.S	4, 6, R1, C2, C3, 7
 
 //
