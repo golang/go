@@ -42,6 +42,8 @@ func testEndToEnd(t *testing.T, goarch string) {
 	}
 	result := string(testOut.Bytes())
 	expect, err := ioutil.ReadFile(output)
+	// For Windows.
+	result = strings.Replace(result, `testdata\`, `testdata/`, -1)
 	if err != nil {
 		t.Fatal(err)
 	}
