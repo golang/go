@@ -45,10 +45,9 @@
 197 00045 (testdata/arm.s:197)	ADDD.S	F1,F2,F3
 198 00046 (testdata/arm.s:198)	ADDD.S	$0.5,F2,F3
 204 00047 (testdata/arm.s:204)	CMPD.S	F1,F2
-228 00048 (testdata/arm.s:228)	MRC	,$8301712627
-237 00049 (testdata/arm.s:237)	MULL	R1,R2,(R3, R4)
-249 00050 (testdata/arm.s:249)	MULAWT	R1,R2,R3, R4
-257 00051 (testdata/arm.s:257)	PLD	0(R1),
-258 00052 (testdata/arm.s:258)	PLD	4(R1),
-267 00053 (testdata/arm.s:267)	RET	,
-276 00054 (testdata/arm.s:276)	END	,
+238 00048 (testdata/arm.s:238)	MULL	R1,R2,(R3, R4)
+250 00049 (testdata/arm.s:250)	MULAWT	R1,R2,R3, R4
+258 00050 (testdata/arm.s:258)	PLD	0(R1),
+259 00051 (testdata/arm.s:259)	PLD	4(R1),
+268 00052 (testdata/arm.s:268)	RET	,
+277 00053 (testdata/arm.s:277)	END	,
