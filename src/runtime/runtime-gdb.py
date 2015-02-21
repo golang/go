@@ -227,8 +227,6 @@ def lookup_type(name):
 	except gdb.error:
 		pass
 
-_rctp_type = gdb.lookup_type("struct reflect.rtype").pointer()
-
 
 def iface_commontype(obj):
 	if is_iface(obj):
@@ -238,7 +236,7 @@ def iface_commontype(obj):
 	else:
 		return
 
-	return go_type_ptr.cast(_rctp_type).dereference()
+	return go_type_ptr.cast(gdb.lookup_type("struct reflect.rtype").pointer()).dereference()
 
 
 def iface_dtype(obj):
