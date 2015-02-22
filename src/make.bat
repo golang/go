@@ -88,14 +88,14 @@ echo ##### Building tools for local system. %GOHOSTOS%/%GOHOSTARCH%
 setlocal
 set GOOS=%GOHOSTOS%
 set GOARCH=%GOHOSTARCH%
-"%GOTOOLDIR%\go_bootstrap" install -gcflags "%GO_GCFLAGS%" -ldflags "%GO_LDFLAGS%" -v std
+"%GOTOOLDIR%\go_bootstrap" install -gcflags "%GO_GCFLAGS%" -ldflags "%GO_LDFLAGS%" -v std cmd
 endlocal
 if errorlevel 1 goto fail
 echo.
 
 :mainbuild
 echo ##### Building packages and commands.
-"%GOTOOLDIR%\go_bootstrap" install -gcflags "%GO_GCFLAGS%" -ldflags "%GO_LDFLAGS%" -a -v std
+"%GOTOOLDIR%\go_bootstrap" install -gcflags "%GO_GCFLAGS%" -ldflags "%GO_LDFLAGS%" -a -v std cmd
 if errorlevel 1 goto fail
 del "%GOTOOLDIR%\go_bootstrap.exe"
 echo.

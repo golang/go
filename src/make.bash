@@ -153,12 +153,12 @@ if [ "$GOHOSTARCH" != "$GOARCH" -o "$GOHOSTOS" != "$GOOS" ]; then
 	# CC_FOR_TARGET is recorded as the default compiler for the go tool. When building for the host, however,
 	# use the host compiler, CC, from `cmd/dist/dist env` instead.
 	CC=$CC GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH \
-		"$GOTOOLDIR"/go_bootstrap install -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std
+		"$GOTOOLDIR"/go_bootstrap install -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std cmd
 	echo
 fi
 
 echo "##### Building packages and commands for $GOOS/$GOARCH."
-CC=$CC_FOR_TARGET "$GOTOOLDIR"/go_bootstrap install $GO_FLAGS -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std
+CC=$CC_FOR_TARGET "$GOTOOLDIR"/go_bootstrap install $GO_FLAGS -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std cmd
 echo
 
 rm -f "$GOTOOLDIR"/go_bootstrap
