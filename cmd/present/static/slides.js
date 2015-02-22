@@ -399,6 +399,7 @@ function handleBodyKeyDown(event) {
 
   switch (event.keyCode) {
     case 72: // 'H' hides the help text
+    case 27: // escape key
       if (!inCode) hideHelpText();
       break;
 
@@ -482,6 +483,10 @@ function handleDomLoaded() {
   updateSlides();
 
   setupInteraction();
+
+  if (window.location.hostname == "localhost" || window.location.hostname == "127.0.0.1" || window.location.hostname == "::1") {
+    hideHelpText();
+  }
 
   document.body.classList.add('loaded');
 };
