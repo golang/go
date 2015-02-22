@@ -25,9 +25,6 @@ import (
 )
 
 const (
-	maxValueLength   = 4096
-	maxHeaderLines   = 1024
-	chunkSize        = 4 << 10  // 4 KB chunks
 	defaultMaxMemory = 32 << 20 // 32 MB
 )
 
