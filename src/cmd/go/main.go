@@ -505,7 +505,7 @@ func matchPackages(pattern string) []string {
 	var pkgs []string
 
 	for _, src := range buildContext.SrcDirs() {
-		if pattern == "std" && src != gorootSrc {
+		if (pattern == "std" || pattern == "cmd") && src != gorootSrc {
 			continue
 		}
 		src = filepath.Clean(src) + string(filepath.Separator)
