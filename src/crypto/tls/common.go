@@ -331,7 +331,7 @@ type Config struct {
 	ClientSessionCache ClientSessionCache
 
 	// MinVersion contains the minimum SSL/TLS version that is acceptable.
-	// If zero, then SSLv3 is taken as the minimum.
+	// If zero, then TLS 1.0 is taken as the minimum.
 	MinVersion uint16
 
 	// MaxVersion contains the maximum SSL/TLS version that is acceptable.
