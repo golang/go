@@ -311,7 +311,7 @@ func importPathsNoDotExpansion(args []string) []string {
 		} else {
 			a = path.Clean(a)
 		}
-		if a == "all" || a == "std" {
+		if a == "all" || a == "std" || a == "cmd" {
 			out = append(out, allPackages(a)...)
 			continue
 		}
@@ -478,8 +478,8 @@ func treeCanMatchPattern(pattern string) func(name string) bool {
 
 // allPackages returns all the packages that can be found
 // under the $GOPATH directories and $GOROOT matching pattern.
-// The pattern is either "all" (all packages), "std" (standard packages)
-// or a path including "...".
+// The pattern is either "all" (all packages), "std" (standard packages),
+// "cmd" (standard commands), or a path including "...".
 func allPackages(pattern string) []string {
 	pkgs := matchPackages(pattern)
 	if len(pkgs) == 0 {
@@ -491,7 +491,7 @@ func allPackages(pattern string) []string {
 func matchPackages(pattern string) []string {
 	match := func(string) bool { return true }
 	treeCanMatch := func(string) bool { return true }
-	if pattern != "all" && pattern != "std" {
+	if pattern != "all" && pattern != "std" && pattern != "cmd" {
 		match = matchPattern(pattern)
 		treeCanMatch = treeCanMatchPattern(pattern)
 	}
@@ -504,47 +504,16 @@ func matchPackages(pattern string) []string {
 	}
 	var pkgs []string
 
-	// Commands
-	cmd := filepath.Join(goroot, "src/cmd") + string(filepath.Separator)
-	filepath.Walk(cmd, func(path string, fi os.FileInfo, err error) error {
-		if err != nil || !fi.IsDir() || path == cmd {
-			return nil
-		}
-		name := path[len(cmd):]
-		if !treeCanMatch(name) {
-			return filepath.SkipDir
-		}
-		// Commands are all in cmd/, not in subdirectories.
-		if strings.Contains(name, string(filepath.Separator)) {
-			return filepath.SkipDir
-		}
-
-		// We use, e.g., cmd/gofmt as the pseudo import path for gofmt.
-		name = "cmd/" + name
-		if have[name] {
-			return nil
-		}
-		have[name] = true
-		if !match(name) {
-			return nil
-		}
-		_, err = buildContext.ImportDir(path, 0)
-		if err != nil {
-			if _, noGo := err.(*build.NoGoError); !noGo {
-				log.Print(err)
-			}
-			return nil
-		}
-		pkgs = append(pkgs, name)
-		return nil
-	})
-
 	for _, src := range buildContext.SrcDirs() {
 		if pattern == "std" && src != gorootSrc {
 			continue
 		}
 		src = filepath.Clean(src) + string(filepath.Separator)
-		filepath.Walk(src, func(path string, fi os.FileInfo, err error) error {
+		root := src
+		if pattern == "cmd" {
+			root += "cmd" + string(filepath.Separator)
+		}
+		filepath.Walk(root, func(path string, fi os.FileInfo, err error) error {
 			if err != nil || !fi.IsDir() || path == src {
 				return nil
 			}
@@ -556,7 +525,10 @@ func matchPackages(pattern string) []string {
 			}
 
 			name := filepath.ToSlash(path[len(src):])
-			if pattern == "std" && strings.Contains(name, ".") {
+			if pattern == "std" && (strings.Contains(name, ".") || name == "cmd") {
+				// The name "std" is only the standard library.
+				// If the name has a dot, assume it's a domain name for go get,
+				// and if the name is cmd, it's the root of the command tree.
 				return filepath.SkipDir
 			}
 			if !treeCanMatch(name) {
