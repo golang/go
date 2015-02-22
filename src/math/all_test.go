@@ -991,6 +991,24 @@ var vffdimSC = [][2]float64{
 	{NaN(), Inf(1)},
 	{NaN(), NaN()},
 }
+var nan = Float64frombits(0xFFF8000000000000) // SSE2 DIVSD 0/0
+var vffdim2SC = [][2]float64{
+	{Inf(-1), Inf(-1)},
+	{Inf(-1), Inf(1)},
+	{Inf(-1), nan},
+	{Copysign(0, -1), Copysign(0, -1)},
+	{Copysign(0, -1), 0},
+	{0, Copysign(0, -1)},
+	{0, 0},
+	{Inf(1), Inf(-1)},
+	{Inf(1), Inf(1)},
+	{Inf(1), nan},
+	{nan, Inf(-1)},
+	{nan, Copysign(0, -1)},
+	{nan, 0},
+	{nan, Inf(1)},
+	{nan, nan},
+}
 var fdimSC = []float64{
 	NaN(),
 	0,
@@ -2015,6 +2033,11 @@ func TestDim(t *testing.T) {
 			t.Errorf("Dim(%g, %g) = %g, want %g", vffdimSC[i][0], vffdimSC[i][1], f, fdimSC[i])
 		}
 	}
+	for i := 0; i < len(vffdim2SC); i++ {
+		if f := Dim(vffdim2SC[i][0], vffdim2SC[i][1]); !alike(fdimSC[i], f) {
+			t.Errorf("Dim(%g, %g) = %g, want %g", vffdim2SC[i][0], vffdim2SC[i][1], f, fdimSC[i])
+		}
+	}
 }
 
 func TestFloor(t *testing.T) {
@@ -2041,6 +2064,11 @@ func TestMax(t *testing.T) {
 			t.Errorf("Max(%g, %g) = %g, want %g", vffdimSC[i][0], vffdimSC[i][1], f, fmaxSC[i])
 		}
 	}
+	for i := 0; i < len(vffdim2SC); i++ {
+		if f := Max(vffdim2SC[i][0], vffdim2SC[i][1]); !alike(fmaxSC[i], f) {
+			t.Errorf("Max(%g, %g) = %g, want %g", vffdim2SC[i][0], vffdim2SC[i][1], f, fmaxSC[i])
+		}
+	}
 }
 
 func TestMin(t *testing.T) {
@@ -2052,6 +2080,11 @@ func TestMin(t *testing.T) {
 	for i := 0; i < len(vffdimSC); i++ {
 		if f := Min(vffdimSC[i][0], vffdimSC[i][1]); !alike(fminSC[i], f) {
 			t.Errorf("Min(%g, %g) = %g, want %g", vffdimSC[i][0], vffdimSC[i][1], f, fminSC[i])
+		}
+	}
+	for i := 0; i < len(vffdim2SC); i++ {
+		if f := Min(vffdim2SC[i][0], vffdim2SC[i][1]); !alike(fminSC[i], f) {
+			t.Errorf("Min(%g, %g) = %g, want %g", vffdim2SC[i][0], vffdim2SC[i][1], f, fminSC[i])
 		}
 	}
 }
