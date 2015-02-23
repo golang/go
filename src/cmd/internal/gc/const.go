@@ -788,7 +788,7 @@ func evconst(n *Node) {
 	// which is not quite an ideal error.
 	case OMOD<<16 | CTFLT:
 		if n.Diag == 0 {
-			Yyerror("illegal constant expression: floating-point % operation")
+			Yyerror("illegal constant expression: floating-point %% operation")
 			n.Diag = 1
 		}
 
