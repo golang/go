@@ -81,4 +81,5 @@ func main() {
 	gc.Thearch.Regnames = regnames
 
 	gc.Main()
+	gc.Exit(0)
 }
