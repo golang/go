@@ -7,8 +7,8 @@ package runtime
 import "unsafe"
 
 const (
-	_ESRCH   = 3
-	_ENOTSUP = 91
+	_ESRCH     = 3
+	_ETIMEDOUT = 60
 
 	// From NetBSD's <sys/time.h>
 	_CLOCK_REALTIME  = 0
@@ -46,91 +46,40 @@ func semacreate() uintptr {
 func semasleep(ns int64) int32 {
 	_g_ := getg()
 
-	// spin-mutex lock
-	for {
-		if xchg(&_g_.m.waitsemalock, 1) == 0 {
-			break
-		}
-		osyield()
+	// Compute sleep deadline.
+	var tsp *timespec
+	if ns >= 0 {
+		var ts timespec
+		var nsec int32
+		ns += nanotime()
+		ts.set_sec(timediv(ns, 1000000000, &nsec))
+		ts.set_nsec(nsec)
+		tsp = &ts
 	}
 
 	for {
-		// lock held
-		if _g_.m.waitsemacount == 0 {
-			// sleep until semaphore != 0 or timeout.
-			// thrsleep unlocks m.waitsemalock.
-			if ns < 0 {
-				// TODO(jsing) - potential deadlock!
-				//
-				// There is a potential deadlock here since we
-				// have to release the waitsemalock mutex
-				// before we call lwp_park() to suspend the
-				// thread. This allows another thread to
-				// release the lock and call lwp_unpark()
-				// before the thread is actually suspended.
-				// If this occurs the current thread will end
-				// up sleeping indefinitely. Unfortunately
-				// the NetBSD kernel does not appear to provide
-				// a mechanism for unlocking the userspace
-				// mutex once the thread is actually parked.
-				atomicstore(&_g_.m.waitsemalock, 0)
-				lwp_park(nil, 0, unsafe.Pointer(&_g_.m.waitsemacount), nil)
-			} else {
-				var ts timespec
-				var nsec int32
-				ns += nanotime()
-				ts.set_sec(timediv(ns, 1000000000, &nsec))
-				ts.set_nsec(nsec)
-				// TODO(jsing) - potential deadlock!
-				// See above for details.
-				atomicstore(&_g_.m.waitsemalock, 0)
-				lwp_park(&ts, 0, unsafe.Pointer(&_g_.m.waitsemacount), nil)
+		v := atomicload(&_g_.m.waitsemacount)
+		if v > 0 {
+			if cas(&_g_.m.waitsemacount, v, v-1) {
+				return 0 // semaphore acquired
 			}
-			// reacquire lock
-			for {
-				if xchg(&_g_.m.waitsemalock, 1) == 0 {
-					break
-				}
-				osyield()
-			}
+			continue
 		}
 
-		// lock held (again)
-		if _g_.m.waitsemacount != 0 {
-			// semaphore is available.
-			_g_.m.waitsemacount--
-			// spin-mutex unlock
-			atomicstore(&_g_.m.waitsemalock, 0)
-			return 0
-		}
-
-		// semaphore not available.
-		// if there is a timeout, stop now.
-		// otherwise keep trying.
-		if ns >= 0 {
-			break
+		// Sleep until unparked by semawakeup or timeout.
+		ret := lwp_park(tsp, 0, unsafe.Pointer(&_g_.m.waitsemacount), nil)
+		if ret == _ETIMEDOUT {
+			return -1
 		}
 	}
-
-	// lock held but giving up
-	// spin-mutex unlock
-	atomicstore(&_g_.m.waitsemalock, 0)
-	return -1
 }
 
 //go:nosplit
 func semawakeup(mp *m) {
-	// spin-mutex lock
-	for {
-		if xchg(&mp.waitsemalock, 1) == 0 {
-			break
-		}
-		osyield()
-	}
-
-	mp.waitsemacount++
-	// TODO(jsing) - potential deadlock, see semasleep() for details.
-	// Confirm that LWP is parked before unparking...
+	xadd(&mp.waitsemacount, 1)
+	// From NetBSD's _lwp_unpark(2) manual:
+	// "If the target LWP is not currently waiting, it will return
+	// immediately upon the next call to _lwp_park()."
 	ret := lwp_unpark(int32(mp.procid), unsafe.Pointer(&mp.waitsemacount))
 	if ret != 0 && ret != _ESRCH {
 		// semawakeup can be called on signal stack.
@@ -138,9 +87,6 @@ func semawakeup(mp *m) {
 			print("thrwakeup addr=", &mp.waitsemacount, " sem=", mp.waitsemacount, " ret=", ret, "\n")
 		})
 	}
-
-	// spin-mutex unlock
-	atomicstore(&mp.waitsemalock, 0)
 }
 
 func newosproc(mp *m, stk unsafe.Pointer) {
