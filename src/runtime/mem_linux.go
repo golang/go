@@ -67,10 +67,29 @@ func sysAlloc(n uintptr, stat *uint64) unsafe.Pointer {
 }
 
 func sysUnused(v unsafe.Pointer, n uintptr) {
+	if hugePageSize != 0 && (uintptr(v)%hugePageSize != 0 || n%hugePageSize != 0) {
+		// See issue 8832
+		// Linux kernel bug: https://bugzilla.kernel.org/show_bug.cgi?id=93111
+		// Mark the region as NOHUGEPAGE so the kernel's khugepaged
+		// doesn't undo our DONTNEED request.  khugepaged likes to migrate
+		// regions which are only partially mapped to huge pages, including
+		// regions with some DONTNEED marks.  That needlessly allocates physical
+		// memory for our DONTNEED regions.
+		madvise(v, n, _MADV_NOHUGEPAGE)
+	}
 	madvise(v, n, _MADV_DONTNEED)
 }
 
 func sysUsed(v unsafe.Pointer, n uintptr) {
+	if hugePageSize != 0 {
+		// Undo the NOHUGEPAGE marks from sysUnused.  There is no alignment check
+		// around this call as spans may have been merged in the interim.
+		// Note that this might enable huge pages for regions which were
+		// previously disabled.  Unfortunately there is no easy way to detect
+		// what the previous state was, and in any case we probably want huge
+		// pages to back our heap if the kernel can arrange that.
+		madvise(v, n, _MADV_HUGEPAGE)
+	}
 }
 
 func sysFree(v unsafe.Pointer, n uintptr, stat *uint64) {

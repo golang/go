@@ -12,4 +12,5 @@ const (
 	_PhysPageSize     = goos_nacl*65536 + (1-goos_nacl)*4096 // 4k normally; 64k on NaCl
 	_PCQuantum        = 1
 	_Int64Align       = 4
+	hugePageSize      = 1 << 21
 )
