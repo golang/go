@@ -77,3 +77,7 @@ func TestPPC64EndToEnd(t *testing.T) {
 func TestARMEndToEnd(t *testing.T) {
 	testEndToEnd(t, "arm")
 }
+
+func TestAMD64EndToEnd(t *testing.T) {
+	testEndToEnd(t, "amd64")
+}
