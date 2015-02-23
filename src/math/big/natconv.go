@@ -60,7 +60,7 @@ func pow(x Word, n int) (p Word) {
 //	digit    = "0" ... "9" | "a" ... "z" | "A" ... "Z" .
 //
 // Unless fracOk is set, the base argument must be 0 or a value between
-// 2 through MaxBase. If fracOk is set, the base argument must be one of
+// 2 and MaxBase. If fracOk is set, the base argument must be one of
 // 0, 2, 10, or 16. Providing an invalid base argument leads to a run-
 // time panic.
 //
