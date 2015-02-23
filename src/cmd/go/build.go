@@ -347,8 +347,26 @@ func runInstall(cmd *Command, args []string) {
 	var b builder
 	b.init()
 	a := &action{}
+	var tools []*action
 	for _, p := range pkgs {
-		a.deps = append(a.deps, b.action(modeInstall, modeInstall, p))
+		// If p is a tool, delay the installation until the end of the build.
+		// This avoids installing assemblers/compilers that are being executed
+		// by other steps in the build.
+		// cmd/cgo is handled specially in b.action, so that we can
+		// both build and use it in the same 'go install'.
+		action := b.action(modeInstall, modeInstall, p)
+		if goTools[p.ImportPath] == toTool && p.ImportPath != "cmd/cgo" {
+			a.deps = append(a.deps, action.deps...)
+			action.deps = append(action.deps, a)
+			tools = append(tools, action)
+			continue
+		}
+		a.deps = append(a.deps, action)
+	}
+	if len(tools) > 0 {
+		a = &action{
+			deps: tools,
+		}
 	}
 	b.do(a)
 }
