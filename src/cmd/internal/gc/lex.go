@@ -861,7 +861,9 @@ l0:
 	if yy_isspace(c) {
 		if c == '\n' && curio.nlsemi != 0 {
 			ungetc(c)
-			DBG("lex: implicit semi\n")
+			if Debug['x'] != 0 {
+				fmt.Printf("lex: implicit semi\n")
+			}
 			return ';'
 		}
 
@@ -983,7 +985,9 @@ l0:
 		yylval.val.U.Xval = new(Mpint)
 		Mpmovecfix(yylval.val.U.Xval, v)
 		yylval.val.Ctype = CTRUNE
-		DBG("lex: codepoint literal\n")
+		if Debug['x'] != 0 {
+			fmt.Printf("lex: codepoint literal\n")
+		}
 		litbuf = "string literal"
 		return LLITERAL
 
@@ -1229,7 +1233,9 @@ l0:
 
 	case '{':
 		if loophack == 1 {
-			DBG("%L lex: LBODY\n", lexlineno)
+			if Debug['x'] != 0 {
+				fmt.Printf("%v lex: LBODY\n", Ctxt.Line(int(lexlineno)))
+			}
 			loophack = 0
 			return LBODY
 		}
@@ -1244,9 +1250,13 @@ l0:
 
 lx:
 	if c > 0xff {
-		DBG("%L lex: TOKEN %s\n", lexlineno, lexname(c))
+		if Debug['x'] != 0 {
+			fmt.Printf("%v lex: TOKEN %s\n", Ctxt.Line(int(lexlineno)), lexname(c))
+		}
 	} else {
-		DBG("%L lex: TOKEN '%c'\n", lexlineno, c)
+		if Debug['x'] != 0 {
+			fmt.Printf("%v lex: TOKEN '%c'\n", Ctxt.Line(int(lexlineno)), c)
+		}
 	}
 	if isfrog(c) {
 		Yyerror("illegal character 0x%x", uint(c))
@@ -1262,7 +1272,9 @@ lx:
 
 asop:
 	yylval.i = c // rathole to hold which asop
-	DBG("lex: TOKEN ASOP %c\n", c)
+	if Debug['x'] != 0 {
+		fmt.Printf("lex: TOKEN ASOP %c\n", c)
+	}
 	return LASOP
 
 	/*
@@ -1303,7 +1315,9 @@ talph:
 		loophack = 1 // see comment about loophack above
 	}
 
-	DBG("lex: %S %s\n", s, lexname(int(s.Lexical)))
+	if Debug['x'] != 0 {
+		fmt.Printf("lex: %s %s\n", Sconv(s, 0), lexname(int(s.Lexical)))
+	}
 	yylval.sym = s
 	return int32(s.Lexical)
 
@@ -1399,7 +1413,9 @@ ncu:
 	}
 
 	yylval.val.Ctype = CTINT
-	DBG("lex: integer literal\n")
+	if Debug['x'] != 0 {
+		fmt.Printf("lex: integer literal\n")
+	}
 	litbuf = "literal "
 	litbuf += lexbuf.String()
 	return LLITERAL
@@ -1454,7 +1470,9 @@ casei:
 	}
 
 	yylval.val.Ctype = CTCPLX
-	DBG("lex: imaginary literal\n")
+	if Debug['x'] != 0 {
+		fmt.Printf("lex: imaginary literal\n")
+	}
 	litbuf = "literal "
 	litbuf += lexbuf.String()
 	return LLITERAL
@@ -1471,7 +1489,9 @@ caseout:
 	}
 
 	yylval.val.Ctype = CTFLT
-	DBG("lex: floating literal\n")
+	if Debug['x'] != 0 {
+		fmt.Printf("lex: floating literal\n")
+	}
 	litbuf = "literal "
 	litbuf += lexbuf.String()
 	return LLITERAL
@@ -1479,7 +1499,9 @@ caseout:
 strlit:
 	yylval.val.U.Sval = &Strlit{S: cp.String()}
 	yylval.val.Ctype = CTSTR
-	DBG("lex: string literal\n")
+	if Debug['x'] != 0 {
+		fmt.Printf("lex: string literal\n")
+	}
 	litbuf = "string literal"
 	return LLITERAL
 }
