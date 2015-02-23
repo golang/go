@@ -39,16 +39,13 @@ func md5reset(d *MD5) {
 }
 
 func md5write(d *MD5, p []byte, nn int) {
-	var i int
-	var n int
-
 	d.len += uint64(nn)
 	if d.nx > 0 {
-		n = nn
+		n := nn
 		if n > _Chunk-d.nx {
 			n = _Chunk - d.nx
 		}
-		for i = 0; i < n; i++ {
+		for i := 0; i < n; i++ {
 			d.x[d.nx+i] = uint8(p[i])
 		}
 		d.nx += n
@@ -61,11 +58,11 @@ func md5write(d *MD5, p []byte, nn int) {
 		nn -= n
 	}
 
-	n = md5block(d, p, nn)
+	n := md5block(d, p, nn)
 	p = p[n:]
 	nn -= n
 	if nn > 0 {
-		for i = 0; i < nn; i++ {
+		for i := 0; i < nn; i++ {
 			d.x[i] = uint8(p[i])
 		}
 		d.nx = nn
@@ -73,14 +70,10 @@ func md5write(d *MD5, p []byte, nn int) {
 }
 
 func md5sum(d *MD5, hi *uint64) uint64 {
-	var tmp [64]uint8
-	var i int
-	var len uint64
-
 	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
-	len = d.len
+	len := d.len
 
-	tmp = [64]uint8{}
+	tmp := [64]uint8{}
 	tmp[0] = 0x80
 	if len%64 < 56 {
 		md5write(d, tmp[:], int(56-len%64))
@@ -91,7 +84,7 @@ func md5sum(d *MD5, hi *uint64) uint64 {
 	// Length in bits.
 	len <<= 3
 
-	for i = 0; i < 8; i++ {
+	for i := 0; i < 8; i++ {
 		tmp[i] = uint8(len >> uint(8*i))
 	}
 	md5write(d, tmp[:], 8)
@@ -194,24 +187,19 @@ var shift3 = []uint32{4, 11, 16, 23}
 var shift4 = []uint32{6, 10, 15, 21}
 
 func md5block(dig *MD5, p []byte, nn int) int {
-	var a uint32
-	var b uint32
-	var c uint32
-	var d uint32
 	var aa uint32
 	var bb uint32
 	var cc uint32
 	var dd uint32
 	var i int
 	var j int
-	var n int
 	var X [16]uint32
 
-	a = dig.s[0]
-	b = dig.s[1]
-	c = dig.s[2]
-	d = dig.s[3]
-	n = 0
+	a := dig.s[0]
+	b := dig.s[1]
+	c := dig.s[2]
+	d := dig.s[3]
+	n := 0
 
 	for nn >= _Chunk {
 		aa = a
@@ -226,14 +214,10 @@ func md5block(dig *MD5, p []byte, nn int) int {
 
 		// Round 1.
 		for i = 0; i < 16; i++ {
-			var x uint32
-			var t uint32
-			var s uint32
-			var f uint32
-			x = uint32(i)
-			t = uint32(i)
-			s = shift1[i%4]
-			f = ((c ^ d) & b) ^ d
+			x := uint32(i)
+			t := uint32(i)
+			s := shift1[i%4]
+			f := ((c ^ d) & b) ^ d
 			a += f + X[x] + table[t]
 			a = a<<s | a>>(32-s)
 			a += b
@@ -247,15 +231,10 @@ func md5block(dig *MD5, p []byte, nn int) int {
 
 		// Round 2.
 		for i = 0; i < 16; i++ {
-			var x uint32
-			var t uint32
-			var s uint32
-			var g uint32
-
-			x = (1 + 5*uint32(i)) % 16
-			t = 16 + uint32(i)
-			s = shift2[i%4]
-			g = ((b ^ c) & d) ^ c
+			x := (1 + 5*uint32(i)) % 16
+			t := 16 + uint32(i)
+			s := shift2[i%4]
+			g := ((b ^ c) & d) ^ c
 			a += g + X[x] + table[t]
 			a = a<<s | a>>(32-s)
 			a += b
@@ -269,15 +248,10 @@ func md5block(dig *MD5, p []byte, nn int) int {
 
 		// Round 3.
 		for i = 0; i < 16; i++ {
-			var x uint32
-			var t uint32
-			var s uint32
-			var h uint32
-
-			x = (5 + 3*uint32(i)) % 16
-			t = 32 + uint32(i)
-			s = shift3[i%4]
-			h = b ^ c ^ d
+			x := (5 + 3*uint32(i)) % 16
+			t := 32 + uint32(i)
+			s := shift3[i%4]
+			h := b ^ c ^ d
 			a += h + X[x] + table[t]
 			a = a<<s | a>>(32-s)
 			a += b
@@ -291,15 +265,10 @@ func md5block(dig *MD5, p []byte, nn int) int {
 
 		// Round 4.
 		for i = 0; i < 16; i++ {
-			var x uint32
-			var s uint32
-			var t uint32
-			var ii uint32
-
-			x = (7 * uint32(i)) % 16
-			s = shift4[i%4]
-			t = 48 + uint32(i)
-			ii = c ^ (b | ^d)
+			x := (7 * uint32(i)) % 16
+			s := shift4[i%4]
+			t := 48 + uint32(i)
+			ii := c ^ (b | ^d)
 			a += ii + X[x] + table[t]
 			a = a<<s | a>>(32-s)
 			a += b

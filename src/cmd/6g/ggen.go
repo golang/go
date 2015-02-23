@@ -11,32 +11,26 @@ import (
 import "cmd/internal/gc"
 
 func defframe(ptxt *obj.Prog) {
-	var frame uint32
-	var ax uint32
-	var p *obj.Prog
-	var hi int64
-	var lo int64
-	var l *gc.NodeList
 	var n *gc.Node
 
 	// fill in argument size, stack size
 	ptxt.To.Type = obj.TYPE_TEXTSIZE
 
 	ptxt.To.U.Argsize = int32(gc.Rnd(gc.Curfn.Type.Argwid, int64(gc.Widthptr)))
-	frame = uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
+	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
 	ptxt.To.Offset = int64(frame)
 
 	// insert code to zero ambiguously live variables
 	// so that the garbage collector only sees initialized values
 	// when it looks for pointers.
-	p = ptxt
+	p := ptxt
 
-	hi = 0
-	lo = hi
-	ax = 0
+	hi := int64(0)
+	lo := hi
+	ax := uint32(0)
 
 	// iterate through declarations - they are sorted in decreasing xoffset order.
-	for l = gc.Curfn.Dcl; l != nil; l = l.Next {
+	for l := gc.Curfn.Dcl; l != nil; l = l.Next {
 		n = l.N
 		if n.Needzero == 0 {
 			continue
@@ -69,10 +63,7 @@ func defframe(ptxt *obj.Prog) {
 }
 
 func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32) *obj.Prog {
-	var cnt int64
-	var i int64
-
-	cnt = hi - lo
+	cnt := hi - lo
 	if cnt == 0 {
 		return p
 	}
@@ -92,7 +83,7 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32) *obj.Pr
 	}
 
 	if cnt <= int64(4*gc.Widthreg) {
-		for i = 0; i < cnt; i += int64(gc.Widthreg) {
+		for i := int64(0); i < cnt; i += int64(gc.Widthreg) {
 			p = appendpp(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, frame+lo+i)
 		}
 	} else if !gc.Nacl && (cnt <= int64(128*gc.Widthreg)) {
@@ -110,8 +101,7 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32) *obj.Pr
 }
 
 func appendpp(p *obj.Prog, as int, ftype int, freg int, foffset int64, ttype int, treg int, toffset int64) *obj.Prog {
-	var q *obj.Prog
-	q = gc.Ctxt.NewProg()
+	q := gc.Ctxt.NewProg()
 	gc.Clearp(q)
 	q.As = int16(as)
 	q.Lineno = p.Lineno
@@ -136,14 +126,8 @@ func appendpp(p *obj.Prog, as int, ftype int, freg int, foffset int64, ttype int
   *	proc=3	normal call to C pointer (not Go func value)
 */
 func ginscall(f *gc.Node, proc int) {
-	var p *obj.Prog
-	var reg gc.Node
-	var stk gc.Node
-	var r1 gc.Node
-	var extra int32
-
 	if f.Type != nil {
-		extra = 0
+		extra := int32(0)
 		if proc == 1 || proc == 2 {
 			extra = 2 * int32(gc.Widthptr)
 		}
@@ -167,12 +151,13 @@ func ginscall(f *gc.Node, proc int) {
 				// x86 NOP 0x90 is really XCHG AX, AX; use that description
 				// because the NOP pseudo-instruction would be removed by
 				// the linker.
+				var reg gc.Node
 				gc.Nodreg(&reg, gc.Types[gc.TINT], x86.REG_AX)
 
 				gins(x86.AXCHGL, &reg, &reg)
 			}
 
-			p = gins(obj.ACALL, nil, f)
+			p := gins(obj.ACALL, nil, f)
 			gc.Afunclit(&p.To, f)
 			if proc == -1 || gc.Noreturn(p) {
 				gins(obj.AUNDEF, nil, nil)
@@ -180,7 +165,9 @@ func ginscall(f *gc.Node, proc int) {
 			break
 		}
 
+		var reg gc.Node
 		gc.Nodreg(&reg, gc.Types[gc.Tptr], x86.REG_DX)
+		var r1 gc.Node
 		gc.Nodreg(&r1, gc.Types[gc.Tptr], x86.REG_BX)
 		gmove(f, &reg)
 		reg.Op = gc.OINDREG
@@ -193,12 +180,13 @@ func ginscall(f *gc.Node, proc int) {
 
 	case 1, // call in new proc (go)
 		2: // deferred call (defer)
-		stk = gc.Node{}
+		stk := gc.Node{}
 
 		stk.Op = gc.OINDREG
 		stk.Val.U.Reg = x86.REG_SP
 		stk.Xoffset = 0
 
+		var reg gc.Node
 		if gc.Widthptr == 8 {
 			// size of arguments at 0(SP)
 			ginscon(x86.AMOVQ, int64(gc.Argsize(f.Type)), &stk)
@@ -233,7 +221,7 @@ func ginscall(f *gc.Node, proc int) {
 		if proc == 2 {
 			gc.Nodreg(&reg, gc.Types[gc.TINT32], x86.REG_AX)
 			gins(x86.ATESTL, &reg, &reg)
-			p = gc.Gbranch(x86.AJEQ, nil, +1)
+			p := gc.Gbranch(x86.AJEQ, nil, +1)
 			cgen_ret(nil)
 			gc.Patch(p, gc.Pc)
 		}
@@ -245,20 +233,12 @@ func ginscall(f *gc.Node, proc int) {
  * generate res = n.
  */
 func cgen_callinter(n *gc.Node, res *gc.Node, proc int) {
-	var i *gc.Node
-	var f *gc.Node
-	var tmpi gc.Node
-	var nodi gc.Node
-	var nodo gc.Node
-	var nodr gc.Node
-	var nodsp gc.Node
-
-	i = n.Left
+	i := n.Left
 	if i.Op != gc.ODOTINTER {
 		gc.Fatal("cgen_callinter: not ODOTINTER %v", gc.Oconv(int(i.Op), 0))
 	}
 
-	f = i.Right // field
+	f := i.Right // field
 	if f.Op != gc.ONAME {
 		gc.Fatal("cgen_callinter: not ONAME %v", gc.Oconv(int(f.Op), 0))
 	}
@@ -266,6 +246,7 @@ func cgen_callinter(n *gc.Node, res *gc.Node, proc int) {
 	i = i.Left // interface
 
 	if i.Addable == 0 {
+		var tmpi gc.Node
 		gc.Tempname(&tmpi, i.Type)
 		cgen(i, &tmpi)
 		i = &tmpi
@@ -275,8 +256,10 @@ func cgen_callinter(n *gc.Node, res *gc.Node, proc int) {
 
 	// i is now addable, prepare an indirected
 	// register to hold its address.
+	var nodi gc.Node
 	igen(i, &nodi, res) // REG = &inter
 
+	var nodsp gc.Node
 	gc.Nodindreg(&nodsp, gc.Types[gc.Tptr], x86.REG_SP)
 
 	nodsp.Xoffset = 0
@@ -287,6 +270,7 @@ func cgen_callinter(n *gc.Node, res *gc.Node, proc int) {
 	nodi.Xoffset += int64(gc.Widthptr)
 	cgen(&nodi, &nodsp) // {0, 8(nacl), or 16}(SP) = 8(REG) -- i.data
 
+	var nodo gc.Node
 	regalloc(&nodo, gc.Types[gc.Tptr], res)
 
 	nodi.Type = gc.Types[gc.Tptr]
@@ -294,6 +278,7 @@ func cgen_callinter(n *gc.Node, res *gc.Node, proc int) {
 	cgen(&nodi, &nodo) // REG = 0(REG) -- i.tab
 	regfree(&nodi)
 
+	var nodr gc.Node
 	regalloc(&nodr, gc.Types[gc.Tptr], &nodo)
 	if n.Left.Xoffset == gc.BADWIDTH {
 		gc.Fatal("cgen_callinter: badwidth")
@@ -324,14 +309,11 @@ func cgen_callinter(n *gc.Node, res *gc.Node, proc int) {
  *	proc=2	defer call save away stack
  */
 func cgen_call(n *gc.Node, proc int) {
-	var t *gc.Type
-	var nod gc.Node
-	var afun gc.Node
-
 	if n == nil {
 		return
 	}
 
+	var afun gc.Node
 	if n.Left.Ullman >= gc.UINF {
 		// if name involves a fn call
 		// precompute the address of the fn
@@ -341,10 +323,11 @@ func cgen_call(n *gc.Node, proc int) {
 	}
 
 	gc.Genlist(n.List) // assign the args
-	t = n.Left.Type
+	t := n.Left.Type
 
 	// call tempname pointer
 	if n.Left.Ullman >= gc.UINF {
+		var nod gc.Node
 		regalloc(&nod, gc.Types[gc.Tptr], nil)
 		gc.Cgen_as(&nod, &afun)
 		nod.Type = t
@@ -355,6 +338,7 @@ func cgen_call(n *gc.Node, proc int) {
 
 	// call pointer
 	if n.Left.Op != gc.ONAME || n.Left.Class != gc.PFUNC {
+		var nod gc.Node
 		regalloc(&nod, gc.Types[gc.Tptr], nil)
 		gc.Cgen_as(&nod, n.Left)
 		nod.Type = t
@@ -375,22 +359,18 @@ func cgen_call(n *gc.Node, proc int) {
  *	res = return value from call.
  */
 func cgen_callret(n *gc.Node, res *gc.Node) {
-	var nod gc.Node
-	var fp *gc.Type
-	var t *gc.Type
-	var flist gc.Iter
-
-	t = n.Left.Type
+	t := n.Left.Type
 	if t.Etype == gc.TPTR32 || t.Etype == gc.TPTR64 {
 		t = t.Type
 	}
 
-	fp = gc.Structfirst(&flist, gc.Getoutarg(t))
+	var flist gc.Iter
+	fp := gc.Structfirst(&flist, gc.Getoutarg(t))
 	if fp == nil {
 		gc.Fatal("cgen_callret: nil")
 	}
 
-	nod = gc.Node{}
+	nod := gc.Node{}
 	nod.Op = gc.OINDREG
 	nod.Val.U.Reg = x86.REG_SP
 	nod.Addable = 1
@@ -406,23 +386,18 @@ func cgen_callret(n *gc.Node, res *gc.Node) {
  *	res = &return value from call.
  */
 func cgen_aret(n *gc.Node, res *gc.Node) {
-	var nod1 gc.Node
-	var nod2 gc.Node
-	var fp *gc.Type
-	var t *gc.Type
-	var flist gc.Iter
-
-	t = n.Left.Type
+	t := n.Left.Type
 	if gc.Isptr[t.Etype] != 0 {
 		t = t.Type
 	}
 
-	fp = gc.Structfirst(&flist, gc.Getoutarg(t))
+	var flist gc.Iter
+	fp := gc.Structfirst(&flist, gc.Getoutarg(t))
 	if fp == nil {
 		gc.Fatal("cgen_aret: nil")
 	}
 
-	nod1 = gc.Node{}
+	nod1 := gc.Node{}
 	nod1.Op = gc.OINDREG
 	nod1.Val.U.Reg = x86.REG_SP
 	nod1.Addable = 1
@@ -431,6 +406,7 @@ func cgen_aret(n *gc.Node, res *gc.Node) {
 	nod1.Type = fp.Type
 
 	if res.Op != gc.OREGISTER {
+		var nod2 gc.Node
 		regalloc(&nod2, gc.Types[gc.Tptr], res)
 		gins(leaptr, &nod1, &nod2)
 		gins(movptr, &nod2, res)
@@ -445,8 +421,6 @@ func cgen_aret(n *gc.Node, res *gc.Node) {
  * n->left is assignments to return values.
  */
 func cgen_ret(n *gc.Node) {
-	var p *obj.Prog
-
 	if n != nil {
 		gc.Genlist(n.List) // copy out args
 	}
@@ -454,7 +428,7 @@ func cgen_ret(n *gc.Node) {
 		ginscall(gc.Deferreturn, 0)
 	}
 	gc.Genlist(gc.Curfn.Exit)
-	p = gins(obj.ARET, nil, nil)
+	p := gins(obj.ARET, nil, nil)
 	if n != nil && n.Op == gc.ORETJMP {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
@@ -470,21 +444,6 @@ func cgen_ret(n *gc.Node) {
  * according to op.
  */
 func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
-	var a int
-	var check int
-	var n3 gc.Node
-	var n4 gc.Node
-	var t *gc.Type
-	var t0 *gc.Type
-	var ax gc.Node
-	var dx gc.Node
-	var ax1 gc.Node
-	var n31 gc.Node
-	var oldax gc.Node
-	var olddx gc.Node
-	var p1 *obj.Prog
-	var p2 *obj.Prog
-
 	// Have to be careful about handling
 	// most negative int divided by -1 correctly.
 	// The hardware will trap.
@@ -493,10 +452,10 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	// Easiest way to avoid for int8, int16: use int32.
 	// For int32 and int64, use explicit test.
 	// Could use int64 hw for int32.
-	t = nl.Type
+	t := nl.Type
 
-	t0 = t
-	check = 0
+	t0 := t
+	check := 0
 	if gc.Issigned[t.Etype] != 0 {
 		check = 1
 		if gc.Isconst(nl, gc.CTINT) && gc.Mpgetfix(nl.Val.U.Xval) != -(1<<uint64(t.Width*8-1)) {
@@ -515,9 +474,12 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		check = 0
 	}
 
-	a = optoas(op, t)
+	a := optoas(op, t)
 
+	var n3 gc.Node
 	regalloc(&n3, t0, nil)
+	var ax gc.Node
+	var oldax gc.Node
 	if nl.Ullman >= nr.Ullman {
 		savex(x86.REG_AX, &ax, &oldax, res, t0)
 		cgen(nl, &ax)
@@ -532,16 +494,17 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 
 	if t != t0 {
 		// Convert
-		ax1 = ax
+		ax1 := ax
 
-		n31 = n3
+		n31 := n3
 		ax.Type = t
 		n3.Type = t
 		gmove(&ax1, &ax)
 		gmove(&n31, &n3)
 	}
 
-	p2 = nil
+	p2 := (*obj.Prog)(nil)
+	var n4 gc.Node
 	if gc.Nacl {
 		// Native Client does not relay the divide-by-zero trap
 		// to the executing program, so we must insert a check
@@ -549,7 +512,7 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		gc.Nodconst(&n4, t, 0)
 
 		gins(optoas(gc.OCMP, t), &n3, &n4)
-		p1 = gc.Gbranch(optoas(gc.ONE, t), nil, +1)
+		p1 := gc.Gbranch(optoas(gc.ONE, t), nil, +1)
 		if panicdiv == nil {
 			panicdiv = gc.Sysfunc("panicdivide")
 		}
@@ -560,7 +523,7 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	if check != 0 {
 		gc.Nodconst(&n4, t, -1)
 		gins(optoas(gc.OCMP, t), &n3, &n4)
-		p1 = gc.Gbranch(optoas(gc.ONE, t), nil, +1)
+		p1 := gc.Gbranch(optoas(gc.ONE, t), nil, +1)
 		if op == gc.ODIV {
 			// a / (-1) is -a.
 			gins(optoas(gc.OMINUS, t), nil, &ax)
@@ -577,6 +540,8 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		gc.Patch(p1, gc.Pc)
 	}
 
+	var olddx gc.Node
+	var dx gc.Node
 	savex(x86.REG_DX, &dx, &olddx, res, t)
 	if gc.Issigned[t.Etype] == 0 {
 		gc.Nodconst(&n4, t, 0)
@@ -609,9 +574,7 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
  * known to be dead.
  */
 func savex(dr int, x *gc.Node, oldx *gc.Node, res *gc.Node, t *gc.Type) {
-	var r int
-
-	r = int(reg[dr])
+	r := int(reg[dr])
 
 	// save current ax and dx if they are live
 	// and not the destination
@@ -643,12 +606,7 @@ func restx(x *gc.Node, oldx *gc.Node) {
  *	res = nl % nr
  */
 func cgen_div(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
-	var n1 gc.Node
-	var n2 gc.Node
-	var n3 gc.Node
 	var w int
-	var a int
-	var m gc.Magic
 
 	if nr.Op != gc.OLITERAL {
 		goto longdiv
@@ -663,6 +621,7 @@ func cgen_div(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		goto longdiv
 
 	case gc.TUINT64:
+		var m gc.Magic
 		m.W = w
 		m.Ud = uint64(gc.Mpgetfix(nr.Val.U.Xval))
 		gc.Umagic(&m)
@@ -673,8 +632,11 @@ func cgen_div(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 			goto longmod
 		}
 
+		var n1 gc.Node
 		cgenr(nl, &n1, nil)
+		var n2 gc.Node
 		gc.Nodconst(&n2, nl.Type, int64(m.Um))
+		var n3 gc.Node
 		regalloc(&n3, nl.Type, res)
 		cgen_hmul(&n1, &n2, &n3)
 
@@ -697,6 +659,7 @@ func cgen_div(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		return
 
 	case gc.TINT64:
+		var m gc.Magic
 		m.W = w
 		m.Sd = gc.Mpgetfix(nr.Val.U.Xval)
 		gc.Smagic(&m)
@@ -707,8 +670,11 @@ func cgen_div(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 			goto longmod
 		}
 
+		var n1 gc.Node
 		cgenr(nl, &n1, res)
+		var n2 gc.Node
 		gc.Nodconst(&n2, nl.Type, m.Sm)
+		var n3 gc.Node
 		regalloc(&n3, nl.Type, nil)
 		cgen_hmul(&n1, &n2, &n3)
 
@@ -748,12 +714,14 @@ longdiv:
 	// mod using formula A%B = A-(A/B*B) but
 	// we know that there is a fast algorithm for A/B
 longmod:
+	var n1 gc.Node
 	regalloc(&n1, nl.Type, res)
 
 	cgen(nl, &n1)
+	var n2 gc.Node
 	regalloc(&n2, nl.Type, nil)
 	cgen_div(gc.ODIV, &n1, nr, &n2)
-	a = optoas(gc.OMUL, nl.Type)
+	a := optoas(gc.OMUL, nl.Type)
 	if w == 8 {
 		// use 2-operand 16-bit multiply
 		// because there is no 2-operand 8-bit multiply
@@ -761,6 +729,7 @@ longmod:
 	}
 
 	if !gc.Smallintconst(nr) {
+		var n3 gc.Node
 		regalloc(&n3, nl.Type, nil)
 		cgen(nr, &n3)
 		gins(a, &n3, &n2)
@@ -779,30 +748,26 @@ longmod:
  *   res = (nl*nr) >> width
  */
 func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
-	var t *gc.Type
-	var a int
-	var n1 gc.Node
-	var n2 gc.Node
-	var ax gc.Node
-	var dx gc.Node
-	var tmp *gc.Node
-
-	t = nl.Type
-	a = optoas(gc.OHMUL, t)
+	t := nl.Type
+	a := optoas(gc.OHMUL, t)
 	if nl.Ullman < nr.Ullman {
-		tmp = nl
+		tmp := nl
 		nl = nr
 		nr = tmp
 	}
 
+	var n1 gc.Node
 	cgenr(nl, &n1, res)
+	var n2 gc.Node
 	cgenr(nr, &n2, nil)
+	var ax gc.Node
 	gc.Nodreg(&ax, t, x86.REG_AX)
 	gmove(&n1, &ax)
 	gins(a, &n2, nil)
 	regfree(&n2)
 	regfree(&n1)
 
+	var dx gc.Node
 	if t.Width == 1 {
 		// byte multiply behaves differently.
 		gc.Nodreg(&ax, t, x86.REG_AH)
@@ -824,24 +789,21 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	var n1 gc.Node
 	var n2 gc.Node
 	var n3 gc.Node
-	var n4 gc.Node
-	var n5 gc.Node
 	var cx gc.Node
 	var oldcx gc.Node
-	var a int
 	var rcx int
-	var p1 *obj.Prog
-	var sc uint64
 	var tcount *gc.Type
 
-	a = optoas(op, nl.Type)
+	a := optoas(op, nl.Type)
 
 	if nr.Op == gc.OLITERAL {
+		var n1 gc.Node
 		regalloc(&n1, nl.Type, res)
 		cgen(nl, &n1)
-		sc = uint64(gc.Mpgetfix(nr.Val.U.Xval))
+		sc := uint64(gc.Mpgetfix(nr.Val.U.Xval))
 		if sc >= uint64(nl.Type.Width*8) {
 			// large shift gets 2 shifts by width-1
+			var n3 gc.Node
 			gc.Nodconst(&n3, gc.Types[gc.TUINT32], nl.Type.Width*8-1)
 
 			gins(a, &n3, &n1)
@@ -855,12 +817,14 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	}
 
 	if nl.Ullman >= gc.UINF {
+		var n4 gc.Node
 		gc.Tempname(&n4, nl.Type)
 		cgen(nl, &n4)
 		nl = &n4
 	}
 
 	if nr.Ullman >= gc.UINF {
+		var n5 gc.Node
 		gc.Tempname(&n5, nr.Type)
 		cgen(nr, &n5)
 		nr = &n5
@@ -912,7 +876,7 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	if !bounded {
 		gc.Nodconst(&n3, tcount, nl.Type.Width*8)
 		gins(optoas(gc.OCMP, tcount), &n1, &n3)
-		p1 = gc.Gbranch(optoas(gc.OLT, tcount), nil, +1)
+		p1 := gc.Gbranch(optoas(gc.OLT, tcount), nil, +1)
 		if op == gc.ORSH && gc.Issigned[nl.Type.Etype] != 0 {
 			gc.Nodconst(&n3, gc.Types[gc.TUINT32], nl.Type.Width*8-1)
 			gins(a, &n3, &n2)
@@ -947,37 +911,33 @@ ret:
  * we do a full-width multiplication and truncate afterwards.
  */
 func cgen_bmul(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
-	var n1 gc.Node
-	var n2 gc.Node
-	var n1b gc.Node
-	var n2b gc.Node
-	var tmp *gc.Node
-	var t *gc.Type
-	var a int
-
 	// largest ullman on left.
 	if nl.Ullman < nr.Ullman {
-		tmp = nl
+		tmp := nl
 		nl = nr
 		nr = tmp
 	}
 
 	// generate operands in "8-bit" registers.
+	var n1b gc.Node
 	regalloc(&n1b, nl.Type, res)
 
 	cgen(nl, &n1b)
+	var n2b gc.Node
 	regalloc(&n2b, nr.Type, nil)
 	cgen(nr, &n2b)
 
 	// perform full-width multiplication.
-	t = gc.Types[gc.TUINT64]
+	t := gc.Types[gc.TUINT64]
 
 	if gc.Issigned[nl.Type.Etype] != 0 {
 		t = gc.Types[gc.TINT64]
 	}
+	var n1 gc.Node
 	gc.Nodreg(&n1, t, int(n1b.Val.U.Reg))
+	var n2 gc.Node
 	gc.Nodreg(&n2, t, int(n2b.Val.U.Reg))
-	a = optoas(op, t)
+	a := optoas(op, t)
 	gins(a, &n2, &n1)
 
 	// truncate.
@@ -988,31 +948,20 @@ func cgen_bmul(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 }
 
 func clearfat(nl *gc.Node) {
-	var w int64
-	var c int64
-	var q int64
-	var n1 gc.Node
-	var oldn1 gc.Node
-	var ax gc.Node
-	var oldax gc.Node
-	var di gc.Node
-	var z gc.Node
-	var p *obj.Prog
-
 	/* clear a fat object */
 	if gc.Debug['g'] != 0 {
 		gc.Dump("\nclearfat", nl)
 	}
 
-	w = nl.Type.Width
+	w := nl.Type.Width
 
 	// Avoid taking the address for simple enough types.
 	if componentgen(nil, nl) {
 		return
 	}
 
-	c = w % 8 // bytes
-	q = w / 8 // quads
+	c := w % 8 // bytes
+	q := w / 8 // quads
 
 	if q < 4 {
 		// Write sequence of MOV 0, off(base) instead of using STOSQ.
@@ -1021,9 +970,11 @@ func clearfat(nl *gc.Node) {
 		// than the unrolled STOSQ loop.
 		// NOTE: Must use agen, not igen, so that optimizer sees address
 		// being taken. We are not writing on field boundaries.
+		var n1 gc.Node
 		agenr(nl, &n1, nil)
 
 		n1.Op = gc.OINDREG
+		var z gc.Node
 		gc.Nodconst(&z, gc.Types[gc.TUINT64], 0)
 		for {
 			tmp14 := q
@@ -1060,9 +1011,13 @@ func clearfat(nl *gc.Node) {
 		return
 	}
 
+	var oldn1 gc.Node
+	var n1 gc.Node
 	savex(x86.REG_DI, &n1, &oldn1, nil, gc.Types[gc.Tptr])
 	agen(nl, &n1)
 
+	var ax gc.Node
+	var oldax gc.Node
 	savex(x86.REG_AX, &ax, &oldax, nil, gc.Types[gc.Tptr])
 	gconreg(x86.AMOVL, 0, x86.REG_AX)
 
@@ -1071,7 +1026,7 @@ func clearfat(nl *gc.Node) {
 		gins(x86.AREP, nil, nil)   // repeat
 		gins(x86.ASTOSQ, nil, nil) // STOQ AL,*(DI)+
 	} else {
-		p = gins(obj.ADUFFZERO, nil, nil)
+		p := gins(obj.ADUFFZERO, nil, nil)
 		p.To.Type = obj.TYPE_ADDR
 		p.To.Sym = gc.Linksym(gc.Pkglookup("duffzero", gc.Runtimepkg))
 
@@ -1079,22 +1034,22 @@ func clearfat(nl *gc.Node) {
 		p.To.Offset = 2 * (128 - q)
 	}
 
-	z = ax
-	di = n1
+	z := ax
+	di := n1
 	if w >= 8 && c >= 4 {
 		di.Op = gc.OINDREG
 		z.Type = gc.Types[gc.TINT64]
 		di.Type = z.Type
-		p = gins(x86.AMOVQ, &z, &di)
+		p := gins(x86.AMOVQ, &z, &di)
 		p.To.Scale = 1
 		p.To.Offset = c - 8
 	} else if c >= 4 {
 		di.Op = gc.OINDREG
 		z.Type = gc.Types[gc.TINT32]
 		di.Type = z.Type
-		p = gins(x86.AMOVL, &z, &di)
+		gins(x86.AMOVL, &z, &di)
 		if c > 4 {
-			p = gins(x86.AMOVL, &z, &di)
+			p := gins(x86.AMOVL, &z, &di)
 			p.To.Scale = 1
 			p.To.Offset = c - 4
 		}
@@ -1112,11 +1067,10 @@ func clearfat(nl *gc.Node) {
 // Called after regopt and peep have run.
 // Expand CHECKNIL pseudo-op into actual nil pointer check.
 func expandchecks(firstp *obj.Prog) {
-	var p *obj.Prog
 	var p1 *obj.Prog
 	var p2 *obj.Prog
 
-	for p = firstp; p != nil; p = p.Link {
+	for p := firstp; p != nil; p = p.Link {
 		if p.As != obj.ACHECKNIL {
 			continue
 		}

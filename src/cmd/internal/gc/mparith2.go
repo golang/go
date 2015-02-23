@@ -9,11 +9,8 @@ package gc
 // words of the argument
 //
 func mplen(a *Mpint) int {
-	var i int
-	var n int
-
-	n = -1
-	for i = 0; i < Mpprec; i++ {
+	n := -1
+	for i := 0; i < Mpprec; i++ {
 		if a.A[i] != 0 {
 			n = i
 		}
@@ -28,11 +25,9 @@ func mplen(a *Mpint) int {
 //
 func mplsh(a *Mpint, quiet int) {
 	var x int
-	var i int
-	var c int
 
-	c = 0
-	for i = 0; i < Mpprec; i++ {
+	c := 0
+	for i := 0; i < Mpprec; i++ {
 		x = (a.A[i] << 1) + c
 		c = 0
 		if x >= Mpbase {
@@ -54,9 +49,7 @@ func mplsh(a *Mpint, quiet int) {
 // ignores sign
 //
 func mplshw(a *Mpint, quiet int) {
-	var i int
-
-	i = Mpprec - 1
+	i := Mpprec - 1
 	if a.A[i] != 0 {
 		a.Ovf = 1
 		if quiet == 0 {
@@ -76,13 +69,10 @@ func mplshw(a *Mpint, quiet int) {
 //
 func mprsh(a *Mpint) {
 	var x int
-	var lo int
-	var i int
-	var c int
 
-	c = 0
-	lo = a.A[0] & 1
-	for i = Mpprec - 1; i >= 0; i-- {
+	c := 0
+	lo := a.A[0] & 1
+	for i := Mpprec - 1; i >= 0; i-- {
 		x = a.A[i]
 		a.A[i] = (x + c) >> 1
 		c = 0
@@ -101,10 +91,9 @@ func mprsh(a *Mpint) {
 // ignores sign and overflow
 //
 func mprshw(a *Mpint) {
-	var lo int
 	var i int
 
-	lo = a.A[0]
+	lo := a.A[0]
 	for i = 0; i < Mpprec-1; i++ {
 		a.A[i] = a.A[i+1]
 	}
@@ -119,9 +108,6 @@ func mprshw(a *Mpint) {
 // return the sign of (abs(a)-abs(b))
 //
 func mpcmp(a *Mpint, b *Mpint) int {
-	var x int
-	var i int
-
 	if a.Ovf != 0 || b.Ovf != 0 {
 		if nsavederrors+nerrors == 0 {
 			Yyerror("ovf in cmp")
@@ -129,7 +115,8 @@ func mpcmp(a *Mpint, b *Mpint) int {
 		return 0
 	}
 
-	for i = Mpprec - 1; i >= 0; i-- {
+	var x int
+	for i := Mpprec - 1; i >= 0; i-- {
 		x = a.A[i] - b.A[i]
 		if x > 0 {
 			return +1
@@ -148,11 +135,9 @@ func mpcmp(a *Mpint, b *Mpint) int {
 //
 func mpneg(a *Mpint) {
 	var x int
-	var i int
-	var c int
 
-	c = 0
-	for i = 0; i < Mpprec; i++ {
+	c := 0
+	for i := 0; i < Mpprec; i++ {
 		x = -a.A[i] - c
 		c = 0
 		if x < 0 {
@@ -193,10 +178,6 @@ func Mpshiftfix(a *Mpint, s int) {
 /// implements fix arihmetic
 
 func mpaddfixfix(a *Mpint, b *Mpint, quiet int) {
-	var i int
-	var c int
-	var x int
-
 	if a.Ovf != 0 || b.Ovf != 0 {
 		if nsavederrors+nerrors == 0 {
 			Yyerror("ovf in mpaddxx")
@@ -205,13 +186,14 @@ func mpaddfixfix(a *Mpint, b *Mpint, quiet int) {
 		return
 	}
 
-	c = 0
+	c := 0
+	var x int
 	if a.Neg != b.Neg {
 		goto sub
 	}
 
 	// perform a+b
-	for i = 0; i < Mpprec; i++ {
+	for i := 0; i < Mpprec; i++ {
 		x = a.A[i] + b.A[i] + c
 		c = 0
 		if x >= Mpbase {
@@ -236,7 +218,8 @@ sub:
 		Mpmovecfix(a, 0)
 
 	case 1:
-		for i = 0; i < Mpprec; i++ {
+		var x int
+		for i := 0; i < Mpprec; i++ {
 			x = a.A[i] - b.A[i] - c
 			c = 0
 			if x < 0 {
@@ -249,7 +232,8 @@ sub:
 
 	case -1:
 		a.Neg ^= 1
-		for i = 0; i < Mpprec; i++ {
+		var x int
+		for i := 0; i < Mpprec; i++ {
 			x = b.A[i] - a.A[i] - c
 			c = 0
 			if x < 0 {
@@ -263,15 +247,6 @@ sub:
 }
 
 func mpmulfixfix(a *Mpint, b *Mpint) {
-	var i int
-	var j int
-	var na int
-	var nb int
-	var x int
-	var s Mpint
-	var q Mpint
-	var c *Mpint
-
 	if a.Ovf != 0 || b.Ovf != 0 {
 		if nsavederrors+nerrors == 0 {
 			Yyerror("ovf in mpmulfixfix")
@@ -282,9 +257,11 @@ func mpmulfixfix(a *Mpint, b *Mpint) {
 
 	// pick the smaller
 	// to test for bits
-	na = mplen(a)
+	na := mplen(a)
 
-	nb = mplen(b)
+	nb := mplen(b)
+	var s Mpint
+	var c *Mpint
 	if na > nb {
 		mpmovefixfix(&s, a)
 		c = b
@@ -296,8 +273,11 @@ func mpmulfixfix(a *Mpint, b *Mpint) {
 
 	s.Neg = 0
 
+	var q Mpint
 	Mpmovecfix(&q, 0)
-	for i = 0; i < na; i++ {
+	var j int
+	var x int
+	for i := 0; i < na; i++ {
 		x = c.A[i]
 		for j = 0; j < Mpscale; j++ {
 			if x&1 != 0 {
@@ -326,12 +306,6 @@ out:
 }
 
 func mpmulfract(a *Mpint, b *Mpint) {
-	var i int
-	var j int
-	var x int
-	var s Mpint
-	var q Mpint
-
 	if a.Ovf != 0 || b.Ovf != 0 {
 		if nsavederrors+nerrors == 0 {
 			Yyerror("ovf in mpmulflt")
@@ -340,16 +314,19 @@ func mpmulfract(a *Mpint, b *Mpint) {
 		return
 	}
 
+	var s Mpint
 	mpmovefixfix(&s, b)
 	s.Neg = 0
+	var q Mpint
 	Mpmovecfix(&q, 0)
 
-	i = Mpprec - 1
-	x = a.A[i]
+	i := Mpprec - 1
+	x := a.A[i]
 	if x != 0 {
 		Yyerror("mpmulfract not normal")
 	}
 
+	var j int
 	for i--; i >= 0; i-- {
 		x = a.A[i]
 		if x == 0 {
@@ -374,10 +351,7 @@ func mpmulfract(a *Mpint, b *Mpint) {
 }
 
 func mporfixfix(a *Mpint, b *Mpint) {
-	var i int
-	var x int
-
-	x = 0
+	x := 0
 	if a.Ovf != 0 || b.Ovf != 0 {
 		if nsavederrors+nerrors == 0 {
 			Yyerror("ovf in mporfixfix")
@@ -396,7 +370,7 @@ func mporfixfix(a *Mpint, b *Mpint) {
 		mpneg(b)
 	}
 
-	for i = 0; i < Mpprec; i++ {
+	for i := 0; i < Mpprec; i++ {
 		x = a.A[i] | b.A[i]
 		a.A[i] = x
 	}
@@ -411,10 +385,7 @@ func mporfixfix(a *Mpint, b *Mpint) {
 }
 
 func mpandfixfix(a *Mpint, b *Mpint) {
-	var i int
-	var x int
-
-	x = 0
+	x := 0
 	if a.Ovf != 0 || b.Ovf != 0 {
 		if nsavederrors+nerrors == 0 {
 			Yyerror("ovf in mpandfixfix")
@@ -433,7 +404,7 @@ func mpandfixfix(a *Mpint, b *Mpint) {
 		mpneg(b)
 	}
 
-	for i = 0; i < Mpprec; i++ {
+	for i := 0; i < Mpprec; i++ {
 		x = a.A[i] & b.A[i]
 		a.A[i] = x
 	}
@@ -448,10 +419,7 @@ func mpandfixfix(a *Mpint, b *Mpint) {
 }
 
 func mpandnotfixfix(a *Mpint, b *Mpint) {
-	var i int
-	var x int
-
-	x = 0
+	x := 0
 	if a.Ovf != 0 || b.Ovf != 0 {
 		if nsavederrors+nerrors == 0 {
 			Yyerror("ovf in mpandnotfixfix")
@@ -470,7 +438,7 @@ func mpandnotfixfix(a *Mpint, b *Mpint) {
 		mpneg(b)
 	}
 
-	for i = 0; i < Mpprec; i++ {
+	for i := 0; i < Mpprec; i++ {
 		x = a.A[i] &^ b.A[i]
 		a.A[i] = x
 	}
@@ -485,10 +453,7 @@ func mpandnotfixfix(a *Mpint, b *Mpint) {
 }
 
 func mpxorfixfix(a *Mpint, b *Mpint) {
-	var i int
-	var x int
-
-	x = 0
+	x := 0
 	if a.Ovf != 0 || b.Ovf != 0 {
 		if nsavederrors+nerrors == 0 {
 			Yyerror("ovf in mporfixfix")
@@ -507,7 +472,7 @@ func mpxorfixfix(a *Mpint, b *Mpint) {
 		mpneg(b)
 	}
 
-	for i = 0; i < Mpprec; i++ {
+	for i := 0; i < Mpprec; i++ {
 		x = a.A[i] ^ b.A[i]
 		a.A[i] = x
 	}
@@ -522,8 +487,6 @@ func mpxorfixfix(a *Mpint, b *Mpint) {
 }
 
 func mplshfixfix(a *Mpint, b *Mpint) {
-	var s int64
-
 	if a.Ovf != 0 || b.Ovf != 0 {
 		if nsavederrors+nerrors == 0 {
 			Yyerror("ovf in mporfixfix")
@@ -533,7 +496,7 @@ func mplshfixfix(a *Mpint, b *Mpint) {
 		return
 	}
 
-	s = Mpgetfix(b)
+	s := Mpgetfix(b)
 	if s < 0 || s >= Mpprec*Mpscale {
 		Yyerror("stupid shift: %d", s)
 		Mpmovecfix(a, 0)
@@ -544,8 +507,6 @@ func mplshfixfix(a *Mpint, b *Mpint) {
 }
 
 func mprshfixfix(a *Mpint, b *Mpint) {
-	var s int64
-
 	if a.Ovf != 0 || b.Ovf != 0 {
 		if nsavederrors+nerrors == 0 {
 			Yyerror("ovf in mprshfixfix")
@@ -555,7 +516,7 @@ func mprshfixfix(a *Mpint, b *Mpint) {
 		return
 	}
 
-	s = Mpgetfix(b)
+	s := Mpgetfix(b)
 	if s < 0 || s >= Mpprec*Mpscale {
 		Yyerror("stupid shift: %d", s)
 		if a.Neg != 0 {
@@ -574,8 +535,6 @@ func mpnegfix(a *Mpint) {
 }
 
 func Mpgetfix(a *Mpint) int64 {
-	var v int64
-
 	if a.Ovf != 0 {
 		if nsavederrors+nerrors == 0 {
 			Yyerror("constant overflow")
@@ -583,7 +542,7 @@ func Mpgetfix(a *Mpint) int64 {
 		return 0
 	}
 
-	v = int64(uint64(a.A[0]))
+	v := int64(uint64(a.A[0]))
 	v |= int64(uint64(a.A[1]) << Mpscale)
 	v |= int64(uint64(a.A[2]) << (Mpscale + Mpscale))
 	if a.Neg != 0 {
@@ -593,19 +552,16 @@ func Mpgetfix(a *Mpint) int64 {
 }
 
 func Mpmovecfix(a *Mpint, c int64) {
-	var i int
-	var x int64
-
 	a.Neg = 0
 	a.Ovf = 0
 
-	x = c
+	x := c
 	if x < 0 {
 		a.Neg = 1
 		x = int64(-uint64(x))
 	}
 
-	for i = 0; i < Mpprec; i++ {
+	for i := 0; i < Mpprec; i++ {
 		a.A[i] = int(x & Mpmask)
 		x >>= Mpscale
 	}
@@ -613,11 +569,9 @@ func Mpmovecfix(a *Mpint, c int64) {
 
 func mpdivmodfixfix(q *Mpint, r *Mpint, n *Mpint, d *Mpint) {
 	var i int
-	var ns int
-	var ds int
 
-	ns = int(n.Neg)
-	ds = int(d.Neg)
+	ns := int(n.Neg)
+	ds := int(d.Neg)
 	n.Neg = 0
 	d.Neg = 0
 
@@ -664,9 +618,7 @@ func mpdivmodfixfix(q *Mpint, r *Mpint, n *Mpint, d *Mpint) {
 }
 
 func mpiszero(a *Mpint) bool {
-	var i int
-
-	for i = Mpprec - 1; i >= 0; i-- {
+	for i := Mpprec - 1; i >= 0; i-- {
 		if a.A[i] != 0 {
 			return false
 		}
@@ -677,19 +629,17 @@ func mpiszero(a *Mpint) bool {
 func mpdivfract(a *Mpint, b *Mpint) {
 	var n Mpint
 	var d Mpint
-	var i int
 	var j int
-	var neg int
 	var x int
 
 	mpmovefixfix(&n, a) // numerator
 	mpmovefixfix(&d, b) // denominator
 
-	neg = int(n.Neg) ^ int(d.Neg)
+	neg := int(n.Neg) ^ int(d.Neg)
 
 	n.Neg = 0
 	d.Neg = 0
-	for i = Mpprec - 1; i >= 0; i-- {
+	for i := Mpprec - 1; i >= 0; i-- {
 		x = 0
 		for j = 0; j < Mpscale; j++ {
 			x <<= 1
@@ -711,10 +661,9 @@ func mpdivfract(a *Mpint, b *Mpint) {
 
 func mptestfix(a *Mpint) int {
 	var b Mpint
-	var r int
 
 	Mpmovecfix(&b, 0)
-	r = mpcmp(a, &b)
+	r := mpcmp(a, &b)
 	if a.Neg != 0 {
 		if r > 0 {
 			return -1

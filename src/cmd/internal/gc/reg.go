@@ -51,11 +51,8 @@ func (x rcmp) Swap(i, j int) {
 }
 
 func (x rcmp) Less(i, j int) bool {
-	var p1 *Rgn
-	var p2 *Rgn
-
-	p1 = &x[i]
-	p2 = &x[j]
+	p1 := &x[i]
+	p2 := &x[j]
 	if p1.cost != p2.cost {
 		return int(p2.cost)-int(p1.cost) < 0
 	}
@@ -96,7 +93,6 @@ var regnodes [64]*Node
 
 func walkvardef(n *Node, f *Flow, active int) {
 	var f1 *Flow
-	var f2 *Flow
 	var bn int
 	var v *Var
 
@@ -118,7 +114,7 @@ func walkvardef(n *Node, f *Flow, active int) {
 		}
 	}
 
-	for f2 = f; f2 != f1; f2 = f2.S1 {
+	for f2 := f; f2 != f1; f2 = f2.S1 {
 		if f2.S2 != nil {
 			walkvardef(n, f2.S2, active)
 		}
@@ -130,23 +126,18 @@ func walkvardef(n *Node, f *Flow, active int) {
  * just after r
  */
 func addmove(r *Flow, bn int, rn int, f int) {
-	var p *obj.Prog
-	var p1 *obj.Prog
-	var a *obj.Addr
-	var v *Var
-
-	p1 = Ctxt.NewProg()
+	p1 := Ctxt.NewProg()
 	Clearp(p1)
 	p1.Pc = 9999
 
-	p = r.Prog
+	p := r.Prog
 	p1.Link = p.Link
 	p.Link = p1
 	p1.Lineno = p.Lineno
 
-	v = &var_[bn:][0]
+	v := &var_[bn:][0]
 
-	a = &p1.To
+	a := &p1.To
 	a.Offset = v.offset
 	a.Etype = uint8(v.etype)
 	a.Type = obj.TYPE_MEM
@@ -183,11 +174,8 @@ func addmove(r *Flow, bn int, rn int, f int) {
 }
 
 func overlap_reg(o1 int64, w1 int, o2 int64, w2 int) bool {
-	var t1 int64
-	var t2 int64
-
-	t1 = o1 + int64(w1)
-	t2 = o2 + int64(w2)
+	t1 := o1 + int64(w1)
+	t2 := o2 + int64(w2)
 
 	if t1 <= o2 || t2 <= o1 {
 		return false
@@ -201,10 +189,8 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 	var i int
 	var n int
 	var et int
-	var z int
 	var flag int
 	var w int64
-	var regu uint64
 	var o int64
 	var bit Bits
 	var node *Node
@@ -222,16 +208,17 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 
 	switch a.Type {
 	default:
-		regu = Thearch.Doregbits(int(a.Reg)) | Thearch.RtoB(int(a.Reg)) // TODO: Use RtoB
+		regu := Thearch.Doregbits(int(a.Reg)) | Thearch.RtoB(int(a.Reg)) // TODO: Use RtoB
 		if regu == 0 {
 			goto none
 		}
-		bit = zbits
+		bit := zbits
 		bit.b[0] = regu
 		return bit
 
 		// TODO(rsc): Remove special case here.
 	case obj.TYPE_ADDR:
+		var bit Bits
 		if Thearch.Thechar == '9' || Thearch.Thechar == '5' {
 			goto memcase
 		}
@@ -285,7 +272,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 	}
 
 	flag = 0
-	for i = 0; i < nvar; i++ {
+	for i := 0; i < nvar; i++ {
 		v = &var_[i:][0]
 		if v.node == node && int(v.name) == n {
 			if v.offset == o {
@@ -324,7 +311,8 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 		// having its address taken, so that we keep the whole thing
 		// live at all calls. otherwise we might optimize away part of
 		// a variable but not all of it.
-		for i = 0; i < nvar; i++ {
+		var v *Var
+		for i := 0; i < nvar; i++ {
 			v = &var_[i:][0]
 			if v.node == node {
 				v.addr = 1
@@ -355,23 +343,23 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 
 	bit = blsh(uint(i))
 	if n == obj.NAME_EXTERN || n == obj.NAME_STATIC {
-		for z = 0; z < BITS; z++ {
+		for z := 0; z < BITS; z++ {
 			externs.b[z] |= bit.b[z]
 		}
 	}
 	if n == obj.NAME_PARAM {
-		for z = 0; z < BITS; z++ {
+		for z := 0; z < BITS; z++ {
 			params.b[z] |= bit.b[z]
 		}
 	}
 
 	if node.Class == PPARAM {
-		for z = 0; z < BITS; z++ {
+		for z := 0; z < BITS; z++ {
 			ivar.b[z] |= bit.b[z]
 		}
 	}
 	if node.Class == PPARAMOUT {
-		for z = 0; z < BITS; z++ {
+		for z := 0; z < BITS; z++ {
 			ovar.b[z] |= bit.b[z]
 		}
 	}
@@ -420,8 +408,6 @@ none:
 
 func prop(f *Flow, ref Bits, cal Bits) {
 	var f1 *Flow
-	var f2 *Flow
-	var r *Reg
 	var r1 *Reg
 	var z int
 	var i int
@@ -533,6 +519,8 @@ func prop(f *Flow, ref Bits, cal Bits) {
 		f1.Active = 1
 	}
 
+	var r *Reg
+	var f2 *Flow
 	for ; f != f1; f = f.P1 {
 		r = f.Data.(*Reg)
 		for f2 = f.P2; f2 != nil; f2 = f2.P2link {
@@ -542,11 +530,10 @@ func prop(f *Flow, ref Bits, cal Bits) {
 }
 
 func synch(f *Flow, dif Bits) {
-	var f1 *Flow
 	var r1 *Reg
 	var z int
 
-	for f1 = f; f1 != nil; f1 = f1.S1 {
+	for f1 := f; f1 != nil; f1 = f1.S1 {
 		r1 = f1.Data.(*Reg)
 		for z = 0; z < BITS; z++ {
 			dif.b[z] = dif.b[z]&^(^r1.refbehind.b[z]&r1.refahead.b[z]) | r1.set.b[z] | r1.regdiff.b[z]
@@ -570,10 +557,7 @@ func synch(f *Flow, dif Bits) {
 }
 
 func allreg(b uint64, r *Rgn) uint64 {
-	var v *Var
-	var i int
-
-	v = &var_[r.varno:][0]
+	v := &var_[r.varno:][0]
 	r.regno = 0
 	switch v.etype {
 	default:
@@ -593,7 +577,7 @@ func allreg(b uint64, r *Rgn) uint64 {
 		TBOOL,
 		TPTR32,
 		TPTR64:
-		i = Thearch.BtoR(^b)
+		i := Thearch.BtoR(^b)
 		if i != 0 && r.cost > 0 {
 			r.regno = int16(i)
 			return Thearch.RtoB(i)
@@ -601,7 +585,7 @@ func allreg(b uint64, r *Rgn) uint64 {
 
 	case TFLOAT32,
 		TFLOAT64:
-		i = Thearch.BtoF(^b)
+		i := Thearch.BtoF(^b)
 		if i != 0 && r.cost > 0 {
 			r.regno = int16(i)
 			return Thearch.FtoB(i)
@@ -620,18 +604,14 @@ func STORE(r *Reg, z int) uint64 {
 }
 
 func paint1(f *Flow, bn int) {
-	var f1 *Flow
-	var r *Reg
-	var r1 *Reg
-	var z int
-	var bb uint64
-
-	z = bn / 64
-	bb = 1 << uint(bn%64)
-	r = f.Data.(*Reg)
+	z := bn / 64
+	bb := uint64(1 << uint(bn%64))
+	r := f.Data.(*Reg)
 	if r.act.b[z]&bb != 0 {
 		return
 	}
+	var f1 *Flow
+	var r1 *Reg
 	for {
 		if r.refbehind.b[z]&bb == 0 {
 			break
@@ -703,20 +683,15 @@ func paint1(f *Flow, bn int) {
 }
 
 func paint2(f *Flow, bn int, depth int) uint64 {
-	var f1 *Flow
-	var r *Reg
-	var r1 *Reg
-	var z int
-	var bb uint64
-	var vreg uint64
-
-	z = bn / 64
-	bb = 1 << uint(bn%64)
-	vreg = regbits
-	r = f.Data.(*Reg)
+	z := bn / 64
+	bb := uint64(1 << uint(bn%64))
+	vreg := regbits
+	r := f.Data.(*Reg)
 	if r.act.b[z]&bb == 0 {
 		return vreg
 	}
+	var r1 *Reg
+	var f1 *Flow
 	for {
 		if r.refbehind.b[z]&bb == 0 {
 			break
@@ -779,19 +754,14 @@ func paint2(f *Flow, bn int, depth int) uint64 {
 }
 
 func paint3(f *Flow, bn int, rb uint64, rn int) {
-	var f1 *Flow
-	var r *Reg
-	var r1 *Reg
-	var p *obj.Prog
-	var z int
-	var bb uint64
-
-	z = bn / 64
-	bb = 1 << uint(bn%64)
-	r = f.Data.(*Reg)
+	z := bn / 64
+	bb := uint64(1 << uint(bn%64))
+	r := f.Data.(*Reg)
 	if r.act.b[z]&bb != 0 {
 		return
 	}
+	var r1 *Reg
+	var f1 *Flow
 	for {
 		if r.refbehind.b[z]&bb == 0 {
 			break
@@ -814,6 +784,7 @@ func paint3(f *Flow, bn int, rb uint64, rn int) {
 	if LOAD(r, z)&^(r.set.b[z]&^(r.use1.b[z]|r.use2.b[z]))&bb != 0 {
 		addmove(f, bn, rn, 0)
 	}
+	var p *obj.Prog
 	for {
 		r.act.b[z] |= bb
 		p = f.Prog
@@ -886,14 +857,11 @@ func addreg(a *obj.Addr, rn int) {
 }
 
 func dumpone(f *Flow, isreg int) {
-	var z int
-	var bit Bits
-	var r *Reg
-
 	fmt.Printf("%d:%v", f.Loop, f.Prog)
 	if isreg != 0 {
-		r = f.Data.(*Reg)
-		for z = 0; z < BITS; z++ {
+		r := f.Data.(*Reg)
+		var bit Bits
+		for z := 0; z < BITS; z++ {
 			bit.b[z] = r.set.b[z] | r.use1.b[z] | r.use2.b[z] | r.refbehind.b[z] | r.refahead.b[z] | r.calbehind.b[z] | r.calahead.b[z] | r.regdiff.b[z] | r.act.b[z] | 0
 		}
 		if bany(&bit) {
@@ -932,11 +900,10 @@ func dumpone(f *Flow, isreg int) {
 }
 
 func Dumpit(str string, r0 *Flow, isreg int) {
-	var r *Flow
 	var r1 *Flow
 
 	fmt.Printf("\n%s\n", str)
-	for r = r0; r != nil; r = r.Link {
+	for r := r0; r != nil; r = r.Link {
 		dumpone(r, isreg)
 		r1 = r.P2
 		if r1 != nil {
@@ -967,23 +934,6 @@ func Dumpit(str string, r0 *Flow, isreg int) {
 }
 
 func regopt(firstp *obj.Prog) {
-	var f *Flow
-	var f1 *Flow
-	var r *Reg
-	var p *obj.Prog
-	var g *Graph
-	var info ProgInfo
-	var i int
-	var z int
-	var active int
-	var vreg uint64
-	var usedreg uint64
-	var mask uint64
-	var nreg int
-	var regnames []string
-	var bit Bits
-	var rgp *Rgn
-
 	if first != 0 {
 		first = 0
 	}
@@ -995,13 +945,14 @@ func regopt(firstp *obj.Prog) {
 	 * than in generated c code.  define pseudo-variables for
 	 * registers, so we have complete register usage information.
 	 */
-	regnames = Thearch.Regnames(&nreg)
+	var nreg int
+	regnames := Thearch.Regnames(&nreg)
 
 	nvar = nreg
-	for i = 0; i < nreg; i++ {
+	for i := 0; i < nreg; i++ {
 		var_[i] = Var{}
 	}
-	for i = 0; i < nreg; i++ {
+	for i := 0; i < nreg; i++ {
 		if regnodes[i] == nil {
 			regnodes[i] = newname(Lookup(regnames[i]))
 		}
@@ -1022,10 +973,10 @@ func regopt(firstp *obj.Prog) {
 	 * allocate pcs
 	 * find use and set of variables
 	 */
-	g = Flowstart(firstp, func() interface{} { return new(Reg) })
+	g := Flowstart(firstp, func() interface{} { return new(Reg) })
 
 	if g == nil {
-		for i = 0; i < nvar; i++ {
+		for i := 0; i < nvar; i++ {
 			var_[i].node.Opt = nil
 		}
 		return
@@ -1033,7 +984,12 @@ func regopt(firstp *obj.Prog) {
 
 	firstf = g.Start
 
-	for f = firstf; f != nil; f = f.Link {
+	var r *Reg
+	var info ProgInfo
+	var p *obj.Prog
+	var bit Bits
+	var z int
+	for f := firstf; f != nil; f = f.Link {
 		p = f.Prog
 		if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
 			continue
@@ -1097,9 +1053,8 @@ func regopt(firstp *obj.Prog) {
 		}
 	}
 
-	for i = 0; i < nvar; i++ {
-		var v *Var
-		v = &var_[i:][0]
+	for i := 0; i < nvar; i++ {
+		v := &var_[i:][0]
 		if v.addr != 0 {
 			bit = blsh(uint(i))
 			for z = 0; z < BITS; z++ {
@@ -1133,15 +1088,15 @@ func regopt(firstp *obj.Prog) {
 	 * (r->act will be reused in pass 5 for something else,
 	 * but we'll be done with it by then.)
 	 */
-	active = 0
+	active := 0
 
-	for f = firstf; f != nil; f = f.Link {
+	for f := firstf; f != nil; f = f.Link {
 		f.Active = 0
 		r = f.Data.(*Reg)
 		r.act = zbits
 	}
 
-	for f = firstf; f != nil; f = f.Link {
+	for f := firstf; f != nil; f = f.Link {
 		p = f.Prog
 		if p.As == obj.AVARDEF && Isfat(((p.To.Node).(*Node)).Type) && ((p.To.Node).(*Node)).Opt != nil {
 			active++
@@ -1154,6 +1109,9 @@ func regopt(firstp *obj.Prog) {
 	 * iterate propagating usage
 	 * 	back until flow graph is complete
 	 */
+	var f1 *Flow
+	var i int
+	var f *Flow
 loop1:
 	change = 0
 
@@ -1213,8 +1171,8 @@ loop2:
 	 * pass 4.5
 	 * move register pseudo-variables into regu.
 	 */
-	mask = (1 << uint(nreg)) - 1
-	for f = firstf; f != nil; f = f.Link {
+	mask := uint64((1 << uint(nreg)) - 1)
+	for f := firstf; f != nil; f = f.Link {
 		r = f.Data.(*Reg)
 		r.regu = (r.refbehind.b[0] | r.set.b[0]) & mask
 		r.set.b[0] &^= mask
@@ -1240,8 +1198,8 @@ loop2:
 	f = firstf
 
 	if f != nil {
-		r = f.Data.(*Reg)
-		for z = 0; z < BITS; z++ {
+		r := f.Data.(*Reg)
+		for z := 0; z < BITS; z++ {
 			bit.b[z] = (r.refahead.b[z] | r.calahead.b[z]) &^ (externs.b[z] | params.b[z] | addrs.b[z] | consts.b[z])
 		}
 		if bany(&bit) && f.Refset == 0 {
@@ -1253,11 +1211,12 @@ loop2:
 		}
 	}
 
-	for f = firstf; f != nil; f = f.Link {
+	for f := firstf; f != nil; f = f.Link {
 		(f.Data.(*Reg)).act = zbits
 	}
 	nregion = 0
-	for f = firstf; f != nil; f = f.Link {
+	var rgp *Rgn
+	for f := firstf; f != nil; f = f.Link {
 		r = f.Data.(*Reg)
 		for z = 0; z < BITS; z++ {
 			bit.b[z] = r.set.b[z] &^ (r.refahead.b[z] | r.calahead.b[z] | addrs.b[z])
@@ -1311,7 +1270,9 @@ brk:
 	if Debug['R'] != 0 && Debug['v'] != 0 {
 		fmt.Printf("\nregisterizing\n")
 	}
-	for i = 0; i < nregion; i++ {
+	var usedreg uint64
+	var vreg uint64
+	for i := 0; i < nregion; i++ {
 		rgp = &region[i]
 		if Debug['R'] != 0 && Debug['v'] != 0 {
 			fmt.Printf("region %d: cost %d varno %d enter %d\n", i, rgp.cost, rgp.varno, rgp.enter.Prog.Pc)
@@ -1321,9 +1282,7 @@ brk:
 		vreg = allreg(usedreg, rgp)
 		if rgp.regno != 0 {
 			if Debug['R'] != 0 && Debug['v'] != 0 {
-				var v *Var
-
-				v = &var_[rgp.varno:][0]
+				v := &var_[rgp.varno:][0]
 				fmt.Printf("registerize %v+%d (bit=%2d et=%v) in %v usedreg=%#x vreg=%#x\n", Nconv(v.node, 0), v.offset, rgp.varno, Econv(int(v.etype), 0), Ctxt.Rconv(int(rgp.regno)), usedreg, vreg)
 			}
 
@@ -1334,7 +1293,7 @@ brk:
 	/*
 	 * free aux structures. peep allocates new ones.
 	 */
-	for i = 0; i < nvar; i++ {
+	for i := 0; i < nvar; i++ {
 		var_[i].node.Opt = nil
 	}
 	Flowend(g)
@@ -1342,7 +1301,7 @@ brk:
 
 	if Debug['R'] != 0 && Debug['v'] != 0 {
 		// Rebuild flow graph, since we inserted instructions
-		g = Flowstart(firstp, nil)
+		g := Flowstart(firstp, nil)
 
 		firstf = g.Start
 		Dumpit("pass6", firstf, 0)
@@ -1361,7 +1320,7 @@ brk:
 	/*
 	 * eliminate nops
 	 */
-	for p = firstp; p != nil; p = p.Link {
+	for p := firstp; p != nil; p = p.Link {
 		for p.Link != nil && p.Link.As == obj.ANOP {
 			p.Link = p.Link.Link
 		}

@@ -35,9 +35,7 @@ type Case struct {
 var C *Case
 
 func dumpcase(c0 *Case) {
-	var c *Case
-
-	for c = c0; c != nil; c = c.link {
+	for c := c0; c != nil; c = c.link {
 		switch c.type_ {
 		case Tdefault:
 			fmt.Printf("case-default\n")
@@ -104,11 +102,6 @@ func ordlcmp(c1 *Case, c2 *Case) int {
 }
 
 func exprcmp(c1 *Case, c2 *Case) int {
-	var ct int
-	var n int
-	var n1 *Node
-	var n2 *Node
-
 	// sort non-constants last
 	if c1.type_ != Texprconst {
 		return +1
@@ -117,11 +110,11 @@ func exprcmp(c1 *Case, c2 *Case) int {
 		return -1
 	}
 
-	n1 = c1.node.Left
-	n2 = c2.node.Left
+	n1 := c1.node.Left
+	n2 := c2.node.Left
 
 	// sort by type (for switches on interface)
-	ct = int(n1.Val.Ctype)
+	ct := int(n1.Val.Ctype)
 
 	if ct != int(n2.Val.Ctype) {
 		return ct - int(n2.Val.Ctype)
@@ -135,7 +128,7 @@ func exprcmp(c1 *Case, c2 *Case) int {
 	}
 
 	// sort by constant value
-	n = 0
+	n := 0
 
 	switch ct {
 	case CTFLT:
@@ -181,16 +174,12 @@ func typecmp(c1 *Case, c2 *Case) int {
 }
 
 func csort(l *Case, f func(*Case, *Case) int) *Case {
-	var l1 *Case
-	var l2 *Case
-	var le *Case
-
 	if l == nil || l.link == nil {
 		return l
 	}
 
-	l1 = l
-	l2 = l
+	l1 := l
+	l2 := l
 	for {
 		l2 = l2.link
 		if l2 == nil {
@@ -217,7 +206,7 @@ func csort(l *Case, f func(*Case, *Case) int) *Case {
 		l2 = l2.link
 	}
 
-	le = l
+	le := l
 
 	for {
 		if l1 == nil {
@@ -270,31 +259,24 @@ func newlabel_swt() *Node {
  * deal with fallthrough, break, unreachable statements
  */
 func casebody(sw *Node, typeswvar *Node) {
-	var n *Node
-	var c *Node
-	var last *Node
-	var def *Node
-	var cas *NodeList
-	var stat *NodeList
-	var l *NodeList
-	var lc *NodeList
-	var go_ *Node
-	var br *Node
-	var lno int32
-	var needvar bool
-
 	if sw.List == nil {
 		return
 	}
 
-	lno = setlineno(sw)
+	lno := setlineno(sw)
 
-	cas = nil  // cases
-	stat = nil // statements
-	def = nil  // defaults
-	br = Nod(OBREAK, nil, nil)
+	cas := (*NodeList)(nil)  // cases
+	stat := (*NodeList)(nil) // statements
+	def := (*Node)(nil)      // defaults
+	br := Nod(OBREAK, nil, nil)
 
-	for l = sw.List; l != nil; l = l.Next {
+	var c *Node
+	var go_ *Node
+	var needvar bool
+	var lc *NodeList
+	var last *Node
+	var n *Node
+	for l := sw.List; l != nil; l = l.Next {
 		n = l.N
 		setlineno(n)
 		if n.Op != OXCASE {
@@ -333,9 +315,7 @@ func casebody(sw *Node, typeswvar *Node) {
 
 		stat = list(stat, Nod(OLABEL, go_.Left, nil))
 		if typeswvar != nil && needvar && n.Nname != nil {
-			var l *NodeList
-
-			l = list1(Nod(ODCL, n.Nname, nil))
+			l := list1(Nod(ODCL, n.Nname, nil))
 			l = list(l, Nod(OAS, n.Nname, typeswvar))
 			typechecklist(l, Etop)
 			stat = concat(stat, l)
@@ -375,16 +355,12 @@ func casebody(sw *Node, typeswvar *Node) {
 
 func mkcaselist(sw *Node, arg int) *Case {
 	var n *Node
-	var c *Case
 	var c1 *Case
-	var c2 *Case
-	var l *NodeList
-	var ord int
 
-	c = nil
-	ord = 0
+	c := (*Case)(nil)
+	ord := 0
 
-	for l = sw.List; l != nil; l = l.Next {
+	for l := sw.List; l != nil; l = l.Next {
 		n = l.N
 		c1 = new(Case)
 		c1.link = c
@@ -444,7 +420,8 @@ func mkcaselist(sw *Node, arg int) *Case {
 	switch arg {
 	case Stype:
 		c = csort(c, typecmp)
-		for c1 = c; c1 != nil; c1 = c1.link {
+		var c2 *Case
+		for c1 := c; c1 != nil; c1 = c1.link {
 			for c2 = c1.link; c2 != nil && c2.hash == c1.hash; c2 = c2.link {
 				if c1.type_ == Ttypenil || c1.type_ == Tdefault {
 					break
@@ -463,7 +440,7 @@ func mkcaselist(sw *Node, arg int) *Case {
 		Strue,
 		Sfalse:
 		c = csort(c, exprcmp)
-		for c1 = c; c1.link != nil; c1 = c1.link {
+		for c1 := c; c1.link != nil; c1 = c1.link {
 			if exprcmp(c1, c1.link) != 0 {
 				continue
 			}
@@ -481,17 +458,12 @@ func mkcaselist(sw *Node, arg int) *Case {
 var exprname *Node
 
 func exprbsw(c0 *Case, ncase int, arg int) *Node {
-	var cas *NodeList
-	var a *Node
-	var n *Node
-	var c *Case
-	var i int
-	var half int
-	var lno int
-
-	cas = nil
+	cas := (*NodeList)(nil)
 	if ncase < Ncase {
-		for i = 0; i < ncase; i++ {
+		var a *Node
+		var n *Node
+		var lno int
+		for i := 0; i < ncase; i++ {
 			n = c0.node
 			lno = int(setlineno(n))
 
@@ -520,13 +492,13 @@ func exprbsw(c0 *Case, ncase int, arg int) *Node {
 	}
 
 	// find the middle and recur
-	c = c0
+	c := c0
 
-	half = ncase >> 1
-	for i = 1; i < half; i++ {
+	half := ncase >> 1
+	for i := 1; i < half; i++ {
 		c = c.link
 	}
-	a = Nod(OIF, nil, nil)
+	a := Nod(OIF, nil, nil)
 	a.Ntest = Nod(OLE, exprname, c.node.Left)
 	typecheck(&a.Ntest, Erv)
 	a.Nbody = list1(exprbsw(c0, half, arg))
@@ -539,19 +511,9 @@ func exprbsw(c0 *Case, ncase int, arg int) *Node {
  * rebuild case statements into if .. goto
  */
 func exprswitch(sw *Node) {
-	var def *Node
-	var cas *NodeList
-	var a *Node
-	var c0 *Case
-	var c *Case
-	var c1 *Case
-	var t *Type
-	var arg int
-	var ncase int
-
 	casebody(sw, nil)
 
-	arg = Snorm
+	arg := Snorm
 	if Isconst(sw.Ntest, CTBOOL) {
 		arg = Strue
 		if sw.Ntest.Val.U.Bval == 0 {
@@ -560,7 +522,7 @@ func exprswitch(sw *Node) {
 	}
 
 	walkexpr(&sw.Ntest, &sw.Ninit)
-	t = sw.Type
+	t := sw.Type
 	if t == nil {
 		return
 	}
@@ -570,7 +532,7 @@ func exprswitch(sw *Node) {
 	 */
 	exprname = nil
 
-	cas = nil
+	cas := (*NodeList)(nil)
 	if arg == Strue || arg == Sfalse {
 		exprname = Nodbool(arg == Strue)
 	} else if consttype(sw.Ntest) >= 0 {
@@ -582,7 +544,8 @@ func exprswitch(sw *Node) {
 		typechecklist(cas, Etop)
 	}
 
-	c0 = mkcaselist(sw, arg)
+	c0 := mkcaselist(sw, arg)
+	var def *Node
 	if c0 != nil && c0.type_ == Tdefault {
 		def = c0.node.Right
 		c0 = c0.link
@@ -590,6 +553,10 @@ func exprswitch(sw *Node) {
 		def = Nod(OBREAK, nil, nil)
 	}
 
+	var c *Case
+	var a *Node
+	var ncase int
+	var c1 *Case
 loop:
 	if c0 == nil {
 		cas = list(cas, def)
@@ -639,13 +606,8 @@ var facename *Node
 var boolname *Node
 
 func typeone(t *Node) *Node {
-	var init *NodeList
-	var a *Node
-	var b *Node
-	var var_ *Node
-
-	var_ = t.Nname
-	init = nil
+	var_ := t.Nname
+	init := (*NodeList)(nil)
 	if var_ == nil {
 		typecheck(&nblank, Erv|Easgn)
 		var_ = nblank
@@ -653,9 +615,9 @@ func typeone(t *Node) *Node {
 		init = list1(Nod(ODCL, var_, nil))
 	}
 
-	a = Nod(OAS2, nil, nil)
+	a := Nod(OAS2, nil, nil)
 	a.List = list(list1(var_), boolname) // var,bool =
-	b = Nod(ODOTTYPE, facename, nil)
+	b := Nod(ODOTTYPE, facename, nil)
 	b.Type = t.Left.Type // interface.(type)
 	a.Rlist = list1(b)
 	typecheck(&a, Etop)
@@ -669,17 +631,12 @@ func typeone(t *Node) *Node {
 }
 
 func typebsw(c0 *Case, ncase int) *Node {
-	var cas *NodeList
-	var a *Node
-	var n *Node
-	var c *Case
-	var i int
-	var half int
-
-	cas = nil
+	cas := (*NodeList)(nil)
 
 	if ncase < Ncase {
-		for i = 0; i < ncase; i++ {
+		var n *Node
+		var a *Node
+		for i := 0; i < ncase; i++ {
 			n = c0.node
 			if c0.type_ != Ttypeconst {
 				Fatal("typebsw")
@@ -696,13 +653,13 @@ func typebsw(c0 *Case, ncase int) *Node {
 	}
 
 	// find the middle and recur
-	c = c0
+	c := c0
 
-	half = ncase >> 1
-	for i = 1; i < half; i++ {
+	half := ncase >> 1
+	for i := 1; i < half; i++ {
 		c = c.link
 	}
-	a = Nod(OIF, nil, nil)
+	a := Nod(OIF, nil, nil)
 	a.Ntest = Nod(OLE, hashname, Nodintconst(int64(c.hash)))
 	typecheck(&a.Ntest, Erv)
 	a.Nbody = list1(typebsw(c0, half))
@@ -716,18 +673,6 @@ func typebsw(c0 *Case, ncase int) *Node {
  * into if statements
  */
 func typeswitch(sw *Node) {
-	var def *Node
-	var cas *NodeList
-	var hash *NodeList
-	var a *Node
-	var n *Node
-	var c *Case
-	var c0 *Case
-	var c1 *Case
-	var ncase int
-	var t *Type
-	var v Val
-
 	if sw.Ntest == nil {
 		return
 	}
@@ -743,7 +688,7 @@ func typeswitch(sw *Node) {
 		return
 	}
 
-	cas = nil
+	cas := (*NodeList)(nil)
 
 	/*
 	 * predeclare temporary variables
@@ -751,7 +696,7 @@ func typeswitch(sw *Node) {
 	 */
 	facename = temp(sw.Ntest.Right.Type)
 
-	a = Nod(OAS, facename, sw.Ntest.Right)
+	a := Nod(OAS, facename, sw.Ntest.Right)
 	typecheck(&a, Etop)
 	cas = list(cas, a)
 
@@ -763,7 +708,7 @@ func typeswitch(sw *Node) {
 	hashname = temp(Types[TUINT32])
 	typecheck(&hashname, Erv)
 
-	t = sw.Ntest.Right.Type
+	t := sw.Ntest.Right.Type
 	if isnilinter(t) {
 		a = syslook("efacethash", 1)
 	} else {
@@ -776,7 +721,8 @@ func typeswitch(sw *Node) {
 	typecheck(&a, Etop)
 	cas = list(cas, a)
 
-	c0 = mkcaselist(sw, Stype)
+	c0 := mkcaselist(sw, Stype)
+	var def *Node
 	if c0 != nil && c0.type_ == Tdefault {
 		def = c0.node.Right
 		c0 = c0.link
@@ -787,7 +733,9 @@ func typeswitch(sw *Node) {
 	/*
 	 * insert if statement into each case block
 	 */
-	for c = c0; c != nil; c = c.link {
+	var v Val
+	var n *Node
+	for c := c0; c != nil; c = c.link {
 		n = c.node
 		switch c.type_ {
 		case Ttypenil:
@@ -807,6 +755,10 @@ func typeswitch(sw *Node) {
 	/*
 	 * generate list of if statements, binary search for constant sequences
 	 */
+	var ncase int
+	var c1 *Case
+	var hash *NodeList
+	var c *Case
 	for c0 != nil {
 		if c0.type_ != Ttypeconst {
 			n = c0.node
@@ -895,22 +847,11 @@ func walkswitch(sw *Node) {
  */
 func typecheckswitch(n *Node) {
 	var top int
-	var lno int
-	var ptr int
-	var nilonly string
 	var t *Type
-	var badtype *Type
-	var missing *Type
-	var have *Type
-	var l *NodeList
-	var ll *NodeList
-	var ncase *Node
-	var nvar *Node
-	var def *Node
 
-	lno = int(lineno)
+	lno := int(lineno)
 	typechecklist(n.Ninit, Etop)
-	nilonly = ""
+	nilonly := ""
 
 	if n.Ntest != nil && n.Ntest.Op == OTYPESW {
 		// type switch
@@ -933,6 +874,7 @@ func typecheckswitch(n *Node) {
 			t = Types[TBOOL]
 		}
 		if t != nil {
+			var badtype *Type
 			if okforeq[t.Etype] == 0 {
 				Yyerror("cannot switch on %v", Nconv(n.Ntest, obj.FmtLong))
 			} else if t.Etype == TARRAY && !Isfixedarray(t) {
@@ -951,8 +893,14 @@ func typecheckswitch(n *Node) {
 
 	n.Type = t
 
-	def = nil
-	for l = n.List; l != nil; l = l.Next {
+	def := (*Node)(nil)
+	var ptr int
+	var have *Type
+	var nvar *Node
+	var ll *NodeList
+	var missing *Type
+	var ncase *Node
+	for l := n.List; l != nil; l = l.Next {
 		ncase = l.N
 		setlineno(n)
 		if ncase.List == nil {

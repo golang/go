@@ -47,11 +47,9 @@ var inlretvars *NodeList // temp out variables
 // Get the function's package.  For ordinary functions it's on the ->sym, but for imported methods
 // the ->sym can be re-used in the local package, so peel it off the receiver's type.
 func fnpkg(fn *Node) *Pkg {
-	var rcvr *Type
-
 	if fn.Type.Thistuple != 0 {
 		// method
-		rcvr = getthisx(fn.Type).Type.Type
+		rcvr := getthisx(fn.Type).Type.Type
 
 		if Isptr[rcvr.Etype] != 0 {
 			rcvr = rcvr.Type
@@ -69,18 +67,13 @@ func fnpkg(fn *Node) *Pkg {
 // Lazy typechecking of imported bodies.  For local functions, caninl will set ->typecheck
 // because they're a copy of an already checked body.
 func typecheckinl(fn *Node) {
-	var savefn *Node
-	var pkg *Pkg
-	var save_safemode int
-	var lno int
-
-	lno = int(setlineno(fn))
+	lno := int(setlineno(fn))
 
 	// typecheckinl is only for imported functions;
 	// their bodies may refer to unsafe as long as the package
 	// was marked safe during import (which was checked then).
 	// the ->inl of a local function has been typechecked before caninl copied it.
-	pkg = fnpkg(fn)
+	pkg := fnpkg(fn)
 
 	if pkg == localpkg || pkg == nil {
 		return // typecheckinl on local function
@@ -90,10 +83,10 @@ func typecheckinl(fn *Node) {
 		fmt.Printf("typecheck import [%v] %v { %v }\n", Sconv(fn.Sym, 0), Nconv(fn, obj.FmtLong), Hconv(fn.Inl, obj.FmtSharp))
 	}
 
-	save_safemode = safemode
+	save_safemode := safemode
 	safemode = 0
 
-	savefn = Curfn
+	savefn := Curfn
 	Curfn = fn
 	typechecklist(fn.Inl, Etop)
 	Curfn = savefn
@@ -107,10 +100,6 @@ func typecheckinl(fn *Node) {
 // If so, caninl saves fn->nbody in fn->inl and substitutes it with a copy.
 // fn and ->nbody will already have been typechecked.
 func caninl(fn *Node) {
-	var savefn *Node
-	var t *Type
-	var budget int
-
 	if fn.Op != ODCLFUNC {
 		Fatal("caninl %v", Nconv(fn, 0))
 	}
@@ -129,19 +118,19 @@ func caninl(fn *Node) {
 
 	// can't handle ... args yet
 	if Debug['l'] < 3 {
-		for t = fn.Type.Type.Down.Down.Type; t != nil; t = t.Down {
+		for t := fn.Type.Type.Down.Down.Type; t != nil; t = t.Down {
 			if t.Isddd != 0 {
 				return
 			}
 		}
 	}
 
-	budget = 40 // allowed hairyness
+	budget := 40 // allowed hairyness
 	if ishairylist(fn.Nbody, &budget) {
 		return
 	}
 
-	savefn = Curfn
+	savefn := Curfn
 	Curfn = fn
 
 	fn.Nname.Inl = fn.Nbody
@@ -211,9 +200,7 @@ func ishairy(n *Node, budget *int) bool {
 // Any name-like node of non-local class is marked for re-export by adding it to
 // the exportlist.
 func inlcopylist(ll *NodeList) *NodeList {
-	var l *NodeList
-
-	l = nil
+	l := (*NodeList)(nil)
 	for ; ll != nil; ll = ll.Next {
 		l = list(l, inlcopy(ll.N))
 	}
@@ -221,8 +208,6 @@ func inlcopylist(ll *NodeList) *NodeList {
 }
 
 func inlcopy(n *Node) *Node {
-	var m *Node
-
 	if n == nil {
 		return nil
 	}
@@ -234,7 +219,7 @@ func inlcopy(n *Node) *Node {
 		return n
 	}
 
-	m = Nod(OXXX, nil, nil)
+	m := Nod(OXXX, nil, nil)
 	*m = *n
 	m.Inl = nil
 	m.Left = inlcopy(n.Left)
@@ -253,9 +238,7 @@ func inlcopy(n *Node) *Node {
 // Inlcalls/nodelist/node walks fn's statements and expressions and substitutes any
 // calls made to inlineable functions.  This is the external entry point.
 func inlcalls(fn *Node) {
-	var savefn *Node
-
-	savefn = Curfn
+	savefn := Curfn
 	Curfn = fn
 	inlnode(&fn)
 	if fn != Curfn {
@@ -277,10 +260,8 @@ func inlconv2stmt(n *Node) {
 
 // Turn an OINLCALL into a single valued expression.
 func inlconv2expr(np **Node) {
-	var n *Node
-	var r *Node
-	n = *np
-	r = n.Rlist.N
+	n := *np
+	r := n.Rlist.N
 	addinit(&r, concat(n.Ninit, n.Nbody))
 	*np = r
 }
@@ -291,13 +272,11 @@ func inlconv2expr(np **Node) {
 // order will be preserved Used in return, oas2func and call
 // statements.
 func inlconv2list(n *Node) *NodeList {
-	var l *NodeList
-
 	if n.Op != OINLCALL || n.Rlist == nil {
 		Fatal("inlconv2list %v\n", Nconv(n, obj.FmtSign))
 	}
 
-	l = n.Rlist
+	l := n.Rlist
 	addinit(&l.N, concat(n.Ninit, n.Nbody))
 	return l
 }
@@ -320,15 +299,11 @@ func inlnodelist(l *NodeList) {
 // but then you may as well do it here.  so this is cleaner and
 // shorter and less complicated.
 func inlnode(np **Node) {
-	var n *Node
-	var l *NodeList
-	var lno int
-
 	if *np == nil {
 		return
 	}
 
-	n = *np
+	n := *np
 
 	switch n.Op {
 	// inhibit inlining of their argument
@@ -347,10 +322,10 @@ func inlnode(np **Node) {
 		return
 	}
 
-	lno = int(setlineno(n))
+	lno := int(setlineno(n))
 
 	inlnodelist(n.Ninit)
-	for l = n.Ninit; l != nil; l = l.Next {
+	for l := n.Ninit; l != nil; l = l.Next {
 		if l.N.Op == OINLCALL {
 			inlconv2stmt(l.N)
 		}
@@ -369,7 +344,7 @@ func inlnode(np **Node) {
 	inlnodelist(n.List)
 	switch n.Op {
 	case OBLOCK:
-		for l = n.List; l != nil; l = l.Next {
+		for l := n.List; l != nil; l = l.Next {
 			if l.N.Op == OINLCALL {
 				inlconv2stmt(l.N)
 			}
@@ -391,7 +366,7 @@ func inlnode(np **Node) {
 
 		// fallthrough
 	default:
-		for l = n.List; l != nil; l = l.Next {
+		for l := n.List; l != nil; l = l.Next {
 			if l.N.Op == OINLCALL {
 				inlconv2expr(&l.N)
 			}
@@ -412,7 +387,7 @@ func inlnode(np **Node) {
 
 		// fallthrough
 	default:
-		for l = n.Rlist; l != nil; l = l.Next {
+		for l := n.Rlist; l != nil; l = l.Next {
 			if l.N.Op == OINLCALL {
 				inlconv2expr(&l.N)
 			}
@@ -430,14 +405,14 @@ func inlnode(np **Node) {
 	}
 
 	inlnodelist(n.Nbody)
-	for l = n.Nbody; l != nil; l = l.Next {
+	for l := n.Nbody; l != nil; l = l.Next {
 		if l.N.Op == OINLCALL {
 			inlconv2stmt(l.N)
 		}
 	}
 
 	inlnodelist(n.Nelse)
-	for l = n.Nelse; l != nil; l = l.Next {
+	for l := n.Nelse; l != nil; l = l.Next {
 		if l.N.Op == OINLCALL {
 			inlconv2stmt(l.N)
 		}
@@ -488,14 +463,11 @@ func inlnode(np **Node) {
 }
 
 func mkinlcall(np **Node, fn *Node, isddd int) {
-	var save_safemode int
-	var pkg *Pkg
-
-	save_safemode = safemode
+	save_safemode := safemode
 
 	// imported functions may refer to unsafe as long as the
 	// package was marked safe during import (already checked).
-	pkg = fnpkg(fn)
+	pkg := fnpkg(fn)
 
 	if pkg != localpkg && pkg != nil {
 		safemode = 0
@@ -523,26 +495,6 @@ var inlgen int
 // inlined function body and list, rlist contain the input, output
 // parameters.
 func mkinlcall1(np **Node, fn *Node, isddd int) {
-	var i int
-	var chkargcount bool
-	var n *Node
-	var call *Node
-	var saveinlfn *Node
-	var as *Node
-	var m *Node
-	var dcl *NodeList
-	var ll *NodeList
-	var ninit *NodeList
-	var body *NodeList
-	var t *Type
-	var variadic bool
-	var varargcount int
-	var multiret int
-	var vararg *Node
-	var varargs *NodeList
-	var varargtype *Type
-	var vararrtype *Type
-
 	// For variadic fn.
 	if fn.Inl == nil {
 		return
@@ -556,7 +508,7 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 		typecheckinl(fn)
 	}
 
-	n = *np
+	n := *np
 
 	// Bingo, we have a function node, and it has an inlineable body
 	if Debug['m'] > 1 {
@@ -569,13 +521,14 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 		fmt.Printf("%v: Before inlining: %v\n", n.Line(), Nconv(n, obj.FmtSign))
 	}
 
-	saveinlfn = inlfn
+	saveinlfn := inlfn
 	inlfn = fn
 
-	ninit = n.Ninit
+	ninit := n.Ninit
 
 	//dumplist("ninit pre", ninit);
 
+	var dcl *NodeList
 	if fn.Defn != nil { // local function
 		dcl = fn.Inldcl // imported function
 	} else {
@@ -583,10 +536,10 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 	}
 
 	inlretvars = nil
-	i = 0
+	i := 0
 
 	// Make temp names to use instead of the originals
-	for ll = dcl; ll != nil; ll = ll.Next {
+	for ll := dcl; ll != nil; ll = ll.Next {
 		if ll.N.Class == PPARAMOUT { // return values handled below.
 			continue
 		}
@@ -603,7 +556,8 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 	}
 
 	// temporaries for return values.
-	for t = getoutargx(fn.Type).Type; t != nil; t = t.Down {
+	var m *Node
+	for t := getoutargx(fn.Type).Type; t != nil; t = t.Down {
 		if t != nil && t.Nname != nil && !isblank(t.Nname) {
 			m = inlvar(t.Nname)
 			typecheck(&m, Erv)
@@ -619,9 +573,10 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 	}
 
 	// assign receiver.
+	var as *Node
 	if fn.Type.Thistuple != 0 && n.Left.Op == ODOTMETH {
 		// method call with a receiver.
-		t = getthisx(fn.Type).Type
+		t := getthisx(fn.Type).Type
 
 		if t != nil && t.Nname != nil && !isblank(t.Nname) && t.Nname.Inlvar == nil {
 			Fatal("missing inlvar for %v\n", Nconv(t.Nname, 0))
@@ -640,11 +595,11 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 	}
 
 	// check if inlined function is variadic.
-	variadic = false
+	variadic := false
 
-	varargtype = nil
-	varargcount = 0
-	for t = fn.Type.Type.Down.Down.Type; t != nil; t = t.Down {
+	varargtype := (*Type)(nil)
+	varargcount := 0
+	for t := fn.Type.Type.Down.Down.Type; t != nil; t = t.Down {
 		if t.Isddd != 0 {
 			variadic = true
 			varargtype = t.Type
@@ -657,7 +612,7 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 	}
 
 	// check if argument is actually a returned tuple from call.
-	multiret = 0
+	multiret := 0
 
 	if n.List != nil && n.List.Next == nil {
 		switch n.List.N.Op {
@@ -683,7 +638,7 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 	as = Nod(OAS2, nil, nil)
 
 	as.Rlist = n.List
-	ll = n.List
+	ll := n.List
 
 	// TODO: if len(nlist) == 1 but multiple args, check that n->list->n is a call?
 	if fn.Type.Thistuple != 0 && n.Left.Op != ODOTMETH {
@@ -693,7 +648,7 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 		}
 
 		// append receiver inlvar to LHS.
-		t = getthisx(fn.Type).Type
+		t := getthisx(fn.Type).Type
 
 		if t != nil && t.Nname != nil && !isblank(t.Nname) && t.Nname.Inlvar == nil {
 			Fatal("missing inlvar for %v\n", Nconv(t.Nname, 0))
@@ -706,13 +661,14 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 	}
 
 	// append ordinary arguments to LHS.
-	chkargcount = n.List != nil && n.List.Next != nil
+	chkargcount := n.List != nil && n.List.Next != nil
 
-	vararg = nil  // the slice argument to a variadic call
-	varargs = nil // the list of LHS names to put in vararg.
+	vararg := (*Node)(nil)      // the slice argument to a variadic call
+	varargs := (*NodeList)(nil) // the list of LHS names to put in vararg.
 	if !chkargcount {
 		// 0 or 1 expression on RHS.
-		for t = getinargx(fn.Type).Type; t != nil; t = t.Down {
+		var i int
+		for t := getinargx(fn.Type).Type; t != nil; t = t.Down {
 			if variadic && t.Isddd != 0 {
 				vararg = tinlvar(t)
 				for i = 0; i < varargcount && ll != nil; i++ {
@@ -728,6 +684,7 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 		}
 	} else {
 		// match arguments except final variadic (unless the call is dotted itself)
+		var t *Type
 		for t = getinargx(fn.Type).Type; t != nil; {
 			if ll == nil {
 				break
@@ -743,6 +700,7 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 		// match varargcount arguments with variadic parameters.
 		if variadic && t != nil && t.Isddd != 0 {
 			vararg = tinlvar(t)
+			var i int
 			for i = 0; i < varargcount && ll != nil; i++ {
 				m = argvar(varargtype, i)
 				varargs = list(varargs, m)
@@ -772,7 +730,7 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 			as.Right = nodnil()
 			as.Right.Type = varargtype
 		} else {
-			vararrtype = typ(TARRAY)
+			vararrtype := typ(TARRAY)
 			vararrtype.Type = varargtype.Type
 			vararrtype.Bound = int64(varargcount)
 
@@ -786,7 +744,7 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 	}
 
 	// zero the outparams
-	for ll = inlretvars; ll != nil; ll = ll.Next {
+	for ll := inlretvars; ll != nil; ll = ll.Next {
 		as = Nod(OAS, ll.N, nil)
 		typecheck(&as, Etop)
 		ninit = list(ninit, as)
@@ -794,7 +752,7 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 
 	inlretlabel = newlabel_inl()
 	inlgen++
-	body = inlsubstlist(fn.Inl)
+	body := inlsubstlist(fn.Inl)
 
 	body = list(body, Nod(OGOTO, inlretlabel, nil)) // avoid 'not used' when function doesnt have return
 	body = list(body, Nod(OLABEL, inlretlabel, nil))
@@ -803,7 +761,7 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 
 	//dumplist("ninit post", ninit);
 
-	call = Nod(OINLCALL, nil, nil)
+	call := Nod(OINLCALL, nil, nil)
 
 	call.Ninit = ninit
 	call.Nbody = body
@@ -824,10 +782,10 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 	// either supporting exporting statemetns with complex ninits
 	// or saving inl and making inlinl
 	if Debug['l'] >= 5 {
-		body = fn.Inl
+		body := fn.Inl
 		fn.Inl = nil // prevent infinite recursion
 		inlnodelist(call.Nbody)
-		for ll = call.Nbody; ll != nil; ll = ll.Next {
+		for ll := call.Nbody; ll != nil; ll = ll.Next {
 			if ll.N.Op == OINLCALL {
 				inlconv2stmt(ll.N)
 			}
@@ -844,13 +802,11 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 // PAUTO's in the calling functions, and link them off of the
 // PPARAM's, PAUTOS and PPARAMOUTs of the called function.
 func inlvar(var_ *Node) *Node {
-	var n *Node
-
 	if Debug['m'] > 3 {
 		fmt.Printf("inlvar %v\n", Nconv(var_, obj.FmtSign))
 	}
 
-	n = newname(var_.Sym)
+	n := newname(var_.Sym)
 	n.Type = var_.Type
 	n.Class = PAUTO
 	n.Used = 1
@@ -872,10 +828,8 @@ func inlvar(var_ *Node) *Node {
 
 // Synthesize a variable to store the inlined function's results in.
 func retvar(t *Type, i int) *Node {
-	var n *Node
-
 	namebuf = fmt.Sprintf("~r%d", i)
-	n = newname(Lookup(namebuf))
+	n := newname(Lookup(namebuf))
 	n.Type = t.Type
 	n.Class = PAUTO
 	n.Used = 1
@@ -887,10 +841,8 @@ func retvar(t *Type, i int) *Node {
 // Synthesize a variable to store the inlined function's arguments
 // when they come from a multiple return call.
 func argvar(t *Type, i int) *Node {
-	var n *Node
-
 	namebuf = fmt.Sprintf("~arg%d", i)
-	n = newname(Lookup(namebuf))
+	n := newname(Lookup(namebuf))
 	n.Type = t.Type
 	n.Class = PAUTO
 	n.Used = 1
@@ -902,11 +854,9 @@ func argvar(t *Type, i int) *Node {
 var newlabel_inl_label int
 
 func newlabel_inl() *Node {
-	var n *Node
-
 	newlabel_inl_label++
 	namebuf = fmt.Sprintf(".inlret%.6d", newlabel_inl_label)
-	n = newname(Lookup(namebuf))
+	n := newname(Lookup(namebuf))
 	n.Etype = 1 // flag 'safe' for escape analysis (no backjumps)
 	return n
 }
@@ -916,9 +866,7 @@ func newlabel_inl() *Node {
 // to input/output parameters with ones to the tmpnames, and
 // substituting returns with assignments to the output.
 func inlsubstlist(ll *NodeList) *NodeList {
-	var l *NodeList
-
-	l = nil
+	l := (*NodeList)(nil)
 	for ; ll != nil; ll = ll.Next {
 		l = list(l, inlsubst(ll.N))
 	}
@@ -926,11 +874,6 @@ func inlsubstlist(ll *NodeList) *NodeList {
 }
 
 func inlsubst(n *Node) *Node {
-	var p string
-	var m *Node
-	var as *Node
-	var ll *NodeList
-
 	if n == nil {
 		return nil
 	}
@@ -957,15 +900,15 @@ func inlsubst(n *Node) *Node {
 
 	//		dump("Return before substitution", n);
 	case ORETURN:
-		m = Nod(OGOTO, inlretlabel, nil)
+		m := Nod(OGOTO, inlretlabel, nil)
 
 		m.Ninit = inlsubstlist(n.Ninit)
 
 		if inlretvars != nil && n.List != nil {
-			as = Nod(OAS2, nil, nil)
+			as := Nod(OAS2, nil, nil)
 
 			// shallow copy or OINLCALL->rlist will be the same list, and later walk and typecheck may clobber that.
-			for ll = inlretvars; ll != nil; ll = ll.Next {
+			for ll := inlretvars; ll != nil; ll = ll.Next {
 				as.List = list(as.List, ll.N)
 			}
 			as.Rlist = inlsubstlist(n.List)
@@ -981,16 +924,16 @@ func inlsubst(n *Node) *Node {
 
 	case OGOTO,
 		OLABEL:
-		m = Nod(OXXX, nil, nil)
+		m := Nod(OXXX, nil, nil)
 		*m = *n
 		m.Ninit = nil
-		p = fmt.Sprintf("%s·%d", n.Left.Sym.Name, inlgen)
+		p := fmt.Sprintf("%s·%d", n.Left.Sym.Name, inlgen)
 		m.Left = newname(Lookup(p))
 
 		return m
 	}
 
-	m = Nod(OXXX, nil, nil)
+	m := Nod(OXXX, nil, nil)
 	*m = *n
 	m.Ninit = nil
 

@@ -18,9 +18,7 @@ var labellist *Label
 var lastlabel *Label
 
 func Sysfunc(name string) *Node {
-	var n *Node
-
-	n = newname(Pkglookup(name, Runtimepkg))
+	n := newname(Pkglookup(name, Runtimepkg))
 	n.Class = PFUNC
 	return n
 }
@@ -31,9 +29,6 @@ func Sysfunc(name string) *Node {
  * as needing to move to the heap.
  */
 func addrescapes(n *Node) {
-	var buf string
-	var oldfn *Node
-
 	switch n.Op {
 	// probably a type error already.
 	// dump("addrescapes", n);
@@ -84,11 +79,11 @@ func addrescapes(n *Node) {
 			n.Xoffset = 0
 
 			// create stack variable to hold pointer to heap
-			oldfn = Curfn
+			oldfn := Curfn
 
 			Curfn = n.Curfn
 			n.Heapaddr = temp(Ptrto(n.Type))
-			buf = fmt.Sprintf("&%v", Sconv(n.Sym, 0))
+			buf := fmt.Sprintf("&%v", Sconv(n.Sym, 0))
 			n.Heapaddr.Sym = Lookup(buf)
 			n.Heapaddr.Orig.Sym = n.Heapaddr.Sym
 			n.Esc = EscHeap
@@ -116,9 +111,7 @@ func addrescapes(n *Node) {
 }
 
 func clearlabels() {
-	var l *Label
-
-	for l = labellist; l != nil; l = l.Link {
+	for l := labellist; l != nil; l = l.Link {
 		l.Sym.Label = nil
 	}
 
@@ -127,11 +120,8 @@ func clearlabels() {
 }
 
 func newlab(n *Node) *Label {
-	var s *Sym
-	var lab *Label
-
-	s = n.Left.Sym
-	lab = s.Label
+	s := n.Left.Sym
+	lab := s.Label
 	if lab == nil {
 		lab = new(Label)
 		if lastlabel == nil {
@@ -158,41 +148,33 @@ func newlab(n *Node) *Label {
 }
 
 func checkgoto(from *Node, to *Node) {
-	var nf int
-	var nt int
-	var block *Sym
-	var dcl *Sym
-	var fs *Sym
-	var ts *Sym
-	var lno int
-
 	if from.Sym == to.Sym {
 		return
 	}
 
-	nf = 0
-	for fs = from.Sym; fs != nil; fs = fs.Link {
+	nf := 0
+	for fs := from.Sym; fs != nil; fs = fs.Link {
 		nf++
 	}
-	nt = 0
-	for fs = to.Sym; fs != nil; fs = fs.Link {
+	nt := 0
+	for fs := to.Sym; fs != nil; fs = fs.Link {
 		nt++
 	}
-	fs = from.Sym
+	fs := from.Sym
 	for ; nf > nt; nf-- {
 		fs = fs.Link
 	}
 	if fs != to.Sym {
-		lno = int(lineno)
+		lno := int(lineno)
 		setlineno(from)
 
 		// decide what to complain about.
 		// prefer to complain about 'into block' over declarations,
 		// so scan backward to find most recent block or else dcl.
-		block = nil
+		block := (*Sym)(nil)
 
-		dcl = nil
-		ts = to.Sym
+		dcl := (*Sym)(nil)
+		ts := to.Sym
 		for ; nt > nf; nt-- {
 			if ts.Pkg == nil {
 				block = ts
@@ -222,10 +204,8 @@ func checkgoto(from *Node, to *Node) {
 }
 
 func stmtlabel(n *Node) *Label {
-	var lab *Label
-
 	if n.Sym != nil {
-		lab = n.Sym.Label
+		lab := n.Sym.Label
 		if lab != nil {
 			if lab.Def != nil {
 				if lab.Def.Defn == n {
@@ -295,8 +275,6 @@ func cgen_dcl(n *Node) {
  * generate discard of value
  */
 func cgen_discard(nr *Node) {
-	var tmp Node
-
 	if nr == nil {
 		return
 	}
@@ -342,6 +320,7 @@ func cgen_discard(nr *Node) {
 
 		// special enough to just evaluate
 	default:
+		var tmp Node
 		Tempname(&tmp, nr.Type)
 
 		Cgen_as(&tmp, nr)
@@ -353,10 +332,7 @@ func cgen_discard(nr *Node) {
  * clearslim generates code to zero a slim node.
  */
 func Clearslim(n *Node) {
-	var z Node
-	var zero Mpflt
-
-	z = Node{}
+	z := Node{}
 	z.Op = OLITERAL
 	z.Type = n.Type
 	z.Addable = 1
@@ -370,6 +346,7 @@ func Clearslim(n *Node) {
 
 	case TFLOAT32,
 		TFLOAT64:
+		var zero Mpflt
 		Mpmovecflt(&zero, 0.0)
 		z.Val.Ctype = CTFLT
 		z.Val.U.Fval = &zero
@@ -410,20 +387,17 @@ func Clearslim(n *Node) {
  * n->right is data
  */
 func Cgen_eface(n *Node, res *Node) {
-	var dst Node
 	/*
 	 * the right node of an eface may contain function calls that uses res as an argument,
 	 * so it's important that it is done first
 	 */
 
-	var tmp *Node
-
-	tmp = temp(Types[Tptr])
+	tmp := temp(Types[Tptr])
 	Thearch.Cgen(n.Right, tmp)
 
 	Gvardef(res)
 
-	dst = *res
+	dst := *res
 	dst.Type = Types[Tptr]
 	dst.Xoffset += int64(Widthptr)
 	Thearch.Cgen(tmp, &dst)
@@ -442,23 +416,9 @@ func Cgen_eface(n *Node, res *Node) {
  * called for OSLICE, OSLICE3, OSLICEARR, OSLICE3ARR, OSLICESTR.
  */
 func Cgen_slice(n *Node, res *Node) {
-	var src Node
-	var dst Node
-	var cap *Node
-	var len *Node
-	var offs *Node
-	var add *Node
-	var base *Node
-	var tmpcap *Node
-	var tmplen *Node
-	var cmp *Node
-	var con Node
-	var p1 *obj.Prog
-	var p2 *obj.Prog
-
-	cap = n.List.N
-	len = n.List.Next.N
-	offs = nil
+	cap := n.List.N
+	len := n.List.Next.N
+	offs := (*Node)(nil)
 	if n.List.Next.Next != nil {
 		offs = n.List.Next.Next.N
 	}
@@ -470,15 +430,17 @@ func Cgen_slice(n *Node, res *Node) {
 	// might cause preemption or garbage collection.
 	// this makes the whole slice update atomic as far as the
 	// garbage collector can see.
-	base = temp(Types[TUINTPTR])
+	base := temp(Types[TUINTPTR])
 
-	tmplen = temp(Types[TINT])
+	tmplen := temp(Types[TINT])
+	var tmpcap *Node
 	if n.Op != OSLICESTR {
 		tmpcap = temp(Types[TINT])
 	} else {
 		tmpcap = tmplen
 	}
 
+	var src Node
 	if isnil(n.Left) {
 		Tempname(&src, n.Left.Type)
 		Thearch.Cgen(n.Left, &src)
@@ -519,16 +481,17 @@ func Cgen_slice(n *Node, res *Node) {
 	// In essence we are replacing x[i:j:k] where i == j == k
 	// or x[i:j] where i == j == cap(x) with x[0:0:0].
 	if offs != nil {
-		p1 = gjmp(nil)
-		p2 = gjmp(nil)
+		p1 := gjmp(nil)
+		p2 := gjmp(nil)
 		Patch(p1, Pc)
 
+		var con Node
 		Nodconst(&con, tmpcap.Type, 0)
-		cmp = Nod(OEQ, tmpcap, &con)
+		cmp := Nod(OEQ, tmpcap, &con)
 		typecheck(&cmp, Erv)
 		Thearch.Bgen(cmp, true, -1, p2)
 
-		add = Nod(OADD, base, offs)
+		add := Nod(OADD, base, offs)
 		typecheck(&add, Erv)
 		Thearch.Cgen(add, base)
 
@@ -536,7 +499,7 @@ func Cgen_slice(n *Node, res *Node) {
 	}
 
 	// dst.array = src.array  [ + lo *width ]
-	dst = *res
+	dst := *res
 
 	dst.Xoffset += int64(Array_array)
 	dst.Type = Types[Tptr]
@@ -616,9 +579,6 @@ func Dotoffset(n *Node, oary []int64, nn **Node) int {
  * make a new off the books
  */
 func Tempname(nn *Node, t *Type) {
-	var n *Node
-	var s *Sym
-
 	if Curfn == nil {
 		Fatal("no curfn for tempname")
 	}
@@ -633,8 +593,8 @@ func Tempname(nn *Node, t *Type) {
 	namebuf = fmt.Sprintf("autotmp_%.4d", statuniqgen)
 
 	statuniqgen++
-	s = Lookup(namebuf)
-	n = Nod(ONAME, nil, nil)
+	s := Lookup(namebuf)
+	n := Nod(ONAME, nil, nil)
 	n.Sym = s
 	s.Def = n
 	n.Type = t
@@ -651,26 +611,16 @@ func Tempname(nn *Node, t *Type) {
 }
 
 func temp(t *Type) *Node {
-	var n *Node
-
-	n = Nod(OXXX, nil, nil)
+	n := Nod(OXXX, nil, nil)
 	Tempname(n, t)
 	n.Sym.Def.Used = 1
 	return n.Orig
 }
 
 func gen(n *Node) {
-	var lno int32
-	var scontin *obj.Prog
-	var sbreak *obj.Prog
-	var p1 *obj.Prog
-	var p2 *obj.Prog
-	var p3 *obj.Prog
-	var lab *Label
-
 	//dump("gen", n);
 
-	lno = setlineno(n)
+	lno := setlineno(n)
 
 	wasregalloc := Thearch.Anyregalloc()
 
@@ -708,10 +658,11 @@ func gen(n *Node) {
 			break
 		}
 
-		lab = newlab(n)
+		lab := newlab(n)
 
 		// if there are pending gotos, resolve them all to the current pc.
-		for p1 = lab.Gotopc; p1 != nil; p1 = p2 {
+		var p2 *obj.Prog
+		for p1 := lab.Gotopc; p1 != nil; p1 = p2 {
 			p2 = unpatch(p1)
 			Patch(p1, Pc)
 		}
@@ -739,7 +690,7 @@ func gen(n *Node) {
 	// to the same label.  we'll unwind it when we learn the pc
 	// of the label in the OLABEL case above.)
 	case OGOTO:
-		lab = newlab(n)
+		lab := newlab(n)
 
 		if lab.Labelpc != nil {
 			gjmp(lab.Labelpc)
@@ -749,7 +700,7 @@ func gen(n *Node) {
 
 	case OBREAK:
 		if n.Left != nil {
-			lab = n.Left.Sym.Label
+			lab := n.Left.Sym.Label
 			if lab == nil {
 				Yyerror("break label not defined: %v", Sconv(n.Left.Sym, 0))
 				break
@@ -774,7 +725,7 @@ func gen(n *Node) {
 
 	case OCONTINUE:
 		if n.Left != nil {
-			lab = n.Left.Sym.Label
+			lab := n.Left.Sym.Label
 			if lab == nil {
 				Yyerror("continue label not defined: %v", Sconv(n.Left.Sym, 0))
 				break
@@ -798,14 +749,14 @@ func gen(n *Node) {
 		gjmp(continpc)
 
 	case OFOR:
-		sbreak = breakpc
-		p1 = gjmp(nil)      //		goto test
+		sbreak := breakpc
+		p1 := gjmp(nil)     //		goto test
 		breakpc = gjmp(nil) // break:	goto done
-		scontin = continpc
+		scontin := continpc
 		continpc = Pc
 
 		// define break and continue labels
-		lab = stmtlabel(n)
+		lab := stmtlabel(n)
 		if lab != nil {
 			lab.Breakpc = breakpc
 			lab.Continpc = continpc
@@ -825,23 +776,23 @@ func gen(n *Node) {
 		}
 
 	case OIF:
-		p1 = gjmp(nil)                                   //		goto test
-		p2 = gjmp(nil)                                   // p2:		goto else
+		p1 := gjmp(nil)                                  //		goto test
+		p2 := gjmp(nil)                                  // p2:		goto else
 		Patch(p1, Pc)                                    // test:
 		Thearch.Bgen(n.Ntest, false, int(-n.Likely), p2) //		if(!test) goto p2
 		Genlist(n.Nbody)                                 //		then
-		p3 = gjmp(nil)                                   //		goto done
+		p3 := gjmp(nil)                                  //		goto done
 		Patch(p2, Pc)                                    // else:
 		Genlist(n.Nelse)                                 //		else
 		Patch(p3, Pc)                                    // done:
 
 	case OSWITCH:
-		sbreak = breakpc
-		p1 = gjmp(nil)      //		goto test
+		sbreak := breakpc
+		p1 := gjmp(nil)     //		goto test
 		breakpc = gjmp(nil) // break:	goto done
 
 		// define break label
-		lab = stmtlabel(n)
+		lab := stmtlabel(n)
 		if lab != nil {
 			lab.Breakpc = breakpc
 		}
@@ -855,12 +806,12 @@ func gen(n *Node) {
 		}
 
 	case OSELECT:
-		sbreak = breakpc
-		p1 = gjmp(nil)      //		goto test
+		sbreak := breakpc
+		p1 := gjmp(nil)     //		goto test
 		breakpc = gjmp(nil) // break:	goto done
 
 		// define break label
-		lab = stmtlabel(n)
+		lab := stmtlabel(n)
 		if lab != nil {
 			lab.Breakpc = breakpc
 		}
@@ -918,8 +869,6 @@ ret:
 }
 
 func Cgen_as(nl *Node, nr *Node) {
-	var tl *Type
-
 	if Debug['g'] != 0 {
 		Dump("cgen_as", nl)
 		Dump("cgen_as = ", nr)
@@ -940,7 +889,7 @@ func Cgen_as(nl *Node, nr *Node) {
 			return
 		}
 
-		tl = nl.Type
+		tl := nl.Type
 		if tl == nil {
 			return
 		}
@@ -956,7 +905,7 @@ func Cgen_as(nl *Node, nr *Node) {
 		return
 	}
 
-	tl = nl.Type
+	tl := nl.Type
 	if tl == nil {
 		return
 	}
@@ -965,19 +914,16 @@ func Cgen_as(nl *Node, nr *Node) {
 }
 
 func Cgen_callmeth(n *Node, proc int) {
-	var n2 Node
-	var l *Node
-
 	// generate a rewrite in n2 for the method call
 	// (p.f)(...) goes to (f)(p,...)
 
-	l = n.Left
+	l := n.Left
 
 	if l.Op != ODOTMETH {
 		Fatal("cgen_callmeth: not dotmethod: %v")
 	}
 
-	n2 = *n
+	n2 := *n
 	n2.Op = OCALLFUNC
 	n2.Left = l.Right
 	n2.Left.Type = l.Type
@@ -989,10 +935,9 @@ func Cgen_callmeth(n *Node, proc int) {
 }
 
 func checklabels() {
-	var lab *Label
 	var l *NodeList
 
-	for lab = labellist; lab != nil; lab = lab.Link {
+	for lab := labellist; lab != nil; lab = lab.Link {
 		if lab.Def == nil {
 			for l = lab.Use; l != nil; l = l.Next {
 				yyerrorl(int(l.N.Lineno), "label %v not defined", Sconv(lab.Sym, 0))

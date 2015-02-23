@@ -20,13 +20,11 @@ var makefuncdatasym_nsym int32
 
 func makefuncdatasym(namefmt string, funcdatakind int64) *Sym {
 	var nod Node
-	var pnod *Node
-	var sym *Sym
 
 	namebuf = fmt.Sprintf(namefmt, makefuncdatasym_nsym)
 	makefuncdatasym_nsym++
-	sym = Lookup(namebuf)
-	pnod = newname(sym)
+	sym := Lookup(namebuf)
+	pnod := newname(sym)
 	pnod.Class = PEXTERN
 	Nodconst(&nod, Types[TINT32], funcdatakind)
 	Thearch.Gins(obj.AFUNCDATA, &nod, pnod)
@@ -115,9 +113,7 @@ func gvarkill(n *Node) {
 }
 
 func removevardef(firstp *obj.Prog) {
-	var p *obj.Prog
-
-	for p = firstp; p != nil; p = p.Link {
+	for p := firstp; p != nil; p = p.Link {
 		for p.Link != nil && (p.Link.As == obj.AVARDEF || p.Link.As == obj.AVARKILL) {
 			p.Link = p.Link.Link
 		}
@@ -130,41 +126,31 @@ func removevardef(firstp *obj.Prog) {
 }
 
 func gcsymdup(s *Sym) {
-	var ls *obj.LSym
-	var lo uint64
-	var hi uint64
-
-	ls = Linksym(s)
+	ls := Linksym(s)
 	if len(ls.R) > 0 {
 		Fatal("cannot rosymdup %s with relocations", ls.Name)
 	}
 	var d MD5
 	md5reset(&d)
 	md5write(&d, ls.P, len(ls.P))
-	lo = md5sum(&d, &hi)
+	var hi uint64
+	lo := md5sum(&d, &hi)
 	ls.Name = fmt.Sprintf("gclocals·%016x%016x", lo, hi)
 	ls.Dupok = 1
 }
 
 func emitptrargsmap() {
-	var nptr int
-	var nbitmap int
-	var j int
-	var off int
-	var xoffset int64
-	var bv *Bvec
-	var sym *Sym
+	sym := Lookup(fmt.Sprintf("%s.args_stackmap", Curfn.Nname.Sym.Name))
 
-	sym = Lookup(fmt.Sprintf("%s.args_stackmap", Curfn.Nname.Sym.Name))
-
-	nptr = int(Curfn.Type.Argwid / int64(Widthptr))
-	bv = bvalloc(int32(nptr) * 2)
-	nbitmap = 1
+	nptr := int(Curfn.Type.Argwid / int64(Widthptr))
+	bv := bvalloc(int32(nptr) * 2)
+	nbitmap := 1
 	if Curfn.Type.Outtuple > 0 {
 		nbitmap = 2
 	}
-	off = duint32(sym, 0, uint32(nbitmap))
+	off := duint32(sym, 0, uint32(nbitmap))
 	off = duint32(sym, off, uint32(bv.n))
+	var xoffset int64
 	if Curfn.Type.Thistuple > 0 {
 		xoffset = 0
 		twobitwalktype1(getthisx(Curfn.Type), &xoffset, bv)
@@ -175,13 +161,13 @@ func emitptrargsmap() {
 		twobitwalktype1(getinargx(Curfn.Type), &xoffset, bv)
 	}
 
-	for j = 0; int32(j) < bv.n; j += 32 {
+	for j := 0; int32(j) < bv.n; j += 32 {
 		off = duint32(sym, off, bv.b[j/32])
 	}
 	if Curfn.Type.Outtuple > 0 {
 		xoffset = 0
 		twobitwalktype1(getoutargx(Curfn.Type), &xoffset, bv)
-		for j = 0; int32(j) < bv.n; j += 32 {
+		for j := 0; int32(j) < bv.n; j += 32 {
 			off = duint32(sym, off, bv.b[j/32])
 		}
 	}
@@ -198,9 +184,6 @@ func emitptrargsmap() {
 // the top of the stack and increasing in size.
 // Non-autos sort on offset.
 func cmpstackvar(a *Node, b *Node) int {
-	var ap int
-	var bp int
-
 	if a.Class != b.Class {
 		if a.Class == PAUTO {
 			return +1
@@ -222,8 +205,8 @@ func cmpstackvar(a *Node, b *Node) int {
 		return int(b.Used) - int(a.Used)
 	}
 
-	ap = bool2int(haspointers(a.Type))
-	bp = bool2int(haspointers(b.Type))
+	ap := bool2int(haspointers(a.Type))
+	bp := bool2int(haspointers(b.Type))
 	if ap != bp {
 		return bp - ap
 	}
@@ -246,10 +229,6 @@ func cmpstackvar(a *Node, b *Node) int {
 
 // TODO(lvd) find out where the PAUTO/OLITERAL nodes come from.
 func allocauto(ptxt *obj.Prog) {
-	var ll *NodeList
-	var n *Node
-	var w int64
-
 	Stksize = 0
 	stkptrsize = 0
 
@@ -258,7 +237,7 @@ func allocauto(ptxt *obj.Prog) {
 	}
 
 	// Mark the PAUTO's unused.
-	for ll = Curfn.Dcl; ll != nil; ll = ll.Next {
+	for ll := Curfn.Dcl; ll != nil; ll = ll.Next {
 		if ll.N.Class == PAUTO {
 			ll.N.Used = 0
 		}
@@ -269,9 +248,9 @@ func allocauto(ptxt *obj.Prog) {
 	listsort(&Curfn.Dcl, cmpstackvar)
 
 	// Unused autos are at the end, chop 'em off.
-	ll = Curfn.Dcl
+	ll := Curfn.Dcl
 
-	n = ll.N
+	n := ll.N
 	if n.Class == PAUTO && n.Op == ONAME && n.Used == 0 {
 		// No locals used at all
 		Curfn.Dcl = nil
@@ -280,7 +259,7 @@ func allocauto(ptxt *obj.Prog) {
 		return
 	}
 
-	for ll = Curfn.Dcl; ll.Next != nil; ll = ll.Next {
+	for ll := Curfn.Dcl; ll.Next != nil; ll = ll.Next {
 		n = ll.Next.N
 		if n.Class == PAUTO && n.Op == ONAME && n.Used == 0 {
 			ll.Next = nil
@@ -290,7 +269,8 @@ func allocauto(ptxt *obj.Prog) {
 	}
 
 	// Reassign stack offsets of the locals that are still there.
-	for ll = Curfn.Dcl; ll != nil; ll = ll.Next {
+	var w int64
+	for ll := Curfn.Dcl; ll != nil; ll = ll.Next {
 		n = ll.N
 		if n.Class != PAUTO || n.Op != ONAME {
 			continue
@@ -323,7 +303,7 @@ func allocauto(ptxt *obj.Prog) {
 	fixautoused(ptxt)
 
 	// The debug information needs accurate offsets on the symbols.
-	for ll = Curfn.Dcl; ll != nil; ll = ll.Next {
+	for ll := Curfn.Dcl; ll != nil; ll = ll.Next {
 		if ll.N.Class != PAUTO || ll.N.Op != ONAME {
 			continue
 		}
@@ -341,10 +321,9 @@ func movelarge(l *NodeList) {
 }
 
 func movelargefn(fn *Node) {
-	var l *NodeList
 	var n *Node
 
-	for l = fn.Dcl; l != nil; l = l.Next {
+	for l := fn.Dcl; l != nil; l = l.Next {
 		n = l.N
 		if n.Class == PAUTO && n.Type != nil && n.Type.Width > MaxStackVarSize {
 			addrescapes(n)
@@ -353,8 +332,6 @@ func movelargefn(fn *Node) {
 }
 
 func Cgen_checknil(n *Node) {
-	var reg Node
-
 	if Disable_checknil != 0 {
 		return
 	}
@@ -366,6 +343,7 @@ func Cgen_checknil(n *Node) {
 	}
 
 	if ((Thearch.Thechar == '5' || Thearch.Thechar == '9') && n.Op != OREGISTER) || n.Addable == 0 || n.Op == OLITERAL {
+		var reg Node
 		Thearch.Regalloc(&reg, Types[Tptr], n)
 		Thearch.Cgen(n, &reg)
 		Thearch.Gins(obj.ACHECKNIL, &reg, nil)
@@ -380,20 +358,6 @@ func Cgen_checknil(n *Node) {
  * ggen.c
  */
 func compile(fn *Node) {
-	var pl *obj.Plist
-	var nod1 Node
-	var n *Node
-	var ptxt *obj.Prog
-	var p *obj.Prog
-	var lno int32
-	var t *Type
-	var save Iter
-	var oldstksize int64
-	var l *NodeList
-	var nam *Node
-	var gcargs *Sym
-	var gclocals *Sym
-
 	if Newproc == nil {
 		Newproc = Sysfunc("newproc")
 		Deferproc = Sysfunc("deferproc")
@@ -403,11 +367,20 @@ func compile(fn *Node) {
 		throwreturn = Sysfunc("throwreturn")
 	}
 
-	lno = setlineno(fn)
+	lno := setlineno(fn)
 
 	Curfn = fn
 	dowidth(Curfn.Type)
 
+	var oldstksize int64
+	var nod1 Node
+	var ptxt *obj.Prog
+	var pl *obj.Plist
+	var p *obj.Prog
+	var n *Node
+	var nam *Node
+	var gcargs *Sym
+	var gclocals *Sym
 	if fn.Nbody == nil {
 		if pure_go != 0 || strings.HasPrefix(fn.Nname.Sym.Name, "init.") {
 			Yyerror("missing function body", fn)
@@ -428,7 +401,8 @@ func compile(fn *Node) {
 
 	if Curfn.Type.Outnamed != 0 {
 		// add clearing of the output parameters
-		t = Structfirst(&save, Getoutarg(Curfn.Type))
+		var save Iter
+		t := Structfirst(&save, Getoutarg(Curfn.Type))
 
 		for t != nil {
 			if t.Nname != nil {
@@ -501,11 +475,11 @@ func compile(fn *Node) {
 	gcargs = makefuncdatasym("gcargs·%d", obj.FUNCDATA_ArgsPointerMaps)
 	gclocals = makefuncdatasym("gclocals·%d", obj.FUNCDATA_LocalsPointerMaps)
 
-	for t = Curfn.Paramfld; t != nil; t = t.Down {
+	for t := Curfn.Paramfld; t != nil; t = t.Down {
 		gtrack(tracksym(t.Type))
 	}
 
-	for l = fn.Dcl; l != nil; l = l.Next {
+	for l := fn.Dcl; l != nil; l = l.Next {
 		n = l.N
 		if n.Op != ONAME { // might be OTYPE or OLITERAL
 			continue

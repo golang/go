@@ -49,10 +49,8 @@ type Order struct {
 // Order rewrites fn->nbody to apply the ordering constraints
 // described in the comment at the top of the file.
 func order(fn *Node) {
-	var s string
-
 	if Debug['W'] > 1 {
-		s = fmt.Sprintf("\nbefore order %v", Sconv(fn.Nname.Sym, 0))
+		s := fmt.Sprintf("\nbefore order %v", Sconv(fn.Nname.Sym, 0))
 		dumplist(s, fn.Nbody)
 	}
 
@@ -63,18 +61,14 @@ func order(fn *Node) {
 // pushes it onto the temp stack, and returns it.
 // If clear is true, ordertemp emits code to zero the temporary.
 func ordertemp(t *Type, order *Order, clear bool) *Node {
-	var var_ *Node
-	var a *Node
-	var l *NodeList
-
-	var_ = temp(t)
+	var_ := temp(t)
 	if clear {
-		a = Nod(OAS, var_, nil)
+		a := Nod(OAS, var_, nil)
 		typecheck(&a, Etop)
 		order.out = list(order.out, a)
 	}
 
-	l = order.free
+	l := order.free
 	if l == nil {
 		l = new(NodeList)
 	}
@@ -98,11 +92,8 @@ func ordertemp(t *Type, order *Order, clear bool) *Node {
 // returns a pointer to the result data instead of taking a pointer
 // to be filled in.)
 func ordercopyexpr(n *Node, t *Type, order *Order, clear int) *Node {
-	var a *Node
-	var var_ *Node
-
-	var_ = ordertemp(t, order, clear != 0)
-	a = Nod(OAS, var_, n)
+	var_ := ordertemp(t, order, clear != 0)
+	a := Nod(OAS, var_, n)
 	typecheck(&a, Etop)
 	order.out = list(order.out, a)
 	return var_
@@ -130,21 +121,17 @@ func ordercheapexpr(n *Node, order *Order) *Node {
 //
 // The intended use is to apply to x when rewriting x += y into x = x + y.
 func ordersafeexpr(n *Node, order *Order) *Node {
-	var l *Node
-	var r *Node
-	var a *Node
-
 	switch n.Op {
 	case ONAME,
 		OLITERAL:
 		return n
 
 	case ODOT:
-		l = ordersafeexpr(n.Left, order)
+		l := ordersafeexpr(n.Left, order)
 		if l == n.Left {
 			return n
 		}
-		a = Nod(OXXX, nil, nil)
+		a := Nod(OXXX, nil, nil)
 		*a = *n
 		a.Orig = a
 		a.Left = l
@@ -153,11 +140,11 @@ func ordersafeexpr(n *Node, order *Order) *Node {
 
 	case ODOTPTR,
 		OIND:
-		l = ordercheapexpr(n.Left, order)
+		l := ordercheapexpr(n.Left, order)
 		if l == n.Left {
 			return n
 		}
-		a = Nod(OXXX, nil, nil)
+		a := Nod(OXXX, nil, nil)
 		*a = *n
 		a.Orig = a
 		a.Left = l
@@ -166,16 +153,17 @@ func ordersafeexpr(n *Node, order *Order) *Node {
 
 	case OINDEX,
 		OINDEXMAP:
+		var l *Node
 		if Isfixedarray(n.Left.Type) {
 			l = ordersafeexpr(n.Left, order)
 		} else {
 			l = ordercheapexpr(n.Left, order)
 		}
-		r = ordercheapexpr(n.Right, order)
+		r := ordercheapexpr(n.Right, order)
 		if l == n.Left && r == n.Right {
 			return n
 		}
-		a = Nod(OXXX, nil, nil)
+		a := Nod(OXXX, nil, nil)
 		*a = *n
 		a.Orig = a
 		a.Left = l
@@ -210,9 +198,7 @@ func isaddrokay(n *Node) bool {
 // If the original argument *np is not okay, orderaddrtemp creates a tmp, emits
 // tmp = *np, and then sets *np to the tmp variable.
 func orderaddrtemp(np **Node, order *Order) {
-	var n *Node
-
-	n = *np
+	n := *np
 	if isaddrokay(n) {
 		return
 	}
@@ -244,10 +230,9 @@ func poptemp(mark *NodeList, order *Order) {
 // above the mark on the temporary stack, but it does not pop them
 // from the stack.
 func cleantempnopop(mark *NodeList, order *Order, out **NodeList) {
-	var l *NodeList
 	var kill *Node
 
-	for l = order.temp; l != mark; l = l.Next {
+	for l := order.temp; l != mark; l = l.Next {
 		kill = Nod(OVARKILL, l.N, nil)
 		typecheck(&kill, Etop)
 		*out = list(*out, kill)
@@ -271,11 +256,8 @@ func orderstmtlist(l *NodeList, order *Order) {
 // Orderblock orders the block of statements *l onto a new list,
 // and then replaces *l with that list.
 func orderblock(l **NodeList) {
-	var order Order
-	var mark *NodeList
-
-	order = Order{}
-	mark = marktemp(&order)
+	order := Order{}
+	mark := marktemp(&order)
 	orderstmtlist(*l, &order)
 	cleantemp(mark, &order)
 	*l = order.out
@@ -284,18 +266,14 @@ func orderblock(l **NodeList) {
 // Orderexprinplace orders the side effects in *np and
 // leaves them as the init list of the final *np.
 func orderexprinplace(np **Node, outer *Order) {
-	var n *Node
-	var lp **NodeList
-	var order Order
-
-	n = *np
-	order = Order{}
+	n := *np
+	order := Order{}
 	orderexpr(&n, &order)
 	addinit(&n, order.out)
 
 	// insert new temporaries from order
 	// at head of outer list.
-	lp = &order.temp
+	lp := &order.temp
 
 	for *lp != nil {
 		lp = &(*lp).Next
@@ -309,13 +287,9 @@ func orderexprinplace(np **Node, outer *Order) {
 // Orderstmtinplace orders the side effects of the single statement *np
 // and replaces it with the resulting statement list.
 func orderstmtinplace(np **Node) {
-	var n *Node
-	var order Order
-	var mark *NodeList
-
-	n = *np
-	order = Order{}
-	mark = marktemp(&order)
+	n := *np
+	order := Order{}
+	mark := marktemp(&order)
 	orderstmt(n, &order)
 	cleantemp(mark, &order)
 	*np = liststmt(order.out)
@@ -330,13 +304,11 @@ func orderinit(n *Node, order *Order) {
 // Ismulticall reports whether the list l is f() for a multi-value function.
 // Such an f() could appear as the lone argument to a multi-arg function.
 func ismulticall(l *NodeList) bool {
-	var n *Node
-
 	// one arg only
 	if l == nil || l.Next != nil {
 		return false
 	}
-	n = l.N
+	n := l.N
 
 	// must be call
 	switch n.Op {
@@ -356,26 +328,21 @@ func ismulticall(l *NodeList) bool {
 // Copyret emits t1, t2, ... = n, where n is a function call,
 // and then returns the list t1, t2, ....
 func copyret(n *Node, order *Order) *NodeList {
-	var t *Type
-	var tmp *Node
-	var as *Node
-	var l1 *NodeList
-	var l2 *NodeList
-	var tl Iter
-
 	if n.Type.Etype != TSTRUCT || n.Type.Funarg == 0 {
 		Fatal("copyret %v %d", Tconv(n.Type, 0), n.Left.Type.Outtuple)
 	}
 
-	l1 = nil
-	l2 = nil
-	for t = Structfirst(&tl, &n.Type); t != nil; t = structnext(&tl) {
+	l1 := (*NodeList)(nil)
+	l2 := (*NodeList)(nil)
+	var tl Iter
+	var tmp *Node
+	for t := Structfirst(&tl, &n.Type); t != nil; t = structnext(&tl) {
 		tmp = temp(t.Type)
 		l1 = list(l1, tmp)
 		l2 = list(l2, tmp)
 	}
 
-	as = Nod(OAS2, nil, nil)
+	as := Nod(OAS2, nil, nil)
 	as.List = l1
 	as.Rlist = list1(n)
 	typecheck(&as, Etop)
@@ -426,11 +393,6 @@ func ordercall(n *Node, order *Order) {
 // Ordermapassign also inserts these temporaries if needed for
 // calling writebarrierfat with a pointer to n->right.
 func ordermapassign(n *Node, order *Order) {
-	var m *Node
-	var a *Node
-	var l *NodeList
-	var post *NodeList
-
 	switch n.Op {
 	default:
 		Fatal("ordermapassign %v", Oconv(int(n.Op), 0))
@@ -440,9 +402,9 @@ func ordermapassign(n *Node, order *Order) {
 
 		// We call writebarrierfat only for values > 4 pointers long. See walk.c.
 		if (n.Left.Op == OINDEXMAP || (needwritebarrier(n.Left, n.Right) && n.Left.Type.Width > int64(4*Widthptr))) && !isaddrokay(n.Right) {
-			m = n.Left
+			m := n.Left
 			n.Left = ordertemp(m.Type, order, false)
-			a = Nod(OAS, m, n.Left)
+			a := Nod(OAS, m, n.Left)
 			typecheck(&a, Etop)
 			order.out = list(order.out, a)
 		}
@@ -451,8 +413,10 @@ func ordermapassign(n *Node, order *Order) {
 		OAS2DOTTYPE,
 		OAS2MAPR,
 		OAS2FUNC:
-		post = nil
-		for l = n.List; l != nil; l = l.Next {
+		post := (*NodeList)(nil)
+		var m *Node
+		var a *Node
+		for l := n.List; l != nil; l = l.Next {
 			if l.N.Op == OINDEXMAP {
 				m = l.N
 				if !istemp(m.Left) {
@@ -477,22 +441,11 @@ func ordermapassign(n *Node, order *Order) {
 // Temporaries created during the statement are cleaned
 // up using VARKILL instructions as possible.
 func orderstmt(n *Node, order *Order) {
-	var lno int
-	var l *NodeList
-	var t *NodeList
-	var t1 *NodeList
-	var r *Node
-	var tmp1 *Node
-	var tmp2 *Node
-	var np **Node
-	var ch *Type
-	var typ *Type
-
 	if n == nil {
 		return
 	}
 
-	lno = int(setlineno(n))
+	lno := int(setlineno(n))
 
 	orderinit(n, order)
 
@@ -511,7 +464,7 @@ func orderstmt(n *Node, order *Order) {
 		OPRINTN,
 		ORECOVER,
 		ORECV:
-		t = marktemp(order)
+		t := marktemp(order)
 		orderexpr(&n.Left, order)
 		orderexpr(&n.Right, order)
 		orderexprlist(n.List, order)
@@ -534,11 +487,11 @@ func orderstmt(n *Node, order *Order) {
 	// out map read from map write when l is
 	// a map index expression.
 	case OASOP:
-		t = marktemp(order)
+		t := marktemp(order)
 
 		orderexpr(&n.Left, order)
 		n.Left = ordersafeexpr(n.Left, order)
-		tmp1 = treecopy(n.Left)
+		tmp1 := treecopy(n.Left)
 		if tmp1.Op == OINDEXMAP {
 			tmp1.Etype = 0 // now an rvalue not an lvalue
 		}
@@ -554,10 +507,10 @@ func orderstmt(n *Node, order *Order) {
 		// Special: make sure key is addressable,
 	// and make sure OINDEXMAP is not copied out.
 	case OAS2MAPR:
-		t = marktemp(order)
+		t := marktemp(order)
 
 		orderexprlist(n.List, order)
-		r = n.Rlist.N
+		r := n.Rlist.N
 		orderexpr(&r.Left, order)
 		orderexpr(&r.Right, order)
 
@@ -571,7 +524,7 @@ func orderstmt(n *Node, order *Order) {
 
 		// Special: avoid copy of func call n->rlist->n.
 	case OAS2FUNC:
-		t = marktemp(order)
+		t := marktemp(order)
 
 		orderexprlist(n.List, order)
 		ordercall(n.Rlist.N, order)
@@ -582,17 +535,17 @@ func orderstmt(n *Node, order *Order) {
 	// so that assertI2Tetc can take address of temporary.
 	// No temporary for blank assignment.
 	case OAS2DOTTYPE:
-		t = marktemp(order)
+		t := marktemp(order)
 
 		orderexprlist(n.List, order)
 		orderexpr(&n.Rlist.N.Left, order) // i in i.(T)
 		if isblank(n.List.N) {
 			order.out = list(order.out, n)
 		} else {
-			typ = n.Rlist.N.Type
-			tmp1 = ordertemp(typ, order, haspointers(typ))
+			typ := n.Rlist.N.Type
+			tmp1 := ordertemp(typ, order, haspointers(typ))
 			order.out = list(order.out, n)
-			r = Nod(OAS, n.List.N, tmp1)
+			r := Nod(OAS, n.List.N, tmp1)
 			typecheck(&r, Etop)
 			ordermapassign(r, order)
 			n.List = list(list1(tmp1), n.List.Next.N)
@@ -603,19 +556,20 @@ func orderstmt(n *Node, order *Order) {
 		// Special: use temporary variables to hold result,
 	// so that chanrecv can take address of temporary.
 	case OAS2RECV:
-		t = marktemp(order)
+		t := marktemp(order)
 
 		orderexprlist(n.List, order)
 		orderexpr(&n.Rlist.N.Left, order) // arg to recv
-		ch = n.Rlist.N.Left.Type
-		tmp1 = ordertemp(ch.Type, order, haspointers(ch.Type))
+		ch := n.Rlist.N.Left.Type
+		tmp1 := ordertemp(ch.Type, order, haspointers(ch.Type))
+		var tmp2 *Node
 		if !isblank(n.List.Next.N) {
 			tmp2 = ordertemp(n.List.Next.N.Type, order, false)
 		} else {
 			tmp2 = ordertemp(Types[TBOOL], order, false)
 		}
 		order.out = list(order.out, n)
-		r = Nod(OAS, n.List.N, tmp1)
+		r := Nod(OAS, n.List.N, tmp1)
 		typecheck(&r, Etop)
 		ordermapassign(r, order)
 		r = Nod(OAS, n.List.Next.N, tmp2)
@@ -646,7 +600,7 @@ func orderstmt(n *Node, order *Order) {
 	case OCALLFUNC,
 		OCALLINTER,
 		OCALLMETH:
-		t = marktemp(order)
+		t := marktemp(order)
 
 		ordercall(n, order)
 		order.out = list(order.out, n)
@@ -655,7 +609,7 @@ func orderstmt(n *Node, order *Order) {
 		// Special: order arguments to inner call but not call itself.
 	case ODEFER,
 		OPROC:
-		t = marktemp(order)
+		t := marktemp(order)
 
 		switch n.Left.Op {
 		// Delete will take the address of the key.
@@ -664,8 +618,8 @@ func orderstmt(n *Node, order *Order) {
 		case ODELETE:
 			orderexprlist(n.Left.List, order)
 
-			t1 = marktemp(order)
-			np = &n.Left.List.Next.N // map key
+			t1 := marktemp(order)
+			np := &n.Left.List.Next.N // map key
 			*np = ordercopyexpr(*np, (*np).Type, order, 0)
 			poptemp(t1, order)
 
@@ -677,7 +631,7 @@ func orderstmt(n *Node, order *Order) {
 		cleantemp(t, order)
 
 	case ODELETE:
-		t = marktemp(order)
+		t := marktemp(order)
 		orderexpr(&n.List.N, order)
 		orderexpr(&n.List.Next.N, order)
 		orderaddrtemp(&n.List.Next.N, order) // map key
@@ -687,10 +641,10 @@ func orderstmt(n *Node, order *Order) {
 		// Clean temporaries from condition evaluation at
 	// beginning of loop body and after for statement.
 	case OFOR:
-		t = marktemp(order)
+		t := marktemp(order)
 
 		orderexprinplace(&n.Ntest, order)
-		l = nil
+		l := (*NodeList)(nil)
 		cleantempnopop(t, order, &l)
 		n.Nbody = concat(l, n.Nbody)
 		orderblock(&n.Nbody)
@@ -701,10 +655,10 @@ func orderstmt(n *Node, order *Order) {
 		// Clean temporaries from condition at
 	// beginning of both branches.
 	case OIF:
-		t = marktemp(order)
+		t := marktemp(order)
 
 		orderexprinplace(&n.Ntest, order)
-		l = nil
+		l := (*NodeList)(nil)
 		cleantempnopop(t, order, &l)
 		n.Nbody = concat(l, n.Nbody)
 		l = nil
@@ -718,7 +672,7 @@ func orderstmt(n *Node, order *Order) {
 		// Special: argument will be converted to interface using convT2E
 	// so make sure it is an addressable temporary.
 	case OPANIC:
-		t = marktemp(order)
+		t := marktemp(order)
 
 		orderexpr(&n.Left, order)
 		if !Isinter(n.Left.Type) {
@@ -736,7 +690,7 @@ func orderstmt(n *Node, order *Order) {
 	// which must make a copy to avoid seeing updates made during
 	// the range body. Ranging over an array value is uncommon though.
 	case ORANGE:
-		t = marktemp(order)
+		t := marktemp(order)
 
 		orderexpr(&n.Right, order)
 		switch n.Type.Etype {
@@ -761,7 +715,7 @@ func orderstmt(n *Node, order *Order) {
 		// fall through
 		case TCHAN,
 			TSTRING:
-			r = n.Right
+			r := n.Right
 
 			if r.Type.Etype == TSTRING && r.Type != Types[TSTRING] {
 				r = Nod(OCONV, r, nil)
@@ -775,7 +729,7 @@ func orderstmt(n *Node, order *Order) {
 		// TODO(rsc): Make tmp = literal expressions reuse tmp.
 		// For maps tmp is just one word so it hardly matters.
 		case TMAP:
-			r = n.Right
+			r := n.Right
 
 			n.Right = ordercopyexpr(r, r.Type, order, 0)
 
@@ -783,7 +737,7 @@ func orderstmt(n *Node, order *Order) {
 			n.Alloc = ordertemp(Types[TUINT8], order, true)
 		}
 
-		for l = n.List; l != nil; l = l.Next {
+		for l := n.List; l != nil; l = l.Next {
 			orderexprinplace(&l.N, order)
 		}
 		orderblock(&n.Nbody)
@@ -804,9 +758,12 @@ func orderstmt(n *Node, order *Order) {
 	// case (if p were nil, then the timing of the fault would
 	// give this away).
 	case OSELECT:
-		t = marktemp(order)
+		t := marktemp(order)
 
-		for l = n.List; l != nil; l = l.Next {
+		var tmp1 *Node
+		var tmp2 *Node
+		var r *Node
+		for l := n.List; l != nil; l = l.Next {
 			if l.N.Op != OXCASE {
 				Fatal("order select case %v", Oconv(int(l.N.Op), 0))
 			}
@@ -931,7 +888,7 @@ func orderstmt(n *Node, order *Order) {
 		// Now that we have accumulated all the temporaries, clean them.
 		// Also insert any ninit queued during the previous loop.
 		// (The temporary cleaning must follow that ninit work.)
-		for l = n.List; l != nil; l = l.Next {
+		for l := n.List; l != nil; l = l.Next {
 			cleantempnopop(t, order, &l.N.Ninit)
 			l.N.Nbody = concat(l.N.Ninit, l.N.Nbody)
 			l.N.Ninit = nil
@@ -942,7 +899,7 @@ func orderstmt(n *Node, order *Order) {
 
 		// Special: value being sent is passed as a pointer; make it addressable.
 	case OSEND:
-		t = marktemp(order)
+		t := marktemp(order)
 
 		orderexpr(&n.Left, order)
 		orderexpr(&n.Right, order)
@@ -958,10 +915,10 @@ func orderstmt(n *Node, order *Order) {
 	// For now just clean all the temporaries at the end.
 	// In practice that's fine.
 	case OSWITCH:
-		t = marktemp(order)
+		t := marktemp(order)
 
 		orderexpr(&n.Ntest, order)
-		for l = n.List; l != nil; l = l.Next {
+		for l := n.List; l != nil; l = l.Next {
 			if l.N.Op != OXCASE {
 				Fatal("order switch case %v", Oconv(int(l.N.Op), 0))
 			}
@@ -994,20 +951,12 @@ func orderexprlistinplace(l *NodeList, order *Order) {
 // Orderexpr orders a single expression, appending side
 // effects to order->out as needed.
 func orderexpr(np **Node, order *Order) {
-	var n *Node
-	var mark *NodeList
-	var l *NodeList
-	var t *Type
-	var lno int
-	var haslit bool
-	var hasbyte bool
-
-	n = *np
+	n := *np
 	if n == nil {
 		return
 	}
 
-	lno = int(setlineno(n))
+	lno := int(setlineno(n))
 	orderinit(n, order)
 
 	switch n.Op {
@@ -1024,7 +973,7 @@ func orderexpr(np **Node, order *Order) {
 		orderexprlist(n.List, order)
 
 		if count(n.List) > 5 {
-			t = typ(TARRAY)
+			t := typ(TARRAY)
 			t.Bound = int64(count(n.List))
 			t.Type = Types[TSTRING]
 			n.Alloc = ordertemp(t, order, false)
@@ -1037,16 +986,16 @@ func orderexpr(np **Node, order *Order) {
 		// Otherwise if all other arguments are empty strings,
 		// concatstrings will return the reference to the temp string
 		// to the caller.
-		hasbyte = false
+		hasbyte := false
 
-		haslit = false
-		for l = n.List; l != nil; l = l.Next {
+		haslit := false
+		for l := n.List; l != nil; l = l.Next {
 			hasbyte = hasbyte || l.N.Op == OARRAYBYTESTR
 			haslit = haslit || l.N.Op == OLITERAL && len(l.N.Val.U.Sval.S) != 0
 		}
 
 		if haslit && hasbyte {
-			for l = n.List; l != nil; l = l.Next {
+			for l := n.List; l != nil; l = l.Next {
 				if l.N.Op == OARRAYBYTESTR {
 					l.N.Op = OARRAYBYTESTRTMP
 				}
@@ -1105,13 +1054,13 @@ func orderexpr(np **Node, order *Order) {
 
 	case OANDAND,
 		OOROR:
-		mark = marktemp(order)
+		mark := marktemp(order)
 		orderexpr(&n.Left, order)
 
 		// Clean temporaries from first branch at beginning of second.
 		// Leave them on the stack so that they can be killed in the outer
 		// context in case the short circuit is taken.
-		l = nil
+		l := (*NodeList)(nil)
 
 		cleantempnopop(mark, order, &l)
 		n.Right.Ninit = concat(l, n.Right.Ninit)
@@ -1168,7 +1117,7 @@ func orderexpr(np **Node, order *Order) {
 		ONE:
 		orderexpr(&n.Left, order)
 		orderexpr(&n.Right, order)
-		t = n.Left.Type
+		t := n.Left.Type
 		if t.Etype == TSTRUCT || Isfixedarray(t) {
 			// for complex comparisons, we need both args to be
 			// addressable so we can pass them to the runtime.

@@ -41,8 +41,7 @@ func mangle(file string) {
 }
 
 func Symgrow(ctxt *Link, s *LSym, lsiz int64) {
-	var siz int
-	siz = int(lsiz)
+	siz := int(lsiz)
 	if int64(siz) != lsiz {
 		log.Fatal("Symgrow size %d too long", lsiz)
 	}
@@ -143,9 +142,7 @@ func Setuintxx(ctxt *Link, s *LSym, off int64, v uint64, wid int64) int64 {
 }
 
 func adduintxx(ctxt *Link, s *LSym, v uint64, wid int) int64 {
-	var off int64
-
-	off = s.Size
+	off := s.Size
 	Setuintxx(ctxt, s, off, v, int64(wid))
 	return off
 }
@@ -183,17 +180,14 @@ func setuint64(ctxt *Link, s *LSym, r int64, v uint64) int64 {
 }
 
 func addaddrplus(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
-	var i int64
-	var r *Reloc
-
 	if s.Type == 0 {
 		s.Type = SDATA
 	}
 	s.Reachable = 1
-	i = s.Size
+	i := s.Size
 	s.Size += int64(ctxt.Arch.Ptrsize)
 	Symgrow(ctxt, s, s.Size)
-	r = Addrel(s)
+	r := Addrel(s)
 	r.Sym = t
 	r.Off = int32(i)
 	r.Siz = uint8(ctxt.Arch.Ptrsize)
@@ -203,17 +197,14 @@ func addaddrplus(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
 }
 
 func addpcrelplus(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
-	var i int64
-	var r *Reloc
-
 	if s.Type == 0 {
 		s.Type = SDATA
 	}
 	s.Reachable = 1
-	i = s.Size
+	i := s.Size
 	s.Size += 4
 	Symgrow(ctxt, s, s.Size)
-	r = Addrel(s)
+	r := Addrel(s)
 	r.Sym = t
 	r.Off = int32(i)
 	r.Add = add
@@ -227,8 +218,6 @@ func addaddr(ctxt *Link, s *LSym, t *LSym) int64 {
 }
 
 func setaddrplus(ctxt *Link, s *LSym, off int64, t *LSym, add int64) int64 {
-	var r *Reloc
-
 	if s.Type == 0 {
 		s.Type = SDATA
 	}
@@ -238,7 +227,7 @@ func setaddrplus(ctxt *Link, s *LSym, off int64, t *LSym, add int64) int64 {
 		Symgrow(ctxt, s, s.Size)
 	}
 
-	r = Addrel(s)
+	r := Addrel(s)
 	r.Sym = t
 	r.Off = int32(off)
 	r.Siz = uint8(ctxt.Arch.Ptrsize)
@@ -252,17 +241,14 @@ func setaddr(ctxt *Link, s *LSym, off int64, t *LSym) int64 {
 }
 
 func addsize(ctxt *Link, s *LSym, t *LSym) int64 {
-	var i int64
-	var r *Reloc
-
 	if s.Type == 0 {
 		s.Type = SDATA
 	}
 	s.Reachable = 1
-	i = s.Size
+	i := s.Size
 	s.Size += int64(ctxt.Arch.Ptrsize)
 	Symgrow(ctxt, s, s.Size)
-	r = Addrel(s)
+	r := Addrel(s)
 	r.Sym = t
 	r.Off = int32(i)
 	r.Siz = uint8(ctxt.Arch.Ptrsize)
@@ -271,17 +257,14 @@ func addsize(ctxt *Link, s *LSym, t *LSym) int64 {
 }
 
 func addaddrplus4(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
-	var i int64
-	var r *Reloc
-
 	if s.Type == 0 {
 		s.Type = SDATA
 	}
 	s.Reachable = 1
-	i = s.Size
+	i := s.Size
 	s.Size += 4
 	Symgrow(ctxt, s, s.Size)
-	r = Addrel(s)
+	r := Addrel(s)
 	r.Sym = t
 	r.Off = int32(i)
 	r.Siz = 4

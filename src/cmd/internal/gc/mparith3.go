@@ -49,11 +49,7 @@ func mpsetexp(a *Mpflt, exp int) {
  * word of the number to Mpnorm
  */
 func mpnorm(a *Mpflt) {
-	var s int
-	var os int
-	var x int
-
-	os = sigfig(a)
+	os := sigfig(a)
 	if os == 0 {
 		// zero
 		a.Exp = 0
@@ -63,9 +59,9 @@ func mpnorm(a *Mpflt) {
 	}
 
 	// this will normalize to the nearest word
-	x = a.Val.A[os-1]
+	x := a.Val.A[os-1]
 
-	s = (Mpnorm - os) * Mpscale
+	s := (Mpnorm - os) * Mpscale
 
 	// further normalize to the nearest bit
 	for {
@@ -91,16 +87,13 @@ func mpnorm(a *Mpflt) {
 /// implements float arihmetic
 
 func mpaddfltflt(a *Mpflt, b *Mpflt) {
-	var sa int
-	var sb int
-	var s int
-	var c Mpflt
-
 	if Mpdebug != 0 /*TypeKind(100016)*/ {
 		fmt.Printf("\n%v + %v", Fconv(a, 0), Fconv(b, 0))
 	}
 
-	sa = sigfig(a)
+	sa := sigfig(a)
+	var s int
+	var sb int
 	if sa == 0 {
 		mpmovefltflt(a, b)
 		goto out
@@ -114,6 +107,7 @@ func mpaddfltflt(a *Mpflt, b *Mpflt) {
 	s = int(a.Exp) - int(b.Exp)
 	if s > 0 {
 		// a is larger, shift b right
+		var c Mpflt
 		mpmovefltflt(&c, b)
 
 		Mpshiftfix(&c.Val, -s)
@@ -140,14 +134,11 @@ out:
 }
 
 func mpmulfltflt(a *Mpflt, b *Mpflt) {
-	var sa int
-	var sb int
-
 	if Mpdebug != 0 /*TypeKind(100016)*/ {
 		fmt.Printf("%v\n * %v\n", Fconv(a, 0), Fconv(b, 0))
 	}
 
-	sa = sigfig(a)
+	sa := sigfig(a)
 	if sa == 0 {
 		// zero
 		a.Exp = 0
@@ -156,7 +147,7 @@ func mpmulfltflt(a *Mpflt, b *Mpflt) {
 		return
 	}
 
-	sb = sigfig(b)
+	sb := sigfig(b)
 	if sb == 0 {
 		// zero
 		mpmovefltflt(a, b)
@@ -174,15 +165,11 @@ func mpmulfltflt(a *Mpflt, b *Mpflt) {
 }
 
 func mpdivfltflt(a *Mpflt, b *Mpflt) {
-	var sa int
-	var sb int
-	var c Mpflt
-
 	if Mpdebug != 0 /*TypeKind(100016)*/ {
 		fmt.Printf("%v\n / %v\n", Fconv(a, 0), Fconv(b, 0))
 	}
 
-	sb = sigfig(b)
+	sb := sigfig(b)
 	if sb == 0 {
 		// zero and ovfl
 		a.Exp = 0
@@ -193,7 +180,7 @@ func mpdivfltflt(a *Mpflt, b *Mpflt) {
 		return
 	}
 
-	sa = sigfig(a)
+	sa := sigfig(a)
 	if sa == 0 {
 		// zero
 		a.Exp = 0
@@ -203,6 +190,7 @@ func mpdivfltflt(a *Mpflt, b *Mpflt) {
 	}
 
 	// adjust b to top
+	var c Mpflt
 	mpmovefltflt(&c, b)
 
 	Mpshiftfix(&c.Val, Mpscale)
@@ -219,18 +207,11 @@ func mpdivfltflt(a *Mpflt, b *Mpflt) {
 }
 
 func mpgetfltN(a *Mpflt, prec int, bias int) float64 {
-	var s int
-	var i int
-	var e int
-	var minexp int
-	var v uint64
-	var f float64
-
 	if a.Val.Ovf != 0 && nsavederrors+nerrors == 0 {
 		Yyerror("mpgetflt ovf")
 	}
 
-	s = sigfig(a)
+	s := sigfig(a)
 	if s == 0 {
 		return 0
 	}
@@ -252,7 +233,8 @@ func mpgetfltN(a *Mpflt, prec int, bias int) float64 {
 	// pick up the mantissa, a rounding bit, and a tie-breaking bit in a uvlong
 	s = prec + 2
 
-	v = 0
+	v := uint64(0)
+	var i int
 	for i = Mpnorm - 1; s >= Mpscale; i-- {
 		v = v<<Mpscale | uint64(a.Val.A[i])
 		s -= Mpscale
@@ -273,11 +255,11 @@ func mpgetfltN(a *Mpflt, prec int, bias int) float64 {
 	}
 
 	// gradual underflow
-	e = Mpnorm*Mpscale + int(a.Exp) - prec
+	e := Mpnorm*Mpscale + int(a.Exp) - prec
 
-	minexp = bias + 1 - prec + 1
+	minexp := bias + 1 - prec + 1
 	if e < minexp {
-		s = minexp - e
+		s := minexp - e
 		if s > prec+1 {
 			s = prec + 1
 		}
@@ -294,7 +276,7 @@ func mpgetfltN(a *Mpflt, prec int, bias int) float64 {
 	v += v & 1
 	v >>= 2
 
-	f = float64(v)
+	f := float64(v)
 	f = math.Ldexp(f, e)
 
 	if a.Val.Neg != 0 {
@@ -313,15 +295,14 @@ func mpgetflt32(a *Mpflt) float64 {
 }
 
 func Mpmovecflt(a *Mpflt, c float64) {
-	var i int
-	var f float64
-	var l int
-
 	if Mpdebug != 0 /*TypeKind(100016)*/ {
 		fmt.Printf("\nconst %g", c)
 	}
 	Mpmovecfix(&a.Val, 0)
 	a.Exp = 0
+	var f float64
+	var l int
+	var i int
 	if c == 0 {
 		goto out
 	}
@@ -333,7 +314,7 @@ func Mpmovecflt(a *Mpflt, c float64) {
 	f, i = math.Frexp(c)
 	a.Exp = int16(i)
 
-	for i = 0; i < 10; i++ {
+	for i := 0; i < 10; i++ {
 		f = f * Mpbase
 		l = int(math.Floor(f))
 		f = f - float64(l)
@@ -357,12 +338,10 @@ func mpnegflt(a *Mpflt) {
 }
 
 func mptestflt(a *Mpflt) int {
-	var s int
-
 	if Mpdebug != 0 /*TypeKind(100016)*/ {
 		fmt.Printf("\n%v?", Fconv(a, 0))
 	}
-	s = sigfig(a)
+	s := sigfig(a)
 	if s != 0 {
 		s = +1
 		if a.Val.Neg != 0 {

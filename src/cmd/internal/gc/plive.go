@@ -61,9 +61,7 @@ type Liveness struct {
 }
 
 func xmalloc(size uint32) interface{} {
-	var result interface{}
-
-	result = make([]byte, size)
+	result := (interface{})(make([]byte, size))
 	if result == nil {
 		Fatal("malloc failed")
 	}
@@ -72,12 +70,10 @@ func xmalloc(size uint32) interface{} {
 
 // Constructs a new basic block containing a single instruction.
 func newblock(prog *obj.Prog) *BasicBlock {
-	var result *BasicBlock
-
 	if prog == nil {
 		Fatal("newblock: prog cannot be nil")
 	}
-	result = new(BasicBlock)
+	result := new(BasicBlock)
 	result.rpo = -1
 	result.mark = UNVISITED
 	result.first = prog
@@ -111,9 +107,6 @@ func addedge(from *BasicBlock, to *BasicBlock) {
 // stream.  Any control flow, such as branches or fall throughs, that target the
 // existing instruction are adjusted to target the new instruction.
 func splicebefore(lv *Liveness, bb *BasicBlock, prev *obj.Prog, curr *obj.Prog) {
-	var next *obj.Prog
-	var tmp obj.Prog
-
 	// There may be other instructions pointing at curr,
 	// and we want them to now point at prev. Instead of
 	// trying to find all such instructions, swap the contents
@@ -121,14 +114,14 @@ func splicebefore(lv *Liveness, bb *BasicBlock, prev *obj.Prog, curr *obj.Prog) 
 	// The "opt" field is the backward link in the linked list.
 
 	// Overwrite curr's data with prev, but keep the list links.
-	tmp = *curr
+	tmp := *curr
 
 	*curr = *prev
 	curr.Opt = tmp.Opt
 	curr.Link = tmp.Link
 
 	// Overwrite prev (now next) with curr's old data.
-	next = prev
+	next := prev
 
 	*next = tmp
 	next.Opt = nil
@@ -151,27 +144,25 @@ func splicebefore(lv *Liveness, bb *BasicBlock, prev *obj.Prog, curr *obj.Prog) 
 // A pretty printer for basic blocks.
 func printblock(bb *BasicBlock) {
 	var pred *BasicBlock
-	var succ *BasicBlock
-	var prog *obj.Prog
-	var i int
 
 	fmt.Printf("basic block %d\n", bb.rpo)
 	fmt.Printf("\tpred:")
-	for i = 0; i < len(bb.pred); i++ {
+	for i := 0; i < len(bb.pred); i++ {
 		pred = bb.pred[i]
 		fmt.Printf(" %d", pred.rpo)
 	}
 
 	fmt.Printf("\n")
 	fmt.Printf("\tsucc:")
-	for i = 0; i < len(bb.succ); i++ {
+	var succ *BasicBlock
+	for i := 0; i < len(bb.succ); i++ {
 		succ = bb.succ[i]
 		fmt.Printf(" %d", succ.rpo)
 	}
 
 	fmt.Printf("\n")
 	fmt.Printf("\tprog:\n")
-	for prog = bb.first; ; prog = prog.Link {
+	for prog := bb.first; ; prog = prog.Link {
 		fmt.Printf("\t\t%v\n", prog)
 		if prog == bb.last {
 			break
@@ -195,11 +186,8 @@ func blockany(bb *BasicBlock, f func(*obj.Prog) bool) bool {
 // Collects and returns and array of Node*s for functions arguments and local
 // variables.
 func getvariables(fn *Node) []*Node {
-	var result []*Node
-	var ll *NodeList
-
-	result = make([]*Node, 0, 0)
-	for ll = fn.Dcl; ll != nil; ll = ll.Next {
+	result := make([]*Node, 0, 0)
+	for ll := fn.Dcl; ll != nil; ll = ll.Next {
 		if ll.N.Op == ONAME {
 			// In order for GODEBUG=gcdead=1 to work, each bitmap needs
 			// to contain information about all variables covered by the bitmap.
@@ -244,9 +232,8 @@ func getvariables(fn *Node) []*Node {
 // A pretty printer for control flow graphs.  Takes an array of BasicBlock*s.
 func printcfg(cfg []*BasicBlock) {
 	var bb *BasicBlock
-	var i int32
 
-	for i = 0; i < int32(len(cfg)); i++ {
+	for i := int32(0); i < int32(len(cfg)); i++ {
 		bb = cfg[i]
 		printblock(bb)
 	}
@@ -256,10 +243,9 @@ func printcfg(cfg []*BasicBlock) {
 // standard algorithm.  Unconnected blocks will not be affected.
 func reversepostorder(root *BasicBlock, rpo *int32) {
 	var bb *BasicBlock
-	var i int
 
 	root.mark = VISITED
-	for i = 0; i < len(root.succ); i++ {
+	for i := 0; i < len(root.succ); i++ {
 		bb = root.succ[i]
 		if bb.mark == UNVISITED {
 			reversepostorder(bb, rpo)
@@ -299,8 +285,6 @@ func iscall(prog *obj.Prog, name *obj.LSym) bool {
 var isselectcommcasecall_names [5]*obj.LSym
 
 func isselectcommcasecall(prog *obj.Prog) bool {
-	var i int32
-
 	if isselectcommcasecall_names[0] == nil {
 		isselectcommcasecall_names[0] = Linksym(Pkglookup("selectsend", Runtimepkg))
 		isselectcommcasecall_names[1] = Linksym(Pkglookup("selectrecv", Runtimepkg))
@@ -308,7 +292,7 @@ func isselectcommcasecall(prog *obj.Prog) bool {
 		isselectcommcasecall_names[3] = Linksym(Pkglookup("selectdefault", Runtimepkg))
 	}
 
-	for i = 0; isselectcommcasecall_names[i] != nil; i++ {
+	for i := int32(0); isselectcommcasecall_names[i] != nil; i++ {
 		if iscall(prog, isselectcommcasecall_names[i]) {
 			return true
 		}
@@ -352,10 +336,9 @@ func isdeferreturn(prog *obj.Prog) bool {
 // are implicit successors of the runtime·selectgo call node.  The goal of this
 // analysis is to add these missing edges to complete the control flow graph.
 func addselectgosucc(selectgo *BasicBlock) {
-	var pred *BasicBlock
 	var succ *BasicBlock
 
-	pred = selectgo
+	pred := selectgo
 	for {
 		if len(pred.pred) == 0 {
 			Fatal("selectgo does not have a newselect")
@@ -392,9 +375,8 @@ func addselectgosucc(selectgo *BasicBlock) {
 // array of BasicBlock*s containing selectgo calls.
 func fixselectgo(selectgo []*BasicBlock) {
 	var bb *BasicBlock
-	var i int32
 
-	for i = 0; i < int32(len(selectgo)); i++ {
+	for i := int32(0); i < int32(len(selectgo)); i++ {
 		bb = selectgo[i]
 		addselectgosucc(bb)
 	}
@@ -406,33 +388,25 @@ func fixselectgo(selectgo []*BasicBlock) {
 // array of BasicBlock*s in control flow graph form (basic blocks ordered by
 // their RPO number).
 func newcfg(firstp *obj.Prog) []*BasicBlock {
-	var p *obj.Prog
-	var prev *obj.Prog
-	var bb *BasicBlock
-	var cfg []*BasicBlock
-	var selectgo []*BasicBlock
-	var i int32
-	var rpo int32
-
 	// Reset the opt field of each prog to nil.  In the first and second
 	// passes, instructions that are labels temporarily use the opt field to
 	// point to their basic block.  In the third pass, the opt field reset
 	// to point to the predecessor of an instruction in its basic block.
-	for p = firstp; p != nil; p = p.Link {
+	for p := firstp; p != nil; p = p.Link {
 		p.Opt = nil
 	}
 
 	// Allocate an array to remember where we have seen selectgo calls.
 	// These blocks will be revisited to add successor control flow edges.
-	selectgo = make([]*BasicBlock, 0, 0)
+	selectgo := make([]*BasicBlock, 0, 0)
 
 	// Loop through all instructions identifying branch targets
 	// and fall-throughs and allocate basic blocks.
-	cfg = make([]*BasicBlock, 0, 0)
+	cfg := make([]*BasicBlock, 0, 0)
 
-	bb = newblock(firstp)
+	bb := newblock(firstp)
 	cfg = append(cfg, bb)
-	for p = firstp; p != nil; p = p.Link {
+	for p := firstp; p != nil; p = p.Link {
 		if p.To.Type == obj.TYPE_BRANCH {
 			if p.To.U.Branch == nil {
 				Fatal("prog branch to nil")
@@ -458,7 +432,8 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
 	// Loop through all basic blocks maximally growing the list of
 	// contained instructions until a label is reached.  Add edges
 	// for branches and fall-through instructions.
-	for i = 0; i < int32(len(cfg)); i++ {
+	var p *obj.Prog
+	for i := int32(0); i < int32(len(cfg)); i++ {
 		bb = cfg[i]
 		for p = bb.last; p != nil; p = p.Link {
 			if p.Opt != nil && p != bb.last {
@@ -492,7 +467,8 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
 
 	// Add back links so the instructions in a basic block can be traversed
 	// backward.  This is the final state of the instruction opt field.
-	for i = 0; i < int32(len(cfg)); i++ {
+	var prev *obj.Prog
+	for i := int32(0); i < int32(len(cfg)); i++ {
 		bb = cfg[i]
 		p = bb.first
 		prev = nil
@@ -513,13 +489,13 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
 
 	// Find a depth-first order and assign a depth-first number to
 	// all basic blocks.
-	for i = 0; i < int32(len(cfg)); i++ {
+	for i := int32(0); i < int32(len(cfg)); i++ {
 		bb = cfg[i]
 		bb.mark = UNVISITED
 	}
 
 	bb = cfg[0]
-	rpo = int32(len(cfg))
+	rpo := int32(len(cfg))
 	reversepostorder(bb, &rpo)
 
 	// Sort the basic blocks by their depth first number.  The
@@ -544,20 +520,15 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
 // Frees a control flow graph (an array of BasicBlock*s) and all of its leaf
 // data structures.
 func freecfg(cfg []*BasicBlock) {
-	var bb *BasicBlock
-	var bb0 *BasicBlock
-	var p *obj.Prog
-	var i int32
-	var n int32
-
-	n = int32(len(cfg))
+	n := int32(len(cfg))
 	if n > 0 {
-		bb0 = cfg[0]
-		for p = bb0.first; p != nil; p = p.Link {
+		bb0 := cfg[0]
+		for p := bb0.first; p != nil; p = p.Link {
 			p.Opt = nil
 		}
 
-		for i = 0; i < n; i++ {
+		var bb *BasicBlock
+		for i := int32(0); i < n; i++ {
 			bb = cfg[i]
 			freeblock(bb)
 		}
@@ -586,10 +557,6 @@ func isfunny(n *Node) bool {
 // initialization.
 func progeffects(prog *obj.Prog, vars []*Node, uevar *Bvec, varkill *Bvec, avarinit *Bvec) {
 	var info ProgInfo
-	var from *obj.Addr
-	var to *obj.Addr
-	var node *Node
-	var i int32
 
 	bvresetall(uevar)
 	bvresetall(varkill)
@@ -607,7 +574,8 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar *Bvec, varkill *Bvec, avari
 		// all the parameters for correctness, and similarly it must not
 		// read the out arguments - they won't be set until the new
 		// function runs.
-		for i = 0; i < int32(len(vars)); i++ {
+		var node *Node
+		for i := int32(0); i < int32(len(vars)); i++ {
 			node = vars[i]
 			switch node.Class &^ PHEAP {
 			case PPARAM:
@@ -634,7 +602,8 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar *Bvec, varkill *Bvec, avari
 	if prog.As == obj.ATEXT {
 		// A text instruction marks the entry point to a function and
 		// the definition point of all in arguments.
-		for i = 0; i < int32(len(vars)); i++ {
+		var node *Node
+		for i := int32(0); i < int32(len(vars)); i++ {
 			node = vars[i]
 			switch node.Class &^ PHEAP {
 			case PPARAM:
@@ -649,7 +618,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar *Bvec, varkill *Bvec, avari
 	}
 
 	if info.Flags&(LeftRead|LeftWrite|LeftAddr) != 0 {
-		from = &prog.From
+		from := &prog.From
 		if from.Node != nil && from.Sym != nil && ((from.Node).(*Node)).Curfn == Curfn {
 			switch ((from.Node).(*Node)).Class &^ PHEAP {
 			case PAUTO,
@@ -680,7 +649,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar *Bvec, varkill *Bvec, avari
 
 Next:
 	if info.Flags&(RightRead|RightWrite|RightAddr) != 0 {
-		to = &prog.To
+		to := &prog.To
 		if to.Node != nil && to.Sym != nil && ((to.Node).(*Node)).Curfn == Curfn {
 			switch ((to.Node).(*Node)).Class &^ PHEAP {
 			case PAUTO,
@@ -729,18 +698,13 @@ Next1:
 // liveness computation.  The cfg argument is an array of BasicBlock*s and the
 // vars argument is an array of Node*s.
 func newliveness(fn *Node, ptxt *obj.Prog, cfg []*BasicBlock, vars []*Node) *Liveness {
-	var result *Liveness
-	var i int32
-	var nblocks int32
-	var nvars int32
-
-	result = new(Liveness)
+	result := new(Liveness)
 	result.fn = fn
 	result.ptxt = ptxt
 	result.cfg = cfg
 	result.vars = vars
 
-	nblocks = int32(len(cfg))
+	nblocks := int32(len(cfg))
 	result.uevar = make([]*Bvec, nblocks)
 	result.varkill = make([]*Bvec, nblocks)
 	result.livein = make([]*Bvec, nblocks)
@@ -749,8 +713,8 @@ func newliveness(fn *Node, ptxt *obj.Prog, cfg []*BasicBlock, vars []*Node) *Liv
 	result.avarinitany = make([]*Bvec, nblocks)
 	result.avarinitall = make([]*Bvec, nblocks)
 
-	nvars = int32(len(vars))
-	for i = 0; i < nblocks; i++ {
+	nvars := int32(len(vars))
+	for i := int32(0); i < nblocks; i++ {
 		result.uevar[i] = bvalloc(nvars)
 		result.varkill[i] = bvalloc(nvars)
 		result.livein[i] = bvalloc(nvars)
@@ -767,19 +731,17 @@ func newliveness(fn *Node, ptxt *obj.Prog, cfg []*BasicBlock, vars []*Node) *Liv
 
 // Frees the liveness structure and all of its leaf data structures.
 func freeliveness(lv *Liveness) {
-	var i int32
-
 	if lv == nil {
 		Fatal("freeliveness: cannot free nil")
 	}
 
-	for i = 0; i < int32(len(lv.livepointers)); i++ {
+	for i := int32(0); i < int32(len(lv.livepointers)); i++ {
 	}
 
-	for i = 0; i < int32(len(lv.argslivepointers)); i++ {
+	for i := int32(0); i < int32(len(lv.argslivepointers)); i++ {
 	}
 
-	for i = 0; i < int32(len(lv.cfg)); i++ {
+	for i := int32(0); i < int32(len(lv.cfg)); i++ {
 	}
 }
 
@@ -798,14 +760,11 @@ func printeffects(p *obj.Prog, uevar *Bvec, varkill *Bvec, avarinit *Bvec) {
 // addresses to avoid confusing the C like conventions used in the node variable
 // names.
 func printnode(node *Node) {
-	var p string
-	var a string
-
-	p = ""
+	p := ""
 	if haspointers(node.Type) {
 		p = "^"
 	}
-	a = ""
+	a := ""
 	if node.Addrtaken != 0 {
 		a = "@"
 	}
@@ -814,10 +773,8 @@ func printnode(node *Node) {
 
 // Pretty print a list of variables.  The vars argument is an array of Node*s.
 func printvars(name string, bv *Bvec, vars []*Node) {
-	var i int32
-
 	fmt.Printf("%s:", name)
-	for i = 0; i < int32(len(vars)); i++ {
+	for i := int32(0); i < int32(len(vars)); i++ {
 		if bvget(bv, i) != 0 {
 			printnode(vars[i])
 		}
@@ -829,16 +786,11 @@ func printvars(name string, bv *Bvec, vars []*Node) {
 // analysis.
 func livenessprintblock(lv *Liveness, bb *BasicBlock) {
 	var pred *BasicBlock
-	var succ *BasicBlock
-	var prog *obj.Prog
-	var live *Bvec
-	var i int
-	var pos int32
 
 	fmt.Printf("basic block %d\n", bb.rpo)
 
 	fmt.Printf("\tpred:")
-	for i = 0; i < len(bb.pred); i++ {
+	for i := 0; i < len(bb.pred); i++ {
 		pred = bb.pred[i]
 		fmt.Printf(" %d", pred.rpo)
 	}
@@ -846,7 +798,8 @@ func livenessprintblock(lv *Liveness, bb *BasicBlock) {
 	fmt.Printf("\n")
 
 	fmt.Printf("\tsucc:")
-	for i = 0; i < len(bb.succ); i++ {
+	var succ *BasicBlock
+	for i := 0; i < len(bb.succ); i++ {
 		succ = bb.succ[i]
 		fmt.Printf(" %d", succ.rpo)
 	}
@@ -862,7 +815,9 @@ func livenessprintblock(lv *Liveness, bb *BasicBlock) {
 	printvars("\tavarinitall", lv.avarinitall[bb.rpo], []*Node(lv.vars))
 
 	fmt.Printf("\tprog:\n")
-	for prog = bb.first; ; prog = prog.Link {
+	var live *Bvec
+	var pos int32
+	for prog := bb.first; ; prog = prog.Link {
 		fmt.Printf("\t\t%v", prog)
 		if prog.As == obj.APCDATA && prog.From.Offset == obj.PCDATA_StackMapIndex {
 			pos = int32(prog.To.Offset)
@@ -882,18 +837,15 @@ func livenessprintblock(lv *Liveness, bb *BasicBlock) {
 // liveness analysis.
 func livenessprintcfg(lv *Liveness) {
 	var bb *BasicBlock
-	var i int32
 
-	for i = 0; i < int32(len(lv.cfg)); i++ {
+	for i := int32(0); i < int32(len(lv.cfg)); i++ {
 		bb = lv.cfg[i]
 		livenessprintblock(lv, bb)
 	}
 }
 
 func checkauto(fn *Node, p *obj.Prog, n *Node) {
-	var l *NodeList
-
-	for l = fn.Dcl; l != nil; l = l.Next {
+	for l := fn.Dcl; l != nil; l = l.Next {
 		if l.N.Op == ONAME && l.N.Class == PAUTO && l.N == n {
 			return
 		}
@@ -905,21 +857,19 @@ func checkauto(fn *Node, p *obj.Prog, n *Node) {
 	}
 
 	fmt.Printf("checkauto %v: %v (%p; class=%d) not found in %v\n", Nconv(Curfn, 0), Nconv(n, 0), n, n.Class, p)
-	for l = fn.Dcl; l != nil; l = l.Next {
+	for l := fn.Dcl; l != nil; l = l.Next {
 		fmt.Printf("\t%v (%p; class=%d)\n", Nconv(l.N, 0), l.N, l.N.Class)
 	}
 	Yyerror("checkauto: invariant lost")
 }
 
 func checkparam(fn *Node, p *obj.Prog, n *Node) {
-	var l *NodeList
-	var a *Node
-	var class int
-
 	if isfunny(n) {
 		return
 	}
-	for l = fn.Dcl; l != nil; l = l.Next {
+	var a *Node
+	var class int
+	for l := fn.Dcl; l != nil; l = l.Next {
 		a = l.N
 		class = int(a.Class) &^ PHEAP
 		if a.Op == ONAME && (class == PPARAM || class == PPARAMOUT) && a == n {
@@ -928,7 +878,7 @@ func checkparam(fn *Node, p *obj.Prog, n *Node) {
 	}
 
 	fmt.Printf("checkparam %v: %v (%p; class=%d) not found in %v\n", Nconv(Curfn, 0), Nconv(n, 0), n, n.Class, p)
-	for l = fn.Dcl; l != nil; l = l.Next {
+	for l := fn.Dcl; l != nil; l = l.Next {
 		fmt.Printf("\t%v (%p; class=%d)\n", Nconv(l.N, 0), l.N, l.N.Class)
 	}
 	Yyerror("checkparam: invariant lost")
@@ -955,13 +905,11 @@ func checkprog(fn *Node, p *obj.Prog) {
 // nodes and there are special cases to skip over that stuff.  The analysis will
 // fail if this invariant blindly changes.
 func checkptxt(fn *Node, firstp *obj.Prog) {
-	var p *obj.Prog
-
 	if debuglive == 0 {
 		return
 	}
 
-	for p = firstp; p != nil; p = p.Link {
+	for p := firstp; p != nil; p = p.Link {
 		if false {
 			fmt.Printf("analyzing '%v'\n", p)
 		}
@@ -976,11 +924,6 @@ func checkptxt(fn *Node, firstp *obj.Prog) {
 // the same type t. On https://rsc.googlecode.com/hg/testdata/slow.go, twobitwalktype1
 // accounts for 40% of the 6g execution time.
 func twobitwalktype1(t *Type, xoffset *int64, bv *Bvec) {
-	var fieldoffset int64
-	var i int64
-	var o int64
-	var t1 *Type
-
 	if t.Align > 0 && *xoffset&int64(t.Align-1) != 0 {
 		Fatal("twobitwalktype1: invalid initial alignment, %v", Tconv(t, 0))
 	}
@@ -1002,7 +945,7 @@ func twobitwalktype1(t *Type, xoffset *int64, bv *Bvec) {
 		TFLOAT64,
 		TCOMPLEX64,
 		TCOMPLEX128:
-		for i = 0; i < t.Width; i++ {
+		for i := int64(0); i < t.Width; i++ {
 			bvset(bv, int32(((*xoffset+i)/int64(Widthptr))*obj.BitsPerPointer)) // 1 = live scalar (BitsScalar)
 		}
 
@@ -1053,14 +996,15 @@ func twobitwalktype1(t *Type, xoffset *int64, bv *Bvec) {
 			bvset(bv, int32((*xoffset/int64(Widthptr))*obj.BitsPerPointer+1)) // 2 = live ptr in first slot (BitsPointer)
 			*xoffset += t.Width
 		} else {
-			for i = 0; i < t.Bound; i++ {
+			for i := int64(0); i < t.Bound; i++ {
 				twobitwalktype1(t.Type, xoffset, bv)
 			}
 		}
 
 	case TSTRUCT:
-		o = 0
-		for t1 = t.Type; t1 != nil; t1 = t1.Down {
+		o := int64(0)
+		var fieldoffset int64
+		for t1 := t.Type; t1 != nil; t1 = t1.Down {
 			fieldoffset = t1.Width
 			*xoffset += fieldoffset - o
 			twobitwalktype1(t1.Type, xoffset, bv)
@@ -1089,12 +1033,9 @@ func argswords() int32 {
 // argument is an array of Node*s.
 func twobitlivepointermap(lv *Liveness, liveout *Bvec, vars []*Node, args *Bvec, locals *Bvec) {
 	var node *Node
-	var thisargtype *Type
-	var inargtype *Type
 	var xoffset int64
-	var i int32
 
-	for i = 0; ; i++ {
+	for i := int32(0); ; i++ {
 		i = int32(bvnext(liveout, i))
 		if i < 0 {
 			break
@@ -1116,14 +1057,14 @@ func twobitlivepointermap(lv *Liveness, liveout *Bvec, vars []*Node, args *Bvec,
 	// If the receiver or arguments are unnamed, they will be omitted
 	// from the list above. Preserve those values - even though they are unused -
 	// in order to keep their addresses live for use in stack traces.
-	thisargtype = getthisx(lv.fn.Type)
+	thisargtype := getthisx(lv.fn.Type)
 
 	if thisargtype != nil {
 		xoffset = 0
 		twobitwalktype1(thisargtype, &xoffset, args)
 	}
 
-	inargtype = getinargx(lv.fn.Type)
+	inargtype := getinargx(lv.fn.Type)
 	if inargtype != nil {
 		xoffset = 0
 		twobitwalktype1(inargtype, &xoffset, args)
@@ -1132,9 +1073,7 @@ func twobitlivepointermap(lv *Liveness, liveout *Bvec, vars []*Node, args *Bvec,
 
 // Construct a disembodied instruction.
 func unlinkedprog(as int) *obj.Prog {
-	var p *obj.Prog
-
-	p = Ctxt.NewProg()
+	p := Ctxt.NewProg()
 	Clearp(p)
 	p.As = int16(as)
 	return p
@@ -1145,11 +1084,10 @@ func unlinkedprog(as int) *obj.Prog {
 func newpcdataprog(prog *obj.Prog, index int32) *obj.Prog {
 	var from Node
 	var to Node
-	var pcdata *obj.Prog
 
 	Nodconst(&from, Types[TINT32], obj.PCDATA_StackMapIndex)
 	Nodconst(&to, Types[TINT32], int64(index))
-	pcdata = unlinkedprog(obj.APCDATA)
+	pcdata := unlinkedprog(obj.APCDATA)
 	pcdata.Lineno = prog.Lineno
 	Naddr(&from, &pcdata.From, 0)
 	Naddr(&to, &pcdata.To, 0)
@@ -1167,18 +1105,13 @@ func issafepoint(prog *obj.Prog) bool {
 // block
 func livenessprologue(lv *Liveness) {
 	var bb *BasicBlock
-	var uevar *Bvec
-	var varkill *Bvec
-	var avarinit *Bvec
 	var p *obj.Prog
-	var i int32
-	var nvars int32
 
-	nvars = int32(len(lv.vars))
-	uevar = bvalloc(nvars)
-	varkill = bvalloc(nvars)
-	avarinit = bvalloc(nvars)
-	for i = 0; i < int32(len(lv.cfg)); i++ {
+	nvars := int32(len(lv.vars))
+	uevar := bvalloc(nvars)
+	varkill := bvalloc(nvars)
+	avarinit := bvalloc(nvars)
+	for i := int32(0); i < int32(len(lv.cfg)); i++ {
 		bb = lv.cfg[i]
 
 		// Walk the block instructions backward and update the block
@@ -1214,29 +1147,20 @@ func livenessprologue(lv *Liveness) {
 // Solve the liveness dataflow equations.
 func livenesssolve(lv *Liveness) {
 	var bb *BasicBlock
-	var succ *BasicBlock
-	var pred *BasicBlock
-	var newlivein *Bvec
-	var newliveout *Bvec
-	var any *Bvec
-	var all *Bvec
 	var rpo int32
-	var i int32
-	var j int32
-	var change int32
 
 	// These temporary bitvectors exist to avoid successive allocations and
 	// frees within the loop.
-	newlivein = bvalloc(int32(len(lv.vars)))
+	newlivein := bvalloc(int32(len(lv.vars)))
 
-	newliveout = bvalloc(int32(len(lv.vars)))
-	any = bvalloc(int32(len(lv.vars)))
-	all = bvalloc(int32(len(lv.vars)))
+	newliveout := bvalloc(int32(len(lv.vars)))
+	any := bvalloc(int32(len(lv.vars)))
+	all := bvalloc(int32(len(lv.vars)))
 
 	// Push avarinitall, avarinitany forward.
 	// avarinitall says the addressed var is initialized along all paths reaching the block exit.
 	// avarinitany says the addressed var is initialized along some path reaching the block exit.
-	for i = 0; i < int32(len(lv.cfg)); i++ {
+	for i := int32(0); i < int32(len(lv.cfg)); i++ {
 		bb = lv.cfg[i]
 		rpo = int32(bb.rpo)
 		if i == 0 {
@@ -1249,7 +1173,10 @@ func livenesssolve(lv *Liveness) {
 		bvcopy(lv.avarinitany[rpo], lv.avarinit[rpo])
 	}
 
-	change = 1
+	change := int32(1)
+	var j int32
+	var i int32
+	var pred *BasicBlock
 	for change != 0 {
 		change = 0
 		for i = 0; i < int32(len(lv.cfg)); i++ {
@@ -1289,6 +1216,7 @@ func livenesssolve(lv *Liveness) {
 	// so low that it hardly seems to be worth the complexity.
 	change = 1
 
+	var succ *BasicBlock
 	for change != 0 {
 		change = 0
 
@@ -1328,19 +1256,17 @@ func livenesssolve(lv *Liveness) {
 // This function is slow but it is only used for generating debug prints.
 // Check whether n is marked live in args/locals.
 func islive(n *Node, args *Bvec, locals *Bvec) bool {
-	var i int
-
 	switch n.Class {
 	case PPARAM,
 		PPARAMOUT:
-		for i = 0; int64(i) < n.Type.Width/int64(Widthptr)*obj.BitsPerPointer; i++ {
+		for i := 0; int64(i) < n.Type.Width/int64(Widthptr)*obj.BitsPerPointer; i++ {
 			if bvget(args, int32(n.Xoffset/int64(Widthptr)*obj.BitsPerPointer+int64(i))) != 0 {
 				return true
 			}
 		}
 
 	case PAUTO:
-		for i = 0; int64(i) < n.Type.Width/int64(Widthptr)*obj.BitsPerPointer; i++ {
+		for i := 0; int64(i) < n.Type.Width/int64(Widthptr)*obj.BitsPerPointer; i++ {
 			if bvget(locals, int32((n.Xoffset+stkptrsize)/int64(Widthptr)*obj.BitsPerPointer+int64(i))) != 0 {
 				return true
 			}
@@ -1355,44 +1281,28 @@ func islive(n *Node, args *Bvec, locals *Bvec) bool {
 func livenessepilogue(lv *Liveness) {
 	var bb *BasicBlock
 	var pred *BasicBlock
-	var ambig *Bvec
-	var livein *Bvec
-	var liveout *Bvec
-	var uevar *Bvec
-	var varkill *Bvec
 	var args *Bvec
 	var locals *Bvec
-	var avarinit *Bvec
-	var any *Bvec
-	var all *Bvec
 	var n *Node
 	var p *obj.Prog
-	var next *obj.Prog
-	var i int32
 	var j int32
-	var numlive int32
-	var startmsg int32
-	var nmsg int32
-	var nvars int32
 	var pos int32
 	var xoffset int64
-	var msg []string
-	var fmt_ string
 
-	nvars = int32(len(lv.vars))
-	livein = bvalloc(nvars)
-	liveout = bvalloc(nvars)
-	uevar = bvalloc(nvars)
-	varkill = bvalloc(nvars)
-	avarinit = bvalloc(nvars)
-	any = bvalloc(nvars)
-	all = bvalloc(nvars)
-	ambig = bvalloc(localswords() * obj.BitsPerPointer)
-	msg = nil
-	nmsg = 0
-	startmsg = 0
+	nvars := int32(len(lv.vars))
+	livein := bvalloc(nvars)
+	liveout := bvalloc(nvars)
+	uevar := bvalloc(nvars)
+	varkill := bvalloc(nvars)
+	avarinit := bvalloc(nvars)
+	any := bvalloc(nvars)
+	all := bvalloc(nvars)
+	ambig := bvalloc(localswords() * obj.BitsPerPointer)
+	msg := []string(nil)
+	nmsg := int32(0)
+	startmsg := int32(0)
 
-	for i = 0; i < int32(len(lv.cfg)); i++ {
+	for i := int32(0); i < int32(len(lv.cfg)); i++ {
 		bb = lv.cfg[i]
 
 		// Compute avarinitany and avarinitall for entry to block.
@@ -1481,7 +1391,10 @@ func livenessepilogue(lv *Liveness) {
 		bb.lastbitmapindex = len(lv.livepointers) - 1
 	}
 
-	for i = 0; i < int32(len(lv.cfg)); i++ {
+	var fmt_ string
+	var next *obj.Prog
+	var numlive int32
+	for i := int32(0); i < int32(len(lv.cfg)); i++ {
 		bb = lv.cfg[i]
 
 		if debuglive >= 1 && Curfn.Nname.Sym.Name != "init" && Curfn.Nname.Sym.Name[0] != '.' {
@@ -1627,12 +1540,10 @@ const (
 )
 
 func hashbitmap(h uint32, bv *Bvec) uint32 {
-	var i int
-	var n int
 	var w uint32
 
-	n = int((bv.n + 31) / 32)
-	for i = 0; i < n; i++ {
+	n := int((bv.n + 31) / 32)
+	for i := 0; i < n; i++ {
 		w = bv.b[i]
 		h = (h * Hp) ^ (w & 0xff)
 		h = (h * Hp) ^ ((w >> 8) & 0xff)
@@ -1658,45 +1569,37 @@ func hashbitmap(h uint32, bv *Bvec) uint32 {
 // PCDATA tables cost about 100k. So for now we keep using a single index for
 // both bitmap lists.
 func livenesscompact(lv *Liveness) {
-	var table []int
-	var remap []int
-	var i int
-	var j int
-	var n int
-	var tablesize int
-	var uniq int
-	var h uint32
-	var local *Bvec
-	var arg *Bvec
-	var jlocal *Bvec
-	var jarg *Bvec
-	var p *obj.Prog
-
 	// Linear probing hash table of bitmaps seen so far.
 	// The hash table has 4n entries to keep the linear
 	// scan short. An entry of -1 indicates an empty slot.
-	n = len(lv.livepointers)
+	n := len(lv.livepointers)
 
-	tablesize = 4 * n
-	table = make([]int, tablesize)
+	tablesize := 4 * n
+	table := make([]int, tablesize)
 	for i := range table {
 		table[i] = -1
 	}
 
 	// remap[i] = the new index of the old bit vector #i.
-	remap = make([]int, n)
+	remap := make([]int, n)
 
 	for i := range remap {
 		remap[i] = -1
 	}
-	uniq = 0 // unique tables found so far
+	uniq := 0 // unique tables found so far
 
 	// Consider bit vectors in turn.
 	// If new, assign next number using uniq,
 	// record in remap, record in lv->livepointers and lv->argslivepointers
 	// under the new index, and add entry to hash table.
 	// If already seen, record earlier index in remap and free bitmaps.
-	for i = 0; i < n; i++ {
+	var jarg *Bvec
+	var j int
+	var h uint32
+	var arg *Bvec
+	var jlocal *Bvec
+	var local *Bvec
+	for i := 0; i < n; i++ {
 		local = lv.livepointers[i]
 		arg = lv.argslivepointers[i]
 		h = hashbitmap(hashbitmap(H0, local), arg) % uint32(tablesize)
@@ -1732,13 +1635,14 @@ func livenesscompact(lv *Liveness) {
 	// we don't need anymore. Clear the pointers later in the
 	// array so that we can tell where the coalesced bitmaps stop
 	// and so that we don't double-free when cleaning up.
-	for j = uniq; j < n; j++ {
+	for j := uniq; j < n; j++ {
 		lv.livepointers[j] = nil
 		lv.argslivepointers[j] = nil
 	}
 
 	// Rewrite PCDATA instructions to use new numbering.
-	for p = lv.ptxt; p != nil; p = p.Link {
+	var i int
+	for p := lv.ptxt; p != nil; p = p.Link {
 		if p.As == obj.APCDATA && p.From.Offset == obj.PCDATA_StackMapIndex {
 			i = int(p.To.Offset)
 			if i >= 0 {
@@ -1749,12 +1653,10 @@ func livenesscompact(lv *Liveness) {
 }
 
 func printbitset(printed int, name string, vars []*Node, bits *Bvec) int {
-	var i int
-	var started int
 	var n *Node
 
-	started = 0
-	for i = 0; i < len(vars); i++ {
+	started := 0
+	for i := 0; i < len(vars); i++ {
 		if bvget(bits, int32(i)) == 0 {
 			continue
 		}
@@ -1782,27 +1684,22 @@ func printbitset(printed int, name string, vars []*Node, bits *Bvec) int {
 // This format synthesizes the information used during the multiple passes
 // into a single presentation.
 func livenessprintdebug(lv *Liveness) {
-	var i int
 	var j int
-	var pcdata int
 	var printed int
 	var bb *BasicBlock
 	var p *obj.Prog
-	var uevar *Bvec
-	var varkill *Bvec
-	var avarinit *Bvec
 	var args *Bvec
 	var locals *Bvec
 	var n *Node
 
 	fmt.Printf("liveness: %s\n", Curfn.Nname.Sym.Name)
 
-	uevar = bvalloc(int32(len(lv.vars)))
-	varkill = bvalloc(int32(len(lv.vars)))
-	avarinit = bvalloc(int32(len(lv.vars)))
+	uevar := bvalloc(int32(len(lv.vars)))
+	varkill := bvalloc(int32(len(lv.vars)))
+	avarinit := bvalloc(int32(len(lv.vars)))
 
-	pcdata = 0
-	for i = 0; i < len(lv.cfg); i++ {
+	pcdata := 0
+	for i := 0; i < len(lv.cfg); i++ {
 		if i > 0 {
 			fmt.Printf("\n")
 		}
@@ -1898,17 +1795,14 @@ func livenessprintdebug(lv *Liveness) {
 // words that are followed are the raw bitmap words.  The arr argument is an
 // array of Node*s.
 func twobitwritesymbol(arr []*Bvec, sym *Sym) {
-	var bv *Bvec
-	var off int
 	var i int
 	var j int
-	var n int
 	var word uint32
 
-	n = len(arr)
-	off = 0
+	n := len(arr)
+	off := 0
 	off += 4 // number of bitmaps, to fill in later
-	bv = arr[0]
+	bv := arr[0]
 	off = duint32(sym, off, uint32(bv.n)) // number of bits in each bitmap
 	for i = 0; i < n; i++ {
 		// bitmap words
@@ -1944,14 +1838,8 @@ func printprog(p *obj.Prog) {
 // the liveness of pointer variables in the function, and emits a runtime data
 // structure read by the garbage collector.
 func liveness(fn *Node, firstp *obj.Prog, argssym *Sym, livesym *Sym) {
-	var cfg []*BasicBlock
-	var vars []*Node
-	var lv *Liveness
-	var debugdelta int
-	var l *NodeList
-
 	// Change name to dump debugging information only for a specific function.
-	debugdelta = 0
+	debugdelta := 0
 
 	if Curfn.Nname.Sym.Name == "!" {
 		debugdelta = 2
@@ -1966,13 +1854,13 @@ func liveness(fn *Node, firstp *obj.Prog, argssym *Sym, livesym *Sym) {
 	checkptxt(fn, firstp)
 
 	// Construct the global liveness state.
-	cfg = newcfg(firstp)
+	cfg := newcfg(firstp)
 
 	if debuglive >= 3 {
 		printcfg([]*BasicBlock(cfg))
 	}
-	vars = getvariables(fn)
-	lv = newliveness(fn, firstp, cfg, vars)
+	vars := getvariables(fn)
+	lv := newliveness(fn, firstp, cfg, vars)
 
 	// Run the dataflow framework.
 	livenessprologue(lv)
@@ -2000,7 +1888,7 @@ func liveness(fn *Node, firstp *obj.Prog, argssym *Sym, livesym *Sym) {
 	twobitwritesymbol(lv.argslivepointers, argssym)
 
 	// Free everything.
-	for l = fn.Dcl; l != nil; l = l.Next {
+	for l := fn.Dcl; l != nil; l = l.Next {
 		if l.N != nil {
 			l.N.Opt = nil
 		}

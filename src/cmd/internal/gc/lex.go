@@ -88,14 +88,11 @@ func hidePanic() {
 }
 
 func doversion() {
-	var p string
-	var sep string
-
-	p = obj.Expstring()
+	p := obj.Expstring()
 	if p == "X:none" {
 		p = ""
 	}
-	sep = ""
+	sep := ""
 	if p != "" {
 		sep = " "
 	}
@@ -105,12 +102,10 @@ func doversion() {
 
 func Main() {
 	defer hidePanic()
-	var l *NodeList
-	var p string
 
 	// Allow GOARCH=thearch.thestring or GOARCH=thearch.thestringsuffix,
 	// but not other values.
-	p = obj.Getgoarch()
+	p := obj.Getgoarch()
 
 	if !strings.HasPrefix(p, Thearch.Thestring) {
 		log.Fatalf("cannot use %cg with GOARCH=%s", Thearch.Thechar, p)
@@ -276,7 +271,7 @@ func Main() {
 	}
 
 	if Thearch.Thechar == '8' {
-		p = obj.Getgo386()
+		p := obj.Getgo386()
 		if p == "387" {
 			Use_sse = 0
 		} else if p == "sse2" {
@@ -355,7 +350,7 @@ func Main() {
 	//   and methods but doesn't depend on any of it.
 	defercheckwidth()
 
-	for l = xtop; l != nil; l = l.Next {
+	for l := xtop; l != nil; l = l.Next {
 		if l.N.Op != ODCL && l.N.Op != OAS {
 			typecheck(&l.N, Etop)
 		}
@@ -363,7 +358,7 @@ func Main() {
 
 	// Phase 2: Variable assignments.
 	//   To check interface assignments, depends on phase 1.
-	for l = xtop; l != nil; l = l.Next {
+	for l := xtop; l != nil; l = l.Next {
 		if l.N.Op == ODCL || l.N.Op == OAS {
 			typecheck(&l.N, Etop)
 		}
@@ -371,7 +366,7 @@ func Main() {
 	resumecheckwidth()
 
 	// Phase 3: Type check function bodies.
-	for l = xtop; l != nil; l = l.Next {
+	for l := xtop; l != nil; l = l.Next {
 		if l.N.Op == ODCLFUNC || l.N.Op == OCLOSURE {
 			Curfn = l.N
 			decldepth = 1
@@ -387,7 +382,7 @@ func Main() {
 	// Phase 4: Decide how to capture closed variables.
 	// This needs to run before escape analysis,
 	// because variables captured by value do not escape.
-	for l = xtop; l != nil; l = l.Next {
+	for l := xtop; l != nil; l = l.Next {
 		if l.N.Op == ODCLFUNC && l.N.Closure != nil {
 			Curfn = l.N
 			capturevars(l.N)
@@ -404,7 +399,7 @@ func Main() {
 	if Debug['l'] > 1 {
 		// Typecheck imported function bodies if debug['l'] > 1,
 		// otherwise lazily when used or re-exported.
-		for l = importlist; l != nil; l = l.Next {
+		for l := importlist; l != nil; l = l.Next {
 			if l.N.Inl != nil {
 				saveerrors()
 				typecheckinl(l.N)
@@ -418,14 +413,14 @@ func Main() {
 
 	if Debug['l'] != 0 {
 		// Find functions that can be inlined and clone them before walk expands them.
-		for l = xtop; l != nil; l = l.Next {
+		for l := xtop; l != nil; l = l.Next {
 			if l.N.Op == ODCLFUNC {
 				caninl(l.N)
 			}
 		}
 
 		// Expand inlineable calls in all functions
-		for l = xtop; l != nil; l = l.Next {
+		for l := xtop; l != nil; l = l.Next {
 			if l.N.Op == ODCLFUNC {
 				inlcalls(l.N)
 			}
@@ -447,7 +442,7 @@ func Main() {
 	// Phase 7: Transform closure bodies to properly reference captured variables.
 	// This needs to happen before walk, because closures must be transformed
 	// before walk reaches a call of a closure.
-	for l = xtop; l != nil; l = l.Next {
+	for l := xtop; l != nil; l = l.Next {
 		if l.N.Op == ODCLFUNC && l.N.Closure != nil {
 			Curfn = l.N
 			transformclosure(l.N)
@@ -457,7 +452,7 @@ func Main() {
 	Curfn = nil
 
 	// Phase 8: Compile top level functions.
-	for l = xtop; l != nil; l = l.Next {
+	for l := xtop; l != nil; l = l.Next {
 		if l.N.Op == ODCLFUNC {
 			funccompile(l.N)
 		}
@@ -468,7 +463,7 @@ func Main() {
 	}
 
 	// Phase 9: Check external declarations.
-	for l = externdcl; l != nil; l = l.Next {
+	for l := externdcl; l != nil; l = l.Next {
 		if l.N.Op == ONAME {
 			typecheck(&l.N, Erv)
 		}
@@ -511,11 +506,8 @@ func arsize(b *obj.Biobuf, name string) int {
 }
 
 func skiptopkgdef(b *obj.Biobuf) bool {
-	var p string
-	var sz int
-
 	/* archive header */
-	p = obj.Brdline(b, '\n')
+	p := obj.Brdline(b, '\n')
 	if p == "" {
 		return false
 	}
@@ -527,7 +519,7 @@ func skiptopkgdef(b *obj.Biobuf) bool {
 	}
 
 	/* symbol table may be first; skip it */
-	sz = arsize(b, "__.GOSYMDEF")
+	sz := arsize(b, "__.GOSYMDEF")
 
 	if sz >= 0 {
 		obj.Bseek(b, int64(sz), 1)
@@ -545,12 +537,11 @@ func skiptopkgdef(b *obj.Biobuf) bool {
 }
 
 func addidir(dir string) {
-	var pp **Idir
-
 	if dir == "" {
 		return
 	}
 
+	var pp **Idir
 	for pp = &idirs; *pp != nil; pp = &(*pp).link {
 	}
 	*pp = new(Idir)
@@ -567,11 +558,6 @@ func islocalname(name *Strlit) bool {
 }
 
 func findpkg(name *Strlit) bool {
-	var p *Idir
-	var q string
-	var suffix string
-	var suffixsep string
-
 	if islocalname(name) {
 		if safemode != 0 || nolocalimports != 0 {
 			return false
@@ -595,13 +581,14 @@ func findpkg(name *Strlit) bool {
 	// local imports should be canonicalized already.
 	// don't want to see "encoding/../encoding/base64"
 	// as different from "encoding/base64".
+	var q string
 	_ = q
 	if path.Clean(name.S) != name.S {
 		Yyerror("non-canonical import path %v (should be %s)", Zconv(name, 0), q)
 		return false
 	}
 
-	for p = idirs; p != nil; p = p.link {
+	for p := idirs; p != nil; p = p.link {
 		namebuf = fmt.Sprintf("%s/%v.a", p.dir, Zconv(name, 0))
 		if obj.Access(namebuf, 0) >= 0 {
 			return true
@@ -613,8 +600,8 @@ func findpkg(name *Strlit) bool {
 	}
 
 	if goroot != "" {
-		suffix = ""
-		suffixsep = ""
+		suffix := ""
+		suffixsep := ""
 		if flag_installsuffix != "" {
 			suffixsep = "_"
 			suffix = flag_installsuffix
@@ -642,17 +629,6 @@ func fakeimport() {
 }
 
 func importfile(f *Val, line int) {
-	var imp *obj.Biobuf
-	var file string
-	var p string
-	var q string
-	var tag string
-	var c int32
-	var n int
-	var path_ *Strlit
-	var cleanbuf string
-	var prefix string
-
 	if f.Ctype != CTSTR {
 		Yyerror("import statement not a string")
 		fakeimport()
@@ -696,7 +672,7 @@ func importfile(f *Val, line int) {
 		return
 	}
 
-	path_ = f.U.Sval
+	path_ := f.U.Sval
 	if islocalname(path_) {
 		if path_.S[0] == '/' {
 			Yyerror("import path cannot be absolute path")
@@ -704,11 +680,11 @@ func importfile(f *Val, line int) {
 			return
 		}
 
-		prefix = Ctxt.Pathname
+		prefix := Ctxt.Pathname
 		if localimport != "" {
 			prefix = localimport
 		}
-		cleanbuf = prefix
+		cleanbuf := prefix
 		cleanbuf += "/"
 		cleanbuf += path_.S
 		cleanbuf = path.Clean(cleanbuf)
@@ -730,13 +706,13 @@ func importfile(f *Val, line int) {
 	// If we already saw that package, feed a dummy statement
 	// to the lexer to avoid parsing export data twice.
 	if importpkg.Imported != 0 {
-		file = namebuf
-		tag = ""
+		file := namebuf
+		tag := ""
 		if importpkg.Safe {
 			tag = "safe"
 		}
 
-		p = fmt.Sprintf("package %s %s\n$$\n", importpkg.Name, tag)
+		p := fmt.Sprintf("package %s %s\n$$\n", importpkg.Name, tag)
 		cannedimports(file, p)
 		return
 	}
@@ -744,15 +720,16 @@ func importfile(f *Val, line int) {
 	importpkg.Imported = 1
 
 	var err error
+	var imp *obj.Biobuf
 	imp, err = obj.Bopenr(namebuf)
 	if err != nil {
 		Yyerror("can't open import: \"%v\": %v", Zconv(f.U.Sval, 0), err)
 		errorexit()
 	}
 
-	file = namebuf
+	file := namebuf
 
-	n = len(namebuf)
+	n := len(namebuf)
 	if n > 2 && namebuf[n-2] == '.' && namebuf[n-1] == 'a' {
 		if !skiptopkgdef(imp) {
 			Yyerror("import %s: not a package file", file)
@@ -761,7 +738,7 @@ func importfile(f *Val, line int) {
 	}
 
 	// check object header
-	p = obj.Brdstr(imp, '\n', 1)
+	p := obj.Brdstr(imp, '\n', 1)
 
 	if p != "empty archive" {
 		if !strings.HasPrefix(p, "go object ") {
@@ -769,7 +746,7 @@ func importfile(f *Val, line int) {
 			errorexit()
 		}
 
-		q = fmt.Sprintf("%s %s %s %s", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion(), obj.Expstring())
+		q := fmt.Sprintf("%s %s %s %s", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion(), obj.Expstring())
 		if p[10:] != q {
 			Yyerror("import %s: object is [%s] expected [%s]", file, p[10:], q)
 			errorexit()
@@ -793,6 +770,7 @@ func importfile(f *Val, line int) {
 	curio.nlsemi = 0
 	typecheckok = 1
 
+	var c int32
 	for {
 		c = int32(getc())
 		if c == EOF {
@@ -951,7 +929,6 @@ l0:
 		cp.Reset()
 
 		for {
-
 			if escchar('"', &escflag, &v) {
 				break
 			}
@@ -974,7 +951,6 @@ l0:
 		cp.Reset()
 
 		for {
-
 			c = int(getr())
 			if c == '\r' {
 				continue
@@ -1014,9 +990,7 @@ l0:
 	case '/':
 		c1 = getc()
 		if c1 == '*' {
-			var nl int
-
-			nl = 0
+			nl := 0
 			for {
 				c = int(getr())
 				if c == '\n' {
@@ -1297,7 +1271,6 @@ asop:
 	 */
 talph:
 	for {
-
 		if c >= utf8.RuneSelf {
 			ungetc(c)
 			rune_ = uint(getr())
@@ -1339,7 +1312,6 @@ tnum:
 	cp.Reset()
 	if c != '0' {
 		for {
-
 			cp.WriteByte(byte(c))
 			c = getc()
 			if yy_isdigit(c) {
@@ -1353,7 +1325,6 @@ tnum:
 	c = getc()
 	if c == 'x' || c == 'X' {
 		for {
-
 			cp.WriteByte(byte(c))
 			c = getc()
 			if yy_isdigit(c) {
@@ -1381,7 +1352,6 @@ tnum:
 
 	c1 = 0
 	for {
-
 		if !yy_isdigit(c) {
 			break
 		}
@@ -1436,7 +1406,6 @@ ncu:
 
 casedot:
 	for {
-
 		cp.WriteByte(byte(c))
 		c = getc()
 		if !yy_isdigit(c) {
@@ -1463,7 +1432,6 @@ caseep:
 		Yyerror("malformed fp constant exponent")
 	}
 	for yy_isdigit(c) {
-
 		cp.WriteByte(byte(c))
 		c = getc()
 	}
@@ -1533,21 +1501,18 @@ func more(pp *string) bool {
  */
 func getlinepragma() int {
 	var cmd, verb, name string
-	var i int
-	var c int
 	var n int
 	var cp *bytes.Buffer
 	var linep int
-	var h *obj.Hist
 
-	c = int(getr())
+	c := int(getr())
 	if c == 'g' {
 		goto go_
 	}
 	if c != 'l' {
 		goto out
 	}
-	for i = 1; i < 5; i++ {
+	for i := 1; i < 5; i++ {
 		c = int(getr())
 		if c != int("line "[i]) {
 			goto out
@@ -1597,7 +1562,7 @@ func getlinepragma() int {
 
 	// try to avoid allocating file name over and over
 	name = lexbuf.String()[:linep-1]
-	for h = Ctxt.Hist; h != nil; h = h.Link {
+	for h := Ctxt.Hist; h != nil; h = h.Link {
 		if h.Name != "" && h.Name == name {
 			linehist(h.Name, int32(n), 0)
 			goto out
@@ -1708,20 +1673,17 @@ func getquoted(pp *string) (string, bool) {
 // Copied nearly verbatim from the C compiler's #pragma parser.
 // TODO: Rewrite more cleanly once the compiler is written in Go.
 func pragcgo(text string) {
-	var local string
-	var remote string
-	var p string
 	var q string
-	var verb string
 
 	if i := strings.Index(text, " "); i >= 0 {
 		text, q = text[:i], text[i:]
 	}
 
-	verb = text[3:] // skip "go:"
+	verb := text[3:] // skip "go:"
 
 	if verb == "cgo_dynamic_linker" || verb == "dynlinker" {
 		var ok bool
+		var p string
 		p, ok = getquoted(&q)
 		if !ok {
 			goto err1
@@ -1738,7 +1700,8 @@ func pragcgo(text string) {
 		verb = "cgo_export_dynamic"
 	}
 	if verb == "cgo_export_static" || verb == "cgo_export_dynamic" {
-		local = getimpsym(&q)
+		local := getimpsym(&q)
+		var remote string
 		if local == "" {
 			goto err2
 		}
@@ -1761,7 +1724,9 @@ func pragcgo(text string) {
 
 	if verb == "cgo_import_dynamic" || verb == "dynimport" {
 		var ok bool
-		local = getimpsym(&q)
+		local := getimpsym(&q)
+		var p string
+		var remote string
 		if local == "" {
 			goto err3
 		}
@@ -1792,7 +1757,7 @@ func pragcgo(text string) {
 	}
 
 	if verb == "cgo_import_static" {
-		local = getimpsym(&q)
+		local := getimpsym(&q)
 		if local == "" || more(&q) {
 			goto err4
 		}
@@ -1806,6 +1771,7 @@ func pragcgo(text string) {
 
 	if verb == "cgo_ldflag" {
 		var ok bool
+		var p string
 		p, ok = getquoted(&q)
 		if !ok {
 			goto err5
@@ -1847,9 +1813,7 @@ func yyparse() {
 }
 
 func yylex(yylval *yySymType) int32 {
-	var lx int
-
-	lx = int(_yylex(yylval))
+	lx := int(_yylex(yylval))
 
 	if curio.nlsemi != 0 && lx == EOF {
 		// Treat EOF as "end of line" for the purposes
@@ -1883,11 +1847,7 @@ func yylex(yylval *yySymType) int32 {
 }
 
 func getc() int {
-	var c int
-	var c1 int
-	var c2 int
-
-	c = curio.peekc
+	c := curio.peekc
 	if c != 0 {
 		curio.peekc = curio.peekc1
 		curio.peekc1 = 0
@@ -1902,6 +1862,8 @@ func getc() int {
 			curio.cp = curio.cp[1:]
 		}
 	} else {
+		var c1 int
+		var c2 int
 	loop:
 		c = obj.Bgetc(curio.bin)
 		if c == 0xef {
@@ -1974,14 +1936,9 @@ func getr() int32 {
 }
 
 func escchar(e int, escflg *int, val *int64) bool {
-	var i int
-	var u int
-	var c int
-	var l int64
-
 	*escflg = 0
 
-	c = int(getr())
+	c := int(getr())
 	switch c {
 	case EOF:
 		Yyerror("eof in string")
@@ -2002,8 +1959,10 @@ func escchar(e int, escflg *int, val *int64) bool {
 		return false
 	}
 
-	u = 0
+	u := 0
 	c = int(getr())
+	var l int64
+	var i int
 	switch c {
 	case 'x':
 		*escflg = 1 // it's a byte
@@ -2091,7 +2050,7 @@ hex:
 
 oct:
 	l = int64(c) - '0'
-	for i = 2; i > 0; i-- {
+	for i := 2; i > 0; i-- {
 		c = getc()
 		if c >= '0' && c <= '7' {
 			l = l*8 + int64(c) - '0'
@@ -2482,19 +2441,17 @@ var syms = []struct {
 }
 
 func lexinit() {
-	var i int
 	var lex int
 	var s *Sym
 	var s1 *Sym
 	var t *Type
 	var etype int
-	var v Val
 
 	/*
 	 * initialize basic types array
 	 * initialize known symbols
 	 */
-	for i = 0; i < len(syms); i++ {
+	for i := 0; i < len(syms); i++ {
 		lex = syms[i].lexical
 		s = Lookup(syms[i].name)
 		s.Lexical = uint16(lex)
@@ -2568,33 +2525,26 @@ func lexinit() {
 
 	Types[TNIL] = typ(TNIL)
 	s = Pkglookup("nil", builtinpkg)
+	var v Val
 	v.Ctype = CTNIL
 	s.Def = nodlit(v)
 	s.Def.Sym = s
 }
 
 func lexinit1() {
-	var s *Sym
-	var s1 *Sym
-	var t *Type
-	var f *Type
-	var rcvr *Type
-	var in *Type
-	var out *Type
-
 	// t = interface { Error() string }
-	rcvr = typ(TSTRUCT)
+	rcvr := typ(TSTRUCT)
 
 	rcvr.Type = typ(TFIELD)
 	rcvr.Type.Type = Ptrto(typ(TSTRUCT))
 	rcvr.Funarg = 1
-	in = typ(TSTRUCT)
+	in := typ(TSTRUCT)
 	in.Funarg = 1
-	out = typ(TSTRUCT)
+	out := typ(TSTRUCT)
 	out.Type = typ(TFIELD)
 	out.Type.Type = Types[TSTRING]
 	out.Funarg = 1
-	f = typ(TFUNC)
+	f := typ(TFUNC)
 	*getthis(f) = rcvr
 	*Getoutarg(f) = out
 	*getinarg(f) = in
@@ -2602,16 +2552,16 @@ func lexinit1() {
 	f.Intuple = 0
 	f.Outnamed = 0
 	f.Outtuple = 1
-	t = typ(TINTER)
+	t := typ(TINTER)
 	t.Type = typ(TFIELD)
 	t.Type.Sym = Lookup("Error")
 	t.Type.Type = f
 
 	// error type
-	s = Lookup("error")
+	s := Lookup("error")
 
 	s.Lexical = LNAME
-	s1 = Pkglookup("error", builtinpkg)
+	s1 := Pkglookup("error", builtinpkg)
 	errortype = t
 	errortype.Sym = s1
 	s1.Lexical = LNAME
@@ -2643,7 +2593,6 @@ func lexfini() {
 	var lex int
 	var etype int
 	var i int
-	var v Val
 
 	for i = 0; i < len(syms); i++ {
 		lex = syms[i].lexical
@@ -2701,6 +2650,7 @@ func lexfini() {
 
 	s = Lookup("nil")
 	if s.Def == nil {
+		var v Val
 		v.Ctype = CTNIL
 		s.Def = nodlit(v)
 		s.Def.Sym = s
@@ -2920,9 +2870,7 @@ var lexn = []struct {
 var lexname_buf string
 
 func lexname(lex int) string {
-	var i int
-
-	for i = 0; i < len(lexn); i++ {
+	for i := 0; i < len(lexn); i++ {
 		if lexn[i].lex == lex {
 			return lexn[i].name
 		}
@@ -3131,15 +3079,13 @@ var yytfix = []struct {
 }
 
 func pkgnotused(lineno int, path_ *Strlit, name string) {
-	var elem string
-
 	// If the package was imported with a name other than the final
 	// import path element, show it explicitly in the error message.
 	// Note that this handles both renamed imports and imports of
 	// packages containing unconventional package declarations.
 	// Note that this uses / always, even on Windows, because Go import
 	// paths always use forward slashes.
-	elem = path_.S
+	elem := path_.S
 	if i := strings.LastIndex(elem, "/"); i >= 0 {
 		elem = elem[i+1:]
 	}
@@ -3151,10 +3097,6 @@ func pkgnotused(lineno int, path_ *Strlit, name string) {
 }
 
 func mkpackage(pkgname string) {
-	var s *Sym
-	var h int32
-	var p string
-
 	if localpkg.Name == "" {
 		if pkgname == "_" {
 			Yyerror("invalid package name _")
@@ -3164,7 +3106,8 @@ func mkpackage(pkgname string) {
 		if pkgname != localpkg.Name {
 			Yyerror("package %s; expected %s", pkgname, localpkg.Name)
 		}
-		for h = 0; h < NHASH; h++ {
+		var s *Sym
+		for h := int32(0); h < NHASH; h++ {
 			for s = hash[h]; s != nil; s = s.Link {
 				if s.Def == nil || s.Pkg != localpkg {
 					continue
@@ -3198,7 +3141,7 @@ func mkpackage(pkgname string) {
 	}
 
 	if outfile == "" {
-		p = infile
+		p := infile
 		if i := strings.LastIndex(p, "/"); i >= 0 {
 			p = p[i+1:]
 		}

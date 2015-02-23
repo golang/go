@@ -54,12 +54,8 @@ func renameinit() *Sym {
  *	}
  */
 func anyinit(n *NodeList) bool {
-	var h uint32
-	var s *Sym
-	var l *NodeList
-
 	// are there any interesting init statements
-	for l = n; l != nil; l = l.Next {
+	for l := n; l != nil; l = l.Next {
 		switch l.N.Op {
 		case ODCLFUNC,
 			ODCLCONST,
@@ -85,14 +81,14 @@ func anyinit(n *NodeList) bool {
 	}
 
 	// is there an explicit init function
-	s = Lookup("init.1")
+	s := Lookup("init.1")
 
 	if s.Def != nil {
 		return true
 	}
 
 	// are there any imported init functions
-	for h = 0; h < NHASH; h++ {
+	for h := uint32(0); h < NHASH; h++ {
 		for s = hash[h]; s != nil; s = s.Link {
 			if s.Name[0] != 'i' || s.Name != "init" {
 				continue
@@ -109,16 +105,6 @@ func anyinit(n *NodeList) bool {
 }
 
 func fninit(n *NodeList) {
-	var i int
-	var gatevar *Node
-	var a *Node
-	var b *Node
-	var fn *Node
-	var r *NodeList
-	var h uint32
-	var s *Sym
-	var initsym *Sym
-
 	if Debug['A'] != 0 {
 		// sys.go or unsafe.go during compiler build
 		return
@@ -129,12 +115,12 @@ func fninit(n *NodeList) {
 		return
 	}
 
-	r = nil
+	r := (*NodeList)(nil)
 
 	// (1)
 	namebuf = fmt.Sprintf("initdone·")
 
-	gatevar = newname(Lookup(namebuf))
+	gatevar := newname(Lookup(namebuf))
 	addvar(gatevar, Types[TUINT8], PEXTERN)
 
 	// (2)
@@ -142,8 +128,8 @@ func fninit(n *NodeList) {
 
 	namebuf = fmt.Sprintf("init")
 
-	fn = Nod(ODCLFUNC, nil, nil)
-	initsym = Lookup(namebuf)
+	fn := Nod(ODCLFUNC, nil, nil)
+	initsym := Lookup(namebuf)
 	fn.Nname = newname(initsym)
 	fn.Nname.Defn = fn
 	fn.Nname.Ntype = Nod(OTFUNC, nil, nil)
@@ -151,13 +137,13 @@ func fninit(n *NodeList) {
 	funchdr(fn)
 
 	// (3)
-	a = Nod(OIF, nil, nil)
+	a := Nod(OIF, nil, nil)
 
 	a.Ntest = Nod(ONE, gatevar, Nodintconst(0))
 	r = list(r, a)
 
 	// (4)
-	b = Nod(OIF, nil, nil)
+	b := Nod(OIF, nil, nil)
 
 	b.Ntest = Nod(OEQ, gatevar, Nodintconst(2))
 	b.Nbody = list1(Nod(ORETURN, nil, nil))
@@ -175,7 +161,8 @@ func fninit(n *NodeList) {
 	r = list(r, a)
 
 	// (7)
-	for h = 0; h < NHASH; h++ {
+	var s *Sym
+	for h := uint32(0); h < NHASH; h++ {
 		for s = hash[h]; s != nil; s = s.Link {
 			if s.Name[0] != 'i' || s.Name != "init" {
 				continue
@@ -199,7 +186,7 @@ func fninit(n *NodeList) {
 
 	// (9)
 	// could check that it is fn of no args/returns
-	for i = 1; ; i++ {
+	for i := 1; ; i++ {
 		namebuf = fmt.Sprintf("init.%d", i)
 		s = Lookup(namebuf)
 		if s.Def == nil {

@@ -18,15 +18,7 @@ var outfile string
 // does not write out object files.
 func Writeobjdirect(ctxt *Link, b *Biobuf) {
 	var flag int
-	var found int
-	var h *Hist
 	var s *LSym
-	var text *LSym
-	var etext *LSym
-	var curtext *LSym
-	var data *LSym
-	var edata *LSym
-	var pl *Plist
 	var p *Prog
 	var plink *Prog
 	var a *Auto
@@ -34,13 +26,13 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 	// Build list of symbols, and assign instructions to lists.
 	// Ignore ctxt->plist boundaries. There are no guarantees there,
 	// and the C compilers and assemblers just use one big list.
-	text = nil
+	text := (*LSym)(nil)
 
-	curtext = nil
-	data = nil
-	etext = nil
-	edata = nil
-	for pl = ctxt.Plist; pl != nil; pl = pl.Link {
+	curtext := (*LSym)(nil)
+	data := (*LSym)(nil)
+	etext := (*LSym)(nil)
+	edata := (*LSym)(nil)
+	for pl := ctxt.Plist; pl != nil; pl = pl.Link {
 		for p = pl.Firstpc; p != nil; p = plink {
 			if ctxt.Debugasm != 0 && ctxt.Debugvlog != 0 {
 				fmt.Printf("obj: %v\n", p)
@@ -176,7 +168,8 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 	}
 
 	// Add reference to Go arguments for C or assembly functions without them.
-	for s = text; s != nil; s = s.Next {
+	var found int
+	for s := text; s != nil; s = s.Next {
 		if !strings.HasPrefix(s.Name, "\"\".") {
 			continue
 		}
@@ -200,7 +193,7 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 	}
 
 	// Turn functions into machine code images.
-	for s = text; s != nil; s = s.Next {
+	for s := text; s != nil; s = s.Next {
 		mkfwd(s)
 		linkpatch(ctxt, s)
 		ctxt.Arch.Follow(ctxt, s)
@@ -217,7 +210,7 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 	Bputc(b, 1) // version
 
 	// Emit autolib.
-	for h = ctxt.Hist; h != nil; h = h.Link {
+	for h := ctxt.Hist; h != nil; h = h.Link {
 		if h.Offset < 0 {
 			wrstring(b, h.Name)
 		}
@@ -225,10 +218,10 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 	wrstring(b, "")
 
 	// Emit symbols.
-	for s = text; s != nil; s = s.Next {
+	for s := text; s != nil; s = s.Next {
 		writesym(ctxt, b, s)
 	}
-	for s = data; s != nil; s = s.Next {
+	for s := data; s != nil; s = s.Next {
 		writesym(ctxt, b, s)
 	}
 
@@ -240,16 +233,6 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 }
 
 func writesym(ctxt *Link, b *Biobuf, s *LSym) {
-	var r *Reloc
-	var i int
-	var j int
-	var c int
-	var n int
-	var pc *Pcln
-	var p *Prog
-	var a *Auto
-	var name string
-
 	if ctxt.Debugasm != 0 {
 		fmt.Fprintf(ctxt.Bso, "%s ", s.Name)
 		if s.Version != 0 {
@@ -276,10 +259,12 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
 		}
 
 		fmt.Fprintf(ctxt.Bso, "\n")
-		for p = s.Text; p != nil; p = p.Link {
+		for p := s.Text; p != nil; p = p.Link {
 			fmt.Fprintf(ctxt.Bso, "\t%#04x %v\n", uint(int(p.Pc)), p)
 		}
-		for i = 0; i < len(s.P); {
+		var c int
+		var j int
+		for i := 0; i < len(s.P); {
 			fmt.Fprintf(ctxt.Bso, "\t%#04x", uint(i))
 			for j = i; j < i+16 && j < len(s.P); j++ {
 				fmt.Fprintf(ctxt.Bso, " %02x", s.P[j])
@@ -301,7 +286,9 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
 			i += 16
 		}
 
-		for i = 0; i < len(s.R); i++ {
+		var r *Reloc
+		var name string
+		for i := 0; i < len(s.R); i++ {
 			r = &s.R[i]
 			name = ""
 			if r.Sym != nil {
@@ -325,7 +312,8 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
 	wrdata(b, s.P)
 
 	wrint(b, int64(len(s.R)))
-	for i = 0; i < len(s.R); i++ {
+	var r *Reloc
+	for i := 0; i < len(s.R); i++ {
 		r = &s.R[i]
 		wrint(b, int64(r.Off))
 		wrint(b, int64(r.Siz))
@@ -341,12 +329,12 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
 		wrint(b, int64(s.Locals))
 		wrint(b, int64(s.Nosplit))
 		wrint(b, int64(s.Leaf)|int64(s.Cfunc)<<1)
-		n = 0
-		for a = s.Autom; a != nil; a = a.Link {
+		n := 0
+		for a := s.Autom; a != nil; a = a.Link {
 			n++
 		}
 		wrint(b, int64(n))
-		for a = s.Autom; a != nil; a = a.Link {
+		for a := s.Autom; a != nil; a = a.Link {
 			wrsym(b, a.Asym)
 			wrint(b, int64(a.Aoffset))
 			if a.Name == NAME_AUTO {
@@ -359,35 +347,33 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
 			wrsym(b, a.Gotype)
 		}
 
-		pc = s.Pcln
+		pc := s.Pcln
 		wrdata(b, pc.Pcsp.P)
 		wrdata(b, pc.Pcfile.P)
 		wrdata(b, pc.Pcline.P)
 		wrint(b, int64(len(pc.Pcdata)))
-		for i = 0; i < len(pc.Pcdata); i++ {
+		for i := 0; i < len(pc.Pcdata); i++ {
 			wrdata(b, pc.Pcdata[i].P)
 		}
 		wrint(b, int64(len(pc.Funcdataoff)))
-		for i = 0; i < len(pc.Funcdataoff); i++ {
+		for i := 0; i < len(pc.Funcdataoff); i++ {
 			wrsym(b, pc.Funcdata[i])
 		}
-		for i = 0; i < len(pc.Funcdataoff); i++ {
+		for i := 0; i < len(pc.Funcdataoff); i++ {
 			wrint(b, pc.Funcdataoff[i])
 		}
 		wrint(b, int64(len(pc.File)))
-		for i = 0; i < len(pc.File); i++ {
+		for i := 0; i < len(pc.File); i++ {
 			wrpathsym(ctxt, b, pc.File[i])
 		}
 	}
 }
 
 func wrint(b *Biobuf, sval int64) {
-	var uv uint64
 	var v uint64
 	var buf [10]uint8
-	var p []uint8
-	uv = (uint64(sval) << 1) ^ uint64(int64(sval>>63))
-	p = buf[:]
+	uv := (uint64(sval) << 1) ^ uint64(int64(sval>>63))
+	p := buf[:]
 	for v = uv; v >= 0x80; v >>= 7 {
 		p[0] = uint8(v | 0x80)
 		p = p[1:]

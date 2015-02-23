@@ -63,16 +63,13 @@ func bvcopy(dst *Bvec, src *Bvec) {
 }
 
 func bvconcat(src1 *Bvec, src2 *Bvec) *Bvec {
-	var dst *Bvec
-	var i int32
-
-	dst = bvalloc(src1.n + src2.n)
-	for i = 0; i < src1.n; i++ {
+	dst := bvalloc(src1.n + src2.n)
+	for i := int32(0); i < src1.n; i++ {
 		if bvget(src1, i) != 0 {
 			bvset(dst, i)
 		}
 	}
-	for i = 0; i < src2.n; i++ {
+	for i := int32(0); i < src2.n; i++ {
 		if bvget(src2, i) != 0 {
 			bvset(dst, i+src1.n)
 		}
@@ -90,8 +87,6 @@ func bvget(bv *Bvec, i int32) int {
 // bvnext returns the smallest index >= i for which bvget(bv, i) == 1.
 // If there is no such index, bvnext returns -1.
 func bvnext(bv *Bvec, i int32) int {
-	var w uint32
-
 	if i >= bv.n {
 		return -1
 	}
@@ -110,7 +105,7 @@ func bvnext(bv *Bvec, i int32) int {
 	}
 
 	// Find 1 bit.
-	w = bv.b[i>>WORDSHIFT] >> uint(i&WORDMASK)
+	w := bv.b[i>>WORDSHIFT] >> uint(i&WORDMASK)
 
 	for w&1 == 0 {
 		w >>= 1
@@ -121,9 +116,7 @@ func bvnext(bv *Bvec, i int32) int {
 }
 
 func bvisempty(bv *Bvec) bool {
-	var i int32
-
-	for i = 0; i < bv.n; i += WORDBITS {
+	for i := int32(0); i < bv.n; i += WORDBITS {
 		if bv.b[i>>WORDSHIFT] != 0 {
 			return false
 		}
@@ -173,21 +166,17 @@ func bvand(dst *Bvec, src1 *Bvec, src2 *Bvec) {
 }
 
 func bvprint(bv *Bvec) {
-	var i int32
-
 	fmt.Printf("#*")
-	for i = 0; i < bv.n; i++ {
+	for i := int32(0); i < bv.n; i++ {
 		fmt.Printf("%d", bvget(bv, i))
 	}
 }
 
 func bvreset(bv *Bvec, i int32) {
-	var mask uint32
-
 	if i < 0 || i >= bv.n {
 		Fatal("bvreset: index %d is out of bounds with length %d\n", i, bv.n)
 	}
-	mask = ^(1 << uint(i%WORDBITS))
+	mask := uint32(^(1 << uint(i%WORDBITS)))
 	bv.b[i/WORDBITS] &= mask
 }
 
@@ -198,11 +187,9 @@ func bvresetall(bv *Bvec) {
 }
 
 func bvset(bv *Bvec, i int32) {
-	var mask uint32
-
 	if i < 0 || i >= bv.n {
 		Fatal("bvset: index %d is out of bounds with length %d\n", i, bv.n)
 	}
-	mask = 1 << uint(i%WORDBITS)
+	mask := uint32(1 << uint(i%WORDBITS))
 	bv.b[i/WORDBITS] |= mask
 }

@@ -20,14 +20,6 @@ func overlap_cplx(f *Node, t *Node) bool {
 
 func Complexbool(op int, nl *Node, nr *Node, true_ bool, likely int, to *obj.Prog) {
 	var tnl Node
-	var tnr Node
-	var n1 Node
-	var n2 Node
-	var n3 Node
-	var n4 Node
-	var na Node
-	var nb Node
-	var nc Node
 
 	// make both sides addable in ullman order
 	if nr != nil {
@@ -38,6 +30,7 @@ func Complexbool(op int, nl *Node, nr *Node, true_ bool, likely int, to *obj.Pro
 		}
 
 		if nr.Addable == 0 {
+			var tnr Node
 			Tempname(&tnr, nr.Type)
 			Thearch.Cgen(nr, &tnr)
 			nr = &tnr
@@ -53,13 +46,19 @@ func Complexbool(op int, nl *Node, nr *Node, true_ bool, likely int, to *obj.Pro
 	// build tree
 	// real(l) == real(r) && imag(l) == imag(r)
 
+	var n2 Node
+	var n1 Node
 	subnode(&n1, &n2, nl)
 
+	var n3 Node
+	var n4 Node
 	subnode(&n3, &n4, nr)
 
-	na = Node{}
+	na := Node{}
 	na.Op = OANDAND
+	var nb Node
 	na.Left = &nb
+	var nc Node
 	na.Right = &nc
 	na.Type = Types[TBOOL]
 
@@ -84,16 +83,13 @@ func Complexbool(op int, nl *Node, nr *Node, true_ bool, likely int, to *obj.Pro
 
 // break addable nc-complex into nr-real and ni-imaginary
 func subnode(nr *Node, ni *Node, nc *Node) {
-	var tc int
-	var t *Type
-
 	if nc.Addable == 0 {
 		Fatal("subnode not addable")
 	}
 
-	tc = Simsimtype(nc.Type)
+	tc := Simsimtype(nc.Type)
 	tc = cplxsubtype(tc)
-	t = Types[tc]
+	t := Types[tc]
 
 	if nc.Op == OLITERAL {
 		nodfconst(nr, t, &nc.Val.U.Cval.Real)
@@ -111,9 +107,7 @@ func subnode(nr *Node, ni *Node, nc *Node) {
 
 // generate code res = -nl
 func minus(nl *Node, res *Node) {
-	var ra Node
-
-	ra = Node{}
+	ra := Node{}
 	ra.Op = OMINUS
 	ra.Left = nl
 	ra.Type = nl.Type
@@ -146,13 +140,12 @@ func complexadd(op int, nl *Node, nr *Node, res *Node) {
 	var n4 Node
 	var n5 Node
 	var n6 Node
-	var ra Node
 
 	subnode(&n1, &n2, nl)
 	subnode(&n3, &n4, nr)
 	subnode(&n5, &n6, res)
 
-	ra = Node{}
+	ra := Node{}
 	ra.Op = uint8(op)
 	ra.Left = &n1
 	ra.Right = &n3
@@ -178,9 +171,6 @@ func complexmul(nl *Node, nr *Node, res *Node) {
 	var n4 Node
 	var n5 Node
 	var n6 Node
-	var rm1 Node
-	var rm2 Node
-	var ra Node
 	var tmp Node
 
 	subnode(&n1, &n2, nl)
@@ -189,20 +179,20 @@ func complexmul(nl *Node, nr *Node, res *Node) {
 	Tempname(&tmp, n5.Type)
 
 	// real part -> tmp
-	rm1 = Node{}
+	rm1 := Node{}
 
 	rm1.Op = OMUL
 	rm1.Left = &n1
 	rm1.Right = &n3
 	rm1.Type = n1.Type
 
-	rm2 = Node{}
+	rm2 := Node{}
 	rm2.Op = OMUL
 	rm2.Left = &n2
 	rm2.Right = &n4
 	rm2.Type = n2.Type
 
-	ra = Node{}
+	ra := Node{}
 	ra.Op = OSUB
 	ra.Left = &rm1
 	ra.Right = &rm2
@@ -300,14 +290,6 @@ yes:
 }
 
 func Complexmove(f *Node, t *Node) {
-	var ft int
-	var tt int
-	var n1 Node
-	var n2 Node
-	var n3 Node
-	var n4 Node
-	var tmp Node
-
 	if Debug['g'] != 0 {
 		Dump("\ncomplexmove-f", f)
 		Dump("complexmove-t", t)
@@ -317,8 +299,8 @@ func Complexmove(f *Node, t *Node) {
 		Fatal("complexmove: to not addable")
 	}
 
-	ft = Simsimtype(f.Type)
-	tt = Simsimtype(t.Type)
+	ft := Simsimtype(f.Type)
+	tt := Simsimtype(t.Type)
 	switch uint32(ft)<<16 | uint32(tt) {
 	default:
 		Fatal("complexmove: unknown conversion: %v -> %v\n", Tconv(f.Type, 0), Tconv(t.Type, 0))
@@ -331,12 +313,17 @@ func Complexmove(f *Node, t *Node) {
 		TCOMPLEX128<<16 | TCOMPLEX64,
 		TCOMPLEX128<<16 | TCOMPLEX128:
 		if f.Addable == 0 || overlap_cplx(f, t) {
+			var tmp Node
 			Tempname(&tmp, f.Type)
 			Complexmove(f, &tmp)
 			f = &tmp
 		}
 
+		var n1 Node
+		var n2 Node
 		subnode(&n1, &n2, f)
+		var n4 Node
+		var n3 Node
 		subnode(&n3, &n4, t)
 
 		Thearch.Cgen(&n1, &n3)
@@ -345,16 +332,6 @@ func Complexmove(f *Node, t *Node) {
 }
 
 func Complexgen(n *Node, res *Node) {
-	var nl *Node
-	var nr *Node
-	var tnl Node
-	var tnr Node
-	var n1 Node
-	var n2 Node
-	var tmp Node
-	var tl int
-	var tr int
-
 	if Debug['g'] != 0 {
 		Dump("\ncomplexgen-n", n)
 		Dump("complexgen-res", res)
@@ -368,7 +345,10 @@ func Complexgen(n *Node, res *Node) {
 	switch n.Op {
 	case OCOMPLEX:
 		if res.Addable != 0 {
+			var n1 Node
+			var n2 Node
 			subnode(&n1, &n2, res)
+			var tmp Node
 			Tempname(&tmp, n1.Type)
 			Thearch.Cgen(n.Left, &tmp)
 			Thearch.Cgen(n.Right, &n2)
@@ -378,13 +358,16 @@ func Complexgen(n *Node, res *Node) {
 
 	case OREAL,
 		OIMAG:
-		nl = n.Left
+		nl := n.Left
 		if nl.Addable == 0 {
+			var tmp Node
 			Tempname(&tmp, nl.Type)
 			Complexgen(nl, &tmp)
 			nl = &tmp
 		}
 
+		var n1 Node
+		var n2 Node
 		subnode(&n1, &n2, nl)
 		if n.Op == OREAL {
 			Thearch.Cgen(&n1, res)
@@ -396,13 +379,14 @@ func Complexgen(n *Node, res *Node) {
 	}
 
 	// perform conversion from n to res
-	tl = Simsimtype(res.Type)
+	tl := Simsimtype(res.Type)
 
 	tl = cplxsubtype(tl)
-	tr = Simsimtype(n.Type)
+	tr := Simsimtype(n.Type)
 	tr = cplxsubtype(tr)
 	if tl != tr {
 		if n.Addable == 0 {
+			var n1 Node
 			Tempname(&n1, n.Type)
 			Complexmove(n, &n1)
 			n = &n1
@@ -413,6 +397,7 @@ func Complexgen(n *Node, res *Node) {
 	}
 
 	if res.Addable == 0 {
+		var n1 Node
 		Thearch.Igen(res, &n1, nil)
 		Thearch.Cgen(n, &n1)
 		Thearch.Regfree(&n1)
@@ -437,6 +422,7 @@ func Complexgen(n *Node, res *Node) {
 		OCALLFUNC,
 		OCALLMETH,
 		OCALLINTER:
+		var n1 Node
 		Thearch.Igen(n, &n1, res)
 
 		Complexmove(&n1, res)
@@ -454,13 +440,14 @@ func Complexgen(n *Node, res *Node) {
 		break
 	}
 
-	nl = n.Left
+	nl := n.Left
 	if nl == nil {
 		return
 	}
-	nr = n.Right
+	nr := n.Right
 
 	// make both sides addable in ullman order
+	var tnl Node
 	if nr != nil {
 		if nl.Ullman > nr.Ullman && nl.Addable == 0 {
 			Tempname(&tnl, nl.Type)
@@ -469,6 +456,7 @@ func Complexgen(n *Node, res *Node) {
 		}
 
 		if nr.Addable == 0 {
+			var tnr Node
 			Tempname(&tnr, nr.Type)
 			Thearch.Cgen(nr, &tnr)
 			nr = &tnr

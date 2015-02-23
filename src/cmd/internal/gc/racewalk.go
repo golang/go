@@ -31,10 +31,8 @@ var omit_pkgs = []string{"runtime", "runtime/race"}
 var noinst_pkgs = []string{"sync", "sync/atomic"}
 
 func ispkgin(pkgs []string) bool {
-	var i int
-
 	if myimportpath != "" {
-		for i = 0; i < len(pkgs); i++ {
+		for i := 0; i < len(pkgs); i++ {
 			if myimportpath == pkgs[i] {
 				return true
 			}
@@ -54,10 +52,6 @@ func isforkfunc(fn *Node) bool {
 }
 
 func racewalk(fn *Node) {
-	var nd *Node
-	var nodpc *Node
-	var s string
-
 	if ispkgin(omit_pkgs) || isforkfunc(fn) {
 		return
 	}
@@ -72,18 +66,18 @@ func racewalk(fn *Node) {
 	// nodpc is the PC of the caller as extracted by
 	// getcallerpc. We use -widthptr(FP) for x86.
 	// BUG: this will not work on arm.
-	nodpc = Nod(OXXX, nil, nil)
+	nodpc := Nod(OXXX, nil, nil)
 
 	*nodpc = *nodfp
 	nodpc.Type = Types[TUINTPTR]
 	nodpc.Xoffset = int64(-Widthptr)
-	nd = mkcall("racefuncenter", nil, nil, nodpc)
+	nd := mkcall("racefuncenter", nil, nil, nodpc)
 	fn.Enter = concat(list1(nd), fn.Enter)
 	nd = mkcall("racefuncexit", nil, nil)
 	fn.Exit = list(fn.Exit, nd)
 
 	if Debug['W'] != 0 {
-		s = fmt.Sprintf("after racewalk %v", Sconv(fn.Nname.Sym, 0))
+		s := fmt.Sprintf("after racewalk %v", Sconv(fn.Nname.Sym, 0))
 		dumplist(s, fn.Nbody)
 		s = fmt.Sprintf("enter %v", Sconv(fn.Nname.Sym, 0))
 		dumplist(s, fn.Enter)
@@ -110,12 +104,7 @@ func racewalklist(l *NodeList, init **NodeList) {
 // walks the tree and adds calls to the
 // instrumentation code to top-level (statement) nodes' init
 func racewalknode(np **Node, init **NodeList, wr int, skip int) {
-	var n *Node
-	var n1 *Node
-	var l *NodeList
-	var fini *NodeList
-
-	n = *np
+	n := *np
 
 	if n == nil {
 		return
@@ -132,7 +121,7 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 		// If init == &n->ninit and n->ninit is non-nil,
 		// racewalknode might append it to itself.
 		// nil it out and handle it separately before putting it back.
-		l = n.Ninit
+		l := n.Ninit
 
 		n.Ninit = nil
 		racewalklist(l, nil)
@@ -174,7 +163,7 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 			OCALLINTER:
 			racewalknode(&n.List.N, &n.List.N.Ninit, 0, 0)
 
-			fini = nil
+			fini := (*NodeList)(nil)
 			racewalklist(n.List.Next, &fini)
 			n.List = concat(n.List, fini)
 
@@ -204,6 +193,7 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 		if n.Left.Sym != nil && n.Left.Sym.Pkg == Runtimepkg && (strings.HasPrefix(n.Left.Sym.Name, "writebarrier") || n.Left.Sym.Name == "typedmemmove") {
 			// Find the dst argument.
 			// The list can be reordered, so it's not necessary just the first or the second element.
+			var l *NodeList
 			for l = n.List; l != nil; l = l.Next {
 				if n.Left.Sym.Name == "typedmemmove" {
 					if l.N.Left.Xoffset == int64(Widthptr) {
@@ -263,7 +253,7 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 		OCAP:
 		racewalknode(&n.Left, init, 0, 0)
 		if Istype(n.Left.Type, TMAP) {
-			n1 = Nod(OCONVNOP, n.Left, nil)
+			n1 := Nod(OCONVNOP, n.Left, nil)
 			n1.Type = Ptrto(Types[TUINT8])
 			n1 = Nod(OIND, n1, nil)
 			typecheck(&n1, Erv)
@@ -495,15 +485,7 @@ func isartificial(n *Node) bool {
 }
 
 func callinstr(np **Node, init **NodeList, wr int, skip int) bool {
-	var name string
-	var f *Node
-	var b *Node
-	var n *Node
-	var t *Type
-	var class int
-	var hascalls int
-
-	n = *np
+	n := *np
 
 	//print("callinstr for %+N [ %O ] etype=%E class=%d\n",
 	//	  n, n->op, n->type ? n->type->etype : -1, n->class);
@@ -511,25 +493,25 @@ func callinstr(np **Node, init **NodeList, wr int, skip int) bool {
 	if skip != 0 || n.Type == nil || n.Type.Etype >= TIDEAL {
 		return false
 	}
-	t = n.Type
+	t := n.Type
 	if isartificial(n) {
 		return false
 	}
 
-	b = outervalue(n)
+	b := outervalue(n)
 
 	// it skips e.g. stores to ... parameter array
 	if isartificial(b) {
 		return false
 	}
-	class = int(b.Class)
+	class := int(b.Class)
 
 	// BUG: we _may_ want to instrument PAUTO sometimes
 	// e.g. if we've got a local variable/method receiver
 	// that has got a pointer inside. Whether it points to
 	// the heap or not is impossible to know at compile time
 	if (class&PHEAP != 0) || class == PPARAMREF || class == PEXTERN || b.Op == OINDEX || b.Op == ODOTPTR || b.Op == OIND {
-		hascalls = 0
+		hascalls := 0
 		foreach(n, hascallspred, &hascalls)
 		if hascalls != 0 {
 			n = detachexpr(n, init)
@@ -538,14 +520,15 @@ func callinstr(np **Node, init **NodeList, wr int, skip int) bool {
 
 		n = treecopy(n)
 		makeaddable(n)
+		var f *Node
 		if t.Etype == TSTRUCT || Isfixedarray(t) {
-			name = "racereadrange"
+			name := "racereadrange"
 			if wr != 0 {
 				name = "racewriterange"
 			}
 			f = mkcall(name, nil, init, uintptraddr(n), Nodintconst(t.Width))
 		} else {
-			name = "raceread"
+			name := "raceread"
 			if wr != 0 {
 				name = "racewrite"
 			}
@@ -592,9 +575,7 @@ func makeaddable(n *Node) {
 }
 
 func uintptraddr(n *Node) *Node {
-	var r *Node
-
-	r = Nod(OADDR, n, nil)
+	r := Nod(OADDR, n, nil)
 	r.Bounded = true
 	r = conv(r, Types[TUNSAFEPTR])
 	r = conv(r, Types[TUINTPTR])
@@ -602,18 +583,13 @@ func uintptraddr(n *Node) *Node {
 }
 
 func detachexpr(n *Node, init **NodeList) *Node {
-	var addr *Node
-	var as *Node
-	var ind *Node
-	var l *Node
-
-	addr = Nod(OADDR, n, nil)
-	l = temp(Ptrto(n.Type))
-	as = Nod(OAS, l, addr)
+	addr := Nod(OADDR, n, nil)
+	l := temp(Ptrto(n.Type))
+	as := Nod(OAS, l, addr)
 	typecheck(&as, Etop)
 	walkexpr(&as, init)
 	*init = list(*init, as)
-	ind = Nod(OIND, l, nil)
+	ind := Nod(OIND, l, nil)
 	typecheck(&ind, Erv)
 	walkexpr(&ind, init)
 	return ind
@@ -656,13 +632,11 @@ func hascallspred(n *Node, c interface{}) {
 // appendinit is like addinit in subr.c
 // but appends rather than prepends.
 func appendinit(np **Node, init *NodeList) {
-	var n *Node
-
 	if init == nil {
 		return
 	}
 
-	n = *np
+	n := *np
 	switch n.Op {
 	// There may be multiple refs to this node;
 	// introduce OCONVNOP to hold init list.

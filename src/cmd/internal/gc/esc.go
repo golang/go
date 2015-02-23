@@ -49,30 +49,23 @@ const (
 )
 
 func escapes(all *NodeList) {
-	var l *NodeList
-
-	for l = all; l != nil; l = l.Next {
+	for l := all; l != nil; l = l.Next {
 		l.N.Walkgen = 0
 	}
 
 	visitgen = 0
-	for l = all; l != nil; l = l.Next {
+	for l := all; l != nil; l = l.Next {
 		if l.N.Op == ODCLFUNC && l.N.Curfn == nil {
 			visit(l.N)
 		}
 	}
 
-	for l = all; l != nil; l = l.Next {
+	for l := all; l != nil; l = l.Next {
 		l.N.Walkgen = 0
 	}
 }
 
 func visit(n *Node) uint32 {
-	var min uint32
-	var recursive bool
-	var l *NodeList
-	var block *NodeList
-
 	if n.Walkgen > 0 {
 		// already visited
 		return n.Walkgen
@@ -81,9 +74,9 @@ func visit(n *Node) uint32 {
 	visitgen++
 	n.Walkgen = visitgen
 	visitgen++
-	min = visitgen
+	min := visitgen
 
-	l = new(NodeList)
+	l := new(NodeList)
 	l.Next = stack
 	l.N = n
 	stack = l
@@ -95,13 +88,14 @@ func visit(n *Node) uint32 {
 		// If visitcodelist found its way back to n->walkgen, then this
 		// block is a set of mutually recursive functions.
 		// Otherwise it's just a lone function that does not recurse.
-		recursive = min == n.Walkgen
+		recursive := min == n.Walkgen
 
 		// Remove connected component from stack.
 		// Mark walkgen so that future visits return a large number
 		// so as not to affect the caller's min.
-		block = stack
+		block := stack
 
+		var l *NodeList
 		for l = stack; l.N != n; l = l.Next {
 			l.N.Walkgen = ^uint32(0)
 		}
@@ -124,9 +118,6 @@ func visitcodelist(l *NodeList, min uint32) uint32 {
 }
 
 func visitcode(n *Node, min uint32) uint32 {
-	var fn *Node
-	var m uint32
-
 	if n == nil {
 		return min
 	}
@@ -142,12 +133,12 @@ func visitcode(n *Node, min uint32) uint32 {
 	min = visitcodelist(n.Rlist, min)
 
 	if n.Op == OCALLFUNC || n.Op == OCALLMETH {
-		fn = n.Left
+		fn := n.Left
 		if n.Op == OCALLMETH {
 			fn = n.Left.Right.Sym.Def
 		}
 		if fn != nil && fn.Op == ONAME && fn.Class == PFUNC && fn.Defn != nil {
-			m = visit(fn.Defn)
+			m := visit(fn.Defn)
 			if m < min {
 				min = m
 			}
@@ -155,7 +146,7 @@ func visitcode(n *Node, min uint32) uint32 {
 	}
 
 	if n.Op == OCLOSURE {
-		m = visit(n.Closure)
+		m := visit(n.Closure)
 		if m < min {
 			min = m
 		}
@@ -205,9 +196,6 @@ type EscState struct {
 var tags [16]*Strlit
 
 func mktag(mask int) *Strlit {
-	var s *Strlit
-	var buf string
-
 	switch mask & EscMask {
 	case EscNone,
 		EscReturn:
@@ -223,8 +211,8 @@ func mktag(mask int) *Strlit {
 		return tags[mask]
 	}
 
-	buf = fmt.Sprintf("esc:0x%x", mask)
-	s = newstrlit(buf)
+	buf := fmt.Sprintf("esc:0x%x", mask)
+	s := newstrlit(buf)
 	if mask < len(tags) {
 		tags[mask] = s
 	}
@@ -232,15 +220,13 @@ func mktag(mask int) *Strlit {
 }
 
 func parsetag(note *Strlit) int {
-	var em int
-
 	if note == nil {
 		return EscUnknown
 	}
 	if !strings.HasPrefix(note.S, "esc:") {
 		return EscUnknown
 	}
-	em = atoi(note.S[4:])
+	em := atoi(note.S[4:])
 	if em == 0 {
 		return EscNone
 	}
@@ -248,12 +234,8 @@ func parsetag(note *Strlit) int {
 }
 
 func analyze(all *NodeList, recursive bool) {
-	var l *NodeList
-	var es EscState
-	var e *EscState
-
-	es = EscState{}
-	e = &es
+	es := EscState{}
+	e := &es
 	e.theSink.Op = ONAME
 	e.theSink.Orig = &e.theSink
 	e.theSink.Class = PEXTERN
@@ -267,14 +249,14 @@ func analyze(all *NodeList, recursive bool) {
 	e.funcParam.Sym = Lookup(".param")
 	e.funcParam.Escloopdepth = 10000000
 
-	for l = all; l != nil; l = l.Next {
+	for l := all; l != nil; l = l.Next {
 		if l.N.Op == ODCLFUNC {
 			l.N.Esc = EscFuncPlanned
 		}
 	}
 
 	// flow-analyze functions
-	for l = all; l != nil; l = l.Next {
+	for l := all; l != nil; l = l.Next {
 		if l.N.Op == ODCLFUNC {
 			escfunc(e, l.N)
 		}
@@ -284,19 +266,19 @@ func analyze(all *NodeList, recursive bool) {
 
 	// visit the upstream of each dst, mark address nodes with
 	// addrescapes, mark parameters unsafe
-	for l = e.dsts; l != nil; l = l.Next {
+	for l := e.dsts; l != nil; l = l.Next {
 		escflood(e, l.N)
 	}
 
 	// for all top level functions, tag the typenodes corresponding to the param nodes
-	for l = all; l != nil; l = l.Next {
+	for l := all; l != nil; l = l.Next {
 		if l.N.Op == ODCLFUNC {
 			esctag(e, l.N)
 		}
 	}
 
 	if Debug['m'] != 0 {
-		for l = e.noesc; l != nil; l = l.Next {
+		for l := e.noesc; l != nil; l = l.Next {
 			if l.N.Esc == EscNone {
 				var tmp *Sym
 				if l.N.Curfn != nil && l.N.Curfn.Nname != nil {
@@ -311,10 +293,6 @@ func analyze(all *NodeList, recursive bool) {
 }
 
 func escfunc(e *EscState, func_ *Node) {
-	var savefn *Node
-	var ll *NodeList
-	var saveld int
-
 	//	print("escfunc %N %s\n", func->nname, e->recursive?"(recursive)":"");
 
 	if func_.Esc != 1 {
@@ -322,12 +300,12 @@ func escfunc(e *EscState, func_ *Node) {
 	}
 	func_.Esc = EscFuncStarted
 
-	saveld = e.loopdepth
+	saveld := e.loopdepth
 	e.loopdepth = 1
-	savefn = Curfn
+	savefn := Curfn
 	Curfn = func_
 
-	for ll = Curfn.Dcl; ll != nil; ll = ll.Next {
+	for ll := Curfn.Dcl; ll != nil; ll = ll.Next {
 		if ll.N.Op != ONAME {
 			continue
 		}
@@ -352,7 +330,7 @@ func escfunc(e *EscState, func_ *Node) {
 
 	// in a mutually recursive group we lose track of the return values
 	if e.recursive {
-		for ll = Curfn.Dcl; ll != nil; ll = ll.Next {
+		for ll := Curfn.Dcl; ll != nil; ll = ll.Next {
 			if ll.N.Op == ONAME && ll.N.Class == PPARAMOUT {
 				escflows(e, &e.theSink, ll.N)
 			}
@@ -426,17 +404,14 @@ func esclist(e *EscState, l *NodeList, up *Node) {
 }
 
 func esc(e *EscState, n *Node, up *Node) {
-	var lno int
 	var ll *NodeList
 	var lr *NodeList
-	var a *Node
-	var v *Node
 
 	if n == nil {
 		return
 	}
 
-	lno = int(setlineno(n))
+	lno := int(setlineno(n))
 
 	// ninit logically runs at a different loopdepth than the rest of the for loop.
 	esclist(e, n.Ninit, n)
@@ -702,6 +677,8 @@ func esc(e *EscState, n *Node, up *Node) {
 
 		// Link addresses of captured variables to closure.
 	case OCLOSURE:
+		var a *Node
+		var v *Node
 		for ll = n.Cvars; ll != nil; ll = ll.Next {
 			v = ll.N
 			if v.Op == OXXX { // unnamed out argument; see dcl.c:/^funcargs
@@ -780,9 +757,6 @@ func esc(e *EscState, n *Node, up *Node) {
 // evaluated in curfn.	For expr==nil, dst must still be examined for
 // evaluations inside it (e.g *f(x) = y)
 func escassign(e *EscState, dst *Node, src *Node) {
-	var lno int
-	var ll *NodeList
-
 	if isblank(dst) || dst == nil || src == nil || src.Op == ONONAME || src.Op == OXXX {
 		return
 	}
@@ -846,7 +820,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
 		dst = &e.theSink
 	}
 
-	lno = int(setlineno(src))
+	lno := int(setlineno(src))
 	e.pdepth++
 
 	switch src.Op {
@@ -879,7 +853,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
 	case OCALLMETH,
 		OCALLFUNC,
 		OCALLINTER:
-		for ll = src.Escretval; ll != nil; ll = ll.Next {
+		for ll := src.Escretval; ll != nil; ll = ll.Next {
 			escflows(e, dst, ll.N)
 		}
 
@@ -945,7 +919,6 @@ func escassign(e *EscState, dst *Node, src *Node) {
 
 func escassignfromtag(e *EscState, note *Strlit, dsts *NodeList, src *Node) int {
 	var em int
-	var em0 int
 
 	em = parsetag(note)
 
@@ -964,7 +937,7 @@ func escassignfromtag(e *EscState, note *Strlit, dsts *NodeList, src *Node) int 
 		escassign(e, &e.funcParam, src)
 	}
 
-	em0 = em
+	em0 := em
 	for em >>= EscReturnBits; em != 0 && dsts != nil; (func() { em >>= 1; dsts = dsts.Next })() {
 		if em&1 != 0 {
 			escassign(e, dsts.N, src)
@@ -986,15 +959,9 @@ func escassignfromtag(e *EscState, note *Strlit, dsts *NodeList, src *Node) int 
 func esccall(e *EscState, n *Node, up *Node) {
 	var ll *NodeList
 	var lr *NodeList
-	var a *Node
-	var fn *Node
-	var src *Node
-	var t *Type
 	var fntype *Type
-	var buf string
-	var i int
 
-	fn = nil
+	fn := (*Node)(nil)
 	switch n.Op {
 	default:
 		Fatal("esccall")
@@ -1017,7 +984,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 
 	ll = n.List
 	if n.List != nil && n.List.Next == nil {
-		a = n.List.N
+		a := n.List.N
 		if a.Type.Etype == TSTRUCT && a.Type.Funarg != 0 { // f(g()).
 			ll = a.Escretval
 		}
@@ -1040,6 +1007,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 			escassign(e, fn.Ntype.Left.Left, n.Left.Left)
 		}
 
+		var src *Node
 		for lr = fn.Ntype.List; ll != nil && lr != nil; (func() { ll = ll.Next; lr = lr.Next })() {
 			src = ll.N
 			if lr.N.Isddd != 0 && n.Isddd == 0 {
@@ -1079,9 +1047,11 @@ func esccall(e *EscState, n *Node, up *Node) {
 	}
 
 	// set up out list on this call node with dummy auto ONAMES in the current (calling) function.
-	i = 0
+	i := 0
 
-	for t = getoutargx(fntype).Type; t != nil; t = t.Down {
+	var src *Node
+	var buf string
+	for t := getoutargx(fntype).Type; t != nil; t = t.Down {
 		src = Nod(ONAME, nil, nil)
 		buf = fmt.Sprintf(".dum%d", i)
 		i++
@@ -1099,14 +1069,15 @@ func esccall(e *EscState, n *Node, up *Node) {
 
 	// Receiver.
 	if n.Op != OCALLFUNC {
-		t = getthisx(fntype).Type
-		src = n.Left.Left
+		t := getthisx(fntype).Type
+		src := n.Left.Left
 		if haspointers(t.Type) {
 			escassignfromtag(e, t.Note, n.Escretval, src)
 		}
 	}
 
-	for t = getinargx(fntype).Type; ll != nil; ll = ll.Next {
+	var a *Node
+	for t := getinargx(fntype).Type; ll != nil; ll = ll.Next {
 		src = ll.N
 		if t.Isddd != 0 && n.Isddd == 0 {
 			// Introduce ODDDARG node to represent ... allocation.
@@ -1197,8 +1168,6 @@ func escflows(e *EscState, dst *Node, src *Node) {
 // Once an object has been moved to the heap, all of it's upstream should be considered
 // escaping to the global scope.
 func escflood(e *EscState, dst *Node) {
-	var l *NodeList
-
 	switch dst.Op {
 	case ONAME,
 		OCLOSURE:
@@ -1218,7 +1187,7 @@ func escflood(e *EscState, dst *Node) {
 		fmt.Printf("\nescflood:%d: dst %v scope:%v[%d]\n", walkgen, Nconv(dst, obj.FmtShort), Sconv(tmp, 0), dst.Escloopdepth)
 	}
 
-	for l = dst.Escflowsrc; l != nil; l = l.Next {
+	for l := dst.Escflowsrc; l != nil; l = l.Next {
 		walkgen++
 		escwalk(e, 0, dst, l.N)
 	}
@@ -1240,10 +1209,6 @@ const (
 )
 
 func escwalk(e *EscState, level int, dst *Node, src *Node) {
-	var ll *NodeList
-	var leaks bool
-	var newlevel int
-
 	if src.Walkgen == walkgen && src.Esclevel <= int32(level) {
 		return
 	}
@@ -1263,6 +1228,7 @@ func escwalk(e *EscState, level int, dst *Node, src *Node) {
 	e.pdepth++
 
 	// Input parameter flowing to output parameter?
+	var leaks bool
 	if dst.Op == ONAME && dst.Class == PPARAMOUT && dst.Vargen <= 20 {
 		if src.Op == ONAME && src.Class == PPARAM && src.Curfn == dst.Curfn && src.Esc != EscScope && src.Esc != EscHeap {
 			if level == 0 {
@@ -1320,7 +1286,7 @@ func escwalk(e *EscState, level int, dst *Node, src *Node) {
 			}
 		}
 
-		newlevel = level
+		newlevel := level
 		if level > MinLevel {
 			newlevel--
 		}
@@ -1373,7 +1339,7 @@ func escwalk(e *EscState, level int, dst *Node, src *Node) {
 	case ODOTPTR,
 		OINDEXMAP,
 		OIND:
-		newlevel = level
+		newlevel := level
 
 		if level > MinLevel {
 			newlevel++
@@ -1382,7 +1348,7 @@ func escwalk(e *EscState, level int, dst *Node, src *Node) {
 	}
 
 recurse:
-	for ll = src.Escflowsrc; ll != nil; ll = ll.Next {
+	for ll := src.Escflowsrc; ll != nil; ll = ll.Next {
 		escwalk(e, level, dst, ll.N)
 	}
 
@@ -1390,17 +1356,13 @@ recurse:
 }
 
 func esctag(e *EscState, func_ *Node) {
-	var savefn *Node
-	var ll *NodeList
-	var t *Type
-
 	func_.Esc = EscFuncTagged
 
 	// External functions are assumed unsafe,
 	// unless //go:noescape is given before the declaration.
 	if func_.Nbody == nil {
 		if func_.Noescape {
-			for t = getinargx(func_.Type).Type; t != nil; t = t.Down {
+			for t := getinargx(func_.Type).Type; t != nil; t = t.Down {
 				if haspointers(t.Type) {
 					t.Note = mktag(EscNone)
 				}
@@ -1410,10 +1372,10 @@ func esctag(e *EscState, func_ *Node) {
 		return
 	}
 
-	savefn = Curfn
+	savefn := Curfn
 	Curfn = func_
 
-	for ll = Curfn.Dcl; ll != nil; ll = ll.Next {
+	for ll := Curfn.Dcl; ll != nil; ll = ll.Next {
 		if ll.N.Op != ONAME || ll.N.Class != PPARAM {
 			continue
 		}

@@ -28,17 +28,8 @@ func addvarint(ctxt *Link, d *Pcdata, val uint32) {
 // where func is the function, val is the current value, p is the instruction being
 // considered, and arg can be used to further parameterize valfunc.
 func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*Link, *LSym, int32, *Prog, int32, interface{}) int32, arg interface{}) {
-	var dbg int
-	var i int
-	var oldval int32
-	var val int32
-	var started int32
-	var delta uint32
-	var pc int64
-	var p *Prog
-
 	// To debug a specific function, uncomment second line and change name.
-	dbg = 0
+	dbg := 0
 
 	//dbg = strcmp(func->name, "main.main") == 0;
 	//dbg = strcmp(desc, "pctofile") == 0;
@@ -51,21 +42,22 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 		fmt.Fprintf(ctxt.Bso, "funcpctab %s [valfunc=%s]\n", func_.Name, desc)
 	}
 
-	val = -1
-	oldval = val
+	val := int32(-1)
+	oldval := val
 	if func_.Text == nil {
 		ctxt.Debugpcln -= int32(dbg)
 		return
 	}
 
-	pc = func_.Text.Pc
+	pc := func_.Text.Pc
 
 	if ctxt.Debugpcln != 0 {
 		fmt.Fprintf(ctxt.Bso, "%6x %6d %v\n", uint64(pc), val, func_.Text)
 	}
 
-	started = 0
-	for p = func_.Text; p != nil; p = p.Link {
+	started := int32(0)
+	var delta uint32
+	for p := func_.Text; p != nil; p = p.Link {
 		// Update val. If it's not changing, keep going.
 		val = valfunc(ctxt, func_, val, p, 0, arg)
 
@@ -134,7 +126,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 
 	if ctxt.Debugpcln != 0 {
 		fmt.Fprintf(ctxt.Bso, "wrote %d bytes to %p\n", len(dst.P), dst)
-		for i = 0; i < len(dst.P); i++ {
+		for i := 0; i < len(dst.P); i++ {
 			fmt.Fprintf(ctxt.Bso, " %02x", dst.P[i])
 		}
 		fmt.Fprintf(ctxt.Bso, "\n")
@@ -148,14 +140,11 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 // Because p->lineno applies to p, phase == 0 (before p)
 // takes care of the update.
 func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg interface{}) int32 {
-	var i int32
-	var l int32
-	var f *LSym
-	var pcln *Pcln
-
 	if p.As == ATEXT || p.As == ANOP || p.As == AUSEFIELD || p.Lineno == 0 || phase == 1 {
 		return oldval
 	}
+	var l int32
+	var f *LSym
 	linkgetline(ctxt, p.Lineno, &f, &l)
 	if f == nil {
 		//	print("getline failed for %s %P\n", ctxt->cursym->name, p);
@@ -165,12 +154,13 @@ func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg
 	if arg == nil {
 		return l
 	}
-	pcln = arg.(*Pcln)
+	pcln := arg.(*Pcln)
 
 	if f == pcln.Lastfile {
 		return int32(pcln.Lastindex)
 	}
 
+	var i int32
 	for i = 0; i < int32(len(pcln.File)); i++ {
 		file := pcln.File[i]
 		if file == f {
@@ -222,20 +212,14 @@ func pctopcdata(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg i
 }
 
 func linkpcln(ctxt *Link, cursym *LSym) {
-	var p *Prog
-	var pcln *Pcln
-	var i int
-	var npcdata int
-	var nfuncdata int
-
 	ctxt.Cursym = cursym
 
-	pcln = new(Pcln)
+	pcln := new(Pcln)
 	cursym.Pcln = pcln
 
-	npcdata = 0
-	nfuncdata = 0
-	for p = cursym.Text; p != nil; p = p.Link {
+	npcdata := 0
+	nfuncdata := 0
+	for p := cursym.Text; p != nil; p = p.Link {
 		if p.As == APCDATA && p.From.Offset >= int64(npcdata) {
 			npcdata = int(p.From.Offset + 1)
 		}
@@ -257,7 +241,7 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 	// tabulate which pc and func data we have.
 	havepc := make([]uint32, (npcdata+31)/32)
 	havefunc := make([]uint32, (nfuncdata+31)/32)
-	for p = cursym.Text; p != nil; p = p.Link {
+	for p := cursym.Text; p != nil; p = p.Link {
 		if p.As == AFUNCDATA {
 			if (havefunc[p.From.Offset/32]>>uint64(p.From.Offset%32))&1 != 0 {
 				ctxt.Diag("multiple definitions for FUNCDATA $%d", p.From.Offset)
@@ -271,7 +255,7 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 	}
 
 	// pcdata.
-	for i = 0; i < npcdata; i++ {
+	for i := 0; i < npcdata; i++ {
 		if (havepc[i/32]>>uint(i%32))&1 == 0 {
 			continue
 		}
@@ -280,7 +264,8 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 
 	// funcdata
 	if nfuncdata > 0 {
-		for p = cursym.Text; p != nil; p = p.Link {
+		var i int
+		for p := cursym.Text; p != nil; p = p.Link {
 			if p.As == AFUNCDATA {
 				i = int(p.From.Offset)
 				pcln.Funcdataoff[i] = p.To.Offset
@@ -297,13 +282,9 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 // iteration over encoded pcdata tables.
 
 func getvarint(pp *[]byte) uint32 {
-	var p []byte
-	var shift int
-	var v uint32
-
-	v = 0
-	p = *pp
-	for shift = 0; ; shift += 7 {
+	v := uint32(0)
+	p := *pp
+	for shift := 0; ; shift += 7 {
 		v |= uint32(p[0]&0x7F) << uint(shift)
 		tmp7 := p
 		p = p[1:]
@@ -317,9 +298,6 @@ func getvarint(pp *[]byte) uint32 {
 }
 
 func pciternext(it *Pciter) {
-	var v uint32
-	var dv int32
-
 	it.pc = it.nextpc
 	if it.done != 0 {
 		return
@@ -330,7 +308,7 @@ func pciternext(it *Pciter) {
 	}
 
 	// value delta
-	v = getvarint(&it.p)
+	v := getvarint(&it.p)
 
 	if v == 0 && it.start == 0 {
 		it.done = 1
@@ -338,7 +316,7 @@ func pciternext(it *Pciter) {
 	}
 
 	it.start = 0
-	dv = int32(v>>1) ^ (int32(v<<31) >> 31)
+	dv := int32(v>>1) ^ (int32(v<<31) >> 31)
 	it.value += dv
 
 	// pc delta
