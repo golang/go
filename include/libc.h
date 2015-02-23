@@ -292,6 +292,8 @@ extern	char*	getgoversion(void);
 extern	char*	getgoarm(void);
 extern	char*	getgo386(void);
 extern	char*	getgoextlinkenabled(void);
+extern	char*	getgohostos(void);
+extern	char*	getgohostarch(void);
 
 extern	char*	mktempdir(void);
 extern	void	removeall(char*);

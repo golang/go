@@ -45,6 +45,9 @@ func writeErr(b []byte) {
 		}
 	}
 
+	// Write to stderr for command-line programs.
+	write(2, unsafe.Pointer(&b[0]), int32(len(b)))
+
 	// Log format: "<header>\x00<message m bytes>\x00"
 	//
 	// <header>

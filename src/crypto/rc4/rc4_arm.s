@@ -7,56 +7,56 @@
 #include "textflag.h"
 
 // Registers
-dst = 0
-src = 1
-n = 2
-state = 3
-pi = 4
-pj = 5
-i = 6
-j = 7
-k = 8
-t = 11
-t2 = 12
+#define Rdst	R0
+#define Rsrc	R1
+#define Rn	R2
+#define Rstate	R3
+#define Rpi	R4
+#define Rpj	R5
+#define Ri	R6
+#define Rj	R7
+#define Rk	R8
+#define Rt	R11
+#define Rt2	R12
 
 // func xorKeyStream(dst, src *byte, n int, state *[256]byte, i, j *uint8)
 TEXT ·xorKeyStream(SB),NOSPLIT,$0
-	MOVW 0(FP), R(dst)
-	MOVW 4(FP), R(src)
-	MOVW 8(FP), R(n)
-	MOVW 12(FP), R(state)
-	MOVW 16(FP), R(pi)
-	MOVW 20(FP), R(pj)
-	MOVBU (R(pi)), R(i)
-	MOVBU (R(pj)), R(j)
-	MOVW $0, R(k)
+	MOVW dst+0(FP), Rdst
+	MOVW src+4(FP), Rsrc
+	MOVW n+8(FP), Rn
+	MOVW state+12(FP), Rstate
+	MOVW pi+16(FP), Rpi
+	MOVW pj+20(FP), Rpj
+	MOVBU (Rpi), Ri
+	MOVBU (Rpj), Rj
+	MOVW $0, Rk
 
 loop:
 	// i += 1; j += state[i]
-	ADD $1, R(i)
-	AND $0xff, R(i)
-	MOVBU R(i)<<2(R(state)), R(t)
-	ADD R(t), R(j)
-	AND $0xff, R(j)
+	ADD $1, Ri
+	AND $0xff, Ri
+	MOVBU Ri<<2(Rstate), Rt
+	ADD Rt, Rj
+	AND $0xff, Rj
 
 	// swap state[i] <-> state[j]
-	MOVBU R(j)<<2(R(state)), R(t2)
-	MOVB R(t2), R(i)<<2(R(state))
-	MOVB R(t), R(j)<<2(R(state))
+	MOVBU Rj<<2(Rstate), Rt2
+	MOVB Rt2, Ri<<2(Rstate)
+	MOVB Rt, Rj<<2(Rstate)
 
 	// dst[k] = src[k] ^ state[state[i] + state[j]]
-	ADD R(t2), R(t)
-	AND $0xff, R(t)
-	MOVBU R(t)<<2(R(state)), R(t)
-	MOVBU R(k)<<0(R(src)), R(t2)
-	EOR R(t), R(t2)
-	MOVB R(t2), R(k)<<0(R(dst))
+	ADD Rt2, Rt
+	AND $0xff, Rt
+	MOVBU Rt<<2(Rstate), Rt
+	MOVBU Rk<<0(Rsrc), Rt2
+	EOR Rt, Rt2
+	MOVB Rt2, Rk<<0(Rdst)
 
-	ADD $1, R(k)
-	CMP R(k), R(n)
+	ADD $1, Rk
+	CMP Rk, Rn
 	BNE loop
 
 done:
-	MOVB R(i), (R(pi))
-	MOVB R(j), (R(pj))
+	MOVB Ri, (Rpi)
+	MOVB Rj, (Rpj)
 	RET

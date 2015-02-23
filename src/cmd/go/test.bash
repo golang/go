@@ -510,14 +510,25 @@ if [ $(./testgo test fmt fmt fmt fmt fmt | wc -l) -ne 1 ] ; then
     ok=false
 fi
 
-# ensure that output of 'go list' is consistent between runs
-TEST go list is consistent
+TEST go list has a consistent order
 ./testgo list std > test_std.list || ok=false
 if ! ./testgo list std | cmp -s test_std.list - ; then
 	echo "go list std ordering is inconsistent"
 	ok=false
 fi
 rm -f test_std.list
+
+TEST go list std does not include commands
+if ./testgo list std | grep cmd/; then
+	echo "go list std shows commands"
+	ok=false
+fi
+
+TEST go list cmd only shows commands
+if ./testgo list cmd | grep -v 'cmd/'; then
+	echo "go list cmd shows non-commands"
+	ok=false
+fi
 
 # issue 4096. Validate the output of unsuccessful go install foo/quxx 
 TEST unsuccessful go install should mention missing package

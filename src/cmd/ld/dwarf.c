@@ -104,7 +104,7 @@ uleb128enc(uvlong v, char* dst)
 		len++;
 	} while (c & 0x80);
 	return len;
-};
+}
 
 static int
 sleb128enc(vlong v, char *dst)

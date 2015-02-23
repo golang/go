@@ -29,20 +29,23 @@
 // THE SOFTWARE.
 
 %{
-#include <u.h>
-#include <stdio.h>	/* if we don't, bison will, and a.h re-#defines getc */
-#include <libc.h>
-#include "a.h"
-#include "../../runtime/funcdata.h"
+package main
+
+import (
+	"cmd/internal/asm"
+	"cmd/internal/obj"
+	. "cmd/internal/obj/arm"
+)
 %}
-%union
-{
-	Sym	*sym;
-	int32	lval;
-	double	dval;
-	char	sval[8];
-	Addr	addr;
+
+%union {
+	sym *asm.Sym
+	lval int32
+	dval float64
+	sval string
+	addr obj.Addr
 }
+
 %left	'|'
 %left	'^'
 %left	'&'
@@ -51,12 +54,12 @@
 %left	'*' '/' '%'
 %token	<lval>	LTYPE1 LTYPE2 LTYPE3 LTYPE4 LTYPE5
 %token	<lval>	LTYPE6 LTYPE7 LTYPE8 LTYPE9 LTYPEA
-%token	<lval>	LTYPEB LGLOBL LTYPEC LTYPED LTYPEE
+%token	<lval>	LTYPEB LTYPEC LTYPED LTYPEE
 %token	<lval>	LTYPEG LTYPEH LTYPEI LTYPEJ LTYPEK
 %token	<lval>	LTYPEL LTYPEM LTYPEN LTYPEBX LTYPEPLD
 %token	<lval>	LCONST LSP LSB LFP LPC
 %token	<lval>	LTYPEX LTYPEPC LTYPEF LR LREG LF LFREG LC LCREG LPSR LFCR
-%token	<lval>	LCOND LS LAT
+%token	<lval>	LCOND LS LAT LGLOBL
 %token	<dval>	LFCONST
 %token	<sval>	LSCONST
 %token	<sym>	LNAME LLAB LVAR
@@ -68,30 +71,32 @@
 prog:
 |	prog
 	{
-		stmtline = lineno;
+		stmtline = asm.Lineno;
 	}
 	line
 
 line:
 	LNAME ':'
 	{
-		$1 = labellookup($1);
-		if($1->type == LLAB && $1->value != pc)
-			yyerror("redeclaration of %s", $1->labelname);
-		$1->type = LLAB;
-		$1->value = pc;
+		$1 = asm.LabelLookup($1);
+		if $1.Type == LLAB && $1.Value != int64(asm.PC) {
+			yyerror("redeclaration of %s", $1.Labelname)
+		}
+		$1.Type = LLAB;
+		$1.Value = int64(asm.PC)
 	}
 	line
 |	LNAME '=' expr ';'
 	{
-		$1->type = LVAR;
-		$1->value = $3;
+		$1.Type = LVAR;
+		$1.Value = int64($3);
 	}
 |	LVAR '=' expr ';'
 	{
-		if($1->value != $3)
-			yyerror("redeclaration of %s", $1->name);
-		$1->value = $3;
+		if $1.Value != int64($3) {
+			yyerror("redeclaration of %s", $1.Name)
+		}
+		$1.Value = int64($3);
 	}
 |	';'
 |	inst ';'
@@ -171,20 +176,20 @@ inst:
  */
 |	LTYPE8 cond ioreg ',' '[' reglist ']'
 	{
-		Addr g;
+		var g obj.Addr
 
 		g = nullgen;
-		g.type = TYPE_CONST;
-		g.offset = $6;
+		g.Type = obj.TYPE_CONST;
+		g.Offset = int64($6);
 		outcode($1, $2, &$3, 0, &g);
 	}
 |	LTYPE8 cond '[' reglist ']' ',' ioreg
 	{
-		Addr g;
+		var g obj.Addr
 
 		g = nullgen;
-		g.type = TYPE_CONST;
-		g.offset = $4;
+		g.Type = obj.TYPE_CONST;
+		g.Offset = int64($4);
 		outcode($1, $2, &g, 0, &$7);
 	}
 /*
@@ -192,15 +197,15 @@ inst:
  */
 |	LTYPE9 cond reg ',' ireg ',' reg
 	{
-		outcode($1, $2, &$5, $3.reg, &$7);
+		outcode($1, $2, &$5, int32($3.Reg), &$7);
 	}
 |	LTYPE9 cond reg ',' ireg comma
 	{
-		outcode($1, $2, &$5, $3.reg, &$3);
+		outcode($1, $2, &$5, int32($3.Reg), &$3);
 	}
 |	LTYPE9 cond comma ireg ',' reg
 	{
-		outcode($1, $2, &$4, $6.reg, &$6);
+		outcode($1, $2, &$4, int32($6.Reg), &$6);
 	}
 /*
  * RET
@@ -214,16 +219,16 @@ inst:
  */
 |	LTYPEB name ',' '$' textsize
 	{
-		settext($2.sym);
+		asm.Settext($2.Sym);
 		outcode($1, Always, &$2, 0, &$5);
 	}
 |	LTYPEB name ',' con ',' '$' textsize
 	{
-		settext($2.sym);
+		asm.Settext($2.Sym);
 		outcode($1, Always, &$2, 0, &$7);
-		if(pass > 1) {
-			lastpc->from3.type = TYPE_CONST;
-			lastpc->from3.offset = $4;
+		if asm.Pass > 1 {
+			lastpc.From3.Type = obj.TYPE_CONST;
+			lastpc.From3.Offset = int64($4)
 		}
 	}
 /*
@@ -231,27 +236,28 @@ inst:
  */
 |	LGLOBL name ',' imm
 	{
-		settext($2.sym);
-		outcode($1, Always, &$2, 0, &$4);
+		asm.Settext($2.Sym)
+		outcode($1, Always, &$2, 0, &$4)
 	}
 |	LGLOBL name ',' con ',' imm
 	{
-		settext($2.sym);
-		outcode($1, Always, &$2, 0, &$6);
-		if(pass > 1) {
-			lastpc->from3.type = TYPE_CONST;
-			lastpc->from3.offset = $4;
+		asm.Settext($2.Sym)
+		outcode($1, Always, &$2, 0, &$6)
+		if asm.Pass > 1 {
+			lastpc.From3.Type = obj.TYPE_CONST
+			lastpc.From3.Offset = int64($4)
 		}
 	}
+
 /*
  * DATA
  */
 |	LTYPEC name '/' con ',' ximm
 	{
-		outcode($1, Always, &$2, 0, &$6);
-		if(pass > 1) {
-			lastpc->from3.type = TYPE_CONST;
-			lastpc->from3.offset = $4;
+		outcode($1, Always, &$2, 0, &$6)
+		if asm.Pass > 1 {
+			lastpc.From3.Type = obj.TYPE_CONST
+			lastpc.From3.Offset = int64($4)
 		}
 	}
 /*
@@ -285,18 +291,18 @@ inst:
 	}
 |	LTYPEL cond freg ',' freg comma
 	{
-		outcode($1, $2, &$3, $5.reg, &nullgen);
+		outcode($1, $2, &$3, int32($5.Reg), &nullgen);
 	}
 /*
  * MCR MRC
  */
 |	LTYPEJ cond con ',' expr ',' spreg ',' creg ',' creg oexpr
 	{
-		Addr g;
+		var g obj.Addr
 
 		g = nullgen;
-		g.type = TYPE_CONST;
-		g.offset =
+		g.Type = obj.TYPE_CONST;
+		g.Offset = int64(
 			(0xe << 24) |		/* opcode */
 			($1 << 20) |		/* MCR/MRC */
 			(($2^C_SCOND_XOR) << 28) |		/* scond */
@@ -306,7 +312,7 @@ inst:
 			(($9 & 15) << 16) |	/* Crn */
 			(($11 & 15) << 0) |	/* Crm */
 			(($12 & 7) << 5) |	/* coprocessor information */
-			(1<<4);			/* must be set */
+			(1<<4));			/* must be set */
 		outcode(AMRC, Always, &nullgen, 0, &g);
 	}
 /*
@@ -314,17 +320,17 @@ inst:
  */
 |	LTYPEM cond reg ',' reg ',' regreg
 	{
-		outcode($1, $2, &$3, $5.reg, &$7);
+		outcode($1, $2, &$3, int32($5.Reg), &$7);
 	}
 /*
- * MULA r1,r2,r3,r4: (r1*r2+r3) & 0xffffffff -> r4
+ * MULA r1,r2,r3,r4: (r1*r2+r3) & 0xffffffff . r4
  * MULAW{T,B} r1,r2,r3,r4
  */
 |	LTYPEN cond reg ',' reg ',' reg ',' spreg
 	{
-		$7.type = TYPE_REGREG2;
-		$7.offset = $9;
-		outcode($1, $2, &$3, $5.reg, &$7);
+		$7.Type = obj.TYPE_REGREG2;
+		$7.Offset = int64($9);
+		outcode($1, $2, &$3, int32($5.Reg), &$7);
 	}
 /*
  * PLD
@@ -338,8 +344,9 @@ inst:
  */
 |	LTYPEPC gen ',' gen
 	{
-		if($2.type != TYPE_CONST || $4.type != TYPE_CONST)
-			yyerror("arguments to PCDATA must be integer constants");
+		if $2.Type != obj.TYPE_CONST || $4.Type != obj.TYPE_CONST {
+			yyerror("arguments to PCDATA must be integer constants")
+		}
 		outcode($1, Always, &$2, 0, &$4);
 	}
 /*
@@ -347,10 +354,12 @@ inst:
  */
 |	LTYPEF gen ',' gen
 	{
-		if($2.type != TYPE_CONST)
-			yyerror("index for FUNCDATA must be integer constant");
-		if($4.type != NAME_EXTERN && $4.type != NAME_STATIC && $4.type != TYPE_MEM)
-			yyerror("value for FUNCDATA must be symbol reference");
+		if $2.Type != obj.TYPE_CONST {
+			yyerror("index for FUNCDATA must be integer constant")
+		}
+		if $4.Type != obj.NAME_EXTERN && $4.Type != obj.NAME_STATIC && $4.Type != obj.TYPE_MEM {
+			yyerror("value for FUNCDATA must be symbol reference")
+		}
  		outcode($1, Always, &$2, 0, &$4);
 	}
 /*
@@ -361,13 +370,43 @@ inst:
 		outcode($1, Always, &nullgen, 0, &nullgen);
 	}
 
+textsize:
+	LCONST
+	{
+		$$ = nullgen;
+		$$.Type = obj.TYPE_TEXTSIZE;
+		$$.Offset = int64($1)
+		$$.U.Argsize = obj.ArgsSizeUnknown;
+	}
+|	'-' LCONST
+	{
+		$$ = nullgen;
+		$$.Type = obj.TYPE_TEXTSIZE;
+		$$.Offset = -int64($2)
+		$$.U.Argsize = obj.ArgsSizeUnknown;
+	}
+|	LCONST '-' LCONST
+	{
+		$$ = nullgen;
+		$$.Type = obj.TYPE_TEXTSIZE;
+		$$.Offset = int64($1)
+		$$.U.Argsize = int32($3);
+	}
+|	'-' LCONST '-' LCONST
+	{
+		$$ = nullgen;
+		$$.Type = obj.TYPE_TEXTSIZE;
+		$$.Offset = -int64($2)
+		$$.U.Argsize = int32($4);
+	}
+
 cond:
 	{
 		$$ = Always;
 	}
 |	cond LCOND
 	{
-		$$ = ($1 & ~C_SCOND) | $2;
+		$$ = ($1 & ^ C_SCOND) | $2;
 	}
 |	cond LS
 	{
@@ -381,65 +420,36 @@ rel:
 	con '(' LPC ')'
 	{
 		$$ = nullgen;
-		$$.type = TYPE_BRANCH;
-		$$.offset = $1 + pc;
+		$$.Type = obj.TYPE_BRANCH;
+		$$.Offset = int64($1) + int64(asm.PC);
 	}
 |	LNAME offset
 	{
-		$1 = labellookup($1);
+		$1 = asm.LabelLookup($1);
 		$$ = nullgen;
-		if(pass == 2 && $1->type != LLAB)
-			yyerror("undefined label: %s", $1->labelname);
-		$$.type = TYPE_BRANCH;
-		$$.offset = $1->value + $2;
-	}
-
-textsize:
-	LCONST
-	{
-		$$ = nullgen;
-		$$.type = TYPE_TEXTSIZE;
-		$$.offset = $1;
-		$$.u.argsize = ArgsSizeUnknown;
-	}
-|	'-' LCONST
-	{
-		$$ = nullgen;
-		$$.type = TYPE_TEXTSIZE;
-		$$.offset = -$2;
-		$$.u.argsize = ArgsSizeUnknown;
-	}
-|	LCONST '-' LCONST
-	{
-		$$ = nullgen;
-		$$.type = TYPE_TEXTSIZE;
-		$$.offset = $1;
-		$$.u.argsize = $3;
-	}
-|	'-' LCONST '-' LCONST
-	{
-		$$ = nullgen;
-		$$.type = TYPE_TEXTSIZE;
-		$$.offset = -$2;
-		$$.u.argsize = $4;
+		if asm.Pass == 2 && $1.Type != LLAB {
+			yyerror("undefined label: %s", $1.Labelname)
+		}
+		$$.Type = obj.TYPE_BRANCH;
+		$$.Offset = $1.Value + int64($2);
 	}
 
 ximm:	'$' con
 	{
 		$$ = nullgen;
-		$$.type = TYPE_CONST;
-		$$.offset = $2;
+		$$.Type = obj.TYPE_CONST;
+		$$.Offset = int64($2);
 	}
 |	'$' oreg
 	{
 		$$ = $2;
-		$$.type = TYPE_ADDR;
+		$$.Type = obj.TYPE_ADDR;
 	}
 |	'$' LSCONST
 	{
 		$$ = nullgen;
-		$$.type = TYPE_SCONST;
-		memcpy($$.u.sval, $2, sizeof($$.u.sval));
+		$$.Type = obj.TYPE_SCONST;
+		$$.U.Sval = $2
 	}
 |	fcon
 
@@ -447,45 +457,34 @@ fcon:
 	'$' LFCONST
 	{
 		$$ = nullgen;
-		$$.type = TYPE_FCONST;
-		$$.u.dval = $2;
+		$$.Type = obj.TYPE_FCONST;
+		$$.U.Dval = $2;
 	}
 |	'$' '-' LFCONST
 	{
 		$$ = nullgen;
-		$$.type = TYPE_FCONST;
-		$$.u.dval = -$3;
+		$$.Type = obj.TYPE_FCONST;
+		$$.U.Dval = -$3;
 	}
 
 reglist:
 	spreg
 	{
-		if($1 < REG_R0 || $1 > REG_R15)
-			yyerror("invalid register in reglist");
-
-		$$ = 1 << ($1&15);
+		$$ = 1 << uint($1&15);
 	}
 |	spreg '-' spreg
 	{
-		int i;
-
-		if($1 < REG_R0 || $1 > REG_R15)
-			yyerror("invalid register in reglist");
-		if($3 < REG_R0 || $3 > REG_R15)
-			yyerror("invalid register in reglist");
-
 		$$=0;
-		for(i=$1; i<=$3; i++)
-			$$ |= 1<<(i&15);
-		for(i=$3; i<=$1; i++)
-			$$ |= 1<<(i&15);
+		for i:=$1; i<=$3; i++ {
+			$$ |= 1<<uint(i&15)
+		}
+		for i:=$3; i<=$1; i++ {
+			$$ |= 1<<uint(i&15)
+		}
 	}
 |	spreg comma reglist
 	{
-		if($1 < REG_R0 || $1 > REG_R15)
-			yyerror("invalid register in reglist");
-
-		$$ = (1<<($1&15)) | $3;
+		$$ = (1<<uint($1&15)) | $3;
 	}
 
 gen:
@@ -495,25 +494,25 @@ gen:
 |	shift '(' spreg ')'
 	{
 		$$ = $1;
-		$$.reg = $3;
+		$$.Reg = int16($3);
 	}
 |	LPSR
 	{
 		$$ = nullgen;
-		$$.type = TYPE_REG;
-		$$.reg = $1;
+		$$.Type = obj.TYPE_REG
+		$$.Reg = int16($1);
 	}
 |	LFCR
 	{
 		$$ = nullgen;
-		$$.type = TYPE_REG;
-		$$.reg = $1;
+		$$.Type = obj.TYPE_REG
+		$$.Reg = int16($1);
 	}
 |	con
 	{
 		$$ = nullgen;
-		$$.type = TYPE_MEM;
-		$$.offset = $1;
+		$$.Type = obj.TYPE_MEM;
+		$$.Offset = int64($1);
 	}
 |	oreg
 |	freg
@@ -523,7 +522,7 @@ nireg:
 |	name
 	{
 		$$ = $1;
-		if($1.name != NAME_EXTERN && $1.name != NAME_STATIC) {
+		if($1.Name != obj.NAME_EXTERN && $1.Name != obj.NAME_STATIC) {
 		}
 	}
 
@@ -531,9 +530,9 @@ ireg:
 	'(' spreg ')'
 	{
 		$$ = nullgen;
-		$$.type = TYPE_MEM;
-		$$.reg = $2;
-		$$.offset = 0;
+		$$.Type = obj.TYPE_MEM;
+		$$.Reg = int16($2);
+		$$.Offset = 0;
 	}
 
 ioreg:
@@ -541,9 +540,9 @@ ioreg:
 |	con '(' sreg ')'
 	{
 		$$ = nullgen;
-		$$.type = TYPE_MEM;
-		$$.reg = $3;
-		$$.offset = $1;
+		$$.Type = obj.TYPE_MEM;
+		$$.Reg = int16($3);
+		$$.Offset = int64($1);
 	}
 
 oreg:
@@ -551,8 +550,8 @@ oreg:
 |	name '(' sreg ')'
 	{
 		$$ = $1;
-		$$.type = TYPE_MEM;
-		$$.reg = $3;
+		$$.Type = obj.TYPE_MEM;
+		$$.Reg = int16($3);
 	}
 |	ioreg
 
@@ -564,64 +563,66 @@ imsr:
 imm:	'$' con
 	{
 		$$ = nullgen;
-		$$.type = TYPE_CONST;
-		$$.offset = $2;
+		$$.Type = obj.TYPE_CONST;
+		$$.Offset = int64($2);
 	}
 
 reg:
 	spreg
 	{
 		$$ = nullgen;
-		$$.type = TYPE_REG;
-		$$.reg = $1;
+		$$.Type = obj.TYPE_REG;
+		$$.Reg = int16($1);
 	}
 
 regreg:
 	'(' spreg ',' spreg ')'
 	{
 		$$ = nullgen;
-		$$.type = TYPE_REGREG;
-		$$.reg = $2;
-		$$.offset = $4;
+		$$.Type = obj.TYPE_REGREG;
+		$$.Reg = int16($2);
+		$$.Offset = int64($4);
 	}
 
 shift:
 	spreg '<' '<' rcon
 	{
 		$$ = nullgen;
-		$$.type = TYPE_SHIFT;
-		$$.offset = $1&15 | $4 | (0 << 5);
+		$$.Type = obj.TYPE_SHIFT;
+		$$.Offset = int64($1&15) | int64($4) | (0 << 5);
 	}
 |	spreg '>' '>' rcon
 	{
 		$$ = nullgen;
-		$$.type = TYPE_SHIFT;
-		$$.offset = $1&15 | $4 | (1 << 5);
+		$$.Type = obj.TYPE_SHIFT;
+		$$.Offset = int64($1&15) | int64($4) | (1 << 5);
 	}
 |	spreg '-' '>' rcon
 	{
 		$$ = nullgen;
-		$$.type = TYPE_SHIFT;
-		$$.offset = $1&15 | $4 | (2 << 5);
+		$$.Type = obj.TYPE_SHIFT;
+		$$.Offset = int64($1&15) | int64($4) | (2 << 5);
 	}
 |	spreg LAT '>' rcon
 	{
 		$$ = nullgen;
-		$$.type = TYPE_SHIFT;
-		$$.offset = $1&15 | $4 | (3 << 5);
+		$$.Type = obj.TYPE_SHIFT;
+		$$.Offset = int64($1&15) | int64($4) | (3 << 5);
 	}
 
 rcon:
 	spreg
 	{
-		if($$ < REG_R0 || $$ > REG_R15)
-			print("register value out of range in shift\n");
+		if $$ < REG_R0 || $$ > REG_R15 {
+			print("register value out of range\n")
+		}
 		$$ = (($1&15) << 8) | (1 << 4);
 	}
 |	con
 	{
-		if($$ < 0 || $$ >= 32)
-			print("shift value out of range\n");
+		if $$ < 0 || $$ >= 32 {
+			print("shift value out of range\n")
+		}
 		$$ = ($1&31) << 7;
 	}
 
@@ -633,8 +634,9 @@ sreg:
 	}
 |	LR '(' expr ')'
 	{
-		if($3 < 0 || $3 >= NREG)
-			print("register value out of range in R(...)\n");
+		if $3 < 0 || $3 >= NREG {
+			print("register value out of range\n")
+		}
 		$$ = REG_R0 + $3;
 	}
 
@@ -649,8 +651,9 @@ creg:
 	LCREG
 |	LC '(' expr ')'
 	{
-		if($3 < 0 || $3 >= NREG)
-			print("register value out of range in C(...)\n");
+		if $3 < 0 || $3 >= NREG {
+			print("register value out of range\n")
+		}
 		$$ = $3; // TODO(rsc): REG_C0+$3
 	}
 
@@ -662,40 +665,40 @@ freg:
 	LFREG
 	{
 		$$ = nullgen;
-		$$.type = TYPE_REG;
-		$$.reg = $1;
+		$$.Type = obj.TYPE_REG;
+		$$.Reg = int16($1);
 	}
 |	LF '(' con ')'
 	{
 		$$ = nullgen;
-		$$.type = TYPE_REG;
-		$$.reg = REG_F0 + $3;
+		$$.Type = obj.TYPE_REG;
+		$$.Reg = int16(REG_F0 + $3);
 	}
 
 name:
 	con '(' pointer ')'
 	{
 		$$ = nullgen;
-		$$.type = TYPE_MEM;
-		$$.name = $3;
-		$$.sym = nil;
-		$$.offset = $1;
+		$$.Type = obj.TYPE_MEM;
+		$$.Name = int8($3);
+		$$.Sym = nil;
+		$$.Offset = int64($1);
 	}
 |	LNAME offset '(' pointer ')'
 	{
 		$$ = nullgen;
-		$$.type = TYPE_MEM;
-		$$.name = $4;
-		$$.sym = linklookup(ctxt, $1->name, 0);
-		$$.offset = $2;
+		$$.Type = obj.TYPE_MEM;
+		$$.Name = int8($4);
+		$$.Sym = obj.Linklookup(asm.Ctxt, $1.Name, 0);
+		$$.Offset = int64($2);
 	}
 |	LNAME '<' '>' offset '(' LSB ')'
 	{
 		$$ = nullgen;
-		$$.type = TYPE_MEM;
-		$$.name = NAME_STATIC;
-		$$.sym = linklookup(ctxt, $1->name, 1);
-		$$.offset = $4;
+		$$.Type = obj.TYPE_MEM;
+		$$.Name = obj.NAME_STATIC;
+		$$.Sym = obj.Linklookup(asm.Ctxt, $1.Name, 1);
+		$$.Offset = int64($4);
 	}
 
 offset:
@@ -720,7 +723,7 @@ con:
 	LCONST
 |	LVAR
 	{
-		$$ = $1->value;
+		$$ = int32($1.Value);
 	}
 |	'-' con
 	{
@@ -732,7 +735,7 @@ con:
 	}
 |	'~' con
 	{
-		$$ = ~$2;
+		$$ = ^$2;
 	}
 |	'(' expr ')'
 	{
@@ -772,11 +775,11 @@ expr:
 	}
 |	expr '<' '<' expr
 	{
-		$$ = $1 << $4;
+		$$ = $1 << uint($4);
 	}
 |	expr '>' '>' expr
 	{
-		$$ = $1 >> $4;
+		$$ = $1 >> uint($4);
 	}
 |	expr '&' expr
 	{

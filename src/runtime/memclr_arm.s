@@ -25,31 +25,31 @@
 
 #include "textflag.h"
 
-TO = 8
-TOE = 11
-N = 12
-TMP = 12				/* N and TMP don't overlap */
+#define TO	R8
+#define TOE	R11
+#define N	R12
+#define TMP	R12				/* N and TMP don't overlap */
 
 TEXT runtime·memclr(SB),NOSPLIT,$0-8
-	MOVW	ptr+0(FP), R(TO)
-	MOVW	n+4(FP), R(N)
-	MOVW	$0, R(0)
+	MOVW	ptr+0(FP), TO
+	MOVW	n+4(FP), N
+	MOVW	$0, R0
 
-	ADD	R(N), R(TO), R(TOE)	/* to end pointer */
+	ADD	N, TO, TOE	/* to end pointer */
 
-	CMP	$4, R(N)		/* need at least 4 bytes to copy */
+	CMP	$4, N		/* need at least 4 bytes to copy */
 	BLT	_1tail
 
 _4align:				/* align on 4 */
-	AND.S	$3, R(TO), R(TMP)
+	AND.S	$3, TO, TMP
 	BEQ	_4aligned
 
-	MOVBU.P	R(0), 1(R(TO))		/* implicit write back */
+	MOVBU.P	R0, 1(TO)		/* implicit write back */
 	B	_4align
 
 _4aligned:
-	SUB	$31, R(TOE), R(TMP)	/* do 32-byte chunks if possible */
-	CMP	R(TMP), R(TO)
+	SUB	$31, TOE, TMP	/* do 32-byte chunks if possible */
+	CMP	TMP, TO
 	BHS	_4tail
 
 	MOVW	R0, R1			/* replicate */
@@ -61,26 +61,26 @@ _4aligned:
 	MOVW	R0, R7
 
 _f32loop:
-	CMP	R(TMP), R(TO)
+	CMP	TMP, TO
 	BHS	_4tail
 
-	MOVM.IA.W [R0-R7], (R(TO))
+	MOVM.IA.W [R0-R7], (TO)
 	B	_f32loop
 
 _4tail:
-	SUB	$3, R(TOE), R(TMP)	/* do remaining words if possible */
+	SUB	$3, TOE, TMP	/* do remaining words if possible */
 _4loop:
-	CMP	R(TMP), R(TO)
+	CMP	TMP, TO
 	BHS	_1tail
 
-	MOVW.P	R(0), 4(R(TO))		/* implicit write back */
+	MOVW.P	R0, 4(TO)		/* implicit write back */
 	B	_4loop
 
 _1tail:
-	CMP	R(TO), R(TOE)
+	CMP	TO, TOE
 	BEQ	_return
 
-	MOVBU.P	R(0), 1(R(TO))		/* implicit write back */
+	MOVBU.P	R0, 1(TO)		/* implicit write back */
 	B	_1tail
 
 _return:

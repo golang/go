@@ -26,15 +26,14 @@ misc/cgo/life/run.out
 misc/cgo/stdio/run.out
 misc/cgo/testso/main
 misc/dashboard/builder/builder
-src/cmd/?a/y.output
 src/liblink/anames?.c
-src/cmd/cc/y.output
+src/cmd/*/y.output
 src/cmd/cgo/zdefaultcc.go
 src/cmd/dist/dist.dSYM
 src/cmd/gc/mkbuiltin1
 src/cmd/gc/opnames.h
-src/cmd/gc/y.output
 src/cmd/go/zdefaultcc.go
+src/cmd/internal/obj/zbootstrap.go
 src/go/doc/headscan
 src/runtime/mkversion
 src/runtime/zaexperiment.h

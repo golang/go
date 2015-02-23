@@ -71,14 +71,12 @@ echo.
 if x%1==x--dist-tool goto copydist
 if x%2==x--dist-tool goto copydist
 
-echo ##### Building compilers and Go bootstrap tool.
 set buildall=-a
 if x%1==x--no-clean set buildall=
 .\cmd\dist\dist bootstrap %buildall% -v
 if errorlevel 1 goto fail
 :: Delay move of dist tool to now, because bootstrap cleared tool directory.
 move .\cmd\dist\dist.exe "%GOTOOLDIR%\dist.exe"
-"%GOTOOLDIR%\go_bootstrap" clean -i std
 echo.
 
 if not %GOHOSTARCH% == %GOARCH% goto localbuild
@@ -90,14 +88,14 @@ echo ##### Building tools for local system. %GOHOSTOS%/%GOHOSTARCH%
 setlocal
 set GOOS=%GOHOSTOS%
 set GOARCH=%GOHOSTARCH%
-"%GOTOOLDIR%\go_bootstrap" install -gcflags "%GO_GCFLAGS%" -ldflags "%GO_LDFLAGS%" -v std
+"%GOTOOLDIR%\go_bootstrap" install -gcflags "%GO_GCFLAGS%" -ldflags "%GO_LDFLAGS%" -v std cmd
 endlocal
 if errorlevel 1 goto fail
 echo.
 
 :mainbuild
 echo ##### Building packages and commands.
-"%GOTOOLDIR%\go_bootstrap" install -gcflags "%GO_GCFLAGS%" -ldflags "%GO_LDFLAGS%" -a -v std
+"%GOTOOLDIR%\go_bootstrap" install -gcflags "%GO_GCFLAGS%" -ldflags "%GO_LDFLAGS%" -a -v std cmd
 if errorlevel 1 goto fail
 del "%GOTOOLDIR%\go_bootstrap.exe"
 echo.

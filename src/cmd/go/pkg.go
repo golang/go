@@ -391,9 +391,19 @@ const (
 
 // goTools is a map of Go program import path to install target directory.
 var goTools = map[string]targetDir{
+	"cmd/5a":                               toTool,
+	"cmd/5g":                               toTool,
+	"cmd/6a":                               toTool,
+	"cmd/6g":                               toTool,
+	"cmd/8a":                               toTool,
+	"cmd/8g":                               toTool,
+	"cmd/9a":                               toTool,
+	"cmd/9g":                               toTool,
 	"cmd/addr2line":                        toTool,
 	"cmd/api":                              toTool,
+	"cmd/asm":                              toTool,
 	"cmd/cgo":                              toTool,
+	"cmd/dist":                             toTool,
 	"cmd/fix":                              toTool,
 	"cmd/link":                             toTool,
 	"cmd/nm":                               toTool,

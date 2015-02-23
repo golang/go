@@ -119,11 +119,52 @@ static char *rdstring(Biobuf*);
 static void rddata(Biobuf*, uchar**, int*);
 static LSym *rdsym(Link*, Biobuf*, char*);
 
+void	writeobjdirect(Link *ctxt, Biobuf *b);
+
+void	writeobjgo1(Link*, char*);
+void	writeobjgo2(Link*, char*, int64);
+
+extern char *outfile;
+
+void
+writeobj(Link *ctxt, Biobuf *b)
+{
+	vlong start;
+	char *env;
+
+	// If $GOOBJ > 0, invoke the Go version of the liblink
+	// output routines via a subprocess.
+	// If $GOOBJ == 1, copy that subprocess's output to
+	// the actual output file.
+	// If $GOOBJ >= 2, generate output using the usual C version
+	// but then check that the subprocess wrote the same bytes.
+	// $GOOBJ is a temporary setting for the transition to a
+	// Go liblink back end. Once the C liblink back ends are deleted,
+	// we will hard code the GOOBJ=1 behavior.
+	env = getenv("GOOBJ");
+	if(env == nil)
+		env = "0";
+	if(atoi(env) == 0) {
+		writeobjdirect(ctxt, b);
+		return;
+	}
+
+	Bflush(b);
+	start = Boffset(b);
+	writeobjgo1(ctxt, outfile);
+	if(atoi(env) > 1) {
+		writeobjdirect(ctxt, b);
+		Bflush(b);
+	}
+	writeobjgo2(ctxt, outfile, start);
+	Bseek(b, 0, 2);
+}
+
 // The Go and C compilers, and the assembler, call writeobj to write
 // out a Go object file.  The linker does not call this; the linker
 // does not write out object files.
 void
-writeobj(Link *ctxt, Biobuf *b)
+writeobjdirect(Link *ctxt, Biobuf *b)
 {
 	int flag, found;
 	Hist *h;

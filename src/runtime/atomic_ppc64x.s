@@ -8,7 +8,7 @@
 
 // uint32 runtime·atomicload(uint32 volatile* addr)
 TEXT ·atomicload(SB),NOSPLIT,$-8-12
-	MOVD	0(FP), R3
+	MOVD	addr+0(FP), R3
 	SYNC
 	MOVWZ	0(R3), R3
 	CMPW	R3, R3, CR7
@@ -19,7 +19,7 @@ TEXT ·atomicload(SB),NOSPLIT,$-8-12
 
 // uint64 runtime·atomicload64(uint64 volatile* addr)
 TEXT ·atomicload64(SB),NOSPLIT,$-8-16
-	MOVD	0(FP), R3
+	MOVD	addr+0(FP), R3
 	SYNC
 	MOVD	0(R3), R3
 	CMP	R3, R3, CR7
@@ -30,7 +30,7 @@ TEXT ·atomicload64(SB),NOSPLIT,$-8-16
 
 // void *runtime·atomicloadp(void *volatile *addr)
 TEXT ·atomicloadp(SB),NOSPLIT,$-8-16
-	MOVD	0(FP), R3
+	MOVD	addr+0(FP), R3
 	SYNC
 	MOVD	0(R3), R3
 	CMP	R3, R3, CR7

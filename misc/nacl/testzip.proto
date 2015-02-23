@@ -10,9 +10,23 @@ usr	src=../misc/nacl/testdata
 go	src=..
 	src
 		cmd
+			asm
+				internal
+					asm
+						testdata
+							+
 			internal
 				objfile
 					objfile.go
+				rsc.io
+					arm
+						armasm
+							testdata
+								+
+					x86
+						x86asm
+							testdata
+								+
 			gofmt
 				gofmt.go
 				gofmt_test.go

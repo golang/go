@@ -1485,9 +1485,11 @@ prefixof(Link *ctxt, Addr *a)
 }
 
 static int
-oclass(Link *ctxt, Addr *a)
+oclass(Link *ctxt, Prog *p, Addr *a)
 {
 	int32 v;
+
+	USED(p);
 
 	// TODO(rsc): This special case is for SHRQ $3, AX:DX,
 	// which encodes as SHRQ $32(DX*0), AX.
@@ -2192,9 +2194,9 @@ doasm(Link *ctxt, Prog *p)
 		*ctxt->andptr++ = pre;
 
 	if(p->ft == 0)
-		p->ft = oclass(ctxt, &p->from);
+		p->ft = oclass(ctxt, p, &p->from);
 	if(p->tt == 0)
-		p->tt = oclass(ctxt, &p->to);
+		p->tt = oclass(ctxt, p, &p->to);
 
 	ft = p->ft * Ymax;
 	tt = p->tt * Ymax;
