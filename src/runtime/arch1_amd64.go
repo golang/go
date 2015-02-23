@@ -12,4 +12,5 @@ const (
 	_PhysPageSize     = 4096
 	_PCQuantum        = 1
 	_Int64Align       = 8
+	hugePageSize      = 1 << 21
 )
