@@ -1645,11 +1645,6 @@ func (gcToolchain) linker() string {
 	return tool(archChar + "l")
 }
 
-// verifyCompiler specifies whether to check the compilers written in Go
-// against the assemblers written in C. If set, asm will run both (say) 6g and new6g
-// and fail if the two produce different output files.
-const verifyCompiler = true
-
 func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool, importArgs []string, gofiles []string) (ofile string, output []byte, err error) {
 	if archive != "" {
 		ofile = archive
@@ -1695,11 +1690,6 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool, 
 	}
 
 	output, err = b.runOut(p.Dir, p.ImportPath, nil, args...)
-	if err == nil && verifyCompiler {
-		if err := toolVerify(b, p, "new"+archChar+"g", ofile, args); err != nil {
-			return ofile, output, err
-		}
-	}
 	return ofile, output, err
 }
 
@@ -1717,9 +1707,6 @@ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 		return err
 	}
 	if verifyAsm {
-		if err := toolVerify(b, p, "new"+archChar+"a", ofile, args); err != nil {
-			return err
-		}
 		if err := toolVerify(b, p, "asm", ofile, args); err != nil {
 			return err
 		}

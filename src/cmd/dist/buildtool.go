@@ -23,6 +23,14 @@ import (
 // which are commands, and entries beginning with internal/, which are
 // packages supporting the commands.
 var bootstrapDirs = []string{
+	"5a",
+	"5g",
+	"6a",
+	"6g",
+	"8a",
+	"8g",
+	"9a",
+	"9g",
 	"asm",
 	"asm/internal/arch",
 	"asm/internal/asm",
@@ -35,15 +43,6 @@ var bootstrapDirs = []string{
 	"internal/obj/i386",
 	"internal/obj/ppc64",
 	"internal/obj/x86",
-	"new5a",
-	"new6a",
-	"new8a",
-	"new9a",
-	"new5g",
-	"new6g",
-	"new8g",
-	"new9g",
-	"objwriter",
 }
 
 func bootstrapBuildTools() {
