@@ -55,6 +55,21 @@ func testX86RegisterPair(t *testing.T, parser *Parser) {
 	if want != addr {
 		t.Errorf("AX:DX: expected %+v got %+v", want, addr)
 	}
+	// Special case for foo(SB):DX, which is really two operands so isn't printed correctly
+	// by Aconv, but is OK by the -S output.
+	parser.start(lex.Tokenize("foo+4(SB):AX"))
+	addr = obj.Addr{}
+	parser.operand(&addr)
+	want = obj.Addr{
+		Type:   obj.TYPE_MEM,
+		Name:   obj.NAME_EXTERN,
+		Offset: 4,
+		Sym:    obj.Linklookup(parser.linkCtxt, "foo", 0),
+		Class:  int8(parser.arch.Register["AX"]), // TODO: clean up how this is encoded in parse.go
+	}
+	if want != addr {
+		t.Errorf("foo+4(SB):AX: expected %+v got %+v", want, addr)
+	}
 }
 
 func TestAMD64OperandParser(t *testing.T) {
@@ -229,6 +244,7 @@ var x86OperandTests = []operandTest{
 	{"(BP*8)", "(NONE)(BP*8)"}, // TODO: odd printout.
 	{"(BX)", "(BX)"},
 	{"(SP)", "(SP)"},
+	{"*AX", "AX"},                             // TODO: Should make * illegal here; a simple alias for JMP AX.
 	{"*runtime·_GetStdHandle(SB)", "type=16"}, // TODO: bizarre
 	{"-(4+12)(DI)", "-16(DI)"},
 	{"-1(DI)(BX*1)", "-1(DI)(BX*1)"},

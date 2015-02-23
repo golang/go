@@ -369,6 +369,9 @@ func (p *Parser) asmJump(op int, cond string, a []obj.Addr) {
 		if p.arch.Thechar == '9' && target.Offset == 0 {
 			prog.To.Type = obj.TYPE_REG
 		}
+	case target.Type == obj.TYPE_CONST:
+		// JMP $4
+		prog.To = a[0]
 	default:
 		p.errorf("cannot assemble jump %+v", target)
 	}

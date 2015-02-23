@@ -362,8 +362,18 @@ func (p *Parser) operand(a *obj.Addr) bool {
 		// fmt.Printf("offset %d \n", a.Offset)
 	}
 
-	// Register indirection: (reg) or (index*scale). We are on the opening paren.
-	p.registerIndirect(a, prefix)
+	// Odd x86 case: sym+4(SB):AX. Have name, colon, register.
+	if p.peek() == ':' && a.Name != obj.NAME_NONE && a.Class == 0 && (p.arch.Thechar == '6' || p.arch.Thechar == '8') {
+		p.get(':')
+		r2, ok := p.registerReference(p.next().String())
+		if !ok {
+			return false
+		}
+		a.Class = int8(r2) // TODO: See comment about Class above.
+	} else {
+		// Register indirection: (reg) or (index*scale). We are on the opening paren.
+		p.registerIndirect(a, prefix)
+	}
 	// fmt.Printf("DONE %s\n", p.arch.Dconv(&emptyProg, 0, a))
 
 	p.expect(scanner.EOF)
@@ -434,8 +444,8 @@ func (p *Parser) register(name string, prefix rune) (r1, r2 int16, scale int8, o
 	if !ok {
 		return
 	}
-	if prefix != 0 {
-		p.errorf("prefix %c not allowed for register: $%s", prefix, name)
+	if prefix != 0 && prefix != '*' { // *AX is OK.
+		p.errorf("prefix %c not allowed for register: %c%s", prefix, prefix, name)
 	}
 	c := p.peek()
 	if c == ':' || c == ',' || c == '+' {
