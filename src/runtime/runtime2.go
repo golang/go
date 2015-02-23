@@ -562,12 +562,16 @@ var (
 	goos        *int8
 	ncpu        int32
 	iscgo       bool
-	cpuid_ecx   uint32
-	cpuid_edx   uint32
 	signote     note
 	forcegc     forcegcstate
 	sched       schedt
 	newprocs    int32
+
+	// Information about what cpu features are available.
+	// Set on startup in asm_{x86,amd64}.s.
+	cpuid_ecx         uint32
+	cpuid_edx         uint32
+	lfenceBeforeRdtsc bool
 )
 
 /*

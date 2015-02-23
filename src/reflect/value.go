@@ -302,8 +302,8 @@ func (v Value) Call(in []Value) []Value {
 
 // CallSlice calls the variadic function v with the input arguments in,
 // assigning the slice in[len(in)-1] to v's final variadic argument.
-// For example, if len(in) == 3, v.Call(in) represents the Go call v(in[0], in[1], in[2]...).
-// Call panics if v's Kind is not Func or if v is not variadic.
+// For example, if len(in) == 3, v.CallSlice(in) represents the Go call v(in[0], in[1], in[2]...).
+// CallSlice panics if v's Kind is not Func or if v is not variadic.
 // It returns the output results as Values.
 // As in Go, each input argument must be assignable to the
 // type of the function's corresponding input parameter.

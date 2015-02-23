@@ -227,26 +227,6 @@ func racereadrangepc(addr unsafe.Pointer, sz, callpc, pc uintptr) {
 }
 
 //go:nosplit
-func racewriteobjectpc(addr unsafe.Pointer, t *_type, callpc, pc uintptr) {
-	kind := t.kind & _KindMask
-	if kind == _KindArray || kind == _KindStruct {
-		racewriterangepc(addr, t.size, callpc, pc)
-	} else {
-		racewritepc(addr, callpc, pc)
-	}
-}
-
-//go:nosplit
-func racereadobjectpc(addr unsafe.Pointer, t *_type, callpc, pc uintptr) {
-	kind := t.kind & _KindMask
-	if kind == _KindArray || kind == _KindStruct {
-		racereadrangepc(addr, t.size, callpc, pc)
-	} else {
-		racereadpc(addr, callpc, pc)
-	}
-}
-
-//go:nosplit
 func raceacquire(addr unsafe.Pointer) {
 	raceacquireg(getg(), addr)
 }

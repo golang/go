@@ -747,8 +747,10 @@ func mHeap_Scavenge(k int32, now, limit uint64) {
 	}
 }
 
-func scavenge_m() {
-	mHeap_Scavenge(-1, ^uint64(0), 0)
+//go:linkname runtime_debug_freeOSMemory runtime/debug.freeOSMemory
+func runtime_debug_freeOSMemory() {
+	startGC(gcForceBlockMode)
+	systemstack(func() { mHeap_Scavenge(-1, ^uint64(0), 0) })
 }
 
 // Initialize a new span with the given start and npages.

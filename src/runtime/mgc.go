@@ -120,7 +120,6 @@ import "unsafe"
 
 const (
 	_DebugGC         = 0
-	_DebugGCPtrs     = false // if true, print trace of every pointer load during GC
 	_ConcurrentSweep = true
 	_FinBlockSize    = 4 * 1024
 	_RootData        = 0
@@ -206,9 +205,7 @@ func shouldtriggergc() bool {
 	return triggerratio*(int64(memstats.next_gc)-int64(memstats.heap_alloc)) <= int64(memstats.next_gc) && atomicloaduint(&bggc.working) == 0
 }
 
-var work workdata
-
-type workdata struct {
+var work struct {
 	full    uint64                // lock-free list of full blocks workbuf
 	empty   uint64                // lock-free list of empty blocks workbuf
 	partial uint64                // lock-free list of partially filled blocks workbuf
@@ -226,19 +223,21 @@ type workdata struct {
 
 // GC runs a garbage collection.
 func GC() {
-	gogc(2)
+	startGC(gcForceBlockMode)
 }
 
-// force = 0 - start concurrent GC
-// force = 1 - do STW GC regardless of current heap usage
-// force = 2 - go STW GC and eager sweep
-func gogc(force int32) {
+const (
+	gcBackgroundMode = iota // concurrent GC
+	gcForceMode             // stop-the-world GC now
+	gcForceBlockMode        // stop-the-world GC now and wait for sweep
+)
+
+func startGC(mode int) {
 	// The gc is turned off (via enablegc) until the bootstrap has completed.
 	// Also, malloc gets called in the guts of a number of libraries that might be
 	// holding locks. To avoid deadlocks during stoptheworld, don't bother
 	// trying to run gc while holding a lock. The next mallocgc without a lock
 	// will do the gc instead.
-
 	mp := acquirem()
 	if gp := getg(); gp == mp.g0 || mp.locks > 1 || !memstats.enablegc || panicking != 0 || gcpercent < 0 {
 		releasem(mp)
@@ -247,20 +246,23 @@ func gogc(force int32) {
 	releasem(mp)
 	mp = nil
 
-	if force == 0 {
-		lock(&bggc.lock)
-		if !bggc.started {
-			bggc.working = 1
-			bggc.started = true
-			go backgroundgc()
-		} else if bggc.working == 0 {
-			bggc.working = 1
-			ready(bggc.g)
-		}
-		unlock(&bggc.lock)
-	} else {
-		gcwork(force)
+	if mode != gcBackgroundMode {
+		// special synchronous cases
+		gc(mode)
+		return
 	}
+
+	// trigger concurrent GC
+	lock(&bggc.lock)
+	if !bggc.started {
+		bggc.working = 1
+		bggc.started = true
+		go backgroundgc()
+	} else if bggc.working == 0 {
+		bggc.working = 1
+		ready(bggc.g)
+	}
+	unlock(&bggc.lock)
 }
 
 // State of the background concurrent GC goroutine.
@@ -276,15 +278,15 @@ var bggc struct {
 func backgroundgc() {
 	bggc.g = getg()
 	for {
-		gcwork(0)
+		gc(gcBackgroundMode)
 		lock(&bggc.lock)
 		bggc.working = 0
 		goparkunlock(&bggc.lock, "Concurrent GC wait", traceEvGoBlock)
 	}
 }
 
-func gcwork(force int32) {
-
+func gc(mode int) {
+	// Ok, we're doing it!  Stop everybody else
 	semacquire(&worldsema, false)
 
 	// Pick up the remaining unswept/not being swept spans concurrently
@@ -292,13 +294,11 @@ func gcwork(force int32) {
 		sweep.nbgsweep++
 	}
 
-	// Ok, we're doing it!  Stop everybody else
-
 	mp := acquirem()
 	mp.preemptoff = "gcing"
 	releasem(mp)
 	gctimer.count++
-	if force == 0 {
+	if mode == gcBackgroundMode {
 		gctimer.cycle.sweepterm = nanotime()
 	}
 
@@ -307,31 +307,40 @@ func gcwork(force int32) {
 		traceGCStart()
 	}
 
-	// Pick up the remaining unswept/not being swept spans before we STW
-	for gosweepone() != ^uintptr(0) {
-		sweep.nbgsweep++
-	}
 	systemstack(stoptheworld)
 	systemstack(finishsweep_m) // finish sweep before we start concurrent scan.
-	if force == 0 {            // Do as much work concurrently as possible
-		gcphase = _GCscan
-		systemstack(starttheworld)
-		gctimer.cycle.scan = nanotime()
-		// Do a concurrent heap scan before we stop the world.
-		systemstack(gcscan_m)
-		gctimer.cycle.installmarkwb = nanotime()
-		systemstack(stoptheworld)
-		systemstack(gcinstallmarkwb)
-		systemstack(harvestwbufs)
-		systemstack(starttheworld)
-		gctimer.cycle.mark = nanotime()
-		systemstack(gcmark_m)
-		gctimer.cycle.markterm = nanotime()
-		systemstack(stoptheworld)
-		systemstack(gcinstalloffwb_m)
+
+	if mode == gcBackgroundMode { // Do as much work concurrently as possible
+		systemstack(func() {
+			gcphase = _GCscan
+
+			// Concurrent scan.
+			starttheworld()
+			gctimer.cycle.scan = nanotime()
+			gcscan_m()
+			gctimer.cycle.installmarkwb = nanotime()
+
+			// Sync.
+			stoptheworld()
+			gcphase = _GCmark
+			harvestwbufs()
+
+			// Concurrent mark.
+			starttheworld()
+			gctimer.cycle.mark = nanotime()
+			var gcw gcWork
+			gcDrain(&gcw)
+			gcw.dispose()
+
+			// Begin mark termination.
+			gctimer.cycle.markterm = nanotime()
+			stoptheworld()
+			gcphase = _GCoff
+		})
 	} else {
-		// For non-concurrent GC (force != 0) g stack have not been scanned so
-		// set gcscanvalid such that mark termination scans all stacks.
+		// For non-concurrent GC (mode != gcBackgroundMode)
+		// g stack have not been scanned so set gcscanvalid
+		// such that mark termination scans all stacks.
 		// No races here since we are in a STW phase.
 		for _, gp := range allgs {
 			gp.gcworkdone = false  // set to true in gcphasework
@@ -341,35 +350,45 @@ func gcwork(force int32) {
 
 	startTime := nanotime()
 	if mp != acquirem() {
-		throw("gogc: rescheduled")
+		throw("gcwork: rescheduled")
 	}
 
+	// TODO(rsc): Should the concurrent GC clear pools earlier?
 	clearpools()
+
+	_g_ := getg()
+	_g_.m.traceback = 2
+	gp := _g_.m.curg
+	casgstatus(gp, _Grunning, _Gwaiting)
+	gp.waitreason = "garbage collection"
 
 	// Run gc on the g0 stack.  We do this so that the g stack
 	// we're currently running on will no longer change.  Cuts
 	// the root set down a bit (g0 stacks are not scanned, and
 	// we don't need to scan gc's internal state).  We also
 	// need to switch to g0 so we can shrink the stack.
-	n := 1
-	if debug.gctrace > 1 {
-		n = 2
-	}
-	eagersweep := force >= 2
-	for i := 0; i < n; i++ {
-		if i > 0 {
-			// refresh start time if doing a second GC
-			startTime = nanotime()
-		}
-		// switch to g0, call gc, then switch back
-		systemstack(func() {
-			gc_m(startTime, eagersweep)
-		})
-	}
-
 	systemstack(func() {
-		gccheckmark_m(startTime, eagersweep)
+		gcMark(startTime)
+		if debug.gccheckmark > 0 {
+			// Run a full stop-the-world mark using checkmark bits,
+			// to check that we didn't forget to mark anything during
+			// the concurrent mark process.
+			initCheckmarks()
+			gcMark(startTime)
+			clearCheckmarks()
+		}
+		gcSweep(mode)
+
+		if debug.gctrace > 1 {
+			startTime = nanotime()
+			finishsweep_m()
+			gcMark(startTime)
+			gcSweep(mode)
+		}
 	})
+
+	_g_.m.traceback = 0
+	casgstatus(gp, _Gwaiting, _Grunning)
 
 	if trace.enabled {
 		traceGCDone()
@@ -379,13 +398,13 @@ func gcwork(force int32) {
 	// all done
 	mp.preemptoff = ""
 
-	if force == 0 {
+	if mode == gcBackgroundMode {
 		gctimer.cycle.sweep = nanotime()
 	}
 
 	semrelease(&worldsema)
 
-	if force == 0 {
+	if mode == gcBackgroundMode {
 		if gctimer.verbose > 1 {
 			GCprinttimes()
 		} else if gctimer.verbose > 0 {
@@ -405,109 +424,24 @@ func gcwork(force int32) {
 	}
 }
 
-// For now this must be bracketed with a stoptheworld and a starttheworld to ensure
-// all go routines see the new barrier.
-//go:nowritebarrier
-func gcinstalloffwb_m() {
-	gcphase = _GCoff
-}
-
-// For now this must be bracketed with a stoptheworld and a starttheworld to ensure
-// all go routines see the new barrier.
-//go:nowritebarrier
-func gcinstallmarkwb() {
-	gcphase = _GCmark
-}
-
-// Mark all objects that are known about.
-// This is the concurrent mark phase.
-//go:nowritebarrier
-func gcmark_m() {
-	var gcw gcWork
-	gcDrain(&gcw)
-	gcw.dispose()
-	// TODO add another harvestwbuf and reset work.nwait=0, work.ndone=0, and work.nproc=1
-	// and repeat the above gcDrain.
-}
-
-// Called from malloc.go using systemstack.
-// The world is stopped. Rerun the scan and mark phases
-// using the bitMarkedCheck bit instead of the
-// bitMarked bit. If the marking encounters an
-// bitMarked bit that is not set then we throw.
-//go:nowritebarrier
-func gccheckmark_m(startTime int64, eagersweep bool) {
-	if debug.gccheckmark == 0 {
-		return
-	}
-
-	if checkmarkphase {
-		throw("gccheckmark_m, entered with checkmarkphase already true")
-	}
-
-	checkmarkphase = true
-	initCheckmarks()
-	gc_m(startTime, eagersweep) // turns off checkmarkphase + calls clearcheckmarkbits
-}
-
-// Called from malloc.go using systemstack, stopping and starting the world handled in caller.
-//go:nowritebarrier
-func gc_m(start_time int64, eagersweep bool) {
-	_g_ := getg()
-	gp := _g_.m.curg
-	casgstatus(gp, _Grunning, _Gwaiting)
-	gp.waitreason = "garbage collection"
-
-	gc(start_time, eagersweep)
-	casgstatus(gp, _Gwaiting, _Grunning)
-}
-
+// gcMark runs the mark (or, for concurrent GC, mark termination)
 // STW is in effect at this point.
 //TODO go:nowritebarrier
-func gc(start_time int64, eagersweep bool) {
-	if _DebugGCPtrs {
-		print("GC start\n")
-	}
-
-	gcphase = _GCmarktermination
+func gcMark(start_time int64) {
 	if debug.allocfreetrace > 0 {
 		tracegc()
 	}
 
-	_g_ := getg()
-	_g_.m.traceback = 2
 	t0 := start_time
 	work.tstart = start_time
+	gcphase = _GCmarktermination
 
 	var t1 int64
 	if debug.gctrace > 0 {
 		t1 = nanotime()
 	}
 
-	if !checkmarkphase {
-		// TODO(austin) This is a noop beceause we should
-		// already have swept everything to the current
-		// sweepgen.
-		finishsweep_m() // skip during checkmark debug phase.
-	}
-
-	// Cache runtime.mheap_.allspans in work.spans to avoid conflicts with
-	// resizing/freeing allspans.
-	// New spans can be created while GC progresses, but they are not garbage for
-	// this round:
-	//  - new stack spans can be created even while the world is stopped.
-	//  - new malloc spans can be created during the concurrent sweep
-
-	// Even if this is stop-the-world, a concurrent exitsyscall can allocate a stack from heap.
-	lock(&mheap_.lock)
-	// Free the old cached sweep array if necessary.
-	if work.spans != nil && &work.spans[0] != &h_allspans[0] {
-		sysFree(unsafe.Pointer(&work.spans[0]), uintptr(len(work.spans))*unsafe.Sizeof(work.spans[0]), &memstats.other_sys)
-	}
-	// Cache the current array for marking.
-	mheap_.gcspans = mheap_.allspans
-	work.spans = h_allspans
-	unlock(&mheap_.lock)
+	gcCopySpans()
 
 	work.nwait = 0
 	work.ndone = 0
@@ -615,66 +549,62 @@ func gc(start_time int64, eagersweep bool) {
 		sweep.nbgsweep = 0
 		sweep.npausesweep = 0
 	}
+}
 
-	if debug.gccheckmark > 0 {
-		if !checkmarkphase {
-			// first half of two-pass; don't set up sweep
-			return
-		}
-		checkmarkphase = false // done checking marks
-		clearCheckmarks()
-	}
+func gcSweep(mode int) {
+	gcCopySpans()
 
-	// See the comment in the beginning of this function as to why we need the following.
-	// Even if this is still stop-the-world, a concurrent exitsyscall can allocate a stack from heap.
 	lock(&mheap_.lock)
-	// Free the old cached mark array if necessary.
-	if work.spans != nil && &work.spans[0] != &h_allspans[0] {
-		sysFree(unsafe.Pointer(&work.spans[0]), uintptr(len(work.spans))*unsafe.Sizeof(work.spans[0]), &memstats.other_sys)
-	}
-
-	// Cache the current array for sweeping.
-	mheap_.gcspans = mheap_.allspans
 	mheap_.sweepgen += 2
 	mheap_.sweepdone = 0
-	work.spans = h_allspans
 	sweep.spanidx = 0
 	unlock(&mheap_.lock)
 
-	if _ConcurrentSweep && !eagersweep {
-		lock(&gclock)
-		if !sweep.started {
-			go bgsweep()
-			sweep.started = true
-		} else if sweep.parked {
-			sweep.parked = false
-			ready(sweep.g)
-		}
-		unlock(&gclock)
-	} else {
+	if !_ConcurrentSweep || mode == gcForceBlockMode {
+		// Special case synchronous sweep.
 		// Sweep all spans eagerly.
 		for sweepone() != ^uintptr(0) {
 			sweep.npausesweep++
 		}
 		// Do an additional mProf_GC, because all 'free' events are now real as well.
 		mProf_GC()
+		mProf_GC()
+		return
 	}
 
+	// Background sweep.
+	lock(&sweep.lock)
+	if !sweep.started {
+		go bgsweep()
+		sweep.started = true
+	} else if sweep.parked {
+		sweep.parked = false
+		ready(sweep.g)
+	}
+	unlock(&sweep.lock)
 	mProf_GC()
-	_g_.m.traceback = 0
+}
 
-	if _DebugGCPtrs {
-		print("GC end\n")
+func gcCopySpans() {
+	// Cache runtime.mheap_.allspans in work.spans to avoid conflicts with
+	// resizing/freeing allspans.
+	// New spans can be created while GC progresses, but they are not garbage for
+	// this round:
+	//  - new stack spans can be created even while the world is stopped.
+	//  - new malloc spans can be created during the concurrent sweep
+	// Even if this is stop-the-world, a concurrent exitsyscall can allocate a stack from heap.
+	lock(&mheap_.lock)
+	// Free the old cached mark array if necessary.
+	if work.spans != nil && &work.spans[0] != &h_allspans[0] {
+		sysFree(unsafe.Pointer(&work.spans[0]), uintptr(len(work.spans))*unsafe.Sizeof(work.spans[0]), &memstats.other_sys)
 	}
+	// Cache the current array for sweeping.
+	mheap_.gcspans = mheap_.allspans
+	work.spans = h_allspans
+	unlock(&mheap_.lock)
 }
 
 // Hooks for other packages
-
-//go:linkname runtime_debug_freeOSMemory runtime/debug.freeOSMemory
-func runtime_debug_freeOSMemory() {
-	gogc(2) // force GC and do eager sweep
-	systemstack(scavenge_m)
-}
 
 var poolcleanup func()
 
