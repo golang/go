@@ -163,11 +163,14 @@ var matchHostnamesTests = []matchHostnamesTest{
 	{"example.com", "example.com", true},
 	{"example.com", "example.com.", true},
 	{"example.com", "www.example.com", false},
+	{"*.example.com", "example.com", false},
 	{"*.example.com", "www.example.com", true},
 	{"*.example.com", "www.example.com.", true},
 	{"*.example.com", "xyz.www.example.com", false},
-	{"*.*.example.com", "xyz.www.example.com", true},
-	{"*.www.*.com", "xyz.www.example.com", true},
+	{"*.*.example.com", "xyz.www.example.com", false},
+	{"*.www.*.com", "xyz.www.example.com", false},
+	{"*bar.example.com", "foobar.example.com", false},
+	{"f*.example.com", "foobar.example.com", false},
 	{"", ".", false},
 	{".", "", false},
 	{".", ".", false},
@@ -177,7 +180,7 @@ func TestMatchHostnames(t *testing.T) {
 	for i, test := range matchHostnamesTests {
 		r := matchHostnames(test.pattern, test.host)
 		if r != test.ok {
-			t.Errorf("#%d mismatch got: %t want: %t", i, r, test.ok)
+			t.Errorf("#%d mismatch got: %t want: %t when matching '%s' against '%s'", i, r, test.ok, test.host, test.pattern)
 		}
 	}
 }
