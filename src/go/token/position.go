@@ -21,7 +21,7 @@ type Position struct {
 	Filename string // filename, if any
 	Offset   int    // offset, starting at 0
 	Line     int    // line number, starting at 1
-	Column   int    // column number, starting at 1 (character count)
+	Column   int    // column number, starting at 1 (byte count)
 }
 
 // IsValid returns true if the position is valid.
@@ -56,8 +56,8 @@ func (pos Position) String() string {
 // where base and size are specified when adding the file to the file set via
 // AddFile.
 //
-// To create the Pos value for a specific source offset, first add
-// the respective file to the current file set (via FileSet.AddFile)
+// To create the Pos value for a specific source offset (measured in bytes),
+// first add the respective file to the current file set using FileSet.AddFile
 // and then call File.Pos(offset) for that file. Given a Pos value p
 // for a specific file set fset, the corresponding Position value is
 // obtained by calling fset.Position(p).
