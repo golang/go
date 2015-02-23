@@ -36,7 +36,6 @@ var ptalogFlag = flag.String("ptalog", "",
 
 var formatFlag = flag.String("format", "plain", "Output format.  One of {plain,json,xml}.")
 
-// TODO(adonovan): flip this flag after PTA presolver is implemented.
 var reflectFlag = flag.Bool("reflect", false, "Analyze reflection soundly (slow).")
 
 const useHelp = "Run 'oracle -help' for more information.\n"
@@ -137,8 +136,12 @@ func main() {
 			buf := bufio.NewWriter(f)
 			ptalog = buf
 			defer func() {
-				buf.Flush()
-				f.Close()
+				if err := buf.Flush(); err != nil {
+					log.Errorf("flush: %s", err)
+				}
+				if err := f.Close(); err != nil {
+					log.Errorf("close: %s", err)
+				}
 			}()
 		}
 	}
