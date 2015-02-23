@@ -480,6 +480,52 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 	}
 }
 
+func TestUnknownCriticalExtension(t *testing.T) {
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("Failed to generate ECDSA key: %s", err)
+	}
+
+	oids := []asn1.ObjectIdentifier{
+		// This OID is in the PKIX arc, but unknown.
+		asn1.ObjectIdentifier{2, 5, 29, 999999},
+		// This is a nonsense, unassigned OID.
+		asn1.ObjectIdentifier{1, 2, 3, 4},
+	}
+
+	for _, oid := range oids {
+		template := Certificate{
+			SerialNumber: big.NewInt(1),
+			Subject: pkix.Name{
+				CommonName: "foo",
+			},
+			NotBefore: time.Unix(1000, 0),
+			NotAfter:  time.Unix(100000, 0),
+
+			ExtraExtensions: []pkix.Extension{
+				{
+					Id:       oid,
+					Critical: true,
+					Value:    nil,
+				},
+			},
+		}
+
+		derBytes, err := CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+		if err != nil {
+			t.Fatalf("failed to create certificate: %s", err)
+		}
+
+		_, err = ParseCertificate(derBytes)
+		if err == nil {
+			t.Fatalf("Certificate with critical extension was parsed without error.")
+		}
+		if _, ok := err.(UnhandledCriticalExtension); !ok {
+			t.Fatalf("Error was %#v, but wanted one of type UnhandledCriticalExtension", err)
+		}
+	}
+}
+
 // Self-signed certificate using ECDSA with SHA1 & secp256r1
 var ecdsaSHA1CertPem = `
 -----BEGIN CERTIFICATE-----
