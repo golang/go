@@ -137,10 +137,10 @@ func main() {
 			ptalog = buf
 			defer func() {
 				if err := buf.Flush(); err != nil {
-					log.Errorf("flush: %s", err)
+					log.Printf("flush: %s", err)
 				}
 				if err := f.Close(); err != nil {
-					log.Errorf("close: %s", err)
+					log.Printf("close: %s", err)
 				}
 			}()
 		}
