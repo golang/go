@@ -1899,7 +1899,7 @@ func Nconv(n *Node, flag int) string {
 		dumpdepth--
 
 	default:
-		Fatal("unhandled %N mode")
+		Fatal("unhandled %%N mode")
 	}
 
 	flag = sf

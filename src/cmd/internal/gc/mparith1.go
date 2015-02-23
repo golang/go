@@ -638,7 +638,7 @@ func Fconv(fvp *Mpflt, flag int) string {
 			if d >= 0 && (flag&obj.FmtSign != 0 /*untyped*/) {
 				fp += fmt.Sprintf("+")
 			}
-			fp += fmt.Sprintf("%g", d)
+			fp += fmt.Sprintf("%.6g", d)
 			return fp
 		}
 

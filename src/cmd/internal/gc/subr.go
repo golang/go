@@ -36,7 +36,8 @@ func errorexit() {
 }
 
 func parserline() int {
-	if yychar_subr != 0 && yychar_subr != -2 { // parser has one symbol lookahead
+	if parsing && theparser.Lookahead() > 0 {
+		// parser has one symbol lookahead
 		return int(prevlineno)
 	}
 	return int(lineno)
@@ -135,6 +136,9 @@ var yyerror_lastsyntax int
 func Yyerror(fmt_ string, args ...interface{}) {
 	var i int
 
+	if fmt_ == "%s" && len(args) == 1 && args[0] == "syntax error" {
+		nsyntaxerrors++
+	}
 	if strings.HasPrefix(fmt_, "syntax error") {
 		nsyntaxerrors++
 

@@ -75,15 +75,16 @@ func usage() {
 	Exit(2)
 }
 
-func fault(s int) {
-	// If we've already complained about things
-	// in the program, don't bother complaining
-	// about the seg fault too; let the user clean up
-	// the code and try again.
+func hidePanic() {
 	if nsavederrors+nerrors > 0 {
-		errorexit()
+		// If we've already complained about things
+		// in the program, don't bother complaining
+		// about a panic too; let the user clean up
+		// the code and try again.
+		if err := recover(); err != nil {
+			errorexit()
+		}
 	}
-	Fatal("fault")
 }
 
 func doversion() {
@@ -95,7 +96,7 @@ func doversion() {
 		p = ""
 	}
 	sep = ""
-	if p[0] != 0 {
+	if p != "" {
 		sep = " "
 	}
 	fmt.Printf("%cg version %s%s%s\n", Thearch.Thechar, obj.Getgoversion(), sep, p)
@@ -103,6 +104,7 @@ func doversion() {
 }
 
 func Main() {
+	defer hidePanic()
 	var l *NodeList
 	var p string
 
@@ -1834,8 +1836,14 @@ func (yy) Error(msg string) {
 	Yyerror("%s", msg)
 }
 
+var theparser yyParser
+var parsing bool
+
 func yyparse() {
-	yyParse(yy{})
+	theparser = yyNewParser()
+	parsing = true
+	theparser.Parse(yy{})
+	parsing = false
 }
 
 func yylex(yylval *yySymType) int32 {
