@@ -102,16 +102,6 @@ func (priv *PrivateKey) Validate() error {
 		return err
 	}
 
-	// Check that the prime factors are actually prime. Note that this is
-	// just a sanity check. Since the random witnesses chosen by
-	// ProbablyPrime are deterministic, given the candidate number, it's
-	// easy for an attack to generate composites that pass this test.
-	for _, prime := range priv.Primes {
-		if !prime.ProbablyPrime(20) {
-			return errors.New("crypto/rsa: prime factor is composite")
-		}
-	}
-
 	// Check that Πprimes == n.
 	modulus := new(big.Int).Set(bigOne)
 	for _, prime := range priv.Primes {
