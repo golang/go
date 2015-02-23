@@ -72,7 +72,7 @@ const (
 func usage() {
 	fmt.Printf("usage: %cg [options] file.go...\n", Thearch.Thechar)
 	obj.Flagprint(1)
-	os.Exit(2)
+	Exit(2)
 }
 
 func fault(s int) {
@@ -225,6 +225,8 @@ func Main() {
 		obj.Flagcount("largemodel", "generate code that assumes a large memory model", &flag_largemodel)
 	}
 
+	obj.Flagstr("cpuprofile", "file: write cpu profile to file", &cpuprofile)
+	obj.Flagstr("memprofile", "file: write memory profile to file", &memprofile)
 	obj.Flagparse(usage)
 	Ctxt.Debugasm = int32(Debug['S'])
 	Ctxt.Debugvlog = int32(Debug['v'])
@@ -232,6 +234,8 @@ func Main() {
 	if flag.NArg() < 1 {
 		usage()
 	}
+
+	startProfile()
 
 	if flag_race != 0 {
 		racepkg = mkpkg(newstrlit("runtime/race"))
