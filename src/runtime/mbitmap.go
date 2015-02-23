@@ -198,7 +198,7 @@ func heapBitsForObject(p uintptr) (base uintptr, hbits heapBits) {
 		return
 	}
 	base = s.base()
-	if p-base > s.elemsize {
+	if p-base >= s.elemsize {
 		base += (p - base) / s.elemsize * s.elemsize
 	}
 	if base == p {
