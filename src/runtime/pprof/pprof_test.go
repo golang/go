@@ -375,7 +375,7 @@ func TestBlockProfile(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		if !regexp.MustCompile(test.re).MatchString(prof) {
+		if !regexp.MustCompile(strings.Replace(test.re, "\t", "\t+", -1)).MatchString(prof) {
 			t.Fatalf("Bad %v entry, expect:\n%v\ngot:\n%v", test.name, test.re, prof)
 		}
 	}
