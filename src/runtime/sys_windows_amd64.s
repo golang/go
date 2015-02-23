@@ -287,7 +287,7 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
 	SUBQ	DX, AX
 	MOVQ	$0, DX
 	MOVQ	$5, CX	// divide by 5 because each call instruction in runtime·callbacks is 5 bytes long
-	DIVL	CX,
+	DIVL	CX
 
 	// find correspondent runtime·cbctxts table entry
 	MOVQ	runtime·cbctxts(SB), CX

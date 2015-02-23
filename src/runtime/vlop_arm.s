@@ -27,8 +27,6 @@
 #include "go_tls.h"
 #include "textflag.h"
 
-arg=0
-
 /* replaced use of R10 by R11 because the former can be the data segment base register */
 
 TEXT _mulv(SB), NOSPLIT, $0
@@ -111,70 +109,71 @@ TEXT runtime·_sfloatpanic(SB),NOSPLIT,$-4
 // Reference: 
 // Sloss, Andrew et. al; ARM System Developer's Guide: Designing and Optimizing System Software
 // Morgan Kaufmann; 1 edition (April 8, 2004), ISBN 978-1558608740
-q = 0 // input d, output q
-r = 1 // input n, output r
-s = 2 // three temporary variables
-M = 3
-a = 11
-// Be careful: R(a) == R11 will be used by the linker for synthesized instructions.
-TEXT udiv<>(SB),NOSPLIT,$-4
-	CLZ 	R(q), R(s) // find normalizing shift
-	MOVW.S	R(q)<<R(s), R(a)
-	MOVW	$fast_udiv_tab<>-64(SB), R(M)
-	ADD.NE	R(a)>>25, R(M), R(a) // index by most significant 7 bits of divisor
-	MOVBU.NE	(R(a)), R(a)
+#define Rq	R0 // input d, output q
+#define Rr	R1 // input n, output r
+#define Rs	R2 // three temporary variables
+#define RM	R3
+#define Ra	R11
 
-	SUB.S	$7, R(s)
-	RSB 	$0, R(q), R(M) // M = -q
-	MOVW.PL	R(a)<<R(s), R(q)
+// Be careful: Ra == R11 will be used by the linker for synthesized instructions.
+TEXT udiv<>(SB),NOSPLIT,$-4
+	CLZ 	Rq, Rs // find normalizing shift
+	MOVW.S	Rq<<Rs, Ra
+	MOVW	$fast_udiv_tab<>-64(SB), RM
+	ADD.NE	Ra>>25, RM, Ra // index by most significant 7 bits of divisor
+	MOVBU.NE	(Ra), Ra
+
+	SUB.S	$7, Rs
+	RSB 	$0, Rq, RM // M = -q
+	MOVW.PL	Ra<<Rs, Rq
 
 	// 1st Newton iteration
-	MUL.PL	R(M), R(q), R(a) // a = -q*d
+	MUL.PL	RM, Rq, Ra // a = -q*d
 	BMI 	udiv_by_large_d
-	MULAWT	R(a), R(q), R(q), R(q) // q approx q-(q*q*d>>32)
-	TEQ 	R(M)->1, R(M) // check for d=0 or d=1
+	MULAWT	Ra, Rq, Rq, Rq // q approx q-(q*q*d>>32)
+	TEQ 	RM->1, RM // check for d=0 or d=1
 
 	// 2nd Newton iteration
-	MUL.NE	R(M), R(q), R(a)
-	MOVW.NE	$0, R(s)
-	MULAL.NE R(q), R(a), (R(q),R(s))
+	MUL.NE	RM, Rq, Ra
+	MOVW.NE	$0, Rs
+	MULAL.NE Rq, Ra, (Rq,Rs)
 	BEQ 	udiv_by_0_or_1
 
 	// q now accurate enough for a remainder r, 0<=r<3*d
-	MULLU	R(q), R(r), (R(q),R(s)) // q = (r * q) >> 32	
-	ADD 	R(M), R(r), R(r) // r = n - d
-	MULA	R(M), R(q), R(r), R(r) // r = n - (q+1)*d
+	MULLU	Rq, Rr, (Rq,Rs) // q = (r * q) >> 32
+	ADD 	RM, Rr, Rr // r = n - d
+	MULA	RM, Rq, Rr, Rr // r = n - (q+1)*d
 
 	// since 0 <= n-q*d < 3*d; thus -d <= r < 2*d
-	CMN 	R(M), R(r) // t = r-d
-	SUB.CS	R(M), R(r), R(r) // if (t<-d || t>=0) r=r+d
-	ADD.CC	$1, R(q)
-	ADD.PL	R(M)<<1, R(r)
-	ADD.PL	$2, R(q)
+	CMN 	RM, Rr // t = r-d
+	SUB.CS	RM, Rr, Rr // if (t<-d || t>=0) r=r+d
+	ADD.CC	$1, Rq
+	ADD.PL	RM<<1, Rr
+	ADD.PL	$2, Rq
 	RET
 
 udiv_by_large_d:
 	// at this point we know d>=2^(31-6)=2^25
-	SUB 	$4, R(a), R(a)
-	RSB 	$0, R(s), R(s)
-	MOVW	R(a)>>R(s), R(q)
-	MULLU	R(q), R(r), (R(q),R(s))
-	MULA	R(M), R(q), R(r), R(r)
+	SUB 	$4, Ra, Ra
+	RSB 	$0, Rs, Rs
+	MOVW	Ra>>Rs, Rq
+	MULLU	Rq, Rr, (Rq,Rs)
+	MULA	RM, Rq, Rr, Rr
 
 	// q now accurate enough for a remainder r, 0<=r<4*d
-	CMN 	R(r)>>1, R(M) // if(r/2 >= d)
-	ADD.CS	R(M)<<1, R(r)
-	ADD.CS	$2, R(q)
-	CMN 	R(r), R(M)
-	ADD.CS	R(M), R(r)
-	ADD.CS	$1, R(q)
+	CMN 	Rr>>1, RM // if(r/2 >= d)
+	ADD.CS	RM<<1, Rr
+	ADD.CS	$2, Rq
+	CMN 	Rr, RM
+	ADD.CS	RM, Rr
+	ADD.CS	$1, Rq
 	RET
 
 udiv_by_0_or_1:
 	// carry set if d==1, carry clear if d==0
 	BCC udiv_by_0
-	MOVW	R(r), R(q)
-	MOVW	$0, R(r)
+	MOVW	Rr, Rq
+	MOVW	$0, Rr
 	RET
 
 udiv_by_0:
@@ -216,96 +215,96 @@ DATA fast_udiv_tab<>+0x38(SB)/4, $0x85868788
 DATA fast_udiv_tab<>+0x3c(SB)/4, $0x81828384
 GLOBL fast_udiv_tab<>(SB), RODATA, $64
 
-// The linker will pass numerator in R(TMP), and it also
-// expects the result in R(TMP)
-TMP = 11
+// The linker will pass numerator in RTMP, and it also
+// expects the result in RTMP
+#define RTMP R11
 
 TEXT _divu(SB), NOSPLIT, $16
-	MOVW	R(q), 4(R13)
-	MOVW	R(r), 8(R13)
-	MOVW	R(s), 12(R13)
-	MOVW	R(M), 16(R13)
+	MOVW	Rq, 4(R13)
+	MOVW	Rr, 8(R13)
+	MOVW	Rs, 12(R13)
+	MOVW	RM, 16(R13)
 
-	MOVW	R(TMP), R(r)		/* numerator */
-	MOVW	0(FP), R(q) 		/* denominator */
+	MOVW	RTMP, Rr		/* numerator */
+	MOVW	den+0(FP), Rq 		/* denominator */
 	BL  	udiv<>(SB)
-	MOVW	R(q), R(TMP)
-	MOVW	4(R13), R(q)
-	MOVW	8(R13), R(r)
-	MOVW	12(R13), R(s)
-	MOVW	16(R13), R(M)
+	MOVW	Rq, RTMP
+	MOVW	4(R13), Rq
+	MOVW	8(R13), Rr
+	MOVW	12(R13), Rs
+	MOVW	16(R13), RM
 	RET
 
 TEXT _modu(SB), NOSPLIT, $16
-	MOVW	R(q), 4(R13)
-	MOVW	R(r), 8(R13)
-	MOVW	R(s), 12(R13)
-	MOVW	R(M), 16(R13)
+	MOVW	Rq, 4(R13)
+	MOVW	Rr, 8(R13)
+	MOVW	Rs, 12(R13)
+	MOVW	RM, 16(R13)
 
-	MOVW	R(TMP), R(r)		/* numerator */
-	MOVW	0(FP), R(q) 		/* denominator */
+	MOVW	RTMP, Rr		/* numerator */
+	MOVW	den+0(FP), Rq 		/* denominator */
 	BL  	udiv<>(SB)
-	MOVW	R(r), R(TMP)
-	MOVW	4(R13), R(q)
-	MOVW	8(R13), R(r)
-	MOVW	12(R13), R(s)
-	MOVW	16(R13), R(M)
+	MOVW	Rr, RTMP
+	MOVW	4(R13), Rq
+	MOVW	8(R13), Rr
+	MOVW	12(R13), Rs
+	MOVW	16(R13), RM
 	RET
 
 TEXT _div(SB),NOSPLIT,$16
-	MOVW	R(q), 4(R13)
-	MOVW	R(r), 8(R13)
-	MOVW	R(s), 12(R13)
-	MOVW	R(M), 16(R13)
-	MOVW	R(TMP), R(r)		/* numerator */
-	MOVW	0(FP), R(q) 		/* denominator */
-	CMP 	$0, R(r)
+	MOVW	Rq, 4(R13)
+	MOVW	Rr, 8(R13)
+	MOVW	Rs, 12(R13)
+	MOVW	RM, 16(R13)
+	MOVW	RTMP, Rr		/* numerator */
+	MOVW	den+0(FP), Rq 		/* denominator */
+	CMP 	$0, Rr
 	BGE 	d1
-	RSB 	$0, R(r), R(r)
-	CMP 	$0, R(q)
+	RSB 	$0, Rr, Rr
+	CMP 	$0, Rq
 	BGE 	d2
-	RSB 	$0, R(q), R(q)
+	RSB 	$0, Rq, Rq
 d0:
 	BL  	udiv<>(SB)  		/* none/both neg */
-	MOVW	R(q), R(TMP)
+	MOVW	Rq, RTMP
 	B		out1
 d1:
-	CMP 	$0, R(q)
+	CMP 	$0, Rq
 	BGE 	d0
-	RSB 	$0, R(q), R(q)
+	RSB 	$0, Rq, Rq
 d2:
 	BL  	udiv<>(SB)  		/* one neg */
-	RSB		$0, R(q), R(TMP)
+	RSB		$0, Rq, RTMP
 out1:
-	MOVW	4(R13), R(q)
-	MOVW	8(R13), R(r)
-	MOVW	12(R13), R(s)
-	MOVW	16(R13), R(M)
+	MOVW	4(R13), Rq
+	MOVW	8(R13), Rr
+	MOVW	12(R13), Rs
+	MOVW	16(R13), RM
 	RET
 
 TEXT _mod(SB),NOSPLIT,$16
-	MOVW	R(q), 4(R13)
-	MOVW	R(r), 8(R13)
-	MOVW	R(s), 12(R13)
-	MOVW	R(M), 16(R13)
-	MOVW	R(TMP), R(r)		/* numerator */
-	MOVW	0(FP), R(q) 		/* denominator */
-	CMP 	$0, R(q)
-	RSB.LT	$0, R(q), R(q)
-	CMP 	$0, R(r)
+	MOVW	Rq, 4(R13)
+	MOVW	Rr, 8(R13)
+	MOVW	Rs, 12(R13)
+	MOVW	RM, 16(R13)
+	MOVW	RTMP, Rr		/* numerator */
+	MOVW	den+0(FP), Rq 		/* denominator */
+	CMP 	$0, Rq
+	RSB.LT	$0, Rq, Rq
+	CMP 	$0, Rr
 	BGE 	m1
-	RSB 	$0, R(r), R(r)
+	RSB 	$0, Rr, Rr
 	BL  	udiv<>(SB)  		/* neg numerator */
-	RSB 	$0, R(r), R(TMP)
+	RSB 	$0, Rr, RTMP
 	B   	out
 m1:
 	BL  	udiv<>(SB)  		/* pos numerator */
-	MOVW	R(r), R(TMP)
+	MOVW	Rr, RTMP
 out:
-	MOVW	4(R13), R(q)
-	MOVW	8(R13), R(r)
-	MOVW	12(R13), R(s)
-	MOVW	16(R13), R(M)
+	MOVW	4(R13), Rq
+	MOVW	8(R13), Rr
+	MOVW	12(R13), Rs
+	MOVW	16(R13), RM
 	RET
 
 // _mul64by32 and _div64by32 not implemented on arm

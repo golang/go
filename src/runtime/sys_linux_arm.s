@@ -52,49 +52,49 @@
 #define ARM_BASE (SYS_BASE + 0x0f0000)
 
 TEXT runtime·open(SB),NOSPLIT,$0
-	MOVW	0(FP), R0
-	MOVW	4(FP), R1
-	MOVW	8(FP), R2
+	MOVW	name+0(FP), R0
+	MOVW	mode+4(FP), R1
+	MOVW	perm+8(FP), R2
 	MOVW	$SYS_open, R7
 	SWI	$0
 	MOVW	R0, ret+12(FP)
 	RET
 
 TEXT runtime·close(SB),NOSPLIT,$0
-	MOVW	0(FP), R0
+	MOVW	fd+0(FP), R0
 	MOVW	$SYS_close, R7
 	SWI	$0
 	MOVW	R0, ret+4(FP)
 	RET
 
 TEXT runtime·write(SB),NOSPLIT,$0
-	MOVW	0(FP), R0
-	MOVW	4(FP), R1
-	MOVW	8(FP), R2
+	MOVW	fd+0(FP), R0
+	MOVW	p+4(FP), R1
+	MOVW	n+8(FP), R2
 	MOVW	$SYS_write, R7
 	SWI	$0
 	MOVW	R0, ret+12(FP)
 	RET
 
 TEXT runtime·read(SB),NOSPLIT,$0
-	MOVW	0(FP), R0
-	MOVW	4(FP), R1
-	MOVW	8(FP), R2
+	MOVW	fd+0(FP), R0
+	MOVW	p+4(FP), R1
+	MOVW	n+8(FP), R2
 	MOVW	$SYS_read, R7
 	SWI	$0
 	MOVW	R0, ret+12(FP)
 	RET
 
 TEXT runtime·getrlimit(SB),NOSPLIT,$0
-	MOVW	0(FP), R0
-	MOVW	4(FP), R1
+	MOVW	kind+0(FP), R0
+	MOVW	limit+4(FP), R1
 	MOVW	$SYS_ugetrlimit, R7
 	SWI	$0
 	MOVW	R0, ret+8(FP)
 	RET
 
 TEXT runtime·exit(SB),NOSPLIT,$-4
-	MOVW	0(FP), R0
+	MOVW	code+0(FP), R0
 	MOVW	$SYS_exit_group, R7
 	SWI	$0
 	MOVW	$1234, R0
@@ -102,7 +102,7 @@ TEXT runtime·exit(SB),NOSPLIT,$-4
 	MOVW	R0, (R1)	// fail hard
 
 TEXT runtime·exit1(SB),NOSPLIT,$-4
-	MOVW	0(FP), R0
+	MOVW	code+0(FP), R0
 	MOVW	$SYS_exit, R7
 	SWI	$0
 	MOVW	$1234, R0
@@ -128,12 +128,12 @@ TEXT	runtime·raiseproc(SB),NOSPLIT,$-4
 	RET
 
 TEXT runtime·mmap(SB),NOSPLIT,$0
-	MOVW	0(FP), R0
-	MOVW	4(FP), R1
-	MOVW	8(FP), R2
-	MOVW	12(FP), R3
-	MOVW	16(FP), R4
-	MOVW	20(FP), R5
+	MOVW	addr+0(FP), R0
+	MOVW	n+4(FP), R1
+	MOVW	prot+8(FP), R2
+	MOVW	flags+12(FP), R3
+	MOVW	fd+16(FP), R4
+	MOVW	off+20(FP), R5
 	MOVW	$SYS_mmap2, R7
 	SWI	$0
 	MOVW	$0xfffff001, R6
@@ -143,8 +143,8 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$0
-	MOVW	0(FP), R0
-	MOVW	4(FP), R1
+	MOVW	addr+0(FP), R0
+	MOVW	n+4(FP), R1
 	MOVW	$SYS_munmap, R7
 	SWI	$0
 	MOVW	$0xfffff001, R6
@@ -154,26 +154,26 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·madvise(SB),NOSPLIT,$0
-	MOVW	0(FP), R0
-	MOVW	4(FP), R1
-	MOVW	8(FP), R2
+	MOVW	addr+0(FP), R0
+	MOVW	n+4(FP), R1
+	MOVW	flags+8(FP), R2
 	MOVW	$SYS_madvise, R7
 	SWI	$0
 	// ignore failure - maybe pages are locked
 	RET
 
 TEXT runtime·setitimer(SB),NOSPLIT,$0
-	MOVW	0(FP), R0
-	MOVW	4(FP), R1
-	MOVW	8(FP), R2
+	MOVW	mode+0(FP), R0
+	MOVW	new+4(FP), R1
+	MOVW	old+8(FP), R2
 	MOVW	$SYS_setitimer, R7
 	SWI	$0
 	RET
 
 TEXT runtime·mincore(SB),NOSPLIT,$0
-	MOVW	0(FP), R0
-	MOVW	4(FP), R1
-	MOVW	8(FP), R2
+	MOVW	addr+0(FP), R0
+	MOVW	n+4(FP), R1
+	MOVW	dst+8(FP), R2
 	MOVW	$SYS_mincore, R7
 	SWI	$0
 	MOVW	R0, ret+12(FP)
@@ -188,10 +188,10 @@ TEXT time·now(SB), NOSPLIT, $32
 	MOVW	8(R13), R0  // sec
 	MOVW	12(R13), R2  // nsec
 	
-	MOVW	R0, 0(FP)
+	MOVW	R0, sec+0(FP)
 	MOVW	$0, R1
-	MOVW	R1, 4(FP)
-	MOVW	R2, 8(FP)
+	MOVW	R1, loc+4(FP)
+	MOVW	R2, nsec+8(FP)
 	RET	
 
 // int64 nanotime(void)
@@ -217,12 +217,13 @@ TEXT runtime·nanotime(SB),NOSPLIT,$32
 // int32 futex(int32 *uaddr, int32 op, int32 val,
 //	struct timespec *timeout, int32 *uaddr2, int32 val2);
 TEXT runtime·futex(SB),NOSPLIT,$0
-	MOVW	4(SP), R0
-	MOVW	8(SP), R1
-	MOVW	12(SP), R2
-	MOVW	16(SP), R3
-	MOVW	20(SP), R4
-	MOVW	24(SP), R5
+	// TODO: Rewrite to use FP references. Vet complains.
+	MOVW	4(R13), R0
+	MOVW	8(R13), R1
+	MOVW	12(R13), R2
+	MOVW	16(R13), R3
+	MOVW	20(R13), R4
+	MOVW	24(R13), R5
 	MOVW	$SYS_futex, R7
 	SWI	$0
 	MOVW	R0, ret+24(FP)
@@ -297,8 +298,8 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	MOVW	R0, (R1)
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$0
-	MOVW	0(FP), R0
-	MOVW	4(FP), R1
+	MOVW	new+0(FP), R0
+	MOVW	old+4(FP), R1
 	MOVW	$SYS_sigaltstack, R7
 	SWI	$0
 	MOVW	$0xfffff001, R6
@@ -345,19 +346,19 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$24
 	RET
 
 TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0
-	MOVW	0(FP), R0
-	MOVW	4(FP), R1
-	MOVW	8(FP), R2
-	MOVW	12(FP), R3
+	MOVW	sig+0(FP), R0
+	MOVW	new+4(FP), R1
+	MOVW	old+8(FP), R2
+	MOVW	size+12(FP), R3
 	MOVW	$SYS_rt_sigprocmask, R7
 	SWI	$0
 	RET
 
 TEXT runtime·rt_sigaction(SB),NOSPLIT,$0
-	MOVW	0(FP), R0
-	MOVW	4(FP), R1
-	MOVW	8(FP), R2
-	MOVW	12(FP), R3
+	MOVW	sig+0(FP), R0
+	MOVW	new+4(FP), R1
+	MOVW	old+8(FP), R2
+	MOVW	size+12(FP), R3
 	MOVW	$SYS_rt_sigaction, R7
 	SWI	$0
 	MOVW	R0, ret+16(FP)
@@ -369,13 +370,13 @@ TEXT runtime·usleep(SB),NOSPLIT,$12
 	MOVW	$1000000, R2
 	DIV	R2, R0
 	MOD	R2, R1
-	MOVW	R0, 4(SP)
-	MOVW	R1, 8(SP)
+	MOVW	R0, 4(R13)
+	MOVW	R1, 8(R13)
 	MOVW	$0, R0
 	MOVW	$0, R1
 	MOVW	$0, R2
 	MOVW	$0, R3
-	MOVW	$4(SP), R4
+	MOVW	$4(R13), R4
 	MOVW	$SYS_select, R7
 	SWI	$0
 	RET
@@ -383,7 +384,7 @@ TEXT runtime·usleep(SB),NOSPLIT,$12
 // Use kernel version instead of native armcas in asm_arm.s.
 // See ../sync/atomic/asm_linux_arm.s for details.
 TEXT cas<>(SB),NOSPLIT,$0
-	MOVW	$0xffff0fc0, PC
+	MOVW	$0xffff0fc0, R15 // R15 is hardware PC.
 
 TEXT runtime·cas(SB),NOSPLIT,$0
 	MOVW	ptr+0(FP), R2
@@ -415,9 +416,9 @@ TEXT runtime·osyield(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
-	MOVW	0(FP), R0
-	MOVW	4(FP), R1
-	MOVW	8(FP), R2
+	MOVW	pid+0(FP), R0
+	MOVW	len+4(FP), R1
+	MOVW	buf+8(FP), R2
 	MOVW	$SYS_sched_getaffinity, R7
 	SWI	$0
 	MOVW	R0, ret+12(FP)
@@ -425,7 +426,7 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
 
 // int32 runtime·epollcreate(int32 size)
 TEXT runtime·epollcreate(SB),NOSPLIT,$0
-	MOVW	0(FP), R0
+	MOVW	size+0(FP), R0
 	MOVW	$SYS_epoll_create, R7
 	SWI	$0
 	MOVW	R0, ret+4(FP)
@@ -433,7 +434,7 @@ TEXT runtime·epollcreate(SB),NOSPLIT,$0
 
 // int32 runtime·epollcreate1(int32 flags)
 TEXT runtime·epollcreate1(SB),NOSPLIT,$0
-	MOVW	0(FP), R0
+	MOVW	flags+0(FP), R0
 	MOVW	$SYS_epoll_create1, R7
 	SWI	$0
 	MOVW	R0, ret+4(FP)
@@ -452,10 +453,10 @@ TEXT runtime·epollctl(SB),NOSPLIT,$0
 
 // int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout)
 TEXT runtime·epollwait(SB),NOSPLIT,$0
-	MOVW	0(FP), R0
-	MOVW	4(FP), R1
-	MOVW	8(FP), R2
-	MOVW	12(FP), R3
+	MOVW	epfd+0(FP), R0
+	MOVW	ev+4(FP), R1
+	MOVW	nev+8(FP), R2
+	MOVW	timeout+12(FP), R3
 	MOVW	$SYS_epoll_wait, R7
 	SWI	$0
 	MOVW	R0, ret+16(FP)
@@ -463,7 +464,7 @@ TEXT runtime·epollwait(SB),NOSPLIT,$0
 
 // void runtime·closeonexec(int32 fd)
 TEXT runtime·closeonexec(SB),NOSPLIT,$0
-	MOVW	0(FP), R0	// fd
+	MOVW	fd+0(FP), R0	// fd
 	MOVW	$2, R1	// F_SETFD
 	MOVW	$1, R2	// FD_CLOEXEC
 	MOVW	$SYS_fcntl, R7
@@ -476,26 +477,26 @@ TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4
 	B	(R0)
 
 TEXT runtime·access(SB),NOSPLIT,$0
-	MOVW	0(FP), R0
-	MOVW	4(FP), R1
+	MOVW	name+0(FP), R0
+	MOVW	mode+4(FP), R1
 	MOVW	$SYS_access, R7
 	SWI	$0
 	MOVW	R0, ret+8(FP)
 	RET
 
 TEXT runtime·connect(SB),NOSPLIT,$0
-	MOVW	0(FP), R0
-	MOVW	4(FP), R1
-	MOVW	8(FP), R2
+	MOVW	fd+0(FP), R0
+	MOVW	addr+4(FP), R1
+	MOVW	addrlen+8(FP), R2
 	MOVW	$SYS_connect, R7
 	SWI	$0
 	MOVW	R0, ret+12(FP)
 	RET
 
 TEXT runtime·socket(SB),NOSPLIT,$0
-	MOVW	0(FP), R0
-	MOVW	4(FP), R1
-	MOVW	8(FP), R2
+	MOVW	domain+0(FP), R0
+	MOVW	type+4(FP), R1
+	MOVW	protocol+8(FP), R2
 	MOVW	$SYS_socket, R7
 	SWI	$0
 	MOVW	R0, ret+12(FP)

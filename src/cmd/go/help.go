@@ -59,6 +59,9 @@ system.
 - "std" is like all but expands to just the packages in the standard
 Go library.
 
+- "cmd" expands to the Go repository's commands and their
+internal libraries.
+
 An import path is a pattern if it includes one or more "..." wildcards,
 each of which can match any string, including the empty string and
 strings containing slashes.  Such a pattern expands to all package

@@ -20,7 +20,7 @@ rem TODO avoid rebuild if possible
 
 if x%1==x--no-rebuild goto norebuild
 echo ##### Building packages and commands.
-go install -a -v std
+go install -a -v std cmd
 if errorlevel 1 goto fail
 echo.
 :norebuild
@@ -38,7 +38,7 @@ del env.bat
 echo.
 
 echo ##### Testing packages.
-go test std -short -timeout=120s
+go test std cmd -short -timeout=120s
 if errorlevel 1 goto fail
 echo.
 

@@ -347,8 +347,26 @@ func runInstall(cmd *Command, args []string) {
 	var b builder
 	b.init()
 	a := &action{}
+	var tools []*action
 	for _, p := range pkgs {
-		a.deps = append(a.deps, b.action(modeInstall, modeInstall, p))
+		// If p is a tool, delay the installation until the end of the build.
+		// This avoids installing assemblers/compilers that are being executed
+		// by other steps in the build.
+		// cmd/cgo is handled specially in b.action, so that we can
+		// both build and use it in the same 'go install'.
+		action := b.action(modeInstall, modeInstall, p)
+		if goTools[p.ImportPath] == toTool && p.ImportPath != "cmd/cgo" {
+			a.deps = append(a.deps, action.deps...)
+			action.deps = append(action.deps, a)
+			tools = append(tools, action)
+			continue
+		}
+		a.deps = append(a.deps, action)
+	}
+	if len(tools) > 0 {
+		a = &action{
+			deps: tools,
+		}
 	}
 	b.do(a)
 }
@@ -1660,7 +1678,7 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool, 
 		gcargs = append(gcargs, "-installsuffix", buildContext.InstallSuffix)
 	}
 
-	args := stringList(buildToolExec, tool(archChar+"g"), "-o", ofile, "-trimpath", b.work, buildGcflags, gcargs, "-D", p.localPrefix, importArgs)
+	args := []interface{}{buildToolExec, tool(archChar + "g"), "-o", ofile, "-trimpath", b.work, buildGcflags, gcargs, "-D", p.localPrefix, importArgs}
 	if ofile == archive {
 		args = append(args, "-pack")
 	}
@@ -1671,15 +1689,53 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool, 
 		args = append(args, mkAbs(p.Dir, f))
 	}
 
-	output, err = b.runOut(p.Dir, p.ImportPath, nil, args)
+	output, err = b.runOut(p.Dir, p.ImportPath, nil, args...)
 	return ofile, output, err
 }
+
+// verifyAsm specifies whether to check the assemblers written in Go
+// against the assemblers written in C. If set, asm will run both (say) 6a and new6a
+// and fail if the two produce different output files.
+const verifyAsm = true
 
 func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
 	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch))
 	sfile = mkAbs(p.Dir, sfile)
-	return b.run(p.Dir, p.ImportPath, nil, stringList(buildToolExec, tool(archChar+"a"), "-trimpath", b.work, "-I", obj, "-I", inc, "-o", ofile, "-D", "GOOS_"+goos, "-D", "GOARCH_"+goarch, sfile))
+	args := []interface{}{buildToolExec, tool(archChar + "a"), "-o", ofile, "-trimpath", b.work, "-I", obj, "-I", inc, "-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch, sfile}
+	if err := b.run(p.Dir, p.ImportPath, nil, args...); err != nil {
+		return err
+	}
+	if verifyAsm {
+		if err := toolVerify(b, p, "asm", ofile, args); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// toolVerify checks that the command line args writes the same output file
+// if run using newTool instead.
+func toolVerify(b *builder, p *Package, newTool string, ofile string, args []interface{}) error {
+	newArgs := make([]interface{}, len(args))
+	copy(newArgs, args)
+	newArgs[1] = tool(newTool)
+	newArgs[3] = ofile + ".new" // x.6 becomes x.6.new
+	if err := b.run(p.Dir, p.ImportPath, nil, newArgs...); err != nil {
+		return err
+	}
+	data1, err := ioutil.ReadFile(ofile)
+	if err != nil {
+		return err
+	}
+	data2, err := ioutil.ReadFile(ofile + ".new")
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(data1, data2) {
+		return fmt.Errorf("%s and %s produced different output files:\n%s\n%s", filepath.Base(args[1].(string)), newTool, strings.Join(stringList(args...), " "), strings.Join(stringList(newArgs...), " "))
+	}
+	return nil
 }
 
 func (gcToolchain) pkgpath(basedir string, p *Package) string {

@@ -19,7 +19,7 @@ if not {
 	if(~ $sysname vx32)
 		pflag = (-p 1)
 	echo '# Building packages and commands.'
-	time go install -a -v $pflag std
+	time go install -a -v $pflag std cmd
 	echo
 }
 
@@ -29,7 +29,7 @@ if not {
 GOROOT_FINAL = ()
 
 echo '# Testing packages.'
-time go test std -short -timeout 240s
+time go test std cmd -short -timeout 240s
 echo
 
 # Temporary GCE builder hack until Plan 9 on GCE is fast enough.

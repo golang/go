@@ -24,8 +24,8 @@ The directory $GOROOT/cmd/yacc/testdata/expr is a yacc program
 for a very simple expression parser. See expr.y and main.go in that
 directory for examples of how to write and build yacc programs.
 
-The generated parser is reentrant. Parse expects to be given an
-argument that conforms to the following interface:
+The generated parser is reentrant. The parsing function yyParse expects
+to be given an argument that conforms to the following interface:
 
 	type yyLexer interface {
 		Lex(lval *yySymType) int
@@ -36,8 +36,27 @@ Lex should return the token identifier, and place other token
 information in lval (which replaces the usual yylval).
 Error is equivalent to yyerror in the original yacc.
 
-Code inside the parser may refer to the variable yylex,
-which holds the yyLexer passed to Parse.
+Code inside the grammar actions may refer to the variable yylex,
+which holds the yyLexer passed to yyParse.
+
+Clients that need to understand more about the parser state can
+create the parser separately from invoking it. The function yyNewParser
+returns a yyParser conforming to the following interface:
+
+	type yyParser interface {
+		Parse(yyLex) int
+		Lookahead() int
+	}
+
+Parse runs the parser; the top-level call yyParse(yylex) is equivalent
+to yyNewParser().Parse(yylex).
+
+Lookahead can be called during grammar actions to read (but not consume)
+the value of the current lookahead token, as returned by yylex.Lex.
+If there is no current lookahead token (because the parser has not called Lex
+or has consumed the token returned by the most recent call to Lex),
+Lookahead returns -1. Calling Lookahead is equivalent to reading
+yychar from within in a grammar action.
 
 Multiple grammars compiled into a single program should be placed in
 distinct packages.  If that is impossible, the "-p prefix" flag to

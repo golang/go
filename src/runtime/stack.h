@@ -22,6 +22,10 @@ enum {
 #define STACKSYSTEM 0
 #endif
 
+	/*c2go
+	STACKSYSTEM = 0,
+	*/
+
 	StackSystem = STACKSYSTEM,
 
 	StackBig = 4096,
