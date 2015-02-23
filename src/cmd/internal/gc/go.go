@@ -753,8 +753,6 @@ var namebuf string
 var lexbuf bytes.Buffer
 var strbuf bytes.Buffer
 
-func DBG(...interface{}) {}
-
 var litbuf string
 
 var Debug [256]int
