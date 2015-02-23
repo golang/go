@@ -13,19 +13,17 @@ import (
 /// uses arithmetic
 
 func mpcmpfixflt(a *Mpint, b *Mpflt) int {
-	var buf string
 	var c Mpflt
 
-	buf = fmt.Sprintf("%v", Bconv(a, 0))
+	buf := fmt.Sprintf("%v", Bconv(a, 0))
 	mpatoflt(&c, buf)
 	return mpcmpfltflt(&c, b)
 }
 
 func mpcmpfltfix(a *Mpflt, b *Mpint) int {
-	var buf string
 	var c Mpflt
 
-	buf = fmt.Sprintf("%v", Bconv(b, 0))
+	buf := fmt.Sprintf("%v", Bconv(b, 0))
 	mpatoflt(&c, buf)
 	return mpcmpfltflt(a, &c)
 }
@@ -133,11 +131,10 @@ func Mpmovefixflt(a *Mpflt, b *Mpint) {
 // convert (truncate) b to a.
 // return -1 (but still convert) if b was non-integer.
 func mpexactfltfix(a *Mpint, b *Mpflt) int {
-	var f Mpflt
-
 	*a = b.Val
 	Mpshiftfix(a, int(b.Exp))
 	if b.Exp < 0 {
+		var f Mpflt
 		f.Val = *a
 		f.Exp = 0
 		mpnorm(&f)
@@ -150,15 +147,12 @@ func mpexactfltfix(a *Mpint, b *Mpflt) int {
 }
 
 func mpmovefltfix(a *Mpint, b *Mpflt) int {
-	var f Mpflt
-	var i int
-
 	if mpexactfltfix(a, b) == 0 {
 		return 0
 	}
 
 	// try rounding down a little
-	f = *b
+	f := *b
 
 	f.Val.A[0] = 0
 	if mpexactfltfix(a, &f) == 0 {
@@ -166,7 +160,7 @@ func mpmovefltfix(a *Mpint, b *Mpflt) int {
 	}
 
 	// try rounding up a little
-	for i = 1; i < Mpprec; i++ {
+	for i := 1; i < Mpprec; i++ {
 		f.Val.A[i]++
 		if f.Val.A[i] != Mpbase {
 			break
@@ -209,12 +203,6 @@ func mppow10flt(a *Mpflt, p int) {
 }
 
 func mphextofix(a *Mpint, s string) {
-	var c int8
-	var d int
-	var bit int
-	var hexdigitp int
-	var end int
-
 	for s != "" && s[0] == '0' {
 		s = s[1:]
 	}
@@ -225,8 +213,11 @@ func mphextofix(a *Mpint, s string) {
 		return
 	}
 
-	end = len(s) - 1
-	for hexdigitp = end; hexdigitp >= 0; hexdigitp-- {
+	end := len(s) - 1
+	var c int8
+	var d int
+	var bit int
+	for hexdigitp := end; hexdigitp >= 0; hexdigitp-- {
 		c = int8(s[hexdigitp])
 		if c >= '0' && c <= '9' {
 			d = int(c) - '0'
@@ -252,25 +243,14 @@ func mphextofix(a *Mpint, s string) {
 // required syntax is [+-]d*[.]d*[e[+-]d*] or [+-]0xH*[e[+-]d*]
 //
 func mpatoflt(a *Mpflt, as string) {
-	var b Mpflt
-	var dp int
-	var c int
-	var f int
-	var ef int
-	var ex int
-	var eb int
-	var base int
-	var s string
-	var start string
-
 	for as[0] == ' ' || as[0] == '\t' {
 		as = as[1:]
 	}
 
 	/* determine base */
-	s = as
+	s := as
 
-	base = -1
+	base := -1
 	for base == -1 {
 		if s == "" {
 			base = 10
@@ -296,14 +276,17 @@ func mpatoflt(a *Mpflt, as string) {
 	}
 
 	s = as
-	dp = 0 /* digits after decimal point */
-	f = 0  /* sign */
-	ex = 0 /* exponent */
-	eb = 0 /* binary point */
+	dp := 0 /* digits after decimal point */
+	f := 0  /* sign */
+	ex := 0 /* exponent */
+	eb := 0 /* binary point */
 
 	Mpmovecflt(a, 0.0)
+	var ef int
+	var c int
 	if base == 16 {
-		start = ""
+		start := ""
+		var c int
 		for {
 			c, _ = intstarstringplusplus(s)
 			if c == '-' {
@@ -437,6 +420,7 @@ func mpatoflt(a *Mpflt, as string) {
 	}
 	if mpcmpfltc(a, 0.0) != 0 {
 		if ex >= dp {
+			var b Mpflt
 			mppow10flt(&b, ex-dp)
 			mpmulfltflt(a, &b)
 		} else {
@@ -444,6 +428,7 @@ func mpatoflt(a *Mpflt, as string) {
 			if dp-ex >= 1<<(32-3) || int(int16(4*(dp-ex))) != 4*(dp-ex) {
 				Mpmovecflt(a, 0.0)
 			} else {
+				var b Mpflt
 				mppow10flt(&b, dp-ex)
 				mpdivfltflt(a, &b)
 			}
@@ -466,12 +451,10 @@ bad:
 //
 func mpatofix(a *Mpint, as string) {
 	var c int
-	var f int
-	var s string
 	var s0 string
 
-	s = as
-	f = 0
+	s := as
+	f := 0
 	Mpmovecfix(a, 0)
 
 	c, s = intstarstringplusplus(s)
@@ -555,29 +538,24 @@ bad:
 }
 
 func Bconv(xval *Mpint, flag int) string {
-	var buf [500]byte
-	var p int
-	var fp string
-
 	var q Mpint
-	var r Mpint
-	var ten Mpint
-	var sixteen Mpint
-	var f int
-	var digit int
 
 	mpmovefixfix(&q, xval)
-	f = 0
+	f := 0
 	if mptestfix(&q) < 0 {
 		f = 1
 		mpnegfix(&q)
 	}
 
-	p = len(buf)
+	var buf [500]byte
+	p := len(buf)
+	var r Mpint
 	if flag&obj.FmtSharp != 0 /*untyped*/ {
 		// Hexadecimal
+		var sixteen Mpint
 		Mpmovecfix(&sixteen, 16)
 
+		var digit int
 		for {
 			mpdivmodfixfix(&q, &r, &q, &sixteen)
 			digit = int(Mpgetfix(&r))
@@ -599,6 +577,7 @@ func Bconv(xval *Mpint, flag int) string {
 		buf[p] = '0'
 	} else {
 		// Decimal
+		var ten Mpint
 		Mpmovecfix(&ten, 10)
 
 		for {
@@ -615,26 +594,20 @@ func Bconv(xval *Mpint, flag int) string {
 		p--
 		buf[p] = '-'
 	}
+	var fp string
 	fp += string(buf[p:])
 	return fp
 }
 
 func Fconv(fvp *Mpflt, flag int) string {
-	var buf string
-	var fp string
-
-	var fv Mpflt
-	var d float64
-	var dexp float64
-	var exp int
-
 	if flag&obj.FmtSharp != 0 /*untyped*/ {
 		// alternate form - decimal for error messages.
 		// for well in range, convert to double and use print's %g
-		exp = int(fvp.Exp) + sigfig(fvp)*Mpscale
+		exp := int(fvp.Exp) + sigfig(fvp)*Mpscale
 
+		var fp string
 		if -900 < exp && exp < 900 {
-			d = mpgetflt(fvp)
+			d := mpgetflt(fvp)
 			if d >= 0 && (flag&obj.FmtSign != 0 /*untyped*/) {
 				fp += fmt.Sprintf("+")
 			}
@@ -644,15 +617,15 @@ func Fconv(fvp *Mpflt, flag int) string {
 
 		// very out of range. compute decimal approximation by hand.
 		// decimal exponent
-		dexp = float64(fvp.Exp) * 0.301029995663981195 // log_10(2)
+		dexp := float64(fvp.Exp) * 0.301029995663981195 // log_10(2)
 		exp = int(dexp)
 
 		// decimal mantissa
-		fv = *fvp
+		fv := *fvp
 
 		fv.Val.Neg = 0
 		fv.Exp = 0
-		d = mpgetflt(&fv)
+		d := mpgetflt(&fv)
 		d *= math.Pow(10, dexp-float64(exp))
 		for d >= 9.99995 {
 			d /= 10
@@ -668,6 +641,8 @@ func Fconv(fvp *Mpflt, flag int) string {
 		return fp
 	}
 
+	var fv Mpflt
+	var buf string
 	if sigfig(fvp) == 0 {
 		buf = fmt.Sprintf("0p+0")
 		goto out
@@ -693,6 +668,7 @@ func Fconv(fvp *Mpflt, flag int) string {
 	buf = fmt.Sprintf("%vp-%d", Bconv(&fv.Val, obj.FmtSharp), -fv.Exp)
 
 out:
+	var fp string
 	fp += buf
 	return fp
 }

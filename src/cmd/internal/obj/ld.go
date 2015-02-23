@@ -44,13 +44,11 @@ const (
 )
 
 func mkfwd(sym *LSym) {
-	var p *Prog
-	var i int
 	var dwn [LOG]int32
 	var cnt [LOG]int32
 	var lst [LOG]*Prog
 
-	for i = 0; i < LOG; i++ {
+	for i := 0; i < LOG; i++ {
 		if i == 0 {
 			cnt[i] = 1
 		} else {
@@ -60,8 +58,8 @@ func mkfwd(sym *LSym) {
 		lst[i] = nil
 	}
 
-	i = 0
-	for p = sym.Text; p != nil && p.Link != nil; p = p.Link {
+	i := 0
+	for p := sym.Text; p != nil && p.Link != nil; p = p.Link {
 		i--
 		if i < 0 {
 			i = LOG - 1
@@ -79,17 +77,13 @@ func mkfwd(sym *LSym) {
 }
 
 func Copyp(ctxt *Link, q *Prog) *Prog {
-	var p *Prog
-
-	p = ctxt.NewProg()
+	p := ctxt.NewProg()
 	*p = *q
 	return p
 }
 
 func Appendp(ctxt *Link, q *Prog) *Prog {
-	var p *Prog
-
-	p = ctxt.NewProg()
+	p := ctxt.NewProg()
 	p.Link = q.Link
 	q.Link = p
 	p.Lineno = q.Lineno

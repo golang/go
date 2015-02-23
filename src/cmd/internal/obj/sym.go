@@ -101,9 +101,7 @@ var headers = []struct {
 }
 
 func headtype(name string) int {
-	var i int
-
-	for i = 0; i < len(headers); i++ {
+	for i := 0; i < len(headers); i++ {
 		if name == headers[i].name {
 			return headers[i].val
 		}
@@ -114,9 +112,7 @@ func headtype(name string) int {
 var headstr_buf string
 
 func Headstr(v int) string {
-	var i int
-
-	for i = 0; i < len(headers); i++ {
+	for i := 0; i < len(headers); i++ {
 		if v == headers[i].val {
 			return headers[i].name
 		}
@@ -126,13 +122,11 @@ func Headstr(v int) string {
 }
 
 func Linknew(arch *LinkArch) *Link {
-	var ctxt *Link
-	var p string
 	var buf string
 
 	linksetexp()
 
-	ctxt = new(Link)
+	ctxt := new(Link)
 	ctxt.Arch = arch
 	ctxt.Version = HistVersion
 	ctxt.Goroot = Getgoroot()
@@ -211,7 +205,7 @@ func Linknew(arch *LinkArch) *Link {
 
 	// On arm, record goarm.
 	if ctxt.Arch.Thechar == '5' {
-		p = Getgoarm()
+		p := Getgoarm()
 		if p != "" {
 			ctxt.Goarm = int32(Atoi(p))
 		} else {
@@ -223,9 +217,7 @@ func Linknew(arch *LinkArch) *Link {
 }
 
 func linknewsym(ctxt *Link, symb string, v int) *LSym {
-	var s *LSym
-
-	s = new(LSym)
+	s := new(LSym)
 	*s = LSym{}
 
 	s.Dynid = -1
@@ -246,17 +238,14 @@ func linknewsym(ctxt *Link, symb string, v int) *LSym {
 }
 
 func _lookup(ctxt *Link, symb string, v int, creat int) *LSym {
-	var s *LSym
-	var h uint32
-
-	h = uint32(v)
+	h := uint32(v)
 	for i := 0; i < len(symb); i++ {
 		c := int(symb[i])
 		h = h + h + h + uint32(c)
 	}
 	h &= 0xffffff
 	h %= LINKHASH
-	for s = ctxt.Hash[h]; s != nil; s = s.Hash {
+	for s := ctxt.Hash[h]; s != nil; s = s.Hash {
 		if int(s.Version) == v && s.Name == symb {
 			return s
 		}
@@ -265,7 +254,7 @@ func _lookup(ctxt *Link, symb string, v int, creat int) *LSym {
 		return nil
 	}
 
-	s = linknewsym(ctxt, symb, v)
+	s := linknewsym(ctxt, symb, v)
 	s.Extname = s.Name
 	s.Hash = ctxt.Hash[h]
 	ctxt.Hash[h] = s

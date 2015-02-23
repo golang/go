@@ -33,9 +33,7 @@ package obj
 // Code and data passes.
 
 func Brchain(ctxt *Link, p *Prog) *Prog {
-	var i int
-
-	for i = 0; i < 20; i++ {
+	for i := 0; i < 20; i++ {
 		if p == nil || p.As != AJMP || p.Pcond == nil {
 			return p
 		}
@@ -46,10 +44,9 @@ func Brchain(ctxt *Link, p *Prog) *Prog {
 }
 
 func brloop(ctxt *Link, p *Prog) *Prog {
-	var c int
 	var q *Prog
 
-	c = 0
+	c := 0
 	for q = p; q != nil; q = q.Pcond {
 		if q.As != AJMP || q.Pcond == nil {
 			break
@@ -152,12 +149,11 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
 func linkpatch(ctxt *Link, sym *LSym) {
 	var c int32
 	var name string
-	var p *Prog
 	var q *Prog
 
 	ctxt.Cursym = sym
 
-	for p = sym.Text; p != nil; p = p.Link {
+	for p := sym.Text; p != nil; p = p.Link {
 		checkaddr(ctxt, p, &p.From)
 		checkaddr(ctxt, p, &p.From3)
 		checkaddr(ctxt, p, &p.To)
@@ -203,7 +199,7 @@ func linkpatch(ctxt *Link, sym *LSym) {
 		p.Pcond = q
 	}
 
-	for p = sym.Text; p != nil; p = p.Link {
+	for p := sym.Text; p != nil; p = p.Link {
 		p.Mark = 0 /* initialization for follow */
 		if p.Pcond != nil {
 			p.Pcond = brloop(ctxt, p.Pcond)

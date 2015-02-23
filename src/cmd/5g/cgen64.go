@@ -16,61 +16,43 @@ import "cmd/internal/gc"
  * return 1 on success, 0 if op not handled.
  */
 func cgen64(n *gc.Node, res *gc.Node) {
-	var t1 gc.Node
-	var t2 gc.Node
-	var l *gc.Node
-	var r *gc.Node
-	var lo1 gc.Node
-	var lo2 gc.Node
-	var hi1 gc.Node
-	var hi2 gc.Node
-	var al gc.Node
-	var ah gc.Node
-	var bl gc.Node
-	var bh gc.Node
-	var cl gc.Node
-	var ch gc.Node
-	var s gc.Node
-	var n1 gc.Node
-	var creg gc.Node
-	var p1 *obj.Prog
-	var p2 *obj.Prog
-	var p3 *obj.Prog
-	var p4 *obj.Prog
-	var p5 *obj.Prog
-	var p6 *obj.Prog
-	var v uint64
-
 	if res.Op != gc.OINDREG && res.Op != gc.ONAME {
 		gc.Dump("n", n)
 		gc.Dump("res", res)
 		gc.Fatal("cgen64 %v of %v", gc.Oconv(int(n.Op), 0), gc.Oconv(int(res.Op), 0))
 	}
 
-	l = n.Left
+	l := n.Left
+	var t1 gc.Node
 	if l.Addable == 0 {
 		gc.Tempname(&t1, l.Type)
 		cgen(l, &t1)
 		l = &t1
 	}
 
+	var hi1 gc.Node
+	var lo1 gc.Node
 	split64(l, &lo1, &hi1)
 	switch n.Op {
 	default:
 		gc.Fatal("cgen64 %v", gc.Oconv(int(n.Op), 0))
 
 	case gc.OMINUS:
+		var lo2 gc.Node
+		var hi2 gc.Node
 		split64(res, &lo2, &hi2)
 
 		regalloc(&t1, lo1.Type, nil)
+		var al gc.Node
 		regalloc(&al, lo1.Type, nil)
+		var ah gc.Node
 		regalloc(&ah, hi1.Type, nil)
 
 		gins(arm.AMOVW, &lo1, &al)
 		gins(arm.AMOVW, &hi1, &ah)
 
 		gmove(ncon(0), &t1)
-		p1 = gins(arm.ASUB, &al, &t1)
+		p1 := gins(arm.ASUB, &al, &t1)
 		p1.Scond |= arm.C_SBIT
 		gins(arm.AMOVW, &t1, &lo2)
 
@@ -89,7 +71,10 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		regalloc(&t1, lo1.Type, nil)
 		gmove(ncon(^uint32(0)), &t1)
 
+		var lo2 gc.Node
+		var hi2 gc.Node
 		split64(res, &lo2, &hi2)
+		var n1 gc.Node
 		regalloc(&n1, lo1.Type, nil)
 
 		gins(arm.AMOVW, &lo1, &n1)
@@ -121,19 +106,24 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	}
 
 	// setup for binary operators
-	r = n.Right
+	r := n.Right
 
 	if r != nil && r.Addable == 0 {
+		var t2 gc.Node
 		gc.Tempname(&t2, r.Type)
 		cgen(r, &t2)
 		r = &t2
 	}
 
+	var hi2 gc.Node
+	var lo2 gc.Node
 	if gc.Is64(r.Type) {
 		split64(r, &lo2, &hi2)
 	}
 
+	var al gc.Node
 	regalloc(&al, lo1.Type, nil)
+	var ah gc.Node
 	regalloc(&ah, hi1.Type, nil)
 
 	// Do op.  Leave result in ah:al.
@@ -143,14 +133,16 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 		// TODO: Constants
 	case gc.OADD:
+		var bl gc.Node
 		regalloc(&bl, gc.Types[gc.TPTR32], nil)
 
+		var bh gc.Node
 		regalloc(&bh, gc.Types[gc.TPTR32], nil)
 		gins(arm.AMOVW, &hi1, &ah)
 		gins(arm.AMOVW, &lo1, &al)
 		gins(arm.AMOVW, &hi2, &bh)
 		gins(arm.AMOVW, &lo2, &bl)
-		p1 = gins(arm.AADD, &bl, &al)
+		p1 := gins(arm.AADD, &bl, &al)
 		p1.Scond |= arm.C_SBIT
 		gins(arm.AADC, &bh, &ah)
 		regfree(&bl)
@@ -158,14 +150,16 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 		// TODO: Constants.
 	case gc.OSUB:
+		var bl gc.Node
 		regalloc(&bl, gc.Types[gc.TPTR32], nil)
 
+		var bh gc.Node
 		regalloc(&bh, gc.Types[gc.TPTR32], nil)
 		gins(arm.AMOVW, &lo1, &al)
 		gins(arm.AMOVW, &hi1, &ah)
 		gins(arm.AMOVW, &lo2, &bl)
 		gins(arm.AMOVW, &hi2, &bh)
-		p1 = gins(arm.ASUB, &bl, &al)
+		p1 := gins(arm.ASUB, &bl, &al)
 		p1.Scond |= arm.C_SBIT
 		gins(arm.ASBC, &bh, &ah)
 		regfree(&bl)
@@ -173,10 +167,14 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 		// TODO(kaib): this can be done with 4 regs and does not need 6
 	case gc.OMUL:
+		var bl gc.Node
 		regalloc(&bl, gc.Types[gc.TPTR32], nil)
 
+		var bh gc.Node
 		regalloc(&bh, gc.Types[gc.TPTR32], nil)
+		var cl gc.Node
 		regalloc(&cl, gc.Types[gc.TPTR32], nil)
+		var ch gc.Node
 		regalloc(&ch, gc.Types[gc.TPTR32], nil)
 
 		// load args into bh:bl and bh:bl.
@@ -187,7 +185,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		gins(arm.AMOVW, &lo2, &cl)
 
 		// bl * cl -> ah al
-		p1 = gins(arm.AMULLU, nil, nil)
+		p1 := gins(arm.AMULLU, nil, nil)
 
 		p1.From.Type = obj.TYPE_REG
 		p1.From.Reg = bl.Val.U.Reg
@@ -239,9 +237,11 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	//	shld hi:lo, c
 	//	shld lo:t, c
 	case gc.OLROT:
-		v = uint64(gc.Mpgetfix(r.Val.U.Xval))
+		v := uint64(gc.Mpgetfix(r.Val.U.Xval))
 
+		var bl gc.Node
 		regalloc(&bl, lo1.Type, nil)
+		var bh gc.Node
 		regalloc(&bh, hi1.Type, nil)
 		if v >= 32 {
 			// reverse during load to do the first 32 bits of rotate
@@ -274,13 +274,24 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		regfree(&bh)
 
 	case gc.OLSH:
+		var bl gc.Node
 		regalloc(&bl, lo1.Type, nil)
+		var bh gc.Node
 		regalloc(&bh, hi1.Type, nil)
 		gins(arm.AMOVW, &hi1, &bh)
 		gins(arm.AMOVW, &lo1, &bl)
 
+		var p6 *obj.Prog
+		var s gc.Node
+		var n1 gc.Node
+		var creg gc.Node
+		var p1 *obj.Prog
+		var p2 *obj.Prog
+		var p3 *obj.Prog
+		var p4 *obj.Prog
+		var p5 *obj.Prog
 		if r.Op == gc.OLITERAL {
-			v = uint64(gc.Mpgetfix(r.Val.U.Xval))
+			v := uint64(gc.Mpgetfix(r.Val.U.Xval))
 			if v >= 64 {
 				// TODO(kaib): replace with gins(AMOVW, nodintconst(0), &al)
 				// here and below (verify it optimizes to EOR)
@@ -316,6 +327,8 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		regalloc(&creg, gc.Types[gc.TUINT32], nil)
 		if gc.Is64(r.Type) {
 			// shift is >= 1<<32
+			var cl gc.Node
+			var ch gc.Node
 			split64(r, &cl, &ch)
 
 			gmove(&ch, &s)
@@ -422,13 +435,24 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		regfree(&bh)
 
 	case gc.ORSH:
+		var bl gc.Node
 		regalloc(&bl, lo1.Type, nil)
+		var bh gc.Node
 		regalloc(&bh, hi1.Type, nil)
 		gins(arm.AMOVW, &hi1, &bh)
 		gins(arm.AMOVW, &lo1, &bl)
 
+		var p4 *obj.Prog
+		var p5 *obj.Prog
+		var n1 gc.Node
+		var p6 *obj.Prog
+		var s gc.Node
+		var p1 *obj.Prog
+		var p2 *obj.Prog
+		var creg gc.Node
+		var p3 *obj.Prog
 		if r.Op == gc.OLITERAL {
-			v = uint64(gc.Mpgetfix(r.Val.U.Xval))
+			v := uint64(gc.Mpgetfix(r.Val.U.Xval))
 			if v >= 64 {
 				if bh.Type.Etype == gc.TINT32 {
 					//	MOVW	bh->31, al
@@ -487,10 +511,13 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		regalloc(&creg, gc.Types[gc.TUINT32], nil)
 		if gc.Is64(r.Type) {
 			// shift is >= 1<<32
+			var ch gc.Node
+			var cl gc.Node
 			split64(r, &cl, &ch)
 
 			gmove(&ch, &s)
 			gins(arm.ATST, &s, nil)
+			var p1 *obj.Prog
 			if bh.Type.Etype == gc.TINT32 {
 				p1 = gshift(arm.AMOVW, &bh, arm.SHIFT_AR, 31, &ah)
 			} else {
@@ -578,12 +605,12 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 		if bh.Type.Etype == gc.TINT32 {
 			//	MOVW	bh->(s-32), al
-			p1 = gregshift(arm.AMOVW, &bh, arm.SHIFT_AR, &s, &al)
+			p1 := gregshift(arm.AMOVW, &bh, arm.SHIFT_AR, &s, &al)
 
 			p1.Scond = arm.C_SCOND_LO
 		} else {
 			//	MOVW	bh>>(v-32), al
-			p1 = gregshift(arm.AMOVW, &bh, arm.SHIFT_LR, &s, &al)
+			p1 := gregshift(arm.AMOVW, &bh, arm.SHIFT_LR, &s, &al)
 
 			p1.Scond = arm.C_SCOND_LO
 		}
@@ -708,6 +735,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	case gc.OXOR,
 		gc.OAND,
 		gc.OOR:
+		var n1 gc.Node
 		regalloc(&n1, lo1.Type, nil)
 
 		gins(arm.AMOVW, &lo1, &al)
@@ -746,15 +774,13 @@ func cmp64(nl *gc.Node, nr *gc.Node, op int, likely int, to *obj.Prog) {
 	var hi2 gc.Node
 	var r1 gc.Node
 	var r2 gc.Node
-	var br *obj.Prog
-	var t *gc.Type
 
 	split64(nl, &lo1, &hi1)
 	split64(nr, &lo2, &hi2)
 
 	// compare most significant word;
 	// if they differ, we're done.
-	t = hi1.Type
+	t := hi1.Type
 
 	regalloc(&r1, gc.Types[gc.TINT32], nil)
 	regalloc(&r2, gc.Types[gc.TINT32], nil)
@@ -764,7 +790,7 @@ func cmp64(nl *gc.Node, nr *gc.Node, op int, likely int, to *obj.Prog) {
 	regfree(&r1)
 	regfree(&r2)
 
-	br = nil
+	br := (*obj.Prog)(nil)
 	switch op {
 	default:
 		gc.Fatal("cmp64 %v %v", gc.Oconv(int(op), 0), gc.Tconv(t, 0))

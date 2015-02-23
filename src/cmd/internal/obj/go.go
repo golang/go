@@ -36,9 +36,7 @@ var exper = []struct {
 }
 
 func addexp(s string) {
-	var i int
-
-	for i = 0; i < len(exper); i++ {
+	for i := 0; i < len(exper); i++ {
 		if exper[i].name == s {
 			if exper[i].val != nil {
 				*exper[i].val = 1

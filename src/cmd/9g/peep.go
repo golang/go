@@ -40,19 +40,15 @@ import "cmd/internal/gc"
 var gactive uint32
 
 func peep(firstp *obj.Prog) {
-	var g *gc.Graph
-	var r *gc.Flow
-	var r1 *gc.Flow
-	var p *obj.Prog
-	var p1 *obj.Prog
-	var t int
-
-	g = gc.Flowstart(firstp, nil)
+	g := (*gc.Graph)(gc.Flowstart(firstp, nil))
 	if g == nil {
 		return
 	}
 	gactive = 0
 
+	var p *obj.Prog
+	var r *gc.Flow
+	var t int
 loop1:
 	if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 		gc.Dumpit("loop1", g.Start, 0)
@@ -109,7 +105,9 @@ loop1:
 	/*
 	 * look for MOVB x,R; MOVB R,R (for small MOVs not handled above)
 	 */
-	for r = g.Start; r != nil; r = r.Link {
+	var p1 *obj.Prog
+	var r1 *gc.Flow
+	for r := (*gc.Flow)(g.Start); r != nil; r = r.Link {
 		p = r.Prog
 		switch p.As {
 		default:
@@ -151,7 +149,7 @@ loop1:
 	 * look for OP x,y,R; CMP R, $0 -> OPCC x,y,R
 	 * when OP can set condition codes correctly
 	 */
-	for r = g.Start; r != nil; r = r.Link {
+	for r := (*gc.Flow)(g.Start); r != nil; r = r.Link {
 		p = r.Prog
 		switch p.As {
 		case ppc64.ACMP,
@@ -350,9 +348,7 @@ ret:
 }
 
 func excise(r *gc.Flow) {
-	var p *obj.Prog
-
-	p = r.Prog
+	p := (*obj.Prog)(r.Prog)
 	if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 		fmt.Printf("%v ===delete===\n", p)
 	}
@@ -402,22 +398,17 @@ func regtyp(a *obj.Addr) bool {
  * above sequences.  This returns 1 if it modified any instructions.
  */
 func subprop(r0 *gc.Flow) bool {
-	var p *obj.Prog
-	var v1 *obj.Addr
-	var v2 *obj.Addr
-	var r *gc.Flow
-	var t int
-	var info gc.ProgInfo
-
-	p = r0.Prog
-	v1 = &p.From
+	p := (*obj.Prog)(r0.Prog)
+	v1 := (*obj.Addr)(&p.From)
 	if !regtyp(v1) {
 		return false
 	}
-	v2 = &p.To
+	v2 := (*obj.Addr)(&p.To)
 	if !regtyp(v2) {
 		return false
 	}
+	var r *gc.Flow
+	var info gc.ProgInfo
 	for r = gc.Uniqp(r0); r != nil; r = gc.Uniqp(r) {
 		if gc.Uniqs(r) == nil {
 			break
@@ -469,7 +460,7 @@ gotit:
 		}
 	}
 
-	t = int(v1.Reg)
+	t := int(int(v1.Reg))
 	v1.Reg = v2.Reg
 	v2.Reg = int16(t)
 	if gc.Debug['P'] != 0 {
@@ -491,13 +482,9 @@ gotit:
  *	set v2	return success (caller can remove v1->v2 move)
  */
 func copyprop(r0 *gc.Flow) bool {
-	var p *obj.Prog
-	var v1 *obj.Addr
-	var v2 *obj.Addr
-
-	p = r0.Prog
-	v1 = &p.From
-	v2 = &p.To
+	p := (*obj.Prog)(r0.Prog)
+	v1 := (*obj.Addr)(&p.From)
+	v2 := (*obj.Addr)(&p.To)
 	if copyas(v1, v2) {
 		if gc.Debug['P'] != 0 {
 			fmt.Printf("eliminating self-move\n", r0.Prog)
@@ -515,9 +502,6 @@ func copyprop(r0 *gc.Flow) bool {
 // copy1 replaces uses of v2 with v1 starting at r and returns 1 if
 // all uses were rewritten.
 func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) bool {
-	var t int
-	var p *obj.Prog
-
 	if uint32(r.Active) == gactive {
 		if gc.Debug['P'] != 0 {
 			fmt.Printf("act set; return 1\n")
@@ -529,6 +513,8 @@ func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) bool {
 	if gc.Debug['P'] != 0 {
 		fmt.Printf("copy1 replace %v with %v f=%d\n", gc.Ctxt.Dconv(v2), gc.Ctxt.Dconv(v1), f)
 	}
+	var t int
+	var p *obj.Prog
 	for ; r != nil; r = r.S1 {
 		p = r.Prog
 		if gc.Debug['P'] != 0 {

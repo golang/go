@@ -180,9 +180,6 @@ void proginfo(ProgInfo*, Prog*);
 var noreturn_symlist [10]*Sym
 
 func Noreturn(p *obj.Prog) bool {
-	var s *Sym
-	var i int
-
 	if noreturn_symlist[0] == nil {
 		noreturn_symlist[0] = Pkglookup("panicindex", Runtimepkg)
 		noreturn_symlist[1] = Pkglookup("panicslice", Runtimepkg)
@@ -197,11 +194,11 @@ func Noreturn(p *obj.Prog) bool {
 	if p.To.Node == nil {
 		return false
 	}
-	s = ((p.To.Node).(*Node)).Sym
+	s := ((p.To.Node).(*Node)).Sym
 	if s == nil {
 		return false
 	}
-	for i = 0; noreturn_symlist[i] != nil; i++ {
+	for i := 0; noreturn_symlist[i] != nil; i++ {
 		if s == noreturn_symlist[i] {
 			return true
 		}
@@ -219,9 +216,7 @@ func Noreturn(p *obj.Prog) bool {
 
 /* what instruction does a JMP to p eventually land on? */
 func chasejmp(p *obj.Prog, jmploop *int) *obj.Prog {
-	var n int
-
-	n = 0
+	n := 0
 	for p != nil && p.As == obj.AJMP && p.To.Type == obj.TYPE_BRANCH {
 		n++
 		if n > 10 {
@@ -244,9 +239,7 @@ var dead interface{} = 1
 
 /* mark all code reachable from firstp as alive */
 func mark(firstp *obj.Prog) {
-	var p *obj.Prog
-
-	for p = firstp; p != nil; p = p.Link {
+	for p := firstp; p != nil; p = p.Link {
 		if p.Opt != dead {
 			break
 		}
@@ -261,18 +254,14 @@ func mark(firstp *obj.Prog) {
 }
 
 func fixjmp(firstp *obj.Prog) {
-	var jmploop int
-	var p *obj.Prog
-	var last *obj.Prog
-
 	if Debug['R'] != 0 && Debug['v'] != 0 {
 		fmt.Printf("\nfixjmp\n")
 	}
 
 	// pass 1: resolve jump to jump, mark all code as dead.
-	jmploop = 0
+	jmploop := 0
 
-	for p = firstp; p != nil; p = p.Link {
+	for p := firstp; p != nil; p = p.Link {
 		if Debug['R'] != 0 && Debug['v'] != 0 {
 			fmt.Printf("%v\n", p)
 		}
@@ -294,9 +283,9 @@ func fixjmp(firstp *obj.Prog) {
 	mark(firstp)
 
 	// pass 3: delete dead code (mostly JMPs).
-	last = nil
+	last := (*obj.Prog)(nil)
 
-	for p = firstp; p != nil; p = p.Link {
+	for p := firstp; p != nil; p = p.Link {
 		if p.Opt == dead {
 			if p.Link == nil && p.As == obj.ARET && last != nil && last.As != obj.ARET {
 				// This is the final ARET, and the code so far doesn't have one.
@@ -326,8 +315,8 @@ func fixjmp(firstp *obj.Prog) {
 	// pass 4: elide JMP to next instruction.
 	// only safe if there are no jumps to JMPs anymore.
 	if jmploop == 0 {
-		last = nil
-		for p = firstp; p != nil; p = p.Link {
+		last := (*obj.Prog)(nil)
+		for p := firstp; p != nil; p = p.Link {
 			if p.As == obj.AJMP && p.To.Type == obj.TYPE_BRANCH && p.To.U.Branch == p.Link {
 				if Debug['R'] != 0 && Debug['v'] != 0 {
 					fmt.Printf("del %v\n", p)
@@ -346,7 +335,7 @@ func fixjmp(firstp *obj.Prog) {
 
 	if Debug['R'] != 0 && Debug['v'] != 0 {
 		fmt.Printf("\n")
-		for p = firstp; p != nil; p = p.Link {
+		for p := firstp; p != nil; p = p.Link {
 			fmt.Printf("%v\n", p)
 		}
 		fmt.Printf("\n")
@@ -374,20 +363,12 @@ func fixjmp(firstp *obj.Prog) {
 // If size == 0, f->data will be nil.
 
 func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
-	var id int
-	var nf int
-	var f *Flow
-	var f1 *Flow
-	var start *Flow
-	var last *Flow
-	var graph *Graph
-	var p *obj.Prog
 	var info ProgInfo
 
 	// Count and mark instructions to annotate.
-	nf = 0
+	nf := 0
 
-	for p = firstp; p != nil; p = p.Link {
+	for p := firstp; p != nil; p = p.Link {
 		p.Opt = nil // should be already, but just in case
 		Thearch.Proginfo(&info, p)
 		if info.Flags&Skip != 0 {
@@ -407,11 +388,12 @@ func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
 	}
 
 	// Allocate annotations and assign to instructions.
-	graph = new(Graph)
+	graph := new(Graph)
 	ff := make([]Flow, nf)
-	start = &ff[0]
-	id = 0
-	for p = firstp; p != nil; p = p.Link {
+	start := &ff[0]
+	id := 0
+	var last *Flow
+	for p := firstp; p != nil; p = p.Link {
 		if p.Opt == nil {
 			continue
 		}
@@ -431,7 +413,9 @@ func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
 	}
 
 	// Fill in pred/succ information.
-	for f = start; f != nil; f = f.Link {
+	var f1 *Flow
+	var p *obj.Prog
+	for f := start; f != nil; f = f.Link {
 		p = f.Prog
 		Thearch.Proginfo(&info, p)
 		if info.Flags&Break == 0 {
@@ -465,9 +449,7 @@ func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
 }
 
 func Flowend(graph *Graph) {
-	var f *Flow
-
-	for f = graph.Start; f != nil; f = f.Link {
+	for f := graph.Start; f != nil; f = f.Link {
 		f.Prog.Opt = nil
 	}
 }
@@ -488,10 +470,8 @@ func Flowend(graph *Graph) {
  *	recursively, all preds with a greater rpo number are in the loop
  */
 func postorder(r *Flow, rpo2r []*Flow, n int32) int32 {
-	var r1 *Flow
-
 	r.Rpo = 1
-	r1 = r.S1
+	r1 := r.S1
 	if r1 != nil && r1.Rpo == 0 {
 		n = postorder(r1, rpo2r, n)
 	}
@@ -505,11 +485,10 @@ func postorder(r *Flow, rpo2r []*Flow, n int32) int32 {
 }
 
 func rpolca(idom []int32, rpo1 int32, rpo2 int32) int32 {
-	var t int32
-
 	if rpo1 == -1 {
 		return rpo2
 	}
+	var t int32
 	for rpo1 != rpo2 {
 		if rpo1 > rpo2 {
 			t = rpo2
@@ -537,9 +516,7 @@ func doms(idom []int32, r int32, s int32) bool {
 }
 
 func loophead(idom []int32, r *Flow) bool {
-	var src int32
-
-	src = r.Rpo
+	src := r.Rpo
 	if r.P1 != nil && doms(idom, src, r.P1.Rpo) {
 		return true
 	}
@@ -566,40 +543,34 @@ func loopmark(rpo2r **Flow, head int32, r *Flow) {
 }
 
 func flowrpo(g *Graph) {
-	var r1 *Flow
-	var i int32
-	var d int32
-	var me int32
-	var nr int32
-	var idom []int32
-	var rpo2r []*Flow
-
 	g.Rpo = make([]*Flow, g.Num)
-	idom = make([]int32, g.Num)
+	idom := make([]int32, g.Num)
 
-	for r1 = g.Start; r1 != nil; r1 = r1.Link {
+	for r1 := g.Start; r1 != nil; r1 = r1.Link {
 		r1.Active = 0
 	}
 
-	rpo2r = g.Rpo
-	d = postorder(g.Start, rpo2r, 0)
-	nr = int32(g.Num)
+	rpo2r := g.Rpo
+	d := postorder(g.Start, rpo2r, 0)
+	nr := int32(g.Num)
 	if d > nr {
 		Fatal("too many reg nodes %d %d", d, nr)
 	}
 	nr = d
-	for i = 0; i < nr/2; i++ {
+	var r1 *Flow
+	for i := int32(0); i < nr/2; i++ {
 		r1 = rpo2r[i]
 		rpo2r[i] = rpo2r[nr-1-i]
 		rpo2r[nr-1-i] = r1
 	}
 
-	for i = 0; i < nr; i++ {
+	for i := int32(0); i < nr; i++ {
 		rpo2r[i].Rpo = i
 	}
 
 	idom[0] = 0
-	for i = 0; i < nr; i++ {
+	var me int32
+	for i := int32(0); i < nr; i++ {
 		r1 = rpo2r[i]
 		me = r1.Rpo
 		d = -1
@@ -617,7 +588,7 @@ func flowrpo(g *Graph) {
 		idom[i] = d
 	}
 
-	for i = 0; i < nr; i++ {
+	for i := int32(0); i < nr; i++ {
 		r1 = rpo2r[i]
 		r1.Loop++
 		if r1.P2 != nil && loophead(idom, r1) {
@@ -625,15 +596,13 @@ func flowrpo(g *Graph) {
 		}
 	}
 
-	for r1 = g.Start; r1 != nil; r1 = r1.Link {
+	for r1 := g.Start; r1 != nil; r1 = r1.Link {
 		r1.Active = 0
 	}
 }
 
 func Uniqp(r *Flow) *Flow {
-	var r1 *Flow
-
-	r1 = r.P1
+	r1 := r.P1
 	if r1 == nil {
 		r1 = r.P2
 		if r1 == nil || r1.P2link != nil {
@@ -646,9 +615,7 @@ func Uniqp(r *Flow) *Flow {
 }
 
 func Uniqs(r *Flow) *Flow {
-	var r1 *Flow
-
-	r1 = r.S1
+	r1 := r.S1
 	if r1 == nil {
 		r1 = r.S2
 		if r1 == nil {
@@ -691,11 +658,8 @@ func (x startcmp) Swap(i, j int) {
 }
 
 func (x startcmp) Less(i, j int) bool {
-	var a *TempVar
-	var b *TempVar
-
-	a = x[i]
-	b = x[j]
+	a := x[i]
+	b := x[j]
 
 	if a.start < b.start {
 		return true
@@ -723,48 +687,28 @@ func canmerge(n *Node) bool {
 }
 
 func mergetemp(firstp *obj.Prog) {
-	var i int
-	var j int
-	var nvar int
-	var ninuse int
-	var nfree int
-	var nkill int
-	var var_ []TempVar
-	var v *TempVar
-	var v1 *TempVar
-	var bystart []*TempVar
-	var inuse []*TempVar
-	var f *Flow
-	var l *NodeList
-	var lp **NodeList
-	var n *Node
-	var p *obj.Prog
-	var p1 *obj.Prog
-	var t *Type
-	var info ProgInfo
-	var info1 ProgInfo
-	var gen int32
-	var g *Graph
 	const (
 		debugmerge = 1
 	)
 
-	g = Flowstart(firstp, nil)
+	g := Flowstart(firstp, nil)
 	if g == nil {
 		return
 	}
 
 	// Build list of all mergeable variables.
-	nvar = 0
-	for l = Curfn.Dcl; l != nil; l = l.Next {
+	nvar := 0
+	for l := Curfn.Dcl; l != nil; l = l.Next {
 		if canmerge(l.N) {
 			nvar++
 		}
 	}
 
-	var_ = make([]TempVar, nvar)
+	var_ := make([]TempVar, nvar)
 	nvar = 0
-	for l = Curfn.Dcl; l != nil; l = l.Next {
+	var n *Node
+	var v *TempVar
+	for l := Curfn.Dcl; l != nil; l = l.Next {
 		n = l.N
 		if canmerge(n) {
 			v = &var_[nvar]
@@ -778,7 +722,9 @@ func mergetemp(firstp *obj.Prog) {
 	// We assume that the earliest reference to a temporary is its definition.
 	// This is not true of variables in general but our temporaries are all
 	// single-use (that's why we have so many!).
-	for f = g.Start; f != nil; f = f.Link {
+	var p *obj.Prog
+	var info ProgInfo
+	for f := g.Start; f != nil; f = f.Link {
 		p = f.Prog
 		Thearch.Proginfo(&info, p)
 
@@ -812,10 +758,13 @@ func mergetemp(firstp *obj.Prog) {
 		Dumpit("before", g.Start, 0)
 	}
 
-	nkill = 0
+	nkill := 0
 
 	// Special case.
-	for i = 0; i < len(var_); i++ {
+	var p1 *obj.Prog
+	var info1 ProgInfo
+	var f *Flow
+	for i := 0; i < len(var_); i++ {
 		v = &var_[i]
 		if v.addr != 0 {
 			continue
@@ -868,9 +817,9 @@ func mergetemp(firstp *obj.Prog) {
 	// Traverse live range of each variable to set start, end.
 	// Each flood uses a new value of gen so that we don't have
 	// to clear all the r->active words after each variable.
-	gen = 0
+	gen := int32(0)
 
-	for i = 0; i < len(var_); i++ {
+	for i := 0; i < len(var_); i++ {
 		v = &var_[i]
 		gen++
 		for f = v.use; f != nil; f = f.Data.(*Flow) {
@@ -885,9 +834,9 @@ func mergetemp(firstp *obj.Prog) {
 	}
 
 	// Sort variables by start.
-	bystart = make([]*TempVar, len(var_))
+	bystart := make([]*TempVar, len(var_))
 
-	for i = 0; i < len(var_); i++ {
+	for i := 0; i < len(var_); i++ {
 		bystart[i] = &var_[i]
 	}
 	sort.Sort(startcmp(bystart[:len(var_)]))
@@ -898,11 +847,14 @@ func mergetemp(firstp *obj.Prog) {
 	// In theory we should use a sorted tree so that insertions are
 	// guaranteed O(log n) and then the loop is guaranteed O(n log n).
 	// In practice, it doesn't really matter.
-	inuse = make([]*TempVar, len(var_))
+	inuse := make([]*TempVar, len(var_))
 
-	ninuse = 0
-	nfree = len(var_)
-	for i = 0; i < len(var_); i++ {
+	ninuse := 0
+	nfree := len(var_)
+	var t *Type
+	var v1 *TempVar
+	var j int
+	for i := 0; i < len(var_); i++ {
 		v = bystart[i]
 		if debugmerge > 0 && Debug['v'] != 0 {
 			fmt.Printf("consider %v: removed=%d\n", Nconv(v.node, obj.FmtSharp), v.removed)
@@ -965,7 +917,8 @@ func mergetemp(firstp *obj.Prog) {
 
 	if debugmerge > 0 && Debug['v'] != 0 {
 		fmt.Printf("%v [%d - %d]\n", Sconv(Curfn.Nname.Sym, 0), len(var_), nkill)
-		for i = 0; i < len(var_); i++ {
+		var v *TempVar
+		for i := 0; i < len(var_); i++ {
 			v = &var_[i]
 			fmt.Printf("var %v %v %d-%d", Nconv(v.node, obj.FmtSharp), Tconv(v.node.Type, 0), v.start, v.end)
 			if v.addr != 0 {
@@ -989,7 +942,7 @@ func mergetemp(firstp *obj.Prog) {
 	}
 
 	// Update node references to use merged temporaries.
-	for f = g.Start; f != nil; f = f.Link {
+	for f := g.Start; f != nil; f = f.Link {
 		p = f.Prog
 		n, _ = p.From.Node.(*Node)
 		if n != nil {
@@ -1008,7 +961,8 @@ func mergetemp(firstp *obj.Prog) {
 	}
 
 	// Delete merged nodes from declaration list.
-	for lp = &Curfn.Dcl; ; {
+	var l *NodeList
+	for lp := &Curfn.Dcl; ; {
 		l = *lp
 		if l == nil {
 			break
@@ -1026,7 +980,7 @@ func mergetemp(firstp *obj.Prog) {
 	}
 
 	// Clear aux structures.
-	for i = 0; i < len(var_); i++ {
+	for i := 0; i < len(var_); i++ {
 		var_[i].node.Opt = nil
 	}
 
@@ -1036,8 +990,6 @@ func mergetemp(firstp *obj.Prog) {
 func mergewalk(v *TempVar, f0 *Flow, gen uint32) {
 	var p *obj.Prog
 	var f1 *Flow
-	var f *Flow
-	var f2 *Flow
 
 	for f1 = f0; f1 != nil; f1 = f1.P1 {
 		if uint32(f1.Active) == gen {
@@ -1054,7 +1006,8 @@ func mergewalk(v *TempVar, f0 *Flow, gen uint32) {
 		}
 	}
 
-	for f = f0; f != f1; f = f.P1 {
+	var f2 *Flow
+	for f := f0; f != f1; f = f.P1 {
 		for f2 = f.P2; f2 != nil; f2 = f2.P2link {
 			mergewalk(v, f2, gen)
 		}
@@ -1064,7 +1017,6 @@ func mergewalk(v *TempVar, f0 *Flow, gen uint32) {
 func varkillwalk(v *TempVar, f0 *Flow, gen uint32) {
 	var p *obj.Prog
 	var f1 *Flow
-	var f *Flow
 
 	for f1 = f0; f1 != nil; f1 = f1.S1 {
 		if uint32(f1.Active) == gen {
@@ -1083,7 +1035,7 @@ func varkillwalk(v *TempVar, f0 *Flow, gen uint32) {
 		}
 	}
 
-	for f = f0; f != f1; f = f.S1 {
+	for f := f0; f != f1; f = f.S1 {
 		varkillwalk(v, f.S2, gen)
 	}
 }
@@ -1107,13 +1059,7 @@ type NilVar struct {
 var killed int // f->data is either nil or &killed
 
 func nilopt(firstp *obj.Prog) {
-	var f *Flow
-	var p *obj.Prog
-	var g *Graph
-	var ncheck int
-	var nkill int
-
-	g = Flowstart(firstp, nil)
+	g := Flowstart(firstp, nil)
 	if g == nil {
 		return
 	}
@@ -1122,9 +1068,10 @@ func nilopt(firstp *obj.Prog) {
 		Dumpit("nilopt", g.Start, 0)
 	}
 
-	ncheck = 0
-	nkill = 0
-	for f = g.Start; f != nil; f = f.Link {
+	ncheck := 0
+	nkill := 0
+	var p *obj.Prog
+	for f := g.Start; f != nil; f = f.Link {
 		p = f.Prog
 		if p.As != obj.ACHECKNIL || !Thearch.Regtyp(&p.From) {
 			continue
@@ -1155,7 +1102,7 @@ func nilopt(firstp *obj.Prog) {
 		}
 	}
 
-	for f = g.Start; f != nil; f = f.Link {
+	for f := g.Start; f != nil; f = f.Link {
 		if f.Data != nil {
 			nkill++
 			Thearch.Excise(f)
@@ -1172,9 +1119,8 @@ func nilopt(firstp *obj.Prog) {
 func nilwalkback(fcheck *Flow) {
 	var p *obj.Prog
 	var info ProgInfo
-	var f *Flow
 
-	for f = fcheck; f != nil; f = Uniqp(f) {
+	for f := fcheck; f != nil; f = Uniqp(f) {
 		p = f.Prog
 		Thearch.Proginfo(&info, p)
 		if (info.Flags&RightWrite != 0) && Thearch.Sameaddr(&p.To, &fcheck.Prog.From) {
@@ -1231,8 +1177,6 @@ for(f = f0; f != f1; f = f->p1)
 		nilwalkback(fcheck, f2, gen);
 */
 func nilwalkfwd(fcheck *Flow) {
-	var f *Flow
-	var last *Flow
 	var p *obj.Prog
 	var info ProgInfo
 
@@ -1243,9 +1187,9 @@ func nilwalkfwd(fcheck *Flow) {
 	// avoid problems like:
 	//	_ = *x // should panic
 	//	for {} // no writes but infinite loop may be considered visible
-	last = nil
+	last := (*Flow)(nil)
 
-	for f = Uniqs(fcheck); f != nil; f = Uniqs(f) {
+	for f := Uniqs(fcheck); f != nil; f = Uniqs(f) {
 		p = f.Prog
 		Thearch.Proginfo(&info, p)
 

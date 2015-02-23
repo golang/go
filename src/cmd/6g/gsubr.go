@@ -53,19 +53,17 @@ var resvd = []int{
 }
 
 func ginit() {
-	var i int
-
-	for i = 0; i < len(reg); i++ {
+	for i := 0; i < len(reg); i++ {
 		reg[i] = 1
 	}
-	for i = x86.REG_AX; i <= x86.REG_R15; i++ {
+	for i := x86.REG_AX; i <= x86.REG_R15; i++ {
 		reg[i] = 0
 	}
-	for i = x86.REG_X0; i <= x86.REG_X15; i++ {
+	for i := x86.REG_X0; i <= x86.REG_X15; i++ {
 		reg[i] = 0
 	}
 
-	for i = 0; i < len(resvd); i++ {
+	for i := 0; i < len(resvd); i++ {
 		reg[resvd[i]]++
 	}
 
@@ -79,9 +77,7 @@ func ginit() {
 }
 
 func gclean() {
-	var i int
-
-	for i = 0; i < len(resvd); i++ {
+	for i := 0; i < len(resvd); i++ {
 		reg[resvd[i]]--
 	}
 	if gc.Nacl {
@@ -91,12 +87,12 @@ func gclean() {
 		reg[x86.REG_BP]--
 	}
 
-	for i = x86.REG_AX; i <= x86.REG_R15; i++ {
+	for i := x86.REG_AX; i <= x86.REG_R15; i++ {
 		if reg[i] != 0 {
 			gc.Yyerror("reg %v left allocated\n", gc.Ctxt.Rconv(i))
 		}
 	}
-	for i = x86.REG_X0; i <= x86.REG_X15; i++ {
+	for i := x86.REG_X0; i <= x86.REG_X15; i++ {
 		if reg[i] != 0 {
 			gc.Yyerror("reg %v left allocated\n", gc.Ctxt.Rconv(i))
 		}
@@ -104,10 +100,9 @@ func gclean() {
 }
 
 func anyregalloc() bool {
-	var i int
 	var j int
 
-	for i = x86.REG_AX; i <= x86.REG_R15; i++ {
+	for i := x86.REG_AX; i <= x86.REG_R15; i++ {
 		if reg[i] == 0 {
 			goto ok
 		}
@@ -131,14 +126,12 @@ var regpc [x86.REG_R15 + 1 - x86.REG_AX]uint32
  * caller must regfree(n).
  */
 func regalloc(n *gc.Node, t *gc.Type, o *gc.Node) {
-	var i int
-	var et int
-
 	if t == nil {
 		gc.Fatal("regalloc: t nil")
 	}
-	et = int(gc.Simtype[t.Etype])
+	et := int(gc.Simtype[t.Etype])
 
+	var i int
 	switch et {
 	case gc.TINT8,
 		gc.TUINT8,
@@ -166,7 +159,7 @@ func regalloc(n *gc.Node, t *gc.Type, o *gc.Node) {
 		}
 
 		gc.Flusherrors()
-		for i = 0; i+x86.REG_AX <= x86.REG_R15; i++ {
+		for i := 0; i+x86.REG_AX <= x86.REG_R15; i++ {
 			fmt.Printf("%d %p\n", i, regpc[i])
 		}
 		gc.Fatal("out of fixed registers")
@@ -202,15 +195,13 @@ out:
 }
 
 func regfree(n *gc.Node) {
-	var i int
-
 	if n.Op == gc.ONAME {
 		return
 	}
 	if n.Op != gc.OREGISTER && n.Op != gc.OINDREG {
 		gc.Fatal("regfree: not a register")
 	}
-	i = int(n.Val.U.Reg)
+	i := int(n.Val.U.Reg)
 	if i == x86.REG_SP {
 		return
 	}
@@ -252,7 +243,6 @@ func gconreg(as int, c int64, reg int) {
  */
 func ginscon(as int, c int64, n2 *gc.Node) {
 	var n1 gc.Node
-	var ntmp gc.Node
 
 	switch as {
 	case x86.AADDL,
@@ -267,6 +257,7 @@ func ginscon(as int, c int64, n2 *gc.Node) {
 	if as != x86.AMOVQ && (c < -(1<<31) || c >= 1<<31) {
 		// cannot have 64-bit immediate in ADD, etc.
 		// instead, MOV into register first.
+		var ntmp gc.Node
 		regalloc(&ntmp, gc.Types[gc.TINT64], nil)
 
 		gins(x86.AMOVQ, &n1, &ntmp)
@@ -309,27 +300,13 @@ func bignodes() {
  * hard part is conversions.
  */
 func gmove(f *gc.Node, t *gc.Node) {
-	var a int
-	var ft int
-	var tt int
-	var cvt *gc.Type
-	var r1 gc.Node
-	var r2 gc.Node
-	var r3 gc.Node
-	var r4 gc.Node
-	var zero gc.Node
-	var one gc.Node
-	var con gc.Node
-	var p1 *obj.Prog
-	var p2 *obj.Prog
-
 	if gc.Debug['M'] != 0 {
 		fmt.Printf("gmove %v -> %v\n", gc.Nconv(f, obj.FmtLong), gc.Nconv(t, obj.FmtLong))
 	}
 
-	ft = gc.Simsimtype(f.Type)
-	tt = gc.Simsimtype(t.Type)
-	cvt = t.Type
+	ft := gc.Simsimtype(f.Type)
+	tt := gc.Simsimtype(t.Type)
+	cvt := t.Type
 
 	if gc.Iscomplex[ft] != 0 || gc.Iscomplex[tt] != 0 {
 		gc.Complexmove(f, t)
@@ -337,12 +314,15 @@ func gmove(f *gc.Node, t *gc.Node) {
 	}
 
 	// cannot have two memory operands
+	var r1 gc.Node
+	var a int
 	if gc.Ismem(f) && gc.Ismem(t) {
 		goto hard
 	}
 
 	// convert constant to desired type
 	if f.Op == gc.OLITERAL {
+		var con gc.Node
 		gc.Convconst(&con, t.Type, &f.Val)
 		f = &con
 		ft = tt // so big switch will choose a simple mov
@@ -550,21 +530,25 @@ func gmove(f *gc.Node, t *gc.Node) {
 	//	otherwise, subtract 2^63, convert, and add it back.
 	case gc.TFLOAT32<<16 | gc.TUINT64,
 		gc.TFLOAT64<<16 | gc.TUINT64:
-		a = x86.ACVTTSS2SQ
+		a := x86.ACVTTSS2SQ
 
 		if ft == gc.TFLOAT64 {
 			a = x86.ACVTTSD2SQ
 		}
 		bignodes()
+		var r1 gc.Node
 		regalloc(&r1, gc.Types[ft], nil)
+		var r2 gc.Node
 		regalloc(&r2, gc.Types[tt], t)
+		var r3 gc.Node
 		regalloc(&r3, gc.Types[ft], nil)
+		var r4 gc.Node
 		regalloc(&r4, gc.Types[tt], nil)
 		gins(optoas(gc.OAS, f.Type), f, &r1)
 		gins(optoas(gc.OCMP, f.Type), &bigf, &r1)
-		p1 = gc.Gbranch(optoas(gc.OLE, f.Type), nil, +1)
+		p1 := gc.Gbranch(optoas(gc.OLE, f.Type), nil, +1)
 		gins(a, &r1, &r2)
-		p2 = gc.Gbranch(obj.AJMP, nil, 0)
+		p2 := gc.Gbranch(obj.AJMP, nil, 0)
 		gc.Patch(p1, gc.Pc)
 		gins(optoas(gc.OAS, f.Type), &bigf, &r3)
 		gins(optoas(gc.OSUB, f.Type), &r3, &r1)
@@ -624,22 +608,28 @@ func gmove(f *gc.Node, t *gc.Node) {
 	//	otherwise, halve (rounding to odd?), convert, and double.
 	case gc.TUINT64<<16 | gc.TFLOAT32,
 		gc.TUINT64<<16 | gc.TFLOAT64:
-		a = x86.ACVTSQ2SS
+		a := x86.ACVTSQ2SS
 
 		if tt == gc.TFLOAT64 {
 			a = x86.ACVTSQ2SD
 		}
+		var zero gc.Node
 		gc.Nodconst(&zero, gc.Types[gc.TUINT64], 0)
+		var one gc.Node
 		gc.Nodconst(&one, gc.Types[gc.TUINT64], 1)
+		var r1 gc.Node
 		regalloc(&r1, f.Type, f)
+		var r2 gc.Node
 		regalloc(&r2, t.Type, t)
+		var r3 gc.Node
 		regalloc(&r3, f.Type, nil)
+		var r4 gc.Node
 		regalloc(&r4, f.Type, nil)
 		gmove(f, &r1)
 		gins(x86.ACMPQ, &r1, &zero)
-		p1 = gc.Gbranch(x86.AJLT, nil, +1)
+		p1 := gc.Gbranch(x86.AJLT, nil, +1)
 		gins(a, &r1, &r2)
-		p2 = gc.Gbranch(obj.AJMP, nil, 0)
+		p2 := gc.Gbranch(obj.AJMP, nil, 0)
 		gc.Patch(p1, gc.Pc)
 		gmove(&r1, &r3)
 		gins(x86.ASHRQ, &one, &r3)
@@ -717,12 +707,7 @@ func samaddr(f *gc.Node, t *gc.Node) bool {
  *	as f, t
  */
 func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
-	var w int32
-	var p *obj.Prog
 	//	Node nod;
-
-	var af obj.Addr
-	var at obj.Addr
 
 	//	if(f != N && f->op == OINDEX) {
 	//		regalloc(&nod, &regnode, Z);
@@ -758,15 +743,15 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 		}
 	}
 
-	af = obj.Addr{}
-	at = obj.Addr{}
+	af := obj.Addr{}
+	at := obj.Addr{}
 	if f != nil {
 		gc.Naddr(f, &af, 1)
 	}
 	if t != nil {
 		gc.Naddr(t, &at, 1)
 	}
-	p = gc.Prog(as)
+	p := gc.Prog(as)
 	if f != nil {
 		p.From = af
 	}
@@ -777,7 +762,7 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 		fmt.Printf("%v\n", p)
 	}
 
-	w = 0
+	w := int32(0)
 	switch as {
 	case x86.AMOVB:
 		w = 1
@@ -806,8 +791,6 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 }
 
 func fixlargeoffset(n *gc.Node) {
-	var a gc.Node
-
 	if n == nil {
 		return
 	}
@@ -819,7 +802,7 @@ func fixlargeoffset(n *gc.Node) {
 	}
 	if n.Xoffset != int64(int32(n.Xoffset)) {
 		// offset too large, add to register instead.
-		a = *n
+		a := *n
 
 		a.Op = gc.OREGISTER
 		a.Type = gc.Types[gc.Tptr]
@@ -834,13 +817,11 @@ func fixlargeoffset(n *gc.Node) {
  * return Axxx for Oxxx on type t.
  */
 func optoas(op int, t *gc.Type) int {
-	var a int
-
 	if t == nil {
 		gc.Fatal("optoas: t is nil")
 	}
 
-	a = obj.AXXX
+	a := obj.AXXX
 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
 	default:
 		gc.Fatal("optoas: no entry %v-%v", gc.Oconv(int(op), 0), gc.Tconv(t, 0))
@@ -1362,35 +1343,24 @@ func sudoclean() {
  * to release the register used for a.
  */
 func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
-	var o int
-	var i int
-	var oary [10]int64
-	var v int64
-	var w int64
-	var n1 gc.Node
-	var n2 gc.Node
-	var n3 gc.Node
-	var n4 gc.Node
-	var nn *gc.Node
-	var l *gc.Node
-	var r *gc.Node
-	var reg *gc.Node
-	var reg1 *gc.Node
-	var p1 *obj.Prog
-	var t *gc.Type
-
 	if n.Type == nil {
 		return false
 	}
 
 	*a = obj.Addr{}
 
+	var o int
+	var n1 gc.Node
+	var oary [10]int64
+	var nn *gc.Node
+	var reg *gc.Node
+	var reg1 *gc.Node
 	switch n.Op {
 	case gc.OLITERAL:
 		if !gc.Isconst(n, gc.CTINT) {
 			break
 		}
-		v = gc.Mpgetfix(n.Val.U.Xval)
+		v := gc.Mpgetfix(n.Val.U.Xval)
 		if v >= 32000 || v <= -32000 {
 			break
 		}
@@ -1400,20 +1370,13 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
 		gc.ODOTPTR:
 		cleani += 2
 		reg = &clean[cleani-1]
-		reg1 = &clean[cleani-2]
+		reg1 := &clean[cleani-2]
 		reg.Op = gc.OEMPTY
 		reg1.Op = gc.OEMPTY
 		goto odot
 
 	case gc.OINDEX:
 		return false
-
-		// disabled: OINDEX case is now covered by agenr
-		// for a more suitable register allocation pattern.
-		if n.Left.Type.Etype == gc.TSTRING {
-			return false
-		}
-		goto oindex
 	}
 
 	return false
@@ -1474,7 +1437,7 @@ odot:
 
 	if nn.Addable != 0 && o == 1 && oary[0] >= 0 {
 		// directly addressable set of DOTs
-		n1 = *nn
+		n1 := *nn
 
 		n1.Type = n.Type
 		n1.Xoffset += oary[0]
@@ -1494,7 +1457,7 @@ odot:
 		n1.Xoffset = -(oary[0] + 1)
 	}
 
-	for i = 1; i < o; i++ {
+	for i := 1; i < o; i++ {
 		if oary[i] >= 0 {
 			gc.Fatal("can't happen")
 		}
@@ -1507,240 +1470,6 @@ odot:
 	a.Index = obj.TYPE_NONE
 	fixlargeoffset(&n1)
 	gc.Naddr(&n1, a, 1)
-	goto yes
-
-oindex:
-	l = n.Left
-	r = n.Right
-	if l.Ullman >= gc.UINF && r.Ullman >= gc.UINF {
-		return false
-	}
-
-	// set o to type of array
-	o = 0
-
-	if gc.Isptr[l.Type.Etype] != 0 {
-		gc.Fatal("ptr ary")
-	}
-	if l.Type.Etype != gc.TARRAY {
-		gc.Fatal("not ary")
-	}
-	if l.Type.Bound < 0 {
-		o |= ODynam
-	}
-
-	w = n.Type.Width
-	if gc.Isconst(r, gc.CTINT) {
-		goto oindex_const
-	}
-
-	switch w {
-	default:
-		return false
-
-	case 1,
-		2,
-		4,
-		8:
-		break
-	}
-
-	cleani += 2
-	reg = &clean[cleani-1]
-	reg1 = &clean[cleani-2]
-	reg.Op = gc.OEMPTY
-	reg1.Op = gc.OEMPTY
-
-	// load the array (reg)
-	if l.Ullman > r.Ullman {
-		if xgen(l, reg, o) {
-			o |= OAddable
-		}
-	}
-
-	// load the index (reg1)
-	t = gc.Types[gc.TUINT64]
-
-	if gc.Issigned[r.Type.Etype] != 0 {
-		t = gc.Types[gc.TINT64]
-	}
-	regalloc(reg1, t, nil)
-	regalloc(&n3, r.Type, reg1)
-	cgen(r, &n3)
-	gmove(&n3, reg1)
-	regfree(&n3)
-
-	// load the array (reg)
-	if l.Ullman <= r.Ullman {
-		if xgen(l, reg, o) {
-			o |= OAddable
-		}
-	}
-
-	// check bounds
-	if gc.Debug['B'] == 0 && !n.Bounded {
-		// check bounds
-		n4.Op = gc.OXXX
-
-		t = gc.Types[gc.Simtype[gc.TUINT]]
-		if o&ODynam != 0 {
-			if o&OAddable != 0 {
-				n2 = *l
-				n2.Xoffset += int64(gc.Array_nel)
-				n2.Type = gc.Types[gc.Simtype[gc.TUINT]]
-			} else {
-				n2 = *reg
-				n2.Xoffset = int64(gc.Array_nel)
-				n2.Op = gc.OINDREG
-				n2.Type = gc.Types[gc.Simtype[gc.TUINT]]
-			}
-		} else {
-			if gc.Is64(r.Type) {
-				t = gc.Types[gc.TUINT64]
-			}
-			gc.Nodconst(&n2, gc.Types[gc.TUINT64], l.Type.Bound)
-		}
-
-		gins(optoas(gc.OCMP, t), reg1, &n2)
-		p1 = gc.Gbranch(optoas(gc.OLT, t), nil, +1)
-		if n4.Op != gc.OXXX {
-			regfree(&n4)
-		}
-		ginscall(gc.Panicindex, -1)
-		gc.Patch(p1, gc.Pc)
-	}
-
-	if o&ODynam != 0 {
-		if o&OAddable != 0 {
-			n2 = *l
-			n2.Xoffset += int64(gc.Array_array)
-			n2.Type = gc.Types[gc.Tptr]
-			gmove(&n2, reg)
-		} else {
-			n2 = *reg
-			n2.Op = gc.OINDREG
-			n2.Xoffset = int64(gc.Array_array)
-			n2.Type = gc.Types[gc.Tptr]
-			gmove(&n2, reg)
-		}
-	}
-
-	if o&OAddable != 0 {
-		gc.Naddr(reg1, a, 1)
-		a.Offset = 0
-		a.Scale = int8(w)
-		a.Index = a.Reg
-		a.Type = obj.TYPE_MEM
-		a.Reg = reg.Val.U.Reg
-	} else {
-		gc.Naddr(reg1, a, 1)
-		a.Offset = 0
-		a.Scale = int8(w)
-		a.Index = a.Reg
-		a.Type = obj.TYPE_MEM
-		a.Reg = reg.Val.U.Reg
-	}
-
-	goto yes
-
-	// index is constant
-	// can check statically and
-	// can multiply by width statically
-
-oindex_const:
-	v = gc.Mpgetfix(r.Val.U.Xval)
-
-	if sudoaddable(as, l, a) {
-		goto oindex_const_sudo
-	}
-
-	cleani += 2
-	reg = &clean[cleani-1]
-	reg1 = &clean[cleani-2]
-	reg.Op = gc.OEMPTY
-	reg1.Op = gc.OEMPTY
-
-	if o&ODynam != 0 {
-		regalloc(reg, gc.Types[gc.Tptr], nil)
-		agen(l, reg)
-
-		if gc.Debug['B'] == 0 && !n.Bounded {
-			n1 = *reg
-			n1.Op = gc.OINDREG
-			n1.Type = gc.Types[gc.Tptr]
-			n1.Xoffset = int64(gc.Array_nel)
-			gc.Nodconst(&n2, gc.Types[gc.TUINT64], v)
-			gins(optoas(gc.OCMP, gc.Types[gc.Simtype[gc.TUINT]]), &n1, &n2)
-			p1 = gc.Gbranch(optoas(gc.OGT, gc.Types[gc.Simtype[gc.TUINT]]), nil, +1)
-			ginscall(gc.Panicindex, -1)
-			gc.Patch(p1, gc.Pc)
-		}
-
-		n1 = *reg
-		n1.Op = gc.OINDREG
-		n1.Type = gc.Types[gc.Tptr]
-		n1.Xoffset = int64(gc.Array_array)
-		gmove(&n1, reg)
-
-		n2 = *reg
-		n2.Op = gc.OINDREG
-		n2.Xoffset = v * w
-		fixlargeoffset(&n2)
-		a.Type = obj.TYPE_NONE
-		a.Index = obj.TYPE_NONE
-		gc.Naddr(&n2, a, 1)
-		goto yes
-	}
-
-	igen(l, &n1, nil)
-	if n1.Op == gc.OINDREG {
-		*reg = n1
-		reg.Op = gc.OREGISTER
-	}
-
-	n1.Xoffset += v * w
-	fixlargeoffset(&n1)
-	a.Type = obj.TYPE_NONE
-	a.Index = obj.TYPE_NONE
-	gc.Naddr(&n1, a, 1)
-	goto yes
-
-oindex_const_sudo:
-	if o&ODynam == 0 {
-		// array indexed by a constant
-		a.Offset += v * w
-
-		goto yes
-	}
-
-	// slice indexed by a constant
-	if gc.Debug['B'] == 0 && !n.Bounded {
-		a.Offset += int64(gc.Array_nel)
-		gc.Nodconst(&n2, gc.Types[gc.TUINT64], v)
-		p1 = gins(optoas(gc.OCMP, gc.Types[gc.Simtype[gc.TUINT]]), nil, &n2)
-		p1.From = *a
-		p1 = gc.Gbranch(optoas(gc.OGT, gc.Types[gc.Simtype[gc.TUINT]]), nil, +1)
-		ginscall(gc.Panicindex, -1)
-		gc.Patch(p1, gc.Pc)
-		a.Offset -= int64(gc.Array_nel)
-	}
-
-	a.Offset += int64(gc.Array_array)
-	reg = &clean[cleani-1]
-	if reg.Op == gc.OEMPTY {
-		regalloc(reg, gc.Types[gc.Tptr], nil)
-	}
-
-	p1 = gins(movptr, nil, reg)
-	p1.From = *a
-
-	n2 = *reg
-	n2.Op = gc.OINDREG
-	n2.Xoffset = v * w
-	fixlargeoffset(&n2)
-	a.Type = obj.TYPE_NONE
-	a.Index = obj.TYPE_NONE
-	gc.Naddr(&n2, a, 1)
 	goto yes
 
 yes:

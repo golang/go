@@ -79,13 +79,11 @@ func autoexport(n *Node, ctxt int) {
 }
 
 func dumppkg(p *Pkg) {
-	var suffix string
-
 	if p == nil || p == localpkg || p.Exported != 0 || p == builtinpkg {
 		return
 	}
 	p.Exported = 1
-	suffix = ""
+	suffix := ""
 	if p.Direct == 0 {
 		suffix = " // indirect"
 	}
@@ -100,8 +98,6 @@ func reexportdeplist(ll *NodeList) {
 }
 
 func reexportdep(n *Node) {
-	var t *Type
-
 	if n == nil {
 		return
 	}
@@ -135,7 +131,7 @@ func reexportdep(n *Node) {
 
 		// Local variables in the bodies need their type.
 	case ODCL:
-		t = n.Left.Type
+		t := n.Left.Type
 
 		if t != Types[t.Etype] && t != idealbool && t != idealstring {
 			if Isptr[t.Etype] != 0 {
@@ -150,7 +146,7 @@ func reexportdep(n *Node) {
 		}
 
 	case OLITERAL:
-		t = n.Type
+		t := n.Type
 		if t != Types[n.Type.Etype] && t != idealbool && t != idealstring {
 			if Isptr[t.Etype] != 0 {
 				t = t.Type
@@ -190,7 +186,7 @@ func reexportdep(n *Node) {
 		OMAKEMAP,
 		OMAKESLICE,
 		OMAKECHAN:
-		t = n.Type
+		t := n.Type
 
 		if t.Sym == nil && t.Type != nil {
 			t = t.Type
@@ -215,16 +211,13 @@ func reexportdep(n *Node) {
 }
 
 func dumpexportconst(s *Sym) {
-	var n *Node
-	var t *Type
-
-	n = s.Def
+	n := s.Def
 	typecheck(&n, Erv)
 	if n == nil || n.Op != OLITERAL {
 		Fatal("dumpexportconst: oconst nil: %v", Sconv(s, 0))
 	}
 
-	t = n.Type // may or may not be specified
+	t := n.Type // may or may not be specified
 	dumpexporttype(t)
 
 	if t != nil && !isideal(t) {
@@ -235,17 +228,14 @@ func dumpexportconst(s *Sym) {
 }
 
 func dumpexportvar(s *Sym) {
-	var n *Node
-	var t *Type
-
-	n = s.Def
+	n := s.Def
 	typecheck(&n, Erv|Ecall)
 	if n == nil || n.Type == nil {
 		Yyerror("variable exported but not defined: %v", Sconv(s, 0))
 		return
 	}
 
-	t = n.Type
+	t := n.Type
 	dumpexporttype(t)
 
 	if t.Etype == TFUNC && n.Class == PFUNC {
@@ -279,20 +269,12 @@ func (x methodbyname) Swap(i, j int) {
 }
 
 func (x methodbyname) Less(i, j int) bool {
-	var a *Type
-	var b *Type
-
-	a = x[i]
-	b = x[j]
+	a := x[i]
+	b := x[j]
 	return stringsCompare(a.Sym.Name, b.Sym.Name) < 0
 }
 
 func dumpexporttype(t *Type) {
-	var f *Type
-	var m []*Type
-	var i int
-	var n int
-
 	if t == nil {
 		return
 	}
@@ -312,22 +294,23 @@ func dumpexporttype(t *Type) {
 		return
 	}
 
-	n = 0
-	for f = t.Method; f != nil; f = f.Down {
+	n := 0
+	for f := t.Method; f != nil; f = f.Down {
 		dumpexporttype(f)
 		n++
 	}
 
-	m = make([]*Type, n)
-	i = 0
-	for f = t.Method; f != nil; f = f.Down {
+	m := make([]*Type, n)
+	i := 0
+	for f := t.Method; f != nil; f = f.Down {
 		m[i] = f
 		i++
 	}
 	sort.Sort(methodbyname(m[:n]))
 
 	fmt.Fprintf(bout, "\ttype %v %v\n", Sconv(t.Sym, obj.FmtSharp), Tconv(t, obj.FmtSharp|obj.FmtLong))
-	for i = 0; i < n; i++ {
+	var f *Type
+	for i := 0; i < n; i++ {
 		f = m[i]
 		if f.Nointerface {
 			fmt.Fprintf(bout, "\t//go:nointerface\n")
@@ -381,12 +364,7 @@ func dumpsym(s *Sym) {
 }
 
 func dumpexport() {
-	var l *NodeList
-	var i int32
-	var lno int32
-	var p *Pkg
-
-	lno = lineno
+	lno := lineno
 
 	fmt.Fprintf(bout, "\n$$\npackage %s", localpkg.Name)
 	if safemode != 0 {
@@ -394,7 +372,8 @@ func dumpexport() {
 	}
 	fmt.Fprintf(bout, "\n")
 
-	for i = 0; i < int32(len(phash)); i++ {
+	var p *Pkg
+	for i := int32(0); i < int32(len(phash)); i++ {
 		for p = phash[i]; p != nil; p = p.Link {
 			if p.Direct != 0 {
 				dumppkg(p)
@@ -402,7 +381,7 @@ func dumpexport() {
 		}
 	}
 
-	for l = exportlist; l != nil; l = l.Next {
+	for l := exportlist; l != nil; l = l.Next {
 		lineno = l.N.Lineno
 		dumpsym(l.N.Sym)
 	}
@@ -419,10 +398,8 @@ func dumpexport() {
  * return the sym for ss, which should match lexical
  */
 func importsym(s *Sym, op int) *Sym {
-	var pkgstr string
-
 	if s.Def != nil && int(s.Def.Op) != op {
-		pkgstr = fmt.Sprintf("during import \"%v\"", Zconv(importpkg.Path, 0))
+		pkgstr := fmt.Sprintf("during import \"%v\"", Zconv(importpkg.Path, 0))
 		redeclare(s, pkgstr)
 	}
 
@@ -442,11 +419,9 @@ func importsym(s *Sym, op int) *Sym {
  * return the type pkg.name, forward declaring if needed
  */
 func pkgtype(s *Sym) *Type {
-	var t *Type
-
 	importsym(s, OTYPE)
 	if s.Def == nil || s.Def.Op != OTYPE {
-		t = typ(TFORW)
+		t := typ(TFORW)
 		t.Sym = s
 		s.Def = typenod(t)
 	}
@@ -461,12 +436,11 @@ func importimport(s *Sym, z *Strlit) {
 	// Informational: record package name
 	// associated with import path, for use in
 	// human-readable messages.
-	var p *Pkg
 
 	if isbadimport(z) {
 		errorexit()
 	}
-	p = mkpkg(z)
+	p := mkpkg(z)
 	if p.Name == "" {
 		p.Name = s.Name
 		Pkglookup(s.Name, nil).Npkg++
@@ -481,8 +455,6 @@ func importimport(s *Sym, z *Strlit) {
 }
 
 func importconst(s *Sym, t *Type, n *Node) {
-	var n1 *Node
-
 	importsym(s, OLITERAL)
 	Convlit(&n, t)
 
@@ -496,7 +468,7 @@ func importconst(s *Sym, t *Type, n *Node) {
 	}
 
 	if n.Sym != nil {
-		n1 = Nod(OXXX, nil, nil)
+		n1 := Nod(OXXX, nil, nil)
 		*n1 = *n
 		n = n1
 	}
@@ -511,8 +483,6 @@ func importconst(s *Sym, t *Type, n *Node) {
 }
 
 func importvar(s *Sym, t *Type) {
-	var n *Node
-
 	importsym(s, ONAME)
 	if s.Def != nil && s.Def.Op == ONAME {
 		if Eqtype(t, s.Def.Type) {
@@ -521,7 +491,7 @@ func importvar(s *Sym, t *Type) {
 		Yyerror("inconsistent definition for var %v during import\n\t%v (in \"%v\")\n\t%v (in \"%v\")", Sconv(s, 0), Tconv(s.Def.Type, 0), Zconv(s.Importdef.Path, 0), Tconv(t, 0), Zconv(importpkg.Path, 0))
 	}
 
-	n = newname(s)
+	n := newname(s)
 	s.Importdef = importpkg
 	n.Type = t
 	declare(n, PEXTERN)
@@ -532,8 +502,6 @@ func importvar(s *Sym, t *Type) {
 }
 
 func importtype(pt *Type, t *Type) {
-	var n *Node
-
 	// override declaration in unsafe.go for Pointer.
 	// there is no way in Go code to define unsafe.Pointer
 	// so we have to supply it.
@@ -542,7 +510,7 @@ func importtype(pt *Type, t *Type) {
 	}
 
 	if pt.Etype == TFORW {
-		n = pt.Nod
+		n := pt.Nod
 		copytype(pt.Nod, t)
 		pt.Nod = n // unzero nod
 		pt.Sym.Importdef = importpkg
@@ -560,16 +528,15 @@ func importtype(pt *Type, t *Type) {
 
 func dumpasmhdr() {
 	var b *obj.Biobuf
-	var l *NodeList
-	var n *Node
-	var t *Type
 
 	b, err := obj.Bopenw(asmhdr)
 	if err != nil {
 		Fatal("%v", err)
 	}
 	fmt.Fprintf(b, "// generated by %cg -asmhdr from package %s\n\n", Thearch.Thechar, localpkg.Name)
-	for l = asmlist; l != nil; l = l.Next {
+	var n *Node
+	var t *Type
+	for l := asmlist; l != nil; l = l.Next {
 		n = l.N
 		if isblanksym(n.Sym) {
 			continue

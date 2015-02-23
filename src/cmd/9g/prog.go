@@ -108,10 +108,6 @@ var initproginfo_initialized int
 
 func initproginfo() {
 	var addvariant = []int{V_CC, V_V, V_CC | V_V}
-	var as int
-	var as2 int
-	var i int
-	var variant int
 
 	if initproginfo_initialized != 0 {
 		return
@@ -120,7 +116,10 @@ func initproginfo() {
 
 	// Perform one-time expansion of instructions in progtable to
 	// their CC, V, and VCC variants
-	for as = 0; as < len(progtable); as++ {
+	var as2 int
+	var i int
+	var variant int
+	for as := int(0); as < len(progtable); as++ {
 		if progtable[as].Flags == 0 {
 			continue
 		}
@@ -272,15 +271,13 @@ var varianttable = [ppc64.ALAST][4]int{
 var initvariants_initialized int
 
 func initvariants() {
-	var i int
-	var j int
-
 	if initvariants_initialized != 0 {
 		return
 	}
 	initvariants_initialized = 1
 
-	for i = 0; i < len(varianttable); i++ {
+	var j int
+	for i := int(0); i < len(varianttable); i++ {
 		if varianttable[i][0] == 0 {
 			// Instruction has no variants
 			varianttable[i][0] = i
@@ -299,9 +296,8 @@ func initvariants() {
 
 // as2variant returns the variant (V_*) flags of instruction as.
 func as2variant(as int) int {
-	var i int
 	initvariants()
-	for i = 0; i < len(varianttable[as]); i++ {
+	for i := int(0); i < len(varianttable[as]); i++ {
 		if varianttable[as][i] == as {
 			return i
 		}

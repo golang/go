@@ -22,11 +22,8 @@ func Rnd(o int64, r int64) int64 {
 }
 
 func offmod(t *Type) {
-	var f *Type
-	var o int32
-
-	o = 0
-	for f = t.Type; f != nil; f = f.Down {
+	o := int32(0)
+	for f := t.Type; f != nil; f = f.Down {
 		if f.Etype != TFIELD {
 			Fatal("offmod: not TFIELD: %v", Tconv(f, obj.FmtLong))
 		}
@@ -40,19 +37,14 @@ func offmod(t *Type) {
 }
 
 func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
-	var f *Type
-	var w int64
-	var maxalign int32
-	var starto int64
-	var lastzero int64
-
-	starto = o
-	maxalign = int32(flag)
+	starto := o
+	maxalign := int32(flag)
 	if maxalign < 1 {
 		maxalign = 1
 	}
-	lastzero = 0
-	for f = t.Type; f != nil; f = f.Down {
+	lastzero := int64(0)
+	var w int64
+	for f := t.Type; f != nil; f = f.Down {
 		if f.Etype != TFIELD {
 			Fatal("widstruct: not TFIELD: %v", Tconv(f, obj.FmtLong))
 		}
@@ -118,11 +110,6 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
 }
 
 func dowidth(t *Type) {
-	var et int32
-	var w int64
-	var lno int
-	var t1 *Type
-
 	if Widthptr == 0 {
 		Fatal("dowidth without betypeinit")
 	}
@@ -136,7 +123,7 @@ func dowidth(t *Type) {
 	}
 
 	if t.Width == -2 {
-		lno = int(lineno)
+		lno := int(lineno)
 		lineno = int32(t.Lineno)
 		if t.Broke == 0 {
 			t.Broke = 1
@@ -157,12 +144,12 @@ func dowidth(t *Type) {
 	// defer checkwidth calls until after we're done
 	defercalc++
 
-	lno = int(lineno)
+	lno := int(lineno)
 	lineno = int32(t.Lineno)
 	t.Width = -2
 	t.Align = 0
 
-	et = int32(t.Etype)
+	et := int32(t.Etype)
 	switch et {
 	case TFUNC,
 		TCHAN,
@@ -177,7 +164,7 @@ func dowidth(t *Type) {
 		}
 	}
 
-	w = 0
+	w := int64(0)
 	switch et {
 	default:
 		Fatal("dowidth: unknown type: %v", Tconv(t, 0))
@@ -233,13 +220,13 @@ func dowidth(t *Type) {
 
 		// make fake type to check later to
 		// trigger channel argument check.
-		t1 = typ(TCHANARGS)
+		t1 := typ(TCHANARGS)
 
 		t1.Type = t
 		checkwidth(t1)
 
 	case TCHANARGS:
-		t1 = t.Type
+		t1 := t.Type
 		dowidth(t.Type) // just in case
 		if t1.Type.Width >= 1<<16 {
 			Yyerror("channel element type too large (>64kB)")
@@ -277,11 +264,9 @@ func dowidth(t *Type) {
 			break
 		}
 		if t.Bound >= 0 {
-			var cap uint64
-
 			dowidth(t.Type)
 			if t.Type.Width != 0 {
-				cap = (uint64(Thearch.MAXWIDTH) - 1) / uint64(t.Type.Width)
+				cap := (uint64(Thearch.MAXWIDTH) - 1) / uint64(t.Type.Width)
 				if uint64(t.Bound) > cap {
 					Yyerror("type %v larger than address space", Tconv(t, obj.FmtLong))
 				}
@@ -311,7 +296,7 @@ func dowidth(t *Type) {
 		// make fake type to check later to
 	// trigger function argument computation.
 	case TFUNC:
-		t1 = typ(TFUNCARGS)
+		t1 := typ(TFUNCARGS)
 
 		t1.Type = t
 		checkwidth(t1)
@@ -322,7 +307,7 @@ func dowidth(t *Type) {
 		// function is 3 cated structures;
 	// compute their widths as side-effect.
 	case TFUNCARGS:
-		t1 = t.Type
+		t1 := t.Type
 
 		w = widstruct(t.Type, *getthis(t1), 0, 0)
 		w = widstruct(t.Type, *getinarg(t1), w, Widthreg)
@@ -382,8 +367,6 @@ var tlfree *TypeList
 var tlq *TypeList
 
 func checkwidth(t *Type) {
-	var l *TypeList
-
 	if t == nil {
 		return
 	}
@@ -404,7 +387,7 @@ func checkwidth(t *Type) {
 	}
 	t.Deferwidth = 1
 
-	l = tlfree
+	l := tlfree
 	if l != nil {
 		tlfree = l.next
 	} else {
@@ -425,12 +408,10 @@ func defercheckwidth() {
 }
 
 func resumecheckwidth() {
-	var l *TypeList
-
 	if defercalc == 0 {
 		Fatal("resumecheckwidth")
 	}
-	for l = tlq; l != nil; l = tlq {
+	for l := tlq; l != nil; l = tlq {
 		l.t.Deferwidth = 0
 		tlq = l.next
 		dowidth(l.t)
@@ -442,18 +423,11 @@ func resumecheckwidth() {
 }
 
 func typeinit() {
-	var i int
-	var etype int
-	var sameas int
-	var t *Type
-	var s *Sym
-	var s1 *Sym
-
 	if Widthptr == 0 {
 		Fatal("typeinit before betypeinit")
 	}
 
-	for i = 0; i < NTYPE; i++ {
+	for i := 0; i < NTYPE; i++ {
 		Simtype[i] = uint8(i)
 	}
 
@@ -463,7 +437,7 @@ func typeinit() {
 	Types[TPTR64] = typ(TPTR64)
 	dowidth(Types[TPTR64])
 
-	t = typ(TUNSAFEPTR)
+	t := typ(TUNSAFEPTR)
 	Types[TUNSAFEPTR] = t
 	t.Sym = Pkglookup("Pointer", unsafepkg)
 	t.Sym.Def = typenod(t)
@@ -475,7 +449,7 @@ func typeinit() {
 		Tptr = TPTR64
 	}
 
-	for i = TINT8; i <= TUINT64; i++ {
+	for i := TINT8; i <= TUINT64; i++ {
 		Isint[i] = 1
 	}
 	Isint[TINT] = 1
@@ -502,7 +476,7 @@ func typeinit() {
 	/*
 	 * initialize okfor
 	 */
-	for i = 0; i < NTYPE; i++ {
+	for i := 0; i < NTYPE; i++ {
 		if Isint[i] != 0 || i == TIDEAL {
 			okforeq[i] = 1
 			okforcmp[i] = 1
@@ -566,6 +540,7 @@ func typeinit() {
 
 	okforcmp[TSTRING] = 1
 
+	var i int
 	for i = 0; i < len(okfor); i++ {
 		okfor[i] = okfornone[:]
 	}
@@ -655,6 +630,10 @@ func typeinit() {
 	Simtype[TUNSAFEPTR] = uint8(Tptr)
 
 	/* pick up the backend thearch.typedefs */
+	var s1 *Sym
+	var etype int
+	var sameas int
+	var s *Sym
 	for i = range Thearch.Typedefs {
 		s = Lookup(Thearch.Typedefs[i].Name)
 		s1 = Pkglookup(Thearch.Typedefs[i].Name, builtinpkg)
@@ -703,13 +682,11 @@ func typeinit() {
  */
 func Argsize(t *Type) int {
 	var save Iter
-	var fp *Type
-	var w int64
 	var x int64
 
-	w = 0
+	w := int64(0)
 
-	fp = Structfirst(&save, Getoutarg(t))
+	fp := Structfirst(&save, Getoutarg(t))
 	for fp != nil {
 		x = fp.Width + fp.Type.Width
 		if x > w {

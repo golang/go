@@ -11,31 +11,27 @@ import "cmd/internal/obj"
  * according to type; return truncated value.
  */
 func truncfltlit(oldv *Mpflt, t *Type) *Mpflt {
-	var d float64
-	var fv *Mpflt
-	var v Val
-
 	if t == nil {
 		return oldv
 	}
 
-	v = Val{}
+	v := Val{}
 	v.Ctype = CTFLT
 	v.U.Fval = oldv
 	overflow(v, t)
 
-	fv = new(Mpflt)
+	fv := new(Mpflt)
 	*fv = *oldv
 
 	// convert large precision literal floating
 	// into limited precision (float64 or float32)
 	switch t.Etype {
 	case TFLOAT64:
-		d = mpgetflt(fv)
+		d := mpgetflt(fv)
 		Mpmovecflt(fv, d)
 
 	case TFLOAT32:
-		d = mpgetflt32(fv)
+		d := mpgetflt32(fv)
 		Mpmovecflt(fv, d)
 	}
 
@@ -56,12 +52,7 @@ func Convlit(np **Node, t *Type) {
  * (if n is a named constant, can't edit n->type directly).
  */
 func convlit1(np **Node, t *Type, explicit bool) {
-	var ct int
-	var et int
-	var n *Node
-	var nn *Node
-
-	n = *np
+	n := *np
 	if n == nil || t == nil || n.Type == nil || isideal(t) || n.Type == t {
 		return
 	}
@@ -70,7 +61,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
 	}
 
 	if n.Op == OLITERAL {
-		nn = Nod(OXXX, nil, nil)
+		nn := Nod(OXXX, nil, nil)
 		*nn = *n
 		n = nn
 		*np = n
@@ -148,7 +139,8 @@ func convlit1(np **Node, t *Type, explicit bool) {
 		return
 	}
 
-	ct = consttype(n)
+	ct := consttype(n)
+	var et int
 	if ct < 0 {
 		goto bad
 	}
@@ -214,7 +206,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
 		CTRUNE,
 		CTFLT,
 		CTCPLX:
-		ct = int(n.Val.Ctype)
+		ct := int(n.Val.Ctype)
 		if Isint[et] != 0 {
 			switch ct {
 			default:
@@ -285,24 +277,20 @@ bad:
 }
 
 func copyval(v Val) Val {
-	var i *Mpint
-	var f *Mpflt
-	var c *Mpcplx
-
 	switch v.Ctype {
 	case CTINT,
 		CTRUNE:
-		i = new(Mpint)
+		i := new(Mpint)
 		mpmovefixfix(i, v.U.Xval)
 		v.U.Xval = i
 
 	case CTFLT:
-		f = new(Mpflt)
+		f := new(Mpflt)
 		mpmovefltflt(f, v.U.Fval)
 		v.U.Fval = f
 
 	case CTCPLX:
-		c = new(Mpcplx)
+		c := new(Mpcplx)
 		mpmovefltflt(&c.Real, &v.U.Cval.Real)
 		mpmovefltflt(&c.Imag, &v.U.Cval.Imag)
 		v.U.Cval = c
@@ -312,19 +300,17 @@ func copyval(v Val) Val {
 }
 
 func tocplx(v Val) Val {
-	var c *Mpcplx
-
 	switch v.Ctype {
 	case CTINT,
 		CTRUNE:
-		c = new(Mpcplx)
+		c := new(Mpcplx)
 		Mpmovefixflt(&c.Real, v.U.Xval)
 		Mpmovecflt(&c.Imag, 0.0)
 		v.Ctype = CTCPLX
 		v.U.Cval = c
 
 	case CTFLT:
-		c = new(Mpcplx)
+		c := new(Mpcplx)
 		mpmovefltflt(&c.Real, v.U.Fval)
 		Mpmovecflt(&c.Imag, 0.0)
 		v.Ctype = CTCPLX
@@ -335,18 +321,16 @@ func tocplx(v Val) Val {
 }
 
 func toflt(v Val) Val {
-	var f *Mpflt
-
 	switch v.Ctype {
 	case CTINT,
 		CTRUNE:
-		f = new(Mpflt)
+		f := new(Mpflt)
 		Mpmovefixflt(f, v.U.Xval)
 		v.Ctype = CTFLT
 		v.U.Fval = f
 
 	case CTCPLX:
-		f = new(Mpflt)
+		f := new(Mpflt)
 		mpmovefltflt(f, &v.U.Cval.Real)
 		if mpcmpfltc(&v.U.Cval.Imag, 0) != 0 {
 			Yyerror("constant %v%vi truncated to real", Fconv(&v.U.Cval.Real, obj.FmtSharp), Fconv(&v.U.Cval.Imag, obj.FmtSharp|obj.FmtSign))
@@ -359,14 +343,12 @@ func toflt(v Val) Val {
 }
 
 func toint(v Val) Val {
-	var i *Mpint
-
 	switch v.Ctype {
 	case CTRUNE:
 		v.Ctype = CTINT
 
 	case CTFLT:
-		i = new(Mpint)
+		i := new(Mpint)
 		if mpmovefltfix(i, v.U.Fval) < 0 {
 			Yyerror("constant %v truncated to integer", Fconv(v.U.Fval, obj.FmtSharp))
 		}
@@ -374,7 +356,7 @@ func toint(v Val) Val {
 		v.U.Xval = i
 
 	case CTCPLX:
-		i = new(Mpint)
+		i := new(Mpint)
 		if mpmovefltfix(i, &v.U.Cval.Real) < 0 {
 			Yyerror("constant %v%vi truncated to integer", Fconv(&v.U.Cval.Real, obj.FmtSharp), Fconv(&v.U.Cval.Imag, obj.FmtSharp|obj.FmtSign))
 		}
@@ -444,17 +426,14 @@ func overflow(v Val, t *Type) {
 }
 
 func tostr(v Val) Val {
-	var rune_ uint
-	var s *Strlit
-
 	switch v.Ctype {
 	case CTINT,
 		CTRUNE:
 		if Mpcmpfixfix(v.U.Xval, Minintval[TINT]) < 0 || Mpcmpfixfix(v.U.Xval, Maxintval[TINT]) > 0 {
 			Yyerror("overflow in int -> string")
 		}
-		rune_ = uint(Mpgetfix(v.U.Xval))
-		s = &Strlit{S: string(rune_)}
+		rune_ := uint(Mpgetfix(v.U.Xval))
+		s := &Strlit{S: string(rune_)}
 		v = Val{}
 		v.Ctype = CTSTR
 		v.U.Sval = s
@@ -480,9 +459,7 @@ func consttype(n *Node) int {
 }
 
 func Isconst(n *Node, ct int) bool {
-	var t int
-
-	t = consttype(n)
+	t := consttype(n)
 
 	// If the caller is asking for CTINT, allow CTRUNE too.
 	// Makes life easier for back ends.
@@ -490,11 +467,9 @@ func Isconst(n *Node, ct int) bool {
 }
 
 func saveorig(n *Node) *Node {
-	var n1 *Node
-
 	if n == n.Orig {
 		// duplicate node for n->orig.
-		n1 = Nod(OLITERAL, nil, nil)
+		n1 := Nod(OLITERAL, nil, nil)
 
 		n.Orig = n1
 		*n1 = *n
@@ -507,20 +482,6 @@ func saveorig(n *Node) *Node {
  * if n is constant, rewrite as OLITERAL node.
  */
 func evconst(n *Node) {
-	var nl *Node
-	var nr *Node
-	var norig *Node
-	var str *Strlit
-	var wl int
-	var wr int
-	var lno int
-	var et int
-	var v Val
-	var rv Val
-	var b Mpint
-	var l1 *NodeList
-	var l2 *NodeList
-
 	// pick off just the opcodes that can be
 	// constant evaluated.
 	switch n.Op {
@@ -563,7 +524,11 @@ func evconst(n *Node) {
 
 		// merge adjacent constants in the argument list.
 	case OADDSTR:
-		for l1 = n.List; l1 != nil; l1 = l1.Next {
+		var nr *Node
+		var nl *Node
+		var str *Strlit
+		var l2 *NodeList
+		for l1 := n.List; l1 != nil; l1 = l1.Next {
 			if Isconst(l1.N, CTSTR) && l1.Next != nil && Isconst(l1.Next.N, CTSTR) {
 				// merge from l1 up to but not including l2
 				str = new(Strlit)
@@ -585,7 +550,7 @@ func evconst(n *Node) {
 		}
 
 		// fix list end pointer.
-		for l2 = n.List; l2 != nil; l2 = l2.Next {
+		for l2 := n.List; l2 != nil; l2 = l2.Next {
 			n.List.End = l2
 		}
 
@@ -598,19 +563,24 @@ func evconst(n *Node) {
 		return
 	}
 
-	nl = n.Left
+	nl := n.Left
 	if nl == nil || nl.Type == nil {
 		return
 	}
 	if consttype(nl) < 0 {
 		return
 	}
-	wl = int(nl.Type.Etype)
+	wl := int(nl.Type.Etype)
 	if Isint[wl] != 0 || Isfloat[wl] != 0 || Iscomplex[wl] != 0 {
 		wl = TIDEAL
 	}
 
-	nr = n.Right
+	nr := n.Right
+	var rv Val
+	var lno int
+	var wr int
+	var v Val
+	var norig *Node
 	if nr == nil {
 		goto unary
 	}
@@ -1020,13 +990,14 @@ unary:
 
 	case OCOM<<16 | CTINT,
 		OCOM<<16 | CTRUNE:
-		et = Txxx
+		et := Txxx
 		if nl.Type != nil {
 			et = int(nl.Type.Etype)
 		}
 
 		// calculate the mask in b
 		// result will be (a ^ mask)
+		var b Mpint
 		switch et {
 		// signed guys change sign
 		default:
@@ -1107,9 +1078,7 @@ illegal:
 }
 
 func nodlit(v Val) *Node {
-	var n *Node
-
-	n = Nod(OLITERAL, nil, nil)
+	n := Nod(OLITERAL, nil, nil)
 	n.Val = v
 	switch v.Ctype {
 	default:
@@ -1135,14 +1104,11 @@ func nodlit(v Val) *Node {
 }
 
 func nodcplxlit(r Val, i Val) *Node {
-	var n *Node
-	var c *Mpcplx
-
 	r = toflt(r)
 	i = toflt(i)
 
-	c = new(Mpcplx)
-	n = Nod(OLITERAL, nil, nil)
+	c := new(Mpcplx)
+	n := Nod(OLITERAL, nil, nil)
 	n.Type = Types[TIDEAL]
 	n.Val.U.Cval = c
 	n.Val.Ctype = CTCPLX
@@ -1159,9 +1125,6 @@ func nodcplxlit(r Val, i Val) *Node {
 // idealkind returns a constant kind like consttype
 // but for an arbitrary "ideal" (untyped constant) expression.
 func idealkind(n *Node) int {
-	var k1 int
-	var k2 int
-
 	if n == nil || !isideal(n.Type) {
 		return CTxxx
 	}
@@ -1186,9 +1149,9 @@ func idealkind(n *Node) int {
 		OXOR,
 		OOR,
 		OPLUS:
-		k1 = idealkind(n.Left)
+		k1 := idealkind(n.Left)
 
-		k2 = idealkind(n.Right)
+		k2 := idealkind(n.Right)
 		if k1 > k2 {
 			return k1
 		} else {
@@ -1227,26 +1190,21 @@ func idealkind(n *Node) int {
 }
 
 func defaultlit(np **Node, t *Type) {
-	var lno int
-	var ctype int
-	var n *Node
-	var nn *Node
-	var t1 *Type
-
-	n = *np
+	n := *np
 	if n == nil || !isideal(n.Type) {
 		return
 	}
 
 	if n.Op == OLITERAL {
-		nn = Nod(OXXX, nil, nil)
+		nn := Nod(OXXX, nil, nil)
 		*nn = *n
 		n = nn
 		*np = n
 	}
 
-	lno = int(setlineno(n))
-	ctype = idealkind(n)
+	lno := int(setlineno(n))
+	ctype := idealkind(n)
+	var t1 *Type
 	switch ctype {
 	default:
 		if t != nil {
@@ -1266,7 +1224,7 @@ func defaultlit(np **Node, t *Type) {
 		}
 
 		if n.Val.Ctype == CTSTR {
-			t1 = Types[TSTRING]
+			t1 := Types[TSTRING]
 			Convlit(np, t1)
 			break
 		}
@@ -1277,7 +1235,7 @@ func defaultlit(np **Node, t *Type) {
 		Fatal("defaultlit: idealkind is CTxxx: %v", Nconv(n, obj.FmtSign))
 
 	case CTBOOL:
-		t1 = Types[TBOOL]
+		t1 := Types[TBOOL]
 		if t != nil && t.Etype == TBOOL {
 			t1 = t
 		}
@@ -1330,13 +1288,8 @@ num:
  * force means must assign concrete (non-ideal) type.
  */
 func defaultlit2(lp **Node, rp **Node, force int) {
-	var l *Node
-	var r *Node
-	var lkind int
-	var rkind int
-
-	l = *lp
-	r = *rp
+	l := *lp
+	r := *rp
 	if l.Type == nil || r.Type == nil {
 		return
 	}
@@ -1358,8 +1311,8 @@ func defaultlit2(lp **Node, rp **Node, force int) {
 		Convlit(rp, Types[TBOOL])
 	}
 
-	lkind = idealkind(l)
-	rkind = idealkind(r)
+	lkind := idealkind(l)
+	rkind := idealkind(r)
 	if lkind == CTCPLX || rkind == CTCPLX {
 		Convlit(lp, Types[TCOMPLEX128])
 		Convlit(rp, Types[TCOMPLEX128])
@@ -1473,10 +1426,7 @@ func iconv(x int64, et int) int64 {
  * for back end.
  */
 func Convconst(con *Node, t *Type, val *Val) {
-	var i int64
-	var tt int
-
-	tt = Simsimtype(t)
+	tt := Simsimtype(t)
 
 	// copy the constant for conversion
 	Nodconst(con, Types[TINT8], 0)
@@ -1487,6 +1437,7 @@ func Convconst(con *Node, t *Type, val *Val) {
 	if Isint[tt] != 0 {
 		con.Val.Ctype = CTINT
 		con.Val.U.Xval = new(Mpint)
+		var i int64
 		switch val.Ctype {
 		default:
 			Fatal("convconst ctype=%d %v", val.Ctype, Tconv(t, obj.FmtLong))
@@ -1614,9 +1565,6 @@ func cmplxdiv(v *Mpcplx, rv *Mpcplx) {
 // Only called for expressions known to evaluated to compile-time
 // constants.
 func isgoconst(n *Node) bool {
-	var l *Node
-	var t *Type
-
 	if n.Orig != nil {
 		n = n.Orig
 	}
@@ -1661,7 +1609,7 @@ func isgoconst(n *Node) bool {
 
 	case OLEN,
 		OCAP:
-		l = n.Left
+		l := n.Left
 		if isgoconst(l) {
 			return true
 		}
@@ -1669,7 +1617,7 @@ func isgoconst(n *Node) bool {
 		// Special case: len/cap is constant when applied to array or
 		// pointer to array when the expression does not contain
 		// function calls or channel receive operations.
-		t = l.Type
+		t := l.Type
 
 		if t != nil && Isptr[t.Etype] != 0 {
 			t = t.Type
@@ -1684,7 +1632,7 @@ func isgoconst(n *Node) bool {
 		}
 
 	case ONAME:
-		l = n.Sym.Def
+		l := n.Sym.Def
 		if l != nil && l.Op == OLITERAL && n.Val.Ctype != CTNIL {
 			return true
 		}
@@ -1696,7 +1644,7 @@ func isgoconst(n *Node) bool {
 
 		// Only constant calls are unsafe.Alignof, Offsetof, and Sizeof.
 	case OCALL:
-		l = n.Left
+		l := n.Left
 
 		for l.Op == OPAREN {
 			l = l.Left
@@ -1714,8 +1662,6 @@ func isgoconst(n *Node) bool {
 }
 
 func hascallchan(n *Node) bool {
-	var l *NodeList
-
 	if n == nil {
 		return false
 	}
@@ -1747,12 +1693,12 @@ func hascallchan(n *Node) bool {
 		return true
 	}
 
-	for l = n.List; l != nil; l = l.Next {
+	for l := n.List; l != nil; l = l.Next {
 		if hascallchan(l.N) {
 			return true
 		}
 	}
-	for l = n.Rlist; l != nil; l = l.Next {
+	for l := n.Rlist; l != nil; l = l.Next {
 		if hascallchan(l.N) {
 			return true
 		}

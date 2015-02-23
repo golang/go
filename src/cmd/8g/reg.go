@@ -66,9 +66,7 @@ func excludedregs() uint64 {
 }
 
 func doregbits(r int) uint64 {
-	var b uint64
-
-	b = 0
+	b := uint64(0)
 	if r >= i386.REG_AX && r <= i386.REG_DI {
 		b |= RtoB(r)
 	} else if r >= i386.REG_AL && r <= i386.REG_BL {

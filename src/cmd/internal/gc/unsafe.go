@@ -15,19 +15,11 @@ import "cmd/internal/obj"
  */
 func unsafenmagic(nn *Node) *Node {
 	var r *Node
-	var n *Node
-	var base *Node
-	var r1 *Node
 	var s *Sym
-	var t *Type
-	var tr *Type
 	var v int64
-	var val Val
-	var fn *Node
-	var args *NodeList
 
-	fn = nn.Left
-	args = nn.List
+	fn := nn.Left
+	args := nn.List
 
 	if safemode != 0 || fn == nil || fn.Op != ONAME {
 		goto no
@@ -50,7 +42,7 @@ func unsafenmagic(nn *Node) *Node {
 	if s.Name == "Sizeof" {
 		typecheck(&r, Erv)
 		defaultlit(&r, nil)
-		tr = r.Type
+		tr := r.Type
 		if tr == nil {
 			goto bad
 		}
@@ -70,7 +62,7 @@ func unsafenmagic(nn *Node) *Node {
 		// first to track it correctly.
 		typecheck(&r.Left, Erv)
 
-		base = r.Left
+		base := r.Left
 		typecheck(&r, Erv)
 		switch r.Op {
 		case ODOT,
@@ -89,6 +81,7 @@ func unsafenmagic(nn *Node) *Node {
 		v = 0
 
 		// add offsets for inserted dots.
+		var r1 *Node
 		for r1 = r; r1.Left != base; r1 = r1.Left {
 			switch r1.Op {
 			case ODOT:
@@ -112,13 +105,13 @@ func unsafenmagic(nn *Node) *Node {
 	if s.Name == "Alignof" {
 		typecheck(&r, Erv)
 		defaultlit(&r, nil)
-		tr = r.Type
+		tr := r.Type
 		if tr == nil {
 			goto bad
 		}
 
 		// make struct { byte; T; }
-		t = typ(TSTRUCT)
+		t := typ(TSTRUCT)
 
 		t.Type = typ(TFIELD)
 		t.Type.Type = Types[TUINT8]
@@ -149,11 +142,12 @@ yes:
 
 	// any side effects disappear; ignore init
 ret:
+	var val Val
 	val.Ctype = CTINT
 
 	val.U.Xval = new(Mpint)
 	Mpmovecfix(val.U.Xval, v)
-	n = Nod(OLITERAL, nil, nil)
+	n := Nod(OLITERAL, nil, nil)
 	n.Orig = nn
 	n.Val = val
 	n.Type = Types[TUINTPTR]

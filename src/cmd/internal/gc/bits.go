@@ -67,9 +67,7 @@ bnot(Bits a)
 }
 */
 func bany(a *Bits) bool {
-	var i int
-
-	for i = 0; i < BITS; i++ {
+	for i := 0; i < BITS; i++ {
 		if a.b[i] != 0 {
 			return true
 		}
@@ -90,10 +88,9 @@ beq(Bits a, Bits b)
 }
 */
 func bnum(a Bits) int {
-	var i int
 	var b uint64
 
-	for i = 0; i < BITS; i++ {
+	for i := 0; i < BITS; i++ {
 		b = a.b[i]
 		if b != 0 {
 			return 64*i + Bitno(b)
@@ -105,9 +102,7 @@ func bnum(a Bits) int {
 }
 
 func blsh(n uint) Bits {
-	var c Bits
-
-	c = zbits
+	c := zbits
 	c.b[n/64] = 1 << (n % 64)
 	return c
 }
@@ -125,9 +120,7 @@ func biclr(a *Bits, n uint) {
 }
 
 func Bitno(b uint64) int {
-	var i int
-
-	for i = 0; i < 64; i++ {
+	for i := 0; i < 64; i++ {
 		if b&(1<<uint(i)) != 0 {
 			return i
 		}
@@ -140,9 +133,8 @@ func Qconv(bits Bits, flag int) string {
 	var fp string
 
 	var i int
-	var first int
 
-	first = 1
+	first := 1
 
 	for bany(&bits) {
 		i = bnum(bits)

@@ -16,25 +16,6 @@ import "cmd/internal/gc"
  * return 1 on success, 0 if op not handled.
  */
 func cgen64(n *gc.Node, res *gc.Node) {
-	var t1 gc.Node
-	var t2 gc.Node
-	var ax gc.Node
-	var dx gc.Node
-	var cx gc.Node
-	var ex gc.Node
-	var fx gc.Node
-	var l *gc.Node
-	var r *gc.Node
-	var lo1 gc.Node
-	var lo2 gc.Node
-	var hi1 gc.Node
-	var hi2 gc.Node
-	var p1 *obj.Prog
-	var p2 *obj.Prog
-	var v uint64
-	var lv uint32
-	var hv uint32
-
 	if res.Op != gc.OINDREG && res.Op != gc.ONAME {
 		gc.Dump("n", n)
 		gc.Dump("res", res)
@@ -47,6 +28,8 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 	case gc.OMINUS:
 		cgen(n.Left, res)
+		var hi1 gc.Node
+		var lo1 gc.Node
 		split64(res, &lo1, &hi1)
 		gins(i386.ANEGL, nil, &lo1)
 		gins(i386.AADCL, ncon(0), &hi1)
@@ -56,6 +39,8 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 	case gc.OCOM:
 		cgen(n.Left, res)
+		var lo1 gc.Node
+		var hi1 gc.Node
 		split64(res, &lo1, &hi1)
 		gins(i386.ANOTL, nil, &lo1)
 		gins(i386.ANOTL, nil, &hi1)
@@ -76,27 +61,36 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		break
 	}
 
-	l = n.Left
-	r = n.Right
+	l := n.Left
+	r := n.Right
 	if l.Addable == 0 {
+		var t1 gc.Node
 		gc.Tempname(&t1, l.Type)
 		cgen(l, &t1)
 		l = &t1
 	}
 
 	if r != nil && r.Addable == 0 {
+		var t2 gc.Node
 		gc.Tempname(&t2, r.Type)
 		cgen(r, &t2)
 		r = &t2
 	}
 
+	var ax gc.Node
 	gc.Nodreg(&ax, gc.Types[gc.TINT32], i386.REG_AX)
+	var cx gc.Node
 	gc.Nodreg(&cx, gc.Types[gc.TINT32], i386.REG_CX)
+	var dx gc.Node
 	gc.Nodreg(&dx, gc.Types[gc.TINT32], i386.REG_DX)
 
 	// Setup for binary operation.
+	var hi1 gc.Node
+	var lo1 gc.Node
 	split64(l, &lo1, &hi1)
 
+	var lo2 gc.Node
+	var hi2 gc.Node
 	if gc.Is64(r.Type) {
 		split64(r, &lo2, &hi2)
 	}
@@ -121,8 +115,10 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 		// let's call the next two EX and FX.
 	case gc.OMUL:
+		var ex gc.Node
 		regalloc(&ex, gc.Types[gc.TPTR32], nil)
 
+		var fx gc.Node
 		regalloc(&fx, gc.Types[gc.TPTR32], nil)
 
 		// load args into DX:AX and EX:CX.
@@ -136,9 +132,9 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		gins(i386.AMOVL, &dx, &fx)
 
 		gins(i386.AORL, &ex, &fx)
-		p1 = gc.Gbranch(i386.AJNE, nil, 0)
+		p1 := gc.Gbranch(i386.AJNE, nil, 0)
 		gins(i386.AMULL, &cx, nil) // implicit &ax
-		p2 = gc.Gbranch(obj.AJMP, nil, 0)
+		p2 := gc.Gbranch(obj.AJMP, nil, 0)
 		gc.Patch(p1, gc.Pc)
 
 		// full 64x64 -> 64, from 32x32 -> 64.
@@ -166,7 +162,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	//	shld hi:lo, c
 	//	shld lo:t, c
 	case gc.OLROT:
-		v = uint64(gc.Mpgetfix(r.Val.U.Xval))
+		v := uint64(gc.Mpgetfix(r.Val.U.Xval))
 
 		if v >= 32 {
 			// reverse during load to do the first 32 bits of rotate
@@ -183,7 +179,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		} else // done
 		{
 			gins(i386.AMOVL, &dx, &cx)
-			p1 = gins(i386.ASHLL, ncon(uint32(v)), &dx)
+			p1 := gins(i386.ASHLL, ncon(uint32(v)), &dx)
 			p1.From.Index = i386.REG_AX // double-width shift
 			p1.From.Scale = 0
 			p1 = gins(i386.ASHLL, ncon(uint32(v)), &ax)
@@ -193,7 +189,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 	case gc.OLSH:
 		if r.Op == gc.OLITERAL {
-			v = uint64(gc.Mpgetfix(r.Val.U.Xval))
+			v := uint64(gc.Mpgetfix(r.Val.U.Xval))
 			if v >= 64 {
 				if gc.Is64(r.Type) {
 					splitclean()
@@ -226,7 +222,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 			gins(i386.AMOVL, &lo1, &ax)
 
 			gins(i386.AMOVL, &hi1, &dx)
-			p1 = gins(i386.ASHLL, ncon(uint32(v)), &dx)
+			p1 := gins(i386.ASHLL, ncon(uint32(v)), &dx)
 			p1.From.Index = i386.REG_AX // double-width shift
 			p1.From.Scale = 0
 			gins(i386.ASHLL, ncon(uint32(v)), &ax)
@@ -240,7 +236,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 		// load shift value into register.
 		// if high bits are set, zero value.
-		p1 = nil
+		p1 := (*obj.Prog)(nil)
 
 		if gc.Is64(r.Type) {
 			gins(i386.ACMPL, &hi2, ncon(0))
@@ -254,7 +250,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		// if shift count is >=64, zero value
 		gins(i386.ACMPL, &cx, ncon(64))
 
-		p2 = gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT32]), nil, +1)
+		p2 := gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT32]), nil, +1)
 		if p1 != nil {
 			gc.Patch(p1, gc.Pc)
 		}
@@ -282,7 +278,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 	case gc.ORSH:
 		if r.Op == gc.OLITERAL {
-			v = uint64(gc.Mpgetfix(r.Val.U.Xval))
+			v := uint64(gc.Mpgetfix(r.Val.U.Xval))
 			if v >= 64 {
 				if gc.Is64(r.Type) {
 					splitclean()
@@ -327,7 +323,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 			gins(i386.AMOVL, &lo1, &ax)
 
 			gins(i386.AMOVL, &hi1, &dx)
-			p1 = gins(i386.ASHRL, ncon(uint32(v)), &ax)
+			p1 := gins(i386.ASHRL, ncon(uint32(v)), &ax)
 			p1.From.Index = i386.REG_DX // double-width shift
 			p1.From.Scale = 0
 			gins(optoas(gc.ORSH, hi1.Type), ncon(uint32(v)), &dx)
@@ -341,7 +337,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 		// load shift value into register.
 		// if high bits are set, zero value.
-		p1 = nil
+		p1 := (*obj.Prog)(nil)
 
 		if gc.Is64(r.Type) {
 			gins(i386.ACMPL, &hi2, ncon(0))
@@ -355,7 +351,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		// if shift count is >=64, zero or sign-extend value
 		gins(i386.ACMPL, &cx, ncon(64))
 
-		p2 = gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT32]), nil, +1)
+		p2 := gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT32]), nil, +1)
 		if p1 != nil {
 			gc.Patch(p1, gc.Pc)
 		}
@@ -404,9 +400,9 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 		if lo2.Op == gc.OLITERAL {
 			// special cases for constants.
-			lv = uint32(gc.Mpgetfix(lo2.Val.U.Xval))
+			lv := uint32(gc.Mpgetfix(lo2.Val.U.Xval))
 
-			hv = uint32(gc.Mpgetfix(hi2.Val.U.Xval))
+			hv := uint32(gc.Mpgetfix(hi2.Val.U.Xval))
 			splitclean() // right side
 			split64(res, &lo2, &hi2)
 			switch n.Op {
@@ -518,15 +514,13 @@ func cmp64(nl *gc.Node, nr *gc.Node, op int, likely int, to *obj.Prog) {
 	var lo2 gc.Node
 	var hi2 gc.Node
 	var rr gc.Node
-	var br *obj.Prog
-	var t *gc.Type
 
 	split64(nl, &lo1, &hi1)
 	split64(nr, &lo2, &hi2)
 
 	// compare most significant word;
 	// if they differ, we're done.
-	t = hi1.Type
+	t := hi1.Type
 
 	if nl.Op == gc.OLITERAL || nr.Op == gc.OLITERAL {
 		gins(i386.ACMPL, &hi1, &hi2)
@@ -537,7 +531,7 @@ func cmp64(nl *gc.Node, nr *gc.Node, op int, likely int, to *obj.Prog) {
 		regfree(&rr)
 	}
 
-	br = nil
+	br := (*obj.Prog)(nil)
 	switch op {
 	default:
 		gc.Fatal("cmp64 %v %v", gc.Oconv(int(op), 0), gc.Tconv(t, 0))

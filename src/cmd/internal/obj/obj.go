@@ -25,12 +25,8 @@ func Linklinefmt(ctxt *Link, lno0 int, showAll, showFullPath bool) string {
 	lno := int32(lno0)
 	lno1 := lno
 	var d int32
-	var i int
-	var n int
-	var h *Hist
-	n = 0
-	var fp string
-	for h = ctxt.Hist; h != nil; h = h.Link {
+	n := 0
+	for h := ctxt.Hist; h != nil; h = h.Link {
 		if h.Offset < 0 {
 			continue
 		}
@@ -65,7 +61,8 @@ func Linklinefmt(ctxt *Link, lno0 int, showAll, showFullPath bool) string {
 	if n > int(HISTSZ) {
 		n = int(HISTSZ)
 	}
-	for i = n - 1; i >= 0; i-- {
+	var fp string
+	for i := n - 1; i >= 0; i-- {
 		if i != n-1 {
 			if !showAll {
 				break
@@ -93,12 +90,12 @@ func Linklinefmt(ctxt *Link, lno0 int, showAll, showFullPath bool) string {
 // For portability, we allow ASCII case folding, so that haspathprefix("a/b/c", "A/B") is true.
 // Similarly, we allow slash folding, so that haspathprefix("a/b/c", "a\\b") is true.
 func haspathprefix(s string, t string) bool {
-	var i int
-	var cs int
-	var ct int
 	if len(t) > len(s) {
 		return false
 	}
+	var i int
+	var cs int
+	var ct int
 	for i = 0; i < len(t); i++ {
 		cs = int(s[i])
 		ct = int(t[i])
@@ -131,17 +128,10 @@ func linkgetline(ctxt *Link, line int32, f **LSym, l *int32) {
 		line *Hist
 		ldel int32
 	}
-	var lno int32
 	var d int32
-	var dlno int32
-	var n int
-	var h *Hist
-	var buf string
-	var buf1 string
-	var file string
-	lno = int32(line)
-	n = 0
-	for h = ctxt.Hist; h != nil; h = h.Link {
+	lno := int32(line)
+	n := 0
+	for h := ctxt.Hist; h != nil; h = h.Link {
 		if h.Offset < 0 {
 			continue
 		}
@@ -182,6 +172,8 @@ func linkgetline(ctxt *Link, line int32, f **LSym, l *int32) {
 		return
 	}
 	n--
+	var dlno int32
+	var file string
 	if a[n].line != nil {
 		file = a[n].line.Name
 		dlno = a[n].ldel - 1
@@ -189,6 +181,7 @@ func linkgetline(ctxt *Link, line int32, f **LSym, l *int32) {
 		file = a[n].incl.Name
 		dlno = a[n].idel - 1
 	}
+	var buf string
 	if filepath.IsAbs(file) || strings.HasPrefix(file, "<") {
 		buf = fmt.Sprintf("%s", file)
 	} else {
@@ -199,14 +192,14 @@ func linkgetline(ctxt *Link, line int32, f **LSym, l *int32) {
 		if len(buf) == len(ctxt.Trimpath) {
 			buf = "??"
 		} else {
-			buf1 = fmt.Sprintf("%s", buf[len(ctxt.Trimpath)+1:])
+			buf1 := fmt.Sprintf("%s", buf[len(ctxt.Trimpath)+1:])
 			if buf1[0] == '\x00' {
 				buf1 = "??"
 			}
 			buf = buf1
 		}
 	} else if ctxt.Goroot_final != "" && haspathprefix(buf, ctxt.Goroot) {
-		buf1 = fmt.Sprintf("%s%s", ctxt.Goroot_final, buf[len(ctxt.Goroot):])
+		buf1 := fmt.Sprintf("%s%s", ctxt.Goroot_final, buf[len(ctxt.Goroot):])
 		buf = buf1
 	}
 	lno -= dlno
@@ -215,8 +208,6 @@ func linkgetline(ctxt *Link, line int32, f **LSym, l *int32) {
 }
 
 func Linklinehist(ctxt *Link, lineno int, f string, offset int) {
-	var h *Hist
-
 	if false { // debug['f']
 		if f != "" {
 			if offset != 0 {
@@ -229,7 +220,7 @@ func Linklinehist(ctxt *Link, lineno int, f string, offset int) {
 		}
 	}
 
-	h = new(Hist)
+	h := new(Hist)
 	*h = Hist{}
 	h.Name = f
 	h.Line = int32(lineno)
@@ -248,12 +239,10 @@ func Linklinehist(ctxt *Link, lineno int, f string, offset int) {
 func Linkprfile(ctxt *Link, line int) {
 	l := int32(line)
 	var i int
-	var n int
 	var a [HISTSZ]Hist
-	var h *Hist
 	var d int32
-	n = 0
-	for h = ctxt.Hist; h != nil; h = h.Link {
+	n := 0
+	for h := ctxt.Hist; h != nil; h = h.Link {
 		if l < h.Line {
 			break
 		}
@@ -286,7 +275,7 @@ func Linkprfile(ctxt *Link, line int) {
 	if n > HISTSZ {
 		n = HISTSZ
 	}
-	for i = 0; i < n; i++ {
+	for i := 0; i < n; i++ {
 		fmt.Printf("%s:%d ", a[i].Name, int(l-a[i].Line+a[i].Offset+1))
 	}
 }
@@ -295,9 +284,7 @@ func Linkprfile(ctxt *Link, line int) {
  * start a new Prog list.
  */
 func Linknewplist(ctxt *Link) *Plist {
-	var pl *Plist
-
-	pl = new(Plist)
+	pl := new(Plist)
 	*pl = Plist{}
 	if ctxt.Plist == nil {
 		ctxt.Plist = pl

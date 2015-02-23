@@ -80,9 +80,7 @@ func Samereg(a *Node, b *Node) bool {
  * gsubr.c
  */
 func Gbranch(as int, t *Type, likely int) *obj.Prog {
-	var p *obj.Prog
-
-	p = Prog(as)
+	p := Prog(as)
 	p.To.Type = obj.TYPE_BRANCH
 	p.To.U.Branch = nil
 	if as != obj.AJMP && likely != 0 && Thearch.Thechar != '9' {
@@ -170,9 +168,7 @@ func dumpdata() {
 }
 
 func fixautoused(p *obj.Prog) {
-	var lp **obj.Prog
-
-	for lp = &p; ; {
+	for lp := &p; ; {
 		p = *lp
 		if p == nil {
 			break
@@ -205,9 +201,7 @@ func fixautoused(p *obj.Prog) {
 }
 
 func ggloblnod(nam *Node) {
-	var p *obj.Prog
-
-	p = Thearch.Gins(obj.AGLOBL, nam, nil)
+	p := Thearch.Gins(obj.AGLOBL, nam, nil)
 	p.Lineno = nam.Lineno
 	p.From.Sym.Gotype = Linksym(ngotype(nam))
 	p.To.Sym = nil
@@ -222,9 +216,7 @@ func ggloblnod(nam *Node) {
 }
 
 func ggloblsym(s *Sym, width int32, flags int8) {
-	var p *obj.Prog
-
-	p = Thearch.Gins(obj.AGLOBL, nil, nil)
+	p := Thearch.Gins(obj.AGLOBL, nil, nil)
 	p.From.Type = obj.TYPE_MEM
 	p.From.Name = obj.NAME_EXTERN
 	p.From.Sym = Linksym(s)
@@ -234,9 +226,7 @@ func ggloblsym(s *Sym, width int32, flags int8) {
 }
 
 func gjmp(to *obj.Prog) *obj.Prog {
-	var p *obj.Prog
-
-	p = Gbranch(obj.AJMP, nil, 0)
+	p := Gbranch(obj.AJMP, nil, 0)
 	if to != nil {
 		Patch(p, to)
 	}
@@ -244,9 +234,7 @@ func gjmp(to *obj.Prog) *obj.Prog {
 }
 
 func gtrack(s *Sym) {
-	var p *obj.Prog
-
-	p = Thearch.Gins(obj.AUSEFIELD, nil, nil)
+	p := Thearch.Gins(obj.AUSEFIELD, nil, nil)
 	p.From.Type = obj.TYPE_MEM
 	p.From.Name = obj.NAME_EXTERN
 	p.From.Sym = Linksym(s)
@@ -287,8 +275,6 @@ func markautoused(p *obj.Prog) {
 }
 
 func Naddr(n *Node, a *obj.Addr, canemitcode int) {
-	var s *Sym
-
 	*a = obj.Addr{}
 	if n == nil {
 		return
@@ -361,7 +347,7 @@ func Naddr(n *Node, a *obj.Addr, canemitcode int) {
 			a.Etype = Simtype[n.Type.Etype]
 		}
 		a.Offset = n.Xoffset
-		s = n.Sym
+		s := n.Sym
 		a.Node = n.Orig
 
 		//if(a->node >= (Node*)&n)
@@ -502,9 +488,7 @@ func Naddr(n *Node, a *obj.Addr, canemitcode int) {
 }
 
 func newplist() *obj.Plist {
-	var pl *obj.Plist
-
-	pl = obj.Linknewplist(Ctxt)
+	pl := obj.Linknewplist(Ctxt)
 
 	Pc = Ctxt.NewProg()
 	Clearp(Pc)
@@ -515,16 +499,14 @@ func newplist() *obj.Plist {
 
 func nodarg(t *Type, fp int) *Node {
 	var n *Node
-	var l *NodeList
-	var first *Type
-	var savet Iter
 
 	// entire argument struct, not just one arg
 	if t.Etype == TSTRUCT && t.Funarg != 0 {
 		n = Nod(ONAME, nil, nil)
 		n.Sym = Lookup(".args")
 		n.Type = t
-		first = Structfirst(&savet, &t)
+		var savet Iter
+		first := Structfirst(&savet, &t)
 		if first == nil {
 			Fatal("nodarg: bad struct")
 		}
@@ -541,7 +523,8 @@ func nodarg(t *Type, fp int) *Node {
 	}
 
 	if fp == 1 {
-		for l = Curfn.Dcl; l != nil; l = l.Next {
+		var n *Node
+		for l := Curfn.Dcl; l != nil; l = l.Next {
 			n = l.N
 			if (n.Class == PPARAM || n.Class == PPARAMOUT) && !isblanksym(t.Sym) && n.Sym == t.Sym {
 				return n
@@ -604,12 +587,10 @@ func Patch(p *obj.Prog, to *obj.Prog) {
 }
 
 func unpatch(p *obj.Prog) *obj.Prog {
-	var q *obj.Prog
-
 	if p.To.Type != obj.TYPE_BRANCH {
 		Fatal("unpatch: not a branch")
 	}
-	q = p.To.U.Branch
+	q := p.To.U.Branch
 	p.To.U.Branch = nil
 	p.To.Offset = 0
 	return q
