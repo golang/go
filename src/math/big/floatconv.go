@@ -171,7 +171,7 @@ func ParseFloat(s string, base int, prec uint, mode RoundingMode) (f *Float, b i
 //
 // For the binary exponent formats, the mantissa is printed in normalized form:
 //
-//	'b'	decimal integer mantissa using x.Precision() bits, or -0
+//	'b'	decimal integer mantissa using x.Prec() bits, or -0
 //	'p'	hexadecimal fraction with 0.5 <= 0.mantissa < 1.0, or -0
 //
 // The precision prec controls the number of digits (excluding the exponent)
@@ -221,7 +221,7 @@ func (x *Float) String() string {
 // bstring appends the string of x in the format ["-"] mantissa "p" exponent
 // with a decimal mantissa and a binary exponent, or ["-"] "0" if x is zero,
 // and returns the extended buffer.
-// The mantissa is normalized such that is uses x.Precision() bits in binary
+// The mantissa is normalized such that is uses x.Prec() bits in binary
 // representation.
 func (x *Float) bstring(buf []byte) []byte {
 	if x.neg {
@@ -231,12 +231,16 @@ func (x *Float) bstring(buf []byte) []byte {
 		return append(buf, '0')
 	}
 	// x != 0
-	// normalize mantissa
+
+	// adjust mantissa to use exactly x.prec bits
 	m := x.mant
-	t := uint(len(x.mant)*_W) - x.prec // 0 <= t < _W
-	if t > 0 {
-		m = nat(nil).shr(m, t)
+	switch w := uint(len(x.mant)) * _W; {
+	case w < x.prec:
+		m = nat(nil).shl(m, x.prec-w)
+	case w > x.prec:
+		m = nat(nil).shr(m, w-x.prec)
 	}
+
 	buf = append(buf, m.decimalString()...)
 	buf = append(buf, 'p')
 	e := int64(x.exp) - int64(x.prec)
@@ -258,7 +262,16 @@ func (x *Float) pstring(buf []byte) []byte {
 		return append(buf, '0')
 	}
 	// x != 0
-	// mantissa is stored in normalized form
+
+	// remove trailing 0 words early
+	// (no need to convert to hex 0's and trim later)
+	m := x.mant
+	i := 0
+	for i < len(m) && m[i] == 0 {
+		i++
+	}
+	m = m[i:]
+
 	buf = append(buf, "0x."...)
 	buf = append(buf, strings.TrimRight(x.mant.hexString(), "0")...)
 	buf = append(buf, 'p')
