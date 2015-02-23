@@ -126,11 +126,9 @@ func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 }
 
 // Parse is like z.Scan(r, base), but instead of reading from an
-// io.ByteScanner, it parses the string s. An error is returned if the
-// string contains invalid or trailing characters not belonging to the
-// number.
-//
-// TODO(gri) define possible errors more precisely
+// io.ByteScanner, it parses the string s. An error is returned if
+// the string contains invalid or trailing bytes not belonging to
+// the number.
 func (z *Float) Parse(s string, base int) (f *Float, b int, err error) {
 	r := strings.NewReader(s)
 
@@ -139,11 +137,10 @@ func (z *Float) Parse(s string, base int) (f *Float, b int, err error) {
 	}
 
 	// entire string must have been consumed
-	var ch byte
-	if ch, err = r.ReadByte(); err != io.EOF {
-		if err == nil {
-			err = fmt.Errorf("expected end of string, found %q", ch)
-		}
+	if ch, err2 := r.ReadByte(); err2 == nil {
+		err = fmt.Errorf("expected end of string, found %q", ch)
+	} else if err2 != io.EOF {
+		err = err2
 	}
 
 	return

@@ -252,7 +252,7 @@ var pkgDeps = map[string][]string{
 
 	// Uses of networking.
 	"log/syslog":    {"L4", "OS", "net"},
-	"net/mail":      {"L4", "NET", "OS"},
+	"net/mail":      {"L4", "NET", "OS", "internal/mime"},
 	"net/textproto": {"L4", "OS", "net"},
 
 	// Core crypto.

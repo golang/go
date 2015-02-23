@@ -1077,6 +1077,8 @@ func TestFloatQuoSmoke(t *testing.T) {
 	}
 }
 
+// TODO(gri) Add tests that check correctness in the presence of aliasing.
+
 // For rounding modes ToNegativeInf and ToPositiveInf, rounding is affected
 // by the sign of the value to be rounded. Test that rounding happens after
 // the sign of a result has been set.
