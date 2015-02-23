@@ -338,8 +338,7 @@ func (a *analysis) posURL(pos token.Pos, len int) string {
 //
 func Run(pta bool, result *Result) {
 	conf := loader.Config{
-		SourceImports: true,
-		AllowErrors:   true,
+		AllowErrors: true,
 	}
 
 	// Silence the default error handler.

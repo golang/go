@@ -32,10 +32,7 @@ func TestStdlib(t *testing.T) {
 		"golang.org/x/tools/refactor/lexical")
 
 	// Load, parse and type-check the program.
-	conf := loader.Config{
-		Build:         &ctxt,
-		SourceImports: true,
-	}
+	conf := loader.Config{Build: &ctxt}
 	for _, path := range pkgs {
 		conf.ImportWithTests(path)
 	}

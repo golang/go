@@ -153,7 +153,7 @@ func findProbe(prog *ssa.Program, probes map[*ssa.CallCommon]bool, queries map[s
 }
 
 func doOneInput(input, filename string) bool {
-	conf := loader.Config{SourceImports: true}
+	var conf loader.Config
 
 	// Parsing.
 	f, err := conf.ParseFile(filename, input)

@@ -188,7 +188,7 @@ func run(t *testing.T, dir, input string, success successPredicate) bool {
 		inputs = append(inputs, i)
 	}
 
-	conf := loader.Config{SourceImports: true}
+	var conf loader.Config
 	if _, err := conf.FromArgs(inputs, true); err != nil {
 		t.Errorf("FromArgs(%s) failed: %s", inputs, err)
 		return false

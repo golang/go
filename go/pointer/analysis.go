@@ -255,7 +255,7 @@ func Analyze(config *Config) (result *Result, err error) {
 		// (This only checks that the package scope is complete,
 		// not that func bodies exist, but it's a good signal.)
 		if !pkg.Object.Complete() {
-			return nil, fmt.Errorf(`pointer analysis requires a complete program yet package %q was incomplete (set loader.Config.SourceImports during loading)`, pkg.Object.Path())
+			return nil, fmt.Errorf(`pointer analysis requires a complete program yet package %q was incomplete (don't set loader.Config.ImportFromBinary during loading)`, pkg.Object.Path())
 		}
 	}
 

@@ -36,9 +36,8 @@ func Test(t *testing.T) {
 	}
 
 	conf := loader.Config{
-		Fset:          token.NewFileSet(),
-		ParserMode:    parser.ParseComments,
-		SourceImports: true,
+		Fset:       token.NewFileSet(),
+		ParserMode: parser.ParseComments,
 	}
 
 	// Each entry is a single-file package.

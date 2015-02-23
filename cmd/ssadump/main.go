@@ -79,8 +79,8 @@ func doMain() error {
 	args := flag.Args()
 
 	conf := loader.Config{
-		Build:         &build.Default,
-		SourceImports: !*importbinFlag,
+		Build:            &build.Default,
+		ImportFromBinary: *importbinFlag,
 	}
 	// TODO(adonovan): make go/types choose its default Sizes from
 	// build.Default or a specified *build.Context.

@@ -234,24 +234,30 @@ type Config struct {
 	// checked.
 	TypeCheckFuncBodies func(string) bool
 
-	// SourceImports determines whether to satisfy dependencies by
-	// loading Go source code.
+	// ImportFromBinary determines whether to satisfy dependencies by
+	// loading gc export data instead of Go source code.
 	//
-	// If true, the entire program---the initial packages and
-	// their transitive closure of dependencies---will be loaded,
-	// parsed and type-checked.  This is required for
+	// If false, the entire program---the initial packages and their
+	// transitive closure of dependencies---will be loaded from
+	// source, parsed, and type-checked.  This is required for
 	// whole-program analyses such as pointer analysis.
 	//
-	// If false, the TypeChecker.Import mechanism will be used
-	// instead.  Since that typically supplies only the types of
-	// package-level declarations and values of constants, but no
-	// code, it will not yield a whole program.  It is intended
-	// for analyses that perform modular analysis of a
-	// single package, e.g. traditional compilation.
+	// If true, the go/gcimporter mechanism is used instead to read
+	// the binary export-data files written by the gc toolchain.
+	// They supply only the types of package-level declarations and
+	// values of constants, but no code, this option will not yield
+	// a whole program.  It is intended for analyses that perform
+	// modular analysis of a single package, e.g. traditional
+	// compilation.
+	//
+	// No check is made that the export data files are up-to-date.
 	//
 	// The initial packages (CreatePkgs and ImportPkgs) are always
 	// loaded from Go source, regardless of this flag's setting.
-	SourceImports bool
+	//
+	// NB: there is a bug when loading multiple initial packages with
+	// this flag enabled: https://github.com/golang/go/issues/9955.
+	ImportFromBinary bool
 
 	// If Build is non-nil, it is used to locate source packages.
 	// Otherwise &build.Default is used.
@@ -1031,7 +1037,7 @@ func (imp *importer) load(path string, ii *importInfo) {
 	var info *PackageInfo
 	var err error
 	// Find and create the actual package.
-	if _, ok := imp.conf.ImportPkgs[path]; ok || imp.conf.SourceImports {
+	if _, ok := imp.conf.ImportPkgs[path]; ok || !imp.conf.ImportFromBinary {
 		info, err = imp.loadFromSource(path)
 	} else {
 		info, err = imp.importFromBinary(path)

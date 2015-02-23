@@ -41,8 +41,7 @@ func main() {
 	i.f(x) // dynamic method call
 }
 `
-	// Construct a loader.
-	conf := loader.Config{SourceImports: true}
+	var conf loader.Config
 
 	// Parse the input file, a string.
 	// (Command-line tools should use conf.FromArgs.)

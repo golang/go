@@ -339,9 +339,8 @@ func Main(ctxt *build.Context, offsetFlag, fromFlag, to string) error {
 // context.  Only packages in pkgs will have their functions bodies typechecked.
 func loadProgram(ctxt *build.Context, pkgs map[string]bool) (*loader.Program, error) {
 	conf := loader.Config{
-		Build:         ctxt,
-		SourceImports: true,
-		ParserMode:    parser.ParseComments,
+		Build:      ctxt,
+		ParserMode: parser.ParseComments,
 
 		// TODO(adonovan): enable this.  Requires making a lot of code more robust!
 		AllowErrors: false,

@@ -238,10 +238,7 @@ func TestLoad_MissingIndirectImport(t *testing.T) {
 		"a": `package a; import _ "b"`,
 		"b": `package b; import _ "c"`,
 	}
-	conf := loader.Config{
-		SourceImports: true,
-		Build:         fakeContext(pkgs),
-	}
+	conf := loader.Config{Build: fakeContext(pkgs)}
 	conf.Import("a")
 
 	const wantErr = "couldn't load packages due to errors: b"
@@ -292,9 +289,8 @@ func TestLoad_BadDependency_AllowErrors(t *testing.T) {
 		},
 	} {
 		conf := loader.Config{
-			AllowErrors:   true,
-			SourceImports: true,
-			Build:         fakeContext(test.pkgs),
+			AllowErrors: true,
+			Build:       fakeContext(test.pkgs),
 		}
 		conf.Import("a")
 
@@ -347,9 +343,8 @@ func TestTransitivelyErrorFreeFlag(t *testing.T) {
 		"e": `package e; import _ "d"`,
 	}
 	conf := loader.Config{
-		AllowErrors:   true,
-		SourceImports: true,
-		Build:         fakeContext(pkgs),
+		AllowErrors: true,
+		Build:       fakeContext(pkgs),
 	}
 	conf.Import("a")
 
@@ -398,9 +393,8 @@ func TestErrorReporting(t *testing.T) {
 		"b": `package b; 'syntax error!`,
 	}
 	conf := loader.Config{
-		AllowErrors:   true,
-		SourceImports: true,
-		Build:         fakeContext(pkgs),
+		AllowErrors: true,
+		Build:       fakeContext(pkgs),
 	}
 	var mu sync.Mutex
 	var allErrors []error
@@ -509,9 +503,8 @@ func TestCycles(t *testing.T) {
 		// },
 	} {
 		conf := loader.Config{
-			AllowErrors:   true,
-			SourceImports: true,
-			Build:         test.ctxt,
+			AllowErrors: true,
+			Build:       test.ctxt,
 		}
 		var mu sync.Mutex
 		var allErrors []error

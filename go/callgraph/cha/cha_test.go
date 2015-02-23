@@ -51,8 +51,7 @@ func TestCHA(t *testing.T) {
 		}
 
 		conf := loader.Config{
-			SourceImports: true,
-			ParserMode:    parser.ParseComments,
+			ParserMode: parser.ParseComments,
 		}
 		f, err := conf.ParseFile(filename, content)
 		if err != nil {

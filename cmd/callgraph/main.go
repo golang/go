@@ -153,10 +153,7 @@ func main() {
 var stdout io.Writer = os.Stdout
 
 func doCallgraph(ctxt *build.Context, algo, format string, tests bool, args []string) error {
-	conf := loader.Config{
-		Build:         ctxt,
-		SourceImports: true,
-	}
+	conf := loader.Config{Build: ctxt}
 
 	if len(args) == 0 {
 		fmt.Fprintln(os.Stderr, Usage)

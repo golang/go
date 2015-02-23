@@ -193,7 +193,7 @@ func (res *Result) Serial() *serial.Result {
 // Clients that intend to perform multiple queries against the same
 // analysis scope should use this pattern instead:
 //
-//	conf := loader.Config{Build: buildContext, SourceImports: true}
+//	conf := loader.Config{Build: buildContext}
 //	... populate config, e.g. conf.FromArgs(args) ...
 //	iprog, err := conf.Load()
 //	if err != nil { ... }
@@ -223,7 +223,7 @@ func Query(args []string, mode, pos string, ptalog io.Writer, buildContext *buil
 		return nil, fmt.Errorf("invalid mode type: %q", mode)
 	}
 
-	conf := loader.Config{Build: buildContext, SourceImports: true}
+	conf := loader.Config{Build: buildContext}
 
 	// Determine initial packages.
 	args, err := conf.FromArgs(args, true)

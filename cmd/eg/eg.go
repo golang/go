@@ -55,9 +55,8 @@ func doMain() error {
 	}
 
 	conf := loader.Config{
-		Fset:          token.NewFileSet(),
-		ParserMode:    parser.ParseComments,
-		SourceImports: true,
+		Fset:       token.NewFileSet(),
+		ParserMode: parser.ParseComments,
 	}
 
 	// The first Created package is the template.

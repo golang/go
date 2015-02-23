@@ -21,7 +21,7 @@ func isEmpty(f *ssa.Function) bool { return f.Blocks == nil }
 
 // Tests that programs partially loaded from gc object files contain
 // functions with no code for the external portions, but are otherwise ok.
-func TestExternalPackages(t *testing.T) {
+func TestImportFromBinary(t *testing.T) {
 	test := `
 package main
 
@@ -43,7 +43,7 @@ func main() {
 `
 
 	// Create a single-file main package.
-	var conf loader.Config
+	conf := loader.Config{ImportFromBinary: true}
 	f, err := conf.ParseFile("<input>", test)
 	if err != nil {
 		t.Error(err)
@@ -212,7 +212,7 @@ func TestRuntimeTypes(t *testing.T) {
 	}
 	for _, test := range tests {
 		// Create a single-file main package.
-		var conf loader.Config
+		conf := loader.Config{ImportFromBinary: true}
 		f, err := conf.ParseFile("<input>", test.input)
 		if err != nil {
 			t.Errorf("test %q: %s", test.input[:15], err)
