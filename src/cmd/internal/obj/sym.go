@@ -36,6 +36,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 )
 
 func yy_isalpha(c int) bool {
@@ -131,6 +132,10 @@ func Linknew(arch *LinkArch) *Link {
 	ctxt.Version = HistVersion
 	ctxt.Goroot = Getgoroot()
 	ctxt.Goroot_final = os.Getenv("GOROOT_FINAL")
+	if runtime.GOOS == "windows" {
+		// TODO(rsc): Remove ctxt.Windows and let callers use runtime.GOOS.
+		ctxt.Windows = 1
+	}
 
 	buf, _ = os.Getwd()
 	if buf == "" {
