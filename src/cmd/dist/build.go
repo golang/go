@@ -536,21 +536,6 @@ var deptab = []struct {
 		"anames8.c",
 		"anames9.c",
 	}},
-	{"cmd/gc", []string{
-		"opnames.h",
-	}},
-	{"cmd/5g", []string{
-		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libgc.a",
-	}},
-	{"cmd/6g", []string{
-		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libgc.a",
-	}},
-	{"cmd/8g", []string{
-		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libgc.a",
-	}},
-	{"cmd/9g", []string{
-		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libgc.a",
-	}},
 	{"cmd/5l", []string{
 		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libld.a",
 	}},
@@ -589,7 +574,6 @@ var gentab = []struct {
 	nameprefix string
 	gen        func(string, string)
 }{
-	{"opnames.h", gcopnames},
 	{"anames5.c", mkanames},
 	{"anames6.c", mkanames},
 	{"anames8.c", mkanames},
@@ -656,10 +640,10 @@ func install(dir string) {
 	case "lib9", "libbio", "liblink", "cmd/gc", "cmd/ld":
 		islib = true
 		isgo = false
-	case "cmd/5a", "cmd/5g", "cmd/5l",
-		"cmd/6a", "cmd/6g", "cmd/6l",
-		"cmd/8a", "cmd/8g", "cmd/8l",
-		"cmd/9a", "cmd/9g", "cmd/9l":
+	case "cmd/5l",
+		"cmd/6l",
+		"cmd/8l",
+		"cmd/9l":
 		isgo = false
 	}
 
@@ -1134,12 +1118,8 @@ var buildorder = []string{
 	"lib9",
 	"libbio",
 	"liblink",
-
-	"cmd/gc",  // must be before g
 	"cmd/ld",  // must be before l
 	"cmd/%sl", // must be before a, g
-	"cmd/%sa",
-	"cmd/%sg",
 
 	// Go libraries and programs for bootstrap.
 	"runtime",
@@ -1184,12 +1164,6 @@ var buildorder = []string{
 	"text/template",
 	"go/doc",
 	"go/build",
-	"cmd/internal/obj",
-	"cmd/internal/obj/arm",
-	"cmd/internal/obj/i386",
-	"cmd/internal/obj/ppc64",
-	"cmd/internal/obj/x86",
-	"cmd/objwriter",
 	"cmd/go",
 }
 
@@ -1210,7 +1184,6 @@ var cleantab = []string{
 	"cmd/9a",
 	"cmd/9g",
 	"cmd/9l",
-	"cmd/gc",
 	"cmd/go",
 	"lib9",
 	"libbio",
