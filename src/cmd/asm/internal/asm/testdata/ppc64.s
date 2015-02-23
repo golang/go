@@ -1,6 +1,6 @@
 // This input was created by taking the instruction productions in
-// the old assembler's (9a's) grammar and hand-writing one complete
-// instruction for each rule, to guarantee we cover the same space.
+// the old assembler's (9a's) grammar and hand-writing complete
+// instructions for each rule, to guarantee we cover the same space.
 
 TEXT foo(SB),0,$0
 
