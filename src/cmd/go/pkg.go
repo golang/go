@@ -411,6 +411,7 @@ var goTools = map[string]targetDir{
 	"cmd/objwriter":                        toTool,
 	"cmd/pack":                             toTool,
 	"cmd/pprof":                            toTool,
+	"cmd/trace":                            toTool,
 	"cmd/yacc":                             toTool,
 	"golang.org/x/tools/cmd/cover":         toTool,
 	"golang.org/x/tools/cmd/godoc":         toBin,

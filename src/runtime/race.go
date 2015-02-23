@@ -23,6 +23,9 @@ func RaceSemrelease(s *uint32)
 // private interface for the runtime
 const raceenabled = true
 
+// For all functions accepting callerpc and pc,
+// callerpc is a return PC of the function that calls this function,
+// pc is start PC of the function that calls this function.
 func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
 	kind := t.kind & kindMask
 	if kind == kindArray || kind == kindStruct {
