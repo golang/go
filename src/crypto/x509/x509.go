@@ -891,47 +891,47 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 
 	for _, e := range in.TBSCertificate.Extensions {
 		out.Extensions = append(out.Extensions, e)
+		failIfCritical := false
 
 		if len(e.Id) == 4 && e.Id[0] == 2 && e.Id[1] == 5 && e.Id[2] == 29 {
 			switch e.Id[3] {
 			case 15:
 				// RFC 5280, 4.2.1.3
 				var usageBits asn1.BitString
-				_, err := asn1.Unmarshal(e.Value, &usageBits)
-
-				if err == nil {
-					var usage int
-					for i := 0; i < 9; i++ {
-						if usageBits.At(i) != 0 {
-							usage |= 1 << uint(i)
-						}
-					}
-					out.KeyUsage = KeyUsage(usage)
-					continue
+				if _, err := asn1.Unmarshal(e.Value, &usageBits); err != nil {
+					return nil, err
 				}
+
+				var usage int
+				for i := 0; i < 9; i++ {
+					if usageBits.At(i) != 0 {
+						usage |= 1 << uint(i)
+					}
+				}
+				out.KeyUsage = KeyUsage(usage)
+
 			case 19:
 				// RFC 5280, 4.2.1.9
 				var constraints basicConstraints
-				_, err := asn1.Unmarshal(e.Value, &constraints)
-
-				if err == nil {
-					out.BasicConstraintsValid = true
-					out.IsCA = constraints.IsCA
-					out.MaxPathLen = constraints.MaxPathLen
-					out.MaxPathLenZero = out.MaxPathLen == 0
-					continue
+				if _, err := asn1.Unmarshal(e.Value, &constraints); err != nil {
+					return nil, err
 				}
+
+				out.BasicConstraintsValid = true
+				out.IsCA = constraints.IsCA
+				out.MaxPathLen = constraints.MaxPathLen
+				out.MaxPathLenZero = out.MaxPathLen == 0
+
 			case 17:
 				out.DNSNames, out.EmailAddresses, out.IPAddresses, err = parseSANExtension(e.Value)
 				if err != nil {
 					return nil, err
 				}
 
-				if len(out.DNSNames) > 0 || len(out.EmailAddresses) > 0 || len(out.IPAddresses) > 0 {
-					continue
+				if len(out.DNSNames) == 0 && len(out.EmailAddresses) == 0 && len(out.IPAddresses) == 0 {
+					// If we didn't parse anything then we do the critical check, below.
+					failIfCritical = true
 				}
-				// If we didn't parse any of the names then we
-				// fall through to the critical check below.
 
 			case 30:
 				// RFC 5280, 4.2.1.10
@@ -950,8 +950,7 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 				// BaseDistance ::= INTEGER (0..MAX)
 
 				var constraints nameConstraints
-				_, err := asn1.Unmarshal(e.Value, &constraints)
-				if err != nil {
+				if _, err := asn1.Unmarshal(e.Value, &constraints); err != nil {
 					return nil, err
 				}
 
@@ -968,7 +967,6 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 					}
 					out.PermittedDNSDomains = append(out.PermittedDNSDomains, subtree.Name)
 				}
-				continue
 
 			case 31:
 				// RFC 5280, 4.2.1.14
@@ -985,15 +983,13 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 				//     nameRelativeToCRLIssuer [1]     RelativeDistinguishedName }
 
 				var cdp []distributionPoint
-				_, err := asn1.Unmarshal(e.Value, &cdp)
-				if err != nil {
+				if _, err := asn1.Unmarshal(e.Value, &cdp); err != nil {
 					return nil, err
 				}
 
 				for _, dp := range cdp {
 					var n asn1.RawValue
-					_, err = asn1.Unmarshal(dp.DistributionPoint.FullName.Bytes, &n)
-					if err != nil {
+					if _, err = asn1.Unmarshal(dp.DistributionPoint.FullName.Bytes, &n); err != nil {
 						return nil, err
 					}
 
@@ -1001,17 +997,14 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 						out.CRLDistributionPoints = append(out.CRLDistributionPoints, string(n.Bytes))
 					}
 				}
-				continue
 
 			case 35:
 				// RFC 5280, 4.2.1.1
 				var a authKeyId
-				_, err = asn1.Unmarshal(e.Value, &a)
-				if err != nil {
+				if _, err = asn1.Unmarshal(e.Value, &a); err != nil {
 					return nil, err
 				}
 				out.AuthorityKeyId = a.Id
-				continue
 
 			case 37:
 				// RFC 5280, 4.2.1.12.  Extended Key Usage
@@ -1023,8 +1016,7 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 				// KeyPurposeId ::= OBJECT IDENTIFIER
 
 				var keyUsage []asn1.ObjectIdentifier
-				_, err = asn1.Unmarshal(e.Value, &keyUsage)
-				if err != nil {
+				if _, err = asn1.Unmarshal(e.Value, &keyUsage); err != nil {
 					return nil, err
 				}
 
@@ -1036,17 +1028,13 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 					}
 				}
 
-				continue
-
 			case 14:
 				// RFC 5280, 4.2.1.2
 				var keyid []byte
-				_, err = asn1.Unmarshal(e.Value, &keyid)
-				if err != nil {
+				if _, err = asn1.Unmarshal(e.Value, &keyid); err != nil {
 					return nil, err
 				}
 				out.SubjectKeyId = keyid
-				continue
 
 			case 32:
 				// RFC 5280 4.2.1.4: Certificate Policies
@@ -1058,6 +1046,10 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 				for i, policy := range policies {
 					out.PolicyIdentifiers[i] = policy.Policy
 				}
+
+			default:
+				// Unknown extensions cause an error if marked as critical.
+				failIfCritical = true
 			}
 		} else if e.Id.Equal(oidExtensionAuthorityInfoAccess) {
 			// RFC 5280 4.2.2.1: Authority Information Access
@@ -1077,9 +1069,12 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 					out.IssuingCertificateURL = append(out.IssuingCertificateURL, string(v.Location.Bytes))
 				}
 			}
+		} else {
+			// Unknown extensions cause an error if marked as critical.
+			failIfCritical = true
 		}
 
-		if e.Critical {
+		if e.Critical && failIfCritical {
 			return out, UnhandledCriticalExtension{}
 		}
 	}
