@@ -26,7 +26,7 @@ func raiseproc(sig int32)
 func tfork(param *tforkt, psize uintptr, mm *m, gg *g, fn uintptr) int32
 
 //go:noescape
-func thrsleep(ident uintptr, clock_id int32, tsp *timespec, lock uintptr, abort *int32) int32
+func thrsleep(ident uintptr, clock_id int32, tsp *timespec, lock uintptr, abort *uint32) int32
 
 //go:noescape
 func thrwakeup(ident uintptr, n int32) int32

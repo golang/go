@@ -62,25 +62,22 @@ func semasleep(ns int64) int32 {
 	}
 
 	for {
-		// spin-mutex lock
-		for {
-			if xchg(&_g_.m.waitsemalock, 1) == 0 {
-				break
+		v := atomicload(&_g_.m.waitsemacount)
+		if v > 0 {
+			if cas(&_g_.m.waitsemacount, v, v-1) {
+				return 0 // semaphore acquired
 			}
-			osyield()
+			continue
 		}
 
-		if _g_.m.waitsemacount != 0 {
-			// semaphore is available.
-			_g_.m.waitsemacount--
-			// spin-mutex unlock
-			atomicstore(&_g_.m.waitsemalock, 0)
-			return 0 // semaphore acquired
-		}
-
-		// sleep until semaphore != 0 or timeout.
-		// thrsleep unlocks m.waitsemalock.
-		ret := thrsleep(uintptr(unsafe.Pointer(&_g_.m.waitsemacount)), _CLOCK_MONOTONIC, tsp, uintptr(unsafe.Pointer(&_g_.m.waitsemalock)), (*int32)(unsafe.Pointer(&_g_.m.waitsemacount)))
+		// Sleep until woken by semawakeup or timeout; or abort if waitsemacount != 0.
+		//
+		// From OpenBSD's __thrsleep(2) manual:
+		// "The abort argument, if not NULL, points to an int that will
+		// be examined [...] immediately before blocking.  If that int
+		// is non-zero then __thrsleep() will immediately return EINTR
+		// without blocking."
+		ret := thrsleep(uintptr(unsafe.Pointer(&_g_.m.waitsemacount)), _CLOCK_MONOTONIC, tsp, 0, &_g_.m.waitsemacount)
 		if ret == _EWOULDBLOCK {
 			return -1
 		}
@@ -89,14 +86,7 @@ func semasleep(ns int64) int32 {
 
 //go:nosplit
 func semawakeup(mp *m) {
-	// spin-mutex lock
-	for {
-		if xchg(&mp.waitsemalock, 1) == 0 {
-			break
-		}
-		osyield()
-	}
-	mp.waitsemacount++
+	xadd(&mp.waitsemacount, 1)
 	ret := thrwakeup(uintptr(unsafe.Pointer(&mp.waitsemacount)), 1)
 	if ret != 0 && ret != _ESRCH {
 		// semawakeup can be called on signal stack.
@@ -104,8 +94,6 @@ func semawakeup(mp *m) {
 			print("thrwakeup addr=", &mp.waitsemacount, " sem=", mp.waitsemacount, " ret=", ret, "\n")
 		})
 	}
-	// spin-mutex unlock
-	atomicstore(&mp.waitsemalock, 0)
 }
 
 func newosproc(mp *m, stk unsafe.Pointer) {
