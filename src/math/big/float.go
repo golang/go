@@ -39,10 +39,10 @@ const debugFloat = true // enable for debugging
 // and according to its rounding mode, unless specified otherwise. If the
 // result precision is 0 (see below), it is set to the precision of the
 // argument with the largest precision value before any rounding takes
-// place. The rounding mode remains unchanged, thus uninitialized Floats
-// provided as result arguments will "inherit" a reasonble precision from
-// the incoming arguments and their mode is the zero value for RoundingMode
-// (ToNearestEven).
+// place, and the rounding mode remains unchanged. Thus, uninitialized Floats
+// provided as result arguments will have their precision set to a reasonable
+// value determined by the operands and their mode is the zero value for
+// RoundingMode (ToNearestEven).
 //
 // By setting the desired precision to 24 or 53 and using ToNearestEven
 // rounding, Float operations produce the same results as the corresponding
@@ -61,6 +61,9 @@ type Float struct {
 	exp  int32
 	prec uint // TODO(gri) make this a 32bit field
 }
+
+// TODO(gri) provide a couple of Example tests showing typical Float intialization
+// and use.
 
 // Internal representation: The mantissa bits x.mant of a Float x are stored
 // in a nat slice long enough to hold up to x.prec bits; the slice may (but
@@ -158,7 +161,7 @@ func (z *Float) SetPrec(prec uint) *Float {
 // SetMode sets z's rounding mode to mode and returns an exact z.
 // z remains unchanged otherwise.
 func (z *Float) SetMode(mode RoundingMode) *Float {
-	z.acc = Exact
+	z.acc = Exact // TODO(gri) should we not do this? what's the general rule for setting accuracy?
 	z.mode = mode
 	return z
 }
@@ -274,23 +277,21 @@ func (z *Float) setExp(e int64) {
 }
 
 // debugging support
-func validate(args ...*Float) {
-	for i, x := range args {
-		const msb = 1 << (_W - 1)
-		m := len(x.mant)
-		if m == 0 {
-			// 0.0 or Inf
-			if x.exp != 0 && x.exp != infExp {
-				panic(fmt.Sprintf("#%d: %empty matissa with invalid exponent %d", i, x.exp))
-			}
-			continue
+func validate(x *Float) {
+	const msb = 1 << (_W - 1)
+	m := len(x.mant)
+	if m == 0 {
+		// 0.0 or Inf
+		if x.exp != 0 && x.exp != infExp {
+			panic(fmt.Sprintf("%empty matissa with invalid exponent %d", x.exp))
 		}
-		if x.mant[m-1]&msb == 0 {
-			panic(fmt.Sprintf("#%d: msb not set in last word %#x of %s", i, x.mant[m-1], x.Format('p', 0)))
-		}
-		if x.prec <= 0 {
-			panic(fmt.Sprintf("#%d: invalid precision %d", i, x.prec))
-		}
+		return
+	}
+	if x.mant[m-1]&msb == 0 {
+		panic(fmt.Sprintf("msb not set in last word %#x of %s", x.mant[m-1], x.Format('p', 0)))
+	}
+	if x.prec <= 0 {
+		panic(fmt.Sprintf("invalid precision %d", x.prec))
 	}
 }
 
@@ -1064,7 +1065,8 @@ func (x *Float) ucmp(y *Float) int {
 // result.
 func (z *Float) Add(x, y *Float) *Float {
 	if debugFloat {
-		validate(x, y)
+		validate(x)
+		validate(y)
 	}
 
 	if z.prec == 0 {
@@ -1104,7 +1106,8 @@ func (z *Float) Add(x, y *Float) *Float {
 // Precision, rounding, and accuracy reporting are as for Add.
 func (z *Float) Sub(x, y *Float) *Float {
 	if debugFloat {
-		validate(x, y)
+		validate(x)
+		validate(y)
 	}
 
 	if z.prec == 0 {
@@ -1143,7 +1146,8 @@ func (z *Float) Sub(x, y *Float) *Float {
 // Precision, rounding, and accuracy reporting are as for Add.
 func (z *Float) Mul(x, y *Float) *Float {
 	if debugFloat {
-		validate(x, y)
+		validate(x)
+		validate(y)
 	}
 
 	if z.prec == 0 {
@@ -1171,7 +1175,8 @@ func (z *Float) Mul(x, y *Float) *Float {
 // Precision, rounding, and accuracy reporting are as for Add.
 func (z *Float) Quo(x, y *Float) *Float {
 	if debugFloat {
-		validate(x, y)
+		validate(x)
+		validate(y)
 	}
 
 	if z.prec == 0 {
@@ -1251,7 +1256,8 @@ func (z *Float) Rsh(x *Float, s uint) *Float {
 // Infinities with matching sign are equal.
 func (x *Float) Cmp(y *Float) int {
 	if debugFloat {
-		validate(x, y)
+		validate(x)
+		validate(y)
 	}
 
 	mx := x.ord()

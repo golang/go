@@ -553,7 +553,8 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 			}
 			s.freelist = v.ptr().next
 			s.ref++
-			//TODO: prefetch v.next
+			// prefetchnta offers best performance, see change list message.
+			prefetchnta(uintptr(v.ptr().next))
 			x = unsafe.Pointer(v)
 			(*[2]uint64)(x)[0] = 0
 			(*[2]uint64)(x)[1] = 0
@@ -584,7 +585,8 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 			}
 			s.freelist = v.ptr().next
 			s.ref++
-			//TODO: prefetch
+			// prefetchnta offers best performance, see change list message.
+			prefetchnta(uintptr(v.ptr().next))
 			x = unsafe.Pointer(v)
 			if flags&flagNoZero == 0 {
 				v.ptr().next = 0
