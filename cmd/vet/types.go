@@ -37,7 +37,9 @@ func init() {
 func importType(path, name string) types.Type {
 	pkg, err := types.DefaultImport(imports, path)
 	if err != nil {
-		warnf("import failed: %v", err)
+		// This can happen if fmt hasn't been compiled yet.
+		// Since nothing uses formatterType anyway, don't complain.
+		//warnf("import failed: %v", err)
 		return nil
 	}
 	if obj, ok := pkg.Scope().Lookup(name).(*types.TypeName); ok {

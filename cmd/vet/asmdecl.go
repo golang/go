@@ -81,7 +81,7 @@ var (
 	asmTEXT      = re(`\bTEXT\b.*·([^\(]+)\(SB\)(?:\s*,\s*([0-9A-Z|+]+))?(?:\s*,\s*\$(-?[0-9]+)(?:-([0-9]+))?)?`)
 	asmDATA      = re(`\b(DATA|GLOBL)\b`)
 	asmNamedFP   = re(`([a-zA-Z0-9_\xFF-\x{10FFFF}]+)(?:\+([0-9]+))\(FP\)`)
-	asmUnnamedFP = re(`[^+\-0-9]](([0-9]+)\(FP\))`)
+	asmUnnamedFP = re(`[^+\-0-9](([0-9]+)\(FP\))`)
 	asmSP        = re(`[^+\-0-9](([0-9]+)\(([A-Z0-9]+)\))`)
 	asmOpcode    = re(`^\s*(?:[A-Z0-9a-z_]+:)?\s*([A-Z]+)\s*([^,]*)(?:,\s*(.*))?`)
 	power64Suff  = re(`([BHWD])(ZU|Z|U|BR)?$`)
@@ -191,6 +191,9 @@ Files:
 					localSize += archDef.intSize
 				}
 				argSize, _ = strconv.Atoi(m[4])
+				if fn == nil && !strings.Contains(fnName, "<>") {
+					badf("function %s missing Go declaration", fnName)
+				}
 				wroteSP = false
 				haveRetArg = false
 				continue
@@ -252,7 +255,13 @@ Files:
 			}
 
 			for _, m := range asmUnnamedFP.FindAllStringSubmatch(line, -1) {
-				badf("use of unnamed argument %s", m[1])
+				off, _ := strconv.Atoi(m[2])
+				v := fn.varByOffset[off]
+				if v != nil {
+					badf("use of unnamed argument %s; offset %d is %s+%d(FP)", m[1], off, v.name, v.off)
+				} else {
+					badf("use of unnamed argument %s", m[1])
+				}
 			}
 
 			for _, m := range asmNamedFP.FindAllStringSubmatch(line, -1) {
