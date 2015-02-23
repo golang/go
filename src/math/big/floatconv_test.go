@@ -5,7 +5,6 @@
 package big
 
 import (
-	"io"
 	"math"
 	"strconv"
 	"testing"
@@ -59,7 +58,7 @@ func TestFloatSetFloat64String(t *testing.T) {
 		{"+10000000000000000000000000000000000000000e-0", 1e40},
 	} {
 		var x Float
-		x.prec = 53 // TODO(gri) find better solution
+		x.SetPrec(53)
 		_, ok := x.SetString(test.s)
 		if !ok {
 			t.Errorf("%s: parse error", test.s)
@@ -313,8 +312,7 @@ func TestFloatFormat(t *testing.T) {
 		{"3.14", 'x', 0, "%x"},
 	} {
 		f, _, err := ParseFloat(test.x, 0, 1000, ToNearestEven)
-		// TODO(gri) should we return io.EOF at the end?
-		if err != nil && err != io.EOF {
+		if err != nil {
 			t.Errorf("%v: %s", test, err)
 			continue
 		}
