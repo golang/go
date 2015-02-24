@@ -219,22 +219,24 @@ func (x *Float) MantExp() (mant *Float, exp int) {
 	return
 }
 
-// SetMantExp is the inverse of MantExp. It sets z to mant × 2**exp and
-// and returns z. The result z has the same precision and rounding mode
-// as mant.
+// SetMantExp sets z to mant × 2**exp and and returns z.
+// The result z has the same precision and rounding mode
+// as mant. SetMantExp is an inverse of MantExp but does
+// not require 0.5 <= |mant| < 1.0. Specifically:
+//
+//	new(Float).SetMantExp(x.MantExp()).Cmp(x) == 0
 //
 // Special cases are:
 //
 //	z.SetMantExp(  ±0, exp) =   ±0
 //	z.SetMantExp(±Inf, exp) = ±Inf
 //
-// The result is ±Inf if the magnitude of exp is > MaxExp.
 func (z *Float) SetMantExp(mant *Float, exp int) *Float {
 	z.Copy(mant)
 	if len(z.mant) == 0 || z.exp == infExp {
 		return z
 	}
-	z.setExp(int64(exp))
+	z.setExp(int64(z.exp) + int64(exp))
 	return z
 }
 
