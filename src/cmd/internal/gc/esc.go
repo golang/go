@@ -10,8 +10,6 @@ import (
 	"strings"
 )
 
-// Escape analysis.
-
 // Run analysis on minimal sets of mutually recursive functions
 // or single non-recursive functions, bottom up.
 //
@@ -23,9 +21,7 @@ import (
 // First, a hidden closure function (n->curfn != N) cannot be the
 // root of a connected component. Refusing to use it as a root
 // forces it into the component of the function in which it appears.
-// The analysis assumes that closures and the functions in which they
-// appear are analyzed together, so that the aliasing between their
-// variables can be modeled more precisely.
+// This is more convenient for escape analysis.
 //
 // Second, each function becomes two virtual nodes in the graph,
 // with numbers n and n+1. We record the function's node number as n
@@ -37,50 +33,62 @@ import (
 // more precise when analyzing a single non-recursive function than
 // when analyzing a set of mutually recursive functions.
 
-var stack *NodeList
+// TODO(rsc): Look into using a map[*Node]bool instead of walkgen,
+// to allow analysis passes to use walkgen themselves.
 
-var visitgen uint32
+type bottomUpVisitor struct {
+	analyze  func(*NodeList, bool)
+	visitgen uint32
+	stack    *NodeList
+}
 
-const (
-	EscFuncUnknown = 0 + iota
-	EscFuncPlanned
-	EscFuncStarted
-	EscFuncTagged
-)
-
-func escapes(all *NodeList) {
-	for l := all; l != nil; l = l.Next {
+// visitBottomUp invokes analyze on the ODCLFUNC nodes listed in list.
+// It calls analyze with successive groups of functions, working from
+// the bottom of the call graph upward. Each time analyze is called with
+// a list of functions, every function on that list only calls other functions
+// on the list or functions that have been passed in previous invocations of
+// analyze. Closures appear in the same list as their outer functions.
+// The lists are as short as possible while preserving those requirements.
+// (In a typical program, many invocations of analyze will be passed just
+// a single function.) The boolean argument 'recursive' passed to analyze
+// specifies whether the functions on the list are mutually recursive.
+// If recursive is false, the list consists of only a single function and its closures.
+// If recursive is true, the list may still contain only a single function,
+// if that function is itself recursive.
+func visitBottomUp(list *NodeList, analyze func(list *NodeList, recursive bool)) {
+	for l := list; l != nil; l = l.Next {
 		l.N.Walkgen = 0
 	}
 
-	visitgen = 0
-	for l := all; l != nil; l = l.Next {
+	var v bottomUpVisitor
+	v.analyze = analyze
+	for l := list; l != nil; l = l.Next {
 		if l.N.Op == ODCLFUNC && l.N.Curfn == nil {
-			visit(l.N)
+			v.visit(l.N)
 		}
 	}
 
-	for l := all; l != nil; l = l.Next {
+	for l := list; l != nil; l = l.Next {
 		l.N.Walkgen = 0
 	}
 }
 
-func visit(n *Node) uint32 {
+func (v *bottomUpVisitor) visit(n *Node) uint32 {
 	if n.Walkgen > 0 {
 		// already visited
 		return n.Walkgen
 	}
 
-	visitgen++
-	n.Walkgen = visitgen
-	visitgen++
-	min := visitgen
+	v.visitgen++
+	n.Walkgen = v.visitgen
+	v.visitgen++
+	min := v.visitgen
 
 	l := new(NodeList)
-	l.Next = stack
+	l.Next = v.stack
 	l.N = n
-	stack = l
-	min = visitcodelist(n.Nbody, min)
+	v.stack = l
+	min = v.visitcodelist(n.Nbody, min)
 	if (min == n.Walkgen || min == n.Walkgen+1) && n.Curfn == nil {
 		// This node is the root of a strongly connected component.
 
@@ -93,44 +101,44 @@ func visit(n *Node) uint32 {
 		// Remove connected component from stack.
 		// Mark walkgen so that future visits return a large number
 		// so as not to affect the caller's min.
-		block := stack
+		block := v.stack
 
 		var l *NodeList
-		for l = stack; l.N != n; l = l.Next {
+		for l = v.stack; l.N != n; l = l.Next {
 			l.N.Walkgen = ^uint32(0)
 		}
 		n.Walkgen = ^uint32(0)
-		stack = l.Next
+		v.stack = l.Next
 		l.Next = nil
 
 		// Run escape analysis on this set of functions.
-		analyze(block, recursive)
+		v.analyze(block, recursive)
 	}
 
 	return min
 }
 
-func visitcodelist(l *NodeList, min uint32) uint32 {
+func (v *bottomUpVisitor) visitcodelist(l *NodeList, min uint32) uint32 {
 	for ; l != nil; l = l.Next {
-		min = visitcode(l.N, min)
+		min = v.visitcode(l.N, min)
 	}
 	return min
 }
 
-func visitcode(n *Node, min uint32) uint32 {
+func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
 	if n == nil {
 		return min
 	}
 
-	min = visitcodelist(n.Ninit, min)
-	min = visitcode(n.Left, min)
-	min = visitcode(n.Right, min)
-	min = visitcodelist(n.List, min)
-	min = visitcode(n.Ntest, min)
-	min = visitcode(n.Nincr, min)
-	min = visitcodelist(n.Nbody, min)
-	min = visitcodelist(n.Nelse, min)
-	min = visitcodelist(n.Rlist, min)
+	min = v.visitcodelist(n.Ninit, min)
+	min = v.visitcode(n.Left, min)
+	min = v.visitcode(n.Right, min)
+	min = v.visitcodelist(n.List, min)
+	min = v.visitcode(n.Ntest, min)
+	min = v.visitcode(n.Nincr, min)
+	min = v.visitcodelist(n.Nbody, min)
+	min = v.visitcodelist(n.Nelse, min)
+	min = v.visitcodelist(n.Rlist, min)
 
 	if n.Op == OCALLFUNC || n.Op == OCALLMETH {
 		fn := n.Left
@@ -138,7 +146,7 @@ func visitcode(n *Node, min uint32) uint32 {
 			fn = n.Left.Right.Sym.Def
 		}
 		if fn != nil && fn.Op == ONAME && fn.Class == PFUNC && fn.Defn != nil {
-			m := visit(fn.Defn)
+			m := v.visit(fn.Defn)
 			if m < min {
 				min = m
 			}
@@ -146,7 +154,7 @@ func visitcode(n *Node, min uint32) uint32 {
 	}
 
 	if n.Op == OCLOSURE {
-		m := visit(n.Closure)
+		m := v.visit(n.Closure)
 		if m < min {
 			min = m
 		}
@@ -155,7 +163,12 @@ func visitcode(n *Node, min uint32) uint32 {
 	return min
 }
 
+// Escape analysis.
+
 // An escape analysis pass for a set of functions.
+// The analysis assumes that closures and the functions in which they
+// appear are analyzed together, so that the aliasing between their
+// variables can be modeled more precisely.
 //
 // First escfunc, esc and escassign recurse over the ast of each
 // function to dig out flow(dst,src) edges between any
@@ -180,6 +193,17 @@ func visitcode(n *Node, min uint32) uint32 {
 // is taken without being immediately dereferenced
 // needs to be moved to the heap, and new(T) and slice
 // literals are always real allocations.
+
+func escapes(all *NodeList) {
+	visitBottomUp(all, escAnalyze)
+}
+
+const (
+	EscFuncUnknown = 0 + iota
+	EscFuncPlanned
+	EscFuncStarted
+	EscFuncTagged
+)
 
 type EscState struct {
 	theSink   Node
@@ -233,7 +257,7 @@ func parsetag(note *Strlit) int {
 	return EscReturn | em<<EscBits
 }
 
-func analyze(all *NodeList, recursive bool) {
+func escAnalyze(all *NodeList, recursive bool) {
 	es := EscState{}
 	e := &es
 	e.theSink.Op = ONAME
