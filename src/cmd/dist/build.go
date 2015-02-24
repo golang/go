@@ -1140,6 +1140,7 @@ var buildorder = []string{
 	"encoding/base64",
 	"syscall",
 	"time",
+	"internal/syscall/windows",
 	"os",
 	"reflect",
 	"fmt",
