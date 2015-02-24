@@ -229,11 +229,11 @@ func archAmd64() *Arch {
 	instructions["JNGE"] = x86.AJLT
 	instructions["JNL"] = x86.AJGE
 	instructions["JNLE"] = x86.AJGT
-	instructions["JNO"] = x86.JOC
+	instructions["JNO"] = x86.AJOC
 	instructions["JNP"] = x86.AJPC
 	instructions["JNS"] = x86.AJPL
 	instructions["JNZ"] = x86.AJNE
-	instructions["JO"] = x86.JOS
+	instructions["JO"] = x86.AJOS
 	instructions["JP"] = x86.AJPS
 	instructions["JPE"] = x86.AJPS
 	instructions["JPO"] = x86.AJPC
@@ -242,13 +242,13 @@ func archAmd64() *Arch {
 	instructions["MASKMOVDQU"] = x86.AMASKMOVOU
 	instructions["MOVD"] = x86.AMOVQ
 	instructions["MOVDQ2Q"] = x86.AMOVQ
-	instructions["MOVNTDQ"] = x86.MOVNTO
+	instructions["MOVNTDQ"] = x86.AMOVNTO
 	instructions["MOVOA"] = x86.AMOVO
-	instructions["MOVOA"] = x86.MOVO
-	instructions["PF2ID"] = x86.PF2IL
-	instructions["PI2FD"] = x86.PI2FL
-	instructions["PSLLDQ"] = x86.PSLLO
-	instructions["PSRLDQ"] = x86.PSRLO
+	instructions["MOVOA"] = x86.AMOVO
+	instructions["PF2ID"] = x86.APF2IL
+	instructions["PI2FD"] = x86.API2FL
+	instructions["PSLLDQ"] = x86.APSLLO
+	instructions["PSRLDQ"] = x86.APSRLO
 
 	unaryDestination := make(map[int]bool) // Instruction takes one operand and result is a destination.
 	// These instructions write to prog.To.
