@@ -176,7 +176,10 @@ func heapBitsForObject(p uintptr) (base uintptr, hbits heapBits) {
 	x -= mheap_.arena_start >> _PageShift
 	s := h_spans[x]
 	if s == nil || pageID(k) < s.start || p >= s.limit || s.state != mSpanInUse {
-		if s != nil && s.state == _MSpanStack {
+		if s == nil || s.state == _MSpanStack {
+			// If s is nil, the virtual address has never been part of the heap.
+			// This pointer may be to some mmap'd region, so we allow it.
+			// Pointers into stacks are also ok, the runtime manages these explicitly.
 			return
 		}
 

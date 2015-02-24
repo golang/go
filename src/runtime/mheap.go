@@ -128,7 +128,13 @@ func (s *mspan) layout() (size, n, total uintptr) {
 }
 
 var h_allspans []*mspan // TODO: make this h.allspans once mheap can be defined in Go
-var h_spans []*mspan    // TODO: make this h.spans once mheap can be defined in Go
+
+// h_spans is a lookup table to map virtual address page IDs to *mspan.
+// For allocated spans, their pages map to the span itself.
+// For free spans, only the lowest and highest pages map to the span itself.  Internal
+// pages map to an arbitrary span.
+// For pages that have never been allocated, h_spans entries are nil.
+var h_spans []*mspan // TODO: make this h.spans once mheap can be defined in Go
 
 func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
 	h := (*mheap)(vh)
@@ -568,8 +574,9 @@ func mHeap_Grow(h *mheap, npage uintptr) bool {
 	mSpan_Init(s, pageID(uintptr(v)>>_PageShift), ask>>_PageShift)
 	p := uintptr(s.start)
 	p -= (uintptr(unsafe.Pointer(h.arena_start)) >> _PageShift)
-	h_spans[p] = s
-	h_spans[p+s.npages-1] = s
+	for i := p; i < p+s.npages; i++ {
+		h_spans[i] = s
+	}
 	atomicstore(&s.sweepgen, h.sweepgen)
 	s.state = _MSpanInUse
 	mHeap_FreeSpanLocked(h, s, false, true, 0)
