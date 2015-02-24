@@ -4,9 +4,7 @@
 
 package windows
 
-import (
-	"syscall"
-)
+import "syscall"
 
 //go:generate go run ../../../syscall/mksyscall_windows.go -output zsyscall_windows.go syscall_windows.go
 
@@ -97,3 +95,17 @@ const (
 )
 
 //sys GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizeOfPointer *uint32) (errcode error) = iphlpapi.GetAdaptersAddresses
+
+//sys	GetComputerNameEx(nameformat uint32, buf *uint16, n *uint32) (err error) = GetComputerNameExW
+
+const (
+	ComputerNameNetBIOS                   = 0
+	ComputerNameDnsHostname               = 1
+	ComputerNameDnsDomain                 = 2
+	ComputerNameDnsFullyQualified         = 3
+	ComputerNamePhysicalNetBIOS           = 4
+	ComputerNamePhysicalDnsHostname       = 5
+	ComputerNamePhysicalDnsDomain         = 6
+	ComputerNamePhysicalDnsFullyQualified = 7
+	ComputerNameMax                       = 8
+)

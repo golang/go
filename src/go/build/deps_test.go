@@ -123,7 +123,7 @@ var pkgDeps = map[string][]string{
 	// Operating system access.
 	"syscall":       {"L0", "unicode/utf16"},
 	"time":          {"L0", "syscall"},
-	"os":            {"L1", "os", "syscall", "time"},
+	"os":            {"L1", "os", "syscall", "time", "internal/syscall/windows"},
 	"path/filepath": {"L2", "os", "syscall"},
 	"io/ioutil":     {"L2", "os", "path/filepath", "time"},
 	"os/exec":       {"L2", "os", "path/filepath", "syscall"},
