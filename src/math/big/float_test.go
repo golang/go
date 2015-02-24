@@ -167,11 +167,17 @@ func TestFloatSetMantExp(t *testing.T) {
 		{"+Inf", -1234, "+Inf"},
 		{"-Inf", -1234, "-Inf"},
 		{"0", -MaxExp - 1, "0"},
-		{"1", -MaxExp - 1, "+Inf"},  // exponent magnitude too large
-		{"-1", -MaxExp - 1, "-Inf"}, // exponent magnitude too large
+		{"0.5", -MaxExp - 1, "+Inf"},  // exponent overflow
+		{"-0.5", -MaxExp - 1, "-Inf"}, // exponent overflow
+		{"0.5", MaxExp + 1, "+Inf"},   // exponent overflow
+		{"-0.5", MaxExp + 1, "-Inf"},  // exponent overflow
+		{"1", MaxExp, "+Inf"},         // exponent overflow
+		{"2", MaxExp - 1, "+Inf"},     // exponent overflow
 		{"0.75", 1, "1.5"},
 		{"0.5", 11, "1024"},
 		{"-0.5", -2, "-0.125"},
+		{"32", 5, "1024"},
+		{"1024", -10, "1"},
 	} {
 		frac := makeFloat(test.frac)
 		want := makeFloat(test.z)
@@ -179,6 +185,10 @@ func TestFloatSetMantExp(t *testing.T) {
 		z.SetMantExp(frac, test.exp)
 		if !feq(&z, want) {
 			t.Errorf("SetMantExp(%s, %d) = %s; want %s", test.frac, test.exp, z.Format('g', 10), test.z)
+		}
+		// test inverse property
+		if z.SetMantExp(want.MantExp()).Cmp(want) != 0 {
+			t.Errorf("Inverse property not satisfied: got %s; want %s", z.Format('g', 10), test.z)
 		}
 	}
 }
