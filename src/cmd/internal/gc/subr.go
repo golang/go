@@ -127,8 +127,12 @@ var yychar_subr int
 var yyerror_lastsyntax int
 
 func Yyerror(fmt_ string, args ...interface{}) {
+	// bison used to invoke yyerror("syntax error").
+	// With Go yacc we get yyerror("%s", "syntax error").
+	// Convert to keep the old code working.
 	if fmt_ == "%s" && len(args) == 1 && args[0] == "syntax error" {
-		nsyntaxerrors++
+		fmt_ = "syntax error"
+		args = nil
 	}
 	if strings.HasPrefix(fmt_, "syntax error") {
 		nsyntaxerrors++
