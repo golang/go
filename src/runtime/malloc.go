@@ -292,6 +292,7 @@ func mallocinit() {
 		arenaSizes := []uintptr{
 			512 << 20,
 			256 << 20,
+			128 << 20,
 		}
 
 		for _, arenaSize := range arenaSizes {
