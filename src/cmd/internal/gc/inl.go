@@ -15,7 +15,6 @@
 //      2: early typechecking of all imported bodies
 //      3: allow variadic functions
 //      4: allow non-leaf functions , (breaks runtime.Caller)
-//      5: transitive inlining
 //
 //  At some point this may get another default and become switch-offable with -N.
 //
@@ -125,8 +124,9 @@ func caninl(fn *Node) {
 		}
 	}
 
-	budget := 40 // allowed hairyness
-	if ishairylist(fn.Nbody, &budget) {
+	const maxBudget = 80
+	budget := maxBudget // allowed hairyness
+	if ishairylist(fn.Nbody, &budget) || budget < 0 {
 		return
 	}
 
@@ -136,6 +136,7 @@ func caninl(fn *Node) {
 	fn.Nname.Inl = fn.Nbody
 	fn.Nbody = inlcopylist(fn.Nname.Inl)
 	fn.Nname.Inldcl = inlcopylist(fn.Nname.Defn.Dcl)
+	fn.Nname.InlCost = int32(maxBudget - budget)
 
 	// hack, TODO, check for better way to link method nodes back to the thing with the ->inl
 	// this is so export can find the body of a method
@@ -165,12 +166,42 @@ func ishairy(n *Node, budget *int) bool {
 		return false
 	}
 
-	// Things that are too hairy, irrespective of the budget
 	switch n.Op {
+	// Call is okay if inlinable and we have the budget for the body.
+	case OCALLFUNC:
+		if n.Left.Inl != nil {
+			*budget -= int(n.Left.InlCost)
+			break
+		}
+		if n.Left.Op == ONAME && n.Left.Left != nil && n.Left.Left.Op == OTYPE && n.Left.Right != nil && n.Left.Right.Op == ONAME { // methods called as functions
+			if n.Left.Sym.Def != nil && n.Left.Sym.Def.Inl != nil {
+				*budget -= int(n.Left.Sym.Def.InlCost)
+				break
+			}
+		}
+		if Debug['l'] < 4 {
+			return true
+		}
+
+	// Call is okay if inlinable and we have the budget for the body.
+	case OCALLMETH:
+		if n.Left.Type == nil {
+			Fatal("no function type for [%p] %v\n", n.Left, Nconv(n.Left, obj.FmtSign))
+		}
+		if n.Left.Type.Nname == nil {
+			Fatal("no function definition for [%p] %v\n", n.Left.Type, Tconv(n.Left.Type, obj.FmtSign))
+		}
+		if n.Left.Type.Nname.Inl != nil {
+			*budget -= int(n.Left.Type.Nname.InlCost)
+			break
+		}
+		if Debug['l'] < 4 {
+			return true
+		}
+
+	// Things that are too hairy, irrespective of the budget
 	case OCALL,
-		OCALLFUNC,
 		OCALLINTER,
-		OCALLMETH,
 		OPANIC,
 		ORECOVER:
 		if Debug['l'] < 4 {
@@ -778,20 +809,20 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 	inlfn = saveinlfn
 
 	// transitive inlining
-	// TODO do this pre-expansion on fn->inl directly.  requires
-	// either supporting exporting statemetns with complex ninits
-	// or saving inl and making inlinl
-	if Debug['l'] >= 5 {
-		body := fn.Inl
-		fn.Inl = nil // prevent infinite recursion
-		inlnodelist(call.Nbody)
-		for ll := call.Nbody; ll != nil; ll = ll.Next {
-			if ll.N.Op == OINLCALL {
-				inlconv2stmt(ll.N)
-			}
+	// might be nice to do this before exporting the body,
+	// but can't emit the body with inlining expanded.
+	// instead we emit the things that the body needs
+	// and each use must redo the inlining.
+	// luckily these are small.
+	body = fn.Inl
+	fn.Inl = nil // prevent infinite recursion (shouldn't happen anyway)
+	inlnodelist(call.Nbody)
+	for ll := call.Nbody; ll != nil; ll = ll.Next {
+		if ll.N.Op == OINLCALL {
+			inlconv2stmt(ll.N)
 		}
-		fn.Inl = body
 	}
+	fn.Inl = body
 
 	if Debug['m'] > 2 {
 		fmt.Printf("%v: After inlining %v\n\n", n.Line(), Nconv(*np, obj.FmtSign))
