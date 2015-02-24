@@ -853,6 +853,7 @@ func _yylex(yylval *yySymType) int32 {
 	var rune_ uint
 	var s *Sym
 	var h *Loophack
+	var str string
 
 	prevlineno = lineno
 
@@ -1405,8 +1406,9 @@ ncu:
 	cp = nil
 	ungetc(c)
 
+	str = lexbuf.String()
 	yylval.val.U.Xval = new(Mpint)
-	mpatofix(yylval.val.U.Xval, lexbuf.String())
+	mpatofix(yylval.val.U.Xval, str)
 	if yylval.val.U.Xval.Ovf != 0 {
 		Yyerror("overflow in constant")
 		Mpmovecfix(yylval.val.U.Xval, 0)
@@ -1416,8 +1418,7 @@ ncu:
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: integer literal\n")
 	}
-	litbuf = "literal "
-	litbuf += lexbuf.String()
+	litbuf = "literal " + str
 	return LLITERAL
 
 casedot:
@@ -1461,9 +1462,10 @@ caseep:
 casei:
 	cp = nil
 
+	str = lexbuf.String()
 	yylval.val.U.Cval = new(Mpcplx)
 	Mpmovecflt(&yylval.val.U.Cval.Real, 0.0)
-	mpatoflt(&yylval.val.U.Cval.Imag, lexbuf.String())
+	mpatoflt(&yylval.val.U.Cval.Imag, str)
 	if yylval.val.U.Cval.Imag.Val.Ovf != 0 {
 		Yyerror("overflow in imaginary constant")
 		Mpmovecflt(&yylval.val.U.Cval.Real, 0.0)
@@ -1473,16 +1475,16 @@ casei:
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: imaginary literal\n")
 	}
-	litbuf = "literal "
-	litbuf += lexbuf.String()
+	litbuf = "literal " + str
 	return LLITERAL
 
 caseout:
 	cp = nil
 	ungetc(c)
 
+	str = lexbuf.String()
 	yylval.val.U.Fval = new(Mpflt)
-	mpatoflt(yylval.val.U.Fval, lexbuf.String())
+	mpatoflt(yylval.val.U.Fval, str)
 	if yylval.val.U.Fval.Val.Ovf != 0 {
 		Yyerror("overflow in float constant")
 		Mpmovecflt(yylval.val.U.Fval, 0.0)
@@ -1492,8 +1494,7 @@ caseout:
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: floating literal\n")
 	}
-	litbuf = "literal "
-	litbuf += lexbuf.String()
+	litbuf = "literal " + str
 	return LLITERAL
 
 strlit:
