@@ -436,7 +436,7 @@ func main() {
 	}
 
 	if gohostarch == "arm" {
-		maxbg = 1
+		maxbg = min(maxbg, runtime.NumCPU())
 	}
 	bginit()
 
@@ -543,4 +543,11 @@ func xgetgoarm() string {
 		}
 	}
 	return goarm
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
