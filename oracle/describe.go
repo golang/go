@@ -215,13 +215,6 @@ func findInterestingNode(pkginfo *loader.PackageInfo, path []ast.Node) ([]ast.No
 				return path, actionExpr
 
 			case *types.Func:
-				// For f in 'interface {f()}', return the interface type, for now.
-				if _, ok := path[1].(*ast.Field); ok {
-					_ = path[2].(*ast.FieldList) // assertion
-					if _, ok := path[3].(*ast.InterfaceType); ok {
-						return path[3:], actionType
-					}
-				}
 				return path, actionExpr
 
 			case *types.Builtin:
@@ -737,10 +730,14 @@ func isAccessibleFrom(obj types.Object, pkg *types.Package) bool {
 func methodsToSerial(this *types.Package, methods []*types.Selection, fset *token.FileSet) []serial.DescribeMethod {
 	var jmethods []serial.DescribeMethod
 	for _, meth := range methods {
-		jmethods = append(jmethods, serial.DescribeMethod{
-			Name: types.SelectionString(this, meth),
-			Pos:  fset.Position(meth.Obj().Pos()).String(),
-		})
+		var ser serial.DescribeMethod
+		if meth != nil { // may contain nils when called by implements (on a method)
+			ser = serial.DescribeMethod{
+				Name: types.SelectionString(this, meth),
+				Pos:  fset.Position(meth.Obj().Pos()).String(),
+			}
+		}
+		jmethods = append(jmethods, ser)
 	}
 	return jmethods
 }

@@ -1,0 +1,283 @@
+-------- @implements F.f --------
+{
+	"mode": "implements",
+	"implements": {
+		"type": {
+			"name": "main.F",
+			"pos": "testdata/src/main/implements-methods-json.go:13:6",
+			"kind": "interface"
+		},
+		"to": [
+			{
+				"name": "*main.C",
+				"pos": "testdata/src/main/implements-methods-json.go:22:6",
+				"kind": "pointer"
+			},
+			{
+				"name": "main.D",
+				"pos": "testdata/src/main/implements-methods-json.go:23:6",
+				"kind": "struct"
+			},
+			{
+				"name": "main.FG",
+				"pos": "testdata/src/main/implements-methods-json.go:17:6",
+				"kind": "interface"
+			}
+		],
+		"method": {
+			"name": "func (F).f()",
+			"pos": "testdata/src/main/implements-methods-json.go:14:2"
+		},
+		"to_method": [
+			{
+				"name": "method (*C) f()",
+				"pos": "testdata/src/main/implements-methods-json.go:25:13"
+			},
+			{
+				"name": "method (D) f()",
+				"pos": "testdata/src/main/implements-methods-json.go:26:12"
+			},
+			{
+				"name": "method (FG) f()",
+				"pos": "testdata/src/main/implements-methods-json.go:18:2"
+			}
+		]
+	}
+}-------- @implements FG.f --------
+{
+	"mode": "implements",
+	"implements": {
+		"type": {
+			"name": "main.FG",
+			"pos": "testdata/src/main/implements-methods-json.go:17:6",
+			"kind": "interface"
+		},
+		"to": [
+			{
+				"name": "*main.D",
+				"pos": "testdata/src/main/implements-methods-json.go:23:6",
+				"kind": "pointer"
+			}
+		],
+		"from": [
+			{
+				"name": "main.F",
+				"pos": "testdata/src/main/implements-methods-json.go:13:6",
+				"kind": "interface"
+			}
+		],
+		"method": {
+			"name": "func (FG).f()",
+			"pos": "testdata/src/main/implements-methods-json.go:18:2"
+		},
+		"to_method": [
+			{
+				"name": "method (*D) f()",
+				"pos": "testdata/src/main/implements-methods-json.go:26:12"
+			}
+		],
+		"from_method": [
+			{
+				"name": "method (F) f()",
+				"pos": "testdata/src/main/implements-methods-json.go:14:2"
+			}
+		]
+	}
+}-------- @implements FG.g --------
+{
+	"mode": "implements",
+	"implements": {
+		"type": {
+			"name": "main.FG",
+			"pos": "testdata/src/main/implements-methods-json.go:17:6",
+			"kind": "interface"
+		},
+		"to": [
+			{
+				"name": "*main.D",
+				"pos": "testdata/src/main/implements-methods-json.go:23:6",
+				"kind": "pointer"
+			}
+		],
+		"from": [
+			{
+				"name": "main.F",
+				"pos": "testdata/src/main/implements-methods-json.go:13:6",
+				"kind": "interface"
+			}
+		],
+		"method": {
+			"name": "func (FG).g() []int",
+			"pos": "testdata/src/main/implements-methods-json.go:19:2"
+		},
+		"to_method": [
+			{
+				"name": "method (*D) g() []int",
+				"pos": "testdata/src/main/implements-methods-json.go:28:13"
+			}
+		],
+		"from_method": [
+			{
+				"name": "",
+				"pos": ""
+			}
+		]
+	}
+}-------- @implements *C.f --------
+{
+	"mode": "implements",
+	"implements": {
+		"type": {
+			"name": "*main.C",
+			"pos": "testdata/src/main/implements-methods-json.go:22:6",
+			"kind": "pointer"
+		},
+		"from": [
+			{
+				"name": "main.F",
+				"pos": "testdata/src/main/implements-methods-json.go:13:6",
+				"kind": "interface"
+			}
+		],
+		"method": {
+			"name": "func (*C).f()",
+			"pos": "testdata/src/main/implements-methods-json.go:25:13"
+		},
+		"from_method": [
+			{
+				"name": "method (F) f()",
+				"pos": "testdata/src/main/implements-methods-json.go:14:2"
+			}
+		]
+	}
+}-------- @implements D.f --------
+{
+	"mode": "implements",
+	"implements": {
+		"type": {
+			"name": "main.D",
+			"pos": "testdata/src/main/implements-methods-json.go:23:6",
+			"kind": "struct"
+		},
+		"from": [
+			{
+				"name": "main.F",
+				"pos": "testdata/src/main/implements-methods-json.go:13:6",
+				"kind": "interface"
+			}
+		],
+		"fromptr": [
+			{
+				"name": "main.FG",
+				"pos": "testdata/src/main/implements-methods-json.go:17:6",
+				"kind": "interface"
+			}
+		],
+		"method": {
+			"name": "func (D).f()",
+			"pos": "testdata/src/main/implements-methods-json.go:26:12"
+		},
+		"from_method": [
+			{
+				"name": "method (F) f()",
+				"pos": "testdata/src/main/implements-methods-json.go:14:2"
+			}
+		],
+		"fromptr_method": [
+			{
+				"name": "method (FG) f()",
+				"pos": "testdata/src/main/implements-methods-json.go:18:2"
+			}
+		]
+	}
+}-------- @implements *D.g --------
+{
+	"mode": "implements",
+	"implements": {
+		"type": {
+			"name": "*main.D",
+			"pos": "testdata/src/main/implements-methods-json.go:23:6",
+			"kind": "pointer"
+		},
+		"from": [
+			{
+				"name": "main.F",
+				"pos": "testdata/src/main/implements-methods-json.go:13:6",
+				"kind": "interface"
+			},
+			{
+				"name": "main.FG",
+				"pos": "testdata/src/main/implements-methods-json.go:17:6",
+				"kind": "interface"
+			}
+		],
+		"method": {
+			"name": "func (*D).g() []int",
+			"pos": "testdata/src/main/implements-methods-json.go:28:13"
+		},
+		"from_method": [
+			{
+				"name": "",
+				"pos": ""
+			},
+			{
+				"name": "method (FG) g() []int",
+				"pos": "testdata/src/main/implements-methods-json.go:19:2"
+			}
+		]
+	}
+}-------- @implements Len --------
+{
+	"mode": "implements",
+	"implements": {
+		"type": {
+			"name": "main.sorter",
+			"pos": "testdata/src/main/implements-methods-json.go:30:6",
+			"kind": "slice"
+		},
+		"from": [
+			{
+				"name": "sort.Interface",
+				"pos": "/usr/local/google/home/adonovan/go/src/sort/sort.go:12:6",
+				"kind": "interface"
+			}
+		],
+		"method": {
+			"name": "func (sorter).Len() int",
+			"pos": "testdata/src/main/implements-methods-json.go:32:15"
+		},
+		"from_method": [
+			{
+				"name": "method (sort.Interface) Len() int",
+				"pos": "/usr/local/google/home/adonovan/go/src/sort/sort.go:14:2"
+			}
+		]
+	}
+}-------- @implements I.Method --------
+{
+	"mode": "implements",
+	"implements": {
+		"type": {
+			"name": "main.I",
+			"pos": "testdata/src/main/implements-methods-json.go:36:6",
+			"kind": "interface"
+		},
+		"to": [
+			{
+				"name": "lib.Type",
+				"pos": "testdata/src/lib/lib.go:3:6",
+				"kind": "basic"
+			}
+		],
+		"method": {
+			"name": "func (I).Method(*int) *int",
+			"pos": "testdata/src/main/implements-methods-json.go:37:2"
+		},
+		"to_method": [
+			{
+				"name": "method (lib.Type) Method(x *int) *int",
+				"pos": "testdata/src/lib/lib.go:5:13"
+			}
+		]
+	}
+}

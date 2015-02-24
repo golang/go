@@ -59,7 +59,7 @@ The mode argument determines the query to perform:
 	callstack 	show path from callgraph root to selected function
 	describe  	describe selected syntax: definition, methods, etc
 	freevars  	show free variables of selection
-	implements	show 'implements' relation for selected type
+	implements	show 'implements' relation for selected type or method
 	peers     	show send/receive corresponding to selected channel op
 	referrers 	show all refs to entity denoted by selected identifier
 	what		show basic information about the selected syntax node

@@ -167,7 +167,5 @@ Method set:
 	method (I) f()
 
 -------- @describe def-imethod-I.f --------
-type interface{f()}
-Method set:
-	method (interface{f()}) f()
+definition of interface method func (I).f()
 
