@@ -1703,7 +1703,7 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool, 
 }
 
 // verifyAsm specifies whether to check the assemblers written in Go
-// against the assemblers written in C. If set, asm will run both (say) 6a and new6a
+// against the assemblers written in C. If set, asm will run both asm and (say) 6a
 // and fail if the two produce different output files.
 const verifyAsm = true
 
@@ -1711,12 +1711,12 @@ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
 	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch))
 	sfile = mkAbs(p.Dir, sfile)
-	args := []interface{}{buildToolExec, tool(archChar + "a"), "-o", ofile, "-trimpath", b.work, "-I", obj, "-I", inc, "-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch, sfile}
+	args := []interface{}{buildToolExec, tool("asm"), "-o", ofile, "-trimpath", b.work, "-I", obj, "-I", inc, "-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch, sfile}
 	if err := b.run(p.Dir, p.ImportPath, nil, args...); err != nil {
 		return err
 	}
 	if verifyAsm {
-		if err := toolVerify(b, p, "asm", ofile, args); err != nil {
+		if err := toolVerify(b, p, archChar+"a", ofile, args); err != nil {
 			return err
 		}
 	}

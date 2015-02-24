@@ -40,6 +40,7 @@ func main() {
 	if *flags.PrintOut {
 		ctxt.Debugasm = 1
 	}
+	ctxt.Trimpath = *flags.TrimPath
 	ctxt.Bso = obj.Binitw(os.Stdout)
 	defer obj.Bflush(ctxt.Bso)
 	ctxt.Diag = log.Fatalf

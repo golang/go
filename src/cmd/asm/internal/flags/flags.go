@@ -17,7 +17,7 @@ var (
 	Debug      = flag.Bool("debug", false, "dump instructions as they are parsed")
 	OutputFile = flag.String("o", "", "output file; default foo.6 for /a/b/c/foo.s on amd64")
 	PrintOut   = flag.Bool("S", false, "print assembly and machine code")
-	TrimPath   = flag.String("trimpath", "", "remove prefix from recorded source file paths (unused TODO)")
+	TrimPath   = flag.String("trimpath", "", "remove prefix from recorded source file paths")
 )
 
 var (
