@@ -445,3 +445,50 @@ type T struct {
 		t.Error("not expected to find T.f3")
 	}
 }
+
+// TestIssue9979 verifies that empty statements are contained within their enclosing blocks.
+func TestIssue9979(t *testing.T) {
+	for _, src := range []string{
+		"package p; func f() {;}",
+		"package p; func f() {L:}",
+		"package p; func f() {L:;}",
+		"package p; func f() {L:\n}",
+		"package p; func f() {L:\n;}",
+		"package p; func f() { ; }",
+		"package p; func f() { L: }",
+		"package p; func f() { L: ; }",
+		"package p; func f() { L: \n}",
+		"package p; func f() { L: \n; }",
+	} {
+		fset := token.NewFileSet()
+		f, err := ParseFile(fset, "", src, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var pos, end token.Pos
+		ast.Inspect(f, func(x ast.Node) bool {
+			switch s := x.(type) {
+			case *ast.BlockStmt:
+				pos, end = s.Pos()+1, s.End()-1 // exclude "{", "}"
+			case *ast.LabeledStmt:
+				pos, end = s.Pos()+2, s.End() // exclude "L:"
+			case *ast.EmptyStmt:
+				// check containment
+				if s.Pos() < pos || s.End() > end {
+					t.Errorf("%s: %T[%d, %d] not inside [%d, %d]", src, s, s.Pos(), s.End(), pos, end)
+				}
+				// check semicolon
+				offs := fset.Position(s.Pos()).Offset
+				if ch := src[offs]; ch != ';' != s.Implicit {
+					want := "want ';'"
+					if s.Implicit {
+						want = "but ';' is implicit"
+					}
+					t.Errorf("%s: found %q at offset %d; %s", src, ch, offs, want)
+				}
+			}
+			return true
+		})
+	}
+}

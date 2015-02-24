@@ -562,10 +562,11 @@ type (
 
 	// An EmptyStmt node represents an empty statement.
 	// The "position" of the empty statement is the position
-	// of the immediately preceding semicolon.
+	// of the immediately following (explicit or implicit) semicolon.
 	//
 	EmptyStmt struct {
-		Semicolon token.Pos // position of preceding ";"
+		Semicolon token.Pos // position of following ";"
+		Implicit  bool      // if set, ";" was omitted in the source
 	}
 
 	// A LabeledStmt node represents a labeled statement.
@@ -734,6 +735,9 @@ func (s *RangeStmt) Pos() token.Pos      { return s.For }
 func (s *BadStmt) End() token.Pos  { return s.To }
 func (s *DeclStmt) End() token.Pos { return s.Decl.End() }
 func (s *EmptyStmt) End() token.Pos {
+	if s.Implicit {
+		return s.Semicolon
+	}
 	return s.Semicolon + 1 /* len(";") */
 }
 func (s *LabeledStmt) End() token.Pos { return s.Stmt.End() }
