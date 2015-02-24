@@ -339,7 +339,7 @@ func gc(mode int) {
 		})
 	} else {
 		// For non-concurrent GC (mode != gcBackgroundMode)
-		// g stack have not been scanned so set gcscanvalid
+		// The g stacks have not been scanned so set gcscanvalid
 		// such that mark termination scans all stacks.
 		// No races here since we are in a STW phase.
 		for _, gp := range allgs {
@@ -381,6 +381,14 @@ func gc(mode int) {
 
 		if debug.gctrace > 1 {
 			startTime = nanotime()
+			// The g stacks have been scanned so
+			// they have gcscanvalid==true and gcworkdone==true.
+			// Reset these so that all stacks will be rescanned.
+			// No races here since we are in a STW phase.
+			for _, gp := range allgs {
+				gp.gcworkdone = false  // set to true in gcphasework
+				gp.gcscanvalid = false // stack has not been scanned
+			}
 			finishsweep_m()
 			gcMark(startTime)
 			gcSweep(mode)
