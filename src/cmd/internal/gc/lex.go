@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:generate go tool yacc go.y
+
 package gc
 
 import (
@@ -413,18 +415,14 @@ func Main() {
 
 	if Debug['l'] != 0 {
 		// Find functions that can be inlined and clone them before walk expands them.
-		for l := xtop; l != nil; l = l.Next {
-			if l.N.Op == ODCLFUNC {
-				caninl(l.N)
+		visitBottomUp(xtop, func(list *NodeList, recursive bool) {
+			for l := list; l != nil; l = l.Next {
+				if l.N.Op == ODCLFUNC {
+					caninl(l.N)
+					inlcalls(l.N)
+				}
 			}
-		}
-
-		// Expand inlineable calls in all functions
-		for l := xtop; l != nil; l = l.Next {
-			if l.N.Op == ODCLFUNC {
-				inlcalls(l.N)
-			}
-		}
+		})
 	}
 
 	// Phase 6: Escape analysis.

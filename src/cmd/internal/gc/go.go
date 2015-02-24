@@ -226,6 +226,7 @@ type Node struct {
 	Escretval      *NodeList
 	Escloopdepth   int
 	Sym            *Sym
+	InlCost        int32
 	Vargen         int32
 	Lineno         int32
 	Endlineno      int32
