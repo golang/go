@@ -169,8 +169,6 @@ func TestFloatSetMantExp(t *testing.T) {
 		{"0", -MaxExp - 1, "0"},
 		{"0.5", -MaxExp - 1, "+Inf"},  // exponent overflow
 		{"-0.5", -MaxExp - 1, "-Inf"}, // exponent overflow
-		{"0.5", MaxExp + 1, "+Inf"},   // exponent overflow
-		{"-0.5", MaxExp + 1, "-Inf"},  // exponent overflow
 		{"1", MaxExp, "+Inf"},         // exponent overflow
 		{"2", MaxExp - 1, "+Inf"},     // exponent overflow
 		{"0.75", 1, "1.5"},
