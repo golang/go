@@ -492,13 +492,19 @@ func TestTCPConcurrentAccept(t *testing.T) {
 	}
 }
 
-func TestTCPReadWriteMallocs(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping malloc count in short mode")
+func TestTCPReadWriteAllocs(t *testing.T) {
+	switch runtime.GOOS {
+	case "nacl", "windows":
+		// NaCl needs to allocate pseudo file descriptor
+		// stuff. See syscall/fd_nacl.go.
+		// Windows uses closures and channels for IO
+		// completion port-based netpoll. See fd_windows.go.
+		t.Skipf("not supported on %s", runtime.GOOS)
 	}
+
 	ln, err := Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		t.Fatalf("Listen failed: %v", err)
+		t.Fatal(err)
 	}
 	defer ln.Close()
 	var server Conn
@@ -510,25 +516,26 @@ func TestTCPReadWriteMallocs(t *testing.T) {
 	}()
 	client, err := Dial("tcp", ln.Addr().String())
 	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
+		t.Fatal(err)
 	}
+	defer client.Close()
 	if err := <-errc; err != nil {
-		t.Fatalf("Accept failed: %v", err)
+		t.Fatal(err)
 	}
 	defer server.Close()
 	var buf [128]byte
-	mallocs := testing.AllocsPerRun(1000, func() {
+	allocs := testing.AllocsPerRun(1000, func() {
 		_, err := server.Write(buf[:])
 		if err != nil {
-			t.Fatalf("Write failed: %v", err)
+			t.Fatal(err)
 		}
 		_, err = io.ReadFull(client, buf[:])
 		if err != nil {
-			t.Fatalf("Read failed: %v", err)
+			t.Fatal(err)
 		}
 	})
-	if mallocs > 0 {
-		t.Fatalf("Got %v allocs, want 0", mallocs)
+	if allocs > 0 {
+		t.Fatalf("got %v; want 0", allocs)
 	}
 }
 
