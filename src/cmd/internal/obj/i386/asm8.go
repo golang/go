@@ -46,9 +46,16 @@ const (
 
 type Optab struct {
 	as     int16
-	ytab   []byte
+	ytab   []ytab
 	prefix uint8
 	op     [13]uint8
+}
+
+type ytab struct {
+	from    uint8
+	to      uint8
+	zcase   uint8
+	zoffset uint8
 }
 
 var opindex [ALAST + 1]*Optab
@@ -171,962 +178,402 @@ var ycover [Ymax * Ymax]uint8
 
 var reg [MAXREG]int
 
-var ynone = []uint8{
-	Ynone,
-	Ynone,
-	Zlit,
-	1,
-	0,
+var ynone = []ytab{
+	{Ynone, Ynone, Zlit, 1},
 }
 
-var ytext = []uint8{
-	Ymb,
-	Ytextsize,
-	Zpseudo,
-	1,
-	0,
+var ytext = []ytab{
+	{Ymb, Ytextsize, Zpseudo, 1},
 }
 
-var ynop = []uint8{
-	Ynone,
-	Ynone,
-	Zpseudo,
-	0,
-	Ynone,
-	Yiauto,
-	Zpseudo,
-	0,
-	Ynone,
-	Yml,
-	Zpseudo,
-	0,
-	Ynone,
-	Yrf,
-	Zpseudo,
-	0,
-	Yiauto,
-	Ynone,
-	Zpseudo,
-	0,
-	Ynone,
-	Yxr,
-	Zpseudo,
-	0,
-	Yml,
-	Ynone,
-	Zpseudo,
-	0,
-	Yrf,
-	Ynone,
-	Zpseudo,
-	0,
-	Yxr,
-	Ynone,
-	Zpseudo,
-	1,
-	0,
+var ynop = []ytab{
+	{Ynone, Ynone, Zpseudo, 0},
+	{Ynone, Yiauto, Zpseudo, 0},
+	{Ynone, Yml, Zpseudo, 0},
+	{Ynone, Yrf, Zpseudo, 0},
+	{Yiauto, Ynone, Zpseudo, 0},
+	{Ynone, Yxr, Zpseudo, 0},
+	{Yml, Ynone, Zpseudo, 0},
+	{Yrf, Ynone, Zpseudo, 0},
+	{Yxr, Ynone, Zpseudo, 1},
 }
 
-var yfuncdata = []uint8{
-	Yi32,
-	Ym,
-	Zpseudo,
-	0,
-	0,
+var yfuncdata = []ytab{
+	{Yi32, Ym, Zpseudo, 0},
 }
 
-var ypcdata = []uint8{
-	Yi32,
-	Yi32,
-	Zpseudo,
-	0,
-	0,
+var ypcdata = []ytab{
+	{Yi32, Yi32, Zpseudo, 0},
 }
 
-var yxorb = []uint8{
-	Yi32,
-	Yal,
-	Zib_,
-	1,
-	Yi32,
-	Ymb,
-	Zibo_m,
-	2,
-	Yrb,
-	Ymb,
-	Zr_m,
-	1,
-	Ymb,
-	Yrb,
-	Zm_r,
-	1,
-	0,
+var yxorb = []ytab{
+	{Yi32, Yal, Zib_, 1},
+	{Yi32, Ymb, Zibo_m, 2},
+	{Yrb, Ymb, Zr_m, 1},
+	{Ymb, Yrb, Zm_r, 1},
 }
 
-var yxorl = []uint8{
-	Yi8,
-	Yml,
-	Zibo_m,
-	2,
-	Yi32,
-	Yax,
-	Zil_,
-	1,
-	Yi32,
-	Yml,
-	Zilo_m,
-	2,
-	Yrl,
-	Yml,
-	Zr_m,
-	1,
-	Yml,
-	Yrl,
-	Zm_r,
-	1,
-	0,
+var yxorl = []ytab{
+	{Yi8, Yml, Zibo_m, 2},
+	{Yi32, Yax, Zil_, 1},
+	{Yi32, Yml, Zilo_m, 2},
+	{Yrl, Yml, Zr_m, 1},
+	{Yml, Yrl, Zm_r, 1},
 }
 
-var yaddl = []uint8{
-	Yi8,
-	Yml,
-	Zibo_m,
-	2,
-	Yi32,
-	Yax,
-	Zil_,
-	1,
-	Yi32,
-	Yml,
-	Zilo_m,
-	2,
-	Yrl,
-	Yml,
-	Zr_m,
-	1,
-	Yml,
-	Yrl,
-	Zm_r,
-	1,
-	0,
+var yaddl = []ytab{
+	{Yi8, Yml, Zibo_m, 2},
+	{Yi32, Yax, Zil_, 1},
+	{Yi32, Yml, Zilo_m, 2},
+	{Yrl, Yml, Zr_m, 1},
+	{Yml, Yrl, Zm_r, 1},
 }
 
-var yincb = []uint8{
-	Ynone,
-	Ymb,
-	Zo_m,
-	2,
-	0,
+var yincb = []ytab{
+	{Ynone, Ymb, Zo_m, 2},
 }
 
-var yincl = []uint8{
-	Ynone,
-	Yrl,
-	Z_rp,
-	1,
-	Ynone,
-	Yml,
-	Zo_m,
-	2,
-	0,
+var yincl = []ytab{
+	{Ynone, Yrl, Z_rp, 1},
+	{Ynone, Yml, Zo_m, 2},
 }
 
-var ycmpb = []uint8{
-	Yal,
-	Yi32,
-	Z_ib,
-	1,
-	Ymb,
-	Yi32,
-	Zm_ibo,
-	2,
-	Ymb,
-	Yrb,
-	Zm_r,
-	1,
-	Yrb,
-	Ymb,
-	Zr_m,
-	1,
-	0,
+var ycmpb = []ytab{
+	{Yal, Yi32, Z_ib, 1},
+	{Ymb, Yi32, Zm_ibo, 2},
+	{Ymb, Yrb, Zm_r, 1},
+	{Yrb, Ymb, Zr_m, 1},
 }
 
-var ycmpl = []uint8{
-	Yml,
-	Yi8,
-	Zm_ibo,
-	2,
-	Yax,
-	Yi32,
-	Z_il,
-	1,
-	Yml,
-	Yi32,
-	Zm_ilo,
-	2,
-	Yml,
-	Yrl,
-	Zm_r,
-	1,
-	Yrl,
-	Yml,
-	Zr_m,
-	1,
-	0,
+var ycmpl = []ytab{
+	{Yml, Yi8, Zm_ibo, 2},
+	{Yax, Yi32, Z_il, 1},
+	{Yml, Yi32, Zm_ilo, 2},
+	{Yml, Yrl, Zm_r, 1},
+	{Yrl, Yml, Zr_m, 1},
 }
 
-var yshb = []uint8{
-	Yi1,
-	Ymb,
-	Zo_m,
-	2,
-	Yi32,
-	Ymb,
-	Zibo_m,
-	2,
-	Ycx,
-	Ymb,
-	Zo_m,
-	2,
-	0,
+var yshb = []ytab{
+	{Yi1, Ymb, Zo_m, 2},
+	{Yi32, Ymb, Zibo_m, 2},
+	{Ycx, Ymb, Zo_m, 2},
 }
 
-var yshl = []uint8{
-	Yi1,
-	Yml,
-	Zo_m,
-	2,
-	Yi32,
-	Yml,
-	Zibo_m,
-	2,
-	Ycl,
-	Yml,
-	Zo_m,
-	2,
-	Ycx,
-	Yml,
-	Zo_m,
-	2,
-	0,
+var yshl = []ytab{
+	{Yi1, Yml, Zo_m, 2},
+	{Yi32, Yml, Zibo_m, 2},
+	{Ycl, Yml, Zo_m, 2},
+	{Ycx, Yml, Zo_m, 2},
 }
 
-var ytestb = []uint8{
-	Yi32,
-	Yal,
-	Zib_,
-	1,
-	Yi32,
-	Ymb,
-	Zibo_m,
-	2,
-	Yrb,
-	Ymb,
-	Zr_m,
-	1,
-	Ymb,
-	Yrb,
-	Zm_r,
-	1,
-	0,
+var ytestb = []ytab{
+	{Yi32, Yal, Zib_, 1},
+	{Yi32, Ymb, Zibo_m, 2},
+	{Yrb, Ymb, Zr_m, 1},
+	{Ymb, Yrb, Zm_r, 1},
 }
 
-var ytestl = []uint8{
-	Yi32,
-	Yax,
-	Zil_,
-	1,
-	Yi32,
-	Yml,
-	Zilo_m,
-	2,
-	Yrl,
-	Yml,
-	Zr_m,
-	1,
-	Yml,
-	Yrl,
-	Zm_r,
-	1,
-	0,
+var ytestl = []ytab{
+	{Yi32, Yax, Zil_, 1},
+	{Yi32, Yml, Zilo_m, 2},
+	{Yrl, Yml, Zr_m, 1},
+	{Yml, Yrl, Zm_r, 1},
 }
 
-var ymovb = []uint8{
-	Yrb,
-	Ymb,
-	Zr_m,
-	1,
-	Ymb,
-	Yrb,
-	Zm_r,
-	1,
-	Yi32,
-	Yrb,
-	Zib_rp,
-	1,
-	Yi32,
-	Ymb,
-	Zibo_m,
-	2,
-	0,
+var ymovb = []ytab{
+	{Yrb, Ymb, Zr_m, 1},
+	{Ymb, Yrb, Zm_r, 1},
+	{Yi32, Yrb, Zib_rp, 1},
+	{Yi32, Ymb, Zibo_m, 2},
 }
 
-var ymovw = []uint8{
-	Yrl,
-	Yml,
-	Zr_m,
-	1,
-	Yml,
-	Yrl,
-	Zm_r,
-	1,
-	Yi0,
-	Yrl,
-	Zclr,
-	1 + 2,
+var ymovw = []ytab{
+	{Yrl, Yml, Zr_m, 1},
+	{Yml, Yrl, Zm_r, 1},
+	{Yi0, Yrl, Zclr, 1 + 2},
 	//	Yi0,	Yml,	Zibo_m,	2,	// shorter but slower AND $0,dst
-	Yi32,
-	Yrl,
-	Zil_rp,
-	1,
-	Yi32,
-	Yml,
-	Zilo_m,
-	2,
-	Yiauto,
-	Yrl,
-	Zaut_r,
-	1,
-	0,
+	{Yi32, Yrl, Zil_rp, 1},
+	{Yi32, Yml, Zilo_m, 2},
+	{Yiauto, Yrl, Zaut_r, 1},
 }
 
-var ymovl = []uint8{
-	Yrl,
-	Yml,
-	Zr_m,
-	1,
-	Yml,
-	Yrl,
-	Zm_r,
-	1,
-	Yi0,
-	Yrl,
-	Zclr,
-	1 + 2,
+var ymovl = []ytab{
+	{Yrl, Yml, Zr_m, 1},
+	{Yml, Yrl, Zm_r, 1},
+	{Yi0, Yrl, Zclr, 1 + 2},
 	//	Yi0,	Yml,	Zibo_m,	2,	// shorter but slower AND $0,dst
-	Yi32,
-	Yrl,
-	Zil_rp,
-	1,
-	Yi32,
-	Yml,
-	Zilo_m,
-	2,
-	Yml,
-	Yxr,
-	Zm_r_xm,
-	2, // XMM MOVD (32 bit)
-	Yxr,
-	Yml,
-	Zr_m_xm,
-	2, // XMM MOVD (32 bit)
-	Yiauto,
-	Yrl,
-	Zaut_r,
-	1,
-	0,
+	{Yi32, Yrl, Zil_rp, 1},
+	{Yi32, Yml, Zilo_m, 2},
+	{Yml, Yxr, Zm_r_xm, 2}, // XMM MOVD (32 bit)
+	{Yxr, Yml, Zr_m_xm, 2}, // XMM MOVD (32 bit)
+	{Yiauto, Yrl, Zaut_r, 1},
 }
 
-var ymovq = []uint8{
-	Yml,
-	Yxr,
-	Zm_r_xm,
-	2,
-	0,
+var ymovq = []ytab{
+	{Yml, Yxr, Zm_r_xm, 2},
 }
 
-var ym_rl = []uint8{
-	Ym,
-	Yrl,
-	Zm_r,
-	1,
-	0,
+var ym_rl = []ytab{
+	{Ym, Yrl, Zm_r, 1},
 }
 
-var yrl_m = []uint8{
-	Yrl,
-	Ym,
-	Zr_m,
-	1,
-	0,
+var yrl_m = []ytab{
+	{Yrl, Ym, Zr_m, 1},
 }
 
-var ymb_rl = []uint8{
-	Ymb,
-	Yrl,
-	Zm_r,
-	1,
-	0,
+var ymb_rl = []ytab{
+	{Ymb, Yrl, Zm_r, 1},
 }
 
-var yml_rl = []uint8{
-	Yml,
-	Yrl,
-	Zm_r,
-	1,
-	0,
+var yml_rl = []ytab{
+	{Yml, Yrl, Zm_r, 1},
 }
 
-var yrb_mb = []uint8{
-	Yrb,
-	Ymb,
-	Zr_m,
-	1,
-	0,
+var yrb_mb = []ytab{
+	{Yrb, Ymb, Zr_m, 1},
 }
 
-var yrl_ml = []uint8{
-	Yrl,
-	Yml,
-	Zr_m,
-	1,
-	0,
+var yrl_ml = []ytab{
+	{Yrl, Yml, Zr_m, 1},
 }
 
-var yml_mb = []uint8{
-	Yrb,
-	Ymb,
-	Zr_m,
-	1,
-	Ymb,
-	Yrb,
-	Zm_r,
-	1,
-	0,
+var yml_mb = []ytab{
+	{Yrb, Ymb, Zr_m, 1},
+	{Ymb, Yrb, Zm_r, 1},
 }
 
-var yxchg = []uint8{
-	Yax,
-	Yrl,
-	Z_rp,
-	1,
-	Yrl,
-	Yax,
-	Zrp_,
-	1,
-	Yrl,
-	Yml,
-	Zr_m,
-	1,
-	Yml,
-	Yrl,
-	Zm_r,
-	1,
-	0,
+var yxchg = []ytab{
+	{Yax, Yrl, Z_rp, 1},
+	{Yrl, Yax, Zrp_, 1},
+	{Yrl, Yml, Zr_m, 1},
+	{Yml, Yrl, Zm_r, 1},
 }
 
-var ydivl = []uint8{
-	Yml,
-	Ynone,
-	Zm_o,
-	2,
-	0,
+var ydivl = []ytab{
+	{Yml, Ynone, Zm_o, 2},
 }
 
-var ydivb = []uint8{
-	Ymb,
-	Ynone,
-	Zm_o,
-	2,
-	0,
+var ydivb = []ytab{
+	{Ymb, Ynone, Zm_o, 2},
 }
 
-var yimul = []uint8{
-	Yml,
-	Ynone,
-	Zm_o,
-	2,
-	Yi8,
-	Yrl,
-	Zib_rr,
-	1,
-	Yi32,
-	Yrl,
-	Zil_rr,
-	1,
-	0,
+var yimul = []ytab{
+	{Yml, Ynone, Zm_o, 2},
+	{Yi8, Yrl, Zib_rr, 1},
+	{Yi32, Yrl, Zil_rr, 1},
 }
 
-var ybyte = []uint8{
-	Yi32,
-	Ynone,
-	Zbyte,
-	1,
-	0,
+var ybyte = []ytab{
+	{Yi32, Ynone, Zbyte, 1},
 }
 
-var yin = []uint8{
-	Yi32,
-	Ynone,
-	Zib_,
-	1,
-	Ynone,
-	Ynone,
-	Zlit,
-	1,
-	0,
+var yin = []ytab{
+	{Yi32, Ynone, Zib_, 1},
+	{Ynone, Ynone, Zlit, 1},
 }
 
-var yint = []uint8{
-	Yi32,
-	Ynone,
-	Zib_,
-	1,
-	0,
+var yint = []ytab{
+	{Yi32, Ynone, Zib_, 1},
 }
 
-var ypushl = []uint8{
-	Yrl,
-	Ynone,
-	Zrp_,
-	1,
-	Ym,
-	Ynone,
-	Zm_o,
-	2,
-	Yi8,
-	Ynone,
-	Zib_,
-	1,
-	Yi32,
-	Ynone,
-	Zil_,
-	1,
-	0,
+var ypushl = []ytab{
+	{Yrl, Ynone, Zrp_, 1},
+	{Ym, Ynone, Zm_o, 2},
+	{Yi8, Ynone, Zib_, 1},
+	{Yi32, Ynone, Zil_, 1},
 }
 
-var ypopl = []uint8{
-	Ynone,
-	Yrl,
-	Z_rp,
-	1,
-	Ynone,
-	Ym,
-	Zo_m,
-	2,
-	0,
+var ypopl = []ytab{
+	{Ynone, Yrl, Z_rp, 1},
+	{Ynone, Ym, Zo_m, 2},
 }
 
-var ybswap = []uint8{
-	Ynone,
-	Yrl,
-	Z_rp,
-	1,
-	0,
+var ybswap = []ytab{
+	{Ynone, Yrl, Z_rp, 1},
 }
 
-var yscond = []uint8{
-	Ynone,
-	Ymb,
-	Zo_m,
-	2,
-	0,
+var yscond = []ytab{
+	{Ynone, Ymb, Zo_m, 2},
 }
 
-var yjcond = []uint8{
-	Ynone,
-	Ybr,
-	Zbr,
-	0,
-	Yi0,
-	Ybr,
-	Zbr,
-	0,
-	Yi1,
-	Ybr,
-	Zbr,
-	1,
-	0,
+var yjcond = []ytab{
+	{Ynone, Ybr, Zbr, 0},
+	{Yi0, Ybr, Zbr, 0},
+	{Yi1, Ybr, Zbr, 1},
 }
 
-var yloop = []uint8{
-	Ynone,
-	Ybr,
-	Zloop,
-	1,
-	0,
+var yloop = []ytab{
+	{Ynone, Ybr, Zloop, 1},
 }
 
-var ycall = []uint8{
-	Ynone,
-	Yml,
-	Zcallindreg,
-	0,
-	Yrx,
-	Yrx,
-	Zcallindreg,
-	2,
-	Ynone,
-	Ycol,
-	Zcallind,
-	2,
-	Ynone,
-	Ybr,
-	Zcall,
-	0,
-	Ynone,
-	Yi32,
-	Zcallcon,
-	1,
-	0,
+var ycall = []ytab{
+	{Ynone, Yml, Zcallindreg, 0},
+	{Yrx, Yrx, Zcallindreg, 2},
+	{Ynone, Ycol, Zcallind, 2},
+	{Ynone, Ybr, Zcall, 0},
+	{Ynone, Yi32, Zcallcon, 1},
 }
 
-var yduff = []uint8{
-	Ynone,
-	Yi32,
-	Zcall,
-	1,
-	0,
+var yduff = []ytab{
+	{Ynone, Yi32, Zcall, 1},
 }
 
-var yjmp = []uint8{
-	Ynone,
-	Yml,
-	Zo_m,
-	2,
-	Ynone,
-	Ybr,
-	Zjmp,
-	0,
-	Ynone,
-	Yi32,
-	Zjmpcon,
-	1,
-	0,
+var yjmp = []ytab{
+	{Ynone, Yml, Zo_m, 2},
+	{Ynone, Ybr, Zjmp, 0},
+	{Ynone, Yi32, Zjmpcon, 1},
 }
 
-var yfmvd = []uint8{
-	Ym,
-	Yf0,
-	Zm_o,
-	2,
-	Yf0,
-	Ym,
-	Zo_m,
-	2,
-	Yrf,
-	Yf0,
-	Zm_o,
-	2,
-	Yf0,
-	Yrf,
-	Zo_m,
-	2,
-	0,
+var yfmvd = []ytab{
+	{Ym, Yf0, Zm_o, 2},
+	{Yf0, Ym, Zo_m, 2},
+	{Yrf, Yf0, Zm_o, 2},
+	{Yf0, Yrf, Zo_m, 2},
 }
 
-var yfmvdp = []uint8{
-	Yf0,
-	Ym,
-	Zo_m,
-	2,
-	Yf0,
-	Yrf,
-	Zo_m,
-	2,
-	0,
+var yfmvdp = []ytab{
+	{Yf0, Ym, Zo_m, 2},
+	{Yf0, Yrf, Zo_m, 2},
 }
 
-var yfmvf = []uint8{
-	Ym,
-	Yf0,
-	Zm_o,
-	2,
-	Yf0,
-	Ym,
-	Zo_m,
-	2,
-	0,
+var yfmvf = []ytab{
+	{Ym, Yf0, Zm_o, 2},
+	{Yf0, Ym, Zo_m, 2},
 }
 
-var yfmvx = []uint8{
-	Ym,
-	Yf0,
-	Zm_o,
-	2,
-	0,
+var yfmvx = []ytab{
+	{Ym, Yf0, Zm_o, 2},
 }
 
-var yfmvp = []uint8{
-	Yf0,
-	Ym,
-	Zo_m,
-	2,
-	0,
+var yfmvp = []ytab{
+	{Yf0, Ym, Zo_m, 2},
 }
 
-var yfcmv = []uint8{
-	Yrf,
-	Yf0,
-	Zm_o,
-	2,
-	0,
+var yfcmv = []ytab{
+	{Yrf, Yf0, Zm_o, 2},
 }
 
-var yfadd = []uint8{
-	Ym,
-	Yf0,
-	Zm_o,
-	2,
-	Yrf,
-	Yf0,
-	Zm_o,
-	2,
-	Yf0,
-	Yrf,
-	Zo_m,
-	2,
-	0,
+var yfadd = []ytab{
+	{Ym, Yf0, Zm_o, 2},
+	{Yrf, Yf0, Zm_o, 2},
+	{Yf0, Yrf, Zo_m, 2},
 }
 
-var yfaddp = []uint8{
-	Yf0,
-	Yrf,
-	Zo_m,
-	2,
-	0,
+var yfaddp = []ytab{
+	{Yf0, Yrf, Zo_m, 2},
 }
 
-var yfxch = []uint8{
-	Yf0,
-	Yrf,
-	Zo_m,
-	2,
-	Yrf,
-	Yf0,
-	Zm_o,
-	2,
-	0,
+var yfxch = []ytab{
+	{Yf0, Yrf, Zo_m, 2},
+	{Yrf, Yf0, Zm_o, 2},
 }
 
-var ycompp = []uint8{
-	Yf0,
-	Yrf,
-	Zo_m,
-	2, /* botch is really f0,f1 */
-	0,
+var ycompp = []ytab{
+	{Yf0, Yrf, Zo_m, 2}, /* botch is really f0,f1 */
 }
 
-var ystsw = []uint8{
-	Ynone,
-	Ym,
-	Zo_m,
-	2,
-	Ynone,
-	Yax,
-	Zlit,
-	1,
-	0,
+var ystsw = []ytab{
+	{Ynone, Ym, Zo_m, 2},
+	{Ynone, Yax, Zlit, 1},
 }
 
-var ystcw = []uint8{
-	Ynone,
-	Ym,
-	Zo_m,
-	2,
-	Ym,
-	Ynone,
-	Zm_o,
-	2,
-	0,
+var ystcw = []ytab{
+	{Ynone, Ym, Zo_m, 2},
+	{Ym, Ynone, Zm_o, 2},
 }
 
-var ysvrs = []uint8{
-	Ynone,
-	Ym,
-	Zo_m,
-	2,
-	Ym,
-	Ynone,
-	Zm_o,
-	2,
-	0,
+var ysvrs = []ytab{
+	{Ynone, Ym, Zo_m, 2},
+	{Ym, Ynone, Zm_o, 2},
 }
 
-var ymskb = []uint8{
-	Yxr,
-	Yrl,
-	Zm_r_xm,
-	2,
-	Ymr,
-	Yrl,
-	Zm_r_xm,
-	1,
-	0,
+var ymskb = []ytab{
+	{Yxr, Yrl, Zm_r_xm, 2},
+	{Ymr, Yrl, Zm_r_xm, 1},
 }
 
-var yxm = []uint8{
-	Yxm,
-	Yxr,
-	Zm_r_xm,
-	1,
-	0,
+var yxm = []ytab{
+	{Yxm, Yxr, Zm_r_xm, 1},
 }
 
-var yxcvm1 = []uint8{
-	Yxm,
-	Yxr,
-	Zm_r_xm,
-	2,
-	Yxm,
-	Ymr,
-	Zm_r_xm,
-	2,
-	0,
+var yxcvm1 = []ytab{
+	{Yxm, Yxr, Zm_r_xm, 2},
+	{Yxm, Ymr, Zm_r_xm, 2},
 }
 
-var yxcvm2 = []uint8{
-	Yxm,
-	Yxr,
-	Zm_r_xm,
-	2,
-	Ymm,
-	Yxr,
-	Zm_r_xm,
-	2,
-	0,
+var yxcvm2 = []ytab{
+	{Yxm, Yxr, Zm_r_xm, 2},
+	{Ymm, Yxr, Zm_r_xm, 2},
 }
 
-var yxmq = []uint8{
-	Yxm,
-	Yxr,
-	Zm_r_xm,
-	2,
-	0,
+var yxmq = []ytab{
+	{Yxm, Yxr, Zm_r_xm, 2},
 }
 
-var yxr = []uint8{
-	Yxr,
-	Yxr,
-	Zm_r_xm,
-	1,
-	0,
+var yxr = []ytab{
+	{Yxr, Yxr, Zm_r_xm, 1},
 }
 
-var yxr_ml = []uint8{
-	Yxr,
-	Yml,
-	Zr_m_xm,
-	1,
-	0,
+var yxr_ml = []ytab{
+	{Yxr, Yml, Zr_m_xm, 1},
 }
 
-var yxcmp = []uint8{
-	Yxm,
-	Yxr,
-	Zm_r_xm,
-	1,
-	0,
+var yxcmp = []ytab{
+	{Yxm, Yxr, Zm_r_xm, 1},
 }
 
-var yxcmpi = []uint8{
-	Yxm,
-	Yxr,
-	Zm_r_i_xm,
-	2,
-	0,
+var yxcmpi = []ytab{
+	{Yxm, Yxr, Zm_r_i_xm, 2},
 }
 
-var yxmov = []uint8{
-	Yxm,
-	Yxr,
-	Zm_r_xm,
-	1,
-	Yxr,
-	Yxm,
-	Zr_m_xm,
-	1,
-	0,
+var yxmov = []ytab{
+	{Yxm, Yxr, Zm_r_xm, 1},
+	{Yxr, Yxm, Zr_m_xm, 1},
 }
 
-var yxcvfl = []uint8{
-	Yxm,
-	Yrl,
-	Zm_r_xm,
-	1,
-	0,
+var yxcvfl = []ytab{
+	{Yxm, Yrl, Zm_r_xm, 1},
 }
 
-var yxcvlf = []uint8{
-	Yml,
-	Yxr,
-	Zm_r_xm,
-	1,
-	0,
+var yxcvlf = []ytab{
+	{Yml, Yxr, Zm_r_xm, 1},
 }
 
 /*
-static uchar	yxcvfq[] =
-{
-	Yxm,	Yrl,	Zm_r_xm,	2,
-	0
-};
-static uchar	yxcvqf[] =
-{
-	Yml,	Yxr,	Zm_r_xm,	2,
-	0
-};
+var yxcvfq = []ytab{
+	{Yxm, Yrl, Zm_r_xm, 2},
+}
+
+var yxcvqf = []ytab{
+	{Yml, Yxr, Zm_r_xm, 2},
+}
 */
-var yxrrl = []uint8{
-	Yxr,
-	Yrl,
-	Zm_r,
-	1,
-	0,
+
+var yxrrl = []ytab{
+	{Yxr, Yrl, Zm_r, 1},
 }
 
-var yprefetch = []uint8{
-	Ym,
-	Ynone,
-	Zm_o,
-	2,
-	0,
+var yprefetch = []ytab{
+	{Ym, Ynone, Zm_o, 2},
 }
 
-var yaes = []uint8{
-	Yxm,
-	Yxr,
-	Zlitm_r,
-	2,
-	0,
+var yaes = []ytab{
+	{Yxm, Yxr, Zlitm_r, 2},
 }
 
-var yinsrd = []uint8{
-	Yml,
-	Yxr,
-	Zibm_r,
-	2,
-	0,
+var yinsrd = []ytab{
+	{Yml, Yxr, Zibm_r, 2},
 }
 
-var ymshufb = []uint8{
-	Yxm,
-	Yxr,
-	Zm2_r,
-	2,
-	0,
+var ymshufb = []ytab{
+	{Yxm, Yxr, Zm2_r, 2},
 }
 
-var yxshuf = []uint8{
-	Yxm,
-	Yxr,
-	Zibm_r,
-	2,
-	0,
+var yxshuf = []ytab{
+	{Yxm, Yxr, Zibm_r, 2},
 }
 
-var optab = /*	as, ytab, andproto, opcode */
-[]Optab{
+var optab = []Optab{ /*	as, ytab, andproto, opcode */
 	Optab{obj.AXXX, nil, 0, [13]uint8{}},
 	Optab{AAAA, ynone, Px, [13]uint8{0x37}},
 	Optab{AAAD, ynone, Px, [13]uint8{0xd5, 0x0a}},
@@ -3274,6 +2721,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 	var rel obj.Reloc
 	var r *obj.Reloc
 	var a *obj.Addr
+	var yt ytab
 
 	ctxt.Curp = p // TODO
 
@@ -3299,18 +2747,13 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 	ft = int(p.Ft) * Ymax
 	tt = int(p.Tt) * Ymax
 	o = opindex[p.As]
-	t = o.ytab
-	if t == nil {
-		ctxt.Diag("asmins: noproto %v", p)
-		return
-	}
 
-	for z = 0; t[0] != 0; (func() { z += int(t[3]); t = t[4:] })() {
-		if ycover[ft+int(t[0])] != 0 {
-			if ycover[tt+int(t[1])] != 0 {
-				goto found
-			}
+	z = 0
+	for _, yt = range o.ytab {
+		if ycover[ft+int(yt.from)] != 0 && ycover[tt+int(yt.to)] != 0 {
+			goto found
 		}
+		z += int(yt.zoffset)
 	}
 	goto domov
 
@@ -3344,9 +2787,9 @@ found:
 	}
 
 	op = int(o.op[z])
-	switch t[2] {
+	switch yt.zcase {
 	default:
-		ctxt.Diag("asmins: unknown z %d %v", t[2], p)
+		ctxt.Diag("asmins: unknown z %d %v", yt.zcase, p)
 		return
 
 	case Zpseudo:
@@ -3386,11 +2829,11 @@ found:
 		asmand(ctxt, p, &p.From, reg[p.To.Reg])
 
 	case Zm_r_xm:
-		mediaop(ctxt, o, op, int(t[3]), z)
+		mediaop(ctxt, o, op, int(yt.zoffset), z)
 		asmand(ctxt, p, &p.From, reg[p.To.Reg])
 
 	case Zm_r_i_xm:
-		mediaop(ctxt, o, op, int(t[3]), z)
+		mediaop(ctxt, o, op, int(yt.zoffset), z)
 		asmand(ctxt, p, &p.From, reg[p.To.Reg])
 		ctxt.Andptr[0] = byte(p.To.Offset)
 		ctxt.Andptr = ctxt.Andptr[1:]
@@ -3433,11 +2876,11 @@ found:
 		asmand(ctxt, p, &p.To, reg[p.From.Reg])
 
 	case Zr_m_xm:
-		mediaop(ctxt, o, op, int(t[3]), z)
+		mediaop(ctxt, o, op, int(yt.zoffset), z)
 		asmand(ctxt, p, &p.To, reg[p.From.Reg])
 
 	case Zr_m_i_xm:
-		mediaop(ctxt, o, op, int(t[3]), z)
+		mediaop(ctxt, o, op, int(yt.zoffset), z)
 		asmand(ctxt, p, &p.To, reg[p.From.Reg])
 		ctxt.Andptr[0] = byte(p.From.Offset)
 		ctxt.Andptr = ctxt.Andptr[1:]
@@ -3472,7 +2915,7 @@ found:
 
 	case Z_ib,
 		Zib_:
-		if t[2] == Zib_ {
+		if yt.zcase == Zib_ {
 			a = &p.From
 		} else {
 			a = &p.To
@@ -3511,7 +2954,7 @@ found:
 
 	case Z_il,
 		Zil_:
-		if t[2] == Zil_ {
+		if yt.zcase == Zil_ {
 			a = &p.From
 		} else {
 			a = &p.To
@@ -3532,7 +2975,7 @@ found:
 		Zilo_m:
 		ctxt.Andptr[0] = byte(op)
 		ctxt.Andptr = ctxt.Andptr[1:]
-		if t[2] == Zilo_m {
+		if yt.zcase == Zilo_m {
 			a = &p.From
 			asmand(ctxt, p, &p.To, int(o.op[z+1]))
 		} else {
@@ -3597,7 +3040,7 @@ found:
 		Zjmp,
 		Zloop:
 		if p.To.Sym != nil {
-			if t[2] != Zjmp {
+			if yt.zcase != Zjmp {
 				ctxt.Diag("branch to ATEXT")
 				log.Fatalf("bad code")
 			}
@@ -3633,11 +3076,11 @@ found:
 				ctxt.Andptr = ctxt.Andptr[1:]
 				ctxt.Andptr[0] = byte(v)
 				ctxt.Andptr = ctxt.Andptr[1:]
-			} else if t[2] == Zloop {
+			} else if yt.zcase == Zloop {
 				ctxt.Diag("loop too far: %v", p)
 			} else {
 				v -= 5 - 2
-				if t[2] == Zbr {
+				if yt.zcase == Zbr {
 					ctxt.Andptr[0] = 0x0f
 					ctxt.Andptr = ctxt.Andptr[1:]
 					v--
@@ -3671,10 +3114,10 @@ found:
 			ctxt.Andptr = ctxt.Andptr[1:]
 			ctxt.Andptr[0] = 0
 			ctxt.Andptr = ctxt.Andptr[1:]
-		} else if t[2] == Zloop {
+		} else if yt.zcase == Zloop {
 			ctxt.Diag("loop too far: %v", p)
 		} else {
-			if t[2] == Zbr {
+			if yt.zcase == Zbr {
 				ctxt.Andptr[0] = 0x0f
 				ctxt.Andptr = ctxt.Andptr[1:]
 			}
@@ -3692,7 +3135,7 @@ found:
 
 	case Zcallcon,
 		Zjmpcon:
-		if t[2] == Zcallcon {
+		if yt.zcase == Zcallcon {
 			ctxt.Andptr[0] = byte(op)
 			ctxt.Andptr = ctxt.Andptr[1:]
 		} else {
@@ -3816,7 +3259,7 @@ bad:
 		return
 	}
 
-	ctxt.Diag("doasm: notfound t2=%d from=%d to=%d %v", t[2], p.Ft, p.Tt, p)
+	ctxt.Diag("doasm: notfound t2=%d from=%d to=%d %v", yt.zcase, p.Ft, p.Tt, p)
 	return
 
 mfound:
