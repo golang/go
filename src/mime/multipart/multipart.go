@@ -19,7 +19,7 @@ import (
 	"io"
 	"io/ioutil"
 	"mime"
-	"mime/internal/quotedprintable"
+	"mime/quotedprintable"
 	"net/textproto"
 )
 

@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-func TestQuotedPrintable(t *testing.T) {
+func TestReader(t *testing.T) {
 	tests := []struct {
 		in, want string
 		err      interface{}
@@ -30,14 +30,14 @@ func TestQuotedPrintable(t *testing.T) {
 		{in: "foo bar=\n", want: "foo bar"},
 		{in: "foo bar\n", want: "foo bar\n"}, // somewhat lax.
 		{in: "foo bar=0", want: "foo bar", err: io.ErrUnexpectedEOF},
-		{in: "foo bar=ab", want: "foo bar", err: "multipart: invalid quoted-printable hex byte 0x61"},
+		{in: "foo bar=ab", want: "foo bar", err: "quotedprintable: invalid hex byte 0x61"},
 		{in: "foo bar=0D=0A", want: "foo bar\r\n"},
 		{in: " A B        \r\n C ", want: " A B\r\n C"},
 		{in: " A B =\r\n C ", want: " A B  C"},
 		{in: " A B =\n C ", want: " A B  C"}, // lax. treating LF as CRLF
 		{in: "foo=\nbar", want: "foobar"},
-		{in: "foo\x00bar", want: "foo", err: "multipart: invalid unescaped byte 0x00 in quoted-printable body"},
-		{in: "foo bar\xff", want: "foo bar", err: "multipart: invalid unescaped byte 0xff in quoted-printable body"},
+		{in: "foo\x00bar", want: "foo", err: "quotedprintable: invalid unescaped byte 0x00 in body"},
+		{in: "foo bar\xff", want: "foo bar", err: "quotedprintable: invalid unescaped byte 0xff in body"},
 
 		// Equal sign.
 		{in: "=3D30\n", want: "=30\n"},
@@ -56,8 +56,8 @@ func TestQuotedPrintable(t *testing.T) {
 		// Different types of soft line-breaks.
 		{in: "foo=\r\nbar", want: "foobar"},
 		{in: "foo=\nbar", want: "foobar"},
-		{in: "foo=\rbar", want: "foo", err: "multipart: invalid quoted-printable hex byte 0x0d"},
-		{in: "foo=\r\r\r \nbar", want: "foo", err: `multipart: invalid bytes after =: "\r\r\r \n"`},
+		{in: "foo=\rbar", want: "foo", err: "quotedprintable: invalid hex byte 0x0d"},
+		{in: "foo=\r\r\r \nbar", want: "foo", err: `quotedprintable: invalid bytes after =: "\r\r\r \n"`},
 
 		// Example from RFC 2045:
 		{in: "Now's the time =\n" + "for all folk to come=\n" + " to the aid of their country.",
@@ -101,7 +101,7 @@ var useQprint = flag.Bool("qprint", false, "Compare against the 'qprint' program
 
 var badSoftRx = regexp.MustCompile(`=([^\r\n]+?\n)|([^\r\n]+$)|(\r$)|(\r[^\n]+\n)|( \r\n)`)
 
-func TestQPExhaustive(t *testing.T) {
+func TestExhaustive(t *testing.T) {
 	if *useQprint {
 		_, err := exec.LookPath("qprint")
 		if err != nil {
@@ -123,7 +123,7 @@ func TestQPExhaustive(t *testing.T) {
 				errStr = "invalid bytes after ="
 			}
 			res[errStr]++
-			if strings.Contains(errStr, "invalid quoted-printable hex byte ") {
+			if strings.Contains(errStr, "invalid hex byte ") {
 				if strings.HasSuffix(errStr, "0x20") && (strings.Contains(s, "=0 ") || strings.Contains(s, "=A ") || strings.Contains(s, "= ")) {
 					return
 				}
@@ -193,10 +193,10 @@ func TestQPExhaustive(t *testing.T) {
 	got := strings.Join(outcomes, "\n")
 	want := `OK: 21576
 invalid bytes after =: 3397
-multipart: invalid quoted-printable hex byte 0x0a: 1400
-multipart: invalid quoted-printable hex byte 0x0d: 2700
-multipart: invalid quoted-printable hex byte 0x20: 2490
-multipart: invalid quoted-printable hex byte 0x3d: 440
+quotedprintable: invalid hex byte 0x0a: 1400
+quotedprintable: invalid hex byte 0x0d: 2700
+quotedprintable: invalid hex byte 0x20: 2490
+quotedprintable: invalid hex byte 0x3d: 440
 unexpected EOF: 3122`
 	if got != want {
 		t.Errorf("Got:\n%s\nWant:\n%s", got, want)
