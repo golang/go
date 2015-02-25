@@ -43,6 +43,10 @@ func TestGdbPython(t *testing.T) {
 		t.Skip("gdb does not work on darwin")
 	}
 
+	if runtime.GOOS == "linux" && runtime.GOARCH == "arm" {
+		t.Skip("issue 10002")
+	}
+
 	checkGdbPython(t)
 
 	dir, err := ioutil.TempDir("", "go-build")
