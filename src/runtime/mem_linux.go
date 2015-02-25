@@ -67,7 +67,8 @@ func sysAlloc(n uintptr, stat *uint64) unsafe.Pointer {
 }
 
 func sysUnused(v unsafe.Pointer, n uintptr) {
-	if hugePageSize != 0 && (uintptr(v)%hugePageSize != 0 || n%hugePageSize != 0) {
+	var s uintptr = hugePageSize // division by constant 0 is a compile-time error :(
+	if s != 0 && (uintptr(v)%s != 0 || n%s != 0) {
 		// See issue 8832
 		// Linux kernel bug: https://bugzilla.kernel.org/show_bug.cgi?id=93111
 		// Mark the region as NOHUGEPAGE so the kernel's khugepaged
