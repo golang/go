@@ -34,21 +34,23 @@ const debugFloat = true // enable for debugging
 // be rounded to fit into the mantissa bits, and accuracy describes the
 // rounding error with respect to the exact result.
 //
-// All operations, including setters, that specify a *Float for the result,
-// usually via the receiver, round their result to the result's precision
-// and according to its rounding mode, unless specified otherwise. If the
-// result precision is 0 (see below), it is set to the precision of the
-// argument with the largest precision value before any rounding takes
+// All operations, including setters, that specify a *Float variable for
+// the result (usually via the receiver with the exception of MantExp),
+// round the numeric result according to the precision and rounding mode
+// of the result variable, unless specified otherwise.
+//
+// If the result precision is 0 (see below), it is set to the precision of
+// the argument with the largest precision value before any rounding takes
 // place, and the rounding mode remains unchanged. Thus, uninitialized Floats
 // provided as result arguments will have their precision set to a reasonable
 // value determined by the operands and their mode is the zero value for
 // RoundingMode (ToNearestEven).
 //
-// By setting the desired precision to 24 or 53 and using ToNearestEven
-// rounding, Float operations produce the same results as the corresponding
-// float32 or float64 IEEE-754 arithmetic for normalized operands (no NaNs
-// or denormalized numbers). Additionally, positive and negative zeros and
-// infinities are fully supported.
+// By setting the desired precision to 24 or 53 and using matching rounding
+// mode (typically ToNearestEven), Float operations produce the same results
+// as the corresponding float32 or float64 IEEE-754 arithmetic for normalized
+// operands (no NaNs or denormalized numbers). Additionally, positive and
+// negative zeros and infinities are fully supported.
 //
 // The zero (uninitialized) value for a Float is ready to use and represents
 // the number +0.0 exactly, with precision 0 and rounding mode ToNearestEven.
@@ -203,8 +205,8 @@ func (x *Float) Sign() int {
 // It returns mant and exp satisfying x == mant × 2**exp, with
 // the absolute value of mant satisfying 0.5 <= |mant| < 1.0.
 // mant has the same precision and rounding mode as x.
-// If a non-nil *Float argument z is provided it is used to
-// store the result mant; otherwise a new Float is allocated.
+// If a non-nil *Float argument z is provided, MantExp stores
+// the result mant in z instead of allocating a new Float.
 //
 // Special cases are:
 //
@@ -785,11 +787,12 @@ func (x *Float) Float64() (float64, Accuracy) {
 	return math.Float64frombits(s | e<<52 | m), r.acc
 }
 
-// Int returns the result of truncating x towards zero; or nil
-// if x is an infinity. The result is Exact if x.IsInt();
-// otherwise it is Below for x > 0, and Above for x < 0.
-// If a non-nil *Int argument z is provided, it is used to store
-// the result; otherwise a new Int is allocated.
+// Int returns the result of truncating x towards zero;
+// or nil if x is an infinity.
+// The result is Exact if x.IsInt(); otherwise it is Below
+// for x > 0, and Above for x < 0.
+// If a non-nil *Int argument z is provided, Int stores
+// the result in z instead of allocating a new Int.
 func (x *Float) Int(z *Int) (*Int, Accuracy) {
 	if debugFloat {
 		validate(x)
@@ -839,9 +842,10 @@ func (x *Float) Int(z *Int) (*Int, Accuracy) {
 	return z, acc
 }
 
-// Rat returns x converted into an exact fraction; or nil if x is an infinity.
-// If a non-nil *Rat argument z is provided, it is used to store the result;
-// otherwise a new Rat is allocated.
+// Rat returns the result of converting x into a quotient;
+// or nil if x is an infinity.
+// If a non-nil *Rat argument z is provided, Rat stores
+// the result in z instead of allocating a new Rat.
 func (x *Float) Rat(z *Rat) *Rat {
 	if debugFloat {
 		validate(x)
