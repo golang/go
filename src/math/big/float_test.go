@@ -714,13 +714,22 @@ func TestFloatInt(t *testing.T) {
 		{"1e+100", "10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000", Exact},
 	} {
 		x := makeFloat(test.x)
-		res, acc := x.Int()
+		res, acc := x.Int(nil)
 		got := "nil"
 		if res != nil {
 			got = res.String()
 		}
 		if got != test.want || acc != test.acc {
 			t.Errorf("%s: got %s (%s); want %s (%s)", test.x, got, acc, test.want, test.acc)
+		}
+	}
+
+	// check that supplied *Int is used
+	for _, f := range []string{"0", "1", "-1", "1234"} {
+		x := makeFloat(f)
+		i := new(Int)
+		if res, _ := x.Int(i); res != i {
+			t.Errorf("(%s).Int is not using supplied *Int", f)
 		}
 	}
 }
@@ -765,7 +774,7 @@ func TestFloatRat(t *testing.T) {
 	}
 
 	// check that supplied *Rat is used
-	for _, f := range []string{"0", "1"} {
+	for _, f := range []string{"0", "1", "-1", "1234"} {
 		x := makeFloat(f)
 		r := new(Rat)
 		if res := x.Rat(r); res != r {

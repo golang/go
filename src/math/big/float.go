@@ -788,13 +788,14 @@ func (x *Float) Float64() (float64, Accuracy) {
 // Int returns the result of truncating x towards zero; or nil
 // if x is an infinity. The result is Exact if x.IsInt();
 // otherwise it is Below for x > 0, and Above for x < 0.
-func (x *Float) Int() (res *Int, acc Accuracy) {
-	// TODO(gri) accept z argument for result storage (see Float.Rat below)
+// If a non-nil *Int argument z is provided, it is used to store
+// the result; otherwise a new Int is allocated.
+func (x *Float) Int(z *Int) (*Int, Accuracy) {
 	if debugFloat {
 		validate(x)
 	}
 	// accuracy for inexact results
-	acc = Below // truncation
+	acc := Below // truncation
 	if x.neg {
 		acc = Above
 	}
@@ -807,7 +808,11 @@ func (x *Float) Int() (res *Int, acc Accuracy) {
 		if len(x.mant) == 0 {
 			acc = Exact // ±0
 		}
-		return new(Int), acc // ±0.xxx
+		// ±0.xxx
+		if z == nil {
+			return new(Int), acc
+		}
+		return z.SetUint64(0), acc
 	}
 	// x.exp > 0
 	// x.mant[len(x.mant)-1] != 0
@@ -818,17 +823,20 @@ func (x *Float) Int() (res *Int, acc Accuracy) {
 		acc = Exact
 	}
 	// shift mantissa as needed
-	res = &Int{neg: x.neg}
+	if z == nil {
+		z = new(Int)
+	}
+	z.neg = x.neg
 	// TODO(gri) should have a shift that takes positive and negative shift counts
 	switch {
 	case exp > allBits:
-		res.abs = res.abs.shl(x.mant, exp-allBits)
+		z.abs = z.abs.shl(x.mant, exp-allBits)
 	default:
-		res.abs = res.abs.set(x.mant)
+		z.abs = z.abs.set(x.mant)
 	case exp < allBits:
-		res.abs = res.abs.shr(x.mant, allBits-exp)
+		z.abs = z.abs.shr(x.mant, allBits-exp)
 	}
-	return
+	return z, acc
 }
 
 // Rat returns x converted into an exact fraction; or nil if x is an infinity.
