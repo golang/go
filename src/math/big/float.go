@@ -292,7 +292,7 @@ func validate(x *Float) {
 	if m == 0 {
 		// 0.0 or Inf
 		if x.exp != 0 && x.exp != infExp {
-			panic(fmt.Sprintf("%empty matissa with invalid exponent %d", x.exp))
+			panic(fmt.Sprintf("empty matissa with invalid exponent %d", x.exp))
 		}
 		return
 	}
@@ -842,7 +842,7 @@ func (x *Float) Int(z *Int) (*Int, Accuracy) {
 	return z, acc
 }
 
-// Rat returns the result of converting x into a quotient;
+// Rat returns the rational number corresponding to x;
 // or nil if x is an infinity.
 // If a non-nil *Rat argument z is provided, Rat stores
 // the result in z instead of allocating a new Rat.

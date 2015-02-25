@@ -290,15 +290,6 @@ func TestDivisionSigns(t *testing.T) {
 	}
 }
 
-var bitsTests = []nat{
-	nil,
-	{0},
-	{1},
-	{0, 1, 2, 3, 4},
-	{4, 3, 2, 1, 0},
-	{4, 3, 2, 1, 0, 0, 0, 0},
-}
-
 func norm(x nat) nat {
 	i := len(x)
 	for i > 0 && x[i-1] == 0 {
@@ -308,7 +299,14 @@ func norm(x nat) nat {
 }
 
 func TestBits(t *testing.T) {
-	for _, test := range bitsTests {
+	for _, test := range []nat{
+		nil,
+		{0},
+		{1},
+		{0, 1, 2, 3, 4},
+		{4, 3, 2, 1, 0},
+		{4, 3, 2, 1, 0, 0, 0, 0},
+	} {
 		var z Int
 		z.neg = true
 		got := z.SetBits(test)
@@ -318,7 +316,7 @@ func TestBits(t *testing.T) {
 		}
 
 		if got.neg {
-			t.Errorf("SetBits(%v): got negative result")
+			t.Errorf("SetBits(%v): got negative result", test)
 		}
 
 		bits := nat(z.Bits())
