@@ -27,14 +27,7 @@ func gcscan_m() {
 	// At the bottom we will want to return this p back to the scheduler.
 
 	// Prepare flag indicating that the scan has not been completed.
-	lock(&allglock)
-	local_allglen := allglen
-	for i := uintptr(0); i < local_allglen; i++ {
-		gp := allgs[i]
-		gp.gcworkdone = false  // set to true in gcphasework
-		gp.gcscanvalid = false // stack has not been scanned
-	}
-	unlock(&allglock)
+	local_allglen := gcResetGState()
 
 	work.nwait = 0
 	work.ndone = 0
@@ -45,7 +38,7 @@ func gcscan_m() {
 
 	lock(&allglock)
 	// Check that gc work is done.
-	for i := uintptr(0); i < local_allglen; i++ {
+	for i := 0; i < local_allglen; i++ {
 		gp := allgs[i]
 		if !gp.gcworkdone {
 			throw("scan missed a g")

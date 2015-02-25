@@ -339,13 +339,9 @@ func gc(mode int) {
 		})
 	} else {
 		// For non-concurrent GC (mode != gcBackgroundMode)
-		// The g stacks have not been scanned so set gcscanvalid
+		// The g stacks have not been scanned so clear g state
 		// such that mark termination scans all stacks.
-		// No races here since we are in a STW phase.
-		for _, gp := range allgs {
-			gp.gcworkdone = false  // set to true in gcphasework
-			gp.gcscanvalid = false // stack has not been scanned
-		}
+		gcResetGState()
 	}
 
 	startTime := nanotime()
@@ -384,11 +380,7 @@ func gc(mode int) {
 			// The g stacks have been scanned so
 			// they have gcscanvalid==true and gcworkdone==true.
 			// Reset these so that all stacks will be rescanned.
-			// No races here since we are in a STW phase.
-			for _, gp := range allgs {
-				gp.gcworkdone = false  // set to true in gcphasework
-				gp.gcscanvalid = false // stack has not been scanned
-			}
+			gcResetGState()
 			finishsweep_m()
 			gcMark(startTime)
 			gcSweep(mode)
@@ -604,6 +596,22 @@ func gcCopySpans() {
 	mheap_.gcspans = mheap_.allspans
 	work.spans = h_allspans
 	unlock(&mheap_.lock)
+}
+
+// gcResetGState resets the GC state of all G's and returns the length
+// of allgs.
+func gcResetGState() int {
+	// This may be called during a concurrent phase, so make sure
+	// allgs doesn't change.
+	lock(&allglock)
+	local_allglen := allglen
+	for i := uintptr(0); i < local_allglen; i++ {
+		gp := allgs[i]
+		gp.gcworkdone = false  // set to true in gcphasework
+		gp.gcscanvalid = false // stack has not been scanned
+	}
+	unlock(&allglock)
+	return int(local_allglen)
 }
 
 // Hooks for other packages
