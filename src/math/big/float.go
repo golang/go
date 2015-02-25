@@ -203,6 +203,8 @@ func (x *Float) Sign() int {
 // It returns mant and exp satisfying x == mant × 2**exp, with
 // the absolute value of mant satisfying 0.5 <= |mant| < 1.0.
 // mant has the same precision and rounding mode as x.
+// If a non-nil *Float argument z is provided it is used to
+// store the result mant; otherwise a new Float is allocated.
 //
 // Special cases are:
 //
@@ -210,11 +212,14 @@ func (x *Float) Sign() int {
 //	(±Inf).MantExp() = ±Inf, 0
 //
 // MantExp does not modify x; the result mant is a new Float.
-func (x *Float) MantExp() (mant *Float, exp int) {
-	mant = new(Float).Copy(x)
+func (x *Float) MantExp(z *Float) (mant *Float, exp int) {
+	if z == nil {
+		z = new(Float)
+	}
+	mant = z.Copy(x)
 	if x.exp != infExp {
-		mant.exp = 0
 		exp = int(x.exp)
+		mant.exp = 0 // after reading x.exp (x and mant may be aliases)
 	}
 	return
 }
