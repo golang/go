@@ -909,7 +909,6 @@ loop:
 }
 
 var Link386 = obj.LinkArch{
-	Dconv:      Dconv,
 	Rconv:      Rconv,
 	ByteOrder:  binary.LittleEndian,
 	Pconv:      Pconv,

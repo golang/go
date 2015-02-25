@@ -1061,7 +1061,6 @@ loop:
 }
 
 var Linkarm = obj.LinkArch{
-	Dconv:      Dconv,
 	Rconv:      Rconv,
 	ByteOrder:  binary.LittleEndian,
 	Pconv:      Pconv,

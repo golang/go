@@ -33,7 +33,7 @@ type Parser struct {
 	toPatch       []Patch
 	addr          []obj.Addr
 	arch          *arch.Arch
-	linkCtxt      *obj.Link
+	ctxt          *obj.Link
 	firstProg     *obj.Prog
 	lastProg      *obj.Prog
 	dataAddr      map[string]int64 // Most recent address for DATA for this symbol.
@@ -46,7 +46,7 @@ type Patch struct {
 
 func NewParser(ctxt *obj.Link, ar *arch.Arch, lexer lex.TokenReader) *Parser {
 	return &Parser{
-		linkCtxt: ctxt,
+		ctxt:     ctxt,
 		arch:     ar,
 		lex:      lexer,
 		labels:   make(map[string]*obj.Prog),
@@ -255,7 +255,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
 	if tok.ScanToken == scanner.Ident && !p.atStartOfRegister(name) {
 		// We have a symbol. Parse $sym±offset(symkind)
 		p.symbolReference(a, name, prefix)
-		// fmt.Printf("SYM %s\n", p.arch.Dconv(&emptyProg, 0, a))
+		// fmt.Printf("SYM %s\n", obj.Dconv(&emptyProg, 0, p.arch.Rconv, a))
 		if p.peek() == scanner.EOF {
 			return true
 		}
@@ -300,7 +300,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
 				a.Class = int8(r2)
 			}
 		}
-		// fmt.Printf("REG %s\n", p.arch.Dconv(&emptyProg, 0, a))
+		// fmt.Printf("REG %s\n", obj.Dconv(&emptyProg, 0, p.arch.Rconv, a))
 		p.expect(scanner.EOF)
 		return true
 	}
@@ -327,7 +327,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
 			}
 			a.Type = obj.TYPE_FCONST
 			a.U.Dval = p.floatExpr()
-			// fmt.Printf("FCONST %s\n", p.arch.Dconv(&emptyProg, 0, a))
+			// fmt.Printf("FCONST %s\n", obj.Dconv(&emptyProg, 0, p.arch.Rconv, a))
 			p.expect(scanner.EOF)
 			return true
 		}
@@ -341,7 +341,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
 			}
 			a.Type = obj.TYPE_SCONST
 			a.U.Sval = str
-			// fmt.Printf("SCONST %s\n", p.arch.Dconv(&emptyProg, 0, a))
+			// fmt.Printf("SCONST %s\n", obj.Dconv(&emptyProg, 0, p.arch.Rconv, a))
 			p.expect(scanner.EOF)
 			return true
 		}
@@ -355,7 +355,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
 			default:
 				a.Type = obj.TYPE_MEM
 			}
-			// fmt.Printf("CONST %d %s\n", a.Offset, p.arch.Dconv(&emptyProg, 0, a))
+			// fmt.Printf("CONST %d %s\n", a.Offset, obj.Dconv(&emptyProg, 0, p.arch.Rconv, a))
 			p.expect(scanner.EOF)
 			return true
 		}
@@ -554,7 +554,7 @@ func (p *Parser) symbolReference(a *obj.Addr, name string, prefix rune) {
 	if p.peek() == '+' || p.peek() == '-' {
 		a.Offset = int64(p.expr())
 	}
-	a.Sym = obj.Linklookup(p.linkCtxt, name, isStatic)
+	a.Sym = obj.Linklookup(p.ctxt, name, isStatic)
 	if p.peek() == scanner.EOF {
 		if prefix != 0 {
 			p.errorf("illegal addressing mode for symbol %s", name)

@@ -34,7 +34,7 @@ func testOperandParser(t *testing.T, parser *Parser, tests []operandTest) {
 		parser.start(lex.Tokenize(test.input))
 		addr := obj.Addr{}
 		parser.operand(&addr)
-		result := parser.arch.Dconv(&emptyProg, 0, &addr)
+		result := obj.Dconv(&emptyProg, parser.arch.Rconv, &addr)
 		if result != test.output {
 			t.Errorf("fail at %s: got %s; expected %s\n", test.input, result, test.output)
 		}
@@ -64,7 +64,7 @@ func testX86RegisterPair(t *testing.T, parser *Parser) {
 		Type:   obj.TYPE_MEM,
 		Name:   obj.NAME_EXTERN,
 		Offset: 4,
-		Sym:    obj.Linklookup(parser.linkCtxt, "foo", 0),
+		Sym:    obj.Linklookup(parser.ctxt, "foo", 0),
 		Class:  int8(parser.arch.Register["AX"]), // TODO: clean up how this is encoded in parse.go
 	}
 	if want != addr {
@@ -114,8 +114,8 @@ type operandTest struct {
 
 var amd64OperandTests = []operandTest{
 	// {"AX:DX", "AX:DX"}, Handled in TestAMD64OperandParser directly.
-	{"$(-1.0)", "$(-1)"}, // TODO: Should print as a float.
-	{"$(0.0)", "$(0)"},   // TODO: Should print as a float.
+	{"$(-1.0)", "$(-1.0)"},
+	{"$(0.0)", "$(0.0)"},
 	{"$(0x2000000+116)", "$33554548"},
 	{"$(0x3F<<7)", "$8064"},
 	{"$(112+8)", "$120"},
@@ -132,16 +132,16 @@ var amd64OperandTests = []operandTest{
 	{"$0x7fffffe00000", "$140737486258176"},
 	{"$0xfffffffffffff001", "$-4095"},
 	{"$1", "$1"},
-	{"$1.0", "$(1)"}, // TODO: should print as float.
+	{"$1.0", "$(1.0)"},
 	{"$10", "$10"},
 	{"$1000", "$1000"},
 	{"$1000000", "$1000000"},
 	{"$1000000000", "$1000000000"},
-	{"$__tsan_func_enter(SB)", "$__tsan_func_enter+0(SB)"},
-	{"$main(SB)", "$main+0(SB)"},
-	{"$masks<>(SB)", "$masks<>+0(SB)"},
-	{"$setg_gcc<>(SB)", "$setg_gcc<>+0(SB)"},
-	{"$shifts<>(SB)", "$shifts<>+0(SB)"},
+	{"$__tsan_func_enter(SB)", "$__tsan_func_enter(SB)"},
+	{"$main(SB)", "$main(SB)"},
+	{"$masks<>(SB)", "$masks<>(SB)"},
+	{"$setg_gcc<>(SB)", "$setg_gcc<>(SB)"},
+	{"$shifts<>(SB)", "$shifts<>(SB)"},
 	{"$~(1<<63)", "$9223372036854775807"},
 	{"$~0x3F", "$-64"},
 	{"$~15", "$-16"},
@@ -203,28 +203,28 @@ var amd64OperandTests = []operandTest{
 	{"X7", "X7"},
 	{"X8", "X8"},
 	{"X9", "X9"},
-	{"_expand_key_128<>(SB)", "_expand_key_128<>+0(SB)"},
-	{"_seek<>(SB)", "_seek<>+0(SB)"},
+	{"_expand_key_128<>(SB)", "_expand_key_128<>(SB)"},
+	{"_seek<>(SB)", "_seek<>(SB)"},
 	{"a2+16(FP)", "a2+16(FP)"},
 	{"addr2+24(FP)", "addr2+24(FP)"},
-	{"asmcgocall<>(SB)", "asmcgocall<>+0(SB)"},
+	{"asmcgocall<>(SB)", "asmcgocall<>(SB)"},
 	{"b+24(FP)", "b+24(FP)"},
 	{"b_len+32(FP)", "b_len+32(FP)"},
-	{"racecall<>(SB)", "racecall<>+0(SB)"},
+	{"racecall<>(SB)", "racecall<>(SB)"},
 	{"rcv_name+20(FP)", "rcv_name+20(FP)"},
 	{"retoffset+28(FP)", "retoffset+28(FP)"},
-	{"runtime·_GetStdHandle(SB)", "runtime._GetStdHandle+0(SB)"},
-	{"sync\u2215atomic·AddInt64(SB)", "sync/atomic.AddInt64+0(SB)"},
+	{"runtime·_GetStdHandle(SB)", "runtime._GetStdHandle(SB)"},
+	{"sync\u2215atomic·AddInt64(SB)", "sync/atomic.AddInt64(SB)"},
 	{"timeout+20(FP)", "timeout+20(FP)"},
 	{"ts+16(FP)", "ts+16(FP)"},
 	{"x+24(FP)", "x+24(FP)"},
-	{"x·y(SB)", "x.y+0(SB)"},
-	{"x·y(SP)", "x.y+0(SP)"},
+	{"x·y(SB)", "x.y(SB)"},
+	{"x·y(SP)", "x.y(SP)"},
 	{"x·y+8(SB)", "x.y+8(SB)"},
 	{"x·y+8(SP)", "x.y+8(SP)"},
 	{"y+56(FP)", "y+56(FP)"},
-	{"·AddUint32(SB", "\"\".AddUint32+0(SB)"},
-	{"·callReflect(SB)", "\"\".callReflect+0(SB)"},
+	{"·AddUint32(SB", "\"\".AddUint32(SB)"},
+	{"·callReflect(SB)", "\"\".callReflect(SB)"},
 }
 
 var x86OperandTests = []operandTest{
@@ -232,8 +232,8 @@ var x86OperandTests = []operandTest{
 	{"$-1", "$-1"},
 	{"$0", "$0"},
 	{"$0x00000000", "$0"},
-	{"$runtime·badmcall(SB)", "$runtime.badmcall+0(SB)"},
-	{"$setg_gcc<>(SB)", "$setg_gcc<>+0(SB)"},
+	{"$runtime·badmcall(SB)", "$runtime.badmcall(SB)"},
+	{"$setg_gcc<>(SB)", "$setg_gcc<>(SB)"},
 	{"$~15", "$-16"},
 	{"(-64*1024+104)(SP)", "-65432(SP)"},
 	{"(0*4)(BP)", "(BP)"},
@@ -241,7 +241,7 @@ var x86OperandTests = []operandTest{
 	{"(4*4)(BP)", "16(BP)"},
 	{"(AX)", "(AX)"},
 	{"(BP)(CX*4)", "(BP)(CX*4)"},
-	{"(BP*8)", "(NONE)(BP*8)"}, // TODO: odd printout.
+	{"(BP*8)", "0(BP*8)"},
 	{"(BX)", "(BX)"},
 	{"(SP)", "(SP)"},
 	{"*AX", "AX"},                             // TODO: Should make * illegal here; a simple alias for JMP AX.
@@ -272,24 +272,24 @@ var x86OperandTests = []operandTest{
 	{"X5", "X5"},
 	{"X6", "X6"},
 	{"X7", "X7"},
-	{"asmcgocall<>(SB)", "asmcgocall<>+0(SB)"},
+	{"asmcgocall<>(SB)", "asmcgocall<>(SB)"},
 	{"ax+4(FP)", "ax+4(FP)"},
-	{"ptime-12(SP)", "ptime+-12(SP)"},
-	{"runtime·_NtWaitForSingleObject(SB)", "runtime._NtWaitForSingleObject+0(SB)"},
-	{"s(FP)", "s+0(FP)"},
+	{"ptime-12(SP)", "ptime-12(SP)"},
+	{"runtime·_NtWaitForSingleObject(SB)", "runtime._NtWaitForSingleObject(SB)"},
+	{"s(FP)", "s(FP)"},
 	{"sec+4(FP)", "sec+4(FP)"},
-	{"shifts<>(SB)(CX*8)", "shifts<>+0(SB)(CX*8)"},
+	{"shifts<>(SB)(CX*8)", "shifts<>(SB)(CX*8)"},
 	{"x+4(FP)", "x+4(FP)"},
-	{"·AddUint32(SB)", "\"\".AddUint32+0(SB)"},
-	{"·reflectcall(SB)", "\"\".reflectcall+0(SB)"},
+	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
+	{"·reflectcall(SB)", "\"\".reflectcall(SB)"},
 }
 
 var armOperandTests = []operandTest{
 	{"$0", "$0"},
 	{"$256", "$256"},
-	{"(R0)", "0(R0)"},
-	{"(R11)", "0(R11)"},
-	{"(g)", "0(R10)"}, // TODO: Should print 0(g).
+	{"(R0)", "(R0)"},
+	{"(R11)", "(R11)"},
+	{"(g)", "(R10)"}, // TODO: Should print 0(g).
 	{"-12(R4)", "-12(R4)"},
 	{"0(PC)", "0(PC)"},
 	{"1024", "1024"},
@@ -322,44 +322,44 @@ var armOperandTests = []operandTest{
 	{"[R(0)-R(7)]", "$255"},
 	{"[R0]", "$1"},
 	{"[R1-R12]", "$8190"},
-	{"armCAS64(SB)", "armCAS64+0(SB)"},
-	{"asmcgocall<>(SB)", "asmcgocall<>+0(SB)"},
+	{"armCAS64(SB)", "armCAS64(SB)"},
+	{"asmcgocall<>(SB)", "asmcgocall<>(SB)"},
 	{"c+28(FP)", "c+28(FP)"},
 	{"g", "R10"}, // TODO: Should print g.
-	{"gosave<>(SB)", "gosave<>+0(SB)"},
+	{"gosave<>(SB)", "gosave<>(SB)"},
 	{"retlo+12(FP)", "retlo+12(FP)"},
-	{"runtime·_sfloat2(SB)", "runtime._sfloat2+0(SB)"},
-	{"·AddUint32(SB)", "\"\".AddUint32+0(SB)"},
+	{"runtime·_sfloat2(SB)", "runtime._sfloat2(SB)"},
+	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
 }
 
 var ppc64OperandTests = []operandTest{
-	{"$((1<<63)-1)", "$0x7fffffffffffffff"},
+	{"$((1<<63)-1)", "$9223372036854775807"},
 	{"$(-64*1024)", "$-65536"},
 	{"$(1024 * 8)", "$8192"},
 	{"$-1", "$-1"},
 	{"$-24(R4)", "$-24(R4)"},
 	{"$0", "$0"},
-	{"$0(R1)", "$0(R1)"},
-	{"$0.5", "$0.5"},
+	{"$0(R1)", "$(R1)"},
+	{"$0.5", "$(0.5)"},
 	{"$0x7000", "$28672"},
-	{"$0x88888eef", "$0x88888eef"},
+	{"$0x88888eef", "$2290650863"},
 	{"$1", "$1"},
-	{"$_main<>(SB)", "$_main<>+0(SB)"},
-	{"$argframe+0(FP)", "$argframe+0(FP)"},
+	{"$_main<>(SB)", "$_main<>(SB)"},
+	{"$argframe(FP)", "$argframe(FP)"},
 	{"$runtime·tlsg(SB)", "$runtime.tlsg(SB)"},
 	{"$~3", "$-4"},
 	{"(-288-3*8)(R1)", "-312(R1)"},
 	{"(16)(R7)", "16(R7)"},
 	{"(8)(g)", "8(R30)"}, // TODO: Should print 8(g)
-	{"(CTR)", "0(CTR)"},
-	{"(R0)", "0(R0)"},
-	{"(R3)", "0(R3)"},
-	{"(R4)", "0(R4)"},
-	{"(R5)", "0(R5)"},
+	{"(CTR)", "(CTR)"},
+	{"(R0)", "(R0)"},
+	{"(R3)", "(R3)"},
+	{"(R4)", "(R4)"},
+	{"(R5)", "(R5)"},
 	{"-1(R4)", "-1(R4)"},
 	{"-1(R5)", "-1(R5)"},
-	{"6(PC)", "6(APC)"}, // TODO: Should print 6(PC).
-	{"CR7", "C7"},       // TODO: Should print CR7.
+	{"6(PC)", "6(PC)"},
+	{"CR7", "C7"}, // TODO: Should print CR7.
 	{"CTR", "CTR"},
 	{"F14", "F14"},
 	{"F15", "F15"},
@@ -411,7 +411,7 @@ var ppc64OperandTests = []operandTest{
 	{"R8", "R8"},
 	{"R9", "R9"},
 	{"SPR(269)", "SPR(269)"},
-	{"a+0(FP)", "a+0(FP)"},
+	{"a(FP)", "a(FP)"},
 	{"g", "R30"}, // TODO: Should print g.
 	{"ret+8(FP)", "ret+8(FP)"},
 	{"runtime·abort(SB)", "runtime.abort(SB)"},
