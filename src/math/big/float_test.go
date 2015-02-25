@@ -149,7 +149,7 @@ func TestFloatMantExp(t *testing.T) {
 		frac := makeFloat(test.frac)
 		f, e := x.MantExp(nil)
 		if !feq(f, frac) || e != test.exp {
-			t.Errorf("%s.MantExp() = %s, %d; want %s, %d", test.x, f.Format('g', 10), e, test.frac, test.exp)
+			t.Errorf("%s.MantExp(nil) = %s, %d; want %s, %d", test.x, f.Format('g', 10), e, test.frac, test.exp)
 		}
 	}
 }
@@ -158,10 +158,10 @@ func TestFloatMantExpAliasing(t *testing.T) {
 	x := makeFloat("0.5p10")
 	z := new(Float)
 	if m, _ := x.MantExp(z); m != z {
-		t.Fatalf("MantExp didn't use supplied *Float")
+		t.Fatalf("Float.MantExp didn't use supplied *Float")
 	}
 	if _, e := x.MantExp(x); e != 10 {
-		t.Fatalf("MantExp aliasing error: got %d; want 10", e)
+		t.Fatalf("Float.MantExp aliasing error: got %d; want 10", e)
 	}
 }
 
@@ -691,9 +691,9 @@ func TestFloatInt64(t *testing.T) {
 
 func TestFloatInt(t *testing.T) {
 	for _, test := range []struct {
-		x   string
-		out string
-		acc Accuracy
+		x    string
+		want string
+		acc  Accuracy
 	}{
 		{"0", "0", Exact},
 		{"+0", "0", Exact},
@@ -714,19 +714,64 @@ func TestFloatInt(t *testing.T) {
 		{"1e+100", "10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000", Exact},
 	} {
 		x := makeFloat(test.x)
-		out, acc := x.Int()
+		res, acc := x.Int()
 		got := "nil"
-		if out != nil {
-			got = out.String()
+		if res != nil {
+			got = res.String()
 		}
-		if got != test.out || acc != test.acc {
-			t.Errorf("%s: got %s (%s); want %s (%s)", test.x, got, acc, test.out, test.acc)
+		if got != test.want || acc != test.acc {
+			t.Errorf("%s: got %s (%s); want %s (%s)", test.x, got, acc, test.want, test.acc)
 		}
 	}
 }
 
 func TestFloatRat(t *testing.T) {
-	// TODO(gri) implement this
+	for _, test := range []struct {
+		x, want string
+	}{
+		{"0", "0/1"},
+		{"+0", "0/1"},
+		{"-0", "0/1"},
+		{"Inf", "nil"},
+		{"+Inf", "nil"},
+		{"-Inf", "nil"},
+		{"1", "1/1"},
+		{"-1", "-1/1"},
+		{"1.25", "5/4"},
+		{"-1.25", "-5/4"},
+		{"1e10", "10000000000/1"},
+		{"1p10", "1024/1"},
+		{"-1p-10", "-1/1024"},
+		{"3.14159265", "7244019449799623199/2305843009213693952"},
+	} {
+		x := makeFloat(test.x).SetPrec(64)
+		res := x.Rat(nil)
+		got := "nil"
+		if res != nil {
+			got = res.String()
+		}
+		if got != test.want {
+			t.Errorf("%s: got %s; want %s", test.x, got, test.want)
+			continue
+		}
+
+		// inverse conversion
+		if res != nil {
+			got := new(Float).SetPrec(64).SetRat(res)
+			if got.Cmp(x) != 0 {
+				t.Errorf("%s: got %s; want %s", test.x, got, x)
+			}
+		}
+	}
+
+	// check that supplied *Rat is used
+	for _, f := range []string{"0", "1"} {
+		x := makeFloat(f)
+		r := new(Rat)
+		if res := x.Rat(r); res != r {
+			t.Errorf("(%s).Rat is not using supplied *Rat", f)
+		}
+	}
 }
 
 func TestFloatAbs(t *testing.T) {
