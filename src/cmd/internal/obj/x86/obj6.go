@@ -1111,7 +1111,6 @@ loop:
 }
 
 var Linkamd64 = obj.LinkArch{
-	Dconv:      Dconv,
 	Rconv:      Rconv,
 	ByteOrder:  binary.LittleEndian,
 	Pconv:      Pconv,
@@ -1128,7 +1127,6 @@ var Linkamd64 = obj.LinkArch{
 }
 
 var Linkamd64p32 = obj.LinkArch{
-	Dconv:      Dconv,
 	Rconv:      Rconv,
 	ByteOrder:  binary.LittleEndian,
 	Pconv:      Pconv,

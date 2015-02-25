@@ -11,8 +11,11 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
+
+const REG_NONE = 0
 
 var start time.Time
 
@@ -63,7 +66,7 @@ func Bwritestring(b *Biobuf, p string) (int, error) {
 func Bseek(b *Biobuf, offset int64, whence int) int64 {
 	if b.w != nil {
 		if err := b.w.Flush(); err != nil {
-			log.Fatal("writing output: %v", err)
+			log.Fatalf("writing output: %v", err)
 		}
 	} else if b.r != nil {
 		if whence == 1 {
@@ -72,7 +75,7 @@ func Bseek(b *Biobuf, offset int64, whence int) int64 {
 	}
 	off, err := b.f.Seek(offset, whence)
 	if err != nil {
-		log.Fatal("seeking in output: %v", err)
+		log.Fatalf("seeking in output: %v", err)
 	}
 	if b.r != nil {
 		b.r.Reset(b.f)
@@ -82,11 +85,11 @@ func Bseek(b *Biobuf, offset int64, whence int) int64 {
 
 func Boffset(b *Biobuf) int64 {
 	if err := b.w.Flush(); err != nil {
-		log.Fatal("writing output: %v", err)
+		log.Fatalf("writing output: %v", err)
 	}
 	off, err := b.f.Seek(0, 1)
 	if err != nil {
-		log.Fatal("seeking in output: %v", err)
+		log.Fatalf("seeking in output: %v", err)
 	}
 	return off
 }
@@ -258,14 +261,156 @@ func (ctxt *Link) Line(n int) string {
 	return Linklinefmt(ctxt, n, false, false)
 }
 
-func (ctxt *Link) Dconv(a *Addr) string {
-	return ctxt.Arch.Dconv(nil, 0, a)
-}
-
 func (ctxt *Link) Rconv(reg int) string {
 	return ctxt.Arch.Rconv(reg)
 }
 
 func Getcallerpc(interface{}) uintptr {
 	return 1
+}
+
+func (ctxt *Link) Dconv(a *Addr) string {
+	return Dconv(nil, ctxt.Rconv, a)
+}
+
+func Dconv(p *Prog, Rconv func(int) string, a *Addr) string {
+	var str string
+
+	switch a.Type {
+	default:
+		str = fmt.Sprintf("type=%d", a.Type)
+
+	case TYPE_NONE:
+		str = ""
+		if a.Name != NAME_NONE || a.Reg != 0 || a.Sym != nil {
+			str = fmt.Sprintf("%v(%v)(NONE)", Mconv(Rconv, a), Rconv(int(a.Reg)))
+		}
+
+	case TYPE_REG:
+		// TODO(rsc): This special case is for x86 instructions like
+		//	PINSRQ	CX,$1,X6
+		// where the $1 is included in the p->to Addr.
+		// Move into a new field.
+		if a.Offset != 0 {
+			str = fmt.Sprintf("$%d,%v", a.Offset, Rconv(int(a.Reg)))
+			break
+		}
+
+		str = fmt.Sprintf("%v", Rconv(int(a.Reg)))
+		if a.Name != TYPE_NONE || a.Sym != nil {
+			str = fmt.Sprintf("%v(%v)(REG)", Mconv(Rconv, a), Rconv(int(a.Reg)))
+		}
+
+	case TYPE_BRANCH:
+		if a.Sym != nil {
+			str = fmt.Sprintf("%s(SB)", a.Sym.Name)
+		} else if p != nil && p.Pcond != nil {
+			str = fmt.Sprintf("%d", p.Pcond.Pc)
+		} else if a.U.Branch != nil {
+			str = fmt.Sprintf("%d", a.U.Branch.Pc)
+		} else {
+			str = fmt.Sprintf("%d(PC)", a.Offset)
+		}
+
+	case TYPE_MEM:
+		str = Mconv(Rconv, a)
+		if a.Index != REG_NONE {
+			str += fmt.Sprintf("(%v*%d)", Rconv(int(a.Index)), int(a.Scale))
+		}
+
+	case TYPE_CONST:
+		if a.Reg != 0 {
+			str = fmt.Sprintf("$%v(%v)", Mconv(Rconv, a), Rconv(int(a.Reg)))
+		} else {
+			str = fmt.Sprintf("$%v", Mconv(Rconv, a))
+		}
+
+	case TYPE_TEXTSIZE:
+		if a.U.Argsize == ArgsSizeUnknown {
+			str = fmt.Sprintf("$%d", a.Offset)
+		} else {
+			str = fmt.Sprintf("$%d-%d", a.Offset, a.U.Argsize)
+		}
+
+	case TYPE_FCONST:
+		str = fmt.Sprintf("%.17g", a.U.Dval)
+		// Make sure 1 prints as 1.0
+		if !strings.ContainsAny(str, ".e") {
+			str += ".0"
+		}
+		str = fmt.Sprintf("$(%s)", str)
+
+	case TYPE_SCONST:
+		str = fmt.Sprintf("$%q", a.U.Sval)
+
+	case TYPE_ADDR:
+		str = fmt.Sprintf("$%s", Mconv(Rconv, a))
+
+	case TYPE_SHIFT:
+		v := int(a.Offset)
+		op := string("<<>>->@>"[((v>>5)&3)<<1:])
+		if v&(1<<4) != 0 {
+			str = fmt.Sprintf("R%d%c%cR%d", v&15, op[0], op[1], (v>>8)&15)
+		} else {
+			str = fmt.Sprintf("R%d%c%c%d", v&15, op[0], op[1], (v>>7)&31)
+		}
+		if a.Reg != 0 {
+			str += fmt.Sprintf("(%v)", Rconv(int(a.Reg)))
+		}
+
+	case TYPE_REGREG:
+		str = fmt.Sprintf("(%v, %v)", Rconv(int(a.Reg)), Rconv(int(a.Offset)))
+
+	case TYPE_REGREG2:
+		str = fmt.Sprintf("%v, %v", Rconv(int(a.Reg)), Rconv(int(a.Offset)))
+	}
+
+	return str
+}
+
+func Mconv(Rconv func(int) string, a *Addr) string {
+	var str string
+
+	switch a.Name {
+	default:
+		str = fmt.Sprintf("name=%d", a.Name)
+
+	case NAME_NONE:
+		switch {
+		case a.Reg == REG_NONE:
+			str = fmt.Sprintf("%d", a.Offset)
+		case a.Offset == 0:
+			str = fmt.Sprintf("(%v)", Rconv(int(a.Reg)))
+		case a.Offset != 0:
+			str = fmt.Sprintf("%d(%v)", a.Offset, Rconv(int(a.Reg)))
+		}
+
+	case NAME_EXTERN:
+		str = fmt.Sprintf("%s%s(SB)", a.Sym.Name, offConv(a.Offset))
+
+	case NAME_STATIC:
+		str = fmt.Sprintf("%s<>%s(SB)", a.Sym.Name, offConv(a.Offset))
+
+	case NAME_AUTO:
+		if a.Sym != nil {
+			str = fmt.Sprintf("%s%s(SP)", a.Sym.Name, offConv(a.Offset))
+		} else {
+			str = fmt.Sprintf("%s(SP)", offConv(a.Offset))
+		}
+
+	case NAME_PARAM:
+		if a.Sym != nil {
+			str = fmt.Sprintf("%s%s(FP)", a.Sym.Name, offConv(a.Offset))
+		} else {
+			str = fmt.Sprintf("%s(FP)", offConv(a.Offset))
+		}
+	}
+	return str
+}
+
+func offConv(off int64) string {
+	if off == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%+d", off)
 }

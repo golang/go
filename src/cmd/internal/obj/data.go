@@ -43,7 +43,7 @@ func mangle(file string) {
 func Symgrow(ctxt *Link, s *LSym, lsiz int64) {
 	siz := int(lsiz)
 	if int64(siz) != lsiz {
-		log.Fatal("Symgrow size %d too long", lsiz)
+		log.Fatalf("Symgrow size %d too long", lsiz)
 	}
 	if len(s.P) >= siz {
 		return

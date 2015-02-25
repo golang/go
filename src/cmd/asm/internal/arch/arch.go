@@ -38,8 +38,8 @@ type Arch struct {
 	IsJump func(word string) bool
 	// Aconv pretty-prints an instruction opcode for this architecture.
 	Aconv func(int) string
-	// Dconv pretty-prints an address for this architecture.
-	Dconv func(p *obj.Prog, flag int, a *obj.Addr) string
+	// Rconv pretty-prints a register for this architecture.
+	Rconv func(int) string
 }
 
 // nilRegisterNumber is the register number function for architectures
@@ -188,7 +188,7 @@ func arch386() *Arch {
 		UnaryDestination: unaryDestination,
 		IsJump:           jump386,
 		Aconv:            i386.Aconv,
-		Dconv:            i386.Dconv,
+		Rconv:            i386.Rconv,
 	}
 }
 
@@ -309,7 +309,7 @@ func archAmd64() *Arch {
 		UnaryDestination: unaryDestination,
 		IsJump:           jump386,
 		Aconv:            x86.Aconv,
-		Dconv:            x86.Dconv,
+		Rconv:            x86.Rconv,
 	}
 }
 
@@ -362,7 +362,7 @@ func archArm() *Arch {
 		UnaryDestination: unaryDestination,
 		IsJump:           jumpArm,
 		Aconv:            arm.Aconv,
-		Dconv:            arm.Dconv,
+		Rconv:            arm.Rconv,
 	}
 }
 
@@ -422,6 +422,6 @@ func archPPC64() *Arch {
 		UnaryDestination: nil,
 		IsJump:           jumpPPC64,
 		Aconv:            ppc64.Aconv,
-		Dconv:            ppc64.Dconv,
+		Rconv:            ppc64.Rconv,
 	}
 }

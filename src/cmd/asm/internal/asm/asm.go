@@ -73,7 +73,7 @@ func (p *Parser) evalInteger(pseudo string, operands []lex.Token) int64 {
 // validateImmediate checks that addr represents an immediate constant.
 func (p *Parser) validateImmediate(pseudo string, addr *obj.Addr) {
 	if addr.Type != obj.TYPE_CONST || addr.Name != 0 || addr.Reg != 0 || addr.Index != 0 {
-		p.errorf("%s: expected immediate constant; found %s", pseudo, p.arch.Dconv(&emptyProg, 0, addr))
+		p.errorf("%s: expected immediate constant; found %s", pseudo, obj.Dconv(&emptyProg, p.arch.Rconv, addr))
 	}
 }
 
@@ -138,7 +138,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
 		argSize = p.positiveAtoi(op[1].String())
 	}
 	prog := &obj.Prog{
-		Ctxt:   p.linkCtxt,
+		Ctxt:   p.ctxt,
 		As:     obj.ATEXT,
 		Lineno: p.histLineNum,
 		From:   nameAddr,
@@ -191,7 +191,7 @@ func (p *Parser) asmData(word string, operands [][]lex.Token) {
 	p.dataAddr[name] = nameAddr.Offset + int64(scale)
 
 	prog := &obj.Prog{
-		Ctxt:   p.linkCtxt,
+		Ctxt:   p.ctxt,
 		As:     obj.ADATA,
 		Lineno: p.histLineNum,
 		From:   nameAddr,
@@ -230,7 +230,7 @@ func (p *Parser) asmGlobl(word string, operands [][]lex.Token) {
 
 	// log.Printf("GLOBL %s %d, $%d", name, flag, size)
 	prog := &obj.Prog{
-		Ctxt:   p.linkCtxt,
+		Ctxt:   p.ctxt,
 		As:     obj.AGLOBL,
 		Lineno: p.histLineNum,
 		From:   nameAddr,
@@ -259,7 +259,7 @@ func (p *Parser) asmPCData(word string, operands [][]lex.Token) {
 
 	// log.Printf("PCDATA $%d, $%d", key.Offset, value.Offset)
 	prog := &obj.Prog{
-		Ctxt:   p.linkCtxt,
+		Ctxt:   p.ctxt,
 		As:     obj.APCDATA,
 		Lineno: p.histLineNum,
 		From:   key,
@@ -284,7 +284,7 @@ func (p *Parser) asmFuncData(word string, operands [][]lex.Token) {
 	p.validateSymbol("FUNCDATA", &nameAddr, true)
 
 	prog := &obj.Prog{
-		Ctxt:   p.linkCtxt,
+		Ctxt:   p.ctxt,
 		As:     obj.AFUNCDATA,
 		Lineno: p.histLineNum,
 		From:   valueAddr,
@@ -300,7 +300,7 @@ func (p *Parser) asmFuncData(word string, operands [][]lex.Token) {
 func (p *Parser) asmJump(op int, cond string, a []obj.Addr) {
 	var target *obj.Addr
 	prog := &obj.Prog{
-		Ctxt:   p.linkCtxt,
+		Ctxt:   p.ctxt,
 		Lineno: p.histLineNum,
 		As:     int16(op),
 	}
@@ -404,7 +404,7 @@ func (p *Parser) branch(jmp, target *obj.Prog) {
 func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 	// fmt.Printf("%s %+v\n", p.arch.Aconv(op), a)
 	prog := &obj.Prog{
-		Ctxt:   p.linkCtxt,
+		Ctxt:   p.ctxt,
 		Lineno: p.histLineNum,
 		As:     int16(op),
 	}
@@ -642,7 +642,7 @@ var emptyProg obj.Prog
 // getConstantPseudo checks that addr represents a plain constant and returns its value.
 func (p *Parser) getConstantPseudo(pseudo string, addr *obj.Addr) int64 {
 	if addr.Type != obj.TYPE_MEM || addr.Name != 0 || addr.Reg != 0 || addr.Index != 0 {
-		p.errorf("%s: expected integer constant; found %s", pseudo, p.arch.Dconv(&emptyProg, 0, addr))
+		p.errorf("%s: expected integer constant; found %s", pseudo, obj.Dconv(&emptyProg, p.arch.Rconv, addr))
 	}
 	return addr.Offset
 }
@@ -650,7 +650,7 @@ func (p *Parser) getConstantPseudo(pseudo string, addr *obj.Addr) int64 {
 // getConstant checks that addr represents a plain constant and returns its value.
 func (p *Parser) getConstant(prog *obj.Prog, op int, addr *obj.Addr) int64 {
 	if addr.Type != obj.TYPE_MEM || addr.Name != 0 || addr.Reg != 0 || addr.Index != 0 {
-		p.errorf("%s: expected integer constant; found %s", p.arch.Aconv(op), p.arch.Dconv(prog, 0, addr))
+		p.errorf("%s: expected integer constant; found %s", p.arch.Aconv(op), obj.Dconv(prog, p.arch.Rconv, addr))
 	}
 	return addr.Offset
 }
@@ -658,7 +658,7 @@ func (p *Parser) getConstant(prog *obj.Prog, op int, addr *obj.Addr) int64 {
 // getImmediate checks that addr represents an immediate constant and returns its value.
 func (p *Parser) getImmediate(prog *obj.Prog, op int, addr *obj.Addr) int64 {
 	if addr.Type != obj.TYPE_CONST || addr.Name != 0 || addr.Reg != 0 || addr.Index != 0 {
-		p.errorf("%s: expected immediate constant; found %s", p.arch.Aconv(op), p.arch.Dconv(prog, 0, addr))
+		p.errorf("%s: expected immediate constant; found %s", p.arch.Aconv(op), obj.Dconv(prog, p.arch.Rconv, addr))
 	}
 	return addr.Offset
 }
@@ -666,7 +666,7 @@ func (p *Parser) getImmediate(prog *obj.Prog, op int, addr *obj.Addr) int64 {
 // getRegister checks that addr represents a register and returns its value.
 func (p *Parser) getRegister(prog *obj.Prog, op int, addr *obj.Addr) int16 {
 	if addr.Type != obj.TYPE_REG || addr.Offset != 0 || addr.Name != 0 || addr.Index != 0 {
-		p.errorf("%s: expected register; found %s", p.arch.Aconv(op), p.arch.Dconv(prog, 0, addr))
+		p.errorf("%s: expected register; found %s", p.arch.Aconv(op), obj.Dconv(prog, p.arch.Rconv, addr))
 	}
 	return addr.Reg
 }

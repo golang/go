@@ -241,7 +241,6 @@ type Plist struct {
 
 type LinkArch struct {
 	Pconv      func(*Prog) string
-	Dconv      func(*Prog, int, *Addr) string
 	Rconv      func(int) string
 	ByteOrder  binary.ByteOrder
 	Name       string

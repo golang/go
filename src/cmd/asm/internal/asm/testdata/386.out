@@ -1,4 +1,4 @@
-5 00001 (testdata/386.s:5)	TEXT	foo+0(SB),$0
+5 00001 (testdata/386.s:5)	TEXT	foo(SB),$0
 8 00002 (testdata/386.s:8)	SETCC	,AX
 9 00003 (testdata/386.s:9)	SETCC	,foo+4(SB)
 12 00004 (testdata/386.s:12)	DIVB	AX,
@@ -20,7 +20,7 @@
 37 00020 (testdata/386.s:37)	CALL	,type=16
 38 00021 (testdata/386.s:38)	JMP	,$4
 39 00022 (testdata/386.s:39)	JMP	,16
-40 00023 (testdata/386.s:40)	CALL	,foo+0(SB)
+40 00023 (testdata/386.s:40)	CALL	,foo(SB)
 42 00024 (testdata/386.s:42)	CALL	,foo+4(SB)(AX*4)
 43 00025 (testdata/386.s:43)	CALL	,4(SP)
 44 00026 (testdata/386.s:44)	CALL	,(AX)
