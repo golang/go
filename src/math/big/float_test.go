@@ -152,6 +152,31 @@ func TestFloatSetPrec(t *testing.T) {
 	}
 }
 
+func TestFloatMinPrec(t *testing.T) {
+	const max = 100
+	for _, test := range []struct {
+		x    string
+		want uint
+	}{
+		{"0", 0},
+		{"-0", 0},
+		{"+Inf", 0},
+		{"-Inf", 0},
+		{"1", 1},
+		{"2", 1},
+		{"3", 2},
+		{"0x8001", 16},
+		{"0x8001p-1000", 16},
+		{"0x8001p+1000", 16},
+		{"0.1", max},
+	} {
+		x := makeFloat(test.x).SetPrec(max)
+		if got := x.MinPrec(); got != test.want {
+			t.Errorf("%s.MinPrec() = %d; want %d", test.x, got, test.want)
+		}
+	}
+}
+
 func TestFloatSign(t *testing.T) {
 	for _, test := range []struct {
 		x string

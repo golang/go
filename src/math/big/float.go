@@ -196,6 +196,13 @@ func (x *Float) Prec() uint {
 	return uint(x.prec)
 }
 
+// MinPrec returns the minimum precision required to represent x exactly
+// (i.e., the smallest prec before x.SetPrec(prec) would start rounding x).
+// The result is 0 for ±0 and ±Inf.
+func (x *Float) MinPrec() uint {
+	return uint(len(x.mant))*_W - x.mant.trailingZeroBits()
+}
+
 // Acc returns the accuracy of x produced by the most recent operation.
 func (x *Float) Acc() Accuracy {
 	return x.acc
@@ -281,7 +288,7 @@ func (x *Float) IsInt() bool {
 		return len(x.mant) == 0 && x.exp != infExp
 	}
 	// x.exp > 0
-	return x.prec <= uint32(x.exp) || x.minPrec() <= uint(x.exp) // not enough bits for fractional mantissa
+	return x.prec <= uint32(x.exp) || x.MinPrec() <= uint(x.exp) // not enough bits for fractional mantissa
 }
 
 // IsInf reports whether x is an infinity, according to sign.
@@ -680,13 +687,6 @@ func high64(x nat) uint64 {
 	return v
 }
 
-// minPrec returns the minimum precision required to represent
-// x without loss of accuracy.
-// TODO(gri) this might be useful to export, perhaps under a better name
-func (x *Float) minPrec() uint {
-	return uint(len(x.mant))*_W - x.mant.trailingZeroBits()
-}
-
 // Uint64 returns the unsigned integer resulting from truncating x
 // towards zero. If 0 <= x <= math.MaxUint64, the result is Exact
 // if x is an integer and Below otherwise.
@@ -713,7 +713,7 @@ func (x *Float) Uint64() (uint64, Accuracy) {
 		if x.exp <= 64 {
 			// u = trunc(x) fits into a uint64
 			u := high64(x.mant) >> (64 - uint32(x.exp))
-			if x.minPrec() <= 64 {
+			if x.MinPrec() <= 64 {
 				return u, Exact
 			}
 			return u, Below // x truncated
@@ -760,14 +760,14 @@ func (x *Float) Int64() (int64, Accuracy) {
 			if x.neg {
 				i = -i
 			}
-			if x.minPrec() <= 63 {
+			if x.MinPrec() <= 63 {
 				return i, Exact
 			}
 			return i, acc // x truncated
 		}
 		if x.neg {
 			// check for special case x == math.MinInt64 (i.e., x == -(0.5 << 64))
-			if x.exp == 64 && x.minPrec() == 1 {
+			if x.exp == 64 && x.MinPrec() == 1 {
 				acc = Exact
 			}
 			return math.MinInt64, acc
@@ -844,7 +844,7 @@ func (x *Float) Int(z *Int) (*Int, Accuracy) {
 	// determine minimum required precision for x
 	allBits := uint(len(x.mant)) * _W
 	exp := uint(x.exp)
-	if x.minPrec() <= exp {
+	if x.MinPrec() <= exp {
 		acc = Exact
 	}
 	// shift mantissa as needed
