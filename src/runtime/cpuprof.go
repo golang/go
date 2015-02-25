@@ -30,8 +30,8 @@
 // The state of this dance between the signal handler and the goroutine
 // is encoded in the Profile.handoff field.  If handoff == 0, then the goroutine
 // is not using either log half and is waiting (or will soon be waiting) for
-// a new piece by calling notesleep(&p->wait).  If the signal handler
-// changes handoff from 0 to non-zero, it must call notewakeup(&p->wait)
+// a new piece by calling notesleep(&p.wait).  If the signal handler
+// changes handoff from 0 to non-zero, it must call notewakeup(&p.wait)
 // to wake the goroutine.  The value indicates the number of entries in the
 // log half being handed off.  The goroutine leaves the non-zero value in
 // place until it has finished processing the log half and then flips the number
@@ -61,7 +61,7 @@ const (
 
 type cpuprofEntry struct {
 	count uintptr
-	depth uintptr
+	depth int
 	stack [maxCPUProfStack]uintptr
 }
 
@@ -81,7 +81,7 @@ type cpuProfile struct {
 	// Signal handler has filled log[toggle][:nlog].
 	// Goroutine is writing log[1-toggle][:handoff].
 	log     [2][logSize / 2]uintptr
-	nlog    uintptr
+	nlog    int
 	toggle  int32
 	handoff uint32
 
@@ -167,7 +167,7 @@ func SetCPUProfileRate(hz int) {
 		cpuprof.on = false
 
 		// Now add is not running anymore, and getprofile owns the entire log.
-		// Set the high bit in prof->handoff to tell getprofile.
+		// Set the high bit in cpuprof.handoff to tell getprofile.
 		for {
 			n := cpuprof.handoff
 			if n&0x80000000 != 0 {
@@ -185,20 +185,16 @@ func SetCPUProfileRate(hz int) {
 	unlock(&cpuprofLock)
 }
 
-func cpuproftick(pc *uintptr, n int32) {
-	if n > maxCPUProfStack {
-		n = maxCPUProfStack
-	}
-	s := (*[maxCPUProfStack]uintptr)(unsafe.Pointer(pc))[:n]
-	cpuprof.add(s)
-}
-
 // add adds the stack trace to the profile.
 // It is called from signal handlers and other limited environments
 // and cannot allocate memory or acquire locks that might be
 // held at the time of the signal, nor can it use substantial amounts
 // of stack.  It is allowed to call evict.
 func (p *cpuProfile) add(pc []uintptr) {
+	if len(pc) > maxCPUProfStack {
+		pc = pc[:maxCPUProfStack]
+	}
+
 	// Compute hash.
 	h := uintptr(0)
 	for _, x := range pc {
@@ -212,7 +208,7 @@ func (p *cpuProfile) add(pc []uintptr) {
 Assoc:
 	for i := range b.entry {
 		e := &b.entry[i]
-		if e.depth != uintptr(len(pc)) {
+		if e.depth != len(pc) {
 			continue
 		}
 		for j := range pc {
@@ -241,7 +237,7 @@ Assoc:
 	}
 
 	// Reuse the newly evicted entry.
-	e.depth = uintptr(len(pc))
+	e.depth = len(pc)
 	e.count = 1
 	copy(e.stack[:], pc)
 }
@@ -256,7 +252,7 @@ func (p *cpuProfile) evict(e *cpuprofEntry) bool {
 	d := e.depth
 	nslot := d + 2
 	log := &p.log[p.toggle]
-	if p.nlog+nslot > uintptr(len(p.log[0])) {
+	if p.nlog+nslot > len(log) {
 		if !p.flushlog() {
 			return false
 		}
@@ -266,7 +262,7 @@ func (p *cpuProfile) evict(e *cpuprofEntry) bool {
 	q := p.nlog
 	log[q] = e.count
 	q++
-	log[q] = d
+	log[q] = uintptr(d)
 	q++
 	copy(log[q:], e.stack[:d])
 	q += d
@@ -287,7 +283,7 @@ func (p *cpuProfile) flushlog() bool {
 
 	p.toggle = 1 - p.toggle
 	log := &p.log[p.toggle]
-	q := uintptr(0)
+	q := 0
 	if p.lost > 0 {
 		lostPC := funcPC(lostProfileData)
 		log[0] = p.lost
@@ -360,7 +356,7 @@ func (p *cpuProfile) getprofile() []byte {
 
 	// In flush mode.
 	// Add is no longer being called.  We own the log.
-	// Also, p->handoff is non-zero, so flushlog will return false.
+	// Also, p.handoff is non-zero, so flushlog will return false.
 	// Evict the hash table into the log and return it.
 Flush:
 	for i := range p.hash {

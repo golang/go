@@ -468,9 +468,9 @@ func traceEvent(ev byte, stack bool, args ...uint64) {
 		}
 		var nstk int
 		if gp == _g_ {
-			nstk = callers(1, &buf.stk[0], len(buf.stk))
+			nstk = callers(1, buf.stk[:])
 		} else if gp != nil {
-			nstk = gcallers(mp.curg, 1, &buf.stk[0], len(buf.stk))
+			nstk = gcallers(mp.curg, 1, buf.stk[:])
 		}
 		id := trace.stackTab.put(buf.stk[:nstk])
 		data = traceAppend(data, uint64(id))

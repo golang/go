@@ -37,7 +37,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	c := &sigctxt{info, ctxt}
 
 	if sig == _SIGPROF {
-		sigprof((*byte)(unsafe.Pointer(uintptr(c.pc()))), (*byte)(unsafe.Pointer(uintptr(c.sp()))), (*byte)(unsafe.Pointer(uintptr(c.lr()))), gp, _g_.m)
+		sigprof(uintptr(c.pc()), uintptr(c.sp()), uintptr(c.lr()), gp, _g_.m)
 		return
 	}
 

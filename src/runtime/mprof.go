@@ -232,7 +232,7 @@ func mProf_GC() {
 // Called by malloc to record a profiled block.
 func mProf_Malloc(p unsafe.Pointer, size uintptr) {
 	var stk [maxStack]uintptr
-	nstk := callers(4, &stk[0], len(stk))
+	nstk := callers(4, stk[:])
 	lock(&proflock)
 	b := stkbucket(memProfile, size, stk[:nstk], true)
 	mp := b.mp()
@@ -300,9 +300,9 @@ func blockevent(cycles int64, skip int) {
 	var nstk int
 	var stk [maxStack]uintptr
 	if gp.m.curg == nil || gp.m.curg == gp {
-		nstk = callers(skip, &stk[0], len(stk))
+		nstk = callers(skip, stk[:])
 	} else {
-		nstk = gcallers(gp.m.curg, skip, &stk[0], len(stk))
+		nstk = gcallers(gp.m.curg, skip, stk[:])
 	}
 	lock(&proflock)
 	b := stkbucket(blockProfile, 0, stk[:nstk], true)

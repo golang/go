@@ -114,7 +114,7 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
 	// and what it called, so that we can see if it
 	// "called" sigpanic.
 	var rpc [2]uintptr
-	if callers(1+skip-1, &rpc[0], 2) < 2 {
+	if callers(1+skip-1, rpc[:]) < 2 {
 		return
 	}
 	f := findfunc(rpc[1])
@@ -161,7 +161,7 @@ func Callers(skip int, pc []uintptr) int {
 	if len(pc) == 0 {
 		return 0
 	}
-	return callers(skip, &pc[0], len(pc))
+	return callers(skip, pc)
 }
 
 // GOROOT returns the root of the Go tree.
