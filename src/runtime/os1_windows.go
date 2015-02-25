@@ -527,7 +527,7 @@ func profilem(mp *m) {
 	r = (*context)(unsafe.Pointer((uintptr(unsafe.Pointer(&rbuf[15]))) &^ 15))
 	r.contextflags = _CONTEXT_CONTROL
 	stdcall2(_GetThreadContext, mp.thread, uintptr(unsafe.Pointer(r)))
-	sigprof((*byte)(unsafe.Pointer(r.ip())), (*byte)(unsafe.Pointer(r.sp())), nil, gp, mp)
+	sigprof(r.ip(), r.sp(), 0, gp, mp)
 }
 
 func profileloop1() {

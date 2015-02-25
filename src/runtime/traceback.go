@@ -104,7 +104,7 @@ func tracebackdefers(gp *g, callback func(*stkframe, unsafe.Pointer) bool, v uns
 // the runtime.Callers function (pcbuf != nil), as well as the garbage
 // collector (callback != nil).  A little clunky to merge these, but avoids
 // duplicating the code and all its subtlety.
-func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max int, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer, flags uint) int {
+func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max int, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer, flags uint) int {
 	if goexitPC == 0 {
 		throw("gentraceback before goexitPC initialization")
 	}
@@ -367,7 +367,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 		}
 	}
 
-	if pcbuf == nil && callback == nil {
+	if printing {
 		n = nprint
 	}
 
@@ -474,7 +474,7 @@ func printcreatedby(gp *g) {
 	}
 }
 
-func traceback(pc uintptr, sp uintptr, lr uintptr, gp *g) {
+func traceback(pc, sp, lr uintptr, gp *g) {
 	traceback1(pc, sp, lr, gp, 0)
 }
 
@@ -484,11 +484,11 @@ func traceback(pc uintptr, sp uintptr, lr uintptr, gp *g) {
 // the initial PC must not be rewound to the previous instruction.
 // (All the saved pairs record a PC that is a return address, so we
 // rewind it into the CALL instruction.)
-func tracebacktrap(pc uintptr, sp uintptr, lr uintptr, gp *g) {
+func tracebacktrap(pc, sp, lr uintptr, gp *g) {
 	traceback1(pc, sp, lr, gp, _TraceTrap)
 }
 
-func traceback1(pc uintptr, sp uintptr, lr uintptr, gp *g, flags uint) {
+func traceback1(pc, sp, lr uintptr, gp *g, flags uint) {
 	var n int
 	if readgstatus(gp)&^_Gscan == _Gsyscall {
 		// Override registers if blocked in system call.
@@ -508,18 +508,18 @@ func traceback1(pc uintptr, sp uintptr, lr uintptr, gp *g, flags uint) {
 	printcreatedby(gp)
 }
 
-func callers(skip int, pcbuf *uintptr, m int) int {
+func callers(skip int, pcbuf []uintptr) int {
 	sp := getcallersp(unsafe.Pointer(&skip))
 	pc := uintptr(getcallerpc(unsafe.Pointer(&skip)))
 	var n int
 	systemstack(func() {
-		n = gentraceback(pc, sp, 0, getg(), skip, pcbuf, m, nil, nil, 0)
+		n = gentraceback(pc, sp, 0, getg(), skip, &pcbuf[0], len(pcbuf), nil, nil, 0)
 	})
 	return n
 }
 
-func gcallers(gp *g, skip int, pcbuf *uintptr, m int) int {
-	return gentraceback(^uintptr(0), ^uintptr(0), 0, gp, skip, pcbuf, m, nil, nil, 0)
+func gcallers(gp *g, skip int, pcbuf []uintptr) int {
+	return gentraceback(^uintptr(0), ^uintptr(0), 0, gp, skip, &pcbuf[0], len(pcbuf), nil, nil, 0)
 }
 
 func showframe(f *_func, gp *g) bool {

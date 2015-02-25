@@ -100,7 +100,7 @@ func mcommoninit(mp *m) {
 
 	// g0 stack won't make sense for user (and is not necessary unwindable).
 	if _g_ != _g_.m.g0 {
-		callers(1, &mp.createstack[0], len(mp.createstack))
+		callers(1, mp.createstack[:])
 	}
 
 	mp.fastrand = 0x49f6428a + uint32(mp.id) + uint32(cputicks())
@@ -2286,11 +2286,7 @@ func _GC()           { _GC() }
 var etext struct{}
 
 // Called if we receive a SIGPROF signal.
-func sigprof(pc *uint8, sp *uint8, lr *uint8, gp *g, mp *m) {
-	var n int32
-	var traceback bool
-	var stk [100]uintptr
-
+func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	if prof.hz == 0 {
 		return
 	}
@@ -2370,18 +2366,18 @@ func sigprof(pc *uint8, sp *uint8, lr *uint8, gp *g, mp *m) {
 	// To recap, there are no constraints on the assembly being used for the
 	// transition. We simply require that g and SP match and that the PC is not
 	// in gogo.
-	traceback = true
-	usp := uintptr(unsafe.Pointer(sp))
+	traceback := true
 	gogo := funcPC(gogo)
 	if gp == nil || gp != mp.curg ||
-		usp < gp.stack.lo || gp.stack.hi < usp ||
-		(gogo <= uintptr(unsafe.Pointer(pc)) && uintptr(unsafe.Pointer(pc)) < gogo+_RuntimeGogoBytes) {
+		sp < gp.stack.lo || gp.stack.hi < sp ||
+		(gogo <= pc && pc < gogo+_RuntimeGogoBytes) {
 		traceback = false
 	}
 
-	n = 0
+	var stk [maxCPUProfStack]uintptr
+	n := 0
 	if traceback {
-		n = int32(gentraceback(uintptr(unsafe.Pointer(pc)), uintptr(unsafe.Pointer(sp)), uintptr(unsafe.Pointer(lr)), gp, 0, &stk[0], len(stk), nil, nil, _TraceTrap))
+		n = gentraceback(pc, sp, lr, gp, 0, &stk[0], len(stk), nil, nil, _TraceTrap)
 	}
 	if !traceback || n <= 0 {
 		// Normal traceback is impossible or has failed.
@@ -2391,21 +2387,21 @@ func sigprof(pc *uint8, sp *uint8, lr *uint8, gp *g, mp *m) {
 			// Cgo, we can't unwind and symbolize arbitrary C code,
 			// so instead collect Go stack that leads to the cgo call.
 			// This is especially important on windows, since all syscalls are cgo calls.
-			n = int32(gentraceback(mp.curg.syscallpc, mp.curg.syscallsp, 0, mp.curg, 0, &stk[0], len(stk), nil, nil, 0))
+			n = gentraceback(mp.curg.syscallpc, mp.curg.syscallsp, 0, mp.curg, 0, &stk[0], len(stk), nil, nil, 0)
 		}
 		if GOOS == "windows" && n == 0 && mp.libcallg != nil && mp.libcallpc != 0 && mp.libcallsp != 0 {
 			// Libcall, i.e. runtime syscall on windows.
 			// Collect Go stack that leads to the call.
-			n = int32(gentraceback(mp.libcallpc, mp.libcallsp, 0, mp.libcallg, 0, &stk[0], len(stk), nil, nil, 0))
+			n = gentraceback(mp.libcallpc, mp.libcallsp, 0, mp.libcallg, 0, &stk[0], len(stk), nil, nil, 0)
 		}
 		if n == 0 {
 			// If all of the above has failed, account it against abstract "System" or "GC".
 			n = 2
 			// "ExternalCode" is better than "etext".
-			if uintptr(unsafe.Pointer(pc)) > uintptr(unsafe.Pointer(&etext)) {
-				pc = (*uint8)(unsafe.Pointer(uintptr(funcPC(_ExternalCode) + _PCQuantum)))
+			if pc > uintptr(unsafe.Pointer(&etext)) {
+				pc = funcPC(_ExternalCode) + _PCQuantum
 			}
-			stk[0] = uintptr(unsafe.Pointer(pc))
+			stk[0] = pc
 			if mp.preemptoff != "" || mp.helpgc != 0 {
 				stk[1] = funcPC(_GC) + _PCQuantum
 			} else {
@@ -2420,7 +2416,7 @@ func sigprof(pc *uint8, sp *uint8, lr *uint8, gp *g, mp *m) {
 			osyield()
 		}
 		if prof.hz != 0 {
-			cpuproftick(&stk[0], n)
+			cpuprof.add(stk[:n])
 		}
 		atomicstore(&prof.lock, 0)
 	}
