@@ -90,16 +90,12 @@ linknew(LinkArch *arch)
 	char *p;
 	char buf[1024];
 
-	linksetexp();
 	nuxiinit(arch);
 	
 	ctxt = emallocz(sizeof *ctxt);
 	ctxt->arch = arch;
 	ctxt->version = HistVersion;
 	ctxt->goroot = getgoroot();
-	ctxt->goroot_final = getenv("GOROOT_FINAL");
-	if(ctxt->goroot_final != nil && ctxt->goroot_final[0] == '\0')
-		ctxt->goroot_final = nil;
 
 	p = getgoarch();
 	if(strcmp(p, arch->name) != 0)
@@ -116,7 +112,6 @@ linknew(LinkArch *arch)
 			if(*p == '\\')
 				*p = '/';
 	}
-	ctxt->pathname = strdup(buf);
 	
 	ctxt->headtype = headtype(getgoos());
 	if(ctxt->headtype < 0)
@@ -258,14 +253,3 @@ linkrlookup(Link *ctxt, char *name, int v)
 	return _lookup(ctxt, name, v, 0);
 }
 
-int
-linksymfmt(Fmt *f)
-{
-	LSym *s;
-	
-	s = va_arg(f->args, LSym*);
-	if(s == nil)
-		return fmtstrcpy(f, "<nil>");
-	
-	return fmtstrcpy(f, s->name);
-}

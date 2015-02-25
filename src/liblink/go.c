@@ -9,67 +9,6 @@
 #include <bio.h>
 #include <link.h>
 
-int framepointer_enabled;
-int fieldtrack_enabled;
-Prog zprog;
-
-// Toolchain experiments.
-// These are controlled by the GOEXPERIMENT environment
-// variable recorded when the toolchain is built.
-// This list is also known to cmd/gc.
-static struct {
-	char *name;
-	int *val;
-} exper[] = {
-	{"fieldtrack", &fieldtrack_enabled},
-	{"framepointer", &framepointer_enabled},
-};
-
-static void
-addexp(char *s)
-{
-	int i;
-
-	for(i=0; i < nelem(exper); i++ ) {
-		if(strcmp(exper[i].name, s) == 0) {
-			if(exper[i].val != nil)
-				*exper[i].val = 1;
-			return;
-		}
-	}
-	
-	print("unknown experiment %s\n", s);
-	exits("unknown experiment");
-}
-
-void
-linksetexp(void)
-{
-	char *f[20];
-	int i, nf;
-
-	// cmd/dist #defines GOEXPERIMENT for us.
-	nf = getfields(GOEXPERIMENT, f, nelem(f), 1, ",");
-	for(i=0; i<nf; i++)
-		addexp(f[i]);
-}
-
-char*
-expstring(void)
-{
-	int i;
-	static char buf[512];
-
-	strcpy(buf, "X");
-	for(i=0; i<nelem(exper); i++)
-		if(*exper[i].val)
-			seprint(buf+strlen(buf), buf+sizeof buf, ",%s", exper[i].name);
-	if(strlen(buf) == 1)
-		strcpy(buf, "X,none");
-	buf[1] = ':';
-	return buf;
-}
-
 // replace all "". with pkg.
 char*
 expandpkg(char *t0, char *pkg)
@@ -128,29 +67,6 @@ erealloc(void *p, long n)
 	return p;
 }
 
-void
-double2ieee(uint64 *ieee, float64 f)
-{
-	memmove(ieee, &f, 8);
-}
 
-void
-nopout(Prog *p)
-{
-	p->as = ANOP;
-	p->scond = zprog.scond;
-	p->from = zprog.from;
-	p->from3 = zprog.from3;
-	p->reg = zprog.reg;
-	p->to = zprog.to;
-}
 
-void
-nocache(Prog *p)
-{
-	p->optab = 0;
-	p->from.class = 0;
-	p->from3.class = 0;
-	p->to.class = 0;
-}
 

@@ -31,7 +31,6 @@
 #include	<libc.h>
 #include	<bio.h>
 #include	<link.h>
-#include	"9.out.h"
 
 #ifndef	EXTERN
 #define	EXTERN	extern
@@ -57,7 +56,6 @@ vlong	archrelocvariant(Reloc *r, LSym *s, vlong t);
 void	asmb(void);
 int	elfreloc1(Reloc *r, vlong sectoff);
 void	elfsetupplt(void);
-void	listinit(void);
 int	machoreloc1(Reloc *r, vlong sectoff);
 
 /* Used by ../ld/dwarf.c */

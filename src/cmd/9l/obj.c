@@ -71,7 +71,6 @@ linkarchinit(void)
 	thearch.elfreloc1 = elfreloc1;
 	thearch.elfsetupplt = elfsetupplt;
 	thearch.gentext = gentext;
-	thearch.listinit = listinit;
 	thearch.machoreloc1 = machoreloc1;
 	if(thelinkarch == &linkppc64le) {
 		thearch.lput = lputl;
