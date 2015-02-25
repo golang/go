@@ -36,6 +36,7 @@
 #include	<link.h>
 #include	"lib.h"
 #include	"elf.h"
+#include	"dwarf.h"
 
 static int maxelfstr;
 
@@ -62,7 +63,7 @@ putelfstr(char *s)
 	p = strstr(s, "·");
 	if(p != nil) {
 		p = q = elfstrdat+off;
-		while (*q != '\0') {
+		while (*q != '\x00') {
 			if((uchar)*q == 0xc2 && (uchar)*(q+1) == 0xb7) {
 				q += 2;
 				*p++ = '.';
@@ -71,7 +72,7 @@ putelfstr(char *s)
 				*p++ = *q++;
 			}
 		}
-		*p = '\0';
+		*p = '\x00';
 	}
 	return off;
 }
@@ -108,7 +109,7 @@ static int elfbind;
 static void
 putelfsym(LSym *x, char *s, int t, vlong addr, vlong size, int ver, LSym *go)
 {
-	int bind, type, off;
+	int bind, type, off, other;
 	LSym *xo;
 
 	USED(go);
@@ -133,7 +134,7 @@ putelfsym(LSym *x, char *s, int t, vlong addr, vlong size, int ver, LSym *go)
 		diag("missing section in putelfsym");
 		return;
 	}
-	if(xo->sect->elfsect == nil) {
+	if(((Section*)xo->sect)->elfsect == nil) {
 		ctxt->cursym = x;
 		diag("missing ELF section in putelfsym");
 		return;
@@ -157,8 +158,11 @@ putelfsym(LSym *x, char *s, int t, vlong addr, vlong size, int ver, LSym *go)
 
 	off = putelfstr(s);
 	if(linkmode == LinkExternal)
-		addr -= xo->sect->vaddr;
-	putelfsyment(off, addr, size, (bind<<4)|(type&0xf), xo->sect->elfsect->shnum, (x->type & SHIDDEN) ? 2 : 0);
+		addr -= ((Section*)xo->sect)->vaddr;
+	other = 2;
+	if(x->type&SHIDDEN)
+		other = 0;
+	putelfsyment(off, addr, size, (bind<<4)|(type&0xf), ((ElfShdr*)((Section*)xo->sect)->elfsect)->shnum, other);
 	x->elfsym = numelfsym++;
 }
 
@@ -210,9 +214,9 @@ asmelfsym(void)
 		}
 		if (strcmp(goos, "android") == 0) {
 			// Android emulates runtime.tlsg as a regular variable.
-			putelfsyment(putelfstr(s->name), 0, s->size, (STB_LOCAL<<4)|STT_OBJECT, s->sect->elfsect->shnum, 0);
+			putelfsyment(putelfstr(s->name), 0, s->size, (STB_LOCAL<<4)|STT_OBJECT, ((ElfShdr*)((Section*)s->sect)->elfsect)->shnum, 0);
 		} else {
-			putelfsyment(putelfstr(s->name), 0, s->size, (STB_LOCAL<<4)|STT_TLS, s->sect->elfsect->shnum, 0);
+			putelfsyment(putelfstr(s->name), 0, s->size, (STB_LOCAL<<4)|STT_TLS, ((ElfShdr*)((Section*)s->sect)->elfsect)->shnum, 0);
 		}
 		s->elfsym = numelfsym++;
 	}

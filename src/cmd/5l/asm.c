@@ -305,9 +305,9 @@ machoreloc1(Reloc *r, vlong sectoff)
 		v = rs->dynid;
 		v |= 1<<27; // external relocation
 	} else {
-		v = rs->sect->extnum;
+		v = ((Section*)rs->sect)->extnum;
 		if(v == 0) {
-			diag("reloc %d to symbol %s in non-macho section %s type=%d", r->type, rs->name, rs->sect->name, rs->type);
+			diag("reloc %d to symbol %s in non-macho section %s type=%d", r->type, rs->name, ((Section*)rs->sect)->name, rs->type);
 			return -1;
 		}
 	}
@@ -610,10 +610,10 @@ asmb(void)
 
 	sect = segtext.sect;
 	cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
-	codeblk(sect->vaddr, sect->len);
+	codeblk(sect->vaddr, sect->length);
 	for(sect = sect->next; sect != nil; sect = sect->next) {
 		cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
-		datblk(sect->vaddr, sect->len);
+		datblk(sect->vaddr, sect->length);
 	}
 
 	if(segrodata.filelen > 0) {
@@ -638,7 +638,7 @@ asmb(void)
 			Bprint(&bso, "%5.2f dwarf\n", cputime());
 
 		if(!debug['w']) { // TODO(minux): enable DWARF Support
-			dwarfoff = rnd(HEADR+segtext.len, INITRND) + rnd(segdata.filelen, INITRND);
+			dwarfoff = rnd(HEADR+segtext.length, INITRND) + rnd(segdata.filelen, INITRND);
 			cseek(dwarfoff);
 
 			segdwarf.fileoff = cpos();
@@ -659,17 +659,16 @@ asmb(void)
 		Bflush(&bso);
 		switch(HEADTYPE) {
 		default:
-			if(iself)
-				goto ElfSym;
+			if(iself) {
+				symo = segdata.fileoff+segdata.filelen;
+				symo = rnd(symo, INITRND);
+			}
+			break;
 		case Hplan9:
 			symo = segdata.fileoff+segdata.filelen;
 			break;
 		case Hdarwin:
 			symo = rnd(HEADR+segtext.filelen, INITRND)+rnd(segdata.filelen, INITRND)+machlink;
-			break;
-		ElfSym:
-			symo = segdata.fileoff+segdata.filelen;
-			symo = rnd(symo, INITRND);
 			break;
 		}
 		cseek(symo);
@@ -721,7 +720,7 @@ asmb(void)
 		thearch.lput(0x647);			/* magic */
 		thearch.lput(segtext.filelen);			/* sizes */
 		thearch.lput(segdata.filelen);
-		thearch.lput(segdata.len - segdata.filelen);
+		thearch.lput(segdata.length - segdata.filelen);
 		thearch.lput(symsize);			/* nsyms */
 		thearch.lput(entryvalue());		/* va of entry */
 		thearch.lput(0L);
@@ -742,9 +741,9 @@ asmb(void)
 	if(debug['c']){
 		print("textsize=%ulld\n", segtext.filelen);
 		print("datsize=%ulld\n", segdata.filelen);
-		print("bsssize=%ulld\n", segdata.len - segdata.filelen);
+		print("bsssize=%ulld\n", segdata.length - segdata.filelen);
 		print("symsize=%d\n", symsize);
 		print("lcsize=%d\n", lcsize);
-		print("total=%lld\n", segtext.filelen+segdata.len+symsize+lcsize);
+		print("total=%lld\n", segtext.filelen+segdata.length+symsize+lcsize);
 	}
 }

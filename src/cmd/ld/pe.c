@@ -15,7 +15,7 @@
 
 // DOS stub that prints out
 // "This program cannot be run in DOS mode."
-static char dosstub[] =
+static uchar dosstub[] =
 {
 	0x4d, 0x5a, 0x90, 0x00, 0x03, 0x00, 0x04, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00,
@@ -45,7 +45,7 @@ int32 PESECTHEADR;
 int32 PEFILEHEADR;
 
 static int pe64;
-static int nsect;
+static int pensect;
 static int nextsectoff;
 static int nextfileoff;
 static int textsect;
@@ -56,9 +56,6 @@ static IMAGE_OPTIONAL_HEADER oh;
 static PE64_IMAGE_OPTIONAL_HEADER oh64;
 static IMAGE_SECTION_HEADER sh[16];
 static IMAGE_DATA_DIRECTORY* dd;
-
-#define	set(n, v)	(pe64 ? (oh64.n = v) : (oh.n = v))
-#define	put(v)		(pe64 ? vputl(v) : lputl(v))
 
 typedef struct Imp Imp;
 struct Imp {
@@ -98,11 +95,11 @@ addpesection(char *name, int sectsize, int filesize)
 {
 	IMAGE_SECTION_HEADER *h;
 
-	if(nsect == 16) {
+	if(pensect == 16) {
 		diag("too many sections");
 		errorexit();
 	}
-	h = &sh[nsect++];
+	h = &sh[pensect++];
 	strncpy((char*)h->Name, name, sizeof(h->Name));
 	h->VirtualSize = sectsize;
 	h->VirtualAddress = nextsectoff;
@@ -181,7 +178,7 @@ pewrite(void)
 		cwrite(&oh64, sizeof oh64);
 	else
 		cwrite(&oh, sizeof oh);
-	cwrite(sh, nsect * sizeof sh[0]);
+	cwrite(sh, pensect * sizeof sh[0]);
 }
 
 static void
@@ -191,11 +188,11 @@ strput(char *s)
 
 	for(n=0; *s; n++)
 		cput(*s++);
-	cput('\0');
+	cput('\x00');
 	n++;
 	// string must be padded to even size
 	if(n%2)
-		cput('\0');
+		cput('\x00');
 }
 
 static Dll* 
@@ -284,9 +281,16 @@ addimports(IMAGE_SECTION_HEADER *datsect)
 	n = cpos();
 	for(d = dr; d != nil; d = d->next) {
 		d->thunkoff = cpos() - n;
-		for(m = d->ms; m != nil; m = m->next)
-			put(m->off);
-		put(0);
+		for(m = d->ms; m != nil; m = m->next) {
+			if(pe64)
+				vputl(m->off);
+			else
+				lputl(m->off);
+		}
+		if(pe64)
+			vputl(0);
+		else
+			lputl(0);
 	}
 
 	// add pe section and pad it at the end
@@ -302,9 +306,16 @@ addimports(IMAGE_SECTION_HEADER *datsect)
 	ftbase = dynamic->value - datsect->VirtualAddress - PEBASE;
 	cseek(datsect->PointerToRawData + ftbase);
 	for(d = dr; d != nil; d = d->next) {
-		for(m = d->ms; m != nil; m = m->next)
-			put(m->off);
-		put(0);
+		for(m = d->ms; m != nil; m = m->next) {
+			if(pe64)
+				vputl(m->off);
+			else
+				lputl(m->off);
+		}
+		if(pe64)
+			vputl(0);
+		else
+			lputl(0);
 	}
 	
 	// finally write import descriptor table
@@ -332,7 +343,7 @@ addimports(IMAGE_SECTION_HEADER *datsect)
 }
 
 static int
-scmp(const void *p1, const void *p2)
+pescmp(const void *p1, const void *p2)
 {
 	LSym *s1, *s2;
 
@@ -350,7 +361,7 @@ initdynexport(void)
 	for(s = ctxt->allsym; s != nil; s = s->allsym) {
 		if(!s->reachable || !(s->cgoexport & CgoExportDynamic))
 			continue;
-		if(nexport+1 > sizeof(dexport)/sizeof(dexport[0])) {
+		if(nexport+1 > nelem(dexport)) {
 			diag("pe dynexport table is full");
 			errorexit();
 		}
@@ -359,7 +370,7 @@ initdynexport(void)
 		nexport++;
 	}
 	
-	qsort(dexport, nexport, sizeof dexport[0], scmp);
+	qsort(dexport, nexport, sizeof dexport[0], pescmp);
 }
 
 void
@@ -469,7 +480,7 @@ newPEDWARFSection(char *name, vlong size)
 		return nil;
 
 	off = strtbladd(name);
-	sprint(s, "/%d\0", off);
+	sprint(s, "/%d", off);
 	h = addpesection(s, size, size);
 	h->Characteristics = IMAGE_SCN_MEM_READ|
 		IMAGE_SCN_MEM_DISCARDABLE;
@@ -478,7 +489,7 @@ newPEDWARFSection(char *name, vlong size)
 }
 
 static void
-addsym(LSym *s, char *name, int type, vlong addr, vlong size, int ver, LSym *gotype)
+addpesym(LSym *s, char *name, int type, vlong addr, vlong size, int ver, LSym *gotype)
 {
 	COFFSym *cs;
 	USED(name);
@@ -516,24 +527,24 @@ addsym(LSym *s, char *name, int type, vlong addr, vlong size, int ver, LSym *got
 		} else {
 			cs->value = 0;
 			cs->sect = 0;
-			diag("addsym %#llx", addr);
+			diag("addpesym %#llx", addr);
 		}
 	}
 	ncoffsym++;
 }
 
 static void
-addsymtable(void)
+addpesymtable(void)
 {
 	IMAGE_SECTION_HEADER *h;
 	int i, size;
 	COFFSym *s;
 
 	if(!debug['s']) {
-		genasmsym(addsym);
+		genasmsym(addpesym);
 		coffsym = mal(ncoffsym * sizeof coffsym[0]);
 		ncoffsym = 0;
-		genasmsym(addsym);
+		genasmsym(addpesym);
 	}
 
 	size = strtblnextoff + 4 + 18*ncoffsym;
@@ -583,6 +594,7 @@ addpersrc(void)
 	uchar *p;
 	uint32 val;
 	Reloc *r;
+	int ri;
 
 	if(rsrcsym == nil)
 		return;
@@ -592,7 +604,8 @@ addpersrc(void)
 		IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_INITIALIZED_DATA;
 	chksectoff(h, cpos());
 	// relocation
-	for(r=rsrcsym->r; r<rsrcsym->r+rsrcsym->nr; r++) {
+	for(ri=0; ri<rsrcsym->nr; ri++) {
+		r = &rsrcsym->r[ri];
 		p = rsrcsym->p + r->off;
 		val = h->VirtualAddress + r->add;
 		// 32-bit little-endian
@@ -626,18 +639,18 @@ asmbpe(void)
 		break;
 	}
 
-	t = addpesection(".text", segtext.len, segtext.len);
+	t = addpesection(".text", segtext.length, segtext.length);
 	t->Characteristics = IMAGE_SCN_CNT_CODE|
 		IMAGE_SCN_CNT_INITIALIZED_DATA|
 		IMAGE_SCN_MEM_EXECUTE|IMAGE_SCN_MEM_READ;
 	chksectseg(t, &segtext);
-	textsect = nsect;
+	textsect = pensect;
 
-	d = addpesection(".data", segdata.len, segdata.filelen);
+	d = addpesection(".data", segdata.length, segdata.filelen);
 	d->Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA|
 		IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE;
 	chksectseg(d, &segdata);
-	datasect = nsect;
+	datasect = pensect;
 
 	if(!debug['s'])
 		dwarfaddpeheaders();
@@ -645,10 +658,10 @@ asmbpe(void)
 	cseek(nextfileoff);
 	addimports(d);
 	addexports();
-	addsymtable();
+	addpesymtable();
 	addpersrc();
 
-	fh.NumberOfSections = nsect;
+	fh.NumberOfSections = pensect;
 	// Being able to produce identical output for identical input is
 	// much more beneficial than having build timestamp in the header.
 	fh.TimeDateStamp = 0;
@@ -657,35 +670,57 @@ asmbpe(void)
 	if (pe64) {
 		fh.SizeOfOptionalHeader = sizeof(oh64);
 		fh.Characteristics |= IMAGE_FILE_LARGE_ADDRESS_AWARE;
-		set(Magic, 0x20b);	// PE32+
+		oh64.Magic = 0x20b;	// PE32+
 	} else {
 		fh.SizeOfOptionalHeader = sizeof(oh);
 		fh.Characteristics |= IMAGE_FILE_32BIT_MACHINE;
-		set(Magic, 0x10b);	// PE32
+		oh.Magic = 0x10b;	// PE32
 		oh.BaseOfData = d->VirtualAddress;
 	}
-	set(MajorLinkerVersion, 3);
-	set(MinorLinkerVersion, 0);
-	set(SizeOfCode, t->SizeOfRawData);
-	set(SizeOfInitializedData, d->SizeOfRawData);
-	set(SizeOfUninitializedData, 0);
-	set(AddressOfEntryPoint, entryvalue()-PEBASE);
-	set(BaseOfCode, t->VirtualAddress);
-	set(ImageBase, PEBASE);
-	set(SectionAlignment, PESECTALIGN);
-	set(FileAlignment, PEFILEALIGN);
-	set(MajorOperatingSystemVersion, 4);
-	set(MinorOperatingSystemVersion, 0);
-	set(MajorImageVersion, 1);
-	set(MinorImageVersion, 0);
-	set(MajorSubsystemVersion, 4);
-	set(MinorSubsystemVersion, 0);
-	set(SizeOfImage, nextsectoff);
-	set(SizeOfHeaders, PEFILEHEADR);
-	if(strcmp(headstring, "windowsgui") == 0)
-		set(Subsystem, IMAGE_SUBSYSTEM_WINDOWS_GUI);
-	else
-		set(Subsystem, IMAGE_SUBSYSTEM_WINDOWS_CUI);
+	// Fill out both oh64 and oh. We only use one. Oh well.
+	oh64.MajorLinkerVersion = 3;
+	oh.MajorLinkerVersion = 3;
+	oh64.MinorLinkerVersion = 0;
+	oh.MinorLinkerVersion = 0;
+	oh64.SizeOfCode = t->SizeOfRawData;
+	oh.SizeOfCode = t->SizeOfRawData;
+	oh64.SizeOfInitializedData = d->SizeOfRawData;
+	oh.SizeOfInitializedData = d->SizeOfRawData;
+	oh64.SizeOfUninitializedData = 0;
+	oh.SizeOfUninitializedData = 0;
+	oh64.AddressOfEntryPoint = entryvalue()-PEBASE;
+	oh.AddressOfEntryPoint = entryvalue()-PEBASE;
+	oh64.BaseOfCode = t->VirtualAddress;
+	oh.BaseOfCode = t->VirtualAddress;
+	oh64.ImageBase = PEBASE;
+	oh.ImageBase = PEBASE;
+	oh64.SectionAlignment = PESECTALIGN;
+	oh.SectionAlignment = PESECTALIGN;
+	oh64.FileAlignment = PEFILEALIGN;
+	oh.FileAlignment = PEFILEALIGN;
+	oh64.MajorOperatingSystemVersion = 4;
+	oh.MajorOperatingSystemVersion = 4;
+	oh64.MinorOperatingSystemVersion = 0;
+	oh.MinorOperatingSystemVersion = 0;
+	oh64.MajorImageVersion = 1;
+	oh.MajorImageVersion = 1;
+	oh64.MinorImageVersion = 0;
+	oh.MinorImageVersion = 0;
+	oh64.MajorSubsystemVersion = 4;
+	oh.MajorSubsystemVersion = 4;
+	oh64.MinorSubsystemVersion = 0;
+	oh.MinorSubsystemVersion = 0;
+	oh64.SizeOfImage = nextsectoff;
+	oh.SizeOfImage = nextsectoff;
+	oh64.SizeOfHeaders = PEFILEHEADR;
+	oh.SizeOfHeaders = PEFILEHEADR;
+	if(strcmp(headstring, "windowsgui") == 0) {
+		oh64.Subsystem = IMAGE_SUBSYSTEM_WINDOWS_GUI;
+		oh.Subsystem = IMAGE_SUBSYSTEM_WINDOWS_GUI;
+	} else {
+		oh64.Subsystem = IMAGE_SUBSYSTEM_WINDOWS_CUI;
+		oh.Subsystem = IMAGE_SUBSYSTEM_WINDOWS_CUI;
+	}
 
 	// Disable stack growth as we don't want Windows to
 	// fiddle with the thread stack limits, which we set
@@ -702,16 +737,23 @@ asmbpe(void)
 	// If you change stack reserve sizes here,
 	// change STACKSIZE in runtime/cgo/gcc_windows_{386,amd64}.c as well.
 	if(!iscgo) {
-		set(SizeOfStackReserve, 0x00010000);
-		set(SizeOfStackCommit, 0x0000ffff);
+		oh64.SizeOfStackReserve = 0x00010000;
+		oh.SizeOfStackReserve = 0x00010000;
+		oh64.SizeOfStackCommit = 0x0000ffff;
+		oh.SizeOfStackCommit = 0x0000ffff;
 	} else {
-		set(SizeOfStackReserve, pe64 ? 0x00200000 : 0x00100000);
+		oh64.SizeOfStackReserve = 0x00200000;
+		oh.SizeOfStackReserve = 0x00100000;
 		// account for 2 guard pages
-		set(SizeOfStackCommit, (pe64 ? 0x00200000 : 0x00100000) - 0x2000);
+		oh64.SizeOfStackCommit = 0x00200000 - 0x2000;
+		oh.SizeOfStackCommit = 0x00100000 - 0x2000;
 	}
-	set(SizeOfHeapReserve, 0x00100000);
-	set(SizeOfHeapCommit, 0x00001000);
-	set(NumberOfRvaAndSizes, 16);
+	oh64.SizeOfHeapReserve = 0x00100000;
+	oh.SizeOfHeapReserve = 0x00100000;
+	oh64.SizeOfHeapCommit = 0x00001000;
+	oh.SizeOfHeapCommit = 0x00001000;
+	oh64.NumberOfRvaAndSizes = 16;
+	oh.NumberOfRvaAndSizes = 16;
 
 	pewrite();
 }

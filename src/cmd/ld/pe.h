@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-typedef struct {
+typedef struct IMAGE_FILE_HEADER IMAGE_FILE_HEADER;
+struct IMAGE_FILE_HEADER {
 	uint16 Machine;
 	uint16 NumberOfSections;
 	uint32 TimeDateStamp;
@@ -10,14 +11,16 @@ typedef struct {
 	uint32 NumberOfSymbols;
 	uint16 SizeOfOptionalHeader;
 	uint16 Characteristics;
-} IMAGE_FILE_HEADER;
+};
 
-typedef struct {
+typedef struct IMAGE_DATA_DIRECTORY IMAGE_DATA_DIRECTORY;
+struct IMAGE_DATA_DIRECTORY {
 	uint32 VirtualAddress;
 	uint32 Size;
-} IMAGE_DATA_DIRECTORY;
+};
 
-typedef struct {
+typedef struct IMAGE_OPTIONAL_HEADER IMAGE_OPTIONAL_HEADER;
+struct IMAGE_OPTIONAL_HEADER {
 	uint16 Magic;
 	uint8  MajorLinkerVersion;
 	uint8  MinorLinkerVersion;
@@ -49,9 +52,10 @@ typedef struct {
 	uint32 LoaderFlags;
 	uint32 NumberOfRvaAndSizes;
 	IMAGE_DATA_DIRECTORY DataDirectory[16];
-} IMAGE_OPTIONAL_HEADER;
+};
 
-typedef struct {
+typedef struct IMAGE_SECTION_HEADER IMAGE_SECTION_HEADER;
+struct IMAGE_SECTION_HEADER {
 	uint8  Name[8];
 	uint32 VirtualSize;
 	uint32 VirtualAddress;
@@ -62,17 +66,19 @@ typedef struct {
 	uint16 NumberOfRelocations;
 	uint16 NumberOfLineNumbers;
 	uint32 Characteristics;
-} IMAGE_SECTION_HEADER;
+};
 
-typedef struct {
+typedef struct IMAGE_IMPORT_DESCRIPTOR IMAGE_IMPORT_DESCRIPTOR;
+struct IMAGE_IMPORT_DESCRIPTOR {
 	uint32 OriginalFirstThunk;
 	uint32 TimeDateStamp;
 	uint32 ForwarderChain;
 	uint32 Name;
 	uint32 FirstThunk;
-} IMAGE_IMPORT_DESCRIPTOR;
+};
 
-typedef struct _IMAGE_EXPORT_DIRECTORY {
+typedef struct IMAGE_EXPORT_DIRECTORY IMAGE_EXPORT_DIRECTORY;
+struct IMAGE_EXPORT_DIRECTORY {
 	uint32 Characteristics;
 	uint32 TimeDateStamp;
 	uint16 MajorVersion;
@@ -84,16 +90,19 @@ typedef struct _IMAGE_EXPORT_DIRECTORY {
 	uint32 AddressOfFunctions;
 	uint32 AddressOfNames;
 	uint32 AddressOfNameOrdinals;
-} IMAGE_EXPORT_DIRECTORY;
+};
 
-#define PEBASE		0x00400000
+enum {
+	PEBASE = 0x00400000,
 // SectionAlignment must be greater than or equal to FileAlignment.
 // The default is the page size for the architecture.
-#define PESECTALIGN	0x1000
+	PESECTALIGN = 0x1000,
 // FileAlignment should be a power of 2 between 512 and 64 K, inclusive.
 // The default is 512. If the SectionAlignment is less than
 // the architecture's page size, then FileAlignment must match SectionAlignment.
-#define PEFILEALIGN	(2<<8)
+	PEFILEALIGN = (2<<8),
+};
+
 extern	int32	PESECTHEADR;
 extern	int32	PEFILEHEADR;
 
@@ -143,7 +152,8 @@ void dope(void);
 IMAGE_SECTION_HEADER* newPEDWARFSection(char *name, vlong size);
 
 // X64
-typedef struct {
+typedef struct PE64_IMAGE_OPTIONAL_HEADER PE64_IMAGE_OPTIONAL_HEADER;
+struct PE64_IMAGE_OPTIONAL_HEADER {
 	uint16 Magic;
 	uint8  MajorLinkerVersion;
 	uint8  MinorLinkerVersion;
@@ -174,6 +184,6 @@ typedef struct {
 	uint32 LoaderFlags;
 	uint32 NumberOfRvaAndSizes;
 	IMAGE_DATA_DIRECTORY DataDirectory[16];
-} PE64_IMAGE_OPTIONAL_HEADER;
+};
 
 void setpersrc(LSym *sym);

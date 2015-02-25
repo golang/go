@@ -167,7 +167,7 @@ decodetype_funcdotdotdot(LSym *s)
 	return s->p[commonsize()];
 }
 
-// Type.FuncType.in.len
+// Type.FuncType.in.length
 int
 decodetype_funcincount(LSym *s)
 {
@@ -202,7 +202,7 @@ decodetype_funcouttype(LSym *s, int i)
 	return decode_reloc_sym(r->sym, r->add + i * thearch.ptrsize);
 }
 
-// Type.StructType.fields.Slice::len
+// Type.StructType.fields.Slice::length
 int
 decodetype_structfieldcount(LSym *s)
 {
@@ -243,7 +243,7 @@ decodetype_structfieldoffs(LSym *s, int i)
 	return decode_inuxi(s->p + commonsize() + thearch.ptrsize + 2*thearch.intsize + i*structfieldsize() + 4*thearch.ptrsize, thearch.intsize);
 }
 
-// InterfaceTYpe.methods.len
+// InterfaceTYpe.methods.length
 vlong
 decodetype_ifacemethodcount(LSym *s)
 {

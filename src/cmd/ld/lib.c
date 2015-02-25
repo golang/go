@@ -53,7 +53,7 @@ enum
 
 int iconv(Fmt*);
 
-char	symname[]	= SYMDEF;
+char	symname[]	= "__.GOSYMDEF";
 char	pkgname[]	= "__.PKGDEF";
 static int	cout = -1;
 
@@ -132,6 +132,7 @@ libinit(void)
 		diag("cannot create %s: %r", outfile);
 		errorexit();
 	}
+	Binit(&coutbuf, cout, OWRITE);
 
 	if(INITENTRY == nil) {
 		INITENTRY = mal(strlen(goarch)+strlen(goos)+20);
@@ -320,7 +321,7 @@ loadlib(void)
  * adapted from libmach.
  */
 static vlong
-nextar(Biobuf *bp, vlong off, struct ar_hdr *a)
+nextar(Biobuf *bp, vlong off, ArHdr *a)
 {
 	int r;
 	int32 arsize;
@@ -354,7 +355,7 @@ objfile(char *file, char *pkg)
 	Biobuf *f;
 	char magbuf[SARMAG];
 	char pname[150];
-	struct ar_hdr arhdr;
+	ArHdr arhdr;
 
 	pkg = smprint("%i", pkg);
 
@@ -463,7 +464,7 @@ struct Hostobj
 	char *pn;
 	char *file;
 	int64 off;
-	int64 len;
+	int64 length;
 };
 
 Hostobj *hostobj;
@@ -481,7 +482,7 @@ const char *internalpkg[] = {
 };
 
 void
-ldhostobj(void (*ld)(Biobuf*, char*, int64, char*), Biobuf *f, char *pkg, int64 len, char *pn, char *file)
+ldhostobj(void (*ld)(Biobuf*, char*, int64, char*), Biobuf *f, char *pkg, int64 length, char *pn, char *file)
 {
 	int i, isinternal;
 	Hostobj *h;
@@ -520,7 +521,7 @@ ldhostobj(void (*ld)(Biobuf*, char*, int64, char*), Biobuf *f, char *pkg, int64 
 	h->pn = estrdup(pn);
 	h->file = estrdup(file);
 	h->off = Boffset(f);
-	h->len = len;
+	h->length = length;
 }
 
 void
@@ -539,7 +540,7 @@ hostobjs(void)
 			errorexit();
 		}
 		Bseek(f, h->off, 0);
-		h->ld(f, h->pkg, h->len, h->pn);
+		h->ld(f, h->pkg, h->length, h->pn);
 		Bterm(f);
 	}
 }
@@ -577,6 +578,7 @@ hostlinksetup(void)
 		diag("cannot create %s: %r", p);
 		errorexit();
 	}
+	Binit(&coutbuf, cout, OWRITE);
 	free(p);
 }
 
@@ -584,7 +586,7 @@ void
 hostlink(void)
 {
 	char *p, **argv;
-	int c, i, w, n, argc, len;
+	int c, i, w, n, argc, length;
 	Hostobj *h;
 	Biobuf *f;
 	static char buf[64<<10];
@@ -597,7 +599,7 @@ hostlink(void)
 	while(p != nil) {
 		while(*p == ' ')
 			p++;
-		if(*p == '\0')
+		if(*p == '\x00')
 			break;
 		c++;
 		p = strchr(p + 1, ' ');
@@ -669,12 +671,15 @@ hostlink(void)
 			diag("cannot create %s: %r", p);
 			errorexit();
 		}
-		len = h->len;
-		while(len > 0 && (n = Bread(f, buf, sizeof buf)) > 0){
-			if(n > len)
-				n = len;
+		length = h->length;
+		while(length > 0) {
+			n = Bread(f, buf, sizeof buf);
+			if(n <= 0)
+				break;
+			if(n > length)
+				n = length;
 			dowrite(w, buf, n);
-			len -= n;
+			length -= n;
 		}
 		if(close(w) < 0) {
 			ctxt->cursym = nil;
@@ -691,8 +696,8 @@ hostlink(void)
 	p = extldflags;
 	while(p != nil) {
 		while(*p == ' ')
-			*p++ = '\0';
-		if(*p == '\0')
+			*p++ = '\x00';
+		if(*p == '\x00')
 			break;
 		argv[argc++] = p;
 
@@ -702,7 +707,7 @@ hostlink(void)
 		// we added it.  We do it in this order, rather than
 		// only adding -rdynamic later, so that -extldflags
 		// can override -rdynamic without using -static.
-		if(iself && strncmp(p, "-static", 7) == 0 && (p[7]==' ' || p[7]=='\0')) {
+		if(iself && strncmp(p, "-static", 7) == 0 && (p[7]==' ' || p[7]=='\x00')) {
 			for(i=0; i<argc; i++) {
 				if(strcmp(argv[i], "-rdynamic") == 0)
 					argv[i] = "-static";
@@ -731,38 +736,36 @@ hostlink(void)
 }
 
 void
-ldobj(Biobuf *f, char *pkg, int64 len, char *pn, char *file, int whence)
+ldobj(Biobuf *f, char *pkg, int64 length, char *pn, char *file, int whence)
 {
 	char *line;
 	int n, c1, c2, c3, c4;
 	uint32 magic;
-	vlong import0, import1, eof;
+	vlong import0, import1, eof, start;
 	char *t;
 
-	eof = Boffset(f) + len;
+	eof = Boffset(f) + length;
 
 	pn = estrdup(pn);
 
+	start = Boffset(f);
 	c1 = BGETC(f);
 	c2 = BGETC(f);
 	c3 = BGETC(f);
 	c4 = BGETC(f);
-	Bungetc(f);
-	Bungetc(f);
-	Bungetc(f);
-	Bungetc(f);
+	Bseek(f, start, 0);
 
 	magic = c1<<24 | c2<<16 | c3<<8 | c4;
 	if(magic == 0x7f454c46) {	// \x7F E L F
-		ldhostobj(ldelf, f, pkg, len, pn, file);
+		ldhostobj(ldelf, f, pkg, length, pn, file);
 		return;
 	}
 	if((magic&~1) == 0xfeedface || (magic&~0x01000000) == 0xcefaedfe) {
-		ldhostobj(ldmacho, f, pkg, len, pn, file);
+		ldhostobj(ldmacho, f, pkg, length, pn, file);
 		return;
 	}
 	if(c1 == 0x4c && c2 == 0x01 || c1 == 0x64 && c2 == 0x86) {
-		ldhostobj(ldpe, f, pkg, len, pn, file);
+		ldhostobj(ldpe, f, pkg, length, pn, file);
 		return;
 	}
 
@@ -776,7 +779,7 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, char *file, int whence)
 		goto eof;
 	}
 	n = Blinelen(f) - 1;
-	line[n] = '\0';
+	line[n] = '\x00';
 	if(strncmp(line, "go object ", 10) != 0) {
 		if(strlen(pn) > 3 && strcmp(pn+strlen(pn)-3, ".go") == 0) {
 			print("%cl: input %s is not .%c file (use %cg to compile .go files)\n", thearch.thechar, pn, thearch.thechar, thearch.thechar);
@@ -796,7 +799,7 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, char *file, int whence)
 	t = smprint("%s %s %s ", goos, getgoarch(), getgoversion());
 	line[n] = ' ';
 	if(strncmp(line+10, t, strlen(t)) != 0 && !debug['f']) {
-		line[n] = '\0';
+		line[n] = '\x00';
 		diag("%s: object is [%s] expected [%s]", pn, line+10, t);
 		free(t);
 		free(pn);
@@ -806,12 +809,12 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, char *file, int whence)
 	// Second, check that longer lines match each other exactly,
 	// so that the Go compiler and write additional information
 	// that must be the same from run to run.
-	line[n] = '\0';
+	line[n] = '\x00';
 	if(n-10 > strlen(t)) {
 		if(theline == nil)
 			theline = estrdup(line+10);
 		else if(strcmp(theline, line+10) != 0) {
-			line[n] = '\0';
+			line[n] = '\x00';
 			diag("%s: object is [%s] expected [%s]", pn, line+10, theline);
 			free(t);
 			free(pn);
@@ -876,7 +879,9 @@ pathchar(void)
 
 static	uchar*	hunk;
 static	uint32	nhunk;
-#define	NHUNK	(10UL<<20)
+enum {
+	NHUNK = 10<<20,
+};
 
 void*
 mal(uint32 n)
@@ -962,7 +967,7 @@ pathtoprefix(char *s)
 		} else
 			*w++ = *r;
 	}
-	*w = '\0';
+	*w = '\x00';
 	return p;
 }
 
@@ -1117,7 +1122,8 @@ stkcheck(Chain *up, int depth)
 	Chain ch, ch1;
 	LSym *s;
 	int limit;
-	Reloc *r, *endr;
+	Reloc *r;
+	int ri, endr;
 	Pciter pcsp;
 	
 	limit = up->limit;
@@ -1159,8 +1165,8 @@ stkcheck(Chain *up, int depth)
 	ch.up = up;
 	
 	// Walk through sp adjustments in function, consuming relocs.
-	r = s->r;
-	endr = r + s->nr;
+	ri = 0;
+	endr = s->nr;
 	for(pciterinit(ctxt, &pcsp, &s->pcln->pcsp); !pcsp.done; pciternext(&pcsp)) {
 		// pcsp.value is in effect for [pcsp.pc, pcsp.nextpc).
 
@@ -1171,7 +1177,8 @@ stkcheck(Chain *up, int depth)
 		}
 
 		// Process calls in this span.
-		for(; r < endr && r->off < pcsp.nextpc; r++) {
+		for(; ri < endr && s->r[ri].off < pcsp.nextpc; ri++) {
+			r = &s->r[ri];
 			switch(r->type) {
 			case R_CALL:
 			case R_CALLARM:
@@ -1278,60 +1285,35 @@ Yconv(Fmt *fp)
 	return 0;
 }
 
-vlong coutpos;
-
 void
 cflush(void)
 {
-	int n;
-
-	if(cbpmax < cbp)
-		cbpmax = cbp;
-	n = cbpmax - buf.cbuf;
-	dowrite(cout, buf.cbuf, n);
-	coutpos += n;
-	cbp = buf.cbuf;
-	cbc = sizeof(buf.cbuf);
-	cbpmax = cbp;
+	Bflush(&coutbuf);
 }
 
 vlong
 cpos(void)
 {
-	return coutpos + cbp - buf.cbuf;
+	return Boffset(&coutbuf);
 }
 
 void
 cseek(vlong p)
 {
-	vlong start;
-	int delta;
-
-	if(cbpmax < cbp)
-		cbpmax = cbp;
-	start = coutpos;
-	if(start <= p && p <= start+(cbpmax - buf.cbuf)) {
-//print("cseek %lld in [%lld,%lld] (%lld)\n", p, start, start+sizeof(buf.cbuf), cpos());
-		delta = p - (start + cbp - buf.cbuf);
-		cbp += delta;
-		cbc -= delta;
-//print("now at %lld\n", cpos());
-		return;
-	}
-
-	cflush();
-	seek(cout, p, 0);
-	coutpos = p;
+	Bseek(&coutbuf, p, 0);
 }
 
 void
 cwrite(void *buf, int n)
 {
-	cflush();
-	if(n <= 0)
-		return;
-	dowrite(cout, buf, n);
-	coutpos += n;
+	Bflush(&coutbuf); // TODO: Remove if safe.
+	Bwrite(&coutbuf, buf, n);
+}
+
+void
+cput(uint8 c)
+{
+	Bputc(&coutbuf, c);
 }
 
 void

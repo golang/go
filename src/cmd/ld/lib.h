@@ -96,13 +96,11 @@ struct Segment
 {
 	uchar	rwx;		// permission as usual unix bits (5 = r-x etc)
 	uvlong	vaddr;	// virtual address
-	uvlong	len;		// length in memory
+	uvlong	length;		// length in memory
 	uvlong	fileoff;	// file offset
 	uvlong	filelen;	// length on disk
 	Section*	sect;
 };
-
-#pragma incomplete struct Elf64_Shdr
 
 struct Section
 {
@@ -111,10 +109,10 @@ struct Section
 	int32	align;
 	char	*name;
 	uvlong	vaddr;
-	uvlong	len;
+	uvlong	length;
 	Section	*next;	// in segment list
 	Segment	*seg;
-	struct Elf64_Shdr *elfsect;
+	void *elfsect;
 	uvlong	reloff;
 	uvlong	rellen;
 };
@@ -191,14 +189,7 @@ enum {
 	Pkgdef
 };
 
-typedef struct Header Header;
-struct Header {
-	char *name;
-	int val;
-};
-
 EXTERN	char*	headstring;
-extern	Header	headers[];
 
 #pragma	varargck	type	"Y"	LSym*
 #pragma	varargck	type	"Z"	char*
@@ -208,19 +199,8 @@ extern	Header	headers[];
 
 EXTERN	Biobuf	bso;
 
-EXTERN struct
-{
-	char	cbuf[MAXIO];	/* output buffer */
-} buf;
-
-EXTERN	int	cbc;
-EXTERN	char*	cbp;
-EXTERN	char*	cbpmax;
-
-#define	cput(c)\
-	{ *cbp++ = c;\
-	if(--cbc <= 0)\
-		cflush(); }
+EXTERN	Biobuf	coutbuf;
+void	cput(uint8);
 
 void	Lflag(char *arg);
 int	Yconv(Fmt *fp);
@@ -289,17 +269,19 @@ void	hostobjs(void);
 int	iconv(Fmt *fp);
 void	importcycles(void);
 void	linkarchinit(void);
-void	ldelf(Biobuf *f, char *pkg, int64 len, char *pn);
-void	ldhostobj(void (*ld)(Biobuf*, char*, int64, char*), Biobuf *f, char *pkg, int64 len, char *pn, char *file);
-void	ldmacho(Biobuf *f, char *pkg, int64 len, char *pn);
-void	ldobj(Biobuf *f, char *pkg, int64 len, char *pn, char *file, int whence);
-void	ldpe(Biobuf *f, char *pkg, int64 len, char *pn);
-void	ldpkg(Biobuf *f, char *pkg, int64 len, char *filename, int whence);
+void	ldelf(Biobuf *f, char *pkg, int64 length, char *pn);
+void	ldhostobj(void (*ld)(Biobuf*, char*, int64, char*), Biobuf *f, char *pkg, int64 length, char *pn, char *file);
+void	ldmacho(Biobuf *f, char *pkg, int64 length, char *pn);
+void	ldobj(Biobuf *f, char *pkg, int64 length, char *pn, char *file, int whence);
+void	ldpe(Biobuf *f, char *pkg, int64 length, char *pn);
+void	ldpkg(Biobuf *f, char *pkg, int64 length, char *filename, int whence);
 uint16	le16(uchar *b);
 uint32	le32(uchar *b);
 uint64	le64(uchar *b);
 void	libinit(void);
-LSym*	listsort(LSym *l, int (*cmp)(LSym*, LSym*), int off);
+LSym*	listsort(LSym *l, int (*cmp)(LSym*, LSym*), LSym** (*nextp)(LSym*));
+LSym**	listnextp(LSym*);
+LSym**	listsubp(LSym*);
 void	loadinternal(char *name);
 void	loadlib(void);
 void	lputb(uint32 l);
@@ -307,7 +289,6 @@ void	lputl(uint32 l);
 void*	mal(uint32 n);
 void	mark(LSym *s);
 void	mywhatsys(void);
-struct ar_hdr;
 void	objfile(char *file, char *pkg);
 void	patch(void);
 int	pathchar(void);
@@ -345,4 +326,3 @@ void	ldmain(int, char**);
 
 #pragma	varargck	argpos	diag	1
 
-#define	SYMDEF	"__.GOSYMDEF"

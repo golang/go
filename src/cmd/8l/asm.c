@@ -296,9 +296,9 @@ machoreloc1(Reloc *r, vlong sectoff)
 		v = rs->dynid;			
 		v |= 1<<27; // external relocation
 	} else {
-		v = rs->sect->extnum;
+		v = ((Section*)rs->sect)->extnum;
 		if(v == 0) {
-			diag("reloc %d to symbol %s in non-macho section %s type=%d", r->type, rs->name, rs->sect->name, rs->type);
+			diag("reloc %d to symbol %s in non-macho section %s type=%d", r->type, rs->name, ((Section*)rs->sect)->name, rs->type);
 			return -1;
 		}
 	}
@@ -565,10 +565,10 @@ asmb(void)
 
 	sect = segtext.sect;
 	cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
-	codeblk(sect->vaddr, sect->len);
+	codeblk(sect->vaddr, sect->length);
 	for(sect = sect->next; sect != nil; sect = sect->next) {
 		cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
-		datblk(sect->vaddr, sect->len);
+		datblk(sect->vaddr, sect->length);
 	}
 	
 	if(segrodata.filelen > 0) {
@@ -592,7 +592,7 @@ asmb(void)
 		if(debug['v'])
 			Bprint(&bso, "%5.2f dwarf\n", cputime());
 
-		dwarfoff = rnd(HEADR+segtext.len, INITRND) + rnd(segdata.filelen, INITRND);
+		dwarfoff = rnd(HEADR+segtext.length, INITRND) + rnd(segdata.filelen, INITRND);
 		cseek(dwarfoff);
 
 		segdwarf.fileoff = cpos();
@@ -613,17 +613,16 @@ asmb(void)
 		Bflush(&bso);
 		switch(HEADTYPE) {
 		default:
-			if(iself)
-				goto Elfsym;
+			if(iself) {
+				symo = segdata.fileoff+segdata.filelen;
+				symo = rnd(symo, INITRND);
+			}
+			break;
 		case Hplan9:
 			symo = segdata.fileoff+segdata.filelen;
 			break;
 		case Hdarwin:
 			symo = segdata.fileoff+rnd(segdata.filelen, INITRND)+machlink;
-			break;
-		Elfsym:
-			symo = segdata.fileoff+segdata.filelen;
-			symo = rnd(symo, INITRND);
 			break;
 		case Hwindows:
 			symo = segdata.fileoff+segdata.filelen;
@@ -683,7 +682,7 @@ asmb(void)
 		lputb(magic);		/* magic */
 		lputb(segtext.filelen);			/* sizes */
 		lputb(segdata.filelen);
-		lputb(segdata.len - segdata.filelen);
+		lputb(segdata.length - segdata.filelen);
 		lputb(symsize);			/* nsyms */
 		lputb(entryvalue());		/* va of entry */
 		lputb(spsize);			/* sp offsets */
