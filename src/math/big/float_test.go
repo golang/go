@@ -104,6 +104,58 @@ func makeFloat(s string) *Float {
 	return &x
 }
 
+func TestFloatSetPrec(t *testing.T) {
+	for _, test := range []struct {
+		x    string
+		prec uint
+		want string
+		acc  Accuracy
+	}{
+		// prec 0
+		{"0", 0, "0", Exact},
+		{"-0", 0, "-0", Exact},
+		{"-Inf", 0, "-Inf", Exact},
+		{"+Inf", 0, "+Inf", Exact},
+		{"123", 0, "0", Below},
+		{"-123", 0, "-0", Above},
+
+		// prec at upper limit
+		{"0", MaxPrec, "0", Exact},
+		{"0", MaxPrec + 1, "0", Exact},
+		{"-0", MaxPrec, "-0", Exact},
+		{"-0", MaxPrec + 1, "-0", Exact},
+		{"-Inf", MaxPrec, "-Inf", Exact},
+		{"+Inf", MaxPrec + 1, "+Inf", Exact},
+		{"-Inf", MaxPrec, "-Inf", Exact},
+		{"+Inf", MaxPrec + 1, "+Inf", Exact},
+
+		// just a few regular cases - general rounding is tested elsewhere
+		{"1.5", 1, "2", Above},
+		{"-1.5", 1, "-2", Below},
+		{"123", 1e6, "123", Exact},
+		{"-123", 1e6, "-123", Exact},
+	} {
+		x := makeFloat(test.x).SetPrec(test.prec)
+		prec := test.prec
+		if prec > MaxPrec {
+			prec = MaxPrec
+		}
+		if got := x.Prec(); got != prec {
+			t.Errorf("%s.SetPrec(%d).Prec() == %d; want %d", test.x, test.prec, got, prec)
+		}
+		if got, acc := x.String(), x.Acc(); got != test.want || acc != test.acc {
+			t.Errorf("%s.SetPrec(%d) = %s (%s); want %s (%s)", test.x, test.prec, got, acc, test.want, test.acc)
+		}
+		// look inside x and check correct value for x.exp
+		if len(x.mant) == 0 {
+			// ±0 or ±Inf
+			if x.exp != 0 && x.exp != infExp {
+				t.Errorf("%s.SetPrec(%d): incorrect exponent %d", test.x, test.prec, x.exp)
+			}
+		}
+	}
+}
+
 func TestFloatSign(t *testing.T) {
 	for _, test := range []struct {
 		x string

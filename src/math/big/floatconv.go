@@ -277,11 +277,11 @@ func (x *Float) bstring(buf []byte) []byte {
 
 	// adjust mantissa to use exactly x.prec bits
 	m := x.mant
-	switch w := uint(len(x.mant)) * _W; {
+	switch w := uint32(len(x.mant)) * _W; {
 	case w < x.prec:
-		m = nat(nil).shl(m, x.prec-w)
+		m = nat(nil).shl(m, uint(x.prec-w))
 	case w > x.prec:
-		m = nat(nil).shr(m, w-x.prec)
+		m = nat(nil).shr(m, uint(w-x.prec))
 	}
 
 	buf = append(buf, m.decimalString()...)
