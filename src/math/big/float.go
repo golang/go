@@ -82,12 +82,6 @@ const (
 	MaxPrec = math.MaxUint32 // largest (theoretically) supported precision; likely memory-limited
 )
 
-// NewInf returns a new infinite Float value with value +Inf (sign >= 0),
-// or -Inf (sign < 0).
-func NewInf(sign int) *Float {
-	return &Float{neg: sign < 0, exp: infExp}
-}
-
 // Accuracy describes the rounding error produced by the most recent
 // operation that generated a Float value, relative to the exact value:
 //
@@ -631,6 +625,17 @@ func (z *Float) SetRat(x *Rat) *Float {
 		z.prec = umax32(a.prec, b.prec)
 	}
 	return z.Quo(&a, &b)
+}
+
+// SetInf sets z to the infinite Float +Inf for sign >= 0,
+// or -Inf for sign < 0, and returns z. The precision of
+// z is unchanged and the result is always Exact.
+func (z *Float) SetInf(sign int) *Float {
+	z.acc = Exact
+	z.neg = sign < 0
+	z.mant = z.mant[:0]
+	z.exp = infExp
+	return z
 }
 
 // Set sets z to the (possibly rounded) value of x and returns z.

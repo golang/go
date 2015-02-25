@@ -90,13 +90,13 @@ func TestFloatZeroValue(t *testing.T) {
 }
 
 func makeFloat(s string) *Float {
+	var x Float
 	if s == "Inf" || s == "+Inf" {
-		return NewInf(+1)
+		return x.SetInf(+1)
 	}
 	if s == "-Inf" {
-		return NewInf(-1)
+		return x.SetInf(-1)
 	}
-	var x Float
 	x.SetPrec(1000)
 	if _, ok := x.SetString(s); !ok {
 		panic(fmt.Sprintf("%q is not a valid float", s))
@@ -690,6 +690,27 @@ func TestFloatSetRat(t *testing.T) {
 		got := f2.Format('g', 100)
 		if got != want {
 			t.Errorf("got %s (%s); want %s", got, f2.Format('p', 0), want)
+		}
+	}
+}
+
+func TestFloatSetInf(t *testing.T) {
+	var f Float
+	for _, test := range []struct {
+		sign int
+		prec uint
+		want string
+	}{
+		{0, 0, "+Inf"},
+		{100, 0, "+Inf"},
+		{-1, 0, "-Inf"},
+		{0, 10, "+Inf"},
+		{100, 20, "+Inf"},
+		{-1, 30, "-Inf"},
+	} {
+		x := f.SetPrec(test.prec).SetInf(test.sign)
+		if got := x.String(); got != test.want || x.Prec() != test.prec {
+			t.Errorf("SetInf(%d) = %s (prec = %d); want %s (prec = %d)", test.sign, got, x.Prec(), test.want, test.prec)
 		}
 	}
 }
