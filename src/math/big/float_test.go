@@ -121,13 +121,9 @@ func TestFloatSetPrec(t *testing.T) {
 
 		// prec at upper limit
 		{"0", MaxPrec, "0", Exact},
-		{"0", MaxPrec + 1, "0", Exact},
 		{"-0", MaxPrec, "-0", Exact},
-		{"-0", MaxPrec + 1, "-0", Exact},
 		{"-Inf", MaxPrec, "-Inf", Exact},
-		{"+Inf", MaxPrec + 1, "+Inf", Exact},
 		{"-Inf", MaxPrec, "-Inf", Exact},
-		{"+Inf", MaxPrec + 1, "+Inf", Exact},
 
 		// just a few regular cases - general rounding is tested elsewhere
 		{"1.5", 1, "2", Above},
