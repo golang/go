@@ -51,14 +51,25 @@ var decryptPKCS1v15Tests = []DecryptPKCS1v15Test{
 }
 
 func TestDecryptPKCS1v15(t *testing.T) {
-	for i, test := range decryptPKCS1v15Tests {
-		out, err := DecryptPKCS1v15(nil, rsaPrivateKey, decodeBase64(test.in))
-		if err != nil {
-			t.Errorf("#%d error decrypting", i)
-		}
-		want := []byte(test.out)
-		if !bytes.Equal(out, want) {
-			t.Errorf("#%d got:%#v want:%#v", i, out, want)
+	decryptionFuncs := []func([]byte) ([]byte, error){
+		func(ciphertext []byte) (plaintext []byte, err error) {
+			return DecryptPKCS1v15(nil, rsaPrivateKey, ciphertext)
+		},
+		func(ciphertext []byte) (plaintext []byte, err error) {
+			return rsaPrivateKey.Decrypt(nil, ciphertext, nil)
+		},
+	}
+
+	for _, decryptFunc := range decryptionFuncs {
+		for i, test := range decryptPKCS1v15Tests {
+			out, err := decryptFunc(decodeBase64(test.in))
+			if err != nil {
+				t.Errorf("#%d error decrypting", i)
+			}
+			want := []byte(test.out)
+			if !bytes.Equal(out, want) {
+				t.Errorf("#%d got:%#v want:%#v", i, out, want)
+			}
 		}
 	}
 }
@@ -134,6 +145,22 @@ func TestEncryptPKCS1v15SessionKey(t *testing.T) {
 		want := []byte(test.out)
 		if !bytes.Equal(key, want) {
 			t.Errorf("#%d got:%#v want:%#v", i, key, want)
+		}
+	}
+}
+
+func TestEncryptPKCS1v15DecrypterSessionKey(t *testing.T) {
+	for i, test := range decryptPKCS1v15SessionKeyTests {
+		plaintext, err := rsaPrivateKey.Decrypt(rand.Reader, decodeBase64(test.in), &PKCS1v15DecryptOptions{SessionKeyLen: 4})
+		if err != nil {
+			t.Fatalf("#%d: error decrypting: %s", i, err)
+		}
+		if len(plaintext) != 4 {
+			t.Fatalf("#%d: incorrect length plaintext: got %d, want 4", i, len(plaintext))
+		}
+
+		if test.out != "FAIL" && !bytes.Equal(plaintext, []byte(test.out)) {
+			t.Errorf("#%d: incorrect plaintext: got %x, want %x", plaintext, test.out)
 		}
 	}
 }
