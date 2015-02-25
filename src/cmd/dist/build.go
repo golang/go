@@ -475,7 +475,6 @@ var proto_gccargs = []string{
 	"-Wno-switch",
 	"-Wno-comment",
 	"-Wno-missing-field-initializers",
-	"-Werror",
 	"-fno-common",
 	"-ggdb",
 	"-pipe",
@@ -531,10 +530,6 @@ var deptab = []struct {
 		"$GOROOT/include/bio.h",
 		"$GOROOT/include/ar.h",
 		"$GOROOT/include/link.h",
-		"anames5.c",
-		"anames6.c",
-		"anames8.c",
-		"anames9.c",
 	}},
 	{"cmd/5l", []string{
 		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libld.a",
@@ -574,15 +569,15 @@ var gentab = []struct {
 	nameprefix string
 	gen        func(string, string)
 }{
-	{"anames5.c", mkanames},
-	{"anames6.c", mkanames},
-	{"anames8.c", mkanames},
-	{"anames9.c", mkanames},
 	{"zdefaultcc.go", mkzdefaultcc},
 	{"zversion.go", mkzversion},
 
 	// not generated anymore, but delete the file if we see it
 	{"enam.c", nil},
+	{"anames5.c", nil},
+	{"anames6.c", nil},
+	{"anames8.c", nil},
+	{"anames9.c", nil},
 }
 
 // install installs the library, package, or binary associated with dir,

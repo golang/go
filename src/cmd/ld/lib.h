@@ -60,7 +60,6 @@ struct Arch {
 	int	(*elfreloc1)(Reloc*, vlong);
 	void	(*elfsetupplt)(void);
 	void	(*gentext)(void);
-	void	(*listinit)(void);
 	int	(*machoreloc1)(Reloc*, vlong);
 	
 	void	(*lput)(uint32);

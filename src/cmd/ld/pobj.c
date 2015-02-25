@@ -57,7 +57,6 @@ ldmain(int argc, char **argv)
 	ctxt->bso = &bso;
 
 	Binit(&bso, 1, OWRITE);
-	thearch.listinit();
 	memset(debug, 0, sizeof(debug));
 	nerrors = 0;
 	outfile = nil;
@@ -128,12 +127,6 @@ ldmain(int argc, char **argv)
 	
 	flagparse(&argc, &argv, usage);
 	ctxt->bso = &bso;
-	ctxt->debugdivmod = debug['M'];
-	ctxt->debugfloat = debug['F'];
-	ctxt->debughist = debug['O'];
-	ctxt->debugpcln = debug['O'];
-	ctxt->debugread = debug['W'];
-	ctxt->debugstack = debug['K'];
 	ctxt->debugvlog = debug['v'];
 
 	if(argc != 1)
@@ -154,7 +147,6 @@ ldmain(int argc, char **argv)
 		headstring = headstr(HEADTYPE);
 
 	thearch.archinit();
-	ctxt->debugfloat = debug['F'];
 
 	if(debug['v'])
 		Bprint(&bso, "HEADER = -H%d -T0x%llux -D0x%llux -R0x%ux\n",
@@ -201,8 +193,6 @@ ldmain(int argc, char **argv)
 	if(debug['v']) {
 		Bprint(&bso, "%5.2f cpu time\n", cputime());
 		Bprint(&bso, "%d symbols\n", ctxt->nsymbol);
-		Bprint(&bso, "%d sizeof adr\n", sizeof(Addr));
-		Bprint(&bso, "%d sizeof prog\n", sizeof(Prog));
 		Bprint(&bso, "%lld liveness data\n", liveness);
 	}
 	Bflush(&bso);

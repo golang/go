@@ -176,66 +176,8 @@ uchar	inuxi2[2];
 uchar	inuxi4[4];
 uchar	inuxi8[8];
 
-enum
-{
-	LOG = 5,
-};
-void
-mkfwd(LSym *sym)
-{
-	Prog *p;
-	int i;
-	int32 dwn[LOG], cnt[LOG];
-	Prog *lst[LOG];
 
-	for(i=0; i<LOG; i++) {
-		if(i == 0)
-			cnt[i] = 1;
-		else
-			cnt[i] = LOG * cnt[i-1];
-		dwn[i] = 1;
-		lst[i] = nil;
-	}
-	i = 0;
-	for(p = sym->text; p != nil && p->link != nil; p = p->link) {
-		i--;
-		if(i < 0)
-			i = LOG-1;
-		p->forwd = nil;
-		dwn[i]--;
-		if(dwn[i] <= 0) {
-			dwn[i] = cnt[i];
-			if(lst[i] != nil)
-				lst[i]->forwd = p;
-			lst[i] = p;
-		}
-	}
-}
 
-Prog*
-copyp(Link *ctxt, Prog *q)
-{
-	Prog *p;
-
-	USED(ctxt);
-	p = emallocz(sizeof(Prog));
-	*p = *q;
-	return p;
-}
-
-Prog*
-appendp(Link *ctxt, Prog *q)
-{
-	Prog *p;
-
-	USED(ctxt);
-	p = emallocz(sizeof(Prog));
-	p->link = q->link;
-	q->link = p;
-	p->lineno = q->lineno;
-	p->mode = q->mode;
-	return p;
-}
 
 vlong
 atolwhex(char *s)
