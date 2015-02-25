@@ -61,7 +61,7 @@ type Float struct {
 	neg  bool
 	mant nat
 	exp  int32
-	prec uint // TODO(gri) make this a 32bit field
+	prec uint32
 }
 
 // TODO(gri) provide a couple of Example tests showing typical Float intialization
@@ -77,8 +77,9 @@ type Float struct {
 // values have an empty mantissa and a 0 or infExp exponent, respectively.
 
 const (
-	MaxExp = math.MaxInt32 // largest supported exponent magnitude
-	infExp = -MaxExp - 1   // exponent for Inf values
+	MaxExp  = math.MaxInt32  // largest supported exponent magnitude
+	infExp  = -MaxExp - 1    // exponent for Inf values
+	MaxPrec = math.MaxUint32 // largest (theoretically) supported precision; likely memory-limited
 )
 
 // NewInf returns a new infinite Float value with value +Inf (sign >= 0),
@@ -150,11 +151,32 @@ func (mode RoundingMode) String() string {
 // SetPrec sets z's precision to prec and returns the (possibly) rounded
 // value of z. Rounding occurs according to z's rounding mode if the mantissa
 // cannot be represented in prec bits without loss of precision.
+// If prec == 0, the result is ±0 for finite z, and ±Inf for infinite z,
+// with the sign set according to z. If prec > MaxPrec, it is set to MaxPrec.
 func (z *Float) SetPrec(prec uint) *Float {
+	z.acc = Exact // optimistically assume no rounding is needed
+	// handle special case
+	if prec == 0 {
+		z.prec = 0
+		if len(z.mant) != 0 {
+			// truncate and compute accuracy
+			z.mant = z.mant[:0]
+			z.exp = 0
+			acc := Below
+			if z.neg {
+				acc = Above
+			}
+			z.acc = acc
+		}
+		return z
+	}
+	// general case
+	if prec > MaxPrec {
+		prec = MaxPrec
+	}
 	old := z.prec
-	z.acc = Exact
-	z.prec = prec
-	if prec < old {
+	z.prec = uint32(prec)
+	if z.prec < old {
 		z.round(0)
 	}
 	return z
@@ -259,7 +281,7 @@ func (x *Float) IsInt() bool {
 		return len(x.mant) == 0 && x.exp != infExp
 	}
 	// x.exp > 0
-	return x.prec <= uint(x.exp) || x.minPrec() <= uint(x.exp) // not enough bits for fractional mantissa
+	return x.prec <= uint32(x.exp) || x.minPrec() <= uint(x.exp) // not enough bits for fractional mantissa
 }
 
 // IsInf reports whether x is an infinity, according to sign.
@@ -320,7 +342,7 @@ func (z *Float) round(sbit uint) {
 	z.acc = Exact
 
 	// handle zero and Inf
-	m := uint(len(z.mant)) // present mantissa length in words
+	m := uint32(len(z.mant)) // present mantissa length in words
 	if m == 0 {
 		if z.exp != infExp {
 			z.exp = 0
@@ -351,8 +373,8 @@ func (z *Float) round(sbit uint) {
 	//   1     1        >  0.5, < 1.0
 
 	// bits > z.prec: mantissa too large => round
-	r := bits - z.prec - 1 // rounding bit position; r >= 0
-	rbit := z.mant.bit(r)  // rounding bit
+	r := uint(bits - z.prec - 1) // rounding bit position; r >= 0
+	rbit := z.mant.bit(r)        // rounding bit
 	if sbit == 0 {
 		sbit = z.mant.sticky(r)
 	}
@@ -567,9 +589,9 @@ func (z *Float) SetInt(x *Int) *Float {
 	// TODO(gri) can be more efficient if z.prec > 0
 	// but small compared to the size of x, or if there
 	// are many trailing 0's.
-	bits := uint(x.BitLen())
+	bits := uint32(x.BitLen())
 	if z.prec == 0 {
-		z.prec = umax(bits, 64)
+		z.prec = umax32(bits, 64)
 	}
 	z.acc = Exact
 	z.neg = x.neg
@@ -599,7 +621,7 @@ func (z *Float) SetRat(x *Rat) *Float {
 	a.SetInt(x.Num())
 	b.SetInt(x.Denom())
 	if z.prec == 0 {
-		z.prec = umax(a.prec, b.prec)
+		z.prec = umax32(a.prec, b.prec)
 	}
 	return z.Quo(&a, &b)
 }
@@ -1126,7 +1148,7 @@ func (z *Float) Add(x, y *Float) *Float {
 	}
 
 	if z.prec == 0 {
-		z.prec = umax(x.prec, y.prec)
+		z.prec = umax32(x.prec, y.prec)
 	}
 
 	// TODO(gri) what about -0?
@@ -1167,7 +1189,7 @@ func (z *Float) Sub(x, y *Float) *Float {
 	}
 
 	if z.prec == 0 {
-		z.prec = umax(x.prec, y.prec)
+		z.prec = umax32(x.prec, y.prec)
 	}
 
 	// TODO(gri) what about -0?
@@ -1207,7 +1229,7 @@ func (z *Float) Mul(x, y *Float) *Float {
 	}
 
 	if z.prec == 0 {
-		z.prec = umax(x.prec, y.prec)
+		z.prec = umax32(x.prec, y.prec)
 	}
 
 	// TODO(gri) handle Inf
@@ -1236,7 +1258,7 @@ func (z *Float) Quo(x, y *Float) *Float {
 	}
 
 	if z.prec == 0 {
-		z.prec = umax(x.prec, y.prec)
+		z.prec = umax32(x.prec, y.prec)
 	}
 
 	// TODO(gri) handle Inf
@@ -1337,7 +1359,7 @@ func (x *Float) Cmp(y *Float) int {
 	return 0
 }
 
-func umax(x, y uint) uint {
+func umax32(x, y uint32) uint32 {
 	if x > y {
 		return x
 	}
