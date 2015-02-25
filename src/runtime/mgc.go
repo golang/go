@@ -455,12 +455,6 @@ func gcMark(start_time int64) {
 	work.ndone = 0
 	work.nproc = uint32(gcprocs())
 
-	// World is stopped so allglen will not change.
-	for i := uintptr(0); i < allglen; i++ {
-		gp := allgs[i]
-		gp.gcworkdone = false // set to true in gcphasework
-	}
-
 	if trace.enabled {
 		traceGCScanStart()
 	}
