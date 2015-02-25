@@ -858,11 +858,6 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$-8-16
 	MOVD	R3, ret+8(FP)
 	RETURN
 
-TEXT runtime·gogetcallerpc(SB),NOSPLIT,$-8-16
-	MOVD	0(R1), R3
-	MOVD	R3,ret+8(FP)
-	RETURN
-
 TEXT runtime·setcallerpc(SB),NOSPLIT,$-8-16
 	MOVD	pc+8(FP), R3
 	MOVD	R3, 0(R1)		// set calling pc
@@ -872,13 +867,6 @@ TEXT runtime·getcallersp(SB),NOSPLIT,$0-16
 	MOVD	argp+0(FP), R3
 	SUB	$8, R3
 	MOVD	R3, ret+8(FP)
-	RETURN
-
-// func gogetcallersp(p unsafe.Pointer) uintptr
-TEXT runtime·gogetcallersp(SB),NOSPLIT,$0-16
-	MOVD	sp+0(FP), R3
-	SUB	$8, R3
-	MOVD	R3,ret+8(FP)
 	RETURN
 
 TEXT runtime·abort(SB),NOSPLIT,$-8-0
