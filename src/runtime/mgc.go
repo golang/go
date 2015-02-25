@@ -600,18 +600,17 @@ func gcCopySpans() {
 
 // gcResetGState resets the GC state of all G's and returns the length
 // of allgs.
-func gcResetGState() int {
+func gcResetGState() (numgs int) {
 	// This may be called during a concurrent phase, so make sure
 	// allgs doesn't change.
 	lock(&allglock)
-	local_allglen := allglen
-	for i := uintptr(0); i < local_allglen; i++ {
-		gp := allgs[i]
+	for _, gp := range allgs {
 		gp.gcworkdone = false  // set to true in gcphasework
 		gp.gcscanvalid = false // stack has not been scanned
 	}
+	numgs = len(allgs)
 	unlock(&allglock)
-	return int(local_allglen)
+	return
 }
 
 // Hooks for other packages
