@@ -56,7 +56,6 @@ func Pipe2(p []int, flags int) (err error) {
 
 // 64-bit file system and 32-bit uid calls
 // (386 default is 32-bit file system and 16-bit uid).
-//sys	Chown(path string, uid int, gid int) (err error) = SYS_CHOWN32
 //sysnb	Dup2(oldfd int, newfd int) (err error)
 //sys	Fchown(fd int, uid int, gid int) (err error) = SYS_FCHOWN32
 //sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_FSTAT64
