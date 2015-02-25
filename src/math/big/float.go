@@ -789,6 +789,7 @@ func (x *Float) Float64() (float64, Accuracy) {
 // if x is an infinity. The result is Exact if x.IsInt();
 // otherwise it is Below for x > 0, and Above for x < 0.
 func (x *Float) Int() (res *Int, acc Accuracy) {
+	// TODO(gri) accept z argument for result storage (see Float.Rat below)
 	if debugFloat {
 		validate(x)
 	}
@@ -830,9 +831,45 @@ func (x *Float) Int() (res *Int, acc Accuracy) {
 	return
 }
 
-// BUG(gri) Rat is not yet implemented
-func (x *Float) Rat() *Rat {
-	panic("unimplemented")
+// Rat returns x converted into an exact fraction; or nil if x is an infinity.
+// If a non-nil *Rat argument z is provided, it is used to store the result;
+// otherwise a new Rat is allocated.
+func (x *Float) Rat(z *Rat) *Rat {
+	if debugFloat {
+		validate(x)
+	}
+	// pick off easy cases
+	switch x.ord() {
+	case -2, +2:
+		return nil // ±Inf
+	case 0:
+		if z == nil {
+			return new(Rat)
+		}
+		return z.SetInt64(0)
+	}
+	// x != 0 && x != ±Inf
+	allBits := int32(len(x.mant)) * _W
+	// build up numerator and denominator
+	if z == nil {
+		z = new(Rat)
+	}
+	z.a.neg = x.neg
+	switch {
+	case x.exp > allBits:
+		z.a.abs = z.a.abs.shl(x.mant, uint(x.exp-allBits))
+		z.b.abs = z.b.abs[:0] // == 1 (see Rat)
+		return z              // already in normal form
+	default:
+		z.a.abs = z.a.abs.set(x.mant)
+		z.b.abs = z.b.abs[:0] // == 1 (see Rat)
+		return z              // already in normal form
+	case x.exp < allBits:
+		z.a.abs = z.a.abs.set(x.mant)
+		t := z.b.abs.setUint64(1)
+		z.b.abs = t.shl(t, uint(allBits-x.exp))
+		return z.norm()
+	}
 }
 
 // Abs sets z to the (possibly rounded) value |x| (the absolute value of x)
