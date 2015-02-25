@@ -8,20 +8,23 @@
 #include	<link.h>
 #include	"lib.h"
 #include	"elf.h"
+#include	"dwarf.h"
 
 /*
  * We use the 64-bit data structures on both 32- and 64-bit machines
  * in order to write the code just once.  The 64-bit data structure is
  * written in the 32-bit format on the 32-bit machines.
  */
-#define	NSECT	48
+enum {
+	NSECT = 48,
+};
 
 int	iself;
 
 int	nelfsym = 1;
 
 static	int	elf64;
-static	ElfEhdr	hdr;
+static	ElfEhdr	ehdr;
 static	ElfPhdr	*phdr[NSECT];
 static	ElfShdr	*shdr[NSECT];
 static	char	*interp;
@@ -36,7 +39,7 @@ struct Elfstring
 static Elfstring elfstr[100];
 static int nelfstr;
 
-static char buildinfo[32];
+static uchar buildinfo[32];
 
 /*
  Initialize the global variable that describes the ELF header. It will be updated as
@@ -51,31 +54,31 @@ elfinit(void)
 	// 64-bit architectures
 	case '9':
 		if(ctxt->arch->endian == BigEndian)
-			hdr.flags = 1;		/* Version 1 ABI */
+			ehdr.flags = 1;		/* Version 1 ABI */
 		else
-			hdr.flags = 2;		/* Version 2 ABI */
+			ehdr.flags = 2;		/* Version 2 ABI */
 		// fallthrough
 	case '6':
 		elf64 = 1;
-		hdr.phoff = ELF64HDRSIZE;	/* Must be be ELF64HDRSIZE: first PHdr must follow ELF header */
-		hdr.shoff = ELF64HDRSIZE;	/* Will move as we add PHeaders */
-		hdr.ehsize = ELF64HDRSIZE;	/* Must be ELF64HDRSIZE */
-		hdr.phentsize = ELF64PHDRSIZE;	/* Must be ELF64PHDRSIZE */
-		hdr.shentsize = ELF64SHDRSIZE;	/* Must be ELF64SHDRSIZE */
+		ehdr.phoff = ELF64HDRSIZE;	/* Must be be ELF64HDRSIZE: first PHdr must follow ELF header */
+		ehdr.shoff = ELF64HDRSIZE;	/* Will move as we add PHeaders */
+		ehdr.ehsize = ELF64HDRSIZE;	/* Must be ELF64HDRSIZE */
+		ehdr.phentsize = ELF64PHDRSIZE;	/* Must be ELF64PHDRSIZE */
+		ehdr.shentsize = ELF64SHDRSIZE;	/* Must be ELF64SHDRSIZE */
 		break;
 
 	// 32-bit architectures
 	case '5':
 		// we use EABI on both linux/arm and freebsd/arm.
 		if(HEADTYPE == Hlinux || HEADTYPE == Hfreebsd)
-			hdr.flags = 0x5000002; // has entry point, Version5 EABI
+			ehdr.flags = 0x5000002; // has entry point, Version5 EABI
 		// fallthrough
 	default:
-		hdr.phoff = ELF32HDRSIZE;	/* Must be be ELF32HDRSIZE: first PHdr must follow ELF header */
-		hdr.shoff = ELF32HDRSIZE;	/* Will move as we add PHeaders */
-		hdr.ehsize = ELF32HDRSIZE;	/* Must be ELF32HDRSIZE */
-		hdr.phentsize = ELF32PHDRSIZE;	/* Must be ELF32PHDRSIZE */
-		hdr.shentsize = ELF32SHDRSIZE;	/* Must be ELF32SHDRSIZE */
+		ehdr.phoff = ELF32HDRSIZE;	/* Must be be ELF32HDRSIZE: first PHdr must follow ELF header */
+		ehdr.shoff = ELF32HDRSIZE;	/* Will move as we add PHeaders */
+		ehdr.ehsize = ELF32HDRSIZE;	/* Must be ELF32HDRSIZE */
+		ehdr.phentsize = ELF32PHDRSIZE;	/* Must be ELF32PHDRSIZE */
+		ehdr.shentsize = ELF32SHDRSIZE;	/* Must be ELF32SHDRSIZE */
 	}
 }
 
@@ -154,13 +157,13 @@ elfwriteshdrs(void)
 	int i;
 
 	if (elf64) {
-		for (i = 0; i < hdr.shnum; i++)
+		for (i = 0; i < ehdr.shnum; i++)
 			elf64shdr(shdr[i]);
-		return hdr.shnum * ELF64SHDRSIZE;
+		return ehdr.shnum * ELF64SHDRSIZE;
 	}
-	for (i = 0; i < hdr.shnum; i++)
+	for (i = 0; i < ehdr.shnum; i++)
 		elf32shdr(shdr[i]);
-	return hdr.shnum * ELF32SHDRSIZE;
+	return ehdr.shnum * ELF32SHDRSIZE;
 }
 
 void
@@ -181,13 +184,13 @@ elfwritephdrs(void)
 	int i;
 
 	if (elf64) {
-		for (i = 0; i < hdr.phnum; i++)
+		for (i = 0; i < ehdr.phnum; i++)
 			elf64phdr(phdr[i]);
-		return hdr.phnum * ELF64PHDRSIZE;
+		return ehdr.phnum * ELF64PHDRSIZE;
 	}
-	for (i = 0; i < hdr.phnum; i++)
+	for (i = 0; i < ehdr.phnum; i++)
 		elf32phdr(phdr[i]);
-	return hdr.phnum * ELF32PHDRSIZE;
+	return ehdr.phnum * ELF32PHDRSIZE;
 }
 
 ElfPhdr*
@@ -196,14 +199,14 @@ newElfPhdr(void)
 	ElfPhdr *e;
 
 	e = mal(sizeof *e);
-	if (hdr.phnum >= NSECT)
+	if (ehdr.phnum >= NSECT)
 		diag("too many phdrs");
 	else
-		phdr[hdr.phnum++] = e;
+		phdr[ehdr.phnum++] = e;
 	if (elf64)
-		hdr.shoff += ELF64PHDRSIZE;
+		ehdr.shoff += ELF64PHDRSIZE;
 	else
-		hdr.shoff += ELF32PHDRSIZE;
+		ehdr.shoff += ELF32PHDRSIZE;
 	return e;
 }
 
@@ -214,11 +217,11 @@ newElfShdr(vlong name)
 
 	e = mal(sizeof *e);
 	e->name = name;
-	e->shnum = hdr.shnum;
-	if (hdr.shnum >= NSECT) {
+	e->shnum = ehdr.shnum;
+	if (ehdr.shnum >= NSECT) {
 		diag("too many shdrs");
 	} else {
-		shdr[hdr.shnum++] = e;
+		shdr[ehdr.shnum++] = e;
 	}
 	return e;
 }
@@ -226,7 +229,7 @@ newElfShdr(vlong name)
 ElfEhdr*
 getElfEhdr(void)
 {
-	return &hdr;
+	return &ehdr;
 }
 
 uint32
@@ -235,20 +238,20 @@ elf64writehdr(void)
 	int i;
 
 	for (i = 0; i < EI_NIDENT; i++)
-		cput(hdr.ident[i]);
-	thearch.wput(hdr.type);
-	thearch.wput(hdr.machine);
-	thearch.lput(hdr.version);
-	thearch.vput(hdr.entry);
-	thearch.vput(hdr.phoff);
-	thearch.vput(hdr.shoff);
-	thearch.lput(hdr.flags);
-	thearch.wput(hdr.ehsize);
-	thearch.wput(hdr.phentsize);
-	thearch.wput(hdr.phnum);
-	thearch.wput(hdr.shentsize);
-	thearch.wput(hdr.shnum);
-	thearch.wput(hdr.shstrndx);
+		cput(ehdr.ident[i]);
+	thearch.wput(ehdr.type);
+	thearch.wput(ehdr.machine);
+	thearch.lput(ehdr.version);
+	thearch.vput(ehdr.entry);
+	thearch.vput(ehdr.phoff);
+	thearch.vput(ehdr.shoff);
+	thearch.lput(ehdr.flags);
+	thearch.wput(ehdr.ehsize);
+	thearch.wput(ehdr.phentsize);
+	thearch.wput(ehdr.phnum);
+	thearch.wput(ehdr.shentsize);
+	thearch.wput(ehdr.shnum);
+	thearch.wput(ehdr.shstrndx);
 	return ELF64HDRSIZE;
 }
 
@@ -258,20 +261,20 @@ elf32writehdr(void)
 	int i;
 
 	for (i = 0; i < EI_NIDENT; i++)
-		cput(hdr.ident[i]);
-	thearch.wput(hdr.type);
-	thearch.wput(hdr.machine);
-	thearch.lput(hdr.version);
-	thearch.lput(hdr.entry);
-	thearch.lput(hdr.phoff);
-	thearch.lput(hdr.shoff);
-	thearch.lput(hdr.flags);
-	thearch.wput(hdr.ehsize);
-	thearch.wput(hdr.phentsize);
-	thearch.wput(hdr.phnum);
-	thearch.wput(hdr.shentsize);
-	thearch.wput(hdr.shnum);
-	thearch.wput(hdr.shstrndx);
+		cput(ehdr.ident[i]);
+	thearch.wput(ehdr.type);
+	thearch.wput(ehdr.machine);
+	thearch.lput(ehdr.version);
+	thearch.lput(ehdr.entry);
+	thearch.lput(ehdr.phoff);
+	thearch.lput(ehdr.shoff);
+	thearch.lput(ehdr.flags);
+	thearch.wput(ehdr.ehsize);
+	thearch.wput(ehdr.phentsize);
+	thearch.wput(ehdr.phnum);
+	thearch.wput(ehdr.shentsize);
+	thearch.wput(ehdr.shnum);
+	thearch.wput(ehdr.shstrndx);
 	return ELF32HDRSIZE;
 }
 
@@ -394,11 +397,14 @@ elfwritenotehdr(char *str, uint32 namesz, uint32 descsz, uint32 tag)
 }
 
 // NetBSD Signature (as per sys/exec_elf.h)
-#define ELF_NOTE_NETBSD_NAMESZ		7
-#define ELF_NOTE_NETBSD_DESCSZ		4
-#define ELF_NOTE_NETBSD_TAG		1
-#define ELF_NOTE_NETBSD_NAME		"NetBSD\0\0"
-#define ELF_NOTE_NETBSD_VERSION		599000000	/* NetBSD 5.99 */
+enum {
+	ELF_NOTE_NETBSD_NAMESZ = 7,
+	ELF_NOTE_NETBSD_DESCSZ = 4,
+	ELF_NOTE_NETBSD_TAG = 1,
+	ELF_NOTE_NETBSD_VERSION = 599000000,	/* NetBSD 5.99 */
+};
+
+char ELF_NOTE_NETBSD_NAME[] = "NetBSD\x00\x00";
 
 int
 elfnetbsdsig(ElfShdr *sh, uint64 startva, uint64 resoff)
@@ -427,11 +433,13 @@ elfwritenetbsdsig(void)
 }
 
 // OpenBSD Signature
-#define ELF_NOTE_OPENBSD_NAMESZ		8
-#define ELF_NOTE_OPENBSD_DESCSZ		4
-#define ELF_NOTE_OPENBSD_TAG		1
-#define ELF_NOTE_OPENBSD_NAME		"OpenBSD\0"
-#define ELF_NOTE_OPENBSD_VERSION	0
+enum {
+	ELF_NOTE_OPENBSD_NAMESZ = 8,
+	ELF_NOTE_OPENBSD_DESCSZ = 4,
+	ELF_NOTE_OPENBSD_TAG = 1,
+	ELF_NOTE_OPENBSD_VERSION = 0,
+};
+char ELF_NOTE_OPENBSD_NAME[] = "OpenBSD\x00";
 
 int
 elfopenbsdsig(ElfShdr *sh, uint64 startva, uint64 resoff)
@@ -472,8 +480,8 @@ addbuildinfo(char *val)
 	ov = val;
 	val += 2;
 	i = 0;
-	while(*val != '\0') {
-		if(val[1] == '\0') {
+	while(*val != '\x00') {
+		if(val[1] == '\x00') {
 			fprint(2, "%s: -B argument must have even number of digits: %s\n", argv0, ov);
 			exits("usage");
 		}
@@ -501,9 +509,12 @@ addbuildinfo(char *val)
 }
 
 // Build info note
-#define ELF_NOTE_BUILDINFO_NAMESZ	4
-#define ELF_NOTE_BUILDINFO_TAG		3
-#define ELF_NOTE_BUILDINFO_NAME		"GNU\0"
+enum {
+	ELF_NOTE_BUILDINFO_NAMESZ = 4,
+	ELF_NOTE_BUILDINFO_TAG = 3,
+};
+
+char ELF_NOTE_BUILDINFO_NAME[] = "GNU\x00";
 
 int
 elfbuildinfo(ElfShdr *sh, uint64 startva, uint64 resoff)
@@ -525,7 +536,7 @@ elfwritebuildinfo(void)
 
 	cwrite(ELF_NOTE_BUILDINFO_NAME, ELF_NOTE_BUILDINFO_NAMESZ);
 	cwrite(buildinfo, buildinfolen);
-	cwrite("\0\0\0", rnd(buildinfolen, 4) - buildinfolen);
+	cwrite("\x00\x00\x00", rnd(buildinfolen, 4) - buildinfolen);
 
 	return sh->size;
 }
@@ -728,7 +739,7 @@ elfphload(Segment *seg)
 		ph->flags |= PF_X;
 	ph->vaddr = seg->vaddr;
 	ph->paddr = seg->vaddr;
-	ph->memsz = seg->len;
+	ph->memsz = seg->length;
 	ph->off = seg->fileoff;
 	ph->filesz = seg->filelen;
 	ph->align = INITRND;
@@ -753,7 +764,7 @@ elfshname(char *name)
 	return nil;
 
 found:
-	for(i=0; i<hdr.shnum; i++) {
+	for(i=0; i<ehdr.shnum; i++) {
 		sh = shdr[i];
 		if(sh->name == off)
 			return sh;
@@ -799,7 +810,7 @@ elfshbits(Section *sect)
 	if(linkmode != LinkExternal)
 		sh->addr = sect->vaddr;
 	sh->addralign = sect->align;
-	sh->size = sect->len;
+	sh->size = sect->length;
 	sh->off = sect->seg->fileoff + sect->vaddr - sect->seg->vaddr;
 
 	return sh;
@@ -833,7 +844,7 @@ elfshreloc(Section *sect)
 	sh->type = typ;
 	sh->entsize = thearch.regsize*(2+(typ==SHT_RELA));
 	sh->link = elfshname(".symtab")->shnum;
-	sh->info = sect->elfsect->shnum;
+	sh->info = ((ElfShdr*)sect->elfsect)->shnum;
 	sh->off = sect->reloff;
 	sh->size = sect->rellen;
 	sh->addralign = thearch.regsize;
@@ -843,6 +854,7 @@ elfshreloc(Section *sect)
 void
 elfrelocsect(Section *sect, LSym *first)
 {
+	int ri;
 	LSym *sym;
 	int32 eaddr;
 	Reloc *r;
@@ -862,7 +874,7 @@ elfrelocsect(Section *sect, LSym *first)
 			break;
 	}
 	
-	eaddr = sect->vaddr + sect->len;
+	eaddr = sect->vaddr + sect->length;
 	for(; sym != nil; sym = sym->next) {
 		if(!sym->reachable)
 			continue;
@@ -870,7 +882,8 @@ elfrelocsect(Section *sect, LSym *first)
 			break;
 		ctxt->cursym = sym;
 		
-		for(r = sym->r; r < sym->r+sym->nr; r++) {
+		for(ri=0; ri<sym->nr; ri++) {
+			r = &sym->r[ri];
 			if(r->done)
 				continue;
 			if(r->xsym == nil) {
@@ -1217,7 +1230,7 @@ asmbelf(vlong symo)
 	if(HEADTYPE != Hnacl) {
 		o = segtext.vaddr - pph->vaddr;
 		segtext.vaddr -= o;
-		segtext.len += o;
+		segtext.length += o;
 		o = segtext.fileoff - pph->off;
 		segtext.fileoff -= o;
 		segtext.filelen += o;
@@ -1585,4 +1598,88 @@ elfobj:
 	}
 	if(a > ELFRESERVE)	
 		diag("ELFRESERVE too small: %lld > %d", a, ELFRESERVE);
+}
+
+uint32
+ELF32_R_SYM(uint32 info)
+{
+	return info>>8;
+}
+
+uint32
+ELF32_R_TYPE(uint32 info)
+{
+	return (uint8)info;
+}
+
+uint32
+ELF32_R_INFO(uint32 sym, uint32 type)
+{
+	return sym<<8 | type;
+}
+
+uint8
+ELF32_ST_BIND(uint8 info)
+{
+	return info>>4;
+}
+
+uint8
+ELF32_ST_TYPE(uint8 info)
+{
+	return info & 0xf;
+}
+
+uint8
+ELF32_ST_INFO(uint8 bind, uint8 type)
+{
+	return bind<<4 | type&0xf;
+}
+
+uint8
+ELF32_ST_VISIBILITY(uint8 oth)
+{
+	return oth & 3;
+}
+
+uint32
+ELF64_R_SYM(uint64 info)
+{
+	return info>>32;
+}
+
+uint32
+ELF64_R_TYPE(uint64 info)
+{
+	return info;
+}
+
+uint64
+ELF64_R_INFO(uint32 sym, uint32 type)
+{
+	return (uint64)sym<<32 | type;
+}
+
+uint8
+ELF64_ST_BIND(uint8 info)
+{
+	return info>>4;
+}
+
+uint8
+ELF64_ST_TYPE(uint8 info)
+{
+	return info & 0xf;
+}
+
+uint8
+ELF64_ST_INFO(uint8 bind, uint8 type)
+{
+	return bind<<4 | type&0xf;
+}
+
+uint8
+ELF64_ST_VISIBILITY(uint8 oth)
+{
+	return oth & 3;
 }

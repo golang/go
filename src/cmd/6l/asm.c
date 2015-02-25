@@ -37,7 +37,11 @@
 #include	"../ld/macho.h"
 #include	"../ld/pe.h"
 
-#define PADDR(a)	((uint32)(a) & ~0x80000000)
+uint32
+PADDR(uint32 x)
+{
+	return x & ~0x80000000;
+}
 
 char	zeroes[32];
 
@@ -333,9 +337,9 @@ machoreloc1(Reloc *r, vlong sectoff)
 		v = rs->dynid;			
 		v |= 1<<27; // external relocation
 	} else {
-		v = rs->sect->extnum;
+		v = ((Section*)rs->sect)->extnum;
 		if(v == 0) {
-			diag("reloc %d to symbol %s in non-macho section %s type=%d", r->type, rs->name, rs->sect->name, rs->type);
+			diag("reloc %d to symbol %s in non-macho section %s type=%d", r->type, rs->name, ((Section*)rs->sect)->name, rs->type);
 			return -1;
 		}
 	}
@@ -615,10 +619,10 @@ asmb(void)
 
 	sect = segtext.sect;
 	cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
-	codeblk(sect->vaddr, sect->len);
+	codeblk(sect->vaddr, sect->length);
 	for(sect = sect->next; sect != nil; sect = sect->next) {
 		cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
-		datblk(sect->vaddr, sect->len);
+		datblk(sect->vaddr, sect->length);
 	}
 
 	if(segrodata.filelen > 0) {
@@ -642,7 +646,7 @@ asmb(void)
 		if(debug['v'])
 			Bprint(&bso, "%5.2f dwarf\n", cputime());
 
-		dwarfoff = rnd(HEADR+segtext.len, INITRND) + rnd(segdata.filelen, INITRND);
+		dwarfoff = rnd(HEADR+segtext.length, INITRND) + rnd(segdata.filelen, INITRND);
 		cseek(dwarfoff);
 
 		segdwarf.fileoff = cpos();
@@ -763,7 +767,7 @@ asmb(void)
 		lputb(magic);			/* magic */
 		lputb(segtext.filelen);			/* sizes */
 		lputb(segdata.filelen);
-		lputb(segdata.len - segdata.filelen);
+		lputb(segdata.length - segdata.filelen);
 		lputb(symsize);			/* nsyms */
 		vl = entryvalue();
 		lputb(PADDR(vl));		/* va of entry */

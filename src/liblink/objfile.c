@@ -111,13 +111,11 @@ static char *rdstring(Biobuf*);
 static void rddata(Biobuf*, uchar**, int*);
 static LSym *rdsym(Link*, Biobuf*, char*);
 
-extern char *outfile;
-
 static char startmagic[] = "\x00\x00go13ld";
 static char endmagic[] = "\xff\xffgo13ld";
 
 void
-ldobjfile(Link *ctxt, Biobuf *f, char *pkg, int64 len, char *pn)
+ldobjfile(Link *ctxt, Biobuf *f, char *pkg, int64 length, char *pn)
 {
 	int c;
 	uchar buf[8];
@@ -153,8 +151,8 @@ ldobjfile(Link *ctxt, Biobuf *f, char *pkg, int64 len, char *pn)
 	if(memcmp(buf, endmagic, sizeof buf) != 0)
 		sysfatal("%s: invalid file end", pn);
 	
-	if(Boffset(f) != start+len)
-		sysfatal("%s: unexpected end at %lld, want %lld", pn, (vlong)Boffset(f), (vlong)(start+len));
+	if(Boffset(f) != start+length)
+		sysfatal("%s: unexpected end at %lld, want %lld", pn, (vlong)Boffset(f), (vlong)(start+length));
 }
 
 static void

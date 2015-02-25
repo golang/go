@@ -22,3 +22,4 @@ void dwarfaddshstrings(LSym *shstrtab);
 void dwarfaddelfheaders(void);
 void dwarfaddmachoheaders(void);
 void dwarfaddpeheaders(void);
+void dwarfaddelfsectionsyms(void);

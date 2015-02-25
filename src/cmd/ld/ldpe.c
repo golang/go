@@ -9,90 +9,90 @@
 #include	"lib.h"
 #include	"pe.h"
 
-#define IMAGE_SCN_MEM_DISCARDABLE 0x2000000
+enum {
+	IMAGE_SYM_UNDEFINED = 0,
+	IMAGE_SYM_ABSOLUTE = (-1),
+	IMAGE_SYM_DEBUG = (-2),
+	IMAGE_SYM_TYPE_NULL = 0,
+	IMAGE_SYM_TYPE_VOID = 1,
+	IMAGE_SYM_TYPE_CHAR = 2,
+	IMAGE_SYM_TYPE_SHORT = 3,
+	IMAGE_SYM_TYPE_INT = 4,
+	IMAGE_SYM_TYPE_LONG = 5,
+	IMAGE_SYM_TYPE_FLOAT = 6,
+	IMAGE_SYM_TYPE_DOUBLE = 7,
+	IMAGE_SYM_TYPE_STRUCT = 8,
+	IMAGE_SYM_TYPE_UNION = 9,
+	IMAGE_SYM_TYPE_ENUM = 10,
+	IMAGE_SYM_TYPE_MOE = 11,
+	IMAGE_SYM_TYPE_BYTE = 12,
+	IMAGE_SYM_TYPE_WORD = 13,
+	IMAGE_SYM_TYPE_UINT = 14,
+	IMAGE_SYM_TYPE_DWORD = 15,
+	IMAGE_SYM_TYPE_PCODE = 32768,
+	IMAGE_SYM_DTYPE_NULL = 0,
+	IMAGE_SYM_DTYPE_POINTER = 0x10,
+	IMAGE_SYM_DTYPE_FUNCTION = 0x20,
+	IMAGE_SYM_DTYPE_ARRAY = 0x30,
+	IMAGE_SYM_CLASS_END_OF_FUNCTION = (-1),
+	IMAGE_SYM_CLASS_NULL = 0,
+	IMAGE_SYM_CLASS_AUTOMATIC = 1,
+	IMAGE_SYM_CLASS_EXTERNAL = 2,
+	IMAGE_SYM_CLASS_STATIC = 3,
+	IMAGE_SYM_CLASS_REGISTER = 4,
+	IMAGE_SYM_CLASS_EXTERNAL_DEF = 5,
+	IMAGE_SYM_CLASS_LABEL = 6,
+	IMAGE_SYM_CLASS_UNDEFINED_LABEL = 7,
+	IMAGE_SYM_CLASS_MEMBER_OF_STRUCT = 8,
+	IMAGE_SYM_CLASS_ARGUMENT = 9,
+	IMAGE_SYM_CLASS_STRUCT_TAG = 10,
+	IMAGE_SYM_CLASS_MEMBER_OF_UNION = 11,
+	IMAGE_SYM_CLASS_UNION_TAG = 12,
+	IMAGE_SYM_CLASS_TYPE_DEFINITION = 13,
+	IMAGE_SYM_CLASS_UNDEFINED_STATIC = 14,
+	IMAGE_SYM_CLASS_ENUM_TAG = 15,
+	IMAGE_SYM_CLASS_MEMBER_OF_ENUM = 16,
+	IMAGE_SYM_CLASS_REGISTER_PARAM = 17,
+	IMAGE_SYM_CLASS_BIT_FIELD = 18,
+	IMAGE_SYM_CLASS_FAR_EXTERNAL = 68, /* Not in PECOFF v8 spec */
+	IMAGE_SYM_CLASS_BLOCK = 100,
+	IMAGE_SYM_CLASS_FUNCTION = 101,
+	IMAGE_SYM_CLASS_END_OF_STRUCT = 102,
+	IMAGE_SYM_CLASS_FILE = 103,
+	IMAGE_SYM_CLASS_SECTION = 104,
+	IMAGE_SYM_CLASS_WEAK_EXTERNAL = 105,
+	IMAGE_SYM_CLASS_CLR_TOKEN = 107,
 
-#define IMAGE_SYM_UNDEFINED	0
-#define IMAGE_SYM_ABSOLUTE (-1)
-#define IMAGE_SYM_DEBUG	(-2)
-#define IMAGE_SYM_TYPE_NULL 0
-#define IMAGE_SYM_TYPE_VOID 1
-#define IMAGE_SYM_TYPE_CHAR 2
-#define IMAGE_SYM_TYPE_SHORT 3
-#define IMAGE_SYM_TYPE_INT 4
-#define IMAGE_SYM_TYPE_LONG 5
-#define IMAGE_SYM_TYPE_FLOAT 6
-#define IMAGE_SYM_TYPE_DOUBLE 7
-#define IMAGE_SYM_TYPE_STRUCT 8
-#define IMAGE_SYM_TYPE_UNION 9
-#define IMAGE_SYM_TYPE_ENUM 10
-#define IMAGE_SYM_TYPE_MOE 11
-#define IMAGE_SYM_TYPE_BYTE 12
-#define IMAGE_SYM_TYPE_WORD 13
-#define IMAGE_SYM_TYPE_UINT 14
-#define IMAGE_SYM_TYPE_DWORD 15
-#define IMAGE_SYM_TYPE_PCODE 32768
-#define IMAGE_SYM_DTYPE_NULL 0
-#define IMAGE_SYM_DTYPE_POINTER 0x10
-#define IMAGE_SYM_DTYPE_FUNCTION 0x20
-#define IMAGE_SYM_DTYPE_ARRAY 0x30
-#define IMAGE_SYM_CLASS_END_OF_FUNCTION	(-1)
-#define IMAGE_SYM_CLASS_NULL 0
-#define IMAGE_SYM_CLASS_AUTOMATIC 1
-#define IMAGE_SYM_CLASS_EXTERNAL 2
-#define IMAGE_SYM_CLASS_STATIC 3
-#define IMAGE_SYM_CLASS_REGISTER 4
-#define IMAGE_SYM_CLASS_EXTERNAL_DEF 5
-#define IMAGE_SYM_CLASS_LABEL 6
-#define IMAGE_SYM_CLASS_UNDEFINED_LABEL 7
-#define IMAGE_SYM_CLASS_MEMBER_OF_STRUCT 8
-#define IMAGE_SYM_CLASS_ARGUMENT 9
-#define IMAGE_SYM_CLASS_STRUCT_TAG 10
-#define IMAGE_SYM_CLASS_MEMBER_OF_UNION 11
-#define IMAGE_SYM_CLASS_UNION_TAG 12
-#define IMAGE_SYM_CLASS_TYPE_DEFINITION 13
-#define IMAGE_SYM_CLASS_UNDEFINED_STATIC 14
-#define IMAGE_SYM_CLASS_ENUM_TAG 15
-#define IMAGE_SYM_CLASS_MEMBER_OF_ENUM 16
-#define IMAGE_SYM_CLASS_REGISTER_PARAM 17
-#define IMAGE_SYM_CLASS_BIT_FIELD 18
-#define IMAGE_SYM_CLASS_FAR_EXTERNAL 68 /* Not in PECOFF v8 spec */
-#define IMAGE_SYM_CLASS_BLOCK 100
-#define IMAGE_SYM_CLASS_FUNCTION 101
-#define IMAGE_SYM_CLASS_END_OF_STRUCT 102
-#define IMAGE_SYM_CLASS_FILE 103
-#define IMAGE_SYM_CLASS_SECTION 104
-#define IMAGE_SYM_CLASS_WEAK_EXTERNAL 105
-#define IMAGE_SYM_CLASS_CLR_TOKEN 107
+	IMAGE_REL_I386_ABSOLUTE = 0x0000,
+	IMAGE_REL_I386_DIR16 = 0x0001,
+	IMAGE_REL_I386_REL16 = 0x0002,
+	IMAGE_REL_I386_DIR32 = 0x0006,
+	IMAGE_REL_I386_DIR32NB = 0x0007,
+	IMAGE_REL_I386_SEG12 = 0x0009,
+	IMAGE_REL_I386_SECTION = 0x000A,
+	IMAGE_REL_I386_SECREL = 0x000B,
+	IMAGE_REL_I386_TOKEN = 0x000C,
+	IMAGE_REL_I386_SECREL7 = 0x000D,
+	IMAGE_REL_I386_REL32 = 0x0014,
 
-#define IMAGE_REL_I386_ABSOLUTE	0x0000
-#define IMAGE_REL_I386_DIR16	0x0001
-#define IMAGE_REL_I386_REL16	0x0002
-#define IMAGE_REL_I386_DIR32	0x0006
-#define IMAGE_REL_I386_DIR32NB	0x0007
-#define IMAGE_REL_I386_SEG12	0x0009
-#define IMAGE_REL_I386_SECTION	0x000A
-#define IMAGE_REL_I386_SECREL	0x000B
-#define IMAGE_REL_I386_TOKEN	0x000C
-#define IMAGE_REL_I386_SECREL7	0x000D
-#define IMAGE_REL_I386_REL32	0x0014
-
-#define IMAGE_REL_AMD64_ABSOLUTE 0x0000
-#define IMAGE_REL_AMD64_ADDR64 0x0001 // R_X86_64_64
-#define IMAGE_REL_AMD64_ADDR32 0x0002 // R_X86_64_PC32
-#define IMAGE_REL_AMD64_ADDR32NB 0x0003
-#define IMAGE_REL_AMD64_REL32 0x0004 
-#define IMAGE_REL_AMD64_REL32_1 0x0005
-#define IMAGE_REL_AMD64_REL32_2 0x0006
-#define IMAGE_REL_AMD64_REL32_3 0x0007
-#define IMAGE_REL_AMD64_REL32_4 0x0008
-#define IMAGE_REL_AMD64_REL32_5 0x0009
-#define IMAGE_REL_AMD64_SECTION 0x000A
-#define IMAGE_REL_AMD64_SECREL 0x000B
-#define IMAGE_REL_AMD64_SECREL7 0x000C
-#define IMAGE_REL_AMD64_TOKEN 0x000D
-#define IMAGE_REL_AMD64_SREL32 0x000E
-#define IMAGE_REL_AMD64_PAIR 0x000F
-#define IMAGE_REL_AMD64_SSPAN32 0x0010
+	IMAGE_REL_AMD64_ABSOLUTE = 0x0000,
+	IMAGE_REL_AMD64_ADDR64 = 0x0001, // R_X86_64_64
+	IMAGE_REL_AMD64_ADDR32 = 0x0002, // R_X86_64_PC32
+	IMAGE_REL_AMD64_ADDR32NB = 0x0003,
+	IMAGE_REL_AMD64_REL32 = 0x0004, 
+	IMAGE_REL_AMD64_REL32_1 = 0x0005,
+	IMAGE_REL_AMD64_REL32_2 = 0x0006,
+	IMAGE_REL_AMD64_REL32_3 = 0x0007,
+	IMAGE_REL_AMD64_REL32_4 = 0x0008,
+	IMAGE_REL_AMD64_REL32_5 = 0x0009,
+	IMAGE_REL_AMD64_SECTION = 0x000A,
+	IMAGE_REL_AMD64_SECREL = 0x000B,
+	IMAGE_REL_AMD64_SECREL7 = 0x000C,
+	IMAGE_REL_AMD64_TOKEN = 0x000D,
+	IMAGE_REL_AMD64_SREL32 = 0x000E,
+	IMAGE_REL_AMD64_PAIR = 0x000F,
+	IMAGE_REL_AMD64_SSPAN32 = 0x0010,
+};
 
 typedef struct PeSym PeSym;
 typedef struct PeSect PeSect;
@@ -130,18 +130,18 @@ struct PeObj {
 	char* snames;
 };
 
-static int map(PeObj *obj, PeSect *sect);
+static int pemap(PeObj *peobj, PeSect *sect);
 static int issect(PeSym *s);
-static int readsym(PeObj *obj, int i, PeSym **sym);
+static int readpesym(PeObj *peobj, int i, PeSym **sym);
 
 void
-ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ldpe(Biobuf *f, char *pkg, int64 length, char *pn)
 {
 	char *name;
 	int32 base;
 	uint32 l;
 	int i, j, numaux;
-	PeObj *obj;
+	PeObj *peobj;
 	PeSect *sect, *rsect;
 	IMAGE_SECTION_HEADER sh;
 	uchar symbuf[18];
@@ -149,7 +149,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 	Reloc *r, *rp;
 	PeSym *sym;
 
-	USED(len);
+	USED(length);
 	if(debug['v'])
 		Bprint(&bso, "%5.2f ldpe %s\n", cputime(), pn);
 	
@@ -157,71 +157,71 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 	ctxt->version++;
 	base = Boffset(f);
 	
-	obj = mal(sizeof *obj);
-	obj->f = f;
-	obj->base = base;
-	obj->name = pn;
+	peobj = mal(sizeof *peobj);
+	peobj->f = f;
+	peobj->base = base;
+	peobj->name = pn;
 	// read header
-	if(Bread(f, &obj->fh, sizeof obj->fh) != sizeof obj->fh)
+	if(Bread(f, &peobj->fh, sizeof peobj->fh) != sizeof peobj->fh)
 		goto bad;
 	// load section list
-	obj->sect = mal(obj->fh.NumberOfSections*sizeof obj->sect[0]);
-	obj->nsect = obj->fh.NumberOfSections;
-	for(i=0; i < obj->fh.NumberOfSections; i++) {
-		if(Bread(f, &obj->sect[i].sh, sizeof sh) != sizeof sh)
+	peobj->sect = mal(peobj->fh.NumberOfSections*sizeof peobj->sect[0]);
+	peobj->nsect = peobj->fh.NumberOfSections;
+	for(i=0; i < peobj->fh.NumberOfSections; i++) {
+		if(Bread(f, &peobj->sect[i].sh, sizeof sh) != sizeof sh)
 			goto bad;
-		obj->sect[i].size = obj->sect[i].sh.SizeOfRawData;
-		obj->sect[i].name = (char*)obj->sect[i].sh.Name;
+		peobj->sect[i].size = peobj->sect[i].sh.SizeOfRawData;
+		peobj->sect[i].name = (char*)peobj->sect[i].sh.Name;
 		// TODO return error if found .cormeta
 	}
 	// load string table
-	Bseek(f, base+obj->fh.PointerToSymbolTable+sizeof(symbuf)*obj->fh.NumberOfSymbols, 0);
+	Bseek(f, base+peobj->fh.PointerToSymbolTable+sizeof(symbuf)*peobj->fh.NumberOfSymbols, 0);
 	if(Bread(f, symbuf, 4) != 4) 
 		goto bad;
 	l = le32(symbuf);
-	obj->snames = mal(l);
-	Bseek(f, base+obj->fh.PointerToSymbolTable+sizeof(symbuf)*obj->fh.NumberOfSymbols, 0);
-	if(Bread(f, obj->snames, l) != l)
+	peobj->snames = mal(l);
+	Bseek(f, base+peobj->fh.PointerToSymbolTable+sizeof(symbuf)*peobj->fh.NumberOfSymbols, 0);
+	if(Bread(f, peobj->snames, l) != l)
 		goto bad;
 	// rewrite section names if they start with /
-	for(i=0; i < obj->fh.NumberOfSections; i++) {
-		if(obj->sect[i].name == nil)
+	for(i=0; i < peobj->fh.NumberOfSections; i++) {
+		if(peobj->sect[i].name == nil)
 			continue;
-		if(obj->sect[i].name[0] != '/')
+		if(peobj->sect[i].name[0] != '/')
 			continue;
-		l = atoi(obj->sect[i].name + 1);
-		obj->sect[i].name = (char*)&obj->snames[l];
+		l = atoi(peobj->sect[i].name + 1);
+		peobj->sect[i].name = (char*)&peobj->snames[l];
 	}
 	// read symbols
-	obj->pesym = mal(obj->fh.NumberOfSymbols*sizeof obj->pesym[0]);
-	obj->npesym = obj->fh.NumberOfSymbols;
-	Bseek(f, base+obj->fh.PointerToSymbolTable, 0);
-	for(i=0; i<obj->fh.NumberOfSymbols; i+=numaux+1) {
-		Bseek(f, base+obj->fh.PointerToSymbolTable+sizeof(symbuf)*i, 0);
+	peobj->pesym = mal(peobj->fh.NumberOfSymbols*sizeof peobj->pesym[0]);
+	peobj->npesym = peobj->fh.NumberOfSymbols;
+	Bseek(f, base+peobj->fh.PointerToSymbolTable, 0);
+	for(i=0; i<peobj->fh.NumberOfSymbols; i+=numaux+1) {
+		Bseek(f, base+peobj->fh.PointerToSymbolTable+sizeof(symbuf)*i, 0);
 		if(Bread(f, symbuf, sizeof symbuf) != sizeof symbuf)
 			goto bad;
 		
 		if((symbuf[0] == 0) && (symbuf[1] == 0) &&
 			 (symbuf[2] == 0) && (symbuf[3] == 0)) {
 			l = le32(&symbuf[4]);
-			obj->pesym[i].name = (char*)&obj->snames[l];
+			peobj->pesym[i].name = (char*)&peobj->snames[l];
 		} else { // sym name length <= 8
-			obj->pesym[i].name = mal(9);
-			strncpy(obj->pesym[i].name, (char*)symbuf, 8);
-			obj->pesym[i].name[8] = 0;
+			peobj->pesym[i].name = mal(9);
+			strncpy(peobj->pesym[i].name, (char*)symbuf, 8);
+			peobj->pesym[i].name[8] = 0;
 		}
-		obj->pesym[i].value = le32(&symbuf[8]);
-		obj->pesym[i].sectnum = le16(&symbuf[12]);
-		obj->pesym[i].sclass = symbuf[16];
-		obj->pesym[i].aux = symbuf[17];
-		obj->pesym[i].type = le16(&symbuf[14]);
-		numaux = obj->pesym[i].aux; 
+		peobj->pesym[i].value = le32(&symbuf[8]);
+		peobj->pesym[i].sectnum = le16(&symbuf[12]);
+		peobj->pesym[i].sclass = symbuf[16];
+		peobj->pesym[i].aux = symbuf[17];
+		peobj->pesym[i].type = le16(&symbuf[14]);
+		numaux = peobj->pesym[i].aux; 
 		if (numaux < 0) 
 			numaux = 0;
 	}
 	// create symbols for mapped sections
-	for(i=0; i<obj->nsect; i++) {
-		sect = &obj->sect[i];
+	for(i=0; i<peobj->nsect; i++) {
+		sect = &peobj->sect[i];
 		if(sect->sh.Characteristics&IMAGE_SCN_MEM_DISCARDABLE)
 			continue;
 
@@ -231,7 +231,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 			continue;
 		}
 
-		if(map(obj, sect) < 0)
+		if(pemap(peobj, sect) < 0)
 			goto bad;
 		
 		name = smprint("%s(%s)", pkg, sect->name);
@@ -264,8 +264,8 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 	}
 	
 	// load relocations
-	for(i=0; i<obj->nsect; i++) {
-		rsect = &obj->sect[i];
+	for(i=0; i<peobj->nsect; i++) {
+		rsect = &peobj->sect[i];
 		if(rsect->sym == 0 || rsect->sh.NumberOfRelocations == 0)
 			continue;
 		if(rsect->sh.Characteristics&IMAGE_SCN_MEM_DISCARDABLE)
@@ -276,7 +276,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 			continue;
 		}
 		r = mal(rsect->sh.NumberOfRelocations*sizeof r[0]);
-		Bseek(f, obj->base+rsect->sh.PointerToRelocations, 0);
+		Bseek(f, peobj->base+rsect->sh.PointerToRelocations, 0);
 		for(j=0; j<rsect->sh.NumberOfRelocations; j++) {
 			rp = &r[j];
 			if(Bread(f, symbuf, 10) != 10)
@@ -287,7 +287,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 			rva = le32(&symbuf[0]);
 			symindex = le32(&symbuf[4]);
 			type = le16(&symbuf[8]);
-			if(readsym(obj, symindex, &sym) < 0)
+			if(readpesym(peobj, symindex, &sym) < 0)
 				goto bad;
 			if(sym->sym == nil) {
 				werrstr("reloc of invalid sym %s idx=%d type=%d", sym->name, symindex, sym->type);
@@ -322,8 +322,8 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 			// ld -r could generate multiple section symbols for the
 			// same section but with different values, we have to take
 			// that into account
-			if(issect(&obj->pesym[symindex]))
-				rp->add += obj->pesym[symindex].value;
+			if(issect(&peobj->pesym[symindex]))
+				rp->add += peobj->pesym[symindex].value;
 		}
 		qsort(r, rsect->sh.NumberOfRelocations, sizeof r[0], rbyoff);
 		
@@ -333,17 +333,19 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 	}
 
 	// enter sub-symbols into symbol table.
-	for(i=0; i<obj->npesym; i++) {
-		if(obj->pesym[i].name == 0)
+	for(i=0; i<peobj->npesym; i++) {
+		if(peobj->pesym[i].name == 0)
 			continue;
-		if(issect(&obj->pesym[i]))
+		if(issect(&peobj->pesym[i]))
 			continue;
-		if(obj->pesym[i].sectnum > 0) {
-			sect = &obj->sect[obj->pesym[i].sectnum-1];
+		if(peobj->pesym[i].sectnum > peobj->nsect)
+			continue;
+		if(peobj->pesym[i].sectnum > 0) {
+			sect = &peobj->sect[peobj->pesym[i].sectnum-1];
 			if(sect->sym == 0)
 				continue;
 		}
-		if(readsym(obj, i, &sym) < 0)
+		if(readpesym(peobj, i, &sym) < 0)
 			goto bad;
 	
 		s = sym->sym;
@@ -355,8 +357,8 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 				s->size = sym->value;
 			}
 			continue;
-		} else if (sym->sectnum > 0) {
-			sect = &obj->sect[sym->sectnum-1];
+		} else if (sym->sectnum > 0 && sym->sectnum <= peobj->nsect) {
+			sect = &peobj->sect[sym->sectnum-1];
 			if(sect->sym == 0)
 				diag("%s: %s sym == 0!", pn, s->name);
 		} else {
@@ -387,12 +389,12 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 
 	// Sort outer lists by address, adding to textp.
 	// This keeps textp in increasing address order.
-	for(i=0; i<obj->nsect; i++) {
-		s = obj->sect[i].sym;
+	for(i=0; i<peobj->nsect; i++) {
+		s = peobj->sect[i].sym;
 		if(s == nil)
 			continue;
 		if(s->sub)
-			s->sub = listsort(s->sub, valuecmp, offsetof(LSym, sub));
+			s->sub = listsort(s->sub, valuecmp, listsubp);
 		if(s->type == STEXT) {
 			if(s->onlist)
 				sysfatal("symbol %s listed multiple times", s->name);
@@ -418,7 +420,7 @@ bad:
 }
 
 static int
-map(PeObj *obj, PeSect *sect)
+pemap(PeObj *peobj, PeSect *sect)
 {
 	if(sect->base != nil)
 		return 0;
@@ -427,8 +429,8 @@ map(PeObj *obj, PeSect *sect)
 	if(sect->sh.PointerToRawData == 0) // .bss doesn't have data in object file
 		return 0;
 	werrstr("short read");
-	if(Bseek(obj->f, obj->base+sect->sh.PointerToRawData, 0) < 0 || 
-			Bread(obj->f, sect->base, sect->sh.SizeOfRawData) != sect->sh.SizeOfRawData)
+	if(Bseek(peobj->f, peobj->base+sect->sh.PointerToRawData, 0) < 0 || 
+			Bread(peobj->f, sect->base, sect->sh.SizeOfRawData) != sect->sh.SizeOfRawData)
 		return -1;
 	
 	return 0;
@@ -441,22 +443,22 @@ issect(PeSym *s)
 }
 
 static int
-readsym(PeObj *obj, int i, PeSym **y)
+readpesym(PeObj *peobj, int i, PeSym **y)
 {
 	LSym *s;
 	PeSym *sym;
 	char *name, *p;
 
-	if(i >= obj->npesym || i < 0) {
+	if(i >= peobj->npesym || i < 0) {
 		werrstr("invalid pe symbol index");
 		return -1;
 	}
 
-	sym = &obj->pesym[i];
+	sym = &peobj->pesym[i];
 	*y = sym;
 	
 	if(issect(sym))
-		name = obj->sect[sym->sectnum-1].sym->name;
+		name = peobj->sect[sym->sectnum-1].sym->name;
 	else {
 		name = sym->name;
 		if(strncmp(name, "__imp_", 6) == 0)

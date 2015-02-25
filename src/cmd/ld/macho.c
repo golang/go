@@ -14,7 +14,7 @@
 #include "macho.h"
 
 static	int	macho64;
-static	MachoHdr	hdr;
+static	MachoHdr	machohdr;
 static	MachoLoad	*load;
 static	MachoSeg	seg[16];
 static	int	nload, mload, nseg, ndebug, nsect;
@@ -60,7 +60,7 @@ machoinit(void)
 MachoHdr*
 getMachoHdr(void)
 {
-	return &hdr;
+	return &machohdr;
 }
 
 MachoLoad*
@@ -152,8 +152,8 @@ machowrite(void)
 		thearch.lput(0xfeedfacf);
 	else
 		thearch.lput(0xfeedface);
-	thearch.lput(hdr.cpu);
-	thearch.lput(hdr.subcpu);
+	thearch.lput(machohdr.cpu);
+	thearch.lput(machohdr.subcpu);
 	if(linkmode == LinkExternal)
 		thearch.lput(1);	/* file type - mach object */
 	else
@@ -246,7 +246,7 @@ domacho(void)
 	s->type = SMACHOSYMSTR;
 	s->reachable = 1;
 	adduint8(ctxt, s, ' ');
-	adduint8(ctxt, s, '\0');
+	adduint8(ctxt, s, '\x00');
 	
 	s = linklookup(ctxt, ".machosymtab", 0);
 	s->type = SMACHOSYMTAB;
@@ -312,11 +312,11 @@ machoshbits(MachoSeg *mseg, Section *sect, char *segname)
 	while(1<<msect->align < sect->align)
 		msect->align++;
 	msect->addr = sect->vaddr;
-	msect->size = sect->len;
+	msect->size = sect->length;
 	
 	if(sect->vaddr < sect->seg->vaddr + sect->seg->filelen) {
 		// data in file
-		if(sect->len > sect->seg->vaddr + sect->seg->filelen - sect->vaddr)
+		if(sect->length > sect->seg->vaddr + sect->seg->filelen - sect->vaddr)
 			diag("macho cannot represent section %s crossing data and bss", sect->name);
 		msect->off = sect->seg->fileoff + sect->vaddr - sect->seg->vaddr;
 	} else {
@@ -389,7 +389,7 @@ asmbmacho(void)
 	}
 
 	/* text */
-	v = rnd(HEADR+segtext.len, INITRND);
+	v = rnd(HEADR+segtext.length, INITRND);
 	if(linkmode != LinkExternal) {
 		ms = newMachoSeg("__TEXT", 20);
 		ms->vaddr = va;
@@ -405,7 +405,7 @@ asmbmacho(void)
 
 	/* data */
 	if(linkmode != LinkExternal) {
-		w = segdata.len;
+		w = segdata.length;
 		ms = newMachoSeg("__DATA", 20);
 		ms->vaddr = va+v;
 		ms->vsize = w;
@@ -456,7 +456,7 @@ asmbmacho(void)
 
 		if(linkmode != LinkExternal) {
 			ms = newMachoSeg("__LINKEDIT", 0);
-			ms->vaddr = va+v+rnd(segdata.len, INITRND);
+			ms->vaddr = va+v+rnd(segdata.length, INITRND);
 			ms->vsize = s1->size + s2->size + s3->size + s4->size;
 			ms->fileoffset = linkoff;
 			ms->filesize = ms->vsize;
@@ -536,7 +536,7 @@ addsym(LSym *s, char *name, int type, vlong addr, vlong size, int ver, LSym *got
 }
 	
 static int
-scmp(const void *p1, const void *p2)
+machoscmp(const void *p1, const void *p2)
 {
 	LSym *s1, *s2;
 	int k1, k2;
@@ -578,7 +578,7 @@ machosymorder(void)
 	sortsym = mal(nsortsym * sizeof sortsym[0]);
 	nsortsym = 0;
 	machogenasmsym(addsym);
-	qsort(sortsym, nsortsym, sizeof sortsym[0], scmp);
+	qsort(sortsym, nsortsym, sizeof sortsym[0], machoscmp);
 	for(i=0; i<nsortsym; i++)
 		sortsym[i]->dynid = i;
 }
@@ -612,7 +612,7 @@ machosymtab(void)
 					adduint8(ctxt, symstr, *p);
 				}
 			}
-			adduint8(ctxt, symstr, '\0');
+			adduint8(ctxt, symstr, '\x00');
 		}
 		if(s->type == SDYNIMPORT || s->type == SHOSTOBJ) {
 			adduint8(ctxt, symtab, 0x01); // type N_EXT, external symbol
@@ -631,7 +631,7 @@ machosymtab(void)
 				diag("missing section for %s", s->name);
 				adduint8(ctxt, symtab, 0);
 			} else
-				adduint8(ctxt, symtab, o->sect->extnum);
+				adduint8(ctxt, symtab, ((Section*)o->sect)->extnum);
 			adduint16(ctxt, symtab, 0); // desc
 			adduintxx(ctxt, symtab, symaddr(s), thearch.ptrsize);
 		}
@@ -716,7 +716,7 @@ domacholink(void)
 	size = s1->size + s2->size + s3->size + s4->size;
 
 	if(size > 0) {
-		linkoff = rnd(HEADR+segtext.len, INITRND) + rnd(segdata.filelen, INITRND) + rnd(segdwarf.filelen, INITRND);
+		linkoff = rnd(HEADR+segtext.length, INITRND) + rnd(segdata.filelen, INITRND) + rnd(segdwarf.filelen, INITRND);
 		cseek(linkoff);
 
 		cwrite(s1->p, s1->size);
@@ -734,6 +734,7 @@ machorelocsect(Section *sect, LSym *first)
 {
 	LSym *sym;
 	int32 eaddr;
+	int ri;
 	Reloc *r;
 
 	// If main section has no bits, nothing to relocate.
@@ -748,7 +749,7 @@ machorelocsect(Section *sect, LSym *first)
 			break;
 	}
 	
-	eaddr = sect->vaddr + sect->len;
+	eaddr = sect->vaddr + sect->length;
 	for(; sym != nil; sym = sym->next) {
 		if(!sym->reachable)
 			continue;
@@ -756,7 +757,8 @@ machorelocsect(Section *sect, LSym *first)
 			break;
 		ctxt->cursym = sym;
 		
-		for(r = sym->r; r < sym->r+sym->nr; r++) {
+		for(ri=0; ri<sym->nr; ri++) {
+			r = &sym->r[ri];
 			if(r->done)
 				continue;
 			if(thearch.machoreloc1(r, sym->value+r->off - sect->vaddr) < 0)

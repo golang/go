@@ -30,55 +30,54 @@ THE SOFTWARE.
 #include	<bio.h>
 #include	<link.h>
 #include	"lib.h"
+#include	"macho.h"
 
-enum {
-	MACHO_FAKE_GOTPCREL = 100,	// from macho.h
-	
+enum {	
 	N_EXT = 0x01,
 	N_TYPE = 0x1e,
 	N_STAB = 0xe0,
 };
 
-typedef struct MachoObj MachoObj;
-typedef struct MachoCmd MachoCmd;
-typedef struct MachoSeg MachoSeg;
-typedef struct MachoSect MachoSect;
-typedef struct MachoRel MachoRel;
-typedef struct MachoSymtab MachoSymtab;
-typedef struct MachoSym MachoSym;
-typedef struct MachoDysymtab MachoDysymtab;
+typedef struct LdMachoObj LdMachoObj;
+typedef struct LdMachoCmd LdMachoCmd;
+typedef struct LdMachoSeg LdMachoSeg;
+typedef struct LdMachoSect LdMachoSect;
+typedef struct LdMachoRel LdMachoRel;
+typedef struct LdMachoSymtab LdMachoSymtab;
+typedef struct LdMachoSym LdMachoSym;
+typedef struct LdMachoDysymtab LdMachoDysymtab;
 
 enum
 {
-	MachoCpuVax = 1,
-	MachoCpu68000 = 6,
-	MachoCpu386 = 7,
-	MachoCpuAmd64 = 0x1000007,
-	MachoCpuMips = 8,
-	MachoCpu98000 = 10,
-	MachoCpuHppa = 11,
-	MachoCpuArm = 12,
-	MachoCpu88000 = 13,
-	MachoCpuSparc = 14,
-	MachoCpu860 = 15,
-	MachoCpuAlpha = 16,
-	MachoCpuPower = 18,
+	LdMachoCpuVax = 1,
+	LdMachoCpu68000 = 6,
+	LdMachoCpu386 = 7,
+	LdMachoCpuAmd64 = 0x1000007,
+	LdMachoCpuMips = 8,
+	LdMachoCpu98000 = 10,
+	LdMachoCpuHppa = 11,
+	LdMachoCpuArm = 12,
+	LdMachoCpu88000 = 13,
+	LdMachoCpuSparc = 14,
+	LdMachoCpu860 = 15,
+	LdMachoCpuAlpha = 16,
+	LdMachoCpuPower = 18,
 
-	MachoCmdSegment = 1,
-	MachoCmdSymtab = 2,
-	MachoCmdSymseg = 3,
-	MachoCmdThread = 4,
-	MachoCmdDysymtab = 11,
-	MachoCmdSegment64 = 25,
+	LdMachoCmdSegment = 1,
+	LdMachoCmdSymtab = 2,
+	LdMachoCmdSymseg = 3,
+	LdMachoCmdThread = 4,
+	LdMachoCmdDysymtab = 11,
+	LdMachoCmdSegment64 = 25,
 
-	MachoFileObject = 1,
-	MachoFileExecutable = 2,
-	MachoFileFvmlib = 3,
-	MachoFileCore = 4,
-	MachoFilePreload = 5,
+	LdMachoFileObject = 1,
+	LdMachoFileExecutable = 2,
+	LdMachoFileFvmlib = 3,
+	LdMachoFileCore = 4,
+	LdMachoFilePreload = 5,
 };
 
-struct MachoSeg
+struct LdMachoSeg
 {
 	char name[16+1];
 	uint64 vmaddr;
@@ -89,10 +88,10 @@ struct MachoSeg
 	uint32 initprot;
 	uint32 nsect;
 	uint32 flags;
-	MachoSect *sect;
+	LdMachoSect *sect;
 };
 
-struct MachoSect
+struct LdMachoSect
 {
 	char	name[16+1];
 	char	segname[16+1];
@@ -107,10 +106,10 @@ struct MachoSect
 	uint32 res2;
 	LSym *sym;
 	
-	MachoRel *rel;
+	LdMachoRel *rel;
 };
 
-struct MachoRel
+struct LdMachoRel
 {
 	uint32 addr;
 	uint32 symnum;
@@ -122,7 +121,7 @@ struct MachoRel
 	uint32 value;
 };
 
-struct MachoSymtab
+struct LdMachoSymtab
 {
 	uint32 symoff;
 	uint32 nsym;
@@ -130,10 +129,10 @@ struct MachoSymtab
 	uint32 strsize;
 	
 	char *str;
-	MachoSym *sym;
+	LdMachoSym *sym;
 };
 
-struct MachoSym
+struct LdMachoSym
 {
 	char *name;
 	uint8 type;
@@ -144,7 +143,7 @@ struct MachoSym
 	LSym *sym;
 };
 
-struct MachoDysymtab
+struct LdMachoDysymtab
 {
 	uint32 ilocalsym;
 	uint32 nlocalsym;
@@ -167,21 +166,21 @@ struct MachoDysymtab
 	uint32 *indir;
 };
 
-struct MachoCmd
+struct LdMachoCmd
 {
 	int type;
 	uint32 off;
 	uint32 size;
-	MachoSeg seg;
-	MachoSymtab sym;
-	MachoDysymtab dsym;
+	LdMachoSeg seg;
+	LdMachoSymtab sym;
+	LdMachoDysymtab dsym;
 };
 
-struct MachoObj
+struct LdMachoObj
 {
 	Biobuf	*f;
 	int64	base;	// off in f where Mach-O begins
-	int64	len;		// length of Mach-O
+	int64	length;		// length of Mach-O
 	int is64;
 	char	*name;
 
@@ -190,16 +189,16 @@ struct MachoObj
 	uint subcputype;
 	uint32 filetype;
 	uint32 flags;
-	MachoCmd *cmd;
+	LdMachoCmd *cmd;
 	uint ncmd;
 };
 
 static int
-unpackcmd(uchar *p, MachoObj *m, MachoCmd *c, uint type, uint sz)
+unpackcmd(uchar *p, LdMachoObj *m, LdMachoCmd *c, uint type, uint sz)
 {
 	uint32 (*e4)(uchar*);
 	uint64 (*e8)(uchar*);
-	MachoSect *s;
+	LdMachoSect *s;
 	int i;
 
 	e4 = m->e->e32;
@@ -210,7 +209,7 @@ unpackcmd(uchar *p, MachoObj *m, MachoCmd *c, uint type, uint sz)
 	switch(type){
 	default:
 		return -1;
-	case MachoCmdSegment:
+	case LdMachoCmdSegment:
 		if(sz < 56)
 			return -1;
 		strecpy(c->seg.name, c->seg.name+sizeof c->seg.name, (char*)p+8);
@@ -242,7 +241,7 @@ unpackcmd(uchar *p, MachoObj *m, MachoCmd *c, uint type, uint sz)
 			p += 68;
 		}
 		break;
-	case MachoCmdSegment64:
+	case LdMachoCmdSegment64:
 		if(sz < 72)
 			return -1;
 		strecpy(c->seg.name, c->seg.name+sizeof c->seg.name, (char*)p+8);
@@ -275,7 +274,7 @@ unpackcmd(uchar *p, MachoObj *m, MachoCmd *c, uint type, uint sz)
 			p += 80;
 		}
 		break;
-	case MachoCmdSymtab:
+	case LdMachoCmdSymtab:
 		if(sz < 24)
 			return -1;
 		c->sym.symoff = e4(p+8);
@@ -283,7 +282,7 @@ unpackcmd(uchar *p, MachoObj *m, MachoCmd *c, uint type, uint sz)
 		c->sym.stroff = e4(p+16);
 		c->sym.strsize = e4(p+20);
 		break;
-	case MachoCmdDysymtab:
+	case LdMachoCmdDysymtab:
 		if(sz < 80)
 			return -1;
 		c->dsym.ilocalsym = e4(p+8);
@@ -310,9 +309,9 @@ unpackcmd(uchar *p, MachoObj *m, MachoCmd *c, uint type, uint sz)
 }
 
 static int
-macholoadrel(MachoObj *m, MachoSect *sect)
+macholoadrel(LdMachoObj *m, LdMachoSect *sect)
 {
-	MachoRel *rel, *r;
+	LdMachoRel *rel, *r;
 	uchar *buf, *p;
 	int i, n;
 	uint32 v;
@@ -359,7 +358,7 @@ macholoadrel(MachoObj *m, MachoSect *sect)
 }
 
 static int
-macholoaddsym(MachoObj *m, MachoDysymtab *d)
+macholoaddsym(LdMachoObj *m, LdMachoDysymtab *d)
 {
 	uchar *p;
 	int i, n;
@@ -377,12 +376,12 @@ macholoaddsym(MachoObj *m, MachoDysymtab *d)
 }
 
 static int 
-macholoadsym(MachoObj *m, MachoSymtab *symtab)
+macholoadsym(LdMachoObj *m, LdMachoSymtab *symtab)
 {
 	char *strbuf;
 	uchar *symbuf, *p;
 	int i, n, symsize;
-	MachoSym *sym, *s;
+	LdMachoSym *sym, *s;
 	uint32 v;
 
 	if(symtab->sym != nil)
@@ -422,7 +421,7 @@ macholoadsym(MachoObj *m, MachoSymtab *symtab)
 }
 
 void
-ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ldmacho(Biobuf *f, char *pkg, int64 length, char *pn)
 {
 	int i, j, is64;
 	uint64 secaddr;
@@ -430,16 +429,17 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 	uchar tmp[4];
 	uchar *dat;
 	ulong ncmd, cmdsz, ty, sz, off;
-	MachoObj *m;
+	LdMachoObj *m;
 	Endian *e;
 	int64 base;
-	MachoSect *sect;
-	MachoRel *rel;
+	LdMachoSect *sect;
+	LdMachoRel *rel;
+	int rpi;
 	LSym *s, *s1, *outer;
-	MachoCmd *c;
-	MachoSymtab *symtab;
-	MachoDysymtab *dsymtab;
-	MachoSym *sym;
+	LdMachoCmd *c;
+	LdMachoSymtab *symtab;
+	LdMachoDysymtab *dsymtab;
+	LdMachoSym *sym;
 	Reloc *r, *rp;
 	char *name;
 
@@ -467,7 +467,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 	if(is64)
 		Bread(f, tmp, 4);	// skip reserved word in header
 
-	m = mal(sizeof(*m)+ncmd*sizeof(MachoCmd)+cmdsz);
+	m = mal(sizeof(*m)+ncmd*sizeof(LdMachoCmd)+cmdsz);
 	m->f = f;
 	m->e = e;
 	m->cputype = e->e32(hdr+1*4);
@@ -477,7 +477,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 	m->flags = e->e32(hdr+6*4);
 	m->is64 = is64;
 	m->base = base;
-	m->len = len;
+	m->length = length;
 	m->name = pn;
 	
 	switch(thearch.thechar) {
@@ -485,20 +485,20 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 		diag("%s: mach-o %s unimplemented", pn, thestring);
 		return;
 	case '6':
-		if(e != &le || m->cputype != MachoCpuAmd64) {
+		if(e != &le || m->cputype != LdMachoCpuAmd64) {
 			diag("%s: mach-o object but not amd64", pn);
 			return;
 		}
 		break;
 	case '8':
-		if(e != &le || m->cputype != MachoCpu386) {
+		if(e != &le || m->cputype != LdMachoCpu386) {
 			diag("%s: mach-o object but not 386", pn);
 			return;
 		}
 		break;
 	}
 
-	m->cmd = (MachoCmd*)(m+1);
+	m->cmd = (LdMachoCmd*)(m+1);
 	off = sizeof hdr;
 	cmdp = (uchar*)(m->cmd+ncmd);
 	if(Bread(f, cmdp, cmdsz) != cmdsz){
@@ -518,7 +518,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 		unpackcmd(cmdp, m, &m->cmd[i], ty, sz);
 		cmdp += sz;
 		off += sz;
-		if(ty == MachoCmdSymtab) {
+		if(ty == LdMachoCmdSymtab) {
 			if(symtab != nil) {
 				werrstr("multiple symbol tables");
 				goto bad;
@@ -526,11 +526,11 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 			symtab = &m->cmd[i].sym;
 			macholoadsym(m, symtab);
 		}
-		if(ty == MachoCmdDysymtab) {
+		if(ty == LdMachoCmdDysymtab) {
 			dsymtab = &m->cmd[i].dsym;
 			macholoaddsym(m, dsymtab);
 		}
-		if((is64 && ty == MachoCmdSegment64) || (!is64 && ty == MachoCmdSegment)) {
+		if((is64 && ty == LdMachoCmdSegment64) || (!is64 && ty == LdMachoCmdSegment)) {
 			if(c != nil) {
 				werrstr("multiple load commands");
 				goto bad;
@@ -552,7 +552,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 		return;
 	}
 
-	if(c->seg.fileoff+c->seg.filesz >= len) {
+	if(c->seg.fileoff+c->seg.filesz >= length) {
 		werrstr("load segment out of range");
 		goto bad;
 	}
@@ -609,7 +609,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 			continue;
 		// TODO: check sym->type against outer->type.
 		name = sym->name;
-		if(name[0] == '_' && name[1] != '\0')
+		if(name[0] == '_' && name[1] != '\x00')
 			name++;
 		v = 0;
 		if(!(sym->type&N_EXT))
@@ -658,7 +658,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 		if((s = sect->sym) == nil)
 			continue;
 		if(s->sub) {
-			s->sub = listsort(s->sub, valuecmp, offsetof(LSym, sub));
+			s->sub = listsort(s->sub, valuecmp, listsubp);
 			
 			// assign sizes, now that we know symbols in sorted order.
 			for(s1 = s->sub; s1 != nil; s1 = s1->sub) {
@@ -696,12 +696,13 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 		if(sect->rel == nil)
 			continue;
 		r = mal(sect->nreloc*sizeof r[0]);
-		rp = r;
-		rel = sect->rel;
-		for(j=0; j<sect->nreloc; j++, rel++) {
+		rpi = 0;
+		for(j=0; j<sect->nreloc; j++) {
+			rp = &r[rpi];
+			rel = &sect->rel[j];
 			if(rel->scattered) {
 				int k;
-				MachoSect *ks;
+				LdMachoSect *ks;
 
 				if(thearch.thechar != '8') {
 					// mach-o only uses scattered relocation on 32-bit platforms
@@ -718,10 +719,10 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 					werrstr("unsupported scattered relocation %d", (int)rel->type);
 					goto bad;
 				}
-				if(!(rel+1)->scattered || (rel+1)->type != 1 ||
+				if(!sect->rel[j+1].scattered || sect->rel[j+1].type != 1 ||
 				   (rel->type != 4 && rel->type != 2) ||
-				   (rel+1)->value < sect->addr || (rel+1)->value >= sect->addr+sect->size) {
-					werrstr("unsupported scattered relocation %d/%d", (int)rel->type, (int)(rel+1)->type);
+				   sect->rel[j+1].value < sect->addr || sect->rel[j+1].value >= sect->addr+sect->size) {
+					werrstr("unsupported scattered relocation %d/%d", (int)rel->type, (int)sect->rel[j+1].type);
 					goto bad;
 				}
 
@@ -738,10 +739,10 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 				rp->add = 0;
 				
 				// want to make it pc-relative aka relative to rp->off+4
-				// but the scatter asks for relative to off = (rel+1)->value - sect->addr.
+				// but the scatter asks for relative to off = sect->rel[j+1].value - sect->addr.
 				// adjust rp->add accordingly.
 				rp->type = R_PCREL;
-				rp->add += (rp->off+4) - ((rel+1)->value - sect->addr);
+				rp->add += (rp->off+4) - (sect->rel[j+1].value - sect->addr);
 				
 				// now consider the desired symbol.
 				// find the section where it lives.
@@ -779,9 +780,8 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 					werrstr("unsupported scattered relocation: reference to %s/%s", ks->segname, ks->name);
 					goto bad;
 				}
-				rp++;
+				rpi++;
 				// skip #1 of 2 rel; continue skips #2 of 2.
-				rel++;
 				j++;
 				continue;
 			}
@@ -840,11 +840,11 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 				}
 				rp->sym = symtab->sym[rel->symnum].sym;
 			}
-			rp++;
+			rpi++;
 		}			
-		qsort(r, rp - r, sizeof r[0], rbyoff);
+		qsort(r, rpi, sizeof r[0], rbyoff);
 		s->r = r;
-		s->nr = rp - r;
+		s->nr = rpi;
 	}
 	return;
 

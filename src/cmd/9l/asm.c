@@ -701,10 +701,10 @@ asmb(void)
 
 	sect = segtext.sect;
 	cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
-	codeblk(sect->vaddr, sect->len);
+	codeblk(sect->vaddr, sect->length);
 	for(sect = sect->next; sect != nil; sect = sect->next) {
 		cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
-		datblk(sect->vaddr, sect->len);
+		datblk(sect->vaddr, sect->length);
 	}
 
 	if(segrodata.filelen > 0) {
@@ -734,14 +734,13 @@ asmb(void)
 		Bflush(&bso);
 		switch(HEADTYPE) {
 		default:
-			if(iself)
-				goto ElfSym;
+			if(iself) {
+				symo = segdata.fileoff+segdata.filelen;
+				symo = rnd(symo, INITRND);
+			}
+			break;
 		case Hplan9:
 			symo = segdata.fileoff+segdata.filelen;
-			break;
-		ElfSym:
-			symo = segdata.fileoff+segdata.filelen;
-			symo = rnd(symo, INITRND);
 			break;
 		}
 		cseek(symo);
@@ -789,7 +788,7 @@ asmb(void)
 		thearch.lput(0x647);			/* magic */
 		thearch.lput(segtext.filelen);			/* sizes */
 		thearch.lput(segdata.filelen);
-		thearch.lput(segdata.len - segdata.filelen);
+		thearch.lput(segdata.length - segdata.filelen);
 		thearch.lput(symsize);			/* nsyms */
 		thearch.lput(entryvalue());		/* va of entry */
 		thearch.lput(0L);
@@ -807,9 +806,9 @@ asmb(void)
 	if(debug['c']){
 		print("textsize=%ulld\n", segtext.filelen);
 		print("datsize=%ulld\n", segdata.filelen);
-		print("bsssize=%ulld\n", segdata.len - segdata.filelen);
+		print("bsssize=%ulld\n", segdata.length - segdata.filelen);
 		print("symsize=%d\n", symsize);
 		print("lcsize=%d\n", lcsize);
-		print("total=%lld\n", segtext.filelen+segdata.len+symsize+lcsize);
+		print("total=%lld\n", segtext.filelen+segdata.length+symsize+lcsize);
 	}
 }

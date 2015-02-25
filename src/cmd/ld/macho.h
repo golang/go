@@ -53,14 +53,15 @@ int	machowrite(void);
 void	machoinit(void);
 void	machosymorder(void);
 void	machoemitreloc(void);
-int	machoreloc1(Reloc*, vlong);
 
 /*
  * Total amount of space to reserve at the start of the file
  * for Header, PHeaders, and SHeaders.
  * May waste some.
  */
-#define	INITIAL_MACHO_HEADR	4*1024
+enum {
+	INITIAL_MACHO_HEADR	= 4*1024,
+};
 
 enum {
 	MACHO_CPU_AMD64 = (1<<24)|7,

@@ -91,9 +91,9 @@ addrput(vlong addr)
 static int
 uleb128enc(uvlong v, char* dst)
 {
-	uint8 c, len;
+	uint8 c, length;
 
-	len = 0;
+	length = 0;
 	do {
 		c = v & 0x7f;
 		v >>= 7;
@@ -101,17 +101,17 @@ uleb128enc(uvlong v, char* dst)
 			c |= 0x80;
 		if (dst)
 			*dst++ = c;
-		len++;
+		length++;
 	} while (c & 0x80);
-	return len;
+	return length;
 }
 
 static int
 sleb128enc(vlong v, char *dst)
 {
-	uint8 c, s, len;
+	uint8 c, s, length;
 
-	len = 0;
+	length = 0;
 	do {
 		c = v & 0x7f;
 		s = v & 0x40;
@@ -120,9 +120,9 @@ sleb128enc(vlong v, char *dst)
 			c |= 0x80;
 		if (dst)
 			*dst++ = c;
-		len++;
+		length++;
 	} while(c & 0x80);
-	return len;
+	return length;
 }
 
 static void
@@ -202,192 +202,192 @@ static struct DWAbbrev {
 	/* COMPUNIT */
 	{
 		DW_TAG_compile_unit, DW_CHILDREN_yes,
-		DW_AT_name,	 DW_FORM_string,
-		DW_AT_language,	 DW_FORM_data1,
-		DW_AT_low_pc,	 DW_FORM_addr,
-		DW_AT_high_pc,	 DW_FORM_addr,
-		DW_AT_stmt_list, DW_FORM_data4,
-		0, 0
+		{{DW_AT_name,	 DW_FORM_string},
+		{DW_AT_language,	 DW_FORM_data1},
+		{DW_AT_low_pc,	 DW_FORM_addr},
+		{DW_AT_high_pc,	 DW_FORM_addr},
+		{DW_AT_stmt_list, DW_FORM_data4},
+		{0, 0}}
 	},
 	/* FUNCTION */
 	{
 		DW_TAG_subprogram, DW_CHILDREN_yes,
-		DW_AT_name,	 DW_FORM_string,
-		DW_AT_low_pc,	 DW_FORM_addr,
-		DW_AT_high_pc,	 DW_FORM_addr,
-		DW_AT_external,	 DW_FORM_flag,
-		0, 0
+		{{DW_AT_name,	 DW_FORM_string},
+		{DW_AT_low_pc,	 DW_FORM_addr},
+		{DW_AT_high_pc,	 DW_FORM_addr},
+		{DW_AT_external,	 DW_FORM_flag},
+		{0, 0}}
 	},
 	/* VARIABLE */
 	{
 		DW_TAG_variable, DW_CHILDREN_no,
-		DW_AT_name,	 DW_FORM_string,
-		DW_AT_location,	 DW_FORM_block1,
-		DW_AT_type,	 DW_FORM_ref_addr,
-		DW_AT_external,	 DW_FORM_flag,
-		0, 0
+		{{DW_AT_name,	 DW_FORM_string},
+		{DW_AT_location,	 DW_FORM_block1},
+		{DW_AT_type,	 DW_FORM_ref_addr},
+		{DW_AT_external,	 DW_FORM_flag},
+		{0, 0}}
 	},
 	/* AUTO */
 	{
 		DW_TAG_variable, DW_CHILDREN_no,
-		DW_AT_name,	 DW_FORM_string,
-		DW_AT_location,	 DW_FORM_block1,
-		DW_AT_type,	 DW_FORM_ref_addr,
-		0, 0
+		{{DW_AT_name,	 DW_FORM_string},
+		{DW_AT_location,	 DW_FORM_block1},
+		{DW_AT_type,	 DW_FORM_ref_addr},
+		{0, 0}}
 	},
 	/* PARAM */
 	{
 		DW_TAG_formal_parameter, DW_CHILDREN_no,
-		DW_AT_name,	 DW_FORM_string,
-		DW_AT_location,	 DW_FORM_block1,
-		DW_AT_type,	 DW_FORM_ref_addr,
-		0, 0
+		{{DW_AT_name,	 DW_FORM_string},
+		{DW_AT_location,	 DW_FORM_block1},
+		{DW_AT_type,	 DW_FORM_ref_addr},
+		{0, 0}}
 	},
 	/* STRUCTFIELD */
 	{
 		DW_TAG_member,	DW_CHILDREN_no,
-		DW_AT_name,	DW_FORM_string,
-		DW_AT_data_member_location, DW_FORM_block1,
-		DW_AT_type,	 DW_FORM_ref_addr,
-		0, 0
+		{{DW_AT_name,	DW_FORM_string},
+		{DW_AT_data_member_location, DW_FORM_block1},
+		{DW_AT_type,	 DW_FORM_ref_addr},
+		{0, 0}}
 	},
 	/* FUNCTYPEPARAM */
 	{
 		DW_TAG_formal_parameter, DW_CHILDREN_no,
 		// No name!
-		DW_AT_type,	 DW_FORM_ref_addr,
-		0, 0
+		{{DW_AT_type,	 DW_FORM_ref_addr},
+		{0, 0}}
 	},
 
 	/* DOTDOTDOT */
 	{
 		DW_TAG_unspecified_parameters, DW_CHILDREN_no,
-		0, 0
+		{{0, 0}}
 	},
 	/* ARRAYRANGE */
 	{
 		DW_TAG_subrange_type, DW_CHILDREN_no,
 		// No name!
-		DW_AT_type,	 DW_FORM_ref_addr,
-		DW_AT_count, DW_FORM_udata,
-		0, 0
+		{{DW_AT_type,	 DW_FORM_ref_addr},
+		{DW_AT_count, DW_FORM_udata},
+		{0, 0}}
 	},
 
 	// Below here are the types considered public by ispubtype
 	/* NULLTYPE */
 	{
 		DW_TAG_unspecified_type, DW_CHILDREN_no,
-		DW_AT_name,	DW_FORM_string,
-		0, 0
+		{{DW_AT_name,	DW_FORM_string},
+		{0, 0}}
 	},
 	/* BASETYPE */
 	{
 		DW_TAG_base_type, DW_CHILDREN_no,
-		DW_AT_name,	 DW_FORM_string,
-		DW_AT_encoding,	 DW_FORM_data1,
-		DW_AT_byte_size, DW_FORM_data1,
-		DW_AT_go_kind, DW_FORM_data1,
-		0, 0
+		{{DW_AT_name,	 DW_FORM_string},
+		{DW_AT_encoding,	 DW_FORM_data1},
+		{DW_AT_byte_size, DW_FORM_data1},
+		{DW_AT_go_kind, DW_FORM_data1},
+		{0, 0}}
 	},
 	/* ARRAYTYPE */
 	// child is subrange with upper bound
 	{
 		DW_TAG_array_type, DW_CHILDREN_yes,
-		DW_AT_name,	DW_FORM_string,
-		DW_AT_type,	DW_FORM_ref_addr,
-		DW_AT_byte_size, DW_FORM_udata,
-		DW_AT_go_kind, DW_FORM_data1,
-		0, 0
+		{{DW_AT_name,	DW_FORM_string},
+		{DW_AT_type,	DW_FORM_ref_addr},
+		{DW_AT_byte_size, DW_FORM_udata},
+		{DW_AT_go_kind, DW_FORM_data1},
+		{0, 0}}
 	},
 
 	/* CHANTYPE */
 	{
 		DW_TAG_typedef, DW_CHILDREN_no,
-		DW_AT_name,	DW_FORM_string,
-		DW_AT_type,	DW_FORM_ref_addr,
-		DW_AT_go_kind, DW_FORM_data1,
-		DW_AT_go_elem, DW_FORM_ref_addr,
-		0, 0
+		{{DW_AT_name,	DW_FORM_string},
+		{DW_AT_type,	DW_FORM_ref_addr},
+		{DW_AT_go_kind, DW_FORM_data1},
+		{DW_AT_go_elem, DW_FORM_ref_addr},
+		{0, 0}}
 	},
 
 	/* FUNCTYPE */
 	{
 		DW_TAG_subroutine_type, DW_CHILDREN_yes,
-		DW_AT_name,	DW_FORM_string,
-//		DW_AT_type,	DW_FORM_ref_addr,
-		DW_AT_go_kind, DW_FORM_data1,
-		0, 0
+		{{DW_AT_name,	DW_FORM_string},
+//		{DW_AT_type,	DW_FORM_ref_addr},
+		{DW_AT_go_kind, DW_FORM_data1},
+		{0, 0}}
 	},
 
 	/* IFACETYPE */
 	{
 		DW_TAG_typedef, DW_CHILDREN_yes,
-		DW_AT_name,	 DW_FORM_string,
-		DW_AT_type,	DW_FORM_ref_addr,
-		DW_AT_go_kind, DW_FORM_data1,
-		0, 0
+		{{DW_AT_name,	 DW_FORM_string},
+		{DW_AT_type,	DW_FORM_ref_addr},
+		{DW_AT_go_kind, DW_FORM_data1},
+		{0, 0}}
 	},
 
 	/* MAPTYPE */
 	{
 		DW_TAG_typedef, DW_CHILDREN_no,
-		DW_AT_name,	DW_FORM_string,
-		DW_AT_type,	DW_FORM_ref_addr,
-		DW_AT_go_kind, DW_FORM_data1,
-		DW_AT_go_key, DW_FORM_ref_addr,
-		DW_AT_go_elem, DW_FORM_ref_addr,
-		0, 0
+		{{DW_AT_name,	DW_FORM_string},
+		{DW_AT_type,	DW_FORM_ref_addr},
+		{DW_AT_go_kind, DW_FORM_data1},
+		{DW_AT_go_key, DW_FORM_ref_addr},
+		{DW_AT_go_elem, DW_FORM_ref_addr},
+		{0, 0}}
 	},
 
 	/* PTRTYPE */
 	{
 		DW_TAG_pointer_type, DW_CHILDREN_no,
-		DW_AT_name,	DW_FORM_string,
-		DW_AT_type,	DW_FORM_ref_addr,
-		DW_AT_go_kind, DW_FORM_data1,
-		0, 0
+		{{DW_AT_name,	DW_FORM_string},
+		{DW_AT_type,	DW_FORM_ref_addr},
+		{DW_AT_go_kind, DW_FORM_data1},
+		{0, 0}}
 	},
 	/* BARE_PTRTYPE */
 	{
 		DW_TAG_pointer_type, DW_CHILDREN_no,
-		DW_AT_name,	DW_FORM_string,
-		0, 0
+		{{DW_AT_name,	DW_FORM_string},
+		{0, 0}}
 	},
 
 	/* SLICETYPE */
 	{
 		DW_TAG_structure_type, DW_CHILDREN_yes,
-		DW_AT_name,	DW_FORM_string,
-		DW_AT_byte_size, DW_FORM_udata,
-		DW_AT_go_kind, DW_FORM_data1,
-		DW_AT_go_elem, DW_FORM_ref_addr,
-		0, 0
+		{{DW_AT_name,	DW_FORM_string},
+		{DW_AT_byte_size, DW_FORM_udata},
+		{DW_AT_go_kind, DW_FORM_data1},
+		{DW_AT_go_elem, DW_FORM_ref_addr},
+		{0, 0}}
 	},
 
 	/* STRINGTYPE */
 	{
 		DW_TAG_structure_type, DW_CHILDREN_yes,
-		DW_AT_name,	DW_FORM_string,
-		DW_AT_byte_size, DW_FORM_udata,
-		DW_AT_go_kind, DW_FORM_data1,
-		0, 0
+		{{DW_AT_name,	DW_FORM_string},
+		{DW_AT_byte_size, DW_FORM_udata},
+		{DW_AT_go_kind, DW_FORM_data1},
+		{0, 0}}
 	},
 
 	/* STRUCTTYPE */
 	{
 		DW_TAG_structure_type, DW_CHILDREN_yes,
-		DW_AT_name,	DW_FORM_string,
-		DW_AT_byte_size, DW_FORM_udata,
-		DW_AT_go_kind, DW_FORM_data1,
-		0, 0
+		{{DW_AT_name,	DW_FORM_string},
+		{DW_AT_byte_size, DW_FORM_udata},
+		{DW_AT_go_kind, DW_FORM_data1},
+		{0, 0}}
 	},
 
 	/* TYPEDECL */
 	{
 		DW_TAG_typedef, DW_CHILDREN_no,
-		DW_AT_name,	DW_FORM_string,
-		DW_AT_type,	DW_FORM_ref_addr,
-		0, 0
+		{{DW_AT_name,	DW_FORM_string},
+		{DW_AT_type,	DW_FORM_ref_addr},
+		{0, 0}}
 	},
 };
 
@@ -425,7 +425,7 @@ enum
 };
 
 static uint32
-hashstr(char* s)
+dwarfhashstr(char* s)
 {
 	uint32 h;
 
@@ -446,7 +446,7 @@ struct DWAttr {
 	uint16 atr;  // DW_AT_
 	uint8 cls;  // DW_CLS_
 	vlong value;
-	char *data;
+	void *data;
 };
 
 typedef struct DWDie DWDie;
@@ -471,7 +471,7 @@ static DWDie dwtypes;
 static DWDie dwglobals;
 
 static DWAttr*
-newattr(DWDie *die, uint16 attr, int cls, vlong value, char *data)
+newattr(DWDie *die, uint16 attr, int cls, vlong value, void *data)
 {
 	DWAttr *a;
 
@@ -528,7 +528,7 @@ newdie(DWDie *parent, int abbrev, char *name)
 	newattr(die, DW_AT_name, DW_CLS_STRING, strlen(name), name);
 
 	if (parent->hash) {
-		h = hashstr(name);
+		h = dwarfhashstr(name);
 		die->hlink = parent->hash[h];
 		parent->hash[h] = die;
 	}
@@ -574,7 +574,7 @@ top:
 		goto notfound;
 	}
 
-	h = hashstr(name);
+	h = dwarfhashstr(name);
 	a = die->hash[h];
 
 	if (a == nil)
@@ -652,15 +652,17 @@ newrefattr(DWDie *die, uint16 attr, DWDie* ref)
 {
 	if (ref == nil)
 		return nil;
-	return newattr(die, attr, DW_CLS_REFERENCE, 0, (char*)ref);
+	return newattr(die, attr, DW_CLS_REFERENCE, 0, ref);
 }
 
 static int fwdcount;
 
 static void
-putattr(int abbrev, int form, int cls, vlong value, char *data)
+putattr(int abbrev, int form, int cls, vlong value, void *data)
 {
 	vlong off;
+	uchar *p;
+	int i;
 
 	switch(form) {
 	case DW_FORM_addr:	// address
@@ -686,28 +688,32 @@ putattr(int abbrev, int form, int cls, vlong value, char *data)
 		}
 		value &= 0xff;
 		cput(value);
-		while(value--)
-			cput(*data++);
+		p = data;
+		for(i=0; i<value; i++)
+			cput(p[i]);
 		break;
 
 	case DW_FORM_block2:	// block
 		value &= 0xffff;
 		thearch.wput(value);
-		while(value--)
-			cput(*data++);
+		p = data;
+		for(i=0; i<value; i++)
+			cput(p[i]);
 		break;
 
 	case DW_FORM_block4:	// block
 		value &= 0xffffffff;
 		thearch.lput(value);
-		while(value--)
-			cput(*data++);
+		p = data;
+		for(i=0; i<value; i++)
+			cput(p[i]);
 		break;
 
 	case DW_FORM_block:	// block
 		uleb128put(value);
-		while(value--)
-			cput(*data++);
+		p = data;
+		for(i=0; i<value; i++)
+			cput(p[i]);
 		break;
 
 	case DW_FORM_data1:	// constant
@@ -743,7 +749,11 @@ putattr(int abbrev, int form, int cls, vlong value, char *data)
 		break;
 
 	case DW_FORM_flag:	// flag
-		cput(value?1:0);
+		if(value) {
+			cput(1);
+		}else{
+			cput(0);
+		}
 		break;
 
 	case DW_FORM_ref_addr:	// reference to a DIE in the .info section
@@ -872,7 +882,7 @@ newmemberoffsetattr(DWDie *die, int32 offs)
 static void
 newabslocexprattr(DWDie *die, vlong addr, LSym *sym)
 {
-	newattr(die, DW_AT_location, DW_CLS_ADDRESS, addr, (char*)sym);
+	newattr(die, DW_AT_location, DW_CLS_ADDRESS, addr, sym);
 }
 
 static DWDie* defptrto(DWDie *dwtype);	// below
@@ -1154,7 +1164,7 @@ substitutetype(DWDie *structdie, char *field, DWDie* dwtype)
 
 	a = getattr(child, DW_AT_type);
 	if (a != nil)
-		a->data = (char*) dwtype;
+		a->data = dwtype;
 	else
 		newrefattr(child, DW_AT_type, dwtype);
 }
@@ -1219,7 +1229,7 @@ static void
 synthesizemaptypes(DWDie *die)
 {
 
-	DWDie *hash, *bucket, *dwh, *dwhk, *dwhv, *dwhb, *keytype, *valtype, *fld;
+	DWDie *hash, *bucket, *dwh, *dwhk, *dwhv, *dwhb, *keytype, *valtype, *fld, *t;
 	int indirect_key, indirect_val;
 	int keysize, valsize;
 	DWAttr *a;
@@ -1239,9 +1249,15 @@ synthesizemaptypes(DWDie *die)
 
 		// compute size info like hashmap.c does.
 		a = getattr(keytype, DW_AT_byte_size);
-		keysize = a ? a->value : thearch.ptrsize;  // We don't store size with Pointers
+		if(a)
+			keysize = a->value;
+		else
+			keysize = thearch.ptrsize;
 		a = getattr(valtype, DW_AT_byte_size);
-		valsize = a ? a->value : thearch.ptrsize;
+		if(a)
+			valsize = a->value;
+		else
+			valsize = thearch.ptrsize;
 		indirect_key = 0;
 		indirect_val = 0;
 		if(keysize > MaxKeySize) {
@@ -1258,7 +1274,10 @@ synthesizemaptypes(DWDie *die)
 			      mkinternaltypename("[]key",
 						 getattr(keytype, DW_AT_name)->data, nil));
 		newattr(dwhk, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize * keysize, 0);
-		newrefattr(dwhk, DW_AT_type, indirect_key ? defptrto(keytype) : keytype);
+		t = keytype;
+		if(indirect_key)
+			t = defptrto(keytype);
+		newrefattr(dwhk, DW_AT_type, t);
 		fld = newdie(dwhk, DW_ABRV_ARRAYRANGE, "size");
 		newattr(fld, DW_AT_count, DW_CLS_CONSTANT, BucketSize, 0);
 		newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"));
@@ -1268,7 +1287,10 @@ synthesizemaptypes(DWDie *die)
 			      mkinternaltypename("[]val",
 						 getattr(valtype, DW_AT_name)->data, nil));
 		newattr(dwhv, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize * valsize, 0);
-		newrefattr(dwhv, DW_AT_type, indirect_val ? defptrto(valtype) : valtype);
+		t = valtype;
+		if(indirect_val)
+			t = defptrto(valtype);
+		newrefattr(dwhv, DW_AT_type, t);
 		fld = newdie(dwhv, DW_ABRV_ARRAYRANGE, "size");
 		newattr(fld, DW_AT_count, DW_CLS_CONSTANT, BucketSize, 0);
 		newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"));
@@ -1335,7 +1357,10 @@ synthesizechantypes(DWDie *die)
 			continue;
 		elemtype = (DWDie*) getattr(die, DW_AT_go_elem)->data;
 		a = getattr(elemtype, DW_AT_byte_size);
-		elemsize = a ? a->value : thearch.ptrsize;
+		if(a)	
+			elemsize = a->value;
+		else
+			elemsize = thearch.ptrsize;
 
 		// sudog<T>
 		dws = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
@@ -1343,8 +1368,11 @@ synthesizechantypes(DWDie *die)
 				getattr(elemtype, DW_AT_name)->data, nil));
 		copychildren(dws, sudog);
 		substitutetype(dws, "elem", elemtype);
-		newattr(dws, DW_AT_byte_size, DW_CLS_CONSTANT,
-			sudogsize + (elemsize > 8 ? elemsize - 8 : 0), nil);
+		if(elemsize > 8)
+			elemsize -= 8;
+		else
+			elemsize = 0;
+		newattr(dws, DW_AT_byte_size, DW_CLS_CONSTANT, sudogsize + elemsize, nil);
 
 		// waitq<T>
 		dww = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
@@ -1425,13 +1453,13 @@ finddebugruntimepath(LSym *s)
 	char *p;
 	LSym *f;
 	
-	if(gdbscript[0] != '\0')
+	if(gdbscript[0] != '\x00')
 		return;
 
 	for(i=0; i<s->pcln->nfile; i++) {
 		f = s->pcln->file[i];
 		if((p = strstr(f->name, "runtime/runtime.go")) != nil) {
-			*p = '\0';
+			*p = '\x00';
 			snprint(gdbscript, sizeof gdbscript, "%sruntime/runtime-gdb.py", f->name);
 			*p = 'r';
 			break;
@@ -1512,7 +1540,7 @@ flushunit(DWDie *dwinfo, vlong pc, LSym *pcsym, vlong unitstart, int32 header_le
 	vlong here;
 
 	if (dwinfo != nil && pc != 0) {
-		newattr(dwinfo, DW_AT_high_pc, DW_CLS_ADDRESS, pc+1, (char*)pcsym);
+		newattr(dwinfo, DW_AT_high_pc, DW_CLS_ADDRESS, pc+1, pcsym);
 	}
 
 	if (unitstart >= 0) {
@@ -1522,7 +1550,7 @@ flushunit(DWDie *dwinfo, vlong pc, LSym *pcsym, vlong unitstart, int32 header_le
 
 		here = cpos();
 		cseek(unitstart);
-		thearch.lput(here - unitstart - sizeof(int32));	 // unit_length
+		thearch.lput(here - unitstart - 4);	 // unit_length
 		thearch.wput(2);  // dwarf version
 		thearch.lput(header_length); // header length starting here
 		cseek(here);
@@ -1564,7 +1592,7 @@ writelines(void)
 	dwinfo = newdie(&dwroot, DW_ABRV_COMPUNIT, estrdup("go"));
 	newattr(dwinfo, DW_AT_language, DW_CLS_CONSTANT,lang, 0);
 	newattr(dwinfo, DW_AT_stmt_list, DW_CLS_PTR, unitstart - lineo, 0);
-	newattr(dwinfo, DW_AT_low_pc, DW_CLS_ADDRESS, s->value, (char*)s);
+	newattr(dwinfo, DW_AT_low_pc, DW_CLS_ADDRESS, s->value, s);
 
 	// Write .debug_line Line Number Program Header (sec 6.2.4)
 	// Fields marked with (*) must be changed for 64-bit dwarf
@@ -1616,10 +1644,10 @@ writelines(void)
 		s = ctxt->cursym;
 
 		dwfunc = newdie(dwinfo, DW_ABRV_FUNCTION, s->name);
-		newattr(dwfunc, DW_AT_low_pc, DW_CLS_ADDRESS, s->value, (char*)s);
+		newattr(dwfunc, DW_AT_low_pc, DW_CLS_ADDRESS, s->value, s);
 		epc = s->value + s->size;
 		epcs = s;
-		newattr(dwfunc, DW_AT_high_pc, DW_CLS_ADDRESS, epc, (char*)s);
+		newattr(dwfunc, DW_AT_high_pc, DW_CLS_ADDRESS, epc, s);
 		if (s->version == 0)
 			newattr(dwfunc, DW_AT_external, DW_CLS_FLAG, 1, 0);
 
@@ -2012,12 +2040,13 @@ align(vlong size)
 static vlong
 writedwarfreloc(LSym* s)
 {
-	int i;
+	int i, ri;
 	vlong start;
 	Reloc *r;
 	
 	start = cpos();
-	for(r = s->r; r < s->r+s->nr; r++) {
+	for(ri=0; ri<s->nr; ri++) {
+		r = &s->r[ri];
 		if(iself)
 			i = thearch.elfreloc1(r, r->off);
 		else if(HEADTYPE == Hdarwin)
@@ -2228,7 +2257,7 @@ dwarfaddshstrings(LSym *shstrtab)
 // Add section symbols for DWARF debug info.  This is called before
 // dwarfaddelfheaders.
 void
-dwarfaddelfsectionsyms()
+dwarfaddelfsectionsyms(void)
 {
 	if(infosym != nil) {
 		infosympos = cpos();

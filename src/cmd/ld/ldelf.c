@@ -251,6 +251,7 @@ typedef struct ElfSym ElfSym;
 struct ElfSect
 {
 	char		*name;
+	uint32	nameoff;
 	uint32	type;
 	uint64	flags;
 	uint64	addr;
@@ -268,7 +269,7 @@ struct ElfObj
 {
 	Biobuf	*f;
 	int64	base;	// offset in f where ELF begins
-	int64	len;		// length of ELF
+	int64	length;		// length of ELF
 	int	is64;
 	char	*name;
 
@@ -310,8 +311,8 @@ struct ElfSym
 uchar ElfMagic[4] = { 0x7F, 'E', 'L', 'F' };
 
 static ElfSect*	section(ElfObj*, char*);
-static int	map(ElfObj*, ElfSect*);
-static int	readsym(ElfObj*, int i, ElfSym*, int);
+static int	elfmap(ElfObj*, ElfSect*);
+static int	readelfsym(ElfObj*, int i, ElfSym*, int);
 static int	reltype(char*, int, uchar*);
 
 int
@@ -325,7 +326,7 @@ valuecmp(LSym *a, LSym *b)
 }
 
 void
-ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ldelf(Biobuf *f, char *pkg, int64 length, char *pn)
 {
 	int32 base;
 	uint64 add, info;
@@ -334,7 +335,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 	uchar hdrbuf[64];
 	uchar *p;
 	ElfHdrBytes *hdr;
-	ElfObj *obj;
+	ElfObj *elfobj;
 	ElfSect *sect, *rsect;
 	ElfSym sym;
 	Endian *e;
@@ -367,12 +368,12 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 	}
 
 	// read header
-	obj = mal(sizeof *obj);
-	obj->e = e;
-	obj->f = f;
-	obj->base = base;
-	obj->len = len;
-	obj->name = pn;
+	elfobj = mal(sizeof *elfobj);
+	elfobj->e = e;
+	elfobj->f = f;
+	elfobj->base = base;
+	elfobj->length = length;
+	elfobj->name = pn;
 	
 	is64 = 0;
 	if(hdr->ident[4] == ElfClass64) {
@@ -380,36 +381,36 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 
 		is64 = 1;
 		hdr = (ElfHdrBytes64*)hdrbuf;
-		obj->type = e->e16(hdr->type);
-		obj->machine = e->e16(hdr->machine);
-		obj->version = e->e32(hdr->version);
-		obj->phoff = e->e64(hdr->phoff);
-		obj->shoff = e->e64(hdr->shoff);
-		obj->flags = e->e32(hdr->flags);
-		obj->ehsize = e->e16(hdr->ehsize);
-		obj->phentsize = e->e16(hdr->phentsize);
-		obj->phnum = e->e16(hdr->phnum);
-		obj->shentsize = e->e16(hdr->shentsize);
-		obj->shnum = e->e16(hdr->shnum);
-		obj->shstrndx = e->e16(hdr->shstrndx);
+		elfobj->type = e->e16(hdr->type);
+		elfobj->machine = e->e16(hdr->machine);
+		elfobj->version = e->e32(hdr->version);
+		elfobj->phoff = e->e64(hdr->phoff);
+		elfobj->shoff = e->e64(hdr->shoff);
+		elfobj->flags = e->e32(hdr->flags);
+		elfobj->ehsize = e->e16(hdr->ehsize);
+		elfobj->phentsize = e->e16(hdr->phentsize);
+		elfobj->phnum = e->e16(hdr->phnum);
+		elfobj->shentsize = e->e16(hdr->shentsize);
+		elfobj->shnum = e->e16(hdr->shnum);
+		elfobj->shstrndx = e->e16(hdr->shstrndx);
 	} else {
-		obj->type = e->e16(hdr->type);
-		obj->machine = e->e16(hdr->machine);
-		obj->version = e->e32(hdr->version);
-		obj->entry = e->e32(hdr->entry);
-		obj->phoff = e->e32(hdr->phoff);
-		obj->shoff = e->e32(hdr->shoff);
-		obj->flags = e->e32(hdr->flags);
-		obj->ehsize = e->e16(hdr->ehsize);
-		obj->phentsize = e->e16(hdr->phentsize);
-		obj->phnum = e->e16(hdr->phnum);
-		obj->shentsize = e->e16(hdr->shentsize);
-		obj->shnum = e->e16(hdr->shnum);
-		obj->shstrndx = e->e16(hdr->shstrndx);
+		elfobj->type = e->e16(hdr->type);
+		elfobj->machine = e->e16(hdr->machine);
+		elfobj->version = e->e32(hdr->version);
+		elfobj->entry = e->e32(hdr->entry);
+		elfobj->phoff = e->e32(hdr->phoff);
+		elfobj->shoff = e->e32(hdr->shoff);
+		elfobj->flags = e->e32(hdr->flags);
+		elfobj->ehsize = e->e16(hdr->ehsize);
+		elfobj->phentsize = e->e16(hdr->phentsize);
+		elfobj->phnum = e->e16(hdr->phnum);
+		elfobj->shentsize = e->e16(hdr->shentsize);
+		elfobj->shnum = e->e16(hdr->shnum);
+		elfobj->shstrndx = e->e16(hdr->shstrndx);
 	}
-	obj->is64 = is64;
+	elfobj->is64 = is64;
 	
-	if(hdr->ident[6] != obj->version)
+	if(hdr->ident[6] != elfobj->version)
 		goto bad;
 
 	if(e->e16(hdr->type) != ElfTypeRelocatable) {
@@ -422,25 +423,25 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 		diag("%s: elf %s unimplemented", pn, thestring);
 		return;
 	case '5':
-		if(e != &le || obj->machine != ElfMachArm || hdr->ident[4] != ElfClass32) {
+		if(e != &le || elfobj->machine != ElfMachArm || hdr->ident[4] != ElfClass32) {
 			diag("%s: elf object but not arm", pn);
 			return;
 		}
 		break;
 	case '6':
-		if(e != &le || obj->machine != ElfMachAmd64 || hdr->ident[4] != ElfClass64) {
+		if(e != &le || elfobj->machine != ElfMachAmd64 || hdr->ident[4] != ElfClass64) {
 			diag("%s: elf object but not amd64", pn);
 			return;
 		}
 		break;
 	case '8':
-		if(e != &le || obj->machine != ElfMach386 || hdr->ident[4] != ElfClass32) {
+		if(e != &le || elfobj->machine != ElfMach386 || hdr->ident[4] != ElfClass32) {
 			diag("%s: elf object but not 386", pn);
 			return;
 		}
 		break;
 	case '9':
-		if(obj->machine != ElfMachPower64 || hdr->ident[4] != ElfClass64) {
+		if(elfobj->machine != ElfMachPower64 || hdr->ident[4] != ElfClass64) {
 			diag("%s: elf object but not ppc64", pn);
 			return;
 		}
@@ -448,12 +449,12 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 	}
 
 	// load section list into memory.
-	obj->sect = mal(obj->shnum*sizeof obj->sect[0]);
-	obj->nsect = obj->shnum;
-	for(i=0; i<obj->nsect; i++) {
-		if(Bseek(f, base+obj->shoff+i*obj->shentsize, 0) < 0)
+	elfobj->sect = mal(elfobj->shnum*sizeof elfobj->sect[0]);
+	elfobj->nsect = elfobj->shnum;
+	for(i=0; i<elfobj->nsect; i++) {
+		if(Bseek(f, base+elfobj->shoff+i*elfobj->shentsize, 0) < 0)
 			goto bad;
-		sect = &obj->sect[i];
+		sect = &elfobj->sect[i];
 		if(is64) {
 			ElfSectBytes64 b;
 
@@ -461,7 +462,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 			if(Bread(f, &b, sizeof b) != sizeof b)
 				goto bad;
 
-			sect->name = (char*)(uintptr)e->e32(b.name);
+			sect->nameoff = (uintptr)e->e32(b.name);
 			sect->type = e->e32(b.type);
 			sect->flags = e->e64(b.flags);
 			sect->addr = e->e64(b.addr);
@@ -478,7 +479,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 			if(Bread(f, &b, sizeof b) != sizeof b)
 				goto bad;
 		
-			sect->name = (char*)(uintptr)e->e32(b.name);
+			sect->nameoff = (uintptr)e->e32(b.name);
 			sect->type = e->e32(b.type);
 			sect->flags = e->e32(b.flags);
 			sect->addr = e->e32(b.addr);
@@ -492,36 +493,36 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 	}
 
 	// read section string table and translate names
-	if(obj->shstrndx >= obj->nsect) {
-		werrstr("shstrndx out of range %d >= %d", obj->shstrndx, obj->nsect);
+	if(elfobj->shstrndx >= elfobj->nsect) {
+		werrstr("shstrndx out of range %d >= %d", elfobj->shstrndx, elfobj->nsect);
 		goto bad;
 	}
-	sect = &obj->sect[obj->shstrndx];
-	if(map(obj, sect) < 0)
+	sect = &elfobj->sect[elfobj->shstrndx];
+	if(elfmap(elfobj, sect) < 0)
 		goto bad;
-	for(i=0; i<obj->nsect; i++)
-		if(obj->sect[i].name != nil)
-			obj->sect[i].name = (char*)sect->base + (uintptr)obj->sect[i].name;
+	for(i=0; i<elfobj->nsect; i++)
+		if(elfobj->sect[i].nameoff != 0)
+			elfobj->sect[i].name = (char*)sect->base + elfobj->sect[i].nameoff;
 	
 	// load string table for symbols into memory.
-	obj->symtab = section(obj, ".symtab");
-	if(obj->symtab == nil) {
+	elfobj->symtab = section(elfobj, ".symtab");
+	if(elfobj->symtab == nil) {
 		// our work is done here - no symbols means nothing can refer to this file
 		return;
 	}
-	if(obj->symtab->link <= 0 || obj->symtab->link >= obj->nsect) {
+	if(elfobj->symtab->link <= 0 || elfobj->symtab->link >= elfobj->nsect) {
 		diag("%s: elf object has symbol table with invalid string table link", pn);
 		return;
 	}
-	obj->symstr = &obj->sect[obj->symtab->link];
+	elfobj->symstr = &elfobj->sect[elfobj->symtab->link];
 	if(is64)
-		obj->nsymtab = obj->symtab->size / sizeof(ElfSymBytes64);
+		elfobj->nsymtab = elfobj->symtab->size / sizeof(ElfSymBytes64);
 	else
-		obj->nsymtab = obj->symtab->size / sizeof(ElfSymBytes);
+		elfobj->nsymtab = elfobj->symtab->size / sizeof(ElfSymBytes);
 	
-	if(map(obj, obj->symtab) < 0)
+	if(elfmap(elfobj, elfobj->symtab) < 0)
 		goto bad;
-	if(map(obj, obj->symstr) < 0)
+	if(elfmap(elfobj, elfobj->symstr) < 0)
 		goto bad;
 
 	// load text and data segments into memory.
@@ -529,12 +530,12 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 	// the memory anyway for the symbol images, so we might
 	// as well use one large chunk.
 	
-	// create symbols for mapped sections
-	for(i=0; i<obj->nsect; i++) {
-		sect = &obj->sect[i];
+	// create symbols for elfmapped sections
+	for(i=0; i<elfobj->nsect; i++) {
+		sect = &elfobj->sect[i];
 		if((sect->type != ElfSectProgbits && sect->type != ElfSectNobits) || !(sect->flags&ElfSectFlagAlloc))
 			continue;
-		if(sect->type != ElfSectNobits && map(obj, sect) < 0)
+		if(sect->type != ElfSectNobits && elfmap(elfobj, sect) < 0)
 			goto bad;
 		
 		name = smprint("%s(%s)", pkg, sect->name);
@@ -571,13 +572,13 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 
 	// enter sub-symbols into symbol table.
 	// symbol 0 is the null symbol.
-	symbols = malloc(obj->nsymtab * sizeof(symbols[0]));
+	symbols = malloc(elfobj->nsymtab * sizeof(symbols[0]));
 	if(symbols == nil) {
 		diag("out of memory");
 		errorexit();
 	}
-	for(i=1; i<obj->nsymtab; i++) {
-		if(readsym(obj, i, &sym, 1) < 0)
+	for(i=1; i<elfobj->nsymtab; i++) {
+		if(readelfsym(elfobj, i, &sym, 1) < 0)
 			goto bad;
 		symbols[i] = sym.sym;
 		if(sym.type != ElfSymTypeFunc && sym.type != ElfSymTypeObject && sym.type != ElfSymTypeNone)
@@ -590,12 +591,12 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 				s->type = SNOPTRBSS;
 			continue;
 		}
-		if(sym.shndx >= obj->nsect || sym.shndx == 0)
+		if(sym.shndx >= elfobj->nsect || sym.shndx == 0)
 			continue;
-		// even when we pass needSym == 1 to readsym, it might still return nil to skip some unwanted symbols
+		// even when we pass needSym == 1 to readelfsym, it might still return nil to skip some unwanted symbols
 		if(sym.sym == nil)
 			continue;
-		sect = obj->sect+sym.shndx;
+		sect = elfobj->sect+sym.shndx;
 		if(sect->sym == nil) {
 			if(strncmp(sym.name, ".Linfo_string", 13) == 0) // clang does this
 				continue;
@@ -622,7 +623,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 					diag("%s: duplicate definition of %s", pn, s->name);
 			s->external = 1;
 		}
-		if(obj->machine == ElfMachPower64) {
+		if(elfobj->machine == ElfMachPower64) {
 			flag = sym.other >> 5;
 			if(2 <= flag && flag <= 6)
 				s->localentry = 1 << (flag - 2);
@@ -633,12 +634,12 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 	
 	// Sort outer lists by address, adding to textp.
 	// This keeps textp in increasing address order.
-	for(i=0; i<obj->nsect; i++) {
-		s = obj->sect[i].sym;
+	for(i=0; i<elfobj->nsect; i++) {
+		s = elfobj->sect[i].sym;
 		if(s == nil)
 			continue;
 		if(s->sub)
-			s->sub = listsort(s->sub, valuecmp, offsetof(LSym, sub));
+			s->sub = listsort(s->sub, valuecmp, listsubp);
 		if(s->type == STEXT) {
 			if(s->onlist)
 				sysfatal("symbol %s listed multiple times", s->name);
@@ -659,14 +660,14 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 	}
 
 	// load relocations
-	for(i=0; i<obj->nsect; i++) {
-		rsect = &obj->sect[i];
+	for(i=0; i<elfobj->nsect; i++) {
+		rsect = &elfobj->sect[i];
 		if(rsect->type != ElfSectRela && rsect->type != ElfSectRel)
 			continue;
-		if(rsect->info >= obj->nsect || obj->sect[rsect->info].base == nil)
+		if(rsect->info >= elfobj->nsect || elfobj->sect[rsect->info].base == nil)
 			continue;
-		sect = &obj->sect[rsect->info];
-		if(map(obj, rsect) < 0)
+		sect = &elfobj->sect[rsect->info];
+		if(elfmap(elfobj, rsect) < 0)
 			goto bad;
 		rela = rsect->type == ElfSectRela;
 		n = rsect->size/(4+4*is64)/(2+rela);
@@ -705,7 +706,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 			if((info >> 32) == 0) { // absolute relocation, don't bother reading the null symbol
 				rp->sym = nil;
 			} else {
-				if(readsym(obj, info>>32, &sym, 0) < 0)
+				if(readelfsym(elfobj, info>>32, &sym, 0) < 0)
 					goto bad;
 				sym.sym = symbols[info>>32];
 				if(sym.sym == nil) {
@@ -749,41 +750,41 @@ bad:
 }
 
 static ElfSect*
-section(ElfObj *obj, char *name)
+section(ElfObj *elfobj, char *name)
 {
 	int i;
 	
-	for(i=0; i<obj->nsect; i++)
-		if(obj->sect[i].name && name && strcmp(obj->sect[i].name, name) == 0)
-			return &obj->sect[i];
+	for(i=0; i<elfobj->nsect; i++)
+		if(elfobj->sect[i].name && name && strcmp(elfobj->sect[i].name, name) == 0)
+			return &elfobj->sect[i];
 	return nil;
 }
 
 static int
-map(ElfObj *obj, ElfSect *sect)
+elfmap(ElfObj *elfobj, ElfSect *sect)
 {
 	if(sect->base != nil)
 		return 0;
 
-	if(sect->off+sect->size > obj->len) {
+	if(sect->off+sect->size > elfobj->length) {
 		werrstr("elf section past end of file");
 		return -1;
 	}
 
 	sect->base = mal(sect->size);
 	werrstr("short read");
-	if(Bseek(obj->f, obj->base+sect->off, 0) < 0 || Bread(obj->f, sect->base, sect->size) != sect->size)
+	if(Bseek(elfobj->f, elfobj->base+sect->off, 0) < 0 || Bread(elfobj->f, sect->base, sect->size) != sect->size)
 		return -1;
 	
 	return 0;
 }
 
 static int
-readsym(ElfObj *obj, int i, ElfSym *sym, int needSym)
+readelfsym(ElfObj *elfobj, int i, ElfSym *sym, int needSym)
 {
 	LSym *s;
 
-	if(i >= obj->nsymtab || i < 0) {
+	if(i >= elfobj->nsymtab || i < 0) {
 		werrstr("invalid elf symbol index");
 		return -1;
 	}
@@ -791,25 +792,25 @@ readsym(ElfObj *obj, int i, ElfSym *sym, int needSym)
 		diag("readym: read null symbol!");
 	}
 
-	if(obj->is64) {
+	if(elfobj->is64) {
 		ElfSymBytes64 *b;
 		
-		b = (ElfSymBytes64*)(obj->symtab->base + i*sizeof *b);
-		sym->name = (char*)obj->symstr->base + obj->e->e32(b->name);
-		sym->value = obj->e->e64(b->value);
-		sym->size = obj->e->e64(b->size);
-		sym->shndx = obj->e->e16(b->shndx);
+		b = (ElfSymBytes64*)(elfobj->symtab->base + i*sizeof *b);
+		sym->name = (char*)elfobj->symstr->base + elfobj->e->e32(b->name);
+		sym->value = elfobj->e->e64(b->value);
+		sym->size = elfobj->e->e64(b->size);
+		sym->shndx = elfobj->e->e16(b->shndx);
 		sym->bind = b->info>>4;
 		sym->type = b->info&0xf;
 		sym->other = b->other;
 	} else {
 		ElfSymBytes *b;
 		
-		b = (ElfSymBytes*)(obj->symtab->base + i*sizeof *b);
-		sym->name = (char*)obj->symstr->base + obj->e->e32(b->name);
-		sym->value = obj->e->e32(b->value);
-		sym->size = obj->e->e32(b->size);
-		sym->shndx = obj->e->e16(b->shndx);
+		b = (ElfSymBytes*)(elfobj->symtab->base + i*sizeof *b);
+		sym->name = (char*)elfobj->symstr->base + elfobj->e->e32(b->name);
+		sym->value = elfobj->e->e32(b->value);
+		sym->size = elfobj->e->e32(b->size);
+		sym->shndx = elfobj->e->e16(b->shndx);
 		sym->bind = b->info>>4;
 		sym->type = b->info&0xf;
 		sym->other = b->other;
@@ -824,7 +825,7 @@ readsym(ElfObj *obj, int i, ElfSym *sym, int needSym)
 		sym->bind = ElfSymBindLocal;
 	switch(sym->type) {
 	case ElfSymTypeSection:
-		s = obj->sect[sym->shndx].sym;
+		s = elfobj->sect[sym->shndx].sym;
 		break;
 	case ElfSymTypeObject:
 	case ElfSymTypeFunc:
@@ -848,7 +849,7 @@ readsym(ElfObj *obj, int i, ElfSym *sym, int needSym)
 			break;
 		case ElfSymBindLocal:
 			if(thearch.thechar == '5' && (strncmp(sym->name, "$a", 2) == 0 || strncmp(sym->name, "$d", 2) == 0)) {
-				// binutils for arm generate these mapping
+				// binutils for arm generate these elfmapping
 				// symbols, ignore these
 				break;
 			}
@@ -904,6 +905,7 @@ rbyoff(const void *va, const void *vb)
 }
 
 #define R(x, y) ((x)|((y)<<24))
+/*c2go uint32 R(uint32, uint32); */
 
 static int
 reltype(char *pn, int elftype, uchar *siz)

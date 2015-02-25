@@ -52,9 +52,6 @@ struct	Reloc
 	LSym*	xsym;
 };
 
-// prevent incompatible type signatures between liblink and 8l on Plan 9
-#pragma incomplete struct Section
-
 struct	LSym
 {
 	char*	name;
@@ -94,7 +91,7 @@ struct	LSym
 	char*	file;
 	char*	dynimplib;
 	char*	dynimpvers;
-	struct Section*	sect;
+	void*	sect;
 	
 	// STEXT
 	Auto*	autom;

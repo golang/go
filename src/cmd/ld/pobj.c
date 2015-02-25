@@ -153,9 +153,6 @@ ldmain(int argc, char **argv)
 			HEADTYPE, INITTEXT, INITDAT, INITRND);
 	Bflush(&bso);
 
-	cbp = buf.cbuf;
-	cbc = sizeof(buf.cbuf);
-
 	addlibpath(ctxt, "command line", "command line", argv[0], "main");
 	loadlib();
 	

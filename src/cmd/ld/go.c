@@ -74,27 +74,27 @@ static int parsemethod(char**, char*, char**);
 static int parsepkgdata(char*, char*, char**, char*, char**, char**, char**);
 
 void
-ldpkg(Biobuf *f, char *pkg, int64 len, char *filename, int whence)
+ldpkg(Biobuf *f, char *pkg, int64 length, char *filename, int whence)
 {
 	char *data, *p0, *p1, *name;
 
 	if(debug['g'])
 		return;
 
-	if((int)len != len) {
+	if((int)length != length) {
 		fprint(2, "%s: too much pkg data in %s\n", argv0, filename);
 		if(debug['u'])
 			errorexit();
 		return;
 	}
-	data = mal(len+1);
-	if(Bread(f, data, len) != len) {
+	data = mal(length+1);
+	if(Bread(f, data, length) != length) {
 		fprint(2, "%s: short pkg read %s\n", argv0, filename);
 		if(debug['u'])
 			errorexit();
 		return;
 	}
-	data[len] = '\0';
+	data[length] = '\x00';
 
 	// first \n$$ marks beginning of exports - skip rest of line
 	p0 = strstr(data, "\n$$");
@@ -106,7 +106,7 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename, int whence)
 		return;
 	}
 	p0 += 3;
-	while(*p0 != '\n' && *p0 != '\0')
+	while(*p0 != '\n' && *p0 != '\x00')
 		p0++;
 
 	// second marks end of exports / beginning of local data
@@ -140,11 +140,11 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename, int whence)
 		}
 		if(p0 < p1) {
 			if(*p0 == '\n')
-				*p0++ = '\0';
+				*p0++ = '\x00';
 			else {
-				*p0++ = '\0';
-				while(p0 < p1 && *p0++ != '\n')
-					;
+				*p0++ = '\x00';
+				while(p0 < p1 && *p0 != '\n')
+					p0++;
 			}
 		}
 		if(strcmp(pkg, "main") == 0 && strcmp(name, "main") != 0) {
@@ -183,14 +183,14 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename, int whence)
 }
 
 static void
-loadpkgdata(char *file, char *pkg, char *data, int len)
+loadpkgdata(char *file, char *pkg, char *data, int length)
 {
 	char *p, *ep, *prefix, *name, *def;
 	Import *x;
 
 	file = estrdup(file);
 	p = data;
-	ep = data + len;
+	ep = data + length;
 	while(parsepkgdata(file, pkg, &p, ep, &prefix, &name, &def) > 0) {
 		x = ilookup(name);
 		if(x->prefix == nil) {
@@ -253,7 +253,7 @@ loop:
 			nerrors++;
 			return -1;
 		}
-		*p++ = '\0';
+		*p++ = '\x00';
 		imported(pkg, name);
 		goto loop;
 	}
@@ -262,7 +262,7 @@ loop:
 		nerrors++;
 		return -1;
 	}
-	p[-1] = '\0';
+	p[-1] = '\x00';
 
 	// name: a.b followed by space
 	name = p;
@@ -281,7 +281,7 @@ loop:
 
 	if(p >= ep)
 		return -1;
-	*p++ = '\0';
+	*p++ = '\x00';
 
 	// def: free form to new line
 	def = p;
@@ -290,11 +290,11 @@ loop:
 	if(p >= ep)
 		return -1;
 	edef = p;
-	*p++ = '\0';
+	*p++ = '\x00';
 
 	// include methods on successive lines in def of named type
 	while(parsemethod(&p, ep, &meth) > 0) {
-		*edef++ = '\n';	// overwrites '\0'
+		*edef++ = '\n';	// overwrites '\x00'
 		if(edef+1 > meth) {
 			// We want to indent methods with a single \t.
 			// 6g puts at least one char of indent before all method defs,
@@ -355,7 +355,7 @@ useline:
 		*pp = ep;
 		return -1;
 	}
-	*p++ = '\0';
+	*p++ = '\x00';
 	*pp = p;
 	return 1;
 }
@@ -376,7 +376,7 @@ loadcgo(char *file, char *pkg, char *p, int n)
 		if(next == nil)
 			next = "";
 		else
-			*next++ = '\0';
+			*next++ = '\x00';
 
 		free(p0);
 		p0 = estrdup(p); // save for error message
@@ -411,7 +411,7 @@ loadcgo(char *file, char *pkg, char *p, int n)
 			local = expandpkg(local, pkg);
 			q = strchr(remote, '#');
 			if(q)
-				*q++ = '\0';
+				*q++ = '\x00';
 			s = linklookup(ctxt, local, 0);
 			if(local != f[1])
 				free(local);

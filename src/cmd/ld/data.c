@@ -64,74 +64,83 @@ datcmp(LSym *s1, LSym *s2)
 	return strcmp(s1->name, s2->name);
 }
 
+LSym**
+listnextp(LSym *s)
+{
+	return &s->next;
+}
+
+LSym**
+listsubp(LSym *s)
+{
+	return &s->sub;
+}
+
 LSym*
-listsort(LSym *l, int (*cmp)(LSym*, LSym*), int off)
+listsort(LSym *l, int (*cmp)(LSym*, LSym*), LSym **(*nextp)(LSym*))
 {
 	LSym *l1, *l2, *le;
-	#define NEXT(l) (*(LSym**)((char*)(l)+off))
 
-	if(l == 0 || NEXT(l) == 0)
+	if(l == 0 || *nextp(l) == 0)
 		return l;
 
 	l1 = l;
 	l2 = l;
 	for(;;) {
-		l2 = NEXT(l2);
+		l2 = *nextp(l2);
 		if(l2 == 0)
 			break;
-		l2 = NEXT(l2);
+		l2 = *nextp(l2);
 		if(l2 == 0)
 			break;
-		l1 = NEXT(l1);
+		l1 = *nextp(l1);
 	}
 
-	l2 = NEXT(l1);
-	NEXT(l1) = 0;
-	l1 = listsort(l, cmp, off);
-	l2 = listsort(l2, cmp, off);
+	l2 = *nextp(l1);
+	*nextp(l1) = 0;
+	l1 = listsort(l, cmp, nextp);
+	l2 = listsort(l2, cmp, nextp);
 
 	/* set up lead element */
 	if(cmp(l1, l2) < 0) {
 		l = l1;
-		l1 = NEXT(l1);
+		l1 = *nextp(l1);
 	} else {
 		l = l2;
-		l2 = NEXT(l2);
+		l2 = *nextp(l2);
 	}
 	le = l;
 
 	for(;;) {
 		if(l1 == 0) {
 			while(l2) {
-				NEXT(le) = l2;
+				*nextp(le) = l2;
 				le = l2;
-				l2 = NEXT(l2);
+				l2 = *nextp(l2);
 			}
-			NEXT(le) = 0;
+			*nextp(le) = 0;
 			break;
 		}
 		if(l2 == 0) {
 			while(l1) {
-				NEXT(le) = l1;
+				*nextp(le) = l1;
 				le = l1;
-				l1 = NEXT(l1);
+				l1 = *nextp(l1);
 			}
 			break;
 		}
 		if(cmp(l1, l2) < 0) {
-			NEXT(le) = l1;
+			*nextp(le) = l1;
 			le = l1;
-			l1 = NEXT(l1);
+			l1 = *nextp(l1);
 		} else {
-			NEXT(le) = l2;
+			*nextp(le) = l2;
 			le = l2;
-			l2 = NEXT(l2);
+			l2 = *nextp(l2);
 		}
 	}
-	NEXT(le) = 0;
+	*nextp(le) = 0;
 	return l;
-	
-	#undef NEXT
 }
 
 void
@@ -140,12 +149,13 @@ relocsym(LSym *s)
 	Reloc *r;
 	LSym *rs;
 	int16 i16;
-	int32 i, off, siz, fl;
+	int32 i, ri, off, siz, fl;
 	vlong o;
 	uchar *cast;
 
 	ctxt->cursym = s;
-	for(r=s->r; r<s->r+s->nr; r++) {
+	for(ri=0; ri<s->nr; ri++) {
+		r = &s->r[ri];
 		r->done = 1;
 		off = r->off;
 		siz = r->siz;
@@ -291,7 +301,7 @@ relocsym(LSym *s)
 				} else if(HEADTYPE == Hdarwin) {
 					if(r->type == R_CALL) {
 						if(rs->type != SHOSTOBJ)
-							o += symaddr(rs) - rs->sect->vaddr;
+							o += symaddr(rs) - ((Section*)rs->sect)->vaddr;
 						o -= r->off; // relative to section offset, not symbol
 					} else {
 						o += r->siz;
@@ -375,6 +385,7 @@ reloc(void)
 void
 dynrelocsym(LSym *s)
 {
+	int ri;
 	Reloc *r;
 
 	if(HEADTYPE == Hwindows) {
@@ -383,7 +394,8 @@ dynrelocsym(LSym *s)
 		rel = linklookup(ctxt, ".rel", 0);
 		if(s == rel)
 			return;
-		for(r=s->r; r<s->r+s->nr; r++) {
+		for(ri=0; ri<s->nr; ri++) {
+			r = &s->r[ri];
 			targ = r->sym;
 			if(targ == nil)
 				continue;
@@ -416,7 +428,8 @@ dynrelocsym(LSym *s)
 		return;
 	}
 
-	for(r=s->r; r<s->r+s->nr; r++) {
+	for(ri=0; ri<s->nr; ri++) {
+		r = &s->r[ri];
 		if(r->sym != nil && r->sym->type == SDYNIMPORT || r->type >= 256) {
 			if(r->sym != nil && !r->sym->reachable)
 				diag("internal inconsistency: dynamic symbol %s is not reachable.", r->sym->name);
@@ -799,14 +812,14 @@ proggenskip(ProgGen *g, vlong off, vlong v)
 
 // Emit insArray instruction.
 static void
-proggenarray(ProgGen *g, vlong len)
+proggenarray(ProgGen *g, vlong length)
 {
 	int32 i;
 
 	proggendataflush(g);
 	proggenemit(g, insArray);
-	for(i = 0; i < thearch.ptrsize; i++, len >>= 8)
-		proggenemit(g, len);
+	for(i = 0; i < thearch.ptrsize; i++, length >>= 8)
+		proggenemit(g, length);
 }
 
 static void
@@ -982,7 +995,7 @@ dodata(void)
 	}
 	*l = nil;
 
-	datap = listsort(datap, datcmp, offsetof(LSym, next));
+	datap = listsort(datap, datcmp, listnextp);
 
 	/*
 	 * allocate sections.  list is sorted by type,
@@ -1010,7 +1023,7 @@ dodata(void)
 		s->type = SDATA;
 		s->value = datsize - sect->vaddr;
 		growdatsize(&datsize, s);
-		sect->len = datsize - sect->vaddr;
+		sect->length = datsize - sect->vaddr;
 	}
 
 	/* .got (and .toc on ppc64) */
@@ -1037,7 +1050,7 @@ dodata(void)
 			}
 			growdatsize(&datsize, s);
 		}
-		sect->len = datsize - sect->vaddr;
+		sect->length = datsize - sect->vaddr;
 	}
 
 	/* pointer-free data */
@@ -1054,7 +1067,7 @@ dodata(void)
 		s->value = datsize - sect->vaddr;
 		growdatsize(&datsize, s);
 	}
-	sect->len = datsize - sect->vaddr;
+	sect->length = datsize - sect->vaddr;
 
 	/* shared library initializer */
 	if(flag_shared) {
@@ -1068,7 +1081,7 @@ dodata(void)
 			s->value = datsize - sect->vaddr;
 			growdatsize(&datsize, s);
 		}
-		sect->len = datsize - sect->vaddr;
+		sect->length = datsize - sect->vaddr;
 	}
 
 	/* data */
@@ -1092,8 +1105,8 @@ dodata(void)
 		proggenaddsym(&gen, s);  // gc
 		growdatsize(&datsize, s);
 	}
-	sect->len = datsize - sect->vaddr;
-	proggenfini(&gen, sect->len);  // gc
+	sect->length = datsize - sect->vaddr;
+	proggenfini(&gen, sect->length);  // gc
 
 	/* bss */
 	sect = addsection(&segdata, ".bss", 06);
@@ -1111,8 +1124,8 @@ dodata(void)
 		proggenaddsym(&gen, s);  // gc
 		growdatsize(&datsize, s);
 	}
-	sect->len = datsize - sect->vaddr;
-	proggenfini(&gen, sect->len);  // gc
+	sect->length = datsize - sect->vaddr;
+	proggenfini(&gen, sect->length);  // gc
 
 	/* pointer-free bss */
 	sect = addsection(&segdata, ".noptrbss", 06);
@@ -1127,7 +1140,7 @@ dodata(void)
 		s->value = datsize - sect->vaddr;
 		growdatsize(&datsize, s);
 	}
-	sect->len = datsize - sect->vaddr;
+	sect->length = datsize - sect->vaddr;
 	linklookup(ctxt, "runtime.end", 0)->sect = sect;
 
 	// 6g uses 4-byte relocation offsets, so the entire segment must fit in 32 bits.
@@ -1146,7 +1159,7 @@ dodata(void)
 			s->value = datsize - sect->vaddr;
 			growdatsize(&datsize, s);
 		}
-		sect->len = datsize;
+		sect->length = datsize;
 	} else {
 		// Might be internal linking but still using cgo.
 		// In that case, the only possible STLSBSS symbol is runtime.tlsg.
@@ -1191,7 +1204,7 @@ dodata(void)
 		s->type = SRODATA;
 		s->value = datsize - sect->vaddr;
 		growdatsize(&datsize, s);
-		sect->len = datsize - sect->vaddr;
+		sect->length = datsize - sect->vaddr;
 	}
 
 	/* read-only data */
@@ -1208,7 +1221,7 @@ dodata(void)
 		s->value = datsize - sect->vaddr;
 		growdatsize(&datsize, s);
 	}
-	sect->len = datsize - sect->vaddr;
+	sect->length = datsize - sect->vaddr;
 
 	/* typelink */
 	sect = addsection(segro, ".typelink", 04);
@@ -1224,7 +1237,7 @@ dodata(void)
 		s->value = datsize - sect->vaddr;
 		growdatsize(&datsize, s);
 	}
-	sect->len = datsize - sect->vaddr;
+	sect->length = datsize - sect->vaddr;
 
 	/* gosymtab */
 	sect = addsection(segro, ".gosymtab", 04);
@@ -1240,7 +1253,7 @@ dodata(void)
 		s->value = datsize - sect->vaddr;
 		growdatsize(&datsize, s);
 	}
-	sect->len = datsize - sect->vaddr;
+	sect->length = datsize - sect->vaddr;
 
 	/* gopclntab */
 	sect = addsection(segro, ".gopclntab", 04);
@@ -1256,7 +1269,7 @@ dodata(void)
 		s->value = datsize - sect->vaddr;
 		growdatsize(&datsize, s);
 	}
-	sect->len = datsize - sect->vaddr;
+	sect->length = datsize - sect->vaddr;
 
 	/* read-only ELF, Mach-O sections */
 	for(; s != nil && s->type < SELFSECT; s = s->next) {
@@ -1268,7 +1281,7 @@ dodata(void)
 		s->type = SRODATA;
 		s->value = datsize - sect->vaddr;
 		growdatsize(&datsize, s);
-		sect->len = datsize - sect->vaddr;
+		sect->length = datsize - sect->vaddr;
 	}
 
 	// 6g uses 4-byte relocation offsets, so the entire segment must fit in 32 bits.
@@ -1323,7 +1336,7 @@ textaddress(void)
 		else
 			va += sym->size;
 	}
-	sect->len = va - sect->vaddr;
+	sect->length = va - sect->vaddr;
 }
 
 // assign addresses
@@ -1343,10 +1356,10 @@ address(void)
 	for(s=segtext.sect; s != nil; s=s->next) {
 		va = rnd(va, s->align);
 		s->vaddr = va;
-		va += s->len;
+		va += s->length;
 	}
-	segtext.len = va - INITTEXT;
-	segtext.filelen = segtext.len;
+	segtext.length = va - INITTEXT;
+	segtext.filelen = segtext.length;
 	if(HEADTYPE == Hnacl)
 		va += 32; // room for the "halt sled"
 
@@ -1362,10 +1375,10 @@ address(void)
 		for(s=segrodata.sect; s != nil; s=s->next) {
 			va = rnd(va, s->align);
 			s->vaddr = va;
-			va += s->len;
+			va += s->length;
 		}
-		segrodata.len = va - segrodata.vaddr;
-		segrodata.filelen = segrodata.len;
+		segrodata.length = va - segrodata.vaddr;
+		segrodata.filelen = segrodata.length;
 	}
 
 	va = rnd(va, INITRND);
@@ -1374,7 +1387,7 @@ address(void)
 	segdata.fileoff = va - segtext.vaddr + segtext.fileoff;
 	segdata.filelen = 0;
 	if(HEADTYPE == Hwindows)
-		segdata.fileoff = segtext.fileoff + rnd(segtext.len, PEFILEALIGN);
+		segdata.fileoff = segtext.fileoff + rnd(segtext.length, PEFILEALIGN);
 	if(HEADTYPE == Hplan9)
 		segdata.fileoff = segtext.fileoff + segtext.filelen;
 	data = nil;
@@ -1382,12 +1395,12 @@ address(void)
 	bss = nil;
 	noptrbss = nil;
 	for(s=segdata.sect; s != nil; s=s->next) {
-		vlen = s->len;
+		vlen = s->length;
 		if(s->next)
 			vlen = s->next->vaddr - s->vaddr;
 		s->vaddr = va;
 		va += vlen;
-		segdata.len = va - segdata.vaddr;
+		segdata.length = va - segdata.vaddr;
 		if(strcmp(s->name, ".data") == 0)
 			data = s;
 		if(strcmp(s->name, ".noptrdata") == 0)
@@ -1411,17 +1424,17 @@ address(void)
 	for(sym = datap; sym != nil; sym = sym->next) {
 		ctxt->cursym = sym;
 		if(sym->sect != nil)
-			sym->value += sym->sect->vaddr;
+			sym->value += ((Section*)sym->sect)->vaddr;
 		for(sub = sym->sub; sub != nil; sub = sub->sub)
 			sub->value += sym->value;
 	}
 
 	xdefine("runtime.text", STEXT, text->vaddr);
-	xdefine("runtime.etext", STEXT, text->vaddr + text->len);
+	xdefine("runtime.etext", STEXT, text->vaddr + text->length);
 	xdefine("runtime.rodata", SRODATA, rodata->vaddr);
-	xdefine("runtime.erodata", SRODATA, rodata->vaddr + rodata->len);
+	xdefine("runtime.erodata", SRODATA, rodata->vaddr + rodata->length);
 	xdefine("runtime.typelink", SRODATA, typelink->vaddr);
-	xdefine("runtime.etypelink", SRODATA, typelink->vaddr + typelink->len);
+	xdefine("runtime.etypelink", SRODATA, typelink->vaddr + typelink->length);
 
 	sym = linklookup(ctxt, "runtime.gcdata", 0);
 	xdefine("runtime.egcdata", SRODATA, symaddr(sym) + sym->size);
@@ -1432,16 +1445,16 @@ address(void)
 	linklookup(ctxt, "runtime.egcbss", 0)->sect = sym->sect;
 
 	xdefine("runtime.symtab", SRODATA, symtab->vaddr);
-	xdefine("runtime.esymtab", SRODATA, symtab->vaddr + symtab->len);
+	xdefine("runtime.esymtab", SRODATA, symtab->vaddr + symtab->length);
 	xdefine("runtime.pclntab", SRODATA, pclntab->vaddr);
-	xdefine("runtime.epclntab", SRODATA, pclntab->vaddr + pclntab->len);
+	xdefine("runtime.epclntab", SRODATA, pclntab->vaddr + pclntab->length);
 	xdefine("runtime.noptrdata", SNOPTRDATA, noptr->vaddr);
-	xdefine("runtime.enoptrdata", SNOPTRDATA, noptr->vaddr + noptr->len);
+	xdefine("runtime.enoptrdata", SNOPTRDATA, noptr->vaddr + noptr->length);
 	xdefine("runtime.bss", SBSS, bss->vaddr);
-	xdefine("runtime.ebss", SBSS, bss->vaddr + bss->len);
+	xdefine("runtime.ebss", SBSS, bss->vaddr + bss->length);
 	xdefine("runtime.data", SDATA, data->vaddr);
-	xdefine("runtime.edata", SDATA, data->vaddr + data->len);
+	xdefine("runtime.edata", SDATA, data->vaddr + data->length);
 	xdefine("runtime.noptrbss", SNOPTRBSS, noptrbss->vaddr);
-	xdefine("runtime.enoptrbss", SNOPTRBSS, noptrbss->vaddr + noptrbss->len);
-	xdefine("runtime.end", SBSS, segdata.vaddr + segdata.len);
+	xdefine("runtime.enoptrbss", SNOPTRBSS, noptrbss->vaddr + noptrbss->length);
+	xdefine("runtime.end", SBSS, segdata.vaddr + segdata.length);
 }
