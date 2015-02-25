@@ -617,6 +617,69 @@ var marshalTests = []struct {
 			`</service>`,
 		MarshalOnly: true,
 	},
+	{
+		Value: &struct {
+			XMLName struct{} `xml:"space top"`
+			A       string   `xml:"x>a"`
+			B       string   `xml:"x>b"`
+			C       string   `xml:"space x>c"`
+			C1      string   `xml:"space1 x>c"`
+			D1      string   `xml:"space1 x>d"`
+		}{
+			A:  "a",
+			B:  "b",
+			C:  "c",
+			C1: "c1",
+			D1: "d1",
+		},
+		ExpectXML: `<top xmlns="space">` +
+			`<x xmlns=""><a>a</a><b>b</b><c xmlns="space">c</c>` +
+			`<c xmlns="space1">c1</c>` +
+			`<d xmlns="space1">d1</d>` +
+			`</x>` +
+			`</top>`,
+	},
+	{
+		Value: &struct {
+			XMLName Name
+			A       string `xml:"x>a"`
+			B       string `xml:"x>b"`
+			C       string `xml:"space x>c"`
+			C1      string `xml:"space1 x>c"`
+			D1      string `xml:"space1 x>d"`
+		}{
+			XMLName: Name{
+				Space: "space0",
+				Local: "top",
+			},
+			A:  "a",
+			B:  "b",
+			C:  "c",
+			C1: "c1",
+			D1: "d1",
+		},
+		ExpectXML: `<top xmlns="space0">` +
+			`<x xmlns=""><a>a</a><b>b</b>` +
+			`<c xmlns="space">c</c>` +
+			`<c xmlns="space1">c1</c>` +
+			`<d xmlns="space1">d1</d>` +
+			`</x>` +
+			`</top>`,
+	},
+	{
+		Value: &struct {
+			XMLName struct{} `xml:"top"`
+			B       string   `xml:"space x>b"`
+			B1      string   `xml:"space1 x>b"`
+		}{
+			B:  "b",
+			B1: "b1",
+		},
+		ExpectXML: `<top>` +
+			`<x><b xmlns="space">b</b>` +
+			`<b xmlns="space1">b1</b></x>` +
+			`</top>`,
+	},
 
 	// Test struct embedding
 	{
@@ -933,7 +996,7 @@ func TestMarshal(t *testing.T) {
 		}
 		data, err := Marshal(test.Value)
 		if err != nil {
-			t.Errorf("#%d: Error: %s", idx, err)
+			t.Errorf("#%d: marshal(%#v): %s", idx, test.Value, err)
 			continue
 		}
 		if got, want := string(data), test.ExpectXML; got != want {
@@ -1035,6 +1098,14 @@ func TestUnmarshal(t *testing.T) {
 			continue
 		}
 		if _, ok := test.Value.(*Plain); ok {
+			continue
+		}
+		if test.ExpectXML == `<top>`+
+			`<x><b xmlns="space">b</b>`+
+			`<b xmlns="space1">b1</b></x>`+
+			`</top>` {
+			// TODO(rogpeppe): re-enable this test in
+			// https://go-review.googlesource.com/#/c/5910/
 			continue
 		}
 
