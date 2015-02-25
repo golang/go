@@ -244,9 +244,7 @@ func (m *mover) move() error {
 	// None of the subpackages will change their name---only the from package
 	// itself will.
 	for p := range m.rev[m.from] {
-		_, err := importName(
-			m.iprog, m.iprog.Imported[p], m.from, path.Base(m.from), newName)
-		if err != nil {
+		if err := importName(m.iprog, m.iprog.Imported[p], m.from, path.Base(m.from), newName); err != nil {
 			return err
 		}
 	}

@@ -164,10 +164,9 @@ var reportError = func(posn token.Position, message string) {
 
 // importName renames imports of the package with the given path in
 // the given package.  If fromName is not empty, only imports as
-// fromName will be renamed.  Even if renaming is successful, there
-// may be some files that are unchanged; they are reported in
-// unchangedFiles.
-func importName(iprog *loader.Program, info *loader.PackageInfo, fromPath, fromName, to string) (unchangedFiles []string, err error) {
+// fromName will be renamed.  If the renaming would lead to a conflict,
+// the file is left unchanged.
+func importName(iprog *loader.Program, info *loader.PackageInfo, fromPath, fromName, to string) error {
 	for _, f := range info.Files {
 		var from types.Object
 		for _, imp := range f.Imports {
@@ -193,13 +192,12 @@ func importName(iprog *loader.Program, info *loader.PackageInfo, fromPath, fromN
 		r.check(from)
 		if r.hadConflicts {
 			continue // ignore errors; leave the existing name
-			unchangedFiles = append(unchangedFiles, f.Name.Name)
 		}
 		if err := r.update(); err != nil {
-			return nil, err
+			return err
 		}
 	}
-	return unchangedFiles, nil
+	return nil
 }
 
 func Main(ctxt *build.Context, offsetFlag, fromFlag, to string) error {
