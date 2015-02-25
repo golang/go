@@ -124,3 +124,19 @@ type SignerOpts interface {
 	// hashing was done.
 	HashFunc() Hash
 }
+
+// Decrypter is an interface for an opaque private key that can be used for
+// asymmetric decryption operations. For example, an RSA key kept in a hardware
+// module.
+type Decrypter interface {
+	// Public returns the public key corresponding to the opaque,
+	// private key.
+	Public() PublicKey
+
+	// Decrypt decrypts msg. The opts argument should be appropriate for
+	// the primitive used. See the documentation in each implementation for
+	// details.
+	Decrypt(rand io.Reader, msg []byte, opts DecrypterOpts) (plaintext []byte, err error)
+}
+
+type DecrypterOpts interface{}
