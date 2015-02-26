@@ -312,6 +312,9 @@ func Dconv(p *Prog, Rconv func(int) string, a *Addr) string {
 			str = fmt.Sprintf("%d(PC)", a.Offset)
 		}
 
+	case TYPE_INDIR:
+		str = fmt.Sprintf("*%s", Mconv(Rconv, a))
+
 	case TYPE_MEM:
 		str = Mconv(Rconv, a)
 		if a.Index != REG_NONE {

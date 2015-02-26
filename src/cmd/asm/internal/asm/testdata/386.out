@@ -17,7 +17,7 @@
 32 00017 (testdata/386.s:32)	JCS	,16(PC)
 35 00018 (testdata/386.s:35)	CALL	,AX
 36 00019 (testdata/386.s:36)	JMP	,AX
-37 00020 (testdata/386.s:37)	CALL	,type=16
+37 00020 (testdata/386.s:37)	CALL	,*foo(SB)
 38 00021 (testdata/386.s:38)	JMP	,$4
 39 00022 (testdata/386.s:39)	JMP	,16
 40 00023 (testdata/386.s:40)	CALL	,foo(SB)

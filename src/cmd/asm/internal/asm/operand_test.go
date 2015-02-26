@@ -244,8 +244,8 @@ var x86OperandTests = []operandTest{
 	{"(BP*8)", "0(BP*8)"},
 	{"(BX)", "(BX)"},
 	{"(SP)", "(SP)"},
-	{"*AX", "AX"},                             // TODO: Should make * illegal here; a simple alias for JMP AX.
-	{"*runtime·_GetStdHandle(SB)", "type=16"}, // TODO: bizarre
+	{"*AX", "AX"}, // TODO: Should make * illegal here; a simple alias for JMP AX.
+	{"*runtime·_GetStdHandle(SB)", "*runtime._GetStdHandle(SB)"},
 	{"-(4+12)(DI)", "-16(DI)"},
 	{"-1(DI)(BX*1)", "-1(DI)(BX*1)"},
 	{"-96(DI)(BX*1)", "-96(DI)(BX*1)"},
