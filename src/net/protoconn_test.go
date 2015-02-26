@@ -221,6 +221,10 @@ func TestUnixListenerSpecificMethods(t *testing.T) {
 	switch runtime.GOOS {
 	case "nacl", "plan9", "windows":
 		t.Skipf("skipping test on %q", runtime.GOOS)
+	case "darwin":
+		if runtime.GOARCH == "arm" {
+			t.Skipf("skipping test on %s/%s", runtime.GOOS, runtime.GOARCH)
+		}
 	}
 
 	addr := testUnixAddr()
@@ -263,6 +267,10 @@ func TestUnixConnSpecificMethods(t *testing.T) {
 	switch runtime.GOOS {
 	case "nacl", "plan9", "windows":
 		t.Skipf("skipping test on %q", runtime.GOOS)
+	case "darwin":
+		if runtime.GOARCH == "arm" {
+			t.Skipf("skipping test on %s/%s", runtime.GOOS, runtime.GOARCH)
+		}
 	}
 
 	addr1, addr2, addr3 := testUnixAddr(), testUnixAddr(), testUnixAddr()
