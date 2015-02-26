@@ -717,6 +717,15 @@ func mHeap_FreeSpanLocked(h *mheap, s *mspan, acctinuse, acctidle bool, unusedsi
 }
 
 func scavengelist(list *mspan, now, limit uint64) uintptr {
+	if _PhysPageSize > _PageSize {
+		// golang.org/issue/9993
+		// If the physical page size of the machine is larger than
+		// our logical heap page size the kernel may round up the
+		// amount to be freed to its page size and corrupt the heap
+		// pages surrounding the unused block.
+		return 0
+	}
+
 	if mSpanList_IsEmpty(list) {
 		return 0
 	}
