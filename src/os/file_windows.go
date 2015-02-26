@@ -5,6 +5,7 @@
 package os
 
 import (
+	"internal/syscall/windows"
 	"io"
 	"runtime"
 	"sync"
@@ -458,6 +459,14 @@ func Remove(name string) error {
 		}
 	}
 	return &PathError{"remove", name, e}
+}
+
+func rename(oldname, newname string) error {
+	e := windows.Rename(oldname, newname)
+	if e != nil {
+		return &LinkError{"rename", oldname, newname, e}
+	}
+	return nil
 }
 
 // Pipe returns a connected pair of Files; reads from r return bytes written to w.

@@ -708,13 +708,16 @@ func TestRename(t *testing.T) {
 		defer chtmpdir(t)()
 	}
 	from, to := "renamefrom", "renameto"
-	Remove(to) // Just in case.
+	// Ensure we are not testing the overwrite case here.
+	Remove(from)
+	Remove(to)
+
 	file, err := Create(from)
 	if err != nil {
-		t.Fatalf("open %q failed: %v", to, err)
+		t.Fatalf("open %q failed: %v", from, err)
 	}
 	if err = file.Close(); err != nil {
-		t.Errorf("close %q failed: %v", to, err)
+		t.Errorf("close %q failed: %v", from, err)
 	}
 	err = Rename(from, to)
 	if err != nil {
@@ -724,6 +727,52 @@ func TestRename(t *testing.T) {
 	_, err = Stat(to)
 	if err != nil {
 		t.Errorf("stat %q failed: %v", to, err)
+	}
+}
+
+func TestRenameOverwriteDest(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9")
+	}
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
+		defer chtmpdir(t)()
+	}
+	from, to := "renamefrom", "renameto"
+	// Just in case.
+	Remove(from)
+	Remove(to)
+
+	toData := []byte("to")
+	fromData := []byte("from")
+
+	err := ioutil.WriteFile(to, toData, 0777)
+	if err != nil {
+		t.Fatalf("write file %q failed: %v", to, err)
+	}
+
+	err = ioutil.WriteFile(from, fromData, 0777)
+	if err != nil {
+		t.Fatalf("write file %q failed: %v", from, err)
+	}
+	err = Rename(from, to)
+	if err != nil {
+		t.Fatalf("rename %q, %q failed: %v", to, from, err)
+	}
+	defer Remove(to)
+
+	_, err = Stat(from)
+	if err == nil {
+		t.Errorf("from file %q still exists", from)
+	}
+	if err != nil && !IsNotExist(err) {
+		t.Fatalf("stat from: %v", err)
+	}
+	toFi, err := Stat(to)
+	if err != nil {
+		t.Fatalf("stat %q failed: %v", to, err)
+	}
+	if toFi.Size() != int64(len(fromData)) {
+		t.Errorf(`"to" size = %d; want %d (old "from" size)`, toFi.Size(), len(fromData))
 	}
 }
 
