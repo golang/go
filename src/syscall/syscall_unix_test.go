@@ -92,6 +92,10 @@ func TestPassFD(t *testing.T) {
 	case "solaris":
 		// TODO(aram): Figure out why ReadMsgUnix is returning empty message.
 		t.Skip("skipping test on solaris, see issue 7402")
+	case "darwin":
+		if runtime.GOARCH == "arm" {
+			t.Skipf("skipping test on %d/%s, no fork", runtime.GOOS, runtime.GOARCH)
+		}
 	}
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
 		passFDChild()
