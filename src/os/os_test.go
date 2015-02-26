@@ -1139,16 +1139,35 @@ func run(t *testing.T, cmd []string) string {
 	return output
 }
 
+func testWindowsHostname(t *testing.T) {
+	hostname, err := Hostname()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := osexec.Command("hostname")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Failed to execute hostname command: %v %s", err, out)
+	}
+	want := strings.Trim(string(out), "\r\n")
+	if hostname != want {
+		t.Fatalf("Hostname() = %q, want %q", hostname, want)
+	}
+}
+
 func TestHostname(t *testing.T) {
 	// There is no other way to fetch hostname on windows, but via winapi.
 	// On Plan 9 it can be taken from #c/sysname as Hostname() does.
 	switch runtime.GOOS {
-	case "android", "nacl", "plan9", "windows":
+	case "android", "nacl", "plan9":
 		t.Skipf("skipping on %s", runtime.GOOS)
 	case "darwin":
 		if runtime.GOARCH == "arm" {
 			t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
 		}
+	case "windows":
+		testWindowsHostname(t)
+		return
 	}
 
 	// Check internal Hostname() against the output of /bin/hostname.
