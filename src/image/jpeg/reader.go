@@ -42,12 +42,6 @@ const (
 	maxTq   = 3
 
 	maxComponents = 4
-
-	// We only support 4:4:4, 4:4:0, 4:2:2 and 4:2:0 downsampling, and therefore the
-	// number of luma samples per chroma sample is at most 2 in the horizontal
-	// and 2 in the vertical direction.
-	maxH = 2
-	maxV = 2
 )
 
 const (
@@ -346,12 +340,13 @@ func (d *decoder) processSOF(n int) error {
 		d.comp[i].v = int(hv & 0x0f)
 		switch d.nComp {
 		case 3:
-			// For YCbCr images, we only support 4:4:4, 4:4:0, 4:2:2 or 4:2:0 chroma
-			// downsampling ratios. This implies that the (h, v) values for the Y
-			// component are either (1, 1), (1, 2), (2, 1) or (2, 2), and the (h, v)
-			// values for the Cr and Cb components must be (1, 1).
+			// For YCbCr images, we only support 4:4:4, 4:4:0, 4:2:2, 4:2:0,
+			// 4:1:1 or 4:1:0 chroma downsampling ratios. This implies that the
+			// (h, v) values for the Y component are either (1, 1), (1, 2),
+			// (2, 1), (2, 2), (4, 1) or (4, 2), and the (h, v) values for the Cr
+			// and Cb components must be (1, 1).
 			if i == 0 {
-				if hv != 0x11 && hv != 0x21 && hv != 0x22 && hv != 0x12 {
+				if hv != 0x11 && hv != 0x21 && hv != 0x22 && hv != 0x12 && hv != 0x41 && hv != 0x42 {
 					return UnsupportedError("luma/chroma downsample ratio")
 				}
 			} else if hv != 0x11 {

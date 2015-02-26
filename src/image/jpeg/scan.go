@@ -26,6 +26,10 @@ func (d *decoder) makeImg(h0, v0, mxx, myy int) {
 		subsampleRatio = image.YCbCrSubsampleRatio422
 	case h0 == 2 && v0 == 2:
 		subsampleRatio = image.YCbCrSubsampleRatio420
+	case h0 == 4 && v0 == 1:
+		subsampleRatio = image.YCbCrSubsampleRatio411
+	case h0 == 4 && v0 == 2:
+		subsampleRatio = image.YCbCrSubsampleRatio410
 	default:
 		panic("unreachable")
 	}
@@ -175,13 +179,8 @@ func (d *decoder) processSOS(n int) error {
 					//	0 1 2
 					//	3 4 5
 					if nComp != 1 {
-						bx, by = d.comp[compIndex].h*mx, d.comp[compIndex].v*my
-						if h0 == 1 {
-							by += j
-						} else {
-							bx += j % 2
-							by += j / 2
-						}
+						bx = d.comp[compIndex].h*mx + j%h0
+						by = d.comp[compIndex].v*my + j/h0
 					} else {
 						q := mxx * d.comp[compIndex].h
 						bx = blockCount % q
