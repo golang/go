@@ -376,10 +376,10 @@ var allowedErrors = map[osPkg]bool{
 }
 
 func TestDependencies(t *testing.T) {
-	if runtime.GOOS == "nacl" {
-		// NaCl tests run in a limited file system and we do not
+	if runtime.GOOS == "nacl" || (runtime.GOOS == "darwin" && runtime.GOARCH == "arm") {
+		// Tests run in a limited file system and we do not
 		// provide access to every source file.
-		t.Skip("skipping on NaCl")
+		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 	var all []string
 
