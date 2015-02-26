@@ -36,6 +36,10 @@ func TestConnAndListener(t *testing.T) {
 			case "nacl", "plan9", "windows":
 				continue
 			}
+			// iOS does not support unix domain sockets
+			if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
+				continue
+			}
 		case "unixpacket":
 			switch runtime.GOOS {
 			case "android", "darwin", "nacl", "openbsd", "plan9", "windows":

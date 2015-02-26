@@ -51,6 +51,9 @@ var packetConnTests = []struct {
 }
 
 func TestPacketConn(t *testing.T) {
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
+		t.Skip("skipping test on darwin/arm")
+	}
 	closer := func(c PacketConn, net, addr1, addr2 string) {
 		c.Close()
 		switch net {
@@ -106,6 +109,9 @@ func TestPacketConn(t *testing.T) {
 }
 
 func TestConnAndPacketConn(t *testing.T) {
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
+		t.Skip("skipping test on darwin/arm")
+	}
 	closer := func(c PacketConn, net, addr1, addr2 string) {
 		c.Close()
 		switch net {
