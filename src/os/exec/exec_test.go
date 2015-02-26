@@ -28,8 +28,9 @@ import (
 )
 
 func helperCommand(t *testing.T, s ...string) *exec.Cmd {
-	if runtime.GOOS == "nacl" {
-		t.Skip("skipping on nacl")
+	if runtime.GOOS == "nacl" || (runtime.GOOS == "darwin" && runtime.GOARCH == "arm") {
+		// iOS cannot fork
+		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 	cs := []string{"-test.run=TestHelperProcess", "--"}
 	cs = append(cs, s...)
@@ -49,6 +50,10 @@ func TestEcho(t *testing.T) {
 }
 
 func TestCommandRelativeName(t *testing.T) {
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
+		t.Skip("skipping on darwin/arm")
+	}
+
 	// Run our own binary as a relative path
 	// (e.g. "_test/exec.test") our parent directory.
 	base := filepath.Base(os.Args[0]) // "exec.test"
@@ -378,6 +383,10 @@ func TestExtraFiles(t *testing.T) {
 	switch runtime.GOOS {
 	case "nacl", "windows":
 		t.Skipf("skipping test on %q", runtime.GOOS)
+	case "darwin":
+		if runtime.GOARCH == "arm" {
+			t.Skipf("skipping test on %s/%s", runtime.GOOS, runtime.GOARCH)
+		}
 	}
 
 	// Ensure that file descriptors have not already been leaked into
