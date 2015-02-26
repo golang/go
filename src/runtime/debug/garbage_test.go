@@ -88,8 +88,7 @@ func TestReadGCStats(t *testing.T) {
 var big = make([]byte, 1<<20)
 
 func TestFreeOSMemory(t *testing.T) {
-	switch runtime.GOARCH {
-	case "ppc64", "ppc64le", "nacl":
+	if runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" || runtime.GOOS == "nacl" {
 		t.Skip("issue 9993; scavenger temporarily disabled on systems with 64k pages")
 	}
 	var ms1, ms2 runtime.MemStats
