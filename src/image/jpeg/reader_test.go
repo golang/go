@@ -23,6 +23,8 @@ import (
 func TestDecodeProgressive(t *testing.T) {
 	testCases := []string{
 		"../testdata/video-001",
+		"../testdata/video-001.q50.410",
+		"../testdata/video-001.q50.411",
 		"../testdata/video-001.q50.420",
 		"../testdata/video-001.q50.422",
 		"../testdata/video-001.q50.440",
