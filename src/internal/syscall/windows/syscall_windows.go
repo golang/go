@@ -95,8 +95,8 @@ const (
 )
 
 //sys GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizeOfPointer *uint32) (errcode error) = iphlpapi.GetAdaptersAddresses
-
 //sys	GetComputerNameEx(nameformat uint32, buf *uint16, n *uint32) (err error) = GetComputerNameExW
+//sys	MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) = MoveFileExW
 
 const (
 	ComputerNameNetBIOS                   = 0
@@ -108,4 +108,23 @@ const (
 	ComputerNamePhysicalDnsDomain         = 6
 	ComputerNamePhysicalDnsFullyQualified = 7
 	ComputerNameMax                       = 8
+
+	MOVEFILE_REPLACE_EXISTING      = 0x1
+	MOVEFILE_COPY_ALLOWED          = 0x2
+	MOVEFILE_DELAY_UNTIL_REBOOT    = 0x4
+	MOVEFILE_WRITE_THROUGH         = 0x8
+	MOVEFILE_CREATE_HARDLINK       = 0x10
+	MOVEFILE_FAIL_IF_NOT_TRACKABLE = 0x20
 )
+
+func Rename(oldpath, newpath string) error {
+	from, err := syscall.UTF16PtrFromString(oldpath)
+	if err != nil {
+		return err
+	}
+	to, err := syscall.UTF16PtrFromString(newpath)
+	if err != nil {
+		return err
+	}
+	return MoveFileEx(from, to, MOVEFILE_REPLACE_EXISTING)
+}
