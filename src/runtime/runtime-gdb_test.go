@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -41,6 +42,9 @@ func main() {
 func TestGdbPython(t *testing.T) {
 	if runtime.GOOS == "darwin" {
 		t.Skip("gdb does not work on darwin")
+	}
+	if strings.HasPrefix(runtime.GOARCH, "ppc64") {
+		t.Skip("gdb does not work on ppc64 - issue 10017")
 	}
 
 	if runtime.GOOS == "linux" && runtime.GOARCH == "arm" {
