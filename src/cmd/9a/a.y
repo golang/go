@@ -927,7 +927,7 @@ regaddr:
 		$$ = nullgen;
 		$$.Type = obj.TYPE_MEM;
 		$$.Reg = int16($2);
-		$$.Scale = int8($4);
+		$$.Scale = int16($4);
 		$$.Offset = 0;
 	}
 

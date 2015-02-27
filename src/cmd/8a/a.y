@@ -534,7 +534,7 @@ omem:
 		$$.Type = obj.TYPE_MEM
 		$$.Offset = $1;
 		$$.Index = int16($3);
-		$$.Scale = int8($5);
+		$$.Scale = int16($5);
 		checkscale($$.Scale);
 	}
 |	con '(' LLREG ')' '(' LLREG '*' con ')'
@@ -544,7 +544,7 @@ omem:
 		$$.Reg = int16($3)
 		$$.Offset = $1;
 		$$.Index = int16($6);
-		$$.Scale = int8($8);
+		$$.Scale = int16($8);
 		checkscale($$.Scale);
 	}
 |	con '(' LLREG ')' '(' LSREG '*' con ')'
@@ -554,7 +554,7 @@ omem:
 		$$.Reg = int16($3)
 		$$.Offset = $1;
 		$$.Index = int16($6);
-		$$.Scale = int8($8);
+		$$.Scale = int16($8);
 		checkscale($$.Scale);
 	}
 |	'(' LLREG ')'
@@ -581,7 +581,7 @@ omem:
 		$$ = nullgen;
 		$$.Type = obj.TYPE_MEM
 		$$.Index = int16($2);
-		$$.Scale = int8($4);
+		$$.Scale = int16($4);
 		checkscale($$.Scale);
 	}
 |	'(' LLREG ')' '(' LLREG '*' con ')'
@@ -590,7 +590,7 @@ omem:
 		$$.Type = obj.TYPE_MEM
 		$$.Reg = int16($2)
 		$$.Index = int16($5);
-		$$.Scale = int8($7);
+		$$.Scale = int16($7);
 		checkscale($$.Scale);
 	}
 
@@ -603,7 +603,7 @@ nmem:
 	{
 		$$ = $1;
 		$$.Index = int16($3);
-		$$.Scale = int8($5);
+		$$.Scale = int16($5);
 		checkscale($$.Scale);
 	}
 

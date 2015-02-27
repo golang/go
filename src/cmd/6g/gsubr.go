@@ -89,12 +89,12 @@ func gclean() {
 
 	for i := x86.REG_AX; i <= x86.REG_R15; i++ {
 		if reg[i] != 0 {
-			gc.Yyerror("reg %v left allocated\n", gc.Ctxt.Rconv(i))
+			gc.Yyerror("reg %v left allocated\n", obj.Rconv(i))
 		}
 	}
 	for i := x86.REG_X0; i <= x86.REG_X15; i++ {
 		if reg[i] != 0 {
-			gc.Yyerror("reg %v left allocated\n", gc.Ctxt.Rconv(i))
+			gc.Yyerror("reg %v left allocated\n", obj.Rconv(i))
 		}
 	}
 }

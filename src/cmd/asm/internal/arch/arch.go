@@ -38,8 +38,6 @@ type Arch struct {
 	IsJump func(word string) bool
 	// Aconv pretty-prints an instruction opcode for this architecture.
 	Aconv func(int) string
-	// Rconv pretty-prints a register for this architecture.
-	Rconv func(int) string
 }
 
 // nilRegisterNumber is the register number function for architectures
@@ -188,7 +186,6 @@ func arch386() *Arch {
 		UnaryDestination: unaryDestination,
 		IsJump:           jump386,
 		Aconv:            i386.Aconv,
-		Rconv:            i386.Rconv,
 	}
 }
 
@@ -309,7 +306,6 @@ func archAmd64() *Arch {
 		UnaryDestination: unaryDestination,
 		IsJump:           jump386,
 		Aconv:            x86.Aconv,
-		Rconv:            x86.Rconv,
 	}
 }
 
@@ -320,7 +316,7 @@ func archArm() *Arch {
 	// Note that there is no list of names as there is for 386 and amd64.
 	// TODO: Are there aliases we need to add?
 	for i := arm.REG_R0; i < arm.REG_SPSR; i++ {
-		register[arm.Rconv(i)] = int16(i)
+		register[obj.Rconv(i)] = int16(i)
 	}
 	// Avoid unintentionally clobbering g using R10.
 	delete(register, "R10")
@@ -362,7 +358,6 @@ func archArm() *Arch {
 		UnaryDestination: unaryDestination,
 		IsJump:           jumpArm,
 		Aconv:            arm.Aconv,
-		Rconv:            arm.Rconv,
 	}
 }
 
@@ -372,17 +367,17 @@ func archPPC64() *Arch {
 	// TODO: Should this be done in obj for us?
 	// Note that there is no list of names as there is for 386 and amd64.
 	for i := ppc64.REG_R0; i <= ppc64.REG_R31; i++ {
-		register[ppc64.Rconv(i)] = int16(i)
+		register[obj.Rconv(i)] = int16(i)
 	}
 	for i := ppc64.REG_F0; i <= ppc64.REG_F31; i++ {
-		register[ppc64.Rconv(i)] = int16(i)
+		register[obj.Rconv(i)] = int16(i)
 	}
 	for i := ppc64.REG_C0; i <= ppc64.REG_C7; i++ {
 		// TODO: Rconv prints these as C7 but the input syntax requires CR7.
 		register[fmt.Sprintf("CR%d", i-ppc64.REG_C0)] = int16(i)
 	}
 	for i := ppc64.REG_MSR; i <= ppc64.REG_CR; i++ {
-		register[ppc64.Rconv(i)] = int16(i)
+		register[obj.Rconv(i)] = int16(i)
 	}
 	register["CR"] = ppc64.REG_CR
 	register["XER"] = ppc64.REG_XER
@@ -422,6 +417,5 @@ func archPPC64() *Arch {
 		UnaryDestination: nil,
 		IsJump:           jumpPPC64,
 		Aconv:            ppc64.Aconv,
-		Rconv:            ppc64.Rconv,
 	}
 }

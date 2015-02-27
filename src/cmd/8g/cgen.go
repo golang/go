@@ -774,7 +774,7 @@ func agen(n *gc.Node, res *gc.Node) {
 			// LEAL (n3)(n2*w), n3
 			p1 := gins(i386.ALEAL, &n2, &n3)
 
-			p1.From.Scale = int8(w)
+			p1.From.Scale = int16(w)
 			p1.From.Type = obj.TYPE_MEM
 			p1.From.Index = p1.From.Reg
 			p1.From.Reg = p1.To.Reg

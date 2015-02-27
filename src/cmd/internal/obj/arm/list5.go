@@ -86,26 +86,26 @@ func Pconv(p *obj.Prog) string {
 	if a == AMOVM {
 		if p.From.Type == obj.TYPE_CONST {
 			str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v",
-				p.Pc, p.Line(), Aconv(a), sc, RAconv(&p.From), obj.Dconv(p, Rconv, &p.To))
+				p.Pc, p.Line(), Aconv(a), sc, RAconv(&p.From), obj.Dconv(p, &p.To))
 		} else if p.To.Type == obj.TYPE_CONST {
 			str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v",
-				p.Pc, p.Line(), Aconv(a), sc, obj.Dconv(p, Rconv, &p.From), RAconv(&p.To))
+				p.Pc, p.Line(), Aconv(a), sc, obj.Dconv(p, &p.From), RAconv(&p.To))
 		} else {
 			str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v",
-				p.Pc, p.Line(), Aconv(a), sc, obj.Dconv(p, Rconv, &p.From), obj.Dconv(p, Rconv, &p.To))
+				p.Pc, p.Line(), Aconv(a), sc, obj.Dconv(p, &p.From), obj.Dconv(p, &p.To))
 		}
 	} else if a == obj.ADATA {
 		str = fmt.Sprintf("%.5d (%v)\t%v\t%v/%d,%v",
-			p.Pc, p.Line(), Aconv(a), obj.Dconv(p, Rconv, &p.From), p.From3.Offset, obj.Dconv(p, Rconv, &p.To))
+			p.Pc, p.Line(), Aconv(a), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
 	} else if p.As == obj.ATEXT {
 		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%d,%v",
-			p.Pc, p.Line(), Aconv(a), obj.Dconv(p, Rconv, &p.From), p.From3.Offset, obj.Dconv(p, Rconv, &p.To))
+			p.Pc, p.Line(), Aconv(a), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
 	} else if p.Reg == 0 {
 		str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v",
-			p.Pc, p.Line(), Aconv(a), sc, obj.Dconv(p, Rconv, &p.From), obj.Dconv(p, Rconv, &p.To))
+			p.Pc, p.Line(), Aconv(a), sc, obj.Dconv(p, &p.From), obj.Dconv(p, &p.To))
 	} else {
 		str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v,%v",
-			p.Pc, p.Line(), Aconv(a), sc, obj.Dconv(p, Rconv, &p.From), Rconv(int(p.Reg)), obj.Dconv(p, Rconv, &p.To))
+			p.Pc, p.Line(), Aconv(a), sc, obj.Dconv(p, &p.From), Rconv(int(p.Reg)), obj.Dconv(p, &p.To))
 	}
 
 	fp += str
@@ -160,42 +160,36 @@ func RAconv(a *obj.Addr) string {
 	return fp
 }
 
-func Rconv(r int) string {
-	var fp string
+func init() {
+	obj.RegisterRegister(obj.RBaseARM, MAXREG, Rconv)
+}
 
+func Rconv(r int) string {
 	if r == 0 {
-		fp += "NONE"
-		return fp
+		return "NONE"
 	}
 	if REG_R0 <= r && r <= REG_R15 {
-		fp += fmt.Sprintf("R%d", r-REG_R0)
-		return fp
+		return fmt.Sprintf("R%d", r-REG_R0)
 	}
 	if REG_F0 <= r && r <= REG_F15 {
-		fp += fmt.Sprintf("F%d", r-REG_F0)
-		return fp
+		return fmt.Sprintf("F%d", r-REG_F0)
 	}
 
 	switch r {
 	case REG_FPSR:
-		fp += "FPSR"
-		return fp
+		return "FPSR"
 
 	case REG_FPCR:
-		fp += "FPCR"
-		return fp
+		return "FPCR"
 
 	case REG_CPSR:
-		fp += "CPSR"
-		return fp
+		return "CPSR"
 
 	case REG_SPSR:
-		fp += "SPSR"
-		return fp
+		return "SPSR"
 	}
 
-	fp += fmt.Sprintf("badreg(%d)", r)
-	return fp
+	return fmt.Sprintf("Rgok(%d)", r-obj.RBaseARM)
 }
 
 func DRconv(a int) string {

@@ -63,14 +63,14 @@ var resvd = []int{
 }
 
 func ginit() {
-	for i := int(0); i < len(reg); i++ {
+	for i := 0; i < len(reg); i++ {
 		reg[i] = 1
 	}
-	for i := int(0); i < ppc64.NREG+ppc64.NFREG; i++ {
+	for i := 0; i < ppc64.NREG+ppc64.NFREG; i++ {
 		reg[i] = 0
 	}
 
-	for i := int(0); i < len(resvd); i++ {
+	for i := 0; i < len(resvd); i++ {
 		reg[resvd[i]-ppc64.REG_R0]++
 	}
 }
@@ -84,7 +84,7 @@ func gclean() {
 
 	for i := int(0); i < len(reg); i++ {
 		if reg[i] != 0 {
-			gc.Yyerror("reg %v left allocated, %p\n", gc.Ctxt.Rconv(i+ppc64.REG_R0), regpc[i])
+			gc.Yyerror("reg %v left allocated, %p\n", obj.Rconv(i+ppc64.REG_R0), regpc[i])
 		}
 	}
 }

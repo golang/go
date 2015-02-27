@@ -64,7 +64,7 @@ func gclean() {
 
 	for i := 0; i < len(reg); i++ {
 		if reg[i] != 0 {
-			gc.Yyerror("reg %v left allocated\n", gc.Ctxt.Rconv(i))
+			gc.Yyerror("reg %v left allocated\n", obj.Rconv(i))
 		}
 	}
 }
@@ -216,7 +216,7 @@ func regfree(n *gc.Node) {
 		gc.Fatal("regfree: reg out of range")
 	}
 	if reg[i] <= 0 {
-		gc.Fatal("regfree: reg %v not allocated", gc.Ctxt.Rconv(i))
+		gc.Fatal("regfree: reg %v not allocated", obj.Rconv(i))
 	}
 	reg[i]--
 	if reg[i] == 0 {

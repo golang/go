@@ -54,7 +54,7 @@ type Optab struct {
 	a4    uint8
 	type_ int8
 	size  int8
-	param int8
+	param int16
 }
 
 var optab = []Optab{

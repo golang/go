@@ -73,7 +73,7 @@ func (p *Parser) evalInteger(pseudo string, operands []lex.Token) int64 {
 // validateImmediate checks that addr represents an immediate constant.
 func (p *Parser) validateImmediate(pseudo string, addr *obj.Addr) {
 	if addr.Type != obj.TYPE_CONST || addr.Name != 0 || addr.Reg != 0 || addr.Index != 0 {
-		p.errorf("%s: expected immediate constant; found %s", pseudo, obj.Dconv(&emptyProg, p.arch.Rconv, addr))
+		p.errorf("%s: expected immediate constant; found %s", pseudo, obj.Dconv(&emptyProg, addr))
 	}
 }
 
@@ -461,12 +461,12 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 			// DX:AX as a register pair can only appear on the RHS.
 			// Bizarrely, to obj it's specified by setting index on the LHS.
 			// TODO: can we fix this?
-			if a[1].Class != 0 {
-				if a[0].Class != 0 {
+			if a[1].Reg2 != 0 {
+				if a[0].Reg2 != 0 {
 					p.errorf("register pair must be on LHS")
 				}
-				prog.From.Index = int16(a[1].Class)
-				prog.To.Class = 0
+				prog.From.Index = int16(a[1].Reg2)
+				prog.To.Reg2 = 0
 			}
 		case '9':
 			var reg0, reg1 int16
@@ -642,7 +642,7 @@ var emptyProg obj.Prog
 // getConstantPseudo checks that addr represents a plain constant and returns its value.
 func (p *Parser) getConstantPseudo(pseudo string, addr *obj.Addr) int64 {
 	if addr.Type != obj.TYPE_MEM || addr.Name != 0 || addr.Reg != 0 || addr.Index != 0 {
-		p.errorf("%s: expected integer constant; found %s", pseudo, obj.Dconv(&emptyProg, p.arch.Rconv, addr))
+		p.errorf("%s: expected integer constant; found %s", pseudo, obj.Dconv(&emptyProg, addr))
 	}
 	return addr.Offset
 }
@@ -650,7 +650,7 @@ func (p *Parser) getConstantPseudo(pseudo string, addr *obj.Addr) int64 {
 // getConstant checks that addr represents a plain constant and returns its value.
 func (p *Parser) getConstant(prog *obj.Prog, op int, addr *obj.Addr) int64 {
 	if addr.Type != obj.TYPE_MEM || addr.Name != 0 || addr.Reg != 0 || addr.Index != 0 {
-		p.errorf("%s: expected integer constant; found %s", p.arch.Aconv(op), obj.Dconv(prog, p.arch.Rconv, addr))
+		p.errorf("%s: expected integer constant; found %s", p.arch.Aconv(op), obj.Dconv(prog, addr))
 	}
 	return addr.Offset
 }
@@ -658,7 +658,7 @@ func (p *Parser) getConstant(prog *obj.Prog, op int, addr *obj.Addr) int64 {
 // getImmediate checks that addr represents an immediate constant and returns its value.
 func (p *Parser) getImmediate(prog *obj.Prog, op int, addr *obj.Addr) int64 {
 	if addr.Type != obj.TYPE_CONST || addr.Name != 0 || addr.Reg != 0 || addr.Index != 0 {
-		p.errorf("%s: expected immediate constant; found %s", p.arch.Aconv(op), obj.Dconv(prog, p.arch.Rconv, addr))
+		p.errorf("%s: expected immediate constant; found %s", p.arch.Aconv(op), obj.Dconv(prog, addr))
 	}
 	return addr.Offset
 }
@@ -666,7 +666,7 @@ func (p *Parser) getImmediate(prog *obj.Prog, op int, addr *obj.Addr) int64 {
 // getRegister checks that addr represents a register and returns its value.
 func (p *Parser) getRegister(prog *obj.Prog, op int, addr *obj.Addr) int16 {
 	if addr.Type != obj.TYPE_REG || addr.Offset != 0 || addr.Name != 0 || addr.Index != 0 {
-		p.errorf("%s: expected register; found %s", p.arch.Aconv(op), obj.Dconv(prog, p.arch.Rconv, addr))
+		p.errorf("%s: expected register; found %s", p.arch.Aconv(op), obj.Dconv(prog, addr))
 	}
 	return addr.Reg
 }

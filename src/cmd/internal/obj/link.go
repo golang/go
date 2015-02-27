@@ -35,8 +35,9 @@ import "encoding/binary"
 type Addr struct {
 	Type   int16
 	Reg    int16
+	Reg2   int16 // RHS of register pair. AX:DX (386)
 	Index  int16
-	Scale  int8
+	Scale  int16 // Sometimes holds a register.
 	Name   int8
 	Offset int64
 	Sym    *LSym

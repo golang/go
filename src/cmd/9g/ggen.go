@@ -747,15 +747,15 @@ func clearfat(nl *gc.Node) {
 	c := uint64(w % 8) // bytes
 	q := uint64(w / 8) // dwords
 
-	if reg[ppc64.REGRT1] > 0 {
-		gc.Fatal("R%d in use during clearfat", ppc64.REGRT1)
+	if reg[ppc64.REGRT1-ppc64.REG_R0] > 0 {
+		gc.Fatal("R%d in use during clearfat", ppc64.REGRT1-ppc64.REG_R0)
 	}
 
 	var r0 gc.Node
 	gc.Nodreg(&r0, gc.Types[gc.TUINT64], ppc64.REG_R0) // r0 is always zero
 	var dst gc.Node
 	gc.Nodreg(&dst, gc.Types[gc.Tptr], ppc64.REGRT1)
-	reg[ppc64.REGRT1]++
+	reg[ppc64.REGRT1-ppc64.REG_R0]++
 	agen(nl, &dst)
 
 	var boff uint64
@@ -812,7 +812,7 @@ func clearfat(nl *gc.Node) {
 		p.To.Offset = int64(t + boff)
 	}
 
-	reg[ppc64.REGRT1]--
+	reg[ppc64.REGRT1-ppc64.REG_R0]--
 }
 
 // Called after regopt and peep have run.

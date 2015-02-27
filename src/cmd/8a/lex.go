@@ -706,7 +706,7 @@ func cinit() {
 	nullgen.Index = i386.REG_NONE
 }
 
-func checkscale(scale int8) {
+func checkscale(scale int16) {
 	switch scale {
 	case 1,
 		2,

@@ -838,7 +838,7 @@ func agenr(n *gc.Node, a *gc.Node, res *gc.Node) {
 		if w == 1 || w == 2 || w == 4 || w == 8 {
 			p1 := gins(x86.ALEAQ, &n2, &n3)
 			p1.From.Type = obj.TYPE_MEM
-			p1.From.Scale = int8(w)
+			p1.From.Scale = int16(w)
 			p1.From.Index = p1.From.Reg
 			p1.From.Reg = p1.To.Reg
 		} else {

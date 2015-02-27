@@ -1786,7 +1786,7 @@ yydefault:
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_MEM
 			yyVAL.addr.Reg = int16(yyDollar[2].lval)
-			yyVAL.addr.Scale = int8(yyDollar[4].lval)
+			yyVAL.addr.Scale = int16(yyDollar[4].lval)
 			yyVAL.addr.Offset = 0
 		}
 	case 157:

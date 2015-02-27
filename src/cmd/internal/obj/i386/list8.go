@@ -48,21 +48,21 @@ func Pconv(p *obj.Prog) string {
 	switch p.As {
 	case obj.ADATA:
 		str = fmt.Sprintf("%.5d (%v)\t%v\t%v/%d,%v",
-			p.Pc, p.Line(), Aconv(int(p.As)), obj.Dconv(p, Rconv, &p.From), p.From3.Offset, obj.Dconv(p, Rconv, &p.To))
+			p.Pc, p.Line(), Aconv(int(p.As)), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
 
 	case obj.ATEXT:
 		if p.From3.Offset != 0 {
 			str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%d,%v",
-				p.Pc, p.Line(), Aconv(int(p.As)), obj.Dconv(p, Rconv, &p.From), p.From3.Offset, obj.Dconv(p, Rconv, &p.To))
+				p.Pc, p.Line(), Aconv(int(p.As)), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
 			break
 		}
 
 		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%v",
-			p.Pc, p.Line(), Aconv(int(p.As)), obj.Dconv(p, Rconv, &p.From), obj.Dconv(p, Rconv, &p.To))
+			p.Pc, p.Line(), Aconv(int(p.As)), obj.Dconv(p, &p.From), obj.Dconv(p, &p.To))
 
 	default:
 		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%v",
-			p.Pc, p.Line(), Aconv(int(p.As)), obj.Dconv(p, Rconv, &p.From), obj.Dconv(p, Rconv, &p.To))
+			p.Pc, p.Line(), Aconv(int(p.As)), obj.Dconv(p, &p.From), obj.Dconv(p, &p.To))
 
 		// TODO(rsc): This special case is for SHRQ $32, AX:DX, which encodes as
 		//	SHRQ $32(DX*0), AX
@@ -155,20 +155,13 @@ var Register = []string{
 	"MAXREG", /* [MAXREG] */
 }
 
+func init() {
+	obj.RegisterRegister(obj.RBase386, obj.RBase386+len(Register), Rconv)
+}
+
 func Rconv(r int) string {
-	var str string
-	var fp string
-
-	if r == REG_NONE {
-		fp += "NONE"
-		return fp
-	}
 	if r >= REG_AL && r-REG_AL < len(Register) {
-		str = fmt.Sprintf("%s", Register[r-REG_AL])
-	} else {
-		str = fmt.Sprintf("gok(%d)", r)
+		return fmt.Sprintf("%s", Register[r-REG_AL])
 	}
-
-	fp += str
-	return fp
+	return fmt.Sprintf("Rgok(%d)", r-obj.RBase386)
 }

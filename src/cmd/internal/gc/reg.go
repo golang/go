@@ -1283,7 +1283,7 @@ brk:
 		if rgp.regno != 0 {
 			if Debug['R'] != 0 && Debug['v'] != 0 {
 				v := &var_[rgp.varno:][0]
-				fmt.Printf("registerize %v+%d (bit=%2d et=%v) in %v usedreg=%#x vreg=%#x\n", Nconv(v.node, 0), v.offset, rgp.varno, Econv(int(v.etype), 0), Ctxt.Rconv(int(rgp.regno)), usedreg, vreg)
+				fmt.Printf("registerize %v+%d (bit=%2d et=%v) in %v usedreg=%#x vreg=%#x\n", Nconv(v.node, 0), v.offset, rgp.varno, Econv(int(v.etype), 0), obj.Rconv(int(rgp.regno)), usedreg, vreg)
 			}
 
 			paint3(rgp.enter, int(rgp.varno), vreg, int(rgp.regno))
