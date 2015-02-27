@@ -179,7 +179,7 @@ inst:
 		var g obj.Addr
 
 		g = nullgen;
-		g.Type = obj.TYPE_CONST;
+		g.Type = obj.TYPE_REGLIST;
 		g.Offset = int64($6);
 		outcode($1, $2, &$3, 0, &g);
 	}
@@ -188,7 +188,7 @@ inst:
 		var g obj.Addr
 
 		g = nullgen;
-		g.Type = obj.TYPE_CONST;
+		g.Type = obj.TYPE_REGLIST;
 		g.Offset = int64($4);
 		outcode($1, $2, &g, 0, &$7);
 	}

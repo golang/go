@@ -102,7 +102,7 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
 		}
 		return
 
-		// TODO(rsc): After fixing PINSRQ, check a->offset != 0 too.
+	// TODO(rsc): After fixing PINSRQ, check a->offset != 0 too.
 	// TODO(rsc): After fixing SHRQ, check a->index != 0 too.
 	case TYPE_REG:
 		if a.Scale != 0 || a.Name != 0 || a.Sym != nil {
@@ -134,7 +134,10 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
 	case TYPE_REGREG2:
 		return
 
-		// Expect sym and name to be set, nothing else.
+	case TYPE_REGLIST:
+		return
+
+	// Expect sym and name to be set, nothing else.
 	// Technically more is allowed, but this is only used for *name(SB).
 	case TYPE_INDIR:
 		if a.Reg != 0 || a.Index != 0 || a.Scale != 0 || a.Name == 0 || a.Offset != 0 || a.Sym == nil || a.U.Bits != 0 {

@@ -83,18 +83,7 @@ func Pconv(p *obj.Prog) string {
 	if s&C_UBIT != 0 { /* ambiguous with FBIT */
 		sc += ".U"
 	}
-	if a == AMOVM {
-		if p.From.Type == obj.TYPE_CONST {
-			str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v",
-				p.Pc, p.Line(), Aconv(a), sc, RAconv(&p.From), obj.Dconv(p, &p.To))
-		} else if p.To.Type == obj.TYPE_CONST {
-			str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v",
-				p.Pc, p.Line(), Aconv(a), sc, obj.Dconv(p, &p.From), RAconv(&p.To))
-		} else {
-			str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v",
-				p.Pc, p.Line(), Aconv(a), sc, obj.Dconv(p, &p.From), obj.Dconv(p, &p.To))
-		}
-	} else if a == obj.ADATA {
+	if a == obj.ADATA {
 		str = fmt.Sprintf("%.5d (%v)\t%v\t%v/%d,%v",
 			p.Pc, p.Line(), Aconv(a), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
 	} else if p.As == obj.ATEXT {

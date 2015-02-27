@@ -161,8 +161,8 @@ var optab = []Optab{
 	Optab{AMOVW, C_PSR, C_NONE, C_REG, 35, 4, 0, 0, 0},
 	Optab{AMOVW, C_REG, C_NONE, C_PSR, 36, 4, 0, 0, 0},
 	Optab{AMOVW, C_RCON, C_NONE, C_PSR, 37, 4, 0, 0, 0},
-	Optab{AMOVM, C_LCON, C_NONE, C_SOREG, 38, 4, 0, 0, 0},
-	Optab{AMOVM, C_SOREG, C_NONE, C_LCON, 39, 4, 0, 0, 0},
+	Optab{AMOVM, C_REGLIST, C_NONE, C_SOREG, 38, 4, 0, 0, 0},
+	Optab{AMOVM, C_SOREG, C_NONE, C_REGLIST, 39, 4, 0, 0, 0},
 	Optab{ASWPW, C_SOREG, C_REG, C_REG, 40, 4, 0, 0, 0},
 	Optab{ARFE, C_NONE, C_NONE, C_NONE, 41, 4, 0, 0, 0},
 	Optab{AMOVF, C_FREG, C_NONE, C_FAUTO, 50, 4, REGSP, 0, 0},
@@ -1039,6 +1039,9 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 
 	case obj.TYPE_REGREG2:
 		return C_REGREG2
+
+	case obj.TYPE_REGLIST:
+		return C_REGLIST
 
 	case obj.TYPE_SHIFT:
 		return C_SHIFT
