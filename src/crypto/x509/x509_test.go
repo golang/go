@@ -829,6 +829,10 @@ func TestImports(t *testing.T) {
 	switch runtime.GOOS {
 	case "android", "nacl":
 		t.Skipf("skipping on %s", runtime.GOOS)
+	case "darwin":
+		if runtime.GOARCH == "arm" {
+			t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+		}
 	}
 
 	if err := exec.Command("go", "run", "x509_test_import.go").Run(); err != nil {
