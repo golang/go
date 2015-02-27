@@ -122,15 +122,16 @@ func parseProfile(t *testing.T, bytes []byte, f func(uintptr, []uintptr)) {
 func testCPUProfile(t *testing.T, need []string, f func()) {
 	switch runtime.GOOS {
 	case "darwin":
-		out, err := exec.Command("uname", "-a").CombinedOutput()
-		if err != nil {
-			t.Fatal(err)
+		if runtime.GOARCH != "arm" {
+			out, err := exec.Command("uname", "-a").CombinedOutput()
+			if err != nil {
+				t.Fatal(err)
+			}
+			vers := string(out)
+			t.Logf("uname -a: %v", vers)
 		}
-		vers := string(out)
-		t.Logf("uname -a: %v", vers)
 	case "plan9":
-		// unimplemented
-		return
+		t.Skip("skipping on plan9")
 	}
 
 	var prof bytes.Buffer
@@ -200,6 +201,12 @@ func testCPUProfile(t *testing.T, need []string, f func()) {
 }
 
 func TestCPUProfileWithFork(t *testing.T) {
+	if runtime.GOOS == "darwin" {
+		if runtime.GOARCH == "arm" {
+			t.Skipf("skipping on darwin/arm")
+		}
+	}
+
 	// Fork can hang if preempted with signals frequently enough (see issue 5517).
 	// Ensure that we do not do this.
 	heap := 1 << 30
