@@ -508,9 +508,8 @@ func Link(oldname, newname string) error {
 	if err != nil {
 		return &LinkError{"link", oldname, newname, err}
 	}
-
-	e := syscall.CreateHardLink(n, o, 0)
-	if e != nil {
+	err = syscall.CreateHardLink(n, o, 0)
+	if err != nil {
 		return &LinkError{"link", oldname, newname, err}
 	}
 	return nil
