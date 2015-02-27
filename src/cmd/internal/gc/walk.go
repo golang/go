@@ -2949,14 +2949,14 @@ func appendslice(n *Node, init **NodeList) *Node {
 
 	nif.Ntest = Nod(OGT, nt, Nodintconst(0))
 
-	// instantiate growslice(Type*, []any, int64) []any
+	// instantiate growslice(Type*, []any, int) []any
 	fn := syslook("growslice", 1)
 
 	argtype(fn, s.Type.Type)
 	argtype(fn, s.Type.Type)
 
 	// s = growslice(T, s, n)
-	nif.Nbody = list1(Nod(OAS, s, mkcall1(fn, s.Type, &nif.Ninit, typename(s.Type), s, conv(nt, Types[TINT64]))))
+	nif.Nbody = list1(Nod(OAS, s, mkcall1(fn, s.Type, &nif.Ninit, typename(s.Type), s, nt)))
 
 	l = list(l, nif)
 
@@ -3066,11 +3066,11 @@ func walkappend(n *Node, init **NodeList) *Node {
 	nx := Nod(OIF, nil, nil)       // if cap(s) - len(s) < argc
 	nx.Ntest = Nod(OLT, Nod(OSUB, Nod(OCAP, ns, nil), Nod(OLEN, ns, nil)), na)
 
-	fn := syslook("growslice", 1) //   growslice(<type>, old []T, n int64) (ret []T)
+	fn := syslook("growslice", 1) //   growslice(<type>, old []T, n int) (ret []T)
 	argtype(fn, ns.Type.Type)     // 1 old []any
 	argtype(fn, ns.Type.Type)     // 2 ret []any
 
-	nx.Nbody = list1(Nod(OAS, ns, mkcall1(fn, ns.Type, &nx.Ninit, typename(ns.Type), ns, conv(na, Types[TINT64]))))
+	nx.Nbody = list1(Nod(OAS, ns, mkcall1(fn, ns.Type, &nx.Ninit, typename(ns.Type), ns, na)))
 
 	l = list(l, nx)
 
