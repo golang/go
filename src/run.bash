@@ -158,6 +158,13 @@ android-arm | dragonfly-386 | dragonfly-amd64 | freebsd-386 | freebsd-amd64 | fr
 			go test -ldflags '-linkmode=external' ../nocgo || exit 1
 			go test -ldflags '-linkmode=external -extldflags "-static -pthread"' ../nocgo || exit 1
 		fi
+		if ! $CC -xc -o /dev/null -pie - 2>/dev/null <<<'int main() {}' ; then
+			echo "No support for -pie found, skip cgo PIE test."
+		else
+			go test -ldflags '-linkmode=external -extldflags "-pie"' || exit 1
+			go test -ldflags '-linkmode=external -extldflags "-pie"' ../testtls || exit 1
+			go test -ldflags '-linkmode=external -extldflags "-pie"' ../nocgo || exit 1
+		fi
 		;;
 	esac
 	;;
