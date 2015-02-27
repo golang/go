@@ -383,7 +383,7 @@ func compile(fn *Node) {
 	var gclocals *Sym
 	if fn.Nbody == nil {
 		if pure_go != 0 || strings.HasPrefix(fn.Nname.Sym.Name, "init.") {
-			Yyerror("missing function body", fn)
+			Yyerror("missing function body for %q", fn.Nname.Sym.Name)
 			goto ret
 		}
 
