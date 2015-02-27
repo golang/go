@@ -31,8 +31,8 @@
 145 00031 (testdata/ppc64.s:145)	MOVFL	FPSCR,F1
 151 00032 (testdata/ppc64.s:151)	MOVFL	F1,FPSCR
 157 00033 (testdata/ppc64.s:157)	MOVFL	F1,$4,FPSCR
-163 00034 (testdata/ppc64.s:163)	MOVFL	FPSCR,C0
-184 00035 (testdata/ppc64.s:184)	MOVW	R1,C1
+163 00034 (testdata/ppc64.s:163)	MOVFL	FPSCR,CR0
+184 00035 (testdata/ppc64.s:184)	MOVW	R1,CR1
 190 00036 (testdata/ppc64.s:190)	MOVW	R1,CR
 202 00037 (testdata/ppc64.s:202)	ADD	R1,R2,R3
 208 00038 (testdata/ppc64.s:208)	ADD	$1,R2,R3
@@ -49,7 +49,7 @@
 292 00049 (testdata/ppc64.s:292)	MOVW	$1,R1
 298 00050 (testdata/ppc64.s:298)	MOVW	$1,R1
 299 00051 (testdata/ppc64.s:299)	MOVW	$foo(SB),R1
-323 00052 (testdata/ppc64.s:323)	MOVFL	C0,C1
+323 00052 (testdata/ppc64.s:323)	MOVFL	CR0,CR1
 335 00053 (testdata/ppc64.s:335)	MOVW	CR,R1
 341 00054 (testdata/ppc64.s:341)	MOVW	SPR(0),R1
 342 00055 (testdata/ppc64.s:342)	MOVW	SPR(7),R1
@@ -63,8 +63,8 @@
 387 00063 (testdata/ppc64.s:387)	JMP	,4(R1)
 388 00064 (testdata/ppc64.s:388)	JMP	,foo(SB)
 394 00065 (testdata/ppc64.s:394)	JMP	,CTR
-413 00066 (testdata/ppc64.s:413)	BEQ	C1,67(PC)
-414 00067 (testdata/ppc64.s:414)	BEQ	C1,66
+413 00066 (testdata/ppc64.s:413)	BEQ	CR1,67(PC)
+414 00067 (testdata/ppc64.s:414)	BEQ	CR1,66
 440 00068 (testdata/ppc64.s:440)	BC	4,CTR
 450 00069 (testdata/ppc64.s:450)	BC	$3,R4,66
 470 00070 (testdata/ppc64.s:470)	BC	$3,R3,LR
@@ -73,11 +73,11 @@
 512 00073 (testdata/ppc64.s:512)	FADD	F1,F2,F3
 518 00074 (testdata/ppc64.s:518)	FMADD	F1,F2,F3,F4
 524 00075 (testdata/ppc64.s:524)	FCMPU	F1,F2
-530 00076 (testdata/ppc64.s:530)	FCMPU	F1,F2,C0
+530 00076 (testdata/ppc64.s:530)	FCMPU	F1,F2,CR0
 539 00077 (testdata/ppc64.s:539)	CMP	R1,R2
 545 00078 (testdata/ppc64.s:545)	CMP	R1,$4
-551 00079 (testdata/ppc64.s:551)	CMP	R1,C0,R2
-557 00080 (testdata/ppc64.s:557)	CMP	R1,C0,$4
+551 00079 (testdata/ppc64.s:551)	CMP	R1,CR0,R2
+557 00080 (testdata/ppc64.s:557)	CMP	R1,CR0,$4
 566 00081 (testdata/ppc64.s:566)	RLDC	$4,R1,$5,R2
 572 00082 (testdata/ppc64.s:572)	RLDC	$26,R1,$201326592,R2
 578 00083 (testdata/ppc64.s:578)	RLDC	R1,R2,$4,R3

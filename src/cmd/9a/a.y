@@ -806,7 +806,7 @@ creg:
 	{
 		$$ = nullgen;
 		$$.Type = obj.TYPE_REG;
-		$$.Reg = int16(REG_C0 + $3);
+		$$.Reg = int16(REG_CR0 + $3);
 	}
 
 
