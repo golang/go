@@ -729,8 +729,12 @@ func (conf *Config) Load() (*Program, error) {
 		files = append(files, cp.Files...)
 
 		path := cp.Path
-		if path == "" && len(files) > 0 {
-			path = files[0].Name.Name
+		if path == "" {
+			if len(files) > 0 {
+				path = files[0].Name.Name
+			} else {
+				path = "(unnamed)"
+			}
 		}
 		createPkg(path, files, errs)
 	}

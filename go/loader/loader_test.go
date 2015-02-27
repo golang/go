@@ -5,6 +5,7 @@
 package loader_test
 
 import (
+	"fmt"
 	"go/build"
 	"reflect"
 	"sort"
@@ -139,6 +140,49 @@ func TestLoad_MissingInitialPackage_AllowErrors(t *testing.T) {
 	}
 }
 
+func TestCreateUnnamedPackage(t *testing.T) {
+	var conf loader.Config
+	conf.CreateFromFilenames("")
+	prog, err := conf.Load()
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+	if got, want := fmt.Sprint(prog.InitialPackages()), "[(unnamed)]"; got != want {
+		t.Errorf("InitialPackages = %s, want %s", got, want)
+	}
+}
+
+func TestLoad_MissingFileInCreatedPackage(t *testing.T) {
+	var conf loader.Config
+	conf.CreateFromFilenames("", "missing.go")
+
+	const wantErr = "couldn't load packages due to errors: (unnamed)"
+
+	prog, err := conf.Load()
+	if prog != nil {
+		t.Errorf("Load unexpectedly returned a Program")
+	}
+	if err == nil {
+		t.Fatalf("Load succeeded unexpectedly, want %q", wantErr)
+	}
+	if err.Error() != wantErr {
+		t.Fatalf("Load failed with wrong error %q, want %q", err, wantErr)
+	}
+}
+
+func TestLoad_MissingFileInCreatedPackage_AllowErrors(t *testing.T) {
+	conf := loader.Config{AllowErrors: true}
+	conf.CreateFromFilenames("", "missing.go")
+
+	prog, err := conf.Load()
+	if err != nil {
+		t.Errorf("Load failed: %v", err)
+	}
+	if got, want := fmt.Sprint(prog.InitialPackages()), "[(unnamed)]"; got != want {
+		t.Fatalf("InitialPackages = %s, want %s", got, want)
+	}
+}
+
 func TestLoad_ParseError(t *testing.T) {
 	var conf loader.Config
 	conf.CreateFromFilenames("badpkg", "testdata/badpkgdecl.go")
@@ -146,13 +190,14 @@ func TestLoad_ParseError(t *testing.T) {
 	const wantErr = "couldn't load packages due to errors: badpkg"
 
 	prog, err := conf.Load()
-	if err == nil {
-		t.Errorf("Load succeeded unexpectedly, want %q", wantErr)
-	} else if err.Error() != wantErr {
-		t.Errorf("Load failed with wrong error %q, want %q", err, wantErr)
-	}
 	if prog != nil {
 		t.Errorf("Load unexpectedly returned a Program")
+	}
+	if err == nil {
+		t.Fatalf("Load succeeded unexpectedly, want %q", wantErr)
+	}
+	if err.Error() != wantErr {
+		t.Fatalf("Load failed with wrong error %q, want %q", err, wantErr)
 	}
 }
 
