@@ -159,7 +159,7 @@ func selectgo(sel *byte)
 func block()
 
 func makeslice(typ *byte, nel int64, cap int64) (ary []any)
-func growslice(typ *byte, old []any, n int64) (ary []any)
+func growslice(typ *byte, old []any, n int) (ary []any)
 func memmove(to *any, frm *any, length uintptr)
 func memclr(ptr *byte, length uintptr)
 
