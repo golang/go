@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 //go:generate go tool yacc go.y
+//go:generate go run mkbuiltin.go runtime unsafe
 
 package gc
 
