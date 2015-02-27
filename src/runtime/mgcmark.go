@@ -577,15 +577,13 @@ func greyobject(obj, base, off uintptr, hbits heapBits, gcw *gcWorkProducer) {
 			return
 		}
 
-		// Each byte of GC bitmap holds info for two words.
-		// Might be racing with other updates, so use atomic update always.
-		// We used to be clever here and use a non-atomic update in certain
-		// cases, but it's not worth the risk.
 		hbits.setMarked()
-	}
 
-	if !useCheckmark && hbits.typeBits() == typeDead {
-		return // noscan object
+		// If this is a noscan object, fast-track it to black
+		// instead of greying it.
+		if hbits.typeBits() == typeDead {
+			return
+		}
 	}
 
 	// Queue the obj for scanning. The PREFETCH(obj) logic has been removed but

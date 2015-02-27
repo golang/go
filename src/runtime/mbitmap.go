@@ -234,6 +234,10 @@ func (h heapBits) isMarked() bool {
 
 // setMarked sets the marked bit in the heap bits, atomically.
 func (h heapBits) setMarked() {
+	// Each byte of GC bitmap holds info for two words.
+	// Might be racing with other updates, so use atomic update always.
+	// We used to be clever here and use a non-atomic update in certain
+	// cases, but it's not worth the risk.
 	atomicor8(h.bitp, bitMarked<<h.shift)
 }
 
