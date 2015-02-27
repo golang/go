@@ -64,14 +64,14 @@ func Pconv(p *obj.Prog) string {
 	str = ""
 	if a == obj.ADATA {
 		str = fmt.Sprintf("%.5d (%v)\t%v\t%v/%d,%v",
-			p.Pc, p.Line(), Aconv(a), obj.Dconv(p, Rconv, &p.From), p.From3.Offset, obj.Dconv(p, Rconv, &p.To))
+			p.Pc, p.Line(), Aconv(a), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
 	} else if a == obj.ATEXT || a == obj.AGLOBL {
 		if p.From3.Offset != 0 {
 			str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%d,%v",
-				p.Pc, p.Line(), Aconv(a), obj.Dconv(p, Rconv, &p.From), p.From3.Offset, obj.Dconv(p, Rconv, &p.To))
+				p.Pc, p.Line(), Aconv(a), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
 		} else {
 			str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%v",
-				p.Pc, p.Line(), Aconv(a), obj.Dconv(p, Rconv, &p.From), obj.Dconv(p, Rconv, &p.To))
+				p.Pc, p.Line(), Aconv(a), obj.Dconv(p, &p.From), obj.Dconv(p, &p.To))
 		}
 	} else {
 		if p.Mark&NOSCHED != 0 {
@@ -79,31 +79,31 @@ func Pconv(p *obj.Prog) string {
 		}
 		if p.Reg == 0 && p.From3.Type == obj.TYPE_NONE {
 			str += fmt.Sprintf("%.5d (%v)\t%v\t%v,%v",
-				p.Pc, p.Line(), Aconv(a), obj.Dconv(p, Rconv, &p.From), obj.Dconv(p, Rconv, &p.To))
+				p.Pc, p.Line(), Aconv(a), obj.Dconv(p, &p.From), obj.Dconv(p, &p.To))
 		} else if a != obj.ATEXT && p.From.Type == obj.TYPE_MEM {
 			off := ""
 			if p.From.Offset != 0 {
 				off = fmt.Sprintf("%d", p.From.Offset)
 			}
 			str += fmt.Sprintf("%.5d (%v)\t%v\t%s(%v+%v),%v",
-				p.Pc, p.Line(), Aconv(a), off, Rconv(int(p.From.Reg)), Rconv(int(p.Reg)), obj.Dconv(p, Rconv, &p.To))
+				p.Pc, p.Line(), Aconv(a), off, Rconv(int(p.From.Reg)), Rconv(int(p.Reg)), obj.Dconv(p, &p.To))
 		} else if p.To.Type == obj.TYPE_MEM {
 			off := ""
 			if p.From.Offset != 0 {
 				off = fmt.Sprintf("%d", p.From.Offset)
 			}
 			str += fmt.Sprintf("%.5d (%v)\t%v\t%v,%s(%v+%v)",
-				p.Pc, p.Line(), Aconv(a), obj.Dconv(p, Rconv, &p.From), off, Rconv(int(p.To.Reg)), Rconv(int(p.Reg)))
+				p.Pc, p.Line(), Aconv(a), obj.Dconv(p, &p.From), off, Rconv(int(p.To.Reg)), Rconv(int(p.Reg)))
 		} else {
 			str += fmt.Sprintf("%.5d (%v)\t%v\t%v",
-				p.Pc, p.Line(), Aconv(a), obj.Dconv(p, Rconv, &p.From))
+				p.Pc, p.Line(), Aconv(a), obj.Dconv(p, &p.From))
 			if p.Reg != 0 {
 				str += fmt.Sprintf(",%v", Rconv(int(p.Reg)))
 			}
 			if p.From3.Type != obj.TYPE_NONE {
-				str += fmt.Sprintf(",%v", obj.Dconv(p, Rconv, &p.From3))
+				str += fmt.Sprintf(",%v", obj.Dconv(p, &p.From3))
 			}
-			str += fmt.Sprintf(",%v", obj.Dconv(p, Rconv, &p.To))
+			str += fmt.Sprintf(",%v", obj.Dconv(p, &p.To))
 		}
 
 		if p.Spadj != 0 {
@@ -128,63 +128,52 @@ func Aconv(a int) string {
 	return fp
 }
 
-func Rconv(r int) string {
-	var fp string
+func init() {
+	obj.RegisterRegister(obj.RBasePPC64, REG_DCR0+1024, Rconv)
+}
 
+func Rconv(r int) string {
 	if r == 0 {
-		fp += "NONE"
-		return fp
+		return "NONE"
 	}
 	if REG_R0 <= r && r <= REG_R31 {
-		fp += fmt.Sprintf("R%d", r-REG_R0)
-		return fp
+		return fmt.Sprintf("R%d", r-REG_R0)
 	}
 	if REG_F0 <= r && r <= REG_F31 {
-		fp += fmt.Sprintf("F%d", r-REG_F0)
-		return fp
+		return fmt.Sprintf("F%d", r-REG_F0)
 	}
 	if REG_C0 <= r && r <= REG_C7 {
-		fp += fmt.Sprintf("C%d", r-REG_C0)
-		return fp
+		return fmt.Sprintf("C%d", r-REG_C0)
 	}
 	if r == REG_CR {
-		fp += "CR"
-		return fp
+		return "CR"
 	}
 	if REG_SPR0 <= r && r <= REG_SPR0+1023 {
 		switch r {
 		case REG_XER:
-			fp += "XER"
-			return fp
+			return "XER"
 
 		case REG_LR:
-			fp += "LR"
-			return fp
+			return "LR"
 
 		case REG_CTR:
-			fp += "CTR"
-			return fp
+			return "CTR"
 		}
 
-		fp += fmt.Sprintf("SPR(%d)", r-REG_SPR0)
-		return fp
+		return fmt.Sprintf("SPR(%d)", r-REG_SPR0)
 	}
 
 	if REG_DCR0 <= r && r <= REG_DCR0+1023 {
-		fp += fmt.Sprintf("DCR(%d)", r-REG_DCR0)
-		return fp
+		return fmt.Sprintf("DCR(%d)", r-REG_DCR0)
 	}
 	if r == REG_FPSCR {
-		fp += "FPSCR"
-		return fp
+		return "FPSCR"
 	}
 	if r == REG_MSR {
-		fp += "MSR"
-		return fp
+		return "MSR"
 	}
 
-	fp += fmt.Sprintf("badreg(%d)", r)
-	return fp
+	return fmt.Sprintf("Rgok(%d)", r-obj.RBasePPC64)
 }
 
 func DRconv(a int) string {

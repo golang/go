@@ -261,19 +261,15 @@ func (ctxt *Link) Line(n int) string {
 	return Linklinefmt(ctxt, n, false, false)
 }
 
-func (ctxt *Link) Rconv(reg int) string {
-	return ctxt.Arch.Rconv(reg)
-}
-
 func Getcallerpc(interface{}) uintptr {
 	return 1
 }
 
 func (ctxt *Link) Dconv(a *Addr) string {
-	return Dconv(nil, ctxt.Rconv, a)
+	return Dconv(nil, a)
 }
 
-func Dconv(p *Prog, Rconv func(int) string, a *Addr) string {
+func Dconv(p *Prog, a *Addr) string {
 	var str string
 
 	switch a.Type {
@@ -283,7 +279,7 @@ func Dconv(p *Prog, Rconv func(int) string, a *Addr) string {
 	case TYPE_NONE:
 		str = ""
 		if a.Name != NAME_NONE || a.Reg != 0 || a.Sym != nil {
-			str = fmt.Sprintf("%v(%v)(NONE)", Mconv(Rconv, a), Rconv(int(a.Reg)))
+			str = fmt.Sprintf("%v(%v)(NONE)", Mconv(a), Rconv(int(a.Reg)))
 		}
 
 	case TYPE_REG:
@@ -298,7 +294,7 @@ func Dconv(p *Prog, Rconv func(int) string, a *Addr) string {
 
 		str = fmt.Sprintf("%v", Rconv(int(a.Reg)))
 		if a.Name != TYPE_NONE || a.Sym != nil {
-			str = fmt.Sprintf("%v(%v)(REG)", Mconv(Rconv, a), Rconv(int(a.Reg)))
+			str = fmt.Sprintf("%v(%v)(REG)", Mconv(a), Rconv(int(a.Reg)))
 		}
 
 	case TYPE_BRANCH:
@@ -313,19 +309,19 @@ func Dconv(p *Prog, Rconv func(int) string, a *Addr) string {
 		}
 
 	case TYPE_INDIR:
-		str = fmt.Sprintf("*%s", Mconv(Rconv, a))
+		str = fmt.Sprintf("*%s", Mconv(a))
 
 	case TYPE_MEM:
-		str = Mconv(Rconv, a)
+		str = Mconv(a)
 		if a.Index != REG_NONE {
 			str += fmt.Sprintf("(%v*%d)", Rconv(int(a.Index)), int(a.Scale))
 		}
 
 	case TYPE_CONST:
 		if a.Reg != 0 {
-			str = fmt.Sprintf("$%v(%v)", Mconv(Rconv, a), Rconv(int(a.Reg)))
+			str = fmt.Sprintf("$%v(%v)", Mconv(a), Rconv(int(a.Reg)))
 		} else {
-			str = fmt.Sprintf("$%v", Mconv(Rconv, a))
+			str = fmt.Sprintf("$%v", Mconv(a))
 		}
 
 	case TYPE_TEXTSIZE:
@@ -347,7 +343,7 @@ func Dconv(p *Prog, Rconv func(int) string, a *Addr) string {
 		str = fmt.Sprintf("$%q", a.U.Sval)
 
 	case TYPE_ADDR:
-		str = fmt.Sprintf("$%s", Mconv(Rconv, a))
+		str = fmt.Sprintf("$%s", Mconv(a))
 
 	case TYPE_SHIFT:
 		v := int(a.Offset)
@@ -371,7 +367,7 @@ func Dconv(p *Prog, Rconv func(int) string, a *Addr) string {
 	return str
 }
 
-func Mconv(Rconv func(int) string, a *Addr) string {
+func Mconv(a *Addr) string {
 	var str string
 
 	switch a.Name {
@@ -416,4 +412,50 @@ func offConv(off int64) string {
 		return ""
 	}
 	return fmt.Sprintf("%+d", off)
+}
+
+type regSet struct {
+	lo    int
+	hi    int
+	Rconv func(int) string
+}
+
+// Few enough architectures that a linear scan is fastest.
+// Not even worth sorting.
+var regSpace []regSet
+
+/*
+	Each architecture defines a register space as a unique
+	integer range.
+	Here is the list of architectures and the base of their register spaces.
+*/
+
+const (
+	// Because of masking operations in the encodings, each register
+	// space should start at 0 modulo some power of 2.
+	RBase386   = 1 * 1024
+	RBaseAMD64 = 2 * 1024
+	RBaseARM   = 3 * 1024
+	RBasePPC64 = 4 * 1024
+	// The next free base is 8*1024 (PPC64 has many registers).
+)
+
+// RegisterRegister binds a pretty-printer (Rconv) for register
+// numbers to a given register number range.  Lo is inclusive,
+// hi exclusive (valid registers are lo through hi-1).
+func RegisterRegister(lo, hi int, Rconv func(int) string) {
+	regSpace = append(regSpace, regSet{lo, hi, Rconv})
+}
+
+func Rconv(reg int) string {
+	if reg == REG_NONE {
+		return "NONE"
+	}
+	for i := range regSpace {
+		rs := &regSpace[i]
+		if rs.lo <= reg && reg < rs.hi {
+			return rs.Rconv(reg)
+		}
+	}
+	return fmt.Sprintf("R???%d", reg)
 }

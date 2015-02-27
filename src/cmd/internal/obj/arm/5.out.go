@@ -47,7 +47,7 @@ const (
 )
 
 const (
-	REG_R0 = 32 + iota
+	REG_R0 = obj.RBaseARM + iota
 	REG_R1
 	REG_R2
 	REG_R3
@@ -83,6 +83,7 @@ const (
 	REG_FPCR
 	REG_CPSR
 	REG_SPSR
+	MAXREG
 	REGRET  = REG_R0
 	REGEXT  = REG_R10
 	REGG    = REGEXT - 0

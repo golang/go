@@ -1501,7 +1501,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 		}
 
 		if a.Sym != nil || a.Name != obj.NAME_NONE {
-			ctxt.Diag("unexpected addr: %v", obj.Dconv(p, Rconv, a))
+			ctxt.Diag("unexpected addr: %v", obj.Dconv(p, a))
 		}
 		fallthrough
 
@@ -1509,7 +1509,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 
 	case obj.TYPE_CONST:
 		if a.Sym != nil {
-			ctxt.Diag("TYPE_CONST with symbol: %v", obj.Dconv(p, Rconv, a))
+			ctxt.Diag("TYPE_CONST with symbol: %v", obj.Dconv(p, a))
 		}
 
 		v = int32(a.Offset)
@@ -1529,7 +1529,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 	}
 
 	if a.Type != obj.TYPE_REG {
-		ctxt.Diag("unexpected addr1: type=%d %v", a.Type, obj.Dconv(p, Rconv, a))
+		ctxt.Diag("unexpected addr1: type=%d %v", a.Type, obj.Dconv(p, a))
 		return Yxxx
 	}
 
@@ -1772,7 +1772,7 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int32 {
 		s = a.Sym
 		if s != nil {
 			if r == nil {
-				ctxt.Diag("need reloc for %v", obj.Dconv(p, Rconv, a))
+				ctxt.Diag("need reloc for %v", obj.Dconv(p, a))
 				log.Fatalf("bad code")
 			}
 
@@ -1789,7 +1789,7 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int32 {
 
 	if (a.Type == obj.TYPE_MEM || a.Type == obj.TYPE_ADDR) && a.Reg == REG_TLS {
 		if r == nil {
-			ctxt.Diag("need reloc for %v", obj.Dconv(p, Rconv, a))
+			ctxt.Diag("need reloc for %v", obj.Dconv(p, a))
 			log.Fatalf("bad code")
 		}
 
@@ -1972,7 +1972,7 @@ putrelv:
 	return
 
 bad:
-	ctxt.Diag("asmand: bad address %v", obj.Dconv(p, Rconv, a))
+	ctxt.Diag("asmand: bad address %v", obj.Dconv(p, a))
 	return
 }
 

@@ -45,7 +45,7 @@ const (
 
 // avoid conflict with ucontext.h. sigh.
 const (
-	REG_R0 = 32 + iota
+	REG_R0 = obj.RBasePPC64 + iota
 	REG_R1
 	REG_R2
 	REG_R3
@@ -77,7 +77,7 @@ const (
 	REG_R29
 	REG_R30
 	REG_R31
-	REG_F0 = 64 + iota - 32
+	REG_F0 = obj.RBasePPC64 + 32 + iota - 32
 	REG_F1
 	REG_F2
 	REG_F3
@@ -109,8 +109,8 @@ const (
 	REG_F29
 	REG_F30
 	REG_F31
-	REG_SPECIAL = 96
-	REG_C0      = 96 + iota - 65
+	REG_SPECIAL = obj.RBasePPC64 + 64
+	REG_C0      = obj.RBasePPC64 + 64 + iota - 65
 	REG_C1
 	REG_C2
 	REG_C3
@@ -118,11 +118,11 @@ const (
 	REG_C5
 	REG_C6
 	REG_C7
-	REG_MSR = 104 + iota - 73
+	REG_MSR = obj.RBasePPC64 + 72 + iota - 73
 	REG_FPSCR
 	REG_CR
-	REG_SPR0 = 1024
-	REG_DCR0 = 2048
+	REG_SPR0 = obj.RBasePPC64 + 1024
+	REG_DCR0 = obj.RBasePPC64 + 2048
 	REG_XER  = REG_SPR0 + 1
 	REG_LR   = REG_SPR0 + 8
 	REG_CTR  = REG_SPR0 + 9

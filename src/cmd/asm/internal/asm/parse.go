@@ -255,7 +255,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
 	if tok.ScanToken == scanner.Ident && !p.atStartOfRegister(name) {
 		// We have a symbol. Parse $sym±offset(symkind)
 		p.symbolReference(a, name, prefix)
-		// fmt.Printf("SYM %s\n", obj.Dconv(&emptyProg, 0, p.arch.Rconv, a))
+		// fmt.Printf("SYM %s\n", obj.Dconv(&emptyProg, 0, a))
 		if p.peek() == scanner.EOF {
 			return true
 		}
@@ -297,10 +297,10 @@ func (p *Parser) operand(a *obj.Addr) bool {
 			if r2 != 0 {
 				// Form is R1:R2. It is on RHS and the second register
 				// needs to go into the LHS. This is a horrible hack. TODO.
-				a.Class = int8(r2)
+				a.Reg2 = r2
 			}
 		}
-		// fmt.Printf("REG %s\n", obj.Dconv(&emptyProg, 0, p.arch.Rconv, a))
+		// fmt.Printf("REG %s\n", obj.Dconv(&emptyProg, 0, a))
 		p.expect(scanner.EOF)
 		return true
 	}
@@ -327,7 +327,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
 			}
 			a.Type = obj.TYPE_FCONST
 			a.U.Dval = p.floatExpr()
-			// fmt.Printf("FCONST %s\n", obj.Dconv(&emptyProg, 0, p.arch.Rconv, a))
+			// fmt.Printf("FCONST %s\n", obj.Dconv(&emptyProg, 0, a))
 			p.expect(scanner.EOF)
 			return true
 		}
@@ -341,7 +341,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
 			}
 			a.Type = obj.TYPE_SCONST
 			a.U.Sval = str
-			// fmt.Printf("SCONST %s\n", obj.Dconv(&emptyProg, 0, p.arch.Rconv, a))
+			// fmt.Printf("SCONST %s\n", obj.Dconv(&emptyProg, 0, a))
 			p.expect(scanner.EOF)
 			return true
 		}
@@ -355,7 +355,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
 			default:
 				a.Type = obj.TYPE_MEM
 			}
-			// fmt.Printf("CONST %d %s\n", a.Offset, obj.Dconv(&emptyProg, 0, p.arch.Rconv, a))
+			// fmt.Printf("CONST %d %s\n", a.Offset, obj.Dconv(&emptyProg, 0, a))
 			p.expect(scanner.EOF)
 			return true
 		}
@@ -363,13 +363,13 @@ func (p *Parser) operand(a *obj.Addr) bool {
 	}
 
 	// Odd x86 case: sym+4(SB):AX. Have name, colon, register.
-	if p.peek() == ':' && a.Name != obj.NAME_NONE && a.Class == 0 && (p.arch.Thechar == '6' || p.arch.Thechar == '8') {
+	if p.peek() == ':' && a.Name != obj.NAME_NONE && a.Reg2 == 0 && (p.arch.Thechar == '6' || p.arch.Thechar == '8') {
 		p.get(':')
 		r2, ok := p.registerReference(p.next().String())
 		if !ok {
 			return false
 		}
-		a.Class = int8(r2) // TODO: See comment about Class above.
+		a.Reg2 = r2 // TODO: See comment about Reg3 above.
 	} else {
 		// Register indirection: (reg) or (index*scale). We are on the opening paren.
 		p.registerIndirect(a, prefix)
@@ -646,7 +646,7 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 			}
 			// TODO: This is rewritten in asm. Clumsy.
 			a.Type = obj.TYPE_MEM
-			a.Scale = int8(r2)
+			a.Scale = r2
 			// Nothing may follow.
 			return
 		}
@@ -672,13 +672,13 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 			p.errorf("unimplemented two-register form")
 		}
 		a.Index = r1
-		a.Scale = scale
+		a.Scale = int16(scale)
 		p.get(')')
 	} else if scale != 0 {
 		// First (R) was missing, all we have is (R*scale).
 		a.Reg = 0
 		a.Index = r1
-		a.Scale = scale
+		a.Scale = int16(scale)
 	}
 }
 

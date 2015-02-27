@@ -34,7 +34,7 @@ func testOperandParser(t *testing.T, parser *Parser, tests []operandTest) {
 		parser.start(lex.Tokenize(test.input))
 		addr := obj.Addr{}
 		parser.operand(&addr)
-		result := obj.Dconv(&emptyProg, parser.arch.Rconv, &addr)
+		result := obj.Dconv(&emptyProg, &addr)
 		if result != test.output {
 			t.Errorf("fail at %s: got %s; expected %s\n", test.input, result, test.output)
 		}
@@ -48,9 +48,9 @@ func testX86RegisterPair(t *testing.T, parser *Parser) {
 	addr := obj.Addr{}
 	parser.operand(&addr)
 	want := obj.Addr{
-		Type:  obj.TYPE_REG,
-		Reg:   parser.arch.Register["AX"],
-		Class: int8(parser.arch.Register["BX"]), // TODO: clean up how this is encoded in parse.go
+		Type: obj.TYPE_REG,
+		Reg:  parser.arch.Register["AX"],
+		Reg2: parser.arch.Register["BX"], // TODO: clean up how this is encoded in parse.go
 	}
 	if want != addr {
 		t.Errorf("AX:DX: expected %+v got %+v", want, addr)
@@ -65,7 +65,7 @@ func testX86RegisterPair(t *testing.T, parser *Parser) {
 		Name:   obj.NAME_EXTERN,
 		Offset: 4,
 		Sym:    obj.Linklookup(parser.ctxt, "foo", 0),
-		Class:  int8(parser.arch.Register["AX"]), // TODO: clean up how this is encoded in parse.go
+		Reg2:   parser.arch.Register["AX"], // TODO: clean up how this is encoded in parse.go
 	}
 	if want != addr {
 		t.Errorf("foo+4(SB):AX: expected %+v got %+v", want, addr)
@@ -99,7 +99,7 @@ func TestPPC64OperandParser(t *testing.T) {
 	want := obj.Addr{
 		Type:  obj.TYPE_MEM,
 		Reg:   parser.arch.Register["R1"],
-		Scale: int8(parser.arch.Register["R2"]), // TODO: clean up how this is encoded in parse.go
+		Scale: parser.arch.Register["R2"], // TODO: clean up how this is encoded in parse.go
 	}
 	if want != addr {
 		t.Errorf("(R1+R2): expected %+v got %+v", want, addr)

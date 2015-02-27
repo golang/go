@@ -1257,7 +1257,7 @@ func exprfmt(n *Node, prec int) string {
 
 	case OREGISTER:
 		var f string
-		f += fmt.Sprintf("%v", Ctxt.Rconv(int(n.Val.U.Reg)))
+		f += fmt.Sprintf("%v", obj.Rconv(int(n.Val.U.Reg)))
 		return f
 
 	case OLITERAL: // this is a bit of a mess
@@ -1787,7 +1787,7 @@ func nodedump(n *Node, flag int) string {
 
 	case OREGISTER,
 		OINDREG:
-		fp += fmt.Sprintf("%v-%v%v", Oconv(int(n.Op), 0), Ctxt.Rconv(int(n.Val.U.Reg)), Jconv(n, 0))
+		fp += fmt.Sprintf("%v-%v%v", Oconv(int(n.Op), 0), obj.Rconv(int(n.Val.U.Reg)), Jconv(n, 0))
 
 	case OLITERAL:
 		fp += fmt.Sprintf("%v-%v%v", Oconv(int(n.Op), 0), Vconv(&n.Val, 0), Jconv(n, 0))

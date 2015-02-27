@@ -535,15 +535,15 @@ const (
 
 const (
 	REG_NONE = 0
-	REG_AL   = 0 + 16 + iota - 1
+	REG_AL   = obj.RBase386 + 0 + iota - 1
 	REG_CL
 	REG_DL
 	REG_BL
-	REG_AH = 4 + 16 + iota - 5
+	REG_AH = obj.RBase386 + 4 + iota - 5
 	REG_CH
 	REG_DH
 	REG_BH
-	REG_AX = 8 + 16 + iota - 9
+	REG_AX = obj.RBase386 + 8 + iota - 9
 	REG_CX
 	REG_DX
 	REG_BX
@@ -551,9 +551,9 @@ const (
 	REG_BP
 	REG_SI
 	REG_DI
-	REG_F0 = 16 + 16
-	REG_F7 = REG_F0 + 7 + 16
-	REG_CS = 24 + 16 + iota - 19
+	REG_F0 = obj.RBase386 + 16
+	REG_F7 = obj.RBase386 + REG_F0 + 7
+	REG_CS = obj.RBase386 + 24 + iota - 19
 	REG_SS
 	REG_DS
 	REG_ES
@@ -564,10 +564,10 @@ const (
 	REG_LDTR
 	REG_MSW
 	REG_TASK
-	REG_CR = 35 + 16
-	REG_DR = 43 + 16
-	REG_TR = 51 + 16
-	REG_X0 = 59 + 16 + iota - 33
+	REG_CR = obj.RBase386 + 35
+	REG_DR = obj.RBase386 + 43
+	REG_TR = obj.RBase386 + 51
+	REG_X0 = obj.RBase386 + 59 + iota - 33
 	REG_X1
 	REG_X2
 	REG_X3
@@ -575,8 +575,8 @@ const (
 	REG_X5
 	REG_X6
 	REG_X7
-	REG_TLS   = 67 + 16
-	MAXREG    = 68 + 16
+	REG_TLS   = obj.RBase386 + 67
+	MAXREG    = obj.RBase386 + 68
 	T_TYPE    = 1 << 0
 	T_INDEX   = 1 << 1
 	T_OFFSET  = 1 << 2

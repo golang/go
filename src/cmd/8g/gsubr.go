@@ -582,12 +582,12 @@ func gclean() {
 
 	for i := i386.REG_AX; i <= i386.REG_DI; i++ {
 		if reg[i] != 0 {
-			gc.Yyerror("reg %v left allocated at %x", gc.Ctxt.Rconv(i), regpc[i])
+			gc.Yyerror("reg %v left allocated at %x", obj.Rconv(i), regpc[i])
 		}
 	}
 	for i := i386.REG_X0; i <= i386.REG_X7; i++ {
 		if reg[i] != 0 {
-			gc.Yyerror("reg %v left allocated\n", gc.Ctxt.Rconv(i))
+			gc.Yyerror("reg %v left allocated\n", obj.Rconv(i))
 		}
 	}
 }
@@ -657,7 +657,7 @@ func regalloc(n *gc.Node, t *gc.Type, o *gc.Node) {
 
 		fmt.Printf("registers allocated at\n")
 		for i := i386.REG_AX; i <= i386.REG_DI; i++ {
-			fmt.Printf("\t%v\t%#x\n", gc.Ctxt.Rconv(i), regpc[i])
+			fmt.Printf("\t%v\t%#x\n", obj.Rconv(i), regpc[i])
 		}
 		gc.Fatal("out of fixed registers")
 		goto err
@@ -683,7 +683,7 @@ func regalloc(n *gc.Node, t *gc.Type, o *gc.Node) {
 		}
 		fmt.Printf("registers allocated at\n")
 		for i := i386.REG_X0; i <= i386.REG_X7; i++ {
-			fmt.Printf("\t%v\t%#x\n", gc.Ctxt.Rconv(i), regpc[i])
+			fmt.Printf("\t%v\t%#x\n", obj.Rconv(i), regpc[i])
 		}
 		gc.Fatal("out of floating registers")
 	}
@@ -702,7 +702,7 @@ out:
 		regpc[i] = uint32(obj.Getcallerpc(&n))
 		if i == i386.REG_AX || i == i386.REG_CX || i == i386.REG_DX || i == i386.REG_SP {
 			gc.Dump("regalloc-o", o)
-			gc.Fatal("regalloc %v", gc.Ctxt.Rconv(i))
+			gc.Fatal("regalloc %v", obj.Rconv(i))
 		}
 	}
 
@@ -729,7 +729,7 @@ func regfree(n *gc.Node) {
 	}
 	reg[i]--
 	if reg[i] == 0 && (i == i386.REG_AX || i == i386.REG_CX || i == i386.REG_DX || i == i386.REG_SP) {
-		gc.Fatal("regfree %v", gc.Ctxt.Rconv(i))
+		gc.Fatal("regfree %v", obj.Rconv(i))
 	}
 }
 

@@ -714,7 +714,7 @@ const (
 
 const (
 	REG_NONE = 0
-	REG_AL   = 0 + 16 + iota - 1
+	REG_AL   = obj.RBaseAMD64 + 0 + iota - 1
 	REG_CL
 	REG_DL
 	REG_BL
@@ -730,7 +730,7 @@ const (
 	REG_R13B
 	REG_R14B
 	REG_R15B
-	REG_AX = 16 + 16 + iota - 17
+	REG_AX = obj.RBaseAMD64 + 16 + iota - 17
 	REG_CX
 	REG_DX
 	REG_BX
@@ -746,13 +746,13 @@ const (
 	REG_R13
 	REG_R14
 	REG_R15
-	REG_AH = 32 + 16 + iota - 33
+	REG_AH = obj.RBaseAMD64 + 32 + iota - 33
 	REG_CH
 	REG_DH
 	REG_BH
-	REG_F0 = 36 + 16
-	REG_M0 = 44 + 16
-	REG_X0 = 52 + 16 + iota - 39
+	REG_F0 = obj.RBaseAMD64 + 36
+	REG_M0 = obj.RBaseAMD64 + 44
+	REG_X0 = obj.RBaseAMD64 + 52 + iota - 39
 	REG_X1
 	REG_X2
 	REG_X3
@@ -768,7 +768,7 @@ const (
 	REG_X13
 	REG_X14
 	REG_X15
-	REG_CS = 68 + 16 + iota - 55
+	REG_CS = obj.RBaseAMD64 + 68 + iota - 55
 	REG_SS
 	REG_DS
 	REG_ES
@@ -779,10 +779,10 @@ const (
 	REG_LDTR
 	REG_MSW
 	REG_TASK
-	REG_CR  = 79 + 16
-	REG_DR  = 95 + 16
-	REG_TR  = 103 + 16
-	REG_TLS = 111 + 16 + iota - 69
+	REG_CR  = obj.RBaseAMD64 + 79
+	REG_DR  = obj.RBaseAMD64 + 95
+	REG_TR  = obj.RBaseAMD64 + 103
+	REG_TLS = obj.RBaseAMD64 + 111 + iota - 69
 	MAXREG
 	REGARG   = -1
 	REGRET   = REG_AX

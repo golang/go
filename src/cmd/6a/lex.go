@@ -918,7 +918,7 @@ var lexinit = []asm.Lextab{
 func cinit() {
 }
 
-func checkscale(scale int8) {
+func checkscale(scale int16) {
 	switch scale {
 	case 1,
 		2,
