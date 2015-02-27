@@ -155,6 +155,16 @@ func download(arg string, stk *importStack, getTestDeps bool) {
 		return
 	}
 
+	// loadPackage inferred the canonical ImportPath from arg.
+	// Use that in the following to prevent hysteresis effects
+	// in e.g. downloadCache and packageCache.
+	// This allows invocations such as:
+	//   mkdir -p $GOPATH/src/github.com/user
+	//   cd $GOPATH/src/github.com/user
+	//   go get ./foo
+	// see: golang.org/issue/9767
+	arg = p.ImportPath
+
 	// There's nothing to do if this is a package in the standard library.
 	if p.Standard {
 		return
