@@ -6,6 +6,7 @@ package gc
 
 import (
 	"cmd/internal/obj"
+	"crypto/md5"
 	"fmt"
 	"strings"
 )
@@ -130,12 +131,7 @@ func gcsymdup(s *Sym) {
 	if len(ls.R) > 0 {
 		Fatal("cannot rosymdup %s with relocations", ls.Name)
 	}
-	var d MD5
-	md5reset(&d)
-	md5write(&d, ls.P, len(ls.P))
-	var hi uint64
-	lo := md5sum(&d, &hi)
-	ls.Name = fmt.Sprintf("gclocals·%016x%016x", lo, hi)
+	ls.Name = fmt.Sprintf("gclocals·%x", md5.Sum(ls.P))
 	ls.Dupok = 1
 }
 
