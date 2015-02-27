@@ -245,16 +245,20 @@ func drawFillOver(dst *image.RGBA, r image.Rectangle, src *image.Uniform) {
 
 func drawFillSrc(dst *image.RGBA, r image.Rectangle, src *image.Uniform) {
 	sr, sg, sb, sa := src.RGBA()
+	sr8 := uint8(sr >> 8)
+	sg8 := uint8(sg >> 8)
+	sb8 := uint8(sb >> 8)
+	sa8 := uint8(sa >> 8)
 	// The built-in copy function is faster than a straightforward for loop to fill the destination with
 	// the color, but copy requires a slice source. We therefore use a for loop to fill the first row, and
 	// then use the first row as the slice source for the remaining rows.
 	i0 := dst.PixOffset(r.Min.X, r.Min.Y)
 	i1 := i0 + r.Dx()*4
 	for i := i0; i < i1; i += 4 {
-		dst.Pix[i+0] = uint8(sr >> 8)
-		dst.Pix[i+1] = uint8(sg >> 8)
-		dst.Pix[i+2] = uint8(sb >> 8)
-		dst.Pix[i+3] = uint8(sa >> 8)
+		dst.Pix[i+0] = sr8
+		dst.Pix[i+1] = sg8
+		dst.Pix[i+2] = sb8
+		dst.Pix[i+3] = sa8
 	}
 	firstRow := dst.Pix[i0:i1]
 	for y := r.Min.Y + 1; y < r.Max.Y; y++ {
