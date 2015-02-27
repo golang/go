@@ -7,6 +7,8 @@ package gc
 import (
 	"bytes"
 	"cmd/internal/obj"
+	"crypto/md5"
+	"encoding/binary"
 	"fmt"
 	"os"
 	"sort"
@@ -1587,12 +1589,8 @@ func typehash(t *Type) uint32 {
 	}
 
 	//print("typehash: %s\n", p);
-	var d MD5
-	md5reset(&d)
-
-	md5write(&d, []byte(p), len(p))
-
-	return uint32(md5sum(&d, nil))
+	h := md5.Sum([]byte(p))
+	return binary.LittleEndian.Uint32(h[:4])
 }
 
 func Ptrto(t *Type) *Type {
