@@ -594,9 +594,8 @@ func Bconv(xval *Mpint, flag int) string {
 		p--
 		buf[p] = '-'
 	}
-	var fp string
-	fp += string(buf[p:])
-	return fp
+
+	return string(buf[p:])
 }
 
 func Fconv(fvp *Mpflt, flag int) string {
