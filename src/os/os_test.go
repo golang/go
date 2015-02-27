@@ -533,6 +533,14 @@ func TestHardLink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("link %q, %q failed: %v", to, from, err)
 	}
+
+	none := "hardlinktestnone"
+	err = Link(none, none)
+	// Check the returned error is well-formed.
+	if lerr, ok := err.(*LinkError); !ok || lerr.Error() == "" {
+		t.Errorf("link %q, %q failed to return a valid error", none, none)
+	}
+
 	defer Remove(from)
 	tostat, err := Stat(to)
 	if err != nil {
