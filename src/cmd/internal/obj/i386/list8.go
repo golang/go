@@ -77,10 +77,7 @@ func Pconv(p *obj.Prog) string {
 }
 
 func Aconv(i int) string {
-	var fp string
-
-	fp += Anames[i]
-	return fp
+	return Anames[i]
 }
 
 var Register = []string{
