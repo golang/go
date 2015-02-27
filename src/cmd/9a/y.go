@@ -1651,7 +1651,7 @@ yydefault:
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_REG
-			yyVAL.addr.Reg = int16(REG_C0 + yyDollar[3].lval)
+			yyVAL.addr.Reg = int16(REG_CR0 + yyDollar[3].lval)
 		}
 	case 142:
 		yyDollar = yyS[yypt-1 : yypt+1]

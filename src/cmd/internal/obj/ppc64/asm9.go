@@ -554,7 +554,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 		if REG_F0 <= a.Reg && a.Reg <= REG_F31 {
 			return C_FREG
 		}
-		if REG_C0 <= a.Reg && a.Reg <= REG_C7 || a.Reg == REG_CR {
+		if REG_CR0 <= a.Reg && a.Reg <= REG_CR7 || a.Reg == REG_CR {
 			return C_CREG
 		}
 		if REG_SPR0 <= a.Reg && a.Reg <= REG_SPR0+1023 {
@@ -2343,13 +2343,13 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o1 = AOP_RRR(o1, uint32(r), 0, 0) | (uint32(v)&0x1f)<<16 | ((uint32(v)>>5)&0x1f)<<11
 
 	case 67: /* mcrf crfD,crfS */
-		if p.From.Type != obj.TYPE_REG || p.From.Reg < REG_C0 || REG_C7 < p.From.Reg || p.To.Type != obj.TYPE_REG || p.To.Reg < REG_C0 || REG_C7 < p.To.Reg {
+		if p.From.Type != obj.TYPE_REG || p.From.Reg < REG_CR0 || REG_CR7 < p.From.Reg || p.To.Type != obj.TYPE_REG || p.To.Reg < REG_CR0 || REG_CR7 < p.To.Reg {
 			ctxt.Diag("illegal CR field number\n%v", p)
 		}
 		o1 = AOP_RRR(OP_MCRF, ((uint32(p.To.Reg) & 7) << 2), ((uint32(p.From.Reg) & 7) << 2), 0)
 
 	case 68: /* mfcr rD; mfocrf CRM,rD */
-		if p.From.Type == obj.TYPE_REG && REG_C0 <= p.From.Reg && p.From.Reg <= REG_C7 {
+		if p.From.Type == obj.TYPE_REG && REG_CR0 <= p.From.Reg && p.From.Reg <= REG_CR7 {
 			v = 1 << uint(7-(p.To.Reg&7))                                         /* CR(n) */
 			o1 = AOP_RRR(OP_MFCR, uint32(p.To.Reg), 0, 0) | 1<<20 | uint32(v)<<12 /* new form, mfocrf */
 		} else {
@@ -2392,7 +2392,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o1 = AOP_RRR(uint32(oprrr(ctxt, int(p.As))), uint32(p.From.Reg), 0, uint32(p.To.Reg))
 
 	case 73: /* mcrfs crfD,crfS */
-		if p.From.Type != obj.TYPE_REG || p.From.Reg != REG_FPSCR || p.To.Type != obj.TYPE_REG || p.To.Reg < REG_C0 || REG_C7 < p.To.Reg {
+		if p.From.Type != obj.TYPE_REG || p.From.Reg != REG_FPSCR || p.To.Type != obj.TYPE_REG || p.To.Reg < REG_CR0 || REG_CR7 < p.To.Reg {
 			ctxt.Diag("illegal FPSCR/CR field number\n%v", p)
 		}
 		o1 = AOP_RRR(OP_MCRFS, ((uint32(p.To.Reg) & 7) << 2), ((0 & 7) << 2), 0)

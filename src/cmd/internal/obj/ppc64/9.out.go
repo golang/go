@@ -110,14 +110,14 @@ const (
 	REG_F30
 	REG_F31
 	REG_SPECIAL = obj.RBasePPC64 + 64
-	REG_C0      = obj.RBasePPC64 + 64 + iota - 65
-	REG_C1
-	REG_C2
-	REG_C3
-	REG_C4
-	REG_C5
-	REG_C6
-	REG_C7
+	REG_CR0     = obj.RBasePPC64 + 64 + iota - 65
+	REG_CR1
+	REG_CR2
+	REG_CR3
+	REG_CR4
+	REG_CR5
+	REG_CR6
+	REG_CR7
 	REG_MSR = obj.RBasePPC64 + 72 + iota - 73
 	REG_FPSCR
 	REG_CR

@@ -372,9 +372,8 @@ func archPPC64() *Arch {
 	for i := ppc64.REG_F0; i <= ppc64.REG_F31; i++ {
 		register[obj.Rconv(i)] = int16(i)
 	}
-	for i := ppc64.REG_C0; i <= ppc64.REG_C7; i++ {
-		// TODO: Rconv prints these as C7 but the input syntax requires CR7.
-		register[fmt.Sprintf("CR%d", i-ppc64.REG_C0)] = int16(i)
+	for i := ppc64.REG_CR0; i <= ppc64.REG_CR7; i++ {
+		register[obj.Rconv(i)] = int16(i)
 	}
 	for i := ppc64.REG_MSR; i <= ppc64.REG_CR; i++ {
 		register[obj.Rconv(i)] = int16(i)

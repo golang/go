@@ -142,8 +142,8 @@ func Rconv(r int) string {
 	if REG_F0 <= r && r <= REG_F31 {
 		return fmt.Sprintf("F%d", r-REG_F0)
 	}
-	if REG_C0 <= r && r <= REG_C7 {
-		return fmt.Sprintf("C%d", r-REG_C0)
+	if REG_CR0 <= r && r <= REG_CR7 {
+		return fmt.Sprintf("CR%d", r-REG_CR0)
 	}
 	if r == REG_CR {
 		return "CR"

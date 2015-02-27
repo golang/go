@@ -359,7 +359,7 @@ var ppc64OperandTests = []operandTest{
 	{"-1(R4)", "-1(R4)"},
 	{"-1(R5)", "-1(R5)"},
 	{"6(PC)", "6(PC)"},
-	{"CR7", "C7"}, // TODO: Should print CR7.
+	{"CR7", "CR7"},
 	{"CTR", "CTR"},
 	{"F14", "F14"},
 	{"F15", "F15"},
