@@ -28,10 +28,10 @@
 110 00028 (testdata/arm.s:110)	CMP.S	$1,R2,
 111 00029 (testdata/arm.s:111)	CMP.S	R1<<R2,R3,
 112 00030 (testdata/arm.s:112)	CMP.S	R1,R2,
-126 00031 (testdata/arm.s:126)	MOVM	(R1),[R2,R5,R8,R10]
+126 00031 (testdata/arm.s:126)	MOVM	(R1),[R2,R5,R8,g]
 127 00032 (testdata/arm.s:127)	MOVM	(R1),[R2,R3,R4,R5]
 128 00033 (testdata/arm.s:128)	MOVM.S	(R1),[R2]
-139 00034 (testdata/arm.s:139)	MOVM	[R2,R5,R8,R10],(R1)
+139 00034 (testdata/arm.s:139)	MOVM	[R2,R5,R8,g],(R1)
 140 00035 (testdata/arm.s:140)	MOVM	[R2,R3,R4,R5],(R1)
 141 00036 (testdata/arm.s:141)	MOVM.S	[R2],(R1)
 150 00037 (testdata/arm.s:150)	STREX.S	(R2),R1,R3

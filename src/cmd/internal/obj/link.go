@@ -383,6 +383,12 @@ type Pciter struct {
 //			reg = first register
 //			offset = second register
 //
+//	[reg, reg, reg-reg]
+//		Register list for ARM.
+//		Encoding:
+//			type = TYPE_REGLIST
+//			offset = bit mask of registers in list; R0 is low bit.
+//
 //	reg, reg
 //		TYPE_REGREG2, to be removed.
 //
@@ -409,6 +415,7 @@ const (
 	TYPE_REGREG
 	TYPE_REGREG2
 	TYPE_INDIR
+	TYPE_REGLIST
 )
 
 // TODO(rsc): Describe prog.

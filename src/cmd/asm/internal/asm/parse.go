@@ -714,7 +714,7 @@ func (p *Parser) registerList(a *obj.Addr) {
 			p.get(',')
 		}
 	}
-	a.Type = obj.TYPE_CONST
+	a.Type = obj.TYPE_REGLIST
 	a.Offset = int64(bits)
 }
 

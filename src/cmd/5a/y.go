@@ -785,7 +785,7 @@ yydefault:
 			var g obj.Addr
 
 			g = nullgen
-			g.Type = obj.TYPE_CONST
+			g.Type = obj.TYPE_REGLIST
 			g.Offset = int64(yyDollar[6].lval)
 			outcode(yyDollar[1].lval, yyDollar[2].lval, &yyDollar[3].addr, 0, &g)
 		}
@@ -796,7 +796,7 @@ yydefault:
 			var g obj.Addr
 
 			g = nullgen
-			g.Type = obj.TYPE_CONST
+			g.Type = obj.TYPE_REGLIST
 			g.Offset = int64(yyDollar[4].lval)
 			outcode(yyDollar[1].lval, yyDollar[2].lval, &g, 0, &yyDollar[7].addr)
 		}

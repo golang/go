@@ -362,6 +362,9 @@ func Dconv(p *Prog, a *Addr) string {
 
 	case TYPE_REGREG2:
 		str = fmt.Sprintf("%v, %v", Rconv(int(a.Reg)), Rconv(int(a.Offset)))
+
+	case TYPE_REGLIST:
+		str = regListConv(int(a.Offset))
 	}
 
 	return str
@@ -438,6 +441,8 @@ const (
 	RBaseARM   = 3 * 1024
 	RBasePPC64 = 4 * 1024
 	// The next free base is 8*1024 (PPC64 has many registers).
+	// Alternatively, the next architecture, with an ordinary
+	// number of registers, could go under PPC64.
 )
 
 // RegisterRegister binds a pretty-printer (Rconv) for register
@@ -458,4 +463,27 @@ func Rconv(reg int) string {
 		}
 	}
 	return fmt.Sprintf("R???%d", reg)
+}
+
+func regListConv(list int) string {
+	str := ""
+
+	for i := 0; i < 16; i++ { // TODO: 16 is ARM-specific.
+		if list&(1<<uint(i)) != 0 {
+			if str == "" {
+				str += "["
+			} else {
+				str += ","
+			}
+			// This is ARM-specific; R10 is g.
+			if i == 10 {
+				str += "g"
+			} else {
+				str += fmt.Sprintf("R%d", i)
+			}
+		}
+	}
+
+	str += "]"
+	return str
 }
