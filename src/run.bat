@@ -38,7 +38,7 @@ del env.bat
 echo.
 
 echo ##### Testing packages.
-go test std cmd -short -timeout=120s
+go test std cmd -short -timeout=240s
 if errorlevel 1 goto fail
 echo.
 
@@ -48,7 +48,7 @@ set OLDGOMAXPROCS=%GOMAXPROCS%
 :: creation of first goroutines and first garbage collections in the parallel setting.
 echo ##### GOMAXPROCS=2 runtime -cpu=1,2,4
 set GOMAXPROCS=2
-go test runtime -short -timeout=300s -cpu=1,2,4
+go test runtime -short -timeout=600s -cpu=1,2,4
 if errorlevel 1 goto fail
 echo.
 
@@ -56,7 +56,7 @@ set GOMAXPROCS=%OLDGOMAXPROCS%
 set OLDGOMAXPROCS=
 
 echo ##### sync -cpu=10
-go test sync -short -timeout=120s -cpu=10
+go test sync -short -timeout=240s -cpu=10
 if errorlevel 1 goto fail
 echo.
 
