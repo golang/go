@@ -38,11 +38,16 @@ var bootstrapDirs = []string{
 	"asm/internal/lex",
 	"internal/asm",
 	"internal/gc",
+	"internal/ld",
 	"internal/obj",
 	"internal/obj/arm",
 	"internal/obj/i386",
 	"internal/obj/ppc64",
 	"internal/obj/x86",
+	"new5l",
+	"new6l",
+	"new8l",
+	"new9l",
 }
 
 func bootstrapBuildTools() {
