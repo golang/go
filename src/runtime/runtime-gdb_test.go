@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"strings"
 	"testing"
 )
 
@@ -28,27 +27,17 @@ func checkGdbPython(t *testing.T) {
 const helloSource = `
 package main
 import "fmt"
-func finish() {
-	fmt.Println("hi")
-}
 func main() {
 	mapvar := make(map[string]string,5)
 	mapvar["abc"] = "def"
 	mapvar["ghi"] = "jkl"
-	finish()
+	fmt.Println("hi") // line 8
 }
 `
 
 func TestGdbPython(t *testing.T) {
 	if runtime.GOOS == "darwin" {
 		t.Skip("gdb does not work on darwin")
-	}
-	if strings.HasPrefix(runtime.GOARCH, "ppc64") {
-		t.Skip("gdb does not work on ppc64 - issue 10017")
-	}
-
-	if runtime.GOOS == "linux" && runtime.GOARCH == "arm" {
-		t.Skip("issue 10002")
 	}
 
 	checkGdbPython(t)
@@ -74,9 +63,8 @@ func TestGdbPython(t *testing.T) {
 
 	got, _ := exec.Command("gdb", "-nx", "-q", "--batch", "-iex",
 		fmt.Sprintf("add-auto-load-safe-path %s/src/runtime", runtime.GOROOT()),
-		"-ex", "br 'main.finish'",
+		"-ex", "br main.go:8",
 		"-ex", "run",
-		"-ex", "up",
 		"-ex", "echo BEGIN info goroutines\n",
 		"-ex", "info goroutines",
 		"-ex", "echo END\n",
