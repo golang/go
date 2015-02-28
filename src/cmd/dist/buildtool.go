@@ -25,12 +25,16 @@ import (
 var bootstrapDirs = []string{
 	"5a",
 	"5g",
+	"5l",
 	"6a",
 	"6g",
+	"6l",
 	"8a",
 	"8g",
+	"8l",
 	"9a",
 	"9g",
+	"9l",
 	"asm",
 	"asm/internal/arch",
 	"asm/internal/asm",
@@ -44,10 +48,6 @@ var bootstrapDirs = []string{
 	"internal/obj/i386",
 	"internal/obj/ppc64",
 	"internal/obj/x86",
-	"new5l",
-	"new6l",
-	"new8l",
-	"new9l",
 }
 
 func bootstrapBuildTools() {
