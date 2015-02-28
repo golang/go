@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 )
 
@@ -457,48 +456,8 @@ func setup() {
 }
 
 /*
- * C library and tool building
+ * Tool building
  */
-
-// gccargs is the gcc command line to use for compiling a single C file.
-var proto_gccargs = []string{
-	"-Wall",
-	// native Plan 9 compilers don't like non-standard prototypes
-	// so let gcc catch them.
-	"-Wstrict-prototypes",
-	"-Wextra",
-	"-Wunused",
-	"-Wno-sign-compare",
-	"-Wno-missing-braces",
-	"-Wno-parentheses",
-	"-Wno-unknown-pragmas",
-	"-Wno-switch",
-	"-Wno-comment",
-	"-Wno-missing-field-initializers",
-	"-fno-common",
-	"-ggdb",
-	"-pipe",
-}
-
-// gccargs2 is the second part of gccargs.
-// it is used if the environment isn't defining CFLAGS.
-var proto_gccargs2 = []string{
-	// on older versions of GCC, -Wuninitialized is not supported
-	// without -O, so put it here together with -O settings in case
-	// the user's $CFLAGS doesn't include -O.
-	"-Wuninitialized",
-	"-O2",
-}
-
-func init() {
-	if runtime.GOOS == "netbsd" && runtime.GOARCH == "arm" {
-		// GCC 4.5.4 (NetBSD nb1 20120916) on ARM is known to mis-optimize gc/mparith3.c
-		// Fix available at http://patchwork.ozlabs.org/patch/64562/.
-		proto_gccargs2[1] = "-O1"
-	}
-}
-
-var gccargs, ldargs []string
 
 // deptab lists changes to the default dependencies for a given prefix.
 // deps ending in /* read the whole directory; deps beginning with -
@@ -517,8 +476,6 @@ var deptab = []struct {
 
 // depsuffix records the allowed suffixes for source files.
 var depsuffix = []string{
-	".c",
-	".h",
 	".s",
 	".go",
 }
@@ -561,40 +518,7 @@ func install(dir string) {
 	path := pathf("%s/src/%s", goroot, dir)
 	name := filepath.Base(dir)
 
-	// set up gcc command line on first run.
-	if gccargs == nil {
-		gccargs = splitfields(defaultcc + " " + defaultcflags)
-		gccargs = append(gccargs, proto_gccargs...)
-		if defaultcflags == "" {
-			gccargs = append(gccargs, proto_gccargs2...)
-		}
-		if strings.Contains(gccargs[0], "clang") {
-			// disable ASCII art in clang errors, if possible
-			gccargs = append(gccargs, "-fno-caret-diagnostics")
-			// clang is too smart about unused command-line arguments
-			gccargs = append(gccargs, "-Qunused-arguments")
-		}
-		// disable word wrapping in error messages
-		gccargs = append(gccargs, "-fmessage-length=0")
-		if gohostos == "darwin" && gohostarch != "arm" {
-			// golang.org/issue/5261
-			gccargs = append(gccargs, "-mmacosx-version-min=10.6")
-		}
-	}
-	if ldargs == nil && defaultldflags != "" {
-		ldargs = splitfields(defaultldflags)
-	}
-
-	isgo := true
 	ispkg := !strings.HasPrefix(dir, "cmd/") || strings.HasPrefix(dir, "cmd/internal/") || strings.HasPrefix(dir, "cmd/asm/internal/")
-	islib := false
-
-	// Legacy C exceptions.
-	switch dir {
-	case "lib9", "libbio", "liblink", "cmd/gc", "cmd/ld":
-		islib = true
-		isgo = false
-	}
 
 	// Start final link command line.
 	// Note: code below knows that link.p[targ] is the target.
@@ -603,27 +527,13 @@ func install(dir string) {
 		targ      int
 		ispackcmd bool
 	)
-	switch {
-	case islib:
-		// C library.
-		prefix := ""
-		if !strings.HasPrefix(name, "lib") {
-			prefix = "lib"
-		}
-		link = []string{"ar", "rsc", pathf("%s/pkg/obj/%s_%s/%s%s.a", goroot, gohostos, gohostarch, prefix, name)}
-		if gohostos == "plan9" {
-			link[1] = "rc"
-		}
-		targ = len(link) - 1
-
-	case ispkg:
+	if ispkg {
 		// Go library (package).
 		ispackcmd = true
 		link = []string{"pack", pathf("%s/pkg/%s_%s/%s.a", goroot, goos, goarch, dir)}
 		targ = len(link) - 1
 		xmkdirall(filepath.Dir(link[targ]))
-
-	case dir == "cmd/go" || dir == "cmd/cgo":
+	} else {
 		// Go command.
 		elem := name
 		if elem == "go" {
@@ -631,27 +541,6 @@ func install(dir string) {
 		}
 		link = []string{fmt.Sprintf("%s/%sl", tooldir, gochar), "-o", pathf("%s/%s%s", tooldir, elem, exe)}
 		targ = len(link) - 1
-
-	default:
-		// C command. Use gccargs and ldargs.
-		if gohostos == "plan9" {
-			link = []string{fmt.Sprintf("%sl", gohostchar), "-o", pathf("%s/%s", tooldir, name)}
-			targ = len(link) - 1
-		} else {
-			link = append(link, gccargs...)
-			link = append(link, ldargs...)
-			if sflag {
-				link = append(link, "-static")
-			}
-			link = append(link, "-o", pathf("%s/%s%s", tooldir, name, exe))
-			targ = len(link) - 1
-			switch gohostarch {
-			case "amd64":
-				link = append(link, "-m64")
-			case "386":
-				link = append(link, "-m32")
-			}
-		}
 	}
 	ttarg := mtime(link[targ])
 
@@ -669,30 +558,11 @@ func install(dir string) {
 		return !strings.HasPrefix(p, ".") && (!strings.HasPrefix(p, "_") || !strings.HasSuffix(p, ".go"))
 	})
 
-	var libs []string
-
 	for _, dt := range deptab {
 		if dir == dt.prefix || strings.HasSuffix(dt.prefix, "/") && strings.HasPrefix(dir, dt.prefix) {
 			for _, p := range dt.dep {
 				p = os.ExpandEnv(p)
-				switch {
-				case strings.HasSuffix(p, ".a"):
-					libs = append(libs, p)
-
-				case strings.HasSuffix(p, "/*"):
-					dir := strings.TrimSuffix(p, "/*")
-					for _, name := range xreaddir(pathf("%s/%s", path, dir)) {
-						files = append(files, pathf("%s/%s", dir, name))
-					}
-
-				case strings.HasPrefix(p, "-"):
-					files = filter(files, func(s string) bool {
-						return !strings.HasPrefix(s, p[1:])
-					})
-
-				default:
-					files = append(files, p)
-				}
+				files = append(files, p)
 			}
 		}
 	}
@@ -738,15 +608,6 @@ func install(dir string) {
 	}
 
 	if !stale {
-		for _, p := range libs {
-			if mtime(p).After(ttarg) {
-				stale = true
-				break
-			}
-		}
-	}
-
-	if !stale {
 		return
 	}
 
@@ -788,7 +649,7 @@ func install(dir string) {
 	built:
 	}
 
-	if (goos != gohostos || goarch != gohostarch) && isgo {
+	if goos != gohostos || goarch != gohostarch {
 		// We've generated the right files; the go command can do the build.
 		if vflag > 1 {
 			errprintf("skip build for cross-compile %s\n", dir)
@@ -797,111 +658,47 @@ func install(dir string) {
 	}
 
 	var archive string
-	if isgo {
-		// The next loop will compile individual non-Go files.
-		// Hand the Go files to the compiler en masse.
-		// For package runtime, this writes go_asm.h, which
-		// the assembly files will need.
-		pkg := dir
-		if strings.HasPrefix(dir, "cmd/") {
-			pkg = "main"
-		}
-		b := pathf("%s/_go_.a", workdir)
-		clean = append(clean, b)
-		if !ispackcmd {
-			link = append(link, b)
-		} else {
-			archive = b
-		}
-		compile := []string{pathf("%s/%sg", tooldir, gochar), "-pack", "-o", b, "-p", pkg}
-		if dir == "runtime" {
-			compile = append(compile, "-+", "-asmhdr", pathf("%s/go_asm.h", workdir))
-		}
-		compile = append(compile, gofiles...)
-		run(path, CheckExit|ShowOutput, compile...)
+	// The next loop will compile individual non-Go files.
+	// Hand the Go files to the compiler en masse.
+	// For package runtime, this writes go_asm.h, which
+	// the assembly files will need.
+	pkg := dir
+	if strings.HasPrefix(dir, "cmd/") {
+		pkg = "main"
 	}
+	b := pathf("%s/_go_.a", workdir)
+	clean = append(clean, b)
+	if !ispackcmd {
+		link = append(link, b)
+	} else {
+		archive = b
+	}
+	compile := []string{pathf("%s/%sg", tooldir, gochar), "-pack", "-o", b, "-p", pkg}
+	if dir == "runtime" {
+		compile = append(compile, "-+", "-asmhdr", pathf("%s/go_asm.h", workdir))
+	}
+	compile = append(compile, gofiles...)
+	run(path, CheckExit|ShowOutput, compile...)
 
 	// Compile the files.
 	for _, p := range files {
-		if !strings.HasSuffix(p, ".c") && !strings.HasSuffix(p, ".s") {
+		if !strings.HasSuffix(p, ".s") {
 			continue
 		}
-		name := filepath.Base(p)
 
 		var compile []string
-		if !isgo {
-			// C library or tool.
-			if gohostos == "plan9" {
-				compile = []string{
-					gohostchar + "c", "-FTVwp",
-					"-DPLAN9",
-					"-D__STDC__=1",
-					"-D__SIZE_TYPE__=ulong", // for GNU bison
-					pathf("-I%s/include/plan9", goroot),
-					pathf("-I%s/include/plan9/%s", goroot, gohostarch),
-				}
-			} else {
-				compile = gccargs[0:len(gccargs):len(gccargs)]
-				compile = append(compile, "-c")
-				switch gohostarch {
-				case "amd64":
-					compile = append(compile, "-m64")
-				case "386":
-					compile = append(compile, "-m32")
-				}
-				compile = append(compile, "-I", pathf("%s/include", goroot))
-			}
-
-			if dir == "lib9" {
-				compile = append(compile, "-DPLAN9PORT")
-			}
-
-			compile = append(compile, "-I", path)
-
-			// lib9/goos.c gets the default constants hard-coded.
-			if name == "goos.c" {
-				compile = append(compile,
-					"-D", fmt.Sprintf("GOOS=%q", goos),
-					"-D", fmt.Sprintf("GOARCH=%q", goarch),
-					"-D", fmt.Sprintf("GOHOSTOS=%q", gohostos),
-					"-D", fmt.Sprintf("GOHOSTARCH=%q", gohostarch),
-					"-D", fmt.Sprintf("GOROOT=%q", goroot_final),
-					"-D", fmt.Sprintf("GOVERSION=%q", findgoversion()),
-					"-D", fmt.Sprintf("GOARM=%q", goarm),
-					"-D", fmt.Sprintf("GO386=%q", go386),
-					"-D", fmt.Sprintf("GO_EXTLINK_ENABLED=%q", goextlinkenabled),
-				)
-			}
-
-			// liblink/go.c records the GOEXPERIMENT setting used during the build.
-			if name == "go.c" {
-				compile = append(compile,
-					"-D", fmt.Sprintf("GOEXPERIMENT=%q", os.Getenv("GOEXPERIMENT")))
-			}
-		} else {
-			// Assembly file for a Go package.
-			compile = []string{
-				pathf("%s/%sa", tooldir, gochar),
-				"-I", workdir,
-				"-I", pathf("%s/pkg/%s_%s", goroot, goos, goarch),
-				"-D", "GOOS_" + goos,
-				"-D", "GOARCH_" + goarch,
-				"-D", "GOOS_GOARCH_" + goos + "_" + goarch,
-			}
+		// Assembly file for a Go package.
+		compile = []string{
+			pathf("%s/%sa", tooldir, gochar),
+			"-I", workdir,
+			"-I", pathf("%s/pkg/%s_%s", goroot, goos, goarch),
+			"-D", "GOOS_" + goos,
+			"-D", "GOARCH_" + goarch,
+			"-D", "GOOS_GOARCH_" + goos + "_" + goarch,
 		}
 
 		doclean := true
 		b := pathf("%s/%s", workdir, filepath.Base(p))
-		if !isgo && gohostos == "darwin" {
-			// To debug C programs on OS X, it is not enough to say -ggdb
-			// on the command line.  You have to leave the object files
-			// lying around too.  Leave them in pkg/obj/, which does not
-			// get removed when this tool exits.
-			obj := pathf("%s/pkg/obj/%s", goroot, dir)
-			xmkdirall(obj)
-			b = pathf("%s/%s", obj, filepath.Base(p))
-			doclean = false
-		}
 
 		// Change the last character of the output file (which was c or s).
 		if gohostos == "plan9" {
@@ -919,18 +716,10 @@ func install(dir string) {
 	}
 	bgwait()
 
-	if isgo && ispackcmd {
+	if ispackcmd {
 		xremove(link[targ])
 		dopack(link[targ], archive, link[targ+1:])
 		return
-	}
-
-	if !islib && !isgo {
-		// C binaries need the libraries explicitly, and -lm.
-		link = append(link, libs...)
-		if gohostos != "plan9" {
-			link = append(link, "-lm")
-		}
 	}
 
 	// Remove target before writing it.
@@ -1128,9 +917,6 @@ var cleantab = []string{
 	"cmd/9g",
 	"cmd/9l",
 	"cmd/go",
-	"lib9",
-	"libbio",
-	"liblink",
 
 	// Go packages.
 	"bufio",
