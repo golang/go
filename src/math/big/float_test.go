@@ -216,7 +216,7 @@ func feq(x, y *Float) bool {
 func TestFloatMantExp(t *testing.T) {
 	for _, test := range []struct {
 		x    string
-		frac string
+		mant string
 		exp  int
 	}{
 		{"0", "0", 0},
@@ -231,22 +231,22 @@ func TestFloatMantExp(t *testing.T) {
 		{"-0.125", "-0.5", -2},
 	} {
 		x := makeFloat(test.x)
-		frac := makeFloat(test.frac)
-		f, e := x.MantExp(nil)
-		if !feq(f, frac) || e != test.exp {
-			t.Errorf("%s.MantExp(nil) = %s, %d; want %s, %d", test.x, f.Format('g', 10), e, test.frac, test.exp)
+		mant := makeFloat(test.mant)
+		m := new(Float)
+		e := x.MantExp(m)
+		if !feq(m, mant) || e != test.exp {
+			t.Errorf("%s.MantExp() = %s, %d; want %s, %d", test.x, m.Format('g', 10), e, test.mant, test.exp)
 		}
 	}
 }
 
 func TestFloatMantExpAliasing(t *testing.T) {
 	x := makeFloat("0.5p10")
-	z := new(Float)
-	if m, _ := x.MantExp(z); m != z {
-		t.Fatalf("Float.MantExp didn't use supplied *Float")
-	}
-	if _, e := x.MantExp(x); e != 10 {
+	if e := x.MantExp(x); e != 10 {
 		t.Fatalf("Float.MantExp aliasing error: got %d; want 10", e)
+	}
+	if want := makeFloat("0.5"); !feq(x, want) {
+		t.Fatalf("Float.MantExp aliasing error: got %s; want %s", x.Format('g', 10), want.Format('g', 10))
 	}
 }
 
@@ -281,7 +281,8 @@ func TestFloatSetMantExp(t *testing.T) {
 			t.Errorf("SetMantExp(%s, %d) = %s; want %s", test.frac, test.exp, z.Format('g', 10), test.z)
 		}
 		// test inverse property
-		if z.SetMantExp(want.MantExp(nil)).Cmp(want) != 0 {
+		mant := new(Float)
+		if z.SetMantExp(mant, want.MantExp(mant)).Cmp(want) != 0 {
 			t.Errorf("Inverse property not satisfied: got %s; want %s", z.Format('g', 10), test.z)
 		}
 	}
