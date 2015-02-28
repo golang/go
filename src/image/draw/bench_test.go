@@ -57,6 +57,29 @@ func bench(b *testing.B, dcm, scm, mcm color.Model, op Op) {
 	switch scm {
 	case nil:
 		src = &image.Uniform{C: color.RGBA{0x11, 0x22, 0x33, 0xff}}
+	case color.CMYKModel:
+		src1 := image.NewCMYK(image.Rect(0, 0, srcw, srch))
+		for y := 0; y < srch; y++ {
+			for x := 0; x < srcw; x++ {
+				src1.SetCMYK(x, y, color.CMYK{
+					uint8(13 * x % 0x100),
+					uint8(11 * y % 0x100),
+					uint8((11*x + 13*y) % 0x100),
+					uint8((31*x + 37*y) % 0x100),
+				})
+			}
+		}
+		src = src1
+	case color.GrayModel:
+		src1 := image.NewGray(image.Rect(0, 0, srcw, srch))
+		for y := 0; y < srch; y++ {
+			for x := 0; x < srcw; x++ {
+				src1.SetGray(x, y, color.Gray{
+					uint8((11*x + 13*y) % 0x100),
+				})
+			}
+		}
+		src = src1
 	case color.RGBAModel:
 		src1 := image.NewRGBA(image.Rect(0, 0, srcw, srch))
 		for y := 0; y < srch; y++ {
@@ -177,6 +200,14 @@ func BenchmarkNRGBASrc(b *testing.B) {
 
 func BenchmarkYCbCr(b *testing.B) {
 	bench(b, color.RGBAModel, color.YCbCrModel, nil, Over)
+}
+
+func BenchmarkGray(b *testing.B) {
+	bench(b, color.RGBAModel, color.GrayModel, nil, Over)
+}
+
+func BenchmarkCMYK(b *testing.B) {
+	bench(b, color.RGBAModel, color.CMYKModel, nil, Over)
 }
 
 func BenchmarkGlyphOver(b *testing.B) {
