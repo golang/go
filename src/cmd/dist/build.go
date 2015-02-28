@@ -689,7 +689,7 @@ func install(dir string) {
 		var compile []string
 		// Assembly file for a Go package.
 		compile = []string{
-			pathf("%s/%sa", tooldir, gochar),
+			pathf("%s/asm", tooldir),
 			"-I", workdir,
 			"-I", pathf("%s/pkg/%s_%s", goroot, goos, goarch),
 			"-D", "GOOS_" + goos,
@@ -904,19 +904,19 @@ var buildorder = []string{
 // compilers but build only the $GOARCH ones.
 var cleantab = []string{
 	// Commands and C libraries.
-	"cmd/5a",
 	"cmd/5g",
 	"cmd/5l",
-	"cmd/6a",
 	"cmd/6g",
 	"cmd/6l",
-	"cmd/8a",
 	"cmd/8g",
 	"cmd/8l",
-	"cmd/9a",
 	"cmd/9g",
 	"cmd/9l",
 	"cmd/go",
+	"cmd/old5a",
+	"cmd/old6a",
+	"cmd/old8a",
+	"cmd/old9a",
 
 	// Go packages.
 	"bufio",
