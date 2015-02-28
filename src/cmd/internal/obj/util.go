@@ -231,6 +231,10 @@ func Getgo386() string {
 	return envOr("GO386", defaultGO386)
 }
 
+func Getgoextlinkenabled() string {
+	return envOr("GO_EXTLINK_ENABLED", defaultGO_EXTLINK_ENABLED)
+}
+
 func Getgoversion() string {
 	return version
 }

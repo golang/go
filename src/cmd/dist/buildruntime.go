@@ -42,6 +42,7 @@ func mkzversion(dir, file string) {
 //	const defaultGOARM = <goarm>
 //	const defaultGOOS = <goos>
 //	const defaultGOARCH = <goarch>
+//	const defaultGO_EXTLINK_ENABLED = <goextlinkenabled>
 //	const version = <version>
 //	const goexperiment = <goexperiment>
 //
@@ -56,9 +57,10 @@ func mkzbootstrap(file string) {
 			"const defaultGOARM = `%s`\n"+
 			"const defaultGOOS = `%s`\n"+
 			"const defaultGOARCH = `%s`\n"+
+			"const defaultGO_EXTLINK_ENABLED = `%s`\n"+
 			"const version = `%s`\n"+
 			"const goexperiment = `%s`\n",
-		goroot_final, go386, goarm, gohostos, gohostarch, findgoversion(), os.Getenv("GOEXPERIMENT"))
+		goroot_final, go386, goarm, gohostos, gohostarch, goextlinkenabled, findgoversion(), os.Getenv("GOEXPERIMENT"))
 
 	writefile(out, file, 0)
 }
