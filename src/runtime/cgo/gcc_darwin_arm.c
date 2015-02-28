@@ -123,6 +123,11 @@ init_working_dir()
 	if (chdir(dir) != 0) {
 		fprintf(stderr, "runtime/cgo: chdir(%s) failed\n", dir);
 	}
+
+	// No-op to set a breakpoint on, immediately after the real chdir.
+	// Gives the test harness in go_darwin_arm_exec (which uses lldb) a
+	// chance to move the working directory.
+	getwd(dir);
 }
 
 void
