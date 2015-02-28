@@ -1729,9 +1729,9 @@ func badtype(o int, tl *Type, tr *Type) {
 	// common mistake: *struct and *interface.
 	if tl != nil && tr != nil && Isptr[tl.Etype] != 0 && Isptr[tr.Etype] != 0 {
 		if tl.Type.Etype == TSTRUCT && tr.Type.Etype == TINTER {
-			fmt_ += fmt.Sprintf("\n\t(*struct vs *interface)")
+			fmt_ += "\n\t(*struct vs *interface)"
 		} else if tl.Type.Etype == TINTER && tr.Type.Etype == TSTRUCT {
-			fmt_ += fmt.Sprintf("\n\t(*interface vs *struct)")
+			fmt_ += "\n\t(*interface vs *struct)"
 		}
 	}
 

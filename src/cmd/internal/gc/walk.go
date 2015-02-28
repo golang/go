@@ -1796,13 +1796,13 @@ func dumptypes(nl **Type, what string) string {
 	var savel Iter
 
 	fmt_ := ""
-	fmt_ += fmt.Sprintf("\t")
+	fmt_ += "\t"
 	first := 1
 	for l := Structfirst(&savel, nl); l != nil; l = structnext(&savel) {
 		if first != 0 {
 			first = 0
 		} else {
-			fmt_ += fmt.Sprintf(", ")
+			fmt_ += ", "
 		}
 		fmt_ += fmt.Sprintf("%v", Tconv(l, 0))
 	}
@@ -1817,14 +1817,14 @@ func dumpnodetypes(l *NodeList, what string) string {
 	var r *Node
 
 	fmt_ := ""
-	fmt_ += fmt.Sprintf("\t")
+	fmt_ += "\t"
 	first := 1
 	for ; l != nil; l = l.Next {
 		r = l.N
 		if first != 0 {
 			first = 0
 		} else {
-			fmt_ += fmt.Sprintf(", ")
+			fmt_ += ", "
 		}
 		fmt_ += fmt.Sprintf("%v", Tconv(r.Type, 0))
 	}

@@ -1475,7 +1475,7 @@ func livenessepilogue(lv *Liveness) {
 					if p.As == obj.ACALL && p.To.Node != nil {
 						fmt_ += fmt.Sprintf("call to %s:", ((p.To.Node).(*Node)).Sym.Name)
 					} else if p.As == obj.ACALL {
-						fmt_ += fmt.Sprintf("indirect call:")
+						fmt_ += "indirect call:"
 					} else {
 						fmt_ += fmt.Sprintf("entry to %s:", ((p.From.Node).(*Node)).Sym.Name)
 					}
@@ -1488,7 +1488,7 @@ func livenessepilogue(lv *Liveness) {
 						}
 					}
 
-					fmt_ += fmt.Sprintf("\n")
+					fmt_ += "\n"
 					if numlive == 0 { // squelch message
 
 					} else {

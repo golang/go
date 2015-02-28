@@ -246,7 +246,7 @@ func (p *Prog) Line() string {
 
 func (p *Prog) String() string {
 	if p.Ctxt == nil {
-		return fmt.Sprintf("<Prog without ctxt>")
+		return "<Prog without ctxt>"
 	}
 	return p.Ctxt.Arch.Pconv(p)
 }

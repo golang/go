@@ -242,17 +242,17 @@ func Jconv(n *Node, flag int) string {
 		break
 
 	case EscHeap:
-		fp += fmt.Sprintf(" esc(h)")
+		fp += " esc(h)"
 
 	case EscScope:
-		fp += fmt.Sprintf(" esc(s)")
+		fp += " esc(s)"
 
 	case EscNone:
-		fp += fmt.Sprintf(" esc(no)")
+		fp += " esc(no)"
 
 	case EscNever:
 		if c == 0 {
-			fp += fmt.Sprintf(" esc(N)")
+			fp += " esc(N)"
 		}
 
 	default:
@@ -284,11 +284,11 @@ func Jconv(n *Node, flag int) string {
 	}
 
 	if n.Addrtaken != 0 {
-		fp += fmt.Sprintf(" addrtaken")
+		fp += " addrtaken"
 	}
 
 	if n.Assigned != 0 {
-		fp += fmt.Sprintf(" assigned")
+		fp += " assigned"
 	}
 
 	if c == 0 && n.Used != 0 {
@@ -820,10 +820,10 @@ func typefmt(t *Type, flag int) string {
 
 	case TUNSAFEPTR:
 		if fmtmode == FExp {
-			fp += fmt.Sprintf("@\"unsafe\".Pointer")
+			fp += "@\"unsafe\".Pointer"
 			return fp
 		}
-		fp += fmt.Sprintf("unsafe.Pointer")
+		fp += "unsafe.Pointer"
 		return fp
 	}
 
@@ -1184,7 +1184,7 @@ func exprfmt(n *Node, prec int) string {
 
 	case ODDDARG:
 		var f string
-		f += fmt.Sprintf("... argument")
+		f += "... argument"
 		return f
 
 	case OREGISTER:
@@ -1217,7 +1217,7 @@ func exprfmt(n *Node, prec int) string {
 	// _ becomes ~b%d internally; print as _ for export
 	case ONAME:
 		if fmtmode == FExp && n.Sym != nil && n.Sym.Name[0] == '~' && n.Sym.Name[1] == 'b' {
-			return fmt.Sprintf("_")
+			return "_"
 		}
 		if fmtmode == FExp && n.Sym != nil && !isblank(n) && n.Vargen > 0 {
 			return fmt.Sprintf("%v·%d", Sconv(n.Sym, 0), n.Vargen)
@@ -1286,17 +1286,17 @@ func exprfmt(n *Node, prec int) string {
 
 	case OTSTRUCT:
 		var f string
-		f += fmt.Sprintf("<struct>")
+		f += "<struct>"
 		return f
 
 	case OTINTER:
 		var f string
-		f += fmt.Sprintf("<inter>")
+		f += "<inter>"
 		return f
 
 	case OTFUNC:
 		var f string
-		f += fmt.Sprintf("<func>")
+		f += "<func>"
 		return f
 
 	case OCLOSURE:
@@ -1565,7 +1565,7 @@ func exprfmt(n *Node, prec int) string {
 		var f string
 		for l := n.List; l != nil; l = l.Next {
 			if l != n.List {
-				f += fmt.Sprintf(" + ")
+				f += " + "
 			}
 			f += exprfmt(l.N, nprec)
 		}
@@ -1596,7 +1596,7 @@ func nodefmt(n *Node, flag int) string {
 
 	if flag&obj.FmtLong != 0 /*untyped*/ && t != nil {
 		if t.Etype == TNIL {
-			return fmt.Sprintf("nil")
+			return "nil"
 		} else {
 			return fmt.Sprintf("%v (type %v)", Nconv(n, 0), Tconv(t, 0))
 		}
