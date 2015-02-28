@@ -231,31 +231,34 @@ func (x *Float) Sign() int {
 	return 1
 }
 
-// MantExp breaks x into its mantissa and exponent components.
-// It returns mant and exp satisfying x == mant × 2**exp, with
-// the absolute value of mant satisfying 0.5 <= |mant| < 1.0.
-// mant has the same precision and rounding mode as x.
-// If a non-nil *Float argument z is provided, MantExp stores
-// the result mant in z instead of allocating a new Float.
+// MantExp breaks x into its mantissa and exponent components
+// and returns the exponent. If a non-nil mant argument is
+// provided its value is set to the mantissa of x, with the
+// same precision and rounding mode as x. The components
+// satisfy x == mant × 2**exp, with 0.5 <= |mant| < 1.0.
+// Calling MantExp with a nil argument is an efficient way to
+// get the exponent of the receiver.
 //
 // Special cases are:
 //
-//	(  ±0).MantExp() =   ±0, 0
-//	(±Inf).MantExp() = ±Inf, 0
-//      ( NaN).MantExp() =  NaN, 0
+//	(  ±0).MantExp(mant) = 0, with mant set to   ±0
+//	(±Inf).MantExp(mant) = 0, with mant set to ±Inf
+//	( NaN).MantExp(mant) = 0, with mant set to  NaN
 //
-// MantExp does not modify x; the result mant is a new Float.
-func (x *Float) MantExp(z *Float) (mant *Float, exp int) {
+// x and mant may be the same in which case x is set to its
+// mantissa value.
+func (x *Float) MantExp(mant *Float) (exp int) {
 	if debugFloat {
 		validate(x)
 	}
-	if z == nil {
-		z = new(Float)
-	}
-	mant = z.Copy(x)
-	if len(z.mant) != 0 {
+	if len(x.mant) != 0 {
 		exp = int(x.exp)
-		mant.exp = 0 // after reading x.exp (x and mant may be aliases)
+	}
+	if mant != nil {
+		mant.Copy(x)
+		if x.exp >= MinExp {
+			mant.exp = 0
+		}
 	}
 	return
 }
@@ -265,7 +268,8 @@ func (x *Float) MantExp(z *Float) (mant *Float, exp int) {
 // as mant. SetMantExp is an inverse of MantExp but does
 // not require 0.5 <= |mant| < 1.0. Specifically:
 //
-//	new(Float).SetMantExp(x.MantExp()).Cmp(x) == 0
+//	mant := new(Float)
+//	new(Float).SetMantExp(mant, x.SetMantExp(mant)).Cmp(x) == 0
 //
 // Special cases are:
 //
