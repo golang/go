@@ -494,11 +494,12 @@ func TestTCPConcurrentAccept(t *testing.T) {
 
 func TestTCPReadWriteAllocs(t *testing.T) {
 	switch runtime.GOOS {
-	case "nacl", "windows":
+	case "nacl", "windows", "darwin":
 		// NaCl needs to allocate pseudo file descriptor
 		// stuff. See syscall/fd_nacl.go.
 		// Windows uses closures and channels for IO
 		// completion port-based netpoll. See fd_windows.go.
+		// Darwin is unreliable for unknown reasons (issue 8859).
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
