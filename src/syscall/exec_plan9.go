@@ -396,9 +396,15 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 		return 0, err
 	}
 
+	destDir := attr.Dir
+	if destDir == "" {
+		wdmu.Lock()
+		destDir = wdStr
+		wdmu.Unlock()
+	}
 	var dir *byte
-	if attr.Dir != "" {
-		dir, err = BytePtrFromString(attr.Dir)
+	if destDir != "" {
+		dir, err = BytePtrFromString(destDir)
 		if err != nil {
 			return 0, err
 		}
