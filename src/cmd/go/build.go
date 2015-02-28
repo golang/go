@@ -1744,6 +1744,7 @@ func toolVerify(b *builder, p *Package, newTool string, ofile string, args []int
 	if !bytes.Equal(data1, data2) {
 		return fmt.Errorf("%s and %s produced different output files:\n%s\n%s", filepath.Base(args[1].(string)), newTool, strings.Join(stringList(args...), " "), strings.Join(stringList(newArgs...), " "))
 	}
+	os.Remove(ofile + ".new")
 	return nil
 }
 
@@ -1891,7 +1892,7 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action, 
 		}
 	}
 	ldflags = append(ldflags, buildLdflags...)
-	return b.run(".", p.ImportPath, nil, stringList(buildToolExec, tool(archChar+"l"), "-o", out, importArgs, ldflags, mainpkg))
+	return b.run(".", p.ImportPath, nil, buildToolExec, tool("new"+archChar+"l"), "-o", out, importArgs, ldflags, mainpkg)
 }
 
 func (gcToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
