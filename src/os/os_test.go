@@ -42,18 +42,32 @@ type sysDir struct {
 	files []string
 }
 
-var sysdir = func() (sd *sysDir) {
+var sysdir = func() *sysDir {
 	switch runtime.GOOS {
 	case "android":
-		sd = &sysDir{
+		return &sysDir{
 			"/system/etc",
 			[]string{
 				"audio_policy.conf",
 				"system_fonts.xml",
 			},
 		}
+	case "darwin":
+		if runtime.GOARCH == "arm" {
+			wd, err := syscall.Getwd()
+			if err != nil {
+				wd = err.Error()
+			}
+			return &sysDir{
+				wd,
+				[]string{
+					"ResourceRules.plist",
+					"Info.plist",
+				},
+			}
+		}
 	case "windows":
-		sd = &sysDir{
+		return &sysDir{
 			Getenv("SystemRoot") + "\\system32\\drivers\\etc",
 			[]string{
 				"networks",
@@ -62,24 +76,22 @@ var sysdir = func() (sd *sysDir) {
 			},
 		}
 	case "plan9":
-		sd = &sysDir{
+		return &sysDir{
 			"/lib/ndb",
 			[]string{
 				"common",
 				"local",
 			},
 		}
-	default:
-		sd = &sysDir{
-			"/etc",
-			[]string{
-				"group",
-				"hosts",
-				"passwd",
-			},
-		}
 	}
-	return
+	return &sysDir{
+		"/etc",
+		[]string{
+			"group",
+			"hosts",
+			"passwd",
+		},
+	}
 }()
 
 func size(name string, t *testing.T) int64 {
@@ -113,15 +125,21 @@ func equal(name1, name2 string) (r bool) {
 	return
 }
 
-func newFile(testName string, t *testing.T) (f *File) {
-	// Use a local file system, not NFS.
-	// On Unix, override $TMPDIR in case the user
-	// has it set to an NFS-mounted directory.
-	dir := ""
-	if runtime.GOOS != "android" && runtime.GOOS != "windows" {
-		dir = "/tmp"
+// localTmp returns a local temporary directory not on NFS.
+func localTmp() string {
+	switch runtime.GOOS {
+	case "android", "windows":
+		return TempDir()
+	case "darwin":
+		if runtime.GOARCH == "arm" {
+			return TempDir()
+		}
 	}
-	f, err := ioutil.TempFile(dir, "_Go_"+testName)
+	return "/tmp"
+}
+
+func newFile(testName string, t *testing.T) (f *File) {
+	f, err := ioutil.TempFile(localTmp(), "_Go_"+testName)
 	if err != nil {
 		t.Fatalf("TempFile %s: %s", testName, err)
 	}
@@ -129,14 +147,7 @@ func newFile(testName string, t *testing.T) (f *File) {
 }
 
 func newDir(testName string, t *testing.T) (name string) {
-	// Use a local file system, not NFS.
-	// On Unix, override $TMPDIR in case the user
-	// has it set to an NFS-mounted directory.
-	dir := ""
-	if runtime.GOOS != "android" && runtime.GOOS != "windows" {
-		dir = "/tmp"
-	}
-	name, err := ioutil.TempDir(dir, "_Go_"+testName)
+	name, err := ioutil.TempDir(localTmp(), "_Go_"+testName)
 	if err != nil {
 		t.Fatalf("TempDir %s: %s", testName, err)
 	}
@@ -311,6 +322,14 @@ func TestReaddirnamesOneAtATime(t *testing.T) {
 	switch runtime.GOOS {
 	case "android":
 		dir = "/system/bin"
+	case "darwin":
+		if runtime.GOARCH == "arm" {
+			wd, err := Getwd()
+			if err != nil {
+				t.Fatal(err)
+			}
+			dir = wd
+		}
 	case "plan9":
 		dir = "/bin"
 	case "windows":
@@ -516,8 +535,13 @@ func TestReaddirOfFile(t *testing.T) {
 
 func TestHardLink(t *testing.T) {
 	// Hardlinks are not supported under windows or Plan 9.
-	if runtime.GOOS == "plan9" {
+	switch runtime.GOOS {
+	case "plan9":
 		return
+	case "darwin":
+		if runtime.GOARCH == "arm" {
+			defer chtmpdir(t)()
+		}
 	}
 	from, to := "hardlinktestfrom", "hardlinktestto"
 	Remove(from) // Just in case.
@@ -555,6 +579,28 @@ func TestHardLink(t *testing.T) {
 	}
 }
 
+// chtmpdir changes the working directory to a new temporary directory and
+// provides a cleanup function. Used when PWD is read-only.
+func chtmpdir(t *testing.T) func() {
+	oldwd, err := Getwd()
+	if err != nil {
+		t.Fatal("chtmpdir: %v", err)
+	}
+	d, err := ioutil.TempDir("", "test")
+	if err != nil {
+		t.Fatal("chtmpdir: %v", err)
+	}
+	if err := Chdir(d); err != nil {
+		t.Fatal("chtmpdir: %v", err)
+	}
+	return func() {
+		if err := Chdir(oldwd); err != nil {
+			t.Fatal("chtmpdir: %v", err)
+		}
+		RemoveAll(d)
+	}
+}
+
 func TestSymlink(t *testing.T) {
 	switch runtime.GOOS {
 	case "android", "nacl", "plan9":
@@ -562,6 +608,10 @@ func TestSymlink(t *testing.T) {
 	case "windows":
 		if !supportsSymlinks {
 			t.Skipf("skipping on %s", runtime.GOOS)
+		}
+	case "darwin":
+		if runtime.GOARCH == "arm" {
+			defer chtmpdir(t)()
 		}
 	}
 	from, to := "symlinktestfrom", "symlinktestto"
@@ -629,6 +679,10 @@ func TestLongSymlink(t *testing.T) {
 		if !supportsSymlinks {
 			t.Skipf("skipping on %s", runtime.GOOS)
 		}
+	case "darwin":
+		if runtime.GOARCH == "arm" {
+			defer chtmpdir(t)()
+		}
 	}
 	s := "0123456789abcdef"
 	// Long, but not too long: a common limit is 255.
@@ -650,6 +704,9 @@ func TestLongSymlink(t *testing.T) {
 }
 
 func TestRename(t *testing.T) {
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
+		defer chtmpdir(t)()
+	}
 	from, to := "renamefrom", "renameto"
 	Remove(to) // Just in case.
 	file, err := Create(from)
@@ -700,6 +757,10 @@ func TestStartProcess(t *testing.T) {
 	switch runtime.GOOS {
 	case "android", "nacl":
 		t.Skipf("skipping on %s", runtime.GOOS)
+	case "darwin":
+		if runtime.GOARCH == "arm" {
+			t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+		}
 	}
 
 	var dir, cmd string
@@ -880,6 +941,18 @@ func TestChdirAndGetwd(t *testing.T) {
 		dirs = []string{"/", "/system/bin"}
 	case "plan9":
 		dirs = []string{"/", "/usr"}
+	case "darwin":
+		if runtime.GOARCH == "arm" {
+			d1, err := ioutil.TempDir("", "d1")
+			if err != nil {
+				t.Fatalf("TempDir: %v", err)
+			}
+			d2, err := ioutil.TempDir("", "d2")
+			if err != nil {
+				t.Fatalf("TempDir: %v", err)
+			}
+			dirs = []string{d1, d2}
+		}
 	}
 	oldwd := Getenv("PWD")
 	for mode := 0; mode < 2; mode++ {
@@ -1072,6 +1145,10 @@ func TestHostname(t *testing.T) {
 	switch runtime.GOOS {
 	case "android", "nacl", "plan9", "windows":
 		t.Skipf("skipping on %s", runtime.GOOS)
+	case "darwin":
+		if runtime.GOARCH == "arm" {
+			t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+		}
 	}
 
 	// Check internal Hostname() against the output of /bin/hostname.
@@ -1148,6 +1225,9 @@ func writeFile(t *testing.T, fname string, flag int, text string) string {
 }
 
 func TestAppend(t *testing.T) {
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
+		defer chtmpdir(t)()
+	}
 	const f = "append.txt"
 	defer Remove(f)
 	s := writeFile(t, f, O_CREATE|O_TRUNC|O_RDWR, "new")
@@ -1211,6 +1291,9 @@ func TestNilProcessStateString(t *testing.T) {
 }
 
 func TestSameFile(t *testing.T) {
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
+		defer chtmpdir(t)()
+	}
 	fa, err := Create("a")
 	if err != nil {
 		t.Fatalf("Create(a): %v", err)
@@ -1333,6 +1416,10 @@ func testKillProcess(t *testing.T, processKiller func(p *Process)) {
 	switch runtime.GOOS {
 	case "android", "nacl":
 		t.Skipf("skipping on %s", runtime.GOOS)
+	case "darwin":
+		if runtime.GOARCH == "arm" {
+			t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+		}
 	}
 
 	// Re-exec the test binary itself to emulate "sleep 1".
@@ -1376,6 +1463,10 @@ func TestGetppid(t *testing.T) {
 	case "plan9":
 		// TODO: golang.org/issue/8206
 		t.Skipf("skipping test on plan9; see issue 8206")
+	case "darwin":
+		if runtime.GOARCH == "arm" {
+			t.Skipf("skipping test on %s/%s, no fork", runtime.GOOS, runtime.GOARCH)
+		}
 	}
 
 	if Getenv("GO_WANT_HELPER_PROCESS") == "1" {
