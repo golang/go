@@ -608,7 +608,7 @@ func Fconv(fvp *Mpflt, flag int) string {
 		if -900 < exp && exp < 900 {
 			d := mpgetflt(fvp)
 			if d >= 0 && (flag&obj.FmtSign != 0 /*untyped*/) {
-				fp += fmt.Sprintf("+")
+				fp += "+"
 			}
 			fp += fmt.Sprintf("%.6g", d)
 			return fp
@@ -632,9 +632,9 @@ func Fconv(fvp *Mpflt, flag int) string {
 		}
 
 		if fvp.Val.Neg != 0 {
-			fp += fmt.Sprintf("-")
+			fp += "-"
 		} else if flag&obj.FmtSign != 0 /*untyped*/ {
-			fp += fmt.Sprintf("+")
+			fp += "+"
 		}
 		fp += fmt.Sprintf("%.5fe+%d", d, exp)
 		return fp
@@ -643,7 +643,7 @@ func Fconv(fvp *Mpflt, flag int) string {
 	var fv Mpflt
 	var buf string
 	if sigfig(fvp) == 0 {
-		buf = fmt.Sprintf("0p+0")
+		buf = "0p+0"
 		goto out
 	}
 

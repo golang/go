@@ -118,7 +118,7 @@ func fninit(n *NodeList) {
 	r := (*NodeList)(nil)
 
 	// (1)
-	namebuf = fmt.Sprintf("initdone·")
+	namebuf = "initdone·"
 
 	gatevar := newname(Lookup(namebuf))
 	addvar(gatevar, Types[TUINT8], PEXTERN)
@@ -126,7 +126,7 @@ func fninit(n *NodeList) {
 	// (2)
 	Maxarg = 0
 
-	namebuf = fmt.Sprintf("init")
+	namebuf = "init"
 
 	fn := Nod(ODCLFUNC, nil, nil)
 	initsym := Lookup(namebuf)

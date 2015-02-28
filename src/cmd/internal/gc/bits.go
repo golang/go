@@ -141,7 +141,7 @@ func Qconv(bits Bits, flag int) string {
 		if first != 0 {
 			first = 0
 		} else {
-			fp += fmt.Sprintf(" ")
+			fp += " "
 		}
 		if var_[i].node == nil || var_[i].node.Sym == nil {
 			fp += fmt.Sprintf("$%d", i)
