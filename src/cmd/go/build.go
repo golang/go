@@ -1716,7 +1716,7 @@ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 		return err
 	}
 	if verifyAsm {
-		if err := toolVerify(b, p, archChar+"a", ofile, args); err != nil {
+		if err := toolVerify(b, p, "old"+archChar+"a", ofile, args); err != nil {
 			return err
 		}
 	}
