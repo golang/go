@@ -135,7 +135,7 @@ func xinit() {
 	}
 	go386 = b
 
-	p := pathf("%s/include/u.h", goroot)
+	p := pathf("%s/src/all.bash", goroot)
 	if !isfile(p) {
 		fatal("$GOROOT is not set correctly or not exported\n"+
 			"\tGOROOT=%s\n"+
@@ -507,49 +507,8 @@ var deptab = []struct {
 	prefix string   // prefix of target
 	dep    []string // dependency tweaks for targets with that prefix
 }{
-	{"lib9", []string{
-		"$GOROOT/include/u.h",
-		"$GOROOT/include/utf.h",
-		"$GOROOT/include/fmt.h",
-		"$GOROOT/include/libc.h",
-		"fmt/*",
-		"utf/*",
-	}},
-	{"libbio", []string{
-		"$GOROOT/include/u.h",
-		"$GOROOT/include/utf.h",
-		"$GOROOT/include/fmt.h",
-		"$GOROOT/include/libc.h",
-		"$GOROOT/include/bio.h",
-	}},
-	{"liblink", []string{
-		"$GOROOT/include/u.h",
-		"$GOROOT/include/utf.h",
-		"$GOROOT/include/fmt.h",
-		"$GOROOT/include/libc.h",
-		"$GOROOT/include/bio.h",
-		"$GOROOT/include/ar.h",
-		"$GOROOT/include/link.h",
-	}},
-	{"cmd/5l", []string{
-		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libld.a",
-	}},
-	{"cmd/6l", []string{
-		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libld.a",
-	}},
-	{"cmd/8l", []string{
-		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libld.a",
-	}},
-	{"cmd/9l", []string{
-		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libld.a",
-	}},
 	{"cmd/go", []string{
 		"zdefaultcc.go",
-	}},
-	{"cmd/", []string{
-		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/liblink.a",
-		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libbio.a",
-		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/lib9.a",
 	}},
 	{"runtime", []string{
 		"zversion.go",
@@ -634,11 +593,6 @@ func install(dir string) {
 	switch dir {
 	case "lib9", "libbio", "liblink", "cmd/gc", "cmd/ld":
 		islib = true
-		isgo = false
-	case "cmd/5l",
-		"cmd/6l",
-		"cmd/8l",
-		"cmd/9l":
 		isgo = false
 	}
 
@@ -800,7 +754,7 @@ func install(dir string) {
 	if dir == "runtime" {
 		// For use by assembly and C files.
 		copyfile(pathf("%s/pkg/%s_%s/textflag.h", goroot, goos, goarch),
-			pathf("%s/src/cmd/ld/textflag.h", goroot), 0)
+			pathf("%s/src/runtime/textflag.h", goroot), 0)
 		copyfile(pathf("%s/pkg/%s_%s/funcdata.h", goroot, goos, goarch),
 			pathf("%s/src/runtime/funcdata.h", goroot), 0)
 	}
@@ -1109,13 +1063,6 @@ func dopack(dst, src string, extra []string) {
 // The Go packages and commands must be in dependency order,
 // maintained by hand, but the order doesn't change often.
 var buildorder = []string{
-	// Legacy C programs.
-	"lib9",
-	"libbio",
-	"liblink",
-	"cmd/ld",  // must be before l
-	"cmd/%sl", // must be before a, g
-
 	// Go libraries and programs for bootstrap.
 	"runtime",
 	"errors",
