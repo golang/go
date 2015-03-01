@@ -345,6 +345,12 @@ func Bind(name string, old string, flag int) (err error) {
 	return bind(name, old, flag)
 }
 
+//sys	mount(fd int, afd int, old string, flag int, aname string) (err error)
+func Mount(fd int, afd int, old string, flag int, aname string) (err error) {
+	Fixwd()
+	return mount(fd, afd, old, flag, aname)
+}
+
 //sys	wstat(path string, edir []byte) (err error)
 func Wstat(path string, edir []byte) (err error) {
 	Fixwd()
@@ -356,6 +362,5 @@ func Wstat(path string, edir []byte) (err error) {
 //sys	Pread(fd int, p []byte, offset int64) (n int, err error)
 //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error)
 //sys	Close(fd int) (err error)
-//sys	Mount(fd int, afd int, old string, flag int, aname string) (err error)
 //sys	Fstat(fd int, edir []byte) (n int, err error)
 //sys	Fwstat(fd int, edir []byte) (err error)
