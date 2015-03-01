@@ -479,7 +479,7 @@ func relocsym(s *LSym) {
 			// Instead of special casing only amd64, we treat this as an error on all
 			// 64-bit architectures so as to be future-proof.
 			if int32(o) < 0 && Thearch.Ptrsize > 4 && siz == 4 {
-				Diag("non-pc-relative relocation address is too big: %#x", uint64(o))
+				Diag("non-pc-relative relocation address is too big: %#x (%#x + %#x)", uint64(o), Symaddr(r.Sym), r.Add)
 				Errorexit()
 			}
 
@@ -546,7 +546,13 @@ func relocsym(s *LSym) {
 			o = Thearch.Archrelocvariant(r, s, o)
 		}
 
-		//print("relocate %s %#llux (%#llux+%#llux, size %d) => %s %#llux +%#llx [%llx]\n", s->name, (uvlong)(s->value+off), (uvlong)s->value, (uvlong)r->off, r->siz, r->sym ? r->sym->name : "<nil>", (uvlong)symaddr(r->sym), (vlong)r->add, (vlong)o);
+		if false {
+			nam := "<nil>"
+			if r.Sym != nil {
+				nam = r.Sym.Name
+			}
+			fmt.Printf("relocate %s %#x (%#x+%#x, size %d) => %s %#x +%#x [type %d/%d, %x]\n", s.Name, s.Value+int64(off), s.Value, r.Off, r.Siz, nam, Symaddr(r.Sym), r.Add, r.Type, r.Variant, o)
+		}
 		switch siz {
 		default:
 			Ctxt.Cursym = s

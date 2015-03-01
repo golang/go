@@ -379,26 +379,25 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ld.Ctxt, ".got", 0))
 		return 0
 
-		// r->add is two ppc64 instructions holding an immediate 32-bit constant.
-	// We want to add r->sym's address to that constant.
-	// The encoding of the immediate x<<16 + y,
-	// where x is the low 16 bits of the first instruction and y is the low 16
-	// bits of the second. Both x and y are signed (int16, not uint16).
 	case ld.R_ADDRPOWER:
+		// r->add is two ppc64 instructions holding an immediate 32-bit constant.
+		// We want to add r->sym's address to that constant.
+		// The encoding of the immediate x<<16 + y,
+		// where x is the low 16 bits of the first instruction and y is the low 16
+		// bits of the second. Both x and y are signed (int16, not uint16).
 		o1 = uint32(r.Add >> 32)
-
 		o2 = uint32(r.Add)
 		t = ld.Symaddr(r.Sym)
 		if t < 0 {
 			ld.Ctxt.Diag("relocation for %s is too big (>=2G): %d", s.Name, ld.Symaddr(r.Sym))
 		}
 
-		t += ((int64(o1) & 0xffff) << 16) + (int64(int32(o2)) << 16 >> 16)
+		t += int64((o1&0xffff)<<16 + uint32(int32(o2)<<16>>16))
 		if t&0x8000 != 0 {
 			t += 0x10000
 		}
-		o1 = uint32(int64(o1&0xffff0000) | (t>>16)&0xffff)
-		o2 = uint32(int64(o2&0xffff0000) | t&0xffff)
+		o1 = o1&0xffff0000 | (uint32(t)>>16)&0xffff
+		o2 = o2&0xffff0000 | uint32(t)&0xffff
 
 		// when laid out, the instruction order must always be o1, o2.
 		if ld.Ctxt.Arch.Endian == ld.BigEndian {
@@ -408,8 +407,8 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 		}
 		return 0
 
-		// Bits 6 through 29 = (S + A - P) >> 2
 	case ld.R_CALLPOWER:
+		// Bits 6 through 29 = (S + A - P) >> 2
 		if ld.Ctxt.Arch.Endian == ld.BigEndian {
 			o1 = ld.Be32(s.P[r.Off:])
 		} else {
@@ -426,7 +425,7 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 			ld.Ctxt.Diag("relocation for %s+%d is too big: %d", r.Sym.Name, r.Off, t)
 		}
 
-		*val = int64(o1)&0xfc000003 | t&^0xfc000003
+		*val = int64(o1&0xfc000003 | uint32(t)&^0xfc000003)
 		return 0
 
 	case ld.R_POWER_TOC: // S + A - .TOC.
