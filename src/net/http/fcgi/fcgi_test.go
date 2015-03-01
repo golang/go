@@ -233,7 +233,9 @@ func (nopWriteCloser) Close() error {
 // isn't met. See issue 6934.
 func TestChildServeCleansUp(t *testing.T) {
 	for _, tt := range cleanUpTests {
-		rc := nopWriteCloser{bytes.NewBuffer(tt.input)}
+		input := make([]byte, len(tt.input))
+		copy(input, tt.input)
+		rc := nopWriteCloser{bytes.NewBuffer(input)}
 		done := make(chan bool)
 		c := newChild(rc, http.HandlerFunc(func(
 			w http.ResponseWriter,
