@@ -59,7 +59,7 @@ var sysdir = func() *sysDir {
 				wd = err.Error()
 			}
 			return &sysDir{
-				wd,
+				filepath.Join(wd, "..", ".."),
 				[]string{
 					"ResourceRules.plist",
 					"Info.plist",
