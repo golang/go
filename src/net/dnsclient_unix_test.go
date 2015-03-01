@@ -219,18 +219,27 @@ func TestReloadResolvConfChange(t *testing.T) {
 }
 
 func BenchmarkGoLookupIP(b *testing.B) {
+	uninstallTestHooks()
+	defer installTestHooks()
+
 	for i := 0; i < b.N; i++ {
 		goLookupIP("www.example.com")
 	}
 }
 
 func BenchmarkGoLookupIPNoSuchHost(b *testing.B) {
+	uninstallTestHooks()
+	defer installTestHooks()
+
 	for i := 0; i < b.N; i++ {
 		goLookupIP("some.nonexistent")
 	}
 }
 
 func BenchmarkGoLookupIPWithBrokenNameServer(b *testing.B) {
+	uninstallTestHooks()
+	defer installTestHooks()
+
 	onceLoadConfig.Do(loadDefaultConfig)
 	if cfg.dnserr != nil || cfg.dnsConfig == nil {
 		b.Fatalf("loadConfig failed: %v", cfg.dnserr)

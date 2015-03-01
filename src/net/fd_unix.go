@@ -72,7 +72,7 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
 	// Do not need to call fd.writeLock here,
 	// because fd is not yet accessible to user,
 	// so no concurrent operations are possible.
-	switch err := syscall.Connect(fd.sysfd, ra); err {
+	switch err := connectFunc(fd.sysfd, ra); err {
 	case syscall.EINPROGRESS, syscall.EALREADY, syscall.EINTR:
 	case nil, syscall.EISCONN:
 		if !deadline.IsZero() && deadline.Before(time.Now()) {
@@ -114,7 +114,7 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
 		if err := fd.pd.WaitWrite(); err != nil {
 			return err
 		}
-		nerr, err := syscall.GetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_ERROR)
+		nerr, err := getsockoptIntFunc(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_ERROR)
 		if err != nil {
 			return err
 		}
@@ -130,9 +130,9 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
 
 func (fd *netFD) destroy() {
 	// Poller may want to unregister fd in readiness notification mechanism,
-	// so this must be executed before closesocket.
+	// so this must be executed before closeFunc.
 	fd.pd.Close()
-	closesocket(fd.sysfd)
+	closeFunc(fd.sysfd)
 	fd.sysfd = -1
 	runtime.SetFinalizer(fd, nil)
 }
@@ -417,7 +417,7 @@ func (fd *netFD) accept() (netfd *netFD, err error) {
 	}
 
 	if netfd, err = newFD(s, fd.family, fd.sotype, fd.net); err != nil {
-		closesocket(s)
+		closeFunc(s)
 		return nil, err
 	}
 	if err = netfd.init(); err != nil {
@@ -491,8 +491,4 @@ func (fd *netFD) dup() (f *os.File, err error) {
 	}
 
 	return os.NewFile(uintptr(ns), fd.name()), nil
-}
-
-func closesocket(s int) error {
-	return syscall.Close(s)
 }
