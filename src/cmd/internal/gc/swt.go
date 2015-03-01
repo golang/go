@@ -87,7 +87,7 @@ func typecheckswitch(n *Node) {
 		if t != nil {
 			var badtype *Type
 			switch {
-			case okforeq[t.Etype] == 0:
+			case !okforeq[t.Etype]:
 				Yyerror("cannot switch on %v", Nconv(n.Ntest, obj.FmtLong))
 			case t.Etype == TARRAY && !Isfixedarray(t):
 				nilonly = "slice"
@@ -255,7 +255,7 @@ func (s *exprSwitch) walk(sw *Node) {
 	// handle the cases in order
 	for len(cc) > 0 {
 		// deal with expressions one at a time
-		if okforcmp[t.Etype] == 0 || cc[0].typ != caseKindExprConst {
+		if !okforcmp[t.Etype] || cc[0].typ != caseKindExprConst {
 			a := s.walkCases(cc[:1])
 			cas = list(cas, a)
 			cc = cc[1:]

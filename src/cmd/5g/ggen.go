@@ -383,7 +383,7 @@ func cgen_callret(n *gc.Node, res *gc.Node) {
  */
 func cgen_aret(n *gc.Node, res *gc.Node) {
 	t := n.Left.Type
-	if gc.Isptr[t.Etype] != 0 {
+	if gc.Isptr[t.Etype] {
 		t = t.Type
 	}
 
@@ -466,7 +466,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	case gc.TINT32,
 		gc.TUINT32:
 		var p *obj.Prog
-		if gc.Issigned[t.Etype] != 0 {
+		if gc.Issigned[t.Etype] {
 			p = gins(arm.AMULL, &n2, nil)
 		} else {
 			p = gins(arm.AMULLU, &n2, nil)
@@ -532,13 +532,13 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		if sc == 0 {
 		} else // nothing to do
 		if sc >= uint64(nl.Type.Width*8) {
-			if op == gc.ORSH && gc.Issigned[nl.Type.Etype] != 0 {
+			if op == gc.ORSH && gc.Issigned[nl.Type.Etype] {
 				gshift(arm.AMOVW, &n1, arm.SHIFT_AR, int32(w), &n1)
 			} else {
 				gins(arm.AEOR, &n1, &n1)
 			}
 		} else {
-			if op == gc.ORSH && gc.Issigned[nl.Type.Etype] != 0 {
+			if op == gc.ORSH && gc.Issigned[nl.Type.Etype] {
 				gshift(arm.AMOVW, &n1, arm.SHIFT_AR, int32(sc), &n1)
 			} else if op == gc.ORSH {
 				gshift(arm.AMOVW, &n1, arm.SHIFT_LR, int32(sc), &n1) // OLSH
@@ -617,7 +617,7 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	if op == gc.ORSH {
 		var p1 *obj.Prog
 		var p2 *obj.Prog
-		if gc.Issigned[nl.Type.Etype] != 0 {
+		if gc.Issigned[nl.Type.Etype] {
 			p1 = gshift(arm.AMOVW, &n2, arm.SHIFT_AR, int32(w)-1, &n2)
 			p2 = gregshift(arm.AMOVW, &n2, arm.SHIFT_AR, &n1, &n2)
 		} else {

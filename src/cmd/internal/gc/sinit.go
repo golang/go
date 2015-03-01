@@ -1070,7 +1070,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 		Fatal("anylit: not lit")
 
 	case OPTRLIT:
-		if Isptr[t.Etype] == 0 {
+		if !Isptr[t.Etype] {
 			Fatal("anylit: not ptr")
 		}
 

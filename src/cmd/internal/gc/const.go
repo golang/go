@@ -87,7 +87,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
 
 		// target is invalid type for a constant?  leave alone.
 	case OLITERAL:
-		if okforconst[t.Etype] == 0 && n.Type.Etype != TNIL {
+		if !okforconst[t.Etype] && n.Type.Etype != TNIL {
 			defaultlit(&n, nil)
 			*np = n
 			return
@@ -100,7 +100,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
 		if t != nil && t.Etype == TIDEAL && n.Val.Ctype != CTINT {
 			n.Val = toint(n.Val)
 		}
-		if t != nil && Isint[t.Etype] == 0 {
+		if t != nil && !Isint[t.Etype] {
 			Yyerror("invalid operation: %v (shift of type %v)", Nconv(n, 0), Tconv(t, 0))
 			t = nil
 		}
@@ -207,7 +207,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
 		CTFLT,
 		CTCPLX:
 		ct := int(n.Val.Ctype)
-		if Isint[et] != 0 {
+		if Isint[et] {
 			switch ct {
 			default:
 				goto bad
@@ -222,7 +222,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
 			case CTINT:
 				overflow(n.Val, t)
 			}
-		} else if Isfloat[et] != 0 {
+		} else if Isfloat[et] {
 			switch ct {
 			default:
 				goto bad
@@ -237,7 +237,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
 			case CTFLT:
 				n.Val.U.Fval = truncfltlit(n.Val.U.Fval, t)
 			}
-		} else if Iscomplex[et] != 0 {
+		} else if Iscomplex[et] {
 			switch ct {
 			default:
 				goto bad
@@ -374,7 +374,7 @@ func doesoverflow(v Val, t *Type) bool {
 	switch v.Ctype {
 	case CTINT,
 		CTRUNE:
-		if Isint[t.Etype] == 0 {
+		if !Isint[t.Etype] {
 			Fatal("overflow: %v integer constant", Tconv(t, 0))
 		}
 		if Mpcmpfixfix(v.U.Xval, Minintval[t.Etype]) < 0 || Mpcmpfixfix(v.U.Xval, Maxintval[t.Etype]) > 0 {
@@ -382,7 +382,7 @@ func doesoverflow(v Val, t *Type) bool {
 		}
 
 	case CTFLT:
-		if Isfloat[t.Etype] == 0 {
+		if !Isfloat[t.Etype] {
 			Fatal("overflow: %v floating-point constant", Tconv(t, 0))
 		}
 		if mpcmpfltflt(v.U.Fval, minfltval[t.Etype]) <= 0 || mpcmpfltflt(v.U.Fval, maxfltval[t.Etype]) >= 0 {
@@ -390,7 +390,7 @@ func doesoverflow(v Val, t *Type) bool {
 		}
 
 	case CTCPLX:
-		if Iscomplex[t.Etype] == 0 {
+		if !Iscomplex[t.Etype] {
 			Fatal("overflow: %v complex constant", Tconv(t, 0))
 		}
 		if mpcmpfltflt(&v.U.Cval.Real, minfltval[t.Etype]) <= 0 || mpcmpfltflt(&v.U.Cval.Real, maxfltval[t.Etype]) >= 0 || mpcmpfltflt(&v.U.Cval.Imag, minfltval[t.Etype]) <= 0 || mpcmpfltflt(&v.U.Cval.Imag, maxfltval[t.Etype]) >= 0 {
@@ -518,7 +518,7 @@ func evconst(n *Node) {
 		if n.Type == nil {
 			return
 		}
-		if okforconst[n.Type.Etype] == 0 && n.Type.Etype != TNIL {
+		if !okforconst[n.Type.Etype] && n.Type.Etype != TNIL {
 			return
 		}
 
@@ -571,7 +571,7 @@ func evconst(n *Node) {
 		return
 	}
 	wl := int(nl.Type.Etype)
-	if Isint[wl] != 0 || Isfloat[wl] != 0 || Iscomplex[wl] != 0 {
+	if Isint[wl] || Isfloat[wl] || Iscomplex[wl] {
 		wl = TIDEAL
 	}
 
@@ -680,7 +680,7 @@ func evconst(n *Node) {
 		return
 	}
 	wr = int(nr.Type.Etype)
-	if Isint[wr] != 0 || Isfloat[wr] != 0 || Iscomplex[wr] != 0 {
+	if Isint[wr] || Isfloat[wr] || Iscomplex[wr] {
 		wr = TIDEAL
 	}
 
@@ -714,7 +714,7 @@ func evconst(n *Node) {
 		defaultlit(&nr, Types[TUINT])
 
 		n.Right = nr
-		if nr.Type != nil && (Issigned[nr.Type.Etype] != 0 || Isint[nr.Type.Etype] == 0) {
+		if nr.Type != nil && (Issigned[nr.Type.Etype] || !Isint[nr.Type.Etype]) {
 			goto illegal
 		}
 		if nl.Val.Ctype != CTRUNE {
@@ -1261,13 +1261,13 @@ func defaultlit(np **Node, t *Type) {
 
 num:
 	if t != nil {
-		if Isint[t.Etype] != 0 {
+		if Isint[t.Etype] {
 			t1 = t
 			n.Val = toint(n.Val)
-		} else if Isfloat[t.Etype] != 0 {
+		} else if Isfloat[t.Etype] {
 			t1 = t
 			n.Val = toflt(n.Val)
-		} else if Iscomplex[t.Etype] != 0 {
+		} else if Iscomplex[t.Etype] {
 			t1 = t
 			n.Val = tocplx(n.Val)
 		}
@@ -1432,7 +1432,7 @@ func Convconst(con *Node, t *Type, val *Val) {
 	con.Type = t
 	con.Val = *val
 
-	if Isint[tt] != 0 {
+	if Isint[tt] {
 		con.Val.Ctype = CTINT
 		con.Val.U.Xval = new(Mpint)
 		var i int64
@@ -1456,7 +1456,7 @@ func Convconst(con *Node, t *Type, val *Val) {
 		return
 	}
 
-	if Isfloat[tt] != 0 {
+	if Isfloat[tt] {
 		con.Val = toflt(con.Val)
 		if con.Val.Ctype != CTFLT {
 			Fatal("convconst ctype=%d %v", con.Val.Ctype, Tconv(t, 0))
@@ -1467,7 +1467,7 @@ func Convconst(con *Node, t *Type, val *Val) {
 		return
 	}
 
-	if Iscomplex[tt] != 0 {
+	if Iscomplex[tt] {
 		con.Val = tocplx(con.Val)
 		if tt == TCOMPLEX64 {
 			con.Val.U.Cval.Real = *truncfltlit(&con.Val.U.Cval.Real, Types[TFLOAT32])
@@ -1601,7 +1601,7 @@ func isgoconst(n *Node) bool {
 		}
 
 	case OCONV:
-		if okforconst[n.Type.Etype] != 0 && isgoconst(n.Left) {
+		if okforconst[n.Type.Etype] && isgoconst(n.Left) {
 			return true
 		}
 
@@ -1617,7 +1617,7 @@ func isgoconst(n *Node) bool {
 		// function calls or channel receive operations.
 		t := l.Type
 
-		if t != nil && Isptr[t.Etype] != 0 {
+		if t != nil && Isptr[t.Etype] {
 			t = t.Type
 		}
 		if Isfixedarray(t) && !hascallchan(l) {

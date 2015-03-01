@@ -50,7 +50,7 @@ func fnpkg(fn *Node) *Pkg {
 		// method
 		rcvr := getthisx(fn.Type).Type.Type
 
-		if Isptr[rcvr.Etype] != 0 {
+		if Isptr[rcvr.Etype] {
 			rcvr = rcvr.Type
 		}
 		if rcvr.Sym == nil {

@@ -233,7 +233,7 @@ func nodfconst(n *Node, t *Type, fval *Mpflt) {
 	n.Val.Ctype = CTFLT
 	n.Type = t
 
-	if Isfloat[t.Etype] == 0 {
+	if !Isfloat[t.Etype] {
 		Fatal("nodfconst: bad type %v", Tconv(t, 0))
 	}
 }
@@ -243,13 +243,13 @@ func nodfconst(n *Node, t *Type, fval *Mpflt) {
  */
 func Complexop(n *Node, res *Node) bool {
 	if n != nil && n.Type != nil {
-		if Iscomplex[n.Type.Etype] != 0 {
+		if Iscomplex[n.Type.Etype] {
 			goto maybe
 		}
 	}
 
 	if res != nil && res.Type != nil {
-		if Iscomplex[res.Type.Etype] != 0 {
+		if Iscomplex[res.Type.Etype] {
 			goto maybe
 		}
 	}

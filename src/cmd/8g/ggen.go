@@ -446,7 +446,7 @@ func cgen_callret(n *gc.Node, res *gc.Node) {
  */
 func cgen_aret(n *gc.Node, res *gc.Node) {
 	t := n.Left.Type
-	if gc.Isptr[t.Etype] != 0 {
+	if gc.Isptr[t.Etype] {
 		t = t.Type
 	}
 
@@ -518,7 +518,7 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node, ax *gc.Node, dx *gc.N
 
 	t0 := t
 	check := 0
-	if gc.Issigned[t.Etype] != 0 {
+	if gc.Issigned[t.Etype] {
 		check = 1
 		if gc.Isconst(nl, gc.CTINT) && gc.Mpgetfix(nl.Val.U.Xval) != -1<<uint64(t.Width*8-1) {
 			check = 0
@@ -528,7 +528,7 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node, ax *gc.Node, dx *gc.N
 	}
 
 	if t.Width < 4 {
-		if gc.Issigned[t.Etype] != 0 {
+		if gc.Issigned[t.Etype] {
 			t = gc.Types[gc.TINT32]
 		} else {
 			t = gc.Types[gc.TUINT32]
@@ -602,7 +602,7 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node, ax *gc.Node, dx *gc.N
 		gc.Patch(p1, gc.Pc)
 	}
 
-	if gc.Issigned[t.Etype] == 0 {
+	if !gc.Issigned[t.Etype] {
 		var nz gc.Node
 		gc.Nodconst(&nz, t, 0)
 		gmove(&nz, dx)
@@ -658,7 +658,7 @@ func cgen_div(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	}
 
 	var t *gc.Type
-	if gc.Issigned[nl.Type.Etype] != 0 {
+	if gc.Issigned[nl.Type.Etype] {
 		t = gc.Types[gc.TINT32]
 	} else {
 		t = gc.Types[gc.TUINT32]
@@ -776,7 +776,7 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 			p1 = gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT32]), nil, +1)
 		}
 
-		if op == gc.ORSH && gc.Issigned[nl.Type.Etype] != 0 {
+		if op == gc.ORSH && gc.Issigned[nl.Type.Etype] {
 			gins(a, ncon(uint32(w)-1), &n2)
 		} else {
 			gmove(ncon(0), &n2)
@@ -807,7 +807,7 @@ func cgen_bmul(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	// copy from byte to full registers
 	t := gc.Types[gc.TUINT32]
 
-	if gc.Issigned[nl.Type.Etype] != 0 {
+	if gc.Issigned[nl.Type.Etype] {
 		t = gc.Types[gc.TINT32]
 	}
 

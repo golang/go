@@ -107,7 +107,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 
 	// if both are addressable, move
 	if n.Addable != 0 && res.Addable != 0 {
-		if gc.Is64(n.Type) || gc.Is64(res.Type) || n.Op == gc.OREGISTER || res.Op == gc.OREGISTER || gc.Iscomplex[n.Type.Etype] != 0 || gc.Iscomplex[res.Type.Etype] != 0 {
+		if gc.Is64(n.Type) || gc.Is64(res.Type) || n.Op == gc.OREGISTER || res.Op == gc.OREGISTER || gc.Iscomplex[n.Type.Etype] || gc.Iscomplex[res.Type.Etype] {
 			gmove(n, res)
 		} else {
 			var n1 gc.Node
@@ -148,7 +148,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 	}
 
 	// if n is sudoaddable generate addr and move
-	if !gc.Is64(n.Type) && !gc.Is64(res.Type) && gc.Iscomplex[n.Type.Etype] == 0 && gc.Iscomplex[res.Type.Etype] == 0 {
+	if !gc.Is64(n.Type) && !gc.Is64(res.Type) && !gc.Iscomplex[n.Type.Etype] && !gc.Iscomplex[res.Type.Etype] {
 		a := optoas(gc.OAS, n.Type)
 		var w int
 		var addr obj.Addr
@@ -220,7 +220,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 	var f0 gc.Node
 	var n1 gc.Node
 	var n2 gc.Node
-	if nl != nil && gc.Isfloat[n.Type.Etype] != 0 && gc.Isfloat[nl.Type.Etype] != 0 {
+	if nl != nil && gc.Isfloat[n.Type.Etype] && gc.Isfloat[nl.Type.Etype] {
 		// floating-point.
 		regalloc(&f0, nl.Type, res)
 
@@ -338,7 +338,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 			regalloc(&n1, nl.Type, res)
 			gmove(nl, &n1)
 		} else {
-			if n.Type.Width > int64(gc.Widthptr) || gc.Is64(nl.Type) || gc.Isfloat[nl.Type.Etype] != 0 {
+			if n.Type.Width > int64(gc.Widthptr) || gc.Is64(nl.Type) || gc.Isfloat[nl.Type.Etype] {
 				gc.Tempname(&n1, nl.Type)
 			} else {
 				regalloc(&n1, nl.Type, res)
@@ -347,7 +347,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 		}
 
 		var n2 gc.Node
-		if n.Type.Width > int64(gc.Widthptr) || gc.Is64(n.Type) || gc.Isfloat[n.Type.Etype] != 0 {
+		if n.Type.Width > int64(gc.Widthptr) || gc.Is64(n.Type) || gc.Isfloat[n.Type.Etype] {
 			gc.Tempname(&n2, n.Type)
 		} else {
 			regalloc(&n2, n.Type, nil)
@@ -1269,7 +1269,7 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
 		gc.OGE:
 		a := int(n.Op)
 		if !true_ {
-			if gc.Isfloat[nl.Type.Etype] != 0 {
+			if gc.Isfloat[nl.Type.Etype] {
 				// brcom is not valid on floats when NaN is involved.
 				p1 := gc.Gbranch(arm.AB, nil, 0)
 
@@ -1328,7 +1328,7 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
 			break
 		}
 
-		if gc.Iscomplex[nl.Type.Etype] != 0 {
+		if gc.Iscomplex[nl.Type.Etype] {
 			gc.Complexbool(a, nl, nr, true_, likely, to)
 			break
 		}
@@ -1408,7 +1408,7 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
 		gmove(&tmp, &n2)
 
 		gcmp(optoas(gc.OCMP, nr.Type), &n1, &n2)
-		if gc.Isfloat[nl.Type.Etype] != 0 {
+		if gc.Isfloat[nl.Type.Etype] {
 			if n.Op == gc.ONE {
 				p1 := gc.Gbranch(arm.ABVS, nr.Type, likely)
 				gc.Patch(gc.Gbranch(a, nr.Type, likely), to)
@@ -1441,7 +1441,7 @@ func stkof(n *gc.Node) int32 {
 
 	case gc.ODOT:
 		t := n.Left.Type
-		if gc.Isptr[t.Etype] != 0 {
+		if gc.Isptr[t.Etype] {
 			break
 		}
 		off := stkof(n.Left)
@@ -1468,7 +1468,7 @@ func stkof(n *gc.Node) int32 {
 		gc.OCALLINTER,
 		gc.OCALLFUNC:
 		t := n.Left.Type
-		if gc.Isptr[t.Etype] != 0 {
+		if gc.Isptr[t.Etype] {
 			t = t.Type
 		}
 

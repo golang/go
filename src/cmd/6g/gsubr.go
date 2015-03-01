@@ -308,7 +308,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 	tt := gc.Simsimtype(t.Type)
 	cvt := t.Type
 
-	if gc.Iscomplex[ft] != 0 || gc.Iscomplex[tt] != 0 {
+	if gc.Iscomplex[ft] || gc.Iscomplex[tt] {
 		gc.Complexmove(f, t)
 		return
 	}
@@ -330,13 +330,13 @@ func gmove(f *gc.Node, t *gc.Node) {
 		// some constants can't move directly to memory.
 		if gc.Ismem(t) {
 			// float constants come from memory.
-			if gc.Isfloat[tt] != 0 {
+			if gc.Isfloat[tt] {
 				goto hard
 			}
 
 			// 64-bit immediates are really 32-bit sign-extended
 			// unless moving into a register.
-			if gc.Isint[tt] != 0 {
+			if gc.Isint[tt] {
 				if gc.Mpcmpfixfix(con.Val.U.Xval, gc.Minintval[gc.TINT32]) < 0 {
 					goto hard
 				}

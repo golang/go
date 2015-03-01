@@ -2118,7 +2118,7 @@ hidden_structdcl:
 			$$.Val = $3;
 		} else {
 			s = $2.Sym;
-			if s == nil && Isptr[$2.Etype] != 0 {
+			if s == nil && Isptr[$2.Etype] {
 				s = $2.Type.Sym;
 			}
 			p = importpkg;

@@ -778,14 +778,14 @@ func checkembeddedtype(t *Type) {
 		return
 	}
 
-	if t.Sym == nil && Isptr[t.Etype] != 0 {
+	if t.Sym == nil && Isptr[t.Etype] {
 		t = t.Type
 		if t.Etype == TINTER {
 			Yyerror("embedded type cannot be a pointer to interface")
 		}
 	}
 
-	if Isptr[t.Etype] != 0 {
+	if Isptr[t.Etype] {
 		Yyerror("embedded type cannot be a pointer")
 	} else if t.Etype == TFORW && t.Embedlineno == 0 {
 		t.Embedlineno = lineno
@@ -1178,7 +1178,7 @@ func isifacemethod(f *Type) bool {
 		return false
 	}
 	t := rcvr.Type
-	if Isptr[t.Etype] == 0 {
+	if !Isptr[t.Etype] {
 		return false
 	}
 	t = t.Type
@@ -1241,7 +1241,7 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
 		goto bad
 	}
 	s = t.Sym
-	if s == nil && Isptr[t.Etype] != 0 {
+	if s == nil && Isptr[t.Etype] {
 		t = t.Type
 		if t == nil {
 			goto bad
@@ -1269,13 +1269,13 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
 	}
 
 	if (spkg == nil || nsym.Pkg != spkg) && !exportname(nsym.Name) {
-		if t0.Sym == nil && Isptr[t0.Etype] != 0 {
+		if t0.Sym == nil && Isptr[t0.Etype] {
 			p = fmt.Sprintf("(%v).%s.%s%s", Tconv(t0, obj.FmtLeft|obj.FmtShort), nsym.Pkg.Prefix, nsym.Name, suffix)
 		} else {
 			p = fmt.Sprintf("%v.%s.%s%s", Tconv(t0, obj.FmtLeft|obj.FmtShort), nsym.Pkg.Prefix, nsym.Name, suffix)
 		}
 	} else {
-		if t0.Sym == nil && Isptr[t0.Etype] != 0 {
+		if t0.Sym == nil && Isptr[t0.Etype] {
 			p = fmt.Sprintf("(%v).%s%s", Tconv(t0, obj.FmtLeft|obj.FmtShort), nsym.Name, suffix)
 		} else {
 			p = fmt.Sprintf("%v.%s%s", Tconv(t0, obj.FmtLeft|obj.FmtShort), nsym.Name, suffix)
@@ -1358,7 +1358,7 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
 			return
 		}
 		if t != nil {
-			if Isptr[t.Etype] != 0 {
+			if Isptr[t.Etype] {
 				if t.Sym != nil {
 					Yyerror("invalid receiver type %v (%v is a pointer type)", Tconv(pa, 0), Tconv(t, 0))
 					return
@@ -1375,7 +1375,7 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
 				return
 			}
 
-			if Isptr[t.Etype] != 0 {
+			if Isptr[t.Etype] {
 				Yyerror("invalid receiver type %v (%v is a pointer type)", Tconv(pa, 0), Tconv(t, 0))
 				return
 			}
