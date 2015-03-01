@@ -822,43 +822,33 @@ var errortype *Type
 
 var Simtype [NTYPE]uint8
 
-var Isptr [NTYPE]uint8
+var (
+	Isptr     [NTYPE]bool
+	isforw    [NTYPE]bool
+	Isint     [NTYPE]bool
+	Isfloat   [NTYPE]bool
+	Iscomplex [NTYPE]bool
+	Issigned  [NTYPE]bool
+	issimple  [NTYPE]bool
+)
 
-var isforw [NTYPE]uint8
+var (
+	okforeq    [NTYPE]bool
+	okforadd   [NTYPE]bool
+	okforand   [NTYPE]bool
+	okfornone  [NTYPE]bool
+	okforcmp   [NTYPE]bool
+	okforbool  [NTYPE]bool
+	okforcap   [NTYPE]bool
+	okforlen   [NTYPE]bool
+	okforarith [NTYPE]bool
+	okforconst [NTYPE]bool
+)
 
-var Isint [NTYPE]uint8
-
-var Isfloat [NTYPE]uint8
-
-var Iscomplex [NTYPE]uint8
-
-var Issigned [NTYPE]uint8
-
-var issimple [NTYPE]uint8
-
-var okforeq [NTYPE]uint8
-
-var okforadd [NTYPE]uint8
-
-var okforand [NTYPE]uint8
-
-var okfornone [NTYPE]uint8
-
-var okforcmp [NTYPE]uint8
-
-var okforbool [NTYPE]uint8
-
-var okforcap [NTYPE]uint8
-
-var okforlen [NTYPE]uint8
-
-var okforarith [NTYPE]uint8
-
-var okforconst [NTYPE]uint8
-
-var okfor [OEND][]byte
-
-var iscmp [OEND]uint8
+var (
+	okfor [OEND][]bool
+	iscmp [OEND]bool
+)
 
 var Minintval [NTYPE]*Mpint
 

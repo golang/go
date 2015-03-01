@@ -3394,7 +3394,7 @@ yydefault:
 				yyVAL.node.Val = yyDollar[3].val
 			} else {
 				s = yyDollar[2].typ.Sym
-				if s == nil && Isptr[yyDollar[2].typ.Etype] != 0 {
+				if s == nil && Isptr[yyDollar[2].typ.Etype] {
 					s = yyDollar[2].typ.Type.Sym
 				}
 				p = importpkg

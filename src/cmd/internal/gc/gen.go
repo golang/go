@@ -452,7 +452,7 @@ func Cgen_slice(n *Node, res *Node) {
 	}
 
 	if n.Op == OSLICEARR || n.Op == OSLICE3ARR {
-		if Isptr[n.Left.Type.Etype] == 0 {
+		if !Isptr[n.Left.Type.Etype] {
 			Fatal("slicearr is supposed to work on pointer: %v\n", Nconv(n, obj.FmtSign))
 		}
 		Thearch.Cgen(&src, base)

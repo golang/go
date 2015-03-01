@@ -479,7 +479,7 @@ func walkexpr(np **Node, init **NodeList) {
 		// delayed until now to preserve side effects.
 		t := n.Left.Type
 
-		if Isptr[t.Etype] != 0 {
+		if Isptr[t.Etype] {
 			t = t.Type
 		}
 		if Isfixedarray(t) {
@@ -1032,7 +1032,7 @@ func walkexpr(np **Node, init **NodeList) {
 	case OCONV,
 		OCONVNOP:
 		if Thearch.Thechar == '5' {
-			if Isfloat[n.Left.Type.Etype] != 0 {
+			if Isfloat[n.Left.Type.Etype] {
 				if n.Type.Etype == TINT64 {
 					n = mkcall("float64toint64", n.Type, init, conv(n.Left, Types[TFLOAT64]))
 					goto ret
@@ -1044,7 +1044,7 @@ func walkexpr(np **Node, init **NodeList) {
 				}
 			}
 
-			if Isfloat[n.Type.Etype] != 0 {
+			if Isfloat[n.Type.Etype] {
 				if n.Left.Type.Etype == TINT64 {
 					n = mkcall("int64tofloat64", n.Type, init, conv(n.Left, Types[TINT64]))
 					goto ret
@@ -1084,7 +1084,7 @@ func walkexpr(np **Node, init **NodeList) {
 		 */
 		et := int(n.Left.Type.Etype)
 
-		if Iscomplex[et] != 0 && n.Op == ODIV {
+		if Iscomplex[et] && n.Op == ODIV {
 			t := n.Type
 			n = mkcall("complex128div", Types[TCOMPLEX128], init, conv(n.Left, Types[TCOMPLEX128]), conv(n.Right, Types[TCOMPLEX128]))
 			n = conv(n, t)
@@ -1092,7 +1092,7 @@ func walkexpr(np **Node, init **NodeList) {
 		}
 
 		// Nothing to do for float divisions.
-		if Isfloat[et] != 0 {
+		if Isfloat[et] {
 			goto ret
 		}
 
@@ -1142,7 +1142,7 @@ func walkexpr(np **Node, init **NodeList) {
 			goto ret
 		}
 		t := n.Left.Type
-		if t != nil && Isptr[t.Etype] != 0 {
+		if t != nil && Isptr[t.Etype] {
 			t = t.Type
 		}
 		if Isfixedarray(t) {
@@ -2005,13 +2005,13 @@ func walkprint(nn *Node, init **NodeList) *Node {
 				on = syslook("printiface", 1)
 			}
 			argtype(on, n.Type) // any-1
-		} else if Isptr[et] != 0 || et == TCHAN || et == TMAP || et == TFUNC || et == TUNSAFEPTR {
+		} else if Isptr[et] || et == TCHAN || et == TMAP || et == TFUNC || et == TUNSAFEPTR {
 			on = syslook("printpointer", 1)
 			argtype(on, n.Type) // any-1
 		} else if Isslice(n.Type) {
 			on = syslook("printslice", 1)
 			argtype(on, n.Type) // any-1
-		} else if Isint[et] != 0 {
+		} else if Isint[et] {
 			if et == TUINT64 {
 				if (t.Sym.Pkg == Runtimepkg || compiling_runtime != 0) && t.Sym.Name == "hex" {
 					on = syslook("printhex", 0)
@@ -2021,9 +2021,9 @@ func walkprint(nn *Node, init **NodeList) *Node {
 			} else {
 				on = syslook("printint", 0)
 			}
-		} else if Isfloat[et] != 0 {
+		} else if Isfloat[et] {
 			on = syslook("printfloat", 0)
-		} else if Iscomplex[et] != 0 {
+		} else if Iscomplex[et] {
 			on = syslook("printcomplex", 0)
 		} else if et == TBOOL {
 			on = syslook("printbool", 0)
@@ -3515,7 +3515,7 @@ func walkcompare(np **Node, init **NodeList) {
 		andor = OOROR
 	}
 
-	if t.Etype == TARRAY && t.Bound <= 4 && issimple[t.Type.Etype] != 0 {
+	if t.Etype == TARRAY && t.Bound <= 4 && issimple[t.Type.Etype] {
 		// Four or fewer elements of a basic type.
 		// Unroll comparisons.
 		var li *Node
@@ -3636,7 +3636,7 @@ func walkrotate(np **Node) {
 	l := n.Left
 
 	r := n.Right
-	if (n.Op != OOR && n.Op != OXOR) || (l.Op != OLSH && l.Op != ORSH) || (r.Op != OLSH && r.Op != ORSH) || n.Type == nil || Issigned[n.Type.Etype] != 0 || l.Op == r.Op {
+	if (n.Op != OOR && n.Op != OXOR) || (l.Op != OLSH && l.Op != ORSH) || (r.Op != OLSH && r.Op != ORSH) || n.Type == nil || Issigned[n.Type.Etype] || l.Op == r.Op {
 		return
 	}
 
@@ -3684,7 +3684,7 @@ func walkrotate(np **Node) {
  */
 func walkmul(np **Node, init **NodeList) {
 	n := *np
-	if Isint[n.Type.Etype] == 0 {
+	if !Isint[n.Type.Etype] {
 		return
 	}
 
@@ -3797,7 +3797,7 @@ func walkdiv(np **Node, init **NodeList) {
 		var m Magic
 		m.W = w
 
-		if Issigned[nl.Type.Etype] != 0 {
+		if Issigned[nl.Type.Etype] {
 			m.Sd = Mpgetfix(nr.Val.U.Xval)
 			Smagic(&m)
 		} else {
@@ -3926,7 +3926,7 @@ func walkdiv(np **Node, init **NodeList) {
 		}
 
 	default:
-		if Issigned[n.Type.Etype] != 0 {
+		if Issigned[n.Type.Etype] {
 			if n.Op == OMOD {
 				// signed modulo 2^pow is like ANDing
 				// with the last pow bits, but if nl < 0,
@@ -4023,11 +4023,11 @@ ret:
 
 // return 1 if integer n must be in range [0, max), 0 otherwise
 func bounded(n *Node, max int64) bool {
-	if n.Type == nil || Isint[n.Type.Etype] == 0 {
+	if n.Type == nil || !Isint[n.Type.Etype] {
 		return false
 	}
 
-	sign := int(Issigned[n.Type.Etype])
+	sign := Issigned[n.Type.Etype]
 	bits := int32(8 * n.Type.Width)
 
 	if Smallintconst(n) {
@@ -4049,7 +4049,7 @@ func bounded(n *Node, max int64) bool {
 		}
 
 	case OMOD:
-		if sign == 0 && Smallintconst(n.Right) {
+		if !sign && Smallintconst(n.Right) {
 			v := Mpgetfix(n.Right.Val.U.Xval)
 			if 0 <= v && v <= max {
 				return true
@@ -4057,7 +4057,7 @@ func bounded(n *Node, max int64) bool {
 		}
 
 	case ODIV:
-		if sign == 0 && Smallintconst(n.Right) {
+		if !sign && Smallintconst(n.Right) {
 			v := Mpgetfix(n.Right.Val.U.Xval)
 			for bits > 0 && v >= 2 {
 				bits--
@@ -4066,7 +4066,7 @@ func bounded(n *Node, max int64) bool {
 		}
 
 	case ORSH:
-		if sign == 0 && Smallintconst(n.Right) {
+		if !sign && Smallintconst(n.Right) {
 			v := Mpgetfix(n.Right.Val.U.Xval)
 			if v > int64(bits) {
 				return true
@@ -4075,7 +4075,7 @@ func bounded(n *Node, max int64) bool {
 		}
 	}
 
-	if sign == 0 && bits <= 62 && 1<<uint(bits) <= max {
+	if !sign && bits <= 62 && 1<<uint(bits) <= max {
 		return true
 	}
 
@@ -4110,7 +4110,7 @@ func usefield(n *Node) {
 	}
 	field.Lastfn = Curfn
 	field.Outer = n.Left.Type
-	if Isptr[field.Outer.Etype] != 0 {
+	if Isptr[field.Outer.Etype] {
 		field.Outer = field.Outer.Type
 	}
 	if field.Outer.Sym == nil {

@@ -890,12 +890,12 @@ func gmove(f *gc.Node, t *gc.Node) {
 	tt := gc.Simsimtype(t.Type)
 	cvt := t.Type
 
-	if gc.Iscomplex[ft] != 0 || gc.Iscomplex[tt] != 0 {
+	if gc.Iscomplex[ft] || gc.Iscomplex[tt] {
 		gc.Complexmove(f, t)
 		return
 	}
 
-	if gc.Isfloat[ft] != 0 || gc.Isfloat[tt] != 0 {
+	if gc.Isfloat[ft] || gc.Isfloat[tt] {
 		floatmove(f, t)
 		return
 	}
@@ -904,7 +904,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 	// except 64-bit, which always copies via registers anyway.
 	var r1 gc.Node
 	var a int
-	if gc.Isint[ft] != 0 && gc.Isint[tt] != 0 && !gc.Is64(f.Type) && !gc.Is64(t.Type) && gc.Ismem(f) && gc.Ismem(t) {
+	if gc.Isint[ft] && gc.Isint[tt] && !gc.Is64(f.Type) && !gc.Is64(t.Type) && gc.Ismem(f) && gc.Ismem(t) {
 		goto hard
 	}
 
@@ -1173,7 +1173,7 @@ func floatmove(f *gc.Node, t *gc.Node) {
 	cvt := t.Type
 
 	// cannot have two floating point memory operands.
-	if gc.Isfloat[ft] != 0 && gc.Isfloat[tt] != 0 && gc.Ismem(f) && gc.Ismem(t) {
+	if gc.Isfloat[ft] && gc.Isfloat[tt] && gc.Ismem(f) && gc.Ismem(t) {
 		goto hard
 	}
 
@@ -1187,7 +1187,7 @@ func floatmove(f *gc.Node, t *gc.Node) {
 		// some constants can't move directly to memory.
 		if gc.Ismem(t) {
 			// float constants come from memory.
-			if gc.Isfloat[tt] != 0 {
+			if gc.Isfloat[tt] {
 				goto hard
 			}
 		}

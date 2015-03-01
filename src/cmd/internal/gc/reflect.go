@@ -358,10 +358,10 @@ func methods(t *Type) *Sig {
 		// method does not apply.
 		this = getthisx(f.Type).Type.Type
 
-		if Isptr[this.Etype] != 0 && this.Type == t {
+		if Isptr[this.Etype] && this.Type == t {
 			continue
 		}
-		if Isptr[this.Etype] != 0 && Isptr[t.Etype] == 0 && f.Embedded != 2 && !isifacemethod(f.Type) {
+		if Isptr[this.Etype] && !Isptr[t.Etype] && f.Embedded != 2 && !isifacemethod(f.Type) {
 			continue
 		}
 
@@ -693,7 +693,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	}
 
 	var sptr *Sym
-	if t.Sym != nil && Isptr[t.Etype] == 0 {
+	if t.Sym != nil && !Isptr[t.Etype] {
 		sptr = dtypesym(Ptrto(t))
 	} else {
 		sptr = weaktypesym(Ptrto(t))
@@ -868,7 +868,7 @@ func typesymprefix(prefix string, t *Type) *Sym {
 }
 
 func typenamesym(t *Type) *Sym {
-	if t == nil || (Isptr[t.Etype] != 0 && t.Type == nil) || isideal(t) {
+	if t == nil || (Isptr[t.Etype] && t.Type == nil) || isideal(t) {
 		Fatal("typename %v", Tconv(t, 0))
 	}
 	s := typesym(t)
@@ -987,7 +987,7 @@ func dtypesym(t *Type) *Sym {
 	// emit the type structures for int, float, etc.
 	tbase := t
 
-	if Isptr[t.Etype] != 0 && t.Sym == nil && t.Type.Sym != nil {
+	if Isptr[t.Etype] && t.Sym == nil && t.Type.Sym != nil {
 		tbase = t.Type
 	}
 	dupok := 0
@@ -1003,7 +1003,7 @@ func dtypesym(t *Type) *Sym {
 	if tbase.Sym != nil && tbase.Local == 0 {
 		return s
 	}
-	if isforw[tbase.Etype] != 0 {
+	if isforw[tbase.Etype] {
 		return s
 	}
 

@@ -405,7 +405,7 @@ reswitch:
 				v = toint(l.Val)
 
 			default:
-				if l.Type != nil && Isint[l.Type.Etype] != 0 && l.Op != OLITERAL {
+				if l.Type != nil && Isint[l.Type.Etype] && l.Op != OLITERAL {
 					Yyerror("non-constant array bound %v", Nconv(l, 0))
 				} else {
 					Yyerror("invalid array bound %v", Nconv(l, 0))
@@ -510,7 +510,7 @@ reswitch:
 			goto ret
 		}
 
-		if Isptr[t.Etype] == 0 {
+		if !Isptr[t.Etype] {
 			if top&(Erv|Etop) != 0 {
 				Yyerror("invalid indirect of %v", Nconv(n.Left, obj.FmtLong))
 				goto error
@@ -576,7 +576,7 @@ reswitch:
 		if t == nil {
 			goto error
 		}
-		if okfor[n.Op][t.Etype] == 0 {
+		if !okfor[n.Op][t.Etype] {
 			Yyerror("invalid operation: %v %v", Oconv(int(n.Op), 0), Tconv(t, 0))
 			goto error
 		}
@@ -678,7 +678,7 @@ reswitch:
 			goto ret
 		}
 
-		if Isptr[t.Etype] != 0 && t.Type.Etype != TINTER {
+		if Isptr[t.Etype] && t.Type.Etype != TINTER {
 			t = t.Type
 			if t == nil {
 				goto error
@@ -791,7 +791,7 @@ reswitch:
 				}
 			}
 
-			if n.Right.Type != nil && Isint[n.Right.Type.Etype] == 0 {
+			if n.Right.Type != nil && !Isint[n.Right.Type.Etype] {
 				Yyerror("non-integer %s index %v", why, Nconv(n.Right, 0))
 				break
 			}
@@ -905,7 +905,7 @@ reswitch:
 		if Istype(t, TSTRING) {
 			n.Type = t
 			n.Op = OSLICESTR
-		} else if Isptr[t.Etype] != 0 && Isfixedarray(t.Type) {
+		} else if Isptr[t.Etype] && Isfixedarray(t.Type) {
 			tp = t.Type
 			n.Type = typ(TARRAY)
 			n.Type.Type = tp.Type
@@ -965,7 +965,7 @@ reswitch:
 			goto error
 		}
 
-		if Isptr[t.Etype] != 0 && Isfixedarray(t.Type) {
+		if Isptr[t.Etype] && Isfixedarray(t.Type) {
 			tp = t.Type
 			n.Type = typ(TARRAY)
 			n.Type.Type = tp.Type
@@ -1136,18 +1136,18 @@ reswitch:
 		}
 		switch n.Op {
 		case OCAP:
-			if okforcap[t.Etype] == 0 {
+			if !okforcap[t.Etype] {
 				goto badcall1
 			}
 
 		case OLEN:
-			if okforlen[t.Etype] == 0 {
+			if !okforlen[t.Etype] {
 				goto badcall1
 			}
 
 		case OREAL,
 			OIMAG:
-			if Iscomplex[t.Etype] == 0 {
+			if !Iscomplex[t.Etype] {
 				goto badcall1
 			}
 			if Isconst(l, CTCPLX) {
@@ -1808,13 +1808,13 @@ arith:
 		defaultlit(&r, Types[TUINT])
 		n.Right = r
 		t := r.Type
-		if Isint[t.Etype] == 0 || Issigned[t.Etype] != 0 {
+		if !Isint[t.Etype] || Issigned[t.Etype] {
 			Yyerror("invalid operation: %v (shift count type %v, must be unsigned integer)", Nconv(n, 0), Tconv(r.Type, 0))
 			goto error
 		}
 
 		t = l.Type
-		if t != nil && t.Etype != TIDEAL && Isint[t.Etype] == 0 {
+		if t != nil && t.Etype != TIDEAL && !Isint[t.Etype] {
 			Yyerror("invalid operation: %v (shift of type %v)", Nconv(n, 0), Tconv(t, 0))
 			goto error
 		}
@@ -1843,7 +1843,7 @@ arith:
 		et = TINT
 	}
 	aop = 0
-	if iscmp[n.Op] != 0 && t.Etype != TIDEAL && !Eqtype(l.Type, r.Type) {
+	if iscmp[n.Op] && t.Etype != TIDEAL && !Eqtype(l.Type, r.Type) {
 		// comparison is okay as long as one side is
 		// assignable to the other.  convert so they have
 		// the same type.
@@ -1909,7 +1909,7 @@ arith:
 		}
 	}
 
-	if okfor[op][et] == 0 {
+	if !okfor[op][et] {
 		Yyerror("invalid operation: %v (operator %v not defined on %s)", Nconv(n, 0), Oconv(int(op), 0), typekind(t))
 		goto error
 	}
@@ -1942,7 +1942,7 @@ arith:
 	}
 
 	t = l.Type
-	if iscmp[n.Op] != 0 {
+	if iscmp[n.Op] {
 		evconst(n)
 		t = idealbool
 		if n.Op != OLITERAL {
@@ -1965,7 +1965,7 @@ arith:
 	}
 
 	if et == TSTRING {
-		if iscmp[n.Op] != 0 {
+		if iscmp[n.Op] {
 			n.Etype = n.Op
 			n.Op = OCMPSTR
 		} else if n.Op == OADD {
@@ -2123,7 +2123,7 @@ func checksliceindex(l *Node, r *Node, tp *Type) int {
 	if t == nil {
 		return -1
 	}
-	if Isint[t.Etype] == 0 {
+	if !Isint[t.Etype] {
 		Yyerror("invalid slice index %v (type %v)", Nconv(r, 0), Tconv(t, 0))
 		return -1
 	}
@@ -2215,7 +2215,7 @@ func implicitstar(nn **Node) {
 	n := *nn
 
 	t := n.Type
-	if t == nil || Isptr[t.Etype] == 0 {
+	if t == nil || !Isptr[t.Etype] {
 		return
 	}
 	t = t.Type
@@ -2293,7 +2293,7 @@ func lookdot1(errnode *Node, s *Sym, t *Type, f *Type, dostrcmp int) *Type {
 		if r != nil {
 			if errnode != nil {
 				Yyerror("ambiguous selector %v", Nconv(errnode, 0))
-			} else if Isptr[t.Etype] != 0 {
+			} else if Isptr[t.Etype] {
 				Yyerror("ambiguous selector (%v).%v", Tconv(t, 0), Sconv(s, 0))
 			} else {
 				Yyerror("ambiguous selector %v.%v", Tconv(t, 0), Sconv(s, 0))
@@ -2338,7 +2338,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
 	}
 
 	// disallow T.m if m requires *T receiver
-	if Isptr[getthisx(f2.Type).Type.Type.Etype] != 0 && Isptr[t.Etype] == 0 && f2.Embedded != 2 && !isifacemethod(f2.Type) {
+	if Isptr[getthisx(f2.Type).Type.Type.Etype] && !Isptr[t.Etype] && f2.Embedded != 2 && !isifacemethod(f2.Type) {
 		Yyerror("invalid method expression %v (needs pointer receiver: (*%v).%v)", Nconv(n, 0), Tconv(t, 0), Sconv(f2.Sym, obj.FmtShort))
 		return false
 	}
@@ -2387,7 +2387,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) bool {
 		n.Type = f1.Type
 		n.Paramfld = f1
 		if t.Etype == TINTER {
-			if Isptr[n.Left.Type.Etype] != 0 {
+			if Isptr[n.Left.Type.Etype] {
 				n.Left = Nod(OIND, n.Left, nil) // implicitstar
 				n.Left.Implicit = 1
 				typecheck(&n.Left, Erv)
@@ -2435,7 +2435,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) bool {
 			ll = ll.Left
 		}
 		if ll.Implicit != 0 {
-			if Isptr[ll.Type.Etype] != 0 && ll.Type.Sym != nil && ll.Type.Sym.Def != nil && ll.Type.Sym.Def.Op == OTYPE {
+			if Isptr[ll.Type.Etype] && ll.Type.Sym != nil && ll.Type.Sym.Def != nil && ll.Type.Sym.Def.Op == OTYPE {
 				// It is invalid to automatically dereference a named pointer type when selecting a method.
 				// Make n->left == ll to clarify error message.
 				n.Left = ll
@@ -2876,7 +2876,7 @@ func typecheckcomplit(np **Node) {
 	nerr = nerrors
 	n.Type = t
 
-	if Isptr[t.Etype] != 0 {
+	if Isptr[t.Etype] {
 		// For better or worse, we don't allow pointers as the composite literal type,
 		// except when using the &T syntax, which sets implicit on the OIND.
 		if n.Right.Implicit == 0 {
@@ -3085,7 +3085,7 @@ func typecheckcomplit(np **Node) {
 	}
 
 	n.Orig = norig
-	if Isptr[n.Type.Etype] != 0 {
+	if Isptr[n.Type.Etype] {
 		n = Nod(OPTRLIT, n, nil)
 		n.Typecheck = 1
 		n.Type = n.Left.Type
@@ -3538,7 +3538,7 @@ func copytype(n *Node, t *Type) {
 
 	if embedlineno != 0 {
 		lineno = int32(embedlineno)
-		if Isptr[t.Etype] != 0 {
+		if Isptr[t.Etype] {
 			Yyerror("embedded type cannot be a pointer")
 		}
 	}
@@ -3705,7 +3705,7 @@ func typecheckdef(n *Node) *Node {
 
 		t := n.Type
 		if t != nil {
-			if okforconst[t.Etype] == 0 {
+			if !okforconst[t.Etype] {
 				Yyerror("invalid constant type %v", Tconv(t, 0))
 				goto ret
 			}
@@ -3826,7 +3826,7 @@ func checkmake(t *Type, arg string, n *Node) int {
 		}
 	}
 
-	if Isint[n.Type.Etype] == 0 && n.Type.Etype != TIDEAL {
+	if !Isint[n.Type.Etype] && n.Type.Etype != TIDEAL {
 		Yyerror("non-integer %s argument in make(%v) - %v", arg, Tconv(t, 0), Tconv(n.Type, 0))
 		return -1
 	}

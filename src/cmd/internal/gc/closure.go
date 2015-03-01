@@ -519,7 +519,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 		p = fmt.Sprintf("(%v).(%v)-fm", Tconv(rcvrtype, obj.FmtLeft|obj.FmtShort), Sconv(meth.Sym, obj.FmtLeft))
 	}
 	basetype := rcvrtype
-	if Isptr[rcvrtype.Etype] != 0 {
+	if Isptr[rcvrtype.Etype] {
 		basetype = basetype.Type
 	}
 	if basetype.Etype != TINTER && basetype.Sym == nil {
@@ -613,7 +613,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	ptr.Used = 1
 	ptr.Curfn = xfunc
 	xfunc.Dcl = list(xfunc.Dcl, ptr)
-	if Isptr[rcvrtype.Etype] != 0 || Isinter(rcvrtype) {
+	if Isptr[rcvrtype.Etype] || Isinter(rcvrtype) {
 		ptr.Ntype = typenod(rcvrtype)
 		body = list(body, Nod(OAS, ptr, cv))
 	} else {

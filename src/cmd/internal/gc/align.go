@@ -450,95 +450,95 @@ func typeinit() {
 	}
 
 	for i := TINT8; i <= TUINT64; i++ {
-		Isint[i] = 1
+		Isint[i] = true
 	}
-	Isint[TINT] = 1
-	Isint[TUINT] = 1
-	Isint[TUINTPTR] = 1
+	Isint[TINT] = true
+	Isint[TUINT] = true
+	Isint[TUINTPTR] = true
 
-	Isfloat[TFLOAT32] = 1
-	Isfloat[TFLOAT64] = 1
+	Isfloat[TFLOAT32] = true
+	Isfloat[TFLOAT64] = true
 
-	Iscomplex[TCOMPLEX64] = 1
-	Iscomplex[TCOMPLEX128] = 1
+	Iscomplex[TCOMPLEX64] = true
+	Iscomplex[TCOMPLEX128] = true
 
-	Isptr[TPTR32] = 1
-	Isptr[TPTR64] = 1
+	Isptr[TPTR32] = true
+	Isptr[TPTR64] = true
 
-	isforw[TFORW] = 1
+	isforw[TFORW] = true
 
-	Issigned[TINT] = 1
-	Issigned[TINT8] = 1
-	Issigned[TINT16] = 1
-	Issigned[TINT32] = 1
-	Issigned[TINT64] = 1
+	Issigned[TINT] = true
+	Issigned[TINT8] = true
+	Issigned[TINT16] = true
+	Issigned[TINT32] = true
+	Issigned[TINT64] = true
 
 	/*
 	 * initialize okfor
 	 */
 	for i := 0; i < NTYPE; i++ {
-		if Isint[i] != 0 || i == TIDEAL {
-			okforeq[i] = 1
-			okforcmp[i] = 1
-			okforarith[i] = 1
-			okforadd[i] = 1
-			okforand[i] = 1
-			okforconst[i] = 1
-			issimple[i] = 1
+		if Isint[i] || i == TIDEAL {
+			okforeq[i] = true
+			okforcmp[i] = true
+			okforarith[i] = true
+			okforadd[i] = true
+			okforand[i] = true
+			okforconst[i] = true
+			issimple[i] = true
 			Minintval[i] = new(Mpint)
 			Maxintval[i] = new(Mpint)
 		}
 
-		if Isfloat[i] != 0 {
-			okforeq[i] = 1
-			okforcmp[i] = 1
-			okforadd[i] = 1
-			okforarith[i] = 1
-			okforconst[i] = 1
-			issimple[i] = 1
+		if Isfloat[i] {
+			okforeq[i] = true
+			okforcmp[i] = true
+			okforadd[i] = true
+			okforarith[i] = true
+			okforconst[i] = true
+			issimple[i] = true
 			minfltval[i] = new(Mpflt)
 			maxfltval[i] = new(Mpflt)
 		}
 
-		if Iscomplex[i] != 0 {
-			okforeq[i] = 1
-			okforadd[i] = 1
-			okforarith[i] = 1
-			okforconst[i] = 1
-			issimple[i] = 1
+		if Iscomplex[i] {
+			okforeq[i] = true
+			okforadd[i] = true
+			okforarith[i] = true
+			okforconst[i] = true
+			issimple[i] = true
 		}
 	}
 
-	issimple[TBOOL] = 1
+	issimple[TBOOL] = true
 
-	okforadd[TSTRING] = 1
+	okforadd[TSTRING] = true
 
-	okforbool[TBOOL] = 1
+	okforbool[TBOOL] = true
 
-	okforcap[TARRAY] = 1
-	okforcap[TCHAN] = 1
+	okforcap[TARRAY] = true
+	okforcap[TCHAN] = true
 
-	okforconst[TBOOL] = 1
-	okforconst[TSTRING] = 1
+	okforconst[TBOOL] = true
+	okforconst[TSTRING] = true
 
-	okforlen[TARRAY] = 1
-	okforlen[TCHAN] = 1
-	okforlen[TMAP] = 1
-	okforlen[TSTRING] = 1
+	okforlen[TARRAY] = true
+	okforlen[TCHAN] = true
+	okforlen[TMAP] = true
+	okforlen[TSTRING] = true
 
-	okforeq[TPTR32] = 1
-	okforeq[TPTR64] = 1
-	okforeq[TUNSAFEPTR] = 1
-	okforeq[TINTER] = 1
-	okforeq[TCHAN] = 1
-	okforeq[TSTRING] = 1
-	okforeq[TBOOL] = 1
-	okforeq[TMAP] = 1    // nil only; refined in typecheck
-	okforeq[TFUNC] = 1   // nil only; refined in typecheck
-	okforeq[TARRAY] = 1  // nil slice only; refined in typecheck
-	okforeq[TSTRUCT] = 1 // it's complicated; refined in typecheck
+	okforeq[TPTR32] = true
+	okforeq[TPTR64] = true
+	okforeq[TUNSAFEPTR] = true
+	okforeq[TINTER] = true
+	okforeq[TCHAN] = true
+	okforeq[TSTRING] = true
+	okforeq[TBOOL] = true
+	okforeq[TMAP] = true    // nil only; refined in typecheck
+	okforeq[TFUNC] = true   // nil only; refined in typecheck
+	okforeq[TARRAY] = true  // nil slice only; refined in typecheck
+	okforeq[TSTRUCT] = true // it's complicated; refined in typecheck
 
-	okforcmp[TSTRING] = 1
+	okforcmp[TSTRING] = true
 
 	var i int
 	for i = 0; i < len(okfor); i++ {
@@ -580,13 +580,13 @@ func typeinit() {
 	okfor[OLEN] = okforlen[:]
 
 	// comparison
-	iscmp[OLT] = 1
+	iscmp[OLT] = true
 
-	iscmp[OGT] = 1
-	iscmp[OGE] = 1
-	iscmp[OLE] = 1
-	iscmp[OEQ] = 1
-	iscmp[ONE] = 1
+	iscmp[OGT] = true
+	iscmp[OGE] = true
+	iscmp[OLE] = true
+	iscmp[OEQ] = true
+	iscmp[ONE] = true
 
 	mpatofix(Maxintval[TINT8], "0x7f")
 	mpatofix(Minintval[TINT8], "-0x80")

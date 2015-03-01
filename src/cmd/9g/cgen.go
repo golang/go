@@ -124,7 +124,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 			f = 0
 		}
 
-		if gc.Iscomplex[n.Type.Etype] == 0 {
+		if !gc.Iscomplex[n.Type.Etype] {
 			a := optoas(gc.OAS, res.Type)
 			var addr obj.Addr
 			if sudoaddable(a, res, &addr) {
@@ -209,7 +209,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 		}
 	}
 
-	if gc.Iscomplex[n.Type.Etype] == 0 {
+	if !gc.Iscomplex[n.Type.Etype] {
 		a := optoas(gc.OAS, n.Type)
 		var addr obj.Addr
 		if sudoaddable(a, n, &addr) {
@@ -280,7 +280,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 		return
 
 	case gc.OMINUS:
-		if gc.Isfloat[nl.Type.Etype] != 0 {
+		if gc.Isfloat[nl.Type.Etype] {
 			nr = gc.Nodintconst(-1)
 			gc.Convlit(&nr, n.Type)
 			a = optoas(gc.OMUL, nl.Type)
@@ -495,7 +495,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 
 	case gc.OMOD,
 		gc.ODIV:
-		if gc.Isfloat[n.Type.Etype] != 0 {
+		if gc.Isfloat[n.Type.Etype] {
 			a = optoas(int(n.Op), nl.Type)
 			goto abop
 		}
@@ -1071,10 +1071,10 @@ func igen(n *gc.Node, a *gc.Node, res *gc.Node) {
 	// Could do the same for slice except that we need
 	// to use the real index for the bounds checking.
 	case gc.OINDEX:
-		if gc.Isfixedarray(n.Left.Type) || (gc.Isptr[n.Left.Type.Etype] != 0 && gc.Isfixedarray(n.Left.Left.Type)) {
+		if gc.Isfixedarray(n.Left.Type) || (gc.Isptr[n.Left.Type.Etype] && gc.Isfixedarray(n.Left.Left.Type)) {
 			if gc.Isconst(n.Right, gc.CTINT) {
 				// Compute &a.
-				if gc.Isptr[n.Left.Type.Etype] == 0 {
+				if !gc.Isptr[n.Left.Type.Etype] {
 					igen(n.Left, a, res)
 				} else {
 					var n1 gc.Node
@@ -1216,7 +1216,7 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
 		gc.OGE:
 		a := int(n.Op)
 		if !true_ {
-			if gc.Isfloat[nr.Type.Etype] != 0 {
+			if gc.Isfloat[nr.Type.Etype] {
 				// brcom is not valid on floats when NaN is involved.
 				p1 := gc.Gbranch(ppc64.ABR, nil, 0)
 
@@ -1290,7 +1290,7 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
 			break
 		}
 
-		if gc.Iscomplex[nl.Type.Etype] != 0 {
+		if gc.Iscomplex[nl.Type.Etype] {
 			gc.Complexbool(a, nl, nr, true_, likely, to)
 			break
 		}
@@ -1335,7 +1335,7 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
 		l := &n1
 		r := &n2
 		gins(optoas(gc.OCMP, nr.Type), l, r)
-		if gc.Isfloat[nr.Type.Etype] != 0 && (a == gc.OLE || a == gc.OGE) {
+		if gc.Isfloat[nr.Type.Etype] && (a == gc.OLE || a == gc.OGE) {
 			// To get NaN right, must rewrite x <= y into separate x < y or x = y.
 			switch a {
 			case gc.OLE:
@@ -1370,7 +1370,7 @@ func stkof(n *gc.Node) int64 {
 
 	case gc.ODOT:
 		t := n.Left.Type
-		if gc.Isptr[t.Etype] != 0 {
+		if gc.Isptr[t.Etype] {
 			break
 		}
 		off := stkof(n.Left)
@@ -1397,7 +1397,7 @@ func stkof(n *gc.Node) int64 {
 		gc.OCALLINTER,
 		gc.OCALLFUNC:
 		t := n.Left.Type
-		if gc.Isptr[t.Etype] != 0 {
+		if gc.Isptr[t.Etype] {
 			t = t.Type
 		}
 

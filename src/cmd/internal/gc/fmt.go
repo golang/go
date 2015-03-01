@@ -1202,7 +1202,7 @@ func exprfmt(n *Node, prec int) string {
 		if n.Type != nil && n.Type != Types[n.Type.Etype] && n.Type != idealbool && n.Type != idealstring {
 			// Need parens when type begins with what might
 			// be misinterpreted as a unary operator: * or <-.
-			if Isptr[n.Type.Etype] != 0 || (n.Type.Etype == TCHAN && n.Type.Chan == Crecv) {
+			if Isptr[n.Type.Etype] || (n.Type.Etype == TCHAN && n.Type.Chan == Crecv) {
 				return fmt.Sprintf("(%v)(%v)", Tconv(n.Type, 0), Vconv(&n.Val, 0))
 			} else {
 				return fmt.Sprintf("%v(%v)", Tconv(n.Type, 0), Vconv(&n.Val, 0))
@@ -1227,7 +1227,7 @@ func exprfmt(n *Node, prec int) string {
 		// but for export, this should be rendered as (*pkg.T).meth.
 		// These nodes have the special property that they are names with a left OTYPE and a right ONAME.
 		if fmtmode == FExp && n.Left != nil && n.Left.Op == OTYPE && n.Right != nil && n.Right.Op == ONAME {
-			if Isptr[n.Left.Type.Etype] != 0 {
+			if Isptr[n.Left.Type.Etype] {
 				return fmt.Sprintf("(%v).%v", Tconv(n.Left.Type, 0), Sconv(n.Right.Sym, obj.FmtShort|obj.FmtByte))
 			} else {
 				return fmt.Sprintf("%v.%v", Tconv(n.Left.Type, 0), Sconv(n.Right.Sym, obj.FmtShort|obj.FmtByte))
@@ -1311,7 +1311,7 @@ func exprfmt(n *Node, prec int) string {
 		return f
 
 	case OCOMPLIT:
-		ptrlit := n.Right != nil && n.Right.Implicit != 0 && n.Right.Type != nil && Isptr[n.Right.Type.Etype] != 0
+		ptrlit := n.Right != nil && n.Right.Implicit != 0 && n.Right.Type != nil && Isptr[n.Right.Type.Etype]
 		if fmtmode == FErr {
 			if n.Right != nil && n.Right.Type != nil && n.Implicit == 0 {
 				if ptrlit {
