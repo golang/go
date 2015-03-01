@@ -69,10 +69,6 @@ func sysInit() {
 	}
 }
 
-func closesocket(s syscall.Handle) error {
-	return syscall.Closesocket(s)
-}
-
 func canUseConnectEx(net string) bool {
 	switch net {
 	case "udp", "udp4", "udp6", "ip", "ip4", "ip6":
@@ -336,7 +332,7 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
 		defer fd.setWriteDeadline(noDeadline)
 	}
 	if !canUseConnectEx(fd.net) {
-		return syscall.Connect(fd.sysfd, ra)
+		return connectFunc(fd.sysfd, ra)
 	}
 	// ConnectEx windows API requires an unconnected, previously bound socket.
 	if la == nil {
@@ -356,7 +352,7 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
 	o := &fd.wop
 	o.sa = ra
 	_, err := wsrv.ExecIO(o, "ConnectEx", func(o *operation) error {
-		return syscall.ConnectEx(o.fd.sysfd, o.sa, nil, 0, nil, &o.o)
+		return connectExFunc(o.fd.sysfd, o.sa, nil, 0, nil, &o.o)
 	})
 	if err != nil {
 		return err
@@ -370,9 +366,9 @@ func (fd *netFD) destroy() {
 		return
 	}
 	// Poller may want to unregister fd in readiness notification mechanism,
-	// so this must be executed before closesocket.
+	// so this must be executed before closeFunc.
 	fd.pd.Close()
-	closesocket(fd.sysfd)
+	closeFunc(fd.sysfd)
 	fd.sysfd = syscall.InvalidHandle
 	// no need for a finalizer anymore
 	runtime.SetFinalizer(fd, nil)
@@ -540,7 +536,7 @@ func (fd *netFD) acceptOne(rawsa []syscall.RawSockaddrAny, o *operation) (*netFD
 	// Associate our new socket with IOCP.
 	netfd, err := newFD(s, fd.family, fd.sotype, fd.net)
 	if err != nil {
-		closesocket(s)
+		closeFunc(s)
 		return nil, &OpError{"accept", fd.net, fd.laddr, err}
 	}
 	if err := netfd.init(); err != nil {

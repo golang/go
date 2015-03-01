@@ -16,7 +16,7 @@ import "syscall"
 func sysSocket(family, sotype, proto int) (int, error) {
 	// See ../syscall/exec_unix.go for description of ForkLock.
 	syscall.ForkLock.RLock()
-	s, err := syscall.Socket(family, sotype, proto)
+	s, err := socketFunc(family, sotype, proto)
 	if err == nil {
 		syscall.CloseOnExec(s)
 	}
@@ -25,7 +25,7 @@ func sysSocket(family, sotype, proto int) (int, error) {
 		return -1, err
 	}
 	if err = syscall.SetNonblock(s, true); err != nil {
-		syscall.Close(s)
+		closeFunc(s)
 		return -1, err
 	}
 	return s, nil
@@ -39,7 +39,7 @@ func accept(s int) (int, syscall.Sockaddr, error) {
 	// because we have put fd.sysfd into non-blocking mode.
 	// However, a call to the File method will put it back into
 	// blocking mode. We can't take that risk, so no use of ForkLock here.
-	ns, sa, err := syscall.Accept(s)
+	ns, sa, err := acceptFunc(s)
 	if err == nil {
 		syscall.CloseOnExec(ns)
 	}
@@ -47,7 +47,7 @@ func accept(s int) (int, syscall.Sockaddr, error) {
 		return -1, nil, err
 	}
 	if err = syscall.SetNonblock(ns, true); err != nil {
-		syscall.Close(ns)
+		closeFunc(ns)
 		return -1, nil, err
 	}
 	return ns, sa, nil

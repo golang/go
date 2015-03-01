@@ -59,6 +59,9 @@ func BenchmarkTCP6PersistentTimeout(b *testing.B) {
 }
 
 func benchmarkTCP(b *testing.B, persistent, timeout bool, laddr string) {
+	uninstallTestHooks()
+	defer installTestHooks()
+
 	const msgLen = 512
 	conns := b.N
 	numConcurrent := runtime.GOMAXPROCS(-1) * 2
@@ -172,6 +175,8 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
 	// The benchmark stresses concurrent reading and writing to the same connection.
 	// Such pattern is used in net/http and net/rpc.
 
+	uninstallTestHooks()
+	defer installTestHooks()
 	b.StopTimer()
 
 	P := runtime.GOMAXPROCS(0)

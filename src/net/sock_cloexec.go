@@ -14,7 +14,7 @@ import "syscall"
 // Wrapper around the socket system call that marks the returned file
 // descriptor as nonblocking and close-on-exec.
 func sysSocket(family, sotype, proto int) (int, error) {
-	s, err := syscall.Socket(family, sotype|syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC, proto)
+	s, err := socketFunc(family, sotype|syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC, proto)
 	// On Linux the SOCK_NONBLOCK and SOCK_CLOEXEC flags were
 	// introduced in 2.6.27 kernel and on FreeBSD both flags were
 	// introduced in 10 kernel. If we get an EINVAL error on Linux
@@ -26,7 +26,7 @@ func sysSocket(family, sotype, proto int) (int, error) {
 
 	// See ../syscall/exec_unix.go for description of ForkLock.
 	syscall.ForkLock.RLock()
-	s, err = syscall.Socket(family, sotype, proto)
+	s, err = socketFunc(family, sotype, proto)
 	if err == nil {
 		syscall.CloseOnExec(s)
 	}
@@ -35,7 +35,7 @@ func sysSocket(family, sotype, proto int) (int, error) {
 		return -1, err
 	}
 	if err = syscall.SetNonblock(s, true); err != nil {
-		syscall.Close(s)
+		closeFunc(s)
 		return -1, err
 	}
 	return s, nil
@@ -44,7 +44,7 @@ func sysSocket(family, sotype, proto int) (int, error) {
 // Wrapper around the accept system call that marks the returned file
 // descriptor as nonblocking and close-on-exec.
 func accept(s int) (int, syscall.Sockaddr, error) {
-	ns, sa, err := syscall.Accept4(s, syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC)
+	ns, sa, err := accept4Func(s, syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC)
 	// On Linux the accept4 system call was introduced in 2.6.28
 	// kernel and on FreeBSD it was introduced in 10 kernel. If we
 	// get an ENOSYS error on both Linux and FreeBSD, or EINVAL
@@ -63,7 +63,7 @@ func accept(s int) (int, syscall.Sockaddr, error) {
 	// because we have put fd.sysfd into non-blocking mode.
 	// However, a call to the File method will put it back into
 	// blocking mode. We can't take that risk, so no use of ForkLock here.
-	ns, sa, err = syscall.Accept(s)
+	ns, sa, err = acceptFunc(s)
 	if err == nil {
 		syscall.CloseOnExec(ns)
 	}
@@ -71,7 +71,7 @@ func accept(s int) (int, syscall.Sockaddr, error) {
 		return -1, nil, err
 	}
 	if err = syscall.SetNonblock(ns, true); err != nil {
-		syscall.Close(ns)
+		closeFunc(ns)
 		return -1, nil, err
 	}
 	return ns, sa, nil

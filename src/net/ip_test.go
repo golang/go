@@ -53,6 +53,9 @@ func TestParseIP(t *testing.T) {
 }
 
 func BenchmarkParseIP(b *testing.B) {
+	uninstallTestHooks()
+	defer installTestHooks()
+
 	for i := 0; i < b.N; i++ {
 		for _, tt := range parseIPTests {
 			ParseIP(tt.in)
@@ -108,6 +111,9 @@ func TestIPString(t *testing.T) {
 }
 
 func BenchmarkIPString(b *testing.B) {
+	uninstallTestHooks()
+	defer installTestHooks()
+
 	for i := 0; i < b.N; i++ {
 		for _, tt := range ipStringTests {
 			if tt.in != nil {
@@ -158,6 +164,9 @@ func TestIPMaskString(t *testing.T) {
 }
 
 func BenchmarkIPMaskString(b *testing.B) {
+	uninstallTestHooks()
+	defer installTestHooks()
+
 	for i := 0; i < b.N; i++ {
 		for _, tt := range ipMaskStringTests {
 			tt.in.String()

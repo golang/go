@@ -42,11 +42,11 @@ func socket(net string, family, sotype, proto int, ipv6only bool, laddr, raddr s
 		return nil, err
 	}
 	if err = setDefaultSockopts(s, family, sotype, ipv6only); err != nil {
-		closesocket(s)
+		closeFunc(s)
 		return nil, err
 	}
 	if fd, err = newFD(s, family, sotype, net); err != nil {
-		closesocket(s)
+		closeFunc(s)
 		return nil, err
 	}
 
