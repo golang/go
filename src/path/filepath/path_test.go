@@ -399,7 +399,31 @@ func mark(path string, info os.FileInfo, err error, errors *[]error, clear bool)
 	return nil
 }
 
+func chtmpdir(t *testing.T) (restore func()) {
+	oldwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal("chtmpdir: %v", err)
+	}
+	d, err := ioutil.TempDir("", "test")
+	if err != nil {
+		t.Fatal("chtmpdir: %v", err)
+	}
+	if err := os.Chdir(d); err != nil {
+		t.Fatal("chtmpdir: %v", err)
+	}
+	return func() {
+		if err := os.Chdir(oldwd); err != nil {
+			t.Fatal("chtmpdir: %v", err)
+		}
+		os.RemoveAll(d)
+	}
+}
+
 func TestWalk(t *testing.T) {
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
+		restore := chtmpdir(t)
+		defer restore()
+	}
 	makeTree(t)
 	errors := make([]error, 0, 10)
 	clear := true
@@ -1009,6 +1033,9 @@ func TestDriveLetterInEvalSymlinks(t *testing.T) {
 }
 
 func TestBug3486(t *testing.T) { // http://golang.org/issue/3486
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
+		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
 	root, err := filepath.EvalSymlinks(runtime.GOROOT() + "/test")
 	if err != nil {
 		t.Fatal(err)
