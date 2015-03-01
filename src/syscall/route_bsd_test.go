@@ -18,7 +18,18 @@ import (
 func TestRouteRIB(t *testing.T) {
 	for _, facility := range []int{syscall.NET_RT_DUMP, syscall.NET_RT_IFLIST} {
 		for _, param := range []int{syscall.AF_UNSPEC, syscall.AF_INET, syscall.AF_INET6} {
-			b, err := syscall.RouteRIB(facility, param)
+			var err error
+			var b []byte
+			// The VM allocator wrapper functions can
+			// return ENOMEM easily.
+			for i := 0; i < 3; i++ {
+				b, err = syscall.RouteRIB(facility, param)
+				if err != nil {
+					time.Sleep(5 * time.Millisecond)
+					continue
+				}
+				break
+			}
 			if err != nil {
 				t.Error(facility, param, err)
 				continue
@@ -185,9 +196,26 @@ func (sas sockaddrs) String() string {
 
 func (sas sockaddrs) match(flags addrFlags) error {
 	var f addrFlags
+	family := syscall.AF_UNSPEC
 	for i := range sas {
 		if sas[i] != nil {
 			f |= 1 << uint(i)
+		}
+		switch sas[i].(type) {
+		case *syscall.SockaddrInet4:
+			if family == syscall.AF_UNSPEC {
+				family = syscall.AF_INET
+			}
+			if family != syscall.AF_INET {
+				return fmt.Errorf("got %v; want %v", sockaddrs(sas), family)
+			}
+		case *syscall.SockaddrInet6:
+			if family == syscall.AF_UNSPEC {
+				family = syscall.AF_INET6
+			}
+			if family != syscall.AF_INET6 {
+				return fmt.Errorf("got %v; want %v", sockaddrs(sas), family)
+			}
 		}
 	}
 	if f != flags {

@@ -48,9 +48,6 @@ func ipv6LinkLocalUnicastAddr(ifi *Interface) string {
 }
 
 func TestInterfaces(t *testing.T) {
-	if runtime.GOOS == "dragonfly" {
-		t.Skip("fail on dragonfly - issue 10041")
-	}
 	ift, err := Interfaces()
 	if err != nil {
 		t.Fatal(err)
@@ -108,9 +105,6 @@ func TestInterfaces(t *testing.T) {
 }
 
 func TestInterfaceAddrs(t *testing.T) {
-	if runtime.GOOS == "dragonfly" {
-		t.Skip("fail on dragonfly - issue 10041")
-	}
 	ift, err := Interfaces()
 	if err != nil {
 		t.Fatal(err)
