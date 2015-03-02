@@ -266,7 +266,7 @@ var version int
 
 // Set if we see an object compiled by the host compiler that is not
 // from a package that is known to support internal linking mode.
-var externalobj int = 0
+var externalobj = false
 
 var goroot string
 
@@ -394,7 +394,7 @@ func loadlib() {
 	}
 
 	if Linkmode == LinkAuto {
-		if iscgo && externalobj != 0 {
+		if iscgo && externalobj {
 			Linkmode = LinkExternal
 		} else {
 			Linkmode = LinkInternal
@@ -670,10 +670,10 @@ var internalpkg = []string{
 }
 
 func ldhostobj(ld func(*Biobuf, string, int64, string), f *Biobuf, pkg string, length int64, pn string, file string) {
-	isinternal := 0
+	isinternal := false
 	for i := 0; i < len(internalpkg); i++ {
 		if pkg == internalpkg[i] {
-			isinternal = 1
+			isinternal = true
 			break
 		}
 	}
@@ -686,12 +686,12 @@ func ldhostobj(ld func(*Biobuf, string, int64, string), f *Biobuf, pkg string, l
 	// these relocation types.
 	if HEADTYPE == Hdragonfly {
 		if pkg == "net" || pkg == "os/user" {
-			isinternal = 0
+			isinternal = false
 		}
 	}
 
-	if isinternal == 0 {
-		externalobj = 1
+	if !isinternal {
+		externalobj = true
 	}
 
 	hostobj = append(hostobj, Hostobj{})
