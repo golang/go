@@ -19,8 +19,10 @@ const (
 	_CLOCK_MONOTONIC = 3
 )
 
-var sigset_none = uint32(0)
-var sigset_all = ^sigset_none
+const (
+	sigset_none = uint32(0)
+	sigset_all  = ^uint32(0)
+)
 
 // From OpenBSD's <sys/sysctl.h>
 const (
