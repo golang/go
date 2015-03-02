@@ -1931,7 +1931,10 @@ func getr() int32 {
 			r, w := utf8.DecodeRune(buf[:i+1])
 			if r == utf8.RuneError && w == 1 {
 				lineno = lexlineno
-				Yyerror("illegal UTF-8 sequence % x", buf[:i+1])
+				// The string conversion here makes a copy for passing
+				// to fmt.Printf, so that buf itself does not escape and can
+				// be allocated on the stack.
+				Yyerror("illegal UTF-8 sequence % x", string(buf[:i+1]))
 			}
 			return int32(r)
 		}

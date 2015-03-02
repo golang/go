@@ -362,6 +362,8 @@ func fixjmp(firstp *obj.Prog) {
 // to allocate in every f->data field, for use by the client.
 // If size == 0, f->data will be nil.
 
+var flowmark int
+
 func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
 	var info ProgInfo
 
@@ -370,11 +372,11 @@ func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
 
 	for p := firstp; p != nil; p = p.Link {
 		p.Opt = nil // should be already, but just in case
-		Thearch.Proginfo(&info, p)
+		info = Thearch.Proginfo(p)
 		if info.Flags&Skip != 0 {
 			continue
 		}
-		p.Opt = interface{}(1)
+		p.Opt = &flowmark
 		nf++
 	}
 
@@ -417,7 +419,7 @@ func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
 	var p *obj.Prog
 	for f := start; f != nil; f = f.Link {
 		p = f.Prog
-		Thearch.Proginfo(&info, p)
+		info = Thearch.Proginfo(p)
 		if info.Flags&Break == 0 {
 			f1 = f.Link
 			f.S1 = f1
@@ -726,7 +728,7 @@ func mergetemp(firstp *obj.Prog) {
 	var info ProgInfo
 	for f := g.Start; f != nil; f = f.Link {
 		p = f.Prog
-		Thearch.Proginfo(&info, p)
+		info = Thearch.Proginfo(p)
 
 		if p.From.Node != nil && ((p.From.Node).(*Node)).Opt != nil && p.To.Node != nil && ((p.To.Node).(*Node)).Opt != nil {
 			Fatal("double node %v", p)
@@ -774,7 +776,7 @@ func mergetemp(firstp *obj.Prog) {
 		f = v.use
 		if f != nil && f.Data.(*Flow) == nil {
 			p = f.Prog
-			Thearch.Proginfo(&info, p)
+			info = Thearch.Proginfo(p)
 			if p.To.Node == v.node && (info.Flags&RightWrite != 0) && info.Flags&RightRead == 0 {
 				p.As = obj.ANOP
 				p.To = obj.Addr{}
@@ -794,9 +796,9 @@ func mergetemp(firstp *obj.Prog) {
 		f = v.use
 		if f != nil && f.Link == f.Data.(*Flow) && (f.Data.(*Flow)).Data.(*Flow) == nil && Uniqp(f.Link) == f {
 			p = f.Prog
-			Thearch.Proginfo(&info, p)
+			info = Thearch.Proginfo(p)
 			p1 = f.Link.Prog
-			Thearch.Proginfo(&info1, p1)
+			info1 = Thearch.Proginfo(p1)
 			const (
 				SizeAny = SizeB | SizeW | SizeL | SizeQ | SizeF | SizeD
 			)
@@ -1122,7 +1124,7 @@ func nilwalkback(fcheck *Flow) {
 
 	for f := fcheck; f != nil; f = Uniqp(f) {
 		p = f.Prog
-		Thearch.Proginfo(&info, p)
+		info = Thearch.Proginfo(p)
 		if (info.Flags&RightWrite != 0) && Thearch.Sameaddr(&p.To, &fcheck.Prog.From) {
 			// Found initialization of value we're checking for nil.
 			// without first finding the check, so this one is unchecked.
@@ -1191,7 +1193,7 @@ func nilwalkfwd(fcheck *Flow) {
 
 	for f := Uniqs(fcheck); f != nil; f = Uniqs(f) {
 		p = f.Prog
-		Thearch.Proginfo(&info, p)
+		info = Thearch.Proginfo(p)
 
 		if (info.Flags&LeftRead != 0) && Thearch.Smallindir(&p.From, &fcheck.Prog.From) {
 			fcheck.Data = &killed

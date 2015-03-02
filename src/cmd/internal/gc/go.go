@@ -1138,7 +1138,7 @@ type Arch struct {
 	Igen           func(*Node, *Node, *Node)
 	Linkarchinit   func()
 	Peep           func(*obj.Prog)
-	Proginfo       func(*ProgInfo, *obj.Prog)
+	Proginfo       func(*obj.Prog) ProgInfo
 	Regalloc       func(*Node, *Type, *Node)
 	Regfree        func(*Node)
 	Regtyp         func(*obj.Addr) bool

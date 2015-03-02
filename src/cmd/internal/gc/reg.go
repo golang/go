@@ -983,7 +983,7 @@ func regopt(firstp *obj.Prog) {
 		if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
 			continue
 		}
-		Thearch.Proginfo(&info, p)
+		info = Thearch.Proginfo(p)
 
 		// Avoid making variables for direct-called functions.
 		if p.As == obj.ACALL && p.To.Type == obj.TYPE_MEM && p.To.Name == obj.NAME_EXTERN {

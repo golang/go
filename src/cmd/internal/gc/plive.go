@@ -562,7 +562,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar *Bvec, varkill *Bvec, avari
 	bvresetall(varkill)
 	bvresetall(avarinit)
 
-	Thearch.Proginfo(&info, prog)
+	info = Thearch.Proginfo(prog)
 	if prog.As == obj.ARET {
 		// Return instructions implicitly read all the arguments.  For
 		// the sake of correctness, out arguments must be read.  For the

@@ -416,7 +416,7 @@ func subprop(r0 *gc.Flow) bool {
 		if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
 			continue
 		}
-		proginfo(&info, p)
+		info = proginfo(p)
 		if info.Flags&gc.Call != 0 {
 			return false
 		}
