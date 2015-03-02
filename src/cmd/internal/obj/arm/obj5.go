@@ -1045,7 +1045,6 @@ var unaryDst = map[int]bool{
 }
 
 var Linkarm = obj.LinkArch{
-	Rconv:      Rconv,
 	ByteOrder:  binary.LittleEndian,
 	Pconv:      Pconv,
 	Name:       "arm",

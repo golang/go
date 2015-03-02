@@ -948,7 +948,6 @@ loop:
 }
 
 var Linkppc64 = obj.LinkArch{
-	Rconv:      Rconv,
 	ByteOrder:  binary.BigEndian,
 	Pconv:      Pconv,
 	Name:       "ppc64",
@@ -963,7 +962,6 @@ var Linkppc64 = obj.LinkArch{
 }
 
 var Linkppc64le = obj.LinkArch{
-	Rconv:      Rconv,
 	ByteOrder:  binary.LittleEndian,
 	Pconv:      Pconv,
 	Name:       "ppc64le",
