@@ -246,7 +246,6 @@ type LinkArch struct {
 	ByteOrder  binary.ByteOrder
 	Name       string
 	Thechar    int
-	Endian     int32
 	Preprocess func(*Link, *LSym)
 	Assemble   func(*Link, *LSym)
 	Follow     func(*Link, *LSym)
@@ -546,11 +545,6 @@ const (
 
 // Link holds the context for writing object code from a compiler
 // to be linker input or for reading that input into the linker.
-
-const (
-	LittleEndian = 0x04030201
-	BigEndian    = 0x01020304
-)
 
 // LinkArch is the definition of a single architecture.
 

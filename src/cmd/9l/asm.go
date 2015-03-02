@@ -32,6 +32,7 @@ package main
 
 import (
 	"cmd/internal/obj"
+	"encoding/binary"
 	"fmt"
 	"log"
 )
@@ -185,7 +186,7 @@ func gencallstub(abicase int, stub *ld.LSym, targ *ld.LSym) {
 	r.Sym = plt
 	r.Add = int64(targ.Plt)
 	r.Siz = 2
-	if ld.Ctxt.Arch.Endian == ld.BigEndian {
+	if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
 		r.Off += int32(r.Siz)
 	}
 	r.Type = ld.R_POWER_TOC
@@ -196,7 +197,7 @@ func gencallstub(abicase int, stub *ld.LSym, targ *ld.LSym) {
 	r.Sym = plt
 	r.Add = int64(targ.Plt)
 	r.Siz = 2
-	if ld.Ctxt.Arch.Endian == ld.BigEndian {
+	if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
 		r.Off += int32(r.Siz)
 	}
 	r.Type = ld.R_POWER_TOC
@@ -400,7 +401,7 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 		o2 = o2&0xffff0000 | uint32(t)&0xffff
 
 		// when laid out, the instruction order must always be o1, o2.
-		if ld.Ctxt.Arch.Endian == ld.BigEndian {
+		if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
 			*val = int64(o1)<<32 | int64(o2)
 		} else {
 			*val = int64(o2)<<32 | int64(o1)
@@ -409,7 +410,7 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 
 	case ld.R_CALLPOWER:
 		// Bits 6 through 29 = (S + A - P) >> 2
-		if ld.Ctxt.Arch.Endian == ld.BigEndian {
+		if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
 			o1 = ld.Be32(s.P[r.Off:])
 		} else {
 			o1 = ld.Le32(s.P[r.Off:])
@@ -451,7 +452,7 @@ func archrelocvariant(r *ld.Reloc, s *ld.LSym, t int64) int64 {
 		if r.Variant&ld.RV_CHECK_OVERFLOW != 0 {
 			// Whether to check for signed or unsigned
 			// overflow depends on the instruction
-			if ld.Ctxt.Arch.Endian == ld.BigEndian {
+			if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
 				o1 = ld.Be32(s.P[r.Off-2:])
 			} else {
 				o1 = ld.Le32(s.P[r.Off:])
@@ -484,7 +485,7 @@ func archrelocvariant(r *ld.Reloc, s *ld.LSym, t int64) int64 {
 		if r.Variant&ld.RV_CHECK_OVERFLOW != 0 {
 			// Whether to check for signed or unsigned
 			// overflow depends on the instruction
-			if ld.Ctxt.Arch.Endian == ld.BigEndian {
+			if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
 				o1 = ld.Be32(s.P[r.Off-2:])
 			} else {
 				o1 = ld.Le32(s.P[r.Off:])
@@ -507,7 +508,7 @@ func archrelocvariant(r *ld.Reloc, s *ld.LSym, t int64) int64 {
 		return int64(int16(t))
 
 	case ld.RV_POWER_DS:
-		if ld.Ctxt.Arch.Endian == ld.BigEndian {
+		if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
 			o1 = uint32(ld.Be16(s.P[r.Off:]))
 		} else {
 			o1 = uint32(ld.Le16(s.P[r.Off:]))

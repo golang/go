@@ -5,6 +5,7 @@
 package ld
 
 import (
+	"encoding/binary"
 	"fmt"
 	"os"
 )
@@ -755,7 +756,7 @@ func Elfinit() {
 	switch Thearch.Thechar {
 	// 64-bit architectures
 	case '9':
-		if Ctxt.Arch.Endian == BigEndian {
+		if Ctxt.Arch.ByteOrder == binary.BigEndian {
 			ehdr.flags = 1 /* Version 1 ABI */
 		} else {
 			ehdr.flags = 2 /* Version 2 ABI */
@@ -2342,7 +2343,7 @@ elfobj:
 	} else {
 		eh.ident[EI_CLASS] = ELFCLASS32
 	}
-	if Ctxt.Arch.Endian == BigEndian {
+	if Ctxt.Arch.ByteOrder == binary.BigEndian {
 		eh.ident[EI_DATA] = ELFDATA2MSB
 	} else {
 		eh.ident[EI_DATA] = ELFDATA2LSB

@@ -31,6 +31,7 @@ package ppc64
 
 import (
 	"cmd/internal/obj"
+	"encoding/binary"
 	"fmt"
 	"log"
 	"sort"
@@ -2038,7 +2039,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 	case 31: /* dword */
 		d = vregoff(ctxt, &p.From)
 
-		if ctxt.Arch.Endian == obj.BigEndian {
+		if ctxt.Arch.ByteOrder == binary.BigEndian {
 			o1 = uint32(d >> 32)
 			o2 = uint32(d)
 		} else {

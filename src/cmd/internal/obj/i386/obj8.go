@@ -914,7 +914,6 @@ var Link386 = obj.LinkArch{
 	Pconv:      Pconv,
 	Name:       "386",
 	Thechar:    '8',
-	Endian:     obj.LittleEndian,
 	Preprocess: preprocess,
 	Assemble:   span8,
 	Follow:     follow,
