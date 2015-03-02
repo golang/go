@@ -66,7 +66,7 @@ func (d *decoder) processSOS(n int) error {
 	for i := 0; i < nComp; i++ {
 		cs := d.tmp[1+2*i] // Component selector.
 		compIndex := -1
-		for j, comp := range d.comp {
+		for j, comp := range d.comp[:d.nComp] {
 			if cs == comp.c {
 				compIndex = j
 			}
