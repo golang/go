@@ -613,10 +613,11 @@ func install(dir string) {
 
 	// For package runtime, copy some files into the work space.
 	if dir == "runtime" {
+		xmkdirall(pathf("%s/pkg/include", goroot))
 		// For use by assembly and C files.
-		copyfile(pathf("%s/pkg/%s_%s/textflag.h", goroot, goos, goarch),
+		copyfile(pathf("%s/pkg/include/textflag.h", goroot),
 			pathf("%s/src/runtime/textflag.h", goroot), 0)
-		copyfile(pathf("%s/pkg/%s_%s/funcdata.h", goroot, goos, goarch),
+		copyfile(pathf("%s/pkg/include/funcdata.h", goroot),
 			pathf("%s/src/runtime/funcdata.h", goroot), 0)
 	}
 
@@ -691,7 +692,7 @@ func install(dir string) {
 		compile = []string{
 			pathf("%s/asm", tooldir),
 			"-I", workdir,
-			"-I", pathf("%s/pkg/%s_%s", goroot, goos, goarch),
+			"-I", pathf("%s/pkg/include", goroot),
 			"-D", "GOOS_" + goos,
 			"-D", "GOARCH_" + goarch,
 			"-D", "GOOS_GOARCH_" + goos + "_" + goarch,
