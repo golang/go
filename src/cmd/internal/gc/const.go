@@ -15,7 +15,7 @@ func truncfltlit(oldv *Mpflt, t *Type) *Mpflt {
 		return oldv
 	}
 
-	v := Val{}
+	var v Val
 	v.Ctype = CTFLT
 	v.U.Fval = oldv
 	overflow(v, t)

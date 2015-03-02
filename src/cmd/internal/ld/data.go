@@ -1153,7 +1153,7 @@ func dodata() {
 	}
 	Bflush(&Bso)
 
-	last := (*LSym)(nil)
+	var last *LSym
 	datap = nil
 
 	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
@@ -1643,10 +1643,10 @@ func address() {
 	if HEADTYPE == Hplan9 {
 		Segdata.Fileoff = Segtext.Fileoff + Segtext.Filelen
 	}
-	data := (*Section)(nil)
-	noptr := (*Section)(nil)
-	bss := (*Section)(nil)
-	noptrbss := (*Section)(nil)
+	var data *Section
+	var noptr *Section
+	var bss *Section
+	var noptrbss *Section
 	var vlen int64
 	for s := Segdata.Sect; s != nil; s = s.Next {
 		vlen = int64(s.Length)

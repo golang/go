@@ -1260,7 +1260,7 @@ func elfdynhash() {
 		i >>= 1
 	}
 
-	needlib := (*Elflib)(nil)
+	var needlib *Elflib
 	need := make([]*Elfaux, nsym)
 	chain := make([]uint32, nsym)
 	buckets := make([]uint32, nbucket)
@@ -1885,7 +1885,7 @@ func Asmbelf(symo int64) {
 	startva := INITTEXT - int64(HEADR)
 	resoff := int64(ELFRESERVE)
 
-	pph := (*ElfPhdr)(nil)
+	var pph *ElfPhdr
 	var pnote *ElfPhdr
 	if Linkmode == LinkExternal {
 		/* skip program headers */
@@ -1958,7 +1958,7 @@ func Asmbelf(symo int64) {
 
 	pnote = nil
 	if HEADTYPE == Hnetbsd || HEADTYPE == Hopenbsd {
-		sh := (*ElfShdr)(nil)
+		var sh *ElfShdr
 		switch HEADTYPE {
 		case Hnetbsd:
 			sh = elfshname(".note.netbsd.ident")

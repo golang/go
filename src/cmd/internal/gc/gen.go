@@ -171,9 +171,9 @@ func checkgoto(from *Node, to *Node) {
 		// decide what to complain about.
 		// prefer to complain about 'into block' over declarations,
 		// so scan backward to find most recent block or else dcl.
-		block := (*Sym)(nil)
+		var block *Sym
 
-		dcl := (*Sym)(nil)
+		var dcl *Sym
 		ts := to.Sym
 		for ; nt > nf; nt-- {
 			if ts.Pkg == nil {
@@ -332,7 +332,7 @@ func cgen_discard(nr *Node) {
  * clearslim generates code to zero a slim node.
  */
 func Clearslim(n *Node) {
-	z := Node{}
+	var z Node
 	z.Op = OLITERAL
 	z.Type = n.Type
 	z.Addable = 1
@@ -418,7 +418,7 @@ func Cgen_eface(n *Node, res *Node) {
 func Cgen_slice(n *Node, res *Node) {
 	cap := n.List.N
 	len := n.List.Next.N
-	offs := (*Node)(nil)
+	var offs *Node
 	if n.List.Next.Next != nil {
 		offs = n.List.Next.Next.N
 	}

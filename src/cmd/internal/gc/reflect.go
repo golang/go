@@ -275,7 +275,7 @@ func hiter(t *Type) *Type {
  * return function type, receiver as first argument (or not).
  */
 func methodfunc(f *Type, receiver *Type) *Type {
-	in := (*NodeList)(nil)
+	var in *NodeList
 	if receiver != nil {
 		d := Nod(ODCLFIELD, nil, nil)
 		d.Type = receiver
@@ -290,7 +290,7 @@ func methodfunc(f *Type, receiver *Type) *Type {
 		in = list(in, d)
 	}
 
-	out := (*NodeList)(nil)
+	var out *NodeList
 	for t := getoutargx(f).Type; t != nil; t = t.Down {
 		d = Nod(ODCLFIELD, nil, nil)
 		d.Type = t.Type
@@ -328,7 +328,7 @@ func methods(t *Type) *Sig {
 
 	// make list of methods for t,
 	// generating code if necessary.
-	a := (*Sig)(nil)
+	var a *Sig
 
 	var this *Type
 	var b *Sig
@@ -412,8 +412,8 @@ func imethods(t *Type) *Sig {
 	var method *Sym
 	var isym *Sym
 
-	all := (*Sig)(nil)
-	last := (*Sig)(nil)
+	var all *Sig
+	var last *Sig
 	for f := t.Type; f != nil; f = f.Down {
 		if f.Etype != TFIELD {
 			Fatal("imethods: not field")
@@ -687,7 +687,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	}
 	dowidth(t)
 	alg := algtype(t)
-	algsym := (*Sym)(nil)
+	var algsym *Sym
 	if alg < 0 || alg == AMEM {
 		algsym = dalgsym(t)
 	}

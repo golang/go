@@ -1842,8 +1842,8 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 		}
 	}
 
-	af := obj.Addr{}
-	at := obj.Addr{}
+	var af obj.Addr
+	var at obj.Addr
 	if f != nil {
 		gc.Naddr(f, &af, 1)
 	}

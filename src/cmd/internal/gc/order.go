@@ -256,7 +256,7 @@ func orderstmtlist(l *NodeList, order *Order) {
 // Orderblock orders the block of statements *l onto a new list,
 // and then replaces *l with that list.
 func orderblock(l **NodeList) {
-	order := Order{}
+	var order Order
 	mark := marktemp(&order)
 	orderstmtlist(*l, &order)
 	cleantemp(mark, &order)
@@ -267,7 +267,7 @@ func orderblock(l **NodeList) {
 // leaves them as the init list of the final *np.
 func orderexprinplace(np **Node, outer *Order) {
 	n := *np
-	order := Order{}
+	var order Order
 	orderexpr(&n, &order)
 	addinit(&n, order.out)
 
@@ -288,7 +288,7 @@ func orderexprinplace(np **Node, outer *Order) {
 // and replaces it with the resulting statement list.
 func orderstmtinplace(np **Node) {
 	n := *np
-	order := Order{}
+	var order Order
 	mark := marktemp(&order)
 	orderstmt(n, &order)
 	cleantemp(mark, &order)
@@ -332,8 +332,8 @@ func copyret(n *Node, order *Order) *NodeList {
 		Fatal("copyret %v %d", Tconv(n.Type, 0), n.Left.Type.Outtuple)
 	}
 
-	l1 := (*NodeList)(nil)
-	l2 := (*NodeList)(nil)
+	var l1 *NodeList
+	var l2 *NodeList
 	var tl Iter
 	var tmp *Node
 	for t := Structfirst(&tl, &n.Type); t != nil; t = structnext(&tl) {
@@ -413,7 +413,7 @@ func ordermapassign(n *Node, order *Order) {
 		OAS2DOTTYPE,
 		OAS2MAPR,
 		OAS2FUNC:
-		post := (*NodeList)(nil)
+		var post *NodeList
 		var m *Node
 		var a *Node
 		for l := n.List; l != nil; l = l.Next {
@@ -644,7 +644,7 @@ func orderstmt(n *Node, order *Order) {
 		t := marktemp(order)
 
 		orderexprinplace(&n.Ntest, order)
-		l := (*NodeList)(nil)
+		var l *NodeList
 		cleantempnopop(t, order, &l)
 		n.Nbody = concat(l, n.Nbody)
 		orderblock(&n.Nbody)
@@ -658,7 +658,7 @@ func orderstmt(n *Node, order *Order) {
 		t := marktemp(order)
 
 		orderexprinplace(&n.Ntest, order)
-		l := (*NodeList)(nil)
+		var l *NodeList
 		cleantempnopop(t, order, &l)
 		n.Nbody = concat(l, n.Nbody)
 		l = nil
@@ -1060,7 +1060,7 @@ func orderexpr(np **Node, order *Order) {
 		// Clean temporaries from first branch at beginning of second.
 		// Leave them on the stack so that they can be killed in the outer
 		// context in case the short circuit is taken.
-		l := (*NodeList)(nil)
+		var l *NodeList
 
 		cleantempnopop(mark, order, &l)
 		n.Right.Ninit = concat(l, n.Right.Ninit)

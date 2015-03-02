@@ -363,12 +363,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	noleaf:
 	}
 
-	q := (*obj.Prog)(nil)
 	if p.From3.Offset&obj.NOSPLIT == 0 || (p.From3.Offset&obj.WRAPPER != 0) {
 		p = obj.Appendp(ctxt, p)
 		p = load_g_cx(ctxt, p) // load g into CX
 	}
 
+	var q *obj.Prog
 	if cursym.Text.From3.Offset&obj.NOSPLIT == 0 {
 		p = stacksplit(ctxt, p, autoffset, int32(textarg), cursym.Text.From3.Offset&obj.NEEDCTXT == 0, &q) // emit split check
 	}
@@ -718,7 +718,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32, noc
 		sub = ASUBL
 	}
 
-	q1 := (*obj.Prog)(nil)
+	var q1 *obj.Prog
 	if framesize <= obj.StackSmall {
 		// small stack: SP <= stackguard
 		//	CMPQ SP, stackguard

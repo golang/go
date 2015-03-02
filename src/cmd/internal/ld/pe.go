@@ -467,7 +467,7 @@ func initdynimport() *Dll {
 	var d *Dll
 
 	dr = nil
-	m := (*Imp)(nil)
+	var m *Imp
 	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
 		if !s.Reachable || s.Type != SDYNIMPORT {
 			continue

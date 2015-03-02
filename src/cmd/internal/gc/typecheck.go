@@ -1473,7 +1473,7 @@ reswitch:
 			l = args.N
 			args = args.Next
 			typecheck(&l, Erv)
-			r := (*Node)(nil)
+			var r *Node
 			if args != nil {
 				r = args.N
 				args = args.Next
@@ -2282,7 +2282,7 @@ func twoarg(n *Node) int {
 }
 
 func lookdot1(errnode *Node, s *Sym, t *Type, f *Type, dostrcmp int) *Type {
-	r := (*Type)(nil)
+	var r *Type
 	for ; f != nil; f = f.Down {
 		if dostrcmp != 0 && f.Sym.Name == s.Name {
 			return f
@@ -2361,12 +2361,12 @@ func lookdot(n *Node, t *Type, dostrcmp int) bool {
 	s := n.Right.Sym
 
 	dowidth(t)
-	f1 := (*Type)(nil)
+	var f1 *Type
 	if t.Etype == TSTRUCT || t.Etype == TINTER {
 		f1 = lookdot1(n, s, t, t.Type, dostrcmp)
 	}
 
-	f2 := (*Type)(nil)
+	var f2 *Type
 	if n.Left.Type == t || n.Left.Type.Sym == nil {
 		f2 = methtype(t, 0)
 		if f2 != nil {
@@ -2713,7 +2713,7 @@ func keydup(n *Node, hash []*Node) {
 	}
 
 	h := uint(b % uint32(len(hash)))
-	cmp := Node{}
+	var cmp Node
 	for a := hash[h]; a != nil; a = a.Ntest {
 		cmp.Op = OEQ
 		cmp.Left = n

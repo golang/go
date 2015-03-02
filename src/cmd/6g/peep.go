@@ -308,7 +308,7 @@ func pushback(r0 *gc.Flow) {
 	var r *gc.Flow
 	var p *obj.Prog
 
-	b := (*gc.Flow)(nil)
+	var b *gc.Flow
 	p0 := (*obj.Prog)(r0.Prog)
 	for r = gc.Uniqp(r0); r != nil && gc.Uniqs(r) != nil; r = gc.Uniqp(r) {
 		p = r.Prog

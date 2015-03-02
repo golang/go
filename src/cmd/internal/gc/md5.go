@@ -73,7 +73,7 @@ func md5sum(d *MD5, hi *uint64) uint64 {
 	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
 	len := d.len
 
-	tmp := [64]uint8{}
+	var tmp [64]uint8
 	tmp[0] = 0x80
 	if len%64 < 56 {
 		md5write(d, tmp[:], int(56-len%64))

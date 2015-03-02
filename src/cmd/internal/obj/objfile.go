@@ -26,12 +26,12 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 	// Build list of symbols, and assign instructions to lists.
 	// Ignore ctxt->plist boundaries. There are no guarantees there,
 	// and the C compilers and assemblers just use one big list.
-	text := (*LSym)(nil)
+	var text *LSym
 
-	curtext := (*LSym)(nil)
-	data := (*LSym)(nil)
-	etext := (*LSym)(nil)
-	edata := (*LSym)(nil)
+	var curtext *LSym
+	var data *LSym
+	var etext *LSym
+	var edata *LSym
 	for pl := ctxt.Plist; pl != nil; pl = pl.Link {
 		for p = pl.Firstpc; p != nil; p = plink {
 			if ctxt.Debugasm != 0 && ctxt.Debugvlog != 0 {

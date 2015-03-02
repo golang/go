@@ -262,7 +262,7 @@ func capturevars(xfunc *Node) {
 		}
 
 		if Debug['m'] > 1 {
-			name := (*Sym)(nil)
+			var name *Sym
 			if v.Curfn != nil && v.Curfn.Nname != nil {
 				name = v.Curfn.Nname.Sym
 			}
@@ -362,7 +362,7 @@ func transformclosure(xfunc *Node) {
 		// The closure is not called, so it is going to stay as closure.
 		nvar := 0
 
-		body := (*NodeList)(nil)
+		var body *NodeList
 		offset := int64(Widthptr)
 		var addr *Node
 		var v *Node
@@ -526,7 +526,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 		Fatal("missing base type for %v", Tconv(rcvrtype, 0))
 	}
 
-	spkg := (*Pkg)(nil)
+	var spkg *Pkg
 	if basetype.Sym != nil {
 		spkg = basetype.Sym.Pkg
 	}
@@ -549,8 +549,8 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 
 	xtype := Nod(OTFUNC, nil, nil)
 	i := 0
-	l := (*NodeList)(nil)
-	callargs := (*NodeList)(nil)
+	var l *NodeList
+	var callargs *NodeList
 	ddd := 0
 	xfunc := Nod(ODCLFUNC, nil, nil)
 	Curfn = xfunc
@@ -575,7 +575,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	xtype.List = l
 	i = 0
 	l = nil
-	retargs := (*NodeList)(nil)
+	var retargs *NodeList
 	for t := getoutargx(t0).Type; t != nil; t = t.Down {
 		namebuf = fmt.Sprintf("r%d", i)
 		i++
@@ -596,7 +596,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	declare(xfunc.Nname, PFUNC)
 
 	// Declare and initialize variable holding receiver.
-	body := (*NodeList)(nil)
+	var body *NodeList
 
 	xfunc.Needctxt = true
 	cv := Nod(OCLOSUREVAR, nil, nil)

@@ -995,7 +995,7 @@ func putdie(die *DWDie) {
 
 func reverselist(list **DWDie) {
 	curr := *list
-	prev := (*DWDie)(nil)
+	var prev *DWDie
 	for curr != nil {
 		var next *DWDie = curr.link
 		curr.link = prev
@@ -1537,7 +1537,7 @@ func defdwsymb(sym *LSym, s string, t int, v int64, size int64, ver int, gotype 
 		return
 	}
 
-	dv := (*DWDie)(nil)
+	var dv *DWDie
 
 	var dt *DWDie
 	switch t {
@@ -1678,9 +1678,9 @@ func writelines() {
 	unitstart := int64(-1)
 	headerend := int64(-1)
 	epc := int64(0)
-	epcs := (*LSym)(nil)
+	var epcs *LSym
 	lineo = Cpos()
-	dwinfo := (*DWDie)(nil)
+	var dwinfo *DWDie
 
 	flushunit(dwinfo, epc, epcs, unitstart, int32(headerend-unitstart-10))
 	unitstart = Cpos()
@@ -2488,7 +2488,7 @@ func dwarfaddelfheaders() {
 		sh.addralign = 1
 	}
 
-	sharanges := (*ElfShdr)(nil)
+	var sharanges *ElfShdr
 	if arangessize != 0 {
 		sh := newElfShdr(elfstrdbg[ElfStrDebugAranges])
 		sh.type_ = SHT_PROGBITS

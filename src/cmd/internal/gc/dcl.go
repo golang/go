@@ -247,7 +247,7 @@ func addvar(n *Node, t *Type, ctxt int) {
  * new_name_list (type | [type] = expr_list)
  */
 func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
-	init := (*NodeList)(nil)
+	var init *NodeList
 	doexpr := el != nil
 
 	if count(el) == 1 && count(vl) > 1 {
@@ -313,7 +313,7 @@ func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
  * new_name_list [[type] = expr_list]
  */
 func constiter(vl *NodeList, t *Node, cl *NodeList) *NodeList {
-	vv := (*NodeList)(nil)
+	var vv *NodeList
 	if cl == nil {
 		if t != nil {
 			Yyerror("const declaration cannot have type without expression")
@@ -1081,7 +1081,7 @@ func checkarglist(all *NodeList, input int) *NodeList {
 	}
 
 	if named != 0 {
-		n := (*Node)(nil)
+		var n *Node
 		var l *NodeList
 		for l = all; l != nil; l = l.Next {
 			n = l.N
@@ -1096,7 +1096,7 @@ func checkarglist(all *NodeList, input int) *NodeList {
 		}
 	}
 
-	nextt := (*Node)(nil)
+	var nextt *Node
 	var t *Node
 	var n *Node
 	for l := all; l != nil; l = l.Next {
@@ -1195,7 +1195,7 @@ func isifacemethod(f *Type) bool {
 func functype(this *Node, in *NodeList, out *NodeList) *Type {
 	t := typ(TFUNC)
 
-	rcvr := (*NodeList)(nil)
+	var rcvr *NodeList
 	if this != nil {
 		rcvr = list1(this)
 	}
@@ -1413,7 +1413,7 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
 	n := Nod(ODCLFIELD, newname(sf), nil)
 	n.Type = t
 
-	d := (*Type)(nil) // last found
+	var d *Type // last found
 	for f := pa.Method; f != nil; f = f.Down {
 		d = f
 		if f.Etype != TFIELD {

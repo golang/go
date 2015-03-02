@@ -283,7 +283,7 @@ func fixjmp(firstp *obj.Prog) {
 	mark(firstp)
 
 	// pass 3: delete dead code (mostly JMPs).
-	last := (*obj.Prog)(nil)
+	var last *obj.Prog
 
 	for p := firstp; p != nil; p = p.Link {
 		if p.Opt == dead {
@@ -315,7 +315,7 @@ func fixjmp(firstp *obj.Prog) {
 	// pass 4: elide JMP to next instruction.
 	// only safe if there are no jumps to JMPs anymore.
 	if jmploop == 0 {
-		last := (*obj.Prog)(nil)
+		var last *obj.Prog
 		for p := firstp; p != nil; p = p.Link {
 			if p.As == obj.AJMP && p.To.Type == obj.TYPE_BRANCH && p.To.U.Branch == p.Link {
 				if Debug['R'] != 0 && Debug['v'] != 0 {
@@ -1187,7 +1187,7 @@ func nilwalkfwd(fcheck *Flow) {
 	// avoid problems like:
 	//	_ = *x // should panic
 	//	for {} // no writes but infinite loop may be considered visible
-	last := (*Flow)(nil)
+	var last *Flow
 
 	for f := Uniqs(fcheck); f != nil; f = Uniqs(f) {
 		p = f.Prog

@@ -678,7 +678,7 @@ func agen(n *gc.Node, res *gc.Node) {
 	}
 
 	if n.Addable != 0 {
-		n1 := gc.Node{}
+		var n1 gc.Node
 		n1.Op = gc.OADDR
 		n1.Left = n
 		var n2 gc.Node
@@ -983,7 +983,7 @@ func agenr(n *gc.Node, a *gc.Node, res *gc.Node) {
 		gc.Cgen_checknil(a)
 
 	case gc.OINDEX:
-		p2 := (*obj.Prog)(nil) // to be patched to panicindex.
+		var p2 *obj.Prog // to be patched to panicindex.
 		w := uint32(n.Type.Width)
 		bounded := gc.Debug['B'] != 0 || n.Bounded
 		var n1 gc.Node
@@ -1199,7 +1199,7 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
 		return
 	}
 
-	nr := (*gc.Node)(nil)
+	var nr *gc.Node
 
 	var nl *gc.Node
 	switch n.Op {
@@ -1658,7 +1658,7 @@ func sgen(n *gc.Node, res *gc.Node, w int64) {
 	regalloc(&tmp, gc.Types[gc.TUINT32], nil)
 
 	// set up end marker
-	nend := gc.Node{}
+	var nend gc.Node
 
 	if c >= 4 {
 		regalloc(&nend, gc.Types[gc.TUINT32], nil)

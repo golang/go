@@ -287,7 +287,7 @@ func walkstmt(np **Node) {
 		if (Curfn.Type.Outnamed != 0 && count(n.List) > 1) || paramoutheap(Curfn) != 0 {
 			// assign to the function out parameters,
 			// so that reorder3 can fix up conflicts
-			rl := (*NodeList)(nil)
+			var rl *NodeList
 
 			var cl int
 			for ll := Curfn.Dcl; ll != nil; ll = ll.Next {
@@ -552,7 +552,7 @@ func walkexpr(np **Node, init **NodeList) {
 		// cannot put side effects from n->right on init,
 		// because they cannot run before n->left is checked.
 		// save elsewhere and store on the eventual n->right.
-		ll := (*NodeList)(nil)
+		var ll *NodeList
 
 		walkexpr(&n.Right, &ll)
 		addinit(&n.Right, ll)
@@ -942,7 +942,7 @@ func walkexpr(np **Node, init **NodeList) {
 		buf := fmt.Sprintf("conv%s2%s", from, to)
 
 		fn := syslook(buf, 1)
-		ll := (*NodeList)(nil)
+		var ll *NodeList
 		if !Isinter(n.Left.Type) {
 			ll = list(ll, typename(n.Left.Type))
 		}
@@ -1654,7 +1654,7 @@ func ascompatee(op int, nl *NodeList, nr *NodeList, init **NodeList) *NodeList {
 		lr.N = safeexpr(lr.N, init)
 	}
 
-	nn := (*NodeList)(nil)
+	var nn *NodeList
 	ll = nl
 	lr = nr
 	for ; ll != nil && lr != nil; (func() { ll = ll.Next; lr = lr.Next })() {
@@ -1682,7 +1682,7 @@ func fncall(l *Node, rt *Type) bool {
 	if l.Ullman >= UINF || l.Op == OINDEXMAP {
 		return true
 	}
-	r := Node{}
+	var r Node
 	if needwritebarrier(l, &r) {
 		return true
 	}
@@ -1706,8 +1706,8 @@ func ascompatet(op int, nl *NodeList, nr **Type, fp int, init **NodeList) *NodeL
 	 */
 	r := Structfirst(&saver, nr)
 
-	nn := (*NodeList)(nil)
-	mm := (*NodeList)(nil)
+	var nn *NodeList
+	var mm *NodeList
 	ucount := 0
 	for ll = nl; ll != nil; ll = ll.Next {
 		if r == nil {
@@ -1846,11 +1846,11 @@ func ascompatte(op int, call *Node, isddd int, nl **Type, lr *NodeList, fp int, 
 
 	lr0 := lr
 	l := Structfirst(&savel, nl)
-	r := (*Node)(nil)
+	var r *Node
 	if lr != nil {
 		r = lr.N
 	}
-	nn := (*NodeList)(nil)
+	var nn *NodeList
 
 	// f(g()) where g has multiple return values
 	var a *Node
@@ -1869,7 +1869,7 @@ func ascompatte(op int, call *Node, isddd int, nl **Type, lr *NodeList, fp int, 
 
 		// conversions involved.
 		// copy into temporaries.
-		alist := (*NodeList)(nil)
+		var alist *NodeList
 
 		for l := Structfirst(&savel, &r.Type); l != nil; l = structnext(&savel) {
 			a = temp(l.Type)
@@ -1958,7 +1958,7 @@ func walkprint(nn *Node, init **NodeList) *Node {
 
 	op := int(nn.Op)
 	all := nn.List
-	calls := (*NodeList)(nil)
+	var calls *NodeList
 	notfirst := false
 
 	// Hoist all the argument evaluation up before the lock.
@@ -2337,9 +2337,9 @@ func reorder1(all *NodeList) *NodeList {
 		return all
 	}
 
-	g := (*NodeList)(nil) // fncalls assigned to tempnames
-	f := (*Node)(nil)     // last fncall assigned to stack
-	r := (*NodeList)(nil) // non fncalls and tempnames assigned to stack
+	var g *NodeList // fncalls assigned to tempnames
+	var f *Node     // last fncall assigned to stack
+	var r *NodeList // non fncalls and tempnames assigned to stack
 	d := 0
 	var a *Node
 	for l := all; l != nil; l = l.Next {
@@ -2388,9 +2388,9 @@ func reorder3(all *NodeList) *NodeList {
 	// If a needed expression may be affected by an
 	// earlier assignment, make an early copy of that
 	// expression and use the copy instead.
-	early := (*NodeList)(nil)
+	var early *NodeList
 
-	mapinit := (*NodeList)(nil)
+	var mapinit *NodeList
 	for list := all; list != nil; list = list.Next {
 		l = list.N.Left
 
@@ -2691,7 +2691,7 @@ func paramstoheap(argin **Type, out int) *NodeList {
 	var v *Node
 	var as *Node
 
-	nn := (*NodeList)(nil)
+	var nn *NodeList
 	for t := Structfirst(&savet, argin); t != nil; t = structnext(&savet) {
 		v = t.Nname
 		if v != nil && v.Sym != nil && v.Sym.Name[0] == '~' && v.Sym.Name[1] == 'r' { // unnamed result
@@ -2738,7 +2738,7 @@ func returnsfromheap(argin **Type) *NodeList {
 	var savet Iter
 	var v *Node
 
-	nn := (*NodeList)(nil)
+	var nn *NodeList
 	for t := Structfirst(&savet, argin); t != nil; t = structnext(&savet) {
 		v = t.Nname
 		if v == nil || v.Class != PHEAP|PPARAMOUT {
@@ -2772,7 +2772,7 @@ func vmkcall(fn *Node, t *Type, init **NodeList, va []*Node) *Node {
 		Fatal("mkcall %v %v", Nconv(fn, 0), Tconv(fn.Type, 0))
 	}
 
-	args := (*NodeList)(nil)
+	var args *NodeList
 	n := fn.Type.Intuple
 	for i := 0; i < n; i++ {
 		args = list(args, va[i])
@@ -2937,7 +2937,7 @@ func appendslice(n *Node, init **NodeList) *Node {
 	l2 := n.List.Next.N
 
 	s := temp(l1.Type) // var s []T
-	l := (*NodeList)(nil)
+	var l *NodeList
 	l = list(l, Nod(OAS, s, l1)) // s = l1
 
 	nt := temp(Types[TINT])
@@ -3057,7 +3057,7 @@ func walkappend(n *Node, init **NodeList) *Node {
 		return nsrc
 	}
 
-	l := (*NodeList)(nil)
+	var l *NodeList
 
 	ns := temp(nsrc.Type)
 	l = list(l, Nod(OAS, ns, nsrc)) // s = src
@@ -3129,7 +3129,7 @@ func copyany(n *Node, init **NodeList, runtimecall int) *Node {
 	walkexpr(&n.Right, init)
 	nl := temp(n.Left.Type)
 	nr := temp(n.Right.Type)
-	l := (*NodeList)(nil)
+	var l *NodeList
 	l = list(l, Nod(OAS, nl, n.Left))
 	l = list(l, Nod(OAS, nr, n.Right))
 
@@ -3235,9 +3235,9 @@ func sliceany(n *Node, init **NodeList) *Node {
 
 	// Checking src[lb:hb:cb] or src[lb:hb].
 	// if chk0 || chk1 || chk2 { panicslice() }
-	chk0 := (*Node)(nil) // cap(src) < cb
-	chk1 := (*Node)(nil) // cb < hb for src[lb:hb:cb]; cap(src) < hb for src[lb:hb]
-	chk2 := (*Node)(nil) // hb < lb
+	var chk0 *Node // cap(src) < cb
+	var chk1 *Node // cb < hb for src[lb:hb:cb]; cap(src) < hb for src[lb:hb]
+	var chk2 *Node // hb < lb
 
 	// All comparisons are unsigned to avoid testing < 0.
 	bt := Types[Simtype[TUINT]]
@@ -3421,9 +3421,9 @@ func walkcompare(np **Node, init **NodeList) {
 	// Handle != similarly.
 	// This avoids the allocation that would be required
 	// to convert r to l for comparison.
-	l := (*Node)(nil)
+	var l *Node
 
-	r := (*Node)(nil)
+	var r *Node
 	if Isinter(n.Left.Type) && !Isinter(n.Right.Type) {
 		l = n.Left
 		r = n.Right
@@ -4251,7 +4251,7 @@ func walkprintfunc(np **Node, init **NodeList) {
 
 	t := Nod(OTFUNC, nil, nil)
 	num := 0
-	printargs := (*NodeList)(nil)
+	var printargs *NodeList
 	var a *Node
 	var buf string
 	for l := n.List; l != nil; l = l.Next {

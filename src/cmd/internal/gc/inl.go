@@ -231,7 +231,7 @@ func ishairy(n *Node, budget *int) bool {
 // Any name-like node of non-local class is marked for re-export by adding it to
 // the exportlist.
 func inlcopylist(ll *NodeList) *NodeList {
-	l := (*NodeList)(nil)
+	var l *NodeList
 	for ; ll != nil; ll = ll.Next {
 		l = list(l, inlcopy(ll.N))
 	}
@@ -628,7 +628,7 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 	// check if inlined function is variadic.
 	variadic := false
 
-	varargtype := (*Type)(nil)
+	var varargtype *Type
 	varargcount := 0
 	for t := fn.Type.Type.Down.Down.Type; t != nil; t = t.Down {
 		if t.Isddd != 0 {
@@ -694,8 +694,8 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 	// append ordinary arguments to LHS.
 	chkargcount := n.List != nil && n.List.Next != nil
 
-	vararg := (*Node)(nil)      // the slice argument to a variadic call
-	varargs := (*NodeList)(nil) // the list of LHS names to put in vararg.
+	var vararg *Node      // the slice argument to a variadic call
+	var varargs *NodeList // the list of LHS names to put in vararg.
 	if !chkargcount {
 		// 0 or 1 expression on RHS.
 		var i int
@@ -897,7 +897,7 @@ func newlabel_inl() *Node {
 // to input/output parameters with ones to the tmpnames, and
 // substituting returns with assignments to the output.
 func inlsubstlist(ll *NodeList) *NodeList {
-	l := (*NodeList)(nil)
+	var l *NodeList
 	for ; ll != nil; ll = ll.Next {
 		l = list(l, inlsubst(ll.N))
 	}

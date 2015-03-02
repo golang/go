@@ -1114,7 +1114,7 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
 		return
 	}
 
-	nr := (*gc.Node)(nil)
+	var nr *gc.Node
 
 	for n.Op == gc.OCONVNOP {
 		n = n.Left

@@ -2332,7 +2332,7 @@ func structargs(tl **Type, mustname int) *NodeList {
 	var n *Node
 	var buf string
 
-	args := (*NodeList)(nil)
+	var args *NodeList
 	gen := 0
 	for t := Structfirst(&savet, tl); t != nil; t = structnext(&savet) {
 		n = nil
@@ -2431,7 +2431,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 	funchdr(fn)
 
 	// arg list
-	args := (*NodeList)(nil)
+	var args *NodeList
 
 	isddd := 0
 	for l := in; l != nil; l = l.Next {
@@ -2450,7 +2450,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 
 		// these strings are already in the reflect tables,
 		// so no space cost to use them here.
-		l := (*NodeList)(nil)
+		var l *NodeList
 
 		var v Val
 		v.Ctype = CTSTR
@@ -2670,7 +2670,7 @@ func genhash(sym *Sym, t *Type) {
 		// Walk the struct using memhash for runs of AMEM
 	// and calling specific hash functions for the others.
 	case TSTRUCT:
-		first := (*Type)(nil)
+		var first *Type
 
 		offend := int64(0)
 		var size int64
@@ -2915,7 +2915,7 @@ func geneq(sym *Sym, t *Type) {
 	// and calling specific equality tests for the others.
 	// Skip blank-named fields.
 	case TSTRUCT:
-		first := (*Type)(nil)
+		var first *Type
 
 		offend := int64(0)
 		var size int64
@@ -3231,7 +3231,7 @@ func listsort(l **NodeList, f func(*Node, *Node) int) {
 }
 
 func listtreecopy(l *NodeList) *NodeList {
-	out := (*NodeList)(nil)
+	var out *NodeList
 	for ; l != nil; l = l.Next {
 		out = list(out, treecopy(l.N))
 	}

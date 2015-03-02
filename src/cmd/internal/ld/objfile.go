@@ -19,7 +19,7 @@ var endmagic string = "\xff\xffgo13ld"
 func ldobjfile(ctxt *Link, f *Biobuf, pkg string, length int64, pn string) {
 	start := Boffset(f)
 	ctxt.Version++
-	buf := [8]uint8{}
+	var buf [8]uint8
 	Bread(f, buf[:])
 	if string(buf[:]) != startmagic {
 		log.Fatalf("%s: invalid file start %x %x %x %x %x %x %x %x", pn, buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7])
@@ -82,7 +82,7 @@ func readsym(ctxt *Link, f *Biobuf, pkg string, pn string) {
 		v = ctxt.Version
 	}
 	s := Linklookup(ctxt, name, v)
-	dup := (*LSym)(nil)
+	var dup *LSym
 	if s.Type != 0 && s.Type != SXREF {
 		if (t == SDATA || t == SBSS || t == SNOPTRBSS) && len(data) == 0 && nreloc == 0 {
 			if s.Size < int64(size) {

@@ -163,7 +163,7 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 			OCALLINTER:
 			racewalknode(&n.List.N, &n.List.N.Ninit, 0, 0)
 
-			fini := (*NodeList)(nil)
+			var fini *NodeList
 			racewalklist(n.List.Next, &fini)
 			n.List = concat(n.List, fini)
 
