@@ -154,7 +154,7 @@ func gentext() {
 			// Restore TOC after bl.  The compiler put a
 			// nop here for us to overwrite.
 			o1 = 0xe8410018 // ld r2,24(r1)
-			ld.Ctxt.Arch.ByteOrder.PutUint32(s.P[r.Off:], o1)
+			ld.Ctxt.Arch.ByteOrder.PutUint32(s.P[r.Off+4:], o1)
 		}
 	}
 }
