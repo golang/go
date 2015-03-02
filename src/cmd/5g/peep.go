@@ -257,9 +257,8 @@ func subprop(r0 *gc.Flow) bool {
 	if !regtyp(v2) {
 		return false
 	}
-	var r *gc.Flow
 	var info gc.ProgInfo
-	for r = gc.Uniqp(r0); r != nil; r = gc.Uniqp(r) {
+	for r := gc.Uniqp(r0); r != nil; r = gc.Uniqp(r) {
 		if gc.Uniqs(r) == nil {
 			break
 		}
@@ -289,7 +288,32 @@ func subprop(r0 *gc.Flow) bool {
 			if p.To.Type == v1.Type {
 				if p.To.Reg == v1.Reg {
 					if p.Scond == arm.C_SCOND_NONE {
-						goto gotit
+						copysub(&p.To, v1, v2, 1)
+						if gc.Debug['P'] != 0 {
+							fmt.Printf("gotit: %v->%v\n%v", gc.Ctxt.Dconv(v1), gc.Ctxt.Dconv(v2), r.Prog)
+							if p.From.Type == v2.Type {
+								fmt.Printf(" excise")
+							}
+							fmt.Printf("\n")
+						}
+
+						for r = gc.Uniqs(r); r != r0; r = gc.Uniqs(r) {
+							p = r.Prog
+							copysub(&p.From, v1, v2, 1)
+							copysub1(p, v1, v2, 1)
+							copysub(&p.To, v1, v2, 1)
+							if gc.Debug['P'] != 0 {
+								fmt.Printf("%v\n", r.Prog)
+							}
+						}
+
+						t := int(int(v1.Reg))
+						v1.Reg = v2.Reg
+						v2.Reg = int16(t)
+						if gc.Debug['P'] != 0 {
+							fmt.Printf("%v last\n", r.Prog)
+						}
+						return true
 					}
 				}
 			}
@@ -304,34 +328,6 @@ func subprop(r0 *gc.Flow) bool {
 	}
 
 	return false
-
-gotit:
-	copysub(&p.To, v1, v2, 1)
-	if gc.Debug['P'] != 0 {
-		fmt.Printf("gotit: %v->%v\n%v", gc.Ctxt.Dconv(v1), gc.Ctxt.Dconv(v2), r.Prog)
-		if p.From.Type == v2.Type {
-			fmt.Printf(" excise")
-		}
-		fmt.Printf("\n")
-	}
-
-	for r = gc.Uniqs(r); r != r0; r = gc.Uniqs(r) {
-		p = r.Prog
-		copysub(&p.From, v1, v2, 1)
-		copysub1(p, v1, v2, 1)
-		copysub(&p.To, v1, v2, 1)
-		if gc.Debug['P'] != 0 {
-			fmt.Printf("%v\n", r.Prog)
-		}
-	}
-
-	t := int(int(v1.Reg))
-	v1.Reg = v2.Reg
-	v2.Reg = int16(t)
-	if gc.Debug['P'] != 0 {
-		fmt.Printf("%v last\n", r.Prog)
-	}
-	return true
 }
 
 /*

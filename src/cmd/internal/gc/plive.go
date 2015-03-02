@@ -657,7 +657,7 @@ Next:
 				PPARAMOUT:
 				pos, ok := to.Node.(*Node).Opt.(int32) // index in vars
 				if !ok {
-					goto Next1
+					return
 				}
 				if pos >= int32(len(vars)) || vars[pos] != to.Node {
 					Fatal("bad bookkeeping in liveness %v %d", Nconv(to.Node.(*Node), 0), pos)
@@ -690,8 +690,6 @@ Next:
 			}
 		}
 	}
-
-Next1:
 }
 
 // Constructs a new liveness structure used to hold the global state of the

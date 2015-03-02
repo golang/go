@@ -26,17 +26,14 @@ func cstring(x []byte) string {
 
 func plan9quote(s string) string {
 	if s == "" {
-		goto needquote
+		return "'" + strings.Replace(s, "'", "''", -1) + "'"
 	}
 	for i := 0; i < len(s); i++ {
 		if s[i] <= ' ' || s[i] == '\'' {
-			goto needquote
+			return "'" + strings.Replace(s, "'", "''", -1) + "'"
 		}
 	}
 	return s
-
-needquote:
-	return "'" + strings.Replace(s, "'", "''", -1) + "'"
 }
 
 func tokenize(s string) []string {

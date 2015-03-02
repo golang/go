@@ -41,9 +41,6 @@ import (
 var progedit_tlsfallback *obj.LSym
 
 func progedit(ctxt *obj.Link, p *obj.Prog) {
-	var literal string
-	var s *obj.LSym
-
 	p.From.Class = 0
 	p.To.Class = 0
 
@@ -111,12 +108,10 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 	switch p.As {
 	case AMOVF:
 		if p.From.Type == obj.TYPE_FCONST && chipfloat5(ctxt, p.From.U.Dval) < 0 && (chipzero5(ctxt, p.From.U.Dval) < 0 || p.Scond&C_SCOND != C_SCOND_NONE) {
-			var i32 uint32
-			var f32 float32
-			f32 = float32(p.From.U.Dval)
-			i32 = math.Float32bits(f32)
-			literal = fmt.Sprintf("$f32.%08x", i32)
-			s = obj.Linklookup(ctxt, literal, 0)
+			f32 := float32(p.From.U.Dval)
+			i32 := math.Float32bits(f32)
+			literal := fmt.Sprintf("$f32.%08x", i32)
+			s := obj.Linklookup(ctxt, literal, 0)
 			if s.Type == 0 {
 				s.Type = obj.SRODATA
 				obj.Adduint32(ctxt, s, i32)
@@ -131,10 +126,9 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 
 	case AMOVD:
 		if p.From.Type == obj.TYPE_FCONST && chipfloat5(ctxt, p.From.U.Dval) < 0 && (chipzero5(ctxt, p.From.U.Dval) < 0 || p.Scond&C_SCOND != C_SCOND_NONE) {
-			var i64 uint64
-			i64 = math.Float64bits(p.From.U.Dval)
-			literal = fmt.Sprintf("$f64.%016x", i64)
-			s = obj.Linklookup(ctxt, literal, 0)
+			i64 := math.Float64bits(p.From.U.Dval)
+			literal := fmt.Sprintf("$f64.%016x", i64)
+			s := obj.Linklookup(ctxt, literal, 0)
 			if s.Type == 0 {
 				s.Type = obj.SRODATA
 				obj.Adduint64(ctxt, s, i64)
@@ -175,9 +169,7 @@ const (
 )
 
 func linkcase(casep *obj.Prog) {
-	var p *obj.Prog
-
-	for p = casep; p != nil; p = p.Link {
+	for p := casep; p != nil; p = p.Link {
 		if p.As == ABCASE {
 			for ; p != nil && p.As == ABCASE; p = p.Link {
 				p.Pcrel = casep
@@ -188,25 +180,14 @@ func linkcase(casep *obj.Prog) {
 }
 
 func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
-	var p *obj.Prog
-	var pl *obj.Prog
-	var p1 *obj.Prog
-	var p2 *obj.Prog
-	var q *obj.Prog
-	var q1 *obj.Prog
-	var q2 *obj.Prog
-	var o int
-	var autosize int32
-	var autoffset int32
-
-	autosize = 0
+	autosize := int32(0)
 
 	if ctxt.Symmorestack[0] == nil {
 		ctxt.Symmorestack[0] = obj.Linklookup(ctxt, "runtime.morestack", 0)
 		ctxt.Symmorestack[1] = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
 	}
 
-	q = nil
+	q := (*obj.Prog)(nil)
 
 	ctxt.Cursym = cursym
 
@@ -216,8 +197,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 	softfloat(ctxt, cursym)
 
-	p = cursym.Text
-	autoffset = int32(p.To.Offset)
+	p := cursym.Text
+	autoffset := int32(p.To.Offset)
 	if autoffset < 0 {
 		autoffset = 0
 	}
@@ -259,8 +240,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			//	MOVW.nil R3, 0(R1) +4
 			//	CMP R1, R2
 			//	BNE L
-			pl = obj.Appendp(ctxt, p)
-			p = pl
+			pl := obj.Appendp(ctxt, p)
+			p := pl
 
 			p.As = AMOVW
 			p.From.Type = obj.TYPE_REG
@@ -289,7 +270,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	 * expand RET
 	 * expand BECOME pseudo
 	 */
-	for p = cursym.Text; p != nil; p = p.Link {
+	var q1 *obj.Prog
+	for p := cursym.Text; p != nil; p = p.Link {
 		switch p.As {
 		case ACASE:
 			if ctxt.Flag_shared != 0 {
@@ -358,7 +340,11 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		q = p
 	}
 
-	for p = cursym.Text; p != nil; p = p.Link {
+	var o int
+	var p1 *obj.Prog
+	var p2 *obj.Prog
+	var q2 *obj.Prog
+	for p := cursym.Text; p != nil; p = p.Link {
 		o = int(p.As)
 		switch o {
 		case obj.ATEXT:
@@ -667,24 +653,20 @@ func isfloatreg(a *obj.Addr) bool {
 }
 
 func softfloat(ctxt *obj.Link, cursym *obj.LSym) {
-	var p *obj.Prog
-	var next *obj.Prog
-	var symsfloat *obj.LSym
-	var wasfloat int
-
 	if ctxt.Goarm > 5 {
 		return
 	}
 
-	symsfloat = obj.Linklookup(ctxt, "_sfloat", 0)
+	symsfloat := obj.Linklookup(ctxt, "_sfloat", 0)
 
-	wasfloat = 0
-	for p = cursym.Text; p != nil; p = p.Link {
+	wasfloat := 0
+	for p := cursym.Text; p != nil; p = p.Link {
 		if p.Pcond != nil {
 			p.Pcond.Mark |= LABEL
 		}
 	}
-	for p = cursym.Text; p != nil; p = p.Link {
+	var next *obj.Prog
+	for p := cursym.Text; p != nil; p = p.Link {
 		switch p.As {
 		case AMOVW:
 			if isfloatreg(&p.To) || isfloatreg(&p.From) {
@@ -880,13 +862,10 @@ func initdiv(ctxt *obj.Link) {
 }
 
 func follow(ctxt *obj.Link, s *obj.LSym) {
-	var firstp *obj.Prog
-	var lastp *obj.Prog
-
 	ctxt.Cursym = s
 
-	firstp = ctxt.NewProg()
-	lastp = firstp
+	firstp := ctxt.NewProg()
+	lastp := firstp
 	xfol(ctxt, s.Text, &lastp)
 	lastp.Link = nil
 	s.Text = firstp.Link

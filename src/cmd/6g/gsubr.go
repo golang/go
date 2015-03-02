@@ -1349,12 +1349,6 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
 
 	*a = obj.Addr{}
 
-	var o int
-	var n1 gc.Node
-	var oary [10]int64
-	var nn *gc.Node
-	var reg *gc.Node
-	var reg1 *gc.Node
 	switch n.Op {
 	case gc.OLITERAL:
 		if !gc.Isconst(n, gc.CTINT) {
@@ -1364,118 +1358,108 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
 		if v >= 32000 || v <= -32000 {
 			break
 		}
-		goto lit
+		switch as {
+		default:
+			return false
+
+		case x86.AADDB,
+			x86.AADDW,
+			x86.AADDL,
+			x86.AADDQ,
+			x86.ASUBB,
+			x86.ASUBW,
+			x86.ASUBL,
+			x86.ASUBQ,
+			x86.AANDB,
+			x86.AANDW,
+			x86.AANDL,
+			x86.AANDQ,
+			x86.AORB,
+			x86.AORW,
+			x86.AORL,
+			x86.AORQ,
+			x86.AXORB,
+			x86.AXORW,
+			x86.AXORL,
+			x86.AXORQ,
+			x86.AINCB,
+			x86.AINCW,
+			x86.AINCL,
+			x86.AINCQ,
+			x86.ADECB,
+			x86.ADECW,
+			x86.ADECL,
+			x86.ADECQ,
+			x86.AMOVB,
+			x86.AMOVW,
+			x86.AMOVL,
+			x86.AMOVQ:
+			break
+		}
+
+		cleani += 2
+		reg := &clean[cleani-1]
+		reg1 := &clean[cleani-2]
+		reg.Op = gc.OEMPTY
+		reg1.Op = gc.OEMPTY
+		gc.Naddr(n, a, 1)
+		return true
 
 	case gc.ODOT,
 		gc.ODOTPTR:
 		cleani += 2
-		reg = &clean[cleani-1]
+		reg := &clean[cleani-1]
 		reg1 := &clean[cleani-2]
 		reg.Op = gc.OEMPTY
 		reg1.Op = gc.OEMPTY
-		goto odot
+		var nn *gc.Node
+		var oary [10]int64
+		o := gc.Dotoffset(n, oary[:], &nn)
+		if nn == nil {
+			sudoclean()
+			return false
+		}
+
+		if nn.Addable != 0 && o == 1 && oary[0] >= 0 {
+			// directly addressable set of DOTs
+			n1 := *nn
+
+			n1.Type = n.Type
+			n1.Xoffset += oary[0]
+			gc.Naddr(&n1, a, 1)
+			return true
+		}
+
+		regalloc(reg, gc.Types[gc.Tptr], nil)
+		n1 := *reg
+		n1.Op = gc.OINDREG
+		if oary[0] >= 0 {
+			agen(nn, reg)
+			n1.Xoffset = oary[0]
+		} else {
+			cgen(nn, reg)
+			gc.Cgen_checknil(reg)
+			n1.Xoffset = -(oary[0] + 1)
+		}
+
+		for i := 1; i < o; i++ {
+			if oary[i] >= 0 {
+				gc.Fatal("can't happen")
+			}
+			gins(movptr, &n1, reg)
+			gc.Cgen_checknil(reg)
+			n1.Xoffset = -(oary[i] + 1)
+		}
+
+		a.Type = obj.TYPE_NONE
+		a.Index = obj.TYPE_NONE
+		fixlargeoffset(&n1)
+		gc.Naddr(&n1, a, 1)
+		return true
 
 	case gc.OINDEX:
 		return false
 	}
 
-	return false
-
-lit:
-	switch as {
-	default:
-		return false
-
-	case x86.AADDB,
-		x86.AADDW,
-		x86.AADDL,
-		x86.AADDQ,
-		x86.ASUBB,
-		x86.ASUBW,
-		x86.ASUBL,
-		x86.ASUBQ,
-		x86.AANDB,
-		x86.AANDW,
-		x86.AANDL,
-		x86.AANDQ,
-		x86.AORB,
-		x86.AORW,
-		x86.AORL,
-		x86.AORQ,
-		x86.AXORB,
-		x86.AXORW,
-		x86.AXORL,
-		x86.AXORQ,
-		x86.AINCB,
-		x86.AINCW,
-		x86.AINCL,
-		x86.AINCQ,
-		x86.ADECB,
-		x86.ADECW,
-		x86.ADECL,
-		x86.ADECQ,
-		x86.AMOVB,
-		x86.AMOVW,
-		x86.AMOVL,
-		x86.AMOVQ:
-		break
-	}
-
-	cleani += 2
-	reg = &clean[cleani-1]
-	reg1 = &clean[cleani-2]
-	reg.Op = gc.OEMPTY
-	reg1.Op = gc.OEMPTY
-	gc.Naddr(n, a, 1)
-	goto yes
-
-odot:
-	o = gc.Dotoffset(n, oary[:], &nn)
-	if nn == nil {
-		goto no
-	}
-
-	if nn.Addable != 0 && o == 1 && oary[0] >= 0 {
-		// directly addressable set of DOTs
-		n1 := *nn
-
-		n1.Type = n.Type
-		n1.Xoffset += oary[0]
-		gc.Naddr(&n1, a, 1)
-		goto yes
-	}
-
-	regalloc(reg, gc.Types[gc.Tptr], nil)
-	n1 = *reg
-	n1.Op = gc.OINDREG
-	if oary[0] >= 0 {
-		agen(nn, reg)
-		n1.Xoffset = oary[0]
-	} else {
-		cgen(nn, reg)
-		gc.Cgen_checknil(reg)
-		n1.Xoffset = -(oary[0] + 1)
-	}
-
-	for i := 1; i < o; i++ {
-		if oary[i] >= 0 {
-			gc.Fatal("can't happen")
-		}
-		gins(movptr, &n1, reg)
-		gc.Cgen_checknil(reg)
-		n1.Xoffset = -(oary[i] + 1)
-	}
-
-	a.Type = obj.TYPE_NONE
-	a.Index = obj.TYPE_NONE
-	fixlargeoffset(&n1)
-	gc.Naddr(&n1, a, 1)
-	goto yes
-
-yes:
-	return true
-
-no:
-	sudoclean()
 	return false
 }

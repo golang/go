@@ -199,7 +199,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 				gins(i386.AMOVL, ncon(0), &lo2)
 				gins(i386.AMOVL, ncon(0), &hi2)
 				splitclean()
-				goto out
+				return
 			}
 
 			if v >= 32 {
@@ -215,7 +215,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 				gins(i386.AMOVL, ncon(0), &lo2)
 				splitclean()
 				splitclean()
-				goto out
+				return
 			}
 
 			// general shift
@@ -296,7 +296,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 				}
 
 				splitclean()
-				goto out
+				return
 			}
 
 			if v >= 32 {
@@ -316,7 +316,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 				}
 				splitclean()
 				splitclean()
-				goto out
+				return
 			}
 
 			// general shift
@@ -482,7 +482,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 			splitclean()
 			splitclean()
-			goto out
+			return
 		}
 
 		gins(i386.AMOVL, &lo1, &ax)
@@ -500,8 +500,6 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	gins(i386.AMOVL, &ax, &lo1)
 	gins(i386.AMOVL, &dx, &hi1)
 	splitclean()
-
-out:
 }
 
 /*

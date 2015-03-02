@@ -86,10 +86,7 @@ func addlib(ctxt *Link, src string, obj string, pathname string) {
  *	pkg: package import path, e.g. container/vector
  */
 func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg string) {
-	var i int
-	var l *Library
-
-	for i = 0; i < len(ctxt.Library); i++ {
+	for i := 0; i < len(ctxt.Library); i++ {
 		if file == ctxt.Library[i].File {
 			return
 		}
@@ -100,7 +97,7 @@ func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg strin
 	}
 
 	ctxt.Library = append(ctxt.Library, Library{})
-	l = &ctxt.Library[len(ctxt.Library)-1]
+	l := &ctxt.Library[len(ctxt.Library)-1]
 	l.Objref = objref
 	l.Srcref = srcref
 	l.File = file

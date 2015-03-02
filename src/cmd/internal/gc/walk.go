@@ -3653,32 +3653,29 @@ func walkrotate(np **Node) {
 		if sl >= 0 {
 			sr := int(Mpgetfix(r.Right.Val.U.Xval))
 			if sr >= 0 && sl+sr == w {
-				goto yes
+				// Rewrite left shift half to left rotate.
+				if l.Op == OLSH {
+					n = l
+				} else {
+					n = r
+				}
+				n.Op = OLROT
+
+				// Remove rotate 0 and rotate w.
+				s := int(Mpgetfix(n.Right.Val.U.Xval))
+
+				if s == 0 || s == w {
+					n = n.Left
+				}
+
+				*np = n
+				return
 			}
 		}
 		return
 	}
 
 	// TODO: Could allow s and 32-s if s is bounded (maybe s&31 and 32-s&31).
-	return
-
-	// Rewrite left shift half to left rotate.
-yes:
-	if l.Op == OLSH {
-		n = l
-	} else {
-		n = r
-	}
-	n.Op = OLROT
-
-	// Remove rotate 0 and rotate w.
-	s := int(Mpgetfix(n.Right.Val.U.Xval))
-
-	if s == 0 || s == w {
-		n = n.Left
-	}
-
-	*np = n
 	return
 }
 
@@ -3793,11 +3790,124 @@ func walkdiv(np **Node, init **NodeList) {
 		return
 	}
 
-	var n1 *Node
-	var m Magic
-	var n2 *Node
 	if pow < 0 {
-		goto divbymul
+		// try to do division by multiply by (2^w)/d
+		// see hacker's delight chapter 10
+		// TODO: support 64-bit magic multiply here.
+		var m Magic
+		m.W = w
+
+		if Issigned[nl.Type.Etype] != 0 {
+			m.Sd = Mpgetfix(nr.Val.U.Xval)
+			Smagic(&m)
+		} else {
+			m.Ud = uint64(Mpgetfix(nr.Val.U.Xval))
+			Umagic(&m)
+		}
+
+		if m.Bad != 0 {
+			return
+		}
+
+		// We have a quick division method so use it
+		// for modulo too.
+		if n.Op == OMOD {
+			// rewrite as A%B = A - (A/B*B).
+			n1 := Nod(ODIV, nl, nr)
+
+			n2 := Nod(OMUL, n1, nr)
+			n = Nod(OSUB, nl, n2)
+			goto ret
+		}
+
+		switch Simtype[nl.Type.Etype] {
+		default:
+			return
+
+			// n1 = nl * magic >> w (HMUL)
+		case TUINT8,
+			TUINT16,
+			TUINT32:
+			nc := Nod(OXXX, nil, nil)
+
+			Nodconst(nc, nl.Type, int64(m.Um))
+			n1 := Nod(OMUL, nl, nc)
+			typecheck(&n1, Erv)
+			n1.Op = OHMUL
+			if m.Ua != 0 {
+				// Select a Go type with (at least) twice the width.
+				var twide *Type
+				switch Simtype[nl.Type.Etype] {
+				default:
+					return
+
+				case TUINT8,
+					TUINT16:
+					twide = Types[TUINT32]
+
+				case TUINT32:
+					twide = Types[TUINT64]
+
+				case TINT8,
+					TINT16:
+					twide = Types[TINT32]
+
+				case TINT32:
+					twide = Types[TINT64]
+				}
+
+				// add numerator (might overflow).
+				// n2 = (n1 + nl)
+				n2 := Nod(OADD, conv(n1, twide), conv(nl, twide))
+
+				// shift by m.s
+				nc := Nod(OXXX, nil, nil)
+
+				Nodconst(nc, Types[TUINT], int64(m.S))
+				n = conv(Nod(ORSH, n2, nc), nl.Type)
+			} else {
+				// n = n1 >> m.s
+				nc := Nod(OXXX, nil, nil)
+
+				Nodconst(nc, Types[TUINT], int64(m.S))
+				n = Nod(ORSH, n1, nc)
+			}
+
+			// n1 = nl * magic >> w
+		case TINT8,
+			TINT16,
+			TINT32:
+			nc := Nod(OXXX, nil, nil)
+
+			Nodconst(nc, nl.Type, m.Sm)
+			n1 := Nod(OMUL, nl, nc)
+			typecheck(&n1, Erv)
+			n1.Op = OHMUL
+			if m.Sm < 0 {
+				// add the numerator.
+				n1 = Nod(OADD, n1, nl)
+			}
+
+			// shift by m.s
+			nc = Nod(OXXX, nil, nil)
+
+			Nodconst(nc, Types[TUINT], int64(m.S))
+			n2 := conv(Nod(ORSH, n1, nc), nl.Type)
+
+			// add 1 iff n1 is negative.
+			nc = Nod(OXXX, nil, nil)
+
+			Nodconst(nc, Types[TUINT], int64(w)-1)
+			n3 := Nod(ORSH, nl, nc) // n4 = -1 iff n1 is negative.
+			n = Nod(OSUB, n2, n3)
+
+			// apply sign.
+			if m.Sd < 0 {
+				n = Nod(OMINUS, n, nil)
+			}
+		}
+
+		goto ret
 	}
 
 	switch pow {
@@ -3903,127 +4013,6 @@ func walkdiv(np **Node, init **NodeList) {
 		n.Right = nc
 	}
 
-	goto ret
-
-	// try to do division by multiply by (2^w)/d
-	// see hacker's delight chapter 10
-	// TODO: support 64-bit magic multiply here.
-divbymul:
-	m.W = w
-
-	if Issigned[nl.Type.Etype] != 0 {
-		m.Sd = Mpgetfix(nr.Val.U.Xval)
-		Smagic(&m)
-	} else {
-		m.Ud = uint64(Mpgetfix(nr.Val.U.Xval))
-		Umagic(&m)
-	}
-
-	if m.Bad != 0 {
-		return
-	}
-
-	// We have a quick division method so use it
-	// for modulo too.
-	if n.Op == OMOD {
-		goto longmod
-	}
-
-	switch Simtype[nl.Type.Etype] {
-	default:
-		return
-
-		// n1 = nl * magic >> w (HMUL)
-	case TUINT8,
-		TUINT16,
-		TUINT32:
-		nc := Nod(OXXX, nil, nil)
-
-		Nodconst(nc, nl.Type, int64(m.Um))
-		n1 := Nod(OMUL, nl, nc)
-		typecheck(&n1, Erv)
-		n1.Op = OHMUL
-		if m.Ua != 0 {
-			// Select a Go type with (at least) twice the width.
-			var twide *Type
-			switch Simtype[nl.Type.Etype] {
-			default:
-				return
-
-			case TUINT8,
-				TUINT16:
-				twide = Types[TUINT32]
-
-			case TUINT32:
-				twide = Types[TUINT64]
-
-			case TINT8,
-				TINT16:
-				twide = Types[TINT32]
-
-			case TINT32:
-				twide = Types[TINT64]
-			}
-
-			// add numerator (might overflow).
-			// n2 = (n1 + nl)
-			n2 := Nod(OADD, conv(n1, twide), conv(nl, twide))
-
-			// shift by m.s
-			nc := Nod(OXXX, nil, nil)
-
-			Nodconst(nc, Types[TUINT], int64(m.S))
-			n = conv(Nod(ORSH, n2, nc), nl.Type)
-		} else {
-			// n = n1 >> m.s
-			nc := Nod(OXXX, nil, nil)
-
-			Nodconst(nc, Types[TUINT], int64(m.S))
-			n = Nod(ORSH, n1, nc)
-		}
-
-		// n1 = nl * magic >> w
-	case TINT8,
-		TINT16,
-		TINT32:
-		nc := Nod(OXXX, nil, nil)
-
-		Nodconst(nc, nl.Type, m.Sm)
-		n1 := Nod(OMUL, nl, nc)
-		typecheck(&n1, Erv)
-		n1.Op = OHMUL
-		if m.Sm < 0 {
-			// add the numerator.
-			n1 = Nod(OADD, n1, nl)
-		}
-
-		// shift by m.s
-		nc = Nod(OXXX, nil, nil)
-
-		Nodconst(nc, Types[TUINT], int64(m.S))
-		n2 := conv(Nod(ORSH, n1, nc), nl.Type)
-
-		// add 1 iff n1 is negative.
-		nc = Nod(OXXX, nil, nil)
-
-		Nodconst(nc, Types[TUINT], int64(w)-1)
-		n3 := Nod(ORSH, nl, nc) // n4 = -1 iff n1 is negative.
-		n = Nod(OSUB, n2, n3)
-
-		// apply sign.
-		if m.Sd < 0 {
-			n = Nod(OMINUS, n, nil)
-		}
-	}
-
-	goto ret
-
-	// rewrite as A%B = A - (A/B*B).
-longmod:
-	n1 = Nod(ODIV, nl, nr)
-
-	n2 = Nod(OMUL, n1, nr)
-	n = Nod(OSUB, nl, n2)
 	goto ret
 
 ret:

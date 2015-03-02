@@ -163,11 +163,9 @@ func usage() {
 }
 
 func Main() {
-	var p string
-
 	// Allow GOARCH=Thestring or GOARCH=Thestringsuffix,
 	// but not other values.
-	p = obj.Getgoarch()
+	p := obj.Getgoarch()
 
 	if !strings.HasPrefix(p, Thestring) {
 		log.Fatalf("cannot use %cc with GOARCH=%s", Thechar, p)
@@ -219,8 +217,6 @@ func Main() {
 }
 
 func assemble(file string) int {
-	var i int
-
 	if outfile == "" {
 		outfile = strings.TrimSuffix(filepath.Base(file), ".s") + "." + string(Thechar)
 	}
@@ -235,6 +231,7 @@ func assemble(file string) int {
 	fmt.Fprintf(&obuf, "go object %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion())
 	fmt.Fprintf(&obuf, "!\n")
 
+	var i int
 	for Pass = 1; Pass <= 2; Pass++ {
 		pinit(file)
 		for i = 0; i < len(Dlist); i++ {

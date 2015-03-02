@@ -43,7 +43,6 @@ var bigP *obj.Prog
 
 func Pconv(p *obj.Prog) string {
 	var str string
-	var fp string
 
 	switch p.As {
 	case obj.ADATA:
@@ -72,6 +71,7 @@ func Pconv(p *obj.Prog) string {
 		}
 	}
 
+	var fp string
 	fp += str
 	return fp
 }

@@ -1805,7 +1805,25 @@ reswitch:
 
 arith:
 	if op == OLSH || op == ORSH {
-		goto shift
+		defaultlit(&r, Types[TUINT])
+		n.Right = r
+		t := r.Type
+		if Isint[t.Etype] == 0 || Issigned[t.Etype] != 0 {
+			Yyerror("invalid operation: %v (shift count type %v, must be unsigned integer)", Nconv(n, 0), Tconv(r.Type, 0))
+			goto error
+		}
+
+		t = l.Type
+		if t != nil && t.Etype != TIDEAL && Isint[t.Etype] == 0 {
+			Yyerror("invalid operation: %v (shift of type %v)", Nconv(n, 0), Tconv(t, 0))
+			goto error
+		}
+
+		// no defaultlit for left
+		// the outer context gives the type
+		n.Type = l.Type
+
+		goto ret
 	}
 
 	// ideal mixed with non-ideal
@@ -1991,27 +2009,6 @@ arith:
 	}
 
 	n.Type = t
-	goto ret
-
-shift:
-	defaultlit(&r, Types[TUINT])
-	n.Right = r
-	t = r.Type
-	if Isint[t.Etype] == 0 || Issigned[t.Etype] != 0 {
-		Yyerror("invalid operation: %v (shift count type %v, must be unsigned integer)", Nconv(n, 0), Tconv(r.Type, 0))
-		goto error
-	}
-
-	t = l.Type
-	if t != nil && t.Etype != TIDEAL && Isint[t.Etype] == 0 {
-		Yyerror("invalid operation: %v (shift of type %v)", Nconv(n, 0), Tconv(t, 0))
-		goto error
-	}
-
-	// no defaultlit for left
-	// the outer context gives the type
-	n.Type = l.Type
-
 	goto ret
 
 doconv:

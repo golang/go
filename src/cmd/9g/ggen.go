@@ -572,10 +572,7 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 func cgen_div(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	// TODO(minux): enable division by magic multiply (also need to fix longmod below)
 	//if(nr->op != OLITERAL)
-	goto longdiv
-
 	// division and mod using (slow) hardware instruction
-longdiv:
 	dodiv(op, nl, nr, res)
 
 	return
@@ -639,11 +636,6 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
  *	res = nl >> nr
  */
 func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
-	var n1 gc.Node
-	var n2 gc.Node
-	var n3 gc.Node
-	var tcount *gc.Type
-
 	a := int(optoas(op, nl.Type))
 
 	if nr.Op == gc.OLITERAL {
@@ -663,7 +655,7 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		}
 		gmove(&n1, res)
 		regfree(&n1)
-		goto ret
+		return
 	}
 
 	if nl.Ullman >= gc.UINF {
@@ -683,15 +675,18 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	// Allow either uint32 or uint64 as shift type,
 	// to avoid unnecessary conversion from uint32 to uint64
 	// just to do the comparison.
-	tcount = gc.Types[gc.Simtype[nr.Type.Etype]]
+	tcount := gc.Types[gc.Simtype[nr.Type.Etype]]
 
 	if tcount.Etype < gc.TUINT32 {
 		tcount = gc.Types[gc.TUINT32]
 	}
 
+	var n1 gc.Node
 	regalloc(&n1, nr.Type, nil) // to hold the shift type in CX
-	regalloc(&n3, tcount, &n1)  // to clear high bits of CX
+	var n3 gc.Node
+	regalloc(&n3, tcount, &n1) // to clear high bits of CX
 
+	var n2 gc.Node
 	regalloc(&n2, nl.Type, res)
 
 	if nl.Ullman >= nr.Ullman {
@@ -728,8 +723,6 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 
 	regfree(&n1)
 	regfree(&n2)
-
-ret:
 }
 
 func clearfat(nl *gc.Node) {
@@ -759,9 +752,8 @@ func clearfat(nl *gc.Node) {
 	agen(nl, &dst)
 
 	var boff uint64
-	var p *obj.Prog
 	if q > 128 {
-		p = gins(ppc64.ASUB, nil, &dst)
+		p := gins(ppc64.ASUB, nil, &dst)
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = 8
 
@@ -784,7 +776,7 @@ func clearfat(nl *gc.Node) {
 		// The loop leaves R3 on the last zeroed dword
 		boff = 8
 	} else if q >= 4 {
-		p = gins(ppc64.ASUB, nil, &dst)
+		p := gins(ppc64.ASUB, nil, &dst)
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = 8
 		f := (*gc.Node)(gc.Sysfunc("duffzero"))
@@ -797,6 +789,7 @@ func clearfat(nl *gc.Node) {
 		// duffzero leaves R3 on the last zeroed dword
 		boff = 8
 	} else {
+		var p *obj.Prog
 		for t := uint64(0); t < q; t++ {
 			p = gins(ppc64.AMOVD, &r0, &dst)
 			p.To.Type = obj.TYPE_MEM
@@ -806,6 +799,7 @@ func clearfat(nl *gc.Node) {
 		boff = 8 * q
 	}
 
+	var p *obj.Prog
 	for t := uint64(0); t < c; t++ {
 		p = gins(ppc64.AMOVB, &r0, &dst)
 		p.To.Type = obj.TYPE_MEM

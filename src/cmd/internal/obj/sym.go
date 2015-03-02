@@ -123,8 +123,6 @@ func Headstr(v int) string {
 }
 
 func Linknew(arch *LinkArch) *Link {
-	var buf string
-
 	linksetexp()
 
 	ctxt := new(Link)
@@ -137,6 +135,7 @@ func Linknew(arch *LinkArch) *Link {
 		ctxt.Windows = 1
 	}
 
+	var buf string
 	buf, _ = os.Getwd()
 	if buf == "" {
 		buf = "/???"

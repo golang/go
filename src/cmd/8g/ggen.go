@@ -934,7 +934,27 @@ func cgen_float387(n *gc.Node, res *gc.Node) {
 	gc.Nodreg(&f0, nl.Type, i386.REG_F0)
 	gc.Nodreg(&f1, n.Type, i386.REG_F0+1)
 	if nr != nil {
-		goto flt2
+		// binary
+		if nl.Ullman >= nr.Ullman {
+			cgen(nl, &f0)
+			if nr.Addable != 0 {
+				gins(foptoas(int(n.Op), n.Type, 0), nr, &f0)
+			} else {
+				cgen(nr, &f0)
+				gins(foptoas(int(n.Op), n.Type, Fpop), &f0, &f1)
+			}
+		} else {
+			cgen(nr, &f0)
+			if nl.Addable != 0 {
+				gins(foptoas(int(n.Op), n.Type, Frev), nl, &f0)
+			} else {
+				cgen(nl, &f0)
+				gins(foptoas(int(n.Op), n.Type, Frev|Fpop), &f0, &f1)
+			}
+		}
+
+		gmove(&f0, res)
+		return
 	}
 
 	// unary
@@ -943,28 +963,6 @@ func cgen_float387(n *gc.Node, res *gc.Node) {
 	if n.Op != gc.OCONV && n.Op != gc.OPLUS {
 		gins(foptoas(int(n.Op), n.Type, 0), nil, nil)
 	}
-	gmove(&f0, res)
-	return
-
-flt2: // binary
-	if nl.Ullman >= nr.Ullman {
-		cgen(nl, &f0)
-		if nr.Addable != 0 {
-			gins(foptoas(int(n.Op), n.Type, 0), nr, &f0)
-		} else {
-			cgen(nr, &f0)
-			gins(foptoas(int(n.Op), n.Type, Fpop), &f0, &f1)
-		}
-	} else {
-		cgen(nr, &f0)
-		if nl.Addable != 0 {
-			gins(foptoas(int(n.Op), n.Type, Frev), nl, &f0)
-		} else {
-			cgen(nl, &f0)
-			gins(foptoas(int(n.Op), n.Type, Frev|Fpop), &f0, &f1)
-		}
-	}
-
 	gmove(&f0, res)
 	return
 }
@@ -1064,7 +1062,47 @@ func bgen_float(n *gc.Node, true_ int, likely int, to *obj.Prog) {
 	var n2 gc.Node
 	var ax gc.Node
 	if gc.Use_sse != 0 {
-		goto sse
+		if nl.Addable == 0 {
+			var n1 gc.Node
+			gc.Tempname(&n1, nl.Type)
+			cgen(nl, &n1)
+			nl = &n1
+		}
+
+		if nr.Addable == 0 {
+			var tmp gc.Node
+			gc.Tempname(&tmp, nr.Type)
+			cgen(nr, &tmp)
+			nr = &tmp
+		}
+
+		var n2 gc.Node
+		regalloc(&n2, nr.Type, nil)
+		gmove(nr, &n2)
+		nr = &n2
+
+		if nl.Op != gc.OREGISTER {
+			var n3 gc.Node
+			regalloc(&n3, nl.Type, nil)
+			gmove(nl, &n3)
+			nl = &n3
+		}
+
+		if a == gc.OGE || a == gc.OGT {
+			// only < and <= work right with NaN; reverse if needed
+			r := nr
+
+			nr = nl
+			nl = r
+			a = gc.Brrev(a)
+		}
+
+		gins(foptoas(gc.OCMP, nr.Type, 0), nl, nr)
+		if nl.Op == gc.OREGISTER {
+			regfree(nl)
+		}
+		regfree(nr)
+		goto ret
 	} else {
 		goto x87
 	}
@@ -1117,47 +1155,6 @@ x87:
 	}
 
 	goto ret
-
-sse:
-	if nl.Addable == 0 {
-		var n1 gc.Node
-		gc.Tempname(&n1, nl.Type)
-		cgen(nl, &n1)
-		nl = &n1
-	}
-
-	if nr.Addable == 0 {
-		var tmp gc.Node
-		gc.Tempname(&tmp, nr.Type)
-		cgen(nr, &tmp)
-		nr = &tmp
-	}
-
-	regalloc(&n2, nr.Type, nil)
-	gmove(nr, &n2)
-	nr = &n2
-
-	if nl.Op != gc.OREGISTER {
-		var n3 gc.Node
-		regalloc(&n3, nl.Type, nil)
-		gmove(nl, &n3)
-		nl = &n3
-	}
-
-	if a == gc.OGE || a == gc.OGT {
-		// only < and <= work right with NaN; reverse if needed
-		r := nr
-
-		nr = nl
-		nl = r
-		a = gc.Brrev(a)
-	}
-
-	gins(foptoas(gc.OCMP, nr.Type, 0), nl, nr)
-	if nl.Op == gc.OREGISTER {
-		regfree(nl)
-	}
-	regfree(nr)
 
 ret:
 	if a == gc.OEQ {

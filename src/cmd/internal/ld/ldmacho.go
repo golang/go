@@ -172,13 +172,8 @@ const (
 )
 
 func unpackcmd(p []byte, m *LdMachoObj, c *LdMachoCmd, type_ uint, sz uint) int {
-	var e4 func([]byte) uint32
-	var e8 func([]byte) uint64
-	var s *LdMachoSect
-	var i int
-
-	e4 = m.e.Uint32
-	e8 = m.e.Uint64
+	e4 := m.e.Uint32
+	e8 := m.e.Uint64
 
 	c.type_ = int(type_)
 	c.size = uint32(sz)
@@ -204,7 +199,8 @@ func unpackcmd(p []byte, m *LdMachoObj, c *LdMachoCmd, type_ uint, sz uint) int 
 			return -1
 		}
 		p = p[56:]
-		for i = 0; uint32(i) < c.seg.nsect; i++ {
+		var s *LdMachoSect
+		for i := 0; uint32(i) < c.seg.nsect; i++ {
 			s = &c.seg.sect[i]
 			s.name = cstring(p[0:16])
 			s.segname = cstring(p[16:32])
@@ -238,7 +234,8 @@ func unpackcmd(p []byte, m *LdMachoObj, c *LdMachoCmd, type_ uint, sz uint) int 
 			return -1
 		}
 		p = p[72:]
-		for i = 0; uint32(i) < c.seg.nsect; i++ {
+		var s *LdMachoSect
+		for i := 0; uint32(i) < c.seg.nsect; i++ {
 			s = &c.seg.sect[i]
 			s.name = cstring(p[0:16])
 			s.segname = cstring(p[16:32])
@@ -293,24 +290,19 @@ func unpackcmd(p []byte, m *LdMachoObj, c *LdMachoCmd, type_ uint, sz uint) int 
 }
 
 func macholoadrel(m *LdMachoObj, sect *LdMachoSect) int {
-	var rel []LdMachoRel
-	var r *LdMachoRel
-	var buf []byte
-	var p []byte
-	var i int
-	var n int
-	var v uint32
-
 	if sect.rel != nil || sect.nreloc == 0 {
 		return 0
 	}
-	rel = make([]LdMachoRel, sect.nreloc)
-	n = int(sect.nreloc * 8)
-	buf = make([]byte, n)
+	rel := make([]LdMachoRel, sect.nreloc)
+	n := int(sect.nreloc * 8)
+	buf := make([]byte, n)
 	if Bseek(m.f, m.base+int64(sect.reloff), 0) < 0 || Bread(m.f, buf) != n {
 		return -1
 	}
-	for i = 0; uint32(i) < sect.nreloc; i++ {
+	var p []byte
+	var r *LdMachoRel
+	var v uint32
+	for i := 0; uint32(i) < sect.nreloc; i++ {
 		r = &rel[i]
 		p = buf[i*8:]
 		r.addr = m.e.Uint32(p)
@@ -347,56 +339,44 @@ func macholoadrel(m *LdMachoObj, sect *LdMachoSect) int {
 }
 
 func macholoaddsym(m *LdMachoObj, d *LdMachoDysymtab) int {
-	var p []byte
-	var i int
-	var n int
+	n := int(d.nindirectsyms)
 
-	n = int(d.nindirectsyms)
-
-	p = make([]byte, n*4)
+	p := make([]byte, n*4)
 	if Bseek(m.f, m.base+int64(d.indirectsymoff), 0) < 0 || Bread(m.f, p) != len(p) {
 		return -1
 	}
 
 	d.indir = make([]uint32, n)
-	for i = 0; i < n; i++ {
+	for i := 0; i < n; i++ {
 		d.indir[i] = m.e.Uint32(p[4*i:])
 	}
 	return 0
 }
 
 func macholoadsym(m *LdMachoObj, symtab *LdMachoSymtab) int {
-	var strbuf []byte
-	var symbuf []byte
-	var p []byte
-	var i int
-	var n int
-	var symsize int
-	var sym []LdMachoSym
-	var s *LdMachoSym
-	var v uint32
-
 	if symtab.sym != nil {
 		return 0
 	}
 
-	strbuf = make([]byte, symtab.strsize)
+	strbuf := make([]byte, symtab.strsize)
 	if Bseek(m.f, m.base+int64(symtab.stroff), 0) < 0 || Bread(m.f, strbuf) != len(strbuf) {
 		return -1
 	}
 
-	symsize = 12
+	symsize := 12
 	if m.is64 {
 		symsize = 16
 	}
-	n = int(symtab.nsym * uint32(symsize))
-	symbuf = make([]byte, n)
+	n := int(symtab.nsym * uint32(symsize))
+	symbuf := make([]byte, n)
 	if Bseek(m.f, m.base+int64(symtab.symoff), 0) < 0 || Bread(m.f, symbuf) != len(symbuf) {
 		return -1
 	}
-	sym = make([]LdMachoSym, symtab.nsym)
-	p = symbuf
-	for i = 0; uint32(i) < symtab.nsym; i++ {
+	sym := make([]LdMachoSym, symtab.nsym)
+	p := symbuf
+	var s *LdMachoSym
+	var v uint32
+	for i := 0; uint32(i) < symtab.nsym; i++ {
 		s = &sym[i]
 		v = m.e.Uint32(p)
 		if v >= symtab.strsize {
@@ -421,13 +401,11 @@ func macholoadsym(m *LdMachoObj, symtab *LdMachoSymtab) int {
 
 func ldmacho(f *Biobuf, pkg string, length int64, pn string) {
 	var err error
-	var i int
 	var j int
 	var is64 bool
 	var secaddr uint64
 	var hdr [7 * 4]uint8
 	var cmdp []byte
-	var tmp [4]uint8
 	var dat []byte
 	var ncmd uint32
 	var cmdsz uint32
@@ -436,7 +414,6 @@ func ldmacho(f *Biobuf, pkg string, length int64, pn string) {
 	var off uint32
 	var m *LdMachoObj
 	var e binary.ByteOrder
-	var base int64
 	var sect *LdMachoSect
 	var rel *LdMachoRel
 	var rpi int
@@ -452,7 +429,7 @@ func ldmacho(f *Biobuf, pkg string, length int64, pn string) {
 	var name string
 
 	Ctxt.Version++
-	base = Boffset(f)
+	base := Boffset(f)
 	if Bread(f, hdr[:]) != len(hdr) {
 		goto bad
 	}
@@ -475,6 +452,7 @@ func ldmacho(f *Biobuf, pkg string, length int64, pn string) {
 	}
 
 	if is64 {
+		var tmp [4]uint8
 		Bread(f, tmp[:4]) // skip reserved word in header
 	}
 
@@ -524,7 +502,7 @@ func ldmacho(f *Biobuf, pkg string, length int64, pn string) {
 	symtab = nil
 	dsymtab = nil
 
-	for i = 0; uint32(i) < ncmd; i++ {
+	for i := 0; uint32(i) < ncmd; i++ {
 		ty = e.Uint32(cmdp)
 		sz = e.Uint32(cmdp[4:])
 		m.cmd[i].off = off
@@ -581,7 +559,7 @@ func ldmacho(f *Biobuf, pkg string, length int64, pn string) {
 		goto bad
 	}
 
-	for i = 0; uint32(i) < c.seg.nsect; i++ {
+	for i := 0; uint32(i) < c.seg.nsect; i++ {
 		sect = &c.seg.sect[i]
 		if sect.segname != "__TEXT" && sect.segname != "__DATA" {
 			continue
@@ -623,8 +601,7 @@ func ldmacho(f *Biobuf, pkg string, length int64, pn string) {
 
 	// enter sub-symbols into symbol table.
 	// have to guess sizes from next symbol.
-	for i = 0; uint32(i) < symtab.nsym; i++ {
-		var v int
+	for i := 0; uint32(i) < symtab.nsym; i++ {
 		sym = &symtab.sym[i]
 		if sym.type_&N_STAB != 0 {
 			continue
@@ -636,7 +613,7 @@ func ldmacho(f *Biobuf, pkg string, length int64, pn string) {
 		if name[0] == '_' && name[1] != '\x00' {
 			name = name[1:]
 		}
-		v = 0
+		v := 0
 		if sym.type_&N_EXT == 0 {
 			v = Ctxt.Version
 		}
@@ -688,7 +665,7 @@ func ldmacho(f *Biobuf, pkg string, length int64, pn string) {
 
 	// Sort outer lists by address, adding to textp.
 	// This keeps textp in increasing address order.
-	for i = 0; uint32(i) < c.seg.nsect; i++ {
+	for i := 0; uint32(i) < c.seg.nsect; i++ {
 		sect = &c.seg.sect[i]
 		s = sect.sym
 		if s == nil {
@@ -730,7 +707,7 @@ func ldmacho(f *Biobuf, pkg string, length int64, pn string) {
 	}
 
 	// load relocations
-	for i = 0; uint32(i) < c.seg.nsect; i++ {
+	for i := 0; uint32(i) < c.seg.nsect; i++ {
 		sect = &c.seg.sect[i]
 		s = sect.sym
 		if s == nil {
@@ -746,9 +723,6 @@ func ldmacho(f *Biobuf, pkg string, length int64, pn string) {
 			rp = &r[rpi]
 			rel = &sect.rel[j]
 			if rel.scattered != 0 {
-				var k int
-				var ks *LdMachoSect
-
 				if Thearch.Thechar != '8' {
 					// mach-o only uses scattered relocation on 32-bit platforms
 					Diag("unexpected scattered relocation")
@@ -792,54 +766,53 @@ func ldmacho(f *Biobuf, pkg string, length int64, pn string) {
 
 				// now consider the desired symbol.
 				// find the section where it lives.
-				for k = 0; uint32(k) < c.seg.nsect; k++ {
+				var ks *LdMachoSect
+				for k := 0; uint32(k) < c.seg.nsect; k++ {
 					ks = &c.seg.sect[k]
 					if ks.addr <= uint64(rel.value) && uint64(rel.value) < ks.addr+ks.size {
-						goto foundk
+						if ks.sym != nil {
+							rp.Sym = ks.sym
+							rp.Add += int64(uint64(rel.value) - ks.addr)
+						} else if ks.segname == "__IMPORT" && ks.name == "__pointers" {
+							// handle reference to __IMPORT/__pointers.
+							// how much worse can this get?
+							// why are we supporting 386 on the mac anyway?
+							rp.Type = 512 + MACHO_FAKE_GOTPCREL
+
+							// figure out which pointer this is a reference to.
+							k = int(uint64(ks.res1) + (uint64(rel.value)-ks.addr)/4)
+
+							// load indirect table for __pointers
+							// fetch symbol number
+							if dsymtab == nil || k < 0 || uint32(k) >= dsymtab.nindirectsyms || dsymtab.indir == nil {
+								err = fmt.Errorf("invalid scattered relocation: indirect symbol reference out of range")
+								goto bad
+							}
+
+							k = int(dsymtab.indir[k])
+							if k < 0 || uint32(k) >= symtab.nsym {
+								err = fmt.Errorf("invalid scattered relocation: symbol reference out of range")
+								goto bad
+							}
+
+							rp.Sym = symtab.sym[k].sym
+						} else {
+							err = fmt.Errorf("unsupported scattered relocation: reference to %s/%s", ks.segname, ks.name)
+							goto bad
+						}
+
+						rpi++
+
+						// skip #1 of 2 rel; continue skips #2 of 2.
+						j++
+
+						continue
 					}
 				}
 
 				err = fmt.Errorf("unsupported scattered relocation: invalid address %#x", rel.addr)
 				goto bad
 
-			foundk:
-				if ks.sym != nil {
-					rp.Sym = ks.sym
-					rp.Add += int64(uint64(rel.value) - ks.addr)
-				} else if ks.segname == "__IMPORT" && ks.name == "__pointers" {
-					// handle reference to __IMPORT/__pointers.
-					// how much worse can this get?
-					// why are we supporting 386 on the mac anyway?
-					rp.Type = 512 + MACHO_FAKE_GOTPCREL
-
-					// figure out which pointer this is a reference to.
-					k = int(uint64(ks.res1) + (uint64(rel.value)-ks.addr)/4)
-
-					// load indirect table for __pointers
-					// fetch symbol number
-					if dsymtab == nil || k < 0 || uint32(k) >= dsymtab.nindirectsyms || dsymtab.indir == nil {
-						err = fmt.Errorf("invalid scattered relocation: indirect symbol reference out of range")
-						goto bad
-					}
-
-					k = int(dsymtab.indir[k])
-					if k < 0 || uint32(k) >= symtab.nsym {
-						err = fmt.Errorf("invalid scattered relocation: symbol reference out of range")
-						goto bad
-					}
-
-					rp.Sym = symtab.sym[k].sym
-				} else {
-					err = fmt.Errorf("unsupported scattered relocation: reference to %s/%s", ks.segname, ks.name)
-					goto bad
-				}
-
-				rpi++
-
-				// skip #1 of 2 rel; continue skips #2 of 2.
-				j++
-
-				continue
 			}
 
 			rp.Siz = rel.length

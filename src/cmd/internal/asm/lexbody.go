@@ -45,61 +45,50 @@ import (
  * common code for all the assemblers
  */
 func pragpack() {
-
 	for getnsc() != '\n' {
-
 	}
 }
 
 func pragvararg() {
 	for getnsc() != '\n' {
-
 	}
 }
 
 func pragcgo(name string) {
 	for getnsc() != '\n' {
-
 	}
 }
 
 func pragfpround() {
 	for getnsc() != '\n' {
-
 	}
 }
 
 func pragtextflag() {
 	for getnsc() != '\n' {
-
 	}
 }
 
 func pragdataflag() {
 	for getnsc() != '\n' {
-
 	}
 }
 
 func pragprofile() {
 	for getnsc() != '\n' {
-
 	}
 }
 
 func pragincomplete() {
 	for getnsc() != '\n' {
-
 	}
 }
 
 func setinclude(p string) {
-	var i int
-
 	if p == "" {
 		return
 	}
-	for i = 1; i < len(include); i++ {
+	for i := 1; i < len(include); i++ {
 		if p == include[i] {
 			return
 		}
@@ -117,9 +106,7 @@ func errorexit() {
 }
 
 func pushio() {
-	var i *Io
-
-	i = iostack
+	i := iostack
 	if i == nil {
 		Yyerror("botch in pushio")
 		errorexit()
@@ -129,10 +116,9 @@ func pushio() {
 }
 
 func newio() {
-	var i *Io
 	var pushdepth int = 0
 
-	i = iofree
+	i := iofree
 	if i == nil {
 		pushdepth++
 		if pushdepth > 1000 {
@@ -149,9 +135,7 @@ func newio() {
 }
 
 func newfile(s string, f *os.File) {
-	var i *Io
-
-	i = ionext
+	i := ionext
 	i.Link = iostack
 	iostack = i
 	i.F = f
@@ -175,16 +159,13 @@ func Settext(s *obj.LSym) {
 }
 
 func LabelLookup(s *Sym) *Sym {
-	var p string
-	var lab *Sym
-
 	if thetext == nil {
 		s.Labelname = s.Name
 		return s
 	}
 
-	p = string(fmt.Sprintf("%s.%s", thetext.Name, s.Name))
-	lab = Lookup(p)
+	p := string(fmt.Sprintf("%s.%s", thetext.Name, s.Name))
+	lab := Lookup(p)
 
 	lab.Labelname = s.Name
 	return lab
@@ -249,11 +230,10 @@ type Yylval struct {
 }
 
 func Yylex(yylval *Yylval) int {
-	var c int
 	var c1 int
 	var s *Sym
 
-	c = peekc
+	c := peekc
 	if c != IGN {
 		peekc = IGN
 		goto l1
@@ -282,7 +262,48 @@ l1:
 		goto aloop
 	}
 	if isdigit(c) {
-		goto tnum
+		yybuf.Reset()
+		if c != '0' {
+			goto dc
+		}
+		yybuf.WriteByte(byte(c))
+		c = GETC()
+		c1 = 3
+		if c == 'x' || c == 'X' {
+			c1 = 4
+			c = GETC()
+		} else if c < '0' || c > '7' {
+			goto dc
+		}
+		yylval.Lval = 0
+		for {
+			if c >= '0' && c <= '9' {
+				if c > '7' && c1 == 3 {
+					break
+				}
+				yylval.Lval = int64(uint64(yylval.Lval) << uint(c1))
+				yylval.Lval += int64(c) - '0'
+				c = GETC()
+				continue
+			}
+
+			if c1 == 3 {
+				break
+			}
+			if c >= 'A' && c <= 'F' {
+				c += 'a' - 'A'
+			}
+			if c >= 'a' && c <= 'f' {
+				yylval.Lval = int64(uint64(yylval.Lval) << uint(c1))
+				yylval.Lval += int64(c) - 'a' + 10
+				c = GETC()
+				continue
+			}
+
+			break
+		}
+
+		goto ncu
 	}
 	switch c {
 	case '\n':
@@ -458,50 +479,6 @@ aloop:
 	yylval.Sval = last
 	return int(s.Type)
 
-tnum:
-	yybuf.Reset()
-	if c != '0' {
-		goto dc
-	}
-	yybuf.WriteByte(byte(c))
-	c = GETC()
-	c1 = 3
-	if c == 'x' || c == 'X' {
-		c1 = 4
-		c = GETC()
-	} else if c < '0' || c > '7' {
-		goto dc
-	}
-	yylval.Lval = 0
-	for {
-		if c >= '0' && c <= '9' {
-			if c > '7' && c1 == 3 {
-				break
-			}
-			yylval.Lval = int64(uint64(yylval.Lval) << uint(c1))
-			yylval.Lval += int64(c) - '0'
-			c = GETC()
-			continue
-		}
-
-		if c1 == 3 {
-			break
-		}
-		if c >= 'A' && c <= 'F' {
-			c += 'a' - 'A'
-		}
-		if c >= 'a' && c <= 'f' {
-			yylval.Lval = int64(uint64(yylval.Lval) << uint(c1))
-			yylval.Lval += int64(c) - 'a' + 10
-			c = GETC()
-			continue
-		}
-
-		break
-	}
-
-	goto ncu
-
 dc:
 	for {
 		if !(isdigit(c)) {
@@ -529,9 +506,7 @@ ncu:
 }
 
 func getc() int {
-	var c int
-
-	c = peekc
+	c := peekc
 	if c != IGN {
 		peekc = IGN
 		if c == '\n' {
@@ -571,11 +546,10 @@ func unget(c int) {
 }
 
 func escchar(e int) int {
-	var c int
 	var l int
 
 loop:
-	c = getc()
+	c := getc()
 	if c == '\n' {
 		Yyerror("newline in string")
 		return EOF
@@ -643,11 +617,10 @@ func pinit(f string) {
 }
 
 func filbuf() int {
-	var i *Io
 	var n int
 
 loop:
-	i = iostack
+	i := iostack
 	if i == nil {
 		return EOF
 	}
@@ -705,11 +678,10 @@ func prfile(l int32) {
 }
 
 func GETC() int {
-	var c int
 	if len(fi.P) == 0 {
 		return filbuf()
 	}
-	c = int(fi.P[0])
+	c := int(fi.P[0])
 	fi.P = fi.P[1:]
 	return c
 }

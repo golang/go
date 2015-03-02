@@ -285,39 +285,35 @@ func valuecmp(a *LSym, b *LSym) int {
 }
 
 func ldelf(f *Biobuf, pkg string, length int64, pn string) {
-	var err error
-	var base int32
-	var add uint64
-	var info uint64
-	var name string
-	var i int
-	var j int
-	var rela int
-	var is64 int
-	var n int
-	var flag int
-	var hdrbuf [64]uint8
-	var p []byte
-	var hdr *ElfHdrBytes
-	var elfobj *ElfObj
-	var sect *ElfSect
-	var rsect *ElfSect
-	var sym ElfSym
-	var e binary.ByteOrder
-	var r []Reloc
-	var rp *Reloc
-	var s *LSym
-	var symbols []*LSym
-
-	symbols = nil
+	symbols := []*LSym(nil)
 
 	if Debug['v'] != 0 {
 		fmt.Fprintf(&Bso, "%5.2f ldelf %s\n", obj.Cputime(), pn)
 	}
 
 	Ctxt.Version++
-	base = int32(Boffset(f))
+	base := int32(Boffset(f))
 
+	var add uint64
+	var e binary.ByteOrder
+	var elfobj *ElfObj
+	var err error
+	var flag int
+	var hdr *ElfHdrBytes
+	var hdrbuf [64]uint8
+	var info uint64
+	var is64 int
+	var j int
+	var n int
+	var name string
+	var p []byte
+	var r []Reloc
+	var rela int
+	var rp *Reloc
+	var rsect *ElfSect
+	var s *LSym
+	var sect *ElfSect
+	var sym ElfSym
 	if Bread(f, hdrbuf[:]) != len(hdrbuf) {
 		goto bad
 	}
@@ -348,10 +344,8 @@ func ldelf(f *Biobuf, pkg string, length int64, pn string) {
 
 	is64 = 0
 	if hdr.Ident[4] == ElfClass64 {
-		var hdr *ElfHdrBytes64
-
 		is64 = 1
-		hdr = new(ElfHdrBytes64)
+		hdr := new(ElfHdrBytes64)
 		binary.Read(bytes.NewReader(hdrbuf[:]), binary.BigEndian, hdr) // only byte arrays; byte order doesn't matter
 		elfobj.type_ = uint32(e.Uint16(hdr.Type[:]))
 		elfobj.machine = uint32(e.Uint16(hdr.Machine[:]))
@@ -426,7 +420,7 @@ func ldelf(f *Biobuf, pkg string, length int64, pn string) {
 	elfobj.sect = make([]ElfSect, elfobj.shnum)
 
 	elfobj.nsect = uint(elfobj.shnum)
-	for i = 0; uint(i) < elfobj.nsect; i++ {
+	for i := 0; uint(i) < elfobj.nsect; i++ {
 		if Bseek(f, int64(uint64(base)+elfobj.shoff+uint64(int64(i)*int64(elfobj.shentsize))), 0) < 0 {
 			goto bad
 		}
@@ -478,7 +472,7 @@ func ldelf(f *Biobuf, pkg string, length int64, pn string) {
 	if err = elfmap(elfobj, sect); err != nil {
 		goto bad
 	}
-	for i = 0; uint(i) < elfobj.nsect; i++ {
+	for i := 0; uint(i) < elfobj.nsect; i++ {
 		if elfobj.sect[i].nameoff != 0 {
 			elfobj.sect[i].name = cstring(sect.base[elfobj.sect[i].nameoff:])
 		}
@@ -517,7 +511,7 @@ func ldelf(f *Biobuf, pkg string, length int64, pn string) {
 	// as well use one large chunk.
 
 	// create symbols for elfmapped sections
-	for i = 0; uint(i) < elfobj.nsect; i++ {
+	for i := 0; uint(i) < elfobj.nsect; i++ {
 		sect = &elfobj.sect[i]
 		if (sect.type_ != ElfSectProgbits && sect.type_ != ElfSectNobits) || sect.flags&ElfSectFlagAlloc == 0 {
 			continue
@@ -572,7 +566,7 @@ func ldelf(f *Biobuf, pkg string, length int64, pn string) {
 		Errorexit()
 	}
 
-	for i = 1; i < elfobj.nsymtab; i++ {
+	for i := 1; i < elfobj.nsymtab; i++ {
 		if err = readelfsym(elfobj, i, &sym, 1); err != nil {
 			goto bad
 		}
@@ -645,7 +639,7 @@ func ldelf(f *Biobuf, pkg string, length int64, pn string) {
 
 	// Sort outer lists by address, adding to textp.
 	// This keeps textp in increasing address order.
-	for i = 0; uint(i) < elfobj.nsect; i++ {
+	for i := 0; uint(i) < elfobj.nsect; i++ {
 		s = elfobj.sect[i].sym
 		if s == nil {
 			continue
@@ -676,7 +670,7 @@ func ldelf(f *Biobuf, pkg string, length int64, pn string) {
 	}
 
 	// load relocations
-	for i = 0; uint(i) < elfobj.nsect; i++ {
+	for i := 0; uint(i) < elfobj.nsect; i++ {
 		rsect = &elfobj.sect[i]
 		if rsect.type_ != ElfSectRela && rsect.type_ != ElfSectRel {
 			continue
@@ -782,9 +776,7 @@ bad:
 }
 
 func section(elfobj *ElfObj, name string) *ElfSect {
-	var i int
-
-	for i = 0; uint(i) < elfobj.nsect; i++ {
+	for i := 0; uint(i) < elfobj.nsect; i++ {
 		if elfobj.sect[i].name != "" && name != "" && elfobj.sect[i].name == name {
 			return &elfobj.sect[i]
 		}
@@ -812,8 +804,6 @@ func elfmap(elfobj *ElfObj, sect *ElfSect) (err error) {
 }
 
 func readelfsym(elfobj *ElfObj, i int, sym *ElfSym, needSym int) (err error) {
-	var s *LSym
-
 	if i >= elfobj.nsymtab || i < 0 {
 		err = fmt.Errorf("invalid elf symbol index")
 		return err
@@ -845,7 +835,7 @@ func readelfsym(elfobj *ElfObj, i int, sym *ElfSym, needSym int) (err error) {
 		sym.other = b.Other
 	}
 
-	s = nil
+	s := (*LSym)(nil)
 	if sym.name == "_GLOBAL_OFFSET_TABLE_" {
 		sym.name = ".got"
 	}
@@ -940,11 +930,8 @@ func (x rbyoff) Swap(i, j int) {
 }
 
 func (x rbyoff) Less(i, j int) bool {
-	var a *Reloc
-	var b *Reloc
-
-	a = &x[i]
-	b = &x[j]
+	a := &x[i]
+	b := &x[j]
 	if a.Off < b.Off {
 		return true
 	}

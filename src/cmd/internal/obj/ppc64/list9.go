@@ -54,14 +54,9 @@ const (
 var bigP *obj.Prog
 
 func Pconv(p *obj.Prog) string {
-	var str string
-	var fp string
+	a := int(p.As)
 
-	var a int
-
-	a = int(p.As)
-
-	str = ""
+	str := ""
 	if a == obj.ADATA {
 		str = fmt.Sprintf("%.5d (%v)\t%v\t%v/%d,%v",
 			p.Pc, p.Line(), Aconv(a), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
@@ -107,23 +102,23 @@ func Pconv(p *obj.Prog) string {
 		}
 
 		if p.Spadj != 0 {
+			var fp string
 			fp += fmt.Sprintf("%s # spadj=%d", str, p.Spadj)
 			return fp
 		}
 	}
 
+	var fp string
 	fp += str
 	return fp
 }
 
 func Aconv(a int) string {
-	var s string
-	var fp string
-
-	s = "???"
+	s := "???"
 	if a >= obj.AXXX && a < ALAST {
 		s = Anames[a]
 	}
+	var fp string
 	fp += s
 	return fp
 }
@@ -177,13 +172,11 @@ func Rconv(r int) string {
 }
 
 func DRconv(a int) string {
-	var s string
-	var fp string
-
-	s = "C_??"
+	s := "C_??"
 	if a >= C_NONE && a <= C_NCLASS {
 		s = cnames9[a]
 	}
+	var fp string
 	fp += s
 	return fp
 }

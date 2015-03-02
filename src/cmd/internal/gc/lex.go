@@ -844,7 +844,6 @@ type Loophack struct {
 var _yylex_lstk *Loophack
 
 func _yylex(yylval *yySymType) int32 {
-	var c int
 	var c1 int
 	var escflag int
 	var v int64
@@ -857,7 +856,7 @@ func _yylex(yylval *yySymType) int32 {
 	prevlineno = lineno
 
 l0:
-	c = getc()
+	c := getc()
 	if yy_isspace(c) {
 		if c == '\n' && curio.nlsemi != 0 {
 			ungetc(c)
@@ -887,7 +886,82 @@ l0:
 	}
 
 	if yy_isdigit(c) {
-		goto tnum
+		cp = &lexbuf
+		cp.Reset()
+		if c != '0' {
+			for {
+				cp.WriteByte(byte(c))
+				c = getc()
+				if yy_isdigit(c) {
+					continue
+				}
+				if c == '.' {
+					goto casedot
+				}
+				if c == 'e' || c == 'E' || c == 'p' || c == 'P' {
+					goto caseep
+				}
+				if c == 'i' {
+					goto casei
+				}
+				goto ncu
+			}
+		}
+
+		cp.WriteByte(byte(c))
+		c = getc()
+		if c == 'x' || c == 'X' {
+			for {
+				cp.WriteByte(byte(c))
+				c = getc()
+				if yy_isdigit(c) {
+					continue
+				}
+				if c >= 'a' && c <= 'f' {
+					continue
+				}
+				if c >= 'A' && c <= 'F' {
+					continue
+				}
+				if lexbuf.Len() == 2 {
+					Yyerror("malformed hex constant")
+				}
+				if c == 'p' {
+					goto caseep
+				}
+				goto ncu
+			}
+		}
+
+		if c == 'p' { // 0p begins floating point zero
+			goto caseep
+		}
+
+		c1 = 0
+		for {
+			if !yy_isdigit(c) {
+				break
+			}
+			if c < '0' || c > '7' {
+				c1 = 1 // not octal
+			}
+			cp.WriteByte(byte(c))
+			c = getc()
+		}
+
+		if c == '.' {
+			goto casedot
+		}
+		if c == 'e' || c == 'E' {
+			goto caseep
+		}
+		if c == 'i' {
+			goto casei
+		}
+		if c1 != 0 {
+			Yyerror("malformed octal constant")
+		}
+		goto ncu
 	}
 
 	switch c {
@@ -1321,86 +1395,6 @@ talph:
 	yylval.sym = s
 	return int32(s.Lexical)
 
-tnum:
-	cp = &lexbuf
-	cp.Reset()
-	if c != '0' {
-		for {
-			cp.WriteByte(byte(c))
-			c = getc()
-			if yy_isdigit(c) {
-				continue
-			}
-			goto dc
-		}
-	}
-
-	cp.WriteByte(byte(c))
-	c = getc()
-	if c == 'x' || c == 'X' {
-		for {
-			cp.WriteByte(byte(c))
-			c = getc()
-			if yy_isdigit(c) {
-				continue
-			}
-			if c >= 'a' && c <= 'f' {
-				continue
-			}
-			if c >= 'A' && c <= 'F' {
-				continue
-			}
-			if lexbuf.Len() == 2 {
-				Yyerror("malformed hex constant")
-			}
-			if c == 'p' {
-				goto caseep
-			}
-			goto ncu
-		}
-	}
-
-	if c == 'p' { // 0p begins floating point zero
-		goto caseep
-	}
-
-	c1 = 0
-	for {
-		if !yy_isdigit(c) {
-			break
-		}
-		if c < '0' || c > '7' {
-			c1 = 1 // not octal
-		}
-		cp.WriteByte(byte(c))
-		c = getc()
-	}
-
-	if c == '.' {
-		goto casedot
-	}
-	if c == 'e' || c == 'E' {
-		goto caseep
-	}
-	if c == 'i' {
-		goto casei
-	}
-	if c1 != 0 {
-		Yyerror("malformed octal constant")
-	}
-	goto ncu
-
-dc:
-	if c == '.' {
-		goto casedot
-	}
-	if c == 'e' || c == 'E' || c == 'p' || c == 'P' {
-		goto caseep
-	}
-	if c == 'i' {
-		goto casei
-	}
-
 ncu:
 	cp = nil
 	ungetc(c)
@@ -1523,31 +1517,90 @@ func more(pp *string) bool {
  */
 func getlinepragma() int {
 	var cmd, verb, name string
-	var n int
-	var cp *bytes.Buffer
-	var linep int
 
 	c := int(getr())
 	if c == 'g' {
-		goto go_
+		cp := &lexbuf
+		cp.Reset()
+		cp.WriteByte('g') // already read
+		for {
+			c = int(getr())
+			if c == EOF || c >= utf8.RuneSelf {
+				return c
+			}
+			if c == '\n' {
+				break
+			}
+			cp.WriteByte(byte(c))
+		}
+
+		cp = nil
+
+		if strings.HasPrefix(lexbuf.String(), "go:cgo_") {
+			pragcgo(lexbuf.String())
+		}
+
+		cmd = lexbuf.String()
+		verb = cmd
+		if i := strings.Index(verb, " "); i >= 0 {
+			verb = verb[:i]
+		}
+
+		if verb == "go:linkname" {
+			if imported_unsafe == 0 {
+				Yyerror("//go:linkname only allowed in Go files that import \"unsafe\"")
+			}
+			f := strings.Fields(cmd)
+			if len(f) != 3 {
+				Yyerror("usage: //go:linkname localname linkname")
+				return c
+			}
+
+			Lookup(f[1]).Linkname = f[2]
+			return c
+		}
+
+		if verb == "go:nointerface" && obj.Fieldtrack_enabled != 0 {
+			nointerface = true
+			return c
+		}
+
+		if verb == "go:noescape" {
+			noescape = true
+			return c
+		}
+
+		if verb == "go:nosplit" {
+			nosplit = true
+			return c
+		}
+
+		if verb == "go:nowritebarrier" {
+			if compiling_runtime == 0 {
+				Yyerror("//go:nowritebarrier only allowed in runtime")
+			}
+			nowritebarrier = true
+			return c
+		}
+		return c
 	}
 	if c != 'l' {
-		goto out
+		return c
 	}
 	for i := 1; i < 5; i++ {
 		c = int(getr())
 		if c != int("line "[i]) {
-			goto out
+			return c
 		}
 	}
 
-	cp = &lexbuf
+	cp := &lexbuf
 	cp.Reset()
-	linep = 0
+	linep := 0
 	for {
 		c = int(getr())
 		if c == EOF {
-			goto out
+			return c
 		}
 		if c == '\n' {
 			break
@@ -1564,9 +1617,9 @@ func getlinepragma() int {
 	cp = nil
 
 	if linep == 0 {
-		goto out
+		return c
 	}
-	n = 0
+	n := 0
 	for _, c := range lexbuf.String()[linep:] {
 		if c < '0' || c > '9' {
 			goto out
@@ -1579,7 +1632,7 @@ func getlinepragma() int {
 	}
 
 	if n <= 0 {
-		goto out
+		return c
 	}
 
 	// try to avoid allocating file name over and over
@@ -1587,76 +1640,12 @@ func getlinepragma() int {
 	for h := Ctxt.Hist; h != nil; h = h.Link {
 		if h.Name != "" && h.Name == name {
 			linehist(h.Name, int32(n), 0)
-			goto out
+			return c
 		}
 	}
 
 	linehist(name, int32(n), 0)
-	goto out
-
-go_:
-	cp = &lexbuf
-	cp.Reset()
-	cp.WriteByte('g') // already read
-	for {
-		c = int(getr())
-		if c == EOF || c >= utf8.RuneSelf {
-			goto out
-		}
-		if c == '\n' {
-			break
-		}
-		cp.WriteByte(byte(c))
-	}
-
-	cp = nil
-
-	if strings.HasPrefix(lexbuf.String(), "go:cgo_") {
-		pragcgo(lexbuf.String())
-	}
-
-	cmd = lexbuf.String()
-	verb = cmd
-	if i := strings.Index(verb, " "); i >= 0 {
-		verb = verb[:i]
-	}
-
-	if verb == "go:linkname" {
-		if imported_unsafe == 0 {
-			Yyerror("//go:linkname only allowed in Go files that import \"unsafe\"")
-		}
-		f := strings.Fields(cmd)
-		if len(f) != 3 {
-			Yyerror("usage: //go:linkname localname linkname")
-			goto out
-		}
-
-		Lookup(f[1]).Linkname = f[2]
-		goto out
-	}
-
-	if verb == "go:nointerface" && obj.Fieldtrack_enabled != 0 {
-		nointerface = true
-		goto out
-	}
-
-	if verb == "go:noescape" {
-		noescape = true
-		goto out
-	}
-
-	if verb == "go:nosplit" {
-		nosplit = true
-		goto out
-	}
-
-	if verb == "go:nowritebarrier" {
-		if compiling_runtime == 0 {
-			Yyerror("//go:nowritebarrier only allowed in runtime")
-		}
-		nowritebarrier = true
-		goto out
-	}
+	return c
 
 out:
 	return c
@@ -1708,14 +1697,12 @@ func pragcgo(text string) {
 		var p string
 		p, ok = getquoted(&q)
 		if !ok {
-			goto err1
+			Yyerror("usage: //go:cgo_dynamic_linker \"path\"")
+			return
 		}
 		pragcgobuf += fmt.Sprintf("cgo_dynamic_linker %v\n", plan9quote(p))
-		goto out
+		return
 
-	err1:
-		Yyerror("usage: //go:cgo_dynamic_linker \"path\"")
-		goto out
 	}
 
 	if verb == "dynexport" {
@@ -1729,7 +1716,7 @@ func pragcgo(text string) {
 		}
 		if !more(&q) {
 			pragcgobuf += fmt.Sprintf("%s %v\n", verb, plan9quote(local))
-			goto out
+			return
 		}
 
 		remote = getimpsym(&q)
@@ -1737,11 +1724,11 @@ func pragcgo(text string) {
 			goto err2
 		}
 		pragcgobuf += fmt.Sprintf("%s %v %v\n", verb, plan9quote(local), plan9quote(remote))
-		goto out
+		return
 
 	err2:
 		Yyerror("usage: //go:%s local [remote]", verb)
-		goto out
+		return
 	}
 
 	if verb == "cgo_import_dynamic" || verb == "dynimport" {
@@ -1754,7 +1741,7 @@ func pragcgo(text string) {
 		}
 		if !more(&q) {
 			pragcgobuf += fmt.Sprintf("cgo_import_dynamic %v\n", plan9quote(local))
-			goto out
+			return
 		}
 
 		remote = getimpsym(&q)
@@ -1763,7 +1750,7 @@ func pragcgo(text string) {
 		}
 		if !more(&q) {
 			pragcgobuf += fmt.Sprintf("cgo_import_dynamic %v %v\n", plan9quote(local), plan9quote(remote))
-			goto out
+			return
 		}
 
 		p, ok = getquoted(&q)
@@ -1771,24 +1758,22 @@ func pragcgo(text string) {
 			goto err3
 		}
 		pragcgobuf += fmt.Sprintf("cgo_import_dynamic %v %v %v\n", plan9quote(local), plan9quote(remote), plan9quote(p))
-		goto out
+		return
 
 	err3:
 		Yyerror("usage: //go:cgo_import_dynamic local [remote [\"library\"]]")
-		goto out
+		return
 	}
 
 	if verb == "cgo_import_static" {
 		local := getimpsym(&q)
 		if local == "" || more(&q) {
-			goto err4
+			Yyerror("usage: //go:cgo_import_static local")
+			return
 		}
 		pragcgobuf += fmt.Sprintf("cgo_import_static %v\n", plan9quote(local))
-		goto out
+		return
 
-	err4:
-		Yyerror("usage: //go:cgo_import_static local")
-		goto out
 	}
 
 	if verb == "cgo_ldflag" {
@@ -1796,17 +1781,13 @@ func pragcgo(text string) {
 		var p string
 		p, ok = getquoted(&q)
 		if !ok {
-			goto err5
+			Yyerror("usage: //go:cgo_ldflag \"arg\"")
+			return
 		}
 		pragcgobuf += fmt.Sprintf("cgo_ldflag %v\n", plan9quote(p))
-		goto out
+		return
 
-	err5:
-		Yyerror("usage: //go:cgo_ldflag \"arg\"")
-		goto out
 	}
-
-out:
 }
 
 type yy struct{}
@@ -1983,7 +1964,6 @@ func escchar(e int, escflg *int, val *int64) bool {
 
 	u := 0
 	c = int(getr())
-	var l int64
 	var i int
 	switch c {
 	case 'x':
@@ -2010,7 +1990,24 @@ func escchar(e int, escflg *int, val *int64) bool {
 		'6',
 		'7':
 		*escflg = 1 // it's a byte
-		goto oct
+		l := int64(c) - '0'
+		for i := 2; i > 0; i-- {
+			c = getc()
+			if c >= '0' && c <= '7' {
+				l = l*8 + int64(c) - '0'
+				continue
+			}
+
+			Yyerror("non-octal character in escape sequence: %c", c)
+			ungetc(c)
+		}
+
+		if l > 255 {
+			Yyerror("octal escape value > 255: %d", l)
+		}
+
+		*val = l
+		return false
 
 	case 'a':
 		c = '\a'
@@ -2039,7 +2036,7 @@ func escchar(e int, escflg *int, val *int64) bool {
 	return false
 
 hex:
-	l = 0
+	l := int64(0)
 	for ; i > 0; i-- {
 		c = getc()
 		if c >= '0' && c <= '9' {
@@ -2065,26 +2062,6 @@ hex:
 	if u != 0 && (l > utf8.MaxRune || (0xd800 <= l && l < 0xe000)) {
 		Yyerror("invalid Unicode code point in escape sequence: %#x", l)
 		l = utf8.RuneError
-	}
-
-	*val = l
-	return false
-
-oct:
-	l = int64(c) - '0'
-	for i := 2; i > 0; i-- {
-		c = getc()
-		if c >= '0' && c <= '7' {
-			l = l*8 + int64(c) - '0'
-			continue
-		}
-
-		Yyerror("non-octal character in escape sequence: %c", c)
-		ungetc(c)
-	}
-
-	if l > 255 {
-		Yyerror("octal escape value > 255: %d", l)
 	}
 
 	*val = l

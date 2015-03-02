@@ -40,13 +40,9 @@ import (
 // iteration over encoded pcdata tables.
 
 func getvarint(pp *[]byte) uint32 {
-	var p []byte
-	var shift int
-	var v uint32
-
-	v = 0
-	p = *pp
-	for shift = 0; ; shift += 7 {
+	v := uint32(0)
+	p := *pp
+	for shift := 0; ; shift += 7 {
 		v |= uint32(p[0]&0x7F) << uint(shift)
 		tmp4 := p
 		p = p[1:]
@@ -60,9 +56,6 @@ func getvarint(pp *[]byte) uint32 {
 }
 
 func pciternext(it *Pciter) {
-	var v uint32
-	var dv int32
-
 	it.pc = it.nextpc
 	if it.done != 0 {
 		return
@@ -73,7 +66,7 @@ func pciternext(it *Pciter) {
 	}
 
 	// value delta
-	v = getvarint(&it.p)
+	v := getvarint(&it.p)
 
 	if v == 0 && it.start == 0 {
 		it.done = 1
@@ -81,7 +74,7 @@ func pciternext(it *Pciter) {
 	}
 
 	it.start = 0
-	dv = int32(v>>1) ^ (int32(v<<31) >> 31)
+	dv := int32(v>>1) ^ (int32(v<<31) >> 31)
 	it.value += dv
 
 	// pc delta
@@ -107,12 +100,8 @@ func pciterinit(ctxt *Link, it *Pciter, d *Pcdata) {
 // license that can be found in the LICENSE file.
 
 func addvarint(d *Pcdata, val uint32) {
-	var n int32
-	var v uint32
-	var p []byte
-
-	n = 0
-	for v = val; v >= 0x80; v >>= 7 {
+	n := int32(0)
+	for v := val; v >= 0x80; v >>= 7 {
 		n++
 	}
 	n++
@@ -123,7 +112,8 @@ func addvarint(d *Pcdata, val uint32) {
 	}
 	d.P = d.P[:old+int(n)]
 
-	p = d.P[old:]
+	p := d.P[old:]
+	var v uint32
 	for v = val; v >= 0x80; v >>= 7 {
 		p[0] = byte(v | 0x80)
 		p = p[1:]
@@ -132,9 +122,7 @@ func addvarint(d *Pcdata, val uint32) {
 }
 
 func addpctab(ftab *LSym, off int32, d *Pcdata) int32 {
-	var start int32
-
-	start = int32(len(ftab.P))
+	start := int32(len(ftab.P))
 	Symgrow(Ctxt, ftab, int64(start)+int64(len(d.P)))
 	copy(ftab.P[start:], d.P)
 
@@ -142,29 +130,18 @@ func addpctab(ftab *LSym, off int32, d *Pcdata) int32 {
 }
 
 func ftabaddstring(ftab *LSym, s string) int32 {
-	var n int32
-	var start int32
-
-	n = int32(len(s)) + 1
-	start = int32(len(ftab.P))
+	n := int32(len(s)) + 1
+	start := int32(len(ftab.P))
 	Symgrow(Ctxt, ftab, int64(start)+int64(n)+1)
 	copy(ftab.P[start:], s)
 	return start
 }
 
 func renumberfiles(ctxt *Link, files []*LSym, d *Pcdata) {
-	var i int
 	var f *LSym
-	var out Pcdata
-	var it Pciter
-	var v uint32
-	var oldval int32
-	var newval int32
-	var val int32
-	var dv int32
 
 	// Give files numbers.
-	for i = 0; i < len(files); i++ {
+	for i := 0; i < len(files); i++ {
 		f = files[i]
 		if f.Type != SFILEPATH {
 			ctxt.Nhistfile++
@@ -175,9 +152,14 @@ func renumberfiles(ctxt *Link, files []*LSym, d *Pcdata) {
 		}
 	}
 
-	newval = -1
-	out = Pcdata{}
+	newval := int32(-1)
+	out := Pcdata{}
 
+	var dv int32
+	var it Pciter
+	var oldval int32
+	var v uint32
+	var val int32
 	for pciterinit(ctxt, &it, d); it.done == 0; pciternext(&it) {
 		// value delta
 		oldval = it.value
@@ -221,22 +203,8 @@ func container(s *LSym) int {
 var pclntab_zpcln Pcln
 
 func pclntab() {
-	var i int32
-	var nfunc int32
-	var start int32
-	var funcstart int32
-	var ftab *LSym
-	var s *LSym
-	var last *LSym
-	var off int32
-	var end int32
-	var frameptrsize int32
-	var funcdata_bytes int64
-	var pcln *Pcln
-	var it Pciter
-
-	funcdata_bytes = 0
-	ftab = Linklookup(Ctxt, "runtime.pclntab", 0)
+	funcdata_bytes := int64(0)
+	ftab := Linklookup(Ctxt, "runtime.pclntab", 0)
 	ftab.Type = SPCLNTAB
 	ftab.Reachable = true
 
@@ -246,7 +214,7 @@ func pclntab() {
 	//	function table, alternating PC and offset to func struct [each entry thearch.ptrsize bytes]
 	//	end PC [thearch.ptrsize bytes]
 	//	offset to file table [4 bytes]
-	nfunc = 0
+	nfunc := int32(0)
 
 	for Ctxt.Cursym = Ctxt.Textp; Ctxt.Cursym != nil; Ctxt.Cursym = Ctxt.Cursym.Next {
 		if container(Ctxt.Cursym) == 0 {
@@ -261,7 +229,14 @@ func pclntab() {
 	setuintxx(Ctxt, ftab, 8, uint64(nfunc), int64(Thearch.Ptrsize))
 
 	nfunc = 0
-	last = nil
+	last := (*LSym)(nil)
+	var end int32
+	var frameptrsize int32
+	var funcstart int32
+	var i int32
+	var it Pciter
+	var off int32
+	var pcln *Pcln
 	for Ctxt.Cursym = Ctxt.Textp; Ctxt.Cursym != nil; Ctxt.Cursym = Ctxt.Cursym.Next {
 		last = Ctxt.Cursym
 		if container(Ctxt.Cursym) != 0 {
@@ -366,14 +341,14 @@ func pclntab() {
 	setaddrplus(Ctxt, ftab, 8+int64(Thearch.Ptrsize)+int64(nfunc)*2*int64(Thearch.Ptrsize), last, last.Size)
 
 	// Start file table.
-	start = int32(len(ftab.P))
+	start := int32(len(ftab.P))
 
 	start += int32(-len(ftab.P)) & (int32(Thearch.Ptrsize) - 1)
 	setuint32(Ctxt, ftab, 8+int64(Thearch.Ptrsize)+int64(nfunc)*2*int64(Thearch.Ptrsize)+int64(Thearch.Ptrsize), uint32(start))
 
 	Symgrow(Ctxt, ftab, int64(start)+(int64(Ctxt.Nhistfile)+1)*4)
 	setuint32(Ctxt, ftab, int64(start), uint32(Ctxt.Nhistfile))
-	for s = Ctxt.Filesyms; s != nil; s = s.Next {
+	for s := Ctxt.Filesyms; s != nil; s = s.Next {
 		setuint32(Ctxt, ftab, int64(start)+s.Value*4, uint32(ftabaddstring(ftab, s.Name)))
 	}
 
@@ -394,43 +369,32 @@ const (
 // findfunctab generates a lookup table to quickly find the containing
 // function for a pc.  See src/runtime/symtab.go:findfunc for details.
 func findfunctab() {
-	var t *LSym
-	var s *LSym
-	var e *LSym
-	var idx int32
-	var i int32
-	var j int32
-	var nbuckets int32
-	var n int32
-	var base int32
-	var min int64
-	var max int64
-	var p int64
-	var q int64
-	var indexes []int32
-
-	t = Linklookup(Ctxt, "runtime.findfunctab", 0)
+	t := Linklookup(Ctxt, "runtime.findfunctab", 0)
 	t.Type = SRODATA
 	t.Reachable = true
 
 	// find min and max address
-	min = Ctxt.Textp.Value
+	min := Ctxt.Textp.Value
 
-	max = 0
-	for s = Ctxt.Textp; s != nil; s = s.Next {
+	max := int64(0)
+	for s := Ctxt.Textp; s != nil; s = s.Next {
 		max = s.Value + s.Size
 	}
 
 	// for each subbucket, compute the minimum of all symbol indexes
 	// that map to that subbucket.
-	n = int32((max - min + SUBBUCKETSIZE - 1) / SUBBUCKETSIZE)
+	n := int32((max - min + SUBBUCKETSIZE - 1) / SUBBUCKETSIZE)
 
-	indexes = make([]int32, n)
-	for i = 0; i < n; i++ {
+	indexes := make([]int32, n)
+	for i := int32(0); i < n; i++ {
 		indexes[i] = NOIDX
 	}
-	idx = 0
-	for s = Ctxt.Textp; s != nil; s = s.Next {
+	idx := int32(0)
+	var e *LSym
+	var i int32
+	var p int64
+	var q int64
+	for s := Ctxt.Textp; s != nil; s = s.Next {
 		if container(s) != 0 {
 			continue
 		}
@@ -461,12 +425,14 @@ func findfunctab() {
 	}
 
 	// allocate table
-	nbuckets = int32((max - min + BUCKETSIZE - 1) / BUCKETSIZE)
+	nbuckets := int32((max - min + BUCKETSIZE - 1) / BUCKETSIZE)
 
 	Symgrow(Ctxt, t, 4*int64(nbuckets)+int64(n))
 
 	// fill in table
-	for i = 0; i < nbuckets; i++ {
+	var base int32
+	var j int32
+	for i := int32(0); i < nbuckets; i++ {
 		base = indexes[i*SUBBUCKETS]
 		if base == NOIDX {
 			Diag("hole in findfunctab")

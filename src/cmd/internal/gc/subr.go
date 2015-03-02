@@ -1014,14 +1014,14 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
 				Fatal("struct/interface missing field: %v %v", Tconv(t1, 0), Tconv(t2, 0))
 			}
 			if t1.Sym != t2.Sym || t1.Embedded != t2.Embedded || !eqtype1(t1.Type, t2.Type, &l) || !eqnote(t1.Note, t2.Note) {
-				goto no
+				return false
 			}
 		}
 
 		if t1 == nil && t2 == nil {
-			goto yes
+			return true
 		}
-		goto no
+		return false
 
 		// Loop over structs: receiver, in, out.
 	case TFUNC:
@@ -1043,40 +1043,34 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
 					Fatal("func struct missing field: %v %v", Tconv(ta, 0), Tconv(tb, 0))
 				}
 				if ta.Isddd != tb.Isddd || !eqtype1(ta.Type, tb.Type, &l) {
-					goto no
+					return false
 				}
 			}
 
 			if ta != nil || tb != nil {
-				goto no
+				return false
 			}
 		}
 
 		if t1 == nil && t2 == nil {
-			goto yes
+			return true
 		}
-		goto no
+		return false
 
 	case TARRAY:
 		if t1.Bound != t2.Bound {
-			goto no
+			return false
 		}
 
 	case TCHAN:
 		if t1.Chan != t2.Chan {
-			goto no
+			return false
 		}
 	}
 
 	if eqtype1(t1.Down, t2.Down, &l) && eqtype1(t1.Type, t2.Type, &l) {
-		goto yes
+		return true
 	}
-	goto no
-
-yes:
-	return true
-
-no:
 	return false
 }
 
@@ -1376,10 +1370,8 @@ func assignconv(n *Node, t *Type, context string) *Node {
 }
 
 func subtype(stp **Type, t *Type, d int) bool {
-	var st *Type
-
 loop:
-	st = *stp
+	st := *stp
 	if st == nil {
 		return false
 	}
@@ -1762,7 +1754,7 @@ func Structfirst(s *Iter, nn **Type) *Type {
 
 	t = n.Type
 	if t == nil {
-		goto rnil
+		return nil
 	}
 
 	if t.Etype != TFIELD {
@@ -1775,7 +1767,6 @@ func Structfirst(s *Iter, nn **Type) *Type {
 bad:
 	Fatal("structfirst: not struct %v", Tconv(n, 0))
 
-rnil:
 	return nil
 }
 
@@ -1783,21 +1774,17 @@ func structnext(s *Iter) *Type {
 	n := s.T
 	t := n.Down
 	if t == nil {
-		goto rnil
+		return nil
 	}
 
 	if t.Etype != TFIELD {
-		goto bad
+		Fatal("structnext: not struct %v", Tconv(n, 0))
+
+		return nil
 	}
 
 	s.T = t
 	return t
-
-bad:
-	Fatal("structnext: not struct %v", Tconv(n, 0))
-
-rnil:
-	return nil
 }
 
 /*
@@ -2135,54 +2122,47 @@ out:
 // will give shortest unique addressing.
 // modify the tree with missing type names.
 func adddot(n *Node) *Node {
-	var s *Sym
-	var c int
-	var d int
-
 	typecheck(&n.Left, Etype|Erv)
 	n.Diag |= n.Left.Diag
 	t := n.Left.Type
 	if t == nil {
-		goto ret
-	}
-
-	if n.Left.Op == OTYPE {
-		goto ret
-	}
-
-	if n.Right.Op != ONAME {
-		goto ret
-	}
-	s = n.Right.Sym
-	if s == nil {
-		goto ret
-	}
-
-	for d = 0; d < len(dotlist); d++ {
-		c = adddot1(s, t, d, nil, 0)
-		if c > 0 {
-			goto out
-		}
-	}
-
-	goto ret
-
-out:
-	if c > 1 {
-		Yyerror("ambiguous selector %v", Nconv(n, 0))
-		n.Left = nil
 		return n
 	}
 
-	// rebuild elided dots
-	for c := d - 1; c >= 0; c-- {
-		if n.Left.Type != nil && Isptr[n.Left.Type.Etype] != 0 {
-			n.Left.Implicit = 1
-		}
-		n.Left = Nod(ODOT, n.Left, newname(dotlist[c].field.Sym))
+	if n.Left.Op == OTYPE {
+		return n
 	}
 
-ret:
+	if n.Right.Op != ONAME {
+		return n
+	}
+	s := n.Right.Sym
+	if s == nil {
+		return n
+	}
+
+	var c int
+	for d := 0; d < len(dotlist); d++ {
+		c = adddot1(s, t, d, nil, 0)
+		if c > 0 {
+			if c > 1 {
+				Yyerror("ambiguous selector %v", Nconv(n, 0))
+				n.Left = nil
+				return n
+			}
+
+			// rebuild elided dots
+			for c := d - 1; c >= 0; c-- {
+				if n.Left.Type != nil && Isptr[n.Left.Type.Etype] != 0 {
+					n.Left.Implicit = 1
+				}
+				n.Left = Nod(ODOT, n.Left, newname(dotlist[c].field.Sym))
+			}
+
+			return n
+		}
+	}
+
 	return n
 }
 
@@ -3301,18 +3281,15 @@ func structcount(t *Type) int {
  * 1000+ if it is a -(power of 2)
  */
 func powtwo(n *Node) int {
-	var v uint64
-	var b uint64
-
 	if n == nil || n.Op != OLITERAL || n.Type == nil {
-		goto no
+		return -1
 	}
 	if Isint[n.Type.Etype] == 0 {
-		goto no
+		return -1
 	}
 
-	v = uint64(Mpgetfix(n.Val.U.Xval))
-	b = 1
+	v := uint64(Mpgetfix(n.Val.U.Xval))
+	b := uint64(1)
 	for i := 0; i < 64; i++ {
 		if b == v {
 			return i
@@ -3321,7 +3298,7 @@ func powtwo(n *Node) int {
 	}
 
 	if Issigned[n.Type.Etype] == 0 {
-		goto no
+		return -1
 	}
 
 	v = -v
@@ -3333,7 +3310,6 @@ func powtwo(n *Node) int {
 		b = b << 1
 	}
 
-no:
 	return -1
 }
 
@@ -3592,22 +3568,19 @@ func pathtoprefix(s string) string {
 	for i := 0; i < len(s); i++ {
 		c := s[i]
 		if c <= ' ' || i >= slash && c == '.' || c == '%' || c == '"' || c >= 0x7F {
-			goto escape
+			var buf bytes.Buffer
+			for i := 0; i < len(s); i++ {
+				c := s[i]
+				if c <= ' ' || i >= slash && c == '.' || c == '%' || c == '"' || c >= 0x7F {
+					fmt.Fprintf(&buf, "%%%02x", c)
+					continue
+				}
+				buf.WriteByte(c)
+			}
+			return buf.String()
 		}
 	}
 	return s
-
-escape:
-	var buf bytes.Buffer
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if c <= ' ' || i >= slash && c == '.' || c == '%' || c == '"' || c >= 0x7F {
-			fmt.Fprintf(&buf, "%%%02x", c)
-			continue
-		}
-		buf.WriteByte(c)
-	}
-	return buf.String()
 }
 
 func mkpkg(path_ *Strlit) *Pkg {

@@ -582,7 +582,96 @@ func evconst(n *Node) {
 	var v Val
 	var norig *Node
 	if nr == nil {
-		goto unary
+		// copy numeric value to avoid modifying
+		// nl, in case someone still refers to it (e.g. iota).
+		v = nl.Val
+
+		if wl == TIDEAL {
+			v = copyval(v)
+		}
+
+		switch uint32(n.Op)<<16 | uint32(v.Ctype) {
+		default:
+			if n.Diag == 0 {
+				Yyerror("illegal constant expression %v %v", Oconv(int(n.Op), 0), Tconv(nl.Type, 0))
+				n.Diag = 1
+			}
+
+			return
+
+		case OCONV<<16 | CTNIL,
+			OARRAYBYTESTR<<16 | CTNIL:
+			if n.Type.Etype == TSTRING {
+				v = tostr(v)
+				nl.Type = n.Type
+				break
+			}
+			fallthrough
+
+			// fall through
+		case OCONV<<16 | CTINT,
+			OCONV<<16 | CTRUNE,
+			OCONV<<16 | CTFLT,
+			OCONV<<16 | CTSTR:
+			convlit1(&nl, n.Type, true)
+
+			v = nl.Val
+
+		case OPLUS<<16 | CTINT,
+			OPLUS<<16 | CTRUNE:
+			break
+
+		case OMINUS<<16 | CTINT,
+			OMINUS<<16 | CTRUNE:
+			mpnegfix(v.U.Xval)
+
+		case OCOM<<16 | CTINT,
+			OCOM<<16 | CTRUNE:
+			et := Txxx
+			if nl.Type != nil {
+				et = int(nl.Type.Etype)
+			}
+
+			// calculate the mask in b
+			// result will be (a ^ mask)
+			var b Mpint
+			switch et {
+			// signed guys change sign
+			default:
+				Mpmovecfix(&b, -1)
+
+				// unsigned guys invert their bits
+			case TUINT8,
+				TUINT16,
+				TUINT32,
+				TUINT64,
+				TUINT,
+				TUINTPTR:
+				mpmovefixfix(&b, Maxintval[et])
+			}
+
+			mpxorfixfix(v.U.Xval, &b)
+
+		case OPLUS<<16 | CTFLT:
+			break
+
+		case OMINUS<<16 | CTFLT:
+			mpnegflt(v.U.Fval)
+
+		case OPLUS<<16 | CTCPLX:
+			break
+
+		case OMINUS<<16 | CTCPLX:
+			mpnegflt(&v.U.Cval.Real)
+			mpnegflt(&v.U.Cval.Imag)
+
+		case ONOT<<16 | CTBOOL:
+			if v.U.Bval == 0 {
+				goto settrue
+			}
+			goto setfalse
+		}
+		goto ret
 	}
 	if nr.Type == nil {
 		return
@@ -943,97 +1032,6 @@ func evconst(n *Node) {
 	}
 
 	goto ret
-
-	// copy numeric value to avoid modifying
-	// nl, in case someone still refers to it (e.g. iota).
-unary:
-	v = nl.Val
-
-	if wl == TIDEAL {
-		v = copyval(v)
-	}
-
-	switch uint32(n.Op)<<16 | uint32(v.Ctype) {
-	default:
-		if n.Diag == 0 {
-			Yyerror("illegal constant expression %v %v", Oconv(int(n.Op), 0), Tconv(nl.Type, 0))
-			n.Diag = 1
-		}
-
-		return
-
-	case OCONV<<16 | CTNIL,
-		OARRAYBYTESTR<<16 | CTNIL:
-		if n.Type.Etype == TSTRING {
-			v = tostr(v)
-			nl.Type = n.Type
-			break
-		}
-		fallthrough
-
-		// fall through
-	case OCONV<<16 | CTINT,
-		OCONV<<16 | CTRUNE,
-		OCONV<<16 | CTFLT,
-		OCONV<<16 | CTSTR:
-		convlit1(&nl, n.Type, true)
-
-		v = nl.Val
-
-	case OPLUS<<16 | CTINT,
-		OPLUS<<16 | CTRUNE:
-		break
-
-	case OMINUS<<16 | CTINT,
-		OMINUS<<16 | CTRUNE:
-		mpnegfix(v.U.Xval)
-
-	case OCOM<<16 | CTINT,
-		OCOM<<16 | CTRUNE:
-		et := Txxx
-		if nl.Type != nil {
-			et = int(nl.Type.Etype)
-		}
-
-		// calculate the mask in b
-		// result will be (a ^ mask)
-		var b Mpint
-		switch et {
-		// signed guys change sign
-		default:
-			Mpmovecfix(&b, -1)
-
-			// unsigned guys invert their bits
-		case TUINT8,
-			TUINT16,
-			TUINT32,
-			TUINT64,
-			TUINT,
-			TUINTPTR:
-			mpmovefixfix(&b, Maxintval[et])
-		}
-
-		mpxorfixfix(v.U.Xval, &b)
-
-	case OPLUS<<16 | CTFLT:
-		break
-
-	case OMINUS<<16 | CTFLT:
-		mpnegflt(v.U.Fval)
-
-	case OPLUS<<16 | CTCPLX:
-		break
-
-	case OMINUS<<16 | CTCPLX:
-		mpnegflt(&v.U.Cval.Real)
-		mpnegflt(&v.U.Cval.Imag)
-
-	case ONOT<<16 | CTBOOL:
-		if v.U.Bval == 0 {
-			goto settrue
-		}
-		goto setfalse
-	}
 
 ret:
 	norig = saveorig(n)

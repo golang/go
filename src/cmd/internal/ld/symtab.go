@@ -37,9 +37,6 @@ import "strings"
 var maxelfstr int
 
 func putelfstr(s string) int {
-	var off int
-	var n int
-
 	if len(Elfstrdat) == 0 && s != "" {
 		// first entry must be empty string
 		putelfstr("")
@@ -48,12 +45,12 @@ func putelfstr(s string) int {
 	// Rewrite · to . for ASCII-only tools like DTrace (sigh)
 	s = strings.Replace(s, "·", ".", -1)
 
-	n = len(s) + 1
+	n := len(s) + 1
 	for len(Elfstrdat)+n > cap(Elfstrdat) {
 		Elfstrdat = append(Elfstrdat[:cap(Elfstrdat)], 0)[:len(Elfstrdat)]
 	}
 
-	off = len(Elfstrdat)
+	off := len(Elfstrdat)
 	Elfstrdat = Elfstrdat[:off+n]
 	copy(Elfstrdat[off:], s)
 
@@ -88,11 +85,7 @@ var numelfsym int = 1 // 0 is reserved
 var elfbind int
 
 func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *LSym) {
-	var bind int
 	var type_ int
-	var off int
-	var other int
-	var xo *LSym
 
 	switch t {
 	default:
@@ -108,7 +101,7 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
 		type_ = STT_OBJECT
 	}
 
-	xo = x
+	xo := x
 	for xo.Outer != nil {
 		xo = xo.Outer
 	}
@@ -126,7 +119,7 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
 
 	// One pass for each binding: STB_LOCAL, STB_GLOBAL,
 	// maybe one day STB_WEAK.
-	bind = STB_GLOBAL
+	bind := STB_GLOBAL
 
 	if ver != 0 || (x.Type&SHIDDEN != 0) {
 		bind = STB_LOCAL
@@ -144,11 +137,11 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
 		return
 	}
 
-	off = putelfstr(s)
+	off := putelfstr(s)
 	if Linkmode == LinkExternal {
 		addr -= int64((xo.Sect.(*Section)).Vaddr)
 	}
-	other = 2
+	other := 2
 	if x.Type&SHIDDEN != 0 {
 		other = 0
 	}
@@ -164,9 +157,7 @@ func putelfsectionsym(s *LSym, shndx int) {
 }
 
 func putelfsymshndx(sympos int64, shndx int) {
-	var here int64
-
-	here = Cpos()
+	here := Cpos()
 	switch Thearch.Thechar {
 	case '6':
 		Cseek(sympos + 6)
@@ -180,9 +171,6 @@ func putelfsymshndx(sympos int64, shndx int) {
 }
 
 func Asmelfsym() {
-	var s *LSym
-	var name string
-
 	// the first symbol entry is reserved
 	putelfsyment(0, 0, 0, STB_LOCAL<<4|STT_NOTYPE, 0, 0)
 
@@ -192,7 +180,7 @@ func Asmelfsym() {
 	genasmsym(putelfsym)
 
 	if Linkmode == LinkExternal && HEADTYPE != Hopenbsd {
-		s = Linklookup(Ctxt, "runtime.tlsg", 0)
+		s := Linklookup(Ctxt, "runtime.tlsg", 0)
 		if s.Sect == nil {
 			Ctxt.Cursym = nil
 			Diag("missing section for %s", s.Name)
@@ -214,7 +202,8 @@ func Asmelfsym() {
 	elfglobalsymndx = numelfsym
 	genasmsym(putelfsym)
 
-	for s = Ctxt.Allsym; s != nil; s = s.Allsym {
+	var name string
+	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
 		if s.Type != SHOSTOBJ && (s.Type != SDYNIMPORT || !s.Reachable) {
 			continue
 		}
@@ -230,9 +219,6 @@ func Asmelfsym() {
 }
 
 func putplan9sym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *LSym) {
-	var i int
-	var l int
-
 	switch t {
 	case 'T',
 		'L',
@@ -249,7 +235,7 @@ func putplan9sym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ 
 		'z',
 		'Z',
 		'm':
-		l = 4
+		l := 4
 		if HEADTYPE == Hplan9 && Thearch.Thechar == '6' && Debug['8'] == 0 {
 			Lputb(uint32(addr >> 32))
 			l = 8
@@ -258,6 +244,7 @@ func putplan9sym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ 
 		Lputb(uint32(addr))
 		Cput(uint8(t + 0x80)) /* 0x80 is variable length */
 
+		var i int
 		if t == 'z' || t == 'Z' {
 			Cput(uint8(s[0]))
 			for i = 1; s[i] != 0 || s[i+1] != 0; i += 2 {
@@ -327,12 +314,6 @@ func Vputl(v uint64) {
 }
 
 func symtab() {
-	var s *LSym
-	var symtype *LSym
-	var symtypelink *LSym
-	var symgostring *LSym
-	var symgofunc *LSym
-
 	dosymtype()
 
 	// Define these so that they'll get put into the symbol table.
@@ -357,7 +338,7 @@ func symtab() {
 	xdefine("runtime.esymtab", SRODATA, 0)
 
 	// garbage collection symbols
-	s = Linklookup(Ctxt, "runtime.gcdata", 0)
+	s := Linklookup(Ctxt, "runtime.gcdata", 0)
 
 	s.Type = SRODATA
 	s.Size = 0
@@ -376,21 +357,21 @@ func symtab() {
 	s.Type = STYPE
 	s.Size = 0
 	s.Reachable = true
-	symtype = s
+	symtype := s
 
 	s = Linklookup(Ctxt, "go.string.*", 0)
 	s.Type = SGOSTRING
 	s.Size = 0
 	s.Reachable = true
-	symgostring = s
+	symgostring := s
 
 	s = Linklookup(Ctxt, "go.func.*", 0)
 	s.Type = SGOFUNC
 	s.Size = 0
 	s.Reachable = true
-	symgofunc = s
+	symgofunc := s
 
-	symtypelink = Linklookup(Ctxt, "runtime.typelink", 0)
+	symtypelink := Linklookup(Ctxt, "runtime.typelink", 0)
 
 	symt = Linklookup(Ctxt, "runtime.symtab", 0)
 	symt.Type = SSYMTAB
@@ -401,7 +382,7 @@ func symtab() {
 	// within a type they sort by size, so the .* symbols
 	// just defined above will be first.
 	// hide the specific symbols.
-	for s = Ctxt.Allsym; s != nil; s = s.Allsym {
+	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
 		if !s.Reachable || s.Special != 0 || s.Type != SRODATA {
 			continue
 		}
