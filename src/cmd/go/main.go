@@ -152,6 +152,15 @@ func main() {
 		os.Exit(2)
 	}
 
+	// Set environment (GOOS, GOARCH, etc) explicitly.
+	// In theory all the commands we invoke should have
+	// the same default computation of these as we do,
+	// but in practice there might be skew
+	// This makes sure we all agree.
+	for _, env := range mkEnv() {
+		os.Setenv(env.name, env.value)
+	}
+
 	for _, cmd := range commands {
 		if cmd.Name() == args[0] && cmd.Runnable() {
 			cmd.Flag.Usage = func() { cmd.Usage() }
