@@ -1066,7 +1066,6 @@ var Linkarm = obj.LinkArch{
 	Pconv:      Pconv,
 	Name:       "arm",
 	Thechar:    '5',
-	Endian:     obj.LittleEndian,
 	Preprocess: preprocess,
 	Assemble:   span5,
 	Follow:     follow,

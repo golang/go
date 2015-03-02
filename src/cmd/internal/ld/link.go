@@ -269,11 +269,6 @@ const (
 // Link holds the context for writing object code from a compiler
 // to be linker input or for reading that input into the linker.
 
-const (
-	LittleEndian = 0x04030201
-	BigEndian    = 0x01020304
-)
-
 // LinkArch is the definition of a single architecture.
 
 /* executable header types */
