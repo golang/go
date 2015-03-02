@@ -361,7 +361,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			frame.fn = f
 			if f == nil {
 				frame.pc = x
-			} else if f.frame == 0 {
+			} else if funcspdelta(f, frame.pc) == 0 {
 				frame.lr = x
 			}
 		}
