@@ -2659,21 +2659,16 @@ toomany:
 /*
  * type check composite
  */
-func fielddup(n *Node, hash []*Node) {
+func fielddup(n *Node, hash map[string]bool) {
 	if n.Op != ONAME {
 		Fatal("fielddup: not ONAME")
 	}
-	s := n.Sym.Name
-	h := uint(stringhash(s) % uint32(len(hash)))
-	for a := hash[h]; a != nil; a = a.Ntest {
-		if a.Sym.Name == s {
-			Yyerror("duplicate field name in struct literal: %s", s)
-			return
-		}
+	name := n.Sym.Name
+	if hash[name] {
+		Yyerror("duplicate field name in struct literal: %s", name)
+		return
 	}
-
-	n.Ntest = hash[h]
-	hash[h] = n
+	hash[name] = true
 }
 
 func keydup(n *Node, hash []*Node) {
@@ -3019,8 +3014,7 @@ func typecheckcomplit(np **Node) {
 				Yyerror("too few values in struct initializer")
 			}
 		} else {
-			var autohash [101]*Node
-			hash := inithash(n, autohash[:])
+			hash := make(map[string]bool)
 
 			// keyed list
 			var s *Sym

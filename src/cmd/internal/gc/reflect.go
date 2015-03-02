@@ -1246,12 +1246,9 @@ func dumptypestructs() {
 	}
 
 	// generate import strings for imported packages
-	var p *Pkg
-	for i := 0; i < len(phash); i++ {
-		for p = phash[i]; p != nil; p = p.Link {
-			if p.Direct != 0 {
-				dimportpath(p)
-			}
+	for _, p := range pkgs {
+		if p.Direct != 0 {
+			dimportpath(p)
 		}
 	}
 

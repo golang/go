@@ -1226,7 +1226,7 @@ yydefault:
 		{
 			if importpkg.Name == "" {
 				importpkg.Name = yyDollar[2].sym.Name
-				Pkglookup(yyDollar[2].sym.Name, nil).Npkg++
+				numImport[yyDollar[2].sym.Name]++
 			} else if importpkg.Name != yyDollar[2].sym.Name {
 				Yyerror("conflicting names %s and %s for package %q", importpkg.Name, yyDollar[2].sym.Name, importpkg.Path)
 			}

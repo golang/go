@@ -88,14 +88,8 @@ func anyinit(n *NodeList) bool {
 	}
 
 	// are there any imported init functions
-	for h := uint32(0); h < NHASH; h++ {
-		for s = hash[h]; s != nil; s = s.Link {
-			if s.Name[0] != 'i' || s.Name != "init" {
-				continue
-			}
-			if s.Def == nil {
-				continue
-			}
+	for _, s := range initSyms {
+		if s.Def != nil {
 			return true
 		}
 	}
@@ -161,22 +155,10 @@ func fninit(n *NodeList) {
 	r = list(r, a)
 
 	// (7)
-	var s *Sym
-	for h := uint32(0); h < NHASH; h++ {
-		for s = hash[h]; s != nil; s = s.Link {
-			if s.Name[0] != 'i' || s.Name != "init" {
-				continue
-			}
-			if s.Def == nil {
-				continue
-			}
-			if s == initsym {
-				continue
-			}
-
+	for _, s := range initSyms {
+		if s.Def != nil && s != initsym {
 			// could check that it is fn of no args/returns
 			a = Nod(OCALL, s.Def, nil)
-
 			r = list(r, a)
 		}
 	}
@@ -188,7 +170,7 @@ func fninit(n *NodeList) {
 	// could check that it is fn of no args/returns
 	for i := 1; ; i++ {
 		namebuf = fmt.Sprintf("init.%d", i)
-		s = Lookup(namebuf)
+		s := Lookup(namebuf)
 		if s.Def == nil {
 			break
 		}
