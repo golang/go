@@ -840,9 +840,9 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 	//		constnode.vconst = v;
 	//		idx.reg = nod.reg;
 	//		regfree(&nod);
-	af := obj.Addr{}
+	var af obj.Addr
 
-	at := obj.Addr{}
+	var at obj.Addr
 	if f != nil {
 		gc.Naddr(f, &af, 1)
 	}

@@ -180,7 +180,7 @@ func ginscall(f *gc.Node, proc int) {
 
 	case 1, // call in new proc (go)
 		2: // deferred call (defer)
-		stk := gc.Node{}
+		var stk gc.Node
 
 		stk.Op = gc.OINDREG
 		stk.Val.U.Reg = x86.REG_SP
@@ -370,7 +370,7 @@ func cgen_callret(n *gc.Node, res *gc.Node) {
 		gc.Fatal("cgen_callret: nil")
 	}
 
-	nod := gc.Node{}
+	var nod gc.Node
 	nod.Op = gc.OINDREG
 	nod.Val.U.Reg = x86.REG_SP
 	nod.Addable = 1
@@ -397,7 +397,7 @@ func cgen_aret(n *gc.Node, res *gc.Node) {
 		gc.Fatal("cgen_aret: nil")
 	}
 
-	nod1 := gc.Node{}
+	var nod1 gc.Node
 	nod1.Op = gc.OINDREG
 	nod1.Val.U.Reg = x86.REG_SP
 	nod1.Addable = 1
@@ -503,7 +503,7 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		gmove(&n31, &n3)
 	}
 
-	p2 := (*obj.Prog)(nil)
+	var p2 *obj.Prog
 	var n4 gc.Node
 	if gc.Nacl {
 		// Native Client does not relay the divide-by-zero trap
@@ -842,7 +842,7 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	var cx gc.Node
 	gc.Nodreg(&cx, gc.Types[gc.TUINT64], x86.REG_CX)
 
-	oldcx := gc.Node{}
+	var oldcx gc.Node
 	if rcx > 0 && !gc.Samereg(&cx, res) {
 		regalloc(&oldcx, gc.Types[gc.TUINT64], nil)
 		gmove(&cx, &oldcx)

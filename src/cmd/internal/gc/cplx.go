@@ -54,7 +54,7 @@ func Complexbool(op int, nl *Node, nr *Node, true_ bool, likely int, to *obj.Pro
 	var n4 Node
 	subnode(&n3, &n4, nr)
 
-	na := Node{}
+	var na Node
 	na.Op = OANDAND
 	var nb Node
 	na.Left = &nb
@@ -107,7 +107,7 @@ func subnode(nr *Node, ni *Node, nc *Node) {
 
 // generate code res = -nl
 func minus(nl *Node, res *Node) {
-	ra := Node{}
+	var ra Node
 	ra.Op = OMINUS
 	ra.Left = nl
 	ra.Type = nl.Type
@@ -145,7 +145,7 @@ func complexadd(op int, nl *Node, nr *Node, res *Node) {
 	subnode(&n3, &n4, nr)
 	subnode(&n5, &n6, res)
 
-	ra := Node{}
+	var ra Node
 	ra.Op = uint8(op)
 	ra.Left = &n1
 	ra.Right = &n3
@@ -179,20 +179,20 @@ func complexmul(nl *Node, nr *Node, res *Node) {
 	Tempname(&tmp, n5.Type)
 
 	// real part -> tmp
-	rm1 := Node{}
+	var rm1 Node
 
 	rm1.Op = OMUL
 	rm1.Left = &n1
 	rm1.Right = &n3
 	rm1.Type = n1.Type
 
-	rm2 := Node{}
+	var rm2 Node
 	rm2.Op = OMUL
 	rm2.Left = &n2
 	rm2.Right = &n4
 	rm2.Type = n2.Type
 
-	ra := Node{}
+	var ra Node
 	ra.Op = OSUB
 	ra.Left = &rm1
 	ra.Right = &rm2

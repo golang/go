@@ -622,7 +622,7 @@ func agen(n *gc.Node, res *gc.Node) {
 		agen(&n1, res)
 
 	case gc.OINDEX:
-		p2 := (*obj.Prog)(nil) // to be patched to panicindex.
+		var p2 *obj.Prog // to be patched to panicindex.
 		w := uint32(n.Type.Width)
 		bounded := gc.Debug['B'] != 0 || n.Bounded
 		var n3 gc.Node
@@ -1005,7 +1005,7 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
 	}
 
 	nl := n.Left
-	nr := (*gc.Node)(nil)
+	var nr *gc.Node
 
 	if nl != nil && gc.Isfloat[nl.Type.Etype] {
 		bgen_float(n, bool2int(true_), likely, to)

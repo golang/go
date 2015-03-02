@@ -115,7 +115,7 @@ func fninit(n *NodeList) {
 		return
 	}
 
-	r := (*NodeList)(nil)
+	var r *NodeList
 
 	// (1)
 	namebuf = "initdone·"

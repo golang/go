@@ -71,7 +71,7 @@ func dumpobj() {
 
 	fmt.Fprintf(bout, "\n!\n")
 
-	externs := (*NodeList)(nil)
+	var externs *NodeList
 	if externdcl != nil {
 		externs = externdcl.End
 	}

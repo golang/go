@@ -285,8 +285,6 @@ func valuecmp(a *LSym, b *LSym) int {
 }
 
 func ldelf(f *Biobuf, pkg string, length int64, pn string) {
-	symbols := []*LSym(nil)
-
 	if Debug['v'] != 0 {
 		fmt.Fprintf(&Bso, "%5.2f ldelf %s\n", obj.Cputime(), pn)
 	}
@@ -314,6 +312,7 @@ func ldelf(f *Biobuf, pkg string, length int64, pn string) {
 	var s *LSym
 	var sect *ElfSect
 	var sym ElfSym
+	var symbols []*LSym
 	if Bread(f, hdrbuf[:]) != len(hdrbuf) {
 		goto bad
 	}
@@ -835,7 +834,7 @@ func readelfsym(elfobj *ElfObj, i int, sym *ElfSym, needSym int) (err error) {
 		sym.other = b.Other
 	}
 
-	s := (*LSym)(nil)
+	var s *LSym
 	if sym.name == "_GLOBAL_OFFSET_TABLE_" {
 		sym.name = ".got"
 	}

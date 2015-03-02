@@ -374,7 +374,7 @@ func cgen_callret(n *gc.Node, res *gc.Node) {
 		gc.Fatal("cgen_callret: nil")
 	}
 
-	nod := gc.Node{}
+	var nod gc.Node
 	nod.Op = gc.OINDREG
 	nod.Val.U.Reg = ppc64.REGSP
 	nod.Addable = 1
@@ -401,7 +401,7 @@ func cgen_aret(n *gc.Node, res *gc.Node) {
 		gc.Fatal("cgen_aret: nil")
 	}
 
-	nod1 := gc.Node{}
+	var nod1 gc.Node
 	nod1.Op = gc.OINDREG
 	nod1.Val.U.Reg = ppc64.REGSP
 	nod1.Addable = 1

@@ -258,7 +258,7 @@ func parsetag(note *Strlit) int {
 }
 
 func escAnalyze(all *NodeList, recursive bool) {
-	es := EscState{}
+	var es EscState
 	e := &es
 	e.theSink.Op = ONAME
 	e.theSink.Orig = &e.theSink
@@ -985,7 +985,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 	var lr *NodeList
 	var fntype *Type
 
-	fn := (*Node)(nil)
+	var fn *Node
 	switch n.Op {
 	default:
 		Fatal("esccall")

@@ -423,7 +423,7 @@ func Asmbmacho() {
 		mh.subcpu = MACHO_SUBCPU_X86
 	}
 
-	ms := (*MachoSeg)(nil)
+	var ms *MachoSeg
 	if Linkmode == LinkExternal {
 		/* segment for entire file */
 		ms = newMachoSeg("", 40)

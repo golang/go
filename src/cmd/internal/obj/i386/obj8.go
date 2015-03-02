@@ -244,13 +244,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	cursym.Locals = autoffset
 	cursym.Args = p.To.U.Argsize
 
-	q := (*obj.Prog)(nil)
-
 	if p.From3.Offset&obj.NOSPLIT == 0 || (p.From3.Offset&obj.WRAPPER != 0) {
 		p = obj.Appendp(ctxt, p)
 		p = load_g_cx(ctxt, p) // load g into CX
 	}
 
+	var q *obj.Prog
 	if cursym.Text.From3.Offset&obj.NOSPLIT == 0 {
 		p = stacksplit(ctxt, p, autoffset, cursym.Text.From3.Offset&obj.NEEDCTXT == 0, &q) // emit split check
 	}
@@ -523,7 +522,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt bool, jmpok
 		q1.Pcond = p
 	}
 
-	q1 := (*obj.Prog)(nil)
+	var q1 *obj.Prog
 
 	if framesize <= obj.StackSmall {
 		// small stack: SP <= stackguard

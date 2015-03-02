@@ -664,7 +664,7 @@ func deadcode() {
 	}
 
 	// remove dead text but keep file information (z symbols).
-	last := (*LSym)(nil)
+	var last *LSym
 
 	for s := Ctxt.Textp; s != nil; s = s.Next {
 		if !s.Reachable {

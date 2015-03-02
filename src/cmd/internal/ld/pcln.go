@@ -153,7 +153,7 @@ func renumberfiles(ctxt *Link, files []*LSym, d *Pcdata) {
 	}
 
 	newval := int32(-1)
-	out := Pcdata{}
+	var out Pcdata
 
 	var dv int32
 	var it Pciter
@@ -229,7 +229,7 @@ func pclntab() {
 	setuintxx(Ctxt, ftab, 8, uint64(nfunc), int64(Thearch.Ptrsize))
 
 	nfunc = 0
-	last := (*LSym)(nil)
+	var last *LSym
 	var end int32
 	var frameptrsize int32
 	var funcstart int32

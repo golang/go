@@ -11,7 +11,7 @@ func typecheckselect(sel *Node) {
 	var ncase *Node
 	var n *Node
 
-	def := (*Node)(nil)
+	var def *Node
 	lno := int(setlineno(sel))
 	count := 0
 	typechecklist(sel.Ninit, Etop)

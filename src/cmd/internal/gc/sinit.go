@@ -260,7 +260,7 @@ func initreorder(l *NodeList, out **NodeList) {
 // declarations and outputs the corresponding list of statements
 // to include in the init() function body.
 func initfix(l *NodeList) *NodeList {
-	lout := (*NodeList)(nil)
+	var lout *NodeList
 	lno := int(lineno)
 	initreorder(l, &lout)
 	lineno = int32(lno)
@@ -772,7 +772,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 
 	// if the literal contains constants,
 	// make static initialized array (1),(2)
-	vstat := (*Node)(nil)
+	var vstat *Node
 
 	mode := getdyn(n, 1)
 	if mode&MODECONST != 0 {
@@ -1011,9 +1011,9 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 	}
 
 	// put in dynamic entries one-at-a-time
-	key := (*Node)(nil)
+	var key *Node
 
-	val := (*Node)(nil)
+	var val *Node
 	for l := n.List; l != nil; l = l.Next {
 		r = l.N
 

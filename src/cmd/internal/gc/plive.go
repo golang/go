@@ -1296,7 +1296,7 @@ func livenessepilogue(lv *Liveness) {
 	any := bvalloc(nvars)
 	all := bvalloc(nvars)
 	ambig := bvalloc(localswords() * obj.BitsPerPointer)
-	msg := []string(nil)
+	var msg []string
 	nmsg := int32(0)
 	startmsg := int32(0)
 

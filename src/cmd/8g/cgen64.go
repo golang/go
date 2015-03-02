@@ -236,7 +236,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 		// load shift value into register.
 		// if high bits are set, zero value.
-		p1 := (*obj.Prog)(nil)
+		var p1 *obj.Prog
 
 		if gc.Is64(r.Type) {
 			gins(i386.ACMPL, &hi2, ncon(0))
@@ -337,7 +337,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 		// load shift value into register.
 		// if high bits are set, zero value.
-		p1 := (*obj.Prog)(nil)
+		var p1 *obj.Prog
 
 		if gc.Is64(r.Type) {
 			gins(i386.ACMPL, &hi2, ncon(0))
@@ -529,7 +529,7 @@ func cmp64(nl *gc.Node, nr *gc.Node, op int, likely int, to *obj.Prog) {
 		regfree(&rr)
 	}
 
-	br := (*obj.Prog)(nil)
+	var br *obj.Prog
 	switch op {
 	default:
 		gc.Fatal("cmp64 %v %v", gc.Oconv(int(op), 0), gc.Tconv(t, 0))

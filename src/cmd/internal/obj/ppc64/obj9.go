@@ -144,7 +144,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	}
 	obj.Bflush(ctxt.Bso)
 
-	q := (*obj.Prog)(nil)
+	var q *obj.Prog
 	var q1 *obj.Prog
 	for p := cursym.Text; p != nil; p = p.Link {
 		switch p.As {
@@ -645,7 +645,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt bool) *obj.
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = REG_R3
 
-	q := (*obj.Prog)(nil)
+	var q *obj.Prog
 	if framesize <= obj.StackSmall {
 		// small stack: SP < stackguard
 		//	CMP	stackguard, SP

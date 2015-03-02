@@ -131,7 +131,7 @@ func ldpe(f *Biobuf, pkg string, length int64, pn string) {
 		fmt.Fprintf(&Bso, "%5.2f ldpe %s\n", obj.Cputime(), pn)
 	}
 
-	sect := (*PeSect)(nil)
+	var sect *PeSect
 	Ctxt.Version++
 	base := int32(Boffset(f))
 
