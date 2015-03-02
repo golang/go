@@ -456,7 +456,14 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 				check.invalidAST(s.Pos(), "incorrect form of type switch guard")
 				return
 			}
-			check.recordDef(lhs, nil) // lhs variable is implicitly declared in each cause clause
+
+			if lhs.Name == "_" {
+				// _ := x.(type) is an invalid short variable declaration
+				check.softErrorf(lhs.Pos(), "no new variable on left side of :=")
+				lhs = nil // avoid declared but not used error below
+			} else {
+				check.recordDef(lhs, nil) // lhs variable is implicitly declared in each cause clause
+			}
 
 			rhs = guard.Rhs[0]
 

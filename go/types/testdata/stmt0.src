@@ -540,6 +540,7 @@ func typeswitches() {
 	}
 
 	switch x /* ERROR "declared but not used" */ := x.(type) {}
+	switch _ /* ERROR "no new variable on left side of :=" */ := x.(type) {}
 
 	switch x := x.(type) {
 	case int:
