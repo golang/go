@@ -6,15 +6,6 @@ package runtime
 
 import "unsafe"
 
-func getenv(s *byte) *byte {
-	val := gogetenv(gostringnocopy(s))
-	if val == "" {
-		return nil
-	}
-	// Strings found in environment are NUL-terminated.
-	return &bytes(val)[0]
-}
-
 var tracebackbuf [128]byte
 
 func gogetenv(key string) string {
