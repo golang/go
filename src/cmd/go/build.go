@@ -1709,7 +1709,7 @@ const verifyAsm = true
 
 func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
-	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch))
+	inc := filepath.Join(goroot, "pkg", "include")
 	sfile = mkAbs(p.Dir, sfile)
 	args := []interface{}{buildToolExec, tool("asm"), "-o", ofile, "-trimpath", b.work, "-I", obj, "-I", inc, "-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch, sfile}
 	if err := b.run(p.Dir, p.ImportPath, nil, args...); err != nil {
@@ -2030,7 +2030,7 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
 }
 
 func (gccgoToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
-	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch))
+	inc := filepath.Join(goroot, "pkg", "include")
 	cfile = mkAbs(p.Dir, cfile)
 	defs := []string{"-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch}
 	defs = append(defs, b.gccArchArgs()...)
