@@ -3,11 +3,11 @@
 package E1
 
 import (
+	"fmt"
 	"log"
 	"os"
-	"fmt"
 )
 
 func example() {
-	fmt.Fprintf(os.Stderr, "warning: %v", "oops")	// match
+	fmt.Fprintf(os.Stderr, "warning: %v", "oops") // match
 }

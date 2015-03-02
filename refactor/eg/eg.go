@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
+	"go/format"
 	"go/printer"
 	"go/token"
 	"os"
@@ -288,7 +289,7 @@ func WriteAST(fset *token.FileSet, filename string, f *ast.File) (err error) {
 			err = err2 // prefer earlier error
 		}
 	}()
-	return printer.Fprint(fh, fset, f)
+	return format.Node(fh, fset, f)
 }
 
 // -- utilities --------------------------------------------------------

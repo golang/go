@@ -3,8 +3,8 @@
 package A1
 
 import (
-	. "fmt"
 	"errors"
+	. "fmt"
 	myfmt "fmt"
 	"os"
 	"strings"
