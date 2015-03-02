@@ -158,7 +158,9 @@ func main() {
 	// but in practice there might be skew
 	// This makes sure we all agree.
 	for _, env := range mkEnv() {
-		os.Setenv(env.name, env.value)
+		if os.Getenv(env.name) != env.value {
+			os.Setenv(env.name, env.value)
+		}
 	}
 
 	for _, cmd := range commands {
