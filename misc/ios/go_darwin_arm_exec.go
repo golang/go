@@ -406,10 +406,17 @@ func copyLocalData(dstbase string) (pkgpath string, err error) {
 	}
 
 	// Copy timezone file.
+	//
+	// Typical apps have the zoneinfo.zip in the root of their app bundle,
+	// read by the time package as the working directory at initialization.
+	// As we move the working directory to the GOROOT pkg directory, we
+	// install the zoneinfo.zip file in the pkgpath.
 	if underGoRoot {
-		dst := filepath.Join(dstbase, "lib", "time")
-		os.MkdirAll(dst, 0755)
-		if err := cp(dst, filepath.Join(cwd, "lib", "time", "zoneinfo.zip")); err != nil {
+		err := cp(
+			filepath.Join(dstbase, pkgpath),
+			filepath.Join(cwd, "lib", "time", "zoneinfo.zip"),
+		)
+		if err != nil {
 			return "", err
 		}
 	}
