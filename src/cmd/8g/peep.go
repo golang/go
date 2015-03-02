@@ -49,7 +49,7 @@ func needc(p *obj.Prog) bool {
 	var info gc.ProgInfo
 
 	for p != nil {
-		proginfo(&info, p)
+		info = proginfo(p)
 		if info.Flags&gc.UseCarry != 0 {
 			return true
 		}
@@ -382,7 +382,7 @@ func subprop(r0 *gc.Flow) bool {
 		if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
 			continue
 		}
-		proginfo(&info, p)
+		info = proginfo(p)
 		if info.Flags&gc.Call != 0 {
 			return false
 		}
@@ -611,7 +611,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		return 0
 	}
 	var info gc.ProgInfo
-	proginfo(&info, p)
+	info = proginfo(p)
 
 	if (info.Reguse|info.Regset)&RtoB(int(v.Reg)) != 0 {
 		return 2

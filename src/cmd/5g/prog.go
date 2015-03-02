@@ -133,8 +133,8 @@ var progtable = [arm.ALAST]gc.ProgInfo{
 	obj.ARET: gc.ProgInfo{gc.Break, 0, 0, 0},
 }
 
-func proginfo(info *gc.ProgInfo, p *obj.Prog) {
-	*info = progtable[p.As]
+func proginfo(p *obj.Prog) (info gc.ProgInfo) {
+	info = progtable[p.As]
 	if info.Flags == 0 {
 		gc.Fatal("unknown instruction %v", p)
 	}
@@ -160,4 +160,6 @@ func proginfo(info *gc.ProgInfo, p *obj.Prog) {
 		arm.AMODU:
 		info.Regset |= RtoB(arm.REG_R12)
 	}
+
+	return
 }

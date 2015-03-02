@@ -237,8 +237,8 @@ var progtable = [x86.ALAST]gc.ProgInfo{
 	x86.AXORW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
 }
 
-func proginfo(info *gc.ProgInfo, p *obj.Prog) {
-	*info = progtable[p.As]
+func proginfo(p *obj.Prog) (info gc.ProgInfo) {
+	info = progtable[p.As]
 	if info.Flags == 0 {
 		gc.Fatal("unknown instruction %v", p)
 	}
@@ -269,4 +269,6 @@ func proginfo(info *gc.ProgInfo, p *obj.Prog) {
 	if p.To.Index != x86.REG_NONE {
 		info.Regindex |= RtoB(int(p.To.Index))
 	}
+
+	return
 }

@@ -48,7 +48,7 @@ func needc(p *obj.Prog) bool {
 	var info gc.ProgInfo
 
 	for p != nil {
-		proginfo(&info, p)
+		info = proginfo(p)
 		if info.Flags&gc.UseCarry != 0 {
 			return true
 		}
@@ -514,7 +514,7 @@ func prevl(r0 *gc.Flow, reg int) bool {
 	for r := (*gc.Flow)(gc.Uniqp(r0)); r != nil; r = gc.Uniqp(r) {
 		p = r.Prog
 		if p.To.Type == obj.TYPE_REG && int(p.To.Reg) == reg {
-			proginfo(&info, p)
+			info = proginfo(p)
 			if info.Flags&gc.RightWrite != 0 {
 				if info.Flags&gc.SizeL != 0 {
 					return true
@@ -578,7 +578,7 @@ func subprop(r0 *gc.Flow) bool {
 		if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
 			continue
 		}
-		proginfo(&info, p)
+		info = proginfo(p)
 		if info.Flags&gc.Call != 0 {
 			if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 				fmt.Printf("\tfound %v; return 0\n", p)
@@ -826,7 +826,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		return 0
 	}
 	var info gc.ProgInfo
-	proginfo(&info, p)
+	info = proginfo(p)
 
 	if (info.Reguse|info.Regset)&RtoB(int(v.Reg)) != 0 {
 		return 2

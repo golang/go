@@ -133,12 +133,12 @@ func initproginfo() {
 	}
 }
 
-func proginfo(info *gc.ProgInfo, p *obj.Prog) {
+func proginfo(p *obj.Prog) (info gc.ProgInfo) {
 	initproginfo()
 
-	*info = progtable[p.As]
+	info = progtable[p.As]
 	if info.Flags == 0 {
-		*info = progtable[ppc64.AADD]
+		info = progtable[ppc64.AADD]
 		gc.Fatal("proginfo: unknown instruction %v", p)
 	}
 
@@ -177,6 +177,8 @@ func proginfo(info *gc.ProgInfo, p *obj.Prog) {
 
 		info.Regset |= RtoB(ppc64.REG_R3) | RtoB(ppc64.REG_R4)
 	}
+
+	return
 }
 
 // Instruction variants table.  Initially this contains entries only
