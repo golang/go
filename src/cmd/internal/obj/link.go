@@ -250,6 +250,7 @@ type LinkArch struct {
 	Assemble   func(*Link, *LSym)
 	Follow     func(*Link, *LSym)
 	Progedit   func(*Link, *Prog)
+	UnaryDst   map[int]bool // Instruction takes one operand, a destination.
 	Minlc      int
 	Ptrsize    int
 	Regsize    int

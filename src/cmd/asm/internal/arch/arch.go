@@ -32,8 +32,6 @@ type Arch struct {
 	RegisterPrefix map[string]bool
 	// RegisterNumber converts R(10) into arm.REG_R10.
 	RegisterNumber func(string, int16) (int16, bool)
-	// Instructions that take one operand whose result is a destination.
-	UnaryDestination map[int]bool
 	// Instruction is a jump.
 	IsJump func(word string) bool
 	// Aconv pretty-prints an instruction opcode for this architecture.
@@ -57,7 +55,6 @@ var Pseudos = map[string]int{
 // Set configures the architecture specified by GOARCH and returns its representation.
 // It returns nil if GOARCH is not recognized.
 func Set(GOARCH string) *Arch {
-	// TODO: Is this how to set this up?
 	switch GOARCH {
 	case "386":
 		return arch386()
@@ -136,56 +133,14 @@ func arch386() *Arch {
 	instructions["MOVOA"] = i386.AMOVO
 	instructions["MOVNTDQ"] = i386.AMOVNTO
 
-	unaryDestination := make(map[int]bool) // Instruction takes one operand and result is a destination.
-	// These instructions write to prog.To.
-	unaryDestination[i386.ABSWAPL] = true
-	unaryDestination[i386.ACMPXCHG8B] = true
-	unaryDestination[i386.ADECB] = true
-	unaryDestination[i386.ADECL] = true
-	unaryDestination[i386.ADECW] = true
-	unaryDestination[i386.AINCB] = true
-	unaryDestination[i386.AINCL] = true
-	unaryDestination[i386.AINCW] = true
-	unaryDestination[i386.ANEGB] = true
-	unaryDestination[i386.ANEGL] = true
-	unaryDestination[i386.ANEGW] = true
-	unaryDestination[i386.ANOTB] = true
-	unaryDestination[i386.ANOTL] = true
-	unaryDestination[i386.ANOTW] = true
-	unaryDestination[i386.APOPL] = true
-	unaryDestination[i386.APOPW] = true
-	unaryDestination[i386.ASETCC] = true
-	unaryDestination[i386.ASETCS] = true
-	unaryDestination[i386.ASETEQ] = true
-	unaryDestination[i386.ASETGE] = true
-	unaryDestination[i386.ASETGT] = true
-	unaryDestination[i386.ASETHI] = true
-	unaryDestination[i386.ASETLE] = true
-	unaryDestination[i386.ASETLS] = true
-	unaryDestination[i386.ASETLT] = true
-	unaryDestination[i386.ASETMI] = true
-	unaryDestination[i386.ASETNE] = true
-	unaryDestination[i386.ASETOC] = true
-	unaryDestination[i386.ASETOS] = true
-	unaryDestination[i386.ASETPC] = true
-	unaryDestination[i386.ASETPL] = true
-	unaryDestination[i386.ASETPS] = true
-	unaryDestination[i386.AFFREE] = true
-	unaryDestination[i386.AFLDENV] = true
-	unaryDestination[i386.AFSAVE] = true
-	unaryDestination[i386.AFSTCW] = true
-	unaryDestination[i386.AFSTENV] = true
-	unaryDestination[i386.AFSTSW] = true
-
 	return &Arch{
-		LinkArch:         &i386.Link386,
-		Instructions:     instructions,
-		Register:         register,
-		RegisterPrefix:   nil,
-		RegisterNumber:   nilRegisterNumber,
-		UnaryDestination: unaryDestination,
-		IsJump:           jump386,
-		Aconv:            i386.Aconv,
+		LinkArch:       &i386.Link386,
+		Instructions:   instructions,
+		Register:       register,
+		RegisterPrefix: nil,
+		RegisterNumber: nilRegisterNumber,
+		IsJump:         jump386,
+		Aconv:          i386.Aconv,
 	}
 }
 
@@ -247,65 +202,14 @@ func archAmd64() *Arch {
 	instructions["PSLLDQ"] = x86.APSLLO
 	instructions["PSRLDQ"] = x86.APSRLO
 
-	unaryDestination := make(map[int]bool) // Instruction takes one operand and result is a destination.
-	// These instructions write to prog.To.
-	unaryDestination[x86.ABSWAPL] = true
-	unaryDestination[x86.ABSWAPQ] = true
-	unaryDestination[x86.ACMPXCHG8B] = true
-	unaryDestination[x86.ADECB] = true
-	unaryDestination[x86.ADECL] = true
-	unaryDestination[x86.ADECQ] = true
-	unaryDestination[x86.ADECW] = true
-	unaryDestination[x86.AINCB] = true
-	unaryDestination[x86.AINCL] = true
-	unaryDestination[x86.AINCQ] = true
-	unaryDestination[x86.AINCW] = true
-	unaryDestination[x86.ANEGB] = true
-	unaryDestination[x86.ANEGL] = true
-	unaryDestination[x86.ANEGQ] = true
-	unaryDestination[x86.ANEGW] = true
-	unaryDestination[x86.ANOTB] = true
-	unaryDestination[x86.ANOTL] = true
-	unaryDestination[x86.ANOTQ] = true
-	unaryDestination[x86.ANOTW] = true
-	unaryDestination[x86.APOPL] = true
-	unaryDestination[x86.APOPQ] = true
-	unaryDestination[x86.APOPW] = true
-	unaryDestination[x86.ASETCC] = true
-	unaryDestination[x86.ASETCS] = true
-	unaryDestination[x86.ASETEQ] = true
-	unaryDestination[x86.ASETGE] = true
-	unaryDestination[x86.ASETGT] = true
-	unaryDestination[x86.ASETHI] = true
-	unaryDestination[x86.ASETLE] = true
-	unaryDestination[x86.ASETLS] = true
-	unaryDestination[x86.ASETLT] = true
-	unaryDestination[x86.ASETMI] = true
-	unaryDestination[x86.ASETNE] = true
-	unaryDestination[x86.ASETOC] = true
-	unaryDestination[x86.ASETOS] = true
-	unaryDestination[x86.ASETPC] = true
-	unaryDestination[x86.ASETPL] = true
-	unaryDestination[x86.ASETPS] = true
-	unaryDestination[x86.AFFREE] = true
-	unaryDestination[x86.AFLDENV] = true
-	unaryDestination[x86.AFSAVE] = true
-	unaryDestination[x86.AFSTCW] = true
-	unaryDestination[x86.AFSTENV] = true
-	unaryDestination[x86.AFSTSW] = true
-	unaryDestination[x86.AFXSAVE] = true
-	unaryDestination[x86.AFXSAVE64] = true
-	unaryDestination[x86.ASTMXCSR] = true
-
 	return &Arch{
-		LinkArch:         &x86.Linkamd64,
-		Instructions:     instructions,
-		Register:         register,
-		RegisterPrefix:   nil,
-		RegisterNumber:   nilRegisterNumber,
-		UnaryDestination: unaryDestination,
-		IsJump:           jump386,
-		Aconv:            x86.Aconv,
+		LinkArch:       &x86.Linkamd64,
+		Instructions:   instructions,
+		Register:       register,
+		RegisterPrefix: nil,
+		RegisterNumber: nilRegisterNumber,
+		IsJump:         jump386,
+		Aconv:          x86.Aconv,
 	}
 }
 
@@ -343,21 +247,14 @@ func archArm() *Arch {
 	instructions["B"] = obj.AJMP
 	instructions["BL"] = obj.ACALL
 
-	unaryDestination := make(map[int]bool) // Instruction takes one operand and result is a destination.
-	// These instructions write to prog.To.
-	// TODO: These are silly. Fix once C assembler is gone.
-	unaryDestination[arm.ASWI] = true
-	unaryDestination[arm.AWORD] = true
-
 	return &Arch{
-		LinkArch:         &arm.Linkarm,
-		Instructions:     instructions,
-		Register:         register,
-		RegisterPrefix:   registerPrefix,
-		RegisterNumber:   armRegisterNumber,
-		UnaryDestination: unaryDestination,
-		IsJump:           jumpArm,
-		Aconv:            arm.Aconv,
+		LinkArch:       &arm.Linkarm,
+		Instructions:   instructions,
+		Register:       register,
+		RegisterPrefix: registerPrefix,
+		RegisterNumber: armRegisterNumber,
+		IsJump:         jumpArm,
+		Aconv:          arm.Aconv,
 	}
 }
 
@@ -408,13 +305,12 @@ func archPPC64() *Arch {
 	instructions["RETURN"] = ppc64.ARETURN
 
 	return &Arch{
-		LinkArch:         &ppc64.Linkppc64,
-		Instructions:     instructions,
-		Register:         register,
-		RegisterPrefix:   registerPrefix,
-		RegisterNumber:   ppc64RegisterNumber,
-		UnaryDestination: nil,
-		IsJump:           jumpPPC64,
-		Aconv:            ppc64.Aconv,
+		LinkArch:       &ppc64.Linkppc64,
+		Instructions:   instructions,
+		Register:       register,
+		RegisterPrefix: registerPrefix,
+		RegisterNumber: ppc64RegisterNumber,
+		IsJump:         jumpPPC64,
+		Aconv:          ppc64.Aconv,
 	}
 }

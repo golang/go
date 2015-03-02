@@ -1039,6 +1039,11 @@ loop:
 	goto loop
 }
 
+var unaryDst = map[int]bool{
+	ASWI:  true,
+	AWORD: true,
+}
+
 var Linkarm = obj.LinkArch{
 	Rconv:      Rconv,
 	ByteOrder:  binary.LittleEndian,
@@ -1049,6 +1054,7 @@ var Linkarm = obj.LinkArch{
 	Assemble:   span5,
 	Follow:     follow,
 	Progedit:   progedit,
+	UnaryDst:   unaryDst,
 	Minlc:      4,
 	Ptrsize:    4,
 	Regsize:    4,
