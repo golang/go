@@ -251,13 +251,13 @@ import_package:
 			importpkg.Name = $2.Name;
 			Pkglookup($2.Name, nil).Npkg++;
 		} else if importpkg.Name != $2.Name {
-			Yyerror("conflicting names %s and %s for package \"%v\"", importpkg.Name, $2.Name, Zconv(importpkg.Path, 0));
+			Yyerror("conflicting names %s and %s for package %q", importpkg.Name, $2.Name, importpkg.Path);
 		}
 		importpkg.Direct = 1;
 		importpkg.Safe = curio.importsafe
 
 		if safemode != 0 && !curio.importsafe {
-			Yyerror("cannot import unsafe package \"%v\"", Zconv(importpkg.Path, 0));
+			Yyerror("cannot import unsafe package %q", importpkg.Path);
 		}
 	}
 
@@ -1130,7 +1130,7 @@ hidden_importsym:
 	{
 		var p *Pkg
 
-		if $2.U.Sval.S == "" {
+		if $2.U.Sval == "" {
 			p = importpkg;
 		} else {
 			if isbadimport($2.U.Sval) {
@@ -1144,7 +1144,7 @@ hidden_importsym:
 	{
 		var p *Pkg
 
-		if $2.U.Sval.S == "" {
+		if $2.U.Sval == "" {
 			p = importpkg;
 		} else {
 			if isbadimport($2.U.Sval) {
@@ -1975,7 +1975,7 @@ hidden_import:
 		importlist = list(importlist, $2);
 
 		if Debug['E'] > 0 {
-			print("import [%v] func %lN \n", Zconv(importpkg.Path, 0), $2);
+			print("import [%q] func %lN \n", importpkg.Path, $2);
 			if Debug['m'] > 2 && $2.Inl != nil {
 				print("inl body:%+H\n", $2.Inl);
 			}

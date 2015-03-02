@@ -199,12 +199,7 @@ func duintptr(s *Sym, off int, v uint64) int {
 var stringsym_gen int
 
 func stringsym(s string) *Sym {
-	var tmp struct {
-		lit Strlit
-		buf string
-	}
 	var pkg *Pkg
-
 	if len(s) > 100 {
 		// huge strings are made static to avoid long names
 		stringsym_gen++
@@ -215,8 +210,7 @@ func stringsym(s string) *Sym {
 		// small strings get named by their contents,
 		// so that multiple modules using the same string
 		// can share it.
-		tmp.lit.S = s
-		namebuf = fmt.Sprintf("\"%v\"", Zconv(&tmp.lit, 0))
+		namebuf = fmt.Sprintf("%q", s)
 		pkg = gostringpkg
 	}
 
@@ -313,8 +307,8 @@ func Datastring(s string, a *obj.Addr) {
 	a.Etype = Simtype[TINT]
 }
 
-func datagostring(sval *Strlit, a *obj.Addr) {
-	sym := stringsym(sval.S)
+func datagostring(sval string, a *obj.Addr) {
+	sym := stringsym(sval)
 	a.Type = obj.TYPE_MEM
 	a.Name = obj.NAME_EXTERN
 	a.Sym = Linksym(sym)
@@ -327,19 +321,13 @@ func dgostringptr(s *Sym, off int, str string) int {
 	if str == "" {
 		return duintptr(s, off, 0)
 	}
-
-	n := len(str)
-	lit := new(Strlit)
-	lit.S = str
-	lit.S = lit.S[:n]
-	return dgostrlitptr(s, off, lit)
+	return dgostrlitptr(s, off, &str)
 }
 
-func dgostrlitptr(s *Sym, off int, lit *Strlit) int {
+func dgostrlitptr(s *Sym, off int, lit *string) int {
 	if lit == nil {
 		return duintptr(s, off, 0)
 	}
-
 	off = int(Rnd(int64(off), int64(Widthptr)))
 	p := Thearch.Gins(obj.ADATA, nil, nil)
 	p.From.Type = obj.TYPE_MEM
@@ -348,7 +336,7 @@ func dgostrlitptr(s *Sym, off int, lit *Strlit) int {
 	p.From.Offset = int64(off)
 	p.From3.Type = obj.TYPE_CONST
 	p.From3.Offset = int64(Widthptr)
-	datagostring(lit, &p.To)
+	datagostring(*lit, &p.To)
 	p.To.Type = obj.TYPE_ADDR
 	p.To.Etype = Simtype[TINT]
 	off += Widthptr
@@ -425,18 +413,18 @@ func gdatacomplex(nam *Node, cval *Mpcplx) {
 	p.To.U.Dval = mpgetflt(&cval.Imag)
 }
 
-func gdatastring(nam *Node, sval *Strlit) {
+func gdatastring(nam *Node, sval string) {
 	var nod1 Node
 
 	p := Thearch.Gins(obj.ADATA, nam, nil)
-	Datastring(sval.S, &p.To)
+	Datastring(sval, &p.To)
 	p.From3.Type = obj.TYPE_CONST
 	p.From3.Offset = Types[Tptr].Width
 	p.To.Type = obj.TYPE_ADDR
 
 	//print("%P\n", p);
 
-	Nodconst(&nod1, Types[TINT], int64(len(sval.S)))
+	Nodconst(&nod1, Types[TINT], int64(len(sval)))
 
 	p = Thearch.Gins(obj.ADATA, nam, &nod1)
 	p.From3.Type = obj.TYPE_CONST

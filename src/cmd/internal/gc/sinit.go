@@ -443,7 +443,7 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
 	case OSTRARRAYBYTE:
 		if l.Class == PEXTERN && r.Left.Op == OLITERAL {
 			sval := r.Left.Val.U.Sval
-			slicebytes(l, sval.S, len(sval.S))
+			slicebytes(l, sval, len(sval))
 			return true
 		}
 
@@ -1368,7 +1368,7 @@ func iszero(n *Node) bool {
 			return true
 
 		case CTSTR:
-			return n.Val.U.Sval == nil || len(n.Val.U.Sval.S) == 0
+			return n.Val.U.Sval == ""
 
 		case CTBOOL:
 			return n.Val.U.Bval == 0

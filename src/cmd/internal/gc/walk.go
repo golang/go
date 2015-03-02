@@ -1154,7 +1154,7 @@ func walkexpr(np **Node, init **NodeList) {
 				Yyerror("index out of bounds")
 			}
 		} else if Isconst(n.Left, CTSTR) {
-			n.Bounded = bounded(r, int64(len(n.Left.Val.U.Sval.S)))
+			n.Bounded = bounded(r, int64(len(n.Left.Val.U.Sval)))
 			if Debug['m'] != 0 && n.Bounded && !Isconst(n.Right, CTINT) {
 				Warn("index bounds check elided")
 			}
@@ -1167,7 +1167,7 @@ func walkexpr(np **Node, init **NodeList) {
 					// an ideal constant.
 					v := Mpgetfix(n.Right.Val.U.Xval)
 
-					Nodconst(n, n.Type, int64(n.Left.Val.U.Sval.S[v]))
+					Nodconst(n, n.Type, int64(n.Left.Val.U.Sval[v]))
 					n.Typecheck = 1
 				}
 			}
@@ -1308,7 +1308,7 @@ func walkexpr(np **Node, init **NodeList) {
 	// comparing the lengths instead will yield the same result
 	// without the function call.
 	case OCMPSTR:
-		if (Isconst(n.Left, CTSTR) && len(n.Left.Val.U.Sval.S) == 0) || (Isconst(n.Right, CTSTR) && len(n.Right.Val.U.Sval.S) == 0) {
+		if (Isconst(n.Left, CTSTR) && len(n.Left.Val.U.Sval) == 0) || (Isconst(n.Right, CTSTR) && len(n.Right.Val.U.Sval) == 0) {
 			r := Nod(int(n.Etype), Nod(OLEN, n.Left, nil), Nod(OLEN, n.Right, nil))
 			typecheck(&r, Erv)
 			walkexpr(&r, init)
@@ -2862,7 +2862,7 @@ func addstr(n *Node, init **NodeList) *Node {
 		sz := int64(0)
 		for l := n.List; l != nil; l = l.Next {
 			if n.Op == OLITERAL {
-				sz += int64(len(n.Val.U.Sval.S))
+				sz += int64(len(n.Val.U.Sval))
 			}
 		}
 
@@ -4100,7 +4100,7 @@ func usefield(n *Node) {
 	if field == nil {
 		Fatal("usefield %v %v without paramfld", Tconv(n.Left.Type, 0), Sconv(n.Right.Sym, 0))
 	}
-	if field.Note == nil || !strings.Contains(field.Note.S, "go:\"track\"") {
+	if field.Note == nil || !strings.Contains(*field.Note, "go:\"track\"") {
 		return
 	}
 

@@ -380,7 +380,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 			var n1 gc.Node
 			regalloc(&n1, gc.Types[gc.Tptr], res)
 			p1 := gins(ppc64.AMOVD, nil, &n1)
-			gc.Datastring(nl.Val.U.Sval.S, &p1.From)
+			gc.Datastring(nl.Val.U.Sval, &p1.From)
 			gmove(&n1, res)
 			regfree(&n1)
 			break
@@ -783,7 +783,7 @@ func agenr(n *gc.Node, a *gc.Node, res *gc.Node) {
 		if gc.Debug['B'] == 0 && !n.Bounded {
 			// check bounds
 			if gc.Isconst(nl, gc.CTSTR) {
-				gc.Nodconst(&n4, gc.Types[gc.TUINT64], int64(len(nl.Val.U.Sval.S)))
+				gc.Nodconst(&n4, gc.Types[gc.TUINT64], int64(len(nl.Val.U.Sval)))
 			} else if gc.Isslice(nl.Type) || nl.Type.Etype == gc.TSTRING {
 				n1 = n3
 				n1.Op = gc.OINDREG
@@ -817,7 +817,7 @@ func agenr(n *gc.Node, a *gc.Node, res *gc.Node) {
 		if gc.Isconst(nl, gc.CTSTR) {
 			regalloc(&n3, gc.Types[gc.Tptr], res)
 			p1 := gins(ppc64.AMOVD, nil, &n3)
-			gc.Datastring(nl.Val.U.Sval.S, &p1.From)
+			gc.Datastring(nl.Val.U.Sval, &p1.From)
 			p1.From.Type = obj.TYPE_ADDR
 		} else if gc.Isslice(nl.Type) || nl.Type.Etype == gc.TSTRING {
 			n1 = n3

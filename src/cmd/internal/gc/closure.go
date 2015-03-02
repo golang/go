@@ -532,7 +532,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	}
 	if spkg == nil {
 		if makepartialcall_gopkg == nil {
-			makepartialcall_gopkg = mkpkg(newstrlit("go"))
+			makepartialcall_gopkg = mkpkg("go")
 		}
 		spkg = makepartialcall_gopkg
 	}
