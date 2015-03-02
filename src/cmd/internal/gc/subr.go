@@ -275,54 +275,54 @@ func setlineno(n *Node) int32 {
 	return lno
 }
 
-func stringhash(p string) uint32 {
-	var c int
-
-	h := uint32(0)
-	for {
-		c, p = intstarstringplusplus(p)
-		if c == 0 {
-			break
-		}
-		h = h*PRIME1 + uint32(c)
-	}
-
-	if int32(h) < 0 {
-		h = -h
-		if int32(h) < 0 {
-			h = 0
-		}
-	}
-
-	return h
+func Lookup(name string) *Sym {
+	return localpkg.Lookup(name)
 }
 
-func Lookup(name string) *Sym {
-	return Pkglookup(name, localpkg)
+func LookupBytes(name []byte) *Sym {
+	return localpkg.LookupBytes(name)
+}
+
+var initSyms []*Sym
+
+var nopkg = new(Pkg)
+
+func (pkg *Pkg) Lookup(name string) *Sym {
+	if pkg == nil {
+		pkg = nopkg
+	}
+	if s := pkg.Syms[name]; s != nil {
+		return s
+	}
+
+	s := &Sym{
+		Name:    name,
+		Pkg:     pkg,
+		Lexical: LNAME,
+	}
+	if s.Name == "init" {
+		initSyms = append(initSyms, s)
+	}
+	if pkg.Syms == nil {
+		pkg.Syms = make(map[string]*Sym)
+	}
+	pkg.Syms[name] = s
+	return s
+}
+
+func (pkg *Pkg) LookupBytes(name []byte) *Sym {
+	if pkg == nil {
+		pkg = nopkg
+	}
+	if s := pkg.Syms[string(name)]; s != nil {
+		return s
+	}
+	str := internString(name)
+	return pkg.Lookup(str)
 }
 
 func Pkglookup(name string, pkg *Pkg) *Sym {
-	h := stringhash(name) % NHASH
-	c := int(name[0])
-	for s := hash[h]; s != nil; s = s.Link {
-		if int(s.Name[0]) != c || s.Pkg != pkg {
-			continue
-		}
-		if s.Name == name {
-			return s
-		}
-	}
-
-	s := new(Sym)
-	s.Name = name
-
-	s.Pkg = pkg
-
-	s.Link = hash[h]
-	hash[h] = s
-	s.Lexical = LNAME
-
-	return s
+	return pkg.Lookup(name)
 }
 
 func restrictlookup(name string, pkg *Pkg) *Sym {
@@ -335,35 +335,29 @@ func restrictlookup(name string, pkg *Pkg) *Sym {
 // find all the exported symbols in package opkg
 // and make them available in the current package
 func importdot(opkg *Pkg, pack *Node) {
-	var s *Sym
 	var s1 *Sym
 	var pkgerror string
 
 	n := 0
-	for h := uint32(0); h < NHASH; h++ {
-		for s = hash[h]; s != nil; s = s.Link {
-			if s.Pkg != opkg {
-				continue
-			}
-			if s.Def == nil {
-				continue
-			}
-			if !exportname(s.Name) || strings.ContainsRune(s.Name, 0xb7) { // 0xb7 = center dot
-				continue
-			}
-			s1 = Lookup(s.Name)
-			if s1.Def != nil {
-				pkgerror = fmt.Sprintf("during import %q", opkg.Path)
-				redeclare(s1, pkgerror)
-				continue
-			}
-
-			s1.Def = s.Def
-			s1.Block = s.Block
-			s1.Def.Pack = pack
-			s1.Origpkg = opkg
-			n++
+	for _, s := range opkg.Syms {
+		if s.Def == nil {
+			continue
 		}
+		if !exportname(s.Name) || strings.ContainsRune(s.Name, 0xb7) { // 0xb7 = center dot
+			continue
+		}
+		s1 = Lookup(s.Name)
+		if s1.Def != nil {
+			pkgerror = fmt.Sprintf("during import %q", opkg.Path)
+			redeclare(s1, pkgerror)
+			continue
+		}
+
+		s1.Def = s.Def
+		s1.Block = s.Block
+		s1.Def.Pack = pack
+		s1.Origpkg = opkg
+		n++
 	}
 
 	if n == 0 {
@@ -3583,19 +3577,19 @@ func pathtoprefix(s string) string {
 	return s
 }
 
+var pkgMap = make(map[string]*Pkg)
+var pkgs []*Pkg
+
 func mkpkg(path string) *Pkg {
-	h := int(stringhash(path) & uint32(len(phash)-1))
-	for p := phash[h]; p != nil; p = p.Link {
-		if p.Path == path {
-			return p
-		}
+	if p := pkgMap[path]; p != nil {
+		return p
 	}
 
 	p := new(Pkg)
 	p.Path = path
 	p.Prefix = pathtoprefix(path)
-	p.Link = phash[h]
-	phash[h] = p
+	pkgMap[path] = p
+	pkgs = append(pkgs, p)
 	return p
 }
 

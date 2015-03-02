@@ -426,7 +426,7 @@ func symfmt(s *Sym, flag int) string {
 			}
 
 			// If the name was used by multiple packages, display the full path,
-			if s.Pkg.Name != "" && Pkglookup(s.Pkg.Name, nil).Npkg > 1 {
+			if s.Pkg.Name != "" && numImport[s.Pkg.Name] > 1 {
 				return fmt.Sprintf("%q.%s", s.Pkg.Path, s.Name)
 			}
 			var fp string

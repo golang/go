@@ -372,12 +372,9 @@ func dumpexport() {
 	}
 	fmt.Fprintf(bout, "\n")
 
-	var p *Pkg
-	for i := int32(0); i < int32(len(phash)); i++ {
-		for p = phash[i]; p != nil; p = p.Link {
-			if p.Direct != 0 {
-				dumppkg(p)
-			}
+	for _, p := range pkgs {
+		if p.Direct != 0 {
+			dumppkg(p)
 		}
 	}
 
@@ -432,6 +429,8 @@ func pkgtype(s *Sym) *Type {
 	return s.Def.Type
 }
 
+var numImport = make(map[string]int)
+
 func importimport(s *Sym, path string) {
 	// Informational: record package name
 	// associated with import path, for use in
@@ -443,7 +442,7 @@ func importimport(s *Sym, path string) {
 	p := mkpkg(path)
 	if p.Name == "" {
 		p.Name = s.Name
-		Pkglookup(s.Name, nil).Npkg++
+		numImport[s.Name]++
 	} else if p.Name != s.Name {
 		Yyerror("conflicting names %s and %s for package %q", p.Name, s.Name, p.Path)
 	}

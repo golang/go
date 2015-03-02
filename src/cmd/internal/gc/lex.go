@@ -1377,7 +1377,7 @@ talph:
 	cp = nil
 	ungetc(c)
 
-	s = Lookup(lexbuf.String())
+	s = LookupBytes(lexbuf.Bytes())
 	switch s.Lexical {
 	case LIGNORE:
 		goto l0
@@ -3120,36 +3120,33 @@ func mkpackage(pkgname string) {
 		if pkgname != localpkg.Name {
 			Yyerror("package %s; expected %s", pkgname, localpkg.Name)
 		}
-		var s *Sym
-		for h := int32(0); h < NHASH; h++ {
-			for s = hash[h]; s != nil; s = s.Link {
-				if s.Def == nil || s.Pkg != localpkg {
-					continue
+		for _, s := range localpkg.Syms {
+			if s.Def == nil {
+				continue
+			}
+			if s.Def.Op == OPACK {
+				// throw away top-level package name leftover
+				// from previous file.
+				// leave s->block set to cause redeclaration
+				// errors if a conflicting top-level name is
+				// introduced by a different file.
+				if s.Def.Used == 0 && nsyntaxerrors == 0 {
+					pkgnotused(int(s.Def.Lineno), s.Def.Pkg.Path, s.Name)
 				}
-				if s.Def.Op == OPACK {
-					// throw away top-level package name leftover
-					// from previous file.
-					// leave s->block set to cause redeclaration
-					// errors if a conflicting top-level name is
-					// introduced by a different file.
-					if s.Def.Used == 0 && nsyntaxerrors == 0 {
-						pkgnotused(int(s.Def.Lineno), s.Def.Pkg.Path, s.Name)
-					}
-					s.Def = nil
-					continue
+				s.Def = nil
+				continue
+			}
+
+			if s.Def.Sym != s {
+				// throw away top-level name left over
+				// from previous import . "x"
+				if s.Def.Pack != nil && s.Def.Pack.Used == 0 && nsyntaxerrors == 0 {
+					pkgnotused(int(s.Def.Pack.Lineno), s.Def.Pack.Pkg.Path, "")
+					s.Def.Pack.Used = 1
 				}
 
-				if s.Def.Sym != s {
-					// throw away top-level name left over
-					// from previous import . "x"
-					if s.Def.Pack != nil && s.Def.Pack.Used == 0 && nsyntaxerrors == 0 {
-						pkgnotused(int(s.Def.Pack.Lineno), s.Def.Pack.Pkg.Path, "")
-						s.Def.Pack.Used = 1
-					}
-
-					s.Def = nil
-					continue
-				}
+				s.Def = nil
+				continue
 			}
 		}
 	}

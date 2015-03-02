@@ -110,11 +110,11 @@ type Pkg struct {
 	Path     string
 	Pathsym  *Sym
 	Prefix   string
-	Link     *Pkg
 	Imported uint8
 	Exported int8
 	Direct   int8
 	Safe     bool
+	Syms     map[string]*Sym
 }
 
 type Sym struct {
@@ -122,7 +122,6 @@ type Sym struct {
 	Flags      uint8
 	Sym        uint8
 	Link       *Sym
-	Npkg       int32
 	Uniqgen    uint32
 	Importdef  *Pkg
 	Linkname   string
@@ -753,8 +752,6 @@ var debugstr string
 
 var Debug_checknil int
 
-var hash [NHASH]*Sym
-
 var importmyname *Sym // my name for package
 
 var localpkg *Pkg // package being compiled
@@ -786,8 +783,6 @@ var unsafepkg *Pkg // package unsafe
 var trackpkg *Pkg // fake package for field tracking
 
 var rawpkg *Pkg // fake package for raw symbol names
-
-var phash [128]*Pkg
 
 var Tptr int // either TPTR32 or TPTR64
 

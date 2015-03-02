@@ -249,7 +249,7 @@ import_package:
 	{
 		if importpkg.Name == "" {
 			importpkg.Name = $2.Name;
-			Pkglookup($2.Name, nil).Npkg++;
+			numImport[$2.Name]++
 		} else if importpkg.Name != $2.Name {
 			Yyerror("conflicting names %s and %s for package %q", importpkg.Name, $2.Name, importpkg.Path);
 		}
