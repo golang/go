@@ -353,7 +353,7 @@ func importdot(opkg *Pkg, pack *Node) {
 			}
 			s1 = Lookup(s.Name)
 			if s1.Def != nil {
-				pkgerror = fmt.Sprintf("during import \"%v\"", Zconv(opkg.Path, 0))
+				pkgerror = fmt.Sprintf("during import %q", opkg.Path)
 				redeclare(s1, pkgerror)
 				continue
 			}
@@ -368,7 +368,7 @@ func importdot(opkg *Pkg, pack *Node) {
 
 	if n == 0 {
 		// can't possibly be used - there were no symbols
-		yyerrorl(int(pack.Lineno), "imported and not used: \"%v\"", Zconv(opkg.Path, 0))
+		yyerrorl(int(pack.Lineno), "imported and not used: %q", opkg.Path)
 	}
 }
 
@@ -642,7 +642,7 @@ func (x methcmp) Less(i, j int) bool {
 		return k < 0
 	}
 	if !exportname(a.Sym.Name) {
-		k := stringsCompare(a.Sym.Pkg.Path.S, b.Sym.Pkg.Path.S)
+		k := stringsCompare(a.Sym.Pkg.Path, b.Sym.Pkg.Path)
 		if k != 0 {
 			return k < 0
 		}
@@ -941,8 +941,8 @@ func cplxsubtype(et int) int {
 	return 0
 }
 
-func eqnote(a, b *Strlit) bool {
-	return a == b || a != nil && b != nil && a.S == b.S
+func eqnote(a, b *string) bool {
+	return a == b || a != nil && b != nil && *a == *b
 }
 
 type TypePairList struct {
@@ -2454,11 +2454,11 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 
 		var v Val
 		v.Ctype = CTSTR
-		v.U.Sval = newstrlit(rcvr.Type.Sym.Pkg.Name) // package name
+		v.U.Sval = rcvr.Type.Sym.Pkg.Name // package name
 		l = list(l, nodlit(v))
-		v.U.Sval = newstrlit(rcvr.Type.Sym.Name) // type name
+		v.U.Sval = rcvr.Type.Sym.Name // type name
 		l = list(l, nodlit(v))
-		v.U.Sval = newstrlit(method.Sym.Name)
+		v.U.Sval = method.Sym.Name
 		l = list(l, nodlit(v)) // method name
 		call := Nod(OCALL, syslook("panicwrap", 0), nil)
 		call.List = l
@@ -3583,26 +3583,20 @@ func pathtoprefix(s string) string {
 	return s
 }
 
-func mkpkg(path_ *Strlit) *Pkg {
-	h := int(stringhash(path_.S) & uint32(len(phash)-1))
+func mkpkg(path string) *Pkg {
+	h := int(stringhash(path) & uint32(len(phash)-1))
 	for p := phash[h]; p != nil; p = p.Link {
-		if p.Path.S == path_.S {
+		if p.Path == path {
 			return p
 		}
 	}
 
 	p := new(Pkg)
-	p.Path = path_
-	p.Prefix = pathtoprefix(path_.S)
+	p.Path = path
+	p.Prefix = pathtoprefix(path)
 	p.Link = phash[h]
 	phash[h] = p
 	return p
-}
-
-func newstrlit(s string) *Strlit {
-	return &Strlit{
-		S: s,
-	}
 }
 
 func addinit(np **Node, init *NodeList) {
@@ -3632,15 +3626,15 @@ var reservedimports = []string{
 	"type",
 }
 
-func isbadimport(path_ *Strlit) bool {
-	if len(path_.S) != len(path_.S) {
+func isbadimport(path string) bool {
+	if strings.Contains(path, "\x00") {
 		Yyerror("import path contains NUL")
 		return true
 	}
 
 	for i := 0; i < len(reservedimports); i++ {
-		if path_.S == reservedimports[i] {
-			Yyerror("import path \"%s\" is reserved and cannot be used", path_.S)
+		if path == reservedimports[i] {
+			Yyerror("import path %q is reserved and cannot be used", path)
 			return true
 		}
 	}
@@ -3649,29 +3643,29 @@ func isbadimport(path_ *Strlit) bool {
 	_ = s
 	var r uint
 	_ = r
-	for _, r := range path_.S {
+	for _, r := range path {
 		if r == utf8.RuneError {
-			Yyerror("import path contains invalid UTF-8 sequence: \"%v\"", Zconv(path_, 0))
+			Yyerror("import path contains invalid UTF-8 sequence: %q", path)
 			return true
 		}
 
 		if r < 0x20 || r == 0x7f {
-			Yyerror("import path contains control character: \"%v\"", Zconv(path_, 0))
+			Yyerror("import path contains control character: %q", path)
 			return true
 		}
 
 		if r == '\\' {
-			Yyerror("import path contains backslash; use slash: \"%v\"", Zconv(path_, 0))
+			Yyerror("import path contains backslash; use slash: %q", path)
 			return true
 		}
 
 		if unicode.IsSpace(rune(r)) {
-			Yyerror("import path contains space character: \"%v\"", Zconv(path_, 0))
+			Yyerror("import path contains space character: %q", path)
 			return true
 		}
 
 		if strings.ContainsRune("!\"#$%&'()*,:;<=>?[]^`{|}", r) {
-			Yyerror("import path contains invalid character '%c': \"%v\"", r, Zconv(path_, 0))
+			Yyerror("import path contains invalid character '%c': %q", r, path)
 			return true
 		}
 	}

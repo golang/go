@@ -87,7 +87,7 @@ func dumppkg(p *Pkg) {
 	if p.Direct == 0 {
 		suffix = " // indirect"
 	}
-	fmt.Fprintf(bout, "\timport %s \"%v\"%s\n", p.Name, Zconv(p.Path, 0), suffix)
+	fmt.Fprintf(bout, "\timport %s %q%s\n", p.Name, p.Path, suffix)
 }
 
 // Look for anything we need for the inline body
@@ -399,7 +399,7 @@ func dumpexport() {
  */
 func importsym(s *Sym, op int) *Sym {
 	if s.Def != nil && int(s.Def.Op) != op {
-		pkgstr := fmt.Sprintf("during import \"%v\"", Zconv(importpkg.Path, 0))
+		pkgstr := fmt.Sprintf("during import %q", importpkg.Path)
 		redeclare(s, pkgstr)
 	}
 
@@ -432,24 +432,24 @@ func pkgtype(s *Sym) *Type {
 	return s.Def.Type
 }
 
-func importimport(s *Sym, z *Strlit) {
+func importimport(s *Sym, path string) {
 	// Informational: record package name
 	// associated with import path, for use in
 	// human-readable messages.
 
-	if isbadimport(z) {
+	if isbadimport(path) {
 		errorexit()
 	}
-	p := mkpkg(z)
+	p := mkpkg(path)
 	if p.Name == "" {
 		p.Name = s.Name
 		Pkglookup(s.Name, nil).Npkg++
 	} else if p.Name != s.Name {
-		Yyerror("conflicting names %s and %s for package \"%v\"", p.Name, s.Name, Zconv(p.Path, 0))
+		Yyerror("conflicting names %s and %s for package %q", p.Name, s.Name, p.Path)
 	}
 
-	if incannedimport == 0 && myimportpath != "" && z.S == myimportpath {
-		Yyerror("import \"%v\": package depends on \"%v\" (import cycle)", Zconv(importpkg.Path, 0), Zconv(z, 0))
+	if incannedimport == 0 && myimportpath != "" && path == myimportpath {
+		Yyerror("import %q: package depends on %q (import cycle)", importpkg.Path, path)
 		errorexit()
 	}
 }
@@ -488,7 +488,7 @@ func importvar(s *Sym, t *Type) {
 		if Eqtype(t, s.Def.Type) {
 			return
 		}
-		Yyerror("inconsistent definition for var %v during import\n\t%v (in \"%v\")\n\t%v (in \"%v\")", Sconv(s, 0), Tconv(s.Def.Type, 0), Zconv(s.Importdef.Path, 0), Tconv(t, 0), Zconv(importpkg.Path, 0))
+		Yyerror("inconsistent definition for var %v during import\n\t%v (in %q)\n\t%v (in %q)", Sconv(s, 0), Tconv(s.Def.Type, 0), s.Importdef.Path, Tconv(t, 0), importpkg.Path)
 	}
 
 	n := newname(s)
@@ -518,7 +518,7 @@ func importtype(pt *Type, t *Type) {
 		declare(n, PEXTERN)
 		checkwidth(pt)
 	} else if !Eqtype(pt.Orig, t) {
-		Yyerror("inconsistent definition for type %v during import\n\t%v (in \"%v\")\n\t%v (in \"%v\")", Sconv(pt.Sym, 0), Tconv(pt, obj.FmtLong), Zconv(pt.Sym.Importdef.Path, 0), Tconv(t, obj.FmtLong), Zconv(importpkg.Path, 0))
+		Yyerror("inconsistent definition for type %v during import\n\t%v (in %q)\n\t%v (in %q)", Sconv(pt.Sym, 0), Tconv(pt, obj.FmtLong), pt.Sym.Importdef.Path, Tconv(t, obj.FmtLong), importpkg.Path)
 	}
 
 	if Debug['E'] != 0 {

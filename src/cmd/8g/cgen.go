@@ -332,7 +332,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 			var n1 gc.Node
 			regalloc(&n1, gc.Types[gc.Tptr], res)
 			p1 := gins(i386.ALEAL, nil, &n1)
-			gc.Datastring(nl.Val.U.Sval.S, &p1.From)
+			gc.Datastring(nl.Val.U.Sval, &p1.From)
 			gmove(&n1, res)
 			regfree(&n1)
 			break
@@ -726,7 +726,7 @@ func agen(n *gc.Node, res *gc.Node) {
 
 			var nlen gc.Node
 			if gc.Isconst(nl, gc.CTSTR) {
-				gc.Nodconst(&nlen, t, int64(len(nl.Val.U.Sval.S)))
+				gc.Nodconst(&nlen, t, int64(len(nl.Val.U.Sval)))
 			} else if gc.Isslice(nl.Type) || nl.Type.Etype == gc.TSTRING {
 				nlen = n3
 				nlen.Type = t
@@ -747,7 +747,7 @@ func agen(n *gc.Node, res *gc.Node) {
 		if gc.Isconst(nl, gc.CTSTR) {
 			regalloc(&n3, gc.Types[gc.Tptr], res)
 			p1 := gins(i386.ALEAL, nil, &n3)
-			gc.Datastring(nl.Val.U.Sval.S, &p1.From)
+			gc.Datastring(nl.Val.U.Sval, &p1.From)
 			p1.From.Scale = 1
 			p1.From.Index = n2.Val.U.Reg
 			goto indexdone

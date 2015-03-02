@@ -121,50 +121,50 @@ func Main() {
 	Ctxt.Bso = &bstdout
 	bstdout = *obj.Binitw(os.Stdout)
 
-	localpkg = mkpkg(newstrlit(""))
+	localpkg = mkpkg("")
 	localpkg.Prefix = "\"\""
 
 	// pseudo-package, for scoping
-	builtinpkg = mkpkg(newstrlit("go.builtin"))
+	builtinpkg = mkpkg("go.builtin")
 
 	builtinpkg.Prefix = "go.builtin" // not go%2ebuiltin
 
 	// pseudo-package, accessed by import "unsafe"
-	unsafepkg = mkpkg(newstrlit("unsafe"))
+	unsafepkg = mkpkg("unsafe")
 
 	unsafepkg.Name = "unsafe"
 
 	// real package, referred to by generated runtime calls
-	Runtimepkg = mkpkg(newstrlit("runtime"))
+	Runtimepkg = mkpkg("runtime")
 
 	Runtimepkg.Name = "runtime"
 
 	// pseudo-packages used in symbol tables
-	gostringpkg = mkpkg(newstrlit("go.string"))
+	gostringpkg = mkpkg("go.string")
 
 	gostringpkg.Name = "go.string"
 	gostringpkg.Prefix = "go.string" // not go%2estring
 
-	itabpkg = mkpkg(newstrlit("go.itab"))
+	itabpkg = mkpkg("go.itab")
 
 	itabpkg.Name = "go.itab"
 	itabpkg.Prefix = "go.itab" // not go%2eitab
 
-	weaktypepkg = mkpkg(newstrlit("go.weak.type"))
+	weaktypepkg = mkpkg("go.weak.type")
 
 	weaktypepkg.Name = "go.weak.type"
 	weaktypepkg.Prefix = "go.weak.type" // not go%2eweak%2etype
 
-	typelinkpkg = mkpkg(newstrlit("go.typelink"))
+	typelinkpkg = mkpkg("go.typelink")
 	typelinkpkg.Name = "go.typelink"
 	typelinkpkg.Prefix = "go.typelink" // not go%2etypelink
 
-	trackpkg = mkpkg(newstrlit("go.track"))
+	trackpkg = mkpkg("go.track")
 
 	trackpkg.Name = "go.track"
 	trackpkg.Prefix = "go.track" // not go%2etrack
 
-	typepkg = mkpkg(newstrlit("type"))
+	typepkg = mkpkg("type")
 
 	typepkg.Name = "type"
 
@@ -238,7 +238,7 @@ func Main() {
 	startProfile()
 
 	if flag_race != 0 {
-		racepkg = mkpkg(newstrlit("runtime/race"))
+		racepkg = mkpkg("runtime/race")
 		racepkg.Name = "race"
 	}
 
@@ -549,14 +549,14 @@ func addidir(dir string) {
 }
 
 // is this path a local name?  begins with ./ or ../ or /
-func islocalname(name *Strlit) bool {
-	return strings.HasPrefix(name.S, "/") ||
-		Ctxt.Windows != 0 && len(name.S) >= 3 && yy_isalpha(int(name.S[0])) && name.S[1] == ':' && name.S[2] == '/' ||
-		strings.HasPrefix(name.S, "./") || name.S == "." ||
-		strings.HasPrefix(name.S, "../") || name.S == ".."
+func islocalname(name string) bool {
+	return strings.HasPrefix(name, "/") ||
+		Ctxt.Windows != 0 && len(name) >= 3 && yy_isalpha(int(name[0])) && name[1] == ':' && name[2] == '/' ||
+		strings.HasPrefix(name, "./") || name == "." ||
+		strings.HasPrefix(name, "../") || name == ".."
 }
 
-func findpkg(name *Strlit) bool {
+func findpkg(name string) bool {
 	if islocalname(name) {
 		if safemode != 0 || nolocalimports != 0 {
 			return false
@@ -565,12 +565,12 @@ func findpkg(name *Strlit) bool {
 		// try .a before .6.  important for building libraries:
 		// if there is an array.6 in the array.a library,
 		// want to find all of array.a, not just array.6.
-		namebuf = fmt.Sprintf("%v.a", Zconv(name, 0))
+		namebuf = fmt.Sprintf("%s.a", name)
 
 		if obj.Access(namebuf, 0) >= 0 {
 			return true
 		}
-		namebuf = fmt.Sprintf("%v.%c", Zconv(name, 0), Thearch.Thechar)
+		namebuf = fmt.Sprintf("%s.%c", name, Thearch.Thechar)
 		if obj.Access(namebuf, 0) >= 0 {
 			return true
 		}
@@ -582,17 +582,17 @@ func findpkg(name *Strlit) bool {
 	// as different from "encoding/base64".
 	var q string
 	_ = q
-	if path.Clean(name.S) != name.S {
-		Yyerror("non-canonical import path %v (should be %s)", Zconv(name, 0), q)
+	if path.Clean(name) != name {
+		Yyerror("non-canonical import path %q (should be %q)", name, q)
 		return false
 	}
 
 	for p := idirs; p != nil; p = p.link {
-		namebuf = fmt.Sprintf("%s/%v.a", p.dir, Zconv(name, 0))
+		namebuf = fmt.Sprintf("%s/%s.a", p.dir, name)
 		if obj.Access(namebuf, 0) >= 0 {
 			return true
 		}
-		namebuf = fmt.Sprintf("%s/%v.%c", p.dir, Zconv(name, 0), Thearch.Thechar)
+		namebuf = fmt.Sprintf("%s/%s.%c", p.dir, name, Thearch.Thechar)
 		if obj.Access(namebuf, 0) >= 0 {
 			return true
 		}
@@ -609,11 +609,11 @@ func findpkg(name *Strlit) bool {
 			suffix = "race"
 		}
 
-		namebuf = fmt.Sprintf("%s/pkg/%s_%s%s%s/%v.a", goroot, goos, goarch, suffixsep, suffix, Zconv(name, 0))
+		namebuf = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.a", goroot, goos, goarch, suffixsep, suffix, name)
 		if obj.Access(namebuf, 0) >= 0 {
 			return true
 		}
-		namebuf = fmt.Sprintf("%s/pkg/%s_%s%s%s/%v.%c", goroot, goos, goarch, suffixsep, suffix, Zconv(name, 0), Thearch.Thechar)
+		namebuf = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.%c", goroot, goos, goarch, suffixsep, suffix, name, Thearch.Thechar)
 		if obj.Access(namebuf, 0) >= 0 {
 			return true
 		}
@@ -623,7 +623,7 @@ func findpkg(name *Strlit) bool {
 }
 
 func fakeimport() {
-	importpkg = mkpkg(newstrlit("fake"))
+	importpkg = mkpkg("fake")
 	cannedimports("fake.6", "$$\n")
 }
 
@@ -634,7 +634,7 @@ func importfile(f *Val, line int) {
 		return
 	}
 
-	if len(f.U.Sval.S) == 0 {
+	if len(f.U.Sval) == 0 {
 		Yyerror("import path is empty")
 		fakeimport()
 		return
@@ -649,17 +649,17 @@ func importfile(f *Val, line int) {
 	// but we reserve the import path "main" to identify
 	// the main package, just as we reserve the import
 	// path "math" to identify the standard math package.
-	if f.U.Sval.S == "main" {
+	if f.U.Sval == "main" {
 		Yyerror("cannot import \"main\"")
 		errorexit()
 	}
 
-	if myimportpath != "" && f.U.Sval.S == myimportpath {
-		Yyerror("import \"%v\" while compiling that package (import cycle)", Zconv(f.U.Sval, 0))
+	if myimportpath != "" && f.U.Sval == myimportpath {
+		Yyerror("import %q while compiling that package (import cycle)", f.U.Sval)
 		errorexit()
 	}
 
-	if f.U.Sval.S == "unsafe" {
+	if f.U.Sval == "unsafe" {
 		if safemode != 0 {
 			Yyerror("cannot import package unsafe")
 			errorexit()
@@ -673,7 +673,7 @@ func importfile(f *Val, line int) {
 
 	path_ := f.U.Sval
 	if islocalname(path_) {
-		if path_.S[0] == '/' {
+		if path_[0] == '/' {
 			Yyerror("import path cannot be absolute path")
 			fakeimport()
 			return
@@ -685,9 +685,9 @@ func importfile(f *Val, line int) {
 		}
 		cleanbuf := prefix
 		cleanbuf += "/"
-		cleanbuf += path_.S
+		cleanbuf += path_
 		cleanbuf = path.Clean(cleanbuf)
-		path_ = newstrlit(cleanbuf)
+		path_ = cleanbuf
 
 		if isbadimport(path_) {
 			fakeimport()
@@ -696,7 +696,7 @@ func importfile(f *Val, line int) {
 	}
 
 	if !findpkg(path_) {
-		Yyerror("can't find import: \"%v\"", Zconv(f.U.Sval, 0))
+		Yyerror("can't find import: %q", f.U.Sval)
 		errorexit()
 	}
 
@@ -722,7 +722,7 @@ func importfile(f *Val, line int) {
 	var imp *obj.Biobuf
 	imp, err = obj.Bopenr(namebuf)
 	if err != nil {
-		Yyerror("can't open import: \"%v\": %v", Zconv(f.U.Sval, 0), err)
+		Yyerror("can't open import: %q: %v", f.U.Sval, err)
 		errorexit()
 	}
 
@@ -754,7 +754,7 @@ func importfile(f *Val, line int) {
 
 	// assume files move (get installed)
 	// so don't record the full path.
-	linehist(file[n-len(path_.S)-2:], -1, 1) // acts as #pragma lib
+	linehist(file[n-len(path_)-2:], -1, 1) // acts as #pragma lib
 
 	/*
 	 * position the input right
@@ -788,7 +788,7 @@ func importfile(f *Val, line int) {
 		return
 	}
 
-	Yyerror("no import in \"%v\"", Zconv(f.U.Sval, 0))
+	Yyerror("no import in %q", f.U.Sval)
 	unimportfile()
 }
 
@@ -1491,13 +1491,25 @@ caseout:
 	return LLITERAL
 
 strlit:
-	yylval.val.U.Sval = &Strlit{S: cp.String()}
+	yylval.val.U.Sval = internString(cp.Bytes())
 	yylval.val.Ctype = CTSTR
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: string literal\n")
 	}
 	litbuf = "string literal"
 	return LLITERAL
+}
+
+var internedStrings = map[string]string{}
+
+func internString(b []byte) string {
+	s, ok := internedStrings[string(b)] // string(b) here doesn't allocate
+	if ok {
+		return s
+	}
+	s = string(b)
+	internedStrings[s] = s
+	return s
 }
 
 func more(pp *string) bool {
@@ -3080,21 +3092,21 @@ var yytfix = []struct {
 	}{"','", "comma"},
 }
 
-func pkgnotused(lineno int, path_ *Strlit, name string) {
+func pkgnotused(lineno int, path string, name string) {
 	// If the package was imported with a name other than the final
 	// import path element, show it explicitly in the error message.
 	// Note that this handles both renamed imports and imports of
 	// packages containing unconventional package declarations.
 	// Note that this uses / always, even on Windows, because Go import
 	// paths always use forward slashes.
-	elem := path_.S
+	elem := path
 	if i := strings.LastIndex(elem, "/"); i >= 0 {
 		elem = elem[i+1:]
 	}
 	if name == "" || elem == name {
-		yyerrorl(int(lineno), "imported and not used: \"%v\"", Zconv(path_, 0))
+		yyerrorl(int(lineno), "imported and not used: %q", path)
 	} else {
-		yyerrorl(int(lineno), "imported and not used: \"%v\" as %s", Zconv(path_, 0), name)
+		yyerrorl(int(lineno), "imported and not used: %q as %s", path, name)
 	}
 }
 

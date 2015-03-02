@@ -132,14 +132,14 @@ func testdclstack() {
 
 func redeclare(s *Sym, where string) {
 	if s.Lastlineno == 0 {
-		var tmp *Strlit
+		var tmp string
 		if s.Origpkg != nil {
 			tmp = s.Origpkg.Path
 		} else {
 			tmp = s.Pkg.Path
 		}
 		pkgstr := tmp
-		Yyerror("%v redeclared %s\n"+"\tprevious declaration during import \"%v\"", Sconv(s, 0), where, Zconv(pkgstr, 0))
+		Yyerror("%v redeclared %s\n"+"\tprevious declaration during import %q", Sconv(s, 0), where, pkgstr)
 	} else {
 		line1 := parserline()
 		line2 := int(s.Lastlineno)
@@ -823,7 +823,8 @@ func structfield(n *Node) *Type {
 
 	switch n.Val.Ctype {
 	case CTSTR:
-		f.Note = n.Val.U.Sval
+		f.Note = new(string)
+		*f.Note = n.Val.U.Sval
 
 	default:
 		Yyerror("field annotation must be string")
@@ -1284,7 +1285,7 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
 
 	if spkg == nil {
 		if methodsym_toppkg == nil {
-			methodsym_toppkg = mkpkg(newstrlit("go"))
+			methodsym_toppkg = mkpkg("go")
 		}
 		spkg = methodsym_toppkg
 	}

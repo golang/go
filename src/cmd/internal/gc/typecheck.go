@@ -802,8 +802,8 @@ reswitch:
 					Yyerror("invalid %s index %v (index must be non-negative)", why, Nconv(n.Right, 0))
 				} else if Isfixedarray(t) && t.Bound > 0 && x >= t.Bound {
 					Yyerror("invalid array index %v (out of bounds for %d-element array)", Nconv(n.Right, 0), t.Bound)
-				} else if Isconst(n.Left, CTSTR) && x >= int64(len(n.Left.Val.U.Sval.S)) {
-					Yyerror("invalid string index %v (out of bounds for %d-byte string)", Nconv(n.Right, 0), len(n.Left.Val.U.Sval.S))
+				} else if Isconst(n.Left, CTSTR) && x >= int64(len(n.Left.Val.U.Sval)) {
+					Yyerror("invalid string index %v (out of bounds for %d-byte string)", Nconv(n.Right, 0), len(n.Left.Val.U.Sval))
 				} else if Mpcmpfixfix(n.Right.Val.U.Xval, Maxintval[TINT]) > 0 {
 					Yyerror("invalid %s index %v (index too large)", why, Nconv(n.Right, 0))
 				}
@@ -1169,7 +1169,7 @@ reswitch:
 		case TSTRING:
 			if Isconst(l, CTSTR) {
 				r := Nod(OXXX, nil, nil)
-				Nodconst(r, Types[TINT], int64(len(l.Val.U.Sval.S)))
+				Nodconst(r, Types[TINT], int64(len(l.Val.U.Sval)))
 				r.Orig = n
 				n = r
 			}
@@ -2135,8 +2135,8 @@ func checksliceindex(l *Node, r *Node, tp *Type) int {
 		} else if tp != nil && tp.Bound > 0 && Mpgetfix(r.Val.U.Xval) > tp.Bound {
 			Yyerror("invalid slice index %v (out of bounds for %d-element array)", Nconv(r, 0), tp.Bound)
 			return -1
-		} else if Isconst(l, CTSTR) && Mpgetfix(r.Val.U.Xval) > int64(len(l.Val.U.Sval.S)) {
-			Yyerror("invalid slice index %v (out of bounds for %d-byte string)", Nconv(r, 0), len(l.Val.U.Sval.S))
+		} else if Isconst(l, CTSTR) && Mpgetfix(r.Val.U.Xval) > int64(len(l.Val.U.Sval)) {
+			Yyerror("invalid slice index %v (out of bounds for %d-byte string)", Nconv(r, 0), len(l.Val.U.Sval))
 			return -1
 		} else if Mpcmpfixfix(r.Val.U.Xval, Maxintval[TINT]) > 0 {
 			Yyerror("invalid slice index %v (index too large)", Nconv(r, 0))
@@ -2705,8 +2705,8 @@ func keydup(n *Node, hash []*Node) {
 
 	case CTSTR:
 		b = 0
-		s := n.Val.U.Sval.S
-		for i := len(n.Val.U.Sval.S); i > 0; i-- {
+		s := n.Val.U.Sval
+		for i := len(n.Val.U.Sval); i > 0; i-- {
 			b = b*PRIME1 + uint32(s[0])
 			s = s[1:]
 		}
@@ -3444,7 +3444,7 @@ func stringtoarraylit(np **Node) {
 		Fatal("stringtoarraylit %N", n)
 	}
 
-	s := n.Left.Val.U.Sval.S
+	s := n.Left.Val.U.Sval
 	var l *NodeList
 	if n.Type.Type.Etype == TUINT8 {
 		// []byte

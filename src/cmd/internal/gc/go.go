@@ -55,15 +55,6 @@ const (
 	MaxStackVarSize = 10 * 1024 * 1024
 )
 
-/*
- * note this is the representation
- * of the compilers string literals,
- * it is not the runtime representation
- */
-type Strlit struct {
-	S string
-}
-
 const (
 	Mpscale = 29
 	Mpprec  = 16
@@ -98,7 +89,7 @@ type Val struct {
 		Xval *Mpint
 		Fval *Mpflt
 		Cval *Mpcplx
-		Sval *Strlit
+		Sval string
 	}
 }
 
@@ -116,7 +107,7 @@ type Bvec struct {
 
 type Pkg struct {
 	Name     string
-	Path     *Strlit
+	Path     string
 	Pathsym  *Sym
 	Prefix   string
 	Link     *Pkg
@@ -279,7 +270,7 @@ type Type struct {
 	Width       int64
 	Down        *Type
 	Outer       *Type
-	Note        *Strlit
+	Note        *string
 	Bound       int64
 	Bucket      *Type
 	Hmap        *Type

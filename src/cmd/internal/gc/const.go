@@ -4,7 +4,10 @@
 
 package gc
 
-import "cmd/internal/obj"
+import (
+	"cmd/internal/obj"
+	"strings"
+)
 
 /*
  * truncate float literal fv to 32-bit or 64-bit precision
@@ -432,11 +435,10 @@ func tostr(v Val) Val {
 		if Mpcmpfixfix(v.U.Xval, Minintval[TINT]) < 0 || Mpcmpfixfix(v.U.Xval, Maxintval[TINT]) > 0 {
 			Yyerror("overflow in int -> string")
 		}
-		rune_ := uint(Mpgetfix(v.U.Xval))
-		s := &Strlit{S: string(rune_)}
+		r := uint(Mpgetfix(v.U.Xval))
 		v = Val{}
 		v.Ctype = CTSTR
-		v.U.Sval = s
+		v.U.Sval = string(r)
 
 	case CTFLT:
 		Yyerror("no float -> string")
@@ -445,7 +447,7 @@ func tostr(v Val) Val {
 	case CTNIL:
 		v = Val{}
 		v.Ctype = CTSTR
-		v.U.Sval = new(Strlit)
+		v.U.Sval = ""
 	}
 
 	return v
@@ -526,16 +528,15 @@ func evconst(n *Node) {
 	case OADDSTR:
 		var nr *Node
 		var nl *Node
-		var str *Strlit
 		var l2 *NodeList
 		for l1 := n.List; l1 != nil; l1 = l1.Next {
 			if Isconst(l1.N, CTSTR) && l1.Next != nil && Isconst(l1.Next.N, CTSTR) {
 				// merge from l1 up to but not including l2
-				str = new(Strlit)
+				var strs []string
 				l2 = l1
 				for l2 != nil && Isconst(l2.N, CTSTR) {
 					nr = l2.N
-					str.S += nr.Val.U.Sval.S
+					strs = append(strs, nr.Val.U.Sval)
 					l2 = l2.Next
 				}
 
@@ -543,7 +544,7 @@ func evconst(n *Node) {
 				*nl = *l1.N
 				nl.Orig = nl
 				nl.Val.Ctype = CTSTR
-				nl.Val.U.Sval = str
+				nl.Val.U.Sval = strings.Join(strs, "")
 				l1.N = nl
 				l1.Next = l2
 			}
@@ -1334,7 +1335,7 @@ func defaultlit2(lp **Node, rp **Node, force int) {
 }
 
 func cmpslit(l, r *Node) int {
-	return stringsCompare(l.Val.U.Sval.S, r.Val.U.Sval.S)
+	return stringsCompare(l.Val.U.Sval, r.Val.U.Sval)
 }
 
 func Smallintconst(n *Node) bool {

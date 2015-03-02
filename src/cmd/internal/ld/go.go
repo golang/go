@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"unicode/utf8"
 )
 
 // go-specific code shared across loaders (5l, 6l, 8l).
@@ -757,49 +756,6 @@ func addexport() {
 	}
 }
 
-/* %Z from gc, for quoting import paths */
-func Zconv(s string, flag int) string {
-	// NOTE: Keep in sync with gc Zconv.
-	var n int
-	var fp string
-	for i := 0; i < len(s); i += n {
-		var r rune
-		r, n = utf8.DecodeRuneInString(s[i:])
-		switch r {
-		case utf8.RuneError:
-			if n == 1 {
-				fp += fmt.Sprintf("\\x%02x", s[i])
-				break
-			}
-			fallthrough
-
-			// fall through
-		default:
-			if r < ' ' {
-				fp += fmt.Sprintf("\\x%02x", r)
-				break
-			}
-
-			fp += string(r)
-
-		case '\t':
-			fp += "\\t"
-
-		case '\n':
-			fp += "\\n"
-
-		case '"',
-			'\\':
-			fp += `\` + string(r)
-
-		case 0xFEFF: // BOM, basically disallowed in source code
-			fp += "\\uFEFF"
-		}
-	}
-
-	return fp
-}
-
 type Pkg struct {
 	mark    uint8
 	checked uint8
@@ -835,7 +791,7 @@ func imported(pkg string, import_ string) {
 		return
 	}
 
-	pkg = fmt.Sprintf("\"%v\"", Zconv(pkg, 0)) // turn pkg path into quoted form, freed below
+	pkg = fmt.Sprintf("%q", pkg) // turn pkg path into quoted form, freed below
 	p := getpkg(pkg)
 	i := getpkg(import_)
 	i.impby = append(i.impby, p)

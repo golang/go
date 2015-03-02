@@ -28,7 +28,7 @@ func sigcmp(a *Sig, b *Sig) int {
 	if b.pkg == nil {
 		return +1
 	}
-	return stringsCompare(a.pkg.Path.S, b.pkg.Path.S)
+	return stringsCompare(a.pkg.Path, b.pkg.Path)
 }
 
 func lsort(l *Sig, f func(*Sig, *Sig) int) *Sig {
@@ -473,7 +473,7 @@ func dimportpath(p *Pkg) {
 	}
 
 	if dimportpath_gopkg == nil {
-		dimportpath_gopkg = mkpkg(newstrlit("go"))
+		dimportpath_gopkg = mkpkg("go")
 		dimportpath_gopkg.Name = "go"
 	}
 
@@ -502,7 +502,7 @@ func dgopkgpath(s *Sym, ot int, pkg *Pkg) int {
 		var ns *Sym
 
 		if ns == nil {
-			ns = Pkglookup("importpath.\"\".", mkpkg(newstrlit("go")))
+			ns = Pkglookup("importpath.\"\".", mkpkg("go"))
 		}
 		return dsymptr(s, ot, ns, 0)
 	}
@@ -1280,7 +1280,7 @@ func dumptypestructs() {
 		if flag_race != 0 {
 			dimportpath(racepkg)
 		}
-		dimportpath(mkpkg(newstrlit("main")))
+		dimportpath(mkpkg("main"))
 	}
 }
 

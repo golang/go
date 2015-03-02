@@ -45,8 +45,6 @@ import (
 //		Flags: those of %N
 //			','  separate items with ',' instead of ';'
 //
-//	%Z Strlit*	String literals
-//
 //   In mparith1.c:
 //      %B Mpint*	Big integers
 //	%F Mpflt*	Big floats
@@ -350,7 +348,7 @@ func Vconv(v *Val, flag int) string {
 
 	case CTSTR:
 		var fp string
-		fp += fmt.Sprintf("\"%v\"", Zconv(v.U.Sval, 0))
+		fp += fmt.Sprintf("%q", v.U.Sval)
 		return fp
 
 	case CTBOOL:
@@ -368,54 +366,6 @@ func Vconv(v *Val, flag int) string {
 	}
 
 	return fmt.Sprintf("<ctype=%d>", v.Ctype)
-}
-
-// Fmt "%Z": escaped string literals
-func Zconv(sp *Strlit, flag int) string {
-	if sp == nil {
-		return "<nil>"
-	}
-
-	// NOTE: Keep in sync with ../ld/go.c:/^Zconv.
-	s := sp.S
-	var n int
-	var fp string
-	for i := 0; i < len(s); i += n {
-		var r rune
-		r, n = utf8.DecodeRuneInString(s[i:])
-		switch r {
-		case utf8.RuneError:
-			if n == 1 {
-				fp += fmt.Sprintf("\\x%02x", s[i])
-				break
-			}
-			fallthrough
-
-			// fall through
-		default:
-			if r < ' ' {
-				fp += fmt.Sprintf("\\x%02x", r)
-				break
-			}
-
-			fp += string(r)
-
-		case '\t':
-			fp += "\\t"
-
-		case '\n':
-			fp += "\\n"
-
-		case '"',
-			'\\':
-			fp += `\` + string(r)
-
-		case 0xFEFF: // BOM, basically disallowed in source code
-			fp += "\\uFEFF"
-		}
-	}
-
-	return fp
 }
 
 /*
@@ -477,7 +427,7 @@ func symfmt(s *Sym, flag int) string {
 
 			// If the name was used by multiple packages, display the full path,
 			if s.Pkg.Name != "" && Pkglookup(s.Pkg.Name, nil).Npkg > 1 {
-				return fmt.Sprintf("\"%v\".%s", Zconv(s.Pkg.Path, 0), s.Name)
+				return fmt.Sprintf("%q.%s", s.Pkg.Path, s.Name)
 			}
 			var fp string
 			fp += fmt.Sprintf("%s.%s", s.Pkg.Name, s.Name)
@@ -501,7 +451,7 @@ func symfmt(s *Sym, flag int) string {
 				Fatal("exporting synthetic symbol %s", s.Name)
 			}
 			if s.Pkg != builtinpkg {
-				return fmt.Sprintf("@\"%v\".%s", Zconv(s.Pkg.Path, 0), s.Name)
+				return fmt.Sprintf("@%q.%s", s.Pkg.Path, s.Name)
 			}
 		}
 	}
@@ -516,7 +466,7 @@ func symfmt(s *Sym, flag int) string {
 
 		// exportname needs to see the name without the prefix too.
 		if (fmtmode == FExp && !exportname(p)) || fmtmode == FDbg {
-			return fmt.Sprintf("@\"%v\".%s", Zconv(s.Pkg.Path, 0), p)
+			return fmt.Sprintf("@%q.%s", s.Pkg.Path, p)
 		}
 
 		return p
@@ -791,8 +741,8 @@ func typefmt(t *Type, flag int) string {
 				//if(t->funarg)
 				//	fmtstrcpy(fp, "_ ");
 				//else
-				if t.Embedded != 0 && s.Pkg != nil && len(s.Pkg.Path.S) > 0 {
-					fp += fmt.Sprintf("@\"%v\".? ", Zconv(s.Pkg.Path, 0))
+				if t.Embedded != 0 && s.Pkg != nil && len(s.Pkg.Path) > 0 {
+					fp += fmt.Sprintf("@%q.? ", s.Pkg.Path)
 				} else {
 					fp += "? "
 				}
@@ -806,7 +756,7 @@ func typefmt(t *Type, flag int) string {
 		}
 
 		if flag&obj.FmtShort == 0 /*untyped*/ && t.Note != nil {
-			fp += fmt.Sprintf(" \"%v\"", Zconv(t.Note, 0))
+			fp += fmt.Sprintf(" %q", *t.Note)
 		}
 		return fp
 

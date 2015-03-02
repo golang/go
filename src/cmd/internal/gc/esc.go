@@ -217,9 +217,9 @@ type EscState struct {
 	recursive bool
 }
 
-var tags [16]*Strlit
+var tags [16]*string
 
-func mktag(mask int) *Strlit {
+func mktag(mask int) *string {
 	switch mask & EscMask {
 	case EscNone,
 		EscReturn:
@@ -235,22 +235,18 @@ func mktag(mask int) *Strlit {
 		return tags[mask]
 	}
 
-	buf := fmt.Sprintf("esc:0x%x", mask)
-	s := newstrlit(buf)
+	s := fmt.Sprintf("esc:0x%x", mask)
 	if mask < len(tags) {
-		tags[mask] = s
+		tags[mask] = &s
 	}
-	return s
+	return &s
 }
 
-func parsetag(note *Strlit) int {
-	if note == nil {
+func parsetag(note *string) int {
+	if note == nil || !strings.HasPrefix(*note, "esc:") {
 		return EscUnknown
 	}
-	if !strings.HasPrefix(note.S, "esc:") {
-		return EscUnknown
-	}
-	em := atoi(note.S[4:])
+	em := atoi((*note)[4:])
 	if em == 0 {
 		return EscNone
 	}
@@ -941,7 +937,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
 	lineno = int32(lno)
 }
 
-func escassignfromtag(e *EscState, note *Strlit, dsts *NodeList, src *Node) int {
+func escassignfromtag(e *EscState, note *string, dsts *NodeList, src *Node) int {
 	var em int
 
 	em = parsetag(note)
@@ -969,7 +965,7 @@ func escassignfromtag(e *EscState, note *Strlit, dsts *NodeList, src *Node) int 
 	}
 
 	if em != 0 && dsts == nil {
-		Fatal("corrupt esc tag %v or messed up escretval list\n", Zconv(note, 0))
+		Fatal("corrupt esc tag %q or messed up escretval list\n", note)
 	}
 	return em0
 }

@@ -1228,13 +1228,13 @@ yydefault:
 				importpkg.Name = yyDollar[2].sym.Name
 				Pkglookup(yyDollar[2].sym.Name, nil).Npkg++
 			} else if importpkg.Name != yyDollar[2].sym.Name {
-				Yyerror("conflicting names %s and %s for package \"%v\"", importpkg.Name, yyDollar[2].sym.Name, Zconv(importpkg.Path, 0))
+				Yyerror("conflicting names %s and %s for package %q", importpkg.Name, yyDollar[2].sym.Name, importpkg.Path)
 			}
 			importpkg.Direct = 1
 			importpkg.Safe = curio.importsafe
 
 			if safemode != 0 && !curio.importsafe {
-				Yyerror("cannot import unsafe package \"%v\"", Zconv(importpkg.Path, 0))
+				Yyerror("cannot import unsafe package %q", importpkg.Path)
 			}
 		}
 	case 20:
@@ -2276,7 +2276,7 @@ yydefault:
 		{
 			var p *Pkg
 
-			if yyDollar[2].val.U.Sval.S == "" {
+			if yyDollar[2].val.U.Sval == "" {
 				p = importpkg
 			} else {
 				if isbadimport(yyDollar[2].val.U.Sval) {
@@ -2292,7 +2292,7 @@ yydefault:
 		{
 			var p *Pkg
 
-			if yyDollar[2].val.U.Sval.S == "" {
+			if yyDollar[2].val.U.Sval == "" {
 				p = importpkg
 			} else {
 				if isbadimport(yyDollar[2].val.U.Sval) {
@@ -3232,7 +3232,7 @@ yydefault:
 			importlist = list(importlist, yyDollar[2].node)
 
 			if Debug['E'] > 0 {
-				print("import [%v] func %lN \n", Zconv(importpkg.Path, 0), yyDollar[2].node)
+				print("import [%q] func %lN \n", importpkg.Path, yyDollar[2].node)
 				if Debug['m'] > 2 && yyDollar[2].node.Inl != nil {
 					print("inl body:%+H\n", yyDollar[2].node.Inl)
 				}
