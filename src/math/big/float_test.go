@@ -97,6 +97,9 @@ func makeFloat(s string) *Float {
 	if s == "-Inf" {
 		return x.SetInf(-1)
 	}
+	if s == "NaN" || s == "-NaN" {
+		return x.SetNaN()
+	}
 	x.SetPrec(1000)
 	if _, ok := x.SetString(s); !ok {
 		panic(fmt.Sprintf("%q is not a valid float", s))
@@ -116,6 +119,7 @@ func TestFloatSetPrec(t *testing.T) {
 		{"-0", 0, "-0", Exact},
 		{"-Inf", 0, "-Inf", Exact},
 		{"+Inf", 0, "+Inf", Exact},
+		{"NaN", 0, "NaN", Exact},
 		{"123", 0, "0", Below},
 		{"-123", 0, "-0", Above},
 
@@ -123,7 +127,8 @@ func TestFloatSetPrec(t *testing.T) {
 		{"0", MaxPrec, "0", Exact},
 		{"-0", MaxPrec, "-0", Exact},
 		{"-Inf", MaxPrec, "-Inf", Exact},
-		{"-Inf", MaxPrec, "-Inf", Exact},
+		{"+Inf", MaxPrec, "+Inf", Exact},
+		{"NaN", MaxPrec, "NaN", Exact},
 
 		// just a few regular cases - general rounding is tested elsewhere
 		{"1.5", 1, "2", Above},
@@ -144,8 +149,8 @@ func TestFloatSetPrec(t *testing.T) {
 		}
 		// look inside x and check correct value for x.exp
 		if len(x.mant) == 0 {
-			// ±0 or ±Inf
-			if x.exp != 0 && x.exp != infExp {
+			// ±0, ±Inf, or NaN
+			if x.exp != 0 && x.exp > MinExp {
 				t.Errorf("%s.SetPrec(%d): incorrect exponent %d", test.x, test.prec, x.exp)
 			}
 		}
@@ -162,6 +167,7 @@ func TestFloatMinPrec(t *testing.T) {
 		{"-0", 0},
 		{"+Inf", 0},
 		{"-Inf", 0},
+		{"NaN", 0},
 		{"1", 1},
 		{"2", 1},
 		{"3", 2},
@@ -188,6 +194,7 @@ func TestFloatSign(t *testing.T) {
 		{"+0", 0},
 		{"+1", +1},
 		{"+Inf", +1},
+		{"NaN", 0},
 	} {
 		x := makeFloat(test.x)
 		s := x.Sign()
@@ -198,7 +205,11 @@ func TestFloatSign(t *testing.T) {
 }
 
 // feq(x, y) is like x.Cmp(y) == 0 but it also considers the sign of 0 (0 != -0).
+// Caution: Two NaN's are equal with this function!
 func feq(x, y *Float) bool {
+	if x.IsNaN() || y.IsNaN() {
+		return x.IsNaN() && y.IsNaN()
+	}
 	return x.Cmp(y) == 0 && x.neg == y.neg
 }
 
@@ -214,6 +225,7 @@ func TestFloatMantExp(t *testing.T) {
 		{"Inf", "+Inf", 0},
 		{"+Inf", "+Inf", 0},
 		{"-Inf", "-Inf", 0},
+		{"NaN", "NaN", 0},
 		{"1.5", "0.75", 1},
 		{"1.024e3", "0.5", 11},
 		{"-0.125", "-0.5", -2},
@@ -251,10 +263,10 @@ func TestFloatSetMantExp(t *testing.T) {
 		{"+Inf", -1234, "+Inf"},
 		{"-Inf", -1234, "-Inf"},
 		{"0", -MaxExp - 1, "0"},
-		{"0.5", -MaxExp - 1, "+Inf"},  // exponent overflow
-		{"-0.5", -MaxExp - 1, "-Inf"}, // exponent overflow
-		{"1", MaxExp, "+Inf"},         // exponent overflow
-		{"2", MaxExp - 1, "+Inf"},     // exponent overflow
+		{"0.5", -MaxExp - 1, "+0"},  // exponent underflow
+		{"-0.5", -MaxExp - 1, "-0"}, // exponent underflow
+		{"1", MaxExp, "+Inf"},       // exponent overflow
+		{"2", MaxExp - 1, "+Inf"},   // exponent overflow
 		{"0.75", 1, "1.5"},
 		{"0.5", 11, "1024"},
 		{"-0.5", -2, "-0.125"},
@@ -291,6 +303,7 @@ func TestFloatIsInt(t *testing.T) {
 		"Inf",
 		"+Inf",
 		"-Inf",
+		"NaN",
 	} {
 		s := strings.TrimSuffix(test, " int")
 		want := s != test
@@ -301,6 +314,10 @@ func TestFloatIsInt(t *testing.T) {
 }
 
 func TestFloatIsInf(t *testing.T) {
+	// TODO(gri) implement this
+}
+
+func TestFloatIsNaN(t *testing.T) {
 	// TODO(gri) implement this
 }
 
@@ -604,6 +621,13 @@ func TestFloatSetFloat64(t *testing.T) {
 		}
 	}
 
+	// test NaN
+	var f Float
+	f.SetFloat64(math.NaN())
+	if got, acc := f.Float64(); !math.IsNaN(got) || acc != Exact {
+		t.Errorf("got %g (%s, %s); want %g (exact)", got, f.Format('p', 0), acc, math.NaN())
+	}
+
 	// test basic rounding behavior (exhaustive rounding testing is done elsewhere)
 	const x uint64 = 0x8765432143218 // 53 bits needed
 	for prec := uint(1); prec <= 52; prec++ {
@@ -715,6 +739,10 @@ func TestFloatSetInf(t *testing.T) {
 	}
 }
 
+func TestFloatSetNaN(t *testing.T) {
+	// TODO(gri) implement
+}
+
 func TestFloatUint64(t *testing.T) {
 	for _, test := range []struct {
 		x   string
@@ -736,6 +764,7 @@ func TestFloatUint64(t *testing.T) {
 		{"18446744073709551616", math.MaxUint64, Below},
 		{"1e10000", math.MaxUint64, Below},
 		{"+Inf", math.MaxUint64, Below},
+		// {"NaN", 0, Exact}, TODO(gri) enable once implemented
 	} {
 		x := makeFloat(test.x)
 		out, acc := x.Uint64()
@@ -774,6 +803,7 @@ func TestFloatInt64(t *testing.T) {
 		{"9223372036854775808", math.MaxInt64, Below},
 		{"1e10000", math.MaxInt64, Below},
 		{"+Inf", math.MaxInt64, Below},
+		// {"NaN", 0, Exact}, TODO(gri) enable once implemented
 	} {
 		x := makeFloat(test.x)
 		out, acc := x.Int64()
@@ -848,7 +878,7 @@ func TestFloatRat(t *testing.T) {
 		{"3.14159265", "7244019449799623199/2305843009213693952"},
 	} {
 		x := makeFloat(test.x).SetPrec(64)
-		res := x.Rat(nil)
+		res, acc := x.Rat(nil)
 		got := "nil"
 		if res != nil {
 			got = res.String()
@@ -857,6 +887,8 @@ func TestFloatRat(t *testing.T) {
 			t.Errorf("%s: got %s; want %s", test.x, got, test.want)
 			continue
 		}
+		// TODO(gri) check accuracy
+		_ = acc
 
 		// inverse conversion
 		if res != nil {
@@ -871,7 +903,7 @@ func TestFloatRat(t *testing.T) {
 	for _, f := range []string{"0", "1", "-1", "1234"} {
 		x := makeFloat(f)
 		r := new(Rat)
-		if res := x.Rat(r); res != r {
+		if res, _ := x.Rat(r); res != r {
 			t.Errorf("(%s).Rat is not using supplied *Rat", f)
 		}
 	}
@@ -886,6 +918,7 @@ func TestFloatAbs(t *testing.T) {
 		"1e-1000",
 		"1e1000",
 		"Inf",
+		"NaN",
 	} {
 		p := makeFloat(test)
 		a := new(Float).Abs(p)
@@ -910,6 +943,7 @@ func TestFloatNeg(t *testing.T) {
 		"1e-1000",
 		"1e1000",
 		"Inf",
+		"NaN",
 	} {
 		p1 := makeFloat(test)
 		n1 := makeFloat("-" + test)
@@ -1238,6 +1272,66 @@ func TestFloatQuoSmoke(t *testing.T) {
 					if acc != Exact {
 						t.Errorf("%g/%g got %s result; want exact result", a, b, acc)
 					}
+				}
+			}
+		}
+	}
+}
+
+// TestFloatArithmeticSpecialValues tests that Float operations produce
+// the correct result for all combinations of regular and special value
+// arguments (±0, ±Inf, NaN) and ±1 as representative for normal values.
+// Operations that produce Inf or NaN results in IEEE, produce an Undef
+// since we don't support infinities or NaNs.
+func TestFloatArithmeticSpecialValues(t *testing.T) {
+	zero := 0.0
+	args := []float64{math.Inf(-1), -1, -zero, zero, 1, math.Inf(1), math.NaN()}
+	xx := new(Float)
+	yy := new(Float)
+	got := new(Float)
+	want := new(Float)
+	for i := 0; i < 4; i++ {
+		for _, x := range args {
+			xx.SetFloat64(x)
+			// check conversion is correct
+			// (no need to do this for y, since we see exactly the
+			// same values there)
+			if got, acc := xx.Float64(); !math.IsNaN(x) && (got != x || acc != Exact) {
+				t.Errorf("Float(%g) == %g (%s)", x, got, acc)
+			}
+			for _, y := range args {
+				yy.SetFloat64(y)
+				var op string
+				var z float64
+				switch i {
+				case 0:
+					op = "+"
+					z = x + y
+					got.Add(xx, yy)
+				case 1:
+					op = "-"
+					z = x - y
+					got.Sub(xx, yy)
+				case 2:
+					op = "*"
+					z = x * y
+					got.Mul(xx, yy)
+				case 3:
+					op = "/"
+					z = x / y
+					got.Quo(xx, yy)
+				default:
+					panic("unreachable")
+				}
+				// At the moment an Inf operand always leads to a NaN result (known bug).
+				// TODO(gri) remove this once the bug is fixed.
+				if math.IsInf(x, 0) || math.IsInf(y, 0) {
+					want.SetNaN()
+				} else {
+					want.SetFloat64(z)
+				}
+				if !feq(got, want) {
+					t.Errorf("%5g %s %5g = %5s; want %5s", x, op, y, got, want)
 				}
 			}
 		}

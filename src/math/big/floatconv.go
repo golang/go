@@ -245,6 +245,11 @@ func (x *Float) Append(buf []byte, format byte, prec int) []byte {
 		return append(buf, "Inf"...)
 	}
 
+	// NaN
+	if x.IsNaN() {
+		return append(buf, "NaN"...)
+	}
+
 	// easy formats
 	switch format {
 	case 'b':
