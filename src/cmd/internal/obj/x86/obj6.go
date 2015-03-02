@@ -1134,7 +1134,6 @@ var unaryDst = map[int]bool{
 }
 
 var Linkamd64 = obj.LinkArch{
-	Rconv:      Rconv,
 	ByteOrder:  binary.LittleEndian,
 	Pconv:      Pconv,
 	Name:       "amd64",
@@ -1150,7 +1149,6 @@ var Linkamd64 = obj.LinkArch{
 }
 
 var Linkamd64p32 = obj.LinkArch{
-	Rconv:      Rconv,
 	ByteOrder:  binary.LittleEndian,
 	Pconv:      Pconv,
 	Name:       "amd64p32",

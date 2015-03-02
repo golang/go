@@ -928,7 +928,6 @@ var unaryDst = map[int]bool{
 }
 
 var Link386 = obj.LinkArch{
-	Rconv:      Rconv,
 	ByteOrder:  binary.LittleEndian,
 	Pconv:      Pconv,
 	Name:       "386",
