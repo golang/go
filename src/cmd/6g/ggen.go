@@ -786,14 +786,6 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
  *	res = nl >> nr
  */
 func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
-	var n1 gc.Node
-	var n2 gc.Node
-	var n3 gc.Node
-	var cx gc.Node
-	var oldcx gc.Node
-	var rcx int
-	var tcount *gc.Type
-
 	a := optoas(op, nl.Type)
 
 	if nr.Op == gc.OLITERAL {
@@ -813,7 +805,7 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		}
 		gmove(&n1, res)
 		regfree(&n1)
-		goto ret
+		return
 	}
 
 	if nl.Ullman >= gc.UINF {
@@ -830,24 +822,27 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		nr = &n5
 	}
 
-	rcx = int(reg[x86.REG_CX])
+	rcx := int(reg[x86.REG_CX])
+	var n1 gc.Node
 	gc.Nodreg(&n1, gc.Types[gc.TUINT32], x86.REG_CX)
 
 	// Allow either uint32 or uint64 as shift type,
 	// to avoid unnecessary conversion from uint32 to uint64
 	// just to do the comparison.
-	tcount = gc.Types[gc.Simtype[nr.Type.Etype]]
+	tcount := gc.Types[gc.Simtype[nr.Type.Etype]]
 
 	if tcount.Etype < gc.TUINT32 {
 		tcount = gc.Types[gc.TUINT32]
 	}
 
 	regalloc(&n1, nr.Type, &n1) // to hold the shift type in CX
-	regalloc(&n3, tcount, &n1)  // to clear high bits of CX
+	var n3 gc.Node
+	regalloc(&n3, tcount, &n1) // to clear high bits of CX
 
+	var cx gc.Node
 	gc.Nodreg(&cx, gc.Types[gc.TUINT64], x86.REG_CX)
 
-	oldcx = gc.Node{}
+	oldcx := gc.Node{}
 	if rcx > 0 && !gc.Samereg(&cx, res) {
 		regalloc(&oldcx, gc.Types[gc.TUINT64], nil)
 		gmove(&cx, &oldcx)
@@ -855,6 +850,7 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 
 	cx.Type = tcount
 
+	var n2 gc.Node
 	if gc.Samereg(&cx, res) {
 		regalloc(&n2, nl.Type, nil)
 	} else {
@@ -900,8 +896,6 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 
 	regfree(&n1)
 	regfree(&n2)
-
-ret:
 }
 
 /*

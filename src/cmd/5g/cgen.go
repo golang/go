@@ -25,15 +25,8 @@ func cgen(n *gc.Node, res *gc.Node) {
 		gc.Dump("cgen-res", res)
 	}
 
-	var n1 gc.Node
-	var nr *gc.Node
-	var nl *gc.Node
-	var a int
-	var f1 gc.Node
-	var f0 gc.Node
-	var n2 gc.Node
 	if n == nil || n.Type == nil {
-		goto ret
+		return
 	}
 
 	if res == nil || res.Type == nil {
@@ -81,7 +74,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 			gc.Tempname(&n1, n.Type)
 			cgen(n, &n1)
 			cgen(&n1, res)
-			goto ret
+			return
 		}
 	}
 
@@ -90,7 +83,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 			gc.Fatal("forgot to compute width for %v", gc.Tconv(n.Type, 0))
 		}
 		sgen(n, res, n.Type.Width)
-		goto ret
+		return
 	}
 
 	// update addressability for string, slice
@@ -124,7 +117,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 			regfree(&n1)
 		}
 
-		goto ret
+		return
 	}
 
 	// if both are not addressable, use a temporary.
@@ -179,16 +172,16 @@ func cgen(n *gc.Node, res *gc.Node) {
 			}
 
 			sudoclean()
-			goto ret
+			return
 		}
 	}
 
 	// otherwise, the result is addressable but n is not.
 	// let's do some computation.
 
-	nl = n.Left
+	nl := n.Left
 
-	nr = n.Right
+	nr := n.Right
 
 	if nl != nil && nl.Ullman >= gc.UINF {
 		if nr != nil && nr.Ullman >= gc.UINF {
@@ -198,7 +191,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 			n2 := *n
 			n2.Left = &n1
 			cgen(&n2, res)
-			goto ret
+			return
 		}
 	}
 
@@ -223,8 +216,34 @@ func cgen(n *gc.Node, res *gc.Node) {
 		}
 	}
 
+	var a int
+	var f0 gc.Node
+	var n1 gc.Node
+	var n2 gc.Node
 	if nl != nil && gc.Isfloat[n.Type.Etype] != 0 && gc.Isfloat[nl.Type.Etype] != 0 {
-		goto flt
+		// floating-point.
+		regalloc(&f0, nl.Type, res)
+
+		if nr != nil {
+			goto flt2
+		}
+
+		if n.Op == gc.OMINUS {
+			nr = gc.Nodintconst(-1)
+			gc.Convlit(&nr, n.Type)
+			n.Op = gc.OMUL
+			goto flt2
+		}
+
+		// unary
+		cgen(nl, &f0)
+
+		if n.Op != gc.OCONV && n.Op != gc.OPLUS {
+			gins(optoas(int(n.Op), n.Type), &f0, &f0)
+		}
+		gmove(&f0, res)
+		regfree(&f0)
+		return
 	}
 	switch n.Op {
 	default:
@@ -255,11 +274,11 @@ func cgen(n *gc.Node, res *gc.Node) {
 		bgen(n, true, 0, p2)
 		gmove(gc.Nodbool(false), res)
 		gc.Patch(p3, gc.Pc)
-		goto ret
+		return
 
 	case gc.OPLUS:
 		cgen(nl, res)
-		goto ret
+		return
 
 		// unary
 	case gc.OCOM:
@@ -286,7 +305,13 @@ func cgen(n *gc.Node, res *gc.Node) {
 		gc.OMUL:
 		a = optoas(int(n.Op), nl.Type)
 
-		goto sbop
+		// symmetric binary
+		if nl.Ullman < nr.Ullman {
+			r := nl
+			nl = nr
+			nr = r
+		}
+		goto abop
 
 		// asymmetric binary
 	case gc.OSUB:
@@ -489,14 +514,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 		goto abop
 	}
 
-	goto ret
-
-sbop: // symmetric binary
-	if nl.Ullman < nr.Ullman {
-		r := nl
-		nl = nr
-		nr = r
-	}
+	return
 
 	// TODO(kaib): use fewer registers here.
 abop: // asymmetric binary
@@ -561,33 +579,10 @@ norm:
 	if n2.Op != gc.OLITERAL {
 		regfree(&n2)
 	}
-	goto ret
-
-flt: // floating-point.
-	regalloc(&f0, nl.Type, res)
-
-	if nr != nil {
-		goto flt2
-	}
-
-	if n.Op == gc.OMINUS {
-		nr = gc.Nodintconst(-1)
-		gc.Convlit(&nr, n.Type)
-		n.Op = gc.OMUL
-		goto flt2
-	}
-
-	// unary
-	cgen(nl, &f0)
-
-	if n.Op != gc.OCONV && n.Op != gc.OPLUS {
-		gins(optoas(int(n.Op), n.Type), &f0, &f0)
-	}
-	gmove(&f0, res)
-	regfree(&f0)
-	goto ret
+	return
 
 flt2: // binary
+	var f1 gc.Node
 	if nl.Ullman >= nr.Ullman {
 		cgen(nl, &f0)
 		regalloc(&f1, n.Type, nil)
@@ -604,9 +599,7 @@ flt2: // binary
 	gmove(&f1, res)
 	regfree(&f0)
 	regfree(&f1)
-	goto ret
-
-ret:
+	return
 }
 
 /*
@@ -666,7 +659,6 @@ func agen(n *gc.Node, res *gc.Node) {
 		n = n.Left
 	}
 
-	var nl *gc.Node
 	if gc.Isconst(n, gc.CTNIL) && n.Type.Width > int64(gc.Widthptr) {
 		// Use of a nil interface or nil slice.
 		// Create a temporary we can take the address of and read.
@@ -682,7 +674,7 @@ func agen(n *gc.Node, res *gc.Node) {
 		gins(arm.AMOVW, &n1, &n2)
 		gmove(&n2, res)
 		regfree(&n2)
-		goto ret
+		return
 	}
 
 	if n.Addable != 0 {
@@ -694,10 +686,10 @@ func agen(n *gc.Node, res *gc.Node) {
 		gins(arm.AMOVW, &n1, &n2)
 		gmove(&n2, res)
 		regfree(&n2)
-		goto ret
+		return
 	}
 
-	nl = n.Left
+	nl := n.Left
 
 	switch n.Op {
 	default:
@@ -820,8 +812,6 @@ func agen(n *gc.Node, res *gc.Node) {
 			regfree(&n3)
 		}
 	}
-
-ret:
 }
 
 /*
@@ -1195,25 +1185,23 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
 		gc.Genlist(n.Ninit)
 	}
 
-	var et int
-	var nl *gc.Node
-	var nr *gc.Node
 	if n.Type == nil {
 		gc.Convlit(&n, gc.Types[gc.TBOOL])
 		if n.Type == nil {
-			goto ret
+			return
 		}
 	}
 
-	et = int(n.Type.Etype)
+	et := int(n.Type.Etype)
 	if et != gc.TBOOL {
 		gc.Yyerror("cgen: bad type %v for %v", gc.Tconv(n.Type, 0), gc.Oconv(int(n.Op), 0))
 		gc.Patch(gins(obj.AEND, nil, nil), to)
-		goto ret
+		return
 	}
 
-	nr = nil
+	nr := (*gc.Node)(nil)
 
+	var nl *gc.Node
 	switch n.Op {
 	default:
 		a := gc.ONE
@@ -1221,14 +1209,14 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
 			a = gc.OEQ
 		}
 		gencmp0(n, n.Type, a, likely, to)
-		goto ret
+		return
 
 		// need to ask if it is bool?
 	case gc.OLITERAL:
 		if !true_ == (n.Val.U.Bval == 0) {
 			gc.Patch(gc.Gbranch(arm.AB, nil, 0), to)
 		}
-		goto ret
+		return
 
 	case gc.OANDAND,
 		gc.OOROR:
@@ -1246,7 +1234,7 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
 			bgen(n.Right, true_, likely, to)
 		}
 
-		goto ret
+		return
 
 	case gc.OEQ,
 		gc.ONE,
@@ -1256,7 +1244,7 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
 		gc.OGE:
 		nr = n.Right
 		if nr == nil || nr.Type == nil {
-			goto ret
+			return
 		}
 		fallthrough
 
@@ -1264,14 +1252,14 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
 		nl = n.Left
 
 		if nl == nil || nl.Type == nil {
-			goto ret
+			return
 		}
 	}
 
 	switch n.Op {
 	case gc.ONOT:
 		bgen(nl, !true_, likely, to)
-		goto ret
+		return
 
 	case gc.OEQ,
 		gc.ONE,
@@ -1293,7 +1281,7 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
 				n.Ninit = ll
 				gc.Patch(gc.Gbranch(arm.AB, nil, 0), to)
 				gc.Patch(p2, gc.Pc)
-				goto ret
+				return
 			}
 
 			a = gc.Brcom(a)
@@ -1438,9 +1426,7 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
 		regfree(&n2)
 	}
 
-	goto ret
-
-ret:
+	return
 }
 
 /*

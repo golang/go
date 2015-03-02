@@ -81,8 +81,6 @@ func linkarchinit() {
 }
 
 func archinit() {
-	var s *ld.LSym
-
 	// getgoextlinkenabled is based on GO_EXTLINK_ENABLED when
 	// Go was built; see ../../make.bash.
 	if ld.Linkmode == ld.LinkAuto && obj.Getgoextlinkenabled() == "0" {
@@ -175,7 +173,7 @@ func archinit() {
 	}
 
 	// embed goarm to runtime.goarm
-	s = ld.Linklookup(ld.Ctxt, "runtime.goarm", 0)
+	s := ld.Linklookup(ld.Ctxt, "runtime.goarm", 0)
 
 	s.Type = ld.SRODATA
 	ld.Adduint8(ld.Ctxt, s, uint8(ld.Ctxt.Goarm))

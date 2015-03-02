@@ -39,17 +39,14 @@ import (
 import "cmd/internal/ld"
 
 func needlib(name string) int {
-	var p string
-	var s *ld.LSym
-
 	if name[0] == '\x00' {
 		return 0
 	}
 
 	/* reuse hash code in symbol table */
-	p = fmt.Sprintf(".dynlib.%s", name)
+	p := fmt.Sprintf(".dynlib.%s", name)
 
-	s = ld.Linklookup(ld.Ctxt, p, 0)
+	s := ld.Linklookup(ld.Ctxt, p, 0)
 
 	if s.Type == 0 {
 		s.Type = 100 // avoid SDATA, etc.
@@ -163,16 +160,13 @@ func gentext() {
 // Construct a call stub in stub that calls symbol targ via its PLT
 // entry.
 func gencallstub(abicase int, stub *ld.LSym, targ *ld.LSym) {
-	var plt *ld.LSym
-	var r *ld.Reloc
-
 	if abicase != 1 {
 		// If we see R_PPC64_TOCSAVE or R_PPC64_REL24_NOTOC
 		// relocations, we'll need to implement cases 2 and 3.
 		log.Fatalf("gencallstub only implements case 1 calls")
 	}
 
-	plt = ld.Linklookup(ld.Ctxt, ".plt", 0)
+	plt := ld.Linklookup(ld.Ctxt, ".plt", 0)
 
 	stub.Type = ld.STEXT
 
@@ -180,7 +174,7 @@ func gencallstub(abicase int, stub *ld.LSym, targ *ld.LSym) {
 	ld.Adduint32(ld.Ctxt, stub, 0xf8410018) // std r2,24(r1)
 
 	// Load the function pointer from the PLT.
-	r = ld.Addrel(stub)
+	r := ld.Addrel(stub)
 
 	r.Off = int32(stub.Size)
 	r.Sym = plt
@@ -214,10 +208,7 @@ func adddynrela(rel *ld.LSym, s *ld.LSym, r *ld.Reloc) {
 }
 
 func adddynrel(s *ld.LSym, r *ld.Reloc) {
-	var targ *ld.LSym
-	var rela *ld.LSym
-
-	targ = r.Sym
+	targ := r.Sym
 	ld.Ctxt.Cursym = s
 
 	switch r.Type {
@@ -251,7 +242,7 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 			// These happen in .toc sections
 			adddynsym(ld.Ctxt, targ)
 
-			rela = ld.Linklookup(ld.Ctxt, ".rela", 0)
+			rela := ld.Linklookup(ld.Ctxt, ".rela", 0)
 			ld.Addaddrplus(ld.Ctxt, rela, s, int64(r.Off))
 			ld.Adduint64(ld.Ctxt, rela, ld.ELF64_R_INFO(uint32(targ.Dynid), ld.R_PPC64_ADDR64))
 			ld.Adduint64(ld.Ctxt, rela, uint64(r.Add))
@@ -325,9 +316,7 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
 }
 
 func elfsetupplt() {
-	var plt *ld.LSym
-
-	plt = ld.Linklookup(ld.Ctxt, ".plt", 0)
+	plt := ld.Linklookup(ld.Ctxt, ".plt", 0)
 	if plt.Size == 0 {
 		// The dynamic linker stores the address of the
 		// dynamic resolver and the DSO identifier in the two
@@ -360,10 +349,6 @@ func symtoc(s *ld.LSym) int64 {
 }
 
 func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
-	var o1 uint32
-	var o2 uint32
-	var t int64
-
 	if ld.Linkmode == ld.LinkExternal {
 		// TODO(minux): translate R_ADDRPOWER and R_CALLPOWER into standard ELF relocations.
 		// R_ADDRPOWER corresponds to R_PPC_ADDR16_HA and R_PPC_ADDR16_LO.
@@ -386,9 +371,9 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 		// The encoding of the immediate x<<16 + y,
 		// where x is the low 16 bits of the first instruction and y is the low 16
 		// bits of the second. Both x and y are signed (int16, not uint16).
-		o1 = uint32(r.Add >> 32)
-		o2 = uint32(r.Add)
-		t = ld.Symaddr(r.Sym)
+		o1 := uint32(r.Add >> 32)
+		o2 := uint32(r.Add)
+		t := ld.Symaddr(r.Sym)
 		if t < 0 {
 			ld.Ctxt.Diag("relocation for %s is too big (>=2G): %d", s.Name, ld.Symaddr(r.Sym))
 		}
@@ -410,13 +395,14 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 
 	case ld.R_CALLPOWER:
 		// Bits 6 through 29 = (S + A - P) >> 2
+		var o1 uint32
 		if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
 			o1 = ld.Be32(s.P[r.Off:])
 		} else {
 			o1 = ld.Le32(s.P[r.Off:])
 		}
 
-		t = ld.Symaddr(r.Sym) + r.Add - (s.Value + int64(r.Off))
+		t := ld.Symaddr(r.Sym) + r.Add - (s.Value + int64(r.Off))
 		if t&3 != 0 {
 			ld.Ctxt.Diag("relocation for %s+%d is not aligned: %d", r.Sym.Name, r.Off, t)
 		}
@@ -439,7 +425,6 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 }
 
 func archrelocvariant(r *ld.Reloc, s *ld.LSym, t int64) int64 {
-	var o1 uint32
 	switch r.Variant & ld.RV_TYPE_MASK {
 	default:
 		ld.Diag("unexpected relocation variant %d", r.Variant)
@@ -452,6 +437,7 @@ func archrelocvariant(r *ld.Reloc, s *ld.LSym, t int64) int64 {
 		if r.Variant&ld.RV_CHECK_OVERFLOW != 0 {
 			// Whether to check for signed or unsigned
 			// overflow depends on the instruction
+			var o1 uint32
 			if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
 				o1 = ld.Be32(s.P[r.Off-2:])
 			} else {
@@ -485,6 +471,7 @@ func archrelocvariant(r *ld.Reloc, s *ld.LSym, t int64) int64 {
 		if r.Variant&ld.RV_CHECK_OVERFLOW != 0 {
 			// Whether to check for signed or unsigned
 			// overflow depends on the instruction
+			var o1 uint32
 			if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
 				o1 = ld.Be32(s.P[r.Off-2:])
 			} else {
@@ -508,6 +495,7 @@ func archrelocvariant(r *ld.Reloc, s *ld.LSym, t int64) int64 {
 		return int64(int16(t))
 
 	case ld.RV_POWER_DS:
+		var o1 uint32
 		if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
 			o1 = uint32(ld.Be16(s.P[r.Off:]))
 		} else {
@@ -535,23 +523,18 @@ func addpltsym(ctxt *ld.Link, s *ld.LSym) {
 	adddynsym(ctxt, s)
 
 	if ld.Iself {
-		var plt *ld.LSym
-		var rela *ld.LSym
-		var glink *ld.LSym
-		var r *ld.Reloc
-
-		plt = ld.Linklookup(ctxt, ".plt", 0)
-		rela = ld.Linklookup(ctxt, ".rela.plt", 0)
+		plt := ld.Linklookup(ctxt, ".plt", 0)
+		rela := ld.Linklookup(ctxt, ".rela.plt", 0)
 		if plt.Size == 0 {
 			elfsetupplt()
 		}
 
 		// Create the glink resolver if necessary
-		glink = ensureglinkresolver()
+		glink := ensureglinkresolver()
 
 		// Write symbol resolver stub (just a branch to the
 		// glink resolver stub)
-		r = ld.Addrel(glink)
+		r := ld.Addrel(glink)
 
 		r.Sym = glink
 		r.Off = int32(glink.Size)
@@ -579,11 +562,7 @@ func addpltsym(ctxt *ld.Link, s *ld.LSym) {
 
 // Generate the glink resolver stub if necessary and return the .glink section
 func ensureglinkresolver() *ld.LSym {
-	var glink *ld.LSym
-	var s *ld.LSym
-	var r *ld.Reloc
-
-	glink = ld.Linklookup(ld.Ctxt, ".glink", 0)
+	glink := ld.Linklookup(ld.Ctxt, ".glink", 0)
 	if glink.Size != 0 {
 		return glink
 	}
@@ -610,7 +589,7 @@ func ensureglinkresolver() *ld.LSym {
 	ld.Adduint32(ld.Ctxt, glink, 0x7800f082) // srdi r0,r0,2
 
 	// r11 = address of the first byte of the PLT
-	r = ld.Addrel(glink)
+	r := ld.Addrel(glink)
 
 	r.Off = int32(glink.Size)
 	r.Sym = ld.Linklookup(ld.Ctxt, ".plt", 0)
@@ -636,7 +615,7 @@ func ensureglinkresolver() *ld.LSym {
 
 	// Add DT_PPC64_GLINK .dynamic entry, which points to 32 bytes
 	// before the first symbol resolver stub.
-	s = ld.Linklookup(ld.Ctxt, ".dynamic", 0)
+	s := ld.Linklookup(ld.Ctxt, ".dynamic", 0)
 
 	ld.Elfwritedynentsymplus(s, ld.DT_PPC64_GLINK, glink, glink.Size-32)
 
@@ -644,10 +623,6 @@ func ensureglinkresolver() *ld.LSym {
 }
 
 func adddynsym(ctxt *ld.Link, s *ld.LSym) {
-	var d *ld.LSym
-	var t int
-	var name string
-
 	if s.Dynid >= 0 {
 		return
 	}
@@ -656,13 +631,13 @@ func adddynsym(ctxt *ld.Link, s *ld.LSym) {
 		s.Dynid = int32(ld.Nelfsym)
 		ld.Nelfsym++
 
-		d = ld.Linklookup(ctxt, ".dynsym", 0)
+		d := ld.Linklookup(ctxt, ".dynsym", 0)
 
-		name = s.Extname
+		name := s.Extname
 		ld.Adduint32(ctxt, d, uint32(ld.Addstring(ld.Linklookup(ctxt, ".dynstr", 0), name)))
 
 		/* type */
-		t = ld.STB_GLOBAL << 4
+		t := ld.STB_GLOBAL << 4
 
 		if s.Cgoexport != 0 && s.Type&ld.SMASK == ld.STEXT {
 			t |= ld.STT_FUNC
@@ -696,14 +671,12 @@ func adddynsym(ctxt *ld.Link, s *ld.LSym) {
 }
 
 func adddynlib(lib string) {
-	var s *ld.LSym
-
 	if needlib(lib) == 0 {
 		return
 	}
 
 	if ld.Iself {
-		s = ld.Linklookup(ld.Ctxt, ".dynstr", 0)
+		s := ld.Linklookup(ld.Ctxt, ".dynstr", 0)
 		if s.Size == 0 {
 			ld.Addstring(s, "")
 		}
@@ -714,11 +687,6 @@ func adddynlib(lib string) {
 }
 
 func asmb() {
-	var symo uint32
-	var sect *ld.Section
-	var sym *ld.LSym
-	var i int
-
 	if ld.Debug['v'] != 0 {
 		fmt.Fprintf(&ld.Bso, "%5.2f asmb\n", obj.Cputime())
 	}
@@ -728,7 +696,7 @@ func asmb() {
 		ld.Asmbelfsetup()
 	}
 
-	sect = ld.Segtext.Sect
+	sect := ld.Segtext.Sect
 	ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
 	ld.Codeblk(int64(sect.Vaddr), int64(sect.Length))
 	for sect = sect.Next; sect != nil; sect = sect.Next {
@@ -758,7 +726,7 @@ func asmb() {
 	ld.Symsize = 0
 
 	ld.Lcsize = 0
-	symo = 0
+	symo := uint32(0)
 	if ld.Debug['s'] == 0 {
 		// TODO: rationalize
 		if ld.Debug['v'] != 0 {
@@ -801,10 +769,10 @@ func asmb() {
 			ld.Asmplan9sym()
 			ld.Cflush()
 
-			sym = ld.Linklookup(ld.Ctxt, "pclntab", 0)
+			sym := ld.Linklookup(ld.Ctxt, "pclntab", 0)
 			if sym != nil {
 				ld.Lcsize = int32(len(sym.P))
-				for i = 0; int32(i) < ld.Lcsize; i++ {
+				for i := 0; int32(i) < ld.Lcsize; i++ {
 					ld.Cput(uint8(sym.P[i]))
 				}
 

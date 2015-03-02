@@ -61,16 +61,9 @@ var extra = []string{
 var bigP *obj.Prog
 
 func Pconv(p *obj.Prog) string {
-	var str string
-	var sc string
-	var fp string
-
-	var a int
-	var s int
-
-	a = int(p.As)
-	s = int(p.Scond)
-	sc = extra[(s&C_SCOND)^C_SCOND_XOR]
+	a := int(p.As)
+	s := int(p.Scond)
+	sc := extra[(s&C_SCOND)^C_SCOND_XOR]
 	if s&C_SBIT != 0 {
 		sc += ".S"
 	}
@@ -83,6 +76,7 @@ func Pconv(p *obj.Prog) string {
 	if s&C_UBIT != 0 { /* ambiguous with FBIT */
 		sc += ".U"
 	}
+	var str string
 	if a == obj.ADATA {
 		str = fmt.Sprintf("%.5d (%v)\t%v\t%v/%d,%v",
 			p.Pc, p.Line(), Aconv(a), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
@@ -97,30 +91,23 @@ func Pconv(p *obj.Prog) string {
 			p.Pc, p.Line(), Aconv(a), sc, obj.Dconv(p, &p.From), Rconv(int(p.Reg)), obj.Dconv(p, &p.To))
 	}
 
+	var fp string
 	fp += str
 	return fp
 }
 
 func Aconv(a int) string {
-	var s string
-	var fp string
-
-	s = "???"
+	s := "???"
 	if a >= obj.AXXX && a < ALAST {
 		s = Anames[a]
 	}
+	var fp string
 	fp += s
 	return fp
 }
 
 func RAconv(a *obj.Addr) string {
-	var str string
-	var fp string
-
-	var i int
-	var v int
-
-	str = fmt.Sprintf("GOK-reglist")
+	str := fmt.Sprintf("GOK-reglist")
 	switch a.Type {
 	case obj.TYPE_CONST:
 		if a.Reg != 0 {
@@ -129,9 +116,9 @@ func RAconv(a *obj.Addr) string {
 		if a.Sym != nil {
 			break
 		}
-		v = int(a.Offset)
+		v := int(a.Offset)
 		str = ""
-		for i = 0; i < NREG; i++ {
+		for i := 0; i < NREG; i++ {
 			if v&(1<<uint(i)) != 0 {
 				if str == "" {
 					str += "[R"
@@ -145,6 +132,7 @@ func RAconv(a *obj.Addr) string {
 		str += "]"
 	}
 
+	var fp string
 	fp += str
 	return fp
 }
@@ -182,13 +170,11 @@ func Rconv(r int) string {
 }
 
 func DRconv(a int) string {
-	var s string
-	var fp string
-
-	s = "C_??"
+	s := "C_??"
 	if a >= C_NONE && a <= C_NCLASS {
 		s = cnames5[a]
 	}
+	var fp string
 	fp += s
 	return fp
 }

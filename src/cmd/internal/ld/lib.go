@@ -294,16 +294,13 @@ func mayberemoveoutfile() {
 }
 
 func libinit() {
-	var suffix string
-	var suffixsep string
-
 	Funcalign = Thearch.Funcalign
 	mywhatsys() // get goroot, goarch, goos
 
 	// add goroot to the end of the libdir list.
-	suffix = ""
+	suffix := ""
 
-	suffixsep = ""
+	suffixsep := ""
 	if flag_installsuffix != "" {
 		suffixsep = "_"
 		suffix = flag_installsuffix
@@ -353,11 +350,9 @@ func Errorexit() {
 
 func loadinternal(name string) {
 	var pname string
-	var i int
-	var found int
 
-	found = 0
-	for i = 0; i < len(Ctxt.Libdir); i++ {
+	found := 0
+	for i := 0; i < len(Ctxt.Libdir); i++ {
 		pname = fmt.Sprintf("%s/%s.a", Ctxt.Libdir[i], name)
 		if Debug['v'] != 0 {
 			fmt.Fprintf(&Bso, "searching for %s.a in %s\n", name, pname)
@@ -375,15 +370,8 @@ func loadinternal(name string) {
 }
 
 func loadlib() {
-	var i int
-	var w int
-	var x int
-	var s *LSym
-	var tlsg *LSym
-	var cgostrsym string
-
 	if Flag_shared != 0 {
-		s = Linklookup(Ctxt, "runtime.islibrary", 0)
+		s := Linklookup(Ctxt, "runtime.islibrary", 0)
 		s.Dupok = 1
 		Adduint8(Ctxt, s, 1)
 	}
@@ -396,6 +384,7 @@ func loadlib() {
 		loadinternal("runtime/race")
 	}
 
+	var i int
 	for i = 0; i < len(Ctxt.Library); i++ {
 		if Debug['v'] > 1 {
 			fmt.Fprintf(&Bso, "%5.2f autolib: %s (from %s)\n", obj.Cputime(), Ctxt.Library[i].File, Ctxt.Library[i].Objref)
@@ -438,7 +427,7 @@ func loadlib() {
 		}
 
 		// Pretend that we really imported the package.
-		s = Linklookup(Ctxt, "go.importpath.runtime/cgo.", 0)
+		s := Linklookup(Ctxt, "go.importpath.runtime/cgo.", 0)
 
 		s.Type = SDATA
 		s.Dupok = 1
@@ -446,10 +435,10 @@ func loadlib() {
 
 		// Provided by the code that imports the package.
 		// Since we are simulating the import, we have to provide this string.
-		cgostrsym = "go.string.\"runtime/cgo\""
+		cgostrsym := "go.string.\"runtime/cgo\""
 
 		if Linkrlookup(Ctxt, cgostrsym, 0) == nil {
-			s = Linklookup(Ctxt, cgostrsym, 0)
+			s := Linklookup(Ctxt, cgostrsym, 0)
 			s.Type = SRODATA
 			s.Reachable = true
 			addstrdata(cgostrsym, "runtime/cgo")
@@ -459,7 +448,7 @@ func loadlib() {
 	if Linkmode == LinkInternal {
 		// Drop all the cgo_import_static declarations.
 		// Turns out we won't be needing them.
-		for s = Ctxt.Allsym; s != nil; s = s.Allsym {
+		for s := Ctxt.Allsym; s != nil; s = s.Allsym {
 			if s.Type == SHOSTOBJ {
 				// If a symbol was marked both
 				// cgo_import_static and cgo_import_dynamic,
@@ -474,7 +463,7 @@ func loadlib() {
 		}
 	}
 
-	tlsg = Linklookup(Ctxt, "runtime.tlsg", 0)
+	tlsg := Linklookup(Ctxt, "runtime.tlsg", 0)
 
 	// For most ports, runtime.tlsg is a placeholder symbol for TLS
 	// relocation. However, the Android and Darwin arm ports need it
@@ -492,13 +481,13 @@ func loadlib() {
 	Ctxt.Tlsg = tlsg
 
 	// Now that we know the link mode, trim the dynexp list.
-	x = CgoExportDynamic
+	x := CgoExportDynamic
 
 	if Linkmode == LinkExternal {
 		x = CgoExportStatic
 	}
-	w = 0
-	for i = 0; i < len(dynexp); i++ {
+	w := 0
+	for i := 0; i < len(dynexp); i++ {
 		if int(dynexp[i].Cgoexport)&x != 0 {
 			dynexp[w] = dynexp[i]
 			w++
@@ -564,12 +553,6 @@ func nextar(bp *Biobuf, off int64, a *ArHdr) int64 {
 }
 
 func objfile(file string, pkg string) {
-	var off int64
-	var l int64
-	var f *Biobuf
-	var pname string
-	var arhdr ArHdr
-
 	pkg = pathtoprefix(pkg)
 
 	if Debug['v'] > 1 {
@@ -577,6 +560,7 @@ func objfile(file string, pkg string) {
 	}
 	Bflush(&Bso)
 	var err error
+	var f *Biobuf
 	f, err = Bopenr(file)
 	if err != nil {
 		Diag("cannot open file %s: %v", file, err)
@@ -586,7 +570,7 @@ func objfile(file string, pkg string) {
 	magbuf := make([]byte, len(ARMAG))
 	if Bread(f, magbuf) != len(magbuf) || !strings.HasPrefix(string(magbuf), ARMAG) {
 		/* load it as a regular file */
-		l = Bseek(f, 0, 2)
+		l := Bseek(f, 0, 2)
 
 		Bseek(f, 0, 0)
 		ldobj(f, pkg, l, file, file, FileObj)
@@ -596,9 +580,11 @@ func objfile(file string, pkg string) {
 	}
 
 	/* skip over optional __.GOSYMDEF and process __.PKGDEF */
-	off = Boffset(f)
+	off := Boffset(f)
 
-	l = nextar(f, off, &arhdr)
+	var arhdr ArHdr
+	l := nextar(f, off, &arhdr)
+	var pname string
 	if l <= 0 {
 		Diag("%s: short read on archive file symbol header", file)
 		goto out
@@ -684,12 +670,8 @@ var internalpkg = []string{
 }
 
 func ldhostobj(ld func(*Biobuf, string, int64, string), f *Biobuf, pkg string, length int64, pn string, file string) {
-	var i int
-	var isinternal int
-	var h *Hostobj
-
-	isinternal = 0
-	for i = 0; i < len(internalpkg); i++ {
+	isinternal := 0
+	for i := 0; i < len(internalpkg); i++ {
 		if pkg == internalpkg[i] {
 			isinternal = 1
 			break
@@ -713,7 +695,7 @@ func ldhostobj(ld func(*Biobuf, string, int64, string), f *Biobuf, pkg string, l
 	}
 
 	hostobj = append(hostobj, Hostobj{})
-	h = &hostobj[len(hostobj)-1]
+	h := &hostobj[len(hostobj)-1]
 	h.ld = ld
 	h.pkg = pkg
 	h.pn = pn
@@ -723,11 +705,10 @@ func ldhostobj(ld func(*Biobuf, string, int64, string), f *Biobuf, pkg string, l
 }
 
 func hostobjs() {
-	var i int
 	var f *Biobuf
 	var h *Hostobj
 
-	for i = 0; i < len(hostobj); i++ {
+	for i := 0; i < len(hostobj); i++ {
 		h = &hostobj[i]
 		var err error
 		f, err = Bopenr(h.file)
@@ -750,8 +731,6 @@ func rmtemp() {
 }
 
 func hostlinksetup() {
-	var p string
-
 	if Linkmode != LinkExternal {
 		return
 	}
@@ -769,7 +748,7 @@ func hostlinksetup() {
 	// change our output to temporary object file
 	cout.Close()
 
-	p = fmt.Sprintf("%s/go.o", tmpdir)
+	p := fmt.Sprintf("%s/go.o", tmpdir)
 	var err error
 	cout, err = os.OpenFile(p, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0775)
 	if err != nil {
@@ -783,14 +762,6 @@ func hostlinksetup() {
 var hostlink_buf = make([]byte, 64*1024)
 
 func hostlink() {
-	var p string
-	var argv []string
-	var i int
-	var n int
-	var length int
-	var h *Hostobj
-	var f *Biobuf
-
 	if Linkmode != LinkExternal || nerrors > 0 {
 		return
 	}
@@ -798,6 +769,7 @@ func hostlink() {
 	if extld == "" {
 		extld = "gcc"
 	}
+	var argv []string
 	argv = append(argv, extld)
 	switch Thearch.Thechar {
 	case '8':
@@ -851,7 +823,12 @@ func hostlink() {
 
 	// already wrote main object file
 	// copy host objects to temporary directory
-	for i = 0; i < len(hostobj); i++ {
+	var f *Biobuf
+	var h *Hostobj
+	var length int
+	var n int
+	var p string
+	for i := 0; i < len(hostobj); i++ {
 		h = &hostobj[i]
 		var err error
 		f, err = Bopenr(h.file)
@@ -886,7 +863,7 @@ func hostlink() {
 			length -= n
 		}
 
-		if err = w.Close(); err != nil {
+		if err := w.Close(); err != nil {
 			Ctxt.Cursym = nil
 			Diag("cannot write %s: %v", p, err)
 			Errorexit()
@@ -896,6 +873,7 @@ func hostlink() {
 	}
 
 	argv = append(argv, fmt.Sprintf("%s/go.o", tmpdir))
+	var i int
 	for i = 0; i < len(ldflag); i++ {
 		argv = append(argv, ldflag[i])
 	}
@@ -935,30 +913,18 @@ func hostlink() {
 }
 
 func ldobj(f *Biobuf, pkg string, length int64, pn string, file string, whence int) {
-	var line string
-	var c1 int
-	var c2 int
-	var c3 int
-	var c4 int
-	var magic uint32
-	var import0 int64
-	var import1 int64
-	var eof int64
-	var start int64
-	var t string
-
-	eof = Boffset(f) + length
+	eof := Boffset(f) + length
 
 	pn = pn
 
-	start = Boffset(f)
-	c1 = Bgetc(f)
-	c2 = Bgetc(f)
-	c3 = Bgetc(f)
-	c4 = Bgetc(f)
+	start := Boffset(f)
+	c1 := Bgetc(f)
+	c2 := Bgetc(f)
+	c3 := Bgetc(f)
+	c4 := Bgetc(f)
 	Bseek(f, start, 0)
 
-	magic = uint32(c1)<<24 | uint32(c2)<<16 | uint32(c3)<<8 | uint32(c4)
+	magic := uint32(c1)<<24 | uint32(c2)<<16 | uint32(c3)<<8 | uint32(c4)
 	if magic == 0x7f454c46 { // \x7F E L F
 		ldhostobj(ldelf, f, pkg, length, pn, file)
 		return
@@ -975,8 +941,11 @@ func ldobj(f *Biobuf, pkg string, length int64, pn string, file string, whence i
 	}
 
 	/* check the header */
-	line = Brdline(f, '\n')
+	line := Brdline(f, '\n')
 
+	var import0 int64
+	var import1 int64
+	var t string
 	if line == "" {
 		if Blinelen(f) > 0 {
 			Diag("%s: not an object file", pn)
@@ -1055,9 +1024,7 @@ eof:
 }
 
 func zerosig(sp string) {
-	var s *LSym
-
-	s = Linklookup(Ctxt, sp, 0)
+	s := Linklookup(Ctxt, sp, 0)
 	s.Sig = 0
 }
 
@@ -1097,44 +1064,40 @@ func pathtoprefix(s string) string {
 	for i := 0; i < len(s); i++ {
 		c := s[i]
 		if c <= ' ' || i >= slash && c == '.' || c == '%' || c == '"' || c >= 0x7F {
-			goto escape
+			var buf bytes.Buffer
+			for i := 0; i < len(s); i++ {
+				c := s[i]
+				if c <= ' ' || i >= slash && c == '.' || c == '%' || c == '"' || c >= 0x7F {
+					fmt.Fprintf(&buf, "%%%02x", c)
+					continue
+				}
+				buf.WriteByte(c)
+			}
+			return buf.String()
 		}
 	}
 	return s
-
-escape:
-	var buf bytes.Buffer
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if c <= ' ' || i >= slash && c == '.' || c == '%' || c == '"' || c >= 0x7F {
-			fmt.Fprintf(&buf, "%%%02x", c)
-			continue
-		}
-		buf.WriteByte(c)
-	}
-	return buf.String()
 }
 
 func iconv(p string) string {
-	var fp string
-
 	if p == "" {
+		var fp string
 		fp += "<nil>"
 		return fp
 	}
 
 	p = pathtoprefix(p)
+	var fp string
 	fp += p
 	return fp
 }
 
 func addsection(seg *Segment, name string, rwx int) *Section {
 	var l **Section
-	var sect *Section
 
 	for l = &seg.Sect; *l != nil; l = &(*l).Next {
 	}
-	sect = new(Section)
+	sect := new(Section)
 	sect.Rwx = uint8(rwx)
 	sect.Name = name
 	sect.Seg = seg
@@ -1197,7 +1160,6 @@ func callsize() int {
 
 func dostkcheck() {
 	var ch Chain
-	var s *LSym
 
 	morestack = Linklookup(Ctxt, "runtime.morestack", 0)
 	newstack = Linklookup(Ctxt, "runtime.newstack", 0)
@@ -1215,7 +1177,7 @@ func dostkcheck() {
 
 	// Check every function, but do the nosplit functions in a first pass,
 	// to make the printed failure chains as short as possible.
-	for s = Ctxt.Textp; s != nil; s = s.Next {
+	for s := Ctxt.Textp; s != nil; s = s.Next {
 		// runtime.racesymbolizethunk is called from gcc-compiled C
 		// code running on the operating system thread stack.
 		// It uses more than the usual amount of stack but that's okay.
@@ -1230,7 +1192,7 @@ func dostkcheck() {
 		}
 	}
 
-	for s = Ctxt.Textp; s != nil; s = s.Next {
+	for s := Ctxt.Textp; s != nil; s = s.Next {
 		if s.Nosplit == 0 {
 			Ctxt.Cursym = s
 			ch.sym = s
@@ -1240,17 +1202,8 @@ func dostkcheck() {
 }
 
 func stkcheck(up *Chain, depth int) int {
-	var ch Chain
-	var ch1 Chain
-	var s *LSym
-	var limit int
-	var r *Reloc
-	var ri int
-	var endr int
-	var pcsp Pciter
-
-	limit = up.limit
-	s = up.sym
+	limit := up.limit
+	s := up.sym
 
 	// Don't duplicate work: only need to consider each
 	// function at top of safe zone once.
@@ -1288,12 +1241,16 @@ func stkcheck(up *Chain, depth int) int {
 		return 0
 	}
 
+	var ch Chain
 	ch.up = up
 
 	// Walk through sp adjustments in function, consuming relocs.
-	ri = 0
+	ri := 0
 
-	endr = len(s.R)
+	endr := len(s.R)
+	var ch1 Chain
+	var pcsp Pciter
+	var r *Reloc
 	for pciterinit(Ctxt, &pcsp, &s.Pcln.Pcsp); pcsp.done == 0; pciternext(&pcsp) {
 		// pcsp.value is in effect for [pcsp.pc, pcsp.nextpc).
 
@@ -1384,16 +1341,12 @@ func stkprint(ch *Chain, limit int) {
 func Yconv(s *LSym) string {
 	var fp string
 
-	var fmt_ string
-	var i int
-	var str string
-
 	if s == nil {
 		fp += fmt.Sprintf("<nil>")
 	} else {
-		fmt_ = ""
+		fmt_ := ""
 		fmt_ += fmt.Sprintf("%s @0x%08x [%d]", s.Name, int64(s.Value), int64(s.Size))
-		for i = 0; int64(i) < s.Size; i++ {
+		for i := 0; int64(i) < s.Size; i++ {
 			if i%8 == 0 {
 				fmt_ += fmt.Sprintf("\n\t0x%04x ", i)
 			}
@@ -1401,11 +1354,11 @@ func Yconv(s *LSym) string {
 		}
 
 		fmt_ += fmt.Sprintf("\n")
-		for i = 0; i < len(s.R); i++ {
+		for i := 0; i < len(s.R); i++ {
 			fmt_ += fmt.Sprintf("\t0x%04x[%x] %d %s[%x]\n", s.R[i].Off, s.R[i].Siz, s.R[i].Type, s.R[i].Sym.Name, int64(s.R[i].Add))
 		}
 
-		str = fmt_
+		str := fmt_
 		fp += str
 	}
 
@@ -1439,9 +1392,7 @@ func usage() {
 }
 
 func setheadtype(s string) {
-	var h int
-
-	h = headtype(s)
+	h := headtype(s)
 	if h < 0 {
 		fmt.Fprintf(os.Stderr, "unknown header type -H %s\n", s)
 		Errorexit()
@@ -1462,13 +1413,9 @@ func doversion() {
 }
 
 func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
-	var a *Auto
-	var s *LSym
-	var off int32
-
 	// These symbols won't show up in the first loop below because we
 	// skip STEXT symbols. Normal STEXT symbols are emitted by walking textp.
-	s = Linklookup(Ctxt, "runtime.text", 0)
+	s := Linklookup(Ctxt, "runtime.text", 0)
 
 	if s.Type == STEXT {
 		put(s, s.Name, 'T', s.Value, s.Size, int(s.Version), nil)
@@ -1478,7 +1425,7 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 		put(s, s.Name, 'T', s.Value, s.Size, int(s.Version), nil)
 	}
 
-	for s = Ctxt.Allsym; s != nil; s = s.Allsym {
+	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
 		if s.Hide != 0 || (s.Name[0] == '.' && s.Version == 0 && s.Name != ".rathole") {
 			continue
 		}
@@ -1518,7 +1465,9 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 		}
 	}
 
-	for s = Ctxt.Textp; s != nil; s = s.Next {
+	var a *Auto
+	var off int32
+	for s := Ctxt.Textp; s != nil; s = s.Next {
 		put(s, s.Name, 'T', s.Value, s.Size, int(s.Version), s.Gotype)
 
 		// NOTE(ality): acid can't produce a stack trace without .frame symbols
@@ -1568,9 +1517,7 @@ func Symaddr(s *LSym) int64 {
 }
 
 func xdefine(p string, t int, v int64) {
-	var s *LSym
-
-	s = Linklookup(Ctxt, p, 0)
+	s := Linklookup(Ctxt, p, 0)
 	s.Type = int16(t)
 	s.Value = v
 	s.Reachable = true
@@ -1589,14 +1536,11 @@ func datoff(addr int64) int64 {
 }
 
 func Entryvalue() int64 {
-	var a string
-	var s *LSym
-
-	a = INITENTRY
+	a := INITENTRY
 	if a[0] >= '0' && a[0] <= '9' {
 		return atolwhex(a)
 	}
-	s = Linklookup(Ctxt, a, 0)
+	s := Linklookup(Ctxt, a, 0)
 	if s.Type == 0 {
 		return INITTEXT
 	}
@@ -1607,11 +1551,10 @@ func Entryvalue() int64 {
 }
 
 func undefsym(s *LSym) {
-	var i int
 	var r *Reloc
 
 	Ctxt.Cursym = s
-	for i = 0; i < len(s.R); i++ {
+	for i := 0; i < len(s.R); i++ {
 		r = &s.R[i]
 		if r.Sym == nil { // happens for some external ARM relocs
 			continue
@@ -1626,12 +1569,10 @@ func undefsym(s *LSym) {
 }
 
 func undef() {
-	var s *LSym
-
-	for s = Ctxt.Textp; s != nil; s = s.Next {
+	for s := Ctxt.Textp; s != nil; s = s.Next {
 		undefsym(s)
 	}
-	for s = datap; s != nil; s = s.Next {
+	for s := datap; s != nil; s = s.Next {
 		undefsym(s)
 	}
 	if nerrors > 0 {
@@ -1640,15 +1581,13 @@ func undef() {
 }
 
 func callgraph() {
-	var s *LSym
-	var r *Reloc
-	var i int
-
 	if Debug['c'] == 0 {
 		return
 	}
 
-	for s = Ctxt.Textp; s != nil; s = s.Next {
+	var i int
+	var r *Reloc
+	for s := Ctxt.Textp; s != nil; s = s.Next {
 		for i = 0; i < len(s.R); i++ {
 			r = &s.R[i]
 			if r.Sym == nil {
@@ -1678,11 +1617,6 @@ func Diag(format string, args ...interface{}) {
 }
 
 func checkgo() {
-	var s *LSym
-	var r *Reloc
-	var i int
-	var changed int
-
 	if Debug['C'] == 0 {
 		return
 	}
@@ -1691,6 +1625,10 @@ func checkgo() {
 	// which would simplify this logic quite a bit.
 
 	// Mark every Go-called C function with cfunc=2, recursively.
+	var changed int
+	var i int
+	var r *Reloc
+	var s *LSym
 	for {
 		changed = 0
 		for s = Ctxt.Textp; s != nil; s = s.Next {
@@ -1716,7 +1654,7 @@ func checkgo() {
 
 	// Complain about Go-called C functions that can split the stack
 	// (that can be preempted for garbage collection or trigger a stack copy).
-	for s = Ctxt.Textp; s != nil; s = s.Next {
+	for s := Ctxt.Textp; s != nil; s = s.Next {
 		if s.Cfunc == 0 || (s.Cfunc == 2 && s.Nosplit != 0) {
 			for i = 0; i < len(s.R); i++ {
 				r = &s.R[i]
@@ -1736,13 +1674,11 @@ func checkgo() {
 }
 
 func Rnd(v int64, r int64) int64 {
-	var c int64
-
 	if r <= 0 {
 		return v
 	}
 	v += r - 1
-	c = v % r
+	c := v % r
 	if c < 0 {
 		c += r
 	}

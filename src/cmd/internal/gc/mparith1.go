@@ -451,7 +451,6 @@ bad:
 //
 func mpatofix(a *Mpint, as string) {
 	var c int
-	var s0 string
 
 	s := as
 	f := 0
@@ -471,7 +470,43 @@ func mpatofix(a *Mpint, as string) {
 		fallthrough
 
 	case '0':
-		goto oct
+		var c int
+		c, s = intstarstringplusplus(s)
+		if c == 'x' || c == 'X' {
+			s0 := s
+			var c int
+			c, _ = intstarstringplusplus(s)
+			for c != 0 {
+				if (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') {
+					s = s[1:]
+					c, _ = intstarstringplusplus(s)
+					continue
+				}
+
+				Yyerror("malformed hex constant: %s", as)
+				goto bad
+			}
+
+			mphextofix(a, s0)
+			if a.Ovf != 0 {
+				Yyerror("constant too large: %s", as)
+				goto bad
+			}
+			goto out
+		}
+		for c != 0 {
+			if c >= '0' && c <= '7' {
+				mpmulcfix(a, 8)
+				mpaddcfix(a, int64(c)-'0')
+				c, s = intstarstringplusplus(s)
+				continue
+			}
+
+			Yyerror("malformed octal constant: %s", as)
+			goto bad
+		}
+
+		goto out
 	}
 
 	for c != 0 {
@@ -487,45 +522,6 @@ func mpatofix(a *Mpint, as string) {
 	}
 
 	goto out
-
-oct:
-	c, s = intstarstringplusplus(s)
-	if c == 'x' || c == 'X' {
-		goto hex
-	}
-	for c != 0 {
-		if c >= '0' && c <= '7' {
-			mpmulcfix(a, 8)
-			mpaddcfix(a, int64(c)-'0')
-			c, s = intstarstringplusplus(s)
-			continue
-		}
-
-		Yyerror("malformed octal constant: %s", as)
-		goto bad
-	}
-
-	goto out
-
-hex:
-	s0 = s
-	c, _ = intstarstringplusplus(s)
-	for c != 0 {
-		if (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') {
-			s = s[1:]
-			c, _ = intstarstringplusplus(s)
-			continue
-		}
-
-		Yyerror("malformed hex constant: %s", as)
-		goto bad
-	}
-
-	mphextofix(a, s0)
-	if a.Ovf != 0 {
-		Yyerror("constant too large: %s", as)
-		goto bad
-	}
 
 out:
 	if f != 0 {

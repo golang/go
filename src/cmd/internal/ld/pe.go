@@ -371,14 +371,12 @@ var coffsym []COFFSym
 var ncoffsym int
 
 func addpesection(name string, sectsize int, filesize int) *IMAGE_SECTION_HEADER {
-	var h *IMAGE_SECTION_HEADER
-
 	if pensect == 16 {
 		Diag("too many sections")
 		Errorexit()
 	}
 
-	h = &sh[pensect]
+	h := &sh[pensect]
 	pensect++
 	copy(h.Name[:], name)
 	h.VirtualSize = uint32(sectsize)
@@ -466,14 +464,11 @@ func strput(s string) {
 }
 
 func initdynimport() *Dll {
-	var m *Imp
 	var d *Dll
-	var s *LSym
-	var dynamic *LSym
 
 	dr = nil
-	m = nil
-	for s = Ctxt.Allsym; s != nil; s = s.Allsym {
+	m := (*Imp)(nil)
+	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
 		if !s.Reachable || s.Type != SDYNIMPORT {
 			continue
 		}
@@ -497,10 +492,10 @@ func initdynimport() *Dll {
 		d.ms = m
 	}
 
-	dynamic = Linklookup(Ctxt, ".windynamic", 0)
+	dynamic := Linklookup(Ctxt, ".windynamic", 0)
 	dynamic.Reachable = true
 	dynamic.Type = SWINDOWS
-	for d = dr; d != nil; d = d.next {
+	for d := dr; d != nil; d = d.next {
 		for m = d.ms; m != nil; m = m.next {
 			m.s.Type = SWINDOWS | SSUB
 			m.s.Sub = dynamic.Sub
@@ -516,35 +511,26 @@ func initdynimport() *Dll {
 }
 
 func addimports(datsect *IMAGE_SECTION_HEADER) {
-	var isect *IMAGE_SECTION_HEADER
-	var n uint64
-	var oftbase uint64
-	var ftbase uint64
-	var startoff int64
-	var endoff int64
-	var m *Imp
-	var d *Dll
-	var dynamic *LSym
-
-	startoff = Cpos()
-	dynamic = Linklookup(Ctxt, ".windynamic", 0)
+	startoff := Cpos()
+	dynamic := Linklookup(Ctxt, ".windynamic", 0)
 
 	// skip import descriptor table (will write it later)
-	n = 0
+	n := uint64(0)
 
-	for d = dr; d != nil; d = d.next {
+	for d := dr; d != nil; d = d.next {
 		n++
 	}
 	Cseek(startoff + int64(binary.Size(&IMAGE_IMPORT_DESCRIPTOR{}))*int64(n+1))
 
 	// write dll names
-	for d = dr; d != nil; d = d.next {
+	for d := dr; d != nil; d = d.next {
 		d.nameoff = uint64(Cpos()) - uint64(startoff)
 		strput(d.name)
 	}
 
 	// write function names
-	for d = dr; d != nil; d = d.next {
+	var m *Imp
+	for d := dr; d != nil; d = d.next {
 		for m = d.ms; m != nil; m = m.next {
 			m.off = uint64(nextsectoff) + uint64(Cpos()) - uint64(startoff)
 			Wputl(0) // hint
@@ -553,10 +539,10 @@ func addimports(datsect *IMAGE_SECTION_HEADER) {
 	}
 
 	// write OriginalFirstThunks
-	oftbase = uint64(Cpos()) - uint64(startoff)
+	oftbase := uint64(Cpos()) - uint64(startoff)
 
 	n = uint64(Cpos())
-	for d = dr; d != nil; d = d.next {
+	for d := dr; d != nil; d = d.next {
 		d.thunkoff = uint64(Cpos()) - n
 		for m = d.ms; m != nil; m = m.next {
 			if pe64 != 0 {
@@ -576,17 +562,17 @@ func addimports(datsect *IMAGE_SECTION_HEADER) {
 	// add pe section and pad it at the end
 	n = uint64(Cpos()) - uint64(startoff)
 
-	isect = addpesection(".idata", int(n), int(n))
+	isect := addpesection(".idata", int(n), int(n))
 	isect.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE
 	chksectoff(isect, startoff)
 	strnput("", int(uint64(isect.SizeOfRawData)-n))
-	endoff = Cpos()
+	endoff := Cpos()
 
 	// write FirstThunks (allocated in .data section)
-	ftbase = uint64(dynamic.Value) - uint64(datsect.VirtualAddress) - PEBASE
+	ftbase := uint64(dynamic.Value) - uint64(datsect.VirtualAddress) - PEBASE
 
 	Cseek(int64(uint64(datsect.PointerToRawData) + ftbase))
-	for d = dr; d != nil; d = d.next {
+	for d := dr; d != nil; d = d.next {
 		for m = d.ms; m != nil; m = m.next {
 			if pe64 != 0 {
 				Vputl(m.off)
@@ -605,7 +591,7 @@ func addimports(datsect *IMAGE_SECTION_HEADER) {
 	// finally write import descriptor table
 	Cseek(startoff)
 
-	for d = dr; d != nil; d = d.next {
+	for d := dr; d != nil; d = d.next {
 		Lputl(uint32(uint64(isect.VirtualAddress) + oftbase + d.thunkoff))
 		Lputl(0)
 		Lputl(0)
@@ -640,19 +626,14 @@ func (x pescmp) Swap(i, j int) {
 }
 
 func (x pescmp) Less(i, j int) bool {
-	var s1 *LSym
-	var s2 *LSym
-
-	s1 = x[i]
-	s2 = x[j]
+	s1 := x[i]
+	s2 := x[j]
 	return stringsCompare(s1.Extname, s2.Extname) < 0
 }
 
 func initdynexport() {
-	var s *LSym
-
 	nexport = 0
-	for s = Ctxt.Allsym; s != nil; s = s.Allsym {
+	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
 		if !s.Reachable || s.Cgoexport&CgoExportDynamic == 0 {
 			continue
 		}
@@ -669,18 +650,10 @@ func initdynexport() {
 }
 
 func addexports() {
-	var sect *IMAGE_SECTION_HEADER
 	var e IMAGE_EXPORT_DIRECTORY
-	var size int
-	var i int
-	var va int
-	var va_name int
-	var va_addr int
-	var va_na int
-	var v int
 
-	size = binary.Size(&e) + 10*nexport + len(outfile) + 1
-	for i = 0; i < nexport; i++ {
+	size := binary.Size(&e) + 10*nexport + len(outfile) + 1
+	for i := 0; i < nexport; i++ {
 		size += len(dexport[i].Extname) + 1
 	}
 
@@ -688,16 +661,16 @@ func addexports() {
 		return
 	}
 
-	sect = addpesection(".edata", size, size)
+	sect := addpesection(".edata", size, size)
 	sect.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
 	chksectoff(sect, Cpos())
-	va = int(sect.VirtualAddress)
+	va := int(sect.VirtualAddress)
 	dd[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress = uint32(va)
 	dd[IMAGE_DIRECTORY_ENTRY_EXPORT].Size = sect.VirtualSize
 
-	va_name = va + binary.Size(&e) + nexport*4
-	va_addr = va + binary.Size(&e)
-	va_na = va + binary.Size(&e) + nexport*8
+	va_name := va + binary.Size(&e) + nexport*4
+	va_addr := va + binary.Size(&e)
+	va_na := va + binary.Size(&e) + nexport*8
 
 	e.Characteristics = 0
 	e.MajorVersion = 0
@@ -714,37 +687,35 @@ func addexports() {
 	binary.Write(&coutbuf, binary.LittleEndian, &e)
 
 	// put EXPORT Address Table
-	for i = 0; i < nexport; i++ {
+	for i := 0; i < nexport; i++ {
 		Lputl(uint32(dexport[i].Value - PEBASE))
 	}
 
 	// put EXPORT Name Pointer Table
-	v = int(e.Name + uint32(len(outfile)) + 1)
+	v := int(e.Name + uint32(len(outfile)) + 1)
 
-	for i = 0; i < nexport; i++ {
+	for i := 0; i < nexport; i++ {
 		Lputl(uint32(v))
 		v += len(dexport[i].Extname) + 1
 	}
 
 	// put EXPORT Ordinal Table
-	for i = 0; i < nexport; i++ {
+	for i := 0; i < nexport; i++ {
 		Wputl(uint16(i))
 	}
 
 	// put Names
 	strnput(outfile, len(outfile)+1)
 
-	for i = 0; i < nexport; i++ {
+	for i := 0; i < nexport; i++ {
 		strnput(dexport[i].Extname, len(dexport[i].Extname)+1)
 	}
 	strnput("", int(sect.SizeOfRawData-uint32(size)))
 }
 
 func dope() {
-	var rel *LSym
-
 	/* relocation table */
-	rel = Linklookup(Ctxt, ".rel", 0)
+	rel := Linklookup(Ctxt, ".rel", 0)
 
 	rel.Reachable = true
 	rel.Type = SELFROSECT
@@ -768,25 +739,19 @@ func strtbladd(name string) int {
  * <http://www.microsoft.com/whdc/system/platform/firmware/PECOFFdwn.mspx>
  */
 func newPEDWARFSection(name string, size int64) *IMAGE_SECTION_HEADER {
-	var h *IMAGE_SECTION_HEADER
-	var s string
-	var off int
-
 	if size == 0 {
 		return nil
 	}
 
-	off = strtbladd(name)
-	s = fmt.Sprintf("/%d", off)
-	h = addpesection(s, int(size), int(size))
+	off := strtbladd(name)
+	s := fmt.Sprintf("/%d", off)
+	h := addpesection(s, int(size), int(size))
 	h.Characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE
 
 	return h
 }
 
 func addpesym(s *LSym, name string, type_ int, addr int64, size int64, ver int, gotype *LSym) {
-	var cs *COFFSym
-
 	if s == nil {
 		return
 	}
@@ -806,7 +771,7 @@ func addpesym(s *LSym, name string, type_ int, addr int64, size int64, ver int, 
 	}
 
 	if coffsym != nil {
-		cs = &coffsym[ncoffsym]
+		cs := &coffsym[ncoffsym]
 		cs.sym = s
 		if len(s.Name) > 8 {
 			cs.strtbloff = strtbladd(s.Name)
@@ -828,11 +793,6 @@ func addpesym(s *LSym, name string, type_ int, addr int64, size int64, ver int, 
 }
 
 func addpesymtable() {
-	var h *IMAGE_SECTION_HEADER
-	var i int
-	var size int
-	var s *COFFSym
-
 	if Debug['s'] == 0 {
 		genasmsym(addpesym)
 		coffsym = make([]COFFSym, ncoffsym)
@@ -840,15 +800,16 @@ func addpesymtable() {
 		genasmsym(addpesym)
 	}
 
-	size = len(strtbl) + 4 + 18*ncoffsym
-	h = addpesection(".symtab", size, size)
+	size := len(strtbl) + 4 + 18*ncoffsym
+	h := addpesection(".symtab", size, size)
 	h.Characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE
 	chksectoff(h, Cpos())
 	fh.PointerToSymbolTable = uint32(Cpos())
 	fh.NumberOfSymbols = uint32(ncoffsym)
 
 	// put COFF symbol table
-	for i = 0; i < ncoffsym; i++ {
+	var s *COFFSym
+	for i := 0; i < ncoffsym; i++ {
 		s = &coffsym[i]
 		if s.strtbloff == 0 {
 			strnput(s.sym.Name, 8)
@@ -867,7 +828,7 @@ func addpesymtable() {
 	// put COFF string table
 	Lputl(uint32(len(strtbl)) + 4)
 
-	for i = 0; i < len(strtbl); i++ {
+	for i := 0; i < len(strtbl); i++ {
 		Cput(uint8(strtbl[i]))
 	}
 	strnput("", int(h.SizeOfRawData-uint32(size)))
@@ -882,22 +843,19 @@ func setpersrc(sym *LSym) {
 }
 
 func addpersrc() {
-	var h *IMAGE_SECTION_HEADER
-	var p []byte
-	var val uint32
-	var r *Reloc
-	var ri int
-
 	if rsrcsym == nil {
 		return
 	}
 
-	h = addpesection(".rsrc", int(rsrcsym.Size), int(rsrcsym.Size))
+	h := addpesection(".rsrc", int(rsrcsym.Size), int(rsrcsym.Size))
 	h.Characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_INITIALIZED_DATA
 	chksectoff(h, Cpos())
 
 	// relocation
-	for ri = 0; ri < len(rsrcsym.R); ri++ {
+	var p []byte
+	var r *Reloc
+	var val uint32
+	for ri := 0; ri < len(rsrcsym.R); ri++ {
 		r = &rsrcsym.R[ri]
 		p = rsrcsym.P[r.Off:]
 		val = uint32(int64(h.VirtualAddress) + r.Add)
@@ -920,9 +878,6 @@ func addpersrc() {
 }
 
 func Asmbpe() {
-	var t *IMAGE_SECTION_HEADER
-	var d *IMAGE_SECTION_HEADER
-
 	switch Thearch.Thechar {
 	default:
 		Diag("unknown PE architecture")
@@ -936,12 +891,12 @@ func Asmbpe() {
 		fh.Machine = IMAGE_FILE_MACHINE_I386
 	}
 
-	t = addpesection(".text", int(Segtext.Length), int(Segtext.Length))
+	t := addpesection(".text", int(Segtext.Length), int(Segtext.Length))
 	t.Characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ
 	chksectseg(t, &Segtext)
 	textsect = pensect
 
-	d = addpesection(".data", int(Segdata.Length), int(Segdata.Filelen))
+	d := addpesection(".data", int(Segdata.Length), int(Segdata.Filelen))
 	d.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE
 	chksectseg(d, &Segdata)
 	datasect = pensect

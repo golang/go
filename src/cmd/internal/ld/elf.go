@@ -804,13 +804,11 @@ func elf64phdr(e *ElfPhdr) {
 }
 
 func elf32phdr(e *ElfPhdr) {
-	var frag int
-
 	if e.type_ == PT_LOAD {
 		// Correct ELF loaders will do this implicitly,
 		// but buggy ELF loaders like the one in some
 		// versions of QEMU won't.
-		frag = int(e.vaddr & (e.align - 1))
+		frag := int(e.vaddr & (e.align - 1))
 
 		e.off -= uint64(frag)
 		e.vaddr -= uint64(frag)
@@ -856,16 +854,14 @@ func elf32shdr(e *ElfShdr) {
 }
 
 func elfwriteshdrs() uint32 {
-	var i int
-
 	if elf64 != 0 {
-		for i = 0; i < int(ehdr.shnum); i++ {
+		for i := 0; i < int(ehdr.shnum); i++ {
 			elf64shdr(shdr[i])
 		}
 		return uint32(ehdr.shnum) * ELF64SHDRSIZE
 	}
 
-	for i = 0; i < int(ehdr.shnum); i++ {
+	for i := 0; i < int(ehdr.shnum); i++ {
 		elf32shdr(shdr[i])
 	}
 	return uint32(ehdr.shnum) * ELF32SHDRSIZE
@@ -883,25 +879,21 @@ func elfsetstring(s string, off int) {
 }
 
 func elfwritephdrs() uint32 {
-	var i int
-
 	if elf64 != 0 {
-		for i = 0; i < int(ehdr.phnum); i++ {
+		for i := 0; i < int(ehdr.phnum); i++ {
 			elf64phdr(phdr[i])
 		}
 		return uint32(ehdr.phnum) * ELF64PHDRSIZE
 	}
 
-	for i = 0; i < int(ehdr.phnum); i++ {
+	for i := 0; i < int(ehdr.phnum); i++ {
 		elf32phdr(phdr[i])
 	}
 	return uint32(ehdr.phnum) * ELF32PHDRSIZE
 }
 
 func newElfPhdr() *ElfPhdr {
-	var e *ElfPhdr
-
-	e = new(ElfPhdr)
+	e := new(ElfPhdr)
 	if ehdr.phnum >= NSECT {
 		Diag("too many phdrs")
 	} else {
@@ -917,9 +909,7 @@ func newElfPhdr() *ElfPhdr {
 }
 
 func newElfShdr(name int64) *ElfShdr {
-	var e *ElfShdr
-
-	e = new(ElfShdr)
+	e := new(ElfShdr)
 	e.name = uint32(name)
 	e.shnum = int(ehdr.shnum)
 	if ehdr.shnum >= NSECT {
@@ -937,9 +927,7 @@ func getElfEhdr() *ElfEhdr {
 }
 
 func elf64writehdr() uint32 {
-	var i int
-
-	for i = 0; i < EI_NIDENT; i++ {
+	for i := 0; i < EI_NIDENT; i++ {
 		Cput(ehdr.ident[i])
 	}
 	Thearch.Wput(ehdr.type_)
@@ -959,9 +947,7 @@ func elf64writehdr() uint32 {
 }
 
 func elf32writehdr() uint32 {
-	var i int
-
-	for i = 0; i < EI_NIDENT; i++ {
+	for i := 0; i < EI_NIDENT; i++ {
 		Cput(ehdr.ident[i])
 	}
 	Thearch.Wput(ehdr.type_)
@@ -1037,10 +1023,8 @@ func elfwritedynentsymsize(s *LSym, tag int, t *LSym) {
 }
 
 func elfinterp(sh *ElfShdr, startva uint64, resoff uint64, p string) int {
-	var n int
-
 	interp = p
-	n = len(interp) + 1
+	n := len(interp) + 1
 	sh.addr = startva + resoff - uint64(n)
 	sh.off = resoff - uint64(n)
 	sh.size = uint64(n)
@@ -1049,9 +1033,7 @@ func elfinterp(sh *ElfShdr, startva uint64, resoff uint64, p string) int {
 }
 
 func elfwriteinterp() int {
-	var sh *ElfShdr
-
-	sh = elfshname(".interp")
+	sh := elfshname(".interp")
 	Cseek(int64(sh.off))
 	coutbuf.w.WriteString(interp)
 	Cput(0)
@@ -1059,9 +1041,7 @@ func elfwriteinterp() int {
 }
 
 func elfnote(sh *ElfShdr, startva uint64, resoff uint64, sz int) int {
-	var n uint64
-
-	n = 3*4 + uint64(sz) + resoff%4
+	n := 3*4 + uint64(sz) + resoff%4
 
 	sh.type_ = SHT_NOTE
 	sh.flags = SHF_ALLOC
@@ -1074,9 +1054,7 @@ func elfnote(sh *ElfShdr, startva uint64, resoff uint64, sz int) int {
 }
 
 func elfwritenotehdr(str string, namesz uint32, descsz uint32, tag uint32) *ElfShdr {
-	var sh *ElfShdr
-
-	sh = elfshname(str)
+	sh := elfshname(str)
 
 	// Write Elf_Note header.
 	Cseek(int64(sh.off))
@@ -1099,17 +1077,13 @@ const (
 var ELF_NOTE_NETBSD_NAME = []byte("NetBSD\x00")
 
 func elfnetbsdsig(sh *ElfShdr, startva uint64, resoff uint64) int {
-	var n int
-
-	n = int(Rnd(ELF_NOTE_NETBSD_NAMESZ, 4) + Rnd(ELF_NOTE_NETBSD_DESCSZ, 4))
+	n := int(Rnd(ELF_NOTE_NETBSD_NAMESZ, 4) + Rnd(ELF_NOTE_NETBSD_DESCSZ, 4))
 	return elfnote(sh, startva, resoff, n)
 }
 
 func elfwritenetbsdsig() int {
-	var sh *ElfShdr
-
 	// Write Elf_Note header.
-	sh = elfwritenotehdr(".note.netbsd.ident", ELF_NOTE_NETBSD_NAMESZ, ELF_NOTE_NETBSD_DESCSZ, ELF_NOTE_NETBSD_TAG)
+	sh := elfwritenotehdr(".note.netbsd.ident", ELF_NOTE_NETBSD_NAMESZ, ELF_NOTE_NETBSD_DESCSZ, ELF_NOTE_NETBSD_TAG)
 
 	if sh == nil {
 		return 0
@@ -1135,17 +1109,13 @@ const (
 var ELF_NOTE_OPENBSD_NAME = []byte("OpenBSD\x00")
 
 func elfopenbsdsig(sh *ElfShdr, startva uint64, resoff uint64) int {
-	var n int
-
-	n = ELF_NOTE_OPENBSD_NAMESZ + ELF_NOTE_OPENBSD_DESCSZ
+	n := ELF_NOTE_OPENBSD_NAMESZ + ELF_NOTE_OPENBSD_DESCSZ
 	return elfnote(sh, startva, resoff, n)
 }
 
 func elfwriteopenbsdsig() int {
-	var sh *ElfShdr
-
 	// Write Elf_Note header.
-	sh = elfwritenotehdr(".note.openbsd.ident", ELF_NOTE_OPENBSD_NAMESZ, ELF_NOTE_OPENBSD_DESCSZ, ELF_NOTE_OPENBSD_TAG)
+	sh := elfwritenotehdr(".note.openbsd.ident", ELF_NOTE_OPENBSD_NAMESZ, ELF_NOTE_OPENBSD_DESCSZ, ELF_NOTE_OPENBSD_TAG)
 
 	if sh == nil {
 		return 0
@@ -1160,9 +1130,6 @@ func elfwriteopenbsdsig() int {
 }
 
 func addbuildinfo(val string) {
-	var ov string
-	var i int
-	var b int
 	var j int
 
 	if val[0] != '0' || val[1] != 'x' {
@@ -1170,9 +1137,10 @@ func addbuildinfo(val string) {
 		Exit(2)
 	}
 
-	ov = val
+	ov := val
 	val = val[2:]
-	i = 0
+	i := 0
+	var b int
 	for val != "" {
 		if len(val) == 1 {
 			fmt.Fprintf(os.Stderr, "%s: -B argument must have even number of digits: %s\n", os.Args[0], ov)
@@ -1216,16 +1184,12 @@ const (
 var ELF_NOTE_BUILDINFO_NAME = []byte("GNU\x00")
 
 func elfbuildinfo(sh *ElfShdr, startva uint64, resoff uint64) int {
-	var n int
-
-	n = int(ELF_NOTE_BUILDINFO_NAMESZ + Rnd(int64(len(buildinfo)), 4))
+	n := int(ELF_NOTE_BUILDINFO_NAMESZ + Rnd(int64(len(buildinfo)), 4))
 	return elfnote(sh, startva, resoff, n)
 }
 
 func elfwritebuildinfo() int {
-	var sh *ElfShdr
-
-	sh = elfwritenotehdr(".note.gnu.build-id", ELF_NOTE_BUILDINFO_NAMESZ, uint32(len(buildinfo)), ELF_NOTE_BUILDINFO_TAG)
+	sh := elfwritenotehdr(".note.gnu.build-id", ELF_NOTE_BUILDINFO_NAMESZ, uint32(len(buildinfo)), ELF_NOTE_BUILDINFO_TAG)
 	if sh == nil {
 		return 0
 	}
@@ -1254,7 +1218,6 @@ type Elflib struct {
 
 func addelflib(list **Elflib, file string, vers string) *Elfaux {
 	var lib *Elflib
-	var aux *Elfaux
 
 	for lib = *list; lib != nil; lib = lib.next {
 		if lib.file == file {
@@ -1267,75 +1230,59 @@ func addelflib(list **Elflib, file string, vers string) *Elfaux {
 	*list = lib
 
 havelib:
-	for aux = lib.aux; aux != nil; aux = aux.next {
+	for aux := lib.aux; aux != nil; aux = aux.next {
 		if aux.vers == vers {
-			goto haveaux
+			return aux
 		}
 	}
-	aux = new(Elfaux)
+	aux := new(Elfaux)
 	aux.next = lib.aux
 	aux.vers = vers
 	lib.aux = aux
 
-haveaux:
 	return aux
 }
 
 func elfdynhash() {
-	var s *LSym
-	var sy *LSym
-	var dynstr *LSym
-	var i int
-	var j int
-	var nbucket int
-	var b int
-	var nfile int
-	var hc uint32
-	var chain []uint32
-	var buckets []uint32
-	var nsym int
-	var name string
-	var need []*Elfaux
-	var needlib *Elflib
-	var l *Elflib
-	var x *Elfaux
-
 	if !Iself {
 		return
 	}
 
-	nsym = Nelfsym
-	s = Linklookup(Ctxt, ".hash", 0)
+	nsym := Nelfsym
+	s := Linklookup(Ctxt, ".hash", 0)
 	s.Type = SELFROSECT
 	s.Reachable = true
 
-	i = nsym
-	nbucket = 1
+	i := nsym
+	nbucket := 1
 	for i > 0 {
 		nbucket++
 		i >>= 1
 	}
 
-	needlib = nil
-	need = make([]*Elfaux, nsym)
-	chain = make([]uint32, nsym)
-	buckets = make([]uint32, nbucket)
+	needlib := (*Elflib)(nil)
+	need := make([]*Elfaux, nsym)
+	chain := make([]uint32, nsym)
+	buckets := make([]uint32, nbucket)
 	if need == nil || chain == nil || buckets == nil {
 		Ctxt.Cursym = nil
 		Diag("out of memory")
 		Errorexit()
 	}
 
-	for i = 0; i < nsym; i++ {
+	for i := 0; i < nsym; i++ {
 		need[i] = nil
 	}
-	for i = 0; i < nsym; i++ {
+	for i := 0; i < nsym; i++ {
 		chain[i] = 0
 	}
-	for i = 0; i < nbucket; i++ {
+	for i := 0; i < nbucket; i++ {
 		buckets[i] = 0
 	}
-	for sy = Ctxt.Allsym; sy != nil; sy = sy.Allsym {
+	var b int
+	var hc uint32
+	var name string
+	for sy := Ctxt.Allsym; sy != nil; sy = sy.Allsym {
 		if sy.Dynid <= 0 {
 			continue
 		}
@@ -1354,20 +1301,22 @@ func elfdynhash() {
 
 	Adduint32(Ctxt, s, uint32(nbucket))
 	Adduint32(Ctxt, s, uint32(nsym))
-	for i = 0; i < nbucket; i++ {
+	for i := 0; i < nbucket; i++ {
 		Adduint32(Ctxt, s, buckets[i])
 	}
-	for i = 0; i < nsym; i++ {
+	for i := 0; i < nsym; i++ {
 		Adduint32(Ctxt, s, chain[i])
 	}
 
 	// version symbols
-	dynstr = Linklookup(Ctxt, ".dynstr", 0)
+	dynstr := Linklookup(Ctxt, ".dynstr", 0)
 
 	s = Linklookup(Ctxt, ".gnu.version_r", 0)
 	i = 2
-	nfile = 0
-	for l = needlib; l != nil; l = l.next {
+	nfile := 0
+	var j int
+	var x *Elfaux
+	for l := needlib; l != nil; l = l.next {
 		nfile++
 
 		// header
@@ -1405,7 +1354,7 @@ func elfdynhash() {
 	// version references
 	s = Linklookup(Ctxt, ".gnu.version", 0)
 
-	for i = 0; i < nsym; i++ {
+	for i := 0; i < nsym; i++ {
 		if i == 0 {
 			Adduint16(Ctxt, s, 0) // first entry - no symbol
 		} else if need[i] == nil {
@@ -1424,14 +1373,14 @@ func elfdynhash() {
 	}
 
 	if Thearch.Thechar == '6' || Thearch.Thechar == '9' {
-		sy = Linklookup(Ctxt, ".rela.plt", 0)
+		sy := Linklookup(Ctxt, ".rela.plt", 0)
 		if sy.Size > 0 {
 			Elfwritedynent(s, DT_PLTREL, DT_RELA)
 			elfwritedynentsymsize(s, DT_PLTRELSZ, sy)
 			elfwritedynentsym(s, DT_JMPREL, sy)
 		}
 	} else {
-		sy = Linklookup(Ctxt, ".rel.plt", 0)
+		sy := Linklookup(Ctxt, ".rel.plt", 0)
 		if sy.Size > 0 {
 			Elfwritedynent(s, DT_PLTREL, DT_REL)
 			elfwritedynentsymsize(s, DT_PLTRELSZ, sy)
@@ -1443,9 +1392,7 @@ func elfdynhash() {
 }
 
 func elfphload(seg *Segment) *ElfPhdr {
-	var ph *ElfPhdr
-
-	ph = newElfPhdr()
+	ph := newElfPhdr()
 	ph.type_ = PT_LOAD
 	if seg.Rwx&4 != 0 {
 		ph.flags |= PF_R
@@ -1467,45 +1414,37 @@ func elfphload(seg *Segment) *ElfPhdr {
 }
 
 func elfshname(name string) *ElfShdr {
-	var i int
 	var off int
 	var sh *ElfShdr
 
-	for i = 0; i < nelfstr; i++ {
+	for i := 0; i < nelfstr; i++ {
 		if name == elfstr[i].s {
 			off = elfstr[i].off
-			goto found
+			for i = 0; i < int(ehdr.shnum); i++ {
+				sh = shdr[i]
+				if sh.name == uint32(off) {
+					return sh
+				}
+			}
+
+			sh = newElfShdr(int64(off))
+			return sh
 		}
 	}
 
 	Diag("cannot find elf name %s", name)
 	Errorexit()
 	return nil
-
-found:
-	for i = 0; i < int(ehdr.shnum); i++ {
-		sh = shdr[i]
-		if sh.name == uint32(off) {
-			return sh
-		}
-	}
-
-	sh = newElfShdr(int64(off))
-	return sh
 }
 
 func elfshalloc(sect *Section) *ElfShdr {
-	var sh *ElfShdr
-
-	sh = elfshname(sect.Name)
+	sh := elfshname(sect.Name)
 	sect.Elfsect = sh
 	return sh
 }
 
 func elfshbits(sect *Section) *ElfShdr {
-	var sh *ElfShdr
-
-	sh = elfshalloc(sect)
+	sh := elfshalloc(sect)
 	if sh.type_ > 0 {
 		return sh
 	}
@@ -1540,11 +1479,6 @@ func elfshbits(sect *Section) *ElfShdr {
 }
 
 func elfshreloc(sect *Section) *ElfShdr {
-	var typ int
-	var sh *ElfShdr
-	var prefix string
-	var buf string
-
 	// If main section is SHT_NOBITS, nothing to relocate.
 	// Also nothing to relocate in .shstrtab.
 	if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
@@ -1554,6 +1488,8 @@ func elfshreloc(sect *Section) *ElfShdr {
 		return nil
 	}
 
+	var prefix string
+	var typ int
 	if Thearch.Thechar == '6' || Thearch.Thechar == '9' {
 		prefix = ".rela"
 		typ = SHT_RELA
@@ -1562,8 +1498,8 @@ func elfshreloc(sect *Section) *ElfShdr {
 		typ = SHT_REL
 	}
 
-	buf = fmt.Sprintf("%s%s", prefix, sect.Name)
-	sh = elfshname(buf)
+	buf := fmt.Sprintf("%s%s", prefix, sect.Name)
+	sh := elfshname(buf)
 	sh.type_ = uint32(typ)
 	sh.entsize = uint64(Thearch.Regsize) * 2
 	if typ == SHT_RELA {
@@ -1578,11 +1514,6 @@ func elfshreloc(sect *Section) *ElfShdr {
 }
 
 func elfrelocsect(sect *Section, first *LSym) {
-	var ri int
-	var sym *LSym
-	var eaddr int32
-	var r *Reloc
-
 	// If main section is SHT_NOBITS, nothing to relocate.
 	// Also nothing to relocate in .shstrtab.
 	if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
@@ -1593,6 +1524,7 @@ func elfrelocsect(sect *Section, first *LSym) {
 	}
 
 	sect.Reloff = uint64(Cpos())
+	var sym *LSym
 	for sym = first; sym != nil; sym = sym.Next {
 		if !sym.Reachable {
 			continue
@@ -1602,7 +1534,9 @@ func elfrelocsect(sect *Section, first *LSym) {
 		}
 	}
 
-	eaddr = int32(sect.Vaddr + sect.Length)
+	eaddr := int32(sect.Vaddr + sect.Length)
+	var r *Reloc
+	var ri int
 	for ; sym != nil; sym = sym.Next {
 		if !sym.Reachable {
 			continue
@@ -1635,35 +1569,29 @@ func elfrelocsect(sect *Section, first *LSym) {
 }
 
 func Elfemitreloc() {
-	var sect *Section
-
 	for Cpos()&7 != 0 {
 		Cput(0)
 	}
 
 	elfrelocsect(Segtext.Sect, Ctxt.Textp)
-	for sect = Segtext.Sect.Next; sect != nil; sect = sect.Next {
+	for sect := Segtext.Sect.Next; sect != nil; sect = sect.Next {
 		elfrelocsect(sect, datap)
 	}
-	for sect = Segrodata.Sect; sect != nil; sect = sect.Next {
+	for sect := Segrodata.Sect; sect != nil; sect = sect.Next {
 		elfrelocsect(sect, datap)
 	}
-	for sect = Segdata.Sect; sect != nil; sect = sect.Next {
+	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
 		elfrelocsect(sect, datap)
 	}
 }
 
 func doelf() {
-	var s *LSym
-	var shstrtab *LSym
-	var dynstr *LSym
-
 	if !Iself {
 		return
 	}
 
 	/* predefine strings we need for section headers */
-	shstrtab = Linklookup(Ctxt, ".shstrtab", 0)
+	shstrtab := Linklookup(Ctxt, ".shstrtab", 0)
 
 	shstrtab.Type = SELFROSECT
 	shstrtab.Reachable = true
@@ -1767,7 +1695,7 @@ func doelf() {
 		Addstring(shstrtab, ".gnu.version_r")
 
 		/* dynamic symbol table - first entry all zeros */
-		s = Linklookup(Ctxt, ".dynsym", 0)
+		s := Linklookup(Ctxt, ".dynsym", 0)
 
 		s.Type = SELFROSECT
 		s.Reachable = true
@@ -1785,7 +1713,7 @@ func doelf() {
 		if s.Size == 0 {
 			Addstring(s, "")
 		}
-		dynstr = s
+		dynstr := s
 
 		/* relocation table */
 		if Thearch.Thechar == '6' || Thearch.Thechar == '9' {
@@ -1804,7 +1732,7 @@ func doelf() {
 
 		/* ppc64 glink resolver */
 		if Thearch.Thechar == '9' {
-			s = Linklookup(Ctxt, ".glink", 0)
+			s := Linklookup(Ctxt, ".glink", 0)
 			s.Reachable = true
 			s.Type = SELFRXSECT
 		}
@@ -1901,8 +1829,7 @@ func doelf() {
 
 // Do not write DT_NULL.  elfdynhash will finish it.
 func shsym(sh *ElfShdr, s *LSym) {
-	var addr int64
-	addr = Symaddr(s)
+	addr := Symaddr(s)
 	if sh.flags&SHF_ALLOC != 0 {
 		sh.addr = uint64(addr)
 	}
@@ -1920,35 +1847,22 @@ func phsh(ph *ElfPhdr, sh *ElfShdr) {
 }
 
 func Asmbelfsetup() {
-	var sect *Section
-
 	/* This null SHdr must appear before all others */
 	elfshname("")
 
-	for sect = Segtext.Sect; sect != nil; sect = sect.Next {
+	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
 		elfshalloc(sect)
 	}
-	for sect = Segrodata.Sect; sect != nil; sect = sect.Next {
+	for sect := Segrodata.Sect; sect != nil; sect = sect.Next {
 		elfshalloc(sect)
 	}
-	for sect = Segdata.Sect; sect != nil; sect = sect.Next {
+	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
 		elfshalloc(sect)
 	}
 }
 
 func Asmbelf(symo int64) {
-	var a int64
-	var o int64
-	var startva int64
-	var resoff int64
-	var eh *ElfEhdr
-	var ph *ElfPhdr
-	var pph *ElfPhdr
-	var pnote *ElfPhdr
-	var sh *ElfShdr
-	var sect *Section
-
-	eh = getElfEhdr()
+	eh := getElfEhdr()
 	switch Thearch.Thechar {
 	default:
 		Diag("unknown architecture in asmbelf")
@@ -1968,10 +1882,11 @@ func Asmbelf(symo int64) {
 		eh.machine = EM_PPC64
 	}
 
-	startva = INITTEXT - int64(HEADR)
-	resoff = ELFRESERVE
+	startva := INITTEXT - int64(HEADR)
+	resoff := int64(ELFRESERVE)
 
-	pph = nil
+	pph := (*ElfPhdr)(nil)
+	var pnote *ElfPhdr
 	if Linkmode == LinkExternal {
 		/* skip program headers */
 		eh.phoff = 0
@@ -1996,7 +1911,7 @@ func Asmbelf(symo int64) {
 	 * Except on NaCl where it must not be loaded.
 	 */
 	if HEADTYPE != Hnacl {
-		o = int64(Segtext.Vaddr - pph.vaddr)
+		o := int64(Segtext.Vaddr - pph.vaddr)
 		Segtext.Vaddr -= uint64(o)
 		Segtext.Length += uint64(o)
 		o = int64(Segtext.Fileoff - pph.off)
@@ -2006,7 +1921,7 @@ func Asmbelf(symo int64) {
 
 	if Debug['d'] == 0 {
 		/* interpreter */
-		sh = elfshname(".interp")
+		sh := elfshname(".interp")
 
 		sh.type_ = SHT_PROGBITS
 		sh.flags = SHF_ALLOC
@@ -2035,7 +1950,7 @@ func Asmbelf(symo int64) {
 
 		resoff -= int64(elfinterp(sh, uint64(startva), uint64(resoff), interpreter))
 
-		ph = newElfPhdr()
+		ph := newElfPhdr()
 		ph.type_ = PT_INTERP
 		ph.flags = PF_R
 		phsh(ph, sh)
@@ -2043,7 +1958,7 @@ func Asmbelf(symo int64) {
 
 	pnote = nil
 	if HEADTYPE == Hnetbsd || HEADTYPE == Hopenbsd {
-		sh = nil
+		sh := (*ElfShdr)(nil)
 		switch HEADTYPE {
 		case Hnetbsd:
 			sh = elfshname(".note.netbsd.ident")
@@ -2061,7 +1976,7 @@ func Asmbelf(symo int64) {
 	}
 
 	if len(buildinfo) > 0 {
-		sh = elfshname(".note.gnu.build-id")
+		sh := elfshname(".note.gnu.build-id")
 		resoff -= int64(elfbuildinfo(sh, uint64(startva), uint64(resoff)))
 
 		if pnote == nil {
@@ -2083,7 +1998,7 @@ func Asmbelf(symo int64) {
 
 	/* Dynamic linking sections */
 	if Debug['d'] == 0 {
-		sh = elfshname(".dynsym")
+		sh := elfshname(".dynsym")
 		sh.type_ = SHT_DYNSYM
 		sh.flags = SHF_ALLOC
 		if elf64 != 0 {
@@ -2104,7 +2019,7 @@ func Asmbelf(symo int64) {
 		shsym(sh, Linklookup(Ctxt, ".dynstr", 0))
 
 		if elfverneed != 0 {
-			sh = elfshname(".gnu.version")
+			sh := elfshname(".gnu.version")
 			sh.type_ = SHT_GNU_VERSYM
 			sh.flags = SHF_ALLOC
 			sh.addralign = 2
@@ -2124,7 +2039,7 @@ func Asmbelf(symo int64) {
 		switch eh.machine {
 		case EM_X86_64,
 			EM_PPC64:
-			sh = elfshname(".rela.plt")
+			sh := elfshname(".rela.plt")
 			sh.type_ = SHT_RELA
 			sh.flags = SHF_ALLOC
 			sh.entsize = ELF64RELASIZE
@@ -2142,7 +2057,7 @@ func Asmbelf(symo int64) {
 			shsym(sh, Linklookup(Ctxt, ".rela", 0))
 
 		default:
-			sh = elfshname(".rel.plt")
+			sh := elfshname(".rel.plt")
 			sh.type_ = SHT_REL
 			sh.flags = SHF_ALLOC
 			sh.entsize = ELF32RELSIZE
@@ -2160,7 +2075,7 @@ func Asmbelf(symo int64) {
 		}
 
 		if eh.machine == EM_PPC64 {
-			sh = elfshname(".glink")
+			sh := elfshname(".glink")
 			sh.type_ = SHT_PROGBITS
 			sh.flags = SHF_ALLOC + SHF_EXECINSTR
 			sh.addralign = 4
@@ -2188,7 +2103,7 @@ func Asmbelf(symo int64) {
 		// On ppc64, .got comes from the input files, so don't
 		// create it here, and .got.plt is not used.
 		if eh.machine != EM_PPC64 {
-			sh = elfshname(".got")
+			sh := elfshname(".got")
 			sh.type_ = SHT_PROGBITS
 			sh.flags = SHF_ALLOC + SHF_WRITE
 			sh.entsize = uint64(Thearch.Regsize)
@@ -2220,7 +2135,7 @@ func Asmbelf(symo int64) {
 		sh.addralign = uint64(Thearch.Regsize)
 		sh.link = uint32(elfshname(".dynstr").shnum)
 		shsym(sh, Linklookup(Ctxt, ".dynamic", 0))
-		ph = newElfPhdr()
+		ph := newElfPhdr()
 		ph.type_ = PT_DYNAMIC
 		ph.flags = PF_R + PF_W
 		phsh(ph, sh)
@@ -2232,7 +2147,7 @@ func Asmbelf(symo int64) {
 		// not currently support it. This is handled
 		// appropriately in runtime/cgo.
 		if Ctxt.Tlsoffset != 0 && HEADTYPE != Hopenbsd {
-			ph = newElfPhdr()
+			ph := newElfPhdr()
 			ph.type_ = PT_TLS
 			ph.flags = PF_R
 			ph.memsz = uint64(-Ctxt.Tlsoffset)
@@ -2241,7 +2156,7 @@ func Asmbelf(symo int64) {
 	}
 
 	if HEADTYPE == Hlinux {
-		ph = newElfPhdr()
+		ph := newElfPhdr()
 		ph.type_ = PT_GNU_STACK
 		ph.flags = PF_W + PF_R
 		ph.align = uint64(Thearch.Regsize)
@@ -2253,7 +2168,7 @@ func Asmbelf(symo int64) {
 	}
 
 elfobj:
-	sh = elfshname(".shstrtab")
+	sh := elfshname(".shstrtab")
 	sh.type_ = SHT_STRTAB
 	sh.addralign = 1
 	shsym(sh, Linklookup(Ctxt, ".shstrtab", 0))
@@ -2265,29 +2180,29 @@ elfobj:
 		elfshname(".strtab")
 	}
 
-	for sect = Segtext.Sect; sect != nil; sect = sect.Next {
+	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
 		elfshbits(sect)
 	}
-	for sect = Segrodata.Sect; sect != nil; sect = sect.Next {
+	for sect := Segrodata.Sect; sect != nil; sect = sect.Next {
 		elfshbits(sect)
 	}
-	for sect = Segdata.Sect; sect != nil; sect = sect.Next {
+	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
 		elfshbits(sect)
 	}
 
 	if Linkmode == LinkExternal {
-		for sect = Segtext.Sect; sect != nil; sect = sect.Next {
+		for sect := Segtext.Sect; sect != nil; sect = sect.Next {
 			elfshreloc(sect)
 		}
-		for sect = Segrodata.Sect; sect != nil; sect = sect.Next {
+		for sect := Segrodata.Sect; sect != nil; sect = sect.Next {
 			elfshreloc(sect)
 		}
-		for sect = Segdata.Sect; sect != nil; sect = sect.Next {
+		for sect := Segdata.Sect; sect != nil; sect = sect.Next {
 			elfshreloc(sect)
 		}
 
 		// add a .note.GNU-stack section to mark the stack as non-executable
-		sh = elfshname(".note.GNU-stack")
+		sh := elfshname(".note.GNU-stack")
 
 		sh.type_ = SHT_PROGBITS
 		sh.addralign = 1
@@ -2297,7 +2212,7 @@ elfobj:
 	// generate .tbss section for dynamic internal linking (except for OpenBSD)
 	// external linking generates .tbss in data.c
 	if Linkmode == LinkInternal && Debug['d'] == 0 && HEADTYPE != Hopenbsd {
-		sh = elfshname(".tbss")
+		sh := elfshname(".tbss")
 		sh.type_ = SHT_NOBITS
 		sh.addralign = uint64(Thearch.Regsize)
 		sh.size = uint64(-Ctxt.Tlsoffset)
@@ -2305,7 +2220,7 @@ elfobj:
 	}
 
 	if Debug['s'] == 0 {
-		sh = elfshname(".symtab")
+		sh := elfshname(".symtab")
 		sh.type_ = SHT_SYMTAB
 		sh.off = uint64(symo)
 		sh.size = uint64(Symsize)
@@ -2368,7 +2283,7 @@ elfobj:
 	}
 
 	Cseek(0)
-	a = 0
+	a := int64(0)
 	a += int64(elfwritehdr())
 	a += int64(elfwritephdrs())
 	a += int64(elfwriteshdrs())

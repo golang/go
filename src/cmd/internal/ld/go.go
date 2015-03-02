@@ -54,11 +54,8 @@ var ihash [NIHASH]*Import
 var nimport int
 
 func hashstr(name string) int {
-	var h uint32
-	var cp string
-
-	h = 0
-	for cp = name; cp != ""; cp = cp[1:] {
+	h := uint32(0)
+	for cp := name; cp != ""; cp = cp[1:] {
 		h = h*1119 + uint32(cp[0])
 	}
 	h &= 0xffffff
@@ -66,16 +63,13 @@ func hashstr(name string) int {
 }
 
 func ilookup(name string) *Import {
-	var h int
-	var x *Import
-
-	h = hashstr(name) % NIHASH
-	for x = ihash[h]; x != nil; x = x.hash {
+	h := hashstr(name) % NIHASH
+	for x := ihash[h]; x != nil; x = x.hash {
 		if x.name[0] == name[0] && x.name == name {
 			return x
 		}
 	}
-	x = new(Import)
+	x := new(Import)
 	x.name = name
 	x.hash = ihash[h]
 	ihash[h] = x
@@ -84,10 +78,7 @@ func ilookup(name string) *Import {
 }
 
 func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
-	var bdata []byte
-	var data string
 	var p0, p1 int
-	var name string
 
 	if Debug['g'] != 0 {
 		return
@@ -101,7 +92,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 		return
 	}
 
-	bdata = make([]byte, length)
+	bdata := make([]byte, length)
 	if int64(Bread(f, bdata)) != length {
 		fmt.Fprintf(os.Stderr, "%s: short pkg read %s\n", os.Args[0], filename)
 		if Debug['u'] != 0 {
@@ -109,7 +100,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 		}
 		return
 	}
-	data = string(bdata)
+	data := string(bdata)
 
 	// first \n$$ marks beginning of exports - skip rest of line
 	p0 = strings.Index(data, "\n$$")
@@ -153,7 +144,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 		for p0 < p1 && (data[p0] == ' ' || data[p0] == '\t' || data[p0] == '\n') {
 			p0++
 		}
-		name = data[p0:]
+		name := data[p0:]
 		for p0 < p1 && data[p0] != ' ' && data[p0] != '\t' && data[p0] != '\n' {
 			p0++
 		}
@@ -221,14 +212,13 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 }
 
 func loadpkgdata(file string, pkg string, data string) {
-	var p string
 	var prefix string
 	var name string
 	var def string
 	var x *Import
 
 	file = file
-	p = data
+	p := data
 	for parsepkgdata(file, pkg, &p, &prefix, &name, &def) > 0 {
 		x = ilookup(name)
 		if x.prefix == "" {
@@ -250,15 +240,10 @@ func loadpkgdata(file string, pkg string, data string) {
 }
 
 func parsepkgdata(file string, pkg string, pp *string, prefixp *string, namep *string, defp *string) int {
-	var p string
 	var prefix string
-	var name string
-	var def string
-	var meth string
-	var inquote bool
 
 	// skip white space
-	p = *pp
+	p := *pp
 
 loop:
 	for len(p) > 0 && (p[0] == ' ' || p[0] == '\t' || p[0] == '\n') {
@@ -310,9 +295,9 @@ loop:
 	prefix = prefix[:len(prefix)-len(p)-1]
 
 	// name: a.b followed by space
-	name = p
+	name := p
 
-	inquote = false
+	inquote := false
 	for len(p) > 0 {
 		if p[0] == ' ' && !inquote {
 			break
@@ -334,7 +319,7 @@ loop:
 	p = p[1:]
 
 	// def: free form to new line
-	def = p
+	def := p
 
 	for len(p) > 0 && p[0] != '\n' {
 		p = p[1:]
@@ -347,6 +332,7 @@ loop:
 	p = p[1:]
 
 	// include methods on successive lines in def of named type
+	var meth string
 	for parsemethod(&p, &meth) > 0 {
 		if defbuf == nil {
 			defbuf = new(bytes.Buffer)
@@ -372,10 +358,8 @@ loop:
 }
 
 func parsemethod(pp *string, methp *string) int {
-	var p string
-
 	// skip white space
-	p = *pp
+	p := *pp
 
 	for len(p) > 0 && (p[0] == ' ' || p[0] == '\t') {
 		p = p[1:]
@@ -415,7 +399,6 @@ useline:
 
 func loadcgo(file string, pkg string, p string) {
 	var next string
-	var p0 string
 	var q string
 	var f []string
 	var local string
@@ -423,7 +406,7 @@ func loadcgo(file string, pkg string, p string) {
 	var lib string
 	var s *LSym
 
-	p0 = ""
+	p0 := ""
 	for ; p != ""; p = next {
 		if i := strings.Index(p, "\n"); i >= 0 {
 			p, next = p[:i], p[i+1:]
@@ -610,10 +593,9 @@ func mark(s *LSym) {
 
 func markflood() {
 	var a *Auto
-	var s *LSym
 	var i int
 
-	for s = markq; s != nil; s = s.Queue {
+	for s := markq; s != nil; s = s.Queue {
 		if s.Type == STEXT {
 			if Debug['v'] > 1 {
 				fmt.Fprintf(&Bso, "marktext %s\n", s.Name)
@@ -659,38 +641,32 @@ var markextra = []string{
 }
 
 func deadcode() {
-	var i int
-	var s *LSym
-	var last *LSym
-	var p *LSym
-	var fmt_ string
-
 	if Debug['v'] != 0 {
 		fmt.Fprintf(&Bso, "%5.2f deadcode\n", obj.Cputime())
 	}
 
 	mark(Linklookup(Ctxt, INITENTRY, 0))
-	for i = 0; i < len(markextra); i++ {
+	for i := 0; i < len(markextra); i++ {
 		mark(Linklookup(Ctxt, markextra[i], 0))
 	}
 
-	for i = 0; i < len(dynexp); i++ {
+	for i := 0; i < len(dynexp); i++ {
 		mark(dynexp[i])
 	}
 
 	markflood()
 
 	// keep each beginning with 'typelink.' if the symbol it points at is being kept.
-	for s = Ctxt.Allsym; s != nil; s = s.Allsym {
+	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
 		if strings.HasPrefix(s.Name, "go.typelink.") {
 			s.Reachable = len(s.R) == 1 && s.R[0].Sym.Reachable
 		}
 	}
 
 	// remove dead text but keep file information (z symbols).
-	last = nil
+	last := (*LSym)(nil)
 
-	for s = Ctxt.Textp; s != nil; s = s.Next {
+	for s := Ctxt.Textp; s != nil; s = s.Next {
 		if !s.Reachable {
 			continue
 		}
@@ -710,7 +686,7 @@ func deadcode() {
 		last.Next = nil
 	}
 
-	for s = Ctxt.Allsym; s != nil; s = s.Allsym {
+	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
 		if strings.HasPrefix(s.Name, "go.weak.") {
 			s.Special = 1 // do not lay out in data segment
 			s.Reachable = true
@@ -719,9 +695,10 @@ func deadcode() {
 	}
 
 	// record field tracking references
-	fmt_ = ""
+	fmt_ := ""
 
-	for s = Ctxt.Allsym; s != nil; s = s.Allsym {
+	var p *LSym
+	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
 		if strings.HasPrefix(s.Name, "go.track.") {
 			s.Special = 1 // do not lay out in data segment
 			s.Hide = 1
@@ -741,7 +718,7 @@ func deadcode() {
 	if tracksym == "" {
 		return
 	}
-	s = Linklookup(Ctxt, tracksym, 0)
+	s := Linklookup(Ctxt, tracksym, 0)
 	if !s.Reachable {
 		return
 	}
@@ -749,12 +726,11 @@ func deadcode() {
 }
 
 func doweak() {
-	var s *LSym
 	var t *LSym
 
 	// resolve weak references only if
 	// target symbol will be in binary anyway.
-	for s = Ctxt.Allsym; s != nil; s = s.Allsym {
+	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
 		if strings.HasPrefix(s.Name, "go.weak.") {
 			t = Linkrlookup(Ctxt, s.Name[8:], int(s.Version))
 			if t != nil && t.Type != 0 && t.Reachable {
@@ -772,13 +748,11 @@ func doweak() {
 }
 
 func addexport() {
-	var i int
-
 	if HEADTYPE == Hdarwin {
 		return
 	}
 
-	for i = 0; i < len(dynexp); i++ {
+	for i := 0; i < len(dynexp); i++ {
 		Thearch.Adddynsym(Ctxt, dynexp[i])
 	}
 }
@@ -840,16 +814,13 @@ var phash [1024]*Pkg
 var pkgall *Pkg
 
 func getpkg(path_ string) *Pkg {
-	var p *Pkg
-	var h int
-
-	h = hashstr(path_) % len(phash)
-	for p = phash[h]; p != nil; p = p.next {
+	h := hashstr(path_) % len(phash)
+	for p := phash[h]; p != nil; p = p.next {
 		if p.path_ == path_ {
 			return p
 		}
 	}
-	p = new(Pkg)
+	p := new(Pkg)
 	p.path_ = path_
 	p.next = phash[h]
 	phash[h] = p
@@ -859,24 +830,18 @@ func getpkg(path_ string) *Pkg {
 }
 
 func imported(pkg string, import_ string) {
-	var p *Pkg
-	var i *Pkg
-
 	// everyone imports runtime, even runtime.
 	if import_ == "\"runtime\"" {
 		return
 	}
 
 	pkg = fmt.Sprintf("\"%v\"", Zconv(pkg, 0)) // turn pkg path into quoted form, freed below
-	p = getpkg(pkg)
-	i = getpkg(import_)
+	p := getpkg(pkg)
+	i := getpkg(import_)
 	i.impby = append(i.impby, p)
 }
 
 func cycle(p *Pkg) *Pkg {
-	var i int
-	var bad *Pkg
-
 	if p.checked != 0 {
 		return nil
 	}
@@ -889,7 +854,8 @@ func cycle(p *Pkg) *Pkg {
 	}
 
 	p.mark = 1
-	for i = 0; i < len(p.impby); i++ {
+	var bad *Pkg
+	for i := 0; i < len(p.impby); i++ {
 		bad = cycle(p.impby[i])
 		if bad != nil {
 			p.mark = 0
@@ -908,9 +874,7 @@ func cycle(p *Pkg) *Pkg {
 }
 
 func importcycles() {
-	var p *Pkg
-
-	for p = pkgall; p != nil; p = p.all {
+	for p := pkgall; p != nil; p = p.all {
 		cycle(p)
 	}
 }

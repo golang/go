@@ -51,10 +51,6 @@ func canuselocaltls(ctxt *obj.Link) bool {
 }
 
 func progedit(ctxt *obj.Link, p *obj.Prog) {
-	var literal string
-	var s *obj.LSym
-	var q *obj.Prog
-
 	// See obj6.c for discussion of TLS.
 	if canuselocaltls(ctxt) {
 		// Reduce TLS initial exec model to TLS local exec model.
@@ -92,7 +88,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		//	MOVL off(BX)(TLS*1), BX
 		// This allows the C compilers to emit references to m and g using the direct off(TLS) form.
 		if p.As == AMOVL && p.From.Type == obj.TYPE_MEM && p.From.Reg == REG_TLS && p.To.Type == obj.TYPE_REG && REG_AX <= p.To.Reg && p.To.Reg <= REG_DI {
-			q = obj.Appendp(ctxt, p)
+			q := obj.Appendp(ctxt, p)
 			q.As = p.As
 			q.From.Type = obj.TYPE_MEM
 			q.From.Reg = p.To.Reg
@@ -159,12 +155,10 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		ACOMISS,
 		AUCOMISS:
 		if p.From.Type == obj.TYPE_FCONST {
-			var i32 uint32
-			var f32 float32
-			f32 = float32(p.From.U.Dval)
-			i32 = math.Float32bits(f32)
-			literal = fmt.Sprintf("$f32.%08x", i32)
-			s = obj.Linklookup(ctxt, literal, 0)
+			f32 := float32(p.From.U.Dval)
+			i32 := math.Float32bits(f32)
+			literal := fmt.Sprintf("$f32.%08x", i32)
+			s := obj.Linklookup(ctxt, literal, 0)
 			if s.Type == 0 {
 				s.Type = obj.SRODATA
 				obj.Adduint32(ctxt, s, i32)
@@ -208,10 +202,9 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		ACOMISD,
 		AUCOMISD:
 		if p.From.Type == obj.TYPE_FCONST {
-			var i64 uint64
-			i64 = math.Float64bits(p.From.U.Dval)
-			literal = fmt.Sprintf("$f64.%016x", i64)
-			s = obj.Linklookup(ctxt, literal, 0)
+			i64 := math.Float64bits(p.From.U.Dval)
+			literal := fmt.Sprintf("$f64.%016x", i64)
+			s := obj.Linklookup(ctxt, literal, 0)
 			if s.Type == 0 {
 				s.Type = obj.SRODATA
 				obj.Adduint64(ctxt, s, i64)
@@ -227,14 +220,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 }
 
 func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
-	var p *obj.Prog
-	var q *obj.Prog
-	var p1 *obj.Prog
-	var p2 *obj.Prog
-	var autoffset int32
-	var deltasp int32
-	var a int
-
 	if ctxt.Symmorestack[0] == nil {
 		ctxt.Symmorestack[0] = obj.Linklookup(ctxt, "runtime.morestack", 0)
 		ctxt.Symmorestack[1] = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
@@ -250,8 +235,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		return
 	}
 
-	p = cursym.Text
-	autoffset = int32(p.To.Offset)
+	p := cursym.Text
+	autoffset := int32(p.To.Offset)
 	if autoffset < 0 {
 		autoffset = 0
 	}
@@ -259,7 +244,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	cursym.Locals = autoffset
 	cursym.Args = p.To.U.Argsize
 
-	q = nil
+	q := (*obj.Prog)(nil)
 
 	if p.From3.Offset&obj.NOSPLIT == 0 || (p.From3.Offset&obj.WRAPPER != 0) {
 		p = obj.Appendp(ctxt, p)
@@ -292,7 +277,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	if q != nil {
 		q.Pcond = p
 	}
-	deltasp = autoffset
+	deltasp := autoffset
 
 	if cursym.Text.From3.Offset&obj.WRAPPER != 0 {
 		// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
@@ -329,7 +314,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		p = obj.Appendp(ctxt, p)
 		p.As = AJEQ
 		p.To.Type = obj.TYPE_BRANCH
-		p1 = p
+		p1 := p
 
 		p = obj.Appendp(ctxt, p)
 		p.As = ALEAL
@@ -350,7 +335,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		p = obj.Appendp(ctxt, p)
 		p.As = AJNE
 		p.To.Type = obj.TYPE_BRANCH
-		p2 = p
+		p2 := p
 
 		p = obj.Appendp(ctxt, p)
 		p.As = AMOVL
@@ -400,6 +385,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		p.As = ASTOSL
 	}
 
+	var a int
 	for ; p != nil; p = p.Link {
 		a = int(p.From.Name)
 		if a == obj.NAME_AUTO {
@@ -479,8 +465,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 // prologue (caller must call appendp first) and in the epilogue.
 // Returns last new instruction.
 func load_g_cx(ctxt *obj.Link, p *obj.Prog) *obj.Prog {
-	var next *obj.Prog
-
 	p.As = AMOVL
 	p.From.Type = obj.TYPE_MEM
 	p.From.Reg = REG_TLS
@@ -488,7 +472,7 @@ func load_g_cx(ctxt *obj.Link, p *obj.Prog) *obj.Prog {
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = REG_CX
 
-	next = p.Link
+	next := p.Link
 	progedit(ctxt, p)
 	for p.Link != next {
 		p = p.Link
@@ -508,9 +492,6 @@ func load_g_cx(ctxt *obj.Link, p *obj.Prog) *obj.Prog {
 // On return, *jmpok is the instruction that should jump
 // to the stack frame allocation if no split is needed.
 func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt bool, jmpok **obj.Prog) *obj.Prog {
-	var q *obj.Prog
-	var q1 *obj.Prog
-
 	if ctxt.Debugstack != 0 {
 		// 8l -K means check not only for stack
 		// overflow but stack underflow.
@@ -530,7 +511,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt bool, jmpok
 		p.As = AJCC
 		p.To.Type = obj.TYPE_BRANCH
 		p.To.Offset = 4
-		q1 = p
+		q1 := p
 
 		p = obj.Appendp(ctxt, p)
 		p.As = AINT
@@ -542,7 +523,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt bool, jmpok
 		q1.Pcond = p
 	}
 
-	q1 = nil
+	q1 := (*obj.Prog)(nil)
 
 	if framesize <= obj.StackSmall {
 		// small stack: SP <= stackguard
@@ -651,7 +632,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt bool, jmpok
 	p.As = AJHI
 	p.To.Type = obj.TYPE_BRANCH
 	p.To.Offset = 4
-	q = p
+	q := p
 
 	p = obj.Appendp(ctxt, p)
 	p.As = obj.ACALL
@@ -679,13 +660,10 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt bool, jmpok
 }
 
 func follow(ctxt *obj.Link, s *obj.LSym) {
-	var firstp *obj.Prog
-	var lastp *obj.Prog
-
 	ctxt.Cursym = s
 
-	firstp = ctxt.NewProg()
-	lastp = firstp
+	firstp := ctxt.NewProg()
+	lastp := firstp
 	xfol(ctxt, s.Text, &lastp)
 	lastp.Link = nil
 	s.Text = firstp.Link

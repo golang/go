@@ -403,7 +403,48 @@ func foptoas(op int, t *gc.Type, flg int) int {
 	et := int(gc.Simtype[t.Etype])
 
 	if gc.Use_sse != 0 {
-		goto sse
+		switch uint32(op)<<16 | uint32(et) {
+		default:
+			gc.Fatal("foptoas-sse: no entry %v-%v", gc.Oconv(int(op), 0), gc.Tconv(t, 0))
+
+		case gc.OCMP<<16 | gc.TFLOAT32:
+			a = i386.AUCOMISS
+
+		case gc.OCMP<<16 | gc.TFLOAT64:
+			a = i386.AUCOMISD
+
+		case gc.OAS<<16 | gc.TFLOAT32:
+			a = i386.AMOVSS
+
+		case gc.OAS<<16 | gc.TFLOAT64:
+			a = i386.AMOVSD
+
+		case gc.OADD<<16 | gc.TFLOAT32:
+			a = i386.AADDSS
+
+		case gc.OADD<<16 | gc.TFLOAT64:
+			a = i386.AADDSD
+
+		case gc.OSUB<<16 | gc.TFLOAT32:
+			a = i386.ASUBSS
+
+		case gc.OSUB<<16 | gc.TFLOAT64:
+			a = i386.ASUBSD
+
+		case gc.OMUL<<16 | gc.TFLOAT32:
+			a = i386.AMULSS
+
+		case gc.OMUL<<16 | gc.TFLOAT64:
+			a = i386.AMULSD
+
+		case gc.ODIV<<16 | gc.TFLOAT32:
+			a = i386.ADIVSS
+
+		case gc.ODIV<<16 | gc.TFLOAT64:
+			a = i386.ADIVSD
+		}
+
+		return a
 	}
 
 	// If we need Fpop, it means we're working on
@@ -499,50 +540,6 @@ func foptoas(op int, t *gc.Type, flg int) int {
 
 	gc.Fatal("foptoas %v %v %#x", gc.Oconv(int(op), 0), gc.Tconv(t, 0), flg)
 	return 0
-
-sse:
-	switch uint32(op)<<16 | uint32(et) {
-	default:
-		gc.Fatal("foptoas-sse: no entry %v-%v", gc.Oconv(int(op), 0), gc.Tconv(t, 0))
-
-	case gc.OCMP<<16 | gc.TFLOAT32:
-		a = i386.AUCOMISS
-
-	case gc.OCMP<<16 | gc.TFLOAT64:
-		a = i386.AUCOMISD
-
-	case gc.OAS<<16 | gc.TFLOAT32:
-		a = i386.AMOVSS
-
-	case gc.OAS<<16 | gc.TFLOAT64:
-		a = i386.AMOVSD
-
-	case gc.OADD<<16 | gc.TFLOAT32:
-		a = i386.AADDSS
-
-	case gc.OADD<<16 | gc.TFLOAT64:
-		a = i386.AADDSD
-
-	case gc.OSUB<<16 | gc.TFLOAT32:
-		a = i386.ASUBSS
-
-	case gc.OSUB<<16 | gc.TFLOAT64:
-		a = i386.ASUBSD
-
-	case gc.OMUL<<16 | gc.TFLOAT32:
-		a = i386.AMULSS
-
-	case gc.OMUL<<16 | gc.TFLOAT64:
-		a = i386.AMULSD
-
-	case gc.ODIV<<16 | gc.TFLOAT32:
-		a = i386.ADIVSS
-
-	case gc.ODIV<<16 | gc.TFLOAT64:
-		a = i386.ADIVSD
-	}
-
-	return a
 }
 
 var resvd = []int{
@@ -928,7 +925,9 @@ func gmove(f *gc.Node, t *gc.Node) {
 
 	switch uint32(ft)<<16 | uint32(tt) {
 	default:
-		goto fatal
+		// should not happen
+		gc.Fatal("gmove %v -> %v", gc.Nconv(f, 0), gc.Nconv(t, 0))
+		return
 
 		/*
 		 * integer copy and truncate
@@ -1164,10 +1163,6 @@ hard:
 	gmove(&r1, t)
 	regfree(&r1)
 	return
-
-	// should not happen
-fatal:
-	gc.Fatal("gmove %v -> %v", gc.Nconv(f, 0), gc.Nconv(t, 0))
 }
 
 func floatmove(f *gc.Node, t *gc.Node) {

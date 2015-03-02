@@ -185,32 +185,22 @@ func overlap_reg(o1 int64, w1 int, o2 int64, w2 int) bool {
 }
 
 func mkvar(f *Flow, a *obj.Addr) Bits {
-	var v *Var
-	var i int
-	var n int
-	var et int
-	var flag int
-	var w int64
-	var o int64
-	var bit Bits
-	var node *Node
-	var r *Reg
-
 	/*
 	 * mark registers used
 	 */
 	if a.Type == obj.TYPE_NONE {
-		goto none
+		return zbits
 	}
 
-	r = f.Data.(*Reg)
+	r := f.Data.(*Reg)
 	r.use1.b[0] |= Thearch.Doregbits(int(a.Index)) // TODO: Use RtoB
 
+	var n int
 	switch a.Type {
 	default:
 		regu := Thearch.Doregbits(int(a.Reg)) | Thearch.RtoB(int(a.Reg)) // TODO: Use RtoB
 		if regu == 0 {
-			goto none
+			return zbits
 		}
 		bit := zbits
 		bit.b[0] = regu
@@ -227,7 +217,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 		setaddrs(bit)
 		a.Type = obj.TYPE_ADDR
 		Ostats.Naddr++
-		goto none
+		return zbits
 
 	memcase:
 		fallthrough
@@ -243,7 +233,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 		*/
 		switch a.Name {
 		default:
-			goto none
+			return zbits
 
 		case obj.NAME_EXTERN,
 			obj.NAME_STATIC,
@@ -253,25 +243,27 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 		}
 	}
 
+	var node *Node
 	node, _ = a.Node.(*Node)
 	if node == nil || node.Op != ONAME || node.Orig == nil {
-		goto none
+		return zbits
 	}
 	node = node.Orig
 	if node.Orig != node {
 		Fatal("%v: bad node", Ctxt.Dconv(a))
 	}
 	if node.Sym == nil || node.Sym.Name[0] == '.' {
-		goto none
+		return zbits
 	}
-	et = int(a.Etype)
-	o = a.Offset
-	w = a.Width
+	et := int(a.Etype)
+	o := a.Offset
+	w := a.Width
 	if w < 0 {
 		Fatal("bad width %d for %v", w, Ctxt.Dconv(a))
 	}
 
-	flag = 0
+	flag := 0
+	var v *Var
 	for i := 0; i < nvar; i++ {
 		v = &var_[i:][0]
 		if v.node == node && int(v.name) == n {
@@ -299,7 +291,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 	switch et {
 	case 0,
 		TFUNC:
-		goto none
+		return zbits
 	}
 
 	if nvar >= NVAR {
@@ -319,10 +311,10 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 			}
 		}
 
-		goto none
+		return zbits
 	}
 
-	i = nvar
+	i := nvar
 	nvar++
 	v = &var_[i:][0]
 	v.id = i
@@ -341,7 +333,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 
 	node.Opt = v
 
-	bit = blsh(uint(i))
+	bit := blsh(uint(i))
 	if n == obj.NAME_EXTERN || n == obj.NAME_STATIC {
 		for z := 0; z < BITS; z++ {
 			externs.b[z] |= bit.b[z]
@@ -401,9 +393,6 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 	Ostats.Nvar++
 
 	return bit
-
-none:
-	return zbits
 }
 
 func prop(f *Flow, ref Bits, cal Bits) {

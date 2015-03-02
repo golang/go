@@ -331,10 +331,8 @@ func gmove(f *gc.Node, t *gc.Node) {
 
 	// cannot have two memory operands;
 	// except 64-bit, which always copies via registers anyway.
-	var flo gc.Node
 	var a int
 	var r1 gc.Node
-	var fhi gc.Node
 	if !gc.Is64(f.Type) && !gc.Is64(t.Type) && gc.Ismem(f) && gc.Ismem(t) {
 		goto hard
 	}
@@ -387,7 +385,9 @@ func gmove(f *gc.Node, t *gc.Node) {
 
 	switch uint32(ft)<<16 | uint32(tt) {
 	default:
-		goto fatal
+		// should not happen
+		gc.Fatal("gmove %v -> %v", gc.Nconv(f, 0), gc.Nconv(t, 0))
+		return
 
 		/*
 		 * integer copy and truncate
@@ -784,6 +784,8 @@ hard:
 
 	// truncate 64 bit integer
 trunc64:
+	var fhi gc.Node
+	var flo gc.Node
 	split64(f, &flo, &fhi)
 
 	regalloc(&r1, t.Type, nil)
@@ -792,10 +794,6 @@ trunc64:
 	regfree(&r1)
 	splitclean()
 	return
-
-	// should not happen
-fatal:
-	gc.Fatal("gmove %v -> %v", gc.Nconv(f, 0), gc.Nconv(t, 0))
 }
 
 func samaddr(f *gc.Node, t *gc.Node) bool {
@@ -1273,12 +1271,6 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr, w *int) bool {
 
 	*a = obj.Addr{}
 
-	var oary [10]int64
-	var nn *gc.Node
-	var reg *gc.Node
-	var n1 gc.Node
-	var reg1 *gc.Node
-	var o int
 	switch n.Op {
 	case gc.OLITERAL:
 		if !gc.Isconst(n, gc.CTINT) {
@@ -1288,98 +1280,88 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr, w *int) bool {
 		if v >= 32000 || v <= -32000 {
 			break
 		}
-		goto lit
+		switch as {
+		default:
+			return false
+
+		case arm.AADD,
+			arm.ASUB,
+			arm.AAND,
+			arm.AORR,
+			arm.AEOR,
+			arm.AMOVB,
+			arm.AMOVBS,
+			arm.AMOVBU,
+			arm.AMOVH,
+			arm.AMOVHS,
+			arm.AMOVHU,
+			arm.AMOVW:
+			break
+		}
+
+		cleani += 2
+		reg := &clean[cleani-1]
+		reg1 := &clean[cleani-2]
+		reg.Op = gc.OEMPTY
+		reg1.Op = gc.OEMPTY
+		gc.Naddr(n, a, 1)
+		return true
 
 	case gc.ODOT,
 		gc.ODOTPTR:
 		cleani += 2
-		reg = &clean[cleani-1]
+		reg := &clean[cleani-1]
 		reg1 := &clean[cleani-2]
 		reg.Op = gc.OEMPTY
 		reg1.Op = gc.OEMPTY
-		goto odot
+		var nn *gc.Node
+		var oary [10]int64
+		o := gc.Dotoffset(n, oary[:], &nn)
+		if nn == nil {
+			sudoclean()
+			return false
+		}
+
+		if nn.Addable != 0 && o == 1 && oary[0] >= 0 {
+			// directly addressable set of DOTs
+			n1 := *nn
+
+			n1.Type = n.Type
+			n1.Xoffset += oary[0]
+			gc.Naddr(&n1, a, 1)
+			return true
+		}
+
+		regalloc(reg, gc.Types[gc.Tptr], nil)
+		n1 := *reg
+		n1.Op = gc.OINDREG
+		if oary[0] >= 0 {
+			agen(nn, reg)
+			n1.Xoffset = oary[0]
+		} else {
+			cgen(nn, reg)
+			gc.Cgen_checknil(reg)
+			n1.Xoffset = -(oary[0] + 1)
+		}
+
+		for i := 1; i < o; i++ {
+			if oary[i] >= 0 {
+				gc.Fatal("can't happen")
+			}
+			gins(arm.AMOVW, &n1, reg)
+			gc.Cgen_checknil(reg)
+			n1.Xoffset = -(oary[i] + 1)
+		}
+
+		a.Type = obj.TYPE_NONE
+		a.Name = obj.NAME_NONE
+		n1.Type = n.Type
+		gc.Naddr(&n1, a, 1)
+		return true
 
 	case gc.OINDEX:
 		return false
 	}
 
-	return false
-
-lit:
-	switch as {
-	default:
-		return false
-
-	case arm.AADD,
-		arm.ASUB,
-		arm.AAND,
-		arm.AORR,
-		arm.AEOR,
-		arm.AMOVB,
-		arm.AMOVBS,
-		arm.AMOVBU,
-		arm.AMOVH,
-		arm.AMOVHS,
-		arm.AMOVHU,
-		arm.AMOVW:
-		break
-	}
-
-	cleani += 2
-	reg = &clean[cleani-1]
-	reg1 = &clean[cleani-2]
-	reg.Op = gc.OEMPTY
-	reg1.Op = gc.OEMPTY
-	gc.Naddr(n, a, 1)
-	goto yes
-
-odot:
-	o = gc.Dotoffset(n, oary[:], &nn)
-	if nn == nil {
-		goto no
-	}
-
-	if nn.Addable != 0 && o == 1 && oary[0] >= 0 {
-		// directly addressable set of DOTs
-		n1 := *nn
-
-		n1.Type = n.Type
-		n1.Xoffset += oary[0]
-		gc.Naddr(&n1, a, 1)
-		goto yes
-	}
-
-	regalloc(reg, gc.Types[gc.Tptr], nil)
-	n1 = *reg
-	n1.Op = gc.OINDREG
-	if oary[0] >= 0 {
-		agen(nn, reg)
-		n1.Xoffset = oary[0]
-	} else {
-		cgen(nn, reg)
-		gc.Cgen_checknil(reg)
-		n1.Xoffset = -(oary[0] + 1)
-	}
-
-	for i := 1; i < o; i++ {
-		if oary[i] >= 0 {
-			gc.Fatal("can't happen")
-		}
-		gins(arm.AMOVW, &n1, reg)
-		gc.Cgen_checknil(reg)
-		n1.Xoffset = -(oary[i] + 1)
-	}
-
-	a.Type = obj.TYPE_NONE
-	a.Name = obj.NAME_NONE
-	n1.Type = n.Type
-	gc.Naddr(&n1, a, 1)
-	goto yes
-
-yes:
-	return true
-
-no:
-	sudoclean()
 	return false
 }

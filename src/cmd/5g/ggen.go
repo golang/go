@@ -329,7 +329,7 @@ func cgen_call(n *gc.Node, proc int) {
 		nod.Type = t
 		ginscall(&nod, proc)
 		regfree(&nod)
-		goto ret
+		return
 	}
 
 	// call pointer
@@ -340,15 +340,13 @@ func cgen_call(n *gc.Node, proc int) {
 		nod.Type = t
 		ginscall(&nod, proc)
 		regfree(&nod)
-		goto ret
+		return
 	}
 
 	// call direct
 	n.Left.Method = 1
 
 	ginscall(n.Left, proc)
-
-ret:
 }
 
 /*

@@ -255,10 +255,12 @@ func Complexop(n *Node, res *Node) bool {
 	}
 
 	if n.Op == OREAL || n.Op == OIMAG {
-		goto yes
+		//dump("\ncomplex-yes", n);
+		return true
 	}
 
-	goto no
+	//dump("\ncomplex-no", n);
+	return false
 
 maybe:
 	switch n.Op {
@@ -270,23 +272,20 @@ maybe:
 		OCOMPLEX,
 		OREAL,
 		OIMAG:
-		goto yes
+		//dump("\ncomplex-yes", n);
+		return true
 
 	case ODOT,
 		ODOTPTR,
 		OINDEX,
 		OIND,
 		ONAME:
-		goto yes
+		//dump("\ncomplex-yes", n);
+		return true
 	}
 
 	//dump("\ncomplex-no", n);
-no:
 	return false
-
-	//dump("\ncomplex-yes", n);
-yes:
-	return true
 }
 
 func Complexmove(f *Node, t *Node) {

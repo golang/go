@@ -187,12 +187,44 @@ func mpaddfixfix(a *Mpint, b *Mpint, quiet int) {
 	}
 
 	c := 0
-	var x int
 	if a.Neg != b.Neg {
-		goto sub
+		// perform a-b
+		switch mpcmp(a, b) {
+		case 0:
+			Mpmovecfix(a, 0)
+
+		case 1:
+			var x int
+			for i := 0; i < Mpprec; i++ {
+				x = a.A[i] - b.A[i] - c
+				c = 0
+				if x < 0 {
+					x += Mpbase
+					c = 1
+				}
+
+				a.A[i] = x
+			}
+
+		case -1:
+			a.Neg ^= 1
+			var x int
+			for i := 0; i < Mpprec; i++ {
+				x = b.A[i] - a.A[i] - c
+				c = 0
+				if x < 0 {
+					x += Mpbase
+					c = 1
+				}
+
+				a.A[i] = x
+			}
+		}
+		return
 	}
 
 	// perform a+b
+	var x int
 	for i := 0; i < Mpprec; i++ {
 		x = a.A[i] + b.A[i] + c
 		c = 0
@@ -210,40 +242,6 @@ func mpaddfixfix(a *Mpint, b *Mpint, quiet int) {
 	}
 
 	return
-
-	// perform a-b
-sub:
-	switch mpcmp(a, b) {
-	case 0:
-		Mpmovecfix(a, 0)
-
-	case 1:
-		var x int
-		for i := 0; i < Mpprec; i++ {
-			x = a.A[i] - b.A[i] - c
-			c = 0
-			if x < 0 {
-				x += Mpbase
-				c = 1
-			}
-
-			a.A[i] = x
-		}
-
-	case -1:
-		a.Neg ^= 1
-		var x int
-		for i := 0; i < Mpprec; i++ {
-			x = b.A[i] - a.A[i] - c
-			c = 0
-			if x < 0 {
-				x += Mpbase
-				c = 1
-			}
-
-			a.A[i] = x
-		}
-	}
 }
 
 func mpmulfixfix(a *Mpint, b *Mpint) {

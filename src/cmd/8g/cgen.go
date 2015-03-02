@@ -254,8 +254,15 @@ func cgen(n *gc.Node, res *gc.Node) {
 
 	case gc.OMINUS,
 		gc.OCOM:
-		a = optoas(int(n.Op), nl.Type)
-		goto uop
+		a := optoas(int(n.Op), nl.Type)
+		// unary
+		var n1 gc.Node
+		gc.Tempname(&n1, nl.Type)
+
+		cgen(nl, &n1)
+		gins(a, nil, &n1)
+		gmove(&n1, res)
+		return
 
 		// symmetric binary
 	case gc.OAND,
@@ -270,7 +277,13 @@ func cgen(n *gc.Node, res *gc.Node) {
 			break
 		}
 
-		goto sbop
+		// symmetric binary
+		if nl.Ullman < nr.Ullman || nl.Op == gc.OLITERAL {
+			r := nl
+			nl = nr
+			nr = r
+		}
+		goto abop
 
 		// asymmetric binary
 	case gc.OSUB:
@@ -443,13 +456,6 @@ func cgen(n *gc.Node, res *gc.Node) {
 
 	return
 
-sbop: // symmetric binary
-	if nl.Ullman < nr.Ullman || nl.Op == gc.OLITERAL {
-		r := nl
-		nl = nr
-		nr = r
-	}
-
 abop: // asymmetric binary
 	if gc.Smallintconst(nr) {
 		var n1 gc.Node
@@ -487,15 +493,6 @@ abop: // asymmetric binary
 		regfree(&n1)
 	}
 
-	return
-
-uop: // unary
-	var n1 gc.Node
-	gc.Tempname(&n1, nl.Type)
-
-	cgen(nl, &n1)
-	gins(a, nil, &n1)
-	gmove(&n1, res)
 	return
 }
 

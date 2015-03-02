@@ -17,23 +17,19 @@ var startmagic string = "\x00\x00go13ld"
 var endmagic string = "\xff\xffgo13ld"
 
 func ldobjfile(ctxt *Link, f *Biobuf, pkg string, length int64, pn string) {
-	var c int
-	var buf [8]uint8
-	var start int64
-	var lib string
-
-	start = Boffset(f)
+	start := Boffset(f)
 	ctxt.Version++
-	buf = [8]uint8{}
+	buf := [8]uint8{}
 	Bread(f, buf[:])
 	if string(buf[:]) != startmagic {
 		log.Fatalf("%s: invalid file start %x %x %x %x %x %x %x %x", pn, buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7])
 	}
-	c = Bgetc(f)
+	c := Bgetc(f)
 	if c != 1 {
 		log.Fatalf("%s: invalid file version number %d", pn, c)
 	}
 
+	var lib string
 	for {
 		lib = rdstring(f)
 		if lib == "" {
@@ -65,45 +61,28 @@ func ldobjfile(ctxt *Link, f *Biobuf, pkg string, length int64, pn string) {
 var readsym_ndup int
 
 func readsym(ctxt *Link, f *Biobuf, pkg string, pn string) {
-	var i int
-	var j int
-	var c int
-	var t int
-	var v int
-	var n int
-	var nreloc int
-	var size int
-	var dupok int
-	var name string
-	var data []byte
-	var r *Reloc
-	var s *LSym
-	var dup *LSym
-	var typ *LSym
-	var pc *Pcln
-	var a *Auto
-
 	if Bgetc(f) != 0xfe {
 		log.Fatalf("readsym out of sync")
 	}
-	t = int(rdint(f))
-	name = expandpkg(rdstring(f), pkg)
-	v = int(rdint(f))
+	t := int(rdint(f))
+	name := expandpkg(rdstring(f), pkg)
+	v := int(rdint(f))
 	if v != 0 && v != 1 {
 		log.Fatalf("invalid symbol version %d", v)
 	}
-	dupok = int(rdint(f))
+	dupok := int(rdint(f))
 	dupok &= 1
-	size = int(rdint(f))
-	typ = rdsym(ctxt, f, pkg)
+	size := int(rdint(f))
+	typ := rdsym(ctxt, f, pkg)
+	var data []byte
 	rddata(f, &data)
-	nreloc = int(rdint(f))
+	nreloc := int(rdint(f))
 
 	if v != 0 {
 		v = ctxt.Version
 	}
-	s = Linklookup(ctxt, name, v)
-	dup = nil
+	s := Linklookup(ctxt, name, v)
+	dup := (*LSym)(nil)
 	if s.Type != 0 && s.Type != SXREF {
 		if (t == SDATA || t == SBSS || t == SNOPTRBSS) && len(data) == 0 && nreloc == 0 {
 			if s.Size < int64(size) {
@@ -155,7 +134,8 @@ overwrite:
 	if nreloc > 0 {
 		s.R = make([]Reloc, nreloc)
 		s.R = s.R[:nreloc]
-		for i = 0; i < nreloc; i++ {
+		var r *Reloc
+		for i := 0; i < nreloc; i++ {
 			r = &s.R[i]
 			r.Off = int32(rdint(f))
 			r.Siz = uint8(rdint(f))
@@ -179,11 +159,12 @@ overwrite:
 		s.Args = int32(rdint(f))
 		s.Locals = int32(rdint(f))
 		s.Nosplit = uint8(rdint(f))
-		v = int(rdint(f))
+		v := int(rdint(f))
 		s.Leaf = uint8(v & 1)
 		s.Cfunc = uint8(v & 2)
-		n = int(rdint(f))
-		for i = 0; i < n; i++ {
+		n := int(rdint(f))
+		var a *Auto
+		for i := 0; i < n; i++ {
 			a = new(Auto)
 			a.Asym = rdsym(ctxt, f, pkg)
 			a.Aoffset = int32(rdint(f))
@@ -194,30 +175,30 @@ overwrite:
 		}
 
 		s.Pcln = new(Pcln)
-		pc = s.Pcln
+		pc := s.Pcln
 		rddata(f, &pc.Pcsp.P)
 		rddata(f, &pc.Pcfile.P)
 		rddata(f, &pc.Pcline.P)
 		n = int(rdint(f))
 		pc.Pcdata = make([]Pcdata, n)
 		pc.Npcdata = n
-		for i = 0; i < n; i++ {
+		for i := 0; i < n; i++ {
 			rddata(f, &pc.Pcdata[i].P)
 		}
 		n = int(rdint(f))
 		pc.Funcdata = make([]*LSym, n)
 		pc.Funcdataoff = make([]int64, n)
 		pc.Nfuncdata = n
-		for i = 0; i < n; i++ {
+		for i := 0; i < n; i++ {
 			pc.Funcdata[i] = rdsym(ctxt, f, pkg)
 		}
-		for i = 0; i < n; i++ {
+		for i := 0; i < n; i++ {
 			pc.Funcdataoff[i] = rdint(f)
 		}
 		n = int(rdint(f))
 		pc.File = make([]*LSym, n)
 		pc.Nfile = n
-		for i = 0; i < n; i++ {
+		for i := 0; i < n; i++ {
 			pc.File[i] = rdsym(ctxt, f, pkg)
 		}
 
@@ -257,7 +238,9 @@ overwrite:
 			fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x", uint64(s.Args), uint64(s.Locals))
 		}
 		fmt.Fprintf(ctxt.Bso, "\n")
-		for i = 0; i < len(s.P); {
+		var c int
+		var j int
+		for i := 0; i < len(s.P); {
 			fmt.Fprintf(ctxt.Bso, "\t%#04x", uint(i))
 			for j = i; j < i+16 && j < len(s.P); j++ {
 				fmt.Fprintf(ctxt.Bso, " %02x", s.P[j])
@@ -279,7 +262,8 @@ overwrite:
 			i += 16
 		}
 
-		for i = 0; i < len(s.R); i++ {
+		var r *Reloc
+		for i := 0; i < len(s.R); i++ {
 			r = &s.R[i]
 			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%d\n", int(r.Off), r.Siz, r.Type, r.Sym.Name, int64(r.Add))
 		}
@@ -288,11 +272,9 @@ overwrite:
 
 func rdint(f *Biobuf) int64 {
 	var c int
-	var uv uint64
-	var shift int
 
-	uv = 0
-	for shift = 0; ; shift += 7 {
+	uv := uint64(0)
+	for shift := 0; ; shift += 7 {
 		if shift >= 64 {
 			log.Fatalf("corrupt input")
 		}
@@ -322,12 +304,7 @@ func rddata(f *Biobuf, pp *[]byte) {
 var symbuf []byte
 
 func rdsym(ctxt *Link, f *Biobuf, pkg string) *LSym {
-	var n int
-	var v int
-	var p string
-	var s *LSym
-
-	n = int(rdint(f))
+	n := int(rdint(f))
 	if n == 0 {
 		rdint(f)
 		return nil
@@ -337,25 +314,23 @@ func rdsym(ctxt *Link, f *Biobuf, pkg string) *LSym {
 		symbuf = make([]byte, n)
 	}
 	Bread(f, symbuf[:n])
-	p = string(symbuf[:n])
-	v = int(rdint(f))
+	p := string(symbuf[:n])
+	v := int(rdint(f))
 	if v != 0 {
 		v = ctxt.Version
 	}
-	s = Linklookup(ctxt, expandpkg(p, pkg), v)
+	s := Linklookup(ctxt, expandpkg(p, pkg), v)
 
 	if v == 0 && s.Name[0] == '$' && s.Type == 0 {
 		if strings.HasPrefix(s.Name, "$f32.") {
-			var i32 int32
 			x, _ := strconv.ParseUint(s.Name[5:], 16, 32)
-			i32 = int32(x)
+			i32 := int32(x)
 			s.Type = SRODATA
 			Adduint32(ctxt, s, uint32(i32))
 			s.Reachable = false
 		} else if strings.HasPrefix(s.Name, "$f64.") || strings.HasPrefix(s.Name, "$i64.") {
-			var i64 int64
 			x, _ := strconv.ParseUint(s.Name[5:], 16, 64)
-			i64 = int64(x)
+			i64 := int64(x)
 			s.Type = SRODATA
 			Adduint64(ctxt, s, uint64(i64))
 			s.Reachable = false

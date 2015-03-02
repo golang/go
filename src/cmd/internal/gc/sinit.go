@@ -533,21 +533,18 @@ func isliteral(n *Node) bool {
 
 func simplename(n *Node) bool {
 	if n.Op != ONAME {
-		goto no
+		return false
 	}
 	if n.Addable == 0 {
-		goto no
+		return false
 	}
 	if n.Class&PHEAP != 0 {
-		goto no
+		return false
 	}
 	if n.Class == PPARAMREF {
-		goto no
+		return false
 	}
 	return true
-
-no:
-	return false
 }
 
 func litas(l *Node, r *Node, init **NodeList) {
@@ -1191,48 +1188,48 @@ func anylit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 }
 
 func oaslit(n *Node, init **NodeList) bool {
-	var ctxt int
-
 	if n.Left == nil || n.Right == nil {
-		goto no
+		// not a special composit literal assignment
+		return false
 	}
 	if n.Left.Type == nil || n.Right.Type == nil {
-		goto no
+		// not a special composit literal assignment
+		return false
 	}
 	if !simplename(n.Left) {
-		goto no
+		// not a special composit literal assignment
+		return false
 	}
 	if !Eqtype(n.Left.Type, n.Right.Type) {
-		goto no
+		// not a special composit literal assignment
+		return false
 	}
 
 	// context is init() function.
 	// implies generated data executed
 	// exactly once and not subject to races.
-	ctxt = 0
+	ctxt := 0
 
 	//	if(n->dodata == 1)
 	//		ctxt = 1;
 
 	switch n.Right.Op {
 	default:
-		goto no
+		// not a special composit literal assignment
+		return false
 
 	case OSTRUCTLIT,
 		OARRAYLIT,
 		OMAPLIT:
 		if vmatch1(n.Left, n.Right) {
-			goto no
+			// not a special composit literal assignment
+			return false
 		}
 		anylit(ctxt, n.Right, n.Left, init)
 	}
 
 	n.Op = OEMPTY
 	return true
-
-	// not a special composit literal assignment
-no:
-	return false
 }
 
 func getlit(lit *Node) int {
@@ -1244,7 +1241,7 @@ func getlit(lit *Node) int {
 
 func stataddr(nam *Node, n *Node) bool {
 	if n == nil {
-		goto no
+		return false
 	}
 
 	switch n.Op {
@@ -1281,7 +1278,6 @@ func stataddr(nam *Node, n *Node) bool {
 		return true
 	}
 
-no:
 	return false
 }
 
@@ -1420,7 +1416,6 @@ func gen_as_init(n *Node) bool {
 	var nr *Node
 	var nl *Node
 	var nam Node
-	var nod1 Node
 
 	if n.Dodata == 0 {
 		goto no
@@ -1436,7 +1431,7 @@ func gen_as_init(n *Node) bool {
 		if nam.Class != PEXTERN {
 			goto no
 		}
-		goto yes
+		return true
 	}
 
 	if nr.Type == nil || !Eqtype(nl.Type, nr.Type) {
@@ -1466,7 +1461,33 @@ func gen_as_init(n *Node) bool {
 	case OSLICEARR:
 		if nr.Right.Op == OKEY && nr.Right.Left == nil && nr.Right.Right == nil {
 			nr = nr.Left
-			goto slice
+			gused(nil) // in case the data is the dest of a goto
+			nl := nr
+			if nr == nil || nr.Op != OADDR {
+				goto no
+			}
+			nr = nr.Left
+			if nr == nil || nr.Op != ONAME {
+				goto no
+			}
+
+			// nr is the array being converted to a slice
+			if nr.Type == nil || nr.Type.Etype != TARRAY || nr.Type.Bound < 0 {
+				goto no
+			}
+
+			nam.Xoffset += int64(Array_array)
+			gdata(&nam, nl, int(Types[Tptr].Width))
+
+			nam.Xoffset += int64(Array_nel) - int64(Array_array)
+			var nod1 Node
+			Nodconst(&nod1, Types[TINT], nr.Type.Bound)
+			gdata(&nam, &nod1, Widthint)
+
+			nam.Xoffset += int64(Array_cap) - int64(Array_nel)
+			gdata(&nam, &nod1, Widthint)
+
+			return true
 		}
 
 		goto no
@@ -1505,36 +1526,7 @@ func gen_as_init(n *Node) bool {
 		gdatastring(&nam, nr.Val.U.Sval)
 	}
 
-yes:
 	return true
-
-slice:
-	gused(nil) // in case the data is the dest of a goto
-	nl = nr
-	if nr == nil || nr.Op != OADDR {
-		goto no
-	}
-	nr = nr.Left
-	if nr == nil || nr.Op != ONAME {
-		goto no
-	}
-
-	// nr is the array being converted to a slice
-	if nr.Type == nil || nr.Type.Etype != TARRAY || nr.Type.Bound < 0 {
-		goto no
-	}
-
-	nam.Xoffset += int64(Array_array)
-	gdata(&nam, nl, int(Types[Tptr].Width))
-
-	nam.Xoffset += int64(Array_nel) - int64(Array_array)
-	Nodconst(&nod1, Types[TINT], nr.Type.Bound)
-	gdata(&nam, &nod1, Widthint)
-
-	nam.Xoffset += int64(Array_cap) - int64(Array_nel)
-	gdata(&nam, &nod1, Widthint)
-
-	goto yes
 
 no:
 	if n.Dodata == 2 {

@@ -11,9 +11,7 @@ import "cmd/internal/obj"
 // ../gc/reflect.c stuffs in these.
 
 func decode_reloc(s *LSym, off int32) *Reloc {
-	var i int
-
-	for i = 0; i < len(s.R); i++ {
+	for i := 0; i < len(s.R); i++ {
 		if s.R[i].Off == off {
 			return &s.R[i:][0]
 		}
@@ -22,9 +20,7 @@ func decode_reloc(s *LSym, off int32) *Reloc {
 }
 
 func decode_reloc_sym(s *LSym, off int32) *LSym {
-	var r *Reloc
-
-	r = decode_reloc(s, off)
+	r := decode_reloc(s, off)
 	if r == nil {
 		return nil
 	}
@@ -75,9 +71,7 @@ func decodetype_gcprog(s *LSym) *LSym {
 }
 
 func decodetype_gcmask(s *LSym) []byte {
-	var mask *LSym
-
-	mask = decode_reloc_sym(s, 1*int32(Thearch.Ptrsize)+8+1*int32(Thearch.Ptrsize))
+	mask := decode_reloc_sym(s, 1*int32(Thearch.Ptrsize)+8+1*int32(Thearch.Ptrsize))
 	return mask.P
 }
 
@@ -124,9 +118,7 @@ func decodetype_funcoutcount(s *LSym) int {
 }
 
 func decodetype_funcintype(s *LSym, i int) *LSym {
-	var r *Reloc
-
-	r = decode_reloc(s, int32(commonsize())+int32(Thearch.Ptrsize))
+	r := decode_reloc(s, int32(commonsize())+int32(Thearch.Ptrsize))
 	if r == nil {
 		return nil
 	}
@@ -134,9 +126,7 @@ func decodetype_funcintype(s *LSym, i int) *LSym {
 }
 
 func decodetype_funcouttype(s *LSym, i int) *LSym {
-	var r *Reloc
-
-	r = decode_reloc(s, int32(commonsize())+2*int32(Thearch.Ptrsize)+2*int32(Thearch.Intsize))
+	r := decode_reloc(s, int32(commonsize())+2*int32(Thearch.Ptrsize)+2*int32(Thearch.Intsize))
 	if r == nil {
 		return nil
 	}
@@ -154,16 +144,14 @@ func structfieldsize() int {
 
 // Type.StructType.fields[]-> name, typ and offset.
 func decodetype_structfieldname(s *LSym, i int) string {
-	var r *Reloc
-
 	// go.string."foo"  0x28 / 0x40
 	s = decode_reloc_sym(s, int32(commonsize())+int32(Thearch.Ptrsize)+2*int32(Thearch.Intsize)+int32(i)*int32(structfieldsize()))
 
 	if s == nil { // embedded structs have a nil name.
 		return ""
 	}
-	r = decode_reloc(s, 0) // s has a pointer to the string data at offset 0
-	if r == nil {          // shouldn't happen.
+	r := decode_reloc(s, 0) // s has a pointer to the string data at offset 0
+	if r == nil {           // shouldn't happen.
 		return ""
 	}
 	return cstring(r.Sym.P[r.Add:])
