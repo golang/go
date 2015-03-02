@@ -45,17 +45,17 @@ const (
 )
 
 const (
-	soiMarker  = 0xd8 // Start Of Image.
-	eoiMarker  = 0xd9 // End Of Image.
 	sof0Marker = 0xc0 // Start Of Frame (Baseline).
 	sof1Marker = 0xc1 // Start Of Frame (Extended Sequential).
 	sof2Marker = 0xc2 // Start Of Frame (Progressive).
 	dhtMarker  = 0xc4 // Define Huffman Table.
-	dqtMarker  = 0xdb // Define Quantization Table.
-	sosMarker  = 0xda // Start Of Scan.
-	driMarker  = 0xdd // Define Restart Interval.
 	rst0Marker = 0xd0 // ReSTart (0).
 	rst7Marker = 0xd7 // ReSTart (7).
+	soiMarker  = 0xd8 // Start Of Image.
+	eoiMarker  = 0xd9 // End Of Image.
+	sosMarker  = 0xda // Start Of Scan.
+	dqtMarker  = 0xdb // Define Quantization Table.
+	driMarker  = 0xdd // Define Restart Interval.
 	comMarker  = 0xfe // COMment.
 	// "APPlication specific" markers aren't part of the JPEG spec per se,
 	// but in practice, their use is described at
@@ -560,6 +560,8 @@ func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, error) {
 		default:
 			if app0Marker <= marker && marker <= app15Marker || marker == comMarker {
 				err = d.ignore(n)
+			} else if marker < 0xc0 { // See Table B.1 "Marker code assignments".
+				err = FormatError("unknown marker")
 			} else {
 				err = UnsupportedError("unknown marker")
 			}
