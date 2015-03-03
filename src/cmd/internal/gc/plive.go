@@ -556,13 +556,11 @@ func isfunny(n *Node) bool {
 // initialized, because any use of a variable must come after its
 // initialization.
 func progeffects(prog *obj.Prog, vars []*Node, uevar *Bvec, varkill *Bvec, avarinit *Bvec) {
-	var info ProgInfo
-
 	bvresetall(uevar)
 	bvresetall(varkill)
 	bvresetall(avarinit)
 
-	info = Thearch.Proginfo(prog)
+	info := Thearch.Proginfo(prog)
 	if prog.As == obj.ARET {
 		// Return instructions implicitly read all the arguments.  For
 		// the sake of correctness, out arguments must be read.  For the
@@ -1087,8 +1085,8 @@ func newpcdataprog(prog *obj.Prog, index int32) *obj.Prog {
 	Nodconst(&to, Types[TINT32], int64(index))
 	pcdata := unlinkedprog(obj.APCDATA)
 	pcdata.Lineno = prog.Lineno
-	Naddr(&from, &pcdata.From, 0)
-	Naddr(&to, &pcdata.To, 0)
+	pcdata.From = Naddr(&from, 0)
+	pcdata.To = Naddr(&to, 0)
 	return pcdata
 }
 
@@ -1296,7 +1294,6 @@ func livenessepilogue(lv *Liveness) {
 	any := bvalloc(nvars)
 	all := bvalloc(nvars)
 	ambig := bvalloc(localswords() * obj.BitsPerPointer)
-	var msg []string
 	nmsg := int32(0)
 	startmsg := int32(0)
 
@@ -1392,6 +1389,7 @@ func livenessepilogue(lv *Liveness) {
 	var fmt_ string
 	var next *obj.Prog
 	var numlive int32
+	var msg []string
 	for i := int32(0); i < int32(len(lv.cfg)); i++ {
 		bb = lv.cfg[i]
 

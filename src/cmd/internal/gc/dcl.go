@@ -313,7 +313,6 @@ func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
  * new_name_list [[type] = expr_list]
  */
 func constiter(vl *NodeList, t *Node, cl *NodeList) *NodeList {
-	var vv *NodeList
 	if cl == nil {
 		if t != nil {
 			Yyerror("const declaration cannot have type without expression")
@@ -329,6 +328,7 @@ func constiter(vl *NodeList, t *Node, cl *NodeList) *NodeList {
 
 	var v *Node
 	var c *Node
+	var vv *NodeList
 	for ; vl != nil; vl = vl.Next {
 		if cl == nil {
 			Yyerror("missing value in const declaration")
