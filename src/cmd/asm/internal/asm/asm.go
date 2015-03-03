@@ -13,8 +13,6 @@ import (
 	"cmd/asm/internal/flags"
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
-	"cmd/internal/obj/arm"
-	"cmd/internal/obj/ppc64"
 )
 
 // TODO: configure the architecture
@@ -325,7 +323,12 @@ func (p *Parser) asmJump(op int, cond string, a []obj.Addr) {
 				Type:   obj.TYPE_CONST,
 				Offset: p.getConstant(prog, op, &a[0]),
 			}
-			prog.Reg = int16(ppc64.REG_R0 + p.getConstant(prog, op, &a[1]))
+			reg := int16(p.getConstant(prog, op, &a[1]))
+			reg, ok := p.arch.RegisterNumber("R", int16(reg))
+			if !ok {
+				p.errorf("bad register number %d", reg)
+			}
+			prog.Reg = reg
 			break
 		}
 		fallthrough
@@ -590,43 +593,22 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 		}
 		p.errorf("can't handle %s instruction with 5 operands", obj.Aconv(op))
 	case 6:
-		// MCR and MRC on ARM
 		if p.arch.Thechar == '5' && arch.IsARMMRC(op) {
 			// Strange special case: MCR, MRC.
-			// TODO: Move this to arch? (It will be hard to disentangle.)
 			prog.To.Type = obj.TYPE_CONST
-			bits, ok := uint8(0), false
-			if cond != "" {
-				// Cond is handled specially for this instruction.
-				bits, ok = arch.ParseARMCondition(cond)
-				if !ok {
-					p.errorf("unrecognized condition code .%q", cond)
-				}
-				cond = ""
-			}
-			// First argument is a condition code as a constant.
 			x0 := p.getConstant(prog, op, &a[0])
 			x1 := p.getConstant(prog, op, &a[1])
 			x2 := int64(p.getRegister(prog, op, &a[2]))
 			x3 := int64(p.getRegister(prog, op, &a[3]))
 			x4 := int64(p.getRegister(prog, op, &a[4]))
 			x5 := p.getConstant(prog, op, &a[5])
-			// TODO only MCR is defined.
-			op1 := int64(0)
-			if op == arm.AMRC {
-				op1 = 1
+			// Cond is handled specially for this instruction.
+			offset, ok := arch.ARMMRCOffset(op, cond, x0, x1, x2, x3, x4, x5)
+			if !ok {
+				p.errorf("unrecognized condition code .%q", cond)
 			}
-			prog.To.Offset =
-				(0xe << 24) | // opcode
-					(op1 << 20) | // MCR/MRC
-					((int64(bits) ^ arm.C_SCOND_XOR) << 28) | // scond
-					((x0 & 15) << 8) | //coprocessor number
-					((x1 & 7) << 21) | // coprocessor operation
-					((x2 & 15) << 12) | // ARM register
-					((x3 & 15) << 16) | // Crn
-					((x4 & 15) << 0) | // Crm
-					((x5 & 7) << 5) | // coprocessor information
-					(1 << 4) /* must be set */
+			prog.To.Offset = offset
+			cond = ""
 			break
 		}
 		fallthrough
