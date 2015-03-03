@@ -53,4 +53,5 @@
 86 00053 (testdata/amd64.s:86)	PINSRW	R11,$4,AX
 87 00054 (testdata/amd64.s:87)	PINSRW	foo+4(SB),$4,AX
 90 00055 (testdata/amd64.s:90)	RETFL	$4,
-93 00056 (testdata/amd64.s:93)	RET	,
+94 00056 (testdata/amd64.s:94)	LOOP	,
+97 00057 (testdata/amd64.s:97)	RET	,

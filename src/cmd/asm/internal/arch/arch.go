@@ -11,6 +11,7 @@ import (
 	"cmd/internal/obj/ppc64"
 	"cmd/internal/obj/x86" // == amd64
 	"fmt"
+	"strings"
 )
 
 // Pseudo-registers whose names are the constant name without the leading R.
@@ -77,7 +78,7 @@ func Set(GOARCH string) *Arch {
 }
 
 func jump386(word string) bool {
-	return word[0] == 'J' || word == "CALL"
+	return word[0] == 'J' || word == "CALL" || strings.HasPrefix(word, "LOOP")
 }
 
 func arch386() *Arch {
