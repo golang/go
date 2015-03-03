@@ -34,8 +34,6 @@ type Arch struct {
 	RegisterNumber func(string, int16) (int16, bool)
 	// Instruction is a jump.
 	IsJump func(word string) bool
-	// Aconv pretty-prints an instruction opcode for this architecture.
-	Aconv func(int) string
 }
 
 // nilRegisterNumber is the register number function for architectures
@@ -96,8 +94,13 @@ func arch386() *Arch {
 	// Prefixes not used on this architecture.
 
 	instructions := make(map[string]int)
-	for i, s := range i386.Anames {
+	for i, s := range obj.Anames {
 		instructions[s] = i
+	}
+	for i, s := range i386.Anames {
+		if i >= obj.A_ARCHSPECIFIC {
+			instructions[s] = i + obj.ABase386
+		}
 	}
 	// Annoying aliases.
 	instructions["JA"] = i386.AJHI
@@ -140,7 +143,6 @@ func arch386() *Arch {
 		RegisterPrefix: nil,
 		RegisterNumber: nilRegisterNumber,
 		IsJump:         jump386,
-		Aconv:          i386.Aconv,
 	}
 }
 
@@ -158,8 +160,13 @@ func archAmd64() *Arch {
 	// Register prefix not used on this architecture.
 
 	instructions := make(map[string]int)
-	for i, s := range x86.Anames {
+	for i, s := range obj.Anames {
 		instructions[s] = i
+	}
+	for i, s := range x86.Anames {
+		if i >= obj.A_ARCHSPECIFIC {
+			instructions[s] = i + obj.ABaseAMD64
+		}
 	}
 	// Annoying aliases.
 	instructions["JA"] = x86.AJHI
@@ -209,7 +216,6 @@ func archAmd64() *Arch {
 		RegisterPrefix: nil,
 		RegisterNumber: nilRegisterNumber,
 		IsJump:         jump386,
-		Aconv:          x86.Aconv,
 	}
 }
 
@@ -240,8 +246,13 @@ func archArm() *Arch {
 	}
 
 	instructions := make(map[string]int)
-	for i, s := range arm.Anames {
+	for i, s := range obj.Anames {
 		instructions[s] = i
+	}
+	for i, s := range arm.Anames {
+		if i >= obj.A_ARCHSPECIFIC {
+			instructions[s] = i + obj.ABaseARM
+		}
 	}
 	// Annoying aliases.
 	instructions["B"] = obj.AJMP
@@ -254,7 +265,6 @@ func archArm() *Arch {
 		RegisterPrefix: registerPrefix,
 		RegisterNumber: armRegisterNumber,
 		IsJump:         jumpArm,
-		Aconv:          arm.Aconv,
 	}
 }
 
@@ -296,8 +306,13 @@ func archPPC64() *Arch {
 	}
 
 	instructions := make(map[string]int)
-	for i, s := range ppc64.Anames {
+	for i, s := range obj.Anames {
 		instructions[s] = i
+	}
+	for i, s := range ppc64.Anames {
+		if i >= obj.A_ARCHSPECIFIC {
+			instructions[s] = i + obj.ABasePPC64
+		}
 	}
 	// Annoying aliases.
 	instructions["BR"] = ppc64.ABR
@@ -311,6 +326,5 @@ func archPPC64() *Arch {
 		RegisterPrefix: registerPrefix,
 		RegisterNumber: ppc64RegisterNumber,
 		IsJump:         jumpPPC64,
-		Aconv:          ppc64.Aconv,
 	}
 }

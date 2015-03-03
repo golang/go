@@ -47,21 +47,21 @@ func Pconv(p *obj.Prog) string {
 	switch p.As {
 	case obj.ADATA:
 		str = fmt.Sprintf("%.5d (%v)\t%v\t%v/%d,%v",
-			p.Pc, p.Line(), Aconv(int(p.As)), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
+			p.Pc, p.Line(), obj.Aconv(int(p.As)), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
 
 	case obj.ATEXT:
 		if p.From3.Offset != 0 {
 			str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%d,%v",
-				p.Pc, p.Line(), Aconv(int(p.As)), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
+				p.Pc, p.Line(), obj.Aconv(int(p.As)), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
 			break
 		}
 
 		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%v",
-			p.Pc, p.Line(), Aconv(int(p.As)), obj.Dconv(p, &p.From), obj.Dconv(p, &p.To))
+			p.Pc, p.Line(), obj.Aconv(int(p.As)), obj.Dconv(p, &p.From), obj.Dconv(p, &p.To))
 
 	default:
 		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%v",
-			p.Pc, p.Line(), Aconv(int(p.As)), obj.Dconv(p, &p.From), obj.Dconv(p, &p.To))
+			p.Pc, p.Line(), obj.Aconv(int(p.As)), obj.Dconv(p, &p.From), obj.Dconv(p, &p.To))
 
 		// TODO(rsc): This special case is for SHRQ $32, AX:DX, which encodes as
 		//	SHRQ $32(DX*0), AX
@@ -74,10 +74,6 @@ func Pconv(p *obj.Prog) string {
 	var fp string
 	fp += str
 	return fp
-}
-
-func Aconv(i int) string {
-	return Anames[i]
 }
 
 var Register = []string{
@@ -154,6 +150,7 @@ var Register = []string{
 
 func init() {
 	obj.RegisterRegister(obj.RBase386, obj.RBase386+len(Register), Rconv)
+	obj.RegisterOpcode(obj.ABase386, Anames)
 }
 
 func Rconv(r int) string {

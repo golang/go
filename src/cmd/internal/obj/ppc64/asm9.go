@@ -402,7 +402,7 @@ type Oprang struct {
 	stop  []Optab
 }
 
-var oprange [ALAST]Oprang
+var oprange [ALAST & obj.AMask]Oprang
 
 var xcmp [C_NCLASS][C_NCLASS]uint8
 
@@ -414,7 +414,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym) {
 	ctxt.Cursym = cursym
 	ctxt.Autosize = int32(p.To.Offset + 8)
 
-	if oprange[AANDN].start == nil {
+	if oprange[AANDN&obj.AMask].start == nil {
 		buildop(ctxt)
 	}
 
@@ -744,13 +744,13 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
 	}
 
 	//print("oplook %P %d %d %d %d\n", p, a1, a2, a3, a4);
-	r := int(p.As)
+	r0 := p.As & obj.AMask
 
-	o := oprange[r].start
+	o := oprange[r0].start
 	if o == nil {
-		o = oprange[r].stop /* just generate an error */
+		o = oprange[r0].stop /* just generate an error */
 	}
-	e := oprange[r].stop
+	e := oprange[r0].stop
 	c1 := xcmp[a1][:]
 	c3 := xcmp[a3][:]
 	c4 := xcmp[a4][:]
@@ -767,7 +767,7 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
 		}
 	}
 
-	ctxt.Diag("illegal combination %v %v %v %v %v", Aconv(int(p.As)), DRconv(a1), DRconv(a2), DRconv(a3), DRconv(a4))
+	ctxt.Diag("illegal combination %v %v %v %v %v", obj.Aconv(int(p.As)), DRconv(a1), DRconv(a2), DRconv(a3), DRconv(a4))
 	prasm(p)
 	if o == nil {
 		o = optab
@@ -887,6 +887,9 @@ func (x ocmp) Less(i, j int) bool {
 	}
 	return false
 }
+func opset(a, b0 int16) {
+	oprange[a&obj.AMask] = oprange[b0]
+}
 
 func buildop(ctxt *obj.Link) {
 	var n int
@@ -901,356 +904,355 @@ func buildop(ctxt *obj.Link) {
 	for n = 0; optab[n].as != obj.AXXX; n++ {
 	}
 	sort.Sort(ocmp(optab[:n]))
-	var r int
 	for i := 0; i < n; i++ {
-		r = int(optab[i].as)
-		oprange[r].start = optab[i:]
-		for int(optab[i].as) == r {
+		r0 := optab[i].as & obj.AMask
+		oprange[r0].start = optab[i:]
+		for optab[i].as&obj.AMask == r0 {
 			i++
 		}
-		oprange[r].stop = optab[i:]
+		oprange[r0].stop = optab[i:]
 		i--
 
-		switch r {
+		switch r0 {
 		default:
-			ctxt.Diag("unknown op in build: %v", Aconv(r))
+			ctxt.Diag("unknown op in build: %v", obj.Aconv(int(optab[i].as)))
 			log.Fatalf("bad code")
 
 		case ADCBF: /* unary indexed: op (b+a); op (b) */
-			oprange[ADCBI] = oprange[r]
+			opset(ADCBI, r0)
 
-			oprange[ADCBST] = oprange[r]
-			oprange[ADCBT] = oprange[r]
-			oprange[ADCBTST] = oprange[r]
-			oprange[ADCBZ] = oprange[r]
-			oprange[AICBI] = oprange[r]
+			opset(ADCBST, r0)
+			opset(ADCBT, r0)
+			opset(ADCBTST, r0)
+			opset(ADCBZ, r0)
+			opset(AICBI, r0)
 
 		case AECOWX: /* indexed store: op s,(b+a); op s,(b) */
-			oprange[ASTWCCC] = oprange[r]
+			opset(ASTWCCC, r0)
 
-			oprange[ASTDCCC] = oprange[r]
+			opset(ASTDCCC, r0)
 
 		case AREM: /* macro */
-			oprange[AREMCC] = oprange[r]
+			opset(AREMCC, r0)
 
-			oprange[AREMV] = oprange[r]
-			oprange[AREMVCC] = oprange[r]
+			opset(AREMV, r0)
+			opset(AREMVCC, r0)
 
 		case AREMU:
-			oprange[AREMU] = oprange[r]
-			oprange[AREMUCC] = oprange[r]
-			oprange[AREMUV] = oprange[r]
-			oprange[AREMUVCC] = oprange[r]
+			opset(AREMU, r0)
+			opset(AREMUCC, r0)
+			opset(AREMUV, r0)
+			opset(AREMUVCC, r0)
 
 		case AREMD:
-			oprange[AREMDCC] = oprange[r]
-			oprange[AREMDV] = oprange[r]
-			oprange[AREMDVCC] = oprange[r]
+			opset(AREMDCC, r0)
+			opset(AREMDV, r0)
+			opset(AREMDVCC, r0)
 
 		case AREMDU:
-			oprange[AREMDU] = oprange[r]
-			oprange[AREMDUCC] = oprange[r]
-			oprange[AREMDUV] = oprange[r]
-			oprange[AREMDUVCC] = oprange[r]
+			opset(AREMDU, r0)
+			opset(AREMDUCC, r0)
+			opset(AREMDUV, r0)
+			opset(AREMDUVCC, r0)
 
 		case ADIVW: /* op Rb[,Ra],Rd */
-			oprange[AMULHW] = oprange[r]
+			opset(AMULHW, r0)
 
-			oprange[AMULHWCC] = oprange[r]
-			oprange[AMULHWU] = oprange[r]
-			oprange[AMULHWUCC] = oprange[r]
-			oprange[AMULLWCC] = oprange[r]
-			oprange[AMULLWVCC] = oprange[r]
-			oprange[AMULLWV] = oprange[r]
-			oprange[ADIVWCC] = oprange[r]
-			oprange[ADIVWV] = oprange[r]
-			oprange[ADIVWVCC] = oprange[r]
-			oprange[ADIVWU] = oprange[r]
-			oprange[ADIVWUCC] = oprange[r]
-			oprange[ADIVWUV] = oprange[r]
-			oprange[ADIVWUVCC] = oprange[r]
-			oprange[AADDCC] = oprange[r]
-			oprange[AADDCV] = oprange[r]
-			oprange[AADDCVCC] = oprange[r]
-			oprange[AADDV] = oprange[r]
-			oprange[AADDVCC] = oprange[r]
-			oprange[AADDE] = oprange[r]
-			oprange[AADDECC] = oprange[r]
-			oprange[AADDEV] = oprange[r]
-			oprange[AADDEVCC] = oprange[r]
-			oprange[ACRAND] = oprange[r]
-			oprange[ACRANDN] = oprange[r]
-			oprange[ACREQV] = oprange[r]
-			oprange[ACRNAND] = oprange[r]
-			oprange[ACRNOR] = oprange[r]
-			oprange[ACROR] = oprange[r]
-			oprange[ACRORN] = oprange[r]
-			oprange[ACRXOR] = oprange[r]
-			oprange[AMULHD] = oprange[r]
-			oprange[AMULHDCC] = oprange[r]
-			oprange[AMULHDU] = oprange[r]
-			oprange[AMULHDUCC] = oprange[r]
-			oprange[AMULLD] = oprange[r]
-			oprange[AMULLDCC] = oprange[r]
-			oprange[AMULLDVCC] = oprange[r]
-			oprange[AMULLDV] = oprange[r]
-			oprange[ADIVD] = oprange[r]
-			oprange[ADIVDCC] = oprange[r]
-			oprange[ADIVDVCC] = oprange[r]
-			oprange[ADIVDV] = oprange[r]
-			oprange[ADIVDU] = oprange[r]
-			oprange[ADIVDUCC] = oprange[r]
-			oprange[ADIVDUVCC] = oprange[r]
-			oprange[ADIVDUCC] = oprange[r]
+			opset(AMULHWCC, r0)
+			opset(AMULHWU, r0)
+			opset(AMULHWUCC, r0)
+			opset(AMULLWCC, r0)
+			opset(AMULLWVCC, r0)
+			opset(AMULLWV, r0)
+			opset(ADIVWCC, r0)
+			opset(ADIVWV, r0)
+			opset(ADIVWVCC, r0)
+			opset(ADIVWU, r0)
+			opset(ADIVWUCC, r0)
+			opset(ADIVWUV, r0)
+			opset(ADIVWUVCC, r0)
+			opset(AADDCC, r0)
+			opset(AADDCV, r0)
+			opset(AADDCVCC, r0)
+			opset(AADDV, r0)
+			opset(AADDVCC, r0)
+			opset(AADDE, r0)
+			opset(AADDECC, r0)
+			opset(AADDEV, r0)
+			opset(AADDEVCC, r0)
+			opset(ACRAND, r0)
+			opset(ACRANDN, r0)
+			opset(ACREQV, r0)
+			opset(ACRNAND, r0)
+			opset(ACRNOR, r0)
+			opset(ACROR, r0)
+			opset(ACRORN, r0)
+			opset(ACRXOR, r0)
+			opset(AMULHD, r0)
+			opset(AMULHDCC, r0)
+			opset(AMULHDU, r0)
+			opset(AMULHDUCC, r0)
+			opset(AMULLD, r0)
+			opset(AMULLDCC, r0)
+			opset(AMULLDVCC, r0)
+			opset(AMULLDV, r0)
+			opset(ADIVD, r0)
+			opset(ADIVDCC, r0)
+			opset(ADIVDVCC, r0)
+			opset(ADIVDV, r0)
+			opset(ADIVDU, r0)
+			opset(ADIVDUCC, r0)
+			opset(ADIVDUVCC, r0)
+			opset(ADIVDUCC, r0)
 
 		case AMOVBZ: /* lbz, stz, rlwm(r/r), lhz, lha, stz, and x variants */
-			oprange[AMOVH] = oprange[r]
+			opset(AMOVH, r0)
 
-			oprange[AMOVHZ] = oprange[r]
+			opset(AMOVHZ, r0)
 
 		case AMOVBZU: /* lbz[x]u, stb[x]u, lhz[x]u, lha[x]u, sth[u]x, ld[x]u, std[u]x */
-			oprange[AMOVHU] = oprange[r]
+			opset(AMOVHU, r0)
 
-			oprange[AMOVHZU] = oprange[r]
-			oprange[AMOVWU] = oprange[r]
-			oprange[AMOVWZU] = oprange[r]
-			oprange[AMOVDU] = oprange[r]
-			oprange[AMOVMW] = oprange[r]
+			opset(AMOVHZU, r0)
+			opset(AMOVWU, r0)
+			opset(AMOVWZU, r0)
+			opset(AMOVDU, r0)
+			opset(AMOVMW, r0)
 
 		case AAND: /* logical op Rb,Rs,Ra; no literal */
-			oprange[AANDN] = oprange[r]
+			opset(AANDN, r0)
 
-			oprange[AANDNCC] = oprange[r]
-			oprange[AEQV] = oprange[r]
-			oprange[AEQVCC] = oprange[r]
-			oprange[ANAND] = oprange[r]
-			oprange[ANANDCC] = oprange[r]
-			oprange[ANOR] = oprange[r]
-			oprange[ANORCC] = oprange[r]
-			oprange[AORCC] = oprange[r]
-			oprange[AORN] = oprange[r]
-			oprange[AORNCC] = oprange[r]
-			oprange[AXORCC] = oprange[r]
+			opset(AANDNCC, r0)
+			opset(AEQV, r0)
+			opset(AEQVCC, r0)
+			opset(ANAND, r0)
+			opset(ANANDCC, r0)
+			opset(ANOR, r0)
+			opset(ANORCC, r0)
+			opset(AORCC, r0)
+			opset(AORN, r0)
+			opset(AORNCC, r0)
+			opset(AXORCC, r0)
 
 		case AADDME: /* op Ra, Rd */
-			oprange[AADDMECC] = oprange[r]
+			opset(AADDMECC, r0)
 
-			oprange[AADDMEV] = oprange[r]
-			oprange[AADDMEVCC] = oprange[r]
-			oprange[AADDZE] = oprange[r]
-			oprange[AADDZECC] = oprange[r]
-			oprange[AADDZEV] = oprange[r]
-			oprange[AADDZEVCC] = oprange[r]
-			oprange[ASUBME] = oprange[r]
-			oprange[ASUBMECC] = oprange[r]
-			oprange[ASUBMEV] = oprange[r]
-			oprange[ASUBMEVCC] = oprange[r]
-			oprange[ASUBZE] = oprange[r]
-			oprange[ASUBZECC] = oprange[r]
-			oprange[ASUBZEV] = oprange[r]
-			oprange[ASUBZEVCC] = oprange[r]
+			opset(AADDMEV, r0)
+			opset(AADDMEVCC, r0)
+			opset(AADDZE, r0)
+			opset(AADDZECC, r0)
+			opset(AADDZEV, r0)
+			opset(AADDZEVCC, r0)
+			opset(ASUBME, r0)
+			opset(ASUBMECC, r0)
+			opset(ASUBMEV, r0)
+			opset(ASUBMEVCC, r0)
+			opset(ASUBZE, r0)
+			opset(ASUBZECC, r0)
+			opset(ASUBZEV, r0)
+			opset(ASUBZEVCC, r0)
 
 		case AADDC:
-			oprange[AADDCCC] = oprange[r]
+			opset(AADDCCC, r0)
 
 		case ABEQ:
-			oprange[ABGE] = oprange[r]
-			oprange[ABGT] = oprange[r]
-			oprange[ABLE] = oprange[r]
-			oprange[ABLT] = oprange[r]
-			oprange[ABNE] = oprange[r]
-			oprange[ABVC] = oprange[r]
-			oprange[ABVS] = oprange[r]
+			opset(ABGE, r0)
+			opset(ABGT, r0)
+			opset(ABLE, r0)
+			opset(ABLT, r0)
+			opset(ABNE, r0)
+			opset(ABVC, r0)
+			opset(ABVS, r0)
 
 		case ABR:
-			oprange[ABL] = oprange[r]
+			opset(ABL, r0)
 
 		case ABC:
-			oprange[ABCL] = oprange[r]
+			opset(ABCL, r0)
 
 		case AEXTSB: /* op Rs, Ra */
-			oprange[AEXTSBCC] = oprange[r]
+			opset(AEXTSBCC, r0)
 
-			oprange[AEXTSH] = oprange[r]
-			oprange[AEXTSHCC] = oprange[r]
-			oprange[ACNTLZW] = oprange[r]
-			oprange[ACNTLZWCC] = oprange[r]
-			oprange[ACNTLZD] = oprange[r]
-			oprange[AEXTSW] = oprange[r]
-			oprange[AEXTSWCC] = oprange[r]
-			oprange[ACNTLZDCC] = oprange[r]
+			opset(AEXTSH, r0)
+			opset(AEXTSHCC, r0)
+			opset(ACNTLZW, r0)
+			opset(ACNTLZWCC, r0)
+			opset(ACNTLZD, r0)
+			opset(AEXTSW, r0)
+			opset(AEXTSWCC, r0)
+			opset(ACNTLZDCC, r0)
 
 		case AFABS: /* fop [s,]d */
-			oprange[AFABSCC] = oprange[r]
+			opset(AFABSCC, r0)
 
-			oprange[AFNABS] = oprange[r]
-			oprange[AFNABSCC] = oprange[r]
-			oprange[AFNEG] = oprange[r]
-			oprange[AFNEGCC] = oprange[r]
-			oprange[AFRSP] = oprange[r]
-			oprange[AFRSPCC] = oprange[r]
-			oprange[AFCTIW] = oprange[r]
-			oprange[AFCTIWCC] = oprange[r]
-			oprange[AFCTIWZ] = oprange[r]
-			oprange[AFCTIWZCC] = oprange[r]
-			oprange[AFCTID] = oprange[r]
-			oprange[AFCTIDCC] = oprange[r]
-			oprange[AFCTIDZ] = oprange[r]
-			oprange[AFCTIDZCC] = oprange[r]
-			oprange[AFCFID] = oprange[r]
-			oprange[AFCFIDCC] = oprange[r]
-			oprange[AFRES] = oprange[r]
-			oprange[AFRESCC] = oprange[r]
-			oprange[AFRSQRTE] = oprange[r]
-			oprange[AFRSQRTECC] = oprange[r]
-			oprange[AFSQRT] = oprange[r]
-			oprange[AFSQRTCC] = oprange[r]
-			oprange[AFSQRTS] = oprange[r]
-			oprange[AFSQRTSCC] = oprange[r]
+			opset(AFNABS, r0)
+			opset(AFNABSCC, r0)
+			opset(AFNEG, r0)
+			opset(AFNEGCC, r0)
+			opset(AFRSP, r0)
+			opset(AFRSPCC, r0)
+			opset(AFCTIW, r0)
+			opset(AFCTIWCC, r0)
+			opset(AFCTIWZ, r0)
+			opset(AFCTIWZCC, r0)
+			opset(AFCTID, r0)
+			opset(AFCTIDCC, r0)
+			opset(AFCTIDZ, r0)
+			opset(AFCTIDZCC, r0)
+			opset(AFCFID, r0)
+			opset(AFCFIDCC, r0)
+			opset(AFRES, r0)
+			opset(AFRESCC, r0)
+			opset(AFRSQRTE, r0)
+			opset(AFRSQRTECC, r0)
+			opset(AFSQRT, r0)
+			opset(AFSQRTCC, r0)
+			opset(AFSQRTS, r0)
+			opset(AFSQRTSCC, r0)
 
 		case AFADD:
-			oprange[AFADDS] = oprange[r]
-			oprange[AFADDCC] = oprange[r]
-			oprange[AFADDSCC] = oprange[r]
-			oprange[AFDIV] = oprange[r]
-			oprange[AFDIVS] = oprange[r]
-			oprange[AFDIVCC] = oprange[r]
-			oprange[AFDIVSCC] = oprange[r]
-			oprange[AFSUB] = oprange[r]
-			oprange[AFSUBS] = oprange[r]
-			oprange[AFSUBCC] = oprange[r]
-			oprange[AFSUBSCC] = oprange[r]
+			opset(AFADDS, r0)
+			opset(AFADDCC, r0)
+			opset(AFADDSCC, r0)
+			opset(AFDIV, r0)
+			opset(AFDIVS, r0)
+			opset(AFDIVCC, r0)
+			opset(AFDIVSCC, r0)
+			opset(AFSUB, r0)
+			opset(AFSUBS, r0)
+			opset(AFSUBCC, r0)
+			opset(AFSUBSCC, r0)
 
 		case AFMADD:
-			oprange[AFMADDCC] = oprange[r]
-			oprange[AFMADDS] = oprange[r]
-			oprange[AFMADDSCC] = oprange[r]
-			oprange[AFMSUB] = oprange[r]
-			oprange[AFMSUBCC] = oprange[r]
-			oprange[AFMSUBS] = oprange[r]
-			oprange[AFMSUBSCC] = oprange[r]
-			oprange[AFNMADD] = oprange[r]
-			oprange[AFNMADDCC] = oprange[r]
-			oprange[AFNMADDS] = oprange[r]
-			oprange[AFNMADDSCC] = oprange[r]
-			oprange[AFNMSUB] = oprange[r]
-			oprange[AFNMSUBCC] = oprange[r]
-			oprange[AFNMSUBS] = oprange[r]
-			oprange[AFNMSUBSCC] = oprange[r]
-			oprange[AFSEL] = oprange[r]
-			oprange[AFSELCC] = oprange[r]
+			opset(AFMADDCC, r0)
+			opset(AFMADDS, r0)
+			opset(AFMADDSCC, r0)
+			opset(AFMSUB, r0)
+			opset(AFMSUBCC, r0)
+			opset(AFMSUBS, r0)
+			opset(AFMSUBSCC, r0)
+			opset(AFNMADD, r0)
+			opset(AFNMADDCC, r0)
+			opset(AFNMADDS, r0)
+			opset(AFNMADDSCC, r0)
+			opset(AFNMSUB, r0)
+			opset(AFNMSUBCC, r0)
+			opset(AFNMSUBS, r0)
+			opset(AFNMSUBSCC, r0)
+			opset(AFSEL, r0)
+			opset(AFSELCC, r0)
 
 		case AFMUL:
-			oprange[AFMULS] = oprange[r]
-			oprange[AFMULCC] = oprange[r]
-			oprange[AFMULSCC] = oprange[r]
+			opset(AFMULS, r0)
+			opset(AFMULCC, r0)
+			opset(AFMULSCC, r0)
 
 		case AFCMPO:
-			oprange[AFCMPU] = oprange[r]
+			opset(AFCMPU, r0)
 
 		case AMTFSB0:
-			oprange[AMTFSB0CC] = oprange[r]
-			oprange[AMTFSB1] = oprange[r]
-			oprange[AMTFSB1CC] = oprange[r]
+			opset(AMTFSB0CC, r0)
+			opset(AMTFSB1, r0)
+			opset(AMTFSB1CC, r0)
 
 		case ANEG: /* op [Ra,] Rd */
-			oprange[ANEGCC] = oprange[r]
+			opset(ANEGCC, r0)
 
-			oprange[ANEGV] = oprange[r]
-			oprange[ANEGVCC] = oprange[r]
+			opset(ANEGV, r0)
+			opset(ANEGVCC, r0)
 
 		case AOR: /* or/xor Rb,Rs,Ra; ori/xori $uimm,Rs,Ra; oris/xoris $uimm,Rs,Ra */
-			oprange[AXOR] = oprange[r]
+			opset(AXOR, r0)
 
 		case ASLW:
-			oprange[ASLWCC] = oprange[r]
-			oprange[ASRW] = oprange[r]
-			oprange[ASRWCC] = oprange[r]
+			opset(ASLWCC, r0)
+			opset(ASRW, r0)
+			opset(ASRWCC, r0)
 
 		case ASLD:
-			oprange[ASLDCC] = oprange[r]
-			oprange[ASRD] = oprange[r]
-			oprange[ASRDCC] = oprange[r]
+			opset(ASLDCC, r0)
+			opset(ASRD, r0)
+			opset(ASRDCC, r0)
 
 		case ASRAW: /* sraw Rb,Rs,Ra; srawi sh,Rs,Ra */
-			oprange[ASRAWCC] = oprange[r]
+			opset(ASRAWCC, r0)
 
 		case ASRAD: /* sraw Rb,Rs,Ra; srawi sh,Rs,Ra */
-			oprange[ASRADCC] = oprange[r]
+			opset(ASRADCC, r0)
 
 		case ASUB: /* SUB Ra,Rb,Rd => subf Rd,ra,rb */
-			oprange[ASUB] = oprange[r]
+			opset(ASUB, r0)
 
-			oprange[ASUBCC] = oprange[r]
-			oprange[ASUBV] = oprange[r]
-			oprange[ASUBVCC] = oprange[r]
-			oprange[ASUBCCC] = oprange[r]
-			oprange[ASUBCV] = oprange[r]
-			oprange[ASUBCVCC] = oprange[r]
-			oprange[ASUBE] = oprange[r]
-			oprange[ASUBECC] = oprange[r]
-			oprange[ASUBEV] = oprange[r]
-			oprange[ASUBEVCC] = oprange[r]
+			opset(ASUBCC, r0)
+			opset(ASUBV, r0)
+			opset(ASUBVCC, r0)
+			opset(ASUBCCC, r0)
+			opset(ASUBCV, r0)
+			opset(ASUBCVCC, r0)
+			opset(ASUBE, r0)
+			opset(ASUBECC, r0)
+			opset(ASUBEV, r0)
+			opset(ASUBEVCC, r0)
 
 		case ASYNC:
-			oprange[AISYNC] = oprange[r]
-			oprange[APTESYNC] = oprange[r]
-			oprange[ATLBSYNC] = oprange[r]
+			opset(AISYNC, r0)
+			opset(APTESYNC, r0)
+			opset(ATLBSYNC, r0)
 
 		case ARLWMI:
-			oprange[ARLWMICC] = oprange[r]
-			oprange[ARLWNM] = oprange[r]
-			oprange[ARLWNMCC] = oprange[r]
+			opset(ARLWMICC, r0)
+			opset(ARLWNM, r0)
+			opset(ARLWNMCC, r0)
 
 		case ARLDMI:
-			oprange[ARLDMICC] = oprange[r]
+			opset(ARLDMICC, r0)
 
 		case ARLDC:
-			oprange[ARLDCCC] = oprange[r]
+			opset(ARLDCCC, r0)
 
 		case ARLDCL:
-			oprange[ARLDCR] = oprange[r]
-			oprange[ARLDCLCC] = oprange[r]
-			oprange[ARLDCRCC] = oprange[r]
+			opset(ARLDCR, r0)
+			opset(ARLDCLCC, r0)
+			opset(ARLDCRCC, r0)
 
 		case AFMOVD:
-			oprange[AFMOVDCC] = oprange[r]
-			oprange[AFMOVDU] = oprange[r]
-			oprange[AFMOVS] = oprange[r]
-			oprange[AFMOVSU] = oprange[r]
+			opset(AFMOVDCC, r0)
+			opset(AFMOVDU, r0)
+			opset(AFMOVS, r0)
+			opset(AFMOVSU, r0)
 
 		case AECIWX:
-			oprange[ALWAR] = oprange[r]
-			oprange[ALDAR] = oprange[r]
+			opset(ALWAR, r0)
+			opset(ALDAR, r0)
 
 		case ASYSCALL: /* just the op; flow of control */
-			oprange[ARFI] = oprange[r]
+			opset(ARFI, r0)
 
-			oprange[ARFCI] = oprange[r]
-			oprange[ARFID] = oprange[r]
-			oprange[AHRFID] = oprange[r]
+			opset(ARFCI, r0)
+			opset(ARFID, r0)
+			opset(AHRFID, r0)
 
 		case AMOVHBR:
-			oprange[AMOVWBR] = oprange[r]
+			opset(AMOVWBR, r0)
 
 		case ASLBMFEE:
-			oprange[ASLBMFEV] = oprange[r]
+			opset(ASLBMFEV, r0)
 
 		case ATW:
-			oprange[ATD] = oprange[r]
+			opset(ATD, r0)
 
 		case ATLBIE:
-			oprange[ASLBIE] = oprange[r]
-			oprange[ATLBIEL] = oprange[r]
+			opset(ASLBIE, r0)
+			opset(ATLBIEL, r0)
 
 		case AEIEIO:
-			oprange[ASLBIA] = oprange[r]
+			opset(ASLBIA, r0)
 
 		case ACMP:
-			oprange[ACMPW] = oprange[r]
+			opset(ACMPW, r0)
 
 		case ACMPU:
-			oprange[ACMPWU] = oprange[r]
+			opset(ACMPWU, r0)
 
 		case AADD,
 			AANDCC, /* and. Rb,Rs,Ra; andi. $uimm,Rs,Ra; andis. $uimm,Rs,Ra */
@@ -2954,7 +2956,7 @@ func oprrr(ctxt *obj.Link, a int) int32 {
 		return int32(OPVCC(31, 316, 0, 1))
 	}
 
-	ctxt.Diag("bad r/r opcode %v", Aconv(a))
+	ctxt.Diag("bad r/r opcode %v", obj.Aconv(a))
 	return 0
 }
 
@@ -3076,7 +3078,7 @@ func opirr(ctxt *obj.Link, a int) int32 {
 		return int32(OPVCC(27, 0, 0, 0)) /* XORIU */
 	}
 
-	ctxt.Diag("bad opcode i/r %v", Aconv(a))
+	ctxt.Diag("bad opcode i/r %v", obj.Aconv(a))
 	return 0
 }
 
@@ -3125,7 +3127,7 @@ func opload(ctxt *obj.Link, a int) int32 {
 		return int32(OPVCC(46, 0, 0, 0)) /* lmw */
 	}
 
-	ctxt.Diag("bad load opcode %v", Aconv(a))
+	ctxt.Diag("bad load opcode %v", obj.Aconv(a))
 	return 0
 }
 
@@ -3184,7 +3186,7 @@ func oploadx(ctxt *obj.Link, a int) int32 {
 		return int32(OPVCC(31, 53, 0, 0)) /* ldux */
 	}
 
-	ctxt.Diag("bad loadx opcode %v", Aconv(a))
+	ctxt.Diag("bad loadx opcode %v", obj.Aconv(a))
 	return 0
 }
 
@@ -3234,7 +3236,7 @@ func opstore(ctxt *obj.Link, a int) int32 {
 		return int32(OPVCC(62, 0, 0, 1)) /* stdu */
 	}
 
-	ctxt.Diag("unknown store opcode %v", Aconv(a))
+	ctxt.Diag("unknown store opcode %v", obj.Aconv(a))
 	return 0
 }
 
@@ -3292,6 +3294,6 @@ func opstorex(ctxt *obj.Link, a int) int32 {
 		return int32(OPVCC(31, 181, 0, 0)) /* stdux */
 	}
 
-	ctxt.Diag("unknown storex opcode %v", Aconv(a))
+	ctxt.Diag("unknown storex opcode %v", obj.Aconv(a))
 	return 0
 }

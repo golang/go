@@ -895,7 +895,7 @@ func pushpop(a int) bool {
 	return false
 }
 
-func relinv(a int) int {
+func relinv(a int16) int16 {
 	switch a {
 	case AJEQ:
 		return AJNE
@@ -931,7 +931,7 @@ func relinv(a int) int {
 		return AJOS
 	}
 
-	log.Fatalf("unknown relation: %s", Anames[a])
+	log.Fatalf("unknown relation: %s", obj.Aconv(int(a)))
 	return 0
 }
 
@@ -1001,7 +1001,7 @@ loop:
 					continue
 				}
 
-				q.As = int16(relinv(int(q.As)))
+				q.As = relinv(q.As)
 				p = q.Pcond
 				q.Pcond = q.Link
 				q.Link = p
@@ -1054,7 +1054,7 @@ loop:
 				 * expect conditional jump to be taken.
 				 * rewrite so that's the fall-through case.
 				 */
-				p.As = int16(relinv(a))
+				p.As = relinv(int16(a))
 
 				q = p.Link
 				p.Link = p.Pcond
@@ -1064,7 +1064,7 @@ loop:
 			q = p.Link
 			if q.Mark != 0 {
 				if a != ALOOP {
-					p.As = int16(relinv(a))
+					p.As = relinv(int16(a))
 					p.Link = p.Pcond
 					p.Pcond = q
 				}

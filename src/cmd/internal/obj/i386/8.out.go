@@ -33,7 +33,7 @@ package i386
 import "cmd/internal/obj"
 
 const (
-	AAAA = obj.A_ARCHSPECIFIC + iota
+	AAAA = obj.ABase386 + obj.A_ARCHSPECIFIC + iota
 	AAAD
 	AAAM
 	AAAS

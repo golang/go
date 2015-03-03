@@ -39,7 +39,7 @@ import (
 )
 
 type Optab struct {
-	as       uint8
+	as       uint16
 	a1       uint8
 	a2       int8
 	a3       uint8
@@ -268,7 +268,7 @@ var pool struct {
 	extra uint32
 }
 
-var oprange [ALAST]Oprang
+var oprange [ALAST & obj.AMask]Oprang
 
 var xcmp [C_GOK + 1][C_GOK + 1]uint8
 
@@ -580,7 +580,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
 		return
 	}
 
-	if oprange[AAND].start == nil {
+	if oprange[AAND&obj.AMask].start == nil {
 		buildop(ctxt)
 	}
 
@@ -1207,14 +1207,14 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
 	if p.Reg != 0 {
 		a2 = C_REG
 	}
-	r := int(p.As)
+	r := p.As & obj.AMask
 	o := oprange[r].start
 	if o == nil {
 		o = oprange[r].stop /* just generate an error */
 	}
 
 	if false { /*debug['O']*/
-		fmt.Printf("oplook %v %v %v %v\n", Aconv(int(p.As)), DRconv(a1), DRconv(a2), DRconv(a3))
+		fmt.Printf("oplook %v %v %v %v\n", obj.Aconv(int(p.As)), DRconv(a1), DRconv(a2), DRconv(a3))
 		fmt.Printf("\t\t%d %d\n", p.From.Type, p.To.Type)
 	}
 
@@ -1335,6 +1335,10 @@ func (x ocmp) Less(i, j int) bool {
 	return false
 }
 
+func opset(a, b0 uint16) {
+	oprange[a&obj.AMask] = oprange[b0]
+}
+
 func buildop(ctxt *obj.Link) {
 	var n int
 
@@ -1356,67 +1360,66 @@ func buildop(ctxt *obj.Link) {
 	}
 
 	sort.Sort(ocmp(optab[:n]))
-	var r int
 	for i := 0; i < n; i++ {
-		r = int(optab[i].as)
-		oprange[r].start = optab[i:]
-		for int(optab[i].as) == r {
+		r0 := optab[i].as & obj.AMask
+		oprange[r0].start = optab[i:]
+		for optab[i].as&obj.AMask == r0 {
 			i++
 		}
-		oprange[r].stop = optab[i:]
+		oprange[r0].stop = optab[i:]
 		i--
 
-		switch r {
+		switch r0 {
 		default:
-			ctxt.Diag("unknown op in build: %v", Aconv(r))
+			ctxt.Diag("unknown op in build: %v", obj.Aconv(int(optab[i].as)))
 			log.Fatalf("bad code")
 
 		case AADD:
-			oprange[AAND] = oprange[r]
-			oprange[AEOR] = oprange[r]
-			oprange[ASUB] = oprange[r]
-			oprange[ARSB] = oprange[r]
-			oprange[AADC] = oprange[r]
-			oprange[ASBC] = oprange[r]
-			oprange[ARSC] = oprange[r]
-			oprange[AORR] = oprange[r]
-			oprange[ABIC] = oprange[r]
+			opset(AAND, r0)
+			opset(AEOR, r0)
+			opset(ASUB, r0)
+			opset(ARSB, r0)
+			opset(AADC, r0)
+			opset(ASBC, r0)
+			opset(ARSC, r0)
+			opset(AORR, r0)
+			opset(ABIC, r0)
 
 		case ACMP:
-			oprange[ATEQ] = oprange[r]
-			oprange[ACMN] = oprange[r]
+			opset(ATEQ, r0)
+			opset(ACMN, r0)
 
 		case AMVN:
 			break
 
 		case ABEQ:
-			oprange[ABNE] = oprange[r]
-			oprange[ABCS] = oprange[r]
-			oprange[ABHS] = oprange[r]
-			oprange[ABCC] = oprange[r]
-			oprange[ABLO] = oprange[r]
-			oprange[ABMI] = oprange[r]
-			oprange[ABPL] = oprange[r]
-			oprange[ABVS] = oprange[r]
-			oprange[ABVC] = oprange[r]
-			oprange[ABHI] = oprange[r]
-			oprange[ABLS] = oprange[r]
-			oprange[ABGE] = oprange[r]
-			oprange[ABLT] = oprange[r]
-			oprange[ABGT] = oprange[r]
-			oprange[ABLE] = oprange[r]
+			opset(ABNE, r0)
+			opset(ABCS, r0)
+			opset(ABHS, r0)
+			opset(ABCC, r0)
+			opset(ABLO, r0)
+			opset(ABMI, r0)
+			opset(ABPL, r0)
+			opset(ABVS, r0)
+			opset(ABVC, r0)
+			opset(ABHI, r0)
+			opset(ABLS, r0)
+			opset(ABGE, r0)
+			opset(ABLT, r0)
+			opset(ABGT, r0)
+			opset(ABLE, r0)
 
 		case ASLL:
-			oprange[ASRL] = oprange[r]
-			oprange[ASRA] = oprange[r]
+			opset(ASRL, r0)
+			opset(ASRA, r0)
 
 		case AMUL:
-			oprange[AMULU] = oprange[r]
+			opset(AMULU, r0)
 
 		case ADIV:
-			oprange[AMOD] = oprange[r]
-			oprange[AMODU] = oprange[r]
-			oprange[ADIVU] = oprange[r]
+			opset(AMOD, r0)
+			opset(AMODU, r0)
+			opset(ADIVU, r0)
 
 		case AMOVW,
 			AMOVB,
@@ -1428,7 +1431,7 @@ func buildop(ctxt *obj.Link) {
 			break
 
 		case ASWPW:
-			oprange[ASWPBU] = oprange[r]
+			opset(ASWPBU, r0)
 
 		case AB,
 			ABL,
@@ -1448,42 +1451,42 @@ func buildop(ctxt *obj.Link) {
 			break
 
 		case AADDF:
-			oprange[AADDD] = oprange[r]
-			oprange[ASUBF] = oprange[r]
-			oprange[ASUBD] = oprange[r]
-			oprange[AMULF] = oprange[r]
-			oprange[AMULD] = oprange[r]
-			oprange[ADIVF] = oprange[r]
-			oprange[ADIVD] = oprange[r]
-			oprange[ASQRTF] = oprange[r]
-			oprange[ASQRTD] = oprange[r]
-			oprange[AMOVFD] = oprange[r]
-			oprange[AMOVDF] = oprange[r]
-			oprange[AABSF] = oprange[r]
-			oprange[AABSD] = oprange[r]
+			opset(AADDD, r0)
+			opset(ASUBF, r0)
+			opset(ASUBD, r0)
+			opset(AMULF, r0)
+			opset(AMULD, r0)
+			opset(ADIVF, r0)
+			opset(ADIVD, r0)
+			opset(ASQRTF, r0)
+			opset(ASQRTD, r0)
+			opset(AMOVFD, r0)
+			opset(AMOVDF, r0)
+			opset(AABSF, r0)
+			opset(AABSD, r0)
 
 		case ACMPF:
-			oprange[ACMPD] = oprange[r]
+			opset(ACMPD, r0)
 
 		case AMOVF:
-			oprange[AMOVD] = oprange[r]
+			opset(AMOVD, r0)
 
 		case AMOVFW:
-			oprange[AMOVDW] = oprange[r]
+			opset(AMOVDW, r0)
 
 		case AMOVWF:
-			oprange[AMOVWD] = oprange[r]
+			opset(AMOVWD, r0)
 
 		case AMULL:
-			oprange[AMULAL] = oprange[r]
-			oprange[AMULLU] = oprange[r]
-			oprange[AMULALU] = oprange[r]
+			opset(AMULAL, r0)
+			opset(AMULLU, r0)
+			opset(AMULALU, r0)
 
 		case AMULWT:
-			oprange[AMULWB] = oprange[r]
+			opset(AMULWB, r0)
 
 		case AMULAWT:
-			oprange[AMULAWB] = oprange[r]
+			opset(AMULAWB, r0)
 
 		case AMULA,
 			ALDREX,
@@ -2660,7 +2663,7 @@ func opbra(ctxt *obj.Link, a int, sc int) uint32 {
 		return 0xe<<28 | 0x5<<25
 	}
 
-	ctxt.Diag("bad bra %v", Aconv(a))
+	ctxt.Diag("bad bra %v", obj.Aconv(a))
 	prasm(ctxt.Curp)
 	return 0
 }
@@ -2780,7 +2783,7 @@ func ofsr(ctxt *obj.Link, a int, r int, v int32, b int, sc int, p *obj.Prog) uin
 
 	switch a {
 	default:
-		ctxt.Diag("bad fst %v", Aconv(a))
+		ctxt.Diag("bad fst %v", obj.Aconv(a))
 		fallthrough
 
 	case AMOVD:

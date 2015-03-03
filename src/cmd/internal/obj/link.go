@@ -424,6 +424,10 @@ const (
 // These are the portable opcodes, common to all architectures.
 // Each architecture defines many more arch-specific opcodes,
 // with values starting at A_ARCHSPECIFIC.
+// Each architecture adds an offset to this so each machine has
+// distinct space for its instructions. The offset is a power of
+// two so it can be masked to return to origin zero.
+// See the definitions of ABase386 etc.
 const (
 	AXXX = 0 + iota
 	ACALL
@@ -569,31 +573,5 @@ const (
 	LinkInternal
 	LinkExternal
 )
-
-// asm5.c
-
-// asm6.c
-
-// asm8.c
-
-// asm9.c
-
-// data.c
-
-// go.c
-
-// ld.c
-
-// list[5689].c
-
-// obj.c
-
-// objfile.c
-
-// pass.c
-
-// pcln.c
-
-// sym.c
 
 var linkbasepointer int

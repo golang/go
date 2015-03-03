@@ -145,7 +145,7 @@ const (
 )
 
 const (
-	AAND = obj.A_ARCHSPECIFIC + iota
+	AAND = obj.ABaseARM + obj.A_ARCHSPECIFIC + iota
 	AEOR
 	ASUB
 	ARSB

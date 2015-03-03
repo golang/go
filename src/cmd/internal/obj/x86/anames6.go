@@ -1,29 +1,12 @@
 package x86
 
+import "cmd/internal/obj"
+
 /*
  * this is the ranlib header
  */
 var Anames = []string{
-	"XXX",
-	"CALL",
-	"CHECKNIL",
-	"DATA",
-	"DUFFCOPY",
-	"DUFFZERO",
-	"END",
-	"FUNCDATA",
-	"GLOBL",
-	"JMP",
-	"NOP",
-	"PCDATA",
-	"RET",
-	"TEXT",
-	"TYPE",
-	"UNDEF",
-	"USEFIELD",
-	"VARDEF",
-	"VARKILL",
-	"AAA",
+	obj.A_ARCHSPECIFIC: "AAA",
 	"AAD",
 	"AAM",
 	"AAS",
