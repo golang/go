@@ -42,7 +42,20 @@ func main() {
 	}
 }
 
-func run(bin string, args []string) error {
+func run(bin string, args []string) (err error) {
+	type waitPanic struct {
+		err error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			if w, ok := r.(waitPanic); ok {
+				err = w.err
+				return
+			}
+			panic(r)
+		}
+	}()
+
 	defer exec.Command("killall", "ios-deploy").Run() // cleanup
 
 	exec.Command("killall", "ios-deploy").Run()
@@ -51,7 +64,9 @@ func run(bin string, args []string) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer os.RemoveAll(tmpdir)
+	if !debug {
+		defer os.RemoveAll(tmpdir)
+	}
 
 	appdir := filepath.Join(tmpdir, "gotest.app")
 	if err := os.MkdirAll(appdir, 0755); err != nil {
@@ -166,6 +181,9 @@ func run(bin string, args []string) error {
 	}
 	do := func(cmd string) {
 		fmt.Fprintln(lldb, cmd)
+		if err := waitFor(fmt.Sprintf("prompt after %q", cmd), "(lldb)"); err != nil {
+			panic(waitPanic{err})
+		}
 	}
 
 	// Wait for installation and connection.
@@ -179,16 +197,10 @@ func run(bin string, args []string) error {
 	do(`process handle SIGUSR1 --stop false --pass true --notify false`)
 	do(`process handle SIGSEGV --stop false --pass true --notify false`) // does not work
 	do(`process handle SIGBUS  --stop false --pass true --notify false`) // does not work
-	if err := waitFor("handlers set", "(lldb)"); err != nil {
-		return err
-	}
 
 	do(`breakpoint set -n getwd`) // in runtime/cgo/gcc_darwin_arm.go
-	if err := waitFor("breakpoint set", "(lldb)"); err != nil {
-		return err
-	}
 
-	do(`run`)
+	fmt.Fprintln(lldb, `run`)
 	if err := waitFor("br getwd", "stop reason = breakpoint"); err != nil {
 		return err
 	}
@@ -201,21 +213,16 @@ func run(bin string, args []string) error {
 	do(`expr char* $mem = (char*)malloc(512)`)
 	do(`expr $mem = (char*)getwd($mem, 512)`)
 	do(`expr $mem = (char*)strcat($mem, "/` + pkgpath + `")`)
-	do(`expr int $res = (int)chdir($mem)`)
-	do(`print $res`)
-	if err := waitFor("move working dir", "(int) $res = 0"); err != nil {
-		return err
-	}
+	do(`call (void)chdir($mem)`)
 
 	// Watch for SIGSEGV. Ideally lldb would never break on SIGSEGV.
 	// http://golang.org/issue/10043
 	go func() {
 		<-w.find("stop reason = EXC_BAD_ACCESS")
-		do(`bt`)
-		// The backtrace has no obvious end, so we invent one.
-		do(`expr int $dummy = 1`)
-		do(`print $dummy`)
-		<-w.find(`(int) $dummy = 1`)
+		// cannot use do here, as the defer/recover is not available
+		// on this goroutine.
+		fmt.Fprintln(lldb, `bt`)
+		waitFor("finish backtrace", "(lldb)")
 		w.printBuf()
 		if p := cmd.Process; p != nil {
 			p.Kill()
@@ -224,7 +231,7 @@ func run(bin string, args []string) error {
 
 	// Run the tests.
 	w.trimSuffix("(lldb) ")
-	do(`process continue`)
+	fmt.Fprintln(lldb, `process continue`)
 
 	// Wait for the test to complete.
 	select {
