@@ -491,3 +491,68 @@ func regListConv(list int) string {
 	str += "]"
 	return str
 }
+
+/*
+	Each architecture defines an instruction (A*) space as a unique
+	integer range.
+	Global opcodes like CALL start at 0; the architecture-specific ones
+	start at a distinct, big-maskable offsets.
+	Here is the list of architectures and the base of their opcode spaces.
+*/
+
+const (
+	ABase386 = (1 + iota) << 12
+	ABaseARM
+	ABaseAMD64
+	ABasePPC64
+	AMask = 1<<12 - 1 // AND with this to use the opcode as an array index.
+)
+
+type opSet struct {
+	lo    int
+	names []string
+}
+
+// Not even worth sorting
+var aSpace []opSet
+
+// RegisterOpcode binds a list of instruction names
+// to a given instruction number range.
+func RegisterOpcode(lo int, Anames []string) {
+	aSpace = append(aSpace, opSet{lo, Anames})
+}
+
+func Aconv(a int) string {
+	if a < A_ARCHSPECIFIC {
+		return Anames[a]
+	}
+	for i := range aSpace {
+		as := &aSpace[i]
+		if as.lo <= a && a < as.lo+len(as.names) {
+			return as.names[a-as.lo]
+		}
+	}
+	return fmt.Sprintf("A???%d", a)
+}
+
+var Anames = []string{
+	"XXX",
+	"CALL",
+	"CHECKNIL",
+	"DATA",
+	"DUFFCOPY",
+	"DUFFZERO",
+	"END",
+	"FUNCDATA",
+	"GLOBL",
+	"JMP",
+	"NOP",
+	"PCDATA",
+	"RET",
+	"TEXT",
+	"TYPE",
+	"UNDEF",
+	"USEFIELD",
+	"VARDEF",
+	"VARKILL",
+}

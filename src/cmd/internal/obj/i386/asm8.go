@@ -58,7 +58,7 @@ type ytab struct {
 	zoffset uint8
 }
 
-var opindex [ALAST + 1]*Optab
+var opindex [(ALAST + 1) & obj.AMask]*Optab
 
 const (
 	Yxxx = 0 + iota
@@ -1331,12 +1331,11 @@ func span8(ctxt *obj.Link, s *obj.LSym) {
 }
 
 func instinit() {
-	var c int
 
 	for i := 1; optab[i].as != 0; i++ {
-		c = int(optab[i].as)
+		c := optab[i].as & obj.AMask
 		if opindex[c] != nil {
-			log.Fatalf("phase error in optab: %d (%v)", i, Aconv(c))
+			log.Fatalf("phase error in optab: %d (%v)", i, obj.Aconv(int(optab[i].as)))
 		}
 		opindex[c] = &optab[i]
 	}
@@ -1969,7 +1968,7 @@ const (
 
 var ymovtab = []uint8{
 	/* push */
-	APUSHL,
+	APUSHL & obj.AMask,
 	Ycs,
 	Ynone,
 	0,
@@ -1977,7 +1976,7 @@ var ymovtab = []uint8{
 	E,
 	0,
 	0,
-	APUSHL,
+	APUSHL & obj.AMask,
 	Yss,
 	Ynone,
 	0,
@@ -1985,7 +1984,7 @@ var ymovtab = []uint8{
 	E,
 	0,
 	0,
-	APUSHL,
+	APUSHL & obj.AMask,
 	Yds,
 	Ynone,
 	0,
@@ -1993,7 +1992,7 @@ var ymovtab = []uint8{
 	E,
 	0,
 	0,
-	APUSHL,
+	APUSHL & obj.AMask,
 	Yes,
 	Ynone,
 	0,
@@ -2001,7 +2000,7 @@ var ymovtab = []uint8{
 	E,
 	0,
 	0,
-	APUSHL,
+	APUSHL & obj.AMask,
 	Yfs,
 	Ynone,
 	0,
@@ -2009,7 +2008,7 @@ var ymovtab = []uint8{
 	0xa0,
 	E,
 	0,
-	APUSHL,
+	APUSHL & obj.AMask,
 	Ygs,
 	Ynone,
 	0,
@@ -2017,7 +2016,7 @@ var ymovtab = []uint8{
 	0xa8,
 	E,
 	0,
-	APUSHW,
+	APUSHW & obj.AMask,
 	Ycs,
 	Ynone,
 	0,
@@ -2025,7 +2024,7 @@ var ymovtab = []uint8{
 	0x0e,
 	E,
 	0,
-	APUSHW,
+	APUSHW & obj.AMask,
 	Yss,
 	Ynone,
 	0,
@@ -2033,7 +2032,7 @@ var ymovtab = []uint8{
 	0x16,
 	E,
 	0,
-	APUSHW,
+	APUSHW & obj.AMask,
 	Yds,
 	Ynone,
 	0,
@@ -2041,7 +2040,7 @@ var ymovtab = []uint8{
 	0x1e,
 	E,
 	0,
-	APUSHW,
+	APUSHW & obj.AMask,
 	Yes,
 	Ynone,
 	0,
@@ -2049,7 +2048,7 @@ var ymovtab = []uint8{
 	0x06,
 	E,
 	0,
-	APUSHW,
+	APUSHW & obj.AMask,
 	Yfs,
 	Ynone,
 	0,
@@ -2057,7 +2056,7 @@ var ymovtab = []uint8{
 	0x0f,
 	0xa0,
 	E,
-	APUSHW,
+	APUSHW & obj.AMask,
 	Ygs,
 	Ynone,
 	0,
@@ -2067,7 +2066,7 @@ var ymovtab = []uint8{
 	E,
 
 	/* pop */
-	APOPL,
+	APOPL & obj.AMask,
 	Ynone,
 	Yds,
 	0,
@@ -2075,7 +2074,7 @@ var ymovtab = []uint8{
 	E,
 	0,
 	0,
-	APOPL,
+	APOPL & obj.AMask,
 	Ynone,
 	Yes,
 	0,
@@ -2083,7 +2082,7 @@ var ymovtab = []uint8{
 	E,
 	0,
 	0,
-	APOPL,
+	APOPL & obj.AMask,
 	Ynone,
 	Yss,
 	0,
@@ -2091,7 +2090,7 @@ var ymovtab = []uint8{
 	E,
 	0,
 	0,
-	APOPL,
+	APOPL & obj.AMask,
 	Ynone,
 	Yfs,
 	0,
@@ -2099,7 +2098,7 @@ var ymovtab = []uint8{
 	0xa1,
 	E,
 	0,
-	APOPL,
+	APOPL & obj.AMask,
 	Ynone,
 	Ygs,
 	0,
@@ -2107,7 +2106,7 @@ var ymovtab = []uint8{
 	0xa9,
 	E,
 	0,
-	APOPW,
+	APOPW & obj.AMask,
 	Ynone,
 	Yds,
 	0,
@@ -2115,7 +2114,7 @@ var ymovtab = []uint8{
 	0x1f,
 	E,
 	0,
-	APOPW,
+	APOPW & obj.AMask,
 	Ynone,
 	Yes,
 	0,
@@ -2123,7 +2122,7 @@ var ymovtab = []uint8{
 	0x07,
 	E,
 	0,
-	APOPW,
+	APOPW & obj.AMask,
 	Ynone,
 	Yss,
 	0,
@@ -2131,7 +2130,7 @@ var ymovtab = []uint8{
 	0x17,
 	E,
 	0,
-	APOPW,
+	APOPW & obj.AMask,
 	Ynone,
 	Yfs,
 	0,
@@ -2139,7 +2138,7 @@ var ymovtab = []uint8{
 	0x0f,
 	0xa1,
 	E,
-	APOPW,
+	APOPW & obj.AMask,
 	Ynone,
 	Ygs,
 	0,
@@ -2149,7 +2148,7 @@ var ymovtab = []uint8{
 	E,
 
 	/* mov seg */
-	AMOVW,
+	AMOVW & obj.AMask,
 	Yes,
 	Yml,
 	1,
@@ -2157,7 +2156,7 @@ var ymovtab = []uint8{
 	0,
 	0,
 	0,
-	AMOVW,
+	AMOVW & obj.AMask,
 	Ycs,
 	Yml,
 	1,
@@ -2165,7 +2164,7 @@ var ymovtab = []uint8{
 	1,
 	0,
 	0,
-	AMOVW,
+	AMOVW & obj.AMask,
 	Yss,
 	Yml,
 	1,
@@ -2173,7 +2172,7 @@ var ymovtab = []uint8{
 	2,
 	0,
 	0,
-	AMOVW,
+	AMOVW & obj.AMask,
 	Yds,
 	Yml,
 	1,
@@ -2181,7 +2180,7 @@ var ymovtab = []uint8{
 	3,
 	0,
 	0,
-	AMOVW,
+	AMOVW & obj.AMask,
 	Yfs,
 	Yml,
 	1,
@@ -2189,7 +2188,7 @@ var ymovtab = []uint8{
 	4,
 	0,
 	0,
-	AMOVW,
+	AMOVW & obj.AMask,
 	Ygs,
 	Yml,
 	1,
@@ -2197,7 +2196,7 @@ var ymovtab = []uint8{
 	5,
 	0,
 	0,
-	AMOVW,
+	AMOVW & obj.AMask,
 	Yml,
 	Yes,
 	2,
@@ -2205,7 +2204,7 @@ var ymovtab = []uint8{
 	0,
 	0,
 	0,
-	AMOVW,
+	AMOVW & obj.AMask,
 	Yml,
 	Ycs,
 	2,
@@ -2213,7 +2212,7 @@ var ymovtab = []uint8{
 	1,
 	0,
 	0,
-	AMOVW,
+	AMOVW & obj.AMask,
 	Yml,
 	Yss,
 	2,
@@ -2221,7 +2220,7 @@ var ymovtab = []uint8{
 	2,
 	0,
 	0,
-	AMOVW,
+	AMOVW & obj.AMask,
 	Yml,
 	Yds,
 	2,
@@ -2229,7 +2228,7 @@ var ymovtab = []uint8{
 	3,
 	0,
 	0,
-	AMOVW,
+	AMOVW & obj.AMask,
 	Yml,
 	Yfs,
 	2,
@@ -2237,7 +2236,7 @@ var ymovtab = []uint8{
 	4,
 	0,
 	0,
-	AMOVW,
+	AMOVW & obj.AMask,
 	Yml,
 	Ygs,
 	2,
@@ -2247,7 +2246,7 @@ var ymovtab = []uint8{
 	0,
 
 	/* mov cr */
-	AMOVL,
+	AMOVL & obj.AMask,
 	Ycr0,
 	Yml,
 	3,
@@ -2255,7 +2254,7 @@ var ymovtab = []uint8{
 	0x20,
 	0,
 	0,
-	AMOVL,
+	AMOVL & obj.AMask,
 	Ycr2,
 	Yml,
 	3,
@@ -2263,7 +2262,7 @@ var ymovtab = []uint8{
 	0x20,
 	2,
 	0,
-	AMOVL,
+	AMOVL & obj.AMask,
 	Ycr3,
 	Yml,
 	3,
@@ -2271,7 +2270,7 @@ var ymovtab = []uint8{
 	0x20,
 	3,
 	0,
-	AMOVL,
+	AMOVL & obj.AMask,
 	Ycr4,
 	Yml,
 	3,
@@ -2279,7 +2278,7 @@ var ymovtab = []uint8{
 	0x20,
 	4,
 	0,
-	AMOVL,
+	AMOVL & obj.AMask,
 	Yml,
 	Ycr0,
 	4,
@@ -2287,7 +2286,7 @@ var ymovtab = []uint8{
 	0x22,
 	0,
 	0,
-	AMOVL,
+	AMOVL & obj.AMask,
 	Yml,
 	Ycr2,
 	4,
@@ -2295,7 +2294,7 @@ var ymovtab = []uint8{
 	0x22,
 	2,
 	0,
-	AMOVL,
+	AMOVL & obj.AMask,
 	Yml,
 	Ycr3,
 	4,
@@ -2303,7 +2302,7 @@ var ymovtab = []uint8{
 	0x22,
 	3,
 	0,
-	AMOVL,
+	AMOVL & obj.AMask,
 	Yml,
 	Ycr4,
 	4,
@@ -2313,7 +2312,7 @@ var ymovtab = []uint8{
 	0,
 
 	/* mov dr */
-	AMOVL,
+	AMOVL & obj.AMask,
 	Ydr0,
 	Yml,
 	3,
@@ -2321,7 +2320,7 @@ var ymovtab = []uint8{
 	0x21,
 	0,
 	0,
-	AMOVL,
+	AMOVL & obj.AMask,
 	Ydr6,
 	Yml,
 	3,
@@ -2329,7 +2328,7 @@ var ymovtab = []uint8{
 	0x21,
 	6,
 	0,
-	AMOVL,
+	AMOVL & obj.AMask,
 	Ydr7,
 	Yml,
 	3,
@@ -2337,7 +2336,7 @@ var ymovtab = []uint8{
 	0x21,
 	7,
 	0,
-	AMOVL,
+	AMOVL & obj.AMask,
 	Yml,
 	Ydr0,
 	4,
@@ -2345,7 +2344,7 @@ var ymovtab = []uint8{
 	0x23,
 	0,
 	0,
-	AMOVL,
+	AMOVL & obj.AMask,
 	Yml,
 	Ydr6,
 	4,
@@ -2353,7 +2352,7 @@ var ymovtab = []uint8{
 	0x23,
 	6,
 	0,
-	AMOVL,
+	AMOVL & obj.AMask,
 	Yml,
 	Ydr7,
 	4,
@@ -2363,7 +2362,7 @@ var ymovtab = []uint8{
 	0,
 
 	/* mov tr */
-	AMOVL,
+	AMOVL & obj.AMask,
 	Ytr6,
 	Yml,
 	3,
@@ -2371,7 +2370,7 @@ var ymovtab = []uint8{
 	0x24,
 	6,
 	0,
-	AMOVL,
+	AMOVL & obj.AMask,
 	Ytr7,
 	Yml,
 	3,
@@ -2379,7 +2378,7 @@ var ymovtab = []uint8{
 	0x24,
 	7,
 	0,
-	AMOVL,
+	AMOVL & obj.AMask,
 	Yml,
 	Ytr6,
 	4,
@@ -2387,7 +2386,7 @@ var ymovtab = []uint8{
 	0x26,
 	6,
 	E,
-	AMOVL,
+	AMOVL & obj.AMask,
 	Yml,
 	Ytr7,
 	4,
@@ -2397,7 +2396,7 @@ var ymovtab = []uint8{
 	E,
 
 	/* lgdt, sgdt, lidt, sidt */
-	AMOVL,
+	AMOVL & obj.AMask,
 	Ym,
 	Ygdtr,
 	4,
@@ -2405,7 +2404,7 @@ var ymovtab = []uint8{
 	0x01,
 	2,
 	0,
-	AMOVL,
+	AMOVL & obj.AMask,
 	Ygdtr,
 	Ym,
 	3,
@@ -2413,7 +2412,7 @@ var ymovtab = []uint8{
 	0x01,
 	0,
 	0,
-	AMOVL,
+	AMOVL & obj.AMask,
 	Ym,
 	Yidtr,
 	4,
@@ -2421,7 +2420,7 @@ var ymovtab = []uint8{
 	0x01,
 	3,
 	0,
-	AMOVL,
+	AMOVL & obj.AMask,
 	Yidtr,
 	Ym,
 	3,
@@ -2431,7 +2430,7 @@ var ymovtab = []uint8{
 	0,
 
 	/* lldt, sldt */
-	AMOVW,
+	AMOVW & obj.AMask,
 	Yml,
 	Yldtr,
 	4,
@@ -2439,7 +2438,7 @@ var ymovtab = []uint8{
 	0x00,
 	2,
 	0,
-	AMOVW,
+	AMOVW & obj.AMask,
 	Yldtr,
 	Yml,
 	3,
@@ -2449,7 +2448,7 @@ var ymovtab = []uint8{
 	0,
 
 	/* lmsw, smsw */
-	AMOVW,
+	AMOVW & obj.AMask,
 	Yml,
 	Ymsw,
 	4,
@@ -2457,7 +2456,7 @@ var ymovtab = []uint8{
 	0x01,
 	6,
 	0,
-	AMOVW,
+	AMOVW & obj.AMask,
 	Ymsw,
 	Yml,
 	3,
@@ -2467,7 +2466,7 @@ var ymovtab = []uint8{
 	0,
 
 	/* ltr, str */
-	AMOVW,
+	AMOVW & obj.AMask,
 	Yml,
 	Ytask,
 	4,
@@ -2475,7 +2474,7 @@ var ymovtab = []uint8{
 	0x00,
 	3,
 	0,
-	AMOVW,
+	AMOVW & obj.AMask,
 	Ytask,
 	Yml,
 	3,
@@ -2485,7 +2484,7 @@ var ymovtab = []uint8{
 	0,
 
 	/* load full pointer */
-	AMOVL,
+	AMOVL & obj.AMask,
 	Yml,
 	Ycol,
 	5,
@@ -2493,7 +2492,7 @@ var ymovtab = []uint8{
 	0,
 	0,
 	0,
-	AMOVW,
+	AMOVW & obj.AMask,
 	Yml,
 	Ycol,
 	5,
@@ -2503,7 +2502,7 @@ var ymovtab = []uint8{
 	0,
 
 	/* double shift */
-	ASHLL,
+	ASHLL & obj.AMask,
 	Ycol,
 	Yml,
 	6,
@@ -2511,7 +2510,7 @@ var ymovtab = []uint8{
 	0xa5,
 	0,
 	0,
-	ASHRL,
+	ASHRL & obj.AMask,
 	Ycol,
 	Yml,
 	6,
@@ -2521,7 +2520,7 @@ var ymovtab = []uint8{
 	0,
 
 	/* extra imul */
-	AIMULW,
+	AIMULW & obj.AMask,
 	Yml,
 	Yrl,
 	7,
@@ -2529,7 +2528,7 @@ var ymovtab = []uint8{
 	0xaf,
 	0,
 	0,
-	AIMULL,
+	AIMULL & obj.AMask,
 	Yml,
 	Yrl,
 	7,
@@ -2539,7 +2538,7 @@ var ymovtab = []uint8{
 	0,
 
 	/* load TLS base pointer */
-	AMOVL,
+	AMOVL & obj.AMask,
 	Ytls,
 	Yrl,
 	8,
@@ -2712,7 +2711,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 
 	ft := int(p.Ft) * Ymax
 	tt := int(p.Tt) * Ymax
-	o := opindex[p.As]
+	o := opindex[p.As&obj.AMask]
 
 	z := 0
 	var a *obj.Addr
@@ -3163,7 +3162,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 domov:
 	var pp obj.Prog
 	for t := []byte(ymovtab); t[0] != 0; t = t[8:] {
-		if p.As == int16(t[0]) {
+		if p.As&obj.AMask == int16(t[0]) {
 			if ycover[ft+int(t[1])] != 0 {
 				if ycover[tt+int(t[2])] != 0 {
 					switch t[3] {

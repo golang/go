@@ -302,7 +302,7 @@ func as2variant(as int) int {
 			return i
 		}
 	}
-	gc.Fatal("as2variant: instruction %v is not a variant of itself", ppc64.Aconv(as))
+	gc.Fatal("as2variant: instruction %v is not a variant of itself", obj.Aconv(as))
 	return 0
 }
 

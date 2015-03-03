@@ -79,57 +79,16 @@ func Pconv(p *obj.Prog) string {
 	var str string
 	if a == obj.ADATA {
 		str = fmt.Sprintf("%.5d (%v)\t%v\t%v/%d,%v",
-			p.Pc, p.Line(), Aconv(a), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
+			p.Pc, p.Line(), obj.Aconv(a), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
 	} else if p.As == obj.ATEXT {
 		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%d,%v",
-			p.Pc, p.Line(), Aconv(a), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
+			p.Pc, p.Line(), obj.Aconv(a), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
 	} else if p.Reg == 0 {
 		str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v",
-			p.Pc, p.Line(), Aconv(a), sc, obj.Dconv(p, &p.From), obj.Dconv(p, &p.To))
+			p.Pc, p.Line(), obj.Aconv(a), sc, obj.Dconv(p, &p.From), obj.Dconv(p, &p.To))
 	} else {
 		str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v,%v",
-			p.Pc, p.Line(), Aconv(a), sc, obj.Dconv(p, &p.From), Rconv(int(p.Reg)), obj.Dconv(p, &p.To))
-	}
-
-	var fp string
-	fp += str
-	return fp
-}
-
-func Aconv(a int) string {
-	s := "???"
-	if a >= obj.AXXX && a < ALAST {
-		s = Anames[a]
-	}
-	var fp string
-	fp += s
-	return fp
-}
-
-func RAconv(a *obj.Addr) string {
-	str := fmt.Sprintf("GOK-reglist")
-	switch a.Type {
-	case obj.TYPE_CONST:
-		if a.Reg != 0 {
-			break
-		}
-		if a.Sym != nil {
-			break
-		}
-		v := int(a.Offset)
-		str = ""
-		for i := 0; i < NREG; i++ {
-			if v&(1<<uint(i)) != 0 {
-				if str == "" {
-					str += "[R"
-				} else {
-					str += ",R"
-				}
-				str += fmt.Sprintf("%d", i)
-			}
-		}
-
-		str += "]"
+			p.Pc, p.Line(), obj.Aconv(a), sc, obj.Dconv(p, &p.From), Rconv(int(p.Reg)), obj.Dconv(p, &p.To))
 	}
 
 	var fp string
@@ -139,6 +98,7 @@ func RAconv(a *obj.Addr) string {
 
 func init() {
 	obj.RegisterRegister(obj.RBaseARM, MAXREG, Rconv)
+	obj.RegisterOpcode(obj.ABaseARM, Anames)
 }
 
 func Rconv(r int) string {

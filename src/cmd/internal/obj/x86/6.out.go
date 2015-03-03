@@ -36,7 +36,7 @@ import "cmd/internal/obj"
  *	amd64
  */
 const (
-	AAAA = obj.A_ARCHSPECIFIC + iota
+	AAAA = obj.ABaseAMD64 + obj.A_ARCHSPECIFIC + iota
 	AAAD
 	AAAM
 	AAAS

@@ -1435,7 +1435,7 @@ var optab =
 	Optab{0, nil, 0, [23]uint8{}},
 }
 
-var opindex [ALAST + 1]*Optab
+var opindex [(ALAST + 1) & obj.AMask]*Optab
 
 // isextern reports whether s describes an external symbol that must avoid pc-relative addressing.
 // This happens on systems like Solaris that call .so functions instead of system calls.
@@ -1708,10 +1708,10 @@ func instinit() {
 
 	for i := 1; optab[i].as != 0; i++ {
 		c = int(optab[i].as)
-		if opindex[c] != nil {
-			log.Fatalf("phase error in optab: %d (%v)", i, Aconv(c))
+		if opindex[c&obj.AMask] != nil {
+			log.Fatalf("phase error in optab: %d (%v)", i, obj.Aconv(c))
 		}
-		opindex[c] = &optab[i]
+		opindex[c&obj.AMask] = &optab[i]
 	}
 
 	for i := 0; i < Ymax; i++ {
@@ -2758,7 +2758,7 @@ func mediaop(ctxt *obj.Link, o *Optab, op int, osize int, z int) int {
 func doasm(ctxt *obj.Link, p *obj.Prog) {
 	ctxt.Curp = p // TODO
 
-	o := opindex[p.As]
+	o := opindex[p.As&obj.AMask]
 
 	if o == nil {
 		ctxt.Diag("asmins: missing op %v", p)

@@ -1,29 +1,9 @@
 package ppc64
 
-/*
- * this is the ranlib header
- */
+import "cmd/internal/obj"
+
 var Anames = []string{
-	"XXX",
-	"CALL",
-	"CHECKNIL",
-	"DATA",
-	"DUFFCOPY",
-	"DUFFZERO",
-	"END",
-	"FUNCDATA",
-	"GLOBL",
-	"JMP",
-	"NOP",
-	"PCDATA",
-	"RET",
-	"TEXT",
-	"TYPE",
-	"UNDEF",
-	"USEFIELD",
-	"VARDEF",
-	"VARKILL",
-	"ADD",
+	obj.A_ARCHSPECIFIC: "ADD",
 	"ADDCC",
 	"ADDV",
 	"ADDVCC",

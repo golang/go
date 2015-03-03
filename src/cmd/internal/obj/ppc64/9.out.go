@@ -218,7 +218,7 @@ const (
 )
 
 const (
-	AADD = obj.A_ARCHSPECIFIC + iota
+	AADD = obj.ABasePPC64 + obj.A_ARCHSPECIFIC + iota
 	AADDCC
 	AADDV
 	AADDVCC
