@@ -88,8 +88,8 @@ const (
 
 // Accuracy describes the rounding error produced by the most recent
 // operation that generated a Float value, relative to the exact value.
-// The accuracy may be Undef (either Below or Above) for operations on
-// and resulting in NaNs.
+// The accuracy may be Undef for operations on and resulting in
+// NaNs since they are neither Below nor Above any other value.
 type Accuracy int8
 
 // Constants describing the Accuracy of a Float.
@@ -278,6 +278,8 @@ func (x *Float) MantExp(mant *Float) (exp int) {
 //	z.SetMantExp(±Inf, exp) = ±Inf
 //	z.SetMantExp( NaN, exp) =  NaN
 //
+// z and mant may be the same in which case z's exponent
+// is set to exp.
 func (z *Float) SetMantExp(mant *Float, exp int) *Float {
 	if debugFloat {
 		validate(z)
@@ -1446,44 +1448,6 @@ func (z *Float) Quo(x, y *Float) *Float {
 
 	// x, y != 0
 	z.uquo(x, y)
-	return z
-}
-
-// TODO(gri) eliminate Lsh, Rsh? We can do the same with MantExp, SetMantExp.
-
-// Lsh sets z to the rounded x * (1<<s) and returns z.
-// If z's precision is 0, it is changed to x's precision.
-// Rounding is performed according to z's precision
-// and rounding mode; and z's accuracy reports the
-// result error relative to the exact (not rounded)
-// result.
-// BUG(gri) Lsh is not tested and may not work correctly.
-func (z *Float) Lsh(x *Float, s uint) *Float {
-	if debugFloat {
-		validate(x)
-	}
-
-	z.Set(x)
-	if len(x.mant) != 0 {
-		z.setExp(int64(z.exp) + int64(s))
-	}
-
-	return z
-}
-
-// Rsh sets z to the rounded x / (1<<s) and returns z.
-// Precision, rounding, and accuracy reporting are as for Lsh.
-// BUG(gri) Rsh is not tested and may not work correctly.
-func (z *Float) Rsh(x *Float, s uint) *Float {
-	if debugFloat {
-		validate(x)
-	}
-
-	z.Set(x)
-	if len(x.mant) != 0 {
-		z.setExp(int64(z.exp) - int64(s))
-	}
-
 	return z
 }
 
