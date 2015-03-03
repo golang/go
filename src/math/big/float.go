@@ -18,15 +18,15 @@ import (
 
 const debugFloat = true // enable for debugging
 
-// A nonzero Float represents a multi-precision floating point number
+// A nonzero finite Float represents a multi-precision floating point number
 //
 //   sign × mantissa × 2**exponent
 //
 // with 0.5 <= mantissa < 1.0, and MinExp <= exponent <= MaxExp.
-// A Float may also be +0, -0, +Inf, -Inf, or NaN.
+// A Float may also be zero (+0, -0), infinite (+Inf, -Inf) or
+// not-a-number (NaN).
 //
 // Each Float value also has a precision, rounding mode, and accuracy.
-//
 // The precision is the maximum number of mantissa bits available to
 // represent the value. The rounding mode specifies how a result should
 // be rounded to fit into the mantissa bits, and accuracy describes the
@@ -46,21 +46,20 @@ const debugFloat = true // enable for debugging
 //
 // By setting the desired precision to 24 or 53 and using matching rounding
 // mode (typically ToNearestEven), Float operations produce the same results
-// as the corresponding float32 or float64 IEEE-754 arithmetic for normalized
-// operands (including +0 and -0). Exponent underflow and overflow lead to a
-// 0 or an Infinity for different values than IEEE-754 because Float exponents
-// hace a much larger range.
+// as the corresponding float32 or float64 IEEE-754 arithmetic. Exponent
+// underflow and overflow lead to a 0 or an Infinity for different values
+// than IEEE-754 because Float exponents have a much larger range.
 //
 // The zero (uninitialized) value for a Float is ready to use and represents
 // the number +0.0 exactly, with precision 0 and rounding mode ToNearestEven.
 //
 type Float struct {
+	prec uint32
 	mode RoundingMode
 	acc  Accuracy
 	neg  bool
 	mant nat
 	exp  int32
-	prec uint32
 }
 
 // Internal representation: The mantissa bits x.mant of a Float x are stored
@@ -81,38 +80,10 @@ const (
 	MaxPrec = math.MaxUint32    // largest (theoretically) supported precision; likely memory-limited
 )
 
-// Accuracy describes the rounding error produced by the most recent
-// operation that generated a Float value, relative to the exact value.
-// The accuracy may be Undef for operations on and resulting in
-// NaNs since they are neither Below nor Above any other value.
-type Accuracy int8
-
-// Constants describing the Accuracy of a Float.
-const (
-	Exact Accuracy = 0
-	Below Accuracy = 1 << 0
-	Above Accuracy = 1 << 1
-	Undef Accuracy = Below | Above
-)
-
-func (a Accuracy) String() string {
-	switch a {
-	case Exact:
-		return "exact"
-	case Below:
-		return "below"
-	case Above:
-		return "above"
-	case Undef:
-		return "undef"
-	}
-	panic(fmt.Sprintf("unknown accuracy %d", a))
-}
-
 // RoundingMode determines how a Float value is rounded to the
 // desired precision. Rounding may change the Float value; the
 // rounding error is described by the Float's Accuracy.
-type RoundingMode uint8
+type RoundingMode byte
 
 // The following rounding modes are supported.
 const (
@@ -124,23 +95,23 @@ const (
 	ToPositiveInf                     // == IEEE 754-2008 roundTowardPositive
 )
 
-func (mode RoundingMode) String() string {
-	switch mode {
-	case ToNearestEven:
-		return "ToNearestEven"
-	case ToNearestAway:
-		return "ToNearestAway"
-	case ToZero:
-		return "ToZero"
-	case AwayFromZero:
-		return "AwayFromZero"
-	case ToNegativeInf:
-		return "ToNegativeInf"
-	case ToPositiveInf:
-		return "ToPositiveInf"
-	}
-	panic("unreachable")
-}
+//go:generate stringer -type=RoundingMode
+
+// Accuracy describes the rounding error produced by the most recent
+// operation that generated a Float value, relative to the exact value.
+// The accuracy is Undef for operations on and resulting in NaNs since
+// they are neither Below nor Above any other value.
+type Accuracy byte
+
+// Constants describing the Accuracy of a Float.
+const (
+	Exact Accuracy = 0
+	Below Accuracy = 1 << 0
+	Above Accuracy = 1 << 1
+	Undef Accuracy = Below | Above
+)
+
+//go:generate stringer -type=Accuracy
 
 // SetPrec sets z's precision to prec and returns the (possibly) rounded
 // value of z. Rounding occurs according to z's rounding mode if the mantissa
@@ -179,9 +150,10 @@ func (z *Float) SetPrec(prec uint) *Float {
 
 // SetMode sets z's rounding mode to mode and returns an exact z.
 // z remains unchanged otherwise.
+// z.SetMode(z.Mode()) is a cheap way to set z's accuracy to Exact.
 func (z *Float) SetMode(mode RoundingMode) *Float {
-	z.acc = Exact // TODO(gri) should we not do this? what's the general rule for setting accuracy?
 	z.mode = mode
+	z.acc = Exact
 	return z
 }
 
@@ -198,14 +170,14 @@ func (x *Float) MinPrec() uint {
 	return uint(len(x.mant))*_W - x.mant.trailingZeroBits()
 }
 
-// Acc returns the accuracy of x produced by the most recent operation.
-func (x *Float) Acc() Accuracy {
-	return x.acc
-}
-
 // Mode returns the rounding mode of x.
 func (x *Float) Mode() RoundingMode {
 	return x.mode
+}
+
+// Acc returns the accuracy of x produced by the most recent operation.
+func (x *Float) Acc() Accuracy {
+	return x.acc
 }
 
 // Sign returns:
@@ -288,6 +260,33 @@ func (z *Float) SetMantExp(mant *Float, exp int) *Float {
 	return z
 }
 
+// IsNeg reports whether x is negative.
+// A NaN is not negative.
+func (x *Float) IsNeg() bool {
+	return x.neg && x.exp != nanExp
+}
+
+// IsZero reports whether x is a +0 or -0.
+func (x *Float) IsZero() bool {
+	return len(x.mant) == 0 && x.exp == 0
+}
+
+// IsFinite reports whether -Inf < x < Inf.
+// A NaN is not finite.
+func (x *Float) IsFinite() bool {
+	return len(x.mant) != 0 || x.exp == 0
+}
+
+// IsInf reports whether x is a +Inf or -Inf.
+func (x *Float) IsInf() bool {
+	return x.exp == infExp
+}
+
+// IsNaN reports whether x is a NaN.
+func (x *Float) IsNaN() bool {
+	return x.exp == nanExp
+}
+
 // IsInt reports whether x is an integer.
 // ±Inf and NaN are not considered integers.
 func (x *Float) IsInt() bool {
@@ -301,25 +300,6 @@ func (x *Float) IsInt() bool {
 	}
 	// x.exp > 0
 	return x.prec <= uint32(x.exp) || x.MinPrec() <= uint(x.exp) // not enough bits for fractional mantissa
-}
-
-// IsInf reports whether x is an infinity, according to sign.
-// If sign > 0, IsInf reports whether x is positive infinity.
-// If sign < 0, IsInf reports whether x is negative infinity.
-// If sign == 0, IsInf reports whether x is either infinity.
-func (x *Float) IsInf(sign int) bool {
-	if debugFloat {
-		validate(x)
-	}
-	return x.exp == infExp && (sign == 0 || x.neg == (sign < 0))
-}
-
-// IsNaN reports whether x is a NaN.
-func (x *Float) IsNaN() bool {
-	if debugFloat {
-		validate(x)
-	}
-	return x.exp == nanExp
 }
 
 func (z *Float) setZero() {
@@ -715,20 +695,20 @@ func (z *Float) Set(x *Float) *Float {
 	return z
 }
 
-// Copy sets z to x, with the same precision and rounding mode as x,
-// and returns z.
+// Copy sets z to x, with the same precision, rounding mode, and
+// accuracy as x, and returns z. x is not changed even if z and
+// x are the same.
 func (z *Float) Copy(x *Float) *Float {
 	if debugFloat {
 		validate(x)
 	}
-	// TODO(gri) what about z.acc? should it be always Exact?
 	if z != x {
-		z.acc = Exact
-		z.neg = x.neg
-		z.exp = x.exp
-		z.mant = z.mant.set(x.mant)
 		z.prec = x.prec
 		z.mode = x.mode
+		z.acc = x.acc
+		z.neg = x.neg
+		z.mant = z.mant.set(x.mant)
+		z.exp = x.exp
 	}
 	return z
 }
@@ -858,7 +838,7 @@ func (x *Float) Int64() (int64, Accuracy) {
 
 // Float64 returns the closest float64 value of x
 // by rounding to nearest with 53 bits precision.
-// BUG(gri) doesn't handle exponent overflow
+// BUG(gri) Float.Float64 doesn't handle exponent overflow.
 func (x *Float) Float64() (float64, Accuracy) {
 	if debugFloat {
 		validate(x)
@@ -955,7 +935,6 @@ func (x *Float) Int(z *Int) (*Int, Accuracy) {
 		z = new(Int)
 	}
 	z.neg = x.neg
-	// TODO(gri) should have a shift that takes positive and negative shift counts
 	switch {
 	case exp > allBits:
 		z.abs = z.abs.shl(x.mant, exp-allBits)
@@ -1232,8 +1211,7 @@ func (x *Float) ucmp(y *Float) int {
 	return 0
 }
 
-// Handling of sign bit as defined by IEEE 754-2008,
-// section 6.3 (note that there are no NaN Floats):
+// Handling of sign bit as defined by IEEE 754-2008, section 6.3:
 //
 // When neither the inputs nor result are NaN, the sign of a product or
 // quotient is the exclusive OR of the operands’ signs; the sign of a sum,
@@ -1252,14 +1230,13 @@ func (x *Float) ucmp(y *Float) int {
 //
 // See also: http://play.golang.org/p/RtH3UCt5IH
 
-// Add sets z to the rounded sum x+y and returns z.
-// If z's precision is 0, it is changed to the larger
-// of x's or y's precision before the operation.
-// Rounding is performed according to z's precision
-// and rounding mode; and z's accuracy reports the
-// result error relative to the exact (not rounded)
+// Add sets z to the rounded sum x+y and returns z. If z's precision is 0,
+// it is changed to the larger of x's or y's precision before the operation.
+// Rounding is performed according to z's precision and rounding mode; and
+// z's accuracy reports the result error relative to the exact (not rounded)
 // result.
-// BUG(gri) If any of the operands is Inf, the result is NaN.
+// BUG(gri) Float.Add returns NaN if an operand is Inf.
+// BUG(gri) When rounding ToNegativeInf, the sign of Float values rounded to 0 is incorrect.
 func (z *Float) Add(x, y *Float) *Float {
 	if debugFloat {
 		validate(x)
@@ -1314,7 +1291,7 @@ func (z *Float) Add(x, y *Float) *Float {
 
 // Sub sets z to the rounded difference x-y and returns z.
 // Precision, rounding, and accuracy reporting are as for Add.
-// BUG(gri) If any of the operands is Inf, the result is NaN.
+// BUG(gri) Float.Sub returns NaN if an operand is Inf.
 func (z *Float) Sub(x, y *Float) *Float {
 	if debugFloat {
 		validate(x)
@@ -1369,7 +1346,7 @@ func (z *Float) Sub(x, y *Float) *Float {
 
 // Mul sets z to the rounded product x*y and returns z.
 // Precision, rounding, and accuracy reporting are as for Add.
-// BUG(gri) If any of the operands is Inf, the result is NaN.
+// BUG(gri) Float.Mul returns NaN if an operand is Inf.
 func (z *Float) Mul(x, y *Float) *Float {
 	if debugFloat {
 		validate(x)
@@ -1407,7 +1384,7 @@ func (z *Float) Mul(x, y *Float) *Float {
 
 // Quo sets z to the rounded quotient x/y and returns z.
 // Precision, rounding, and accuracy reporting are as for Add.
-// BUG(gri) If any of the operands is Inf, the result is NaN.
+// BUG(gri) Float.Quo returns NaN if an operand is Inf.
 func (z *Float) Quo(x, y *Float) *Float {
 	if debugFloat {
 		validate(x)
@@ -1454,8 +1431,7 @@ func (z *Float) Quo(x, y *Float) *Float {
 //
 // Infinities with matching sign are equal.
 // NaN values are never equal.
-// BUG(gri) comparing NaN's is not implemented
-// (should we use Accuracy here for results?)
+// BUG(gri) Float.Cmp does not implement comparing of NaNs.
 func (x *Float) Cmp(y *Float) int {
 	if debugFloat {
 		validate(x)
@@ -1498,7 +1474,6 @@ func umax32(x, y uint32) uint32 {
 //	+1 if 0 < x < +Inf
 //	+2 if x == +Inf
 //
-// TODO(gri) export (and remove IsInf)?
 func (x *Float) ord() int {
 	m := 1 // common case
 	if len(x.mant) == 0 {

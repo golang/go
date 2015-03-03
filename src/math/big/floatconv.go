@@ -63,7 +63,7 @@ func (z *Float) SetString(s string) (*Float, bool) {
 // be binary, if present (an "e" or "E" exponent indicator cannot be
 // distinguished from a mantissa digit).
 //
-// BUG(gri) This signature conflicts with Scan(s fmt.ScanState, ch rune) error.
+// BUG(gri) The Float.Scan signature conflicts with Scan(s fmt.ScanState, ch rune) error.
 func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 	if z.prec == 0 {
 		z.prec = 64
@@ -224,7 +224,7 @@ func ParseFloat(s string, base int, prec uint, mode RoundingMode) (f *Float, b i
 // number of digits necessary such that ParseFloat will return f exactly.
 // The prec value is ignored for the 'b' or 'p' format.
 //
-// BUG(gri) Currently, Format does not accept negative precisions.
+// BUG(gri) Float.Format does not accept negative precisions.
 func (x *Float) Format(format byte, prec int) string {
 	const extra = 10 // TODO(gri) determine a good/better value here
 	return string(x.Append(make([]byte, 0, prec+extra), format, prec))
@@ -236,7 +236,7 @@ func (x *Float) Append(buf []byte, format byte, prec int) []byte {
 	// TODO(gri) factor out handling of sign?
 
 	// Inf
-	if x.IsInf(0) {
+	if x.IsInf() {
 		var ch byte = '+'
 		if x.neg {
 			ch = '-'
@@ -261,7 +261,7 @@ func (x *Float) Append(buf []byte, format byte, prec int) []byte {
 	return x.bigFtoa(buf, format, prec)
 }
 
-// BUG(gri): Currently, String uses x.Format('g', 10) rather than x.Format('g', -1).
+// BUG(gri): Float.String uses x.Format('g', 10) rather than x.Format('g', -1).
 func (x *Float) String() string {
 	return x.Format('g', 10)
 }
