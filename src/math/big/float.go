@@ -87,30 +87,31 @@ const (
 )
 
 // Accuracy describes the rounding error produced by the most recent
-// operation that generated a Float value, relative to the exact value:
-//
-//  -1: below exact value
-//   0: exact value
-//  +1: above exact value
-//
+// operation that generated a Float value, relative to the exact value.
+// The accuracy may be Undef (either Below or Above) for operations on
+// and resulting in NaNs.
 type Accuracy int8
 
 // Constants describing the Accuracy of a Float.
 const (
-	Below Accuracy = -1
 	Exact Accuracy = 0
-	Above Accuracy = +1
+	Below Accuracy = 1 << 0
+	Above Accuracy = 1 << 1
+	Undef Accuracy = Below | Above
 )
 
 func (a Accuracy) String() string {
-	switch {
-	case a < 0:
-		return "below"
-	default:
+	switch a {
+	case Exact:
 		return "exact"
-	case a > 0:
+	case Below:
+		return "below"
+	case Above:
 		return "above"
+	case Undef:
+		return "undef"
 	}
+	panic(fmt.Sprintf("unknown accuracy %d", a))
 }
 
 // RoundingMode determines how a Float value is rounded to the
@@ -391,6 +392,9 @@ func (z *Float) round(sbit uint) {
 	// handle zero, Inf, and NaN
 	m := uint32(len(z.mant)) // present mantissa length in words
 	if m == 0 {
+		if z.exp == nanExp {
+			z.acc = Undef
+		}
 		return
 	}
 	// m > 0 implies z.prec > 0 (checked by validate)
@@ -507,8 +511,8 @@ func (z *Float) round(sbit uint) {
 	z.mant[0] &^= lsb - 1
 
 	// update accuracy
-	if z.neg {
-		z.acc = -z.acc
+	if z.acc != Exact && z.neg {
+		z.acc ^= Below | Above
 	}
 
 	if debugFloat {
@@ -751,9 +755,8 @@ func high64(x nat) uint64 {
 // Uint64 returns the unsigned integer resulting from truncating x
 // towards zero. If 0 <= x <= math.MaxUint64, the result is Exact
 // if x is an integer and Below otherwise.
-// The result is (0, Above) for x < 0, and (math.MaxUint64, Below)
-// for x > math.MaxUint64.
-// BUG(gri) not implemented for NaN
+// The result is (0, Above) for x < 0, (math.MaxUint64, Below)
+// for x > math.MaxUint64, and (0, Undef) for NaNs.
 func (x *Float) Uint64() (uint64, Accuracy) {
 	if debugFloat {
 		validate(x)
@@ -770,7 +773,7 @@ func (x *Float) Uint64() (uint64, Accuracy) {
 			}
 			return math.MaxUint64, Below // +Inf
 		case nanExp:
-			panic("unimplemented")
+			return 0, Undef // NaN
 		}
 		panic("unreachable")
 	}
@@ -799,9 +802,8 @@ func (x *Float) Uint64() (uint64, Accuracy) {
 // Int64 returns the integer resulting from truncating x towards zero.
 // If math.MinInt64 <= x <= math.MaxInt64, the result is Exact if x is
 // an integer, and Above (x < 0) or Below (x > 0) otherwise.
-// The result is (math.MinInt64, Above) for x < math.MinInt64, and
-// (math.MaxInt64, Below) for x > math.MaxInt64.
-// BUG(gri) incorrect result for NaN
+// The result is (math.MinInt64, Above) for x < math.MinInt64,
+// (math.MaxInt64, Below) for x > math.MaxInt64, and (0, Undef) for NaNs.
 func (x *Float) Int64() (int64, Accuracy) {
 	if debugFloat {
 		validate(x)
@@ -818,8 +820,7 @@ func (x *Float) Int64() (int64, Accuracy) {
 			}
 			return math.MaxInt64, Below // +Inf
 		case nanExp:
-			// TODO(gri) fix this
-			return 0, Exact
+			return 0, Undef // NaN
 		}
 		panic("unreachable")
 	}
@@ -860,7 +861,7 @@ func (x *Float) Int64() (int64, Accuracy) {
 
 // Float64 returns the closest float64 value of x
 // by rounding to nearest with 53 bits precision.
-// BUG(gri) accuracy incorrect for NaN, doesn't handle exponent overflow
+// BUG(gri) doesn't handle exponent overflow
 func (x *Float) Float64() (float64, Accuracy) {
 	if debugFloat {
 		validate(x)
@@ -882,7 +883,7 @@ func (x *Float) Float64() (float64, Accuracy) {
 			}
 			return math.Inf(sign), Exact
 		case nanExp:
-			return math.NaN(), Exact
+			return math.NaN(), Undef
 		}
 		panic("unreachable")
 	}
@@ -906,7 +907,6 @@ func (x *Float) Float64() (float64, Accuracy) {
 // for x > 0, and Above for x < 0.
 // If a non-nil *Int argument z is provided, Int stores
 // the result in z instead of allocating a new Int.
-// BUG(gri) accuracy incorrect for for NaN
 func (x *Float) Int(z *Int) (*Int, Accuracy) {
 	if debugFloat {
 		validate(x)
@@ -930,8 +930,7 @@ func (x *Float) Int(z *Int) (*Int, Accuracy) {
 			}
 			return nil, Below
 		case nanExp:
-			// TODO(gri) fix accuracy for NaN
-			return nil, Exact
+			return nil, Undef
 		}
 		panic("unreachable")
 	}
@@ -976,7 +975,6 @@ func (x *Float) Int(z *Int) (*Int, Accuracy) {
 // The result is Exact is x is not an Inf or NaN.
 // If a non-nil *Rat argument z is provided, Rat stores
 // the result in z instead of allocating a new Rat.
-// BUG(gri) incorrect accuracy for Inf, NaN.
 func (x *Float) Rat(z *Rat) (*Rat, Accuracy) {
 	if debugFloat {
 		validate(x)
@@ -1000,8 +998,7 @@ func (x *Float) Rat(z *Rat) (*Rat, Accuracy) {
 			}
 			return nil, Below
 		case nanExp:
-			// TODO(gri) fix accuracy
-			return nil, Exact
+			return nil, Undef
 		}
 		panic("unreachable")
 	}
@@ -1499,6 +1496,7 @@ func (z *Float) Rsh(x *Float, s uint) *Float {
 // Infinities with matching sign are equal.
 // NaN values are never equal.
 // BUG(gri) comparing NaN's is not implemented
+// (should we use Accuracy here for results?)
 func (x *Float) Cmp(y *Float) int {
 	if debugFloat {
 		validate(x)
