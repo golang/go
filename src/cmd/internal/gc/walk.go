@@ -3235,9 +3235,6 @@ func sliceany(n *Node, init **NodeList) *Node {
 
 	// Checking src[lb:hb:cb] or src[lb:hb].
 	// if chk0 || chk1 || chk2 { panicslice() }
-	var chk0 *Node // cap(src) < cb
-	var chk1 *Node // cb < hb for src[lb:hb:cb]; cap(src) < hb for src[lb:hb]
-	var chk2 *Node // hb < lb
 
 	// All comparisons are unsigned to avoid testing < 0.
 	bt := Types[Simtype[TUINT]]
@@ -3254,6 +3251,7 @@ func sliceany(n *Node, init **NodeList) *Node {
 
 	bound = cheapexpr(conv(bound, bt), init)
 
+	var chk0 *Node // cap(src) < cb
 	if cb != nil {
 		cb = cheapexpr(conv(cb, bt), init)
 		if bounded == 0 {
@@ -3264,6 +3262,7 @@ func sliceany(n *Node, init **NodeList) *Node {
 		Fatal("slice3 with cb == N") // rejected by parser
 	}
 
+	var chk1 *Node // cb < hb for src[lb:hb:cb]; cap(src) < hb for src[lb:hb]
 	if hb != nil {
 		hb = cheapexpr(conv(hb, bt), init)
 		if bounded == 0 {
@@ -3285,6 +3284,7 @@ func sliceany(n *Node, init **NodeList) *Node {
 		hb = cheapexpr(conv(hb, bt), init)
 	}
 
+	var chk2 *Node // hb < lb
 	if lb != nil {
 		lb = cheapexpr(conv(lb, bt), init)
 		if bounded == 0 {
@@ -3432,14 +3432,6 @@ func walkcompare(np **Node, init **NodeList) {
 		r = n.Left
 	}
 
-	var call *Node
-	var a *Node
-	var cmpl *Node
-	var cmpr *Node
-	var andor int
-	var expr *Node
-	var needsize int
-	var t *Type
 	if l != nil {
 		x := temp(r.Type)
 		ok := temp(Types[TBOOL])
@@ -3464,12 +3456,13 @@ func walkcompare(np **Node, init **NodeList) {
 			r = Nod(OOROR, Nod(ONOT, ok, nil), Nod(ONE, x, r))
 		}
 		*init = list(*init, expr)
-		goto ret
+		finishcompare(np, n, r, init)
+		return
 	}
 
 	// Must be comparison of array or struct.
 	// Otherwise back end handles it.
-	t = n.Left.Type
+	t := n.Left.Type
 
 	switch t.Etype {
 	default:
@@ -3484,11 +3477,11 @@ func walkcompare(np **Node, init **NodeList) {
 		break
 	}
 
-	cmpl = n.Left
+	cmpl := n.Left
 	for cmpl != nil && cmpl.Op == OCONVNOP {
 		cmpl = cmpl.Left
 	}
-	cmpr = n.Right
+	cmpr := n.Right
 	for cmpr != nil && cmpr.Op == OCONVNOP {
 		cmpr = cmpr.Left
 	}
@@ -3498,7 +3491,7 @@ func walkcompare(np **Node, init **NodeList) {
 	}
 
 	l = temp(Ptrto(t))
-	a = Nod(OAS, l, Nod(OADDR, cmpl, nil))
+	a := Nod(OAS, l, Nod(OADDR, cmpl, nil))
 	a.Right.Etype = 1 // addr does not escape
 	typecheck(&a, Etop)
 	*init = list(*init, a)
@@ -3509,12 +3502,12 @@ func walkcompare(np **Node, init **NodeList) {
 	typecheck(&a, Etop)
 	*init = list(*init, a)
 
-	expr = nil
-	andor = OANDAND
+	andor := OANDAND
 	if n.Op == ONE {
 		andor = OOROR
 	}
 
+	var expr *Node
 	if t.Etype == TARRAY && t.Bound <= 4 && issimple[t.Type.Etype] {
 		// Four or fewer elements of a basic type.
 		// Unroll comparisons.
@@ -3534,8 +3527,8 @@ func walkcompare(np **Node, init **NodeList) {
 		if expr == nil {
 			expr = Nodbool(n.Op == OEQ)
 		}
-		r = expr
-		goto ret
+		finishcompare(np, n, expr, init)
+		return
 	}
 
 	if t.Etype == TSTRUCT && countfield(t) <= 4 {
@@ -3560,12 +3553,13 @@ func walkcompare(np **Node, init **NodeList) {
 		if expr == nil {
 			expr = Nodbool(n.Op == OEQ)
 		}
-		r = expr
-		goto ret
+		finishcompare(np, n, expr, init)
+		return
 	}
 
 	// Chose not to inline.  Call equality function directly.
-	call = Nod(OCALL, eqfor(t, &needsize), nil)
+	var needsize int
+	call := Nod(OCALL, eqfor(t, &needsize), nil)
 
 	call.List = list(call.List, l)
 	call.List = list(call.List, r)
@@ -3576,19 +3570,23 @@ func walkcompare(np **Node, init **NodeList) {
 	if n.Op != OEQ {
 		r = Nod(ONOT, r, nil)
 	}
-	goto ret
 
-ret:
-	typecheck(&r, Erv)
-	walkexpr(&r, init)
+	finishcompare(np, n, r, init)
+	return
+}
+
+func finishcompare(np **Node, n, r *Node, init **NodeList) {
+	// Using np here to avoid passing &r to typecheck.
+	*np = r
+	typecheck(np, Erv)
+	walkexpr(np, init)
+	r = *np
 	if r.Type != n.Type {
 		r = Nod(OCONVNOP, r, nil)
 		r.Type = n.Type
 		r.Typecheck = 1
+		*np = r
 	}
-
-	*np = r
-	return
 }
 
 func samecheap(a *Node, b *Node) bool {

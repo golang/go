@@ -503,7 +503,6 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		gmove(&n31, &n3)
 	}
 
-	var p2 *obj.Prog
 	var n4 gc.Node
 	if gc.Nacl {
 		// Native Client does not relay the divide-by-zero trap
@@ -520,6 +519,7 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		gc.Patch(p1, gc.Pc)
 	}
 
+	var p2 *obj.Prog
 	if check != 0 {
 		gc.Nodconst(&n4, t, -1)
 		gins(optoas(gc.OCMP, t), &n3, &n4)

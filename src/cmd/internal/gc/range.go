@@ -136,7 +136,6 @@ out:
 
 func walkrange(n *Node) {
 	t := n.Type
-	var init *NodeList
 
 	a := n.Right
 	lno := int(setlineno(a))
@@ -154,9 +153,8 @@ func walkrange(n *Node) {
 	// to avoid erroneous processing by racewalk.
 	n.List = nil
 
-	var hv2 *Node
-
 	var body *NodeList
+	var init *NodeList
 	switch t.Etype {
 	default:
 		Fatal("walkrange")
@@ -366,6 +364,7 @@ func walkrange(n *Node) {
 		init = list(init, Nod(OAS, hv1, nil))
 
 		var a *Node
+		var hv2 *Node
 		if v2 == nil {
 			a = Nod(OAS, hv1, mkcall("stringiter", Types[TINT], nil, ha, hv1))
 		} else {

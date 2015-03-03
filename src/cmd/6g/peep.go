@@ -825,8 +825,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 	if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
 		return 0
 	}
-	var info gc.ProgInfo
-	info = proginfo(p)
+	info := proginfo(p)
 
 	if (info.Reguse|info.Regset)&RtoB(int(v.Reg)) != 0 {
 		return 2

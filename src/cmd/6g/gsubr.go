@@ -314,7 +314,6 @@ func gmove(f *gc.Node, t *gc.Node) {
 	}
 
 	// cannot have two memory operands
-	var r1 gc.Node
 	var a int
 	if gc.Ismem(f) && gc.Ismem(t) {
 		goto hard
@@ -669,15 +668,19 @@ func gmove(f *gc.Node, t *gc.Node) {
 
 	// requires register destination
 rdst:
-	regalloc(&r1, t.Type, t)
+	{
+		var r1 gc.Node
+		regalloc(&r1, t.Type, t)
 
-	gins(a, f, &r1)
-	gmove(&r1, t)
-	regfree(&r1)
-	return
+		gins(a, f, &r1)
+		gmove(&r1, t)
+		regfree(&r1)
+		return
+	}
 
 	// requires register intermediate
 hard:
+	var r1 gc.Node
 	regalloc(&r1, cvt, t)
 
 	gmove(f, &r1)
@@ -744,12 +747,12 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 	}
 
 	var af obj.Addr
-	var at obj.Addr
 	if f != nil {
-		gc.Naddr(f, &af, 1)
+		af = gc.Naddr(f, 1)
 	}
+	var at obj.Addr
 	if t != nil {
-		gc.Naddr(t, &at, 1)
+		at = gc.Naddr(t, 1)
 	}
 	p := gc.Prog(as)
 	if f != nil {
@@ -1402,7 +1405,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
 		reg1 := &clean[cleani-2]
 		reg.Op = gc.OEMPTY
 		reg1.Op = gc.OEMPTY
-		gc.Naddr(n, a, 1)
+		*a = gc.Naddr(n, 1)
 		return true
 
 	case gc.ODOT,
@@ -1426,7 +1429,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
 
 			n1.Type = n.Type
 			n1.Xoffset += oary[0]
-			gc.Naddr(&n1, a, 1)
+			*a = gc.Naddr(&n1, 1)
 			return true
 		}
 
@@ -1454,7 +1457,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
 		a.Type = obj.TYPE_NONE
 		a.Index = obj.TYPE_NONE
 		fixlargeoffset(&n1)
-		gc.Naddr(&n1, a, 1)
+		*a = gc.Naddr(&n1, 1)
 		return true
 
 	case gc.OINDEX:

@@ -596,7 +596,6 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	declare(xfunc.Nname, PFUNC)
 
 	// Declare and initialize variable holding receiver.
-	var body *NodeList
 
 	xfunc.Needctxt = true
 	cv := Nod(OCLOSUREVAR, nil, nil)
@@ -613,6 +612,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	ptr.Used = 1
 	ptr.Curfn = xfunc
 	xfunc.Dcl = list(xfunc.Dcl, ptr)
+	var body *NodeList
 	if Isptr[rcvrtype.Etype] || Isinter(rcvrtype) {
 		ptr.Ntype = typenod(rcvrtype)
 		body = list(body, Nod(OAS, ptr, cv))

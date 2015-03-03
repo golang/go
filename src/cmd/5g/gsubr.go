@@ -766,12 +766,14 @@ func gmove(f *gc.Node, t *gc.Node) {
 	// removed.
 	// requires register destination
 rdst:
-	regalloc(&r1, t.Type, t)
+	{
+		regalloc(&r1, t.Type, t)
 
-	gins(a, f, &r1)
-	gmove(&r1, t)
-	regfree(&r1)
-	return
+		gins(a, f, &r1)
+		gmove(&r1, t)
+		regfree(&r1)
+		return
+	}
 
 	// requires register intermediate
 hard:
@@ -844,10 +846,10 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 
 	var at obj.Addr
 	if f != nil {
-		gc.Naddr(f, &af, 1)
+		af = gc.Naddr(f, 1)
 	}
 	if t != nil {
-		gc.Naddr(t, &at, 1)
+		at = gc.Naddr(t, 1)
 	}
 	p := gc.Prog(as)
 	if f != nil {
@@ -868,7 +870,7 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 func raddr(n *gc.Node, p *obj.Prog) {
 	var a obj.Addr
 
-	gc.Naddr(n, &a, 1)
+	a = gc.Naddr(n, 1)
 	if a.Type != obj.TYPE_REG {
 		if n != nil {
 			gc.Fatal("bad in raddr: %v", gc.Oconv(int(n.Op), 0))
@@ -1304,7 +1306,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr, w *int) bool {
 		reg1 := &clean[cleani-2]
 		reg.Op = gc.OEMPTY
 		reg1.Op = gc.OEMPTY
-		gc.Naddr(n, a, 1)
+		*a = gc.Naddr(n, 1)
 		return true
 
 	case gc.ODOT,
@@ -1328,7 +1330,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr, w *int) bool {
 
 			n1.Type = n.Type
 			n1.Xoffset += oary[0]
-			gc.Naddr(&n1, a, 1)
+			*a = gc.Naddr(&n1, 1)
 			return true
 		}
 
@@ -1356,7 +1358,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr, w *int) bool {
 		a.Type = obj.TYPE_NONE
 		a.Name = obj.NAME_NONE
 		n1.Type = n.Type
-		gc.Naddr(&n1, a, 1)
+		*a = gc.Naddr(&n1, 1)
 		return true
 
 	case gc.OINDEX:
