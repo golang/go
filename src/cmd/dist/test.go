@@ -287,12 +287,12 @@ func (t *tester) registerTests() {
 		} else if t.hasBash() {
 			t.registerTest("testso", "../misc/cgo/testso", "./test.bash")
 		}
-	}
-	if t.gohostos == "linux" && t.goarch == "amd64" {
-		t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
-	}
-	if t.hasBash() && cgo && t.gohostos != "windows" {
-		t.registerTest("cgo_errors", "../misc/cgo/errors", "./test.bash")
+		if t.gohostos == "linux" && t.goarch == "amd64" {
+			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
+		}
+		if t.hasBash() && t.gohostos != "windows" {
+			t.registerTest("cgo_errors", "../misc/cgo/errors", "./test.bash")
+		}
 	}
 	if t.hasBash() && t.goos != "nacl" && t.goos != "android" {
 		t.registerTest("doc_progs", "../doc/progs", "time", "./run")
