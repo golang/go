@@ -78,7 +78,7 @@ func TestFloatZeroValue(t *testing.T) {
 		z := make(test.z)
 		test.op(z, make(test.x), make(test.y))
 		got := 0
-		if !z.IsInf(0) && !z.IsNaN() {
+		if z.IsFinite() {
 			got = int(z.int64())
 		}
 		if got != test.want {
@@ -288,6 +288,38 @@ func TestFloatSetMantExp(t *testing.T) {
 	}
 }
 
+func TestFloatPredicates(t *testing.T) {
+	for _, test := range []struct {
+		x                           string
+		neg, zero, finite, inf, nan bool
+	}{
+		{x: "-Inf", neg: true, inf: true},
+		{x: "-1", neg: true, finite: true},
+		{x: "-0", neg: true, zero: true, finite: true},
+		{x: "0", zero: true, finite: true},
+		{x: "1", finite: true},
+		{x: "+Inf", inf: true},
+		{x: "NaN", nan: true},
+	} {
+		x := makeFloat(test.x)
+		if got := x.IsNeg(); got != test.neg {
+			t.Errorf("(%s).IsNeg() = %v; want %v", test.x, got, test.neg)
+		}
+		if got := x.IsZero(); got != test.zero {
+			t.Errorf("(%s).IsZero() = %v; want %v", test.x, got, test.zero)
+		}
+		if got := x.IsFinite(); got != test.finite {
+			t.Errorf("(%s).IsFinite() = %v; want %v", test.x, got, test.finite)
+		}
+		if got := x.IsInf(); got != test.inf {
+			t.Errorf("(%s).IsInf() = %v; want %v", test.x, got, test.inf)
+		}
+		if got := x.IsNaN(); got != test.nan {
+			t.Errorf("(%s).IsNaN() = %v; want %v", test.x, got, test.nan)
+		}
+	}
+}
+
 func TestFloatIsInt(t *testing.T) {
 	for _, test := range []string{
 		"0 int",
@@ -312,14 +344,6 @@ func TestFloatIsInt(t *testing.T) {
 			t.Errorf("%s.IsInt() == %t", s, got)
 		}
 	}
-}
-
-func TestFloatIsInf(t *testing.T) {
-	// TODO(gri) implement this
-}
-
-func TestFloatIsNaN(t *testing.T) {
-	// TODO(gri) implement this
 }
 
 func fromBinary(s string) int64 {
@@ -738,10 +762,6 @@ func TestFloatSetInf(t *testing.T) {
 			t.Errorf("SetInf(%d) = %s (prec = %d); want %s (prec = %d)", test.sign, got, x.Prec(), test.want, test.prec)
 		}
 	}
-}
-
-func TestFloatSetNaN(t *testing.T) {
-	// TODO(gri) implement
 }
 
 func TestFloatUint64(t *testing.T) {

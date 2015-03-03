@@ -12,7 +12,7 @@ import (
 // TODO(gri) add more examples
 
 func ExampleFloat_Add() {
-	// Operating on numbers of different precision is easy.
+	// Operating on numbers of different precision.
 	var x, y, z big.Float
 	x.SetInt64(1000)          // x is automatically set to 64bit precision
 	y.SetFloat64(2.718281828) // y is automatically set to 53bit precision
@@ -22,9 +22,9 @@ func ExampleFloat_Add() {
 	fmt.Printf("y = %s (%s, prec = %d, acc = %s)\n", &y, y.Format('p', 0), y.Prec(), y.Acc())
 	fmt.Printf("z = %s (%s, prec = %d, acc = %s)\n", &z, z.Format('p', 0), z.Prec(), z.Acc())
 	// Output:
-	// x = 1000 (0x.fap10, prec = 64, acc = exact)
-	// y = 2.718281828 (0x.adf85458248cd8p2, prec = 53, acc = exact)
-	// z = 1002.718282 (0x.faadf854p10, prec = 32, acc = below)
+	// x = 1000 (0x.fap10, prec = 64, acc = Exact)
+	// y = 2.718281828 (0x.adf85458248cd8p2, prec = 53, acc = Exact)
+	// z = 1002.718282 (0x.faadf854p10, prec = 32, acc = Below)
 }
 
 func Example_Shift() {
