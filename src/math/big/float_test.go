@@ -70,7 +70,7 @@ func TestFloatZeroValue(t *testing.T) {
 		{1, 2, 0, 0, '*', (*Float).Mul},
 		{2, 0, 1, 0, '*', (*Float).Mul},
 
-		{0, 0, 0, 0, '/', (*Float).Quo}, // = +Inf
+		{0, 0, 0, 0, '/', (*Float).Quo}, // = Nan
 		{0, 2, 1, 2, '/', (*Float).Quo},
 		{1, 2, 0, 0, '/', (*Float).Quo}, // = +Inf
 		{2, 0, 1, 0, '/', (*Float).Quo},
@@ -78,7 +78,7 @@ func TestFloatZeroValue(t *testing.T) {
 		z := make(test.z)
 		test.op(z, make(test.x), make(test.y))
 		got := 0
-		if !z.IsInf(0) {
+		if !z.IsInf(0) && !z.IsNaN() {
 			got = int(z.int64())
 		}
 		if got != test.want {
@@ -625,8 +625,8 @@ func TestFloatSetFloat64(t *testing.T) {
 	// test NaN
 	var f Float
 	f.SetFloat64(math.NaN())
-	if got, acc := f.Float64(); !math.IsNaN(got) || acc != Exact {
-		t.Errorf("got %g (%s, %s); want %g (exact)", got, f.Format('p', 0), acc, math.NaN())
+	if got, acc := f.Float64(); !math.IsNaN(got) || acc != Undef {
+		t.Errorf("got %g (%s, %s); want %g (undef)", got, f.Format('p', 0), acc, math.NaN())
 	}
 
 	// test basic rounding behavior (exhaustive rounding testing is done elsewhere)
@@ -765,7 +765,7 @@ func TestFloatUint64(t *testing.T) {
 		{"18446744073709551616", math.MaxUint64, Below},
 		{"1e10000", math.MaxUint64, Below},
 		{"+Inf", math.MaxUint64, Below},
-		// {"NaN", 0, Exact}, TODO(gri) enable once implemented
+		{"NaN", 0, Undef},
 	} {
 		x := makeFloat(test.x)
 		out, acc := x.Uint64()
@@ -804,7 +804,7 @@ func TestFloatInt64(t *testing.T) {
 		{"9223372036854775808", math.MaxInt64, Below},
 		{"1e10000", math.MaxInt64, Below},
 		{"+Inf", math.MaxInt64, Below},
-		// {"NaN", 0, Exact}, TODO(gri) enable once implemented
+		{"NaN", 0, Undef},
 	} {
 		x := makeFloat(test.x)
 		out, acc := x.Int64()
@@ -826,6 +826,7 @@ func TestFloatInt(t *testing.T) {
 		{"Inf", "nil", Below},
 		{"+Inf", "nil", Below},
 		{"-Inf", "nil", Above},
+		{"NaN", "nil", Undef},
 		{"1", "1", Exact},
 		{"-1", "-1", Exact},
 		{"1.23", "1", Below},
@@ -862,21 +863,23 @@ func TestFloatInt(t *testing.T) {
 func TestFloatRat(t *testing.T) {
 	for _, test := range []struct {
 		x, want string
+		acc     Accuracy
 	}{
-		{"0", "0/1"},
-		{"+0", "0/1"},
-		{"-0", "0/1"},
-		{"Inf", "nil"},
-		{"+Inf", "nil"},
-		{"-Inf", "nil"},
-		{"1", "1/1"},
-		{"-1", "-1/1"},
-		{"1.25", "5/4"},
-		{"-1.25", "-5/4"},
-		{"1e10", "10000000000/1"},
-		{"1p10", "1024/1"},
-		{"-1p-10", "-1/1024"},
-		{"3.14159265", "7244019449799623199/2305843009213693952"},
+		{"0", "0/1", Exact},
+		{"+0", "0/1", Exact},
+		{"-0", "0/1", Exact},
+		{"Inf", "nil", Below},
+		{"+Inf", "nil", Below},
+		{"-Inf", "nil", Above},
+		{"NaN", "nil", Undef},
+		{"1", "1/1", Exact},
+		{"-1", "-1/1", Exact},
+		{"1.25", "5/4", Exact},
+		{"-1.25", "-5/4", Exact},
+		{"1e10", "10000000000/1", Exact},
+		{"1p10", "1024/1", Exact},
+		{"-1p-10", "-1/1024", Exact},
+		{"3.14159265", "7244019449799623199/2305843009213693952", Exact},
 	} {
 		x := makeFloat(test.x).SetPrec(64)
 		res, acc := x.Rat(nil)
@@ -888,8 +891,10 @@ func TestFloatRat(t *testing.T) {
 			t.Errorf("%s: got %s; want %s", test.x, got, test.want)
 			continue
 		}
-		// TODO(gri) check accuracy
-		_ = acc
+		if acc != test.acc {
+			t.Errorf("%s: got %s; want %s", test.x, acc, test.acc)
+			continue
+		}
 
 		// inverse conversion
 		if res != nil {
