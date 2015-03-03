@@ -100,11 +100,6 @@ type Array struct {
 	data     string
 }
 
-type Bvec struct {
-	n int32
-	b []uint32
-}
-
 type Pkg struct {
 	Name     string
 	Path     string
