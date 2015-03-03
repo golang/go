@@ -1361,17 +1361,18 @@ func buildop(ctxt *obj.Link) {
 
 	sort.Sort(ocmp(optab[:n]))
 	for i := 0; i < n; i++ {
-		r0 := optab[i].as & obj.AMask
+		r := optab[i].as
+		r0 := r & obj.AMask
 		oprange[r0].start = optab[i:]
-		for optab[i].as&obj.AMask == r0 {
+		for optab[i].as == r {
 			i++
 		}
 		oprange[r0].stop = optab[i:]
 		i--
 
-		switch r0 {
+		switch r {
 		default:
-			ctxt.Diag("unknown op in build: %v", obj.Aconv(int(optab[i].as)))
+			ctxt.Diag("unknown op in build: %v", obj.Aconv(int(r)))
 			log.Fatalf("bad code")
 
 		case AADD:
