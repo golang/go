@@ -21,12 +21,16 @@ import (
 	"sort"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 var (
 	driversMu sync.RWMutex
 	drivers   = make(map[string]driver.Driver)
 )
+
+// nowFunc returns the current time; it's overridden in tests.
+var nowFunc = time.Now
 
 // Register makes a database driver available by the provided name.
 // If Register is called twice with the same name or if driver is nil,
@@ -235,12 +239,14 @@ type DB struct {
 	// maybeOpenNewConnections sends on the chan (one send per needed connection)
 	// It is closed during db.Close(). The close tells the connectionOpener
 	// goroutine to exit.
-	openerCh chan struct{}
-	closed   bool
-	dep      map[finalCloser]depSet
-	lastPut  map[*driverConn]string // stacktrace of last conn's put; debug only
-	maxIdle  int                    // zero means defaultMaxIdleConns; negative means 0
-	maxOpen  int                    // <= 0 means unlimited
+	openerCh    chan struct{}
+	closed      bool
+	dep         map[finalCloser]depSet
+	lastPut     map[*driverConn]string // stacktrace of last conn's put; debug only
+	maxIdle     int                    // zero means defaultMaxIdleConns; negative means 0
+	maxOpen     int                    // <= 0 means unlimited
+	maxLifetime time.Duration          // maximum amount of time a connection may be reused
+	cleanerCh   chan struct{}
 }
 
 // connReuseStrategy determines how (*DB).conn returns database connections.
@@ -260,7 +266,8 @@ const (
 // interfaces returned via that Conn, such as calls on Tx, Stmt,
 // Result, Rows)
 type driverConn struct {
-	db *DB
+	db        *DB
+	createdAt time.Time
 
 	sync.Mutex  // guards following
 	ci          driver.Conn
@@ -282,6 +289,13 @@ func (dc *driverConn) removeOpenStmt(si driver.Stmt) {
 	dc.Lock()
 	defer dc.Unlock()
 	delete(dc.openStmt, si)
+}
+
+func (dc *driverConn) expired(timeout time.Duration) bool {
+	if timeout <= 0 {
+		return false
+	}
+	return dc.createdAt.Add(timeout).Before(nowFunc())
 }
 
 func (dc *driverConn) prepareLocked(query string) (driver.Stmt, error) {
@@ -506,6 +520,9 @@ func (db *DB) Close() error {
 		return nil
 	}
 	close(db.openerCh)
+	if db.cleanerCh != nil {
+		close(db.cleanerCh)
+	}
 	var err error
 	fns := make([]func() error, 0, len(db.freeConn))
 	for _, dc := range db.freeConn {
@@ -594,6 +611,84 @@ func (db *DB) SetMaxOpenConns(n int) {
 	}
 }
 
+// SetConnMaxLifetime sets the maximum amount of time a connection may be reused.
+//
+// Expired connections may be closed lazily before reuse.
+//
+// If d <= 0, connections are reused forever.
+func (db *DB) SetConnMaxLifetime(d time.Duration) {
+	if d < 0 {
+		d = 0
+	}
+	db.mu.Lock()
+	// wake cleaner up when lifetime is shortened.
+	if d > 0 && d < db.maxLifetime && db.cleanerCh != nil {
+		select {
+		case db.cleanerCh <- struct{}{}:
+		default:
+		}
+	}
+	db.maxLifetime = d
+	db.startCleanerLocked()
+	db.mu.Unlock()
+}
+
+// startCleanerLocked starts connectionCleaner if needed.
+func (db *DB) startCleanerLocked() {
+	if db.maxLifetime > 0 && db.numOpen > 0 && db.cleanerCh == nil {
+		db.cleanerCh = make(chan struct{}, 1)
+		go db.connectionCleaner(db.maxLifetime)
+	}
+}
+
+func (db *DB) connectionCleaner(d time.Duration) {
+	const minInterval = time.Second
+
+	if d < minInterval {
+		d = minInterval
+	}
+	t := time.NewTimer(d)
+
+	for {
+		select {
+		case <-t.C:
+		case <-db.cleanerCh: // maxLifetime was changed or db was closed.
+		}
+
+		db.mu.Lock()
+		d = db.maxLifetime
+		if db.closed || db.numOpen == 0 || d <= 0 {
+			db.cleanerCh = nil
+			db.mu.Unlock()
+			return
+		}
+
+		expiredSince := nowFunc().Add(-d)
+		var closing []*driverConn
+		for i := 0; i < len(db.freeConn); i++ {
+			c := db.freeConn[i]
+			if c.createdAt.Before(expiredSince) {
+				closing = append(closing, c)
+				last := len(db.freeConn) - 1
+				db.freeConn[i] = db.freeConn[last]
+				db.freeConn[last] = nil
+				db.freeConn = db.freeConn[:last]
+				i--
+			}
+		}
+		db.mu.Unlock()
+
+		for _, c := range closing {
+			c.Close()
+		}
+
+		if d < minInterval {
+			d = minInterval
+		}
+		t.Reset(d)
+	}
+}
+
 // DBStats contains database statistics.
 type DBStats struct {
 	// OpenConnections is the number of open connections to the database.
@@ -657,8 +752,9 @@ func (db *DB) openNewConnection() {
 		return
 	}
 	dc := &driverConn{
-		db: db,
-		ci: ci,
+		db:        db,
+		createdAt: nowFunc(),
+		ci:        ci,
 	}
 	if db.putConnDBLocked(dc, err) {
 		db.addDepLocked(dc, dc)
@@ -685,6 +781,7 @@ func (db *DB) conn(strategy connReuseStrategy) (*driverConn, error) {
 		db.mu.Unlock()
 		return nil, errDBClosed
 	}
+	lifetime := db.maxLifetime
 
 	// Prefer a free connection, if possible.
 	numFree := len(db.freeConn)
@@ -694,6 +791,10 @@ func (db *DB) conn(strategy connReuseStrategy) (*driverConn, error) {
 		db.freeConn = db.freeConn[:numFree-1]
 		conn.inUse = true
 		db.mu.Unlock()
+		if conn.expired(lifetime) {
+			conn.Close()
+			return nil, driver.ErrBadConn
+		}
 		return conn, nil
 	}
 
@@ -708,6 +809,10 @@ func (db *DB) conn(strategy connReuseStrategy) (*driverConn, error) {
 		ret, ok := <-req
 		if !ok {
 			return nil, errDBClosed
+		}
+		if ret.err == nil && ret.conn.expired(lifetime) {
+			ret.conn.Close()
+			return nil, driver.ErrBadConn
 		}
 		return ret.conn, ret.err
 	}
@@ -724,8 +829,9 @@ func (db *DB) conn(strategy connReuseStrategy) (*driverConn, error) {
 	}
 	db.mu.Lock()
 	dc := &driverConn{
-		db: db,
-		ci: ci,
+		db:        db,
+		createdAt: nowFunc(),
+		ci:        ci,
 	}
 	db.addDepLocked(dc, dc)
 	dc.inUse = true
@@ -835,6 +941,7 @@ func (db *DB) putConnDBLocked(dc *driverConn, err error) bool {
 		return true
 	} else if err == nil && !db.closed && db.maxIdleConnsLocked() > len(db.freeConn) {
 		db.freeConn = append(db.freeConn, dc)
+		db.startCleanerLocked()
 		return true
 	}
 	return false
