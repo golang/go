@@ -37,94 +37,124 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 const (
-	ElfClassNone = 0 + iota
-	ElfClass32
-	ElfClass64
-	ElfDataNone = 0 + iota - 3
-	ElfDataLsb
-	ElfDataMsb
-	ElfTypeNone = 0 + iota - 6
-	ElfTypeRelocatable
-	ElfTypeExecutable
-	ElfTypeSharedObject
-	ElfTypeCore
-	ElfMachNone = 0 + iota - 11
-	ElfMach32100
-	ElfMachSparc
-	ElfMach386
-	ElfMach68000
-	ElfMach88000
-	ElfMach486
-	ElfMach860
-	ElfMachMips
-	ElfMachS370
-	ElfMachMipsLe
-	ElfMachParisc = 15
-	ElfMachVpp500 = 17 + iota - 23
-	ElfMachSparc32Plus
-	ElfMach960
-	ElfMachPower
-	ElfMachPower64
-	ElfMachS390
-	ElfMachV800 = 36 + iota - 29
-	ElfMachFr20
-	ElfMachRh32
-	ElfMachRce
-	ElfMachArm
-	ElfMachAlpha
-	ElfMachSH
-	ElfMachSparc9
-	ElfMachAmd64  = 62
-	ElfAbiNone    = 0
-	ElfAbiSystemV = 0 + iota - 39
-	ElfAbiHPUX
-	ElfAbiNetBSD
-	ElfAbiLinux
-	ElfAbiSolaris = 6 + iota - 43
-	ElfAbiAix
-	ElfAbiIrix
-	ElfAbiFreeBSD
-	ElfAbiTru64
-	ElfAbiModesto
-	ElfAbiOpenBSD
+	ElfClassNone = 0
+	ElfClass32   = 1
+	ElfClass64   = 2
+)
+
+const (
+	ElfDataNone = 0
+	ElfDataLsb  = 1
+	ElfDataMsb  = 2
+)
+
+const (
+	ElfTypeNone         = 0
+	ElfTypeRelocatable  = 1
+	ElfTypeExecutable   = 2
+	ElfTypeSharedObject = 3
+	ElfTypeCore         = 4
+)
+
+const (
+	ElfMachNone        = 0
+	ElfMach32100       = 1
+	ElfMachSparc       = 2
+	ElfMach386         = 3
+	ElfMach68000       = 4
+	ElfMach88000       = 5
+	ElfMach486         = 6
+	ElfMach860         = 7
+	ElfMachMips        = 8
+	ElfMachS370        = 9
+	ElfMachMipsLe      = 10
+	ElfMachParisc      = 15
+	ElfMachVpp500      = 17
+	ElfMachSparc32Plus = 18
+	ElfMach960         = 19
+	ElfMachPower       = 20
+	ElfMachPower64     = 21
+	ElfMachS390        = 22
+	ElfMachV800        = 36
+	ElfMachFr20        = 37
+	ElfMachRh32        = 38
+	ElfMachRce         = 39
+	ElfMachArm         = 40
+	ElfMachAlpha       = 41
+	ElfMachSH          = 42
+	ElfMachSparc9      = 43
+	ElfMachAmd64       = 62
+)
+
+const (
+	ElfAbiNone     = 0
+	ElfAbiSystemV  = 0
+	ElfAbiHPUX     = 1
+	ElfAbiNetBSD   = 2
+	ElfAbiLinux    = 3
+	ElfAbiSolaris  = 6
+	ElfAbiAix      = 7
+	ElfAbiIrix     = 8
+	ElfAbiFreeBSD  = 9
+	ElfAbiTru64    = 10
+	ElfAbiModesto  = 11
+	ElfAbiOpenBSD  = 12
 	ElfAbiARM      = 97
 	ElfAbiEmbedded = 255
-	ElfSectNone    = 0 + iota - 52
-	ElfSectProgbits
-	ElfSectSymtab
-	ElfSectStrtab
-	ElfSectRela
-	ElfSectHash
-	ElfSectDynamic
-	ElfSectNote
-	ElfSectNobits
-	ElfSectRel
-	ElfSectShlib
-	ElfSectDynsym
+)
+
+const (
+	ElfSectNone      = 0
+	ElfSectProgbits  = 1
+	ElfSectSymtab    = 2
+	ElfSectStrtab    = 3
+	ElfSectRela      = 4
+	ElfSectHash      = 5
+	ElfSectDynamic   = 6
+	ElfSectNote      = 7
+	ElfSectNobits    = 8
+	ElfSectRel       = 9
+	ElfSectShlib     = 10
+	ElfSectDynsym    = 11
 	ElfSectFlagWrite = 0x1
 	ElfSectFlagAlloc = 0x2
 	ElfSectFlagExec  = 0x4
-	ElfSymBindLocal  = 0 + iota - 67
-	ElfSymBindGlobal
-	ElfSymBindWeak
-	ElfSymTypeNone = 0 + iota - 70
-	ElfSymTypeObject
-	ElfSymTypeFunc
-	ElfSymTypeSection
-	ElfSymTypeFile
+)
+
+const (
+	ElfSymBindLocal  = 0
+	ElfSymBindGlobal = 1
+	ElfSymBindWeak   = 2
+)
+
+const (
+	ElfSymTypeNone    = 0
+	ElfSymTypeObject  = 1
+	ElfSymTypeFunc    = 2
+	ElfSymTypeSection = 3
+	ElfSymTypeFile    = 4
+)
+
+const (
 	ElfSymShnNone   = 0
 	ElfSymShnAbs    = 0xFFF1
 	ElfSymShnCommon = 0xFFF2
-	ElfProgNone     = 0 + iota - 78
-	ElfProgLoad
-	ElfProgDynamic
-	ElfProgInterp
-	ElfProgNote
-	ElfProgShlib
-	ElfProgPhdr
-	ElfProgFlagExec     = 0x1
-	ElfProgFlagWrite    = 0x2
-	ElfProgFlagRead     = 0x4
+)
+
+const (
+	ElfProgNone      = 0
+	ElfProgLoad      = 1
+	ElfProgDynamic   = 2
+	ElfProgInterp    = 3
+	ElfProgNote      = 4
+	ElfProgShlib     = 5
+	ElfProgPhdr      = 6
+	ElfProgFlagExec  = 0x1
+	ElfProgFlagWrite = 0x2
+	ElfProgFlagRead  = 0x4
+)
+
+const (
 	ElfNotePrStatus     = 1
 	ElfNotePrFpreg      = 2
 	ElfNotePrPsinfo     = 3
