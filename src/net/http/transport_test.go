@@ -1788,6 +1788,13 @@ var proxyFromEnvTests = []proxyFromEnvTest{
 }
 
 func TestProxyFromEnvironment(t *testing.T) {
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
+		// fmt.Sprintf("%v", (*URL)(nil)) causes a segfault inside the string
+		// method, which lldb intercepts on the darwin/arm builder. Until it
+		// is fixed, skipping the test.
+		t.Skipf("skipping on %s/%s, issue 10043", runtime.GOOS, runtime.GOARCH)
+	}
+
 	ResetProxyEnv()
 	for _, tt := range proxyFromEnvTests {
 		os.Setenv("HTTP_PROXY", tt.env)
