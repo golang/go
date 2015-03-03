@@ -130,7 +130,7 @@ func PrintfTests() {
 	fmt.Println()                              // not an error
 	fmt.Println("%s", "hi")                    // ERROR "possible formatting directive in Println call"
 	fmt.Printf("%s", "hi", 3)                  // ERROR "wrong number of args for format in Printf call"
-	fmt.Sprintf("%"+("s"), "hi", 3)            // ERROR "wrong number of args for format in Sprintf call"
+	_ = fmt.Sprintf("%"+("s"), "hi", 3)        // ERROR "wrong number of args for format in Sprintf call"
 	fmt.Printf("%s%%%d", "hi", 3)              // correct
 	fmt.Printf("%08s", "woo")                  // correct
 	fmt.Printf("% 8s", "woo")                  // correct
@@ -172,7 +172,7 @@ func PrintfTests() {
 	Printf("%[xd", 3)                    // ERROR "illegal syntax for printf argument index"
 	Printf("%[x]d", 3)                   // ERROR "illegal syntax for printf argument index"
 	Printf("%[3]*s", "hi", 2)            // ERROR "missing argument for Printf.* reads arg 3, have only 2"
-	fmt.Sprintf("%[3]d", 2)              // ERROR "missing argument for Sprintf.* reads arg 3, have only 1"
+	_ = fmt.Sprintf("%[3]d", 2)          // ERROR "missing argument for Sprintf.* reads arg 3, have only 1"
 	Printf("%[2]*.[1]*[3]d", 2, "hi", 4) // ERROR "arg .hi. for \* in printf format not of type int"
 	Printf("%[0]s", "arg1")              // ERROR "index value \[0\] for Printf.*; indexes start at 1"
 	Printf("%[0]d", 1)                   // ERROR "index value \[0\] for Printf.*; indexes start at 1"
@@ -292,18 +292,18 @@ var percentSV percentSStruct
 type recursiveStringer int
 
 func (s recursiveStringer) String() string {
-	fmt.Sprintf("%d", s)
-	fmt.Sprintf("%#v", s)
-	fmt.Sprintf("%v", s)   // ERROR "arg s for printf causes recursive call to String method"
-	fmt.Sprintf("%v", &s)  // ERROR "arg &s for printf causes recursive call to String method"
-	fmt.Sprintf("%T", s)   // ok; does not recursively call String
-	return fmt.Sprintln(s) // ERROR "arg s for print causes recursive call to String method"
+	_ = fmt.Sprintf("%d", s)
+	_ = fmt.Sprintf("%#v", s)
+	_ = fmt.Sprintf("%v", s)  // ERROR "arg s for printf causes recursive call to String method"
+	_ = fmt.Sprintf("%v", &s) // ERROR "arg &s for printf causes recursive call to String method"
+	_ = fmt.Sprintf("%T", s)  // ok; does not recursively call String
+	return fmt.Sprintln(s)    // ERROR "arg s for print causes recursive call to String method"
 }
 
 type recursivePtrStringer int
 
 func (p *recursivePtrStringer) String() string {
-	fmt.Sprintf("%v", *p)
+	_ = fmt.Sprintf("%v", *p)
 	return fmt.Sprintln(p) // ERROR "arg p for print causes recursive call to String method"
 }
 

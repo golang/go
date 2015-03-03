@@ -150,6 +150,15 @@ there is a uintptr-typed word in memory that holds a pointer value,
 because that word will be invisible to stack copying and to the garbage
 collector.
 
+Unused result of certain function calls
+
+Flag: -unusedresult
+
+Calls to well-known functions and methods that return a value that is
+discarded.  By default, this includes functions like fmt.Errorf and
+fmt.Sprintf and methods like String and Error. The flags -unusedfuncs
+and -unusedstringmethods control the set.
+
 Shifts
 
 Flag: -shift

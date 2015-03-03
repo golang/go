@@ -28,6 +28,32 @@ func init() {
 		funcDecl, callExpr)
 }
 
+func initPrintFlags() {
+	if *printfuncs == "" {
+		return
+	}
+	for _, name := range strings.Split(*printfuncs, ",") {
+		if len(name) == 0 {
+			flag.Usage()
+		}
+		skip := 0
+		if colon := strings.LastIndex(name, ":"); colon > 0 {
+			var err error
+			skip, err = strconv.Atoi(name[colon+1:])
+			if err != nil {
+				errorf(`illegal format for "Func:N" argument %q; %s`, name, err)
+			}
+			name = name[:colon]
+		}
+		name = strings.ToLower(name)
+		if name[len(name)-1] == 'f' {
+			printfList[name] = skip
+		} else {
+			printList[name] = skip
+		}
+	}
+}
+
 // printfList records the formatted-print functions. The value is the location
 // of the format parameter. Names are lower-cased so the lookup is
 // case insensitive.

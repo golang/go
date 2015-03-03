@@ -52,6 +52,7 @@ func importType(path, name string) types.Type {
 func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
 	pkg.defs = make(map[*ast.Ident]types.Object)
 	pkg.uses = make(map[*ast.Ident]types.Object)
+	pkg.selectors = make(map[*ast.SelectorExpr]*types.Selection)
 	pkg.spans = make(map[types.Object]Span)
 	pkg.types = make(map[ast.Expr]types.TypeAndValue)
 	config := types.Config{
@@ -63,9 +64,10 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
 		Error: func(error) {},
 	}
 	info := &types.Info{
-		Types: pkg.types,
-		Defs:  pkg.defs,
-		Uses:  pkg.uses,
+		Selections: pkg.selectors,
+		Types:      pkg.types,
+		Defs:       pkg.defs,
+		Uses:       pkg.uses,
 	}
 	typesPkg, err := config.Check(pkg.path, fs, astFiles, info)
 	pkg.typesPkg = typesPkg

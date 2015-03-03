@@ -128,6 +128,7 @@ var (
 	binaryExpr    *ast.BinaryExpr
 	callExpr      *ast.CallExpr
 	compositeLit  *ast.CompositeLit
+	exprStmt      *ast.ExprStmt
 	field         *ast.Field
 	funcDecl      *ast.FuncDecl
 	funcLit       *ast.FuncLit
@@ -197,28 +198,8 @@ func main() {
 		}
 	}
 
-	if *printfuncs != "" {
-		for _, name := range strings.Split(*printfuncs, ",") {
-			if len(name) == 0 {
-				flag.Usage()
-			}
-			skip := 0
-			if colon := strings.LastIndex(name, ":"); colon > 0 {
-				var err error
-				skip, err = strconv.Atoi(name[colon+1:])
-				if err != nil {
-					errorf(`illegal format for "Func:N" argument %q; %s`, name, err)
-				}
-				name = name[:colon]
-			}
-			name = strings.ToLower(name)
-			if name[len(name)-1] == 'f' {
-				printfList[name] = skip
-			} else {
-				printList[name] = skip
-			}
-		}
-	}
+	initPrintFlags()
+	initUnusedFlags()
 
 	if flag.NArg() == 0 {
 		Usage()
@@ -291,13 +272,14 @@ func doPackageDir(directory string) {
 }
 
 type Package struct {
-	path     string
-	defs     map[*ast.Ident]types.Object
-	uses     map[*ast.Ident]types.Object
-	types    map[ast.Expr]types.TypeAndValue
-	spans    map[types.Object]Span
-	files    []*File
-	typesPkg *types.Package
+	path      string
+	defs      map[*ast.Ident]types.Object
+	uses      map[*ast.Ident]types.Object
+	selectors map[*ast.SelectorExpr]*types.Selection
+	types     map[ast.Expr]types.TypeAndValue
+	spans     map[types.Object]Span
+	files     []*File
+	typesPkg  *types.Package
 }
 
 // doPackage analyzes the single package constructed from the named files.
@@ -466,6 +448,8 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 		key = callExpr
 	case *ast.CompositeLit:
 		key = compositeLit
+	case *ast.ExprStmt:
+		key = exprStmt
 	case *ast.Field:
 		key = field
 	case *ast.FuncDecl:
