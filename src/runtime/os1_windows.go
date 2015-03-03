@@ -220,7 +220,7 @@ func goenvs() {
 			n++
 		}
 	}
-	envs = makeStringSlice(n)
+	envs = make([]string, n)
 
 	for i := range envs {
 		envs[i] = gostringw(&p[0])

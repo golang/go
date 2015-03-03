@@ -43,10 +43,6 @@ func tickspersecond() int64 {
 	return r
 }
 
-func makeStringSlice(n int) []string {
-	return make([]string, n)
-}
-
 var envs []string
 var argslice []string
 
