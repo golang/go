@@ -179,8 +179,15 @@ func run(bin string, args []string) error {
 	do(`process handle SIGUSR1 --stop false --pass true --notify false`)
 	do(`process handle SIGSEGV --stop false --pass true --notify false`) // does not work
 	do(`process handle SIGBUS  --stop false --pass true --notify false`) // does not work
+	if err := waitFor("handlers set", "(lldb)"); err != nil {
+		return err
+	}
 
 	do(`breakpoint set -n getwd`) // in runtime/cgo/gcc_darwin_arm.go
+	if err := waitFor("breakpoint set", "(lldb)"); err != nil {
+		return err
+	}
+
 	do(`run`)
 	if err := waitFor("br getwd", "stop reason = breakpoint"); err != nil {
 		return err
