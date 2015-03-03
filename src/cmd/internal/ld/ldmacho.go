@@ -719,6 +719,7 @@ func ldmacho(f *Biobuf, pkg string, length int64, pn string) {
 		}
 		r = make([]Reloc, sect.nreloc)
 		rpi = 0
+	Reloc:
 		for j = 0; uint32(j) < sect.nreloc; j++ {
 			rp = &r[rpi]
 			rel = &sect.rel[j]
@@ -806,7 +807,7 @@ func ldmacho(f *Biobuf, pkg string, length int64, pn string) {
 						// skip #1 of 2 rel; continue skips #2 of 2.
 						j++
 
-						continue
+						continue Reloc
 					}
 				}
 
