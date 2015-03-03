@@ -115,6 +115,30 @@ func IsARMMRC(op int) bool {
 	return false
 }
 
+// ARMMRCOffset implements the peculiar encoding of the MRC and MCR instructions.
+func ARMMRCOffset(op int, cond string, x0, x1, x2, x3, x4, x5 int64) (offset int64, ok bool) {
+	// TODO only MRC is defined.
+	op1 := int64(0)
+	if op == arm.AMRC {
+		op1 = 1
+	}
+	bits, ok := ParseARMCondition(cond)
+	if !ok {
+		return
+	}
+	offset = (0xe << 24) | // opcode
+		(op1 << 20) | // MCR/MRC
+		((int64(bits) ^ arm.C_SCOND_XOR) << 28) | // scond
+		((x0 & 15) << 8) | //coprocessor number
+		((x1 & 7) << 21) | // coprocessor operation
+		((x2 & 15) << 12) | // ARM register
+		((x3 & 15) << 16) | // Crn
+		((x4 & 15) << 0) | // Crm
+		((x5 & 7) << 5) | // coprocessor information
+		(1 << 4) /* must be set */
+	return offset, true
+}
+
 // IsARMMULA reports whether the op (as defined by an arm.A* constant) is
 // MULA, MULAWT or MULAWB, the 4-operand instructions.
 func IsARMMULA(op int) bool {
