@@ -89,5 +89,9 @@ label:
 // LTYPERT spec10	{ outcode($1, &$2); }
 	RETFL	$4
 
+// Was bug: LOOP is a branch instruction.
+loop:
+	LOOP	loop
+
 // LTYPE0 nonnon	{ outcode($1, &$2); }
 	RET

@@ -45,4 +45,5 @@
 75 00045 (testdata/386.s:75)	CMPPD	X0,foo+4(SB)
 78 00046 (testdata/386.s:78)	PINSRD	(AX),$1,X0
 79 00047 (testdata/386.s:79)	PINSRD	foo+4(FP),$2,X0
-82 00048 (testdata/386.s:82)	RET	,
+83 00048 (testdata/386.s:83)	LOOP	,
+86 00049 (testdata/386.s:86)	RET	,
