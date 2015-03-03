@@ -48,6 +48,7 @@ TEXT runtime·open(SB),NOSPLIT,$0
 	MOVW	perm+8(FP), R2
 	MOVW	$SYS_open, R12
 	SWI	$0x80
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
@@ -55,6 +56,7 @@ TEXT runtime·close(SB),NOSPLIT,$0
 	MOVW	fd+0(FP), R0
 	MOVW	$SYS_close, R12
 	SWI	$0x80
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+4(FP)
 	RET
 
@@ -64,6 +66,7 @@ TEXT runtime·write(SB),NOSPLIT,$0
 	MOVW	n+8(FP), R2
 	MOVW	$SYS_write, R12
 	SWI	$0x80
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
@@ -73,6 +76,7 @@ TEXT runtime·read(SB),NOSPLIT,$0
 	MOVW	n+8(FP), R2
 	MOVW	$SYS_read, R12
 	SWI	$0x80
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 

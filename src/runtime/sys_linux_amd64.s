@@ -28,6 +28,9 @@ TEXT runtime·open(SB),NOSPLIT,$0-20
 	MOVL	perm+12(FP), DX
 	MOVL	$2, AX			// syscall entry
 	SYSCALL
+	CMPQ	AX, $0xfffffffffffff001
+	JLS	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+16(FP)
 	RET
 
@@ -35,6 +38,9 @@ TEXT runtime·close(SB),NOSPLIT,$0-12
 	MOVL	fd+0(FP), DI
 	MOVL	$3, AX			// syscall entry
 	SYSCALL
+	CMPQ	AX, $0xfffffffffffff001
+	JLS	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+8(FP)
 	RET
 
@@ -44,6 +50,9 @@ TEXT runtime·write(SB),NOSPLIT,$0-28
 	MOVL	n+16(FP), DX
 	MOVL	$1, AX			// syscall entry
 	SYSCALL
+	CMPQ	AX, $0xfffffffffffff001
+	JLS	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+24(FP)
 	RET
 
@@ -53,6 +62,9 @@ TEXT runtime·read(SB),NOSPLIT,$0-28
 	MOVL	n+16(FP), DX
 	MOVL	$0, AX			// syscall entry
 	SYSCALL
+	CMPQ	AX, $0xfffffffffffff001
+	JLS	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+24(FP)
 	RET
 
