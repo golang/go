@@ -105,6 +105,10 @@ func Rconv(r int) string {
 	if r == 0 {
 		return "NONE"
 	}
+	if r == REGG {
+		// Special case.
+		return "g"
+	}
 	if REG_R0 <= r && r <= REG_R15 {
 		return fmt.Sprintf("R%d", r-REG_R0)
 	}

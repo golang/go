@@ -289,7 +289,7 @@ var armOperandTests = []operandTest{
 	{"$256", "$256"},
 	{"(R0)", "(R0)"},
 	{"(R11)", "(R11)"},
-	{"(g)", "(R10)"}, // TODO: Should print 0(g).
+	{"(g)", "(g)"},
 	{"-12(R4)", "-12(R4)"},
 	{"0(PC)", "0(PC)"},
 	{"1024", "1024"},
@@ -324,7 +324,7 @@ var armOperandTests = []operandTest{
 	{"armCAS64(SB)", "armCAS64(SB)"},
 	{"asmcgocall<>(SB)", "asmcgocall<>(SB)"},
 	{"c+28(FP)", "c+28(FP)"},
-	{"g", "R10"}, // TODO: Should print g.
+	{"g", "g"},
 	{"gosave<>(SB)", "gosave<>(SB)"},
 	{"retlo+12(FP)", "retlo+12(FP)"},
 	{"runtime·_sfloat2(SB)", "runtime._sfloat2(SB)"},
@@ -349,7 +349,7 @@ var ppc64OperandTests = []operandTest{
 	{"$~3", "$-4"},
 	{"(-288-3*8)(R1)", "-312(R1)"},
 	{"(16)(R7)", "16(R7)"},
-	{"(8)(g)", "8(R30)"}, // TODO: Should print 8(g)
+	{"(8)(g)", "8(g)"},
 	{"(CTR)", "(CTR)"},
 	{"(R0)", "(R0)"},
 	{"(R3)", "(R3)"},
@@ -411,7 +411,7 @@ var ppc64OperandTests = []operandTest{
 	{"R9", "R9"},
 	{"SPR(269)", "SPR(269)"},
 	{"a(FP)", "a(FP)"},
-	{"g", "R30"}, // TODO: Should print g.
+	{"g", "g"},
 	{"ret+8(FP)", "ret+8(FP)"},
 	{"runtime·abort(SB)", "runtime.abort(SB)"},
 	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
