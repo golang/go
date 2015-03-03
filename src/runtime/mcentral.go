@@ -173,7 +173,7 @@ func mCentral_FreeSpan(c *mcentral, s *mspan, n int32, start gclinkptr, end gcli
 	s.needzero = 1
 	s.freelist = 0
 	unlock(&c.lock)
-	heapBitsForSpan(s.base()).clearSpan(s.layout())
+	heapBitsForSpan(s.base()).initSpan(s.layout())
 	mHeap_Free(&mheap_, s, 0)
 	return true
 }

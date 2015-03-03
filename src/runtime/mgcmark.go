@@ -404,7 +404,7 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWorkProducer) {
 	}
 }
 
-// Scan the object b of size n, adding pointers to wbuf.
+// Scan the object b of size n bytes, adding pointers to wbuf.
 // Return possibly new wbuf to use.
 // If ptrmask != nil, it specifies where pointers are in b.
 // If ptrmask == nil, the GC bitmap should be consulted.
@@ -417,13 +417,16 @@ func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWorkProducer) {
 
 	// Find bits of the beginning of the object.
 	var hbits heapBits
+
 	if ptrmask == nil {
-		b, hbits = heapBitsForObject(b)
+		var s *mspan
+		b, hbits, s = heapBitsForObject(b)
 		if b == 0 {
 			return
 		}
+		n = s.elemsize
 		if n == 0 {
-			n = mheap_.arena_used - b
+			throw("scanobject n == 0")
 		}
 	}
 	for i := uintptr(0); i < n; i += ptrSize {
@@ -433,15 +436,9 @@ func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWorkProducer) {
 			// dense mask (stack or data)
 			bits = (uintptr(*(*byte)(add(unsafe.Pointer(ptrmask), (i/ptrSize)/4))) >> (((i / ptrSize) % 4) * typeBitsWidth)) & typeMask
 		} else {
-			// Check if we have reached end of span.
-			// n is an overestimate of the size of the object.
-			if (b+i)%_PageSize == 0 && h_spans[(b-arena_start)>>_PageShift] != h_spans[(b+i-arena_start)>>_PageShift] {
-				break
-			}
-
 			bits = uintptr(hbits.typeBits())
-			if i > 0 && (hbits.isBoundary() || bits == typeDead) {
-				break // reached beginning of the next object
+			if bits == typeDead {
+				break // no more pointers in this object
 			}
 			hbits = hbits.next()
 		}
@@ -468,7 +465,7 @@ func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWorkProducer) {
 		}
 
 		// Mark the object.
-		if obj, hbits := heapBitsForObject(obj); obj != 0 {
+		if obj, hbits, _ := heapBitsForObject(obj); obj != 0 {
 			greyobject(obj, b, i, hbits, gcw)
 		}
 	}
@@ -481,7 +478,7 @@ func shade(b uintptr) {
 	if !inheap(b) {
 		throw("shade: passed an address not in the heap")
 	}
-	if obj, hbits := heapBitsForObject(b); obj != 0 {
+	if obj, hbits, _ := heapBitsForObject(b); obj != 0 {
 		// TODO: this would be a great place to put a check to see
 		// if we are harvesting and if we are then we should
 		// figure out why there is a call to shade when the
