@@ -9,11 +9,6 @@
 // rounding mode of the result operand determines the rounding
 // mode of an operation. This is a from-scratch implementation.
 
-// CAUTION: WORK IN PROGRESS - USE AT YOUR OWN RISK.
-
-// TODO(gri) provide a couple of Example tests showing typical Float initialization
-// and use.
-
 package big
 
 import (
