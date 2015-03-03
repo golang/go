@@ -2196,7 +2196,7 @@ func needwritebarrier(l *Node, r *Node) bool {
 
 // TODO(rsc): Perhaps componentgen should run before this.
 
-var applywritebarrier_bv *Bvec
+var applywritebarrier_bv Bvec
 
 func applywritebarrier(n *Node, init **NodeList) *Node {
 	if n.Left != nil && n.Right != nil && needwritebarrier(n.Left, n.Right) {
@@ -2216,7 +2216,7 @@ func applywritebarrier(n *Node, init **NodeList) *Node {
 			n = mkcall1(writebarrierfn("writebarrieriface", t, n.Right.Type), nil, init, l, n.Right)
 		} else if t.Width <= int64(4*Widthptr) {
 			x := int64(0)
-			if applywritebarrier_bv == nil {
+			if applywritebarrier_bv.b == nil {
 				applywritebarrier_bv = bvalloc(obj.BitsPerPointer * 4)
 			}
 			bvresetall(applywritebarrier_bv)
