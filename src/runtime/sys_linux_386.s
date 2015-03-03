@@ -30,6 +30,9 @@ TEXT runtime·open(SB),NOSPLIT,$0
 	MOVL	mode+4(FP), CX
 	MOVL	perm+8(FP), DX
 	CALL	*runtime·_vdso(SB)
+	CMPL	AX, $0xfffff001
+	JLS	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
 
@@ -37,6 +40,9 @@ TEXT runtime·close(SB),NOSPLIT,$0
 	MOVL	$6, AX		// syscall - close
 	MOVL	fd+0(FP), BX
 	CALL	*runtime·_vdso(SB)
+	CMPL	AX, $0xfffff001
+	JLS	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+4(FP)
 	RET
 
@@ -46,6 +52,9 @@ TEXT runtime·write(SB),NOSPLIT,$0
 	MOVL	p+4(FP), CX
 	MOVL	n+8(FP), DX
 	CALL	*runtime·_vdso(SB)
+	CMPL	AX, $0xfffff001
+	JLS	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
 
@@ -55,6 +64,9 @@ TEXT runtime·read(SB),NOSPLIT,$0
 	MOVL	p+4(FP), CX
 	MOVL	n+8(FP), DX
 	CALL	*runtime·_vdso(SB)
+	CMPL	AX, $0xfffff001
+	JLS	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
 

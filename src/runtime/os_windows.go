@@ -4,7 +4,7 @@
 
 package runtime
 
-import _ "unsafe" // for go:linkname
+import "unsafe"
 
 type stdFunction *byte
 
@@ -38,4 +38,18 @@ func sigpanic() {
 		panicfloat()
 	}
 	throw("fault")
+}
+
+// Stubs so tests can link correctly.  These should never be called.
+func open(name *byte, mode, perm int32) int32 {
+	throw("unimplemented")
+	return -1
+}
+func close(fd int32) int32 {
+	throw("unimplemented")
+	return -1
+}
+func read(fd int32, p unsafe.Pointer, n int32) int32 {
+	throw("unimplemented")
+	return -1
 }

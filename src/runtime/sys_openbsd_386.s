@@ -31,24 +31,32 @@ TEXT runtime·exit1(SB),NOSPLIT,$8
 TEXT runtime·open(SB),NOSPLIT,$-4
 	MOVL	$5, AX
 	INT	$0x80
+	JAE	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·close(SB),NOSPLIT,$-4
 	MOVL	$6, AX
 	INT	$0x80
+	JAE	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+4(FP)
 	RET
 
 TEXT runtime·read(SB),NOSPLIT,$-4
 	MOVL	$3, AX
 	INT	$0x80
+	JAE	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·write(SB),NOSPLIT,$-4
 	MOVL	$4, AX			// sys_write
 	INT	$0x80
+	JAE	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
 

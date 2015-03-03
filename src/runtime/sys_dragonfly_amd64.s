@@ -77,6 +77,8 @@ TEXT runtime·open(SB),NOSPLIT,$-8
 	MOVL	perm+12(FP), DX		// arg 3 mode
 	MOVL	$5, AX
 	SYSCALL
+	JCC	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+16(FP)
 	RET
 
@@ -84,6 +86,8 @@ TEXT runtime·close(SB),NOSPLIT,$-8
 	MOVL	fd+0(FP), DI		// arg 1 fd
 	MOVL	$6, AX
 	SYSCALL
+	JCC	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+8(FP)
 	RET
 
@@ -93,6 +97,8 @@ TEXT runtime·read(SB),NOSPLIT,$-8
 	MOVL	n+16(FP), DX		// arg 3 count
 	MOVL	$3, AX
 	SYSCALL
+	JCC	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+24(FP)
 	RET
 
@@ -102,6 +108,8 @@ TEXT runtime·write(SB),NOSPLIT,$-8
 	MOVL	n+16(FP), DX		// arg 3 count
 	MOVL	$4, AX
 	SYSCALL
+	JCC	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+24(FP)
 	RET
 

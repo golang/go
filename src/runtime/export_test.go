@@ -117,3 +117,8 @@ var Gostringnocopy = gostringnocopy
 var Maxstring = &maxstring
 
 type Uintreg uintreg
+
+var Open = open
+var Close = close
+var Read = read
+var Write = write

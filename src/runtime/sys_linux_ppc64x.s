@@ -62,12 +62,16 @@ TEXT runtime·open(SB),NOSPLIT,$-8-20
 	MOVW	mode+8(FP), R4
 	MOVW	perm+12(FP), R5
 	SYSCALL	$SYS_open
+	BVC	2(PC)
+	MOVW	$-1, R3
 	MOVW	R3, ret+16(FP)
 	RETURN
 
 TEXT runtime·close(SB),NOSPLIT,$-8-12
 	MOVW	fd+0(FP), R3
 	SYSCALL	$SYS_close
+	BVC	2(PC)
+	MOVW	$-1, R3
 	MOVW	R3, ret+8(FP)
 	RETURN
 
@@ -76,6 +80,8 @@ TEXT runtime·write(SB),NOSPLIT,$-8-28
 	MOVD	p+8(FP), R4
 	MOVW	n+16(FP), R5
 	SYSCALL	$SYS_write
+	BVC	2(PC)
+	MOVW	$-1, R3
 	MOVW	R3, ret+24(FP)
 	RETURN
 
@@ -84,6 +90,8 @@ TEXT runtime·read(SB),NOSPLIT,$-8-28
 	MOVD	p+8(FP), R4
 	MOVW	n+16(FP), R5
 	SYSCALL	$SYS_read
+	BVC	2(PC)
+	MOVW	$-1, R3
 	MOVW	R3, ret+24(FP)
 	RETURN
 
