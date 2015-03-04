@@ -31,11 +31,11 @@
 package main
 
 import (
+	"cmd/internal/gc"
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm"
 	"fmt"
 )
-import "cmd/internal/gc"
 
 var gactive uint32
 

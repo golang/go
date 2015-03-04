@@ -5,10 +5,10 @@
 package main
 
 import (
+	"cmd/internal/gc"
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm"
 )
-import "cmd/internal/gc"
 
 const (
 	RightRdwr = gc.RightRead | gc.RightWrite

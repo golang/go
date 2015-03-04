@@ -5,10 +5,10 @@
 package main
 
 import (
+	"cmd/internal/gc"
 	"cmd/internal/obj"
 	"cmd/internal/obj/i386"
 )
-import "cmd/internal/gc"
 
 var (
 	AX               = RtoB(i386.REG_AX)
