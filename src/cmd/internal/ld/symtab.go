@@ -141,9 +141,9 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
 	if Linkmode == LinkExternal {
 		addr -= int64((xo.Sect.(*Section)).Vaddr)
 	}
-	other := 2
+	other := STV_DEFAULT
 	if x.Type&SHIDDEN != 0 {
-		other = 0
+		other = STV_HIDDEN
 	}
 	putelfsyment(off, addr, size, bind<<4|type_&0xf, ((xo.Sect.(*Section)).Elfsect.(*ElfShdr)).shnum, other)
 	x.Elfsym = int32(numelfsym)
