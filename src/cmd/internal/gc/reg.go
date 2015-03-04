@@ -81,7 +81,7 @@ func setaddrs(bit Bits) {
 
 		// disable all pieces of that variable
 		for i = 0; i < nvar; i++ {
-			v = &var_[i:][0]
+			v = &var_[i]
 			if v.node == node && int(v.name) == n {
 				v.addr = 2
 			}
@@ -135,7 +135,7 @@ func addmove(r *Flow, bn int, rn int, f int) {
 	p.Link = p1
 	p1.Lineno = p.Lineno
 
-	v := &var_[bn:][0]
+	v := &var_[bn]
 
 	a := &p1.To
 	a.Offset = v.offset
@@ -265,7 +265,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 	flag := 0
 	var v *Var
 	for i := 0; i < nvar; i++ {
-		v = &var_[i:][0]
+		v = &var_[i]
 		if v.node == node && int(v.name) == n {
 			if v.offset == o {
 				if int(v.etype) == et {
@@ -305,7 +305,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 		// a variable but not all of it.
 		var v *Var
 		for i := 0; i < nvar; i++ {
-			v = &var_[i:][0]
+			v = &var_[i]
 			if v.node == node {
 				v.addr = 1
 			}
@@ -316,7 +316,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 
 	i := nvar
 	nvar++
-	v = &var_[i:][0]
+	v = &var_[i]
 	v.id = i
 	v.offset = o
 	v.name = int8(n)
@@ -457,7 +457,7 @@ func prop(f *Flow, ref Bits, cal Bits) {
 					if z*64+i >= nvar || (cal.b[z]>>uint(i))&1 == 0 {
 						continue
 					}
-					v = &var_[z*64+i:][0]
+					v = &var_[z*64+i]
 					if v.node.Opt == nil { // v represents fixed register, not Go variable
 						continue
 					}
@@ -546,7 +546,7 @@ func synch(f *Flow, dif Bits) {
 }
 
 func allreg(b uint64, r *Rgn) uint64 {
-	v := &var_[r.varno:][0]
+	v := &var_[r.varno]
 	r.regno = 0
 	switch v.etype {
 	default:
@@ -1043,7 +1043,7 @@ func regopt(firstp *obj.Prog) {
 	}
 
 	for i := 0; i < nvar; i++ {
-		v := &var_[i:][0]
+		v := &var_[i]
 		if v.addr != 0 {
 			bit = blsh(uint(i))
 			for z = 0; z < BITS; z++ {
@@ -1271,7 +1271,7 @@ brk:
 		vreg = allreg(usedreg, rgp)
 		if rgp.regno != 0 {
 			if Debug['R'] != 0 && Debug['v'] != 0 {
-				v := &var_[rgp.varno:][0]
+				v := &var_[rgp.varno]
 				fmt.Printf("registerize %v+%d (bit=%2d et=%v) in %v usedreg=%#x vreg=%#x\n", Nconv(v.node, 0), v.offset, rgp.varno, Econv(int(v.etype), 0), obj.Rconv(int(rgp.regno)), usedreg, vreg)
 			}
 
