@@ -1020,17 +1020,17 @@ var bitsList = [...][]int{
 }
 
 // TestFloatAdd tests Float.Add/Sub by comparing the result of a "manual"
-// addition/subtraction of arguments represented by bits lists with the
-// respective floating-point addition/subtraction for a variety of precisions
+// addition/subtraction of arguments represented by Bits values with the
+// respective Float addition/subtraction for a variety of precisions
 // and rounding modes.
 func TestFloatAdd(t *testing.T) {
 	for _, xbits := range bitsList {
 		for _, ybits := range bitsList {
 			// exact values
-			x := fromBits(xbits...)
-			y := fromBits(ybits...)
-			zbits := append(xbits, ybits...)
-			z := fromBits(zbits...)
+			x := fromBits(xbits)
+			y := fromBits(ybits)
+			zbits := addBits(xbits, ybits)
+			z := fromBits(zbits)
 
 			for i, mode := range [...]RoundingMode{ToZero, ToNearestEven, AwayFromZero} {
 				for _, prec := range precList {
@@ -1040,7 +1040,6 @@ func TestFloatAdd(t *testing.T) {
 					if got.Cmp(want) != 0 {
 						t.Errorf("i = %d, prec = %d, %s:\n\t     %s %v\n\t+    %s %v\n\t=    %s\n\twant %s",
 							i, prec, mode, x, xbits, y, ybits, got, want)
-						return
 					}
 
 					got.Sub(z, x)
@@ -1121,8 +1120,42 @@ func TestFloatAdd64(t *testing.T) {
 	}
 }
 
+// TestFloatMul tests Float.Mul/Quo by comparing the result of a "manual"
+// multiplication/division of arguments represented by Bits values with the
+// respective Float multiplication/division for a variety of precisions
+// and rounding modes.
 func TestFloatMul(t *testing.T) {
-	// TODO(gri) implement this
+	for _, xbits := range bitsList {
+		for _, ybits := range bitsList {
+			// exact values
+			x := fromBits(xbits)
+			y := fromBits(ybits)
+			zbits := mulBits(xbits, ybits) // x * y
+			z := fromBits(zbits)
+
+			for i, mode := range [...]RoundingMode{ToZero, ToNearestEven, AwayFromZero} {
+				for _, prec := range precList {
+					got := new(Float).SetPrec(prec).SetMode(mode)
+					got.Mul(x, y)
+					want := roundBits(zbits, prec, mode)
+					if got.Cmp(want) != 0 {
+						t.Errorf("i = %d, prec = %d, %s:\n\t     %s %v\n\t*    %s %v\n\t=    %s\n\twant %s",
+							i, prec, mode, x, xbits, y, ybits, got, want)
+					}
+
+					if x.IsZero() {
+						continue // ignore div-0 case (not invertable)
+					}
+					got.Quo(z, x)
+					want = roundBits(ybits, prec, mode)
+					if got.Cmp(want) != 0 {
+						t.Errorf("i = %d, prec = %d, %s:\n\t     %s %v\n\t/    %s %v\n\t=    %s\n\twant %s",
+							i, prec, mode, z, zbits, x, xbits, got, want)
+					}
+				}
+			}
+		}
+	}
 }
 
 // TestFloatMul64 tests that Float.Mul/Quo of numbers with
@@ -1227,7 +1260,7 @@ func TestFloatQuo(t *testing.T) {
 		if i&1 != 0 {
 			bits = append(bits, -precf)
 		}
-		z := fromBits(bits...)
+		z := fromBits(bits)
 
 		// compute accurate x as z*y
 		y := new(Float).SetFloat64(3.14159265358979323e123)
@@ -1301,12 +1334,11 @@ func TestFloatQuoSmoke(t *testing.T) {
 
 // TestFloatArithmeticSpecialValues tests that Float operations produce
 // the correct result for all combinations of regular and special value
-// arguments (±0, ±Inf, NaN) and ±1 as representative for normal values.
-// Operations that produce Inf or NaN results in IEEE, produce an Undef
-// since we don't support infinities or NaNs.
+// arguments (±0, ±Inf, NaN) and ±1 and ±2.71828 as representatives for
+// nonzero finite values.
 func TestFloatArithmeticSpecialValues(t *testing.T) {
 	zero := 0.0
-	args := []float64{math.Inf(-1), -1, -zero, zero, 1, math.Inf(1), math.NaN()}
+	args := []float64{math.Inf(-1), -2.71828, -1, -zero, zero, 1, 2.71828, math.Inf(1), math.NaN()}
 	xx := new(Float)
 	yy := new(Float)
 	got := new(Float)
@@ -1417,6 +1449,41 @@ func TestFloatCmp(t *testing.T) {
 	// TODO(gri) implement this
 }
 
+func addBits(x, y []int) []int {
+	return append(x, y...)
+}
+
+func mulBits(x, y []int) []int {
+	var p []int
+	for _, x := range x {
+		for _, y := range y {
+			p = append(p, x+y)
+		}
+	}
+	return p
+}
+
+func TestMulBits(t *testing.T) {
+	for _, test := range []struct {
+		x, y, want []int
+	}{
+		{nil, nil, nil},
+		{[]int{}, []int{}, nil},
+		{[]int{0}, []int{0}, []int{0}},
+		{[]int{0}, []int{1}, []int{1}},
+		{[]int{1}, []int{1, 2, 3}, []int{2, 3, 4}},
+		{[]int{-1}, []int{1}, []int{0}},
+		{[]int{-10, -1, 0, 1, 10}, []int{1, 2, 3}, []int{-9, -8, -7, 0, 1, 2, 1, 2, 3, 2, 3, 4, 11, 12, 13}},
+	} {
+		got := fmt.Sprintf("%v", mulBits(test.x, test.y))
+		want := fmt.Sprintf("%v", test.want)
+		if got != want {
+			t.Errorf("%v * %v = %s; want %s", test.x, test.y, got, want)
+		}
+
+	}
+}
+
 // normBits returns the normalized bits for x: It
 // removes multiple equal entries by treating them
 // as an addition (e.g., []int{5, 5} => []int{6}),
@@ -1478,7 +1545,7 @@ func roundBits(x []int, prec uint, mode RoundingMode) *Float {
 	}
 	prec0 := uint(max + 1 - min)
 	if prec >= prec0 {
-		return fromBits(x...)
+		return fromBits(x)
 	}
 	// prec < prec0
 
@@ -1502,14 +1569,14 @@ func roundBits(x []int, prec uint, mode RoundingMode) *Float {
 	}
 
 	// round
-	f := fromBits(z...) // rounded to zero
+	f := fromBits(z) // rounded to zero
 	if mode == ToNearestAway {
 		panic("not yet implemented")
 	}
 	if mode == ToNearestEven && rbit == 1 && (sbit == 1 || sbit == 0 && bit0 != 0) || mode == AwayFromZero {
 		// round away from zero
 		f.SetMode(ToZero).SetPrec(prec)
-		f.Add(f, fromBits(int(r)+1))
+		f.Add(f, fromBits([]int{int(r) + 1}))
 	}
 	return f
 }
@@ -1518,7 +1585,7 @@ func roundBits(x []int, prec uint, mode RoundingMode) *Float {
 // such that z = sum(2**bits[i]), with i = range bits.
 // If multiple bits[i] are equal, they are added: fromBits(0, 1, 0)
 // == 2**1 + 2**0 + 2**0 = 4.
-func fromBits(bits ...int) *Float {
+func fromBits(bits []int) *Float {
 	// handle 0
 	if len(bits) == 0 {
 		return new(Float)
@@ -1571,7 +1638,7 @@ func TestFromBits(t *testing.T) {
 		{[]int{0, 1, 0}, "0x.8p3"},
 		{append([]int{2, 1, 0} /* 7 */, []int{3, 1} /* 10 */ ...), "0x.88p5" /* 17 */},
 	} {
-		f := fromBits(test.bits...)
+		f := fromBits(test.bits)
 		if got := f.Format('p', 0); got != test.want {
 			t.Errorf("setBits(%v) = %s; want %s", test.bits, got, test.want)
 		}
