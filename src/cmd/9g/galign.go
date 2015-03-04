@@ -5,10 +5,10 @@
 package main
 
 import (
+	"cmd/internal/gc"
 	"cmd/internal/obj"
 	"cmd/internal/obj/ppc64"
 )
-import "cmd/internal/gc"
 
 var thechar int = '9'
 

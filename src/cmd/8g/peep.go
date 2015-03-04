@@ -31,11 +31,11 @@
 package main
 
 import (
+	"cmd/internal/gc"
 	"cmd/internal/obj"
 	"cmd/internal/obj/i386"
 	"fmt"
 )
-import "cmd/internal/gc"
 
 const (
 	REGEXT      = 0

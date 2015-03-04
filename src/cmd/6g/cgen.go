@@ -5,11 +5,10 @@
 package main
 
 import (
+	"cmd/internal/gc"
 	"cmd/internal/obj"
 	"cmd/internal/obj/x86"
 	"fmt"
-
-	"cmd/internal/gc"
 )
 
 /*
