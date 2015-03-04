@@ -188,7 +188,7 @@ func (x *Float) Acc() Accuracy {
 //
 func (x *Float) Sign() int {
 	if debugFloat {
-		validate(x)
+		x.validate()
 	}
 	if len(x.mant) == 0 && x.exp != infExp {
 		return 0
@@ -217,7 +217,7 @@ func (x *Float) Sign() int {
 // mantissa value.
 func (x *Float) MantExp(mant *Float) (exp int) {
 	if debugFloat {
-		validate(x)
+		x.validate()
 	}
 	if len(x.mant) != 0 {
 		exp = int(x.exp)
@@ -249,8 +249,8 @@ func (x *Float) MantExp(mant *Float) (exp int) {
 // is set to exp.
 func (z *Float) SetMantExp(mant *Float, exp int) *Float {
 	if debugFloat {
-		validate(z)
-		validate(mant)
+		z.validate()
+		mant.validate()
 	}
 	z.Copy(mant)
 	if len(z.mant) == 0 {
@@ -291,7 +291,7 @@ func (x *Float) IsNaN() bool {
 // ±Inf and NaN values are not integers.
 func (x *Float) IsInt() bool {
 	if debugFloat {
-		validate(x)
+		x.validate()
 	}
 	// pick off easy cases
 	if x.exp <= 0 {
@@ -329,7 +329,7 @@ func (z *Float) setExp(e int64) {
 }
 
 // debugging support
-func validate(x *Float) {
+func (x *Float) validate() {
 	if !debugFloat {
 		// avoid performance bugs
 		panic("validate called but debugFloat is not set")
@@ -361,7 +361,7 @@ func validate(x *Float) {
 // calling round.
 func (z *Float) round(sbit uint) {
 	if debugFloat {
-		validate(z)
+		z.validate()
 	}
 
 	z.acc = Exact
@@ -493,7 +493,7 @@ func (z *Float) round(sbit uint) {
 	}
 
 	if debugFloat {
-		validate(z)
+		z.validate()
 	}
 
 	return
@@ -678,7 +678,7 @@ func (z *Float) SetNaN() *Float {
 // exact (not rounded) result.
 func (z *Float) Set(x *Float) *Float {
 	if debugFloat {
-		validate(x)
+		x.validate()
 	}
 	z.acc = Exact
 	if z != x {
@@ -700,7 +700,7 @@ func (z *Float) Set(x *Float) *Float {
 // x are the same.
 func (z *Float) Copy(x *Float) *Float {
 	if debugFloat {
-		validate(x)
+		x.validate()
 	}
 	if z != x {
 		z.prec = x.prec
@@ -736,7 +736,7 @@ func high64(x nat) uint64 {
 // for x > math.MaxUint64, and (0, Undef) for NaNs.
 func (x *Float) Uint64() (uint64, Accuracy) {
 	if debugFloat {
-		validate(x)
+		x.validate()
 	}
 
 	// special cases
@@ -783,7 +783,7 @@ func (x *Float) Uint64() (uint64, Accuracy) {
 // (math.MaxInt64, Below) for x > math.MaxInt64, and (0, Undef) for NaNs.
 func (x *Float) Int64() (int64, Accuracy) {
 	if debugFloat {
-		validate(x)
+		x.validate()
 	}
 
 	// special cases
@@ -841,7 +841,7 @@ func (x *Float) Int64() (int64, Accuracy) {
 // BUG(gri) Float.Float64 doesn't handle exponent overflow.
 func (x *Float) Float64() (float64, Accuracy) {
 	if debugFloat {
-		validate(x)
+		x.validate()
 	}
 
 	// special cases
@@ -886,7 +886,7 @@ func (x *Float) Float64() (float64, Accuracy) {
 // the result in z instead of allocating a new Int.
 func (x *Float) Int(z *Int) (*Int, Accuracy) {
 	if debugFloat {
-		validate(x)
+		x.validate()
 	}
 
 	if z == nil {
@@ -953,7 +953,7 @@ func (x *Float) Int(z *Int) (*Int, Accuracy) {
 // the result in z instead of allocating a new Rat.
 func (x *Float) Rat(z *Rat) (*Rat, Accuracy) {
 	if debugFloat {
-		validate(x)
+		x.validate()
 	}
 
 	if z == nil {
@@ -1239,8 +1239,8 @@ func (x *Float) ucmp(y *Float) int {
 // BUG(gri) When rounding ToNegativeInf, the sign of Float values rounded to 0 is incorrect.
 func (z *Float) Add(x, y *Float) *Float {
 	if debugFloat {
-		validate(x)
-		validate(y)
+		x.validate()
+		y.validate()
 	}
 
 	if z.prec == 0 {
@@ -1294,8 +1294,8 @@ func (z *Float) Add(x, y *Float) *Float {
 // BUG(gri) Float.Sub returns NaN if an operand is Inf.
 func (z *Float) Sub(x, y *Float) *Float {
 	if debugFloat {
-		validate(x)
-		validate(y)
+		x.validate()
+		y.validate()
 	}
 
 	if z.prec == 0 {
@@ -1349,8 +1349,8 @@ func (z *Float) Sub(x, y *Float) *Float {
 // BUG(gri) Float.Mul returns NaN if an operand is Inf.
 func (z *Float) Mul(x, y *Float) *Float {
 	if debugFloat {
-		validate(x)
-		validate(y)
+		x.validate()
+		y.validate()
 	}
 
 	if z.prec == 0 {
@@ -1387,8 +1387,8 @@ func (z *Float) Mul(x, y *Float) *Float {
 // BUG(gri) Float.Quo returns NaN if an operand is Inf.
 func (z *Float) Quo(x, y *Float) *Float {
 	if debugFloat {
-		validate(x)
-		validate(y)
+		x.validate()
+		y.validate()
 	}
 
 	if z.prec == 0 {
@@ -1434,8 +1434,8 @@ func (z *Float) Quo(x, y *Float) *Float {
 // BUG(gri) Float.Cmp does not implement comparing of NaNs.
 func (x *Float) Cmp(y *Float) int {
 	if debugFloat {
-		validate(x)
-		validate(y)
+		x.validate()
+		y.validate()
 	}
 
 	mx := x.ord()
