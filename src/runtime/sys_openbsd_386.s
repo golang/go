@@ -325,9 +325,9 @@ TEXT runtime·setldt(SB),NOSPLIT,$4
 	RET
 
 TEXT runtime·settls(SB),NOSPLIT,$8
-	// adjust for ELF: wants to use -8(GS) and -4(GS) for g and m
+	// adjust for ELF: wants to use -4(GS) for g
 	MOVL	tlsbase+0(FP), CX
-	ADDL	$8, CX
+	ADDL	$4, CX
 	MOVL	$0, 0(SP)		// syscall gap
 	MOVL	CX, 4(SP)		// arg 1 - tcb
 	MOVL	$329, AX		// sys___set_tcb

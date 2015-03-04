@@ -298,7 +298,7 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 // set tls base to DI
 TEXT runtime·settls(SB),NOSPLIT,$0
 	// adjust for ELF: wants to use -16(FS) and -8(FS) for g and m
-	ADDQ	$16, DI
+	ADDQ	$8, DI
 	MOVQ	$329, AX		// sys___settcb
 	SYSCALL
 	JCC	2(PC)

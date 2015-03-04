@@ -359,7 +359,7 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 
 // set tls base to DI
 TEXT runtime·settls(SB),NOSPLIT,$32
-	ADDQ	$16, DI	// ELF wants to use -16(FS), -8(FS)
+	ADDQ	$8, DI	// ELF wants to use -8(FS)
 
 	MOVQ	DI, SI
 	MOVQ	$0x1002, DI	// ARCH_SET_FS

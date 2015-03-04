@@ -287,7 +287,7 @@ int i386_set_ldt(int, const union ldt_entry *, int);
 TEXT runtime·setldt(SB),NOSPLIT,$32
 	MOVL	address+4(FP), BX	// aka base
 	// see comment in sys_linux_386.s; freebsd is similar
-	ADDL	$0x8, BX
+	ADDL	$0x4, BX
 
 	// set up data_desc
 	LEAL	16(SP), AX	// struct data_desc

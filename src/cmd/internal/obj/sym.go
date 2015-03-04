@@ -170,7 +170,7 @@ func Linknew(arch *LinkArch) *Link {
 		Hopenbsd,
 		Hdragonfly,
 		Hsolaris:
-		ctxt.Tlsoffset = -2 * ctxt.Arch.Ptrsize
+		ctxt.Tlsoffset = -1 * ctxt.Arch.Ptrsize
 
 	case Hnacl:
 		switch ctxt.Arch.Thechar {
