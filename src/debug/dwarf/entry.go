@@ -308,18 +308,13 @@ func (r *Reader) Seek(off Offset) {
 		return
 	}
 
-	// TODO(rsc): binary search (maybe a new package)
-	var i int
-	var u *unit
-	for i = range d.unit {
-		u = &d.unit[i]
-		if u.off <= off && off < u.off+Offset(len(u.data)) {
-			r.unit = i
-			r.b = makeBuf(r.d, u, "info", off, u.data[off-u.off:])
-			return
-		}
+	i := d.offsetToUnit(off)
+	if i == -1 {
+		r.err = errors.New("offset out of range")
 	}
-	r.err = errors.New("offset out of range")
+	u := &d.unit[i]
+	r.unit = i
+	r.b = makeBuf(r.d, u, "info", off, u.data[off-u.off:])
 }
 
 // maybeNextUnit advances to the next unit if this one is finished.

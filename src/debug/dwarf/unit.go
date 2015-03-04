@@ -4,7 +4,10 @@
 
 package dwarf
 
-import "strconv"
+import (
+	"sort"
+	"strconv"
+)
 
 // DWARF debug info is split into a sequence of compilation units.
 // Each unit has its own abbreviation table and address size.
@@ -87,4 +90,21 @@ func (d *Data) parseUnits() ([]unit, error) {
 		return nil, b.err
 	}
 	return units, nil
+}
+
+// offsetToUnit returns the index of the unit containing offset off.
+// It returns -1 if no unit contains this offset.
+func (d *Data) offsetToUnit(off Offset) int {
+	// Find the unit after off
+	next := sort.Search(len(d.unit), func(i int) bool {
+		return d.unit[i].off > off
+	})
+	if next == 0 {
+		return -1
+	}
+	u := &d.unit[next-1]
+	if u.off <= off && off < u.off+Offset(len(u.data)) {
+		return next - 1
+	}
+	return -1
 }
