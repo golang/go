@@ -941,8 +941,9 @@ func cclean() {
 var lastpc *obj.Prog
 
 type Addr2 struct {
-	from obj.Addr
-	to   obj.Addr
+	from  obj.Addr
+	from3 obj.Addr
+	to    obj.Addr
 }
 
 func outcode(a int, g2 *Addr2) {
@@ -959,6 +960,7 @@ func outcode(a int, g2 *Addr2) {
 	p.As = int16(a)
 	p.Lineno = stmtline
 	p.From = g2.from
+	p.From3 = g2.from3
 	p.To = g2.to
 	p.Pc = int64(asm.PC)
 

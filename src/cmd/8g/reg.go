@@ -30,7 +30,7 @@
 
 package main
 
-import "cmd/internal/obj/i386"
+import i386 "cmd/internal/obj/x86"
 import "cmd/internal/gc"
 
 const (

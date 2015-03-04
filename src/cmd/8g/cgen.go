@@ -7,7 +7,7 @@ package main
 import (
 	"cmd/internal/gc"
 	"cmd/internal/obj"
-	"cmd/internal/obj/i386"
+	i386 "cmd/internal/obj/x86"
 	"fmt"
 )
 

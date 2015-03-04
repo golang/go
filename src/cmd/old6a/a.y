@@ -205,12 +205,12 @@ spec2:	/* TEXT */
 	LTYPET mem ',' '$' textsize
 	{
 		asm.Settext($2.Sym);
-		outcode(obj.ATEXT, &Addr2{$2, $5})
+		outcode(obj.ATEXT, &Addr2{from: $2, to: $5})
 	}
 |	LTYPET mem ',' con ',' '$' textsize
 	{
 		asm.Settext($2.Sym);
-		outcode(obj.ATEXT, &Addr2{$2, $7})
+		outcode(obj.ATEXT, &Addr2{from: $2, to: $7})
 		if asm.Pass > 1 {
 			lastpc.From3.Type = obj.TYPE_CONST
 			lastpc.From3.Offset = $4
@@ -221,12 +221,12 @@ spec11:	/* GLOBL */
 	LTYPEG mem ',' imm
 	{
 		asm.Settext($2.Sym)
-		outcode(obj.AGLOBL, &Addr2{$2, $4})
+		outcode(obj.AGLOBL, &Addr2{from: $2, to: $4})
 	}
 |	LTYPEG mem ',' con ',' imm
 	{
 		asm.Settext($2.Sym)
-		outcode(obj.AGLOBL, &Addr2{$2, $6})
+		outcode(obj.AGLOBL, &Addr2{from: $2, to: $6})
 		if asm.Pass > 1 {
 			lastpc.From3.Type = obj.TYPE_CONST
 			lastpc.From3.Offset = $4
@@ -299,7 +299,7 @@ spec7:
 	}
 
 spec8:	/* CMPPS/CMPPD */
-	reg ',' rem ',' con
+	rem ',' reg ',' con
 	{
 		$$.from = $1;
 		$$.to = $3;
@@ -309,12 +309,9 @@ spec8:	/* CMPPS/CMPPD */
 spec9:	/* shufl */
 	imm ',' rem ',' reg
 	{
-		$$.from = $3;
+		$$.from = $1;
+		$$.from3 = $3;
 		$$.to = $5;
-		if $1.Type != obj.TYPE_CONST {
-			yyerror("illegal constant");
-		}
-		$$.to.Offset = $1.Offset;
 	}
 
 spec10:	/* RET/RETF */
