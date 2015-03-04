@@ -261,34 +261,34 @@ func (z *Float) SetMantExp(mant *Float, exp int) *Float {
 }
 
 // IsNeg reports whether x is negative.
-// A NaN is not negative.
+// A NaN value is not negative.
 func (x *Float) IsNeg() bool {
 	return x.neg && x.exp != nanExp
 }
 
-// IsZero reports whether x is a +0 or -0.
+// IsZero reports whether x is +0 or -0.
 func (x *Float) IsZero() bool {
 	return len(x.mant) == 0 && x.exp == 0
 }
 
 // IsFinite reports whether -Inf < x < Inf.
-// A NaN is not finite.
+// A NaN value is not finite.
 func (x *Float) IsFinite() bool {
 	return len(x.mant) != 0 || x.exp == 0
 }
 
-// IsInf reports whether x is a +Inf or -Inf.
+// IsInf reports whether x is +Inf or -Inf.
 func (x *Float) IsInf() bool {
 	return x.exp == infExp
 }
 
-// IsNaN reports whether x is a NaN.
+// IsNaN reports whether x is a NaN value.
 func (x *Float) IsNaN() bool {
 	return x.exp == nanExp
 }
 
 // IsInt reports whether x is an integer.
-// ±Inf and NaN are not considered integers.
+// ±Inf and NaN values are not integers.
 func (x *Float) IsInt() bool {
 	if debugFloat {
 		validate(x)
