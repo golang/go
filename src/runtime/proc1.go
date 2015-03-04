@@ -2525,7 +2525,7 @@ func procresize(nprocs int32) *p {
 			}
 			sched.runqsize++
 		}
-		for i := range &p.sudogbuf {
+		for i := range p.sudogbuf {
 			p.sudogbuf[i] = nil
 		}
 		p.sudogcache = p.sudogbuf[:0]
