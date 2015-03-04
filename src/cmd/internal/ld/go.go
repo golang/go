@@ -694,19 +694,19 @@ func deadcode() {
 	}
 
 	// record field tracking references
-	fmt_ := ""
-
+	var buf bytes.Buffer
 	var p *LSym
 	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
 		if strings.HasPrefix(s.Name, "go.track.") {
 			s.Special = 1 // do not lay out in data segment
 			s.Hide = 1
 			if s.Reachable {
-				fmt_ += fmt.Sprintf("%s", s.Name[9:])
+				buf.WriteString(s.Name[9:])
 				for p = s.Reachparent; p != nil; p = p.Reachparent {
-					fmt_ += fmt.Sprintf("\t%s", p.Name)
+					buf.WriteString("\t")
+					buf.WriteString(p.Name)
 				}
-				fmt_ += fmt.Sprintf("\n")
+				buf.WriteString("\n")
 			}
 
 			s.Type = SCONST
@@ -721,7 +721,7 @@ func deadcode() {
 	if !s.Reachable {
 		return
 	}
-	addstrdata(tracksym, fmt_)
+	addstrdata(tracksym, buf.String())
 }
 
 func doweak() {
