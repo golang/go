@@ -410,16 +410,16 @@ TEXT runtime·setldt(SB),NOSPLIT,$32
 	 * When linking against the system libraries,
 	 * we use its pthread_create and let it set up %gs
 	 * for us.  When we do that, the private storage
-	 * we get is not at 0(GS), 4(GS), but -8(GS), -4(GS).
+	 * we get is not at 0(GS), but -4(GS).
 	 * To insulate the rest of the tool chain from this
-	 * ugliness, 8l rewrites 0(TLS) into -8(GS) for us.
+	 * ugliness, 8l rewrites 0(TLS) into -4(GS) for us.
 	 * To accommodate that rewrite, we translate
 	 * the address here and bump the limit to 0xffffffff (no limit)
-	 * so that -8(GS) maps to 0(address).
-	 * Also, the final 0(GS) (current 8(CX)) has to point
+	 * so that -4(GS) maps to 0(address).
+	 * Also, the final 0(GS) (current 4(CX)) has to point
 	 * to itself, to mimic ELF.
 	 */
-	ADDL	$0x8, CX	// address
+	ADDL	$0x4, CX	// address
 	MOVL	CX, 0(CX)
 
 	// set up user_desc

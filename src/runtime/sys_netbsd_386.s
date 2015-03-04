@@ -307,9 +307,9 @@ TEXT runtime·setldt(SB),NOSPLIT,$8
 	RET
 
 TEXT runtime·settls(SB),NOSPLIT,$16
-	// adjust for ELF: wants to use -8(GS) and -4(GS) for g and m
+	// adjust for ELF: wants to use -4(GS) for g
 	MOVL	base+0(FP), CX
-	ADDL	$8, CX
+	ADDL	$4, CX
 	MOVL	$0, 0(SP)		// syscall gap
 	MOVL	CX, 4(SP)		// arg 1 - ptr
 	MOVL	$317, AX		// sys__lwp_setprivate
