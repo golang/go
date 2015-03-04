@@ -154,14 +154,6 @@ type Auto struct {
 	Gotype  *LSym
 }
 
-type Hist struct {
-	Link    *Hist
-	Name    string
-	Line    int32
-	Offset  int32
-	Printed uint8
-}
-
 type Link struct {
 	Thechar            int32
 	Thestring          string
