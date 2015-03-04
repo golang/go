@@ -1143,11 +1143,16 @@ func exprfmt(n *Node, prec int) string {
 		return f
 
 	case OLITERAL: // this is a bit of a mess
-		if n.Orig != nil && n.Orig != n {
-			return exprfmt(n.Orig, prec)
+		if fmtmode == FErr {
+			if n.Orig != nil && n.Orig != n {
+				return exprfmt(n.Orig, prec)
+			}
+			if n.Sym != nil {
+				return fmt.Sprintf("%v", Sconv(n.Sym, 0))
+			}
 		}
-		if fmtmode == FErr && n.Sym != nil {
-			return fmt.Sprintf("%v", Sconv(n.Sym, 0))
+		if n.Val.Ctype == CTNIL && n.Orig != nil && n.Orig != n {
+			return exprfmt(n.Orig, prec)
 		}
 		if n.Type != nil && n.Type != Types[n.Type.Etype] && n.Type != idealbool && n.Type != idealstring {
 			// Need parens when type begins with what might
