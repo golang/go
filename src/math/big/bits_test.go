@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// This file implements the Bits type used for testing Float operations
+// via an independent (albeit slower) representations for floating-point
+// numbers.
+
 package big
 
 import (
@@ -10,12 +14,23 @@ import (
 	"testing"
 )
 
-func addBits(x, y []int) []int {
+// A Bits value b represents a finite floating-point number x of the form
+//
+//	x = 2**b[0] + 2**b[1] + ... 2**b[len(b)-1]
+//
+// The order of slice elements is not significant. Negative elements may be
+// used to form fractions. A Bits value is normalized if each b[i] occurs at
+// most once. For instance Bits{0, 0, 1} is not normalized but represents the
+// same floating-point number as Bits{2}, which is normalized. The zero (nil)
+// value of Bits is a ready to use Bits value and represents the value 0.
+type Bits []int
+
+func (x Bits) add(y Bits) Bits {
 	return append(x, y...)
 }
 
-func mulBits(x, y []int) []int {
-	var p []int
+func (x Bits) mul(y Bits) Bits {
+	var p Bits
 	for _, x := range x {
 		for _, y := range y {
 			p = append(p, x+y)
@@ -26,17 +41,17 @@ func mulBits(x, y []int) []int {
 
 func TestMulBits(t *testing.T) {
 	for _, test := range []struct {
-		x, y, want []int
+		x, y, want Bits
 	}{
 		{nil, nil, nil},
-		{[]int{}, []int{}, nil},
-		{[]int{0}, []int{0}, []int{0}},
-		{[]int{0}, []int{1}, []int{1}},
-		{[]int{1}, []int{1, 2, 3}, []int{2, 3, 4}},
-		{[]int{-1}, []int{1}, []int{0}},
-		{[]int{-10, -1, 0, 1, 10}, []int{1, 2, 3}, []int{-9, -8, -7, 0, 1, 2, 1, 2, 3, 2, 3, 4, 11, 12, 13}},
+		{Bits{}, Bits{}, nil},
+		{Bits{0}, Bits{0}, Bits{0}},
+		{Bits{0}, Bits{1}, Bits{1}},
+		{Bits{1}, Bits{1, 2, 3}, Bits{2, 3, 4}},
+		{Bits{-1}, Bits{1}, Bits{0}},
+		{Bits{-10, -1, 0, 1, 10}, Bits{1, 2, 3}, Bits{-9, -8, -7, 0, 1, 2, 1, 2, 3, 2, 3, 4, 11, 12, 13}},
 	} {
-		got := fmt.Sprintf("%v", mulBits(test.x, test.y))
+		got := fmt.Sprintf("%v", test.x.mul(test.y))
 		want := fmt.Sprintf("%v", test.want)
 		if got != want {
 			t.Errorf("%v * %v = %s; want %s", test.x, test.y, got, want)
@@ -45,12 +60,10 @@ func TestMulBits(t *testing.T) {
 	}
 }
 
-// normBits returns the normalized bits for x: It
-// removes multiple equal entries by treating them
-// as an addition (e.g., []int{5, 5} => []int{6}),
-// and it sorts the result list for reproducible
-// results.
-func normBits(x []int) []int {
+// norm returns the normalized bits for x: It removes multiple equal entries
+// by treating them as an addition (e.g., Bits{5, 5} => Bits{6}), and it sorts
+// the result list for reproducible results.
+func (x Bits) norm() Bits {
 	m := make(map[int]bool)
 	for _, b := range x {
 		for m[b] {
@@ -59,28 +72,28 @@ func normBits(x []int) []int {
 		}
 		m[b] = true
 	}
-	var z []int
+	var z Bits
 	for b, set := range m {
 		if set {
 			z = append(z, b)
 		}
 	}
-	sort.Ints(z)
+	sort.Ints([]int(z))
 	return z
 }
 
 func TestNormBits(t *testing.T) {
 	for _, test := range []struct {
-		x, want []int
+		x, want Bits
 	}{
 		{nil, nil},
-		{[]int{}, []int{}},
-		{[]int{0}, []int{0}},
-		{[]int{0, 0}, []int{1}},
-		{[]int{3, 1, 1}, []int{2, 3}},
-		{[]int{10, 9, 8, 7, 6, 6}, []int{11}},
+		{Bits{}, Bits{}},
+		{Bits{0}, Bits{0}},
+		{Bits{0, 0}, Bits{1}},
+		{Bits{3, 1, 1}, Bits{2, 3}},
+		{Bits{10, 9, 8, 7, 6, 6}, Bits{11}},
 	} {
-		got := fmt.Sprintf("%v", normBits(test.x))
+		got := fmt.Sprintf("%v", test.x.norm())
 		want := fmt.Sprintf("%v", test.want)
 		if got != want {
 			t.Errorf("normBits(%v) = %s; want %s", test.x, got, want)
@@ -89,10 +102,10 @@ func TestNormBits(t *testing.T) {
 	}
 }
 
-// roundBits returns the Float value rounded to prec bits
-// according to mode from the bit set x.
-func roundBits(x []int, prec uint, mode RoundingMode) *Float {
-	x = normBits(x)
+// round returns the Float value corresponding to x after rounding x
+// to prec bits according to mode.
+func (x Bits) round(prec uint, mode RoundingMode) *Float {
+	x = x.norm()
 
 	// determine range
 	var min, max int
@@ -106,13 +119,13 @@ func roundBits(x []int, prec uint, mode RoundingMode) *Float {
 	}
 	prec0 := uint(max + 1 - min)
 	if prec >= prec0 {
-		return fromBits(x)
+		return x.Float()
 	}
 	// prec < prec0
 
 	// determine bit 0, rounding, and sticky bit, and result bits z
 	var bit0, rbit, sbit uint
-	var z []int
+	var z Bits
 	r := max - int(prec)
 	for _, b := range x {
 		switch {
@@ -130,23 +143,22 @@ func roundBits(x []int, prec uint, mode RoundingMode) *Float {
 	}
 
 	// round
-	f := fromBits(z) // rounded to zero
+	f := z.Float() // rounded to zero
 	if mode == ToNearestAway {
 		panic("not yet implemented")
 	}
 	if mode == ToNearestEven && rbit == 1 && (sbit == 1 || sbit == 0 && bit0 != 0) || mode == AwayFromZero {
 		// round away from zero
 		f.SetMode(ToZero).SetPrec(prec)
-		f.Add(f, fromBits([]int{int(r) + 1}))
+		f.Add(f, Bits{int(r) + 1}.Float())
 	}
 	return f
 }
 
-// fromBits returns the *Float z of the smallest possible precision
-// such that z = sum(2**bits[i]), with i = range bits.
-// If multiple bits[i] are equal, they are added: fromBits(0, 1, 0)
-// == 2**1 + 2**0 + 2**0 = 4.
-func fromBits(bits []int) *Float {
+// Float returns the *Float z of the smallest possible precision such that
+// z = sum(2**bits[i]), with i = range bits. If multiple bits[i] are equal,
+// they are added: Bits{0, 1, 0}.Float() == 2**0 + 2**1 + 2**0 = 4.
+func (bits Bits) Float() *Float {
 	// handle 0
 	if len(bits) == 0 {
 		return new(Float)
@@ -181,25 +193,25 @@ func fromBits(bits []int) *Float {
 
 func TestFromBits(t *testing.T) {
 	for _, test := range []struct {
-		bits []int
+		bits Bits
 		want string
 	}{
 		// all different bit numbers
 		{nil, "0"},
-		{[]int{0}, "0x.8p1"},
-		{[]int{1}, "0x.8p2"},
-		{[]int{-1}, "0x.8p0"},
-		{[]int{63}, "0x.8p64"},
-		{[]int{33, -30}, "0x.8000000000000001p34"},
-		{[]int{255, 0}, "0x.8000000000000000000000000000000000000000000000000000000000000001p256"},
+		{Bits{0}, "0x.8p1"},
+		{Bits{1}, "0x.8p2"},
+		{Bits{-1}, "0x.8p0"},
+		{Bits{63}, "0x.8p64"},
+		{Bits{33, -30}, "0x.8000000000000001p34"},
+		{Bits{255, 0}, "0x.8000000000000000000000000000000000000000000000000000000000000001p256"},
 
 		// multiple equal bit numbers
-		{[]int{0, 0}, "0x.8p2"},
-		{[]int{0, 0, 0, 0}, "0x.8p3"},
-		{[]int{0, 1, 0}, "0x.8p3"},
-		{append([]int{2, 1, 0} /* 7 */, []int{3, 1} /* 10 */ ...), "0x.88p5" /* 17 */},
+		{Bits{0, 0}, "0x.8p2"},
+		{Bits{0, 0, 0, 0}, "0x.8p3"},
+		{Bits{0, 1, 0}, "0x.8p3"},
+		{append(Bits{2, 1, 0} /* 7 */, Bits{3, 1} /* 10 */ ...), "0x.88p5" /* 17 */},
 	} {
-		f := fromBits(test.bits)
+		f := test.bits.Float()
 		if got := f.Format('p', 0); got != test.want {
 			t.Errorf("setBits(%v) = %s; want %s", test.bits, got, test.want)
 		}
