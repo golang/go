@@ -101,11 +101,14 @@ type mspan struct {
 	// if sweepgen == h->sweepgen, the span is swept and ready to use
 	// h->sweepgen is incremented by 2 after every GC
 	sweepgen    uint32
+	divMul      uint32   // for divide by elemsize - divMagic.mul
 	ref         uint16   // capacity - number of objects in freelist
 	sizeclass   uint8    // size class
 	incache     bool     // being used by an mcache
 	state       uint8    // mspaninuse etc
 	needzero    uint8    // needs to be zeroed before allocation
+	divShift    uint8    // for divide by elemsize - divMagic.shift
+	divShift2   uint8    // for divide by elemsize - divMagic.shift2
 	elemsize    uintptr  // computed from sizeclass or from npages
 	unusedsince int64    // first time spotted by gc in mspanfree state
 	npreleased  uintptr  // number of pages released to the os
@@ -385,8 +388,15 @@ func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan 
 		s.sizeclass = uint8(sizeclass)
 		if sizeclass == 0 {
 			s.elemsize = s.npages << _PageShift
+			s.divShift = 0
+			s.divMul = 0
+			s.divShift2 = 0
 		} else {
 			s.elemsize = uintptr(class_to_size[sizeclass])
+			m := &class_to_divmagic[sizeclass]
+			s.divShift = m.shift
+			s.divMul = m.mul
+			s.divShift2 = m.shift2
 		}
 
 		// update stats, sweep lists
