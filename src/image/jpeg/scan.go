@@ -63,6 +63,7 @@ func (d *decoder) processSOS(n int) error {
 		td        uint8 // DC table selector.
 		ta        uint8 // AC table selector.
 	}
+	totalHV := 0
 	for i := 0; i < nComp; i++ {
 		cs := d.tmp[1+2*i] // Component selector.
 		compIndex := -1
@@ -75,6 +76,18 @@ func (d *decoder) processSOS(n int) error {
 			return FormatError("unknown component selector")
 		}
 		scan[i].compIndex = uint8(compIndex)
+		// Section B.2.3 states that "the value of Cs_j shall be different from
+		// the values of Cs_1 through Cs_(j-1)". Since we have previously
+		// verified that a frame's component identifiers (C_i values in section
+		// B.2.2) are unique, it suffices to check that the implicit indexes
+		// into d.comp are unique.
+		for j := 0; j < i; j++ {
+			if scan[i].compIndex == scan[j].compIndex {
+				return FormatError("repeated component selector")
+			}
+		}
+		totalHV += d.comp[compIndex].h * d.comp[compIndex].v
+
 		scan[i].td = d.tmp[2+2*i] >> 4
 		if scan[i].td > maxTh {
 			return FormatError("bad Td value")
@@ -83,6 +96,11 @@ func (d *decoder) processSOS(n int) error {
 		if scan[i].ta > maxTh {
 			return FormatError("bad Ta value")
 		}
+	}
+	// Section B.2.3 states that if there is more than one component then the
+	// total H*V values in a scan must be <= 10.
+	if d.nComp > 1 && totalHV > 10 {
+		return FormatError("total sampling factors too large")
 	}
 
 	// zigStart and zigEnd are the spectral selection bounds.
