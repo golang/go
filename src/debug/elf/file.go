@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 
 // TODO: error reporting detail
@@ -720,53 +721,52 @@ func (f *File) applyRelocationsPPC64(dst []byte, rels []byte) error {
 }
 
 func (f *File) DWARF() (*dwarf.Data, error) {
-	// There are many other DWARF sections, but these
-	// are the required ones, and the debug/dwarf package
-	// does not use the others, so don't bother loading them.
-	var names = [...]string{"abbrev", "info", "str"}
-	var dat [len(names)][]byte
-	for i, name := range names {
-		name = ".debug_" + name
-		s := f.Section(name)
-		if s == nil {
-			continue
-		}
+	// sectionData gets the data for s, checks its size, and
+	// applies any applicable relations.
+	sectionData := func(i int, s *Section) ([]byte, error) {
 		b, err := s.Data()
 		if err != nil && uint64(len(b)) < s.Size {
 			return nil, err
 		}
-		dat[i] = b
+
+		for _, r := range f.Sections {
+			if r.Type != SHT_RELA && r.Type != SHT_REL {
+				continue
+			}
+			if int(r.Info) != i {
+				continue
+			}
+			rd, err := r.Data()
+			if err != nil {
+				return nil, err
+			}
+			err = f.applyRelocations(b, rd)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return b, nil
 	}
 
-	// If there's a relocation table for .debug_info, we have to process it
-	// now otherwise the data in .debug_info is invalid for x86-64 objects.
-	rela := f.Section(".rela.debug_info")
-	if rela != nil && rela.Type == SHT_RELA && (f.Machine == EM_X86_64 || f.Machine == EM_AARCH64 || f.Machine == EM_PPC64) {
-		data, err := rela.Data()
+	// There are many other DWARF sections, but these
+	// are the required ones, and the debug/dwarf package
+	// does not use the others, so don't bother loading them.
+	var dat = map[string][]byte{"abbrev": nil, "info": nil, "str": nil}
+	for i, s := range f.Sections {
+		if !strings.HasPrefix(s.Name, ".debug_") {
+			continue
+		}
+		if _, ok := dat[s.Name[7:]]; !ok {
+			continue
+		}
+		b, err := sectionData(i, s)
 		if err != nil {
 			return nil, err
 		}
-		err = f.applyRelocations(dat[1], data)
-		if err != nil {
-			return nil, err
-		}
+		dat[s.Name[7:]] = b
 	}
 
-	// When using clang we need to process relocations even for 386.
-	rel := f.Section(".rel.debug_info")
-	if rel != nil && rel.Type == SHT_REL && f.Machine == EM_386 {
-		data, err := rel.Data()
-		if err != nil {
-			return nil, err
-		}
-		err = f.applyRelocations(dat[1], data)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	abbrev, info, str := dat[0], dat[1], dat[2]
-	d, err := dwarf.New(abbrev, nil, nil, info, nil, nil, nil, str)
+	d, err := dwarf.New(dat["abbrev"], nil, nil, dat["info"], nil, nil, nil, dat["str"])
 	if err != nil {
 		return nil, err
 	}
@@ -774,26 +774,9 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 	// Look for DWARF4 .debug_types sections.
 	for i, s := range f.Sections {
 		if s.Name == ".debug_types" {
-			b, err := s.Data()
-			if err != nil && uint64(len(b)) < s.Size {
+			b, err := sectionData(i, s)
+			if err != nil {
 				return nil, err
-			}
-
-			for _, r := range f.Sections {
-				if r.Type != SHT_RELA && r.Type != SHT_REL {
-					continue
-				}
-				if int(r.Info) != i {
-					continue
-				}
-				rd, err := r.Data()
-				if err != nil {
-					return nil, err
-				}
-				err = f.applyRelocations(b, rd)
-				if err != nil {
-					return nil, err
-				}
 			}
 
 			err = d.AddTypes(fmt.Sprintf("types-%d", i), b)
