@@ -749,9 +749,9 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 	}
 
 	// There are many other DWARF sections, but these
-	// are the required ones, and the debug/dwarf package
-	// does not use the others, so don't bother loading them.
-	var dat = map[string][]byte{"abbrev": nil, "info": nil, "str": nil}
+	// are the ones the debug/dwarf package uses.
+	// Don't bother loading others.
+	var dat = map[string][]byte{"abbrev": nil, "info": nil, "str": nil, "line": nil}
 	for i, s := range f.Sections {
 		if !strings.HasPrefix(s.Name, ".debug_") {
 			continue
@@ -766,7 +766,7 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 		dat[s.Name[7:]] = b
 	}
 
-	d, err := dwarf.New(dat["abbrev"], nil, nil, dat["info"], nil, nil, nil, dat["str"])
+	d, err := dwarf.New(dat["abbrev"], nil, nil, dat["info"], dat["line"], nil, nil, dat["str"])
 	if err != nil {
 		return nil, err
 	}
