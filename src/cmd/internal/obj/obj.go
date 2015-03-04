@@ -183,16 +183,16 @@ func linkgetline(ctxt *Link, line int32, f **LSym, l *int32) {
 	}
 	var buf string
 	if filepath.IsAbs(file) || strings.HasPrefix(file, "<") {
-		buf = fmt.Sprintf("%s", file)
+		buf = file
 	} else {
-		buf = fmt.Sprintf("%s/%s", ctxt.Pathname, file)
+		buf = ctxt.Pathname + "/" + file
 	}
 	// Remove leading ctxt->trimpath, or else rewrite $GOROOT to $GOROOT_FINAL.
 	if ctxt.Trimpath != "" && haspathprefix(buf, ctxt.Trimpath) {
 		if len(buf) == len(ctxt.Trimpath) {
 			buf = "??"
 		} else {
-			buf1 := fmt.Sprintf("%s", buf[len(ctxt.Trimpath)+1:])
+			buf1 := buf[len(ctxt.Trimpath)+1:]
 			if buf1[0] == '\x00' {
 				buf1 = "??"
 			}

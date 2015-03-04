@@ -155,7 +155,7 @@ func init() {
 
 func Rconv(r int) string {
 	if r >= REG_AL && r-REG_AL < len(Register) {
-		return fmt.Sprintf("%s", Register[r-REG_AL])
+		return Register[r-REG_AL]
 	}
 	return fmt.Sprintf("Rgok(%d)", r-obj.RBase386)
 }
