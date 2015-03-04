@@ -231,7 +231,6 @@ func pclntab() {
 	nfunc = 0
 	var last *LSym
 	var end int32
-	var frameptrsize int32
 	var funcstart int32
 	var i int32
 	var it Pciter
@@ -273,17 +272,11 @@ func pclntab() {
 		off = int32(setuint32(Ctxt, ftab, int64(off), uint32(Ctxt.Cursym.Args)))
 
 		// frame int32
-		// TODO: Remove entirely. The pcsp table is more precise.
-		// This is only used by a fallback case during stack walking
-		// when a called function doesn't have argument information.
-		// We need to make sure everything has argument information
-		// and then remove this.
-		frameptrsize = int32(Thearch.Ptrsize)
-
-		if Ctxt.Cursym.Leaf != 0 {
-			frameptrsize = 0
-		}
-		off = int32(setuint32(Ctxt, ftab, int64(off), uint32(Ctxt.Cursym.Locals)+uint32(frameptrsize)))
+		// This has been removed (it was never set quite correctly anyway).
+		// Nothing should use it.
+		// Leave an obviously incorrect value.
+		// TODO: Remove entirely.
+		off = int32(setuint32(Ctxt, ftab, int64(off), 0x1234567))
 
 		if pcln != &pclntab_zpcln {
 			renumberfiles(Ctxt, pcln.File, &pcln.Pcfile)
