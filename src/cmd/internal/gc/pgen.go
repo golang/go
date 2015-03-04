@@ -211,8 +211,8 @@ func cmpstackvar(a *Node, b *Node) int {
 		return bp - ap
 	}
 
-	ap = int(a.Needzero)
-	bp = int(b.Needzero)
+	ap = bool2int(a.Needzero)
+	bp = bool2int(b.Needzero)
 	if ap != bp {
 		return bp - ap
 	}
