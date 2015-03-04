@@ -73,9 +73,11 @@ type Movtab struct {
 const (
 	Yxxx = iota
 	Ynone
-	Yi0
-	Yi1
-	Yi8
+	Yi0 // $0
+	Yi1 // $1
+	Yi8 // $x, x fits in int8
+	Yu8 // $x, x fits in uint8
+	Yu7 // $x, x in 0..127 (fits in both int8 and uint8)
 	Ys32
 	Yi32
 	Yi64
@@ -86,6 +88,7 @@ const (
 	Ycx
 	Yrb
 	Yrl
+	Yrl32 // Yrl on 32-bit system
 	Yrf
 	Yf0
 	Yrx
@@ -129,8 +132,6 @@ const (
 	Ytr5
 	Ytr6
 	Ytr7
-	Yrl32
-	Yrl64
 	Ymr
 	Ymm
 	Yxr
@@ -177,7 +178,6 @@ const (
 	Zpseudo
 	Zr_m
 	Zr_m_xm
-	Zr_m_i_xm
 	Zrp_
 	Z_ib
 	Z_il
@@ -192,6 +192,7 @@ const (
 
 const (
 	Px     = 0
+	Px1    = 1 // symbolic; exact value doesn't matter
 	P32    = 0x32
 	Pe     = 0x66
 	Pm     = 0x0f
@@ -201,7 +202,10 @@ const (
 	Pf3    = 0xf3
 	Pq3    = 0x67
 	Pw     = 0x48
+	Pw8    = 0x90 // symbolic; exact value doesn't matter
 	Py     = 0x80
+	Py1    = 0x81 // symbolic; exact value doesn't matter
+	Py3    = 0x83 // symbolic; exact value doesn't matter
 	Rxf    = 1 << 9
 	Rxt    = 1 << 8
 	Rxw    = 1 << 3
@@ -221,8 +225,14 @@ var ynone = []ytab{
 	{Ynone, Ynone, Ynone, Zlit, 1},
 }
 
+var ysahf = []ytab{
+	{Ynone, Ynone, Ynone, Zlit, 2},
+	{Ynone, Ynone, Ynone, Zlit, 1},
+}
+
 var ytext = []ytab{
-	{Ymb, Ynone, Ytextsize, Zpseudo, 1},
+	{Ymb, Ynone, Ytextsize, Zpseudo, 0},
+	{Ymb, Yi32, Ytextsize, Zpseudo, 1},
 }
 
 var ynop = []ytab{
@@ -277,6 +287,11 @@ var yincw = []ytab{
 }
 
 var yincl = []ytab{
+	{Ynone, Ynone, Yrl, Z_rp, 1},
+	{Ynone, Ynone, Yml, Zo_m, 2},
+}
+
+var yincq = []ytab{
 	{Ynone, Ynone, Yml, Zo_m, 2},
 }
 
@@ -366,22 +381,25 @@ var yret = []ytab{
 }
 
 var ymovq = []ytab{
-	{Yrl, Ynone, Yml, Zr_m, 1},       // 0x89
-	{Yml, Ynone, Yrl, Zm_r, 1},       // 0x8b
-	{Yi0, Ynone, Yrl, Zclr, 1},       // 0x31
-	{Ys32, Ynone, Yrl, Zilo_m, 2},    // 32 bit signed 0xc7,(0)
-	{Yi64, Ynone, Yrl, Ziq_rp, 1},    // 0xb8 -- 32/64 bit immediate
-	{Yi32, Ynone, Yml, Zilo_m, 2},    // 0xc7,(0)
-	{Ym, Ynone, Ymr, Zm_r_xm_nr, 1},  // MMX MOVQ (shorter encoding)
-	{Ymr, Ynone, Ym, Zr_m_xm_nr, 1},  // MMX MOVQ
-	{Ymm, Ynone, Ymr, Zm_r_xm, 1},    // MMX MOVD
-	{Ymr, Ynone, Ymm, Zr_m_xm, 1},    // MMX MOVD
-	{Yxr, Ynone, Ymr, Zm_r_xm_nr, 2}, // MOVDQ2Q
-	{Yxm, Ynone, Yxr, Zm_r_xm_nr, 2}, // MOVQ xmm1/m64 -> xmm2
-	{Yxr, Ynone, Yxm, Zr_m_xm_nr, 2}, // MOVQ xmm1 -> xmm2/m64
-	{Yml, Ynone, Yxr, Zm_r_xm, 2},    // MOVD xmm load
-	{Yxr, Ynone, Yml, Zr_m_xm, 2},    // MOVD xmm store
-	{Yiauto, Ynone, Yrl, Zaut_r, 2},  // built-in LEAQ
+	// valid in 32-bit mode
+	{Ym, Ynone, Ymr, Zm_r_xm_nr, 1},  // 0x6f MMX MOVQ (shorter encoding)
+	{Ymr, Ynone, Ym, Zr_m_xm_nr, 1},  // 0x7f MMX MOVQ
+	{Yxr, Ynone, Ymr, Zm_r_xm_nr, 2}, // Pf2, 0xd6 MOVDQ2Q
+	{Yxm, Ynone, Yxr, Zm_r_xm_nr, 2}, // Pf3, 0x7e MOVQ xmm1/m64 -> xmm2
+	{Yxr, Ynone, Yxm, Zr_m_xm_nr, 2}, // Pe, 0xd6 MOVQ xmm1 -> xmm2/m64
+
+	// valid only in 64-bit mode, usually with 64-bit prefix
+	{Yrl, Ynone, Yml, Zr_m, 1},      // 0x89
+	{Yml, Ynone, Yrl, Zm_r, 1},      // 0x8b
+	{Yi0, Ynone, Yrl, Zclr, 1},      // 0x31
+	{Ys32, Ynone, Yrl, Zilo_m, 2},   // 32 bit signed 0xc7,(0)
+	{Yi64, Ynone, Yrl, Ziq_rp, 1},   // 0xb8 -- 32/64 bit immediate
+	{Yi32, Ynone, Yml, Zilo_m, 2},   // 0xc7,(0)
+	{Ymm, Ynone, Ymr, Zm_r_xm, 1},   // 0x6e MMX MOVD
+	{Ymr, Ynone, Ymm, Zr_m_xm, 1},   // 0x7e MMX MOVD
+	{Yml, Ynone, Yxr, Zm_r_xm, 2},   // Pe, 0x6e MOVD xmm load
+	{Yxr, Ynone, Yml, Zr_m_xm, 2},   // Pe, 0x7e MOVD xmm store
+	{Yiauto, Ynone, Yrl, Zaut_r, 1}, // 0 built-in LEAQ
 }
 
 var ym_rl = []ytab{
@@ -436,7 +454,7 @@ var yimul = []ytab{
 }
 
 var yimul3 = []ytab{
-	{Yml, Ynone, Yrl, Zibm_r, 2},
+	{Yi8, Yml, Yrl, Zibm_r, 2},
 }
 
 var ybyte = []ytab{
@@ -522,6 +540,10 @@ var yfmvp = []ytab{
 	{Yf0, Ynone, Ym, Zo_m, 2},
 }
 
+var yfcmv = []ytab{
+	{Yrf, Ynone, Yf0, Zm_o, 2},
+}
+
 var yfadd = []ytab{
 	{Ym, Ynone, Yf0, Zm_o, 2},
 	{Yrf, Ynone, Yf0, Zm_o, 2},
@@ -602,7 +624,7 @@ var yxcmp = []ytab{
 }
 
 var yxcmpi = []ytab{
-	{Yxm, Ynone, Yxr, Zm_r_i_xm, 2},
+	{Yxm, Yxr, Yi8, Zm_r_i_xm, 2},
 }
 
 var yxmov = []ytab{
@@ -647,7 +669,7 @@ var ymrxr = []ytab{
 }
 
 var ymshuf = []ytab{
-	{Ymm, Ynone, Ymr, Zibm_r, 2},
+	{Yi8, Ymm, Ymr, Zibm_r, 2},
 }
 
 var ymshufb = []ytab{
@@ -655,19 +677,19 @@ var ymshufb = []ytab{
 }
 
 var yxshuf = []ytab{
-	{Yxm, Ynone, Yxr, Zibm_r, 2},
+	{Yu8, Yxm, Yxr, Zibm_r, 2},
 }
 
 var yextrw = []ytab{
-	{Yxr, Ynone, Yrl, Zibm_r, 2},
+	{Yu8, Yxr, Yrl, Zibm_r, 2},
 }
 
 var yinsrw = []ytab{
-	{Yml, Ynone, Yxr, Zibm_r, 2},
+	{Yu8, Yml, Yxr, Zibm_r, 2},
 }
 
 var yinsr = []ytab{
-	{Ymm, Ynone, Yxr, Zibm_r, 3},
+	{Yu8, Ymm, Yxr, Zibm_r, 3},
 }
 
 var ypsdq = []ytab{
@@ -692,7 +714,7 @@ var yaes = []ytab{
 }
 
 var yaes2 = []ytab{
-	{Yxm, Ynone, Yxr, Zibm_r, 2},
+	{Yu8, Yxm, Yxr, Zibm_r, 2},
 }
 
 /*
@@ -905,8 +927,8 @@ var optab =
 	Optab{ADAS, ynone, P32, [23]uint8{0x2f}},
 	Optab{obj.ADATA, nil, 0, [23]uint8{}},
 	Optab{ADECB, yincb, Pb, [23]uint8{0xfe, 01}},
-	Optab{ADECL, yincl, Px, [23]uint8{0xff, 01}},
-	Optab{ADECQ, yincl, Pw, [23]uint8{0xff, 01}},
+	Optab{ADECL, yincl, Px1, [23]uint8{0x48, 0xff, 01}},
+	Optab{ADECQ, yincq, Pw, [23]uint8{0xff, 01}},
 	Optab{ADECW, yincw, Pe, [23]uint8{0xff, 01}},
 	Optab{ADIVB, ydivb, Pb, [23]uint8{0xf6, 06}},
 	Optab{ADIVL, ydivl, Px, [23]uint8{0xf7, 06}},
@@ -935,8 +957,8 @@ var optab =
 	Optab{AIMUL3Q, yimul3, Pw, [23]uint8{0x6b, 00}},
 	Optab{AINB, yin, Pb, [23]uint8{0xe4, 0xec}},
 	Optab{AINCB, yincb, Pb, [23]uint8{0xfe, 00}},
-	Optab{AINCL, yincl, Px, [23]uint8{0xff, 00}},
-	Optab{AINCQ, yincl, Pw, [23]uint8{0xff, 00}},
+	Optab{AINCL, yincl, Px1, [23]uint8{0x40, 0xff, 00}},
+	Optab{AINCQ, yincq, Pw, [23]uint8{0xff, 00}},
 	Optab{AINCW, yincw, Pe, [23]uint8{0xff, 00}},
 	Optab{AINL, yin, Px, [23]uint8{0xe5, 0xed}},
 	Optab{AINSB, ynone, Pb, [23]uint8{0x6c}},
@@ -951,6 +973,7 @@ var optab =
 	Optab{AJCC, yjcond, Px, [23]uint8{0x73, 0x83, 00}},
 	Optab{AJCS, yjcond, Px, [23]uint8{0x72, 0x82}},
 	Optab{AJCXZL, yloop, Px, [23]uint8{0xe3}},
+	Optab{AJCXZW, yloop, Px, [23]uint8{0xe3}},
 	Optab{AJCXZQ, yloop, Px, [23]uint8{0xe3}},
 	Optab{AJEQ, yjcond, Px, [23]uint8{0x74, 0x84}},
 	Optab{AJGE, yjcond, Px, [23]uint8{0x7d, 0x8d}},
@@ -1024,7 +1047,7 @@ var optab =
 	Optab{AMOVNTPD, yxr_ml, Pe, [23]uint8{0x2b}},
 	Optab{AMOVNTPS, yxr_ml, Pm, [23]uint8{0x2b}},
 	Optab{AMOVNTQ, ymr_ml, Pm, [23]uint8{0xe7}},
-	Optab{AMOVQ, ymovq, Pw, [23]uint8{0x89, 0x8b, 0x31, 0xc7, 00, 0xb8, 0xc7, 00, 0x6f, 0x7f, 0x6e, 0x7e, Pf2, 0xd6, Pf3, 0x7e, Pe, 0xd6, Pe, 0x6e, Pe, 0x7e, 0}},
+	Optab{AMOVQ, ymovq, Pw8, [23]uint8{0x6f, 0x7f, Pf2, 0xd6, Pf3, 0x7e, Pe, 0xd6, 0x89, 0x8b, 0x31, 0xc7, 00, 0xb8, 0xc7, 00, 0x6e, 0x7e, Pe, 0x6e, Pe, 0x7e, 0}},
 	Optab{AMOVQOZX, ymrxr, Pf3, [23]uint8{0xd6, 0x7e}},
 	Optab{AMOVSB, ynone, Pb, [23]uint8{0xa4}},
 	Optab{AMOVSD, yxmov, Pf2, [23]uint8{0x10, 0x11}},
@@ -1053,7 +1076,7 @@ var optab =
 	Optab{ANEGW, yscond, Pe, [23]uint8{0xf7, 03}},
 	Optab{obj.ANOP, ynop, Px, [23]uint8{0, 0}},
 	Optab{ANOTB, yscond, Pb, [23]uint8{0xf6, 02}},
-	Optab{ANOTL, yscond, Px, [23]uint8{0xf7, 02}},
+	Optab{ANOTL, yscond, Px, [23]uint8{0xf7, 02}}, // TODO(rsc): yscond is wrong here.
 	Optab{ANOTQ, yscond, Pw, [23]uint8{0xf7, 02}},
 	Optab{ANOTW, yscond, Pe, [23]uint8{0xf7, 02}},
 	Optab{AORB, yxorb, Pb, [23]uint8{0x0c, 0x80, 01, 0x08, 0x0a}},
@@ -1068,28 +1091,28 @@ var optab =
 	Optab{AOUTSL, ynone, Px, [23]uint8{0x6f}},
 	Optab{AOUTSW, ynone, Pe, [23]uint8{0x6f}},
 	Optab{AOUTW, yin, Pe, [23]uint8{0xe7, 0xef}},
-	Optab{APACKSSLW, ymm, Py, [23]uint8{0x6b, Pe, 0x6b}},
-	Optab{APACKSSWB, ymm, Py, [23]uint8{0x63, Pe, 0x63}},
-	Optab{APACKUSWB, ymm, Py, [23]uint8{0x67, Pe, 0x67}},
-	Optab{APADDB, ymm, Py, [23]uint8{0xfc, Pe, 0xfc}},
-	Optab{APADDL, ymm, Py, [23]uint8{0xfe, Pe, 0xfe}},
+	Optab{APACKSSLW, ymm, Py1, [23]uint8{0x6b, Pe, 0x6b}},
+	Optab{APACKSSWB, ymm, Py1, [23]uint8{0x63, Pe, 0x63}},
+	Optab{APACKUSWB, ymm, Py1, [23]uint8{0x67, Pe, 0x67}},
+	Optab{APADDB, ymm, Py1, [23]uint8{0xfc, Pe, 0xfc}},
+	Optab{APADDL, ymm, Py1, [23]uint8{0xfe, Pe, 0xfe}},
 	Optab{APADDQ, yxm, Pe, [23]uint8{0xd4}},
-	Optab{APADDSB, ymm, Py, [23]uint8{0xec, Pe, 0xec}},
-	Optab{APADDSW, ymm, Py, [23]uint8{0xed, Pe, 0xed}},
-	Optab{APADDUSB, ymm, Py, [23]uint8{0xdc, Pe, 0xdc}},
-	Optab{APADDUSW, ymm, Py, [23]uint8{0xdd, Pe, 0xdd}},
-	Optab{APADDW, ymm, Py, [23]uint8{0xfd, Pe, 0xfd}},
-	Optab{APAND, ymm, Py, [23]uint8{0xdb, Pe, 0xdb}},
-	Optab{APANDN, ymm, Py, [23]uint8{0xdf, Pe, 0xdf}},
+	Optab{APADDSB, ymm, Py1, [23]uint8{0xec, Pe, 0xec}},
+	Optab{APADDSW, ymm, Py1, [23]uint8{0xed, Pe, 0xed}},
+	Optab{APADDUSB, ymm, Py1, [23]uint8{0xdc, Pe, 0xdc}},
+	Optab{APADDUSW, ymm, Py1, [23]uint8{0xdd, Pe, 0xdd}},
+	Optab{APADDW, ymm, Py1, [23]uint8{0xfd, Pe, 0xfd}},
+	Optab{APAND, ymm, Py1, [23]uint8{0xdb, Pe, 0xdb}},
+	Optab{APANDN, ymm, Py1, [23]uint8{0xdf, Pe, 0xdf}},
 	Optab{APAUSE, ynone, Px, [23]uint8{0xf3, 0x90}},
-	Optab{APAVGB, ymm, Py, [23]uint8{0xe0, Pe, 0xe0}},
-	Optab{APAVGW, ymm, Py, [23]uint8{0xe3, Pe, 0xe3}},
-	Optab{APCMPEQB, ymm, Py, [23]uint8{0x74, Pe, 0x74}},
-	Optab{APCMPEQL, ymm, Py, [23]uint8{0x76, Pe, 0x76}},
-	Optab{APCMPEQW, ymm, Py, [23]uint8{0x75, Pe, 0x75}},
-	Optab{APCMPGTB, ymm, Py, [23]uint8{0x64, Pe, 0x64}},
-	Optab{APCMPGTL, ymm, Py, [23]uint8{0x66, Pe, 0x66}},
-	Optab{APCMPGTW, ymm, Py, [23]uint8{0x65, Pe, 0x65}},
+	Optab{APAVGB, ymm, Py1, [23]uint8{0xe0, Pe, 0xe0}},
+	Optab{APAVGW, ymm, Py1, [23]uint8{0xe3, Pe, 0xe3}},
+	Optab{APCMPEQB, ymm, Py1, [23]uint8{0x74, Pe, 0x74}},
+	Optab{APCMPEQL, ymm, Py1, [23]uint8{0x76, Pe, 0x76}},
+	Optab{APCMPEQW, ymm, Py1, [23]uint8{0x75, Pe, 0x75}},
+	Optab{APCMPGTB, ymm, Py1, [23]uint8{0x64, Pe, 0x64}},
+	Optab{APCMPGTL, ymm, Py1, [23]uint8{0x66, Pe, 0x66}},
+	Optab{APCMPGTW, ymm, Py1, [23]uint8{0x65, Pe, 0x65}},
 	Optab{APEXTRW, yextrw, Pq, [23]uint8{0xc5, 00}},
 	Optab{APF2IL, ymfp, Px, [23]uint8{0x1d}},
 	Optab{APF2IW, ymfp, Px, [23]uint8{0x1c}},
@@ -1114,17 +1137,17 @@ var optab =
 	Optab{APINSRW, yinsrw, Pq, [23]uint8{0xc4, 00}},
 	Optab{APINSRD, yinsr, Pq, [23]uint8{0x3a, 0x22, 00}},
 	Optab{APINSRQ, yinsr, Pq3, [23]uint8{0x3a, 0x22, 00}},
-	Optab{APMADDWL, ymm, Py, [23]uint8{0xf5, Pe, 0xf5}},
+	Optab{APMADDWL, ymm, Py1, [23]uint8{0xf5, Pe, 0xf5}},
 	Optab{APMAXSW, yxm, Pe, [23]uint8{0xee}},
 	Optab{APMAXUB, yxm, Pe, [23]uint8{0xde}},
 	Optab{APMINSW, yxm, Pe, [23]uint8{0xea}},
 	Optab{APMINUB, yxm, Pe, [23]uint8{0xda}},
 	Optab{APMOVMSKB, ymskb, Px, [23]uint8{Pe, 0xd7, 0xd7}},
 	Optab{APMULHRW, ymfp, Px, [23]uint8{0xb7}},
-	Optab{APMULHUW, ymm, Py, [23]uint8{0xe4, Pe, 0xe4}},
-	Optab{APMULHW, ymm, Py, [23]uint8{0xe5, Pe, 0xe5}},
-	Optab{APMULLW, ymm, Py, [23]uint8{0xd5, Pe, 0xd5}},
-	Optab{APMULULQ, ymm, Py, [23]uint8{0xf4, Pe, 0xf4}},
+	Optab{APMULHUW, ymm, Py1, [23]uint8{0xe4, Pe, 0xe4}},
+	Optab{APMULHW, ymm, Py1, [23]uint8{0xe5, Pe, 0xe5}},
+	Optab{APMULLW, ymm, Py1, [23]uint8{0xd5, Pe, 0xd5}},
+	Optab{APMULULQ, ymm, Py1, [23]uint8{0xf4, Pe, 0xf4}},
 	Optab{APOPAL, ynone, P32, [23]uint8{0x61}},
 	Optab{APOPAW, ynone, Pe, [23]uint8{0x61}},
 	Optab{APOPFL, ynone, P32, [23]uint8{0x9d}},
@@ -1133,7 +1156,7 @@ var optab =
 	Optab{APOPL, ypopl, P32, [23]uint8{0x58, 0x8f, 00}},
 	Optab{APOPQ, ypopl, Py, [23]uint8{0x58, 0x8f, 00}},
 	Optab{APOPW, ypopl, Pe, [23]uint8{0x58, 0x8f, 00}},
-	Optab{APOR, ymm, Py, [23]uint8{0xeb, Pe, 0xeb}},
+	Optab{APOR, ymm, Py1, [23]uint8{0xeb, Pe, 0xeb}},
 	Optab{APSADBW, yxm, Pq, [23]uint8{0xf6}},
 	Optab{APSHUFHW, yxshuf, Pf3, [23]uint8{0x70, 00}},
 	Optab{APSHUFL, yxshuf, Pq, [23]uint8{0x70, 00}},
@@ -1141,15 +1164,15 @@ var optab =
 	Optab{APSHUFW, ymshuf, Pm, [23]uint8{0x70, 00}},
 	Optab{APSHUFB, ymshufb, Pq, [23]uint8{0x38, 0x00}},
 	Optab{APSLLO, ypsdq, Pq, [23]uint8{0x73, 07}},
-	Optab{APSLLL, yps, Py, [23]uint8{0xf2, 0x72, 06, Pe, 0xf2, Pe, 0x72, 06}},
-	Optab{APSLLQ, yps, Py, [23]uint8{0xf3, 0x73, 06, Pe, 0xf3, Pe, 0x73, 06}},
-	Optab{APSLLW, yps, Py, [23]uint8{0xf1, 0x71, 06, Pe, 0xf1, Pe, 0x71, 06}},
-	Optab{APSRAL, yps, Py, [23]uint8{0xe2, 0x72, 04, Pe, 0xe2, Pe, 0x72, 04}},
-	Optab{APSRAW, yps, Py, [23]uint8{0xe1, 0x71, 04, Pe, 0xe1, Pe, 0x71, 04}},
+	Optab{APSLLL, yps, Py3, [23]uint8{0xf2, 0x72, 06, Pe, 0xf2, Pe, 0x72, 06}},
+	Optab{APSLLQ, yps, Py3, [23]uint8{0xf3, 0x73, 06, Pe, 0xf3, Pe, 0x73, 06}},
+	Optab{APSLLW, yps, Py3, [23]uint8{0xf1, 0x71, 06, Pe, 0xf1, Pe, 0x71, 06}},
+	Optab{APSRAL, yps, Py3, [23]uint8{0xe2, 0x72, 04, Pe, 0xe2, Pe, 0x72, 04}},
+	Optab{APSRAW, yps, Py3, [23]uint8{0xe1, 0x71, 04, Pe, 0xe1, Pe, 0x71, 04}},
 	Optab{APSRLO, ypsdq, Pq, [23]uint8{0x73, 03}},
-	Optab{APSRLL, yps, Py, [23]uint8{0xd2, 0x72, 02, Pe, 0xd2, Pe, 0x72, 02}},
-	Optab{APSRLQ, yps, Py, [23]uint8{0xd3, 0x73, 02, Pe, 0xd3, Pe, 0x73, 02}},
-	Optab{APSRLW, yps, Py, [23]uint8{0xd1, 0x71, 02, Pe, 0xe1, Pe, 0x71, 02}},
+	Optab{APSRLL, yps, Py3, [23]uint8{0xd2, 0x72, 02, Pe, 0xd2, Pe, 0x72, 02}},
+	Optab{APSRLQ, yps, Py3, [23]uint8{0xd3, 0x73, 02, Pe, 0xd3, Pe, 0x73, 02}},
+	Optab{APSRLW, yps, Py3, [23]uint8{0xd1, 0x71, 02, Pe, 0xe1, Pe, 0x71, 02}},
 	Optab{APSUBB, yxm, Pe, [23]uint8{0xf8}},
 	Optab{APSUBL, yxm, Pe, [23]uint8{0xfa}},
 	Optab{APSUBQ, yxm, Pe, [23]uint8{0xfb}},
@@ -1159,14 +1182,14 @@ var optab =
 	Optab{APSUBUSW, yxm, Pe, [23]uint8{0xd9}},
 	Optab{APSUBW, yxm, Pe, [23]uint8{0xf9}},
 	Optab{APSWAPL, ymfp, Px, [23]uint8{0xbb}},
-	Optab{APUNPCKHBW, ymm, Py, [23]uint8{0x68, Pe, 0x68}},
-	Optab{APUNPCKHLQ, ymm, Py, [23]uint8{0x6a, Pe, 0x6a}},
+	Optab{APUNPCKHBW, ymm, Py1, [23]uint8{0x68, Pe, 0x68}},
+	Optab{APUNPCKHLQ, ymm, Py1, [23]uint8{0x6a, Pe, 0x6a}},
 	Optab{APUNPCKHQDQ, yxm, Pe, [23]uint8{0x6d}},
-	Optab{APUNPCKHWL, ymm, Py, [23]uint8{0x69, Pe, 0x69}},
-	Optab{APUNPCKLBW, ymm, Py, [23]uint8{0x60, Pe, 0x60}},
-	Optab{APUNPCKLLQ, ymm, Py, [23]uint8{0x62, Pe, 0x62}},
+	Optab{APUNPCKHWL, ymm, Py1, [23]uint8{0x69, Pe, 0x69}},
+	Optab{APUNPCKLBW, ymm, Py1, [23]uint8{0x60, Pe, 0x60}},
+	Optab{APUNPCKLLQ, ymm, Py1, [23]uint8{0x62, Pe, 0x62}},
 	Optab{APUNPCKLQDQ, yxm, Pe, [23]uint8{0x6c}},
-	Optab{APUNPCKLWL, ymm, Py, [23]uint8{0x61, Pe, 0x61}},
+	Optab{APUNPCKLWL, ymm, Py1, [23]uint8{0x61, Pe, 0x61}},
 	Optab{APUSHAL, ynone, P32, [23]uint8{0x60}},
 	Optab{APUSHAW, ynone, Pe, [23]uint8{0x60}},
 	Optab{APUSHFL, ynone, P32, [23]uint8{0x9c}},
@@ -1175,7 +1198,7 @@ var optab =
 	Optab{APUSHL, ypushl, P32, [23]uint8{0x50, 0xff, 06, 0x6a, 0x68}},
 	Optab{APUSHQ, ypushl, Py, [23]uint8{0x50, 0xff, 06, 0x6a, 0x68}},
 	Optab{APUSHW, ypushl, Pe, [23]uint8{0x50, 0xff, 06, 0x6a, 0x68}},
-	Optab{APXOR, ymm, Py, [23]uint8{0xef, Pe, 0xef}},
+	Optab{APXOR, ymm, Py1, [23]uint8{0xef, Pe, 0xef}},
 	Optab{AQUAD, ybyte, Px, [23]uint8{8}},
 	Optab{ARCLB, yshb, Pb, [23]uint8{0xd0, 02, 0xc0, 02, 0xd2, 02}},
 	Optab{ARCLL, yshl, Px, [23]uint8{0xd1, 02, 0xc1, 02, 0xd3, 02, 0xd3, 02}},
@@ -1203,7 +1226,7 @@ var optab =
 	Optab{ARORW, yshl, Pe, [23]uint8{0xd1, 01, 0xc1, 01, 0xd3, 01, 0xd3, 01}},
 	Optab{ARSQRTPS, yxm, Pm, [23]uint8{0x52}},
 	Optab{ARSQRTSS, yxm, Pf3, [23]uint8{0x52}},
-	Optab{ASAHF, ynone, Px, [23]uint8{0x86, 0xe0, 0x50, 0x9d}}, /* XCHGB AH,AL; PUSH AX; POPFL */
+	Optab{ASAHF, ynone, Px1, [23]uint8{0x9e, 00, 0x86, 0xe0, 0x50, 0x9d}}, /* XCHGB AH,AL; PUSH AX; POPFL */
 	Optab{ASALB, yshb, Pb, [23]uint8{0xd0, 04, 0xc0, 04, 0xd2, 04}},
 	Optab{ASALL, yshl, Px, [23]uint8{0xd1, 04, 0xc1, 04, 0xd3, 04, 0xd3, 04}},
 	Optab{ASALQ, yshl, Pw, [23]uint8{0xd1, 04, 0xc1, 04, 0xd3, 04, 0xd3, 04}},
@@ -1308,6 +1331,14 @@ var optab =
 	Optab{AFMOVWP, yfmvp, Px, [23]uint8{0xdf, 03}},
 	Optab{AFMOVX, yfmvx, Px, [23]uint8{0xdb, 05}},
 	Optab{AFMOVXP, yfmvp, Px, [23]uint8{0xdb, 07}},
+	Optab{AFCMOVCC, yfcmv, Px, [23]uint8{0xdb, 00}},
+	Optab{AFCMOVCS, yfcmv, Px, [23]uint8{0xda, 00}},
+	Optab{AFCMOVEQ, yfcmv, Px, [23]uint8{0xda, 01}},
+	Optab{AFCMOVHI, yfcmv, Px, [23]uint8{0xdb, 02}},
+	Optab{AFCMOVLS, yfcmv, Px, [23]uint8{0xda, 02}},
+	Optab{AFCMOVNE, yfcmv, Px, [23]uint8{0xdb, 01}},
+	Optab{AFCMOVNU, yfcmv, Px, [23]uint8{0xdb, 03}},
+	Optab{AFCMOVUN, yfcmv, Px, [23]uint8{0xda, 03}},
 	Optab{AFCOMB, nil, 0, [23]uint8{}},
 	Optab{AFCOMBP, nil, 0, [23]uint8{}},
 	Optab{AFCOMD, yfadd, Px, [23]uint8{0xdc, 02, 0xd8, 02, 0xdc, 02}},  /* botch */
@@ -1315,11 +1346,15 @@ var optab =
 	Optab{AFCOMDPP, ycompp, Px, [23]uint8{0xde, 03}},
 	Optab{AFCOMF, yfmvx, Px, [23]uint8{0xd8, 02}},
 	Optab{AFCOMFP, yfmvx, Px, [23]uint8{0xd8, 03}},
+	Optab{AFCOMI, yfmvx, Px, [23]uint8{0xdb, 06}},
+	Optab{AFCOMIP, yfmvx, Px, [23]uint8{0xdf, 06}},
 	Optab{AFCOML, yfmvx, Px, [23]uint8{0xda, 02}},
 	Optab{AFCOMLP, yfmvx, Px, [23]uint8{0xda, 03}},
 	Optab{AFCOMW, yfmvx, Px, [23]uint8{0xde, 02}},
 	Optab{AFCOMWP, yfmvx, Px, [23]uint8{0xde, 03}},
 	Optab{AFUCOM, ycompp, Px, [23]uint8{0xdd, 04}},
+	Optab{AFUCOMI, ycompp, Px, [23]uint8{0xdb, 05}},
+	Optab{AFUCOMIP, ycompp, Px, [23]uint8{0xdf, 05}},
 	Optab{AFUCOMP, ycompp, Px, [23]uint8{0xdd, 05}},
 	Optab{AFUCOMPP, ycompp, Px, [23]uint8{0xda, 13}},
 	Optab{AFADDDP, yfaddp, Px, [23]uint8{0xde, 00}},
@@ -1428,7 +1463,7 @@ var optab =
 	Optab{AAESDECLAST, yaes, Pq, [23]uint8{0x38, 0xdf, 0}},
 	Optab{AAESIMC, yaes, Pq, [23]uint8{0x38, 0xdb, 0}},
 	Optab{AAESKEYGENASSIST, yaes2, Pq, [23]uint8{0x3a, 0xdf, 0}},
-	Optab{APSHUFD, yaes2, Pq, [23]uint8{0x70, 0}},
+	Optab{APSHUFD, yxshuf, Pq, [23]uint8{0x70, 0}},
 	Optab{APCLMULQDQ, yxshuf, Pq, [23]uint8{0x3a, 0x44, 0}},
 	Optab{obj.AUSEFIELD, ynop, Px, [23]uint8{0, 0}},
 	Optab{obj.ATYPE, nil, 0, [23]uint8{}},
@@ -1728,18 +1763,32 @@ func instinit() {
 
 	ycover[Yi0*Ymax+Yi8] = 1
 	ycover[Yi1*Ymax+Yi8] = 1
+	ycover[Yu7*Ymax+Yi8] = 1
+
+	ycover[Yi0*Ymax+Yu7] = 1
+	ycover[Yi1*Ymax+Yu7] = 1
+
+	ycover[Yi0*Ymax+Yu8] = 1
+	ycover[Yi1*Ymax+Yu8] = 1
+	ycover[Yu7*Ymax+Yu8] = 1
 
 	ycover[Yi0*Ymax+Ys32] = 1
 	ycover[Yi1*Ymax+Ys32] = 1
+	ycover[Yu7*Ymax+Ys32] = 1
+	ycover[Yu8*Ymax+Ys32] = 1
 	ycover[Yi8*Ymax+Ys32] = 1
 
 	ycover[Yi0*Ymax+Yi32] = 1
 	ycover[Yi1*Ymax+Yi32] = 1
+	ycover[Yu7*Ymax+Yi32] = 1
+	ycover[Yu8*Ymax+Yi32] = 1
 	ycover[Yi8*Ymax+Yi32] = 1
 	ycover[Ys32*Ymax+Yi32] = 1
 
 	ycover[Yi0*Ymax+Yi64] = 1
 	ycover[Yi1*Ymax+Yi64] = 1
+	ycover[Yu7*Ymax+Yi64] = 1
+	ycover[Yu8*Ymax+Yi64] = 1
 	ycover[Yi8*Ymax+Yi64] = 1
 	ycover[Ys32*Ymax+Yi64] = 1
 	ycover[Yi32*Ymax+Yi64] = 1
@@ -1749,7 +1798,7 @@ func instinit() {
 	ycover[Yax*Ymax+Yrb] = 1
 	ycover[Ycx*Ymax+Yrb] = 1
 	ycover[Yrx*Ymax+Yrb] = 1
-	ycover[Yrl*Ymax+Yrb] = 1
+	ycover[Yrl*Ymax+Yrb] = 1 // but not Yrl32
 
 	ycover[Ycl*Ymax+Ycx] = 1
 
@@ -1759,6 +1808,7 @@ func instinit() {
 	ycover[Yax*Ymax+Yrl] = 1
 	ycover[Ycx*Ymax+Yrl] = 1
 	ycover[Yrx*Ymax+Yrl] = 1
+	ycover[Yrl32*Ymax+Yrl] = 1
 
 	ycover[Yf0*Ymax+Yrf] = 1
 
@@ -1768,19 +1818,21 @@ func instinit() {
 	ycover[Ycx*Ymax+Ymb] = 1
 	ycover[Yrx*Ymax+Ymb] = 1
 	ycover[Yrb*Ymax+Ymb] = 1
-	ycover[Yrl*Ymax+Ymb] = 1
+	ycover[Yrl*Ymax+Ymb] = 1 // but not Yrl32
 	ycover[Ym*Ymax+Ymb] = 1
 
 	ycover[Yax*Ymax+Yml] = 1
 	ycover[Ycx*Ymax+Yml] = 1
 	ycover[Yrx*Ymax+Yml] = 1
 	ycover[Yrl*Ymax+Yml] = 1
+	ycover[Yrl32*Ymax+Yml] = 1
 	ycover[Ym*Ymax+Yml] = 1
 
 	ycover[Yax*Ymax+Ymm] = 1
 	ycover[Ycx*Ymax+Ymm] = 1
 	ycover[Yrx*Ymax+Ymm] = 1
 	ycover[Yrl*Ymax+Ymm] = 1
+	ycover[Yrl32*Ymax+Ymm] = 1
 	ycover[Ym*Ymax+Ymm] = 1
 	ycover[Ymr*Ymax+Ymm] = 1
 
@@ -1828,7 +1880,7 @@ func instinit() {
 	}
 }
 
-func prefixof(ctxt *obj.Link, a *obj.Addr) int {
+func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 	if a.Type == obj.TYPE_MEM && a.Name == obj.NAME_NONE {
 		switch a.Reg {
 		case REG_CS:
@@ -1846,13 +1898,27 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 		case REG_GS:
 			return 0x65
 
-		// NOTE: Systems listed here should be only systems that
-		// support direct TLS references like 8(TLS) implemented as
-		// direct references from FS or GS. Systems that require
-		// the initial-exec model, where you load the TLS base into
-		// a register and then index from that register, do not reach
-		// this code and should not be listed.
 		case REG_TLS:
+			// NOTE: Systems listed here should be only systems that
+			// support direct TLS references like 8(TLS) implemented as
+			// direct references from FS or GS. Systems that require
+			// the initial-exec model, where you load the TLS base into
+			// a register and then index from that register, do not reach
+			// this code and should not be listed.
+			if p.Mode == 32 {
+				switch ctxt.Headtype {
+				default:
+					log.Fatalf("unknown TLS base register for %s", obj.Headstr(ctxt.Headtype))
+
+				case obj.Hdarwin,
+					obj.Hdragonfly,
+					obj.Hfreebsd,
+					obj.Hnetbsd,
+					obj.Hopenbsd:
+					return 0x65 // GS
+				}
+			}
+
 			switch ctxt.Headtype {
 			default:
 				log.Fatalf("unknown TLS base register for %s", obj.Headstr(ctxt.Headtype))
@@ -1875,6 +1941,10 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 				return 0x65 // GS
 			}
 		}
+	}
+
+	if p.Mode == 32 {
+		return 0
 	}
 
 	switch a.Index {
@@ -1913,32 +1983,6 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 }
 
 func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
-	// TODO(rsc): This special case is for SHRQ $3, AX:DX,
-	// which encodes as SHRQ $32(DX*0), AX.
-	// Similarly SHRQ CX, AX:DX is really SHRQ CX(DX*0), AX.
-	// Change encoding generated by assemblers and remove.
-	if a == &p.From && (a.Type == obj.TYPE_CONST || a.Type == obj.TYPE_REG) && a.Index != REG_NONE && a.Scale == 0 {
-		p.From3.Type = obj.TYPE_REG
-		p.From3.Reg = a.Index
-		a.Index = 0
-	}
-
-	// To avoid changing tables, the info about p.From and p.From3 are returned together.
-	if a == &p.From && p.From3.Type != obj.TYPE_NONE {
-		if (a.Type == obj.TYPE_CONST || a.Type == obj.TYPE_REG) && p.From3.Type == obj.TYPE_REG {
-			return Yreg2
-		}
-
-		switch p.As {
-		case obj.ATEXT, obj.ADATA, obj.AGLOBL:
-			// we know these use From3 - ignore that
-		default:
-			// unexpected use of From3. report invalid argument
-			ctxt.Diag("unexpected argument: %v", obj.Dconv(p, &p.From3))
-			return Yxxx
-		}
-	}
-
 	switch a.Type {
 	case obj.TYPE_NONE:
 		return Ynone
@@ -1953,7 +1997,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 		switch a.Name {
 		case obj.NAME_EXTERN,
 			obj.NAME_STATIC:
-			if a.Sym != nil && isextern(a.Sym) {
+			if a.Sym != nil && isextern(a.Sym) || p.Mode == 32 {
 				return Yi32
 			}
 			return Yiauto // use pc-relative addressing
@@ -1983,14 +2027,26 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 		}
 
 		v := a.Offset
+		if p.Mode == 32 {
+			v = int64(int32(v))
+		}
 		if v == 0 {
 			return Yi0
 		}
 		if v == 1 {
 			return Yi1
 		}
+		if v >= 0 && v <= 127 {
+			return Yu7
+		}
+		if v >= 0 && v <= 255 {
+			return Yu8
+		}
 		if v >= -128 && v <= 127 {
 			return Yi8
+		}
+		if p.Mode == 32 {
+			return Yi32
 		}
 		l := int32(v)
 		if int64(l) == v {
@@ -2071,6 +2127,9 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 		REG_BP,
 		REG_SI,
 		REG_DI:
+		if p.Mode == 32 {
+			return Yrl32
+		}
 		return Yrl
 
 	case REG_F0 + 0:
@@ -2357,7 +2416,7 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
 			log.Fatalf("reloc")
 		}
 
-		if isextern(s) {
+		if isextern(s) || p.Mode != 64 {
 			r.Siz = 4
 			r.Type = obj.R_ADDR
 		} else {
@@ -2433,7 +2492,7 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 		switch a.Name {
 		case obj.NAME_EXTERN,
 			obj.NAME_STATIC:
-			if !isextern(a.Sym) {
+			if !isextern(a.Sym) && p.Mode == 64 {
 				goto bad
 			}
 			base = REG_NONE
@@ -2495,7 +2554,7 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 
 	ctxt.Rexflag |= regrex[base]&Rxb | rex
 	if base == REG_NONE || (REG_CS <= base && base <= REG_GS) || base == REG_TLS {
-		if (a.Sym == nil || !isextern(a.Sym)) && base == REG_NONE && (a.Name == obj.NAME_STATIC || a.Name == obj.NAME_EXTERN) || ctxt.Asmode != 64 {
+		if (a.Sym == nil || !isextern(a.Sym)) && base == REG_NONE && (a.Name == obj.NAME_STATIC || a.Name == obj.NAME_EXTERN) || p.Mode != 64 {
 			ctxt.Andptr[0] = byte(0<<6 | 5<<0 | r<<3)
 			ctxt.Andptr = ctxt.Andptr[1:]
 			goto putrelv
@@ -2593,6 +2652,13 @@ func asmando(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, o int) {
 func bytereg(a *obj.Addr, t *uint8) {
 	if a.Type == obj.TYPE_REG && a.Index == REG_NONE && (REG_AX <= a.Reg && a.Reg <= REG_R15) {
 		a.Reg += REG_AL - REG_AX
+		*t = 0
+	}
+}
+
+func unbytereg(a *obj.Addr, t *uint8) {
+	if a.Type == obj.TYPE_REG && a.Index == REG_NONE && (REG_AL <= a.Reg && a.Reg <= REG_R15B) {
+		a.Reg += REG_AX - REG_AL
 		*t = 0
 	}
 }
@@ -2711,19 +2777,32 @@ var ymovtab = []Movtab{
 	Movtab{AMOVW, Ytask, Ynone, Yml, 3, [4]uint8{0x0f, 0x00, 1, 0}},
 
 	/* load full pointer - unsupported
-	Movtab{AMOVL, Yml, Ynone, Ycol, 5, [4]uint8{0, 0, 0, 0}},
-	Movtab{AMOVW, Yml, Ynone, Ycol, 5, [4]uint8{Pe, 0, 0, 0}},
+	Movtab{AMOVL, Yml, Ycol, 5, [4]uint8{0, 0, 0, 0}},
+	Movtab{AMOVW, Yml, Ycol, 5, [4]uint8{Pe, 0, 0, 0}},
 	*/
 
 	/* double shift */
-	Movtab{ASHLL, Yreg2, Ynone, Yml, 6, [4]uint8{0xa4, 0xa5, 0, 0}},
-	Movtab{ASHRL, Yreg2, Ynone, Yml, 6, [4]uint8{0xac, 0xad, 0, 0}},
-	Movtab{ASHLQ, Yreg2, Ynone, Yml, 6, [4]uint8{Pw, 0xa4, 0xa5, 0}},
-	Movtab{ASHRQ, Yreg2, Ynone, Yml, 6, [4]uint8{Pw, 0xac, 0xad, 0}},
-	Movtab{ASHLW, Yreg2, Ynone, Yml, 6, [4]uint8{Pe, 0xa4, 0xa5, 0}},
-	Movtab{ASHRW, Yreg2, Ynone, Yml, 6, [4]uint8{Pe, 0xac, 0xad, 0}},
+	Movtab{ASHLL, Yi8, Yrl, Yml, 6, [4]uint8{0xa4, 0xa5, 0, 0}},
+	Movtab{ASHLL, Ycl, Yrl, Yml, 6, [4]uint8{0xa4, 0xa5, 0, 0}},
+	Movtab{ASHLL, Ycx, Yrl, Yml, 6, [4]uint8{0xa4, 0xa5, 0, 0}},
+	Movtab{ASHRL, Yi8, Yrl, Yml, 6, [4]uint8{0xac, 0xad, 0, 0}},
+	Movtab{ASHRL, Ycl, Yrl, Yml, 6, [4]uint8{0xac, 0xad, 0, 0}},
+	Movtab{ASHRL, Ycx, Yrl, Yml, 6, [4]uint8{0xac, 0xad, 0, 0}},
+	Movtab{ASHLQ, Yi8, Yrl, Yml, 6, [4]uint8{Pw, 0xa4, 0xa5, 0}},
+	Movtab{ASHLQ, Ycl, Yrl, Yml, 6, [4]uint8{Pw, 0xa4, 0xa5, 0}},
+	Movtab{ASHLQ, Ycx, Yrl, Yml, 6, [4]uint8{Pw, 0xa4, 0xa5, 0}},
+	Movtab{ASHRQ, Yi8, Yrl, Yml, 6, [4]uint8{Pw, 0xac, 0xad, 0}},
+	Movtab{ASHRQ, Ycl, Yrl, Yml, 6, [4]uint8{Pw, 0xac, 0xad, 0}},
+	Movtab{ASHRQ, Ycx, Yrl, Yml, 6, [4]uint8{Pw, 0xac, 0xad, 0}},
+	Movtab{ASHLW, Yi8, Yrl, Yml, 6, [4]uint8{Pe, 0xa4, 0xa5, 0}},
+	Movtab{ASHLW, Ycl, Yrl, Yml, 6, [4]uint8{Pe, 0xa4, 0xa5, 0}},
+	Movtab{ASHLW, Ycx, Yrl, Yml, 6, [4]uint8{Pe, 0xa4, 0xa5, 0}},
+	Movtab{ASHRW, Yi8, Yrl, Yml, 6, [4]uint8{Pe, 0xac, 0xad, 0}},
+	Movtab{ASHRW, Ycl, Yrl, Yml, 6, [4]uint8{Pe, 0xac, 0xad, 0}},
+	Movtab{ASHRW, Ycx, Yrl, Yml, 6, [4]uint8{Pe, 0xac, 0xad, 0}},
 
 	/* load TLS base */
+	Movtab{AMOVL, Ytls, Ynone, Yrl, 7, [4]uint8{0, 0, 0, 0}},
 	Movtab{AMOVQ, Ytls, Ynone, Yrl, 7, [4]uint8{0, 0, 0, 0}},
 	Movtab{0, 0, 0, 0, 0, [4]uint8{}},
 }
@@ -2813,25 +2892,60 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 		return
 	}
 
-	pre := prefixof(ctxt, &p.From)
+	pre := prefixof(ctxt, p, &p.From)
 	if pre != 0 {
 		ctxt.Andptr[0] = byte(pre)
 		ctxt.Andptr = ctxt.Andptr[1:]
 	}
-	pre = prefixof(ctxt, &p.To)
+	pre = prefixof(ctxt, p, &p.To)
 	if pre != 0 {
 		ctxt.Andptr[0] = byte(pre)
 		ctxt.Andptr = ctxt.Andptr[1:]
 	}
 
+	// TODO(rsc): This special case is for SHRQ $3, AX:DX,
+	// which encodes as SHRQ $32(DX*0), AX.
+	// Similarly SHRQ CX, AX:DX is really SHRQ CX(DX*0), AX.
+	// Change encoding generated by assemblers and compilers and remove.
+	if (p.From.Type == obj.TYPE_CONST || p.From.Type == obj.TYPE_REG) && p.From.Index != REG_NONE && p.From.Scale == 0 {
+		p.From3.Type = obj.TYPE_REG
+		p.From3.Reg = p.From.Index
+		p.From.Index = 0
+	}
+
+	// TODO(rsc): This special case is for PINSRQ etc, CMPSD etc.
+	// Change encoding generated by assemblers and compilers (if any) and remove.
+	switch p.As {
+	case AIMUL3Q, APEXTRW, APINSRW, APINSRD, APINSRQ, APSHUFHW, APSHUFL, APSHUFW, ASHUFPD, ASHUFPS, AAESKEYGENASSIST, APSHUFD, APCLMULQDQ:
+		if p.From3.Type == obj.TYPE_NONE {
+			p.From3 = p.From
+			p.From = obj.Addr{}
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = p.To.Offset
+			p.To.Offset = 0
+		}
+	case ACMPSD, ACMPSS, ACMPPS, ACMPPD:
+		if p.From3.Type == obj.TYPE_NONE {
+			p.From3 = p.To
+			p.To = obj.Addr{}
+			p.To.Type = obj.TYPE_CONST
+			p.To.Offset = p.From3.Offset
+			p.From3.Offset = 0
+		}
+	}
+
 	if p.Ft == 0 {
 		p.Ft = uint8(oclass(ctxt, p, &p.From))
+	}
+	if p.F3t == 0 {
+		p.F3t = uint8(oclass(ctxt, p, &p.From3))
 	}
 	if p.Tt == 0 {
 		p.Tt = uint8(oclass(ctxt, p, &p.To))
 	}
 
 	ft := int(p.Ft) * Ymax
+	f3t := int(p.F3t) * Ymax
 	tt := int(p.Tt) * Ymax
 
 	xo := bool2int(o.op[0] == 0x0f)
@@ -2845,8 +2959,13 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 	var v int64
 	var yt ytab
 	for _, yt = range o.ytab {
-		if ycover[ft+int(yt.from)] != 0 && ycover[tt+int(yt.to)] != 0 {
+		if ycover[ft+int(yt.from)] != 0 && ycover[f3t+int(yt.from3)] != 0 && ycover[tt+int(yt.to)] != 0 {
 			switch o.prefix {
+			case Px1: /* first option valid only in 32-bit mode */
+				if ctxt.Mode == 64 && z == 0 {
+					z += int(yt.zoffset) + xo
+					continue
+				}
 			case Pq: /* 16 bit escape and opcode escape */
 				ctxt.Andptr[0] = Pe
 				ctxt.Andptr = ctxt.Andptr[1:]
@@ -2885,10 +3004,30 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				}
 				ctxt.Rexflag |= Pw
 
-			case Pb: /* botch */
-				bytereg(&p.From, &p.Ft)
+			case Pw8: /* 64-bit escape if z >= 8 */
+				if z >= 8 {
+					if p.Mode != 64 {
+						ctxt.Diag("asmins: illegal 64: %v", p)
+					}
+					ctxt.Rexflag |= Pw
+				}
 
-				bytereg(&p.To, &p.Tt)
+			case Pb: /* botch */
+				if p.Mode != 64 && (isbadbyte(&p.From) || isbadbyte(&p.To)) {
+					goto bad
+				}
+				// NOTE(rsc): This is probably safe to do always,
+				// but when enabled it chooses different encodings
+				// than the old cmd/internal/obj/i386 code did,
+				// which breaks our "same bits out" checks.
+				// In particular, CMPB AX, $0 encodes as 80 f8 00
+				// in the original obj/i386, and it would encode
+				// (using a valid, shorter form) as 3c 00 if we enabled
+				// the call to bytereg here.
+				if p.Mode == 64 {
+					bytereg(&p.From, &p.Ft)
+					bytereg(&p.To, &p.Tt)
+				}
 
 			case P32: /* 32 bit but illegal if 64-bit mode */
 				if p.Mode == 64 {
@@ -2897,6 +3036,16 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 
 			case Py: /* 64-bit only, no prefix */
 				if p.Mode != 64 {
+					ctxt.Diag("asmins: illegal in %d-bit mode: %v", p.Mode, p)
+				}
+
+			case Py1: /* 64-bit only if z < 1, no prefix */
+				if z < 1 && p.Mode != 64 {
+					ctxt.Diag("asmins: illegal in %d-bit mode: %v", p.Mode, p)
+				}
+
+			case Py3: /* 64-bit only if z < 3, no prefix */
+				if z < 3 && p.Mode != 64 {
 					ctxt.Diag("asmins: illegal in %d-bit mode: %v", p.Mode, p)
 				}
 			}
@@ -2970,7 +3119,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 
 			case Zm_r_i_xm:
 				mediaop(ctxt, o, op, int(yt.zoffset), z)
-				asmand(ctxt, p, &p.From, &p.To)
+				asmand(ctxt, p, &p.From, &p.From3)
 				ctxt.Andptr[0] = byte(p.To.Offset)
 				ctxt.Andptr = ctxt.Andptr[1:]
 
@@ -2994,8 +3143,8 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 					ctxt.Andptr[0] = byte(op)
 					ctxt.Andptr = ctxt.Andptr[1:]
 				}
-				asmand(ctxt, p, &p.From, &p.To)
-				ctxt.Andptr[0] = byte(p.To.Offset)
+				asmand(ctxt, p, &p.From3, &p.To)
+				ctxt.Andptr[0] = byte(p.From.Offset)
 				ctxt.Andptr = ctxt.Andptr[1:]
 
 			case Zaut_r:
@@ -3026,12 +3175,6 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				ctxt.Rexflag = 0
 				mediaop(ctxt, o, op, int(yt.zoffset), z)
 				asmand(ctxt, p, &p.To, &p.From)
-
-			case Zr_m_i_xm:
-				mediaop(ctxt, o, op, int(yt.zoffset), z)
-				asmand(ctxt, p, &p.To, &p.From)
-				ctxt.Andptr[0] = byte(p.From.Offset)
-				ctxt.Andptr = ctxt.Andptr[1:]
 
 			case Zo_m:
 				ctxt.Andptr[0] = byte(op)
@@ -3410,11 +3553,11 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 		}
 		z += int(yt.zoffset) + xo
 	}
-	var pp obj.Prog
-	var t []byte
 	for mo := ymovtab; mo[0].as != 0; mo = mo[1:] {
+		var pp obj.Prog
+		var t []byte
 		if p.As == mo[0].as {
-			if ycover[ft+int(mo[0].ft)] != 0 && ycover[tt+int(mo[0].tt)] != 0 {
+			if ycover[ft+int(mo[0].ft)] != 0 && ycover[f3t+int(mo[0].f3t)] != 0 && ycover[tt+int(mo[0].tt)] != 0 {
 				t = mo[0].op[:]
 				switch mo[0].code {
 				default:
@@ -3539,6 +3682,67 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				// register to access the actual TLS variables. Systems that allow direct TLS access
 				// are handled in prefixof above and should not be listed here.
 				case 7: /* mov tls, r */
+					if p.Mode == 64 && p.As != AMOVQ || p.Mode == 32 && p.As != AMOVL {
+						ctxt.Diag("invalid load of TLS: %v", p)
+					}
+
+					if p.Mode == 32 {
+						// NOTE: The systems listed here are the ones that use the "TLS initial exec" model,
+						// where you load the TLS base register into a register and then index off that
+						// register to access the actual TLS variables. Systems that allow direct TLS access
+						// are handled in prefixof above and should not be listed here.
+						switch ctxt.Headtype {
+						default:
+							log.Fatalf("unknown TLS base location for %s", obj.Headstr(ctxt.Headtype))
+
+						case obj.Hlinux,
+							obj.Hnacl:
+							// ELF TLS base is 0(GS).
+							pp.From = p.From
+
+							pp.From.Type = obj.TYPE_MEM
+							pp.From.Reg = REG_GS
+							pp.From.Offset = 0
+							pp.From.Index = REG_NONE
+							pp.From.Scale = 0
+							ctxt.Andptr[0] = 0x65
+							ctxt.Andptr = ctxt.Andptr[1:] // GS
+							ctxt.Andptr[0] = 0x8B
+							ctxt.Andptr = ctxt.Andptr[1:]
+							asmand(ctxt, p, &pp.From, &p.To)
+
+						case obj.Hplan9:
+							if ctxt.Plan9privates == nil {
+								ctxt.Plan9privates = obj.Linklookup(ctxt, "_privates", 0)
+							}
+							pp.From = obj.Addr{}
+							pp.From.Type = obj.TYPE_MEM
+							pp.From.Name = obj.NAME_EXTERN
+							pp.From.Sym = ctxt.Plan9privates
+							pp.From.Offset = 0
+							pp.From.Index = REG_NONE
+							ctxt.Andptr[0] = 0x8B
+							ctxt.Andptr = ctxt.Andptr[1:]
+							asmand(ctxt, p, &pp.From, &p.To)
+
+						case obj.Hwindows:
+							// Windows TLS base is always 0x14(FS).
+							pp.From = p.From
+
+							pp.From.Type = obj.TYPE_MEM
+							pp.From.Reg = REG_FS
+							pp.From.Offset = 0x14
+							pp.From.Index = REG_NONE
+							pp.From.Scale = 0
+							ctxt.Andptr[0] = 0x64
+							ctxt.Andptr = ctxt.Andptr[1:] // FS
+							ctxt.Andptr[0] = 0x8B
+							ctxt.Andptr = ctxt.Andptr[1:]
+							asmand(ctxt, p, &pp.From, &p.To)
+						}
+						break
+					}
+
 					switch ctxt.Headtype {
 					default:
 						log.Fatalf("unknown TLS base location for %s", obj.Headstr(ctxt.Headtype))
@@ -3558,8 +3762,8 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 						ctxt.Andptr = ctxt.Andptr[1:]
 						asmand(ctxt, p, &pp.From, &p.To)
 
-						// TLS base is 0(FS).
 					case obj.Hsolaris: // TODO(rsc): Delete Hsolaris from list. Should not use this code. See progedit in obj6.c.
+						// TLS base is 0(FS).
 						pp.From = p.From
 
 						pp.From.Type = obj.TYPE_MEM
@@ -3575,8 +3779,8 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 						ctxt.Andptr = ctxt.Andptr[1:]
 						asmand(ctxt, p, &pp.From, &p.To)
 
-						// Windows TLS base is always 0x28(GS).
 					case obj.Hwindows:
+						// Windows TLS base is always 0x28(GS).
 						pp.From = p.From
 
 						pp.From.Type = obj.TYPE_MEM
@@ -3610,8 +3814,35 @@ bad:
 		 */
 		pp := *p
 
+		unbytereg(&pp.From, &pp.Ft)
+		unbytereg(&pp.To, &pp.Tt)
+
 		z := int(p.From.Reg)
 		if p.From.Type == obj.TYPE_REG && z >= REG_BP && z <= REG_DI {
+			// TODO(rsc): Use this code for x86-64 too. It has bug fixes not present in the amd64 code base.
+			// For now, different to keep bit-for-bit compatibility.
+			if p.Mode == 32 {
+				breg := byteswapreg(ctxt, &p.To)
+				if breg != REG_AX {
+					ctxt.Andptr[0] = 0x87
+					ctxt.Andptr = ctxt.Andptr[1:] /* xchg lhs,bx */
+					asmando(ctxt, p, &p.From, reg[breg])
+					subreg(&pp, z, breg)
+					doasm(ctxt, &pp)
+					ctxt.Andptr[0] = 0x87
+					ctxt.Andptr = ctxt.Andptr[1:] /* xchg lhs,bx */
+					asmando(ctxt, p, &p.From, reg[breg])
+				} else {
+					ctxt.Andptr[0] = byte(0x90 + reg[z])
+					ctxt.Andptr = ctxt.Andptr[1:] /* xchg lsh,ax */
+					subreg(&pp, z, REG_AX)
+					doasm(ctxt, &pp)
+					ctxt.Andptr[0] = byte(0x90 + reg[z])
+					ctxt.Andptr = ctxt.Andptr[1:] /* xchg lsh,ax */
+				}
+				return
+			}
+
 			if isax(&p.To) || p.To.Type == obj.TYPE_NONE {
 				// We certainly don't want to exchange
 				// with AX if the op is MUL or DIV.
@@ -3631,12 +3862,35 @@ bad:
 				ctxt.Andptr[0] = byte(0x90 + reg[z])
 				ctxt.Andptr = ctxt.Andptr[1:] /* xchg lsh,ax */
 			}
-
 			return
 		}
 
 		z = int(p.To.Reg)
 		if p.To.Type == obj.TYPE_REG && z >= REG_BP && z <= REG_DI {
+			// TODO(rsc): Use this code for x86-64 too. It has bug fixes not present in the amd64 code base.
+			// For now, different to keep bit-for-bit compatibility.
+			if p.Mode == 32 {
+				breg := byteswapreg(ctxt, &p.From)
+				if breg != REG_AX {
+					ctxt.Andptr[0] = 0x87
+					ctxt.Andptr = ctxt.Andptr[1:] /* xchg rhs,bx */
+					asmando(ctxt, p, &p.To, reg[breg])
+					subreg(&pp, z, breg)
+					doasm(ctxt, &pp)
+					ctxt.Andptr[0] = 0x87
+					ctxt.Andptr = ctxt.Andptr[1:] /* xchg rhs,bx */
+					asmando(ctxt, p, &p.To, reg[breg])
+				} else {
+					ctxt.Andptr[0] = byte(0x90 + reg[z])
+					ctxt.Andptr = ctxt.Andptr[1:] /* xchg rsh,ax */
+					subreg(&pp, z, REG_AX)
+					doasm(ctxt, &pp)
+					ctxt.Andptr[0] = byte(0x90 + reg[z])
+					ctxt.Andptr = ctxt.Andptr[1:] /* xchg rsh,ax */
+				}
+				return
+			}
+
 			if isax(&p.From) {
 				ctxt.Andptr[0] = 0x87
 				ctxt.Andptr = ctxt.Andptr[1:] /* xchg rhs,bx */
@@ -3654,13 +3908,93 @@ bad:
 				ctxt.Andptr[0] = byte(0x90 + reg[z])
 				ctxt.Andptr = ctxt.Andptr[1:] /* xchg rsh,ax */
 			}
-
 			return
 		}
 	}
 
 	ctxt.Diag("doasm: notfound ft=%d tt=%d %v %d %d", p.Ft, p.Tt, p, oclass(ctxt, p, &p.From), oclass(ctxt, p, &p.To))
 	return
+}
+
+// byteswapreg returns a byte-addressable register (AX, BX, CX, DX)
+// which is not referenced in a.
+// If a is empty, it returns BX to account for MULB-like instructions
+// that might use DX and AX.
+func byteswapreg(ctxt *obj.Link, a *obj.Addr) int {
+	cand := 1
+	canc := cand
+	canb := canc
+	cana := canb
+
+	if a.Type == obj.TYPE_NONE {
+		cand = 0
+		cana = cand
+	}
+
+	if a.Type == obj.TYPE_REG || ((a.Type == obj.TYPE_MEM || a.Type == obj.TYPE_ADDR) && a.Name == obj.NAME_NONE) {
+		switch a.Reg {
+		case REG_NONE:
+			cand = 0
+			cana = cand
+
+		case REG_AX,
+			REG_AL,
+			REG_AH:
+			cana = 0
+
+		case REG_BX,
+			REG_BL,
+			REG_BH:
+			canb = 0
+
+		case REG_CX,
+			REG_CL,
+			REG_CH:
+			canc = 0
+
+		case REG_DX,
+			REG_DL,
+			REG_DH:
+			cand = 0
+		}
+	}
+
+	if a.Type == obj.TYPE_MEM || a.Type == obj.TYPE_ADDR {
+		switch a.Index {
+		case REG_AX:
+			cana = 0
+
+		case REG_BX:
+			canb = 0
+
+		case REG_CX:
+			canc = 0
+
+		case REG_DX:
+			cand = 0
+		}
+	}
+
+	if cana != 0 {
+		return REG_AX
+	}
+	if canb != 0 {
+		return REG_BX
+	}
+	if canc != 0 {
+		return REG_CX
+	}
+	if cand != 0 {
+		return REG_DX
+	}
+
+	ctxt.Diag("impossible byte register")
+	log.Fatalf("bad code")
+	return 0
+}
+
+func isbadbyte(a *obj.Addr) bool {
+	return a.Type == obj.TYPE_REG && (REG_BP <= a.Reg && a.Reg <= REG_DI || REG_BPB <= a.Reg && a.Reg <= REG_DIB)
 }
 
 var naclret = []uint8{
@@ -3674,6 +4008,16 @@ var naclret = []uint8{
 	0xfe, // ADDQ R15, SI
 	0xff,
 	0xe6, // JMP SI
+}
+
+var naclret8 = []uint8{
+	0x5d, // POPL BP
+	// 0x8b, 0x7d, 0x00, // MOVL (BP), DI - catch return to invalid address, for debugging
+	0x83,
+	0xe5,
+	0xe0, // ANDL $~31, BP
+	0xff,
+	0xe5, // JMP BP
 }
 
 var naclspfix = []uint8{0x4c, 0x01, 0xfc} // ADDQ R15, SP
@@ -3729,7 +4073,32 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
 		return
 	}
 
-	if ctxt.Headtype == obj.Hnacl {
+	if ctxt.Headtype == obj.Hnacl && p.Mode == 32 {
+		switch p.As {
+		case obj.ARET:
+			copy(ctxt.Andptr, naclret8)
+			ctxt.Andptr = ctxt.Andptr[len(naclret8):]
+			return
+
+		case obj.ACALL,
+			obj.AJMP:
+			if p.To.Type == obj.TYPE_REG && REG_AX <= p.To.Reg && p.To.Reg <= REG_DI {
+				ctxt.Andptr[0] = 0x83
+				ctxt.Andptr = ctxt.Andptr[1:]
+				ctxt.Andptr[0] = byte(0xe0 | (p.To.Reg - REG_AX))
+				ctxt.Andptr = ctxt.Andptr[1:]
+				ctxt.Andptr[0] = 0xe0
+				ctxt.Andptr = ctxt.Andptr[1:]
+			}
+
+		case AINT:
+			ctxt.Andptr[0] = 0xf4
+			ctxt.Andptr = ctxt.Andptr[1:]
+			return
+		}
+	}
+
+	if ctxt.Headtype == obj.Hnacl && p.Mode == 64 {
 		if p.As == AREP {
 			ctxt.Rep++
 			return
@@ -3860,7 +4229,7 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
 		 * note that the handbook often misleadingly shows 66/f2/f3 in `opcode'.
 		 */
 		if p.Mode != 64 {
-			ctxt.Diag("asmins: illegal in mode %d: %v", p.Mode, p)
+			ctxt.Diag("asmins: illegal in mode %d: %v (%d %d)", p.Mode, p, p.Ft, p.Tt)
 		}
 		n := -cap(ctxt.Andptr) + cap(and0)
 		var c int
@@ -3892,7 +4261,7 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
 		}
 	}
 
-	if ctxt.Headtype == obj.Hnacl && p.As != ACMPL && p.As != ACMPQ && p.To.Type == obj.TYPE_REG {
+	if p.Mode == 64 && ctxt.Headtype == obj.Hnacl && p.As != ACMPL && p.As != ACMPQ && p.To.Type == obj.TYPE_REG {
 		switch p.To.Reg {
 		case REG_SP:
 			copy(ctxt.Andptr, naclspfix)

@@ -7,9 +7,8 @@ package arch
 import (
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm"
-	"cmd/internal/obj/i386" // == 386
 	"cmd/internal/obj/ppc64"
-	"cmd/internal/obj/x86" // == amd64
+	"cmd/internal/obj/x86"
 	"fmt"
 	"strings"
 )
@@ -56,13 +55,11 @@ var Pseudos = map[string]int{
 func Set(GOARCH string) *Arch {
 	switch GOARCH {
 	case "386":
-		return arch386()
+		return archX86(&x86.Link386)
 	case "amd64":
-		return archAmd64()
+		return archX86(&x86.Linkamd64)
 	case "amd64p32":
-		a := archAmd64()
-		a.LinkArch = &x86.Linkamd64p32
-		return a
+		return archX86(&x86.Linkamd64p32)
 	case "arm":
 		return archArm()
 	case "ppc64":
@@ -77,77 +74,11 @@ func Set(GOARCH string) *Arch {
 	return nil
 }
 
-func jump386(word string) bool {
+func jumpX86(word string) bool {
 	return word[0] == 'J' || word == "CALL" || strings.HasPrefix(word, "LOOP")
 }
 
-func arch386() *Arch {
-	register := make(map[string]int16)
-	// Create maps for easy lookup of instruction names etc.
-	// TODO: Should this be done in obj for us?
-	for i, s := range i386.Register {
-		register[s] = int16(i + i386.REG_AL)
-	}
-	// Pseudo-registers.
-	register["SB"] = RSB
-	register["FP"] = RFP
-	register["PC"] = RPC
-	// Prefixes not used on this architecture.
-
-	instructions := make(map[string]int)
-	for i, s := range obj.Anames {
-		instructions[s] = i
-	}
-	for i, s := range i386.Anames {
-		if i >= obj.A_ARCHSPECIFIC {
-			instructions[s] = i + obj.ABase386
-		}
-	}
-	// Annoying aliases.
-	instructions["JA"] = i386.AJHI
-	instructions["JAE"] = i386.AJCC
-	instructions["JB"] = i386.AJCS
-	instructions["JBE"] = i386.AJLS
-	instructions["JC"] = i386.AJCS
-	instructions["JE"] = i386.AJEQ
-	instructions["JG"] = i386.AJGT
-	instructions["JHS"] = i386.AJCC
-	instructions["JL"] = i386.AJLT
-	instructions["JLO"] = i386.AJCS
-	instructions["JNA"] = i386.AJLS
-	instructions["JNAE"] = i386.AJCS
-	instructions["JNB"] = i386.AJCC
-	instructions["JNBE"] = i386.AJHI
-	instructions["JNC"] = i386.AJCC
-	instructions["JNG"] = i386.AJLE
-	instructions["JNGE"] = i386.AJLT
-	instructions["JNL"] = i386.AJGE
-	instructions["JNLE"] = i386.AJGT
-	instructions["JNO"] = i386.AJOC
-	instructions["JNP"] = i386.AJPC
-	instructions["JNS"] = i386.AJPL
-	instructions["JNZ"] = i386.AJNE
-	instructions["JO"] = i386.AJOS
-	instructions["JP"] = i386.AJPS
-	instructions["JPE"] = i386.AJPS
-	instructions["JPO"] = i386.AJPC
-	instructions["JS"] = i386.AJMI
-	instructions["JZ"] = i386.AJEQ
-	instructions["MASKMOVDQU"] = i386.AMASKMOVOU
-	instructions["MOVOA"] = i386.AMOVO
-	instructions["MOVNTDQ"] = i386.AMOVNTO
-
-	return &Arch{
-		LinkArch:       &i386.Link386,
-		Instructions:   instructions,
-		Register:       register,
-		RegisterPrefix: nil,
-		RegisterNumber: nilRegisterNumber,
-		IsJump:         jump386,
-	}
-}
-
-func archAmd64() *Arch {
+func archX86(linkArch *obj.LinkArch) *Arch {
 	register := make(map[string]int16)
 	// Create maps for easy lookup of instruction names etc.
 	// TODO: Should this be done in obj for us?
@@ -211,12 +142,12 @@ func archAmd64() *Arch {
 	instructions["PSRLDQ"] = x86.APSRLO
 
 	return &Arch{
-		LinkArch:       &x86.Linkamd64,
+		LinkArch:       linkArch,
 		Instructions:   instructions,
 		Register:       register,
 		RegisterPrefix: nil,
 		RegisterNumber: nilRegisterNumber,
-		IsJump:         jump386,
+		IsJump:         jumpX86,
 	}
 }
 
@@ -224,7 +155,7 @@ func archArm() *Arch {
 	register := make(map[string]int16)
 	// Create maps for easy lookup of instruction names etc.
 	// TODO: Should this be done in obj for us?
-	// Note that there is no list of names as there is for 386 and amd64.
+	// Note that there is no list of names as there is for x86.
 	// TODO: Are there aliases we need to add?
 	for i := arm.REG_R0; i < arm.REG_SPSR; i++ {
 		register[obj.Rconv(i)] = int16(i)
@@ -273,7 +204,7 @@ func archPPC64() *Arch {
 	register := make(map[string]int16)
 	// Create maps for easy lookup of instruction names etc.
 	// TODO: Should this be done in obj for us?
-	// Note that there is no list of names as there is for 386 and amd64.
+	// Note that there is no list of names as there is for x86.
 	for i := ppc64.REG_R0; i <= ppc64.REG_R31; i++ {
 		register[obj.Rconv(i)] = int16(i)
 	}

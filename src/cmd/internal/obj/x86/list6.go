@@ -31,6 +31,7 @@
 package x86
 
 import (
+	"bytes"
 	"cmd/internal/obj"
 	"fmt"
 )
@@ -54,38 +55,32 @@ const (
 var bigP *obj.Prog
 
 func Pconv(p *obj.Prog) string {
-	var str string
+	var buf bytes.Buffer
 
-	switch p.As {
-	case obj.ADATA:
-		str = fmt.Sprintf("%.5d (%v)\t%v\t%v/%d,%v",
-			p.Pc, p.Line(), obj.Aconv(int(p.As)), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
-
-	case obj.ATEXT:
-		if p.From3.Offset != 0 {
-			str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%d,%v",
-				p.Pc, p.Line(), obj.Aconv(int(p.As)), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
-			break
-		}
-
-		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%v",
-			p.Pc, p.Line(), obj.Aconv(int(p.As)), obj.Dconv(p, &p.From), obj.Dconv(p, &p.To))
-
-	default:
-		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%v",
-			p.Pc, p.Line(), obj.Aconv(int(p.As)), obj.Dconv(p, &p.From), obj.Dconv(p, &p.To))
-
-		// TODO(rsc): This special case is for SHRQ $32, AX:DX, which encodes as
-		//	SHRQ $32(DX*0), AX
-		// Remove.
-		if (p.From.Type == obj.TYPE_REG || p.From.Type == obj.TYPE_CONST) && p.From.Index != REG_NONE {
-			str += fmt.Sprintf(":%v", Rconv(int(p.From.Index)))
-		}
+	fmt.Fprintf(&buf, "%.5d (%v)\t%v", p.Pc, p.Line(), obj.Aconv(int(p.As)))
+	sep := "\t"
+	if p.From.Type != obj.TYPE_NONE {
+		fmt.Fprintf(&buf, "%s%v", sep, obj.Dconv(p, &p.From))
+		sep = ", "
 	}
-
-	var fp string
-	fp += str
-	return fp
+	if p.Reg != obj.REG_NONE {
+		// Should not happen but might as well show it if it does.
+		fmt.Fprintf(&buf, "%s%v", sep, obj.Rconv(int(p.Reg)))
+		sep = ", "
+	}
+	if p.From3.Type != obj.TYPE_NONE {
+		if p.From3.Type == obj.TYPE_CONST && (p.As == obj.ADATA || p.As == obj.ATEXT || p.As == obj.AGLOBL) {
+			// Special case - omit $.
+			fmt.Fprintf(&buf, "%s%d", sep, p.From3.Offset)
+		} else {
+			fmt.Fprintf(&buf, "%s%v", sep, obj.Dconv(p, &p.From3))
+		}
+		sep = ", "
+	}
+	if p.To.Type != obj.TYPE_NONE {
+		fmt.Fprintf(&buf, "%s%v", sep, obj.Dconv(p, &p.To))
+	}
+	return buf.String()
 }
 
 var Register = []string{

@@ -34,7 +34,7 @@ package main
 import (
 	"cmd/internal/asm"
 	"cmd/internal/obj"
-	. "cmd/internal/obj/i386"
+	. "cmd/internal/obj/x86"
 )
 %}
 
@@ -304,7 +304,7 @@ spec7:
 	}
 
 spec9:	/* CMPPS/CMPPD */
-	reg ',' rem ',' con
+	rem ',' reg ',' con
 	{
 		$$.from = $1;
 		$$.to = $3;
