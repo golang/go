@@ -433,7 +433,7 @@ func (z *Float) round(sbit uint) {
 	lsb := Word(1) << t
 
 	// make rounding decision
-	// TODO(gri) This can be simplified (see roundBits in float_test.go).
+	// TODO(gri) This can be simplified (see Bits.round in bits_test.go).
 	switch mode {
 	case ToZero:
 		// nothing to do

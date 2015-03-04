@@ -1006,7 +1006,7 @@ var precList = [...]uint{1, 2, 5, 8, 10, 16, 23, 24, 32, 50, 53, 64, 100, 128, 5
 
 // Selected bits with which to run various tests.
 // Each entry is a list of bits representing a floating-point number (see fromBits).
-var bitsList = [...][]int{
+var bitsList = [...]Bits{
 	{},           // = 0
 	{0},          // = 1
 	{1},          // = 2
@@ -1026,23 +1026,23 @@ func TestFloatAdd(t *testing.T) {
 	for _, xbits := range bitsList {
 		for _, ybits := range bitsList {
 			// exact values
-			x := fromBits(xbits)
-			y := fromBits(ybits)
-			zbits := addBits(xbits, ybits)
-			z := fromBits(zbits)
+			x := xbits.Float()
+			y := ybits.Float()
+			zbits := xbits.add(ybits)
+			z := zbits.Float()
 
 			for i, mode := range [...]RoundingMode{ToZero, ToNearestEven, AwayFromZero} {
 				for _, prec := range precList {
 					got := new(Float).SetPrec(prec).SetMode(mode)
 					got.Add(x, y)
-					want := roundBits(zbits, prec, mode)
+					want := zbits.round(prec, mode)
 					if got.Cmp(want) != 0 {
 						t.Errorf("i = %d, prec = %d, %s:\n\t     %s %v\n\t+    %s %v\n\t=    %s\n\twant %s",
 							i, prec, mode, x, xbits, y, ybits, got, want)
 					}
 
 					got.Sub(z, x)
-					want = roundBits(ybits, prec, mode)
+					want = ybits.round(prec, mode)
 					if got.Cmp(want) != 0 {
 						t.Errorf("i = %d, prec = %d, %s:\n\t     %s %v\n\t-    %s %v\n\t=    %s\n\twant %s",
 							i, prec, mode, z, zbits, x, xbits, got, want)
@@ -1127,16 +1127,16 @@ func TestFloatMul(t *testing.T) {
 	for _, xbits := range bitsList {
 		for _, ybits := range bitsList {
 			// exact values
-			x := fromBits(xbits)
-			y := fromBits(ybits)
-			zbits := mulBits(xbits, ybits) // x * y
-			z := fromBits(zbits)
+			x := xbits.Float()
+			y := ybits.Float()
+			zbits := xbits.mul(ybits)
+			z := zbits.Float()
 
 			for i, mode := range [...]RoundingMode{ToZero, ToNearestEven, AwayFromZero} {
 				for _, prec := range precList {
 					got := new(Float).SetPrec(prec).SetMode(mode)
 					got.Mul(x, y)
-					want := roundBits(zbits, prec, mode)
+					want := zbits.round(prec, mode)
 					if got.Cmp(want) != 0 {
 						t.Errorf("i = %d, prec = %d, %s:\n\t     %s %v\n\t*    %s %v\n\t=    %s\n\twant %s",
 							i, prec, mode, x, xbits, y, ybits, got, want)
@@ -1146,7 +1146,7 @@ func TestFloatMul(t *testing.T) {
 						continue // ignore div-0 case (not invertable)
 					}
 					got.Quo(z, x)
-					want = roundBits(ybits, prec, mode)
+					want = ybits.round(prec, mode)
 					if got.Cmp(want) != 0 {
 						t.Errorf("i = %d, prec = %d, %s:\n\t     %s %v\n\t/    %s %v\n\t=    %s\n\twant %s",
 							i, prec, mode, z, zbits, x, xbits, got, want)
@@ -1249,7 +1249,7 @@ func TestFloatQuo(t *testing.T) {
 
 	for i := 0; i < 8; i++ {
 		// compute accurate (not rounded) result z
-		bits := []int{preci - 1}
+		bits := Bits{preci - 1}
 		if i&3 != 0 {
 			bits = append(bits, 0)
 		}
@@ -1259,7 +1259,7 @@ func TestFloatQuo(t *testing.T) {
 		if i&1 != 0 {
 			bits = append(bits, -precf)
 		}
-		z := fromBits(bits)
+		z := bits.Float()
 
 		// compute accurate x as z*y
 		y := new(Float).SetFloat64(3.14159265358979323e123)
@@ -1280,7 +1280,7 @@ func TestFloatQuo(t *testing.T) {
 			for d := -5; d < 5; d++ {
 				prec := uint(preci + d)
 				got := new(Float).SetPrec(prec).SetMode(mode).Quo(x, y)
-				want := roundBits(bits, prec, mode)
+				want := bits.round(prec, mode)
 				if got.Cmp(want) != 0 {
 					t.Errorf("i = %d, prec = %d, %s:\n\t     %s\n\t/    %s\n\t=    %s\n\twant %s",
 						i, prec, mode, x, y, got, want)
