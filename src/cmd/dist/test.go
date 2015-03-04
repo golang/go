@@ -267,22 +267,7 @@ func (t *tester) registerTests() {
 			t.tests = append(t.tests, distTest{
 				name:    "testso",
 				heading: "../misc/cgo/testso",
-				fn: func() error {
-					// TODO(brainman): finish this; https://golang.org/issue/10072
-					return nil
-
-					cmd := t.dirCmd("misc/cgo/testso", "./test.bat")
-					var buf bytes.Buffer
-					cmd.Stdout = &buf
-					cmd.Stderr = &buf
-					err := cmd.Run()
-					s := buf.String()
-					fmt.Println(s)
-					if err == nil && strings.Contains(s, "FAIL") {
-						return errors.New("test failed")
-					}
-					return err
-				},
+				fn:      t.cgoTestSOWindows,
 			})
 		} else if t.hasBash() {
 			t.registerTest("testso", "../misc/cgo/testso", "./test.bash")
@@ -514,6 +499,23 @@ func (t *tester) cgoTest() error {
 		}
 	}
 
+	return nil
+}
+
+func (t *tester) cgoTestSOWindows() error {
+	cmd := t.dirCmd("misc/cgo/testso", `.\test`)
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
+	cmd.Stderr = &buf
+	err := cmd.Run()
+	s := buf.String()
+	fmt.Println(s)
+	if err != nil {
+		return err
+	}
+	if strings.Contains(s, "FAIL") {
+		return errors.New("test failed")
+	}
 	return nil
 }
 

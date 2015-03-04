@@ -13,6 +13,6 @@ main.exe
 goto :end
 
 :fail
-:: echo FAIL
+echo FAIL
 :end
 del /F cgoso_c.o libcgosotest.dll main.exe 2>NUL
