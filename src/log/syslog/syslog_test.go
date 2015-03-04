@@ -14,6 +14,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -120,6 +121,10 @@ func TestWithSimulated(t *testing.T) {
 	msg := "Test 123"
 	transport := []string{"unix", "unixgram", "udp", "tcp"}
 
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
+		transport = []string{"udp", "tcp"}
+	}
+
 	for _, tr := range transport {
 		done := make(chan string)
 		addr, sock, srvWG := startServer(tr, "", done)
@@ -142,6 +147,10 @@ func TestWithSimulated(t *testing.T) {
 }
 
 func TestFlap(t *testing.T) {
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
+		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+
 	net := "unix"
 	done := make(chan string)
 	addr, sock, srvWG := startServer(net, "", done)
@@ -306,9 +315,14 @@ func TestConcurrentReconnect(t *testing.T) {
 	const N = 10
 	const M = 100
 	net := "unix"
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
+		net = "tcp"
+	}
 	done := make(chan string, N*M)
 	addr, sock, srvWG := startServer(net, "", done)
-	defer os.Remove(addr)
+	if net == "unix" {
+		defer os.Remove(addr)
+	}
 
 	// count all the messages arriving
 	count := make(chan int)
