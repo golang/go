@@ -139,8 +139,8 @@ func (fi headerFileInfo) Mode() (mode os.FileMode) {
 	}
 
 	switch fi.h.Typeflag {
-	case TypeLink, TypeSymlink:
-		// hard link, symbolic link
+	case TypeSymlink:
+		// symbolic link
 		mode |= os.ModeSymlink
 	case TypeChar:
 		// character device node
