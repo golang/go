@@ -1058,11 +1058,6 @@ func TestFloatAdd(t *testing.T) {
 // TestFloatAdd32 tests that Float.Add/Sub of numbers with
 // 24bit mantissa behaves like float32 addition/subtraction.
 func TestFloatAdd32(t *testing.T) {
-	// TODO(gri) fix test for 32bit platforms
-	if _W == 32 {
-		return
-	}
-
 	// chose base such that we cross the mantissa precision limit
 	const base = 1<<26 - 0x10 // 11...110000 (26 bits)
 	for d := 0; d <= 0x10; d++ {
