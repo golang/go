@@ -116,7 +116,7 @@ var vcsGit = &vcsCmd{
 	tagSyncCmd:     "checkout {tag}",
 	tagSyncDefault: "checkout master",
 
-	scheme:     []string{"git", "https", "http", "git+ssh"},
+	scheme:     []string{"git", "https", "git+ssh"},
 	pingCmd:    "ls-remote {scheme}://{repo}",
 	remoteRepo: gitRemoteRepo,
 }
