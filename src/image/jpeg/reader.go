@@ -318,7 +318,16 @@ func (d *decoder) processSOF(n int) error {
 	}
 	for i := 0; i < d.nComp; i++ {
 		d.comp[i].c = d.tmp[6+3*i]
+		// Section B.2.2 states that "the value of C_i shall be different from
+		// the values of C_1 through C_(i-1)".
+		for j := 0; j < i; j++ {
+			if d.comp[i].c == d.comp[j].c {
+				return FormatError("repeated component identifier")
+			}
+		}
+
 		d.comp[i].tq = d.tmp[8+3*i]
+
 		if d.nComp == 1 {
 			// If a JPEG image has only one component, section A.2 says "this data
 			// is non-interleaved by definition" and section A.2.2 says "[in this
