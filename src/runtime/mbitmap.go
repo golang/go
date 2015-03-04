@@ -202,7 +202,19 @@ func heapBitsForObject(p uintptr) (base uintptr, hbits heapBits) {
 	}
 	base = s.base()
 	if p-base >= s.elemsize {
-		base += (p - base) / s.elemsize * s.elemsize
+		// n := (p - base) / s.elemsize, using division by multiplication
+		n := uintptr(uint64(p-base) >> s.divShift * uint64(s.divMul) >> s.divShift2)
+
+		const debugMagic = false
+		if debugMagic {
+			n2 := (p - base) / s.elemsize
+			if n != n2 {
+				println("runtime: bad div magic", (p - base), s.elemsize, s.divShift, s.divMul, s.divShift2)
+				throw("bad div magic")
+			}
+		}
+
+		base += n * s.elemsize
 	}
 	if base == p {
 		print("runtime: failed to find block beginning for ", hex(p), " s=", hex(s.start*_PageSize), " s.limit=", hex(s.limit), "\n")

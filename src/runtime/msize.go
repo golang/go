@@ -48,6 +48,8 @@ package runtime
 
 var class_to_size [_NumSizeClasses]int32
 var class_to_allocnpages [_NumSizeClasses]int32
+var class_to_divmagic [_NumSizeClasses]divMagic
+
 var size_to_class8 [1024/8 + 1]int8
 var size_to_class128 [(_MaxSmallSize-1024)/128 + 1]int8
 
@@ -144,6 +146,11 @@ func initSizes() {
 	for i := 0; i < len(class_to_size); i++ {
 		memstats.by_size[i].size = uint32(class_to_size[i])
 	}
+
+	for i := 1; i < len(class_to_size); i++ {
+		class_to_divmagic[i] = computeDivMagic(uint32(class_to_size[i]))
+	}
+
 	return
 
 dump:
@@ -181,4 +188,56 @@ func roundupsize(size uintptr) uintptr {
 		return size
 	}
 	return round(size, _PageSize)
+}
+
+// divMagic holds magic constants to implement division
+// by a particular constant as a shift, multiply, and shift.
+// That is, given
+//	m = computeMagic(d)
+// then
+//	n/d == ((n>>m.shift) * m.mul) >> m.shift2
+//
+// The magic computation picks m such that
+//	d = d₁*d₂
+//	d₂= 2^m.shift
+//	m.mul = ⌈2^m.shift2 / d₁⌉
+//
+// The magic computation here is tailored for malloc block sizes
+// and does not handle arbitrary d correctly. Malloc block sizes d are
+// always even, so the first shift implements the factors of 2 in d
+// and then the mul and second shift implement the odd factor
+// that remains. Because the first shift divides n by at least 2 (actually 8)
+// before the multiply gets involved, the huge corner cases that
+// require additional adjustment are impossible, so the usual
+// fixup is not needed.
+//
+// For more details see Hacker's Delight, Chapter 10, and
+// http://ridiculousfish.com/blog/posts/labor-of-division-episode-i.html
+// http://ridiculousfish.com/blog/posts/labor-of-division-episode-iii.html
+type divMagic struct {
+	shift  uint8
+	mul    uint32
+	shift2 uint8
+}
+
+func computeDivMagic(d uint32) divMagic {
+	var m divMagic
+
+	// Compute pre-shift by factoring power of 2 out of d.
+	for d&1 == 0 {
+		m.shift++
+		d >>= 1
+	}
+
+	// Compute largest k such that ⌈2^k / d⌉ fits in a 32-bit int.
+	// This is always a good enough approximation.
+	// We could use smaller k for some divisors but there's no point.
+	k := uint8(63)
+	d64 := uint64(d)
+	for ((1<<k)+d64-1)/d64 >= 1<<32 {
+		k--
+	}
+	m.mul = uint32(((1 << k) + d64 - 1) / d64) //  ⌈2^k / d⌉
+	m.shift2 = k
+	return m
 }
