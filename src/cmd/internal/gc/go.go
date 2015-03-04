@@ -174,7 +174,7 @@ type Node struct {
 	Reslice        uint8
 	Likely         int8
 	Hasbreak       uint8
-	Needzero       uint8
+	Needzero       bool
 	Needctxt       bool
 	Esc            uint
 	Funcdepth      int
