@@ -7,7 +7,7 @@ package main
 import (
 	"cmd/internal/gc"
 	"cmd/internal/obj"
-	i386 "cmd/internal/obj/x86"
+	"cmd/internal/obj/x86"
 )
 
 /*
@@ -31,9 +31,9 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		var hi1 gc.Node
 		var lo1 gc.Node
 		split64(res, &lo1, &hi1)
-		gins(i386.ANEGL, nil, &lo1)
-		gins(i386.AADCL, ncon(0), &hi1)
-		gins(i386.ANEGL, nil, &hi1)
+		gins(x86.ANEGL, nil, &lo1)
+		gins(x86.AADCL, ncon(0), &hi1)
+		gins(x86.ANEGL, nil, &hi1)
 		splitclean()
 		return
 
@@ -42,8 +42,8 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		var lo1 gc.Node
 		var hi1 gc.Node
 		split64(res, &lo1, &hi1)
-		gins(i386.ANOTL, nil, &lo1)
-		gins(i386.ANOTL, nil, &hi1)
+		gins(x86.ANOTL, nil, &lo1)
+		gins(x86.ANOTL, nil, &hi1)
 		splitclean()
 		return
 
@@ -78,11 +78,11 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	}
 
 	var ax gc.Node
-	gc.Nodreg(&ax, gc.Types[gc.TINT32], i386.REG_AX)
+	gc.Nodreg(&ax, gc.Types[gc.TINT32], x86.REG_AX)
 	var cx gc.Node
-	gc.Nodreg(&cx, gc.Types[gc.TINT32], i386.REG_CX)
+	gc.Nodreg(&cx, gc.Types[gc.TINT32], x86.REG_CX)
 	var dx gc.Node
-	gc.Nodreg(&dx, gc.Types[gc.TINT32], i386.REG_DX)
+	gc.Nodreg(&dx, gc.Types[gc.TINT32], x86.REG_DX)
 
 	// Setup for binary operation.
 	var hi1 gc.Node
@@ -99,19 +99,19 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	switch n.Op {
 	// TODO: Constants
 	case gc.OADD:
-		gins(i386.AMOVL, &lo1, &ax)
+		gins(x86.AMOVL, &lo1, &ax)
 
-		gins(i386.AMOVL, &hi1, &dx)
-		gins(i386.AADDL, &lo2, &ax)
-		gins(i386.AADCL, &hi2, &dx)
+		gins(x86.AMOVL, &hi1, &dx)
+		gins(x86.AADDL, &lo2, &ax)
+		gins(x86.AADCL, &hi2, &dx)
 
 		// TODO: Constants.
 	case gc.OSUB:
-		gins(i386.AMOVL, &lo1, &ax)
+		gins(x86.AMOVL, &lo1, &ax)
 
-		gins(i386.AMOVL, &hi1, &dx)
-		gins(i386.ASUBL, &lo2, &ax)
-		gins(i386.ASBBL, &hi2, &dx)
+		gins(x86.AMOVL, &hi1, &dx)
+		gins(x86.ASUBL, &lo2, &ax)
+		gins(x86.ASBBL, &hi2, &dx)
 
 		// let's call the next two EX and FX.
 	case gc.OMUL:
@@ -122,30 +122,30 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		regalloc(&fx, gc.Types[gc.TPTR32], nil)
 
 		// load args into DX:AX and EX:CX.
-		gins(i386.AMOVL, &lo1, &ax)
+		gins(x86.AMOVL, &lo1, &ax)
 
-		gins(i386.AMOVL, &hi1, &dx)
-		gins(i386.AMOVL, &lo2, &cx)
-		gins(i386.AMOVL, &hi2, &ex)
+		gins(x86.AMOVL, &hi1, &dx)
+		gins(x86.AMOVL, &lo2, &cx)
+		gins(x86.AMOVL, &hi2, &ex)
 
 		// if DX and EX are zero, use 32 x 32 -> 64 unsigned multiply.
-		gins(i386.AMOVL, &dx, &fx)
+		gins(x86.AMOVL, &dx, &fx)
 
-		gins(i386.AORL, &ex, &fx)
-		p1 := gc.Gbranch(i386.AJNE, nil, 0)
-		gins(i386.AMULL, &cx, nil) // implicit &ax
+		gins(x86.AORL, &ex, &fx)
+		p1 := gc.Gbranch(x86.AJNE, nil, 0)
+		gins(x86.AMULL, &cx, nil) // implicit &ax
 		p2 := gc.Gbranch(obj.AJMP, nil, 0)
 		gc.Patch(p1, gc.Pc)
 
 		// full 64x64 -> 64, from 32x32 -> 64.
-		gins(i386.AIMULL, &cx, &dx)
+		gins(x86.AIMULL, &cx, &dx)
 
-		gins(i386.AMOVL, &ax, &fx)
-		gins(i386.AIMULL, &ex, &fx)
-		gins(i386.AADDL, &dx, &fx)
-		gins(i386.AMOVL, &cx, &dx)
-		gins(i386.AMULL, &dx, nil) // implicit &ax
-		gins(i386.AADDL, &fx, &dx)
+		gins(x86.AMOVL, &ax, &fx)
+		gins(x86.AIMULL, &ex, &fx)
+		gins(x86.AADDL, &dx, &fx)
+		gins(x86.AMOVL, &cx, &dx)
+		gins(x86.AMULL, &dx, nil) // implicit &ax
+		gins(x86.AADDL, &fx, &dx)
 		gc.Patch(p2, gc.Pc)
 
 		regfree(&ex)
@@ -168,22 +168,22 @@ func cgen64(n *gc.Node, res *gc.Node) {
 			// reverse during load to do the first 32 bits of rotate
 			v -= 32
 
-			gins(i386.AMOVL, &lo1, &dx)
-			gins(i386.AMOVL, &hi1, &ax)
+			gins(x86.AMOVL, &lo1, &dx)
+			gins(x86.AMOVL, &hi1, &ax)
 		} else {
-			gins(i386.AMOVL, &lo1, &ax)
-			gins(i386.AMOVL, &hi1, &dx)
+			gins(x86.AMOVL, &lo1, &ax)
+			gins(x86.AMOVL, &hi1, &dx)
 		}
 
 		if v == 0 {
 		} else // done
 		{
-			gins(i386.AMOVL, &dx, &cx)
-			p1 := gins(i386.ASHLL, ncon(uint32(v)), &dx)
-			p1.From.Index = i386.REG_AX // double-width shift
+			gins(x86.AMOVL, &dx, &cx)
+			p1 := gins(x86.ASHLL, ncon(uint32(v)), &dx)
+			p1.From.Index = x86.REG_AX // double-width shift
 			p1.From.Scale = 0
-			p1 = gins(i386.ASHLL, ncon(uint32(v)), &ax)
-			p1.From.Index = i386.REG_CX // double-width shift
+			p1 = gins(x86.ASHLL, ncon(uint32(v)), &ax)
+			p1.From.Index = x86.REG_CX // double-width shift
 			p1.From.Scale = 0
 		}
 
@@ -196,8 +196,8 @@ func cgen64(n *gc.Node, res *gc.Node) {
 				}
 				splitclean()
 				split64(res, &lo2, &hi2)
-				gins(i386.AMOVL, ncon(0), &lo2)
-				gins(i386.AMOVL, ncon(0), &hi2)
+				gins(x86.AMOVL, ncon(0), &lo2)
+				gins(x86.AMOVL, ncon(0), &hi2)
 				splitclean()
 				return
 			}
@@ -209,71 +209,71 @@ func cgen64(n *gc.Node, res *gc.Node) {
 				split64(res, &lo2, &hi2)
 				gmove(&lo1, &hi2)
 				if v > 32 {
-					gins(i386.ASHLL, ncon(uint32(v-32)), &hi2)
+					gins(x86.ASHLL, ncon(uint32(v-32)), &hi2)
 				}
 
-				gins(i386.AMOVL, ncon(0), &lo2)
+				gins(x86.AMOVL, ncon(0), &lo2)
 				splitclean()
 				splitclean()
 				return
 			}
 
 			// general shift
-			gins(i386.AMOVL, &lo1, &ax)
+			gins(x86.AMOVL, &lo1, &ax)
 
-			gins(i386.AMOVL, &hi1, &dx)
-			p1 := gins(i386.ASHLL, ncon(uint32(v)), &dx)
-			p1.From.Index = i386.REG_AX // double-width shift
+			gins(x86.AMOVL, &hi1, &dx)
+			p1 := gins(x86.ASHLL, ncon(uint32(v)), &dx)
+			p1.From.Index = x86.REG_AX // double-width shift
 			p1.From.Scale = 0
-			gins(i386.ASHLL, ncon(uint32(v)), &ax)
+			gins(x86.ASHLL, ncon(uint32(v)), &ax)
 			break
 		}
 
 		// load value into DX:AX.
-		gins(i386.AMOVL, &lo1, &ax)
+		gins(x86.AMOVL, &lo1, &ax)
 
-		gins(i386.AMOVL, &hi1, &dx)
+		gins(x86.AMOVL, &hi1, &dx)
 
 		// load shift value into register.
 		// if high bits are set, zero value.
 		var p1 *obj.Prog
 
 		if gc.Is64(r.Type) {
-			gins(i386.ACMPL, &hi2, ncon(0))
-			p1 = gc.Gbranch(i386.AJNE, nil, +1)
-			gins(i386.AMOVL, &lo2, &cx)
+			gins(x86.ACMPL, &hi2, ncon(0))
+			p1 = gc.Gbranch(x86.AJNE, nil, +1)
+			gins(x86.AMOVL, &lo2, &cx)
 		} else {
 			cx.Type = gc.Types[gc.TUINT32]
 			gmove(r, &cx)
 		}
 
 		// if shift count is >=64, zero value
-		gins(i386.ACMPL, &cx, ncon(64))
+		gins(x86.ACMPL, &cx, ncon(64))
 
 		p2 := gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT32]), nil, +1)
 		if p1 != nil {
 			gc.Patch(p1, gc.Pc)
 		}
-		gins(i386.AXORL, &dx, &dx)
-		gins(i386.AXORL, &ax, &ax)
+		gins(x86.AXORL, &dx, &dx)
+		gins(x86.AXORL, &ax, &ax)
 		gc.Patch(p2, gc.Pc)
 
 		// if shift count is >= 32, zero low.
-		gins(i386.ACMPL, &cx, ncon(32))
+		gins(x86.ACMPL, &cx, ncon(32))
 
 		p1 = gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT32]), nil, +1)
-		gins(i386.AMOVL, &ax, &dx)
-		gins(i386.ASHLL, &cx, &dx) // SHLL only uses bottom 5 bits of count
-		gins(i386.AXORL, &ax, &ax)
+		gins(x86.AMOVL, &ax, &dx)
+		gins(x86.ASHLL, &cx, &dx) // SHLL only uses bottom 5 bits of count
+		gins(x86.AXORL, &ax, &ax)
 		p2 = gc.Gbranch(obj.AJMP, nil, 0)
 		gc.Patch(p1, gc.Pc)
 
 		// general shift
-		p1 = gins(i386.ASHLL, &cx, &dx)
+		p1 = gins(x86.ASHLL, &cx, &dx)
 
-		p1.From.Index = i386.REG_AX // double-width shift
+		p1.From.Index = x86.REG_AX // double-width shift
 		p1.From.Scale = 0
-		gins(i386.ASHLL, &cx, &ax)
+		gins(x86.ASHLL, &cx, &ax)
 		gc.Patch(p2, gc.Pc)
 
 	case gc.ORSH:
@@ -287,12 +287,12 @@ func cgen64(n *gc.Node, res *gc.Node) {
 				split64(res, &lo2, &hi2)
 				if hi1.Type.Etype == gc.TINT32 {
 					gmove(&hi1, &lo2)
-					gins(i386.ASARL, ncon(31), &lo2)
+					gins(x86.ASARL, ncon(31), &lo2)
 					gmove(&hi1, &hi2)
-					gins(i386.ASARL, ncon(31), &hi2)
+					gins(x86.ASARL, ncon(31), &hi2)
 				} else {
-					gins(i386.AMOVL, ncon(0), &lo2)
-					gins(i386.AMOVL, ncon(0), &hi2)
+					gins(x86.AMOVL, ncon(0), &lo2)
+					gins(x86.AMOVL, ncon(0), &hi2)
 				}
 
 				splitclean()
@@ -310,9 +310,9 @@ func cgen64(n *gc.Node, res *gc.Node) {
 				}
 				if hi1.Type.Etype == gc.TINT32 {
 					gmove(&hi1, &hi2)
-					gins(i386.ASARL, ncon(31), &hi2)
+					gins(x86.ASARL, ncon(31), &hi2)
 				} else {
-					gins(i386.AMOVL, ncon(0), &hi2)
+					gins(x86.AMOVL, ncon(0), &hi2)
 				}
 				splitclean()
 				splitclean()
@@ -320,71 +320,71 @@ func cgen64(n *gc.Node, res *gc.Node) {
 			}
 
 			// general shift
-			gins(i386.AMOVL, &lo1, &ax)
+			gins(x86.AMOVL, &lo1, &ax)
 
-			gins(i386.AMOVL, &hi1, &dx)
-			p1 := gins(i386.ASHRL, ncon(uint32(v)), &ax)
-			p1.From.Index = i386.REG_DX // double-width shift
+			gins(x86.AMOVL, &hi1, &dx)
+			p1 := gins(x86.ASHRL, ncon(uint32(v)), &ax)
+			p1.From.Index = x86.REG_DX // double-width shift
 			p1.From.Scale = 0
 			gins(optoas(gc.ORSH, hi1.Type), ncon(uint32(v)), &dx)
 			break
 		}
 
 		// load value into DX:AX.
-		gins(i386.AMOVL, &lo1, &ax)
+		gins(x86.AMOVL, &lo1, &ax)
 
-		gins(i386.AMOVL, &hi1, &dx)
+		gins(x86.AMOVL, &hi1, &dx)
 
 		// load shift value into register.
 		// if high bits are set, zero value.
 		var p1 *obj.Prog
 
 		if gc.Is64(r.Type) {
-			gins(i386.ACMPL, &hi2, ncon(0))
-			p1 = gc.Gbranch(i386.AJNE, nil, +1)
-			gins(i386.AMOVL, &lo2, &cx)
+			gins(x86.ACMPL, &hi2, ncon(0))
+			p1 = gc.Gbranch(x86.AJNE, nil, +1)
+			gins(x86.AMOVL, &lo2, &cx)
 		} else {
 			cx.Type = gc.Types[gc.TUINT32]
 			gmove(r, &cx)
 		}
 
 		// if shift count is >=64, zero or sign-extend value
-		gins(i386.ACMPL, &cx, ncon(64))
+		gins(x86.ACMPL, &cx, ncon(64))
 
 		p2 := gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT32]), nil, +1)
 		if p1 != nil {
 			gc.Patch(p1, gc.Pc)
 		}
 		if hi1.Type.Etype == gc.TINT32 {
-			gins(i386.ASARL, ncon(31), &dx)
-			gins(i386.AMOVL, &dx, &ax)
+			gins(x86.ASARL, ncon(31), &dx)
+			gins(x86.AMOVL, &dx, &ax)
 		} else {
-			gins(i386.AXORL, &dx, &dx)
-			gins(i386.AXORL, &ax, &ax)
+			gins(x86.AXORL, &dx, &dx)
+			gins(x86.AXORL, &ax, &ax)
 		}
 
 		gc.Patch(p2, gc.Pc)
 
 		// if shift count is >= 32, sign-extend hi.
-		gins(i386.ACMPL, &cx, ncon(32))
+		gins(x86.ACMPL, &cx, ncon(32))
 
 		p1 = gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT32]), nil, +1)
-		gins(i386.AMOVL, &dx, &ax)
+		gins(x86.AMOVL, &dx, &ax)
 		if hi1.Type.Etype == gc.TINT32 {
-			gins(i386.ASARL, &cx, &ax) // SARL only uses bottom 5 bits of count
-			gins(i386.ASARL, ncon(31), &dx)
+			gins(x86.ASARL, &cx, &ax) // SARL only uses bottom 5 bits of count
+			gins(x86.ASARL, ncon(31), &dx)
 		} else {
-			gins(i386.ASHRL, &cx, &ax)
-			gins(i386.AXORL, &dx, &dx)
+			gins(x86.ASHRL, &cx, &ax)
+			gins(x86.AXORL, &dx, &dx)
 		}
 
 		p2 = gc.Gbranch(obj.AJMP, nil, 0)
 		gc.Patch(p1, gc.Pc)
 
 		// general shift
-		p1 = gins(i386.ASHRL, &cx, &ax)
+		p1 = gins(x86.ASHRL, &cx, &ax)
 
-		p1.From.Index = i386.REG_DX // double-width shift
+		p1.From.Index = x86.REG_DX // double-width shift
 		p1.From.Scale = 0
 		gins(optoas(gc.ORSH, hi1.Type), &cx, &dx)
 		gc.Patch(p2, gc.Pc)
@@ -414,10 +414,10 @@ func cgen64(n *gc.Node, res *gc.Node) {
 					break
 
 				case 0xffffffff:
-					gins(i386.ANOTL, nil, &lo2)
+					gins(x86.ANOTL, nil, &lo2)
 
 				default:
-					gins(i386.AXORL, ncon(lv), &lo2)
+					gins(x86.AXORL, ncon(lv), &lo2)
 				}
 
 				switch hv {
@@ -425,32 +425,32 @@ func cgen64(n *gc.Node, res *gc.Node) {
 					break
 
 				case 0xffffffff:
-					gins(i386.ANOTL, nil, &hi2)
+					gins(x86.ANOTL, nil, &hi2)
 
 				default:
-					gins(i386.AXORL, ncon(hv), &hi2)
+					gins(x86.AXORL, ncon(hv), &hi2)
 				}
 
 			case gc.OAND:
 				switch lv {
 				case 0:
-					gins(i386.AMOVL, ncon(0), &lo2)
+					gins(x86.AMOVL, ncon(0), &lo2)
 
 				default:
 					gmove(&lo1, &lo2)
 					if lv != 0xffffffff {
-						gins(i386.AANDL, ncon(lv), &lo2)
+						gins(x86.AANDL, ncon(lv), &lo2)
 					}
 				}
 
 				switch hv {
 				case 0:
-					gins(i386.AMOVL, ncon(0), &hi2)
+					gins(x86.AMOVL, ncon(0), &hi2)
 
 				default:
 					gmove(&hi1, &hi2)
 					if hv != 0xffffffff {
-						gins(i386.AANDL, ncon(hv), &hi2)
+						gins(x86.AANDL, ncon(hv), &hi2)
 					}
 				}
 
@@ -460,11 +460,11 @@ func cgen64(n *gc.Node, res *gc.Node) {
 					gmove(&lo1, &lo2)
 
 				case 0xffffffff:
-					gins(i386.AMOVL, ncon(0xffffffff), &lo2)
+					gins(x86.AMOVL, ncon(0xffffffff), &lo2)
 
 				default:
 					gmove(&lo1, &lo2)
-					gins(i386.AORL, ncon(lv), &lo2)
+					gins(x86.AORL, ncon(lv), &lo2)
 				}
 
 				switch hv {
@@ -472,11 +472,11 @@ func cgen64(n *gc.Node, res *gc.Node) {
 					gmove(&hi1, &hi2)
 
 				case 0xffffffff:
-					gins(i386.AMOVL, ncon(0xffffffff), &hi2)
+					gins(x86.AMOVL, ncon(0xffffffff), &hi2)
 
 				default:
 					gmove(&hi1, &hi2)
-					gins(i386.AORL, ncon(hv), &hi2)
+					gins(x86.AORL, ncon(hv), &hi2)
 				}
 			}
 
@@ -485,8 +485,8 @@ func cgen64(n *gc.Node, res *gc.Node) {
 			return
 		}
 
-		gins(i386.AMOVL, &lo1, &ax)
-		gins(i386.AMOVL, &hi1, &dx)
+		gins(x86.AMOVL, &lo1, &ax)
+		gins(x86.AMOVL, &hi1, &dx)
 		gins(optoas(int(n.Op), lo1.Type), &lo2, &ax)
 		gins(optoas(int(n.Op), lo1.Type), &hi2, &dx)
 	}
@@ -497,8 +497,8 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	splitclean()
 
 	split64(res, &lo1, &hi1)
-	gins(i386.AMOVL, &ax, &lo1)
-	gins(i386.AMOVL, &dx, &hi1)
+	gins(x86.AMOVL, &ax, &lo1)
+	gins(x86.AMOVL, &dx, &hi1)
 	splitclean()
 }
 
@@ -521,11 +521,11 @@ func cmp64(nl *gc.Node, nr *gc.Node, op int, likely int, to *obj.Prog) {
 	t := hi1.Type
 
 	if nl.Op == gc.OLITERAL || nr.Op == gc.OLITERAL {
-		gins(i386.ACMPL, &hi1, &hi2)
+		gins(x86.ACMPL, &hi1, &hi2)
 	} else {
 		regalloc(&rr, gc.Types[gc.TINT32], nil)
-		gins(i386.AMOVL, &hi1, &rr)
-		gins(i386.ACMPL, &rr, &hi2)
+		gins(x86.AMOVL, &hi1, &rr)
+		gins(x86.ACMPL, &rr, &hi2)
 		regfree(&rr)
 	}
 
@@ -540,14 +540,14 @@ func cmp64(nl *gc.Node, nr *gc.Node, op int, likely int, to *obj.Prog) {
 	// jeq to
 	// L:
 	case gc.OEQ:
-		br = gc.Gbranch(i386.AJNE, nil, -likely)
+		br = gc.Gbranch(x86.AJNE, nil, -likely)
 
 		// cmp hi
 	// jne to
 	// cmp lo
 	// jne to
 	case gc.ONE:
-		gc.Patch(gc.Gbranch(i386.AJNE, nil, likely), to)
+		gc.Patch(gc.Gbranch(x86.AJNE, nil, likely), to)
 
 		// cmp hi
 	// jgt to
@@ -578,11 +578,11 @@ func cmp64(nl *gc.Node, nr *gc.Node, op int, likely int, to *obj.Prog) {
 	t = lo1.Type
 
 	if nl.Op == gc.OLITERAL || nr.Op == gc.OLITERAL {
-		gins(i386.ACMPL, &lo1, &lo2)
+		gins(x86.ACMPL, &lo1, &lo2)
 	} else {
 		regalloc(&rr, gc.Types[gc.TINT32], nil)
-		gins(i386.AMOVL, &lo1, &rr)
-		gins(i386.ACMPL, &rr, &lo2)
+		gins(x86.AMOVL, &lo1, &rr)
+		gins(x86.ACMPL, &rr, &lo2)
 		regfree(&rr)
 	}
 

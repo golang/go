@@ -131,8 +131,7 @@ func bootstrapFixImports(text, srcFile string) string {
 			continue
 		}
 		if strings.HasPrefix(line, `import "`) || strings.HasPrefix(line, `import . "`) ||
-			inBlock && (strings.HasPrefix(line, "\t\"") || strings.HasPrefix(line, "\t. \"")) ||
-			strings.Contains(line, `i386 "cmd/internal/obj/x86"`) {
+			inBlock && (strings.HasPrefix(line, "\t\"") || strings.HasPrefix(line, "\t. \"")) {
 			lines[i] = strings.Replace(line, `"cmd/`, `"bootstrap/`, -1)
 		}
 	}

@@ -7,7 +7,7 @@ package main
 import (
 	"cmd/internal/gc"
 	"cmd/internal/obj"
-	i386 "cmd/internal/obj/x86"
+	"cmd/internal/obj/x86"
 	"fmt"
 )
 
@@ -272,7 +272,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 		gc.OMUL:
 		a = optoas(int(n.Op), nl.Type)
 
-		if a == i386.AIMULB {
+		if a == x86.AIMULB {
 			cgen_bmul(int(n.Op), nl, nr, res)
 			break
 		}
@@ -331,7 +331,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 		if gc.Isconst(nl, gc.CTSTR) {
 			var n1 gc.Node
 			regalloc(&n1, gc.Types[gc.Tptr], res)
-			p1 := gins(i386.ALEAL, nil, &n1)
+			p1 := gins(x86.ALEAL, nil, &n1)
 			gc.Datastring(nl.Val.U.Sval, &p1.From)
 			gmove(&n1, res)
 			regfree(&n1)
@@ -529,9 +529,9 @@ func igenindex(n *gc.Node, res *gc.Node, bounded int) *obj.Prog {
 
 	var zero gc.Node
 	gc.Nodconst(&zero, gc.Types[gc.TINT32], 0)
-	gins(i386.ACMPL, &hi, &zero)
+	gins(x86.ACMPL, &hi, &zero)
 	splitclean()
-	return gc.Gbranch(i386.AJNE, nil, +1)
+	return gc.Gbranch(x86.AJNE, nil, +1)
 }
 
 /*
@@ -565,7 +565,7 @@ func agen(n *gc.Node, res *gc.Node) {
 		clearfat(&n1)
 		var n2 gc.Node
 		regalloc(&n2, gc.Types[gc.Tptr], res)
-		gins(i386.ALEAL, &n1, &n2)
+		gins(x86.ALEAL, &n1, &n2)
 		gmove(&n2, res)
 		regfree(&n2)
 		return
@@ -578,7 +578,7 @@ func agen(n *gc.Node, res *gc.Node) {
 		}
 		var n1 gc.Node
 		regalloc(&n1, gc.Types[gc.Tptr], res)
-		gins(i386.ALEAL, n, &n1)
+		gins(x86.ALEAL, n, &n1)
 		gmove(&n1, res)
 		regfree(&n1)
 		return
@@ -746,7 +746,7 @@ func agen(n *gc.Node, res *gc.Node) {
 
 		if gc.Isconst(nl, gc.CTSTR) {
 			regalloc(&n3, gc.Types[gc.Tptr], res)
-			p1 := gins(i386.ALEAL, nil, &n3)
+			p1 := gins(x86.ALEAL, nil, &n3)
 			gc.Datastring(nl.Val.U.Sval, &p1.From)
 			p1.From.Scale = 1
 			p1.From.Index = n2.Val.U.Reg
@@ -769,7 +769,7 @@ func agen(n *gc.Node, res *gc.Node) {
 		} else // nothing to do
 		if w == 1 || w == 2 || w == 4 || w == 8 {
 			// LEAL (n3)(n2*w), n3
-			p1 := gins(i386.ALEAL, &n2, &n3)
+			p1 := gins(x86.ALEAL, &n2, &n3)
 
 			p1.From.Scale = int16(w)
 			p1.From.Type = obj.TYPE_MEM
@@ -858,7 +858,7 @@ func igen(n *gc.Node, a *gc.Node, res *gc.Node) {
 		// Increase the refcount of the register so that igen's caller
 	// has to call regfree.
 	case gc.OINDREG:
-		if n.Val.U.Reg != i386.REG_SP {
+		if n.Val.U.Reg != x86.REG_SP {
 			reg[n.Val.U.Reg]++
 		}
 		*a = *n
@@ -914,7 +914,7 @@ func igen(n *gc.Node, a *gc.Node, res *gc.Node) {
 		fp := gc.Structfirst(&flist, gc.Getoutarg(n.Left.Type))
 		*a = gc.Node{}
 		a.Op = gc.OINDREG
-		a.Val.U.Reg = i386.REG_SP
+		a.Val.U.Reg = x86.REG_SP
 		a.Addable = 1
 		a.Xoffset = fp.Width
 		a.Type = n.Type
@@ -1030,9 +1030,9 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
 		var n1 gc.Node
 		gc.Nodconst(&n1, n.Type, 0)
 		gins(optoas(gc.OCMP, n.Type), n, &n1)
-		a := i386.AJNE
+		a := x86.AJNE
 		if !true_ {
-			a = i386.AJEQ
+			a = x86.AJEQ
 		}
 		gc.Patch(gc.Gbranch(a, n.Type, likely), to)
 		return
@@ -1228,9 +1228,9 @@ def:
 	var n2 gc.Node
 	gc.Nodconst(&n2, n.Type, 0)
 	gins(optoas(gc.OCMP, n.Type), &n1, &n2)
-	a := i386.AJNE
+	a := x86.AJNE
 	if !true_ {
-		a = i386.AJEQ
+		a = x86.AJEQ
 	}
 	gc.Patch(gc.Gbranch(a, n.Type, likely), to)
 	regfree(&n1)
@@ -1355,9 +1355,9 @@ func sgen(n *gc.Node, res *gc.Node, w int64) {
 	}
 
 	var dst gc.Node
-	gc.Nodreg(&dst, gc.Types[gc.Tptr], i386.REG_DI)
+	gc.Nodreg(&dst, gc.Types[gc.Tptr], x86.REG_DI)
 	var src gc.Node
-	gc.Nodreg(&src, gc.Types[gc.Tptr], i386.REG_SI)
+	gc.Nodreg(&src, gc.Types[gc.Tptr], x86.REG_SI)
 
 	var tsrc gc.Node
 	gc.Tempname(&tsrc, gc.Types[gc.Tptr])
@@ -1392,40 +1392,40 @@ func sgen(n *gc.Node, res *gc.Node, w int64) {
 	// the src and dst overlap, then reverse direction
 	if osrc < odst && int64(odst) < int64(osrc)+w {
 		// reverse direction
-		gins(i386.ASTD, nil, nil) // set direction flag
+		gins(x86.ASTD, nil, nil) // set direction flag
 		if c > 0 {
-			gconreg(i386.AADDL, w-1, i386.REG_SI)
-			gconreg(i386.AADDL, w-1, i386.REG_DI)
+			gconreg(x86.AADDL, w-1, x86.REG_SI)
+			gconreg(x86.AADDL, w-1, x86.REG_DI)
 
-			gconreg(i386.AMOVL, int64(c), i386.REG_CX)
-			gins(i386.AREP, nil, nil)   // repeat
-			gins(i386.AMOVSB, nil, nil) // MOVB *(SI)-,*(DI)-
+			gconreg(x86.AMOVL, int64(c), x86.REG_CX)
+			gins(x86.AREP, nil, nil)   // repeat
+			gins(x86.AMOVSB, nil, nil) // MOVB *(SI)-,*(DI)-
 		}
 
 		if q > 0 {
 			if c > 0 {
-				gconreg(i386.AADDL, -3, i386.REG_SI)
-				gconreg(i386.AADDL, -3, i386.REG_DI)
+				gconreg(x86.AADDL, -3, x86.REG_SI)
+				gconreg(x86.AADDL, -3, x86.REG_DI)
 			} else {
-				gconreg(i386.AADDL, w-4, i386.REG_SI)
-				gconreg(i386.AADDL, w-4, i386.REG_DI)
+				gconreg(x86.AADDL, w-4, x86.REG_SI)
+				gconreg(x86.AADDL, w-4, x86.REG_DI)
 			}
 
-			gconreg(i386.AMOVL, int64(q), i386.REG_CX)
-			gins(i386.AREP, nil, nil)   // repeat
-			gins(i386.AMOVSL, nil, nil) // MOVL *(SI)-,*(DI)-
+			gconreg(x86.AMOVL, int64(q), x86.REG_CX)
+			gins(x86.AREP, nil, nil)   // repeat
+			gins(x86.AMOVSL, nil, nil) // MOVL *(SI)-,*(DI)-
 		}
 
 		// we leave with the flag clear
-		gins(i386.ACLD, nil, nil)
+		gins(x86.ACLD, nil, nil)
 	} else {
-		gins(i386.ACLD, nil, nil) // paranoia.  TODO(rsc): remove?
+		gins(x86.ACLD, nil, nil) // paranoia.  TODO(rsc): remove?
 
 		// normal direction
 		if q > 128 || (q >= 4 && gc.Nacl) {
-			gconreg(i386.AMOVL, int64(q), i386.REG_CX)
-			gins(i386.AREP, nil, nil)   // repeat
-			gins(i386.AMOVSL, nil, nil) // MOVL *(SI)+,*(DI)+
+			gconreg(x86.AMOVL, int64(q), x86.REG_CX)
+			gins(x86.AREP, nil, nil)   // repeat
+			gins(x86.AMOVSL, nil, nil) // MOVL *(SI)+,*(DI)+
 		} else if q >= 4 {
 			p := gins(obj.ADUFFCOPY, nil, nil)
 			p.To.Type = obj.TYPE_ADDR
@@ -1435,7 +1435,7 @@ func sgen(n *gc.Node, res *gc.Node, w int64) {
 			p.To.Offset = 10 * (128 - int64(q))
 		} else if !gc.Nacl && c == 0 {
 			var cx gc.Node
-			gc.Nodreg(&cx, gc.Types[gc.TINT32], i386.REG_CX)
+			gc.Nodreg(&cx, gc.Types[gc.TINT32], x86.REG_CX)
 
 			// We don't need the MOVSL side-effect of updating SI and DI,
 			// and issuing a sequence of MOVLs directly is faster.
@@ -1451,13 +1451,13 @@ func sgen(n *gc.Node, res *gc.Node, w int64) {
 			}
 		} else {
 			for q > 0 {
-				gins(i386.AMOVSL, nil, nil) // MOVL *(SI)+,*(DI)+
+				gins(x86.AMOVSL, nil, nil) // MOVL *(SI)+,*(DI)+
 				q--
 			}
 		}
 
 		for c > 0 {
-			gins(i386.AMOVSB, nil, nil) // MOVB *(SI)+,*(DI)+
+			gins(x86.AMOVSB, nil, nil) // MOVB *(SI)+,*(DI)+
 			c--
 		}
 	}

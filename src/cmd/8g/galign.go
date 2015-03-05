@@ -7,14 +7,14 @@ package main
 import (
 	"cmd/internal/gc"
 	"cmd/internal/obj"
-	i386 "cmd/internal/obj/x86"
+	"cmd/internal/obj/x86"
 )
 
 var thechar int = '8'
 
 var thestring string = "386"
 
-var thelinkarch *obj.LinkArch = &i386.Link386
+var thelinkarch *obj.LinkArch = &x86.Link386
 
 func linkarchinit() {
 }
@@ -43,8 +43,8 @@ func main() {
 	gc.Thearch.Thestring = thestring
 	gc.Thearch.Thelinkarch = thelinkarch
 	gc.Thearch.Typedefs = typedefs
-	gc.Thearch.REGSP = i386.REGSP
-	gc.Thearch.REGCTXT = i386.REGCTXT
+	gc.Thearch.REGSP = x86.REGSP
+	gc.Thearch.REGCTXT = x86.REGCTXT
 	gc.Thearch.MAXWIDTH = MAXWIDTH
 	gc.Thearch.Anyregalloc = anyregalloc
 	gc.Thearch.Betypeinit = betypeinit
