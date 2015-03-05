@@ -302,7 +302,8 @@ spec8:	/* CMPPS/CMPPD */
 	rem ',' reg ',' con
 	{
 		$$.from = $1;
-		$$.to = $3;
+		$$.from3 = $3;
+		$$.to.Type = obj.TYPE_MEM; // to give library something to do
 		$$.to.Offset = $5;
 	}
 
