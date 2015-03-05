@@ -65,6 +65,12 @@ type Float struct {
 	exp  int32
 }
 
+// NewFloat allocates and returns a new Float set to x,
+// with precision 53 and rounding mode ToNearestEven.
+func NewFloat(x float64) *Float {
+	return new(Float).SetFloat64(x)
+}
+
 // Exponent and precision limits.
 const (
 	MaxExp  = math.MaxInt32  // largest supported exponent
@@ -135,13 +141,6 @@ const (
 
 //go:generate stringer -type=Accuracy
 
-func (x *Float) cmpZero() Accuracy {
-	if x.neg {
-		return Above
-	}
-	return Below
-}
-
 // SetPrec sets z's precision to prec and returns the (possibly) rounded
 // value of z. Rounding occurs according to z's rounding mode if the mantissa
 // cannot be represented in prec bits without loss of precision.
@@ -171,6 +170,13 @@ func (z *Float) SetPrec(prec uint) *Float {
 		z.round(0)
 	}
 	return z
+}
+
+func (x *Float) cmpZero() Accuracy {
+	if x.neg {
+		return Above
+	}
+	return Below
 }
 
 // SetMode sets z's rounding mode to mode and returns an exact z.
@@ -1030,7 +1036,7 @@ func (z *Float) Neg(x *Float) *Float {
 }
 
 // z = x + y, ignoring signs of x and y.
-// x and y must not be 0, Inf, or NaN.
+// x.form and y.form must be finite.
 func (z *Float) uadd(x, y *Float) {
 	// Note: This implementation requires 2 shifts most of the
 	// time. It is also inefficient if exponents or precisions
@@ -1074,7 +1080,7 @@ func (z *Float) uadd(x, y *Float) {
 }
 
 // z = x - y for x >= y, ignoring signs of x and y.
-// x and y must not be 0, Inf, or NaN.
+// x.form and y.form must be finite.
 func (z *Float) usub(x, y *Float) {
 	// This code is symmetric to uadd.
 	// We have not factored the common code out because
@@ -1116,7 +1122,7 @@ func (z *Float) usub(x, y *Float) {
 }
 
 // z = x * y, ignoring signs of x and y.
-// x and y must not be 0, Inf, or NaN.
+// x.form and y.form must be finite.
 func (z *Float) umul(x, y *Float) {
 	if debugFloat && (len(x.mant) == 0 || len(y.mant) == 0) {
 		panic("umul called with empty mantissa")
@@ -1137,7 +1143,7 @@ func (z *Float) umul(x, y *Float) {
 }
 
 // z = x / y, ignoring signs of x and y.
-// x and y must not be 0, Inf, or NaN.
+// x.form and y.form must be finite.
 func (z *Float) uquo(x, y *Float) {
 	if debugFloat && (len(x.mant) == 0 || len(y.mant) == 0) {
 		panic("uquo called with empty mantissa")
@@ -1184,18 +1190,19 @@ func (z *Float) uquo(x, y *Float) {
 	z.round(sbit)
 }
 
-// ucmp returns -1, 0, or 1, depending on whether x < y, x == y, or x > y,
-// while ignoring the signs of x and y. x and y must not be 0, Inf, or NaN.
-func (x *Float) ucmp(y *Float) int {
+// ucmp returns Below, Exact, or Above, depending
+// on whether x < y, x == y, or x > y.
+// x.form and y.form must be finite.
+func (x *Float) ucmp(y *Float) Accuracy {
 	if debugFloat && (len(x.mant) == 0 || len(y.mant) == 0) {
 		panic("ucmp called with empty mantissa")
 	}
 
 	switch {
 	case x.exp < y.exp:
-		return -1
+		return Below
 	case x.exp > y.exp:
-		return 1
+		return Above
 	}
 	// x.exp == y.exp
 
@@ -1214,13 +1221,13 @@ func (x *Float) ucmp(y *Float) int {
 		}
 		switch {
 		case xm < ym:
-			return -1
+			return Below
 		case xm > ym:
-			return 1
+			return Above
 		}
 	}
 
-	return 0
+	return Exact
 }
 
 // Handling of sign bit as defined by IEEE 754-2008, section 6.3:
@@ -1286,7 +1293,7 @@ func (z *Float) Add(x, y *Float) *Float {
 	} else {
 		// x + (-y) == x - y == -(y - x)
 		// (-x) + y == y - x == -(x - y)
-		if x.ucmp(y) >= 0 {
+		if x.ucmp(y) == Above {
 			z.usub(x, y)
 		} else {
 			z.neg = !z.neg
@@ -1342,7 +1349,7 @@ func (z *Float) Sub(x, y *Float) *Float {
 	} else {
 		// x - y == x - y == -(y - x)
 		// (-x) - (-y) == y - x == -(x - y)
-		if x.ucmp(y) >= 0 {
+		if x.ucmp(y) == Above {
 			z.usub(x, y)
 		} else {
 			z.neg = !z.neg
@@ -1441,46 +1448,49 @@ func (z *Float) Quo(x, y *Float) *Float {
 
 // Cmp compares x and y and returns:
 //
-//   -1 if x <  y
-//    0 if x == y (incl. -0 == 0)
-//   +1 if x >  y
+//   Below if x <  y
+//   Exact if x == y (incl. -0 == 0, -Inf == -Inf, and +Inf == +Inf)
+//   Above if x >  y
+//   Undef if any of x, y is NaN
 //
-// Infinities with matching sign are equal.
-// NaN values are never equal.
-// BUG(gri) Float.Cmp does not implement comparing of NaNs.
-func (x *Float) Cmp(y *Float) int {
+func (x *Float) Cmp(y *Float) Accuracy {
 	if debugFloat {
 		x.validate()
 		y.validate()
+	}
+
+	if x.form == nan || y.form == nan {
+		return Undef
 	}
 
 	mx := x.ord()
 	my := y.ord()
 	switch {
 	case mx < my:
-		return -1
+		return Below
 	case mx > my:
-		return +1
+		return Above
 	}
 	// mx == my
 
 	// only if |mx| == 1 we have to compare the mantissae
 	switch mx {
 	case -1:
-		return -x.ucmp(y)
+		return y.ucmp(x)
 	case +1:
-		return +x.ucmp(y)
+		return x.ucmp(y)
 	}
 
-	return 0
+	return Exact
 }
 
-func umax32(x, y uint32) uint32 {
-	if x > y {
-		return x
-	}
-	return y
-}
+// The following accessors simplify testing of Cmp results.
+func (acc Accuracy) Eql() bool { return acc == Exact }
+func (acc Accuracy) Neq() bool { return acc != Exact }
+func (acc Accuracy) Lss() bool { return acc == Below }
+func (acc Accuracy) Leq() bool { return acc&Above == 0 }
+func (acc Accuracy) Gtr() bool { return acc == Above }
+func (acc Accuracy) Geq() bool { return acc&Below == 0 }
 
 // ord classifies x and returns:
 //
@@ -1506,4 +1516,11 @@ func (x *Float) ord() int {
 		m = -m
 	}
 	return m
+}
+
+func umax32(x, y uint32) uint32 {
+	if x > y {
+		return x
+	}
+	return y
 }

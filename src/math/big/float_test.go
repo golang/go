@@ -1063,8 +1063,8 @@ func TestFloatAdd32(t *testing.T) {
 				x0, y0 = y0, x0
 			}
 
-			x := new(Float).SetFloat64(x0)
-			y := new(Float).SetFloat64(y0)
+			x := NewFloat(x0)
+			y := NewFloat(y0)
 			z := new(Float).SetPrec(24)
 
 			z.Add(x, y)
@@ -1096,8 +1096,8 @@ func TestFloatAdd64(t *testing.T) {
 				x0, y0 = y0, x0
 			}
 
-			x := new(Float).SetFloat64(x0)
-			y := new(Float).SetFloat64(y0)
+			x := NewFloat(x0)
+			y := NewFloat(y0)
 			z := new(Float).SetPrec(53)
 
 			z.Add(x, y)
@@ -1182,8 +1182,8 @@ func TestFloatMul64(t *testing.T) {
 				x0, y0 = y0, x0
 			}
 
-			x := new(Float).SetFloat64(x0)
-			y := new(Float).SetFloat64(y0)
+			x := NewFloat(x0)
+			y := NewFloat(y0)
 			z := new(Float).SetPrec(53)
 
 			z.Mul(x, y)
@@ -1260,7 +1260,7 @@ func TestFloatQuo(t *testing.T) {
 		z := bits.Float()
 
 		// compute accurate x as z*y
-		y := new(Float).SetFloat64(3.14159265358979323e123)
+		y := NewFloat(3.14159265358979323e123)
 
 		x := new(Float).SetPrec(z.Prec() + y.Prec()).SetMode(ToZero)
 		x.Mul(z, y)
@@ -1329,10 +1329,9 @@ func TestFloatQuoSmoke(t *testing.T) {
 	}
 }
 
-// TestFloatArithmeticSpecialValues tests that Float operations produce
-// the correct result for all combinations of regular and special value
-// arguments (±0, ±Inf, NaN) and ±1 and ±2.71828 as representatives for
-// nonzero finite values.
+// TestFloatArithmeticSpecialValues tests that Float operations produce the
+// correct results for combinations of zero (±0), finite (±1 and ±2.71828),
+// and non-finite (±Inf, NaN) operands.
 func TestFloatArithmeticSpecialValues(t *testing.T) {
 	zero := 0.0
 	args := []float64{math.Inf(-1), -2.71828, -1, -zero, zero, 1, 2.71828, math.Inf(1), math.NaN()}
@@ -1442,6 +1441,39 @@ func TestFloatArithmeticRounding(t *testing.T) {
 	}
 }
 
-func TestFloatCmp(t *testing.T) {
-	// TODO(gri) implement this
+// TestFloatCmpSpecialValues tests that Cmp produces the correct results for
+// combinations of zero (±0), finite (±1 and ±2.71828), and non-finite (±Inf,
+// NaN) operands.
+func TestFloatCmpSpecialValues(t *testing.T) {
+	zero := 0.0
+	args := []float64{math.Inf(-1), -2.71828, -1, -zero, zero, 1, 2.71828, math.Inf(1), math.NaN()}
+	xx := new(Float)
+	yy := new(Float)
+	for i := 0; i < 4; i++ {
+		for _, x := range args {
+			xx.SetFloat64(x)
+			// check conversion is correct
+			// (no need to do this for y, since we see exactly the
+			// same values there)
+			if got, acc := xx.Float64(); !math.IsNaN(x) && (got != x || acc != Exact) {
+				t.Errorf("Float(%g) == %g (%s)", x, got, acc)
+			}
+			for _, y := range args {
+				yy.SetFloat64(y)
+				got := xx.Cmp(yy)
+				want := Undef
+				switch {
+				case x < y:
+					want = Below
+				case x == y:
+					want = Exact
+				case x > y:
+					want = Above
+				}
+				if got != want {
+					t.Errorf("(%g).Cmp(%g) = %s; want %s", x, y, got, want)
+				}
+			}
+		}
+	}
 }
