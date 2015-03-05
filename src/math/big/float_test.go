@@ -90,15 +90,20 @@ func TestFloatZeroValue(t *testing.T) {
 
 func makeFloat(s string) *Float {
 	var x Float
-	if s == "Inf" || s == "+Inf" {
+
+	switch s {
+	case "0":
+		return &x
+	case "-0":
+		return x.Neg(&x)
+	case "Inf", "+Inf":
 		return x.SetInf(+1)
-	}
-	if s == "-Inf" {
+	case "-Inf":
 		return x.SetInf(-1)
-	}
-	if s == "NaN" || s == "-NaN" {
+	case "NaN", "-NaN":
 		return x.SetNaN()
 	}
+
 	x.SetPrec(1000)
 	if _, ok := x.SetString(s); !ok {
 		panic(fmt.Sprintf("%q is not a valid float", s))
@@ -145,13 +150,6 @@ func TestFloatSetPrec(t *testing.T) {
 		}
 		if got, acc := x.String(), x.Acc(); got != test.want || acc != test.acc {
 			t.Errorf("%s.SetPrec(%d) = %s (%s); want %s (%s)", test.x, test.prec, got, acc, test.want, test.acc)
-		}
-		// look inside x and check correct value for x.exp
-		if len(x.mant) == 0 {
-			// ±0, ±Inf, or NaN
-			if x.exp != 0 && x.exp > MinExp {
-				t.Errorf("%s.SetPrec(%d): incorrect exponent %d", test.x, test.prec, x.exp)
-			}
 		}
 	}
 }
@@ -209,7 +207,7 @@ func feq(x, y *Float) bool {
 	if x.IsNaN() || y.IsNaN() {
 		return x.IsNaN() && y.IsNaN()
 	}
-	return x.Cmp(y) == 0 && x.neg == y.neg
+	return x.Cmp(y) == 0 && x.IsNeg() == y.IsNeg()
 }
 
 func TestFloatMantExp(t *testing.T) {
@@ -261,11 +259,11 @@ func TestFloatSetMantExp(t *testing.T) {
 		{"Inf", 1234, "+Inf"},
 		{"+Inf", -1234, "+Inf"},
 		{"-Inf", -1234, "-Inf"},
-		{"0", -MaxExp - 1, "0"},
-		{"0.5", -MaxExp - 1, "+0"},  // exponent underflow
-		{"-0.5", -MaxExp - 1, "-0"}, // exponent underflow
-		{"1", MaxExp, "+Inf"},       // exponent overflow
-		{"2", MaxExp - 1, "+Inf"},   // exponent overflow
+		{"0", MinExp, "0"},
+		{"0.25", MinExp, "+0"},    // exponent underflow
+		{"-0.25", MinExp, "-0"},   // exponent underflow
+		{"1", MaxExp, "+Inf"},     // exponent overflow
+		{"2", MaxExp - 1, "+Inf"}, // exponent overflow
 		{"0.75", 1, "1.5"},
 		{"0.5", 11, "1024"},
 		{"-0.5", -2, "-0.125"},
