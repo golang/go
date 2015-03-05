@@ -95,13 +95,6 @@ type Val struct {
 	}
 }
 
-type Array struct {
-	length   int32
-	size     int32
-	capacity int32
-	data     string
-}
-
 type Pkg struct {
 	Name     string
 	Path     string
@@ -130,106 +123,6 @@ type Sym struct {
 	Lastlineno int32
 	Origpkg    *Pkg
 	Lsym       *obj.LSym
-}
-
-type Node struct {
-	Left           *Node
-	Right          *Node
-	Ntest          *Node
-	Nincr          *Node
-	Ninit          *NodeList
-	Nbody          *NodeList
-	Nelse          *NodeList
-	List           *NodeList
-	Rlist          *NodeList
-	Op             uint8
-	Nointerface    bool
-	Ullman         uint8
-	Addable        uint8
-	Trecur         uint8
-	Etype          uint8
-	Bounded        bool
-	Class          uint8
-	Method         uint8
-	Embedded       uint8
-	Colas          uint8
-	Diag           uint8
-	Noescape       bool
-	Nosplit        bool
-	Builtin        uint8
-	Nowritebarrier bool
-	Walkdef        uint8
-	Typecheck      uint8
-	Local          uint8
-	Dodata         uint8
-	Initorder      uint8
-	Used           uint8
-	Isddd          uint8
-	Readonly       uint8
-	Implicit       uint8
-	Addrtaken      uint8
-	Assigned       uint8
-	Captured       uint8
-	Byval          uint8
-	Dupok          uint8
-	Wrapper        uint8
-	Reslice        uint8
-	Likely         int8
-	Hasbreak       uint8
-	Needzero       bool
-	Needctxt       bool
-	Esc            uint
-	Funcdepth      int
-	Type           *Type
-	Orig           *Node
-	Nname          *Node
-	Shortname      *Node
-	Enter          *NodeList
-	Exit           *NodeList
-	Cvars          *NodeList
-	Dcl            *NodeList
-	Inl            *NodeList
-	Inldcl         *NodeList
-	Closgen        int
-	Outerfunc      *Node
-	Val            Val
-	Ntype          *Node
-	Defn           *Node
-	Pack           *Node
-	Curfn          *Node
-	Paramfld       *Type
-	Decldepth      int
-	Heapaddr       *Node
-	Outerexpr      *Node
-	Stackparam     *Node
-	Alloc          *Node
-	Outer          *Node
-	Closure        *Node
-	Top            int
-	Inlvar         *Node
-	Pkg            *Pkg
-	Initplan       *InitPlan
-	Escflowsrc     *NodeList
-	Escretval      *NodeList
-	Escloopdepth   int
-	Sym            *Sym
-	InlCost        int32
-	Vargen         int32
-	Lineno         int32
-	Endlineno      int32
-	Xoffset        int64
-	Stkdelta       int64
-	Ostk           int32
-	Iota           int32
-	Walkgen        uint32
-	Esclevel       int32
-	Opt            interface{}
-}
-
-type NodeList struct {
-	N    *Node
-	Next *NodeList
-	End  *NodeList
 }
 
 type Type struct {
@@ -316,22 +209,6 @@ const (
 	EscReturnBits     = EscBits + 1
 )
 
-/*
- * Every node has a walkgen field.
- * If you want to do a traversal of a node graph that
- * might contain duplicates and want to avoid
- * visiting the same nodes twice, increment walkgen
- * before starting.  Then before processing a node, do
- *
- *	if(n->walkgen == walkgen)
- *		return;
- *	n->walkgen = walkgen;
- *
- * Such a walk cannot call another such walk recursively,
- * because of the use of the global walkgen.
- */
-var walkgen uint32
-
 const (
 	SymExport   = 1 << 0
 	SymPackage  = 1 << 1
@@ -351,163 +228,6 @@ type Iter struct {
 	An    **Node
 	N     *Node
 }
-
-// Node ops.
-const (
-	OXXX = iota
-	ONAME
-	ONONAME
-	OTYPE
-	OPACK
-	OLITERAL
-	OADD
-	OSUB
-	OOR
-	OXOR
-	OADDSTR
-	OADDR
-	OANDAND
-	OAPPEND
-	OARRAYBYTESTR
-	OARRAYBYTESTRTMP
-	OARRAYRUNESTR
-	OSTRARRAYBYTE
-	OSTRARRAYBYTETMP
-	OSTRARRAYRUNE
-	OAS
-	OAS2
-	OAS2FUNC
-	OAS2RECV
-	OAS2MAPR
-	OAS2DOTTYPE
-	OASOP
-	OCALL
-	OCALLFUNC
-	OCALLMETH
-	OCALLINTER
-	OCALLPART
-	OCAP
-	OCLOSE
-	OCLOSURE
-	OCMPIFACE
-	OCMPSTR
-	OCOMPLIT
-	OMAPLIT
-	OSTRUCTLIT
-	OARRAYLIT
-	OPTRLIT
-	OCONV
-	OCONVIFACE
-	OCONVNOP
-	OCOPY
-	ODCL
-	ODCLFUNC
-	ODCLFIELD
-	ODCLCONST
-	ODCLTYPE
-	ODELETE
-	ODOT
-	ODOTPTR
-	ODOTMETH
-	ODOTINTER
-	OXDOT
-	ODOTTYPE
-	ODOTTYPE2
-	OEQ
-	ONE
-	OLT
-	OLE
-	OGE
-	OGT
-	OIND
-	OINDEX
-	OINDEXMAP
-	OKEY
-	OPARAM
-	OLEN
-	OMAKE
-	OMAKECHAN
-	OMAKEMAP
-	OMAKESLICE
-	OMUL
-	ODIV
-	OMOD
-	OLSH
-	ORSH
-	OAND
-	OANDNOT
-	ONEW
-	ONOT
-	OCOM
-	OPLUS
-	OMINUS
-	OOROR
-	OPANIC
-	OPRINT
-	OPRINTN
-	OPAREN
-	OSEND
-	OSLICE
-	OSLICEARR
-	OSLICESTR
-	OSLICE3
-	OSLICE3ARR
-	ORECOVER
-	ORECV
-	ORUNESTR
-	OSELRECV
-	OSELRECV2
-	OIOTA
-	OREAL
-	OIMAG
-	OCOMPLEX
-	OBLOCK
-	OBREAK
-	OCASE
-	OXCASE
-	OCONTINUE
-	ODEFER
-	OEMPTY
-	OFALL
-	OXFALL
-	OFOR
-	OGOTO
-	OIF
-	OLABEL
-	OPROC
-	ORANGE
-	ORETURN
-	OSELECT
-	OSWITCH
-	OTYPESW
-	OTCHAN
-	OTMAP
-	OTSTRUCT
-	OTINTER
-	OTFUNC
-	OTARRAY
-	ODDD
-	ODDDARG
-	OINLCALL
-	OEFACE
-	OITAB
-	OSPTR
-	OCLOSUREVAR
-	OCFUNC
-	OCHECKNIL
-	OVARKILL
-	OREGISTER
-	OINDREG
-	OCMP
-	ODEC
-	OINC
-	OEXTEND
-	OHMUL
-	OLROT
-	ORROTC
-	ORETJMP
-	OEND
-)
 
 const (
 	Txxx = iota
@@ -935,81 +655,6 @@ var bstdout obj.Biobuf
 
 var Nacl bool
 
-/*
- *	y.tab.c
- */
-
-/*
- *	align.c
- */
-
-/*
- *	array.c
- */
-
-/*
- *	bits.c
- */
-
-/*
- *	mparith1.c
- */
-
-/*
- *	mparith2.c
- */
-
-/*
- *	mparith3.c
- */
-
-/*
- *	obj.c
- */
-
-/*
- *	order.c
- */
-
-/*
- *	range.c
- */
-
-/*
- *	reflect.c
- */
-
-/*
- *	select.c
- */
-
-/*
- *	sinit.c
- */
-
-/*
- *	subr.c
- */
-
-/*
- *	swt.c
- */
-
-/*
- *	typecheck.c
- */
-
-/*
- *	unsafe.c
- */
-
-/*
- *	walk.c
- */
-
-/*
- *	thearch-specific ggen.c/gsubr.c/gobj.c/pgen.c/plive.c
- */
 var continpc *obj.Prog
 
 var breakpc *obj.Prog
@@ -1024,13 +669,6 @@ var Disable_checknil int
 
 var zerosize int64
 
-/*
- *	racewalk.c
- */
-
-/*
- *	flow.c
- */
 type Flow struct {
 	Prog   *obj.Prog
 	P1     *Flow
