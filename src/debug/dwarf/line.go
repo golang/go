@@ -177,14 +177,7 @@ func (r *LineReader) readHeader() error {
 
 	// Read basic header fields [DWARF2 6.2.4].
 	hdrOffset := buf.off
-	dwarf64 := false
-	unitLength := Offset(buf.uint32())
-	if unitLength == 0xffffffff {
-		dwarf64 = true
-		unitLength = Offset(buf.uint64())
-	} else if unitLength >= 0xfffffff0 {
-		return DecodeError{"line", hdrOffset, fmt.Sprintf("total length field has reserved value %#x", unitLength)}
-	}
+	unitLength, dwarf64 := buf.unitLength()
 	r.endOffset = buf.off + unitLength
 	if r.endOffset > buf.off+Offset(len(buf.data)) {
 		return DecodeError{"line", hdrOffset, fmt.Sprintf("line table end %d exceeds section size %d", r.endOffset, buf.off+Offset(len(buf.data)))}
