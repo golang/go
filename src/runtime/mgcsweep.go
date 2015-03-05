@@ -42,8 +42,14 @@ func finishsweep_m() {
 	}
 }
 
-func bgsweep() {
+func bgsweep(c chan int) {
 	sweep.g = getg()
+
+	lock(&sweep.lock)
+	sweep.parked = true
+	c <- 1
+	goparkunlock(&sweep.lock, "GC sweep wait", traceEvGoBlock)
+
 	for {
 		for gosweepone() != ^uintptr(0) {
 			sweep.nbgsweep++
