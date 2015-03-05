@@ -319,6 +319,9 @@ func gc(mode int) {
 
 	systemstack(stoptheworld)
 	systemstack(finishsweep_m) // finish sweep before we start concurrent scan.
+	// clearpools before we start the GC. If we wait they memory will not be
+	// reclaimed until the next GC cycle.
+	clearpools()
 
 	if mode == gcBackgroundMode { // Do as much work concurrently as possible
 		systemstack(func() {
@@ -345,7 +348,9 @@ func gc(mode int) {
 			// Begin mark termination.
 			gctimer.cycle.markterm = nanotime()
 			stoptheworld()
-			gcphase = _GCoff
+			// The gcphase is _GCmark, it will transition to _GCmarktermination
+			// below. The important thing is that the wb remains active until
+			// all marking is complete. This includes writes made by the GC.
 		})
 	} else {
 		// For non-concurrent GC (mode != gcBackgroundMode)
@@ -354,13 +359,14 @@ func gc(mode int) {
 		gcResetGState()
 	}
 
+	// World is stopped.
+	// Start marktermination which includes enabling the write barrier.
+	gcphase = _GCmarktermination
+
 	startTime := nanotime()
 	if mp != acquirem() {
 		throw("gcwork: rescheduled")
 	}
-
-	// TODO(rsc): Should the concurrent GC clear pools earlier?
-	clearpools()
 
 	_g_ := getg()
 	_g_.m.traceback = 2
@@ -383,6 +389,9 @@ func gc(mode int) {
 			gcMark(startTime)
 			clearCheckmarks()
 		}
+
+		// marking is complete so we can turn the write barrier off
+		gcphase = _GCoff
 		gcSweep(mode)
 
 		if debug.gctrace > 1 {
@@ -392,7 +401,13 @@ func gc(mode int) {
 			// Reset these so that all stacks will be rescanned.
 			gcResetGState()
 			finishsweep_m()
+
+			// Still in STW but gcphase is _GCoff, reset to _GCmarktermination
+			// At this point all objects will be found during the gcMark which
+			// does a complete STW mark and object scan.
+			gcphase = _GCmarktermination
 			gcMark(startTime)
+			gcphase = _GCoff // marking is done, turn off wb.
 			gcSweep(mode)
 		}
 	})
@@ -422,6 +437,10 @@ func gc(mode int) {
 		}
 	}
 
+	if gcphase != _GCoff {
+		throw("gc done but gcphase != _GCoff")
+	}
+
 	systemstack(starttheworld)
 
 	releasem(mp)
@@ -442,16 +461,17 @@ func gcMark(start_time int64) {
 		tracegc()
 	}
 
+	if gcphase != _GCmarktermination {
+		throw("in gcMark expecting to see gcphase as _GCmarktermination")
+	}
 	t0 := start_time
 	work.tstart = start_time
-	gcphase = _GCmarktermination
-
 	var t1 int64
 	if debug.gctrace > 0 {
 		t1 = nanotime()
 	}
 
-	gcCopySpans()
+	gcCopySpans() // TODO(rlh): should this be hoisted and done only once? Right now it is done for normal marking and also for checkmarking.
 
 	work.nwait = 0
 	work.ndone = 0
@@ -486,7 +506,6 @@ func gcMark(start_time int64) {
 		throw("work.partial != 0")
 	}
 
-	gcphase = _GCoff
 	var t3 int64
 	if debug.gctrace > 0 {
 		t3 = nanotime()
@@ -556,6 +575,9 @@ func gcMark(start_time int64) {
 }
 
 func gcSweep(mode int) {
+	if gcphase != _GCoff {
+		throw("gcSweep being done but phase is not GCoff")
+	}
 	gcCopySpans()
 
 	lock(&mheap_.lock)

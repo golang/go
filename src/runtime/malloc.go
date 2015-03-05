@@ -472,6 +472,9 @@ const (
 // Small objects are allocated from the per-P cache's free lists.
 // Large objects (> 32 kB) are allocated straight from the heap.
 func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+	if gcphase == _GCmarktermination {
+		throw("mallocgc called with gcphase == _GCmarktermination")
+	}
 	shouldhelpgc := false
 	if size == 0 {
 		return unsafe.Pointer(&zerobase)
