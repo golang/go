@@ -2125,24 +2125,12 @@ func (b *builder) buildFuncDecl(pkg *Package, decl *ast.FuncDecl) {
 	if isBlankIdent(id) {
 		return // discard
 	}
-	var fn *Function
+	fn := pkg.values[pkg.info.Defs[id]].(*Function)
 	if decl.Recv == nil && id.Name == "init" {
-		pkg.ninit++
-		fn = &Function{
-			name:      fmt.Sprintf("init#%d", pkg.ninit),
-			Signature: new(types.Signature),
-			pos:       decl.Name.NamePos,
-			Pkg:       pkg,
-			Prog:      pkg.Prog,
-			syntax:    decl,
-		}
-
 		var v Call
 		v.Call.Value = fn
 		v.setType(types.NewTuple())
 		pkg.init.emit(&v)
-	} else {
-		fn = pkg.values[pkg.info.Defs[id]].(*Function)
 	}
 	b.buildFunction(fn)
 }

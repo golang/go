@@ -8,6 +8,7 @@ package ssa
 // See builder.go for explanation.
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"os"
@@ -88,10 +89,15 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 		pkg.Members[name] = g
 
 	case *types.Func:
+		sig := obj.Type().(*types.Signature)
+		if sig.Recv() == nil && name == "init" {
+			pkg.ninit++
+			name = fmt.Sprintf("init#%d", pkg.ninit)
+		}
 		fn := &Function{
 			name:      name,
 			object:    obj,
-			Signature: obj.Type().(*types.Signature),
+			Signature: sig,
 			syntax:    syntax,
 			pos:       obj.Pos(),
 			Pkg:       pkg,
@@ -102,7 +108,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 		}
 
 		pkg.values[obj] = fn
-		if fn.Signature.Recv() == nil {
+		if sig.Recv() == nil {
 			pkg.Members[name] = fn // package-level function
 		}
 
@@ -148,9 +154,6 @@ func membersFromDecl(pkg *Package, decl ast.Decl) {
 
 	case *ast.FuncDecl:
 		id := decl.Name
-		if decl.Recv == nil && id.Name == "init" {
-			return // no object
-		}
 		if !isBlankIdent(id) {
 			memberFromObject(pkg, pkg.info.Defs[id], decl)
 		}

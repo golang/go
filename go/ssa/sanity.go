@@ -505,8 +505,13 @@ func sanityCheckPackage(pkg *Package) {
 			continue // not all members have typechecker objects
 		}
 		if obj.Name() != name {
-			panic(fmt.Sprintf("%s: %T.Object().Name() = %s, want %s",
-				pkg.Object.Path(), mem, obj.Name(), name))
+			if obj.Name() == "init" && strings.HasPrefix(mem.Name(), "init#") {
+				// Ok.  The name of a declared init function varies between
+				// its types.Func ("init") and its ssa.Function ("init#%d").
+			} else {
+				panic(fmt.Sprintf("%s: %T.Object().Name() = %s, want %s",
+					pkg.Object.Path(), mem, obj.Name(), name))
+			}
 		}
 		if obj.Pos() != mem.Pos() {
 			panic(fmt.Sprintf("%s Pos=%d obj.Pos=%d", mem, mem.Pos(), obj.Pos()))

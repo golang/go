@@ -40,10 +40,14 @@ type Program struct {
 // declares.  These may be accessed directly via Members, or via the
 // type-specific accessor methods Func, Type, Var and Const.
 //
+// Members also contains entries for "init" (the synthetic package
+// initializer) and "init#%d", the nth declared init function,
+// and unspecified other things too.
+//
 type Package struct {
 	Prog    *Program               // the owning program
 	Object  *types.Package         // the type checker's package object for this package
-	Members map[string]Member      // all package members keyed by name
+	Members map[string]Member      // all package members keyed by name (incl. init and init#%d)
 	values  map[types.Object]Value // package members (incl. types and methods), keyed by object
 	init    *Function              // Func("init"); the package's init function
 	debug   bool                   // include full debug info in this package
@@ -280,6 +284,10 @@ type Node interface {
 //
 // If the function is a method (Signature.Recv() != nil) then the first
 // element of Params is the receiver parameter.
+//
+// A Go package may declare many functions called "init".
+// For each one, Object().Name() returns "init" but Name() returns
+// "init#1", etc, in declaration order.
 //
 // Pos() returns the declaring ast.FuncLit.Type.Func or the position
 // of the ast.FuncDecl.Name, if the function was explicit in the
