@@ -521,7 +521,7 @@ func staticname(t *Type, ctxt int) *Node {
 	statuniqgen++
 	n := newname(Lookup(namebuf))
 	if ctxt == 0 {
-		n.Readonly = 1
+		n.Readonly = true
 	}
 	addvar(n, t, PEXTERN)
 	return n

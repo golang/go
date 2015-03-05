@@ -45,7 +45,7 @@ type Node struct {
 	Initorder      uint8
 	Used           uint8
 	Isddd          uint8
-	Readonly       uint8
+	Readonly       bool
 	Implicit       uint8
 	Addrtaken      uint8 // address taken, even if not moved to heap
 	Assigned       uint8 // is the variable ever assigned to
