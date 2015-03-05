@@ -254,10 +254,10 @@ func capturevars(xfunc *Node) {
 		v.Outerexpr = nil
 
 		// out parameters will be assigned to implicitly upon return.
-		if outer.Class != PPARAMOUT && v.Closure.Addrtaken == 0 && v.Closure.Assigned == 0 && v.Type.Width <= 128 {
+		if outer.Class != PPARAMOUT && !v.Closure.Addrtaken && v.Closure.Assigned == 0 && v.Type.Width <= 128 {
 			v.Byval = 1
 		} else {
-			v.Closure.Addrtaken = 1
+			v.Closure.Addrtaken = true
 			outer = Nod(OADDR, outer, nil)
 		}
 

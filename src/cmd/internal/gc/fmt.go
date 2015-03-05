@@ -281,7 +281,7 @@ func Jconv(n *Node, flag int) string {
 		fp += fmt.Sprintf(" embedded(%d)", n.Embedded)
 	}
 
-	if n.Addrtaken != 0 {
+	if n.Addrtaken {
 		fp += " addrtaken"
 	}
 

@@ -47,7 +47,7 @@ type Node struct {
 	Isddd          uint8
 	Readonly       bool
 	Implicit       uint8
-	Addrtaken      uint8 // address taken, even if not moved to heap
+	Addrtaken      bool  // address taken, even if not moved to heap
 	Assigned       uint8 // is the variable ever assigned to
 	Captured       uint8 // is the variable captured by a closure
 	Byval          uint8 // is the variable captured by value or by reference

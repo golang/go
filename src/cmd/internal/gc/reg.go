@@ -371,7 +371,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 	// If we were better about _ elision, _ = &x would suffice too.
 	// The broader := in a closure problem is mentioned in a comment in
 	// closure.c:/^typecheckclosure and dcl.c:/^oldname.
-	if node.Addrtaken != 0 {
+	if node.Addrtaken {
 		v.addr = 1
 	}
 

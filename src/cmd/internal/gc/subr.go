@@ -1994,7 +1994,7 @@ func cheapexpr(n *Node, init **NodeList) *Node {
  * assignment to it.
  */
 func localexpr(n *Node, t *Type, init **NodeList) *Node {
-	if n.Op == ONAME && (n.Addrtaken == 0 || strings.HasPrefix(n.Sym.Name, "autotmp_")) && (n.Class == PAUTO || n.Class == PPARAM || n.Class == PPARAMOUT) && convertop(n.Type, t, nil) == OCONVNOP {
+	if n.Op == ONAME && (!n.Addrtaken || strings.HasPrefix(n.Sym.Name, "autotmp_")) && (n.Class == PAUTO || n.Class == PPARAM || n.Class == PPARAMOUT) && convertop(n.Type, t, nil) == OCONVNOP {
 		return n
 	}
 
