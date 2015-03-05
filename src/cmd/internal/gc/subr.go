@@ -3127,103 +3127,6 @@ func Simsimtype(t *Type) int {
 	return et
 }
 
-func concat(a *NodeList, b *NodeList) *NodeList {
-	if a == nil {
-		return b
-	}
-	if b == nil {
-		return a
-	}
-
-	a.End.Next = b
-	a.End = b.End
-	b.End = nil
-	return a
-}
-
-func list1(n *Node) *NodeList {
-	if n == nil {
-		return nil
-	}
-	if n.Op == OBLOCK && n.Ninit == nil {
-		// Flatten list and steal storage.
-		// Poison pointer to catch errant uses.
-		l := n.List
-
-		n.List = nil
-		return l
-	}
-
-	l := new(NodeList)
-	l.N = n
-	l.End = l
-	return l
-}
-
-func list(l *NodeList, n *Node) *NodeList {
-	return concat(l, list1(n))
-}
-
-func listsort(l **NodeList, f func(*Node, *Node) int) {
-	if *l == nil || (*l).Next == nil {
-		return
-	}
-
-	l1 := *l
-	l2 := *l
-	for {
-		l2 = l2.Next
-		if l2 == nil {
-			break
-		}
-		l2 = l2.Next
-		if l2 == nil {
-			break
-		}
-		l1 = l1.Next
-	}
-
-	l2 = l1.Next
-	l1.Next = nil
-	l2.End = (*l).End
-	(*l).End = l1
-
-	l1 = *l
-	listsort(&l1, f)
-	listsort(&l2, f)
-
-	if f(l1.N, l2.N) < 0 {
-		*l = l1
-	} else {
-		*l = l2
-		l2 = l1
-		l1 = *l
-	}
-
-	// now l1 == *l; and l1 < l2
-
-	var le *NodeList
-	for (l1 != nil) && (l2 != nil) {
-		for (l1.Next != nil) && f(l1.Next.N, l2.N) < 0 {
-			l1 = l1.Next
-		}
-
-		// l1 is last one from l1 that is < l2
-		le = l1.Next // le is the rest of l1, first one that is >= l2
-		if le != nil {
-			le.End = (*l).End
-		}
-
-		(*l).End = l1       // cut *l at l1
-		*l = concat(*l, l2) // glue l2 to *l's tail
-
-		l1 = l2 // l1 is the first element of *l that is < the new l2
-		l2 = le // ... because l2 now is the old tail of l1
-	}
-
-	*l = concat(*l, l2) // any remainder
-}
-
 func listtreecopy(l *NodeList) *NodeList {
 	var out *NodeList
 	for ; l != nil; l = l.Next {
@@ -3239,21 +3142,6 @@ func liststmt(l *NodeList) *Node {
 		n.Lineno = l.N.Lineno
 	}
 	return n
-}
-
-/*
- * return nelem of list
- */
-func count(l *NodeList) int {
-	n := int64(0)
-	for ; l != nil; l = l.Next {
-		n++
-	}
-	if int64(int(n)) != n { // Overflow.
-		Yyerror("too many elements in list")
-	}
-
-	return int(n)
 }
 
 /*
