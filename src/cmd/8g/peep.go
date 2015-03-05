@@ -33,13 +33,13 @@ package main
 import (
 	"cmd/internal/gc"
 	"cmd/internal/obj"
-	i386 "cmd/internal/obj/x86"
+	"cmd/internal/obj/x86"
 	"fmt"
 )
 
 const (
 	REGEXT      = 0
-	exregoffset = i386.REG_DI
+	exregoffset = x86.REG_DI
 )
 
 var gactive uint32
@@ -100,20 +100,20 @@ func peep(firstp *obj.Prog) {
 	for r := g.Start; r != nil; r = r.Link {
 		p = r.Prog
 		switch p.As {
-		case i386.ALEAL:
+		case x86.ALEAL:
 			if regtyp(&p.To) {
 				if p.From.Sym != nil {
-					if p.From.Index == i386.REG_NONE {
+					if p.From.Index == x86.REG_NONE {
 						conprop(r)
 					}
 				}
 			}
 
-		case i386.AMOVB,
-			i386.AMOVW,
-			i386.AMOVL,
-			i386.AMOVSS,
-			i386.AMOVSD:
+		case x86.AMOVB,
+			x86.AMOVW,
+			x86.AMOVL,
+			x86.AMOVSS,
+			x86.AMOVSD:
 			if regtyp(&p.To) {
 				if p.From.Type == obj.TYPE_CONST || p.From.Type == obj.TYPE_FCONST {
 					conprop(r)
@@ -135,9 +135,9 @@ loop1:
 	for r = g.Start; r != nil; r = r.Link {
 		p = r.Prog
 		switch p.As {
-		case i386.AMOVL,
-			i386.AMOVSS,
-			i386.AMOVSD:
+		case x86.AMOVL,
+			x86.AMOVSS,
+			x86.AMOVSD:
 			if regtyp(&p.To) {
 				if regtyp(&p.From) {
 					if copyprop(g, r) {
@@ -150,66 +150,66 @@ loop1:
 				}
 			}
 
-		case i386.AMOVBLZX,
-			i386.AMOVWLZX,
-			i386.AMOVBLSX,
-			i386.AMOVWLSX:
+		case x86.AMOVBLZX,
+			x86.AMOVWLZX,
+			x86.AMOVBLSX,
+			x86.AMOVWLSX:
 			if regtyp(&p.To) {
 				r1 = rnops(gc.Uniqs(r))
 				if r1 != nil {
 					p1 = r1.Prog
 					if p.As == p1.As && p.To.Type == p1.From.Type && p.To.Reg == p1.From.Reg {
-						p1.As = i386.AMOVL
+						p1.As = x86.AMOVL
 						t++
 					}
 				}
 			}
 
-		case i386.AADDL,
-			i386.AADDW:
+		case x86.AADDL,
+			x86.AADDW:
 			if p.From.Type != obj.TYPE_CONST || needc(p.Link) {
 				break
 			}
 			if p.From.Offset == -1 {
-				if p.As == i386.AADDL {
-					p.As = i386.ADECL
+				if p.As == x86.AADDL {
+					p.As = x86.ADECL
 				} else {
-					p.As = i386.ADECW
+					p.As = x86.ADECW
 				}
 				p.From = obj.Addr{}
 				break
 			}
 
 			if p.From.Offset == 1 {
-				if p.As == i386.AADDL {
-					p.As = i386.AINCL
+				if p.As == x86.AADDL {
+					p.As = x86.AINCL
 				} else {
-					p.As = i386.AINCW
+					p.As = x86.AINCW
 				}
 				p.From = obj.Addr{}
 				break
 			}
 
-		case i386.ASUBL,
-			i386.ASUBW:
+		case x86.ASUBL,
+			x86.ASUBW:
 			if p.From.Type != obj.TYPE_CONST || needc(p.Link) {
 				break
 			}
 			if p.From.Offset == -1 {
-				if p.As == i386.ASUBL {
-					p.As = i386.AINCL
+				if p.As == x86.ASUBL {
+					p.As = x86.AINCL
 				} else {
-					p.As = i386.AINCW
+					p.As = x86.AINCW
 				}
 				p.From = obj.Addr{}
 				break
 			}
 
 			if p.From.Offset == 1 {
-				if p.As == i386.ASUBL {
-					p.As = i386.ADECL
+				if p.As == x86.ASUBL {
+					p.As = x86.ADECL
 				} else {
-					p.As = i386.ADECW
+					p.As = x86.ADECW
 				}
 				p.From = obj.Addr{}
 				break
@@ -228,10 +228,10 @@ loop1:
 	// the processor can do better if we do moves using both.
 	for r := g.Start; r != nil; r = r.Link {
 		p = r.Prog
-		if p.As == i386.AMOVSD {
+		if p.As == x86.AMOVSD {
 			if regtyp(&p.From) {
 				if regtyp(&p.To) {
-					p.As = i386.AMOVAPD
+					p.As = x86.AMOVAPD
 				}
 			}
 		}
@@ -252,7 +252,7 @@ func excise(r *gc.Flow) {
 }
 
 func regtyp(a *obj.Addr) bool {
-	return a.Type == obj.TYPE_REG && (i386.REG_AX <= a.Reg && a.Reg <= i386.REG_DI || i386.REG_X0 <= a.Reg && a.Reg <= i386.REG_X7)
+	return a.Type == obj.TYPE_REG && (x86.REG_AX <= a.Reg && a.Reg <= x86.REG_DI || x86.REG_X0 <= a.Reg && a.Reg <= x86.REG_X7)
 }
 
 // movb elimination.
@@ -269,21 +269,21 @@ func elimshortmov(g *gc.Graph) {
 		p = r.Prog
 		if regtyp(&p.To) {
 			switch p.As {
-			case i386.AINCB,
-				i386.AINCW:
-				p.As = i386.AINCL
+			case x86.AINCB,
+				x86.AINCW:
+				p.As = x86.AINCL
 
-			case i386.ADECB,
-				i386.ADECW:
-				p.As = i386.ADECL
+			case x86.ADECB,
+				x86.ADECW:
+				p.As = x86.ADECL
 
-			case i386.ANEGB,
-				i386.ANEGW:
-				p.As = i386.ANEGL
+			case x86.ANEGB,
+				x86.ANEGW:
+				p.As = x86.ANEGL
 
-			case i386.ANOTB,
-				i386.ANOTW:
-				p.As = i386.ANOTL
+			case x86.ANOTB,
+				x86.ANOTW:
+				p.As = x86.ANOTL
 			}
 
 			if regtyp(&p.From) || p.From.Type == obj.TYPE_CONST {
@@ -292,54 +292,54 @@ func elimshortmov(g *gc.Graph) {
 				// we don't switch to 32-bit arithmetic if it can
 				// change how the carry bit is set (and the carry bit is needed).
 				switch p.As {
-				case i386.AMOVB,
-					i386.AMOVW:
-					p.As = i386.AMOVL
+				case x86.AMOVB,
+					x86.AMOVW:
+					p.As = x86.AMOVL
 
-				case i386.AADDB,
-					i386.AADDW:
+				case x86.AADDB,
+					x86.AADDW:
 					if !needc(p.Link) {
-						p.As = i386.AADDL
+						p.As = x86.AADDL
 					}
 
-				case i386.ASUBB,
-					i386.ASUBW:
+				case x86.ASUBB,
+					x86.ASUBW:
 					if !needc(p.Link) {
-						p.As = i386.ASUBL
+						p.As = x86.ASUBL
 					}
 
-				case i386.AMULB,
-					i386.AMULW:
-					p.As = i386.AMULL
+				case x86.AMULB,
+					x86.AMULW:
+					p.As = x86.AMULL
 
-				case i386.AIMULB,
-					i386.AIMULW:
-					p.As = i386.AIMULL
+				case x86.AIMULB,
+					x86.AIMULW:
+					p.As = x86.AIMULL
 
-				case i386.AANDB,
-					i386.AANDW:
-					p.As = i386.AANDL
+				case x86.AANDB,
+					x86.AANDW:
+					p.As = x86.AANDL
 
-				case i386.AORB,
-					i386.AORW:
-					p.As = i386.AORL
+				case x86.AORB,
+					x86.AORW:
+					p.As = x86.AORL
 
-				case i386.AXORB,
-					i386.AXORW:
-					p.As = i386.AXORL
+				case x86.AXORB,
+					x86.AXORW:
+					p.As = x86.AXORL
 
-				case i386.ASHLB,
-					i386.ASHLW:
-					p.As = i386.ASHLL
+				case x86.ASHLB,
+					x86.ASHLW:
+					p.As = x86.ASHLL
 				}
 			} else {
 				// explicit zero extension
 				switch p.As {
-				case i386.AMOVB:
-					p.As = i386.AMOVBLZX
+				case x86.AMOVB:
+					p.As = x86.AMOVBLZX
 
-				case i386.AMOVW:
-					p.As = i386.AMOVWLZX
+				case x86.AMOVW:
+					p.As = x86.AMOVWLZX
 				}
 			}
 		}
@@ -581,7 +581,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		if REGEXT != 0 /*TypeKind(100016)*/ && v.Type == obj.TYPE_REG && v.Reg <= REGEXT && v.Reg > exregoffset {
 			return 2
 		}
-		if i386.REGARG >= 0 && v.Type == obj.TYPE_REG && v.Reg == i386.REGARG {
+		if x86.REGARG >= 0 && v.Type == obj.TYPE_REG && v.Reg == x86.REGARG {
 			return 2
 		}
 		if v.Type == p.From.Type && v.Reg == p.From.Reg {
@@ -601,7 +601,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		return 3
 
 	case obj.ATEXT:
-		if i386.REGARG >= 0 && v.Type == obj.TYPE_REG && v.Reg == i386.REGARG {
+		if x86.REGARG >= 0 && v.Type == obj.TYPE_REG && v.Reg == x86.REGARG {
 			return 3
 		}
 		return 0
@@ -666,10 +666,10 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
  * semantics
  */
 func copyas(a *obj.Addr, v *obj.Addr) bool {
-	if i386.REG_AL <= a.Reg && a.Reg <= i386.REG_BL {
+	if x86.REG_AL <= a.Reg && a.Reg <= x86.REG_BL {
 		gc.Fatal("use of byte register")
 	}
-	if i386.REG_AL <= v.Reg && v.Reg <= i386.REG_BL {
+	if x86.REG_AL <= v.Reg && v.Reg <= x86.REG_BL {
 		gc.Fatal("use of byte register")
 	}
 
@@ -728,7 +728,7 @@ func copyau(a *obj.Addr, v *obj.Addr) bool {
 func copysub(a *obj.Addr, v *obj.Addr, s *obj.Addr, f int) int {
 	if copyas(a, v) {
 		reg := int(s.Reg)
-		if reg >= i386.REG_AX && reg <= i386.REG_DI || reg >= i386.REG_X0 && reg <= i386.REG_X7 {
+		if reg >= x86.REG_AX && reg <= x86.REG_DI || reg >= x86.REG_X0 && reg <= x86.REG_X7 {
 			if f != 0 {
 				a.Reg = int16(reg)
 			}
@@ -740,7 +740,7 @@ func copysub(a *obj.Addr, v *obj.Addr, s *obj.Addr, f int) int {
 	if regtyp(v) {
 		reg := int(v.Reg)
 		if a.Type == obj.TYPE_MEM && int(a.Reg) == reg {
-			if (s.Reg == i386.REG_BP) && a.Index != obj.TYPE_NONE {
+			if (s.Reg == x86.REG_BP) && a.Index != obj.TYPE_NONE {
 				return 1 /* can't use BP-base with index */
 			}
 			if f != 0 {
@@ -813,9 +813,9 @@ loop:
 }
 
 func smallindir(a *obj.Addr, reg *obj.Addr) bool {
-	return regtyp(reg) && a.Type == obj.TYPE_MEM && a.Reg == reg.Reg && a.Index == i386.REG_NONE && 0 <= a.Offset && a.Offset < 4096
+	return regtyp(reg) && a.Type == obj.TYPE_MEM && a.Reg == reg.Reg && a.Index == x86.REG_NONE && 0 <= a.Offset && a.Offset < 4096
 }
 
 func stackaddr(a *obj.Addr) bool {
-	return a.Type == obj.TYPE_REG && a.Reg == i386.REG_SP
+	return a.Type == obj.TYPE_REG && a.Reg == x86.REG_SP
 }

@@ -7,7 +7,7 @@ package main
 import (
 	"cmd/internal/gc"
 	"cmd/internal/obj"
-	i386 "cmd/internal/obj/x86"
+	"cmd/internal/obj/x86"
 )
 
 func defframe(ptxt *obj.Prog) {
@@ -65,23 +65,23 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32) *obj.Pr
 		return p
 	}
 	if *ax == 0 {
-		p = appendpp(p, i386.AMOVL, obj.TYPE_CONST, 0, 0, obj.TYPE_REG, i386.REG_AX, 0)
+		p = appendpp(p, x86.AMOVL, obj.TYPE_CONST, 0, 0, obj.TYPE_REG, x86.REG_AX, 0)
 		*ax = 1
 	}
 
 	if cnt <= int64(4*gc.Widthreg) {
 		for i := int64(0); i < cnt; i += int64(gc.Widthreg) {
-			p = appendpp(p, i386.AMOVL, obj.TYPE_REG, i386.REG_AX, 0, obj.TYPE_MEM, i386.REG_SP, frame+lo+i)
+			p = appendpp(p, x86.AMOVL, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, frame+lo+i)
 		}
 	} else if !gc.Nacl && cnt <= int64(128*gc.Widthreg) {
-		p = appendpp(p, i386.ALEAL, obj.TYPE_MEM, i386.REG_SP, frame+lo, obj.TYPE_REG, i386.REG_DI, 0)
+		p = appendpp(p, x86.ALEAL, obj.TYPE_MEM, x86.REG_SP, frame+lo, obj.TYPE_REG, x86.REG_DI, 0)
 		p = appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_ADDR, 0, 1*(128-cnt/int64(gc.Widthreg)))
 		p.To.Sym = gc.Linksym(gc.Pkglookup("duffzero", gc.Runtimepkg))
 	} else {
-		p = appendpp(p, i386.AMOVL, obj.TYPE_CONST, 0, cnt/int64(gc.Widthreg), obj.TYPE_REG, i386.REG_CX, 0)
-		p = appendpp(p, i386.ALEAL, obj.TYPE_MEM, i386.REG_SP, frame+lo, obj.TYPE_REG, i386.REG_DI, 0)
-		p = appendpp(p, i386.AREP, obj.TYPE_NONE, 0, 0, obj.TYPE_NONE, 0, 0)
-		p = appendpp(p, i386.ASTOSL, obj.TYPE_NONE, 0, 0, obj.TYPE_NONE, 0, 0)
+		p = appendpp(p, x86.AMOVL, obj.TYPE_CONST, 0, cnt/int64(gc.Widthreg), obj.TYPE_REG, x86.REG_CX, 0)
+		p = appendpp(p, x86.ALEAL, obj.TYPE_MEM, x86.REG_SP, frame+lo, obj.TYPE_REG, x86.REG_DI, 0)
+		p = appendpp(p, x86.AREP, obj.TYPE_NONE, 0, 0, obj.TYPE_NONE, 0, 0)
+		p = appendpp(p, x86.ASTOSL, obj.TYPE_NONE, 0, 0, obj.TYPE_NONE, 0, 0)
 	}
 
 	return p
@@ -140,7 +140,7 @@ func clearfat(nl *gc.Node) {
 				break
 			}
 			n1.Type = z.Type
-			gins(i386.AMOVL, &z, &n1)
+			gins(x86.AMOVL, &z, &n1)
 			n1.Xoffset += 4
 		}
 
@@ -152,7 +152,7 @@ func clearfat(nl *gc.Node) {
 				break
 			}
 			n1.Type = z.Type
-			gins(i386.AMOVB, &z, &n1)
+			gins(x86.AMOVB, &z, &n1)
 			n1.Xoffset++
 		}
 
@@ -161,14 +161,14 @@ func clearfat(nl *gc.Node) {
 	}
 
 	var n1 gc.Node
-	gc.Nodreg(&n1, gc.Types[gc.Tptr], i386.REG_DI)
+	gc.Nodreg(&n1, gc.Types[gc.Tptr], x86.REG_DI)
 	agen(nl, &n1)
-	gconreg(i386.AMOVL, 0, i386.REG_AX)
+	gconreg(x86.AMOVL, 0, x86.REG_AX)
 
 	if q > 128 || (q >= 4 && gc.Nacl) {
-		gconreg(i386.AMOVL, int64(q), i386.REG_CX)
-		gins(i386.AREP, nil, nil)   // repeat
-		gins(i386.ASTOSL, nil, nil) // STOL AL,*(DI)+
+		gconreg(x86.AMOVL, int64(q), x86.REG_CX)
+		gins(x86.AREP, nil, nil)   // repeat
+		gins(x86.ASTOSL, nil, nil) // STOL AL,*(DI)+
 	} else if q >= 4 {
 		p := gins(obj.ADUFFZERO, nil, nil)
 		p.To.Type = obj.TYPE_ADDR
@@ -178,13 +178,13 @@ func clearfat(nl *gc.Node) {
 		p.To.Offset = 1 * (128 - int64(q))
 	} else {
 		for q > 0 {
-			gins(i386.ASTOSL, nil, nil) // STOL AL,*(DI)+
+			gins(x86.ASTOSL, nil, nil) // STOL AL,*(DI)+
 			q--
 		}
 	}
 
 	for c > 0 {
-		gins(i386.ASTOSB, nil, nil) // STOB AL,*(DI)+
+		gins(x86.ASTOSB, nil, nil) // STOB AL,*(DI)+
 		c--
 	}
 }
@@ -225,9 +225,9 @@ func ginscall(f *gc.Node, proc int) {
 				// because the NOP pseudo-instruction will be removed by
 				// the linker.
 				var reg gc.Node
-				gc.Nodreg(&reg, gc.Types[gc.TINT], i386.REG_AX)
+				gc.Nodreg(&reg, gc.Types[gc.TINT], x86.REG_AX)
 
-				gins(i386.AXCHGL, &reg, &reg)
+				gins(x86.AXCHGL, &reg, &reg)
 			}
 
 			p := gins(obj.ACALL, nil, f)
@@ -239,9 +239,9 @@ func ginscall(f *gc.Node, proc int) {
 		}
 
 		var reg gc.Node
-		gc.Nodreg(&reg, gc.Types[gc.Tptr], i386.REG_DX)
+		gc.Nodreg(&reg, gc.Types[gc.Tptr], x86.REG_DX)
 		var r1 gc.Node
-		gc.Nodreg(&r1, gc.Types[gc.Tptr], i386.REG_BX)
+		gc.Nodreg(&r1, gc.Types[gc.Tptr], x86.REG_BX)
 		gmove(f, &reg)
 		reg.Op = gc.OINDREG
 		gmove(&reg, &r1)
@@ -256,19 +256,19 @@ func ginscall(f *gc.Node, proc int) {
 		var stk gc.Node
 
 		stk.Op = gc.OINDREG
-		stk.Val.U.Reg = i386.REG_SP
+		stk.Val.U.Reg = x86.REG_SP
 		stk.Xoffset = 0
 
 		// size of arguments at 0(SP)
 		var con gc.Node
 		gc.Nodconst(&con, gc.Types[gc.TINT32], int64(gc.Argsize(f.Type)))
 
-		gins(i386.AMOVL, &con, &stk)
+		gins(x86.AMOVL, &con, &stk)
 
 		// FuncVal* at 4(SP)
 		stk.Xoffset = int64(gc.Widthptr)
 
-		gins(i386.AMOVL, f, &stk)
+		gins(x86.AMOVL, f, &stk)
 
 		if proc == 1 {
 			ginscall(gc.Newproc, 0)
@@ -277,9 +277,9 @@ func ginscall(f *gc.Node, proc int) {
 		}
 		if proc == 2 {
 			var reg gc.Node
-			gc.Nodreg(&reg, gc.Types[gc.TINT32], i386.REG_AX)
-			gins(i386.ATESTL, &reg, &reg)
-			p := gc.Gbranch(i386.AJEQ, nil, +1)
+			gc.Nodreg(&reg, gc.Types[gc.TINT32], x86.REG_AX)
+			gins(x86.ATESTL, &reg, &reg)
+			p := gc.Gbranch(x86.AJEQ, nil, +1)
 			cgen_ret(nil)
 			gc.Patch(p, gc.Pc)
 		}
@@ -318,7 +318,7 @@ func cgen_callinter(n *gc.Node, res *gc.Node, proc int) {
 	igen(i, &nodi, res) // REG = &inter
 
 	var nodsp gc.Node
-	gc.Nodindreg(&nodsp, gc.Types[gc.Tptr], i386.REG_SP)
+	gc.Nodindreg(&nodsp, gc.Types[gc.Tptr], x86.REG_SP)
 
 	nodsp.Xoffset = 0
 	if proc != 0 {
@@ -351,7 +351,7 @@ func cgen_callinter(n *gc.Node, res *gc.Node, proc int) {
 		proc = 3
 	} else {
 		// go/defer. generate go func value.
-		gins(i386.ALEAL, &nodo, &nodr) // REG = &(20+offset(REG)) -- i.tab->fun[f]
+		gins(x86.ALEAL, &nodo, &nodr) // REG = &(20+offset(REG)) -- i.tab->fun[f]
 	}
 
 	nodr.Type = n.Left.Type
@@ -431,7 +431,7 @@ func cgen_callret(n *gc.Node, res *gc.Node) {
 
 	var nod gc.Node
 	nod.Op = gc.OINDREG
-	nod.Val.U.Reg = i386.REG_SP
+	nod.Val.U.Reg = x86.REG_SP
 	nod.Addable = 1
 
 	nod.Xoffset = fp.Width
@@ -458,7 +458,7 @@ func cgen_aret(n *gc.Node, res *gc.Node) {
 
 	var nod1 gc.Node
 	nod1.Op = gc.OINDREG
-	nod1.Val.U.Reg = i386.REG_SP
+	nod1.Val.U.Reg = x86.REG_SP
 	nod1.Addable = 1
 
 	nod1.Xoffset = fp.Width
@@ -467,11 +467,11 @@ func cgen_aret(n *gc.Node, res *gc.Node) {
 	if res.Op != gc.OREGISTER {
 		var nod2 gc.Node
 		regalloc(&nod2, gc.Types[gc.Tptr], res)
-		gins(i386.ALEAL, &nod1, &nod2)
-		gins(i386.AMOVL, &nod2, res)
+		gins(x86.ALEAL, &nod1, &nod2)
+		gins(x86.AMOVL, &nod2, res)
 		regfree(&nod2)
 	} else {
-		gins(i386.ALEAL, &nod1, res)
+		gins(x86.ALEAL, &nod1, res)
 	}
 }
 
@@ -665,10 +665,10 @@ func cgen_div(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	}
 	var ax gc.Node
 	var oldax gc.Node
-	savex(i386.REG_AX, &ax, &oldax, res, t)
+	savex(x86.REG_AX, &ax, &oldax, res, t)
 	var olddx gc.Node
 	var dx gc.Node
-	savex(i386.REG_DX, &dx, &olddx, res, t)
+	savex(x86.REG_DX, &dx, &olddx, res, t)
 	dodiv(op, nl, nr, res, &ax, &dx)
 	restx(&dx, &olddx)
 	restx(&ax, &oldax)
@@ -711,8 +711,8 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 
 	var oldcx gc.Node
 	var cx gc.Node
-	gc.Nodreg(&cx, gc.Types[gc.TUINT32], i386.REG_CX)
-	if reg[i386.REG_CX] > 1 && !gc.Samereg(&cx, res) {
+	gc.Nodreg(&cx, gc.Types[gc.TUINT32], x86.REG_CX)
+	if reg[x86.REG_CX] > 1 && !gc.Samereg(&cx, res) {
 		gc.Tempname(&oldcx, gc.Types[gc.TUINT32])
 		gmove(&cx, &oldcx)
 	}
@@ -723,7 +723,7 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		gc.Tempname(&nt, nr.Type)
 		n1 = nt
 	} else {
-		gc.Nodreg(&n1, gc.Types[gc.TUINT32], i386.REG_CX)
+		gc.Nodreg(&n1, gc.Types[gc.TUINT32], x86.REG_CX)
 		regalloc(&n1, nr.Type, &n1) // to hold the shift type in CX
 	}
 
@@ -745,7 +745,7 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	if bounded {
 		if nr.Type.Width > 4 {
 			// delayed reg alloc
-			gc.Nodreg(&n1, gc.Types[gc.TUINT32], i386.REG_CX)
+			gc.Nodreg(&n1, gc.Types[gc.TUINT32], x86.REG_CX)
 
 			regalloc(&n1, gc.Types[gc.TUINT32], &n1) // to hold the shift type in CX
 			var lo gc.Node
@@ -758,7 +758,7 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		var p1 *obj.Prog
 		if nr.Type.Width > 4 {
 			// delayed reg alloc
-			gc.Nodreg(&n1, gc.Types[gc.TUINT32], i386.REG_CX)
+			gc.Nodreg(&n1, gc.Types[gc.TUINT32], x86.REG_CX)
 
 			regalloc(&n1, gc.Types[gc.TUINT32], &n1) // to hold the shift type in CX
 			var lo gc.Node
@@ -858,7 +858,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	cgen(nr, &n2)
 
 	// multiply.
-	gc.Nodreg(&ax, t, i386.REG_AX)
+	gc.Nodreg(&ax, t, x86.REG_AX)
 
 	gmove(&n2, &ax)
 	gins(a, &n1, nil)
@@ -866,13 +866,13 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 
 	if t.Width == 1 {
 		// byte multiply behaves differently.
-		gc.Nodreg(&ax, t, i386.REG_AH)
+		gc.Nodreg(&ax, t, x86.REG_AH)
 
-		gc.Nodreg(&dx, t, i386.REG_DX)
+		gc.Nodreg(&dx, t, x86.REG_DX)
 		gmove(&ax, &dx)
 	}
 
-	gc.Nodreg(&dx, t, i386.REG_DX)
+	gc.Nodreg(&dx, t, x86.REG_DX)
 	gmove(&dx, res)
 }
 
@@ -931,8 +931,8 @@ func cgen_float387(n *gc.Node, res *gc.Node) {
 
 	nl := n.Left
 	nr := n.Right
-	gc.Nodreg(&f0, nl.Type, i386.REG_F0)
-	gc.Nodreg(&f1, n.Type, i386.REG_F0+1)
+	gc.Nodreg(&f0, nl.Type, x86.REG_F0)
+	gc.Nodreg(&f1, n.Type, x86.REG_F0+1)
 	if nr != nil {
 		// binary
 		if nl.Ullman >= nr.Ullman {
@@ -1118,22 +1118,22 @@ x87:
 		a = gc.Brrev(a)
 	}
 
-	gc.Nodreg(&tmp, nr.Type, i386.REG_F0)
-	gc.Nodreg(&n2, nr.Type, i386.REG_F0+1)
-	gc.Nodreg(&ax, gc.Types[gc.TUINT16], i386.REG_AX)
+	gc.Nodreg(&tmp, nr.Type, x86.REG_F0)
+	gc.Nodreg(&n2, nr.Type, x86.REG_F0+1)
+	gc.Nodreg(&ax, gc.Types[gc.TUINT16], x86.REG_AX)
 	et = gc.Simsimtype(nr.Type)
 	if et == gc.TFLOAT64 {
 		if nl.Ullman > nr.Ullman {
 			cgen(nl, &tmp)
 			cgen(nr, &tmp)
-			gins(i386.AFXCHD, &tmp, &n2)
+			gins(x86.AFXCHD, &tmp, &n2)
 		} else {
 			cgen(nr, &tmp)
 			cgen(nl, &tmp)
 		}
 
-		gins(i386.AFUCOMIP, &tmp, &n2)
-		gins(i386.AFMOVDP, &tmp, &tmp) // annoying pop but still better than STSW+SAHF
+		gins(x86.AFUCOMIP, &tmp, &n2)
+		gins(x86.AFMOVDP, &tmp, &tmp) // annoying pop but still better than STSW+SAHF
 	} else {
 		// TODO(rsc): The moves back and forth to memory
 		// here are for truncating the value to 32 bits.
@@ -1149,9 +1149,9 @@ x87:
 		cgen(nr, &t1)
 		cgen(nl, &t2)
 		gmove(&t2, &tmp)
-		gins(i386.AFCOMFP, &t1, &tmp)
-		gins(i386.AFSTSW, nil, &ax)
-		gins(i386.ASAHF, nil, nil)
+		gins(x86.AFCOMFP, &t1, &tmp)
+		gins(x86.AFSTSW, nil, &ax)
+		gins(x86.ASAHF, nil, nil)
 	}
 
 	goto ret
@@ -1159,17 +1159,17 @@ x87:
 ret:
 	if a == gc.OEQ {
 		// neither NE nor P
-		p1 := gc.Gbranch(i386.AJNE, nil, -likely)
+		p1 := gc.Gbranch(x86.AJNE, nil, -likely)
 
-		p2 := gc.Gbranch(i386.AJPS, nil, -likely)
+		p2 := gc.Gbranch(x86.AJPS, nil, -likely)
 		gc.Patch(gc.Gbranch(obj.AJMP, nil, 0), to)
 		gc.Patch(p1, gc.Pc)
 		gc.Patch(p2, gc.Pc)
 	} else if a == gc.ONE {
 		// either NE or P
-		gc.Patch(gc.Gbranch(i386.AJNE, nil, likely), to)
+		gc.Patch(gc.Gbranch(x86.AJNE, nil, likely), to)
 
-		gc.Patch(gc.Gbranch(i386.AJPS, nil, likely), to)
+		gc.Patch(gc.Gbranch(x86.AJPS, nil, likely), to)
 	} else {
 		gc.Patch(gc.Gbranch(optoas(a, nr.Type), nil, likely), to)
 	}
@@ -1205,10 +1205,10 @@ func expandchecks(firstp *obj.Prog) {
 		p2.Lineno = p.Lineno
 		p1.Pc = 9999
 		p2.Pc = 9999
-		p.As = i386.ACMPL
+		p.As = x86.ACMPL
 		p.To.Type = obj.TYPE_CONST
 		p.To.Offset = 0
-		p1.As = i386.AJNE
+		p1.As = x86.AJNE
 		p1.From.Type = obj.TYPE_CONST
 		p1.From.Offset = 1 // likely
 		p1.To.Type = obj.TYPE_BRANCH
@@ -1217,10 +1217,10 @@ func expandchecks(firstp *obj.Prog) {
 		// crash by write to memory address 0.
 		// if possible, since we know arg is 0, use 0(arg),
 		// which will be shorter to encode than plain 0.
-		p2.As = i386.AMOVL
+		p2.As = x86.AMOVL
 
 		p2.From.Type = obj.TYPE_REG
-		p2.From.Reg = i386.REG_AX
+		p2.From.Reg = x86.REG_AX
 		if regtyp(&p.From) {
 			p2.To.Type = obj.TYPE_MEM
 			p2.To.Reg = p.From.Reg
