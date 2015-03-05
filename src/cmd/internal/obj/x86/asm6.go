@@ -55,6 +55,7 @@ type Optab struct {
 
 type ytab struct {
 	from    uint8
+	from3   uint8
 	to      uint8
 	zcase   uint8
 	zoffset uint8
@@ -63,6 +64,7 @@ type ytab struct {
 type Movtab struct {
 	as   int16
 	ft   uint8
+	f3t  uint8
 	tt   uint8
 	code uint8
 	op   [4]uint8
@@ -216,481 +218,481 @@ var reg [MAXREG]int
 var regrex [MAXREG + 1]int
 
 var ynone = []ytab{
-	{Ynone, Ynone, Zlit, 1},
+	{Ynone, Ynone, Ynone, Zlit, 1},
 }
 
 var ytext = []ytab{
-	{Ymb, Ytextsize, Zpseudo, 1},
+	{Ymb, Ynone, Ytextsize, Zpseudo, 1},
 }
 
 var ynop = []ytab{
-	{Ynone, Ynone, Zpseudo, 0},
-	{Ynone, Yiauto, Zpseudo, 0},
-	{Ynone, Yml, Zpseudo, 0},
-	{Ynone, Yrf, Zpseudo, 0},
-	{Ynone, Yxr, Zpseudo, 0},
-	{Yiauto, Ynone, Zpseudo, 0},
-	{Yml, Ynone, Zpseudo, 0},
-	{Yrf, Ynone, Zpseudo, 0},
-	{Yxr, Ynone, Zpseudo, 1},
+	{Ynone, Ynone, Ynone, Zpseudo, 0},
+	{Ynone, Ynone, Yiauto, Zpseudo, 0},
+	{Ynone, Ynone, Yml, Zpseudo, 0},
+	{Ynone, Ynone, Yrf, Zpseudo, 0},
+	{Ynone, Ynone, Yxr, Zpseudo, 0},
+	{Yiauto, Ynone, Ynone, Zpseudo, 0},
+	{Yml, Ynone, Ynone, Zpseudo, 0},
+	{Yrf, Ynone, Ynone, Zpseudo, 0},
+	{Yxr, Ynone, Ynone, Zpseudo, 1},
 }
 
 var yfuncdata = []ytab{
-	{Yi32, Ym, Zpseudo, 0},
+	{Yi32, Ynone, Ym, Zpseudo, 0},
 }
 
 var ypcdata = []ytab{
-	{Yi32, Yi32, Zpseudo, 0},
+	{Yi32, Ynone, Yi32, Zpseudo, 0},
 }
 
 var yxorb = []ytab{
-	{Yi32, Yal, Zib_, 1},
-	{Yi32, Ymb, Zibo_m, 2},
-	{Yrb, Ymb, Zr_m, 1},
-	{Ymb, Yrb, Zm_r, 1},
+	{Yi32, Ynone, Yal, Zib_, 1},
+	{Yi32, Ynone, Ymb, Zibo_m, 2},
+	{Yrb, Ynone, Ymb, Zr_m, 1},
+	{Ymb, Ynone, Yrb, Zm_r, 1},
 }
 
 var yxorl = []ytab{
-	{Yi8, Yml, Zibo_m, 2},
-	{Yi32, Yax, Zil_, 1},
-	{Yi32, Yml, Zilo_m, 2},
-	{Yrl, Yml, Zr_m, 1},
-	{Yml, Yrl, Zm_r, 1},
+	{Yi8, Ynone, Yml, Zibo_m, 2},
+	{Yi32, Ynone, Yax, Zil_, 1},
+	{Yi32, Ynone, Yml, Zilo_m, 2},
+	{Yrl, Ynone, Yml, Zr_m, 1},
+	{Yml, Ynone, Yrl, Zm_r, 1},
 }
 
 var yaddl = []ytab{
-	{Yi8, Yml, Zibo_m, 2},
-	{Yi32, Yax, Zil_, 1},
-	{Yi32, Yml, Zilo_m, 2},
-	{Yrl, Yml, Zr_m, 1},
-	{Yml, Yrl, Zm_r, 1},
+	{Yi8, Ynone, Yml, Zibo_m, 2},
+	{Yi32, Ynone, Yax, Zil_, 1},
+	{Yi32, Ynone, Yml, Zilo_m, 2},
+	{Yrl, Ynone, Yml, Zr_m, 1},
+	{Yml, Ynone, Yrl, Zm_r, 1},
 }
 
 var yincb = []ytab{
-	{Ynone, Ymb, Zo_m, 2},
+	{Ynone, Ynone, Ymb, Zo_m, 2},
 }
 
 var yincw = []ytab{
-	{Ynone, Yml, Zo_m, 2},
+	{Ynone, Ynone, Yml, Zo_m, 2},
 }
 
 var yincl = []ytab{
-	{Ynone, Yml, Zo_m, 2},
+	{Ynone, Ynone, Yml, Zo_m, 2},
 }
 
 var ycmpb = []ytab{
-	{Yal, Yi32, Z_ib, 1},
-	{Ymb, Yi32, Zm_ibo, 2},
-	{Ymb, Yrb, Zm_r, 1},
-	{Yrb, Ymb, Zr_m, 1},
+	{Yal, Ynone, Yi32, Z_ib, 1},
+	{Ymb, Ynone, Yi32, Zm_ibo, 2},
+	{Ymb, Ynone, Yrb, Zm_r, 1},
+	{Yrb, Ynone, Ymb, Zr_m, 1},
 }
 
 var ycmpl = []ytab{
-	{Yml, Yi8, Zm_ibo, 2},
-	{Yax, Yi32, Z_il, 1},
-	{Yml, Yi32, Zm_ilo, 2},
-	{Yml, Yrl, Zm_r, 1},
-	{Yrl, Yml, Zr_m, 1},
+	{Yml, Ynone, Yi8, Zm_ibo, 2},
+	{Yax, Ynone, Yi32, Z_il, 1},
+	{Yml, Ynone, Yi32, Zm_ilo, 2},
+	{Yml, Ynone, Yrl, Zm_r, 1},
+	{Yrl, Ynone, Yml, Zr_m, 1},
 }
 
 var yshb = []ytab{
-	{Yi1, Ymb, Zo_m, 2},
-	{Yi32, Ymb, Zibo_m, 2},
-	{Ycx, Ymb, Zo_m, 2},
+	{Yi1, Ynone, Ymb, Zo_m, 2},
+	{Yi32, Ynone, Ymb, Zibo_m, 2},
+	{Ycx, Ynone, Ymb, Zo_m, 2},
 }
 
 var yshl = []ytab{
-	{Yi1, Yml, Zo_m, 2},
-	{Yi32, Yml, Zibo_m, 2},
-	{Ycl, Yml, Zo_m, 2},
-	{Ycx, Yml, Zo_m, 2},
+	{Yi1, Ynone, Yml, Zo_m, 2},
+	{Yi32, Ynone, Yml, Zibo_m, 2},
+	{Ycl, Ynone, Yml, Zo_m, 2},
+	{Ycx, Ynone, Yml, Zo_m, 2},
 }
 
 var ytestb = []ytab{
-	{Yi32, Yal, Zib_, 1},
-	{Yi32, Ymb, Zibo_m, 2},
-	{Yrb, Ymb, Zr_m, 1},
-	{Ymb, Yrb, Zm_r, 1},
+	{Yi32, Ynone, Yal, Zib_, 1},
+	{Yi32, Ynone, Ymb, Zibo_m, 2},
+	{Yrb, Ynone, Ymb, Zr_m, 1},
+	{Ymb, Ynone, Yrb, Zm_r, 1},
 }
 
 var ytestl = []ytab{
-	{Yi32, Yax, Zil_, 1},
-	{Yi32, Yml, Zilo_m, 2},
-	{Yrl, Yml, Zr_m, 1},
-	{Yml, Yrl, Zm_r, 1},
+	{Yi32, Ynone, Yax, Zil_, 1},
+	{Yi32, Ynone, Yml, Zilo_m, 2},
+	{Yrl, Ynone, Yml, Zr_m, 1},
+	{Yml, Ynone, Yrl, Zm_r, 1},
 }
 
 var ymovb = []ytab{
-	{Yrb, Ymb, Zr_m, 1},
-	{Ymb, Yrb, Zm_r, 1},
-	{Yi32, Yrb, Zib_rp, 1},
-	{Yi32, Ymb, Zibo_m, 2},
+	{Yrb, Ynone, Ymb, Zr_m, 1},
+	{Ymb, Ynone, Yrb, Zm_r, 1},
+	{Yi32, Ynone, Yrb, Zib_rp, 1},
+	{Yi32, Ynone, Ymb, Zibo_m, 2},
 }
 
 var ymbs = []ytab{
-	{Ymb, Ynone, Zm_o, 2},
+	{Ymb, Ynone, Ynone, Zm_o, 2},
 }
 
 var ybtl = []ytab{
-	{Yi8, Yml, Zibo_m, 2},
-	{Yrl, Yml, Zr_m, 1},
+	{Yi8, Ynone, Yml, Zibo_m, 2},
+	{Yrl, Ynone, Yml, Zr_m, 1},
 }
 
 var ymovw = []ytab{
-	{Yrl, Yml, Zr_m, 1},
-	{Yml, Yrl, Zm_r, 1},
-	{Yi0, Yrl, Zclr, 1},
-	{Yi32, Yrl, Zil_rp, 1},
-	{Yi32, Yml, Zilo_m, 2},
-	{Yiauto, Yrl, Zaut_r, 2},
+	{Yrl, Ynone, Yml, Zr_m, 1},
+	{Yml, Ynone, Yrl, Zm_r, 1},
+	{Yi0, Ynone, Yrl, Zclr, 1},
+	{Yi32, Ynone, Yrl, Zil_rp, 1},
+	{Yi32, Ynone, Yml, Zilo_m, 2},
+	{Yiauto, Ynone, Yrl, Zaut_r, 2},
 }
 
 var ymovl = []ytab{
-	{Yrl, Yml, Zr_m, 1},
-	{Yml, Yrl, Zm_r, 1},
-	{Yi0, Yrl, Zclr, 1},
-	{Yi32, Yrl, Zil_rp, 1},
-	{Yi32, Yml, Zilo_m, 2},
-	{Yml, Ymr, Zm_r_xm, 1}, // MMX MOVD
-	{Ymr, Yml, Zr_m_xm, 1}, // MMX MOVD
-	{Yml, Yxr, Zm_r_xm, 2}, // XMM MOVD (32 bit)
-	{Yxr, Yml, Zr_m_xm, 2}, // XMM MOVD (32 bit)
-	{Yiauto, Yrl, Zaut_r, 2},
+	{Yrl, Ynone, Yml, Zr_m, 1},
+	{Yml, Ynone, Yrl, Zm_r, 1},
+	{Yi0, Ynone, Yrl, Zclr, 1},
+	{Yi32, Ynone, Yrl, Zil_rp, 1},
+	{Yi32, Ynone, Yml, Zilo_m, 2},
+	{Yml, Ynone, Ymr, Zm_r_xm, 1}, // MMX MOVD
+	{Ymr, Ynone, Yml, Zr_m_xm, 1}, // MMX MOVD
+	{Yml, Ynone, Yxr, Zm_r_xm, 2}, // XMM MOVD (32 bit)
+	{Yxr, Ynone, Yml, Zr_m_xm, 2}, // XMM MOVD (32 bit)
+	{Yiauto, Ynone, Yrl, Zaut_r, 2},
 }
 
 var yret = []ytab{
-	{Ynone, Ynone, Zo_iw, 1},
-	{Yi32, Ynone, Zo_iw, 1},
+	{Ynone, Ynone, Ynone, Zo_iw, 1},
+	{Yi32, Ynone, Ynone, Zo_iw, 1},
 }
 
 var ymovq = []ytab{
-	{Yrl, Yml, Zr_m, 1},       // 0x89
-	{Yml, Yrl, Zm_r, 1},       // 0x8b
-	{Yi0, Yrl, Zclr, 1},       // 0x31
-	{Ys32, Yrl, Zilo_m, 2},    // 32 bit signed 0xc7,(0)
-	{Yi64, Yrl, Ziq_rp, 1},    // 0xb8 -- 32/64 bit immediate
-	{Yi32, Yml, Zilo_m, 2},    // 0xc7,(0)
-	{Ym, Ymr, Zm_r_xm_nr, 1},  // MMX MOVQ (shorter encoding)
-	{Ymr, Ym, Zr_m_xm_nr, 1},  // MMX MOVQ
-	{Ymm, Ymr, Zm_r_xm, 1},    // MMX MOVD
-	{Ymr, Ymm, Zr_m_xm, 1},    // MMX MOVD
-	{Yxr, Ymr, Zm_r_xm_nr, 2}, // MOVDQ2Q
-	{Yxm, Yxr, Zm_r_xm_nr, 2}, // MOVQ xmm1/m64 -> xmm2
-	{Yxr, Yxm, Zr_m_xm_nr, 2}, // MOVQ xmm1 -> xmm2/m64
-	{Yml, Yxr, Zm_r_xm, 2},    // MOVD xmm load
-	{Yxr, Yml, Zr_m_xm, 2},    // MOVD xmm store
-	{Yiauto, Yrl, Zaut_r, 2},  // built-in LEAQ
+	{Yrl, Ynone, Yml, Zr_m, 1},       // 0x89
+	{Yml, Ynone, Yrl, Zm_r, 1},       // 0x8b
+	{Yi0, Ynone, Yrl, Zclr, 1},       // 0x31
+	{Ys32, Ynone, Yrl, Zilo_m, 2},    // 32 bit signed 0xc7,(0)
+	{Yi64, Ynone, Yrl, Ziq_rp, 1},    // 0xb8 -- 32/64 bit immediate
+	{Yi32, Ynone, Yml, Zilo_m, 2},    // 0xc7,(0)
+	{Ym, Ynone, Ymr, Zm_r_xm_nr, 1},  // MMX MOVQ (shorter encoding)
+	{Ymr, Ynone, Ym, Zr_m_xm_nr, 1},  // MMX MOVQ
+	{Ymm, Ynone, Ymr, Zm_r_xm, 1},    // MMX MOVD
+	{Ymr, Ynone, Ymm, Zr_m_xm, 1},    // MMX MOVD
+	{Yxr, Ynone, Ymr, Zm_r_xm_nr, 2}, // MOVDQ2Q
+	{Yxm, Ynone, Yxr, Zm_r_xm_nr, 2}, // MOVQ xmm1/m64 -> xmm2
+	{Yxr, Ynone, Yxm, Zr_m_xm_nr, 2}, // MOVQ xmm1 -> xmm2/m64
+	{Yml, Ynone, Yxr, Zm_r_xm, 2},    // MOVD xmm load
+	{Yxr, Ynone, Yml, Zr_m_xm, 2},    // MOVD xmm store
+	{Yiauto, Ynone, Yrl, Zaut_r, 2},  // built-in LEAQ
 }
 
 var ym_rl = []ytab{
-	{Ym, Yrl, Zm_r, 1},
+	{Ym, Ynone, Yrl, Zm_r, 1},
 }
 
 var yrl_m = []ytab{
-	{Yrl, Ym, Zr_m, 1},
+	{Yrl, Ynone, Ym, Zr_m, 1},
 }
 
 var ymb_rl = []ytab{
-	{Ymb, Yrl, Zmb_r, 1},
+	{Ymb, Ynone, Yrl, Zmb_r, 1},
 }
 
 var yml_rl = []ytab{
-	{Yml, Yrl, Zm_r, 1},
+	{Yml, Ynone, Yrl, Zm_r, 1},
 }
 
 var yrl_ml = []ytab{
-	{Yrl, Yml, Zr_m, 1},
+	{Yrl, Ynone, Yml, Zr_m, 1},
 }
 
 var yml_mb = []ytab{
-	{Yrb, Ymb, Zr_m, 1},
-	{Ymb, Yrb, Zm_r, 1},
+	{Yrb, Ynone, Ymb, Zr_m, 1},
+	{Ymb, Ynone, Yrb, Zm_r, 1},
 }
 
 var yrb_mb = []ytab{
-	{Yrb, Ymb, Zr_m, 1},
+	{Yrb, Ynone, Ymb, Zr_m, 1},
 }
 
 var yxchg = []ytab{
-	{Yax, Yrl, Z_rp, 1},
-	{Yrl, Yax, Zrp_, 1},
-	{Yrl, Yml, Zr_m, 1},
-	{Yml, Yrl, Zm_r, 1},
+	{Yax, Ynone, Yrl, Z_rp, 1},
+	{Yrl, Ynone, Yax, Zrp_, 1},
+	{Yrl, Ynone, Yml, Zr_m, 1},
+	{Yml, Ynone, Yrl, Zm_r, 1},
 }
 
 var ydivl = []ytab{
-	{Yml, Ynone, Zm_o, 2},
+	{Yml, Ynone, Ynone, Zm_o, 2},
 }
 
 var ydivb = []ytab{
-	{Ymb, Ynone, Zm_o, 2},
+	{Ymb, Ynone, Ynone, Zm_o, 2},
 }
 
 var yimul = []ytab{
-	{Yml, Ynone, Zm_o, 2},
-	{Yi8, Yrl, Zib_rr, 1},
-	{Yi32, Yrl, Zil_rr, 1},
-	{Yml, Yrl, Zm_r, 2},
+	{Yml, Ynone, Ynone, Zm_o, 2},
+	{Yi8, Ynone, Yrl, Zib_rr, 1},
+	{Yi32, Ynone, Yrl, Zil_rr, 1},
+	{Yml, Ynone, Yrl, Zm_r, 2},
 }
 
 var yimul3 = []ytab{
-	{Yml, Yrl, Zibm_r, 2},
+	{Yml, Ynone, Yrl, Zibm_r, 2},
 }
 
 var ybyte = []ytab{
-	{Yi64, Ynone, Zbyte, 1},
+	{Yi64, Ynone, Ynone, Zbyte, 1},
 }
 
 var yin = []ytab{
-	{Yi32, Ynone, Zib_, 1},
-	{Ynone, Ynone, Zlit, 1},
+	{Yi32, Ynone, Ynone, Zib_, 1},
+	{Ynone, Ynone, Ynone, Zlit, 1},
 }
 
 var yint = []ytab{
-	{Yi32, Ynone, Zib_, 1},
+	{Yi32, Ynone, Ynone, Zib_, 1},
 }
 
 var ypushl = []ytab{
-	{Yrl, Ynone, Zrp_, 1},
-	{Ym, Ynone, Zm_o, 2},
-	{Yi8, Ynone, Zib_, 1},
-	{Yi32, Ynone, Zil_, 1},
+	{Yrl, Ynone, Ynone, Zrp_, 1},
+	{Ym, Ynone, Ynone, Zm_o, 2},
+	{Yi8, Ynone, Ynone, Zib_, 1},
+	{Yi32, Ynone, Ynone, Zil_, 1},
 }
 
 var ypopl = []ytab{
-	{Ynone, Yrl, Z_rp, 1},
-	{Ynone, Ym, Zo_m, 2},
+	{Ynone, Ynone, Yrl, Z_rp, 1},
+	{Ynone, Ynone, Ym, Zo_m, 2},
 }
 
 var ybswap = []ytab{
-	{Ynone, Yrl, Z_rp, 2},
+	{Ynone, Ynone, Yrl, Z_rp, 2},
 }
 
 var yscond = []ytab{
-	{Ynone, Ymb, Zo_m, 2},
+	{Ynone, Ynone, Ymb, Zo_m, 2},
 }
 
 var yjcond = []ytab{
-	{Ynone, Ybr, Zbr, 0},
-	{Yi0, Ybr, Zbr, 0},
-	{Yi1, Ybr, Zbr, 1},
+	{Ynone, Ynone, Ybr, Zbr, 0},
+	{Yi0, Ynone, Ybr, Zbr, 0},
+	{Yi1, Ynone, Ybr, Zbr, 1},
 }
 
 var yloop = []ytab{
-	{Ynone, Ybr, Zloop, 1},
+	{Ynone, Ynone, Ybr, Zloop, 1},
 }
 
 var ycall = []ytab{
-	{Ynone, Yml, Zcallindreg, 0},
-	{Yrx, Yrx, Zcallindreg, 2},
-	{Ynone, Ybr, Zcall, 1},
+	{Ynone, Ynone, Yml, Zcallindreg, 0},
+	{Yrx, Ynone, Yrx, Zcallindreg, 2},
+	{Ynone, Ynone, Ybr, Zcall, 1},
 }
 
 var yduff = []ytab{
-	{Ynone, Yi32, Zcall, 1},
+	{Ynone, Ynone, Yi32, Zcall, 1},
 }
 
 var yjmp = []ytab{
-	{Ynone, Yml, Zo_m64, 2},
-	{Ynone, Ybr, Zjmp, 1},
+	{Ynone, Ynone, Yml, Zo_m64, 2},
+	{Ynone, Ynone, Ybr, Zjmp, 1},
 }
 
 var yfmvd = []ytab{
-	{Ym, Yf0, Zm_o, 2},
-	{Yf0, Ym, Zo_m, 2},
-	{Yrf, Yf0, Zm_o, 2},
-	{Yf0, Yrf, Zo_m, 2},
+	{Ym, Ynone, Yf0, Zm_o, 2},
+	{Yf0, Ynone, Ym, Zo_m, 2},
+	{Yrf, Ynone, Yf0, Zm_o, 2},
+	{Yf0, Ynone, Yrf, Zo_m, 2},
 }
 
 var yfmvdp = []ytab{
-	{Yf0, Ym, Zo_m, 2},
-	{Yf0, Yrf, Zo_m, 2},
+	{Yf0, Ynone, Ym, Zo_m, 2},
+	{Yf0, Ynone, Yrf, Zo_m, 2},
 }
 
 var yfmvf = []ytab{
-	{Ym, Yf0, Zm_o, 2},
-	{Yf0, Ym, Zo_m, 2},
+	{Ym, Ynone, Yf0, Zm_o, 2},
+	{Yf0, Ynone, Ym, Zo_m, 2},
 }
 
 var yfmvx = []ytab{
-	{Ym, Yf0, Zm_o, 2},
+	{Ym, Ynone, Yf0, Zm_o, 2},
 }
 
 var yfmvp = []ytab{
-	{Yf0, Ym, Zo_m, 2},
+	{Yf0, Ynone, Ym, Zo_m, 2},
 }
 
 var yfadd = []ytab{
-	{Ym, Yf0, Zm_o, 2},
-	{Yrf, Yf0, Zm_o, 2},
-	{Yf0, Yrf, Zo_m, 2},
+	{Ym, Ynone, Yf0, Zm_o, 2},
+	{Yrf, Ynone, Yf0, Zm_o, 2},
+	{Yf0, Ynone, Yrf, Zo_m, 2},
 }
 
 var yfaddp = []ytab{
-	{Yf0, Yrf, Zo_m, 2},
+	{Yf0, Ynone, Yrf, Zo_m, 2},
 }
 
 var yfxch = []ytab{
-	{Yf0, Yrf, Zo_m, 2},
-	{Yrf, Yf0, Zm_o, 2},
+	{Yf0, Ynone, Yrf, Zo_m, 2},
+	{Yrf, Ynone, Yf0, Zm_o, 2},
 }
 
 var ycompp = []ytab{
-	{Yf0, Yrf, Zo_m, 2}, /* botch is really f0,f1 */
+	{Yf0, Ynone, Yrf, Zo_m, 2}, /* botch is really f0,f1 */
 }
 
 var ystsw = []ytab{
-	{Ynone, Ym, Zo_m, 2},
-	{Ynone, Yax, Zlit, 1},
+	{Ynone, Ynone, Ym, Zo_m, 2},
+	{Ynone, Ynone, Yax, Zlit, 1},
 }
 
 var ystcw = []ytab{
-	{Ynone, Ym, Zo_m, 2},
-	{Ym, Ynone, Zm_o, 2},
+	{Ynone, Ynone, Ym, Zo_m, 2},
+	{Ym, Ynone, Ynone, Zm_o, 2},
 }
 
 var ysvrs = []ytab{
-	{Ynone, Ym, Zo_m, 2},
-	{Ym, Ynone, Zm_o, 2},
+	{Ynone, Ynone, Ym, Zo_m, 2},
+	{Ym, Ynone, Ynone, Zm_o, 2},
 }
 
 var ymm = []ytab{
-	{Ymm, Ymr, Zm_r_xm, 1},
-	{Yxm, Yxr, Zm_r_xm, 2},
+	{Ymm, Ynone, Ymr, Zm_r_xm, 1},
+	{Yxm, Ynone, Yxr, Zm_r_xm, 2},
 }
 
 var yxm = []ytab{
-	{Yxm, Yxr, Zm_r_xm, 1},
+	{Yxm, Ynone, Yxr, Zm_r_xm, 1},
 }
 
 var yxcvm1 = []ytab{
-	{Yxm, Yxr, Zm_r_xm, 2},
-	{Yxm, Ymr, Zm_r_xm, 2},
+	{Yxm, Ynone, Yxr, Zm_r_xm, 2},
+	{Yxm, Ynone, Ymr, Zm_r_xm, 2},
 }
 
 var yxcvm2 = []ytab{
-	{Yxm, Yxr, Zm_r_xm, 2},
-	{Ymm, Yxr, Zm_r_xm, 2},
+	{Yxm, Ynone, Yxr, Zm_r_xm, 2},
+	{Ymm, Ynone, Yxr, Zm_r_xm, 2},
 }
 
 /*
 var yxmq = []ytab{
-	{Yxm, Yxr, Zm_r_xm, 2},
+	{Yxm, Ynone, Yxr, Zm_r_xm, 2},
 }
 */
 
 var yxr = []ytab{
-	{Yxr, Yxr, Zm_r_xm, 1},
+	{Yxr, Ynone, Yxr, Zm_r_xm, 1},
 }
 
 var yxr_ml = []ytab{
-	{Yxr, Yml, Zr_m_xm, 1},
+	{Yxr, Ynone, Yml, Zr_m_xm, 1},
 }
 
 var ymr = []ytab{
-	{Ymr, Ymr, Zm_r, 1},
+	{Ymr, Ynone, Ymr, Zm_r, 1},
 }
 
 var ymr_ml = []ytab{
-	{Ymr, Yml, Zr_m_xm, 1},
+	{Ymr, Ynone, Yml, Zr_m_xm, 1},
 }
 
 var yxcmp = []ytab{
-	{Yxm, Yxr, Zm_r_xm, 1},
+	{Yxm, Ynone, Yxr, Zm_r_xm, 1},
 }
 
 var yxcmpi = []ytab{
-	{Yxm, Yxr, Zm_r_i_xm, 2},
+	{Yxm, Ynone, Yxr, Zm_r_i_xm, 2},
 }
 
 var yxmov = []ytab{
-	{Yxm, Yxr, Zm_r_xm, 1},
-	{Yxr, Yxm, Zr_m_xm, 1},
+	{Yxm, Ynone, Yxr, Zm_r_xm, 1},
+	{Yxr, Ynone, Yxm, Zr_m_xm, 1},
 }
 
 var yxcvfl = []ytab{
-	{Yxm, Yrl, Zm_r_xm, 1},
+	{Yxm, Ynone, Yrl, Zm_r_xm, 1},
 }
 
 var yxcvlf = []ytab{
-	{Yml, Yxr, Zm_r_xm, 1},
+	{Yml, Ynone, Yxr, Zm_r_xm, 1},
 }
 
 var yxcvfq = []ytab{
-	{Yxm, Yrl, Zm_r_xm, 2},
+	{Yxm, Ynone, Yrl, Zm_r_xm, 2},
 }
 
 var yxcvqf = []ytab{
-	{Yml, Yxr, Zm_r_xm, 2},
+	{Yml, Ynone, Yxr, Zm_r_xm, 2},
 }
 
 var yps = []ytab{
-	{Ymm, Ymr, Zm_r_xm, 1},
-	{Yi8, Ymr, Zibo_m_xm, 2},
-	{Yxm, Yxr, Zm_r_xm, 2},
-	{Yi8, Yxr, Zibo_m_xm, 3},
+	{Ymm, Ynone, Ymr, Zm_r_xm, 1},
+	{Yi8, Ynone, Ymr, Zibo_m_xm, 2},
+	{Yxm, Ynone, Yxr, Zm_r_xm, 2},
+	{Yi8, Ynone, Yxr, Zibo_m_xm, 3},
 }
 
 var yxrrl = []ytab{
-	{Yxr, Yrl, Zm_r, 1},
+	{Yxr, Ynone, Yrl, Zm_r, 1},
 }
 
 var ymfp = []ytab{
-	{Ymm, Ymr, Zm_r_3d, 1},
+	{Ymm, Ynone, Ymr, Zm_r_3d, 1},
 }
 
 var ymrxr = []ytab{
-	{Ymr, Yxr, Zm_r, 1},
-	{Yxm, Yxr, Zm_r_xm, 1},
+	{Ymr, Ynone, Yxr, Zm_r, 1},
+	{Yxm, Ynone, Yxr, Zm_r_xm, 1},
 }
 
 var ymshuf = []ytab{
-	{Ymm, Ymr, Zibm_r, 2},
+	{Ymm, Ynone, Ymr, Zibm_r, 2},
 }
 
 var ymshufb = []ytab{
-	{Yxm, Yxr, Zm2_r, 2},
+	{Yxm, Ynone, Yxr, Zm2_r, 2},
 }
 
 var yxshuf = []ytab{
-	{Yxm, Yxr, Zibm_r, 2},
+	{Yxm, Ynone, Yxr, Zibm_r, 2},
 }
 
 var yextrw = []ytab{
-	{Yxr, Yrl, Zibm_r, 2},
+	{Yxr, Ynone, Yrl, Zibm_r, 2},
 }
 
 var yinsrw = []ytab{
-	{Yml, Yxr, Zibm_r, 2},
+	{Yml, Ynone, Yxr, Zibm_r, 2},
 }
 
 var yinsr = []ytab{
-	{Ymm, Yxr, Zibm_r, 3},
+	{Ymm, Ynone, Yxr, Zibm_r, 3},
 }
 
 var ypsdq = []ytab{
-	{Yi8, Yxr, Zibo_m, 2},
+	{Yi8, Ynone, Yxr, Zibo_m, 2},
 }
 
 var ymskb = []ytab{
-	{Yxr, Yrl, Zm_r_xm, 2},
-	{Ymr, Yrl, Zm_r_xm, 1},
+	{Yxr, Ynone, Yrl, Zm_r_xm, 2},
+	{Ymr, Ynone, Yrl, Zm_r_xm, 1},
 }
 
 var ycrc32l = []ytab{
-	{Yml, Yrl, Zlitm_r, 0},
+	{Yml, Ynone, Yrl, Zlitm_r, 0},
 }
 
 var yprefetch = []ytab{
-	{Ym, Ynone, Zm_o, 2},
+	{Ym, Ynone, Ynone, Zm_o, 2},
 }
 
 var yaes = []ytab{
-	{Yxm, Yxr, Zlitm_r, 2},
+	{Yxm, Ynone, Yxr, Zlitm_r, 2},
 }
 
 var yaes2 = []ytab{
-	{Yxm, Yxr, Zibm_r, 2},
+	{Yxm, Ynone, Yxr, Zibm_r, 2},
 }
 
 /*
@@ -2601,129 +2603,129 @@ const (
 
 var ymovtab = []Movtab{
 	/* push */
-	Movtab{APUSHL, Ycs, Ynone, 0, [4]uint8{0x0e, E, 0, 0}},
-	Movtab{APUSHL, Yss, Ynone, 0, [4]uint8{0x16, E, 0, 0}},
-	Movtab{APUSHL, Yds, Ynone, 0, [4]uint8{0x1e, E, 0, 0}},
-	Movtab{APUSHL, Yes, Ynone, 0, [4]uint8{0x06, E, 0, 0}},
-	Movtab{APUSHL, Yfs, Ynone, 0, [4]uint8{0x0f, 0xa0, E, 0}},
-	Movtab{APUSHL, Ygs, Ynone, 0, [4]uint8{0x0f, 0xa8, E, 0}},
-	Movtab{APUSHQ, Yfs, Ynone, 0, [4]uint8{0x0f, 0xa0, E, 0}},
-	Movtab{APUSHQ, Ygs, Ynone, 0, [4]uint8{0x0f, 0xa8, E, 0}},
-	Movtab{APUSHW, Ycs, Ynone, 0, [4]uint8{Pe, 0x0e, E, 0}},
-	Movtab{APUSHW, Yss, Ynone, 0, [4]uint8{Pe, 0x16, E, 0}},
-	Movtab{APUSHW, Yds, Ynone, 0, [4]uint8{Pe, 0x1e, E, 0}},
-	Movtab{APUSHW, Yes, Ynone, 0, [4]uint8{Pe, 0x06, E, 0}},
-	Movtab{APUSHW, Yfs, Ynone, 0, [4]uint8{Pe, 0x0f, 0xa0, E}},
-	Movtab{APUSHW, Ygs, Ynone, 0, [4]uint8{Pe, 0x0f, 0xa8, E}},
+	Movtab{APUSHL, Ycs, Ynone, Ynone, 0, [4]uint8{0x0e, E, 0, 0}},
+	Movtab{APUSHL, Yss, Ynone, Ynone, 0, [4]uint8{0x16, E, 0, 0}},
+	Movtab{APUSHL, Yds, Ynone, Ynone, 0, [4]uint8{0x1e, E, 0, 0}},
+	Movtab{APUSHL, Yes, Ynone, Ynone, 0, [4]uint8{0x06, E, 0, 0}},
+	Movtab{APUSHL, Yfs, Ynone, Ynone, 0, [4]uint8{0x0f, 0xa0, E, 0}},
+	Movtab{APUSHL, Ygs, Ynone, Ynone, 0, [4]uint8{0x0f, 0xa8, E, 0}},
+	Movtab{APUSHQ, Yfs, Ynone, Ynone, 0, [4]uint8{0x0f, 0xa0, E, 0}},
+	Movtab{APUSHQ, Ygs, Ynone, Ynone, 0, [4]uint8{0x0f, 0xa8, E, 0}},
+	Movtab{APUSHW, Ycs, Ynone, Ynone, 0, [4]uint8{Pe, 0x0e, E, 0}},
+	Movtab{APUSHW, Yss, Ynone, Ynone, 0, [4]uint8{Pe, 0x16, E, 0}},
+	Movtab{APUSHW, Yds, Ynone, Ynone, 0, [4]uint8{Pe, 0x1e, E, 0}},
+	Movtab{APUSHW, Yes, Ynone, Ynone, 0, [4]uint8{Pe, 0x06, E, 0}},
+	Movtab{APUSHW, Yfs, Ynone, Ynone, 0, [4]uint8{Pe, 0x0f, 0xa0, E}},
+	Movtab{APUSHW, Ygs, Ynone, Ynone, 0, [4]uint8{Pe, 0x0f, 0xa8, E}},
 
 	/* pop */
-	Movtab{APOPL, Ynone, Yds, 0, [4]uint8{0x1f, E, 0, 0}},
-	Movtab{APOPL, Ynone, Yes, 0, [4]uint8{0x07, E, 0, 0}},
-	Movtab{APOPL, Ynone, Yss, 0, [4]uint8{0x17, E, 0, 0}},
-	Movtab{APOPL, Ynone, Yfs, 0, [4]uint8{0x0f, 0xa1, E, 0}},
-	Movtab{APOPL, Ynone, Ygs, 0, [4]uint8{0x0f, 0xa9, E, 0}},
-	Movtab{APOPQ, Ynone, Yfs, 0, [4]uint8{0x0f, 0xa1, E, 0}},
-	Movtab{APOPQ, Ynone, Ygs, 0, [4]uint8{0x0f, 0xa9, E, 0}},
-	Movtab{APOPW, Ynone, Yds, 0, [4]uint8{Pe, 0x1f, E, 0}},
-	Movtab{APOPW, Ynone, Yes, 0, [4]uint8{Pe, 0x07, E, 0}},
-	Movtab{APOPW, Ynone, Yss, 0, [4]uint8{Pe, 0x17, E, 0}},
-	Movtab{APOPW, Ynone, Yfs, 0, [4]uint8{Pe, 0x0f, 0xa1, E}},
-	Movtab{APOPW, Ynone, Ygs, 0, [4]uint8{Pe, 0x0f, 0xa9, E}},
+	Movtab{APOPL, Ynone, Ynone, Yds, 0, [4]uint8{0x1f, E, 0, 0}},
+	Movtab{APOPL, Ynone, Ynone, Yes, 0, [4]uint8{0x07, E, 0, 0}},
+	Movtab{APOPL, Ynone, Ynone, Yss, 0, [4]uint8{0x17, E, 0, 0}},
+	Movtab{APOPL, Ynone, Ynone, Yfs, 0, [4]uint8{0x0f, 0xa1, E, 0}},
+	Movtab{APOPL, Ynone, Ynone, Ygs, 0, [4]uint8{0x0f, 0xa9, E, 0}},
+	Movtab{APOPQ, Ynone, Ynone, Yfs, 0, [4]uint8{0x0f, 0xa1, E, 0}},
+	Movtab{APOPQ, Ynone, Ynone, Ygs, 0, [4]uint8{0x0f, 0xa9, E, 0}},
+	Movtab{APOPW, Ynone, Ynone, Yds, 0, [4]uint8{Pe, 0x1f, E, 0}},
+	Movtab{APOPW, Ynone, Ynone, Yes, 0, [4]uint8{Pe, 0x07, E, 0}},
+	Movtab{APOPW, Ynone, Ynone, Yss, 0, [4]uint8{Pe, 0x17, E, 0}},
+	Movtab{APOPW, Ynone, Ynone, Yfs, 0, [4]uint8{Pe, 0x0f, 0xa1, E}},
+	Movtab{APOPW, Ynone, Ynone, Ygs, 0, [4]uint8{Pe, 0x0f, 0xa9, E}},
 
 	/* mov seg */
-	Movtab{AMOVW, Yes, Yml, 1, [4]uint8{0x8c, 0, 0, 0}},
-	Movtab{AMOVW, Ycs, Yml, 1, [4]uint8{0x8c, 1, 0, 0}},
-	Movtab{AMOVW, Yss, Yml, 1, [4]uint8{0x8c, 2, 0, 0}},
-	Movtab{AMOVW, Yds, Yml, 1, [4]uint8{0x8c, 3, 0, 0}},
-	Movtab{AMOVW, Yfs, Yml, 1, [4]uint8{0x8c, 4, 0, 0}},
-	Movtab{AMOVW, Ygs, Yml, 1, [4]uint8{0x8c, 5, 0, 0}},
-	Movtab{AMOVW, Yml, Yes, 2, [4]uint8{0x8e, 0, 0, 0}},
-	Movtab{AMOVW, Yml, Ycs, 2, [4]uint8{0x8e, 1, 0, 0}},
-	Movtab{AMOVW, Yml, Yss, 2, [4]uint8{0x8e, 2, 0, 0}},
-	Movtab{AMOVW, Yml, Yds, 2, [4]uint8{0x8e, 3, 0, 0}},
-	Movtab{AMOVW, Yml, Yfs, 2, [4]uint8{0x8e, 4, 0, 0}},
-	Movtab{AMOVW, Yml, Ygs, 2, [4]uint8{0x8e, 5, 0, 0}},
+	Movtab{AMOVW, Yes, Ynone, Yml, 1, [4]uint8{0x8c, 0, 0, 0}},
+	Movtab{AMOVW, Ycs, Ynone, Yml, 1, [4]uint8{0x8c, 1, 0, 0}},
+	Movtab{AMOVW, Yss, Ynone, Yml, 1, [4]uint8{0x8c, 2, 0, 0}},
+	Movtab{AMOVW, Yds, Ynone, Yml, 1, [4]uint8{0x8c, 3, 0, 0}},
+	Movtab{AMOVW, Yfs, Ynone, Yml, 1, [4]uint8{0x8c, 4, 0, 0}},
+	Movtab{AMOVW, Ygs, Ynone, Yml, 1, [4]uint8{0x8c, 5, 0, 0}},
+	Movtab{AMOVW, Yml, Ynone, Yes, 2, [4]uint8{0x8e, 0, 0, 0}},
+	Movtab{AMOVW, Yml, Ynone, Ycs, 2, [4]uint8{0x8e, 1, 0, 0}},
+	Movtab{AMOVW, Yml, Ynone, Yss, 2, [4]uint8{0x8e, 2, 0, 0}},
+	Movtab{AMOVW, Yml, Ynone, Yds, 2, [4]uint8{0x8e, 3, 0, 0}},
+	Movtab{AMOVW, Yml, Ynone, Yfs, 2, [4]uint8{0x8e, 4, 0, 0}},
+	Movtab{AMOVW, Yml, Ynone, Ygs, 2, [4]uint8{0x8e, 5, 0, 0}},
 
 	/* mov cr */
-	Movtab{AMOVL, Ycr0, Yml, 3, [4]uint8{0x0f, 0x20, 0, 0}},
-	Movtab{AMOVL, Ycr2, Yml, 3, [4]uint8{0x0f, 0x20, 2, 0}},
-	Movtab{AMOVL, Ycr3, Yml, 3, [4]uint8{0x0f, 0x20, 3, 0}},
-	Movtab{AMOVL, Ycr4, Yml, 3, [4]uint8{0x0f, 0x20, 4, 0}},
-	Movtab{AMOVL, Ycr8, Yml, 3, [4]uint8{0x0f, 0x20, 8, 0}},
-	Movtab{AMOVQ, Ycr0, Yml, 3, [4]uint8{0x0f, 0x20, 0, 0}},
-	Movtab{AMOVQ, Ycr2, Yml, 3, [4]uint8{0x0f, 0x20, 2, 0}},
-	Movtab{AMOVQ, Ycr3, Yml, 3, [4]uint8{0x0f, 0x20, 3, 0}},
-	Movtab{AMOVQ, Ycr4, Yml, 3, [4]uint8{0x0f, 0x20, 4, 0}},
-	Movtab{AMOVQ, Ycr8, Yml, 3, [4]uint8{0x0f, 0x20, 8, 0}},
-	Movtab{AMOVL, Yml, Ycr0, 4, [4]uint8{0x0f, 0x22, 0, 0}},
-	Movtab{AMOVL, Yml, Ycr2, 4, [4]uint8{0x0f, 0x22, 2, 0}},
-	Movtab{AMOVL, Yml, Ycr3, 4, [4]uint8{0x0f, 0x22, 3, 0}},
-	Movtab{AMOVL, Yml, Ycr4, 4, [4]uint8{0x0f, 0x22, 4, 0}},
-	Movtab{AMOVL, Yml, Ycr8, 4, [4]uint8{0x0f, 0x22, 8, 0}},
-	Movtab{AMOVQ, Yml, Ycr0, 4, [4]uint8{0x0f, 0x22, 0, 0}},
-	Movtab{AMOVQ, Yml, Ycr2, 4, [4]uint8{0x0f, 0x22, 2, 0}},
-	Movtab{AMOVQ, Yml, Ycr3, 4, [4]uint8{0x0f, 0x22, 3, 0}},
-	Movtab{AMOVQ, Yml, Ycr4, 4, [4]uint8{0x0f, 0x22, 4, 0}},
-	Movtab{AMOVQ, Yml, Ycr8, 4, [4]uint8{0x0f, 0x22, 8, 0}},
+	Movtab{AMOVL, Ycr0, Ynone, Yml, 3, [4]uint8{0x0f, 0x20, 0, 0}},
+	Movtab{AMOVL, Ycr2, Ynone, Yml, 3, [4]uint8{0x0f, 0x20, 2, 0}},
+	Movtab{AMOVL, Ycr3, Ynone, Yml, 3, [4]uint8{0x0f, 0x20, 3, 0}},
+	Movtab{AMOVL, Ycr4, Ynone, Yml, 3, [4]uint8{0x0f, 0x20, 4, 0}},
+	Movtab{AMOVL, Ycr8, Ynone, Yml, 3, [4]uint8{0x0f, 0x20, 8, 0}},
+	Movtab{AMOVQ, Ycr0, Ynone, Yml, 3, [4]uint8{0x0f, 0x20, 0, 0}},
+	Movtab{AMOVQ, Ycr2, Ynone, Yml, 3, [4]uint8{0x0f, 0x20, 2, 0}},
+	Movtab{AMOVQ, Ycr3, Ynone, Yml, 3, [4]uint8{0x0f, 0x20, 3, 0}},
+	Movtab{AMOVQ, Ycr4, Ynone, Yml, 3, [4]uint8{0x0f, 0x20, 4, 0}},
+	Movtab{AMOVQ, Ycr8, Ynone, Yml, 3, [4]uint8{0x0f, 0x20, 8, 0}},
+	Movtab{AMOVL, Yml, Ynone, Ycr0, 4, [4]uint8{0x0f, 0x22, 0, 0}},
+	Movtab{AMOVL, Yml, Ynone, Ycr2, 4, [4]uint8{0x0f, 0x22, 2, 0}},
+	Movtab{AMOVL, Yml, Ynone, Ycr3, 4, [4]uint8{0x0f, 0x22, 3, 0}},
+	Movtab{AMOVL, Yml, Ynone, Ycr4, 4, [4]uint8{0x0f, 0x22, 4, 0}},
+	Movtab{AMOVL, Yml, Ynone, Ycr8, 4, [4]uint8{0x0f, 0x22, 8, 0}},
+	Movtab{AMOVQ, Yml, Ynone, Ycr0, 4, [4]uint8{0x0f, 0x22, 0, 0}},
+	Movtab{AMOVQ, Yml, Ynone, Ycr2, 4, [4]uint8{0x0f, 0x22, 2, 0}},
+	Movtab{AMOVQ, Yml, Ynone, Ycr3, 4, [4]uint8{0x0f, 0x22, 3, 0}},
+	Movtab{AMOVQ, Yml, Ynone, Ycr4, 4, [4]uint8{0x0f, 0x22, 4, 0}},
+	Movtab{AMOVQ, Yml, Ynone, Ycr8, 4, [4]uint8{0x0f, 0x22, 8, 0}},
 
 	/* mov dr */
-	Movtab{AMOVL, Ydr0, Yml, 3, [4]uint8{0x0f, 0x21, 0, 0}},
-	Movtab{AMOVL, Ydr6, Yml, 3, [4]uint8{0x0f, 0x21, 6, 0}},
-	Movtab{AMOVL, Ydr7, Yml, 3, [4]uint8{0x0f, 0x21, 7, 0}},
-	Movtab{AMOVQ, Ydr0, Yml, 3, [4]uint8{0x0f, 0x21, 0, 0}},
-	Movtab{AMOVQ, Ydr6, Yml, 3, [4]uint8{0x0f, 0x21, 6, 0}},
-	Movtab{AMOVQ, Ydr7, Yml, 3, [4]uint8{0x0f, 0x21, 7, 0}},
-	Movtab{AMOVL, Yml, Ydr0, 4, [4]uint8{0x0f, 0x23, 0, 0}},
-	Movtab{AMOVL, Yml, Ydr6, 4, [4]uint8{0x0f, 0x23, 6, 0}},
-	Movtab{AMOVL, Yml, Ydr7, 4, [4]uint8{0x0f, 0x23, 7, 0}},
-	Movtab{AMOVQ, Yml, Ydr0, 4, [4]uint8{0x0f, 0x23, 0, 0}},
-	Movtab{AMOVQ, Yml, Ydr6, 4, [4]uint8{0x0f, 0x23, 6, 0}},
-	Movtab{AMOVQ, Yml, Ydr7, 4, [4]uint8{0x0f, 0x23, 7, 0}},
+	Movtab{AMOVL, Ydr0, Ynone, Yml, 3, [4]uint8{0x0f, 0x21, 0, 0}},
+	Movtab{AMOVL, Ydr6, Ynone, Yml, 3, [4]uint8{0x0f, 0x21, 6, 0}},
+	Movtab{AMOVL, Ydr7, Ynone, Yml, 3, [4]uint8{0x0f, 0x21, 7, 0}},
+	Movtab{AMOVQ, Ydr0, Ynone, Yml, 3, [4]uint8{0x0f, 0x21, 0, 0}},
+	Movtab{AMOVQ, Ydr6, Ynone, Yml, 3, [4]uint8{0x0f, 0x21, 6, 0}},
+	Movtab{AMOVQ, Ydr7, Ynone, Yml, 3, [4]uint8{0x0f, 0x21, 7, 0}},
+	Movtab{AMOVL, Yml, Ynone, Ydr0, 4, [4]uint8{0x0f, 0x23, 0, 0}},
+	Movtab{AMOVL, Yml, Ynone, Ydr6, 4, [4]uint8{0x0f, 0x23, 6, 0}},
+	Movtab{AMOVL, Yml, Ynone, Ydr7, 4, [4]uint8{0x0f, 0x23, 7, 0}},
+	Movtab{AMOVQ, Yml, Ynone, Ydr0, 4, [4]uint8{0x0f, 0x23, 0, 0}},
+	Movtab{AMOVQ, Yml, Ynone, Ydr6, 4, [4]uint8{0x0f, 0x23, 6, 0}},
+	Movtab{AMOVQ, Yml, Ynone, Ydr7, 4, [4]uint8{0x0f, 0x23, 7, 0}},
 
 	/* mov tr */
-	Movtab{AMOVL, Ytr6, Yml, 3, [4]uint8{0x0f, 0x24, 6, 0}},
-	Movtab{AMOVL, Ytr7, Yml, 3, [4]uint8{0x0f, 0x24, 7, 0}},
-	Movtab{AMOVL, Yml, Ytr6, 4, [4]uint8{0x0f, 0x26, 6, E}},
-	Movtab{AMOVL, Yml, Ytr7, 4, [4]uint8{0x0f, 0x26, 7, E}},
+	Movtab{AMOVL, Ytr6, Ynone, Yml, 3, [4]uint8{0x0f, 0x24, 6, 0}},
+	Movtab{AMOVL, Ytr7, Ynone, Yml, 3, [4]uint8{0x0f, 0x24, 7, 0}},
+	Movtab{AMOVL, Yml, Ynone, Ytr6, 4, [4]uint8{0x0f, 0x26, 6, E}},
+	Movtab{AMOVL, Yml, Ynone, Ytr7, 4, [4]uint8{0x0f, 0x26, 7, E}},
 
 	/* lgdt, sgdt, lidt, sidt */
-	Movtab{AMOVL, Ym, Ygdtr, 4, [4]uint8{0x0f, 0x01, 2, 0}},
-	Movtab{AMOVL, Ygdtr, Ym, 3, [4]uint8{0x0f, 0x01, 0, 0}},
-	Movtab{AMOVL, Ym, Yidtr, 4, [4]uint8{0x0f, 0x01, 3, 0}},
-	Movtab{AMOVL, Yidtr, Ym, 3, [4]uint8{0x0f, 0x01, 1, 0}},
-	Movtab{AMOVQ, Ym, Ygdtr, 4, [4]uint8{0x0f, 0x01, 2, 0}},
-	Movtab{AMOVQ, Ygdtr, Ym, 3, [4]uint8{0x0f, 0x01, 0, 0}},
-	Movtab{AMOVQ, Ym, Yidtr, 4, [4]uint8{0x0f, 0x01, 3, 0}},
-	Movtab{AMOVQ, Yidtr, Ym, 3, [4]uint8{0x0f, 0x01, 1, 0}},
+	Movtab{AMOVL, Ym, Ynone, Ygdtr, 4, [4]uint8{0x0f, 0x01, 2, 0}},
+	Movtab{AMOVL, Ygdtr, Ynone, Ym, 3, [4]uint8{0x0f, 0x01, 0, 0}},
+	Movtab{AMOVL, Ym, Ynone, Yidtr, 4, [4]uint8{0x0f, 0x01, 3, 0}},
+	Movtab{AMOVL, Yidtr, Ynone, Ym, 3, [4]uint8{0x0f, 0x01, 1, 0}},
+	Movtab{AMOVQ, Ym, Ynone, Ygdtr, 4, [4]uint8{0x0f, 0x01, 2, 0}},
+	Movtab{AMOVQ, Ygdtr, Ynone, Ym, 3, [4]uint8{0x0f, 0x01, 0, 0}},
+	Movtab{AMOVQ, Ym, Ynone, Yidtr, 4, [4]uint8{0x0f, 0x01, 3, 0}},
+	Movtab{AMOVQ, Yidtr, Ynone, Ym, 3, [4]uint8{0x0f, 0x01, 1, 0}},
 
 	/* lldt, sldt */
-	Movtab{AMOVW, Yml, Yldtr, 4, [4]uint8{0x0f, 0x00, 2, 0}},
-	Movtab{AMOVW, Yldtr, Yml, 3, [4]uint8{0x0f, 0x00, 0, 0}},
+	Movtab{AMOVW, Yml, Ynone, Yldtr, 4, [4]uint8{0x0f, 0x00, 2, 0}},
+	Movtab{AMOVW, Yldtr, Ynone, Yml, 3, [4]uint8{0x0f, 0x00, 0, 0}},
 
 	/* lmsw, smsw */
-	Movtab{AMOVW, Yml, Ymsw, 4, [4]uint8{0x0f, 0x01, 6, 0}},
-	Movtab{AMOVW, Ymsw, Yml, 3, [4]uint8{0x0f, 0x01, 4, 0}},
+	Movtab{AMOVW, Yml, Ynone, Ymsw, 4, [4]uint8{0x0f, 0x01, 6, 0}},
+	Movtab{AMOVW, Ymsw, Ynone, Yml, 3, [4]uint8{0x0f, 0x01, 4, 0}},
 
 	/* ltr, str */
-	Movtab{AMOVW, Yml, Ytask, 4, [4]uint8{0x0f, 0x00, 3, 0}},
-	Movtab{AMOVW, Ytask, Yml, 3, [4]uint8{0x0f, 0x00, 1, 0}},
+	Movtab{AMOVW, Yml, Ynone, Ytask, 4, [4]uint8{0x0f, 0x00, 3, 0}},
+	Movtab{AMOVW, Ytask, Ynone, Yml, 3, [4]uint8{0x0f, 0x00, 1, 0}},
 
 	/* load full pointer - unsupported
-	Movtab{AMOVL, Yml, Ycol, 5, [4]uint8{0, 0, 0, 0}},
-	Movtab{AMOVW, Yml, Ycol, 5, [4]uint8{Pe, 0, 0, 0}},
+	Movtab{AMOVL, Yml, Ynone, Ycol, 5, [4]uint8{0, 0, 0, 0}},
+	Movtab{AMOVW, Yml, Ynone, Ycol, 5, [4]uint8{Pe, 0, 0, 0}},
 	*/
 
 	/* double shift */
-	Movtab{ASHLL, Yreg2, Yml, 6, [4]uint8{0xa4, 0xa5, 0, 0}},
-	Movtab{ASHRL, Yreg2, Yml, 6, [4]uint8{0xac, 0xad, 0, 0}},
-	Movtab{ASHLQ, Yreg2, Yml, 6, [4]uint8{Pw, 0xa4, 0xa5, 0}},
-	Movtab{ASHRQ, Yreg2, Yml, 6, [4]uint8{Pw, 0xac, 0xad, 0}},
-	Movtab{ASHLW, Yreg2, Yml, 6, [4]uint8{Pe, 0xa4, 0xa5, 0}},
-	Movtab{ASHRW, Yreg2, Yml, 6, [4]uint8{Pe, 0xac, 0xad, 0}},
+	Movtab{ASHLL, Yreg2, Ynone, Yml, 6, [4]uint8{0xa4, 0xa5, 0, 0}},
+	Movtab{ASHRL, Yreg2, Ynone, Yml, 6, [4]uint8{0xac, 0xad, 0, 0}},
+	Movtab{ASHLQ, Yreg2, Ynone, Yml, 6, [4]uint8{Pw, 0xa4, 0xa5, 0}},
+	Movtab{ASHRQ, Yreg2, Ynone, Yml, 6, [4]uint8{Pw, 0xac, 0xad, 0}},
+	Movtab{ASHLW, Yreg2, Ynone, Yml, 6, [4]uint8{Pe, 0xa4, 0xa5, 0}},
+	Movtab{ASHRW, Yreg2, Ynone, Yml, 6, [4]uint8{Pe, 0xac, 0xad, 0}},
 
 	/* load TLS base */
-	Movtab{AMOVQ, Ytls, Yrl, 7, [4]uint8{0, 0, 0, 0}},
-	Movtab{0, 0, 0, 0, [4]uint8{}},
+	Movtab{AMOVQ, Ytls, Ynone, Yrl, 7, [4]uint8{0, 0, 0, 0}},
+	Movtab{0, 0, 0, 0, 0, [4]uint8{}},
 }
 
 func isax(a *obj.Addr) bool {
@@ -3412,188 +3414,186 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 	var t []byte
 	for mo := ymovtab; mo[0].as != 0; mo = mo[1:] {
 		if p.As == mo[0].as {
-			if ycover[ft+int(mo[0].ft)] != 0 {
-				if ycover[tt+int(mo[0].tt)] != 0 {
-					t = mo[0].op[:]
-					switch mo[0].code {
+			if ycover[ft+int(mo[0].ft)] != 0 && ycover[tt+int(mo[0].tt)] != 0 {
+				t = mo[0].op[:]
+				switch mo[0].code {
+				default:
+					ctxt.Diag("asmins: unknown mov %d %v", mo[0].code, p)
+
+				case 0: /* lit */
+					for z = 0; t[z] != E; z++ {
+						ctxt.Andptr[0] = t[z]
+						ctxt.Andptr = ctxt.Andptr[1:]
+					}
+
+				case 1: /* r,m */
+					ctxt.Andptr[0] = t[0]
+					ctxt.Andptr = ctxt.Andptr[1:]
+
+					asmando(ctxt, p, &p.To, int(t[1]))
+
+				case 2: /* m,r */
+					ctxt.Andptr[0] = t[0]
+					ctxt.Andptr = ctxt.Andptr[1:]
+
+					asmando(ctxt, p, &p.From, int(t[1]))
+
+				case 3: /* r,m - 2op */
+					ctxt.Andptr[0] = t[0]
+					ctxt.Andptr = ctxt.Andptr[1:]
+
+					ctxt.Andptr[0] = t[1]
+					ctxt.Andptr = ctxt.Andptr[1:]
+					asmando(ctxt, p, &p.To, int(t[2]))
+					ctxt.Rexflag |= regrex[p.From.Reg] & (Rxr | 0x40)
+
+				case 4: /* m,r - 2op */
+					ctxt.Andptr[0] = t[0]
+					ctxt.Andptr = ctxt.Andptr[1:]
+
+					ctxt.Andptr[0] = t[1]
+					ctxt.Andptr = ctxt.Andptr[1:]
+					asmando(ctxt, p, &p.From, int(t[2]))
+					ctxt.Rexflag |= regrex[p.To.Reg] & (Rxr | 0x40)
+
+				case 5: /* load full pointer, trash heap */
+					if t[0] != 0 {
+						ctxt.Andptr[0] = t[0]
+						ctxt.Andptr = ctxt.Andptr[1:]
+					}
+					switch p.To.Index {
 					default:
-						ctxt.Diag("asmins: unknown mov %d %v", mo[0].code, p)
+						goto bad
 
-					case 0: /* lit */
-						for z = 0; t[z] != E; z++ {
-							ctxt.Andptr[0] = t[z]
-							ctxt.Andptr = ctxt.Andptr[1:]
+					case REG_DS:
+						ctxt.Andptr[0] = 0xc5
+						ctxt.Andptr = ctxt.Andptr[1:]
+
+					case REG_SS:
+						ctxt.Andptr[0] = 0x0f
+						ctxt.Andptr = ctxt.Andptr[1:]
+						ctxt.Andptr[0] = 0xb2
+						ctxt.Andptr = ctxt.Andptr[1:]
+
+					case REG_ES:
+						ctxt.Andptr[0] = 0xc4
+						ctxt.Andptr = ctxt.Andptr[1:]
+
+					case REG_FS:
+						ctxt.Andptr[0] = 0x0f
+						ctxt.Andptr = ctxt.Andptr[1:]
+						ctxt.Andptr[0] = 0xb4
+						ctxt.Andptr = ctxt.Andptr[1:]
+
+					case REG_GS:
+						ctxt.Andptr[0] = 0x0f
+						ctxt.Andptr = ctxt.Andptr[1:]
+						ctxt.Andptr[0] = 0xb5
+						ctxt.Andptr = ctxt.Andptr[1:]
+					}
+
+					asmand(ctxt, p, &p.From, &p.To)
+
+				case 6: /* double shift */
+					if t[0] == Pw {
+						if p.Mode != 64 {
+							ctxt.Diag("asmins: illegal 64: %v", p)
 						}
+						ctxt.Rexflag |= Pw
+						t = t[1:]
+					} else if t[0] == Pe {
+						ctxt.Andptr[0] = Pe
+						ctxt.Andptr = ctxt.Andptr[1:]
+						t = t[1:]
+					}
 
-					case 1: /* r,m */
+					switch p.From.Type {
+					default:
+						goto bad
+
+					case obj.TYPE_CONST:
+						ctxt.Andptr[0] = 0x0f
+						ctxt.Andptr = ctxt.Andptr[1:]
 						ctxt.Andptr[0] = t[0]
 						ctxt.Andptr = ctxt.Andptr[1:]
-
-						asmando(ctxt, p, &p.To, int(t[1]))
-
-					case 2: /* m,r */
-						ctxt.Andptr[0] = t[0]
+						asmandsz(ctxt, p, &p.To, reg[p.From3.Reg], regrex[p.From3.Reg], 0)
+						ctxt.Andptr[0] = byte(p.From.Offset)
 						ctxt.Andptr = ctxt.Andptr[1:]
 
-						asmando(ctxt, p, &p.From, int(t[1]))
-
-					case 3: /* r,m - 2op */
-						ctxt.Andptr[0] = t[0]
-						ctxt.Andptr = ctxt.Andptr[1:]
-
-						ctxt.Andptr[0] = t[1]
-						ctxt.Andptr = ctxt.Andptr[1:]
-						asmando(ctxt, p, &p.To, int(t[2]))
-						ctxt.Rexflag |= regrex[p.From.Reg] & (Rxr | 0x40)
-
-					case 4: /* m,r - 2op */
-						ctxt.Andptr[0] = t[0]
-						ctxt.Andptr = ctxt.Andptr[1:]
-
-						ctxt.Andptr[0] = t[1]
-						ctxt.Andptr = ctxt.Andptr[1:]
-						asmando(ctxt, p, &p.From, int(t[2]))
-						ctxt.Rexflag |= regrex[p.To.Reg] & (Rxr | 0x40)
-
-					case 5: /* load full pointer, trash heap */
-						if t[0] != 0 {
-							ctxt.Andptr[0] = t[0]
-							ctxt.Andptr = ctxt.Andptr[1:]
-						}
-						switch p.To.Index {
+					case obj.TYPE_REG:
+						switch p.From.Reg {
 						default:
 							goto bad
 
-						case REG_DS:
-							ctxt.Andptr[0] = 0xc5
-							ctxt.Andptr = ctxt.Andptr[1:]
-
-						case REG_SS:
+						case REG_CL, REG_CX:
 							ctxt.Andptr[0] = 0x0f
 							ctxt.Andptr = ctxt.Andptr[1:]
-							ctxt.Andptr[0] = 0xb2
-							ctxt.Andptr = ctxt.Andptr[1:]
-
-						case REG_ES:
-							ctxt.Andptr[0] = 0xc4
-							ctxt.Andptr = ctxt.Andptr[1:]
-
-						case REG_FS:
-							ctxt.Andptr[0] = 0x0f
-							ctxt.Andptr = ctxt.Andptr[1:]
-							ctxt.Andptr[0] = 0xb4
-							ctxt.Andptr = ctxt.Andptr[1:]
-
-						case REG_GS:
-							ctxt.Andptr[0] = 0x0f
-							ctxt.Andptr = ctxt.Andptr[1:]
-							ctxt.Andptr[0] = 0xb5
-							ctxt.Andptr = ctxt.Andptr[1:]
-						}
-
-						asmand(ctxt, p, &p.From, &p.To)
-
-					case 6: /* double shift */
-						if t[0] == Pw {
-							if p.Mode != 64 {
-								ctxt.Diag("asmins: illegal 64: %v", p)
-							}
-							ctxt.Rexflag |= Pw
-							t = t[1:]
-						} else if t[0] == Pe {
-							ctxt.Andptr[0] = Pe
-							ctxt.Andptr = ctxt.Andptr[1:]
-							t = t[1:]
-						}
-
-						switch p.From.Type {
-						default:
-							goto bad
-
-						case obj.TYPE_CONST:
-							ctxt.Andptr[0] = 0x0f
-							ctxt.Andptr = ctxt.Andptr[1:]
-							ctxt.Andptr[0] = t[0]
+							ctxt.Andptr[0] = t[1]
 							ctxt.Andptr = ctxt.Andptr[1:]
 							asmandsz(ctxt, p, &p.To, reg[p.From3.Reg], regrex[p.From3.Reg], 0)
-							ctxt.Andptr[0] = byte(p.From.Offset)
-							ctxt.Andptr = ctxt.Andptr[1:]
-
-						case obj.TYPE_REG:
-							switch p.From.Reg {
-							default:
-								goto bad
-
-							case REG_CL, REG_CX:
-								ctxt.Andptr[0] = 0x0f
-								ctxt.Andptr = ctxt.Andptr[1:]
-								ctxt.Andptr[0] = t[1]
-								ctxt.Andptr = ctxt.Andptr[1:]
-								asmandsz(ctxt, p, &p.To, reg[p.From3.Reg], regrex[p.From3.Reg], 0)
-							}
-						}
-
-					// NOTE: The systems listed here are the ones that use the "TLS initial exec" model,
-					// where you load the TLS base register into a register and then index off that
-					// register to access the actual TLS variables. Systems that allow direct TLS access
-					// are handled in prefixof above and should not be listed here.
-					case 7: /* mov tls, r */
-						switch ctxt.Headtype {
-						default:
-							log.Fatalf("unknown TLS base location for %s", obj.Headstr(ctxt.Headtype))
-
-						case obj.Hplan9:
-							if ctxt.Plan9privates == nil {
-								ctxt.Plan9privates = obj.Linklookup(ctxt, "_privates", 0)
-							}
-							pp.From = obj.Addr{}
-							pp.From.Type = obj.TYPE_MEM
-							pp.From.Name = obj.NAME_EXTERN
-							pp.From.Sym = ctxt.Plan9privates
-							pp.From.Offset = 0
-							pp.From.Index = REG_NONE
-							ctxt.Rexflag |= Pw
-							ctxt.Andptr[0] = 0x8B
-							ctxt.Andptr = ctxt.Andptr[1:]
-							asmand(ctxt, p, &pp.From, &p.To)
-
-							// TLS base is 0(FS).
-						case obj.Hsolaris: // TODO(rsc): Delete Hsolaris from list. Should not use this code. See progedit in obj6.c.
-							pp.From = p.From
-
-							pp.From.Type = obj.TYPE_MEM
-							pp.From.Name = obj.NAME_NONE
-							pp.From.Reg = REG_NONE
-							pp.From.Offset = 0
-							pp.From.Index = REG_NONE
-							pp.From.Scale = 0
-							ctxt.Rexflag |= Pw
-							ctxt.Andptr[0] = 0x64
-							ctxt.Andptr = ctxt.Andptr[1:] // FS
-							ctxt.Andptr[0] = 0x8B
-							ctxt.Andptr = ctxt.Andptr[1:]
-							asmand(ctxt, p, &pp.From, &p.To)
-
-							// Windows TLS base is always 0x28(GS).
-						case obj.Hwindows:
-							pp.From = p.From
-
-							pp.From.Type = obj.TYPE_MEM
-							pp.From.Name = obj.NAME_NONE
-							pp.From.Reg = REG_GS
-							pp.From.Offset = 0x28
-							pp.From.Index = REG_NONE
-							pp.From.Scale = 0
-							ctxt.Rexflag |= Pw
-							ctxt.Andptr[0] = 0x65
-							ctxt.Andptr = ctxt.Andptr[1:] // GS
-							ctxt.Andptr[0] = 0x8B
-							ctxt.Andptr = ctxt.Andptr[1:]
-							asmand(ctxt, p, &pp.From, &p.To)
 						}
 					}
-					return
+
+				// NOTE: The systems listed here are the ones that use the "TLS initial exec" model,
+				// where you load the TLS base register into a register and then index off that
+				// register to access the actual TLS variables. Systems that allow direct TLS access
+				// are handled in prefixof above and should not be listed here.
+				case 7: /* mov tls, r */
+					switch ctxt.Headtype {
+					default:
+						log.Fatalf("unknown TLS base location for %s", obj.Headstr(ctxt.Headtype))
+
+					case obj.Hplan9:
+						if ctxt.Plan9privates == nil {
+							ctxt.Plan9privates = obj.Linklookup(ctxt, "_privates", 0)
+						}
+						pp.From = obj.Addr{}
+						pp.From.Type = obj.TYPE_MEM
+						pp.From.Name = obj.NAME_EXTERN
+						pp.From.Sym = ctxt.Plan9privates
+						pp.From.Offset = 0
+						pp.From.Index = REG_NONE
+						ctxt.Rexflag |= Pw
+						ctxt.Andptr[0] = 0x8B
+						ctxt.Andptr = ctxt.Andptr[1:]
+						asmand(ctxt, p, &pp.From, &p.To)
+
+						// TLS base is 0(FS).
+					case obj.Hsolaris: // TODO(rsc): Delete Hsolaris from list. Should not use this code. See progedit in obj6.c.
+						pp.From = p.From
+
+						pp.From.Type = obj.TYPE_MEM
+						pp.From.Name = obj.NAME_NONE
+						pp.From.Reg = REG_NONE
+						pp.From.Offset = 0
+						pp.From.Index = REG_NONE
+						pp.From.Scale = 0
+						ctxt.Rexflag |= Pw
+						ctxt.Andptr[0] = 0x64
+						ctxt.Andptr = ctxt.Andptr[1:] // FS
+						ctxt.Andptr[0] = 0x8B
+						ctxt.Andptr = ctxt.Andptr[1:]
+						asmand(ctxt, p, &pp.From, &p.To)
+
+						// Windows TLS base is always 0x28(GS).
+					case obj.Hwindows:
+						pp.From = p.From
+
+						pp.From.Type = obj.TYPE_MEM
+						pp.From.Name = obj.NAME_NONE
+						pp.From.Reg = REG_GS
+						pp.From.Offset = 0x28
+						pp.From.Index = REG_NONE
+						pp.From.Scale = 0
+						ctxt.Rexflag |= Pw
+						ctxt.Andptr[0] = 0x65
+						ctxt.Andptr = ctxt.Andptr[1:] // GS
+						ctxt.Andptr[0] = 0x8B
+						ctxt.Andptr = ctxt.Andptr[1:]
+						asmand(ctxt, p, &pp.From, &p.To)
+					}
 				}
+				return
 			}
 		}
 	}
