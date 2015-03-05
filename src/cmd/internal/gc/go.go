@@ -20,16 +20,19 @@ import (
 // or bison will check for its definition and use
 // a potentially smaller value if it is undefined.
 const (
-	NHUNK    = 50000
-	BUFSIZ   = 8192
-	NSYMB    = 500
-	NHASH    = 1024
-	STRINGSZ = 200
-	MAXALIGN = 7
-	UINF     = 100
-	PRIME1   = 3
-	AUNK     = 100
-	AMEM     = 0 + iota - 9
+	NHUNK           = 50000
+	BUFSIZ          = 8192
+	NSYMB           = 500
+	NHASH           = 1024
+	MAXALIGN        = 7
+	UINF            = 100
+	PRIME1          = 3
+	BADWIDTH        = -1000000000
+	MaxStackVarSize = 10 * 1024 * 1024
+)
+
+const (
+	AMEM = iota
 	AMEM0
 	AMEM8
 	AMEM16
@@ -51,8 +54,7 @@ const (
 	AFLOAT64
 	ACPLX64
 	ACPLX128
-	BADWIDTH        = -1000000000
-	MaxStackVarSize = 10 * 1024 * 1024
+	AUNK = 100
 )
 
 const (

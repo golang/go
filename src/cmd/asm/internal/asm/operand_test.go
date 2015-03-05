@@ -59,18 +59,6 @@ func TestARMOperandParser(t *testing.T) {
 func TestPPC64OperandParser(t *testing.T) {
 	parser := newParser("ppc64")
 	testOperandParser(t, parser, ppc64OperandTests)
-	// Special encoding for (R1+R2).
-	parser.start(lex.Tokenize("(R1+R2)"))
-	addr := obj.Addr{}
-	parser.operand(&addr)
-	want := obj.Addr{
-		Type:  obj.TYPE_MEM,
-		Reg:   parser.arch.Register["R1"],
-		Scale: parser.arch.Register["R2"], // TODO: clean up how this is encoded in parse.go
-	}
-	if want != addr {
-		t.Errorf("(R1+R2): expected %+v got %+v", want, addr)
-	}
 }
 
 type operandTest struct {
@@ -321,6 +309,8 @@ var ppc64OperandTests = []operandTest{
 	{"(R3)", "(R3)"},
 	{"(R4)", "(R4)"},
 	{"(R5)", "(R5)"},
+	{"(R5)(R6*1)", "(R5)(R6*1)"},
+	{"(R5+R6)", "(R5)(R6*1)"}, // Old syntax.
 	{"-1(R4)", "-1(R4)"},
 	{"-1(R5)", "-1(R5)"},
 	{"6(PC)", "6(PC)"},

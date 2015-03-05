@@ -604,7 +604,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 			}
 			return C_LAUTO
 
-		case obj.TYPE_NONE:
+		case obj.NAME_NONE:
 			ctxt.Instoffset = a.Offset
 			if ctxt.Instoffset == 0 {
 				return C_ZOREG
@@ -1579,11 +1579,11 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			r = int(o.param)
 		}
 		v := regoff(ctxt, &p.To)
-		if p.To.Type == obj.TYPE_MEM && p.Reg != 0 {
+		if p.To.Type == obj.TYPE_MEM && p.To.Index != 0 {
 			if v != 0 {
 				ctxt.Diag("illegal indexed instruction\n%v", p)
 			}
-			o1 = AOP_RRR(uint32(opstorex(ctxt, int(p.As))), uint32(p.From.Reg), uint32(p.Reg), uint32(r))
+			o1 = AOP_RRR(uint32(opstorex(ctxt, int(p.As))), uint32(p.From.Reg), uint32(p.To.Index), uint32(r))
 		} else {
 			if int32(int16(v)) != v {
 				log.Fatalf("mishandled instruction %v", p)
@@ -1598,11 +1598,11 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			r = int(o.param)
 		}
 		v := regoff(ctxt, &p.From)
-		if p.From.Type == obj.TYPE_MEM && p.Reg != 0 {
+		if p.From.Type == obj.TYPE_MEM && p.From.Index != 0 {
 			if v != 0 {
 				ctxt.Diag("illegal indexed instruction\n%v", p)
 			}
-			o1 = AOP_RRR(uint32(oploadx(ctxt, int(p.As))), uint32(p.To.Reg), uint32(p.Reg), uint32(r))
+			o1 = AOP_RRR(uint32(oploadx(ctxt, int(p.As))), uint32(p.To.Reg), uint32(p.From.Index), uint32(r))
 		} else {
 			if int32(int16(v)) != v {
 				log.Fatalf("mishandled instruction %v", p)
@@ -1617,11 +1617,11 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			r = int(o.param)
 		}
 		v := regoff(ctxt, &p.From)
-		if p.From.Type == obj.TYPE_MEM && p.Reg != 0 {
+		if p.From.Type == obj.TYPE_MEM && p.From.Index != 0 {
 			if v != 0 {
 				ctxt.Diag("illegal indexed instruction\n%v", p)
 			}
-			o1 = AOP_RRR(uint32(oploadx(ctxt, int(p.As))), uint32(p.To.Reg), uint32(p.Reg), uint32(r))
+			o1 = AOP_RRR(uint32(oploadx(ctxt, int(p.As))), uint32(p.To.Reg), uint32(p.From.Index), uint32(r))
 		} else {
 			o1 = AOP_IRR(uint32(opload(ctxt, int(p.As))), uint32(p.To.Reg), uint32(r), uint32(v))
 		}
@@ -1764,16 +1764,12 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		} else {
 			v = 20 /* unconditional */
 		}
-		r := int(p.Reg)
-		if r == 0 {
-			r = 0
-		}
 		o1 = AOP_RRR(OP_MTSPR, uint32(p.To.Reg), 0, 0) | (REG_LR&0x1f)<<16 | ((REG_LR>>5)&0x1f)<<11
 		o2 = OPVCC(19, 16, 0, 0)
 		if p.As == ABL || p.As == ABCL {
 			o2 |= 1
 		}
-		o2 = OP_BCR(o2, uint32(v), uint32(r))
+		o2 = OP_BCR(o2, uint32(v), uint32(p.To.Index))
 
 	case 18: /* br/bl (lr/ctr); bc/bcl bo,bi,(lr/ctr) */
 		var v int32
@@ -2085,28 +2081,13 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o1 = AOP_RRR(uint32(opirr(ctxt, int(p.As))), uint32(p.To.Reg), uint32(p.From.Reg), 0) | (uint32(regoff(ctxt, &p.From3))&0x7F)<<11
 
 	case 43: /* unary indexed source: dcbf (b); dcbf (a+b) */
-		r := int(p.Reg)
-
-		if r == 0 {
-			r = 0
-		}
-		o1 = AOP_RRR(uint32(oprrr(ctxt, int(p.As))), 0, uint32(r), uint32(p.From.Reg))
+		o1 = AOP_RRR(uint32(oprrr(ctxt, int(p.As))), 0, uint32(p.From.Index), uint32(p.From.Reg))
 
 	case 44: /* indexed store */
-		r := int(p.Reg)
-
-		if r == 0 {
-			r = 0
-		}
-		o1 = AOP_RRR(uint32(opstorex(ctxt, int(p.As))), uint32(p.From.Reg), uint32(r), uint32(p.To.Reg))
+		o1 = AOP_RRR(uint32(opstorex(ctxt, int(p.As))), uint32(p.From.Reg), uint32(p.To.Index), uint32(p.To.Reg))
 
 	case 45: /* indexed load */
-		r := int(p.Reg)
-
-		if r == 0 {
-			r = 0
-		}
-		o1 = AOP_RRR(uint32(oploadx(ctxt, int(p.As))), uint32(p.To.Reg), uint32(r), uint32(p.From.Reg))
+		o1 = AOP_RRR(uint32(oploadx(ctxt, int(p.As))), uint32(p.To.Reg), uint32(p.From.Index), uint32(p.From.Reg))
 
 	case 46: /* plain op */
 		o1 = uint32(oprrr(ctxt, int(p.As)))

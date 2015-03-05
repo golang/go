@@ -460,21 +460,6 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 		}
 		prog.From = a[0]
 		prog.To = a[1]
-		switch p.arch.Thechar {
-		case '9':
-			var reg0, reg1 int16
-			// Handle (R1+R2)
-			if a[0].Scale != 0 {
-				reg0 = int16(a[0].Scale)
-				prog.Reg = reg0
-			} else if a[1].Scale != 0 {
-				reg1 = int16(a[1].Scale)
-				prog.Reg = reg1
-			}
-			if reg0 != 0 && reg1 != 0 {
-				p.errorf("register pair cannot be both left and right operands")
-			}
-		}
 	case 3:
 		switch p.arch.Thechar {
 		case '5':

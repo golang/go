@@ -32,9 +32,6 @@ package arm
 
 import "cmd/internal/obj"
 
-// TODO(ality): remove this workaround.
-//   It's here because Pconv in liblink/list?.c references %L.
-
 const (
 	NSNAME = 8
 	NSYM   = 50
