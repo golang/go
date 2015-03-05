@@ -619,7 +619,7 @@ func asmb() {
 			fmt.Fprintf(&ld.Bso, "%5.2f dwarf\n", obj.Cputime())
 		}
 
-		if ld.Debug['w'] == 0 {
+		if ld.Debug['w'] == 0 { // TODO(minux): enable DWARF Support
 			dwarfoff := uint32(ld.Rnd(int64(uint64(ld.HEADR)+ld.Segtext.Length), int64(ld.INITRND)) + ld.Rnd(int64(ld.Segdata.Filelen), int64(ld.INITRND)))
 			ld.Cseek(int64(dwarfoff))
 

@@ -37,8 +37,8 @@ func expandpkg(t0 string, pkg string) string {
  *	package import data
  */
 type Import struct {
-	hash   *Import
-	prefix string
+	hash   *Import // next in hash table
+	prefix string  // "type", "var", "func", "const"
 	name   string
 	def    string
 	file   string

@@ -41,8 +41,8 @@ const (
 
 type LdMachoObj struct {
 	f          *Biobuf
-	base       int64
-	length     int64
+	base       int64 // off in f where Mach-O begins
+	length     int64 // length of Mach-O
 	is64       bool
 	name       string
 	e          binary.ByteOrder

@@ -2,6 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// TODO/NICETOHAVE:
+//   - eliminate DW_CLS_ if not used
+//   - package info in compilation units
+//   - assign global variables and types to their packages
+//   - gdb uses c syntax, meaning clumsy quoting is needed for go identifiers. eg
+//     ptype struct '[]uint8' and qualifiers need to be quoted away
+//   - lexical scoping is lost, so gdb gets confused as to which 'main.i' you mean.
+//   - file:line info for variables
+//   - make strings a typedef so prettyprinters can see the underlying string type
+
 package ld
 
 import (
@@ -173,10 +183,11 @@ type DWAttrForm struct {
 
 // Go-specific type attributes.
 const (
-	DW_AT_go_kind           = 0x2900
-	DW_AT_go_key            = 0x2901
-	DW_AT_go_elem           = 0x2902
-	DW_AT_internal_location = 253
+	DW_AT_go_kind = 0x2900
+	DW_AT_go_key  = 0x2901
+	DW_AT_go_elem = 0x2902
+
+	DW_AT_internal_location = 253 // params and locals; not emitted
 )
 
 // Index into the abbrevs table below.
@@ -201,7 +212,7 @@ const (
 	DW_ABRV_IFACETYPE
 	DW_ABRV_MAPTYPE
 	DW_ABRV_PTRTYPE
-	DW_ABRV_BARE_PTRTYPE
+	DW_ABRV_BARE_PTRTYPE // only for void*, no DW_AT_type attr to please gdb 6.
 	DW_ABRV_SLICETYPE
 	DW_ABRV_STRINGTYPE
 	DW_ABRV_STRUCTTYPE
@@ -632,8 +643,8 @@ func dwarfhashstr(s string) uint32 {
 
 type DWAttr struct {
 	link  *DWAttr
-	atr   uint16
-	cls   uint8
+	atr   uint16 // DW_AT_
+	cls   uint8  // DW_CLS_
 	value int64
 	data  interface{}
 }
@@ -643,9 +654,11 @@ type DWDie struct {
 	link   *DWDie
 	child  *DWDie
 	attr   *DWAttr
-	offs   int64
-	hash   []*DWDie
-	hlink  *DWDie
+	// offset into .debug_info section, i.e relative to
+	// infoo. only valid after call to putdie()
+	offs  int64
+	hash  []*DWDie // optional index of children by name, enabled by mkindex()
+	hlink *DWDie   // bucket chain in parent's index
 }
 
 /*
@@ -1871,7 +1884,7 @@ func writelines() {
 const (
 	CIERESERVE          = 16
 	DATAALIGNMENTFACTOR = -4
-	FAKERETURNCOLUMN    = 16
+	FAKERETURNCOLUMN    = 16 // TODO gdb6 doesn't like > 15?
 )
 
 func putpccfadelta(deltapc int64, cfa int64) {

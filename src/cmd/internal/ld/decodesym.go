@@ -165,7 +165,7 @@ func decodetype_structfieldoffs(s *LSym, i int) int64 {
 	return int64(decode_inuxi(s.P[commonsize()+Thearch.Ptrsize+2*Thearch.Intsize+i*structfieldsize()+4*Thearch.Ptrsize:], Thearch.Intsize))
 }
 
-// InterfaceTYpe.methods.length
+// InterfaceType.methods.length
 func decodetype_ifacemethodcount(s *LSym) int64 {
 	return int64(decode_inuxi(s.P[commonsize()+Thearch.Ptrsize:], Thearch.Intsize))
 }

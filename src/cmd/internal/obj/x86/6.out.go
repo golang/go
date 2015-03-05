@@ -264,6 +264,7 @@ const (
 	AXORB
 	AXORL
 	AXORW
+
 	AFMOVB
 	AFMOVBP
 	AFMOVD
@@ -278,6 +279,7 @@ const (
 	AFMOVWP
 	AFMOVX
 	AFMOVXP
+
 	AFCOMB
 	AFCOMBP
 	AFCOMD
@@ -292,38 +294,46 @@ const (
 	AFUCOM
 	AFUCOMP
 	AFUCOMPP
+
 	AFADDDP
 	AFADDW
 	AFADDL
 	AFADDF
 	AFADDD
+
 	AFMULDP
 	AFMULW
 	AFMULL
 	AFMULF
 	AFMULD
+
 	AFSUBDP
 	AFSUBW
 	AFSUBL
 	AFSUBF
 	AFSUBD
+
 	AFSUBRDP
 	AFSUBRW
 	AFSUBRL
 	AFSUBRF
 	AFSUBRD
+
 	AFDIVDP
 	AFDIVW
 	AFDIVL
 	AFDIVF
 	AFDIVD
+
 	AFDIVRDP
 	AFDIVRW
 	AFDIVRL
 	AFDIVRF
 	AFDIVRD
+
 	AFXCHD
 	AFFREE
+
 	AFLDCW
 	AFLDENV
 	AFRSTOR
@@ -331,6 +341,7 @@ const (
 	AFSTCW
 	AFSTENV
 	AFSTSW
+
 	AF2XM1
 	AFABS
 	AFCHS
@@ -361,6 +372,8 @@ const (
 	AFXTRACT
 	AFYL2X
 	AFYL2XP1
+
+	// extra 32-bit operations
 	ACMPXCHGB
 	ACMPXCHGL
 	ACMPXCHGW
@@ -382,6 +395,8 @@ const (
 	AXADDB
 	AXADDL
 	AXADDW
+
+	// conditional move
 	ACMOVLCC
 	ACMOVLCS
 	ACMOVLEQ
@@ -430,6 +445,8 @@ const (
 	ACMOVWPC
 	ACMOVWPL
 	ACMOVWPS
+
+	// 64-bit
 	AADCQ
 	AADDQ
 	AANDQ
@@ -481,6 +498,8 @@ const (
 	AXADDQ
 	AXCHGQ
 	AXORQ
+
+	// media
 	AADDPD
 	AADDPS
 	AADDSD
@@ -682,6 +701,7 @@ const (
 	AUNPCKLPS
 	AXORPD
 	AXORPS
+
 	APF2IW
 	APF2IL
 	API2FW
@@ -690,25 +710,32 @@ const (
 	ARETFL
 	ARETFQ
 	ASWAPGS
+
 	AMODE
 	ACRC32B
 	ACRC32Q
 	AIMUL3Q
+
 	APREFETCHT0
 	APREFETCHT1
 	APREFETCHT2
 	APREFETCHNTA
+
 	AMOVQL
 	ABSWAPL
 	ABSWAPQ
+
 	AAESENC
 	AAESENCLAST
 	AAESDEC
 	AAESDECLAST
 	AAESIMC
 	AAESKEYGENASSIST
+
 	APSHUFD
 	APCLMULQDQ
+
+	// from 386
 	AJCXZW
 	AFCMOVCC
 	AFCMOVCS
@@ -722,6 +749,7 @@ const (
 	AFCOMIP
 	AFUCOMI
 	AFUCOMIP
+
 	ALAST
 )
 
@@ -743,6 +771,7 @@ const (
 	REG_R13B
 	REG_R14B
 	REG_R15B
+
 	REG_AX = obj.RBaseAMD64 + 16 + iota - 17
 	REG_CX
 	REG_DX
@@ -759,12 +788,16 @@ const (
 	REG_R13
 	REG_R14
 	REG_R15
+
 	REG_AH = obj.RBaseAMD64 + 32 + iota - 33
 	REG_CH
 	REG_DH
 	REG_BH
+
 	REG_F0 = obj.RBaseAMD64 + 36
+
 	REG_M0 = obj.RBaseAMD64 + 44
+
 	REG_X0 = obj.RBaseAMD64 + 52 + iota - 39
 	REG_X1
 	REG_X2
@@ -781,31 +814,37 @@ const (
 	REG_X13
 	REG_X14
 	REG_X15
+
 	REG_CS = obj.RBaseAMD64 + 68 + iota - 55
 	REG_SS
 	REG_DS
 	REG_ES
 	REG_FS
 	REG_GS
-	REG_GDTR
-	REG_IDTR
-	REG_LDTR
-	REG_MSW
-	REG_TASK
-	REG_CR  = obj.RBaseAMD64 + 79
-	REG_DR  = obj.RBaseAMD64 + 95
-	REG_TR  = obj.RBaseAMD64 + 103
+
+	REG_GDTR /* global descriptor table register */
+	REG_IDTR /* interrupt descriptor table register */
+	REG_LDTR /* local descriptor table register */
+	REG_MSW  /* machine status word */
+	REG_TASK /* task register */
+
+	REG_CR = obj.RBaseAMD64 + 79
+	REG_DR = obj.RBaseAMD64 + 95
+	REG_TR = obj.RBaseAMD64 + 103
+
 	REG_TLS = obj.RBaseAMD64 + 111 + iota - 69
+
 	MAXREG
+
 	REGARG   = -1
 	REGRET   = REG_AX
 	FREGRET  = REG_X0
 	REGSP    = REG_SP
 	REGTMP   = REG_DI
 	REGCTXT  = REG_DX
-	REGEXT   = REG_R15
-	FREGMIN  = REG_X0 + 5
-	FREGEXT  = REG_X0 + 15
+	REGEXT   = REG_R15     /* compiler allocates external registers R15 down */
+	FREGMIN  = REG_X0 + 5  /* first register variable */
+	FREGEXT  = REG_X0 + 15 /* first external register */
 	T_TYPE   = 1 << 0
 	T_INDEX  = 1 << 1
 	T_OFFSET = 1 << 2

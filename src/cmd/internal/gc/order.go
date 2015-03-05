@@ -41,9 +41,9 @@ import (
 
 // Order holds state during the ordering process.
 type Order struct {
-	out  *NodeList
-	temp *NodeList
-	free *NodeList
+	out  *NodeList // list of generated statements
+	temp *NodeList // head of stack of temporary variables
+	free *NodeList // free list of NodeList* structs (for use in temp)
 }
 
 // Order rewrites fn->nbody to apply the ordering constraints

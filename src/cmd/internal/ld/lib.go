@@ -129,15 +129,15 @@ var Symsize int32
 
 const (
 	MAXIO   = 8192
-	MINFUNC = 16
+	MINFUNC = 16 // minimum size for a function
 )
 
 type Segment struct {
-	Rwx     uint8
-	Vaddr   uint64
-	Length  uint64
-	Fileoff uint64
-	Filelen uint64
+	Rwx     uint8  // permission as usual unix bits (5 = r-x etc)
+	Vaddr   uint64 // virtual address
+	Length  uint64 // length in memory
+	Fileoff uint64 // file offset
+	Filelen uint64 // length on disk
 	Sect    *Section
 }
 
@@ -253,6 +253,8 @@ var Bso Biobuf
 var coutbuf Biobuf
 
 const (
+	// Whether to assume that the external linker is "gold"
+	// (http://sourceware.org/ml/binutils/2008-03/msg00162.html).
 	AssumeGoldLinker = 0
 )
 
@@ -1137,7 +1139,7 @@ var le = Endian{Le16, Le32, Le64}
 type Chain struct {
 	sym   *LSym
 	up    *Chain
-	limit int
+	limit int // limit on entry to sym
 }
 
 var morestack *LSym

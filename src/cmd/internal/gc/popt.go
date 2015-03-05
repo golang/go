@@ -79,16 +79,25 @@ const (
 )
 
 type Reg struct {
-	set       Bits
-	use1      Bits
-	use2      Bits
+	set  Bits // regopt variables written by this instruction.
+	use1 Bits // regopt variables read by prog->from.
+	use2 Bits // regopt variables read by prog->to.
+
+	// refahead/refbehind are the regopt variables whose current
+	// value may be used in the following/preceding instructions
+	// up to a CALL (or the value is clobbered).
 	refbehind Bits
 	refahead  Bits
+
+	// calahead/calbehind are similar, but for variables in
+	// instructions that are reachable after hitting at least one
+	// CALL.
 	calbehind Bits
 	calahead  Bits
-	regdiff   Bits
-	act       Bits
-	regu      uint64
+
+	regdiff Bits
+	act     Bits
+	regu    uint64 // register used bitmap
 }
 
 type Rgn struct {
@@ -639,14 +648,14 @@ func Uniqs(r *Flow) *Flow {
 
 type TempVar struct {
 	node     *Node
-	def      *Flow
-	use      *Flow
-	freelink *TempVar
-	merge    *TempVar
-	start    int64
-	end      int64
-	addr     uint8
-	removed  uint8
+	def      *Flow    // definition of temp var
+	use      *Flow    // use list, chained through Flow.data
+	freelink *TempVar // next free temp in Type.opt list
+	merge    *TempVar // merge var with this one
+	start    int64    // smallest Prog.pc in live range
+	end      int64    // largest Prog.pc in live range
+	addr     uint8    // address taken - no accurate end
+	removed  uint8    // removed from program
 }
 
 type startcmp []*TempVar

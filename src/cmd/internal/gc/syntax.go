@@ -11,31 +11,34 @@ package gc
 // node with Op=ONAME for a given instance of a variable x.
 // The same is true for Op=OTYPE and Op=OLITERAL.
 type Node struct {
-	Left           *Node
-	Right          *Node
-	Ntest          *Node
-	Nincr          *Node
-	Ninit          *NodeList
-	Nbody          *NodeList
-	Nelse          *NodeList
-	List           *NodeList
-	Rlist          *NodeList
+	// Tree structure.
+	// Generic recursive walks should follow these fields.
+	Left  *Node
+	Right *Node
+	Ntest *Node
+	Nincr *Node
+	Ninit *NodeList
+	Nbody *NodeList
+	Nelse *NodeList
+	List  *NodeList
+	Rlist *NodeList
+
 	Op             uint8
 	Nointerface    bool
-	Ullman         uint8
-	Addable        uint8
-	Trecur         uint8
-	Etype          uint8
-	Bounded        bool
-	Class          uint8
-	Method         uint8
-	Embedded       uint8
-	Colas          uint8
-	Diag           uint8
-	Noescape       bool
-	Nosplit        bool
-	Builtin        uint8
-	Nowritebarrier bool
+	Ullman         uint8 // sethi/ullman number
+	Addable        uint8 // type of addressability - 0 is not addressable
+	Trecur         uint8 // to detect loops
+	Etype          uint8 // op for OASOP, etype for OTYPE, exclam for export
+	Bounded        bool  // bounds check unnecessary
+	Class          uint8 // PPARAM, PAUTO, PEXTERN, etc
+	Method         uint8 // OCALLMETH name
+	Embedded       uint8 // ODCLFIELD embedded type
+	Colas          uint8 // OAS resulting from :=
+	Diag           uint8 // already printed error about this
+	Noescape       bool  // func arguments do not escape
+	Nosplit        bool  // func should not execute on separate stack
+	Builtin        uint8 // built-in name, like len or close
+	Nowritebarrier bool  // emit compiler error instead of write barrier
 	Walkdef        uint8
 	Typecheck      uint8
 	Local          uint8
@@ -45,219 +48,255 @@ type Node struct {
 	Isddd          uint8
 	Readonly       uint8
 	Implicit       uint8
-	Addrtaken      uint8
-	Assigned       uint8
-	Captured       uint8
-	Byval          uint8
-	Dupok          uint8
-	Wrapper        uint8
-	Reslice        uint8
-	Likely         int8
-	Hasbreak       uint8
-	Needzero       bool
-	Needctxt       bool
-	Esc            uint
+	Addrtaken      uint8 // address taken, even if not moved to heap
+	Assigned       uint8 // is the variable ever assigned to
+	Captured       uint8 // is the variable captured by a closure
+	Byval          uint8 // is the variable captured by value or by reference
+	Dupok          uint8 // duplicate definitions ok (for func)
+	Wrapper        uint8 // is method wrapper (for func)
+	Reslice        uint8 // this is a reslice x = x[0:y] or x = append(x, ...)
+	Likely         int8  // likeliness of if statement
+	Hasbreak       uint8 // has break statement
+	Needzero       bool  // if it contains pointers, needs to be zeroed on function entry
+	Needctxt       bool  // function uses context register (has closure variables)
+	Esc            uint  // EscXXX
 	Funcdepth      int
-	Type           *Type
-	Orig           *Node
-	Nname          *Node
-	Shortname      *Node
-	Enter          *NodeList
-	Exit           *NodeList
-	Cvars          *NodeList
-	Dcl            *NodeList
-	Inl            *NodeList
-	Inldcl         *NodeList
-	Closgen        int
-	Outerfunc      *Node
-	Val            Val
-	Ntype          *Node
-	Defn           *Node
-	Pack           *Node
-	Curfn          *Node
-	Paramfld       *Type
-	Decldepth      int
-	Heapaddr       *Node
-	Outerexpr      *Node
-	Stackparam     *Node
-	Alloc          *Node
-	Outer          *Node
-	Closure        *Node
-	Top            int
-	Inlvar         *Node
-	Pkg            *Pkg
-	Initplan       *InitPlan
-	Escflowsrc     *NodeList
-	Escretval      *NodeList
-	Escloopdepth   int
-	Sym            *Sym
-	InlCost        int32
-	Vargen         int32
-	Lineno         int32
-	Endlineno      int32
-	Xoffset        int64
-	Stkdelta       int64
-	Ostk           int32
-	Iota           int32
-	Walkgen        uint32
-	Esclevel       int32
-	Opt            interface{}
+
+	// most nodes
+	Type *Type
+	Orig *Node // original form, for printing, and tracking copies of ONAMEs
+
+	// func
+	Nname     *Node
+	Shortname *Node
+	Enter     *NodeList
+	Exit      *NodeList
+	Cvars     *NodeList // closure params
+	Dcl       *NodeList // autodcl for this func/closure
+	Inl       *NodeList // copy of the body for use in inlining
+	Inldcl    *NodeList // copy of dcl for use in inlining
+	Closgen   int
+	Outerfunc *Node
+
+	// OLITERAL/OREGISTER
+	Val Val
+
+	// ONAME
+	Ntype     *Node
+	Defn      *Node // ONAME: initializing assignment; OLABEL: labeled statement
+	Pack      *Node // real package for import . names
+	Curfn     *Node // function for local variables
+	Paramfld  *Type // TFIELD for this PPARAM; also for ODOT, curfn
+	Decldepth int   // declaration loop depth, increased for every loop or label
+
+	// ONAME func param with PHEAP
+	Heapaddr   *Node // temp holding heap address of param
+	Outerexpr  *Node // expression copied into closure for variable
+	Stackparam *Node // OPARAM node referring to stack copy of param
+	Alloc      *Node // allocation call
+
+	// ONAME closure param with PPARAMREF
+	Outer   *Node // outer PPARAMREF in nested closure
+	Closure *Node // ONAME/PHEAP <-> ONAME/PPARAMREF
+	Top     int   // top context (Ecall, Eproc, etc)
+
+	// ONAME substitute while inlining
+	Inlvar *Node
+
+	// OPACK
+	Pkg *Pkg
+
+	// OARRAYLIT, OMAPLIT, OSTRUCTLIT.
+	Initplan *InitPlan
+
+	// Escape analysis.
+	Escflowsrc   *NodeList // flow(this, src)
+	Escretval    *NodeList // on OCALLxxx, list of dummy return values
+	Escloopdepth int       // -1: global, 0: return variables, 1:function top level, increased inside function for every loop or label to mark scopes
+
+	Sym       *Sym  // various
+	InlCost   int32 // unique name for OTYPE/ONAME
+	Vargen    int32
+	Lineno    int32
+	Endlineno int32
+	Xoffset   int64
+	Stkdelta  int64 // offset added by stack frame compaction phase.
+	Ostk      int32
+	Iota      int32
+	Walkgen   uint32
+	Esclevel  int32
+	Opt       interface{} // for optimization passes
 }
 
 // Node ops.
 const (
 	OXXX = iota
-	ONAME
-	ONONAME
-	OTYPE
-	OPACK
-	OLITERAL
-	OADD
-	OSUB
-	OOR
-	OXOR
-	OADDSTR
-	OADDR
-	OANDAND
-	OAPPEND
-	OARRAYBYTESTR
-	OARRAYBYTESTRTMP
-	OARRAYRUNESTR
-	OSTRARRAYBYTE
-	OSTRARRAYBYTETMP
-	OSTRARRAYRUNE
-	OAS
-	OAS2
-	OAS2FUNC
-	OAS2RECV
-	OAS2MAPR
-	OAS2DOTTYPE
-	OASOP
-	OCALL
-	OCALLFUNC
-	OCALLMETH
-	OCALLINTER
-	OCALLPART
-	OCAP
-	OCLOSE
-	OCLOSURE
-	OCMPIFACE
-	OCMPSTR
-	OCOMPLIT
-	OMAPLIT
-	OSTRUCTLIT
-	OARRAYLIT
-	OPTRLIT
-	OCONV
-	OCONVIFACE
-	OCONVNOP
-	OCOPY
-	ODCL
-	ODCLFUNC
-	ODCLFIELD
-	ODCLCONST
-	ODCLTYPE
-	ODELETE
-	ODOT
-	ODOTPTR
-	ODOTMETH
-	ODOTINTER
-	OXDOT
-	ODOTTYPE
-	ODOTTYPE2
-	OEQ
-	ONE
-	OLT
-	OLE
-	OGE
-	OGT
-	OIND
-	OINDEX
-	OINDEXMAP
-	OKEY
-	OPARAM
-	OLEN
-	OMAKE
-	OMAKECHAN
-	OMAKEMAP
-	OMAKESLICE
-	OMUL
-	ODIV
-	OMOD
-	OLSH
-	ORSH
-	OAND
-	OANDNOT
-	ONEW
-	ONOT
-	OCOM
-	OPLUS
-	OMINUS
-	OOROR
-	OPANIC
-	OPRINT
-	OPRINTN
-	OPAREN
-	OSEND
-	OSLICE
-	OSLICEARR
-	OSLICESTR
-	OSLICE3
-	OSLICE3ARR
-	ORECOVER
-	ORECV
-	ORUNESTR
-	OSELRECV
-	OSELRECV2
-	OIOTA
-	OREAL
-	OIMAG
-	OCOMPLEX
-	OBLOCK
-	OBREAK
-	OCASE
-	OXCASE
-	OCONTINUE
-	ODEFER
-	OEMPTY
-	OFALL
-	OXFALL
-	OFOR
-	OGOTO
-	OIF
-	OLABEL
-	OPROC
-	ORANGE
-	ORETURN
-	OSELECT
-	OSWITCH
-	OTYPESW
-	OTCHAN
-	OTMAP
-	OTSTRUCT
-	OTINTER
-	OTFUNC
-	OTARRAY
-	ODDD
-	ODDDARG
-	OINLCALL
-	OEFACE
-	OITAB
-	OSPTR
-	OCLOSUREVAR
-	OCFUNC
-	OCHECKNIL
-	OVARKILL
-	OREGISTER
-	OINDREG
-	OCMP
-	ODEC
-	OINC
-	OEXTEND
-	OHMUL
-	OLROT
-	ORROTC
-	ORETJMP
+
+	// names
+	ONAME    // var, const or func name
+	ONONAME  // unnamed arg or return value: f(int, string) (int, error) { etc }
+	OTYPE    // type name
+	OPACK    // import
+	OLITERAL // literal
+
+	// expressions
+	OADD             // x + y
+	OSUB             // x - y
+	OOR              // x | y
+	OXOR             // x ^ y
+	OADDSTR          // s + "foo"
+	OADDR            // &x
+	OANDAND          // b0 && b1
+	OAPPEND          // append
+	OARRAYBYTESTR    // string(bytes)
+	OARRAYBYTESTRTMP // string(bytes) ephemeral
+	OARRAYRUNESTR    // string(runes)
+	OSTRARRAYBYTE    // []byte(s)
+	OSTRARRAYBYTETMP // []byte(s) ephemeral
+	OSTRARRAYRUNE    // []rune(s)
+	OAS              // x = y or x := y
+	OAS2             // x, y, z = xx, yy, zz
+	OAS2FUNC         // x, y = f()
+	OAS2RECV         // x, ok = <-c
+	OAS2MAPR         // x, ok = m["foo"]
+	OAS2DOTTYPE      // x, ok = I.(int)
+	OASOP            // x += y
+	OCALL            // function call, method call or type conversion, possibly preceded by defer or go.
+	OCALLFUNC        // f()
+	OCALLMETH        // t.Method()
+	OCALLINTER       // err.Error()
+	OCALLPART        // t.Method (without ())
+	OCAP             // cap
+	OCLOSE           // close
+	OCLOSURE         // f = func() { etc }
+	OCMPIFACE        // err1 == err2
+	OCMPSTR          // s1 == s2
+	OCOMPLIT         // composite literal, typechecking may convert to a more specific OXXXLIT.
+	OMAPLIT          // M{"foo":3, "bar":4}
+	OSTRUCTLIT       // T{x:3, y:4}
+	OARRAYLIT        // [2]int{3, 4}
+	OPTRLIT          // &T{x:3, y:4}
+	OCONV            // var i int; var u uint; i = int(u)
+	OCONVIFACE       // I(t)
+	OCONVNOP         // type Int int; var i int; var j Int; i = int(j)
+	OCOPY            // copy
+	ODCL             // var x int
+	ODCLFUNC         // func f() or func (r) f()
+	ODCLFIELD        // struct field, interface field, or func/method argument/return value.
+	ODCLCONST        // const pi = 3.14
+	ODCLTYPE         // type Int int
+	ODELETE          // delete
+	ODOT             // t.x
+	ODOTPTR          // p.x that is implicitly (*p).x
+	ODOTMETH         // t.Method
+	ODOTINTER        // err.Error
+	OXDOT            // t.x, typechecking may convert to a more specific ODOTXXX.
+	ODOTTYPE         // e = err.(MyErr)
+	ODOTTYPE2        // e, ok = err.(MyErr)
+	OEQ              // x == y
+	ONE              // x != y
+	OLT              // x < y
+	OLE              // x <= y
+	OGE              // x >= y
+	OGT              // x > y
+	OIND             // *p
+	OINDEX           // a[i]
+	OINDEXMAP        // m[s]
+	OKEY             // The x:3 in t{x:3, y:4}, the 1:2 in a[1:2], the 2:20 in [3]int{2:20}, etc.
+	OPARAM           // The on-stack copy of a parameter or return value that escapes.
+	OLEN             // len
+	OMAKE            // make, typechecking may convert to a more specific OMAKEXXX.
+	OMAKECHAN        // make(chan int)
+	OMAKEMAP         // make(map[string]int)
+	OMAKESLICE       // make([]int, 0)
+	OMUL             // *
+	ODIV             // x / y
+	OMOD             // x % y
+	OLSH             // x << u
+	ORSH             // x >> u
+	OAND             // x & y
+	OANDNOT          // x &^ y
+	ONEW             // new
+	ONOT             // !b
+	OCOM             // ^x
+	OPLUS            // +x
+	OMINUS           // -y
+	OOROR            // b1 || b2
+	OPANIC           // panic
+	OPRINT           // print
+	OPRINTN          // println
+	OPAREN           // (x)
+	OSEND            // c <- x
+	OSLICE           // v[1:2], typechecking may convert to a more specific OSLICEXXX.
+	OSLICEARR        // a[1:2]
+	OSLICESTR        // s[1:2]
+	OSLICE3          // v[1:2:3], typechecking may convert to OSLICE3ARR.
+	OSLICE3ARR       // a[1:2:3]
+	ORECOVER         // recover
+	ORECV            // <-c
+	ORUNESTR         // string(i)
+	OSELRECV         // case x = <-c:
+	OSELRECV2        // case x, ok = <-c:
+	OIOTA            // iota
+	OREAL            // real
+	OIMAG            // imag
+	OCOMPLEX         // complex
+
+	// statements
+	OBLOCK    // block of code
+	OBREAK    // break
+	OCASE     // case, after being verified by swt.c's casebody.
+	OXCASE    // case, before verification.
+	OCONTINUE // continue
+	ODEFER    // defer
+	OEMPTY    // no-op
+	OFALL     // fallthrough, after being verified by swt.c's casebody.
+	OXFALL    // fallthrough, before verification.
+	OFOR      // for
+	OGOTO     // goto
+	OIF       // if
+	OLABEL    // label:
+	OPROC     // go
+	ORANGE    // range
+	ORETURN   // return
+	OSELECT   // select
+	OSWITCH   // switch x
+	OTYPESW   // switch err.(type)
+
+	// types
+	OTCHAN   // chan int
+	OTMAP    // map[string]int
+	OTSTRUCT // struct{}
+	OTINTER  // interface{}
+	OTFUNC   // func()
+	OTARRAY  // []int, [8]int, [N]int or [...]int
+
+	// misc
+	ODDD        // func f(args ...int) or f(l...) or var a = [...]int{0, 1, 2}.
+	ODDDARG     // func f(args ...int), introduced by escape analysis.
+	OINLCALL    // intermediary representation of an inlined call.
+	OEFACE      // itable and data words of an empty-interface value.
+	OITAB       // itable word of an interface value.
+	OSPTR       // base pointer of a slice or string.
+	OCLOSUREVAR // variable reference at beginning of closure function
+	OCFUNC      // reference to c function pointer (not go func value)
+	OCHECKNIL   // emit code to ensure pointer/interface not nil
+	OVARKILL    // variable is dead
+
+	// thearch-specific registers
+	OREGISTER // a register, such as AX.
+	OINDREG   // offset plus indirect of a register, such as 8(SP).
+
+	// 386/amd64-specific opcodes
+	OCMP    // compare: ACMP.
+	ODEC    // decrement: ADEC.
+	OINC    // increment: AINC.
+	OEXTEND // extend: ACWD/ACDQ/ACQO.
+	OHMUL   // high mul: AMUL/AIMUL for unsigned/signed (OMUL uses AIMUL for both).
+	OLROT   // left rotate: AROL.
+	ORROTC  // right rotate-carry: ARCR.
+	ORETJMP // return to other function
+
 	OEND
 )
 

@@ -95,8 +95,15 @@ type IMAGE_EXPORT_DIRECTORY struct {
 }
 
 const (
-	PEBASE      = 0x00400000
+	PEBASE = 0x00400000
+
+	// SectionAlignment must be greater than or equal to FileAlignment.
+	// The default is the page size for the architecture.
 	PESECTALIGN = 0x1000
+
+	// FileAlignment should be a power of 2 between 512 and 64 K, inclusive.
+	// The default is 512. If the SectionAlignment is less than
+	// the architecture's page size, then FileAlignment must match SectionAlignment.
 	PEFILEALIGN = 2 << 8
 )
 
@@ -921,7 +928,7 @@ func Asmbpe() {
 	if pe64 != 0 {
 		fh.SizeOfOptionalHeader = uint16(binary.Size(&oh64))
 		fh.Characteristics |= IMAGE_FILE_LARGE_ADDRESS_AWARE
-		oh64.Magic = 0x20b
+		oh64.Magic = 0x20b // PE32+
 	} else {
 		fh.SizeOfOptionalHeader = uint16(binary.Size(&oh))
 		fh.Characteristics |= IMAGE_FILE_32BIT_MACHINE
