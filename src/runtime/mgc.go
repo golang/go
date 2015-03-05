@@ -176,6 +176,16 @@ func gcinit() {
 	memstats.next_gc = heapminimum
 }
 
+// gcenable is called after the bulk of the runtime initialization,
+// just before we're about to start letting user code run.
+// It kicks off the background sweeper goroutine and enables GC.
+func gcenable() {
+	c := make(chan int, 1)
+	go bgsweep(c)
+	<-c
+	memstats.enablegc = true // now that runtime is initialized, GC is okay
+}
+
 func setGCPercent(in int32) (out int32) {
 	lock(&mheap_.lock)
 	out = gcpercent
@@ -568,10 +578,7 @@ func gcSweep(mode int) {
 
 	// Background sweep.
 	lock(&sweep.lock)
-	if !sweep.started {
-		go bgsweep()
-		sweep.started = true
-	} else if sweep.parked {
+	if sweep.parked {
 		sweep.parked = false
 		ready(sweep.g)
 	}

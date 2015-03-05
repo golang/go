@@ -58,7 +58,7 @@ func main() {
 		}
 	}()
 
-	memstats.enablegc = true // now that runtime is initialized, GC is okay
+	gcenable()
 
 	if iscgo {
 		if _cgo_thread_start == nil {
