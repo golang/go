@@ -1,4 +1,4 @@
-5 00001 (testdata/amd64.s:5)	TEXT	foo(SB), $0
+5 00001 (testdata/amd64.s:5)	TEXT	foo(SB), 0, $0
 8 00002 (testdata/amd64.s:8)	NEGQ	R11
 9 00003 (testdata/amd64.s:9)	NEGQ	4(R11)
 10 00004 (testdata/amd64.s:10)	NEGQ	foo+4(SB)
