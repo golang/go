@@ -126,6 +126,7 @@ type decoder struct {
 	ri                  int // Restart Interval.
 	nComp               int
 	progressive         bool
+	jfif                bool
 	adobeTransformValid bool
 	adobeTransform      uint8
 	eobRun              uint16 // End-of-Band run, specified in section G.1.2.2.
@@ -297,7 +298,7 @@ func (d *decoder) processSOF(n int) error {
 	switch n {
 	case 6 + 3*1: // Grayscale image.
 		d.nComp = 1
-	case 6 + 3*3: // YCbCr image. (TODO(nigeltao): or RGB image.)
+	case 6 + 3*3: // YCbCr or RGB image.
 		d.nComp = 3
 	case 6 + 3*4: // YCbCrK or CMYK image.
 		d.nComp = 4
@@ -448,6 +449,23 @@ func (d *decoder) processDRI(n int) error {
 	return nil
 }
 
+func (d *decoder) processApp0Marker(n int) error {
+	if n < 5 {
+		return d.ignore(n)
+	}
+	if err := d.readFull(d.tmp[:5]); err != nil {
+		return err
+	}
+	n -= 5
+
+	d.jfif = d.tmp[0] == 'J' && d.tmp[1] == 'F' && d.tmp[2] == 'I' && d.tmp[3] == 'F' && d.tmp[4] == '\x00'
+
+	if n > 0 {
+		return d.ignore(n)
+	}
+	return nil
+}
+
 func (d *decoder) processApp14Marker(n int) error {
 	if n < 12 {
 		return d.ignore(n)
@@ -553,17 +571,34 @@ func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, error) {
 		case sof0Marker, sof1Marker, sof2Marker:
 			d.progressive = marker == sof2Marker
 			err = d.processSOF(n)
-			if configOnly {
+			if configOnly && d.jfif {
 				return nil, err
 			}
 		case dhtMarker:
-			err = d.processDHT(n)
+			if configOnly {
+				err = d.ignore(n)
+			} else {
+				err = d.processDHT(n)
+			}
 		case dqtMarker:
-			err = d.processDQT(n)
+			if configOnly {
+				err = d.ignore(n)
+			} else {
+				err = d.processDQT(n)
+			}
 		case sosMarker:
+			if configOnly {
+				return nil, nil
+			}
 			err = d.processSOS(n)
 		case driMarker:
-			err = d.processDRI(n)
+			if configOnly {
+				err = d.ignore(n)
+			} else {
+				err = d.processDRI(n)
+			}
+		case app0Marker:
+			err = d.processApp0Marker(n)
 		case app14Marker:
 			err = d.processApp14Marker(n)
 		default:
@@ -585,6 +620,8 @@ func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, error) {
 	if d.img3 != nil {
 		if d.blackPix != nil {
 			return d.applyBlack()
+		} else if d.isRGB() {
+			return d.convertToRGB()
 		}
 		return d.img3, nil
 	}
@@ -658,6 +695,36 @@ func (d *decoder) applyBlack() (image.Image, error) {
 				}
 				img.Pix[i] = 255 - translation.src[sy*translation.stride+sx]
 			}
+		}
+	}
+	return img, nil
+}
+
+func (d *decoder) isRGB() bool {
+	if d.jfif {
+		return false
+	}
+	if d.adobeTransformValid && d.adobeTransform == adobeTransformUnknown {
+		// http://www.sno.phy.queensu.ca/~phil/exiftool/TagNames/JPEG.html#Adobe
+		// says that 0 means Unknown (and in practice RGB) and 1 means YCbCr.
+		return true
+	}
+	return d.comp[0].c == 'R' && d.comp[1].c == 'G' && d.comp[2].c == 'B'
+}
+
+func (d *decoder) convertToRGB() (image.Image, error) {
+	cScale := d.comp[0].h / d.comp[1].h
+	bounds := d.img3.Bounds()
+	img := image.NewRGBA(bounds)
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		po := img.PixOffset(bounds.Min.X, y)
+		yo := d.img3.YOffset(bounds.Min.X, y)
+		co := d.img3.COffset(bounds.Min.X, y)
+		for i, iMax := 0, bounds.Max.X-bounds.Min.X; i < iMax; i++ {
+			img.Pix[po+4*i+0] = d.img3.Y[yo+i]
+			img.Pix[po+4*i+1] = d.img3.Cb[co+i/cScale]
+			img.Pix[po+4*i+2] = d.img3.Cr[co+i/cScale]
+			img.Pix[po+4*i+3] = 255
 		}
 	}
 	return img, nil
@@ -760,8 +827,12 @@ func DecodeConfig(r io.Reader) (image.Config, error) {
 			Height:     d.height,
 		}, nil
 	case 3:
+		cm := color.YCbCrModel
+		if d.isRGB() {
+			cm = color.RGBAModel
+		}
 		return image.Config{
-			ColorModel: color.YCbCrModel, // TODO(nigeltao): support RGB JPEGs.
+			ColorModel: cm,
 			Width:      d.width,
 			Height:     d.height,
 		}, nil
