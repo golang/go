@@ -609,6 +609,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		if a == obj.NAME_PARAM {
 			p.From.Offset += int64(deltasp) + int64(pcsize)
 		}
+		a = int(p.From3.Name)
+		if a == obj.NAME_AUTO {
+			p.From3.Offset += int64(deltasp) - int64(bpsize)
+		}
+		if a == obj.NAME_PARAM {
+			p.From3.Offset += int64(deltasp) + int64(pcsize)
+		}
 		a = int(p.To.Name)
 		if a == obj.NAME_AUTO {
 			p.To.Offset += int64(deltasp) - int64(bpsize)
