@@ -41,14 +41,10 @@ func (d *Data) parseUnits() ([]unit, error) {
 	nunit := 0
 	b := makeBuf(d, unknownFormat{}, "info", 0, d.info)
 	for len(b.data) > 0 {
-		len := b.uint32()
-		if len == 0xffffffff {
-			len64 := b.uint64()
-			if len64 != uint64(uint32(len64)) {
-				b.error("unit length overflow")
-				break
-			}
-			len = uint32(len64)
+		len, _ := b.unitLength()
+		if len != Offset(uint32(len)) {
+			b.error("unit length overflow")
+			break
 		}
 		b.skip(int(len))
 		nunit++
@@ -63,11 +59,8 @@ func (d *Data) parseUnits() ([]unit, error) {
 	for i := range units {
 		u := &units[i]
 		u.base = b.off
-		n := b.uint32()
-		if n == 0xffffffff {
-			u.is64 = true
-			n = uint32(b.uint64())
-		}
+		var n Offset
+		n, u.is64 = b.unitLength()
 		vers := b.uint16()
 		if vers != 2 && vers != 3 && vers != 4 {
 			b.error("unsupported DWARF version " + strconv.Itoa(int(vers)))
