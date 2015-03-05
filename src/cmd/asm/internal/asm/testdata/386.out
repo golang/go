@@ -1,4 +1,4 @@
-5 00001 (testdata/386.s:5)	TEXT	foo(SB), $0
+5 00001 (testdata/386.s:5)	TEXT	foo(SB), 0, $0
 8 00002 (testdata/386.s:8)	SETCC	AX
 9 00003 (testdata/386.s:9)	SETCC	foo+4(SB)
 12 00004 (testdata/386.s:12)	DIVB	AX

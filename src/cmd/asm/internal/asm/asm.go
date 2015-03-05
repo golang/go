@@ -141,6 +141,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
 		Lineno: p.histLineNum,
 		From:   nameAddr,
 		From3: obj.Addr{
+			Type:   obj.TYPE_CONST,
 			Offset: flag,
 		},
 		To: obj.Addr{
