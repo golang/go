@@ -213,7 +213,7 @@ func TestMkdirAllAtSlash(t *testing.T) {
 		}
 	}
 	RemoveAll("/_go_os_test")
-	const dir = "/go_os_test/dir"
+	const dir = "/_go_os_test/dir"
 	err := MkdirAll(dir, 0777)
 	if err != nil {
 		pathErr, ok := err.(*PathError)
