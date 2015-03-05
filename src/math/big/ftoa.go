@@ -19,11 +19,17 @@ import "strconv"
 
 // bigFtoa formats a float for the %e, %E, %f, %g, and %G formats.
 func (f *Float) bigFtoa(buf []byte, fmt byte, prec int) []byte {
-	// TODO(gri) handle Inf.
+	if debugFloat && !f.IsFinite() {
+		panic("non-finite float")
+	}
 
 	// 1) convert Float to multiprecision decimal
+	var mant nat
+	if f.form == finite {
+		mant = f.mant
+	}
 	var d decimal
-	d.init(f.mant, int(f.exp)-f.mant.bitLen())
+	d.init(mant, int(f.exp)-f.mant.bitLen())
 
 	// 2) round to desired precision
 	shortest := false

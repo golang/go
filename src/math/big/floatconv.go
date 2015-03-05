@@ -96,10 +96,12 @@ func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 	// special-case 0
 	if len(z.mant) == 0 {
 		z.acc = Exact
-		z.exp = 0
+		z.form = zero
 		return
 	}
 	// len(z.mant) > 0
+
+	z.form = finite
 
 	// The mantissa may have a decimal point (fcount <= 0) and there
 	// may be a nonzero exponent exp. The decimal point amounts to a
@@ -275,8 +277,12 @@ func (x *Float) bstring(buf []byte) []byte {
 	if x.neg {
 		buf = append(buf, '-')
 	}
-	if len(x.mant) == 0 {
+	if x.form == zero {
 		return append(buf, '0')
+	}
+
+	if debugFloat && x.form != finite {
+		panic("non-finite float")
 	}
 	// x != 0
 
@@ -306,8 +312,12 @@ func (x *Float) pstring(buf []byte) []byte {
 	if x.neg {
 		buf = append(buf, '-')
 	}
-	if len(x.mant) == 0 {
+	if x.form == zero {
 		return append(buf, '0')
+	}
+
+	if debugFloat && x.form != finite {
+		panic("non-finite float")
 	}
 	// x != 0
 
