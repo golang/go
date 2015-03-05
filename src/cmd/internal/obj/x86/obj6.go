@@ -173,9 +173,13 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		}
 	}
 
-	if ctxt.Headtype == obj.Hnacl && p.Mode == 64 {
-		nacladdr(ctxt, p, &p.From)
-		nacladdr(ctxt, p, &p.To)
+	// Rewrite 0 to $0 in 3rd argment to CMPPS etc.
+	// That's what the tables expect.
+	switch p.As {
+	case ACMPPD, ACMPPS, ACMPSD, ACMPSS:
+		if p.To.Type == obj.TYPE_MEM && p.To.Name == obj.NAME_NONE && p.To.Reg == REG_NONE && p.To.Index == REG_NONE && p.To.Sym == nil {
+			p.To.Type = obj.TYPE_CONST
+		}
 	}
 
 	// Rewrite CALL/JMP/RET to symbol as TYPE_BRANCH.
@@ -186,13 +190,9 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		}
 	}
 
-	// Rewrite 0 to $0 in 3rd argment to CMPPS etc.
-	// That's what the tables expect.
-	switch p.As {
-	case ACMPPD, ACMPPS, ACMPSD, ACMPSS:
-		if p.To.Type == obj.TYPE_MEM && p.To.Name == obj.NAME_NONE && p.To.Reg == REG_NONE && p.To.Index == REG_NONE && p.To.Sym == nil {
-			p.To.Type = obj.TYPE_CONST
-		}
+	if ctxt.Headtype == obj.Hnacl && p.Mode == 64 {
+		nacladdr(ctxt, p, &p.From)
+		nacladdr(ctxt, p, &p.To)
 	}
 
 	// Rewrite float constants to values stored in memory.
