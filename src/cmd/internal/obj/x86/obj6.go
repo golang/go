@@ -186,6 +186,15 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		}
 	}
 
+	// Rewrite 0 to $0 in 3rd argment to CMPPS etc.
+	// That's what the tables expect.
+	switch p.As {
+	case ACMPPD, ACMPPS, ACMPSD, ACMPSS:
+		if p.To.Type == obj.TYPE_MEM && p.To.Name == obj.NAME_NONE && p.To.Reg == REG_NONE && p.To.Index == REG_NONE && p.To.Sym == nil {
+			p.To.Type = obj.TYPE_CONST
+		}
+	}
+
 	// Rewrite float constants to values stored in memory.
 	switch p.As {
 	// Convert AMOVSS $(0), Xx to AXORPS Xx, Xx
