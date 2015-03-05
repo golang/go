@@ -587,7 +587,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar Bvec, varkill Bvec, avarini
 			// non-tail-call return instructions; see note above
 			// the for loop for details.
 			case PPARAMOUT:
-				if node.Addrtaken == 0 && prog.To.Type == obj.TYPE_NONE {
+				if !node.Addrtaken && prog.To.Type == obj.TYPE_NONE {
 					bvset(uevar, int32(i))
 				}
 			}
@@ -602,7 +602,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar Bvec, varkill Bvec, avarini
 		for i, node := range vars {
 			switch node.Class &^ PHEAP {
 			case PPARAM:
-				if node.Addrtaken != 0 {
+				if node.Addrtaken {
 					bvset(avarinit, int32(i))
 				}
 				bvset(varkill, int32(i))
@@ -626,7 +626,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar Bvec, varkill Bvec, avarini
 				if pos >= int32(len(vars)) || vars[pos] != from.Node {
 					Fatal("bad bookkeeping in liveness %v %d", Nconv(from.Node.(*Node), 0), pos)
 				}
-				if ((from.Node).(*Node)).Addrtaken != 0 {
+				if ((from.Node).(*Node)).Addrtaken {
 					bvset(avarinit, pos)
 				} else {
 					if info.Flags&(LeftRead|LeftAddr) != 0 {
@@ -657,7 +657,7 @@ Next:
 				if pos >= int32(len(vars)) || vars[pos] != to.Node {
 					Fatal("bad bookkeeping in liveness %v %d", Nconv(to.Node.(*Node), 0), pos)
 				}
-				if ((to.Node).(*Node)).Addrtaken != 0 {
+				if ((to.Node).(*Node)).Addrtaken {
 					if prog.As != obj.AVARKILL {
 						bvset(avarinit, pos)
 					}
@@ -742,7 +742,7 @@ func printnode(node *Node) {
 		p = "^"
 	}
 	a := ""
-	if node.Addrtaken != 0 {
+	if node.Addrtaken {
 		a = "@"
 	}
 	fmt.Printf(" %v%s%s", Nconv(node, 0), p, a)

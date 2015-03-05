@@ -96,7 +96,7 @@ func paramoutheap(fn *Node) int {
 		switch l.N.Class {
 		case PPARAMOUT,
 			PPARAMOUT | PHEAP:
-			return int(l.N.Addrtaken)
+			return bool2int(l.N.Addrtaken)
 
 			// stop early - parameters are over
 		case PAUTO,
@@ -2516,7 +2516,7 @@ func aliased(n *Node, all *NodeList, stop *NodeList) bool {
 		case PAUTO,
 			PPARAM,
 			PPARAMOUT:
-			if n.Addrtaken != 0 {
+			if n.Addrtaken {
 				varwrite = 1
 				continue
 			}
@@ -2568,7 +2568,7 @@ func varexpr(n *Node) bool {
 		case PAUTO,
 			PPARAM,
 			PPARAMOUT:
-			if n.Addrtaken == 0 {
+			if !n.Addrtaken {
 				return true
 			}
 		}

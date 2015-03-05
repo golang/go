@@ -825,18 +825,18 @@ OpSwitch:
 		r := outervalue(n.Left)
 		var l *Node
 		for l = n.Left; l != r; l = l.Left {
-			l.Addrtaken = 1
+			l.Addrtaken = true
 			if l.Closure != nil {
-				l.Closure.Addrtaken = 1
+				l.Closure.Addrtaken = true
 			}
 		}
 
 		if l.Orig != l && l.Op == ONAME {
 			Fatal("found non-orig name node %v", Nconv(l, 0))
 		}
-		l.Addrtaken = 1
+		l.Addrtaken = true
 		if l.Closure != nil {
-			l.Closure.Addrtaken = 1
+			l.Closure.Addrtaken = true
 		}
 		defaultlit(&n.Left, nil)
 		l = n.Left
