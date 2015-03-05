@@ -29,9 +29,14 @@ var (
 const usage = `eg: an example-based refactoring tool.
 
 Usage: eg -t template.go [-w] [-transitive] <args>...
--t template.go	specifies the template file (use -help to see explanation)
--w          	causes files to be re-written in place.
--transitive 	causes all dependencies to be refactored too.
+
+-help            show detailed help message
+-t template.go	 specifies the template file (use -help to see explanation)
+-w          	 causes files to be re-written in place.
+-transitive 	 causes all dependencies to be refactored too.
+-v               show verbose matcher diagnostics
+-beforeedit cmd  a command to exec before each file is modified.
+                 "{}" represents the name of the file.
 ` + loader.FromArgsUsage
 
 func main() {
@@ -50,6 +55,11 @@ func doMain() error {
 		os.Exit(2)
 	}
 
+	if len(args) == 0 {
+		fmt.Fprint(os.Stderr, usage)
+		os.Exit(1)
+	}
+
 	if *templateFlag == "" {
 		return fmt.Errorf("no -t template.go file specified")
 	}
@@ -61,11 +71,6 @@ func doMain() error {
 
 	// The first Created package is the template.
 	conf.CreateFromFilenames("template", *templateFlag)
-
-	if len(args) == 0 {
-		fmt.Fprint(os.Stderr, usage)
-		os.Exit(1)
-	}
 
 	if _, err := conf.FromArgs(args, true); err != nil {
 		return err
