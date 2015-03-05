@@ -285,7 +285,14 @@ func staticinit(n *Node, out **NodeList) bool {
 // like staticassign but we are copying an already
 // initialized value r.
 func staticcopy(l *Node, r *Node, out **NodeList) bool {
-	if r.Op != ONAME || r.Class != PEXTERN || r.Sym.Pkg != localpkg {
+	if r.Op != ONAME {
+		return false
+	}
+	if r.Class == PFUNC {
+		gdata(l, r, Widthptr)
+		return true
+	}
+	if r.Class != PEXTERN || r.Sym.Pkg != localpkg {
 		return false
 	}
 	if r.Defn == nil { // probably zeroed but perhaps supplied externally and of unknown value
@@ -397,9 +404,7 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
 		break
 
 	case ONAME:
-		if r.Class == PEXTERN && r.Sym.Pkg == localpkg {
-			return staticcopy(l, r, out)
-		}
+		return staticcopy(l, r, out)
 
 	case OLITERAL:
 		if iszero(r) {
