@@ -79,11 +79,9 @@ func TestARMEndToEnd(t *testing.T) {
 }
 
 func TestAMD64EndToEnd(t *testing.T) {
-	t.Skip("broken")
 	testEndToEnd(t, "amd64")
 }
 
 func Test386EndToEnd(t *testing.T) {
-	t.Skip("broken")
 	testEndToEnd(t, "386")
 }

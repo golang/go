@@ -460,17 +460,6 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 		prog.From = a[0]
 		prog.To = a[1]
 		switch p.arch.Thechar {
-		case '6', '8':
-			// DX:AX as a register pair can only appear on the RHS.
-			// Bizarrely, to obj it's specified by setting index on the LHS.
-			// TODO: can we fix this?
-			if a[1].Reg2 != 0 {
-				if a[0].Reg2 != 0 {
-					p.errorf("register pair must be on LHS")
-				}
-				prog.From.Index = int16(a[1].Reg2)
-				prog.To.Reg2 = 0
-			}
 		case '9':
 			var reg0, reg1 int16
 			// Handle (R1+R2)
@@ -488,7 +477,7 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 	case 3:
 		switch p.arch.Thechar {
 		case '5':
-			// Strange special case.
+			// Special cases.
 			if arch.IsARMSTREX(op) {
 				/*
 					STREX x, (y), z
@@ -504,20 +493,9 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 			prog.Reg = p.getRegister(prog, op, &a[1])
 			prog.To = a[2]
 		case '6', '8':
-			// CMPSD etc.; third operand is imm8, stored in offset, or a register.
 			prog.From = a[0]
-			prog.To = a[1]
-			switch a[2].Type {
-			case obj.TYPE_MEM:
-				prog.To.Offset = p.getConstant(prog, op, &a[2])
-			case obj.TYPE_REG:
-				// Strange reordering.
-				prog.To = a[2]
-				prog.From = a[1]
-				prog.To.Offset = p.getImmediate(prog, op, &a[0])
-			default:
-				p.errorf("expected offset or register for 3rd operand")
-			}
+			prog.From3 = a[1]
+			prog.To = a[2]
 		case '9':
 			if arch.IsPPC64CMP(op) {
 				// CMPW etc.; third argument is a CR register that goes into prog.Reg.

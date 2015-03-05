@@ -41,47 +41,14 @@ func testOperandParser(t *testing.T, parser *Parser, tests []operandTest) {
 	}
 }
 
-func testX86RegisterPair(t *testing.T, parser *Parser) {
-	// Special case for AX:DX, which is really two operands so isn't printed correcctly
-	// by Aconv, but is OK by the -S output.
-	parser.start(lex.Tokenize("AX:BX)"))
-	addr := obj.Addr{}
-	parser.operand(&addr)
-	want := obj.Addr{
-		Type: obj.TYPE_REG,
-		Reg:  parser.arch.Register["AX"],
-		Reg2: parser.arch.Register["BX"], // TODO: clean up how this is encoded in parse.go
-	}
-	if want != addr {
-		t.Errorf("AX:DX: expected %+v got %+v", want, addr)
-	}
-	// Special case for foo(SB):DX, which is really two operands so isn't printed correctly
-	// by Aconv, but is OK by the -S output.
-	parser.start(lex.Tokenize("foo+4(SB):AX"))
-	addr = obj.Addr{}
-	parser.operand(&addr)
-	want = obj.Addr{
-		Type:   obj.TYPE_MEM,
-		Name:   obj.NAME_EXTERN,
-		Offset: 4,
-		Sym:    obj.Linklookup(parser.ctxt, "foo", 0),
-		Reg2:   parser.arch.Register["AX"], // TODO: clean up how this is encoded in parse.go
-	}
-	if want != addr {
-		t.Errorf("foo+4(SB):AX: expected %+v got %+v", want, addr)
-	}
-}
-
 func TestAMD64OperandParser(t *testing.T) {
 	parser := newParser("amd64")
 	testOperandParser(t, parser, amd64OperandTests)
-	testX86RegisterPair(t, parser)
 }
 
 func Test386OperandParser(t *testing.T) {
 	parser := newParser("386")
 	testOperandParser(t, parser, x86OperandTests)
-	testX86RegisterPair(t, parser)
 }
 
 func TestARMOperandParser(t *testing.T) {
@@ -113,7 +80,6 @@ type operandTest struct {
 // Examples collected by scanning all the assembly in the standard repo.
 
 var amd64OperandTests = []operandTest{
-	// {"AX:DX", "AX:DX"}, Handled in TestAMD64OperandParser directly.
 	{"$(-1.0)", "$(-1.0)"},
 	{"$(0.0)", "$(0.0)"},
 	{"$(0x2000000+116)", "$33554548"},
