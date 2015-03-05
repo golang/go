@@ -2502,7 +2502,6 @@ func lexinit() {
 			s1.Def = Nod(ONAME, nil, nil)
 			s1.Def.Sym = s1
 			s1.Def.Etype = uint8(etype)
-			s1.Def.Builtin = 1
 		}
 	}
 
@@ -2630,7 +2629,6 @@ func lexfini() {
 			s.Def = Nod(ONAME, nil, nil)
 			s.Def.Sym = s
 			s.Def.Etype = uint8(etype)
-			s.Def.Builtin = 1
 			s.Origpkg = builtinpkg
 		}
 	}
