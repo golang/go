@@ -32,6 +32,8 @@ const (
 )
 
 const (
+	// These values are known by runtime.
+	// The MEMx and NOEQx values must run in parallel.  See algtype.
 	AMEM = iota
 	AMEM0
 	AMEM8
@@ -58,9 +60,9 @@ const (
 )
 
 const (
-	Mpscale = 29
-	Mpprec  = 16
-	Mpnorm  = Mpprec - 1
+	Mpscale = 29         // safely smaller than bits in a long
+	Mpprec  = 16         // Mpscale*Mpprec is max number of bits
+	Mpnorm  = Mpprec - 1 // significant words in a normalized float
 	Mpbase  = 1 << Mpscale
 	Mpsign  = Mpbase >> 1
 	Mpmask  = Mpbase - 1
@@ -86,42 +88,44 @@ type Mpcplx struct {
 type Val struct {
 	Ctype int16
 	U     struct {
-		Reg  int16
-		Bval int16
-		Xval *Mpint
-		Fval *Mpflt
-		Cval *Mpcplx
-		Sval string
+		Reg  int16   // OREGISTER
+		Bval int16   // bool value CTBOOL
+		Xval *Mpint  // int CTINT, rune CTRUNE
+		Fval *Mpflt  // float CTFLT
+		Cval *Mpcplx // float CTCPLX
+		Sval string  // string CTSTR
 	}
 }
 
 type Pkg struct {
-	Name     string
-	Path     string
+	Name     string // package name
+	Path     string // string literal used in import statement
 	Pathsym  *Sym
-	Prefix   string
-	Imported uint8
-	Exported int8
-	Direct   int8
-	Safe     bool
+	Prefix   string // escaped path for use in symbol table
+	Imported uint8  // export data of this package was parsed
+	Exported int8   // import line written in export data
+	Direct   int8   // imported directly
+	Safe     bool   // whether the package is marked as safe
 	Syms     map[string]*Sym
 }
 
 type Sym struct {
-	Lexical    uint16
-	Flags      uint8
-	Sym        uint8
-	Link       *Sym
-	Uniqgen    uint32
-	Importdef  *Pkg
-	Linkname   string
+	Lexical   uint16
+	Flags     uint8
+	Sym       uint8 // huffman encoding in object file
+	Link      *Sym
+	Uniqgen   uint32
+	Importdef *Pkg   // where imported definition was found
+	Linkname  string // link name
+
+	// saved and restored by dcopy
 	Pkg        *Pkg
-	Name       string
-	Def        *Node
-	Label      *Label
-	Block      int32
-	Lastlineno int32
-	Origpkg    *Pkg
+	Name       string // variable name
+	Def        *Node  // definition: ONAME OTYPE OPACK or OLITERAL
+	Label      *Label // corresponding label (ephemeral)
+	Block      int32  // blocknumber to catch redeclaration
+	Lastlineno int32  // last declaration for diagnostic
+	Origpkg    *Pkg   // original package for . import
 	Lsym       *obj.LSym
 }
 
@@ -130,63 +134,83 @@ type Type struct {
 	Nointerface bool
 	Noalg       uint8
 	Chan        uint8
-	Trecur      uint8
+	Trecur      uint8 // to detect loops
 	Printed     uint8
-	Embedded    uint8
+	Embedded    uint8 // TFIELD embedded type
 	Siggen      uint8
-	Funarg      uint8
+	Funarg      uint8 // on TSTRUCT and TFIELD
 	Copyany     uint8
-	Local       uint8
+	Local       uint8 // created in this file
 	Deferwidth  uint8
-	Broke       uint8
-	Isddd       uint8
+	Broke       uint8 // broken type definition.
+	Isddd       uint8 // TFIELD is ... argument
 	Align       uint8
-	Haspointers uint8
-	Nod         *Node
-	Orig        *Type
-	Lineno      int
-	Thistuple   int
-	Outtuple    int
-	Intuple     int
-	Outnamed    uint8
-	Method      *Type
-	Xmethod     *Type
-	Sym         *Sym
-	Vargen      int32
-	Nname       *Node
-	Argwid      int64
-	Type        *Type
-	Width       int64
-	Down        *Type
-	Outer       *Type
-	Note        *string
-	Bound       int64
-	Bucket      *Type
-	Hmap        *Type
-	Hiter       *Type
-	Map         *Type
-	Maplineno   int32
-	Embedlineno int32
-	Copyto      *NodeList
-	Lastfn      *Node
+	Haspointers uint8 // 0 unknown, 1 no, 2 yes
+
+	Nod    *Node // canonical OTYPE node
+	Orig   *Type // original type (type literal or predefined type)
+	Lineno int
+
+	// TFUNC
+	Thistuple int
+	Outtuple  int
+	Intuple   int
+	Outnamed  uint8
+
+	Method  *Type
+	Xmethod *Type
+
+	Sym    *Sym
+	Vargen int32 // unique name for OTYPE/ONAME
+
+	Nname  *Node
+	Argwid int64
+
+	// most nodes
+	Type  *Type // actual type for TFIELD, element type for TARRAY, TCHAN, TMAP, TPTRxx
+	Width int64 // offset in TFIELD, width in all others
+
+	// TFIELD
+	Down  *Type   // next struct field, also key type in TMAP
+	Outer *Type   // outer struct
+	Note  *string // literal string annotation
+
+	// TARRAY
+	Bound int64 // negative is dynamic array
+
+	// TMAP
+	Bucket *Type // internal type representing a hash bucket
+	Hmap   *Type // internal type representing a Hmap (map header object)
+	Hiter  *Type // internal type representing hash iterator state
+	Map    *Type // link from the above 3 internal types back to the map type.
+
+	Maplineno   int32 // first use of TFORW as map key
+	Embedlineno int32 // first use of TFORW as embedded type
+
+	// for TFORW, where to copy the eventual value to
+	Copyto *NodeList
+
+	Lastfn *Node // for usefield
 }
 
 type Label struct {
-	Used     uint8
-	Sym      *Sym
-	Def      *Node
-	Use      *NodeList
-	Link     *Label
-	Gotopc   *obj.Prog
-	Labelpc  *obj.Prog
-	Breakpc  *obj.Prog
-	Continpc *obj.Prog
+	Used uint8
+	Sym  *Sym
+	Def  *Node
+	Use  *NodeList
+	Link *Label
+
+	// for use during gen
+	Gotopc   *obj.Prog // pointer to unresolved gotos
+	Labelpc  *obj.Prog // pointer to code
+	Breakpc  *obj.Prog // pointer to code
+	Continpc *obj.Prog // pointer to code
 }
 
 type InitEntry struct {
-	Xoffset int64
-	Key     *Node
-	Expr    *Node
+	Xoffset int64 // struct, array only
+	Key     *Node // map only
+	Expr    *Node // bytes of run-time computed expressions
 }
 
 type InitPlan struct {
@@ -205,14 +229,14 @@ const (
 	EscNever
 	EscBits           = 3
 	EscMask           = (1 << EscBits) - 1
-	EscContentEscapes = 1 << EscBits
+	EscContentEscapes = 1 << EscBits // value obtained by indirect of parameter escapes to some returned result
 	EscReturnBits     = EscBits + 1
 )
 
 const (
-	SymExport   = 1 << 0
+	SymExport   = 1 << 0 // to be exported
 	SymPackage  = 1 << 1
-	SymExported = 1 << 2
+	SymExported = 1 << 2 // already written out by export
 	SymUniq     = 1 << 3
 	SymSiggen   = 1 << 4
 	SymAsm      = 1 << 5
@@ -231,6 +255,7 @@ type Iter struct {
 
 const (
 	Txxx = iota
+
 	TINT8
 	TUINT8
 	TINT16
@@ -242,13 +267,18 @@ const (
 	TINT
 	TUINT
 	TUINTPTR
+
 	TCOMPLEX64
 	TCOMPLEX128
+
 	TFLOAT32
 	TFLOAT64
+
 	TBOOL
+
 	TPTR32
 	TPTR64
+
 	TFUNC
 	TARRAY
 	T_old_DARRAY
@@ -261,17 +291,23 @@ const (
 	TANY
 	TSTRING
 	TUNSAFEPTR
+
+	// pseudo-types for literals
 	TIDEAL
 	TNIL
 	TBLANK
+
+	// pseudo-type for frame layout
 	TFUNCARGS
 	TCHANARGS
 	TINTERMETH
+
 	NTYPE
 )
 
 const (
 	CTxxx = iota
+
 	CTINT
 	CTRUNE
 	CTFLT
@@ -282,6 +318,8 @@ const (
 )
 
 const (
+	/* types of channel */
+	/* must match ../../pkg/nreflect/type.go:/Chandir */
 	Cxxx  = 0
 	Crecv = 1 << 0
 	Csend = 1 << 1
@@ -290,29 +328,31 @@ const (
 
 // declaration context
 const (
-	Pxxx = iota
-	PEXTERN
-	PAUTO
-	PPARAM
-	PPARAMOUT
-	PPARAMREF
-	PFUNC
-	PDISCARD
-	PHEAP = 1 << 7
+	Pxxx      = iota
+	PEXTERN   // global variable
+	PAUTO     // local variables
+	PPARAM    // input arguments
+	PPARAMOUT // output results
+	PPARAMREF // closure variable reference
+	PFUNC     // global function
+
+	PDISCARD // discard during parse of duplicate import
+
+	PHEAP = 1 << 7 // an extra bit to identify an escaped variable
 )
 
 const (
-	Etop      = 1 << 1
-	Erv       = 1 << 2
+	Etop      = 1 << 1 // evaluated at statement level
+	Erv       = 1 << 2 // evaluated in value context
 	Etype     = 1 << 3
-	Ecall     = 1 << 4
-	Efnstruct = 1 << 5
-	Eiota     = 1 << 6
-	Easgn     = 1 << 7
-	Eindir    = 1 << 8
-	Eaddr     = 1 << 9
-	Eproc     = 1 << 10
-	Ecomplit  = 1 << 11
+	Ecall     = 1 << 4  // call-only expressions are ok
+	Efnstruct = 1 << 5  // multivalue function returns are ok
+	Eiota     = 1 << 6  // iota is ok
+	Easgn     = 1 << 7  // assigning to expression
+	Eindir    = 1 << 8  // indirecting through expression
+	Eaddr     = 1 << 9  // taking address of expression
+	Eproc     = 1 << 10 // inside a go statement
+	Ecomplit  = 1 << 11 // type in composite literal
 )
 
 const (
@@ -364,8 +404,8 @@ type Io struct {
 	eofnl      int
 	last       int
 	peekc      int
-	peekc1     int
-	cp         string
+	peekc1     int    // second peekc for ...
+	cp         string // used for content when bin==nil
 	importsafe bool
 }
 
@@ -383,14 +423,18 @@ type Idir struct {
  * smagic and umagic
  */
 type Magic struct {
-	W   int
-	S   int
-	Bad int
-	Sd  int64
-	Sm  int64
-	Ud  uint64
-	Um  uint64
-	Ua  int
+	W   int // input for both - width
+	S   int // output for both - shift
+	Bad int // output for both - unexpected failure
+
+	// magic multiplier for signed literal divisors
+	Sd int64 // input - literal divisor
+	Sm int64 // output - multiplier
+
+	// magic multiplier for unsigned literal divisors
+	Ud uint64 // input - literal divisor
+	Um uint64 // output - multiplier
+	Ua int    // output - adder
 }
 
 /*
@@ -670,67 +714,94 @@ var Disable_checknil int
 var zerosize int64
 
 type Flow struct {
-	Prog   *obj.Prog
-	P1     *Flow
-	P2     *Flow
+	Prog   *obj.Prog // actual instruction
+	P1     *Flow     // predecessors of this instruction: p1,
+	P2     *Flow     // and then p2 linked though p2link.
 	P2link *Flow
-	S1     *Flow
+	S1     *Flow // successors of this instruction (at most two: s1 and s2).
 	S2     *Flow
-	Link   *Flow
-	Active int32
-	Id     int32
-	Rpo    int32
-	Loop   uint16
-	Refset uint8
-	Data   interface{}
+	Link   *Flow // next instruction in function code
+
+	Active int32 // usable by client
+
+	Id     int32  // sequence number in flow graph
+	Rpo    int32  // reverse post ordering
+	Loop   uint16 // x5 for every loop
+	Refset uint8  // diagnostic generated
+
+	Data interface{} // for use by client
 }
 
 type Graph struct {
 	Start *Flow
 	Num   int
-	Rpo   []*Flow
+
+	// After calling flowrpo, rpo lists the flow nodes in reverse postorder,
+	// and each non-dead Flow node f has g->rpo[f->rpo] == f.
+	Rpo []*Flow
 }
 
 /*
  *	interface to back end
  */
 type ProgInfo struct {
-	Flags    uint32
-	Reguse   uint64
-	Regset   uint64
-	Regindex uint64
+	Flags    uint32 // the bits below
+	Reguse   uint64 // registers implicitly used by this instruction
+	Regset   uint64 // registers implicitly set by this instruction
+	Regindex uint64 // registers used by addressing mode
 }
 
 const (
-	Pseudo     = 1 << 1
-	OK         = 1 << 2
-	SizeB      = 1 << 3
-	SizeW      = 1 << 4
-	SizeL      = 1 << 5
-	SizeQ      = 1 << 6
-	SizeF      = 1 << 7
-	SizeD      = 1 << 8
-	LeftAddr   = 1 << 9
-	LeftRead   = 1 << 10
-	LeftWrite  = 1 << 11
+	// Pseudo-op, like TEXT, GLOBL, TYPE, PCDATA, FUNCDATA.
+	Pseudo = 1 << 1
+
+	// There's nothing to say about the instruction,
+	// but it's still okay to see.
+	OK = 1 << 2
+
+	// Size of right-side write, or right-side read if no write.
+	SizeB = 1 << 3
+	SizeW = 1 << 4
+	SizeL = 1 << 5
+	SizeQ = 1 << 6
+	SizeF = 1 << 7
+	SizeD = 1 << 8
+
+	// Left side (Prog.from): address taken, read, write.
+	LeftAddr  = 1 << 9
+	LeftRead  = 1 << 10
+	LeftWrite = 1 << 11
+
+	// Register in middle (Prog.reg); only ever read. (arm, ppc64)
 	RegRead    = 1 << 12
 	CanRegRead = 1 << 13
+
+	// Right side (Prog.to): address taken, read, write.
 	RightAddr  = 1 << 14
 	RightRead  = 1 << 15
 	RightWrite = 1 << 16
-	Move       = 1 << 17
-	Conv       = 1 << 18
-	Cjmp       = 1 << 19
-	Break      = 1 << 20
-	Call       = 1 << 21
-	Jump       = 1 << 22
-	Skip       = 1 << 23
-	SetCarry   = 1 << 24
-	UseCarry   = 1 << 25
-	KillCarry  = 1 << 26
-	ShiftCX    = 1 << 27
-	ImulAXDX   = 1 << 28
-	PostInc    = 1 << 29
+
+	// Instruction kinds
+	Move  = 1 << 17 // straight move
+	Conv  = 1 << 18 // size conversion
+	Cjmp  = 1 << 19 // conditional jump
+	Break = 1 << 20 // breaks control flow (no fallthrough)
+	Call  = 1 << 21 // function call
+	Jump  = 1 << 22 // jump
+	Skip  = 1 << 23 // data instruction
+
+	// Set, use, or kill of carry bit.
+	// Kill means we never look at the carry bit after this kind of instruction.
+	SetCarry  = 1 << 24
+	UseCarry  = 1 << 25
+	KillCarry = 1 << 26
+
+	// Special cases for register use. (amd64, 386)
+	ShiftCX  = 1 << 27 // possible shift by CX
+	ImulAXDX = 1 << 28 // possible multiply into DX:AX
+
+	// Instruction updates whichever of from/to is type D_OREG. (ppc64)
+	PostInc = 1 << 29
 )
 
 type Arch struct {

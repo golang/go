@@ -2950,10 +2950,9 @@ func appendslice(n *Node, init **NodeList) *Node {
 	nif.Ntest = Nod(OGT, nt, Nodintconst(0))
 
 	// instantiate growslice(Type*, []any, int) []any
-	fn := syslook("growslice", 1)
-
-	argtype(fn, s.Type.Type)
-	argtype(fn, s.Type.Type)
+	fn := syslook("growslice", 1) //   growslice(<type>, old []T, n int64) (ret []T)
+	argtype(fn, s.Type.Type)      // 1 old []any
+	argtype(fn, s.Type.Type)      // 2 ret []any
 
 	// s = growslice(T, s, n)
 	nif.Nbody = list1(Nod(OAS, s, mkcall1(fn, s.Type, &nif.Ninit, typename(s.Type), s, nt)))
@@ -3774,8 +3773,8 @@ func walkdiv(np **Node, init **NodeList) {
 	// by a constant
 	w := int(nl.Type.Width * 8)
 
-	s := 0
-	pow := powtwo(nr)
+	s := 0            // 1 if nr is negative.
+	pow := powtwo(nr) // if >= 0, nr is 1<<pow
 	if pow >= 1000 {
 		// negative power of 2
 		s = 1

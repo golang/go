@@ -40,7 +40,21 @@ import (
 // Instruction layout.
 
 const (
-	MaxAlign   = 32
+	MaxAlign = 32 // max data alignment
+
+	// Loop alignment constants:
+	// want to align loop entry to LoopAlign-byte boundary,
+	// and willing to insert at most MaxLoopPad bytes of NOP to do so.
+	// We define a loop entry as the target of a backward jump.
+	//
+	// gcc uses MaxLoopPad = 10 for its 'generic x86-64' config,
+	// and it aligns all jump targets, not just backward jump targets.
+	//
+	// As of 6/1/2012, the effect of setting MaxLoopPad = 10 here
+	// is very slight but negative, so the alignment is disabled by
+	// setting MaxLoopPad = 0. The code is here for reference and
+	// for future experiments.
+	//
 	LoopAlign  = 16
 	MaxLoopPad = 0
 	FuncAlign  = 16
@@ -173,7 +187,7 @@ const (
 	Zm_r_3d
 	Zm_r_xm_nr
 	Zr_m_xm_nr
-	Zibm_r
+	Zibm_r /* mmx1,mmx2/mem64,imm8 */
 	Zmb_r
 	Zaut_r
 	Zo_m
@@ -194,28 +208,30 @@ const (
 )
 
 const (
-	Px     = 0
-	Px1    = 1 // symbolic; exact value doesn't matter
-	P32    = 0x32
-	Pe     = 0x66
-	Pm     = 0x0f
-	Pq     = 0xff
-	Pb     = 0xfe
-	Pf2    = 0xf2
-	Pf3    = 0xf3
-	Pq3    = 0x67
-	Pw     = 0x48
-	Pw8    = 0x90 // symbolic; exact value doesn't matter
-	Py     = 0x80
-	Py1    = 0x81 // symbolic; exact value doesn't matter
-	Py3    = 0x83 // symbolic; exact value doesn't matter
-	Rxf    = 1 << 9
-	Rxt    = 1 << 8
-	Rxw    = 1 << 3
-	Rxr    = 1 << 2
-	Rxx    = 1 << 1
-	Rxb    = 1 << 0
-	Maxand = 10
+	Px  = 0
+	Px1 = 1    // symbolic; exact value doesn't matter
+	P32 = 0x32 /* 32-bit only */
+	Pe  = 0x66 /* operand escape */
+	Pm  = 0x0f /* 2byte opcode escape */
+	Pq  = 0xff /* both escapes: 66 0f */
+	Pb  = 0xfe /* byte operands */
+	Pf2 = 0xf2 /* xmm escape 1: f2 0f */
+	Pf3 = 0xf3 /* xmm escape 2: f3 0f */
+	Pq3 = 0x67 /* xmm escape 3: 66 48 0f */
+	Pw  = 0x48 /* Rex.w */
+	Pw8 = 0x90 // symbolic; exact value doesn't matter
+	Py  = 0x80 /* defaults to 64-bit mode */
+	Py1 = 0x81 // symbolic; exact value doesn't matter
+	Py3 = 0x83 // symbolic; exact value doesn't matter
+
+	Rxf = 1 << 9 /* internal flag for Rxr on from */
+	Rxt = 1 << 8 /* internal flag for Rxr on to */
+	Rxw = 1 << 3 /* =1, 64-bit operand size */
+	Rxr = 1 << 2 /* extend modrm reg */
+	Rxx = 1 << 1 /* extend sib index */
+	Rxb = 1 << 0 /* extend modrm r/m, sib base, or opcode reg */
+
+	Maxand = 10 /* in -a output width of the byte codes */
 )
 
 var ycover [Ymax * Ymax]uint8

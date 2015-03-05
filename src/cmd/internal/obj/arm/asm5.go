@@ -350,8 +350,8 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 			if out != nil {
 				out[0] = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0x03c0013f | (uint32(p.To.Reg)&15)<<12 | (uint32(p.To.Reg)&15)<<16 // BIC $0xc000000f, Rx
 				if p.As == AB {
-					out[1] = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0x012fff10 | (uint32(p.To.Reg)&15)<<0 // BX Rx // ABL
-				} else {
+					out[1] = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0x012fff10 | (uint32(p.To.Reg)&15)<<0 // BX Rx
+				} else { // ABL
 					out[1] = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0x012fff30 | (uint32(p.To.Reg)&15)<<0 // BLX Rx
 				}
 			}
@@ -473,7 +473,8 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 			break
 		}
 
-		if (p.To.Type == obj.TYPE_MEM && p.To.Reg != REG_R13 && p.To.Reg != REG_R9) || (p.From.Type == obj.TYPE_MEM && p.From.Reg != REG_R13 && p.From.Reg != REG_R9) { // MOVW Rx, X(Ry), y != 13 && y != 9 // MOVW X(Rx), Ry, x != 13 && x != 9
+		if (p.To.Type == obj.TYPE_MEM && p.To.Reg != REG_R13 && p.To.Reg != REG_R9) || // MOVW Rx, X(Ry), y != 13 && y != 9
+			(p.From.Type == obj.TYPE_MEM && p.From.Reg != REG_R13 && p.From.Reg != REG_R9) { // MOVW X(Rx), Ry, x != 13 && x != 9
 			var a *obj.Addr
 			if p.To.Type == obj.TYPE_MEM {
 				a = &p.To

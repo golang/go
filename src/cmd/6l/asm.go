@@ -134,11 +134,11 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 		r.Type = ld.R_ADDR
 		return
 
-		// TODO: What is the difference between all these?
 	// Handle relocations found in Mach-O object files.
 	case 512 + ld.MACHO_X86_64_RELOC_UNSIGNED*2 + 0,
 		512 + ld.MACHO_X86_64_RELOC_SIGNED*2 + 0,
 		512 + ld.MACHO_X86_64_RELOC_BRANCH*2 + 0:
+		// TODO: What is the difference between all these?
 		r.Type = ld.R_ADDR
 
 		if targ.Type == ld.SDYNIMPORT {

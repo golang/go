@@ -490,7 +490,7 @@ OpSwitch:
 	case OIND:
 		ntop := Erv | Etype
 
-		if top&Eaddr == 0 {
+		if top&Eaddr == 0 { // The *x in &*x is not an indirect.
 			ntop |= Eindir
 		}
 		ntop |= top & Ecomplit

@@ -39,11 +39,10 @@ import "cmd/internal/obj"
 const (
 	NSNAME = 8
 	NSYM   = 50
-	NREG   = 32
-	NFREG  = 32
+	NREG   = 32 /* number of general registers */
+	NFREG  = 32 /* number of floating point registers */
 )
 
-// avoid conflict with ucontext.h. sigh.
 const (
 	REG_R0 = obj.RBasePPC64 + iota
 	REG_R1
@@ -77,6 +76,7 @@ const (
 	REG_R29
 	REG_R30
 	REG_R31
+
 	REG_F0 = obj.RBasePPC64 + 32 + iota - 32
 	REG_F1
 	REG_F2
@@ -109,8 +109,10 @@ const (
 	REG_F29
 	REG_F30
 	REG_F31
+
 	REG_SPECIAL = obj.RBasePPC64 + 64
-	REG_CR0     = obj.RBasePPC64 + 64 + iota - 65
+
+	REG_CR0 = obj.RBasePPC64 + 64 + iota - 65
 	REG_CR1
 	REG_CR2
 	REG_CR3
@@ -118,37 +120,41 @@ const (
 	REG_CR5
 	REG_CR6
 	REG_CR7
+
 	REG_MSR = obj.RBasePPC64 + 72 + iota - 73
 	REG_FPSCR
 	REG_CR
-	REG_SPR0 = obj.RBasePPC64 + 1024
-	REG_DCR0 = obj.RBasePPC64 + 2048
-	REG_XER  = REG_SPR0 + 1
-	REG_LR   = REG_SPR0 + 8
-	REG_CTR  = REG_SPR0 + 9
-	REGZERO  = REG_R0
+
+	REG_SPR0 = obj.RBasePPC64 + 1024 // first of 1024 registers
+	REG_DCR0 = obj.RBasePPC64 + 2048 // first of 1024 registers
+
+	REG_XER = REG_SPR0 + 1
+	REG_LR  = REG_SPR0 + 8
+	REG_CTR = REG_SPR0 + 9
+
+	REGZERO  = REG_R0 /* set to zero */
 	REGSP    = REG_R1
 	REGSB    = REG_R2
 	REGRET   = REG_R3
-	REGARG   = -1
-	REGRT1   = REG_R3
-	REGRT2   = REG_R4
-	REGMIN   = REG_R7
-	REGCTXT  = REG_R11
-	REGTLS   = REG_R13
+	REGARG   = -1      /* -1 disables passing the first argument in register */
+	REGRT1   = REG_R3  /* reserved for runtime, duffzero and duffcopy */
+	REGRT2   = REG_R4  /* reserved for runtime, duffcopy */
+	REGMIN   = REG_R7  /* register variables allocated from here to REGMAX */
+	REGCTXT  = REG_R11 /* context for closures */
+	REGTLS   = REG_R13 /* C ABI TLS base pointer */
 	REGMAX   = REG_R27
-	REGEXT   = REG_R30
-	REGG     = REG_R30
-	REGTMP   = REG_R31
+	REGEXT   = REG_R30 /* external registers allocated from here down */
+	REGG     = REG_R30 /* G */
+	REGTMP   = REG_R31 /* used by the linker */
 	FREGRET  = REG_F0
-	FREGMIN  = REG_F17
-	FREGMAX  = REG_F26
-	FREGEXT  = REG_F26
-	FREGCVI  = REG_F27
-	FREGZERO = REG_F28
-	FREGHALF = REG_F29
-	FREGONE  = REG_F30
-	FREGTWO  = REG_F31
+	FREGMIN  = REG_F17 /* first register variable */
+	FREGMAX  = REG_F26 /* last register variable for 9g only */
+	FREGEXT  = REG_F26 /* first external register */
+	FREGCVI  = REG_F27 /* floating conversion constant */
+	FREGZERO = REG_F28 /* both float and double */
+	FREGHALF = REG_F29 /* double */
+	FREGONE  = REG_F30 /* double */
+	FREGTWO  = REG_F31 /* double */
 )
 
 /*
@@ -166,6 +172,7 @@ const (
 )
 
 const (
+	/* mark flags */
 	LABEL   = 1 << 0
 	LEAF    = 1 << 1
 	FLOAT   = 1 << 2
@@ -183,19 +190,19 @@ const (
 	C_REG
 	C_FREG
 	C_CREG
-	C_SPR
+	C_SPR /* special processor register */
 	C_ZCON
-	C_SCON
-	C_UCON
-	C_ADDCON
-	C_ANDCON
-	C_LCON
-	C_DCON
-	C_SACON
+	C_SCON   /* 16 bit signed */
+	C_UCON   /* 32 bit signed, low 16 bits 0 */
+	C_ADDCON /* -0x8000 <= v < 0 */
+	C_ANDCON /* 0 < v <= 0xFFFF */
+	C_LCON   /* other 32 */
+	C_DCON   /* other 64 (could subdivide further) */
+	C_SACON  /* $n(REG) where n <= int16 */
 	C_SECON
-	C_LACON
+	C_LACON /* $n(REG) where int16 < n <= int32 */
 	C_LECON
-	C_DACON
+	C_DACON /* $n(REG) where int32 < n */
 	C_SBRA
 	C_LBRA
 	C_SAUTO
@@ -214,7 +221,8 @@ const (
 	C_GOK
 	C_ADDR
 	C_TEXTSIZE
-	C_NCLASS
+
+	C_NCLASS /* must be the last */
 )
 
 const (
@@ -414,6 +422,7 @@ const (
 	ASYNC
 	AXOR
 	AXORCC
+
 	ADCBF
 	ADCBI
 	ADCBST
@@ -430,9 +439,13 @@ const (
 	ATLBIEL
 	ATLBSYNC
 	ATW
+
 	ASYSCALL
 	AWORD
+
 	ARFCI
+
+	/* optional on 32-bit */
 	AFRES
 	AFRESCC
 	AFRSQRTE
@@ -443,9 +456,12 @@ const (
 	AFSQRTCC
 	AFSQRTS
 	AFSQRTSCC
+
+	/* 64-bit */
+
 	ACNTLZD
 	ACNTLZDCC
-	ACMPW
+	ACMPW /* CMP with L=0 */
 	ACMPWU
 	ADIVD
 	ADIVDCC
@@ -457,6 +473,7 @@ const (
 	ADIVDUV
 	AEXTSW
 	AEXTSWCC
+	/* AFCFIW; AFCFIWCC */
 	AFCFID
 	AFCFIDCC
 	AFCTID
@@ -498,6 +515,8 @@ const (
 	ASRDCC
 	ASTDCCC
 	ATD
+
+	/* 64-bit pseudo operation */
 	ADWORD
 	AREMD
 	AREMDCC
@@ -507,8 +526,13 @@ const (
 	AREMDUCC
 	AREMDUV
 	AREMDUVCC
+
+	/* more 64-bit operations */
 	AHRFID
+
 	ALAST
+
+	// aliases
 	ABR     = obj.AJMP
 	ABL     = obj.ACALL
 	ARETURN = obj.ARET

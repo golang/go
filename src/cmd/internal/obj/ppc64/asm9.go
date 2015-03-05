@@ -1331,6 +1331,7 @@ func OP_RLW(op uint32, a uint32, s uint32, sh uint32, mb uint32, me uint32) uint
 }
 
 const (
+	/* each rhs is OPVCC(_, _, _, _) */
 	OP_ADD    = 31<<26 | 266<<1 | 0<<10 | 0
 	OP_ADDI   = 14<<26 | 0<<1 | 0<<10 | 0
 	OP_ADDIS  = 15<<26 | 0<<1 | 0<<10 | 0

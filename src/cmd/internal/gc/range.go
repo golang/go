@@ -135,6 +135,13 @@ out:
 }
 
 func walkrange(n *Node) {
+	// variable name conventions:
+	//	ohv1, hv1, hv2: hidden (old) val 1, 2
+	//	ha, hit: hidden aggregate, iterator
+	//	hn, hp: hidden len, pointer
+	//	hb: hidden bool
+	//	a, v1, v2: not hidden aggregate, val 1, 2
+
 	t := n.Type
 
 	a := n.Right

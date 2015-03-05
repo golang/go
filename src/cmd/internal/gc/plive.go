@@ -2,6 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Garbage collector liveness bitmap generation.
+
+// The command line flag -live causes this code to print debug information.
+// The levels are:
+//
+//	-live (aka -live=1): print liveness lists as code warnings at safe points
+//	-live=2: print an assembly listing with liveness annotations
+//	-live=3: print information during each computation phase (much chattier)
+//
+// Each level includes the earlier output as well.
+
 package gc
 
 import (
@@ -34,28 +45,49 @@ const (
 //     ...
 //   }
 type BasicBlock struct {
-	pred            []*BasicBlock
-	succ            []*BasicBlock
-	first           *obj.Prog
-	last            *obj.Prog
-	rpo             int
-	mark            int
-	lastbitmapindex int
-	uevar           Bvec
-	varkill         Bvec
-	livein          Bvec
-	liveout         Bvec
-	avarinit        Bvec
-	avarinitany     Bvec
-	avarinitall     Bvec
+	pred            []*BasicBlock // predecessors; if none, probably start of CFG
+	succ            []*BasicBlock // successors; if none, probably ends in return statement
+	first           *obj.Prog     // first instruction in block
+	last            *obj.Prog     // last instruction in block
+	rpo             int           // reverse post-order number (also index in cfg)
+	mark            int           // mark bit for traversals
+	lastbitmapindex int           // for livenessepilogue
+
+	// Summary sets of block effects.
+
+	// Computed during livenessprologue using only the content of
+	// individual blocks:
+	//
+	//	uevar: upward exposed variables (used before set in block)
+	//	varkill: killed variables (set in block)
+	//	avarinit: addrtaken variables set or used (proof of initialization)
+	uevar    Bvec
+	varkill  Bvec
+	avarinit Bvec
+
+	// Computed during livenesssolve using control flow information:
+	//
+	//	livein: variables live at block entry
+	//	liveout: variables live at block exit
+	//	avarinitany: addrtaken variables possibly initialized at block exit
+	//		(initialized in block or at exit from any predecessor block)
+	//	avarinitall: addrtaken variables certainly initialized at block exit
+	//		(initialized in block or at exit from all predecessor blocks)
+	livein      Bvec
+	liveout     Bvec
+	avarinitany Bvec
+	avarinitall Bvec
 }
 
 // A collection of global state used by liveness analysis.
 type Liveness struct {
-	fn               *Node
-	ptxt             *obj.Prog
-	vars             []*Node
-	cfg              []*BasicBlock
+	fn   *Node
+	ptxt *obj.Prog
+	vars []*Node
+	cfg  []*BasicBlock
+
+	// An array with a bit vector for each safe point tracking live pointers
+	// in the arguments and locals area, indexed by bb.rpo.
 	argslivepointers []Bvec
 	livepointers     []Bvec
 }

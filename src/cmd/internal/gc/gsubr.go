@@ -167,6 +167,7 @@ func dumpdata() {
 	Clearp(Pc)
 }
 
+// Fixup instructions after allocauto (formerly compactframe) has moved all autos around.
 func fixautoused(p *obj.Prog) {
 	for lp := &p; ; {
 		p = *lp
@@ -258,6 +259,7 @@ func Isfat(t *Type) bool {
 	return false
 }
 
+// Sweep the prog list to mark any used nodes.
 func markautoused(p *obj.Prog) {
 	for ; p != nil; p = p.Link {
 		if p.As == obj.ATYPE || p.As == obj.AVARDEF || p.As == obj.AVARKILL {

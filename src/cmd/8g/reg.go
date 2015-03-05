@@ -34,7 +34,7 @@ import "cmd/internal/obj/x86"
 import "cmd/internal/gc"
 
 const (
-	NREGVAR = 16
+	NREGVAR = 16 /* 8 integer + 8 floating */
 )
 
 var regname = []string{

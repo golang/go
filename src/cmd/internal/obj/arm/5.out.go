@@ -44,7 +44,7 @@ const (
 )
 
 const (
-	REG_R0 = obj.RBaseARM + iota
+	REG_R0 = obj.RBaseARM + iota // must be 16-aligned
 	REG_R1
 	REG_R2
 	REG_R3
@@ -60,7 +60,8 @@ const (
 	REG_R13
 	REG_R14
 	REG_R15
-	REG_F0
+
+	REG_F0 // must be 16-aligned
 	REG_F1
 	REG_F2
 	REG_F3
@@ -76,28 +77,37 @@ const (
 	REG_F13
 	REG_F14
 	REG_F15
-	REG_FPSR
+
+	REG_FPSR // must be 2-aligned
 	REG_FPCR
-	REG_CPSR
+
+	REG_CPSR // must be 2-aligned
 	REG_SPSR
+
 	MAXREG
-	REGRET  = REG_R0
-	REGEXT  = REG_R10
-	REGG    = REGEXT - 0
-	REGM    = REGEXT - 1
+	REGRET = REG_R0
+	/* compiler allocates R1 up as temps */
+	/* compiler allocates register variables R3 up */
+	/* compiler allocates external registers R10 down */
+	REGEXT = REG_R10
+	/* these two registers are declared in runtime.h */
+	REGG = REGEXT - 0
+	REGM = REGEXT - 1
+
 	REGCTXT = REG_R7
 	REGTMP  = REG_R11
 	REGSP   = REG_R13
 	REGLINK = REG_R14
 	REGPC   = REG_R15
-	NFREG   = 16
+
+	NFREG = 16
+	/* compiler allocates register variables F0 up */
+	/* compiler allocates external registers F7 down */
 	FREGRET = REG_F0
 	FREGEXT = REG_F7
 	FREGTMP = REG_F15
 )
 
-/* compiler allocates register variables F0 up */
-/* compiler allocates external registers F7 down */
 const (
 	C_NONE = iota
 	C_REG
@@ -108,37 +118,46 @@ const (
 	C_FREG
 	C_PSR
 	C_FCR
-	C_RCON
-	C_NCON
-	C_SCON
+
+	C_RCON /* 0xff rotated */
+	C_NCON /* ~RCON */
+	C_SCON /* 0xffff */
 	C_LCON
 	C_LCONADDR
 	C_ZFCON
 	C_SFCON
 	C_LFCON
+
 	C_RACON
 	C_LACON
+
 	C_SBRA
 	C_LBRA
-	C_HAUTO
-	C_FAUTO
-	C_HFAUTO
-	C_SAUTO
+
+	C_HAUTO  /* halfword insn offset (-0xff to 0xff) */
+	C_FAUTO  /* float insn offset (0 to 0x3fc, word aligned) */
+	C_HFAUTO /* both H and F */
+	C_SAUTO  /* -0xfff to 0xfff */
 	C_LAUTO
+
 	C_HOREG
 	C_FOREG
 	C_HFOREG
 	C_SOREG
 	C_ROREG
-	C_SROREG
+	C_SROREG /* both nil and R */
 	C_LOREG
+
 	C_PC
 	C_SP
 	C_HREG
-	C_ADDR
+
+	C_ADDR /* reference to relocatable address */
 	C_TEXTSIZE
+
 	C_GOK
-	C_NCLASS
+
+	C_NCLASS /* must be the last */
 )
 
 const (
@@ -156,7 +175,13 @@ const (
 	ACMN
 	AORR
 	ABIC
+
 	AMVN
+
+	/*
+	 * Do not reorder or fragment the conditional branch
+	 * opcodes, or the predication code will break
+	 */
 	ABEQ
 	ABNE
 	ABCS
@@ -173,6 +198,7 @@ const (
 	ABLT
 	ABGT
 	ABLE
+
 	AMOVWD
 	AMOVWF
 	AMOVDW
@@ -181,6 +207,7 @@ const (
 	AMOVDF
 	AMOVF
 	AMOVD
+
 	ACMPF
 	ACMPD
 	AADDF
@@ -195,6 +222,7 @@ const (
 	ASQRTD
 	AABSF
 	AABSD
+
 	ASRL
 	ASRA
 	ASLL
@@ -204,6 +232,7 @@ const (
 	ADIV
 	AMOD
 	AMODU
+
 	AMOVB
 	AMOVBS
 	AMOVBU
@@ -214,46 +243,64 @@ const (
 	AMOVM
 	ASWPBU
 	ASWPW
+
 	ARFE
 	ASWI
 	AMULA
+
 	AWORD
 	ABCASE
 	ACASE
+
 	AMULL
 	AMULAL
 	AMULLU
 	AMULALU
+
 	ABX
 	ABXRET
 	ADWORD
+
 	ALDREX
 	ASTREX
 	ALDREXD
 	ASTREXD
+
 	APLD
+
 	ACLZ
+
 	AMULWT
 	AMULWB
 	AMULAWT
 	AMULAWB
+
 	ADATABUNDLE
 	ADATABUNDLEEND
-	AMRC
+
+	AMRC // MRC/MCR
+
 	ALAST
+
+	// aliases
 	AB  = obj.AJMP
 	ABL = obj.ACALL
 )
 
 /* scond byte */
 const (
-	C_SCOND      = (1 << 4) - 1
-	C_SBIT       = 1 << 4
-	C_PBIT       = 1 << 5
-	C_WBIT       = 1 << 6
-	C_FBIT       = 1 << 7
-	C_UBIT       = 1 << 7
-	C_SCOND_XOR  = 14
+	C_SCOND = (1 << 4) - 1
+	C_SBIT  = 1 << 4
+	C_PBIT  = 1 << 5
+	C_WBIT  = 1 << 6
+	C_FBIT  = 1 << 7 /* psr flags-only */
+	C_UBIT  = 1 << 7 /* up bit, unsigned bit */
+
+	// These constants are the ARM condition codes encodings,
+	// XORed with 14 so that C_SCOND_NONE has value 0,
+	// so that a zeroed Prog.scond means "always execute".
+	C_SCOND_XOR = 14
+
 	C_SCOND_EQ   = 0 ^ C_SCOND_XOR
 	C_SCOND_NE   = 1 ^ C_SCOND_XOR
 	C_SCOND_HS   = 2 ^ C_SCOND_XOR
@@ -270,13 +317,10 @@ const (
 	C_SCOND_LE   = 13 ^ C_SCOND_XOR
 	C_SCOND_NONE = 14 ^ C_SCOND_XOR
 	C_SCOND_NV   = 15 ^ C_SCOND_XOR
-	SHIFT_LL     = 0 << 5
-	SHIFT_LR     = 1 << 5
-	SHIFT_AR     = 2 << 5
-	SHIFT_RR     = 3 << 5
-)
 
-/*
- * this is the ranlib header
- */
-var SYMDEF string
+	/* D_SHIFT type */
+	SHIFT_LL = 0 << 5
+	SHIFT_LR = 1 << 5
+	SHIFT_AR = 2 << 5
+	SHIFT_RR = 3 << 5
+)
