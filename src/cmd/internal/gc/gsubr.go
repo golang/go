@@ -208,7 +208,7 @@ func ggloblnod(nam *Node) {
 	p.To.Sym = nil
 	p.To.Type = obj.TYPE_CONST
 	p.To.Offset = nam.Type.Width
-	if nam.Readonly != 0 {
+	if nam.Readonly {
 		p.From3.Offset = obj.RODATA
 	}
 	if nam.Type != nil && !haspointers(nam.Type) {
