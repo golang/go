@@ -31,57 +31,9 @@
 package x86
 
 import (
-	"bytes"
 	"cmd/internal/obj"
 	"fmt"
 )
-
-//
-// Format conversions
-//	%A int		Opcodes (instruction mnemonics)
-//
-//	%D Addr*	Addresses (instruction operands)
-//
-//	%P Prog*	Instructions
-//
-//	%R int		Registers
-//
-//	%$ char*	String constant addresses (for internal use only)
-
-const (
-	STRINGSZ = 1000
-)
-
-var bigP *obj.Prog
-
-func Pconv(p *obj.Prog) string {
-	var buf bytes.Buffer
-
-	fmt.Fprintf(&buf, "%.5d (%v)\t%v", p.Pc, p.Line(), obj.Aconv(int(p.As)))
-	sep := "\t"
-	if p.From.Type != obj.TYPE_NONE {
-		fmt.Fprintf(&buf, "%s%v", sep, obj.Dconv(p, &p.From))
-		sep = ", "
-	}
-	if p.Reg != obj.REG_NONE {
-		// Should not happen but might as well show it if it does.
-		fmt.Fprintf(&buf, "%s%v", sep, obj.Rconv(int(p.Reg)))
-		sep = ", "
-	}
-	if p.From3.Type != obj.TYPE_NONE {
-		if p.From3.Type == obj.TYPE_CONST && (p.As == obj.ADATA || p.As == obj.ATEXT || p.As == obj.AGLOBL) {
-			// Special case - omit $.
-			fmt.Fprintf(&buf, "%s%d", sep, p.From3.Offset)
-		} else {
-			fmt.Fprintf(&buf, "%s%v", sep, obj.Dconv(p, &p.From3))
-		}
-		sep = ", "
-	}
-	if p.To.Type != obj.TYPE_NONE {
-		fmt.Fprintf(&buf, "%s%v", sep, obj.Dconv(p, &p.To))
-	}
-	return buf.String()
-}
 
 var Register = []string{
 	"AL", /* [D_AL] */

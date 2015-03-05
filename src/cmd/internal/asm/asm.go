@@ -81,7 +81,6 @@ const (
 	EOF      = -1
 	IGN      = -2
 	NHASH    = 503
-	STRINGSZ = 200
 	NMACRO   = 10
 )
 

@@ -81,7 +81,6 @@ func jumpX86(word string) bool {
 func archX86(linkArch *obj.LinkArch) *Arch {
 	register := make(map[string]int16)
 	// Create maps for easy lookup of instruction names etc.
-	// TODO: Should this be done in obj for us?
 	for i, s := range x86.Register {
 		register[s] = int16(i + x86.REG_AL)
 	}
@@ -154,9 +153,7 @@ func archX86(linkArch *obj.LinkArch) *Arch {
 func archArm() *Arch {
 	register := make(map[string]int16)
 	// Create maps for easy lookup of instruction names etc.
-	// TODO: Should this be done in obj for us?
 	// Note that there is no list of names as there is for x86.
-	// TODO: Are there aliases we need to add?
 	for i := arm.REG_R0; i < arm.REG_SPSR; i++ {
 		register[obj.Rconv(i)] = int16(i)
 	}
@@ -203,7 +200,6 @@ func archArm() *Arch {
 func archPPC64() *Arch {
 	register := make(map[string]int16)
 	// Create maps for easy lookup of instruction names etc.
-	// TODO: Should this be done in obj for us?
 	// Note that there is no list of names as there is for x86.
 	for i := ppc64.REG_R0; i <= ppc64.REG_R31; i++ {
 		register[obj.Rconv(i)] = int16(i)

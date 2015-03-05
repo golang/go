@@ -646,9 +646,9 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 				p.errorf("illegal address mode for register pair")
 				return
 			}
-			// TODO: This is rewritten in asm. Clumsy.
 			a.Type = obj.TYPE_MEM
-			a.Scale = r2
+			a.Scale = 1
+			a.Index = r2
 			// Nothing may follow.
 			return
 		}

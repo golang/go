@@ -6,6 +6,7 @@ package obj
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -248,11 +249,90 @@ func (p *Prog) Line() string {
 	return Linklinefmt(p.Ctxt, int(p.Lineno), false, false)
 }
 
+var armCondCode = []string{
+	".EQ",
+	".NE",
+	".CS",
+	".CC",
+	".MI",
+	".PL",
+	".VS",
+	".VC",
+	".HI",
+	".LS",
+	".GE",
+	".LT",
+	".GT",
+	".LE",
+	"",
+	".NV",
+}
+
+/* ARM scond byte */
+const (
+	C_SCOND     = (1 << 4) - 1
+	C_SBIT      = 1 << 4
+	C_PBIT      = 1 << 5
+	C_WBIT      = 1 << 6
+	C_FBIT      = 1 << 7
+	C_UBIT      = 1 << 7
+	C_SCOND_XOR = 14
+)
+
+// CConv formats ARM condition codes.
+func CConv(s uint8) string {
+	if s == 0 {
+		return ""
+	}
+	sc := armCondCode[(s&C_SCOND)^C_SCOND_XOR]
+	if s&C_SBIT != 0 {
+		sc += ".S"
+	}
+	if s&C_PBIT != 0 {
+		sc += ".P"
+	}
+	if s&C_WBIT != 0 {
+		sc += ".W"
+	}
+	if s&C_UBIT != 0 { /* ambiguous with FBIT */
+		sc += ".U"
+	}
+	return sc
+}
+
 func (p *Prog) String() string {
 	if p.Ctxt == nil {
 		return "<Prog without ctxt>"
 	}
-	return p.Ctxt.Arch.Pconv(p)
+
+	sc := CConv(p.Scond)
+
+	var buf bytes.Buffer
+
+	fmt.Fprintf(&buf, "%.5d (%v)\t%v%s", p.Pc, p.Line(), Aconv(int(p.As)), sc)
+	sep := "\t"
+	if p.From.Type != TYPE_NONE {
+		fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, &p.From))
+		sep = ", "
+	}
+	if p.Reg != REG_NONE {
+		// Should not happen but might as well show it if it does.
+		fmt.Fprintf(&buf, "%s%v", sep, Rconv(int(p.Reg)))
+		sep = ", "
+	}
+	if p.From3.Type != TYPE_NONE {
+		if p.From3.Type == TYPE_CONST && (p.As == ADATA || p.As == ATEXT || p.As == AGLOBL) {
+			// Special case - omit $.
+			fmt.Fprintf(&buf, "%s%d", sep, p.From3.Offset)
+		} else {
+			fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, &p.From3))
+		}
+		sep = ", "
+	}
+	if p.To.Type != TYPE_NONE {
+		fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, &p.To))
+	}
+	return buf.String()
 }
 
 func (ctxt *Link) NewProg() *Prog {

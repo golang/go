@@ -35,67 +35,6 @@ import (
 	"fmt"
 )
 
-const (
-	STRINGSZ = 1000
-)
-
-var extra = []string{
-	".EQ",
-	".NE",
-	".CS",
-	".CC",
-	".MI",
-	".PL",
-	".VS",
-	".VC",
-	".HI",
-	".LS",
-	".GE",
-	".LT",
-	".GT",
-	".LE",
-	"",
-	".NV",
-}
-
-var bigP *obj.Prog
-
-func Pconv(p *obj.Prog) string {
-	a := int(p.As)
-	s := int(p.Scond)
-	sc := extra[(s&C_SCOND)^C_SCOND_XOR]
-	if s&C_SBIT != 0 {
-		sc += ".S"
-	}
-	if s&C_PBIT != 0 {
-		sc += ".P"
-	}
-	if s&C_WBIT != 0 {
-		sc += ".W"
-	}
-	if s&C_UBIT != 0 { /* ambiguous with FBIT */
-		sc += ".U"
-	}
-	var str string
-	if a == obj.ADATA {
-		str = fmt.Sprintf("%.5d (%v)\t%v\t%v/%d,%v",
-			p.Pc, p.Line(), obj.Aconv(a), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
-	} else if p.As == obj.ATEXT {
-		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%d,%v",
-			p.Pc, p.Line(), obj.Aconv(a), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
-	} else if p.Reg == 0 {
-		str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v",
-			p.Pc, p.Line(), obj.Aconv(a), sc, obj.Dconv(p, &p.From), obj.Dconv(p, &p.To))
-	} else {
-		str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v,%v",
-			p.Pc, p.Line(), obj.Aconv(a), sc, obj.Dconv(p, &p.From), Rconv(int(p.Reg)), obj.Dconv(p, &p.To))
-	}
-
-	var fp string
-	fp += str
-	return fp
-}
-
 func init() {
 	obj.RegisterRegister(obj.RBaseARM, MAXREG, Rconv)
 	obj.RegisterOpcode(obj.ABaseARM, Anames)

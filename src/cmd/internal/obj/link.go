@@ -234,7 +234,6 @@ type Plist struct {
 }
 
 type LinkArch struct {
-	Pconv      func(*Prog) string
 	ByteOrder  binary.ByteOrder
 	Name       string
 	Thechar    int
@@ -382,7 +381,16 @@ type Pciter struct {
 //			offset = bit mask of registers in list; R0 is low bit.
 //
 //	reg, reg
-//		TYPE_REGREG2, to be removed.
+//		Register pair for ARM.
+//		TYPE_REGREG2
+//
+//	(reg+reg)
+//		Register pair for PPC64.
+//		Encoding:
+//			type = TYPE_MEM
+//			reg = first register
+//			index = second register
+//			scale = 1
 //
 
 const (
