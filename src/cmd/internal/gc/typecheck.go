@@ -3954,12 +3954,12 @@ func markbreak(n *Node, implicit *Node) {
 	case OBREAK:
 		if n.Left == nil {
 			if implicit != nil {
-				implicit.Hasbreak = 1
+				implicit.Hasbreak = true
 			}
 		} else {
 			lab := n.Left.Sym.Label
 			if lab != nil {
-				lab.Def.Hasbreak = 1
+				lab.Def.Hasbreak = true
 			}
 		}
 
@@ -4053,7 +4053,7 @@ func isterminating(l *NodeList, top int) bool {
 		if n.Ntest != nil {
 			return false
 		}
-		if n.Hasbreak != 0 {
+		if n.Hasbreak {
 			return false
 		}
 		return true
@@ -4064,7 +4064,7 @@ func isterminating(l *NodeList, top int) bool {
 	case OSWITCH,
 		OTYPESW,
 		OSELECT:
-		if n.Hasbreak != 0 {
+		if n.Hasbreak {
 			return false
 		}
 		def := 0

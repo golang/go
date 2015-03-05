@@ -55,7 +55,7 @@ type Node struct {
 	Wrapper        uint8 // is method wrapper (for func)
 	Reslice        uint8 // this is a reslice x = x[0:y] or x = append(x, ...)
 	Likely         int8  // likeliness of if statement
-	Hasbreak       uint8 // has break statement
+	Hasbreak       bool  // has break statement
 	Needzero       bool  // if it contains pointers, needs to be zeroed on function entry
 	Needctxt       bool  // function uses context register (has closure variables)
 	Esc            uint  // EscXXX
