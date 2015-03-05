@@ -138,7 +138,7 @@ const (
 	Yxm
 	Ytls
 	Ytextsize
-	Yreg2
+	Yindir
 	Ymax
 )
 
@@ -149,6 +149,8 @@ const (
 	Z_rp
 	Zbr
 	Zcall
+	Zcallcon
+	Zcallind
 	Zcallindreg
 	Zib_
 	Zib_rp
@@ -160,6 +162,7 @@ const (
 	Zilo_m
 	Ziqo_m
 	Zjmp
+	Zjmpcon
 	Zloop
 	Zo_iw
 	Zm_o
@@ -503,7 +506,9 @@ var yloop = []ytab{
 var ycall = []ytab{
 	{Ynone, Ynone, Yml, Zcallindreg, 0},
 	{Yrx, Ynone, Yrx, Zcallindreg, 2},
-	{Ynone, Ynone, Ybr, Zcall, 1},
+	{Ynone, Ynone, Yindir, Zcallind, 2},
+	{Ynone, Ynone, Ybr, Zcall, 0},
+	{Ynone, Ynone, Yi32, Zcallcon, 1},
 }
 
 var yduff = []ytab{
@@ -512,7 +517,8 @@ var yduff = []ytab{
 
 var yjmp = []ytab{
 	{Ynone, Ynone, Yml, Zo_m64, 2},
-	{Ynone, Ynone, Ybr, Zjmp, 1},
+	{Ynone, Ynone, Ybr, Zjmp, 0},
+	{Ynone, Ynone, Yi32, Zjmpcon, 1},
 }
 
 var yfmvd = []ytab{
@@ -828,7 +834,7 @@ var optab =
 	Optab{ABTSW, ybtl, Pq, [23]uint8{0xba, 05, 0xab}},
 	Optab{ABTW, ybtl, Pq, [23]uint8{0xba, 04, 0xa3}},
 	Optab{ABYTE, ybyte, Px, [23]uint8{1}},
-	Optab{obj.ACALL, ycall, Px, [23]uint8{0xff, 02, 0xe8}},
+	Optab{obj.ACALL, ycall, Px, [23]uint8{0xff, 02, 0xff, 0x15, 0xe8}},
 	Optab{ACDQ, ynone, Px, [23]uint8{0x99}},
 	Optab{ACLC, ynone, Px, [23]uint8{0xf8}},
 	Optab{ACLD, ynone, Px, [23]uint8{0xfc}},
@@ -1989,6 +1995,12 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 
 	case obj.TYPE_BRANCH:
 		return Ybr
+
+	case obj.TYPE_INDIR:
+		if a.Name != obj.NAME_NONE && a.Reg == REG_NONE && a.Index == REG_NONE && a.Scale == 0 {
+			return Yindir
+		}
+		return Yxxx
 
 	case obj.TYPE_MEM:
 		return Ym
@@ -3188,11 +3200,9 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				r.Siz = 0
 				fallthrough
 
-				// fallthrough
 			case Zo_m64:
 				ctxt.Andptr[0] = byte(op)
 				ctxt.Andptr = ctxt.Andptr[1:]
-
 				asmandsz(ctxt, p, &p.To, int(o.op[z+1]), 0, 1)
 
 			case Zm_ibo:
@@ -3378,6 +3388,34 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				ctxt.Andptr[0] = byte(op)
 				ctxt.Andptr = ctxt.Andptr[1:]
 				asmand(ctxt, p, &p.To, &p.To)
+
+			case Zcallcon, Zjmpcon:
+				if yt.zcase == Zcallcon {
+					ctxt.Andptr[0] = byte(op)
+					ctxt.Andptr = ctxt.Andptr[1:]
+				} else {
+					ctxt.Andptr[0] = byte(o.op[z+1])
+					ctxt.Andptr = ctxt.Andptr[1:]
+				}
+				r = obj.Addrel(ctxt.Cursym)
+				r.Off = int32(p.Pc + int64(-cap(ctxt.Andptr)+cap(ctxt.And[:])))
+				r.Type = obj.R_PCREL
+				r.Siz = 4
+				r.Add = p.To.Offset
+				put4(ctxt, 0)
+
+			case Zcallind:
+				ctxt.Andptr[0] = byte(op)
+				ctxt.Andptr = ctxt.Andptr[1:]
+				ctxt.Andptr[0] = byte(o.op[z+1])
+				ctxt.Andptr = ctxt.Andptr[1:]
+				r = obj.Addrel(ctxt.Cursym)
+				r.Off = int32(p.Pc + int64(-cap(ctxt.Andptr)+cap(ctxt.And[:])))
+				r.Type = obj.R_ADDR
+				r.Siz = 4
+				r.Add = p.To.Offset
+				r.Sym = p.To.Sym
+				put4(ctxt, 0)
 
 			case Zcall:
 				if p.To.Sym == nil {
