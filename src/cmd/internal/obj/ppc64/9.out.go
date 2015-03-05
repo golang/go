@@ -77,7 +77,7 @@ const (
 	REG_R30
 	REG_R31
 
-	REG_F0 = obj.RBasePPC64 + 32 + iota - 32
+	REG_F0
 	REG_F1
 	REG_F2
 	REG_F3
@@ -110,9 +110,7 @@ const (
 	REG_F30
 	REG_F31
 
-	REG_SPECIAL = obj.RBasePPC64 + 64
-
-	REG_CR0 = obj.RBasePPC64 + 64 + iota - 65
+	REG_CR0
 	REG_CR1
 	REG_CR2
 	REG_CR3
@@ -121,9 +119,11 @@ const (
 	REG_CR6
 	REG_CR7
 
-	REG_MSR = obj.RBasePPC64 + 72 + iota - 73
+	REG_MSR
 	REG_FPSCR
 	REG_CR
+
+	REG_SPECIAL = REG_CR0
 
 	REG_SPR0 = obj.RBasePPC64 + 1024 // first of 1024 registers
 	REG_DCR0 = obj.RBasePPC64 + 2048 // first of 1024 registers

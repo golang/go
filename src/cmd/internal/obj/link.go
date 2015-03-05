@@ -402,8 +402,11 @@ const (
 )
 
 const (
-	TYPE_NONE   = 0
-	TYPE_BRANCH = 5 + iota - 1
+	TYPE_NONE = 0
+)
+
+const (
+	TYPE_BRANCH = 5 + iota
 	TYPE_TEXTSIZE
 	TYPE_MEM
 	TYPE_CONST
