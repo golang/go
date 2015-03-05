@@ -37,7 +37,6 @@ type Node struct {
 	Diag           uint8 // already printed error about this
 	Noescape       bool  // func arguments do not escape
 	Nosplit        bool  // func should not execute on separate stack
-	Builtin        uint8 // built-in name, like len or close
 	Nowritebarrier bool  // emit compiler error instead of write barrier
 	Walkdef        uint8
 	Typecheck      uint8
