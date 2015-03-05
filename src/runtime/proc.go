@@ -192,10 +192,10 @@ func acquireSudog() *sudog {
 			pp.sudogcache = append(pp.sudogcache, new(sudog))
 		}
 	}
-	ln := len(pp.sudogcache)
-	s := pp.sudogcache[ln-1]
-	pp.sudogcache[ln-1] = nil
-	pp.sudogcache = pp.sudogcache[:ln-1]
+	n := len(pp.sudogcache)
+	s := pp.sudogcache[n-1]
+	pp.sudogcache[n-1] = nil
+	pp.sudogcache = pp.sudogcache[:n-1]
 	if s.elem != nil {
 		throw("acquireSudog: found s.elem != nil in cache")
 	}
@@ -230,10 +230,10 @@ func releaseSudog(s *sudog) {
 		// Transfer half of local cache to the central cache.
 		var first, last *sudog
 		for len(pp.sudogcache) > cap(pp.sudogcache)/2 {
-			ln := len(pp.sudogcache)
-			p := pp.sudogcache[ln-1]
-			pp.sudogcache[ln-1] = nil
-			pp.sudogcache = pp.sudogcache[:ln-1]
+			n := len(pp.sudogcache)
+			p := pp.sudogcache[n-1]
+			pp.sudogcache[n-1] = nil
+			pp.sudogcache = pp.sudogcache[:n-1]
 			if first == nil {
 				first = p
 			} else {
