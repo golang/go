@@ -6,10 +6,9 @@ package big_test
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 )
-
-// TODO(gri) add more examples
 
 func ExampleFloat_Add() {
 	// Operating on numbers of different precision.
@@ -29,11 +28,10 @@ func ExampleFloat_Add() {
 
 func Example_Shift() {
 	// Implementing Float "shift" by modifying the (binary) exponents directly.
-	var x big.Float
 	for s := -5; s <= 5; s++ {
-		x.SetFloat64(0.5)
-		x.SetMantExp(&x, x.MantExp(nil)+s) // shift x by s
-		fmt.Println(&x)
+		x := big.NewFloat(0.5)
+		x.SetMantExp(x, x.MantExp(nil)+s) // shift x by s
+		fmt.Println(x)
 	}
 	// Output:
 	// 0.015625
@@ -47,4 +45,93 @@ func Example_Shift() {
 	// 4
 	// 8
 	// 16
+}
+
+func ExampleFloat_Cmp() {
+	inf := math.Inf(1)
+	zero := 0.0
+	nan := math.NaN()
+
+	operands := []float64{-inf, -1.2, -zero, 0, +1.2, +inf, nan}
+
+	fmt.Println("   x     y   cmp   eql  neq  lss  leq  gtr  geq")
+	fmt.Println("-----------------------------------------------")
+	for _, x64 := range operands {
+		x := big.NewFloat(x64)
+		for _, y64 := range operands {
+			y := big.NewFloat(y64)
+			t := x.Cmp(y)
+			fmt.Printf(
+				"%4s  %4s  %5s   %c    %c    %c    %c    %c    %c\n",
+				x, y, t,
+				mark(t.Eql()), mark(t.Neq()), mark(t.Lss()), mark(t.Leq()), mark(t.Gtr()), mark(t.Geq()))
+		}
+		fmt.Println()
+	}
+
+	// Output:
+	//    x     y   cmp   eql  neq  lss  leq  gtr  geq
+	// -----------------------------------------------
+	// -Inf  -Inf  Exact   ●    ○    ○    ●    ○    ●
+	// -Inf  -1.2  Below   ○    ●    ●    ●    ○    ○
+	// -Inf    -0  Below   ○    ●    ●    ●    ○    ○
+	// -Inf     0  Below   ○    ●    ●    ●    ○    ○
+	// -Inf   1.2  Below   ○    ●    ●    ●    ○    ○
+	// -Inf  +Inf  Below   ○    ●    ●    ●    ○    ○
+	// -Inf   NaN  Undef   ○    ●    ○    ○    ○    ○
+	//
+	// -1.2  -Inf  Above   ○    ●    ○    ○    ●    ●
+	// -1.2  -1.2  Exact   ●    ○    ○    ●    ○    ●
+	// -1.2    -0  Below   ○    ●    ●    ●    ○    ○
+	// -1.2     0  Below   ○    ●    ●    ●    ○    ○
+	// -1.2   1.2  Below   ○    ●    ●    ●    ○    ○
+	// -1.2  +Inf  Below   ○    ●    ●    ●    ○    ○
+	// -1.2   NaN  Undef   ○    ●    ○    ○    ○    ○
+	//
+	//   -0  -Inf  Above   ○    ●    ○    ○    ●    ●
+	//   -0  -1.2  Above   ○    ●    ○    ○    ●    ●
+	//   -0    -0  Exact   ●    ○    ○    ●    ○    ●
+	//   -0     0  Exact   ●    ○    ○    ●    ○    ●
+	//   -0   1.2  Below   ○    ●    ●    ●    ○    ○
+	//   -0  +Inf  Below   ○    ●    ●    ●    ○    ○
+	//   -0   NaN  Undef   ○    ●    ○    ○    ○    ○
+	//
+	//    0  -Inf  Above   ○    ●    ○    ○    ●    ●
+	//    0  -1.2  Above   ○    ●    ○    ○    ●    ●
+	//    0    -0  Exact   ●    ○    ○    ●    ○    ●
+	//    0     0  Exact   ●    ○    ○    ●    ○    ●
+	//    0   1.2  Below   ○    ●    ●    ●    ○    ○
+	//    0  +Inf  Below   ○    ●    ●    ●    ○    ○
+	//    0   NaN  Undef   ○    ●    ○    ○    ○    ○
+	//
+	//  1.2  -Inf  Above   ○    ●    ○    ○    ●    ●
+	//  1.2  -1.2  Above   ○    ●    ○    ○    ●    ●
+	//  1.2    -0  Above   ○    ●    ○    ○    ●    ●
+	//  1.2     0  Above   ○    ●    ○    ○    ●    ●
+	//  1.2   1.2  Exact   ●    ○    ○    ●    ○    ●
+	//  1.2  +Inf  Below   ○    ●    ●    ●    ○    ○
+	//  1.2   NaN  Undef   ○    ●    ○    ○    ○    ○
+	//
+	// +Inf  -Inf  Above   ○    ●    ○    ○    ●    ●
+	// +Inf  -1.2  Above   ○    ●    ○    ○    ●    ●
+	// +Inf    -0  Above   ○    ●    ○    ○    ●    ●
+	// +Inf     0  Above   ○    ●    ○    ○    ●    ●
+	// +Inf   1.2  Above   ○    ●    ○    ○    ●    ●
+	// +Inf  +Inf  Exact   ●    ○    ○    ●    ○    ●
+	// +Inf   NaN  Undef   ○    ●    ○    ○    ○    ○
+	//
+	//  NaN  -Inf  Undef   ○    ●    ○    ○    ○    ○
+	//  NaN  -1.2  Undef   ○    ●    ○    ○    ○    ○
+	//  NaN    -0  Undef   ○    ●    ○    ○    ○    ○
+	//  NaN     0  Undef   ○    ●    ○    ○    ○    ○
+	//  NaN   1.2  Undef   ○    ●    ○    ○    ○    ○
+	//  NaN  +Inf  Undef   ○    ●    ○    ○    ○    ○
+	//  NaN   NaN  Undef   ○    ●    ○    ○    ○    ○
+}
+
+func mark(p bool) rune {
+	if p {
+		return '●'
+	}
+	return '○'
 }
