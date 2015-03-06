@@ -102,6 +102,25 @@ type Entry struct {
 }
 
 // A Field is a single attribute/value pair in an Entry.
+//
+// A value can be one of several "attribute classes" defined by DWARF.
+// The Go types corresponding to each class are:
+//
+//    Class             Go type
+//    -----             -------
+//    address           uint64
+//    block             []byte
+//    constant          int64
+//    flag              bool
+//    reference
+//      to info         dwarf.Offset (for use with Reader.Seek)
+//      to type unit    uint64 (type signature)
+//    string            string
+//    exprloc           []byte
+//    lineptr           int64
+//    loclistptr        int64
+//    macptr            int64
+//    rangelistptr      int64
 type Field struct {
 	Attr Attr
 	Val  interface{}
