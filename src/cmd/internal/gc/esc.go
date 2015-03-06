@@ -1095,7 +1095,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 		src.Class = PAUTO
 		src.Curfn = Curfn
 		src.Escloopdepth = e.loopdepth
-		src.Used = 1
+		src.Used = true
 		src.Lineno = n.Lineno
 		n.Escretval = list(n.Escretval, src)
 	}

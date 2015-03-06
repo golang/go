@@ -3131,7 +3131,7 @@ func mkpackage(pkgname string) {
 				// leave s->block set to cause redeclaration
 				// errors if a conflicting top-level name is
 				// introduced by a different file.
-				if s.Def.Used == 0 && nsyntaxerrors == 0 {
+				if !s.Def.Used && nsyntaxerrors == 0 {
 					pkgnotused(int(s.Def.Lineno), s.Def.Pkg.Path, s.Name)
 				}
 				s.Def = nil
@@ -3141,9 +3141,9 @@ func mkpackage(pkgname string) {
 			if s.Def.Sym != s {
 				// throw away top-level name left over
 				// from previous import . "x"
-				if s.Def.Pack != nil && s.Def.Pack.Used == 0 && nsyntaxerrors == 0 {
+				if s.Def.Pack != nil && !s.Def.Pack.Used && nsyntaxerrors == 0 {
 					pkgnotused(int(s.Def.Pack.Lineno), s.Def.Pack.Pkg.Path, "")
-					s.Def.Pack.Used = 1
+					s.Def.Pack.Used = true
 				}
 
 				s.Def = nil

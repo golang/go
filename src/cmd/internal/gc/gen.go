@@ -613,7 +613,7 @@ func Tempname(nn *Node, t *Type) {
 func temp(t *Type) *Node {
 	n := Nod(OXXX, nil, nil)
 	Tempname(n, t)
-	n.Sym.Def.Used = 1
+	n.Sym.Def.Used = true
 	return n.Orig
 }
 

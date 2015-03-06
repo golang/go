@@ -840,7 +840,7 @@ func inlvar(var_ *Node) *Node {
 	n := newname(var_.Sym)
 	n.Type = var_.Type
 	n.Class = PAUTO
-	n.Used = 1
+	n.Used = true
 	n.Curfn = Curfn // the calling function, not the called one
 	n.Addrtaken = var_.Addrtaken
 
@@ -863,7 +863,7 @@ func retvar(t *Type, i int) *Node {
 	n := newname(Lookup(namebuf))
 	n.Type = t.Type
 	n.Class = PAUTO
-	n.Used = 1
+	n.Used = true
 	n.Curfn = Curfn // the calling function, not the called one
 	Curfn.Dcl = list(Curfn.Dcl, n)
 	return n
@@ -876,7 +876,7 @@ func argvar(t *Type, i int) *Node {
 	n := newname(Lookup(namebuf))
 	n.Type = t.Type
 	n.Class = PAUTO
-	n.Used = 1
+	n.Used = true
 	n.Curfn = Curfn // the calling function, not the called one
 	Curfn.Dcl = list(Curfn.Dcl, n)
 	return n

@@ -1341,7 +1341,7 @@ func assignconv(n *Node, t *Type, context string) *Node {
 			r := Nod(OCONVNOP, n, nil)
 			r.Type = Types[TBOOL]
 			r.Typecheck = 1
-			r.Implicit = 1
+			r.Implicit = true
 			n = r
 		}
 	}
@@ -1360,7 +1360,7 @@ func assignconv(n *Node, t *Type, context string) *Node {
 	r := Nod(op, n, nil)
 	r.Type = t
 	r.Typecheck = 1
-	r.Implicit = 1
+	r.Implicit = true
 	r.Orig = n.Orig
 	return r
 }
@@ -2146,7 +2146,7 @@ func adddot(n *Node) *Node {
 			// rebuild elided dots
 			for c := d - 1; c >= 0; c-- {
 				if n.Left.Type != nil && Isptr[n.Left.Type.Etype] {
-					n.Left.Implicit = 1
+					n.Left.Implicit = true
 				}
 				n.Left = Nod(ODOT, n.Left, newname(dotlist[c].field.Sym))
 			}

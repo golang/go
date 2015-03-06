@@ -43,10 +43,10 @@ type Node struct {
 	Local          uint8
 	Dodata         uint8
 	Initorder      uint8
-	Used           uint8
+	Used           bool
 	Isddd          uint8
 	Readonly       bool
-	Implicit       uint8
+	Implicit       bool
 	Addrtaken      bool // address taken, even if not moved to heap
 	Assigned       bool // is the variable ever assigned to
 	Captured       bool // is the variable captured by a closure

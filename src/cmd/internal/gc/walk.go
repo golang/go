@@ -37,22 +37,22 @@ func walk(fn *Node) {
 
 	// Propagate the used flag for typeswitch variables up to the NONAME in it's definition.
 	for l := fn.Dcl; l != nil; l = l.Next {
-		if l.N.Op == ONAME && l.N.Class&^PHEAP == PAUTO && l.N.Defn != nil && l.N.Defn.Op == OTYPESW && l.N.Used != 0 {
-			l.N.Defn.Left.Used++
+		if l.N.Op == ONAME && l.N.Class&^PHEAP == PAUTO && l.N.Defn != nil && l.N.Defn.Op == OTYPESW && l.N.Used {
+			l.N.Defn.Left.Used = true
 		}
 	}
 
 	for l := fn.Dcl; l != nil; l = l.Next {
-		if l.N.Op != ONAME || l.N.Class&^PHEAP != PAUTO || l.N.Sym.Name[0] == '&' || l.N.Used != 0 {
+		if l.N.Op != ONAME || l.N.Class&^PHEAP != PAUTO || l.N.Sym.Name[0] == '&' || l.N.Used {
 			continue
 		}
 		if l.N.Defn != nil && l.N.Defn.Op == OTYPESW {
-			if l.N.Defn.Left.Used != 0 {
+			if l.N.Defn.Left.Used {
 				continue
 			}
 			lineno = l.N.Defn.Left.Lineno
 			Yyerror("%v declared and not used", Sconv(l.N.Sym, 0))
-			l.N.Defn.Left.Used = 1 // suppress repeats
+			l.N.Defn.Left.Used = true // suppress repeats
 		} else {
 			lineno = l.N.Lineno
 			Yyerror("%v declared and not used", Sconv(l.N.Sym, 0))

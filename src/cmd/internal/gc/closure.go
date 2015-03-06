@@ -402,7 +402,7 @@ func transformclosure(xfunc *Node) {
 				addr = newname(Lookup(namebuf))
 				addr.Ntype = Nod(OIND, typenod(v.Type), nil)
 				addr.Class = PAUTO
-				addr.Used = 1
+				addr.Used = true
 				addr.Curfn = xfunc
 				xfunc.Dcl = list(xfunc.Dcl, addr)
 				v.Heapaddr = addr
@@ -461,7 +461,7 @@ func walkclosure(func_ *Node, init **NodeList) *Node {
 
 	clos := Nod(OCOMPLIT, nil, Nod(OIND, typ, nil))
 	clos.Esc = func_.Esc
-	clos.Right.Implicit = 1
+	clos.Right.Implicit = true
 	clos.List = concat(list1(Nod(OCFUNC, func_.Closure.Nname, nil)), func_.Enter)
 
 	// Force type conversion from *struct to the func type.
@@ -609,7 +609,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	ptr.Class = PAUTO
 	ptr.Addable = 1
 	ptr.Ullman = 1
-	ptr.Used = 1
+	ptr.Used = true
 	ptr.Curfn = xfunc
 	xfunc.Dcl = list(xfunc.Dcl, ptr)
 	var body *NodeList
@@ -667,7 +667,7 @@ func walkpartialcall(n *Node, init **NodeList) *Node {
 
 	clos := Nod(OCOMPLIT, nil, Nod(OIND, typ, nil))
 	clos.Esc = n.Esc
-	clos.Right.Implicit = 1
+	clos.Right.Implicit = true
 	clos.List = list1(Nod(OCFUNC, n.Nname.Nname, nil))
 	clos.List = list(clos.List, n.Left)
 

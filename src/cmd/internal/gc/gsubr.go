@@ -174,12 +174,12 @@ func fixautoused(p *obj.Prog) {
 		if p == nil {
 			break
 		}
-		if p.As == obj.ATYPE && p.From.Node != nil && p.From.Name == obj.NAME_AUTO && ((p.From.Node).(*Node)).Used == 0 {
+		if p.As == obj.ATYPE && p.From.Node != nil && p.From.Name == obj.NAME_AUTO && !((p.From.Node).(*Node)).Used {
 			*lp = p.Link
 			continue
 		}
 
-		if (p.As == obj.AVARDEF || p.As == obj.AVARKILL) && p.To.Node != nil && ((p.To.Node).(*Node)).Used == 0 {
+		if (p.As == obj.AVARDEF || p.As == obj.AVARKILL) && p.To.Node != nil && !((p.To.Node).(*Node)).Used {
 			// Cannot remove VARDEF instruction, because - unlike TYPE handled above -
 			// VARDEFs are interspersed with other code, and a jump might be using the
 			// VARDEF as a target. Replace with a no-op instead. A later pass will remove
@@ -267,11 +267,11 @@ func markautoused(p *obj.Prog) {
 		}
 
 		if p.From.Node != nil {
-			((p.From.Node).(*Node)).Used = 1
+			((p.From.Node).(*Node)).Used = true
 		}
 
 		if p.To.Node != nil {
-			((p.To.Node).(*Node)).Used = 1
+			((p.To.Node).(*Node)).Used = true
 		}
 	}
 }
