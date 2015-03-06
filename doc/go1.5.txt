@@ -26,6 +26,7 @@ testing/quick: support generation of arrays (https://golang.org/cl/3865)
 Tools:
 
 cmd/go: std wildcard now excludes commands in main repo (https://golang.org/cl/5550)
+cmd/go: .swig/.swigcxx files now require SWIG 3.0.6 or later
 cmd/vet: better validation of struct tags (https://golang.org/cl/2685)
 cmd/ld: no longer record build timestamp in Windows PE file header (https://golang.org/cl/3740)
 
