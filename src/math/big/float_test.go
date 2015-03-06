@@ -1389,6 +1389,68 @@ func TestFloatArithmeticSpecialValues(t *testing.T) {
 	}
 }
 
+func TestFloatArithmeticOverflow(t *testing.T) {
+	for _, test := range []struct {
+		prec       uint
+		mode       RoundingMode
+		op         byte
+		x, y, want string
+		acc        Accuracy
+	}{
+		{4, ToNearestEven, '+', "0", "0", "0", Exact},                // smoke test
+		{4, ToNearestEven, '+', "0x.8p0", "0x.8p0", "0x.8p1", Exact}, // smoke test
+
+		{4, ToNearestEven, '+', "0", "0x.8p2147483647", "0x.8p2147483647", Exact},
+		{4, ToNearestEven, '+', "0x.8p2147483500", "0x.8p2147483647", "0x.8p2147483647", Below}, // rounded to zero
+		{4, ToNearestEven, '+', "0x.8p2147483647", "0x.8p2147483647", "+Inf", Above},            // exponent overflow in +
+		{4, ToNearestEven, '+', "-0x.8p2147483647", "-0x.8p2147483647", "-Inf", Below},          // exponent overflow in +
+		{4, ToNearestEven, '-', "-0x.8p2147483647", "0x.8p2147483647", "-Inf", Below},           // exponent overflow in -
+
+		{4, ToZero, '+', "0x.fp2147483647", "0x.8p2147483643", "0x.fp2147483647", Below}, // rounded to zero
+		{4, ToNearestEven, '+', "0x.fp2147483647", "0x.8p2147483643", "+Inf", Above},     // exponent overflow in rounding
+		{4, AwayFromZero, '+', "0x.fp2147483647", "0x.8p2147483643", "+Inf", Above},      // exponent overflow in rounding
+
+		{4, AwayFromZero, '-', "-0x.fp2147483647", "0x.8p2147483644", "-Inf", Below},       // exponent overflow in rounding
+		{4, ToNearestEven, '-', "-0x.fp2147483647", "0x.8p2147483643", "-Inf", Below},      // exponent overflow in rounding
+		{4, ToZero, '-', "-0x.fp2147483647", "0x.8p2147483643", "-0x.fp2147483647", Above}, // rounded to zero
+
+		{4, ToNearestEven, '+', "0", "0x.8p-2147483648", "0x.8p-2147483648", Exact},
+		{4, ToNearestEven, '+', "0x.8p-2147483648", "0x.8p-2147483648", "0x.8p-2147483647", Exact},
+
+		{4, ToNearestEven, '*', "1", "0x.8p2147483647", "0x.8p2147483647", Exact},
+		{4, ToNearestEven, '*', "2", "0x.8p2147483647", "+Inf", Above},  // exponent overflow in *
+		{4, ToNearestEven, '*', "-2", "0x.8p2147483647", "-Inf", Below}, // exponent overflow in *
+
+		{4, ToNearestEven, '/', "0.5", "0x.8p2147483647", "0x.8p-2147483646", Exact},
+		{4, ToNearestEven, '/', "0x.8p0", "0x.8p2147483647", "0x.8p-2147483646", Exact},
+		{4, ToNearestEven, '/', "0x.8p-1", "0x.8p2147483647", "0x.8p-2147483647", Exact},
+		{4, ToNearestEven, '/', "0x.8p-2", "0x.8p2147483647", "0x.8p-2147483648", Exact},
+		{4, ToNearestEven, '/', "0x.8p-3", "0x.8p2147483647", "0", Below}, // exponent underflow in /
+	} {
+		x := makeFloat(test.x)
+		y := makeFloat(test.y)
+		z := new(Float).SetPrec(test.prec).SetMode(test.mode)
+		switch test.op {
+		case '+':
+			z.Add(x, y)
+		case '-':
+			z.Sub(x, y)
+		case '*':
+			z.Mul(x, y)
+		case '/':
+			z.Quo(x, y)
+		default:
+			panic("unreachable")
+		}
+		if got := z.Format('p', 0); got != test.want || z.Acc() != test.acc {
+			t.Errorf(
+				"prec = %d (%s): %s %c %s = %s (%s); want %s (%s)",
+				test.prec, test.mode, x.Format('p', 0), test.op, y.Format('p', 0), got, z.Acc(), test.want, test.acc,
+			)
+		}
+	}
+}
+
 // TODO(gri) Add tests that check correctness in the presence of aliasing.
 
 // For rounding modes ToNegativeInf and ToPositiveInf, rounding is affected
