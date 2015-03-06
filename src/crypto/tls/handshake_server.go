@@ -229,7 +229,7 @@ Curves:
 			// The client is doing a fallback connection.
 			if hs.clientHello.vers < c.config.maxVersion() {
 				c.sendAlert(alertInappropriateFallback)
-				return false, errors.New("tls: client using inppropriate protocol fallback")
+				return false, errors.New("tls: client using inappropriate protocol fallback")
 			}
 			break
 		}
