@@ -640,6 +640,8 @@ var marshalTests = []struct {
 			`<x xmlns="space1">` +
 			`<c>c1</c>` +
 			`<d>d1</d>` +
+			`</x>` +
+			`<x>` +
 			`<e>e1</e>` +
 			`</x>` +
 			`</top>`,
