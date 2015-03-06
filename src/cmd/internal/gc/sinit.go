@@ -517,9 +517,8 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
  * part of the composite literal.
  */
 func staticname(t *Type, ctxt int) *Node {
-	namebuf = fmt.Sprintf("statictmp_%.4d", statuniqgen)
+	n := newname(Lookupf("statictmp_%.4d", statuniqgen))
 	statuniqgen++
-	n := newname(Lookup(namebuf))
 	if ctxt == 0 {
 		n.Readonly = true
 	}

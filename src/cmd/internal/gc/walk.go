@@ -1109,17 +1109,18 @@ func walkexpr(np **Node, init **NodeList) {
 			if Widthreg >= 8 || (et != TUINT64 && et != TINT64) {
 				goto ret
 			}
+			var fn string
 			if et == TINT64 {
-				namebuf = "int64"
+				fn = "int64"
 			} else {
-				namebuf = "uint64"
+				fn = "uint64"
 			}
 			if n.Op == ODIV {
-				namebuf += "div"
+				fn += "div"
 			} else {
-				namebuf += "mod"
+				fn += "mod"
 			}
-			n = mkcall(namebuf, n.Type, init, conv(n.Left, Types[et]), conv(n.Right, Types[et]))
+			n = mkcall(fn, n.Type, init, conv(n.Left, Types[et]), conv(n.Right, Types[et]))
 
 		default:
 			break
@@ -2882,13 +2883,14 @@ func addstr(n *Node, init **NodeList) *Node {
 		args = list(args, conv(l.N, Types[TSTRING]))
 	}
 
+	var fn string
 	if c <= 5 {
 		// small numbers of strings use direct runtime helpers.
 		// note: orderexpr knows this cutoff too.
-		namebuf = fmt.Sprintf("concatstring%d", c)
+		fn = fmt.Sprintf("concatstring%d", c)
 	} else {
 		// large numbers of strings are passed to the runtime as a slice.
-		namebuf = "concatstrings"
+		fn = "concatstrings"
 
 		t := typ(TARRAY)
 		t.Type = Types[TSTRING]
@@ -2901,7 +2903,7 @@ func addstr(n *Node, init **NodeList) *Node {
 		slice.Esc = EscNone
 	}
 
-	cat := syslook(namebuf, 1)
+	cat := syslook(fn, 1)
 	r := Nod(OCALL, cat, nil)
 	r.List = args
 	typecheck(&r, Erv)

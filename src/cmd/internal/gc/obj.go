@@ -101,8 +101,8 @@ func dumpobj() {
 			obj.Bputc(bout, 0)
 		}
 		obj.Bseek(bout, startobj-ArhdrSize, 0)
-		namebuf = fmt.Sprintf("_go_.%c", Thearch.Thechar)
-		formathdr(arhdr[:], namebuf, size)
+		name := fmt.Sprintf("_go_.%c", Thearch.Thechar)
+		formathdr(arhdr[:], name, size)
 		obj.Bwrite(bout, arhdr[:])
 	}
 
@@ -199,22 +199,23 @@ func duintptr(s *Sym, off int, v uint64) int {
 var stringsym_gen int
 
 func stringsym(s string) *Sym {
+	var symname string
 	var pkg *Pkg
 	if len(s) > 100 {
 		// huge strings are made static to avoid long names
 		stringsym_gen++
-		namebuf = fmt.Sprintf(".gostring.%d", stringsym_gen)
+		symname = fmt.Sprintf(".gostring.%d", stringsym_gen)
 
 		pkg = localpkg
 	} else {
 		// small strings get named by their contents,
 		// so that multiple modules using the same string
 		// can share it.
-		namebuf = fmt.Sprintf("%q", s)
+		symname = fmt.Sprintf("%q", s)
 		pkg = gostringpkg
 	}
 
-	sym := Pkglookup(namebuf, pkg)
+	sym := Pkglookup(symname, pkg)
 
 	// SymUniq flag indicates that data is generated already
 	if sym.Flags&SymUniq != 0 {
@@ -252,8 +253,8 @@ func slicebytes(nam *Node, s string, len int) {
 	var m int
 
 	slicebytes_gen++
-	namebuf = fmt.Sprintf(".gobytes.%d", slicebytes_gen)
-	sym := Pkglookup(namebuf, localpkg)
+	symname := fmt.Sprintf(".gobytes.%d", slicebytes_gen)
+	sym := Pkglookup(symname, localpkg)
 	sym.Def = newname(sym)
 
 	off := 0

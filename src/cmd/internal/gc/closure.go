@@ -174,8 +174,7 @@ func closurename(n *Node) *Sym {
 	} else {
 		Fatal("closurename called for %v", Nconv(n, obj.FmtShort))
 	}
-	namebuf = fmt.Sprintf("%s.%s%d", outer, prefix, gen)
-	n.Sym = Lookup(namebuf)
+	n.Sym = Lookupf("%s.%s%d", outer, prefix, gen)
 	return n.Sym
 }
 
@@ -333,9 +332,7 @@ func transformclosure(xfunc *Node) {
 				// we introduce function param &v *T
 				// and v remains PPARAMREF with &v heapaddr
 				// (accesses will implicitly deref &v).
-				namebuf = fmt.Sprintf("&%s", v.Sym.Name)
-
-				addr = newname(Lookup(namebuf))
+				addr = newname(Lookupf("&%s", v.Sym.Name))
 				addr.Type = Ptrto(v.Type)
 				addr.Class = PPARAM
 				v.Heapaddr = addr
@@ -397,9 +394,7 @@ func transformclosure(xfunc *Node) {
 			} else {
 				// Declare variable holding addresses taken from closure
 				// and initialize in entry prologue.
-				namebuf = fmt.Sprintf("&%s", v.Sym.Name)
-
-				addr = newname(Lookup(namebuf))
+				addr = newname(Lookupf("&%s", v.Sym.Name))
 				addr.Ntype = Nod(OIND, typenod(v.Type), nil)
 				addr.Class = PAUTO
 				addr.Used = true
@@ -557,9 +552,8 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	var fld *Node
 	var n *Node
 	for t := getinargx(t0).Type; t != nil; t = t.Down {
-		namebuf = fmt.Sprintf("a%d", i)
+		n = newname(Lookupf("a%d", i))
 		i++
-		n = newname(Lookup(namebuf))
 		n.Class = PPARAM
 		xfunc.Dcl = list(xfunc.Dcl, n)
 		callargs = list(callargs, n)
@@ -577,9 +571,8 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	l = nil
 	var retargs *NodeList
 	for t := getoutargx(t0).Type; t != nil; t = t.Down {
-		namebuf = fmt.Sprintf("r%d", i)
+		n = newname(Lookupf("r%d", i))
 		i++
-		n = newname(Lookup(namebuf))
 		n.Class = PPARAMOUT
 		xfunc.Dcl = list(xfunc.Dcl, n)
 		retargs = list(retargs, n)

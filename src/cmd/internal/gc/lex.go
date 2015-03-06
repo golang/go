@@ -559,25 +559,24 @@ func islocalname(name string) bool {
 		strings.HasPrefix(name, "../") || name == ".."
 }
 
-func findpkg(name string) bool {
+func findpkg(name string) (file string, ok bool) {
 	if islocalname(name) {
 		if safemode != 0 || nolocalimports != 0 {
-			return false
+			return "", false
 		}
 
 		// try .a before .6.  important for building libraries:
 		// if there is an array.6 in the array.a library,
 		// want to find all of array.a, not just array.6.
-		namebuf = fmt.Sprintf("%s.a", name)
-
-		if obj.Access(namebuf, 0) >= 0 {
-			return true
+		file = fmt.Sprintf("%s.a", name)
+		if obj.Access(file, 0) >= 0 {
+			return file, true
 		}
-		namebuf = fmt.Sprintf("%s.%c", name, Thearch.Thechar)
-		if obj.Access(namebuf, 0) >= 0 {
-			return true
+		file = fmt.Sprintf("%s.%c", name, Thearch.Thechar)
+		if obj.Access(file, 0) >= 0 {
+			return file, true
 		}
-		return false
+		return "", false
 	}
 
 	// local imports should be canonicalized already.
@@ -587,17 +586,17 @@ func findpkg(name string) bool {
 	_ = q
 	if path.Clean(name) != name {
 		Yyerror("non-canonical import path %q (should be %q)", name, q)
-		return false
+		return "", false
 	}
 
 	for p := idirs; p != nil; p = p.link {
-		namebuf = fmt.Sprintf("%s/%s.a", p.dir, name)
-		if obj.Access(namebuf, 0) >= 0 {
-			return true
+		file = fmt.Sprintf("%s/%s.a", p.dir, name)
+		if obj.Access(file, 0) >= 0 {
+			return file, true
 		}
-		namebuf = fmt.Sprintf("%s/%s.%c", p.dir, name, Thearch.Thechar)
-		if obj.Access(namebuf, 0) >= 0 {
-			return true
+		file = fmt.Sprintf("%s/%s.%c", p.dir, name, Thearch.Thechar)
+		if obj.Access(file, 0) >= 0 {
+			return file, true
 		}
 	}
 
@@ -612,17 +611,17 @@ func findpkg(name string) bool {
 			suffix = "race"
 		}
 
-		namebuf = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.a", goroot, goos, goarch, suffixsep, suffix, name)
-		if obj.Access(namebuf, 0) >= 0 {
-			return true
+		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.a", goroot, goos, goarch, suffixsep, suffix, name)
+		if obj.Access(file, 0) >= 0 {
+			return file, true
 		}
-		namebuf = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.%c", goroot, goos, goarch, suffixsep, suffix, name, Thearch.Thechar)
-		if obj.Access(namebuf, 0) >= 0 {
-			return true
+		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.%c", goroot, goos, goarch, suffixsep, suffix, name, Thearch.Thechar)
+		if obj.Access(file, 0) >= 0 {
+			return file, true
 		}
 	}
 
-	return false
+	return "", false
 }
 
 func fakeimport() {
@@ -698,7 +697,8 @@ func importfile(f *Val, line int) {
 		}
 	}
 
-	if !findpkg(path_) {
+	file, found := findpkg(path_)
+	if !found {
 		Yyerror("can't find import: %q", f.U.Sval)
 		errorexit()
 	}
@@ -708,7 +708,6 @@ func importfile(f *Val, line int) {
 	// If we already saw that package, feed a dummy statement
 	// to the lexer to avoid parsing export data twice.
 	if importpkg.Imported != 0 {
-		file := namebuf
 		tag := ""
 		if importpkg.Safe {
 			tag = "safe"
@@ -723,16 +722,13 @@ func importfile(f *Val, line int) {
 
 	var err error
 	var imp *obj.Biobuf
-	imp, err = obj.Bopenr(namebuf)
+	imp, err = obj.Bopenr(file)
 	if err != nil {
 		Yyerror("can't open import: %q: %v", f.U.Sval, err)
 		errorexit()
 	}
 
-	file := namebuf
-
-	n := len(namebuf)
-	if n > 2 && namebuf[n-2] == '.' && namebuf[n-1] == 'a' {
+	if strings.HasSuffix(file, ".a") {
 		if !skiptopkgdef(imp) {
 			Yyerror("import %s: not a package file", file)
 			errorexit()
@@ -757,7 +753,7 @@ func importfile(f *Val, line int) {
 
 	// assume files move (get installed)
 	// so don't record the full path.
-	linehist(file[n-len(path_)-2:], -1, 1) // acts as #pragma lib
+	linehist(file[len(file)-len(path_)-2:], -1, 1) // acts as #pragma lib
 
 	/*
 	 * position the input right
@@ -3162,10 +3158,9 @@ func mkpackage(pkgname string) {
 				p = p[i+1:]
 			}
 		}
-		namebuf = p
-		if i := strings.LastIndex(namebuf, "."); i >= 0 {
-			namebuf = namebuf[:i]
+		if i := strings.LastIndex(p, "."); i >= 0 {
+			p = p[:i]
 		}
-		outfile = fmt.Sprintf("%s.%c", namebuf, Thearch.Thechar)
+		outfile = fmt.Sprintf("%s.%c", p, Thearch.Thechar)
 	}
 }
