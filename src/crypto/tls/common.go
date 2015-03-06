@@ -123,6 +123,7 @@ const (
 const (
 	hashSHA1   uint8 = 2
 	hashSHA256 uint8 = 4
+	hashSHA384 uint8 = 5
 )
 
 // Signature algorithms for TLS 1.2 (See RFC 5246, section A.4.1)

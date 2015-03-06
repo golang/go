@@ -169,16 +169,18 @@ func keysFromMasterSecret(version uint16, tls12Hash crypto.Hash, masterSecret, c
 
 func newFinishedHash(version uint16, tls12Hash crypto.Hash) finishedHash {
 	if version >= VersionTLS12 {
-		return finishedHash{tls12Hash.New(), tls12Hash.New(), nil, nil, version, prfForVersion(version, tls12Hash)}
+		return finishedHash{tls12Hash.New(), tls12Hash.New(), tls12Hash, nil, nil, version, prfForVersion(version, tls12Hash)}
 	}
-	return finishedHash{sha1.New(), sha1.New(), md5.New(), md5.New(), version, prfForVersion(version, tls12Hash)}
+	return finishedHash{sha1.New(), sha1.New(), crypto.MD5SHA1, md5.New(), md5.New(), version, prfForVersion(version, tls12Hash)}
 }
 
 // A finishedHash calculates the hash of a set of handshake messages suitable
 // for including in a Finished message.
 type finishedHash struct {
 	client hash.Hash
-	server hash.Hash
+
+	server     hash.Hash
+	serverHash crypto.Hash
 
 	// Prior to TLS 1.2, an additional MD5 hash is required.
 	clientMD5 hash.Hash
@@ -279,7 +281,7 @@ func (h finishedHash) serverSum(masterSecret []byte) []byte {
 func (h finishedHash) hashForClientCertificate(sigType uint8) ([]byte, crypto.Hash, uint8) {
 	if h.version >= VersionTLS12 {
 		digest := h.server.Sum(nil)
-		return digest, crypto.SHA256, hashSHA256
+		return digest, h.serverHash, tls12HashID(h.serverHash)
 	}
 	if sigType == signatureECDSA {
 		digest := h.server.Sum(nil)
@@ -290,4 +292,16 @@ func (h finishedHash) hashForClientCertificate(sigType uint8) ([]byte, crypto.Ha
 	digest = h.serverMD5.Sum(digest)
 	digest = h.server.Sum(digest)
 	return digest, crypto.MD5SHA1, 0 /* not specified in TLS 1.2. */
+}
+
+// tls12HashID returns the HashAlgorithm id corresponding to the hash h, as
+// specified in RFC 5246, section A.4.1.
+func tls12HashID(h crypto.Hash) uint8 {
+	switch h {
+	case crypto.SHA256:
+		return hashSHA256
+	case crypto.SHA384:
+		return hashSHA384
+	}
+	return 0
 }
