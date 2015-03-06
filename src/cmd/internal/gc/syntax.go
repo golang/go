@@ -47,18 +47,18 @@ type Node struct {
 	Isddd          uint8
 	Readonly       bool
 	Implicit       uint8
-	Addrtaken      bool  // address taken, even if not moved to heap
-	Assigned       uint8 // is the variable ever assigned to
-	Captured       uint8 // is the variable captured by a closure
-	Byval          uint8 // is the variable captured by value or by reference
-	Dupok          uint8 // duplicate definitions ok (for func)
-	Wrapper        uint8 // is method wrapper (for func)
-	Reslice        uint8 // this is a reslice x = x[0:y] or x = append(x, ...)
-	Likely         int8  // likeliness of if statement
-	Hasbreak       bool  // has break statement
-	Needzero       bool  // if it contains pointers, needs to be zeroed on function entry
-	Needctxt       bool  // function uses context register (has closure variables)
-	Esc            uint  // EscXXX
+	Addrtaken      bool // address taken, even if not moved to heap
+	Assigned       bool // is the variable ever assigned to
+	Captured       bool // is the variable captured by a closure
+	Byval          bool // is the variable captured by value or by reference
+	Dupok          bool // duplicate definitions ok (for func)
+	Wrapper        bool // is method wrapper (for func)
+	Reslice        bool // this is a reslice x = x[0:y] or x = append(x, ...)
+	Likely         int8 // likeliness of if statement
+	Hasbreak       bool // has break statement
+	Needzero       bool // if it contains pointers, needs to be zeroed on function entry
+	Needctxt       bool // function uses context register (has closure variables)
+	Esc            uint // EscXXX
 	Funcdepth      int
 
 	// most nodes

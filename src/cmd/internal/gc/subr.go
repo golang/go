@@ -2474,7 +2474,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 		n.Left = newname(methodsym(method.Sym, methodrcvr, 0))
 		fn.Nbody = list(fn.Nbody, n)
 	} else {
-		fn.Wrapper = 1 // ignore frame for panic+recover matching
+		fn.Wrapper = true // ignore frame for panic+recover matching
 		call := Nod(OCALL, dot, nil)
 		call.List = args
 		call.Isddd = uint8(isddd)
@@ -2496,7 +2496,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 
 	// wrappers where T is anonymous (struct or interface) can be duplicated.
 	if rcvr.Etype == TSTRUCT || rcvr.Etype == TINTER || Isptr[rcvr.Etype] && rcvr.Type.Etype == TSTRUCT {
-		fn.Dupok = 1
+		fn.Dupok = true
 	}
 	typecheck(&fn, Etop)
 	typechecklist(fn.Nbody, Etop)
@@ -2751,7 +2751,7 @@ func genhash(sym *Sym, t *Type) {
 
 	funcbody(fn)
 	Curfn = fn
-	fn.Dupok = 1
+	fn.Dupok = true
 	typecheck(&fn, Etop)
 	typechecklist(fn.Nbody, Etop)
 	Curfn = nil
@@ -2971,7 +2971,7 @@ func geneq(sym *Sym, t *Type) {
 
 	funcbody(fn)
 	Curfn = fn
-	fn.Dupok = 1
+	fn.Dupok = true
 	typecheck(&fn, Etop)
 	typechecklist(fn.Nbody, Etop)
 	Curfn = nil

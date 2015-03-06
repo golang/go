@@ -442,10 +442,10 @@ func compile(fn *Node) {
 		nam = nil
 	}
 	ptxt = Thearch.Gins(obj.ATEXT, nam, &nod1)
-	if fn.Dupok != 0 {
+	if fn.Dupok {
 		ptxt.From3.Offset |= obj.DUPOK
 	}
-	if fn.Wrapper != 0 {
+	if fn.Wrapper {
 		ptxt.From3.Offset |= obj.WRAPPER
 	}
 	if fn.Needctxt {

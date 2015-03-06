@@ -3258,15 +3258,15 @@ func checkassign(stmt *Node, n *Node) {
 		r := outervalue(n)
 		var l *Node
 		for l = n; l != r; l = l.Left {
-			l.Assigned = 1
+			l.Assigned = true
 			if l.Closure != nil {
-				l.Closure.Assigned = 1
+				l.Closure.Assigned = true
 			}
 		}
 
-		l.Assigned = 1
+		l.Assigned = true
 		if l.Closure != nil {
-			l.Closure.Assigned = 1
+			l.Closure.Assigned = true
 		}
 	}
 
@@ -3370,7 +3370,7 @@ func typecheckas(n *Node) {
 			OSLICE3,
 			OSLICESTR:
 			if false && samesafeexpr(n.Left, n.Right.Left) && (n.Right.Right.Left == nil || iszero(n.Right.Right.Left)) {
-				n.Right.Reslice = 1
+				n.Right.Reslice = true
 			}
 
 			// For x = append(x, ...), x can be updated in place when there is capacity,
@@ -3379,7 +3379,7 @@ func typecheckas(n *Node) {
 		// TODO(rsc): Reenable once the emitted code does update the pointer.
 		case OAPPEND:
 			if false && n.Right.List != nil && samesafeexpr(n.Left, n.Right.List.N) {
-				n.Right.Reslice = 1
+				n.Right.Reslice = true
 			}
 		}
 	}

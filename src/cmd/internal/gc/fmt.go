@@ -285,7 +285,7 @@ func Jconv(n *Node, flag int) string {
 		fp += " addrtaken"
 	}
 
-	if n.Assigned != 0 {
+	if n.Assigned {
 		fp += " assigned"
 	}
 
