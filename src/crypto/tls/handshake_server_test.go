@@ -780,7 +780,7 @@ func TestFallbackSCSV(t *testing.T) {
 		config: serverConfig,
 		// OpenSSL 1.0.1j is needed for the -fallback_scsv option.
 		command: []string{"openssl", "s_client", "-fallback_scsv"},
-		expectHandshakeErrorIncluding: "inppropriate protocol fallback",
+		expectHandshakeErrorIncluding: "inappropriate protocol fallback",
 	}
 	runServerTestTLS11(t, test)
 }
