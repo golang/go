@@ -112,7 +112,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 	}
 
 	p0 += 3
-	for p0 < len(data) && data[0] != '\n' {
+	for p0 < len(data) && data[p0] != '\n' {
 		p0++
 	}
 
@@ -127,7 +127,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 	}
 	p1 += p0
 
-	for p0 < p1 && (data[p0] == ' ' || data[0] == '\t' || data[0] == '\n') {
+	for p0 < p1 && (data[p0] == ' ' || data[p0] == '\t' || data[p0] == '\n') {
 		p0++
 	}
 	if p0 < p1 {
@@ -143,7 +143,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 		for p0 < p1 && (data[p0] == ' ' || data[p0] == '\t' || data[p0] == '\n') {
 			p0++
 		}
-		name := data[p0:]
+		pname := p0
 		for p0 < p1 && data[p0] != ' ' && data[p0] != '\t' && data[p0] != '\n' {
 			p0++
 		}
@@ -153,16 +153,12 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 			Errorexit()
 		}
 
-		name = name[:p1-p0]
+		name := data[pname:p0]
+		for p0 < p1 && data[p0] != '\n' {
+			p0++
+		}
 		if p0 < p1 {
-			if data[p0] == '\n' {
-				p0++
-			} else {
-				p0++
-				for p0 < p1 && data[p0] != '\n' {
-					p0++
-				}
-			}
+			p0++
 		}
 
 		if pkg == "main" && name != "main" {
