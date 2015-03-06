@@ -12,9 +12,10 @@ import (
 	"strings"
 )
 
-var startmagic string = "\x00\x00go13ld"
-
-var endmagic string = "\xff\xffgo13ld"
+const (
+	startmagic = "\x00\x00go13ld"
+	endmagic   = "\xff\xffgo13ld"
+)
 
 func ldobjfile(ctxt *Link, f *Biobuf, pkg string, length int64, pn string) {
 	start := Boffset(f)
