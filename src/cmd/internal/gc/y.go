@@ -1430,7 +1430,7 @@ yydefault:
 			switch yyVAL.node.Op {
 			case ONAME, ONONAME, OTYPE, OPACK, OLITERAL:
 				yyVAL.node = Nod(OPAREN, yyVAL.node, nil)
-				yyVAL.node.Implicit = 1
+				yyVAL.node.Implicit = true
 				break
 			}
 		}
@@ -1480,7 +1480,7 @@ yydefault:
 		//line go.y:461
 		{
 			yyVAL.node = Nod(OASOP, yyDollar[1].node, Nodintconst(1))
-			yyVAL.node.Implicit = 1
+			yyVAL.node.Implicit = true
 			yyVAL.node.Etype = OADD
 		}
 	case 54:
@@ -1488,7 +1488,7 @@ yydefault:
 		//line go.y:467
 		{
 			yyVAL.node = Nod(OASOP, yyDollar[1].node, Nodintconst(1))
-			yyVAL.node.Implicit = 1
+			yyVAL.node.Implicit = true
 			yyVAL.node.Etype = OSUB
 		}
 	case 55:
@@ -1991,7 +1991,7 @@ yydefault:
 				// Special case for &T{...}: turn into (*T){...}.
 				yyVAL.node = yyDollar[2].node
 				yyVAL.node.Right = Nod(OIND, yyVAL.node.Right, nil)
-				yyVAL.node.Right.Implicit = 1
+				yyVAL.node.Right.Implicit = true
 			} else {
 				yyVAL.node = Nod(OADDR, yyDollar[2].node, nil)
 			}
@@ -2069,7 +2069,7 @@ yydefault:
 			if yyDollar[1].node.Op == OPACK {
 				var s *Sym
 				s = restrictlookup(yyDollar[3].sym.Name, yyDollar[1].node.Pkg)
-				yyDollar[1].node.Used = 1
+				yyDollar[1].node.Used = true
 				yyVAL.node = oldname(s)
 				break
 			}
@@ -2175,7 +2175,7 @@ yydefault:
 			switch yyVAL.node.Op {
 			case ONAME, ONONAME, OTYPE, OPACK, OLITERAL:
 				yyVAL.node = Nod(OPAREN, yyVAL.node, nil)
-				yyVAL.node.Implicit = 1
+				yyVAL.node.Implicit = true
 			}
 		}
 	case 143:
@@ -2308,7 +2308,7 @@ yydefault:
 		{
 			yyVAL.node = oldname(yyDollar[1].sym)
 			if yyVAL.node.Pack != nil {
-				yyVAL.node.Pack.Used = 1
+				yyVAL.node.Pack.Used = true
 			}
 		}
 	case 163:
@@ -2393,7 +2393,7 @@ yydefault:
 			if yyDollar[1].node.Op == OPACK {
 				var s *Sym
 				s = restrictlookup(yyDollar[3].sym.Name, yyDollar[1].node.Pkg)
-				yyDollar[1].node.Used = 1
+				yyDollar[1].node.Used = true
 				yyVAL.node = oldname(s)
 				break
 			}
@@ -2818,7 +2818,7 @@ yydefault:
 			yyVAL.sym = yyDollar[1].sym
 			n = oldname(yyDollar[1].sym)
 			if n.Pack != nil {
-				n.Pack.Used = 1
+				n.Pack.Used = true
 			}
 		}
 	case 237:
@@ -2831,7 +2831,7 @@ yydefault:
 				Yyerror("%v is not a package", Sconv(yyDollar[1].sym, 0))
 				pkg = localpkg
 			} else {
-				yyDollar[1].sym.Def.Used = 1
+				yyDollar[1].sym.Def.Used = true
 				pkg = yyDollar[1].sym.Def.Pkg
 			}
 			yyVAL.sym = restrictlookup(yyDollar[3].sym.Name, pkg)

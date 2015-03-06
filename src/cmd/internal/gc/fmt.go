@@ -273,8 +273,8 @@ func Jconv(n *Node, flag int) string {
 		fp += fmt.Sprintf(" isddd(%d)", n.Isddd)
 	}
 
-	if n.Implicit != 0 {
-		fp += fmt.Sprintf(" implicit(%d)", n.Implicit)
+	if n.Implicit {
+		fp += fmt.Sprintf(" implicit(%v)", n.Implicit)
 	}
 
 	if n.Embedded != 0 {
@@ -289,8 +289,8 @@ func Jconv(n *Node, flag int) string {
 		fp += " assigned"
 	}
 
-	if c == 0 && n.Used != 0 {
-		fp += fmt.Sprintf(" used(%d)", n.Used)
+	if c == 0 && n.Used {
+		fp += fmt.Sprintf(" used(%v)", n.Used)
 	}
 	return fp
 }
@@ -859,7 +859,7 @@ func stmtfmt(n *Node) string {
 		}
 
 	case OASOP:
-		if n.Implicit != 0 {
+		if n.Implicit {
 			if n.Etype == OADD {
 				f += fmt.Sprintf("%v++", Nconv(n.Left, 0))
 			} else {
@@ -1109,7 +1109,7 @@ var opprec = []int{
 }
 
 func exprfmt(n *Node, prec int) string {
-	for n != nil && n.Implicit != 0 && (n.Op == OIND || n.Op == OADDR) {
+	for n != nil && n.Implicit && (n.Op == OIND || n.Op == OADDR) {
 		n = n.Left
 	}
 
@@ -1266,9 +1266,9 @@ func exprfmt(n *Node, prec int) string {
 		return f
 
 	case OCOMPLIT:
-		ptrlit := n.Right != nil && n.Right.Implicit != 0 && n.Right.Type != nil && Isptr[n.Right.Type.Etype]
+		ptrlit := n.Right != nil && n.Right.Implicit && n.Right.Type != nil && Isptr[n.Right.Type.Etype]
 		if fmtmode == FErr {
-			if n.Right != nil && n.Right.Type != nil && n.Implicit == 0 {
+			if n.Right != nil && n.Right.Type != nil && !n.Implicit {
 				if ptrlit {
 					return fmt.Sprintf("&%v literal", Tconv(n.Right.Type.Type, 0))
 				} else {
@@ -1289,7 +1289,7 @@ func exprfmt(n *Node, prec int) string {
 		return f
 
 	case OPTRLIT:
-		if fmtmode == FExp && n.Left.Implicit != 0 {
+		if fmtmode == FExp && n.Left.Implicit {
 			return fmt.Sprintf("%v", Nconv(n.Left, 0))
 		}
 		var f string
@@ -1299,7 +1299,7 @@ func exprfmt(n *Node, prec int) string {
 	case OSTRUCTLIT:
 		if fmtmode == FExp { // requires special handling of field names
 			var f string
-			if n.Implicit != 0 {
+			if n.Implicit {
 				f += "{"
 			} else {
 				f += fmt.Sprintf("(%v{", Tconv(n.Type, 0))
@@ -1314,7 +1314,7 @@ func exprfmt(n *Node, prec int) string {
 				}
 			}
 
-			if n.Implicit == 0 {
+			if !n.Implicit {
 				f += "})"
 				return f
 			}
@@ -1330,7 +1330,7 @@ func exprfmt(n *Node, prec int) string {
 		if fmtmode == FErr {
 			return fmt.Sprintf("%v literal", Tconv(n.Type, 0))
 		}
-		if fmtmode == FExp && n.Implicit != 0 {
+		if fmtmode == FExp && n.Implicit {
 			return fmt.Sprintf("{ %v }", Hconv(n.List, obj.FmtComma))
 		}
 		var f string

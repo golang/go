@@ -336,7 +336,7 @@ OpSwitch:
 				return
 			}
 
-			n.Used = 1
+			n.Used = true
 		}
 
 		if top&Ecall == 0 && isunsafebuiltin(n) {
@@ -667,7 +667,7 @@ OpSwitch:
 
 		if t.Etype != TIDEAL && !Eqtype(l.Type, r.Type) {
 			defaultlit2(&l, &r, 1)
-			if n.Op == OASOP && n.Implicit != 0 {
+			if n.Op == OASOP && n.Implicit {
 				Yyerror("invalid operation: %v (non-numeric type %v)", Nconv(n, 0), Tconv(l.Type, 0))
 				n.Type = nil
 				return
@@ -1146,7 +1146,7 @@ OpSwitch:
 			}
 
 			n.Left = Nod(OADDR, n.Left, nil)
-			n.Left.Implicit = 1
+			n.Left.Implicit = true
 			typecheck(&n.Left, Erv)
 			l = n.Left
 		}
@@ -1210,7 +1210,7 @@ OpSwitch:
 			}
 
 			n.Left = Nod(OADDR, n.Left, nil)
-			n.Left.Implicit = 1
+			n.Left.Implicit = true
 			typecheck(&n.Left, Erv)
 			l = n.Left
 		}
@@ -2343,7 +2343,7 @@ func implicitstar(nn **Node) {
 		return
 	}
 	n = Nod(OIND, n, nil)
-	n.Implicit = 1
+	n.Implicit = true
 	typecheck(&n, Erv)
 	*nn = n
 }
@@ -2506,7 +2506,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) bool {
 		if t.Etype == TINTER {
 			if Isptr[n.Left.Type.Etype] {
 				n.Left = Nod(OIND, n.Left, nil) // implicitstar
-				n.Left.Implicit = 1
+				n.Left.Implicit = true
 				typecheck(&n.Left, Erv)
 			}
 
@@ -2524,11 +2524,11 @@ func lookdot(n *Node, t *Type, dostrcmp int) bool {
 			if int(rcvr.Etype) == Tptr && Eqtype(rcvr.Type, tt) {
 				checklvalue(n.Left, "call pointer method on")
 				n.Left = Nod(OADDR, n.Left, nil)
-				n.Left.Implicit = 1
+				n.Left.Implicit = true
 				typecheck(&n.Left, Etype|Erv)
 			} else if int(tt.Etype) == Tptr && int(rcvr.Etype) != Tptr && Eqtype(tt.Type, rcvr) {
 				n.Left = Nod(OIND, n.Left, nil)
-				n.Left.Implicit = 1
+				n.Left.Implicit = true
 				typecheck(&n.Left, Etype|Erv)
 			} else if int(tt.Etype) == Tptr && int(tt.Type.Etype) == Tptr && Eqtype(derefall(tt), derefall(rcvr)) {
 				Yyerror("calling method %v with receiver %v requires explicit dereference", Nconv(n.Right, 0), Nconv(n.Left, obj.FmtLong))
@@ -2538,7 +2538,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) bool {
 						break
 					}
 					n.Left = Nod(OIND, n.Left, nil)
-					n.Left.Implicit = 1
+					n.Left.Implicit = true
 					typecheck(&n.Left, Etype|Erv)
 					tt = tt.Type
 				}
@@ -2551,7 +2551,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) bool {
 		for ll.Left != nil {
 			ll = ll.Left
 		}
-		if ll.Implicit != 0 {
+		if ll.Implicit {
 			if Isptr[ll.Type.Etype] && ll.Type.Sym != nil && ll.Type.Sym.Def != nil && ll.Type.Sym.Def.Op == OTYPE {
 				// It is invalid to automatically dereference a named pointer type when selecting a method.
 				// Make n->left == ll to clarify error message.
@@ -2946,8 +2946,8 @@ func pushtype(n *Node, t *Type) {
 
 	if n.Right == nil {
 		n.Right = typenod(t)
-		n.Implicit = 1       // don't print
-		n.Right.Implicit = 1 // * is okay
+		n.Implicit = true       // don't print
+		n.Right.Implicit = true // * is okay
 	} else if Debug['s'] != 0 {
 		typecheck(&n.Right, Etype)
 		if n.Right.Type != nil && Eqtype(n.Right.Type, t) {
@@ -2991,7 +2991,7 @@ func typecheckcomplit(np **Node) {
 	if Isptr[t.Etype] {
 		// For better or worse, we don't allow pointers as the composite literal type,
 		// except when using the &T syntax, which sets implicit on the OIND.
-		if n.Right.Implicit == 0 {
+		if !n.Right.Implicit {
 			Yyerror("invalid pointer type %v for composite literal (use &%v instead)", Tconv(t, 0), Tconv(t.Type, 0))
 			n.Type = nil
 			return

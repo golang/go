@@ -418,7 +418,7 @@ simple_stmt:
 		switch($$.Op) {
 		case ONAME, ONONAME, OTYPE, OPACK, OLITERAL:
 			$$ = Nod(OPAREN, $$, nil);
-			$$.Implicit = 1;
+			$$.Implicit = true;
 			break;
 		}
 	}
@@ -460,13 +460,13 @@ simple_stmt:
 |	expr LINC
 	{
 		$$ = Nod(OASOP, $1, Nodintconst(1));
-		$$.Implicit = 1;
+		$$.Implicit = true;
 		$$.Etype = OADD;
 	}
 |	expr LDEC
 	{
 		$$ = Nod(OASOP, $1, Nodintconst(1));
-		$$.Implicit = 1;
+		$$.Implicit = true;
 		$$.Etype = OSUB;
 	}
 
@@ -886,7 +886,7 @@ uexpr:
 			// Special case for &T{...}: turn into (*T){...}.
 			$$ = $2;
 			$$.Right = Nod(OIND, $$.Right, nil);
-			$$.Right.Implicit = 1;
+			$$.Right.Implicit = true;
 		} else {
 			$$ = Nod(OADDR, $2, nil);
 		}
@@ -949,7 +949,7 @@ pexpr_no_paren:
 		if $1.Op == OPACK {
 			var s *Sym
 			s = restrictlookup($3.Name, $1.Pkg);
-			$1.Used = 1;
+			$1.Used = true;
 			$$ = oldname(s);
 			break;
 		}
@@ -1034,7 +1034,7 @@ bare_complitexpr:
 		switch($$.Op) {
 		case ONAME, ONONAME, OTYPE, OPACK, OLITERAL:
 			$$ = Nod(OPAREN, $$, nil);
-			$$.Implicit = 1;
+			$$.Implicit = true;
 		}
 	}
 |	'{' start_complit braced_keyval_list '}'
@@ -1160,7 +1160,7 @@ name:
 	{
 		$$ = oldname($1);
 		if $$.Pack != nil {
-			$$.Pack.Used = 1;
+			$$.Pack.Used = true;
 		}
 	}
 
@@ -1238,7 +1238,7 @@ dotname:
 		if $1.Op == OPACK {
 			var s *Sym
 			s = restrictlookup($3.Name, $1.Pkg);
-			$1.Used = 1;
+			$1.Used = true;
 			$$ = oldname(s);
 			break;
 		}
@@ -1626,7 +1626,7 @@ packname:
 		$$ = $1;
 		n = oldname($1);
 		if n.Pack != nil {
-			n.Pack.Used = 1;
+			n.Pack.Used = true;
 		}
 	}
 |	LNAME '.' sym
@@ -1637,7 +1637,7 @@ packname:
 			Yyerror("%v is not a package", Sconv($1, 0));
 			pkg = localpkg;
 		} else {
-			$1.Def.Used = 1;
+			$1.Def.Used = true;
 			pkg = $1.Def.Pkg;
 		}
 		$$ = restrictlookup($3.Name, pkg);

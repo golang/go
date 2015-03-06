@@ -197,8 +197,8 @@ func cmpstackvar(a *Node, b *Node) int {
 		return 0
 	}
 
-	if (a.Used == 0) != (b.Used == 0) {
-		return int(b.Used) - int(a.Used)
+	if a.Used != b.Used {
+		return bool2int(b.Used) - bool2int(a.Used)
 	}
 
 	ap := bool2int(haspointers(a.Type))
@@ -235,7 +235,7 @@ func allocauto(ptxt *obj.Prog) {
 	// Mark the PAUTO's unused.
 	for ll := Curfn.Dcl; ll != nil; ll = ll.Next {
 		if ll.N.Class == PAUTO {
-			ll.N.Used = 0
+			ll.N.Used = false
 		}
 	}
 
@@ -247,7 +247,7 @@ func allocauto(ptxt *obj.Prog) {
 	ll := Curfn.Dcl
 
 	n := ll.N
-	if n.Class == PAUTO && n.Op == ONAME && n.Used == 0 {
+	if n.Class == PAUTO && n.Op == ONAME && !n.Used {
 		// No locals used at all
 		Curfn.Dcl = nil
 
@@ -257,7 +257,7 @@ func allocauto(ptxt *obj.Prog) {
 
 	for ll := Curfn.Dcl; ll.Next != nil; ll = ll.Next {
 		n = ll.Next.N
-		if n.Class == PAUTO && n.Op == ONAME && n.Used == 0 {
+		if n.Class == PAUTO && n.Op == ONAME && !n.Used {
 			ll.Next = nil
 			Curfn.Dcl.End = ll
 			break
