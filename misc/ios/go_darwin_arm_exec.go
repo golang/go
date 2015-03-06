@@ -5,6 +5,12 @@
 // This program can be used as go_darwin_arm_exec by the Go tool.
 // It executes binaries on an iOS device using the XCode toolchain
 // and the ios-deploy program: https://github.com/phonegap/ios-deploy
+//
+// This script supports an extra flag, -lldb, that pauses execution
+// just before the main program begins and allows the user to control
+// the remote lldb session. This flag is appended to the end of the
+// script's arguments and is not passed through to the underlying
+// binary.
 package main
 
 import (
@@ -13,6 +19,7 @@ import (
 	"flag"
 	"fmt"
 	"go/build"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -139,6 +146,9 @@ func run(bin string, args []string) (err error) {
 
 	exec.Command("killall", "ios-deploy").Run()
 
+	var opts options
+	opts, args = parseArgs(args)
+
 	// ios-deploy invokes lldb to give us a shell session with the app.
 	cmd = exec.Command(
 		// lldb tries to be clever with terminals.
@@ -165,8 +175,14 @@ func run(bin string, args []string) (err error) {
 		return err
 	}
 	w := new(bufWriter)
-	cmd.Stdout = w
-	cmd.Stderr = w // everything of interest is on stderr
+	if opts.lldb {
+		mw := io.MultiWriter(w, os.Stderr)
+		cmd.Stdout = mw
+		cmd.Stderr = mw
+	} else {
+		cmd.Stdout = w
+		cmd.Stderr = w // everything of interest is on stderr
+	}
 	cmd.Stdin = lldbr
 
 	if err := cmd.Start(); err != nil {
@@ -177,9 +193,9 @@ func run(bin string, args []string) (err error) {
 	// of moving parts in an iOS test harness (notably lldb) that can
 	// swallow useful stdio or cause its own ruckus.
 	var timedout chan struct{}
-	if t := parseTimeout(args); t > 1*time.Second {
+	if opts.timeout > 1*time.Second {
 		timedout = make(chan struct{})
-		time.AfterFunc(t-1*time.Second, func() {
+		time.AfterFunc(opts.timeout-1*time.Second, func() {
 			close(timedout)
 		})
 	}
@@ -232,6 +248,14 @@ func run(bin string, args []string) (err error) {
 	do(`process handle SIGSEGV --stop false --pass true --notify false`) // does not work
 	do(`process handle SIGBUS  --stop false --pass true --notify false`) // does not work
 
+	if opts.lldb {
+		_, err := io.Copy(lldb, os.Stdin)
+		if err != io.EOF {
+			return err
+		}
+		return nil
+	}
+
 	do(`breakpoint set -n getwd`) // in runtime/cgo/gcc_darwin_arm.go
 
 	fmt.Fprintln(lldb, `run`)
@@ -257,11 +281,13 @@ func run(bin string, args []string) (err error) {
 	}
 
 	// Move the current working directory into the faux gopath.
-	do(`breakpoint delete 1`)
-	do(`expr char* $mem = (char*)malloc(512)`)
-	do(`expr $mem = (char*)getwd($mem, 512)`)
-	do(`expr $mem = (char*)strcat($mem, "/` + pkgpath + `")`)
-	do(`call (void)chdir($mem)`)
+	if pkgpath != "src" {
+		do(`breakpoint delete 1`)
+		do(`expr char* $mem = (char*)malloc(512)`)
+		do(`expr $mem = (char*)getwd($mem, 512)`)
+		do(`expr $mem = (char*)strcat($mem, "/` + pkgpath + `")`)
+		do(`call (void)chdir($mem)`)
+	}
 
 	// Watch for SIGSEGV. Ideally lldb would never break on SIGSEGV.
 	// http://golang.org/issue/10043
@@ -408,20 +434,29 @@ func (w *bufWriter) isPass() bool {
 	return bytes.Contains(w.buf, []byte("\nPASS\n")) || bytes.Contains(w.buf, []byte("\nPASS\r"))
 }
 
-func parseTimeout(testArgs []string) (timeout time.Duration) {
-	var args []string
-	for _, arg := range testArgs {
-		if strings.Contains(arg, "test.timeout") {
-			args = append(args, arg)
+type options struct {
+	timeout time.Duration
+	lldb    bool
+}
+
+func parseArgs(binArgs []string) (opts options, remainingArgs []string) {
+	var flagArgs []string
+	for _, arg := range binArgs {
+		if strings.Contains(arg, "-test.timeout") {
+			flagArgs = append(flagArgs, arg)
 		}
+		if strings.Contains(arg, "-lldb") {
+			flagArgs = append(flagArgs, arg)
+			continue
+		}
+		remainingArgs = append(remainingArgs, arg)
 	}
 	f := flag.NewFlagSet("", flag.ContinueOnError)
-	f.DurationVar(&timeout, "test.timeout", 0, "")
-	f.Parse(args)
-	if debug {
-		log.Printf("parseTimeout of %s, got %s", args, timeout)
-	}
-	return timeout
+	f.DurationVar(&opts.timeout, "test.timeout", 0, "")
+	f.BoolVar(&opts.lldb, "lldb", false, "")
+	f.Parse(flagArgs)
+	return opts, remainingArgs
+
 }
 
 func copyLocalDir(dst, src string) error {
