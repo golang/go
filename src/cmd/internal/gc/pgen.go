@@ -18,9 +18,8 @@ var makefuncdatasym_nsym int32
 func makefuncdatasym(namefmt string, funcdatakind int64) *Sym {
 	var nod Node
 
-	namebuf = fmt.Sprintf(namefmt, makefuncdatasym_nsym)
+	sym := Lookupf(namefmt, makefuncdatasym_nsym)
 	makefuncdatasym_nsym++
-	sym := Lookup(namebuf)
 	pnod := newname(sym)
 	pnod.Class = PEXTERN
 	Nodconst(&nod, Types[TINT32], funcdatakind)

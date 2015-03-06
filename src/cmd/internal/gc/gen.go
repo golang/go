@@ -590,10 +590,8 @@ func Tempname(nn *Node, t *Type) {
 
 	// give each tmp a different name so that there
 	// a chance to registerizer them
-	namebuf = fmt.Sprintf("autotmp_%.4d", statuniqgen)
-
+	s := Lookupf("autotmp_%.4d", statuniqgen)
 	statuniqgen++
-	s := Lookup(namebuf)
 	n := Nod(ONAME, nil, nil)
 	n.Sym = s
 	s.Def = n

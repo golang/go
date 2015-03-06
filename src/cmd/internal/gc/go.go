@@ -500,8 +500,6 @@ var safemode int
 
 var nolocalimports int
 
-var namebuf string
-
 var lexbuf bytes.Buffer
 var strbuf bytes.Buffer
 

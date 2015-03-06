@@ -281,6 +281,10 @@ func Lookup(name string) *Sym {
 	return localpkg.Lookup(name)
 }
 
+func Lookupf(format string, a ...interface{}) *Sym {
+	return Lookup(fmt.Sprintf(format, a...))
+}
+
 func LookupBytes(name []byte) *Sym {
 	return localpkg.LookupBytes(name)
 }

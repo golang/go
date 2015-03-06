@@ -645,10 +645,8 @@ func funcargs(nt *Node) {
 
 		if n.Left == nil {
 			// Name so that escape analysis can track it. ~r stands for 'result'.
-			namebuf = fmt.Sprintf("~r%d", gen)
+			n.Left = newname(Lookupf("~r%d", gen))
 			gen++
-
-			n.Left = newname(Lookup(namebuf))
 		}
 
 		// TODO: n->left->missing = 1;
@@ -667,9 +665,8 @@ func funcargs(nt *Node) {
 
 			*nn = *n.Left
 			nn.Orig = nn
-			namebuf = fmt.Sprintf("~b%d", gen)
+			nn.Sym = Lookupf("~b%d", gen)
 			gen++
-			nn.Sym = Lookup(namebuf)
 			n.Left = nn
 		}
 
