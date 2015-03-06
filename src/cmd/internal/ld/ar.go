@@ -36,9 +36,10 @@ const (
 	SAR_HDR = 16 + 44
 )
 
-var ARMAG string = "!<arch>\n"
-
-var ARFMAG string = "`\n"
+const (
+	ARMAG  = "!<arch>\n"
+	ARFMAG = "`\n"
+)
 
 type ArHdr struct {
 	name string

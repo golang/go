@@ -258,9 +258,10 @@ const (
 	AssumeGoldLinker = 0
 )
 
-var symname string = "__.GOSYMDEF"
-
-var pkgname string = "__.PKGDEF"
+const (
+	symname = "__.GOSYMDEF"
+	pkgname = "__.PKGDEF"
+)
 
 var cout *os.File
 

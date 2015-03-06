@@ -40,7 +40,7 @@ import (
 
 // Reading object files.
 
-var noname string = "<none>"
+const noname = "<none>"
 
 var paramspace string = "FP"
 
