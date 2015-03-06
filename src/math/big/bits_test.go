@@ -187,7 +187,12 @@ func (bits Bits) Float() *Float {
 
 	// create corresponding float
 	z := new(Float).SetInt(x) // normalized
-	z.setExp(int64(z.exp) + int64(min))
+	if e := int64(z.exp) + int64(min); MinExp <= e && e <= MaxExp {
+		z.exp = int32(e)
+	} else {
+		// this should never happen for our test cases
+		panic("exponent out of range")
+	}
 	return z
 }
 
