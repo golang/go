@@ -893,7 +893,7 @@ func mergetemp(firstp *obj.Prog) {
 		for j = nfree; j < len(var_); j++ {
 			v1 = inuse[j]
 			if debugmerge > 0 && Debug['v'] != 0 {
-				fmt.Printf("consider %v: maybe %v: type=%v,%v addrtaken=%d,%d\n", Nconv(v.node, obj.FmtSharp), Nconv(v1.node, obj.FmtSharp), Tconv(t, 0), Tconv(v1.node.Type, 0), v.node.Addrtaken, v1.node.Addrtaken)
+				fmt.Printf("consider %v: maybe %v: type=%v,%v addrtaken=%v,%v\n", Nconv(v.node, obj.FmtSharp), Nconv(v1.node, obj.FmtSharp), Tconv(t, 0), Tconv(v1.node.Type, 0), v.node.Addrtaken, v1.node.Addrtaken)
 			}
 
 			// Require the types to match but also require the addrtaken bits to match.

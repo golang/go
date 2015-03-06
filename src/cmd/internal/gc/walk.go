@@ -91,21 +91,21 @@ func samelist(a *NodeList, b *NodeList) bool {
 	return a == b
 }
 
-func paramoutheap(fn *Node) int {
+func paramoutheap(fn *Node) bool {
 	for l := fn.Dcl; l != nil; l = l.Next {
 		switch l.N.Class {
 		case PPARAMOUT,
 			PPARAMOUT | PHEAP:
-			return bool2int(l.N.Addrtaken)
+			return l.N.Addrtaken
 
 			// stop early - parameters are over
 		case PAUTO,
 			PAUTO | PHEAP:
-			return 0
+			return false
 		}
 	}
 
-	return 0
+	return false
 }
 
 // adds "adjust" to all the argument locations for the call n.
@@ -284,7 +284,7 @@ func walkstmt(np **Node) {
 		if n.List == nil {
 			break
 		}
-		if (Curfn.Type.Outnamed != 0 && count(n.List) > 1) || paramoutheap(Curfn) != 0 {
+		if (Curfn.Type.Outnamed != 0 && count(n.List) > 1) || paramoutheap(Curfn) {
 			// assign to the function out parameters,
 			// so that reorder3 can fix up conflicts
 			var rl *NodeList
@@ -2174,7 +2174,7 @@ func needwritebarrier(l *Node, r *Node) bool {
 	// generate the write barrier directly in that case.
 	// (It does not yet, but the cost of the write barrier will be
 	// small compared to the cost of the allocation.)
-	if r.Reslice != 0 {
+	if r.Reslice {
 		switch r.Op {
 		case OSLICE,
 			OSLICE3,

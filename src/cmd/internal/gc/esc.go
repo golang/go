@@ -719,7 +719,7 @@ func esc(e *EscState, n *Node, up *Node) {
 				continue
 			}
 			a = v.Closure
-			if v.Byval == 0 {
+			if !v.Byval {
 				a = Nod(OADDR, a, nil)
 				a.Lineno = v.Lineno
 				a.Escloopdepth = e.loopdepth
