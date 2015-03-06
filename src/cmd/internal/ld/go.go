@@ -9,6 +9,7 @@ import (
 	"cmd/internal/obj"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -37,42 +38,22 @@ func expandpkg(t0 string, pkg string) string {
  *	package import data
  */
 type Import struct {
-	hash   *Import // next in hash table
-	prefix string  // "type", "var", "func", "const"
+	prefix string // "type", "var", "func", "const"
 	name   string
 	def    string
 	file   string
 }
 
-const (
-	NIHASH = 1024
-)
+// importmap records type information about imported symbols to detect inconsistencies.
+// Entries are keyed by qualified symbol name (e.g., "runtime.Callers" or "net/url.Error").
+var importmap = map[string]*Import{}
 
-var ihash [NIHASH]*Import
-
-var nimport int
-
-func hashstr(name string) int {
-	h := uint32(0)
-	for cp := name; cp != ""; cp = cp[1:] {
-		h = h*1119 + uint32(cp[0])
+func lookupImport(name string) *Import {
+	if x, ok := importmap[name]; ok {
+		return x
 	}
-	h &= 0xffffff
-	return int(h)
-}
-
-func ilookup(name string) *Import {
-	h := hashstr(name) % NIHASH
-	for x := ihash[h]; x != nil; x = x.hash {
-		if x.name[0] == name[0] && x.name == name {
-			return x
-		}
-	}
-	x := new(Import)
-	x.name = name
-	x.hash = ihash[h]
-	ihash[h] = x
-	nimport++
+	x := &Import{name: name}
+	importmap[name] = x
 	return x
 }
 
@@ -210,12 +191,10 @@ func loadpkgdata(file string, pkg string, data string) {
 	var prefix string
 	var name string
 	var def string
-	var x *Import
 
-	file = file
 	p := data
 	for parsepkgdata(file, pkg, &p, &prefix, &name, &def) > 0 {
-		x = ilookup(name)
+		x := lookupImport(name)
 		if x.prefix == "" {
 			x.prefix = prefix
 			x.def = def
@@ -235,8 +214,6 @@ func loadpkgdata(file string, pkg string, data string) {
 }
 
 func parsepkgdata(file string, pkg string, pp *string, prefixp *string, namep *string, defp *string) int {
-	var prefix string
-
 	// skip white space
 	p := *pp
 
@@ -249,7 +226,7 @@ loop:
 	}
 
 	// prefix: (var|type|func|const)
-	prefix = p
+	prefix := p
 
 	if len(p) < 7 {
 		return -1
@@ -268,7 +245,7 @@ loop:
 			p = p[1:]
 		}
 		p = p[1:]
-		name := p
+		line := p
 		for len(p) > 0 && p[0] != '\n' {
 			p = p[1:]
 		}
@@ -277,9 +254,16 @@ loop:
 			nerrors++
 			return -1
 		}
-		name = name[:len(name)-len(p)]
+		line = line[:len(line)-len(p)]
+		line = strings.TrimSuffix(line, " // indirect")
+		path, err := strconv.Unquote(line)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s: confused in import path: %q\n", os.Args[0], file, line)
+			nerrors++
+			return -1
+		}
 		p = p[1:]
-		imported(pkg, name)
+		imported(pkg, path)
 		goto loop
 	} else {
 		fmt.Fprintf(os.Stderr, "%s: %s: confused in pkg data near <<%.40s>>\n", os.Args[0], file, prefix)
@@ -753,66 +737,60 @@ func addexport() {
 }
 
 type Pkg struct {
-	mark    uint8
-	checked uint8
-	next    *Pkg
-	path_   string
+	mark    bool
+	checked bool
+	path    string
 	impby   []*Pkg
-	all     *Pkg
 }
 
-var phash [1024]*Pkg
+var (
+	// pkgmap records the imported-by relationship between packages.
+	// Entries are keyed by package path (e.g., "runtime" or "net/url").
+	pkgmap = map[string]*Pkg{}
 
-var pkgall *Pkg
+	pkgall []*Pkg
+)
 
-func getpkg(path_ string) *Pkg {
-	h := hashstr(path_) % len(phash)
-	for p := phash[h]; p != nil; p = p.next {
-		if p.path_ == path_ {
-			return p
-		}
+func lookupPkg(path string) *Pkg {
+	if p, ok := pkgmap[path]; ok {
+		return p
 	}
-	p := new(Pkg)
-	p.path_ = path_
-	p.next = phash[h]
-	phash[h] = p
-	p.all = pkgall
-	pkgall = p
+	p := &Pkg{path: path}
+	pkgmap[path] = p
+	pkgall = append(pkgall, p)
 	return p
 }
 
-func imported(pkg string, import_ string) {
+// imported records that package pkg imports package imp.
+func imported(pkg, imp string) {
 	// everyone imports runtime, even runtime.
-	if import_ == "\"runtime\"" {
+	if imp == "runtime" {
 		return
 	}
 
-	pkg = fmt.Sprintf("%q", pkg) // turn pkg path into quoted form, freed below
-	p := getpkg(pkg)
-	i := getpkg(import_)
+	p := lookupPkg(pkg)
+	i := lookupPkg(imp)
 	i.impby = append(i.impby, p)
 }
 
-func cycle(p *Pkg) *Pkg {
-	if p.checked != 0 {
+func (p *Pkg) cycle() *Pkg {
+	if p.checked {
 		return nil
 	}
 
-	if p.mark != 0 {
+	if p.mark {
 		nerrors++
 		fmt.Printf("import cycle:\n")
-		fmt.Printf("\t%s\n", p.path_)
+		fmt.Printf("\t%s\n", p.path)
 		return p
 	}
 
-	p.mark = 1
-	var bad *Pkg
-	for i := 0; i < len(p.impby); i++ {
-		bad = cycle(p.impby[i])
-		if bad != nil {
-			p.mark = 0
-			p.checked = 1
-			fmt.Printf("\timports %s\n", p.path_)
+	p.mark = true
+	for _, q := range p.impby {
+		if bad := q.cycle(); bad != nil {
+			p.mark = false
+			p.checked = true
+			fmt.Printf("\timports %s\n", p.path)
 			if bad == p {
 				return nil
 			}
@@ -820,14 +798,14 @@ func cycle(p *Pkg) *Pkg {
 		}
 	}
 
-	p.checked = 1
-	p.mark = 0
+	p.checked = true
+	p.mark = false
 	return nil
 }
 
 func importcycles() {
-	for p := pkgall; p != nil; p = p.all {
-		cycle(p)
+	for _, p := range pkgall {
+		p.cycle()
 	}
 }
 
