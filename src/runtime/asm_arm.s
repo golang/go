@@ -808,7 +808,7 @@ loop:
 	RET
 
 // TODO: share code with memeq?
-TEXT bytes·Equal(SB),NOSPLIT,$0
+TEXT bytes·Equal(SB),NOSPLIT,$0-25
 	MOVW	a_len+4(FP), R1
 	MOVW	b_len+16(FP), R3
 	
@@ -837,12 +837,12 @@ equal:
 	MOVBU	R0, ret+24(FP)
 	RET
 
-TEXT bytes·IndexByte(SB),NOSPLIT,$0
+TEXT bytes·IndexByte(SB),NOSPLIT,$0-20
 	MOVW	s+0(FP), R0
 	MOVW	s_len+4(FP), R1
 	MOVBU	c+12(FP), R2	// byte to find
 	MOVW	R0, R4		// store base for later
-	ADD	R0, R1		// end 
+	ADD	R0, R1		// end
 
 _loop:
 	CMP	R0, R1
@@ -853,7 +853,7 @@ _loop:
 
 	SUB	$1, R0		// R0 will be one beyond the position we want
 	SUB	R4, R0		// remove base
-	MOVW    R0, ret+16(FP) 
+	MOVW    R0, ret+16(FP)
 	RET
 
 _notfound:
@@ -861,12 +861,12 @@ _notfound:
 	MOVW	R0, ret+16(FP)
 	RET
 
-TEXT strings·IndexByte(SB),NOSPLIT,$0
+TEXT strings·IndexByte(SB),NOSPLIT,$0-16
 	MOVW	s+0(FP), R0
 	MOVW	s_len+4(FP), R1
 	MOVBU	c+8(FP), R2	// byte to find
 	MOVW	R0, R4		// store base for later
-	ADD	R0, R1		// end 
+	ADD	R0, R1		// end
 
 _sib_loop:
 	CMP	R0, R1
@@ -877,7 +877,7 @@ _sib_loop:
 
 	SUB	$1, R0		// R0 will be one beyond the position we want
 	SUB	R4, R0		// remove base
-	MOVW	R0, ret+12(FP) 
+	MOVW	R0, ret+12(FP)
 	RET
 
 _sib_notfound:

@@ -1451,7 +1451,7 @@ TEXT bytes·Compare(SB),NOSPLIT,$0-28
 	MOVL	AX, ret+24(FP)
 	RET
 
-TEXT bytes·IndexByte(SB),NOSPLIT,$0
+TEXT bytes·IndexByte(SB),NOSPLIT,$0-20
 	MOVL	s+0(FP), SI
 	MOVL	s_len+4(FP), CX
 	MOVB	c+12(FP), AL
@@ -1465,7 +1465,7 @@ TEXT bytes·IndexByte(SB),NOSPLIT,$0
 	MOVL	DI, ret+16(FP)
 	RET
 
-TEXT strings·IndexByte(SB),NOSPLIT,$0
+TEXT strings·IndexByte(SB),NOSPLIT,$0-16
 	MOVL	s+0(FP), SI
 	MOVL	s_len+4(FP), CX
 	MOVB	c+8(FP), AL

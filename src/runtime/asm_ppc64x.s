@@ -1039,7 +1039,7 @@ notfound:
 	MOVD	R3, ret+32(FP)
 	RETURN
 
-TEXT strings·IndexByte(SB),NOSPLIT,$0
+TEXT strings·IndexByte(SB),NOSPLIT,$0-32
 	MOVD	p+0(FP), R3
 	MOVD	b_len+8(FP), R4
 	MOVBZ	c+16(FP), R5	// byte to find
