@@ -1054,8 +1054,8 @@ func newpcdataprog(prog *obj.Prog, index int32) *obj.Prog {
 	Nodconst(&to, Types[TINT32], int64(index))
 	pcdata := unlinkedprog(obj.APCDATA)
 	pcdata.Lineno = prog.Lineno
-	pcdata.From = Naddr(&from, 0)
-	pcdata.To = Naddr(&to, 0)
+	pcdata.From = Naddr(&from)
+	pcdata.To = Naddr(&to)
 	return pcdata
 }
 
