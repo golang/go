@@ -95,10 +95,6 @@ var load []MachoLoad
 
 var seg [16]MachoSeg
 
-var nload int
-
-var mload int
-
 var nseg int
 
 var ndebug int
@@ -186,8 +182,6 @@ func newMachoSect(seg *MachoSeg, name string, segname string) *MachoSect {
 // Generic linking code.
 
 var dylib []string
-
-var ndylib int
 
 var linkoff int64
 

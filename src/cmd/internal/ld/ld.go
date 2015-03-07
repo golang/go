@@ -104,16 +104,6 @@ func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg strin
 	l.Pkg = pkg
 }
 
-var fnuxi8 [8]uint8
-
-var fnuxi4 [4]uint8
-
-var inuxi1 [1]uint8
-
-var inuxi2 [2]uint8
-
-var inuxi8 [8]uint8
-
 func atolwhex(s string) int64 {
 	n, _ := strconv.ParseInt(s, 0, 64)
 	return n

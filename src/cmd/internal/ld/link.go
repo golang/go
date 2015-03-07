@@ -50,7 +50,6 @@ type LSym struct {
 	Localentry  uint8
 	Onlist      uint8
 	Dynid       int32
-	Sig         int32
 	Plt         int32
 	Got         int32
 	Align       int32
@@ -128,7 +127,6 @@ type LinkArch struct {
 	ByteOrder binary.ByteOrder
 	Name      string
 	Thechar   int
-	Endian    int32
 	Minlc     int
 	Ptrsize   int
 	Regsize   int

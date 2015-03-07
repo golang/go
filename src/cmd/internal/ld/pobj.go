@@ -40,10 +40,6 @@ import (
 
 // Reading object files.
 
-const noname = "<none>"
-
-var paramspace string = "FP"
-
 func Ldmain() {
 	Ctxt = linknew(Thelinkarch)
 	Ctxt.Thechar = int32(Thearch.Thechar)
@@ -189,7 +185,6 @@ func Ldmain() {
 	checkgo()
 	deadcode()
 	callgraph()
-	paramspace = "SP" /* (FP) now (SP) on output */
 
 	doelf()
 	if HEADTYPE == Hdarwin {
