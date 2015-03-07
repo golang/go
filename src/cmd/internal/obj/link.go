@@ -106,7 +106,6 @@ type LSym struct {
 	Printed     uint8
 	Symid       int16
 	Dynid       int32
-	Sig         int32
 	Plt         int32
 	Got         int32
 	Align       int32

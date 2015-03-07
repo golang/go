@@ -694,12 +694,6 @@ const (
  * marshal a 32-bit representation from the 64-bit structure.
  */
 
-var numelfphdr int
-
-var numelfshdr int
-
-var elfstrsize int
-
 var Elfstrdat []byte
 
 /*

@@ -104,23 +104,15 @@ type Arch struct {
 	Vput             func(uint64)
 }
 
-var Thearch Arch
-
-var datap *LSym
-
-var Debug [128]int
-
-var literal string
-
-var Lcsize int32
-
-var rpath string
-
-var Spsize int32
-
-var symlist *LSym
-
-var Symsize int32
+var (
+	Thearch Arch
+	datap   *LSym
+	Debug   [128]int
+	Lcsize  int32
+	rpath   string
+	Spsize  int32
+	Symsize int32
+)
 
 // Terrible but standard terminology.
 // A segment describes a block of file to load into memory.
@@ -155,65 +147,36 @@ type Section struct {
 	Rellen  uint64
 }
 
-var Thestring string
-
-var Thelinkarch *LinkArch
-
-var outfile string
-
-var ndynexp int
-
-var dynexp []*LSym
-
-var nldflag int
-
-var ldflag []string
-
-var havedynamic int
-
-var Funcalign int
-
-var iscgo bool
-
-var elfglobalsymndx int
-
-var flag_installsuffix string
-
-var flag_race int
-
-var Flag_shared int
-
-var tracksym string
-
-var interpreter string
-
-var tmpdir string
-
-var extld string
-
-var extldflags string
-
-var debug_s int // backup old value of debug['s']
-
-var Ctxt *Link
-
-var HEADR int32
-
-var HEADTYPE int32
-
-var INITRND int32
-
-var INITTEXT int64
-
-var INITDAT int64
-
-var INITENTRY string /* entry point */
-
-var nerrors int
-
-var Linkmode int
-
-var liveness int64
+var (
+	Thestring          string
+	Thelinkarch        *LinkArch
+	outfile            string
+	dynexp             []*LSym
+	ldflag             []string
+	havedynamic        int
+	Funcalign          int
+	iscgo              bool
+	elfglobalsymndx    int
+	flag_installsuffix string
+	flag_race          int
+	Flag_shared        int
+	tracksym           string
+	interpreter        string
+	tmpdir             string
+	extld              string
+	extldflags         string
+	debug_s            int // backup old value of debug['s']
+	Ctxt               *Link
+	HEADR              int32
+	HEADTYPE           int32
+	INITRND            int32
+	INITTEXT           int64
+	INITDAT            int64
+	INITENTRY          string /* entry point */
+	nerrors            int
+	Linkmode           int
+	liveness           int64
+)
 
 // for dynexport field of LSym
 const (
@@ -221,19 +184,12 @@ const (
 	CgoExportStatic  = 1 << 1
 )
 
-var Segtext Segment
-
-var Segrodata Segment
-
-var Segdata Segment
-
-var Segdwarf Segment
-
-type Endian struct {
-	e16 func([]byte) uint16
-	e32 func([]byte) uint32
-	e64 func([]byte) uint64
-}
+var (
+	Segtext   Segment
+	Segrodata Segment
+	Segdata   Segment
+	Segdwarf  Segment
+)
 
 /* set by call to mywhatsys() */
 
@@ -244,13 +200,12 @@ const (
 	Pkgdef
 )
 
-var headstring string
-
-// buffered output
-
-var Bso Biobuf
-
-var coutbuf Biobuf
+var (
+	headstring string
+	// buffered output
+	Bso     Biobuf
+	coutbuf Biobuf
+)
 
 const (
 	// Whether to assume that the external linker is "gold"
@@ -263,21 +218,16 @@ const (
 	pkgname = "__.PKGDEF"
 )
 
-var cout *os.File
-
-var version int
-
-// Set if we see an object compiled by the host compiler that is not
-// from a package that is known to support internal linking mode.
-var externalobj = false
-
-var goroot string
-
-var goarch string
-
-var goos string
-
-var theline string
+var (
+	cout *os.File
+	// Set if we see an object compiled by the host compiler that is not
+	// from a package that is known to support internal linking mode.
+	externalobj = false
+	goroot      string
+	goarch      string
+	goos        string
+	theline     string
+)
 
 func Lflag(arg string) {
 	Ctxt.Libdir = append(Ctxt.Libdir, arg)
@@ -658,10 +608,6 @@ type Hostobj struct {
 
 var hostobj []Hostobj
 
-var nhostobj int
-
-var mhostobj int
-
 // These packages can use internal linking mode.
 // Others trigger external mode.
 var internalpkg = []string{
@@ -1026,11 +972,6 @@ eof:
 	Diag("truncated object file: %s", pn)
 }
 
-func zerosig(sp string) {
-	s := Linklookup(Ctxt, sp, 0)
-	s.Sig = 0
-}
-
 func mywhatsys() {
 	goroot = obj.Getgoroot()
 	goos = obj.Getgoos()
@@ -1040,18 +981,6 @@ func mywhatsys() {
 		log.Fatalf("cannot use %cc with GOARCH=%s", Thearch.Thechar, goarch)
 	}
 }
-
-func pathchar() int {
-	return '/'
-}
-
-var hunk []byte
-
-var nhunk uint32
-
-const (
-	NHUNK = 10 << 20
-)
 
 // Copied from ../gc/subr.c:/^pathtoprefix; must stay in sync.
 /*
@@ -1080,19 +1009,6 @@ func pathtoprefix(s string) string {
 		}
 	}
 	return s
-}
-
-func iconv(p string) string {
-	if p == "" {
-		var fp string
-		fp += "<nil>"
-		return fp
-	}
-
-	p = pathtoprefix(p)
-	var fp string
-	fp += p
-	return fp
 }
 
 func addsection(seg *Segment, name string, rwx int) *Section {
@@ -1133,19 +1049,16 @@ func Be64(b []byte) uint64 {
 	return uint64(Be32(b))<<32 | uint64(Be32(b[4:]))
 }
 
-var be = Endian{Be16, Be32, Be64}
-
-var le = Endian{Le16, Le32, Le64}
-
 type Chain struct {
 	sym   *LSym
 	up    *Chain
 	limit int // limit on entry to sym
 }
 
-var morestack *LSym
-
-var newstack *LSym
+var (
+	morestack *LSym
+	newstack  *LSym
+)
 
 // TODO: Record enough information in new object files to
 // allow stack checks here.

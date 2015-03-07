@@ -34,8 +34,6 @@ import "strings"
 
 // Symbol table.
 
-var maxelfstr int
-
 func putelfstr(s string) int {
 	if len(Elfstrdat) == 0 && s != "" {
 		// first entry must be empty string
