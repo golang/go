@@ -748,11 +748,11 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 
 	var af obj.Addr
 	if f != nil {
-		af = gc.Naddr(f, 1)
+		af = gc.Naddr(f)
 	}
 	var at obj.Addr
 	if t != nil {
-		at = gc.Naddr(t, 1)
+		at = gc.Naddr(t)
 	}
 	p := gc.Prog(as)
 	if f != nil {
@@ -1405,7 +1405,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
 		reg1 := &clean[cleani-2]
 		reg.Op = gc.OEMPTY
 		reg1.Op = gc.OEMPTY
-		*a = gc.Naddr(n, 1)
+		*a = gc.Naddr(n)
 		return true
 
 	case gc.ODOT,
@@ -1429,7 +1429,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
 
 			n1.Type = n.Type
 			n1.Xoffset += oary[0]
-			*a = gc.Naddr(&n1, 1)
+			*a = gc.Naddr(&n1)
 			return true
 		}
 
@@ -1457,7 +1457,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
 		a.Type = obj.TYPE_NONE
 		a.Index = obj.TYPE_NONE
 		fixlargeoffset(&n1)
-		*a = gc.Naddr(&n1, 1)
+		*a = gc.Naddr(&n1)
 		return true
 
 	case gc.OINDEX:
