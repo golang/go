@@ -191,6 +191,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 	}
 
 	if ctxt.Headtype == obj.Hnacl && p.Mode == 64 {
+		nacladdr(ctxt, p, &p.From3)
 		nacladdr(ctxt, p, &p.From)
 		nacladdr(ctxt, p, &p.To)
 	}
