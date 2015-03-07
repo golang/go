@@ -8,6 +8,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -27,6 +28,8 @@ const (
 	repoURL = "https://go.googlesource.com/"
 	metaURL = "https://go.googlesource.com/?b=master&format=JSON"
 )
+
+var indexingMsg = []byte("Indexing in progress: result may be inaccurate")
 
 func main() {
 	p := new(Proxy)
@@ -165,7 +168,7 @@ func initSide(side, goHash, toolsHash string) (godoc *exec.Cmd, hostport string,
 	if side == "b" {
 		hostport = "localhost:8082"
 	}
-	godoc = exec.Command(godocBin, "-http="+hostport)
+	godoc = exec.Command(godocBin, "-http="+hostport, "-index", "-index_interval=-1s")
 	godoc.Env = []string{"GOROOT=" + goDir}
 	// TODO(adg): log this somewhere useful
 	godoc.Stdout = os.Stdout
@@ -180,18 +183,21 @@ func initSide(side, goHash, toolsHash string) (godoc *exec.Cmd, hostport string,
 		}
 	}()
 
-	for i := 0; i < 15; i++ {
+	for i := 0; i < 120; i++ {
 		time.Sleep(time.Second)
 		var res *http.Response
-		res, err = http.Get(fmt.Sprintf("http://%v/", hostport))
+		res, err = http.Get(fmt.Sprintf("http://%v/search?q=FALLTHROUGH", hostport))
 		if err != nil {
 			continue
 		}
+		rbody, err := ioutil.ReadAll(res.Body)
 		res.Body.Close()
-		if res.StatusCode == http.StatusOK {
+		if err == nil && res.StatusCode == http.StatusOK &&
+			!bytes.Contains(rbody, indexingMsg) {
 			return godoc, hostport, nil
 		}
 	}
+	godoc.Process.Kill()
 	return nil, "", fmt.Errorf("timed out waiting for side %v at %v (%v)", side, hostport, err)
 }
 

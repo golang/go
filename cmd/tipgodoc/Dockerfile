@@ -1,4 +1,4 @@
-FROM golang:1.4.1
+FROM golang:1.4.2
 
 RUN apt-get update && apt-get install --no-install-recommends -y -q build-essential git
 
