@@ -311,14 +311,12 @@ func walkrange(n *Node) {
 
 		fn := syslook("mapiterinit", 1)
 
-		argtype(fn, t.Down)
-		argtype(fn, t.Type)
-		argtype(fn, th)
+		substArgTypes(fn, t.Down, t.Type, th)
 		init = list(init, mkcall1(fn, nil, nil, typename(t), ha, Nod(OADDR, hit, nil)))
 		n.Ntest = Nod(ONE, Nod(ODOT, hit, keyname), nodnil())
 
 		fn = syslook("mapiternext", 1)
-		argtype(fn, th)
+		substArgTypes(fn, th)
 		n.Nincr = mkcall1(fn, nil, nil, Nod(OADDR, hit, nil))
 
 		key := Nod(ODOT, hit, keyname)

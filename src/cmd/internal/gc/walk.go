@@ -693,8 +693,7 @@ func walkexpr(np **Node, init **NodeList) {
 			buf := fmt.Sprintf("assert%s2%s", from, to)
 
 			fn := syslook(buf, 1)
-			argtype(fn, r.Left.Type)
-			argtype(fn, r.Type)
+			substArgTypes(fn, r.Left.Type, r.Type)
 
 			n = mkcall1(fn, nil, init, typename(r.Type), r.Left, n1)
 			walkexpr(&n, init)
@@ -896,8 +895,7 @@ func walkexpr(np **Node, init **NodeList) {
 		buf := fmt.Sprintf("assert%s2%s2", from, to)
 
 		fn := syslook(buf, 1)
-		argtype(fn, r.Left.Type)
-		argtype(fn, r.Type)
+		substArgTypes(fn, r.Left.Type, r.Type)
 
 		t := Types[TBOOL]
 		ok := n.List.Next.N
@@ -1020,8 +1018,7 @@ func walkexpr(np **Node, init **NodeList) {
 			}
 		}
 
-		argtype(fn, n.Left.Type)
-		argtype(fn, n.Type)
+		substArgTypes(fn, n.Left.Type, n.Type)
 		dowidth(fn.Type)
 		n = Nod(OCALL, fn, nil)
 		n.List = ll
@@ -1386,7 +1383,7 @@ func walkexpr(np **Node, init **NodeList) {
 	case OCLOSE:
 		fn := syslook("closechan", 1)
 
-		argtype(fn, n.Left.Type)
+		substArgTypes(fn, n.Left.Type)
 		n = mkcall1(fn, nil, init, n.Left)
 		goto ret
 
@@ -1421,10 +1418,7 @@ func walkexpr(np **Node, init **NodeList) {
 			r = Nod(OADDR, var_, nil)
 		}
 
-		argtype(fn, hmap(t))      // hmap buffer
-		argtype(fn, mapbucket(t)) // bucket buffer
-		argtype(fn, t.Down)       // key type
-		argtype(fn, t.Type)       // value type
+		substArgTypes(fn, hmap(t), mapbucket(t), t.Down, t.Type)
 		n = mkcall1(fn, n.Type, init, typename(n.Type), conv(n.Left, Types[TINT64]), a, r)
 		goto ret
 
@@ -1453,7 +1447,7 @@ func walkexpr(np **Node, init **NodeList) {
 			// makeslice(t *Type, nel int64, max int64) (ary []any)
 			fn := syslook("makeslice", 1)
 
-			argtype(fn, t.Type) // any-1
+			substArgTypes(fn, t.Type) // any-1
 			n = mkcall1(fn, n.Type, init, typename(n.Type), conv(l, Types[TINT64]), conv(r, Types[TINT64]))
 		}
 
@@ -1554,8 +1548,7 @@ func walkexpr(np **Node, init **NodeList) {
 
 		n.Right = cheapexpr(n.Right, init)
 		n.Left = cheapexpr(n.Left, init)
-		argtype(fn, n.Right.Type)
-		argtype(fn, n.Left.Type)
+		substArgTypes(fn, n.Right.Type, n.Left.Type)
 		r := mkcall1(fn, n.Type, init, n.Left, n.Right)
 		if n.Etype == ONE {
 			r = Nod(ONOT, r, nil)
@@ -2005,13 +1998,13 @@ func walkprint(nn *Node, init **NodeList) *Node {
 			} else {
 				on = syslook("printiface", 1)
 			}
-			argtype(on, n.Type) // any-1
+			substArgTypes(on, n.Type) // any-1
 		} else if Isptr[et] || et == TCHAN || et == TMAP || et == TFUNC || et == TUNSAFEPTR {
 			on = syslook("printpointer", 1)
-			argtype(on, n.Type) // any-1
+			substArgTypes(on, n.Type) // any-1
 		} else if Isslice(n.Type) {
 			on = syslook("printslice", 1)
-			argtype(on, n.Type) // any-1
+			substArgTypes(on, n.Type) // any-1
 		} else if Isint[et] {
 			if et == TUINT64 {
 				if (t.Sym.Pkg == Runtimepkg || compiling_runtime != 0) && t.Sym.Name == "hex" {
@@ -2072,7 +2065,7 @@ func walkprint(nn *Node, init **NodeList) *Node {
 func callnew(t *Type) *Node {
 	dowidth(t)
 	fn := syslook("newobject", 1)
-	argtype(fn, t)
+	substArgTypes(fn, t)
 	return mkcall1(fn, Ptrto(t), nil, typename(t))
 }
 
@@ -2814,8 +2807,13 @@ func chanfn(name string, n int, t *Type) *Node {
 		Fatal("chanfn %v", Tconv(t, 0))
 	}
 	fn := syslook(name, 1)
-	for i := 0; i < n; i++ {
-		argtype(fn, t.Type)
+	switch n {
+	default:
+		Fatal("chanfn %d", n)
+	case 1:
+		substArgTypes(fn, t.Type)
+	case 2:
+		substArgTypes(fn, t.Type, t.Type)
 	}
 	return fn
 }
@@ -2825,10 +2823,7 @@ func mapfn(name string, t *Type) *Node {
 		Fatal("mapfn %v", Tconv(t, 0))
 	}
 	fn := syslook(name, 1)
-	argtype(fn, t.Down)
-	argtype(fn, t.Type)
-	argtype(fn, t.Down)
-	argtype(fn, t.Type)
+	substArgTypes(fn, t.Down, t.Type, t.Down, t.Type)
 	return fn
 }
 
@@ -2837,16 +2832,13 @@ func mapfndel(name string, t *Type) *Node {
 		Fatal("mapfn %v", Tconv(t, 0))
 	}
 	fn := syslook(name, 1)
-	argtype(fn, t.Down)
-	argtype(fn, t.Type)
-	argtype(fn, t.Down)
+	substArgTypes(fn, t.Down, t.Type, t.Down)
 	return fn
 }
 
 func writebarrierfn(name string, l *Type, r *Type) *Node {
 	fn := syslook(name, 1)
-	argtype(fn, l)
-	argtype(fn, r)
+	substArgTypes(fn, l, r)
 	return fn
 }
 
@@ -2953,8 +2945,7 @@ func appendslice(n *Node, init **NodeList) *Node {
 
 	// instantiate growslice(Type*, []any, int) []any
 	fn := syslook("growslice", 1) //   growslice(<type>, old []T, n int64) (ret []T)
-	argtype(fn, s.Type.Type)      // 1 old []any
-	argtype(fn, s.Type.Type)      // 2 ret []any
+	substArgTypes(fn, s.Type.Type, s.Type.Type)
 
 	// s = growslice(T, s, n)
 	nif.Nbody = list1(Nod(OAS, s, mkcall1(fn, s.Type, &nif.Ninit, typename(s.Type), s, nt)))
@@ -2968,8 +2959,7 @@ func appendslice(n *Node, init **NodeList) *Node {
 		nptr1.Etype = 1
 		nptr2 := l2
 		fn := syslook("typedslicecopy", 1)
-		argtype(fn, l1.Type)
-		argtype(fn, l2.Type)
+		substArgTypes(fn, l1.Type, l2.Type)
 		nt := mkcall1(fn, Types[TINT], &l, typename(l1.Type.Type), nptr1, nptr2)
 		l = list(l, nt)
 	} else if flag_race != 0 {
@@ -2985,8 +2975,7 @@ func appendslice(n *Node, init **NodeList) *Node {
 		} else {
 			fn = syslook("slicecopy", 1)
 		}
-		argtype(fn, l1.Type)
-		argtype(fn, l2.Type)
+		substArgTypes(fn, l1.Type, l2.Type)
 		nt := mkcall1(fn, Types[TINT], &l, nptr1, nptr2, Nodintconst(s.Type.Type.Width))
 		l = list(l, nt)
 	} else {
@@ -2999,8 +2988,7 @@ func appendslice(n *Node, init **NodeList) *Node {
 		nptr2 := Nod(OSPTR, l2, nil)
 
 		fn := syslook("memmove", 1)
-		argtype(fn, s.Type.Type) // 1 old []any
-		argtype(fn, s.Type.Type) // 2 ret []any
+		substArgTypes(fn, s.Type.Type, s.Type.Type)
 
 		nwid := cheapexpr(conv(Nod(OLEN, l2, nil), Types[TUINTPTR]), &l)
 
@@ -3068,8 +3056,7 @@ func walkappend(n *Node, init **NodeList) *Node {
 	nx.Ntest = Nod(OLT, Nod(OSUB, Nod(OCAP, ns, nil), Nod(OLEN, ns, nil)), na)
 
 	fn := syslook("growslice", 1) //   growslice(<type>, old []T, n int) (ret []T)
-	argtype(fn, ns.Type.Type)     // 1 old []any
-	argtype(fn, ns.Type.Type)     // 2 ret []any
+	substArgTypes(fn, ns.Type.Type, ns.Type.Type)
 
 	nx.Nbody = list1(Nod(OAS, ns, mkcall1(fn, ns.Type, &nx.Ninit, typename(ns.Type), ns, na)))
 
@@ -3121,8 +3108,7 @@ func copyany(n *Node, init **NodeList, runtimecall int) *Node {
 		} else {
 			fn = syslook("slicecopy", 1)
 		}
-		argtype(fn, n.Left.Type)
-		argtype(fn, n.Right.Type)
+		substArgTypes(fn, n.Left.Type, n.Right.Type)
 		return mkcall1(fn, n.Type, init, n.Left, n.Right, Nodintconst(n.Left.Type.Type.Width))
 	}
 
@@ -3152,8 +3138,7 @@ func copyany(n *Node, init **NodeList, runtimecall int) *Node {
 	// Call memmove.
 	fn := syslook("memmove", 1)
 
-	argtype(fn, nl.Type.Type)
-	argtype(fn, nl.Type.Type)
+	substArgTypes(fn, nl.Type.Type, nl.Type.Type)
 	nwid := temp(Types[TUINTPTR])
 	l = list(l, Nod(OAS, nwid, conv(nlen, Types[TUINTPTR])))
 	nwid = Nod(OMUL, nwid, Nodintconst(nl.Type.Type.Width))
@@ -3385,8 +3370,7 @@ func eqfor(t *Type, needsize *int) *Node {
 
 	if a == AMEM {
 		n := syslook("memequal", 1)
-		argtype(n, t)
-		argtype(n, t)
+		substArgTypes(n, t, t)
 		*needsize = 1
 		return n
 	}

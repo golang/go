@@ -543,7 +543,7 @@ func (s *typeSwitch) walk(sw *Node) {
 	} else {
 		a = syslook("ifacethash", 1)
 	}
-	argtype(a, t)
+	substArgTypes(a, t)
 	a = Nod(OCALL, a, nil)
 	a.List = list1(s.facename)
 	a = Nod(OAS, s.hashname, a)
