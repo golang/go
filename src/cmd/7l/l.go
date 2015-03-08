@@ -62,7 +62,7 @@ package main
 // THE SOFTWARE.
 
 const (
-	thechar   = '9'
+	thechar   = '7'
 	PtrSize   = 8
 	IntSize   = 8
 	RegSize   = 8
@@ -73,5 +73,5 @@ const (
 
 /* Used by ../ld/dwarf.c */
 const (
-	DWARFREGSP = 1
+	DWARFREGSP = 31
 )
