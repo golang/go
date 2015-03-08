@@ -3765,39 +3765,6 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 							ctxt.Andptr = ctxt.Andptr[1:]
 							asmand(ctxt, p, &pp.From, &p.To)
 
-						case obj.Hlinux:
-							if ctxt.Flag_shared == 0 {
-								log.Fatalf("unknown TLS base location for linux without -shared")
-							}
-							// Note that this is not generating the same insn as the other cases.
-							//     MOV TLS, R_to
-							// becomes
-							//     movq g@gottpoff(%rip), R_to
-							// which is encoded as
-							//     movq 0(%rip), R_to
-							// and a R_TLS_IE reloc. This all assumes the only tls variable we access
-							// is g, which we can't check here, but will when we assemble the second
-							// instruction.
-							ctxt.Rexflag = Pw | (regrex[p.To.Reg] & Rxr)
-
-							ctxt.Andptr[0] = 0x8B
-							ctxt.Andptr = ctxt.Andptr[1:]
-							ctxt.Andptr[0] = byte(0x05 | (reg[p.To.Reg] << 3))
-							ctxt.Andptr = ctxt.Andptr[1:]
-							r = obj.Addrel(ctxt.Cursym)
-							r.Off = int32(p.Pc + int64(-cap(ctxt.Andptr)+cap(ctxt.And[:])))
-							r.Type = obj.R_TLS_IE
-							r.Siz = 4
-							r.Add = -4
-							ctxt.Andptr[0] = 0x00
-							ctxt.Andptr = ctxt.Andptr[1:]
-							ctxt.Andptr[0] = 0x00
-							ctxt.Andptr = ctxt.Andptr[1:]
-							ctxt.Andptr[0] = 0x00
-							ctxt.Andptr = ctxt.Andptr[1:]
-							ctxt.Andptr[0] = 0x00
-							ctxt.Andptr = ctxt.Andptr[1:]
-
 						case obj.Hplan9:
 							if ctxt.Plan9privates == nil {
 								ctxt.Plan9privates = obj.Linklookup(ctxt, "_privates", 0)
