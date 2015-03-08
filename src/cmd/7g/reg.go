@@ -30,8 +30,10 @@
 
 package main
 
-import "cmd/internal/obj/ppc64"
-import "cmd/internal/gc"
+import (
+	"cmd/internal/gc"
+	"cmd/internal/obj/arm64"
+)
 
 const (
 	NREGVAR = 64 /* 32 general + 32 floating */
@@ -111,10 +113,10 @@ func regnames(n *int) []string {
 
 func excludedregs() uint64 {
 	// Exclude registers with fixed functions
-	regbits := uint64(1<<0 | RtoB(ppc64.REGSP) | RtoB(ppc64.REGG) | RtoB(ppc64.REGTLS))
+	regbits := uint64(RtoB(arm64.REGRT1) | RtoB(arm64.REGRT2) | RtoB(arm64.REGPR))
 
 	// Also exclude floating point registers with fixed constants
-	regbits |= RtoB(ppc64.REG_F27) | RtoB(ppc64.REG_F28) | RtoB(ppc64.REG_F29) | RtoB(ppc64.REG_F30) | RtoB(ppc64.REG_F31)
+	regbits |= RtoB(arm64.REG_F27) | RtoB(arm64.REG_F28) | RtoB(arm64.REG_F29) | RtoB(arm64.REG_F30) | RtoB(arm64.REG_F31)
 
 	return regbits
 }
@@ -136,11 +138,11 @@ func doregbits(r int) uint64 {
  *	32+31	F31
  */
 func RtoB(r int) uint64 {
-	if r > ppc64.REG_R0 && r <= ppc64.REG_R31 {
-		return 1 << uint(r-ppc64.REG_R0)
+	if r >= arm64.REG_R0 && r <= arm64.REG_R31 {
+		return 1 << uint(r-arm64.REG_R0)
 	}
-	if r >= ppc64.REG_F0 && r <= ppc64.REG_F31 {
-		return 1 << uint(32+r-ppc64.REG_F0)
+	if r >= arm64.REG_F0 && r <= arm64.REG_F31 {
+		return 1 << uint(32+r-arm64.REG_F0)
 	}
 	return 0
 }
@@ -150,7 +152,7 @@ func BtoR(b uint64) int {
 	if b == 0 {
 		return 0
 	}
-	return gc.Bitno(b) + ppc64.REG_R0
+	return gc.Bitno(b) + arm64.REG_R0
 }
 
 func BtoF(b uint64) int {
@@ -158,5 +160,5 @@ func BtoF(b uint64) int {
 	if b == 0 {
 		return 0
 	}
-	return gc.Bitno(b) + ppc64.REG_F0
+	return gc.Bitno(b) + arm64.REG_F0
 }

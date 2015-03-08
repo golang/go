@@ -7,7 +7,7 @@ package main
 import (
 	"cmd/internal/gc"
 	"cmd/internal/obj"
-	"cmd/internal/obj/ppc64"
+	"cmd/internal/obj/arm64"
 	"fmt"
 )
 
@@ -250,11 +250,11 @@ func cgen(n *gc.Node, res *gc.Node) {
 		gc.OGE,
 		gc.OGT,
 		gc.ONOT:
-		p1 := gc.Gbranch(ppc64.ABR, nil, 0)
+		p1 := gc.Gbranch(arm64.AB, nil, 0)
 
 		p2 := gc.Pc
 		gmove(gc.Nodbool(true), res)
-		p3 := gc.Gbranch(ppc64.ABR, nil, 0)
+		p3 := gc.Gbranch(arm64.AB, nil, 0)
 		gc.Patch(p1, gc.Pc)
 		bgen(n, true, 0, p2)
 		gmove(gc.Nodbool(false), res)
@@ -280,20 +280,10 @@ func cgen(n *gc.Node, res *gc.Node) {
 		return
 
 	case gc.OMINUS:
-		if gc.Isfloat[nl.Type.Etype] {
-			nr = gc.Nodintconst(-1)
-			gc.Convlit(&nr, n.Type)
-			a = optoas(gc.OMUL, nl.Type)
-			goto sbop
-		}
-
-		a := optoas(int(n.Op), nl.Type)
-		// unary
 		var n1 gc.Node
-		regalloc(&n1, nl.Type, res)
-
+		regalloc(&n1, nl.Type, nil)
 		cgen(nl, &n1)
-		gins(a, nil, &n1)
+		gins(optoas(gc.OMINUS, nl.Type), &n1, &n1)
 		gmove(&n1, res)
 		regfree(&n1)
 		return
@@ -379,7 +369,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 		if gc.Isconst(nl, gc.CTSTR) {
 			var n1 gc.Node
 			regalloc(&n1, gc.Types[gc.Tptr], res)
-			p1 := gins(ppc64.AMOVD, nil, &n1)
+			p1 := gins(arm64.AMOVD, nil, &n1)
 			gc.Datastring(nl.Val.U.Sval, &p1.From)
 			gmove(&n1, res)
 			regfree(&n1)
@@ -403,7 +393,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 
 			var n2 gc.Node
 			gc.Nodconst(&n2, gc.Types[gc.Tptr], 0)
-			gins(optoas(gc.OCMP, gc.Types[gc.Tptr]), &n1, &n2)
+			gcmp(optoas(gc.OCMP, gc.Types[gc.Tptr]), &n1, &n2)
 			p1 := gc.Gbranch(optoas(gc.OEQ, gc.Types[gc.Tptr]), nil, 0)
 
 			n2 = n1
@@ -444,7 +434,7 @@ func cgen(n *gc.Node, res *gc.Node) {
 
 			var n2 gc.Node
 			gc.Nodconst(&n2, gc.Types[gc.Tptr], 0)
-			gins(optoas(gc.OCMP, gc.Types[gc.Tptr]), &n1, &n2)
+			gcmp(optoas(gc.OCMP, gc.Types[gc.Tptr]), &n1, &n2)
 			p1 := gc.Gbranch(optoas(gc.OEQ, gc.Types[gc.Tptr]), nil, 0)
 
 			n2 = n1
@@ -690,7 +680,7 @@ func agenr(n *gc.Node, a *gc.Node, res *gc.Node) {
 		gc.Cgen_checknil(a)
 
 	case gc.OINDEX:
-		var p2 *obj.Prog // to be patched to panicindex.
+		p2 := (*obj.Prog)(nil) // to be patched to panicindex.
 		w := uint32(n.Type.Width)
 
 		//bounded = debug['B'] || n->bounded;
@@ -796,13 +786,13 @@ func agenr(n *gc.Node, a *gc.Node, res *gc.Node) {
 					gc.Nodconst(&n4, gc.Types[gc.TUINT64], nl.Type.Bound)
 				} else {
 					regalloc(&n4, gc.Types[gc.TUINT64], nil)
-					p1 := gins(ppc64.AMOVD, nil, &n4)
+					p1 := gins(arm64.AMOVD, nil, &n4)
 					p1.From.Type = obj.TYPE_CONST
 					p1.From.Offset = nl.Type.Bound
 				}
 			}
 
-			gins(optoas(gc.OCMP, gc.Types[gc.TUINT64]), &n2, &n4)
+			gcmp(optoas(gc.OCMP, gc.Types[gc.TUINT64]), &n2, &n4)
 			if n4.Op == gc.OREGISTER {
 				regfree(&n4)
 			}
@@ -816,7 +806,7 @@ func agenr(n *gc.Node, a *gc.Node, res *gc.Node) {
 
 		if gc.Isconst(nl, gc.CTSTR) {
 			regalloc(&n3, gc.Types[gc.Tptr], res)
-			p1 := gins(ppc64.AMOVD, nil, &n3)
+			p1 := gins(arm64.AMOVD, nil, &n3)
 			gc.Datastring(nl.Val.U.Sval, &p1.From)
 			p1.From.Type = obj.TYPE_ADDR
 		} else if gc.Isslice(nl.Type) || nl.Type.Etype == gc.TSTRING {
@@ -897,7 +887,7 @@ func agen(n *gc.Node, res *gc.Node) {
 		var n3 gc.Node
 		n3.Op = gc.OADDR
 		n3.Left = &n1
-		gins(ppc64.AMOVD, &n3, &n2)
+		gins(arm64.AMOVD, &n3, &n2)
 		gmove(&n2, res)
 		regfree(&n2)
 		return
@@ -909,7 +899,7 @@ func agen(n *gc.Node, res *gc.Node) {
 		n1.Left = n
 		var n2 gc.Node
 		regalloc(&n2, gc.Types[gc.Tptr], res)
-		gins(ppc64.AMOVD, &n1, &n2)
+		gins(arm64.AMOVD, &n1, &n2)
 		gmove(&n2, res)
 		regfree(&n2)
 		return
@@ -1020,7 +1010,7 @@ func igen(n *gc.Node, a *gc.Node, res *gc.Node) {
 		// Increase the refcount of the register so that igen's caller
 	// has to call regfree.
 	case gc.OINDREG:
-		if n.Val.U.Reg != ppc64.REGSP {
+		if n.Val.U.Reg != arm64.REGSP {
 			reg[n.Val.U.Reg]++
 		}
 		*a = *n
@@ -1060,7 +1050,7 @@ func igen(n *gc.Node, a *gc.Node, res *gc.Node) {
 		fp := gc.Structfirst(&flist, gc.Getoutarg(n.Left.Type))
 		*a = gc.Node{}
 		a.Op = gc.OINDREG
-		a.Val.U.Reg = ppc64.REGSP
+		a.Val.U.Reg = arm64.REGSP
 		a.Addable = 1
 		a.Xoffset = fp.Width + int64(gc.Widthptr) // +widthptr: saved lr at 0(SP)
 		a.Type = n.Type
@@ -1149,10 +1139,10 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
 		cgen(n, &n1)
 		var n2 gc.Node
 		gc.Nodconst(&n2, n.Type, 0)
-		gins(optoas(gc.OCMP, n.Type), &n1, &n2)
-		a := ppc64.ABNE
+		gcmp(optoas(gc.OCMP, n.Type), &n1, &n2)
+		a := arm64.ABNE
 		if !true_ {
-			a = ppc64.ABEQ
+			a = arm64.ABEQ
 		}
 		gc.Patch(gc.Gbranch(a, n.Type, likely), to)
 		regfree(&n1)
@@ -1161,7 +1151,7 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
 		// need to ask if it is bool?
 	case gc.OLITERAL:
 		if !true_ == (n.Val.U.Bval == 0) {
-			gc.Patch(gc.Gbranch(ppc64.ABR, nil, likely), to)
+			gc.Patch(gc.Gbranch(arm64.AB, nil, likely), to)
 		}
 		return
 
@@ -1218,15 +1208,15 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
 		if !true_ {
 			if gc.Isfloat[nr.Type.Etype] {
 				// brcom is not valid on floats when NaN is involved.
-				p1 := gc.Gbranch(ppc64.ABR, nil, 0)
+				p1 := gc.Gbranch(arm64.AB, nil, 0)
 
-				p2 := gc.Gbranch(ppc64.ABR, nil, 0)
+				p2 := gc.Gbranch(arm64.AB, nil, 0)
 				gc.Patch(p1, gc.Pc)
 				ll := n.Ninit // avoid re-genning ninit
 				n.Ninit = nil
 				bgen(n, true, -likely, p2)
 				n.Ninit = ll
-				gc.Patch(gc.Gbranch(ppc64.ABR, nil, 0), to)
+				gc.Patch(gc.Gbranch(arm64.AB, nil, 0), to)
 				gc.Patch(p2, gc.Pc)
 				return
 			}
@@ -1260,7 +1250,7 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
 			var n2 gc.Node
 			regalloc(&n2, gc.Types[gc.Tptr], &n1)
 			gmove(&n1, &n2)
-			gins(optoas(gc.OCMP, gc.Types[gc.Tptr]), &n2, &tmp)
+			gcmp(optoas(gc.OCMP, gc.Types[gc.Tptr]), &n2, &tmp)
 			regfree(&n2)
 			gc.Patch(gc.Gbranch(a, gc.Types[gc.Tptr], likely), to)
 			regfree(&n1)
@@ -1283,7 +1273,7 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
 			var n2 gc.Node
 			regalloc(&n2, gc.Types[gc.Tptr], &n1)
 			gmove(&n1, &n2)
-			gins(optoas(gc.OCMP, gc.Types[gc.Tptr]), &n2, &tmp)
+			gcmp(optoas(gc.OCMP, gc.Types[gc.Tptr]), &n2, &tmp)
 			regfree(&n2)
 			gc.Patch(gc.Gbranch(a, gc.Types[gc.Tptr], likely), to)
 			regfree(&n1)
@@ -1317,24 +1307,13 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
 
 		regalloc(&n1, nl.Type, nil)
 		cgen(nl, &n1)
-
-		// TODO(minux): cmpi does accept 16-bit signed immediate as p->to.
-		// and cmpli accepts 16-bit unsigned immediate.
-		//if(smallintconst(nr)) {
-		//	gins(optoas(OCMP, nr->type), &n1, nr);
-		//	patch(gbranch(optoas(a, nr->type), nr->type, likely), to);
-		//	regfree(&n1);
-		//	break;
-		//}
-
 		regalloc(&n2, nr.Type, nil)
-
 		cgen(nr, &n2)
 
 	cmp:
 		l := &n1
 		r := &n2
-		gins(optoas(gc.OCMP, nr.Type), l, r)
+		gcmp(optoas(gc.OCMP, nr.Type), l, r)
 		if gc.Isfloat[nr.Type.Etype] && (a == gc.OLE || a == gc.OGE) {
 			// To get NaN right, must rewrite x <= y into separate x < y or x = y.
 			switch a {
@@ -1470,16 +1449,16 @@ func sgen(n *gc.Node, ns *gc.Node, w int64) {
 		gc.Fatal("sgen: invalid alignment %d for %v", align, gc.Tconv(n.Type, 0))
 
 	case 1:
-		op = ppc64.AMOVBU
+		op = arm64.AMOVB
 
 	case 2:
-		op = ppc64.AMOVHU
+		op = arm64.AMOVH
 
 	case 4:
-		op = ppc64.AMOVWZU // there is no lwau, only lwaux
+		op = arm64.AMOVW
 
 	case 8:
-		op = ppc64.AMOVDU
+		op = arm64.AMOVD
 	}
 
 	if w%int64(align) != 0 {
@@ -1521,7 +1500,7 @@ func sgen(n *gc.Node, ns *gc.Node, w int64) {
 	if n.Ullman >= res.Ullman {
 		agenr(n, &dst, res) // temporarily use dst
 		regalloc(&src, gc.Types[gc.Tptr], nil)
-		gins(ppc64.AMOVD, &dst, &src)
+		gins(arm64.AMOVD, &dst, &src)
 		if res.Op == gc.ONAME {
 			gc.Gvardef(res)
 		}
@@ -1544,28 +1523,28 @@ func sgen(n *gc.Node, ns *gc.Node, w int64) {
 	if dir < 0 {
 		if c >= 4 {
 			regalloc(&nend, gc.Types[gc.Tptr], nil)
-			gins(ppc64.AMOVD, &src, &nend)
+			gins(arm64.AMOVD, &src, &nend)
 		}
 
-		p := gins(ppc64.AADD, nil, &src)
+		p := gins(arm64.AADD, nil, &src)
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = w
 
-		p = gins(ppc64.AADD, nil, &dst)
+		p = gins(arm64.AADD, nil, &dst)
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = w
 	} else {
-		p := gins(ppc64.AADD, nil, &src)
+		p := gins(arm64.AADD, nil, &src)
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(-dir)
 
-		p = gins(ppc64.AADD, nil, &dst)
+		p = gins(arm64.AADD, nil, &dst)
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(-dir)
 
 		if c >= 4 {
 			regalloc(&nend, gc.Types[gc.Tptr], nil)
-			p := gins(ppc64.AMOVD, &src, &nend)
+			p := gins(arm64.AMOVD, &src, &nend)
 			p.From.Type = obj.TYPE_ADDR
 			p.From.Offset = w
 		}
@@ -1577,15 +1556,17 @@ func sgen(n *gc.Node, ns *gc.Node, w int64) {
 		p := gins(op, &src, &tmp)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Offset = int64(dir)
+		p.Scond = arm64.C_XPRE
 		ploop := p
 
 		p = gins(op, &tmp, &dst)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Offset = int64(dir)
+		p.Scond = arm64.C_XPRE
 
-		p = gins(ppc64.ACMP, &src, &nend)
+		p = gcmp(arm64.ACMP, &src, &nend)
 
-		gc.Patch(gc.Gbranch(ppc64.ABNE, nil, 0), ploop)
+		gc.Patch(gc.Gbranch(arm64.ABNE, nil, 0), ploop)
 		regfree(&nend)
 	} else {
 		// TODO(austin): Instead of generating ADD $-8,R8; ADD
@@ -1604,10 +1585,12 @@ func sgen(n *gc.Node, ns *gc.Node, w int64) {
 			p = gins(op, &src, &tmp)
 			p.From.Type = obj.TYPE_MEM
 			p.From.Offset = int64(dir)
+			p.Scond = arm64.C_XPRE
 
 			p = gins(op, &tmp, &dst)
 			p.To.Type = obj.TYPE_MEM
 			p.To.Offset = int64(dir)
+			p.Scond = arm64.C_XPRE
 		}
 	}
 

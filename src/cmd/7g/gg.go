@@ -4,14 +4,14 @@
 
 package main
 
-import "cmd/internal/obj/ppc64"
+import "cmd/internal/obj/arm64"
 import "cmd/internal/gc"
 
 // Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-var reg [ppc64.NREG + ppc64.NFREG]uint8
+var reg [arm64.NREG + arm64.NFREG]uint8
 
 var panicdiv *gc.Node
 
