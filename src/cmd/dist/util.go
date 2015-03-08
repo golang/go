@@ -422,6 +422,8 @@ func main() {
 			gohostarch = "386"
 		case strings.Contains(out, "arm"):
 			gohostarch = "arm"
+		case strings.Contains(out, "aarch64"):
+			gohostarch = "arm64"
 		case strings.Contains(out, "ppc64le"):
 			gohostarch = "ppc64le"
 		case strings.Contains(out, "ppc64"):

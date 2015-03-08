@@ -49,7 +49,7 @@ var (
 )
 
 // The known architecture letters.
-var gochars = "566899"
+var gochars = "5667899"
 
 // The known architectures.
 var okgoarch = []string{
@@ -57,6 +57,7 @@ var okgoarch = []string{
 	"arm",
 	"amd64",
 	"amd64p32",
+	"arm64",
 	"386",
 	"ppc64",
 	"ppc64le",
@@ -909,6 +910,8 @@ var cleantab = []string{
 	"cmd/5l",
 	"cmd/6g",
 	"cmd/6l",
+	"cmd/7g",
+	"cmd/7l",
 	"cmd/8g",
 	"cmd/8l",
 	"cmd/9g",
