@@ -395,6 +395,8 @@ var goTools = map[string]targetDir{
 	"cmd/5l":                               toTool,
 	"cmd/6g":                               toTool,
 	"cmd/6l":                               toTool,
+	"cmd/7g":                               toTool,
+	"cmd/7l":                               toTool,
 	"cmd/8g":                               toTool,
 	"cmd/8l":                               toTool,
 	"cmd/9g":                               toTool,
