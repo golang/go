@@ -1396,6 +1396,8 @@ func ArchChar(goarch string) (string, error) {
 		return "6", nil
 	case "arm":
 		return "5", nil
+	case "arm64":
+		return "7", nil
 	case "ppc64", "ppc64le":
 		return "9", nil
 	}
