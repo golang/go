@@ -21,8 +21,8 @@ var firstFavoriteAddrTests = []struct {
 	{
 		nil,
 		[]IPAddr{
-			IPAddr{IP: IPv4(127, 0, 0, 1)},
-			IPAddr{IP: IPv6loopback},
+			{IP: IPv4(127, 0, 0, 1)},
+			{IP: IPv6loopback},
 		},
 		testInetaddr,
 		addrList{
@@ -34,8 +34,8 @@ var firstFavoriteAddrTests = []struct {
 	{
 		nil,
 		[]IPAddr{
-			IPAddr{IP: IPv6loopback},
-			IPAddr{IP: IPv4(127, 0, 0, 1)},
+			{IP: IPv6loopback},
+			{IP: IPv4(127, 0, 0, 1)},
 		},
 		testInetaddr,
 		addrList{
@@ -47,8 +47,8 @@ var firstFavoriteAddrTests = []struct {
 	{
 		nil,
 		[]IPAddr{
-			IPAddr{IP: IPv4(127, 0, 0, 1)},
-			IPAddr{IP: IPv4(192, 168, 0, 1)},
+			{IP: IPv4(127, 0, 0, 1)},
+			{IP: IPv4(192, 168, 0, 1)},
 		},
 		testInetaddr,
 		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
@@ -57,8 +57,8 @@ var firstFavoriteAddrTests = []struct {
 	{
 		nil,
 		[]IPAddr{
-			IPAddr{IP: IPv6loopback},
-			IPAddr{IP: ParseIP("fe80::1"), Zone: "eth0"},
+			{IP: IPv6loopback},
+			{IP: ParseIP("fe80::1"), Zone: "eth0"},
 		},
 		testInetaddr,
 		&TCPAddr{IP: IPv6loopback, Port: 5682},
@@ -67,10 +67,10 @@ var firstFavoriteAddrTests = []struct {
 	{
 		nil,
 		[]IPAddr{
-			IPAddr{IP: IPv4(127, 0, 0, 1)},
-			IPAddr{IP: IPv4(192, 168, 0, 1)},
-			IPAddr{IP: IPv6loopback},
-			IPAddr{IP: ParseIP("fe80::1"), Zone: "eth0"},
+			{IP: IPv4(127, 0, 0, 1)},
+			{IP: IPv4(192, 168, 0, 1)},
+			{IP: IPv6loopback},
+			{IP: ParseIP("fe80::1"), Zone: "eth0"},
 		},
 		testInetaddr,
 		addrList{
@@ -82,10 +82,10 @@ var firstFavoriteAddrTests = []struct {
 	{
 		nil,
 		[]IPAddr{
-			IPAddr{IP: IPv6loopback},
-			IPAddr{IP: ParseIP("fe80::1"), Zone: "eth0"},
-			IPAddr{IP: IPv4(127, 0, 0, 1)},
-			IPAddr{IP: IPv4(192, 168, 0, 1)},
+			{IP: IPv6loopback},
+			{IP: ParseIP("fe80::1"), Zone: "eth0"},
+			{IP: IPv4(127, 0, 0, 1)},
+			{IP: IPv4(192, 168, 0, 1)},
 		},
 		testInetaddr,
 		addrList{
@@ -97,10 +97,10 @@ var firstFavoriteAddrTests = []struct {
 	{
 		nil,
 		[]IPAddr{
-			IPAddr{IP: IPv4(127, 0, 0, 1)},
-			IPAddr{IP: IPv6loopback},
-			IPAddr{IP: IPv4(192, 168, 0, 1)},
-			IPAddr{IP: ParseIP("fe80::1"), Zone: "eth0"},
+			{IP: IPv4(127, 0, 0, 1)},
+			{IP: IPv6loopback},
+			{IP: IPv4(192, 168, 0, 1)},
+			{IP: ParseIP("fe80::1"), Zone: "eth0"},
 		},
 		testInetaddr,
 		addrList{
@@ -112,10 +112,10 @@ var firstFavoriteAddrTests = []struct {
 	{
 		nil,
 		[]IPAddr{
-			IPAddr{IP: IPv6loopback},
-			IPAddr{IP: IPv4(127, 0, 0, 1)},
-			IPAddr{IP: ParseIP("fe80::1"), Zone: "eth0"},
-			IPAddr{IP: IPv4(192, 168, 0, 1)},
+			{IP: IPv6loopback},
+			{IP: IPv4(127, 0, 0, 1)},
+			{IP: ParseIP("fe80::1"), Zone: "eth0"},
+			{IP: IPv4(192, 168, 0, 1)},
 		},
 		testInetaddr,
 		addrList{
@@ -128,8 +128,8 @@ var firstFavoriteAddrTests = []struct {
 	{
 		ipv4only,
 		[]IPAddr{
-			IPAddr{IP: IPv4(127, 0, 0, 1)},
-			IPAddr{IP: IPv6loopback},
+			{IP: IPv4(127, 0, 0, 1)},
+			{IP: IPv6loopback},
 		},
 		testInetaddr,
 		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
@@ -138,8 +138,8 @@ var firstFavoriteAddrTests = []struct {
 	{
 		ipv4only,
 		[]IPAddr{
-			IPAddr{IP: IPv6loopback},
-			IPAddr{IP: IPv4(127, 0, 0, 1)},
+			{IP: IPv6loopback},
+			{IP: IPv4(127, 0, 0, 1)},
 		},
 		testInetaddr,
 		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
@@ -149,8 +149,8 @@ var firstFavoriteAddrTests = []struct {
 	{
 		ipv6only,
 		[]IPAddr{
-			IPAddr{IP: IPv4(127, 0, 0, 1)},
-			IPAddr{IP: IPv6loopback},
+			{IP: IPv4(127, 0, 0, 1)},
+			{IP: IPv6loopback},
 		},
 		testInetaddr,
 		&TCPAddr{IP: IPv6loopback, Port: 5682},
@@ -159,8 +159,8 @@ var firstFavoriteAddrTests = []struct {
 	{
 		ipv6only,
 		[]IPAddr{
-			IPAddr{IP: IPv6loopback},
-			IPAddr{IP: IPv4(127, 0, 0, 1)},
+			{IP: IPv6loopback},
+			{IP: IPv4(127, 0, 0, 1)},
 		},
 		testInetaddr,
 		&TCPAddr{IP: IPv6loopback, Port: 5682},
@@ -170,10 +170,10 @@ var firstFavoriteAddrTests = []struct {
 	{nil, nil, testInetaddr, nil, errNoSuitableAddress},
 
 	{ipv4only, nil, testInetaddr, nil, errNoSuitableAddress},
-	{ipv4only, []IPAddr{IPAddr{IP: IPv6loopback}}, testInetaddr, nil, errNoSuitableAddress},
+	{ipv4only, []IPAddr{{IP: IPv6loopback}}, testInetaddr, nil, errNoSuitableAddress},
 
 	{ipv6only, nil, testInetaddr, nil, errNoSuitableAddress},
-	{ipv6only, []IPAddr{IPAddr{IP: IPv4(127, 0, 0, 1)}}, testInetaddr, nil, errNoSuitableAddress},
+	{ipv6only, []IPAddr{{IP: IPv4(127, 0, 0, 1)}}, testInetaddr, nil, errNoSuitableAddress},
 }
 
 func TestFirstFavoriteAddr(t *testing.T) {
