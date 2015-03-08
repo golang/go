@@ -253,12 +253,20 @@ func mallocinit() {
 		// but it hardly matters: e0 00 is not valid UTF-8 either.
 		//
 		// If this fails we fall back to the 32 bit memory mechanism
+		//
+		// However, on arm64, we ignore all this advice above and slam the
+		// allocation at 0x40 << 32 because when using 4k pages with 3-level
+		// translation buffers, the user address space is limited to 39 bits
 		arenaSize := round(_MaxMem, _PageSize)
 		bitmapSize = arenaSize / (ptrSize * 8 / 4)
 		spansSize = arenaSize / _PageSize * ptrSize
 		spansSize = round(spansSize, _PageSize)
 		for i := 0; i <= 0x7f; i++ {
-			p = uintptr(i)<<40 | uintptrMask&(0x00c0<<32)
+			if GOARCH == "arm64" {
+				p = uintptr(i)<<40 | uintptrMask&(0x0040<<32)
+			} else {
+				p = uintptr(i)<<40 | uintptrMask&(0x00c0<<32)
+			}
 			pSize = bitmapSize + spansSize + arenaSize + _PageSize
 			p = uintptr(sysReserve(unsafe.Pointer(p), pSize, &reserved))
 			if p != 0 {

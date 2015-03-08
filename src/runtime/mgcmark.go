@@ -289,10 +289,13 @@ func scanframeworker(frame *stkframe, unused unsafe.Pointer, gcw *gcWorkProducer
 	// Scan local variables if stack frame has been allocated.
 	size := frame.varp - frame.sp
 	var minsize uintptr
-	if thechar != '6' && thechar != '8' {
-		minsize = ptrSize
-	} else {
+	switch thechar {
+	case '6', '8':
 		minsize = 0
+	case '7':
+		minsize = spAlign
+	default:
+		minsize = ptrSize
 	}
 	if size > minsize {
 		stkmap := (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))
