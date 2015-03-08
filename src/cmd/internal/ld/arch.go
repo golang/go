@@ -15,6 +15,15 @@ var Linkarm = LinkArch{
 	Regsize:   4,
 }
 
+var Linkarm64 = LinkArch{
+	ByteOrder: binary.LittleEndian,
+	Name:      "arm64",
+	Thechar:   '7',
+	Minlc:     4,
+	Ptrsize:   8,
+	Regsize:   8,
+}
+
 var Linkamd64 = LinkArch{
 	ByteOrder: binary.LittleEndian,
 	Name:      "amd64",

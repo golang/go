@@ -46,11 +46,7 @@ func main() {
 
 func linkarchinit() {
 	ld.Thestring = obj.Getgoarch()
-	if ld.Thestring == "ppc64le" {
-		ld.Thelinkarch = &ld.Linkppc64le
-	} else {
-		ld.Thelinkarch = &ld.Linkppc64
-	}
+	ld.Thelinkarch = &ld.Linkarm64
 
 	ld.Thearch.Thechar = thechar
 	ld.Thearch.Ptrsize = ld.Thelinkarch.Ptrsize
@@ -72,18 +68,11 @@ func linkarchinit() {
 	ld.Thearch.Elfsetupplt = elfsetupplt
 	ld.Thearch.Gentext = gentext
 	ld.Thearch.Machoreloc1 = machoreloc1
-	if ld.Thelinkarch == &ld.Linkppc64le {
-		ld.Thearch.Lput = ld.Lputl
-		ld.Thearch.Wput = ld.Wputl
-		ld.Thearch.Vput = ld.Vputl
-	} else {
-		ld.Thearch.Lput = ld.Lputb
-		ld.Thearch.Wput = ld.Wputb
-		ld.Thearch.Vput = ld.Vputb
-	}
+	ld.Thearch.Lput = ld.Lputl
+	ld.Thearch.Wput = ld.Wputl
+	ld.Thearch.Vput = ld.Vputl
 
-	// TODO(austin): ABI v1 uses /usr/lib/ld.so.1
-	ld.Thearch.Linuxdynld = "/lib64/ld64.so.1"
+	ld.Thearch.Linuxdynld = "/lib/ld-linux-aarch64.so.1"
 
 	ld.Thearch.Freebsddynld = "XXX"
 	ld.Thearch.Openbsddynld = "XXX"
@@ -129,9 +118,7 @@ func archinit() {
 		}
 
 	case ld.Hlinux: /* ppc64 elf */
-		if ld.Thestring == "ppc64" {
-			ld.Debug['d'] = 1 // TODO(austin): ELF ABI v1 not supported yet
-		}
+		ld.Debug['d'] = 1 // TODO(aram): dynamic linking is not supported yet.
 		ld.Elfinit()
 		ld.HEADR = ld.ELFRESERVE
 		if ld.INITTEXT == -1 {

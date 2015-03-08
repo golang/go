@@ -1064,7 +1064,7 @@ var (
 // allow stack checks here.
 
 func haslinkregister() bool {
-	return Thearch.Thechar == '5' || Thearch.Thechar == '9'
+	return Thearch.Thechar == '5' || Thearch.Thechar == '9' || Thearch.Thechar == '7'
 }
 
 func callsize() int {
@@ -1183,6 +1183,7 @@ func stkcheck(up *Chain, depth int) int {
 			// Direct call.
 			case R_CALL,
 				R_CALLARM,
+				R_CALLARM64,
 				R_CALLPOWER:
 				ch.limit = int(int32(limit) - pcsp.value - int32(callsize()))
 
