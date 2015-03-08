@@ -66,6 +66,7 @@ type Prog struct {
 	Reg      int16
 	From3    Addr
 	To       Addr
+	To2      Addr
 	Opt      interface{}
 	Forwd    *Prog
 	Pcond    *Prog
@@ -505,6 +506,7 @@ const (
 	R_SIZE
 	R_CALL
 	R_CALLARM
+	R_CALLARM64
 	R_CALLIND
 	R_CALLPOWER
 	R_CONST

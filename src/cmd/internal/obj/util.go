@@ -332,6 +332,9 @@ func (p *Prog) String() string {
 	if p.To.Type != TYPE_NONE {
 		fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, &p.To))
 	}
+	if p.To2.Type != TYPE_NONE {
+		fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, &p.To2))
+	}
 	return buf.String()
 }
 
@@ -523,10 +526,8 @@ const (
 	RBase386   = 1 * 1024
 	RBaseAMD64 = 2 * 1024
 	RBaseARM   = 3 * 1024
-	RBasePPC64 = 4 * 1024
-	// The next free base is 8*1024 (PPC64 has many registers).
-	// Alternatively, the next architecture, with an ordinary
-	// number of registers, could go under PPC64.
+	RBasePPC64 = 4 * 1024 // range [4k, 8k)
+	RBaseARM64 = 8 * 1024 // range [8k, 12k)
 )
 
 // RegisterRegister binds a pretty-printer (Rconv) for register
@@ -585,6 +586,7 @@ const (
 	ABaseARM
 	ABaseAMD64
 	ABasePPC64
+	ABaseARM64
 	AMask = 1<<12 - 1 // AND with this to use the opcode as an array index.
 )
 
