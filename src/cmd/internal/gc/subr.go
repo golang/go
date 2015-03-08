@@ -25,10 +25,6 @@ type Error struct {
 
 var errors []Error
 
-var nerr int
-
-var merr int
-
 func errorexit() {
 	Flusherrors()
 	if outfile != "" {

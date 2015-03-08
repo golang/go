@@ -23,8 +23,6 @@ import (
 	"unicode/utf8"
 )
 
-var yychar_lex int
-
 var yyprev int
 
 var yylast int

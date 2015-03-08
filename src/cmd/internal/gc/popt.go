@@ -517,15 +517,14 @@ func Uniqs(r *Flow) *Flow {
 // ACM TOPLAS 1999.
 
 type TempVar struct {
-	node     *Node
-	def      *Flow    // definition of temp var
-	use      *Flow    // use list, chained through Flow.data
-	freelink *TempVar // next free temp in Type.opt list
-	merge    *TempVar // merge var with this one
-	start    int64    // smallest Prog.pc in live range
-	end      int64    // largest Prog.pc in live range
-	addr     uint8    // address taken - no accurate end
-	removed  uint8    // removed from program
+	node    *Node
+	def     *Flow    // definition of temp var
+	use     *Flow    // use list, chained through Flow.data
+	merge   *TempVar // merge var with this one
+	start   int64    // smallest Prog.pc in live range
+	end     int64    // largest Prog.pc in live range
+	addr    uint8    // address taken - no accurate end
+	removed uint8    // removed from program
 }
 
 type startcmp []*TempVar
