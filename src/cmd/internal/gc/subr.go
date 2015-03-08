@@ -1369,66 +1369,57 @@ func assignconv(n *Node, t *Type, context string) *Node {
 	return r
 }
 
-func subtype(stp **Type, t *Type, d int) bool {
-loop:
-	st := *stp
-	if st == nil {
-		return false
+// substArgTypes substitutes the given list of types for
+// successive occurrences of the "any" placeholder in the
+// type syntax expression n.Type.
+func substArgTypes(n *Node, types ...*Type) {
+	for _, t := range types {
+		dowidth(t)
 	}
-
-	d++
-	if d >= 10 {
-		return false
+	substAny(&n.Type, &types)
+	if len(types) > 0 {
+		Fatal("substArgTypes: too many argument types")
 	}
+}
 
-	switch st.Etype {
-	default:
-		return false
-
-	case TPTR32,
-		TPTR64,
-		TCHAN,
-		TARRAY:
-		stp = &st.Type
-		goto loop
-
-	case TANY:
-		if st.Copyany == 0 {
-			return false
+// substAny walks *tp, replacing instances of "any" with successive
+// elements removed from types.
+func substAny(tp **Type, types *[]*Type) {
+	for {
+		t := *tp
+		if t == nil {
+			return
 		}
-		*stp = t
-
-	case TMAP:
-		if subtype(&st.Down, t, d) {
-			break
-		}
-		stp = &st.Type
-		goto loop
-
-	case TFUNC:
-		for {
-			if subtype(&st.Type, t, d) {
-				break
+		if t.Etype == TANY && t.Copyany != 0 {
+			if len(*types) == 0 {
+				Fatal("substArgTypes: not enough argument types")
 			}
-			if subtype(&st.Type.Down.Down, t, d) {
-				break
-			}
-			if subtype(&st.Type.Down, t, d) {
-				break
-			}
-			return false
+			*tp = (*types)[0]
+			*types = (*types)[1:]
 		}
 
-	case TSTRUCT:
-		for st = st.Type; st != nil; st = st.Down {
-			if subtype(&st.Type, t, d) {
-				return true
+		switch t.Etype {
+		case TPTR32, TPTR64, TCHAN, TARRAY:
+			tp = &t.Type
+			continue
+
+		case TMAP:
+			substAny(&t.Down, types)
+			tp = &t.Type
+			continue
+
+		case TFUNC:
+			substAny(&t.Type, types)
+			substAny(&t.Type.Down.Down, types)
+			substAny(&t.Type.Down, types)
+
+		case TSTRUCT:
+			for t = t.Type; t != nil; t = t.Down {
+				substAny(&t.Type, types)
 			}
 		}
-		return false
+		return
 	}
-
-	return true
 }
 
 /*
@@ -1482,13 +1473,6 @@ func Noconv(t1 *Type, t2 *Type) bool {
 	}
 
 	return false
-}
-
-func argtype(on *Node, t *Type) {
-	dowidth(t)
-	if !subtype(&on.Type, t, 0) {
-		Fatal("argtype: failed %v %v\n", Nconv(on, 0), Tconv(t, 0))
-	}
 }
 
 func shallow(t *Type) *Type {
@@ -2793,18 +2777,13 @@ func eqmemfunc(size int64, type_ *Type, needsize *int) *Node {
 		fn = syslook("memequal", 1)
 		*needsize = 1
 
-	case 1,
-		2,
-		4,
-		8,
-		16:
+	case 1, 2, 4, 8, 16:
 		buf := fmt.Sprintf("memequal%d", int(size)*8)
 		fn = syslook(buf, 1)
 		*needsize = 0
 	}
 
-	argtype(fn, type_)
-	argtype(fn, type_)
+	substArgTypes(fn, type_, type_)
 	return fn
 }
 
