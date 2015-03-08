@@ -18,13 +18,25 @@ EOF
 
 sub fmt {
 	my ($name, $num) = @_;
+	if($num > 999){
+		# ignore depricated syscalls that are no longer implemented
+		# https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/include/uapi/asm-generic/unistd.h?id=refs/heads/master#n716
+		return;
+	}
 	$name =~ y/a-z/A-Z/;
 	print "	SYS_$name = $num;\n";
 }
 
 my $prev;
 while(<>){
-	if(/^#define __NR_(\w+)\s+([0-9]+)/){
+	if(/^#define __NR_syscalls\s+/) {
+		# ignore redefinitions of __NR_syscalls
+	}
+	elsif(/^#define __NR_(\w+)\s+([0-9]+)/){
+		$prev = $2;
+		fmt($1, $2);
+	}
+	elsif(/^#define __NR3264_(\w+)\s+([0-9]+)/){
 		$prev = $2;
 		fmt($1, $2);
 	}

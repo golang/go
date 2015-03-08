@@ -121,6 +121,14 @@ includes_Linux='
 #ifndef MSG_FASTOPEN
 #define MSG_FASTOPEN    0x20000000
 #endif
+
+#ifndef PTRACE_GETREGS
+#define PTRACE_GETREGS	0xc
+#endif
+
+#ifndef PTRACE_SETREGS
+#define PTRACE_SETREGS	0xd
+#endif
 '
 
 includes_NetBSD='
