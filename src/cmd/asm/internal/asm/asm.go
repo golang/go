@@ -22,9 +22,20 @@ var testOut *bytes.Buffer // Gathers output when testing.
 // append adds the Prog to the end of the program-thus-far.
 // If doLabel is set, it also defines the labels collect for this Prog.
 func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
-	if p.arch.Thechar == '5' {
-		if !arch.ARMConditionCodes(prog, cond) {
-			p.errorf("unrecognized condition code .%q", cond)
+	if cond != "" {
+		switch p.arch.Thechar {
+		case '5':
+			if !arch.ARMConditionCodes(prog, cond) {
+				p.errorf("unrecognized condition code .%q", cond)
+			}
+
+		case '7':
+			if !arch.ARM64Suffix(prog, cond) {
+				p.errorf("unrecognized suffix .%q", cond)
+			}
+
+		default:
+			p.errorf("unrecognized suffix .%q", cond)
 		}
 	}
 	if p.firstProg == nil {
@@ -307,14 +318,9 @@ func (p *Parser) asmJump(op int, cond string, a []obj.Addr) {
 	case 1:
 		target = &a[0]
 	case 2:
-		if p.arch.Thechar == '9' {
-			// Special 2-operand jumps.
-			target = &a[1]
-			prog.From = a[0]
-			break
-		}
-		p.errorf("wrong number of arguments to %s instruction", obj.Aconv(op))
-		return
+		// Special 2-operand jumps.
+		target = &a[1]
+		prog.From = a[0]
 	case 3:
 		if p.arch.Thechar == '9' {
 			// Special 3-operand jumps.
@@ -457,6 +463,10 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 				}
 				p.errorf("unrecognized addressing for %s", obj.Aconv(op))
 			}
+		} else if p.arch.Thechar == '7' && arch.IsARM64CMP(op) {
+			prog.From = a[0]
+			prog.Reg = p.getRegister(prog, op, &a[1])
+			break
 		}
 		prog.From = a[0]
 		prog.To = a[1]
@@ -475,6 +485,17 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 				break
 			}
 			// Otherwise the 2nd operand (a[1]) must be a register.
+			prog.From = a[0]
+			prog.Reg = p.getRegister(prog, op, &a[1])
+			prog.To = a[2]
+		case '7':
+			// ARM64 instructions with one input and two outputs.
+			if arch.IsARM64STLXR(op) {
+				prog.From = a[0]
+				prog.To = a[1]
+				prog.To2 = a[2]
+				break
+			}
 			prog.From = a[0]
 			prog.Reg = p.getRegister(prog, op, &a[1])
 			prog.To = a[2]

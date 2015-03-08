@@ -116,7 +116,7 @@ func (p *Parser) line() bool {
 		for {
 			tok = p.lex.Next()
 			if len(operands) == 0 && len(items) == 0 {
-				if p.arch.Thechar == '5' && tok == '.' {
+				if (p.arch.Thechar == '5' || p.arch.Thechar == '7') && tok == '.' {
 					// ARM conditionals.
 					tok = p.lex.Next()
 					str := p.lex.Text()
