@@ -43,10 +43,10 @@ var goroot string
 var debugtab = []struct {
 	name string
 	val  *int
-}{struct {
-	name string
-	val  *int
-}{"nil", &Debug_checknil}}
+}{
+	{"nil", &Debug_checknil},
+	{"disablenil", &Disable_checknil},
+}
 
 // Our own isdigit, isspace, isalpha, isalnum that take care
 // of EOF and other out of range arguments.
