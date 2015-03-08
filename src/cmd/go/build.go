@@ -1705,7 +1705,7 @@ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 	if err := b.run(p.Dir, p.ImportPath, nil, args...); err != nil {
 		return err
 	}
-	if verifyAsm {
+	if verifyAsm && goarch != "arm64" {
 		if err := toolVerify(b, p, "old"+archChar+"a", ofile, args); err != nil {
 			return err
 		}
