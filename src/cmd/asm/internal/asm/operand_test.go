@@ -55,6 +55,10 @@ func TestARMOperandParser(t *testing.T) {
 	parser := newParser("arm")
 	testOperandParser(t, parser, armOperandTests)
 }
+func TestARM64OperandParser(t *testing.T) {
+	parser := newParser("arm64")
+	testOperandParser(t, parser, arm64OperandTests)
+}
 
 func TestPPC64OperandParser(t *testing.T) {
 	parser := newParser("ppc64")
@@ -372,4 +376,52 @@ var ppc64OperandTests = []operandTest{
 	{"runtime·abort(SB)", "runtime.abort(SB)"},
 	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
 	{"·trunc(SB)", "\"\".trunc(SB)"},
+}
+
+var arm64OperandTests = []operandTest{
+	{"$0", "$0"},
+	{"$0.5", "$(0.5)"},
+	{"0(R26)", "(R26)"},
+	{"0(RSP)", "(RSP)"},
+	{"$1", "$1"},
+	{"$-1", "$-1"},
+	{"$1000", "$1000"},
+	{"$1000000000", "$1000000000"},
+	{"$0x7fff3c000", "$34358935552"},
+	{"$1234", "$1234"},
+	{"$~15", "$-16"},
+	{"$16", "$16"},
+	{"-16(RSP)", "-16(RSP)"},
+	{"16(RSP)", "16(RSP)"},
+	{"1(R1)", "1(R1)"},
+	{"-1(R4)", "-1(R4)"},
+	{"18740(R5)", "18740(R5)"},
+	{"$2", "$2"},
+	{"$-24(R4)", "$-24(R4)"},
+	{"-24(RSP)", "-24(RSP)"},
+	{"$24(RSP)", "$24(RSP)"},
+	{"-32(RSP)", "-32(RSP)"},
+	{"$48", "$48"},
+	{"$(-64*1024)(R7)", "$-65536(R7)"},
+	{"$(8-1)", "$7"},
+	{"a+0(FP)", "a(FP)"},
+	{"a1+8(FP)", "a1+8(FP)"},
+	{"·AddInt32(SB)", `"".AddInt32(SB)`},
+	{"runtime·divWVW(SB)", "runtime.divWVW(SB)"},
+	{"$argframe+0(FP)", "$argframe(FP)"},
+	{"$asmcgocall<>(SB)", "$asmcgocall<>(SB)"},
+	{"EQ", "EQ"},
+	{"F29", "F29"},
+	{"F3", "F3"},
+	{"F30", "F30"},
+	{"g", "g"},
+	{"LR", "R30"},
+	{"(LR)", "(R30)"},
+	{"R0", "R0"},
+	{"R10", "R10"},
+	{"R11", "R11"},
+	{"$4503601774854144.0", "$(4503601774854144.0)"},
+	{"$runtime·badsystemstack(SB)", "$runtime.badsystemstack(SB)"},
+	{"ZR", "ZR"},
+	{"(ZR)", "(ZR)"},
 }

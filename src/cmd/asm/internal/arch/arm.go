@@ -198,6 +198,10 @@ func ARMConditionCodes(prog *obj.Prog, cond string) bool {
 // The input is a single string consisting of period-separated condition
 // codes, such as ".P.W". An initial period is ignored.
 func ParseARMCondition(cond string) (uint8, bool) {
+	return parseARMCondition(cond, armLS, armSCOND)
+}
+
+func parseARMCondition(cond string, ls, scond map[string]uint8) (uint8, bool) {
 	if strings.HasPrefix(cond, ".") {
 		cond = cond[1:]
 	}
@@ -207,11 +211,11 @@ func ParseARMCondition(cond string) (uint8, bool) {
 	names := strings.Split(cond, ".")
 	bits := uint8(0)
 	for _, name := range names {
-		if b, present := armLS[name]; present {
+		if b, present := ls[name]; present {
 			bits |= b
 			continue
 		}
-		if b, present := armSCOND[name]; present {
+		if b, present := scond[name]; present {
 			bits = (bits &^ arm.C_SCOND) | b
 			continue
 		}
