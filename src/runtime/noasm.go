@@ -4,7 +4,7 @@
 
 // Routines that are implemented in assembly in asm_{amd64,386}.s
 
-// +build arm ppc64 ppc64le
+// +build arm arm64 ppc64 ppc64le
 
 package runtime
 
