@@ -110,7 +110,7 @@ func run(dir string, mode int, cmd ...string) string {
 		if mode&Background != 0 {
 			bgdied.Done()
 		}
-		fatal("FAILED: %v", strings.Join(cmd, " "))
+		fatal("FAILED: %v: %v", strings.Join(cmd, " "), err)
 	}
 	if mode&ShowOutput != 0 {
 		outputLock.Lock()
