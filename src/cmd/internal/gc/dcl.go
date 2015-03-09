@@ -1150,9 +1150,9 @@ func checkarglist(all *NodeList, input int) *NodeList {
 			n.Right.Op = OTARRAY
 			n.Right.Right = n.Right.Left
 			n.Right.Left = nil
-			n.Isddd = 1
+			n.Isddd = true
 			if n.Left != nil {
-				n.Left.Isddd = 1
+				n.Left.Isddd = true
 			}
 		}
 

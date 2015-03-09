@@ -326,7 +326,7 @@ func walkstmt(np **Node) {
 			break
 		}
 
-		ll := ascompatte(int(n.Op), nil, 0, Getoutarg(Curfn.Type), n.List, 1, &n.Ninit)
+		ll := ascompatte(int(n.Op), nil, false, Getoutarg(Curfn.Type), n.List, 1, &n.Ninit)
 		n.List = ll
 
 	case ORETJMP:
@@ -594,7 +594,7 @@ func walkexpr(np **Node, init **NodeList) {
 		}
 		walkexpr(&n.Left, init)
 		walkexprlist(n.List, init)
-		ll := ascompatte(int(n.Op), n, int(n.Isddd), getinarg(t), n.List, 0, init)
+		ll := ascompatte(int(n.Op), n, n.Isddd, getinarg(t), n.List, 0, init)
 		n.List = reorder1(ll)
 		goto ret
 
@@ -632,7 +632,7 @@ func walkexpr(np **Node, init **NodeList) {
 		walkexpr(&n.Left, init)
 		walkexprlist(n.List, init)
 
-		ll := ascompatte(int(n.Op), n, int(n.Isddd), getinarg(t), n.List, 0, init)
+		ll := ascompatte(int(n.Op), n, n.Isddd, getinarg(t), n.List, 0, init)
 		n.List = reorder1(ll)
 		goto ret
 
@@ -643,8 +643,8 @@ func walkexpr(np **Node, init **NodeList) {
 		}
 		walkexpr(&n.Left, init)
 		walkexprlist(n.List, init)
-		ll := ascompatte(int(n.Op), n, 0, getthis(t), list1(n.Left.Left), 0, init)
-		lr := ascompatte(int(n.Op), n, int(n.Isddd), getinarg(t), n.List, 0, init)
+		ll := ascompatte(int(n.Op), n, false, getthis(t), list1(n.Left.Left), 0, init)
+		lr := ascompatte(int(n.Op), n, n.Isddd, getinarg(t), n.List, 0, init)
 		ll = concat(ll, lr)
 		n.Left.Left = nil
 		ullmancalc(n.Left)
@@ -1370,7 +1370,7 @@ func walkexpr(np **Node, init **NodeList) {
 		goto ret
 
 	case OAPPEND:
-		if n.Isddd != 0 {
+		if n.Isddd {
 			n = appendslice(n, init) // also works for append(slice, string).
 		} else {
 			n = walkappend(n, init)
@@ -1841,7 +1841,7 @@ func dumpnodetypes(l *NodeList, what string) string {
  *	return expr-list
  *	func(expr-list)
  */
-func ascompatte(op int, call *Node, isddd int, nl **Type, lr *NodeList, fp int, init **NodeList) *NodeList {
+func ascompatte(op int, call *Node, isddd bool, nl **Type, lr *NodeList, fp int, init **NodeList) *NodeList {
 	var savel Iter
 
 	lr0 := lr
@@ -1888,7 +1888,7 @@ func ascompatte(op int, call *Node, isddd int, nl **Type, lr *NodeList, fp int, 
 	}
 
 loop:
-	if l != nil && l.Isddd != 0 {
+	if l != nil && l.Isddd {
 		// the ddd parameter must be last
 		ll = structnext(&savel)
 
@@ -1900,7 +1900,7 @@ loop:
 		// only if we are assigning a single ddd
 		// argument to a ddd parameter then it is
 		// passed thru unencapsulated
-		if r != nil && lr.Next == nil && isddd != 0 && Eqtype(l.Type, r.Type) {
+		if r != nil && lr.Next == nil && isddd && Eqtype(l.Type, r.Type) {
 			a = Nod(OAS, nodarg(l, fp), r)
 			a = convas(a, init)
 			nn = list(nn, a)

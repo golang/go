@@ -269,8 +269,8 @@ func Jconv(n *Node, flag int) string {
 		fp += fmt.Sprintf(" dd(%d)", n.Dodata)
 	}
 
-	if n.Isddd != 0 {
-		fp += fmt.Sprintf(" isddd(%d)", n.Isddd)
+	if n.Isddd {
+		fp += fmt.Sprintf(" isddd(%v)", n.Isddd)
 	}
 
 	if n.Implicit {
@@ -749,7 +749,7 @@ func typefmt(t *Type, flag int) string {
 			}
 		}
 
-		if t.Isddd != 0 {
+		if t.Isddd {
 			fp += fmt.Sprintf("...%v", Tconv(t.Type.Type, 0))
 		} else {
 			fp += fmt.Sprintf("%v", Tconv(t.Type, 0))
@@ -1435,7 +1435,7 @@ func exprfmt(n *Node, prec int) string {
 		if n.Left != nil {
 			return fmt.Sprintf("%v(%v)", Oconv(int(n.Op), obj.FmtSharp), Nconv(n.Left, 0))
 		}
-		if n.Isddd != 0 {
+		if n.Isddd {
 			return fmt.Sprintf("%v(%v...)", Oconv(int(n.Op), obj.FmtSharp), Hconv(n.List, obj.FmtComma))
 		}
 		var f string
@@ -1448,7 +1448,7 @@ func exprfmt(n *Node, prec int) string {
 		OCALLMETH:
 		var f string
 		f += exprfmt(n.Left, nprec)
-		if n.Isddd != 0 {
+		if n.Isddd {
 			f += fmt.Sprintf("(%v...)", Hconv(n.List, obj.FmtComma))
 			return f
 		}

@@ -143,7 +143,7 @@ type Type struct {
 	Local       uint8 // created in this file
 	Deferwidth  uint8
 	Broke       uint8 // broken type definition.
-	Isddd       uint8 // TFIELD is ... argument
+	Isddd       bool  // TFIELD is ... argument
 	Align       uint8
 	Haspointers uint8 // 0 unknown, 1 no, 2 yes
 

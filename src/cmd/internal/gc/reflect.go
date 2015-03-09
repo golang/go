@@ -1051,9 +1051,9 @@ ok:
 		for t1 = getthisx(t).Type; t1 != nil; t1 = t1.Down {
 			dtypesym(t1.Type)
 		}
-		isddd := 0
+		isddd := false
 		for t1 = getinargx(t).Type; t1 != nil; t1 = t1.Down {
-			isddd = int(t1.Isddd)
+			isddd = t1.Isddd
 			dtypesym(t1.Type)
 		}
 
@@ -1063,7 +1063,7 @@ ok:
 
 		ot = dcommontype(s, ot, t)
 		xt = ot - 3*Widthptr
-		ot = duint8(s, ot, uint8(isddd))
+		ot = duint8(s, ot, uint8(bool2int(isddd)))
 
 		// two slice headers: in and out.
 		ot = int(Rnd(int64(ot), int64(Widthptr)))

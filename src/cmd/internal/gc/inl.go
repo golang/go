@@ -118,7 +118,7 @@ func caninl(fn *Node) {
 	// can't handle ... args yet
 	if Debug['l'] < 3 {
 		for t := fn.Type.Type.Down.Down.Type; t != nil; t = t.Down {
-			if t.Isddd != 0 {
+			if t.Isddd {
 				return
 			}
 		}
@@ -466,10 +466,10 @@ func inlnode(np **Node) {
 			fmt.Printf("%v:call to func %v\n", n.Line(), Nconv(n.Left, obj.FmtSign))
 		}
 		if n.Left.Inl != nil { // normal case
-			mkinlcall(np, n.Left, int(n.Isddd))
+			mkinlcall(np, n.Left, n.Isddd)
 		} else if n.Left.Op == ONAME && n.Left.Left != nil && n.Left.Left.Op == OTYPE && n.Left.Right != nil && n.Left.Right.Op == ONAME { // methods called as functions
 			if n.Left.Sym.Def != nil {
-				mkinlcall(np, n.Left.Sym.Def, int(n.Isddd))
+				mkinlcall(np, n.Left.Sym.Def, n.Isddd)
 			}
 		}
 
@@ -487,13 +487,13 @@ func inlnode(np **Node) {
 			Fatal("no function definition for [%p] %v\n", n.Left.Type, Tconv(n.Left.Type, obj.FmtSign))
 		}
 
-		mkinlcall(np, n.Left.Type.Nname, int(n.Isddd))
+		mkinlcall(np, n.Left.Type.Nname, n.Isddd)
 	}
 
 	lineno = int32(lno)
 }
 
-func mkinlcall(np **Node, fn *Node, isddd int) {
+func mkinlcall(np **Node, fn *Node, isddd bool) {
 	save_safemode := safemode
 
 	// imported functions may refer to unsafe as long as the
@@ -525,7 +525,7 @@ var inlgen int
 // On return ninit has the parameter assignments, the nbody is the
 // inlined function body and list, rlist contain the input, output
 // parameters.
-func mkinlcall1(np **Node, fn *Node, isddd int) {
+func mkinlcall1(np **Node, fn *Node, isddd bool) {
 	// For variadic fn.
 	if fn.Inl == nil {
 		return
@@ -631,14 +631,14 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 	var varargtype *Type
 	varargcount := 0
 	for t := fn.Type.Type.Down.Down.Type; t != nil; t = t.Down {
-		if t.Isddd != 0 {
+		if t.Isddd {
 			variadic = true
 			varargtype = t.Type
 		}
 	}
 
 	// but if argument is dotted too forget about variadicity.
-	if variadic && isddd != 0 {
+	if variadic && isddd {
 		variadic = false
 	}
 
@@ -700,7 +700,7 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 		// 0 or 1 expression on RHS.
 		var i int
 		for t := getinargx(fn.Type).Type; t != nil; t = t.Down {
-			if variadic && t.Isddd != 0 {
+			if variadic && t.Isddd {
 				vararg = tinlvar(t)
 				for i = 0; i < varargcount && ll != nil; i++ {
 					m = argvar(varargtype, i)
@@ -720,7 +720,7 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 			if ll == nil {
 				break
 			}
-			if variadic && t.Isddd != 0 {
+			if variadic && t.Isddd {
 				break
 			}
 			as.List = list(as.List, tinlvar(t))
@@ -729,7 +729,7 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
 		}
 
 		// match varargcount arguments with variadic parameters.
-		if variadic && t != nil && t.Isddd != 0 {
+		if variadic && t != nil && t.Isddd {
 			vararg = tinlvar(t)
 			var i int
 			for i = 0; i < varargcount && ll != nil; i++ {
