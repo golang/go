@@ -462,11 +462,6 @@ func loadcgo(file string, pkg string, p string) {
 		}
 
 		if f[0] == "cgo_export_static" || f[0] == "cgo_export_dynamic" {
-			// TODO: Remove once we know Windows is okay.
-			if f[0] == "cgo_export_static" && HEADTYPE == Hwindows {
-				continue
-			}
-
 			if len(f) < 2 || len(f) > 3 {
 				goto err
 			}
