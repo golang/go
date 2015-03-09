@@ -306,10 +306,8 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 	Bputc(b, 1) // version
 
 	// Emit autolib.
-	for h := ctxt.Hist; h != nil; h = h.Link {
-		if h.Offset < 0 {
-			wrstring(b, h.Name)
-		}
+	for _, pkg := range ctxt.Imports {
+		wrstring(b, pkg)
 	}
 	wrstring(b, "")
 

@@ -11,6 +11,7 @@ import (
 
 func TestLineHist(t *testing.T) {
 	ctxt := new(Link)
+	ctxt.Hash = make(map[SymVer]*LSym)
 
 	Linklinehist(ctxt, 1, "a.c", 0)
 	Linklinehist(ctxt, 3, "a.h", 0)
@@ -22,18 +23,18 @@ func TestLineHist(t *testing.T) {
 
 	var expect = []string{
 		0:  "??:0",
-		1:  "/a.c:1",
-		2:  "/a.c:2",
-		3:  "/a.h:1",
-		4:  "/a.h:2",
-		5:  "/a.c:3",
-		6:  "/a.c:4",
-		7:  "/linedir:2",
-		8:  "/linedir:3",
+		1:  "a.c:1",
+		2:  "a.c:2",
+		3:  "a.h:1",
+		4:  "a.h:2",
+		5:  "a.c:3",
+		6:  "a.c:4",
+		7:  "linedir:2",
+		8:  "linedir:3",
 		9:  "??:0",
 		10: "??:0",
-		11: "/b.c:1",
-		12: "/b.c:2",
+		11: "b.c:1",
+		12: "b.c:2",
 		13: "??:0",
 		14: "??:0",
 	}

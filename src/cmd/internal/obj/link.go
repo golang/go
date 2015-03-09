@@ -183,8 +183,8 @@ type Link struct {
 	Hash               map[SymVer]*LSym
 	Allsym             *LSym
 	Nsymbol            int32
-	Hist               *Hist
-	Ehist              *Hist
+	LineHist           LineHist
+	Imports            []string
 	Plist              *Plist
 	Plast              *Plist
 	Sym_div            *LSym
@@ -580,3 +580,19 @@ const (
 )
 
 var linkbasepointer int
+
+/*
+ * start a new Prog list.
+ */
+func Linknewplist(ctxt *Link) *Plist {
+	pl := new(Plist)
+	*pl = Plist{}
+	if ctxt.Plist == nil {
+		ctxt.Plist = pl
+	} else {
+		ctxt.Plast.Link = pl
+	}
+	ctxt.Plast = pl
+
+	return pl
+}
