@@ -2503,7 +2503,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 
 	// Set inl_nonlocal to whether we are calling a method on a
 	// type defined in a different package.  Checked in inlvar.
-	if methodrcvr.Local == 0 {
+	if !methodrcvr.Local {
 		inl_nonlocal = 1
 	}
 

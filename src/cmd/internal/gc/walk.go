@@ -1757,9 +1757,9 @@ func ascompatet(op int, nl *NodeList, nr **Type, fp int, init **NodeList) *NodeL
 * package all the arguments that match a ... T parameter into a []T.
  */
 func mkdotargslice(lr0 *NodeList, nn *NodeList, l *Type, fp int, init **NodeList, ddd *Node) *NodeList {
-	esc := EscUnknown
+	esc := uint8(EscUnknown)
 	if ddd != nil {
-		esc = int(ddd.Esc)
+		esc = ddd.Esc
 	}
 
 	tslice := typ(TARRAY)
@@ -1776,7 +1776,7 @@ func mkdotargslice(lr0 *NodeList, nn *NodeList, l *Type, fp int, init **NodeList
 			n.Alloc = ddd.Alloc // temporary to use
 		}
 		n.List = lr0
-		n.Esc = uint(esc)
+		n.Esc = esc
 		typecheck(&n, Erv)
 		if n.Type == nil {
 			Fatal("mkdotargslice: typecheck failed")

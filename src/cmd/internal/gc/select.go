@@ -340,7 +340,7 @@ func selecttype(size int32) *Type {
 	sudog.List = list(sudog.List, Nod(ODCLFIELD, newname(Lookup("waitlink")), typenod(Ptrto(Types[TUINT8]))))
 	typecheck(&sudog, Etype)
 	sudog.Type.Noalg = 1
-	sudog.Type.Local = 1
+	sudog.Type.Local = true
 
 	scase := Nod(OTSTRUCT, nil, nil)
 	scase.List = list(scase.List, Nod(ODCLFIELD, newname(Lookup("elem")), typenod(Ptrto(Types[TUINT8]))))
@@ -352,7 +352,7 @@ func selecttype(size int32) *Type {
 	scase.List = list(scase.List, Nod(ODCLFIELD, newname(Lookup("releasetime")), typenod(Types[TUINT64])))
 	typecheck(&scase, Etype)
 	scase.Type.Noalg = 1
-	scase.Type.Local = 1
+	scase.Type.Local = true
 
 	sel := Nod(OTSTRUCT, nil, nil)
 	sel.List = list(sel.List, Nod(ODCLFIELD, newname(Lookup("tcase")), typenod(Types[TUINT16])))
@@ -367,7 +367,7 @@ func selecttype(size int32) *Type {
 	sel.List = list(sel.List, Nod(ODCLFIELD, newname(Lookup("pollorderarr")), arr))
 	typecheck(&sel, Etype)
 	sel.Type.Noalg = 1
-	sel.Type.Local = 1
+	sel.Type.Local = true
 
 	return sel.Type
 }
