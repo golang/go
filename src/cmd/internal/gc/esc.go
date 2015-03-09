@@ -576,7 +576,7 @@ func esc(e *EscState, n *Node, up *Node) {
 		if count(n.List) == count(n.Rlist) {
 			ll = n.List
 			lr = n.Rlist
-			for ; ll != nil; (func() { ll = ll.Next; lr = lr.Next })() {
+			for ; ll != nil; ll, lr = ll.Next, lr.Next {
 				escassign(e, ll.N, lr.N)
 			}
 		}
@@ -615,7 +615,7 @@ func esc(e *EscState, n *Node, up *Node) {
 	case OAS2FUNC: // x,y = f()
 		lr = n.Rlist.N.Escretval
 
-		for ll = n.List; lr != nil && ll != nil; (func() { lr = lr.Next; ll = ll.Next })() {
+		for ll = n.List; lr != nil && ll != nil; lr, ll = lr.Next, ll.Next {
 			escassign(e, ll.N, lr.N)
 		}
 		if lr != nil || ll != nil {
@@ -973,7 +973,7 @@ func escassignfromtag(e *EscState, note *string, dsts *NodeList, src *Node) int 
 	}
 
 	em0 := em
-	for em >>= EscReturnBits; em != 0 && dsts != nil; (func() { em >>= 1; dsts = dsts.Next })() {
+	for em >>= EscReturnBits; em != 0 && dsts != nil; em, dsts = em>>1, dsts.Next {
 		if em&1 != 0 {
 			escassign(e, dsts.N, src)
 		}
@@ -1043,7 +1043,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 		}
 
 		var src *Node
-		for lr = fn.Ntype.List; ll != nil && lr != nil; (func() { ll = ll.Next; lr = lr.Next })() {
+		for lr = fn.Ntype.List; ll != nil && lr != nil; ll, lr = ll.Next, lr.Next {
 			src = ll.N
 			if lr.N.Isddd && !n.Isddd {
 				// Introduce ODDDARG node to represent ... allocation.

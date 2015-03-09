@@ -788,7 +788,7 @@ func shiftprop(r *gc.Flow) bool {
 func findpre(r *gc.Flow, v *obj.Addr) *gc.Flow {
 	var r1 *gc.Flow
 
-	for r1 = gc.Uniqp(r); r1 != nil; (func() { r = r1; r1 = gc.Uniqp(r) })() {
+	for r1 = gc.Uniqp(r); r1 != nil; r, r1 = r1, gc.Uniqp(r1) {
 		if gc.Uniqs(r1) != r {
 			return nil
 		}
@@ -814,7 +814,7 @@ func findinc(r *gc.Flow, r2 *gc.Flow, v *obj.Addr) *gc.Flow {
 	var r1 *gc.Flow
 	var p *obj.Prog
 
-	for r1 = gc.Uniqs(r); r1 != nil && r1 != r2; (func() { r = r1; r1 = gc.Uniqs(r) })() {
+	for r1 = gc.Uniqs(r); r1 != nil && r1 != r2; r, r1 = r1, gc.Uniqs(r1) {
 		if gc.Uniqp(r1) != r {
 			return nil
 		}

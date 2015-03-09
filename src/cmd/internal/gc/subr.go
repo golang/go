@@ -1009,7 +1009,7 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
 		TSTRUCT:
 		t1 = t1.Type
 		t2 = t2.Type
-		for ; t1 != nil && t2 != nil; (func() { t1 = t1.Down; t2 = t2.Down })() {
+		for ; t1 != nil && t2 != nil; t1, t2 = t1.Down, t2.Down {
 			if t1.Etype != TFIELD || t2.Etype != TFIELD {
 				Fatal("struct/interface missing field: %v %v", Tconv(t1, 0), Tconv(t2, 0))
 			}
@@ -1027,7 +1027,7 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
 	case TFUNC:
 		t1 = t1.Type
 		t2 = t2.Type
-		for ; t1 != nil && t2 != nil; (func() { t1 = t1.Down; t2 = t2.Down })() {
+		for ; t1 != nil && t2 != nil; t1, t2 = t1.Down, t2.Down {
 			var ta *Type
 			var tb *Type
 
@@ -1038,7 +1038,7 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
 			// Loop over fields in structs, ignoring argument names.
 			ta = t1.Type
 			tb = t2.Type
-			for ; ta != nil && tb != nil; (func() { ta = ta.Down; tb = tb.Down })() {
+			for ; ta != nil && tb != nil; ta, tb = ta.Down, tb.Down {
 				if ta.Etype != TFIELD || tb.Etype != TFIELD {
 					Fatal("func struct missing field: %v %v", Tconv(ta, 0), Tconv(tb, 0))
 				}

@@ -83,7 +83,7 @@ func walkstmtlist(l *NodeList) {
 }
 
 func samelist(a *NodeList, b *NodeList) bool {
-	for ; a != nil && b != nil; (func() { a = a.Next; b = b.Next })() {
+	for ; a != nil && b != nil; a, b = a.Next, b.Next {
 		if a.N != b.N {
 			return false
 		}
@@ -1651,7 +1651,7 @@ func ascompatee(op int, nl *NodeList, nr *NodeList, init **NodeList) *NodeList {
 	var nn *NodeList
 	ll = nl
 	lr = nr
-	for ; ll != nil && lr != nil; (func() { ll = ll.Next; lr = lr.Next })() {
+	for ; ll != nil && lr != nil; ll, lr = ll.Next, lr.Next {
 		// Do not generate 'x = x' during return. See issue 4014.
 		if op == ORETURN && ll.N == lr.N {
 			continue

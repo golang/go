@@ -1146,7 +1146,7 @@ func addbuildinfo(val string) {
 		}
 
 		b = 0
-		for j = 0; j < 2; (func() { j++; val = val[1:] })() {
+		for j = 0; j < 2; j, val = j+1, val[1:] {
 			b *= 16
 			if val[0] >= '0' && val[0] <= '9' {
 				b += int(val[0]) - '0'

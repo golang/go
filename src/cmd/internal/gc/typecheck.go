@@ -3422,7 +3422,7 @@ func typecheckas2(n *Node) {
 		// easy
 		ll = n.List
 		lr = n.Rlist
-		for ; ll != nil; (func() { ll = ll.Next; lr = lr.Next })() {
+		for ; ll != nil; ll, lr = ll.Next, lr.Next {
 			if ll.N.Type != nil && lr.N.Type != nil {
 				lr.N = assignconv(lr.N, ll.N.Type, "assignment")
 			}
