@@ -142,8 +142,11 @@ func Linknew(arch *LinkArch) *Link {
 		buf = "/???"
 	}
 	buf = filepath.ToSlash(buf)
-
 	ctxt.Pathname = buf
+
+	ctxt.LineHist.GOROOT = ctxt.Goroot
+	ctxt.LineHist.GOROOT_FINAL = ctxt.Goroot_final
+	ctxt.LineHist.Dir = ctxt.Pathname
 
 	ctxt.Headtype = headtype(Getgoos())
 	if ctxt.Headtype < 0 {
