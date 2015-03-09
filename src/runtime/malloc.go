@@ -483,14 +483,21 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 	if gcphase == _GCmarktermination {
 		throw("mallocgc called with gcphase == _GCmarktermination")
 	}
-	shouldhelpgc := false
+
 	if size == 0 {
 		return unsafe.Pointer(&zerobase)
 	}
-	dataSize := size
 
 	if flags&flagNoScan == 0 && typ == nil {
 		throw("malloc missing type")
+	}
+
+	if debug.sbrk != 0 {
+		align := uintptr(16)
+		if typ != nil {
+			align = uintptr(typ.align)
+		}
+		return persistentalloc(size, align, &memstats.other_sys)
 	}
 
 	// Set mp.mallocing to keep from being preempted by GC.
@@ -500,6 +507,8 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 	}
 	mp.mallocing = 1
 
+	shouldhelpgc := false
+	dataSize := size
 	c := gomcache()
 	var s *mspan
 	var x unsafe.Pointer
@@ -761,10 +770,14 @@ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
 	mProf_Malloc(x, size)
 }
 
-var persistent struct {
-	lock mutex
+type persistentAlloc struct {
 	base unsafe.Pointer
 	off  uintptr
+}
+
+var globalAlloc struct {
+	mutex
+	persistentAlloc
 }
 
 // Wrapper around sysAlloc that can allocate small chunks.
@@ -795,19 +808,31 @@ func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer {
 		return sysAlloc(size, stat)
 	}
 
-	lock(&persistent.lock)
+	mp := acquirem()
+	var persistent *persistentAlloc
+	if mp != nil && mp.p != nil {
+		persistent = &mp.p.palloc
+	} else {
+		lock(&globalAlloc.mutex)
+		persistent = &globalAlloc.persistentAlloc
+	}
 	persistent.off = round(persistent.off, align)
 	if persistent.off+size > chunk || persistent.base == nil {
 		persistent.base = sysAlloc(chunk, &memstats.other_sys)
 		if persistent.base == nil {
-			unlock(&persistent.lock)
+			if persistent == &globalAlloc.persistentAlloc {
+				unlock(&globalAlloc.mutex)
+			}
 			throw("runtime: cannot allocate memory")
 		}
 		persistent.off = 0
 	}
 	p := add(persistent.base, persistent.off)
 	persistent.off += size
-	unlock(&persistent.lock)
+	releasem(mp)
+	if persistent == &globalAlloc.persistentAlloc {
+		unlock(&globalAlloc.mutex)
+	}
 
 	if stat != &memstats.other_sys {
 		xadd64(stat, int64(size))
