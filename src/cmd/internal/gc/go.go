@@ -112,7 +112,6 @@ type Pkg struct {
 type Sym struct {
 	Lexical   uint16
 	Flags     uint8
-	Sym       uint8 // huffman encoding in object file
 	Link      *Sym
 	Uniqgen   uint32
 	Importdef *Pkg   // where imported definition was found
@@ -399,7 +398,6 @@ type Sig struct {
 type Io struct {
 	infile     string
 	bin        *obj.Biobuf
-	ilineno    int32
 	nlsemi     int
 	eofnl      int
 	last       int
