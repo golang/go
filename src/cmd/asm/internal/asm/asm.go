@@ -567,12 +567,13 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 			x4 := int64(p.getRegister(prog, op, &a[4]))
 			x5 := p.getConstant(prog, op, &a[5])
 			// Cond is handled specially for this instruction.
-			offset, ok := arch.ARMMRCOffset(op, cond, x0, x1, x2, x3, x4, x5)
+			offset, MRC, ok := arch.ARMMRCOffset(op, cond, x0, x1, x2, x3, x4, x5)
 			if !ok {
 				p.errorf("unrecognized condition code .%q", cond)
 			}
 			prog.To.Offset = offset
 			cond = ""
+			prog.As = MRC // Both instructions are coded as MRC.
 			break
 		}
 		fallthrough

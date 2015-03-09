@@ -105,19 +105,26 @@ func IsARMSTREX(op int) bool {
 	return false
 }
 
+// MCR is not defined by the obj/arm; instead we define it privately here.
+// It is encoded as an MRC with a bit inside the instruction word,
+// passed to arch.ARMMRCOffset.
+const aMCR = arm.ALAST + 1
+
 // IsARMMRC reports whether the op (as defined by an arm.A* constant) is
 // MRC or MCR
 func IsARMMRC(op int) bool {
 	switch op {
-	case arm.AMRC /*, arm.AMCR*/ :
+	case arm.AMRC, aMCR: // Note: aMCR is defined in this package.
 		return true
 	}
 	return false
 }
 
 // ARMMRCOffset implements the peculiar encoding of the MRC and MCR instructions.
-func ARMMRCOffset(op int, cond string, x0, x1, x2, x3, x4, x5 int64) (offset int64, ok bool) {
-	// TODO only MRC is defined.
+// The difference between MRC and MCR is represented by a bit high in the word, not
+// in the usual way by the opcode itself. Asm must use AMRC for both instructions, so
+// we return the opcode for MRC so that asm doesn't need to import obj/arm.
+func ARMMRCOffset(op int, cond string, x0, x1, x2, x3, x4, x5 int64) (offset int64, op0 int16, ok bool) {
 	op1 := int64(0)
 	if op == arm.AMRC {
 		op1 = 1
@@ -136,7 +143,7 @@ func ARMMRCOffset(op int, cond string, x0, x1, x2, x3, x4, x5 int64) (offset int
 		((x4 & 15) << 0) | // Crm
 		((x5 & 7) << 5) | // coprocessor information
 		(1 << 4) /* must be set */
-	return offset, true
+	return offset, arm.AMRC, true
 }
 
 // IsARMMULA reports whether the op (as defined by an arm.A* constant) is
