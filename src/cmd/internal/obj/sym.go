@@ -126,6 +126,7 @@ func Linknew(arch *LinkArch) *Link {
 	linksetexp()
 
 	ctxt := new(Link)
+	ctxt.Hash = make(map[SymVer]*LSym)
 	ctxt.Arch = arch
 	ctxt.Version = HistVersion
 	ctxt.Goroot = Getgoroot()
@@ -241,26 +242,14 @@ func linknewsym(ctxt *Link, symb string, v int) *LSym {
 }
 
 func _lookup(ctxt *Link, symb string, v int, creat int) *LSym {
-	h := uint32(v)
-	for i := 0; i < len(symb); i++ {
-		c := int(symb[i])
-		h = h + h + h + uint32(c)
-	}
-	h &= 0xffffff
-	h %= LINKHASH
-	for s := ctxt.Hash[h]; s != nil; s = s.Hash {
-		if int(s.Version) == v && s.Name == symb {
-			return s
-		}
-	}
-	if creat == 0 {
-		return nil
+	s := ctxt.Hash[SymVer{symb, v}]
+	if s != nil || creat == 0 {
+		return s
 	}
 
-	s := linknewsym(ctxt, symb, v)
+	s = linknewsym(ctxt, symb, v)
 	s.Extname = s.Name
-	s.Hash = ctxt.Hash[h]
-	ctxt.Hash[h] = s
+	ctxt.Hash[SymVer{symb, v}] = s
 
 	return s
 }

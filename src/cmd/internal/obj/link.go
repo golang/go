@@ -115,7 +115,6 @@ type LSym struct {
 	Locals      int32
 	Value       int64
 	Size        int64
-	Hash        *LSym
 	Allsym      *LSym
 	Next        *LSym
 	Sub         *LSym
@@ -181,7 +180,7 @@ type Link struct {
 	Goroot             string
 	Goroot_final       string
 	Enforce_data_order int32
-	Hash               [LINKHASH]*LSym
+	Hash               map[SymVer]*LSym
 	Allsym             *LSym
 	Nsymbol            int32
 	Hist               *Hist
@@ -224,6 +223,11 @@ type Link struct {
 	Histdepth          int32
 	Nhistfile          int32
 	Filesyms           *LSym
+}
+
+type SymVer struct {
+	Name    string
+	Version int
 }
 
 type Plist struct {
@@ -537,10 +541,6 @@ const (
 const (
 	A_AUTO = 1 + iota
 	A_PARAM
-)
-
-const (
-	LINKHASH = 100003
 )
 
 // Pcdata iterator.
