@@ -186,6 +186,10 @@ func archArm() *Arch {
 	// Annoying aliases.
 	instructions["B"] = obj.AJMP
 	instructions["BL"] = obj.ACALL
+	// MCR differs from MRC by the way fields of the word are encoded.
+	// (Details in arm.go). Here we add the instruction so parse will find
+	// it, but give it an opcode number known only to us.
+	instructions["MCR"] = aMCR
 
 	return &Arch{
 		LinkArch:       &arm.Linkarm,
