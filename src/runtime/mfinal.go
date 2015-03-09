@@ -254,6 +254,11 @@ func runfinq() {
 // If a finalizer must run for a long time, it should do so by starting
 // a new goroutine.
 func SetFinalizer(obj interface{}, finalizer interface{}) {
+	if debug.sbrk != 0 {
+		// debug.sbrk never frees memory, so no finalizers run
+		// (and we don't have the data structures to record them).
+		return
+	}
 	e := (*eface)(unsafe.Pointer(&obj))
 	etyp := e._type
 	if etyp == nil {

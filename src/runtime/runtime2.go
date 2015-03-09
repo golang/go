@@ -369,6 +369,8 @@ type p struct {
 
 	tracebuf *traceBuf
 
+	palloc persistentAlloc // per-P to avoid mutex
+
 	pad [64]byte
 }
 
