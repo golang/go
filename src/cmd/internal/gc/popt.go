@@ -1,44 +1,3 @@
-// Derived from Inferno utils/6c/reg.c
-// http://code.google.com/p/inferno-os/source/browse/utils/6c/reg.c
-//
-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
-//	Portions Copyright © 1997-1999 Vita Nuova Limited
-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
-//	Portions Copyright © 2004,2006 Bruce Ellis
-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
-package gc
-
-import (
-	"cmd/internal/obj"
-	"fmt"
-	"sort"
-	"strings"
-)
-
-// "Portable" optimizations.
-
 // Derived from Inferno utils/6c/gc.h
 // http://code.google.com/p/inferno-os/source/browse/utils/6c/gc.h
 //
@@ -69,91 +28,16 @@ import (
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-const (
-	CLOAD = 5
-	CREF  = 5
-	CINF  = 1000
-	LOOP  = 3
+// "Portable" optimizations.
+
+package gc
+
+import (
+	"cmd/internal/obj"
+	"fmt"
+	"sort"
+	"strings"
 )
-
-type Reg struct {
-	set  Bits // regopt variables written by this instruction.
-	use1 Bits // regopt variables read by prog->from.
-	use2 Bits // regopt variables read by prog->to.
-
-	// refahead/refbehind are the regopt variables whose current
-	// value may be used in the following/preceding instructions
-	// up to a CALL (or the value is clobbered).
-	refbehind Bits
-	refahead  Bits
-
-	// calahead/calbehind are similar, but for variables in
-	// instructions that are reachable after hitting at least one
-	// CALL.
-	calbehind Bits
-	calahead  Bits
-
-	regdiff Bits
-	act     Bits
-	regu    uint64 // register used bitmap
-}
-
-type Rgn struct {
-	enter *Flow
-	cost  int16
-	varno int16
-	regno int16
-}
-
-var Z *Node
-
-// A Reg is a wrapper around a single Prog (one instruction) that holds
-// register optimization information while the optimizer runs.
-// r->prog is the instruction.
-
-var R *Reg
-
-const (
-	NRGN = 600
-)
-
-// A Rgn represents a single regopt variable over a region of code
-// where a register could potentially be dedicated to that variable.
-// The code encompassed by a Rgn is defined by the flow graph,
-// starting at enter, flood-filling forward while varno is refahead
-// and backward while varno is refbehind, and following branches.  A
-// single variable may be represented by multiple disjoint Rgns and
-// each Rgn may choose a different register for that variable.
-// Registers are allocated to regions greedily in order of descending
-// cost.
-
-var zreg Reg
-
-var region [NRGN]Rgn
-
-var rgp *Rgn
-
-var nregion int
-
-var nvar int
-
-var regbits uint64
-
-var externs Bits
-
-var params Bits
-
-var consts Bits
-
-var addrs Bits
-
-var ivar Bits
-
-var ovar Bits
-
-var change int
-
-var maxnr int32
 
 type OptStats struct {
 	Ncvtreg int32
@@ -354,6 +238,11 @@ func fixjmp(firstp *obj.Prog) {
 
 var flowmark int
 
+// MaxFlowProg is the maximum size program (counted in instructions)
+// for which the flow code will build a graph. Functions larger than this limit
+// will not have flow graphs and consequently will not be optimized.
+const MaxFlowProg = 50000
+
 func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
 	// Count and mark instructions to annotate.
 	nf := 0
@@ -372,8 +261,10 @@ func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
 		return nil
 	}
 
-	if nf >= 20000 {
-		// fatal("%S is too big (%d instructions)", curfn->nname->sym, nf);
+	if nf >= MaxFlowProg {
+		if Debug['v'] != 0 {
+			Warn("%v is too big (%d instructions)", Sconv(Curfn.Nname.Sym, 0), nf)
+		}
 		return nil
 	}
 
@@ -678,7 +569,7 @@ func canmerge(n *Node) bool {
 
 func mergetemp(firstp *obj.Prog) {
 	const (
-		debugmerge = 1
+		debugmerge = 0
 	)
 
 	g := Flowstart(firstp, nil)

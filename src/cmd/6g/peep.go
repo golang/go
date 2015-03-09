@@ -326,7 +326,7 @@ func pushback(r0 *gc.Flow) {
 	}
 
 	if b == nil {
-		if gc.Debug['v'] != 0 {
+		if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 			fmt.Printf("no pushback: %v\n", r0.Prog)
 			if r != nil {
 				fmt.Printf("\t%v [%d]\n", r.Prog, gc.Uniqs(r) != nil)
@@ -336,7 +336,7 @@ func pushback(r0 *gc.Flow) {
 		return
 	}
 
-	if gc.Debug['v'] != 0 {
+	if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 		fmt.Printf("pushback\n")
 		for r := (*gc.Flow)(b); ; r = r.Link {
 			fmt.Printf("\t%v\n", r.Prog)
@@ -366,7 +366,7 @@ func pushback(r0 *gc.Flow) {
 	p0.From = t.From
 	p0.To = t.To
 
-	if gc.Debug['v'] != 0 {
+	if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 		fmt.Printf("\tafter\n")
 		for r := (*gc.Flow)(b); ; r = r.Link {
 			fmt.Printf("\t%v\n", r.Prog)
