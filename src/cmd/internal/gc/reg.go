@@ -31,14 +31,111 @@
 package gc
 
 import (
+	"bytes"
 	"cmd/internal/obj"
 	"fmt"
 	"sort"
+	"strings"
 )
 
-var firstf *Flow
+// A Var represents a single variable that may be stored in a register.
+// That variable may itself correspond to a hardware register,
+// to represent the use of registers in the unoptimized instruction stream.
+type Var struct {
+	offset     int64
+	node       *Node
+	nextinnode *Var
+	width      int
+	id         int // index in vars
+	name       int8
+	etype      int8
+	addr       int8
+}
 
-var first int = 1
+// Bits represents a set of Vars, stored as a bit set of var numbers
+// (the index in vars, or equivalently v.id).
+type Bits struct {
+	b [BITS]uint64
+}
+
+const (
+	BITS = 3
+	NVAR = BITS * 64
+)
+
+var (
+	vars [NVAR]Var // variables under consideration
+	nvar int       // number of vars
+
+	regbits uint64 // bits for hardware registers
+
+	zbits   Bits // zero
+	externs Bits // global variables
+	params  Bits // function parameters and results
+	ivar    Bits // function parameters (inputs)
+	ovar    Bits // function results (outputs)
+	consts  Bits // constant values
+	addrs   Bits // variables with address taken
+)
+
+// A Reg is a wrapper around a single Prog (one instruction) that holds
+// register optimization information while the optimizer runs.
+// r->prog is the instruction.
+type Reg struct {
+	set  Bits // regopt variables written by this instruction.
+	use1 Bits // regopt variables read by prog->from.
+	use2 Bits // regopt variables read by prog->to.
+
+	// refahead/refbehind are the regopt variables whose current
+	// value may be used in the following/preceding instructions
+	// up to a CALL (or the value is clobbered).
+	refbehind Bits
+	refahead  Bits
+
+	// calahead/calbehind are similar, but for variables in
+	// instructions that are reachable after hitting at least one
+	// CALL.
+	calbehind Bits
+	calahead  Bits
+
+	regdiff Bits
+	act     Bits
+	regu    uint64 // register used bitmap
+}
+
+// A Rgn represents a single regopt variable over a region of code
+// where a register could potentially be dedicated to that variable.
+// The code encompassed by a Rgn is defined by the flow graph,
+// starting at enter, flood-filling forward while varno is refahead
+// and backward while varno is refbehind, and following branches.
+// A single variable may be represented by multiple disjoint Rgns and
+// each Rgn may choose a different register for that variable.
+// Registers are allocated to regions greedily in order of descending
+// cost.
+type Rgn struct {
+	enter *Flow
+	cost  int16
+	varno int16
+	regno int16
+}
+
+// The Plan 9 C compilers used a limit of 600 regions,
+// but the yacc-generated parser in y.go has 3100 regions.
+// We set MaxRgn large enough to handle that.
+// There's not a huge cost to having too many regions:
+// the main processing traces the live area for each variable,
+// which is limited by the number of variables times the area,
+// not the raw region count. If there are many regions, they
+// are almost certainly small and easy to trace.
+// The only operation that scales with region count is the
+// sorting by cost, which uses sort.Sort and is therefore
+// guaranteed n log n.
+const MaxRgn = 6000
+
+var (
+	region  []Rgn
+	nregion int
+)
 
 type rcmp []Rgn
 
@@ -75,13 +172,13 @@ func setaddrs(bit Bits) {
 		// convert each bit to a variable
 		i = bnum(bit)
 
-		node = var_[i].node
-		n = int(var_[i].name)
+		node = vars[i].node
+		n = int(vars[i].name)
 		biclr(&bit, uint(i))
 
 		// disable all pieces of that variable
 		for i = 0; i < nvar; i++ {
-			v = &var_[i]
+			v = &vars[i]
 			if v.node == node && int(v.name) == n {
 				v.addr = 2
 			}
@@ -135,7 +232,7 @@ func addmove(r *Flow, bn int, rn int, f int) {
 	p.Link = p1
 	p1.Lineno = p.Lineno
 
-	v := &var_[bn]
+	v := &vars[bn]
 
 	a := &p1.To
 	a.Offset = v.offset
@@ -223,7 +320,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 		fallthrough
 
 	case obj.TYPE_MEM:
-		if r != R {
+		if r != nil {
 			r.use1.b[0] |= Thearch.RtoB(int(a.Reg))
 		}
 
@@ -233,11 +330,16 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 		*/
 		switch a.Name {
 		default:
+			// Note: This case handles NAME_EXTERN and NAME_STATIC.
+			// We treat these as requiring eager writes to memory, due to
+			// the possibility of a fault handler looking at them, so there is
+			// not much point in registerizing the loads.
+			// If we later choose the set of candidate variables from a
+			// larger list, these cases could be deprioritized instead of
+			// removed entirely.
 			return zbits
 
-		case obj.NAME_EXTERN,
-			obj.NAME_STATIC,
-			obj.NAME_PARAM,
+		case obj.NAME_PARAM,
 			obj.NAME_AUTO:
 			n = int(a.Name)
 		}
@@ -264,7 +366,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 	flag := 0
 	var v *Var
 	for i := 0; i < nvar; i++ {
-		v = &var_[i]
+		v = &vars[i]
 		if v.node == node && int(v.name) == n {
 			if v.offset == o {
 				if int(v.etype) == et {
@@ -297,6 +399,9 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 		if Debug['w'] > 1 && node != nil {
 			Fatal("variable not optimized: %v", Nconv(node, obj.FmtSharp))
 		}
+		if Debug['v'] > 0 {
+			Warn("variable not optimized: %v", Nconv(node, obj.FmtSharp))
+		}
 
 		// If we're not tracking a word in a variable, mark the rest as
 		// having its address taken, so that we keep the whole thing
@@ -304,7 +409,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 		// a variable but not all of it.
 		var v *Var
 		for i := 0; i < nvar; i++ {
-			v = &var_[i]
+			v = &vars[i]
 			if v.node == node {
 				v.addr = 1
 			}
@@ -315,7 +420,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 
 	i := nvar
 	nvar++
-	v = &var_[i]
+	v = &vars[i]
 	v.id = i
 	v.offset = o
 	v.name = int8(n)
@@ -394,6 +499,8 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 	return bit
 }
 
+var change int
+
 func prop(f *Flow, ref Bits, cal Bits) {
 	var f1 *Flow
 	var r1 *Reg
@@ -408,13 +515,13 @@ func prop(f *Flow, ref Bits, cal Bits) {
 			ref.b[z] |= r1.refahead.b[z]
 			if ref.b[z] != r1.refahead.b[z] {
 				r1.refahead.b[z] = ref.b[z]
-				change++
+				change = 1
 			}
 
 			cal.b[z] |= r1.calahead.b[z]
 			if cal.b[z] != r1.calahead.b[z] {
 				r1.calahead.b[z] = cal.b[z]
-				change++
+				change = 1
 			}
 		}
 
@@ -456,7 +563,7 @@ func prop(f *Flow, ref Bits, cal Bits) {
 					if z*64+i >= nvar || (cal.b[z]>>uint(i))&1 == 0 {
 						continue
 					}
-					v = &var_[z*64+i]
+					v = &vars[z*64+i]
 					if v.node.Opt == nil { // v represents fixed register, not Go variable
 						continue
 					}
@@ -527,7 +634,7 @@ func synch(f *Flow, dif Bits) {
 			dif.b[z] = dif.b[z]&^(^r1.refbehind.b[z]&r1.refahead.b[z]) | r1.set.b[z] | r1.regdiff.b[z]
 			if dif.b[z] != r1.regdiff.b[z] {
 				r1.regdiff.b[z] = dif.b[z]
-				change++
+				change = 1
 			}
 		}
 
@@ -545,7 +652,7 @@ func synch(f *Flow, dif Bits) {
 }
 
 func allreg(b uint64, r *Rgn) uint64 {
-	v := &var_[r.varno]
+	v := &vars[r.varno]
 	r.regno = 0
 	switch v.etype {
 	default:
@@ -590,6 +697,13 @@ func LOAD(r *Reg, z int) uint64 {
 func STORE(r *Reg, z int) uint64 {
 	return ^r.calbehind.b[z] & r.calahead.b[z]
 }
+
+// Cost parameters
+const (
+	CLOAD = 5 // cost of load
+	CREF  = 5 // cost of reference if not registerized
+	LOOP  = 3 // loop execution count (applied in popt.go)
+)
 
 func paint1(f *Flow, bn int) {
 	z := bn / 64
@@ -855,31 +969,31 @@ func dumpone(f *Flow, isreg int) {
 		if bany(&bit) {
 			fmt.Printf("\t")
 			if bany(&r.set) {
-				fmt.Printf(" s:%v", Qconv(r.set, 0))
+				fmt.Printf(" s:%v", &r.set)
 			}
 			if bany(&r.use1) {
-				fmt.Printf(" u1:%v", Qconv(r.use1, 0))
+				fmt.Printf(" u1:%v", &r.use1)
 			}
 			if bany(&r.use2) {
-				fmt.Printf(" u2:%v", Qconv(r.use2, 0))
+				fmt.Printf(" u2:%v", &r.use2)
 			}
 			if bany(&r.refbehind) {
-				fmt.Printf(" rb:%v ", Qconv(r.refbehind, 0))
+				fmt.Printf(" rb:%v ", &r.refbehind)
 			}
 			if bany(&r.refahead) {
-				fmt.Printf(" ra:%v ", Qconv(r.refahead, 0))
+				fmt.Printf(" ra:%v ", &r.refahead)
 			}
 			if bany(&r.calbehind) {
-				fmt.Printf(" cb:%v ", Qconv(r.calbehind, 0))
+				fmt.Printf(" cb:%v ", &r.calbehind)
 			}
 			if bany(&r.calahead) {
-				fmt.Printf(" ca:%v ", Qconv(r.calahead, 0))
+				fmt.Printf(" ca:%v ", &r.calahead)
 			}
 			if bany(&r.regdiff) {
-				fmt.Printf(" d:%v ", Qconv(r.regdiff, 0))
+				fmt.Printf(" d:%v ", &r.regdiff)
 			}
 			if bany(&r.act) {
-				fmt.Printf(" a:%v ", Qconv(r.act, 0))
+				fmt.Printf(" a:%v ", &r.act)
 			}
 		}
 	}
@@ -922,10 +1036,6 @@ func Dumpit(str string, r0 *Flow, isreg int) {
 }
 
 func regopt(firstp *obj.Prog) {
-	if first != 0 {
-		first = 0
-	}
-
 	mergetemp(firstp)
 
 	/*
@@ -938,13 +1048,13 @@ func regopt(firstp *obj.Prog) {
 
 	nvar = nreg
 	for i := 0; i < nreg; i++ {
-		var_[i] = Var{}
+		vars[i] = Var{}
 	}
 	for i := 0; i < nreg; i++ {
 		if regnodes[i] == nil {
 			regnodes[i] = newname(Lookup(regnames[i]))
 		}
-		var_[i].node = regnodes[i]
+		vars[i].node = regnodes[i]
 	}
 
 	regbits = Thearch.Excludedregs()
@@ -962,15 +1072,14 @@ func regopt(firstp *obj.Prog) {
 	 * find use and set of variables
 	 */
 	g := Flowstart(firstp, func() interface{} { return new(Reg) })
-
 	if g == nil {
 		for i := 0; i < nvar; i++ {
-			var_[i].node.Opt = nil
+			vars[i].node.Opt = nil
 		}
 		return
 	}
 
-	firstf = g.Start
+	firstf := g.Start
 
 	for f := firstf; f != nil; f = f.Link {
 		p := f.Prog
@@ -1035,7 +1144,7 @@ func regopt(firstp *obj.Prog) {
 	}
 
 	for i := 0; i < nvar; i++ {
-		v := &var_[i]
+		v := &vars[i]
 		if v.addr != 0 {
 			bit := blsh(uint(i))
 			for z := 0; z < BITS; z++ {
@@ -1176,10 +1285,8 @@ loop2:
 	 * isolate regions
 	 * calculate costs (paint1)
 	 */
-	f = firstf
-
 	var bit Bits
-	if f != nil {
+	if f := firstf; f != nil {
 		r := f.Data.(*Reg)
 		for z := 0; z < BITS; z++ {
 			bit.b[z] = (r.refahead.b[z] | r.calahead.b[z]) &^ (externs.b[z] | params.b[z] | addrs.b[z] | consts.b[z])
@@ -1187,7 +1294,7 @@ loop2:
 		if bany(&bit) && f.Refset == 0 {
 			// should never happen - all variables are preset
 			if Debug['w'] != 0 {
-				fmt.Printf("%v: used and not set: %v\n", f.Prog.Line(), Qconv(bit, 0))
+				fmt.Printf("%v: used and not set: %v\n", f.Prog.Line(), &bit)
 			}
 			f.Refset = 1
 		}
@@ -1197,6 +1304,7 @@ loop2:
 		(f.Data.(*Reg)).act = zbits
 	}
 	nregion = 0
+	region = region[:0]
 	var rgp *Rgn
 	for f := firstf; f != nil; f = f.Link {
 		r := f.Data.(*Reg)
@@ -1205,7 +1313,7 @@ loop2:
 		}
 		if bany(&bit) && f.Refset == 0 {
 			if Debug['w'] != 0 {
-				fmt.Printf("%v: set and not used: %v\n", f.Prog.Line(), Qconv(bit, 0))
+				fmt.Printf("%v: set and not used: %v\n", f.Prog.Line(), &bit)
 			}
 			f.Refset = 1
 			Thearch.Excise(f)
@@ -1222,22 +1330,30 @@ loop2:
 			if change <= 0 {
 				continue
 			}
-			if nregion >= NRGN {
-				if Debug['R'] != 0 && Debug['v'] != 0 {
-					fmt.Printf("too many regions\n")
-				}
-				goto brk
+			if nregion >= MaxRgn {
+				nregion++
+				continue
 			}
 
-			rgp = &region[nregion]
-			rgp.enter = f
-			rgp.varno = int16(i)
-			rgp.cost = int16(change)
+			region = append(region, Rgn{
+				enter: f,
+				cost:  int16(change),
+				varno: int16(i),
+			})
 			nregion++
 		}
 	}
 
-brk:
+	if Debug['v'] != 0 && strings.Contains(Curfn.Nname.Sym.Name, "Parse") {
+		Warn("regions: %d\n", nregion)
+	}
+	if nregion >= MaxRgn {
+		if Debug['v'] != 0 {
+			Warn("too many regions: %d\n", nregion)
+		}
+		nregion = MaxRgn
+	}
+
 	sort.Sort(rcmp(region[:nregion]))
 
 	if Debug['R'] != 0 && Debug['v'] != 0 {
@@ -1264,7 +1380,7 @@ brk:
 		vreg = allreg(usedreg, rgp)
 		if rgp.regno != 0 {
 			if Debug['R'] != 0 && Debug['v'] != 0 {
-				v := &var_[rgp.varno]
+				v := &vars[rgp.varno]
 				fmt.Printf("registerize %v+%d (bit=%2d et=%v) in %v usedreg=%#x vreg=%#x\n", Nconv(v.node, 0), v.offset, rgp.varno, Econv(int(v.etype), 0), obj.Rconv(int(rgp.regno)), usedreg, vreg)
 			}
 
@@ -1276,7 +1392,7 @@ brk:
 	 * free aux structures. peep allocates new ones.
 	 */
 	for i := 0; i < nvar; i++ {
-		var_[i].node.Opt = nil
+		vars[i].node.Opt = nil
 	}
 	Flowend(g)
 	firstf = nil
@@ -1284,7 +1400,6 @@ brk:
 	if Debug['R'] != 0 && Debug['v'] != 0 {
 		// Rebuild flow graph, since we inserted instructions
 		g := Flowstart(firstp, nil)
-
 		firstf = g.Start
 		Dumpit("pass6", firstf, 0)
 		Flowend(g)
@@ -1339,4 +1454,108 @@ brk:
 
 		Ostats = OptStats{}
 	}
+}
+
+// bany reports whether any bits in a are set.
+func bany(a *Bits) bool {
+	for _, x := range &a.b { // & to avoid making a copy of a.b
+		if x != 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// bnum reports the lowest index of a 1 bit in a.
+func bnum(a Bits) int {
+	for i, x := range &a.b { // & to avoid making a copy of a.b
+		if x != 0 {
+			return 64*i + Bitno(x)
+		}
+	}
+
+	Fatal("bad in bnum")
+	return 0
+}
+
+// blsh returns a Bits with 1 at index n, 0 elsewhere (1<<n).
+func blsh(n uint) Bits {
+	c := zbits
+	c.b[n/64] = 1 << (n % 64)
+	return c
+}
+
+// btest reports whether bit n is 1.
+func btest(a *Bits, n uint) bool {
+	return a.b[n/64]&(1<<(n%64)) != 0
+}
+
+// biset sets bit n to 1.
+func biset(a *Bits, n uint) {
+	a.b[n/64] |= 1 << (n % 64)
+}
+
+// biclr sets bit n to 0.
+func biclr(a *Bits, n uint) {
+	a.b[n/64] &^= (1 << (n % 64))
+}
+
+// Bitno reports the lowest index of a 1 bit in b.
+// It calls Fatal if there is no 1 bit.
+func Bitno(b uint64) int {
+	if b == 0 {
+		Fatal("bad in bitno")
+	}
+	n := 0
+	if b&(1<<32-1) == 0 {
+		n += 32
+		b >>= 32
+	}
+	if b&(1<<16-1) == 0 {
+		n += 16
+		b >>= 16
+	}
+	if b&(1<<8-1) == 0 {
+		n += 8
+		b >>= 8
+	}
+	if b&(1<<4-1) == 0 {
+		n += 4
+		b >>= 4
+	}
+	if b&(1<<2-1) == 0 {
+		n += 2
+		b >>= 2
+	}
+	if b&1 == 0 {
+		n++
+	}
+	return n
+}
+
+// String returns a space-separated list of the variables represented by bits.
+func (bits Bits) String() string {
+	// Note: This method takes a value receiver, both for convenience
+	// and to make it safe to modify the bits as we process them.
+	// Even so, most prints above use &bits, because then the value
+	// being stored in the interface{} is a pointer and does not require
+	// an allocation and copy to create the interface{}.
+	var buf bytes.Buffer
+	sep := ""
+	for bany(&bits) {
+		i := bnum(bits)
+		buf.WriteString(sep)
+		sep = " "
+		v := &vars[i]
+		if v.node == nil || v.node.Sym == nil {
+			fmt.Fprintf(&buf, "$%d", i)
+		} else {
+			fmt.Fprintf(&buf, "%s(%d)", v.node.Sym.Name, i)
+			if v.offset != 0 {
+				fmt.Fprintf(&buf, "%+d", int64(v.offset))
+			}
+		}
+		biclr(&bits, uint(i))
+	}
+	return buf.String()
 }

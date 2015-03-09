@@ -351,30 +351,6 @@ const (
 	Ecomplit  = 1 << 11 // type in composite literal
 )
 
-const (
-	BITS = 3
-	NVAR = BITS * 64
-)
-
-type Bits struct {
-	b [BITS]uint64
-}
-
-var zbits Bits
-
-type Var struct {
-	offset     int64
-	node       *Node
-	nextinnode *Var
-	width      int
-	id         int
-	name       int8
-	etype      int8
-	addr       int8
-}
-
-var var_ [NVAR]Var
-
 type Typedef struct {
 	Name   string
 	Etype  int
