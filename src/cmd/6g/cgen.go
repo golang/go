@@ -1668,7 +1668,7 @@ func componentgen(nr *gc.Node, nl *gc.Node) bool {
 		fldcount := int64(0)
 
 		for t := nl.Type.Type; t != nil; t = t.Down {
-			if gc.Isfat(t.Type) {
+			if gc.Isfat(t.Type) && !gc.Isslice(t) {
 				goto no
 			}
 			if t.Etype != gc.TFIELD {
