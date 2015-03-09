@@ -8,6 +8,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"sort"
+	"strconv"
+	"strings"
 )
 
 type IMAGE_FILE_HEADER struct {
@@ -347,9 +349,10 @@ var sh [16]IMAGE_SECTION_HEADER
 var dd []IMAGE_DATA_DIRECTORY
 
 type Imp struct {
-	s    *LSym
-	off  uint64
-	next *Imp
+	s       *LSym
+	off     uint64
+	next    *Imp
+	argsize int
 }
 
 type Dll struct {
@@ -492,6 +495,21 @@ func initdynimport() *Dll {
 			d.next = dr
 			dr = d
 			m = new(Imp)
+		}
+
+		// Because external link requires properly stdcall decorated name,
+		// all external symbols in runtime use %n to denote that the number
+		// of uinptrs this function consumes. Store the argsize and discard
+		// the %n suffix if any.
+		m.argsize = -1
+		if i := strings.IndexByte(s.Extname, '%'); i >= 0 {
+			var err error
+			m.argsize, err = strconv.Atoi(s.Extname[i+1:])
+			if err != nil {
+				Diag("failed to parse stdcall decoration: %v", err)
+			}
+			m.argsize *= Thearch.Ptrsize
+			s.Extname = s.Extname[:i]
 		}
 
 		m.s = s

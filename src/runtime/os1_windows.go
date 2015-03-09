@@ -8,44 +8,42 @@ import (
 	"unsafe"
 )
 
-//go:cgo_import_dynamic runtime._AddVectoredExceptionHandler AddVectoredExceptionHandler "kernel32.dll"
-//go:cgo_import_dynamic runtime._CloseHandle CloseHandle "kernel32.dll"
-//go:cgo_import_dynamic runtime._CreateEventA CreateEventA "kernel32.dll"
-//go:cgo_import_dynamic runtime._CreateIoCompletionPort CreateIoCompletionPort "kernel32.dll"
-//go:cgo_import_dynamic runtime._CreateThread CreateThread "kernel32.dll"
-//go:cgo_import_dynamic runtime._CreateWaitableTimerA CreateWaitableTimerA "kernel32.dll"
-//go:cgo_import_dynamic runtime._CryptAcquireContextW CryptAcquireContextW "advapi32.dll"
-//go:cgo_import_dynamic runtime._CryptGenRandom CryptGenRandom "advapi32.dll"
-//go:cgo_import_dynamic runtime._CryptReleaseContext CryptReleaseContext "advapi32.dll"
-//go:cgo_import_dynamic runtime._DuplicateHandle DuplicateHandle "kernel32.dll"
-//go:cgo_import_dynamic runtime._ExitProcess ExitProcess "kernel32.dll"
-//go:cgo_import_dynamic runtime._FreeEnvironmentStringsW FreeEnvironmentStringsW "kernel32.dll"
-//go:cgo_import_dynamic runtime._GetEnvironmentStringsW GetEnvironmentStringsW "kernel32.dll"
-//go:cgo_import_dynamic runtime._GetProcAddress GetProcAddress "kernel32.dll"
-//go:cgo_import_dynamic runtime._GetQueuedCompletionStatus GetQueuedCompletionStatus "kernel32.dll"
-//go:cgo_import_dynamic runtime._GetStdHandle GetStdHandle "kernel32.dll"
-//go:cgo_import_dynamic runtime._GetSystemInfo GetSystemInfo "kernel32.dll"
-//go:cgo_import_dynamic runtime._GetThreadContext GetThreadContext "kernel32.dll"
-//go:cgo_import_dynamic runtime._LoadLibraryW LoadLibraryW "kernel32.dll"
-//go:cgo_import_dynamic runtime._LoadLibraryA LoadLibraryA "kernel32.dll"
-//go:cgo_import_dynamic runtime._NtWaitForSingleObject NtWaitForSingleObject "ntdll.dll"
-//go:cgo_import_dynamic runtime._ResumeThread ResumeThread "kernel32.dll"
-//go:cgo_import_dynamic runtime._SetConsoleCtrlHandler SetConsoleCtrlHandler "kernel32.dll"
-//go:cgo_import_dynamic runtime._SetErrorMode SetErrorMode "kernel32.dll"
-//go:cgo_import_dynamic runtime._SetEvent SetEvent "kernel32.dll"
-//go:cgo_import_dynamic runtime._SetProcessPriorityBoost SetProcessPriorityBoost "kernel32.dll"
-//go:cgo_import_dynamic runtime._SetThreadPriority SetThreadPriority "kernel32.dll"
-//go:cgo_import_dynamic runtime._SetUnhandledExceptionFilter SetUnhandledExceptionFilter "kernel32.dll"
-//go:cgo_import_dynamic runtime._SetWaitableTimer SetWaitableTimer "kernel32.dll"
-//go:cgo_import_dynamic runtime._Sleep Sleep "kernel32.dll"
-//go:cgo_import_dynamic runtime._SuspendThread SuspendThread "kernel32.dll"
-//go:cgo_import_dynamic runtime._VirtualAlloc VirtualAlloc "kernel32.dll"
-//go:cgo_import_dynamic runtime._VirtualFree VirtualFree "kernel32.dll"
-//go:cgo_import_dynamic runtime._VirtualProtect VirtualProtect "kernel32.dll"
-//go:cgo_import_dynamic runtime._WSAGetOverlappedResult WSAGetOverlappedResult "ws2_32.dll"
-//go:cgo_import_dynamic runtime._WaitForSingleObject WaitForSingleObject "kernel32.dll"
-//go:cgo_import_dynamic runtime._WriteFile WriteFile "kernel32.dll"
-//go:cgo_import_dynamic runtime._timeBeginPeriod timeBeginPeriod "winmm.dll"
+//go:cgo_import_dynamic runtime._AddVectoredExceptionHandler AddVectoredExceptionHandler%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._CloseHandle CloseHandle%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._CreateEventA CreateEventA%4 "kernel32.dll"
+//go:cgo_import_dynamic runtime._CreateIoCompletionPort CreateIoCompletionPort%4 "kernel32.dll"
+//go:cgo_import_dynamic runtime._CreateThread CreateThread%6 "kernel32.dll"
+//go:cgo_import_dynamic runtime._CreateWaitableTimerA CreateWaitableTimerA%3 "kernel32.dll"
+//go:cgo_import_dynamic runtime._CryptAcquireContextW CryptAcquireContextW%5 "advapi32.dll"
+//go:cgo_import_dynamic runtime._CryptGenRandom CryptGenRandom%3 "advapi32.dll"
+//go:cgo_import_dynamic runtime._CryptReleaseContext CryptReleaseContext%2 "advapi32.dll"
+//go:cgo_import_dynamic runtime._DuplicateHandle DuplicateHandle%7 "kernel32.dll"
+//go:cgo_import_dynamic runtime._ExitProcess ExitProcess%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._FreeEnvironmentStringsW FreeEnvironmentStringsW%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._GetEnvironmentStringsW GetEnvironmentStringsW%0 "kernel32.dll"
+//go:cgo_import_dynamic runtime._GetProcAddress GetProcAddress%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._GetQueuedCompletionStatus GetQueuedCompletionStatus%5 "kernel32.dll"
+//go:cgo_import_dynamic runtime._GetStdHandle GetStdHandle%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._GetSystemInfo GetSystemInfo%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._GetThreadContext GetThreadContext%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._LoadLibraryW LoadLibraryW%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._LoadLibraryA LoadLibraryA%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._NtWaitForSingleObject NtWaitForSingleObject%3 "ntdll.dll"
+//go:cgo_import_dynamic runtime._ResumeThread ResumeThread%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._SetConsoleCtrlHandler SetConsoleCtrlHandler%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._SetErrorMode SetErrorMode%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._SetEvent SetEvent%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._SetProcessPriorityBoost SetProcessPriorityBoost%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._SetThreadPriority SetThreadPriority%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._SetUnhandledExceptionFilter SetUnhandledExceptionFilter%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._SetWaitableTimer SetWaitableTimer%6 "kernel32.dll"
+//go:cgo_import_dynamic runtime._SuspendThread SuspendThread%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._VirtualAlloc VirtualAlloc%4 "kernel32.dll"
+//go:cgo_import_dynamic runtime._VirtualFree VirtualFree%3 "kernel32.dll"
+//go:cgo_import_dynamic runtime._WSAGetOverlappedResult WSAGetOverlappedResult%5 "ws2_32.dll"
+//go:cgo_import_dynamic runtime._WaitForSingleObject WaitForSingleObject%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._WriteFile WriteFile%5 "kernel32.dll"
+//go:cgo_import_dynamic runtime._timeBeginPeriod timeBeginPeriod%1 "winmm.dll"
 
 var (
 	// Following syscalls are available on every Windows PC.
@@ -80,11 +78,9 @@ var (
 	_SetThreadPriority,
 	_SetUnhandledExceptionFilter,
 	_SetWaitableTimer,
-	_Sleep,
 	_SuspendThread,
 	_VirtualAlloc,
 	_VirtualFree,
-	_VirtualProtect,
 	_WSAGetOverlappedResult,
 	_WaitForSingleObject,
 	_WriteFile,
