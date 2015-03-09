@@ -595,7 +595,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
 	var i int
 	var m int
 	var o *Optab
-	for ; p != nil || ctxt.Blitrl != nil; (func() { op = p; p = p.Link })() {
+	for ; p != nil || ctxt.Blitrl != nil; op, p = p, p.Link {
 		if p == nil {
 			if checkpool(ctxt, op, 0) {
 				p = op

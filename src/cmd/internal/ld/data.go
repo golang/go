@@ -1032,7 +1032,7 @@ func proggenarray(g *ProgGen, length int64) {
 
 	proggendataflush(g)
 	proggenemit(g, obj.InsArray)
-	for i = 0; i < int32(Thearch.Ptrsize); (func() { i++; length >>= 8 })() {
+	for i = 0; i < int32(Thearch.Ptrsize); i, length = i+1, length>>8 {
 		proggenemit(g, uint8(length))
 	}
 }

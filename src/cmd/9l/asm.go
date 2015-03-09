@@ -115,7 +115,7 @@ func gentext() {
 	// us to save and restore the TOC pointer.
 	pprevtextp = &ld.Ctxt.Textp
 
-	for s = *pprevtextp; s != nil; (func() { pprevtextp = &s.Next; s = *pprevtextp })() {
+	for s = *pprevtextp; s != nil; pprevtextp, s = &s.Next, s.Next {
 		for i = range s.R {
 			r = &s.R[i]
 			if r.Type != 256+ld.R_PPC64_REL24 || r.Sym.Type != ld.SDYNIMPORT {

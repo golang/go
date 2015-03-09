@@ -1077,14 +1077,17 @@ ok:
 		ot = duintxx(s, ot, uint64(t.Outtuple), Widthint)
 
 		// slice data
-		for t1 = getthisx(t).Type; t1 != nil; (func() { t1 = t1.Down; n++ })() {
+		for t1 = getthisx(t).Type; t1 != nil; t1 = t1.Down {
 			ot = dsymptr(s, ot, dtypesym(t1.Type), 0)
+			n++
 		}
-		for t1 = getinargx(t).Type; t1 != nil; (func() { t1 = t1.Down; n++ })() {
+		for t1 = getinargx(t).Type; t1 != nil; t1 = t1.Down {
 			ot = dsymptr(s, ot, dtypesym(t1.Type), 0)
+			n++
 		}
-		for t1 = getoutargx(t).Type; t1 != nil; (func() { t1 = t1.Down; n++ })() {
+		for t1 = getoutargx(t).Type; t1 != nil; t1 = t1.Down {
 			ot = dsymptr(s, ot, dtypesym(t1.Type), 0)
+			n++
 		}
 
 	case TINTER:
@@ -1480,7 +1483,7 @@ func proggenarray(g *ProgGen, len int64) {
 
 	proggendataflush(g)
 	proggenemit(g, obj.InsArray)
-	for i = 0; i < int32(Widthptr); (func() { i++; len >>= 8 })() {
+	for i = 0; i < int32(Widthptr); i, len = i+1, len>>8 {
 		proggenemit(g, uint8(len))
 	}
 }
