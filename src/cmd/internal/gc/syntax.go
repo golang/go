@@ -27,7 +27,6 @@ type Node struct {
 	Nointerface    bool
 	Ullman         uint8 // sethi/ullman number
 	Addable        uint8 // type of addressability - 0 is not addressable
-	Trecur         uint8 // to detect loops
 	Etype          uint8 // op for OASOP, etype for OTYPE, exclam for export
 	Bounded        bool  // bounds check unnecessary
 	Class          uint8 // PPARAM, PAUTO, PEXTERN, etc
