@@ -2425,10 +2425,10 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 	// arg list
 	var args *NodeList
 
-	isddd := 0
+	isddd := false
 	for l := in; l != nil; l = l.Next {
 		args = list(args, l.N.Left)
-		isddd = int(l.N.Left.Isddd)
+		isddd = l.N.Left.Isddd
 	}
 
 	methodrcvr := getthisx(method.Type).Type.Type
@@ -2477,7 +2477,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 		fn.Wrapper = true // ignore frame for panic+recover matching
 		call := Nod(OCALL, dot, nil)
 		call.List = args
-		call.Isddd = uint8(isddd)
+		call.Isddd = isddd
 		if method.Type.Outtuple > 0 {
 			n := Nod(ORETURN, nil, nil)
 			n.List = list1(call)

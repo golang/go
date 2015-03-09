@@ -2052,7 +2052,7 @@ yydefault:
 		{
 			yyVAL.node = Nod(OCALL, yyDollar[1].node, nil)
 			yyVAL.node.List = yyDollar[3].list
-			yyVAL.node.Isddd = 1
+			yyVAL.node.Isddd = true
 		}
 	case 126:
 		yyDollar = yyS[yypt-1 : yypt+1]
@@ -3379,7 +3379,7 @@ yydefault:
 			if yyDollar[1].sym != nil {
 				yyVAL.node.Left = newname(yyDollar[1].sym)
 			}
-			yyVAL.node.Isddd = 1
+			yyVAL.node.Isddd = true
 			yyVAL.node.Val = yyDollar[4].val
 		}
 	case 332:

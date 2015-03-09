@@ -935,7 +935,7 @@ pseudocall:
 	{
 		$$ = Nod(OCALL, $1, nil);
 		$$.List = $3;
-		$$.Isddd = 1;
+		$$.Isddd = true;
 	}
 
 pexpr_no_paren:
@@ -2103,7 +2103,7 @@ hidden_funarg:
 		if $1 != nil {
 			$$.Left = newname($1);
 		}
-		$$.Isddd = 1;
+		$$.Isddd = true;
 		$$.Val = $4;
 	}
 

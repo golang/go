@@ -648,7 +648,7 @@ func esc(e *EscState, n *Node, up *Node) {
 		escassign(e, &e.theSink, n.Left)
 
 	case OAPPEND:
-		if n.Isddd == 0 {
+		if !n.Isddd {
 			for ll = n.List.Next; ll != nil; ll = ll.Next {
 				escassign(e, &e.theSink, ll.N) // lose track of assign to dereference
 			}
@@ -1045,7 +1045,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 		var src *Node
 		for lr = fn.Ntype.List; ll != nil && lr != nil; (func() { ll = ll.Next; lr = lr.Next })() {
 			src = ll.N
-			if lr.N.Isddd != 0 && n.Isddd == 0 {
+			if lr.N.Isddd && !n.Isddd {
 				// Introduce ODDDARG node to represent ... allocation.
 				src = Nod(ODDDARG, nil, nil)
 
@@ -1114,7 +1114,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 	var a *Node
 	for t := getinargx(fntype).Type; ll != nil; ll = ll.Next {
 		src = ll.N
-		if t.Isddd != 0 && n.Isddd == 0 {
+		if t.Isddd && !n.Isddd {
 			// Introduce ODDDARG node to represent ... allocation.
 			src = Nod(ODDDARG, nil, nil)
 

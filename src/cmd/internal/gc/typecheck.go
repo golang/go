@@ -1272,7 +1272,7 @@ OpSwitch:
 		if l.Op == ONAME {
 			r := unsafenmagic(n)
 			if r != nil {
-				if n.Isddd != 0 {
+				if n.Isddd {
 					Yyerror("invalid use of ... with builtin %v", Nconv(l, 0))
 				}
 				n = r
@@ -1285,7 +1285,7 @@ OpSwitch:
 		n.Diag |= n.Left.Diag
 		l = n.Left
 		if l.Op == ONAME && l.Etype != 0 {
-			if n.Isddd != 0 && l.Etype != OAPPEND {
+			if n.Isddd && l.Etype != OAPPEND {
 				Yyerror("invalid use of ... with builtin %v", Nconv(l, 0))
 			}
 
@@ -1301,7 +1301,7 @@ OpSwitch:
 		defaultlit(&n.Left, nil)
 		l = n.Left
 		if l.Op == OTYPE {
-			if n.Isddd != 0 || l.Type.Bound == -100 {
+			if n.Isddd || l.Type.Bound == -100 {
 				if l.Type.Broke == 0 {
 					Yyerror("invalid use of ... in type conversion", l)
 				}
@@ -1324,7 +1324,7 @@ OpSwitch:
 			return
 		}
 
-		if count(n.List) == 1 && n.Isddd == 0 {
+		if count(n.List) == 1 && !n.Isddd {
 			typecheck(&n.List.N, Erv|Efnstruct)
 		} else {
 			typechecklist(n.List, Erv)
@@ -1364,7 +1364,7 @@ OpSwitch:
 
 		descbuf := fmt.Sprintf("argument to %v", Nconv(n.Left, 0))
 		desc := descbuf
-		typecheckaste(OCALL, n.Left, int(n.Isddd), getinargx(t), n.List, desc)
+		typecheckaste(OCALL, n.Left, n.Isddd, getinargx(t), n.List, desc)
 		ok |= Etop
 		if t.Outtuple == 0 {
 			break OpSwitch
@@ -1617,7 +1617,7 @@ OpSwitch:
 			return
 		}
 
-		if count(args) == 1 && n.Isddd == 0 {
+		if count(args) == 1 && !n.Isddd {
 			typecheck(&args.N, Erv|Efnstruct)
 		} else {
 			typechecklist(args, Erv)
@@ -1650,7 +1650,7 @@ OpSwitch:
 			return
 		}
 
-		if n.Isddd != 0 {
+		if n.Isddd {
 			if args.Next == nil {
 				Yyerror("cannot use ... on first argument to append")
 				n.Type = nil
@@ -2127,7 +2127,7 @@ OpSwitch:
 		if Curfn.Type.Outnamed != 0 && n.List == nil {
 			break OpSwitch
 		}
-		typecheckaste(ORETURN, nil, 0, getoutargx(Curfn.Type), n.List, "return argument")
+		typecheckaste(ORETURN, nil, false, getoutargx(Curfn.Type), n.List, "return argument")
 		break OpSwitch
 
 	case ORETJMP:
@@ -2584,7 +2584,7 @@ func nokeys(l *NodeList) bool {
 
 func hasddd(t *Type) bool {
 	for tl := t.Type; tl != nil; tl = tl.Down {
-		if tl.Isddd != 0 {
+		if tl.Isddd {
 			return true
 		}
 	}
@@ -2604,7 +2604,7 @@ func downcount(t *Type) int {
 /*
  * typecheck assignment: type list = expression list
  */
-func typecheckaste(op int, call *Node, isddd int, tstruct *Type, nl *NodeList, desc string) {
+func typecheckaste(op int, call *Node, isddd bool, tstruct *Type, nl *NodeList, desc string) {
 	var t *Type
 	var n *Node
 	var n1 int
@@ -2635,7 +2635,7 @@ func typecheckaste(op int, call *Node, isddd int, tstruct *Type, nl *NodeList, d
 				tn := n.Type.Type
 				var why string
 				for tl := tstruct.Type; tl != nil; tl = tl.Down {
-					if tl.Isddd != 0 {
+					if tl.Isddd {
 						for ; tn != nil; tn = tn.Down {
 							if assignop(tn.Type, tl.Type.Type, &why) == 0 {
 								if call != nil {
@@ -2681,7 +2681,7 @@ func typecheckaste(op int, call *Node, isddd int, tstruct *Type, nl *NodeList, d
 			goto notenough
 		}
 	} else {
-		if isddd == 0 {
+		if !isddd {
 			if n2 < n1-1 {
 				goto notenough
 			}
@@ -2697,8 +2697,8 @@ func typecheckaste(op int, call *Node, isddd int, tstruct *Type, nl *NodeList, d
 
 	for tl := tstruct.Type; tl != nil; tl = tl.Down {
 		t = tl.Type
-		if tl.Isddd != 0 {
-			if isddd != 0 {
+		if tl.Isddd {
+			if isddd {
 				if nl == nil {
 					goto notenough
 				}
@@ -2738,7 +2738,7 @@ func typecheckaste(op int, call *Node, isddd int, tstruct *Type, nl *NodeList, d
 	if nl != nil {
 		goto toomany
 	}
-	if isddd != 0 {
+	if isddd {
 		if call != nil {
 			Yyerror("invalid use of ... in call to %v", Nconv(call, 0))
 		} else {

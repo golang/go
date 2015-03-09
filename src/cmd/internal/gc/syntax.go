@@ -44,7 +44,7 @@ type Node struct {
 	Dodata         uint8
 	Initorder      uint8
 	Used           bool
-	Isddd          uint8
+	Isddd          bool // is the argument variadic
 	Readonly       bool
 	Implicit       bool
 	Addrtaken      bool // address taken, even if not moved to heap

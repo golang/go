@@ -551,7 +551,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	i := 0
 	var l *NodeList
 	var callargs *NodeList
-	ddd := 0
+	ddd := false
 	xfunc := Nod(ODCLFUNC, nil, nil)
 	Curfn = xfunc
 	var fld *Node
@@ -564,9 +564,9 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 		xfunc.Dcl = list(xfunc.Dcl, n)
 		callargs = list(callargs, n)
 		fld = Nod(ODCLFIELD, n, typenod(t.Type))
-		if t.Isddd != 0 {
-			fld.Isddd = 1
-			ddd = 1
+		if t.Isddd {
+			fld.Isddd = true
+			ddd = true
 		}
 
 		l = list(l, fld)
@@ -623,7 +623,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 
 	call := Nod(OCALL, Nod(OXDOT, ptr, meth), nil)
 	call.List = callargs
-	call.Isddd = uint8(ddd)
+	call.Isddd = ddd
 	if t0.Outtuple == 0 {
 		body = list(body, call)
 	} else {
