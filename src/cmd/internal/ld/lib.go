@@ -99,6 +99,7 @@ type Arch struct {
 	Elfsetupplt      func()
 	Gentext          func()
 	Machoreloc1      func(*Reloc, int64) int
+	PEreloc1         func(*Reloc, int64) bool
 	Lput             func(uint32)
 	Wput             func(uint16)
 	Vput             func(uint64)
@@ -744,6 +745,13 @@ func hostlink() {
 	if HEADTYPE == Hopenbsd {
 		argv = append(argv, "-Wl,-nopie")
 	}
+	if HEADTYPE == Hwindows {
+		if headstring == "windowsgui" {
+			argv = append(argv, "-mwindows")
+		} else {
+			argv = append(argv, "-mconsole")
+		}
+	}
 
 	if Iself && AssumeGoldLinker != 0 /*TypeKind(100016)*/ {
 		argv = append(argv, "-Wl,--rosegment")
@@ -843,6 +851,9 @@ func hostlink() {
 				}
 			}
 		}
+	}
+	if HEADTYPE == Hwindows {
+		argv = append(argv, peimporteddlls()...)
 	}
 
 	if Debug['v'] != 0 {
@@ -1379,6 +1390,13 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 		case SFILE:
 			put(nil, s.Name, 'f', s.Value, 0, int(s.Version), nil)
 			continue
+
+		case SHOSTOBJ:
+			if HEADTYPE == Hwindows {
+				put(s, s.Name, 'U', s.Value, 0, int(s.Version), nil)
+			}
+			continue
+
 		}
 	}
 
