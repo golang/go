@@ -404,7 +404,7 @@ typedclname:
 typedcl:
 	typedclname ntype
 	{
-		$$ = typedcl1($1, $2, 1);
+		$$ = typedcl1($1, $2, true);
 	}
 
 simple_stmt:

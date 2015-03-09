@@ -763,9 +763,9 @@ func typedcl0(s *Sym) *Node {
  * is being declared to have uncompiled type t.
  * return the ODCLTYPE node to use.
  */
-func typedcl1(n *Node, t *Node, local int) *Node {
+func typedcl1(n *Node, t *Node, local bool) *Node {
 	n.Ntype = t
-	n.Local = uint8(local)
+	n.Local = local
 	return Nod(ODCLTYPE, n, nil)
 }
 
@@ -1404,7 +1404,7 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
 		}
 	}
 
-	if local && pa.Local == 0 {
+	if local && !pa.Local {
 		// defining method on non-local type.
 		Yyerror("cannot define new methods on non-local type %v", Tconv(pa, 0))
 

@@ -1416,7 +1416,7 @@ yydefault:
 		yyDollar = yyS[yypt-2 : yypt+1]
 		//line go.y:406
 		{
-			yyVAL.node = typedcl1(yyDollar[1].node, yyDollar[2].node, 1)
+			yyVAL.node = typedcl1(yyDollar[1].node, yyDollar[2].node, true)
 		}
 	case 49:
 		yyDollar = yyS[yypt-1 : yypt+1]

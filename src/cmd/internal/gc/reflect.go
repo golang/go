@@ -1000,7 +1000,7 @@ func dtypesym(t *Type) *Sym {
 	}
 
 	// named types from other files are defined only by those files
-	if tbase.Sym != nil && tbase.Local == 0 {
+	if tbase.Sym != nil && !tbase.Local {
 		return s
 	}
 	if isforw[tbase.Etype] {

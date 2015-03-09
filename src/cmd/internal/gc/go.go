@@ -140,7 +140,7 @@ type Type struct {
 	Siggen      uint8
 	Funarg      uint8 // on TSTRUCT and TFIELD
 	Copyany     uint8
-	Local       uint8 // created in this file
+	Local       bool // created in this file
 	Deferwidth  uint8
 	Broke       uint8 // broken type definition.
 	Isddd       bool  // TFIELD is ... argument
@@ -661,7 +661,7 @@ var nhunk int32
 
 var thunk int32
 
-var Funcdepth int
+var Funcdepth int32
 
 var typecheckok int
 
