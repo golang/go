@@ -221,24 +221,29 @@ func TestTraceSymbolize(t *testing.T) {
 			frame{"runtime/pprof_test.TestTraceSymbolize", 115},
 			frame{"testing.tRunner", 0},
 		}},
-		eventDesc{trace.EvGoBlockNet, []frame{
-			frame{"net.(*netFD).accept", 0},
-			frame{"net.(*TCPListener).AcceptTCP", 0},
-			frame{"net.(*TCPListener).Accept", 0},
-			frame{"runtime/pprof_test.TestTraceSymbolize.func10", 86},
-		}},
 		eventDesc{trace.EvGoSleep, []frame{
 			frame{"time.Sleep", 0},
 			frame{"runtime/pprof_test.TestTraceSymbolize", 106},
 			frame{"testing.tRunner", 0},
 		}},
-		eventDesc{trace.EvGoSysCall, []frame{
-			frame{"syscall.read", 0},
-			frame{"syscall.Read", 0},
-			frame{"os.(*File).read", 0},
-			frame{"os.(*File).Read", 0},
-			frame{"runtime/pprof_test.TestTraceSymbolize.func11", 100},
-		}},
+	}
+	// Stacks for the following events are OS-dependent due to OS-specific code in net package.
+	if runtime.GOOS != "windows" && runtime.GOOS != "plan9" {
+		want = append(want, []eventDesc{
+			eventDesc{trace.EvGoBlockNet, []frame{
+				frame{"net.(*netFD).accept", 0},
+				frame{"net.(*TCPListener).AcceptTCP", 0},
+				frame{"net.(*TCPListener).Accept", 0},
+				frame{"runtime/pprof_test.TestTraceSymbolize.func10", 86},
+			}},
+			eventDesc{trace.EvGoSysCall, []frame{
+				frame{"syscall.read", 0},
+				frame{"syscall.Read", 0},
+				frame{"os.(*File).read", 0},
+				frame{"os.(*File).Read", 0},
+				frame{"runtime/pprof_test.TestTraceSymbolize.func11", 100},
+			}},
+		}...)
 	}
 	matched := make([]bool, len(want))
 	for _, ev := range events {
