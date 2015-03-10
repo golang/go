@@ -857,6 +857,7 @@ type yyParser interface {
 
 type yyParserImpl struct {
 	lookahead func() int
+	state     func() int
 }
 
 func (p *yyParserImpl) Lookahead() int {
@@ -866,6 +867,7 @@ func (p *yyParserImpl) Lookahead() int {
 func yyNewParser() yyParser {
 	p := &yyParserImpl{
 		lookahead: func() int { return -1 },
+		state:     func() int { return -1 },
 	}
 	return p
 }
@@ -942,9 +944,11 @@ func (yyrcvr *yyParserImpl) Parse(yylex yyLexer) int {
 	yystate := 0
 	yychar := -1
 	yytoken := -1 // yychar translated into internal numbering
+	yyrcvr.state = func() int { return yystate }
 	yyrcvr.lookahead = func() int { return yychar }
 	defer func() {
 		// Make sure we report no lookahead when not parsing.
+		yystate = -1
 		yychar = -1
 		yytoken = -1
 	}()

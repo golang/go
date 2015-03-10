@@ -3212,6 +3212,7 @@ type $$Parser interface {
 
 type $$ParserImpl struct {
 	lookahead func() int
+	state func() int
 }
 
 func (p *$$ParserImpl) Lookahead() int {
@@ -3221,6 +3222,7 @@ func (p *$$ParserImpl) Lookahead() int {
 func $$NewParser() $$Parser {
 	p := &$$ParserImpl{
 		lookahead: func() int { return -1 },
+		state: func() int { return -1 },
 	}
 	return p
 }
@@ -3297,9 +3299,11 @@ func ($$rcvr *$$ParserImpl) Parse($$lex $$Lexer) int {
 	$$state := 0
 	$$char := -1
 	$$token := -1 // $$char translated into internal numbering
+	$$rcvr.state = func() int { return $$state }
 	$$rcvr.lookahead = func() int { return $$char }
 	defer func() {
 		// Make sure we report no lookahead when not parsing.
+		$$state = -1
 		$$char = -1
 		$$token = -1
 	}()
