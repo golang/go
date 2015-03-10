@@ -219,6 +219,7 @@ func main() {
 		corpus.IndexFullText = false
 	}
 	corpus.IndexFiles = *indexFiles
+	corpus.IndexDirectory = indexDirectoryDefault
 	corpus.IndexThrottle = *indexThrottle
 	corpus.IndexInterval = *indexInterval
 	if *writeIndex {

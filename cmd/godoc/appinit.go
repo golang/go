@@ -50,6 +50,7 @@ func init() {
 	if err := corpus.Init(); err != nil {
 		log.Fatal(err)
 	}
+	corpus.IndexDirectory = indexDirectoryDefault
 	go corpus.RunIndexer()
 
 	pres = godoc.NewPresentation(corpus)
