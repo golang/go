@@ -277,9 +277,10 @@ func postProcessTrace(events []*Event) error {
 		gWaiting
 	)
 	type gdesc struct {
-		state   int
-		ev      *Event
-		evStart *Event
+		state    int
+		ev       *Event
+		evStart  *Event
+		evCreate *Event
 	}
 	type pdesc struct {
 		running bool
@@ -371,7 +372,7 @@ func postProcessTrace(events []*Event) error {
 			if _, ok := gs[ev.Args[0]]; ok {
 				return fmt.Errorf("g %v already exists (offset %v, time %v)", ev.Args[0], ev.Off, ev.Ts)
 			}
-			gs[ev.Args[0]] = gdesc{state: gRunnable, ev: ev}
+			gs[ev.Args[0]] = gdesc{state: gRunnable, ev: ev, evCreate: ev}
 		case EvGoStart:
 			if g.state != gRunnable {
 				return fmt.Errorf("g %v is not runnable before start (offset %v, time %v)", ev.G, ev.Off, ev.Ts)
@@ -382,11 +383,13 @@ func postProcessTrace(events []*Event) error {
 			g.state = gRunning
 			g.evStart = ev
 			p.g = ev.G
+			if g.evCreate != nil {
+				// +1 because symblizer expects return pc.
+				ev.Stk = []*Frame{&Frame{PC: g.evCreate.Args[1] + 1}}
+				g.evCreate = nil
+			}
+
 			if g.ev != nil {
-				if g.ev.Type == EvGoCreate {
-					// +1 because symblizer expects return pc.
-					ev.Stk = []*Frame{&Frame{PC: g.ev.Args[1] + 1}}
-				}
 				g.ev.Link = ev
 				g.ev = nil
 			}

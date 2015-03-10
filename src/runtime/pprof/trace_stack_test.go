@@ -122,7 +122,7 @@ func TestTraceSymbolize(t *testing.T) {
 	wp.Write(data[:])
 
 	StopTrace()
-	events, err := trace.Parse(buf)
+	events, _, err := parseTrace(buf)
 	if err != nil {
 		t.Fatalf("failed to parse trace: %v", err)
 	}

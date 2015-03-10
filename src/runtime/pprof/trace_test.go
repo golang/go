@@ -7,6 +7,7 @@ package pprof_test
 import (
 	"bytes"
 	"internal/trace"
+	"io"
 	"net"
 	"os"
 	"runtime"
@@ -70,6 +71,20 @@ func TestTrace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to parse trace: %v", err)
 	}
+}
+
+func parseTrace(r io.Reader) ([]*trace.Event, map[uint64]*trace.GDesc, error) {
+	events, err := trace.Parse(r)
+	if err != nil {
+		return nil, nil, err
+	}
+	gs := trace.GoroutineStats(events)
+	for goid := range gs {
+		// We don't do any particular checks on the result at the moment.
+		// But still check that RelatedGoroutines does not crash, hang, etc.
+		_ = trace.RelatedGoroutines(events, goid)
+	}
+	return events, gs, nil
 }
 
 func TestTraceStress(t *testing.T) {
@@ -199,7 +214,7 @@ func TestTraceStress(t *testing.T) {
 	runtime.GOMAXPROCS(procs)
 
 	StopTrace()
-	_, err = trace.Parse(buf)
+	_, _, err = parseTrace(buf)
 	if err != nil {
 		t.Fatalf("failed to parse trace: %v", err)
 	}
@@ -339,7 +354,7 @@ func TestTraceStressStartStop(t *testing.T) {
 		}
 		time.Sleep(time.Millisecond)
 		StopTrace()
-		if _, err := trace.Parse(buf); err != nil {
+		if _, _, err := parseTrace(buf); err != nil {
 			t.Fatalf("failed to parse trace: %v", err)
 		}
 	}

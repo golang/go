@@ -90,7 +90,7 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
 		params.startTime = g.StartTime
 		params.endTime = g.EndTime
 		params.maing = goid
-		params.gs = relatedGoroutines(events, goid)
+		params.gs = trace.RelatedGoroutines(events, goid)
 	}
 
 	err = json.NewEncoder(w).Encode(generateTrace(params))
