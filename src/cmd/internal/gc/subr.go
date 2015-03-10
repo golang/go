@@ -122,10 +122,6 @@ func yyerrorl(line int, fmt_ string, args ...interface{}) {
 	}
 }
 
-var yystate int
-
-var yychar_subr int
-
 var yyerror_lastsyntax int
 
 func Yyerror(fmt_ string, args ...interface{}) {
@@ -139,8 +135,11 @@ func Yyerror(fmt_ string, args ...interface{}) {
 	if strings.HasPrefix(fmt_, "syntax error") {
 		nsyntaxerrors++
 
+		yystate := theparser.(*yyParserImpl).state()
+		yychar := theparser.Lookahead()
+
 		if Debug['x'] != 0 {
-			fmt.Printf("yyerror: yystate=%d yychar=%d\n", yystate, yychar_subr)
+			fmt.Printf("yyerror: yystate=%d yychar=%d\n", yystate, yychar)
 		}
 
 		// An unexpected EOF caused a syntax error. Use the previous
@@ -166,8 +165,8 @@ func Yyerror(fmt_ string, args ...interface{}) {
 		}
 
 		// look for parse state-specific errors in list (see go.errors).
-		for i := 0; i < len(yymsg); i++ {
-			if yymsg[i].yystate == yystate && yymsg[i].yychar == yychar_subr {
+		for i := range yymsg {
+			if yymsg[i].yystate == yystate && yymsg[i].yychar == yychar {
 				yyerrorl(int(lexlineno), "syntax error: %s", yymsg[i].msg)
 				return
 			}

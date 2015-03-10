@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 //go:generate go tool yacc go.y
+//go:generate go run yaccerrors.go
 //go:generate go run mkbuiltin.go runtime unsafe
 
 package gc
@@ -1781,11 +1782,6 @@ func pragcgo(text string) {
 }
 
 type yy struct{}
-
-var yymsg []struct {
-	yystate, yychar int
-	msg             string
-}
 
 func (yy) Lex(v *yySymType) int {
 	return int(yylex(v))
