@@ -9,26 +9,30 @@ import (
 )
 
 // makeImg allocates and initializes the destination image.
-func (d *decoder) makeImg(h0, v0, mxx, myy int) {
+func (d *decoder) makeImg(mxx, myy int) {
 	if d.nComp == 1 {
 		m := image.NewGray(image.Rect(0, 0, 8*mxx, 8*myy))
 		d.img1 = m.SubImage(image.Rect(0, 0, d.width, d.height)).(*image.Gray)
 		return
 	}
 
+	h0 := d.comp[0].h
+	v0 := d.comp[0].v
+	hRatio := h0 / d.comp[1].h
+	vRatio := v0 / d.comp[1].v
 	var subsampleRatio image.YCbCrSubsampleRatio
-	switch {
-	case h0 == 1 && v0 == 1:
+	switch hRatio<<4 | vRatio {
+	case 0x11:
 		subsampleRatio = image.YCbCrSubsampleRatio444
-	case h0 == 1 && v0 == 2:
+	case 0x12:
 		subsampleRatio = image.YCbCrSubsampleRatio440
-	case h0 == 2 && v0 == 1:
+	case 0x21:
 		subsampleRatio = image.YCbCrSubsampleRatio422
-	case h0 == 2 && v0 == 2:
+	case 0x22:
 		subsampleRatio = image.YCbCrSubsampleRatio420
-	case h0 == 4 && v0 == 1:
+	case 0x41:
 		subsampleRatio = image.YCbCrSubsampleRatio411
-	case h0 == 4 && v0 == 2:
+	case 0x42:
 		subsampleRatio = image.YCbCrSubsampleRatio410
 	default:
 		panic("unreachable")
@@ -141,7 +145,7 @@ func (d *decoder) processSOS(n int) error {
 	mxx := (d.width + 8*h0 - 1) / (8 * h0)
 	myy := (d.height + 8*v0 - 1) / (8 * v0)
 	if d.img1 == nil && d.img3 == nil {
-		d.makeImg(h0, v0, mxx, myy)
+		d.makeImg(mxx, myy)
 	}
 	if d.progressive {
 		for i := 0; i < nComp; i++ {
@@ -158,10 +162,8 @@ func (d *decoder) processSOS(n int) error {
 		// b is the decoded coefficients, in natural (not zig-zag) order.
 		b  block
 		dc [maxComponents]int32
-		// bx and by are the location of the current (in terms of 8x8 blocks).
-		// For example, with 4:2:0 chroma subsampling, the block whose top left
-		// pixel co-ordinates are (16, 8) is the third block in the first row:
-		// bx is 2 and by is 0, even though the pixel is in the second MCU.
+		// bx and by are the location of the current block, in units of 8x8
+		// blocks: the third block in the first row has (bx, by) = (2, 0).
 		bx, by     int
 		blockCount int
 	)
@@ -169,8 +171,10 @@ func (d *decoder) processSOS(n int) error {
 		for mx := 0; mx < mxx; mx++ {
 			for i := 0; i < nComp; i++ {
 				compIndex := scan[i].compIndex
+				hi := d.comp[compIndex].h
+				vi := d.comp[compIndex].v
 				qt := &d.quant[d.comp[compIndex].tq]
-				for j := 0; j < d.comp[compIndex].h*d.comp[compIndex].v; j++ {
+				for j := 0; j < hi*vi; j++ {
 					// The blocks are traversed one MCU at a time. For 4:2:0 chroma
 					// subsampling, there are four Y 8x8 blocks in every 16x16 MCU.
 					//
@@ -197,10 +201,10 @@ func (d *decoder) processSOS(n int) error {
 					//	0 1 2
 					//	3 4 5
 					if nComp != 1 {
-						bx = d.comp[compIndex].h*mx + j%h0
-						by = d.comp[compIndex].v*my + j/h0
+						bx = hi*mx + j%hi
+						by = vi*my + j/hi
 					} else {
-						q := mxx * d.comp[compIndex].h
+						q := mxx * hi
 						bx = blockCount % q
 						by = blockCount / q
 						blockCount++
@@ -211,7 +215,7 @@ func (d *decoder) processSOS(n int) error {
 
 					// Load the previous partially decoded coefficients, if applicable.
 					if d.progressive {
-						b = d.progCoeffs[compIndex][by*mxx*d.comp[compIndex].h+bx]
+						b = d.progCoeffs[compIndex][by*mxx*hi+bx]
 					} else {
 						b = block{}
 					}
@@ -284,7 +288,7 @@ func (d *decoder) processSOS(n int) error {
 					if d.progressive {
 						if zigEnd != blockSize-1 || al != 0 {
 							// We haven't completely decoded this 8x8 block. Save the coefficients.
-							d.progCoeffs[compIndex][by*mxx*d.comp[compIndex].h+bx] = b
+							d.progCoeffs[compIndex][by*mxx*hi+bx] = b
 							// At this point, we could execute the rest of the loop body to dequantize and
 							// perform the inverse DCT, to save early stages of a progressive image to the
 							// *image.YCbCr buffers (the whole point of progressive encoding), but in Go,
