@@ -45,14 +45,12 @@ const (
 
 // do we need the carry bit
 func needc(p *obj.Prog) bool {
-	var info gc.ProgInfo
-
 	for p != nil {
-		info = proginfo(p)
-		if info.Flags&gc.UseCarry != 0 {
+		flags := progcarryflags(p)
+		if flags&gc.UseCarry != 0 {
 			return true
 		}
-		if info.Flags&(gc.SetCarry|gc.KillCarry) != 0 {
+		if flags&(gc.SetCarry|gc.KillCarry) != 0 {
 			return false
 		}
 		p = p.Link
@@ -508,15 +506,12 @@ func regconsttyp(a *obj.Addr) bool {
 
 // is reg guaranteed to be truncated by a previous L instruction?
 func prevl(r0 *gc.Flow, reg int) bool {
-	var p *obj.Prog
-	var info gc.ProgInfo
-
 	for r := (*gc.Flow)(gc.Uniqp(r0)); r != nil; r = gc.Uniqp(r) {
-		p = r.Prog
+		p := r.Prog
 		if p.To.Type == obj.TYPE_REG && int(p.To.Reg) == reg {
-			info = proginfo(p)
-			if info.Flags&gc.RightWrite != 0 {
-				if info.Flags&gc.SizeL != 0 {
+			flags := progflags(p)
+			if flags&gc.RightWrite != 0 {
+				if flags&gc.SizeL != 0 {
 					return true
 				}
 				return false
