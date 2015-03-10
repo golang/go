@@ -10,9 +10,9 @@ TEXT _rt0_386_windows(SB),NOSPLIT,$12
 	MOVL	AX, 4(SP)
 	MOVL	BX, 8(SP)
 	MOVL	$-1, 0(SP) // return PC for main
-	JMP	main(SB)
+	JMP	_main(SB)
 
-TEXT main(SB),NOSPLIT,$0
+TEXT _main(SB),NOSPLIT,$0
 	JMP	runtime·rt0_go(SB)
 
 
