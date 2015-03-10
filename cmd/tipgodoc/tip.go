@@ -25,8 +25,9 @@ import (
 )
 
 const (
-	repoURL = "https://go.googlesource.com/"
-	metaURL = "https://go.googlesource.com/?b=master&format=JSON"
+	repoURL      = "https://go.googlesource.com/"
+	metaURL      = "https://go.googlesource.com/?b=master&format=JSON"
+	startTimeout = 5 * time.Minute
 )
 
 var indexingMsg = []byte("Indexing in progress: result may be inaccurate")
@@ -183,7 +184,8 @@ func initSide(side, goHash, toolsHash string) (godoc *exec.Cmd, hostport string,
 		}
 	}()
 
-	for i := 0; i < 120; i++ {
+	deadline := time.Now().Add(startTimeout)
+	for time.Now().Before(deadline) {
 		time.Sleep(time.Second)
 		var res *http.Response
 		res, err = http.Get(fmt.Sprintf("http://%v/search?q=FALLTHROUGH", hostport))
