@@ -101,7 +101,7 @@ func TestTraceStress(t *testing.T) {
 		<-done
 		wg.Done()
 	}()
-	time.Sleep(time.Millisecond)
+	time.Sleep(time.Millisecond) // give the goroutine above time to block
 
 	buf := new(bytes.Buffer)
 	if err := StartTrace(buf); err != nil {
@@ -109,6 +109,7 @@ func TestTraceStress(t *testing.T) {
 	}
 
 	procs := runtime.GOMAXPROCS(10)
+	time.Sleep(50 * time.Millisecond) // test proc stop/start events
 
 	go func() {
 		runtime.LockOSThread()
