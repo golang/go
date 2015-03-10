@@ -98,6 +98,16 @@ func doregbits(r int) uint64 {
 	return b
 }
 
+// For ProgInfo.
+const (
+	AX = 1 << (x86.REG_AX - x86.REG_AX)
+	BX = 1 << (x86.REG_BX - x86.REG_AX)
+	CX = 1 << (x86.REG_CX - x86.REG_AX)
+	DX = 1 << (x86.REG_DX - x86.REG_AX)
+	DI = 1 << (x86.REG_DI - x86.REG_AX)
+	SI = 1 << (x86.REG_SI - x86.REG_AX)
+)
+
 func RtoB(r int) uint64 {
 	if r < x86.REG_AX || r > x86.REG_R15 {
 		return 0

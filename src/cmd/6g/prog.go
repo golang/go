@@ -10,13 +10,7 @@ import (
 	"cmd/internal/obj/x86"
 )
 
-var (
-	AX               = RtoB(x86.REG_AX)
-	BX               = RtoB(x86.REG_BX)
-	CX               = RtoB(x86.REG_CX)
-	DX               = RtoB(x86.REG_DX)
-	DI               = RtoB(x86.REG_DI)
-	SI               = RtoB(x86.REG_SI)
+const (
 	LeftRdwr  uint32 = gc.LeftRead | gc.LeftWrite
 	RightRdwr uint32 = gc.RightRead | gc.RightWrite
 )
@@ -235,6 +229,18 @@ var progtable = [x86.ALAST]gc.ProgInfo{
 	x86.AXORL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
 	x86.AXORQ:     gc.ProgInfo{gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
 	x86.AXORW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+}
+
+func progflags(p *obj.Prog) uint32 {
+	flags := progtable[p.As].Flags
+	if flags&gc.ImulAXDX != 0 && p.To.Type != obj.TYPE_NONE {
+		flags |= RightRdwr
+	}
+	return flags
+}
+
+func progcarryflags(p *obj.Prog) uint32 {
+	return progtable[p.As].Flags
 }
 
 func proginfo(p *obj.Prog) (info gc.ProgInfo) {
