@@ -584,7 +584,7 @@ const (
 	EvFrequency      = 2  // contains tracer timer frequency [frequency (ticks per second)]
 	EvStack          = 3  // stack [stack id, number of PCs, array of PCs]
 	EvGomaxprocs     = 4  // current value of GOMAXPROCS [timestamp, GOMAXPROCS, stack id]
-	EvProcStart      = 5  // start of P [timestamp]
+	EvProcStart      = 5  // start of P [timestamp, thread id]
 	EvProcStop       = 6  // stop of P [timestamp]
 	EvGCStart        = 7  // GC start [timestamp, stack id]
 	EvGCDone         = 8  // GC done [timestamp]
@@ -628,7 +628,7 @@ var EventDescriptions = [EvCount]struct {
 	EvFrequency:      {"Frequency", false, []string{"freq"}},
 	EvStack:          {"Stack", false, []string{"id", "siz"}},
 	EvGomaxprocs:     {"Gomaxprocs", true, []string{"procs"}},
-	EvProcStart:      {"ProcStart", false, []string{}},
+	EvProcStart:      {"ProcStart", false, []string{"thread"}},
 	EvProcStop:       {"ProcStop", false, []string{}},
 	EvGCStart:        {"GCStart", true, []string{}},
 	EvGCDone:         {"GCDone", false, []string{}},

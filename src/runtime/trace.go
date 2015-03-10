@@ -21,7 +21,7 @@ const (
 	traceEvFrequency      = 2  // contains tracer timer frequency [frequency (ticks per second)]
 	traceEvStack          = 3  // stack [stack id, number of PCs, array of PCs]
 	traceEvGomaxprocs     = 4  // current value of GOMAXPROCS [timestamp, GOMAXPROCS, stack id]
-	traceEvProcStart      = 5  // start of P [timestamp]
+	traceEvProcStart      = 5  // start of P [timestamp, thread id]
 	traceEvProcStop       = 6  // stop of P [timestamp]
 	traceEvGCStart        = 7  // GC start [timestamp, stack id]
 	traceEvGCDone         = 8  // GC done [timestamp]
@@ -716,7 +716,7 @@ func traceGomaxprocs(procs int32) {
 }
 
 func traceProcStart() {
-	traceEvent(traceEvProcStart, -1)
+	traceEvent(traceEvProcStart, -1, uint64(getg().m.id))
 }
 
 func traceProcStop(pp *p) {

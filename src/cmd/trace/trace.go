@@ -391,7 +391,14 @@ func (ctx *traceContext) emitThreadCounters(ev *trace.Event) {
 }
 
 func (ctx *traceContext) emitInstant(ev *trace.Event, name string) {
-	ctx.emit(&ViewerEvent{Name: name, Phase: "I", Scope: "t", Time: ctx.time(ev), Tid: ctx.proc(ev), Stack: ctx.stack(ev.Stk)})
+	var arg interface{}
+	if ev.Type == trace.EvProcStart {
+		type Arg struct {
+			ThreadID uint64
+		}
+		arg = &Arg{ev.Args[0]}
+	}
+	ctx.emit(&ViewerEvent{Name: name, Phase: "I", Scope: "t", Time: ctx.time(ev), Tid: ctx.proc(ev), Stack: ctx.stack(ev.Stk), Arg: arg})
 }
 
 func (ctx *traceContext) emitArrow(ev *trace.Event, name string) {
