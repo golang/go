@@ -26,6 +26,8 @@ type UnsupportedError string
 
 func (e UnsupportedError) Error() string { return "unsupported JPEG feature: " + string(e) }
 
+var errUnsupportedSubsamplingRatio = UnsupportedError("luma/chroma subsampling ratio")
+
 // Component specification, specified in section B.2.2.
 type component struct {
 	h  int   // Horizontal sampling factor.
@@ -303,7 +305,7 @@ func (d *decoder) processSOF(n int) error {
 	case 6 + 3*4: // YCbCrK or CMYK image.
 		d.nComp = 4
 	default:
-		return UnsupportedError("SOF has wrong length")
+		return UnsupportedError("number of components")
 	}
 	if err := d.readFull(d.tmp[:n]); err != nil {
 		return err
@@ -315,8 +317,9 @@ func (d *decoder) processSOF(n int) error {
 	d.height = int(d.tmp[1])<<8 + int(d.tmp[2])
 	d.width = int(d.tmp[3])<<8 + int(d.tmp[4])
 	if int(d.tmp[5]) != d.nComp {
-		return UnsupportedError("SOF has wrong number of image components")
+		return FormatError("SOF has wrong length")
 	}
+
 	for i := 0; i < d.nComp; i++ {
 		d.comp[i].c = d.tmp[6+3*i]
 		// Section B.2.2 states that "the value of C_i shall be different from
@@ -328,8 +331,16 @@ func (d *decoder) processSOF(n int) error {
 		}
 
 		d.comp[i].tq = d.tmp[8+3*i]
-
-		if d.nComp == 1 {
+		hv := d.tmp[7+3*i]
+		h, v := int(hv>>4), int(hv&0x0f)
+		if h < 1 || 4 < h || v < 1 || 4 < v {
+			return FormatError("luma/chroma subsampling ratio")
+		}
+		if h == 3 || v == 3 {
+			return errUnsupportedSubsamplingRatio
+		}
+		switch d.nComp {
+		case 1:
 			// If a JPEG image has only one component, section A.2 says "this data
 			// is non-interleaved by definition" and section A.2.2 says "[in this
 			// case...] the order of data units within a scan shall be left-to-right
@@ -341,27 +352,34 @@ func (d *decoder) processSOF(n int) error {
 			// always 1. The component's (h, v) is effectively always (1, 1): even if
 			// the nominal (h, v) is (2, 1), a 20x5 image is encoded in three 8x8
 			// MCUs, not two 16x8 MCUs.
-			d.comp[i].h = 1
-			d.comp[i].v = 1
-			continue
-		}
-		hv := d.tmp[7+3*i]
-		d.comp[i].h = int(hv >> 4)
-		d.comp[i].v = int(hv & 0x0f)
-		switch d.nComp {
+			h, v = 1, 1
+
 		case 3:
 			// For YCbCr images, we only support 4:4:4, 4:4:0, 4:2:2, 4:2:0,
-			// 4:1:1 or 4:1:0 chroma downsampling ratios. This implies that the
+			// 4:1:1 or 4:1:0 chroma subsampling ratios. This implies that the
 			// (h, v) values for the Y component are either (1, 1), (1, 2),
-			// (2, 1), (2, 2), (4, 1) or (4, 2), and the (h, v) values for the Cr
-			// and Cb components must be (1, 1).
-			if i == 0 {
-				if hv != 0x11 && hv != 0x21 && hv != 0x22 && hv != 0x12 && hv != 0x41 && hv != 0x42 {
-					return UnsupportedError("luma/chroma downsample ratio")
+			// (2, 1), (2, 2), (4, 1) or (4, 2), and the Y component's values
+			// must be a multiple of the Cb and Cr component's values. We also
+			// assume that the two chroma components have the same subsampling
+			// ratio.
+			switch i {
+			case 0: // Y.
+				// We have already verified, above, that h and v are both
+				// either 1, 2 or 4, so invalid (h, v) combinations are those
+				// with v == 4.
+				if v == 4 {
+					return errUnsupportedSubsamplingRatio
 				}
-			} else if hv != 0x11 {
-				return UnsupportedError("luma/chroma downsample ratio")
+			case 1: // Cb.
+				if d.comp[0].h%h != 0 || d.comp[0].v%v != 0 {
+					return errUnsupportedSubsamplingRatio
+				}
+			case 2: // Cr.
+				if d.comp[1].h != h || d.comp[1].v != v {
+					return errUnsupportedSubsamplingRatio
+				}
 			}
+
 		case 4:
 			// For 4-component images (either CMYK or YCbCrK), we only support two
 			// hv vectors: [0x11 0x11 0x11 0x11] and [0x22 0x11 0x11 0x22].
@@ -375,18 +393,21 @@ func (d *decoder) processSOF(n int) error {
 			switch i {
 			case 0:
 				if hv != 0x11 && hv != 0x22 {
-					return UnsupportedError("luma/chroma downsample ratio")
+					return errUnsupportedSubsamplingRatio
 				}
 			case 1, 2:
 				if hv != 0x11 {
-					return UnsupportedError("luma/chroma downsample ratio")
+					return errUnsupportedSubsamplingRatio
 				}
 			case 3:
-				if d.comp[0].h != d.comp[3].h || d.comp[0].v != d.comp[3].v {
-					return UnsupportedError("luma/chroma downsample ratio")
+				if d.comp[0].h != h || d.comp[0].v != v {
+					return errUnsupportedSubsamplingRatio
 				}
 			}
 		}
+
+		d.comp[i].h = h
+		d.comp[i].v = v
 	}
 	return nil
 }
