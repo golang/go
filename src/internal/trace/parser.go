@@ -56,13 +56,17 @@ const (
 	SyscallP // depicts returns from syscalls
 )
 
-// parseTrace parses, post-processes and verifies the trace.
+// Parse parses, post-processes and verifies the trace.
 func Parse(r io.Reader) ([]*Event, error) {
 	rawEvents, err := readTrace(r)
 	if err != nil {
 		return nil, err
 	}
 	events, err := parseEvents(rawEvents)
+	if err != nil {
+		return nil, err
+	}
+	events, err = removeFutile(events)
 	if err != nil {
 		return nil, err
 	}
@@ -263,6 +267,61 @@ func parseEvents(rawEvents []rawEvent) (events []*Event, err error) {
 	}
 
 	return
+}
+
+// removeFutile removes all constituents of futile wakeups (block, unblock, start).
+// For example, a goroutine was unblocked on a mutex, but another goroutine got
+// ahead and acquired the mutex before the first goroutine is scheduled,
+// so the first goroutine has to block again. Such wakeups happen on buffered
+// channels and sync.Mutex, but are generally not interesting for end user.
+func removeFutile(events []*Event) ([]*Event, error) {
+	// Two non-trivial aspects:
+	// 1. A goroutine can be preempted during a futile wakeup and migrate to another P.
+	//	We want to remove all of that.
+	// 2. Tracing can start in the middle of a futile wakeup.
+	//	That is, we can see a futile wakeup event w/o the actual wakeup before it.
+	// postProcessTrace runs after us and ensures that we leave the trace in a consistent state.
+
+	// Phase 1: determine futile wakeup sequences.
+	type G struct {
+		futile bool
+		wakeup []*Event // wakeup sequence (subject for removal)
+	}
+	gs := make(map[uint64]G)
+	futile := make(map[*Event]bool)
+	for _, ev := range events {
+		switch ev.Type {
+		case EvGoUnblock:
+			g := gs[ev.Args[0]]
+			g.wakeup = []*Event{ev}
+			gs[ev.Args[0]] = g
+		case EvGoStart, EvGoPreempt, EvFutileWakeup:
+			g := gs[ev.G]
+			g.wakeup = append(g.wakeup, ev)
+			if ev.Type == EvFutileWakeup {
+				g.futile = true
+			}
+			gs[ev.G] = g
+		case EvGoBlock, EvGoBlockSend, EvGoBlockRecv, EvGoBlockSelect, EvGoBlockSync, EvGoBlockCond:
+			g := gs[ev.G]
+			if g.futile {
+				futile[ev] = true
+				for _, ev1 := range g.wakeup {
+					futile[ev1] = true
+				}
+			}
+			delete(gs, ev.G)
+		}
+	}
+
+	// Phase 2: remove futile wakeup sequences.
+	newEvents := events[:0] // overwrite the original slice
+	for _, ev := range events {
+		if !futile[ev] {
+			newEvents = append(newEvents, ev)
+		}
+	}
+	return newEvents, nil
 }
 
 // postProcessTrace does inter-event verification and information restoration.
@@ -618,7 +677,8 @@ const (
 	EvHeapAlloc      = 33 // memstats.heap_alloc change [timestamp, heap_alloc]
 	EvNextGC         = 34 // memstats.next_gc change [timestamp, next_gc]
 	EvTimerGoroutine = 35 // denotes timer goroutine [timer goroutine id]
-	EvCount          = 36
+	EvFutileWakeup   = 36 // denotes that the revious wakeup of this goroutine was futile [timestamp]
+	EvCount          = 37
 )
 
 var EventDescriptions = [EvCount]struct {
@@ -662,4 +722,5 @@ var EventDescriptions = [EvCount]struct {
 	EvHeapAlloc:      {"HeapAlloc", false, []string{"mem"}},
 	EvNextGC:         {"NextGC", false, []string{"mem"}},
 	EvTimerGoroutine: {"TimerGoroutine", false, []string{"g"}},
+	EvFutileWakeup:   {"FutileWakeup", false, []string{}},
 }
