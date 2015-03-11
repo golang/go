@@ -8,8 +8,6 @@ import (
 	"unsafe"
 )
 
-var text struct{}
-
 func dumpregs(r *context) {
 	print("rax     ", hex(r.rax), "\n")
 	print("rbx     ", hex(r.rbx), "\n")
@@ -36,7 +34,7 @@ func dumpregs(r *context) {
 func isgoexception(info *exceptionrecord, r *context) bool {
 	// Only handle exception if executing instructions in Go binary
 	// (not Windows library code).
-	if r.rip < uint64(uintptr(unsafe.Pointer(&text))) || uint64(uintptr(unsafe.Pointer(&etext))) < r.rip {
+	if r.rip < uint64(themoduledata.text) || uint64(themoduledata.etext) < r.rip {
 		return false
 	}
 
