@@ -228,11 +228,11 @@ var indexTmpl = template.Must(template.New("index").Parse(`<html>
 profiles:<br>
 <table>
 {{range .}}
-<tr><td align=right>{{.Count}}<td><a href="/debug/pprof/{{.Name}}?debug=1">{{.Name}}</a>
+<tr><td align=right>{{.Count}}<td><a href="{{.Name}}?debug=1">{{.Name}}</a>
 {{end}}
 </table>
 <br>
-<a href="/debug/pprof/goroutine?debug=2">full goroutine stack dump</a><br>
+<a href="goroutine?debug=2">full goroutine stack dump</a><br>
 </body>
 </html>
 `))
