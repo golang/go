@@ -1358,7 +1358,7 @@ fndcl:
 		t.Rlist = $5;
 
 		$$ = Nod(ODCLFUNC, nil, nil);
-		$$.Nname = newname($1);
+		$$.Nname = newfuncname($1);
 		$$.Nname.Defn = $$;
 		$$.Nname.Ntype = t;		// TODO: check if nname already has an ntype
 		declare($$.Nname, PFUNC);
@@ -1392,7 +1392,7 @@ fndcl:
 		t.Rlist = $8;
 
 		$$ = Nod(ODCLFUNC, nil, nil);
-		$$.Shortname = newname($4);
+		$$.Shortname = newfuncname($4);
 		$$.Nname = methodname1($$.Shortname, rcvr.Right);
 		$$.Nname.Defn = $$;
 		$$.Nname.Ntype = t;
@@ -1422,7 +1422,7 @@ hidden_fndcl:
 			Yyerror("inconsistent definition for func %v during import\n\t%v\n\t%v", Sconv(s, 0), Tconv(s.Def.Type, 0), Tconv(t, 0));
 		}
 
-		$$ = newname(s);
+		$$ = newfuncname(s);
 		$$.Type = t;
 		declare($$, PFUNC);
 

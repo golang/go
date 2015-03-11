@@ -394,6 +394,10 @@ func Nod(op int, nleft *Node, nright *Node) *Node {
 	n.Xoffset = BADWIDTH
 	n.Orig = n
 	n.Curfn = Curfn
+	switch op {
+	case OCLOSURE, ODCLFUNC:
+		n.Func = new(Func)
+	}
 	return n
 }
 

@@ -169,7 +169,7 @@ func ishairy(n *Node, budget *int) bool {
 	switch n.Op {
 	// Call is okay if inlinable and we have the budget for the body.
 	case OCALLFUNC:
-		if n.Left.Inl != nil {
+		if n.Left.Func != nil && n.Left.Inl != nil {
 			*budget -= int(n.Left.InlCost)
 			break
 		}
@@ -247,7 +247,9 @@ func inlcopy(n *Node) *Node {
 
 	m := Nod(OXXX, nil, nil)
 	*m = *n
-	m.Inl = nil
+	if m.Func != nil {
+		m.Inl = nil
+	}
 	m.Left = inlcopy(n.Left)
 	m.Right = inlcopy(n.Right)
 	m.List = inlcopylist(n.List)
@@ -457,7 +459,7 @@ func inlnode(np **Node) {
 		if Debug['m'] > 3 {
 			fmt.Printf("%v:call to func %v\n", n.Line(), Nconv(n.Left, obj.FmtSign))
 		}
-		if n.Left.Inl != nil { // normal case
+		if n.Left.Func != nil && n.Left.Inl != nil { // normal case
 			mkinlcall(np, n.Left, n.Isddd)
 		} else if n.Left.Op == ONAME && n.Left.Left != nil && n.Left.Left.Op == OTYPE && n.Left.Right != nil && n.Left.Right.Op == ONAME { // methods called as functions
 			if n.Left.Sym.Def != nil {

@@ -191,7 +191,7 @@ func makeclosure(func_ *Node) *Node {
 	// create the function
 	xfunc := Nod(ODCLFUNC, nil, nil)
 
-	xfunc.Nname = newname(closurename(func_))
+	xfunc.Nname = newfuncname(closurename(func_))
 	xfunc.Nname.Sym.Flags |= SymExported // disable export
 	xfunc.Nname.Ntype = xtype
 	xfunc.Nname.Defn = xfunc
@@ -581,7 +581,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	xtype.Rlist = l
 
 	xfunc.Dupok = true
-	xfunc.Nname = newname(sym)
+	xfunc.Nname = newfuncname(sym)
 	xfunc.Nname.Sym.Flags |= SymExported // disable export
 	xfunc.Nname.Ntype = xtype
 	xfunc.Nname.Defn = xfunc

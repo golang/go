@@ -2523,7 +2523,7 @@ yydefault:
 			t.Rlist = yyDollar[5].list
 
 			yyVAL.node = Nod(ODCLFUNC, nil, nil)
-			yyVAL.node.Nname = newname(yyDollar[1].sym)
+			yyVAL.node.Nname = newfuncname(yyDollar[1].sym)
 			yyVAL.node.Nname.Defn = yyVAL.node
 			yyVAL.node.Nname.Ntype = t // TODO: check if nname already has an ntype
 			declare(yyVAL.node.Nname, PFUNC)
@@ -2559,7 +2559,7 @@ yydefault:
 			t.Rlist = yyDollar[8].list
 
 			yyVAL.node = Nod(ODCLFUNC, nil, nil)
-			yyVAL.node.Shortname = newname(yyDollar[4].sym)
+			yyVAL.node.Shortname = newfuncname(yyDollar[4].sym)
 			yyVAL.node.Nname = methodname1(yyVAL.node.Shortname, rcvr.Right)
 			yyVAL.node.Nname.Defn = yyVAL.node
 			yyVAL.node.Nname.Ntype = t
@@ -2589,7 +2589,7 @@ yydefault:
 				Yyerror("inconsistent definition for func %v during import\n\t%v\n\t%v", Sconv(s, 0), Tconv(s.Def.Type, 0), Tconv(t, 0))
 			}
 
-			yyVAL.node = newname(s)
+			yyVAL.node = newfuncname(s)
 			yyVAL.node.Type = t
 			declare(yyVAL.node, PFUNC)
 
