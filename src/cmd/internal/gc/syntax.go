@@ -23,58 +23,45 @@ type Node struct {
 	List  *NodeList
 	Rlist *NodeList
 
-	Op             uint8
-	Nointerface    bool
-	Ullman         uint8 // sethi/ullman number
-	Addable        uint8 // type of addressability - 0 is not addressable
-	Etype          uint8 // op for OASOP, etype for OTYPE, exclam for export
-	Bounded        bool  // bounds check unnecessary
-	Class          uint8 // PPARAM, PAUTO, PEXTERN, etc
-	Method         uint8 // OCALLMETH name
-	Embedded       uint8 // ODCLFIELD embedded type
-	Colas          uint8 // OAS resulting from :=
-	Diag           uint8 // already printed error about this
-	Noescape       bool  // func arguments do not escape
-	Nosplit        bool  // func should not execute on separate stack
-	Nowritebarrier bool  // emit compiler error instead of write barrier
-	Walkdef        uint8
-	Typecheck      uint8
-	Local          bool
-	Dodata         uint8
-	Initorder      uint8
-	Used           bool
-	Isddd          bool // is the argument variadic
-	Readonly       bool
-	Implicit       bool
-	Addrtaken      bool  // address taken, even if not moved to heap
-	Assigned       bool  // is the variable ever assigned to
-	Captured       bool  // is the variable captured by a closure
-	Byval          bool  // is the variable captured by value or by reference
-	Dupok          bool  // duplicate definitions ok (for func)
-	Wrapper        bool  // is method wrapper (for func)
-	Reslice        bool  // this is a reslice x = x[0:y] or x = append(x, ...)
-	Likely         int8  // likeliness of if statement
-	Hasbreak       bool  // has break statement
-	Needzero       bool  // if it contains pointers, needs to be zeroed on function entry
-	Needctxt       bool  // function uses context register (has closure variables)
-	Esc            uint8 // EscXXX
-	Funcdepth      int32
+	Op          uint8
+	Nointerface bool
+	Ullman      uint8 // sethi/ullman number
+	Addable     uint8 // type of addressability - 0 is not addressable
+	Etype       uint8 // op for OASOP, etype for OTYPE, exclam for export
+	Bounded     bool  // bounds check unnecessary
+	Class       uint8 // PPARAM, PAUTO, PEXTERN, etc
+	Method      uint8 // OCALLMETH name
+	Embedded    uint8 // ODCLFIELD embedded type
+	Colas       uint8 // OAS resulting from :=
+	Diag        uint8 // already printed error about this
+	Noescape    bool  // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
+	Walkdef     uint8
+	Typecheck   uint8
+	Local       bool
+	Dodata      uint8
+	Initorder   uint8
+	Used        bool
+	Isddd       bool // is the argument variadic
+	Readonly    bool
+	Implicit    bool
+	Addrtaken   bool  // address taken, even if not moved to heap
+	Assigned    bool  // is the variable ever assigned to
+	Captured    bool  // is the variable captured by a closure
+	Byval       bool  // is the variable captured by value or by reference
+	Reslice     bool  // this is a reslice x = x[0:y] or x = append(x, ...)
+	Likely      int8  // likeliness of if statement
+	Hasbreak    bool  // has break statement
+	Needzero    bool  // if it contains pointers, needs to be zeroed on function entry
+	Esc         uint8 // EscXXX
+	Funcdepth   int32
 
 	// most nodes
-	Type *Type
-	Orig *Node // original form, for printing, and tracking copies of ONAMEs
+	Type  *Type
+	Orig  *Node // original form, for printing, and tracking copies of ONAMEs
+	Nname *Node
 
 	// func
-	Nname     *Node
-	Shortname *Node
-	Enter     *NodeList
-	Exit      *NodeList
-	Cvars     *NodeList // closure params
-	Dcl       *NodeList // autodcl for this func/closure
-	Inl       *NodeList // copy of the body for use in inlining
-	Inldcl    *NodeList // copy of dcl for use in inlining
-	Closgen   int
-	Outerfunc *Node
+	*Func
 
 	// OLITERAL/OREGISTER
 	Val Val
@@ -112,18 +99,39 @@ type Node struct {
 	Escretval    *NodeList // on OCALLxxx, list of dummy return values
 	Escloopdepth int       // -1: global, 0: return variables, 1:function top level, increased inside function for every loop or label to mark scopes
 
-	Sym       *Sym  // various
-	InlCost   int32 // unique name for OTYPE/ONAME
-	Vargen    int32
-	Lineno    int32
+	Sym      *Sym  // various
+	Vargen   int32 // unique name for OTYPE/ONAME
+	Lineno   int32
+	Xoffset  int64
+	Stkdelta int64 // offset added by stack frame compaction phase.
+	Ostk     int32 // 6g only
+	Iota     int32
+	Walkgen  uint32
+	Esclevel int32
+	Opt      interface{} // for optimization passes
+}
+
+// Func holds Node fields used only with function-like nodes.
+type Func struct {
+	Shortname *Node
+	Enter     *NodeList
+	Exit      *NodeList
+	Cvars     *NodeList // closure params
+	Dcl       *NodeList // autodcl for this func/closure
+	Inldcl    *NodeList // copy of dcl for use in inlining
+	Closgen   int
+	Outerfunc *Node
+
+	Inl     *NodeList // copy of the body for use in inlining
+	InlCost int32
+
 	Endlineno int32
-	Xoffset   int64
-	Stkdelta  int64 // offset added by stack frame compaction phase.
-	Ostk      int32
-	Iota      int32
-	Walkgen   uint32
-	Esclevel  int32
-	Opt       interface{} // for optimization passes
+
+	Nosplit        bool // func should not execute on separate stack
+	Nowritebarrier bool // emit compiler error instead of write barrier
+	Dupok          bool // duplicate definitions ok
+	Wrapper        bool // is method wrapper
+	Needctxt       bool // function uses context register (has closure variables)
 }
 
 // Node ops.

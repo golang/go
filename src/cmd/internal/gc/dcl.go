@@ -373,6 +373,14 @@ func newname(s *Sym) *Node {
 	return n
 }
 
+// newfuncname generates a new name node for a function or method.
+// TODO(rsc): Use an ODCLFUNC node instead. See comment in CL 7360.
+func newfuncname(s *Sym) *Node {
+	n := newname(s)
+	n.Func = new(Func)
+	return n
+}
+
 /*
  * this generates a new name node for a name
  * being declared.
@@ -542,6 +550,7 @@ func ifacedcl(n *Node) {
 		Yyerror("methods must have a unique non-blank name")
 	}
 
+	n.Func = new(Func)
 	dclcontext = PPARAM
 	markdcl()
 	Funcdepth++
@@ -1312,7 +1321,7 @@ func methodname1(n *Node, t *Node) *Node {
 	}
 
 	if t.Sym == nil || isblank(n) {
-		return newname(n.Sym)
+		return newfuncname(n.Sym)
 	}
 
 	var p string
@@ -1323,9 +1332,9 @@ func methodname1(n *Node, t *Node) *Node {
 	}
 
 	if exportname(t.Sym.Name) {
-		n = newname(Lookup(p))
+		n = newfuncname(Lookup(p))
 	} else {
-		n = newname(Pkglookup(p, t.Sym.Pkg))
+		n = newfuncname(Pkglookup(p, t.Sym.Pkg))
 	}
 
 	return n
@@ -1476,7 +1485,7 @@ func funcsym(s *Sym) *Sym {
 
 	s1 := Pkglookup(s.Name+"·f", s.Pkg)
 	if s1.Def == nil {
-		s1.Def = newname(s1)
+		s1.Def = newfuncname(s1)
 		s1.Def.Shortname = newname(s)
 		funcsyms = list(funcsyms, s1.Def)
 	}
