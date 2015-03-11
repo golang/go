@@ -308,6 +308,7 @@ func selectgoImpl(sel *hselect) (uintptr, uint16) {
 		k      *scase
 		sglist *sudog
 		sgnext *sudog
+		futile byte
 	)
 
 loop:
@@ -392,7 +393,7 @@ loop:
 
 	// wait for someone to wake us up
 	gp.param = nil
-	gopark(selparkcommit, unsafe.Pointer(sel), "select", traceEvGoBlockSelect, 2)
+	gopark(selparkcommit, unsafe.Pointer(sel), "select", traceEvGoBlockSelect|futile, 2)
 
 	// someone woke us up
 	sellock(sel)
@@ -435,6 +436,7 @@ loop:
 	}
 
 	if cas == nil {
+		futile = traceFutileWakeup
 		goto loop
 	}
 

@@ -52,7 +52,8 @@ const (
 	traceEvHeapAlloc      = 33 // memstats.heap_alloc change [timestamp, heap_alloc]
 	traceEvNextGC         = 34 // memstats.next_gc change [timestamp, next_gc]
 	traceEvTimerGoroutine = 35 // denotes timer goroutine [timer goroutine id]
-	traceEvCount          = 36
+	traceEvFutileWakeup   = 36 // denotes that the previous wakeup of this goroutine was futile [timestamp]
+	traceEvCount          = 37
 )
 
 const (
@@ -71,6 +72,13 @@ const (
 	traceBytesPerNumber = 10
 	// Shift of the number of arguments in the first event byte.
 	traceArgCountShift = 6
+	// Flag passed to traceGoPark to denote that the previous wakeup of this
+	// goroutine was futile. For example, a goroutine was unblocked on a mutex,
+	// but another goroutine got ahead and acquired the mutex before the first
+	// goroutine is scheduled, so the first goroutine has to block again.
+	// Such wakeups happen on buffered channels and sync.Mutex,
+	// but are generally not interesting for end user.
+	traceFutileWakeup byte = 128
 )
 
 // trace is global tracing context.
@@ -775,7 +783,10 @@ func traceGoPreempt() {
 }
 
 func traceGoPark(traceEv byte, skip int, gp *g) {
-	traceEvent(traceEv, skip)
+	if traceEv&traceFutileWakeup != 0 {
+		traceEvent(traceEvFutileWakeup, -1)
+	}
+	traceEvent(traceEv & ^traceFutileWakeup, skip)
 }
 
 func traceGoUnpark(gp *g, skip int) {

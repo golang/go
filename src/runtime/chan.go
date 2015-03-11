@@ -219,7 +219,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 	// asynchronous channel
 	// wait for some space to write our data
 	var t1 int64
-	for c.qcount >= c.dataqsiz {
+	for futile := byte(0); c.qcount >= c.dataqsiz; futile = traceFutileWakeup {
 		if !block {
 			unlock(&c.lock)
 			return false
@@ -234,7 +234,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 		mysg.elem = nil
 		mysg.selectdone = nil
 		c.sendq.enqueue(mysg)
-		goparkunlock(&c.lock, "chan send", traceEvGoBlockSend, 3)
+		goparkunlock(&c.lock, "chan send", traceEvGoBlockSend|futile, 3)
 
 		// someone woke us up - try again
 		if mysg.releasetime > 0 {
@@ -462,7 +462,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
 	// asynchronous channel
 	// wait for some data to appear
 	var t1 int64
-	for c.qcount <= 0 {
+	for futile := byte(0); c.qcount <= 0; futile = traceFutileWakeup {
 		if c.closed != 0 {
 			selected, received = recvclosed(c, ep)
 			if t1 > 0 {
@@ -488,7 +488,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
 		mysg.selectdone = nil
 
 		c.recvq.enqueue(mysg)
-		goparkunlock(&c.lock, "chan receive", traceEvGoBlockRecv, 3)
+		goparkunlock(&c.lock, "chan receive", traceEvGoBlockRecv|futile, 3)
 
 		// someone woke us up - try again
 		if mysg.releasetime > 0 {
