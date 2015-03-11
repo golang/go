@@ -56,7 +56,7 @@ func testEndToEnd(t *testing.T, goarch string) {
 		r := strings.Split(result, "\n")
 		e := strings.Split(string(expect), "\n")
 		if len(r) != len(e) {
-			t.Errorf("%s: expected %d lines, got %d", len(e), len(r))
+			t.Errorf("%s: expected %d lines, got %d", goarch, len(e), len(r))
 		}
 		n := len(e)
 		if n > len(r) {
