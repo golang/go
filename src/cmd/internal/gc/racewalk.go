@@ -629,7 +629,7 @@ func hascallspred(n *Node, c interface{}) {
 	}
 }
 
-// appendinit is like addinit in subr.c
+// appendinit is like addinit in subr.go
 // but appends rather than prepends.
 func appendinit(np **Node, init *NodeList) {
 	if init == nil {

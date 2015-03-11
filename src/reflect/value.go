@@ -176,7 +176,7 @@ type emptyInterface struct {
 
 // nonEmptyInterface is the header for a interface value with methods.
 type nonEmptyInterface struct {
-	// see ../runtime/iface.c:/Itab
+	// see ../runtime/iface.go:/Itab
 	itab *struct {
 		ityp   *rtype // static interface type
 		typ    *rtype // dynamic concrete type

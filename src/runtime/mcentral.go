@@ -4,7 +4,7 @@
 
 // Central free lists.
 //
-// See malloc.h for an overview.
+// See malloc.go for an overview.
 //
 // The MCentral doesn't actually contain the list of free objects; the MSpan does.
 // Each MCentral is two lists of MSpans: those with free objects (c->nonempty)

@@ -38,8 +38,6 @@ import (
 )
 
 // "Portable" optimizations.
-// Compiled separately for 5g, 6g, and 8g, so allowed to use gg.h, opt.h.
-// Must code to the intersection of the three back ends.
 
 // Derived from Inferno utils/6c/gc.h
 // http://code.google.com/p/inferno-os/source/browse/utils/6c/gc.h
@@ -168,26 +166,9 @@ type OptStats struct {
 
 var Ostats OptStats
 
-/*
- * reg.c
- */
-
-/*
- * peep.c
-void	peep(Prog*);
-void	excise(Flow*);
-int	copyu(Prog*, Adr*, Adr*);
-*/
-
-/*
- * prog.c
-
-void proginfo(ProgInfo*, Prog*);
-*/
-// p is a call instruction. Does the call fail to return?
-
 var noreturn_symlist [10]*Sym
 
+// p is a call instruction. Does the call fail to return?
 func Noreturn(p *obj.Prog) bool {
 	if noreturn_symlist[0] == nil {
 		noreturn_symlist[0] = Pkglookup("panicindex", Runtimepkg)

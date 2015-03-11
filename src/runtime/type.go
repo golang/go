@@ -8,7 +8,7 @@ package runtime
 
 import "unsafe"
 
-// Needs to be in sync with ../../cmd/ld/decodesym.c:/^commonsize and pkg/reflect/type.go:/type.
+// Needs to be in sync with ../../cmd/internal/ld/decodesym.go:/^commonsize and pkg/reflect/type.go:/type.
 type _type struct {
 	size       uintptr
 	hash       uint32

@@ -2636,7 +2636,7 @@ func vmatch2(l *Node, r *Node) bool {
 
 /*
  * is any name mentioned in l also mentioned in r?
- * called by sinit.c
+ * called by sinit.go
  */
 func vmatch1(l *Node, r *Node) bool {
 	/*
