@@ -223,7 +223,7 @@ func ginscall(f *gc.Node, proc int) {
 			gc.Nodreg(&reg, gc.Types[gc.TINT64], ppc64.REG_R3)
 			p := gins(ppc64.ACMP, &reg, nil)
 			p.To.Type = obj.TYPE_REG
-			p.To.Reg = ppc64.REG_R0
+			p.To.Reg = ppc64.REGZERO
 			p = gc.Gbranch(ppc64.ABEQ, nil, +1)
 			cgen_ret(nil)
 			gc.Patch(p, gc.Pc)
@@ -745,7 +745,7 @@ func clearfat(nl *gc.Node) {
 	}
 
 	var r0 gc.Node
-	gc.Nodreg(&r0, gc.Types[gc.TUINT64], ppc64.REG_R0) // r0 is always zero
+	gc.Nodreg(&r0, gc.Types[gc.TUINT64], ppc64.REGZERO)
 	var dst gc.Node
 	gc.Nodreg(&dst, gc.Types[gc.Tptr], ppc64.REGRT1)
 	reg[ppc64.REGRT1-ppc64.REG_R0]++
@@ -841,7 +841,7 @@ func expandchecks(firstp *obj.Prog) {
 			p->from.type = TYPE_CONST;
 			p->from.offset = 4;
 			p->from.reg = 0;
-			p->reg = REG_R0;
+			p->reg = REGZERO;
 			p->to.type = TYPE_REG;
 			p->to.reg = reg;
 		*/
@@ -876,9 +876,9 @@ func expandchecks(firstp *obj.Prog) {
 		p2.As = ppc64.AMOVD
 
 		p2.From.Type = obj.TYPE_REG
-		p2.From.Reg = ppc64.REG_R0
+		p2.From.Reg = ppc64.REGZERO
 		p2.To.Type = obj.TYPE_MEM
-		p2.To.Reg = ppc64.REG_R0
+		p2.To.Reg = ppc64.REGZERO
 		p2.To.Offset = 0
 	}
 }
