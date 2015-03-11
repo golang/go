@@ -619,6 +619,12 @@ func (c *Certificate) CheckSignatureFrom(parent *Certificate) (err error) {
 // CheckSignature verifies that signature is a valid signature over signed from
 // c's public key.
 func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature []byte) (err error) {
+	return checkSignature(algo, signed, signature, c.PublicKey)
+}
+
+// CheckSignature verifies that signature is a valid signature over signed from
+// a crypto.PublicKey.
+func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey crypto.PublicKey) (err error) {
 	var hashType crypto.Hash
 
 	switch algo {
@@ -642,7 +648,7 @@ func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature 
 	h.Write(signed)
 	digest := h.Sum(nil)
 
-	switch pub := c.PublicKey.(type) {
+	switch pub := publicKey.(type) {
 	case *rsa.PublicKey:
 		return rsa.VerifyPKCS1v15(pub, hashType, digest, signature)
 	case *dsa.PublicKey:
@@ -1954,4 +1960,9 @@ func parseCertificateRequest(in *certificateRequest) (*CertificateRequest, error
 	}
 
 	return out, nil
+}
+
+// CheckSignature verifies that the signature on c is a valid signature
+func (c *CertificateRequest) CheckSignature() (err error) {
+	return checkSignature(c.SignatureAlgorithm, c.RawTBSCertificateRequest, c.Signature, c.PublicKey)
 }

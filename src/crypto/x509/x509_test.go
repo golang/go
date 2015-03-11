@@ -904,6 +904,12 @@ func TestCreateCertificateRequest(t *testing.T) {
 			continue
 		}
 
+		err = out.CheckSignature()
+		if err != nil {
+			t.Errorf("%s: failed to check certificate request signature: %s", test.name, err)
+			continue
+		}
+
 		if out.Subject.CommonName != template.Subject.CommonName {
 			t.Errorf("%s: output subject common name and template subject common name don't match", test.name)
 		} else if len(out.Subject.Organization) != len(template.Subject.Organization) {
