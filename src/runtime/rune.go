@@ -15,7 +15,7 @@
 
 /*
  * This code is copied, with slight editing due to type differences,
- * from a subset of ../lib9/utf/rune.c
+ * from a subset of ../lib9/utf/rune.c [which no longer exists]
  */
 
 package runtime

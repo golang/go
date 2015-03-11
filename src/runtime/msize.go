@@ -4,7 +4,7 @@
 
 // Malloc small size classes.
 //
-// See malloc.h for overview.
+// See malloc.go for overview.
 //
 // The size classes are chosen so that rounding an allocation
 // request up to the next size class wastes at most 12.5% (1.125x).

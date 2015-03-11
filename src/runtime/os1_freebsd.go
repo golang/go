@@ -28,7 +28,7 @@ func getncpu() int32 {
 
 // FreeBSD's umtx_op syscall is effectively the same as Linux's futex, and
 // thus the code is largely similar. See Linux implementation
-// and lock_futex.c for comments.
+// and lock_futex.go for comments.
 
 //go:nosplit
 func futexsleep(addr *uint32, val uint32, ns int64) {

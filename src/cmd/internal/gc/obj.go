@@ -294,9 +294,6 @@ func dstringptr(s *Sym, off int, str string) int {
 	return off
 }
 
-/*
- * gobj.c
- */
 func Datastring(s string, a *obj.Addr) {
 	sym := stringsym(s)
 	a.Type = obj.TYPE_MEM

@@ -201,9 +201,9 @@ type Type interface {
 // See golang.org/issue/4876 for more details.
 
 /*
- * These data structures are known to the compiler (../../cmd/gc/reflect.c).
+ * These data structures are known to the compiler (../../cmd/internal/gc/reflect.go).
  * A few are known to ../runtime/type.go to convey to debuggers.
- * They are also known to ../runtime/type.h.
+ * They are also known to ../runtime/type.go.
  */
 
 // A Kind represents the specific kind of type that a Type represents.
@@ -1143,7 +1143,7 @@ func implements(T, V *rtype) bool {
 	// methods along the way, or else V does not implement T.
 	// This lets us run the scan in overall linear time instead of
 	// the quadratic time  a naive search would require.
-	// See also ../runtime/iface.c.
+	// See also ../runtime/iface.go.
 	if V.Kind() == Interface {
 		v := (*interfaceType)(unsafe.Pointer(V))
 		i := 0
@@ -1637,13 +1637,10 @@ func (gc *gcProg) align(a uintptr) {
 	gc.size = align(gc.size, a)
 }
 
-// These constants must stay in sync with ../runtime/mgc0.h.
+// These constants must stay in sync with ../runtime/mbitmap.go.
 const (
 	bitsScalar  = 1
 	bitsPointer = 2
-
-	bitsIface = 2
-	bitsEface = 3
 )
 
 // Make sure these routines stay in sync with ../../runtime/hashmap.go!

@@ -107,7 +107,7 @@ func lsort(l *Sig, f func(*Sig, *Sig) int) *Sig {
 // the given map type.  This type is not visible to users -
 // we include only enough information to generate a correct GC
 // program for it.
-// Make sure this stays in sync with ../../runtime/hashmap.c!
+// Make sure this stays in sync with ../../runtime/hashmap.go!
 const (
 	BUCKETSIZE = 8
 	MAXKEYSIZE = 128
@@ -236,7 +236,7 @@ func hiter(t *Type) *Type {
 	//    bucket uintptr
 	//    checkBucket uintptr
 	// }
-	// must match ../../runtime/hashmap.c:hash_iter.
+	// must match ../../runtime/hashmap.go:hash_iter.
 	var field [12]*Type
 	field[0] = makefield("key", Ptrto(t.Down))
 

@@ -238,9 +238,6 @@ func nodfconst(n *Node, t *Type, fval *Mpflt) {
 	}
 }
 
-/*
- * cplx.c
- */
 func Complexop(n *Node, res *Node) bool {
 	if n != nil && n.Type != nil {
 		if Iscomplex[n.Type.Etype] {

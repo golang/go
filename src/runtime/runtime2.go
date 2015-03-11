@@ -14,7 +14,7 @@ const (
 	//
 	// If you add to this list, add to the list
 	// of "okay during garbage collection" status
-	// in mgc0.c too.
+	// in mgcmark.go too.
 	_Gidle            = iota // 0
 	_Grunnable               // 1 runnable and on a run queue
 	_Grunning                // 2
@@ -129,7 +129,7 @@ type gobuf struct {
 }
 
 // Known to compiler.
-// Changes here must also be made in src/cmd/gc/select.c's selecttype.
+// Changes here must also be made in src/cmd/internal/gc/select.go's selecttype.
 type sudog struct {
 	g           *g
 	selectdone  *uint32
@@ -316,7 +316,7 @@ type p struct {
 	m           *m     // back-link to associated m (nil if idle)
 	mcache      *mcache
 
-	deferpool    [5][]*_defer // pool of available defer structs of different sizes (see panic.c)
+	deferpool    [5][]*_defer // pool of available defer structs of different sizes (see panic.go)
 	deferpoolbuf [5][32]*_defer
 
 	// Cache of goroutine ids, amortizes accesses to runtime·sched.goidgen.
@@ -420,7 +420,7 @@ const (
 
 // Layout of in-memory per-function information prepared by linker
 // See http://golang.org/s/go12symtab.
-// Keep in sync with linker and with ../../libmach/sym.c
+// Keep in sync with linker
 // and with package debug/gosym and with symtab.go in package runtime.
 type _func struct {
 	entry   uintptr // start pc

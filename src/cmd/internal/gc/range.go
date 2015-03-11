@@ -306,7 +306,7 @@ func walkrange(n *Node) {
 		hit := n.Alloc
 		hit.Type = th
 		n.Left = nil
-		keyname := newname(th.Type.Sym)      // depends on layout of iterator struct.  See reflect.c:hiter
+		keyname := newname(th.Type.Sym)      // depends on layout of iterator struct.  See reflect.go:hiter
 		valname := newname(th.Type.Down.Sym) // ditto
 
 		fn := syslook("mapiterinit", 1)

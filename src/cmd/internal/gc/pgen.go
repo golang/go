@@ -12,10 +12,6 @@ import (
 )
 
 // "Portable" code generation.
-// Compiled separately for 5g, 6g, and 8g, so allowed to use gg.h, opt.h.
-// Must code to the intersection of the three back ends.
-
-//#include	"opt.h"
 
 var makefuncdatasym_nsym int32
 
@@ -350,9 +346,6 @@ func Cgen_checknil(n *Node) {
 	Thearch.Gins(obj.ACHECKNIL, n, nil)
 }
 
-/*
- * ggen.c
- */
 func compile(fn *Node) {
 	if Newproc == nil {
 		Newproc = Sysfunc("newproc")

@@ -76,9 +76,6 @@ func Samereg(a *Node, b *Node) bool {
 	return true
 }
 
-/*
- * gsubr.c
- */
 func Gbranch(as int, t *Type, likely int) *obj.Prog {
 	p := Prog(as)
 	p.To.Type = obj.TYPE_BRANCH

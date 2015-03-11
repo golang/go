@@ -371,7 +371,7 @@ loop:
 		c = cas.c
 		sg := acquireSudog()
 		sg.g = gp
-		// Note: selectdone is adjusted for stack copies in stack.c:adjustsudogs
+		// Note: selectdone is adjusted for stack copies in stack1.go:adjustsudogs
 		sg.selectdone = (*uint32)(noescape(unsafe.Pointer(&done)))
 		sg.elem = cas.elem
 		sg.releasetime = 0

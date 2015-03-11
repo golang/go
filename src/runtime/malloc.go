@@ -114,7 +114,7 @@ const (
 	_64bit = 1 << (^uintptr(0) >> 63) / 2
 
 	// Computed constant.  The definition of MaxSmallSize and the
-	// algorithm in msize.c produce some number of different allocation
+	// algorithm in msize.go produces some number of different allocation
 	// size classes.  NumSizeClasses is that number.  It's needed here
 	// because there are static arrays of this length; when msize runs its
 	// size choosing algorithm it double-checks that NumSizeClasses agrees.

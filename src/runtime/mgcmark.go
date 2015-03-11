@@ -58,7 +58,7 @@ func markroot(desc *parfor, i uint32) {
 	var gcw gcWorkProducer
 	gcw.initFromCache()
 
-	// Note: if you add a case here, please also update heapdump.c:dumproots.
+	// Note: if you add a case here, please also update heapdump.go:dumproots.
 	switch i {
 	case _RootData:
 		scanblock(uintptr(unsafe.Pointer(&data)), uintptr(unsafe.Pointer(&edata))-uintptr(unsafe.Pointer(&data)), gcdatamask.bytedata, &gcw)

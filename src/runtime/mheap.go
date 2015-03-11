@@ -158,7 +158,7 @@ func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
 		if len(h_allspans) > 0 {
 			copy(new, h_allspans)
 			// Don't free the old array if it's referenced by sweep.
-			// See the comment in mgc0.c.
+			// See the comment in mgc.go.
 			if h.allspans != mheap_.gcspans {
 				sysFree(unsafe.Pointer(h.allspans), uintptr(cap(h_allspans))*ptrSize, &memstats.other_sys)
 			}

@@ -324,7 +324,7 @@ out:
 	lineno = int32(lno)
 }
 
-// Keep in sync with src/runtime/chan.h.
+// Keep in sync with src/runtime/runtime2.go and src/runtime/select.go.
 func selecttype(size int32) *Type {
 	// TODO(dvyukov): it's possible to generate SudoG and Scase only once
 	// and then cache; and also cache Select per size.
