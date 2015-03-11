@@ -2293,8 +2293,6 @@ func _System()       { _System() }
 func _ExternalCode() { _ExternalCode() }
 func _GC()           { _GC() }
 
-var etext struct{}
-
 // Called if we receive a SIGPROF signal.
 func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	if prof.hz == 0 {
@@ -2408,7 +2406,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 			// If all of the above has failed, account it against abstract "System" or "GC".
 			n = 2
 			// "ExternalCode" is better than "etext".
-			if pc > uintptr(unsafe.Pointer(&etext)) {
+			if pc > themoduledata.etext {
 				pc = funcPC(_ExternalCode) + _PCQuantum
 			}
 			stk[0] = pc

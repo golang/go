@@ -60,10 +60,10 @@ func markroot(desc *parfor, i uint32) {
 	// Note: if you add a case here, please also update heapdump.go:dumproots.
 	switch i {
 	case _RootData:
-		scanblock(uintptr(unsafe.Pointer(&data)), uintptr(unsafe.Pointer(&edata))-uintptr(unsafe.Pointer(&data)), gcdatamask.bytedata, &gcw)
+		scanblock(themoduledata.data, themoduledata.edata-themoduledata.data, gcdatamask.bytedata, &gcw)
 
 	case _RootBss:
-		scanblock(uintptr(unsafe.Pointer(&bss)), uintptr(unsafe.Pointer(&ebss))-uintptr(unsafe.Pointer(&bss)), gcbssmask.bytedata, &gcw)
+		scanblock(themoduledata.bss, themoduledata.ebss-themoduledata.bss, gcbssmask.bytedata, &gcw)
 
 	case _RootFinalizers:
 		for fb := allfin; fb != nil; fb = fb.alllink {

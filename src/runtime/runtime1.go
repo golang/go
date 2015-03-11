@@ -424,15 +424,13 @@ func gomcache() *mcache {
 	return getg().m.mcache
 }
 
-var typelink, etypelink [0]byte
-
 //go:linkname reflect_typelinks reflect.typelinks
 //go:nosplit
 func reflect_typelinks() []*_type {
 	var ret []*_type
 	sp := (*slice)(unsafe.Pointer(&ret))
-	sp.array = (*byte)(unsafe.Pointer(&typelink))
-	sp.len = uint((uintptr(unsafe.Pointer(&etypelink)) - uintptr(unsafe.Pointer(&typelink))) / unsafe.Sizeof(ret[0]))
+	sp.array = (*byte)(unsafe.Pointer(themoduledata.typelink))
+	sp.len = uint((themoduledata.etypelink - themoduledata.typelink) / unsafe.Sizeof(ret[0]))
 	sp.cap = sp.len
 	return ret
 }
