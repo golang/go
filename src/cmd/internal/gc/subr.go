@@ -291,7 +291,9 @@ func LookupBytes(name []byte) *Sym {
 
 var initSyms []*Sym
 
-var nopkg = new(Pkg)
+var nopkg = &Pkg{
+	Syms: make(map[string]*Sym),
+}
 
 func (pkg *Pkg) Lookup(name string) *Sym {
 	if pkg == nil {
@@ -306,11 +308,8 @@ func (pkg *Pkg) Lookup(name string) *Sym {
 		Pkg:     pkg,
 		Lexical: LNAME,
 	}
-	if s.Name == "init" {
+	if name == "init" {
 		initSyms = append(initSyms, s)
-	}
-	if pkg.Syms == nil {
-		pkg.Syms = make(map[string]*Sym)
 	}
 	pkg.Syms[name] = s
 	return s
@@ -1028,16 +1027,13 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
 		t1 = t1.Type
 		t2 = t2.Type
 		for ; t1 != nil && t2 != nil; t1, t2 = t1.Down, t2.Down {
-			var ta *Type
-			var tb *Type
-
 			if t1.Etype != TSTRUCT || t2.Etype != TSTRUCT {
 				Fatal("func missing struct: %v %v", Tconv(t1, 0), Tconv(t2, 0))
 			}
 
 			// Loop over fields in structs, ignoring argument names.
-			ta = t1.Type
-			tb = t2.Type
+			ta := t1.Type
+			tb := t2.Type
 			for ; ta != nil && tb != nil; ta, tb = ta.Down, tb.Down {
 				if ta.Etype != TFIELD || tb.Etype != TFIELD {
 					Fatal("func struct missing field: %v %v", Tconv(ta, 0), Tconv(tb, 0))
@@ -1320,8 +1316,12 @@ func convertop(src *Type, dst *Type, why *string) int {
 	return 0
 }
 
-// Convert node n for assignment to type t.
 func assignconv(n *Node, t *Type, context string) *Node {
+	return assignconvfn(n, t, func() string { return context })
+}
+
+// Convert node n for assignment to type t.
+func assignconvfn(n *Node, t *Type, context func() string) *Node {
 	if n == nil || n.Type == nil || n.Type.Broke != 0 {
 		return n
 	}
@@ -1357,7 +1357,7 @@ func assignconv(n *Node, t *Type, context string) *Node {
 	var why string
 	op := assignop(n.Type, t, &why)
 	if op == 0 {
-		Yyerror("cannot use %v as type %v in %s%s", Nconv(n, obj.FmtLong), Tconv(t, 0), context, why)
+		Yyerror("cannot use %v as type %v in %s%s", Nconv(n, obj.FmtLong), Tconv(t, 0), context(), why)
 		op = OCONV
 	}
 
@@ -1570,10 +1570,10 @@ func typehash(t *Type) uint32 {
 		// hide method receiver from Tpretty
 		t.Thistuple = 0
 
-		p = fmt.Sprintf("%v", Tconv(t, obj.FmtLeft|obj.FmtUnsigned))
+		p = Tconv(t, obj.FmtLeft|obj.FmtUnsigned)
 		t.Thistuple = 1
 	} else {
-		p = fmt.Sprintf("%v", Tconv(t, obj.FmtLeft|obj.FmtUnsigned))
+		p = Tconv(t, obj.FmtLeft|obj.FmtUnsigned)
 	}
 
 	//print("typehash: %s\n", p);
@@ -3457,6 +3457,7 @@ func mkpkg(path string) *Pkg {
 	p := new(Pkg)
 	p.Path = path
 	p.Prefix = pathtoprefix(path)
+	p.Syms = make(map[string]*Sym)
 	pkgMap[path] = p
 	pkgs = append(pkgs, p)
 	return p

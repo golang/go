@@ -126,6 +126,7 @@ type Sym struct {
 	Lastlineno int32  // last declaration for diagnostic
 	Origpkg    *Pkg   // original package for . import
 	Lsym       *obj.LSym
+	Fsym       *Sym // funcsym
 }
 
 type Type struct {

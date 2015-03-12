@@ -243,8 +243,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 		}
 	}
 
-	var node *Node
-	node, _ = a.Node.(*Node)
+	node, _ := a.Node.(*Node)
 	if node == nil || node.Op != ONAME || node.Orig == nil {
 		return zbits
 	}
