@@ -170,6 +170,31 @@ func setGCPercent(in int32) (out int32) {
 	return out
 }
 
+// gcController implements the GC pacing controller that determines
+// when to trigger concurrent garbage collection and how much marking
+// work to do in mutator assists and background marking.
+//
+// It uses a feedback control algorithm to adjust the memstats.next_gc
+// trigger based on the heap growth and GC CPU utilization each cycle.
+// This algorithm optimizes for heap growth to match GOGC and for CPU
+// utilization between assist and background marking to be 25% of
+// GOMAXPROCS. The high-level design of this algorithm is documented
+// at http://golang.org/s/go15gcpacing.
+var gcController gcControllerState
+
+type gcControllerState struct {
+	// scanWork is the total scan work performed this cycle. This
+	// is updated atomically during the cycle. Updates may be
+	// batched arbitrarily, since the value is only read at the
+	// end of the cycle.
+	scanWork int64
+}
+
+// startCycle resets the GC controller's state.
+func (c *gcControllerState) startCycle() {
+	c.scanWork = 0
+}
+
 // Determine whether to initiate a GC.
 // If the GC is already working no need to trigger another one.
 // This should establish a feedback loop where if the GC does not
@@ -346,6 +371,8 @@ func gc(mode int) {
 	work.bytesMarked = 0
 
 	if mode == gcBackgroundMode { // Do as much work concurrently as possible
+		gcController.startCycle()
+
 		systemstack(func() {
 			gcphase = _GCscan
 

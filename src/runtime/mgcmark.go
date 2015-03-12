@@ -163,6 +163,7 @@ func markroot(desc *parfor, i uint32) {
 	// Root aren't part of the heap, so don't count them toward
 	// marked heap bytes.
 	gcw.bytesMarked = 0
+	gcw.scanWork = 0
 	gcw.dispose()
 }
 
@@ -191,6 +192,10 @@ func gchelpwork() {
 		gcw.initFromCache()
 		const n = len(workbuf{}.obj)
 		gcDrainN(&gcw, n) // drain upto one buffer's worth of objects
+		// TODO(austin): This is the vast majority of our
+		// disposes. Instead of constantly disposing, keep a
+		// per-P gcWork cache (probably combined with the
+		// write barrier wbuf cache).
 		gcw.dispose()
 	case _GCmarktermination:
 		// We should never be here since the world is stopped.
@@ -267,6 +272,7 @@ func scanstack(gp *g) {
 	// Stacks aren't part of the heap, so don't count them toward
 	// marked heap bytes.
 	gcw.bytesMarked = 0
+	gcw.scanWork = 0
 	gcw.disposeToCache()
 	gp.gcscanvalid = true
 }
@@ -425,6 +431,7 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
 func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWork) {
 	arena_start := mheap_.arena_start
 	arena_used := mheap_.arena_used
+	scanWork := int64(0)
 
 	// Find bits of the beginning of the object.
 	var hbits heapBits
@@ -465,6 +472,16 @@ func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWork) {
 
 		obj := *(*uintptr)(unsafe.Pointer(b + i))
 
+		// Track the scan work performed as a way to estimate
+		// GC time. We use the number of pointers scanned
+		// because pointer scanning dominates the cost of
+		// scanning.
+		//
+		// TODO(austin): Consider counting only pointers into
+		// the heap, since nil and non-heap pointers are
+		// probably cheap to scan.
+		scanWork++
+
 		// At this point we have extracted the next potential pointer.
 		// Check if it points into heap.
 		if obj == 0 || obj < arena_start || obj >= arena_used {
@@ -481,6 +498,7 @@ func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWork) {
 		}
 	}
 	gcw.bytesMarked += uint64(n)
+	gcw.scanWork += scanWork
 }
 
 // Shade the object if it isn't already.
