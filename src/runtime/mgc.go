@@ -180,7 +180,14 @@ func setGCPercent(in int32) (out int32) {
 // utilization between assist and background marking to be 25% of
 // GOMAXPROCS. The high-level design of this algorithm is documented
 // at http://golang.org/s/go15gcpacing.
-var gcController gcControllerState
+var gcController = gcControllerState{
+	// Initial work ratio guess.
+	//
+	// TODO(austin): This is based on the work ratio of the
+	// compiler on ./all.bash. Run a wider variety of programs and
+	// see what their work ratios are.
+	workRatioAvg: 0.5 / float64(ptrSize),
+}
 
 type gcControllerState struct {
 	// scanWork is the total scan work performed this cycle. This
@@ -188,11 +195,44 @@ type gcControllerState struct {
 	// batched arbitrarily, since the value is only read at the
 	// end of the cycle.
 	scanWork int64
+
+	// workRatioAvg is a moving average of the scan work ratio
+	// (scan work per byte marked).
+	workRatioAvg float64
 }
 
-// startCycle resets the GC controller's state.
+// startCycle resets the GC controller's state and computes estimates
+// for a new GC cycle.
 func (c *gcControllerState) startCycle() {
 	c.scanWork = 0
+
+	// If this is the first GC cycle or we're operating on a very
+	// small heap, fake heap_marked so it looks like next_gc is
+	// the appropriate growth from heap_marked, even though the
+	// real heap_marked may not have a meaningful value (on the
+	// first cycle) or may be much smaller (resulting in a large
+	// error response).
+	if memstats.next_gc <= heapminimum {
+		memstats.heap_marked = uint64(float64(memstats.next_gc) / (1 + float64(gcpercent)/100))
+	}
+
+	// Compute the expected work based on last cycle's marked bytes.
+	// (Currently unused)
+	scanWorkExpected := uint64(float64(memstats.heap_marked) * c.workRatioAvg)
+	_ = scanWorkExpected
+}
+
+// endCycle updates the GC controller state at the end of the
+// concurrent part of the GC cycle.
+func (c *gcControllerState) endCycle() {
+	// EWMA weight given to this cycle's scan work ratio.
+	const workRatioWeight = 0.75
+
+	// Compute the scan work ratio for this cycle.
+	workRatio := float64(c.scanWork) / float64(work.bytesMarked)
+
+	// Update EWMA of recent scan work ratios.
+	c.workRatioAvg = workRatioWeight*workRatio + (1-workRatioWeight)*c.workRatioAvg
 }
 
 // Determine whether to initiate a GC.
@@ -418,6 +458,8 @@ func gc(mode int) {
 		// The gcphase is _GCmark, it will transition to _GCmarktermination
 		// below. The important thing is that the wb remains active until
 		// all marking is complete. This includes writes made by the GC.
+
+		gcController.endCycle()
 	} else {
 		// For non-concurrent GC (mode != gcBackgroundMode)
 		// The g stacks have not been scanned so clear g state
@@ -632,6 +674,7 @@ func gcMark(start_time int64) {
 	// Trigger the next GC cycle when the allocated heap has
 	// reached 7/8ths of the growth allowed by gcpercent.
 	memstats.heap_live = work.bytesMarked
+	memstats.heap_marked = work.bytesMarked
 	memstats.next_gc = memstats.heap_live + (memstats.heap_live*uint64(gcpercent)/100)*7/8
 	if memstats.next_gc < heapminimum {
 		memstats.next_gc = heapminimum
