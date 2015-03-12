@@ -380,20 +380,20 @@ func TestHelp(t *testing.T) {
 
 const defaultOutput = `  -A	for bootstrapping, allow 'any' type
   -Alongflagname
-   	disable bounds checking
+    	disable bounds checking
   -C	a boolean defaulting to true (default true)
   -D path
-   	set relative path for local imports
+    	set relative path for local imports
   -F number
-   	a non-zero number (default 2.7)
+    	a non-zero number (default 2.7)
   -G float
-   	a float that defaults to zero
+    	a float that defaults to zero
   -N int
-   	a non-zero int (default 27)
+    	a non-zero int (default 27)
   -Z int
-   	an int that defaults to zero
+    	an int that defaults to zero
   -maxT timeout
-   	set timeout for dial
+    	set timeout for dial
 `
 
 func TestPrintDefaults(t *testing.T) {
