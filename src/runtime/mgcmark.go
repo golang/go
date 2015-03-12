@@ -55,7 +55,7 @@ var oneptr = [...]uint8{typePointer}
 
 //go:nowritebarrier
 func markroot(desc *parfor, i uint32) {
-	var gcw gcWorkProducer
+	var gcw gcWork
 
 	// Note: if you add a case here, please also update heapdump.go:dumproots.
 	switch i {
@@ -246,7 +246,7 @@ func scanstack(gp *g) {
 		throw("can't scan gchelper stack")
 	}
 
-	var gcw gcWorkProducer
+	var gcw gcWork
 	gcw.initFromCache()
 	scanframe := func(frame *stkframe, unused unsafe.Pointer) bool {
 		// Pick up gcw as free variable so gentraceback and friends can
@@ -262,7 +262,7 @@ func scanstack(gp *g) {
 
 // Scan a stack frame: local variables and function arguments/results.
 //go:nowritebarrier
-func scanframeworker(frame *stkframe, unused unsafe.Pointer, gcw *gcWorkProducer) {
+func scanframeworker(frame *stkframe, unused unsafe.Pointer, gcw *gcWork) {
 
 	f := frame.fn
 	targetpc := frame.continpc
@@ -360,7 +360,7 @@ func gcDrain(gcw *gcWork) {
 		// out of the wbuf passed in + a single object placed
 		// into an empty wbuf in scanobject so there could be
 		// a performance hit as we keep fetching fresh wbufs.
-		scanobject(b, 0, nil, &gcw.gcWorkProducer)
+		scanobject(b, 0, nil, gcw)
 	}
 	checknocurrentwbuf()
 }
@@ -378,14 +378,14 @@ func gcDrainN(gcw *gcWork, n int) {
 		if b == 0 {
 			return
 		}
-		scanobject(b, 0, nil, &gcw.gcWorkProducer)
+		scanobject(b, 0, nil, gcw)
 	}
 }
 
 // scanblock scans b as scanobject would.
 // If the gcphase is GCscan, scanblock performs additional checks.
 //go:nowritebarrier
-func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWorkProducer) {
+func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
 	// Use local copies of original parameters, so that a stack trace
 	// due to one of the throws below shows the original block
 	// base and extent.
@@ -411,7 +411,7 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWorkProducer) {
 // In this case, n may be an overestimate of the size; the GC bitmap
 // must also be used to make sure the scan stops at the end of b.
 //go:nowritebarrier
-func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWorkProducer) {
+func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWork) {
 	arena_start := mheap_.arena_start
 	arena_used := mheap_.arena_used
 
@@ -489,7 +489,7 @@ func shade(b uintptr) {
 		//	throw("shade during harvest")
 		// }
 
-		var gcw gcWorkProducer
+		var gcw gcWork
 		greyobject(obj, 0, 0, hbits, &gcw)
 		// This is part of the write barrier so put the wbuf back.
 		if gcphase == _GCmarktermination {
@@ -512,7 +512,7 @@ func shade(b uintptr) {
 // Return possibly new workbuf to use.
 // base and off are for debugging only and could be removed.
 //go:nowritebarrier
-func greyobject(obj, base, off uintptr, hbits heapBits, gcw *gcWorkProducer) {
+func greyobject(obj, base, off uintptr, hbits heapBits, gcw *gcWork) {
 	// obj should be start of allocation, and so must be at least pointer-aligned.
 	if obj&(ptrSize-1) != 0 {
 		throw("greyobject: obj not pointer-aligned")
