@@ -1470,14 +1470,17 @@ func funccompile(n *Node) {
 }
 
 func funcsym(s *Sym) *Sym {
-	p := fmt.Sprintf("%s·f", s.Name)
-	s1 := Pkglookup(p, s.Pkg)
+	if s.Fsym != nil {
+		return s.Fsym
+	}
 
+	s1 := Pkglookup(s.Name+"·f", s.Pkg)
 	if s1.Def == nil {
 		s1.Def = newname(s1)
 		s1.Def.Shortname = newname(s)
 		funcsyms = list(funcsyms, s1.Def)
 	}
+	s.Fsym = s1
 
 	return s1
 }

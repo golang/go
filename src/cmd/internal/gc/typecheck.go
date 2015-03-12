@@ -1362,9 +1362,7 @@ OpSwitch:
 			}
 		}
 
-		descbuf := fmt.Sprintf("argument to %v", Nconv(n.Left, 0))
-		desc := descbuf
-		typecheckaste(OCALL, n.Left, n.Isddd, getinargx(t), n.List, desc)
+		typecheckaste(OCALL, n.Left, n.Isddd, getinargx(t), n.List, func() string { return fmt.Sprintf("argument to %v", Nconv(n.Left, 0)) })
 		ok |= Etop
 		if t.Outtuple == 0 {
 			break OpSwitch
@@ -2127,7 +2125,7 @@ OpSwitch:
 		if Curfn.Type.Outnamed != 0 && n.List == nil {
 			break OpSwitch
 		}
-		typecheckaste(ORETURN, nil, false, getoutargx(Curfn.Type), n.List, "return argument")
+		typecheckaste(ORETURN, nil, false, getoutargx(Curfn.Type), n.List, func() string { return "return argument" })
 		break OpSwitch
 
 	case ORETJMP:
@@ -2604,7 +2602,7 @@ func downcount(t *Type) int {
 /*
  * typecheck assignment: type list = expression list
  */
-func typecheckaste(op int, call *Node, isddd bool, tstruct *Type, nl *NodeList, desc string) {
+func typecheckaste(op int, call *Node, isddd bool, tstruct *Type, nl *NodeList, desc func() string) {
 	var t *Type
 	var n *Node
 	var n1 int
@@ -2641,7 +2639,7 @@ func typecheckaste(op int, call *Node, isddd bool, tstruct *Type, nl *NodeList, 
 								if call != nil {
 									Yyerror("cannot use %v as type %v in argument to %v%s", Tconv(tn.Type, 0), Tconv(tl.Type.Type, 0), Nconv(call, 0), why)
 								} else {
-									Yyerror("cannot use %v as type %v in %s%s", Tconv(tn.Type, 0), Tconv(tl.Type.Type, 0), desc, why)
+									Yyerror("cannot use %v as type %v in %s%s", Tconv(tn.Type, 0), Tconv(tl.Type.Type, 0), desc(), why)
 								}
 							}
 						}
@@ -2656,7 +2654,7 @@ func typecheckaste(op int, call *Node, isddd bool, tstruct *Type, nl *NodeList, 
 						if call != nil {
 							Yyerror("cannot use %v as type %v in argument to %v%s", Tconv(tn.Type, 0), Tconv(tl.Type, 0), Nconv(call, 0), why)
 						} else {
-							Yyerror("cannot use %v as type %v in %s%s", Tconv(tn.Type, 0), Tconv(tl.Type, 0), desc, why)
+							Yyerror("cannot use %v as type %v in %s%s", Tconv(tn.Type, 0), Tconv(tl.Type, 0), desc(), why)
 						}
 					}
 
@@ -2708,7 +2706,7 @@ func typecheckaste(op int, call *Node, isddd bool, tstruct *Type, nl *NodeList, 
 				n = nl.N
 				setlineno(n)
 				if n.Type != nil {
-					nl.N = assignconv(n, t, desc)
+					nl.N = assignconvfn(n, t, desc)
 				}
 				goto out
 			}
@@ -2717,7 +2715,7 @@ func typecheckaste(op int, call *Node, isddd bool, tstruct *Type, nl *NodeList, 
 				n = nl.N
 				setlineno(nl.N)
 				if n.Type != nil {
-					nl.N = assignconv(n, t.Type, desc)
+					nl.N = assignconvfn(n, t.Type, desc)
 				}
 			}
 
@@ -2730,7 +2728,7 @@ func typecheckaste(op int, call *Node, isddd bool, tstruct *Type, nl *NodeList, 
 		n = nl.N
 		setlineno(n)
 		if n.Type != nil {
-			nl.N = assignconv(n, t, desc)
+			nl.N = assignconvfn(n, t, desc)
 		}
 		nl = nl.Next
 	}
@@ -3395,10 +3393,7 @@ func checkassignto(src *Type, dst *Node) {
 }
 
 func typecheckas2(n *Node) {
-	var ll *NodeList
-	var lr *NodeList
-
-	for ll = n.List; ll != nil; ll = ll.Next {
+	for ll := n.List; ll != nil; ll = ll.Next {
 		// delicate little dance.
 		ll.N = resolve(ll.N)
 
@@ -3420,8 +3415,8 @@ func typecheckas2(n *Node) {
 	var r *Node
 	if cl == cr {
 		// easy
-		ll = n.List
-		lr = n.Rlist
+		ll := n.List
+		lr := n.Rlist
 		for ; ll != nil; ll, lr = ll.Next, lr.Next {
 			if ll.N.Type != nil && lr.N.Type != nil {
 				lr.N = assignconv(lr.N, ll.N.Type, "assignment")
@@ -3457,7 +3452,7 @@ func typecheckas2(n *Node) {
 			n.Op = OAS2FUNC
 			var s Iter
 			t := Structfirst(&s, &r.Type)
-			for ll = n.List; ll != nil; ll = ll.Next {
+			for ll := n.List; ll != nil; ll = ll.Next {
 				if t.Type != nil && ll.N.Type != nil {
 					checkassignto(t.Type, ll.N)
 				}
@@ -3516,7 +3511,7 @@ mismatch:
 out:
 	n.Typecheck = 1
 
-	for ll = n.List; ll != nil; ll = ll.Next {
+	for ll := n.List; ll != nil; ll = ll.Next {
 		if ll.N.Typecheck == 0 {
 			typecheck(&ll.N, Erv|Easgn)
 		}

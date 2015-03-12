@@ -948,7 +948,7 @@ func walkexpr(np **Node, init **NodeList) {
 			ll = list(ll, typename(n.Type))
 		}
 		if !Isinter(n.Left.Type) && !isnilinter(n.Type) {
-			sym := Pkglookup(fmt.Sprintf("%v.%v", Tconv(n.Left.Type, obj.FmtLeft), Tconv(n.Type, obj.FmtLeft)), itabpkg)
+			sym := Pkglookup(Tconv(n.Left.Type, obj.FmtLeft)+"."+Tconv(n.Type, obj.FmtLeft), itabpkg)
 			if sym.Def == nil {
 				l := Nod(ONAME, nil, nil)
 				l.Sym = sym
@@ -1631,9 +1631,6 @@ func ascompatee1(op int, l *Node, r *Node, init **NodeList) *Node {
 }
 
 func ascompatee(op int, nl *NodeList, nr *NodeList, init **NodeList) *NodeList {
-	var ll *NodeList
-	var lr *NodeList
-
 	/*
 	 * check assign expression list to
 	 * a expression list. called in
@@ -1641,16 +1638,16 @@ func ascompatee(op int, nl *NodeList, nr *NodeList, init **NodeList) *NodeList {
 	 */
 
 	// ensure order of evaluation for function calls
-	for ll = nl; ll != nil; ll = ll.Next {
+	for ll := nl; ll != nil; ll = ll.Next {
 		ll.N = safeexpr(ll.N, init)
 	}
-	for lr = nr; lr != nil; lr = lr.Next {
+	for lr := nr; lr != nil; lr = lr.Next {
 		lr.N = safeexpr(lr.N, init)
 	}
 
 	var nn *NodeList
-	ll = nl
-	lr = nr
+	ll := nl
+	lr := nr
 	for ; ll != nil && lr != nil; ll, lr = ll.Next, lr.Next {
 		// Do not generate 'x = x' during return. See issue 4014.
 		if op == ORETURN && ll.N == lr.N {
@@ -1798,7 +1795,7 @@ func dumptypes(nl **Type, what string) string {
 		} else {
 			fmt_ += ", "
 		}
-		fmt_ += fmt.Sprintf("%v", Tconv(l, 0))
+		fmt_ += Tconv(l, 0)
 	}
 
 	if first != 0 {
@@ -1820,7 +1817,7 @@ func dumpnodetypes(l *NodeList, what string) string {
 		} else {
 			fmt_ += ", "
 		}
-		fmt_ += fmt.Sprintf("%v", Tconv(r.Type, 0))
+		fmt_ += Tconv(r.Type, 0)
 	}
 
 	if first != 0 {

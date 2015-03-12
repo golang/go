@@ -436,9 +436,6 @@ func esclist(e *EscState, l *NodeList, up *Node) {
 }
 
 func esc(e *EscState, n *Node, up *Node) {
-	var ll *NodeList
-	var lr *NodeList
-
 	if n == nil {
 		return
 	}
@@ -457,7 +454,7 @@ func esc(e *EscState, n *Node, up *Node) {
 	// must happen before processing of switch body,
 	// so before recursion.
 	if n.Op == OSWITCH && n.Ntest != nil && n.Ntest.Op == OTYPESW {
-		for ll = n.List; ll != nil; ll = ll.Next { // cases
+		for ll := n.List; ll != nil; ll = ll.Next { // cases
 
 			// ll->n->nname is the variable per case
 			if ll.N.Nname != nil {
@@ -522,7 +519,7 @@ func esc(e *EscState, n *Node, up *Node) {
 
 	case OSWITCH:
 		if n.Ntest != nil && n.Ntest.Op == OTYPESW {
-			for ll = n.List; ll != nil; ll = ll.Next { // cases
+			for ll := n.List; ll != nil; ll = ll.Next { // cases
 
 				// ntest->right is the argument of the .(type),
 				// ll->n->nname is the variable per case
@@ -574,8 +571,8 @@ func esc(e *EscState, n *Node, up *Node) {
 
 	case OAS2: // x,y = a,b
 		if count(n.List) == count(n.Rlist) {
-			ll = n.List
-			lr = n.Rlist
+			ll := n.List
+			lr := n.Rlist
 			for ; ll != nil; ll, lr = ll.Next, lr.Next {
 				escassign(e, ll.N, lr.N)
 			}
@@ -602,7 +599,7 @@ func esc(e *EscState, n *Node, up *Node) {
 		escassign(e, &e.theSink, n.Left.Left)
 
 		escassign(e, &e.theSink, n.Left.Right) // ODDDARG for call
-		for ll = n.Left.List; ll != nil; ll = ll.Next {
+		for ll := n.Left.List; ll != nil; ll = ll.Next {
 			escassign(e, &e.theSink, ll.N)
 		}
 
@@ -613,8 +610,9 @@ func esc(e *EscState, n *Node, up *Node) {
 
 		// esccall already done on n->rlist->n. tie it's escretval to n->list
 	case OAS2FUNC: // x,y = f()
-		lr = n.Rlist.N.Escretval
+		lr := n.Rlist.N.Escretval
 
+		var ll *NodeList
 		for ll = n.List; lr != nil && ll != nil; lr, ll = lr.Next, ll.Next {
 			escassign(e, ll.N, lr.N)
 		}
@@ -623,7 +621,7 @@ func esc(e *EscState, n *Node, up *Node) {
 		}
 
 	case ORETURN:
-		ll = n.List
+		ll := n.List
 		if count(n.List) == 1 && Curfn.Type.Outtuple > 1 {
 			// OAS2FUNC in disguise
 			// esccall already done on n->list->n
@@ -631,7 +629,7 @@ func esc(e *EscState, n *Node, up *Node) {
 			ll = n.List.N.Escretval
 		}
 
-		for lr = Curfn.Dcl; lr != nil && ll != nil; lr = lr.Next {
+		for lr := Curfn.Dcl; lr != nil && ll != nil; lr = lr.Next {
 			if lr.N.Op != ONAME || lr.N.Class != PPARAMOUT {
 				continue
 			}
@@ -649,7 +647,7 @@ func esc(e *EscState, n *Node, up *Node) {
 
 	case OAPPEND:
 		if !n.Isddd {
-			for ll = n.List.Next; ll != nil; ll = ll.Next {
+			for ll := n.List.Next; ll != nil; ll = ll.Next {
 				escassign(e, &e.theSink, ll.N) // lose track of assign to dereference
 			}
 		}
@@ -666,19 +664,19 @@ func esc(e *EscState, n *Node, up *Node) {
 			n.Escloopdepth = e.loopdepth
 
 			// Values make it to memory, lose track.
-			for ll = n.List; ll != nil; ll = ll.Next {
+			for ll := n.List; ll != nil; ll = ll.Next {
 				escassign(e, &e.theSink, ll.N.Right)
 			}
 		} else {
 			// Link values to array.
-			for ll = n.List; ll != nil; ll = ll.Next {
+			for ll := n.List; ll != nil; ll = ll.Next {
 				escassign(e, n, ll.N.Right)
 			}
 		}
 
 		// Link values to struct.
 	case OSTRUCTLIT:
-		for ll = n.List; ll != nil; ll = ll.Next {
+		for ll := n.List; ll != nil; ll = ll.Next {
 			escassign(e, n, ll.N.Right)
 		}
 
@@ -704,7 +702,7 @@ func esc(e *EscState, n *Node, up *Node) {
 		n.Escloopdepth = e.loopdepth
 
 		// Keys and values make it to memory, lose track.
-		for ll = n.List; ll != nil; ll = ll.Next {
+		for ll := n.List; ll != nil; ll = ll.Next {
 			escassign(e, &e.theSink, ll.N.Left)
 			escassign(e, &e.theSink, ll.N.Right)
 		}
@@ -713,7 +711,7 @@ func esc(e *EscState, n *Node, up *Node) {
 	case OCLOSURE:
 		var a *Node
 		var v *Node
-		for ll = n.Cvars; ll != nil; ll = ll.Next {
+		for ll := n.Cvars; ll != nil; ll = ll.Next {
 			v = ll.N
 			if v.Op == OXXX { // unnamed out argument; see dcl.c:/^funcargs
 				continue
@@ -953,9 +951,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
 }
 
 func escassignfromtag(e *EscState, note *string, dsts *NodeList, src *Node) int {
-	var em int
-
-	em = parsetag(note)
+	em := parsetag(note)
 
 	if em == EscUnknown {
 		escassign(e, &e.theSink, src)
@@ -992,8 +988,6 @@ func escassignfromtag(e *EscState, note *string, dsts *NodeList, src *Node) int 
 // different for methods vs plain functions and for imported vs
 // this-package
 func esccall(e *EscState, n *Node, up *Node) {
-	var ll *NodeList
-	var lr *NodeList
 	var fntype *Type
 
 	var fn *Node
@@ -1017,7 +1011,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 		fntype = n.Left.Type
 	}
 
-	ll = n.List
+	ll := n.List
 	if n.List != nil && n.List.Next == nil {
 		a := n.List.N
 		if a.Type.Etype == TSTRUCT && a.Type.Funarg != 0 { // f(g()).
@@ -1033,7 +1027,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 		}
 
 		// set up out list on this call node
-		for lr = fn.Ntype.Rlist; lr != nil; lr = lr.Next {
+		for lr := fn.Ntype.Rlist; lr != nil; lr = lr.Next {
 			n.Escretval = list(n.Escretval, lr.N.Left) // type.rlist ->  dclfield -> ONAME (PPARAMOUT)
 		}
 
@@ -1043,7 +1037,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 		}
 
 		var src *Node
-		for lr = fn.Ntype.List; ll != nil && lr != nil; ll, lr = ll.Next, lr.Next {
+		for lr := fn.Ntype.List; ll != nil && lr != nil; ll, lr = ll.Next, lr.Next {
 			src = ll.N
 			if lr.N.Isddd && !n.Isddd {
 				// Introduce ODDDARG node to represent ... allocation.

@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/internal/obj"
 	"fmt"
+	"strconv"
 )
 
 /*
@@ -155,16 +156,18 @@ func Linksym(s *Sym) *obj.LSym {
 	if s.Lsym != nil {
 		return s.Lsym
 	}
+	var name string
 	if isblanksym(s) {
-		s.Lsym = obj.Linklookup(Ctxt, "_", 0)
+		name = "_"
 	} else if s.Linkname != "" {
-		s.Lsym = obj.Linklookup(Ctxt, s.Linkname, 0)
+		name = s.Linkname
 	} else {
-		p := fmt.Sprintf("%s.%s", s.Pkg.Prefix, s.Name)
-		s.Lsym = obj.Linklookup(Ctxt, p, 0)
+		name = s.Pkg.Prefix + "." + s.Name
 	}
 
-	return s.Lsym
+	ls := obj.Linklookup(Ctxt, name, 0)
+	s.Lsym = ls
+	return ls
 }
 
 func duintxx(s *Sym, off int, v uint64, wid int) int {
@@ -211,7 +214,7 @@ func stringsym(s string) *Sym {
 		// small strings get named by their contents,
 		// so that multiple modules using the same string
 		// can share it.
-		symname = fmt.Sprintf("%q", s)
+		symname = strconv.Quote(s)
 		pkg = gostringpkg
 	}
 

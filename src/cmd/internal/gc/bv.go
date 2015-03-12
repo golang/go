@@ -58,16 +58,8 @@ func (b *bulkBvec) next() Bvec {
 
 /* difference */
 func bvandnot(dst Bvec, src1 Bvec, src2 Bvec) {
-	var i int32
-	var w int32
-
-	if dst.n != src1.n || dst.n != src2.n {
-		Fatal("bvand: lengths %d, %d, and %d are not equal", dst.n, src1.n, src2.n)
-	}
-	i = 0
-	w = 0
-	for ; i < dst.n; i, w = i+WORDBITS, w+1 {
-		dst.b[w] = src1.b[w] &^ src2.b[w]
+	for i, x := range src1.b {
+		dst.b[i] = x &^ src2.b[i]
 	}
 }
 
@@ -152,11 +144,8 @@ func bvisempty(bv Bvec) bool {
 }
 
 func bvnot(bv Bvec) {
-	var i int32
-	var w int32
-
-	i = 0
-	w = 0
+	i := int32(0)
+	w := int32(0)
 	for ; i < bv.n; i, w = i+WORDBITS, w+1 {
 		bv.b[w] = ^bv.b[w]
 	}
@@ -164,31 +153,15 @@ func bvnot(bv Bvec) {
 
 /* union */
 func bvor(dst Bvec, src1 Bvec, src2 Bvec) {
-	var i int32
-	var w int32
-
-	if dst.n != src1.n || dst.n != src2.n {
-		Fatal("bvor: lengths %d, %d, and %d are not equal", dst.n, src1.n, src2.n)
-	}
-	i = 0
-	w = 0
-	for ; i < dst.n; i, w = i+WORDBITS, w+1 {
-		dst.b[w] = src1.b[w] | src2.b[w]
+	for i, x := range src1.b {
+		dst.b[i] = x | src2.b[i]
 	}
 }
 
 /* intersection */
 func bvand(dst Bvec, src1 Bvec, src2 Bvec) {
-	var i int32
-	var w int32
-
-	if dst.n != src1.n || dst.n != src2.n {
-		Fatal("bvor: lengths %d, %d, and %d are not equal", dst.n, src1.n, src2.n)
-	}
-	i = 0
-	w = 0
-	for ; i < dst.n; i, w = i+WORDBITS, w+1 {
-		dst.b[w] = src1.b[w] & src2.b[w]
+	for i, x := range src1.b {
+		dst.b[i] = x & src2.b[i]
 	}
 }
 

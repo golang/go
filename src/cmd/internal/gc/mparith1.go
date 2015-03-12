@@ -15,7 +15,7 @@ import (
 func mpcmpfixflt(a *Mpint, b *Mpflt) int {
 	var c Mpflt
 
-	buf := fmt.Sprintf("%v", Bconv(a, 0))
+	buf := Bconv(a, 0)
 	mpatoflt(&c, buf)
 	return mpcmpfltflt(&c, b)
 }
@@ -23,7 +23,7 @@ func mpcmpfixflt(a *Mpint, b *Mpflt) int {
 func mpcmpfltfix(a *Mpflt, b *Mpint) int {
 	var c Mpflt
 
-	buf := fmt.Sprintf("%v", Bconv(b, 0))
+	buf := Bconv(b, 0)
 	mpatoflt(&c, buf)
 	return mpcmpfltflt(a, &c)
 }
