@@ -38,7 +38,7 @@ func testEndToEnd(t *testing.T, goarch string) {
 	obj.Binitw(ioutil.Discard)
 	pList.Firstpc, ok = parser.Parse()
 	if !ok {
-		t.Fatalf("asm: ppc64 assembly failed")
+		t.Fatalf("asm: %s assembly failed", goarch)
 	}
 	result := string(testOut.Bytes())
 	expect, err := ioutil.ReadFile(output)
