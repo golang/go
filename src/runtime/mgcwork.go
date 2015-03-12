@@ -53,6 +53,10 @@ func (wp wbufptr) ptr() *workbuf {
 type gcWork struct {
 	// Invariant: wbuf is never full or empty
 	wbuf wbufptr
+
+	// Bytes marked (blackened) on this gcWork. This is aggregated
+	// into work.bytesMarked by dispose.
+	bytesMarked uint64
 }
 
 // initFromCache fetches work from this M's currentwbuf cache.
@@ -152,6 +156,14 @@ func (w *gcWork) dispose() {
 		putpartial(wbuf.ptr(), 167)
 		w.wbuf = 0
 	}
+	if w.bytesMarked != 0 {
+		// dispose happens relatively infrequently. If this
+		// atomic becomes a problem, we should first try to
+		// dispose less and if necessary aggregate in a per-P
+		// counter.
+		xadd64(&work.bytesMarked, int64(w.bytesMarked))
+		w.bytesMarked = 0
+	}
 }
 
 // disposeToCache returns any cached pointers to this M's currentwbuf.
@@ -164,6 +176,10 @@ func (w *gcWork) disposeToCache() {
 			throw("m.currentwbuf non-nil in disposeToCache")
 		}
 		w.wbuf = 0
+	}
+	if w.bytesMarked != 0 {
+		xadd64(&work.bytesMarked, int64(w.bytesMarked))
+		w.bytesMarked = 0
 	}
 }
 

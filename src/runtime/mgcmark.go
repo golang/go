@@ -155,6 +155,10 @@ func markroot(desc *parfor, i uint32) {
 			restartg(gp)
 		}
 	}
+
+	// Root aren't part of the heap, so don't count them toward
+	// marked heap bytes.
+	gcw.bytesMarked = 0
 	gcw.dispose()
 }
 
@@ -256,6 +260,9 @@ func scanstack(gp *g) {
 	}
 	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, scanframe, nil, 0)
 	tracebackdefers(gp, scanframe, nil)
+	// Stacks aren't part of the heap, so don't count them toward
+	// marked heap bytes.
+	gcw.bytesMarked = 0
 	gcw.disposeToCache()
 	gp.gcscanvalid = true
 }
@@ -465,10 +472,11 @@ func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWork) {
 		}
 
 		// Mark the object.
-		if obj, hbits, _ := heapBitsForObject(obj); obj != 0 {
-			greyobject(obj, b, i, hbits, gcw)
+		if obj, hbits, span := heapBitsForObject(obj); obj != 0 {
+			greyobject(obj, b, i, hbits, span, gcw)
 		}
 	}
+	gcw.bytesMarked += uint64(n)
 }
 
 // Shade the object if it isn't already.
@@ -478,7 +486,7 @@ func shade(b uintptr) {
 	if !inheap(b) {
 		throw("shade: passed an address not in the heap")
 	}
-	if obj, hbits, _ := heapBitsForObject(b); obj != 0 {
+	if obj, hbits, span := heapBitsForObject(b); obj != 0 {
 		// TODO: this would be a great place to put a check to see
 		// if we are harvesting and if we are then we should
 		// figure out why there is a call to shade when the
@@ -490,7 +498,7 @@ func shade(b uintptr) {
 		// }
 
 		var gcw gcWork
-		greyobject(obj, 0, 0, hbits, &gcw)
+		greyobject(obj, 0, 0, hbits, span, &gcw)
 		// This is part of the write barrier so put the wbuf back.
 		if gcphase == _GCmarktermination {
 			gcw.dispose()
@@ -512,7 +520,7 @@ func shade(b uintptr) {
 // Return possibly new workbuf to use.
 // base and off are for debugging only and could be removed.
 //go:nowritebarrier
-func greyobject(obj, base, off uintptr, hbits heapBits, gcw *gcWork) {
+func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork) {
 	// obj should be start of allocation, and so must be at least pointer-aligned.
 	if obj&(ptrSize-1) != 0 {
 		throw("greyobject: obj not pointer-aligned")
@@ -550,6 +558,7 @@ func greyobject(obj, base, off uintptr, hbits heapBits, gcw *gcWork) {
 		// If this is a noscan object, fast-track it to black
 		// instead of greying it.
 		if hbits.typeBits() == typeDead {
+			gcw.bytesMarked += uint64(span.elemsize)
 			return
 		}
 	}
@@ -588,7 +597,7 @@ func gcDumpObject(label string, obj, off uintptr) {
 
 // When in GCmarkterminate phase we allocate black.
 //go:nowritebarrier
-func gcmarknewobject_m(obj uintptr) {
+func gcmarknewobject_m(obj, size uintptr) {
 	if gcphase != _GCmarktermination {
 		throw("marking new object while not in mark termination phase")
 	}
@@ -597,6 +606,7 @@ func gcmarknewobject_m(obj uintptr) {
 	}
 
 	heapBitsForAddr(obj).setMarked()
+	xadd64(&work.bytesMarked, int64(size))
 }
 
 // Checkmarking
