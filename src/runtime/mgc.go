@@ -219,6 +219,19 @@ var work struct {
 	// totaltime is the CPU nanoseconds spent in GC since the
 	// program started if debug.gctrace > 0.
 	totaltime int64
+
+	// bytesMarked is the number of bytes marked this cycle. This
+	// includes bytes blackened in scanned objects, noscan objects
+	// that go straight to black, and permagrey objects scanned by
+	// markroot during the concurrent scan phase. This is updated
+	// atomically during the cycle. Updates may be batched
+	// arbitrarily, since the value is only read at the end of the
+	// cycle.
+	//
+	// Because of benign races during marking, this number may not
+	// be the exact number of marked bytes, but it should be very
+	// close.
+	bytesMarked uint64
 }
 
 // GC runs a garbage collection.
@@ -322,6 +335,8 @@ func gc(mode int) {
 	// clearpools before we start the GC. If we wait they memory will not be
 	// reclaimed until the next GC cycle.
 	clearpools()
+
+	work.bytesMarked = 0
 
 	if mode == gcBackgroundMode { // Do as much work concurrently as possible
 		systemstack(func() {

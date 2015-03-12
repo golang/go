@@ -648,7 +648,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 	// a race marking the bit.
 	if gcphase == _GCmarktermination {
 		systemstack(func() {
-			gcmarknewobject_m(uintptr(x))
+			gcmarknewobject_m(uintptr(x), size)
 		})
 	}
 
