@@ -517,14 +517,14 @@ outer:
 
 	// put out names of token names
 	ftable.WriteRune('\n')
-	fmt.Fprintf(ftable, "var %sToknames = []string{\n", prefix)
+	fmt.Fprintf(ftable, "var %sToknames = [...]string{\n", prefix)
 	for i := TOKSTART; i <= ntokens; i++ {
 		fmt.Fprintf(ftable, "\t\"%v\",\n", tokset[i].name)
 	}
 	fmt.Fprintf(ftable, "}\n")
 
 	// put out names of state names
-	fmt.Fprintf(ftable, "var %sStatenames = []string{", prefix)
+	fmt.Fprintf(ftable, "var %sStatenames = [...]string{", prefix)
 	//	for i:=TOKSTART; i<=ntokens; i++ {
 	//		fmt.Fprintf(ftable, "\t\"%v\",\n", tokset[i].name);
 	//	}
@@ -2156,7 +2156,7 @@ func output() {
 	if !lflag {
 		fmt.Fprintf(ftable, "\n//line yacctab:1")
 	}
-	fmt.Fprintf(ftable, "\nvar %sExca = []int{\n", prefix)
+	fmt.Fprintf(ftable, "\nvar %sExca = [...]int{\n", prefix)
 
 	noset := mkset()
 
@@ -2892,7 +2892,7 @@ func others() {
 	arout("Tok2", temp1, c+1)
 
 	// table 3 has everything else
-	fmt.Fprintf(ftable, "var %sTok3 = []int{\n\t", prefix)
+	fmt.Fprintf(ftable, "var %sTok3 = [...]int{\n\t", prefix)
 	c = 0
 	for i = 1; i <= ntokens; i++ {
 		j = tokset[i].value
@@ -2937,7 +2937,7 @@ func others() {
 
 func arout(s string, v []int, n int) {
 	s = prefix + s
-	fmt.Fprintf(ftable, "var %v = []int{\n", s)
+	fmt.Fprintf(ftable, "var %v = [...]int{\n", s)
 	for i := 0; i < n; i++ {
 		if i%10 == 0 {
 			fmt.Fprintf(ftable, "\n\t")
