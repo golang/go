@@ -441,9 +441,9 @@ func (f *FlagSet) PrintDefaults() {
 		if len(s) <= 4 { // space, space, '-', 'x'.
 			s += "\t"
 		} else {
-			// Three spaces before the tab triggers good alignment
+			// Four spaces before the tab triggers good alignment
 			// for both 4- and 8-space tab stops.
-			s += "\n   \t"
+			s += "\n    \t"
 		}
 		s += usage
 		if !isZeroValue(flag.DefValue) {
