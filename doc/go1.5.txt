@@ -25,6 +25,7 @@ testing/quick: support generation of arrays (https://golang.org/cl/3865)
 
 Tools:
 
+cmd/go, go/build: add ${SRCDIR} variable expansion to cgo lines (https://golang.org/cl/1756)
 cmd/go: std wildcard now excludes commands in main repo (https://golang.org/cl/5550)
 cmd/go: .swig/.swigcxx files now require SWIG 3.0.6 or later
 cmd/vet: better validation of struct tags (https://golang.org/cl/2685)
