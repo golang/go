@@ -83,6 +83,19 @@ func needwb() bool {
 	return gcphase == _GCmark || gcphase == _GCmarktermination || mheap_.shadow_enabled
 }
 
+// Write barrier calls must not happen during critical GC and scheduler
+// related operations. In particular there are times when the GC assumes
+// that the world is stopped but scheduler related code is still being
+// executed, dealing with syscalls, dealing with putting gs on runnable
+// queues and so forth. This code can not execute write barriers because
+// the GC might drop them on the floor. Stopping the world involves removing
+// the p associated with an m. We use the fact that m.p == nil to indicate
+// that we are in one these critical section and throw if the write is of
+// a pointer to a heap object.
+// The p, m, and g pointers are the pointers that are used by the scheduler
+// and need to be operated on without write barriers. We use
+// the setPNoWriteBarrier, setMNoWriteBarrier and setGNowriteBarrier to
+// avoid having to do the write barrier.
 //go:nosplit
 func writebarrierptr_nostore1(dst *uintptr, src uintptr) {
 	mp := acquirem()
@@ -90,8 +103,11 @@ func writebarrierptr_nostore1(dst *uintptr, src uintptr) {
 		releasem(mp)
 		return
 	}
-	mp.inwb = true
 	systemstack(func() {
+		if mp.p == nil && memstats.enablegc && !mp.inwb && inheap(src) {
+			throw("writebarrierptr_nostore1 called with mp.p == nil")
+		}
+		mp.inwb = true
 		gcmarkwb_m(dst, src)
 	})
 	mp.inwb = false
