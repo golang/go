@@ -2240,7 +2240,6 @@ hidden_interfacedcl_list:
 	}
 
 %%
-
 func fixlbrace(lbr int) {
 	// If the opening brace was an LBODY,
 	// set up for another one now that we're done.
@@ -2249,4 +2248,3 @@ func fixlbrace(lbr int) {
 		loophack = 1
 	}
 }
-
