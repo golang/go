@@ -274,21 +274,25 @@ func net_runtime_pollUnblock(pd *pollDesc) {
 }
 
 // make pd ready, newly runnable goroutines (if any) are returned in rg/wg
+// May run during STW, so write barriers are not allowed.
+// Eliminating WB calls using setGNoWriteBarrier are safe since the gs are
+// reachable through allg.
+//go:nowritebarrier
 func netpollready(gpp **g, pd *pollDesc, mode int32) {
 	var rg, wg *g
 	if mode == 'r' || mode == 'r'+'w' {
-		rg = netpollunblock(pd, 'r', true)
+		setGNoWriteBarrier(&rg, netpollunblock(pd, 'r', true))
 	}
 	if mode == 'w' || mode == 'r'+'w' {
-		wg = netpollunblock(pd, 'w', true)
+		setGNoWriteBarrier(&wg, netpollunblock(pd, 'w', true))
 	}
 	if rg != nil {
-		rg.schedlink = *gpp
-		*gpp = rg
+		setGNoWriteBarrier(&rg.schedlink, *gpp)
+		setGNoWriteBarrier(gpp, rg)
 	}
 	if wg != nil {
-		wg.schedlink = *gpp
-		*gpp = wg
+		setGNoWriteBarrier(&wg.schedlink, *gpp)
+		setGNoWriteBarrier(gpp, wg)
 	}
 }
 

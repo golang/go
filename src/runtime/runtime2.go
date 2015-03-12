@@ -117,6 +117,38 @@ func (gp guintptr) ptr() *g {
 	return (*g)(unsafe.Pointer(gp))
 }
 
+// ps, ms, gs, and mcache are structures that must be manipulated at a level
+// lower than that of the normal Go language. For example the routine that
+// stops the world removes the p from the m structure informing the GC that
+// this P is stopped and then it moves the g to the global runnable queue.
+// If write barriers were allowed to happen at this point not only does
+// the GC think the thread is stopped but the underlying structures
+// like a p or m are not in a state that is not coherent enough to
+// support the write barrier actions.
+// This is particularly painful since a partially executed write barrier
+// may mark the object but be delinquent in informing the GC that the
+// object needs to be scanned.
+
+// setGNoWriteBarriers does *gdst = gval without a write barrier.
+func setGNoWriteBarrier(gdst **g, gval *g) {
+	*(*uintptr)(unsafe.Pointer(gdst)) = uintptr(unsafe.Pointer(gval))
+}
+
+// setMNoWriteBarriers does *mdst = mval without a write barrier.
+func setMNoWriteBarrier(mdst **m, mval *m) {
+	*(*uintptr)(unsafe.Pointer(mdst)) = uintptr(unsafe.Pointer(mval))
+}
+
+// setPNoWriteBarriers does *pdst = pval without a write barrier.
+func setPNoWriteBarrier(pdst **p, pval *p) {
+	*(*uintptr)(unsafe.Pointer(pdst)) = uintptr(unsafe.Pointer(pval))
+}
+
+// setMcacheNoWriteBarriers does *mcachedst = mcacheval without a write barrier.
+func setMcacheNoWriteBarrier(mcachedst **mcache, mcacheval *mcache) {
+	*(*uintptr)(unsafe.Pointer(mcachedst)) = uintptr(unsafe.Pointer(mcacheval))
+}
+
 type gobuf struct {
 	// The offsets of sp, pc, and g are known to (hard-coded in) libmach.
 	sp   uintptr
@@ -233,13 +265,13 @@ type m struct {
 	morebuf gobuf // gobuf arg to morestack
 
 	// Fields not known to debuggers.
-	procid        uint64         // for debuggers, but offset not hard-coded
-	gsignal       *g             // signal-handling g
-	tls           [4]uintptr     // thread-local storage (for x86 extern register)
-	mstartfn      unsafe.Pointer // todo go func()
-	curg          *g             // current running goroutine
-	caughtsig     *g             // goroutine running during fatal signal
-	p             *p             // attached p for executing go code (nil if not executing go code)
+	procid        uint64     // for debuggers, but offset not hard-coded
+	gsignal       *g         // signal-handling g
+	tls           [4]uintptr // thread-local storage (for x86 extern register)
+	mstartfn      uintptr    // TODO: type as func(); note: this is a non-heap allocated func()
+	curg          *g         // current running goroutine
+	caughtsig     *g         // goroutine running during fatal signal
+	p             *p         // attached p for executing go code (nil if not executing go code)
 	nextp         *p
 	id            int32
 	mallocing     int32
