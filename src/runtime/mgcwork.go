@@ -57,6 +57,10 @@ type gcWork struct {
 	// Bytes marked (blackened) on this gcWork. This is aggregated
 	// into work.bytesMarked by dispose.
 	bytesMarked uint64
+
+	// Scan work performed on this gcWork. This is aggregated into
+	// gcController by dispose.
+	scanWork int64
 }
 
 // initFromCache fetches work from this M's currentwbuf cache.
@@ -164,6 +168,10 @@ func (w *gcWork) dispose() {
 		xadd64(&work.bytesMarked, int64(w.bytesMarked))
 		w.bytesMarked = 0
 	}
+	if w.scanWork != 0 {
+		xaddint64(&gcController.scanWork, w.scanWork)
+		w.scanWork = 0
+	}
 }
 
 // disposeToCache returns any cached pointers to this M's currentwbuf.
@@ -180,6 +188,10 @@ func (w *gcWork) disposeToCache() {
 	if w.bytesMarked != 0 {
 		xadd64(&work.bytesMarked, int64(w.bytesMarked))
 		w.bytesMarked = 0
+	}
+	if w.scanWork != 0 {
+		xaddint64(&gcController.scanWork, w.scanWork)
+		w.scanWork = 0
 	}
 }
 
