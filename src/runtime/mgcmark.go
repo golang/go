@@ -56,7 +56,6 @@ var oneptr = [...]uint8{typePointer}
 //go:nowritebarrier
 func markroot(desc *parfor, i uint32) {
 	var gcw gcWorkProducer
-	gcw.initFromCache()
 
 	// Note: if you add a case here, please also update heapdump.go:dumproots.
 	switch i {
