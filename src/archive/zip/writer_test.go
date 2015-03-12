@@ -87,7 +87,7 @@ func TestWriter(t *testing.T) {
 	}
 }
 
-func TestWriterOffsetOption(t *testing.T) {
+func TestWriterOffset(t *testing.T) {
 	largeData := make([]byte, 1<<17)
 	for i := range largeData {
 		largeData[i] = byte(rand.Int())
@@ -101,7 +101,8 @@ func TestWriterOffsetOption(t *testing.T) {
 	buf := new(bytes.Buffer)
 	existingData := []byte{1, 2, 3, 1, 2, 3, 1, 2, 3}
 	n, _ := buf.Write(existingData)
-	w := NewWriterWithOptions(buf, &WriterOptions{Offset: int64(n)})
+	w := NewWriter(buf)
+	w.SetOffset(int64(n))
 
 	for _, wt := range writeTests {
 		testCreate(t, w, &wt)
