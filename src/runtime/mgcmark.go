@@ -408,7 +408,6 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWorkProducer) {
 }
 
 // Scan the object b of size n bytes, adding pointers to wbuf.
-// Return possibly new wbuf to use.
 // If ptrmask != nil, it specifies where pointers are in b.
 // If ptrmask == nil, the GC bitmap should be consulted.
 // In this case, n may be an overestimate of the size; the GC bitmap
