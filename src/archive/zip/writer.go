@@ -29,29 +29,20 @@ type header struct {
 	offset uint64
 }
 
-// WriterOptions contains configuration options for a zip.Writer.
-type WriterOptions struct {
-	// Offset modifies the initial zip offset.
-	// This is useful when the zip is appended to other data such as a binary executable.
-	Offset int64
-}
-
 // NewWriter returns a new Writer writing a zip file to w.
 func NewWriter(w io.Writer) *Writer {
-	return NewWriterWithOptions(w, nil)
+	return &Writer{cw: &countWriter{w: bufio.NewWriter(w)}}
 }
 
-// NewWriterWithOptions returns a new Writer writing a zip file to w and uses the given options.
-func NewWriterWithOptions(w io.Writer, options *WriterOptions) *Writer {
-	writer := &Writer{
-		cw: &countWriter{
-			w: bufio.NewWriter(w),
-		},
+// SetOffset sets the offset of the beginning of the zip data within the
+// underlying writer. It should be used when the zip data is appended to an
+// existing file, such as a binary executable.
+// It must be called before any data is written.
+func (w *Writer) SetOffset(n int64) {
+	if w.cw.count != 0 {
+		panic("zip: SetOffset called after data was written")
 	}
-	if options != nil {
-		writer.cw.count = options.Offset
-	}
-	return writer
+	w.cw.count = n
 }
 
 // Flush flushes any buffered data to the underlying writer.
