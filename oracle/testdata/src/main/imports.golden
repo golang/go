@@ -7,11 +7,15 @@ import of package "hash/fnv"
 
 -------- @describe ref-pkg-import --------
 import of package "lib"
-	const Const untyped int = 3
-	func  Func  func()
-	type  Type  int
+	const Const  untyped int = 3
+	func  Func   func()
+	type  Sorter interface{...}
+		method (Sorter) Len() int
+		method (Sorter) Less(i int, j int) bool
+		method (Sorter) Swap(i int, j int)
+	type  Type   int
 		method (Type) Method(x *int) *int
-	var   Var   int
+	var   Var    int
 
 -------- @describe ref-const --------
 reference to const lib.Const untyped int
@@ -41,9 +45,13 @@ this *int may point to these objects:
 
 -------- @describe ref-pkg --------
 reference to package "lib"
-	const Const untyped int = 3
-	func  Func  func()
-	type  Type  int
+	const Const  untyped int = 3
+	func  Func   func()
+	type  Sorter interface{...}
+		method (Sorter) Len() int
+		method (Sorter) Less(i int, j int) bool
+		method (Sorter) Swap(i int, j int)
+	type  Type   int
 		method (Type) Method(x *int) *int
-	var   Var   int
+	var   Var    int
 

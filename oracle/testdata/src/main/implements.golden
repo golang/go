@@ -36,7 +36,7 @@ pointer type *main.D
 
 -------- @implements sorter --------
 slice type main.sorter
-	implements sort.Interface
+	implements lib.Sorter
 
 -------- @implements I --------
 interface type main.I

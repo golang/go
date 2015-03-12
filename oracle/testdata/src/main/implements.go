@@ -5,7 +5,6 @@ package main
 // See implements.golden for expected query results.
 
 import _ "lib"
-import _ "sort"
 
 func main() {
 }

@@ -29,7 +29,7 @@ concrete method func (*D).g() []int
 
 -------- @implements Len --------
 concrete method func (sorter).Len() int
-	implements method (sort.Interface).Len
+	implements method (lib.Sorter).Len
 
 -------- @implements I.Method --------
 abstract method func (I).Method(*int) *int
