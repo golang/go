@@ -356,6 +356,38 @@ func TestLoad_BadDependency_AllowErrors(t *testing.T) {
 	}
 }
 
+func TestCwd(t *testing.T) {
+	ctxt := fakeContext(map[string]string{"one/two/three": `package three`})
+	for _, test := range []struct {
+		cwd, arg, want string
+	}{
+		{cwd: "/go/src/one", arg: "./two/three", want: "one/two/three"},
+		{cwd: "/go/src/one", arg: "../one/two/three", want: "one/two/three"},
+		{cwd: "/go/src/one", arg: "one/two/three", want: "one/two/three"},
+		{cwd: "/go/src/one/two/three", arg: ".", want: "one/two/three"},
+		{cwd: "/go/src/one", arg: "two/three", want: ""},
+	} {
+		conf := loader.Config{
+			Cwd:   test.cwd,
+			Build: ctxt,
+		}
+		conf.Import(test.arg)
+
+		var got string
+		prog, err := conf.Load()
+		if prog != nil {
+			got = imported(prog)
+		}
+		if got != test.want {
+			t.Errorf("Load(%s) from %s: Imported = %s, want %s",
+				test.arg, test.cwd, got, test.want)
+			if err != nil {
+				t.Errorf("Load failed: %v", err)
+			}
+		}
+	}
+}
+
 // TODO(adonovan): more Load tests:
 //
 // failures:

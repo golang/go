@@ -268,6 +268,11 @@ type Config struct {
 	// to startup, or by setting Build.CgoEnabled=false.
 	Build *build.Context
 
+	// The current directory, used for resolving relative package
+	// references such as "./go/loader".  If empty, os.Getwd will be
+	// used instead.
+	Cwd string
+
 	// If DisplayPath is non-nil, it is used to transform each
 	// file name obtained from Build.Import().  This can be used
 	// to prevent a virtualized build.Config's file names from
@@ -640,8 +645,24 @@ func (conf *Config) Load() (*Program, error) {
 		conf.TypeChecker.Error = func(e error) { fmt.Fprintln(os.Stderr, e) }
 	}
 
+	// Set default working directory for relative package references.
+	if conf.Cwd == "" {
+		var err error
+		conf.Cwd, err = os.Getwd()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Install default FindPackage hook using go/build logic.
 	if conf.FindPackage == nil {
-		conf.FindPackage = defaultFindPackage
+		conf.FindPackage = func(ctxt *build.Context, path string) (*build.Package, error) {
+			bp, err := ctxt.Import(path, conf.Cwd, 0)
+			if _, ok := err.(*build.NoGoError); ok {
+				return bp, nil // empty directory is not an error
+			}
+			return bp, err
+		}
 	}
 
 	prog := &Program{
@@ -841,17 +862,6 @@ func (conf *Config) build() *build.Context {
 		return conf.Build
 	}
 	return &build.Default
-}
-
-// defaultFindPackage locates the specified (possibly empty) package
-// using go/build logic.  It returns an error if not found.
-func defaultFindPackage(ctxt *build.Context, path string) (*build.Package, error) {
-	// Import(srcDir="") disables local imports, e.g. import "./foo".
-	bp, err := ctxt.Import(path, "", 0)
-	if _, ok := err.(*build.NoGoError); ok {
-		return bp, nil // empty directory is not an error
-	}
-	return bp, err
 }
 
 // parsePackageFiles enumerates the files belonging to package path,
@@ -1084,7 +1094,7 @@ func (imp *importer) loadFromSource(path string) (*PackageInfo, error) {
 	if err != nil {
 		return nil, err // package not found
 	}
-	info := imp.newPackageInfo(path)
+	info := imp.newPackageInfo(bp.ImportPath)
 	info.Importable = true
 	files, errs := imp.conf.parsePackageFiles(bp, 'g')
 	for _, err := range errs {
