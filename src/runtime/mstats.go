@@ -68,6 +68,12 @@ type mstats struct {
 	// since then. heap_live <= heap_alloc, since heap_live
 	// excludes unmarked objects that have not yet been swept.
 	heap_live uint64
+
+	// heap_marked is the number of bytes marked by the previous
+	// GC. After mark termination, heap_live == heap_marked, but
+	// unlike heap_live, heap_marked does not change until the
+	// next mark termination.
+	heap_marked uint64
 }
 
 var memstats mstats
