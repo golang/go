@@ -1903,6 +1903,9 @@ func instinit() {
 }
 
 func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+	if a.Reg < REG_CS && a.Index < REG_CS { // fast path
+		return 0
+	}
 	if a.Type == obj.TYPE_MEM && a.Name == obj.NAME_NONE {
 		switch a.Reg {
 		case REG_CS:
@@ -2985,8 +2988,8 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 	var r *obj.Reloc
 	var rel obj.Reloc
 	var v int64
-	var yt ytab
-	for _, yt = range o.ytab {
+	for i := range o.ytab {
+		yt := &o.ytab[i]
 		if ycover[ft+int(yt.from)] != 0 && ycover[f3t+int(yt.from3)] != 0 && ycover[tt+int(yt.to)] != 0 {
 			switch o.prefix {
 			case Px1: /* first option valid only in 32-bit mode */
