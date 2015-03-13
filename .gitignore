@@ -1,11 +1,11 @@
 .DS_Store
-*.[5689ao]
-*.a[5689o]
+*.[56789ao]
+*.a[56789o]
 *.so
 *.pyc
 ._*
 .nfs.*
-[5689a].out
+[56789a].out
 *~
 *.orig
 *.rej
