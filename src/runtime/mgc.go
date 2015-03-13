@@ -196,6 +196,13 @@ type gcControllerState struct {
 	// end of the cycle.
 	scanWork int64
 
+	// bgScanCredit is the scan work credit accumulated by the
+	// concurrent background scan. This credit is accumulated by
+	// the background scan and stolen by mutator assists. This is
+	// updated atomically. Updates occur in bounded batches, since
+	// it is both written and read throughout the cycle.
+	bgScanCredit int64
+
 	// workRatioAvg is a moving average of the scan work ratio
 	// (scan work per byte marked).
 	workRatioAvg float64
@@ -205,6 +212,7 @@ type gcControllerState struct {
 // for a new GC cycle.
 func (c *gcControllerState) startCycle() {
 	c.scanWork = 0
+	c.bgScanCredit = 0
 
 	// If this is the first GC cycle or we're operating on a very
 	// small heap, fake heap_marked so it looks like next_gc is
@@ -234,6 +242,13 @@ func (c *gcControllerState) endCycle() {
 	// Update EWMA of recent scan work ratios.
 	c.workRatioAvg = workRatioWeight*workRatio + (1-workRatioWeight)*c.workRatioAvg
 }
+
+// gcBgCreditSlack is the amount of scan work credit background
+// scanning can accumulate locally before updating
+// gcController.bgScanCredit. Lower values give mutator assists more
+// accurate accounting of background scanning. Higher values reduce
+// memory contention.
+const gcBgCreditSlack = 2000
 
 // Determine whether to initiate a GC.
 // If the GC is already working no need to trigger another one.
@@ -440,7 +455,7 @@ func gc(mode int) {
 			tMark = nanotime()
 		}
 		var gcw gcWork
-		gcDrain(&gcw)
+		gcDrain(&gcw, gcBgCreditSlack)
 		gcw.dispose()
 		// Despite the barrier in gcDrain, gcDrainNs may still
 		// be doing work at this point. This is okay because
@@ -649,7 +664,7 @@ func gcMark(start_time int64) {
 	gchelperstart()
 	parfordo(work.markfor)
 	var gcw gcWork
-	gcDrain(&gcw)
+	gcDrain(&gcw, -1)
 	gcw.dispose()
 
 	if work.full != 0 {
@@ -831,7 +846,7 @@ func gchelper() {
 	parfordo(work.markfor)
 	if gcphase != _GCscan {
 		var gcw gcWork
-		gcDrain(&gcw) // blocks in getfull
+		gcDrain(&gcw, -1) // blocks in getfull
 		gcw.dispose()
 	}
 
