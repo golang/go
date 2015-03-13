@@ -331,6 +331,10 @@ func (d *decoder) processSOF(n int) error {
 		}
 
 		d.comp[i].tq = d.tmp[8+3*i]
+		if d.comp[i].tq > maxTq {
+			return FormatError("bad Tq value")
+		}
+
 		hv := d.tmp[7+3*i]
 		h, v := int(hv>>4), int(hv&0x0f)
 		if h < 1 || 4 < h || v < 1 || 4 < v {
