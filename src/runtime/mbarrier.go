@@ -53,11 +53,13 @@ import "unsafe"
 //
 // ld r1, [slotmark]       ld r2, [slot]
 //
-// This is a classic example of independent reads of independent writes,
-// aka IRIW. The question is if r1==r2==0 is allowed and for most HW the
-// answer is yes without inserting a memory barriers between the st and the ld.
-// These barriers are expensive so we have decided that we will
-// always grey the ptr object regardless of the slot's color.
+// Without an expensive memory barrier between the st and the ld, the final
+// result on most HW (including 386/amd64) can be r1==r2==0. This is a classic
+// example of what can happen when loads are allowed to be reordered with older
+// stores (avoiding such reorderings lies at the heart of the classic
+// Peterson/Dekker algorithms for mutual exclusion). Rather than require memory
+// barriers, which will slow down both the mutator and the GC, we always grey
+// the ptr object regardless of the slot's color.
 //go:nowritebarrier
 func gcmarkwb_m(slot *uintptr, ptr uintptr) {
 	switch gcphase {
