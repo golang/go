@@ -430,12 +430,6 @@ func zeroValue(f *Function, t types.Type) Value {
 	}
 }
 
-// emitMemClear emits to f code to zero the value pointed to by ptr.
-func emitMemClear(f *Function, ptr Value, pos token.Pos) {
-	// TODO(adonovan): define and use a 'memclr' intrinsic for aggregate types.
-	emitStore(f, ptr, zeroValue(f, deref(ptr.Type())), pos)
-}
-
 // createRecoverBlock emits to f a block of code to return after a
 // recovered panic, and sets f.Recover to it.
 //

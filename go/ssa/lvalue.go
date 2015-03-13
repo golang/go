@@ -29,7 +29,7 @@ type lvalue interface {
 type address struct {
 	addr Value
 	pos  token.Pos // source position
-	expr ast.Expr  // source syntax [debug mode]
+	expr ast.Expr  // source syntax of the value (not address) [debug mode]
 }
 
 func (a *address) load(fn *Function) Value {

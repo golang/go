@@ -80,5 +80,89 @@ func init() {
 	}
 }
 
+// Regression test for https://github.com/golang/go/issues/10127:
+// composite literal clobbers destination before reading from it.
+func init() {
+	// map
+	{
+		type M map[string]int
+		m := M{"x": 1, "y": 2}
+		m = M{"x": m["y"], "y": m["x"]}
+		if m["x"] != 2 || m["y"] != 1 {
+			panic(fmt.Sprint(m))
+		}
+
+		n := M{"x": 3}
+		m, n = M{"x": n["x"]}, M{"x": m["x"]} // parallel assignment
+		if got := fmt.Sprint(m["x"], n["x"]); got != "3 2" {
+			panic(got)
+		}
+	}
+
+	// struct
+	{
+		type T struct{ x, y, z int }
+		t := T{x: 1, y: 2, z: 3}
+
+		t = T{x: t.y, y: t.z, z: t.x} // all fields
+		if got := fmt.Sprint(t); got != "{2 3 1}" {
+			panic(got)
+		}
+
+		t = T{x: t.y, y: t.z + 3} // not all fields
+		if got := fmt.Sprint(t); got != "{3 4 0}" {
+			panic(got)
+		}
+
+		u := T{x: 5, y: 6, z: 7}
+		t, u = T{x: u.x}, T{x: t.x} // parallel assignment
+		if got := fmt.Sprint(t, u); got != "{5 0 0} {3 0 0}" {
+			panic(got)
+		}
+	}
+
+	// array
+	{
+		a := [3]int{0: 1, 1: 2, 2: 3}
+
+		a = [3]int{0: a[1], 1: a[2], 2: a[0]} //  all elements
+		if got := fmt.Sprint(a); got != "[2 3 1]" {
+			panic(got)
+		}
+
+		a = [3]int{0: a[1], 1: a[2] + 3} //  not all elements
+		if got := fmt.Sprint(a); got != "[3 4 0]" {
+			panic(got)
+		}
+
+		b := [3]int{0: 5, 1: 6, 2: 7}
+		a, b = [3]int{0: b[0]}, [3]int{0: a[0]} // parallel assignment
+		if got := fmt.Sprint(a, b); got != "[5 0 0] [3 0 0]" {
+			panic(got)
+		}
+	}
+
+	// slice
+	{
+		s := []int{0: 1, 1: 2, 2: 3}
+
+		s = []int{0: s[1], 1: s[2], 2: s[0]} //  all elements
+		if got := fmt.Sprint(s); got != "[2 3 1]" {
+			panic(got)
+		}
+
+		s = []int{0: s[1], 1: s[2] + 3} //  not all elements
+		if got := fmt.Sprint(s); got != "[3 4]" {
+			panic(got)
+		}
+
+		t := []int{0: 5, 1: 6, 2: 7}
+		s, t = []int{0: t[0]}, []int{0: s[0]} // parallel assignment
+		if got := fmt.Sprint(s, t); got != "[5] [3]" {
+			panic(got)
+		}
+	}
+}
+
 func main() {
 }
