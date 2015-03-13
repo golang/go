@@ -289,7 +289,7 @@ func (z *Float) setExp(e int64) {
 // not require 0.5 <= |mant| < 1.0. Specifically:
 //
 //	mant := new(Float)
-//	new(Float).SetMantExp(mant, x.SetMantExp(mant)).Cmp(x) == 0
+//	new(Float).SetMantExp(mant, x.SetMantExp(mant)).Cmp(x).Eql() is true
 //
 // Special cases are:
 //

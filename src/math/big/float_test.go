@@ -279,7 +279,7 @@ func TestFloatSetMantExp(t *testing.T) {
 		}
 		// test inverse property
 		mant := new(Float)
-		if z.SetMantExp(mant, want.MantExp(mant)).Cmp(want) != 0 {
+		if z.SetMantExp(mant, want.MantExp(mant)).Cmp(want).Neq() {
 			t.Errorf("Inverse property not satisfied: got %s; want %s", z.Format('g', 10), test.z)
 		}
 	}
