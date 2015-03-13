@@ -835,7 +835,7 @@ func (x *Float) Int64() (int64, Accuracy) {
 			if x.neg {
 				i = -i
 			}
-			if x.MinPrec() <= 63 {
+			if x.MinPrec() <= uint(x.exp) {
 				return i, Exact
 			}
 			return i, acc // x truncated
