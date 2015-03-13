@@ -354,10 +354,21 @@ func scanframeworker(frame *stkframe, unused unsafe.Pointer, gcw *gcWork) {
 
 // gcDrain scans objects in work buffers, blackening grey
 // objects until all work buffers have been drained.
+// If flushScanCredit != -1, gcDrain flushes accumulated scan work
+// credit to gcController.bgScanCredit whenever gcw's local scan work
+// credit exceeds flushScanCredit.
 //go:nowritebarrier
-func gcDrain(gcw *gcWork) {
+func gcDrain(gcw *gcWork, flushScanCredit int64) {
 	if gcphase != _GCmark && gcphase != _GCmarktermination {
 		throw("scanblock phase incorrect")
+	}
+
+	var lastScanFlush, nextScanFlush int64
+	if flushScanCredit != -1 {
+		lastScanFlush = gcw.scanWork
+		nextScanFlush = lastScanFlush + flushScanCredit
+	} else {
+		nextScanFlush = int64(^uint64(0) >> 1)
 	}
 
 	for {
@@ -378,6 +389,20 @@ func gcDrain(gcw *gcWork) {
 		// into an empty wbuf in scanobject so there could be
 		// a performance hit as we keep fetching fresh wbufs.
 		scanobject(b, 0, nil, gcw)
+
+		// Flush background scan work credit to the global
+		// account if we've accumulated enough locally so
+		// mutator assists can draw on it.
+		if gcw.scanWork >= nextScanFlush {
+			credit := gcw.scanWork - lastScanFlush
+			xaddint64(&gcController.bgScanCredit, credit)
+			lastScanFlush = gcw.scanWork
+			nextScanFlush = lastScanFlush + flushScanCredit
+		}
+	}
+	if flushScanCredit != -1 {
+		credit := gcw.scanWork - lastScanFlush
+		xaddint64(&gcController.bgScanCredit, credit)
 	}
 	checknocurrentwbuf()
 }
