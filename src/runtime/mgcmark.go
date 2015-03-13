@@ -190,8 +190,8 @@ func gchelpwork() {
 		// be more cache friendly.
 		var gcw gcWork
 		gcw.initFromCache()
-		const n = len(workbuf{}.obj)
-		gcDrainN(&gcw, n) // drain upto one buffer's worth of objects
+		const helpScanWork = 500 // pointers to trace
+		gcDrainN(&gcw, helpScanWork)
 		// TODO(austin): This is the vast majority of our
 		// disposes. Instead of constantly disposing, keep a
 		// per-P gcWork cache (probably combined with the
@@ -407,11 +407,16 @@ func gcDrain(gcw *gcWork, flushScanCredit int64) {
 	checknocurrentwbuf()
 }
 
-// gcDrainN scans n objects, blackening grey objects.
+// gcDrainN blackens grey objects until it has performed roughly
+// scanWork units of scan work. This is best-effort, so it may perform
+// less work if it fails to get a work buffer. Otherwise, it will
+// perform at least n units of work, but may perform more because
+// scanning is always done in whole object increments.
 //go:nowritebarrier
-func gcDrainN(gcw *gcWork, n int) {
+func gcDrainN(gcw *gcWork, scanWork int64) {
 	checknocurrentwbuf()
-	for i := 0; i < n; i++ {
+	targetScanWork := gcw.scanWork + scanWork
+	for gcw.scanWork < targetScanWork {
 		// This might be a good place to add prefetch code...
 		// if(wbuf.nobj > 4) {
 		//         PREFETCH(wbuf->obj[wbuf.nobj - 3];
