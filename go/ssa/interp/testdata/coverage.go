@@ -515,3 +515,20 @@ func init() {
 	i.f()
 	panic("unreachable")
 }
+
+// Regression test for a subtle bug in which copying values would causes
+// subcomponents of aggregate variables to change address, breaking
+// aliases.
+func init() {
+	type T struct{ f int }
+	var x T
+	p := &x.f
+	x = T{}
+	*p = 1
+	if x.f != 1 {
+		panic("lost store")
+	}
+	if p != &x.f {
+		panic("unstable address")
+	}
+}

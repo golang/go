@@ -31,8 +31,7 @@ func (t *opaqueType) String() string { return t.name }
 var reflectTypesPackage = types.NewPackage("reflect", "reflect")
 
 // rtype is the concrete type the interpreter uses to implement the
-// reflect.Type interface.  Since its type is opaque to the target
-// language, we use a types.Basic.
+// reflect.Type interface.
 //
 // type rtype <opaque>
 var rtypeType = makeNamedType("rtype", &opaqueType{nil, "rtype"})
@@ -506,6 +505,29 @@ func initReflect(i *interpreter) {
 		Prog:    i.prog,
 		Object:  reflectTypesPackage,
 		Members: make(map[string]ssa.Member),
+	}
+
+	// Clobber the type-checker's notion of reflect.Value's
+	// underlying type so that it more closely matches the fake one
+	// (at least in the number of fields---we lie about the type of
+	// the rtype field).
+	//
+	// We must ensure that calls to (ssa.Value).Type() return the
+	// fake type so that correct "shape" is used when allocating
+	// variables, making zero values, loading, and storing.
+	//
+	// TODO(adonovan): obviously this is a hack.  We need a cleaner
+	// way to fake the reflect package (almost---DeepEqual is fine).
+	// One approach would be not to even load its source code, but
+	// provide fake source files.  This would guarantee that no bad
+	// information leaks into other packages.
+	if r := i.prog.ImportedPackage("reflect"); r != nil {
+		rV := r.Object.Scope().Lookup("Value").Type().(*types.Named)
+		tEface := types.NewInterface(nil, nil).Complete()
+		rV.SetUnderlying(types.NewStruct([]*types.Var{
+			types.NewField(token.NoPos, r.Object, "t", tEface, false), // a lie
+			types.NewField(token.NoPos, r.Object, "v", tEface, false),
+		}, nil))
 	}
 
 	i.rtypeMethods = methodSet{

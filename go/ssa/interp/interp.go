@@ -239,10 +239,10 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 		panic(targetPanic{fr.get(instr.X)})
 
 	case *ssa.Send:
-		fr.get(instr.Chan).(chan value) <- copyVal(fr.get(instr.X))
+		fr.get(instr.Chan).(chan value) <- fr.get(instr.X)
 
 	case *ssa.Store:
-		*fr.get(instr.Addr).(*value) = copyVal(fr.get(instr.Val))
+		store(deref(instr.Addr.Type()), fr.get(instr.Addr).(*value), fr.get(instr.Val))
 
 	case *ssa.If:
 		succ := 1
@@ -307,10 +307,11 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 
 	case *ssa.FieldAddr:
 		x := fr.get(instr.X)
+		// FIXME wrong!  &global.f must not change if we do *global = zero!
 		fr.env[instr] = &(*x.(*value)).(structure)[instr.Field]
 
 	case *ssa.Field:
-		fr.env[instr] = copyVal(fr.get(instr.X).(structure)[instr.Field])
+		fr.env[instr] = fr.get(instr.X).(structure)[instr.Field]
 
 	case *ssa.IndexAddr:
 		x := fr.get(instr.X)
@@ -325,7 +326,7 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 		}
 
 	case *ssa.Index:
-		fr.env[instr] = copyVal(fr.get(instr.X).(array)[asInt(fr.get(instr.Index))])
+		fr.env[instr] = fr.get(instr.X).(array)[asInt(fr.get(instr.Index))]
 
 	case *ssa.Lookup:
 		fr.env[instr] = lookup(instr, fr.get(instr.X), fr.get(instr.Index))
@@ -436,7 +437,7 @@ func prepareCall(fr *frame, call *ssa.CallCommon) (fn value, args []value) {
 		} else {
 			fn = f
 		}
-		args = append(args, copyVal(recv.v))
+		args = append(args, recv.v)
 	}
 	for _, arg := range call.Args {
 		args = append(args, fr.get(arg))
