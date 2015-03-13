@@ -611,60 +611,49 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		defer check.closeScope()
 
 		// check expression to iterate over
-		decl := s.Tok == token.DEFINE
 		var x operand
 		check.expr(&x, s.X)
-		if x.mode == invalid {
-			// if we don't have a declaration, we can still check the loop's body
-			// (otherwise we can't because we are missing the declared variables)
-			if !decl {
-				check.stmt(inner, s.Body)
-			}
-			return
-		}
 
 		// determine key/value types
 		var key, val Type
-		switch typ := x.typ.Underlying().(type) {
-		case *Basic:
-			if isString(typ) {
-				key = Typ[Int]
-				val = UniverseRune // use 'rune' name
-			}
-		case *Array:
-			key = Typ[Int]
-			val = typ.elem
-		case *Slice:
-			key = Typ[Int]
-			val = typ.elem
-		case *Pointer:
-			if typ, _ := typ.base.Underlying().(*Array); typ != nil {
+		if x.mode != invalid {
+			switch typ := x.typ.Underlying().(type) {
+			case *Basic:
+				if isString(typ) {
+					key = Typ[Int]
+					val = UniverseRune // use 'rune' name
+				}
+			case *Array:
 				key = Typ[Int]
 				val = typ.elem
-			}
-		case *Map:
-			key = typ.key
-			val = typ.elem
-		case *Chan:
-			key = typ.elem
-			val = Typ[Invalid]
-			if typ.dir == SendOnly {
-				check.errorf(x.pos(), "cannot range over send-only channel %s", &x)
-				// ok to continue
-			}
-			if s.Value != nil {
-				check.errorf(s.Value.Pos(), "iteration over %s permits only one iteration variable", &x)
-				// ok to continue
+			case *Slice:
+				key = Typ[Int]
+				val = typ.elem
+			case *Pointer:
+				if typ, _ := typ.base.Underlying().(*Array); typ != nil {
+					key = Typ[Int]
+					val = typ.elem
+				}
+			case *Map:
+				key = typ.key
+				val = typ.elem
+			case *Chan:
+				key = typ.elem
+				val = Typ[Invalid]
+				if typ.dir == SendOnly {
+					check.errorf(x.pos(), "cannot range over send-only channel %s", &x)
+					// ok to continue
+				}
+				if s.Value != nil {
+					check.errorf(s.Value.Pos(), "iteration over %s permits only one iteration variable", &x)
+					// ok to continue
+				}
 			}
 		}
 
 		if key == nil {
 			check.errorf(x.pos(), "cannot range over %s", &x)
-			// if we don't have a declaration, we can still check the loop's body
-			if !decl {
-				check.stmt(inner, s.Body)
-			}
-			return
+			// ok to continue
 		}
 
 		// check assignment to/declaration of iteration variables
@@ -672,9 +661,9 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 
 		// lhs expressions and initialization value (rhs) types
 		lhs := [2]ast.Expr{s.Key, s.Value}
-		rhs := [2]Type{key, val}
+		rhs := [2]Type{key, val} // key, val may be nil
 
-		if decl {
+		if s.Tok == token.DEFINE {
 			// short variable declaration; variable scope starts after the range clause
 			// (the for loop opens a new scope, so variables on the lhs never redeclare
 			// previously declared variables)
@@ -701,10 +690,15 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 				}
 
 				// initialize lhs variable
-				x.mode = value
-				x.expr = lhs // we don't have a better rhs expression to use here
-				x.typ = rhs[i]
-				check.initVar(obj, &x, false)
+				if typ := rhs[i]; typ != nil {
+					x.mode = value
+					x.expr = lhs // we don't have a better rhs expression to use here
+					x.typ = typ
+					check.initVar(obj, &x, false)
+				} else {
+					obj.typ = Typ[Invalid]
+					obj.used = true // don't complain about unused variable
+				}
 			}
 
 			// declare variables
@@ -721,10 +715,12 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 				if lhs == nil {
 					continue
 				}
-				x.mode = value
-				x.expr = lhs // we don't have a better rhs expression to use here
-				x.typ = rhs[i]
-				check.assignVar(lhs, &x)
+				if typ := rhs[i]; typ != nil {
+					x.mode = value
+					x.expr = lhs // we don't have a better rhs expression to use here
+					x.typ = typ
+					check.assignVar(lhs, &x)
+				}
 			}
 		}
 

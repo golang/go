@@ -785,6 +785,21 @@ func issue6766b() {
 	for a, a /* ERROR redeclared */ := range []int{1, 2, 3} { _ = a }
 }
 
+// Test that despite errors in the range clause,
+// the loop body is still type-checked (and thus
+// errors reported).
+func issue10148() {
+	for y /* ERROR declared but not used */ := range "" {
+		_ = "" /* ERROR cannot convert */ + 1
+	}
+	for range 1 /* ERROR cannot range over 1 */ {
+		_ = "" /* ERROR cannot convert */ + 1
+	}
+	for y := range 1 /* ERROR cannot range over 1 */ {
+		_ = "" /* ERROR cannot convert */ + 1
+	}
+}
+
 func labels0() {
 	goto L0
 	goto L1
