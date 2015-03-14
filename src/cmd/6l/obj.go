@@ -71,6 +71,7 @@ func linkarchinit() {
 	ld.Thearch.Elfsetupplt = elfsetupplt
 	ld.Thearch.Gentext = gentext
 	ld.Thearch.Machoreloc1 = machoreloc1
+	ld.Thearch.PEreloc1 = pereloc1
 	ld.Thearch.Lput = ld.Lputl
 	ld.Thearch.Wput = ld.Wputl
 	ld.Thearch.Vput = ld.Vputl
@@ -110,7 +111,8 @@ func archinit() {
 		ld.Hnacl,
 		ld.Hnetbsd,
 		ld.Hopenbsd,
-		ld.Hsolaris:
+		ld.Hsolaris,
+		ld.Hwindows:
 		break
 	}
 

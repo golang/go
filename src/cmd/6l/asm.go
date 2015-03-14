@@ -204,10 +204,16 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 	switch r.Type {
 	case ld.R_CALL,
 		ld.R_PCREL:
-		addpltsym(targ)
-		r.Sym = ld.Linklookup(ld.Ctxt, ".plt", 0)
-		r.Add = int64(targ.Plt)
-		return
+		if ld.HEADTYPE == ld.Hwindows {
+			// nothing to do, the relocation will be laid out in pereloc1
+			return
+		} else {
+			// for both ELF and Mach-O
+			addpltsym(targ)
+			r.Sym = ld.Linklookup(ld.Ctxt, ".plt", 0)
+			r.Add = int64(targ.Plt)
+			return
+		}
 
 	case ld.R_ADDR:
 		if s.Type == ld.STEXT && ld.Iself {
@@ -260,6 +266,11 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 			ld.Adduint64(ld.Ctxt, got, 0)
 			ld.Adduint32(ld.Ctxt, ld.Linklookup(ld.Ctxt, ".linkedit.got", 0), uint32(targ.Dynid))
 			r.Type = 256 // ignore during relocsym
+			return
+		}
+
+		if ld.HEADTYPE == ld.Hwindows {
+			// nothing to do, the relocation will be laid out in pereloc1
 			return
 		}
 	}
@@ -391,6 +402,40 @@ func machoreloc1(r *ld.Reloc, sectoff int64) int {
 	ld.Thearch.Lput(uint32(sectoff))
 	ld.Thearch.Lput(v)
 	return 0
+}
+
+func pereloc1(r *ld.Reloc, sectoff int64) bool {
+	var v uint32
+
+	rs := r.Xsym
+
+	if rs.Dynid < 0 {
+		ld.Diag("reloc %d to non-coff symbol %s type=%d", r.Type, rs.Name, rs.Type)
+		return false
+	}
+
+	ld.Thearch.Lput(uint32(sectoff))
+	ld.Thearch.Lput(uint32(rs.Dynid))
+
+	switch r.Type {
+	default:
+		return false
+
+	case ld.R_ADDR:
+		if r.Siz == 8 {
+			v = ld.IMAGE_REL_AMD64_ADDR64
+		} else {
+			v = ld.IMAGE_REL_AMD64_ADDR32
+		}
+
+	case ld.R_CALL,
+		ld.R_PCREL:
+		v = ld.IMAGE_REL_AMD64_REL32
+	}
+
+	ld.Thearch.Wput(uint16(v))
+
+	return true
 }
 
 func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
