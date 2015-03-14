@@ -1446,6 +1446,10 @@ func (z *Float) Quo(x, y *Float) *Float {
 	return z
 }
 
+type cmpResult struct {
+	acc Accuracy
+}
+
 // Cmp compares x and y and returns:
 //
 //   Below if x <  y
@@ -1453,44 +1457,45 @@ func (z *Float) Quo(x, y *Float) *Float {
 //   Above if x >  y
 //   Undef if any of x, y is NaN
 //
-func (x *Float) Cmp(y *Float) Accuracy {
+func (x *Float) Cmp(y *Float) cmpResult {
 	if debugFloat {
 		x.validate()
 		y.validate()
 	}
 
 	if x.form == nan || y.form == nan {
-		return Undef
+		return cmpResult{Undef}
 	}
 
 	mx := x.ord()
 	my := y.ord()
 	switch {
 	case mx < my:
-		return Below
+		return cmpResult{Below}
 	case mx > my:
-		return Above
+		return cmpResult{Above}
 	}
 	// mx == my
 
 	// only if |mx| == 1 we have to compare the mantissae
 	switch mx {
 	case -1:
-		return y.ucmp(x)
+		return cmpResult{y.ucmp(x)}
 	case +1:
-		return x.ucmp(y)
+		return cmpResult{x.ucmp(y)}
 	}
 
-	return Exact
+	return cmpResult{Exact}
 }
 
 // The following accessors simplify testing of Cmp results.
-func (acc Accuracy) Eql() bool { return acc == Exact }
-func (acc Accuracy) Neq() bool { return acc != Exact }
-func (acc Accuracy) Lss() bool { return acc == Below }
-func (acc Accuracy) Leq() bool { return acc&Above == 0 }
-func (acc Accuracy) Gtr() bool { return acc == Above }
-func (acc Accuracy) Geq() bool { return acc&Below == 0 }
+func (res cmpResult) Acc() Accuracy { return res.acc }
+func (res cmpResult) Eql() bool     { return res.acc == Exact }
+func (res cmpResult) Neq() bool     { return res.acc != Exact }
+func (res cmpResult) Lss() bool     { return res.acc == Below }
+func (res cmpResult) Leq() bool     { return res.acc&Above == 0 }
+func (res cmpResult) Gtr() bool     { return res.acc == Above }
+func (res cmpResult) Geq() bool     { return res.acc&Below == 0 }
 
 // ord classifies x and returns:
 //
