@@ -436,6 +436,9 @@ var cbTests = []cbTest{
 }
 
 func TestStdcallAndCDeclCallbacks(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("skipping test: gcc is missing")
+	}
 	tmp, err := ioutil.TempDir("", "TestCDeclCallback")
 	if err != nil {
 		t.Fatal("TempDir failed: ", err)
