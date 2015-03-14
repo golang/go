@@ -207,7 +207,7 @@ func feq(x, y *Float) bool {
 	if x.IsNaN() || y.IsNaN() {
 		return x.IsNaN() && y.IsNaN()
 	}
-	return x.Cmp(y) == 0 && x.IsNeg() == y.IsNeg()
+	return x.Cmp(y).Eql() && x.IsNeg() == y.IsNeg()
 }
 
 func TestFloatMantExp(t *testing.T) {
@@ -918,7 +918,7 @@ func TestFloatRat(t *testing.T) {
 		// inverse conversion
 		if res != nil {
 			got := new(Float).SetPrec(64).SetRat(res)
-			if got.Cmp(x) != 0 {
+			if got.Cmp(x).Neq() {
 				t.Errorf("%s: got %s; want %s", test.x, got, x)
 			}
 		}
@@ -995,7 +995,7 @@ func TestFloatInc(t *testing.T) {
 		for i := 0; i < n; i++ {
 			x.Add(&x, &one)
 		}
-		if x.Cmp(new(Float).SetInt64(n)) != 0 {
+		if x.Cmp(new(Float).SetInt64(n)).Neq() {
 			t.Errorf("prec = %d: got %s; want %d", prec, &x, n)
 		}
 	}
@@ -1036,14 +1036,14 @@ func TestFloatAdd(t *testing.T) {
 					got := new(Float).SetPrec(prec).SetMode(mode)
 					got.Add(x, y)
 					want := zbits.round(prec, mode)
-					if got.Cmp(want) != 0 {
+					if got.Cmp(want).Neq() {
 						t.Errorf("i = %d, prec = %d, %s:\n\t     %s %v\n\t+    %s %v\n\t=    %s\n\twant %s",
 							i, prec, mode, x, xbits, y, ybits, got, want)
 					}
 
 					got.Sub(z, x)
 					want = ybits.round(prec, mode)
-					if got.Cmp(want) != 0 {
+					if got.Cmp(want).Neq() {
 						t.Errorf("i = %d, prec = %d, %s:\n\t     %s %v\n\t-    %s %v\n\t=    %s\n\twant %s",
 							i, prec, mode, z, zbits, x, xbits, got, want)
 					}
@@ -1137,7 +1137,7 @@ func TestFloatMul(t *testing.T) {
 					got := new(Float).SetPrec(prec).SetMode(mode)
 					got.Mul(x, y)
 					want := zbits.round(prec, mode)
-					if got.Cmp(want) != 0 {
+					if got.Cmp(want).Neq() {
 						t.Errorf("i = %d, prec = %d, %s:\n\t     %s %v\n\t*    %s %v\n\t=    %s\n\twant %s",
 							i, prec, mode, x, xbits, y, ybits, got, want)
 					}
@@ -1147,7 +1147,7 @@ func TestFloatMul(t *testing.T) {
 					}
 					got.Quo(z, x)
 					want = ybits.round(prec, mode)
-					if got.Cmp(want) != 0 {
+					if got.Cmp(want).Neq() {
 						t.Errorf("i = %d, prec = %d, %s:\n\t     %s %v\n\t/    %s %v\n\t=    %s\n\twant %s",
 							i, prec, mode, z, zbits, x, xbits, got, want)
 					}
@@ -1230,7 +1230,7 @@ func TestIssue6866(t *testing.T) {
 		p.Mul(p, psix)
 		z2.Sub(two, p)
 
-		if z1.Cmp(z2) != 0 {
+		if z1.Cmp(z2).Neq() {
 			t.Fatalf("prec %d: got z1 = %s != z2 = %s; want z1 == z2\n", prec, z1, z2)
 		}
 		if z1.Sign() != 0 {
@@ -1281,7 +1281,7 @@ func TestFloatQuo(t *testing.T) {
 				prec := uint(preci + d)
 				got := new(Float).SetPrec(prec).SetMode(mode).Quo(x, y)
 				want := bits.round(prec, mode)
-				if got.Cmp(want) != 0 {
+				if got.Cmp(want).Neq() {
 					t.Errorf("i = %d, prec = %d, %s:\n\t     %s\n\t/    %s\n\t=    %s\n\twant %s",
 						i, prec, mode, x, y, got, want)
 				}
@@ -1462,7 +1462,7 @@ func TestFloatCmpSpecialValues(t *testing.T) {
 			}
 			for _, y := range args {
 				yy.SetFloat64(y)
-				got := xx.Cmp(yy)
+				got := xx.Cmp(yy).Acc()
 				want := Undef
 				switch {
 				case x < y:

@@ -63,7 +63,7 @@ func ExampleFloat_Cmp() {
 			t := x.Cmp(y)
 			fmt.Printf(
 				"%4s  %4s  %5s   %c    %c    %c    %c    %c    %c\n",
-				x, y, t,
+				x, y, t.Acc(),
 				mark(t.Eql()), mark(t.Neq()), mark(t.Lss()), mark(t.Leq()), mark(t.Gtr()), mark(t.Geq()))
 		}
 		fmt.Println()
