@@ -532,7 +532,8 @@ func initdynimport() *Dll {
 				m.s.Type = SDATA
 				Symgrow(Ctxt, m.s, int64(Thearch.Ptrsize))
 				dynName := m.s.Extname
-				if m.argsize >= 0 {
+				// only windows/386 requires stdcall decoration
+				if Thearch.Thechar == '8' && m.argsize >= 0 {
 					dynName += fmt.Sprintf("@%d", m.argsize)
 				}
 				dynSym := Linklookup(Ctxt, dynName, 0)
@@ -955,7 +956,8 @@ func addpesym(s *LSym, name string, type_ int, addr int64, size int64, ver int, 
 	}
 
 	if coffsym != nil {
-		if Linkmode == LinkExternal && (s.Type == SHOSTOBJ || s.Cgoexport != 0) && s.Name == s.Extname {
+		// only windows/386 requires underscore prefix on external symbols
+		if Thearch.Thechar == '8' && Linkmode == LinkExternal && (s.Type == SHOSTOBJ || s.Cgoexport != 0) && s.Name == s.Extname {
 			s.Name = "_" + s.Name
 		}
 		cs := &coffsym[ncoffsym]
@@ -963,7 +965,9 @@ func addpesym(s *LSym, name string, type_ int, addr int64, size int64, ver int, 
 		if len(s.Name) > 8 {
 			cs.strtbloff = strtbladd(s.Name)
 		}
-		if uint64(s.Value) >= Segdata.Vaddr+Segdata.Filelen && Linkmode == LinkExternal {
+		// Note: although address of runtime.edata (type SDATA) is at the start of .bss section
+		// it still belongs to the .data section, not the .bss section.
+		if uint64(s.Value) >= Segdata.Vaddr+Segdata.Filelen && s.Type != SDATA && Linkmode == LinkExternal {
 			cs.value = int64(uint64(s.Value) - Segdata.Vaddr - Segdata.Filelen)
 			cs.sect = bsssect
 		} else if uint64(s.Value) >= Segdata.Vaddr {
