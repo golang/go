@@ -348,6 +348,8 @@ func symtab() {
 	symt.Size = 0
 	symt.Reachable = true
 
+	ntypelinks := 0
+
 	// assign specific types so that they sort together.
 	// within a type they sort by size, so the .* symbols
 	// just defined above will be first.
@@ -363,6 +365,7 @@ func symtab() {
 		}
 
 		if strings.HasPrefix(s.Name, "go.typelink.") {
+			ntypelinks++
 			s.Type = STYPELINK
 			s.Hide = 1
 			s.Outer = symtypelink
@@ -392,21 +395,29 @@ func symtab() {
 	// Information about the layout of the executable image for the
 	// runtime to use. Any changes here must be matched by changes to
 	// the definition of moduledata in runtime/symtab.go.
+	// This code uses several global variables that are set by pcln.go:pclntab.
 	moduledata := Linklookup(Ctxt, "runtime.themoduledata", 0)
 	moduledata.Type = SNOPTRDATA
 	moduledata.Size = 0 // truncate symbol back to 0 bytes to reinitialize
 	moduledata.Reachable = true
-	// Three slices (pclntable, ftab, filetab), uninitalized
-	moduledata.Size += int64((3 * 3 * Thearch.Ptrsize))
-	Symgrow(Ctxt, moduledata, moduledata.Size)
-	// Three uintptrs, initialized
+	// The pclntab slice
 	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.pclntab", 0))
-	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.epclntab", 0))
+	adduint(Ctxt, moduledata, uint64(Linklookup(Ctxt, "runtime.pclntab", 0).Size))
+	adduint(Ctxt, moduledata, uint64(Linklookup(Ctxt, "runtime.pclntab", 0).Size))
+	// The ftab slice
+	Addaddrplus(Ctxt, moduledata, Linklookup(Ctxt, "runtime.pclntab", 0), int64(pclntabPclntabOffset))
+	adduint(Ctxt, moduledata, uint64(pclntabNfunc+1))
+	adduint(Ctxt, moduledata, uint64(pclntabNfunc+1))
+	// The filetab slice
+	Addaddrplus(Ctxt, moduledata, Linklookup(Ctxt, "runtime.pclntab", 0), int64(pclntabFiletabOffset))
+	adduint(Ctxt, moduledata, uint64(Ctxt.Nhistfile))
+	adduint(Ctxt, moduledata, uint64(Ctxt.Nhistfile))
+	// findfunctab
 	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.findfunctab", 0))
-	// 2 more uintptrs (minpc, maxpc), uninitalized
-	moduledata.Size += int64(2 * Thearch.Ptrsize)
-	Symgrow(Ctxt, moduledata, moduledata.Size)
-	// more initialized uintptrs
+	// minpc, maxpc
+	Addaddr(Ctxt, moduledata, pclntabFirstFunc)
+	Addaddrplus(Ctxt, moduledata, pclntabLastFunc, pclntabLastFunc.Size)
+	// pointers to specific parts of the module
 	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.text", 0))
 	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.etext", 0))
 	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.noptrdata", 0))
@@ -420,6 +431,8 @@ func symtab() {
 	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.end", 0))
 	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.gcdata", 0))
 	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.gcbss", 0))
+	// The typelinks slice
 	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.typelink", 0))
-	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.etypelink", 0))
+	adduint(Ctxt, moduledata, uint64(ntypelinks))
+	adduint(Ctxt, moduledata, uint64(ntypelinks))
 }
