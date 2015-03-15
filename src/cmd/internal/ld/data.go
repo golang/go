@@ -102,6 +102,10 @@ func Adduint64(ctxt *Link, s *LSym, v uint64) int64 {
 	return adduintxx(ctxt, s, v, 8)
 }
 
+func adduint(ctxt *Link, s *LSym, v uint64) int64 {
+	return adduintxx(ctxt, s, v, Thearch.Intsize)
+}
+
 func setuint8(ctxt *Link, s *LSym, r int64, v uint8) int64 {
 	return setuintxx(ctxt, s, r, uint64(v), 1)
 }

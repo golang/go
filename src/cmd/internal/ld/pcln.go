@@ -202,6 +202,13 @@ func container(s *LSym) int {
 
 var pclntab_zpcln Pcln
 
+// These variables are used to initialize runtime.themoduledata, see symtab.go:symtab.
+var pclntabNfunc int32
+var pclntabFiletabOffset int32
+var pclntabPclntabOffset int32
+var pclntabFirstFunc *LSym
+var pclntabLastFunc *LSym
+
 func pclntab() {
 	funcdata_bytes := int64(0)
 	ftab := Linklookup(Ctxt, "runtime.pclntab", 0)
@@ -222,11 +229,13 @@ func pclntab() {
 		}
 	}
 
+	pclntabNfunc = nfunc
 	Symgrow(Ctxt, ftab, 8+int64(Thearch.Ptrsize)+int64(nfunc)*2*int64(Thearch.Ptrsize)+int64(Thearch.Ptrsize)+4)
 	setuint32(Ctxt, ftab, 0, 0xfffffffb)
 	setuint8(Ctxt, ftab, 6, uint8(Thearch.Minlc))
 	setuint8(Ctxt, ftab, 7, uint8(Thearch.Ptrsize))
 	setuintxx(Ctxt, ftab, 8, uint64(nfunc), int64(Thearch.Ptrsize))
+	pclntabPclntabOffset = int32(8 + Thearch.Ptrsize)
 
 	nfunc = 0
 	var last *LSym
@@ -244,6 +253,10 @@ func pclntab() {
 		pcln = Ctxt.Cursym.Pcln
 		if pcln == nil {
 			pcln = &pclntab_zpcln
+		}
+
+		if pclntabFirstFunc == nil {
+			pclntabFirstFunc = Ctxt.Cursym
 		}
 
 		funcstart = int32(len(ftab.P))
@@ -330,6 +343,7 @@ func pclntab() {
 		nfunc++
 	}
 
+	pclntabLastFunc = last
 	// Final entry of table is just end pc.
 	setaddrplus(Ctxt, ftab, 8+int64(Thearch.Ptrsize)+int64(nfunc)*2*int64(Thearch.Ptrsize), last, last.Size)
 
@@ -337,6 +351,7 @@ func pclntab() {
 	start := int32(len(ftab.P))
 
 	start += int32(-len(ftab.P)) & (int32(Thearch.Ptrsize) - 1)
+	pclntabFiletabOffset = start
 	setuint32(Ctxt, ftab, 8+int64(Thearch.Ptrsize)+int64(nfunc)*2*int64(Thearch.Ptrsize)+int64(Thearch.Ptrsize), uint32(start))
 
 	Symgrow(Ctxt, ftab, int64(start)+(int64(Ctxt.Nhistfile)+1)*4)
