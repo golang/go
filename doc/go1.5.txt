@@ -10,7 +10,7 @@ dragonfly/386 (https://golang.org/cl/7543)
 
 API additions and behavior changes:
 
-archive/zip: add WriterAt function (https://golang.org/cl/7445)
+archive/zip: add (*Writer).SetOffset method (https://golang.org/cl/7445)
 bufio: add Reader.Discard (https://golang.org/cl/2260)
 crypto/cipher: clarify what will happen if len(src) != len(dst) for the Stream interface. (https://golang.org/cl/1754)
 crypto/elliptic: add Name field to CurveParams struct (https://golang.org/cl/2133)
