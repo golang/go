@@ -696,22 +696,10 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 	// TODO(austin): Add self-move test like in 6g (but be careful
 	// of truncation moves)
 
-	af := obj.Addr(obj.Addr{})
+	p := gc.Prog(as)
+	gc.Naddr(&p.From, f)
+	gc.Naddr(&p.To, t)
 
-	at := obj.Addr(obj.Addr{})
-	if f != nil {
-		af = gc.Naddr(f)
-	}
-	if t != nil {
-		at = gc.Naddr(t)
-	}
-	p := (*obj.Prog)(gc.Prog(as))
-	if f != nil {
-		p.From = af
-	}
-	if t != nil {
-		p.To = at
-	}
 	if gc.Debug['g'] != 0 {
 		fmt.Printf("%v\n", p)
 	}
@@ -738,16 +726,16 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 
 	case ppc64.AMOVD,
 		ppc64.AMOVDU:
-		if af.Type == obj.TYPE_CONST || af.Type == obj.TYPE_ADDR {
+		if p.From.Type == obj.TYPE_CONST || p.From.Type == obj.TYPE_ADDR {
 			break
 		}
 		w = 8
 	}
 
-	if w != 0 && ((f != nil && af.Width < int64(w)) || (t != nil && at.Type != obj.TYPE_REG && at.Width > int64(w))) {
+	if w != 0 && ((f != nil && p.From.Width < int64(w)) || (t != nil && p.To.Type != obj.TYPE_REG && p.To.Width > int64(w))) {
 		gc.Dump("f", f)
 		gc.Dump("t", t)
-		gc.Fatal("bad width: %v (%d, %d)\n", p, af.Width, at.Width)
+		gc.Fatal("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
 	}
 
 	return p

@@ -842,22 +842,11 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 	//		constnode.vconst = v;
 	//		idx.reg = nod.reg;
 	//		regfree(&nod);
-	var af obj.Addr
 
-	var at obj.Addr
-	if f != nil {
-		af = gc.Naddr(f)
-	}
-	if t != nil {
-		at = gc.Naddr(t)
-	}
 	p := gc.Prog(as)
-	if f != nil {
-		p.From = af
-	}
-	if t != nil {
-		p.To = at
-	}
+	gc.Naddr(&p.From, f)
+	gc.Naddr(&p.To, t)
+
 	if gc.Debug['g'] != 0 {
 		fmt.Printf("%v\n", p)
 	}
@@ -869,8 +858,7 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
  */
 func raddr(n *gc.Node, p *obj.Prog) {
 	var a obj.Addr
-
-	a = gc.Naddr(n)
+	gc.Naddr(&a, n)
 	if a.Type != obj.TYPE_REG {
 		if n != nil {
 			gc.Fatal("bad in raddr: %v", gc.Oconv(int(n.Op), 0))
@@ -1306,7 +1294,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr, w *int) bool {
 		reg1 := &clean[cleani-2]
 		reg.Op = gc.OEMPTY
 		reg1.Op = gc.OEMPTY
-		*a = gc.Naddr(n)
+		gc.Naddr(a, n)
 		return true
 
 	case gc.ODOT,
@@ -1330,7 +1318,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr, w *int) bool {
 
 			n1.Type = n.Type
 			n1.Xoffset += oary[0]
-			*a = gc.Naddr(&n1)
+			gc.Naddr(a, &n1)
 			return true
 		}
 
@@ -1358,7 +1346,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr, w *int) bool {
 		a.Type = obj.TYPE_NONE
 		a.Name = obj.NAME_NONE
 		n1.Type = n.Type
-		*a = gc.Naddr(&n1)
+		gc.Naddr(a, &n1)
 		return true
 
 	case gc.OINDEX:

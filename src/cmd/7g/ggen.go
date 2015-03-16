@@ -77,7 +77,7 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
 		p.Reg = arm64.REGRT1
 		p = appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
 		f := gc.Sysfunc("duffzero")
-		p.To = gc.Naddr(f)
+		gc.Naddr(&p.To, f)
 		gc.Afunclit(&p.To, f)
 		p.To.Offset = 4 * (128 - cnt/int64(gc.Widthptr))
 	} else {

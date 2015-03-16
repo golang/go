@@ -273,7 +273,9 @@ func markautoused(p *obj.Prog) {
 	}
 }
 
-func Naddr(n *Node) (a obj.Addr) {
+// Naddr rewrites a to refer to n.
+// It assumes that a is zeroed on entry.
+func Naddr(a *obj.Addr, n *Node) {
 	if n == nil {
 		return
 	}
@@ -293,7 +295,7 @@ func Naddr(n *Node) (a obj.Addr) {
 	switch n.Op {
 	default:
 		a := a // copy to let escape into Ctxt.Dconv
-		Fatal("naddr: bad %v %v", Oconv(int(n.Op), 0), Ctxt.Dconv(&a))
+		Fatal("naddr: bad %v %v", Oconv(int(n.Op), 0), Ctxt.Dconv(a))
 
 	case OREGISTER:
 		a.Type = obj.TYPE_REG
@@ -337,7 +339,7 @@ func Naddr(n *Node) (a obj.Addr) {
 		a.Offset = n.Xoffset
 
 	case OCFUNC:
-		a = Naddr(n.Left)
+		Naddr(a, n.Left)
 		a.Sym = Linksym(n.Left.Sym)
 
 	case ONAME:
@@ -407,7 +409,7 @@ func Naddr(n *Node) (a obj.Addr) {
 			a.Offset = Mpgetfix(n.Val.U.Xval)
 
 		case CTSTR:
-			datagostring(n.Val.U.Sval, &a)
+			datagostring(n.Val.U.Sval, a)
 
 		case CTBOOL:
 			a.Sym = nil
@@ -421,20 +423,20 @@ func Naddr(n *Node) (a obj.Addr) {
 		}
 
 	case OADDR:
-		a = Naddr(n.Left)
+		Naddr(a, n.Left)
 		a.Etype = uint8(Tptr)
 		if Thearch.Thechar != '5' && Thearch.Thechar != '7' && Thearch.Thechar != '9' { // TODO(rsc): Do this even for arm, ppc64.
 			a.Width = int64(Widthptr)
 		}
 		if a.Type != obj.TYPE_MEM {
 			a := a // copy to let escape into Ctxt.Dconv
-			Fatal("naddr: OADDR %v (from %v)", Ctxt.Dconv(&a), Oconv(int(n.Left.Op), 0))
+			Fatal("naddr: OADDR %v (from %v)", Ctxt.Dconv(a), Oconv(int(n.Left.Op), 0))
 		}
 		a.Type = obj.TYPE_ADDR
 
 		// itable of interface value
 	case OITAB:
-		a = Naddr(n.Left)
+		Naddr(a, n.Left)
 
 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
 			break // itab(nil)
@@ -444,7 +446,7 @@ func Naddr(n *Node) (a obj.Addr) {
 
 		// pointer in a string or slice
 	case OSPTR:
-		a = Naddr(n.Left)
+		Naddr(a, n.Left)
 
 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
 			break // ptr(nil)
@@ -455,7 +457,7 @@ func Naddr(n *Node) (a obj.Addr) {
 
 		// len of string or slice
 	case OLEN:
-		a = Naddr(n.Left)
+		Naddr(a, n.Left)
 
 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
 			break // len(nil)
@@ -471,7 +473,7 @@ func Naddr(n *Node) (a obj.Addr) {
 
 		// cap of string or slice
 	case OCAP:
-		a = Naddr(n.Left)
+		Naddr(a, n.Left)
 
 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
 			break // cap(nil)
