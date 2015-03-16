@@ -355,15 +355,13 @@ func fixjmp(firstp *obj.Prog) {
 var flowmark int
 
 func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
-	var info ProgInfo
-
 	// Count and mark instructions to annotate.
 	nf := 0
 
 	for p := firstp; p != nil; p = p.Link {
 		p.Opt = nil // should be already, but just in case
-		info = Thearch.Proginfo(p)
-		if info.Flags&Skip != 0 {
+		Thearch.Proginfo(p)
+		if p.Info.Flags&Skip != 0 {
 			continue
 		}
 		p.Opt = &flowmark
@@ -409,8 +407,7 @@ func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
 	var p *obj.Prog
 	for f := start; f != nil; f = f.Link {
 		p = f.Prog
-		info = Thearch.Proginfo(p)
-		if info.Flags&Break == 0 {
+		if p.Info.Flags&Break == 0 {
 			f1 = f.Link
 			f.S1 = f1
 			f1.P1 = f
@@ -442,6 +439,7 @@ func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
 
 func Flowend(graph *Graph) {
 	for f := graph.Start; f != nil; f = f.Link {
+		f.Prog.Info.Flags = 0 // drop cached proginfo
 		f.Prog.Opt = nil
 	}
 }
@@ -714,12 +712,8 @@ func mergetemp(firstp *obj.Prog) {
 	// We assume that the earliest reference to a temporary is its definition.
 	// This is not true of variables in general but our temporaries are all
 	// single-use (that's why we have so many!).
-	var p *obj.Prog
-	var info ProgInfo
 	for f := g.Start; f != nil; f = f.Link {
-		p = f.Prog
-		info = Thearch.Proginfo(p)
-
+		p := f.Prog
 		if p.From.Node != nil && ((p.From.Node).(*Node)).Opt != nil && p.To.Node != nil && ((p.To.Node).(*Node)).Opt != nil {
 			Fatal("double node %v", p)
 		}
@@ -740,7 +734,7 @@ func mergetemp(firstp *obj.Prog) {
 			}
 			f.Data = v.use
 			v.use = f
-			if n == p.From.Node && (info.Flags&LeftAddr != 0) {
+			if n == p.From.Node && (p.Info.Flags&LeftAddr != 0) {
 				v.addr = 1
 			}
 		}
@@ -753,9 +747,6 @@ func mergetemp(firstp *obj.Prog) {
 	nkill := 0
 
 	// Special case.
-	var p1 *obj.Prog
-	var info1 ProgInfo
-	var f *Flow
 	for i := 0; i < len(var_); i++ {
 		v = &var_[i]
 		if v.addr != 0 {
@@ -763,11 +754,10 @@ func mergetemp(firstp *obj.Prog) {
 		}
 
 		// Used in only one instruction, which had better be a write.
-		f = v.use
+		f := v.use
 		if f != nil && f.Data.(*Flow) == nil {
-			p = f.Prog
-			info = Thearch.Proginfo(p)
-			if p.To.Node == v.node && (info.Flags&RightWrite != 0) && info.Flags&RightRead == 0 {
+			p := f.Prog
+			if p.To.Node == v.node && (p.Info.Flags&RightWrite != 0) && p.Info.Flags&RightRead == 0 {
 				p.As = obj.ANOP
 				p.To = obj.Addr{}
 				v.removed = 1
@@ -785,14 +775,12 @@ func mergetemp(firstp *obj.Prog) {
 		// no jumps to the next instruction. Happens mainly in 386 compiler.
 		f = v.use
 		if f != nil && f.Link == f.Data.(*Flow) && (f.Data.(*Flow)).Data.(*Flow) == nil && Uniqp(f.Link) == f {
-			p = f.Prog
-			info = Thearch.Proginfo(p)
-			p1 = f.Link.Prog
-			info1 = Thearch.Proginfo(p1)
+			p := f.Prog
+			p1 := f.Link.Prog
 			const (
 				SizeAny = SizeB | SizeW | SizeL | SizeQ | SizeF | SizeD
 			)
-			if p.From.Node == v.node && p1.To.Node == v.node && (info.Flags&Move != 0) && (info.Flags|info1.Flags)&(LeftAddr|RightAddr) == 0 && info.Flags&SizeAny == info1.Flags&SizeAny {
+			if p.From.Node == v.node && p1.To.Node == v.node && (p.Info.Flags&Move != 0) && (p.Info.Flags|p1.Info.Flags)&(LeftAddr|RightAddr) == 0 && p.Info.Flags&SizeAny == p1.Info.Flags&SizeAny {
 				p1.From = p.From
 				Thearch.Excise(f)
 				v.removed = 1
@@ -814,12 +802,12 @@ func mergetemp(firstp *obj.Prog) {
 	for i := 0; i < len(var_); i++ {
 		v = &var_[i]
 		gen++
-		for f = v.use; f != nil; f = f.Data.(*Flow) {
+		for f := v.use; f != nil; f = f.Data.(*Flow) {
 			mergewalk(v, f, uint32(gen))
 		}
 		if v.addr != 0 {
 			gen++
-			for f = v.use; f != nil; f = f.Data.(*Flow) {
+			for f := v.use; f != nil; f = f.Data.(*Flow) {
 				varkillwalk(v, f, uint32(gen))
 			}
 		}
@@ -935,7 +923,7 @@ func mergetemp(firstp *obj.Prog) {
 
 	// Update node references to use merged temporaries.
 	for f := g.Start; f != nil; f = f.Link {
-		p = f.Prog
+		p := f.Prog
 		n, _ = p.From.Node.(*Node)
 		if n != nil {
 			v, _ = n.Opt.(*TempVar)
@@ -1109,13 +1097,9 @@ func nilopt(firstp *obj.Prog) {
 }
 
 func nilwalkback(fcheck *Flow) {
-	var p *obj.Prog
-	var info ProgInfo
-
 	for f := fcheck; f != nil; f = Uniqp(f) {
-		p = f.Prog
-		info = Thearch.Proginfo(p)
-		if (info.Flags&RightWrite != 0) && Thearch.Sameaddr(&p.To, &fcheck.Prog.From) {
+		p := f.Prog
+		if (p.Info.Flags&RightWrite != 0) && Thearch.Sameaddr(&p.To, &fcheck.Prog.From) {
 			// Found initialization of value we're checking for nil.
 			// without first finding the check, so this one is unchecked.
 			return
@@ -1146,8 +1130,7 @@ for(f1 = f0; f1 != nil; f1 = f1->p1) {
 	if(f1 != fcheck && p->as == ACHECKNIL && thearch.sameaddr(&p->from, &fcheck->prog->from))
 		break;
 
-	thearch.proginfo(&info, p);
-	if((info.flags & RightWrite) && thearch.sameaddr(&p->to, &fcheck->prog->from)) {
+	if((p.Info.flags & RightWrite) && thearch.sameaddr(&p->to, &fcheck->prog->from)) {
 		// Found initialization of value we're checking for nil.
 		// without first finding the check, so this one is unchecked.
 		fcheck->kill = 0;
@@ -1168,10 +1151,8 @@ for(f = f0; f != f1; f = f->p1)
 	for(f2 = f->p2; f2 != nil; f2 = f2->p2link)
 		nilwalkback(fcheck, f2, gen);
 */
-func nilwalkfwd(fcheck *Flow) {
-	var p *obj.Prog
-	var info ProgInfo
 
+func nilwalkfwd(fcheck *Flow) {
 	// If the path down from rcheck dereferences the address
 	// (possibly with a small offset) before writing to memory
 	// and before any subsequent checks, it's okay to wait for
@@ -1179,18 +1160,16 @@ func nilwalkfwd(fcheck *Flow) {
 	// avoid problems like:
 	//	_ = *x // should panic
 	//	for {} // no writes but infinite loop may be considered visible
+
 	var last *Flow
-
 	for f := Uniqs(fcheck); f != nil; f = Uniqs(f) {
-		p = f.Prog
-		info = Thearch.Proginfo(p)
-
-		if (info.Flags&LeftRead != 0) && Thearch.Smallindir(&p.From, &fcheck.Prog.From) {
+		p := f.Prog
+		if (p.Info.Flags&LeftRead != 0) && Thearch.Smallindir(&p.From, &fcheck.Prog.From) {
 			fcheck.Data = &killed
 			return
 		}
 
-		if (info.Flags&(RightRead|RightWrite) != 0) && Thearch.Smallindir(&p.To, &fcheck.Prog.From) {
+		if (p.Info.Flags&(RightRead|RightWrite) != 0) && Thearch.Smallindir(&p.To, &fcheck.Prog.From) {
 			fcheck.Data = &killed
 			return
 		}
@@ -1201,12 +1180,12 @@ func nilwalkfwd(fcheck *Flow) {
 		}
 
 		// Stop if value is lost.
-		if (info.Flags&RightWrite != 0) && Thearch.Sameaddr(&p.To, &fcheck.Prog.From) {
+		if (p.Info.Flags&RightWrite != 0) && Thearch.Sameaddr(&p.To, &fcheck.Prog.From) {
 			return
 		}
 
 		// Stop if memory write.
-		if (info.Flags&RightWrite != 0) && !Thearch.Regtyp(&p.To) {
+		if (p.Info.Flags&RightWrite != 0) && !Thearch.Regtyp(&p.To) {
 			return
 		}
 

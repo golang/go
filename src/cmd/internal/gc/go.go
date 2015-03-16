@@ -737,12 +737,6 @@ type Graph struct {
 /*
  *	interface to back end
  */
-type ProgInfo struct {
-	Flags    uint32 // the bits below
-	Reguse   uint64 // registers implicitly used by this instruction
-	Regset   uint64 // registers implicitly set by this instruction
-	Regindex uint64 // registers used by addressing mode
-}
 
 const (
 	// Pseudo-op, like TEXT, GLOBL, TYPE, PCDATA, FUNCDATA.
@@ -823,7 +817,7 @@ type Arch struct {
 	Igen           func(*Node, *Node, *Node)
 	Linkarchinit   func()
 	Peep           func(*obj.Prog)
-	Proginfo       func(*obj.Prog) ProgInfo
+	Proginfo       func(*obj.Prog) // fills in Prog.Info
 	Regalloc       func(*Node, *Type, *Node)
 	Regfree        func(*Node)
 	Regtyp         func(*obj.Addr) bool

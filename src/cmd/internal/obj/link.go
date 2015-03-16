@@ -225,6 +225,18 @@ type Prog struct {
 	Printed  uint8
 	Width    int8
 	Mode     int8
+
+	Info ProgInfo
+}
+
+// ProgInfo holds information about the instruction for use
+// by clients such as the compiler. The exact meaning of this
+// data is up to the client and is not interpreted by the cmd/internal/obj/... packages.
+type ProgInfo struct {
+	Flags    uint32 // flag bits
+	Reguse   uint64 // registers implicitly used by this instruction
+	Regset   uint64 // registers implicitly set by this instruction
+	Regindex uint64 // registers used by addressing mode
 }
 
 // Prog.as opcodes.

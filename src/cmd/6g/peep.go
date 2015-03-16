@@ -557,7 +557,6 @@ func subprop(r0 *gc.Flow) bool {
 		return false
 	}
 
-	var info gc.ProgInfo
 	for r := gc.Uniqp(r0); r != nil; r = gc.Uniqp(r) {
 		if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 			fmt.Printf("\t? %v\n", r.Prog)
@@ -573,22 +572,21 @@ func subprop(r0 *gc.Flow) bool {
 		if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
 			continue
 		}
-		info = proginfo(p)
-		if info.Flags&gc.Call != 0 {
+		if p.Info.Flags&gc.Call != 0 {
 			if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 				fmt.Printf("\tfound %v; return 0\n", p)
 			}
 			return false
 		}
 
-		if info.Reguse|info.Regset != 0 {
+		if p.Info.Reguse|p.Info.Regset != 0 {
 			if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 				fmt.Printf("\tfound %v; return 0\n", p)
 			}
 			return false
 		}
 
-		if (info.Flags&gc.Move != 0) && (info.Flags&(gc.SizeL|gc.SizeQ|gc.SizeF|gc.SizeD) != 0) && p.To.Type == v1.Type && p.To.Reg == v1.Reg {
+		if (p.Info.Flags&gc.Move != 0) && (p.Info.Flags&(gc.SizeL|gc.SizeQ|gc.SizeF|gc.SizeD) != 0) && p.To.Type == v1.Type && p.To.Reg == v1.Reg {
 			copysub(&p.To, v1, v2, 1)
 			if gc.Debug['P'] != 0 {
 				fmt.Printf("gotit: %v->%v\n%v", gc.Ctxt.Dconv(v1), gc.Ctxt.Dconv(v2), r.Prog)
@@ -820,25 +818,24 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 	if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
 		return 0
 	}
-	info := proginfo(p)
 
-	if (info.Reguse|info.Regset)&RtoB(int(v.Reg)) != 0 {
+	if (p.Info.Reguse|p.Info.Regset)&RtoB(int(v.Reg)) != 0 {
 		return 2
 	}
 
-	if info.Flags&gc.LeftAddr != 0 {
+	if p.Info.Flags&gc.LeftAddr != 0 {
 		if copyas(&p.From, v) {
 			return 2
 		}
 	}
 
-	if info.Flags&(gc.RightRead|gc.RightWrite) == gc.RightRead|gc.RightWrite {
+	if p.Info.Flags&(gc.RightRead|gc.RightWrite) == gc.RightRead|gc.RightWrite {
 		if copyas(&p.To, v) {
 			return 2
 		}
 	}
 
-	if info.Flags&gc.RightWrite != 0 {
+	if p.Info.Flags&gc.RightWrite != 0 {
 		if copyas(&p.To, v) {
 			if s != nil {
 				return copysub(&p.From, v, s, 1)
@@ -850,7 +847,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		}
 	}
 
-	if info.Flags&(gc.LeftAddr|gc.LeftRead|gc.LeftWrite|gc.RightAddr|gc.RightRead|gc.RightWrite) != 0 {
+	if p.Info.Flags&(gc.LeftAddr|gc.LeftRead|gc.LeftWrite|gc.RightAddr|gc.RightRead|gc.RightWrite) != 0 {
 		if s != nil {
 			if copysub(&p.From, v, s, 1) != 0 {
 				return 1
