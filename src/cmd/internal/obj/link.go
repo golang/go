@@ -32,259 +32,6 @@ package obj
 
 import "encoding/binary"
 
-type Addr struct {
-	Type   int16
-	Reg    int16
-	Reg2   int16 // RHS of register pair. AX:DX (386)
-	Index  int16
-	Scale  int16 // Sometimes holds a register.
-	Name   int8
-	Offset int64
-	Sym    *LSym
-	U      struct {
-		Sval    string
-		Dval    float64
-		Branch  *Prog
-		Argsize int32
-		Bits    uint64
-	}
-	Gotype *LSym
-	Class  int8
-	Etype  uint8
-	Node   interface{}
-	Width  int64
-}
-
-type Prog struct {
-	Ctxt     *Link
-	Pc       int64
-	Lineno   int32
-	Link     *Prog
-	As       int16
-	Scond    uint8
-	From     Addr
-	Reg      int16
-	From3    Addr
-	To       Addr
-	To2      Addr
-	Opt      interface{}
-	Forwd    *Prog
-	Pcond    *Prog
-	Comefrom *Prog
-	Pcrel    *Prog
-	Spadj    int32
-	Mark     uint16
-	Optab    uint16
-	Back     uint8
-	Ft       uint8
-	F3t      uint8
-	Tt       uint8
-	Isize    uint8
-	Printed  uint8
-	Width    int8
-	Mode     int8
-}
-
-type LSym struct {
-	Name        string
-	Extname     string
-	Type        int16
-	Version     int16
-	Dupok       uint8
-	Cfunc       uint8
-	External    uint8
-	Nosplit     uint8
-	Reachable   uint8
-	Cgoexport   uint8
-	Special     uint8
-	Stkcheck    uint8
-	Hide        uint8
-	Leaf        uint8
-	Fnptr       uint8
-	Localentry  uint8
-	Seenglobl   uint8
-	Onlist      uint8
-	Printed     uint8
-	Symid       int16
-	Dynid       int32
-	Plt         int32
-	Got         int32
-	Align       int32
-	Elfsym      int32
-	Args        int32
-	Locals      int32
-	Value       int64
-	Size        int64
-	Allsym      *LSym
-	Next        *LSym
-	Sub         *LSym
-	Outer       *LSym
-	Gotype      *LSym
-	Reachparent *LSym
-	Queue       *LSym
-	File        string
-	Dynimplib   string
-	Dynimpvers  string
-	Sect        *struct{}
-	Autom       *Auto
-	Text        *Prog
-	Etext       *Prog
-	Pcln        *Pcln
-	P           []byte
-	R           []Reloc
-}
-
-type Reloc struct {
-	Off     int32
-	Siz     uint8
-	Done    uint8
-	Type    int32
-	Variant int32
-	Add     int64
-	Xadd    int64
-	Sym     *LSym
-	Xsym    *LSym
-}
-
-type Auto struct {
-	Asym    *LSym
-	Link    *Auto
-	Aoffset int32
-	Name    int16
-	Gotype  *LSym
-}
-
-type Link struct {
-	Thechar            int32
-	Thestring          string
-	Goarm              int32
-	Headtype           int
-	Arch               *LinkArch
-	Ignore             func(string) int32
-	Debugasm           int32
-	Debugline          int32
-	Debughist          int32
-	Debugread          int32
-	Debugvlog          int32
-	Debugstack         int32
-	Debugzerostack     int32
-	Debugdivmod        int32
-	Debugfloat         int32
-	Debugpcln          int32
-	Flag_shared        int32
-	Iself              int32
-	Bso                *Biobuf
-	Pathname           string
-	Windows            int32
-	Trimpath           string
-	Goroot             string
-	Goroot_final       string
-	Enforce_data_order int32
-	Hash               map[SymVer]*LSym
-	Allsym             *LSym
-	Nsymbol            int32
-	LineHist           LineHist
-	Imports            []string
-	Plist              *Plist
-	Plast              *Plist
-	Sym_div            *LSym
-	Sym_divu           *LSym
-	Sym_mod            *LSym
-	Sym_modu           *LSym
-	Symmorestack       [2]*LSym
-	Tlsg               *LSym
-	Plan9privates      *LSym
-	Curp               *Prog
-	Printp             *Prog
-	Blitrl             *Prog
-	Elitrl             *Prog
-	Rexflag            int
-	Rep                int
-	Repn               int
-	Lock               int
-	Asmode             int
-	Andptr             []byte
-	And                [100]uint8
-	Instoffset         int64
-	Autosize           int32
-	Armsize            int32
-	Pc                 int64
-	Libdir             []string
-	Library            []Library
-	Tlsoffset          int
-	Diag               func(string, ...interface{})
-	Mode               int
-	Curauto            *Auto
-	Curhist            *Auto
-	Cursym             *LSym
-	Version            int
-	Textp              *LSym
-	Etextp             *LSym
-	Histdepth          int32
-	Nhistfile          int32
-	Filesyms           *LSym
-}
-
-type SymVer struct {
-	Name    string
-	Version int
-}
-
-type Plist struct {
-	Name    *LSym
-	Firstpc *Prog
-	Recur   int
-	Link    *Plist
-}
-
-type LinkArch struct {
-	ByteOrder  binary.ByteOrder
-	Name       string
-	Thechar    int
-	Preprocess func(*Link, *LSym)
-	Assemble   func(*Link, *LSym)
-	Follow     func(*Link, *LSym)
-	Progedit   func(*Link, *Prog)
-	UnaryDst   map[int]bool // Instruction takes one operand, a destination.
-	Minlc      int
-	Ptrsize    int
-	Regsize    int
-}
-
-type Library struct {
-	Objref string
-	Srcref string
-	File   string
-	Pkg    string
-}
-
-type Pcln struct {
-	Pcsp        Pcdata
-	Pcfile      Pcdata
-	Pcline      Pcdata
-	Pcdata      []Pcdata
-	Funcdata    []*LSym
-	Funcdataoff []int64
-	File        []*LSym
-	Lastfile    *LSym
-	Lastindex   int
-}
-
-type Pcdata struct {
-	P []byte
-}
-
-type Pciter struct {
-	d       Pcdata
-	p       []byte
-	pc      uint32
-	nextpc  uint32
-	pcscale uint32
-	value   int32
-	start   int
-	done    int
-}
-
 // An Addr is an argument to an instruction.
 // The general forms and their encodings are:
 //
@@ -396,6 +143,28 @@ type Pciter struct {
 //			index = second register
 //			scale = 1
 //
+type Addr struct {
+	Type   int16
+	Reg    int16
+	Reg2   int16 // RHS of register pair. AX:DX (386)
+	Index  int16
+	Scale  int16 // Sometimes holds a register.
+	Name   int8
+	Offset int64
+	Sym    *LSym
+	U      struct {
+		Sval    string
+		Dval    float64
+		Branch  *Prog
+		Argsize int32
+		Bits    uint64
+	}
+	Gotype *LSym
+	Class  int8
+	Etype  uint8
+	Node   interface{}
+	Width  int64
+}
 
 const (
 	NAME_NONE = 0 + iota
@@ -427,6 +196,35 @@ const (
 
 // TODO(rsc): Describe prog.
 // TODO(rsc): Describe TEXT/GLOBL flag in from3, DATA width in from3.
+type Prog struct {
+	Ctxt     *Link
+	Pc       int64
+	Lineno   int32
+	Link     *Prog
+	As       int16
+	Scond    uint8
+	From     Addr
+	Reg      int16
+	From3    Addr
+	To       Addr
+	To2      Addr
+	Opt      interface{}
+	Forwd    *Prog
+	Pcond    *Prog
+	Comefrom *Prog
+	Pcrel    *Prog
+	Spadj    int32
+	Mark     uint16
+	Optab    uint16
+	Back     uint8
+	Ft       uint8
+	F3t      uint8
+	Tt       uint8
+	Isize    uint8
+	Printed  uint8
+	Width    int8
+	Mode     int8
+}
 
 // Prog.as opcodes.
 // These are the portable opcodes, common to all architectures.
@@ -459,7 +257,66 @@ const (
 	A_ARCHSPECIFIC
 )
 
-// prevent incompatible type signatures between liblink and 8l on Plan 9
+type LSym struct {
+	Name        string
+	Extname     string
+	Type        int16
+	Version     int16
+	Dupok       uint8
+	Cfunc       uint8
+	External    uint8
+	Nosplit     uint8
+	Reachable   uint8
+	Cgoexport   uint8
+	Special     uint8
+	Stkcheck    uint8
+	Hide        uint8
+	Leaf        uint8
+	Fnptr       uint8
+	Localentry  uint8
+	Seenglobl   uint8
+	Onlist      uint8
+	Printed     uint8
+	Symid       int16
+	Dynid       int32
+	Plt         int32
+	Got         int32
+	Align       int32
+	Elfsym      int32
+	Args        int32
+	Locals      int32
+	Value       int64
+	Size        int64
+	Allsym      *LSym
+	Next        *LSym
+	Sub         *LSym
+	Outer       *LSym
+	Gotype      *LSym
+	Reachparent *LSym
+	Queue       *LSym
+	File        string
+	Dynimplib   string
+	Dynimpvers  string
+	Sect        *struct{}
+	Autom       *Auto
+	Text        *Prog
+	Etext       *Prog
+	Pcln        *Pcln
+	P           []byte
+	R           []Reloc
+}
+
+type Pcln struct {
+	Pcsp        Pcdata
+	Pcfile      Pcdata
+	Pcline      Pcdata
+	Pcdata      []Pcdata
+	Funcdata    []*LSym
+	Funcdataoff []int64
+	File        []*LSym
+	Lastfile    *LSym
+	Lastindex   int
+}
 
 // LSym.type
 const (
@@ -503,6 +360,18 @@ const (
 	SHIDDEN = 1 << 9
 )
 
+type Reloc struct {
+	Off     int32
+	Siz     uint8
+	Done    uint8
+	Type    int32
+	Variant int32
+	Add     int64
+	Xadd    int64
+	Sym     *LSym
+	Xsym    *LSym
+}
+
 // Reloc.type
 const (
 	R_ADDR = 1 + iota
@@ -537,14 +406,36 @@ const (
 	RV_TYPE_MASK      = RV_CHECK_OVERFLOW - 1
 )
 
+type Auto struct {
+	Asym    *LSym
+	Link    *Auto
+	Aoffset int32
+	Name    int16
+	Gotype  *LSym
+}
+
 // Auto.name
 const (
 	A_AUTO = 1 + iota
 	A_PARAM
 )
 
+type Pcdata struct {
+	P []byte
+}
+
 // Pcdata iterator.
 //	for(pciterinit(ctxt, &it, &pcd); !it.done; pciternext(&it)) { it.value holds in [it.pc, it.nextpc) }
+type Pciter struct {
+	d       Pcdata
+	p       []byte
+	pc      uint32
+	nextpc  uint32
+	pcscale uint32
+	value   int32
+	start   int
+	done    int
+}
 
 // symbol version, incremented each time a file is loaded.
 // version==1 is reserved for savehist.
@@ -554,8 +445,103 @@ const (
 
 // Link holds the context for writing object code from a compiler
 // to be linker input or for reading that input into the linker.
+type Link struct {
+	Thechar            int32
+	Thestring          string
+	Goarm              int32
+	Headtype           int
+	Arch               *LinkArch
+	Ignore             func(string) int32
+	Debugasm           int32
+	Debugline          int32
+	Debughist          int32
+	Debugread          int32
+	Debugvlog          int32
+	Debugstack         int32
+	Debugzerostack     int32
+	Debugdivmod        int32
+	Debugfloat         int32
+	Debugpcln          int32
+	Flag_shared        int32
+	Iself              int32
+	Bso                *Biobuf
+	Pathname           string
+	Windows            int32
+	Trimpath           string
+	Goroot             string
+	Goroot_final       string
+	Enforce_data_order int32
+	Hash               map[SymVer]*LSym
+	Allsym             *LSym
+	Nsymbol            int32
+	LineHist           LineHist
+	Imports            []string
+	Plist              *Plist
+	Plast              *Plist
+	Sym_div            *LSym
+	Sym_divu           *LSym
+	Sym_mod            *LSym
+	Sym_modu           *LSym
+	Symmorestack       [2]*LSym
+	Tlsg               *LSym
+	Plan9privates      *LSym
+	Curp               *Prog
+	Printp             *Prog
+	Blitrl             *Prog
+	Elitrl             *Prog
+	Rexflag            int
+	Rep                int
+	Repn               int
+	Lock               int
+	Asmode             int
+	Andptr             []byte
+	And                [100]uint8
+	Instoffset         int64
+	Autosize           int32
+	Armsize            int32
+	Pc                 int64
+	Libdir             []string
+	Library            []Library
+	Tlsoffset          int
+	Diag               func(string, ...interface{})
+	Mode               int
+	Curauto            *Auto
+	Curhist            *Auto
+	Cursym             *LSym
+	Version            int
+	Textp              *LSym
+	Etextp             *LSym
+	Histdepth          int32
+	Nhistfile          int32
+	Filesyms           *LSym
+}
+
+type SymVer struct {
+	Name    string
+	Version int
+}
+
+type Library struct {
+	Objref string
+	Srcref string
+	File   string
+	Pkg    string
+}
 
 // LinkArch is the definition of a single architecture.
+type LinkArch struct {
+	ByteOrder  binary.ByteOrder
+	Name       string
+	Thechar    int
+	Preprocess func(*Link, *LSym)
+	Assemble   func(*Link, *LSym)
+	Follow     func(*Link, *LSym)
+	Progedit   func(*Link, *Prog)
+	UnaryDst   map[int]bool // Instruction takes one operand, a destination.
+	Minlc      int
+	Ptrsize    int
+	Regsize    int
+}
 
 /* executable header types */
 const (
@@ -580,6 +566,13 @@ const (
 )
 
 var linkbasepointer int
+
+type Plist struct {
+	Name    *LSym
+	Firstpc *Prog
+	Recur   int
+	Link    *Plist
+}
 
 /*
  * start a new Prog list.
