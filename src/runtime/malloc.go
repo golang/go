@@ -686,13 +686,12 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 
 	if shouldtriggergc() {
 		startGC(gcBackgroundMode)
-	} else if shouldhelpgc && atomicloaduint(&bggc.working) == 1 {
-		// bggc.lock not taken since race on bggc.working is benign.
-		// At worse we don't call gchelpwork.
-		// Delay the gchelpwork until the epilogue so that it doesn't
-		// interfere with the inner working of malloc such as
-		// mcache refills that might happen while doing the gchelpwork
-		systemstack(gchelpwork)
+	} else if gcphase == _GCmark {
+		// Assist garbage collector. We delay this until the
+		// epilogue so that it doesn't interfere with the
+		// inner working of malloc such as mcache refills that
+		// might happen while doing the gcAssistAlloc.
+		gcAssistAlloc(size, shouldhelpgc)
 	}
 
 	return x

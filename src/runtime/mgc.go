@@ -206,6 +206,11 @@ type gcControllerState struct {
 	// workRatioAvg is a moving average of the scan work ratio
 	// (scan work per byte marked).
 	workRatioAvg float64
+
+	// assistRatio is the ratio of allocated bytes to scan work
+	// that should be performed by mutator assists. This is
+	// computed at the beginning of each cycle.
+	assistRatio float64
 }
 
 // startCycle resets the GC controller's state and computes estimates
@@ -225,9 +230,23 @@ func (c *gcControllerState) startCycle() {
 	}
 
 	// Compute the expected work based on last cycle's marked bytes.
-	// (Currently unused)
 	scanWorkExpected := uint64(float64(memstats.heap_marked) * c.workRatioAvg)
-	_ = scanWorkExpected
+
+	// Compute the mutator assist ratio so by the time the mutator
+	// allocates the remaining heap bytes up to next_gc, it will
+	// have done (or stolen) the estimated amount of scan work.
+	heapGoal := memstats.heap_marked + memstats.heap_marked*uint64(gcpercent)/100
+	heapDistance := int64(heapGoal) - int64(memstats.heap_live)
+	if heapDistance <= 1024*1024 {
+		// heapDistance can be negative if GC start is delayed
+		// or if the allocation that pushed heap_live over
+		// next_gc is large or if the trigger is really close
+		// to GOGC. We don't want to set the assist negative
+		// (or divide by zero, or set it really high), so
+		// enforce a minimum on the distance.
+		heapDistance = 1024 * 1024
+	}
+	c.assistRatio = float64(scanWorkExpected) / float64(heapDistance)
 }
 
 // endCycle updates the GC controller state at the end of the
@@ -440,7 +459,8 @@ func gc(mode int) {
 			gcscan_m()
 			gctimer.cycle.installmarkwb = nanotime()
 
-			// Enter mark phase and enable write barriers.
+			// Enter mark phase, enabling write barriers
+			// and mutator assists.
 			if debug.gctrace > 0 {
 				tInstallWB = nanotime()
 			}
@@ -769,6 +789,8 @@ func gcResetGState() (numgs int) {
 	for _, gp := range allgs {
 		gp.gcworkdone = false  // set to true in gcphasework
 		gp.gcscanvalid = false // stack has not been scanned
+		gp.gcalloc = 0
+		gp.gcscanwork = 0
 	}
 	numgs = len(allgs)
 	unlock(&allglock)
