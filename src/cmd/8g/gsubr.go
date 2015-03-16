@@ -1844,21 +1844,10 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 		}
 	}
 
-	var af obj.Addr
-	var at obj.Addr
-	if f != nil {
-		af = gc.Naddr(f)
-	}
-	if t != nil {
-		at = gc.Naddr(t)
-	}
 	p := gc.Prog(as)
-	if f != nil {
-		p.From = af
-	}
-	if t != nil {
-		p.To = at
-	}
+	gc.Naddr(&p.From, f)
+	gc.Naddr(&p.To, t)
+
 	if gc.Debug['g'] != 0 {
 		fmt.Printf("%v\n", p)
 	}
@@ -1875,10 +1864,10 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 		w = 4
 	}
 
-	if true && w != 0 && f != nil && (af.Width > int64(w) || at.Width > int64(w)) {
+	if true && w != 0 && f != nil && (p.From.Width > int64(w) || p.To.Width > int64(w)) {
 		gc.Dump("bad width from:", f)
 		gc.Dump("bad width to:", t)
-		gc.Fatal("bad width: %v (%d, %d)\n", p, af.Width, at.Width)
+		gc.Fatal("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
 	}
 
 	if p.To.Type == obj.TYPE_ADDR && w > 0 {
