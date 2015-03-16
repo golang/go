@@ -214,7 +214,7 @@ func chasejmp(p *obj.Prog, jmploop *int) *obj.Prog {
 			break
 		}
 
-		p = p.To.U.Branch
+		p = p.To.Val.(*obj.Prog)
 	}
 
 	return p
@@ -234,8 +234,8 @@ func mark(firstp *obj.Prog) {
 			break
 		}
 		p.Opt = alive
-		if p.As != obj.ACALL && p.To.Type == obj.TYPE_BRANCH && p.To.U.Branch != nil {
-			mark(p.To.U.Branch)
+		if p.As != obj.ACALL && p.To.Type == obj.TYPE_BRANCH && p.To.Val.(*obj.Prog) != nil {
+			mark(p.To.Val.(*obj.Prog))
 		}
 		if p.As == obj.AJMP || p.As == obj.ARET || p.As == obj.AUNDEF {
 			break
@@ -255,8 +255,8 @@ func fixjmp(firstp *obj.Prog) {
 		if Debug['R'] != 0 && Debug['v'] != 0 {
 			fmt.Printf("%v\n", p)
 		}
-		if p.As != obj.ACALL && p.To.Type == obj.TYPE_BRANCH && p.To.U.Branch != nil && p.To.U.Branch.As == obj.AJMP {
-			p.To.U.Branch = chasejmp(p.To.U.Branch, &jmploop)
+		if p.As != obj.ACALL && p.To.Type == obj.TYPE_BRANCH && p.To.Val.(*obj.Prog) != nil && p.To.Val.(*obj.Prog).As == obj.AJMP {
+			p.To.Val = chasejmp(p.To.Val.(*obj.Prog), &jmploop)
 			if Debug['R'] != 0 && Debug['v'] != 0 {
 				fmt.Printf("->%v\n", p)
 			}
@@ -307,7 +307,7 @@ func fixjmp(firstp *obj.Prog) {
 	if jmploop == 0 {
 		var last *obj.Prog
 		for p := firstp; p != nil; p = p.Link {
-			if p.As == obj.AJMP && p.To.Type == obj.TYPE_BRANCH && p.To.U.Branch == p.Link {
+			if p.As == obj.AJMP && p.To.Type == obj.TYPE_BRANCH && p.To.Val == p.Link {
 				if Debug['R'] != 0 && Debug['v'] != 0 {
 					fmt.Printf("del %v\n", p)
 				}
@@ -417,12 +417,12 @@ func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
 		}
 
 		if p.To.Type == obj.TYPE_BRANCH {
-			if p.To.U.Branch == nil {
+			if p.To.Val == nil {
 				Fatal("pnil %v", p)
 			}
-			f1 = p.To.U.Branch.Opt.(*Flow)
+			f1 = p.To.Val.(*obj.Prog).Opt.(*Flow)
 			if f1 == nil {
-				Fatal("fnil %v / %v", p, p.To.U.Branch)
+				Fatal("fnil %v / %v", p, p.To.Val.(*obj.Prog))
 			}
 			if f1 == f {
 				//fatal("self loop %P", p);

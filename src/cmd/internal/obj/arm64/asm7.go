@@ -2625,7 +2625,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 
 		var rf int
 		if p.From.Type == obj.TYPE_CONST {
-			rf = chipfloat7(ctxt, p.From.U.Dval)
+			rf = chipfloat7(ctxt, p.From.Val.(float64))
 			if rf < 0 || true {
 				ctxt.Diag("invalid floating-point immediate\n%v", p)
 				rf = 0

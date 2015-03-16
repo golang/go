@@ -981,7 +981,7 @@ yydefault:
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
 			yyVAL.addr.Offset = int64(yyDollar[1].lval)
-			yyVAL.addr.U.Argsize = obj.ArgsSizeUnknown
+			yyVAL.addr.Val = int32(obj.ArgsSizeUnknown)
 		}
 	case 47:
 		yyDollar = yyS[yypt-2 : yypt+1]
@@ -990,7 +990,7 @@ yydefault:
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
 			yyVAL.addr.Offset = -int64(yyDollar[2].lval)
-			yyVAL.addr.U.Argsize = obj.ArgsSizeUnknown
+			yyVAL.addr.Val = int32(obj.ArgsSizeUnknown)
 		}
 	case 48:
 		yyDollar = yyS[yypt-3 : yypt+1]
@@ -999,7 +999,7 @@ yydefault:
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
 			yyVAL.addr.Offset = int64(yyDollar[1].lval)
-			yyVAL.addr.U.Argsize = int32(yyDollar[3].lval)
+			yyVAL.addr.Val = int32(yyDollar[3].lval)
 		}
 	case 49:
 		yyDollar = yyS[yypt-4 : yypt+1]
@@ -1008,7 +1008,7 @@ yydefault:
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
 			yyVAL.addr.Offset = -int64(yyDollar[2].lval)
-			yyVAL.addr.U.Argsize = int32(yyDollar[4].lval)
+			yyVAL.addr.Val = int32(yyDollar[4].lval)
 		}
 	case 50:
 		yyDollar = yyS[yypt-0 : yypt+1]
@@ -1069,7 +1069,7 @@ yydefault:
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_SCONST
-			yyVAL.addr.U.Sval = yyDollar[2].sval
+			yyVAL.addr.Val = yyDollar[2].sval
 		}
 	case 60:
 		yyVAL.addr = yyS[yypt-0].addr
@@ -1079,7 +1079,7 @@ yydefault:
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_FCONST
-			yyVAL.addr.U.Dval = yyDollar[2].dval
+			yyVAL.addr.Val = yyDollar[2].dval
 		}
 	case 62:
 		yyDollar = yyS[yypt-3 : yypt+1]
@@ -1087,7 +1087,7 @@ yydefault:
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_FCONST
-			yyVAL.addr.U.Dval = -yyDollar[3].dval
+			yyVAL.addr.Val = -yyDollar[3].dval
 		}
 	case 63:
 		yyDollar = yyS[yypt-1 : yypt+1]

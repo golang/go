@@ -454,31 +454,31 @@ imm:
 	{
 		$$ = nullgen;
 		$$.Type = obj.TYPE_SCONST;
-		$$.U.Sval = ($2+"\x00\x00\x00\x00\x00\x00\x00\x00")[:8]
+		$$.Val = ($2+"\x00\x00\x00\x00\x00\x00\x00\x00")[:8]
 	}
 |	'$' LFCONST
 	{
 		$$ = nullgen;
 		$$.Type = obj.TYPE_FCONST;
-		$$.U.Dval = $2;
+		$$.Val = $2;
 	}
 |	'$' '(' LFCONST ')'
 	{
 		$$ = nullgen;
 		$$.Type = obj.TYPE_FCONST;
-		$$.U.Dval = $3;
+		$$.Val = $3;
 	}
 |	'$' '(' '-' LFCONST ')'
 	{
 		$$ = nullgen;
 		$$.Type = obj.TYPE_FCONST;
-		$$.U.Dval = -$4;
+		$$.Val = -$4;
 	}
 |	'$' '-' LFCONST
 	{
 		$$ = nullgen;
 		$$.Type = obj.TYPE_FCONST;
-		$$.U.Dval = -$3;
+		$$.Val = -$3;
 	}
 
 mem:
@@ -653,28 +653,28 @@ textsize:
 		$$ = nullgen;
 		$$.Type = obj.TYPE_TEXTSIZE;
 		$$.Offset = $1;
-		$$.U.Argsize = obj.ArgsSizeUnknown;
+		$$.Val = int32(obj.ArgsSizeUnknown);
 	}
 |	'-' LCONST
 	{
 		$$ = nullgen;
 		$$.Type = obj.TYPE_TEXTSIZE;
 		$$.Offset = -$2;
-		$$.U.Argsize = obj.ArgsSizeUnknown;
+		$$.Val = int32(obj.ArgsSizeUnknown);
 	}
 |	LCONST '-' LCONST
 	{
 		$$ = nullgen;
 		$$.Type = obj.TYPE_TEXTSIZE;
 		$$.Offset = $1;
-		$$.U.Argsize = int32($3);
+		$$.Val = int32($3);
 	}
 |	'-' LCONST '-' LCONST
 	{
 		$$ = nullgen;
 		$$.Type = obj.TYPE_TEXTSIZE;
 		$$.Offset = -$2;
-		$$.U.Argsize = int32($4);
+		$$.Val = int32($4);
 	}
 
 expr:

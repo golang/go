@@ -1017,7 +1017,7 @@ loop:
 					if p.From.Node == p0.From.Node {
 						if p.From.Offset == p0.From.Offset {
 							if p.From.Scale == p0.From.Scale {
-								if p.From.Type == obj.TYPE_FCONST && p.From.U.Dval == p0.From.U.Dval {
+								if p.From.Type == obj.TYPE_FCONST && p.From.Val.(float64) == p0.From.Val.(float64) {
 									if p.From.Index == p0.From.Index {
 										excise(r)
 										goto loop

@@ -114,8 +114,8 @@ func removevardef(firstp *obj.Prog) {
 			p.Link = p.Link.Link
 		}
 		if p.To.Type == obj.TYPE_BRANCH {
-			for p.To.U.Branch != nil && (p.To.U.Branch.As == obj.AVARDEF || p.To.U.Branch.As == obj.AVARKILL) {
-				p.To.U.Branch = p.To.U.Branch.Link
+			for p.To.Val.(*obj.Prog) != nil && (p.To.Val.(*obj.Prog).As == obj.AVARDEF || p.To.Val.(*obj.Prog).As == obj.AVARKILL) {
+				p.To.Val = p.To.Val.(*obj.Prog).Link
 			}
 		}
 	}

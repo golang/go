@@ -355,7 +355,7 @@ func dsname(s *Sym, off int, t string) int {
 	p.From3.Offset = int64(len(t))
 
 	p.To.Type = obj.TYPE_SCONST
-	p.To.U.Sval = t
+	p.To.Val = t
 	return off + len(t)
 }
 
@@ -404,14 +404,14 @@ func gdatacomplex(nam *Node, cval *Mpcplx) {
 	p.From3.Type = obj.TYPE_CONST
 	p.From3.Offset = int64(w)
 	p.To.Type = obj.TYPE_FCONST
-	p.To.U.Dval = mpgetflt(&cval.Real)
+	p.To.Val = mpgetflt(&cval.Real)
 
 	p = Thearch.Gins(obj.ADATA, nam, nil)
 	p.From3.Type = obj.TYPE_CONST
 	p.From3.Offset = int64(w)
 	p.From.Offset += int64(w)
 	p.To.Type = obj.TYPE_FCONST
-	p.To.U.Dval = mpgetflt(&cval.Imag)
+	p.To.Val = mpgetflt(&cval.Imag)
 }
 
 func gdatastring(nam *Node, sval string) {

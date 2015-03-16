@@ -1107,7 +1107,7 @@ yydefault:
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_SCONST
-			yyVAL.addr.U.Sval = yyDollar[2].sval
+			yyVAL.addr.Val = yyDollar[2].sval
 		}
 	case 83:
 		yyDollar = yyS[yypt-2 : yypt+1]
@@ -1115,7 +1115,7 @@ yydefault:
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_FCONST
-			yyVAL.addr.U.Dval = yyDollar[2].dval
+			yyVAL.addr.Val = yyDollar[2].dval
 		}
 	case 84:
 		yyDollar = yyS[yypt-4 : yypt+1]
@@ -1123,7 +1123,7 @@ yydefault:
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_FCONST
-			yyVAL.addr.U.Dval = yyDollar[3].dval
+			yyVAL.addr.Val = yyDollar[3].dval
 		}
 	case 85:
 		yyDollar = yyS[yypt-5 : yypt+1]
@@ -1131,7 +1131,7 @@ yydefault:
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_FCONST
-			yyVAL.addr.U.Dval = -yyDollar[4].dval
+			yyVAL.addr.Val = -yyDollar[4].dval
 		}
 	case 86:
 		yyDollar = yyS[yypt-3 : yypt+1]
@@ -1139,7 +1139,7 @@ yydefault:
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_FCONST
-			yyVAL.addr.U.Dval = -yyDollar[3].dval
+			yyVAL.addr.Val = -yyDollar[3].dval
 		}
 	case 87:
 		yyDollar = yyS[yypt-1 : yypt+1]
@@ -1148,7 +1148,7 @@ yydefault:
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
 			yyVAL.addr.Offset = yyDollar[1].lval
-			yyVAL.addr.U.Argsize = obj.ArgsSizeUnknown
+			yyVAL.addr.Val = int32(obj.ArgsSizeUnknown)
 		}
 	case 88:
 		yyDollar = yyS[yypt-2 : yypt+1]
@@ -1157,7 +1157,7 @@ yydefault:
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
 			yyVAL.addr.Offset = -yyDollar[2].lval
-			yyVAL.addr.U.Argsize = obj.ArgsSizeUnknown
+			yyVAL.addr.Val = int32(obj.ArgsSizeUnknown)
 		}
 	case 89:
 		yyDollar = yyS[yypt-3 : yypt+1]
@@ -1166,7 +1166,7 @@ yydefault:
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
 			yyVAL.addr.Offset = yyDollar[1].lval
-			yyVAL.addr.U.Argsize = int32(yyDollar[3].lval)
+			yyVAL.addr.Val = int32(yyDollar[3].lval)
 		}
 	case 90:
 		yyDollar = yyS[yypt-4 : yypt+1]
@@ -1175,7 +1175,7 @@ yydefault:
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
 			yyVAL.addr.Offset = -yyDollar[2].lval
-			yyVAL.addr.U.Argsize = int32(yyDollar[4].lval)
+			yyVAL.addr.Val = int32(yyDollar[4].lval)
 		}
 	case 91:
 		yyVAL.addr = yyS[yypt-0].addr

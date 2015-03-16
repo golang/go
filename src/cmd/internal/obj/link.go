@@ -76,13 +76,13 @@ import "encoding/binary"
 //		Floating point constant value.
 //		Encoding:
 //			type = TYPE_FCONST
-//			u.dval = floating point value
+//			val = floating point value
 //
 //	$<string literal, up to 8 chars>
 //		String literal value (raw bytes used for DATA instruction).
 //		Encoding:
 //			type = TYPE_SCONST
-//			u.sval = string
+//			val = string
 //
 //	<register name>
 //		Any register: integer, floating point, control, segment, and so on.
@@ -94,7 +94,7 @@ import "encoding/binary"
 //	x(PC)
 //		Encoding:
 //			type = TYPE_BRANCH
-//			u.branch = Prog* reference OR ELSE offset = target pc (branch takes priority)
+//			val = Prog* reference OR ELSE offset = target pc (branch takes priority)
 //
 //	$±x-±y
 //		Final argument to TEXT, specifying local frame size x and argument size y.
@@ -106,7 +106,7 @@ import "encoding/binary"
 //		Encoding:
 //			type = TYPE_TEXTSIZE
 //			offset = x
-//			u.argsize = y
+//			val = int32(y)
 //
 //	reg<<shift, reg>>shift, reg->shift, reg@>shift
 //		Shifted register value, for ARM.
@@ -150,20 +150,21 @@ type Addr struct {
 	Index  int16
 	Scale  int16 // Sometimes holds a register.
 	Name   int8
-	Offset int64
-	Sym    *LSym
-	U      struct {
-		Sval    string
-		Dval    float64
-		Branch  *Prog
-		Argsize int32
-		Bits    uint64
-	}
-	Gotype *LSym
 	Class  int8
 	Etype  uint8
-	Node   interface{}
+	Offset int64
 	Width  int64
+	Sym    *LSym
+	Gotype *LSym
+
+	// argument value:
+	//	for TYPE_SCONST, a string
+	//	for TYPE_FCONST, a float64
+	//	for TYPE_BRANCH, a *Prog (optional)
+	//	for TYPE_TEXTSIZE, an int32 (optional)
+	Val interface{}
+
+	Node interface{} // for use by compiler
 }
 
 const (
@@ -198,13 +199,8 @@ const (
 // TODO(rsc): Describe TEXT/GLOBL flag in from3, DATA width in from3.
 type Prog struct {
 	Ctxt     *Link
-	Pc       int64
-	Lineno   int32
 	Link     *Prog
-	As       int16
-	Scond    uint8
 	From     Addr
-	Reg      int16
 	From3    Addr
 	To       Addr
 	To2      Addr
@@ -213,9 +209,14 @@ type Prog struct {
 	Pcond    *Prog
 	Comefrom *Prog
 	Pcrel    *Prog
+	Pc       int64
+	Lineno   int32
 	Spadj    int32
+	As       int16
+	Reg      int16
 	Mark     uint16
 	Optab    uint16
+	Scond    uint8
 	Back     uint8
 	Ft       uint8
 	F3t      uint8

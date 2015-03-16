@@ -389,8 +389,8 @@ func Dconv(p *Prog, a *Addr) string {
 			str = fmt.Sprintf("%s(SB)", a.Sym.Name)
 		} else if p != nil && p.Pcond != nil {
 			str = fmt.Sprintf("%d", p.Pcond.Pc)
-		} else if a.U.Branch != nil {
-			str = fmt.Sprintf("%d", a.U.Branch.Pc)
+		} else if a.Val != nil {
+			str = fmt.Sprintf("%d", a.Val.(*Prog).Pc)
 		} else {
 			str = fmt.Sprintf("%d(PC)", a.Offset)
 		}
@@ -412,14 +412,14 @@ func Dconv(p *Prog, a *Addr) string {
 		}
 
 	case TYPE_TEXTSIZE:
-		if a.U.Argsize == ArgsSizeUnknown {
+		if a.Val.(int32) == ArgsSizeUnknown {
 			str = fmt.Sprintf("$%d", a.Offset)
 		} else {
-			str = fmt.Sprintf("$%d-%d", a.Offset, a.U.Argsize)
+			str = fmt.Sprintf("$%d-%d", a.Offset, a.Val.(int32))
 		}
 
 	case TYPE_FCONST:
-		str = fmt.Sprintf("%.17g", a.U.Dval)
+		str = fmt.Sprintf("%.17g", a.Val.(float64))
 		// Make sure 1 prints as 1.0
 		if !strings.ContainsAny(str, ".e") {
 			str += ".0"
@@ -427,7 +427,7 @@ func Dconv(p *Prog, a *Addr) string {
 		str = fmt.Sprintf("$(%s)", str)
 
 	case TYPE_SCONST:
-		str = fmt.Sprintf("$%q", a.U.Sval)
+		str = fmt.Sprintf("$%q", a.Val.(string))
 
 	case TYPE_ADDR:
 		str = fmt.Sprintf("$%s", Mconv(a))

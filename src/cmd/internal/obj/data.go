@@ -75,16 +75,16 @@ func savedata(ctxt *Link, s *LSym, p *Prog, pn string) {
 			ctxt.Diag("unexpected %d-byte floating point constant", siz)
 
 		case 4:
-			flt := math.Float32bits(float32(p.To.U.Dval))
+			flt := math.Float32bits(float32(p.To.Val.(float64)))
 			ctxt.Arch.ByteOrder.PutUint32(s.P[off:], flt)
 
 		case 8:
-			flt := math.Float64bits(p.To.U.Dval)
+			flt := math.Float64bits(p.To.Val.(float64))
 			ctxt.Arch.ByteOrder.PutUint64(s.P[off:], flt)
 		}
 
 	case TYPE_SCONST:
-		copy(s.P[off:off+siz], p.To.U.Sval)
+		copy(s.P[off:off+siz], p.To.Val.(string))
 
 	case TYPE_CONST, TYPE_ADDR:
 		if p.To.Sym != nil || int(p.To.Type) == TYPE_ADDR {
