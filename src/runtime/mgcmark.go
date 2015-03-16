@@ -167,41 +167,74 @@ func markroot(desc *parfor, i uint32) {
 	gcw.dispose()
 }
 
-// gchelpwork does a small bounded amount of gc work. The purpose is to
-// shorten the time (as measured by allocations) spent doing a concurrent GC.
-// The number of mutator calls is roughly propotional to the number of allocations
-// made by that mutator. This slows down the allocation while speeding up the GC.
+// gcAssistAlloc records and allocation of size bytes and, if
+// allowAssist is true, may assist GC scanning in proportion to the
+// allocations performed by this mutator since the last assist.
+//
+// It should only be called during gcphase == _GCmark.
 //go:nowritebarrier
-func gchelpwork() {
-	switch gcphase {
-	default:
-		throw("gcphasework in bad gcphase")
-	case _GCoff, _GCquiesce, _GCstw:
-		// No work.
-	case _GCsweep:
-		// We could help by calling sweepone to sweep a single span.
-		// _ = sweepone()
-	case _GCscan:
-		// scan the stack, mark the objects, put pointers in work buffers
-		// hanging off the P where this is being run.
-		// scanstack(gp)
-	case _GCmark:
-		// drain your own currentwbuf first in the hopes that it will
-		// be more cache friendly.
+func gcAssistAlloc(size uintptr, allowAssist bool) {
+	// Find the G responsible for this assist.
+	gp := getg()
+	if gp.m.curg != nil {
+		gp = gp.m.curg
+	}
+
+	// Record allocation.
+	gp.gcalloc += size
+
+	if !allowAssist {
+		return
+	}
+
+	// Compute the amount of assist scan work we need to do.
+	scanWork := int64(gcController.assistRatio*float64(gp.gcalloc)) - gp.gcscanwork
+	// scanWork can be negative if the last assist scanned a large
+	// object and we're still ahead of our assist goal.
+	if scanWork <= 0 {
+		return
+	}
+
+	// Steal as much credit as we can from the background GC's
+	// scan credit. This is racy and may drop the background
+	// credit below 0 if two mutators steal at the same time. This
+	// will just cause steals to fail until credit is accumulated
+	// again, so in the long run it doesn't really matter, but we
+	// do have to handle the negative credit case.
+	bgScanCredit := atomicloadint64(&gcController.bgScanCredit)
+	stolen := int64(0)
+	if bgScanCredit > 0 {
+		if bgScanCredit < scanWork {
+			stolen = bgScanCredit
+		} else {
+			stolen = scanWork
+		}
+		xaddint64(&gcController.bgScanCredit, -scanWork)
+
+		scanWork -= stolen
+		gp.gcscanwork += stolen
+
+		if scanWork == 0 {
+			return
+		}
+	}
+
+	// Perform assist work
+	systemstack(func() {
+		// drain own current wbuf first in the hopes that it
+		// will be more cache friendly.
 		var gcw gcWork
 		gcw.initFromCache()
-		const helpScanWork = 500 // pointers to trace
-		gcDrainN(&gcw, helpScanWork)
+		startScanWork := gcw.scanWork
+		gcDrainN(&gcw, scanWork)
+		// Record that we did this much scan work.
+		gp.gcscanwork += gcw.scanWork - startScanWork
 		// TODO(austin): This is the vast majority of our
 		// disposes. Instead of constantly disposing, keep a
 		// per-P gcWork cache (probably combined with the
 		// write barrier wbuf cache).
 		gcw.dispose()
-	case _GCmarktermination:
-		// We should never be here since the world is stopped.
-		// All available mark work will be emptied before returning.
-		throw("gcphasework in bad gcphase")
-	}
+	})
 }
 
 // The gp has been moved to a GC safepoint. GC phase specific

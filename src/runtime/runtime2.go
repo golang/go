@@ -241,6 +241,10 @@ type g struct {
 	racectx      uintptr
 	waiting      *sudog // sudog structures this g is waiting on (that have a valid elem ptr)
 	readyg       *g     // scratch for readyExecute
+
+	// Per-G gcController state
+	gcalloc    uintptr // bytes allocated during this GC cycle
+	gcscanwork int64   // scan work done (or stolen) this GC cycle
 }
 
 type mts struct {
