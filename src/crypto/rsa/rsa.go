@@ -102,7 +102,7 @@ func (priv *PrivateKey) Decrypt(rand io.Reader, ciphertext []byte, opts crypto.D
 	case *PKCS1v15DecryptOptions:
 		if l := opts.SessionKeyLen; l > 0 {
 			plaintext = make([]byte, l)
-			if _, err := rand.Read(plaintext); err != nil {
+			if _, err := io.ReadFull(rand, plaintext); err != nil {
 				return nil, err
 			}
 			if err := DecryptPKCS1v15SessionKey(rand, priv, ciphertext, plaintext); err != nil {
