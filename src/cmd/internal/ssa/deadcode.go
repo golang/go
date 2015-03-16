@@ -86,8 +86,10 @@ func deadcode(f *Func) {
 				f.vid.put(v.ID)
 			}
 		}
-		for j := i; j < len(b.Values); j++ {
-			b.Values[j] = nil // aid GC
+		// aid GC
+		tail := b.Values[i:]
+		for j := range tail {
+			tail[j] = nil
 		}
 		b.Values = b.Values[:i]
 	}
@@ -105,9 +107,10 @@ func deadcode(f *Func) {
 			f.bid.put(b.ID)
 		}
 	}
-	// zero remainder to help gc
-	for j := i; j < len(f.Blocks); j++ {
-		f.Blocks[j] = nil
+	// zero remainder to help GC
+	tail := f.Blocks[i:]
+	for j := range tail {
+		tail[j] = nil
 	}
 	f.Blocks = f.Blocks[:i]
 
