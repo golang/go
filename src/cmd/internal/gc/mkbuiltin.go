@@ -50,7 +50,7 @@ func main() {
 
 // Compile .go file, import data from .6 file, and write Go string version.
 func mkbuiltin(w io.Writer, gochar string, name string) {
-	if err := exec.Command("go", "tool", gochar+"g", "-A", "builtins/"+name+".go").Run(); err != nil {
+	if err := exec.Command("go", "tool", gochar+"g", "-A", "builtin/"+name+".go").Run(); err != nil {
 		log.Fatal(err)
 	}
 	obj := fmt.Sprintf("%s.%s", name, gochar)
