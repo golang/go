@@ -139,7 +139,7 @@ func bootstrapFixImports(text, srcFile string) string {
 		}
 	}
 
-	lines[0] = "// Do not edit. Bootstrap copy of " + srcFile + "\n\n" + lines[0]
+	lines[0] = "// Do not edit. Bootstrap copy of " + srcFile + "\n\n//line " + srcFile + ":1\n" + lines[0]
 
 	return strings.Join(lines, "")
 }
