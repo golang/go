@@ -22,6 +22,7 @@ func testAll() {
 	testTypeSwitch()
 	testSelect1()
 	testSelect2()
+	testEmptySwitches()
 }
 
 func testSimple() {
@@ -174,4 +175,21 @@ func testSelect2() {
 			return
 		}
 	}
+}
+
+// Empty control statements created syntax errors. This function
+// is here just to be sure that those are handled correctly now.
+func testEmptySwitches() {
+	check(LINE, 1)
+	switch 3 {
+	}
+	check(LINE, 1)
+	switch i := (interface{})(3).(int); i {
+	}
+	check(LINE, 1)
+	go func() {
+		check(LINE, 1)
+		select {}
+	}()
+	check(LINE, 1)
 }

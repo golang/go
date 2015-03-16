@@ -220,6 +220,11 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 		if n.Body == nil || len(n.Body.List) == 0 {
 			return nil
 		}
+	case *ast.TypeSwitchStmt:
+		// Don't annotate an empty type switch - creates a syntax error.
+		if n.Body == nil || len(n.Body.List) == 0 {
+			return nil
+		}
 	}
 	return f
 }
