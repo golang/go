@@ -972,17 +972,11 @@ func regopt(firstp *obj.Prog) {
 
 	firstf = g.Start
 
-	var r *Reg
-	var info ProgInfo
-	var p *obj.Prog
-	var bit Bits
-	var z int
 	for f := firstf; f != nil; f = f.Link {
-		p = f.Prog
+		p := f.Prog
 		if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
 			continue
 		}
-		info = Thearch.Proginfo(p)
 
 		// Avoid making variables for direct-called functions.
 		if p.As == obj.ACALL && p.To.Type == obj.TYPE_MEM && p.To.Name == obj.NAME_EXTERN {
@@ -990,30 +984,29 @@ func regopt(firstp *obj.Prog) {
 		}
 
 		// from vs to doesn't matter for registers.
-		r = f.Data.(*Reg)
+		r := f.Data.(*Reg)
+		r.use1.b[0] |= p.Info.Reguse | p.Info.Regindex
+		r.set.b[0] |= p.Info.Regset
 
-		r.use1.b[0] |= info.Reguse | info.Regindex
-		r.set.b[0] |= info.Regset
-
-		bit = mkvar(f, &p.From)
+		bit := mkvar(f, &p.From)
 		if bany(&bit) {
-			if info.Flags&LeftAddr != 0 {
+			if p.Info.Flags&LeftAddr != 0 {
 				setaddrs(bit)
 			}
-			if info.Flags&LeftRead != 0 {
-				for z = 0; z < BITS; z++ {
+			if p.Info.Flags&LeftRead != 0 {
+				for z := 0; z < BITS; z++ {
 					r.use1.b[z] |= bit.b[z]
 				}
 			}
-			if info.Flags&LeftWrite != 0 {
-				for z = 0; z < BITS; z++ {
+			if p.Info.Flags&LeftWrite != 0 {
+				for z := 0; z < BITS; z++ {
 					r.set.b[z] |= bit.b[z]
 				}
 			}
 		}
 
 		// Compute used register for reg
-		if info.Flags&RegRead != 0 {
+		if p.Info.Flags&RegRead != 0 {
 			r.use1.b[0] |= Thearch.RtoB(int(p.Reg))
 		}
 
@@ -1025,16 +1018,16 @@ func regopt(firstp *obj.Prog) {
 
 		bit = mkvar(f, &p.To)
 		if bany(&bit) {
-			if info.Flags&RightAddr != 0 {
+			if p.Info.Flags&RightAddr != 0 {
 				setaddrs(bit)
 			}
-			if info.Flags&RightRead != 0 {
-				for z = 0; z < BITS; z++ {
+			if p.Info.Flags&RightRead != 0 {
+				for z := 0; z < BITS; z++ {
 					r.use2.b[z] |= bit.b[z]
 				}
 			}
-			if info.Flags&RightWrite != 0 {
-				for z = 0; z < BITS; z++ {
+			if p.Info.Flags&RightWrite != 0 {
+				for z := 0; z < BITS; z++ {
 					r.set.b[z] |= bit.b[z]
 				}
 			}
@@ -1044,8 +1037,8 @@ func regopt(firstp *obj.Prog) {
 	for i := 0; i < nvar; i++ {
 		v := &var_[i]
 		if v.addr != 0 {
-			bit = blsh(uint(i))
-			for z = 0; z < BITS; z++ {
+			bit := blsh(uint(i))
+			for z := 0; z < BITS; z++ {
 				addrs.b[z] |= bit.b[z]
 			}
 		}
@@ -1080,12 +1073,12 @@ func regopt(firstp *obj.Prog) {
 
 	for f := firstf; f != nil; f = f.Link {
 		f.Active = 0
-		r = f.Data.(*Reg)
+		r := f.Data.(*Reg)
 		r.act = zbits
 	}
 
 	for f := firstf; f != nil; f = f.Link {
-		p = f.Prog
+		p := f.Prog
 		if p.As == obj.AVARDEF && Isfat(((p.To.Node).(*Node)).Type) && ((p.To.Node).(*Node)).Opt != nil {
 			active++
 			walkvardef(p.To.Node.(*Node), f, active)
@@ -1161,7 +1154,7 @@ loop2:
 	 */
 	mask := uint64((1 << uint(nreg)) - 1)
 	for f := firstf; f != nil; f = f.Link {
-		r = f.Data.(*Reg)
+		r := f.Data.(*Reg)
 		r.regu = (r.refbehind.b[0] | r.set.b[0]) & mask
 		r.set.b[0] &^= mask
 		r.use1.b[0] &^= mask
@@ -1185,6 +1178,7 @@ loop2:
 	 */
 	f = firstf
 
+	var bit Bits
 	if f != nil {
 		r := f.Data.(*Reg)
 		for z := 0; z < BITS; z++ {
@@ -1205,8 +1199,8 @@ loop2:
 	nregion = 0
 	var rgp *Rgn
 	for f := firstf; f != nil; f = f.Link {
-		r = f.Data.(*Reg)
-		for z = 0; z < BITS; z++ {
+		r := f.Data.(*Reg)
+		for z := 0; z < BITS; z++ {
 			bit.b[z] = r.set.b[z] &^ (r.refahead.b[z] | r.calahead.b[z] | addrs.b[z])
 		}
 		if bany(&bit) && f.Refset == 0 {
@@ -1217,7 +1211,7 @@ loop2:
 			Thearch.Excise(f)
 		}
 
-		for z = 0; z < BITS; z++ {
+		for z := 0; z < BITS; z++ {
 			bit.b[z] = LOAD(r, z) &^ (r.act.b[z] | addrs.b[z])
 		}
 		for bany(&bit) {

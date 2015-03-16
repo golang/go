@@ -257,7 +257,6 @@ func subprop(r0 *gc.Flow) bool {
 	if !regtyp(v2) {
 		return false
 	}
-	var info gc.ProgInfo
 	for r := gc.Uniqp(r0); r != nil; r = gc.Uniqp(r) {
 		if gc.Uniqs(r) == nil {
 			break
@@ -266,14 +265,16 @@ func subprop(r0 *gc.Flow) bool {
 		if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
 			continue
 		}
-		info = proginfo(p)
-		if info.Flags&gc.Call != 0 {
+		if p.Info.Flags&gc.Call != 0 {
 			return false
 		}
 
-		if (info.Flags&gc.CanRegRead != 0) && p.To.Type == obj.TYPE_REG {
-			info.Flags |= gc.RegRead
-			info.Flags &^= (gc.CanRegRead | gc.RightRead)
+		// TODO(rsc): Whatever invalidated the info should have done this call.
+		proginfo(p)
+
+		if (p.Info.Flags&gc.CanRegRead != 0) && p.To.Type == obj.TYPE_REG {
+			p.Info.Flags |= gc.RegRead
+			p.Info.Flags &^= (gc.CanRegRead | gc.RightRead)
 			p.Reg = p.To.Reg
 		}
 
@@ -284,7 +285,7 @@ func subprop(r0 *gc.Flow) bool {
 			return false
 		}
 
-		if info.Flags&(gc.RightRead|gc.RightWrite) == gc.RightWrite {
+		if p.Info.Flags&(gc.RightRead|gc.RightWrite) == gc.RightWrite {
 			if p.To.Type == v1.Type {
 				if p.To.Reg == v1.Reg {
 					if p.Scond == arm.C_SCOND_NONE {
