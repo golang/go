@@ -82,6 +82,18 @@ func TestCgoExternalThreadSIGPROF(t *testing.T) {
 	}
 }
 
+func TestCgoDLLImports(t *testing.T) {
+	// test issue 9356
+	if runtime.GOOS != "windows" {
+		t.Skip("skipping windows specific test")
+	}
+	got := executeTest(t, cgoDLLImportsMainSource, nil, "a/a.go", cgoDLLImportsPkgSource)
+	want := "OK\n"
+	if got != want {
+		t.Fatalf("expected %q, but got %v", want, got)
+	}
+}
+
 const cgoSignalDeadlockSource = `
 package main
 
@@ -267,5 +279,45 @@ func main() {
 		runtime.Gosched()
 	}
 	println("OK")
+}
+`
+
+const cgoDLLImportsMainSource = `
+package main
+
+/*
+#include <windows.h>
+
+DWORD getthread() {
+	return GetCurrentThreadId();
+}
+*/
+import "C"
+
+import "./a"
+
+func main() {
+	C.getthread()
+	a.GetThread()
+	println("OK")
+}
+`
+
+const cgoDLLImportsPkgSource = `
+package a
+
+/*
+#cgo CFLAGS: -mnop-fun-dllimport
+
+#include <windows.h>
+
+DWORD agetthread() {
+	return GetCurrentThreadId();
+}
+*/
+import "C"
+
+func GetThread() uint32 {
+	return uint32(C.agetthread())
 }
 `
