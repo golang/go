@@ -82,7 +82,7 @@ const (
 	OpStoreFP
 	OpStoreSP
 
-	// spill&restore ops for the register allocator.  These are
+	// spill and restore ops for the register allocator.  These are
 	// semantically identical to OpCopy - they do not take/return
 	// stores like regular memory ops do.  We can get away with that because
 	// we know there is no aliasing to spill slots on the stack.

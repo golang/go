@@ -34,7 +34,7 @@ var (
 	TypeFlags = &Flags{}
 )
 
-// typeIdentical returns whether it two arguments are the same type.
+// typeIdentical reports whether its two arguments are the same type.
 func typeIdentical(t, u Type) bool {
 	if t == TypeMem {
 		return u == TypeMem

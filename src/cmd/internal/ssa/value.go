@@ -24,7 +24,7 @@ type Value struct {
 	// are a few other pseudo-types, see type.go.
 	Type Type
 
-	// Auxiliary info for this value.  The type of this information depends on the opcode (& type).
+	// Auxiliary info for this value.  The type of this information depends on the opcode and type.
 	Aux interface{}
 
 	// Arguments of this value
@@ -67,9 +67,15 @@ func (v *Value) LongString() string {
 }
 
 func (v *Value) AddArg(w *Value) {
+	if v.Args == nil {
+		v.resetArgs() // use argstorage
+	}
 	v.Args = append(v.Args, w)
 }
 func (v *Value) AddArgs(a ...*Value) {
+	if v.Args == nil {
+		v.resetArgs() // use argstorage
+	}
 	v.Args = append(v.Args, a...)
 }
 func (v *Value) SetArg(i int, w *Value) {
@@ -77,6 +83,7 @@ func (v *Value) SetArg(i int, w *Value) {
 }
 func (v *Value) RemoveArg(i int) {
 	copy(v.Args[i:], v.Args[i+1:])
+	v.Args[len(v.Args)-1] = nil // aid GC
 	v.Args = v.Args[:len(v.Args)-1]
 }
 func (v *Value) SetArgs1(a *Value) {
