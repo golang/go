@@ -10,6 +10,7 @@ import (
 	"crypto/md5"
 	"crypto/sha1"
 	"hash"
+	"strconv"
 )
 
 // Split a premaster secret in two as specified in RFC 4346, section 5.
@@ -303,5 +304,5 @@ func tls12HashID(h crypto.Hash) uint8 {
 	case crypto.SHA384:
 		return hashSHA384
 	}
-	return 0
+	panic("tls12HashID called with unknown hash " + strconv.Itoa(int(h)))
 }
