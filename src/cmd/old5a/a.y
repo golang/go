@@ -376,28 +376,28 @@ textsize:
 		$$ = nullgen;
 		$$.Type = obj.TYPE_TEXTSIZE;
 		$$.Offset = int64($1)
-		$$.U.Argsize = obj.ArgsSizeUnknown;
+		$$.Val = int32(obj.ArgsSizeUnknown)
 	}
 |	'-' LCONST
 	{
 		$$ = nullgen;
 		$$.Type = obj.TYPE_TEXTSIZE;
 		$$.Offset = -int64($2)
-		$$.U.Argsize = obj.ArgsSizeUnknown;
+		$$.Val = int32(obj.ArgsSizeUnknown)
 	}
 |	LCONST '-' LCONST
 	{
 		$$ = nullgen;
 		$$.Type = obj.TYPE_TEXTSIZE;
 		$$.Offset = int64($1)
-		$$.U.Argsize = int32($3);
+		$$.Val = int32($3);
 	}
 |	'-' LCONST '-' LCONST
 	{
 		$$ = nullgen;
 		$$.Type = obj.TYPE_TEXTSIZE;
 		$$.Offset = -int64($2)
-		$$.U.Argsize = int32($4);
+		$$.Val = int32($4);
 	}
 
 cond:
@@ -449,7 +449,7 @@ ximm:	'$' con
 	{
 		$$ = nullgen;
 		$$.Type = obj.TYPE_SCONST;
-		$$.U.Sval = $2
+		$$.Val = $2
 	}
 |	fcon
 
@@ -458,13 +458,13 @@ fcon:
 	{
 		$$ = nullgen;
 		$$.Type = obj.TYPE_FCONST;
-		$$.U.Dval = $2;
+		$$.Val = $2;
 	}
 |	'$' '-' LFCONST
 	{
 		$$ = nullgen;
 		$$.Type = obj.TYPE_FCONST;
-		$$.U.Dval = -$3;
+		$$.Val = -$3;
 	}
 
 reglist:

@@ -423,12 +423,12 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
 	cfg = append(cfg, bb)
 	for p := firstp; p != nil; p = p.Link {
 		if p.To.Type == obj.TYPE_BRANCH {
-			if p.To.U.Branch == nil {
+			if p.To.Val == nil {
 				Fatal("prog branch to nil")
 			}
-			if p.To.U.Branch.Opt == nil {
-				p.To.U.Branch.Opt = newblock(p.To.U.Branch)
-				cfg = append(cfg, p.To.U.Branch.Opt.(*BasicBlock))
+			if p.To.Val.(*obj.Prog).Opt == nil {
+				p.To.Val.(*obj.Prog).Opt = newblock(p.To.Val.(*obj.Prog))
+				cfg = append(cfg, p.To.Val.(*obj.Prog).Opt.(*BasicBlock))
 			}
 
 			if p.As != obj.AJMP && p.Link != nil && p.Link.Opt == nil {
@@ -467,7 +467,7 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
 		}
 
 		if bb.last.To.Type == obj.TYPE_BRANCH {
-			addedge(bb, bb.last.To.U.Branch.Opt.(*BasicBlock))
+			addedge(bb, bb.last.To.Val.(*obj.Prog).Opt.(*BasicBlock))
 		}
 		if bb.last.Link != nil {
 			// Add a fall-through when the instruction is

@@ -1313,8 +1313,8 @@ brk:
 			p.Link = p.Link.Link
 		}
 		if p.To.Type == obj.TYPE_BRANCH {
-			for p.To.U.Branch != nil && p.To.U.Branch.As == obj.ANOP {
-				p.To.U.Branch = p.To.U.Branch.Link
+			for p.To.Val.(*obj.Prog) != nil && p.To.Val.(*obj.Prog).As == obj.ANOP {
+				p.To.Val = p.To.Val.(*obj.Prog).Link
 			}
 		}
 	}

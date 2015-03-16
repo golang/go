@@ -79,7 +79,7 @@ func Samereg(a *Node, b *Node) bool {
 func Gbranch(as int, t *Type, likely int) *obj.Prog {
 	p := Prog(as)
 	p.To.Type = obj.TYPE_BRANCH
-	p.To.U.Branch = nil
+	p.To.Val = nil
 	if as != obj.AJMP && likely != 0 && Thearch.Thechar != '9' && Thearch.Thechar != '7' {
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(bool2int(likely > 0))
@@ -400,7 +400,7 @@ func Naddr(a *obj.Addr, n *Node) {
 
 		case CTFLT:
 			a.Type = obj.TYPE_FCONST
-			a.U.Dval = mpgetflt(n.Val.U.Fval)
+			a.Val = mpgetflt(n.Val.U.Fval)
 
 		case CTINT,
 			CTRUNE:
@@ -585,7 +585,7 @@ func Patch(p *obj.Prog, to *obj.Prog) {
 	if p.To.Type != obj.TYPE_BRANCH {
 		Fatal("patch: not a branch")
 	}
-	p.To.U.Branch = to
+	p.To.Val = to
 	p.To.Offset = to.Pc
 }
 
@@ -593,8 +593,8 @@ func unpatch(p *obj.Prog) *obj.Prog {
 	if p.To.Type != obj.TYPE_BRANCH {
 		Fatal("unpatch: not a branch")
 	}
-	q := p.To.U.Branch
-	p.To.U.Branch = nil
+	q, _ := p.To.Val.(*obj.Prog)
+	p.To.Val = nil
 	p.To.Offset = 0
 	return q
 }

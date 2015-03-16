@@ -343,7 +343,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
 				p.errorf("floating-point constant must be an immediate")
 			}
 			a.Type = obj.TYPE_FCONST
-			a.U.Dval = p.floatExpr()
+			a.Val = p.floatExpr()
 			// fmt.Printf("FCONST %s\n", obj.Dconv(&emptyProg, 0, a))
 			p.expect(scanner.EOF)
 			return true
@@ -357,7 +357,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
 				p.errorf("string parse error: %s", err)
 			}
 			a.Type = obj.TYPE_SCONST
-			a.U.Sval = str
+			a.Val = str
 			// fmt.Printf("SCONST %s\n", obj.Dconv(&emptyProg, 0, a))
 			p.expect(scanner.EOF)
 			return true

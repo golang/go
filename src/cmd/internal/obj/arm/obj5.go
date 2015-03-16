@@ -107,8 +107,8 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 	// Rewrite float constants to values stored in memory.
 	switch p.As {
 	case AMOVF:
-		if p.From.Type == obj.TYPE_FCONST && chipfloat5(ctxt, p.From.U.Dval) < 0 && (chipzero5(ctxt, p.From.U.Dval) < 0 || p.Scond&C_SCOND != C_SCOND_NONE) {
-			f32 := float32(p.From.U.Dval)
+		if p.From.Type == obj.TYPE_FCONST && chipfloat5(ctxt, p.From.Val.(float64)) < 0 && (chipzero5(ctxt, p.From.Val.(float64)) < 0 || p.Scond&C_SCOND != C_SCOND_NONE) {
+			f32 := float32(p.From.Val.(float64))
 			i32 := math.Float32bits(f32)
 			literal := fmt.Sprintf("$f32.%08x", i32)
 			s := obj.Linklookup(ctxt, literal, 0)
@@ -125,8 +125,8 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		}
 
 	case AMOVD:
-		if p.From.Type == obj.TYPE_FCONST && chipfloat5(ctxt, p.From.U.Dval) < 0 && (chipzero5(ctxt, p.From.U.Dval) < 0 || p.Scond&C_SCOND != C_SCOND_NONE) {
-			i64 := math.Float64bits(p.From.U.Dval)
+		if p.From.Type == obj.TYPE_FCONST && chipfloat5(ctxt, p.From.Val.(float64)) < 0 && (chipzero5(ctxt, p.From.Val.(float64)) < 0 || p.Scond&C_SCOND != C_SCOND_NONE) {
+			i64 := math.Float64bits(p.From.Val.(float64))
 			literal := fmt.Sprintf("$f64.%016x", i64)
 			s := obj.Linklookup(ctxt, literal, 0)
 			if s.Type == 0 {
@@ -201,7 +201,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		autoffset = 0
 	}
 	cursym.Locals = autoffset
-	cursym.Args = p.To.U.Argsize
+	cursym.Args = p.To.Val.(int32)
 
 	if ctxt.Debugzerostack != 0 {
 		if autoffset != 0 && p.From3.Offset&obj.NOSPLIT == 0 {

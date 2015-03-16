@@ -16,7 +16,7 @@ func defframe(ptxt *obj.Prog) {
 	// fill in argument size, stack size
 	ptxt.To.Type = obj.TYPE_TEXTSIZE
 
-	ptxt.To.U.Argsize = int32(gc.Rnd(gc.Curfn.Type.Argwid, int64(gc.Widthptr)))
+	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.Argwid, int64(gc.Widthptr)))
 	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
 	ptxt.To.Offset = int64(frame)
 

@@ -161,7 +161,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
 			// Argsize set below.
 		},
 	}
-	prog.To.U.Argsize = int32(argSize)
+	prog.To.Val = int32(argSize)
 
 	p.append(prog, "", true)
 }
@@ -406,7 +406,7 @@ func (p *Parser) branch(jmp, target *obj.Prog) {
 		Type:  obj.TYPE_BRANCH,
 		Index: 0,
 	}
-	jmp.To.U.Branch = target
+	jmp.To.Val = target
 }
 
 // asmInstruction assembles an instruction.
