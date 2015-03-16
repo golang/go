@@ -178,7 +178,6 @@ func gchelpwork() {
 		// hanging off the P where this is being run.
 		// scanstack(gp)
 	case _GCmark:
-		// Get a full work buffer and empty it.
 		// drain your own currentwbuf first in the hopes that it will
 		// be more cache friendly.
 		var gcw gcWork
