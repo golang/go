@@ -91,8 +91,8 @@ func init() {
 	}
 
 	pa1 := &[2]string{"foo", "bar"}
-	pa2 := pa1        // creates an alias
-	(*pa2)[0] = "wiz" // * required to workaround typechecker bug
+	pa2 := pa1 // creates an alias
+	pa2[0] = "wiz"
 	if x := fmt.Sprint(*pa1, *pa2); x != "[wiz bar] [wiz bar]" {
 		panic(x)
 	}
