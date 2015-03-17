@@ -44,8 +44,10 @@ func main() {
 	// so that memcopy can recover.
 	debug.SetPanicOnFault(true)
 
-	// Map 64 kB block of data with 16 kB hole in middle.
-	data, err := syscall.Mmap(-1, 0, 64*1024, syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_ANON|syscall.MAP_PRIVATE)
+	size := syscall.Getpagesize()
+
+	// Map 16 pages of data with a 4-page hole in the middle.
+	data, err := syscall.Mmap(-1, 0, 16*size, syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_ANON|syscall.MAP_PRIVATE)
 	if err != nil {
 		log.Fatalf("mmap: %v", err)
 	}
@@ -53,19 +55,19 @@ func main() {
 	// Note: Cannot call syscall.Munmap, because Munmap checks
 	// that you are unmapping a whole region returned by Mmap.
 	// We are trying to unmap just a hole in the middle.
-	if _, _, err := syscall.Syscall(syscall.SYS_MUNMAP, uintptr(unsafe.Pointer(&data[32*1024])), 16*1024, 0); err != 0 {
+	if _, _, err := syscall.Syscall(syscall.SYS_MUNMAP, uintptr(unsafe.Pointer(&data[8*size])), uintptr(4*size), 0); err != 0 {
 		log.Fatalf("munmap: %v", err)
 	}
 
-	other := make([]byte, 64*1024)
+	other := make([]byte, 16*size)
 
 	// Check that memcopy returns the actual amount copied
-	// before the fault (32kB - 5, the offset we skip in the argument).
+	// before the fault (8*size - 5, the offset we skip in the argument).
 	n, err := memcopy(data[5:], other)
 	if err == nil {
 		log.Fatal("no error from memcopy across memory hole")
 	}
-	if n != 32*1024-5 {
-		log.Fatal("memcopy returned %d, want %d", n, 32*1024-5)
+	if n != 8*size-5 {
+		log.Fatal("memcopy returned %d, want %d", n, 8*size-5)
 	}
 }
