@@ -164,6 +164,7 @@ const (
 	Zbr
 	Zcall
 	Zcallcon
+	Zcallduff
 	Zcallind
 	Zcallindreg
 	Zib_
@@ -528,7 +529,7 @@ var ycall = []ytab{
 }
 
 var yduff = []ytab{
-	{Ynone, Ynone, Yi32, Zcall, 1},
+	{Ynone, Ynone, Yi32, Zcallduff, 1},
 }
 
 var yjmp = []ytab{
@@ -2913,6 +2914,16 @@ func mediaop(ctxt *obj.Link, o *Optab, op int, osize int, z int) int {
 	return z
 }
 
+var bpduff1 = []byte{
+	0x48, 0x89, 0x6c, 0x24, 0xf0, // MOVQ BP, -16(SP)
+	0x48, 0x8d, 0x6c, 0x24, 0xf0, // LEAQ -16(SP), BP
+}
+
+var bpduff2 = []byte{
+	0x90,
+	0x48, 0x8b, 0x6d, 0x00, // MOVQ 0(BP), BP
+}
+
 func doasm(ctxt *obj.Link, p *obj.Prog) {
 	ctxt.Curp = p // TODO
 
@@ -3436,12 +3447,23 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				r.Sym = p.To.Sym
 				put4(ctxt, 0)
 
-			case Zcall:
+			case Zcall, Zcallduff:
 				if p.To.Sym == nil {
 					ctxt.Diag("call without target")
 					log.Fatalf("bad code")
 				}
 
+				if obj.Framepointer_enabled != 0 && yt.zcase == Zcallduff && p.Mode == 64 {
+					// Maintain BP around call, since duffcopy/duffzero can't do it
+					// (the call jumps into the middle of the function).
+					// This makes it possible to see call sites for duffcopy/duffzero in
+					// BP-based profiling tools like Linux perf (which is the
+					// whole point of obj.Framepointer_enabled).
+					// MOVQ BP, -16(SP)
+					// LEAQ -16(SP), BP
+					copy(ctxt.Andptr, bpduff1)
+					ctxt.Andptr = ctxt.Andptr[len(bpduff1):]
+				}
 				ctxt.Andptr[0] = byte(op)
 				ctxt.Andptr = ctxt.Andptr[1:]
 				r = obj.Addrel(ctxt.Cursym)
@@ -3452,7 +3474,14 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				r.Siz = 4
 				put4(ctxt, 0)
 
-				// TODO: jump across functions needs reloc
+				if obj.Framepointer_enabled != 0 && yt.zcase == Zcallduff && p.Mode == 64 {
+					// Pop BP pushed above.
+					// MOVQ 0(BP), BP
+					copy(ctxt.Andptr, bpduff2)
+					ctxt.Andptr = ctxt.Andptr[len(bpduff2):]
+				}
+
+			// TODO: jump across functions needs reloc
 			case Zbr,
 				Zjmp,
 				Zloop:
@@ -4339,7 +4368,14 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
 		if ctxt.Rexflag != 0 {
 			r.Off++
 		}
-		if r.Type == obj.R_PCREL || r.Type == obj.R_CALL {
+		if r.Type == obj.R_PCREL {
+			// PC-relative addressing is relative to the end of the instruction,
+			// but the relocations applied by the linker are relative to the end
+			// of the relocation. Because immediate instruction
+			// arguments can follow the PC-relative memory reference in the
+			// instruction encoding, the two may not coincide. In this case,
+			// adjust addend so that linker can keep relocating relative to the
+			// end of the relocation.
 			r.Add -= p.Pc + int64(n) - (int64(r.Off) + int64(r.Siz))
 		}
 	}
