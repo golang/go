@@ -37,6 +37,7 @@ var (
 	ts TS
 	tm TM
 	tl TL
+	ok bool
 )
 
 // Issue 9370
@@ -176,5 +177,47 @@ func BenchmarkAssertE2E(b *testing.B) {
 	e = tm
 	for i := 0; i < b.N; i++ {
 		e_ = e
+	}
+}
+
+func BenchmarkAssertE2T2(b *testing.B) {
+	e = tm
+	for i := 0; i < b.N; i++ {
+		tm, ok = e.(TM)
+	}
+}
+
+func BenchmarkAssertE2T2Blank(b *testing.B) {
+	e = tm
+	for i := 0; i < b.N; i++ {
+		_, ok = e.(TM)
+	}
+}
+
+func BenchmarkAssertI2E2(b *testing.B) {
+	i1 = tm
+	for i := 0; i < b.N; i++ {
+		e, ok = i1.(interface{})
+	}
+}
+
+func BenchmarkAssertI2E2Blank(b *testing.B) {
+	i1 = tm
+	for i := 0; i < b.N; i++ {
+		_, ok = i1.(interface{})
+	}
+}
+
+func BenchmarkAssertE2E2(b *testing.B) {
+	e = tm
+	for i := 0; i < b.N; i++ {
+		e_, ok = e.(interface{})
+	}
+}
+
+func BenchmarkAssertE2E2Blank(b *testing.B) {
+	e = tm
+	for i := 0; i < b.N; i++ {
+		_, ok = e.(interface{})
 	}
 }

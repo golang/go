@@ -869,6 +869,32 @@ func walkexpr(np **Node, init **NodeList) {
 			oktype = ok.Type
 		}
 
+		fromKind := type2IET(from.Type)
+		toKind := type2IET(t)
+
+		// Avoid runtime calls in a few cases of the form _, ok := i.(T).
+		// This is faster and shorter and allows the corresponding assertX2X2
+		// routines to skip nil checks on their last argument.
+		if isblank(n.List.N) {
+			var fast *Node
+			switch {
+			case fromKind == "E" && toKind == "T":
+				tab := Nod(OITAB, from, nil) // type:eface::tab:iface
+				typ := Nod(OCONVNOP, typename(t), nil)
+				typ.Type = Ptrto(Types[TUINTPTR])
+				fast = Nod(OEQ, tab, typ)
+			case fromKind == "I" && toKind == "E",
+				fromKind == "E" && toKind == "E":
+				tab := Nod(OITAB, from, nil)
+				fast = Nod(ONE, tab, nodnil())
+			}
+			if fast != nil {
+				n = Nod(OAS, ok, fast)
+				typecheck(&n, Etop)
+				goto ret
+			}
+		}
+
 		var resptr *Node // &res
 		if isblank(n.List.N) {
 			resptr = nodnil()
@@ -877,7 +903,7 @@ func walkexpr(np **Node, init **NodeList) {
 		}
 		resptr.Etype = 1 // addr does not escape
 
-		buf := "assert" + type2IET(from.Type) + "2" + type2IET(t) + "2"
+		buf := "assert" + fromKind + "2" + toKind + "2"
 		fn := syslook(buf, 1)
 		substArgTypes(fn, from.Type, t)
 		call := mkcall1(fn, oktype, init, typename(t), from, resptr)
