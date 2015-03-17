@@ -8,6 +8,7 @@
 package rename // import "golang.org/x/tools/refactor/rename"
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -15,9 +16,9 @@ import (
 	"go/format"
 	"go/parser"
 	"go/token"
+	"io/ioutil"
 	"os"
 	"path"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -459,48 +460,15 @@ func plural(n int) string {
 	return ""
 }
 
-func writeFile(name string, fset *token.FileSet, f *ast.File, mode os.FileMode) error {
-	out, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
-	if err != nil {
-		// assume error includes the filename
-		return fmt.Errorf("failed to open file: %s", err)
-	}
-
-	// Oddly, os.OpenFile doesn't preserve all the mode bits, hence
-	// this chmod.  (We use 0600 above to avoid a brief
-	// vulnerability if the user has an insecure umask.)
-	os.Chmod(name, mode) // ignore error
-
-	if err := format.Node(out, fset, f); err != nil {
-		out.Close() // ignore error
-		return fmt.Errorf("failed to write file: %s", err)
-	}
-
-	return out.Close()
-}
-
-var rewriteFile = func(fset *token.FileSet, f *ast.File, orig string) (err error) {
-	backup := orig + ".gorename.backup"
+var rewriteFile = func(fset *token.FileSet, f *ast.File, filename string) (err error) {
 	// TODO(adonovan): print packages and filenames in a form useful
 	// to editors (so they can reload files).
 	if Verbose {
-		fmt.Fprintf(os.Stderr, "\t%s\n", orig)
+		fmt.Fprintf(os.Stderr, "\t%s\n", filename)
 	}
-	// save file mode
-	var mode os.FileMode = 0666
-	if fi, err := os.Stat(orig); err == nil {
-		mode = fi.Mode()
+	var buf bytes.Buffer
+	if err := format.Node(&buf, fset, f); err != nil {
+		return fmt.Errorf("failed to pretty-print syntax tree: %v", err)
 	}
-	if err := os.Rename(orig, backup); err != nil {
-		return fmt.Errorf("failed to make backup %s -> %s: %s",
-			orig, filepath.Base(backup), err)
-	}
-	if err := writeFile(orig, fset, f, mode); err != nil {
-		// Restore the file from the backup.
-		os.Remove(orig)         // ignore error
-		os.Rename(backup, orig) // ignore error
-		return err
-	}
-	os.Remove(backup) // ignore error
-	return nil
+	return ioutil.WriteFile(filename, buf.Bytes(), 0644)
 }
