@@ -333,7 +333,7 @@ func gc(mode int) {
 			gcscan_m()
 			gctimer.cycle.installmarkwb = nanotime()
 
-			// Sync.
+			// Enter mark phase and enable write barriers.
 			stoptheworld()
 			gcphase = _GCmark
 
