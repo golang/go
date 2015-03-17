@@ -187,9 +187,12 @@ func testEmptySwitches() {
 	switch i := (interface{})(3).(int); i {
 	}
 	check(LINE, 1)
+	c := make(chan int)
 	go func() {
 		check(LINE, 1)
+		c <- 1
 		select {}
 	}()
+	<-c
 	check(LINE, 1)
 }
