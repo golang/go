@@ -246,7 +246,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			if s.Type == 0 {
 				s.Type = obj.SRODATA
 				obj.Adduint32(ctxt, s, i32)
-				s.Reachable = 0
 			}
 
 			p.From.Type = obj.TYPE_MEM
@@ -290,7 +289,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			if s.Type == 0 {
 				s.Type = obj.SRODATA
 				obj.Adduint64(ctxt, s, i64)
-				s.Reachable = 0
 			}
 
 			p.From.Type = obj.TYPE_MEM
