@@ -121,7 +121,6 @@ func Setuintxx(ctxt *Link, s *LSym, off int64, v uint64, wid int64) int64 {
 	if s.Type == 0 {
 		s.Type = SDATA
 	}
-	s.Reachable = 1
 	if s.Size < off+wid {
 		s.Size = off + wid
 		Symgrow(ctxt, s, s.Size)
@@ -183,7 +182,6 @@ func addaddrplus(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
 	if s.Type == 0 {
 		s.Type = SDATA
 	}
-	s.Reachable = 1
 	i := s.Size
 	s.Size += int64(ctxt.Arch.Ptrsize)
 	Symgrow(ctxt, s, s.Size)
@@ -200,7 +198,6 @@ func addpcrelplus(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
 	if s.Type == 0 {
 		s.Type = SDATA
 	}
-	s.Reachable = 1
 	i := s.Size
 	s.Size += 4
 	Symgrow(ctxt, s, s.Size)
@@ -221,7 +218,6 @@ func setaddrplus(ctxt *Link, s *LSym, off int64, t *LSym, add int64) int64 {
 	if s.Type == 0 {
 		s.Type = SDATA
 	}
-	s.Reachable = 1
 	if off+int64(ctxt.Arch.Ptrsize) > s.Size {
 		s.Size = off + int64(ctxt.Arch.Ptrsize)
 		Symgrow(ctxt, s, s.Size)
@@ -244,7 +240,6 @@ func addsize(ctxt *Link, s *LSym, t *LSym) int64 {
 	if s.Type == 0 {
 		s.Type = SDATA
 	}
-	s.Reachable = 1
 	i := s.Size
 	s.Size += int64(ctxt.Arch.Ptrsize)
 	Symgrow(ctxt, s, s.Size)
@@ -260,7 +255,6 @@ func addaddrplus4(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
 	if s.Type == 0 {
 		s.Type = SDATA
 	}
-	s.Reachable = 1
 	i := s.Size
 	s.Size += 4
 	Symgrow(ctxt, s, s.Size)

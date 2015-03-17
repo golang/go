@@ -1524,7 +1524,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 
 	case 0: /* pseudo ops */
 		if false { /*debug['G']*/
-			fmt.Printf("%x: %s: arm %d\n", uint32(p.Pc), p.From.Sym.Name, p.From.Sym.Fnptr)
+			fmt.Printf("%x: %s: arm\n", uint32(p.Pc), p.From.Sym.Name)
 		}
 
 	case 1: /* op R,[R],R */

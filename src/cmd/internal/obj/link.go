@@ -271,52 +271,27 @@ const (
 )
 
 type LSym struct {
-	Name        string
-	Extname     string
-	Type        int16
-	Version     int16
-	Dupok       uint8
-	Cfunc       uint8
-	External    uint8
-	Nosplit     uint8
-	Reachable   uint8
-	Cgoexport   uint8
-	Special     uint8
-	Stkcheck    uint8
-	Hide        uint8
-	Leaf        uint8
-	Fnptr       uint8
-	Localentry  uint8
-	Seenglobl   uint8
-	Onlist      uint8
-	Printed     uint8
-	Symid       int16
-	Dynid       int32
-	Plt         int32
-	Got         int32
-	Align       int32
-	Elfsym      int32
-	Args        int32
-	Locals      int32
-	Value       int64
-	Size        int64
-	Allsym      *LSym
-	Next        *LSym
-	Sub         *LSym
-	Outer       *LSym
-	Gotype      *LSym
-	Reachparent *LSym
-	Queue       *LSym
-	File        string
-	Dynimplib   string
-	Dynimpvers  string
-	Sect        *struct{}
-	Autom       *Auto
-	Text        *Prog
-	Etext       *Prog
-	Pcln        *Pcln
-	P           []byte
-	R           []Reloc
+	Name      string
+	Type      int16
+	Version   int16
+	Dupok     uint8
+	Cfunc     uint8
+	Nosplit   uint8
+	Leaf      uint8
+	Seenglobl uint8
+	Onlist    uint8
+	Args      int32
+	Locals    int32
+	Value     int64
+	Size      int64
+	Next      *LSym
+	Gotype    *LSym
+	Autom     *Auto
+	Text      *Prog
+	Etext     *Prog
+	Pcln      *Pcln
+	P         []byte
+	R         []Reloc
 }
 
 type Pcln struct {
@@ -374,15 +349,13 @@ const (
 )
 
 type Reloc struct {
-	Off     int32
-	Siz     uint8
-	Done    uint8
-	Type    int32
-	Variant int32
-	Add     int64
-	Xadd    int64
-	Sym     *LSym
-	Xsym    *LSym
+	Off  int32
+	Siz  uint8
+	Type int32
+	Add  int64
+	Xadd int64
+	Sym  *LSym
+	Xsym *LSym
 }
 
 // Reloc.type
@@ -408,17 +381,6 @@ const (
 	R_POWER_TOC
 )
 
-// Reloc.variant
-const (
-	RV_NONE = iota
-	RV_POWER_LO
-	RV_POWER_HI
-	RV_POWER_HA
-	RV_POWER_DS
-	RV_CHECK_OVERFLOW = 1 << 8
-	RV_TYPE_MASK      = RV_CHECK_OVERFLOW - 1
-)
-
 type Auto struct {
 	Asym    *LSym
 	Link    *Auto
@@ -438,7 +400,7 @@ type Pcdata struct {
 }
 
 // Pcdata iterator.
-//	for(pciterinit(ctxt, &it, &pcd); !it.done; pciternext(&it)) { it.value holds in [it.pc, it.nextpc) }
+//      for(pciterinit(ctxt, &it, &pcd); !it.done; pciternext(&it)) { it.value holds in [it.pc, it.nextpc) }
 type Pciter struct {
 	d       Pcdata
 	p       []byte
@@ -459,24 +421,15 @@ const (
 // Link holds the context for writing object code from a compiler
 // to be linker input or for reading that input into the linker.
 type Link struct {
-	Thechar            int32
-	Thestring          string
 	Goarm              int32
 	Headtype           int
 	Arch               *LinkArch
-	Ignore             func(string) int32
 	Debugasm           int32
-	Debugline          int32
-	Debughist          int32
-	Debugread          int32
 	Debugvlog          int32
-	Debugstack         int32
 	Debugzerostack     int32
 	Debugdivmod        int32
-	Debugfloat         int32
 	Debugpcln          int32
 	Flag_shared        int32
-	Iself              int32
 	Bso                *Biobuf
 	Pathname           string
 	Windows            int32
@@ -485,8 +438,6 @@ type Link struct {
 	Goroot_final       string
 	Enforce_data_order int32
 	Hash               map[SymVer]*LSym
-	Allsym             *LSym
-	Nsymbol            int32
 	LineHist           LineHist
 	Imports            []string
 	Plist              *Plist
@@ -513,32 +464,18 @@ type Link struct {
 	Autosize           int32
 	Armsize            int32
 	Pc                 int64
-	Libdir             []string
-	Library            []Library
 	Tlsoffset          int
 	Diag               func(string, ...interface{})
 	Mode               int
-	Curauto            *Auto
-	Curhist            *Auto
 	Cursym             *LSym
 	Version            int
 	Textp              *LSym
 	Etextp             *LSym
-	Histdepth          int32
-	Nhistfile          int32
-	Filesyms           *LSym
 }
 
 type SymVer struct {
 	Name    string
 	Version int
-}
-
-type Library struct {
-	Objref string
-	Srcref string
-	File   string
-	Pkg    string
 }
 
 // LinkArch is the definition of a single architecture.
@@ -571,14 +508,6 @@ const (
 	Hsolaris
 	Hwindows
 )
-
-const (
-	LinkAuto = 0 + iota
-	LinkInternal
-	LinkExternal
-)
-
-var linkbasepointer int
 
 type Plist struct {
 	Name    *LSym
