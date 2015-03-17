@@ -678,20 +678,7 @@ func walkexpr(np **Node, init **NodeList) {
 			n1 := Nod(OADDR, n.Left, nil)
 			r := n.Right // i.(T)
 
-			from := "I"
-
-			to := "T"
-			if isnilinter(r.Left.Type) {
-				from = "E"
-			}
-			if isnilinter(r.Type) {
-				to = "E"
-			} else if Isinter(r.Type) {
-				to = "I"
-			}
-
-			buf := fmt.Sprintf("assert%s2%s", from, to)
-
+			buf := "assert" + type2IET(r.Left.Type) + "2" + type2IET(r.Type)
 			fn := syslook(buf, 1)
 			substArgTypes(fn, r.Left.Type, r.Type)
 
@@ -864,46 +851,37 @@ func walkexpr(np **Node, init **NodeList) {
 		n = mkcall1(mapfndel("mapdelete", t), nil, init, typename(t), map_, key)
 		goto ret
 
-		// a,b = i.(T)
+	// res, ok = i.(T)
 	// orderstmt made sure a is addressable.
 	case OAS2DOTTYPE:
 		*init = concat(*init, n.Ninit)
-
 		n.Ninit = nil
-		r := n.Rlist.N
+
+		e := n.Rlist.N // i.(T)
 		walkexprlistsafe(n.List, init)
-		walkexpr(&r.Left, init)
-		var n1 *Node
-		if isblank(n.List.N) {
-			n1 = nodnil()
-		} else {
-			n1 = Nod(OADDR, n.List.N, nil)
-		}
-		n1.Etype = 1 // addr does not escape
+		walkexpr(&e.Left, init)
+		t := e.Type    // T
+		from := e.Left // i
 
-		from := "I"
-
-		to := "T"
-		if isnilinter(r.Left.Type) {
-			from = "E"
-		}
-		if isnilinter(r.Type) {
-			to = "E"
-		} else if Isinter(r.Type) {
-			to = "I"
-		}
-		buf := fmt.Sprintf("assert%s2%s2", from, to)
-
-		fn := syslook(buf, 1)
-		substArgTypes(fn, r.Left.Type, r.Type)
-
-		t := Types[TBOOL]
+		oktype := Types[TBOOL]
 		ok := n.List.Next.N
 		if !isblank(ok) {
-			t = ok.Type
+			oktype = ok.Type
 		}
-		r = mkcall1(fn, t, init, typename(r.Type), r.Left, n1)
-		n = Nod(OAS, ok, r)
+
+		var resptr *Node // &res
+		if isblank(n.List.N) {
+			resptr = nodnil()
+		} else {
+			resptr = Nod(OADDR, n.List.N, nil)
+		}
+		resptr.Etype = 1 // addr does not escape
+
+		buf := "assert" + type2IET(from.Type) + "2" + type2IET(t) + "2"
+		fn := syslook(buf, 1)
+		substArgTypes(fn, from.Type, t)
+		call := mkcall1(fn, oktype, init, typename(t), from, resptr)
+		n = Nod(OAS, ok, call)
 		typecheck(&n, Etop)
 		goto ret
 
@@ -926,19 +904,7 @@ func walkexpr(np **Node, init **NodeList) {
 		// Build name of function: convI2E etc.
 		// Not all names are possible
 		// (e.g., we'll never generate convE2E or convE2I).
-		from := "T"
-
-		to := "I"
-		if isnilinter(n.Left.Type) {
-			from = "E"
-		} else if Isinter(n.Left.Type) {
-			from = "I"
-		}
-		if isnilinter(n.Type) {
-			to = "E"
-		}
-		buf := fmt.Sprintf("conv%s2%s", from, to)
-
+		buf := "conv" + type2IET(n.Left.Type) + "2" + type2IET(n.Type)
 		fn := syslook(buf, 1)
 		var ll *NodeList
 		if !Isinter(n.Left.Type) {
