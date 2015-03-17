@@ -37,6 +37,15 @@ func (zeroSource) Read(b []byte) (n int, err error) {
 
 var testConfig *Config
 
+func allCipherSuites() []uint16 {
+	ids := make([]uint16, len(cipherSuites))
+	for i, suite := range cipherSuites {
+		ids[i] = suite.id
+	}
+
+	return ids
+}
+
 func init() {
 	testConfig = &Config{
 		Time:               func() time.Time { return time.Unix(0, 0) },
@@ -45,6 +54,7 @@ func init() {
 		InsecureSkipVerify: true,
 		MinVersion:         VersionSSL30,
 		MaxVersion:         VersionTLS12,
+		CipherSuites:       allCipherSuites(),
 	}
 	testConfig.Certificates[0].Certificate = [][]byte{testRSACertificate}
 	testConfig.Certificates[0].PrivateKey = testRSAPrivateKey
@@ -53,7 +63,7 @@ func init() {
 	testConfig.BuildNameToCertificate()
 }
 
-func testClientHelloFailure(t *testing.T, m handshakeMessage, expectedSubStr string) {
+func testClientHelloFailure(t *testing.T, serverConfig *Config, m handshakeMessage, expectedSubStr string) {
 	// Create in-memory network connection,
 	// send message to server.  Should return
 	// expected error.
@@ -66,7 +76,7 @@ func testClientHelloFailure(t *testing.T, m handshakeMessage, expectedSubStr str
 		cli.writeRecord(recordTypeHandshake, m.marshal())
 		c.Close()
 	}()
-	err := Server(s, testConfig).Handshake()
+	err := Server(s, serverConfig).Handshake()
 	s.Close()
 	if err == nil || !strings.Contains(err.Error(), expectedSubStr) {
 		t.Errorf("Got error: %s; expected to match substring '%s'", err, expectedSubStr)
@@ -74,14 +84,14 @@ func testClientHelloFailure(t *testing.T, m handshakeMessage, expectedSubStr str
 }
 
 func TestSimpleError(t *testing.T) {
-	testClientHelloFailure(t, &serverHelloDoneMsg{}, "unexpected handshake message")
+	testClientHelloFailure(t, testConfig, &serverHelloDoneMsg{}, "unexpected handshake message")
 }
 
 var badProtocolVersions = []uint16{0x0000, 0x0005, 0x0100, 0x0105, 0x0200, 0x0205}
 
 func TestRejectBadProtocolVersion(t *testing.T) {
 	for _, v := range badProtocolVersions {
-		testClientHelloFailure(t, &clientHelloMsg{vers: v}, "unsupported, maximum protocol version")
+		testClientHelloFailure(t, testConfig, &clientHelloMsg{vers: v}, "unsupported, maximum protocol version")
 	}
 }
 
@@ -91,7 +101,7 @@ func TestNoSuiteOverlap(t *testing.T) {
 		cipherSuites:       []uint16{0xff00},
 		compressionMethods: []uint8{0},
 	}
-	testClientHelloFailure(t, clientHello, "no cipher suite supported by both client and server")
+	testClientHelloFailure(t, testConfig, clientHello, "no cipher suite supported by both client and server")
 }
 
 func TestNoCompressionOverlap(t *testing.T) {
@@ -100,7 +110,20 @@ func TestNoCompressionOverlap(t *testing.T) {
 		cipherSuites:       []uint16{TLS_RSA_WITH_RC4_128_SHA},
 		compressionMethods: []uint8{0xff},
 	}
-	testClientHelloFailure(t, clientHello, "client does not support uncompressed connections")
+	testClientHelloFailure(t, testConfig, clientHello, "client does not support uncompressed connections")
+}
+
+func TestNoRC4ByDefault(t *testing.T) {
+	clientHello := &clientHelloMsg{
+		vers:               0x0301,
+		cipherSuites:       []uint16{TLS_RSA_WITH_RC4_128_SHA},
+		compressionMethods: []uint8{0},
+	}
+	serverConfig := *testConfig
+	// Reset the enabled cipher suites to nil in order to test the
+	// defaults.
+	serverConfig.CipherSuites = nil
+	testClientHelloFailure(t, &serverConfig, clientHello, "no cipher suite supported by both client and server")
 }
 
 func TestRenegotiationExtension(t *testing.T) {
