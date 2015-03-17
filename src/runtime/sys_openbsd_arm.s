@@ -36,6 +36,7 @@ TEXT runtime·open(SB),NOSPLIT,$-4
 	MOVW	mode+8(FP), R2		// arg 3 - mode
 	MOVW	$5, R12			// sys_open
 	SWI	$0
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
@@ -43,6 +44,7 @@ TEXT runtime·close(SB),NOSPLIT,$-4
 	MOVW	path+0(FP), R0		// arg 1 - path
 	MOVW	$6, R12			// sys_close
 	SWI	$0
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+4(FP)
 	RET
 
@@ -52,6 +54,7 @@ TEXT runtime·read(SB),NOSPLIT,$-4
 	MOVW	nbyte+8(FP), R2		// arg 3 - nbyte
 	MOVW	$3, R12			// sys_read
 	SWI	$0
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
@@ -61,6 +64,7 @@ TEXT runtime·write(SB),NOSPLIT,$-4
 	MOVW	nbyte+8(FP), R2		// arg 3 - nbyte
 	MOVW	$4, R12			// sys_write
 	SWI	$0
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
