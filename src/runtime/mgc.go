@@ -203,6 +203,12 @@ type gcControllerState struct {
 	// it is both written and read throughout the cycle.
 	bgScanCredit int64
 
+	// assistTime is the nanoseconds spent in mutator assists
+	// during this cycle. This is updated atomically. Updates
+	// occur in bounded batches, since it is both written and read
+	// throughout the cycle.
+	assistTime int64
+
 	// workRatioAvg is a moving average of the scan work ratio
 	// (scan work per byte marked).
 	workRatioAvg float64
@@ -214,10 +220,11 @@ type gcControllerState struct {
 }
 
 // startCycle resets the GC controller's state and computes estimates
-// for a new GC cycle.
+// for a new GC cycle. The caller must hold worldsema.
 func (c *gcControllerState) startCycle() {
 	c.scanWork = 0
 	c.bgScanCredit = 0
+	c.assistTime = 0
 
 	// If this is the first GC cycle or we're operating on a very
 	// small heap, fake heap_marked so it looks like next_gc is
@@ -247,6 +254,16 @@ func (c *gcControllerState) startCycle() {
 		heapDistance = 1024 * 1024
 	}
 	c.assistRatio = float64(scanWorkExpected) / float64(heapDistance)
+
+	// Clear per-P state
+	for _, p := range &allp {
+		if p == nil {
+			break
+		}
+		p.gcAssistTime = 0
+	}
+
+	return
 }
 
 // endCycle updates the GC controller state at the end of the
@@ -268,6 +285,10 @@ func (c *gcControllerState) endCycle() {
 // accurate accounting of background scanning. Higher values reduce
 // memory contention.
 const gcBgCreditSlack = 2000
+
+// gcAssistTimeSlack is the nanoseconds of mutator assist time that
+// can accumulate on a P before updating gcController.assistTime.
+const gcAssistTimeSlack = 5000
 
 // Determine whether to initiate a GC.
 // If the GC is already working no need to trigger another one.

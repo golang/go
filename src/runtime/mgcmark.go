@@ -221,6 +221,11 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 
 	// Perform assist work
 	systemstack(func() {
+		// Track time spent in this assist. Since we're on the
+		// system stack, this is non-preemptible, so we can
+		// just measure start and end time.
+		startTime := nanotime()
+
 		// drain own current wbuf first in the hopes that it
 		// will be more cache friendly.
 		var gcw gcWork
@@ -234,6 +239,14 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 		// per-P gcWork cache (probably combined with the
 		// write barrier wbuf cache).
 		gcw.dispose()
+
+		duration := nanotime() - startTime
+		_p_ := gp.m.p.ptr()
+		_p_.gcAssistTime += duration
+		if _p_.gcAssistTime > gcAssistTimeSlack {
+			xaddint64(&gcController.assistTime, _p_.gcAssistTime)
+			_p_.gcAssistTime = 0
+		}
 	})
 }
 
