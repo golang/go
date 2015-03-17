@@ -301,7 +301,7 @@ type m struct {
 	freghi        [16]uint32  // d[i] msb and f[i+16]
 	fflag         uint32      // floating point compare flags
 	locked        uint32      // tracking for lockosthread
-	nextwaitm     *m          // next m waiting for lock
+	nextwaitm     uintptr     // next m waiting for lock
 	waitsema      uintptr     // semaphore for parking on locks
 	waitsemacount uint32
 	waitsemalock  uint32
