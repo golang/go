@@ -88,6 +88,8 @@ and test commands:
 		or, if set explicitly, has _race appended to it.
 	-ldflags 'flag list'
 		arguments to pass on each 5l, 6l, 8l, or 9l linker invocation.
+	-asmflags 'flag list'
+		arguments to pass on each asm assembler invocation.
 	-tags 'tag list'
 		a list of build tags to consider satisfied during the build.
 		For more information about build tags, see the description of
@@ -137,6 +139,7 @@ var buildX bool               // -x flag
 var buildI bool               // -i flag
 var buildO = cmdBuild.Flag.String("o", "", "output file")
 var buildWork bool           // -work flag
+var buildAsmflags []string   // -asmflags flag
 var buildGcflags []string    // -gcflags flag
 var buildLdflags []string    // -ldflags flag
 var buildGccgoflags []string // -gccgoflags flag
@@ -188,6 +191,7 @@ func addBuildFlags(cmd *Command) {
 	cmd.Flag.BoolVar(&buildV, "v", false, "")
 	cmd.Flag.BoolVar(&buildX, "x", false, "")
 	cmd.Flag.BoolVar(&buildWork, "work", false, "")
+	cmd.Flag.Var((*stringsFlag)(&buildAsmflags), "asmflags", "")
 	cmd.Flag.Var((*stringsFlag)(&buildGcflags), "gcflags", "")
 	cmd.Flag.Var((*stringsFlag)(&buildLdflags), "ldflags", "")
 	cmd.Flag.Var((*stringsFlag)(&buildGccgoflags), "gccgoflags", "")
@@ -1705,11 +1709,13 @@ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
 	inc := filepath.Join(goroot, "pkg", "include")
 	sfile = mkAbs(p.Dir, sfile)
-	args := []interface{}{buildToolExec, tool("asm"), "-o", ofile, "-trimpath", b.work, "-I", obj, "-I", inc, "-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch, sfile}
+	args := []interface{}{buildToolExec, tool("asm"), "-o", ofile, "-trimpath", b.work, "-I", obj, "-I", inc, "-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch, buildAsmflags, sfile}
 	if err := b.run(p.Dir, p.ImportPath, nil, args...); err != nil {
 		return err
 	}
-	if verifyAsm && goarch != "arm64" {
+	// Disable checks when additional flags are passed, as the old assemblers
+	// don't implement some of them (e.g., -shared).
+	if verifyAsm && goarch != "arm64" && len(buildAsmflags) == 0 {
 		if err := toolVerify(b, p, "old"+archChar()+"a", ofile, args); err != nil {
 			return err
 		}
