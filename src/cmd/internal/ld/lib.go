@@ -1362,6 +1362,7 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 			SRODATA,
 			SSYMTAB,
 			SPCLNTAB,
+			SINITARR,
 			SDATA,
 			SNOPTRDATA,
 			SELFROSECT,

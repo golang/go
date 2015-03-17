@@ -936,6 +936,15 @@ func Addstring(s *LSym, str string) int64 {
 	return int64(r)
 }
 
+func addinitarrdata(s *LSym) {
+	p := s.Name + ".ptr"
+	sp := Linklookup(Ctxt, p, 0)
+	sp.Type = SINITARR
+	sp.Size = 0
+	sp.Dupok = 1
+	Addaddr(Ctxt, sp, s)
+}
+
 func dosymtype() {
 	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
 		if len(s.P) > 0 {
@@ -945,6 +954,11 @@ func dosymtype() {
 			if s.Type == SNOPTRBSS {
 				s.Type = SNOPTRDATA
 			}
+		}
+		// Create a new entry in the .init_array section that points to the
+		// library initializer function.
+		if Flag_shared != 0 && s.Name == INITENTRY {
+			addinitarrdata(s)
 		}
 	}
 }
