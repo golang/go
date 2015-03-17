@@ -63,11 +63,20 @@ func (z *Float) SetString(s string) (*Float, bool) {
 // be binary, if present (an "e" or "E" exponent indicator cannot be
 // distinguished from a mantissa digit).
 //
+// The returned *Float f is nil and the value of z is valid but not
+// defined if an error is reported.
+//
 // BUG(gri) The Float.Scan signature conflicts with Scan(s fmt.ScanState, ch rune) error.
 func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
-	if z.prec == 0 {
-		z.prec = 64
+	prec := z.prec
+	if prec == 0 {
+		prec = 64
 	}
+
+	// NaNs ignore sign, mantissa, and exponent so we can set
+	// them below while having a valid value for z in case of
+	// errors.
+	z.SetNaN()
 
 	// sign
 	z.neg, err = scanSign(r)
@@ -90,13 +99,12 @@ func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 		return
 	}
 
-	// set result
-	f = z
-
 	// special-case 0
 	if len(z.mant) == 0 {
+		z.prec = prec
 		z.acc = Exact
 		z.form = zero
+		f = z
 		return
 	}
 	// len(z.mant) > 0
@@ -141,10 +149,11 @@ func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 
 	// apply 2**exp2
 	if MinExp <= exp2 && exp2 <= MaxExp {
+		z.prec = prec
 		z.form = finite
 		z.exp = int32(exp2)
+		f = z
 	} else {
-		f = nil
 		err = fmt.Errorf("exponent overflow")
 		return
 	}
@@ -175,8 +184,8 @@ func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 }
 
 // Parse is like z.Scan(r, base), but instead of reading from an
-// io.ByteScanner, it parses the string s. An error is returned if
-// the string contains invalid or trailing bytes not belonging to
+// io.ByteScanner, it parses the string s. An error is also returned
+// if the string contains invalid or trailing bytes not belonging to
 // the number.
 func (z *Float) Parse(s string, base int) (f *Float, b int, err error) {
 	r := strings.NewReader(s)
