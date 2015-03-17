@@ -314,7 +314,16 @@ func (s *exprSwitch) walkCases(cc []*caseClause) *Node {
 	// find the middle and recur
 	half := len(cc) / 2
 	a := Nod(OIF, nil, nil)
-	a.Ntest = Nod(OLE, s.exprname, cc[half-1].node.Left)
+	mid := cc[half-1].node.Left
+	le := Nod(OLE, s.exprname, mid)
+	if Isconst(mid, CTSTR) {
+		// Search by length and then by value; see exprcmp.
+		lenlt := Nod(OLT, Nod(OLEN, s.exprname, nil), Nod(OLEN, mid, nil))
+		leneq := Nod(OEQ, Nod(OLEN, s.exprname, nil), Nod(OLEN, mid, nil))
+		a.Ntest = Nod(OOROR, lenlt, Nod(OANDAND, leneq, le))
+	} else {
+		a.Ntest = le
+	}
 	typecheck(&a.Ntest, Erv)
 	a.Nbody = list1(s.walkCases(cc[:half]))
 	a.Nelse = list1(s.walkCases(cc[half:]))
@@ -750,7 +759,19 @@ func exprcmp(c1, c2 *caseClause) int {
 	case CTINT, CTRUNE:
 		return Mpcmpfixfix(n1.Val.U.Xval, n2.Val.U.Xval)
 	case CTSTR:
-		return cmpslit(n1, n2)
+		// Sort strings by length and then by value.
+		// It is much cheaper to compare lengths than values,
+		// and all we need here is consistency.
+		// We respect this sorting in exprSwitch.walkCases.
+		a := n1.Val.U.Sval
+		b := n2.Val.U.Sval
+		if len(a) < len(b) {
+			return -1
+		}
+		if len(a) > len(b) {
+			return +1
+		}
+		return stringsCompare(a, b)
 	}
 
 	return 0
