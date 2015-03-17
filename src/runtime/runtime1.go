@@ -80,7 +80,7 @@ func goenvs_unix() {
 
 	envs = make([]string, n)
 	for i := int32(0); i < n; i++ {
-		envs[i] = gostringnocopy(argv_index(argv, argc+1+i))
+		envs[i] = gostring(argv_index(argv, argc+1+i))
 	}
 }
 
