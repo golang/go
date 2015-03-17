@@ -109,7 +109,7 @@ func (s *Scanner) Text() string {
 // After Scan returns false, the Err method will return any error that
 // occurred during scanning, except that if it was io.EOF, Err
 // will return nil.
-// Split panics if the split function returns 100 empty tokens without
+// Scan panics if the split function returns 100 empty tokens without
 // advancing the input. This is a common error mode for scanners.
 func (s *Scanner) Scan() bool {
 	// Loop until we have a token.
