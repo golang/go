@@ -336,7 +336,6 @@ func gc(mode int) {
 			// Sync.
 			stoptheworld()
 			gcphase = _GCmark
-			harvestwbufs()
 
 			// Concurrent mark.
 			starttheworld()
