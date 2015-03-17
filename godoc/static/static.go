@@ -1828,7 +1828,9 @@ function cgAddChild(tree, ul, cgn) {
 
 ---------------------------------------
 
-*/}}{{if $filtered}}{{range .PAst}}{{range .Decls}}{{node $info .}}{{end}}{{end}}{{else}}{{with .PAst}}{{range $filename, $ast := .}}{{$filename}}:
+*/}}{{if $filtered}}{{range .PAst}}{{range .Decls}}{{node $info .}}
+
+{{end}}{{end}}{{else}}{{with .PAst}}{{range $filename, $ast := .}}{{$filename}}:
 {{node $ $ast}}{{end}}{{end}}{{end}}{{/*
 
 ---------------------------------------
