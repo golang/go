@@ -384,8 +384,10 @@ func runInstall(cmd *Command, args []string) {
 var (
 	goarch    string
 	goos      string
-	archChar  string
 	exeSuffix string
+
+	archCharVal string
+	archCharErr error
 )
 
 func init() {
@@ -394,16 +396,16 @@ func init() {
 	if goos == "windows" {
 		exeSuffix = ".exe"
 	}
-	var err error
-	archChar, err = build.ArchChar(goarch)
-	if err != nil {
-		if _, isgc := buildToolchain.(gcToolchain); isgc {
-			fatalf("%s", err)
-		}
-		// archChar is only required for gcToolchain, if we're using
-		// another toolchain leave it blank.
-		archChar = ""
+	archCharVal, archCharErr = build.ArchChar(goarch)
+}
+
+// archChar returns the architecture character.  This is only needed
+// for the gc toolchain, so only fail if we actually need it.
+func archChar() string {
+	if archCharErr != nil {
+		fatalf("%s", archCharErr)
 	}
+	return archCharVal
 }
 
 // A builder holds global state about a build.
@@ -839,7 +841,7 @@ func (b *builder) build(a *action) (err error) {
 		fmt.Fprintf(os.Stderr, "%s\n", a.p.ImportPath)
 	}
 
-	if a.p.Standard && a.p.ImportPath == "runtime" && buildContext.Compiler == "gc" &&
+	if a.p.Standard && a.p.ImportPath == "runtime" && buildContext.Compiler == "gc" && archChar() != "" &&
 		(!hasString(a.p.GoFiles, "zgoos_"+buildContext.GOOS+".go") ||
 			!hasString(a.p.GoFiles, "zgoarch_"+buildContext.GOARCH+".go")) {
 		return fmt.Errorf("%s/%s must be bootstrapped using make%v", buildContext.GOOS, buildContext.GOARCH, defaultSuffix())
@@ -1002,9 +1004,11 @@ func (b *builder) build(a *action) (err error) {
 		}
 	}
 
-	objExt := archChar
+	var objExt string
 	if _, ok := buildToolchain.(gccgoToolchain); ok {
 		objExt = "o"
+	} else {
+		objExt = archChar()
 	}
 
 	for _, file := range cfiles {
@@ -1637,18 +1641,18 @@ func (noToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error
 type gcToolchain struct{}
 
 func (gcToolchain) compiler() string {
-	return tool(archChar + "g")
+	return tool(archChar() + "g")
 }
 
 func (gcToolchain) linker() string {
-	return tool(archChar + "l")
+	return tool(archChar() + "l")
 }
 
 func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool, importArgs []string, gofiles []string) (ofile string, output []byte, err error) {
 	if archive != "" {
 		ofile = archive
 	} else {
-		out := "_go_." + archChar
+		out := "_go_." + archChar()
 		ofile = obj + out
 	}
 
@@ -1677,7 +1681,7 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool, 
 		gcargs = append(gcargs, "-installsuffix", buildContext.InstallSuffix)
 	}
 
-	args := []interface{}{buildToolExec, tool(archChar + "g"), "-o", ofile, "-trimpath", b.work, buildGcflags, gcargs, "-D", p.localPrefix, importArgs}
+	args := []interface{}{buildToolExec, tool(archChar() + "g"), "-o", ofile, "-trimpath", b.work, buildGcflags, gcargs, "-D", p.localPrefix, importArgs}
 	if ofile == archive {
 		args = append(args, "-pack")
 	}
@@ -1706,7 +1710,7 @@ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 		return err
 	}
 	if verifyAsm && goarch != "arm64" {
-		if err := toolVerify(b, p, "old"+archChar+"a", ofile, args); err != nil {
+		if err := toolVerify(b, p, "old"+archChar()+"a", ofile, args); err != nil {
 			return err
 		}
 	}
@@ -1882,7 +1886,7 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action, 
 		}
 	}
 	ldflags = append(ldflags, buildLdflags...)
-	return b.run(".", p.ImportPath, nil, buildToolExec, tool(archChar+"l"), "-o", out, importArgs, ldflags, mainpkg)
+	return b.run(".", p.ImportPath, nil, buildToolExec, tool(archChar()+"l"), "-o", out, importArgs, ldflags, mainpkg)
 }
 
 func (gcToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
@@ -2175,12 +2179,12 @@ func (b *builder) ccompilerCmd(envvar, defcmd, objdir string) []string {
 
 // gccArchArgs returns arguments to pass to gcc based on the architecture.
 func (b *builder) gccArchArgs() []string {
-	switch archChar {
-	case "8":
+	switch goarch {
+	case "386":
 		return []string{"-m32"}
-	case "6":
+	case "amd64", "amd64p32":
 		return []string{"-m64"}
-	case "5":
+	case "arm":
 		return []string{"-marm"} // not thumb
 	}
 	return nil
@@ -2245,7 +2249,12 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
 	cgoflags := []string{}
 	// TODO: make cgo not depend on $GOARCH?
 
-	objExt := archChar
+	var objExt string
+	if _, ok := buildToolchain.(gccgoToolchain); ok {
+		objExt = "o"
+	} else {
+		objExt = archChar()
+	}
 
 	if p.Standard && p.ImportPath == "runtime/cgo" {
 		cgoflags = append(cgoflags, "-import_runtime_cgo=false")
@@ -2269,7 +2278,6 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
 		if pkgpath := gccgoPkgpath(p); pkgpath != "" {
 			cgoflags = append(cgoflags, "-gccgopkgpath="+pkgpath)
 		}
-		objExt = "o"
 	}
 	if err := b.run(p.Dir, p.ImportPath, cgoenv, buildToolExec, cgoExe, "-objdir", obj, cgoflags, "--", cgoCPPFLAGS, cgoexeCFLAGS, cgofiles); err != nil {
 		return nil, nil, err
