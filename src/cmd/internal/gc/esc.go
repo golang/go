@@ -231,6 +231,7 @@ type EscState struct {
 
 var tags [16]*string
 
+// mktag returns the string representation for an escape analysis tag.
 func mktag(mask int) *string {
 	switch mask & EscMask {
 	case EscNone,
