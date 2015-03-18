@@ -8,7 +8,7 @@ package gc
 // return the significant
 // words of the argument
 //
-func mplen(a *Mpint) int {
+func mplen(a *Mpfix) int {
 	n := -1
 	for i := 0; i < Mpprec; i++ {
 		if a.A[i] != 0 {
@@ -23,7 +23,7 @@ func mplen(a *Mpint) int {
 // left shift mpint by one
 // ignores sign
 //
-func mplsh(a *Mpint, quiet int) {
+func mplsh(a *Mpfix, quiet int) {
 	var x int
 
 	c := 0
@@ -48,7 +48,7 @@ func mplsh(a *Mpint, quiet int) {
 // left shift mpint by Mpscale
 // ignores sign
 //
-func mplshw(a *Mpint, quiet int) {
+func mplshw(a *Mpfix, quiet int) {
 	i := Mpprec - 1
 	if a.A[i] != 0 {
 		a.Ovf = 1
@@ -67,7 +67,7 @@ func mplshw(a *Mpint, quiet int) {
 // right shift mpint by one
 // ignores sign and overflow
 //
-func mprsh(a *Mpint) {
+func mprsh(a *Mpfix) {
 	var x int
 
 	c := 0
@@ -90,7 +90,7 @@ func mprsh(a *Mpint) {
 // right shift mpint by Mpscale
 // ignores sign and overflow
 //
-func mprshw(a *Mpint) {
+func mprshw(a *Mpfix) {
 	var i int
 
 	lo := a.A[0]
@@ -107,7 +107,7 @@ func mprshw(a *Mpint) {
 //
 // return the sign of (abs(a)-abs(b))
 //
-func mpcmp(a *Mpint, b *Mpint) int {
+func mpcmp(a *Mpfix, b *Mpfix) int {
 	if a.Ovf != 0 || b.Ovf != 0 {
 		if nsavederrors+nerrors == 0 {
 			Yyerror("ovf in cmp")
@@ -133,7 +133,7 @@ func mpcmp(a *Mpint, b *Mpint) int {
 // negate a
 // ignore sign and ovf
 //
-func mpneg(a *Mpint) {
+func mpneg(a *Mpfix) {
 	var x int
 
 	c := 0
@@ -149,8 +149,21 @@ func mpneg(a *Mpint) {
 	}
 }
 
-// shift left by s (or right by -s)
 func Mpshiftfix(a *Mpint, s int) {
+	switch {
+	case s > 0:
+		if mptestovf(a, s) {
+			Yyerror("constant shift overflow")
+			return
+		}
+		a.Val.Lsh(&a.Val, uint(s))
+	case s < 0:
+		a.Val.Rsh(&a.Val, uint(-s))
+	}
+}
+
+// shift left by s (or right by -s)
+func _Mpshiftfix(a *Mpfix, s int) {
 	if s >= 0 {
 		for s >= Mpscale {
 			mplshw(a, 0)
@@ -175,9 +188,40 @@ func Mpshiftfix(a *Mpint, s int) {
 	}
 }
 
-/// implements fix arihmetic
+/// implements fix arithmetic
 
-func mpaddfixfix(a *Mpint, b *Mpint, quiet int) {
+func mpsetovf(a *Mpint) {
+	a.Val.SetUint64(0)
+	a.Ovf = true
+}
+
+func mptestovf(a *Mpint, extra int) bool {
+	// We don't need to be precise here, any reasonable upper limit would do.
+	// For now, use existing limit so we pass all the tests unchanged.
+	const limit = Mpscale * Mpprec
+	if a.Val.BitLen()+extra > limit {
+		mpsetovf(a)
+	}
+	return a.Ovf
+}
+
+func mpaddfixfix(a, b *Mpint, quiet int) {
+	if a.Ovf || b.Ovf {
+		if nsavederrors+nerrors == 0 {
+			Yyerror("ovf in mpaddxx")
+		}
+		mpsetovf(a)
+		return
+	}
+
+	a.Val.Add(&a.Val, &b.Val)
+
+	if mptestovf(a, 0) && quiet == 0 {
+		Yyerror("constant addition overflow")
+	}
+}
+
+func _mpaddfixfix(a *Mpfix, b *Mpfix, quiet int) {
 	if a.Ovf != 0 || b.Ovf != 0 {
 		if nsavederrors+nerrors == 0 {
 			Yyerror("ovf in mpaddxx")
@@ -191,7 +235,7 @@ func mpaddfixfix(a *Mpint, b *Mpint, quiet int) {
 		// perform a-b
 		switch mpcmp(a, b) {
 		case 0:
-			Mpmovecfix(a, 0)
+			_Mpmovecfix(a, 0)
 
 		case 1:
 			var x int
@@ -244,7 +288,23 @@ func mpaddfixfix(a *Mpint, b *Mpint, quiet int) {
 	return
 }
 
-func mpmulfixfix(a *Mpint, b *Mpint) {
+func mpmulfixfix(a, b *Mpint) {
+	if a.Ovf || b.Ovf {
+		if nsavederrors+nerrors == 0 {
+			Yyerror("ovf in mpmulfixfix")
+		}
+		mpsetovf(a)
+		return
+	}
+
+	a.Val.Mul(&a.Val, &b.Val)
+
+	if mptestovf(a, 0) {
+		Yyerror("constant multiplication overflow")
+	}
+}
+
+func _mpmulfixfix(a *Mpfix, b *Mpfix) {
 	if a.Ovf != 0 || b.Ovf != 0 {
 		if nsavederrors+nerrors == 0 {
 			Yyerror("ovf in mpmulfixfix")
@@ -258,21 +318,21 @@ func mpmulfixfix(a *Mpint, b *Mpint) {
 	na := mplen(a)
 
 	nb := mplen(b)
-	var s Mpint
-	var c *Mpint
+	var s Mpfix
+	var c *Mpfix
 	if na > nb {
-		mpmovefixfix(&s, a)
+		_mpmovefixfix(&s, a)
 		c = b
 		na = nb
 	} else {
-		mpmovefixfix(&s, b)
+		_mpmovefixfix(&s, b)
 		c = a
 	}
 
 	s.Neg = 0
 
-	var q Mpint
-	Mpmovecfix(&q, 0)
+	var q Mpfix
+	_Mpmovecfix(&q, 0)
 	var j int
 	var x int
 	for i := 0; i < na; i++ {
@@ -284,7 +344,7 @@ func mpmulfixfix(a *Mpint, b *Mpint) {
 					goto out
 				}
 
-				mpaddfixfix(&q, &s, 1)
+				_mpaddfixfix(&q, &s, 1)
 				if q.Ovf != 0 {
 					goto out
 				}
@@ -297,13 +357,13 @@ func mpmulfixfix(a *Mpint, b *Mpint) {
 
 out:
 	q.Neg = a.Neg ^ b.Neg
-	mpmovefixfix(a, &q)
+	_mpmovefixfix(a, &q)
 	if a.Ovf != 0 {
 		Yyerror("constant multiplication overflow")
 	}
 }
 
-func mpmulfract(a *Mpint, b *Mpint) {
+func mpmulfract(a *Mpfix, b *Mpfix) {
 	if a.Ovf != 0 || b.Ovf != 0 {
 		if nsavederrors+nerrors == 0 {
 			Yyerror("ovf in mpmulflt")
@@ -312,11 +372,11 @@ func mpmulfract(a *Mpint, b *Mpint) {
 		return
 	}
 
-	var s Mpint
-	mpmovefixfix(&s, b)
+	var s Mpfix
+	_mpmovefixfix(&s, b)
 	s.Neg = 0
-	var q Mpint
-	Mpmovecfix(&q, 0)
+	var q Mpfix
+	_Mpmovecfix(&q, 0)
 
 	i := Mpprec - 1
 	x := a.A[i]
@@ -335,26 +395,38 @@ func mpmulfract(a *Mpint, b *Mpint) {
 		for j = 0; j < Mpscale; j++ {
 			x <<= 1
 			if x&Mpbase != 0 {
-				mpaddfixfix(&q, &s, 1)
+				_mpaddfixfix(&q, &s, 1)
 			}
 			mprsh(&s)
 		}
 	}
 
 	q.Neg = a.Neg ^ b.Neg
-	mpmovefixfix(a, &q)
+	_mpmovefixfix(a, &q)
 	if a.Ovf != 0 {
 		Yyerror("constant multiplication overflow")
 	}
 }
 
-func mporfixfix(a *Mpint, b *Mpint) {
+func mporfixfix(a, b *Mpint) {
+	if a.Ovf || b.Ovf {
+		if nsavederrors+nerrors == 0 {
+			Yyerror("ovf in mporfixfix")
+		}
+		mpsetovf(a)
+		return
+	}
+
+	a.Val.Or(&a.Val, &b.Val)
+}
+
+func _mporfixfix(a *Mpfix, b *Mpfix) {
 	x := 0
 	if a.Ovf != 0 || b.Ovf != 0 {
 		if nsavederrors+nerrors == 0 {
 			Yyerror("ovf in mporfixfix")
 		}
-		Mpmovecfix(a, 0)
+		_Mpmovecfix(a, 0)
 		a.Ovf = 1
 		return
 	}
@@ -382,13 +454,25 @@ func mporfixfix(a *Mpint, b *Mpint) {
 	}
 }
 
-func mpandfixfix(a *Mpint, b *Mpint) {
+func mpandfixfix(a, b *Mpint) {
+	if a.Ovf || b.Ovf {
+		if nsavederrors+nerrors == 0 {
+			Yyerror("ovf in mpandfixfix")
+		}
+		mpsetovf(a)
+		return
+	}
+
+	a.Val.And(&a.Val, &b.Val)
+}
+
+func _mpandfixfix(a *Mpfix, b *Mpfix) {
 	x := 0
 	if a.Ovf != 0 || b.Ovf != 0 {
 		if nsavederrors+nerrors == 0 {
 			Yyerror("ovf in mpandfixfix")
 		}
-		Mpmovecfix(a, 0)
+		_Mpmovecfix(a, 0)
 		a.Ovf = 1
 		return
 	}
@@ -416,13 +500,25 @@ func mpandfixfix(a *Mpint, b *Mpint) {
 	}
 }
 
-func mpandnotfixfix(a *Mpint, b *Mpint) {
+func mpandnotfixfix(a, b *Mpint) {
+	if a.Ovf || b.Ovf {
+		if nsavederrors+nerrors == 0 {
+			Yyerror("ovf in mpandnotfixfix")
+		}
+		mpsetovf(a)
+		return
+	}
+
+	a.Val.AndNot(&a.Val, &b.Val)
+}
+
+func _mpandnotfixfix(a *Mpfix, b *Mpfix) {
 	x := 0
 	if a.Ovf != 0 || b.Ovf != 0 {
 		if nsavederrors+nerrors == 0 {
 			Yyerror("ovf in mpandnotfixfix")
 		}
-		Mpmovecfix(a, 0)
+		_Mpmovecfix(a, 0)
 		a.Ovf = 1
 		return
 	}
@@ -450,13 +546,25 @@ func mpandnotfixfix(a *Mpint, b *Mpint) {
 	}
 }
 
-func mpxorfixfix(a *Mpint, b *Mpint) {
+func mpxorfixfix(a, b *Mpint) {
+	if a.Ovf || b.Ovf {
+		if nsavederrors+nerrors == 0 {
+			Yyerror("ovf in mpxorfixfix")
+		}
+		mpsetovf(a)
+		return
+	}
+
+	a.Val.Xor(&a.Val, &b.Val)
+}
+
+func _mpxorfixfix(a *Mpfix, b *Mpfix) {
 	x := 0
 	if a.Ovf != 0 || b.Ovf != 0 {
 		if nsavederrors+nerrors == 0 {
 			Yyerror("ovf in mporfixfix")
 		}
-		Mpmovecfix(a, 0)
+		_Mpmovecfix(a, 0)
 		a.Ovf = 1
 		return
 	}
@@ -484,13 +592,12 @@ func mpxorfixfix(a *Mpint, b *Mpint) {
 	}
 }
 
-func mplshfixfix(a *Mpint, b *Mpint) {
-	if a.Ovf != 0 || b.Ovf != 0 {
+func mplshfixfix(a, b *Mpint) {
+	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			Yyerror("ovf in mporfixfix")
+			Yyerror("ovf in mplshfixfix")
 		}
-		Mpmovecfix(a, 0)
-		a.Ovf = 1
+		mpsetovf(a)
 		return
 	}
 
@@ -504,20 +611,39 @@ func mplshfixfix(a *Mpint, b *Mpint) {
 	Mpshiftfix(a, int(s))
 }
 
-func mprshfixfix(a *Mpint, b *Mpint) {
+func _mplshfixfix(a *Mpfix, b *Mpfix) {
 	if a.Ovf != 0 || b.Ovf != 0 {
+		if nsavederrors+nerrors == 0 {
+			Yyerror("ovf in mplshfixfix")
+		}
+		_Mpmovecfix(a, 0)
+		a.Ovf = 1
+		return
+	}
+
+	s := _Mpgetfix(b)
+	if s < 0 || s >= Mpprec*Mpscale {
+		Yyerror("stupid shift: %d", s)
+		_Mpmovecfix(a, 0)
+		return
+	}
+
+	_Mpshiftfix(a, int(s))
+}
+
+func mprshfixfix(a, b *Mpint) {
+	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
 			Yyerror("ovf in mprshfixfix")
 		}
-		Mpmovecfix(a, 0)
-		a.Ovf = 1
+		mpsetovf(a)
 		return
 	}
 
 	s := Mpgetfix(b)
 	if s < 0 || s >= Mpprec*Mpscale {
 		Yyerror("stupid shift: %d", s)
-		if a.Neg != 0 {
+		if a.Val.Sign() < 0 {
 			Mpmovecfix(a, -1)
 		} else {
 			Mpmovecfix(a, 0)
@@ -528,11 +654,50 @@ func mprshfixfix(a *Mpint, b *Mpint) {
 	Mpshiftfix(a, int(-s))
 }
 
+func _mprshfixfix(a *Mpfix, b *Mpfix) {
+	if a.Ovf != 0 || b.Ovf != 0 {
+		if nsavederrors+nerrors == 0 {
+			Yyerror("ovf in mprshfixfix")
+		}
+		_Mpmovecfix(a, 0)
+		a.Ovf = 1
+		return
+	}
+
+	s := _Mpgetfix(b)
+	if s < 0 || s >= Mpprec*Mpscale {
+		Yyerror("stupid shift: %d", s)
+		if a.Neg != 0 {
+			_Mpmovecfix(a, -1)
+		} else {
+			_Mpmovecfix(a, 0)
+		}
+		return
+	}
+
+	_Mpshiftfix(a, int(-s))
+}
+
 func mpnegfix(a *Mpint) {
+	a.Val.Neg(&a.Val)
+}
+
+func _mpnegfix(a *Mpfix) {
 	a.Neg ^= 1
 }
 
 func Mpgetfix(a *Mpint) int64 {
+	if a.Ovf {
+		if nsavederrors+nerrors == 0 {
+			Yyerror("constant overflow")
+		}
+		return 0
+	}
+
+	return a.Val.Int64()
+}
+
+func _Mpgetfix(a *Mpfix) int64 {
 	if a.Ovf != 0 {
 		if nsavederrors+nerrors == 0 {
 			Yyerror("constant overflow")
@@ -550,6 +715,10 @@ func Mpgetfix(a *Mpint) int64 {
 }
 
 func Mpmovecfix(a *Mpint, c int64) {
+	a.Val.SetInt64(c)
+}
+
+func _Mpmovecfix(a *Mpfix, c int64) {
 	a.Neg = 0
 	a.Ovf = 0
 
@@ -565,7 +734,7 @@ func Mpmovecfix(a *Mpint, c int64) {
 	}
 }
 
-func mpdivmodfixfix(q *Mpint, r *Mpint, n *Mpint, d *Mpint) {
+func mpdivmodfixfix(q *Mpfix, r *Mpfix, n *Mpfix, d *Mpfix) {
 	var i int
 
 	ns := int(n.Neg)
@@ -573,8 +742,8 @@ func mpdivmodfixfix(q *Mpint, r *Mpint, n *Mpint, d *Mpint) {
 	n.Neg = 0
 	d.Neg = 0
 
-	mpmovefixfix(r, n)
-	Mpmovecfix(q, 0)
+	_mpmovefixfix(r, n)
+	_Mpmovecfix(q, 0)
 
 	// shift denominator until it
 	// is larger than numerator
@@ -605,7 +774,7 @@ func mpdivmodfixfix(q *Mpint, r *Mpint, n *Mpint, d *Mpint) {
 		mprsh(d)
 		if mpcmp(d, r) <= 0 {
 			mpaddcfix(q, 1)
-			mpsubfixfix(r, d)
+			_mpsubfixfix(r, d)
 		}
 	}
 
@@ -615,7 +784,7 @@ func mpdivmodfixfix(q *Mpint, r *Mpint, n *Mpint, d *Mpint) {
 	q.Neg = uint8(ns ^ ds)
 }
 
-func mpiszero(a *Mpint) bool {
+func mpiszero(a *Mpfix) bool {
 	for i := Mpprec - 1; i >= 0; i-- {
 		if a.A[i] != 0 {
 			return false
@@ -624,14 +793,14 @@ func mpiszero(a *Mpint) bool {
 	return true
 }
 
-func mpdivfract(a *Mpint, b *Mpint) {
-	var n Mpint
-	var d Mpint
+func mpdivfract(a *Mpfix, b *Mpfix) {
+	var n Mpfix
+	var d Mpfix
 	var j int
 	var x int
 
-	mpmovefixfix(&n, a) // numerator
-	mpmovefixfix(&d, b) // denominator
+	_mpmovefixfix(&n, a) // numerator
+	_mpmovefixfix(&d, b) // denominator
 
 	neg := int(n.Neg) ^ int(d.Neg)
 
@@ -645,7 +814,7 @@ func mpdivfract(a *Mpint, b *Mpint) {
 				if !mpiszero(&d) {
 					x |= 1
 				}
-				mpsubfixfix(&n, &d)
+				_mpsubfixfix(&n, &d)
 			}
 
 			mprsh(&d)
@@ -657,10 +826,10 @@ func mpdivfract(a *Mpint, b *Mpint) {
 	a.Neg = uint8(neg)
 }
 
-func mptestfix(a *Mpint) int {
-	var b Mpint
+func mptestfix(a *Mpfix) int {
+	var b Mpfix
 
-	Mpmovecfix(&b, 0)
+	_Mpmovecfix(&b, 0)
 	r := mpcmp(a, &b)
 	if a.Neg != 0 {
 		if r > 0 {
