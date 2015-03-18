@@ -232,6 +232,7 @@ var optab = []Optab{
 	{ABL, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0},
 	{AB, C_NONE, C_NONE, C_ZOREG, 6, 4, 0, 0, 0},
 	{ABL, C_NONE, C_NONE, C_REG, 6, 4, 0, 0, 0},
+	{ABL, C_REG, C_NONE, C_REG, 6, 4, 0, 0, 0},
 	{ABL, C_NONE, C_NONE, C_ZOREG, 6, 4, 0, 0, 0},
 	{obj.ARET, C_NONE, C_NONE, C_REG, 6, 4, 0, 0, 0},
 	{obj.ARET, C_NONE, C_NONE, C_ZOREG, 6, 4, 0, 0, 0},

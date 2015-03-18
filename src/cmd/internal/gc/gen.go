@@ -235,13 +235,13 @@ func cgen_proc(n *Node, proc int) {
 		Fatal("cgen_proc: unknown call %v", Oconv(int(n.Left.Op), 0))
 
 	case OCALLMETH:
-		Cgen_callmeth(n.Left, proc)
+		cgen_callmeth(n.Left, proc)
 
 	case OCALLINTER:
-		Thearch.Cgen_callinter(n.Left, nil, proc)
+		cgen_callinter(n.Left, nil, proc)
 
 	case OCALLFUNC:
-		Thearch.Cgen_call(n.Left, proc)
+		cgen_call(n.Left, proc)
 	}
 }
 
@@ -377,7 +377,7 @@ func Clearslim(n *Node) {
 	}
 
 	ullmancalc(&z)
-	Thearch.Cgen(&z, n)
+	Cgen(&z, n)
 }
 
 /*
@@ -393,17 +393,17 @@ func Cgen_eface(n *Node, res *Node) {
 	 */
 
 	tmp := temp(Types[Tptr])
-	Thearch.Cgen(n.Right, tmp)
+	Cgen(n.Right, tmp)
 
 	Gvardef(res)
 
 	dst := *res
 	dst.Type = Types[Tptr]
 	dst.Xoffset += int64(Widthptr)
-	Thearch.Cgen(tmp, &dst)
+	Cgen(tmp, &dst)
 
 	dst.Xoffset -= int64(Widthptr)
-	Thearch.Cgen(n.Left, &dst)
+	Cgen(n.Left, &dst)
 }
 
 /*
@@ -443,7 +443,7 @@ func Cgen_slice(n *Node, res *Node) {
 	var src Node
 	if isnil(n.Left) {
 		Tempname(&src, n.Left.Type)
-		Thearch.Cgen(n.Left, &src)
+		Cgen(n.Left, &src)
 	} else {
 		src = *n.Left
 	}
@@ -455,11 +455,11 @@ func Cgen_slice(n *Node, res *Node) {
 		if !Isptr[n.Left.Type.Etype] {
 			Fatal("slicearr is supposed to work on pointer: %v\n", Nconv(n, obj.FmtSign))
 		}
-		Thearch.Cgen(&src, base)
+		Cgen(&src, base)
 		Cgen_checknil(base)
 	} else {
 		src.Type = Types[Tptr]
-		Thearch.Cgen(&src, base)
+		Cgen(&src, base)
 	}
 
 	// committed to the update
@@ -468,10 +468,10 @@ func Cgen_slice(n *Node, res *Node) {
 	// compute len and cap.
 	// len = n-i, cap = m-i, and offs = i*width.
 	// computing offs last lets the multiply overwrite i.
-	Thearch.Cgen((*Node)(len), tmplen)
+	Cgen((*Node)(len), tmplen)
 
 	if n.Op != OSLICESTR {
-		Thearch.Cgen(cap, tmpcap)
+		Cgen(cap, tmpcap)
 	}
 
 	// if new cap != 0 { base += add }
@@ -489,11 +489,11 @@ func Cgen_slice(n *Node, res *Node) {
 		Nodconst(&con, tmpcap.Type, 0)
 		cmp := Nod(OEQ, tmpcap, &con)
 		typecheck(&cmp, Erv)
-		Thearch.Bgen(cmp, true, -1, p2)
+		Bgen(cmp, true, -1, p2)
 
 		add := Nod(OADD, base, offs)
 		typecheck(&add, Erv)
-		Thearch.Cgen(add, base)
+		Cgen(add, base)
 
 		Patch(p2, Pc)
 	}
@@ -503,14 +503,14 @@ func Cgen_slice(n *Node, res *Node) {
 
 	dst.Xoffset += int64(Array_array)
 	dst.Type = Types[Tptr]
-	Thearch.Cgen(base, &dst)
+	Cgen(base, &dst)
 
 	// dst.len = hi [ - lo ]
 	dst = *res
 
 	dst.Xoffset += int64(Array_nel)
 	dst.Type = Types[Simtype[TUINT]]
-	Thearch.Cgen(tmplen, &dst)
+	Cgen(tmplen, &dst)
 
 	if n.Op != OSLICESTR {
 		// dst.cap = cap [ - lo ]
@@ -518,7 +518,7 @@ func Cgen_slice(n *Node, res *Node) {
 
 		dst.Xoffset += int64(Array_cap)
 		dst.Type = Types[Simtype[TUINT]]
-		Thearch.Cgen(tmpcap, &dst)
+		Cgen(tmpcap, &dst)
 	}
 }
 
@@ -620,7 +620,7 @@ func gen(n *Node) {
 
 	lno := setlineno(n)
 
-	wasregalloc := Thearch.Anyregalloc()
+	wasregalloc := Anyregalloc()
 
 	if n == nil {
 		goto ret
@@ -760,10 +760,10 @@ func gen(n *Node) {
 			lab.Continpc = continpc
 		}
 
-		gen(n.Nincr)                              // contin:	incr
-		Patch(p1, Pc)                             // test:
-		Thearch.Bgen(n.Ntest, false, -1, breakpc) //		if(!test) goto break
-		Genlist(n.Nbody)                          //		body
+		gen(n.Nincr)                      // contin:	incr
+		Patch(p1, Pc)                     // test:
+		Bgen(n.Ntest, false, -1, breakpc) //		if(!test) goto break
+		Genlist(n.Nbody)                  //		body
 		gjmp(continpc)
 		Patch(breakpc, Pc) // done:
 		continpc = scontin
@@ -774,15 +774,15 @@ func gen(n *Node) {
 		}
 
 	case OIF:
-		p1 := gjmp(nil)                                  //		goto test
-		p2 := gjmp(nil)                                  // p2:		goto else
-		Patch(p1, Pc)                                    // test:
-		Thearch.Bgen(n.Ntest, false, int(-n.Likely), p2) //		if(!test) goto p2
-		Genlist(n.Nbody)                                 //		then
-		p3 := gjmp(nil)                                  //		goto done
-		Patch(p2, Pc)                                    // else:
-		Genlist(n.Nelse)                                 //		else
-		Patch(p3, Pc)                                    // done:
+		p1 := gjmp(nil)                          //		goto test
+		p2 := gjmp(nil)                          // p2:		goto else
+		Patch(p1, Pc)                            // test:
+		Bgen(n.Ntest, false, int(-n.Likely), p2) //		if(!test) goto p2
+		Genlist(n.Nbody)                         //		then
+		p3 := gjmp(nil)                          //		goto done
+		Patch(p2, Pc)                            // else:
+		Genlist(n.Nelse)                         //		else
+		Patch(p3, Pc)                            // done:
 
 	case OSWITCH:
 		sbreak := breakpc
@@ -832,13 +832,13 @@ func gen(n *Node) {
 		Cgen_as(n.Left, n.Right)
 
 	case OCALLMETH:
-		Cgen_callmeth(n, 0)
+		cgen_callmeth(n, 0)
 
 	case OCALLINTER:
-		Thearch.Cgen_callinter(n, nil, 0)
+		cgen_callinter(n, nil, 0)
 
 	case OCALLFUNC:
-		Thearch.Cgen_call(n, 0)
+		cgen_call(n, 0)
 
 	case OPROC:
 		cgen_proc(n, 1)
@@ -848,7 +848,7 @@ func gen(n *Node) {
 
 	case ORETURN,
 		ORETJMP:
-		Thearch.Cgen_ret(n)
+		cgen_ret(n)
 
 	case OCHECKNIL:
 		Cgen_checknil(n.Left)
@@ -858,7 +858,7 @@ func gen(n *Node) {
 	}
 
 ret:
-	if Thearch.Anyregalloc() != wasregalloc {
+	if Anyregalloc() != wasregalloc {
 		Dump("node", n)
 		Fatal("registers left allocated")
 	}
@@ -908,10 +908,10 @@ func Cgen_as(nl *Node, nr *Node) {
 		return
 	}
 
-	Thearch.Cgen(nr, nl)
+	Cgen(nr, nl)
 }
 
-func Cgen_callmeth(n *Node, proc int) {
+func cgen_callmeth(n *Node, proc int) {
 	// generate a rewrite in n2 for the method call
 	// (p.f)(...) goes to (f)(p,...)
 
@@ -929,7 +929,7 @@ func Cgen_callmeth(n *Node, proc int) {
 	if n2.Left.Op == ONAME {
 		n2.Left.Class = PFUNC
 	}
-	Thearch.Cgen_call(&n2, proc)
+	cgen_call(&n2, proc)
 }
 
 func checklabels() {
@@ -1020,14 +1020,14 @@ func Componentgen(nr *Node, nl *Node) bool {
 		if nr != nil && !cadable(nr) {
 			goto no
 		}
-		Thearch.Igen(nl, &nodl, nil)
+		Igen(nl, &nodl, nil)
 		freel = 1
 	}
 
 	if nr != nil {
 		nodr = *nr
 		if !cadable(nr) {
-			Thearch.Igen(nr, &nodr, nil)
+			Igen(nr, &nodr, nil)
 			freer = 1
 		}
 	} else {
@@ -1035,7 +1035,7 @@ func Componentgen(nr *Node, nl *Node) bool {
 		var tmp Node
 		Nodconst(&tmp, nl.Type, 0)
 
-		Thearch.Regalloc(&nodr, Types[TUINT], nil)
+		Regalloc(&nodr, Types[TUINT], nil)
 		Thearch.Gmove(&tmp, &nodr)
 		freer = 1
 	}
@@ -1190,19 +1190,19 @@ func Componentgen(nr *Node, nl *Node) bool {
 
 no:
 	if freer != 0 {
-		Thearch.Regfree(&nodr)
+		Regfree(&nodr)
 	}
 	if freel != 0 {
-		Thearch.Regfree(&nodl)
+		Regfree(&nodl)
 	}
 	return false
 
 yes:
 	if freer != 0 {
-		Thearch.Regfree(&nodr)
+		Regfree(&nodr)
 	}
 	if freel != 0 {
-		Thearch.Regfree(&nodl)
+		Regfree(&nodl)
 	}
 	return true
 }

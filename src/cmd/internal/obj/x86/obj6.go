@@ -190,6 +190,18 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		}
 	}
 
+	// Rewrite MOVL/MOVQ $XXX(FP/SP) as LEAL/LEAQ.
+	if p.From.Type == obj.TYPE_ADDR && (ctxt.Arch.Thechar == '6' || p.From.Name != obj.NAME_EXTERN && p.From.Name != obj.NAME_STATIC) {
+		switch p.As {
+		case AMOVL:
+			p.As = ALEAL
+			p.From.Type = obj.TYPE_MEM
+		case AMOVQ:
+			p.As = ALEAQ
+			p.From.Type = obj.TYPE_MEM
+		}
+	}
+
 	if ctxt.Headtype == obj.Hnacl && p.Mode == 64 {
 		nacladdr(ctxt, p, &p.From3)
 		nacladdr(ctxt, p, &p.From)

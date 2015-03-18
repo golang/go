@@ -1344,7 +1344,7 @@ loop2:
 		}
 	}
 
-	if Debug['v'] != 0 && strings.Contains(Curfn.Nname.Sym.Name, "Parse") {
+	if false && Debug['v'] != 0 && strings.Contains(Curfn.Nname.Sym.Name, "Parse") {
 		Warn("regions: %d\n", nregion)
 	}
 	if nregion >= MaxRgn {

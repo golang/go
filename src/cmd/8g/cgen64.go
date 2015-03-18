@@ -27,7 +27,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		gc.Fatal("cgen64 %v", gc.Oconv(int(n.Op), 0))
 
 	case gc.OMINUS:
-		cgen(n.Left, res)
+		gc.Cgen(n.Left, res)
 		var hi1 gc.Node
 		var lo1 gc.Node
 		split64(res, &lo1, &hi1)
@@ -38,7 +38,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		return
 
 	case gc.OCOM:
-		cgen(n.Left, res)
+		gc.Cgen(n.Left, res)
 		var lo1 gc.Node
 		var hi1 gc.Node
 		split64(res, &lo1, &hi1)
@@ -66,14 +66,14 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	if l.Addable == 0 {
 		var t1 gc.Node
 		gc.Tempname(&t1, l.Type)
-		cgen(l, &t1)
+		gc.Cgen(l, &t1)
 		l = &t1
 	}
 
 	if r != nil && r.Addable == 0 {
 		var t2 gc.Node
 		gc.Tempname(&t2, r.Type)
-		cgen(r, &t2)
+		gc.Cgen(r, &t2)
 		r = &t2
 	}
 
@@ -116,10 +116,10 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		// let's call the next two EX and FX.
 	case gc.OMUL:
 		var ex gc.Node
-		regalloc(&ex, gc.Types[gc.TPTR32], nil)
+		gc.Regalloc(&ex, gc.Types[gc.TPTR32], nil)
 
 		var fx gc.Node
-		regalloc(&fx, gc.Types[gc.TPTR32], nil)
+		gc.Regalloc(&fx, gc.Types[gc.TPTR32], nil)
 
 		// load args into DX:AX and EX:CX.
 		gins(x86.AMOVL, &lo1, &ax)
@@ -148,8 +148,8 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		gins(x86.AADDL, &fx, &dx)
 		gc.Patch(p2, gc.Pc)
 
-		regfree(&ex)
-		regfree(&fx)
+		gc.Regfree(&ex)
+		gc.Regfree(&fx)
 
 		// We only rotate by a constant c in [0,64).
 	// if c >= 32:
@@ -523,10 +523,10 @@ func cmp64(nl *gc.Node, nr *gc.Node, op int, likely int, to *obj.Prog) {
 	if nl.Op == gc.OLITERAL || nr.Op == gc.OLITERAL {
 		gins(x86.ACMPL, &hi1, &hi2)
 	} else {
-		regalloc(&rr, gc.Types[gc.TINT32], nil)
+		gc.Regalloc(&rr, gc.Types[gc.TINT32], nil)
 		gins(x86.AMOVL, &hi1, &rr)
 		gins(x86.ACMPL, &rr, &hi2)
-		regfree(&rr)
+		gc.Regfree(&rr)
 	}
 
 	var br *obj.Prog
@@ -580,10 +580,10 @@ func cmp64(nl *gc.Node, nr *gc.Node, op int, likely int, to *obj.Prog) {
 	if nl.Op == gc.OLITERAL || nr.Op == gc.OLITERAL {
 		gins(x86.ACMPL, &lo1, &lo2)
 	} else {
-		regalloc(&rr, gc.Types[gc.TINT32], nil)
+		gc.Regalloc(&rr, gc.Types[gc.TINT32], nil)
 		gins(x86.AMOVL, &lo1, &rr)
 		gins(x86.ACMPL, &rr, &lo2)
-		regfree(&rr)
+		gc.Regfree(&rr)
 	}
 
 	// jump again

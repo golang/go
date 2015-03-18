@@ -116,316 +116,10 @@ func appendpp(p *obj.Prog, as int, ftype int, freg int, foffset int64, ttype int
 	return q
 }
 
-/*
- * generate:
- *	call f
- *	proc=-1	normal call but no return
- *	proc=0	normal call
- *	proc=1	goroutine run in new proc
- *	proc=2	defer call save away stack
-  *	proc=3	normal call to C pointer (not Go func value)
-*/
-func ginscall(f *gc.Node, proc int) {
-	if f.Type != nil {
-		extra := int32(0)
-		if proc == 1 || proc == 2 {
-			extra = 2 * int32(gc.Widthptr)
-		}
-		gc.Setmaxarg(f.Type, extra)
-	}
-
-	switch proc {
-	default:
-		gc.Fatal("ginscall: bad proc %d", proc)
-
-	case 0, // normal call
-		-1: // normal call but no return
-		if f.Op == gc.ONAME && f.Class == gc.PFUNC {
-			if f == gc.Deferreturn {
-				// Deferred calls will appear to be returning to
-				// the CALL deferreturn(SB) that we are about to emit.
-				// However, the stack trace code will show the line
-				// of the instruction byte before the return PC.
-				// To avoid that being an unrelated instruction,
-				// insert a arm64 NOP that we will have the right line number.
-				// The arm64 NOP is really or HINT $0; use that description
-				// because the NOP pseudo-instruction would be removed by
-				// the linker.
-				var con gc.Node
-				gc.Nodconst(&con, gc.Types[gc.TINT], 0)
-				gins(arm64.AHINT, &con, nil)
-			}
-
-			p := gins(arm64.ABL, nil, f)
-			gc.Afunclit(&p.To, f)
-			if proc == -1 || gc.Noreturn(p) {
-				gins(obj.AUNDEF, nil, nil)
-			}
-			break
-		}
-
-		var reg gc.Node
-		gc.Nodreg(&reg, gc.Types[gc.Tptr], arm64.REGCTXT)
-		var r1 gc.Node
-		gc.Nodreg(&r1, gc.Types[gc.Tptr], arm64.REGRT1)
-		gmove(f, &reg)
-		reg.Op = gc.OINDREG
-		gmove(&reg, &r1)
-		r1.Op = gc.OINDREG
-		gins(arm64.ABL, nil, &r1)
-
-	case 3: // normal call of c function pointer
-		gins(arm64.ABL, nil, f)
-
-	case 1, // call in new proc (go)
-		2: // deferred call (defer)
-		var con gc.Node
-		gc.Nodconst(&con, gc.Types[gc.TINT64], int64(gc.Argsize(f.Type)))
-
-		var reg gc.Node
-		gc.Nodreg(&reg, gc.Types[gc.TINT64], arm64.REGRT1)
-		var reg2 gc.Node
-		gc.Nodreg(&reg2, gc.Types[gc.TINT64], arm64.REGRT2)
-		gmove(f, &reg)
-
-		gmove(&con, &reg2)
-		p := gins(arm64.AMOVW, &reg2, nil)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = arm64.REGSP
-		p.To.Offset = 8
-
-		p = gins(arm64.AMOVD, &reg, nil)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = arm64.REGSP
-		p.To.Offset = 16
-
-		if proc == 1 {
-			ginscall(gc.Newproc, 0)
-		} else {
-			if gc.Hasdefer == 0 {
-				gc.Fatal("hasdefer=0 but has defer")
-			}
-			ginscall(gc.Deferproc, 0)
-		}
-
-		if proc == 2 {
-			gc.Nodreg(&reg, gc.Types[gc.TINT64], arm64.REG_R0) // R0 should match runtime.return0
-			p := gins(arm64.ACMP, &reg, nil)
-			p.Reg = arm64.REGZERO
-			p = gc.Gbranch(arm64.ABEQ, nil, +1)
-			cgen_ret(nil)
-			gc.Patch(p, gc.Pc)
-		}
-	}
-}
-
-/*
- * n is call to interface method.
- * generate res = n.
- */
-func cgen_callinter(n *gc.Node, res *gc.Node, proc int) {
-	i := n.Left
-	if i.Op != gc.ODOTINTER {
-		gc.Fatal("cgen_callinter: not ODOTINTER %v", gc.Oconv(int(i.Op), 0))
-	}
-
-	f := i.Right // field
-	if f.Op != gc.ONAME {
-		gc.Fatal("cgen_callinter: not ONAME %v", gc.Oconv(int(f.Op), 0))
-	}
-
-	i = i.Left // interface
-
-	if i.Addable == 0 {
-		var tmpi gc.Node
-		gc.Tempname(&tmpi, i.Type)
-		cgen(i, &tmpi)
-		i = &tmpi
-	}
-
-	gc.Genlist(n.List) // assign the args
-
-	// i is now addable, prepare an indirected
-	// register to hold its address.
-	var nodi gc.Node
-	igen(i, &nodi, res) // REG = &inter
-
-	var nodsp gc.Node
-	gc.Nodindreg(&nodsp, gc.Types[gc.Tptr], arm64.REGSP)
-
-	nodsp.Xoffset = int64(gc.Widthptr)
-	if proc != 0 {
-		nodsp.Xoffset += 2 * int64(gc.Widthptr) // leave room for size & fn
-	}
-	nodi.Type = gc.Types[gc.Tptr]
-	nodi.Xoffset += int64(gc.Widthptr)
-	cgen(&nodi, &nodsp) // {8 or 24}(SP) = 8(REG) -- i.data
-
-	var nodo gc.Node
-	regalloc(&nodo, gc.Types[gc.Tptr], res)
-
-	nodi.Type = gc.Types[gc.Tptr]
-	nodi.Xoffset -= int64(gc.Widthptr)
-	cgen(&nodi, &nodo) // REG = 0(REG) -- i.tab
-	regfree(&nodi)
-
-	var nodr gc.Node
-	regalloc(&nodr, gc.Types[gc.Tptr], &nodo)
-	if n.Left.Xoffset == gc.BADWIDTH {
-		gc.Fatal("cgen_callinter: badwidth")
-	}
-	gc.Cgen_checknil(&nodo) // in case offset is huge
-	nodo.Op = gc.OINDREG
-	nodo.Xoffset = n.Left.Xoffset + 3*int64(gc.Widthptr) + 8
-	if proc == 0 {
-		// plain call: use direct c function pointer - more efficient
-		cgen(&nodo, &nodr) // REG = 32+offset(REG) -- i.tab->fun[f]
-		proc = 3
-	} else {
-		// go/defer. generate go func value.
-		p := gins(arm64.AMOVD, &nodo, &nodr) // REG = &(32+offset(REG)) -- i.tab->fun[f]
-		p.From.Type = obj.TYPE_ADDR
-	}
-
-	nodr.Type = n.Left.Type
-	ginscall(&nodr, proc)
-
-	regfree(&nodr)
-	regfree(&nodo)
-}
-
-/*
- * generate function call;
- *	proc=0	normal call
- *	proc=1	goroutine run in new proc
- *	proc=2	defer call save away stack
- */
-func cgen_call(n *gc.Node, proc int) {
-	if n == nil {
-		return
-	}
-
-	var afun gc.Node
-	if n.Left.Ullman >= gc.UINF {
-		// if name involves a fn call
-		// precompute the address of the fn
-		gc.Tempname(&afun, gc.Types[gc.Tptr])
-
-		cgen(n.Left, &afun)
-	}
-
-	gc.Genlist(n.List) // assign the args
-	t := n.Left.Type
-
-	// call tempname pointer
-	if n.Left.Ullman >= gc.UINF {
-		var nod gc.Node
-		regalloc(&nod, gc.Types[gc.Tptr], nil)
-		gc.Cgen_as(&nod, &afun)
-		nod.Type = t
-		ginscall(&nod, proc)
-		regfree(&nod)
-		return
-	}
-
-	// call pointer
-	if n.Left.Op != gc.ONAME || n.Left.Class != gc.PFUNC {
-		var nod gc.Node
-		regalloc(&nod, gc.Types[gc.Tptr], nil)
-		gc.Cgen_as(&nod, n.Left)
-		nod.Type = t
-		ginscall(&nod, proc)
-		regfree(&nod)
-		return
-	}
-
-	// call direct
-	n.Left.Method = 1
-
-	ginscall(n.Left, proc)
-}
-
-/*
- * call to n has already been generated.
- * generate:
- *	res = return value from call.
- */
-func cgen_callret(n *gc.Node, res *gc.Node) {
-	t := n.Left.Type
-	if t.Etype == gc.TPTR32 || t.Etype == gc.TPTR64 {
-		t = t.Type
-	}
-
-	var flist gc.Iter
-	fp := gc.Structfirst(&flist, gc.Getoutarg(t))
-	if fp == nil {
-		gc.Fatal("cgen_callret: nil")
-	}
-
-	var nod gc.Node
-	nod.Op = gc.OINDREG
-	nod.Val.U.Reg = arm64.REGSP
-	nod.Addable = 1
-
-	nod.Xoffset = fp.Width + int64(gc.Widthptr) // +widthptr: saved LR at 0(R1)
-	nod.Type = fp.Type
-	gc.Cgen_as(res, &nod)
-}
-
-/*
- * call to n has already been generated.
- * generate:
- *	res = &return value from call.
- */
-func cgen_aret(n *gc.Node, res *gc.Node) {
-	t := n.Left.Type
-	if gc.Isptr[t.Etype] {
-		t = t.Type
-	}
-
-	var flist gc.Iter
-	fp := gc.Structfirst(&flist, gc.Getoutarg(t))
-	if fp == nil {
-		gc.Fatal("cgen_aret: nil")
-	}
-
-	var nod1 gc.Node
-	nod1.Op = gc.OINDREG
-	nod1.Val.U.Reg = arm64.REGSP
-	nod1.Addable = 1
-
-	nod1.Xoffset = fp.Width + int64(gc.Widthptr) // +widthptr: saved lr at 0(SP)
-	nod1.Type = fp.Type
-
-	if res.Op != gc.OREGISTER {
-		var nod2 gc.Node
-		regalloc(&nod2, gc.Types[gc.Tptr], res)
-		agen(&nod1, &nod2)
-		gins(arm64.AMOVD, &nod2, res)
-		regfree(&nod2)
-	} else {
-		agen(&nod1, res)
-	}
-}
-
-/*
- * generate return.
- * n->left is assignments to return values.
- */
-func cgen_ret(n *gc.Node) {
-	if n != nil {
-		gc.Genlist(n.List) // copy out args
-	}
-	if gc.Hasdefer != 0 {
-		ginscall(gc.Deferreturn, 0)
-	}
-	gc.Genlist(gc.Curfn.Exit)
-	p := gins(obj.ARET, nil, nil)
-	if n != nil && n.Op == gc.ORETJMP {
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Type = obj.TYPE_ADDR
-		p.To.Sym = gc.Linksym(n.Left.Sym)
-	}
+func ginsnop() {
+	var con gc.Node
+	gc.Nodconst(&con, gc.Types[gc.TINT], 0)
+	gins(arm64.AHINT, &con, nil)
 }
 
 /*
@@ -468,15 +162,15 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	a := optoas(gc.ODIV, t)
 
 	var tl gc.Node
-	regalloc(&tl, t0, nil)
+	gc.Regalloc(&tl, t0, nil)
 	var tr gc.Node
-	regalloc(&tr, t0, nil)
+	gc.Regalloc(&tr, t0, nil)
 	if nl.Ullman >= nr.Ullman {
-		cgen(nl, &tl)
-		cgen(nr, &tr)
+		gc.Cgen(nl, &tl)
+		gc.Cgen(nr, &tr)
 	} else {
-		cgen(nr, &tr)
-		cgen(nl, &tl)
+		gc.Cgen(nr, &tr)
+		gc.Cgen(nl, &tl)
 	}
 
 	if t != t0 {
@@ -497,7 +191,7 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	if panicdiv == nil {
 		panicdiv = gc.Sysfunc("panicdivide")
 	}
-	ginscall(panicdiv, -1)
+	gc.Ginscall(panicdiv, -1)
 	gc.Patch(p1, gc.Pc)
 
 	var p2 *obj.Prog
@@ -525,12 +219,12 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 
 	p1 = gins(a, &tr, &tl)
 	if op == gc.ODIV {
-		regfree(&tr)
+		gc.Regfree(&tr)
 		gmove(&tl, res)
 	} else {
 		// A%B = A-(A/B*B)
 		var tm gc.Node
-		regalloc(&tm, t, nil)
+		gc.Regalloc(&tm, t, nil)
 
 		// patch div to use the 3 register form
 		// TODO(minux): add gins3?
@@ -538,30 +232,16 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 
 		p1.To.Reg = tm.Val.U.Reg
 		gins(optoas(gc.OMUL, t), &tr, &tm)
-		regfree(&tr)
+		gc.Regfree(&tr)
 		gins(optoas(gc.OSUB, t), &tm, &tl)
-		regfree(&tm)
+		gc.Regfree(&tm)
 		gmove(&tl, res)
 	}
 
-	regfree(&tl)
+	gc.Regfree(&tl)
 	if check != 0 {
 		gc.Patch(p2, gc.Pc)
 	}
-}
-
-/*
- * generate division according to op, one of:
- *	res = nl / nr
- *	res = nl % nr
- */
-func cgen_div(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
-	// TODO(minux): enable division by magic multiply (also need to fix longmod below)
-	//if(nr->op != OLITERAL)
-	// division and mod using (slow) hardware instruction
-	dodiv(op, nl, nr, res)
-
-	return
 }
 
 /*
@@ -579,9 +259,9 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	t := (*gc.Type)(nl.Type)
 	w := int(int(t.Width * 8))
 	var n1 gc.Node
-	cgenr(nl, &n1, res)
+	gc.Cgenr(nl, &n1, res)
 	var n2 gc.Node
-	cgenr(nr, &n2, nil)
+	gc.Cgenr(nr, &n2, nil)
 	switch gc.Simtype[t.Etype] {
 	case gc.TINT8,
 		gc.TINT16,
@@ -611,9 +291,9 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		gc.Fatal("cgen_hmul %v", gc.Tconv(t, 0))
 	}
 
-	cgen(&n1, res)
-	regfree(&n1)
-	regfree(&n2)
+	gc.Cgen(&n1, res)
+	gc.Regfree(&n1)
+	gc.Regfree(&n2)
 }
 
 /*
@@ -626,8 +306,8 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 
 	if nr.Op == gc.OLITERAL {
 		var n1 gc.Node
-		regalloc(&n1, nl.Type, res)
-		cgen(nl, &n1)
+		gc.Regalloc(&n1, nl.Type, res)
+		gc.Cgen(nl, &n1)
 		sc := uint64(uint64(gc.Mpgetfix(nr.Val.U.Xval)))
 		if sc >= uint64(nl.Type.Width*8) {
 			// large shift gets 2 shifts by width-1
@@ -640,21 +320,21 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 			gins(a, nr, &n1)
 		}
 		gmove(&n1, res)
-		regfree(&n1)
+		gc.Regfree(&n1)
 		return
 	}
 
 	if nl.Ullman >= gc.UINF {
 		var n4 gc.Node
 		gc.Tempname(&n4, nl.Type)
-		cgen(nl, &n4)
+		gc.Cgen(nl, &n4)
 		nl = &n4
 	}
 
 	if nr.Ullman >= gc.UINF {
 		var n5 gc.Node
 		gc.Tempname(&n5, nr.Type)
-		cgen(nr, &n5)
+		gc.Cgen(nr, &n5)
 		nr = &n5
 	}
 
@@ -668,24 +348,24 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	}
 
 	var n1 gc.Node
-	regalloc(&n1, nr.Type, nil) // to hold the shift type in CX
+	gc.Regalloc(&n1, nr.Type, nil) // to hold the shift type in CX
 	var n3 gc.Node
-	regalloc(&n3, tcount, &n1) // to clear high bits of CX
+	gc.Regalloc(&n3, tcount, &n1) // to clear high bits of CX
 
 	var n2 gc.Node
-	regalloc(&n2, nl.Type, res)
+	gc.Regalloc(&n2, nl.Type, res)
 
 	if nl.Ullman >= nr.Ullman {
-		cgen(nl, &n2)
-		cgen(nr, &n1)
+		gc.Cgen(nl, &n2)
+		gc.Cgen(nr, &n1)
 		gmove(&n1, &n3)
 	} else {
-		cgen(nr, &n1)
+		gc.Cgen(nr, &n1)
 		gmove(&n1, &n3)
-		cgen(nl, &n2)
+		gc.Cgen(nl, &n2)
 	}
 
-	regfree(&n3)
+	gc.Regfree(&n3)
 
 	// test and fix up large shifts
 	if !bounded {
@@ -707,8 +387,8 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 
 	gmove(&n2, res)
 
-	regfree(&n1)
-	regfree(&n2)
+	gc.Regfree(&n1)
+	gc.Regfree(&n2)
 }
 
 func clearfat(nl *gc.Node) {
@@ -736,7 +416,7 @@ func clearfat(nl *gc.Node) {
 	var dst gc.Node
 	gc.Nodreg(&dst, gc.Types[gc.Tptr], arm64.REGRT1)
 	reg[arm64.REGRT1-arm64.REG_R0]++
-	agen(nl, &dst)
+	gc.Agen(nl, &dst)
 
 	var boff uint64
 	if q > 128 {
@@ -745,7 +425,7 @@ func clearfat(nl *gc.Node) {
 		p.From.Offset = 8
 
 		var end gc.Node
-		regalloc(&end, gc.Types[gc.Tptr], nil)
+		gc.Regalloc(&end, gc.Types[gc.Tptr], nil)
 		p = gins(arm64.AMOVD, &dst, &end)
 		p.From.Type = obj.TYPE_ADDR
 		p.From.Offset = int64(q * 8)
@@ -759,7 +439,7 @@ func clearfat(nl *gc.Node) {
 		p = gcmp(arm64.ACMP, &dst, &end)
 		gc.Patch(gc.Gbranch(arm64.ABNE, nil, 0), pl)
 
-		regfree(&end)
+		gc.Regfree(&end)
 
 		// The loop leaves R16 on the last zeroed dword
 		boff = 8

@@ -123,8 +123,6 @@ func Headstr(v int) string {
 }
 
 func Linknew(arch *LinkArch) *Link {
-	linksetexp()
-
 	ctxt := new(Link)
 	ctxt.Hash = make(map[SymVer]*LSym)
 	ctxt.Arch = arch

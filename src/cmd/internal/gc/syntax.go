@@ -294,6 +294,7 @@ const (
 	OLROT   // left rotate: AROL.
 	ORROTC  // right rotate-carry: ARCR.
 	ORETJMP // return to other function
+	OPS     // compare parity set (for x86 NaN check)
 
 	OEND
 )

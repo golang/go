@@ -25,21 +25,21 @@ func Complexbool(op int, nl *Node, nr *Node, true_ bool, likely int, to *obj.Pro
 	if nr != nil {
 		if nl.Ullman > nr.Ullman && nl.Addable == 0 {
 			Tempname(&tnl, nl.Type)
-			Thearch.Cgen(nl, &tnl)
+			Cgen(nl, &tnl)
 			nl = &tnl
 		}
 
 		if nr.Addable == 0 {
 			var tnr Node
 			Tempname(&tnr, nr.Type)
-			Thearch.Cgen(nr, &tnr)
+			Cgen(nr, &tnr)
 			nr = &tnr
 		}
 	}
 
 	if nl.Addable == 0 {
 		Tempname(&tnl, nl.Type)
-		Thearch.Cgen(nl, &tnl)
+		Cgen(nl, &tnl)
 		nl = &tnl
 	}
 
@@ -78,7 +78,7 @@ func Complexbool(op int, nl *Node, nr *Node, true_ bool, likely int, to *obj.Pro
 		true_ = !true_
 	}
 
-	Thearch.Bgen(&na, true_, likely, to)
+	Bgen(&na, true_, likely, to)
 }
 
 // break addable nc-complex into nr-real and ni-imaginary
@@ -111,7 +111,7 @@ func minus(nl *Node, res *Node) {
 	ra.Op = OMINUS
 	ra.Left = nl
 	ra.Type = nl.Type
-	Thearch.Cgen(&ra, res)
+	Cgen(&ra, res)
 }
 
 // build and execute tree
@@ -150,14 +150,14 @@ func complexadd(op int, nl *Node, nr *Node, res *Node) {
 	ra.Left = &n1
 	ra.Right = &n3
 	ra.Type = n1.Type
-	Thearch.Cgen(&ra, &n5)
+	Cgen(&ra, &n5)
 
 	ra = Node{}
 	ra.Op = uint8(op)
 	ra.Left = &n2
 	ra.Right = &n4
 	ra.Type = n2.Type
-	Thearch.Cgen(&ra, &n6)
+	Cgen(&ra, &n6)
 }
 
 // build and execute tree
@@ -197,7 +197,7 @@ func complexmul(nl *Node, nr *Node, res *Node) {
 	ra.Left = &rm1
 	ra.Right = &rm2
 	ra.Type = rm1.Type
-	Thearch.Cgen(&ra, &tmp)
+	Cgen(&ra, &tmp)
 
 	// imag part
 	rm1 = Node{}
@@ -218,10 +218,10 @@ func complexmul(nl *Node, nr *Node, res *Node) {
 	ra.Left = &rm1
 	ra.Right = &rm2
 	ra.Type = rm1.Type
-	Thearch.Cgen(&ra, &n6)
+	Cgen(&ra, &n6)
 
 	// tmp ->real part
-	Thearch.Cgen(&tmp, &n5)
+	Cgen(&tmp, &n5)
 }
 
 func nodfconst(n *Node, t *Type, fval *Mpflt) {
@@ -322,8 +322,8 @@ func Complexmove(f *Node, t *Node) {
 		var n3 Node
 		subnode(&n3, &n4, t)
 
-		Thearch.Cgen(&n1, &n3)
-		Thearch.Cgen(&n2, &n4)
+		Cgen(&n1, &n3)
+		Cgen(&n2, &n4)
 	}
 }
 
@@ -346,9 +346,9 @@ func Complexgen(n *Node, res *Node) {
 			subnode(&n1, &n2, res)
 			var tmp Node
 			Tempname(&tmp, n1.Type)
-			Thearch.Cgen(n.Left, &tmp)
-			Thearch.Cgen(n.Right, &n2)
-			Thearch.Cgen(&tmp, &n1)
+			Cgen(n.Left, &tmp)
+			Cgen(n.Right, &n2)
+			Cgen(&tmp, &n1)
 			return
 		}
 
@@ -366,11 +366,11 @@ func Complexgen(n *Node, res *Node) {
 		var n2 Node
 		subnode(&n1, &n2, nl)
 		if n.Op == OREAL {
-			Thearch.Cgen(&n1, res)
+			Cgen(&n1, res)
 			return
 		}
 
-		Thearch.Cgen(&n2, res)
+		Cgen(&n2, res)
 		return
 	}
 
@@ -394,9 +394,9 @@ func Complexgen(n *Node, res *Node) {
 
 	if res.Addable == 0 {
 		var n1 Node
-		Thearch.Igen(res, &n1, nil)
-		Thearch.Cgen(n, &n1)
-		Thearch.Regfree(&n1)
+		Igen(res, &n1, nil)
+		Cgen(n, &n1)
+		Regfree(&n1)
 		return
 	}
 
@@ -419,10 +419,10 @@ func Complexgen(n *Node, res *Node) {
 		OCALLMETH,
 		OCALLINTER:
 		var n1 Node
-		Thearch.Igen(n, &n1, res)
+		Igen(n, &n1, res)
 
 		Complexmove(&n1, res)
-		Thearch.Regfree(&n1)
+		Regfree(&n1)
 		return
 
 	case OCONV,
@@ -447,21 +447,21 @@ func Complexgen(n *Node, res *Node) {
 	if nr != nil {
 		if nl.Ullman > nr.Ullman && nl.Addable == 0 {
 			Tempname(&tnl, nl.Type)
-			Thearch.Cgen(nl, &tnl)
+			Cgen(nl, &tnl)
 			nl = &tnl
 		}
 
 		if nr.Addable == 0 {
 			var tnr Node
 			Tempname(&tnr, nr.Type)
-			Thearch.Cgen(nr, &tnr)
+			Cgen(nr, &tnr)
 			nr = &tnr
 		}
 	}
 
 	if nl.Addable == 0 {
 		Tempname(&tnl, nl.Type)
-		Thearch.Cgen(nl, &tnl)
+		Cgen(nl, &tnl)
 		nl = &tnl
 	}
 
