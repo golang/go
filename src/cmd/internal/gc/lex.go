@@ -1401,7 +1401,7 @@ ncu:
 	str = lexbuf.String()
 	yylval.val.U.Xval = new(Mpint)
 	mpatofix(yylval.val.U.Xval, str)
-	if yylval.val.U.Xval.Ovf != 0 {
+	if yylval.val.U.Xval.Ovf {
 		Yyerror("overflow in constant")
 		Mpmovecfix(yylval.val.U.Xval, 0)
 	}

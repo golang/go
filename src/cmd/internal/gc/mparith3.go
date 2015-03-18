@@ -80,7 +80,7 @@ func mpnorm(a *Mpflt) {
 		}
 	}
 
-	Mpshiftfix(&a.Val, s)
+	_Mpshiftfix(&a.Val, s)
 	mpsetexp(a, int(a.Exp)-s)
 }
 
@@ -110,21 +110,21 @@ func mpaddfltflt(a *Mpflt, b *Mpflt) {
 		var c Mpflt
 		mpmovefltflt(&c, b)
 
-		Mpshiftfix(&c.Val, -s)
-		mpaddfixfix(&a.Val, &c.Val, 0)
+		_Mpshiftfix(&c.Val, -s)
+		_mpaddfixfix(&a.Val, &c.Val, 0)
 		goto out
 	}
 
 	if s < 0 {
 		// b is larger, shift a right
-		Mpshiftfix(&a.Val, s)
+		_Mpshiftfix(&a.Val, s)
 
 		mpsetexp(a, int(a.Exp)-s)
-		mpaddfixfix(&a.Val, &b.Val, 0)
+		_mpaddfixfix(&a.Val, &b.Val, 0)
 		goto out
 	}
 
-	mpaddfixfix(&a.Val, &b.Val, 0)
+	_mpaddfixfix(&a.Val, &b.Val, 0)
 
 out:
 	mpnorm(a)
@@ -193,7 +193,7 @@ func mpdivfltflt(a *Mpflt, b *Mpflt) {
 	var c Mpflt
 	mpmovefltflt(&c, b)
 
-	Mpshiftfix(&c.Val, Mpscale)
+	_Mpshiftfix(&c.Val, Mpscale)
 
 	// divide
 	mpdivfract(&a.Val, &c.Val)
@@ -222,7 +222,7 @@ func mpgetfltN(a *Mpflt, prec int, bias int) float64 {
 	}
 
 	for a.Val.A[Mpnorm-1]&Mpsign == 0 {
-		Mpshiftfix(&a.Val, 1)
+		_Mpshiftfix(&a.Val, 1)
 		mpsetexp(a, int(a.Exp)-1) // can set 'a' to zero
 		s = sigfig(a)
 		if s == 0 {
@@ -298,7 +298,7 @@ func Mpmovecflt(a *Mpflt, c float64) {
 	if Mpdebug != 0 /*TypeKind(100016)*/ {
 		fmt.Printf("\nconst %g", c)
 	}
-	Mpmovecfix(&a.Val, 0)
+	_Mpmovecfix(&a.Val, 0)
 	a.Exp = 0
 	var f float64
 	var l int
@@ -323,7 +323,7 @@ func Mpmovecflt(a *Mpflt, c float64) {
 		if f == 0 {
 			break
 		}
-		Mpshiftfix(&a.Val, Mpscale)
+		_Mpshiftfix(&a.Val, Mpscale)
 	}
 
 out:

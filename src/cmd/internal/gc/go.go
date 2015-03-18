@@ -7,6 +7,7 @@ package gc
 import (
 	"bytes"
 	"cmd/internal/obj"
+	"math/big"
 )
 
 // avoid <ctype.h>
@@ -65,14 +66,22 @@ const (
 	Mpdebug = 0
 )
 
+// Mpint represents an integer constant.
 type Mpint struct {
+	Val big.Int
+	Ovf bool // set if Val overflowed compiler limit (sticky)
+}
+
+// Mpfix is the original (old) representation of an integer constant.
+// Still needed for Mpflt.
+type Mpfix struct {
 	A   [Mpprec]int
 	Neg uint8
 	Ovf uint8
 }
 
 type Mpflt struct {
-	Val Mpint
+	Val Mpfix
 	Exp int16
 }
 
