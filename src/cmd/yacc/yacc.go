@@ -637,9 +637,6 @@ outer:
 			if tempty != nontrst[curprod[0]-NTBASE].value {
 				lerrorf(ruleline, "default action causes potential type clash")
 			}
-			fmt.Fprintf(fcode, "\n\tcase %v:", nprod)
-			fmt.Fprintf(fcode, "\n\t\t%sVAL.%v = %sS[%spt-0].%v",
-				prefix, typeset[tempty], prefix, prefix, typeset[tempty])
 		}
 		moreprod()
 		prdptr[nprod] = make([]int, mem)
