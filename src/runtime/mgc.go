@@ -339,18 +339,18 @@ func gc(mode int) {
 
 			// Concurrent mark.
 			starttheworld()
-			gctimer.cycle.mark = nanotime()
-			var gcw gcWork
-			gcDrain(&gcw)
-			gcw.dispose()
-
-			// Begin mark termination.
-			gctimer.cycle.markterm = nanotime()
-			stoptheworld()
-			// The gcphase is _GCmark, it will transition to _GCmarktermination
-			// below. The important thing is that the wb remains active until
-			// all marking is complete. This includes writes made by the GC.
 		})
+		gctimer.cycle.mark = nanotime()
+		var gcw gcWork
+		gcDrain(&gcw)
+		gcw.dispose()
+
+		// Begin mark termination.
+		gctimer.cycle.markterm = nanotime()
+		systemstack(stoptheworld)
+		// The gcphase is _GCmark, it will transition to _GCmarktermination
+		// below. The important thing is that the wb remains active until
+		// all marking is complete. This includes writes made by the GC.
 	} else {
 		// For non-concurrent GC (mode != gcBackgroundMode)
 		// The g stacks have not been scanned so clear g state
