@@ -1330,10 +1330,10 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 	// R1 is ptr to memory, used and set, cannot be substituted.
 	case obj.ADUFFZERO:
 		if v.Type == obj.TYPE_REG {
-			if v.Reg == REGALLOC_R0 {
+			if v.Reg == arm.REG_R0 {
 				return 1
 			}
-			if v.Reg == REGALLOC_R0+1 {
+			if v.Reg == arm.REG_R0+1 {
 				return 2
 			}
 		}
@@ -1344,10 +1344,10 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 	// R1, R2 areptr to src, dst, used and set, cannot be substituted.
 	case obj.ADUFFCOPY:
 		if v.Type == obj.TYPE_REG {
-			if v.Reg == REGALLOC_R0 {
+			if v.Reg == arm.REG_R0 {
 				return 3
 			}
-			if v.Reg == REGALLOC_R0+1 || v.Reg == REGALLOC_R0+2 {
+			if v.Reg == arm.REG_R0+1 || v.Reg == arm.REG_R0+2 {
 				return 2
 			}
 		}

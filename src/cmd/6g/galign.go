@@ -64,39 +64,52 @@ func betypeinit() {
 }
 
 func main() {
+	if obj.Getgoos() == "nacl" {
+		resvd = append(resvd, x86.REG_BP, x86.REG_SI)
+	} else if obj.Framepointer_enabled != 0 {
+		resvd = append(resvd, x86.REG_BP)
+	}
+
 	gc.Thearch.Thechar = thechar
 	gc.Thearch.Thestring = thestring
 	gc.Thearch.Thelinkarch = thelinkarch
 	gc.Thearch.Typedefs = typedefs
 	gc.Thearch.REGSP = x86.REGSP
 	gc.Thearch.REGCTXT = x86.REGCTXT
+	gc.Thearch.REGCALLX = x86.REG_BX
+	gc.Thearch.REGCALLX2 = x86.REG_AX
+	gc.Thearch.REGRETURN = x86.REG_AX
+	gc.Thearch.REGMIN = x86.REG_AX
+	gc.Thearch.REGMAX = x86.REG_R15
+	gc.Thearch.FREGMIN = x86.REG_X0
+	gc.Thearch.FREGMAX = x86.REG_X15
 	gc.Thearch.MAXWIDTH = MAXWIDTH
-	gc.Thearch.Anyregalloc = anyregalloc
+	gc.Thearch.ReservedRegs = resvd
+
+	gc.Thearch.AddIndex = addindex
 	gc.Thearch.Betypeinit = betypeinit
-	gc.Thearch.Bgen = bgen
-	gc.Thearch.Cgen = cgen
-	gc.Thearch.Cgen_call = cgen_call
-	gc.Thearch.Cgen_callinter = cgen_callinter
-	gc.Thearch.Cgen_ret = cgen_ret
+	gc.Thearch.Cgen_bmul = cgen_bmul
+	gc.Thearch.Cgen_hmul = cgen_hmul
+	gc.Thearch.Cgen_shift = cgen_shift
 	gc.Thearch.Clearfat = clearfat
 	gc.Thearch.Defframe = defframe
+	gc.Thearch.Dodiv = dodiv
 	gc.Thearch.Excise = excise
 	gc.Thearch.Expandchecks = expandchecks
-	gc.Thearch.Gclean = gclean
-	gc.Thearch.Ginit = ginit
 	gc.Thearch.Gins = gins
-	gc.Thearch.Ginscall = ginscall
+	gc.Thearch.Ginscon = ginscon
+	gc.Thearch.Ginsnop = ginsnop
 	gc.Thearch.Gmove = gmove
-	gc.Thearch.Igen = igen
 	gc.Thearch.Linkarchinit = linkarchinit
 	gc.Thearch.Peep = peep
 	gc.Thearch.Proginfo = proginfo
-	gc.Thearch.Regalloc = regalloc
-	gc.Thearch.Regfree = regfree
 	gc.Thearch.Regtyp = regtyp
 	gc.Thearch.Sameaddr = sameaddr
 	gc.Thearch.Smallindir = smallindir
 	gc.Thearch.Stackaddr = stackaddr
+	gc.Thearch.Stackcopy = stackcopy
+	gc.Thearch.Sudoaddable = sudoaddable
+	gc.Thearch.Sudoclean = sudoclean
 	gc.Thearch.Excludedregs = excludedregs
 	gc.Thearch.RtoB = RtoB
 	gc.Thearch.FtoB = FtoB

@@ -924,8 +924,6 @@ func varkillwalk(v *TempVar, f0 *Flow, gen uint32) {
 // Assume that stack variables with address not taken can be loaded multiple times
 // from memory without being rechecked. Other variables need to be checked on
 // each load.
-type NilVar struct {
-}
 
 var killed int // f->data is either nil or &killed
 

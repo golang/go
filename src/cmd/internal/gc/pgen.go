@@ -335,10 +335,10 @@ func Cgen_checknil(n *Node) {
 
 	if ((Thearch.Thechar == '5' || Thearch.Thechar == '7' || Thearch.Thechar == '9') && n.Op != OREGISTER) || n.Addable == 0 || n.Op == OLITERAL {
 		var reg Node
-		Thearch.Regalloc(&reg, Types[Tptr], n)
-		Thearch.Cgen(n, &reg)
+		Regalloc(&reg, Types[Tptr], n)
+		Cgen(n, &reg)
 		Thearch.Gins(obj.ACHECKNIL, &reg, nil)
-		Thearch.Regfree(&reg)
+		Regfree(&reg)
 		return
 	}
 
@@ -458,7 +458,7 @@ func compile(fn *Node) {
 
 	Afunclit(&ptxt.From, Curfn.Nname)
 
-	Thearch.Ginit()
+	ginit()
 
 	gcargs = makefuncdatasym("gcargs·%d", obj.FUNCDATA_ArgsPointerMaps)
 	gclocals = makefuncdatasym("gclocals·%d", obj.FUNCDATA_LocalsPointerMaps)
@@ -484,7 +484,7 @@ func compile(fn *Node) {
 
 	Genlist(Curfn.Enter)
 	Genlist(Curfn.Nbody)
-	Thearch.Gclean()
+	gclean()
 	checklabels()
 	if nerrors != 0 {
 		goto ret
@@ -494,13 +494,13 @@ func compile(fn *Node) {
 	}
 
 	if Curfn.Type.Outtuple != 0 {
-		Thearch.Ginscall(throwreturn, 0)
+		Ginscall(throwreturn, 0)
 	}
 
-	Thearch.Ginit()
+	ginit()
 
 	// TODO: Determine when the final cgen_ret can be omitted. Perhaps always?
-	Thearch.Cgen_ret(nil)
+	cgen_ret(nil)
 
 	if Hasdefer != 0 {
 		// deferreturn pretends to have one uintptr argument.
@@ -510,7 +510,7 @@ func compile(fn *Node) {
 		}
 	}
 
-	Thearch.Gclean()
+	gclean()
 	if nerrors != 0 {
 		goto ret
 	}

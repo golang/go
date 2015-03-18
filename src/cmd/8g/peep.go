@@ -672,7 +672,7 @@ func copyas(a *obj.Addr, v *obj.Addr) bool {
 	if regtyp(v) {
 		return true
 	}
-	if v.Type == obj.TYPE_MEM && (v.Name == obj.NAME_AUTO || v.Name == obj.NAME_PARAM) {
+	if (v.Type == obj.TYPE_MEM || v.Type == obj.TYPE_ADDR) && (v.Name == obj.NAME_AUTO || v.Name == obj.NAME_PARAM) {
 		if v.Offset == a.Offset {
 			return true
 		}
@@ -687,7 +687,7 @@ func sameaddr(a *obj.Addr, v *obj.Addr) bool {
 	if regtyp(v) {
 		return true
 	}
-	if v.Type == obj.TYPE_MEM && (v.Name == obj.NAME_AUTO || v.Name == obj.NAME_PARAM) {
+	if (v.Type == obj.TYPE_MEM || v.Type == obj.TYPE_ADDR) && (v.Name == obj.NAME_AUTO || v.Name == obj.NAME_PARAM) {
 		if v.Offset == a.Offset {
 			return true
 		}
@@ -703,7 +703,7 @@ func copyau(a *obj.Addr, v *obj.Addr) bool {
 		return true
 	}
 	if regtyp(v) {
-		if a.Type == obj.TYPE_MEM && a.Reg == v.Reg {
+		if (a.Type == obj.TYPE_MEM || a.Type == obj.TYPE_ADDR) && a.Reg == v.Reg {
 			return true
 		}
 		if a.Index == v.Reg {
@@ -732,7 +732,7 @@ func copysub(a *obj.Addr, v *obj.Addr, s *obj.Addr, f int) int {
 
 	if regtyp(v) {
 		reg := int(v.Reg)
-		if a.Type == obj.TYPE_MEM && int(a.Reg) == reg {
+		if (a.Type == obj.TYPE_MEM || a.Type == obj.TYPE_ADDR) && int(a.Reg) == reg {
 			if (s.Reg == x86.REG_BP) && a.Index != obj.TYPE_NONE {
 				return 1 /* can't use BP-base with index */
 			}
