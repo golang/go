@@ -12,11 +12,17 @@ type Color interface {
 	// for the color. Each value ranges within [0, 0xFFFF], but is represented
 	// by a uint32 so that multiplying by a blend factor up to 0xFFFF will not
 	// overflow.
+	//
+	// An alpha-premultiplied color component c has been scaled by alpha (a),
+	// so has valid values 0 <= c <= a.
 	RGBA() (r, g, b, a uint32)
 }
 
-// RGBA represents a traditional 32-bit alpha-premultiplied color,
-// having 8 bits for each of red, green, blue and alpha.
+// RGBA represents a traditional 32-bit alpha-premultiplied color, having 8
+// bits for each of red, green, blue and alpha.
+//
+// An alpha-premultiplied color component C has been scaled by alpha (A), so
+// has valid values 0 <= C <= A.
 type RGBA struct {
 	R, G, B, A uint8
 }
@@ -33,8 +39,11 @@ func (c RGBA) RGBA() (r, g, b, a uint32) {
 	return
 }
 
-// RGBA64 represents a 64-bit alpha-premultiplied color,
-// having 16 bits for each of red, green, blue and alpha.
+// RGBA64 represents a 64-bit alpha-premultiplied color, having 16 bits for
+// each of red, green, blue and alpha.
+//
+// An alpha-premultiplied color component C has been scaled by alpha (A), so
+// has valid values 0 <= C <= A.
 type RGBA64 struct {
 	R, G, B, A uint16
 }
