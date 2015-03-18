@@ -86,6 +86,7 @@ func main() {
 	gc.Thearch.Ginit = ginit
 	gc.Thearch.Gins = gins
 	gc.Thearch.Ginscall = ginscall
+	gc.Thearch.Gmove = gmove
 	gc.Thearch.Igen = igen
 	gc.Thearch.Linkarchinit = linkarchinit
 	gc.Thearch.Peep = peep

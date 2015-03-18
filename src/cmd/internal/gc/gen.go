@@ -956,3 +956,268 @@ func checklabels() {
 		}
 	}
 }
+
+/*
+ * copy a composite value by moving its individual components.
+ * Slices, strings and interfaces are supported.
+ * Small structs or arrays with elements of basic type are
+ * also supported.
+ * nr is N when assigning a zero value.
+ * return 1 if can do, 0 if can't.
+ */
+func Componentgen(nr *Node, nl *Node) bool {
+	var nodl Node
+	var nodr Node
+
+	freel := 0
+	freer := 0
+
+	switch nl.Type.Etype {
+	default:
+		goto no
+
+	case TARRAY:
+		t := nl.Type
+
+		// Slices are ok.
+		if Isslice(t) {
+			break
+		}
+
+		// Small arrays are ok.
+		if t.Bound > 0 && t.Bound <= 3 && !Isfat(t.Type) {
+			break
+		}
+
+		goto no
+
+		// Small structs with non-fat types are ok.
+	// Zero-sized structs are treated separately elsewhere.
+	case TSTRUCT:
+		fldcount := int64(0)
+
+		for t := nl.Type.Type; t != nil; t = t.Down {
+			if Isfat(t.Type) && !Isslice(t) {
+				goto no
+			}
+			if t.Etype != TFIELD {
+				Fatal("componentgen: not a TFIELD: %v", Tconv(t, obj.FmtLong))
+			}
+			fldcount++
+		}
+
+		if fldcount == 0 || fldcount > 4 {
+			goto no
+		}
+
+	case TSTRING,
+		TINTER:
+		break
+	}
+
+	nodl = *nl
+	if !cadable(nl) {
+		if nr != nil && !cadable(nr) {
+			goto no
+		}
+		Thearch.Igen(nl, &nodl, nil)
+		freel = 1
+	}
+
+	if nr != nil {
+		nodr = *nr
+		if !cadable(nr) {
+			Thearch.Igen(nr, &nodr, nil)
+			freer = 1
+		}
+	} else {
+		// When zeroing, prepare a register containing zero.
+		var tmp Node
+		Nodconst(&tmp, nl.Type, 0)
+
+		Thearch.Regalloc(&nodr, Types[TUINT], nil)
+		Thearch.Gmove(&tmp, &nodr)
+		freer = 1
+	}
+
+	// nl and nr are 'cadable' which basically means they are names (variables) now.
+	// If they are the same variable, don't generate any code, because the
+	// VARDEF we generate will mark the old value as dead incorrectly.
+	// (And also the assignments are useless.)
+	if nr != nil && nl.Op == ONAME && nr.Op == ONAME && nl == nr {
+		goto yes
+	}
+
+	switch nl.Type.Etype {
+	// componentgen for arrays.
+	case TARRAY:
+		if nl.Op == ONAME {
+			Gvardef(nl)
+		}
+		t := nl.Type
+		if !Isslice(t) {
+			nodl.Type = t.Type
+			nodr.Type = nodl.Type
+			for fldcount := int64(0); fldcount < t.Bound; fldcount++ {
+				if nr == nil {
+					Clearslim(&nodl)
+				} else {
+					Thearch.Gmove(&nodr, &nodl)
+				}
+				nodl.Xoffset += t.Type.Width
+				nodr.Xoffset += t.Type.Width
+			}
+
+			goto yes
+		}
+
+		// componentgen for slices.
+		nodl.Xoffset += int64(Array_array)
+
+		nodl.Type = Ptrto(nl.Type.Type)
+
+		if nr != nil {
+			nodr.Xoffset += int64(Array_array)
+			nodr.Type = nodl.Type
+		}
+
+		Thearch.Gmove(&nodr, &nodl)
+
+		nodl.Xoffset += int64(Array_nel) - int64(Array_array)
+		nodl.Type = Types[Simtype[TUINT]]
+
+		if nr != nil {
+			nodr.Xoffset += int64(Array_nel) - int64(Array_array)
+			nodr.Type = nodl.Type
+		}
+
+		Thearch.Gmove(&nodr, &nodl)
+
+		nodl.Xoffset += int64(Array_cap) - int64(Array_nel)
+		nodl.Type = Types[Simtype[TUINT]]
+
+		if nr != nil {
+			nodr.Xoffset += int64(Array_cap) - int64(Array_nel)
+			nodr.Type = nodl.Type
+		}
+
+		Thearch.Gmove(&nodr, &nodl)
+
+		goto yes
+
+	case TSTRING:
+		if nl.Op == ONAME {
+			Gvardef(nl)
+		}
+		nodl.Xoffset += int64(Array_array)
+		nodl.Type = Ptrto(Types[TUINT8])
+
+		if nr != nil {
+			nodr.Xoffset += int64(Array_array)
+			nodr.Type = nodl.Type
+		}
+
+		Thearch.Gmove(&nodr, &nodl)
+
+		nodl.Xoffset += int64(Array_nel) - int64(Array_array)
+		nodl.Type = Types[Simtype[TUINT]]
+
+		if nr != nil {
+			nodr.Xoffset += int64(Array_nel) - int64(Array_array)
+			nodr.Type = nodl.Type
+		}
+
+		Thearch.Gmove(&nodr, &nodl)
+
+		goto yes
+
+	case TINTER:
+		if nl.Op == ONAME {
+			Gvardef(nl)
+		}
+		nodl.Xoffset += int64(Array_array)
+		nodl.Type = Ptrto(Types[TUINT8])
+
+		if nr != nil {
+			nodr.Xoffset += int64(Array_array)
+			nodr.Type = nodl.Type
+		}
+
+		Thearch.Gmove(&nodr, &nodl)
+
+		nodl.Xoffset += int64(Array_nel) - int64(Array_array)
+		nodl.Type = Ptrto(Types[TUINT8])
+
+		if nr != nil {
+			nodr.Xoffset += int64(Array_nel) - int64(Array_array)
+			nodr.Type = nodl.Type
+		}
+
+		Thearch.Gmove(&nodr, &nodl)
+
+		goto yes
+
+	case TSTRUCT:
+		if nl.Op == ONAME {
+			Gvardef(nl)
+		}
+		loffset := nodl.Xoffset
+		roffset := nodr.Xoffset
+
+		// funarg structs may not begin at offset zero.
+		if nl.Type.Etype == TSTRUCT && nl.Type.Funarg != 0 && nl.Type.Type != nil {
+			loffset -= nl.Type.Type.Width
+		}
+		if nr != nil && nr.Type.Etype == TSTRUCT && nr.Type.Funarg != 0 && nr.Type.Type != nil {
+			roffset -= nr.Type.Type.Width
+		}
+
+		for t := nl.Type.Type; t != nil; t = t.Down {
+			nodl.Xoffset = loffset + t.Width
+			nodl.Type = t.Type
+
+			if nr == nil {
+				Clearslim(&nodl)
+			} else {
+				nodr.Xoffset = roffset + t.Width
+				nodr.Type = nodl.Type
+				Thearch.Gmove(&nodr, &nodl)
+			}
+		}
+
+		goto yes
+	}
+
+no:
+	if freer != 0 {
+		Thearch.Regfree(&nodr)
+	}
+	if freel != 0 {
+		Thearch.Regfree(&nodl)
+	}
+	return false
+
+yes:
+	if freer != 0 {
+		Thearch.Regfree(&nodr)
+	}
+	if freel != 0 {
+		Thearch.Regfree(&nodl)
+	}
+	return true
+}
+
+func cadable(n *Node) bool {
+	if n.Addable == 0 {
+		// dont know how it happens,
+		// but it does
+		return false
+	}
+
+	switch n.Op {
+	case ONAME:
+		return true
+	}
+
+	return false
+}

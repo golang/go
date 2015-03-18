@@ -790,6 +790,7 @@ type Arch struct {
 	Ginit          func()
 	Gins           func(int, *Node, *Node) *obj.Prog
 	Ginscall       func(*Node, int)
+	Gmove          func(*Node, *Node)
 	Igen           func(*Node, *Node, *Node)
 	Linkarchinit   func()
 	Peep           func(*obj.Prog)

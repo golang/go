@@ -734,8 +734,9 @@ func clearfat(nl *gc.Node) {
 	w := uint64(uint64(nl.Type.Width))
 
 	// Avoid taking the address for simple enough types.
-	//if(componentgen(N, nl))
-	//	return;
+	if gc.Componentgen(nil, nl) {
+		return
+	}
 
 	c := uint64(w % 8) // bytes
 	q := uint64(w / 8) // dwords

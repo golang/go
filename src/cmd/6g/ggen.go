@@ -950,7 +950,7 @@ func clearfat(nl *gc.Node) {
 	w := nl.Type.Width
 
 	// Avoid taking the address for simple enough types.
-	if componentgen(nil, nl) {
+	if gc.Componentgen(nil, nl) {
 		return
 	}
 
