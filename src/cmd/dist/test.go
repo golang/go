@@ -259,7 +259,7 @@ func (t *tester) registerTests() {
 		})
 	}
 
-	if t.hasBash() && t.cgoEnabled && t.goos != "darwin" {
+	if t.hasBash() && t.cgoEnabled && t.goos != "android" && t.goos != "darwin" {
 		t.registerTest("testgodefs", "../misc/cgo/testgodefs", "./test.bash")
 	}
 	if t.cgoEnabled {
