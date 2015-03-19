@@ -472,12 +472,25 @@ func dimportpath(p *Pkg) {
 		return
 	}
 
+	// If we are compiling the runtime package, there are two runtime packages around
+	// -- localpkg and Runtimepkg.  We don't want to produce import path symbols for
+	// both of them, so just produce one for localpkg.
+	if myimportpath == "runtime" && p == Runtimepkg {
+		return
+	}
+
 	if dimportpath_gopkg == nil {
 		dimportpath_gopkg = mkpkg("go")
 		dimportpath_gopkg.Name = "go"
 	}
 
-	nam := "importpath." + p.Prefix + "."
+	var nam string
+	if p == localpkg {
+		// Note: myimportpath != "", or else dgopkgpath won't call dimportpath.
+		nam = "importpath." + pathtoprefix(myimportpath) + "."
+	} else {
+		nam = "importpath." + p.Prefix + "."
+	}
 
 	n := Nod(ONAME, nil, nil)
 	n.Sym = Pkglookup(nam, dimportpath_gopkg)
@@ -495,10 +508,11 @@ func dgopkgpath(s *Sym, ot int, pkg *Pkg) int {
 		return dgostringptr(s, ot, "")
 	}
 
-	// Emit reference to go.importpath.""., which 6l will
-	// rewrite using the correct import path.  Every package
-	// that imports this one directly defines the symbol.
-	if pkg == localpkg {
+	if pkg == localpkg && myimportpath == "" {
+		// If we don't know the full path of the package being compiled (i.e. -p
+		// was not passed on the compiler command line), emit reference to
+		// go.importpath.""., which 6l will rewrite using the correct import path.
+		// Every package that imports this one directly defines the symbol.
 		var ns *Sym
 
 		if ns == nil {

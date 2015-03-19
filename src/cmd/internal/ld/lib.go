@@ -379,24 +379,6 @@ func loadlib() {
 		if i < len(Ctxt.Library) {
 			objfile(Ctxt.Library[i].File, Ctxt.Library[i].Pkg)
 		}
-
-		// Pretend that we really imported the package.
-		s := Linklookup(Ctxt, "go.importpath.runtime/cgo.", 0)
-
-		s.Type = SDATA
-		s.Dupok = 1
-		s.Reachable = true
-
-		// Provided by the code that imports the package.
-		// Since we are simulating the import, we have to provide this string.
-		cgostrsym := "go.string.\"runtime/cgo\""
-
-		if Linkrlookup(Ctxt, cgostrsym, 0) == nil {
-			s := Linklookup(Ctxt, cgostrsym, 0)
-			s.Type = SRODATA
-			s.Reachable = true
-			addstrdata(cgostrsym, "runtime/cgo")
-		}
 	}
 
 	if Linkmode == LinkInternal {
