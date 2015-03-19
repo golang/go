@@ -420,40 +420,6 @@ func mporfixfix(a, b *Mpint) {
 	a.Val.Or(&a.Val, &b.Val)
 }
 
-func _mporfixfix(a *Mpfix, b *Mpfix) {
-	x := 0
-	if a.Ovf != 0 || b.Ovf != 0 {
-		if nsavederrors+nerrors == 0 {
-			Yyerror("ovf in mporfixfix")
-		}
-		_Mpmovecfix(a, 0)
-		a.Ovf = 1
-		return
-	}
-
-	if a.Neg != 0 {
-		a.Neg = 0
-		mpneg(a)
-	}
-
-	if b.Neg != 0 {
-		mpneg(b)
-	}
-
-	for i := 0; i < Mpprec; i++ {
-		x = a.A[i] | b.A[i]
-		a.A[i] = x
-	}
-
-	if b.Neg != 0 {
-		mpneg(b)
-	}
-	if x&Mpsign != 0 {
-		a.Neg = 1
-		mpneg(a)
-	}
-}
-
 func mpandfixfix(a, b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
@@ -464,40 +430,6 @@ func mpandfixfix(a, b *Mpint) {
 	}
 
 	a.Val.And(&a.Val, &b.Val)
-}
-
-func _mpandfixfix(a *Mpfix, b *Mpfix) {
-	x := 0
-	if a.Ovf != 0 || b.Ovf != 0 {
-		if nsavederrors+nerrors == 0 {
-			Yyerror("ovf in mpandfixfix")
-		}
-		_Mpmovecfix(a, 0)
-		a.Ovf = 1
-		return
-	}
-
-	if a.Neg != 0 {
-		a.Neg = 0
-		mpneg(a)
-	}
-
-	if b.Neg != 0 {
-		mpneg(b)
-	}
-
-	for i := 0; i < Mpprec; i++ {
-		x = a.A[i] & b.A[i]
-		a.A[i] = x
-	}
-
-	if b.Neg != 0 {
-		mpneg(b)
-	}
-	if x&Mpsign != 0 {
-		a.Neg = 1
-		mpneg(a)
-	}
 }
 
 func mpandnotfixfix(a, b *Mpint) {
@@ -512,40 +444,6 @@ func mpandnotfixfix(a, b *Mpint) {
 	a.Val.AndNot(&a.Val, &b.Val)
 }
 
-func _mpandnotfixfix(a *Mpfix, b *Mpfix) {
-	x := 0
-	if a.Ovf != 0 || b.Ovf != 0 {
-		if nsavederrors+nerrors == 0 {
-			Yyerror("ovf in mpandnotfixfix")
-		}
-		_Mpmovecfix(a, 0)
-		a.Ovf = 1
-		return
-	}
-
-	if a.Neg != 0 {
-		a.Neg = 0
-		mpneg(a)
-	}
-
-	if b.Neg != 0 {
-		mpneg(b)
-	}
-
-	for i := 0; i < Mpprec; i++ {
-		x = a.A[i] &^ b.A[i]
-		a.A[i] = x
-	}
-
-	if b.Neg != 0 {
-		mpneg(b)
-	}
-	if x&Mpsign != 0 {
-		a.Neg = 1
-		mpneg(a)
-	}
-}
-
 func mpxorfixfix(a, b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
@@ -556,40 +454,6 @@ func mpxorfixfix(a, b *Mpint) {
 	}
 
 	a.Val.Xor(&a.Val, &b.Val)
-}
-
-func _mpxorfixfix(a *Mpfix, b *Mpfix) {
-	x := 0
-	if a.Ovf != 0 || b.Ovf != 0 {
-		if nsavederrors+nerrors == 0 {
-			Yyerror("ovf in mporfixfix")
-		}
-		_Mpmovecfix(a, 0)
-		a.Ovf = 1
-		return
-	}
-
-	if a.Neg != 0 {
-		a.Neg = 0
-		mpneg(a)
-	}
-
-	if b.Neg != 0 {
-		mpneg(b)
-	}
-
-	for i := 0; i < Mpprec; i++ {
-		x = a.A[i] ^ b.A[i]
-		a.A[i] = x
-	}
-
-	if b.Neg != 0 {
-		mpneg(b)
-	}
-	if x&Mpsign != 0 {
-		a.Neg = 1
-		mpneg(a)
-	}
 }
 
 func mplshfixfix(a, b *Mpint) {
@@ -609,26 +473,6 @@ func mplshfixfix(a, b *Mpint) {
 	}
 
 	Mpshiftfix(a, int(s))
-}
-
-func _mplshfixfix(a *Mpfix, b *Mpfix) {
-	if a.Ovf != 0 || b.Ovf != 0 {
-		if nsavederrors+nerrors == 0 {
-			Yyerror("ovf in mplshfixfix")
-		}
-		_Mpmovecfix(a, 0)
-		a.Ovf = 1
-		return
-	}
-
-	s := _Mpgetfix(b)
-	if s < 0 || s >= Mpprec*Mpscale {
-		Yyerror("stupid shift: %d", s)
-		_Mpmovecfix(a, 0)
-		return
-	}
-
-	_Mpshiftfix(a, int(s))
 }
 
 func mprshfixfix(a, b *Mpint) {
@@ -652,30 +496,6 @@ func mprshfixfix(a, b *Mpint) {
 	}
 
 	Mpshiftfix(a, int(-s))
-}
-
-func _mprshfixfix(a *Mpfix, b *Mpfix) {
-	if a.Ovf != 0 || b.Ovf != 0 {
-		if nsavederrors+nerrors == 0 {
-			Yyerror("ovf in mprshfixfix")
-		}
-		_Mpmovecfix(a, 0)
-		a.Ovf = 1
-		return
-	}
-
-	s := _Mpgetfix(b)
-	if s < 0 || s >= Mpprec*Mpscale {
-		Yyerror("stupid shift: %d", s)
-		if a.Neg != 0 {
-			_Mpmovecfix(a, -1)
-		} else {
-			_Mpmovecfix(a, 0)
-		}
-		return
-	}
-
-	_Mpshiftfix(a, int(-s))
 }
 
 func mpnegfix(a *Mpint) {

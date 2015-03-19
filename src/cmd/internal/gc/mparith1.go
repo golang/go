@@ -33,23 +33,8 @@ func Mpcmpfixfix(a, b *Mpint) int {
 	return a.Val.Cmp(&b.Val)
 }
 
-func _Mpcmpfixfix(a *Mpfix, b *Mpfix) int {
-	var c Mpfix
-
-	_mpmovefixfix(&c, a)
-	_mpsubfixfix(&c, b)
-	return mptestfix(&c)
-}
-
 func mpcmpfixc(b *Mpint, c int64) int {
 	return b.Val.Cmp(big.NewInt(c))
-}
-
-func _mpcmpfixc(b *Mpfix, c int64) int {
-	var c1 Mpfix
-
-	_Mpmovecfix(&c1, c)
-	return _Mpcmpfixfix(b, &c1)
 }
 
 func mpcmpfltflt(a *Mpflt, b *Mpflt) int {
@@ -220,30 +205,14 @@ func _Mpmovefixflt(a *Mpflt, b *Mpfix) {
 	mpnorm(a)
 }
 
+// convert (truncate) b to a.
+// return -1 (but still convert) if b was non-integer.
 func mpexactfltfix(a *Mpint, b *Mpflt) int {
 	mpmovefixint(a, &b.Val) // *a = b.Val
 	Mpshiftfix(a, int(b.Exp))
 	if b.Exp < 0 {
 		var f Mpflt
 		mpmoveintfix(&f.Val, a) // f.Val = *a
-		f.Exp = 0
-		mpnorm(&f)
-		if mpcmpfltflt(b, &f) != 0 {
-			return -1
-		}
-	}
-
-	return 0
-}
-
-// convert (truncate) b to a.
-// return -1 (but still convert) if b was non-integer.
-func _mpexactfltfix(a *Mpfix, b *Mpflt) int {
-	*a = b.Val
-	_Mpshiftfix(a, int(b.Exp))
-	if b.Exp < 0 {
-		var f Mpflt
-		f.Val = *a
 		f.Exp = 0
 		mpnorm(&f)
 		if mpcmpfltflt(b, &f) != 0 {
@@ -278,36 +247,6 @@ func mpmovefltfix(a *Mpint, b *Mpflt) int {
 
 	mpnorm(&f)
 	if mpexactfltfix(a, &f) == 0 {
-		return 0
-	}
-
-	return -1
-}
-
-func _mpmovefltfix(a *Mpfix, b *Mpflt) int {
-	if _mpexactfltfix(a, b) == 0 {
-		return 0
-	}
-
-	// try rounding down a little
-	f := *b
-
-	f.Val.A[0] = 0
-	if _mpexactfltfix(a, &f) == 0 {
-		return 0
-	}
-
-	// try rounding up a little
-	for i := 1; i < Mpprec; i++ {
-		f.Val.A[i]++
-		if f.Val.A[i] != Mpbase {
-			break
-		}
-		f.Val.A[i] = 0
-	}
-
-	mpnorm(&f)
-	if _mpexactfltfix(a, &f) == 0 {
 		return 0
 	}
 
@@ -604,94 +543,6 @@ func mpatofix(a *Mpint, as string) {
 	if mptestovf(a, 0) {
 		Yyerror("constant too large: %s", as)
 	}
-}
-
-//
-// fixed point input
-// required syntax is [+-][0[x]]d*
-//
-func _mpatofix(a *Mpfix, as string) {
-	var c int
-
-	s := as
-	f := 0
-	_Mpmovecfix(a, 0)
-
-	c, s = intstarstringplusplus(s)
-	switch c {
-	case '-':
-		f = 1
-		fallthrough
-
-	case '+':
-		c, s = intstarstringplusplus(s)
-		if c != '0' {
-			break
-		}
-		fallthrough
-
-	case '0':
-		var c int
-		c, s = intstarstringplusplus(s)
-		if c == 'x' || c == 'X' {
-			s0 := s
-			var c int
-			c, _ = intstarstringplusplus(s)
-			for c != 0 {
-				if (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') {
-					s = s[1:]
-					c, _ = intstarstringplusplus(s)
-					continue
-				}
-
-				Yyerror("malformed hex constant: %s", as)
-				goto bad
-			}
-
-			mphextofix(a, s0)
-			if a.Ovf != 0 {
-				Yyerror("constant too large: %s", as)
-				goto bad
-			}
-			goto out
-		}
-		for c != 0 {
-			if c >= '0' && c <= '7' {
-				mpmulcfix(a, 8)
-				mpaddcfix(a, int64(c)-'0')
-				c, s = intstarstringplusplus(s)
-				continue
-			}
-
-			Yyerror("malformed octal constant: %s", as)
-			goto bad
-		}
-
-		goto out
-	}
-
-	for c != 0 {
-		if c >= '0' && c <= '9' {
-			mpmulcfix(a, 10)
-			mpaddcfix(a, int64(c)-'0')
-			c, s = intstarstringplusplus(s)
-			continue
-		}
-
-		Yyerror("malformed decimal constant: %s", as)
-		goto bad
-	}
-
-	goto out
-
-out:
-	if f != 0 {
-		_mpnegfix(a)
-	}
-	return
-
-bad:
-	_Mpmovecfix(a, 0)
 }
 
 func Bconv(xval *Mpint, flag int) string {
