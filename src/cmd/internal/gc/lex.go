@@ -1511,6 +1511,15 @@ func internString(b []byte) string {
 	return s
 }
 
+func internConcat(ss ...string) string {
+	const bufsiz = 128 // big enough for most compiler uses; must be constant to avoid heap alloc
+	b := make([]byte, 0, bufsiz)
+	for _, s := range ss {
+		b = append(b, s...)
+	}
+	return internString(b)
+}
+
 func more(pp *string) bool {
 	p := *pp
 	for p != "" && yy_isspace(int(p[0])) {
