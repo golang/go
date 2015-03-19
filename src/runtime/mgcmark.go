@@ -366,6 +366,9 @@ func gcDrain(gcw *gcWork) {
 }
 
 // gcDrainN scans n objects, blackening grey objects.
+//
+// This MUST be run on the system stack to prevent a stop-the-world
+// while this locally holds GC work buffers.
 //go:nowritebarrier
 func gcDrainN(gcw *gcWork, n int) {
 	checknocurrentwbuf()

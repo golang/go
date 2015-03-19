@@ -333,6 +333,12 @@ func gc(mode int) {
 		var gcw gcWork
 		gcDrain(&gcw)
 		gcw.dispose()
+		// Despite the barrier in gcDrain, gcDrainNs may still
+		// be doing work at this point. This is okay because
+		// 1) the gcDrainNs happen on the system stack, so
+		// they will flush their work to the global queues
+		// before we can stop the world, and 2) it's fine if
+		// we go into mark termination with some work queued.
 
 		// Begin mark termination.
 		gctimer.cycle.markterm = nanotime()
