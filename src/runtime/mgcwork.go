@@ -419,7 +419,7 @@ func getfull(entry int) *workbuf {
 
 	xadd(&work.nwait, +1)
 	for i := 0; ; i++ {
-		if work.full != 0 {
+		if work.full != 0 || work.partial != 0 {
 			xadd(&work.nwait, -1)
 			b = (*workbuf)(lfstackpop(&work.full))
 			if b == nil {
