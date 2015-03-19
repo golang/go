@@ -608,6 +608,14 @@ TEXT runtime·atomicor8(SB), NOSPLIT, $0-5
 	ORB	BX, (AX)
 	RET
 
+// void	runtime·atomicand8(byte volatile*, byte);
+TEXT runtime·atomicand8(SB), NOSPLIT, $0-5
+	MOVL	ptr+0(FP), AX
+	MOVB	val+4(FP), BX
+	LOCK
+	ANDB	BX, (AX)
+	RET
+
 // void jmpdefer(fn, sp);
 // called from deferreturn.
 // 1. pop the caller
