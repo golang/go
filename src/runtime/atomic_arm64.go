@@ -48,6 +48,23 @@ func atomicor8(addr *uint8, v uint8) {
 	}
 }
 
+//go:nosplit
+func atomicand8(addr *uint8, v uint8) {
+	// TODO(dfc) implement this in asm.
+	// Align down to 4 bytes and use 32-bit CAS.
+	uaddr := uintptr(unsafe.Pointer(addr))
+	addr32 := (*uint32)(unsafe.Pointer(uaddr &^ 3))
+	word := uint32(v) << ((uaddr & 3) * 8)    // little endian
+	mask := uint32(0xFF) << ((uaddr & 3) * 8) // little endian
+	word |= ^mask
+	for {
+		old := *addr32
+		if cas(addr32, old, old&word) {
+			return
+		}
+	}
+}
+
 //go:noescape
 func cas64(ptr *uint64, old, new uint64) bool
 

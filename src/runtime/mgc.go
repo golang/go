@@ -142,17 +142,6 @@ func have_cgo_allocate() bool {
 	return &weak_cgo_allocate != nil
 }
 
-// Slow for now as we serialize this, since this is on a debug path
-// speed is not critical at this point.
-var andlock mutex
-
-//go:nowritebarrier
-func atomicand8(src *byte, val byte) {
-	lock(&andlock)
-	*src &= val
-	unlock(&andlock)
-}
-
 var gcdatamask bitvector
 var gcbssmask bitvector
 

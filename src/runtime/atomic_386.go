@@ -58,7 +58,12 @@ func xchguintptr(ptr *uintptr, new uintptr) uintptr
 func atomicload64(ptr *uint64) uint64
 
 //go:noescape
+func atomicand8(ptr *uint8, val uint8)
+
+//go:noescape
 func atomicor8(ptr *uint8, val uint8)
+
+// NOTE: Do not add atomicxor8 (XOR is not idempotent).
 
 //go:noescape
 func cas64(ptr *uint64, old, new uint64) bool
