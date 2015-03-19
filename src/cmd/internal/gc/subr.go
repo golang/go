@@ -3574,10 +3574,10 @@ func isdirectiface(t *Type) bool {
 	return false
 }
 
-// IET returns "T" if t is a concrete type, "I" if t is an interface type, and
-// "E" if t is an empty interface type.
+// type2IET returns "T" if t is a concrete type,
+// "I" if t is an interface type, and "E" if t is an empty interface type.
 // It is used to build calls to the conv* and assert* runtime routines.
-func (t *Type) IET() string {
+func type2IET(t *Type) string {
 	if isnilinter(t) {
 		return "E"
 	}
