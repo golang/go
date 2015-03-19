@@ -218,15 +218,10 @@ func (t *tester) registerTests() {
 		},
 	})
 
-	cgo := t.cgoEnabled
-	if t.goos == "android" {
-		// Disable cgo tests on android.
-		// They are not designed to run off the host.
-		// golang.org/issue/8345
-		cgo = false
-	}
+	iOS := t.goos == "darwin" && (t.goarch == "arm" || t.goarch == "arm64")
 
-	if cgo {
+	if t.cgoEnabled && t.goos != "android" && !iOS {
+		// Disabled on android and iOS. golang.org/issue/8345
 		t.tests = append(t.tests, distTest{
 			name:    "cgo_stdio",
 			heading: "../misc/cgo/stdio",
@@ -243,7 +238,12 @@ func (t *tester) registerTests() {
 					"go", "run", filepath.Join(os.Getenv("GOROOT"), "test/run.go"), "-", ".").Run()
 			},
 		})
-
+	}
+	if t.cgoEnabled && t.goos != "android" && !iOS {
+		// TODO(crawshaw): reenable on android and iOS
+		// golang.org/issue/8345
+		//
+		// These tests are not designed to run off the host.
 		t.tests = append(t.tests, distTest{
 			name:    "cgo_test",
 			heading: "../misc/cgo/test",
@@ -259,42 +259,36 @@ func (t *tester) registerTests() {
 		})
 	}
 
-	if t.hasBash() && cgo && t.goos != "darwin" {
+	if t.hasBash() && t.cgoEnabled && t.goos != "darwin" {
 		t.registerTest("testgodefs", "../misc/cgo/testgodefs", "./test.bash")
 	}
-	if cgo {
+	if t.cgoEnabled {
 		if t.gohostos == "windows" {
 			t.tests = append(t.tests, distTest{
 				name:    "testso",
 				heading: "../misc/cgo/testso",
 				fn:      t.cgoTestSOWindows,
 			})
-		} else if t.hasBash() {
+		} else if t.hasBash() && t.goos != "android" && !iOS {
 			t.registerTest("testso", "../misc/cgo/testso", "./test.bash")
 		}
 		if t.gohostos == "linux" && t.goarch == "amd64" {
 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
 		}
-		if t.hasBash() && t.gohostos != "windows" {
+		if t.hasBash() && t.goos != "android" && !iOS && t.gohostos != "windows" {
 			t.registerTest("cgo_errors", "../misc/cgo/errors", "./test.bash")
 		}
 	}
-	if t.hasBash() && t.goos != "nacl" && t.goos != "android" {
+	if t.hasBash() && t.goos != "nacl" && t.goos != "android" && !iOS {
 		t.registerTest("doc_progs", "../doc/progs", "time", "./run")
-	}
-	if t.hasBash() && t.goos != "nacl" && t.goos != "android" {
 		t.registerTest("wiki", "../doc/articles/wiki", "./test.bash")
-	}
-	if t.hasBash() && t.goos != "nacl" && t.goos != "android" {
 		t.registerTest("codewalk", "../doc/codewalk", "time", "./run")
-	}
-	if t.hasBash() && t.goos != "nacl" && t.goos != "android" {
 		t.registerTest("shootout", "../test/bench/shootout", "time", "./timing.sh", "-test")
 	}
-	if t.goos != "android" {
+	if t.goos != "android" && !iOS {
 		t.registerTest("bench_go1", "../test/bench/go1", "go", "test")
 	}
-	if t.goos != "android" {
+	if t.goos != "android" && !iOS {
 		// TODO(bradfitz): shard down into these tests, as
 		// this is one of the slowest (and most shardable)
 		// tests.
@@ -304,7 +298,7 @@ func (t *tester) registerTests() {
 			fn:      t.testDirTest,
 		})
 	}
-	if t.goos != "nacl" && t.goos != "android" {
+	if t.goos != "nacl" && t.goos != "android" && !iOS {
 		t.tests = append(t.tests, distTest{
 			name:    "api",
 			heading: "API check",
@@ -374,7 +368,8 @@ func (t *tester) extLink() bool {
 func (t *tester) cgoTest() error {
 	env := mergeEnvLists([]string{"GOTRACEBACK=2"}, os.Environ())
 
-	if t.gohostos == "windows" {
+	iOS := t.goos == "darwin" && (t.goarch == "arm" || t.goarch == "arm64")
+	if t.gohostos == "windows" || t.goos == "android" || iOS {
 		cmd := t.dirCmd("misc/cgo/test", "go", "test")
 		cmd.Env = env
 		return cmd.Run()
