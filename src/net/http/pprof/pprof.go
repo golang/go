@@ -222,9 +222,9 @@ var indexTmpl = template.Must(template.New("index").Parse(`<html>
 <head>
 <title>/debug/pprof/</title>
 </head>
+<body>
 /debug/pprof/<br>
 <br>
-<body>
 profiles:<br>
 <table>
 {{range .}}
