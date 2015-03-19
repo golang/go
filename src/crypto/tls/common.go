@@ -489,10 +489,10 @@ func (c *Config) BuildNameToCertificate() {
 type Certificate struct {
 	Certificate [][]byte
 	// PrivateKey contains the private key corresponding to the public key
-	// in Leaf. For a server, this must be a *rsa.PrivateKey or
-	// *ecdsa.PrivateKey. For a client doing client authentication, this
-	// can be any type that implements crypto.Signer (which includes RSA
-	// and ECDSA private keys).
+	// in Leaf. For a server, this must implement either crypto.Decrypter
+	// (implemented by RSA private keys) or crypto.Signer (which includes
+	// RSA and ECDSA private keys). For a client doing client authentication,
+	// this can be any type that implements crypto.Signer.
 	PrivateKey crypto.PrivateKey
 	// OCSPStaple contains an optional OCSP response which will be served
 	// to clients that request it.
