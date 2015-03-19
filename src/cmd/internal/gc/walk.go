@@ -886,7 +886,7 @@ func walkexpr(np **Node, init **NodeList) {
 			case fromKind == "I" && toKind == "E",
 				fromKind == "E" && toKind == "E":
 				tab := Nod(OITAB, from, nil)
-				fast = Nod(ONE, tab, nodnil())
+				fast = Nod(ONE, nodnil(), tab)
 			}
 			if fast != nil {
 				n = Nod(OAS, ok, fast)
