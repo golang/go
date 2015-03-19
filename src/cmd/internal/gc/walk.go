@@ -678,7 +678,7 @@ func walkexpr(np **Node, init **NodeList) {
 			n1 := Nod(OADDR, n.Left, nil)
 			r := n.Right // i.(T)
 
-			buf := internConcat("assert", r.Left.Type.IET(), "2", r.Type.IET())
+			buf := "assert" + type2IET(r.Left.Type) + "2" + type2IET(r.Type)
 			fn := syslook(buf, 1)
 			substArgTypes(fn, r.Left.Type, r.Type)
 
@@ -869,8 +869,8 @@ func walkexpr(np **Node, init **NodeList) {
 			oktype = ok.Type
 		}
 
-		fromKind := from.Type.IET()
-		toKind := t.IET()
+		fromKind := type2IET(from.Type)
+		toKind := type2IET(t)
 
 		// Avoid runtime calls in a few cases of the form _, ok := i.(T).
 		// This is faster and shorter and allows the corresponding assertX2X2
@@ -903,7 +903,7 @@ func walkexpr(np **Node, init **NodeList) {
 		}
 		resptr.Etype = 1 // addr does not escape
 
-		buf := internConcat("assert", fromKind, "2", toKind, "2")
+		buf := "assert" + fromKind + "2" + toKind + "2"
 		fn := syslook(buf, 1)
 		substArgTypes(fn, from.Type, t)
 		call := mkcall1(fn, oktype, init, typename(t), from, resptr)
@@ -927,7 +927,11 @@ func walkexpr(np **Node, init **NodeList) {
 			goto ret
 		}
 
-		// Handle fast paths and special cases.
+		// Build name of function: convI2E etc.
+		// Not all names are possible
+		// (e.g., we'll never generate convE2E or convE2I).
+		buf := "conv" + type2IET(n.Left.Type) + "2" + type2IET(n.Type)
+		fn := syslook(buf, 1)
 		var ll *NodeList
 		if !Isinter(n.Left.Type) {
 			ll = list(ll, typename(n.Left.Type))
@@ -1006,11 +1010,6 @@ func walkexpr(np **Node, init **NodeList) {
 			}
 		}
 
-		// Build name of function: convI2E etc.
-		// Not all names are possible
-		// (e.g., we'll never generate convE2E or convE2I).
-		buf := internConcat("conv", n.Left.Type.IET(), "2", n.Type.IET())
-		fn := syslook(buf, 1)
 		substArgTypes(fn, n.Left.Type, n.Type)
 		dowidth(fn.Type)
 		n = Nod(OCALL, fn, nil)
