@@ -25,6 +25,9 @@ type serverHandshakeState struct {
 	suite           *cipherSuite
 	ellipticOk      bool
 	ecdsaOk         bool
+	rsaOk           bool
+	signOk          bool
+	decryptOk       bool
 	sessionState    *sessionState
 	finishedHash    finishedHash
 	masterSecret    []byte
@@ -197,7 +200,28 @@ Curves:
 		}
 	}
 
-	_, hs.ecdsaOk = hs.cert.PrivateKey.(*ecdsa.PrivateKey)
+	if priv, ok := hs.cert.PrivateKey.(crypto.Signer); ok {
+		hs.signOk = true
+		switch priv.Public().(type) {
+		case *ecdsa.PublicKey:
+			hs.ecdsaOk = true
+		case *rsa.PublicKey:
+			hs.rsaOk = true
+		default:
+			c.sendAlert(alertInternalError)
+			return false, fmt.Errorf("crypto/tls: unsupported signing key type (%T)", priv.Public())
+		}
+	}
+	if priv, ok := hs.cert.PrivateKey.(crypto.Decrypter); ok {
+		hs.decryptOk = true
+		switch priv.Public().(type) {
+		case *rsa.PublicKey:
+			hs.rsaOk = true
+		default:
+			c.sendAlert(alertInternalError)
+			return false, fmt.Errorf("crypto/tls: unsupported decryption key type (%T)", priv.Public())
+		}
+	}
 
 	if hs.checkForResumption() {
 		return true, nil
@@ -213,7 +237,7 @@ Curves:
 	}
 
 	for _, id := range preferenceList {
-		if hs.suite = c.tryCipherSuite(id, supportedList, c.vers, hs.ellipticOk, hs.ecdsaOk); hs.suite != nil {
+		if hs.setCipherSuite(id, supportedList, c.vers) {
 			break
 		}
 	}
@@ -272,8 +296,7 @@ func (hs *serverHandshakeState) checkForResumption() bool {
 	}
 
 	// Check that we also support the ciphersuite from the session.
-	hs.suite = c.tryCipherSuite(hs.sessionState.cipherSuite, c.config.cipherSuites(), hs.sessionState.vers, hs.ellipticOk, hs.ecdsaOk)
-	if hs.suite == nil {
+	if !hs.setCipherSuite(hs.sessionState.cipherSuite, c.config.cipherSuites(), hs.sessionState.vers) {
 		return false
 	}
 
@@ -649,9 +672,10 @@ func (hs *serverHandshakeState) processCertsFromClient(certificates [][]byte) (c
 	return nil, nil
 }
 
-// tryCipherSuite returns a cipherSuite with the given id if that cipher suite
-// is acceptable to use.
-func (c *Conn) tryCipherSuite(id uint16, supportedCipherSuites []uint16, version uint16, ellipticOk, ecdsaOk bool) *cipherSuite {
+// setCipherSuite sets a cipherSuite with the given id as the serverHandshakeState
+// suite if that cipher suite is acceptable to use.
+// It returns a bool indicating if the suite was set.
+func (hs *serverHandshakeState) setCipherSuite(id uint16, supportedCipherSuites []uint16, version uint16) bool {
 	for _, supported := range supportedCipherSuites {
 		if id == supported {
 			var candidate *cipherSuite
@@ -667,18 +691,26 @@ func (c *Conn) tryCipherSuite(id uint16, supportedCipherSuites []uint16, version
 			}
 			// Don't select a ciphersuite which we can't
 			// support for this client.
-			if (candidate.flags&suiteECDHE != 0) && !ellipticOk {
-				continue
-			}
-			if (candidate.flags&suiteECDSA != 0) != ecdsaOk {
+			if candidate.flags&suiteECDHE != 0 {
+				if !hs.ellipticOk || !hs.signOk {
+					continue
+				}
+				if candidate.flags&suiteECDSA != 0 {
+					if !hs.ecdsaOk {
+						continue
+					}
+				} else if !hs.rsaOk {
+					continue
+				}
+			} else if !hs.decryptOk || !hs.rsaOk {
 				continue
 			}
 			if version < VersionTLS12 && candidate.flags&suiteTLS12 != 0 {
 				continue
 			}
-			return candidate
+			hs.suite = candidate
+			return true
 		}
 	}
-
-	return nil
+	return false
 }
