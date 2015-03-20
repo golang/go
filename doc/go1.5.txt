@@ -1,6 +1,10 @@
 Overall:
 
-build: Go 1.4 required to build (https://golang.org/cl/2470, https://golang.org/cl/2993)
+Language:
+permit omission of key type in map composite literals where key is a composite literal (https://golang.org/cl/2591)
+
+Build:
+Go 1.4 required to build (https://golang.org/cl/2470, https://golang.org/cl/2993)
 
 New Ports:
 Darwin/ARM, a.k.a iOS. (https://golang.org/cl/2118, 2119, 3273, 2121, 2122, ..., 2127)
@@ -20,6 +24,7 @@ encoding/base64: add unpadded encodings (https://golang.org/cl/1511)
 flag: new nicer format for PrintDefaults (https://go-review.googlesource.com/7330)
 go/ast: add Implicit field to ast.EmptyStmt; changed meaning of ast.EmptyStmt.Semicolon position (https://golang.org/cl/5720)
 log: add SetOutput functions (https://golang.org/cl/2686, https://golang.org/cl/3023)
+math/big: add arbitrary precision Floats (many cl's)
 net/http: support for setting trailers from a server Handler (https://golang.org/cl/2157)
 net/http/cgi: fix REMOTE_ADDR, REMOTE_HOST, add REMOTE_PORT (https://golang.org/cl/4933)
 net/smtp: add TLSConnectionState accessor (https://golang.org/cl/2151)
