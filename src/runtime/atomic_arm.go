@@ -159,8 +159,8 @@ func atomicand8(addr *uint8, v uint8) {
 	// Align down to 4 bytes and use 32-bit CAS.
 	uaddr := uintptr(unsafe.Pointer(addr))
 	addr32 := (*uint32)(unsafe.Pointer(uaddr &^ 3))
-	mask := 0xFF << ((uaddr & 3) * 8)      // little endian
-	word := uint32(v) << ((uaddr & 3) * 8) // little endian
+	word := uint32(v) << ((uaddr & 3) * 8)    // little endian
+	mask := uint32(0xFF) << ((uaddr & 3) * 8) // little endian
 	word |= ^mask
 	for {
 		old := *addr32
