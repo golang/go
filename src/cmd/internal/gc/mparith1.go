@@ -5,10 +5,10 @@
 package gc
 
 import (
+	"cmd/internal/gc/big"
 	"cmd/internal/obj"
 	"fmt"
 	"math"
-	"math/big"
 )
 
 /// uses arithmetic
