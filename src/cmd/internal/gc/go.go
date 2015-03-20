@@ -57,12 +57,9 @@ const (
 )
 
 const (
-	Mpscale = 29         // safely smaller than bits in a long
-	Mpprec  = 16         // Mpscale*Mpprec is max number of bits
-	Mpnorm  = Mpprec - 1 // significant words in a normalized float
-	Mpbase  = 1 << Mpscale
-	Mpsign  = Mpbase >> 1
-	Mpmask  = Mpbase - 1
+	// TODO(gri) replace these with a single precision constant.
+	Mpscale = 29 // safely smaller than bits in a long
+	Mpprec  = 16 // Mpscale*Mpprec is max number of bits
 	Mpdebug = 0
 )
 
@@ -72,19 +69,12 @@ type Mpint struct {
 	Ovf bool // set if Val overflowed compiler limit (sticky)
 }
 
-// Mpfix is the original (old) representation of an integer constant.
-// Still needed for Mpflt.
-type Mpfix struct {
-	A   [Mpprec]int
-	Neg uint8
-	Ovf uint8
-}
-
+// Mpflt represents a floating-point constant.
 type Mpflt struct {
-	Val Mpfix
-	Exp int16
+	Val big.Float
 }
 
+// Mpcplx represents a complex constant.
 type Mpcplx struct {
 	Real Mpflt
 	Imag Mpflt
