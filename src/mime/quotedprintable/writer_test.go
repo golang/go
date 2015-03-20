@@ -12,25 +12,33 @@ import (
 )
 
 func TestWriter(t *testing.T) {
+	testWriter(t, false)
+}
+
+func TestWriterBinary(t *testing.T) {
+	testWriter(t, true)
+}
+
+func testWriter(t *testing.T, binary bool) {
 	tests := []struct {
-		in, want string
+		in, want, wantB string
 	}{
 		{in: "", want: ""},
 		{in: "foo bar", want: "foo bar"},
 		{in: "foo bar=", want: "foo bar=3D"},
-		{in: "foo bar\r", want: "foo bar\r\n"},
-		{in: "foo bar\r\r", want: "foo bar\r\n\r\n"},
-		{in: "foo bar\n", want: "foo bar\r\n"},
-		{in: "foo bar\r\n", want: "foo bar\r\n"},
-		{in: "foo bar\r\r\n", want: "foo bar\r\n\r\n"},
+		{in: "foo bar\r", want: "foo bar\r\n", wantB: "foo bar=0D"},
+		{in: "foo bar\r\r", want: "foo bar\r\n\r\n", wantB: "foo bar=0D=0D"},
+		{in: "foo bar\n", want: "foo bar\r\n", wantB: "foo bar=0A"},
+		{in: "foo bar\r\n", want: "foo bar\r\n", wantB: "foo bar=0D=0A"},
+		{in: "foo bar\r\r\n", want: "foo bar\r\n\r\n", wantB: "foo bar=0D=0D=0A"},
 		{in: "foo bar ", want: "foo bar=20"},
 		{in: "foo bar\t", want: "foo bar=09"},
 		{in: "foo bar  ", want: "foo bar =20"},
-		{in: "foo bar \n", want: "foo bar=20\r\n"},
-		{in: "foo bar \r", want: "foo bar=20\r\n"},
-		{in: "foo bar \r\n", want: "foo bar=20\r\n"},
-		{in: "foo bar  \n", want: "foo bar =20\r\n"},
-		{in: "foo bar  \n ", want: "foo bar =20\r\n=20"},
+		{in: "foo bar \n", want: "foo bar=20\r\n", wantB: "foo bar =0A"},
+		{in: "foo bar \r", want: "foo bar=20\r\n", wantB: "foo bar =0D"},
+		{in: "foo bar \r\n", want: "foo bar=20\r\n", wantB: "foo bar =0D=0A"},
+		{in: "foo bar  \n", want: "foo bar =20\r\n", wantB: "foo bar  =0A"},
+		{in: "foo bar  \n ", want: "foo bar =20\r\n=20", wantB: "foo bar  =0A=20"},
 		{in: "¡Hola Señor!", want: "=C2=A1Hola Se=C3=B1or!"},
 		{
 			in:   "\t !\"#$%&'()*+,-./ :;<>?@[\\]^_`{|}~",
@@ -85,6 +93,15 @@ func TestWriter(t *testing.T) {
 	for _, tt := range tests {
 		buf := new(bytes.Buffer)
 		w := NewWriter(buf)
+
+		want := tt.want
+		if binary {
+			w.Binary = true
+			if tt.wantB != "" {
+				want = tt.wantB
+			}
+		}
+
 		if _, err := w.Write([]byte(tt.in)); err != nil {
 			t.Errorf("Write(%q): %v", tt.in, err)
 			continue
@@ -94,8 +111,8 @@ func TestWriter(t *testing.T) {
 			continue
 		}
 		got := buf.String()
-		if got != tt.want {
-			t.Errorf("Write(%q), got:\n%q\nwant:\n%q", tt.in, got, tt.want)
+		if got != want {
+			t.Errorf("Write(%q), got:\n%q\nwant:\n%q", tt.in, got, want)
 		}
 	}
 }

@@ -10,6 +10,10 @@ const lineMaxLen = 76
 
 // A Writer is a quoted-printable writer that implements io.WriteCloser.
 type Writer struct {
+	// Binary mode treats the writer's input as pure binary and processes end of
+	// line bytes as binary data.
+	Binary bool
+
 	w    io.Writer
 	i    int
 	line [78]byte
@@ -30,7 +34,7 @@ func (w *Writer) Write(p []byte) (n int, err error) {
 		// Simple writes are done in batch.
 		case b >= '!' && b <= '~' && b != '=':
 			continue
-		case isWhitespace(b) || b == '\n' || b == '\r':
+		case isWhitespace(b) || !w.Binary && (b == '\n' || b == '\r'):
 			continue
 		}
 
