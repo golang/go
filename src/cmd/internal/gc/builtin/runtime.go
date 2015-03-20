@@ -79,6 +79,7 @@ func assertI2I(typ *byte, iface any, ret *any)
 func assertI2I2(typ *byte, iface any, ret *any) bool
 func assertI2T(typ *byte, iface any, ret *any)
 func assertI2T2(typ *byte, iface any, ret *any) bool
+func panicdottype(have, want, iface *byte)
 
 func ifaceeq(i1 any, i2 any) (ret bool)
 func efaceeq(i1 any, i2 any) (ret bool)

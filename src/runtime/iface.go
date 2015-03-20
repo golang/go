@@ -165,6 +165,14 @@ func convT2I(t *_type, inter *interfacetype, cache **itab, elem unsafe.Pointer) 
 	return
 }
 
+func panicdottype(have, want, iface *_type) {
+	haveString := ""
+	if have != nil {
+		haveString = *have._string
+	}
+	panic(&TypeAssertionError{*iface._string, haveString, *want._string, ""})
+}
+
 func assertI2T(t *_type, i fInterface, r unsafe.Pointer) {
 	ip := (*iface)(unsafe.Pointer(&i))
 	tab := ip.tab

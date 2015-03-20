@@ -3472,9 +3472,7 @@ func typecheckas2(n *Node) {
 			goto out
 		}
 		switch r.Op {
-		case OINDEXMAP,
-			ORECV,
-			ODOTTYPE:
+		case OINDEXMAP, ORECV, ODOTTYPE:
 			switch r.Op {
 			case OINDEXMAP:
 				n.Op = OAS2MAPR

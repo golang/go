@@ -670,13 +670,26 @@ func walkexpr(np **Node, init **NodeList) {
 		default:
 			walkexpr(&n.Right, init)
 
-			// x = i.(T); n->left is x, n->right->left is i.
-		// orderstmt made sure x is addressable.
 		case ODOTTYPE:
+			// TODO(rsc): The Isfat is for consistency with componentgen and orderexpr.
+			// It needs to be removed in all three places.
+			// That would allow inlining x.(struct{*int}) the same as x.(*int).
+			if isdirectiface(n.Right.Type) && !Isfat(n.Right.Type) && flag_race == 0 {
+				// handled directly during cgen
+				walkexpr(&n.Right, init)
+				break
+			}
+
+			// x = i.(T); n->left is x, n->right->left is i.
+			// orderstmt made sure x is addressable.
 			walkexpr(&n.Right.Left, init)
 
 			n1 := Nod(OADDR, n.Left, nil)
 			r := n.Right // i.(T)
+
+			if Debug_typeassert > 0 {
+				Warn("type assertion not inlined")
+			}
 
 			buf := "assert" + type2IET(r.Left.Type) + "2" + type2IET(r.Type)
 			fn := syslook(buf, 1)
@@ -686,9 +699,9 @@ func walkexpr(np **Node, init **NodeList) {
 			walkexpr(&n, init)
 			goto ret
 
-			// x = <-c; n->left is x, n->right->left is c.
-		// orderstmt made sure x is addressable.
 		case ORECV:
+			// x = <-c; n->left is x, n->right->left is c.
+			// orderstmt made sure x is addressable.
 			walkexpr(&n.Right.Left, init)
 
 			n1 := Nod(OADDR, n.Left, nil)
@@ -851,13 +864,23 @@ func walkexpr(np **Node, init **NodeList) {
 		n = mkcall1(mapfndel("mapdelete", t), nil, init, typename(t), map_, key)
 		goto ret
 
-	// res, ok = i.(T)
-	// orderstmt made sure a is addressable.
 	case OAS2DOTTYPE:
+		e := n.Rlist.N // i.(T)
+		// TODO(rsc): The Isfat is for consistency with componentgen and orderexpr.
+		// It needs to be removed in all three places.
+		// That would allow inlining x.(struct{*int}) the same as x.(*int).
+		if isdirectiface(e.Type) && !Isfat(e.Type) && flag_race == 0 {
+			// handled directly during gen.
+			walkexprlistsafe(n.List, init)
+			walkexpr(&e.Left, init)
+			goto ret
+		}
+
+		// res, ok = i.(T)
+		// orderstmt made sure a is addressable.
 		*init = concat(*init, n.Ninit)
 		n.Ninit = nil
 
-		e := n.Rlist.N // i.(T)
 		walkexprlistsafe(n.List, init)
 		walkexpr(&e.Left, init)
 		t := e.Type    // T
@@ -889,6 +912,9 @@ func walkexpr(np **Node, init **NodeList) {
 				fast = Nod(ONE, nodnil(), tab)
 			}
 			if fast != nil {
+				if Debug_typeassert > 0 {
+					Warn("type assertion (ok only) inlined")
+				}
 				n = Nod(OAS, ok, fast)
 				typecheck(&n, Etop)
 				goto ret
@@ -903,6 +929,9 @@ func walkexpr(np **Node, init **NodeList) {
 		}
 		resptr.Etype = 1 // addr does not escape
 
+		if Debug_typeassert > 0 {
+			Warn("type assertion not inlined")
+		}
 		buf := "assert" + fromKind + "2" + toKind + "2"
 		fn := syslook(buf, 1)
 		substArgTypes(fn, from.Type, t)
@@ -911,9 +940,12 @@ func walkexpr(np **Node, init **NodeList) {
 		typecheck(&n, Etop)
 		goto ret
 
-	case ODOTTYPE,
-		ODOTTYPE2:
-		Fatal("walkexpr ODOTTYPE") // should see inside OAS or OAS2 only
+	case ODOTTYPE, ODOTTYPE2:
+		if !isdirectiface(n.Type) || Isfat(n.Type) {
+			Fatal("walkexpr ODOTTYPE") // should see inside OAS only
+		}
+		walkexpr(&n.Left, init)
+		goto ret
 
 	case OCONVIFACE:
 		walkexpr(&n.Left, init)
