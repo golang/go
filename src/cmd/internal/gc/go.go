@@ -490,6 +490,7 @@ var Debug [256]int
 var debugstr string
 
 var Debug_checknil int
+var Debug_typeassert int
 
 var importmyname *Sym // my name for package
 

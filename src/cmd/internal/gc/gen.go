@@ -407,6 +407,166 @@ func Cgen_eface(n *Node, res *Node) {
 }
 
 /*
+ * generate one of:
+ *	res, resok = x.(T)
+ *	res = x.(T) (when resok == nil)
+ * n.Left is x
+ * n.Type is T
+ */
+func cgen_dottype(n *Node, res, resok *Node) {
+	if Debug_typeassert > 0 {
+		Warn("type assertion inlined")
+	}
+	//	iface := n.Left
+	//	r1 := iword(iface)
+	//	if n.Left is non-empty interface {
+	//		r1 = *r1
+	//	}
+	//	if r1 == T {
+	//		res = idata(iface)
+	//		resok = true
+	//	} else {
+	//		assert[EI]2T(x, T, nil) // (when resok == nil; does not return)
+	//		resok = false // (when resok != nil)
+	//	}
+	//
+	var iface Node
+	Igen(n.Left, &iface, res)
+	var r1, r2 Node
+	byteptr := Ptrto(Types[TUINT8]) // type used in runtime prototypes for runtime type (*byte)
+	Regalloc(&r1, byteptr, nil)
+	iface.Type = byteptr
+	Cgen(&iface, &r1)
+	if !isnilinter(n.Left.Type) {
+		// Holding itab, want concrete type in second word.
+		Thearch.Gins(Thearch.Optoas(OCMP, byteptr), &r1, Nodintconst(0))
+		p := Gbranch(Thearch.Optoas(OEQ, byteptr), nil, -1)
+		r2 = r1
+		r2.Op = OINDREG
+		r2.Xoffset = int64(Widthptr)
+		Cgen(&r2, &r1)
+		Patch(p, Pc)
+	}
+	Regalloc(&r2, byteptr, nil)
+	Cgen(typename(n.Type), &r2)
+	Thearch.Gins(Thearch.Optoas(OCMP, byteptr), &r1, &r2)
+	p := Gbranch(Thearch.Optoas(ONE, byteptr), nil, -1)
+	iface.Xoffset += int64(Widthptr)
+	Cgen(&iface, &r1)
+	Regfree(&iface)
+
+	if resok == nil {
+		r1.Type = res.Type
+		Cgen(&r1, res)
+		q := Gbranch(obj.AJMP, nil, 0)
+		Patch(p, Pc)
+
+		fn := syslook("panicdottype", 0)
+		dowidth(fn.Type)
+		call := Nod(OCALLFUNC, fn, nil)
+		r1.Type = byteptr
+		r2.Type = byteptr
+		call.List = list(list(list1(&r1), &r2), typename(n.Left.Type))
+		call.List = ascompatte(OCALLFUNC, call, false, getinarg(fn.Type), call.List, 0, nil)
+		gen(call)
+		Regfree(&r1)
+		Regfree(&r2)
+		Thearch.Gins(obj.AUNDEF, nil, nil)
+		Patch(q, Pc)
+	} else {
+		// This half is handling the res, resok = x.(T) case,
+		// which is called from gen, not cgen, and is consequently fussier
+		// about blank assignments. We have to avoid calling cgen for those.
+		Regfree(&r2)
+		r1.Type = res.Type
+		if !isblank(res) {
+			Cgen(&r1, res)
+		}
+		Regfree(&r1)
+		if !isblank(resok) {
+			Cgen(Nodbool(true), resok)
+		}
+		q := Gbranch(obj.AJMP, nil, 0)
+		Patch(p, Pc)
+		if !isblank(res) {
+			n := nodnil()
+			n.Type = res.Type
+			Cgen(n, res)
+		}
+		if !isblank(resok) {
+			Cgen(Nodbool(false), resok)
+		}
+		Patch(q, Pc)
+	}
+}
+
+/*
+ * generate:
+ *	res, resok = x.(T)
+ * n.Left is x
+ * n.Type is T
+ */
+func Cgen_As2dottype(n, res, resok *Node) {
+	if Debug_typeassert > 0 {
+		Warn("type assertion inlined")
+	}
+	//	iface := n.Left
+	//	r1 := iword(iface)
+	//	if n.Left is non-empty interface {
+	//		r1 = *r1
+	//	}
+	//	if r1 == T {
+	//		res = idata(iface)
+	//		resok = true
+	//	} else {
+	//		res = nil
+	//		resok = false
+	//	}
+	//
+	var iface Node
+	Igen(n.Left, &iface, nil)
+	var r1, r2 Node
+	byteptr := Ptrto(Types[TUINT8]) // type used in runtime prototypes for runtime type (*byte)
+	Regalloc(&r1, byteptr, res)
+	iface.Type = byteptr
+	Cgen(&iface, &r1)
+	if !isnilinter(n.Left.Type) {
+		// Holding itab, want concrete type in second word.
+		Thearch.Gins(Thearch.Optoas(OCMP, byteptr), &r1, Nodintconst(0))
+		p := Gbranch(Thearch.Optoas(OEQ, byteptr), nil, -1)
+		r2 = r1
+		r2.Op = OINDREG
+		r2.Xoffset = int64(Widthptr)
+		Cgen(&r2, &r1)
+		Patch(p, Pc)
+	}
+	Regalloc(&r2, byteptr, nil)
+	Cgen(typename(n.Type), &r2)
+	Thearch.Gins(Thearch.Optoas(OCMP, byteptr), &r1, &r2)
+	p := Gbranch(Thearch.Optoas(ONE, byteptr), nil, -1)
+	iface.Type = n.Type
+	iface.Xoffset += int64(Widthptr)
+	Cgen(&iface, &r1)
+	if iface.Op != 0 {
+		Regfree(&iface)
+	}
+	Cgen(&r1, res)
+	q := Gbranch(obj.AJMP, nil, 0)
+	Patch(p, Pc)
+
+	fn := syslook("panicdottype", 0)
+	dowidth(fn.Type)
+	call := Nod(OCALLFUNC, fn, nil)
+	call.List = list(list(list1(&r1), &r2), typename(n.Left.Type))
+	call.List = ascompatte(OCALLFUNC, call, false, getinarg(fn.Type), call.List, 0, nil)
+	gen(call)
+	Regfree(&r1)
+	Regfree(&r2)
+	Thearch.Gins(obj.AUNDEF, nil, nil)
+	Patch(q, Pc)
+}
+
+/*
  * generate:
  *	res = s[lo, hi];
  * n->left is s
@@ -830,6 +990,9 @@ func gen(n *Node) {
 			break
 		}
 		Cgen_as(n.Left, n.Right)
+
+	case OAS2DOTTYPE:
+		cgen_dottype(n.Rlist.N, n.List.N, n.List.Next.N)
 
 	case OCALLMETH:
 		cgen_callmeth(n, 0)

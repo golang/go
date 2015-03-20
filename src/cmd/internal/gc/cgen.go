@@ -54,6 +54,10 @@ func Cgen(n *Node, res *Node) {
 			Cgen_eface(n, res)
 		}
 		return
+
+	case ODOTTYPE:
+		cgen_dottype(n, res, nil)
+		return
 	}
 
 	if n.Ullman >= UINF {
@@ -1224,12 +1228,19 @@ func Agenr(n *Node, a *Node, res *Node) {
 				Agenr(nl, &n3, res)
 			} else {
 				if nl.Addable == 0 {
+					if res != nil && res.Op == OREGISTER { // give up res, which we don't need yet.
+						Regfree(res)
+					}
+
 					// igen will need an addressable node.
 					var tmp2 Node
 					Tempname(&tmp2, nl.Type)
-
 					Cgen(nl, &tmp2)
 					nl = &tmp2
+
+					if res != nil && res.Op == OREGISTER { // reacquire res
+						Regrealloc(res)
+					}
 				}
 
 				Igen(nl, &nlen, res)
@@ -1448,16 +1459,10 @@ func Agen(n *Node, res *Node) {
 		cgen_call(n, 0)
 		cgen_aret(n, res)
 
-	case OSLICE, OSLICEARR, OSLICESTR, OSLICE3, OSLICE3ARR:
+	case OEFACE, ODOTTYPE, OSLICE, OSLICEARR, OSLICESTR, OSLICE3, OSLICE3ARR:
 		var n1 Node
 		Tempname(&n1, n.Type)
-		Cgen_slice(n, &n1)
-		Agen(&n1, res)
-
-	case OEFACE:
-		var n1 Node
-		Tempname(&n1, n.Type)
-		Cgen_eface(n, &n1)
+		Cgen(n, &n1)
 		Agen(&n1, res)
 
 	case OINDEX:
@@ -1520,15 +1525,12 @@ func addOffset(res *Node, offset int64) {
 	Regfree(&n2)
 }
 
-/*
- * generate:
- *	newreg = &n;
- *	res = newreg
- *
- * on exit, a has been changed to be *newreg.
- * caller must Regfree(a).
- * The generated code checks that the result is not *nil.
- */
+// Igen computes the address &n, stores it in a register r,
+// and rewrites a to refer to *r. The chosen r may be the
+// stack pointer, it may be borrowed from res, or it may
+// be a newly allocated register. The caller must call Regfree(a)
+// to free r when the address is no longer needed.
+// The generated code ensures that &n is not nil.
 func Igen(n *Node, a *Node, res *Node) {
 	if Debug['g'] != 0 {
 		Dump("\nigen-n", n)

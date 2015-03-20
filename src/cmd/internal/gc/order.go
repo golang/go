@@ -1108,8 +1108,16 @@ func orderexpr(np **Node, order *Order) {
 			n.Alloc = ordertemp(n.Type.Type, order, false)
 		}
 
-	case ORECV,
-		ODOTTYPE:
+	case ODOTTYPE, ODOTTYPE2:
+		orderexpr(&n.Left, order)
+		// TODO(rsc): The Isfat is for consistency with componentgen and walkexpr.
+		// It needs to be removed in all three places.
+		// That would allow inlining x.(struct{*int}) the same as x.(*int).
+		if !isdirectiface(n.Type) || Isfat(n.Type) || flag_race != 0 {
+			n = ordercopyexpr(n, n.Type, order, 1)
+		}
+
+	case ORECV:
 		orderexpr(&n.Left, order)
 		n = ordercopyexpr(n, n.Type, order, 1)
 
