@@ -6,8 +6,8 @@ package gc
 
 import (
 	"bytes"
+	"cmd/internal/gc/big"
 	"cmd/internal/obj"
-	"math/big"
 )
 
 // avoid <ctype.h>
