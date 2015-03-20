@@ -693,7 +693,7 @@ func Nodintconst(v int64) *Node {
 func nodfltconst(v *Mpflt) *Node {
 	c := Nod(OLITERAL, nil, nil)
 	c.Addable = 1
-	c.Val.U.Fval = new(Mpflt)
+	c.Val.U.Fval = newMpflt()
 	mpmovefltflt(c.Val.U.Fval, v)
 	c.Val.Ctype = CTFLT
 	c.Type = Types[TIDEAL]

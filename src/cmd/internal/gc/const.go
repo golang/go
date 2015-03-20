@@ -23,8 +23,10 @@ func truncfltlit(oldv *Mpflt, t *Type) *Mpflt {
 	v.U.Fval = oldv
 	overflow(v, t)
 
-	fv := new(Mpflt)
-	*fv = *oldv
+	fv := newMpflt()
+
+	// *fv = *oldv
+	mpmovefltflt(fv, oldv)
 
 	// convert large precision literal floating
 	// into limited precision (float64 or float32)
@@ -276,7 +278,7 @@ func copyval(v Val) Val {
 		v.U.Xval = i
 
 	case CTFLT:
-		f := new(Mpflt)
+		f := newMpflt()
 		mpmovefltflt(f, v.U.Fval)
 		v.U.Fval = f
 
@@ -313,13 +315,13 @@ func tocplx(v Val) Val {
 func toflt(v Val) Val {
 	switch v.Ctype {
 	case CTINT, CTRUNE:
-		f := new(Mpflt)
+		f := newMpflt()
 		Mpmovefixflt(f, v.U.Xval)
 		v.Ctype = CTFLT
 		v.U.Fval = f
 
 	case CTCPLX:
-		f := new(Mpflt)
+		f := newMpflt()
 		mpmovefltflt(f, &v.U.Cval.Real)
 		if mpcmpfltc(&v.U.Cval.Imag, 0) != 0 {
 			Yyerror("constant %v%vi truncated to real", Fconv(&v.U.Cval.Real, obj.FmtSharp), Fconv(&v.U.Cval.Imag, obj.FmtSharp|obj.FmtSign))
