@@ -41,8 +41,15 @@ func (wp wbufptr) ptr() *workbuf {
 // The usual pattern for using gcWork is:
 //
 //     var gcw gcWork
+//     disable preemption
 //     .. call gcw.put() to produce and gcw.get() to consume ..
 //     gcw.dispose()
+//     enable preemption
+//
+// It's important that any use of gcWork during the mark phase prevent
+// the garbage collector from transitioning to mark termination since
+// gcWork may locally hold GC work buffers. This can be done by
+// disabling preemption (systemstack or acquirem).
 type gcWork struct {
 	// Invariant: wbuf is never full or empty
 	wbuf wbufptr
