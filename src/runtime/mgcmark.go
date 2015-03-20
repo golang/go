@@ -335,7 +335,7 @@ func scanframeworker(frame *stkframe, unused unsafe.Pointer, gcw *gcWork) {
 	}
 }
 
-// gcDrain scans objects in work buffers (starting with wbuf), blackening grey
+// gcDrain scans objects in work buffers, blackening grey
 // objects until all work buffers have been drained.
 //go:nowritebarrier
 func gcDrain(gcw *gcWork) {
