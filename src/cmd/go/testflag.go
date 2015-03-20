@@ -16,43 +16,6 @@ import (
 // our command line are for us, and some are for 6.out, and
 // some are for both.
 
-var usageMessage = `Usage of go test:
-  -c=false: compile but do not run the test binary
-  -file=file_test.go: specify file to use for tests;
-      use multiple times for multiple files
-  -p=n: build and test up to n packages in parallel
-  -x=false: print command lines as they are executed
-
-  // These flags can be passed with or without a "test." prefix: -v or -test.v.
-  -bench="": passes -test.bench to test
-  -benchmem=false: print memory allocation statistics for benchmarks
-  -benchtime=1s: passes -test.benchtime to test
-  -cover=false: enable coverage analysis
-  -covermode="set": specifies mode for coverage analysis
-  -coverpkg="": comma-separated list of packages for coverage analysis
-  -coverprofile="": passes -test.coverprofile to test if -cover
-  -cpu="": passes -test.cpu to test
-  -cpuprofile="": passes -test.cpuprofile to test
-  -memprofile="": passes -test.memprofile to test
-  -memprofilerate=0: passes -test.memprofilerate to test
-  -blockprofile="": pases -test.blockprofile to test
-  -blockprofilerate=0: passes -test.blockprofilerate to test
-  -outputdir=$PWD: passes -test.outputdir to test
-  -parallel=0: passes -test.parallel to test
-  -run="": passes -test.run to test
-  -short=false: passes -test.short to test
-  -timeout=0: passes -test.timeout to test
-  -trace="": passes -test.trace to test
-  -v=false: passes -test.v to test
-`
-
-// usage prints a usage message and exits.
-func testUsage() {
-	fmt.Fprint(os.Stderr, usageMessage)
-	setExitStatus(2)
-	exit()
-}
-
 // testFlagSpec defines a flag we know about.
 type testFlagSpec struct {
 	name       string
