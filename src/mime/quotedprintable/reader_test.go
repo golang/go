@@ -27,10 +27,10 @@ func TestReader(t *testing.T) {
 		{in: "", want: ""},
 		{in: "foo bar", want: "foo bar"},
 		{in: "foo bar=3D", want: "foo bar="},
+		{in: "foo bar=3d", want: "foo bar="}, // lax.
 		{in: "foo bar=\n", want: "foo bar"},
 		{in: "foo bar\n", want: "foo bar\n"}, // somewhat lax.
 		{in: "foo bar=0", want: "foo bar", err: io.ErrUnexpectedEOF},
-		{in: "foo bar=ab", want: "foo bar", err: "quotedprintable: invalid hex byte 0x61"},
 		{in: "foo bar=0D=0A", want: "foo bar\r\n"},
 		{in: " A B        \r\n C ", want: " A B\r\n C"},
 		{in: " A B =\r\n C ", want: " A B  C"},
