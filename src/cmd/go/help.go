@@ -393,6 +393,11 @@ are:
 		non-main packages are built into .a files (the default
 		behavior).
 
+	-buildmode=shared
+		Combine all the listed non-main packages into a single shared
+		library that will be used when building with the -linkshared
+		option. Packages named main are ignored.
+
 	-buildmode=exe
 		Build the listed main packages and everything they import into
 		executables. Packages not named main are ignored.
