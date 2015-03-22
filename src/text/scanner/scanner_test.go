@@ -616,3 +616,32 @@ func TestPos(t *testing.T) {
 		t.Errorf("%d errors", s.ErrorCount)
 	}
 }
+
+type countReader int
+
+func (c *countReader) Read([]byte) (int, error) {
+	*c++
+
+	return 0, io.EOF
+}
+
+func TestPeekEOFHandling(t *testing.T) {
+	var r countReader
+
+	// corner case: empty source
+	s := new(Scanner).Init(&r)
+
+	tok := s.Next()
+	if tok != EOF {
+		t.Errorf("EOF not reported")
+	}
+
+	tok = s.Peek()
+	if tok != EOF {
+		t.Errorf("EOF not reported")
+	}
+
+	if r != 2 {
+		t.Errorf("scanner called Read %d times, not twice", r)
+	}
+}
