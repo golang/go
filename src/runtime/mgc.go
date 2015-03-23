@@ -433,9 +433,6 @@ func gc(mode int) {
 		sweep.nbgsweep++
 	}
 
-	mp := acquirem()
-	mp.preemptoff = "gcing"
-	releasem(mp)
 	gctimer.count++
 	if mode == gcBackgroundMode {
 		gctimer.cycle.sweepterm = nanotime()
@@ -537,10 +534,9 @@ func gc(mode int) {
 	}
 
 	startTime := nanotime()
-	if mp != acquirem() {
-		throw("gcwork: rescheduled")
-	}
 
+	mp := acquirem()
+	mp.preemptoff = "gcing"
 	_g_ := getg()
 	_g_.m.traceback = 2
 	gp := _g_.m.curg
