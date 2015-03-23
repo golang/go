@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"testing"
 	"unsafe"
@@ -34,15 +35,22 @@ func (c *command) Info() (pid, pgrp int) {
 }
 
 func (c *command) Start() {
-	c.proc.Start()
+	if err := c.proc.Start(); err != nil {
+		c.test.Fatal(err)
+	}
 }
 
 func (c *command) Stop() {
 	c.pipe.Close()
-	c.proc.Wait()
+	if err := c.proc.Wait(); err != nil {
+		c.test.Fatal(err)
+	}
 }
 
 func create(t *testing.T) *command {
+	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+		t.Skipf("skipping on %s/%s, cannot fork", runtime.GOOS, runtime.GOARCH)
+	}
 	proc := exec.Command("cat")
 	stdin, err := proc.StdinPipe()
 	if err != nil {
