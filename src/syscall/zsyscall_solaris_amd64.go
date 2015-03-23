@@ -51,6 +51,7 @@ import "unsafe"
 //go:cgo_import_dynamic libc_Rename rename "libc.so"
 //go:cgo_import_dynamic libc_Rmdir rmdir "libc.so"
 //go:cgo_import_dynamic libc_lseek lseek "libc.so"
+//go:cgo_import_dynamic libc_sendfile sendfile "libsendfile.so"
 //go:cgo_import_dynamic libc_Setegid setegid "libc.so"
 //go:cgo_import_dynamic libc_Seteuid seteuid "libc.so"
 //go:cgo_import_dynamic libc_Setgid setgid "libc.so"
@@ -132,6 +133,7 @@ import "unsafe"
 //go:linkname libc_Rename libc_Rename
 //go:linkname libc_Rmdir libc_Rmdir
 //go:linkname libc_lseek libc_lseek
+//go:linkname libc_sendfile libc_sendfile
 //go:linkname libc_Setegid libc_Setegid
 //go:linkname libc_Seteuid libc_Seteuid
 //go:linkname libc_Setgid libc_Setgid
@@ -216,6 +218,7 @@ var (
 	libc_Rename,
 	libc_Rmdir,
 	libc_lseek,
+	libc_sendfile,
 	libc_Setegid,
 	libc_Seteuid,
 	libc_Setgid,
@@ -736,6 +739,15 @@ func Rmdir(path string) (err error) {
 func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_lseek)), 3, uintptr(fd), uintptr(offset), uintptr(whence), 0, 0, 0)
 	newoffset = int64(r0)
+	if e1 != 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_sendfile)), 4, uintptr(outfd), uintptr(infd), uintptr(unsafe.Pointer(offset)), uintptr(count), 0, 0)
+	written = int(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
