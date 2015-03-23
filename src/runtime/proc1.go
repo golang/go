@@ -2874,6 +2874,10 @@ var pdesc [_MaxGomaxprocs]struct {
 	syscallwhen int64
 }
 
+// forcePreemptNS is the time slice given to a G before it is
+// preempted.
+const forcePreemptNS = 10 * 1000 * 1000 // 10ms
+
 func retake(now int64) uint32 {
 	n := 0
 	for i := int32(0); i < gomaxprocs; i++ {
@@ -2913,14 +2917,14 @@ func retake(now int64) uint32 {
 			}
 			incidlelocked(1)
 		} else if s == _Prunning {
-			// Preempt G if it's running for more than 10ms.
+			// Preempt G if it's running for too long.
 			t := int64(_p_.schedtick)
 			if int64(pd.schedtick) != t {
 				pd.schedtick = uint32(t)
 				pd.schedwhen = now
 				continue
 			}
-			if pd.schedwhen+10*1000*1000 > now {
+			if pd.schedwhen+forcePreemptNS > now {
 				continue
 			}
 			preemptone(_p_)
