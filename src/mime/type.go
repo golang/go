@@ -22,6 +22,7 @@ var (
 		".js":   "application/x-javascript",
 		".pdf":  "application/pdf",
 		".png":  "image/png",
+		".svg":  "image/svg+xml",
 		".xml":  "text/xml; charset=utf-8",
 	}
 	mimeTypes = clone(mimeTypesLower)
