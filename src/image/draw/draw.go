@@ -11,6 +11,7 @@ package draw
 import (
 	"image"
 	"image/color"
+	"image/internal/imageutil"
 )
 
 // m is the maximum color value returned by image.Color.RGBA.
@@ -124,7 +125,11 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
 					drawNRGBAOver(dst0, r, src0, sp)
 					return
 				case *image.YCbCr:
-					if drawYCbCr(dst0, r, src0, sp) {
+					// An image.YCbCr is always fully opaque, and so if the
+					// mask is nil (i.e. fully opaque) then the op is
+					// effectively always Src. Similarly for image.Gray and
+					// image.CMYK.
+					if imageutil.DrawYCbCr(dst0, r, src0, sp) {
 						return
 					}
 				case *image.Gray:
@@ -154,7 +159,7 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
 					drawNRGBASrc(dst0, r, src0, sp)
 					return
 				case *image.YCbCr:
-					if drawYCbCr(dst0, r, src0, sp) {
+					if imageutil.DrawYCbCr(dst0, r, src0, sp) {
 						return
 					}
 				case *image.Gray:
@@ -408,79 +413,7 @@ func drawNRGBASrc(dst *image.RGBA, r image.Rectangle, src *image.NRGBA, sp image
 	}
 }
 
-// TODO(nigeltao): this function is copy/pasted to image/jpeg/reader.go. We
-// should un-copy/paste it.
-func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Point) (ok bool) {
-	// An image.YCbCr is always fully opaque, and so if the mask is implicitly nil
-	// (i.e. fully opaque) then the op is effectively always Src.
-	x0 := (r.Min.X - dst.Rect.Min.X) * 4
-	x1 := (r.Max.X - dst.Rect.Min.X) * 4
-	y0 := r.Min.Y - dst.Rect.Min.Y
-	y1 := r.Max.Y - dst.Rect.Min.Y
-	switch src.SubsampleRatio {
-	case image.YCbCrSubsampleRatio444:
-		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
-			dpix := dst.Pix[y*dst.Stride:]
-			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
-			ci := (sy-src.Rect.Min.Y)*src.CStride + (sp.X - src.Rect.Min.X)
-			for x := x0; x != x1; x, yi, ci = x+4, yi+1, ci+1 {
-				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
-				dpix[x+0] = rr
-				dpix[x+1] = gg
-				dpix[x+2] = bb
-				dpix[x+3] = 255
-			}
-		}
-	case image.YCbCrSubsampleRatio422:
-		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
-			dpix := dst.Pix[y*dst.Stride:]
-			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
-			ciBase := (sy-src.Rect.Min.Y)*src.CStride - src.Rect.Min.X/2
-			for x, sx := x0, sp.X; x != x1; x, sx, yi = x+4, sx+1, yi+1 {
-				ci := ciBase + sx/2
-				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
-				dpix[x+0] = rr
-				dpix[x+1] = gg
-				dpix[x+2] = bb
-				dpix[x+3] = 255
-			}
-		}
-	case image.YCbCrSubsampleRatio420:
-		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
-			dpix := dst.Pix[y*dst.Stride:]
-			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
-			ciBase := (sy/2-src.Rect.Min.Y/2)*src.CStride - src.Rect.Min.X/2
-			for x, sx := x0, sp.X; x != x1; x, sx, yi = x+4, sx+1, yi+1 {
-				ci := ciBase + sx/2
-				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
-				dpix[x+0] = rr
-				dpix[x+1] = gg
-				dpix[x+2] = bb
-				dpix[x+3] = 255
-			}
-		}
-	case image.YCbCrSubsampleRatio440:
-		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
-			dpix := dst.Pix[y*dst.Stride:]
-			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
-			ci := (sy/2-src.Rect.Min.Y/2)*src.CStride + (sp.X - src.Rect.Min.X)
-			for x := x0; x != x1; x, yi, ci = x+4, yi+1, ci+1 {
-				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
-				dpix[x+0] = rr
-				dpix[x+1] = gg
-				dpix[x+2] = bb
-				dpix[x+3] = 255
-			}
-		}
-	default:
-		return false
-	}
-	return true
-}
-
 func drawGray(dst *image.RGBA, r image.Rectangle, src *image.Gray, sp image.Point) {
-	// An image.Gray is always fully opaque, and so if the mask is implicitly nil
-	// (i.e. fully opaque) then the op is effectively always Src.
 	i0 := (r.Min.X - dst.Rect.Min.X) * 4
 	i1 := (r.Max.X - dst.Rect.Min.X) * 4
 	si0 := (sp.X - src.Rect.Min.X) * 1
@@ -503,8 +436,6 @@ func drawGray(dst *image.RGBA, r image.Rectangle, src *image.Gray, sp image.Poin
 }
 
 func drawCMYK(dst *image.RGBA, r image.Rectangle, src *image.CMYK, sp image.Point) {
-	// An image.CMYK is always fully opaque, and so if the mask is implicitly nil
-	// (i.e. fully opaque) then the op is effectively always Src.
 	i0 := (r.Min.X - dst.Rect.Min.X) * 4
 	i1 := (r.Max.X - dst.Rect.Min.X) * 4
 	si0 := (sp.X - src.Rect.Min.X) * 4
