@@ -64,7 +64,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 		if err1 != nil {
 			// This includes syscall.ENOSYS (no kernel
 			// support) and syscall.EINVAL (fd types which
-			// don't implement sendfile together)
+			// don't implement sendfile)
 			err = err1
 			break
 		}
