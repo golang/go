@@ -10,6 +10,10 @@ import (
 	"syscall"
 )
 
+// Not strictly needed, but very helpful for debugging, see issue #10221.
+//go:cgo_import_dynamic _ _ "libsendfile.so"
+//go:cgo_import_dynamic _ _ "libsocket.so"
+
 // maxSendfileSize is the largest chunk size we ask the kernel to copy
 // at a time.
 const maxSendfileSize int = 4 << 20
