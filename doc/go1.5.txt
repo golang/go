@@ -1,4 +1,6 @@
 Overall:
+toolchain in Go
+new GC
 
 Language:
 permit omission of key type in map composite literals where key is a composite literal (https://golang.org/cl/2591)
@@ -7,7 +9,8 @@ Build:
 Go 1.4 required to build (https://golang.org/cl/2470, https://golang.org/cl/2993)
 
 New Ports:
-Darwin/ARM, a.k.a iOS. (https://golang.org/cl/2118, 2119, 3273, 2121, 2122, ..., 2127)
+darwin/arm, a.k.a iOS. (https://golang.org/cl/2118, 2119, 3273, 2121, 2122, ..., 2127)
+linux/arm64
 
 Removed Ports:
 dragonfly/386 (https://golang.org/cl/7543)
@@ -26,11 +29,14 @@ go/ast: add Implicit field to ast.EmptyStmt; changed meaning of ast.EmptyStmt.Se
 log: add SetOutput functions (https://golang.org/cl/2686, https://golang.org/cl/3023)
 math/big: add arbitrary precision Floats (many cl's)
 net/http: support for setting trailers from a server Handler (https://golang.org/cl/2157)
+net/http: ignore the Unix epoch time in ServeContent (https://golang.org/cl/7915)
 net/http/cgi: fix REMOTE_ADDR, REMOTE_HOST, add REMOTE_PORT (https://golang.org/cl/4933)
 net/smtp: add TLSConnectionState accessor (https://golang.org/cl/2151)
 os/signal: add Ignore and Reset (https://golang.org/cl/3580)
 runtime, syscall: use SYSCALL instruction on FreeBSD (Go 1.5 now requires FreeBSD 8-STABLE+) (https://golang.org/cl/3020)
 strings: add Compare(x, y string) int, for symmetry with bytes.Compare (https://golang.org/cl/2828)
+syscall: Add Foreground and Pgid to SysProcAttr (https://golang.org/cl/5130)
+syscall: add missing Syscall9 for darwin/amd64 (https://golang.org/cl/6555)
 testing/quick: support generation of arrays (https://golang.org/cl/3865)
 
 Tools:
@@ -44,10 +50,13 @@ cmd/ld: no longer record build timestamp in Windows PE file header (https://gola
 Performance:
 
 cmd/gc: optimize memclr of slices and arrays (https://golang.org/cl/2520)
+cmd/internal/gc: transitive inlining (https://golang.org/cl/5952)
+cmd/internal/gc: inline x := y.(*T) and x, ok := y.(*T) (https://golang.org/cl/7862)
 sort: number of Sort performance optimizations (https://golang.org/cl/2100, https://golang.org/cl/2614, ...)
 strconv: optimize decimal to string conversion (https://golang.org/cl/2105)
 math/big: faster assembly kernels for amd64 and 386 (https://golang.org/cl/2503, https://golang.org/cl/2560)
 math/big: faster "pure Go" kernels for platforms w/o assembly kernels (https://golang.org/cl/2480)
+regexp: port RE2's bitstate backtracker to the regexp package (https://golang.org/cl/2153)
 
 Assembler:
 
