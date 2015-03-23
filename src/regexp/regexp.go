@@ -7,7 +7,7 @@
 // The syntax of the regular expressions accepted is the same
 // general syntax used by Perl, Python, and other languages.
 // More precisely, it is the syntax accepted by RE2 and described at
-// http://code.google.com/p/re2/wiki/Syntax, except for \C.
+// https://golang.org/s/re2syntax, except for \C.
 // For an overview of the syntax, run
 //   godoc regexp/syntax
 //
