@@ -750,6 +750,11 @@ func (z *Float) Copy(x *Float) *Float {
 	return z
 }
 
+func high32(x nat) uint32 {
+	// TODO(gri) This can be done more efficiently on 32bit platforms.
+	return uint32(high64(x) >> 32)
+}
+
 func high64(x nat) uint64 {
 	i := len(x)
 	if i == 0 {
@@ -872,11 +877,116 @@ func (x *Float) Int64() (int64, Accuracy) {
 	panic("unreachable")
 }
 
-// Float64 returns the float64 value nearest to x by rounding ToNearestEven
-// with 53 bits of precision.
-// If x is too small to be represented by a float64
-// (|x| < math.SmallestNonzeroFloat64), the result is (0, Below) or
-// (-0, Above), respectively, depending on the sign of x.
+// TODO(gri) Float32 and Float64 are very similar internally but for the
+// floatxx parameters and some conversions. Should factor out shared code.
+
+// Float32 returns the float32 value nearest to x. If x is too small to be
+// represented by a float32 (|x| < math.SmallestNonzeroFloat32), the result
+// is (0, Below) or (-0, Above), respectively, depending on the sign of x.
+// If x is too large to be represented by a float32 (|x| > math.MaxFloat32),
+// the result is (+Inf, Above) or (-Inf, Below), depending on the sign of x.
+// The result is (NaN, Undef) for NaNs.
+func (x *Float) Float32() (float32, Accuracy) {
+	if debugFloat {
+		x.validate()
+	}
+
+	switch x.form {
+	case finite:
+		// 0 < |x| < +Inf
+
+		const (
+			fbits = 32                //        float size
+			mbits = 23                //        mantissa size (excluding implicit msb)
+			ebits = fbits - mbits - 1 //     8  exponent size
+			bias  = 1<<(ebits-1) - 1  //   127  exponent bias
+			dmin  = 1 - bias - mbits  //  -149  smallest unbiased exponent (denormal)
+			emin  = 1 - bias          //  -126  smallest unbiased exponent (normal)
+			emax  = bias              //   127  largest unbiased exponent (normal)
+		)
+
+		// Float mantissae m have an explicit msb and are in the range 0.5 <= m < 1.0.
+		// floatxx mantissae have an implicit msb and are in the range 1.0 <= m < 2.0.
+		// For a given mantissa m, we need to add 1 to a floatxx exponent to get the
+		// corresponding Float exponent.
+		// (see also implementation of math.Ldexp for similar code)
+
+		if x.exp < dmin+1 {
+			// underflow
+			if x.neg {
+				var z float32
+				return -z, Above
+			}
+			return 0.0, Below
+		}
+		// x.exp >= dmin+1
+
+		var r Float
+		r.prec = mbits + 1 // +1 for implicit msb
+		if x.exp < emin+1 {
+			// denormal number - round to fewer bits
+			r.prec = uint32(x.exp - dmin)
+		}
+		r.Set(x)
+
+		// Rounding may have caused r to overflow to ±Inf
+		// (rounding never causes underflows to 0).
+		if r.form == inf {
+			r.exp = emax + 2 // cause overflow below
+		}
+
+		if r.exp > emax+1 {
+			// overflow
+			if x.neg {
+				return float32(math.Inf(-1)), Below
+			}
+			return float32(math.Inf(+1)), Above
+		}
+		// dmin+1 <= r.exp <= emax+1
+
+		var s uint32
+		if r.neg {
+			s = 1 << (fbits - 1)
+		}
+
+		m := high32(r.mant) >> ebits & (1<<mbits - 1) // cut off msb (implicit 1 bit)
+
+		// Rounding may have caused a denormal number to
+		// become normal. Check again.
+		c := float32(1.0)
+		if r.exp < emin+1 {
+			// denormal number
+			r.exp += mbits
+			c = 1.0 / (1 << mbits) // 2**-mbits
+		}
+		// emin+1 <= r.exp <= emax+1
+		e := uint32(r.exp-emin) << mbits
+
+		return c * math.Float32frombits(s|e|m), r.acc
+
+	case zero:
+		if x.neg {
+			var z float32
+			return -z, Exact
+		}
+		return 0.0, Exact
+
+	case inf:
+		if x.neg {
+			return float32(math.Inf(-1)), Exact
+		}
+		return float32(math.Inf(+1)), Exact
+
+	case nan:
+		return float32(math.NaN()), Undef
+	}
+
+	panic("unreachable")
+}
+
+// Float64 returns the float64 value nearest to x. If x is too small to be
+// represented by a float64 (|x| < math.SmallestNonzeroFloat64), the result
+// is (0, Below) or (-0, Above), respectively, depending on the sign of x.
 // If x is too large to be represented by a float64 (|x| > math.MaxFloat64),
 // the result is (+Inf, Above) or (-Inf, Below), depending on the sign of x.
 // The result is (NaN, Undef) for NaNs.
@@ -888,61 +998,79 @@ func (x *Float) Float64() (float64, Accuracy) {
 	switch x.form {
 	case finite:
 		// 0 < |x| < +Inf
-		var r Float
-		r.prec = 53
-		r.Set(x)
 
-		// Rounding via Set may have caused r to overflow
-		// to ±Inf (rounding never causes underflows to 0).
-		if r.form == inf {
-			r.exp = 10000 // cause overflow below
-		}
+		const (
+			fbits = 64                //        float size
+			mbits = 52                //        mantissa size (excluding implicit msb)
+			ebits = fbits - mbits - 1 //    11  exponent size
+			bias  = 1<<(ebits-1) - 1  //  1023  exponent bias
+			dmin  = 1 - bias - mbits  // -1074  smallest unbiased exponent (denormal)
+			emin  = 1 - bias          // -1022  smallest unbiased exponent (normal)
+			emax  = bias              //  1023  largest unbiased exponent (normal)
+		)
 
-		// see also implementation of math.Ldexp
+		// Float mantissae m have an explicit msb and are in the range 0.5 <= m < 1.0.
+		// floatxx mantissae have an implicit msb and are in the range 1.0 <= m < 2.0.
+		// For a given mantissa m, we need to add 1 to a floatxx exponent to get the
+		// corresponding Float exponent.
+		// (see also implementation of math.Ldexp for similar code)
 
-		e := int64(r.exp) + 1022
-		if e <= -52 {
+		if x.exp < dmin+1 {
 			// underflow
 			if x.neg {
-				z := 0.0
+				var z float64
 				return -z, Above
 			}
 			return 0.0, Below
 		}
-		// e > -52
+		// x.exp >= dmin+1
 
-		if e >= 2047 {
+		var r Float
+		r.prec = mbits + 1 // +1 for implicit msb
+		if x.exp < emin+1 {
+			// denormal number - round to fewer bits
+			r.prec = uint32(x.exp - dmin)
+		}
+		r.Set(x)
+
+		// Rounding may have caused r to overflow to ±Inf
+		// (rounding never causes underflows to 0).
+		if r.form == inf {
+			r.exp = emax + 2 // cause overflow below
+		}
+
+		if r.exp > emax+1 {
 			// overflow
 			if x.neg {
 				return math.Inf(-1), Below
 			}
 			return math.Inf(+1), Above
 		}
-		// -52 < e < 2047
+		// dmin+1 <= r.exp <= emax+1
 
-		denormal := false
-		if e < 0 {
-			denormal = true
-			e += 52
-		}
-		// 0 < e < 2047
-
-		s := uint64(0)
+		var s uint64
 		if r.neg {
-			s = 1 << 63
+			s = 1 << (fbits - 1)
 		}
-		m := high64(r.mant) >> 11 & (1<<52 - 1) // cut off msb (implicit 1 bit)
-		z := math.Float64frombits(s | uint64(e)<<52 | m)
-		if denormal {
-			// adjust for denormal
-			// TODO(gri) does this change accuracy?
-			z /= 1 << 52
+
+		m := high64(r.mant) >> ebits & (1<<mbits - 1) // cut off msb (implicit 1 bit)
+
+		// Rounding may have caused a denormal number to
+		// become normal. Check again.
+		c := 1.0
+		if r.exp < emin+1 {
+			// denormal number
+			r.exp += mbits
+			c = 1.0 / (1 << mbits) // 2**-mbits
 		}
-		return z, r.acc
+		// emin+1 <= r.exp <= emax+1
+		e := uint64(r.exp-emin) << mbits
+
+		return c * math.Float64frombits(s|e|m), r.acc
 
 	case zero:
 		if x.neg {
-			z := 0.0
+			var z float64
 			return -z, Exact
 		}
 		return 0.0, Exact

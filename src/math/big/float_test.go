@@ -537,14 +537,14 @@ func TestFloatRound(t *testing.T) {
 
 // TestFloatRound24 tests that rounding a float64 to 24 bits
 // matches IEEE-754 rounding to nearest when converting a
-// float64 to a float32.
+// float64 to a float32 (excluding denormal numbers).
 func TestFloatRound24(t *testing.T) {
 	const x0 = 1<<26 - 0x10 // 11...110000 (26 bits)
 	for d := 0; d <= 0x10; d++ {
 		x := float64(x0 + d)
 		f := new(Float).SetPrec(24).SetFloat64(x)
-		got, _ := f.Float64()
-		want := float64(float32(x))
+		got, _ := f.Float32()
+		want := float32(x)
 		if got != want {
 			t.Errorf("Round(%g, 24) = %g; want %g", x, got, want)
 		}
@@ -837,7 +837,70 @@ func TestFloatInt64(t *testing.T) {
 	}
 }
 
+func TestFloatFloat32(t *testing.T) {
+	for _, test := range []struct {
+		x   string
+		out float32
+		acc Accuracy
+	}{
+		{"-Inf", float32(math.Inf(-1)), Exact},
+		{"-0x1.ffffff0p2147483646", float32(-math.Inf(+1)), Below}, // overflow in rounding
+		{"-1e10000", float32(math.Inf(-1)), Below},                 // overflow
+		{"-0x1p128", float32(math.Inf(-1)), Below},                 // overflow
+		{"-0x1.ffffff0p127", float32(-math.Inf(+1)), Below},        // overflow
+		{"-0x1.fffffe8p127", -math.MaxFloat32, Above},
+		{"-0x1.fffffe0p127", -math.MaxFloat32, Exact},
+		{"-12345.000000000000000000001", -12345, Above},
+		{"-12345.0", -12345, Exact},
+		{"-1.000000000000000000001", -1, Above},
+		{"-1", -1, Exact},
+		{"-0x0.000002p-126", -math.SmallestNonzeroFloat32, Exact},
+		{"-0x0.000002p-127", -0, Above}, // underflow
+		{"-1e-1000", -0, Above},         // underflow
+		{"0", 0, Exact},
+		{"1e-1000", 0, Below},         // underflow
+		{"0x0.000002p-127", 0, Below}, // underflow
+		{"0x0.000002p-126", math.SmallestNonzeroFloat32, Exact},
+		{"1", 1, Exact},
+		{"1.000000000000000000001", 1, Below},
+		{"12345.0", 12345, Exact},
+		{"12345.000000000000000000001", 12345, Below},
+		{"0x1.fffffe0p127", math.MaxFloat32, Exact},
+		{"0x1.fffffe8p127", math.MaxFloat32, Below},
+		{"0x1.ffffff0p127", float32(math.Inf(+1)), Above},        // overflow
+		{"0x1p128", float32(math.Inf(+1)), Above},                // overflow
+		{"1e10000", float32(math.Inf(+1)), Above},                // overflow
+		{"0x1.ffffff0p2147483646", float32(math.Inf(+1)), Above}, // overflow in rounding
+		{"+Inf", float32(math.Inf(+1)), Exact},
+	} {
+		// conversion should match strconv where syntax is agreeable
+		if f, err := strconv.ParseFloat(test.x, 32); err == nil && float32(f) != test.out {
+			t.Errorf("%s: got %g; want %g (incorrect test data)", test.x, f, test.out)
+		}
+
+		x := makeFloat(test.x)
+		out, acc := x.Float32()
+		if out != test.out || acc != test.acc {
+			t.Errorf("%s: got %g (%#x, %s); want %g (%#x, %s)", test.x, out, math.Float32bits(out), acc, test.out, math.Float32bits(test.out), test.acc)
+		}
+
+		// test that x.SetFloat64(float64(f)).Float32() == f
+		var x2 Float
+		out2, acc2 := x2.SetFloat64(float64(out)).Float32()
+		if out2 != out || acc2 != Exact {
+			t.Errorf("idempotency test: got %g (%s); want %g (Exact)", out2, acc2, out)
+		}
+	}
+
+	// test NaN
+	x := makeFloat("NaN")
+	if out, acc := x.Float32(); out == out || acc != Undef {
+		t.Errorf("NaN: got %g (%s); want NaN (Undef)", out, acc)
+	}
+}
+
 func TestFloatFloat64(t *testing.T) {
+	const smallestNormalFloat64 = 2.2250738585072014e-308 // 1p-1022
 	for _, test := range []struct {
 		x   string
 		out float64
@@ -849,7 +912,7 @@ func TestFloatFloat64(t *testing.T) {
 		{"-0x1p1024", math.Inf(-1), Below},                       // overflow
 		{"-0x1.fffffffffffff8p1023", -math.Inf(+1), Below},       // overflow
 		{"-0x1.fffffffffffff4p1023", -math.MaxFloat64, Above},
-		{"-0x1.fffffffffffffp1023", -math.MaxFloat64, Exact},
+		{"-0x1.fffffffffffff0p1023", -math.MaxFloat64, Exact},
 		{"-12345.000000000000000000001", -12345, Above},
 		{"-12345.0", -12345, Exact},
 		{"-1.000000000000000000001", -1, Above},
@@ -865,18 +928,39 @@ func TestFloatFloat64(t *testing.T) {
 		{"1.000000000000000000001", 1, Below},
 		{"12345.0", 12345, Exact},
 		{"12345.000000000000000000001", 12345, Below},
-		{"0x1.fffffffffffffp1023", math.MaxFloat64, Exact},
+		{"0x1.fffffffffffff0p1023", math.MaxFloat64, Exact},
 		{"0x1.fffffffffffff4p1023", math.MaxFloat64, Below},
 		{"0x1.fffffffffffff8p1023", math.Inf(+1), Above},       // overflow
 		{"0x1p1024", math.Inf(+1), Above},                      // overflow
 		{"1e10000", math.Inf(+1), Above},                       // overflow
 		{"0x1.fffffffffffff8p2147483646", math.Inf(+1), Above}, // overflow in rounding
 		{"+Inf", math.Inf(+1), Exact},
+
+		// selected denormalized values that were handled incorrectly in the past
+		{"0x.fffffffffffffp-1022", smallestNormalFloat64 - math.SmallestNonzeroFloat64, Exact},
+		{"4503599627370495p-1074", smallestNormalFloat64 - math.SmallestNonzeroFloat64, Exact},
+
+		// http://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
+		{"2.2250738585072011e-308", 2.225073858507201e-308, Below},
+		// http://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
+		{"2.2250738585072012e-308", 2.2250738585072014e-308, Above},
 	} {
+		// conversion should match strconv where syntax is agreeable
+		if f, err := strconv.ParseFloat(test.x, 64); err == nil && f != test.out {
+			t.Errorf("%s: got %g; want %g (incorrect test data)", test.x, f, test.out)
+		}
+
 		x := makeFloat(test.x)
 		out, acc := x.Float64()
 		if out != test.out || acc != test.acc {
-			t.Errorf("%s: got %g (%s); want %g (%s)", test.x, out, acc, test.out, test.acc)
+			t.Errorf("%s: got %g (%#x, %s); want %g (%#x, %s)", test.x, out, math.Float64bits(out), acc, test.out, math.Float64bits(test.out), test.acc)
+		}
+
+		// test that x.SetFloat64(f).Float64() == f
+		var x2 Float
+		out2, acc2 := x2.SetFloat64(out).Float64()
+		if out2 != out || acc2 != Exact {
+			t.Errorf("idempotency test: got %g (%s); want %g (Exact)", out2, acc2, out)
 		}
 	}
 
@@ -1108,7 +1192,8 @@ func TestFloatAdd(t *testing.T) {
 }
 
 // TestFloatAdd32 tests that Float.Add/Sub of numbers with
-// 24bit mantissa behaves like float32 addition/subtraction.
+// 24bit mantissa behaves like float32 addition/subtraction
+// (excluding denormal numbers).
 func TestFloatAdd32(t *testing.T) {
 	// chose base such that we cross the mantissa precision limit
 	const base = 1<<26 - 0x10 // 11...110000 (26 bits)
@@ -1124,15 +1209,15 @@ func TestFloatAdd32(t *testing.T) {
 			z := new(Float).SetPrec(24)
 
 			z.Add(x, y)
-			got, acc := z.Float64()
-			want := float64(float32(y0) + float32(x0))
+			got, acc := z.Float32()
+			want := float32(y0) + float32(x0)
 			if got != want || acc != Exact {
 				t.Errorf("d = %d: %g + %g = %g (%s); want %g (Exact)", d, x0, y0, got, acc, want)
 			}
 
 			z.Sub(z, y)
-			got, acc = z.Float64()
-			want = float64(float32(want) - float32(y0))
+			got, acc = z.Float32()
+			want = float32(want) - float32(y0)
 			if got != want || acc != Exact {
 				t.Errorf("d = %d: %g - %g = %g (%s); want %g (Exact)", d, x0+y0, y0, got, acc, want)
 			}
