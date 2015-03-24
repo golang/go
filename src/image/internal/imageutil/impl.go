@@ -4,7 +4,6 @@ package imageutil
 
 import (
 	"image"
-	"image/color"
 )
 
 // DrawYCbCr draws the YCbCr source image on the RGBA destination image with
@@ -44,10 +43,32 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
 			ci := (sy-src.Rect.Min.Y)*src.CStride + (sp.X - src.Rect.Min.X)
 			for x := x0; x != x1; x, yi, ci = x+4, yi+1, ci+1 {
 
-				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
-				dpix[x+0] = rr
-				dpix[x+1] = gg
-				dpix[x+2] = bb
+				// This is an inline version of image/color/ycbcr.go's func YCbCrToRGB.
+				yy1 := int(src.Y[yi])<<16 + 1<<15
+				cb1 := int(src.Cb[ci]) - 128
+				cr1 := int(src.Cr[ci]) - 128
+				r := (yy1 + 91881*cr1) >> 16
+				g := (yy1 - 22554*cb1 - 46802*cr1) >> 16
+				b := (yy1 + 116130*cb1) >> 16
+				if r < 0 {
+					r = 0
+				} else if r > 255 {
+					r = 255
+				}
+				if g < 0 {
+					g = 0
+				} else if g > 255 {
+					g = 255
+				}
+				if b < 0 {
+					b = 0
+				} else if b > 255 {
+					b = 255
+				}
+
+				dpix[x+0] = uint8(r)
+				dpix[x+1] = uint8(g)
+				dpix[x+2] = uint8(b)
 				dpix[x+3] = 255
 			}
 		}
@@ -61,10 +82,32 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
 			for x, sx := x0, sp.X; x != x1; x, sx, yi = x+4, sx+1, yi+1 {
 				ci := ciBase + sx/2
 
-				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
-				dpix[x+0] = rr
-				dpix[x+1] = gg
-				dpix[x+2] = bb
+				// This is an inline version of image/color/ycbcr.go's func YCbCrToRGB.
+				yy1 := int(src.Y[yi])<<16 + 1<<15
+				cb1 := int(src.Cb[ci]) - 128
+				cr1 := int(src.Cr[ci]) - 128
+				r := (yy1 + 91881*cr1) >> 16
+				g := (yy1 - 22554*cb1 - 46802*cr1) >> 16
+				b := (yy1 + 116130*cb1) >> 16
+				if r < 0 {
+					r = 0
+				} else if r > 255 {
+					r = 255
+				}
+				if g < 0 {
+					g = 0
+				} else if g > 255 {
+					g = 255
+				}
+				if b < 0 {
+					b = 0
+				} else if b > 255 {
+					b = 255
+				}
+
+				dpix[x+0] = uint8(r)
+				dpix[x+1] = uint8(g)
+				dpix[x+2] = uint8(b)
 				dpix[x+3] = 255
 			}
 		}
@@ -78,10 +121,32 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
 			for x, sx := x0, sp.X; x != x1; x, sx, yi = x+4, sx+1, yi+1 {
 				ci := ciBase + sx/2
 
-				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
-				dpix[x+0] = rr
-				dpix[x+1] = gg
-				dpix[x+2] = bb
+				// This is an inline version of image/color/ycbcr.go's func YCbCrToRGB.
+				yy1 := int(src.Y[yi])<<16 + 1<<15
+				cb1 := int(src.Cb[ci]) - 128
+				cr1 := int(src.Cr[ci]) - 128
+				r := (yy1 + 91881*cr1) >> 16
+				g := (yy1 - 22554*cb1 - 46802*cr1) >> 16
+				b := (yy1 + 116130*cb1) >> 16
+				if r < 0 {
+					r = 0
+				} else if r > 255 {
+					r = 255
+				}
+				if g < 0 {
+					g = 0
+				} else if g > 255 {
+					g = 255
+				}
+				if b < 0 {
+					b = 0
+				} else if b > 255 {
+					b = 255
+				}
+
+				dpix[x+0] = uint8(r)
+				dpix[x+1] = uint8(g)
+				dpix[x+2] = uint8(b)
 				dpix[x+3] = 255
 			}
 		}
@@ -94,10 +159,32 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
 			ci := (sy/2-src.Rect.Min.Y/2)*src.CStride + (sp.X - src.Rect.Min.X)
 			for x := x0; x != x1; x, yi, ci = x+4, yi+1, ci+1 {
 
-				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
-				dpix[x+0] = rr
-				dpix[x+1] = gg
-				dpix[x+2] = bb
+				// This is an inline version of image/color/ycbcr.go's func YCbCrToRGB.
+				yy1 := int(src.Y[yi])<<16 + 1<<15
+				cb1 := int(src.Cb[ci]) - 128
+				cr1 := int(src.Cr[ci]) - 128
+				r := (yy1 + 91881*cr1) >> 16
+				g := (yy1 - 22554*cb1 - 46802*cr1) >> 16
+				b := (yy1 + 116130*cb1) >> 16
+				if r < 0 {
+					r = 0
+				} else if r > 255 {
+					r = 255
+				}
+				if g < 0 {
+					g = 0
+				} else if g > 255 {
+					g = 255
+				}
+				if b < 0 {
+					b = 0
+				} else if b > 255 {
+					b = 255
+				}
+
+				dpix[x+0] = uint8(r)
+				dpix[x+1] = uint8(g)
+				dpix[x+2] = uint8(b)
 				dpix[x+3] = 255
 			}
 		}
