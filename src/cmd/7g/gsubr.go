@@ -45,6 +45,8 @@ var unmappedzero int64 = 4096
 var resvd = []int{
 	arm64.REGTMP,
 	arm64.REGG,
+	arm64.REGRT1,
+	arm64.REGRT2,
 	arm64.REG_R31, // REGZERO and REGSP
 	arm64.FREGZERO,
 	arm64.FREGHALF,
