@@ -839,7 +839,12 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 //sys	Fsync(fd int) (err error)
 //sys	Getdents(fd int, buf []byte) (n int, err error) = SYS_GETDENTS64
 //sysnb	Getpgid(pid int) (pgid int, err error)
-//sysnb	Getpgrp() (pid int)
+
+func Getpgrp() (pid int) {
+	pid, _ = Getpgid(0)
+	return
+}
+
 //sysnb	Getpid() (pid int)
 //sysnb	Getppid() (ppid int)
 //sys	Getpriority(which int, who int) (prio int, err error)
