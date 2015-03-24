@@ -692,6 +692,10 @@ Switch:
 		Fatal("out of fixed registers")
 
 	case TFLOAT32, TFLOAT64:
+		if Thearch.Thechar == '8' && !Use_sse {
+			i = Thearch.FREGMIN // x86.REG_F0
+			break Switch
+		}
 		if o != nil && o.Op == OREGISTER {
 			i = int(o.Val.U.Reg)
 			if Thearch.FREGMIN <= i && i <= Thearch.FREGMAX {

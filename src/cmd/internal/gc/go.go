@@ -632,7 +632,7 @@ var typesw *Node
 
 var nblank *Node
 
-var Use_sse int
+var Use_sse bool // should we generate SSE2 instructions for 386 targets
 
 var hunk string
 

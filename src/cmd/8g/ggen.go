@@ -617,7 +617,7 @@ func cgen_float(n *gc.Node, res *gc.Node) {
 		return
 	}
 
-	if gc.Use_sse != 0 {
+	if gc.Use_sse {
 		cgen_floatsse(n, res)
 	} else {
 		cgen_float387(n, res)
@@ -761,7 +761,7 @@ func bgen_float(n *gc.Node, true_ int, likely int, to *obj.Prog) {
 	var et int
 	var n2 gc.Node
 	var ax gc.Node
-	if gc.Use_sse != 0 {
+	if gc.Use_sse {
 		if nl.Addable == 0 {
 			var n1 gc.Node
 			gc.Tempname(&n1, nl.Type)

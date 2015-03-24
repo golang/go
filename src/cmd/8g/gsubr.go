@@ -402,7 +402,7 @@ func foptoas(op int, t *gc.Type, flg int) int {
 	a := obj.AXXX
 	et := int(gc.Simtype[t.Etype])
 
-	if gc.Use_sse != 0 {
+	if gc.Use_sse {
 		switch uint32(op)<<16 | uint32(et) {
 		default:
 			gc.Fatal("foptoas-sse: no entry %v-%v", gc.Oconv(int(op), 0), gc.Tconv(t, 0))
@@ -1036,7 +1036,7 @@ func floatmove(f *gc.Node, t *gc.Node) {
 
 	switch uint32(ft)<<16 | uint32(tt) {
 	default:
-		if gc.Use_sse != 0 {
+		if gc.Use_sse {
 			floatmove_sse(f, t)
 		} else {
 			floatmove_387(f, t)
