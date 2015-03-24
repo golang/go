@@ -717,6 +717,11 @@ func mstart1() {
 	// Install signal handlers; after minit so that minit can
 	// prepare the thread to be able to handle the signals.
 	if _g_.m == &m0 {
+		// Create an extra M for callbacks on threads not created by Go.
+		if needextram == 1 {
+			needextram = 0
+			newextram()
+		}
 		initsig()
 	}
 
