@@ -101,11 +101,6 @@ func cgocall_errno(fn, arg unsafe.Pointer) int32 {
 		racereleasemerge(unsafe.Pointer(&racecgosync))
 	}
 
-	// Create an extra M for callbacks on threads not created by Go on first cgo call.
-	if needextram == 1 && cas(&needextram, 1, 0) {
-		systemstack(newextram)
-	}
-
 	/*
 	 * Lock g to m to ensure we stay on the same stack if we do a
 	 * cgo callback. Add entry to defer stack in case of panic.
