@@ -22,7 +22,7 @@ import _ "unsafe" // for go:linkname
 //go:cgo_import_dynamic libc_setgroups setgroups "libc.so"
 //go:cgo_import_dynamic libc_setsid setsid "libc.so"
 //go:cgo_import_dynamic libc_setuid setuid "libc.so"
-//go:cgo_import_dynamic libc_setpgid setsid "libc.so"
+//go:cgo_import_dynamic libc_setpgid setpgid "libc.so"
 //go:cgo_import_dynamic libc_syscall syscall "libc.so"
 //go:cgo_import_dynamic libc_forkx forkx "libc.so"
 //go:cgo_import_dynamic libc_wait4 wait4 "libc.so"
