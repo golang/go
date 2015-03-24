@@ -50,8 +50,16 @@ func main() {
 	gc.Thearch.REGRETURN = x86.REG_AX
 	gc.Thearch.REGMIN = x86.REG_AX
 	gc.Thearch.REGMAX = x86.REG_DI
-	gc.Thearch.FREGMIN = x86.REG_X0
-	gc.Thearch.FREGMAX = x86.REG_X7
+	switch v := obj.Getgo386(); v {
+	case "387":
+		gc.Thearch.FREGMIN = x86.REG_F0
+		gc.Thearch.FREGMAX = x86.REG_F7
+	case "sse2":
+		gc.Thearch.FREGMIN = x86.REG_X0
+		gc.Thearch.FREGMAX = x86.REG_X7
+	default:
+		gc.Fatal("unsupported setting GO386=%s", v)
+	}
 	gc.Thearch.MAXWIDTH = MAXWIDTH
 	gc.Thearch.ReservedRegs = resvd
 

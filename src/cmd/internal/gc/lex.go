@@ -278,13 +278,13 @@ func Main() {
 	}
 
 	if Thearch.Thechar == '8' {
-		p := obj.Getgo386()
-		if p == "387" {
-			Use_sse = 0
-		} else if p == "sse2" {
-			Use_sse = 1
-		} else {
-			log.Fatalf("unsupported setting GO386=%s", p)
+		switch v := obj.Getgo386(); v {
+		case "387":
+			Use_sse = false
+		case "sse2":
+			Use_sse = true
+		default:
+			log.Fatalf("unsupported setting GO386=%s", v)
 		}
 	}
 
