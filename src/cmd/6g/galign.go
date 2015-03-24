@@ -65,7 +65,7 @@ func betypeinit() {
 
 func main() {
 	if obj.Getgoos() == "nacl" {
-		resvd = append(resvd, x86.REG_BP, x86.REG_SI)
+		resvd = append(resvd, x86.REG_BP, x86.REG_R15)
 	} else if obj.Framepointer_enabled != 0 {
 		resvd = append(resvd, x86.REG_BP)
 	}
