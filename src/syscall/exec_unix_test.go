@@ -167,17 +167,12 @@ func TestForeground(t *testing.T) {
 
 	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
 	if err != nil {
-		t.Skipf("Can't test Foreground. Couldn't open /dev/tty: %s",
-			err)
+		t.Skipf("Can't test Foreground. Couldn't open /dev/tty: %s", err)
 	}
 
 	fpgrp := 0
 
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL,
-		tty.Fd(),
-		syscall.TIOCGPGRP,
-		uintptr(unsafe.Pointer(&fpgrp)))
-
+	errno := syscall.Ioctl(tty.Fd(), syscall.TIOCGPGRP, uintptr(unsafe.Pointer(&fpgrp)))
 	if errno != 0 {
 		t.Fatalf("TIOCGPGRP failed with error code: %s", errno)
 	}
@@ -212,11 +207,7 @@ func TestForeground(t *testing.T) {
 
 	cmd.Stop()
 
-	_, _, errno = syscall.Syscall(syscall.SYS_IOCTL,
-		tty.Fd(),
-		syscall.TIOCSPGRP,
-		uintptr(unsafe.Pointer(&fpgrp)))
-
+	errno = syscall.Ioctl(tty.Fd(), syscall.TIOCSPGRP, uintptr(unsafe.Pointer(&fpgrp)))
 	if errno != 0 {
 		t.Fatalf("TIOCSPGRP failed with error code: %s", errno)
 	}
