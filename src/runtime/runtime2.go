@@ -367,7 +367,9 @@ type p struct {
 	palloc persistentAlloc // per-P to avoid mutex
 
 	// Per-P GC state
-	gcAssistTime int64 // Nanoseconds in assistAlloc
+	gcAssistTime   int64 // Nanoseconds in assistAlloc
+	gcBgMarkWorker *g
+	gcBgMarkIdle   bool
 
 	pad [64]byte
 }
