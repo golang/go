@@ -277,17 +277,6 @@ func Main() {
 		Debug['l'] = 1 - Debug['l']
 	}
 
-	if Thearch.Thechar == '8' {
-		switch v := obj.Getgo386(); v {
-		case "387":
-			Use_sse = false
-		case "sse2":
-			Use_sse = true
-		default:
-			log.Fatalf("unsupported setting GO386=%s", v)
-		}
-	}
-
 	Thearch.Betypeinit()
 	if Widthptr == 0 {
 		Fatal("betypeinit failed")
