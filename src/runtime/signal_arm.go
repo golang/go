@@ -32,6 +32,8 @@ func dumpregs(c *sigctxt) {
 	print("fault   ", hex(c.fault()), "\n")
 }
 
+// May run during STW, so write barriers are not allowed.
+//go:nowritebarrier
 func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	_g_ := getg()
 	c := &sigctxt{info, ctxt}
@@ -93,7 +95,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	}
 
 	_g_.m.throwing = 1
-	_g_.m.caughtsig = gp
+	setGNoWriteBarrier(&_g_.m.caughtsig, gp)
 	startpanic()
 
 	if sig < uint32(len(sigtable)) {
