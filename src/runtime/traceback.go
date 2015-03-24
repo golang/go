@@ -44,6 +44,7 @@ var (
 	bgsweepPC            uintptr
 	forcegchelperPC      uintptr
 	timerprocPC          uintptr
+	gcBgMarkWorkerPC     uintptr
 	systemstack_switchPC uintptr
 
 	externalthreadhandlerp uintptr // initialized elsewhere
@@ -66,6 +67,7 @@ func tracebackinit() {
 	bgsweepPC = funcPC(bgsweep)
 	forcegchelperPC = funcPC(forcegchelper)
 	timerprocPC = funcPC(timerproc)
+	gcBgMarkWorkerPC = funcPC(gcBgMarkWorker)
 	systemstack_switchPC = funcPC(systemstack_switch)
 }
 
@@ -654,5 +656,6 @@ func isSystemGoroutine(gp *g) bool {
 		pc == backgroundgcPC ||
 		pc == bgsweepPC ||
 		pc == forcegchelperPC ||
-		pc == timerprocPC
+		pc == timerprocPC ||
+		pc == gcBgMarkWorkerPC
 }

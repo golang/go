@@ -226,6 +226,8 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 		// just measure start and end time.
 		startTime := nanotime()
 
+		xadd(&work.nwait, -1)
+
 		// drain own current wbuf first in the hopes that it
 		// will be more cache friendly.
 		var gcw gcWork
@@ -239,6 +241,16 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 		// per-P gcWork cache (probably combined with the
 		// write barrier wbuf cache).
 		gcw.dispose()
+
+		// If this is the last worker and we ran out of work,
+		// signal a completion point.
+		if xadd(&work.nwait, +1) == work.nproc && work.full == 0 && work.partial == 0 {
+			// This has reached a background completion
+			// point. Is it the first this cycle?
+			if cas(&work.bgMarkDone, 0, 1) {
+				notewakeup(&work.bgMarkNote)
+			}
+		}
 
 		duration := nanotime() - startTime
 		_p_ := gp.m.p.ptr()
@@ -398,6 +410,8 @@ func scanframeworker(frame *stkframe, unused unsafe.Pointer, gcw *gcWork) {
 	}
 }
 
+// TODO(austin): Can we consolidate the gcDrain* functions?
+
 // gcDrain scans objects in work buffers, blackening grey
 // objects until all work buffers have been drained.
 // If flushScanCredit != -1, gcDrain flushes accumulated scan work
@@ -451,6 +465,58 @@ func gcDrain(gcw *gcWork, flushScanCredit int64) {
 		xaddint64(&gcController.bgScanCredit, credit)
 	}
 	checknocurrentwbuf()
+}
+
+// gcDrainUntilPreempt blackens grey objects until g.preempt is set.
+// This is best-effort, so it will return as soon as it is unable to
+// get work, even though there may be more work in the system.
+//go:nowritebarrier
+func gcDrainUntilPreempt(gcw *gcWork, flushScanCredit int64) {
+	if gcphase != _GCmark {
+		println("gcphase =", gcphase)
+		throw("gcDrainUntilPreempt phase incorrect")
+	}
+
+	var lastScanFlush, nextScanFlush int64
+	if flushScanCredit != -1 {
+		lastScanFlush = gcw.scanWork
+		nextScanFlush = lastScanFlush + flushScanCredit
+	} else {
+		nextScanFlush = int64(^uint64(0) >> 1)
+	}
+
+	gp := getg()
+	for !gp.preempt {
+		// If the work queue is empty, balance. During
+		// concurrent mark we don't really know if anyone else
+		// can make use of this work, but even if we're the
+		// only worker, the total cost of this per cycle is
+		// only O(_WorkbufSize) pointer copies.
+		if work.full == 0 && work.partial == 0 {
+			gcw.balance()
+		}
+
+		b := gcw.tryGet()
+		if b == 0 {
+			// No more work
+			break
+		}
+		scanobject(b, 0, nil, gcw)
+
+		// Flush background scan work credit to the global
+		// account if we've accumulated enough locally so
+		// mutator assists can draw on it.
+		if gcw.scanWork >= nextScanFlush {
+			credit := gcw.scanWork - lastScanFlush
+			xaddint64(&gcController.bgScanCredit, credit)
+			lastScanFlush = gcw.scanWork
+			nextScanFlush = lastScanFlush + flushScanCredit
+		}
+	}
+	if flushScanCredit != -1 {
+		credit := gcw.scanWork - lastScanFlush
+		xaddint64(&gcController.bgScanCredit, credit)
+	}
 }
 
 // gcDrainN blackens grey objects until it has performed roughly
