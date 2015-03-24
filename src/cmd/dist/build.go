@@ -1020,6 +1020,7 @@ func usage() {
 		"clean          deletes all built files\n" +
 		"env [-p]       print environment (-p: include $PATH)\n" +
 		"install [dir]  install individual directory\n" +
+		"test [-h]      run Go test(s)\n" +
 		"version        print Go version\n" +
 		"\n" +
 		"All commands take -v flags to emit extra information.\n",
