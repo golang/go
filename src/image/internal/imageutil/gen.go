@@ -47,7 +47,6 @@ package imageutil
 
 import (
 	"image"
-	"image/color"
 )
 
 // DrawYCbCr draws the YCbCr source image on the RGBA destination image with
@@ -94,10 +93,33 @@ const sratioCase = `
 			dpix := dst.Pix[y*dst.Stride:]
 			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
 			%s
-				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
-				dpix[x+0] = rr
-				dpix[x+1] = gg
-				dpix[x+2] = bb
+
+				// This is an inline version of image/color/ycbcr.go's func YCbCrToRGB.
+				yy1 := int(src.Y[yi])<<16 + 1<<15
+				cb1 := int(src.Cb[ci]) - 128
+				cr1 := int(src.Cr[ci]) - 128
+				r := (yy1 + 91881*cr1) >> 16
+				g := (yy1 - 22554*cb1 - 46802*cr1) >> 16
+				b := (yy1 + 116130*cb1) >> 16
+				if r < 0 {
+					r = 0
+				} else if r > 255 {
+					r = 255
+				}
+				if g < 0 {
+					g = 0
+				} else if g > 255 {
+					g = 255
+				}
+				if b < 0 {
+					b = 0
+				} else if b > 255 {
+					b = 255
+				}
+
+				dpix[x+0] = uint8(r)
+				dpix[x+1] = uint8(g)
+				dpix[x+2] = uint8(b)
 				dpix[x+3] = 255
 			}
 		}
