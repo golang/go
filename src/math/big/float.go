@@ -872,9 +872,14 @@ func (x *Float) Int64() (int64, Accuracy) {
 	panic("unreachable")
 }
 
-// Float64 returns the closest float64 value of x
-// by rounding to nearest with 53 bits precision.
-// BUG(gri) Float.Float64 doesn't handle exponent overflow.
+// Float64 returns the float64 value nearest to x by rounding ToNearestEven
+// with 53 bits of precision.
+// If x is too small to be represented by a float64
+// (|x| < math.SmallestNonzeroFloat64), the result is (0, Below) or
+// (-0, Above), respectively, depending on the sign of x.
+// If x is too large to be represented by a float64 (|x| > math.MaxFloat64),
+// the result is (+Inf, Above) or (-Inf, Below), depending on the sign of x.
+// The result is (NaN, Undef) for NaNs.
 func (x *Float) Float64() (float64, Accuracy) {
 	if debugFloat {
 		x.validate()
@@ -886,27 +891,67 @@ func (x *Float) Float64() (float64, Accuracy) {
 		var r Float
 		r.prec = 53
 		r.Set(x)
-		var s uint64
+
+		// Rounding via Set may have caused r to overflow
+		// to ±Inf (rounding never causes underflows to 0).
+		if r.form == inf {
+			r.exp = 10000 // cause overflow below
+		}
+
+		// see also implementation of math.Ldexp
+
+		e := int64(r.exp) + 1022
+		if e <= -52 {
+			// underflow
+			if x.neg {
+				z := 0.0
+				return -z, Above
+			}
+			return 0.0, Below
+		}
+		// e > -52
+
+		if e >= 2047 {
+			// overflow
+			if x.neg {
+				return math.Inf(-1), Below
+			}
+			return math.Inf(+1), Above
+		}
+		// -52 < e < 2047
+
+		denormal := false
+		if e < 0 {
+			denormal = true
+			e += 52
+		}
+		// 0 < e < 2047
+
+		s := uint64(0)
 		if r.neg {
 			s = 1 << 63
 		}
-		e := uint64(1022+r.exp) & 0x7ff // TODO(gri) check for overflow
-		m := high64(r.mant) >> 11 & (1<<52 - 1)
-		return math.Float64frombits(s | e<<52 | m), r.acc
+		m := high64(r.mant) >> 11 & (1<<52 - 1) // cut off msb (implicit 1 bit)
+		z := math.Float64frombits(s | uint64(e)<<52 | m)
+		if denormal {
+			// adjust for denormal
+			// TODO(gri) does this change accuracy?
+			z /= 1 << 52
+		}
+		return z, r.acc
 
 	case zero:
-		z := 0.0
 		if x.neg {
-			z = -z
+			z := 0.0
+			return -z, Exact
 		}
-		return z, Exact
+		return 0.0, Exact
 
 	case inf:
-		sign := +1
 		if x.neg {
-			sign = -1
+			return math.Inf(-1), Exact
 		}
-		return math.Inf(sign), Exact
+		return math.Inf(+1), Exact
 
 	case nan:
 		return math.NaN(), Undef
