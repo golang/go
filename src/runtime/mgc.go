@@ -187,6 +187,9 @@ var gcController = gcControllerState{
 	// compiler on ./all.bash. Run a wider variety of programs and
 	// see what their work ratios are.
 	workRatioAvg: 0.5 / float64(ptrSize),
+
+	// Initial trigger ratio guess.
+	triggerRatio: 7 / 8.0,
 }
 
 type gcControllerState struct {
@@ -232,6 +235,13 @@ type gcControllerState struct {
 	// computed at the beginning of each cycle.
 	assistRatio float64
 
+	// triggerRatio is the heap growth ratio at which the garbage
+	// collection cycle should start. E.g., if this is 0.6, then
+	// GC should start when the live heap has reached 1.6 times
+	// the heap size marked by the previous cycle. This is updated
+	// at the end of of each cycle.
+	triggerRatio float64
+
 	_ [_CacheLineSize]byte
 
 	// bgMarkCount is the number of Ps currently running
@@ -258,7 +268,7 @@ func (c *gcControllerState) startCycle() {
 	// first cycle) or may be much smaller (resulting in a large
 	// error response).
 	if memstats.next_gc <= heapminimum {
-		memstats.heap_marked = uint64(float64(memstats.next_gc) / (1 + float64(gcpercent)/100))
+		memstats.heap_marked = uint64(float64(memstats.next_gc) / (1 + c.triggerRatio))
 	}
 
 	// Compute the expected work based on last cycle's marked bytes.
@@ -294,8 +304,43 @@ func (c *gcControllerState) startCycle() {
 // endCycle updates the GC controller state at the end of the
 // concurrent part of the GC cycle.
 func (c *gcControllerState) endCycle() {
+	// Proportional response gain for the trigger controller. Must
+	// be in [0, 1]. Lower values smooth out transient effects but
+	// take longer to respond to phase changes. Higher values
+	// react to phase changes quickly, but are more affected by
+	// transient changes. Values near 1 may be unstable.
+	const triggerGain = 0.5
+
 	// EWMA weight given to this cycle's scan work ratio.
 	const workRatioWeight = 0.75
+
+	// Compute next cycle trigger ratio. First, this computes the
+	// "error" for this cycle; that is, how far off the trigger
+	// was from what it should have been, accounting for both heap
+	// growth and GC CPU utilization. We computing the actual heap
+	// growth during this cycle and scale that by how far off from
+	// the goal CPU utilization we were (to estimate the heap
+	// growth if we had the desired CPU utilization). The
+	// difference between this estimate and the GOGC-based goal
+	// heap growth is the error.
+	goalGrowthRatio := float64(gcpercent) / 100
+	actualGrowthRatio := float64(memstats.heap_live)/float64(memstats.heap_marked) - 1
+	duration := nanotime() - c.bgMarkStartTime
+	utilization := float64(c.assistTime+c.bgMarkTime) / float64(duration*int64(gomaxprocs))
+	triggerError := goalGrowthRatio - c.triggerRatio - utilization/gcGoalUtilization*(actualGrowthRatio-c.triggerRatio)
+
+	// Finally, we adjust the trigger for next time by this error,
+	// damped by the proportional gain.
+	c.triggerRatio += triggerGain * triggerError
+	if c.triggerRatio < 0 {
+		// This can happen if the mutator is allocating very
+		// quickly or the GC is scanning very slowly.
+		c.triggerRatio = 0
+	} else if c.triggerRatio > goalGrowthRatio*0.95 {
+		// Ensure there's always a little margin so that the
+		// mutator assist ratio isn't infinity.
+		c.triggerRatio = goalGrowthRatio * 0.95
+	}
 
 	// Compute the scan work ratio for this cycle.
 	workRatio := float64(c.scanWork) / float64(work.bytesMarked)
@@ -946,10 +991,10 @@ func gcMark(start_time int64) {
 	cachestats()
 
 	// Trigger the next GC cycle when the allocated heap has
-	// reached 7/8ths of the growth allowed by gcpercent.
+	// grown by triggerRatio over the marked heap size.
 	memstats.heap_live = work.bytesMarked
 	memstats.heap_marked = work.bytesMarked
-	memstats.next_gc = memstats.heap_live + (memstats.heap_live*uint64(gcpercent)/100)*7/8
+	memstats.next_gc = uint64(float64(memstats.heap_live) * (1 + gcController.triggerRatio))
 	if memstats.next_gc < heapminimum {
 		memstats.next_gc = heapminimum
 	}
