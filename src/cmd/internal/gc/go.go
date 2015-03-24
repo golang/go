@@ -632,8 +632,6 @@ var typesw *Node
 
 var nblank *Node
 
-var Use_sse bool // should we generate SSE2 instructions for 386 targets
-
 var hunk string
 
 var nhunk int32
@@ -832,6 +830,7 @@ type Arch struct {
 	Optoas       func(int, *Type) int
 	Doregbits    func(int) uint64
 	Regnames     func(*int) []string
+	Use387       bool // should 8g use 387 FP instructions instead of sse2.
 }
 
 var pcloc int32

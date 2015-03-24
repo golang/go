@@ -688,7 +688,7 @@ Switch:
 		Fatal("out of fixed registers")
 
 	case TFLOAT32, TFLOAT64:
-		if Thearch.Thechar == '8' && !Use_sse {
+		if Thearch.Use387 {
 			i = Thearch.FREGMIN // x86.REG_F0
 			break Switch
 		}
