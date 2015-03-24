@@ -627,6 +627,10 @@ func TestFloatSetFloat64(t *testing.T) {
 		3.14159265e10,
 		2.718281828e-123,
 		1.0 / 3,
+		math.MaxFloat32,
+		math.MaxFloat64,
+		math.SmallestNonzeroFloat32,
+		math.SmallestNonzeroFloat64,
 		math.Inf(-1),
 		math.Inf(0),
 		-math.Inf(1),
@@ -637,8 +641,8 @@ func TestFloatSetFloat64(t *testing.T) {
 			}
 			var f Float
 			f.SetFloat64(want)
-			if got, _ := f.Float64(); got != want {
-				t.Errorf("got %g (%s); want %g", got, f.Format('p', 0), want)
+			if got, acc := f.Float64(); got != want || acc != Exact {
+				t.Errorf("got %g (%s, %s); want %g (Exact)", got, f.Format('p', 0), acc, want)
 			}
 		}
 	}
@@ -830,6 +834,56 @@ func TestFloatInt64(t *testing.T) {
 		if out != test.out || acc != test.acc {
 			t.Errorf("%s: got %d (%s); want %d (%s)", test.x, out, acc, test.out, test.acc)
 		}
+	}
+}
+
+func TestFloatFloat64(t *testing.T) {
+	for _, test := range []struct {
+		x   string
+		out float64
+		acc Accuracy
+	}{
+		{"-Inf", math.Inf(-1), Exact},
+		{"-0x1.fffffffffffff8p2147483646", -math.Inf(+1), Below}, // overflow in rounding
+		{"-1e10000", math.Inf(-1), Below},                        // overflow
+		{"-0x1p1024", math.Inf(-1), Below},                       // overflow
+		{"-0x1.fffffffffffff8p1023", -math.Inf(+1), Below},       // overflow
+		{"-0x1.fffffffffffff4p1023", -math.MaxFloat64, Above},
+		{"-0x1.fffffffffffffp1023", -math.MaxFloat64, Exact},
+		{"-12345.000000000000000000001", -12345, Above},
+		{"-12345.0", -12345, Exact},
+		{"-1.000000000000000000001", -1, Above},
+		{"-1", -1, Exact},
+		{"-0x0.0000000000001p-1022", -math.SmallestNonzeroFloat64, Exact},
+		{"-0x0.0000000000001p-1023", -0, Above}, // underflow
+		{"-1e-1000", -0, Above},                 // underflow
+		{"0", 0, Exact},
+		{"1e-1000", 0, Below},                 // underflow
+		{"0x0.0000000000001p-1023", 0, Below}, // underflow
+		{"0x0.0000000000001p-1022", math.SmallestNonzeroFloat64, Exact},
+		{"1", 1, Exact},
+		{"1.000000000000000000001", 1, Below},
+		{"12345.0", 12345, Exact},
+		{"12345.000000000000000000001", 12345, Below},
+		{"0x1.fffffffffffffp1023", math.MaxFloat64, Exact},
+		{"0x1.fffffffffffff4p1023", math.MaxFloat64, Below},
+		{"0x1.fffffffffffff8p1023", math.Inf(+1), Above},       // overflow
+		{"0x1p1024", math.Inf(+1), Above},                      // overflow
+		{"1e10000", math.Inf(+1), Above},                       // overflow
+		{"0x1.fffffffffffff8p2147483646", math.Inf(+1), Above}, // overflow in rounding
+		{"+Inf", math.Inf(+1), Exact},
+	} {
+		x := makeFloat(test.x)
+		out, acc := x.Float64()
+		if out != test.out || acc != test.acc {
+			t.Errorf("%s: got %g (%s); want %g (%s)", test.x, out, acc, test.out, test.acc)
+		}
+	}
+
+	// test NaN
+	x := makeFloat("NaN")
+	if out, acc := x.Float64(); out == out || acc != Undef {
+		t.Errorf("NaN: got %g (%s); want NaN (Undef)", out, acc)
 	}
 }
 
@@ -1073,14 +1127,14 @@ func TestFloatAdd32(t *testing.T) {
 			got, acc := z.Float64()
 			want := float64(float32(y0) + float32(x0))
 			if got != want || acc != Exact {
-				t.Errorf("d = %d: %g + %g = %g (%s); want %g exactly", d, x0, y0, got, acc, want)
+				t.Errorf("d = %d: %g + %g = %g (%s); want %g (Exact)", d, x0, y0, got, acc, want)
 			}
 
 			z.Sub(z, y)
 			got, acc = z.Float64()
 			want = float64(float32(want) - float32(y0))
 			if got != want || acc != Exact {
-				t.Errorf("d = %d: %g - %g = %g (%s); want %g exactly", d, x0+y0, y0, got, acc, want)
+				t.Errorf("d = %d: %g - %g = %g (%s); want %g (Exact)", d, x0+y0, y0, got, acc, want)
 			}
 		}
 	}
@@ -1106,14 +1160,14 @@ func TestFloatAdd64(t *testing.T) {
 			got, acc := z.Float64()
 			want := x0 + y0
 			if got != want || acc != Exact {
-				t.Errorf("d = %d: %g + %g = %g (%s); want %g exactly", d, x0, y0, got, acc, want)
+				t.Errorf("d = %d: %g + %g = %g (%s); want %g (Exact)", d, x0, y0, got, acc, want)
 			}
 
 			z.Sub(z, y)
 			got, acc = z.Float64()
 			want -= y0
 			if got != want || acc != Exact {
-				t.Errorf("d = %d: %g - %g = %g (%s); want %g exactly", d, x0+y0, y0, got, acc, want)
+				t.Errorf("d = %d: %g - %g = %g (%s); want %g (Exact)", d, x0+y0, y0, got, acc, want)
 			}
 		}
 	}
