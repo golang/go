@@ -443,7 +443,7 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
 // String reassembles the URL into a valid URL string.
 // The general form of the result is one of:
 //
-//	scheme:opaque
+//	scheme:opaque?query#fragment
 //	scheme://userinfo@host/path?query#fragment
 //
 // If u.Opaque is non-empty, String uses the first form;
