@@ -62,7 +62,9 @@ const (
 	OpCheckBound // 0 <= arg[0] < arg[1]
 
 	// function calls.  Arguments to the call have already been written to the stack.
-	// Return values appear on the stack.
+	// Return values appear on the stack.  The method receiver, if any, is treated
+	// as a phantom first argument.
+	// TODO: closure pointer must be in a register.
 	OpCall       // args are function ptr, memory
 	OpStaticCall // aux is function, arg is memory
 
@@ -82,33 +84,38 @@ const (
 	OpStoreFP
 	OpStoreSP
 
-	// spill and restore ops for the register allocator.  These are
-	// semantically identical to OpCopy - they do not take/return
-	// stores like regular memory ops do.  We can get away with that because
-	// we know there is no aliasing to spill slots on the stack.
+	// spill&restore ops for the register allocator.  These are
+	// semantically identical to OpCopy; they do not take/return
+	// stores like regular memory ops do.  We can get away without memory
+	// args because we know there is no aliasing of spill slots on the stack.
 	OpStoreReg8
 	OpLoadReg8
 
 	// machine-dependent opcodes go here
 
-	// x86
+	// amd64
 	OpADDQ
 	OpSUBQ
-	OpADDCQ // 1 input arg, add aux which is an int64 constant
+	OpADDCQ // 1 input arg.  output = input + aux.(int64)
 	OpSUBCQ // 1 input arg.  output = input - aux.(int64)
 	OpNEGQ
 	OpCMPQ
 	OpCMPCQ // 1 input arg.  Compares input with aux.(int64)
 	OpADDL
-	OpInvertFlags // inverts interpretation of the flags register (< to >=, etc.)
-	OpSETL        // generate bool = "flags encode less than"
+	OpSETL // generate bool = "flags encode less than"
 	OpSETGE
+
+	// InvertFlags reverses direction of flags register interpretation:
+	// (InvertFlags (OpCMPQ a b)) == (OpCMPQ b a)
+	// This is a pseudo-op which can't appear in assembly output.
+	OpInvertFlags
 
 	OpLEAQ  // x+y
 	OpLEAQ2 // x+2*y
 	OpLEAQ4 // x+4*y
 	OpLEAQ8 // x+8*y
 
+	// load/store 8-byte integer register from stack slot.
 	OpLoadFP8
 	OpLoadSP8
 	OpStoreFP8

@@ -1,0 +1,46 @@
+// Copyright 2015 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// values are specified using the following format:
+// (op <type> [aux] arg0 arg1 ...)
+// the type and aux fields are optional
+// on the matching side
+//  - the types and aux fields must match if they are specified.
+// on the generated side
+//  - types will be computed by opcode typers if not specified explicitly.
+//  - aux will be nil if not specified.
+
+// x86 register conventions:
+//  - Integer types live in the low portion of registers.  Upper portions are junk.
+//  - Boolean types use the low-order byte of a register.  Upper bytes are junk.
+//  - We do not use AH,BH,CH,DH registers.
+//  - Floating-point types will live in the low natural slot of an sse2 register.
+//    Unused portions are junk.
+
+// These are the lowerings themselves
+(Add <t> x y) && is64BitInt(t) -> (ADDQ x y)
+(Add <t> x y) && is32BitInt(t) -> (ADDL x y)
+
+(Sub <t> x y) && is64BitInt(t) -> (SUBQ x y)
+
+(Less x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETL (CMPQ x y))
+
+// stack loads/stores
+(LoadFP <t> [offset] mem) && typeSize(t) == 8 -> (LoadFP8 <t> [offset] mem)
+(StoreFP [offset] val mem) && typeSize(val.Type) == 8 -> (StoreFP8 [offset] val mem)
+(LoadSP <t> [offset] mem) && typeSize(t) == 8 -> (LoadSP8 <t> [offset] mem)
+(StoreSP [offset] val mem) && typeSize(val.Type) == 8 -> (StoreSP8 [offset] val mem)
+
+// Rules below here apply some simple optimizations after lowering.
+// TODO: Should this be a separate pass?
+
+(ADDQ x (ConstInt [c])) -> (ADDCQ [c] x) // TODO: restrict c to int32 range?
+(ADDQ (ConstInt [c]) x) -> (ADDCQ [c] x)
+(SUBQ x (ConstInt [c])) -> (SUBCQ x [c])
+(SUBQ (ConstInt [c]) x) -> (NEGQ (SUBCQ x [c]))
+(CMPQ x (ConstInt [c])) -> (CMPCQ x [c])
+(CMPQ (ConstInt [c]) x) -> (InvertFlags (CMPCQ x [c]))
+
+// reverse ordering of compare instruction
+(SETL (InvertFlags x)) -> (SETGE x)
