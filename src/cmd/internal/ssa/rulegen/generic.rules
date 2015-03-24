@@ -1,0 +1,16 @@
+// Copyright 2015 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// constant folding
+(Add <t> (ConstInt [c]) (ConstInt [d])) && is64BitInt(t) -> (ConstInt [{c.(int64)+d.(int64)}])
+
+// load/store to stack
+(Load (FPAddr [offset]) mem) -> (LoadFP [offset] mem)
+(Store (FPAddr [offset]) val mem) -> (StoreFP [offset] val mem)
+
+(Load (SPAddr [offset]) mem) -> (LoadSP [offset] mem)
+(Store (SPAddr [offset]) val mem) -> (StoreSP [offset] val mem)
+
+// expand array indexing
+// others?  Depends on what is already done by frontend

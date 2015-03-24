@@ -4,7 +4,10 @@
 
 package ssa
 
-import "fmt"
+import (
+	"fmt"
+	"log"
+)
 
 // Compile is the main entry point for this package.
 // Compile modifies f so that on return:
@@ -50,16 +53,55 @@ type pass struct {
 var passes = [...]pass{
 	{"phielim", phielim},
 	{"copyelim", copyelim},
-	//{"opt", opt},
+	{"opt", opt},
 	// cse
 	{"deadcode", deadcode},
-	//{"fuse", fuse},
-	//{"lower", lower},
+	{"fuse", fuse},
+	{"lower", lower},
 	// cse
-	//{"critical", critical}, // remove critical edges
-	//{"layout", layout},     // schedule blocks
-	//{"schedule", schedule}, // schedule values
+	{"critical", critical}, // remove critical edges
+	{"layout", layout},     // schedule blocks
+	{"schedule", schedule}, // schedule values
 	// regalloc
 	// stack slot alloc (+size stack frame)
-	//{"cgen", cgen},
+	{"cgen", cgen},
+}
+
+// Double-check phase ordering constraints.
+// This code is intended to document the ordering requirements
+// between different phases.  It does not override the passes
+// list above.
+var passOrder = map[string]string{
+	// don't layout blocks until critical edges have been removed
+	"critical": "layout",
+	// regalloc requires the removal of all critical edges
+	//"critical": "regalloc",
+	// regalloc requires all the values in a block to be scheduled
+	//"schedule": "regalloc",
+	// code generation requires register allocation
+	//"cgen":"regalloc",
+}
+
+func init() {
+	for a, b := range passOrder {
+		i := -1
+		j := -1
+		for k, p := range passes {
+			if p.name == a {
+				i = k
+			}
+			if p.name == b {
+				j = k
+			}
+		}
+		if i < 0 {
+			log.Panicf("pass %s not found", a)
+		}
+		if j < 0 {
+			log.Panicf("pass %s not found", b)
+		}
+		if i >= j {
+			log.Panicf("passes %s and %s out of order", a, b)
+		}
+	}
 }
