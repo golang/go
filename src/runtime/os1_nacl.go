@@ -67,11 +67,11 @@ func usleep(us uint32) {
 
 func mstart_nacl()
 
+//go:nowritebarrier
 func newosproc(mp *m, stk unsafe.Pointer) {
-	tls := (*[3]unsafe.Pointer)(unsafe.Pointer(&mp.tls))
-	tls[0] = unsafe.Pointer(mp.g0)
-	tls[1] = unsafe.Pointer(mp)
-	ret := nacl_thread_create(funcPC(mstart_nacl), stk, unsafe.Pointer(&tls[2]), nil)
+	mp.tls[0] = uintptr(unsafe.Pointer(mp.g0))
+	mp.tls[1] = uintptr(unsafe.Pointer(mp))
+	ret := nacl_thread_create(funcPC(mstart_nacl), stk, unsafe.Pointer(&mp.tls[2]), nil)
 	if ret < 0 {
 		print("nacl_thread_create: error ", -ret, "\n")
 		throw("newosproc")
