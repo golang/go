@@ -738,10 +738,6 @@ func mstart1() {
 		_g_.m.nextp = nil
 	}
 	schedule()
-
-	// TODO(brainman): This point is never reached, because scheduler
-	// does not release os threads at the moment. But once this path
-	// is enabled, we must remove our seh here.
 }
 
 // When running with cgo, we call _cgo_thread_start
