@@ -19,18 +19,18 @@ func RGBToYCbCr(r, g, b uint8) (uint8, uint8, uint8) {
 	cr := (32768*r1 - 27440*g1 - 5328*b1 + 257<<15) >> 16
 	if yy < 0 {
 		yy = 0
-	} else if yy > 255 {
-		yy = 255
+	} else if yy > 0xff {
+		yy = 0xff
 	}
 	if cb < 0 {
 		cb = 0
-	} else if cb > 255 {
-		cb = 255
+	} else if cb > 0xff {
+		cb = 0xff
 	}
 	if cr < 0 {
 		cr = 0
-	} else if cr > 255 {
-		cr = 255
+	} else if cr > 0xff {
+		cr = 0xff
 	}
 	return uint8(yy), uint8(cb), uint8(cr)
 }
@@ -50,18 +50,18 @@ func YCbCrToRGB(y, cb, cr uint8) (uint8, uint8, uint8) {
 	b := (yy1 + 116130*cb1) >> 16
 	if r < 0 {
 		r = 0
-	} else if r > 255 {
-		r = 255
+	} else if r > 0xff {
+		r = 0xff
 	}
 	if g < 0 {
 		g = 0
-	} else if g > 255 {
-		g = 255
+	} else if g > 0xff {
+		g = 0xff
 	}
 	if b < 0 {
 		b = 0
-	} else if b > 255 {
-		b = 255
+	} else if b > 0xff {
+		b = 0xff
 	}
 	return uint8(r), uint8(g), uint8(b)
 }
@@ -82,8 +82,45 @@ type YCbCr struct {
 }
 
 func (c YCbCr) RGBA() (uint32, uint32, uint32, uint32) {
-	r, g, b := YCbCrToRGB(c.Y, c.Cb, c.Cr)
-	return uint32(r) * 0x101, uint32(g) * 0x101, uint32(b) * 0x101, 0xffff
+	// This code is a copy of the YCbCrToRGB function above, except that it
+	// returns values in the range [0, 0xffff] instead of [0, 0xff]. There is a
+	// subtle difference between doing this and having YCbCr satisfy the Color
+	// interface by first converting to an RGBA. The latter loses some
+	// information by going to and from 8 bits per channel.
+	//
+	// For example, this code:
+	//	const y, cb, cr = 0x7f, 0x7f, 0x7f
+	//	r, g, b := color.YCbCrToRGB(y, cb, cr)
+	//	r0, g0, b0, _ := color.YCbCr{y, cb, cr}.RGBA()
+	//	r1, g1, b1, _ := color.RGBA{r, g, b, 0xff}.RGBA()
+	//	fmt.Printf("0x%04x 0x%04x 0x%04x\n", r0, g0, b0)
+	//	fmt.Printf("0x%04x 0x%04x 0x%04x\n", r1, g1, b1)
+	// prints:
+	//	0x7e19 0x808e 0x7dba
+	//	0x7e7e 0x8080 0x7d7d
+
+	yy1 := int(c.Y)<<16 + 1<<15
+	cb1 := int(c.Cb) - 128
+	cr1 := int(c.Cr) - 128
+	r := (yy1 + 91881*cr1) >> 8
+	g := (yy1 - 22554*cb1 - 46802*cr1) >> 8
+	b := (yy1 + 116130*cb1) >> 8
+	if r < 0 {
+		r = 0
+	} else if r > 0xffff {
+		r = 0xffff
+	}
+	if g < 0 {
+		g = 0
+	} else if g > 0xffff {
+		g = 0xffff
+	}
+	if b < 0 {
+		b = 0
+	} else if b > 0xffff {
+		b = 0xffff
+	}
+	return uint32(r), uint32(g), uint32(b), 0xffff
 }
 
 // YCbCrModel is the Model for Y'CbCr colors.
@@ -111,20 +148,20 @@ func RGBToCMYK(r, g, b uint8) (uint8, uint8, uint8, uint8) {
 		w = bb
 	}
 	if w == 0 {
-		return 0, 0, 0, 255
+		return 0, 0, 0, 0xff
 	}
-	c := (w - rr) * 255 / w
-	m := (w - gg) * 255 / w
-	y := (w - bb) * 255 / w
-	return uint8(c), uint8(m), uint8(y), uint8(255 - w)
+	c := (w - rr) * 0xff / w
+	m := (w - gg) * 0xff / w
+	y := (w - bb) * 0xff / w
+	return uint8(c), uint8(m), uint8(y), uint8(0xff - w)
 }
 
 // CMYKToRGB converts a CMYK quadruple to an RGB triple.
 func CMYKToRGB(c, m, y, k uint8) (uint8, uint8, uint8) {
-	w := uint32(255 - k)
-	r := uint32(255-c) * w / 255
-	g := uint32(255-m) * w / 255
-	b := uint32(255-y) * w / 255
+	w := uint32(0xff - k)
+	r := uint32(0xff-c) * w / 0xff
+	g := uint32(0xff-m) * w / 0xff
+	b := uint32(0xff-y) * w / 0xff
 	return uint8(r), uint8(g), uint8(b)
 }
 
