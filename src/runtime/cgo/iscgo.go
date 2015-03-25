@@ -15,6 +15,3 @@ import _ "unsafe" // for go:linkname
 
 //go:linkname _iscgo runtime.iscgo
 var _iscgo bool = true
-
-//go:linkname _needextram runtime.needextram
-var _needextram uint32 = 1 // create an extra M on first cgo call

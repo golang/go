@@ -718,8 +718,8 @@ func mstart1() {
 	// prepare the thread to be able to handle the signals.
 	if _g_.m == &m0 {
 		// Create an extra M for callbacks on threads not created by Go.
-		if needextram == 1 {
-			needextram = 0
+		if iscgo && !cgoHasExtraM {
+			cgoHasExtraM = true
 			newextram()
 		}
 		initsig()
@@ -817,7 +817,7 @@ func allocm(_p_ *p) *m {
 // put the m back on the list.
 //go:nosplit
 func needm(x byte) {
-	if needextram != 0 {
+	if iscgo && !cgoHasExtraM {
 		// Can happen if C/C++ code calls Go from a global ctor.
 		// Can not throw, because scheduler is not initialized yet.
 		write(2, unsafe.Pointer(&earlycgocallback[0]), int32(len(earlycgocallback)))
