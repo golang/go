@@ -64,6 +64,8 @@ Go generate sets several variables when it runs the generator:
 		The base name of the file.
 	$GOPACKAGE
 		The name of the package of the file containing the directive.
+	$DOLLAR
+		A dollar sign.
 
 Other than variable substitution and quoted-string evaluation, no
 special processing such as "globbing" is performed on the command
@@ -348,6 +350,8 @@ func (g *Generator) expandEnv(word string) string {
 			sub = g.file
 		case "GOPACKAGE":
 			sub = g.pkg
+		case "DOLLAR":
+			sub = "$"
 		default:
 			sub = os.Getenv(envVar)
 		}

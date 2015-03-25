@@ -26,6 +26,7 @@ var splitTests = []splitTest{
 	{"$GOPACKAGE", []string{"sys"}},
 	{"a $XXNOTDEFINEDXX b", []string{"a", "", "b"}},
 	{"/$XXNOTDEFINED/", []string{"//"}},
+	{"/$DOLLAR/", []string{"/$/"}},
 	{"yacc -o $GOARCH/yacc_$GOFILE", []string{"go", "tool", "yacc", "-o", runtime.GOARCH + "/yacc_proc.go"}},
 }
 
