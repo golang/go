@@ -308,13 +308,15 @@ func declImports(gen *ast.GenDecl, path string) bool {
 	return false
 }
 
-// matchLen returns the length of the longest prefix shared by x and y.
+// matchLen returns the length of the longest path segment prefix shared by x and y.
 func matchLen(x, y string) int {
-	i := 0
-	for i < len(x) && i < len(y) && x[i] == y[i] {
-		i++
+	n := 0
+	for i := 0; i < len(x) && i < len(y) && x[i] == y[i]; i++ {
+		if x[i] == '/' {
+			n++
+		}
 	}
-	return i
+	return n
 }
 
 // isTopName returns true if n is a top-level unresolved identifier with the given name.

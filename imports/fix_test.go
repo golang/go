@@ -671,19 +671,59 @@ import (
 func main() { fmt.Println("pi:", math.Pi) }
 `,
 	},
+
+	// Too aggressive prefix matching
+	// golang.org/issue/9961
+	{
+		name: "issue 9961",
+		in: `package p
+
+import (
+	"zip"
+
+	"rsc.io/p"
+)
+
+var (
+	_ = fmt.Print
+	_ = zip.Store
+	_ p.P
+	_ = regexp.Compile
+)
+`,
+		out: `package p
+
+import (
+	"fmt"
+	"regexp"
+	"zip"
+
+	"rsc.io/p"
+)
+
+var (
+	_ = fmt.Print
+	_ = zip.Store
+	_ p.P
+	_ = regexp.Compile
+)
+`,
+	},
 }
 
 func TestFixImports(t *testing.T) {
 	simplePkgs := map[string]string{
-		"fmt":       "fmt",
-		"os":        "os",
-		"math":      "math",
 		"appengine": "appengine",
-		"user":      "appengine/user",
-		"zip":       "archive/zip",
 		"bytes":     "bytes",
+		"fmt":       "fmt",
+		"math":      "math",
+		"os":        "os",
+		"p":         "rsc.io/p",
+		"regexp":    "regexp",
 		"snappy":    "code.google.com/p/snappy-go/snappy",
 		"str":       "strings",
+		"user":      "appengine/user",
+		"zip":       "archive/zip",
 	}
 	findImport = func(pkgName string, symbols map[string]bool) (string, bool, error) {
 		return simplePkgs[pkgName], pkgName == "str", nil

@@ -315,6 +315,31 @@ import "time"
 type T time.Time
 `,
 	},
+
+	// Issue 9961: Match prefixes using path segments rather than bytes
+	{
+		name: "issue 9961",
+		pkg:  "regexp",
+		in: `package main
+
+import (
+	"flag"
+	"testing"
+
+	"rsc.io/p"
+)
+`,
+		out: `package main
+
+import (
+	"flag"
+	"regexp"
+	"testing"
+
+	"rsc.io/p"
+)
+`,
+	},
 }
 
 func TestAddImport(t *testing.T) {
