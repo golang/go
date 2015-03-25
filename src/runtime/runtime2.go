@@ -605,11 +605,9 @@ var (
 	allm        *m
 	allp        [_MaxGomaxprocs + 1]*p
 	gomaxprocs  int32
-	needextram  uint32
 	panicking   uint32
 	goos        *int8
 	ncpu        int32
-	iscgo       bool
 	signote     note
 	forcegc     forcegcstate
 	sched       schedt
