@@ -54,6 +54,7 @@ const (
 	BlockPlain                  // a single successor
 	BlockIf                     // 2 successors, if control goto Succs[0] else goto Succs[1]
 	BlockCall                   // 2 successors, normal return and panic
+	// TODO(khr): BlockPanic for the built-in panic call, has 1 edge to the exit block
 	BlockUnknown
 
 	// 386/amd64 variants of BlockIf that take the flags register as an arg

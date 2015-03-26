@@ -5,23 +5,23 @@ package ssa
 func genericRules(v *Value) bool {
 	switch v.Op {
 	case OpAdd:
-		// match: (Add <t> (ConstInt [c]) (ConstInt [d]))
-		// cond: is64BitInt(t)
-		// result: (ConstInt [{c.(int64)+d.(int64)}])
+		// match: (Add <t> (Const [c]) (Const [d]))
+		// cond: is64BitInt(t) && isSigned(t)
+		// result: (Const [{c.(int64)+d.(int64)}])
 		{
 			t := v.Type
-			if v.Args[0].Op != OpConstInt {
+			if v.Args[0].Op != OpConst {
 				goto end0
 			}
 			c := v.Args[0].Aux
-			if v.Args[1].Op != OpConstInt {
+			if v.Args[1].Op != OpConst {
 				goto end0
 			}
 			d := v.Args[1].Aux
-			if !(is64BitInt(t)) {
+			if !(is64BitInt(t) && isSigned(t)) {
 				goto end0
 			}
-			v.Op = OpConstInt
+			v.Op = OpConst
 			v.Aux = nil
 			v.Args = v.argstorage[:0]
 			v.Aux = c.(int64) + d.(int64)
@@ -29,13 +29,37 @@ func genericRules(v *Value) bool {
 		}
 	end0:
 		;
+		// match: (Add <t> (Const [c]) (Const [d]))
+		// cond: is64BitInt(t) && !isSigned(t)
+		// result: (Const [{c.(uint64)+d.(uint64)}])
+		{
+			t := v.Type
+			if v.Args[0].Op != OpConst {
+				goto end1
+			}
+			c := v.Args[0].Aux
+			if v.Args[1].Op != OpConst {
+				goto end1
+			}
+			d := v.Args[1].Aux
+			if !(is64BitInt(t) && !isSigned(t)) {
+				goto end1
+			}
+			v.Op = OpConst
+			v.Aux = nil
+			v.Args = v.argstorage[:0]
+			v.Aux = c.(uint64) + d.(uint64)
+			return true
+		}
+	end1:
+		;
 	case OpLoad:
 		// match: (Load (FPAddr [offset]) mem)
 		// cond:
 		// result: (LoadFP [offset] mem)
 		{
 			if v.Args[0].Op != OpFPAddr {
-				goto end1
+				goto end2
 			}
 			offset := v.Args[0].Aux
 			mem := v.Args[1]
@@ -46,14 +70,14 @@ func genericRules(v *Value) bool {
 			v.AddArg(mem)
 			return true
 		}
-	end1:
+	end2:
 		;
 		// match: (Load (SPAddr [offset]) mem)
 		// cond:
 		// result: (LoadSP [offset] mem)
 		{
 			if v.Args[0].Op != OpSPAddr {
-				goto end2
+				goto end3
 			}
 			offset := v.Args[0].Aux
 			mem := v.Args[1]
@@ -64,7 +88,7 @@ func genericRules(v *Value) bool {
 			v.AddArg(mem)
 			return true
 		}
-	end2:
+	end3:
 		;
 	case OpStore:
 		// match: (Store (FPAddr [offset]) val mem)
@@ -72,7 +96,7 @@ func genericRules(v *Value) bool {
 		// result: (StoreFP [offset] val mem)
 		{
 			if v.Args[0].Op != OpFPAddr {
-				goto end3
+				goto end4
 			}
 			offset := v.Args[0].Aux
 			val := v.Args[1]
@@ -85,14 +109,14 @@ func genericRules(v *Value) bool {
 			v.AddArg(mem)
 			return true
 		}
-	end3:
+	end4:
 		;
 		// match: (Store (SPAddr [offset]) val mem)
 		// cond:
 		// result: (StoreSP [offset] val mem)
 		{
 			if v.Args[0].Op != OpSPAddr {
-				goto end4
+				goto end5
 			}
 			offset := v.Args[0].Aux
 			val := v.Args[1]
@@ -105,7 +129,7 @@ func genericRules(v *Value) bool {
 			v.AddArg(mem)
 			return true
 		}
-	end4:
+	end5:
 	}
 	return false
 }

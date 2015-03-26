@@ -28,43 +28,36 @@ func applyRewrite(f *Func, r func(*Value) bool) {
 // Common functions called from rewriting rules
 
 func is64BitInt(t Type) bool {
-	return typeIdentical(t, TypeInt64) ||
-		typeIdentical(t, TypeUint64) ||
-		(typeIdentical(t, TypeInt) && intSize == 8) ||
-		(typeIdentical(t, TypeUint) && intSize == 8) ||
-		(typeIdentical(t, TypeUintptr) && ptrSize == 8)
+	if b, ok := t.Underlying().(*types.Basic); ok {
+		switch b.Kind() {
+		case types.Int64, types.Uint64:
+			return true
+		}
+	}
+	return false
 }
 
 func is32BitInt(t Type) bool {
-	return typeIdentical(t, TypeInt32) ||
-		typeIdentical(t, TypeUint32) ||
-		(typeIdentical(t, TypeInt) && intSize == 4) ||
-		(typeIdentical(t, TypeUint) && intSize == 4) ||
-		(typeIdentical(t, TypeUintptr) && ptrSize == 4)
+	if b, ok := t.Underlying().(*types.Basic); ok {
+		switch b.Kind() {
+		case types.Int32, types.Uint32:
+			return true
+		}
+	}
+	return false
 }
 
 func isSigned(t Type) bool {
-	return typeIdentical(t, TypeInt) ||
-		typeIdentical(t, TypeInt8) ||
-		typeIdentical(t, TypeInt16) ||
-		typeIdentical(t, TypeInt32) ||
-		typeIdentical(t, TypeInt64)
+	if b, ok := t.Underlying().(*types.Basic); ok {
+		switch b.Kind() {
+		case types.Int8, types.Int16, types.Int32, types.Int64:
+			return true
+		}
+	}
+	return false
 }
 
-func typeSize(t Type) int {
-	switch t {
-	case TypeInt32, TypeUint32:
-		return 4
-	case TypeInt64, TypeUint64:
-		return 8
-	case TypeUintptr:
-		return ptrSize
-	case TypeInt, TypeUint:
-		return intSize
-	default:
-		if _, ok := t.(*types.Pointer); ok {
-			return ptrSize
-		}
-		panic("TODO: width of " + t.String())
-	}
+var sizer types.Sizes = &types.StdSizes{int64(ptrSize), int64(ptrSize)} // TODO(khr): from config
+func typeSize(t Type) int64 {
+	return sizer.Sizeof(t)
 }

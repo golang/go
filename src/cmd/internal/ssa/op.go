@@ -29,14 +29,9 @@ const (
 	OpLess
 
 	// constants
-	OpConstNil
-	OpConstBool    // aux is type bool
-	OpConstString  // aux is type string
-	OpConstInt     // aux is type int64
-	OpConstFloat   // aux is type float64
-	OpConstComplex // aux is type complex128
+	OpConst
 
-	OpArg    // address of a function parameter/result
+	OpArg    // address of a function parameter/result.  Memory input is an arg called ".mem".
 	OpGlobal // address of a global variable
 	OpFunc   // entry address of a function
 	OpCopy   // output = input
@@ -56,7 +51,7 @@ const (
 	OpIndexAddr
 
 	OpLoad  // args are ptr, memory
-	OpStore // args are ptr, memory, returns memory
+	OpStore // args are ptr, value, memory, returns memory
 
 	OpCheckNil   // arg[0] != nil
 	OpCheckBound // 0 <= arg[0] < arg[1]
@@ -135,9 +130,6 @@ type OpInfo struct {
 	// %A: print aux with fmt.Print
 	asm string
 
-	// computes type for values with this opcode
-	typer func(v *Value)
-
 	// returns a reg constraint for the instruction. [0] gives a reg constraint
 	// for each input, [1] gives a reg constraint for each output. (Values have
 	// exactly one output for now)
@@ -178,28 +170,6 @@ const (
 	ArchArm
 )
 
-func firstArgTyper(v *Value) {
-	v.Type = v.Args[0].Type
-}
-func boolTyper(v *Value) {
-	v.Type = TypeBool
-}
-func stringTyper(v *Value) {
-	v.Type = TypeString
-}
-func flagsTyper(v *Value) {
-	v.Type = TypeFlags
-}
-func uint8Typer(v *Value) {
-	v.Type = TypeUint8
-}
-func uint64Typer(v *Value) {
-	v.Type = TypeUint64
-}
-func auxTyper(v *Value) {
-	v.Type = v.Aux.(Type)
-}
-
 // general purpose registers, 2 input, 1 output
 var gp21 = [2][]regMask{{gp, gp}, {gp}}
 var gp21_overwrite = [2][]regMask{{gp, gp}, {overwrite0}}
@@ -221,21 +191,17 @@ var genericTable = [...]OpInfo{
 	// the unknown op is used only during building and should not appear in a
 	// fully formed ssa representation.
 
-	OpAdd:  {flags: OpFlagCommutative, typer: firstArgTyper},
-	OpSub:  {typer: firstArgTyper},
-	OpMul:  {flags: OpFlagCommutative, typer: firstArgTyper},
-	OpLess: {typer: boolTyper},
+	OpAdd:  {flags: OpFlagCommutative},
+	OpSub:  {},
+	OpMul:  {flags: OpFlagCommutative},
+	OpLess: {},
 
-	OpConstBool:    {typer: boolTyper},   // aux is a bool
-	OpConstString:  {typer: stringTyper}, // aux is a string
-	OpConstInt:     {},                   // aux is an int64
-	OpConstFloat:   {},                   // aux is a float64
-	OpConstComplex: {},
-	OpArg:          {}, // aux is the name of the input variable  TODO:?
-	OpGlobal:       {}, // address of a global variable
-	OpFunc:         {},
-	OpCopy:         {},
-	OpPhi:          {},
+	OpConst:  {}, // aux matches the type (e.g. bool, int64 float64)
+	OpArg:    {}, // aux is the name of the input variable  TODO:?
+	OpGlobal: {}, // address of a global variable
+	OpFunc:   {},
+	OpCopy:   {},
+	OpPhi:    {},
 
 	OpConvNop: {}, // aux is the type to convert to
 
@@ -281,12 +247,12 @@ var genericTable = [...]OpInfo{
 
 // Opcodes that appear in an output amd64 program
 var amd64Table = [...]OpInfo{
-	OpADDQ:  {flags: OpFlagCommutative, asm: "ADDQ\t%I0,%I1,%O0", reg: gp21, typer: firstArgTyper}, // TODO: overwrite
-	OpADDCQ: {asm: "ADDQ\t$%A,%I0,%O0", reg: gp11_overwrite, typer: firstArgTyper},                 // aux = int64 constant to add
-	OpSUBQ:  {asm: "SUBQ\t%I0,%I1,%O0", reg: gp21, typer: firstArgTyper},
-	OpSUBCQ: {asm: "SUBQ\t$%A,%I0,%O0", reg: gp11_overwrite, typer: firstArgTyper},
+	OpADDQ:  {flags: OpFlagCommutative, asm: "ADDQ\t%I0,%I1,%O0", reg: gp21}, // TODO: overwrite
+	OpADDCQ: {asm: "ADDQ\t$%A,%I0,%O0", reg: gp11_overwrite},                 // aux = int64 constant to add
+	OpSUBQ:  {asm: "SUBQ\t%I0,%I1,%O0", reg: gp21},
+	OpSUBCQ: {asm: "SUBQ\t$%A,%I0,%O0", reg: gp11_overwrite},
 
-	OpCMPQ:  {asm: "CMPQ\t%I0,%I1", reg: gp2_flags, typer: flagsTyper}, // compute arg[0]-arg[1] and produce flags
+	OpCMPQ:  {asm: "CMPQ\t%I0,%I1", reg: gp2_flags}, // compute arg[0]-arg[1] and produce flags
 	OpCMPCQ: {asm: "CMPQ\t$%A,%I0", reg: gp1_flags},
 
 	OpLEAQ:  {flags: OpFlagCommutative, asm: "LEAQ\t%A(%I0)(%I1*1),%O0", reg: gp21}, // aux = int64 constant to add
@@ -302,7 +268,7 @@ var amd64Table = [...]OpInfo{
 	OpCopy: {asm: "MOVQ\t%I0,%O0", reg: gp11},
 
 	// convert from flags back to boolean
-	OpSETL: {typer: boolTyper},
+	OpSETL: {},
 
 	// ops for load/store to stack
 	OpLoadFP8:  {asm: "MOVQ\t%A(FP),%O0"},

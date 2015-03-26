@@ -4,9 +4,9 @@ package ssa
 
 import "fmt"
 
-const _Op_name = "OpUnknownOpNopOpThunkOpAddOpSubOpMulOpLessOpConstNilOpConstBoolOpConstStringOpConstIntOpConstFloatOpConstComplexOpArgOpGlobalOpFuncOpCopyOpPhiOpSliceMakeOpSlicePtrOpSliceLenOpSliceCapOpStringMakeOpStringPtrOpStringLenOpSliceOpIndexOpIndexAddrOpLoadOpStoreOpCheckNilOpCheckBoundOpCallOpStaticCallOpConvertOpConvNopOpFPAddrOpSPAddrOpLoadFPOpLoadSPOpStoreFPOpStoreSPOpStoreReg8OpLoadReg8OpADDQOpSUBQOpADDCQOpSUBCQOpNEGQOpCMPQOpCMPCQOpADDLOpSETLOpSETGEOpInvertFlagsOpLEAQOpLEAQ2OpLEAQ4OpLEAQ8OpLoadFP8OpLoadSP8OpStoreFP8OpStoreSP8OpMax"
+const _Op_name = "OpUnknownOpNopOpThunkOpAddOpSubOpMulOpLessOpConstOpArgOpGlobalOpFuncOpCopyOpPhiOpSliceMakeOpSlicePtrOpSliceLenOpSliceCapOpStringMakeOpStringPtrOpStringLenOpSliceOpIndexOpIndexAddrOpLoadOpStoreOpCheckNilOpCheckBoundOpCallOpStaticCallOpConvertOpConvNopOpFPAddrOpSPAddrOpLoadFPOpLoadSPOpStoreFPOpStoreSPOpStoreReg8OpLoadReg8OpADDQOpSUBQOpADDCQOpSUBCQOpNEGQOpCMPQOpCMPCQOpADDLOpSETLOpSETGEOpInvertFlagsOpLEAQOpLEAQ2OpLEAQ4OpLEAQ8OpLoadFP8OpLoadSP8OpStoreFP8OpStoreSP8OpMax"
 
-var _Op_index = [...]uint16{0, 9, 14, 21, 26, 31, 36, 42, 52, 63, 76, 86, 98, 112, 117, 125, 131, 137, 142, 153, 163, 173, 183, 195, 206, 217, 224, 231, 242, 248, 255, 265, 277, 283, 295, 304, 313, 321, 329, 337, 345, 354, 363, 374, 384, 390, 396, 403, 410, 416, 422, 429, 435, 441, 448, 461, 467, 474, 481, 488, 497, 506, 516, 526, 531}
+var _Op_index = [...]uint16{0, 9, 14, 21, 26, 31, 36, 42, 49, 54, 62, 68, 74, 79, 90, 100, 110, 120, 132, 143, 154, 161, 168, 179, 185, 192, 202, 214, 220, 232, 241, 250, 258, 266, 274, 282, 291, 300, 311, 321, 327, 333, 340, 347, 353, 359, 366, 372, 378, 385, 398, 404, 411, 418, 425, 434, 443, 453, 463, 468}
 
 func (i Op) String() string {
 	if i < 0 || i+1 >= Op(len(_Op_index)) {

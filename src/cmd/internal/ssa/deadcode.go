@@ -20,7 +20,7 @@ func deadcode(f *Func) {
 
 		// constant-fold conditionals
 		// TODO: rewrite rules instead?
-		if b.Kind == BlockIf && b.Control.Op == OpConstBool {
+		if b.Kind == BlockIf && b.Control.Op == OpConst {
 			cond := b.Control.Aux.(bool)
 			var c *Block
 			if cond {

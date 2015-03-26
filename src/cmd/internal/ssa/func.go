@@ -57,5 +57,5 @@ func (b *Block) NewValue(op Op, t Type, aux interface{}) *Value {
 func (f *Func) ConstInt(c int64) *Value {
 	// TODO: cache?
 	// TODO: different types?
-	return f.Entry.NewValue(OpConstInt, TypeInt, c)
+	return f.Entry.NewValue(OpConst, TypeInt64, c)
 }

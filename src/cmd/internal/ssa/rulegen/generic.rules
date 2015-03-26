@@ -3,7 +3,8 @@
 // license that can be found in the LICENSE file.
 
 // constant folding
-(Add <t> (ConstInt [c]) (ConstInt [d])) && is64BitInt(t) -> (ConstInt [{c.(int64)+d.(int64)}])
+(Add <t> (Const [c]) (Const [d])) && is64BitInt(t) && isSigned(t) -> (Const [{c.(int64)+d.(int64)}])
+(Add <t> (Const [c]) (Const [d])) && is64BitInt(t) && !isSigned(t) -> (Const [{c.(uint64)+d.(uint64)}])
 
 // load/store to stack
 (Load (FPAddr [offset]) mem) -> (LoadFP [offset] mem)

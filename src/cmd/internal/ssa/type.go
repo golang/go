@@ -13,25 +13,33 @@ type Type types.Type
 
 var (
 	// shortcuts for commonly used basic types
-	TypeInt     = types.Typ[types.Int]
-	TypeUint    = types.Typ[types.Uint]
-	TypeInt8    = types.Typ[types.Int8]
-	TypeInt16   = types.Typ[types.Int16]
-	TypeInt32   = types.Typ[types.Int32]
-	TypeInt64   = types.Typ[types.Int64]
-	TypeUint8   = types.Typ[types.Uint8]
-	TypeUint16  = types.Typ[types.Uint16]
-	TypeUint32  = types.Typ[types.Uint32]
-	TypeUint64  = types.Typ[types.Uint64]
-	TypeUintptr = types.Typ[types.Uintptr]
-	TypeBool    = types.Typ[types.Bool]
-	TypeString  = types.Typ[types.String]
+	//TypeInt     = types.Typ[types.Int]
+	//TypeUint    = types.Typ[types.Uint]
+	TypeInt8   = types.Typ[types.Int8]
+	TypeInt16  = types.Typ[types.Int16]
+	TypeInt32  = types.Typ[types.Int32]
+	TypeInt64  = types.Typ[types.Int64]
+	TypeUint8  = types.Typ[types.Uint8]
+	TypeUint16 = types.Typ[types.Uint16]
+	TypeUint32 = types.Typ[types.Uint32]
+	TypeUint64 = types.Typ[types.Uint64]
+	//TypeUintptr = types.Typ[types.Uintptr]
+	TypeBool   = types.Typ[types.Bool]
+	TypeString = types.Typ[types.String]
 
 	TypeInvalid = types.Typ[types.Invalid]
 
 	// Additional compiler-only types go here.
 	TypeMem   = &Memory{}
 	TypeFlags = &Flags{}
+
+	// TODO(khr): we probably shouldn't use int/uint/uintptr as Value types in the compiler.
+	// In OpConst's case, their width is the compiler's width, not the to-be-compiled
+	// program's width.  For now, we can translate int/uint/uintptr to their specific
+	// widths variants before SSA.
+	// However, we may need at some point to maintain all possible user types in the
+	// compiler to handle things like interface conversion.  At that point, we may
+	// need to revisit this decision.
 )
 
 // typeIdentical reports whether its two arguments are the same type.
