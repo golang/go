@@ -6,9 +6,7 @@ package net
 
 import (
 	"fmt"
-	"os"
 	"reflect"
-	"runtime"
 	"testing"
 )
 
@@ -64,9 +62,8 @@ func init() {
 }
 
 func TestResolveIPAddr(t *testing.T) {
-	switch runtime.GOOS {
-	case "nacl":
-		t.Skipf("skipping test on %q", runtime.GOOS)
+	if !testableNetwork("ip+nopriv") {
+		t.Skip("ip+nopriv test")
 	}
 
 	for _, tt := range resolveIPAddrTests {
@@ -89,16 +86,11 @@ var ipConnLocalNameTests = []struct {
 }
 
 func TestIPConnLocalName(t *testing.T) {
-	switch runtime.GOOS {
-	case "nacl", "plan9", "windows":
-		t.Skipf("skipping test on %q", runtime.GOOS)
-	default:
-		if os.Getuid() != 0 {
-			t.Skip("skipping test; must be root")
-		}
-	}
-
 	for _, tt := range ipConnLocalNameTests {
+		if !testableNetwork(tt.net) {
+			t.Logf("skipping %s test", tt.net)
+			continue
+		}
 		c, err := ListenIP(tt.net, tt.laddr)
 		if err != nil {
 			t.Fatalf("ListenIP failed: %v", err)
@@ -111,13 +103,8 @@ func TestIPConnLocalName(t *testing.T) {
 }
 
 func TestIPConnRemoteName(t *testing.T) {
-	switch runtime.GOOS {
-	case "plan9", "windows":
-		t.Skipf("skipping test on %q", runtime.GOOS)
-	default:
-		if os.Getuid() != 0 {
-			t.Skip("skipping test; must be root")
-		}
+	if !testableNetwork("ip:tcp") {
+		t.Skip("ip:tcp test")
 	}
 
 	raddr := &IPAddr{IP: IPv4(127, 0, 0, 1).To4()}

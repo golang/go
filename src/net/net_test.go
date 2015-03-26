@@ -63,14 +63,10 @@ func TestShutdown(t *testing.T) {
 }
 
 func TestShutdownUnix(t *testing.T) {
-	switch runtime.GOOS {
-	case "nacl", "plan9", "windows":
-		t.Skipf("skipping test on %q", runtime.GOOS)
-	case "darwin":
-		if runtime.GOARCH == "arm" {
-			t.Skipf("skipping test on %s/%s", runtime.GOOS, runtime.GOARCH)
-		}
+	if !testableNetwork("unix") {
+		t.Skip("unix test")
 	}
+
 	f, err := ioutil.TempFile("", "go_net_unixtest")
 	if err != nil {
 		t.Fatalf("TempFile: %s", err)

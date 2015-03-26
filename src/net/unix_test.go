@@ -17,9 +17,10 @@ import (
 )
 
 func TestReadUnixgramWithUnnamedSocket(t *testing.T) {
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
-		t.Skipf("skipping unixgram test on %s/%s", runtime.GOOS, runtime.GOARCH)
+	if !testableNetwork("unixgram") {
+		t.Skip("unixgram test")
 	}
+
 	addr := testUnixAddr()
 	la, err := ResolveUnixAddr("unixgram", addr)
 	if err != nil {
@@ -67,8 +68,8 @@ func TestReadUnixgramWithUnnamedSocket(t *testing.T) {
 }
 
 func TestReadUnixgramWithZeroBytesBuffer(t *testing.T) {
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
-		t.Skipf("skipping unixgram test on %s/%s", runtime.GOOS, runtime.GOARCH)
+	if !testableNetwork("unixgram") {
+		t.Skip("unixgram test")
 	}
 	// issue 4352: Recvfrom failed with "address family not
 	// supported by protocol family" if zero-length buffer provided
@@ -149,6 +150,7 @@ func TestUnixAutobindClose(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("skipping: autobind is linux only")
 	}
+
 	laddr := &UnixAddr{Name: "", Net: "unix"}
 	ln, err := ListenUnix("unix", laddr)
 	if err != nil {
@@ -158,9 +160,10 @@ func TestUnixAutobindClose(t *testing.T) {
 }
 
 func TestUnixgramWrite(t *testing.T) {
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
-		t.Skipf("skipping unixgram test on %s/%s", runtime.GOOS, runtime.GOARCH)
+	if !testableNetwork("unixgram") {
+		t.Skip("unixgram test")
 	}
+
 	addr := testUnixAddr()
 	laddr, err := ResolveUnixAddr("unixgram", addr)
 	if err != nil {
@@ -228,9 +231,10 @@ func testUnixgramWritePacketConn(t *testing.T, raddr *UnixAddr) {
 }
 
 func TestUnixConnLocalAndRemoteNames(t *testing.T) {
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
-		t.Skipf("skipping unixgram test on %s/%s", runtime.GOOS, runtime.GOARCH)
+	if !testableNetwork("unix") {
+		t.Skip("unix test")
 	}
+
 	for _, laddr := range []string{"", testUnixAddr()} {
 		laddr := laddr
 		taddr := testUnixAddr()
@@ -290,9 +294,10 @@ func TestUnixConnLocalAndRemoteNames(t *testing.T) {
 }
 
 func TestUnixgramConnLocalAndRemoteNames(t *testing.T) {
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
-		t.Skipf("skipping unixgram test on %s/%s", runtime.GOOS, runtime.GOARCH)
+	if !testableNetwork("unixgram") {
+		t.Skip("unixgram test")
 	}
+
 	for _, laddr := range []string{"", testUnixAddr()} {
 		laddr := laddr
 		taddr := testUnixAddr()
