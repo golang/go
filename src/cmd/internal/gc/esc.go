@@ -205,6 +205,172 @@ const (
 	EscFuncTagged
 )
 
+// There appear to be some loops in the escape graph, causing
+// arbitrary recursion into deeper and deeper levels.
+// Cut this off safely by making minLevel sticky: once you
+// get that deep, you cannot go down any further but you also
+// cannot go up any further. This is a conservative fix.
+// Making minLevel smaller (more negative) would handle more
+// complex chains of indirections followed by address-of operations,
+// at the cost of repeating the traversal once for each additional
+// allowed level when a loop is encountered. Using -2 suffices to
+// pass all the tests we have written so far, which we assume matches
+// the level of complexity we want the escape analysis code to handle.
+const (
+	MinLevel = -2
+)
+
+// A Level encodes the reference state and context applied to
+// (stack, heap) allocated memory.
+//
+// value is the overall sum of *(1) and &(-1) operations encountered
+// along a path from a destination (sink, return value) to a source
+// (allocation, parameter).
+//
+// suffixValue is the maximum-copy-started-suffix-level applied to a sink.
+// For example:
+// sink = x.left.left --> level=2, x is dereferenced twice and does not escape to sink.
+// sink = &Node{x} --> level=-1, x is accessible from sink via one "address of"
+// sink = &Node{&Node{x}} --> level=-2, x is accessible from sink via two "address of"
+// sink = &Node{&Node{x.left}} --> level=-1, but x is NOT accessible from sink because it was indirected and then copied.
+// (The copy operations are sometimes implicit in the source code; in this case,
+// value of x.left was copied into a field of a newly allocated Node)
+//
+// There's one of these for each Node, and the integer values
+// rarely exceed even what can be stored in 4 bits, never mind 8.
+type Level struct {
+	value, suffixValue int8
+}
+
+func (l Level) int() int {
+	return int(l.value)
+}
+
+func levelFrom(i int) Level {
+	if i <= MinLevel {
+		return Level{value: MinLevel}
+	}
+	return Level{value: int8(i)}
+}
+
+func satInc8(x int8) int8 {
+	if x == 127 {
+		return 127
+	}
+	return x + 1
+}
+
+func satAdd8(x, y int8) int8 {
+	z := x + y
+	if x^y < 0 || x^z >= 0 {
+		return z
+	}
+	if x < 0 {
+		return -128
+	}
+	return 127
+}
+
+func min8(a, b int8) int8 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func max8(a, b int8) int8 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+// inc returns the level l + 1, representing the effect of an indirect (*) operation.
+func (l Level) inc() Level {
+	if l.value <= MinLevel {
+		return Level{value: MinLevel}
+	}
+	return Level{value: satInc8(l.value), suffixValue: satInc8(l.suffixValue)}
+}
+
+// dec returns the level l - 1, representing the effect of an address-of (&) operation.
+func (l Level) dec() Level {
+	if l.value <= MinLevel {
+		return Level{value: MinLevel}
+	}
+	return Level{value: l.value - 1, suffixValue: l.suffixValue - 1}
+}
+
+// copy returns the level for a copy of a value with level l.
+func (l Level) copy() Level {
+	return Level{value: l.value, suffixValue: max8(l.suffixValue, 0)}
+}
+
+func (l1 Level) min(l2 Level) Level {
+	return Level{
+		value:       min8(l1.value, l2.value),
+		suffixValue: min8(l1.suffixValue, l2.suffixValue)}
+}
+
+// guaranteedDereference returns the number of dereferences
+// applied to a pointer before addresses are taken/generated.
+// This is the maximum level computed from path suffixes starting
+// with copies where paths flow from destination to source.
+func (l Level) guaranteedDereference() int {
+	return int(l.suffixValue)
+}
+
+// Escape constants are numbered in order of increasing "escapiness"
+// to help make inferences be monotonic.  With the exception of
+// EscNever which is sticky, eX < eY means that eY is more exposed
+// than eX, and hence replaces it in a conservative analysis.
+const (
+	EscUnknown = iota
+	EscNone    // Does not escape to heap, result, or parameters.
+	EscReturn  // Is returned or reachable from returned.
+	EscScope   // Allocated in an inner loop scope, assigned to an outer loop scope,
+	// which allows the construction of non-escaping but arbitrarily large linked
+	// data structures (i.e., not eligible for allocation in a fixed-size stack frame).
+	EscHeap           // Reachable from the heap
+	EscNever          // By construction will not escape.
+	EscBits           = 3
+	EscMask           = (1 << EscBits) - 1
+	EscContentEscapes = 1 << EscBits // value obtained by indirect of parameter escapes to heap
+	EscReturnBits     = EscBits + 1
+	// Node.esc encoding = | escapeReturnEncoding:(width-4) | contentEscapes:1 | escEnum:3
+)
+
+// escMax returns the maximum of an existing escape value
+// (and its additional parameter flow flags) and a new escape type.
+func escMax(e, etype uint16) uint16 {
+	if e&EscMask == EscHeap {
+		// normalize
+		if e != EscHeap {
+			Fatal("Escape information had tag bits combined with 'EscHeap' ")
+		}
+		return EscHeap
+	}
+	if e&EscMask > etype {
+		return e
+	}
+	if etype == EscNone || etype == EscReturn {
+		return (e &^ EscMask) | etype
+	}
+	return etype
+}
+
+// For each input parameter to a function, the escapeReturnEncoding describes
+// how the parameter may leak to the function's outputs.  This is currently the
+// "level" of the leak where level is 0 or larger (negative level means stored into
+// something whose address is returned -- but that implies stored into the heap,
+// hence EscHeap, which means that the details are not currently relevant. )
+const (
+	bitsPerOutputInTag = 3                                         // For each output, the number of bits for a tag
+	bitsMaskForTag     = uint16(1<<bitsPerOutputInTag) - 1         // The bit mask to extract a single tag.
+	outputsPerTag      = (16 - EscReturnBits) / bitsPerOutputInTag // The number of outputs that can be tagged.
+	maxEncodedLevel    = int(bitsMaskForTag - 1)                   // The largest level that can be stored in a tag.
+)
+
 type EscState struct {
 	// Fake node that all
 	//   - return values and output variables
@@ -213,13 +379,6 @@ type EscState struct {
 	// flow to.
 	theSink Node
 
-	// If an analyzed function is recorded to return
-	// pieces obtained via indirection from a parameter,
-	// and later there is a call f(x) to that function,
-	// we create a link funcParam <- x to record that fact.
-	// The funcParam node is handled specially in escflood.
-	funcParam Node
-
 	dsts      *NodeList // all dst nodes
 	loopdepth int       // for detecting nested loop scopes
 	pdepth    int       // for debug printing in recursions.
@@ -227,42 +386,6 @@ type EscState struct {
 	edgecount int       // diagnostic
 	noesc     *NodeList // list of possible non-escaping nodes, for printing
 	recursive bool      // recursive function or group of mutually recursive functions.
-}
-
-var tags [16]*string
-
-// mktag returns the string representation for an escape analysis tag.
-func mktag(mask int) *string {
-	switch mask & EscMask {
-	case EscNone, EscReturn:
-		break
-
-	default:
-		Fatal("escape mktag")
-	}
-
-	mask >>= EscBits
-
-	if mask < len(tags) && tags[mask] != nil {
-		return tags[mask]
-	}
-
-	s := fmt.Sprintf("esc:0x%x", mask)
-	if mask < len(tags) {
-		tags[mask] = &s
-	}
-	return &s
-}
-
-func parsetag(note *string) int {
-	if note == nil || !strings.HasPrefix(*note, "esc:") {
-		return EscUnknown
-	}
-	em := atoi((*note)[4:])
-	if em == 0 {
-		return EscNone
-	}
-	return EscReturn | em<<EscBits
 }
 
 func escAnalyze(all *NodeList, recursive bool) {
@@ -274,12 +397,6 @@ func escAnalyze(all *NodeList, recursive bool) {
 	e.theSink.Sym = Lookup(".sink")
 	e.theSink.Escloopdepth = -1
 	e.recursive = recursive
-
-	e.funcParam.Op = ONAME
-	e.funcParam.Orig = &e.funcParam
-	e.funcParam.Class = PAUTO
-	e.funcParam.Sym = Lookup(".param")
-	e.funcParam.Escloopdepth = 10000000
 
 	for l := all; l != nil; l = l.Next {
 		if l.N.Op == ODCLFUNC {
@@ -799,7 +916,10 @@ func escassign(e *EscState, dst *Node, src *Node) {
 		} else {
 			tmp = nil
 		}
-		fmt.Printf("%v:[%d] %v escassign: %v(%v) = %v(%v)\n", Ctxt.Line(int(lineno)), e.loopdepth, tmp, Nconv(dst, obj.FmtShort), Jconv(dst, obj.FmtShort), Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort))
+		fmt.Printf("%v:[%d] %v escassign: %v(%v)[%v] = %v(%v)[%v]\n",
+			Ctxt.Line(int(lineno)), e.loopdepth, tmp,
+			Nconv(dst, obj.FmtShort), Jconv(dst, obj.FmtShort), Oconv(int(dst.Op), 0),
+			Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort), Oconv(int(src.Op), 0))
 	}
 
 	setlineno(dst)
@@ -887,7 +1007,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
 		a.Type = Ptrto(src.Type)
 		escflows(e, dst, a)
 
-		// Flowing multiple returns to a single dst happens when
+	// Flowing multiple returns to a single dst happens when
 	// analyzing "go f(g())": here g() flows to sink (issue 4529).
 	case OCALLMETH, OCALLFUNC, OCALLINTER:
 		for ll := src.Escretval; ll != nil; ll = ll.Next {
@@ -953,8 +1073,109 @@ func escassign(e *EscState, dst *Node, src *Node) {
 	lineno = int32(lno)
 }
 
-func escassignfromtag(e *EscState, note *string, dsts *NodeList, src *Node) int {
+// Common case for escapes is 16 bits 000000000xxxEEEE
+// where commonest cases for xxx encoding in-to-out pointer
+//  flow are 000, 001, 010, 011  and EEEE is computed Esc bits.
+// Note width of xxx depends on value of constant
+// bitsPerOutputInTag -- expect 2 or 3, so in practice the
+// tag cache array is 64 or 128 long.  Some entries will
+// never be populated.
+var tags [1 << (bitsPerOutputInTag + EscReturnBits)]string
+
+// mktag returns the string representation for an escape analysis tag.
+func mktag(mask int) *string {
+	switch mask & EscMask {
+	case EscNone, EscReturn:
+		break
+
+	default:
+		Fatal("escape mktag")
+	}
+
+	if mask < len(tags) && tags[mask] != "" {
+		return &tags[mask]
+	}
+
+	s := fmt.Sprintf("esc:0x%x", mask)
+	if mask < len(tags) {
+		tags[mask] = s
+	}
+	return &s
+}
+
+// parsetag decodes an escape analysis tag and returns the esc value.
+func parsetag(note *string) uint16 {
+	if note == nil || !strings.HasPrefix(*note, "esc:") {
+		return EscUnknown
+	}
+	em := uint16(atoi((*note)[4:]))
+	if em == 0 {
+		return EscNone
+	}
+	return em
+}
+
+// describeEscape returns a string describing the escape tag.
+// The result is either one of {EscUnknown, EscNone, EscHeap} which all have no further annotation
+// or a description of parameter flow, which takes the form of an optional "contentToHeap"
+// indicating that the content of this parameter is leaked to the heap, followed by a sequence
+// of level encodings separated by spaces, one for each parameter, where _ means no flow,
+// = means direct flow, and N asterisks (*) encodes content (obtained by indirection) flow.
+// e.g., "contentToHeap _ =" means that a parameter's content (one or more dereferences)
+// escapes to the heap, the parameter does not leak to the first output, but does leak directly
+// to the second output (and if there are more than two outputs, there is no flow to those.)
+func describeEscape(em uint16) string {
+	var s string
+	if em&EscMask == EscUnknown {
+		s = "EscUnknown"
+	}
+	if em&EscMask == EscNone {
+		s = "EscNone"
+	}
+	if em&EscMask == EscHeap {
+		s = "EscHeap"
+	}
+	if em&EscMask == EscReturn {
+		s = "EscReturn"
+	}
+	if em&EscMask == EscScope {
+		s = "EscScope"
+	}
+	if em&EscContentEscapes != 0 {
+		if s != "" {
+			s += " "
+		}
+		s += "contentToHeap"
+	}
+	for em >>= EscReturnBits; em != 0; em = em >> bitsPerOutputInTag {
+		// See encoding description above
+		if s != "" {
+			s += " "
+		}
+		switch embits := em & bitsMaskForTag; embits {
+		case 0:
+			s += "_"
+		case 1:
+			s += "="
+		default:
+			for i := uint16(0); i < embits-1; i++ {
+				s += "*"
+			}
+		}
+
+	}
+	return s
+}
+
+// escassignfromtag models the input-to-output assignment flow of one of a function
+// calls arguments, where the flow is encoded in "note".
+func escassignfromtag(e *EscState, note *string, dsts *NodeList, src *Node) uint16 {
 	em := parsetag(note)
+
+	if Debug['m'] > 2 {
+		fmt.Printf("%v::assignfromtag:: src=%v, em=%s\n",
+			Ctxt.Line(int(lineno)), Nconv(src, obj.FmtShort), describeEscape(em))
+	}
 
 	if em == EscUnknown {
 		escassign(e, &e.theSink, src)
@@ -966,22 +1187,87 @@ func escassignfromtag(e *EscState, note *string, dsts *NodeList, src *Node) int 
 	}
 
 	// If content inside parameter (reached via indirection)
-	// escapes back to results, mark as such.
+	// escapes to heap, mark as such.
 	if em&EscContentEscapes != 0 {
-		escassign(e, &e.funcParam, src)
+		escassign(e, &e.theSink, addDereference(src))
 	}
 
 	em0 := em
-	for em >>= EscReturnBits; em != 0 && dsts != nil; em, dsts = em>>1, dsts.Next {
-		if em&1 != 0 {
-			escassign(e, dsts.N, src)
+	for em >>= EscReturnBits; em != 0 && dsts != nil; em, dsts = em>>bitsPerOutputInTag, dsts.Next {
+		// Prefer the lowest-level path to the reference (for escape purposes).
+		// Two-bit encoding (for example. 1, 3, and 4 bits are other options)
+		//  01 = 0-level
+		//  10 = 1-level, (content escapes),
+		//  11 = 2-level, (content of content escapes),
+		embits := em & bitsMaskForTag
+		if embits > 0 {
+			n := src
+			for i := uint16(0); i < embits-1; i++ {
+				n = addDereference(n) // encode level>0 as indirections
+			}
+			escassign(e, dsts.N, n)
 		}
 	}
+	// If there are too many outputs to fit in the tag,
+	// that is handled at the encoding end as EscHeap,
+	// so there is no need to check here.
 
 	if em != 0 && dsts == nil {
 		Fatal("corrupt esc tag %q or messed up escretval list\n", note)
 	}
 	return em0
+}
+
+// addDereference constructs a suitable OIND note applied to src.
+// Because this is for purposes of escape accounting, not execution,
+// some semantically dubious node combinations are (currently) possible.
+func addDereference(n *Node) *Node {
+	ind := Nod(OIND, n, nil)
+	ind.Escloopdepth = n.Escloopdepth
+	ind.Lineno = n.Lineno
+	t := n.Type
+	if Istype(t, Tptr) {
+		// This should model our own sloppy use of OIND to encode
+		// decreasing levels of indirection; i.e., "indirecting" an array
+		// might yield the type of an element.  To be enhanced...
+		t = t.Type
+	}
+	ind.Type = t
+	return ind
+}
+
+// escNoteOutputParamFlow encodes maxEncodedLevel/.../1/0-level flow to the vargen'th parameter.
+// Levels greater than maxEncodedLevel are replaced with maxEncodedLevel.
+// If the encoding cannot describe the modified input level and output number, then EscHeap is returned.
+func escNoteOutputParamFlow(e uint16, vargen int32, level Level) uint16 {
+	// Flow+level is encoded in two bits.
+	// 00 = not flow, xx = level+1 for 0 <= level <= maxEncodedLevel
+	// 16 bits for Esc allows 6x2bits or 4x3bits or 3x4bits if additional information would be useful.
+	if level.int() <= 0 && level.guaranteedDereference() > 0 {
+		return escMax(e|EscContentEscapes, EscNone) // At least one deref, thus only content.
+	}
+	if level.int() < 0 {
+		return EscHeap
+	}
+	if level.int() > maxEncodedLevel {
+		// Cannot encode larger values than maxEncodedLevel.
+		level = levelFrom(maxEncodedLevel)
+	}
+	encoded := uint16(level.int() + 1)
+
+	shift := uint(bitsPerOutputInTag*(vargen-1) + EscReturnBits)
+	old := (e >> shift) & bitsMaskForTag
+	if old == 0 || encoded != 0 && encoded < old {
+		old = encoded
+	}
+
+	encodedFlow := old << shift
+	if (encodedFlow>>shift)&bitsMaskForTag != old {
+		// Encoding failure defaults to heap.
+		return EscHeap
+	}
+
+	return (e &^ (bitsMaskForTag << shift)) | encodedFlow
 }
 
 // This is a bit messier than fortunate, pulled out of esc's big
@@ -1022,7 +1308,12 @@ func esccall(e *EscState, n *Node, up *Node) {
 		}
 	}
 
-	if fn != nil && fn.Op == ONAME && fn.Class == PFUNC && fn.Defn != nil && fn.Defn.Nbody != nil && fn.Ntype != nil && fn.Defn.Esc < EscFuncTagged {
+	if fn != nil && fn.Op == ONAME && fn.Class == PFUNC &&
+		fn.Defn != nil && fn.Defn.Nbody != nil && fn.Ntype != nil && fn.Defn.Esc < EscFuncTagged {
+		if Debug['m'] > 2 {
+			fmt.Printf("%v::esccall:: %v in recursive group\n", Ctxt.Line(int(lineno)), Nconv(n, obj.FmtShort))
+		}
+
 		// function in same mutually recursive group.  Incorporate into flow graph.
 		//		print("esc local fn: %N\n", fn->ntype);
 		if fn.Defn.Esc == EscFuncUnknown || n.Escretval != nil {
@@ -1067,6 +1358,9 @@ func esccall(e *EscState, n *Node, up *Node) {
 
 		// "..." arguments are untracked
 		for ; ll != nil; ll = ll.Next {
+			if Debug['m'] > 2 {
+				fmt.Printf("%v::esccall:: ... <- %v, untracked\n", Ctxt.Line(int(lineno)), Nconv(ll.N, obj.FmtShort))
+			}
 			escassign(e, &e.theSink, ll.N)
 		}
 
@@ -1078,6 +1372,10 @@ func esccall(e *EscState, n *Node, up *Node) {
 		Fatal("esc already decorated call %v\n", Nconv(n, obj.FmtSign))
 	}
 
+	if Debug['m'] > 2 {
+		fmt.Printf("%v::esccall:: %v not recursive\n", Ctxt.Line(int(lineno)), Nconv(n, obj.FmtShort))
+	}
+
 	// set up out list on this call node with dummy auto ONAMES in the current (calling) function.
 	i := 0
 
@@ -1085,7 +1383,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 	var buf string
 	for t := getoutargx(fntype).Type; t != nil; t = t.Down {
 		src = Nod(ONAME, nil, nil)
-		buf = fmt.Sprintf(".dum%d", i)
+		buf = fmt.Sprintf(".out%d", i)
 		i++
 		src.Sym = Lookup(buf)
 		src.Type = t.Type
@@ -1162,10 +1460,14 @@ func esccall(e *EscState, n *Node, up *Node) {
 	// "..." arguments are untracked
 	for ; ll != nil; ll = ll.Next {
 		escassign(e, &e.theSink, ll.N)
+		if Debug['m'] > 2 {
+			fmt.Printf("%v::esccall:: ... <- %v, untracked\n", Ctxt.Line(int(lineno)), Nconv(ll.N, obj.FmtShort))
+		}
 	}
 }
 
-// Store the link src->dst in dst, throwing out some quick wins.
+// escflows records the link src->dst in dst, throwing out some quick wins,
+// and also ensuring that dst is noted as a flow destination.
 func escflows(e *EscState, dst *Node, src *Node) {
 	if dst == nil || src == nil || dst == src {
 		return
@@ -1220,31 +1522,31 @@ func escflood(e *EscState, dst *Node) {
 
 	for l := dst.Escflowsrc; l != nil; l = l.Next {
 		walkgen++
-		escwalk(e, 0, dst, l.N)
+		escwalk(e, levelFrom(0), dst, l.N)
 	}
 }
 
-// There appear to be some loops in the escape graph, causing
-// arbitrary recursion into deeper and deeper levels.
-// Cut this off safely by making minLevel sticky: once you
-// get that deep, you cannot go down any further but you also
-// cannot go up any further. This is a conservative fix.
-// Making minLevel smaller (more negative) would handle more
-// complex chains of indirections followed by address-of operations,
-// at the cost of repeating the traversal once for each additional
-// allowed level when a loop is encountered. Using -2 suffices to
-// pass all the tests we have written so far, which we assume matches
-// the level of complexity we want the escape analysis code to handle.
-const (
-	MinLevel = -2
-)
+// funcOutputAndInput reports whether dst and src correspond to output and input parameters of the same function.
+func funcOutputAndInput(dst, src *Node) bool {
+	// Note if dst is marked as escaping, then "returned" is too weak.
+	return dst.Op == ONAME && dst.Class == PPARAMOUT &&
+		src.Op == ONAME && src.Class == PPARAM && src.Curfn == dst.Curfn
+}
 
-func escwalk(e *EscState, level int, dst *Node, src *Node) {
-	if src.Walkgen == walkgen && src.Esclevel <= int32(level) {
-		return
+func escwalk(e *EscState, level Level, dst *Node, src *Node) {
+
+	if src.Walkgen == walkgen {
+		// Esclevels are vectors, do not compare as integers,
+		// and must use "min" of old and new to guarantee
+		// convergence.
+		level = level.min(src.Esclevel)
+		if level == src.Esclevel {
+			return
+		}
 	}
+
 	src.Walkgen = walkgen
-	src.Esclevel = int32(level)
+	src.Esclevel = level
 
 	if Debug['m'] > 1 {
 		var tmp *Sym
@@ -1253,48 +1555,70 @@ func escwalk(e *EscState, level int, dst *Node, src *Node) {
 		} else {
 			tmp = nil
 		}
-		fmt.Printf("escwalk: level:%d depth:%d %.*s %v(%v) scope:%v[%d]\n", level, e.pdepth, e.pdepth, "\t\t\t\t\t\t\t\t\t\t", Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort), tmp, src.Escloopdepth)
+		fmt.Printf("escwalk: level:%d depth:%d %.*s op=%v %v(%v) scope:%v[%d]\n",
+			level, e.pdepth, e.pdepth, "\t\t\t\t\t\t\t\t\t\t", Oconv(int(src.Op), 0), Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort), tmp, src.Escloopdepth)
 	}
 
 	e.pdepth++
 
 	// Input parameter flowing to output parameter?
 	var leaks bool
-	if dst.Op == ONAME && dst.Class == PPARAMOUT && dst.Vargen <= 20 {
-		if src.Op == ONAME && src.Class == PPARAM && src.Curfn == dst.Curfn && src.Esc != EscScope && src.Esc != EscHeap {
-			if level == 0 {
-				if Debug['m'] != 0 {
-					Warnl(int(src.Lineno), "leaking param: %v to result %v", Nconv(src, obj.FmtShort), dst.Sym)
-				}
-				if src.Esc&EscMask != EscReturn {
-					src.Esc = EscReturn
-				}
-				src.Esc |= 1 << uint((dst.Vargen-1)+EscReturnBits)
-				goto recurse
-			} else if level > 0 {
-				if Debug['m'] != 0 {
-					Warnl(int(src.Lineno), "%v leaking param %v content to result %v", src.Curfn.Nname, Nconv(src, obj.FmtShort), dst.Sym)
-				}
-				if src.Esc&EscMask != EscReturn {
-					src.Esc = EscReturn
-				}
-				src.Esc |= EscContentEscapes
-				goto recurse
+	if funcOutputAndInput(dst, src) && src.Esc&EscMask != EscScope && src.Esc != EscHeap && dst.Esc != EscHeap {
+		// This case handles:
+		// 1. return in
+		// 2. return &in
+		// 3. tmp := in; return &tmp
+		// 4. return *in
+		if Debug['m'] != 0 {
+			if Debug['m'] == 1 {
+				Warnl(int(src.Lineno), "leaking param: %v to result %v level=%v", Nconv(src, obj.FmtShort), dst.Sym, level.int())
+			} else {
+				Warnl(int(src.Lineno), "leaking param: %v to result %v level=%v", Nconv(src, obj.FmtShort), dst.Sym, level)
 			}
+		}
+		if src.Esc&EscMask != EscReturn {
+			src.Esc = EscReturn | src.Esc&EscContentEscapes
+		}
+		src.Esc = escNoteOutputParamFlow(src.Esc, dst.Vargen, level)
+		goto recurse
+	}
+
+	// If parameter content escapes to heap, set EscContentEscapes
+	// Note minor confusion around escape from pointer-to-struct vs escape from struct
+	if dst.Esc == EscHeap &&
+		src.Op == ONAME && src.Class == PPARAM && src.Esc != EscHeap &&
+		level.int() > 0 {
+		src.Esc = escMax(EscContentEscapes|src.Esc, EscNone)
+		if Debug['m'] != 0 {
+			Warnl(int(src.Lineno), "mark escaped content: %v", Nconv(src, obj.FmtShort))
 		}
 	}
 
-	// The second clause is for values pointed at by an object passed to a call
-	// that returns something reached via indirect from the object.
-	// We don't know which result it is or how many indirects, so we treat it as leaking.
-	leaks = level <= 0 && dst.Escloopdepth < src.Escloopdepth || level < 0 && dst == &e.funcParam && haspointers(src.Type)
+	leaks = level.int() <= 0 && level.guaranteedDereference() <= 0 && dst.Escloopdepth < src.Escloopdepth
 
 	switch src.Op {
 	case ONAME:
 		if src.Class == PPARAM && (leaks || dst.Escloopdepth < 0) && src.Esc != EscHeap {
-			src.Esc = EscScope
-			if Debug['m'] != 0 {
-				Warnl(int(src.Lineno), "leaking param: %v", Nconv(src, obj.FmtShort))
+			if level.guaranteedDereference() > 0 {
+				src.Esc = escMax(EscContentEscapes|src.Esc, EscNone)
+				if Debug['m'] != 0 {
+					if Debug['m'] == 1 {
+						Warnl(int(src.Lineno), "leaking param content: %v", Nconv(src, obj.FmtShort))
+					} else {
+						Warnl(int(src.Lineno), "leaking param content: %v level=%v dst.eld=%v src.eld=%v dst=%v",
+							Nconv(src, obj.FmtShort), level, dst.Escloopdepth, src.Escloopdepth, Nconv(dst, obj.FmtShort))
+					}
+				}
+			} else {
+				src.Esc = EscScope
+				if Debug['m'] != 0 {
+					if Debug['m'] == 1 {
+						Warnl(int(src.Lineno), "leaking param: %v", Nconv(src, obj.FmtShort))
+					} else {
+						Warnl(int(src.Lineno), "leaking param: %v level=%v dst.eld=%v src.eld=%v dst=%v",
+							Nconv(src, obj.FmtShort), level, dst.Escloopdepth, src.Escloopdepth, Nconv(dst, obj.FmtShort))
+					}
+				}
 			}
 		}
 
@@ -1316,15 +1640,19 @@ func escwalk(e *EscState, level int, dst *Node, src *Node) {
 				if p.Left.Op == OCLOSURE {
 					p = p.Left // merely to satisfy error messages in tests
 				}
-				Warnl(int(src.Lineno), "%v escapes to heap", Nconv(p, obj.FmtShort))
+				if Debug['m'] > 1 {
+					Warnl(int(src.Lineno), "%v escapes to heap, level=%v, dst.eld=%v, src.eld=%v",
+						Nconv(p, obj.FmtShort), level, dst.Escloopdepth, src.Escloopdepth)
+				} else {
+					Warnl(int(src.Lineno), "%v escapes to heap", Nconv(p, obj.FmtShort))
+				}
 			}
 		}
 
-		newlevel := level
-		if level > MinLevel {
-			newlevel--
-		}
-		escwalk(e, newlevel, dst, src.Left)
+		escwalk(e, level.dec(), dst, src.Left)
+
+	case OAPPEND:
+		escwalk(e, level, dst, src.List.N)
 
 	case OARRAYLIT:
 		if Isfixedarray(src.Type) {
@@ -1332,7 +1660,6 @@ func escwalk(e *EscState, level int, dst *Node, src *Node) {
 		}
 		fallthrough
 
-		// fall through
 	case ODDDARG,
 		OMAKECHAN,
 		OMAKEMAP,
@@ -1370,17 +1697,27 @@ func escwalk(e *EscState, level int, dst *Node, src *Node) {
 		}
 		fallthrough
 
-		// fall through
 	case ODOTPTR, OINDEXMAP, OIND:
-		newlevel := level
+		escwalk(e, level.inc(), dst, src.Left)
 
-		if level > MinLevel {
-			newlevel++
+	// In this case a link went directly to a call, but should really go
+	// to the dummy .outN outputs that were created for the call that
+	// themselves link to the inputs with levels adjusted.
+	// See e.g. #10466
+	// This can only happen with functions returning a single result.
+	case OCALLMETH, OCALLFUNC, OCALLINTER:
+		if src.Escretval != nil {
+			if Debug['m'] > 1 {
+				fmt.Printf("%v:[%d] dst %v escwalk replace src: %v with %v\n",
+					Ctxt.Line(int(lineno)), e.loopdepth,
+					Nconv(dst, obj.FmtShort), Nconv(src, obj.FmtShort), Nconv(src.Escretval.N, obj.FmtShort))
+			}
+			src = src.Escretval.N
 		}
-		escwalk(e, newlevel, dst, src.Left)
 	}
 
 recurse:
+	level = level.copy()
 	for ll := src.Escflowsrc; ll != nil; ll = ll.Next {
 		escwalk(e, level, dst, ll.N)
 	}
@@ -1409,7 +1746,7 @@ func esctag(e *EscState, func_ *Node) {
 	Curfn = func_
 
 	for ll := Curfn.Func.Dcl; ll != nil; ll = ll.Next {
-		if ll.N.Op != ONAME || ll.N.Class != PPARAM {
+		if ll.N.Op != ONAME {
 			continue
 		}
 
