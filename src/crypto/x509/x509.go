@@ -1669,11 +1669,11 @@ type CertificateRequest struct {
 // signature requests (see RFC 2986):
 
 type tbsCertificateRequest struct {
-	Raw        asn1.RawContent
-	Version    int
-	Subject    asn1.RawValue
-	PublicKey  publicKeyInfo
-	Attributes []pkix.AttributeTypeAndValueSET `asn1:"tag:0"`
+	Raw           asn1.RawContent
+	Version       int
+	Subject       asn1.RawValue
+	PublicKey     publicKeyInfo
+	RawAttributes []asn1.RawValue `asn1:"tag:0"`
 }
 
 type certificateRequest struct {
@@ -1686,6 +1686,36 @@ type certificateRequest struct {
 // oidExtensionRequest is a PKCS#9 OBJECT IDENTIFIER that indicates requested
 // extensions in a CSR.
 var oidExtensionRequest = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 14}
+
+// newRawAttributes converts AttributeTypeAndValueSETs from a template
+// CertificateRequest's Attributes into tbsCertificateRequest RawAttributes.
+func newRawAttributes(attributes []pkix.AttributeTypeAndValueSET) ([]asn1.RawValue, error) {
+	var rawAttributes []asn1.RawValue
+	b, err := asn1.Marshal(attributes)
+	rest, err := asn1.Unmarshal(b, &rawAttributes)
+	if err != nil {
+		return nil, err
+	}
+	if len(rest) != 0 {
+		return nil, errors.New("x509: failed to unmarshall raw CSR Attributes")
+	}
+	return rawAttributes, nil
+}
+
+// parseRawAttributes Unmarshals RawAttributes intos AttributeTypeAndValueSETs.
+func parseRawAttributes(rawAttributes []asn1.RawValue) []pkix.AttributeTypeAndValueSET {
+	var attributes []pkix.AttributeTypeAndValueSET
+	for _, rawAttr := range rawAttributes {
+		var attr pkix.AttributeTypeAndValueSET
+		rest, err := asn1.Unmarshal(rawAttr.FullBytes, &attr)
+		// Ignore attributes that don't parse into pkix.AttributeTypeAndValueSET
+		// (i.e.: challengePassword or unstructuredName).
+		if err == nil && len(rest) == 0 {
+			attributes = append(attributes, attr)
+		}
+	}
+	return attributes
+}
 
 // CreateCertificateRequest creates a new certificate based on a template. The
 // following members of template are used: Subject, Attributes,
@@ -1799,6 +1829,11 @@ func CreateCertificateRequest(rand io.Reader, template *CertificateRequest, priv
 		}
 	}
 
+	rawAttributes, err := newRawAttributes(attributes)
+	if err != nil {
+		return
+	}
+
 	tbsCSR := tbsCertificateRequest{
 		Version: 0, // PKCS #10, RFC 2986
 		Subject: asn1.RawValue{FullBytes: asn1Subject},
@@ -1809,7 +1844,7 @@ func CreateCertificateRequest(rand io.Reader, template *CertificateRequest, priv
 				BitLength: len(publicKeyBytes) * 8,
 			},
 		},
-		Attributes: attributes,
+		RawAttributes: rawAttributes,
 	}
 
 	tbsCSRContents, err := asn1.Marshal(tbsCSR)
@@ -1866,7 +1901,7 @@ func parseCertificateRequest(in *certificateRequest) (*CertificateRequest, error
 		PublicKeyAlgorithm: getPublicKeyAlgorithmFromOID(in.TBSCSR.PublicKey.Algorithm.Algorithm),
 
 		Version:    in.TBSCSR.Version,
-		Attributes: in.TBSCSR.Attributes,
+		Attributes: parseRawAttributes(in.TBSCSR.RawAttributes),
 	}
 
 	var err error
@@ -1884,7 +1919,7 @@ func parseCertificateRequest(in *certificateRequest) (*CertificateRequest, error
 
 	var extensions []pkix.AttributeTypeAndValue
 
-	for _, atvSet := range in.TBSCSR.Attributes {
+	for _, atvSet := range out.Attributes {
 		if !atvSet.Type.Equal(oidExtensionRequest) {
 			continue
 		}
