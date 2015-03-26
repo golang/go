@@ -44,6 +44,7 @@ Tools:
 
 build: external linking support for windows (https://golang.org/cl/7163, 7282, 7283, 7284, 7534, 7535)
 cmd/go, go/build: add ${SRCDIR} variable expansion to cgo lines (https://golang.org/cl/1756)
+cmd/go: add $DOLLAR to generate's variables (https://golang.org/8091)
 cmd/go: std wildcard now excludes commands in main repo (https://golang.org/cl/5550)
 cmd/go: .swig/.swigcxx files now require SWIG 3.0.6 or later
 cmd/vet: better validation of struct tags (https://golang.org/cl/2685)
