@@ -15,6 +15,9 @@ func main_init()
 //go:linkname main_main main.main
 func main_main()
 
+// runtimeInitTime is the nanotime() at which the runtime started.
+var runtimeInitTime int64
+
 // The main goroutine.
 func main() {
 	g := getg()
@@ -31,6 +34,9 @@ func main() {
 	} else {
 		maxstacksize = 250000000
 	}
+
+	// Record when the world started.
+	runtimeInitTime = nanotime()
 
 	systemstack(func() {
 		newm(sysmon, nil)
