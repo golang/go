@@ -60,7 +60,7 @@ func racewalk(fn *Node) {
 		racewalklist(fn.Nbody, nil)
 
 		// nothing interesting for race detector in fn->enter
-		racewalklist(fn.Exit, nil)
+		racewalklist(fn.Func.Exit, nil)
 	}
 
 	// nodpc is the PC of the caller as extracted by
@@ -72,17 +72,17 @@ func racewalk(fn *Node) {
 	nodpc.Type = Types[TUINTPTR]
 	nodpc.Xoffset = int64(-Widthptr)
 	nd := mkcall("racefuncenter", nil, nil, nodpc)
-	fn.Enter = concat(list1(nd), fn.Enter)
+	fn.Func.Enter = concat(list1(nd), fn.Func.Enter)
 	nd = mkcall("racefuncexit", nil, nil)
-	fn.Exit = list(fn.Exit, nd)
+	fn.Func.Exit = list(fn.Func.Exit, nd)
 
 	if Debug['W'] != 0 {
 		s := fmt.Sprintf("after racewalk %v", Sconv(fn.Nname.Sym, 0))
 		dumplist(s, fn.Nbody)
 		s = fmt.Sprintf("enter %v", Sconv(fn.Nname.Sym, 0))
-		dumplist(s, fn.Enter)
+		dumplist(s, fn.Func.Enter)
 		s = fmt.Sprintf("exit %v", Sconv(fn.Nname.Sym, 0))
-		dumplist(s, fn.Exit)
+		dumplist(s, fn.Func.Exit)
 	}
 }
 

@@ -221,12 +221,12 @@ func allocauto(ptxt *obj.Prog) {
 	Stksize = 0
 	stkptrsize = 0
 
-	if Curfn.Dcl == nil {
+	if Curfn.Func.Dcl == nil {
 		return
 	}
 
 	// Mark the PAUTO's unused.
-	for ll := Curfn.Dcl; ll != nil; ll = ll.Next {
+	for ll := Curfn.Func.Dcl; ll != nil; ll = ll.Next {
 		if ll.N.Class == PAUTO {
 			ll.N.Used = false
 		}
@@ -234,32 +234,32 @@ func allocauto(ptxt *obj.Prog) {
 
 	markautoused(ptxt)
 
-	listsort(&Curfn.Dcl, cmpstackvar)
+	listsort(&Curfn.Func.Dcl, cmpstackvar)
 
 	// Unused autos are at the end, chop 'em off.
-	ll := Curfn.Dcl
+	ll := Curfn.Func.Dcl
 
 	n := ll.N
 	if n.Class == PAUTO && n.Op == ONAME && !n.Used {
 		// No locals used at all
-		Curfn.Dcl = nil
+		Curfn.Func.Dcl = nil
 
 		fixautoused(ptxt)
 		return
 	}
 
-	for ll := Curfn.Dcl; ll.Next != nil; ll = ll.Next {
+	for ll := Curfn.Func.Dcl; ll.Next != nil; ll = ll.Next {
 		n = ll.Next.N
 		if n.Class == PAUTO && n.Op == ONAME && !n.Used {
 			ll.Next = nil
-			Curfn.Dcl.End = ll
+			Curfn.Func.Dcl.End = ll
 			break
 		}
 	}
 
 	// Reassign stack offsets of the locals that are still there.
 	var w int64
-	for ll := Curfn.Dcl; ll != nil; ll = ll.Next {
+	for ll := Curfn.Func.Dcl; ll != nil; ll = ll.Next {
 		n = ll.N
 		if n.Class != PAUTO || n.Op != ONAME {
 			continue
@@ -292,7 +292,7 @@ func allocauto(ptxt *obj.Prog) {
 	fixautoused(ptxt)
 
 	// The debug information needs accurate offsets on the symbols.
-	for ll := Curfn.Dcl; ll != nil; ll = ll.Next {
+	for ll := Curfn.Func.Dcl; ll != nil; ll = ll.Next {
 		if ll.N.Class != PAUTO || ll.N.Op != ONAME {
 			continue
 		}
@@ -312,7 +312,7 @@ func movelarge(l *NodeList) {
 func movelargefn(fn *Node) {
 	var n *Node
 
-	for l := fn.Dcl; l != nil; l = l.Next {
+	for l := fn.Func.Dcl; l != nil; l = l.Next {
 		n = l.N
 		if n.Class == PAUTO && n.Type != nil && n.Type.Width > MaxStackVarSize {
 			addrescapes(n)
@@ -432,16 +432,16 @@ func compile(fn *Node) {
 		nam = nil
 	}
 	ptxt = Thearch.Gins(obj.ATEXT, nam, &nod1)
-	if fn.Dupok {
+	if fn.Func.Dupok {
 		ptxt.From3.Offset |= obj.DUPOK
 	}
-	if fn.Wrapper {
+	if fn.Func.Wrapper {
 		ptxt.From3.Offset |= obj.WRAPPER
 	}
-	if fn.Needctxt {
+	if fn.Func.Needctxt {
 		ptxt.From3.Offset |= obj.NEEDCTXT
 	}
-	if fn.Nosplit {
+	if fn.Func.Nosplit {
 		ptxt.From3.Offset |= obj.NOSPLIT
 	}
 
@@ -465,7 +465,7 @@ func compile(fn *Node) {
 		gtrack(tracksym(t.Type))
 	}
 
-	for l := fn.Dcl; l != nil; l = l.Next {
+	for l := fn.Func.Dcl; l != nil; l = l.Next {
 		n = l.N
 		if n.Op != ONAME { // might be OTYPE or OLITERAL
 			continue
@@ -478,15 +478,15 @@ func compile(fn *Node) {
 		}
 	}
 
-	Genlist(Curfn.Enter)
+	Genlist(Curfn.Func.Enter)
 	Genlist(Curfn.Nbody)
 	gclean()
 	checklabels()
 	if nerrors != 0 {
 		goto ret
 	}
-	if Curfn.Endlineno != 0 {
-		lineno = Curfn.Endlineno
+	if Curfn.Func.Endlineno != 0 {
+		lineno = Curfn.Func.Endlineno
 	}
 
 	if Curfn.Type.Outtuple != 0 {

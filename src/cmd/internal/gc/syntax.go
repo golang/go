@@ -61,7 +61,7 @@ type Node struct {
 	Nname *Node
 
 	// func
-	*Func
+	Func *Func
 
 	// OLITERAL/OREGISTER
 	Val Val

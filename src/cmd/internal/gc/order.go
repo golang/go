@@ -1067,7 +1067,7 @@ func orderexpr(np **Node, order *Order) {
 		n = ordercopyexpr(n, n.Type, order, 0)
 
 	case OCLOSURE:
-		if n.Noescape && n.Cvars != nil {
+		if n.Noescape && n.Func.Cvars != nil {
 			n.Alloc = ordertemp(Types[TUINT8], order, false) // walk will fill in correct type
 		}
 

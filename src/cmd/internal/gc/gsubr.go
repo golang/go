@@ -335,7 +335,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		a.Node = n.Left.Orig
 
 	case OCLOSUREVAR:
-		if !Curfn.Needctxt {
+		if !Curfn.Func.Needctxt {
 			Fatal("closurevar without needctxt")
 		}
 		a.Type = obj.TYPE_MEM
@@ -530,7 +530,7 @@ func nodarg(t *Type, fp int) *Node {
 
 	if fp == 1 {
 		var n *Node
-		for l := Curfn.Dcl; l != nil; l = l.Next {
+		for l := Curfn.Func.Dcl; l != nil; l = l.Next {
 			n = l.N
 			if (n.Class == PPARAM || n.Class == PPARAMOUT) && !isblanksym(t.Sym) && n.Sym == t.Sym {
 				return n

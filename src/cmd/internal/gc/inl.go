@@ -79,7 +79,7 @@ func typecheckinl(fn *Node) {
 	}
 
 	if Debug['m'] > 2 {
-		fmt.Printf("typecheck import [%v] %v { %v }\n", Sconv(fn.Sym, 0), Nconv(fn, obj.FmtLong), Hconv(fn.Inl, obj.FmtSharp))
+		fmt.Printf("typecheck import [%v] %v { %v }\n", Sconv(fn.Sym, 0), Nconv(fn, obj.FmtLong), Hconv(fn.Func.Inl, obj.FmtSharp))
 	}
 
 	save_safemode := safemode
@@ -87,7 +87,7 @@ func typecheckinl(fn *Node) {
 
 	savefn := Curfn
 	Curfn = fn
-	typechecklist(fn.Inl, Etop)
+	typechecklist(fn.Func.Inl, Etop)
 	Curfn = savefn
 
 	safemode = save_safemode
@@ -133,17 +133,17 @@ func caninl(fn *Node) {
 	savefn := Curfn
 	Curfn = fn
 
-	fn.Nname.Inl = fn.Nbody
-	fn.Nbody = inlcopylist(fn.Nname.Inl)
-	fn.Nname.Inldcl = inlcopylist(fn.Nname.Defn.Dcl)
-	fn.Nname.InlCost = int32(maxBudget - budget)
+	fn.Nname.Func.Inl = fn.Nbody
+	fn.Nbody = inlcopylist(fn.Nname.Func.Inl)
+	fn.Nname.Func.Inldcl = inlcopylist(fn.Nname.Defn.Func.Dcl)
+	fn.Nname.Func.InlCost = int32(maxBudget - budget)
 
 	// hack, TODO, check for better way to link method nodes back to the thing with the ->inl
 	// this is so export can find the body of a method
 	fn.Type.Nname = fn.Nname
 
 	if Debug['m'] > 1 {
-		fmt.Printf("%v: can inline %v as: %v { %v }\n", fn.Line(), Nconv(fn.Nname, obj.FmtSharp), Tconv(fn.Type, obj.FmtSharp), Hconv(fn.Nname.Inl, obj.FmtSharp))
+		fmt.Printf("%v: can inline %v as: %v { %v }\n", fn.Line(), Nconv(fn.Nname, obj.FmtSharp), Tconv(fn.Type, obj.FmtSharp), Hconv(fn.Nname.Func.Inl, obj.FmtSharp))
 	} else if Debug['m'] != 0 {
 		fmt.Printf("%v: can inline %v\n", fn.Line(), Nconv(fn.Nname, 0))
 	}
@@ -169,13 +169,13 @@ func ishairy(n *Node, budget *int) bool {
 	switch n.Op {
 	// Call is okay if inlinable and we have the budget for the body.
 	case OCALLFUNC:
-		if n.Left.Func != nil && n.Left.Inl != nil {
-			*budget -= int(n.Left.InlCost)
+		if n.Left.Func != nil && n.Left.Func.Inl != nil {
+			*budget -= int(n.Left.Func.InlCost)
 			break
 		}
 		if n.Left.Op == ONAME && n.Left.Left != nil && n.Left.Left.Op == OTYPE && n.Left.Right != nil && n.Left.Right.Op == ONAME { // methods called as functions
-			if n.Left.Sym.Def != nil && n.Left.Sym.Def.Inl != nil {
-				*budget -= int(n.Left.Sym.Def.InlCost)
+			if n.Left.Sym.Def != nil && n.Left.Sym.Def.Func.Inl != nil {
+				*budget -= int(n.Left.Sym.Def.Func.InlCost)
 				break
 			}
 		}
@@ -191,8 +191,8 @@ func ishairy(n *Node, budget *int) bool {
 		if n.Left.Type.Nname == nil {
 			Fatal("no function definition for [%p] %v\n", n.Left.Type, Tconv(n.Left.Type, obj.FmtSign))
 		}
-		if n.Left.Type.Nname.Inl != nil {
-			*budget -= int(n.Left.Type.Nname.InlCost)
+		if n.Left.Type.Nname.Func.Inl != nil {
+			*budget -= int(n.Left.Type.Nname.Func.InlCost)
 			break
 		}
 		if Debug['l'] < 4 {
@@ -248,7 +248,7 @@ func inlcopy(n *Node) *Node {
 	m := Nod(OXXX, nil, nil)
 	*m = *n
 	if m.Func != nil {
-		m.Inl = nil
+		m.Func.Inl = nil
 	}
 	m.Left = inlcopy(n.Left)
 	m.Right = inlcopy(n.Right)
@@ -459,7 +459,7 @@ func inlnode(np **Node) {
 		if Debug['m'] > 3 {
 			fmt.Printf("%v:call to func %v\n", n.Line(), Nconv(n.Left, obj.FmtSign))
 		}
-		if n.Left.Func != nil && n.Left.Inl != nil { // normal case
+		if n.Left.Func != nil && n.Left.Func.Inl != nil { // normal case
 			mkinlcall(np, n.Left, n.Isddd)
 		} else if n.Left.Op == ONAME && n.Left.Left != nil && n.Left.Left.Op == OTYPE && n.Left.Right != nil && n.Left.Right.Op == ONAME { // methods called as functions
 			if n.Left.Sym.Def != nil {
@@ -521,7 +521,7 @@ var inlgen int
 // parameters.
 func mkinlcall1(np **Node, fn *Node, isddd bool) {
 	// For variadic fn.
-	if fn.Inl == nil {
+	if fn.Func.Inl == nil {
 		return
 	}
 
@@ -537,7 +537,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 
 	// Bingo, we have a function node, and it has an inlineable body
 	if Debug['m'] > 1 {
-		fmt.Printf("%v: inlining call to %v %v { %v }\n", n.Line(), Sconv(fn.Sym, 0), Tconv(fn.Type, obj.FmtSharp), Hconv(fn.Inl, obj.FmtSharp))
+		fmt.Printf("%v: inlining call to %v %v { %v }\n", n.Line(), Sconv(fn.Sym, 0), Tconv(fn.Type, obj.FmtSharp), Hconv(fn.Func.Inl, obj.FmtSharp))
 	} else if Debug['m'] != 0 {
 		fmt.Printf("%v: inlining call to %v\n", n.Line(), Nconv(fn, 0))
 	}
@@ -555,9 +555,9 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 
 	var dcl *NodeList
 	if fn.Defn != nil { // local function
-		dcl = fn.Inldcl // imported function
+		dcl = fn.Func.Inldcl // imported function
 	} else {
-		dcl = fn.Dcl
+		dcl = fn.Func.Dcl
 	}
 
 	inlretvars = nil
@@ -774,7 +774,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 
 	inlretlabel = newlabel_inl()
 	inlgen++
-	body := inlsubstlist(fn.Inl)
+	body := inlsubstlist(fn.Func.Inl)
 
 	body = list(body, Nod(OGOTO, inlretlabel, nil)) // avoid 'not used' when function doesnt have return
 	body = list(body, Nod(OLABEL, inlretlabel, nil))
@@ -805,15 +805,15 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 	// instead we emit the things that the body needs
 	// and each use must redo the inlining.
 	// luckily these are small.
-	body = fn.Inl
-	fn.Inl = nil // prevent infinite recursion (shouldn't happen anyway)
+	body = fn.Func.Inl
+	fn.Func.Inl = nil // prevent infinite recursion (shouldn't happen anyway)
 	inlnodelist(call.Nbody)
 	for ll := call.Nbody; ll != nil; ll = ll.Next {
 		if ll.N.Op == OINLCALL {
 			inlconv2stmt(ll.N)
 		}
 	}
-	fn.Inl = body
+	fn.Func.Inl = body
 
 	if Debug['m'] > 2 {
 		fmt.Printf("%v: After inlining %v\n\n", n.Line(), Nconv(*np, obj.FmtSign))
@@ -844,7 +844,7 @@ func inlvar(var_ *Node) *Node {
 		addrescapes(n)
 	}
 
-	Curfn.Dcl = list(Curfn.Dcl, n)
+	Curfn.Func.Dcl = list(Curfn.Func.Dcl, n)
 	return n
 }
 
@@ -855,7 +855,7 @@ func retvar(t *Type, i int) *Node {
 	n.Class = PAUTO
 	n.Used = true
 	n.Curfn = Curfn // the calling function, not the called one
-	Curfn.Dcl = list(Curfn.Dcl, n)
+	Curfn.Func.Dcl = list(Curfn.Func.Dcl, n)
 	return n
 }
 
@@ -867,7 +867,7 @@ func argvar(t *Type, i int) *Node {
 	n.Class = PAUTO
 	n.Used = true
 	n.Curfn = Curfn // the calling function, not the called one
-	Curfn.Dcl = list(Curfn.Dcl, n)
+	Curfn.Func.Dcl = list(Curfn.Func.Dcl, n)
 	return n
 }
 

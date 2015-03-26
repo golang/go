@@ -197,7 +197,7 @@ func declare(n *Node, ctxt int) {
 			Fatal("automatic outside function")
 		}
 		if Curfn != nil {
-			Curfn.Dcl = list(Curfn.Dcl, n)
+			Curfn.Func.Dcl = list(Curfn.Func.Dcl, n)
 		}
 		if n.Op == OTYPE {
 			declare_typegen++
@@ -445,7 +445,7 @@ func oldname(s *Sym) *Node {
 			n.Closure = c
 			c.Closure = n
 			c.Xoffset = 0
-			Curfn.Cvars = list(Curfn.Cvars, c)
+			Curfn.Func.Cvars = list(Curfn.Func.Cvars, c)
 		}
 
 		// return ref to closure var, not original
@@ -1486,7 +1486,7 @@ func funcsym(s *Sym) *Sym {
 	s1 := Pkglookup(s.Name+"·f", s.Pkg)
 	if s1.Def == nil {
 		s1.Def = newfuncname(s1)
-		s1.Def.Shortname = newname(s)
+		s1.Def.Func.Shortname = newname(s)
 		funcsyms = list(funcsyms, s1.Def)
 	}
 	s.Fsym = s1

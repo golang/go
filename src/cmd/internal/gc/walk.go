@@ -29,20 +29,20 @@ func walk(fn *Node) {
 
 	// Final typecheck for any unused variables.
 	// It's hard to be on the heap when not-used, but best to be consistent about &~PHEAP here and below.
-	for l := fn.Dcl; l != nil; l = l.Next {
+	for l := fn.Func.Dcl; l != nil; l = l.Next {
 		if l.N.Op == ONAME && l.N.Class&^PHEAP == PAUTO {
 			typecheck(&l.N, Erv|Easgn)
 		}
 	}
 
 	// Propagate the used flag for typeswitch variables up to the NONAME in it's definition.
-	for l := fn.Dcl; l != nil; l = l.Next {
+	for l := fn.Func.Dcl; l != nil; l = l.Next {
 		if l.N.Op == ONAME && l.N.Class&^PHEAP == PAUTO && l.N.Defn != nil && l.N.Defn.Op == OTYPESW && l.N.Used {
 			l.N.Defn.Left.Used = true
 		}
 	}
 
-	for l := fn.Dcl; l != nil; l = l.Next {
+	for l := fn.Func.Dcl; l != nil; l = l.Next {
 		if l.N.Op != ONAME || l.N.Class&^PHEAP != PAUTO || l.N.Sym.Name[0] == '&' || l.N.Used {
 			continue
 		}
@@ -70,9 +70,9 @@ func walk(fn *Node) {
 	}
 
 	heapmoves()
-	if Debug['W'] != 0 && Curfn.Enter != nil {
+	if Debug['W'] != 0 && Curfn.Func.Enter != nil {
 		s := fmt.Sprintf("enter %v", Sconv(Curfn.Nname.Sym, 0))
-		dumplist(s, Curfn.Enter)
+		dumplist(s, Curfn.Func.Enter)
 	}
 }
 
@@ -92,7 +92,7 @@ func samelist(a *NodeList, b *NodeList) bool {
 }
 
 func paramoutheap(fn *Node) bool {
-	for l := fn.Dcl; l != nil; l = l.Next {
+	for l := fn.Func.Dcl; l != nil; l = l.Next {
 		switch l.N.Class {
 		case PPARAMOUT,
 			PPARAMOUT | PHEAP:
@@ -288,7 +288,7 @@ func walkstmt(np **Node) {
 			var rl *NodeList
 
 			var cl int
-			for ll := Curfn.Dcl; ll != nil; ll = ll.Next {
+			for ll := Curfn.Func.Dcl; ll != nil; ll = ll.Next {
 				cl = int(ll.N.Class) &^ PHEAP
 				if cl == PAUTO {
 					break
@@ -594,9 +594,9 @@ func walkexpr(np **Node, init **NodeList) {
 			// transformclosure already did all preparation work.
 
 			// Append captured variables to argument list.
-			n.List = concat(n.List, n.Left.Enter)
+			n.List = concat(n.List, n.Left.Func.Enter)
 
-			n.Left.Enter = nil
+			n.Left.Func.Enter = nil
 
 			// Replace OCLOSURE with ONAME/PFUNC.
 			n.Left = n.Left.Closure.Nname
@@ -2204,7 +2204,7 @@ var applywritebarrier_bv Bvec
 
 func applywritebarrier(n *Node, init **NodeList) *Node {
 	if n.Left != nil && n.Right != nil && needwritebarrier(n.Left, n.Right) {
-		if Curfn != nil && Curfn.Nowritebarrier {
+		if Curfn != nil && Curfn.Func.Nowritebarrier {
 			Yyerror("write barrier prohibited")
 		}
 		t := n.Left.Type
@@ -2757,9 +2757,9 @@ func heapmoves() {
 	nn := paramstoheap(getthis(Curfn.Type), 0)
 	nn = concat(nn, paramstoheap(getinarg(Curfn.Type), 0))
 	nn = concat(nn, paramstoheap(Getoutarg(Curfn.Type), 1))
-	Curfn.Enter = concat(Curfn.Enter, nn)
-	lineno = Curfn.Endlineno
-	Curfn.Exit = returnsfromheap(Getoutarg(Curfn.Type))
+	Curfn.Func.Enter = concat(Curfn.Func.Enter, nn)
+	lineno = Curfn.Func.Endlineno
+	Curfn.Func.Exit = returnsfromheap(Getoutarg(Curfn.Type))
 	lineno = lno
 }
 
