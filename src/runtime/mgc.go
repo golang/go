@@ -282,6 +282,11 @@ func backgroundgc() {
 }
 
 func gc(mode int) {
+	// debug.gctrace variables
+	var stwprocs, maxprocs int32
+	var tSweepTerm, tScan, tInstallWB, tMark, tMarkTerm int64
+	var heap0, heap1 uint64
+
 	// Ok, we're doing it!  Stop everybody else
 	semacquire(&worldsema, false)
 
@@ -296,6 +301,11 @@ func gc(mode int) {
 	gctimer.count++
 	if mode == gcBackgroundMode {
 		gctimer.cycle.sweepterm = nanotime()
+	}
+	if debug.gctrace > 0 {
+		stwprocs, maxprocs = gcprocs(), gomaxprocs
+		tSweepTerm = nanotime()
+		heap0 = memstats.heap_alloc
 	}
 
 	if trace.enabled {
@@ -316,10 +326,16 @@ func gc(mode int) {
 			// Concurrent scan.
 			starttheworld()
 			gctimer.cycle.scan = nanotime()
+			if debug.gctrace > 0 {
+				tScan = nanotime()
+			}
 			gcscan_m()
 			gctimer.cycle.installmarkwb = nanotime()
 
 			// Enter mark phase and enable write barriers.
+			if debug.gctrace > 0 {
+				tInstallWB = nanotime()
+			}
 			stoptheworld()
 			gcphase = _GCmark
 
@@ -327,6 +343,9 @@ func gc(mode int) {
 			starttheworld()
 		})
 		gctimer.cycle.mark = nanotime()
+		if debug.gctrace > 0 {
+			tMark = nanotime()
+		}
 		var gcw gcWork
 		gcDrain(&gcw)
 		gcw.dispose()
@@ -339,6 +358,9 @@ func gc(mode int) {
 
 		// Begin mark termination.
 		gctimer.cycle.markterm = nanotime()
+		if debug.gctrace > 0 {
+			tMarkTerm = nanotime()
+		}
 		systemstack(stoptheworld)
 		// The gcphase is _GCmark, it will transition to _GCmarktermination
 		// below. The important thing is that the wb remains active until
@@ -348,11 +370,20 @@ func gc(mode int) {
 		// The g stacks have not been scanned so clear g state
 		// such that mark termination scans all stacks.
 		gcResetGState()
+
+		if debug.gctrace > 0 {
+			t := nanotime()
+			tScan, tInstallWB, tMark, tMarkTerm = t, t, t, t
+		}
 	}
 
 	// World is stopped.
 	// Start marktermination which includes enabling the write barrier.
 	gcphase = _GCmarktermination
+
+	if debug.gctrace > 0 {
+		heap1 = memstats.heap_alloc
+	}
 
 	startTime := nanotime()
 	if mp != acquirem() {
@@ -437,6 +468,36 @@ func gc(mode int) {
 	releasem(mp)
 	mp = nil
 
+	memstats.numgc++
+	if debug.gctrace > 0 {
+		// TODO(austin): Cumulative utilization %
+		// TODO(austin): Marked heap size at end
+		tEnd := nanotime()
+		var sbuf [24]byte
+		printlock()
+		print("gc #", memstats.numgc,
+			" @", string(itoaDiv(sbuf[:], uint64(tEnd-runtimeInitTime)/1e6, 3)), "s: ",
+			(tScan-tSweepTerm)/1e6,
+			"+", (tInstallWB-tScan)/1e6,
+			"+", (tMark-tInstallWB)/1e6,
+			"+", (tMarkTerm-tMark)/1e6,
+			"+", (tEnd-tMarkTerm)/1e6, " ms clock, ",
+			int64(stwprocs)*(tScan-tSweepTerm)/1e6,
+			"+", (tInstallWB-tScan)/1e6,
+			"+", int64(stwprocs)*(tMark-tInstallWB)/1e6,
+			"+", (tMarkTerm-tMark)/1e6, "+",
+			int64(stwprocs)*(tEnd-tMarkTerm)/1e6, " ms cpu, ",
+			heap0>>20, "->", heap1>>20, " MB, ",
+			maxprocs, " P")
+		if mode != gcBackgroundMode {
+			print(" (forced)")
+		}
+		print("\n")
+		printunlock()
+	}
+	sweep.nbgsweep = 0
+	sweep.npausesweep = 0
+
 	// now that gc is done, kick off finalizer thread if needed
 	if !concurrentSweep {
 		// give the queued finalizers, if any, a chance to run
@@ -457,10 +518,6 @@ func gcMark(start_time int64) {
 	}
 	t0 := start_time
 	work.tstart = start_time
-	var t1 int64
-	if debug.gctrace > 0 {
-		t1 = nanotime()
-	}
 
 	gcCopySpans() // TODO(rlh): should this be hoisted and done only once? Right now it is done for normal marking and also for checkmarking.
 
@@ -478,11 +535,6 @@ func gcMark(start_time int64) {
 		helpgc(int32(work.nproc))
 	}
 
-	var t2 int64
-	if debug.gctrace > 0 {
-		t2 = nanotime()
-	}
-
 	harvestwbufs() // move local workbufs onto global queues where the GC can find them
 	gchelperstart()
 	parfordo(work.markfor)
@@ -497,11 +549,6 @@ func gcMark(start_time int64) {
 		throw("work.partial != 0")
 	}
 
-	var t3 int64
-	if debug.gctrace > 0 {
-		t3 = nanotime()
-	}
-
 	if work.nproc > 1 {
 		notesleep(&work.alldone)
 	}
@@ -514,8 +561,6 @@ func gcMark(start_time int64) {
 
 	cachestats()
 	// next_gc calculation is tricky with concurrent sweep since we don't know size of live heap
-	// estimate what was live heap size after previous GC (for printing only)
-	heap0 := memstats.next_gc * 100 / (uint64(gcpercent) + 100)
 	// conservatively set next_gc to high value assuming that everything is live
 	// concurrent/lazy sweep will reduce this number while discovering new garbage
 	memstats.next_gc = memstats.heap_alloc + memstats.heap_alloc*uint64(gcpercent)/100
@@ -532,37 +577,6 @@ func gcMark(start_time int64) {
 	memstats.pause_ns[memstats.numgc%uint32(len(memstats.pause_ns))] = uint64(t4 - t0)
 	memstats.pause_end[memstats.numgc%uint32(len(memstats.pause_end))] = uint64(t4)
 	memstats.pause_total_ns += uint64(t4 - t0)
-	memstats.numgc++
-	if memstats.debuggc {
-		print("pause ", t4-t0, "\n")
-	}
-
-	if debug.gctrace > 0 {
-		heap1 := memstats.heap_alloc
-		var stats gcstats
-		updatememstats(&stats)
-		if heap1 != memstats.heap_alloc {
-			print("runtime: mstats skew: heap=", heap1, "/", memstats.heap_alloc, "\n")
-			throw("mstats skew")
-		}
-		obj := memstats.nmalloc - memstats.nfree
-
-		stats.nprocyield += work.markfor.nprocyield
-		stats.nosyield += work.markfor.nosyield
-		stats.nsleep += work.markfor.nsleep
-
-		print("gc", memstats.numgc, "(", work.nproc, "): ",
-			(t1-t0)/1000, "+", (t2-t1)/1000, "+", (t3-t2)/1000, "+", (t4-t3)/1000, " us, ",
-			heap0>>20, " -> ", heap1>>20, " MB, ",
-			obj, " (", memstats.nmalloc, "-", memstats.nfree, ") objects, ",
-			gcount(), " goroutines, ",
-			len(work.spans), "/", sweep.nbgsweep, "/", sweep.npausesweep, " sweeps, ",
-			stats.nhandoff, "(", stats.nhandoffcnt, ") handoff, ",
-			work.markfor.nsteal, "(", work.markfor.nstealcnt, ") steal, ",
-			stats.nprocyield, "/", stats.nosyield, "/", stats.nsleep, " yields\n")
-		sweep.nbgsweep = 0
-		sweep.npausesweep = 0
-	}
 }
 
 func gcSweep(mode int) {
@@ -832,4 +846,21 @@ func GCprinttimes() {
 	printPhase("mark:      ", func(t *gctimes) int64 { return t.mark }, 1)
 	printPhase("mark term: ", func(t *gctimes) int64 { return t.markterm }, gomaxprocs)
 	printunlock()
+}
+
+// itoaDiv formats val/(10**dec) into buf.
+func itoaDiv(buf []byte, val uint64, dec int) []byte {
+	i := len(buf) - 1
+	idec := i - dec
+	for val >= 10 || i >= idec {
+		buf[i] = byte(val%10 + '0')
+		i--
+		if i == idec {
+			buf[i] = '.'
+			i--
+		}
+		val /= 10
+	}
+	buf[i] = byte(val + '0')
+	return buf[i:]
 }
