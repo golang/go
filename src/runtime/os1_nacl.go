@@ -67,6 +67,7 @@ func usleep(us uint32) {
 
 func mstart_nacl()
 
+// May run without a P, so write barriers are not allowed.
 //go:nowritebarrier
 func newosproc(mp *m, stk unsafe.Pointer) {
 	mp.tls[0] = uintptr(unsafe.Pointer(mp.g0))
