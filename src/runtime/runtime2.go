@@ -621,6 +621,9 @@ var (
 	cpuid_ecx         uint32
 	cpuid_edx         uint32
 	lfenceBeforeRdtsc bool
+
+	// Set by the linker when linking with -shared.
+	islibrary bool
 )
 
 /*

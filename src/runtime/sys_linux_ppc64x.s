@@ -345,6 +345,12 @@ TEXT runtime·clone(SB),NOSPLIT,$-8
 	SYSCALL $SYS_exit_group
 	BR	-2(PC)	// keep exiting
 
+// int32 clone0(int32 flags, void *stack, void* fn, void* fnarg);
+TEXT runtime·clone0(SB),NOSPLIT,$0
+	// TODO(spetrovic): Implement this method.
+	MOVW	$-1, ret+32(FP)
+	RETURN
+
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVD	new+0(FP), R3
 	MOVD	old+8(FP), R4

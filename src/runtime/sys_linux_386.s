@@ -369,6 +369,12 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	CALL	runtime·exit1(SB)
 	MOVL	$0x1234, 0x1005
 
+// int32 clone0(int32 flags, void *stack, void* fn, void* fnarg);
+TEXT runtime·clone0(SB),NOSPLIT,$0
+	// TODO(spetrovic): Implement this method.
+	MOVL	$-1, ret+16(FP)
+	RET
+
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVL	$186, AX	// sigaltstack
 	MOVL	new+4(SP), BX
