@@ -347,6 +347,34 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	SYSCALL
 	JMP	-3(PC)	// keep exiting
 
+// int32 clone0(int32 flags, void *stack, void* fn, void* fnarg);
+TEXT runtime·clone0(SB),NOSPLIT,$16-36
+	MOVL	flags+0(FP), DI
+	MOVQ	stack+8(FP), SI
+	MOVQ	fn+16(FP), R12      // used by the child
+	MOVQ	fnarg+24(FP), R13   // used by the child
+	MOVL	$0, DX
+	MOVL	$0, R10
+	MOVL	$56, AX
+	SYSCALL
+
+	CMPQ	AX, $0
+	JEQ	child
+	// In parent, return.
+	MOVL	AX, ret+32(FP)
+	RET
+child:
+	MOVQ	SI, SP
+	MOVQ	R12, AX  // fn
+	MOVQ	R13, DI  // fnarg
+	CALL	AX
+
+	// fn shouldn't return; if it does, exit.
+	MOVL	$111, DI
+	MOVL	$60, AX
+	SYSCALL
+	JMP	-3(PC)	// keep exiting
+
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVQ	new+8(SP), DI
 	MOVQ	old+16(SP), SI

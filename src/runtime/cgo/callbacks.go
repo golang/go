@@ -91,5 +91,31 @@ var _cgo_free = &x_cgo_free
 var x_cgo_thread_start byte
 var _cgo_thread_start = &x_cgo_thread_start
 
+// Creates a new system thread without updating any Go state.
+//
+// This method is invoked during shared library loading to create a new OS
+// thread to perform the runtime initialization.  This method is similar to
+// _cgo_sys_thread_start except that it doesn't update any Go state.
+
+//go:cgo_import_static x_cgo_sys_thread_create
+//go:linkname x_cgo_sys_thread_create x_cgo_sys_thread_create
+//go:linkname _cgo_sys_thread_create _cgo_sys_thread_create
+var x_cgo_sys_thread_create byte
+var _cgo_sys_thread_create = &x_cgo_sys_thread_create
+
+// Notifies that the runtime has been intialized.
+//
+// We currently block at every CGO entry point (via _cgo_wait_runtime_init_done)
+// to ensure that the runtime has been initialized before the CGO call is
+// executed.  This is necessary for shared libraries where we kickoff runtime
+// initialization in a separate thread and return without waiting for this
+// thread to complete the init.
+
+//go:cgo_import_static x_cgo_notify_runtime_init_done
+//go:linkname x_cgo_notify_runtime_init_done x_cgo_notify_runtime_init_done
+//go:linkname _cgo_notify_runtime_init_done _cgo_notify_runtime_init_done
+var x_cgo_notify_runtime_init_done byte
+var _cgo_notify_runtime_init_done = &x_cgo_notify_runtime_init_done
+
 //go:cgo_export_static _cgo_topofstack
 //go:cgo_export_dynamic _cgo_topofstack

@@ -66,6 +66,10 @@ func main() {
 
 	gcenable()
 
+	if islibrary {
+		// Allocate new M as main_main() is expected to block forever.
+		systemstack(newextram)
+	}
 	if iscgo {
 		if _cgo_thread_start == nil {
 			throw("_cgo_thread_start missing")
@@ -84,6 +88,10 @@ func main() {
 				throw("_cgo_unsetenv missing")
 			}
 		}
+		if _cgo_notify_runtime_init_done == nil {
+			throw("_cgo_notify_runtime_init_done missing")
+		}
+		cgocall(_cgo_notify_runtime_init_done, nil)
 	}
 
 	main_init()

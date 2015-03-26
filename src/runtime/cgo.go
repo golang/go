@@ -14,12 +14,16 @@ import "unsafe"
 //go:linkname _cgo_malloc _cgo_malloc
 //go:linkname _cgo_free _cgo_free
 //go:linkname _cgo_thread_start _cgo_thread_start
+//go:linkname _cgo_sys_thread_create _cgo_sys_thread_create
+//go:linkname _cgo_notify_runtime_init_done _cgo_notify_runtime_init_done
 
 var (
-	_cgo_init         unsafe.Pointer
-	_cgo_malloc       unsafe.Pointer
-	_cgo_free         unsafe.Pointer
-	_cgo_thread_start unsafe.Pointer
+	_cgo_init                     unsafe.Pointer
+	_cgo_malloc                   unsafe.Pointer
+	_cgo_free                     unsafe.Pointer
+	_cgo_thread_start             unsafe.Pointer
+	_cgo_sys_thread_create        unsafe.Pointer
+	_cgo_notify_runtime_init_done unsafe.Pointer
 )
 
 // iscgo is set to true by the runtime/cgo package
