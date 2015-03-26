@@ -215,19 +215,6 @@ type InitPlan struct {
 }
 
 const (
-	EscUnknown = iota
-	EscHeap
-	EscScope
-	EscNone
-	EscReturn
-	EscNever
-	EscBits           = 3
-	EscMask           = (1 << EscBits) - 1
-	EscContentEscapes = 1 << EscBits // value obtained by indirect of parameter escapes to some returned result
-	EscReturnBits     = EscBits + 1
-)
-
-const (
 	SymExport   = 1 << 0 // to be exported
 	SymPackage  = 1 << 1
 	SymExported = 1 << 2 // already written out by export

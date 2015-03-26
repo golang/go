@@ -45,5 +45,5 @@ func growstack(x int) {
 	if x == 0 {
 		return
 	}
-	growstack(x-1)
+	growstack(x - 1)
 }

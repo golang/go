@@ -23,11 +23,10 @@ func Sysfunc(name string) *Node {
 	return n
 }
 
-/*
- * the address of n has been taken and might be used after
- * the current function returns.  mark any local vars
- * as needing to move to the heap.
- */
+// addrescapes tags node n as having had its address taken
+// by "increasing" the "value" of n.Esc to EscHeap.
+// Storage is allocated as necessary to allow the address
+// to be taken.
 func addrescapes(n *Node) {
 	switch n.Op {
 	// probably a type error already.
@@ -50,7 +49,7 @@ func addrescapes(n *Node) {
 		case PPARAMREF:
 			addrescapes(n.Defn)
 
-			// if func param, need separate temporary
+		// if func param, need separate temporary
 		// to hold heap pointer.
 		// the function type has already been checked
 		// (we're in the function body)
@@ -93,12 +92,12 @@ func addrescapes(n *Node) {
 	case OIND, ODOTPTR:
 		break
 
-		// ODOTPTR has already been introduced,
+	// ODOTPTR has already been introduced,
 	// so these are the non-pointer ODOT and OINDEX.
 	// In &x[0], if x is a slice, then x does not
 	// escape--the pointer inside x does, but that
 	// is always a heap pointer anyway.
-	case ODOT, OINDEX:
+	case ODOT, OINDEX, OPAREN, OCONVNOP:
 		if !Isslice(n.Left.Type) {
 			addrescapes(n.Left)
 		}
