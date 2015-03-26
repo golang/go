@@ -79,7 +79,7 @@ var passOrder = map[string]string{
 	// regalloc requires all the values in a block to be scheduled
 	//"schedule": "regalloc",
 	// code generation requires register allocation
-	//"cgen":"regalloc",
+	//"regalloc": "cgen",
 }
 
 func init() {

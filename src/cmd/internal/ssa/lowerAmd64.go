@@ -5,12 +5,12 @@ package ssa
 func lowerAmd64(v *Value) bool {
 	switch v.Op {
 	case OpADDQ:
-		// match: (ADDQ x (ConstInt [c]))
+		// match: (ADDQ x (Const [c]))
 		// cond:
 		// result: (ADDCQ [c] x)
 		{
 			x := v.Args[0]
-			if v.Args[1].Op != OpConstInt {
+			if v.Args[1].Op != OpConst {
 				goto end0
 			}
 			c := v.Args[1].Aux
@@ -23,11 +23,11 @@ func lowerAmd64(v *Value) bool {
 		}
 	end0:
 		;
-		// match: (ADDQ (ConstInt [c]) x)
+		// match: (ADDQ (Const [c]) x)
 		// cond:
 		// result: (ADDCQ [c] x)
 		{
-			if v.Args[0].Op != OpConstInt {
+			if v.Args[0].Op != OpConst {
 				goto end1
 			}
 			c := v.Args[0].Aux
@@ -81,12 +81,12 @@ func lowerAmd64(v *Value) bool {
 	end3:
 		;
 	case OpCMPQ:
-		// match: (CMPQ x (ConstInt [c]))
+		// match: (CMPQ x (Const [c]))
 		// cond:
 		// result: (CMPCQ x [c])
 		{
 			x := v.Args[0]
-			if v.Args[1].Op != OpConstInt {
+			if v.Args[1].Op != OpConst {
 				goto end4
 			}
 			c := v.Args[1].Aux
@@ -99,11 +99,11 @@ func lowerAmd64(v *Value) bool {
 		}
 	end4:
 		;
-		// match: (CMPQ (ConstInt [c]) x)
+		// match: (CMPQ (Const [c]) x)
 		// cond:
-		// result: (InvertFlags (CMPCQ x [c]))
+		// result: (InvertFlags (CMPCQ <TypeFlags> x [c]))
 		{
-			if v.Args[0].Op != OpConstInt {
+			if v.Args[0].Op != OpConst {
 				goto end5
 			}
 			c := v.Args[0].Aux
@@ -112,9 +112,9 @@ func lowerAmd64(v *Value) bool {
 			v.Aux = nil
 			v.Args = v.argstorage[:0]
 			v0 := v.Block.NewValue(OpCMPCQ, TypeInvalid, nil)
+			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.Aux = c
-			v0.SetType()
 			v.AddArg(v0)
 			return true
 		}
@@ -123,7 +123,7 @@ func lowerAmd64(v *Value) bool {
 	case OpLess:
 		// match: (Less x y)
 		// cond: is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type)
-		// result: (SETL (CMPQ x y))
+		// result: (SETL (CMPQ <TypeFlags> x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -134,9 +134,9 @@ func lowerAmd64(v *Value) bool {
 			v.Aux = nil
 			v.Args = v.argstorage[:0]
 			v0 := v.Block.NewValue(OpCMPQ, TypeInvalid, nil)
+			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
-			v0.SetType()
 			v.AddArg(v0)
 			return true
 		}
@@ -202,12 +202,12 @@ func lowerAmd64(v *Value) bool {
 	end9:
 		;
 	case OpSUBQ:
-		// match: (SUBQ x (ConstInt [c]))
+		// match: (SUBQ x (Const [c]))
 		// cond:
 		// result: (SUBCQ x [c])
 		{
 			x := v.Args[0]
-			if v.Args[1].Op != OpConstInt {
+			if v.Args[1].Op != OpConst {
 				goto end10
 			}
 			c := v.Args[1].Aux
@@ -220,11 +220,12 @@ func lowerAmd64(v *Value) bool {
 		}
 	end10:
 		;
-		// match: (SUBQ (ConstInt [c]) x)
+		// match: (SUBQ <t> (Const [c]) x)
 		// cond:
-		// result: (NEGQ (SUBCQ x [c]))
+		// result: (NEGQ (SUBCQ <t> x [c]))
 		{
-			if v.Args[0].Op != OpConstInt {
+			t := v.Type
+			if v.Args[0].Op != OpConst {
 				goto end11
 			}
 			c := v.Args[0].Aux
@@ -233,9 +234,9 @@ func lowerAmd64(v *Value) bool {
 			v.Aux = nil
 			v.Args = v.argstorage[:0]
 			v0 := v.Block.NewValue(OpSUBCQ, TypeInvalid, nil)
+			v0.Type = t
 			v0.AddArg(x)
 			v0.Aux = c
-			v0.SetType()
 			v.AddArg(v0)
 			return true
 		}

@@ -8,7 +8,8 @@
 // on the matching side
 //  - the types and aux fields must match if they are specified.
 // on the generated side
-//  - types will be computed by opcode typers if not specified explicitly.
+//  - the type of the top-level expression is the same as the one on the left-hand side.
+//  - the type of any subexpressions must be specified explicitly.
 //  - aux will be nil if not specified.
 
 // x86 register conventions:
@@ -24,7 +25,7 @@
 
 (Sub <t> x y) && is64BitInt(t) -> (SUBQ x y)
 
-(Less x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETL (CMPQ x y))
+(Less x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETL (CMPQ <TypeFlags> x y))
 
 // stack loads/stores
 (LoadFP <t> [offset] mem) && typeSize(t) == 8 -> (LoadFP8 <t> [offset] mem)
@@ -35,12 +36,12 @@
 // Rules below here apply some simple optimizations after lowering.
 // TODO: Should this be a separate pass?
 
-(ADDQ x (ConstInt [c])) -> (ADDCQ [c] x) // TODO: restrict c to int32 range?
-(ADDQ (ConstInt [c]) x) -> (ADDCQ [c] x)
-(SUBQ x (ConstInt [c])) -> (SUBCQ x [c])
-(SUBQ (ConstInt [c]) x) -> (NEGQ (SUBCQ x [c]))
-(CMPQ x (ConstInt [c])) -> (CMPCQ x [c])
-(CMPQ (ConstInt [c]) x) -> (InvertFlags (CMPCQ x [c]))
+(ADDQ x (Const [c])) -> (ADDCQ [c] x) // TODO: restrict c to int32 range?
+(ADDQ (Const [c]) x) -> (ADDCQ [c] x)
+(SUBQ x (Const [c])) -> (SUBCQ x [c])
+(SUBQ <t> (Const [c]) x) -> (NEGQ (SUBCQ <t> x [c]))
+(CMPQ x (Const [c])) -> (CMPCQ x [c])
+(CMPQ (Const [c]) x) -> (InvertFlags (CMPCQ <TypeFlags> x [c]))
 
 // reverse ordering of compare instruction
 (SETL (InvertFlags x)) -> (SETGE x)

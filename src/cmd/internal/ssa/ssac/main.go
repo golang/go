@@ -411,7 +411,8 @@ func parseSexprType(e sexpr) ssa.Type {
 	if !e.compound {
 		switch e.name {
 		case "int":
-			return ssa.TypeInt
+			// TODO: pick correct width
+			return ssa.TypeInt64
 		default:
 			fmt.Println(e.name)
 			panic("unknown type")

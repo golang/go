@@ -40,8 +40,8 @@ type Value struct {
 // Examples:
 // Opcode          aux   args
 //  OpAdd          nil      2
-//  OpConstStr  string      0
-//  OpConstInt   int64      0
+//  OpConst     string      0    string constant
+//  OpConst      int64      0    int64 constant
 //  OpAddcq      int64      1    amd64 op: v = arg[0] + constant
 
 // short form print.  Just v#.
@@ -112,13 +112,4 @@ func (v *Value) CopyFrom(w *Value) {
 	v.Aux = w.Aux
 	v.resetArgs()
 	v.AddArgs(w.Args...)
-}
-
-// SetType sets the type of v.  v must not have had its type
-// set yet (it must be TypeInvalid).
-func (v *Value) SetType() {
-	if v.Type != TypeInvalid {
-		panic("setting type when it is already set")
-	}
-	opcodeTable[v.Op].typer(v)
 }

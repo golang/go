@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"go/format"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"sort"
@@ -148,21 +149,13 @@ func main() {
 	}
 
 	// Write to a file if given, otherwise stdout.
-	var out io.WriteCloser
 	if len(os.Args) >= 4 {
-		outfile := os.Args[3]
-		out, err = os.Create(outfile)
-		if err != nil {
-			log.Fatalf("can't open output file %s: %v\n", outfile, err)
-		}
+		err = ioutil.WriteFile(os.Args[3], b, 0666)
 	} else {
-		out = os.Stdout
+		_, err = os.Stdout.Write(b)
 	}
-	if _, err = out.Write(b); err != nil {
+	if err != nil {
 		log.Fatalf("can't write output: %v\n", err)
-	}
-	if err = out.Close(); err != nil {
-		log.Fatalf("can't close output: %v\n", err)
 	}
 }
 
@@ -251,17 +244,17 @@ func genResult0(w io.Writer, result string, alloc *int, top bool) string {
 
 	s := split(result[1 : len(result)-1])
 	var v string
-	var needsType bool
+	var hasType bool
 	if top {
 		v = "v"
 		fmt.Fprintf(w, "v.Op = Op%s\n", s[0])
 		fmt.Fprintf(w, "v.Aux = nil\n")
 		fmt.Fprintf(w, "v.Args = v.argstorage[:0]\n")
+		hasType = true
 	} else {
 		v = fmt.Sprintf("v%d", *alloc)
 		*alloc++
 		fmt.Fprintf(w, "%s := v.Block.NewValue(Op%s, TypeInvalid, nil)\n", v, s[0])
-		needsType = true
 	}
 	for _, a := range s[1:] {
 		if a[0] == '<' {
@@ -271,7 +264,7 @@ func genResult0(w io.Writer, result string, alloc *int, top bool) string {
 				t = t[1 : len(t)-1]
 			}
 			fmt.Fprintf(w, "%s.Type = %s\n", v, t)
-			needsType = false
+			hasType = true
 		} else if a[0] == '[' {
 			// aux restriction
 			x := a[1 : len(a)-1]
@@ -287,8 +280,8 @@ func genResult0(w io.Writer, result string, alloc *int, top bool) string {
 			fmt.Fprintf(w, "%s.AddArg(%s)\n", v, x)
 		}
 	}
-	if needsType {
-		fmt.Fprintf(w, "%s.SetType()\n", v)
+	if !hasType {
+		log.Fatalf("sub-expression %s must have a type", result)
 	}
 	return v
 }
