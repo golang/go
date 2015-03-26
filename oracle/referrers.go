@@ -5,14 +5,19 @@
 package oracle
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
 	"go/token"
+	"io/ioutil"
 	"sort"
 
 	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/oracle/serial"
 )
+
+// TODO(adonovan): use golang.org/x/tools/refactor/importgraph to choose
+// the scope automatically.
 
 // Referrers reports all identifiers that resolve to the same object
 // as the queried identifier, within any package in the analysis scope.
@@ -41,6 +46,7 @@ func referrers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	sort.Sort(byNamePos(refs))
 
 	return &referrersResult{
+		qpos:  qpos,
 		query: id,
 		obj:   obj,
 		refs:  refs,
@@ -71,21 +77,54 @@ func (p byNamePos) Less(i, j int) bool { return p[i].NamePos < p[j].NamePos }
 func (p byNamePos) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 type referrersResult struct {
+	qpos  *QueryPos
 	query *ast.Ident   // identifier of query
 	obj   types.Object // object it denotes
 	refs  []*ast.Ident // set of all other references to it
 }
 
 func (r *referrersResult) display(printf printfFunc) {
-	if r.query.Pos() != r.obj.Pos() {
-		printf(r.query, "reference to %s", r.obj.Name())
+	printf(r.obj, "%d references to %s", len(r.refs), r.obj)
+
+	// Show referring lines, like grep.
+	type fileinfo struct {
+		refs     []*ast.Ident
+		linenums []int       // line number of refs[i]
+		data     chan []byte // file contents
 	}
-	// TODO(adonovan): pretty-print object using same logic as
-	// (*describeValueResult).display.
-	printf(r.obj, "defined here as %s", r.obj)
+	var fileinfos []*fileinfo
+	fileinfosByName := make(map[string]*fileinfo)
+
+	// First pass: start the file reads concurrently.
 	for _, ref := range r.refs {
-		if r.query != ref {
-			printf(ref, "referenced here")
+		posn := r.qpos.fset.Position(ref.Pos())
+		fi := fileinfosByName[posn.Filename]
+		if fi == nil {
+			fi = &fileinfo{data: make(chan []byte)}
+			fileinfosByName[posn.Filename] = fi
+			fileinfos = append(fileinfos, fi)
+
+			// First request for this file:
+			// start asynchronous read.
+			go func() {
+				content, err := ioutil.ReadFile(posn.Filename)
+				if err != nil {
+					content = []byte(fmt.Sprintf("error: %v", err))
+				}
+				fi.data <- content
+			}()
+		}
+		fi.refs = append(fi.refs, ref)
+		fi.linenums = append(fi.linenums, posn.Line)
+	}
+
+	// Second pass: print refs in original order.
+	// One line may have several refs at different columns.
+	for _, fi := range fileinfos {
+		content := <-fi.data // wait for I/O completion
+		lines := bytes.Split(content, []byte("\n"))
+		for i, ref := range fi.refs {
+			printf(ref, "%s", lines[fi.linenums[i]-1])
 		}
 	}
 }

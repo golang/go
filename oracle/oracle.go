@@ -225,6 +225,13 @@ func Query(args []string, mode, pos string, ptalog io.Writer, buildContext *buil
 
 	conf := loader.Config{Build: buildContext}
 
+	// TODO(adonovan): tolerate type errors if we don't need SSA form.
+	// First we'll need ot audit the non-SSA modes for robustness
+	// in the face of type errors.
+	// if minfo.needs&needSSA == 0 {
+	// 	conf.AllowErrors = true
+	// }
+
 	// Determine initial packages.
 	args, err := conf.FromArgs(args, true)
 	if err != nil {

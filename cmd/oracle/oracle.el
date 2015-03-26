@@ -36,22 +36,21 @@
   nil
   "History of values supplied to `go-oracle-set-scope'.")
 
-;; TODO(adonovan): I'd like to get rid of this separate mode since it
-;; makes it harder to use the oracle.
-(defvar go-oracle-mode-map
-  (let ((m (make-sparse-keymap)))
-    (define-key m (kbd "C-c C-o t") #'go-oracle-describe) ; t for type
-    (define-key m (kbd "C-c C-o f") #'go-oracle-freevars)
-    (define-key m (kbd "C-c C-o g") #'go-oracle-callgraph)
-    (define-key m (kbd "C-c C-o i") #'go-oracle-implements)
-    (define-key m (kbd "C-c C-o c") #'go-oracle-peers)  ; c for channel
-    (define-key m (kbd "C-c C-o r") #'go-oracle-referrers)
-    (define-key m (kbd "C-c C-o d") #'go-oracle-definition)
-    (define-key m (kbd "C-c C-o p") #'go-oracle-pointsto)
-    (define-key m (kbd "C-c C-o s") #'go-oracle-callstack)
-    (define-key m (kbd "C-c C-o <") #'go-oracle-callers)
-    (define-key m (kbd "C-c C-o >") #'go-oracle-callees)
-    m))
+;; Extend go-mode-map.
+(let ((m go-mode-map))
+  (define-key m (kbd "C-c C-o t") #'go-oracle-describe) ; t for type
+  (define-key m (kbd "C-c C-o f") #'go-oracle-freevars)
+  (define-key m (kbd "C-c C-o g") #'go-oracle-callgraph)
+  (define-key m (kbd "C-c C-o i") #'go-oracle-implements)
+  (define-key m (kbd "C-c C-o c") #'go-oracle-peers)  ; c for channel
+  (define-key m (kbd "C-c C-o r") #'go-oracle-referrers)
+  (define-key m (kbd "C-c C-o d") #'go-oracle-definition)
+  (define-key m (kbd "C-c C-o p") #'go-oracle-pointsto)
+  (define-key m (kbd "C-c C-o s") #'go-oracle-callstack)
+  (define-key m (kbd "C-c C-o <") #'go-oracle-callers)
+  (define-key m (kbd "C-c C-o >") #'go-oracle-callees)
+  (define-key m (kbd "<f5>") #'go-oracle-describe)
+  (define-key m (kbd "<f6>") #'go-oracle-referrers))
 
 ;; TODO(dominikh): Rethink set-scope some. Setting it to a file is
 ;; painful because it doesn't use find-file, and variables/~ aren't
@@ -84,11 +83,11 @@ specify to 'go build'."
         (error "You must specify a non-empty scope for the Go oracle"))
     (setq go-oracle-scope scope)))
 
-(defun go-oracle--run (mode)
+(defun go-oracle--run (mode &optional need-scope)
   "Run the Go oracle in the specified MODE, passing it the
-selected region of the current buffer.  Process the output to
-replace each file name with a small hyperlink.  Display the
-result."
+selected region of the current buffer.  If NEED-SCOPE, prompt for
+a scope if not already set.  Process the output to replace each
+file name with a small hyperlink.  Display the result."
   (if (not buffer-file-name)
       (error "Cannot use oracle on a buffer without a file name"))
   ;; It's not sufficient to save a modified buffer since if
@@ -96,8 +95,9 @@ result."
   ;; disturb the selected region.
   (if (buffer-modified-p)
       (error "Please save the buffer before invoking go-oracle"))
-  (if (string-equal "" go-oracle-scope)
-      (go-oracle-set-scope))
+  (and need-scope
+       (string-equal "" go-oracle-scope)
+       (go-oracle-set-scope))
   (let* ((filename (file-truename buffer-file-name))
          (posflag (if (use-region-p)
                       (format "-pos=%s:#%d,#%d"
@@ -107,7 +107,6 @@ result."
                     (format "-pos=%s:#%d"
                             filename
                             (1- (position-bytes (point))))))
-         ;; This would be simpler if we could just run 'go tool oracle'.
          (env-vars (go-root-and-paths))
          (goroot-env (concat "GOROOT=" (car env-vars)))
          (gopath-env (concat "GOPATH=" (mapconcat #'identity (cdr env-vars) ":"))))
@@ -138,14 +137,23 @@ result."
             (p 1))
         (while (not (null p))
           (let ((np (compilation-next-single-property-change p 'compilation-message)))
-            ;; TODO(adonovan): this can be verbose in the *Messages* buffer.
-            ;; (message "Post-processing link (%d%%)" (/ (* p 100) (point-max)))
             (if np
                 (when (equal (line-number-at-pos p) (line-number-at-pos np))
-                  ;; np is (typically) the space following ":"; consume it too.
-                  (put-text-property p np 'display "▶")
+                  ;; Using a fixed width greatly improves readability, so
+                  ;; if the filename is longer than 20, show ".../last/17chars.go".
+                  ;; This usually includes the last segment of the package name.
+                  ;; Don't show the line or column number.
+                  (let* ((loc (buffer-substring p np)) ; "/home/foo/go/pkg/file.go:1:2-3:4"
+                         (i (search ":" loc)))
+                    (setq loc (cond
+                               ((null i)  "...")
+                               ((>= i 17) (concat "..." (substring loc (- i 17) i)))
+                               (t         (substring loc 0 i))))
+                    ;; np is (typically) the space following ":"; consume it too.
+                    (put-text-property p np 'display (concat loc ":")))
                   (goto-char np)
-                  (insert " ")))
+                  (insert " ")
+                  (incf np))) ; so we don't get stuck (e.g. on a panic stack dump)
             (setq p np)))
         (message nil))
 
@@ -157,23 +165,23 @@ result."
 (defun go-oracle-callees ()
   "Show possible callees of the function call at the current point."
   (interactive)
-  (go-oracle--run "callees"))
+  (go-oracle--run "callees" t))
 
 (defun go-oracle-callers ()
   "Show the set of callers of the function containing the current point."
   (interactive)
-  (go-oracle--run "callers"))
+  (go-oracle--run "callers" t))
 
 (defun go-oracle-callgraph ()
   "Show the callgraph of the current program."
   (interactive)
-  (go-oracle--run "callgraph"))
+  (go-oracle--run "callgraph" t))
 
 (defun go-oracle-callstack ()
   "Show an arbitrary path from a root of the call graph to the
 function containing the current point."
   (interactive)
-  (go-oracle--run "callstack"))
+  (go-oracle--run "callstack" t))
 
 (defun go-oracle-definition ()
   "Show the definition of the selected identifier."
@@ -188,7 +196,7 @@ function containing the current point."
 (defun go-oracle-pointsto ()
   "Show what the selected expression points to."
   (interactive)
-  (go-oracle--run "pointsto"))
+  (go-oracle--run "pointsto" t))
 
 (defun go-oracle-implements ()
   "Describe the 'implements' relation for types in the package
@@ -205,25 +213,18 @@ containing the current point."
   "Enumerate the set of possible corresponding sends/receives for
 this channel receive/send operation."
   (interactive)
-  (go-oracle--run "peers"))
+  (go-oracle--run "peers" t))
 
 (defun go-oracle-referrers ()
   "Enumerate all references to the object denoted by the selected
 identifier."
   (interactive)
-  (go-oracle--run "referrers"))
+  (go-oracle--run "referrers" t))
 
 (defun go-oracle-whicherrs ()
   "Show globals, constants and types to which the selected
 expression (of type 'error') may refer."
   (interactive)
-  (go-oracle--run "whicherrs"))
-
-;; TODO(dominikh): better docstring
-(define-minor-mode go-oracle-mode "Oracle minor mode for go-mode
-
-Keys specific to go-oracle-mode:
-\\{go-oracle-mode-map}"
-  nil " oracle" go-oracle-mode-map)
+  (go-oracle--run "whicherrs" t))
 
 (provide 'go-oracle)
