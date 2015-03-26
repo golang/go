@@ -3496,11 +3496,11 @@ func typecheckfunc(n *Node) {
 	n.Type = t
 	t.Nname = n.Nname
 	rcvr := getthisx(t).Type
-	if rcvr != nil && n.Shortname != nil && !isblank(n.Shortname) {
-		addmethod(n.Shortname.Sym, t, true, n.Nname.Nointerface)
+	if rcvr != nil && n.Func.Shortname != nil && !isblank(n.Func.Shortname) {
+		addmethod(n.Func.Shortname.Sym, t, true, n.Nname.Nointerface)
 	}
 
-	for l := n.Dcl; l != nil; l = l.Next {
+	for l := n.Func.Dcl; l != nil; l = l.Next {
 		if l.N.Op == ONAME && (l.N.Class == PPARAM || l.N.Class == PPARAMOUT) {
 			l.N.Decldepth = 1
 		}
@@ -4044,7 +4044,7 @@ func isterminating(l *NodeList, top int) bool {
 func checkreturn(fn *Node) {
 	if fn.Type.Outtuple != 0 && fn.Nbody != nil {
 		if !isterminating(fn.Nbody, 1) {
-			yyerrorl(int(fn.Endlineno), "missing return at end of function")
+			yyerrorl(int(fn.Func.Endlineno), "missing return at end of function")
 		}
 	}
 }

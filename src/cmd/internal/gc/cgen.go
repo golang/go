@@ -2031,7 +2031,7 @@ func sgen(n *Node, ns *Node, w int64) {
 	// If copying .args, that's all the results, so record definition sites
 	// for them for the liveness analysis.
 	if ns.Op == ONAME && ns.Sym.Name == ".args" {
-		for l := Curfn.Dcl; l != nil; l = l.Next {
+		for l := Curfn.Func.Dcl; l != nil; l = l.Next {
 			if l.N.Class == PPARAMOUT {
 				Gvardef(l.N)
 			}
@@ -2384,7 +2384,7 @@ func cgen_ret(n *Node) {
 	if Hasdefer != 0 {
 		Ginscall(Deferreturn, 0)
 	}
-	Genlist(Curfn.Exit)
+	Genlist(Curfn.Func.Exit)
 	p := Thearch.Gins(obj.ARET, nil, nil)
 	if n != nil && n.Op == ORETJMP {
 		p.To.Type = obj.TYPE_MEM

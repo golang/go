@@ -30,7 +30,7 @@ func defframe(ptxt *obj.Prog) {
 	lo := hi
 
 	// iterate through declarations - they are sorted in decreasing xoffset order.
-	for l := gc.Curfn.Dcl; l != nil; l = l.Next {
+	for l := gc.Curfn.Func.Dcl; l != nil; l = l.Next {
 		n = l.N
 		if !n.Needzero {
 			continue

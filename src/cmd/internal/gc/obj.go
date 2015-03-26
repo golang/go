@@ -136,7 +136,7 @@ func dumpglobls() {
 
 	for l := funcsyms; l != nil; l = l.Next {
 		n = l.N
-		dsymptr(n.Sym, 0, n.Sym.Def.Shortname.Sym, 0)
+		dsymptr(n.Sym, 0, n.Sym.Def.Func.Shortname.Sym, 0)
 		ggloblsym(n.Sym, int32(Widthptr), obj.DUPOK|obj.RODATA)
 	}
 

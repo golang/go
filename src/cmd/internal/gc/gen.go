@@ -753,7 +753,7 @@ func Tempname(nn *Node, t *Type) {
 	n.Ullman = 1
 	n.Esc = EscNever
 	n.Curfn = Curfn
-	Curfn.Dcl = list(Curfn.Dcl, n)
+	Curfn.Func.Dcl = list(Curfn.Func.Dcl, n)
 
 	dowidth(t)
 	n.Xoffset = 0

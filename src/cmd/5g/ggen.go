@@ -28,7 +28,7 @@ func defframe(ptxt *obj.Prog) {
 	hi := int64(0)
 	lo := hi
 	r0 := uint32(0)
-	for l := gc.Curfn.Dcl; l != nil; l = l.Next {
+	for l := gc.Curfn.Func.Dcl; l != nil; l = l.Next {
 		n = l.N
 		if !n.Needzero {
 			continue

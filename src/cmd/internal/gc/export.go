@@ -239,7 +239,7 @@ func dumpexportvar(s *Sym) {
 	dumpexporttype(t)
 
 	if t.Etype == TFUNC && n.Class == PFUNC {
-		if n.Func != nil && n.Inl != nil {
+		if n.Func != nil && n.Func.Inl != nil {
 			// when lazily typechecking inlined bodies, some re-exported ones may not have been typechecked yet.
 			// currently that can leave unresolved ONONAMEs in import-dot-ed packages in the wrong package
 			if Debug['l'] < 2 {
@@ -247,9 +247,9 @@ func dumpexportvar(s *Sym) {
 			}
 
 			// NOTE: The space after %#S here is necessary for ld's export data parser.
-			fmt.Fprintf(bout, "\tfunc %v %v { %v }\n", Sconv(s, obj.FmtSharp), Tconv(t, obj.FmtShort|obj.FmtSharp), Hconv(n.Inl, obj.FmtSharp))
+			fmt.Fprintf(bout, "\tfunc %v %v { %v }\n", Sconv(s, obj.FmtSharp), Tconv(t, obj.FmtShort|obj.FmtSharp), Hconv(n.Func.Inl, obj.FmtSharp))
 
-			reexportdeplist(n.Inl)
+			reexportdeplist(n.Func.Inl)
 		} else {
 			fmt.Fprintf(bout, "\tfunc %v %v\n", Sconv(s, obj.FmtSharp), Tconv(t, obj.FmtShort|obj.FmtSharp))
 		}
@@ -315,15 +315,15 @@ func dumpexporttype(t *Type) {
 		if f.Nointerface {
 			fmt.Fprintf(bout, "\t//go:nointerface\n")
 		}
-		if f.Type.Nname != nil && f.Type.Nname.Inl != nil { // nname was set by caninl
+		if f.Type.Nname != nil && f.Type.Nname.Func.Inl != nil { // nname was set by caninl
 
 			// when lazily typechecking inlined bodies, some re-exported ones may not have been typechecked yet.
 			// currently that can leave unresolved ONONAMEs in import-dot-ed packages in the wrong package
 			if Debug['l'] < 2 {
 				typecheckinl(f.Type.Nname)
 			}
-			fmt.Fprintf(bout, "\tfunc (%v) %v %v { %v }\n", Tconv(getthisx(f.Type).Type, obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp), Hconv(f.Type.Nname.Inl, obj.FmtSharp))
-			reexportdeplist(f.Type.Nname.Inl)
+			fmt.Fprintf(bout, "\tfunc (%v) %v %v { %v }\n", Tconv(getthisx(f.Type).Type, obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp), Hconv(f.Type.Nname.Func.Inl, obj.FmtSharp))
+			reexportdeplist(f.Type.Nname.Func.Inl)
 		} else {
 			fmt.Fprintf(bout, "\tfunc (%v) %v %v\n", Tconv(getthisx(f.Type).Type, obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp))
 		}

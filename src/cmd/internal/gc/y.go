@@ -2491,10 +2491,10 @@ yydefault:
 				Yyerror("can only use //go:noescape with external func implementations")
 			}
 			yyVAL.node.Nbody = yyDollar[3].list
-			yyVAL.node.Endlineno = lineno
+			yyVAL.node.Func.Endlineno = lineno
 			yyVAL.node.Noescape = noescape
-			yyVAL.node.Nosplit = nosplit
-			yyVAL.node.Nowritebarrier = nowritebarrier
+			yyVAL.node.Func.Nosplit = nosplit
+			yyVAL.node.Func.Nowritebarrier = nowritebarrier
 			funcbody(yyVAL.node)
 		}
 	case 205:
@@ -2559,8 +2559,8 @@ yydefault:
 			t.Rlist = yyDollar[8].list
 
 			yyVAL.node = Nod(ODCLFUNC, nil, nil)
-			yyVAL.node.Shortname = newfuncname(yyDollar[4].sym)
-			yyVAL.node.Nname = methodname1(yyVAL.node.Shortname, rcvr.Right)
+			yyVAL.node.Func.Shortname = newfuncname(yyDollar[4].sym)
+			yyVAL.node.Nname = methodname1(yyVAL.node.Func.Shortname, rcvr.Right)
 			yyVAL.node.Nname.Defn = yyVAL.node
 			yyVAL.node.Nname.Ntype = t
 			yyVAL.node.Nname.Nointerface = nointerface
@@ -3016,7 +3016,7 @@ yydefault:
 			if yyVAL.node.List == nil && Curfn != nil {
 				var l *NodeList
 
-				for l = Curfn.Dcl; l != nil; l = l.Next {
+				for l = Curfn.Func.Dcl; l != nil; l = l.Next {
 					if l.N.Class == PPARAM {
 						continue
 					}
@@ -3226,15 +3226,15 @@ yydefault:
 				break
 			}
 
-			yyDollar[2].node.Inl = yyDollar[3].list
+			yyDollar[2].node.Func.Inl = yyDollar[3].list
 
 			funcbody(yyDollar[2].node)
 			importlist = list(importlist, yyDollar[2].node)
 
 			if Debug['E'] > 0 {
 				print("import [%q] func %lN \n", importpkg.Path, yyDollar[2].node)
-				if Debug['m'] > 2 && yyDollar[2].node.Inl != nil {
-					print("inl body:%+H\n", yyDollar[2].node.Inl)
+				if Debug['m'] > 2 && yyDollar[2].node.Func.Inl != nil {
+					print("inl body:%+H\n", yyDollar[2].node.Func.Inl)
 				}
 			}
 		}

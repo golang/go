@@ -1326,10 +1326,10 @@ xfndcl:
 			Yyerror("can only use //go:noescape with external func implementations");
 		}
 		$$.Nbody = $3;
-		$$.Endlineno = lineno;
+		$$.Func.Endlineno = lineno;
 		$$.Noescape = noescape;
-		$$.Nosplit = nosplit;
-		$$.Nowritebarrier = nowritebarrier;
+		$$.Func.Nosplit = nosplit;
+		$$.Func.Nowritebarrier = nowritebarrier;
 		funcbody($$);
 	}
 
@@ -1392,8 +1392,8 @@ fndcl:
 		t.Rlist = $8;
 
 		$$ = Nod(ODCLFUNC, nil, nil);
-		$$.Shortname = newfuncname($4);
-		$$.Nname = methodname1($$.Shortname, rcvr.Right);
+		$$.Func.Shortname = newfuncname($4);
+		$$.Nname = methodname1($$.Func.Shortname, rcvr.Right);
 		$$.Nname.Defn = $$;
 		$$.Nname.Ntype = t;
 		$$.Nname.Nointerface = nointerface;
@@ -1787,7 +1787,7 @@ non_dcl_stmt:
 		if $$.List == nil && Curfn != nil {
 			var l *NodeList
 
-			for l=Curfn.Dcl; l != nil; l=l.Next {
+			for l=Curfn.Func.Dcl; l != nil; l=l.Next {
 				if l.N.Class == PPARAM {
 					continue;
 				}
@@ -1969,15 +1969,15 @@ hidden_import:
 			break;
 		}
 
-		$2.Inl = $3;
+		$2.Func.Inl = $3;
 
 		funcbody($2);
 		importlist = list(importlist, $2);
 
 		if Debug['E'] > 0 {
 			print("import [%q] func %lN \n", importpkg.Path, $2);
-			if Debug['m'] > 2 && $2.Inl != nil {
-				print("inl body:%+H\n", $2.Inl);
+			if Debug['m'] > 2 && $2.Func.Inl != nil {
+				print("inl body:%+H\n", $2.Func.Inl);
 			}
 		}
 	}

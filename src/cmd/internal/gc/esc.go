@@ -337,7 +337,7 @@ func escfunc(e *EscState, func_ *Node) {
 	savefn := Curfn
 	Curfn = func_
 
-	for ll := Curfn.Dcl; ll != nil; ll = ll.Next {
+	for ll := Curfn.Func.Dcl; ll != nil; ll = ll.Next {
 		if ll.N.Op != ONAME {
 			continue
 		}
@@ -362,7 +362,7 @@ func escfunc(e *EscState, func_ *Node) {
 
 	// in a mutually recursive group we lose track of the return values
 	if e.recursive {
-		for ll := Curfn.Dcl; ll != nil; ll = ll.Next {
+		for ll := Curfn.Func.Dcl; ll != nil; ll = ll.Next {
 			if ll.N.Op == ONAME && ll.N.Class == PPARAMOUT {
 				escflows(e, &e.theSink, ll.N)
 			}
@@ -626,7 +626,7 @@ func esc(e *EscState, n *Node, up *Node) {
 			ll = n.List.N.Escretval
 		}
 
-		for lr := Curfn.Dcl; lr != nil && ll != nil; lr = lr.Next {
+		for lr := Curfn.Func.Dcl; lr != nil && ll != nil; lr = lr.Next {
 			if lr.N.Op != ONAME || lr.N.Class != PPARAMOUT {
 				continue
 			}
@@ -712,7 +712,7 @@ func esc(e *EscState, n *Node, up *Node) {
 	case OCLOSURE:
 		var a *Node
 		var v *Node
-		for ll := n.Cvars; ll != nil; ll = ll.Next {
+		for ll := n.Func.Cvars; ll != nil; ll = ll.Next {
 			v = ll.N
 			if v.Op == OXXX { // unnamed out argument; see dcl.c:/^funcargs
 				continue
@@ -1398,7 +1398,7 @@ func esctag(e *EscState, func_ *Node) {
 	savefn := Curfn
 	Curfn = func_
 
-	for ll := Curfn.Dcl; ll != nil; ll = ll.Next {
+	for ll := Curfn.Func.Dcl; ll != nil; ll = ll.Next {
 		if ll.N.Op != ONAME || ll.N.Class != PPARAM {
 			continue
 		}

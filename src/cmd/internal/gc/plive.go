@@ -212,7 +212,7 @@ func blockany(bb *BasicBlock, f func(*obj.Prog) bool) bool {
 // variables.
 func getvariables(fn *Node) []*Node {
 	result := make([]*Node, 0, 0)
-	for ll := fn.Dcl; ll != nil; ll = ll.Next {
+	for ll := fn.Func.Dcl; ll != nil; ll = ll.Next {
 		if ll.N.Op == ONAME {
 			// In order for GODEBUG=gcdead=1 to work, each bitmap needs
 			// to contain information about all variables covered by the bitmap.
@@ -805,7 +805,7 @@ func livenessprintcfg(lv *Liveness) {
 }
 
 func checkauto(fn *Node, p *obj.Prog, n *Node) {
-	for l := fn.Dcl; l != nil; l = l.Next {
+	for l := fn.Func.Dcl; l != nil; l = l.Next {
 		if l.N.Op == ONAME && l.N.Class == PAUTO && l.N == n {
 			return
 		}
@@ -817,7 +817,7 @@ func checkauto(fn *Node, p *obj.Prog, n *Node) {
 	}
 
 	fmt.Printf("checkauto %v: %v (%p; class=%d) not found in %v\n", Nconv(Curfn, 0), Nconv(n, 0), n, n.Class, p)
-	for l := fn.Dcl; l != nil; l = l.Next {
+	for l := fn.Func.Dcl; l != nil; l = l.Next {
 		fmt.Printf("\t%v (%p; class=%d)\n", Nconv(l.N, 0), l.N, l.N.Class)
 	}
 	Yyerror("checkauto: invariant lost")
@@ -829,7 +829,7 @@ func checkparam(fn *Node, p *obj.Prog, n *Node) {
 	}
 	var a *Node
 	var class int
-	for l := fn.Dcl; l != nil; l = l.Next {
+	for l := fn.Func.Dcl; l != nil; l = l.Next {
 		a = l.N
 		class = int(a.Class) &^ PHEAP
 		if a.Op == ONAME && (class == PPARAM || class == PPARAMOUT) && a == n {
@@ -838,7 +838,7 @@ func checkparam(fn *Node, p *obj.Prog, n *Node) {
 	}
 
 	fmt.Printf("checkparam %v: %v (%p; class=%d) not found in %v\n", Nconv(Curfn, 0), Nconv(n, 0), n, n.Class, p)
-	for l := fn.Dcl; l != nil; l = l.Next {
+	for l := fn.Func.Dcl; l != nil; l = l.Next {
 		fmt.Printf("\t%v (%p; class=%d)\n", Nconv(l.N, 0), l.N, l.N.Class)
 	}
 	Yyerror("checkparam: invariant lost")
@@ -1816,7 +1816,7 @@ func liveness(fn *Node, firstp *obj.Prog, argssym *Sym, livesym *Sym) {
 	twobitwritesymbol(lv.argslivepointers, argssym)
 
 	// Free everything.
-	for l := fn.Dcl; l != nil; l = l.Next {
+	for l := fn.Func.Dcl; l != nil; l = l.Next {
 		if l.N != nil {
 			l.N.Opt = nil
 		}
