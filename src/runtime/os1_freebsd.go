@@ -67,6 +67,8 @@ func futexwakeup(addr *uint32, cnt uint32) {
 
 func thr_start()
 
+// May run without a P, so write barriers are not allowed.
+//go:nowritebarrier
 func newosproc(mp *m, stk unsafe.Pointer) {
 	if false {
 		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " thr_start=", funcPC(thr_start), " id=", mp.id, "/", mp.tls[0], " ostk=", &mp, "\n")
