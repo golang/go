@@ -550,6 +550,16 @@ func (f *File) endsBasicSourceBlock(s ast.Stmt) bool {
 		return true
 	case *ast.TypeSwitchStmt:
 		return true
+	case *ast.ExprStmt:
+		// Calls to panic change the flow.
+		// We really should verify that "panic" is the predefined function,
+		// but without type checking we can't and the likelihood of it being
+		// an actual problem is vanishingly small.
+		if call, ok := s.X.(*ast.CallExpr); ok {
+			if ident, ok := call.Fun.(*ast.Ident); ok && ident.Name == "panic" && len(call.Args) == 1 {
+				return true
+			}
+		}
 	}
 	found, _ := hasFuncLiteral(s)
 	return found

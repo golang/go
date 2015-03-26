@@ -58,9 +58,28 @@ func verify() {
 			PASS = false
 		}
 	}
+	verifyPanic()
 	if !PASS {
 		fmt.Fprintf(os.Stderr, "FAIL\n")
 		os.Exit(2)
+	}
+}
+
+// verifyPanic is a special check for the known counter that should be
+// after the panic call in testPanic.
+func verifyPanic() {
+	if coverTest.Count[panicIndex-1] != 1 {
+		// Sanity check for test before panic.
+		fmt.Fprintf(os.Stderr, "bad before panic")
+		PASS = false
+	}
+	if coverTest.Count[panicIndex] != 0 {
+		fmt.Fprintf(os.Stderr, "bad at panic: %d should be 0\n", coverTest.Count[panicIndex])
+		PASS = false
+	}
+	if coverTest.Count[panicIndex+1] != 1 {
+		fmt.Fprintf(os.Stderr, "bad after panic")
+		PASS = false
 	}
 }
 

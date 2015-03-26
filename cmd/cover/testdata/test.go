@@ -22,7 +22,24 @@ func testAll() {
 	testTypeSwitch()
 	testSelect1()
 	testSelect2()
+	testPanic()
 	testEmptySwitches()
+}
+
+// The indexes of the counters in testPanic are known to main.go
+const panicIndex = 3
+
+// This test appears first because the index of its counters is known to main.go
+func testPanic() {
+	defer func() {
+		recover()
+	}()
+	check(LINE, 1)
+	panic("should not get next line")
+	check(LINE, 0) // this is GoCover.Count[panicIndex]
+	// The next counter is in testSimple and it will be non-zero.
+	// If the panic above does not trigger a counter, the test will fail
+	// because GoCover.Count[panicIndex] will be the one in testSimple.
 }
 
 func testSimple() {
