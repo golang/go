@@ -57,9 +57,9 @@ const (
 )
 
 const (
-	// TODO(gri) replace these with a single precision constant.
-	Mpscale = 29 // safely smaller than bits in a long
-	Mpprec  = 16 // Mpscale*Mpprec is max number of bits
+	// TODO(gri) consider increasing Mpprec to 512 or perhaps 1024
+	// (this would permit enabling additional tests).
+	Mpprec  = 16 * 29 // == 464, to match original value
 	Mpdebug = 0
 )
 
