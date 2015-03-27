@@ -39,5 +39,4 @@ func lower(f *Func) {
 			// TODO: others
 		}
 	}
-	deadcode(f) // TODO: separate pass?
 }
