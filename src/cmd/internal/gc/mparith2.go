@@ -4,19 +4,11 @@
 
 package gc
 
-// shift left by s (or right by -s)
-func Mpshiftfix(a *Mpint, s int) {
-	switch {
-	case s > 0:
-		if mptestovf(a, s) {
-			Yyerror("constant shift overflow")
-			return
-		}
-		a.Val.Lsh(&a.Val, uint(s))
-	case s < 0:
-		a.Val.Rsh(&a.Val, uint(-s))
-	}
-}
+import (
+	"cmd/internal/gc/big"
+	"cmd/internal/obj"
+	"fmt"
+)
 
 /// implements fix arithmetic
 
@@ -28,17 +20,49 @@ func mpsetovf(a *Mpint) {
 func mptestovf(a *Mpint, extra int) bool {
 	// We don't need to be precise here, any reasonable upper limit would do.
 	// For now, use existing limit so we pass all the tests unchanged.
-	const limit = Mpscale * Mpprec
-	if a.Val.BitLen()+extra > limit {
+	if a.Val.BitLen()+extra > Mpprec {
 		mpsetovf(a)
 	}
 	return a.Ovf
 }
 
+func mpmovefixfix(a, b *Mpint) {
+	a.Val.Set(&b.Val)
+}
+
+func mpmovefltfix(a *Mpint, b *Mpflt) int {
+	if _, acc := b.Val.Int(&a.Val); acc == big.Exact {
+		return 0
+	}
+
+	// TODO(gri) reduce the value of delta - currently
+	// we use the size of a mp-word of the old implementation
+	// for approximately similar behavior.
+	const delta = 29 // a reasonably small number of bits > 0
+	var t big.Float
+	t.SetPrec(Mpprec - delta)
+
+	// try rounding down a little
+	t.SetMode(big.ToZero)
+	t.Set(&b.Val)
+	if _, acc := t.Int(&a.Val); acc == big.Exact {
+		return 0
+	}
+
+	// try rounding up a little
+	t.SetMode(big.AwayFromZero)
+	t.Set(&b.Val)
+	if _, acc := t.Int(&a.Val); acc == big.Exact {
+		return 0
+	}
+
+	return -1
+}
+
 func mpaddfixfix(a, b *Mpint, quiet int) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			Yyerror("ovf in mpaddxx")
+			Yyerror("ovf in mpaddfixfix")
 		}
 		mpsetovf(a)
 		return
@@ -48,6 +72,22 @@ func mpaddfixfix(a, b *Mpint, quiet int) {
 
 	if mptestovf(a, 0) && quiet == 0 {
 		Yyerror("constant addition overflow")
+	}
+}
+
+func mpsubfixfix(a, b *Mpint) {
+	if a.Ovf || b.Ovf {
+		if nsavederrors+nerrors == 0 {
+			Yyerror("ovf in mpsubfixfix")
+		}
+		mpsetovf(a)
+		return
+	}
+
+	a.Val.Sub(&a.Val, &b.Val)
+
+	if mptestovf(a, 0) {
+		Yyerror("constant subtraction overflow")
 	}
 }
 
@@ -64,6 +104,40 @@ func mpmulfixfix(a, b *Mpint) {
 
 	if mptestovf(a, 0) {
 		Yyerror("constant multiplication overflow")
+	}
+}
+
+func mpdivfixfix(a, b *Mpint) {
+	if a.Ovf || b.Ovf {
+		if nsavederrors+nerrors == 0 {
+			Yyerror("ovf in mpdivfixfix")
+		}
+		mpsetovf(a)
+		return
+	}
+
+	a.Val.Quo(&a.Val, &b.Val)
+
+	if mptestovf(a, 0) {
+		// can only happen for div-0 which should be checked elsewhere
+		Yyerror("constant division overflow")
+	}
+}
+
+func mpmodfixfix(a, b *Mpint) {
+	if a.Ovf || b.Ovf {
+		if nsavederrors+nerrors == 0 {
+			Yyerror("ovf in mpmodfixfix")
+		}
+		mpsetovf(a)
+		return
+	}
+
+	a.Val.Rem(&a.Val, &b.Val)
+
+	if mptestovf(a, 0) {
+		// should never happen
+		Yyerror("constant modulo overflow")
 	}
 }
 
@@ -115,6 +189,20 @@ func mpxorfixfix(a, b *Mpint) {
 	a.Val.Xor(&a.Val, &b.Val)
 }
 
+// shift left by s (or right by -s)
+func Mpshiftfix(a *Mpint, s int) {
+	switch {
+	case s > 0:
+		if mptestovf(a, s) {
+			Yyerror("constant shift overflow")
+			return
+		}
+		a.Val.Lsh(&a.Val, uint(s))
+	case s < 0:
+		a.Val.Rsh(&a.Val, uint(-s))
+	}
+}
+
 func mplshfixfix(a, b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
@@ -125,7 +213,7 @@ func mplshfixfix(a, b *Mpint) {
 	}
 
 	s := Mpgetfix(b)
-	if s < 0 || s >= Mpprec*Mpscale {
+	if s < 0 || s >= Mpprec {
 		Yyerror("stupid shift: %d", s)
 		Mpmovecfix(a, 0)
 		return
@@ -144,7 +232,7 @@ func mprshfixfix(a, b *Mpint) {
 	}
 
 	s := Mpgetfix(b)
-	if s < 0 || s >= Mpprec*Mpscale {
+	if s < 0 || s >= Mpprec {
 		Yyerror("stupid shift: %d", s)
 		if a.Val.Sign() < 0 {
 			Mpmovecfix(a, -1)
@@ -155,6 +243,14 @@ func mprshfixfix(a, b *Mpint) {
 	}
 
 	Mpshiftfix(a, int(-s))
+}
+
+func Mpcmpfixfix(a, b *Mpint) int {
+	return a.Val.Cmp(&b.Val)
+}
+
+func mpcmpfixc(b *Mpint, c int64) int {
+	return b.Val.Cmp(big.NewInt(c))
 }
 
 func mpnegfix(a *Mpint) {
@@ -174,4 +270,30 @@ func Mpgetfix(a *Mpint) int64 {
 
 func Mpmovecfix(a *Mpint, c int64) {
 	a.Val.SetInt64(c)
+}
+
+func mpatofix(a *Mpint, as string) {
+	_, ok := a.Val.SetString(as, 0)
+	if !ok {
+		// required syntax is [+-][0[x]]d*
+		// At the moment we lose precise error cause;
+		// the old code distinguished between:
+		// - malformed hex constant
+		// - malformed octal constant
+		// - malformed decimal constant
+		// TODO(gri) use different conversion function
+		Yyerror("malformed integer constant: %s", as)
+		a.Val.SetUint64(0)
+		return
+	}
+	if mptestovf(a, 0) {
+		Yyerror("constant too large: %s", as)
+	}
+}
+
+func Bconv(xval *Mpint, flag int) string {
+	if flag&obj.FmtSharp != 0 {
+		return fmt.Sprintf("%#x", &xval.Val)
+	}
+	return xval.Val.String()
 }

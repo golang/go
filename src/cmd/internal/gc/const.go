@@ -24,8 +24,6 @@ func truncfltlit(oldv *Mpflt, t *Type) *Mpflt {
 	overflow(v, t)
 
 	fv := newMpflt()
-
-	// *fv = *oldv
 	mpmovefltflt(fv, oldv)
 
 	// convert large precision literal floating
