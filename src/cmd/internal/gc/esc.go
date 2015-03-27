@@ -653,12 +653,11 @@ func esc(e *EscState, n *Node, up *Node) {
 			}
 		}
 
-	case OCONV, OCONVNOP:
+	case OCONV,
+		OCONVNOP:
 		escassign(e, n, n.Left)
 
 	case OCONVIFACE:
-		// We don't allocate storage for OCONVIFACE on stack yet,
-		// but mark it as EscNone merely to get debug output for tests.
 		n.Esc = EscNone // until proven otherwise
 		e.noesc = list(e.noesc, n)
 		n.Escloopdepth = e.loopdepth

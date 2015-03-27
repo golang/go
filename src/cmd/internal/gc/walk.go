@@ -1040,9 +1040,25 @@ func walkexpr(np **Node, init **NodeList) {
 			} else {
 				ll = list(ll, Nod(OADDR, copyexpr(n.Left, n.Left.Type, init), nil))
 			}
+			dowidth(n.Left.Type)
+			r := nodnil()
+			if n.Esc == EscNone && n.Left.Type.Width <= 1024 {
+				// Allocate stack buffer for value stored in interface.
+				r = temp(n.Left.Type)
+				r = Nod(OAS, r, nil) // zero temp
+				typecheck(&r, Etop)
+				*init = list(*init, r)
+				r = Nod(OADDR, r.Left, nil)
+				typecheck(&r, Erv)
+			}
+			ll = list(ll, r)
 		}
 
-		substArgTypes(fn, n.Left.Type, n.Type)
+		if !Isinter(n.Left.Type) {
+			substArgTypes(fn, n.Left.Type, n.Left.Type, n.Type)
+		} else {
+			substArgTypes(fn, n.Left.Type, n.Type)
+		}
 		dowidth(fn.Type)
 		n = Nod(OCALL, fn, nil)
 		n.List = ll

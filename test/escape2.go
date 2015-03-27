@@ -1787,7 +1787,7 @@ func makemap1() map[int]int {
 
 func makemap2() {
 	m := make(map[int]int) // ERROR "make\(map\[int\]int\) escapes to heap"
-	sink = m	// ERROR "m escapes to heap"
+	sink = m               // ERROR "m escapes to heap"
 }
 
 func nonescapingEface(m map[interface{}]bool) bool { // ERROR "m does not escape"
