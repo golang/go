@@ -245,7 +245,7 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
 
 	case ld.R_TLS:
 		if r.Siz == 4 {
-			if ld.Flag_shared != 0 {
+			if ld.Buildmode == ld.BuildmodeCShared {
 				ld.Thearch.Lput(ld.R_ARM_TLS_IE32 | uint32(elfsym)<<8)
 			} else {
 				ld.Thearch.Lput(ld.R_ARM_TLS_LE32 | uint32(elfsym)<<8)

@@ -102,6 +102,7 @@ func Ldmain() {
 	obj.Flagfn1("X", "name value: define string data", addstrdata1)
 	obj.Flagcount("Z", "clear stack frame on entry", &Debug['Z'])
 	obj.Flagcount("a", "disassemble output", &Debug['a'])
+	flag.Var(&Buildmode, "buildmode", "build mode to use")
 	obj.Flagcount("c", "dump call graph", &Debug['c'])
 	obj.Flagcount("d", "disable dynamic executable", &Debug['d'])
 	obj.Flagstr("extld", "ld: linker to run in external mode", &extld)
@@ -116,8 +117,9 @@ func Ldmain() {
 	obj.Flagstr("r", "dir1:dir2:...: set ELF dynamic linker search path", &rpath)
 	obj.Flagcount("race", "enable race detector", &flag_race)
 	obj.Flagcount("s", "disable symbol table", &Debug['s'])
+	var flagShared int
 	if Thearch.Thechar == '5' || Thearch.Thechar == '6' {
-		obj.Flagcount("shared", "generate shared object (implies -linkmode external)", &Flag_shared)
+		obj.Flagcount("shared", "generate shared object (implies -linkmode external)", &flagShared)
 	}
 	obj.Flagstr("tmpdir", "dir: leave temporary files in this directory", &tmpdir)
 	obj.Flagcount("u", "reject unsafe packages", &Debug['u'])
@@ -141,6 +143,14 @@ func Ldmain() {
 	startProfile()
 	Ctxt.Bso = &Bso
 	Ctxt.Debugvlog = int32(Debug['v'])
+	if flagShared != 0 {
+		if Buildmode == BuildmodeExe {
+			Buildmode = BuildmodeCShared
+		} else if Buildmode != BuildmodeCShared {
+			Diag("-shared and -buildmode=%s are incompatible\n", Buildmode.String())
+			Errorexit()
+		}
+	}
 
 	if flag.NArg() != 1 {
 		usage()

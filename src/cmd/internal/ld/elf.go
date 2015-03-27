@@ -1658,7 +1658,7 @@ func doelf() {
 		Addstring(shstrtab, ".note.GNU-stack")
 	}
 
-	if Flag_shared != 0 {
+	if Buildmode == BuildmodeCShared {
 		Addstring(shstrtab, ".init_array")
 		switch Thearch.Thechar {
 		case '6', '7', '9':

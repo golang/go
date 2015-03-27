@@ -33,6 +33,7 @@ package ld
 import (
 	"bytes"
 	"cmd/internal/obj"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -160,7 +161,7 @@ var (
 	elfglobalsymndx    int
 	flag_installsuffix string
 	flag_race          int
-	Flag_shared        int
+	Buildmode          BuildMode
 	tracksym           string
 	interpreter        string
 	tmpdir             string
@@ -234,6 +235,44 @@ func Lflag(arg string) {
 	Ctxt.Libdir = append(Ctxt.Libdir, arg)
 }
 
+// A BuildMode indicates the sort of object we are building:
+//   "exe": build a main package and everything it imports into an executable.
+//   "c-shared": build a main package, plus all packages that it imports, into a
+//     single C shared library. The only callable symbols will be those functions
+//     marked as exported.
+type BuildMode uint8
+
+const (
+	BuildmodeExe BuildMode = iota
+	BuildmodeCShared
+)
+
+func (mode *BuildMode) Set(s string) error {
+	switch s {
+	default:
+		return errors.New("invalid mode")
+	case "exe":
+		*mode = BuildmodeExe
+	case "c-shared":
+		goarch := obj.Getgoarch()
+		if goarch != "amd64" && goarch != "arm" {
+			return fmt.Errorf("not supported on %s", goarch)
+		}
+		*mode = BuildmodeCShared
+	}
+	return nil
+}
+
+func (mode *BuildMode) String() string {
+	switch *mode {
+	case BuildmodeExe:
+		return "exe"
+	case BuildmodeCShared:
+		return "c-shared"
+	}
+	return fmt.Sprintf("BuildMode(%d)", uint8(*mode))
+}
+
 /*
  * Unix doesn't like it when we write to a running (or, sometimes,
  * recently run) binary, so remove the output file before writing it.
@@ -276,10 +315,13 @@ func libinit() {
 	coutbuf = *Binitw(f)
 
 	if INITENTRY == "" {
-		if Flag_shared == 0 {
-			INITENTRY = fmt.Sprintf("_rt0_%s_%s", goarch, goos)
-		} else {
+		switch Buildmode {
+		case BuildmodeCShared:
 			INITENTRY = fmt.Sprintf("_rt0_%s_%s_lib", goarch, goos)
+		case BuildmodeExe:
+			INITENTRY = fmt.Sprintf("_rt0_%s_%s", goarch, goos)
+		default:
+			Diag("unknown INITENTRY for buildmode %v", Buildmode)
 		}
 	}
 
@@ -324,7 +366,7 @@ func loadinternal(name string) {
 }
 
 func loadlib() {
-	if Flag_shared != 0 {
+	if Buildmode == BuildmodeCShared {
 		s := Linklookup(Ctxt, "runtime.islibrary", 0)
 		s.Dupok = 1
 		Adduint8(Ctxt, s, 1)
@@ -454,7 +496,7 @@ func loadlib() {
 	// binaries, so leave it enabled on OS X (Mach-O) binaries.
 	// Also leave it enabled on Solaris which doesn't support
 	// statically linked binaries.
-	if Flag_shared == 0 && havedynamic == 0 && HEADTYPE != Hdarwin && HEADTYPE != Hsolaris {
+	if Buildmode == BuildmodeExe && havedynamic == 0 && HEADTYPE != Hdarwin && HEADTYPE != Hsolaris {
 		Debug['d'] = 1
 	}
 
@@ -746,7 +788,7 @@ func hostlink() {
 		argv = append(argv, "-Wl,--rosegment")
 	}
 
-	if Flag_shared != 0 {
+	if Buildmode == BuildmodeCShared {
 		argv = append(argv, "-Wl,-Bsymbolic")
 		argv = append(argv, "-shared")
 	}
