@@ -353,7 +353,7 @@ func checkBytes(b []byte) bool {
 }
 
 func TestBytes(t *testing.T) {
-	if err := quick.Check(checkSetBytes, nil); err != nil {
+	if err := quick.Check(checkBytes, nil); err != nil {
 		t.Error(err)
 	}
 }
