@@ -172,7 +172,7 @@ func markroot(desc *parfor, i uint32) {
 // allowAssist is true, may assist GC scanning in proportion to the
 // allocations performed by this mutator since the last assist.
 //
-// It should only be called during gcphase == _GCmark.
+// It should only be called if gcAssistAlloc != 0.
 //
 // This must be called with preemption disabled.
 //go:nowritebarrier

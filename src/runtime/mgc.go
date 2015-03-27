@@ -465,10 +465,10 @@ func (c *gcControllerState) endCycle() {
 }
 
 // findRunnable returns the background mark worker for _p_ if it
-// should be run. This must only be called when gcphase == _GCmark.
+// should be run. This must only be called when gcBlackenEnabled != 0.
 func (c *gcControllerState) findRunnable(_p_ *p) *g {
-	if gcphase != _GCmark {
-		throw("gcControllerState.findRunnable: not in mark phase")
+	if gcBlackenEnabled == 0 {
+		throw("gcControllerState.findRunnable: blackening not enabled")
 	}
 	if _p_.gcBgMarkWorker == nil {
 		throw("gcControllerState.findRunnable: no background mark worker")
@@ -764,23 +764,24 @@ func gc(mode int) {
 			gcscan_m()
 			gctimer.cycle.installmarkwb = nanotime()
 
-			// Enter mark phase, enabling write barriers
-			// and mutator assists.
-			//
-			// TODO: Elimate this STW. This requires
-			// enabling write barriers in all mutators
-			// before enabling any mutator assists or
-			// background marking.
+			// Enter mark phase. This enables write
+			// barriers.
 			if debug.gctrace > 0 {
 				tInstallWB = nanotime()
 			}
-			stoptheworld()
-			gcBgMarkPrepare()
-			gcphase = _GCmark
-
-			// Concurrent mark.
-			starttheworld()
+			atomicstore(&gcphase, _GCmark)
+			// Ensure all Ps have observed the phase
+			// change and have write barriers enabled
+			// before any blackening occurs.
+			forEachP(func(*p) {})
 		})
+		// Concurrent mark.
+		gcBgMarkPrepare() // Must happen before assist enable.
+		// At this point all Ps have enabled the mark phase
+		// write barrier, thus maintaining the no white to
+		// black invariant. Mutator assists and mark workers
+		// can now be enabled to safely blacken grey objects.
+		atomicstore(&gcBlackenEnabled, 1)
 		gctimer.cycle.mark = nanotime()
 		if debug.gctrace > 0 {
 			tMark = nanotime()
@@ -824,6 +825,7 @@ func gc(mode int) {
 
 	// World is stopped.
 	// Start marktermination which includes enabling the write barrier.
+	atomicstore(&gcBlackenEnabled, 0)
 	gcphase = _GCmarktermination
 
 	if debug.gctrace > 0 {
@@ -921,7 +923,7 @@ func gc(mode int) {
 		// Update work.totaltime
 		sweepTermCpu := int64(stwprocs) * (tScan - tSweepTerm)
 		scanCpu := tInstallWB - tScan
-		installWBCpu := int64(stwprocs) * (tMark - tInstallWB)
+		installWBCpu := int64(0)
 		// We report idle marking time below, but omit it from
 		// the overall utilization here since it's "free".
 		markCpu := gcController.assistTime + gcController.dedicatedMarkTime + gcController.fractionalMarkTime
@@ -1047,12 +1049,18 @@ func gcBgMarkWorker(p *p) {
 		// dispose the gcw, and then preempt.
 		mp = acquirem()
 
+		if gcBlackenEnabled == 0 {
+			throw("gcBgMarkWorker: blackening not enabled")
+		}
+
 		startTime := nanotime()
 
 		xadd(&work.nwait, -1)
 
 		done := false
 		switch p.gcMarkWorkerMode {
+		default:
+			throw("gcBgMarkWorker: unexpected gcMarkWorkerMode")
 		case gcMarkWorkerDedicatedMode:
 			gcDrain(&p.gcw, gcBgCreditSlack)
 			// gcDrain did the xadd(&work.nwait +1) to
