@@ -533,6 +533,11 @@ type forcegcstate struct {
 
 var gcphase uint32
 
+// gcBlackenEnabled is 1 if mutator assists and background mark
+// workers are allowed to blacken objects. This must only be set when
+// gcphase == _GCmark.
+var gcBlackenEnabled uint32
+
 /*
  * known to compiler
  */
