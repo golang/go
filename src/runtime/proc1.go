@@ -208,6 +208,10 @@ func helpgc(nproc int32) {
 	unlock(&sched.lock)
 }
 
+// freezeStopWait is a large value that freezetheworld sets
+// sched.stopwait to in order to request that all Gs permanently stop.
+const freezeStopWait = 0x7fffffff
+
 // Similar to stoptheworld but best-effort and can be called several times.
 // There is no reverse operation, used during crashing.
 // This function must not lock any mutexes.
@@ -220,7 +224,7 @@ func freezetheworld() {
 	// so try several times
 	for i := 0; i < 5; i++ {
 		// this should tell the scheduler to not start any new goroutines
-		sched.stopwait = 0x7fffffff
+		sched.stopwait = freezeStopWait
 		atomicstore(&sched.gcwaiting, 1)
 		// this should stop running goroutines
 		if !preemptall() {
@@ -1864,7 +1868,7 @@ func exitsyscallfast() bool {
 	_g_ := getg()
 
 	// Freezetheworld sets stopwait but does not retake P's.
-	if sched.stopwait != 0 {
+	if sched.stopwait == freezeStopWait {
 		_g_.m.mcache = nil
 		_g_.m.p = nil
 		return false
