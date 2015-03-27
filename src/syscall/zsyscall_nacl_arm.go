@@ -10,7 +10,7 @@ import "unsafe"
 func naclClose(fd int) (err error) {
 	_, _, e1 := Syscall(sys_close, uintptr(fd), 0, 0)
 	if e1 != 0 {
-		err = e1
+		err = errnoErr(e1)
 	}
 	return
 }
@@ -20,7 +20,7 @@ func naclClose(fd int) (err error) {
 func Exit(code int) (err error) {
 	_, _, e1 := Syscall(sys_exit, uintptr(code), 0, 0)
 	if e1 != 0 {
-		err = e1
+		err = errnoErr(e1)
 	}
 	return
 }
@@ -30,7 +30,7 @@ func Exit(code int) (err error) {
 func naclFstat(fd int, stat *Stat_t) (err error) {
 	_, _, e1 := Syscall(sys_fstat, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
 	if e1 != 0 {
-		err = e1
+		err = errnoErr(e1)
 	}
 	return
 }
@@ -47,7 +47,7 @@ func naclRead(fd int, b []byte) (n int, err error) {
 	r0, _, e1 := Syscall(sys_read, uintptr(fd), uintptr(_p0), uintptr(len(b)))
 	n = int(r0)
 	if e1 != 0 {
-		err = e1
+		err = errnoErr(e1)
 	}
 	return
 }
@@ -57,7 +57,7 @@ func naclRead(fd int, b []byte) (n int, err error) {
 func naclSeek(fd int, off *int64, whence int) (err error) {
 	_, _, e1 := Syscall(sys_lseek, uintptr(fd), uintptr(unsafe.Pointer(off)), uintptr(whence))
 	if e1 != 0 {
-		err = e1
+		err = errnoErr(e1)
 	}
 	return
 }
@@ -73,7 +73,7 @@ func naclGetRandomBytes(b []byte) (err error) {
 	}
 	_, _, e1 := Syscall(sys_get_random_bytes, uintptr(_p0), uintptr(len(b)), 0)
 	if e1 != 0 {
-		err = e1
+		err = errnoErr(e1)
 	}
 	return
 }
