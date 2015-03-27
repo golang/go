@@ -135,9 +135,16 @@ func main() {
 	os.Exit(exitCode)
 }
 
+// parseFlags parses command line flags and returns the paths to process.
+// It's a var so that custom implementations can replace it in other files.
+var parseFlags = func() []string {
+	flag.Parse()
+	return flag.Args()
+}
+
 func gofmtMain() {
 	flag.Usage = usage
-	flag.Parse()
+	paths := parseFlags()
 
 	if options.TabWidth < 0 {
 		fmt.Fprintf(os.Stderr, "negative tabwidth %d\n", options.TabWidth)
@@ -145,15 +152,14 @@ func gofmtMain() {
 		return
 	}
 
-	if flag.NArg() == 0 {
+	if len(paths) == 0 {
 		if err := processFile("<standard input>", os.Stdin, os.Stdout, true); err != nil {
 			report(err)
 		}
 		return
 	}
 
-	for i := 0; i < flag.NArg(); i++ {
-		path := flag.Arg(i)
+	for _, path := range paths {
 		switch dir, err := os.Stat(path); {
 		case err != nil:
 			report(err)
