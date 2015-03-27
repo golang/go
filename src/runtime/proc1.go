@@ -743,6 +743,124 @@ func mstart1() {
 	schedule()
 }
 
+// forEachP calls fn(p) for every P p when p reaches a GC safe point.
+// If a P is currently executing code, this will bring the P to a GC
+// safe point and execute fn on that P. If the P is not executing code
+// (it is idle or in a syscall), this will call fn(p) directly while
+// preventing the P from exiting its state. This does not ensure that
+// fn will run on every CPU executing Go code, but it act as a global
+// memory barrier. GC uses this as a "ragged barrier."
+//
+// The caller must hold worldsema.
+func forEachP(fn func(*p)) {
+	mp := acquirem()
+	_p_ := getg().m.p.ptr()
+
+	lock(&sched.lock)
+	if sched.stopwait != 0 {
+		throw("forEachP: sched.stopwait != 0")
+	}
+	sched.stopwait = gomaxprocs - 1
+	sched.safePointFn = fn
+
+	// Ask all Ps to run the safe point function.
+	for _, p := range allp[:gomaxprocs] {
+		if p != _p_ {
+			atomicstore(&p.runSafePointFn, 1)
+		}
+	}
+	preemptall()
+
+	// Any P entering _Pidle or _Psyscall from now on will observe
+	// p.runSafePointFn == 1 and will call runSafePointFn when
+	// changing its status to _Pidle/_Psyscall.
+
+	// Run safe point function for all idle Ps. sched.pidle will
+	// not change because we hold sched.lock.
+	for p := sched.pidle.ptr(); p != nil; p = p.link.ptr() {
+		if cas(&p.runSafePointFn, 1, 0) {
+			fn(p)
+			sched.stopwait--
+		}
+	}
+
+	wait := sched.stopwait > 0
+	unlock(&sched.lock)
+
+	// Run fn for the current P.
+	fn(_p_)
+
+	// Force Ps currently in _Psyscall into _Pidle and hand them
+	// off to induce safe point function execution.
+	for i := 0; i < int(gomaxprocs); i++ {
+		p := allp[i]
+		s := p.status
+		if s == _Psyscall && p.runSafePointFn == 1 && cas(&p.status, s, _Pidle) {
+			if trace.enabled {
+				traceGoSysBlock(p)
+				traceProcStop(p)
+			}
+			p.syscalltick++
+			handoffp(p)
+		}
+	}
+
+	// Wait for remaining Ps to run fn.
+	if wait {
+		for {
+			// Wait for 100us, then try to re-preempt in
+			// case of any races.
+			if notetsleep(&sched.stopnote, 100*1000) {
+				noteclear(&sched.stopnote)
+				break
+			}
+			preemptall()
+		}
+	}
+	if sched.stopwait != 0 {
+		throw("forEachP: not stopped")
+	}
+	for i := 0; i < int(gomaxprocs); i++ {
+		p := allp[i]
+		if p.runSafePointFn != 0 {
+			throw("forEachP: P did not run fn")
+		}
+	}
+
+	lock(&sched.lock)
+	sched.safePointFn = nil
+	unlock(&sched.lock)
+	releasem(mp)
+}
+
+// runSafePointFn runs the safe point function, if any, for this P.
+// This should be called like
+//
+//     if getg().m.p.runSafePointFn != 0 {
+//         runSafePointFn()
+//     }
+//
+// runSafePointFn must be checked on any transition in to _Pidle or
+// _Psyscall to avoid a race where forEachP sees that the P is running
+// just before the P goes into _Pidle/_Psyscall and neither forEachP
+// nor the P run the safe-point function.
+func runSafePointFn() {
+	p := getg().m.p.ptr()
+	// Resolve the race between forEachP running the safe-point
+	// function on this P's behalf and this P running the
+	// safe-point function directly.
+	if !cas(&p.runSafePointFn, 1, 0) {
+		return
+	}
+	sched.safePointFn(p)
+	lock(&sched.lock)
+	sched.stopwait--
+	if sched.stopwait == 0 {
+		notewakeup(&sched.stopnote)
+	}
+	unlock(&sched.lock)
+}
+
 // When running with cgo, we call _cgo_thread_start
 // to start threads for us so that we can play nicely with
 // foreign code.
@@ -1109,6 +1227,13 @@ func handoffp(_p_ *p) {
 		unlock(&sched.lock)
 		return
 	}
+	if _p_.runSafePointFn != 0 && cas(&_p_.runSafePointFn, 1, 0) {
+		sched.safePointFn(_p_)
+		sched.stopwait--
+		if sched.stopwait == 0 {
+			notewakeup(&sched.stopnote)
+		}
+	}
 	if sched.runqsize != 0 {
 		unlock(&sched.lock)
 		startm(_p_, false)
@@ -1246,6 +1371,9 @@ top:
 		gcstopm()
 		goto top
 	}
+	if _g_.m.p.ptr().runSafePointFn != 0 {
+		runSafePointFn()
+	}
 	if fingwait && fingwake {
 		if gp := wakefing(); gp != nil {
 			ready(gp, 0)
@@ -1327,7 +1455,7 @@ stop:
 
 	// return P and block
 	lock(&sched.lock)
-	if sched.gcwaiting != 0 {
+	if sched.gcwaiting != 0 || _g_.m.p.ptr().runSafePointFn != 0 {
 		unlock(&sched.lock)
 		goto top
 	}
@@ -1453,6 +1581,9 @@ top:
 	if sched.gcwaiting != 0 {
 		gcstopm()
 		goto top
+	}
+	if _g_.m.p.ptr().runSafePointFn != 0 {
+		runSafePointFn()
 	}
 
 	var gp *g
@@ -1709,6 +1840,10 @@ func reentersyscall(pc, sp uintptr) {
 	_g_.m.mcache = nil
 	_g_.m.p.ptr().m = 0
 	atomicstore(&_g_.m.p.ptr().status, _Psyscall)
+	if _g_.m.p.ptr().runSafePointFn != 0 {
+		// runSafePointFn may stack split if run on this stack
+		systemstack(runSafePointFn)
+	}
 	if sched.gcwaiting != 0 {
 		systemstack(entersyscall_gcwait)
 		save(pc, sp)
