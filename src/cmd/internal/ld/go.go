@@ -474,7 +474,7 @@ func loadcgo(file string, pkg string, p string) {
 			local = expandpkg(local, pkg)
 			s = Linklookup(Ctxt, local, 0)
 
-			if Flag_shared != 0 && s == Linklookup(Ctxt, "main", 0) {
+			if Buildmode == BuildmodeCShared && s == Linklookup(Ctxt, "main", 0) {
 				continue
 			}
 

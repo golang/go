@@ -330,7 +330,7 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
 
 	case ld.R_TLS:
 		if r.Siz == 4 {
-			if ld.Flag_shared != 0 {
+			if ld.Buildmode == ld.BuildmodeCShared {
 				ld.Thearch.Vput(ld.R_X86_64_GOTTPOFF | uint64(elfsym)<<32)
 			} else {
 				ld.Thearch.Vput(ld.R_X86_64_TPOFF32 | uint64(elfsym)<<32)
