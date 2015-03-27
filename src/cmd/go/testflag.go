@@ -30,6 +30,7 @@ var testFlagDefn = []*testFlagSpec{
 	// local.
 	{name: "c", boolVar: &testC},
 	{name: "cover", boolVar: &testCover},
+	{name: "covermode"},
 	{name: "coverpkg"},
 	{name: "o"},
 
@@ -53,7 +54,6 @@ var testFlagDefn = []*testFlagSpec{
 	{name: "bench", passToTest: true},
 	{name: "benchmem", boolVar: new(bool), passToTest: true},
 	{name: "benchtime", passToTest: true},
-	{name: "covermode"},
 	{name: "coverprofile", passToTest: true},
 	{name: "cpu", passToTest: true},
 	{name: "cpuprofile", passToTest: true},
