@@ -54,11 +54,12 @@ var passes = [...]pass{
 	{"phielim", phielim},
 	{"copyelim", copyelim},
 	{"opt", opt},
-	// cse
-	{"deadcode", deadcode},
+	{"generic cse", cse},
+	{"generic deadcode", deadcode},
 	{"fuse", fuse},
 	{"lower", lower},
-	// cse
+	{"lowered cse", cse},
+	{"lowered deadcode", deadcode},
 	{"critical", critical}, // remove critical edges
 	{"layout", layout},     // schedule blocks
 	{"schedule", schedule}, // schedule values
