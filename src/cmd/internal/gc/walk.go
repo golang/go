@@ -549,9 +549,9 @@ func walkexpr(np **Node, init **NodeList) {
 		OOROR:
 		walkexpr(&n.Left, init)
 
-		// cannot put side effects from n->right on init,
-		// because they cannot run before n->left is checked.
-		// save elsewhere and store on the eventual n->right.
+		// cannot put side effects from n.Right on init,
+		// because they cannot run before n.Left is checked.
+		// save elsewhere and store on the eventual n.Right.
 		var ll *NodeList
 
 		walkexpr(&n.Right, &ll)
@@ -680,7 +680,7 @@ func walkexpr(np **Node, init **NodeList) {
 				break
 			}
 
-			// x = i.(T); n->left is x, n->right->left is i.
+			// x = i.(T); n.Left is x, n.Right.Left is i.
 			// orderstmt made sure x is addressable.
 			walkexpr(&n.Right.Left, init)
 
@@ -700,7 +700,7 @@ func walkexpr(np **Node, init **NodeList) {
 			goto ret
 
 		case ORECV:
-			// x = <-c; n->left is x, n->right->left is c.
+			// x = <-c; n.Left is x, n.Right.Left is c.
 			// orderstmt made sure x is addressable.
 			walkexpr(&n.Right.Left, init)
 
@@ -1030,7 +1030,7 @@ func walkexpr(np **Node, init **NodeList) {
 			ll = list(ll, n.Left)
 		} else {
 			// regular types are passed by reference to avoid C vararg calls
-			// orderexpr arranged for n->left to be a temporary for all
+			// orderexpr arranged for n.Left to be a temporary for all
 			// the conversions it could see. comparison of an interface
 			// with a non-interface, especially in a switch on interface value
 			// with non-interface cases, is not visible to orderstmt, so we
@@ -1296,7 +1296,7 @@ func walkexpr(np **Node, init **NodeList) {
 		n.Right.Left = safeexpr(n.Right.Left, init)
 		walkexpr(&n.Right.Right, init)
 		n.Right.Right = safeexpr(n.Right.Right, init)
-		n = sliceany(n, init) // chops n->right, sets n->list
+		n = sliceany(n, init) // chops n.Right, sets n.List
 		goto ret
 
 	case OSLICE3,
@@ -1320,7 +1320,7 @@ func walkexpr(np **Node, init **NodeList) {
 		n.Right.Right.Left = safeexpr(n.Right.Right.Left, init)
 		walkexpr(&n.Right.Right.Right, init)
 		n.Right.Right.Right = safeexpr(n.Right.Right.Right, init)
-		n = sliceany(n, init) // chops n->right, sets n->list
+		n = sliceany(n, init) // chops n.Right, sets n.List
 		goto ret
 
 	case OADDR:
@@ -1479,7 +1479,7 @@ func walkexpr(np **Node, init **NodeList) {
 			typecheck(&a, Etop)
 			*init = list(*init, a)
 			r := Nod(OSLICE, var_, Nod(OKEY, nil, l)) // arr[:l]
-			r = conv(r, n.Type)                       // in case n->type is named.
+			r = conv(r, n.Type)                       // in case n.Type is named.
 			typecheck(&r, Erv)
 			walkexpr(&r, init)
 			n = r
