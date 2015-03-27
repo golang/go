@@ -221,3 +221,43 @@ func BenchmarkAssertE2E2Blank(b *testing.B) {
 		_, ok = e.(interface{})
 	}
 }
+
+func TestNonEscapingConvT2E(t *testing.T) {
+	m := make(map[interface{}]bool)
+	m[42] = true
+	if !m[42] {
+		t.Fatalf("42 is not present in the map")
+	}
+	if m[0] {
+		t.Fatalf("0 is present in the map")
+	}
+
+	n := testing.AllocsPerRun(1000, func() {
+		if m[0] {
+			t.Fatalf("0 is present in the map")
+		}
+	})
+	if n != 0 {
+		t.Fatalf("want 0 allocs, got %v", n)
+	}
+}
+
+func TestNonEscapingConvT2I(t *testing.T) {
+	m := make(map[I1]bool)
+	m[TM(42)] = true
+	if !m[TM(42)] {
+		t.Fatalf("42 is not present in the map")
+	}
+	if m[TM(0)] {
+		t.Fatalf("0 is present in the map")
+	}
+
+	n := testing.AllocsPerRun(1000, func() {
+		if m[TM(0)] {
+			t.Fatalf("0 is present in the map")
+		}
+	})
+	if n != 0 {
+		t.Fatalf("want 0 allocs, got %v", n)
+	}
+}

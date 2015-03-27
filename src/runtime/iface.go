@@ -130,13 +130,15 @@ func typ2Itab(t *_type, inter *interfacetype, cache **itab) *itab {
 	return tab
 }
 
-func convT2E(t *_type, elem unsafe.Pointer) (e interface{}) {
+func convT2E(t *_type, elem unsafe.Pointer, x unsafe.Pointer) (e interface{}) {
 	ep := (*eface)(unsafe.Pointer(&e))
 	if isDirectIface(t) {
 		ep._type = t
 		typedmemmove(t, unsafe.Pointer(&ep.data), elem)
 	} else {
-		x := newobject(t)
+		if x == nil {
+			x = newobject(t)
+		}
 		// TODO: We allocate a zeroed object only to overwrite it with
 		// actual data.  Figure out how to avoid zeroing.  Also below in convT2I.
 		typedmemmove(t, x, elem)
@@ -146,7 +148,7 @@ func convT2E(t *_type, elem unsafe.Pointer) (e interface{}) {
 	return
 }
 
-func convT2I(t *_type, inter *interfacetype, cache **itab, elem unsafe.Pointer) (i fInterface) {
+func convT2I(t *_type, inter *interfacetype, cache **itab, elem unsafe.Pointer, x unsafe.Pointer) (i fInterface) {
 	tab := (*itab)(atomicloadp(unsafe.Pointer(cache)))
 	if tab == nil {
 		tab = getitab(inter, t, false)
@@ -157,7 +159,9 @@ func convT2I(t *_type, inter *interfacetype, cache **itab, elem unsafe.Pointer) 
 		pi.tab = tab
 		typedmemmove(t, unsafe.Pointer(&pi.data), elem)
 	} else {
-		x := newobject(t)
+		if x == nil {
+			x = newobject(t)
+		}
 		typedmemmove(t, x, elem)
 		pi.tab = tab
 		pi.data = x
