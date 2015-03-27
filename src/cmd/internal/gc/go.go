@@ -333,7 +333,7 @@ const (
 
 // declaration context
 const (
-	Pxxx      = iota
+	Pxxx      = uint8(iota)
 	PEXTERN   // global variable
 	PAUTO     // local variables
 	PPARAM    // input arguments
@@ -343,7 +343,7 @@ const (
 
 	PDISCARD // discard during parse of duplicate import
 
-	PHEAP = 1 << 7 // an extra bit to identify an escaped variable
+	PHEAP = uint8(1 << 7) // an extra bit to identify an escaped variable
 )
 
 const (
@@ -594,7 +594,7 @@ var importlist *NodeList // imported functions and methods with inlinable bodies
 
 var funcsyms *NodeList
 
-var dclcontext int // PEXTERN/PAUTO
+var dclcontext uint8 // PEXTERN/PAUTO
 
 var incannedimport int
 

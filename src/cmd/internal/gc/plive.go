@@ -828,10 +828,10 @@ func checkparam(fn *Node, p *obj.Prog, n *Node) {
 		return
 	}
 	var a *Node
-	var class int
+	var class uint8
 	for l := fn.Func.Dcl; l != nil; l = l.Next {
 		a = l.N
-		class = int(a.Class) &^ PHEAP
+		class = a.Class &^ PHEAP
 		if a.Op == ONAME && (class == PPARAM || class == PPARAMOUT) && a == n {
 			return
 		}

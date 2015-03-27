@@ -287,9 +287,9 @@ func walkstmt(np **Node) {
 			// so that reorder3 can fix up conflicts
 			var rl *NodeList
 
-			var cl int
+			var cl uint8
 			for ll := Curfn.Func.Dcl; ll != nil; ll = ll.Next {
-				cl = int(ll.N.Class) &^ PHEAP
+				cl = ll.N.Class &^ PHEAP
 				if cl == PAUTO {
 					break
 				}

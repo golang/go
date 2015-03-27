@@ -165,7 +165,7 @@ var vargen int
 
 var declare_typegen int
 
-func declare(n *Node, ctxt int) {
+func declare(n *Node, ctxt uint8) {
 	if ctxt == PDISCARD {
 		return
 	}
@@ -232,7 +232,7 @@ func declare(n *Node, ctxt int) {
 	autoexport(n, ctxt)
 }
 
-func addvar(n *Node, t *Type, ctxt int) {
+func addvar(n *Node, t *Type, ctxt uint8) {
 	if n == nil || n.Sym == nil || (n.Op != ONAME && n.Op != ONONAME) || t == nil {
 		Fatal("addvar: n=%v t=%v nil", Nconv(n, 0), Tconv(t, 0))
 	}
