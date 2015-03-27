@@ -57,7 +57,7 @@ func exportedsym(sym *Sym) bool {
 	return sym.Pkg == localpkg && exportname(sym.Name)
 }
 
-func autoexport(n *Node, ctxt int) {
+func autoexport(n *Node, ctxt uint8) {
 	if n == nil || n.Sym == nil {
 		return
 	}
