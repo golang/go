@@ -28,6 +28,7 @@ flag: new nicer format for PrintDefaults (https://go-review.googlesource.com/733
 go/ast: add Implicit field to ast.EmptyStmt; changed meaning of ast.EmptyStmt.Semicolon position (https://golang.org/cl/5720)
 log: add SetOutput functions (https://golang.org/cl/2686, https://golang.org/cl/3023)
 math/big: add arbitrary precision Floats (many cl's)
+mime: add ExtensionByType (https://golang.org/cl/7444)
 net/http: support for setting trailers from a server Handler (https://golang.org/cl/2157)
 net/http: ignore the Unix epoch time in ServeContent (https://golang.org/cl/7915)
 net/http/cgi: fix REMOTE_ADDR, REMOTE_HOST, add REMOTE_PORT (https://golang.org/cl/4933)
