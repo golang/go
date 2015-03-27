@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 const usageMessage = "" +
@@ -329,10 +330,11 @@ func annotate(name string) {
 	if err != nil {
 		log.Fatalf("cover: %s: %s", name, err)
 	}
-	parsedFile, err := parser.ParseFile(fset, name, content, 0)
+	parsedFile, err := parser.ParseFile(fset, name, content, parser.ParseComments)
 	if err != nil {
 		log.Fatalf("cover: %s: %s", name, err)
 	}
+	parsedFile.Comments = trimComments(parsedFile, fset)
 
 	file := &File{
 		fset:    fset,
@@ -356,6 +358,26 @@ func annotate(name string) {
 	// After printing the source tree, add some declarations for the counters etc.
 	// We could do this by adding to the tree, but it's easier just to print the text.
 	file.addVariables(fd)
+}
+
+// trimComments drops all but the //go: comments, some of which are semantically important.
+// We drop all others because they can appear in places that cause our counters
+// to appear in syntactically incorrect places. //go: appears at the beginning of
+// the line and is syntactically safe.
+func trimComments(file *ast.File, fset *token.FileSet) []*ast.CommentGroup {
+	var comments []*ast.CommentGroup
+	for _, group := range file.Comments {
+		var list []*ast.Comment
+		for _, comment := range group.List {
+			if strings.HasPrefix(comment.Text, "//go:") && fset.Position(comment.Slash).Column == 1 {
+				list = append(list, comment)
+			}
+		}
+		if list != nil {
+			comments = append(comments, &ast.CommentGroup{list})
+		}
+	}
+	return comments
 }
 
 func (f *File) print(w io.Writer) {
