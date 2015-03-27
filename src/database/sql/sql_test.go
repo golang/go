@@ -1085,17 +1085,17 @@ func TestMaxOpenConnsOnBusy(t *testing.T) {
 
 	db.SetMaxOpenConns(3)
 
-	conn0, err := db.conn()
+	conn0, err := db.conn(cachedOrNewConn)
 	if err != nil {
 		t.Fatalf("db open conn fail: %v", err)
 	}
 
-	conn1, err := db.conn()
+	conn1, err := db.conn(cachedOrNewConn)
 	if err != nil {
 		t.Fatalf("db open conn fail: %v", err)
 	}
 
-	conn2, err := db.conn()
+	conn2, err := db.conn(cachedOrNewConn)
 	if err != nil {
 		t.Fatalf("db open conn fail: %v", err)
 	}
@@ -1382,6 +1382,79 @@ func TestStmtCloseOrder(t *testing.T) {
 	_, err := db.Query("SELECT|non_existent|name|")
 	if err == nil {
 		t.Fatal("Quering non-existent table should fail")
+	}
+}
+
+// Test cases where there's more than maxBadConnRetries bad connections in the
+// pool (issue 8834)
+func TestManyErrBadConn(t *testing.T) {
+	manyErrBadConnSetup := func() *DB {
+		db := newTestDB(t, "people")
+
+		nconn := maxBadConnRetries + 1
+		db.SetMaxIdleConns(nconn)
+		db.SetMaxOpenConns(nconn)
+		// open enough connections
+		func() {
+			for i := 0; i < nconn; i++ {
+				rows, err := db.Query("SELECT|people|age,name|")
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer rows.Close()
+			}
+		}()
+
+		if db.numOpen != nconn {
+			t.Fatalf("unexpected numOpen %d (was expecting %d)", db.numOpen, nconn)
+		} else if len(db.freeConn) != nconn {
+			t.Fatalf("unexpected len(db.freeConn) %d (was expecting %d)", len(db.freeConn), nconn)
+		}
+		for _, conn := range db.freeConn {
+			conn.ci.(*fakeConn).stickyBad = true
+		}
+		return db
+	}
+
+	// Query
+	db := manyErrBadConnSetup()
+	defer closeDB(t, db)
+	rows, err := db.Query("SELECT|people|age,name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = rows.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Exec
+	db = manyErrBadConnSetup()
+	defer closeDB(t, db)
+	_, err = db.Exec("INSERT|people|name=Julia,age=19")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Begin
+	db = manyErrBadConnSetup()
+	defer closeDB(t, db)
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = tx.Rollback(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Prepare
+	db = manyErrBadConnSetup()
+	defer closeDB(t, db)
+	stmt, err := db.Prepare("SELECT|people|age,name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = stmt.Close(); err != nil {
+		t.Fatal(err)
 	}
 }
 
