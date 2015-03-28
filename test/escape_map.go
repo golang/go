@@ -11,7 +11,7 @@ package escape
 var sink interface{}
 
 func map0() {
-	m := make(map[*int]*int) // ERROR "make\(map\[\*int\]\*int, 0\) does not escape"
+	m := make(map[*int]*int) // ERROR "make\(map\[\*int\]\*int\) does not escape"
 	// BAD: i should not escape
 	i := 0 // ERROR "moved to heap: i"
 	// BAD: j should not escape
@@ -21,7 +21,7 @@ func map0() {
 }
 
 func map1() *int {
-	m := make(map[*int]*int) // ERROR "make\(map\[\*int\]\*int, 0\) does not escape"
+	m := make(map[*int]*int) // ERROR "make\(map\[\*int\]\*int\) does not escape"
 	// BAD: i should not escape
 	i := 0       // ERROR "moved to heap: i"
 	j := 0       // ERROR "moved to heap: j"
@@ -30,7 +30,7 @@ func map1() *int {
 }
 
 func map2() map[*int]*int {
-	m := make(map[*int]*int) // ERROR "make\(map\[\*int\]\*int, 0\) escapes to heap"
+	m := make(map[*int]*int) // ERROR "make\(map\[\*int\]\*int\) escapes to heap"
 	i := 0                   // ERROR "moved to heap: i"
 	j := 0                   // ERROR "moved to heap: j"
 	m[&i] = &j               // ERROR "&i escapes to heap" "&j escapes to heap"
@@ -38,7 +38,7 @@ func map2() map[*int]*int {
 }
 
 func map3() []*int {
-	m := make(map[*int]*int) // ERROR "make\(map\[\*int\]\*int, 0\) does not escape"
+	m := make(map[*int]*int) // ERROR "make\(map\[\*int\]\*int\) does not escape"
 	i := 0                   // ERROR "moved to heap: i"
 	// BAD: j should not escape
 	j := 0     // ERROR "moved to heap: j"
@@ -51,7 +51,7 @@ func map3() []*int {
 }
 
 func map4() []*int {
-	m := make(map[*int]*int) // ERROR "make\(map\[\*int\]\*int, 0\) does not escape"
+	m := make(map[*int]*int) // ERROR "make\(map\[\*int\]\*int\) does not escape"
 	// BAD: i should not escape
 	i := 0     // ERROR "moved to heap: i"
 	j := 0     // ERROR "moved to heap: j"
@@ -75,7 +75,7 @@ func map5(m map[*int]*int) { // ERROR "m does not escape"
 
 func map6(m map[*int]*int) { // ERROR "m does not escape"
 	if m != nil {
-		m = make(map[*int]*int) // ERROR "make\(map\[\*int\]\*int, 0\) does not escape"
+		m = make(map[*int]*int) // ERROR "make\(map\[\*int\]\*int\) does not escape"
 	}
 	i := 0     // ERROR "moved to heap: i"
 	j := 0     // ERROR "moved to heap: j"
