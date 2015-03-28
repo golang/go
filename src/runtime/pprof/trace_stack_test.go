@@ -95,9 +95,11 @@ func TestTraceSymbolize(t *testing.T) {
 	}
 	defer rp.Close()
 	defer wp.Close()
+	pipeReadDone := make(chan bool)
 	go func() {
 		var data [1]byte
 		rp.Read(data[:])
+		pipeReadDone <- true
 	}()
 
 	time.Sleep(time.Millisecond)
@@ -120,6 +122,7 @@ func TestTraceSymbolize(t *testing.T) {
 	c.Close()
 	var data [1]byte
 	wp.Write(data[:])
+	<-pipeReadDone
 
 	StopTrace()
 	events, _, err := parseTrace(buf)
@@ -143,11 +146,11 @@ func TestTraceSymbolize(t *testing.T) {
 	want := []eventDesc{
 		eventDesc{trace.EvGCStart, []frame{
 			frame{"runtime.GC", 0},
-			frame{"runtime/pprof_test.TestTraceSymbolize", 104},
+			frame{"runtime/pprof_test.TestTraceSymbolize", 106},
 			frame{"testing.tRunner", 0},
 		}},
 		eventDesc{trace.EvGoSched, []frame{
-			frame{"runtime/pprof_test.TestTraceSymbolize", 105},
+			frame{"runtime/pprof_test.TestTraceSymbolize", 107},
 			frame{"testing.tRunner", 0},
 		}},
 		eventDesc{trace.EvGoCreate, []frame{
@@ -172,7 +175,7 @@ func TestTraceSymbolize(t *testing.T) {
 		}},
 		eventDesc{trace.EvGoUnblock, []frame{
 			frame{"runtime.chansend1", 0},
-			frame{"runtime/pprof_test.TestTraceSymbolize", 107},
+			frame{"runtime/pprof_test.TestTraceSymbolize", 109},
 			frame{"testing.tRunner", 0},
 		}},
 		eventDesc{trace.EvGoBlockSend, []frame{
@@ -181,7 +184,7 @@ func TestTraceSymbolize(t *testing.T) {
 		}},
 		eventDesc{trace.EvGoUnblock, []frame{
 			frame{"runtime.chanrecv1", 0},
-			frame{"runtime/pprof_test.TestTraceSymbolize", 108},
+			frame{"runtime/pprof_test.TestTraceSymbolize", 110},
 			frame{"testing.tRunner", 0},
 		}},
 		eventDesc{trace.EvGoBlockSelect, []frame{
@@ -190,7 +193,7 @@ func TestTraceSymbolize(t *testing.T) {
 		}},
 		eventDesc{trace.EvGoUnblock, []frame{
 			frame{"runtime.selectgo", 0},
-			frame{"runtime/pprof_test.TestTraceSymbolize", 109},
+			frame{"runtime/pprof_test.TestTraceSymbolize", 111},
 			frame{"testing.tRunner", 0},
 		}},
 		eventDesc{trace.EvGoBlockSync, []frame{
@@ -199,7 +202,7 @@ func TestTraceSymbolize(t *testing.T) {
 		}},
 		eventDesc{trace.EvGoUnblock, []frame{
 			frame{"sync.(*Mutex).Unlock", 0},
-			frame{"runtime/pprof_test.TestTraceSymbolize", 113},
+			frame{"runtime/pprof_test.TestTraceSymbolize", 115},
 			frame{"testing.tRunner", 0},
 		}},
 		eventDesc{trace.EvGoBlockSync, []frame{
@@ -209,7 +212,7 @@ func TestTraceSymbolize(t *testing.T) {
 		eventDesc{trace.EvGoUnblock, []frame{
 			frame{"sync.(*WaitGroup).Add", 0},
 			frame{"sync.(*WaitGroup).Done", 0},
-			frame{"runtime/pprof_test.TestTraceSymbolize", 114},
+			frame{"runtime/pprof_test.TestTraceSymbolize", 116},
 			frame{"testing.tRunner", 0},
 		}},
 		eventDesc{trace.EvGoBlockCond, []frame{
@@ -218,12 +221,12 @@ func TestTraceSymbolize(t *testing.T) {
 		}},
 		eventDesc{trace.EvGoUnblock, []frame{
 			frame{"sync.(*Cond).Signal", 0},
-			frame{"runtime/pprof_test.TestTraceSymbolize", 115},
+			frame{"runtime/pprof_test.TestTraceSymbolize", 117},
 			frame{"testing.tRunner", 0},
 		}},
 		eventDesc{trace.EvGoSleep, []frame{
 			frame{"time.Sleep", 0},
-			frame{"runtime/pprof_test.TestTraceSymbolize", 106},
+			frame{"runtime/pprof_test.TestTraceSymbolize", 108},
 			frame{"testing.tRunner", 0},
 		}},
 	}
@@ -241,7 +244,7 @@ func TestTraceSymbolize(t *testing.T) {
 				frame{"syscall.Read", 0},
 				frame{"os.(*File).read", 0},
 				frame{"os.(*File).Read", 0},
-				frame{"runtime/pprof_test.TestTraceSymbolize.func11", 100},
+				frame{"runtime/pprof_test.TestTraceSymbolize.func11", 101},
 			}},
 		}...)
 	}
