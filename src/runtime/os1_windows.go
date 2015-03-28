@@ -26,6 +26,7 @@ import (
 //go:cgo_import_dynamic runtime._GetStdHandle GetStdHandle%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetSystemInfo GetSystemInfo%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetThreadContext GetThreadContext%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._GetVersion GetVersion%0 "kernel32.dll"
 //go:cgo_import_dynamic runtime._LoadLibraryW LoadLibraryW%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._LoadLibraryA LoadLibraryA%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._NtWaitForSingleObject NtWaitForSingleObject%3 "ntdll.dll"
@@ -67,6 +68,7 @@ var (
 	_GetStdHandle,
 	_GetSystemInfo,
 	_GetThreadContext,
+	_GetVersion,
 	_LoadLibraryW,
 	_LoadLibraryA,
 	_NtWaitForSingleObject,
@@ -148,6 +150,12 @@ func disableWER() {
 	stdcall1(_SetErrorMode, uintptr(errormode)|SEM_FAILCRITICALERRORS|SEM_NOGPFAULTERRORBOX|SEM_NOOPENFILEERRORBOX)
 }
 
+func getVersion() (major, minor byte) {
+	v := uint32(stdcall0(_GetVersion))
+	low := uint16(v)
+	return byte(low), byte(low >> 8)
+}
+
 func osinit() {
 	setBadSignalMsg()
 
@@ -157,10 +165,15 @@ func osinit() {
 
 	externalthreadhandlerp = funcPC(externalthreadhandler)
 
+	major, _ := getVersion()
+
 	stdcall2(_AddVectoredExceptionHandler, 1, funcPC(exceptiontramp))
-	if _AddVectoredContinueHandler == nil || unsafe.Sizeof(&_AddVectoredContinueHandler) == 4 {
+	if _AddVectoredContinueHandler == nil || unsafe.Sizeof(&_AddVectoredContinueHandler) == 4 || major < 6 {
 		// use SetUnhandledExceptionFilter for windows-386 or
-		// if VectoredContinueHandler is unavailable.
+		// if VectoredContinueHandler is unavailable or
+		// if running windows-amd64 v5. V5 appears to fail to
+		// call the continue handlers if windows error reporting dialog
+		// is disabled.
 		// note: SetUnhandledExceptionFilter handler won't be called, if debugging.
 		stdcall1(_SetUnhandledExceptionFilter, funcPC(lastcontinuetramp))
 	} else {
