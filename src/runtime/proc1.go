@@ -973,7 +973,7 @@ func unlockextra(mp *m) {
 
 // Create a new m.  It will start off with a call to fn, or else the scheduler.
 // fn needs to be static and not a heap allocated closure.
-// May run without a P, so write barriers are not allowed.
+// May run with m.p==nil, so write barriers are not allowed.
 //go:nowritebarrier
 func newm(fn func(), _p_ *p) {
 	mp := allocm(_p_)
@@ -1035,7 +1035,7 @@ func mspinning() {
 
 // Schedules some M to run the p (creates an M if necessary).
 // If p==nil, tries to get an idle P, if no idle P's does nothing.
-// May run without a P, so write barriers are not allowed.
+// May run with m.p==nil, so write barriers are not allowed.
 //go:nowritebarrier
 func startm(_p_ *p, spinning bool) {
 	lock(&sched.lock)
