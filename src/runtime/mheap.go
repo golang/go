@@ -37,14 +37,13 @@ type mheap struct {
 	arena_end      uintptr
 	arena_reserved bool
 
-	// write barrier shadow data+heap.
+	// write barrier shadow heap.
 	// 64-bit systems only, enabled by GODEBUG=wbshadow=1.
+	// See also shadow_data, data_start, data_end fields on moduledata in
+	// symtab.go.
 	shadow_enabled  bool    // shadow should be updated and checked
 	shadow_reserved bool    // shadow memory is reserved
 	shadow_heap     uintptr // heap-addr + shadow_heap = shadow heap addr
-	shadow_data     uintptr // data-addr + shadow_data = shadow data addr
-	data_start      uintptr // start of shadowed data addresses
-	data_end        uintptr // end of shadowed data addresses
 
 	// central free lists for small size classes.
 	// the padding makes sure that the MCentrals are

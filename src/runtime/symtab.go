@@ -47,6 +47,17 @@ type moduledata struct {
 	end, gcdata, gcbss    uintptr
 
 	typelinks []*_type
+
+	gcdatamask, gcbssmask bitvector
+
+	// write barrier shadow data
+	// 64-bit systems only, enabled by GODEBUG=wbshadow=1.
+	// See also the shadow_* fields on mheap in mheap.go.
+	shadow_data uintptr // data-addr + shadow_data = shadow data addr
+	data_start  uintptr // start of shadowed data addresses
+	data_end    uintptr // end of shadowed data addresses
+
+	next *moduledata
 }
 
 var themoduledata moduledata // linker symbol
@@ -135,34 +146,45 @@ func (f *Func) FileLine(pc uintptr) (file string, line int) {
 	return file, int(line32)
 }
 
+func findmoduledatap(pc uintptr) *moduledata {
+	for datap := &themoduledata; datap != nil; datap = datap.next {
+		if datap.minpc <= pc && pc <= datap.maxpc {
+			return datap
+		}
+	}
+	return nil
+}
+
 func findfunc(pc uintptr) *_func {
-	if pc < themoduledata.minpc || pc >= themoduledata.maxpc {
+	datap := findmoduledatap(pc)
+	if datap == nil {
 		return nil
 	}
 	const nsub = uintptr(len(findfuncbucket{}.subbuckets))
 
-	x := pc - themoduledata.minpc
+	x := pc - datap.minpc
 	b := x / pcbucketsize
 	i := x % pcbucketsize / (pcbucketsize / nsub)
 
-	ffb := (*findfuncbucket)(add(unsafe.Pointer(themoduledata.findfunctab), b*unsafe.Sizeof(findfuncbucket{})))
+	ffb := (*findfuncbucket)(add(unsafe.Pointer(datap.findfunctab), b*unsafe.Sizeof(findfuncbucket{})))
 	idx := ffb.idx + uint32(ffb.subbuckets[i])
-	if pc < themoduledata.ftab[idx].entry {
+	if pc < datap.ftab[idx].entry {
 		throw("findfunc: bad findfunctab entry")
 	}
 
 	// linear search to find func with pc >= entry.
-	for themoduledata.ftab[idx+1].entry <= pc {
+	for datap.ftab[idx+1].entry <= pc {
 		idx++
 	}
-	return (*_func)(unsafe.Pointer(&themoduledata.pclntable[themoduledata.ftab[idx].funcoff]))
+	return (*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[idx].funcoff]))
 }
 
 func pcvalue(f *_func, off int32, targetpc uintptr, strict bool) int32 {
 	if off == 0 {
 		return -1
 	}
-	p := themoduledata.pclntable[off:]
+	datap := findmoduledatap(f.entry) // inefficient
+	p := datap.pclntable[off:]
 	pc := f.entry
 	val := int32(-1)
 	for {
@@ -184,7 +206,7 @@ func pcvalue(f *_func, off int32, targetpc uintptr, strict bool) int32 {
 
 	print("runtime: invalid pc-encoded table f=", funcname(f), " pc=", hex(pc), " targetpc=", hex(targetpc), " tab=", p, "\n")
 
-	p = themoduledata.pclntable[off:]
+	p = datap.pclntable[off:]
 	pc = f.entry
 	val = -1
 	for {
@@ -204,7 +226,8 @@ func cfuncname(f *_func) *byte {
 	if f == nil || f.nameoff == 0 {
 		return nil
 	}
-	return (*byte)(unsafe.Pointer(&themoduledata.pclntable[f.nameoff]))
+	datap := findmoduledatap(f.entry) // inefficient
+	return (*byte)(unsafe.Pointer(&datap.pclntable[f.nameoff]))
 }
 
 func funcname(f *_func) string {
@@ -212,13 +235,14 @@ func funcname(f *_func) string {
 }
 
 func funcline1(f *_func, targetpc uintptr, strict bool) (file string, line int32) {
+	datap := findmoduledatap(f.entry) // inefficient
 	fileno := int(pcvalue(f, f.pcfile, targetpc, strict))
 	line = pcvalue(f, f.pcln, targetpc, strict)
-	if fileno == -1 || line == -1 || fileno >= len(themoduledata.filetab) {
+	if fileno == -1 || line == -1 || fileno >= len(datap.filetab) {
 		// print("looking for ", hex(targetpc), " in ", funcname(f), " got file=", fileno, " line=", lineno, "\n")
 		return "?", 0
 	}
-	file = gostringnocopy(&themoduledata.pclntable[themoduledata.filetab[fileno]])
+	file = gostringnocopy(&datap.pclntable[datap.filetab[fileno]])
 	return
 }
 

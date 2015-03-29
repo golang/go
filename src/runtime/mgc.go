@@ -136,9 +136,6 @@ func have_cgo_allocate() bool {
 	return &weak_cgo_allocate != nil
 }
 
-var gcdatamask bitvector
-var gcbssmask bitvector
-
 // heapminimum is the minimum number of bytes in the heap.
 // This cleans up the corner case of where we have a very small live set but a lot
 // of allocations and collecting every GOGC * live set is expensive.
@@ -154,8 +151,10 @@ func gcinit() {
 
 	work.markfor = parforalloc(_MaxGcproc)
 	gcpercent = readgogc()
-	gcdatamask = unrollglobgcprog((*byte)(unsafe.Pointer(themoduledata.gcdata)), themoduledata.edata-themoduledata.data)
-	gcbssmask = unrollglobgcprog((*byte)(unsafe.Pointer(themoduledata.gcbss)), themoduledata.ebss-themoduledata.bss)
+	for datap := &themoduledata; datap != nil; datap = datap.next {
+		datap.gcdatamask = unrollglobgcprog((*byte)(unsafe.Pointer(datap.gcdata)), datap.edata-datap.data)
+		datap.gcbssmask = unrollglobgcprog((*byte)(unsafe.Pointer(datap.gcbss)), datap.ebss-datap.bss)
+	}
 	memstats.next_gc = heapminimum
 }
 

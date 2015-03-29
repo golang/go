@@ -426,44 +426,47 @@ func wbshadowinit() {
 	memmove(p1, unsafe.Pointer(mheap_.arena_start), mheap_.arena_used-mheap_.arena_start)
 
 	mheap_.shadow_reserved = reserved
-	start := ^uintptr(0)
-	end := uintptr(0)
-	if start > themoduledata.noptrdata {
-		start = themoduledata.noptrdata
+
+	for datap := &themoduledata; datap != nil; datap = datap.next {
+		start := ^uintptr(0)
+		end := uintptr(0)
+		if start > datap.noptrdata {
+			start = datap.noptrdata
+		}
+		if start > datap.data {
+			start = datap.data
+		}
+		if start > datap.noptrbss {
+			start = datap.noptrbss
+		}
+		if start > datap.bss {
+			start = datap.bss
+		}
+		if end < datap.enoptrdata {
+			end = datap.enoptrdata
+		}
+		if end < datap.edata {
+			end = datap.edata
+		}
+		if end < datap.enoptrbss {
+			end = datap.enoptrbss
+		}
+		if end < datap.ebss {
+			end = datap.ebss
+		}
+		start &^= _PhysPageSize - 1
+		end = round(end, _PhysPageSize)
+		datap.data_start = start
+		datap.data_end = end
+		reserved = false
+		p1 = sysReserveHigh(end-start, &reserved)
+		if p1 == nil {
+			throw("cannot map shadow data")
+		}
+		datap.shadow_data = uintptr(p1) - start
+		sysMap(p1, end-start, reserved, &memstats.other_sys)
+		memmove(p1, unsafe.Pointer(start), end-start)
 	}
-	if start > themoduledata.data {
-		start = themoduledata.data
-	}
-	if start > themoduledata.noptrbss {
-		start = themoduledata.noptrbss
-	}
-	if start > themoduledata.bss {
-		start = themoduledata.bss
-	}
-	if end < themoduledata.enoptrdata {
-		end = themoduledata.enoptrdata
-	}
-	if end < themoduledata.edata {
-		end = themoduledata.edata
-	}
-	if end < themoduledata.enoptrbss {
-		end = themoduledata.enoptrbss
-	}
-	if end < themoduledata.ebss {
-		end = themoduledata.ebss
-	}
-	start &^= _PhysPageSize - 1
-	end = round(end, _PhysPageSize)
-	mheap_.data_start = start
-	mheap_.data_end = end
-	reserved = false
-	p1 = sysReserveHigh(end-start, &reserved)
-	if p1 == nil {
-		throw("cannot map shadow data")
-	}
-	mheap_.shadow_data = uintptr(p1) - start
-	sysMap(p1, end-start, reserved, &memstats.other_sys)
-	memmove(p1, unsafe.Pointer(start), end-start)
 
 	mheap_.shadow_enabled = true
 }
@@ -471,13 +474,15 @@ func wbshadowinit() {
 // shadowptr returns a pointer to the shadow value for addr.
 //go:nosplit
 func shadowptr(addr uintptr) *uintptr {
-	var shadow *uintptr
-	if mheap_.data_start <= addr && addr < mheap_.data_end {
-		shadow = (*uintptr)(unsafe.Pointer(addr + mheap_.shadow_data))
-	} else if inheap(addr) {
-		shadow = (*uintptr)(unsafe.Pointer(addr + mheap_.shadow_heap))
+	for datap := &themoduledata; datap != nil; datap = datap.next {
+		if datap.data_start <= addr && addr < datap.data_end {
+			return (*uintptr)(unsafe.Pointer(addr + datap.shadow_data))
+		}
 	}
-	return shadow
+	if inheap(addr) {
+		return (*uintptr)(unsafe.Pointer(addr + mheap_.shadow_heap))
+	}
+	return nil
 }
 
 // istrackedptr reports whether the pointer value p requires a write barrier

@@ -426,8 +426,12 @@ func gomcache() *mcache {
 
 //go:linkname reflect_typelinks reflect.typelinks
 //go:nosplit
-func reflect_typelinks() []*_type {
-	return themoduledata.typelinks
+func reflect_typelinks() [][]*_type {
+	ret := [][]*_type{themoduledata.typelinks}
+	for datap := themoduledata.next; datap != nil; datap = datap.next {
+		ret = append(ret, datap.typelinks)
+	}
+	return ret
 }
 
 // TODO: move back into mgc.go
