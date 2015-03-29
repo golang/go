@@ -431,19 +431,20 @@ func finq_callback(fn *funcval, obj unsafe.Pointer, nret uintptr, fint *_type, o
 }
 
 func dumproots() {
+	// TODO(mwhudson): dump datamask etc from all objects
 	// data segment
-	dumpbvtypes(&gcdatamask, unsafe.Pointer(themoduledata.data))
+	dumpbvtypes(&themoduledata.gcdatamask, unsafe.Pointer(themoduledata.data))
 	dumpint(tagData)
 	dumpint(uint64(themoduledata.data))
 	dumpmemrange(unsafe.Pointer(themoduledata.data), themoduledata.edata-themoduledata.data)
-	dumpfields(gcdatamask)
+	dumpfields(themoduledata.gcdatamask)
 
 	// bss segment
-	dumpbvtypes(&gcbssmask, unsafe.Pointer(themoduledata.bss))
+	dumpbvtypes(&themoduledata.gcbssmask, unsafe.Pointer(themoduledata.bss))
 	dumpint(tagBSS)
 	dumpint(uint64(themoduledata.bss))
 	dumpmemrange(unsafe.Pointer(themoduledata.bss), themoduledata.ebss-themoduledata.bss)
-	dumpfields(gcbssmask)
+	dumpfields(themoduledata.gcbssmask)
 
 	// MSpan.types
 	allspans := h_allspans

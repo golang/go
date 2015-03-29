@@ -1301,39 +1301,48 @@ func haveIdenticalUnderlyingType(T, V *rtype) bool {
 // there can be more than one with a given string.
 // Only types we might want to look up are included:
 // channels, maps, slices, and arrays.
-func typelinks() []*rtype
+func typelinks() [][]*rtype
 
 // typesByString returns the subslice of typelinks() whose elements have
 // the given string representation.
 // It may be empty (no known types with that string) or may have
 // multiple elements (multiple types with that string).
 func typesByString(s string) []*rtype {
-	typ := typelinks()
+	typs := typelinks()
+	var ret []*rtype
 
-	// We are looking for the first index i where the string becomes >= s.
-	// This is a copy of sort.Search, with f(h) replaced by (*typ[h].string >= s).
-	i, j := 0, len(typ)
-	for i < j {
-		h := i + (j-i)/2 // avoid overflow when computing h
-		// i ≤ h < j
-		if !(*typ[h].string >= s) {
-			i = h + 1 // preserves f(i-1) == false
-		} else {
-			j = h // preserves f(j) == true
+	for _, typ := range typs {
+		// We are looking for the first index i where the string becomes >= s.
+		// This is a copy of sort.Search, with f(h) replaced by (*typ[h].string >= s).
+		i, j := 0, len(typ)
+		for i < j {
+			h := i + (j-i)/2 // avoid overflow when computing h
+			// i ≤ h < j
+			if !(*typ[h].string >= s) {
+				i = h + 1 // preserves f(i-1) == false
+			} else {
+				j = h // preserves f(j) == true
+			}
+		}
+		// i == j, f(i-1) == false, and f(j) (= f(i)) == true  =>  answer is i.
+
+		// Having found the first, linear scan forward to find the last.
+		// We could do a second binary search, but the caller is going
+		// to do a linear scan anyway.
+		j = i
+		for j < len(typ) && *typ[j].string == s {
+			j++
+		}
+
+		if j > i {
+			if ret == nil {
+				ret = typ[i:j:j]
+			} else {
+				ret = append(ret, typ[i:j]...)
+			}
 		}
 	}
-	// i == j, f(i-1) == false, and f(j) (= f(i)) == true  =>  answer is i.
-
-	// Having found the first, linear scan forward to find the last.
-	// We could do a second binary search, but the caller is going
-	// to do a linear scan anyway.
-	j = i
-	for j < len(typ) && *typ[j].string == s {
-		j++
-	}
-
-	// This slice will be empty if the string is not found.
-	return typ[i:j]
+	return ret
 }
 
 // The lookupCache caches ChanOf, MapOf, and SliceOf lookups.

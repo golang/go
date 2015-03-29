@@ -747,29 +747,31 @@ func getgcmask(p unsafe.Pointer, t *_type, mask **byte, len *uintptr) {
 	const typeBitsPerByte = 8 / typeBitsWidth
 
 	// data
-	if themoduledata.data <= uintptr(p) && uintptr(p) < themoduledata.edata {
-		n := (*ptrtype)(unsafe.Pointer(t)).elem.size
-		*len = n / ptrSize
-		*mask = &make([]byte, *len)[0]
-		for i := uintptr(0); i < n; i += ptrSize {
-			off := (uintptr(p) + i - themoduledata.data) / ptrSize
-			bits := (*(*byte)(add(unsafe.Pointer(gcdatamask.bytedata), off/typeBitsPerByte)) >> ((off % typeBitsPerByte) * typeBitsWidth)) & typeMask
-			*(*byte)(add(unsafe.Pointer(*mask), i/ptrSize)) = bits
+	for datap := &themoduledata; datap != nil; datap = datap.next {
+		if datap.data <= uintptr(p) && uintptr(p) < datap.edata {
+			n := (*ptrtype)(unsafe.Pointer(t)).elem.size
+			*len = n / ptrSize
+			*mask = &make([]byte, *len)[0]
+			for i := uintptr(0); i < n; i += ptrSize {
+				off := (uintptr(p) + i - datap.data) / ptrSize
+				bits := (*(*byte)(add(unsafe.Pointer(datap.gcdatamask.bytedata), off/typeBitsPerByte)) >> ((off % typeBitsPerByte) * typeBitsWidth)) & typeMask
+				*(*byte)(add(unsafe.Pointer(*mask), i/ptrSize)) = bits
+			}
+			return
 		}
-		return
-	}
 
-	// bss
-	if themoduledata.bss <= uintptr(p) && uintptr(p) < themoduledata.ebss {
-		n := (*ptrtype)(unsafe.Pointer(t)).elem.size
-		*len = n / ptrSize
-		*mask = &make([]byte, *len)[0]
-		for i := uintptr(0); i < n; i += ptrSize {
-			off := (uintptr(p) + i - themoduledata.bss) / ptrSize
-			bits := (*(*byte)(add(unsafe.Pointer(gcbssmask.bytedata), off/typeBitsPerByte)) >> ((off % typeBitsPerByte) * typeBitsWidth)) & typeMask
-			*(*byte)(add(unsafe.Pointer(*mask), i/ptrSize)) = bits
+		// bss
+		if datap.bss <= uintptr(p) && uintptr(p) < datap.ebss {
+			n := (*ptrtype)(unsafe.Pointer(t)).elem.size
+			*len = n / ptrSize
+			*mask = &make([]byte, *len)[0]
+			for i := uintptr(0); i < n; i += ptrSize {
+				off := (uintptr(p) + i - datap.bss) / ptrSize
+				bits := (*(*byte)(add(unsafe.Pointer(datap.gcbssmask.bytedata), off/typeBitsPerByte)) >> ((off % typeBitsPerByte) * typeBitsWidth)) & typeMask
+				*(*byte)(add(unsafe.Pointer(*mask), i/ptrSize)) = bits
+			}
+			return
 		}
-		return
 	}
 
 	// heap
