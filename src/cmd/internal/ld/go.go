@@ -656,8 +656,10 @@ func deadcode() {
 
 	if last == nil {
 		Ctxt.Textp = nil
+		Ctxt.Etextp = nil
 	} else {
 		last.Next = nil
+		Ctxt.Etextp = last
 	}
 
 	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
