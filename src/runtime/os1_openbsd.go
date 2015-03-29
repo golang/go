@@ -98,7 +98,7 @@ func semawakeup(mp *m) {
 	}
 }
 
-// May run without a P, so write barriers are not allowed.
+// May run with m.p==nil, so write barriers are not allowed.
 //go:nowritebarrier
 func newosproc(mp *m, stk unsafe.Pointer) {
 	if false {

@@ -71,7 +71,7 @@ func futexwakeup(addr *uint32, cnt uint32) {
 
 func lwp_start(uintptr)
 
-// May run without a P, so write barriers are not allowed.
+// May run with m.p==nil, so write barriers are not allowed.
 //go:nowritebarrier
 func newosproc(mp *m, stk unsafe.Pointer) {
 	if false {
