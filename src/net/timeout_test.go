@@ -8,10 +8,58 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/internal/socktest"
 	"runtime"
 	"testing"
 	"time"
 )
+
+func TestDialTimeout(t *testing.T) {
+	const T = 100 * time.Millisecond
+
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		origTestHookDialChannel := testHookDialChannel
+		testHookDialChannel = func() { time.Sleep(2 * T) }
+		defer func() { testHookDialChannel = origTestHookDialChannel }()
+		if runtime.GOOS == "plan9" {
+			break
+		}
+		fallthrough
+	default:
+		sw.Set(socktest.FilterConnect, func(so *socktest.Status) (socktest.AfterFilter, error) {
+			time.Sleep(2 * T)
+			return nil, errTimeout
+		})
+		defer sw.Set(socktest.FilterConnect, nil)
+	}
+
+	ch := make(chan error)
+	go func() {
+		// This dial never starts to send any SYN segment
+		// because of above socket filter and test hook.
+		c, err := DialTimeout("tcp", "127.0.0.1:0", T)
+		if err == nil {
+			err = fmt.Errorf("unexpectedly established: tcp:%s->%s", c.LocalAddr(), c.RemoteAddr())
+			c.Close()
+		}
+		ch <- err
+	}()
+	tmo := time.NewTimer(3 * T)
+	defer tmo.Stop()
+	select {
+	case <-tmo.C:
+		t.Fatal("dial has not returned")
+	case err := <-ch:
+		nerr, ok := err.(Error)
+		if !ok {
+			t.Fatalf("got %v; want error implements Error interface", err)
+		}
+		if !nerr.Timeout() {
+			t.Fatalf("got %v; want timeout error", err)
+		}
+	}
+}
 
 func isTimeout(err error) bool {
 	e, ok := err.(Error)
