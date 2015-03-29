@@ -1057,6 +1057,17 @@ func (t *rtype) ptrTo() *rtype {
 		return &p.rtype
 	}
 
+	// Look in known types.
+	s := "*" + *t.string
+	for _, tt := range typesByString(s) {
+		p = (*ptrType)(unsafe.Pointer(tt))
+		if p.elem == t {
+			ptrMap.m[t] = p
+			ptrMap.Unlock()
+			return &p.rtype
+		}
+	}
+
 	// Create a new ptrType starting with the description
 	// of an *unsafe.Pointer.
 	p = new(ptrType)
@@ -1064,7 +1075,6 @@ func (t *rtype) ptrTo() *rtype {
 	prototype := *(**ptrType)(unsafe.Pointer(&iptr))
 	*p = *prototype
 
-	s := "*" + *t.string
 	p.string = &s
 
 	// For the type structures linked into the binary, the

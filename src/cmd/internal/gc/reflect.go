@@ -1213,6 +1213,20 @@ ok:
 	// we want be able to find.
 	if t.Sym == nil {
 		switch t.Etype {
+		case TPTR32, TPTR64:
+			// The ptrto field of the type data cannot be relied on when
+			// dynamic linking: a type T may be defined in a module that makes
+			// no use of pointers to that type, but another module can contain
+			// a package that imports the first one and does use *T pointers.
+			// The second module will end up defining type data for *T and a
+			// type.*T symbol pointing at it. It's important that calling
+			// .PtrTo() on the refect.Type for T returns this type data and
+			// not some synthesized object, so we need reflect to be able to
+			// find it!
+			if !Ctxt.Flag_dynlink {
+				break
+			}
+			fallthrough
 		case TARRAY, TCHAN, TFUNC, TMAP:
 			slink := typelinksym(t)
 			dsymptr(slink, 0, s, 0)
