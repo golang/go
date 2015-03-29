@@ -6,11 +6,7 @@
 
 package net
 
-import (
-	"time"
-)
-
-var testingIssue5349 bool // used during tests
+import "time"
 
 // dialChannel is the simple pure-Go implementation of dial, still
 // used on operating systems where the deadline hasn't been pushed
@@ -31,9 +27,7 @@ func dialChannel(net string, ra Addr, dialer func(time.Time) (Conn, error), dead
 	}
 	ch := make(chan racer, 1)
 	go func() {
-		if testingIssue5349 {
-			time.Sleep(time.Millisecond)
-		}
+		testHookDialChannel()
 		c, err := dialer(noDeadline)
 		ch <- racer{c, err}
 	}()

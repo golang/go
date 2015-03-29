@@ -4,9 +4,14 @@
 
 package net
 
-import "syscall"
+import (
+	"syscall"
+	"time"
+)
 
 var (
+	testHookDialChannel = func() { time.Sleep(time.Millisecond) } // see golang.org/issue/5349
+
 	// Placeholders for socket system calls.
 	socketFunc    func(int, int, int) (syscall.Handle, error)                                               = syscall.Socket
 	closeFunc     func(syscall.Handle) error                                                                = syscall.Closesocket
