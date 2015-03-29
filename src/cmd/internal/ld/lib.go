@@ -430,7 +430,6 @@ func loadlib() {
 		tlsg.Type = STLSBSS
 	}
 	tlsg.Size = int64(Thearch.Ptrsize)
-	tlsg.Hide = 1
 	tlsg.Reachable = true
 	Ctxt.Tlsg = tlsg
 
@@ -1375,7 +1374,6 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 				continue
 			}
 			put(s, s.Name, 'D', Symaddr(s), s.Size, int(s.Version), s.Gotype)
-			continue
 
 		case SBSS,
 			SNOPTRBSS:
@@ -1386,18 +1384,31 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 				Diag("%s should not be bss (size=%d type=%d special=%d)", s.Name, int(len(s.P)), s.Type, s.Special)
 			}
 			put(s, s.Name, 'B', Symaddr(s), s.Size, int(s.Version), s.Gotype)
-			continue
 
 		case SFILE:
 			put(nil, s.Name, 'f', s.Value, 0, int(s.Version), nil)
-			continue
 
 		case SHOSTOBJ:
-			if HEADTYPE == Hwindows {
+			if HEADTYPE == Hwindows || Iself {
 				put(s, s.Name, 'U', s.Value, 0, int(s.Version), nil)
 			}
-			continue
 
+		case SDYNIMPORT:
+			if !s.Reachable {
+				continue
+			}
+			put(s, s.Extname, 'U', 0, 0, int(s.Version), nil)
+
+		case STLSBSS:
+			if Linkmode == LinkExternal && HEADTYPE != Hopenbsd {
+				var type_ int
+				if goos == "android" {
+					type_ = 'B'
+				} else {
+					type_ = 't'
+				}
+				put(s, s.Name, type_, Symaddr(s), s.Size, int(s.Version), s.Gotype)
+			}
 		}
 	}
 
