@@ -60,7 +60,7 @@ nocgo:
 	BL	runtime·schedinit(SB)
 
 	// create a new goroutine to start program
-	MOVD	$runtime·main·f(SB), R0		// entry
+	MOVD	$runtime·mainPC(SB), R0		// entry
 	MOVD	RSP, R7
 	MOVD.W	$0, -8(R7)
 	MOVD.W	R0, -8(R7)
@@ -77,8 +77,8 @@ nocgo:
 	MOVD	R0, (R0)	// boom
 	UNDEF
 
-DATA	runtime·main·f+0(SB)/8,$runtime·main(SB)
-GLOBL	runtime·main·f(SB),RODATA,$8
+DATA	runtime·mainPC+0(SB)/8,$runtime·main(SB)
+GLOBL	runtime·mainPC(SB),RODATA,$8
 
 TEXT runtime·breakpoint(SB),NOSPLIT,$-8-0
 	BRK

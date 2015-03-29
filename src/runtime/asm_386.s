@@ -114,7 +114,7 @@ ok:
 	CALL	runtime·schedinit(SB)
 
 	// create a new goroutine to start program
-	PUSHL	$runtime·main·f(SB)	// entry
+	PUSHL	$runtime·mainPC(SB)	// entry
 	PUSHL	$0	// arg size
 	CALL	runtime·newproc(SB)
 	POPL	AX
@@ -126,8 +126,8 @@ ok:
 	INT $3
 	RET
 
-DATA	runtime·main·f+0(SB)/4,$runtime·main(SB)
-GLOBL	runtime·main·f(SB),RODATA,$4
+DATA	runtime·mainPC+0(SB)/4,$runtime·main(SB)
+GLOBL	runtime·mainPC(SB),RODATA,$4
 
 TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
 	INT $3

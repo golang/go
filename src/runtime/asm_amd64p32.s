@@ -73,7 +73,7 @@ ok:
 	CALL	runtime·schedinit(SB)
 
 	// create a new goroutine to start program
-	MOVL	$runtime·main·f(SB), AX	// entry
+	MOVL	$runtime·mainPC(SB), AX	// entry
 	MOVL	$0, 0(SP)
 	MOVL	AX, 4(SP)
 	CALL	runtime·newproc(SB)
@@ -84,8 +84,8 @@ ok:
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-DATA	runtime·main·f+0(SB)/4,$runtime·main(SB)
-GLOBL	runtime·main·f(SB),RODATA,$4
+DATA	runtime·mainPC+0(SB)/4,$runtime·main(SB)
+GLOBL	runtime·mainPC(SB),RODATA,$4
 
 TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
 	INT $3

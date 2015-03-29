@@ -60,7 +60,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$-4
 	BL	runtime·schedinit(SB)
 
 	// create a new goroutine to start program
-	MOVW	$runtime·main·f(SB), R0
+	MOVW	$runtime·mainPC(SB), R0
 	MOVW.W	R0, -4(R13)
 	MOVW	$8, R0
 	MOVW.W	R0, -4(R13)
@@ -76,8 +76,8 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$-4
 	MOVW	$1000, R1
 	MOVW	R0, (R1)	// fail hard
 
-DATA	runtime·main·f+0(SB)/4,$runtime·main(SB)
-GLOBL	runtime·main·f(SB),RODATA,$4
+DATA	runtime·mainPC+0(SB)/4,$runtime·main(SB)
+GLOBL	runtime·mainPC(SB),RODATA,$4
 
 TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
 	// gdb won't skip this breakpoint instruction automatically,
