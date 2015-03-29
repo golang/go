@@ -6,15 +6,66 @@ package mime
 
 import (
 	"reflect"
-	"sort"
 	"strings"
+	"sync"
 	"testing"
 )
 
-var typeTests = initMimeForTests()
+func setMimeInit(fn func()) (cleanup func()) {
+	once = sync.Once{}
+	testInitMime = fn
+	return func() { testInitMime = nil }
+}
+
+func clearMimeTypes() {
+	setMimeTypes(map[string]string{}, map[string]string{})
+}
+
+func setType(ext, typ string) {
+	if !strings.HasPrefix(ext, ".") {
+		panic("missing leading dot")
+	}
+	if err := setExtensionType(ext, typ); err != nil {
+		panic("bad test data: " + err.Error())
+	}
+}
 
 func TestTypeByExtension(t *testing.T) {
+	once = sync.Once{}
+	// initMimeForTests returns the platform-specific extension =>
+	// type tests. On Unix and Plan 9, this also tests the parsing
+	// of MIME text files (in testdata/*). On Windows, we test the
+	// real registry on the machine and assume that ".png" exists
+	// there, which empirically it always has, for all versions of
+	// Windows.
+	typeTests := initMimeForTests()
+
 	for ext, want := range typeTests {
+		val := TypeByExtension(ext)
+		if val != want {
+			t.Errorf("TypeByExtension(%q) = %q, want %q", ext, val, want)
+		}
+	}
+}
+
+func TestTypeByExtension_LocalData(t *testing.T) {
+	cleanup := setMimeInit(func() {
+		clearMimeTypes()
+		setType(".foo", "x/foo")
+		setType(".bar", "x/bar")
+		setType(".Bar", "x/bar; capital=1")
+	})
+	defer cleanup()
+
+	tests := map[string]string{
+		".foo":          "x/foo",
+		".bar":          "x/bar",
+		".Bar":          "x/bar; capital=1",
+		".sdlkfjskdlfj": "",
+		".t1":           "", // testdata shouldn't be used
+	}
+
+	for ext, want := range tests {
 		val := TypeByExtension(ext)
 		if val != want {
 			t.Errorf("TypeByExtension(%q) = %q, want %q", ext, val, want)
@@ -25,12 +76,13 @@ func TestTypeByExtension(t *testing.T) {
 func TestTypeByExtensionCase(t *testing.T) {
 	const custom = "test/test; charset=iso-8859-1"
 	const caps = "test/test; WAS=ALLCAPS"
-	if err := AddExtensionType(".TEST", caps); err != nil {
-		t.Fatalf("error %s for AddExtension(%s)", err, custom)
-	}
-	if err := AddExtensionType(".tesT", custom); err != nil {
-		t.Fatalf("error %s for AddExtension(%s)", err, custom)
-	}
+
+	cleanup := setMimeInit(func() {
+		clearMimeTypes()
+		setType(".TEST", caps)
+		setType(".tesT", custom)
+	})
+	defer cleanup()
 
 	// case-sensitive lookup
 	if got := TypeByExtension(".tesT"); got != custom {
@@ -47,55 +99,43 @@ func TestTypeByExtensionCase(t *testing.T) {
 }
 
 func TestExtensionsByType(t *testing.T) {
-	for want, typ := range typeTests {
-		val, err := ExtensionsByType(typ)
+	cleanup := setMimeInit(func() {
+		clearMimeTypes()
+		setType(".gif", "image/gif")
+		setType(".a", "foo/letter")
+		setType(".b", "foo/letter")
+		setType(".B", "foo/letter")
+		setType(".PNG", "image/png")
+	})
+	defer cleanup()
+
+	tests := []struct {
+		typ     string
+		want    []string
+		wantErr string
+	}{
+		{typ: "image/gif", want: []string{".gif"}},
+		{typ: "image/png", want: []string{".png"}}, // lowercase
+		{typ: "foo/letter", want: []string{".a", ".b"}},
+		{typ: "x/unknown", want: nil},
+	}
+
+	for _, tt := range tests {
+		got, err := ExtensionsByType(tt.typ)
+		if err != nil && tt.wantErr != "" && strings.Contains(err.Error(), tt.wantErr) {
+			continue
+		}
 		if err != nil {
-			t.Errorf("error %s for ExtensionsByType(%q)", err, typ)
+			t.Errorf("ExtensionsByType(%q) error: %v", tt.typ, err)
 			continue
 		}
-		if len(val) != 1 {
-			t.Errorf("ExtensionsByType(%q) = %v; expected exactly 1 entry", typ, val)
+		if tt.wantErr != "" {
+			t.Errorf("ExtensionsByType(%q) = %q, %v; want error substring %q", tt.typ, got, err, tt.wantErr)
 			continue
 		}
-		// We always expect lower case, test data includes upper-case.
-		want = strings.ToLower(want)
-		if val[0] != want {
-			t.Errorf("ExtensionsByType(%q) = %q, want %q", typ, val[0], want)
+		if !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("ExtensionsByType(%q) = %q; want %q", tt.typ, got, tt.want)
 		}
-	}
-}
-
-func TestExtensionsByTypeMultiple(t *testing.T) {
-	const typ = "text/html"
-	exts, err := ExtensionsByType(typ)
-	if err != nil {
-		t.Fatalf("ExtensionsByType(%q) error: %v", typ, err)
-	}
-	sort.Strings(exts)
-	if want := []string{".htm", ".html"}; !reflect.DeepEqual(exts, want) {
-		t.Errorf("ExtensionsByType(%q) = %v; want %v", typ, exts, want)
-	}
-}
-
-func TestExtensionsByTypeNoDuplicates(t *testing.T) {
-	const (
-		typ = "text/html"
-		ext = ".html"
-	)
-	AddExtensionType(ext, typ)
-	AddExtensionType(ext, typ)
-	exts, err := ExtensionsByType(typ)
-	if err != nil {
-		t.Fatalf("ExtensionsByType(%q) error: %v", typ, err)
-	}
-	count := 0
-	for _, v := range exts {
-		if v == ext {
-			count++
-		}
-	}
-	if count != 1 {
-		t.Errorf("ExtensionsByType(%q) = %v; want %v once", typ, exts, ext)
 	}
 }
 

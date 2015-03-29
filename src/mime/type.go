@@ -12,29 +12,45 @@ import (
 )
 
 var (
-	mimeLock       sync.RWMutex
-	mimeTypesLower = map[string]string{
-		".css":  "text/css; charset=utf-8",
-		".gif":  "image/gif",
-		".htm":  "text/html; charset=utf-8",
-		".html": "text/html; charset=utf-8",
-		".jpg":  "image/jpeg",
-		".js":   "application/x-javascript",
-		".pdf":  "application/pdf",
-		".png":  "image/png",
-		".svg":  "image/svg+xml",
-		".xml":  "text/xml; charset=utf-8",
-	}
-	mimeTypes  = clone(mimeTypesLower)
-	extensions = invert(mimeTypesLower)
+	mimeLock       sync.RWMutex      // guards following 3 maps
+	mimeTypes      map[string]string // ".Z" => "application/x-compress"
+	mimeTypesLower map[string]string // ".z" => "application/x-compress"
+
+	// extensions maps from MIME type to list of lowercase file
+	// extensions: "image/jpeg" => [".jpg", ".jpeg"]
+	extensions map[string][]string
 )
+
+// setMimeTypes is used by initMime's non-test path, and by tests.
+// The two maps must not be the same, or nil.
+func setMimeTypes(lowerExt, mixExt map[string]string) {
+	if lowerExt == nil || mixExt == nil {
+		panic("nil map")
+	}
+	mimeTypesLower = lowerExt
+	mimeTypes = mixExt
+	extensions = invert(lowerExt)
+}
+
+var builtinTypesLower = map[string]string{
+	".css":  "text/css; charset=utf-8",
+	".gif":  "image/gif",
+	".htm":  "text/html; charset=utf-8",
+	".html": "text/html; charset=utf-8",
+	".jpg":  "image/jpeg",
+	".js":   "application/x-javascript",
+	".pdf":  "application/pdf",
+	".png":  "image/png",
+	".svg":  "image/svg+xml",
+	".xml":  "text/xml; charset=utf-8",
+}
 
 func clone(m map[string]string) map[string]string {
 	m2 := make(map[string]string, len(m))
 	for k, v := range m {
 		m2[k] = v
 		if strings.ToLower(k) != k {
-			panic("keys in mimeTypesLower must be lowercase")
+			panic("keys in builtinTypesLower must be lowercase")
 		}
 	}
 	return m2
@@ -53,6 +69,17 @@ func invert(m map[string]string) map[string][]string {
 }
 
 var once sync.Once // guards initMime
+
+var testInitMime, osInitMime func()
+
+func initMime() {
+	if fn := testInitMime; fn != nil {
+		fn()
+	} else {
+		setMimeTypes(builtinTypesLower, clone(builtinTypesLower))
+		osInitMime()
+	}
+}
 
 // TypeByExtension returns the MIME type associated with the file extension ext.
 // The extension ext should begin with a leading dot, as in ".html".
@@ -77,8 +104,7 @@ func TypeByExtension(ext string) string {
 	defer mimeLock.RUnlock()
 
 	// Case-sensitive lookup.
-	v := mimeTypes[ext]
-	if v != "" {
+	if v := mimeTypes[ext]; v != "" {
 		return v
 	}
 
@@ -130,7 +156,7 @@ func ExtensionsByType(typ string) ([]string, error) {
 // a leading dot, as in ".html".
 func AddExtensionType(ext, typ string) error {
 	if !strings.HasPrefix(ext, ".") {
-		return fmt.Errorf(`mime: extension %q misses dot`, ext)
+		return fmt.Errorf("mime: extension %q missing leading dot", ext)
 	}
 	once.Do(initMime)
 	return setExtensionType(ext, typ)
