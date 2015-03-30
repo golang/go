@@ -1267,6 +1267,27 @@ func dodata() {
 
 	datap = listsort(datap, datcmp, listnextp)
 
+	if Iself {
+		// Make .rela and .rela.plt contiguous, the ELF ABI requires this
+		// and Solaris actually cares.
+		var relplt *LSym
+		for l = &datap; *l != nil; l = &(*l).Next {
+			if (*l).Name == ".rel.plt" || (*l).Name == ".rela.plt" {
+				relplt = (*l)
+				*l = (*l).Next
+				break
+			}
+		}
+		if relplt != nil {
+			for s = datap; s != nil; s = s.Next {
+				if s.Name == ".rel" || s.Name == ".rela" {
+					relplt.Next = s.Next
+					s.Next = relplt
+				}
+			}
+		}
+	}
+
 	/*
 	 * allocate sections.  list is sorted by type,
 	 * so we can just walk it for each piece we want to emit.
