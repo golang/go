@@ -94,7 +94,7 @@ search:
 		itype := i._type
 		for ; j < nt; j++ {
 			t := &x.mhdr[j]
-			if t.mtyp == itype && t.name == iname && t.pkgpath == ipkgpath {
+			if t.mtyp == itype && (t.name == iname || *t.name == *iname) && t.pkgpath == ipkgpath {
 				if m != nil {
 					*(*unsafe.Pointer)(add(unsafe.Pointer(&m.fun[0]), uintptr(k)*ptrSize)) = t.ifn
 				}
