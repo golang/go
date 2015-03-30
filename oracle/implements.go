@@ -12,16 +12,37 @@ import (
 	"sort"
 	"strings"
 
+	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/oracle/serial"
 )
 
 // Implements displays the "implements" relation as it pertains to the
-// selected type.  If the selection is a method, 'implements' displays
+// selected type within a single package.
+// If the selection is a method, 'implements' displays
 // the corresponding methods of the types that would have been reported
 // by an implements query on the receiver type.
 //
-func implements(o *Oracle, qpos *QueryPos) (queryResult, error) {
+func implements(q *Query) error {
+	lconf := loader.Config{Build: q.Build}
+	allowErrors(&lconf)
+
+	if err := importQueryPackage(q.Pos, &lconf); err != nil {
+		return err
+	}
+
+	// Load/parse/type-check the program.
+	lprog, err := lconf.Load()
+	if err != nil {
+		return err
+	}
+	q.Fset = lprog.Fset
+
+	qpos, err := parseQueryPos(lprog, q.Pos, false)
+	if err != nil {
+		return err
+	}
+
 	// Find the selected type.
 	path, action := findInterestingNode(qpos.info, qpos.path)
 
@@ -35,7 +56,7 @@ func implements(o *Oracle, qpos *QueryPos) (queryResult, error) {
 			if obj, ok := qpos.info.ObjectOf(id).(*types.Func); ok {
 				recv := obj.Type().(*types.Signature).Recv()
 				if recv == nil {
-					return nil, fmt.Errorf("this function is not a method")
+					return fmt.Errorf("this function is not a method")
 				}
 				method = obj
 				T = recv.Type()
@@ -45,7 +66,7 @@ func implements(o *Oracle, qpos *QueryPos) (queryResult, error) {
 		T = qpos.info.TypeOf(path[0].(ast.Expr))
 	}
 	if T == nil {
-		return nil, fmt.Errorf("no type or method here")
+		return fmt.Errorf("no type or method here")
 	}
 
 	// Find all named types, even local types (which can have
@@ -55,7 +76,7 @@ func implements(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	// i.e. don't reduceScope?
 	//
 	var allNamed []types.Type
-	for _, info := range o.typeInfo {
+	for _, info := range lprog.AllPackages {
 		for _, obj := range info.Defs {
 			if obj, ok := obj.(*types.TypeName); ok {
 				allNamed = append(allNamed, obj.Type())
@@ -135,11 +156,14 @@ func implements(o *Oracle, qpos *QueryPos) (queryResult, error) {
 		}
 	}
 
-	return &implementsResult{qpos, T, pos, to, from, fromPtr, method, toMethod, fromMethod, fromPtrMethod}, nil
+	q.result = &implementsResult{
+		qpos, T, pos, to, from, fromPtr, method, toMethod, fromMethod, fromPtrMethod,
+	}
+	return nil
 }
 
 type implementsResult struct {
-	qpos *QueryPos
+	qpos *queryPos
 
 	t       types.Type   // queried type (not necessarily named)
 	pos     interface{}  // pos of t (*types.Name or *QueryPos)
@@ -160,7 +184,7 @@ func (r *implementsResult) display(printf printfFunc) {
 	meth := func(sel *types.Selection) {
 		if sel != nil {
 			printf(sel.Obj(), "\t%s method (%s).%s",
-				relation, r.qpos.TypeString(sel.Recv()), sel.Obj().Name())
+				relation, r.qpos.typeString(sel.Recv()), sel.Obj().Name())
 		}
 	}
 
@@ -173,7 +197,7 @@ func (r *implementsResult) display(printf printfFunc) {
 		if r.method == nil {
 			printf(r.pos, "interface type %s", r.t)
 		} else {
-			printf(r.method, "abstract method %s", r.qpos.ObjectString(r.method))
+			printf(r.method, "abstract method %s", r.qpos.objectString(r.method))
 		}
 
 		// Show concrete types (or methods) first; use two passes.
@@ -214,7 +238,7 @@ func (r *implementsResult) display(printf printfFunc) {
 				printf(r.pos, "%s type %s", typeKind(r.t), r.t)
 			} else {
 				printf(r.method, "concrete method %s",
-					r.qpos.ObjectString(r.method))
+					r.qpos.objectString(r.method))
 			}
 			for i, super := range r.from {
 				if r.method == nil {
@@ -231,7 +255,7 @@ func (r *implementsResult) display(printf printfFunc) {
 			} else {
 				// TODO(adonovan): de-dup (C).f and (*C).f implementing (I).f.
 				printf(r.method, "concrete method %s",
-					r.qpos.ObjectString(r.method))
+					r.qpos.objectString(r.method))
 			}
 
 			for i, psuper := range r.fromPtr {
@@ -260,7 +284,7 @@ func (r *implementsResult) toSerial(res *serial.Result, fset *token.FileSet) {
 	}
 	if r.method != nil {
 		res.Implements.Method = &serial.DescribeMethod{
-			Name: r.qpos.ObjectString(r.method),
+			Name: r.qpos.objectString(r.method),
 			Pos:  fset.Position(r.method.Pos()).String(),
 		}
 	}

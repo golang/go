@@ -25,10 +25,40 @@ import (
 //
 // All printed sets are sorted to ensure determinism.
 //
-func pointsto(o *Oracle, qpos *QueryPos) (queryResult, error) {
+func pointsto(q *Query) error {
+	lconf := loader.Config{Build: q.Build}
+
+	// Determine initial packages for PTA.
+	args, err := lconf.FromArgs(q.Scope, true)
+	if err != nil {
+		return err
+	}
+	if len(args) > 0 {
+		return fmt.Errorf("surplus arguments: %q", args)
+	}
+
+	// Load/parse/type-check the program.
+	lprog, err := lconf.Load()
+	if err != nil {
+		return err
+	}
+	q.Fset = lprog.Fset
+
+	qpos, err := parseQueryPos(lprog, q.Pos, true) // needs exact pos
+	if err != nil {
+		return err
+	}
+
+	prog := ssa.Create(lprog, ssa.GlobalDebug)
+
+	ptaConfig, err := setupPTA(prog, lprog, q.PTALog, q.Reflection)
+	if err != nil {
+		return err
+	}
+
 	path, action := findInterestingNode(qpos.info, qpos.path)
 	if action != actionExpr {
-		return nil, fmt.Errorf("pointer analysis wants an expression; got %s",
+		return fmt.Errorf("pointer analysis wants an expression; got %s",
 			astutil.NodeDescription(qpos.path[0]))
 	}
 
@@ -37,7 +67,7 @@ func pointsto(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	switch n := path[0].(type) {
 	case *ast.ValueSpec:
 		// ambiguous ValueSpec containing multiple names
-		return nil, fmt.Errorf("multiple value specification")
+		return fmt.Errorf("multiple value specification")
 	case *ast.Ident:
 		obj = qpos.info.ObjectOf(n)
 		expr = n
@@ -45,41 +75,44 @@ func pointsto(o *Oracle, qpos *QueryPos) (queryResult, error) {
 		expr = n
 	default:
 		// TODO(adonovan): is this reachable?
-		return nil, fmt.Errorf("unexpected AST for expr: %T", n)
+		return fmt.Errorf("unexpected AST for expr: %T", n)
 	}
 
 	// Reject non-pointerlike types (includes all constants---except nil).
 	// TODO(adonovan): reject nil too.
 	typ := qpos.info.TypeOf(expr)
 	if !pointer.CanPoint(typ) {
-		return nil, fmt.Errorf("pointer analysis wants an expression of reference type; got %s", typ)
+		return fmt.Errorf("pointer analysis wants an expression of reference type; got %s", typ)
 	}
 
 	// Determine the ssa.Value for the expression.
 	var value ssa.Value
 	var isAddr bool
-	var err error
 	if obj != nil {
 		// def/ref of func/var object
-		value, isAddr, err = ssaValueForIdent(o.prog, qpos.info, obj, path)
+		value, isAddr, err = ssaValueForIdent(prog, qpos.info, obj, path)
 	} else {
-		value, isAddr, err = ssaValueForExpr(o.prog, qpos.info, path)
+		value, isAddr, err = ssaValueForExpr(prog, qpos.info, path)
 	}
 	if err != nil {
-		return nil, err // e.g. trivially dead code
+		return err // e.g. trivially dead code
 	}
+
+	// Defer SSA construction till after errors are reported.
+	prog.BuildAll()
 
 	// Run the pointer analysis.
-	ptrs, err := runPTA(o, value, isAddr)
+	ptrs, err := runPTA(ptaConfig, value, isAddr)
 	if err != nil {
-		return nil, err // e.g. analytically unreachable
+		return err // e.g. analytically unreachable
 	}
 
-	return &pointstoResult{
+	q.result = &pointstoResult{
 		qpos: qpos,
 		typ:  typ,
 		ptrs: ptrs,
-	}, nil
+	}
+	return nil
 }
 
 // ssaValueForIdent returns the ssa.Value for the ast.Ident whose path
@@ -129,17 +162,15 @@ func ssaValueForExpr(prog *ssa.Program, qinfo *loader.PackageInfo, path []ast.No
 }
 
 // runPTA runs the pointer analysis of the selected SSA value or address.
-func runPTA(o *Oracle, v ssa.Value, isAddr bool) (ptrs []pointerResult, err error) {
-	buildSSA(o)
-
+func runPTA(conf *pointer.Config, v ssa.Value, isAddr bool) (ptrs []pointerResult, err error) {
 	T := v.Type()
 	if isAddr {
-		o.ptaConfig.AddIndirectQuery(v)
+		conf.AddIndirectQuery(v)
 		T = deref(T)
 	} else {
-		o.ptaConfig.AddQuery(v)
+		conf.AddQuery(v)
 	}
-	ptares := ptrAnalysis(o)
+	ptares := ptrAnalysis(conf)
 
 	var ptr pointer.Pointer
 	if isAddr {
@@ -177,7 +208,7 @@ type pointerResult struct {
 }
 
 type pointstoResult struct {
-	qpos *QueryPos
+	qpos *queryPos
 	typ  types.Type      // type of expression
 	ptrs []pointerResult // pointer info (typ is concrete => len==1)
 }
@@ -188,17 +219,17 @@ func (r *pointstoResult) display(printf printfFunc) {
 		// reflect.Value expression.
 
 		if len(r.ptrs) > 0 {
-			printf(r.qpos, "this %s may contain these dynamic types:", r.qpos.TypeString(r.typ))
+			printf(r.qpos, "this %s may contain these dynamic types:", r.qpos.typeString(r.typ))
 			for _, ptr := range r.ptrs {
 				var obj types.Object
 				if nt, ok := deref(ptr.typ).(*types.Named); ok {
 					obj = nt.Obj()
 				}
 				if len(ptr.labels) > 0 {
-					printf(obj, "\t%s, may point to:", r.qpos.TypeString(ptr.typ))
+					printf(obj, "\t%s, may point to:", r.qpos.typeString(ptr.typ))
 					printLabels(printf, ptr.labels, "\t\t")
 				} else {
-					printf(obj, "\t%s", r.qpos.TypeString(ptr.typ))
+					printf(obj, "\t%s", r.qpos.typeString(ptr.typ))
 				}
 			}
 		} else {
@@ -208,11 +239,11 @@ func (r *pointstoResult) display(printf printfFunc) {
 		// Show labels for other expressions.
 		if ptr := r.ptrs[0]; len(ptr.labels) > 0 {
 			printf(r.qpos, "this %s may point to these objects:",
-				r.qpos.TypeString(r.typ))
+				r.qpos.typeString(r.typ))
 			printLabels(printf, ptr.labels, "\t")
 		} else {
 			printf(r.qpos, "this %s may not point to anything.",
-				r.qpos.TypeString(r.typ))
+				r.qpos.typeString(r.typ))
 		}
 	}
 }
@@ -232,7 +263,7 @@ func (r *pointstoResult) toSerial(res *serial.Result, fset *token.FileSet) {
 			})
 		}
 		pts = append(pts, serial.PointsTo{
-			Type:    r.qpos.TypeString(ptr.typ),
+			Type:    r.qpos.typeString(ptr.typ),
 			NamePos: namePos,
 			Labels:  labels,
 		})

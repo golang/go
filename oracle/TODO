@@ -6,14 +6,8 @@ ORACLE TODO
 General
 =======
 
-Refactor control flow so that each mode has a "one-shot setup" function.
-
-Use a fault-tolerant parser that can recover from bad parses.
-
 Save unsaved editor buffers into an archive and provide that to the
 tools, which should act as if they were saved.
-
-Fix: make the guessImportPath hack work with external _test.go files too.
 
 Include complete pos/end information Serial output.
   But beware that sometimes a single token (e.g. +) is more helpful
@@ -34,12 +28,6 @@ implements
 
 definition, referrers
 
-  Use the parser's resolver information to answer the query
-  for local names.  Only run the type checker if that fails.
-  (NB: gri's new parser won't do any resolution.)
-
-  referrers: Show the text of the matching line of code, like grep.
-
   definition: Make it work with qualified identifiers (SelectorExpr) too.
 
   references: Make it work on things that are implicit idents, like
@@ -49,8 +37,6 @@ what
 
   Report def/ref info if available.
   Editors could use it to highlight all idents of the same local var.
-
-  Fix: support it in (*Oracle).Query (long-running tools).
 
   More tests.
 
@@ -95,5 +81,3 @@ Emacs: go-root-and-paths depends on the current buffer, so be sure to
    call it from within the source file, not the *go-oracle* buffer:
    the user may have switched workspaces and the oracle should run in
    the new one.
-
-Support other editors: vim, Eclipse, Sublime, etc.

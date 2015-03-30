@@ -49,14 +49,14 @@ The -format flag controls the output format:
 	json	structured data in JSON syntax.
 	xml	structured data in XML syntax.
 
-The -pos flag is required in all modes except 'callgraph'.
+The -pos flag is required in all modes.
 
 The mode argument determines the query to perform:
 
 	callees	  	show possible targets of selected function call
 	callers	  	show possible callers of selected function
-	callgraph 	show complete callgraph of program
 	callstack 	show path from callgraph root to selected function
+	definition	show declaration of selected identifier
 	describe  	describe selected syntax: definition, methods, etc
 	freevars  	show free variables of selection
 	implements	show 'implements' relation for selected type or method
@@ -166,8 +166,16 @@ func main() {
 	}
 
 	// Ask the oracle.
-	res, err := oracle.Query(args, mode, *posFlag, ptalog, &build.Default, *reflectFlag)
-	if err != nil {
+	query := oracle.Query{
+		Mode:       mode,
+		Pos:        *posFlag,
+		Build:      &build.Default,
+		Scope:      args,
+		PTALog:     ptalog,
+		Reflection: *reflectFlag,
+	}
+
+	if err := oracle.Run(&query); err != nil {
 		fmt.Fprintf(os.Stderr, "oracle: %s.\n", err)
 		os.Exit(1)
 	}
@@ -175,7 +183,7 @@ func main() {
 	// Print the result.
 	switch *formatFlag {
 	case "json":
-		b, err := json.MarshalIndent(res.Serial(), "", "\t")
+		b, err := json.MarshalIndent(query.Serial(), "", "\t")
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "oracle: JSON error: %s.\n", err)
 			os.Exit(1)
@@ -183,7 +191,7 @@ func main() {
 		os.Stdout.Write(b)
 
 	case "xml":
-		b, err := xml.MarshalIndent(res.Serial(), "", "\t")
+		b, err := xml.MarshalIndent(query.Serial(), "", "\t")
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "oracle: XML error: %s.\n", err)
 			os.Exit(1)
@@ -191,6 +199,6 @@ func main() {
 		os.Stdout.Write(b)
 
 	case "plain":
-		res.WriteTo(os.Stdout)
+		query.WriteTo(os.Stdout)
 	}
 }

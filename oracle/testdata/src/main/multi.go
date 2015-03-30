@@ -1,4 +1,4 @@
-package multi
+package main
 
 func g(x int) {
 }

@@ -1,0 +1,34 @@
+-------- @pointsto mrv --------
+this reflect.Value may contain these dynamic types:
+	*bool, may point to:
+		main.b
+	*int, may point to:
+		main.a
+	map[*int]*bool, may point to:
+		makemap
+
+-------- @pointsto p1 --------
+this interface{} may contain these dynamic types:
+	*bool, may point to:
+		main.b
+	*int, may point to:
+		main.a
+	map[*int]*bool, may point to:
+		makemap
+
+-------- @pointsto p2 --------
+this []reflect.Value may point to these objects:
+	<alloc in (reflect.Value).MapKeys>
+
+-------- @pointsto p3 --------
+this reflect.Value may contain these dynamic types:
+	*int, may point to:
+		main.a
+
+-------- @pointsto p4 --------
+this reflect.Type may contain these dynamic types:
+	*reflect.rtype, may point to:
+		*bool
+		*int
+		map[*int]*bool
+

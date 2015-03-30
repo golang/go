@@ -10,10 +10,13 @@ import (
 	"go/ast"
 	"go/token"
 	"io/ioutil"
+	"os"
 	"sort"
 
+	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/oracle/serial"
+	"golang.org/x/tools/refactor/importgraph"
 )
 
 // TODO(adonovan): use golang.org/x/tools/refactor/importgraph to choose
@@ -21,36 +24,97 @@ import (
 
 // Referrers reports all identifiers that resolve to the same object
 // as the queried identifier, within any package in the analysis scope.
-//
-func referrers(o *Oracle, qpos *QueryPos) (queryResult, error) {
-	id, _ := qpos.path[0].(*ast.Ident)
-	if id == nil {
-		return nil, fmt.Errorf("no identifier here")
+func referrers(q *Query) error {
+	lconf := loader.Config{Build: q.Build}
+	allowErrors(&lconf)
+
+	if err := importQueryPackage(q.Pos, &lconf); err != nil {
+		return err
 	}
 
-	obj := qpos.info.ObjectOf(id)
-	if obj == nil {
-		// Happens for y in "switch y := x.(type)", but I think that's all.
-		return nil, fmt.Errorf("no object for identifier")
+	var id *ast.Ident
+	var obj types.Object
+	var lprog *loader.Program
+	var pass2 bool
+	for {
+		// Load/parse/type-check the program.
+		var err error
+		lprog, err = lconf.Load()
+		if err != nil {
+			return err
+		}
+		q.Fset = lprog.Fset
+
+		qpos, err := parseQueryPos(lprog, q.Pos, false)
+		if err != nil {
+			return err
+		}
+
+		id, _ = qpos.path[0].(*ast.Ident)
+		if id == nil {
+			return fmt.Errorf("no identifier here")
+		}
+
+		obj = qpos.info.ObjectOf(id)
+		if obj == nil {
+			// Happens for y in "switch y := x.(type)", but I think that's all.
+			return fmt.Errorf("no object for identifier")
+		}
+
+		// If the identifier is exported, we must load all packages that
+		// depend transitively upon the package that defines it.
+		//
+		// TODO(adonovan): opt: skip this step if obj.Pkg() is a test or
+		// main package.
+		if pass2 || !obj.Exported() {
+			break
+		}
+
+		// Scan the workspace and build the import graph.
+		_, rev, errors := importgraph.Build(q.Build)
+		if len(errors) > 0 {
+			for path, err := range errors {
+				fmt.Fprintf(os.Stderr, "Package %q: %s.\n", path, err)
+			}
+			return fmt.Errorf("failed to scan import graph for workspace")
+		}
+
+		// Re-load the larger program.
+		// Create a new file set so that ...
+		// External test packages are never imported,
+		// so they will never appear in the graph.
+		// (We must reset the Config here, not just reset the Fset field.)
+		lconf = loader.Config{
+			Fset:  token.NewFileSet(),
+			Build: q.Build,
+		}
+		allowErrors(&lconf)
+		for path := range rev.Search(obj.Pkg().Path()) {
+			lconf.Import(path)
+		}
+		pass2 = true
 	}
 
 	// Iterate over all go/types' Uses facts for the entire program.
 	var refs []*ast.Ident
-	for _, info := range o.typeInfo {
+	for _, info := range lprog.AllPackages {
 		for id2, obj2 := range info.Uses {
 			if sameObj(obj, obj2) {
 				refs = append(refs, id2)
 			}
 		}
 	}
+	// TODO(adonovan): is this sort stable?  Pos order depends on
+	// when packages are reached.  Use filename order?
 	sort.Sort(byNamePos(refs))
 
-	return &referrersResult{
-		qpos:  qpos,
+	q.result = &referrersResult{
+		fset:  q.Fset,
 		query: id,
 		obj:   obj,
 		refs:  refs,
-	}, nil
+	}
+	return nil
 }
 
 // same reports whether x and y are identical, or both are PkgNames
@@ -77,7 +141,7 @@ func (p byNamePos) Less(i, j int) bool { return p[i].NamePos < p[j].NamePos }
 func (p byNamePos) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 type referrersResult struct {
-	qpos  *QueryPos
+	fset  *token.FileSet
 	query *ast.Ident   // identifier of query
 	obj   types.Object // object it denotes
 	refs  []*ast.Ident // set of all other references to it
@@ -97,7 +161,7 @@ func (r *referrersResult) display(printf printfFunc) {
 
 	// First pass: start the file reads concurrently.
 	for _, ref := range r.refs {
-		posn := r.qpos.fset.Position(ref.Pos())
+		posn := r.fset.Position(ref.Pos())
 		fi := fileinfosByName[posn.Filename]
 		if fi == nil {
 			fi = &fileinfo{data: make(chan []byte)}

@@ -9,6 +9,7 @@ import (
 	"go/token"
 
 	"golang.org/x/tools/go/callgraph"
+	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/oracle/serial"
 )
@@ -16,35 +17,67 @@ import (
 // Callers reports the possible callers of the function
 // immediately enclosing the specified source location.
 //
-func callers(o *Oracle, qpos *QueryPos) (queryResult, error) {
-	pkg := o.prog.Package(qpos.info.Pkg)
-	if pkg == nil {
-		return nil, fmt.Errorf("no SSA package")
+func callers(conf *Query) error {
+	lconf := loader.Config{Build: conf.Build}
+
+	// Determine initial packages for PTA.
+	args, err := lconf.FromArgs(conf.Scope, true)
+	if err != nil {
+		return err
 	}
-	if !ssa.HasEnclosingFunction(pkg, qpos.path) {
-		return nil, fmt.Errorf("this position is not inside a function")
+	if len(args) > 0 {
+		return fmt.Errorf("surplus arguments: %q", args)
 	}
 
-	buildSSA(o)
+	// Load/parse/type-check the program.
+	lprog, err := lconf.Load()
+	if err != nil {
+		return err
+	}
+	conf.Fset = lprog.Fset
+
+	qpos, err := parseQueryPos(lprog, conf.Pos, false)
+	if err != nil {
+		return err
+	}
+
+	prog := ssa.Create(lprog, 0)
+
+	ptaConfig, err := setupPTA(prog, lprog, conf.PTALog, conf.Reflection)
+	if err != nil {
+		return err
+	}
+
+	pkg := prog.Package(qpos.info.Pkg)
+	if pkg == nil {
+		return fmt.Errorf("no SSA package")
+	}
+	if !ssa.HasEnclosingFunction(pkg, qpos.path) {
+		return fmt.Errorf("this position is not inside a function")
+	}
+
+	// Defer SSA construction till after errors are reported.
+	prog.BuildAll()
 
 	target := ssa.EnclosingFunction(pkg, qpos.path)
 	if target == nil {
-		return nil, fmt.Errorf("no SSA function built for this location (dead code?)")
+		return fmt.Errorf("no SSA function built for this location (dead code?)")
 	}
 
 	// Run the pointer analysis, recording each
 	// call found to originate from target.
-	o.ptaConfig.BuildCallGraph = true
-	cg := ptrAnalysis(o).CallGraph
+	ptaConfig.BuildCallGraph = true
+	cg := ptrAnalysis(ptaConfig).CallGraph
 	cg.DeleteSyntheticNodes()
 	edges := cg.CreateNode(target).In
 	// TODO(adonovan): sort + dedup calls to ensure test determinism.
 
-	return &callersResult{
+	conf.result = &callersResult{
 		target:    target,
 		callgraph: cg,
 		edges:     edges,
-	}, nil
+	}
+	return nil
 }
 
 type callersResult struct {

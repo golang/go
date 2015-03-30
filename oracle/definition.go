@@ -9,6 +9,7 @@ import (
 	"go/ast"
 	"go/token"
 
+	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/oracle/serial"
 )
@@ -18,28 +19,48 @@ import (
 // TODO(adonovan): opt: for intra-file references, the parser's
 // resolution might be enough; we should start with that.
 //
-func definition(o *Oracle, qpos *QueryPos) (queryResult, error) {
+func definition(q *Query) error {
+	lconf := loader.Config{Build: q.Build}
+	allowErrors(&lconf)
+
+	if err := importQueryPackage(q.Pos, &lconf); err != nil {
+		return err
+	}
+
+	// Load/parse/type-check the program.
+	lprog, err := lconf.Load()
+	if err != nil {
+		return err
+	}
+	q.Fset = lprog.Fset
+
+	qpos, err := parseQueryPos(lprog, q.Pos, false)
+	if err != nil {
+		return err
+	}
+
 	id, _ := qpos.path[0].(*ast.Ident)
 	if id == nil {
-		return nil, fmt.Errorf("no identifier here")
+		return fmt.Errorf("no identifier here")
 	}
 
 	obj := qpos.info.ObjectOf(id)
 	if obj == nil {
 		// Happens for y in "switch y := x.(type)", but I think that's all.
-		return nil, fmt.Errorf("no object for identifier")
+		return fmt.Errorf("no object for identifier")
 	}
 
-	return &definitionResult{qpos, obj}, nil
+	q.result = &definitionResult{qpos, obj}
+	return nil
 }
 
 type definitionResult struct {
-	qpos *QueryPos
+	qpos *queryPos
 	obj  types.Object // object it denotes
 }
 
 func (r *definitionResult) display(printf printfFunc) {
-	printf(r.obj, "defined here as %s", r.qpos.ObjectString(r.obj))
+	printf(r.obj, "defined here as %s", r.qpos.objectString(r.obj))
 }
 
 func (r *definitionResult) toSerial(res *serial.Result, fset *token.FileSet) {

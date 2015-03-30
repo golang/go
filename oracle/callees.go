@@ -10,6 +10,8 @@ import (
 	"go/token"
 	"sort"
 
+	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/go/pointer"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/oracle/serial"
@@ -17,10 +19,40 @@ import (
 
 // Callees reports the possible callees of the function call site
 // identified by the specified source location.
-func callees(o *Oracle, qpos *QueryPos) (queryResult, error) {
-	pkg := o.prog.Package(qpos.info.Pkg)
+func callees(q *Query) error {
+	lconf := loader.Config{Build: q.Build}
+
+	// Determine initial packages for PTA.
+	args, err := lconf.FromArgs(q.Scope, true)
+	if err != nil {
+		return err
+	}
+	if len(args) > 0 {
+		return fmt.Errorf("surplus arguments: %q", args)
+	}
+
+	// Load/parse/type-check the program.
+	lprog, err := lconf.Load()
+	if err != nil {
+		return err
+	}
+	q.Fset = lprog.Fset
+
+	qpos, err := parseQueryPos(lprog, q.Pos, true) // needs exact pos
+	if err != nil {
+		return err
+	}
+
+	prog := ssa.Create(lprog, 0)
+
+	ptaConfig, err := setupPTA(prog, lprog, q.PTALog, q.Reflection)
+	if err != nil {
+		return err
+	}
+
+	pkg := prog.Package(qpos.info.Pkg)
 	if pkg == nil {
-		return nil, fmt.Errorf("no SSA package")
+		return fmt.Errorf("no SSA package")
 	}
 
 	// Determine the enclosing call for the specified position.
@@ -31,7 +63,7 @@ func callees(o *Oracle, qpos *QueryPos) (queryResult, error) {
 		}
 	}
 	if e == nil {
-		return nil, fmt.Errorf("there is no function call here")
+		return fmt.Errorf("there is no function call here")
 	}
 	// TODO(adonovan): issue an error if the call is "too far
 	// away" from the current selection, as this most likely is
@@ -39,39 +71,41 @@ func callees(o *Oracle, qpos *QueryPos) (queryResult, error) {
 
 	// Reject type conversions.
 	if qpos.info.Types[e.Fun].IsType() {
-		return nil, fmt.Errorf("this is a type conversion, not a function call")
+		return fmt.Errorf("this is a type conversion, not a function call")
 	}
 
 	// Reject calls to built-ins.
 	if id, ok := unparen(e.Fun).(*ast.Ident); ok {
 		if b, ok := qpos.info.Uses[id].(*types.Builtin); ok {
-			return nil, fmt.Errorf("this is a call to the built-in '%s' operator", b.Name())
+			return fmt.Errorf("this is a call to the built-in '%s' operator", b.Name())
 		}
 	}
 
-	buildSSA(o)
+	// Defer SSA construction till after errors are reported.
+	prog.BuildAll()
 
 	// Ascertain calling function and call site.
 	callerFn := ssa.EnclosingFunction(pkg, qpos.path)
 	if callerFn == nil {
-		return nil, fmt.Errorf("no SSA function built for this location (dead code?)")
+		return fmt.Errorf("no SSA function built for this location (dead code?)")
 	}
 
 	// Find the call site.
 	site, err := findCallSite(callerFn, e.Lparen)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	funcs, err := findCallees(o, site)
+	funcs, err := findCallees(ptaConfig, site)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return &calleesResult{
+	q.result = &calleesResult{
 		site:  site,
 		funcs: funcs,
-	}, nil
+	}
+	return nil
 }
 
 func findCallSite(fn *ssa.Function, lparen token.Pos) (ssa.CallInstruction, error) {
@@ -85,7 +119,7 @@ func findCallSite(fn *ssa.Function, lparen token.Pos) (ssa.CallInstruction, erro
 	return nil, fmt.Errorf("this call site is unreachable in this analysis")
 }
 
-func findCallees(o *Oracle, site ssa.CallInstruction) ([]*ssa.Function, error) {
+func findCallees(conf *pointer.Config, site ssa.CallInstruction) ([]*ssa.Function, error) {
 	// Avoid running the pointer analysis for static calls.
 	if callee := site.Common().StaticCallee(); callee != nil {
 		switch callee.String() {
@@ -99,8 +133,8 @@ func findCallees(o *Oracle, site ssa.CallInstruction) ([]*ssa.Function, error) {
 	}
 
 	// Dynamic call: use pointer analysis.
-	o.ptaConfig.BuildCallGraph = true
-	cg := ptrAnalysis(o).CallGraph
+	conf.BuildCallGraph = true
+	cg := ptrAnalysis(conf).CallGraph
 	cg.DeleteSyntheticNodes()
 
 	// Find all call edges from the site.

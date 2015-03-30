@@ -11,6 +11,7 @@ import (
 	"sort"
 
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
 	"golang.org/x/tools/go/types"
@@ -27,10 +28,40 @@ var builtinErrorType = types.Universe.Lookup("error").Type()
 //
 // TODO(dmorsing): figure out if fields in errors like *os.PathError.Err
 // can be queried recursively somehow.
-func whicherrs(o *Oracle, qpos *QueryPos) (queryResult, error) {
+func whicherrs(q *Query) error {
+	lconf := loader.Config{Build: q.Build}
+
+	// Determine initial packages for PTA.
+	args, err := lconf.FromArgs(q.Scope, true)
+	if err != nil {
+		return err
+	}
+	if len(args) > 0 {
+		return fmt.Errorf("surplus arguments: %q", args)
+	}
+
+	// Load/parse/type-check the program.
+	lprog, err := lconf.Load()
+	if err != nil {
+		return err
+	}
+	q.Fset = lprog.Fset
+
+	qpos, err := parseQueryPos(lprog, q.Pos, true) // needs exact pos
+	if err != nil {
+		return err
+	}
+
+	prog := ssa.Create(lprog, ssa.GlobalDebug)
+
+	ptaConfig, err := setupPTA(prog, lprog, q.PTALog, q.Reflection)
+	if err != nil {
+		return err
+	}
+
 	path, action := findInterestingNode(qpos.info, qpos.path)
 	if action != actionExpr {
-		return nil, fmt.Errorf("whicherrs wants an expression; got %s",
+		return fmt.Errorf("whicherrs wants an expression; got %s",
 			astutil.NodeDescription(qpos.path[0]))
 	}
 	var expr ast.Expr
@@ -38,46 +69,50 @@ func whicherrs(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	switch n := path[0].(type) {
 	case *ast.ValueSpec:
 		// ambiguous ValueSpec containing multiple names
-		return nil, fmt.Errorf("multiple value specification")
+		return fmt.Errorf("multiple value specification")
 	case *ast.Ident:
 		obj = qpos.info.ObjectOf(n)
 		expr = n
 	case ast.Expr:
 		expr = n
 	default:
-		return nil, fmt.Errorf("unexpected AST for expr: %T", n)
+		return fmt.Errorf("unexpected AST for expr: %T", n)
 	}
 
 	typ := qpos.info.TypeOf(expr)
 	if !types.Identical(typ, builtinErrorType) {
-		return nil, fmt.Errorf("selection is not an expression of type 'error'")
+		return fmt.Errorf("selection is not an expression of type 'error'")
 	}
 	// Determine the ssa.Value for the expression.
 	var value ssa.Value
-	var err error
 	if obj != nil {
 		// def/ref of func/var object
-		value, _, err = ssaValueForIdent(o.prog, qpos.info, obj, path)
+		value, _, err = ssaValueForIdent(prog, qpos.info, obj, path)
 	} else {
-		value, _, err = ssaValueForExpr(o.prog, qpos.info, path)
+		value, _, err = ssaValueForExpr(prog, qpos.info, path)
 	}
 	if err != nil {
-		return nil, err // e.g. trivially dead code
+		return err // e.g. trivially dead code
 	}
-	buildSSA(o)
 
-	globals := findVisibleErrs(o.prog, qpos)
-	constants := findVisibleConsts(o.prog, qpos)
+	// Defer SSA construction till after errors are reported.
+	prog.BuildAll()
+
+	globals := findVisibleErrs(prog, qpos)
+	constants := findVisibleConsts(prog, qpos)
 
 	res := &whicherrsResult{
 		qpos:   qpos,
 		errpos: expr.Pos(),
 	}
 
+	// TODO(adonovan): the following code is heavily duplicated
+	// w.r.t.  "pointsto".  Refactor?
+
 	// Find the instruction which initialized the
 	// global error. If more than one instruction has stored to the global
 	// remove the global from the set of values that we want to query.
-	allFuncs := ssautil.AllFunctions(o.prog)
+	allFuncs := ssautil.AllFunctions(prog)
 	for fn := range allFuncs {
 		for _, b := range fn.Blocks {
 			for _, instr := range b.Instrs {
@@ -104,12 +139,12 @@ func whicherrs(o *Oracle, qpos *QueryPos) (queryResult, error) {
 		}
 	}
 
-	o.ptaConfig.AddQuery(value)
+	ptaConfig.AddQuery(value)
 	for _, v := range globals {
-		o.ptaConfig.AddQuery(v)
+		ptaConfig.AddQuery(v)
 	}
 
-	ptares := ptrAnalysis(o)
+	ptares := ptrAnalysis(ptaConfig)
 	valueptr := ptares.Queries[value]
 	for g, v := range globals {
 		ptr, ok := ptares.Queries[v]
@@ -174,11 +209,13 @@ func whicherrs(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	sort.Sort(membersByPosAndString(res.globals))
 	sort.Sort(membersByPosAndString(res.consts))
 	sort.Sort(sorterrorType(res.types))
-	return res, nil
+
+	q.result = res
+	return nil
 }
 
 // findVisibleErrs returns a mapping from each package-level variable of type "error" to nil.
-func findVisibleErrs(prog *ssa.Program, qpos *QueryPos) map[*ssa.Global]ssa.Value {
+func findVisibleErrs(prog *ssa.Program, qpos *queryPos) map[*ssa.Global]ssa.Value {
 	globals := make(map[*ssa.Global]ssa.Value)
 	for _, pkg := range prog.AllPackages() {
 		for _, mem := range pkg.Members {
@@ -201,7 +238,7 @@ func findVisibleErrs(prog *ssa.Program, qpos *QueryPos) map[*ssa.Global]ssa.Valu
 }
 
 // findVisibleConsts returns a mapping from each package-level constant assignable to type "error", to nil.
-func findVisibleConsts(prog *ssa.Program, qpos *QueryPos) map[ssa.Const]*ssa.NamedConst {
+func findVisibleConsts(prog *ssa.Program, qpos *queryPos) map[ssa.Const]*ssa.NamedConst {
 	constants := make(map[ssa.Const]*ssa.NamedConst)
 	for _, pkg := range prog.AllPackages() {
 		for _, mem := range pkg.Members {
@@ -247,7 +284,7 @@ type errorType struct {
 }
 
 type whicherrsResult struct {
-	qpos    *QueryPos
+	qpos    *queryPos
 	errpos  token.Pos
 	globals []ssa.Member
 	consts  []ssa.Member
@@ -270,7 +307,7 @@ func (r *whicherrsResult) display(printf printfFunc) {
 	if len(r.types) > 0 {
 		printf(r.qpos, "this error may contain these dynamic types:")
 		for _, t := range r.types {
-			printf(t.obj.Pos(), "\t%s", r.qpos.TypeString(t.typ))
+			printf(t.obj.Pos(), "\t%s", r.qpos.typeString(t.typ))
 		}
 	}
 }
@@ -286,7 +323,7 @@ func (r *whicherrsResult) toSerial(res *serial.Result, fset *token.FileSet) {
 	}
 	for _, t := range r.types {
 		var et serial.WhichErrsType
-		et.Type = r.qpos.TypeString(t.typ)
+		et.Type = r.qpos.typeString(t.typ)
 		et.Position = fset.Position(t.obj.Pos()).String()
 		we.Types = append(we.Types, et)
 	}

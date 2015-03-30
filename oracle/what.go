@@ -24,21 +24,19 @@ import (
 // tools, e.g. to populate a menu of options of slower queries about
 // the selected location.
 //
-func what(posFlag string, buildContext *build.Context) (*Result, error) {
-	qpos, err := fastQueryPos(posFlag)
+func what(q *Query) error {
+	qpos, err := fastQueryPos(q.Pos)
 	if err != nil {
-		return nil, err
+		return err
 	}
+	q.Fset = qpos.fset
 
 	// (ignore errors)
-	srcdir, importPath, _ := guessImportPath(qpos.fset.File(qpos.start).Name(), buildContext)
+	srcdir, importPath, _ := guessImportPath(q.Fset.File(qpos.start).Name(), q.Build)
 
 	// Determine which query modes are applicable to the selection.
-	// TODO(adonovan): refactor: make each minfo have an 'enable'
-	// predicate over qpos.
 	enable := map[string]bool{
-		"callgraph": true, // whole program; always enabled
-		"describe":  true, // any syntax; always enabled
+		"describe": true, // any syntax; always enabled
 	}
 
 	if qpos.end > qpos.start {
@@ -100,11 +98,10 @@ func what(posFlag string, buildContext *build.Context) (*Result, error) {
 
 	// If we don't have an exact selection, disable modes that need one.
 	if !qpos.exact {
-		for _, minfo := range modes {
-			if minfo.needs&needExactPos != 0 {
-				enable[minfo.name] = false
-			}
-		}
+		enable["callees"] = false
+		enable["pointsto"] = false
+		enable["whicherrs"] = false
+		enable["describe"] = false
 	}
 
 	var modes []string
@@ -113,17 +110,13 @@ func what(posFlag string, buildContext *build.Context) (*Result, error) {
 	}
 	sort.Strings(modes)
 
-	return &Result{
-		mode: "what",
-		fset: qpos.fset,
-		q: &whatResult{
-			path:       qpos.path,
-			srcdir:     srcdir,
-			importPath: importPath,
-			modes:      modes,
-		},
-	}, nil
-
+	q.result = &whatResult{
+		path:       qpos.path,
+		srcdir:     srcdir,
+		importPath: importPath,
+		modes:      modes,
+	}
+	return nil
 }
 
 // guessImportPath finds the package containing filename, and returns

@@ -19,42 +19,13 @@ package oracle // import "golang.org/x/tools/oracle"
 // - show all places where an object of type T is created
 //   (&T{}, var t T, new(T), new(struct{array [3]T}), etc.
 
-// ORACLE CONTROL FLOW
-//
-// The Oracle is somewhat convoluted due to the need to support two
-// very different use-cases, "one-shot" and "long running", and to do
-// so quickly.
-//
-// The cmd/oracle tool issues "one-shot" queries via the exported
-// Query function, which creates an Oracle to answer a single query.
-// newOracle consults the 'needs' flags of the query mode and the
-// package containing the query to avoid doing more work than it needs
-// (loading, parsing, type checking, SSA construction).
-//
-// The Pythia tool (github.com/fzipp/pythia) is an example of a "long
-// running" tool.  It calls New() and then loops, calling
-// ParseQueryPos and (*Oracle).Query to handle each incoming HTTP
-// query.  Since New cannot see which queries will follow, it must
-// load, parse, type-check and SSA-build the entire transitive closure
-// of the analysis scope, retaining full debug information and all
-// typed ASTs.
-//
-// TODO(adonovan): experiment with inverting the control flow by
-// making each mode consist of two functions: a "one-shot setup"
-// function and the existing "impl" function.  The one-shot setup
-// function would do all of the work of Query and newOracle,
-// specialized to each mode, calling library utilities for the common
-// things.  This would give it more control over "scope reduction".
-// Long running tools would not call the one-shot setup function but
-// would have their own setup function equivalent to the existing
-// 'needsAll' flow path.
-
 import (
 	"fmt"
 	"go/ast"
 	"go/build"
 	"go/token"
 	"io"
+	"path/filepath"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/loader"
@@ -63,64 +34,6 @@ import (
 	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/oracle/serial"
 )
-
-// An Oracle holds the program state required for one or more queries.
-type Oracle struct {
-	fset      *token.FileSet                         // file set [all queries]
-	prog      *ssa.Program                           // the SSA program [needSSA]
-	ptaConfig pointer.Config                         // pointer analysis configuration [needPTA]
-	typeInfo  map[*types.Package]*loader.PackageInfo // type info for all ASTs in the program [needRetainTypeInfo]
-}
-
-// A set of bits indicating the analytical requirements of each mode.
-//
-// Typed ASTs for the whole program are always constructed
-// transiently; they are retained only for the queried package unless
-// needRetainTypeInfo is set.
-const (
-	needPos            = 1 << iota // needs a position
-	needExactPos                   // needs an exact AST selection; implies needPos
-	needRetainTypeInfo             // needs to retain type info for all ASTs in the program
-	needSSA                        // needs ssa.Packages for whole program
-	needSSADebug                   // needs debug info for ssa.Packages
-	needPTA            = needSSA   // needs pointer analysis
-	needAll            = -1        // needs everything (e.g. a sequence of queries)
-)
-
-type modeInfo struct {
-	name  string
-	needs int
-	impl  func(*Oracle, *QueryPos) (queryResult, error)
-}
-
-var modes = []*modeInfo{
-	// Pointer analyses, whole program:
-	{"callees", needPTA | needExactPos, callees},
-	{"callers", needPTA | needPos, callers},
-	{"callgraph", needPTA, doCallgraph},
-	{"callstack", needPTA | needPos, callstack},
-	{"peers", needPTA | needSSADebug | needPos, peers},
-	{"pointsto", needPTA | needSSADebug | needExactPos, pointsto},
-	{"whicherrs", needPTA | needSSADebug | needExactPos, whicherrs},
-
-	// Type-based, modular analyses:
-	{"definition", needPos, definition},
-	{"describe", needExactPos, describe},
-	{"freevars", needPos, freevars},
-
-	// Type-based, whole-program analyses:
-	{"implements", needRetainTypeInfo | needPos, implements},
-	{"referrers", needRetainTypeInfo | needPos, referrers},
-}
-
-func findMode(mode string) *modeInfo {
-	for _, m := range modes {
-		if m.name == mode {
-			return m
-		}
-	}
-	return nil
-}
 
 type printfFunc func(pos interface{}, format string, args ...interface{})
 
@@ -133,9 +46,8 @@ type queryResult interface {
 // A QueryPos represents the position provided as input to a query:
 // a textual extent in the program's source code, the AST node it
 // corresponds to, and the package to which it belongs.
-// Instances are created by ParseQueryPos.
-//
-type QueryPos struct {
+// Instances are created by parseQueryPos.
+type queryPos struct {
 	fset       *token.FileSet
 	start, end token.Pos           // source extent of query
 	path       []ast.Node          // AST path from query node to root of ast.File
@@ -144,162 +56,139 @@ type QueryPos struct {
 }
 
 // TypeString prints type T relative to the query position.
-func (qpos *QueryPos) TypeString(T types.Type) string {
+func (qpos *queryPos) typeString(T types.Type) string {
 	return types.TypeString(qpos.info.Pkg, T)
 }
 
 // ObjectString prints object obj relative to the query position.
-func (qpos *QueryPos) ObjectString(obj types.Object) string {
+func (qpos *queryPos) objectString(obj types.Object) string {
 	return types.ObjectString(qpos.info.Pkg, obj)
 }
 
 // SelectionString prints selection sel relative to the query position.
-func (qpos *QueryPos) SelectionString(sel *types.Selection) string {
+func (qpos *queryPos) selectionString(sel *types.Selection) string {
 	return types.SelectionString(qpos.info.Pkg, sel)
 }
 
-// A Result encapsulates the result of an oracle.Query.
-type Result struct {
-	fset     *token.FileSet
-	q        queryResult       // the query-specific result
-	mode     string            // query mode
-	warnings []pointer.Warning // pointer analysis warnings (TODO(adonovan): fix: never populated!)
+// A Query specifies a single oracle query.
+type Query struct {
+	Mode  string         // query mode ("callers", etc)
+	Pos   string         // query position
+	Build *build.Context // package loading configuration
+
+	// pointer analysis options
+	Scope      []string  // main package in (*loader.Config).FromArgs syntax
+	PTALog     io.Writer // (optional) pointer-analysis log file
+	Reflection bool      // model reflection soundly (currently slow).
+
+	// Populated during Run()
+	Fset   *token.FileSet
+	result queryResult
 }
 
 // Serial returns an instance of serial.Result, which implements the
 // {xml,json}.Marshaler interfaces so that query results can be
 // serialized as JSON or XML.
 //
-func (res *Result) Serial() *serial.Result {
-	resj := &serial.Result{Mode: res.mode}
-	res.q.toSerial(resj, res.fset)
-	for _, w := range res.warnings {
-		resj.Warnings = append(resj.Warnings, serial.PTAWarning{
-			Pos:     res.fset.Position(w.Pos).String(),
-			Message: w.Message,
-		})
-	}
+func (q *Query) Serial() *serial.Result {
+	resj := &serial.Result{Mode: q.Mode}
+	q.result.toSerial(resj, q.Fset)
 	return resj
 }
 
-// Query runs a single oracle query.
-//
-// args specify the main package in (*loader.Config).FromArgs syntax.
-// mode is the query mode ("callers", etc).
-// ptalog is the (optional) pointer-analysis log file.
-// buildContext is the go/build configuration for locating packages.
-// reflection determines whether to model reflection soundly (currently slow).
-//
-// Clients that intend to perform multiple queries against the same
-// analysis scope should use this pattern instead:
-//
-//	conf := loader.Config{Build: buildContext}
-//	... populate config, e.g. conf.FromArgs(args) ...
-//	iprog, err := conf.Load()
-//	if err != nil { ... }
-// 	o, err := oracle.New(iprog, nil, false)
-//	if err != nil { ... }
-//	for ... {
-//		qpos, err := oracle.ParseQueryPos(imp, pos, needExact)
-//		if err != nil { ... }
-//
-//		res, err := o.Query(mode, qpos)
-//		if err != nil { ... }
-//
-//		// use res
-//	}
-//
-// TODO(adonovan): the ideal 'needsExact' parameter for ParseQueryPos
-// depends on the query mode; how should we expose this?
-//
-func Query(args []string, mode, pos string, ptalog io.Writer, buildContext *build.Context, reflection bool) (*Result, error) {
-	if mode == "what" {
-		// Bypass package loading, type checking, SSA construction.
-		return what(pos, buildContext)
+// WriteTo writes the oracle query result res to out in a compiler diagnostic format.
+func (q *Query) WriteTo(out io.Writer) {
+	printf := func(pos interface{}, format string, args ...interface{}) {
+		fprintf(out, q.Fset, pos, format, args...)
 	}
-
-	minfo := findMode(mode)
-	if minfo == nil {
-		return nil, fmt.Errorf("invalid mode type: %q", mode)
-	}
-
-	conf := loader.Config{Build: buildContext}
-
-	// TODO(adonovan): tolerate type errors if we don't need SSA form.
-	// First we'll need ot audit the non-SSA modes for robustness
-	// in the face of type errors.
-	// if minfo.needs&needSSA == 0 {
-	// 	conf.AllowErrors = true
-	// }
-
-	// Determine initial packages.
-	args, err := conf.FromArgs(args, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(args) > 0 {
-		return nil, fmt.Errorf("surplus arguments: %q", args)
-	}
-
-	// For queries needing only a single typed package,
-	// reduce the analysis scope to that package.
-	if minfo.needs&(needSSA|needRetainTypeInfo) == 0 {
-		reduceScope(pos, &conf)
-	}
-
-	// TODO(adonovan): report type errors to the user via Serial
-	// types, not stderr?
-	// conf.TypeChecker.Error = func(err error) {
-	// 	E := err.(types.Error)
-	// 	fmt.Fprintf(os.Stderr, "%s: %s\n", E.Fset.Position(E.Pos), E.Msg)
-	// }
-
-	// Load/parse/type-check the program.
-	iprog, err := conf.Load()
-	if err != nil {
-		return nil, err
-	}
-
-	o, err := newOracle(iprog, ptalog, minfo.needs, reflection)
-	if err != nil {
-		return nil, err
-	}
-
-	qpos, err := ParseQueryPos(iprog, pos, minfo.needs&needExactPos != 0)
-	if err != nil && minfo.needs&(needPos|needExactPos) != 0 {
-		return nil, err
-	}
-
-	// SSA is built and we have the QueryPos.
-	// Release the other ASTs and type info to the GC.
-	iprog = nil
-
-	return o.query(minfo, qpos)
+	q.result.display(printf)
 }
 
-// reduceScope is called for one-shot queries that need only a single
-// typed package.  It attempts to guess the query package from pos and
-// reduce the analysis scope (set of loaded packages) to just that one
-// plus (the exported parts of) its dependencies.  It leaves its
-// arguments unchanged on failure.
-//
-// TODO(adonovan): this is a real mess... but it's fast.
-//
-func reduceScope(pos string, conf *loader.Config) {
+// Run runs an oracle query and populates its Fset and Result.
+func Run(conf *Query) error {
+	switch conf.Mode {
+	case "callees":
+		return callees(conf)
+	case "callers":
+		return callers(conf)
+	case "callstack":
+		return callstack(conf)
+	case "peers":
+		return peers(conf)
+	case "pointsto":
+		return pointsto(conf)
+	case "whicherrs":
+		return whicherrs(conf)
+	case "definition":
+		return definition(conf)
+	case "describe":
+		return describe(conf)
+	case "freevars":
+		return freevars(conf)
+	case "implements":
+		return implements(conf)
+	case "referrers":
+		return referrers(conf)
+	case "what":
+		return what(conf)
+	default:
+		return fmt.Errorf("invalid mode: %q", conf.Mode)
+	}
+}
+
+// Create a pointer.Config whose scope is the initial packages of lprog
+// and their dependencies.
+func setupPTA(prog *ssa.Program, lprog *loader.Program, ptaLog io.Writer, reflection bool) (*pointer.Config, error) {
+	// TODO(adonovan): the body of this function is essentially
+	// duplicated in all go/pointer clients.  Refactor.
+
+	// For each initial package (specified on the command line),
+	// if it has a main function, analyze that,
+	// otherwise analyze its tests, if any.
+	var testPkgs, mains []*ssa.Package
+	for _, info := range lprog.InitialPackages() {
+		initialPkg := prog.Package(info.Pkg)
+
+		// Add package to the pointer analysis scope.
+		if initialPkg.Func("main") != nil {
+			mains = append(mains, initialPkg)
+		} else {
+			testPkgs = append(testPkgs, initialPkg)
+		}
+	}
+	if testPkgs != nil {
+		if p := prog.CreateTestMainPackage(testPkgs...); p != nil {
+			mains = append(mains, p)
+		}
+	}
+	if mains == nil {
+		return nil, fmt.Errorf("analysis scope has no main and no tests")
+	}
+	return &pointer.Config{
+		Log:        ptaLog,
+		Reflection: reflection,
+		Mains:      mains,
+	}, nil
+}
+
+// importQueryPackage finds the package P containing the
+// query position and tells conf to import it.
+func importQueryPackage(pos string, conf *loader.Config) error {
 	fqpos, err := fastQueryPos(pos)
 	if err != nil {
-		return // bad query
+		return err // bad query
 	}
+	filename := fqpos.fset.File(fqpos.start).Name()
 
-	// TODO(adonovan): fix: this gives the wrong results for files
-	// in non-importable packages such as tests and ad-hoc packages
-	// specified as a list of files (incl. the oracle's tests).
-	_, importPath, err := guessImportPath(fqpos.fset.File(fqpos.start).Name(), conf.Build)
+	// This will not work for ad-hoc packages
+	// such as $GOROOT/src/net/http/triv.go.
+	// TODO(adonovan): ensure we report a clear error.
+	_, importPath, err := guessImportPath(filename, conf.Build)
 	if err != nil {
-		return // can't find GOPATH dir
+		return err // can't find GOPATH dir
 	}
 	if importPath == "" {
-		return
+		return fmt.Errorf("can't guess import path from %s", filename)
 	}
 
 	// Check that it's possible to load the queried package.
@@ -309,180 +198,77 @@ func reduceScope(pos string, conf *loader.Config) {
 	cfg2.CgoEnabled = false
 	bp, err := cfg2.Import(importPath, "", 0)
 	if err != nil {
-		return // no files for package
+		return err // no files for package
 	}
 
-	// Check that the queried file appears in the package:
-	// it might be a '// +build ignore' from an ad-hoc main
-	// package, e.g. $GOROOT/src/net/http/triv.go.
-	if !pkgContainsFile(bp, fqpos.fset.File(fqpos.start).Name()) {
-		return // not found
+	switch pkgContainsFile(bp, filename) {
+	case 'T':
+		conf.ImportWithTests(importPath)
+	case 'X':
+		conf.ImportWithTests(importPath)
+		importPath += "_test" // for TypeCheckFuncBodies
+	case 'G':
+		conf.Import(importPath)
+	default:
+		return fmt.Errorf("package %q doesn't contain file %s",
+			importPath, filename)
 	}
 
 	conf.TypeCheckFuncBodies = func(p string) bool { return p == importPath }
 
-	// Ignore packages specified on command line.
-	conf.CreatePkgs = nil
-	conf.ImportPkgs = nil
-
-	// Instead load just the one containing the query position
-	// (and possibly its corresponding tests/production code).
-	// TODO(adonovan): set 'augment' based on which file list
-	// contains
-	conf.ImportWithTests(importPath)
+	return nil
 }
 
-func pkgContainsFile(bp *build.Package, filename string) bool {
-	for _, files := range [][]string{bp.GoFiles, bp.TestGoFiles, bp.XTestGoFiles} {
+// pkgContainsFile reports whether file was among the packages Go
+// files, Test files, eXternal test files, or not found.
+func pkgContainsFile(bp *build.Package, filename string) byte {
+	for i, files := range [][]string{bp.GoFiles, bp.TestGoFiles, bp.XTestGoFiles} {
 		for _, file := range files {
-			if sameFile(file, filename) {
-				return true
+			if sameFile(filepath.Join(bp.Dir, file), filename) {
+				return "GTX"[i]
 			}
 		}
 	}
-	return false
+	return 0 // not found
 }
 
-// New constructs a new Oracle that can be used for a sequence of queries.
-//
-// iprog specifies the program to analyze.
-// ptalog is the (optional) pointer-analysis log file.
-// reflection determines whether to model reflection soundly (currently slow).
-//
-func New(iprog *loader.Program, ptalog io.Writer, reflection bool) (*Oracle, error) {
-	return newOracle(iprog, ptalog, needAll, reflection)
-}
-
-func newOracle(iprog *loader.Program, ptalog io.Writer, needs int, reflection bool) (*Oracle, error) {
-	o := &Oracle{fset: iprog.Fset}
-
-	// Retain type info for all ASTs in the program.
-	if needs&needRetainTypeInfo != 0 {
-		o.typeInfo = iprog.AllPackages
-	}
-
-	// Create SSA package for the initial packages and their dependencies.
-	if needs&needSSA != 0 {
-		var mode ssa.BuilderMode
-		if needs&needSSADebug != 0 {
-			mode |= ssa.GlobalDebug
-		}
-		prog := ssa.Create(iprog, mode)
-
-		// For each initial package (specified on the command line),
-		// if it has a main function, analyze that,
-		// otherwise analyze its tests, if any.
-		var testPkgs, mains []*ssa.Package
-		for _, info := range iprog.InitialPackages() {
-			initialPkg := prog.Package(info.Pkg)
-
-			// Add package to the pointer analysis scope.
-			if initialPkg.Func("main") != nil {
-				mains = append(mains, initialPkg)
-			} else {
-				testPkgs = append(testPkgs, initialPkg)
-			}
-		}
-		if testPkgs != nil {
-			if p := prog.CreateTestMainPackage(testPkgs...); p != nil {
-				mains = append(mains, p)
-			}
-		}
-		if mains == nil {
-			return nil, fmt.Errorf("analysis scope has no main and no tests")
-		}
-		o.ptaConfig.Log = ptalog
-		o.ptaConfig.Reflection = reflection
-		o.ptaConfig.Mains = mains
-
-		o.prog = prog
-	}
-
-	return o, nil
-}
-
-// Query runs the query of the specified mode and selection.
-//
-// TODO(adonovan): fix: this function does not currently support the
-// "what" query, which needs to access the go/build.Context.
-//
-func (o *Oracle) Query(mode string, qpos *QueryPos) (*Result, error) {
-	minfo := findMode(mode)
-	if minfo == nil {
-		return nil, fmt.Errorf("invalid mode type: %q", mode)
-	}
-	return o.query(minfo, qpos)
-}
-
-func (o *Oracle) query(minfo *modeInfo, qpos *QueryPos) (*Result, error) {
-	// Clear out residue of previous query (for long-running clients).
-	o.ptaConfig.Queries = nil
-	o.ptaConfig.IndirectQueries = nil
-
-	res := &Result{
-		mode: minfo.name,
-		fset: o.fset,
-	}
-	var err error
-	res.q, err = minfo.impl(o, qpos)
-	if err != nil {
-		return nil, err
-	}
-	return res, nil
-}
-
-// ParseQueryPos parses the source query position pos.
+// ParseQueryPos parses the source query position pos and returns the
+// AST node of the loaded program lprog that it identifies.
 // If needExact, it must identify a single AST subtree;
 // this is appropriate for queries that allow fairly arbitrary syntax,
 // e.g. "describe".
 //
-func ParseQueryPos(iprog *loader.Program, posFlag string, needExact bool) (*QueryPos, error) {
+func parseQueryPos(lprog *loader.Program, posFlag string, needExact bool) (*queryPos, error) {
 	filename, startOffset, endOffset, err := parsePosFlag(posFlag)
 	if err != nil {
 		return nil, err
 	}
-	start, end, err := findQueryPos(iprog.Fset, filename, startOffset, endOffset)
+	start, end, err := findQueryPos(lprog.Fset, filename, startOffset, endOffset)
 	if err != nil {
 		return nil, err
 	}
-	info, path, exact := iprog.PathEnclosingInterval(start, end)
+	info, path, exact := lprog.PathEnclosingInterval(start, end)
 	if path == nil {
 		return nil, fmt.Errorf("no syntax here")
 	}
 	if needExact && !exact {
 		return nil, fmt.Errorf("ambiguous selection within %s", astutil.NodeDescription(path[0]))
 	}
-	return &QueryPos{iprog.Fset, start, end, path, exact, info}, nil
-}
-
-// WriteTo writes the oracle query result res to out in a compiler diagnostic format.
-func (res *Result) WriteTo(out io.Writer) {
-	printf := func(pos interface{}, format string, args ...interface{}) {
-		fprintf(out, res.fset, pos, format, args...)
-	}
-	res.q.display(printf)
-
-	// Print warnings after the main output.
-	if res.warnings != nil {
-		fmt.Fprintln(out, "\nPointer analysis warnings:")
-		for _, w := range res.warnings {
-			printf(w.Pos, "warning: "+w.Message)
-		}
-	}
+	return &queryPos{lprog.Fset, start, end, path, exact, info}, nil
 }
 
 // ---------- Utilities ----------
 
-// buildSSA constructs the SSA representation of Go-source function bodies.
-// Not needed in simpler modes, e.g. freevars.
-//
-func buildSSA(o *Oracle) {
-	o.prog.BuildAll()
+// allowErrors causes type errors to be silently ignored.
+// (Not suitable if SSA construction follows.)
+func allowErrors(lconf *loader.Config) {
+	lconf.AllowErrors = true
+	lconf.TypeChecker.Error = func(err error) {}
 }
 
 // ptrAnalysis runs the pointer analysis and returns its result.
-func ptrAnalysis(o *Oracle) *pointer.Result {
-	result, err := pointer.Analyze(&o.ptaConfig)
+func ptrAnalysis(conf *pointer.Config) *pointer.Result {
+	result, err := pointer.Analyze(conf)
 	if err != nil {
 		panic(err) // pointer analysis internal error
 	}
@@ -528,7 +314,7 @@ func fprintf(w io.Writer, fset *token.FileSet, pos interface{}, format string, a
 	}:
 		start = pos.Pos()
 		end = start
-	case *QueryPos:
+	case *queryPos:
 		start = pos.start
 		end = pos.end
 	case nil:

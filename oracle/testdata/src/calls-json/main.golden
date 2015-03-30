@@ -1,0 +1,34 @@
+-------- @callees @callees-f --------
+{
+	"mode": "callees",
+	"callees": {
+		"pos": "testdata/src/calls-json/main.go:8:3",
+		"desc": "dynamic function call",
+		"callees": [
+			{
+				"name": "main.main$1",
+				"pos": "testdata/src/calls-json/main.go:12:7"
+			}
+		]
+	}
+}
+-------- @callstack callstack-main.anon --------
+{
+	"mode": "callstack",
+	"callstack": {
+		"pos": "testdata/src/calls-json/main.go:12:7",
+		"target": "main.main$1",
+		"callers": [
+			{
+				"pos": "testdata/src/calls-json/main.go:8:3",
+				"desc": "dynamic function call",
+				"caller": "main.call"
+			},
+			{
+				"pos": "testdata/src/calls-json/main.go:12:6",
+				"desc": "static function call",
+				"caller": "main.main"
+			}
+		]
+	}
+}

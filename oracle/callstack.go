@@ -9,6 +9,7 @@ import (
 	"go/token"
 
 	"golang.org/x/tools/go/callgraph"
+	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/oracle/serial"
 )
@@ -23,26 +24,57 @@ import (
 // TODO(adonovan): permit user to specify a starting point other than
 // the analysis root.
 //
-func callstack(o *Oracle, qpos *QueryPos) (queryResult, error) {
-	pkg := o.prog.Package(qpos.info.Pkg)
+func callstack(conf *Query) error {
+	fset := token.NewFileSet()
+	lconf := loader.Config{Fset: fset, Build: conf.Build}
+
+	// Determine initial packages for PTA.
+	args, err := lconf.FromArgs(conf.Scope, true)
+	if err != nil {
+		return err
+	}
+	if len(args) > 0 {
+		return fmt.Errorf("surplus arguments: %q", args)
+	}
+
+	// Load/parse/type-check the program.
+	lprog, err := lconf.Load()
+	if err != nil {
+		return err
+	}
+
+	qpos, err := parseQueryPos(lprog, conf.Pos, false)
+	if err != nil {
+		return err
+	}
+
+	prog := ssa.Create(lprog, 0)
+
+	ptaConfig, err := setupPTA(prog, lprog, conf.PTALog, conf.Reflection)
+	if err != nil {
+		return err
+	}
+
+	pkg := prog.Package(qpos.info.Pkg)
 	if pkg == nil {
-		return nil, fmt.Errorf("no SSA package")
+		return fmt.Errorf("no SSA package")
 	}
 
 	if !ssa.HasEnclosingFunction(pkg, qpos.path) {
-		return nil, fmt.Errorf("this position is not inside a function")
+		return fmt.Errorf("this position is not inside a function")
 	}
 
-	buildSSA(o)
+	// Defer SSA construction till after errors are reported.
+	prog.BuildAll()
 
 	target := ssa.EnclosingFunction(pkg, qpos.path)
 	if target == nil {
-		return nil, fmt.Errorf("no SSA function built for this location (dead code?)")
+		return fmt.Errorf("no SSA function built for this location (dead code?)")
 	}
 
 	// Run the pointer analysis and build the complete call graph.
-	o.ptaConfig.BuildCallGraph = true
-	cg := ptrAnalysis(o).CallGraph
+	ptaConfig.BuildCallGraph = true
+	cg := ptrAnalysis(ptaConfig).CallGraph
 	cg.DeleteSyntheticNodes()
 
 	// Search for an arbitrary path from a root to the target function.
@@ -52,15 +84,17 @@ func callstack(o *Oracle, qpos *QueryPos) (queryResult, error) {
 		callpath = callpath[1:] // remove synthetic edge from <root>
 	}
 
-	return &callstackResult{
+	conf.Fset = fset
+	conf.result = &callstackResult{
 		qpos:     qpos,
 		target:   target,
 		callpath: callpath,
-	}, nil
+	}
+	return nil
 }
 
 type callstackResult struct {
-	qpos     *QueryPos
+	qpos     *queryPos
 	target   *ssa.Function
 	callpath []*callgraph.Edge
 }

@@ -1,0 +1,57 @@
+-------- @describe ref-pkg-import2 --------
+import of package "hash/fnv"
+	func  New32  func() hash.Hash32
+	func  New32a func() hash.Hash32
+	func  New64  func() hash.Hash64
+	func  New64a func() hash.Hash64
+
+-------- @describe ref-pkg-import --------
+import of package "lib"
+	const Const  untyped int = 3
+	func  Func   func()
+	type  Sorter interface{...}
+		method (Sorter) Len() int
+		method (Sorter) Less(i int, j int) bool
+		method (Sorter) Swap(i int, j int)
+	type  Type   int
+		method (Type) Method(x *int) *int
+	var   Var    int
+
+-------- @describe ref-const --------
+reference to const lib.Const untyped int
+defined here
+
+-------- @describe ref-func --------
+reference to func lib.Func()
+defined here
+
+-------- @describe ref-var --------
+reference to var lib.Var int
+defined here
+
+-------- @describe ref-type --------
+reference to type lib.Type (size 8, align 8)
+defined as int
+Method set:
+	method (lib.Type) Method(x *int) *int
+
+-------- @describe ref-method --------
+reference to method func (lib.Type).Method(x *int) *int
+defined here
+
+-------- @pointsto p --------
+this *int may point to these objects:
+	main.a
+
+-------- @describe ref-pkg --------
+reference to package "lib"
+	const Const  untyped int = 3
+	func  Func   func()
+	type  Sorter interface{...}
+		method (Sorter) Len() int
+		method (Sorter) Less(i int, j int) bool
+		method (Sorter) Swap(i int, j int)
+	type  Type   int
+		method (Type) Method(x *int) *int
+	var   Var    int
+

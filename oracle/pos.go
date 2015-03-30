@@ -117,13 +117,7 @@ func sameFile(x, y string) bool {
 
 // fastQueryPos parses the -pos flag and returns a QueryPos.
 // It parses only a single file, and does not run the type checker.
-//
-// Caveat: the token.{FileSet,Pos} info it contains is not comparable
-// with that from the oracle's FileSet!  (We don't accept oracle.fset
-// as a parameter because we don't want the same filename to appear
-// multiple times in one FileSet.)
-//
-func fastQueryPos(posFlag string) (*QueryPos, error) {
+func fastQueryPos(posFlag string) (*queryPos, error) {
 	filename, startOffset, endOffset, err := parsePosFlag(posFlag)
 	if err != nil {
 		return nil, err
@@ -145,5 +139,5 @@ func fastQueryPos(posFlag string) (*QueryPos, error) {
 		return nil, fmt.Errorf("no syntax here")
 	}
 
-	return &QueryPos{fset, start, end, path, exact, nil}, nil
+	return &queryPos{fset, start, end, path, exact, nil}, nil
 }

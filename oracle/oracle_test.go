@@ -44,7 +44,6 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/oracle"
 )
 
@@ -151,9 +150,9 @@ func parseQueries(t *testing.T, filename string) []*query {
 }
 
 // WriteResult writes res (-format=plain) to w, stripping file locations.
-func WriteResult(w io.Writer, res *oracle.Result) {
+func WriteResult(w io.Writer, q *oracle.Query) {
 	capture := new(bytes.Buffer) // capture standard output
-	res.WriteTo(capture)
+	q.WriteTo(capture)
 	for _, line := range strings.Split(capture.String(), "\n") {
 		// Remove a "file:line: " prefix.
 		if i := strings.Index(line, ": "); i >= 0 {
@@ -170,28 +169,30 @@ func doQuery(out io.Writer, q *query, useJson bool) {
 
 	var buildContext = build.Default
 	buildContext.GOPATH = "testdata"
-	res, err := oracle.Query([]string{q.filename},
-		q.verb,
-		q.queryPos,
-		nil, // ptalog,
-		&buildContext,
-		true) // reflection
-	if err != nil {
+	query := oracle.Query{
+		Mode:       q.verb,
+		Pos:        q.queryPos,
+		Build:      &buildContext,
+		Scope:      []string{q.filename},
+		Reflection: true,
+	}
+	if err := oracle.Run(&query); err != nil {
 		fmt.Fprintf(out, "\nError: %s\n", err)
 		return
 	}
 
 	if useJson {
 		// JSON output
-		b, err := json.MarshalIndent(res.Serial(), "", "\t")
+		b, err := json.MarshalIndent(query.Serial(), "", "\t")
 		if err != nil {
 			fmt.Fprintf(out, "JSON error: %s\n", err.Error())
 			return
 		}
 		out.Write(b)
+		fmt.Fprintln(out)
 	} else {
 		// "plain" (compiler diagnostic format) output
-		WriteResult(out, res)
+		WriteResult(out, &query)
 	}
 }
 
@@ -202,32 +203,29 @@ func TestOracle(t *testing.T) {
 	}
 
 	for _, filename := range []string{
-		"testdata/src/main/calls.go",
-		"testdata/src/main/callgraph.go",
-		"testdata/src/main/callgraph2.go",
-		"testdata/src/main/describe.go",
-		"testdata/src/main/freevars.go",
-		"testdata/src/main/implements.go",
-		"testdata/src/main/implements-methods.go",
-		"testdata/src/main/imports.go",
-		"testdata/src/main/peers.go",
-		"testdata/src/main/pointsto.go",
-		"testdata/src/main/reflection.go",
-		"testdata/src/main/what.go",
-		"testdata/src/main/whicherrs.go",
+		"testdata/src/calls/main.go",
+		"testdata/src/describe/main.go",
+		"testdata/src/freevars/main.go",
+		"testdata/src/implements/main.go",
+		"testdata/src/implements-methods/main.go",
+		"testdata/src/imports/main.go",
+		"testdata/src/peers/main.go",
+		"testdata/src/pointsto/main.go",
+		"testdata/src/reflection/main.go",
+		"testdata/src/what/main.go",
+		"testdata/src/whicherrs/main.go",
 		// JSON:
 		// TODO(adonovan): most of these are very similar; combine them.
-		"testdata/src/main/callgraph-json.go",
-		"testdata/src/main/calls-json.go",
-		"testdata/src/main/peers-json.go",
-		"testdata/src/main/describe-json.go",
-		"testdata/src/main/implements-json.go",
-		"testdata/src/main/implements-methods-json.go",
-		"testdata/src/main/pointsto-json.go",
-		"testdata/src/main/referrers-json.go",
-		"testdata/src/main/what-json.go",
+		"testdata/src/calls-json/main.go",
+		"testdata/src/peers-json/main.go",
+		"testdata/src/describe-json/main.go",
+		"testdata/src/implements-json/main.go",
+		"testdata/src/implements-methods-json/main.go",
+		"testdata/src/pointsto-json/main.go",
+		"testdata/src/referrers-json/main.go",
+		"testdata/src/what-json/main.go",
 	} {
-		useJson := strings.HasSuffix(filename, "-json.go")
+		useJson := strings.Contains(filename, "-json/")
 		queries := parseQueries(t, filename)
 		golden := filename + "lden"
 		got := filename + "t"
@@ -267,56 +265,5 @@ func TestOracle(t *testing.T) {
 				}
 			}
 		}
-	}
-}
-
-func TestMultipleQueries(t *testing.T) {
-	// Loader
-	var buildContext = build.Default
-	buildContext.GOPATH = "testdata"
-	conf := loader.Config{Build: &buildContext}
-	filename := "testdata/src/main/multi.go"
-	conf.CreateFromFilenames("", filename)
-	iprog, err := conf.Load()
-	if err != nil {
-		t.Fatalf("Load failed: %s", err)
-	}
-
-	// Oracle
-	o, err := oracle.New(iprog, nil, true)
-	if err != nil {
-		t.Fatalf("oracle.New failed: %s", err)
-	}
-
-	// QueryPos
-	pos := filename + ":#54,#58"
-	qpos, err := oracle.ParseQueryPos(iprog, pos, true)
-	if err != nil {
-		t.Fatalf("oracle.ParseQueryPos(%q) failed: %s", pos, err)
-	}
-	// SSA is built and we have the QueryPos.
-	// Release the other ASTs and type info to the GC.
-	iprog = nil
-
-	// Run different query modes on same scope and selection.
-	out := new(bytes.Buffer)
-	for _, mode := range [...]string{"callers", "describe", "freevars"} {
-		res, err := o.Query(mode, qpos)
-		if err != nil {
-			t.Errorf("(*oracle.Oracle).Query(%q) failed: %s", pos, err)
-		}
-		WriteResult(out, res)
-	}
-	want := `multi.f is called from these 1 sites:
-	static function call from multi.main
-
-function call (or conversion) of type ()
-
-Free identifiers:
-var x int
-
-`
-	if got := out.String(); got != want {
-		t.Errorf("Query output differs; want <<%s>>, got <<%s>>\n", want, got)
 	}
 }

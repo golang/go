@@ -10,6 +10,7 @@ import (
 	"go/token"
 	"sort"
 
+	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
 	"golang.org/x/tools/go/types"
@@ -22,20 +23,51 @@ import (
 // TODO(adonovan): support reflect.{Select,Recv,Send,Close}.
 // TODO(adonovan): permit the user to query based on a MakeChan (not send/recv),
 // or the implicit receive in "for v := range ch".
-func peers(o *Oracle, qpos *QueryPos) (queryResult, error) {
-	opPos := findOp(qpos)
-	if opPos == token.NoPos {
-		return nil, fmt.Errorf("there is no channel operation here")
+func peers(q *Query) error {
+	lconf := loader.Config{Build: q.Build}
+
+	// Determine initial packages for PTA.
+	args, err := lconf.FromArgs(q.Scope, true)
+	if err != nil {
+		return err
+	}
+	if len(args) > 0 {
+		return fmt.Errorf("surplus arguments: %q", args)
 	}
 
-	buildSSA(o)
+	// Load/parse/type-check the program.
+	lprog, err := lconf.Load()
+	if err != nil {
+		return err
+	}
+	q.Fset = lprog.Fset
+
+	qpos, err := parseQueryPos(lprog, q.Pos, false)
+	if err != nil {
+		return err
+	}
+
+	prog := ssa.Create(lprog, ssa.GlobalDebug)
+
+	ptaConfig, err := setupPTA(prog, lprog, q.PTALog, q.Reflection)
+	if err != nil {
+		return err
+	}
+
+	opPos := findOp(qpos)
+	if opPos == token.NoPos {
+		return fmt.Errorf("there is no channel operation here")
+	}
+
+	// Defer SSA construction till after errors are reported.
+	prog.BuildAll()
 
 	var queryOp chanOp // the originating send or receive operation
 	var ops []chanOp   // all sends/receives of opposite direction
 
 	// Look at all channel operations in the whole ssa.Program.
 	// Build a list of those of same type as the query.
-	allFuncs := ssautil.AllFunctions(o.prog)
+	allFuncs := ssautil.AllFunctions(prog)
 	for fn := range allFuncs {
 		for _, b := range fn.Blocks {
 			for _, instr := range b.Instrs {
@@ -49,7 +81,7 @@ func peers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 		}
 	}
 	if queryOp.ch == nil {
-		return nil, fmt.Errorf("ssa.Instruction for send/receive not found")
+		return fmt.Errorf("ssa.Instruction for send/receive not found")
 	}
 
 	// Discard operations of wrong channel element type.
@@ -58,11 +90,11 @@ func peers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	// ignore both directionality and type names.
 	queryType := queryOp.ch.Type()
 	queryElemType := queryType.Underlying().(*types.Chan).Elem()
-	o.ptaConfig.AddQuery(queryOp.ch)
+	ptaConfig.AddQuery(queryOp.ch)
 	i := 0
 	for _, op := range ops {
 		if types.Identical(op.ch.Type().Underlying().(*types.Chan).Elem(), queryElemType) {
-			o.ptaConfig.AddQuery(op.ch)
+			ptaConfig.AddQuery(op.ch)
 			ops[i] = op
 			i++
 		}
@@ -70,7 +102,7 @@ func peers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	ops = ops[:i]
 
 	// Run the pointer analysis.
-	ptares := ptrAnalysis(o)
+	ptares := ptrAnalysis(ptaConfig)
 
 	// Find the points-to set.
 	queryChanPtr := ptares.Queries[queryOp.ch]
@@ -100,14 +132,15 @@ func peers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	sort.Sort(byPos(receives))
 	sort.Sort(byPos(closes))
 
-	return &peersResult{
+	q.result = &peersResult{
 		queryPos:  opPos,
 		queryType: queryType,
 		makes:     makes,
 		sends:     sends,
 		receives:  receives,
 		closes:    closes,
-	}, nil
+	}
+	return nil
 }
 
 // findOp returns the position of the enclosing send/receive/close op.
@@ -115,7 +148,7 @@ func peers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 // for close operations, it's the Lparen of the function call.
 //
 // TODO(adonovan): handle implicit receive operations from 'for...range chan' statements.
-func findOp(qpos *QueryPos) token.Pos {
+func findOp(qpos *queryPos) token.Pos {
 	for _, n := range qpos.path {
 		switch n := n.(type) {
 		case *ast.UnaryExpr:

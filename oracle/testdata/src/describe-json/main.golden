@@ -1,0 +1,111 @@
+-------- @describe pkgdecl --------
+{
+	"mode": "describe",
+	"describe": {
+		"desc": "definition of package \"describe-json\"",
+		"pos": "testdata/src/describe-json/main.go:1:9",
+		"detail": "package",
+		"package": {
+			"path": "describe-json",
+			"members": [
+				{
+					"name": "C",
+					"type": "int",
+					"pos": "testdata/src/describe-json/main.go:25:6",
+					"kind": "type",
+					"methods": [
+						{
+							"name": "method (C) f()",
+							"pos": "testdata/src/describe-json/main.go:28:12"
+						}
+					]
+				},
+				{
+					"name": "D",
+					"type": "struct{}",
+					"pos": "testdata/src/describe-json/main.go:26:6",
+					"kind": "type",
+					"methods": [
+						{
+							"name": "method (*D) f()",
+							"pos": "testdata/src/describe-json/main.go:29:13"
+						}
+					]
+				},
+				{
+					"name": "I",
+					"type": "interface{f()}",
+					"pos": "testdata/src/describe-json/main.go:21:6",
+					"kind": "type",
+					"methods": [
+						{
+							"name": "method (I) f()",
+							"pos": "testdata/src/describe-json/main.go:22:2"
+						}
+					]
+				},
+				{
+					"name": "main",
+					"type": "func()",
+					"pos": "testdata/src/describe-json/main.go:7:6",
+					"kind": "func"
+				}
+			]
+		}
+	}
+}
+-------- @describe desc-val-p --------
+{
+	"mode": "describe",
+	"describe": {
+		"desc": "identifier",
+		"pos": "testdata/src/describe-json/main.go:9:2",
+		"detail": "value",
+		"value": {
+			"type": "*int",
+			"objpos": "testdata/src/describe-json/main.go:9:2"
+		}
+	}
+}
+-------- @describe desc-val-i --------
+{
+	"mode": "describe",
+	"describe": {
+		"desc": "identifier",
+		"pos": "testdata/src/describe-json/main.go:16:8",
+		"detail": "value",
+		"value": {
+			"type": "I",
+			"objpos": "testdata/src/describe-json/main.go:12:6"
+		}
+	}
+}
+-------- @describe desc-stmt --------
+{
+	"mode": "describe",
+	"describe": {
+		"desc": "go statement",
+		"pos": "testdata/src/describe-json/main.go:18:2",
+		"detail": "unknown"
+	}
+}
+-------- @describe desc-type-C --------
+{
+	"mode": "describe",
+	"describe": {
+		"desc": "definition of type C (size 8, align 8)",
+		"pos": "testdata/src/describe-json/main.go:25:6",
+		"detail": "type",
+		"type": {
+			"type": "C",
+			"namepos": "testdata/src/describe-json/main.go:25:6",
+			"namedef": "int",
+			"methods": [
+				{
+					"name": "method (C) f()",
+					"pos": "testdata/src/describe-json/main.go:28:12"
+				}
+			]
+		}
+	}
+}
