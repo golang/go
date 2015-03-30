@@ -97,6 +97,7 @@ const (
 //sys GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizeOfPointer *uint32) (errcode error) = iphlpapi.GetAdaptersAddresses
 
 //sys	GetComputerNameEx(nameformat uint32, buf *uint16, n *uint32) (err error) = GetComputerNameExW
+//sys	getVersion() (v uint32) = GetVersion
 
 const (
 	ComputerNameNetBIOS                   = 0
@@ -109,3 +110,8 @@ const (
 	ComputerNamePhysicalDnsFullyQualified = 7
 	ComputerNameMax                       = 8
 )
+
+func GetVersion() (major, minor byte) {
+	low := uint16(getVersion())
+	return byte(low), byte(low >> 8)
+}
