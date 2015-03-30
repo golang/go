@@ -1968,35 +1968,39 @@ func (gccgoToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles 
 func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []*action, mainpkg string, ofiles []string) error {
 	// gccgo needs explicit linking with all package dependencies,
 	// and all LDFLAGS from cgo dependencies.
+	apackagesSeen := make(map[*Package]bool)
 	afiles := []string{}
+	xfiles := []string{}
 	ldflags := b.gccArchArgs()
 	cgoldflags := []string{}
 	usesCgo := false
 	cxx := len(p.CXXFiles) > 0 || len(p.SwigCXXFiles) > 0
 	objc := len(p.MFiles) > 0
 
-	// For a given package import path:
-	//   1) prefer a test package (created by (*builder).test) to a non-test package
-	//   2) prefer the output of an install action to the output of a build action
-	//      because the install action will delete the output of the build
-	//      action
-	// Iterating over the list backwards (reverse dependency order) ensures that we
-	// always see an install before a build.
-	importPathsSeen := make(map[string]bool)
+	// Prefer the output of an install action to the output of a build action,
+	// because the install action will delete the output of the build action.
+	// Iterate over the list backward (reverse dependency order) so that we
+	// always see the install before the build.
 	for i := len(allactions) - 1; i >= 0; i-- {
 		a := allactions[i]
-		if a.p.fake && !importPathsSeen[a.p.ImportPath] {
-			importPathsSeen[a.p.ImportPath] = true
-			afiles = append(afiles, a.target)
+		if !a.p.Standard {
+			if a.p != nil && !apackagesSeen[a.p] {
+				apackagesSeen[a.p] = true
+				if a.p.fake && a.p.external {
+					// external _tests, if present must come before
+					// internal _tests. Store these on a seperate list
+					// and place them at the head after this loop.
+					xfiles = append(xfiles, a.target)
+				} else if a.p.fake {
+					// move _test files to the top of the link order
+					afiles = append([]string{a.target}, afiles...)
+				} else {
+					afiles = append(afiles, a.target)
+				}
+			}
 		}
 	}
-	for i := len(allactions) - 1; i >= 0; i-- {
-		a := allactions[i]
-		if !a.p.Standard && !importPathsSeen[a.p.ImportPath] {
-			importPathsSeen[a.p.ImportPath] = true
-			afiles = append(afiles, a.target)
-		}
-	}
+	afiles = append(xfiles, afiles...)
 
 	for _, a := range allactions {
 		cgoldflags = append(cgoldflags, a.p.CgoLDFLAGS...)
