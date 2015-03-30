@@ -687,10 +687,11 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 			build: &build.Package{
 				ImportPos: p.build.XTestImportPos,
 			},
-			imports: ximports,
-			pkgdir:  testDir,
-			fake:    true,
-			Stale:   true,
+			imports:  ximports,
+			pkgdir:   testDir,
+			fake:     true,
+			external: true,
+			Stale:    true,
 		}
 		if pxtestNeedsPtest {
 			pxtest.imports = append(pxtest.imports, ptest)
