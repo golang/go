@@ -222,15 +222,22 @@ func Main() {
 	obj.Flagcount("x", "debug lexer", &Debug['x'])
 	obj.Flagcount("y", "debug declarations in canned imports (with -d)", &Debug['y'])
 	var flag_shared int
+	var flag_dynlink bool
 	if Thearch.Thechar == '6' {
 		obj.Flagcount("largemodel", "generate code that assumes a large memory model", &flag_largemodel)
 		obj.Flagcount("shared", "generate code that can be linked into a shared library", &flag_shared)
+		flag.BoolVar(&flag_dynlink, "dynlink", false, "support references to Go symbols defined in other shared libraries")
 	}
-
 	obj.Flagstr("cpuprofile", "file: write cpu profile to file", &cpuprofile)
 	obj.Flagstr("memprofile", "file: write memory profile to file", &memprofile)
 	obj.Flagparse(usage)
+
+	if flag_dynlink {
+		flag_shared = 1
+	}
 	Ctxt.Flag_shared = int32(flag_shared)
+	Ctxt.Flag_dynlink = flag_dynlink
+
 	Ctxt.Debugasm = int32(Debug['S'])
 	Ctxt.Debugvlog = int32(Debug['v'])
 

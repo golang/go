@@ -41,7 +41,8 @@ func main() {
 		ctxt.Debugasm = 1
 	}
 	ctxt.Trimpath = *flags.TrimPath
-	if *flags.Shared {
+	ctxt.Flag_dynlink = *flags.Dynlink
+	if *flags.Shared || *flags.Dynlink {
 		ctxt.Flag_shared = 1
 	}
 	ctxt.Bso = obj.Binitw(os.Stdout)

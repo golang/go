@@ -297,6 +297,84 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			p.From.Offset = 0
 		}
 	}
+
+	if ctxt.Flag_dynlink {
+		if p.As == ALEAQ && p.From.Type == obj.TYPE_MEM && p.From.Name == obj.NAME_EXTERN {
+			p.As = AMOVQ
+			p.From.Type = obj.TYPE_ADDR
+		}
+		if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN {
+			if p.As != AMOVQ {
+				ctxt.Diag("do not know how to handle TYPE_ADDR in %v with -dynlink", p)
+			}
+			if p.To.Type != obj.TYPE_REG {
+				ctxt.Diag("do not know how to handle LEAQ-type insn to non-register in %v with -dynlink", p)
+			}
+			p.From.Type = obj.TYPE_MEM
+			p.From.Name = obj.NAME_GOTREF
+			if p.From.Offset != 0 {
+				q := obj.Appendp(ctxt, p)
+				q.As = AADDQ
+				q.From.Type = obj.TYPE_CONST
+				q.From.Offset = p.From.Offset
+				q.To = p.To
+				p.From.Offset = 0
+			}
+		}
+		if p.From3.Name == obj.NAME_EXTERN {
+			ctxt.Diag("don't know how to handle %v with -dynlink", p)
+		}
+		if p.To2.Name == obj.NAME_EXTERN {
+			ctxt.Diag("don't know how to handle %v with -dynlink", p)
+		}
+		var source *obj.Addr
+		if p.From.Name == obj.NAME_EXTERN {
+			if p.To.Name == obj.NAME_EXTERN {
+				ctxt.Diag("cannot handle NAME_EXTERN on both sides in %v with -dynlink", p)
+			}
+			source = &p.From
+		} else if p.To.Name == obj.NAME_EXTERN {
+			source = &p.To
+		} else {
+			return
+		}
+		if p.As == obj.ATEXT || p.As == obj.AFUNCDATA || p.As == obj.ACALL || p.As == obj.ARET || p.As == obj.AJMP {
+			return
+		}
+		if source.Type != obj.TYPE_MEM {
+			ctxt.Diag("don't know how to handle %v with -dynlink", p)
+		}
+		p1 := obj.Appendp(ctxt, p)
+		p2 := obj.Appendp(ctxt, p1)
+
+		p1.As = AMOVQ
+		p1.From.Type = obj.TYPE_MEM
+		p1.From.Sym = source.Sym
+		p1.From.Name = obj.NAME_GOTREF
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = REG_R15
+
+		p2.As = p.As
+		p2.From = p.From
+		p2.To = p.To
+		if p.From.Name == obj.NAME_EXTERN {
+			p2.From.Reg = REG_R15
+			p2.From.Name = obj.NAME_NONE
+			p2.From.Sym = nil
+		} else if p.To.Name == obj.NAME_EXTERN {
+			p2.To.Reg = REG_R15
+			p2.To.Name = obj.NAME_NONE
+			p2.To.Sym = nil
+		} else {
+			return
+		}
+		l := p.Link
+		l2 := p2.Link
+		*p = *p1
+		*p1 = *p2
+		p.Link = l
+		p1.Link = l2
+	}
 }
 
 func nacladdr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {

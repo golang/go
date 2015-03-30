@@ -2028,6 +2028,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 	case obj.TYPE_ADDR:
 		switch a.Name {
 		case obj.NAME_EXTERN,
+			obj.NAME_GOTREF,
 			obj.NAME_STATIC:
 			if a.Sym != nil && isextern(a.Sym) || p.Mode == 32 {
 				return Yi32
@@ -2437,6 +2438,7 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
 
 	switch a.Name {
 	case obj.NAME_STATIC,
+		obj.NAME_GOTREF,
 		obj.NAME_EXTERN:
 		s := a.Sym
 		if r == nil {
@@ -2444,7 +2446,10 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
 			log.Fatalf("reloc")
 		}
 
-		if isextern(s) || p.Mode != 64 {
+		if a.Name == obj.NAME_GOTREF {
+			r.Siz = 4
+			r.Type = obj.R_GOTPCREL
+		} else if isextern(s) || p.Mode != 64 {
 			r.Siz = 4
 			r.Type = obj.R_ADDR
 		} else {
@@ -2519,6 +2524,7 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 		base := int(a.Reg)
 		switch a.Name {
 		case obj.NAME_EXTERN,
+			obj.NAME_GOTREF,
 			obj.NAME_STATIC:
 			if !isextern(a.Sym) && p.Mode == 64 {
 				goto bad
@@ -2564,6 +2570,7 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 	base = int(a.Reg)
 	switch a.Name {
 	case obj.NAME_STATIC,
+		obj.NAME_GOTREF,
 		obj.NAME_EXTERN:
 		if a.Sym == nil {
 			ctxt.Diag("bad addr: %v", p)
@@ -2582,7 +2589,10 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 
 	ctxt.Rexflag |= regrex[base]&Rxb | rex
 	if base == REG_NONE || (REG_CS <= base && base <= REG_GS) || base == REG_TLS {
-		if (a.Sym == nil || !isextern(a.Sym)) && base == REG_NONE && (a.Name == obj.NAME_STATIC || a.Name == obj.NAME_EXTERN) || p.Mode != 64 {
+		if (a.Sym == nil || !isextern(a.Sym)) && base == REG_NONE && (a.Name == obj.NAME_STATIC || a.Name == obj.NAME_EXTERN || a.Name == obj.NAME_GOTREF) || p.Mode != 64 {
+			if a.Name == obj.NAME_GOTREF && (a.Offset != 0 || a.Index != 0 || a.Scale != 0) {
+				ctxt.Diag("%v has offset against gotref", p)
+			}
 			ctxt.Andptr[0] = byte(0<<6 | 5<<0 | r<<3)
 			ctxt.Andptr = ctxt.Andptr[1:]
 			goto putrelv
