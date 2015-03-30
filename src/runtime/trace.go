@@ -49,7 +49,7 @@ const (
 	traceEvGoSysBlock     = 30 // syscall blocks [timestamp]
 	traceEvGoWaiting      = 31 // denotes that goroutine is blocked when tracing starts [goroutine id]
 	traceEvGoInSyscall    = 32 // denotes that goroutine is in syscall when tracing starts [goroutine id]
-	traceEvHeapAlloc      = 33 // memstats.heap_alloc change [timestamp, heap_alloc]
+	traceEvHeapAlloc      = 33 // memstats.heap_live change [timestamp, heap_alloc]
 	traceEvNextGC         = 34 // memstats.next_gc change [timestamp, next_gc]
 	traceEvTimerGoroutine = 35 // denotes timer goroutine [timer goroutine id]
 	traceEvFutileWakeup   = 36 // denotes that the previous wakeup of this goroutine was futile [timestamp]
@@ -813,7 +813,7 @@ func traceGoSysBlock(pp *p) {
 }
 
 func traceHeapAlloc() {
-	traceEvent(traceEvHeapAlloc, -1, memstats.heap_alloc)
+	traceEvent(traceEvHeapAlloc, -1, memstats.heap_live)
 }
 
 func traceNextGC() {
