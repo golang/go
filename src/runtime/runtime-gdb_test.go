@@ -31,7 +31,10 @@ func main() {
 	mapvar := make(map[string]string,5)
 	mapvar["abc"] = "def"
 	mapvar["ghi"] = "jkl"
-	fmt.Println("hi") // line 8
+	strvar := "abc"
+	ptrvar := &strvar
+	fmt.Println("hi") // line 10
+	_ = ptrvar
 }
 `
 
@@ -63,13 +66,19 @@ func TestGdbPython(t *testing.T) {
 
 	got, _ := exec.Command("gdb", "-nx", "-q", "--batch", "-iex",
 		fmt.Sprintf("add-auto-load-safe-path %s/src/runtime", runtime.GOROOT()),
-		"-ex", "br main.go:8",
+		"-ex", "br main.go:10",
 		"-ex", "run",
 		"-ex", "echo BEGIN info goroutines\n",
 		"-ex", "info goroutines",
 		"-ex", "echo END\n",
 		"-ex", "echo BEGIN print mapvar\n",
 		"-ex", "print mapvar",
+		"-ex", "echo END\n",
+		"-ex", "echo BEGIN print strvar\n",
+		"-ex", "print strvar",
+		"-ex", "echo END\n",
+		"-ex", "echo BEGIN print ptrvar\n",
+		"-ex", "print ptrvar",
 		"-ex", "echo END\n",
 		filepath.Join(dir, "a.exe")).CombinedOutput()
 
@@ -93,5 +102,14 @@ func TestGdbPython(t *testing.T) {
 	printMapvarRe := regexp.MustCompile(`\Q = map[string]string = {["abc"] = "def", ["ghi"] = "jkl"}\E$`)
 	if bl := blocks["print mapvar"]; !printMapvarRe.MatchString(bl) {
 		t.Fatalf("print mapvar failed: %s", bl)
+	}
+
+	strVarRe := regexp.MustCompile(`\Q = "abc"\E$`)
+	if bl := blocks["print strvar"]; !strVarRe.MatchString(bl) {
+		t.Fatalf("print strvar failed: %s", bl)
+	}
+
+	if bl := blocks["print ptrvar"]; !strVarRe.MatchString(bl) {
+		t.Fatalf("print ptrvar failed: %s", bl)
 	}
 }
