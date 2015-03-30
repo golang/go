@@ -152,7 +152,7 @@ func Ldmain() {
 		}
 	}
 
-	if flag.NArg() != 1 {
+	if Buildmode != BuildmodeShared && flag.NArg() != 1 {
 		usage()
 	}
 
@@ -181,7 +181,21 @@ func Ldmain() {
 	}
 	Bflush(&Bso)
 
-	addlibpath(Ctxt, "command line", "command line", flag.Arg(0), "main")
+	if Buildmode == BuildmodeShared {
+		for i := 0; i < flag.NArg(); i++ {
+			arg := flag.Arg(i)
+			parts := strings.SplitN(arg, "=", 2)
+			var pkgpath, file string
+			if len(parts) == 1 {
+				pkgpath, file = "main", arg
+			} else {
+				pkgpath, file = parts[0], parts[1]
+			}
+			addlibpath(Ctxt, "command line", "command line", file, pkgpath)
+		}
+	} else {
+		addlibpath(Ctxt, "command line", "command line", flag.Arg(0), "main")
+	}
 	loadlib()
 
 	if Thearch.Thechar == '5' {
