@@ -12,7 +12,7 @@ import "unsafe"
 // Shared with Go: if you edit this structure, also edit type MemStats in mem.go.
 type mstats struct {
 	// General statistics.
-	alloc       uint64 // bytes allocated and still in use
+	alloc       uint64 // bytes allocated and not yet freed
 	total_alloc uint64 // bytes allocated (even if freed)
 	sys         uint64 // bytes obtained from system (should be sum of xxx_sys below, no locking, approximate)
 	nlookup     uint64 // number of pointer lookups
@@ -21,7 +21,7 @@ type mstats struct {
 
 	// Statistics about malloc heap.
 	// protected by mheap.lock
-	heap_alloc    uint64 // bytes allocated and still in use
+	heap_alloc    uint64 // bytes allocated and not yet freed (same as alloc above)
 	heap_sys      uint64 // bytes obtained from system
 	heap_idle     uint64 // bytes in idle spans
 	heap_inuse    uint64 // bytes in non-idle spans
@@ -67,7 +67,7 @@ var memstats mstats
 // A MemStats records statistics about the memory allocator.
 type MemStats struct {
 	// General statistics.
-	Alloc      uint64 // bytes allocated and still in use
+	Alloc      uint64 // bytes allocated and not yet freed
 	TotalAlloc uint64 // bytes allocated (even if freed)
 	Sys        uint64 // bytes obtained from system (sum of XxxSys below)
 	Lookups    uint64 // number of pointer lookups
@@ -75,7 +75,7 @@ type MemStats struct {
 	Frees      uint64 // number of frees
 
 	// Main allocation heap statistics.
-	HeapAlloc    uint64 // bytes allocated and still in use
+	HeapAlloc    uint64 // bytes allocated and not yet freed (same as Alloc above)
 	HeapSys      uint64 // bytes obtained from system
 	HeapIdle     uint64 // bytes in idle spans
 	HeapInuse    uint64 // bytes in non-idle span
