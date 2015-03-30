@@ -298,6 +298,34 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		}
 	}
 
+	if ctxt.Flag_dynlink && (p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO) {
+		var sym *obj.LSym
+		if p.As == obj.ADUFFZERO {
+			sym = obj.Linklookup(ctxt, "runtime.duffzero", 0)
+		} else {
+			sym = obj.Linklookup(ctxt, "runtime.duffcopy", 0)
+		}
+		offset := p.To.Offset
+		p.As = AMOVQ
+		p.From.Type = obj.TYPE_MEM
+		p.From.Name = obj.NAME_GOTREF
+		p.From.Sym = sym
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_R15
+		p.To.Offset = 0
+		p.To.Sym = nil
+		p1 := obj.Appendp(ctxt, p)
+		p1.As = AADDQ
+		p1.From.Type = obj.TYPE_CONST
+		p1.From.Offset = offset
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = REG_R15
+		p2 := obj.Appendp(ctxt, p1)
+		p2.As = obj.ACALL
+		p2.To.Type = obj.TYPE_REG
+		p2.To.Reg = REG_R15
+	}
+
 	if ctxt.Flag_dynlink {
 		if p.As == ALEAQ && p.From.Type == obj.TYPE_MEM && p.From.Name == obj.NAME_EXTERN {
 			p.As = AMOVQ

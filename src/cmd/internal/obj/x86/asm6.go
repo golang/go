@@ -3450,6 +3450,10 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 					log.Fatalf("bad code")
 				}
 
+				if yt.zcase == Zcallduff && ctxt.Flag_dynlink {
+					ctxt.Diag("directly calling duff when dynamically linking Go")
+				}
+
 				if obj.Framepointer_enabled != 0 && yt.zcase == Zcallduff && p.Mode == 64 {
 					// Maintain BP around call, since duffcopy/duffzero can't do it
 					// (the call jumps into the middle of the function).
