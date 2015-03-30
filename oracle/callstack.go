@@ -24,17 +24,12 @@ import (
 // TODO(adonovan): permit user to specify a starting point other than
 // the analysis root.
 //
-func callstack(conf *Query) error {
+func callstack(q *Query) error {
 	fset := token.NewFileSet()
-	lconf := loader.Config{Fset: fset, Build: conf.Build}
+	lconf := loader.Config{Fset: fset, Build: q.Build}
 
-	// Determine initial packages for PTA.
-	args, err := lconf.FromArgs(conf.Scope, true)
-	if err != nil {
+	if err := setPTAScope(&lconf, q.Scope); err != nil {
 		return err
-	}
-	if len(args) > 0 {
-		return fmt.Errorf("surplus arguments: %q", args)
 	}
 
 	// Load/parse/type-check the program.
@@ -43,14 +38,14 @@ func callstack(conf *Query) error {
 		return err
 	}
 
-	qpos, err := parseQueryPos(lprog, conf.Pos, false)
+	qpos, err := parseQueryPos(lprog, q.Pos, false)
 	if err != nil {
 		return err
 	}
 
 	prog := ssa.Create(lprog, 0)
 
-	ptaConfig, err := setupPTA(prog, lprog, conf.PTALog, conf.Reflection)
+	ptaConfig, err := setupPTA(prog, lprog, q.PTALog, q.Reflection)
 	if err != nil {
 		return err
 	}
@@ -84,8 +79,8 @@ func callstack(conf *Query) error {
 		callpath = callpath[1:] // remove synthetic edge from <root>
 	}
 
-	conf.Fset = fset
-	conf.result = &callstackResult{
+	q.Fset = fset
+	q.result = &callstackResult{
 		qpos:     qpos,
 		target:   target,
 		callpath: callpath,

@@ -22,13 +22,8 @@ import (
 func callees(q *Query) error {
 	lconf := loader.Config{Build: q.Build}
 
-	// Determine initial packages for PTA.
-	args, err := lconf.FromArgs(q.Scope, true)
-	if err != nil {
+	if err := setPTAScope(&lconf, q.Scope); err != nil {
 		return err
-	}
-	if len(args) > 0 {
-		return fmt.Errorf("surplus arguments: %q", args)
 	}
 
 	// Load/parse/type-check the program.

@@ -77,7 +77,7 @@ type Query struct {
 	Build *build.Context // package loading configuration
 
 	// pointer analysis options
-	Scope      []string  // main package in (*loader.Config).FromArgs syntax
+	Scope      []string  // main packages in (*loader.Config).FromArgs syntax
 	PTALog     io.Writer // (optional) pointer-analysis log file
 	Reflection bool      // model reflection soundly (currently slow).
 
@@ -105,35 +105,51 @@ func (q *Query) WriteTo(out io.Writer) {
 }
 
 // Run runs an oracle query and populates its Fset and Result.
-func Run(conf *Query) error {
-	switch conf.Mode {
+func Run(q *Query) error {
+	switch q.Mode {
 	case "callees":
-		return callees(conf)
+		return callees(q)
 	case "callers":
-		return callers(conf)
+		return callers(q)
 	case "callstack":
-		return callstack(conf)
+		return callstack(q)
 	case "peers":
-		return peers(conf)
+		return peers(q)
 	case "pointsto":
-		return pointsto(conf)
+		return pointsto(q)
 	case "whicherrs":
-		return whicherrs(conf)
+		return whicherrs(q)
 	case "definition":
-		return definition(conf)
+		return definition(q)
 	case "describe":
-		return describe(conf)
+		return describe(q)
 	case "freevars":
-		return freevars(conf)
+		return freevars(q)
 	case "implements":
-		return implements(conf)
+		return implements(q)
 	case "referrers":
-		return referrers(conf)
+		return referrers(q)
 	case "what":
-		return what(conf)
+		return what(q)
 	default:
-		return fmt.Errorf("invalid mode: %q", conf.Mode)
+		return fmt.Errorf("invalid mode: %q", q.Mode)
 	}
+}
+
+func setPTAScope(lconf *loader.Config, scope []string) error {
+	if len(scope) == 0 {
+		return fmt.Errorf("no packages specified for pointer analysis scope")
+	}
+
+	// Determine initial packages for PTA.
+	args, err := lconf.FromArgs(scope, true)
+	if err != nil {
+		return err
+	}
+	if len(args) > 0 {
+		return fmt.Errorf("surplus arguments: %q", args)
+	}
+	return nil
 }
 
 // Create a pointer.Config whose scope is the initial packages of lprog

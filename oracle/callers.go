@@ -17,16 +17,11 @@ import (
 // Callers reports the possible callers of the function
 // immediately enclosing the specified source location.
 //
-func callers(conf *Query) error {
-	lconf := loader.Config{Build: conf.Build}
+func callers(q *Query) error {
+	lconf := loader.Config{Build: q.Build}
 
-	// Determine initial packages for PTA.
-	args, err := lconf.FromArgs(conf.Scope, true)
-	if err != nil {
+	if err := setPTAScope(&lconf, q.Scope); err != nil {
 		return err
-	}
-	if len(args) > 0 {
-		return fmt.Errorf("surplus arguments: %q", args)
 	}
 
 	// Load/parse/type-check the program.
@@ -34,16 +29,16 @@ func callers(conf *Query) error {
 	if err != nil {
 		return err
 	}
-	conf.Fset = lprog.Fset
+	q.Fset = lprog.Fset
 
-	qpos, err := parseQueryPos(lprog, conf.Pos, false)
+	qpos, err := parseQueryPos(lprog, q.Pos, false)
 	if err != nil {
 		return err
 	}
 
 	prog := ssa.Create(lprog, 0)
 
-	ptaConfig, err := setupPTA(prog, lprog, conf.PTALog, conf.Reflection)
+	ptaConfig, err := setupPTA(prog, lprog, q.PTALog, q.Reflection)
 	if err != nil {
 		return err
 	}
@@ -72,7 +67,7 @@ func callers(conf *Query) error {
 	edges := cg.CreateNode(target).In
 	// TODO(adonovan): sort + dedup calls to ensure test determinism.
 
-	conf.result = &callersResult{
+	q.result = &callersResult{
 		target:    target,
 		callgraph: cg,
 		edges:     edges,

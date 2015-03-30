@@ -122,11 +122,6 @@ func main() {
 		os.Exit(2)
 	}
 
-	if len(args) == 0 && mode != "what" {
-		fmt.Fprint(os.Stderr, "oracle: no package arguments.\n"+useHelp)
-		os.Exit(2)
-	}
-
 	// Set up points-to analysis log file.
 	var ptalog io.Writer
 	if *ptalogFlag != "" {
