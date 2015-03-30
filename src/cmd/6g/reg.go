@@ -123,7 +123,9 @@ func BtoR(b uint64) int {
 		// BP is part of the calling convention if framepointer_enabled.
 		b &^= (1 << (x86.REG_BP - x86.REG_AX))
 	}
-
+	if gc.Ctxt.Flag_dynlink {
+		b &^= (1 << (x86.REG_R15 - x86.REG_AX))
+	}
 	if b == 0 {
 		return 0
 	}

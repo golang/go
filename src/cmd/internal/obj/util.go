@@ -477,6 +477,9 @@ func Mconv(a *Addr) string {
 	case NAME_EXTERN:
 		str = fmt.Sprintf("%s%s(SB)", a.Sym.Name, offConv(a.Offset))
 
+	case NAME_GOTREF:
+		str = fmt.Sprintf("%s%s@GOT(SB)", a.Sym.Name, offConv(a.Offset))
+
 	case NAME_STATIC:
 		str = fmt.Sprintf("%s<>%s(SB)", a.Sym.Name, offConv(a.Offset))
 
