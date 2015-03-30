@@ -59,7 +59,15 @@ type mstats struct {
 		nfree   uint64
 	}
 
+	// Statistics below here are not exported to Go directly.
+
 	tinyallocs uint64 // number of tiny allocations that didn't cause actual allocation; not exported to go directly
+
+	// heap_live is the number of bytes considered live by the GC.
+	// That is: retained by the most recent GC plus allocated
+	// since then. heap_live <= heap_alloc, since heap_live
+	// excludes unmarked objects that have not yet been swept.
+	heap_live uint64
 }
 
 var memstats mstats
@@ -317,7 +325,7 @@ func flushallmcaches() {
 func purgecachedstats(c *mcache) {
 	// Protected by either heap or GC lock.
 	h := &mheap_
-	memstats.heap_alloc += uint64(c.local_cachealloc)
+	memstats.heap_live += uint64(c.local_cachealloc)
 	c.local_cachealloc = 0
 	if trace.enabled {
 		traceHeapAlloc()

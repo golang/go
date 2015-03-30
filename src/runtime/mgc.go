@@ -76,28 +76,25 @@
 //     Are things on the free lists black or white? How does the sweep phase work?
 
 // Concurrent sweep.
+//
 // The sweep phase proceeds concurrently with normal program execution.
 // The heap is swept span-by-span both lazily (when a goroutine needs another span)
 // and concurrently in a background goroutine (this helps programs that are not CPU bound).
-// However, at the end of the stop-the-world GC phase we don't know the size of the live heap,
-// and so next_gc calculation is tricky and happens as follows.
-// At the end of the stop-the-world phase next_gc is conservatively set based on total
-// heap size; all spans are marked as "needs sweeping".
-// Whenever a span is swept, next_gc is decremented by GOGC*newly_freed_memory.
-// The background sweeper goroutine simply sweeps spans one-by-one bringing next_gc
-// closer to the target value. However, this is not enough to avoid over-allocating memory.
-// Consider that a goroutine wants to allocate a new span for a large object and
-// there are no free swept spans, but there are small-object unswept spans.
-// If the goroutine naively allocates a new span, it can surpass the yet-unknown
-// target next_gc value. In order to prevent such cases (1) when a goroutine needs
-// to allocate a new small-object span, it sweeps small-object spans for the same
-// object size until it frees at least one object; (2) when a goroutine needs to
-// allocate large-object span from heap, it sweeps spans until it frees at least
-// that many pages into heap. Together these two measures ensure that we don't surpass
-// target next_gc value by a large margin. There is an exception: if a goroutine sweeps
-// and frees two nonadjacent one-page spans to the heap, it will allocate a new two-page span,
-// but there can still be other one-page unswept spans which could be combined into a
-// two-page span.
+// At the end of STW mark termination all spans are marked as "needs sweeping".
+//
+// The background sweeper goroutine simply sweeps spans one-by-one.
+//
+// To avoid requesting more OS memory while there are unswept spans, when a
+// goroutine needs another span, it first attempts to reclaim that much memory
+// by sweeping. When a goroutine needs to allocate a new small-object span, it
+// sweeps small-object spans for the same object size until it frees at least
+// one object. When a goroutine needs to allocate large-object span from heap,
+// it sweeps spans until it frees at least that many pages into heap. There is
+// one case where this may not suffice: if a goroutine sweeps and frees two
+// nonadjacent one-page spans to the heap, it will allocate a new two-page
+// span, but there can still be other one-page unswept spans which could be
+// combined into a two-page span.
+//
 // It's critical to ensure that no operations proceed on unswept spans (that would corrupt
 // mark bits in GC bitmap). During GC all mcaches are flushed into the central cache,
 // so they are empty. When a goroutine grabs a new span into mcache, it sweeps it.
@@ -194,11 +191,11 @@ var triggerratio = int64(8)
 // have sufficient time to complete then more memory will be
 // requested from the OS increasing heap size thus allow future
 // GCs more time to complete.
-// memstat.heap_alloc and memstat.next_gc reads have benign races
+// memstat.heap_live read has a benign race.
 // A false negative simple does not start a GC, a false positive
 // will start a GC needlessly. Neither have correctness issues.
 func shouldtriggergc() bool {
-	return triggerratio*(int64(memstats.next_gc)-int64(memstats.heap_alloc)) <= int64(memstats.next_gc) && atomicloaduint(&bggc.working) == 0
+	return triggerratio*(int64(memstats.next_gc)-int64(memstats.heap_live)) <= int64(memstats.next_gc) && atomicloaduint(&bggc.working) == 0
 }
 
 var work struct {
@@ -322,7 +319,7 @@ func gc(mode int) {
 	if debug.gctrace > 0 {
 		stwprocs, maxprocs = gcprocs(), gomaxprocs
 		tSweepTerm = nanotime()
-		heap0 = memstats.heap_alloc
+		heap0 = memstats.heap_live
 	}
 
 	if trace.enabled {
@@ -401,7 +398,7 @@ func gc(mode int) {
 	gcphase = _GCmarktermination
 
 	if debug.gctrace > 0 {
-		heap1 = memstats.heap_alloc
+		heap1 = memstats.heap_live
 	}
 
 	startTime := nanotime()
@@ -593,15 +590,16 @@ func gcMark(start_time int64) {
 	shrinkfinish()
 
 	cachestats()
-	// next_gc calculation is tricky with concurrent sweep since we don't know size of live heap
-	// conservatively set next_gc to high value assuming that everything is live
-	// concurrent/lazy sweep will reduce this number while discovering new garbage
-	memstats.next_gc = memstats.heap_alloc + memstats.heap_alloc*uint64(gcpercent)/100
+
+	// compute next_gc
+	memstats.heap_live = work.bytesMarked
+	memstats.next_gc = memstats.heap_live + memstats.heap_live*uint64(gcpercent)/100
 	if memstats.next_gc < heapminimum {
 		memstats.next_gc = heapminimum
 	}
 
 	if trace.enabled {
+		traceHeapAlloc()
 		traceNextGC()
 	}
 
