@@ -619,47 +619,58 @@ func deadcode() {
 		fmt.Fprintf(&Bso, "%5.2f deadcode\n", obj.Cputime())
 	}
 
-	mark(Linklookup(Ctxt, INITENTRY, 0))
-	for i := 0; i < len(markextra); i++ {
-		mark(Linklookup(Ctxt, markextra[i], 0))
-	}
-
-	for i := 0; i < len(dynexp); i++ {
-		mark(dynexp[i])
-	}
-
-	markflood()
-
-	// keep each beginning with 'typelink.' if the symbol it points at is being kept.
-	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
-		if strings.HasPrefix(s.Name, "go.typelink.") {
-			s.Reachable = len(s.R) == 1 && s.R[0].Sym.Reachable
+	if Buildmode == BuildmodeShared {
+		// Mark all symbols as reachable when building a
+		// shared library.
+		for s := Ctxt.Allsym; s != nil; s = s.Allsym {
+			if s.Type != 0 {
+				mark(s)
+			}
 		}
-	}
-
-	// remove dead text but keep file information (z symbols).
-	var last *LSym
-
-	for s := Ctxt.Textp; s != nil; s = s.Next {
-		if !s.Reachable {
-			continue
-		}
-
-		// NOTE: Removing s from old textp and adding to new, shorter textp.
-		if last == nil {
-			Ctxt.Textp = s
-		} else {
-			last.Next = s
-		}
-		last = s
-	}
-
-	if last == nil {
-		Ctxt.Textp = nil
-		Ctxt.Etextp = nil
+		mark(Linkrlookup(Ctxt, "main.main", 0))
+		mark(Linkrlookup(Ctxt, "main.init", 0))
 	} else {
-		last.Next = nil
-		Ctxt.Etextp = last
+		mark(Linklookup(Ctxt, INITENTRY, 0))
+		for i := 0; i < len(markextra); i++ {
+			mark(Linklookup(Ctxt, markextra[i], 0))
+		}
+
+		for i := 0; i < len(dynexp); i++ {
+			mark(dynexp[i])
+		}
+		markflood()
+
+		// keep each beginning with 'typelink.' if the symbol it points at is being kept.
+		for s := Ctxt.Allsym; s != nil; s = s.Allsym {
+			if strings.HasPrefix(s.Name, "go.typelink.") {
+				s.Reachable = len(s.R) == 1 && s.R[0].Sym.Reachable
+			}
+		}
+
+		// remove dead text but keep file information (z symbols).
+		var last *LSym
+
+		for s := Ctxt.Textp; s != nil; s = s.Next {
+			if !s.Reachable {
+				continue
+			}
+
+			// NOTE: Removing s from old textp and adding to new, shorter textp.
+			if last == nil {
+				Ctxt.Textp = s
+			} else {
+				last.Next = s
+			}
+			last = s
+		}
+
+		if last == nil {
+			Ctxt.Textp = nil
+			Ctxt.Etextp = nil
+		} else {
+			last.Next = nil
+			Ctxt.Etextp = last
+		}
 	}
 
 	for s := Ctxt.Allsym; s != nil; s = s.Allsym {

@@ -380,6 +380,7 @@ func findfunctab() {
 	t := Linklookup(Ctxt, "runtime.findfunctab", 0)
 	t.Type = SRODATA
 	t.Reachable = true
+	t.Local = true
 
 	// find min and max address
 	min := Ctxt.Textp.Value

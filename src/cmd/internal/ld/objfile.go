@@ -327,12 +327,14 @@ func rdsym(ctxt *Link, f *Biobuf, pkg string) *LSym {
 			x, _ := strconv.ParseUint(s.Name[5:], 16, 32)
 			i32 := int32(x)
 			s.Type = SRODATA
+			s.Local = true
 			Adduint32(ctxt, s, uint32(i32))
 			s.Reachable = false
 		} else if strings.HasPrefix(s.Name, "$f64.") || strings.HasPrefix(s.Name, "$i64.") {
 			x, _ := strconv.ParseUint(s.Name[5:], 16, 64)
 			i64 := int64(x)
 			s.Type = SRODATA
+			s.Local = true
 			Adduint64(ctxt, s, uint64(i64))
 			s.Reachable = false
 		}
