@@ -19,7 +19,7 @@ import "strconv"
 
 // bigFtoa formats a float for the %e, %E, %f, %g, and %G formats.
 func (f *Float) bigFtoa(buf []byte, fmt byte, prec int) []byte {
-	if debugFloat && !f.IsFinite() {
+	if debugFloat && f.IsInf() {
 		panic("non-finite float")
 	}
 

@@ -73,10 +73,8 @@ func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 		prec = 64
 	}
 
-	// NaNs ignore sign, mantissa, and exponent so we can set
-	// them below while having a valid value for z in case of
-	// errors.
-	z.SetNaN()
+	// A reasonable value in case of an error.
+	z.form = zero
 
 	// sign
 	z.neg, err = scanSign(r)
@@ -258,11 +256,6 @@ func (x *Float) Append(buf []byte, format byte, prec int) []byte {
 		}
 		buf = append(buf, ch)
 		return append(buf, "Inf"...)
-	}
-
-	// NaN
-	if x.IsNaN() {
-		return append(buf, "NaN"...)
 	}
 
 	// easy formats
