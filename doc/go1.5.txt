@@ -54,13 +54,14 @@ cmd/trace: new command to view traces (https://golang.org/cl/3601)
 
 Performance:
 
+cmd/gc: evaluate concrete == interface without allocating (https://golang.org/cl/2096)
 cmd/gc: optimize memclr of slices and arrays (https://golang.org/cl/2520)
 cmd/gc: transform closure calls to function calls (https://golang.org/cl/4050)
-cmd/gc: evaluate concrete == interface without allocating (https://golang.org/cl/2096)
-cmd/internal/gc: transitive inlining (https://golang.org/cl/5952)
-cmd/internal/gc: inline x := y.(*T) and x, ok := y.(*T) (https://golang.org/cl/7862)
-cmd/internal/gc, runtime: speed up some cases of _, ok := i.(T) (https://golang.org/cl/7697)
-cmd/internal/gc: speed up large string switches (https://golang.org/cl/7698)
+cmd/gc: transitive inlining (https://golang.org/cl/5952)
+cmd/gc, runtime: speed up some cases of _, ok := i.(T) (https://golang.org/cl/7697)
+cmd/gc: speed up large string switches (https://golang.org/cl/7698)
+cmd/gc: inline x := y.(*T) and x, ok := y.(*T) (https://golang.org/cl/7862)
+cmd/gc: allocate backing storage for non-escaping interfaces on stack (https://golang.org/cl/8201)
 encoding/xml: avoid an allocation for tags without attributes (https://golang.org/cl/4160)
 image: many optimizations
 runtime: add ARM runtime.cmpstring and bytes.Compare (https://golang.org/cl/8010)
