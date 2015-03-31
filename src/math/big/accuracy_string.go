@@ -4,13 +4,14 @@ package big
 
 import "fmt"
 
-const _Accuracy_name = "ExactBelowAboveUndef"
+const _Accuracy_name = "BelowExactAbove"
 
-var _Accuracy_index = [...]uint8{0, 5, 10, 15, 20}
+var _Accuracy_index = [...]uint8{0, 5, 10, 15}
 
 func (i Accuracy) String() string {
+	i -= -1
 	if i < 0 || i+1 >= Accuracy(len(_Accuracy_index)) {
-		return fmt.Sprintf("Accuracy(%d)", i)
+		return fmt.Sprintf("Accuracy(%d)", i+-1)
 	}
 	return _Accuracy_name[_Accuracy_index[i]:_Accuracy_index[i+1]]
 }

@@ -69,7 +69,7 @@ func TestFloatZeroValue(t *testing.T) {
 		{1, 2, 0, 0, '*', (*Float).Mul},
 		{2, 0, 1, 0, '*', (*Float).Mul},
 
-		{0, 0, 0, 0, '/', (*Float).Quo}, // = Nan
+		// {0, 0, 0, 0, '/', (*Float).Quo}, // panics
 		{0, 2, 1, 2, '/', (*Float).Quo},
 		{1, 2, 0, 0, '/', (*Float).Quo}, // = +Inf
 		{2, 0, 1, 0, '/', (*Float).Quo},
@@ -77,7 +77,7 @@ func TestFloatZeroValue(t *testing.T) {
 		z := make(test.z)
 		test.op(z, make(test.x), make(test.y))
 		got := 0
-		if z.IsFinite() {
+		if !z.IsInf() {
 			got = int(z.int64())
 		}
 		if got != test.want {
@@ -97,11 +97,9 @@ func makeFloat(s string) *Float {
 	case "-0":
 		return x.Neg(&x)
 	case "Inf", "+Inf":
-		return x.SetInf(+1)
+		return x.SetInf(false)
 	case "-Inf":
-		return x.SetInf(-1)
-	case "NaN", "-NaN":
-		return x.SetNaN()
+		return x.SetInf(true)
 	}
 
 	x.SetPrec(1000)
@@ -123,7 +121,6 @@ func TestFloatSetPrec(t *testing.T) {
 		{"-0", 0, "-0", Exact},
 		{"-Inf", 0, "-Inf", Exact},
 		{"+Inf", 0, "+Inf", Exact},
-		{"NaN", 0, "NaN", Exact},
 		{"123", 0, "0", Below},
 		{"-123", 0, "-0", Above},
 
@@ -132,7 +129,6 @@ func TestFloatSetPrec(t *testing.T) {
 		{"-0", MaxPrec, "-0", Exact},
 		{"-Inf", MaxPrec, "-Inf", Exact},
 		{"+Inf", MaxPrec, "+Inf", Exact},
-		{"NaN", MaxPrec, "NaN", Exact},
 
 		// just a few regular cases - general rounding is tested elsewhere
 		{"1.5", 1, "2", Above},
@@ -164,7 +160,6 @@ func TestFloatMinPrec(t *testing.T) {
 		{"-0", 0},
 		{"+Inf", 0},
 		{"-Inf", 0},
-		{"NaN", 0},
 		{"1", 1},
 		{"2", 1},
 		{"3", 2},
@@ -191,7 +186,6 @@ func TestFloatSign(t *testing.T) {
 		{"+0", 0},
 		{"+1", +1},
 		{"+Inf", +1},
-		{"NaN", 0},
 	} {
 		x := makeFloat(test.x)
 		s := x.Sign()
@@ -201,13 +195,9 @@ func TestFloatSign(t *testing.T) {
 	}
 }
 
-// feq(x, y) is like x.Cmp(y) == 0 but it also considers the sign of 0 (0 != -0).
-// Caution: Two NaN's are equal with this function!
-func feq(x, y *Float) bool {
-	if x.IsNaN() || y.IsNaN() {
-		return x.IsNaN() && y.IsNaN()
-	}
-	return x.Cmp(y).Eql() && x.IsNeg() == y.IsNeg()
+// alike(x, y) is like x.Cmp(y) == 0 but also considers the sign of 0 (0 != -0).
+func alike(x, y *Float) bool {
+	return x.Cmp(y) == 0 && x.Signbit() == y.Signbit()
 }
 
 func TestFloatMantExp(t *testing.T) {
@@ -222,7 +212,6 @@ func TestFloatMantExp(t *testing.T) {
 		{"Inf", "+Inf", 0},
 		{"+Inf", "+Inf", 0},
 		{"-Inf", "-Inf", 0},
-		{"NaN", "NaN", 0},
 		{"1.5", "0.75", 1},
 		{"1.024e3", "0.5", 11},
 		{"-0.125", "-0.5", -2},
@@ -231,7 +220,7 @@ func TestFloatMantExp(t *testing.T) {
 		mant := makeFloat(test.mant)
 		m := new(Float)
 		e := x.MantExp(m)
-		if !feq(m, mant) || e != test.exp {
+		if !alike(m, mant) || e != test.exp {
 			t.Errorf("%s.MantExp() = %s, %d; want %s, %d", test.x, m.Format('g', 10), e, test.mant, test.exp)
 		}
 	}
@@ -242,7 +231,7 @@ func TestFloatMantExpAliasing(t *testing.T) {
 	if e := x.MantExp(x); e != 10 {
 		t.Fatalf("Float.MantExp aliasing error: got %d; want 10", e)
 	}
-	if want := makeFloat("0.5"); !feq(x, want) {
+	if want := makeFloat("0.5"); !alike(x, want) {
 		t.Fatalf("Float.MantExp aliasing error: got %s; want %s", x.Format('g', 10), want.Format('g', 10))
 	}
 }
@@ -274,12 +263,12 @@ func TestFloatSetMantExp(t *testing.T) {
 		want := makeFloat(test.z)
 		var z Float
 		z.SetMantExp(frac, test.exp)
-		if !feq(&z, want) {
+		if !alike(&z, want) {
 			t.Errorf("SetMantExp(%s, %d) = %s; want %s", test.frac, test.exp, z.Format('g', 10), test.z)
 		}
 		// test inverse property
 		mant := new(Float)
-		if z.SetMantExp(mant, want.MantExp(mant)).Cmp(want).Neq() {
+		if z.SetMantExp(mant, want.MantExp(mant)).Cmp(want) != 0 {
 			t.Errorf("Inverse property not satisfied: got %s; want %s", z.Format('g', 10), test.z)
 		}
 	}
@@ -287,32 +276,26 @@ func TestFloatSetMantExp(t *testing.T) {
 
 func TestFloatPredicates(t *testing.T) {
 	for _, test := range []struct {
-		x                           string
-		neg, zero, finite, inf, nan bool
+		x            string
+		sign         int
+		signbit, inf bool
 	}{
-		{x: "-Inf", neg: true, inf: true},
-		{x: "-1", neg: true, finite: true},
-		{x: "-0", neg: true, zero: true, finite: true},
-		{x: "0", zero: true, finite: true},
-		{x: "1", finite: true},
-		{x: "+Inf", inf: true},
-		{x: "NaN", nan: true},
+		{x: "-Inf", sign: -1, signbit: true, inf: true},
+		{x: "-1", sign: -1, signbit: true},
+		{x: "-0", signbit: true},
+		{x: "0"},
+		{x: "1", sign: 1},
+		{x: "+Inf", sign: 1, inf: true},
 	} {
 		x := makeFloat(test.x)
-		if got := x.IsNeg(); got != test.neg {
-			t.Errorf("(%s).IsNeg() = %v; want %v", test.x, got, test.neg)
+		if got := x.Signbit(); got != test.signbit {
+			t.Errorf("(%s).Signbit() = %v; want %v", test.x, got, test.signbit)
 		}
-		if got := x.IsZero(); got != test.zero {
-			t.Errorf("(%s).IsZero() = %v; want %v", test.x, got, test.zero)
-		}
-		if got := x.IsFinite(); got != test.finite {
-			t.Errorf("(%s).IsFinite() = %v; want %v", test.x, got, test.finite)
+		if got := x.Sign(); got != test.sign {
+			t.Errorf("(%s).Sign() = %d; want %d", test.x, got, test.sign)
 		}
 		if got := x.IsInf(); got != test.inf {
 			t.Errorf("(%s).IsInf() = %v; want %v", test.x, got, test.inf)
-		}
-		if got := x.IsNaN(); got != test.nan {
-			t.Errorf("(%s).IsNaN() = %v; want %v", test.x, got, test.nan)
 		}
 	}
 }
@@ -333,7 +316,6 @@ func TestFloatIsInt(t *testing.T) {
 		"Inf",
 		"+Inf",
 		"-Inf",
-		"NaN",
 	} {
 		s := strings.TrimSuffix(test, " int")
 		want := s != test
@@ -413,7 +395,7 @@ func testFloatRound(t *testing.T, x, r int64, prec uint, mode RoundingMode) {
 	// should be the same as rounding by SetInt64 after setting the
 	// precision)
 	g := new(Float).SetMode(mode).SetPrec(prec).SetInt64(x)
-	if !feq(g, f) {
+	if !alike(g, f) {
 		t.Errorf("round %s (%d bits, %s) not symmetric: got %s and %s; want %s",
 			toBinary(x), prec, mode,
 			toBinary(g.int64()),
@@ -426,7 +408,7 @@ func testFloatRound(t *testing.T, x, r int64, prec uint, mode RoundingMode) {
 	// h and f should be the same
 	// (repeated rounding should be idempotent)
 	h := new(Float).SetMode(mode).SetPrec(prec).Set(f)
-	if !feq(h, f) {
+	if !alike(h, f) {
 		t.Errorf("round %s (%d bits, %s) not idempotent: got %s and %s; want %s",
 			toBinary(x), prec, mode,
 			toBinary(h.int64()),
@@ -647,13 +629,6 @@ func TestFloatSetFloat64(t *testing.T) {
 		}
 	}
 
-	// test NaN
-	var f Float
-	f.SetFloat64(math.NaN())
-	if got, acc := f.Float64(); !math.IsNaN(got) || acc != Undef {
-		t.Errorf("got %g (%s, %s); want %g (undef)", got, f.Format('p', 0), acc, math.NaN())
-	}
-
 	// test basic rounding behavior (exhaustive rounding testing is done elsewhere)
 	const x uint64 = 0x8765432143218 // 53 bits needed
 	for prec := uint(1); prec <= 52; prec++ {
@@ -664,6 +639,17 @@ func TestFloatSetFloat64(t *testing.T) {
 			t.Errorf("got %g (%s); want %g", got, f.Format('p', 0), want)
 		}
 	}
+
+	// test NaN
+	defer func() {
+		if p, ok := recover().(ErrNaN); !ok {
+			t.Errorf("got %v; want ErrNaN panic", p)
+		}
+	}()
+	var f Float
+	f.SetFloat64(math.NaN())
+	// should not reach here
+	t.Errorf("got %s; want ErrNaN panic", f.Format('p', 0))
 }
 
 func TestFloatSetInt(t *testing.T) {
@@ -747,20 +733,18 @@ func TestFloatSetRat(t *testing.T) {
 func TestFloatSetInf(t *testing.T) {
 	var f Float
 	for _, test := range []struct {
-		sign int
-		prec uint
-		want string
+		signbit bool
+		prec    uint
+		want    string
 	}{
-		{0, 0, "+Inf"},
-		{100, 0, "+Inf"},
-		{-1, 0, "-Inf"},
-		{0, 10, "+Inf"},
-		{100, 20, "+Inf"},
-		{-1, 30, "-Inf"},
+		{false, 0, "+Inf"},
+		{true, 0, "-Inf"},
+		{false, 10, "+Inf"},
+		{true, 30, "-Inf"},
 	} {
-		x := f.SetPrec(test.prec).SetInf(test.sign)
+		x := f.SetPrec(test.prec).SetInf(test.signbit)
 		if got := x.String(); got != test.want || x.Prec() != test.prec {
-			t.Errorf("SetInf(%d) = %s (prec = %d); want %s (prec = %d)", test.sign, got, x.Prec(), test.want, test.prec)
+			t.Errorf("SetInf(%v) = %s (prec = %d); want %s (prec = %d)", test.signbit, got, x.Prec(), test.want, test.prec)
 		}
 	}
 }
@@ -786,7 +770,6 @@ func TestFloatUint64(t *testing.T) {
 		{"18446744073709551616", math.MaxUint64, Below},
 		{"1e10000", math.MaxUint64, Below},
 		{"+Inf", math.MaxUint64, Below},
-		{"NaN", 0, Undef},
 	} {
 		x := makeFloat(test.x)
 		out, acc := x.Uint64()
@@ -827,7 +810,6 @@ func TestFloatInt64(t *testing.T) {
 		{"9223372036854775808", math.MaxInt64, Below},
 		{"1e10000", math.MaxInt64, Below},
 		{"+Inf", math.MaxInt64, Below},
-		{"NaN", 0, Undef},
 	} {
 		x := makeFloat(test.x)
 		out, acc := x.Int64()
@@ -890,12 +872,6 @@ func TestFloatFloat32(t *testing.T) {
 		if out2 != out || acc2 != Exact {
 			t.Errorf("idempotency test: got %g (%s); want %g (Exact)", out2, acc2, out)
 		}
-	}
-
-	// test NaN
-	x := makeFloat("NaN")
-	if out, acc := x.Float32(); out == out || acc != Undef {
-		t.Errorf("NaN: got %g (%s); want NaN (Undef)", out, acc)
 	}
 }
 
@@ -963,12 +939,6 @@ func TestFloatFloat64(t *testing.T) {
 			t.Errorf("idempotency test: got %g (%s); want %g (Exact)", out2, acc2, out)
 		}
 	}
-
-	// test NaN
-	x := makeFloat("NaN")
-	if out, acc := x.Float64(); out == out || acc != Undef {
-		t.Errorf("NaN: got %g (%s); want NaN (Undef)", out, acc)
-	}
 }
 
 func TestFloatInt(t *testing.T) {
@@ -983,7 +953,6 @@ func TestFloatInt(t *testing.T) {
 		{"Inf", "nil", Below},
 		{"+Inf", "nil", Below},
 		{"-Inf", "nil", Above},
-		{"NaN", "nil", Undef},
 		{"1", "1", Exact},
 		{"-1", "-1", Exact},
 		{"1.23", "1", Below},
@@ -1028,7 +997,6 @@ func TestFloatRat(t *testing.T) {
 		{"Inf", "nil", Below},
 		{"+Inf", "nil", Below},
 		{"-Inf", "nil", Above},
-		{"NaN", "nil", Undef},
 		{"1", "1/1", Exact},
 		{"-1", "-1/1", Exact},
 		{"1.25", "5/4", Exact},
@@ -1056,7 +1024,7 @@ func TestFloatRat(t *testing.T) {
 		// inverse conversion
 		if res != nil {
 			got := new(Float).SetPrec(64).SetRat(res)
-			if got.Cmp(x).Neq() {
+			if got.Cmp(x) != 0 {
 				t.Errorf("%s: got %s; want %s", test.x, got, x)
 			}
 		}
@@ -1081,17 +1049,16 @@ func TestFloatAbs(t *testing.T) {
 		"1e-1000",
 		"1e1000",
 		"Inf",
-		"NaN",
 	} {
 		p := makeFloat(test)
 		a := new(Float).Abs(p)
-		if !feq(a, p) {
+		if !alike(a, p) {
 			t.Errorf("%s: got %s; want %s", test, a.Format('g', 10), test)
 		}
 
 		n := makeFloat("-" + test)
 		a.Abs(n)
-		if !feq(a, p) {
+		if !alike(a, p) {
 			t.Errorf("-%s: got %s; want %s", test, a.Format('g', 10), test)
 		}
 	}
@@ -1106,16 +1073,15 @@ func TestFloatNeg(t *testing.T) {
 		"1e-1000",
 		"1e1000",
 		"Inf",
-		"NaN",
 	} {
 		p1 := makeFloat(test)
 		n1 := makeFloat("-" + test)
 		n2 := new(Float).Neg(p1)
 		p2 := new(Float).Neg(n2)
-		if !feq(n2, n1) {
+		if !alike(n2, n1) {
 			t.Errorf("%s: got %s; want %s", test, n2.Format('g', 10), n1.Format('g', 10))
 		}
-		if !feq(p2, p1) {
+		if !alike(p2, p1) {
 			t.Errorf("%s: got %s; want %s", test, p2.Format('g', 10), p1.Format('g', 10))
 		}
 	}
@@ -1133,7 +1099,7 @@ func TestFloatInc(t *testing.T) {
 		for i := 0; i < n; i++ {
 			x.Add(&x, &one)
 		}
-		if x.Cmp(new(Float).SetInt64(n)).Neq() {
+		if x.Cmp(new(Float).SetInt64(n)) != 0 {
 			t.Errorf("prec = %d: got %s; want %d", prec, &x, n)
 		}
 	}
@@ -1174,14 +1140,14 @@ func TestFloatAdd(t *testing.T) {
 					got := new(Float).SetPrec(prec).SetMode(mode)
 					got.Add(x, y)
 					want := zbits.round(prec, mode)
-					if got.Cmp(want).Neq() {
+					if got.Cmp(want) != 0 {
 						t.Errorf("i = %d, prec = %d, %s:\n\t     %s %v\n\t+    %s %v\n\t=    %s\n\twant %s",
 							i, prec, mode, x, xbits, y, ybits, got, want)
 					}
 
 					got.Sub(z, x)
 					want = ybits.round(prec, mode)
-					if got.Cmp(want).Neq() {
+					if got.Cmp(want) != 0 {
 						t.Errorf("i = %d, prec = %d, %s:\n\t     %s %v\n\t-    %s %v\n\t=    %s\n\twant %s",
 							i, prec, mode, z, zbits, x, xbits, got, want)
 					}
@@ -1276,17 +1242,17 @@ func TestFloatMul(t *testing.T) {
 					got := new(Float).SetPrec(prec).SetMode(mode)
 					got.Mul(x, y)
 					want := zbits.round(prec, mode)
-					if got.Cmp(want).Neq() {
+					if got.Cmp(want) != 0 {
 						t.Errorf("i = %d, prec = %d, %s:\n\t     %s %v\n\t*    %s %v\n\t=    %s\n\twant %s",
 							i, prec, mode, x, xbits, y, ybits, got, want)
 					}
 
-					if x.IsZero() {
+					if x.Sign() == 0 {
 						continue // ignore div-0 case (not invertable)
 					}
 					got.Quo(z, x)
 					want = ybits.round(prec, mode)
-					if got.Cmp(want).Neq() {
+					if got.Cmp(want) != 0 {
 						t.Errorf("i = %d, prec = %d, %s:\n\t     %s %v\n\t/    %s %v\n\t=    %s\n\twant %s",
 							i, prec, mode, z, zbits, x, xbits, got, want)
 					}
@@ -1369,7 +1335,7 @@ func TestIssue6866(t *testing.T) {
 		p.Mul(p, psix)
 		z2.Sub(two, p)
 
-		if z1.Cmp(z2).Neq() {
+		if z1.Cmp(z2) != 0 {
 			t.Fatalf("prec %d: got z1 = %s != z2 = %s; want z1 == z2\n", prec, z1, z2)
 		}
 		if z1.Sign() != 0 {
@@ -1420,7 +1386,7 @@ func TestFloatQuo(t *testing.T) {
 				prec := uint(preci + d)
 				got := new(Float).SetPrec(prec).SetMode(mode).Quo(x, y)
 				want := bits.round(prec, mode)
-				if got.Cmp(want).Neq() {
+				if got.Cmp(want) != 0 {
 					t.Errorf("i = %d, prec = %d, %s:\n\t     %s\n\t/    %s\n\t=    %s\n\twant %s",
 						i, prec, mode, x, y, got, want)
 				}
@@ -1472,10 +1438,10 @@ func TestFloatQuoSmoke(t *testing.T) {
 
 // TestFloatArithmeticSpecialValues tests that Float operations produce the
 // correct results for combinations of zero (±0), finite (±1 and ±2.71828),
-// and non-finite (±Inf, NaN) operands.
+// and non-finite (±Inf) operands.
 func TestFloatArithmeticSpecialValues(t *testing.T) {
 	zero := 0.0
-	args := []float64{math.Inf(-1), -2.71828, -1, -zero, zero, 1, 2.71828, math.Inf(1), math.NaN()}
+	args := []float64{math.Inf(-1), -2.71828, -1, -zero, zero, 1, 2.71828, math.Inf(1)}
 	xx := new(Float)
 	yy := new(Float)
 	got := new(Float)
@@ -1486,10 +1452,15 @@ func TestFloatArithmeticSpecialValues(t *testing.T) {
 			// check conversion is correct
 			// (no need to do this for y, since we see exactly the
 			// same values there)
-			if got, acc := xx.Float64(); !math.IsNaN(x) && (got != x || acc != Exact) {
+			if got, acc := xx.Float64(); got != x || acc != Exact {
 				t.Errorf("Float(%g) == %g (%s)", x, got, acc)
 			}
 			for _, y := range args {
+				// At the moment an Inf operand always leads to a panic (known bug).
+				// TODO(gri) remove this once the bug is fixed.
+				if math.IsInf(x, 0) || math.IsInf(y, 0) {
+					continue
+				}
 				yy.SetFloat64(y)
 				var op string
 				var z float64
@@ -1507,20 +1478,18 @@ func TestFloatArithmeticSpecialValues(t *testing.T) {
 					z = x * y
 					got.Mul(xx, yy)
 				case 3:
+					if x == 0 && y == 0 {
+						// TODO(gri) check for ErrNaN
+						continue // 0/0 panics with ErrNaN
+					}
 					op = "/"
 					z = x / y
 					got.Quo(xx, yy)
 				default:
 					panic("unreachable")
 				}
-				// At the moment an Inf operand always leads to a NaN result (known bug).
-				// TODO(gri) remove this once the bug is fixed.
-				if math.IsInf(x, 0) || math.IsInf(y, 0) {
-					want.SetNaN()
-				} else {
-					want.SetFloat64(z)
-				}
-				if !feq(got, want) {
+				want.SetFloat64(z)
+				if !alike(got, want) {
 					t.Errorf("%5g %s %5g = %5s; want %5s", x, op, y, got, want)
 				}
 			}
@@ -1645,11 +1614,11 @@ func TestFloatArithmeticRounding(t *testing.T) {
 }
 
 // TestFloatCmpSpecialValues tests that Cmp produces the correct results for
-// combinations of zero (±0), finite (±1 and ±2.71828), and non-finite (±Inf,
-// NaN) operands.
+// combinations of zero (±0), finite (±1 and ±2.71828), and non-finite (±Inf)
+// operands.
 func TestFloatCmpSpecialValues(t *testing.T) {
 	zero := 0.0
-	args := []float64{math.Inf(-1), -2.71828, -1, -zero, zero, 1, 2.71828, math.Inf(1), math.NaN()}
+	args := []float64{math.Inf(-1), -2.71828, -1, -zero, zero, 1, 2.71828, math.Inf(1)}
 	xx := new(Float)
 	yy := new(Float)
 	for i := 0; i < 4; i++ {
@@ -1658,20 +1627,18 @@ func TestFloatCmpSpecialValues(t *testing.T) {
 			// check conversion is correct
 			// (no need to do this for y, since we see exactly the
 			// same values there)
-			if got, acc := xx.Float64(); !math.IsNaN(x) && (got != x || acc != Exact) {
+			if got, acc := xx.Float64(); got != x || acc != Exact {
 				t.Errorf("Float(%g) == %g (%s)", x, got, acc)
 			}
 			for _, y := range args {
 				yy.SetFloat64(y)
-				got := xx.Cmp(yy).Acc()
-				want := Undef
+				got := xx.Cmp(yy)
+				want := 0
 				switch {
 				case x < y:
-					want = Below
-				case x == y:
-					want = Exact
+					want = -1
 				case x > y:
-					want = Above
+					want = +1
 				}
 				if got != want {
 					t.Errorf("(%g).Cmp(%g) = %s; want %s", x, y, got, want)

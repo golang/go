@@ -102,7 +102,7 @@ func TestFloatSetFloat64String(t *testing.T) {
 		}
 		f, _ := x.Float64()
 		want := new(Float).SetFloat64(test.x)
-		if x.Cmp(want).Neq() {
+		if x.Cmp(want) != 0 {
 			t.Errorf("%s: got %s (%v); want %v", test.s, &x, f, test.x)
 		}
 	}

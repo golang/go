@@ -50,88 +50,62 @@ func Example_Shift() {
 func ExampleFloat_Cmp() {
 	inf := math.Inf(1)
 	zero := 0.0
-	nan := math.NaN()
 
-	operands := []float64{-inf, -1.2, -zero, 0, +1.2, +inf, nan}
+	operands := []float64{-inf, -1.2, -zero, 0, +1.2, +inf}
 
-	fmt.Println("   x     y   cmp   eql  neq  lss  leq  gtr  geq")
-	fmt.Println("-----------------------------------------------")
+	fmt.Println("   x     y  cmp")
+	fmt.Println("---------------")
 	for _, x64 := range operands {
 		x := big.NewFloat(x64)
 		for _, y64 := range operands {
 			y := big.NewFloat(y64)
-			t := x.Cmp(y)
-			fmt.Printf(
-				"%4s  %4s  %5s   %c    %c    %c    %c    %c    %c\n",
-				x, y, t.Acc(),
-				mark(t.Eql()), mark(t.Neq()), mark(t.Lss()), mark(t.Leq()), mark(t.Gtr()), mark(t.Geq()))
+			fmt.Printf("%4s  %4s  %3d\n", x, y, x.Cmp(y))
 		}
 		fmt.Println()
 	}
 
 	// Output:
-	//    x     y   cmp   eql  neq  lss  leq  gtr  geq
-	// -----------------------------------------------
-	// -Inf  -Inf  Exact   ●    ○    ○    ●    ○    ●
-	// -Inf  -1.2  Below   ○    ●    ●    ●    ○    ○
-	// -Inf    -0  Below   ○    ●    ●    ●    ○    ○
-	// -Inf     0  Below   ○    ●    ●    ●    ○    ○
-	// -Inf   1.2  Below   ○    ●    ●    ●    ○    ○
-	// -Inf  +Inf  Below   ○    ●    ●    ●    ○    ○
-	// -Inf   NaN  Undef   ○    ●    ○    ○    ○    ○
+	//    x     y  cmp
+	// ---------------
+	// -Inf  -Inf    0
+	// -Inf  -1.2   -1
+	// -Inf    -0   -1
+	// -Inf     0   -1
+	// -Inf   1.2   -1
+	// -Inf  +Inf   -1
 	//
-	// -1.2  -Inf  Above   ○    ●    ○    ○    ●    ●
-	// -1.2  -1.2  Exact   ●    ○    ○    ●    ○    ●
-	// -1.2    -0  Below   ○    ●    ●    ●    ○    ○
-	// -1.2     0  Below   ○    ●    ●    ●    ○    ○
-	// -1.2   1.2  Below   ○    ●    ●    ●    ○    ○
-	// -1.2  +Inf  Below   ○    ●    ●    ●    ○    ○
-	// -1.2   NaN  Undef   ○    ●    ○    ○    ○    ○
+	// -1.2  -Inf    1
+	// -1.2  -1.2    0
+	// -1.2    -0   -1
+	// -1.2     0   -1
+	// -1.2   1.2   -1
+	// -1.2  +Inf   -1
 	//
-	//   -0  -Inf  Above   ○    ●    ○    ○    ●    ●
-	//   -0  -1.2  Above   ○    ●    ○    ○    ●    ●
-	//   -0    -0  Exact   ●    ○    ○    ●    ○    ●
-	//   -0     0  Exact   ●    ○    ○    ●    ○    ●
-	//   -0   1.2  Below   ○    ●    ●    ●    ○    ○
-	//   -0  +Inf  Below   ○    ●    ●    ●    ○    ○
-	//   -0   NaN  Undef   ○    ●    ○    ○    ○    ○
+	//   -0  -Inf    1
+	//   -0  -1.2    1
+	//   -0    -0    0
+	//   -0     0    0
+	//   -0   1.2   -1
+	//   -0  +Inf   -1
 	//
-	//    0  -Inf  Above   ○    ●    ○    ○    ●    ●
-	//    0  -1.2  Above   ○    ●    ○    ○    ●    ●
-	//    0    -0  Exact   ●    ○    ○    ●    ○    ●
-	//    0     0  Exact   ●    ○    ○    ●    ○    ●
-	//    0   1.2  Below   ○    ●    ●    ●    ○    ○
-	//    0  +Inf  Below   ○    ●    ●    ●    ○    ○
-	//    0   NaN  Undef   ○    ●    ○    ○    ○    ○
+	//    0  -Inf    1
+	//    0  -1.2    1
+	//    0    -0    0
+	//    0     0    0
+	//    0   1.2   -1
+	//    0  +Inf   -1
 	//
-	//  1.2  -Inf  Above   ○    ●    ○    ○    ●    ●
-	//  1.2  -1.2  Above   ○    ●    ○    ○    ●    ●
-	//  1.2    -0  Above   ○    ●    ○    ○    ●    ●
-	//  1.2     0  Above   ○    ●    ○    ○    ●    ●
-	//  1.2   1.2  Exact   ●    ○    ○    ●    ○    ●
-	//  1.2  +Inf  Below   ○    ●    ●    ●    ○    ○
-	//  1.2   NaN  Undef   ○    ●    ○    ○    ○    ○
+	//  1.2  -Inf    1
+	//  1.2  -1.2    1
+	//  1.2    -0    1
+	//  1.2     0    1
+	//  1.2   1.2    0
+	//  1.2  +Inf   -1
 	//
-	// +Inf  -Inf  Above   ○    ●    ○    ○    ●    ●
-	// +Inf  -1.2  Above   ○    ●    ○    ○    ●    ●
-	// +Inf    -0  Above   ○    ●    ○    ○    ●    ●
-	// +Inf     0  Above   ○    ●    ○    ○    ●    ●
-	// +Inf   1.2  Above   ○    ●    ○    ○    ●    ●
-	// +Inf  +Inf  Exact   ●    ○    ○    ●    ○    ●
-	// +Inf   NaN  Undef   ○    ●    ○    ○    ○    ○
-	//
-	//  NaN  -Inf  Undef   ○    ●    ○    ○    ○    ○
-	//  NaN  -1.2  Undef   ○    ●    ○    ○    ○    ○
-	//  NaN    -0  Undef   ○    ●    ○    ○    ○    ○
-	//  NaN     0  Undef   ○    ●    ○    ○    ○    ○
-	//  NaN   1.2  Undef   ○    ●    ○    ○    ○    ○
-	//  NaN  +Inf  Undef   ○    ●    ○    ○    ○    ○
-	//  NaN   NaN  Undef   ○    ●    ○    ○    ○    ○
-}
-
-func mark(p bool) rune {
-	if p {
-		return '●'
-	}
-	return '○'
+	// +Inf  -Inf    1
+	// +Inf  -1.2    1
+	// +Inf    -0    1
+	// +Inf     0    1
+	// +Inf   1.2    1
+	// +Inf  +Inf    0
 }
