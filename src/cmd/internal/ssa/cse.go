@@ -56,7 +56,7 @@ func cse(f *Func) {
 	}
 
 	// Find an equivalence class where some members of the class have
-	// non-equvalent arguments.  Split the equivalence class appropriately.
+	// non-equivalent arguments.  Split the equivalence class appropriately.
 	// Repeat until we can't find any more splits.
 	for {
 		changed := false
