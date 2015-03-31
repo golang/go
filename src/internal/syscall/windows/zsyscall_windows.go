@@ -13,7 +13,6 @@ var (
 
 	procGetAdaptersAddresses = modiphlpapi.NewProc("GetAdaptersAddresses")
 	procGetComputerNameExW   = modkernel32.NewProc("GetComputerNameExW")
-	procGetVersion           = modkernel32.NewProc("GetVersion")
 )
 
 func GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizeOfPointer *uint32) (errcode error) {
@@ -33,11 +32,5 @@ func GetComputerNameEx(nameformat uint32, buf *uint16, n *uint32) (err error) {
 			err = syscall.EINVAL
 		}
 	}
-	return
-}
-
-func getVersion() (v uint32) {
-	r0, _, _ := syscall.Syscall(procGetVersion.Addr(), 0, 0, 0, 0)
-	v = uint32(r0)
 	return
 }
