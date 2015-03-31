@@ -86,10 +86,13 @@ func testIf() {
 			check(LINE, 0)
 		}
 	}
+	if func(a, b int) bool { return a < b }(3, 4) {
+		check(LINE, 1)
+	}
 }
 
 func testFor() {
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 10; func() { i++; check(LINE, 10) }() {
 		check(LINE, 10)
 	}
 }
@@ -122,7 +125,7 @@ func testBlockRun() {
 }
 
 func testSwitch() {
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 5; func() { i++; check(LINE, 5) }() {
 		switch i {
 		case 0:
 			check(LINE, 1)
@@ -139,7 +142,7 @@ func testSwitch() {
 func testTypeSwitch() {
 	var x = []interface{}{1, 2.0, "hi"}
 	for _, v := range x {
-		switch v.(type) {
+		switch func() { check(LINE, 3) }(); v.(type) {
 		case int:
 			check(LINE, 1)
 		case float64:

@@ -503,6 +503,9 @@ func (f *File) addCounters(pos, blockEnd token.Pos, list []ast.Stmt, extendToClo
 // Therefore we draw a line at the start of the body of the first function literal we find.
 // TODO: what if there's more than one? Probably doesn't matter much.
 func hasFuncLiteral(n ast.Node) (bool, token.Pos) {
+	if n == nil {
+		return false, 0
+	}
 	var literal funcLitFinder
 	ast.Walk(&literal, n)
 	return literal.found(), token.Pos(literal)
@@ -517,24 +520,54 @@ func (f *File) statementBoundary(s ast.Stmt) token.Pos {
 		// Treat blocks like basic blocks to avoid overlapping counters.
 		return s.Lbrace
 	case *ast.IfStmt:
+		found, pos := hasFuncLiteral(s.Init)
+		if found {
+			return pos
+		}
+		found, pos = hasFuncLiteral(s.Cond)
+		if found {
+			return pos
+		}
 		return s.Body.Lbrace
 	case *ast.ForStmt:
+		found, pos := hasFuncLiteral(s.Init)
+		if found {
+			return pos
+		}
+		found, pos = hasFuncLiteral(s.Cond)
+		if found {
+			return pos
+		}
+		found, pos = hasFuncLiteral(s.Post)
+		if found {
+			return pos
+		}
 		return s.Body.Lbrace
 	case *ast.LabeledStmt:
 		return f.statementBoundary(s.Stmt)
 	case *ast.RangeStmt:
-		// Ranges might loop over things with function literals.: for _ = range []func(){ ... } {.
-		// TODO: There are a few other such possibilities, but they're extremely unlikely.
 		found, pos := hasFuncLiteral(s.X)
 		if found {
 			return pos
 		}
 		return s.Body.Lbrace
 	case *ast.SwitchStmt:
+		found, pos := hasFuncLiteral(s.Init)
+		if found {
+			return pos
+		}
+		found, pos = hasFuncLiteral(s.Tag)
+		if found {
+			return pos
+		}
 		return s.Body.Lbrace
 	case *ast.SelectStmt:
 		return s.Body.Lbrace
 	case *ast.TypeSwitchStmt:
+		found, pos := hasFuncLiteral(s.Init)
+		if found {
+			return pos
+		}
 		return s.Body.Lbrace
 	}
 	// If not a control flow statement, it is a declaration, expression, call, etc. and it may have a function literal.
