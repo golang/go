@@ -1,44 +1,44 @@
 -------- @implements E --------
-empty interface type implements.E
+empty interface type E
 
 -------- @implements F --------
-interface type implements.F
-	is implemented by pointer type *implements.C
-	is implemented by struct type implements.D
-	is implemented by interface type implements.FG
+interface type F
+	is implemented by pointer type *C
+	is implemented by struct type D
+	is implemented by interface type FG
 
 -------- @implements FG --------
-interface type implements.FG
-	is implemented by pointer type *implements.D
-	implements implements.F
+interface type FG
+	is implemented by pointer type *D
+	implements F
 
 -------- @implements slice --------
 slice type []int implements only interface{}
 
 -------- @implements C --------
-pointer type *implements.C
-	implements implements.F
+pointer type *C
+	implements F
 
 -------- @implements starC --------
-pointer type *implements.C
-	implements implements.F
+pointer type *C
+	implements F
 
 -------- @implements D --------
-struct type implements.D
-	implements implements.F
-pointer type *implements.D
-	implements implements.FG
+struct type D
+	implements F
+pointer type *D
+	implements FG
 
 -------- @implements starD --------
-pointer type *implements.D
-	implements implements.F
-	implements implements.FG
+pointer type *D
+	implements F
+	implements FG
 
 -------- @implements sorter --------
-slice type implements.sorter
+slice type sorter
 	implements lib.Sorter
 
 -------- @implements I --------
-interface type implements.I
+interface type I
 	is implemented by basic type lib.Type
 

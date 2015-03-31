@@ -243,6 +243,8 @@ func (r *peersResult) toSerial(res *serial.Result, fset *token.FileSet) {
 
 // -------- utils --------
 
+// NB: byPos is not deterministic across packages since it depends on load order.
+// Use lessPos if the tests need it.
 type byPos []token.Pos
 
 func (p byPos) Len() int           { return len(p) }

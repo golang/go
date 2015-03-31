@@ -19,9 +19,13 @@
 		"objpos": "testdata/src/lib/lib.go:5:13",
 		"desc": "func (lib.Type).Method(x *int) *int",
 		"refs": [
+			"testdata/src/imports/main.go:22:9",
 			"testdata/src/referrers-json/main.go:15:8",
 			"testdata/src/referrers-json/main.go:16:8",
-			"testdata/src/imports/main.go:22:9"
+			"testdata/src/referrers/ext_test.go:7:17",
+			"testdata/src/referrers/int_test.go:7:17",
+			"testdata/src/referrers/main.go:15:8",
+			"testdata/src/referrers/main.go:16:8"
 		]
 	}
 }

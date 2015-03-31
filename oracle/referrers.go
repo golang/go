@@ -90,7 +90,7 @@ func referrers(q *Query) error {
 		}
 		allowErrors(&lconf)
 		for path := range rev.Search(obj.Pkg().Path()) {
-			lconf.Import(path)
+			lconf.ImportWithTests(path)
 		}
 		pass2 = true
 	}
@@ -104,9 +104,7 @@ func referrers(q *Query) error {
 			}
 		}
 	}
-	// TODO(adonovan): is this sort stable?  Pos order depends on
-	// when packages are reached.  Use filename order?
-	sort.Sort(byNamePos(refs))
+	sort.Sort(byNamePos{q.Fset, refs})
 
 	q.result = &referrersResult{
 		fset:  q.Fset,
@@ -134,11 +132,27 @@ func sameObj(x, y types.Object) bool {
 
 // -------- utils --------
 
-type byNamePos []*ast.Ident
+// An deterministic ordering for token.Pos that doesn't
+// depend on the order in which packages were loaded.
+func lessPos(fset *token.FileSet, x, y token.Pos) bool {
+	fx := fset.File(x)
+	fy := fset.File(y)
+	if fx != fy {
+		return fx.Name() < fy.Name()
+	}
+	return x < y
+}
 
-func (p byNamePos) Len() int           { return len(p) }
-func (p byNamePos) Less(i, j int) bool { return p[i].NamePos < p[j].NamePos }
-func (p byNamePos) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+type byNamePos struct {
+	fset *token.FileSet
+	ids  []*ast.Ident
+}
+
+func (p byNamePos) Len() int      { return len(p.ids) }
+func (p byNamePos) Swap(i, j int) { p.ids[i], p.ids[j] = p.ids[j], p.ids[i] }
+func (p byNamePos) Less(i, j int) bool {
+	return lessPos(p.fset, p.ids[i].NamePos, p.ids[j].NamePos)
+}
 
 type referrersResult struct {
 	fset  *token.FileSet

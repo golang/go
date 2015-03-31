@@ -211,6 +211,7 @@ func TestOracle(t *testing.T) {
 		"testdata/src/imports/main.go",
 		"testdata/src/peers/main.go",
 		"testdata/src/pointsto/main.go",
+		"testdata/src/referrers/main.go",
 		"testdata/src/reflection/main.go",
 		"testdata/src/what/main.go",
 		"testdata/src/whicherrs/main.go",

@@ -1,0 +1,27 @@
+-------- @referrers ref-package --------
+2 references to package lib
+	var v lib.Type = lib.Const // @referrers ref-package "lib"
+	var v lib.Type = lib.Const // @referrers ref-package "lib"
+
+-------- @referrers ref-method --------
+7 references to func (lib.Type).Method(x *int) *int
+	p := t.Method(&a)   // @describe ref-method "Method"
+	_ = v.Method               // @referrers ref-method "Method"
+	_ = v.Method
+	_ = (lib.Type).Method // ref from external test package
+	_ = (lib.Type).Method // ref from internal test package
+	_ = v.Method               // @referrers ref-method "Method"
+	_ = v.Method
+
+-------- @referrers ref-local --------
+4 references to var v lib.Type
+	_ = v.Method               // @referrers ref-method "Method"
+	_ = v.Method
+	v++ //@referrers ref-local "v"
+	v++
+
+-------- @referrers ref-field --------
+2 references to field f int
+	_ = s{}.f // @referrers ref-field "f"
+	s2.f = 1
+

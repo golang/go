@@ -184,6 +184,8 @@ func (r *calleesResult) toSerial(res *serial.Result, fset *token.FileSet) {
 	res.Callees = j
 }
 
+// NB: byFuncPos is not deterministic across packages since it depends on load order.
+// Use lessPos if the tests need it.
 type byFuncPos []*ssa.Function
 
 func (a byFuncPos) Len() int           { return len(a) }

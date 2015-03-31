@@ -190,12 +190,12 @@ func (r *implementsResult) display(printf printfFunc) {
 
 	if isInterface(r.t) {
 		if types.NewMethodSet(r.t).Len() == 0 { // TODO(adonovan): cache mset
-			printf(r.pos, "empty interface type %s", r.t)
+			printf(r.pos, "empty interface type %s", r.qpos.typeString(r.t))
 			return
 		}
 
 		if r.method == nil {
-			printf(r.pos, "interface type %s", r.t)
+			printf(r.pos, "interface type %s", r.qpos.typeString(r.t))
 		} else {
 			printf(r.method, "abstract method %s", r.qpos.objectString(r.method))
 		}
@@ -205,7 +205,7 @@ func (r *implementsResult) display(printf printfFunc) {
 			if !isInterface(sub) {
 				if r.method == nil {
 					printf(deref(sub).(*types.Named).Obj(), "\t%s %s type %s",
-						relation, typeKind(sub), sub)
+						relation, typeKind(sub), r.qpos.typeString(sub))
 				} else {
 					meth(r.toMethod[i])
 				}
@@ -215,7 +215,7 @@ func (r *implementsResult) display(printf printfFunc) {
 			if isInterface(sub) {
 				if r.method == nil {
 					printf(sub.(*types.Named).Obj(), "\t%s %s type %s",
-						relation, typeKind(sub), sub)
+						relation, typeKind(sub), r.qpos.typeString(sub))
 				} else {
 					meth(r.toMethod[i])
 				}
@@ -225,7 +225,8 @@ func (r *implementsResult) display(printf printfFunc) {
 		relation = "implements"
 		for i, super := range r.from {
 			if r.method == nil {
-				printf(super.(*types.Named).Obj(), "\t%s %s", relation, super)
+				printf(super.(*types.Named).Obj(), "\t%s %s",
+					relation, r.qpos.typeString(super))
 			} else {
 				meth(r.fromMethod[i])
 			}
@@ -235,7 +236,8 @@ func (r *implementsResult) display(printf printfFunc) {
 
 		if r.from != nil {
 			if r.method == nil {
-				printf(r.pos, "%s type %s", typeKind(r.t), r.t)
+				printf(r.pos, "%s type %s",
+					typeKind(r.t), r.qpos.typeString(r.t))
 			} else {
 				printf(r.method, "concrete method %s",
 					r.qpos.objectString(r.method))
@@ -243,7 +245,7 @@ func (r *implementsResult) display(printf printfFunc) {
 			for i, super := range r.from {
 				if r.method == nil {
 					printf(super.(*types.Named).Obj(), "\t%s %s",
-						relation, super)
+						relation, r.qpos.typeString(super))
 				} else {
 					meth(r.fromMethod[i])
 				}
@@ -251,7 +253,7 @@ func (r *implementsResult) display(printf printfFunc) {
 		}
 		if r.fromPtr != nil {
 			if r.method == nil {
-				printf(r.pos, "pointer type *%s", r.t)
+				printf(r.pos, "pointer type *%s", r.qpos.typeString(r.t))
 			} else {
 				// TODO(adonovan): de-dup (C).f and (*C).f implementing (I).f.
 				printf(r.method, "concrete method %s",
@@ -261,13 +263,14 @@ func (r *implementsResult) display(printf printfFunc) {
 			for i, psuper := range r.fromPtr {
 				if r.method == nil {
 					printf(psuper.(*types.Named).Obj(), "\t%s %s",
-						relation, psuper)
+						relation, r.qpos.typeString(psuper))
 				} else {
 					meth(r.fromPtrMethod[i])
 				}
 			}
 		} else if r.from == nil {
-			printf(r.pos, "%s type %s implements only interface{}", typeKind(r.t), r.t)
+			printf(r.pos, "%s type %s implements only interface{}",
+				typeKind(r.t), r.qpos.typeString(r.t))
 		}
 	}
 }
