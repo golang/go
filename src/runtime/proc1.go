@@ -2478,6 +2478,13 @@ func procresize(nprocs int32) *p {
 		traceGomaxprocs(nprocs)
 	}
 
+	// update statistics
+	now := nanotime()
+	if sched.procresizetime != 0 {
+		sched.totaltime += int64(old) * (now - sched.procresizetime)
+	}
+	sched.procresizetime = now
+
 	// initialize new P's
 	for i := int32(0); i < nprocs; i++ {
 		pp := allp[i]
