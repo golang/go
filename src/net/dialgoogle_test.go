@@ -8,198 +8,189 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"syscall"
 	"testing"
 )
 
 func TestResolveGoogle(t *testing.T) {
 	if testing.Short() || !*testExternal {
-		t.Skip("skipping test to avoid external network")
+		t.Skip("avoid external network")
+	}
+	if !supportsIPv4 && !supportsIPv6 {
+		t.Skip("ipv4 and ipv6 are not supported")
 	}
 
 	for _, network := range []string{"tcp", "tcp4", "tcp6"} {
 		addr, err := ResolveTCPAddr(network, "www.google.com:http")
 		if err != nil {
-			if (network == "tcp" || network == "tcp4") && !supportsIPv4 {
-				t.Logf("ipv4 is not supported: %v", err)
-			} else if network == "tcp6" && !supportsIPv6 {
-				t.Logf("ipv6 is not supported: %v", err)
-			} else {
-				t.Errorf("ResolveTCPAddr failed: %v", err)
+			switch {
+			case network == "tcp" && !supportsIPv4:
+				fallthrough
+			case network == "tcp4" && !supportsIPv4:
+				t.Logf("skipping test; ipv4 is not supported: %v", err)
+			case network == "tcp6" && !supportsIPv6:
+				t.Logf("skipping test; ipv6 is not supported: %v", err)
+			default:
+				t.Error(err)
 			}
 			continue
 		}
-		if (network == "tcp" || network == "tcp4") && addr.IP.To4() == nil {
-			t.Errorf("got %v; expected an IPv4 address on %v", addr, network)
-		} else if network == "tcp6" && (addr.IP.To16() == nil || addr.IP.To4() != nil) {
-			t.Errorf("got %v; expected an IPv6 address on %v", addr, network)
+
+		switch {
+		case network == "tcp" && addr.IP.To4() == nil:
+			fallthrough
+		case network == "tcp4" && addr.IP.To4() == nil:
+			t.Errorf("got %v; want an ipv4 address on %s", addr, network)
+		case network == "tcp6" && (addr.IP.To16() == nil || addr.IP.To4() != nil):
+			t.Errorf("got %v; want an ipv6 address on %s", addr, network)
 		}
 	}
+}
+
+var dialGoogleTests = []struct {
+	dial               func(string, string) (Conn, error)
+	unreachableNetwork string
+	networks           []string
+	addrs              []string
+}{
+	{
+		dial:     (&Dialer{DualStack: true}).Dial,
+		networks: []string{"tcp", "tcp4", "tcp6"},
+		addrs:    []string{"www.google.com:http"},
+	},
+	{
+		dial:               Dial,
+		unreachableNetwork: "tcp6",
+		networks:           []string{"tcp", "tcp4"},
+	},
+	{
+		dial:               Dial,
+		unreachableNetwork: "tcp4",
+		networks:           []string{"tcp", "tcp6"},
+	},
 }
 
 func TestDialGoogle(t *testing.T) {
 	if testing.Short() || !*testExternal {
-		t.Skip("skipping test to avoid external network")
+		t.Skip("avoid external network")
+	}
+	if !supportsIPv4 && !supportsIPv6 {
+		t.Skip("ipv4 and ipv6 are not supported")
 	}
 
-	d := &Dialer{DualStack: true}
-	for _, network := range []string{"tcp", "tcp4", "tcp6"} {
-		if network == "tcp" && !supportsIPv4 && !supportsIPv6 {
-			t.Logf("skipping test; both ipv4 and ipv6 are not supported")
-			continue
-		} else if network == "tcp4" && !supportsIPv4 {
-			t.Logf("skipping test; ipv4 is not supported")
-			continue
-		} else if network == "tcp6" && !supportsIPv6 {
-			t.Logf("skipping test; ipv6 is not supported")
-			continue
-		} else if network == "tcp6" && !*testIPv6 {
-			t.Logf("test disabled; use -ipv6 to enable")
-			continue
-		}
-		if c, err := d.Dial(network, "www.google.com:http"); err != nil {
-			t.Errorf("Dial failed: %v", err)
-		} else {
-			c.Close()
-		}
-	}
-}
-
-// fd is already connected to the destination, port 80.
-// Run an HTTP request to fetch the appropriate page.
-func fetchGoogle(t *testing.T, fd Conn, network, addr string) {
-	req := []byte("GET /robots.txt HTTP/1.0\r\nHost: www.google.com\r\n\r\n")
-	n, err := fd.Write(req)
-
-	buf := make([]byte, 1000)
-	n, err = io.ReadFull(fd, buf)
-
-	if n < 1000 {
-		t.Errorf("fetchGoogle: short HTTP read from %s %s - %v", network, addr, err)
-		return
-	}
-}
-
-func doDial(t *testing.T, network, addr string) {
-	fd, err := Dial(network, addr)
+	var err error
+	dialGoogleTests[1].addrs, dialGoogleTests[2].addrs, err = googleLiteralAddrs()
 	if err != nil {
-		t.Errorf("Dial(%q, %q, %q) = _, %v", network, "", addr, err)
-		return
+		t.Error(err)
 	}
-	fetchGoogle(t, fd, network, addr)
-	fd.Close()
+	for _, tt := range dialGoogleTests {
+		for _, network := range tt.networks {
+			switch {
+			case network == "tcp4" && !supportsIPv4:
+				t.Log("skipping test; ipv4 is not supported")
+				continue
+			case network == "tcp4" && !*testIPv4:
+				fallthrough
+			case tt.unreachableNetwork == "tcp6" && !*testIPv4:
+				t.Log("disabled; use -ipv4 to enable")
+				continue
+			case network == "tcp6" && !supportsIPv6:
+				t.Log("skipping test; ipv6 is not supported")
+				continue
+			case network == "tcp6" && !*testIPv6:
+				fallthrough
+			case tt.unreachableNetwork == "tcp4" && !*testIPv6:
+				t.Log("disabled; use -ipv6 to enable")
+				continue
+			}
+
+			disableSocketConnect(tt.unreachableNetwork)
+			for _, addr := range tt.addrs {
+				if err := fetchGoogle(tt.dial, network, addr); err != nil {
+					t.Error(err)
+				}
+			}
+			enableSocketConnect()
+		}
+	}
 }
 
-var googleaddrsipv4 = []string{
-	"%d.%d.%d.%d:80",
-	"www.google.com:80",
-	"%d.%d.%d.%d:http",
-	"www.google.com:http",
-	"%03d.%03d.%03d.%03d:0080",
-	"[::ffff:%d.%d.%d.%d]:80",
-	"[::ffff:%02x%02x:%02x%02x]:80",
-	"[0:0:0:0:0000:ffff:%d.%d.%d.%d]:80",
-	"[0:0:0:0:000000:ffff:%d.%d.%d.%d]:80",
-	"[0:0:0:0::ffff:%d.%d.%d.%d]:80",
-}
-
-func TestDialGoogleIPv4(t *testing.T) {
-	if testing.Short() || !*testExternal {
-		t.Skip("skipping test to avoid external network")
+var (
+	literalAddrs4 = [...]string{
+		"%d.%d.%d.%d:80",
+		"www.google.com:80",
+		"%d.%d.%d.%d:http",
+		"www.google.com:http",
+		"%03d.%03d.%03d.%03d:0080",
+		"[::ffff:%d.%d.%d.%d]:80",
+		"[::ffff:%02x%02x:%02x%02x]:80",
+		"[0:0:0:0:0000:ffff:%d.%d.%d.%d]:80",
+		"[0:0:0:0:000000:ffff:%d.%d.%d.%d]:80",
+		"[0:0:0:0::ffff:%d.%d.%d.%d]:80",
 	}
+	literalAddrs6 = [...]string{
+		"[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x]:80",
+		"ipv6.google.com:80",
+		"[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x]:http",
+		"ipv6.google.com:http",
+	}
+)
 
-	// Insert an actual IPv4 address for google.com
-	// into the table.
-	addrs, err := LookupIP("www.google.com")
+func googleLiteralAddrs() (lits4, lits6 []string, err error) {
+	ips, err := LookupIP("www.google.com")
 	if err != nil {
-		t.Fatalf("lookup www.google.com: %v", err)
+		return nil, nil, err
 	}
-	var ip IP
-	for _, addr := range addrs {
-		if x := addr.To4(); x != nil {
-			ip = x
+	if len(ips) == 0 {
+		return nil, nil, nil
+	}
+	var ip4, ip6 IP
+	for _, ip := range ips {
+		if ip4 == nil && ip.To4() != nil {
+			ip4 = ip.To4()
+		}
+		if ip6 == nil && ip.To16() != nil && ip.To4() == nil {
+			ip6 = ip.To16()
+		}
+		if ip4 != nil && ip6 != nil {
 			break
 		}
 	}
-	if ip == nil {
-		t.Fatalf("no IPv4 addresses for www.google.com")
-	}
-
-	for i, s := range googleaddrsipv4 {
-		if strings.Contains(s, "%") {
-			googleaddrsipv4[i] = fmt.Sprintf(s, ip[0], ip[1], ip[2], ip[3])
-		}
-	}
-
-	for i := 0; i < len(googleaddrsipv4); i++ {
-		addr := googleaddrsipv4[i]
-		if addr == "" {
-			continue
-		}
-		t.Logf("-- %s --", addr)
-		doDial(t, "tcp", addr)
-		if addr[0] != '[' {
-			doDial(t, "tcp4", addr)
-			if supportsIPv6 {
-				// make sure syscall.SocketDisableIPv6 flag works.
-				syscall.SocketDisableIPv6 = true
-				doDial(t, "tcp", addr)
-				doDial(t, "tcp4", addr)
-				syscall.SocketDisableIPv6 = false
+	if ip4 != nil {
+		for i, lit4 := range literalAddrs4 {
+			if strings.Contains(lit4, "%") {
+				literalAddrs4[i] = fmt.Sprintf(lit4, ip4[0], ip4[1], ip4[2], ip4[3])
 			}
 		}
+		lits4 = literalAddrs4[:]
 	}
+	if ip6 != nil {
+		for i, lit6 := range literalAddrs6 {
+			if strings.Contains(lit6, "%") {
+				literalAddrs6[i] = fmt.Sprintf(lit6, ip6[0], ip6[1], ip6[2], ip6[3], ip6[4], ip6[5], ip6[6], ip6[7], ip6[8], ip6[9], ip6[10], ip6[11], ip6[12], ip6[13], ip6[14], ip6[15])
+			}
+		}
+		lits6 = literalAddrs6[:]
+	}
+	return
 }
 
-var googleaddrsipv6 = []string{
-	"[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x]:80",
-	"ipv6.google.com:80",
-	"[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x]:http",
-	"ipv6.google.com:http",
-}
-
-func TestDialGoogleIPv6(t *testing.T) {
-	if testing.Short() || !*testExternal {
-		t.Skip("skipping test to avoid external network")
-	}
-	// Only run tcp6 if the kernel will take it.
-	if !supportsIPv6 {
-		t.Skip("skipping test; ipv6 is not supported")
-	}
-	if !*testIPv6 {
-		t.Skip("test disabled; use -ipv6 to enable")
-	}
-
-	// Insert an actual IPv6 address for ipv6.google.com
-	// into the table.
-	addrs, err := LookupIP("ipv6.google.com")
+func fetchGoogle(dial func(string, string) (Conn, error), network, address string) error {
+	c, err := dial(network, address)
 	if err != nil {
-		t.Fatalf("lookup ipv6.google.com: %v", err)
+		return err
 	}
-	var ip IP
-	for _, addr := range addrs {
-		if x := addr.To16(); x != nil {
-			ip = x
-			break
-		}
+	defer c.Close()
+	req := []byte("GET /robots.txt HTTP/1.0\r\nHost: www.google.com\r\n\r\n")
+	if _, err := c.Write(req); err != nil {
+		return err
 	}
-	if ip == nil {
-		t.Fatalf("no IPv6 addresses for ipv6.google.com")
+	b := make([]byte, 1000)
+	n, err := io.ReadFull(c, b)
+	if err != nil {
+		return err
 	}
-
-	for i, s := range googleaddrsipv6 {
-		if strings.Contains(s, "%") {
-			googleaddrsipv6[i] = fmt.Sprintf(s, ip[0], ip[1], ip[2], ip[3], ip[4], ip[5], ip[6], ip[7], ip[8], ip[9], ip[10], ip[11], ip[12], ip[13], ip[14], ip[15])
-		}
+	if n < 1000 {
+		return fmt.Errorf("short read from %s:%s->%s", network, c.RemoteAddr(), c.LocalAddr())
 	}
-
-	for i := 0; i < len(googleaddrsipv6); i++ {
-		addr := googleaddrsipv6[i]
-		if addr == "" {
-			continue
-		}
-		t.Logf("-- %s --", addr)
-		doDial(t, "tcp", addr)
-		doDial(t, "tcp6", addr)
-	}
+	return nil
 }
