@@ -948,10 +948,7 @@ func addpesym(s *LSym, name string, type_ int, addr int64, size int64, ver int, 
 	default:
 		return
 
-	case 'D',
-		'B',
-		'T',
-		'U':
+	case 'D', 'B', 'T', 'U':
 		break
 	}
 

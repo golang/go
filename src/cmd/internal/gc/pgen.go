@@ -93,9 +93,7 @@ func gvardefx(n *Node, as int) {
 	}
 
 	switch n.Class {
-	case PAUTO,
-		PPARAM,
-		PPARAMOUT:
+	case PAUTO, PPARAM, PPARAMOUT:
 		Thearch.Gins(as, nil, n)
 	}
 }
@@ -473,9 +471,7 @@ func compile(fn *Node) {
 			continue
 		}
 		switch n.Class {
-		case PAUTO,
-			PPARAM,
-			PPARAMOUT:
+		case PAUTO, PPARAM, PPARAMOUT:
 			Nodconst(&nod1, Types[TUINTPTR], l.N.Type.Width)
 			p = Thearch.Gins(obj.ATYPE, l.N, &nod1)
 			p.From.Gotype = Linksym(ngotype(l.N))

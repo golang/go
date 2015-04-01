@@ -232,8 +232,7 @@ func walkstmt(np **Node) {
 	case ODEFER:
 		Hasdefer = 1
 		switch n.Left.Op {
-		case OPRINT,
-			OPRINTN:
+		case OPRINT, OPRINTN:
 			walkprintfunc(&n.Left, &n.Ninit)
 
 		case OCOPY:
@@ -265,8 +264,7 @@ func walkstmt(np **Node) {
 
 	case OPROC:
 		switch n.Left.Op {
-		case OPRINT,
-			OPRINTN:
+		case OPRINT, OPRINTN:
 			walkprintfunc(&n.Left, &n.Ninit)
 
 		case OCOPY:
@@ -466,13 +464,11 @@ func walkexpr(np **Node, init **NodeList) {
 		walkexpr(&n.Right, init)
 		goto ret
 
-	case OSPTR,
-		OITAB:
+	case OSPTR, OITAB:
 		walkexpr(&n.Left, init)
 		goto ret
 
-	case OLEN,
-		OCAP:
+	case OLEN, OCAP:
 		walkexpr(&n.Left, init)
 
 		// replace len(*[10]int) with 10.
@@ -490,8 +486,7 @@ func walkexpr(np **Node, init **NodeList) {
 
 		goto ret
 
-	case OLSH,
-		ORSH:
+	case OLSH, ORSH:
 		walkexpr(&n.Left, init)
 		walkexpr(&n.Right, init)
 		t := n.Left.Type
@@ -521,15 +516,13 @@ func walkexpr(np **Node, init **NodeList) {
 		walkexpr(&n.Right, init)
 		goto ret
 
-	case OOR,
-		OXOR:
+	case OOR, OXOR:
 		walkexpr(&n.Left, init)
 		walkexpr(&n.Right, init)
 		walkrotate(&n)
 		goto ret
 
-	case OEQ,
-		ONE:
+	case OEQ, ONE:
 		walkexpr(&n.Left, init)
 		walkexpr(&n.Right, init)
 
@@ -545,8 +538,7 @@ func walkexpr(np **Node, init **NodeList) {
 		safemode = old_safemode
 		goto ret
 
-	case OANDAND,
-		OOROR:
+	case OANDAND, OOROR:
 		walkexpr(&n.Left, init)
 
 		// cannot put side effects from n.Right on init,
@@ -558,8 +550,7 @@ func walkexpr(np **Node, init **NodeList) {
 		addinit(&n.Right, ll)
 		goto ret
 
-	case OPRINT,
-		OPRINTN:
+	case OPRINT, OPRINTN:
 		walkexprlist(n.List, init)
 		n = walkprint(n, init)
 		goto ret
@@ -576,8 +567,7 @@ func walkexpr(np **Node, init **NodeList) {
 		n.Addable = 1
 		goto ret
 
-	case OCLOSUREVAR,
-		OCFUNC:
+	case OCLOSUREVAR, OCFUNC:
 		n.Addable = 1
 		goto ret
 
@@ -784,12 +774,10 @@ func walkexpr(np **Node, init **NodeList) {
 		p := ""
 		if t.Type.Width <= 128 { // Check ../../runtime/hashmap.go:maxValueSize before changing.
 			switch Simsimtype(t.Down) {
-			case TINT32,
-				TUINT32:
+			case TINT32, TUINT32:
 				p = "mapaccess2_fast32"
 
-			case TINT64,
-				TUINT64:
+			case TINT64, TUINT64:
 				p = "mapaccess2_fast64"
 
 			case TSTRING:
@@ -1066,8 +1054,7 @@ func walkexpr(np **Node, init **NodeList) {
 		walkexpr(&n, init)
 		goto ret
 
-	case OCONV,
-		OCONVNOP:
+	case OCONV, OCONVNOP:
 		if Thearch.Thechar == '5' {
 			if Isfloat[n.Left.Type.Etype] {
 				if n.Type.Etype == TINT64 {
@@ -1111,8 +1098,7 @@ func walkexpr(np **Node, init **NodeList) {
 		walkmul(&n, init)
 		goto ret
 
-	case ODIV,
-		OMOD:
+	case ODIV, OMOD:
 		walkexpr(&n.Left, init)
 		walkexpr(&n.Right, init)
 
@@ -1141,8 +1127,7 @@ func walkexpr(np **Node, init **NodeList) {
 		 * on 32-bit architectures.
 		 */
 		switch n.Op {
-		case OMOD,
-			ODIV:
+		case OMOD, ODIV:
 			if Widthreg >= 8 || (et != TUINT64 && et != TINT64) {
 				goto ret
 			}
@@ -1229,12 +1214,10 @@ func walkexpr(np **Node, init **NodeList) {
 		p := ""
 		if t.Type.Width <= 128 { // Check ../../runtime/hashmap.go:maxValueSize before changing.
 			switch Simsimtype(t.Down) {
-			case TINT32,
-				TUINT32:
+			case TINT32, TUINT32:
 				p = "mapaccess1_fast32"
 
-			case TINT64,
-				TUINT64:
+			case TINT64, TUINT64:
 				p = "mapaccess1_fast64"
 
 			case TSTRING:
@@ -1277,8 +1260,7 @@ func walkexpr(np **Node, init **NodeList) {
 		fallthrough
 
 		// fallthrough
-	case OSLICEARR,
-		OSLICESTR:
+	case OSLICEARR, OSLICESTR:
 		if n.Right == nil { // already processed
 			goto ret
 		}
@@ -1299,8 +1281,7 @@ func walkexpr(np **Node, init **NodeList) {
 		n = sliceany(n, init) // chops n.Right, sets n.List
 		goto ret
 
-	case OSLICE3,
-		OSLICE3ARR:
+	case OSLICE3, OSLICE3ARR:
 		if n.Right == nil { // already processed
 			goto ret
 		}
@@ -1606,10 +1587,7 @@ func walkexpr(np **Node, init **NodeList) {
 		n = r
 		goto ret
 
-	case OARRAYLIT,
-		OMAPLIT,
-		OSTRUCTLIT,
-		OPTRLIT:
+	case OARRAYLIT, OMAPLIT, OSTRUCTLIT, OPTRLIT:
 		var_ := temp(n.Type)
 		anylit(0, n, var_, init)
 		n = var_
@@ -2125,9 +2103,7 @@ func isstack(n *Node) bool {
 
 	case ONAME:
 		switch n.Class {
-		case PAUTO,
-			PPARAM,
-			PPARAMOUT:
+		case PAUTO, PPARAM, PPARAMOUT:
 			return true
 		}
 	}
@@ -2207,10 +2183,7 @@ func needwritebarrier(l *Node, r *Node) bool {
 	// small compared to the cost of the allocation.)
 	if r.Reslice {
 		switch r.Op {
-		case OSLICE,
-			OSLICE3,
-			OSLICESTR,
-			OAPPEND:
+		case OSLICE, OSLICE3, OSLICESTR, OAPPEND:
 			break
 
 		default:
@@ -2449,16 +2422,14 @@ func reorder3(all *NodeList) *NodeList {
 		case ONAME:
 			break
 
-		case OINDEX,
-			OINDEXMAP:
+		case OINDEX, OINDEXMAP:
 			reorder3save(&l.Left, all, list, &early)
 			reorder3save(&l.Right, all, list, &early)
 			if l.Op == OINDEXMAP {
 				list.N = convas(list.N, &mapinit)
 			}
 
-		case OIND,
-			ODOTPTR:
+		case OIND, ODOTPTR:
 			reorder3save(&l.Left, all, list, &early)
 		}
 
@@ -2544,9 +2515,7 @@ func aliased(n *Node, all *NodeList, stop *NodeList) bool {
 			varwrite = 1
 			continue
 
-		case PAUTO,
-			PPARAM,
-			PPARAMOUT:
+		case PAUTO, PPARAM, PPARAMOUT:
 			if n.Addrtaken {
 				varwrite = 1
 				continue
@@ -2596,9 +2565,7 @@ func varexpr(n *Node) bool {
 
 	case ONAME:
 		switch n.Class {
-		case PAUTO,
-			PPARAM,
-			PPARAMOUT:
+		case PAUTO, PPARAM, PPARAMOUT:
 			if !n.Addrtaken {
 				return true
 			}
@@ -2679,9 +2646,7 @@ func vmatch1(l *Node, r *Node) bool {
 	switch l.Op {
 	case ONAME:
 		switch l.Class {
-		case PPARAM,
-			PPARAMREF,
-			PAUTO:
+		case PPARAM, PPARAMREF, PAUTO:
 			break
 
 			// assignment to non-stack variable
@@ -3622,8 +3587,7 @@ func samecheap(a *Node, b *Node) bool {
 		case ONAME:
 			return a == b
 
-		case ODOT,
-			ODOTPTR:
+		case ODOT, ODOTPTR:
 			ar = a.Right
 			br = b.Right
 			if ar.Op != ONAME || br.Op != ONAME || ar.Sym != br.Sym {
@@ -3845,9 +3809,7 @@ func walkdiv(np **Node, init **NodeList) {
 			return
 
 			// n1 = nl * magic >> w (HMUL)
-		case TUINT8,
-			TUINT16,
-			TUINT32:
+		case TUINT8, TUINT16, TUINT32:
 			nc := Nod(OXXX, nil, nil)
 
 			Nodconst(nc, nl.Type, int64(m.Um))
@@ -3861,15 +3823,13 @@ func walkdiv(np **Node, init **NodeList) {
 				default:
 					return
 
-				case TUINT8,
-					TUINT16:
+				case TUINT8, TUINT16:
 					twide = Types[TUINT32]
 
 				case TUINT32:
 					twide = Types[TUINT64]
 
-				case TINT8,
-					TINT16:
+				case TINT8, TINT16:
 					twide = Types[TINT32]
 
 				case TINT32:
@@ -3894,9 +3854,7 @@ func walkdiv(np **Node, init **NodeList) {
 			}
 
 			// n1 = nl * magic >> w
-		case TINT8,
-			TINT16,
-			TINT32:
+		case TINT8, TINT16, TINT32:
 			nc := Nod(OXXX, nil, nil)
 
 			Nodconst(nc, nl.Type, m.Sm)
@@ -4111,8 +4069,7 @@ func usefield(n *Node) {
 	default:
 		Fatal("usefield %v", Oconv(int(n.Op), 0))
 
-	case ODOT,
-		ODOTPTR:
+	case ODOT, ODOTPTR:
 		break
 	}
 
@@ -4220,8 +4177,7 @@ func candiscard(n *Node) bool {
 		break
 
 		// Discardable as long as we know it's not division by zero.
-	case ODIV,
-		OMOD:
+	case ODIV, OMOD:
 		if Isconst(n.Right, CTINT) && mpcmpfixc(n.Right.Val.U.Xval, 0) != 0 {
 			break
 		}
@@ -4231,8 +4187,7 @@ func candiscard(n *Node) bool {
 		return false
 
 		// Discardable as long as we know it won't fail because of a bad size.
-	case OMAKECHAN,
-		OMAKEMAP:
+	case OMAKECHAN, OMAKEMAP:
 		if Isconst(n.Left, CTINT) && mpcmpfixc(n.Left.Val.U.Xval, 0) == 0 {
 			break
 		}

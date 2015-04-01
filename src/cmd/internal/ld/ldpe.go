@@ -312,16 +312,14 @@ func ldpe(f *Biobuf, pkg string, length int64, pn string) {
 				Diag("%s: unknown relocation type %d;", pn, type_)
 				fallthrough
 
-			case IMAGE_REL_I386_REL32,
-				IMAGE_REL_AMD64_REL32,
+			case IMAGE_REL_I386_REL32, IMAGE_REL_AMD64_REL32,
 				IMAGE_REL_AMD64_ADDR32, // R_X86_64_PC32
 				IMAGE_REL_AMD64_ADDR32NB:
 				rp.Type = R_PCREL
 
 				rp.Add = int64(int32(Le32(rsect.base[rp.Off:])))
 
-			case IMAGE_REL_I386_DIR32NB,
-				IMAGE_REL_I386_DIR32:
+			case IMAGE_REL_I386_DIR32NB, IMAGE_REL_I386_DIR32:
 				rp.Type = R_ADDR
 
 				// load addend from image
@@ -510,15 +508,12 @@ func readpesym(peobj *PeObj, i int, y **PeSym) (err error) {
 		err = fmt.Errorf("%s: invalid symbol type %d", sym.name, sym.type_)
 		return err
 
-	case IMAGE_SYM_DTYPE_FUNCTION,
-		IMAGE_SYM_DTYPE_NULL:
+	case IMAGE_SYM_DTYPE_FUNCTION, IMAGE_SYM_DTYPE_NULL:
 		switch sym.sclass {
 		case IMAGE_SYM_CLASS_EXTERNAL: //global
 			s = Linklookup(Ctxt, name, 0)
 
-		case IMAGE_SYM_CLASS_NULL,
-			IMAGE_SYM_CLASS_STATIC,
-			IMAGE_SYM_CLASS_LABEL:
+		case IMAGE_SYM_CLASS_NULL, IMAGE_SYM_CLASS_STATIC, IMAGE_SYM_CLASS_LABEL:
 			s = Linklookup(Ctxt, name, Ctxt.Version)
 			s.Dupok = 1
 

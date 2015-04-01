@@ -62,8 +62,7 @@ func unsafenmagic(nn *Node) *Node {
 		base := r.Left
 		typecheck(&r, Erv)
 		switch r.Op {
-		case ODOT,
-			ODOTPTR:
+		case ODOT, ODOTPTR:
 			break
 
 		case OCALLPART:

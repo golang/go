@@ -129,8 +129,7 @@ func walkselect(sel *Node) {
 			case OSEND:
 				ch = n.Left
 
-			case OSELRECV,
-				OSELRECV2:
+			case OSELRECV, OSELRECV2:
 				ch = n.Right.Left
 				if n.Op == OSELRECV || n.Ntest == nil {
 					if n.Left == nil {
@@ -185,8 +184,7 @@ func walkselect(sel *Node) {
 			n.Right = Nod(OADDR, n.Right, nil)
 			typecheck(&n.Right, Erv)
 
-		case OSELRECV,
-			OSELRECV2:
+		case OSELRECV, OSELRECV2:
 			if n.Op == OSELRECV2 && n.Ntest == nil {
 				n.Op = OSELRECV
 			}

@@ -198,9 +198,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			p.Mark |= LABEL | SYNC
 			continue
 
-		case AMOVW,
-			AMOVWZ,
-			AMOVD:
+		case AMOVW, AMOVWZ, AMOVD:
 			q = p
 			if p.From.Reg >= REG_SPECIAL || p.To.Reg >= REG_SPECIAL {
 				p.Mark |= LABEL | SYNC
@@ -285,8 +283,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			}
 			continue
 
-		case AFCMPO,
-			AFCMPU:
+		case AFCMPO, AFCMPU:
 			q = p
 			p.Mark |= FCMP | FLOAT
 			continue

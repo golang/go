@@ -340,8 +340,7 @@ func mpatoflt(a *Mpflt, as string) {
 		c := s[0]
 		s = s[1:]
 		switch c {
-		case '-',
-			'+':
+		case '-', '+':
 			break
 
 		case '0':
@@ -411,9 +410,7 @@ func mpatoflt(a *Mpflt, as string) {
 			f = 1
 			fallthrough
 
-		case ' ',
-			'\t',
-			'+':
+		case ' ', '\t', '+':
 			continue
 
 		case '.':
@@ -442,13 +439,11 @@ func mpatoflt(a *Mpflt, as string) {
 			}
 			continue
 
-		case 'P',
-			'p':
+		case 'P', 'p':
 			eb = 1
 			fallthrough
 
-		case 'E',
-			'e':
+		case 'E', 'e':
 			ex = 0
 			ef = 0
 			for {

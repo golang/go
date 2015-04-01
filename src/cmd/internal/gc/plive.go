@@ -243,8 +243,7 @@ func getvariables(fn *Node) []*Node {
 					result = append(result, ll.N)
 				}
 
-			case PPARAM,
-				PPARAMOUT:
+			case PPARAM, PPARAMOUT:
 				ll.N.Opt = int32(len(result))
 				result = append(result, ll.N)
 			}
@@ -616,9 +615,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar Bvec, varkill Bvec, avarini
 		from := &prog.From
 		if from.Node != nil && from.Sym != nil && ((from.Node).(*Node)).Curfn == Curfn {
 			switch ((from.Node).(*Node)).Class &^ PHEAP {
-			case PAUTO,
-				PPARAM,
-				PPARAMOUT:
+			case PAUTO, PPARAM, PPARAMOUT:
 				pos, ok := from.Node.(*Node).Opt.(int32) // index in vars
 				if !ok {
 					goto Next
@@ -647,9 +644,7 @@ Next:
 		to := &prog.To
 		if to.Node != nil && to.Sym != nil && ((to.Node).(*Node)).Curfn == Curfn {
 			switch ((to.Node).(*Node)).Class &^ PHEAP {
-			case PAUTO,
-				PPARAM,
-				PPARAMOUT:
+			case PAUTO, PPARAM, PPARAMOUT:
 				pos, ok := to.Node.(*Node).Opt.(int32) // index in vars
 				if !ok {
 					return
@@ -1011,8 +1006,7 @@ func twobitlivepointermap(lv *Liveness, liveout Bvec, vars []*Node, args Bvec, l
 			xoffset = node.Xoffset + stkptrsize
 			twobitwalktype1(node.Type, &xoffset, locals)
 
-		case PPARAM,
-			PPARAMOUT:
+		case PPARAM, PPARAMOUT:
 			xoffset = node.Xoffset
 			twobitwalktype1(node.Type, &xoffset, args)
 		}
@@ -1202,8 +1196,7 @@ func livenesssolve(lv *Liveness) {
 // Check whether n is marked live in args/locals.
 func islive(n *Node, args Bvec, locals Bvec) bool {
 	switch n.Class {
-	case PPARAM,
-		PPARAMOUT:
+	case PPARAM, PPARAMOUT:
 		for i := 0; int64(i) < n.Type.Width/int64(Widthptr)*obj.BitsPerPointer; i++ {
 			if bvget(args, int32(n.Xoffset/int64(Widthptr)*obj.BitsPerPointer+int64(i))) != 0 {
 				return true

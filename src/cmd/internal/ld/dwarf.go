@@ -1557,10 +1557,7 @@ func defdwsymb(sym *LSym, s string, t int, v int64, size int64, ver int, gotype 
 	default:
 		return
 
-	case 'd',
-		'b',
-		'D',
-		'B':
+	case 'd', 'b', 'D', 'B':
 		dv = newdie(&dwglobals, DW_ABRV_VARIABLE, s)
 		newabslocexprattr(dv, v, sym)
 		if ver == 0 {
@@ -1569,8 +1566,7 @@ func defdwsymb(sym *LSym, s string, t int, v int64, size int64, ver int, gotype 
 		fallthrough
 
 		// fallthrough
-	case 'a',
-		'p':
+	case 'a', 'p':
 		dt = defgotype(gotype)
 	}
 
@@ -2054,8 +2050,7 @@ func writeinfo() {
  */
 func ispubname(die *DWDie) bool {
 	switch die.abbrev {
-	case DW_ABRV_FUNCTION,
-		DW_ABRV_VARIABLE:
+	case DW_ABRV_FUNCTION, DW_ABRV_VARIABLE:
 		a := getattr(die, DW_AT_external)
 		return a != nil && a.value != 0
 	}

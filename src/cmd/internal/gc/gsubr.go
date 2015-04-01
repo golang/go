@@ -250,9 +250,7 @@ func gused(n *Node) {
 func Isfat(t *Type) bool {
 	if t != nil {
 		switch t.Etype {
-		case TSTRUCT,
-			TARRAY,
-			TSTRING,
+		case TSTRUCT, TARRAY, TSTRING,
 			TINTER: // maybe remove later
 			return true
 		}
@@ -384,8 +382,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		case PAUTO:
 			a.Name = obj.NAME_AUTO
 
-		case PPARAM,
-			PPARAMOUT:
+		case PPARAM, PPARAMOUT:
 			a.Name = obj.NAME_PARAM
 
 		case PFUNC:
@@ -409,8 +406,7 @@ func Naddr(a *obj.Addr, n *Node) {
 			a.Type = obj.TYPE_FCONST
 			a.Val = mpgetflt(n.Val.U.Fval)
 
-		case CTINT,
-			CTRUNE:
+		case CTINT, CTRUNE:
 			a.Sym = nil
 			a.Type = obj.TYPE_CONST
 			a.Offset = Mpgetfix(n.Val.U.Xval)

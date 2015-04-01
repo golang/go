@@ -2044,9 +2044,7 @@ func Asmbelf(symo int64) {
 		}
 
 		switch eh.machine {
-		case EM_X86_64,
-			EM_PPC64,
-			EM_AARCH64:
+		case EM_X86_64, EM_PPC64, EM_AARCH64:
 			sh := elfshname(".rela.plt")
 			sh.type_ = SHT_RELA
 			sh.flags = SHF_ALLOC

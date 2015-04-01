@@ -1277,8 +1277,7 @@ l0:
 		 *
 		 * i said it was clumsy.
 		 */
-	case '(',
-		'[':
+	case '(', '[':
 		if loophack != 0 || _yylex_lstk != nil {
 			h = new(Loophack)
 			if h == nil {
@@ -1295,8 +1294,7 @@ l0:
 
 		goto lx
 
-	case ')',
-		']':
+	case ')', ']':
 		if _yylex_lstk != nil {
 			h = _yylex_lstk
 			loophack = h.v
@@ -1382,10 +1380,7 @@ talph:
 	case LIGNORE:
 		goto l0
 
-	case LFOR,
-		LIF,
-		LSWITCH,
-		LSELECT:
+	case LFOR, LIF, LSWITCH, LSELECT:
 		loophack = 1 // see comment about loophack above
 	}
 

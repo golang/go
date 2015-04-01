@@ -1708,15 +1708,13 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		maskgen64(ctxt, p, mask[:], uint64(d))
 		var a int
 		switch p.As {
-		case ARLDCL,
-			ARLDCLCC:
+		case ARLDCL, ARLDCLCC:
 			a = int(mask[0]) /* MB */
 			if mask[1] != 63 {
 				ctxt.Diag("invalid mask for rotate: %x (end != bit 63)\n%v", uint64(d), p)
 			}
 
-		case ARLDCR,
-			ARLDCRCC:
+		case ARLDCR, ARLDCRCC:
 			a = int(mask[1]) /* ME */
 			if mask[0] != 0 {
 				ctxt.Diag("invalid mask for rotate: %x (start != 0)\n%v", uint64(d), p)
@@ -1878,13 +1876,11 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		}
 		var a int
 		switch p.As {
-		case ASLD,
-			ASLDCC:
+		case ASLD, ASLDCC:
 			a = int(63 - v)
 			o1 = OP_RLDICR
 
-		case ASRD,
-			ASRDCC:
+		case ASRD, ASRDCC:
 			a = int(v)
 			v = 64 - v
 			o1 = OP_RLDICL
@@ -1947,22 +1943,19 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		maskgen64(ctxt, p, mask[:], uint64(d))
 		var a int
 		switch p.As {
-		case ARLDC,
-			ARLDCCC:
+		case ARLDC, ARLDCCC:
 			a = int(mask[0]) /* MB */
 			if int32(mask[1]) != (63 - v) {
 				ctxt.Diag("invalid mask for shift: %x (shift %d)\n%v", uint64(d), v, p)
 			}
 
-		case ARLDCL,
-			ARLDCLCC:
+		case ARLDCL, ARLDCLCC:
 			a = int(mask[0]) /* MB */
 			if mask[1] != 63 {
 				ctxt.Diag("invalid mask for shift: %x (shift %d)\n%v", uint64(d), v, p)
 			}
 
-		case ARLDCR,
-			ARLDCRCC:
+		case ARLDCR, ARLDCRCC:
 			a = int(mask[1]) /* ME */
 			if mask[0] != 0 {
 				ctxt.Diag("invalid mask for shift: %x (shift %d)\n%v", uint64(d), v, p)
@@ -2523,68 +2516,52 @@ func oprrr(ctxt *obj.Link, a int) int32 {
 	case ADCBZ:
 		return int32(OPVCC(31, 1014, 0, 0))
 
-	case AREM,
-		ADIVW:
+	case AREM, ADIVW:
 		return int32(OPVCC(31, 491, 0, 0))
 
-	case AREMCC,
-		ADIVWCC:
+	case AREMCC, ADIVWCC:
 		return int32(OPVCC(31, 491, 0, 1))
 
-	case AREMV,
-		ADIVWV:
+	case AREMV, ADIVWV:
 		return int32(OPVCC(31, 491, 1, 0))
 
-	case AREMVCC,
-		ADIVWVCC:
+	case AREMVCC, ADIVWVCC:
 		return int32(OPVCC(31, 491, 1, 1))
 
-	case AREMU,
-		ADIVWU:
+	case AREMU, ADIVWU:
 		return int32(OPVCC(31, 459, 0, 0))
 
-	case AREMUCC,
-		ADIVWUCC:
+	case AREMUCC, ADIVWUCC:
 		return int32(OPVCC(31, 459, 0, 1))
 
-	case AREMUV,
-		ADIVWUV:
+	case AREMUV, ADIVWUV:
 		return int32(OPVCC(31, 459, 1, 0))
 
-	case AREMUVCC,
-		ADIVWUVCC:
+	case AREMUVCC, ADIVWUVCC:
 		return int32(OPVCC(31, 459, 1, 1))
 
-	case AREMD,
-		ADIVD:
+	case AREMD, ADIVD:
 		return int32(OPVCC(31, 489, 0, 0))
 
-	case AREMDCC,
-		ADIVDCC:
+	case AREMDCC, ADIVDCC:
 		return int32(OPVCC(31, 489, 0, 1))
 
-	case AREMDV,
-		ADIVDV:
+	case AREMDV, ADIVDV:
 		return int32(OPVCC(31, 489, 1, 0))
 
-	case AREMDVCC,
-		ADIVDVCC:
+	case AREMDVCC, ADIVDVCC:
 		return int32(OPVCC(31, 489, 1, 1))
 
-	case AREMDU,
-		ADIVDU:
+	case AREMDU, ADIVDU:
 		return int32(OPVCC(31, 457, 0, 0))
 
-	case AREMDUCC,
-		ADIVDUCC:
+	case AREMDUCC, ADIVDUCC:
 		return int32(OPVCC(31, 457, 0, 1))
 
-	case AREMDUV,
-		ADIVDUV:
+	case AREMDUV, ADIVDUV:
 		return int32(OPVCC(31, 457, 1, 0))
 
-	case AREMDUVCC,
-		ADIVDUVCC:
+	case AREMDUVCC, ADIVDUVCC:
 		return int32(OPVCC(31, 457, 1, 1))
 
 	case AEIEIO:
@@ -2661,8 +2638,7 @@ func oprrr(ctxt *obj.Link, a int) int32 {
 	case AFMADDSCC:
 		return int32(OPVCC(59, 29, 0, 1))
 
-	case AFMOVS,
-		AFMOVD:
+	case AFMOVS, AFMOVD:
 		return int32(OPVCC(63, 72, 0, 0)) /* load */
 	case AFMOVDCC:
 		return int32(OPVCC(63, 72, 0, 1))
@@ -3082,13 +3058,11 @@ func opload(ctxt *obj.Link, a int) int32 {
 		return int32(OPVCC(58, 0, 0, 0) | 1<<1) /* lwa */
 
 		/* no AMOVWU */
-	case AMOVB,
-		AMOVBZ:
+	case AMOVB, AMOVBZ:
 		return int32(OPVCC(34, 0, 0, 0))
 		/* load */
 
-	case AMOVBU,
-		AMOVBZU:
+	case AMOVBU, AMOVBZU:
 		return int32(OPVCC(35, 0, 0, 0))
 	case AFMOVD:
 		return int32(OPVCC(50, 0, 0, 0))
@@ -3128,12 +3102,10 @@ func oploadx(ctxt *obj.Link, a int) int32 {
 	case AMOVWU:
 		return int32(OPVCC(31, 373, 0, 0)) /* lwaux */
 
-	case AMOVB,
-		AMOVBZ:
+	case AMOVB, AMOVBZ:
 		return int32(OPVCC(31, 87, 0, 0)) /* lbzx */
 
-	case AMOVBU,
-		AMOVBZU:
+	case AMOVBU, AMOVBZU:
 		return int32(OPVCC(31, 119, 0, 0)) /* lbzux */
 	case AFMOVD:
 		return int32(OPVCC(31, 599, 0, 0)) /* lfdx */
@@ -3178,12 +3150,10 @@ func oploadx(ctxt *obj.Link, a int) int32 {
  */
 func opstore(ctxt *obj.Link, a int) int32 {
 	switch a {
-	case AMOVB,
-		AMOVBZ:
+	case AMOVB, AMOVBZ:
 		return int32(OPVCC(38, 0, 0, 0)) /* stb */
 
-	case AMOVBU,
-		AMOVBZU:
+	case AMOVBU, AMOVBZU:
 		return int32(OPVCC(39, 0, 0, 0)) /* stbu */
 	case AFMOVD:
 		return int32(OPVCC(54, 0, 0, 0)) /* stfd */
@@ -3194,24 +3164,20 @@ func opstore(ctxt *obj.Link, a int) int32 {
 	case AFMOVSU:
 		return int32(OPVCC(53, 0, 0, 0)) /* stfsu */
 
-	case AMOVHZ,
-		AMOVH:
+	case AMOVHZ, AMOVH:
 		return int32(OPVCC(44, 0, 0, 0)) /* sth */
 
-	case AMOVHZU,
-		AMOVHU:
+	case AMOVHZU, AMOVHU:
 		return int32(OPVCC(45, 0, 0, 0)) /* sthu */
 	case AMOVMW:
 		return int32(OPVCC(47, 0, 0, 0)) /* stmw */
 	case ASTSW:
 		return int32(OPVCC(31, 725, 0, 0)) /* stswi */
 
-	case AMOVWZ,
-		AMOVW:
+	case AMOVWZ, AMOVW:
 		return int32(OPVCC(36, 0, 0, 0)) /* stw */
 
-	case AMOVWZU,
-		AMOVWU:
+	case AMOVWZU, AMOVWU:
 		return int32(OPVCC(37, 0, 0, 0)) /* stwu */
 	case AMOVD:
 		return int32(OPVCC(62, 0, 0, 0)) /* std */
@@ -3228,12 +3194,10 @@ func opstore(ctxt *obj.Link, a int) int32 {
  */
 func opstorex(ctxt *obj.Link, a int) int32 {
 	switch a {
-	case AMOVB,
-		AMOVBZ:
+	case AMOVB, AMOVBZ:
 		return int32(OPVCC(31, 215, 0, 0)) /* stbx */
 
-	case AMOVBU,
-		AMOVBZU:
+	case AMOVBU, AMOVBZU:
 		return int32(OPVCC(31, 247, 0, 0)) /* stbux */
 	case AFMOVD:
 		return int32(OPVCC(31, 727, 0, 0)) /* stfdx */
@@ -3244,22 +3208,18 @@ func opstorex(ctxt *obj.Link, a int) int32 {
 	case AFMOVSU:
 		return int32(OPVCC(31, 695, 0, 0)) /* stfsux */
 
-	case AMOVHZ,
-		AMOVH:
+	case AMOVHZ, AMOVH:
 		return int32(OPVCC(31, 407, 0, 0)) /* sthx */
 	case AMOVHBR:
 		return int32(OPVCC(31, 918, 0, 0)) /* sthbrx */
 
-	case AMOVHZU,
-		AMOVHU:
+	case AMOVHZU, AMOVHU:
 		return int32(OPVCC(31, 439, 0, 0)) /* sthux */
 
-	case AMOVWZ,
-		AMOVW:
+	case AMOVWZ, AMOVW:
 		return int32(OPVCC(31, 151, 0, 0)) /* stwx */
 
-	case AMOVWZU,
-		AMOVWU:
+	case AMOVWZU, AMOVWU:
 		return int32(OPVCC(31, 183, 0, 0)) /* stwux */
 	case ASTSW:
 		return int32(OPVCC(31, 661, 0, 0)) /* stswx */

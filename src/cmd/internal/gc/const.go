@@ -96,8 +96,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
 			return
 		}
 
-	case OLSH,
-		ORSH:
+	case OLSH, ORSH:
 		convlit1(&n.Left, t, explicit && isideal(n.Left.Type))
 		t = n.Left.Type
 		if t != nil && t.Etype == TIDEAL && n.Val.Ctype != CTINT {
@@ -199,25 +198,19 @@ func convlit1(np **Node, t *Type, explicit bool) {
 			}
 		}
 
-	case CTSTR,
-		CTBOOL:
+	case CTSTR, CTBOOL:
 		if et != int(n.Type.Etype) {
 			goto bad
 		}
 
-	case CTINT,
-		CTRUNE,
-		CTFLT,
-		CTCPLX:
+	case CTINT, CTRUNE, CTFLT, CTCPLX:
 		ct := int(n.Val.Ctype)
 		if Isint[et] {
 			switch ct {
 			default:
 				goto bad
 
-			case CTCPLX,
-				CTFLT,
-				CTRUNE:
+			case CTCPLX, CTFLT, CTRUNE:
 				n.Val = toint(n.Val)
 				fallthrough
 
@@ -230,9 +223,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
 			default:
 				goto bad
 
-			case CTCPLX,
-				CTINT,
-				CTRUNE:
+			case CTCPLX, CTINT, CTRUNE:
 				n.Val = toflt(n.Val)
 				fallthrough
 
@@ -245,9 +236,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
 			default:
 				goto bad
 
-			case CTFLT,
-				CTINT,
-				CTRUNE:
+			case CTFLT, CTINT, CTRUNE:
 				n.Val = tocplx(n.Val)
 
 			case CTCPLX:
@@ -281,8 +270,7 @@ bad:
 
 func copyval(v Val) Val {
 	switch v.Ctype {
-	case CTINT,
-		CTRUNE:
+	case CTINT, CTRUNE:
 		i := new(Mpint)
 		mpmovefixfix(i, v.U.Xval)
 		v.U.Xval = i
@@ -304,8 +292,7 @@ func copyval(v Val) Val {
 
 func tocplx(v Val) Val {
 	switch v.Ctype {
-	case CTINT,
-		CTRUNE:
+	case CTINT, CTRUNE:
 		c := new(Mpcplx)
 		Mpmovefixflt(&c.Real, v.U.Xval)
 		Mpmovecflt(&c.Imag, 0.0)
@@ -325,8 +312,7 @@ func tocplx(v Val) Val {
 
 func toflt(v Val) Val {
 	switch v.Ctype {
-	case CTINT,
-		CTRUNE:
+	case CTINT, CTRUNE:
 		f := new(Mpflt)
 		Mpmovefixflt(f, v.U.Xval)
 		v.Ctype = CTFLT
@@ -375,8 +361,7 @@ func toint(v Val) Val {
 
 func doesoverflow(v Val, t *Type) bool {
 	switch v.Ctype {
-	case CTINT,
-		CTRUNE:
+	case CTINT, CTRUNE:
 		if !Isint[t.Etype] {
 			Fatal("overflow: %v integer constant", Tconv(t, 0))
 		}
@@ -416,8 +401,7 @@ func overflow(v Val, t *Type) {
 	}
 
 	switch v.Ctype {
-	case CTINT,
-		CTRUNE:
+	case CTINT, CTRUNE:
 		Yyerror("constant %v overflows %v", Bconv(v.U.Xval, 0), Tconv(t, 0))
 
 	case CTFLT:
@@ -430,8 +414,7 @@ func overflow(v Val, t *Type) {
 
 func tostr(v Val) Val {
 	switch v.Ctype {
-	case CTINT,
-		CTRUNE:
+	case CTINT, CTRUNE:
 		if Mpcmpfixfix(v.U.Xval, Minintval[TINT]) < 0 || Mpcmpfixfix(v.U.Xval, Maxintval[TINT]) > 0 {
 			Yyerror("overflow in int -> string")
 		}
@@ -710,8 +693,7 @@ func evconst(n *Node) {
 
 		// right must be unsigned.
 	// left can be ideal.
-	case OLSH,
-		ORSH:
+	case OLSH, ORSH:
 		defaultlit(&nr, Types[TUINT])
 
 		n.Right = nr
@@ -1089,10 +1071,7 @@ func nodlit(v Val) *Node {
 	case CTBOOL:
 		n.Type = idealbool
 
-	case CTINT,
-		CTRUNE,
-		CTFLT,
-		CTCPLX:
+	case CTINT, CTRUNE, CTFLT, CTCPLX:
 		n.Type = Types[TIDEAL]
 
 	case CTNIL:
@@ -1158,8 +1137,7 @@ func idealkind(n *Node) int {
 		}
 		fallthrough
 
-	case OREAL,
-		OIMAG:
+	case OREAL, OIMAG:
 		return CTFLT
 
 	case OCOMPLEX:
@@ -1182,8 +1160,7 @@ func idealkind(n *Node) int {
 		return CTBOOL
 
 		// shifts (beware!).
-	case OLSH,
-		ORSH:
+	case OLSH, ORSH:
 		return idealkind(n.Left)
 	}
 }
@@ -1351,10 +1328,7 @@ func Smallintconst(n *Node) bool {
 			TPTR32:
 			return true
 
-		case TIDEAL,
-			TINT64,
-			TUINT64,
-			TPTR64:
+		case TIDEAL, TINT64, TUINT64, TPTR64:
 			if Mpcmpfixfix(n.Val.U.Xval, Minintval[TINT32]) < 0 || Mpcmpfixfix(n.Val.U.Xval, Maxintval[TINT32]) > 0 {
 				break
 			}
@@ -1412,8 +1386,7 @@ func iconv(x int64, et int) int64 {
 	case TUINT32:
 		x = int64(uint32(x))
 
-	case TINT64,
-		TUINT64:
+	case TINT64, TUINT64:
 		break
 	}
 
@@ -1441,8 +1414,7 @@ func Convconst(con *Node, t *Type, val *Val) {
 		default:
 			Fatal("convconst ctype=%d %v", val.Ctype, Tconv(t, obj.FmtLong))
 
-		case CTINT,
-			CTRUNE:
+		case CTINT, CTRUNE:
 			i = Mpgetfix(val.U.Xval)
 
 		case CTBOOL:
@@ -1606,8 +1578,7 @@ func isgoconst(n *Node) bool {
 			return true
 		}
 
-	case OLEN,
-		OCAP:
+	case OLEN, OCAP:
 		l := n.Left
 		if isgoconst(l) {
 			return true

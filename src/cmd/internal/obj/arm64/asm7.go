@@ -1595,8 +1595,7 @@ func buildop(ctxt *obj.Link) {
 		case ATBZ:
 			oprange[ATBNZ] = t
 
-		case AADR,
-			AADRP:
+		case AADR, AADRP:
 			break
 
 		case ACLREX:
@@ -1670,8 +1669,7 @@ func buildop(ctxt *obj.Link) {
 		case AFCSELD:
 			oprange[AFCSELS] = t
 
-		case AFMOVS,
-			AFMOVD:
+		case AFMOVS, AFMOVD:
 			break
 
 		case AFCVTZSD:
@@ -1698,16 +1696,14 @@ func buildop(ctxt *obj.Link) {
 			oprange[AIC] = t
 			oprange[ATLBI] = t
 
-		case ASYSL,
-			AHINT:
+		case ASYSL, AHINT:
 			break
 
 		case ADMB:
 			oprange[ADSB] = t
 			oprange[AISB] = t
 
-		case AMRS,
-			AMSR:
+		case AMRS, AMSR:
 			break
 
 		case ALDAR:
@@ -2518,24 +2514,19 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			as = AMOVWU /* clearer in disassembly */
 		}
 		switch as {
-		case AMOVB,
-			ASXTB:
+		case AMOVB, ASXTB:
 			o1 = opbfm(ctxt, ASBFM, 0, 7, rf, rt)
 
-		case AMOVH,
-			ASXTH:
+		case AMOVH, ASXTH:
 			o1 = opbfm(ctxt, ASBFM, 0, 15, rf, rt)
 
-		case AMOVW,
-			ASXTW:
+		case AMOVW, ASXTW:
 			o1 = opbfm(ctxt, ASBFM, 0, 31, rf, rt)
 
-		case AMOVBU,
-			AUXTB:
+		case AMOVBU, AUXTB:
 			o1 = opbfm(ctxt, AUBFM, 0, 7, rf, rt)
 
-		case AMOVHU,
-			AUXTH:
+		case AMOVHU, AUXTH:
 			o1 = opbfm(ctxt, AUBFM, 0, 15, rf, rt)
 
 		case AMOVWU:
@@ -2814,20 +2805,16 @@ func oprrr(ctxt *obj.Link, a int) uint32 {
 	case AADCSW:
 		return S32 | 0<<30 | 1<<29 | 0xd0<<21 | 0<<10
 
-	case ANGC,
-		ASBC:
+	case ANGC, ASBC:
 		return S64 | 1<<30 | 0<<29 | 0xd0<<21 | 0<<10
 
-	case ANGCS,
-		ASBCS:
+	case ANGCS, ASBCS:
 		return S64 | 1<<30 | 1<<29 | 0xd0<<21 | 0<<10
 
-	case ANGCW,
-		ASBCW:
+	case ANGCW, ASBCW:
 		return S32 | 1<<30 | 0<<29 | 0xd0<<21 | 0<<10
 
-	case ANGCSW,
-		ASBCSW:
+	case ANGCSW, ASBCSW:
 		return S32 | 1<<30 | 1<<29 | 0xd0<<21 | 0<<10
 
 	case AADD:
@@ -2836,12 +2823,10 @@ func oprrr(ctxt *obj.Link, a int) uint32 {
 	case AADDW:
 		return S32 | 0<<30 | 0<<29 | 0x0b<<24 | 0<<22 | 0<<21 | 0<<10
 
-	case ACMN,
-		AADDS:
+	case ACMN, AADDS:
 		return S64 | 0<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 0<<21 | 0<<10
 
-	case ACMNW,
-		AADDSW:
+	case ACMNW, AADDSW:
 		return S32 | 0<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 0<<21 | 0<<10
 
 	case ASUB:
@@ -2850,12 +2835,10 @@ func oprrr(ctxt *obj.Link, a int) uint32 {
 	case ASUBW:
 		return S32 | 1<<30 | 0<<29 | 0x0b<<24 | 0<<22 | 0<<21 | 0<<10
 
-	case ACMP,
-		ASUBS:
+	case ACMP, ASUBS:
 		return S64 | 1<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 0<<21 | 0<<10
 
-	case ACMPW,
-		ASUBSW:
+	case ACMPW, ASUBSW:
 		return S32 | 1<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 0<<21 | 0<<10
 
 	case AAND:
@@ -2864,13 +2847,11 @@ func oprrr(ctxt *obj.Link, a int) uint32 {
 	case AANDW:
 		return S32 | 0<<29 | 0xA<<24
 
-	case AMOVD,
-		AORR:
+	case AMOVD, AORR:
 		return S64 | 1<<29 | 0xA<<24
 
 		//	case AMOVW:
-	case AMOVWU,
-		AORRW:
+	case AMOVWU, AORRW:
 		return S32 | 1<<29 | 0xA<<24
 
 	case AEOR:
@@ -2903,12 +2884,10 @@ func oprrr(ctxt *obj.Link, a int) uint32 {
 	case AEONW:
 		return S32 | 2<<29 | 0xA<<24 | 1<<21
 
-	case AMVN,
-		AORN:
+	case AMVN, AORN:
 		return S64 | 1<<29 | 0xA<<24 | 1<<21
 
-	case AMVNW,
-		AORNW:
+	case AMVNW, AORNW:
 		return S32 | 1<<29 | 0xA<<24 | 1<<21
 
 	case AASR:
@@ -2989,44 +2968,34 @@ func oprrr(ctxt *obj.Link, a int) uint32 {
 	case ACSETMW:
 		return S32 | 1<<30 | 0<<29 | 0xD4<<21 | 0<<11 | 0<<10
 
-	case ACINC,
-		ACSINC:
+	case ACINC, ACSINC:
 		return S64 | 0<<30 | 0<<29 | 0xD4<<21 | 0<<11 | 1<<10
 
-	case ACINCW,
-		ACSINCW:
+	case ACINCW, ACSINCW:
 		return S32 | 0<<30 | 0<<29 | 0xD4<<21 | 0<<11 | 1<<10
 
-	case ACINV,
-		ACSINV:
+	case ACINV, ACSINV:
 		return S64 | 1<<30 | 0<<29 | 0xD4<<21 | 0<<11 | 0<<10
 
-	case ACINVW,
-		ACSINVW:
+	case ACINVW, ACSINVW:
 		return S32 | 1<<30 | 0<<29 | 0xD4<<21 | 0<<11 | 0<<10
 
-	case ACNEG,
-		ACSNEG:
+	case ACNEG, ACSNEG:
 		return S64 | 1<<30 | 0<<29 | 0xD4<<21 | 0<<11 | 1<<10
 
-	case ACNEGW,
-		ACSNEGW:
+	case ACNEGW, ACSNEGW:
 		return S32 | 1<<30 | 0<<29 | 0xD4<<21 | 0<<11 | 1<<10
 
-	case AMUL,
-		AMADD:
+	case AMUL, AMADD:
 		return S64 | 0<<29 | 0x1B<<24 | 0<<21 | 0<<15
 
-	case AMULW,
-		AMADDW:
+	case AMULW, AMADDW:
 		return S32 | 0<<29 | 0x1B<<24 | 0<<21 | 0<<15
 
-	case AMNEG,
-		AMSUB:
+	case AMNEG, AMSUB:
 		return S64 | 0<<29 | 0x1B<<24 | 0<<21 | 1<<15
 
-	case AMNEGW,
-		AMSUBW:
+	case AMNEGW, AMSUBW:
 		return S32 | 0<<29 | 0x1B<<24 | 0<<21 | 1<<15
 
 	case AMRS:
@@ -3047,42 +3016,34 @@ func oprrr(ctxt *obj.Link, a int) uint32 {
 	case ANEGSW:
 		return S32 | 1<<30 | 1<<29 | 0xB<<24 | 0<<21
 
-	case AREM,
-		ASDIV:
+	case AREM, ASDIV:
 		return S64 | OPDP2(3)
 
-	case AREMW,
-		ASDIVW:
+	case AREMW, ASDIVW:
 		return S32 | OPDP2(3)
 
-	case ASMULL,
-		ASMADDL:
+	case ASMULL, ASMADDL:
 		return OPDP3(1, 0, 1, 0)
 
-	case ASMNEGL,
-		ASMSUBL:
+	case ASMNEGL, ASMSUBL:
 		return OPDP3(1, 0, 1, 1)
 
 	case ASMULH:
 		return OPDP3(1, 0, 2, 0)
 
-	case AUMULL,
-		AUMADDL:
+	case AUMULL, AUMADDL:
 		return OPDP3(1, 0, 5, 0)
 
-	case AUMNEGL,
-		AUMSUBL:
+	case AUMNEGL, AUMSUBL:
 		return OPDP3(1, 0, 5, 1)
 
 	case AUMULH:
 		return OPDP3(1, 0, 6, 0)
 
-	case AUREM,
-		AUDIV:
+	case AUREM, AUDIV:
 		return S64 | OPDP2(2)
 
-	case AUREMW,
-		AUDIVW:
+	case AUREMW, AUDIVW:
 		return S32 | OPDP2(2)
 
 	case AAESE:
@@ -3356,34 +3317,28 @@ func oprrr(ctxt *obj.Link, a int) uint32 {
 func opirr(ctxt *obj.Link, a int) uint32 {
 	switch a {
 	/* op $addcon, Rn, Rd */
-	case AMOVD,
-		AADD:
+	case AMOVD, AADD:
 		return S64 | 0<<30 | 0<<29 | 0x11<<24
 
-	case ACMN,
-		AADDS:
+	case ACMN, AADDS:
 		return S64 | 0<<30 | 1<<29 | 0x11<<24
 
-	case AMOVW,
-		AADDW:
+	case AMOVW, AADDW:
 		return S32 | 0<<30 | 0<<29 | 0x11<<24
 
-	case ACMNW,
-		AADDSW:
+	case ACMNW, AADDSW:
 		return S32 | 0<<30 | 1<<29 | 0x11<<24
 
 	case ASUB:
 		return S64 | 1<<30 | 0<<29 | 0x11<<24
 
-	case ACMP,
-		ASUBS:
+	case ACMP, ASUBS:
 		return S64 | 1<<30 | 1<<29 | 0x11<<24
 
 	case ASUBW:
 		return S32 | 1<<30 | 0<<29 | 0x11<<24
 
-	case ACMPW,
-		ASUBSW:
+	case ACMPW, ASUBSW:
 		return S32 | 1<<30 | 1<<29 | 0x11<<24
 
 		/* op $imm(SB), Rd; op label, Rd */
@@ -3594,12 +3549,10 @@ func opxrrr(ctxt *obj.Link, a int) uint32 {
 	case AADDW:
 		return S32 | 0<<30 | 0<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_32
 
-	case ACMN,
-		AADDS:
+	case ACMN, AADDS:
 		return S64 | 0<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_64
 
-	case ACMNW,
-		AADDSW:
+	case ACMNW, AADDSW:
 		return S32 | 0<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_32
 
 	case ASUB:
@@ -3608,12 +3561,10 @@ func opxrrr(ctxt *obj.Link, a int) uint32 {
 	case ASUBW:
 		return S32 | 1<<30 | 0<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_32
 
-	case ACMP,
-		ASUBS:
+	case ACMP, ASUBS:
 		return S64 | 1<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_64
 
-	case ACMPW,
-		ASUBSW:
+	case ACMPW, ASUBSW:
 		return S32 | 1<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_32
 	}
 
@@ -4109,9 +4060,7 @@ func omovlit(ctxt *obj.Link, as int, p *obj.Prog, a *obj.Addr, dr int) uint32 {
 				w = 2 /* sign extend */
 			}
 
-		case AMOVB,
-			AMOVH,
-			AMOVW:
+		case AMOVB, AMOVH, AMOVW:
 			w = 2 /* 32 bit, sign-extended to 64 */
 			break
 		}
@@ -4171,16 +4120,13 @@ func movesize(a int) int {
 	case AMOVD:
 		return 3
 
-	case AMOVW,
-		AMOVWU:
+	case AMOVW, AMOVWU:
 		return 2
 
-	case AMOVH,
-		AMOVHU:
+	case AMOVH, AMOVHU:
 		return 1
 
-	case AMOVB,
-		AMOVBU:
+	case AMOVB, AMOVBU:
 		return 0
 
 	case AFMOVS:

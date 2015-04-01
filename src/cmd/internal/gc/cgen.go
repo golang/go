@@ -172,8 +172,7 @@ func Cgen(n *Node, res *Node) {
 	// can't do in walk because n->left->addable
 	// changes if n->left is an escaping local variable.
 	switch n.Op {
-	case OSPTR,
-		OLEN:
+	case OSPTR, OLEN:
 		if Isslice(n.Left.Type) || Istype(n.Left.Type, TSTRING) {
 			n.Addable = n.Left.Addable
 		}
@@ -665,9 +664,7 @@ func Cgen(n *Node, res *Node) {
 			}
 		}
 
-	case OLSH,
-		ORSH,
-		OLROT:
+	case OLSH, ORSH, OLROT:
 		Thearch.Cgen_shift(int(n.Op), n.Bounded, nl, nr, res)
 	}
 
@@ -1569,9 +1566,7 @@ func Igen(n *Node, a *Node, res *Node) {
 		Fixlargeoffset(a)
 		return
 
-	case OCALLFUNC,
-		OCALLMETH,
-		OCALLINTER:
+	case OCALLFUNC, OCALLMETH, OCALLINTER:
 		switch n.Op {
 		case OCALLFUNC:
 			cgen_call(n, 0)

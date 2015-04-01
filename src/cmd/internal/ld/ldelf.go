@@ -885,9 +885,7 @@ func readelfsym(elfobj *ElfObj, i int, sym *ElfSym, needSym int) (err error) {
 	case ElfSymTypeSection:
 		s = elfobj.sect[sym.shndx].sym
 
-	case ElfSymTypeObject,
-		ElfSymTypeFunc,
-		ElfSymTypeNone:
+	case ElfSymTypeObject, ElfSymTypeFunc, ElfSymTypeNone:
 		switch sym.bind {
 		case ElfSymBindGlobal:
 			if needSym != 0 {

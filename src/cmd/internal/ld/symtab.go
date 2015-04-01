@@ -57,9 +57,7 @@ func putelfstr(s string) int {
 
 func putelfsyment(off int, addr int64, size int64, info int, shndx int, other int) {
 	switch Thearch.Thechar {
-	case '6',
-		'7',
-		'9':
+	case '6', '7', '9':
 		Thearch.Lput(uint32(off))
 		Cput(uint8(info))
 		Cput(uint8(other))
@@ -197,10 +195,7 @@ func Asmelfsym() {
 
 func putplan9sym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *LSym) {
 	switch t {
-	case 'T',
-		'L',
-		'D',
-		'B':
+	case 'T', 'L', 'D', 'B':
 		if ver != 0 {
 			t += 'a' - 'A'
 		}

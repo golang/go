@@ -787,8 +787,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			p.To.Reg = REGLINK
 			p.Spadj = +ctxt.Autosize
 
-		case AADD,
-			ASUB:
+		case AADD, ASUB:
 			if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.From.Type == obj.TYPE_CONST {
 				if p.As == AADD {
 					p.Spadj = int32(-p.From.Offset)

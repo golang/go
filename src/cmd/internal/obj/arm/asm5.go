@@ -334,8 +334,7 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 			}
 		}
 
-	case AB,
-		ABL:
+	case AB, ABL:
 		if p.To.Type != obj.TYPE_MEM {
 			if out != nil {
 				asmout(ctxt, p, o, out)
@@ -1265,8 +1264,7 @@ func cmp(a int, b int) bool {
 	case C_HFAUTO:
 		return b == C_HAUTO || b == C_FAUTO
 
-	case C_FAUTO,
-		C_HAUTO:
+	case C_FAUTO, C_HAUTO:
 		return b == C_HFAUTO
 
 	case C_SAUTO:
@@ -1278,15 +1276,13 @@ func cmp(a int, b int) bool {
 	case C_HFOREG:
 		return b == C_HOREG || b == C_FOREG
 
-	case C_FOREG,
-		C_HOREG:
+	case C_FOREG, C_HOREG:
 		return b == C_HFOREG
 
 	case C_SROREG:
 		return cmp(C_SOREG, b) || cmp(C_ROREG, b)
 
-	case C_SOREG,
-		C_ROREG:
+	case C_SOREG, C_ROREG:
 		return b == C_SROREG || cmp(C_HFOREG, b)
 
 	case C_LOREG:
@@ -1868,8 +1864,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= (uint32(p.To.Reg) & 1) << 22
 		o1 |= (uint32(p.From.Reg) & 15) << 0
 
-	case 38,
-		39:
+	case 38, 39:
 		switch o.type_ {
 		case 38: /* movm $con,oreg -> stm */
 			o1 = 0x4 << 25
@@ -2462,8 +2457,7 @@ func oprrr(ctxt *obj.Link, a int, sc int) uint32 {
 		ctxt.Diag(".nil/.W on dp instruction")
 	}
 	switch a {
-	case AMULU,
-		AMUL:
+	case AMULU, AMUL:
 		return o | 0x0<<21 | 0x9<<4
 	case AMULA:
 		return o | 0x1<<21 | 0x9<<4
@@ -2502,9 +2496,7 @@ func oprrr(ctxt *obj.Link, a int, sc int) uint32 {
 	case AORR:
 		return o | 0xc<<21
 
-	case AMOVB,
-		AMOVH,
-		AMOVW:
+	case AMOVB, AMOVH, AMOVW:
 		return o | 0xd<<21
 	case ABIC:
 		return o | 0xe<<21
