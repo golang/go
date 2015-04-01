@@ -126,6 +126,7 @@ var listJson = cmdList.Flag.Bool("json", false, "")
 var nl = []byte{'\n'}
 
 func runList(cmd *Command, args []string) {
+	buildModeInit()
 	out := newTrackingWriter(os.Stdout)
 	defer out.w.Flush()
 
