@@ -219,6 +219,45 @@ func TestMulRangeZ(t *testing.T) {
 	}
 }
 
+func TestBinomial(t *testing.T) {
+	var z Int
+	for _, test := range []struct {
+		n, k int64
+		want string
+	}{
+		{0, 0, "1"},
+		{0, 1, "0"},
+		{1, 0, "1"},
+		{1, 1, "1"},
+		{1, 10, "0"},
+		{4, 0, "1"},
+		{4, 1, "4"},
+		{4, 2, "6"},
+		{4, 3, "4"},
+		{4, 4, "1"},
+		{10, 1, "10"},
+		{10, 9, "10"},
+		{10, 5, "252"},
+		{11, 5, "462"},
+		{11, 6, "462"},
+		{100, 10, "17310309456440"},
+		{100, 90, "17310309456440"},
+		{1000, 10, "263409560461970212832400"},
+		{1000, 990, "263409560461970212832400"},
+	} {
+		if got := z.Binomial(test.n, test.k).String(); got != test.want {
+			t.Errorf("Binomial(%d, %d) = %s; want %s", test.n, test.k, got, test.want)
+		}
+	}
+}
+
+func BenchmarkBinomial(b *testing.B) {
+	var z Int
+	for i := b.N - 1; i >= 0; i-- {
+		z.Binomial(1000, 990)
+	}
+}
+
 // Examples from the Go Language Spec, section "Arithmetic operators"
 var divisionSignsTests = []struct {
 	x, y int64
