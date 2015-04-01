@@ -9,3 +9,7 @@ func installTestHooks() {}
 func uninstallTestHooks() {}
 
 func forceCloseSockets() {}
+
+func enableSocketConnect() {}
+
+func disableSocketConnect(network string) {}

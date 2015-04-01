@@ -34,6 +34,10 @@ var (
 
 	testExternal = flag.Bool("external", true, "allow use of external networks during long test")
 
+	// If external IPv4 connectivity exists, we can try dialing
+	// non-node/interface local scope IPv4 addresses.
+	testIPv4 = flag.Bool("ipv4", true, "assume external IPv4 connectivity exists")
+
 	// If external IPv6 connectivity exists, we can try dialing
 	// non-node/interface local scope IPv6 addresses.
 	testIPv6 = flag.Bool("ipv6", false, "assume external IPv6 connectivity exists")
@@ -70,8 +74,8 @@ func printLeakedGoroutines() {
 	fmt.Fprintf(os.Stderr, "\n")
 }
 
-// leakedGoroutines returns a list of remaining goroutins used in test
-// cases.
+// leakedGoroutines returns a list of remaining goroutines used in
+// test cases.
 func leakedGoroutines() []string {
 	var gss []string
 	b := make([]byte, 2<<20)
