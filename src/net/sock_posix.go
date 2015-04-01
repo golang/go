@@ -17,8 +17,6 @@ import (
 type sockaddr interface {
 	Addr
 
-	netaddr
-
 	// family returns the platform-dependent address family
 	// identifier.
 	family() int

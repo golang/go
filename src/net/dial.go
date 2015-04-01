@@ -95,7 +95,7 @@ func parseNetwork(net string) (afnet string, proto int, err error) {
 	return "", 0, UnknownNetworkError(net)
 }
 
-func resolveAddr(op, net, addr string, deadline time.Time) (netaddr, error) {
+func resolveAddrList(op, net, addr string, deadline time.Time) (addrList, error) {
 	afnet, _, err := parseNetwork(net)
 	if err != nil {
 		return nil, err
@@ -105,9 +105,13 @@ func resolveAddr(op, net, addr string, deadline time.Time) (netaddr, error) {
 	}
 	switch afnet {
 	case "unix", "unixgram", "unixpacket":
-		return ResolveUnixAddr(afnet, addr)
+		addr, err := ResolveUnixAddr(afnet, addr)
+		if err != nil {
+			return nil, err
+		}
+		return addrList{addr}, nil
 	}
-	return resolveInternetAddr(afnet, addr, deadline)
+	return internetAddrList(afnet, addr, deadline)
 }
 
 // Dial connects to the address on the named network.
@@ -155,21 +159,25 @@ func DialTimeout(network, address string, timeout time.Duration) (Conn, error) {
 // See func Dial for a description of the network and address
 // parameters.
 func (d *Dialer) Dial(network, address string) (Conn, error) {
-	ra, err := resolveAddr("dial", network, address, d.deadline())
+	addrs, err := resolveAddrList("dial", network, address, d.deadline())
 	if err != nil {
 		return nil, &OpError{Op: "dial", Net: network, Addr: nil, Err: err}
 	}
 	var dialer func(deadline time.Time) (Conn, error)
-	if ras, ok := ra.(addrList); ok && d.DualStack && network == "tcp" {
-		dialer = func(deadline time.Time) (Conn, error) {
-			return dialMulti(network, address, d.LocalAddr, ras, deadline)
-		}
-	} else {
-		dialer = func(deadline time.Time) (Conn, error) {
-			return dialSingle(network, address, d.LocalAddr, ra.toAddr(), deadline)
+	if d.DualStack && network == "tcp" {
+		primaries, fallbacks := addrs.partition(isIPv4)
+		if len(fallbacks) > 0 {
+			dialer = func(deadline time.Time) (Conn, error) {
+				return dialMulti(network, address, d.LocalAddr, addrList{primaries[0], fallbacks[0]}, deadline)
+			}
 		}
 	}
-	c, err := dial(network, ra.toAddr(), dialer, d.deadline())
+	if dialer == nil {
+		dialer = func(deadline time.Time) (Conn, error) {
+			return dialSingle(network, address, d.LocalAddr, addrs.first(isIPv4), deadline)
+		}
+	}
+	c, err := dial(network, addrs.first(isIPv4), dialer, d.deadline())
 	if d.KeepAlive > 0 && err == nil {
 		if tc, ok := c.(*TCPConn); ok {
 			tc.SetKeepAlive(true)
@@ -206,7 +214,7 @@ func dialMulti(net, addr string, la Addr, ras addrList, deadline time.Time) (Con
 				// unnecessary resource starvation.
 				c.Close()
 			}
-		}(ra.toAddr())
+		}(ra)
 	}
 	defer close(sig)
 	lastErr := errTimeout
@@ -256,12 +264,12 @@ func dialSingle(net, addr string, la, ra Addr, deadline time.Time) (c Conn, err 
 // "tcp6", "unix" or "unixpacket".
 // See Dial for the syntax of laddr.
 func Listen(net, laddr string) (Listener, error) {
-	la, err := resolveAddr("listen", net, laddr, noDeadline)
+	addrs, err := resolveAddrList("listen", net, laddr, noDeadline)
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: net, Addr: nil, Err: err}
 	}
 	var l Listener
-	switch la := la.toAddr().(type) {
+	switch la := addrs.first(isIPv4).(type) {
 	case *TCPAddr:
 		l, err = ListenTCP(net, la)
 	case *UnixAddr:
@@ -280,12 +288,12 @@ func Listen(net, laddr string) (Listener, error) {
 // "udp6", "ip", "ip4", "ip6" or "unixgram".
 // See Dial for the syntax of laddr.
 func ListenPacket(net, laddr string) (PacketConn, error) {
-	la, err := resolveAddr("listen", net, laddr, noDeadline)
+	addrs, err := resolveAddrList("listen", net, laddr, noDeadline)
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: net, Addr: nil, Err: err}
 	}
 	var l PacketConn
-	switch la := la.toAddr().(type) {
+	switch la := addrs.first(isIPv4).(type) {
 	case *UDPAddr:
 		l, err = ListenUDP(net, la)
 	case *IPAddr:

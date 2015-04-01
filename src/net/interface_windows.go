@@ -217,11 +217,11 @@ func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
 					case *syscall.SockaddrInet4:
 						ifa := &IPAddr{IP: make(IP, IPv4len)}
 						copy(ifa.IP, sav.Addr[:])
-						ifat = append(ifat, ifa.toAddr())
+						ifat = append(ifat, ifa)
 					case *syscall.SockaddrInet6:
 						ifa := &IPAddr{IP: make(IP, IPv6len)}
 						copy(ifa.IP, sav.Addr[:])
-						ifat = append(ifat, ifa.toAddr())
+						ifat = append(ifat, ifa)
 					}
 				}
 			}

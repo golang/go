@@ -73,7 +73,10 @@ func (c *UDPConn) ReadFrom(b []byte) (int, Addr, error) {
 		return 0, nil, syscall.EINVAL
 	}
 	n, addr, err := c.ReadFromUDP(b)
-	return n, addr.toAddr(), err
+	if addr == nil {
+		return n, nil, err
+	}
+	return n, addr, err
 }
 
 // ReadMsgUDP reads a packet from c, copying the payload into b and

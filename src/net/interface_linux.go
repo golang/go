@@ -238,8 +238,8 @@ func parseProcNetIGMP(path string, ifi *Interface) []Addr {
 					b[i/2], _ = xtoi2(f[0][i:i+2], 0)
 				}
 				i := *(*uint32)(unsafe.Pointer(&b[:4][0]))
-				ifma := IPAddr{IP: IPv4(byte(i>>24), byte(i>>16), byte(i>>8), byte(i))}
-				ifmat = append(ifmat, ifma.toAddr())
+				ifma := &IPAddr{IP: IPv4(byte(i>>24), byte(i>>16), byte(i>>8), byte(i))}
+				ifmat = append(ifmat, ifma)
 			}
 		}
 	}
@@ -263,8 +263,8 @@ func parseProcNetIGMP6(path string, ifi *Interface) []Addr {
 			for i := 0; i+1 < len(f[2]); i += 2 {
 				b[i/2], _ = xtoi2(f[2][i:i+2], 0)
 			}
-			ifma := IPAddr{IP: IP{b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]}}
-			ifmat = append(ifmat, ifma.toAddr())
+			ifma := &IPAddr{IP: IP{b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]}}
+			ifmat = append(ifmat, ifma)
 		}
 	}
 	return ifmat
