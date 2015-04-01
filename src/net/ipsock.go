@@ -26,12 +26,6 @@ var (
 	supportsIPv4map bool
 )
 
-func init() {
-	sysInit()
-	supportsIPv4 = probeIPv4Stack()
-	supportsIPv6, supportsIPv4map = probeIPv6Stack()
-}
-
 // A netaddr represents a network endpoint address or a list of
 // network endpoint addresses.
 type netaddr interface {

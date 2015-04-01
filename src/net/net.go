@@ -46,6 +46,12 @@ import (
 	"time"
 )
 
+func init() {
+	sysInit()
+	supportsIPv4 = probeIPv4Stack()
+	supportsIPv6, supportsIPv4map = probeIPv6Stack()
+}
+
 // Addr represents a network end point address.
 type Addr interface {
 	Network() string // name of the network
