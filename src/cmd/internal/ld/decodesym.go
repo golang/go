@@ -67,10 +67,20 @@ func decodetype_size(s *LSym) int64 {
 
 // Type.commonType.gc
 func decodetype_gcprog(s *LSym) *LSym {
+	if s.Type == obj.SDYNIMPORT {
+		// The gcprog for "type.$name" is calle "type..gcprog.$name".
+		x := "type..gcprog." + s.Name[5:]
+		return Linklookup(Ctxt, x, 0)
+	}
 	return decode_reloc_sym(s, 1*int32(Thearch.Ptrsize)+8+2*int32(Thearch.Ptrsize))
 }
 
 func decodetype_gcmask(s *LSym) []byte {
+	if s.Type == obj.SDYNIMPORT {
+		// ldshlibsyms makes special efforts to read the value
+		// of gcmask for types defined in that shared library.
+		return s.gcmask
+	}
 	mask := decode_reloc_sym(s, 1*int32(Thearch.Ptrsize)+8+1*int32(Thearch.Ptrsize))
 	return mask.P
 }
