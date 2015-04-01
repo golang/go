@@ -95,8 +95,7 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
 		}
 		return
 
-	case TYPE_FCONST,
-		TYPE_SCONST:
+	case TYPE_FCONST, TYPE_SCONST:
 		if a.Reg != 0 || a.Index != 0 || a.Scale != 0 || a.Name != 0 || a.Offset != 0 || a.Sym != nil {
 			break
 		}

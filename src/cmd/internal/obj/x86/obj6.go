@@ -317,9 +317,7 @@ func nacladdr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 	if a.Type == obj.TYPE_MEM && a.Name == obj.NAME_NONE {
 		switch a.Reg {
 		// all ok
-		case REG_BP,
-			REG_SP,
-			REG_R15:
+		case REG_BP, REG_SP, REG_R15:
 			break
 
 		default:
@@ -641,38 +639,32 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		default:
 			continue
 
-		case APUSHL,
-			APUSHFL:
+		case APUSHL, APUSHFL:
 			deltasp += 4
 			p.Spadj = 4
 			continue
 
-		case APUSHQ,
-			APUSHFQ:
+		case APUSHQ, APUSHFQ:
 			deltasp += 8
 			p.Spadj = 8
 			continue
 
-		case APUSHW,
-			APUSHFW:
+		case APUSHW, APUSHFW:
 			deltasp += 2
 			p.Spadj = 2
 			continue
 
-		case APOPL,
-			APOPFL:
+		case APOPL, APOPFL:
 			deltasp -= 4
 			p.Spadj = -4
 			continue
 
-		case APOPQ,
-			APOPFQ:
+		case APOPQ, APOPFQ:
 			deltasp -= 8
 			p.Spadj = -8
 			continue
 
-		case APOPW,
-			APOPFW:
+		case APOPW, APOPFW:
 			deltasp -= 2
 			p.Spadj = -2
 			continue

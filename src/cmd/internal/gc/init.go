@@ -54,10 +54,7 @@ func anyinit(n *NodeList) bool {
 	// are there any interesting init statements
 	for l := n; l != nil; l = l.Next {
 		switch l.N.Op {
-		case ODCLFUNC,
-			ODCLCONST,
-			ODCLTYPE,
-			OEMPTY:
+		case ODCLFUNC, ODCLCONST, ODCLTYPE, OEMPTY:
 			break
 
 		case OAS:

@@ -200,10 +200,7 @@ func ishairy(n *Node, budget *int) bool {
 		}
 
 	// Things that are too hairy, irrespective of the budget
-	case OCALL,
-		OCALLINTER,
-		OPANIC,
-		ORECOVER:
+	case OCALL, OCALLINTER, OPANIC, ORECOVER:
 		if Debug['l'] < 4 {
 			return true
 		}
@@ -244,9 +241,7 @@ func inlcopy(n *Node) *Node {
 	}
 
 	switch n.Op {
-	case ONAME,
-		OTYPE,
-		OLITERAL:
+	case ONAME, OTYPE, OLITERAL:
 		return n
 	}
 
@@ -338,11 +333,9 @@ func inlnode(np **Node) {
 
 	switch n.Op {
 	// inhibit inlining of their argument
-	case ODEFER,
-		OPROC:
+	case ODEFER, OPROC:
 		switch n.Left.Op {
-		case OCALLFUNC,
-			OCALLMETH:
+		case OCALLFUNC, OCALLMETH:
 			n.Left.Etype = n.Op
 		}
 		fallthrough
@@ -453,8 +446,7 @@ func inlnode(np **Node) {
 	// transmogrify this node itself unless inhibited by the
 	// switch at the top of this function.
 	switch n.Op {
-	case OCALLFUNC,
-		OCALLMETH:
+	case OCALLFUNC, OCALLMETH:
 		if n.Etype == OPROC || n.Etype == ODEFER {
 			return
 		}
@@ -647,10 +639,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 
 	if n.List != nil && n.List.Next == nil {
 		switch n.List.N.Op {
-		case OCALL,
-			OCALLFUNC,
-			OCALLINTER,
-			OCALLMETH:
+		case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH:
 			if n.List.N.Left.Type.Outtuple > 1 {
 				multiret = n.List.N.Left.Type.Outtuple - 1
 			}
@@ -920,8 +909,7 @@ func inlsubst(n *Node) *Node {
 		}
 		return n
 
-	case OLITERAL,
-		OTYPE:
+	case OLITERAL, OTYPE:
 		return n
 
 		// Since we don't handle bodies with closures, this return is guaranteed to belong to the current inlined function.
@@ -950,8 +938,7 @@ func inlsubst(n *Node) *Node {
 		//		dump("Return after substitution", m);
 		return m
 
-	case OGOTO,
-		OLABEL:
+	case OGOTO, OLABEL:
 		m := Nod(OXXX, nil, nil)
 		*m = *n
 		m.Ninit = nil

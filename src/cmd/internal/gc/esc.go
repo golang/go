@@ -234,8 +234,7 @@ var tags [16]*string
 // mktag returns the string representation for an escape analysis tag.
 func mktag(mask int) *string {
 	switch mask & EscMask {
-	case EscNone,
-		EscReturn:
+	case EscNone, EscReturn:
 		break
 
 	default:
@@ -538,8 +537,7 @@ func esc(e *EscState, n *Node, up *Node) {
 	// This assignment is a no-op for escape analysis,
 	// it does not store any new pointers into b that were not already there.
 	// However, without this special case b will escape, because we assign to OIND/ODOTPTR.
-	case OAS,
-		OASOP:
+	case OAS, OASOP:
 		if (n.Left.Op == OIND || n.Left.Op == ODOTPTR) && n.Left.Left.Op == ONAME && // dst is ONAME dereference
 			(n.Right.Op == OSLICE || n.Right.Op == OSLICE3 || n.Right.Op == OSLICESTR) && // src is slice operation
 			(n.Right.Left.Op == OIND || n.Right.Left.Op == ODOTPTR) && n.Right.Left.Left.Op == ONAME && // slice is applied to ONAME dereference
@@ -604,9 +602,7 @@ func esc(e *EscState, n *Node, up *Node) {
 			escassign(e, &e.theSink, ll.N)
 		}
 
-	case OCALLMETH,
-		OCALLFUNC,
-		OCALLINTER:
+	case OCALLMETH, OCALLFUNC, OCALLINTER:
 		esccall(e, n, up)
 
 		// esccall already done on n->rlist->n. tie it's escretval to n->list
@@ -653,8 +649,7 @@ func esc(e *EscState, n *Node, up *Node) {
 			}
 		}
 
-	case OCONV,
-		OCONVNOP:
+	case OCONV, OCONVNOP:
 		escassign(e, n, n.Left)
 
 	case OCONVIFACE:
@@ -780,8 +775,7 @@ func esc(e *EscState, n *Node, up *Node) {
 			// so that writing the address of one result
 			// to another (or the same) result makes the
 			// first result move to the heap.
-			case PPARAM,
-				PPARAMOUT:
+			case PPARAM, PPARAMOUT:
 				n.Escloopdepth = 1
 			}
 		}
@@ -847,8 +841,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
 
 		dst = &e.theSink // lose track of dereference
 
-	case OIND,
-		ODOTPTR:
+	case OIND, ODOTPTR:
 		dst = &e.theSink // lose track of dereference
 
 		// lose track of key and value
@@ -889,9 +882,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
 
 		// Flowing multiple returns to a single dst happens when
 	// analyzing "go f(g())": here g() flows to sink (issue 4529).
-	case OCALLMETH,
-		OCALLFUNC,
-		OCALLINTER:
+	case OCALLMETH, OCALLFUNC, OCALLINTER:
 		for ll := src.Escretval; ll != nil; ll = ll.Next {
 			escflows(e, dst, ll.N)
 		}
@@ -1204,8 +1195,7 @@ func escflows(e *EscState, dst *Node, src *Node) {
 // escaping to the global scope.
 func escflood(e *EscState, dst *Node) {
 	switch dst.Op {
-	case ONAME,
-		OCLOSURE:
+	case ONAME, OCLOSURE:
 		break
 
 	default:
@@ -1311,8 +1301,7 @@ func escwalk(e *EscState, level int, dst *Node, src *Node) {
 			escwalk(e, level, dst, src.Closure)
 		}
 
-	case OPTRLIT,
-		OADDR:
+	case OPTRLIT, OADDR:
 		if leaks {
 			src.Esc = EscHeap
 			addrescapes(src.Left)
@@ -1372,9 +1361,7 @@ func escwalk(e *EscState, level int, dst *Node, src *Node) {
 		fallthrough
 
 		// fall through
-	case ODOTPTR,
-		OINDEXMAP,
-		OIND:
+	case ODOTPTR, OINDEXMAP, OIND:
 		newlevel := level
 
 		if level > MinLevel {

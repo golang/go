@@ -257,10 +257,7 @@ func setlineno(n *Node) int32 {
 	lno := lineno
 	if n != nil {
 		switch n.Op {
-		case ONAME,
-			OTYPE,
-			OPACK,
-			OLITERAL:
+		case ONAME, OTYPE, OPACK, OLITERAL:
 			break
 
 		default:
@@ -435,8 +432,7 @@ func algtype1(t *Type, bad **Type) int {
 
 	switch t.Etype {
 	// will be defined later.
-	case TANY,
-		TFORW:
+	case TANY, TFORW:
 		*bad = t
 
 		return -1
@@ -459,8 +455,7 @@ func algtype1(t *Type, bad **Type) int {
 		TUNSAFEPTR:
 		return AMEM
 
-	case TFUNC,
-		TMAP:
+	case TFUNC, TMAP:
 		if bad != nil {
 			*bad = t
 		}
@@ -741,8 +736,7 @@ func aindex(b *Node, t *Type) *Type {
 		default:
 			Yyerror("array bound must be an integer expression")
 
-		case CTINT,
-			CTRUNE:
+		case CTINT, CTRUNE:
 			bound = Mpgetfix(b.Val.U.Xval)
 			if bound < 0 {
 				Yyerror("array bound must be non negative")
@@ -791,9 +785,7 @@ func treecopy(n *Node) *Node {
 		fallthrough
 
 		// fall through
-	case ONAME,
-		OLITERAL,
-		OTYPE:
+	case ONAME, OLITERAL, OTYPE:
 		m = n
 	}
 
@@ -875,8 +867,7 @@ func isideal(t *Type) bool {
 		return true
 	}
 	switch t.Etype {
-	case TNIL,
-		TIDEAL:
+	case TNIL, TIDEAL:
 		return true
 	}
 
@@ -985,8 +976,7 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
 				return true
 			}
 
-		case TINT,
-			TINT32:
+		case TINT, TINT32:
 			if (t1 == Types[runetype.Etype] || t1 == runetype) && (t2 == Types[runetype.Etype] || t2 == runetype) {
 				return true
 			}
@@ -1004,8 +994,7 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
 	l.t2 = t2
 
 	switch t1.Etype {
-	case TINTER,
-		TSTRUCT:
+	case TINTER, TSTRUCT:
 		t1 = t1.Type
 		t2 = t2.Type
 		for ; t1 != nil && t2 != nil; t1, t2 = t1.Down, t2.Down {
@@ -1430,9 +1419,7 @@ func Is64(t *Type) bool {
 		return false
 	}
 	switch Simtype[t.Etype] {
-	case TINT64,
-		TUINT64,
-		TPTR64:
+	case TINT64, TUINT64, TPTR64:
 		return true
 	}
 
@@ -1447,22 +1434,16 @@ func Noconv(t1 *Type, t2 *Type) bool {
 	e2 := int(Simtype[t2.Etype])
 
 	switch e1 {
-	case TINT8,
-		TUINT8:
+	case TINT8, TUINT8:
 		return e2 == TINT8 || e2 == TUINT8
 
-	case TINT16,
-		TUINT16:
+	case TINT16, TUINT16:
 		return e2 == TINT16 || e2 == TUINT16
 
-	case TINT32,
-		TUINT32,
-		TPTR32:
+	case TINT32, TUINT32, TPTR32:
 		return e2 == TINT32 || e2 == TUINT32 || e2 == TPTR32
 
-	case TINT64,
-		TUINT64,
-		TPTR64:
+	case TINT64, TUINT64, TPTR64:
 		return e2 == TINT64 || e2 == TUINT64 || e2 == TPTR64
 
 	case TFLOAT32:
@@ -1501,10 +1482,7 @@ func deep(t *Type) *Type {
 		nt = shallow(t)
 		nt.Copyany = 1
 
-	case TPTR32,
-		TPTR64,
-		TCHAN,
-		TARRAY:
+	case TPTR32, TPTR64, TCHAN, TARRAY:
 		nt = shallow(t)
 		nt.Type = deep(t.Type)
 
@@ -1642,25 +1620,19 @@ func ullmancalc(n *Node) {
 	}
 
 	switch n.Op {
-	case OREGISTER,
-		OLITERAL,
-		ONAME:
+	case OREGISTER, OLITERAL, ONAME:
 		ul = 1
 		if n.Class == PPARAMREF || (n.Class&PHEAP != 0) {
 			ul++
 		}
 		goto out
 
-	case OCALL,
-		OCALLFUNC,
-		OCALLMETH,
-		OCALLINTER:
+	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER:
 		ul = UINF
 		goto out
 
 		// hard with race detector
-	case OANDAND,
-		OOROR:
+	case OANDAND, OOROR:
 		if flag_race != 0 {
 			ul = UINF
 			goto out
@@ -1726,9 +1698,7 @@ func Structfirst(s *Iter, nn **Type) *Type {
 	default:
 		goto bad
 
-	case TSTRUCT,
-		TINTER,
-		TFUNC:
+	case TSTRUCT, TINTER, TFUNC:
 		break
 	}
 
@@ -1903,8 +1873,7 @@ func safeexpr(n *Node, init **NodeList) *Node {
 	}
 
 	switch n.Op {
-	case ONAME,
-		OLITERAL:
+	case ONAME, OLITERAL:
 		return n
 
 	case ODOT:
@@ -1919,8 +1888,7 @@ func safeexpr(n *Node, init **NodeList) *Node {
 		walkexpr(&r, init)
 		return r
 
-	case ODOTPTR,
-		OIND:
+	case ODOTPTR, OIND:
 		l := safeexpr(n.Left, init)
 		if l == n.Left {
 			return n
@@ -1931,8 +1899,7 @@ func safeexpr(n *Node, init **NodeList) *Node {
 		walkexpr(&a, init)
 		return a
 
-	case OINDEX,
-		OINDEXMAP:
+	case OINDEX, OINDEXMAP:
 		l := safeexpr(n.Left, init)
 		r := safeexpr(n.Right, init)
 		if l == n.Left && r == n.Right {
@@ -1968,8 +1935,7 @@ func copyexpr(n *Node, t *Type, init **NodeList) *Node {
  */
 func cheapexpr(n *Node, init **NodeList) *Node {
 	switch n.Op {
-	case ONAME,
-		OLITERAL:
+	case ONAME, OLITERAL:
 		return n
 	}
 
@@ -3472,8 +3438,7 @@ func addinit(np **Node, init *NodeList) {
 	switch n.Op {
 	// There may be multiple refs to this node;
 	// introduce OCONVNOP to hold init list.
-	case ONAME,
-		OLITERAL:
+	case ONAME, OLITERAL:
 		n = Nod(OCONVNOP, n, nil)
 
 		n.Type = n.Left.Type

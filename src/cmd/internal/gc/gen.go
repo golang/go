@@ -57,8 +57,7 @@ func addrescapes(n *Node) {
 		// so the param already has a valid xoffset.
 
 		// expression to refer to stack copy
-		case PPARAM,
-			PPARAMOUT:
+		case PPARAM, PPARAMOUT:
 			n.Stackparam = Nod(OPARAM, n, nil)
 
 			n.Stackparam.Type = n.Type
@@ -93,8 +92,7 @@ func addrescapes(n *Node) {
 			Curfn = oldfn
 		}
 
-	case OIND,
-		ODOTPTR:
+	case OIND, ODOTPTR:
 		break
 
 		// ODOTPTR has already been introduced,
@@ -102,8 +100,7 @@ func addrescapes(n *Node) {
 	// In &x[0], if x is a slice, then x does not
 	// escape--the pointer inside x does, but that
 	// is always a heap pointer anyway.
-	case ODOT,
-		OINDEX:
+	case ODOT, OINDEX:
 		if !Isslice(n.Left.Type) {
 			addrescapes(n.Left)
 		}
@@ -338,23 +335,18 @@ func Clearslim(n *Node) {
 	z.Addable = 1
 
 	switch Simtype[n.Type.Etype] {
-	case TCOMPLEX64,
-		TCOMPLEX128:
+	case TCOMPLEX64, TCOMPLEX128:
 		z.Val.U.Cval = new(Mpcplx)
 		Mpmovecflt(&z.Val.U.Cval.Real, 0.0)
 		Mpmovecflt(&z.Val.U.Cval.Imag, 0.0)
 
-	case TFLOAT32,
-		TFLOAT64:
+	case TFLOAT32, TFLOAT64:
 		var zero Mpflt
 		Mpmovecflt(&zero, 0.0)
 		z.Val.Ctype = CTFLT
 		z.Val.U.Fval = &zero
 
-	case TPTR32,
-		TPTR64,
-		TCHAN,
-		TMAP:
+	case TPTR32, TPTR64, TCHAN, TMAP:
 		z.Val.Ctype = CTNIL
 
 	case TBOOL:
@@ -833,9 +825,7 @@ func gen(n *Node) {
 		if n.Defn != nil {
 			switch n.Defn.Op {
 			// so stmtlabel can find the label
-			case OFOR,
-				OSWITCH,
-				OSELECT:
+			case OFOR, OSWITCH, OSELECT:
 				n.Defn.Sym = lab.Sym
 			}
 		}
@@ -1009,8 +999,7 @@ func gen(n *Node) {
 	case ODEFER:
 		cgen_proc(n, 2)
 
-	case ORETURN,
-		ORETJMP:
+	case ORETURN, ORETJMP:
 		cgen_ret(n)
 
 	case OCHECKNIL:
@@ -1175,8 +1164,7 @@ func Componentgen(nr *Node, nl *Node) bool {
 			goto no
 		}
 
-	case TSTRING,
-		TINTER:
+	case TSTRING, TINTER:
 		break
 	}
 

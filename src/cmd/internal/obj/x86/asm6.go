@@ -2138,8 +2138,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 	case REG_CX:
 		return Ycx
 
-	case REG_DX,
-		REG_BX:
+	case REG_DX, REG_BX:
 		return Yrx
 
 	case REG_R8, /* not really Yrl */
@@ -2155,10 +2154,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 		}
 		fallthrough
 
-	case REG_SP,
-		REG_BP,
-		REG_SI,
-		REG_DI:
+	case REG_SP, REG_BP, REG_SI, REG_DI:
 		if p.Mode == 32 {
 			return Yrl32
 		}
@@ -2841,9 +2837,7 @@ var ymovtab = []Movtab{
 
 func isax(a *obj.Addr) bool {
 	switch a.Reg {
-	case REG_AX,
-		REG_AL,
-		REG_AH:
+	case REG_AX, REG_AL, REG_AH:
 		return true
 	}
 
@@ -2885,10 +2879,7 @@ func subreg(p *obj.Prog, from int, to int) {
 
 func mediaop(ctxt *obj.Link, o *Optab, op int, osize int, z int) int {
 	switch op {
-	case Pm,
-		Pe,
-		Pf2,
-		Pf3:
+	case Pm, Pe, Pf2, Pf3:
 		if osize != 1 {
 			if op != Pm {
 				ctxt.Andptr[0] = byte(op)
@@ -3255,8 +3246,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				ctxt.Andptr[0] = byte(vaddr(ctxt, p, &p.From, nil))
 				ctxt.Andptr = ctxt.Andptr[1:]
 
-			case Z_ib,
-				Zib_:
+			case Z_ib, Zib_:
 				if yt.zcase == Zib_ {
 					a = &p.From
 				} else {
@@ -3348,8 +3338,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				ctxt.Andptr[0] = byte(vaddr(ctxt, p, &p.From, nil))
 				ctxt.Andptr = ctxt.Andptr[1:]
 
-			case Z_il,
-				Zil_:
+			case Z_il, Zil_:
 				if yt.zcase == Zil_ {
 					a = &p.From
 				} else {
@@ -3367,8 +3356,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 					relput4(ctxt, p, a)
 				}
 
-			case Zm_ilo,
-				Zilo_m:
+			case Zm_ilo, Zilo_m:
 				ctxt.Andptr[0] = byte(op)
 				ctxt.Andptr = ctxt.Andptr[1:]
 				if yt.zcase == Zilo_m {
@@ -3482,9 +3470,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				}
 
 			// TODO: jump across functions needs reloc
-			case Zbr,
-				Zjmp,
-				Zloop:
+			case Zbr, Zjmp, Zloop:
 				if p.To.Sym != nil {
 					if yt.zcase != Zjmp {
 						ctxt.Diag("branch to ATEXT")
@@ -4049,24 +4035,16 @@ func byteswapreg(ctxt *obj.Link, a *obj.Addr) int {
 			cand = 0
 			cana = cand
 
-		case REG_AX,
-			REG_AL,
-			REG_AH:
+		case REG_AX, REG_AL, REG_AH:
 			cana = 0
 
-		case REG_BX,
-			REG_BL,
-			REG_BH:
+		case REG_BX, REG_BL, REG_BH:
 			canb = 0
 
-		case REG_CX,
-			REG_CL,
-			REG_CH:
+		case REG_CX, REG_CL, REG_CH:
 			canc = 0
 
-		case REG_DX,
-			REG_DL,
-			REG_DH:
+		case REG_DX, REG_DL, REG_DH:
 			cand = 0
 		}
 	}
@@ -4301,10 +4279,7 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
 			copy(ctxt.Andptr, naclstos)
 			ctxt.Andptr = ctxt.Andptr[len(naclstos):]
 
-		case AMOVSB,
-			AMOVSW,
-			AMOVSL,
-			AMOVSQ:
+		case AMOVSB, AMOVSW, AMOVSL, AMOVSQ:
 			copy(ctxt.Andptr, naclmovs)
 			ctxt.Andptr = ctxt.Andptr[len(naclmovs):]
 		}

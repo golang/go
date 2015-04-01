@@ -352,8 +352,7 @@ func Complexgen(n *Node, res *Node) {
 			return
 		}
 
-	case OREAL,
-		OIMAG:
+	case OREAL, OIMAG:
 		nl := n.Left
 		if nl.Addable == 0 {
 			var tmp Node
@@ -475,8 +474,7 @@ func Complexgen(n *Node, res *Node) {
 	case OMINUS:
 		complexminus(nl, res)
 
-	case OADD,
-		OSUB:
+	case OADD, OSUB:
 		complexadd(int(n.Op), nl, nr, res)
 
 	case OMUL:

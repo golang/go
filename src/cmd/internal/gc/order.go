@@ -105,8 +105,7 @@ func ordercopyexpr(n *Node, t *Type, order *Order, clear int) *Node {
 // and then returns tmp.
 func ordercheapexpr(n *Node, order *Order) *Node {
 	switch n.Op {
-	case ONAME,
-		OLITERAL:
+	case ONAME, OLITERAL:
 		return n
 	}
 
@@ -122,8 +121,7 @@ func ordercheapexpr(n *Node, order *Order) *Node {
 // The intended use is to apply to x when rewriting x += y into x = x + y.
 func ordersafeexpr(n *Node, order *Order) *Node {
 	switch n.Op {
-	case ONAME,
-		OLITERAL:
+	case ONAME, OLITERAL:
 		return n
 
 	case ODOT:
@@ -138,8 +136,7 @@ func ordersafeexpr(n *Node, order *Order) *Node {
 		typecheck(&a, Erv)
 		return a
 
-	case ODOTPTR,
-		OIND:
+	case ODOTPTR, OIND:
 		l := ordercheapexpr(n.Left, order)
 		if l == n.Left {
 			return n
@@ -151,8 +148,7 @@ func ordersafeexpr(n *Node, order *Order) *Node {
 		typecheck(&a, Erv)
 		return a
 
-	case OINDEX,
-		OINDEXMAP:
+	case OINDEX, OINDEXMAP:
 		var l *Node
 		if Isfixedarray(n.Left.Type) {
 			l = ordersafeexpr(n.Left, order)
@@ -315,9 +311,7 @@ func ismulticall(l *NodeList) bool {
 	default:
 		return false
 
-	case OCALLFUNC,
-		OCALLMETH,
-		OCALLINTER:
+	case OCALLFUNC, OCALLMETH, OCALLINTER:
 		break
 	}
 
@@ -409,10 +403,7 @@ func ordermapassign(n *Node, order *Order) {
 			order.out = list(order.out, a)
 		}
 
-	case OAS2,
-		OAS2DOTTYPE,
-		OAS2MAPR,
-		OAS2FUNC:
+	case OAS2, OAS2DOTTYPE, OAS2MAPR, OAS2FUNC:
 		var post *NodeList
 		var m *Node
 		var a *Node
@@ -470,9 +461,7 @@ func orderstmt(n *Node, order *Order) {
 		orderexprlist(n.List, order)
 		orderexprlist(n.Rlist, order)
 		switch n.Op {
-		case OAS,
-			OAS2,
-			OAS2DOTTYPE:
+		case OAS, OAS2, OAS2DOTTYPE:
 			ordermapassign(n, order)
 
 		default:
@@ -579,8 +568,7 @@ func orderstmt(n *Node, order *Order) {
 		cleantemp(t, order)
 
 		// Special: does not save n onto out.
-	case OBLOCK,
-		OEMPTY:
+	case OBLOCK, OEMPTY:
 		orderstmtlist(n.List, order)
 
 		// Special: n->left is not an expression; save as is.
@@ -597,9 +585,7 @@ func orderstmt(n *Node, order *Order) {
 		order.out = list(order.out, n)
 
 		// Special: handle call arguments.
-	case OCALLFUNC,
-		OCALLINTER,
-		OCALLMETH:
+	case OCALLFUNC, OCALLINTER, OCALLMETH:
 		t := marktemp(order)
 
 		ordercall(n, order)
@@ -607,8 +593,7 @@ func orderstmt(n *Node, order *Order) {
 		cleantemp(t, order)
 
 		// Special: order arguments to inner call but not call itself.
-	case ODEFER,
-		OPROC:
+	case ODEFER, OPROC:
 		t := marktemp(order)
 
 		switch n.Left.Op {
@@ -713,8 +698,7 @@ func orderstmt(n *Node, order *Order) {
 			// chan, string, slice, array ranges use value multiple times.
 		// make copy.
 		// fall through
-		case TCHAN,
-			TSTRING:
+		case TCHAN, TSTRING:
 			r := n.Right
 
 			if r.Type.Etype == TSTRING && r.Type != Types[TSTRING] {
@@ -785,8 +769,7 @@ func orderstmt(n *Node, order *Order) {
 				// the ODCL nodes to declare x and y. We want to delay that
 				// declaration (and possible allocation) until inside the case body.
 				// Delete the ODCL nodes here and recreate them inside the body below.
-				case OSELRECV,
-					OSELRECV2:
+				case OSELRECV, OSELRECV2:
 					if r.Colas != 0 {
 						t = r.Ninit
 						if t != nil && t.N.Op == ODCL && t.N.Left == r.Left {
@@ -1052,8 +1035,7 @@ func orderexpr(np **Node, order *Order) {
 			orderaddrtemp(&n.Left, order)
 		}
 
-	case OANDAND,
-		OOROR:
+	case OANDAND, OOROR:
 		mark := marktemp(order)
 		orderexpr(&n.Left, order)
 
@@ -1089,8 +1071,7 @@ func orderexpr(np **Node, order *Order) {
 			n.Alloc = ordertemp(Types[TUINT8], order, false) // walk will fill in correct type
 		}
 
-	case OARRAYLIT,
-		OCALLPART:
+	case OARRAYLIT, OCALLPART:
 		orderexpr(&n.Left, order)
 		orderexpr(&n.Right, order)
 		orderexprlist(n.List, order)
@@ -1121,8 +1102,7 @@ func orderexpr(np **Node, order *Order) {
 		orderexpr(&n.Left, order)
 		n = ordercopyexpr(n, n.Type, order, 1)
 
-	case OEQ,
-		ONE:
+	case OEQ, ONE:
 		orderexpr(&n.Left, order)
 		orderexpr(&n.Right, order)
 		t := n.Left.Type

@@ -283,10 +283,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		case obj.ARET:
 			break
 
-		case ADIV,
-			ADIVU,
-			AMOD,
-			AMODU:
+		case ADIV, ADIVU, AMOD, AMODU:
 			q = p
 			if ctxt.Sym_div == nil {
 				initdiv(ctxt)
@@ -524,10 +521,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				p.Spadj = int32(p.From.Offset)
 			}
 
-		case ADIV,
-			ADIVU,
-			AMOD,
-			AMODU:
+		case ADIV, ADIVU, AMOD, AMODU:
 			if ctxt.Debugdivmod != 0 {
 				break
 			}

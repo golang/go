@@ -540,8 +540,7 @@ func typefmt(t *Type, flag int) string {
 	}
 
 	switch t.Etype {
-	case TPTR32,
-		TPTR64:
+	case TPTR32, TPTR64:
 		if fmtmode == FTypeId && (flag&obj.FmtShort != 0 /*untyped*/) {
 			return fmt.Sprintf("*%v", Tconv(t.Type, obj.FmtShort))
 		}
@@ -764,9 +763,7 @@ func typefmt(t *Type, flag int) string {
 // Statements which may be rendered with a simplestmt as init.
 func stmtwithinit(op int) bool {
 	switch op {
-	case OIF,
-		OFOR,
-		OSWITCH:
+	case OIF, OFOR, OSWITCH:
 		return true
 	}
 
@@ -802,9 +799,7 @@ func stmtfmt(n *Node) string {
 	case ODCL:
 		if fmtmode == FExp {
 			switch n.Left.Class &^ PHEAP {
-			case PPARAM,
-				PPARAMOUT,
-				PAUTO:
+			case PPARAM, PPARAMOUT, PAUTO:
 				f += fmt.Sprintf("var %v %v", Nconv(n.Left, 0), Tconv(n.Left.Type, 0))
 				goto ret
 			}
@@ -853,10 +848,7 @@ func stmtfmt(n *Node) string {
 		fallthrough
 
 		// fallthrough
-	case OAS2DOTTYPE,
-		OAS2FUNC,
-		OAS2MAPR,
-		OAS2RECV:
+	case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
 		f += fmt.Sprintf("%v = %v", Hconv(n.List, obj.FmtComma), Hconv(n.Rlist, obj.FmtComma))
 
 	case ORETURN:
@@ -919,8 +911,7 @@ func stmtfmt(n *Node) string {
 
 		f += fmt.Sprintf("for %v = range %v { %v }", Hconv(n.List, obj.FmtComma), Nconv(n.Right, 0), Hconv(n.Nbody, 0))
 
-	case OSELECT,
-		OSWITCH:
+	case OSELECT, OSWITCH:
 		if fmtmode == FErr {
 			f += fmt.Sprintf("%v statement", Oconv(int(n.Op), 0))
 			break
@@ -936,8 +927,7 @@ func stmtfmt(n *Node) string {
 
 		f += fmt.Sprintf(" { %v }", Hconv(n.List, 0))
 
-	case OCASE,
-		OXCASE:
+	case OCASE, OXCASE:
 		if n.List != nil {
 			f += fmt.Sprintf("case %v: %v", Hconv(n.List, obj.FmtComma), Hconv(n.Nbody, 0))
 		} else {
@@ -1158,8 +1148,7 @@ func exprfmt(n *Node, prec int) string {
 		fallthrough
 
 		//fallthrough
-	case OPACK,
-		ONONAME:
+	case OPACK, ONONAME:
 		return Sconv(n.Sym, 0)
 
 	case OTYPE:
@@ -1270,8 +1259,7 @@ func exprfmt(n *Node, prec int) string {
 
 		// fallthrough
 
-	case OARRAYLIT,
-		OMAPLIT:
+	case OARRAYLIT, OMAPLIT:
 		if fmtmode == FErr {
 			return fmt.Sprintf("%v literal", Tconv(n.Type, 0))
 		}
@@ -1313,8 +1301,7 @@ func exprfmt(n *Node, prec int) string {
 		f += fmt.Sprintf(".%v", Sconv(n.Right.Sym, obj.FmtShort|obj.FmtByte))
 		return f
 
-	case ODOTTYPE,
-		ODOTTYPE2:
+	case ODOTTYPE, ODOTTYPE2:
 		var f string
 		f += exprfmt(n.Left, nprec)
 		if n.Right != nil {
@@ -1336,8 +1323,7 @@ func exprfmt(n *Node, prec int) string {
 		f += fmt.Sprintf("[%v]", Nconv(n.Right, 0))
 		return f
 
-	case OCOPY,
-		OCOMPLEX:
+	case OCOPY, OCOMPLEX:
 		return fmt.Sprintf("%v(%v, %v)", Oconv(int(n.Op), obj.FmtSharp), Nconv(n.Left, 0), Nconv(n.Right, 0))
 
 	case OCONV,
@@ -1377,10 +1363,7 @@ func exprfmt(n *Node, prec int) string {
 		}
 		return fmt.Sprintf("%v(%v)", Oconv(int(n.Op), obj.FmtSharp), Hconv(n.List, obj.FmtComma))
 
-	case OCALL,
-		OCALLFUNC,
-		OCALLINTER,
-		OCALLMETH:
+	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH:
 		var f string
 		f += exprfmt(n.Left, nprec)
 		if n.Isddd {
@@ -1390,9 +1373,7 @@ func exprfmt(n *Node, prec int) string {
 		f += fmt.Sprintf("(%v)", Hconv(n.List, obj.FmtComma))
 		return f
 
-	case OMAKEMAP,
-		OMAKECHAN,
-		OMAKESLICE:
+	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
 		if n.List != nil { // pre-typecheck
 			return fmt.Sprintf("make(%v, %v)", Tconv(n.Type, 0), Hconv(n.List, obj.FmtComma))
 		}
@@ -1460,8 +1441,7 @@ func exprfmt(n *Node, prec int) string {
 
 		return f
 
-	case OCMPSTR,
-		OCMPIFACE:
+	case OCMPSTR, OCMPIFACE:
 		var f string
 		f += exprfmt(n.Left, nprec)
 		f += fmt.Sprintf(" %v ", Oconv(int(n.Etype), obj.FmtSharp))
@@ -1533,15 +1513,13 @@ func nodedump(n *Node, flag int) string {
 	default:
 		fmt.Fprintf(&buf, "%v%v", Oconv(int(n.Op), 0), Jconv(n, 0))
 
-	case OREGISTER,
-		OINDREG:
+	case OREGISTER, OINDREG:
 		fmt.Fprintf(&buf, "%v-%v%v", Oconv(int(n.Op), 0), obj.Rconv(int(n.Val.U.Reg)), Jconv(n, 0))
 
 	case OLITERAL:
 		fmt.Fprintf(&buf, "%v-%v%v", Oconv(int(n.Op), 0), Vconv(&n.Val, 0), Jconv(n, 0))
 
-	case ONAME,
-		ONONAME:
+	case ONAME, ONONAME:
 		if n.Sym != nil {
 			fmt.Fprintf(&buf, "%v-%v%v", Oconv(int(n.Op), 0), Sconv(n.Sym, 0), Jconv(n, 0))
 		} else {
@@ -1689,8 +1667,7 @@ func Nconv(n *Node, flag int) string {
 	_ = r
 	var str string
 	switch fmtmode {
-	case FErr,
-		FExp:
+	case FErr, FExp:
 		str = nodefmt(n, flag)
 
 	case FDbg:

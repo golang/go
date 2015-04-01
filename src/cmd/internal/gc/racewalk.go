@@ -137,15 +137,13 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 	default:
 		Fatal("racewalk: unknown node type %v", Oconv(int(n.Op), 0))
 
-	case OAS,
-		OAS2FUNC:
+	case OAS, OAS2FUNC:
 		racewalknode(&n.Left, init, 1, 0)
 		racewalknode(&n.Right, init, 0, 0)
 		goto ret
 
 		// can't matter
-	case OCFUNC,
-		OVARKILL:
+	case OCFUNC, OVARKILL:
 		goto ret
 
 	case OBLOCK:
@@ -158,9 +156,7 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 		// x, y := f() becomes BLOCK{CALL f, AS x [SP+0], AS y [SP+n]}
 		// We don't want to instrument between the statements because it will
 		// smash the results.
-		case OCALLFUNC,
-			OCALLMETH,
-			OCALLINTER:
+		case OCALLFUNC, OCALLMETH, OCALLINTER:
 			racewalknode(&n.List.N, &n.List.N.Ninit, 0, 0)
 
 			var fini *NodeList
@@ -248,9 +244,7 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 		callinstr(&n, init, wr, skip)
 		goto ret
 
-	case OSPTR,
-		OLEN,
-		OCAP:
+	case OSPTR, OLEN, OCAP:
 		racewalknode(&n.Left, init, 0, 0)
 		if Istype(n.Left.Type, TMAP) {
 			n1 := Nod(OCONVNOP, n.Left, nil)
@@ -284,8 +278,7 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 		racewalknode(&n.Right, init, wr, 0)
 		goto ret
 
-	case OANDAND,
-		OOROR:
+	case OANDAND, OOROR:
 		racewalknode(&n.Left, init, wr, 0)
 
 		// walk has ensured the node has moved to a location where
@@ -308,8 +301,7 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 		racewalknode(&n.Left, init, wr, 0)
 		goto ret
 
-	case ODIV,
-		OMOD:
+	case ODIV, OMOD:
 		racewalknode(&n.Left, init, wr, 0)
 		racewalknode(&n.Right, init, wr, 0)
 		goto ret
@@ -333,10 +325,7 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 
 		// Seems to only lead to double instrumentation.
 	//racewalknode(&n->left, init, 0, 0);
-	case OSLICE,
-		OSLICEARR,
-		OSLICE3,
-		OSLICE3ARR:
+	case OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR:
 		goto ret
 
 	case OADDR:
@@ -399,8 +388,7 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 		goto ret
 
 		// impossible nodes: only appear in backend.
-	case ORROTC,
-		OEXTEND:
+	case ORROTC, OEXTEND:
 		Yyerror("racewalk: %v cannot exist now", Oconv(int(n.Op), 0))
 
 		goto ret
@@ -559,8 +547,7 @@ func makeaddable(n *Node) {
 		}
 
 		// Turn T(v).Field into v.Field
-	case ODOT,
-		OXDOT:
+	case ODOT, OXDOT:
 		if n.Left.Op == OCONVNOP {
 			n.Left = n.Left.Left
 		}
@@ -621,10 +608,7 @@ func foreach(n *Node, f func(*Node, interface{}), c interface{}) {
 
 func hascallspred(n *Node, c interface{}) {
 	switch n.Op {
-	case OCALL,
-		OCALLFUNC,
-		OCALLMETH,
-		OCALLINTER:
+	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER:
 		(*c.(*int))++
 	}
 }
@@ -640,8 +624,7 @@ func appendinit(np **Node, init *NodeList) {
 	switch n.Op {
 	// There may be multiple refs to this node;
 	// introduce OCONVNOP to hold init list.
-	case ONAME,
-		OLITERAL:
+	case ONAME, OLITERAL:
 		n = Nod(OCONVNOP, n, nil)
 
 		n.Type = n.Left.Type

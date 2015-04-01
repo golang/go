@@ -1148,8 +1148,7 @@ ok:
 		ot = duint16(s, ot, uint16(mapbucket(t).Width))
 		ot = duint8(s, ot, uint8(bool2int(isreflexive(t.Down))))
 
-	case TPTR32,
-		TPTR64:
+	case TPTR32, TPTR64:
 		if t.Type.Etype == TANY {
 			// ../../runtime/type.go:/UnsafePointerType
 			ot = dcommontype(s, ot, t)
@@ -1213,9 +1212,7 @@ ok:
 	// we want be able to find.
 	if t.Sym == nil {
 		switch t.Etype {
-		case TARRAY,
-			TCHAN,
-			TMAP:
+		case TARRAY, TCHAN, TMAP:
 			slink := typelinksym(t)
 			dsymptr(slink, 0, s, 0)
 			ggloblsym(slink, int32(Widthptr), int8(dupok|obj.RODATA))

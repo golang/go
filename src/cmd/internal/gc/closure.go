@@ -486,8 +486,7 @@ func walkclosure(func_ *Node, init **NodeList) *Node {
 
 func typecheckpartialcall(fn *Node, sym *Node) {
 	switch fn.Op {
-	case ODOTINTER,
-		ODOTMETH:
+	case ODOTINTER, ODOTMETH:
 		break
 
 	default:

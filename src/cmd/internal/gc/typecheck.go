@@ -146,10 +146,7 @@ func typecheck(np **Node, top int) *Node {
 	// But re-typecheck ONAME/OTYPE/OLITERAL/OPACK node in case context has changed.
 	if n.Typecheck == 1 {
 		switch n.Op {
-		case ONAME,
-			OTYPE,
-			OLITERAL,
-			OPACK:
+		case ONAME, OTYPE, OLITERAL, OPACK:
 			break
 
 		default:
@@ -265,10 +262,7 @@ func indexlit(np **Node) {
 		return
 	}
 	switch consttype(n) {
-	case CTINT,
-		CTRUNE,
-		CTFLT,
-		CTCPLX:
+	case CTINT, CTRUNE, CTFLT, CTCPLX:
 		defaultlit(np, Types[TINT])
 	}
 
@@ -385,8 +379,7 @@ OpSwitch:
 			l := typecheck(&n.Left, Erv)
 			var v Val
 			switch consttype(l) {
-			case CTINT,
-				CTRUNE:
+			case CTINT, CTRUNE:
 				v = l.Val
 
 			case CTFLT:
@@ -790,10 +783,7 @@ OpSwitch:
 		n.Type = t
 		break OpSwitch
 
-	case OCOM,
-		OMINUS,
-		ONOT,
-		OPLUS:
+	case OCOM, OMINUS, ONOT, OPLUS:
 		ok |= Erv
 		l := typecheck(&n.Left, Erv|top&Eiota)
 		t := l.Type
@@ -939,8 +929,7 @@ OpSwitch:
 		}
 
 		switch n.Op {
-		case ODOTINTER,
-			ODOTMETH:
+		case ODOTINTER, ODOTMETH:
 			if top&Ecall != 0 {
 				ok |= Ecall
 			} else {
@@ -1020,8 +1009,7 @@ OpSwitch:
 			n.Type = nil
 			return
 
-		case TSTRING,
-			TARRAY:
+		case TSTRING, TARRAY:
 			indexlit(&n.Right)
 			if t.Etype == TSTRING {
 				n.Type = Types[TUINT8]
@@ -1390,10 +1378,7 @@ OpSwitch:
 		n.Type = getoutargx(l.Type)
 		break OpSwitch
 
-	case OCAP,
-		OLEN,
-		OREAL,
-		OIMAG:
+	case OCAP, OLEN, OREAL, OIMAG:
 		ok |= Erv
 		if onearg(n, "%v", Oconv(int(n.Op), 0)) < 0 {
 			n.Type = nil
@@ -1419,8 +1404,7 @@ OpSwitch:
 				goto badcall1
 			}
 
-		case OREAL,
-			OIMAG:
+		case OREAL, OIMAG:
 			if !Iscomplex[t.Etype] {
 				goto badcall1
 			}
@@ -1935,8 +1919,7 @@ OpSwitch:
 		n.Type = Ptrto(t)
 		break OpSwitch
 
-	case OPRINT,
-		OPRINTN:
+	case OPRINT, OPRINTN:
 		ok |= Etop
 		typechecklist(n.List, Erv|Eindir) // Eindir: address does not escape
 		for args := n.List; args != nil; args = args.Next {
@@ -2801,8 +2784,7 @@ func keydup(n *Node, hash []*Node) {
 	default: // unknown, bool, nil
 		b = 23
 
-	case CTINT,
-		CTRUNE:
+	case CTINT, CTRUNE:
 		b = uint32(Mpgetfix(n.Val.U.Xval))
 
 	case CTFLT:
@@ -2919,17 +2901,12 @@ func inithash(n *Node, autohash []*Node) []*Node {
 
 func iscomptype(t *Type) bool {
 	switch t.Etype {
-	case TARRAY,
-		TSTRUCT,
-		TMAP:
+	case TARRAY, TSTRUCT, TMAP:
 		return true
 
-	case TPTR32,
-		TPTR64:
+	case TPTR32, TPTR64:
 		switch t.Type.Etype {
-		case TARRAY,
-			TSTRUCT,
-			TMAP:
+		case TARRAY, TSTRUCT, TMAP:
 			return true
 		}
 	}
@@ -3225,10 +3202,7 @@ func islvalue(n *Node) bool {
 		fallthrough
 
 		// fall through
-	case OIND,
-		ODOTPTR,
-		OCLOSUREVAR,
-		OPARAM:
+	case OIND, ODOTPTR, OCLOSUREVAR, OPARAM:
 		return true
 
 	case ODOT:
@@ -3298,12 +3272,10 @@ func samesafeexpr(l *Node, r *Node) bool {
 	}
 
 	switch l.Op {
-	case ONAME,
-		OCLOSUREVAR:
+	case ONAME, OCLOSUREVAR:
 		return l == r
 
-	case ODOT,
-		ODOTPTR:
+	case ODOT, ODOTPTR:
 		return l.Right != nil && r.Right != nil && l.Right.Sym == r.Right.Sym && samesafeexpr(l.Left, r.Left)
 
 	case OIND:
@@ -3364,9 +3336,7 @@ func typecheckas(n *Node) {
 		switch n.Right.Op {
 		// For x = x[0:y], x can be updated in place, without touching pointer.
 		// TODO(rsc): Reenable once it is actually updated in place without touching the pointer.
-		case OSLICE,
-			OSLICE3,
-			OSLICESTR:
+		case OSLICE, OSLICE3, OSLICESTR:
 			if false && samesafeexpr(n.Left, n.Right.Left) && (n.Right.Right.Left == nil || iszero(n.Right.Right.Left)) {
 				n.Right.Reslice = true
 			}
@@ -3439,9 +3409,7 @@ func typecheckas2(n *Node) {
 			goto out
 		}
 		switch r.Op {
-		case OCALLMETH,
-			OCALLINTER,
-			OCALLFUNC:
+		case OCALLMETH, OCALLINTER, OCALLFUNC:
 			if r.Type.Etype != TSTRUCT || r.Type.Funarg == 0 {
 				break
 			}
@@ -3766,8 +3734,7 @@ func typecheckdef(n *Node) *Node {
 		Fatal("typecheckdef %v", Oconv(int(n.Op), 0))
 
 		// not really syms
-	case OGOTO,
-		OLABEL:
+	case OGOTO, OLABEL:
 		break
 
 	case OLITERAL:
@@ -3901,10 +3868,7 @@ ret:
 func checkmake(t *Type, arg string, n *Node) int {
 	if n.Op == OLITERAL {
 		switch n.Val.Ctype {
-		case CTINT,
-			CTRUNE,
-			CTFLT,
-			CTCPLX:
+		case CTINT, CTRUNE, CTFLT, CTCPLX:
 			n.Val = toint(n.Val)
 			if mpcmpfixc(n.Val.U.Xval, 0) < 0 {
 				Yyerror("negative %s argument in make(%v)", arg, Tconv(t, 0))
@@ -4054,9 +4018,7 @@ func isterminating(l *NodeList, top int) bool {
 	case OIF:
 		return isterminating(n.Nbody, 0) && isterminating(n.Nelse, 0)
 
-	case OSWITCH,
-		OTYPESW,
-		OSELECT:
+	case OSWITCH, OTYPESW, OSELECT:
 		if n.Hasbreak {
 			return false
 		}

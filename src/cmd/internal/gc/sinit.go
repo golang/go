@@ -42,8 +42,7 @@ func init1(n *Node, out **NodeList) {
 		return
 	}
 	switch n.Class {
-	case PEXTERN,
-		PFUNC:
+	case PEXTERN, PFUNC:
 		break
 
 	default:
@@ -172,10 +171,7 @@ func init1(n *Node, out **NodeList) {
 				*out = list(*out, n.Defn)
 			}
 
-		case OAS2FUNC,
-			OAS2MAPR,
-			OAS2DOTTYPE,
-			OAS2RECV:
+		case OAS2FUNC, OAS2MAPR, OAS2DOTTYPE, OAS2RECV:
 			if n.Defn.Initorder != InitNotStarted {
 				break
 			}
@@ -244,9 +240,7 @@ func initreorder(l *NodeList, out **NodeList) {
 	for ; l != nil; l = l.Next {
 		n = l.N
 		switch n.Op {
-		case ODCLFUNC,
-			ODCLCONST,
-			ODCLTYPE:
+		case ODCLFUNC, ODCLCONST, ODCLTYPE:
 			continue
 		}
 
@@ -333,9 +327,7 @@ func staticcopy(l *Node, r *Node, out **NodeList) bool {
 			break
 
 			// copy pointer
-		case OARRAYLIT,
-			OSTRUCTLIT,
-			OMAPLIT:
+		case OARRAYLIT, OSTRUCTLIT, OMAPLIT:
 			gdata(l, Nod(OADDR, r.Nname, nil), int(l.Type.Width))
 
 			return true
@@ -430,9 +422,7 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
 			break
 
 			// Init pointer.
-		case OARRAYLIT,
-			OMAPLIT,
-			OSTRUCTLIT:
+		case OARRAYLIT, OMAPLIT, OSTRUCTLIT:
 			a := staticname(r.Left.Type, 1)
 
 			r.Nname = a
@@ -1222,9 +1212,7 @@ func oaslit(n *Node, init **NodeList) bool {
 		// not a special composit literal assignment
 		return false
 
-	case OSTRUCTLIT,
-		OARRAYLIT,
-		OMAPLIT:
+	case OSTRUCTLIT, OARRAYLIT, OMAPLIT:
 		if vmatch1(n.Left, n.Right) {
 			// not a special composit literal assignment
 			return false
@@ -1377,8 +1365,7 @@ func iszero(n *Node) bool {
 		case CTBOOL:
 			return n.Val.U.Bval == 0
 
-		case CTINT,
-			CTRUNE:
+		case CTINT, CTRUNE:
 			return mpcmpfixc(n.Val.U.Xval, 0) == 0
 
 		case CTFLT:
@@ -1522,8 +1509,7 @@ func gen_as_init(n *Node) bool {
 		TFLOAT64:
 		gdata(&nam, nr, int(nr.Type.Width))
 
-	case TCOMPLEX64,
-		TCOMPLEX128:
+	case TCOMPLEX64, TCOMPLEX128:
 		gdatacomplex(&nam, nr.Val.U.Cval)
 
 	case TSTRING:

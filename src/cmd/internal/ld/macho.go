@@ -125,8 +125,7 @@ var load_budget int = INITIAL_MACHO_HEADR - 2*1024
 func Machoinit() {
 	switch Thearch.Thechar {
 	// 64-bit architectures
-	case '6',
-		'9':
+	case '6', '9':
 		macho64 = true
 
 		// 32-bit architectures
@@ -565,9 +564,7 @@ func addsym(s *LSym, name string, type_ int, addr int64, size int64, ver int, go
 	default:
 		return
 
-	case 'D',
-		'B',
-		'T':
+	case 'D', 'B', 'T':
 		break
 	}
 

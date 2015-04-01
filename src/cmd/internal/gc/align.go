@@ -151,10 +151,7 @@ func dowidth(t *Type) {
 
 	et := int32(t.Etype)
 	switch et {
-	case TFUNC,
-		TCHAN,
-		TMAP,
-		TSTRING:
+	case TFUNC, TCHAN, TMAP, TSTRING:
 		break
 
 		/* simtype == 0 during bootstrap */
@@ -170,25 +167,17 @@ func dowidth(t *Type) {
 		Fatal("dowidth: unknown type: %v", Tconv(t, 0))
 
 		/* compiler-specific stuff */
-	case TINT8,
-		TUINT8,
-		TBOOL:
+	case TINT8, TUINT8, TBOOL:
 		// bool is int8
 		w = 1
 
-	case TINT16,
-		TUINT16:
+	case TINT16, TUINT16:
 		w = 2
 
-	case TINT32,
-		TUINT32,
-		TFLOAT32:
+	case TINT32, TUINT32, TFLOAT32:
 		w = 4
 
-	case TINT64,
-		TUINT64,
-		TFLOAT64,
-		TCOMPLEX64:
+	case TINT64, TUINT64, TFLOAT64, TCOMPLEX64:
 		w = 8
 		t.Align = uint8(Widthreg)
 

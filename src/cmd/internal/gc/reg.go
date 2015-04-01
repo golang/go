@@ -390,8 +390,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 	}
 
 	switch et {
-	case 0,
-		TFUNC:
+	case 0, TFUNC:
 		return zbits
 	}
 
@@ -678,8 +677,7 @@ func allreg(b uint64, r *Rgn) uint64 {
 			return Thearch.RtoB(i)
 		}
 
-	case TFLOAT32,
-		TFLOAT64:
+	case TFLOAT32, TFLOAT64:
 		i := Thearch.BtoF(^b)
 		if i != 0 && r.cost > 0 {
 			r.regno = int16(i)
