@@ -24,7 +24,7 @@ const (
 	maxMatchLength     = 258 // The longest match for the compressor
 	minOffsetSize      = 1   // The shortest offset that makes any sense
 
-	// The maximum number of tokens we put into a single flat block, just too
+	// The maximum number of tokens we put into a single flat block, just to
 	// stop things from getting too large.
 	maxFlateBlockTokens = 1 << 14
 	maxStoreBlockSize   = 65535
