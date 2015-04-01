@@ -133,7 +133,10 @@ func (c *UnixConn) ReadFrom(b []byte) (int, Addr, error) {
 		return 0, nil, syscall.EINVAL
 	}
 	n, addr, err := c.ReadFromUnix(b)
-	return n, addr.toAddr(), err
+	if addr == nil {
+		return n, nil, err
+	}
+	return n, addr, err
 }
 
 // ReadMsgUnix reads a packet from c, copying the payload into b and

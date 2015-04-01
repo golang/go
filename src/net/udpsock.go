@@ -32,13 +32,6 @@ func (a *UDPAddr) isWildcard() bool {
 	return a.IP.IsUnspecified()
 }
 
-func (a *UDPAddr) toAddr() Addr {
-	if a == nil {
-		return nil
-	}
-	return a
-}
-
 // ResolveUDPAddr parses addr as a UDP address of the form "host:port"
 // or "[ipv6-host%zone]:port" and resolves a pair of domain name and
 // port name on the network net, which must be "udp", "udp4" or
@@ -53,9 +46,9 @@ func ResolveUDPAddr(net, addr string) (*UDPAddr, error) {
 	default:
 		return nil, UnknownNetworkError(net)
 	}
-	a, err := resolveInternetAddr(net, addr, noDeadline)
+	addrs, err := internetAddrList(net, addr, noDeadline)
 	if err != nil {
 		return nil, err
 	}
-	return a.toAddr().(*UDPAddr), nil
+	return addrs.first(isIPv4).(*UDPAddr), nil
 }
