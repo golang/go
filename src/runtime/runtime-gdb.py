@@ -60,7 +60,7 @@ class SliceValue:
 class StringTypePrinter:
 	"Pretty print Go strings."
 
-	pattern = re.compile(r'^struct string$')
+	pattern = re.compile(r'^struct string( \*)?$')
 
 	def __init__(self, val):
 		self.val = val

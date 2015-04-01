@@ -56,6 +56,9 @@ func (t *Template) escape() error {
 	t.nameSpace.mu.Lock()
 	defer t.nameSpace.mu.Unlock()
 	if t.escapeErr == nil {
+		if t.Tree == nil {
+			return fmt.Errorf("template: %q is an incomplete or empty template%s", t.Name(), t.text.DefinedTemplates())
+		}
 		if err := escapeTemplate(t, t.text.Root, t.Name()); err != nil {
 			return err
 		}

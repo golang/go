@@ -4,6 +4,9 @@
 
 // Package filepath implements utility routines for manipulating filename paths
 // in a way compatible with the target operating system-defined file paths.
+//
+// Functions in this package replace any occurrences of the slash ('/') character
+// with os.PathSeparator when returning paths unless otherwise specified.
 package filepath
 
 import (
@@ -174,7 +177,8 @@ func FromSlash(path string) string {
 
 // SplitList splits a list of paths joined by the OS-specific ListSeparator,
 // usually found in PATH or GOPATH environment variables.
-// Unlike strings.Split, SplitList returns an empty slice when passed an empty string.
+// Unlike strings.Split, SplitList returns an empty slice when passed an empty
+// string. SplitList does not replace slash characters in the returned paths.
 func SplitList(path string) []string {
 	return splitList(path)
 }

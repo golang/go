@@ -110,7 +110,7 @@ func run(dir string, mode int, cmd ...string) string {
 		if mode&Background != 0 {
 			bgdied.Done()
 		}
-		fatal("FAILED: %v", strings.Join(cmd, " "))
+		fatal("FAILED: %v: %v", strings.Join(cmd, " "), err)
 	}
 	if mode&ShowOutput != 0 {
 		outputLock.Lock()
@@ -422,6 +422,8 @@ func main() {
 			gohostarch = "386"
 		case strings.Contains(out, "arm"):
 			gohostarch = "arm"
+		case strings.Contains(out, "aarch64"):
+			gohostarch = "arm64"
 		case strings.Contains(out, "ppc64le"):
 			gohostarch = "ppc64le"
 		case strings.Contains(out, "ppc64"):
@@ -505,8 +507,9 @@ func xgetgoarm() string {
 		// Conservative default for cross-compilation.
 		return "5"
 	}
-	if goos == "freebsd" {
+	if goos == "freebsd" || goos == "openbsd" {
 		// FreeBSD has broken VFP support.
+		// OpenBSD currently only supports softfloat.
 		return "5"
 	}
 	if goos != "linux" {

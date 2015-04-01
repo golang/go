@@ -86,10 +86,7 @@ func addlib(ctxt *Link, src string, obj string, pathname string) {
  *	pkg: package import path, e.g. container/vector
  */
 func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg string) {
-	var i int
-	var l *Library
-
-	for i = 0; i < len(ctxt.Library); i++ {
+	for i := 0; i < len(ctxt.Library); i++ {
 		if file == ctxt.Library[i].File {
 			return
 		}
@@ -100,22 +97,12 @@ func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg strin
 	}
 
 	ctxt.Library = append(ctxt.Library, Library{})
-	l = &ctxt.Library[len(ctxt.Library)-1]
+	l := &ctxt.Library[len(ctxt.Library)-1]
 	l.Objref = objref
 	l.Srcref = srcref
 	l.File = file
 	l.Pkg = pkg
 }
-
-var fnuxi8 [8]uint8
-
-var fnuxi4 [4]uint8
-
-var inuxi1 [1]uint8
-
-var inuxi2 [2]uint8
-
-var inuxi8 [8]uint8
 
 func atolwhex(s string) int64 {
 	n, _ := strconv.ParseInt(s, 0, 64)

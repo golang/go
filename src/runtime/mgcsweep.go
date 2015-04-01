@@ -42,8 +42,14 @@ func finishsweep_m() {
 	}
 }
 
-func bgsweep() {
+func bgsweep(c chan int) {
 	sweep.g = getg()
+
+	lock(&sweep.lock)
+	sweep.parked = true
+	c <- 1
+	goparkunlock(&sweep.lock, "GC sweep wait", traceEvGoBlock, 1)
+
 	for {
 		for gosweepone() != ^uintptr(0) {
 			sweep.nbgsweep++
@@ -58,7 +64,7 @@ func bgsweep() {
 			continue
 		}
 		sweep.parked = true
-		goparkunlock(&sweep.lock, "GC sweep wait", traceEvGoBlock)
+		goparkunlock(&sweep.lock, "GC sweep wait", traceEvGoBlock, 1)
 	}
 }
 
@@ -218,7 +224,7 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 			if preserve {
 				throw("can't preserve large span")
 			}
-			heapBitsForSpan(p).clearSpan(s.layout())
+			heapBitsForSpan(p).initSpan(s.layout())
 			s.needzero = 1
 
 			// important to set sweepgen before returning it to heap

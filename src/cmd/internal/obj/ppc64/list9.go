@@ -34,107 +34,18 @@ import (
 	"fmt"
 )
 
-const (
-	STRINGSZ = 1000
-)
-
-//
-// Format conversions
-//	%A int		Opcodes (instruction mnemonics)
-//
-//	%D Addr*	Addresses (instruction operands)
-//
-//	%P Prog*	Instructions
-//
-//	%R int		Registers
-//
-//	%$ char*	String constant addresses (for internal use only)
-//	%^ int   	C_* classes (for liblink internal use)
-
-var bigP *obj.Prog
-
-func Pconv(p *obj.Prog) string {
-	var str string
-	var fp string
-
-	var a int
-
-	a = int(p.As)
-
-	str = ""
-	if a == obj.ADATA {
-		str = fmt.Sprintf("%.5d (%v)\t%v\t%v/%d,%v",
-			p.Pc, p.Line(), Aconv(a), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
-	} else if a == obj.ATEXT || a == obj.AGLOBL {
-		if p.From3.Offset != 0 {
-			str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%d,%v",
-				p.Pc, p.Line(), Aconv(a), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
-		} else {
-			str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%v",
-				p.Pc, p.Line(), Aconv(a), obj.Dconv(p, &p.From), obj.Dconv(p, &p.To))
-		}
-	} else {
-		if p.Mark&NOSCHED != 0 {
-			str += fmt.Sprintf("*")
-		}
-		if p.Reg == 0 && p.From3.Type == obj.TYPE_NONE {
-			str += fmt.Sprintf("%.5d (%v)\t%v\t%v,%v",
-				p.Pc, p.Line(), Aconv(a), obj.Dconv(p, &p.From), obj.Dconv(p, &p.To))
-		} else if a != obj.ATEXT && p.From.Type == obj.TYPE_MEM {
-			off := ""
-			if p.From.Offset != 0 {
-				off = fmt.Sprintf("%d", p.From.Offset)
-			}
-			str += fmt.Sprintf("%.5d (%v)\t%v\t%s(%v+%v),%v",
-				p.Pc, p.Line(), Aconv(a), off, Rconv(int(p.From.Reg)), Rconv(int(p.Reg)), obj.Dconv(p, &p.To))
-		} else if p.To.Type == obj.TYPE_MEM {
-			off := ""
-			if p.From.Offset != 0 {
-				off = fmt.Sprintf("%d", p.From.Offset)
-			}
-			str += fmt.Sprintf("%.5d (%v)\t%v\t%v,%s(%v+%v)",
-				p.Pc, p.Line(), Aconv(a), obj.Dconv(p, &p.From), off, Rconv(int(p.To.Reg)), Rconv(int(p.Reg)))
-		} else {
-			str += fmt.Sprintf("%.5d (%v)\t%v\t%v",
-				p.Pc, p.Line(), Aconv(a), obj.Dconv(p, &p.From))
-			if p.Reg != 0 {
-				str += fmt.Sprintf(",%v", Rconv(int(p.Reg)))
-			}
-			if p.From3.Type != obj.TYPE_NONE {
-				str += fmt.Sprintf(",%v", obj.Dconv(p, &p.From3))
-			}
-			str += fmt.Sprintf(",%v", obj.Dconv(p, &p.To))
-		}
-
-		if p.Spadj != 0 {
-			fp += fmt.Sprintf("%s # spadj=%d", str, p.Spadj)
-			return fp
-		}
-	}
-
-	fp += str
-	return fp
-}
-
-func Aconv(a int) string {
-	var s string
-	var fp string
-
-	s = "???"
-	if a >= obj.AXXX && a < ALAST {
-		s = Anames[a]
-	}
-	fp += s
-	return fp
-}
-
 func init() {
 	obj.RegisterRegister(obj.RBasePPC64, REG_DCR0+1024, Rconv)
+	obj.RegisterOpcode(obj.ABasePPC64, Anames)
 }
 
 func Rconv(r int) string {
 	if r == 0 {
 		return "NONE"
+	}
+	if r == REGG {
+		// Special case.
+		return "g"
 	}
 	if REG_R0 <= r && r <= REG_R31 {
 		return fmt.Sprintf("R%d", r-REG_R0)
@@ -177,13 +88,11 @@ func Rconv(r int) string {
 }
 
 func DRconv(a int) string {
-	var s string
-	var fp string
-
-	s = "C_??"
+	s := "C_??"
 	if a >= C_NONE && a <= C_NCLASS {
 		s = cnames9[a]
 	}
+	var fp string
 	fp += s
 	return fp
 }

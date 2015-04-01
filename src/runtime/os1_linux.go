@@ -113,6 +113,8 @@ const (
 	_CLONE_NEWIPC         = 0x8000000
 )
 
+// May run with m.p==nil, so write barriers are not allowed.
+//go:nowritebarrier
 func newosproc(mp *m, stk unsafe.Pointer) {
 	/*
 	 * note: strace gets confused if we use CLONE_PTRACE here.

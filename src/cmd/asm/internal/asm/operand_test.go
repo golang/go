@@ -41,69 +41,28 @@ func testOperandParser(t *testing.T, parser *Parser, tests []operandTest) {
 	}
 }
 
-func testX86RegisterPair(t *testing.T, parser *Parser) {
-	// Special case for AX:DX, which is really two operands so isn't printed correcctly
-	// by Aconv, but is OK by the -S output.
-	parser.start(lex.Tokenize("AX:BX)"))
-	addr := obj.Addr{}
-	parser.operand(&addr)
-	want := obj.Addr{
-		Type: obj.TYPE_REG,
-		Reg:  parser.arch.Register["AX"],
-		Reg2: parser.arch.Register["BX"], // TODO: clean up how this is encoded in parse.go
-	}
-	if want != addr {
-		t.Errorf("AX:DX: expected %+v got %+v", want, addr)
-	}
-	// Special case for foo(SB):DX, which is really two operands so isn't printed correctly
-	// by Aconv, but is OK by the -S output.
-	parser.start(lex.Tokenize("foo+4(SB):AX"))
-	addr = obj.Addr{}
-	parser.operand(&addr)
-	want = obj.Addr{
-		Type:   obj.TYPE_MEM,
-		Name:   obj.NAME_EXTERN,
-		Offset: 4,
-		Sym:    obj.Linklookup(parser.ctxt, "foo", 0),
-		Reg2:   parser.arch.Register["AX"], // TODO: clean up how this is encoded in parse.go
-	}
-	if want != addr {
-		t.Errorf("foo+4(SB):AX: expected %+v got %+v", want, addr)
-	}
-}
-
 func TestAMD64OperandParser(t *testing.T) {
 	parser := newParser("amd64")
 	testOperandParser(t, parser, amd64OperandTests)
-	testX86RegisterPair(t, parser)
 }
 
 func Test386OperandParser(t *testing.T) {
 	parser := newParser("386")
 	testOperandParser(t, parser, x86OperandTests)
-	testX86RegisterPair(t, parser)
 }
 
 func TestARMOperandParser(t *testing.T) {
 	parser := newParser("arm")
 	testOperandParser(t, parser, armOperandTests)
 }
+func TestARM64OperandParser(t *testing.T) {
+	parser := newParser("arm64")
+	testOperandParser(t, parser, arm64OperandTests)
+}
 
 func TestPPC64OperandParser(t *testing.T) {
 	parser := newParser("ppc64")
 	testOperandParser(t, parser, ppc64OperandTests)
-	// Special encoding for (R1+R2).
-	parser.start(lex.Tokenize("(R1+R2)"))
-	addr := obj.Addr{}
-	parser.operand(&addr)
-	want := obj.Addr{
-		Type:  obj.TYPE_MEM,
-		Reg:   parser.arch.Register["R1"],
-		Scale: parser.arch.Register["R2"], // TODO: clean up how this is encoded in parse.go
-	}
-	if want != addr {
-		t.Errorf("(R1+R2): expected %+v got %+v", want, addr)
-	}
 }
 
 type operandTest struct {
@@ -113,7 +72,6 @@ type operandTest struct {
 // Examples collected by scanning all the assembly in the standard repo.
 
 var amd64OperandTests = []operandTest{
-	// {"AX:DX", "AX:DX"}, Handled in TestAMD64OperandParser directly.
 	{"$(-1.0)", "$(-1.0)"},
 	{"$(0.0)", "$(0.0)"},
 	{"$(0x2000000+116)", "$33554548"},
@@ -289,7 +247,7 @@ var armOperandTests = []operandTest{
 	{"$256", "$256"},
 	{"(R0)", "(R0)"},
 	{"(R11)", "(R11)"},
-	{"(g)", "(R10)"}, // TODO: Should print 0(g).
+	{"(g)", "(g)"},
 	{"-12(R4)", "-12(R4)"},
 	{"0(PC)", "0(PC)"},
 	{"1024", "1024"},
@@ -324,7 +282,7 @@ var armOperandTests = []operandTest{
 	{"armCAS64(SB)", "armCAS64(SB)"},
 	{"asmcgocall<>(SB)", "asmcgocall<>(SB)"},
 	{"c+28(FP)", "c+28(FP)"},
-	{"g", "R10"}, // TODO: Should print g.
+	{"g", "g"},
 	{"gosave<>(SB)", "gosave<>(SB)"},
 	{"retlo+12(FP)", "retlo+12(FP)"},
 	{"runtime·_sfloat2(SB)", "runtime._sfloat2(SB)"},
@@ -349,12 +307,14 @@ var ppc64OperandTests = []operandTest{
 	{"$~3", "$-4"},
 	{"(-288-3*8)(R1)", "-312(R1)"},
 	{"(16)(R7)", "16(R7)"},
-	{"(8)(g)", "8(R30)"}, // TODO: Should print 8(g)
+	{"(8)(g)", "8(g)"},
 	{"(CTR)", "(CTR)"},
 	{"(R0)", "(R0)"},
 	{"(R3)", "(R3)"},
 	{"(R4)", "(R4)"},
 	{"(R5)", "(R5)"},
+	{"(R5)(R6*1)", "(R5)(R6*1)"},
+	{"(R5+R6)", "(R5)(R6*1)"}, // Old syntax.
 	{"-1(R4)", "-1(R4)"},
 	{"-1(R5)", "-1(R5)"},
 	{"6(PC)", "6(PC)"},
@@ -411,9 +371,57 @@ var ppc64OperandTests = []operandTest{
 	{"R9", "R9"},
 	{"SPR(269)", "SPR(269)"},
 	{"a(FP)", "a(FP)"},
-	{"g", "R30"}, // TODO: Should print g.
+	{"g", "g"},
 	{"ret+8(FP)", "ret+8(FP)"},
 	{"runtime·abort(SB)", "runtime.abort(SB)"},
 	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
 	{"·trunc(SB)", "\"\".trunc(SB)"},
+}
+
+var arm64OperandTests = []operandTest{
+	{"$0", "$0"},
+	{"$0.5", "$(0.5)"},
+	{"0(R26)", "(R26)"},
+	{"0(RSP)", "(RSP)"},
+	{"$1", "$1"},
+	{"$-1", "$-1"},
+	{"$1000", "$1000"},
+	{"$1000000000", "$1000000000"},
+	{"$0x7fff3c000", "$34358935552"},
+	{"$1234", "$1234"},
+	{"$~15", "$-16"},
+	{"$16", "$16"},
+	{"-16(RSP)", "-16(RSP)"},
+	{"16(RSP)", "16(RSP)"},
+	{"1(R1)", "1(R1)"},
+	{"-1(R4)", "-1(R4)"},
+	{"18740(R5)", "18740(R5)"},
+	{"$2", "$2"},
+	{"$-24(R4)", "$-24(R4)"},
+	{"-24(RSP)", "-24(RSP)"},
+	{"$24(RSP)", "$24(RSP)"},
+	{"-32(RSP)", "-32(RSP)"},
+	{"$48", "$48"},
+	{"$(-64*1024)(R7)", "$-65536(R7)"},
+	{"$(8-1)", "$7"},
+	{"a+0(FP)", "a(FP)"},
+	{"a1+8(FP)", "a1+8(FP)"},
+	{"·AddInt32(SB)", `"".AddInt32(SB)`},
+	{"runtime·divWVW(SB)", "runtime.divWVW(SB)"},
+	{"$argframe+0(FP)", "$argframe(FP)"},
+	{"$asmcgocall<>(SB)", "$asmcgocall<>(SB)"},
+	{"EQ", "EQ"},
+	{"F29", "F29"},
+	{"F3", "F3"},
+	{"F30", "F30"},
+	{"g", "g"},
+	{"LR", "R30"},
+	{"(LR)", "(R30)"},
+	{"R0", "R0"},
+	{"R10", "R10"},
+	{"R11", "R11"},
+	{"$4503601774854144.0", "$(4503601774854144.0)"},
+	{"$runtime·badsystemstack(SB)", "$runtime.badsystemstack(SB)"},
+	{"ZR", "ZR"},
+	{"(ZR)", "(ZR)"},
 }

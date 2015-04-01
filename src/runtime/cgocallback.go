@@ -6,7 +6,7 @@ package runtime
 
 import "unsafe"
 
-// These functions are called from C code via cgo/callbacks.c.
+// These functions are called from C code via cgo/callbacks.go.
 
 // Allocate memory.  This allocates the requested number of bytes in
 // memory controlled by the Go runtime.  The allocated memory will be

@@ -132,14 +132,14 @@ func testdclstack() {
 
 func redeclare(s *Sym, where string) {
 	if s.Lastlineno == 0 {
-		var tmp *Strlit
+		var tmp string
 		if s.Origpkg != nil {
 			tmp = s.Origpkg.Path
 		} else {
 			tmp = s.Pkg.Path
 		}
 		pkgstr := tmp
-		Yyerror("%v redeclared %s\n"+"\tprevious declaration during import \"%v\"", Sconv(s, 0), where, Zconv(pkgstr, 0))
+		Yyerror("%v redeclared %s\n"+"\tprevious declaration during import %q", Sconv(s, 0), where, pkgstr)
 	} else {
 		line1 := parserline()
 		line2 := int(s.Lastlineno)
@@ -197,7 +197,7 @@ func declare(n *Node, ctxt int) {
 			Fatal("automatic outside function")
 		}
 		if Curfn != nil {
-			Curfn.Dcl = list(Curfn.Dcl, n)
+			Curfn.Func.Dcl = list(Curfn.Func.Dcl, n)
 		}
 		if n.Op == OTYPE {
 			declare_typegen++
@@ -247,7 +247,7 @@ func addvar(n *Node, t *Type, ctxt int) {
  * new_name_list (type | [type] = expr_list)
  */
 func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
-	init := (*NodeList)(nil)
+	var init *NodeList
 	doexpr := el != nil
 
 	if count(el) == 1 && count(vl) > 1 {
@@ -313,7 +313,6 @@ func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
  * new_name_list [[type] = expr_list]
  */
 func constiter(vl *NodeList, t *Node, cl *NodeList) *NodeList {
-	vv := (*NodeList)(nil)
 	if cl == nil {
 		if t != nil {
 			Yyerror("const declaration cannot have type without expression")
@@ -329,6 +328,7 @@ func constiter(vl *NodeList, t *Node, cl *NodeList) *NodeList {
 
 	var v *Node
 	var c *Node
+	var vv *NodeList
 	for ; vl != nil; vl = vl.Next {
 		if cl == nil {
 			Yyerror("missing value in const declaration")
@@ -370,6 +370,14 @@ func newname(s *Sym) *Node {
 	n.Addable = 1
 	n.Ullman = 1
 	n.Xoffset = 0
+	return n
+}
+
+// newfuncname generates a new name node for a function or method.
+// TODO(rsc): Use an ODCLFUNC node instead. See comment in CL 7360.
+func newfuncname(s *Sym) *Node {
+	n := newname(s)
+	n.Func = new(Func)
 	return n
 }
 
@@ -437,7 +445,7 @@ func oldname(s *Sym) *Node {
 			n.Closure = c
 			c.Closure = n
 			c.Xoffset = 0
-			Curfn.Cvars = list(Curfn.Cvars, c)
+			Curfn.Func.Cvars = list(Curfn.Func.Cvars, c)
 		}
 
 		// return ref to closure var, not original
@@ -542,6 +550,7 @@ func ifacedcl(n *Node) {
 		Yyerror("methods must have a unique non-blank name")
 	}
 
+	n.Func = new(Func)
 	dclcontext = PPARAM
 	markdcl()
 	Funcdepth++
@@ -645,10 +654,8 @@ func funcargs(nt *Node) {
 
 		if n.Left == nil {
 			// Name so that escape analysis can track it. ~r stands for 'result'.
-			namebuf = fmt.Sprintf("~r%d", gen)
+			n.Left = newname(Lookupf("~r%d", gen))
 			gen++
-
-			n.Left = newname(Lookup(namebuf))
 		}
 
 		// TODO: n->left->missing = 1;
@@ -667,9 +674,8 @@ func funcargs(nt *Node) {
 
 			*nn = *n.Left
 			nn.Orig = nn
-			namebuf = fmt.Sprintf("~b%d", gen)
+			nn.Sym = Lookupf("~b%d", gen)
 			gen++
-			nn.Sym = Lookup(namebuf)
 			n.Left = nn
 		}
 
@@ -763,9 +769,9 @@ func typedcl0(s *Sym) *Node {
  * is being declared to have uncompiled type t.
  * return the ODCLTYPE node to use.
  */
-func typedcl1(n *Node, t *Node, local int) *Node {
+func typedcl1(n *Node, t *Node, local bool) *Node {
 	n.Ntype = t
-	n.Local = uint8(local)
+	n.Local = local
 	return Nod(ODCLTYPE, n, nil)
 }
 
@@ -778,14 +784,14 @@ func checkembeddedtype(t *Type) {
 		return
 	}
 
-	if t.Sym == nil && Isptr[t.Etype] != 0 {
+	if t.Sym == nil && Isptr[t.Etype] {
 		t = t.Type
 		if t.Etype == TINTER {
 			Yyerror("embedded type cannot be a pointer to interface")
 		}
 	}
 
-	if Isptr[t.Etype] != 0 {
+	if Isptr[t.Etype] {
 		Yyerror("embedded type cannot be a pointer")
 	} else if t.Etype == TFORW && t.Embedlineno == 0 {
 		t.Embedlineno = lineno
@@ -823,7 +829,8 @@ func structfield(n *Node) *Type {
 
 	switch n.Val.Ctype {
 	case CTSTR:
-		f.Note = n.Val.U.Sval
+		f.Note = new(string)
+		*f.Note = n.Val.U.Sval
 
 	default:
 		Yyerror("field annotation must be string")
@@ -1081,7 +1088,7 @@ func checkarglist(all *NodeList, input int) *NodeList {
 	}
 
 	if named != 0 {
-		n := (*Node)(nil)
+		var n *Node
 		var l *NodeList
 		for l = all; l != nil; l = l.Next {
 			n = l.N
@@ -1096,7 +1103,7 @@ func checkarglist(all *NodeList, input int) *NodeList {
 		}
 	}
 
-	nextt := (*Node)(nil)
+	var nextt *Node
 	var t *Node
 	var n *Node
 	for l := all; l != nil; l = l.Next {
@@ -1149,9 +1156,9 @@ func checkarglist(all *NodeList, input int) *NodeList {
 			n.Right.Op = OTARRAY
 			n.Right.Right = n.Right.Left
 			n.Right.Left = nil
-			n.Isddd = 1
+			n.Isddd = true
 			if n.Left != nil {
-				n.Left.Isddd = 1
+				n.Left.Isddd = true
 			}
 		}
 
@@ -1178,7 +1185,7 @@ func isifacemethod(f *Type) bool {
 		return false
 	}
 	t := rcvr.Type
-	if Isptr[t.Etype] == 0 {
+	if !Isptr[t.Etype] {
 		return false
 	}
 	t = t.Type
@@ -1195,7 +1202,7 @@ func isifacemethod(f *Type) bool {
 func functype(this *Node, in *NodeList, out *NodeList) *Type {
 	t := typ(TFUNC)
 
-	rcvr := (*NodeList)(nil)
+	var rcvr *NodeList
 	if this != nil {
 		rcvr = list1(this)
 	}
@@ -1241,7 +1248,7 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
 		goto bad
 	}
 	s = t.Sym
-	if s == nil && Isptr[t.Etype] != 0 {
+	if s == nil && Isptr[t.Etype] {
 		t = t.Type
 		if t == nil {
 			goto bad
@@ -1269,13 +1276,13 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
 	}
 
 	if (spkg == nil || nsym.Pkg != spkg) && !exportname(nsym.Name) {
-		if t0.Sym == nil && Isptr[t0.Etype] != 0 {
+		if t0.Sym == nil && Isptr[t0.Etype] {
 			p = fmt.Sprintf("(%v).%s.%s%s", Tconv(t0, obj.FmtLeft|obj.FmtShort), nsym.Pkg.Prefix, nsym.Name, suffix)
 		} else {
 			p = fmt.Sprintf("%v.%s.%s%s", Tconv(t0, obj.FmtLeft|obj.FmtShort), nsym.Pkg.Prefix, nsym.Name, suffix)
 		}
 	} else {
-		if t0.Sym == nil && Isptr[t0.Etype] != 0 {
+		if t0.Sym == nil && Isptr[t0.Etype] {
 			p = fmt.Sprintf("(%v).%s%s", Tconv(t0, obj.FmtLeft|obj.FmtShort), nsym.Name, suffix)
 		} else {
 			p = fmt.Sprintf("%v.%s%s", Tconv(t0, obj.FmtLeft|obj.FmtShort), nsym.Name, suffix)
@@ -1284,7 +1291,7 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
 
 	if spkg == nil {
 		if methodsym_toppkg == nil {
-			methodsym_toppkg = mkpkg(newstrlit("go"))
+			methodsym_toppkg = mkpkg("go")
 		}
 		spkg = methodsym_toppkg
 	}
@@ -1314,7 +1321,7 @@ func methodname1(n *Node, t *Node) *Node {
 	}
 
 	if t.Sym == nil || isblank(n) {
-		return newname(n.Sym)
+		return newfuncname(n.Sym)
 	}
 
 	var p string
@@ -1325,9 +1332,9 @@ func methodname1(n *Node, t *Node) *Node {
 	}
 
 	if exportname(t.Sym.Name) {
-		n = newname(Lookup(p))
+		n = newfuncname(Lookup(p))
 	} else {
-		n = newname(Pkglookup(p, t.Sym.Pkg))
+		n = newfuncname(Pkglookup(p, t.Sym.Pkg))
 	}
 
 	return n
@@ -1358,7 +1365,7 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
 			return
 		}
 		if t != nil {
-			if Isptr[t.Etype] != 0 {
+			if Isptr[t.Etype] {
 				if t.Sym != nil {
 					Yyerror("invalid receiver type %v (%v is a pointer type)", Tconv(pa, 0), Tconv(t, 0))
 					return
@@ -1375,7 +1382,7 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
 				return
 			}
 
-			if Isptr[t.Etype] != 0 {
+			if Isptr[t.Etype] {
 				Yyerror("invalid receiver type %v (%v is a pointer type)", Tconv(pa, 0), Tconv(t, 0))
 				return
 			}
@@ -1403,7 +1410,7 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
 		}
 	}
 
-	if local && pa.Local == 0 {
+	if local && !pa.Local {
 		// defining method on non-local type.
 		Yyerror("cannot define new methods on non-local type %v", Tconv(pa, 0))
 
@@ -1413,7 +1420,7 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
 	n := Nod(ODCLFIELD, newname(sf), nil)
 	n.Type = t
 
-	d := (*Type)(nil) // last found
+	var d *Type // last found
 	for f := pa.Method; f != nil; f = f.Down {
 		d = f
 		if f.Etype != TFIELD {
@@ -1472,14 +1479,17 @@ func funccompile(n *Node) {
 }
 
 func funcsym(s *Sym) *Sym {
-	p := fmt.Sprintf("%s·f", s.Name)
-	s1 := Pkglookup(p, s.Pkg)
+	if s.Fsym != nil {
+		return s.Fsym
+	}
 
+	s1 := Pkglookup(s.Name+"·f", s.Pkg)
 	if s1.Def == nil {
-		s1.Def = newname(s1)
-		s1.Def.Shortname = newname(s)
+		s1.Def = newfuncname(s1)
+		s1.Def.Func.Shortname = newname(s)
 		funcsyms = list(funcsyms, s1.Def)
 	}
+	s.Fsym = s1
 
 	return s1
 }

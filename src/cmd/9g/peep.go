@@ -31,11 +31,11 @@
 package main
 
 import (
+	"cmd/internal/gc"
 	"cmd/internal/obj"
 	"cmd/internal/obj/ppc64"
 	"fmt"
 )
-import "cmd/internal/gc"
 
 var gactive uint32
 
@@ -407,9 +407,7 @@ func subprop(r0 *gc.Flow) bool {
 	if !regtyp(v2) {
 		return false
 	}
-	var r *gc.Flow
-	var info gc.ProgInfo
-	for r = gc.Uniqp(r0); r != nil; r = gc.Uniqp(r) {
+	for r := gc.Uniqp(r0); r != nil; r = gc.Uniqp(r) {
 		if gc.Uniqs(r) == nil {
 			break
 		}
@@ -417,15 +415,39 @@ func subprop(r0 *gc.Flow) bool {
 		if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
 			continue
 		}
-		proginfo(&info, p)
-		if info.Flags&gc.Call != 0 {
+		if p.Info.Flags&gc.Call != 0 {
 			return false
 		}
 
-		if info.Flags&(gc.RightRead|gc.RightWrite) == gc.RightWrite {
+		if p.Info.Flags&(gc.RightRead|gc.RightWrite) == gc.RightWrite {
 			if p.To.Type == v1.Type {
 				if p.To.Reg == v1.Reg {
-					goto gotit
+					copysub(&p.To, v1, v2, 1)
+					if gc.Debug['P'] != 0 {
+						fmt.Printf("gotit: %v->%v\n%v", gc.Ctxt.Dconv(v1), gc.Ctxt.Dconv(v2), r.Prog)
+						if p.From.Type == v2.Type {
+							fmt.Printf(" excise")
+						}
+						fmt.Printf("\n")
+					}
+
+					for r = gc.Uniqs(r); r != r0; r = gc.Uniqs(r) {
+						p = r.Prog
+						copysub(&p.From, v1, v2, 1)
+						copysub1(p, v1, v2, 1)
+						copysub(&p.To, v1, v2, 1)
+						if gc.Debug['P'] != 0 {
+							fmt.Printf("%v\n", r.Prog)
+						}
+					}
+
+					t := int(int(v1.Reg))
+					v1.Reg = v2.Reg
+					v2.Reg = int16(t)
+					if gc.Debug['P'] != 0 {
+						fmt.Printf("%v last\n", r.Prog)
+					}
+					return true
 				}
 			}
 		}
@@ -439,34 +461,6 @@ func subprop(r0 *gc.Flow) bool {
 	}
 
 	return false
-
-gotit:
-	copysub(&p.To, v1, v2, 1)
-	if gc.Debug['P'] != 0 {
-		fmt.Printf("gotit: %v->%v\n%v", gc.Ctxt.Dconv(v1), gc.Ctxt.Dconv(v2), r.Prog)
-		if p.From.Type == v2.Type {
-			fmt.Printf(" excise")
-		}
-		fmt.Printf("\n")
-	}
-
-	for r = gc.Uniqs(r); r != r0; r = gc.Uniqs(r) {
-		p = r.Prog
-		copysub(&p.From, v1, v2, 1)
-		copysub1(p, v1, v2, 1)
-		copysub(&p.To, v1, v2, 1)
-		if gc.Debug['P'] != 0 {
-			fmt.Printf("%v\n", r.Prog)
-		}
-	}
-
-	t := int(int(v1.Reg))
-	v1.Reg = v2.Reg
-	v2.Reg = int16(t)
-	if gc.Debug['P'] != 0 {
-		fmt.Printf("%v last\n", r.Prog)
-	}
-	return true
 }
 
 /*
@@ -619,7 +613,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 
 	switch p.As {
 	default:
-		fmt.Printf("copyu: can't find %v\n", ppc64.Aconv(int(p.As)))
+		fmt.Printf("copyu: can't find %v\n", obj.Aconv(int(p.As)))
 		return 2
 
 	case obj.ANOP, /* read p->from, write p->to */

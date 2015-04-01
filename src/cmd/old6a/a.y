@@ -205,12 +205,12 @@ spec2:	/* TEXT */
 	LTYPET mem ',' '$' textsize
 	{
 		asm.Settext($2.Sym);
-		outcode(obj.ATEXT, &Addr2{$2, $5})
+		outcode(obj.ATEXT, &Addr2{from: $2, to: $5})
 	}
 |	LTYPET mem ',' con ',' '$' textsize
 	{
 		asm.Settext($2.Sym);
-		outcode(obj.ATEXT, &Addr2{$2, $7})
+		outcode(obj.ATEXT, &Addr2{from: $2, to: $7})
 		if asm.Pass > 1 {
 			lastpc.From3.Type = obj.TYPE_CONST
 			lastpc.From3.Offset = $4
@@ -221,12 +221,12 @@ spec11:	/* GLOBL */
 	LTYPEG mem ',' imm
 	{
 		asm.Settext($2.Sym)
-		outcode(obj.AGLOBL, &Addr2{$2, $4})
+		outcode(obj.AGLOBL, &Addr2{from: $2, to: $4})
 	}
 |	LTYPEG mem ',' con ',' imm
 	{
 		asm.Settext($2.Sym)
-		outcode(obj.AGLOBL, &Addr2{$2, $6})
+		outcode(obj.AGLOBL, &Addr2{from: $2, to: $6})
 		if asm.Pass > 1 {
 			lastpc.From3.Type = obj.TYPE_CONST
 			lastpc.From3.Offset = $4
@@ -299,22 +299,20 @@ spec7:
 	}
 
 spec8:	/* CMPPS/CMPPD */
-	reg ',' rem ',' con
+	rem ',' reg ',' con
 	{
 		$$.from = $1;
-		$$.to = $3;
+		$$.from3 = $3;
+		$$.to.Type = obj.TYPE_MEM; // to give library something to do
 		$$.to.Offset = $5;
 	}
 
 spec9:	/* shufl */
 	imm ',' rem ',' reg
 	{
-		$$.from = $3;
+		$$.from = $1;
+		$$.from3 = $3;
 		$$.to = $5;
-		if $1.Type != obj.TYPE_CONST {
-			yyerror("illegal constant");
-		}
-		$$.to.Offset = $1.Offset;
 	}
 
 spec10:	/* RET/RETF */
@@ -456,31 +454,31 @@ imm:
 	{
 		$$ = nullgen;
 		$$.Type = obj.TYPE_SCONST;
-		$$.U.Sval = ($2+"\x00\x00\x00\x00\x00\x00\x00\x00")[:8]
+		$$.Val = ($2+"\x00\x00\x00\x00\x00\x00\x00\x00")[:8]
 	}
 |	'$' LFCONST
 	{
 		$$ = nullgen;
 		$$.Type = obj.TYPE_FCONST;
-		$$.U.Dval = $2;
+		$$.Val = $2;
 	}
 |	'$' '(' LFCONST ')'
 	{
 		$$ = nullgen;
 		$$.Type = obj.TYPE_FCONST;
-		$$.U.Dval = $3;
+		$$.Val = $3;
 	}
 |	'$' '(' '-' LFCONST ')'
 	{
 		$$ = nullgen;
 		$$.Type = obj.TYPE_FCONST;
-		$$.U.Dval = -$4;
+		$$.Val = -$4;
 	}
 |	'$' '-' LFCONST
 	{
 		$$ = nullgen;
 		$$.Type = obj.TYPE_FCONST;
-		$$.U.Dval = -$3;
+		$$.Val = -$3;
 	}
 
 mem:
@@ -655,28 +653,28 @@ textsize:
 		$$ = nullgen;
 		$$.Type = obj.TYPE_TEXTSIZE;
 		$$.Offset = $1;
-		$$.U.Argsize = obj.ArgsSizeUnknown;
+		$$.Val = int32(obj.ArgsSizeUnknown);
 	}
 |	'-' LCONST
 	{
 		$$ = nullgen;
 		$$.Type = obj.TYPE_TEXTSIZE;
 		$$.Offset = -$2;
-		$$.U.Argsize = obj.ArgsSizeUnknown;
+		$$.Val = int32(obj.ArgsSizeUnknown);
 	}
 |	LCONST '-' LCONST
 	{
 		$$ = nullgen;
 		$$.Type = obj.TYPE_TEXTSIZE;
 		$$.Offset = $1;
-		$$.U.Argsize = int32($3);
+		$$.Val = int32($3);
 	}
 |	'-' LCONST '-' LCONST
 	{
 		$$ = nullgen;
 		$$.Type = obj.TYPE_TEXTSIZE;
 		$$.Offset = -$2;
-		$$.U.Argsize = int32($4);
+		$$.Val = int32($4);
 	}
 
 expr:

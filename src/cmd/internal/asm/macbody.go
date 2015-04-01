@@ -43,14 +43,11 @@ const (
 )
 
 func getnsn() int32 {
-	var n int32
-	var c int
-
-	c = getnsc()
+	c := getnsc()
 	if c < '0' || c > '9' {
 		return -1
 	}
-	n = 0
+	n := int32(0)
 	for c >= '0' && c <= '9' {
 		n = n*10 + int32(c) - '0'
 		c = getc()
@@ -61,9 +58,7 @@ func getnsn() int32 {
 }
 
 func getsym() *Sym {
-	var c int
-
-	c = getnsc()
+	c := getnsc()
 	if !isalpha(c) && c != '_' && c < 0x80 {
 		unget(c)
 		return nil
@@ -84,15 +79,12 @@ func getsym() *Sym {
 }
 
 func getsymdots(dots *int) *Sym {
-	var c int
-	var s *Sym
-
-	s = getsym()
+	s := getsym()
 	if s != nil {
 		return s
 	}
 
-	c = getnsc()
+	c := getnsc()
 	if c != '.' {
 		unget(c)
 		return nil
@@ -153,10 +145,9 @@ func getcom() int {
 
 func dodefine(cp string) {
 	var s *Sym
-	var p string
 
 	if i := strings.Index(cp, "="); i >= 0 {
-		p = cp[i+1:]
+		p := cp[i+1:]
 		cp = cp[:i]
 		s = Lookup(cp)
 		s.Macro = &Macro{Text: p}
@@ -186,14 +177,11 @@ var mactab = []struct {
 }
 
 func domacro() {
-	var i int
-	var s *Sym
-
-	s = getsym()
+	s := getsym()
 	if s == nil {
 		s = Lookup("endif")
 	}
-	for i = 0; i < len(mactab); i++ {
+	for i := 0; i < len(mactab); i++ {
 		if s.Name == mactab[i].Macname {
 			if mactab[i].Macf != nil {
 				mactab[i].Macf()
@@ -209,9 +197,7 @@ func domacro() {
 }
 
 func macund() {
-	var s *Sym
-
-	s = getsym()
+	s := getsym()
 	macend()
 	if s == nil {
 		Yyerror("syntax in #undef")
@@ -226,8 +212,6 @@ const (
 )
 
 func macdef() {
-	var s *Sym
-	var a *Sym
 	var args [NARG]string
 	var n int
 	var i int
@@ -236,7 +220,7 @@ func macdef() {
 	var ischr int
 	var base bytes.Buffer
 
-	s = getsym()
+	s := getsym()
 	if s == nil {
 		goto bad
 	}
@@ -251,6 +235,8 @@ func macdef() {
 		c = getnsc()
 		if c != ')' {
 			unget(c)
+			var a *Sym
+			var c int
 			for {
 				a = getsymdots(&dots)
 				if a == nil {
@@ -316,7 +302,6 @@ func macdef() {
 				ischr = 0
 			}
 		} else {
-
 			if c == '"' || c == '\'' {
 				base.WriteByte(byte(c))
 				ischr = c
@@ -417,20 +402,12 @@ bad:
 	if s == nil {
 		Yyerror("syntax in #define")
 	} else {
-
 		Yyerror("syntax in #define: %s", s.Name)
 	}
 	macend()
 }
 
 func macexpand(s *Sym) []byte {
-	var l int
-	var c int
-	var arg []string
-	var out bytes.Buffer
-	var buf bytes.Buffer
-	var cp string
-
 	if s.Macro.Narg == 0 {
 		if debug['m'] != 0 {
 			fmt.Printf("#expand %s %s\n", s.Name, s.Macro.Text)
@@ -441,14 +418,19 @@ func macexpand(s *Sym) []byte {
 	nargs := s.Macro.Narg - 1
 	dots := s.Macro.Dots
 
-	c = getnsc()
+	c := getnsc()
+	var arg []string
+	var cp string
+	var out bytes.Buffer
 	if c != '(' {
 		goto bad
 	}
 	c = getc()
 	if c != ')' {
 		unget(c)
-		l = 0
+		l := 0
+		var buf bytes.Buffer
+		var c int
 		for {
 			c = getc()
 			if c == '"' {
@@ -595,16 +577,14 @@ bad:
 }
 
 func macinc() {
-	var c0 int
 	var c int
-	var i int
 	var buf bytes.Buffer
 	var f *os.File
 	var hp string
 	var str string
 	var symb string
 
-	c0 = getnsc()
+	c0 := getnsc()
 	if c0 != '"' {
 		c = c0
 		if c0 != '<' {
@@ -630,7 +610,7 @@ func macinc() {
 		goto bad
 	}
 
-	for i = 0; i < len(include); i++ {
+	for i := 0; i < len(include); i++ {
 		if i == 0 && c0 == '>' {
 			continue
 		}
@@ -663,13 +643,11 @@ bad:
 }
 
 func maclin() {
-	var c int
-	var n int32
 	var buf bytes.Buffer
 	var symb string
 
-	n = getnsn()
-	c = getc()
+	n := getnsn()
+	c := getc()
 	if n < 0 {
 		goto bad
 	}
@@ -783,16 +761,43 @@ bad:
 }
 
 func macprag() {
-	var s *Sym
-	var c0 int
 	var c int
-	var buf bytes.Buffer
-	var symb string
 
-	s = getsym()
+	s := getsym()
 
 	if s != nil && s.Name == "lib" {
-		goto praglib
+		c0 := getnsc()
+		if c0 != '"' {
+			c = c0
+			if c0 != '<' {
+				goto bad
+			}
+			c0 = '>'
+		}
+
+		var buf bytes.Buffer
+		for {
+			c = getc()
+			if c == c0 {
+				break
+			}
+			if c == '\n' {
+				goto bad
+			}
+			buf.WriteByte(byte(c))
+		}
+		symb := buf.String()
+
+		c = getcom()
+		if c != '\n' {
+			goto bad
+		}
+
+		/*
+		 * put pragma-line in as a funny history
+		 */
+		obj.Linklinehist(Ctxt, int(Lineno), symb, -1)
+		return
 	}
 	if s != nil && s.Name == "pack" {
 		pragpack()
@@ -830,41 +835,7 @@ func macprag() {
 	}
 
 	for getnsc() != '\n' {
-
 	}
-	return
-
-praglib:
-	c0 = getnsc()
-	if c0 != '"' {
-		c = c0
-		if c0 != '<' {
-			goto bad
-		}
-		c0 = '>'
-	}
-
-	for {
-		c = getc()
-		if c == c0 {
-			break
-		}
-		if c == '\n' {
-			goto bad
-		}
-		buf.WriteByte(byte(c))
-	}
-	symb = buf.String()
-
-	c = getcom()
-	if c != '\n' {
-		goto bad
-	}
-
-	/*
-	 * put pragma-line in as a funny history
-	 */
-	obj.Linklinehist(Ctxt, int(Lineno), symb, -1)
 	return
 
 bad:

@@ -30,6 +30,9 @@ TEXT runtime·open(SB),NOSPLIT,$0
 	MOVL	mode+4(FP), CX
 	MOVL	perm+8(FP), DX
 	CALL	*runtime·_vdso(SB)
+	CMPL	AX, $0xfffff001
+	JLS	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
 
@@ -37,6 +40,9 @@ TEXT runtime·close(SB),NOSPLIT,$0
 	MOVL	$6, AX		// syscall - close
 	MOVL	fd+0(FP), BX
 	CALL	*runtime·_vdso(SB)
+	CMPL	AX, $0xfffff001
+	JLS	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+4(FP)
 	RET
 
@@ -46,6 +52,9 @@ TEXT runtime·write(SB),NOSPLIT,$0
 	MOVL	p+4(FP), CX
 	MOVL	n+8(FP), DX
 	CALL	*runtime·_vdso(SB)
+	CMPL	AX, $0xfffff001
+	JLS	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
 
@@ -55,6 +64,9 @@ TEXT runtime·read(SB),NOSPLIT,$0
 	MOVL	p+4(FP), CX
 	MOVL	n+8(FP), DX
 	CALL	*runtime·_vdso(SB)
+	CMPL	AX, $0xfffff001
+	JLS	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
 
@@ -398,16 +410,16 @@ TEXT runtime·setldt(SB),NOSPLIT,$32
 	 * When linking against the system libraries,
 	 * we use its pthread_create and let it set up %gs
 	 * for us.  When we do that, the private storage
-	 * we get is not at 0(GS), 4(GS), but -8(GS), -4(GS).
+	 * we get is not at 0(GS), but -4(GS).
 	 * To insulate the rest of the tool chain from this
-	 * ugliness, 8l rewrites 0(TLS) into -8(GS) for us.
+	 * ugliness, 8l rewrites 0(TLS) into -4(GS) for us.
 	 * To accommodate that rewrite, we translate
 	 * the address here and bump the limit to 0xffffffff (no limit)
-	 * so that -8(GS) maps to 0(address).
-	 * Also, the final 0(GS) (current 8(CX)) has to point
+	 * so that -4(GS) maps to 0(address).
+	 * Also, the final 0(GS) (current 4(CX)) has to point
 	 * to itself, to mimic ELF.
 	 */
-	ADDL	$0x8, CX	// address
+	ADDL	$0x4, CX	// address
 	MOVL	CX, 0(CX)
 
 	// set up user_desc

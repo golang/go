@@ -37,94 +37,125 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 const (
-	ElfClassNone = 0 + iota
-	ElfClass32
-	ElfClass64
-	ElfDataNone = 0 + iota - 3
-	ElfDataLsb
-	ElfDataMsb
-	ElfTypeNone = 0 + iota - 6
-	ElfTypeRelocatable
-	ElfTypeExecutable
-	ElfTypeSharedObject
-	ElfTypeCore
-	ElfMachNone = 0 + iota - 11
-	ElfMach32100
-	ElfMachSparc
-	ElfMach386
-	ElfMach68000
-	ElfMach88000
-	ElfMach486
-	ElfMach860
-	ElfMachMips
-	ElfMachS370
-	ElfMachMipsLe
-	ElfMachParisc = 15
-	ElfMachVpp500 = 17 + iota - 23
-	ElfMachSparc32Plus
-	ElfMach960
-	ElfMachPower
-	ElfMachPower64
-	ElfMachS390
-	ElfMachV800 = 36 + iota - 29
-	ElfMachFr20
-	ElfMachRh32
-	ElfMachRce
-	ElfMachArm
-	ElfMachAlpha
-	ElfMachSH
-	ElfMachSparc9
-	ElfMachAmd64  = 62
-	ElfAbiNone    = 0
-	ElfAbiSystemV = 0 + iota - 39
-	ElfAbiHPUX
-	ElfAbiNetBSD
-	ElfAbiLinux
-	ElfAbiSolaris = 6 + iota - 43
-	ElfAbiAix
-	ElfAbiIrix
-	ElfAbiFreeBSD
-	ElfAbiTru64
-	ElfAbiModesto
-	ElfAbiOpenBSD
+	ElfClassNone = 0
+	ElfClass32   = 1
+	ElfClass64   = 2
+)
+
+const (
+	ElfDataNone = 0
+	ElfDataLsb  = 1
+	ElfDataMsb  = 2
+)
+
+const (
+	ElfTypeNone         = 0
+	ElfTypeRelocatable  = 1
+	ElfTypeExecutable   = 2
+	ElfTypeSharedObject = 3
+	ElfTypeCore         = 4
+)
+
+const (
+	ElfMachNone        = 0
+	ElfMach32100       = 1
+	ElfMachSparc       = 2
+	ElfMach386         = 3
+	ElfMach68000       = 4
+	ElfMach88000       = 5
+	ElfMach486         = 6
+	ElfMach860         = 7
+	ElfMachMips        = 8
+	ElfMachS370        = 9
+	ElfMachMipsLe      = 10
+	ElfMachParisc      = 15
+	ElfMachVpp500      = 17
+	ElfMachSparc32Plus = 18
+	ElfMach960         = 19
+	ElfMachPower       = 20
+	ElfMachPower64     = 21
+	ElfMachS390        = 22
+	ElfMachV800        = 36
+	ElfMachFr20        = 37
+	ElfMachRh32        = 38
+	ElfMachRce         = 39
+	ElfMachArm         = 40
+	ElfMachAlpha       = 41
+	ElfMachSH          = 42
+	ElfMachSparc9      = 43
+	ElfMachAmd64       = 62
+	ElfMachArm64       = 183
+)
+
+const (
+	ElfAbiNone     = 0
+	ElfAbiSystemV  = 0
+	ElfAbiHPUX     = 1
+	ElfAbiNetBSD   = 2
+	ElfAbiLinux    = 3
+	ElfAbiSolaris  = 6
+	ElfAbiAix      = 7
+	ElfAbiIrix     = 8
+	ElfAbiFreeBSD  = 9
+	ElfAbiTru64    = 10
+	ElfAbiModesto  = 11
+	ElfAbiOpenBSD  = 12
 	ElfAbiARM      = 97
 	ElfAbiEmbedded = 255
-	ElfSectNone    = 0 + iota - 52
-	ElfSectProgbits
-	ElfSectSymtab
-	ElfSectStrtab
-	ElfSectRela
-	ElfSectHash
-	ElfSectDynamic
-	ElfSectNote
-	ElfSectNobits
-	ElfSectRel
-	ElfSectShlib
-	ElfSectDynsym
+)
+
+const (
+	ElfSectNone      = 0
+	ElfSectProgbits  = 1
+	ElfSectSymtab    = 2
+	ElfSectStrtab    = 3
+	ElfSectRela      = 4
+	ElfSectHash      = 5
+	ElfSectDynamic   = 6
+	ElfSectNote      = 7
+	ElfSectNobits    = 8
+	ElfSectRel       = 9
+	ElfSectShlib     = 10
+	ElfSectDynsym    = 11
 	ElfSectFlagWrite = 0x1
 	ElfSectFlagAlloc = 0x2
 	ElfSectFlagExec  = 0x4
-	ElfSymBindLocal  = 0 + iota - 67
-	ElfSymBindGlobal
-	ElfSymBindWeak
-	ElfSymTypeNone = 0 + iota - 70
-	ElfSymTypeObject
-	ElfSymTypeFunc
-	ElfSymTypeSection
-	ElfSymTypeFile
+)
+
+const (
+	ElfSymBindLocal  = 0
+	ElfSymBindGlobal = 1
+	ElfSymBindWeak   = 2
+)
+
+const (
+	ElfSymTypeNone    = 0
+	ElfSymTypeObject  = 1
+	ElfSymTypeFunc    = 2
+	ElfSymTypeSection = 3
+	ElfSymTypeFile    = 4
+)
+
+const (
 	ElfSymShnNone   = 0
 	ElfSymShnAbs    = 0xFFF1
 	ElfSymShnCommon = 0xFFF2
-	ElfProgNone     = 0 + iota - 78
-	ElfProgLoad
-	ElfProgDynamic
-	ElfProgInterp
-	ElfProgNote
-	ElfProgShlib
-	ElfProgPhdr
-	ElfProgFlagExec     = 0x1
-	ElfProgFlagWrite    = 0x2
-	ElfProgFlagRead     = 0x4
+)
+
+const (
+	ElfProgNone      = 0
+	ElfProgLoad      = 1
+	ElfProgDynamic   = 2
+	ElfProgInterp    = 3
+	ElfProgNote      = 4
+	ElfProgShlib     = 5
+	ElfProgPhdr      = 6
+	ElfProgFlagExec  = 0x1
+	ElfProgFlagWrite = 0x2
+	ElfProgFlagRead  = 0x4
+)
+
+const (
 	ElfNotePrStatus     = 1
 	ElfNotePrFpreg      = 2
 	ElfNotePrPsinfo     = 3
@@ -235,8 +266,8 @@ type ElfSect struct {
 
 type ElfObj struct {
 	f         *Biobuf
-	base      int64
-	length    int64
+	base      int64 // offset in f where ELF begins
+	length    int64 // length of ELF
 	is64      int
 	name      string
 	e         binary.ByteOrder
@@ -285,39 +316,34 @@ func valuecmp(a *LSym, b *LSym) int {
 }
 
 func ldelf(f *Biobuf, pkg string, length int64, pn string) {
-	var err error
-	var base int32
-	var add uint64
-	var info uint64
-	var name string
-	var i int
-	var j int
-	var rela int
-	var is64 int
-	var n int
-	var flag int
-	var hdrbuf [64]uint8
-	var p []byte
-	var hdr *ElfHdrBytes
-	var elfobj *ElfObj
-	var sect *ElfSect
-	var rsect *ElfSect
-	var sym ElfSym
-	var e binary.ByteOrder
-	var r []Reloc
-	var rp *Reloc
-	var s *LSym
-	var symbols []*LSym
-
-	symbols = nil
-
 	if Debug['v'] != 0 {
 		fmt.Fprintf(&Bso, "%5.2f ldelf %s\n", obj.Cputime(), pn)
 	}
 
 	Ctxt.Version++
-	base = int32(Boffset(f))
+	base := int32(Boffset(f))
 
+	var add uint64
+	var e binary.ByteOrder
+	var elfobj *ElfObj
+	var err error
+	var flag int
+	var hdr *ElfHdrBytes
+	var hdrbuf [64]uint8
+	var info uint64
+	var is64 int
+	var j int
+	var n int
+	var name string
+	var p []byte
+	var r []Reloc
+	var rela int
+	var rp *Reloc
+	var rsect *ElfSect
+	var s *LSym
+	var sect *ElfSect
+	var sym ElfSym
+	var symbols []*LSym
 	if Bread(f, hdrbuf[:]) != len(hdrbuf) {
 		goto bad
 	}
@@ -348,10 +374,8 @@ func ldelf(f *Biobuf, pkg string, length int64, pn string) {
 
 	is64 = 0
 	if hdr.Ident[4] == ElfClass64 {
-		var hdr *ElfHdrBytes64
-
 		is64 = 1
-		hdr = new(ElfHdrBytes64)
+		hdr := new(ElfHdrBytes64)
 		binary.Read(bytes.NewReader(hdrbuf[:]), binary.BigEndian, hdr) // only byte arrays; byte order doesn't matter
 		elfobj.type_ = uint32(e.Uint16(hdr.Type[:]))
 		elfobj.machine = uint32(e.Uint16(hdr.Machine[:]))
@@ -409,6 +433,12 @@ func ldelf(f *Biobuf, pkg string, length int64, pn string) {
 			return
 		}
 
+	case '7':
+		if e != binary.LittleEndian || elfobj.machine != ElfMachArm64 || hdr.Ident[4] != ElfClass64 {
+			Diag("%s: elf object but not arm64", pn)
+			return
+		}
+
 	case '8':
 		if e != binary.LittleEndian || elfobj.machine != ElfMach386 || hdr.Ident[4] != ElfClass32 {
 			Diag("%s: elf object but not 386", pn)
@@ -426,7 +456,7 @@ func ldelf(f *Biobuf, pkg string, length int64, pn string) {
 	elfobj.sect = make([]ElfSect, elfobj.shnum)
 
 	elfobj.nsect = uint(elfobj.shnum)
-	for i = 0; uint(i) < elfobj.nsect; i++ {
+	for i := 0; uint(i) < elfobj.nsect; i++ {
 		if Bseek(f, int64(uint64(base)+elfobj.shoff+uint64(int64(i)*int64(elfobj.shentsize))), 0) < 0 {
 			goto bad
 		}
@@ -478,7 +508,7 @@ func ldelf(f *Biobuf, pkg string, length int64, pn string) {
 	if err = elfmap(elfobj, sect); err != nil {
 		goto bad
 	}
-	for i = 0; uint(i) < elfobj.nsect; i++ {
+	for i := 0; uint(i) < elfobj.nsect; i++ {
 		if elfobj.sect[i].nameoff != 0 {
 			elfobj.sect[i].name = cstring(sect.base[elfobj.sect[i].nameoff:])
 		}
@@ -517,7 +547,7 @@ func ldelf(f *Biobuf, pkg string, length int64, pn string) {
 	// as well use one large chunk.
 
 	// create symbols for elfmapped sections
-	for i = 0; uint(i) < elfobj.nsect; i++ {
+	for i := 0; uint(i) < elfobj.nsect; i++ {
 		sect = &elfobj.sect[i]
 		if (sect.type_ != ElfSectProgbits && sect.type_ != ElfSectNobits) || sect.flags&ElfSectFlagAlloc == 0 {
 			continue
@@ -572,7 +602,7 @@ func ldelf(f *Biobuf, pkg string, length int64, pn string) {
 		Errorexit()
 	}
 
-	for i = 1; i < elfobj.nsymtab; i++ {
+	for i := 1; i < elfobj.nsymtab; i++ {
 		if err = readelfsym(elfobj, i, &sym, 1); err != nil {
 			goto bad
 		}
@@ -601,7 +631,7 @@ func ldelf(f *Biobuf, pkg string, length int64, pn string) {
 		}
 		sect = &elfobj.sect[sym.shndx:][0]
 		if sect.sym == nil {
-			if strings.HasPrefix(sym.name, ".Linfo_string") {
+			if strings.HasPrefix(sym.name, ".Linfo_string") { // clang does this
 				continue
 			}
 			Diag("%s: sym#%d: ignoring %s in section %d (type %d)", pn, i, sym.name, sym.shndx, sym.type_)
@@ -645,7 +675,7 @@ func ldelf(f *Biobuf, pkg string, length int64, pn string) {
 
 	// Sort outer lists by address, adding to textp.
 	// This keeps textp in increasing address order.
-	for i = 0; uint(i) < elfobj.nsect; i++ {
+	for i := 0; uint(i) < elfobj.nsect; i++ {
 		s = elfobj.sect[i].sym
 		if s == nil {
 			continue
@@ -676,7 +706,7 @@ func ldelf(f *Biobuf, pkg string, length int64, pn string) {
 	}
 
 	// load relocations
-	for i = 0; uint(i) < elfobj.nsect; i++ {
+	for i := 0; uint(i) < elfobj.nsect; i++ {
 		rsect = &elfobj.sect[i]
 		if rsect.type_ != ElfSectRela && rsect.type_ != ElfSectRel {
 			continue
@@ -782,9 +812,7 @@ bad:
 }
 
 func section(elfobj *ElfObj, name string) *ElfSect {
-	var i int
-
-	for i = 0; uint(i) < elfobj.nsect; i++ {
+	for i := 0; uint(i) < elfobj.nsect; i++ {
 		if elfobj.sect[i].name != "" && name != "" && elfobj.sect[i].name == name {
 			return &elfobj.sect[i]
 		}
@@ -812,8 +840,6 @@ func elfmap(elfobj *ElfObj, sect *ElfSect) (err error) {
 }
 
 func readelfsym(elfobj *ElfObj, i int, sym *ElfSym, needSym int) (err error) {
-	var s *LSym
-
 	if i >= elfobj.nsymtab || i < 0 {
 		err = fmt.Errorf("invalid elf symbol index")
 		return err
@@ -845,7 +871,7 @@ func readelfsym(elfobj *ElfObj, i int, sym *ElfSym, needSym int) (err error) {
 		sym.other = b.Other
 	}
 
-	s = nil
+	var s *LSym
 	if sym.name == "_GLOBAL_OFFSET_TABLE_" {
 		sym.name = ".got"
 	}
@@ -859,9 +885,7 @@ func readelfsym(elfobj *ElfObj, i int, sym *ElfSym, needSym int) (err error) {
 	case ElfSymTypeSection:
 		s = elfobj.sect[sym.shndx].sym
 
-	case ElfSymTypeObject,
-		ElfSymTypeFunc,
-		ElfSymTypeNone:
+	case ElfSymTypeObject, ElfSymTypeFunc, ElfSymTypeNone:
 		switch sym.bind {
 		case ElfSymBindGlobal:
 			if needSym != 0 {
@@ -882,7 +906,7 @@ func readelfsym(elfobj *ElfObj, i int, sym *ElfSym, needSym int) (err error) {
 
 		case ElfSymBindLocal:
 			if Thearch.Thechar == '5' && (strings.HasPrefix(sym.name, "$a") || strings.HasPrefix(sym.name, "$d")) {
-				// binutils for arm generate these elfmapping
+				// binutils for arm generate these mapping
 				// symbols, ignore these
 				break
 			}
@@ -940,11 +964,8 @@ func (x rbyoff) Swap(i, j int) {
 }
 
 func (x rbyoff) Less(i, j int) bool {
-	var a *Reloc
-	var b *Reloc
-
-	a = &x[i]
-	b = &x[j]
+	a := &x[i]
+	b := &x[j]
 	if a.Off < b.Off {
 		return true
 	}

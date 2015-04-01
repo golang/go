@@ -18,13 +18,13 @@ func newFileFD(f *os.File) (*netFD, error) {
 	}
 
 	if err = syscall.SetNonblock(fd, true); err != nil {
-		closesocket(fd)
+		closeFunc(fd)
 		return nil, err
 	}
 
 	sotype, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_TYPE)
 	if err != nil {
-		closesocket(fd)
+		closeFunc(fd)
 		return nil, os.NewSyscallError("getsockopt", err)
 	}
 
@@ -33,7 +33,7 @@ func newFileFD(f *os.File) (*netFD, error) {
 	lsa, _ := syscall.Getsockname(fd)
 	switch lsa.(type) {
 	default:
-		closesocket(fd)
+		closeFunc(fd)
 		return nil, syscall.EINVAL
 	case *syscall.SockaddrInet4:
 		family = syscall.AF_INET
@@ -64,7 +64,7 @@ func newFileFD(f *os.File) (*netFD, error) {
 
 	netfd, err := newFD(fd, family, sotype, laddr.Network())
 	if err != nil {
-		closesocket(fd)
+		closeFunc(fd)
 		return nil, err
 	}
 	if err := netfd.init(); err != nil {

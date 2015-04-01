@@ -486,7 +486,7 @@ func (x *MapType) End() token.Pos       { return x.Value.End() }
 func (x *ChanType) End() token.Pos      { return x.Value.End() }
 
 // exprNode() ensures that only expression/type nodes can be
-// assigned to an ExprNode.
+// assigned to an Expr.
 //
 func (*BadExpr) exprNode()        {}
 func (*Ident) exprNode()          {}
@@ -787,7 +787,7 @@ func (s *ForStmt) End() token.Pos    { return s.Body.End() }
 func (s *RangeStmt) End() token.Pos  { return s.Body.End() }
 
 // stmtNode() ensures that only statement nodes can be
-// assigned to a StmtNode.
+// assigned to a Stmt.
 //
 func (*BadStmt) stmtNode()        {}
 func (*DeclStmt) stmtNode()       {}
@@ -951,7 +951,7 @@ func (d *FuncDecl) End() token.Pos {
 }
 
 // declNode() ensures that only declaration nodes can be
-// assigned to a DeclNode.
+// assigned to a Decl.
 //
 func (*BadDecl) declNode()  {}
 func (*GenDecl) declNode()  {}

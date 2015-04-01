@@ -14,12 +14,12 @@ import (
 )
 
 func probeIPv4Stack() bool {
-	s, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+	s, err := socketFunc(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
 	switch err {
 	case syscall.EAFNOSUPPORT, syscall.EPROTONOSUPPORT:
 		return false
 	case nil:
-		closesocket(s)
+		closeFunc(s)
 	}
 	return true
 }
@@ -50,11 +50,11 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
 	}
 
 	for i := range probes {
-		s, err := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+		s, err := socketFunc(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
 		if err != nil {
 			continue
 		}
-		defer closesocket(s)
+		defer closeFunc(s)
 		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, probes[i].value)
 		sa, err := probes[i].laddr.sockaddr(syscall.AF_INET6)
 		if err != nil {

@@ -6,6 +6,8 @@ package runtime
 
 import "unsafe"
 
+// May run during STW, so write barriers are not allowed.
+//go:nowritebarrier
 func sighandler(_ureg *ureg, note *byte, gp *g) int {
 	_g_ := getg()
 	var t sigTabT
@@ -79,7 +81,7 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 	}
 Throw:
 	_g_.m.throwing = 1
-	_g_.m.caughtsig = gp
+	setGNoWriteBarrier(&_g_.m.caughtsig, gp)
 	startpanic()
 	print(notestr, "\n")
 	print("PC=", hex(c.pc()), "\n")

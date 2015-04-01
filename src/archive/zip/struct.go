@@ -233,7 +233,7 @@ func (h *FileHeader) SetMode(mode os.FileMode) {
 	}
 }
 
-// isZip64 returns true if the file size exceeds the 32 bit limit
+// isZip64 reports whether the file size exceeds the 32 bit limit
 func (fh *FileHeader) isZip64() bool {
 	return fh.CompressedSize64 > uint32max || fh.UncompressedSize64 > uint32max
 }

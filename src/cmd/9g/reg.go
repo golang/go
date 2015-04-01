@@ -34,7 +34,7 @@ import "cmd/internal/obj/ppc64"
 import "cmd/internal/gc"
 
 const (
-	NREGVAR = 64
+	NREGVAR = 64 /* 32 general + 32 floating */
 )
 
 var regname = []string{

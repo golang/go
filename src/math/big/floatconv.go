@@ -63,11 +63,18 @@ func (z *Float) SetString(s string) (*Float, bool) {
 // be binary, if present (an "e" or "E" exponent indicator cannot be
 // distinguished from a mantissa digit).
 //
-// BUG(gri) This signature conflicts with Scan(s fmt.ScanState, ch rune) error.
+// The returned *Float f is nil and the value of z is valid but not
+// defined if an error is reported.
+//
+// BUG(gri) The Float.Scan signature conflicts with Scan(s fmt.ScanState, ch rune) error.
 func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
-	if z.prec == 0 {
-		z.prec = 64
+	prec := z.prec
+	if prec == 0 {
+		prec = 64
 	}
+
+	// A reasonable value in case of an error.
+	z.form = zero
 
 	// sign
 	z.neg, err = scanSign(r)
@@ -90,13 +97,12 @@ func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 		return
 	}
 
-	// set result
-	f = z
-
 	// special-case 0
 	if len(z.mant) == 0 {
+		z.prec = prec
 		z.acc = Exact
-		z.exp = 0
+		z.form = zero
+		f = z
 		return
 	}
 	// len(z.mant) > 0
@@ -140,7 +146,15 @@ func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 	// we don't need exp anymore
 
 	// apply 2**exp2
-	z.setExp(exp2)
+	if MinExp <= exp2 && exp2 <= MaxExp {
+		z.prec = prec
+		z.form = finite
+		z.exp = int32(exp2)
+		f = z
+	} else {
+		err = fmt.Errorf("exponent overflow")
+		return
+	}
 
 	if exp10 == 0 {
 		// no decimal exponent to consider
@@ -158,7 +172,6 @@ func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 	fpowTen := new(Float).SetInt(new(Int).SetBits(powTen))
 
 	// apply 10**exp10
-	// (uquo and umul do the rounding)
 	if exp10 < 0 {
 		z.uquo(z, fpowTen)
 	} else {
@@ -169,8 +182,8 @@ func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 }
 
 // Parse is like z.Scan(r, base), but instead of reading from an
-// io.ByteScanner, it parses the string s. An error is returned if
-// the string contains invalid or trailing bytes not belonging to
+// io.ByteScanner, it parses the string s. An error is also returned
+// if the string contains invalid or trailing bytes not belonging to
 // the number.
 func (z *Float) Parse(s string, base int) (f *Float, b int, err error) {
 	r := strings.NewReader(s)
@@ -224,7 +237,7 @@ func ParseFloat(s string, base int, prec uint, mode RoundingMode) (f *Float, b i
 // number of digits necessary such that ParseFloat will return f exactly.
 // The prec value is ignored for the 'b' or 'p' format.
 //
-// BUG(gri) Currently, Format does not accept negative precisions.
+// BUG(gri) Float.Format does not accept negative precisions.
 func (x *Float) Format(format byte, prec int) string {
 	const extra = 10 // TODO(gri) determine a good/better value here
 	return string(x.Append(make([]byte, 0, prec+extra), format, prec))
@@ -236,7 +249,7 @@ func (x *Float) Append(buf []byte, format byte, prec int) []byte {
 	// TODO(gri) factor out handling of sign?
 
 	// Inf
-	if x.IsInf(0) {
+	if x.IsInf() {
 		var ch byte = '+'
 		if x.neg {
 			ch = '-'
@@ -256,7 +269,7 @@ func (x *Float) Append(buf []byte, format byte, prec int) []byte {
 	return x.bigFtoa(buf, format, prec)
 }
 
-// BUG(gri): Currently, String uses x.Format('g', 10) rather than x.Format('g', -1).
+// BUG(gri): Float.String uses x.Format('g', 10) rather than x.Format('g', -1).
 func (x *Float) String() string {
 	return x.Format('g', 10)
 }
@@ -270,8 +283,12 @@ func (x *Float) bstring(buf []byte) []byte {
 	if x.neg {
 		buf = append(buf, '-')
 	}
-	if len(x.mant) == 0 {
+	if x.form == zero {
 		return append(buf, '0')
+	}
+
+	if debugFloat && x.form != finite {
+		panic("non-finite float")
 	}
 	// x != 0
 
@@ -301,8 +318,12 @@ func (x *Float) pstring(buf []byte) []byte {
 	if x.neg {
 		buf = append(buf, '-')
 	}
-	if len(x.mant) == 0 {
+	if x.form == zero {
 		return append(buf, '0')
+	}
+
+	if debugFloat && x.form != finite {
+		panic("non-finite float")
 	}
 	// x != 0
 

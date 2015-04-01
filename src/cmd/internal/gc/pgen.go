@@ -6,24 +6,20 @@ package gc
 
 import (
 	"cmd/internal/obj"
+	"crypto/md5"
 	"fmt"
 	"strings"
 )
 
 // "Portable" code generation.
-// Compiled separately for 5g, 6g, and 8g, so allowed to use gg.h, opt.h.
-// Must code to the intersection of the three back ends.
-
-//#include	"opt.h"
 
 var makefuncdatasym_nsym int32
 
 func makefuncdatasym(namefmt string, funcdatakind int64) *Sym {
 	var nod Node
 
-	namebuf = fmt.Sprintf(namefmt, makefuncdatasym_nsym)
+	sym := Lookupf(namefmt, makefuncdatasym_nsym)
 	makefuncdatasym_nsym++
-	sym := Lookup(namebuf)
 	pnod := newname(sym)
 	pnod.Class = PEXTERN
 	Nodconst(&nod, Types[TINT32], funcdatakind)
@@ -97,9 +93,7 @@ func gvardefx(n *Node, as int) {
 	}
 
 	switch n.Class {
-	case PAUTO,
-		PPARAM,
-		PPARAMOUT:
+	case PAUTO, PPARAM, PPARAMOUT:
 		Thearch.Gins(as, nil, n)
 	}
 }
@@ -118,8 +112,8 @@ func removevardef(firstp *obj.Prog) {
 			p.Link = p.Link.Link
 		}
 		if p.To.Type == obj.TYPE_BRANCH {
-			for p.To.U.Branch != nil && (p.To.U.Branch.As == obj.AVARDEF || p.To.U.Branch.As == obj.AVARKILL) {
-				p.To.U.Branch = p.To.U.Branch.Link
+			for p.To.Val.(*obj.Prog) != nil && (p.To.Val.(*obj.Prog).As == obj.AVARDEF || p.To.Val.(*obj.Prog).As == obj.AVARKILL) {
+				p.To.Val = p.To.Val.(*obj.Prog).Link
 			}
 		}
 	}
@@ -130,12 +124,7 @@ func gcsymdup(s *Sym) {
 	if len(ls.R) > 0 {
 		Fatal("cannot rosymdup %s with relocations", ls.Name)
 	}
-	var d MD5
-	md5reset(&d)
-	md5write(&d, ls.P, len(ls.P))
-	var hi uint64
-	lo := md5sum(&d, &hi)
-	ls.Name = fmt.Sprintf("gclocals·%016x%016x", lo, hi)
+	ls.Name = fmt.Sprintf("gclocals·%x", md5.Sum(ls.P))
 	ls.Dupok = 1
 }
 
@@ -201,8 +190,8 @@ func cmpstackvar(a *Node, b *Node) int {
 		return 0
 	}
 
-	if (a.Used == 0) != (b.Used == 0) {
-		return int(b.Used) - int(a.Used)
+	if a.Used != b.Used {
+		return bool2int(b.Used) - bool2int(a.Used)
 	}
 
 	ap := bool2int(haspointers(a.Type))
@@ -211,8 +200,8 @@ func cmpstackvar(a *Node, b *Node) int {
 		return bp - ap
 	}
 
-	ap = int(a.Needzero)
-	bp = int(b.Needzero)
+	ap = bool2int(a.Needzero)
+	bp = bool2int(b.Needzero)
 	if ap != bp {
 		return bp - ap
 	}
@@ -232,45 +221,45 @@ func allocauto(ptxt *obj.Prog) {
 	Stksize = 0
 	stkptrsize = 0
 
-	if Curfn.Dcl == nil {
+	if Curfn.Func.Dcl == nil {
 		return
 	}
 
 	// Mark the PAUTO's unused.
-	for ll := Curfn.Dcl; ll != nil; ll = ll.Next {
+	for ll := Curfn.Func.Dcl; ll != nil; ll = ll.Next {
 		if ll.N.Class == PAUTO {
-			ll.N.Used = 0
+			ll.N.Used = false
 		}
 	}
 
 	markautoused(ptxt)
 
-	listsort(&Curfn.Dcl, cmpstackvar)
+	listsort(&Curfn.Func.Dcl, cmpstackvar)
 
 	// Unused autos are at the end, chop 'em off.
-	ll := Curfn.Dcl
+	ll := Curfn.Func.Dcl
 
 	n := ll.N
-	if n.Class == PAUTO && n.Op == ONAME && n.Used == 0 {
+	if n.Class == PAUTO && n.Op == ONAME && !n.Used {
 		// No locals used at all
-		Curfn.Dcl = nil
+		Curfn.Func.Dcl = nil
 
 		fixautoused(ptxt)
 		return
 	}
 
-	for ll := Curfn.Dcl; ll.Next != nil; ll = ll.Next {
+	for ll := Curfn.Func.Dcl; ll.Next != nil; ll = ll.Next {
 		n = ll.Next.N
-		if n.Class == PAUTO && n.Op == ONAME && n.Used == 0 {
+		if n.Class == PAUTO && n.Op == ONAME && !n.Used {
 			ll.Next = nil
-			Curfn.Dcl.End = ll
+			Curfn.Func.Dcl.End = ll
 			break
 		}
 	}
 
 	// Reassign stack offsets of the locals that are still there.
 	var w int64
-	for ll := Curfn.Dcl; ll != nil; ll = ll.Next {
+	for ll := Curfn.Func.Dcl; ll != nil; ll = ll.Next {
 		n = ll.N
 		if n.Class != PAUTO || n.Op != ONAME {
 			continue
@@ -286,7 +275,7 @@ func allocauto(ptxt *obj.Prog) {
 		if haspointers(n.Type) {
 			stkptrsize = Stksize
 		}
-		if Thearch.Thechar == '5' || Thearch.Thechar == '9' {
+		if Thearch.Thechar == '5' || Thearch.Thechar == '7' || Thearch.Thechar == '9' {
 			Stksize = Rnd(Stksize, int64(Widthptr))
 		}
 		if Stksize >= 1<<31 {
@@ -303,7 +292,7 @@ func allocauto(ptxt *obj.Prog) {
 	fixautoused(ptxt)
 
 	// The debug information needs accurate offsets on the symbols.
-	for ll := Curfn.Dcl; ll != nil; ll = ll.Next {
+	for ll := Curfn.Func.Dcl; ll != nil; ll = ll.Next {
 		if ll.N.Class != PAUTO || ll.N.Op != ONAME {
 			continue
 		}
@@ -323,7 +312,7 @@ func movelarge(l *NodeList) {
 func movelargefn(fn *Node) {
 	var n *Node
 
-	for l := fn.Dcl; l != nil; l = l.Next {
+	for l := fn.Func.Dcl; l != nil; l = l.Next {
 		n = l.N
 		if n.Class == PAUTO && n.Type != nil && n.Type.Width > MaxStackVarSize {
 			addrescapes(n)
@@ -337,26 +326,23 @@ func Cgen_checknil(n *Node) {
 	}
 
 	// Ideally we wouldn't see any integer types here, but we do.
-	if n.Type == nil || (Isptr[n.Type.Etype] == 0 && Isint[n.Type.Etype] == 0 && n.Type.Etype != TUNSAFEPTR) {
+	if n.Type == nil || (!Isptr[n.Type.Etype] && !Isint[n.Type.Etype] && n.Type.Etype != TUNSAFEPTR) {
 		Dump("checknil", n)
 		Fatal("bad checknil")
 	}
 
-	if ((Thearch.Thechar == '5' || Thearch.Thechar == '9') && n.Op != OREGISTER) || n.Addable == 0 || n.Op == OLITERAL {
+	if ((Thearch.Thechar == '5' || Thearch.Thechar == '7' || Thearch.Thechar == '9') && n.Op != OREGISTER) || n.Addable == 0 || n.Op == OLITERAL {
 		var reg Node
-		Thearch.Regalloc(&reg, Types[Tptr], n)
-		Thearch.Cgen(n, &reg)
+		Regalloc(&reg, Types[Tptr], n)
+		Cgen(n, &reg)
 		Thearch.Gins(obj.ACHECKNIL, &reg, nil)
-		Thearch.Regfree(&reg)
+		Regfree(&reg)
 		return
 	}
 
 	Thearch.Gins(obj.ACHECKNIL, n, nil)
 }
 
-/*
- * ggen.c
- */
 func compile(fn *Node) {
 	if Newproc == nil {
 		Newproc = Sysfunc("newproc")
@@ -446,16 +432,16 @@ func compile(fn *Node) {
 		nam = nil
 	}
 	ptxt = Thearch.Gins(obj.ATEXT, nam, &nod1)
-	if fn.Dupok != 0 {
+	if fn.Func.Dupok {
 		ptxt.From3.Offset |= obj.DUPOK
 	}
-	if fn.Wrapper != 0 {
+	if fn.Func.Wrapper {
 		ptxt.From3.Offset |= obj.WRAPPER
 	}
-	if fn.Needctxt {
+	if fn.Func.Needctxt {
 		ptxt.From3.Offset |= obj.NEEDCTXT
 	}
-	if fn.Nosplit {
+	if fn.Func.Nosplit {
 		ptxt.From3.Offset |= obj.NOSPLIT
 	}
 
@@ -470,7 +456,7 @@ func compile(fn *Node) {
 
 	Afunclit(&ptxt.From, Curfn.Nname)
 
-	Thearch.Ginit()
+	ginit()
 
 	gcargs = makefuncdatasym("gcargs·%d", obj.FUNCDATA_ArgsPointerMaps)
 	gclocals = makefuncdatasym("gclocals·%d", obj.FUNCDATA_LocalsPointerMaps)
@@ -479,40 +465,38 @@ func compile(fn *Node) {
 		gtrack(tracksym(t.Type))
 	}
 
-	for l := fn.Dcl; l != nil; l = l.Next {
+	for l := fn.Func.Dcl; l != nil; l = l.Next {
 		n = l.N
 		if n.Op != ONAME { // might be OTYPE or OLITERAL
 			continue
 		}
 		switch n.Class {
-		case PAUTO,
-			PPARAM,
-			PPARAMOUT:
+		case PAUTO, PPARAM, PPARAMOUT:
 			Nodconst(&nod1, Types[TUINTPTR], l.N.Type.Width)
 			p = Thearch.Gins(obj.ATYPE, l.N, &nod1)
 			p.From.Gotype = Linksym(ngotype(l.N))
 		}
 	}
 
-	Genlist(Curfn.Enter)
+	Genlist(Curfn.Func.Enter)
 	Genlist(Curfn.Nbody)
-	Thearch.Gclean()
+	gclean()
 	checklabels()
 	if nerrors != 0 {
 		goto ret
 	}
-	if Curfn.Endlineno != 0 {
-		lineno = Curfn.Endlineno
+	if Curfn.Func.Endlineno != 0 {
+		lineno = Curfn.Func.Endlineno
 	}
 
 	if Curfn.Type.Outtuple != 0 {
-		Thearch.Ginscall(throwreturn, 0)
+		Ginscall(throwreturn, 0)
 	}
 
-	Thearch.Ginit()
+	ginit()
 
 	// TODO: Determine when the final cgen_ret can be omitted. Perhaps always?
-	Thearch.Cgen_ret(nil)
+	cgen_ret(nil)
 
 	if Hasdefer != 0 {
 		// deferreturn pretends to have one uintptr argument.
@@ -522,7 +506,7 @@ func compile(fn *Node) {
 		}
 	}
 
-	Thearch.Gclean()
+	gclean()
 	if nerrors != 0 {
 		goto ret
 	}

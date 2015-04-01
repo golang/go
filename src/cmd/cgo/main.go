@@ -87,7 +87,7 @@ type Name struct {
 	Const    string // constant definition
 }
 
-// IsVar returns true if Kind is either "var" or "fpvar"
+// IsVar reports whether Kind is either "var" or "fpvar"
 func (n *Name) IsVar() bool {
 	return n.Kind == "var" || n.Kind == "fpvar"
 }
@@ -133,6 +133,7 @@ var ptrSizeMap = map[string]int64{
 	"386":     4,
 	"amd64":   8,
 	"arm":     4,
+	"arm64":   8,
 	"ppc64":   8,
 	"ppc64le": 8,
 	"s390":    4,
@@ -143,6 +144,7 @@ var intSizeMap = map[string]int64{
 	"386":     4,
 	"amd64":   8,
 	"arm":     4,
+	"arm64":   8,
 	"ppc64":   8,
 	"ppc64le": 8,
 	"s390":    4,

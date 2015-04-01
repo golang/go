@@ -412,6 +412,13 @@ nog:
 // cannot do real signal handling yet, because gsignal has not been allocated.
 MOVL $1, DI; NACL_SYSCALL(SYS_exit)
 
+// func getRandomData([]byte)
+TEXT runtime·getRandomData(SB),NOSPLIT,$0-12
+	MOVL buf+0(FP), DI
+	MOVL len+4(FP), SI
+	NACL_SYSCALL(SYS_get_random_bytes)
+	RET
+
 TEXT runtime·nacl_sysinfo(SB),NOSPLIT,$16
 /*
 	MOVL	di+0(FP), DI

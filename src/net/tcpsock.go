@@ -25,6 +25,13 @@ func (a *TCPAddr) String() string {
 	return JoinHostPort(ip, itoa(a.Port))
 }
 
+func (a *TCPAddr) isWildcard() bool {
+	if a == nil || a.IP == nil {
+		return true
+	}
+	return a.IP.IsUnspecified()
+}
+
 func (a *TCPAddr) toAddr() Addr {
 	if a == nil {
 		return nil

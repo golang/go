@@ -192,7 +192,7 @@ func Base(path string) string {
 	return path
 }
 
-// IsAbs returns true if the path is absolute.
+// IsAbs reports whether the path is absolute.
 func IsAbs(path string) bool {
 	return len(path) > 0 && path[0] == '/'
 }

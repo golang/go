@@ -4,8 +4,6 @@
 
 package gc
 
-import "fmt"
-
 //	case OADD:
 //		if(n->right->op == OLITERAL) {
 //			v = n->right->vconst;
@@ -31,8 +29,7 @@ var renameinit_initgen int
 
 func renameinit() *Sym {
 	renameinit_initgen++
-	namebuf = fmt.Sprintf("init.%d", renameinit_initgen)
-	return Lookup(namebuf)
+	return Lookupf("init.%d", renameinit_initgen)
 }
 
 /*
@@ -57,10 +54,7 @@ func anyinit(n *NodeList) bool {
 	// are there any interesting init statements
 	for l := n; l != nil; l = l.Next {
 		switch l.N.Op {
-		case ODCLFUNC,
-			ODCLCONST,
-			ODCLTYPE,
-			OEMPTY:
+		case ODCLFUNC, ODCLCONST, ODCLTYPE, OEMPTY:
 			break
 
 		case OAS:
@@ -88,14 +82,8 @@ func anyinit(n *NodeList) bool {
 	}
 
 	// are there any imported init functions
-	for h := uint32(0); h < NHASH; h++ {
-		for s = hash[h]; s != nil; s = s.Link {
-			if s.Name[0] != 'i' || s.Name != "init" {
-				continue
-			}
-			if s.Def == nil {
-				continue
-			}
+	for _, s := range initSyms {
+		if s.Def != nil {
 			return true
 		}
 	}
@@ -115,21 +103,17 @@ func fninit(n *NodeList) {
 		return
 	}
 
-	r := (*NodeList)(nil)
+	var r *NodeList
 
 	// (1)
-	namebuf = "initdone·"
-
-	gatevar := newname(Lookup(namebuf))
+	gatevar := newname(Lookup("initdone·"))
 	addvar(gatevar, Types[TUINT8], PEXTERN)
 
 	// (2)
 	Maxarg = 0
 
-	namebuf = "init"
-
 	fn := Nod(ODCLFUNC, nil, nil)
-	initsym := Lookup(namebuf)
+	initsym := Lookup("init")
 	fn.Nname = newname(initsym)
 	fn.Nname.Defn = fn
 	fn.Nname.Ntype = Nod(OTFUNC, nil, nil)
@@ -161,22 +145,10 @@ func fninit(n *NodeList) {
 	r = list(r, a)
 
 	// (7)
-	var s *Sym
-	for h := uint32(0); h < NHASH; h++ {
-		for s = hash[h]; s != nil; s = s.Link {
-			if s.Name[0] != 'i' || s.Name != "init" {
-				continue
-			}
-			if s.Def == nil {
-				continue
-			}
-			if s == initsym {
-				continue
-			}
-
+	for _, s := range initSyms {
+		if s.Def != nil && s != initsym {
 			// could check that it is fn of no args/returns
 			a = Nod(OCALL, s.Def, nil)
-
 			r = list(r, a)
 		}
 	}
@@ -187,8 +159,7 @@ func fninit(n *NodeList) {
 	// (9)
 	// could check that it is fn of no args/returns
 	for i := 1; ; i++ {
-		namebuf = fmt.Sprintf("init.%d", i)
-		s = Lookup(namebuf)
+		s := Lookupf("init.%d", i)
 		if s.Def == nil {
 			break
 		}

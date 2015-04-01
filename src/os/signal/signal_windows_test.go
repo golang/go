@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"syscall"
 	"testing"
 	"time"
@@ -31,6 +32,9 @@ func sendCtrlBreak(t *testing.T, pid int) {
 }
 
 func TestCtrlBreak(t *testing.T) {
+	if runtime.GOARCH == "386" {
+		t.Skip("known failing test on windows/386, see https://golang.org/issue/10215")
+	}
 	// create source file
 	const source = `
 package main

@@ -87,16 +87,16 @@ type Type interface {
 	// Kind returns the specific kind of this type.
 	Kind() Kind
 
-	// Implements returns true if the type implements the interface type u.
+	// Implements reports whether the type implements the interface type u.
 	Implements(u Type) bool
 
-	// AssignableTo returns true if a value of the type is assignable to type u.
+	// AssignableTo reports whether a value of the type is assignable to type u.
 	AssignableTo(u Type) bool
 
-	// ConvertibleTo returns true if a value of the type is convertible to type u.
+	// ConvertibleTo reports whether a value of the type is convertible to type u.
 	ConvertibleTo(u Type) bool
 
-	// Comparable returns true if values of this type are comparable.
+	// Comparable reports whether values of this type are comparable.
 	Comparable() bool
 
 	// Methods applicable only to some types, depending on Kind.
@@ -120,7 +120,7 @@ type Type interface {
 	// It panics if the type's Kind is not Chan.
 	ChanDir() ChanDir
 
-	// IsVariadic returns true if a function type's final input parameter
+	// IsVariadic reports whether a function type's final input parameter
 	// is a "..." parameter.  If so, t.In(t.NumIn() - 1) returns the parameter's
 	// implicit actual type []T.
 	//
@@ -201,9 +201,9 @@ type Type interface {
 // See golang.org/issue/4876 for more details.
 
 /*
- * These data structures are known to the compiler (../../cmd/gc/reflect.c).
+ * These data structures are known to the compiler (../../cmd/internal/gc/reflect.go).
  * A few are known to ../runtime/type.go to convey to debuggers.
- * They are also known to ../runtime/type.h.
+ * They are also known to ../runtime/type.go.
  */
 
 // A Kind represents the specific kind of type that a Type represents.
@@ -1122,7 +1122,7 @@ func (t *rtype) Comparable() bool {
 	return t.alg != nil && t.alg.equal != nil
 }
 
-// implements returns true if the type V implements the interface type T.
+// implements reports whether the type V implements the interface type T.
 func implements(T, V *rtype) bool {
 	if T.Kind() != Interface {
 		return false
@@ -1143,7 +1143,7 @@ func implements(T, V *rtype) bool {
 	// methods along the way, or else V does not implement T.
 	// This lets us run the scan in overall linear time instead of
 	// the quadratic time  a naive search would require.
-	// See also ../runtime/iface.c.
+	// See also ../runtime/iface.go.
 	if V.Kind() == Interface {
 		v := (*interfaceType)(unsafe.Pointer(V))
 		i := 0
@@ -1176,7 +1176,7 @@ func implements(T, V *rtype) bool {
 	return false
 }
 
-// directlyAssignable returns true if a value x of type V can be directly
+// directlyAssignable reports whether a value x of type V can be directly
 // assigned (using memmove) to a value of type T.
 // http://golang.org/doc/go_spec.html#Assignability
 // Ignoring the interface rules (implemented elsewhere)
@@ -1637,13 +1637,10 @@ func (gc *gcProg) align(a uintptr) {
 	gc.size = align(gc.size, a)
 }
 
-// These constants must stay in sync with ../runtime/mgc0.h.
+// These constants must stay in sync with ../runtime/mbitmap.go.
 const (
 	bitsScalar  = 1
 	bitsPointer = 2
-
-	bitsIface = 2
-	bitsEface = 3
 )
 
 // Make sure these routines stay in sync with ../../runtime/hashmap.go!

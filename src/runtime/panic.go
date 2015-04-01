@@ -166,9 +166,20 @@ func newdefer(siz int32) *_defer {
 	mp := acquirem()
 	if sc < uintptr(len(p{}.deferpool)) {
 		pp := mp.p
-		d = pp.deferpool[sc]
-		if d != nil {
-			pp.deferpool[sc] = d.link
+		if len(pp.deferpool[sc]) == 0 && sched.deferpool[sc] != nil {
+			lock(&sched.deferlock)
+			for len(pp.deferpool[sc]) < cap(pp.deferpool[sc])/2 && sched.deferpool[sc] != nil {
+				d := sched.deferpool[sc]
+				sched.deferpool[sc] = d.link
+				d.link = nil
+				pp.deferpool[sc] = append(pp.deferpool[sc], d)
+			}
+			unlock(&sched.deferlock)
+		}
+		if n := len(pp.deferpool[sc]); n > 0 {
+			d = pp.deferpool[sc][n-1]
+			pp.deferpool[sc][n-1] = nil
+			pp.deferpool[sc] = pp.deferpool[sc][:n-1]
 		}
 	}
 	if d == nil {
@@ -196,7 +207,6 @@ func newdefer(siz int32) *_defer {
 
 // Free the given defer.
 // The defer cannot be used after this call.
-//go:nosplit
 func freedefer(d *_defer) {
 	if d._panic != nil {
 		freedeferpanic()
@@ -214,9 +224,28 @@ func freedefer(d *_defer) {
 	if sc < uintptr(len(p{}.deferpool)) {
 		mp := acquirem()
 		pp := mp.p
+		if len(pp.deferpool[sc]) == cap(pp.deferpool[sc]) {
+			// Transfer half of local cache to the central cache.
+			var first, last *_defer
+			for len(pp.deferpool[sc]) > cap(pp.deferpool[sc])/2 {
+				n := len(pp.deferpool[sc])
+				d := pp.deferpool[sc][n-1]
+				pp.deferpool[sc][n-1] = nil
+				pp.deferpool[sc] = pp.deferpool[sc][:n-1]
+				if first == nil {
+					first = d
+				} else {
+					last.link = d
+				}
+				last = d
+			}
+			lock(&sched.deferlock)
+			last.link = sched.deferpool[sc]
+			sched.deferpool[sc] = first
+			unlock(&sched.deferlock)
+		}
 		*d = _defer{}
-		d.link = pp.deferpool[sc]
-		pp.deferpool[sc] = d
+		pp.deferpool[sc] = append(pp.deferpool[sc], d)
 		releasem(mp)
 	}
 }
@@ -267,7 +296,10 @@ func deferreturn(arg0 uintptr) {
 	fn := d.fn
 	d.fn = nil
 	gp._defer = d.link
-	freedefer(d)
+	// Switch to systemstack merely to save nosplit stack space.
+	systemstack(func() {
+		freedefer(d)
+	})
 	releasem(mp)
 	jmpdefer(fn, uintptr(unsafe.Pointer(&arg0)))
 }

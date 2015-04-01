@@ -62,7 +62,7 @@ func lookupHost(name string) (addrs []string, err error) {
 	return
 }
 
-func gethostbyname(name string) (addrs []IP, err error) {
+func gethostbyname(name string) (addrs []IPAddr, err error) {
 	// caller already acquired thread
 	h, err := syscall.GetHostByName(name)
 	if err != nil {
@@ -71,9 +71,9 @@ func gethostbyname(name string) (addrs []IP, err error) {
 	switch h.AddrType {
 	case syscall.AF_INET:
 		i := 0
-		addrs = make([]IP, 100) // plenty of room to grow
+		addrs = make([]IPAddr, 100) // plenty of room to grow
 		for p := (*[100](*[4]byte))(unsafe.Pointer(h.AddrList)); i < cap(addrs) && p[i] != nil; i++ {
-			addrs[i] = IPv4(p[i][0], p[i][1], p[i][2], p[i][3])
+			addrs[i] = IPAddr{IP: IPv4(p[i][0], p[i][1], p[i][2], p[i][3])}
 		}
 		addrs = addrs[0:i]
 	default: // TODO(vcc): Implement non IPv4 address lookups.
@@ -82,11 +82,11 @@ func gethostbyname(name string) (addrs []IP, err error) {
 	return addrs, nil
 }
 
-func oldLookupIP(name string) (addrs []IP, err error) {
+func oldLookupIP(name string) (addrs []IPAddr, err error) {
 	// GetHostByName return value is stored in thread local storage.
 	// Start new os thread before the call to prevent races.
 	type result struct {
-		addrs []IP
+		addrs []IPAddr
 		err   error
 	}
 	ch := make(chan result)
@@ -99,10 +99,10 @@ func oldLookupIP(name string) (addrs []IP, err error) {
 		ch <- result{addrs: addrs, err: err}
 	}()
 	r := <-ch
-	return r.addrs, r.err
+	return addrs, r.err
 }
 
-func newLookupIP(name string) (addrs []IP, err error) {
+func newLookupIP(name string) (addrs []IPAddr, err error) {
 	acquireThread()
 	defer releaseThread()
 	hints := syscall.AddrinfoW{
@@ -116,16 +116,17 @@ func newLookupIP(name string) (addrs []IP, err error) {
 		return nil, os.NewSyscallError("GetAddrInfoW", e)
 	}
 	defer syscall.FreeAddrInfoW(result)
-	addrs = make([]IP, 0, 5)
+	addrs = make([]IPAddr, 0, 5)
 	for ; result != nil; result = result.Next {
 		addr := unsafe.Pointer(result.Addr)
 		switch result.Family {
 		case syscall.AF_INET:
 			a := (*syscall.RawSockaddrInet4)(addr).Addr
-			addrs = append(addrs, IPv4(a[0], a[1], a[2], a[3]))
+			addrs = append(addrs, IPAddr{IP: IPv4(a[0], a[1], a[2], a[3])})
 		case syscall.AF_INET6:
 			a := (*syscall.RawSockaddrInet6)(addr).Addr
-			addrs = append(addrs, IP{a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15]})
+			zone := zoneToString(int((*syscall.RawSockaddrInet6)(addr).Scope_id))
+			addrs = append(addrs, IPAddr{IP: IP{a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15]}, Zone: zone})
 		default:
 			return nil, os.NewSyscallError("LookupIP", syscall.EWINDOWS)
 		}

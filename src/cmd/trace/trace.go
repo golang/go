@@ -90,7 +90,7 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
 		params.startTime = g.StartTime
 		params.endTime = g.EndTime
 		params.maing = goid
-		params.gs = relatedGoroutines(events, goid)
+		params.gs = trace.RelatedGoroutines(events, goid)
 	}
 
 	err = json.NewEncoder(w).Encode(generateTrace(params))
@@ -343,12 +343,12 @@ func (ctx *traceContext) proc(ev *trace.Event) uint64 {
 
 func (ctx *traceContext) emitSlice(ev *trace.Event, name string) {
 	ctx.emit(&ViewerEvent{
-		Name:  name,
-		Phase: "X",
-		Time:  ctx.time(ev),
-		Dur:   ctx.time(ev.Link) - ctx.time(ev),
-		Tid:   ctx.proc(ev),
-		//Stack: ctx.stack(ev.Stk),
+		Name:     name,
+		Phase:    "X",
+		Time:     ctx.time(ev),
+		Dur:      ctx.time(ev.Link) - ctx.time(ev),
+		Tid:      ctx.proc(ev),
+		Stack:    ctx.stack(ev.Stk),
 		EndStack: ctx.stack(ev.Link.Stk),
 	})
 }
@@ -391,7 +391,14 @@ func (ctx *traceContext) emitThreadCounters(ev *trace.Event) {
 }
 
 func (ctx *traceContext) emitInstant(ev *trace.Event, name string) {
-	ctx.emit(&ViewerEvent{Name: name, Phase: "I", Scope: "t", Time: ctx.time(ev), Tid: ctx.proc(ev), Stack: ctx.stack(ev.Stk)})
+	var arg interface{}
+	if ev.Type == trace.EvProcStart {
+		type Arg struct {
+			ThreadID uint64
+		}
+		arg = &Arg{ev.Args[0]}
+	}
+	ctx.emit(&ViewerEvent{Name: name, Phase: "I", Scope: "t", Time: ctx.time(ev), Tid: ctx.proc(ev), Stack: ctx.stack(ev.Stk), Arg: arg})
 }
 
 func (ctx *traceContext) emitArrow(ev *trace.Event, name string) {

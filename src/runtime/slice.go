@@ -33,16 +33,13 @@ func makeslice(t *slicetype, len64 int64, cap64 int64) sliceStruct {
 	return sliceStruct{p, len, cap}
 }
 
-// TODO: take uintptr instead of int64?
-func growslice(t *slicetype, old sliceStruct, n int64) sliceStruct {
+func growslice(t *slicetype, old sliceStruct, n int) sliceStruct {
 	if n < 1 {
 		panic(errorString("growslice: invalid n"))
 	}
 
-	cap64 := int64(old.cap) + n
-	cap := int(cap64)
-
-	if int64(cap) != cap64 || cap < old.cap || t.elem.size > 0 && uintptr(cap) > _MaxMem/uintptr(t.elem.size) {
+	cap := old.cap + n
+	if cap < old.cap || t.elem.size > 0 && uintptr(cap) > _MaxMem/uintptr(t.elem.size) {
 		panic(errorString("growslice: cap out of range"))
 	}
 
@@ -53,7 +50,9 @@ func growslice(t *slicetype, old sliceStruct, n int64) sliceStruct {
 
 	et := t.elem
 	if et.size == 0 {
-		return sliceStruct{old.array, old.len, cap}
+		// append should not create a slice with nil pointer but non-zero len.
+		// We assume that append doesn't need to preserve old.array in this case.
+		return sliceStruct{unsafe.Pointer(&zerobase), old.len, cap}
 	}
 
 	newcap := old.cap

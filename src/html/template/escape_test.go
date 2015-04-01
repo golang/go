@@ -1686,6 +1686,21 @@ func TestPipeToMethodIsEscaped(t *testing.T) {
 	}
 }
 
+// Unlike text/template, html/template crashed if given an incomplete
+// template, that is, a template that had been named but not given any content.
+// This is issue #10204.
+func TestErrorOnUndefined(t *testing.T) {
+	tmpl := New("undefined")
+
+	err := tmpl.Execute(nil, nil)
+	if err == nil {
+		t.Error("expected error")
+	}
+	if !strings.Contains(err.Error(), "incomplete") {
+		t.Errorf("expected error about incomplete template; got %s", err)
+	}
+}
+
 func BenchmarkEscapedExecute(b *testing.B) {
 	tmpl := Must(New("t").Parse(`<a onclick="alert('{{.}}')">{{.}}</a>`))
 	var buf bytes.Buffer

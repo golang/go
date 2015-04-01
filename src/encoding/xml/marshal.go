@@ -1018,24 +1018,21 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 			}
 
 		case fElement, fElement | fAny:
-			if err := s.trim(finfo.parents); err != nil {
+			if err := s.setParents(finfo, vf); err != nil {
 				return err
-			}
-			if len(finfo.parents) > len(s.stack) {
-				if vf.Kind() != reflect.Ptr && vf.Kind() != reflect.Interface || !vf.IsNil() {
-					if err := s.push(finfo.parents[len(s.stack):]); err != nil {
-						return err
-					}
-				}
 			}
 		}
 		if err := p.marshalValue(vf, finfo, nil); err != nil {
 			return err
 		}
 	}
-	s.trim(nil)
+	if err := s.setParents(&noField, reflect.Value{}); err != nil {
+		return err
+	}
 	return p.cachedWriteError()
 }
+
+var noField fieldInfo
 
 // return the bufio Writer's cached write error
 func (p *printer) cachedWriteError() error {
@@ -1075,37 +1072,64 @@ func (p *printer) writeIndent(depthDelta int) {
 }
 
 type parentStack struct {
-	p     *printer
-	stack []string
+	p       *printer
+	xmlns   string
+	parents []string
 }
 
-// trim updates the XML context to match the longest common prefix of the stack
-// and the given parents.  A closing tag will be written for every parent
-// popped.  Passing a zero slice or nil will close all the elements.
-func (s *parentStack) trim(parents []string) error {
-	split := 0
-	for ; split < len(parents) && split < len(s.stack); split++ {
-		if parents[split] != s.stack[split] {
-			break
+// setParents sets the stack of current parents to those found in finfo.
+// It only writes the start elements if vf holds a non-nil value.
+// If finfo is &noField, it pops all elements.
+func (s *parentStack) setParents(finfo *fieldInfo, vf reflect.Value) error {
+	xmlns := s.p.defaultNS
+	if finfo.xmlns != "" {
+		xmlns = finfo.xmlns
+	}
+	commonParents := 0
+	if xmlns == s.xmlns {
+		for ; commonParents < len(finfo.parents) && commonParents < len(s.parents); commonParents++ {
+			if finfo.parents[commonParents] != s.parents[commonParents] {
+				break
+			}
 		}
 	}
-	for i := len(s.stack) - 1; i >= split; i-- {
-		if err := s.p.writeEnd(Name{Local: s.stack[i]}); err != nil {
+	// Pop off any parents that aren't in common with the previous field.
+	for i := len(s.parents) - 1; i >= commonParents; i-- {
+		if err := s.p.writeEnd(Name{
+			Space: s.xmlns,
+			Local: s.parents[i],
+		}); err != nil {
 			return err
 		}
 	}
-	s.stack = parents[:split]
-	return nil
-}
-
-// push adds parent elements to the stack and writes open tags.
-func (s *parentStack) push(parents []string) error {
-	for i := 0; i < len(parents); i++ {
-		if err := s.p.writeStart(&StartElement{Name: Name{Local: parents[i]}}); err != nil {
+	s.parents = finfo.parents
+	s.xmlns = xmlns
+	if commonParents >= len(s.parents) {
+		// No new elements to push.
+		return nil
+	}
+	if (vf.Kind() == reflect.Ptr || vf.Kind() == reflect.Interface) && vf.IsNil() {
+		// The element is nil, so no need for the start elements.
+		s.parents = s.parents[:commonParents]
+		return nil
+	}
+	// Push any new parents required.
+	for _, name := range s.parents[commonParents:] {
+		start := &StartElement{
+			Name: Name{
+				Space: s.xmlns,
+				Local: name,
+			},
+		}
+		// Set the default name space for parent elements
+		// to match what we do with other elements.
+		if s.xmlns != s.p.defaultNS {
+			start.setDefaultNamespace()
+		}
+		if err := s.p.writeStart(start); err != nil {
 			return err
 		}
 	}
-	s.stack = append(s.stack, parents...)
 	return nil
 }
 

@@ -52,3 +52,8 @@ func sigpanic() {
 
 func raiseproc(sig int32) {
 }
+
+// Stubs so tests can link correctly.  These should never be called.
+func open(name *byte, mode, perm int32) int32
+func close(fd int32) int32
+func read(fd int32, p unsafe.Pointer, n int32) int32

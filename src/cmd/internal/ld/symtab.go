@@ -34,12 +34,7 @@ import "strings"
 
 // Symbol table.
 
-var maxelfstr int
-
 func putelfstr(s string) int {
-	var off int
-	var n int
-
 	if len(Elfstrdat) == 0 && s != "" {
 		// first entry must be empty string
 		putelfstr("")
@@ -48,12 +43,12 @@ func putelfstr(s string) int {
 	// Rewrite · to . for ASCII-only tools like DTrace (sigh)
 	s = strings.Replace(s, "·", ".", -1)
 
-	n = len(s) + 1
+	n := len(s) + 1
 	for len(Elfstrdat)+n > cap(Elfstrdat) {
 		Elfstrdat = append(Elfstrdat[:cap(Elfstrdat)], 0)[:len(Elfstrdat)]
 	}
 
-	off = len(Elfstrdat)
+	off := len(Elfstrdat)
 	Elfstrdat = Elfstrdat[:off+n]
 	copy(Elfstrdat[off:], s)
 
@@ -62,8 +57,7 @@ func putelfstr(s string) int {
 
 func putelfsyment(off int, addr int64, size int64, info int, shndx int, other int) {
 	switch Thearch.Thechar {
-	case '6',
-		'9':
+	case '6', '7', '9':
 		Thearch.Lput(uint32(off))
 		Cput(uint8(info))
 		Cput(uint8(other))
@@ -88,11 +82,7 @@ var numelfsym int = 1 // 0 is reserved
 var elfbind int
 
 func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *LSym) {
-	var bind int
 	var type_ int
-	var off int
-	var other int
-	var xo *LSym
 
 	switch t {
 	default:
@@ -106,27 +96,39 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
 
 	case 'B':
 		type_ = STT_OBJECT
+
+	case 'U':
+		type_ = STT_NOTYPE
+
+	case 't':
+		type_ = STT_TLS
 	}
 
-	xo = x
+	xo := x
 	for xo.Outer != nil {
 		xo = xo.Outer
 	}
-	if xo.Sect == nil {
-		Ctxt.Cursym = x
-		Diag("missing section in putelfsym")
-		return
-	}
 
-	if (xo.Sect.(*Section)).Elfsect == nil {
-		Ctxt.Cursym = x
-		Diag("missing ELF section in putelfsym")
-		return
+	var elfshnum int
+	if xo.Type == SDYNIMPORT || xo.Type == SHOSTOBJ {
+		elfshnum = SHN_UNDEF
+	} else {
+		if xo.Sect == nil {
+			Ctxt.Cursym = x
+			Diag("missing section in putelfsym")
+			return
+		}
+		if (xo.Sect.(*Section)).Elfsect == nil {
+			Ctxt.Cursym = x
+			Diag("missing ELF section in putelfsym")
+			return
+		}
+		elfshnum = ((xo.Sect.(*Section)).Elfsect.(*ElfShdr)).shnum
 	}
 
 	// One pass for each binding: STB_LOCAL, STB_GLOBAL,
 	// maybe one day STB_WEAK.
-	bind = STB_GLOBAL
+	bind := STB_GLOBAL
 
 	if ver != 0 || (x.Type&SHIDDEN != 0) {
 		bind = STB_LOCAL
@@ -136,7 +138,7 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
 	// to get the exported symbols put into the dynamic symbol table.
 	// To avoid filling the dynamic table with lots of unnecessary symbols,
 	// mark all Go symbols local (not global) in the final executable.
-	if Linkmode == LinkExternal && x.Cgoexport&CgoExportStatic == 0 {
+	if Linkmode == LinkExternal && x.Cgoexport&CgoExportStatic == 0 && elfshnum != SHN_UNDEF {
 		bind = STB_LOCAL
 	}
 
@@ -144,15 +146,15 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
 		return
 	}
 
-	off = putelfstr(s)
-	if Linkmode == LinkExternal {
+	off := putelfstr(s)
+	if Linkmode == LinkExternal && elfshnum != SHN_UNDEF {
 		addr -= int64((xo.Sect.(*Section)).Vaddr)
 	}
-	other = 2
+	other := STV_DEFAULT
 	if x.Type&SHIDDEN != 0 {
-		other = 0
+		other = STV_HIDDEN
 	}
-	putelfsyment(off, addr, size, bind<<4|type_&0xf, ((xo.Sect.(*Section)).Elfsect.(*ElfShdr)).shnum, other)
+	putelfsyment(off, addr, size, bind<<4|type_&0xf, elfshnum, other)
 	x.Elfsym = int32(numelfsym)
 	numelfsym++
 }
@@ -164,9 +166,7 @@ func putelfsectionsym(s *LSym, shndx int) {
 }
 
 func putelfsymshndx(sympos int64, shndx int) {
-	var here int64
-
-	here = Cpos()
+	here := Cpos()
 	switch Thearch.Thechar {
 	case '6':
 		Cseek(sympos + 6)
@@ -180,9 +180,6 @@ func putelfsymshndx(sympos int64, shndx int) {
 }
 
 func Asmelfsym() {
-	var s *LSym
-	var name string
-
 	// the first symbol entry is reserved
 	putelfsyment(0, 0, 0, STB_LOCAL<<4|STT_NOTYPE, 0, 0)
 
@@ -191,53 +188,14 @@ func Asmelfsym() {
 	elfbind = STB_LOCAL
 	genasmsym(putelfsym)
 
-	if Linkmode == LinkExternal && HEADTYPE != Hopenbsd {
-		s = Linklookup(Ctxt, "runtime.tlsg", 0)
-		if s.Sect == nil {
-			Ctxt.Cursym = nil
-			Diag("missing section for %s", s.Name)
-			Errorexit()
-		}
-
-		if goos == "android" {
-			// Android emulates runtime.tlsg as a regular variable.
-			putelfsyment(putelfstr(s.Name), 0, s.Size, STB_LOCAL<<4|STT_OBJECT, ((s.Sect.(*Section)).Elfsect.(*ElfShdr)).shnum, 0)
-		} else {
-			putelfsyment(putelfstr(s.Name), 0, s.Size, STB_LOCAL<<4|STT_TLS, ((s.Sect.(*Section)).Elfsect.(*ElfShdr)).shnum, 0)
-		}
-
-		s.Elfsym = int32(numelfsym)
-		numelfsym++
-	}
-
 	elfbind = STB_GLOBAL
 	elfglobalsymndx = numelfsym
 	genasmsym(putelfsym)
-
-	for s = Ctxt.Allsym; s != nil; s = s.Allsym {
-		if s.Type != SHOSTOBJ && (s.Type != SDYNIMPORT || !s.Reachable) {
-			continue
-		}
-		if s.Type == SDYNIMPORT {
-			name = s.Extname
-		} else {
-			name = s.Name
-		}
-		putelfsyment(putelfstr(name), 0, 0, STB_GLOBAL<<4|STT_NOTYPE, 0, 0)
-		s.Elfsym = int32(numelfsym)
-		numelfsym++
-	}
 }
 
 func putplan9sym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *LSym) {
-	var i int
-	var l int
-
 	switch t {
-	case 'T',
-		'L',
-		'D',
-		'B':
+	case 'T', 'L', 'D', 'B':
 		if ver != 0 {
 			t += 'a' - 'A'
 		}
@@ -249,7 +207,7 @@ func putplan9sym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ 
 		'z',
 		'Z',
 		'm':
-		l = 4
+		l := 4
 		if HEADTYPE == Hplan9 && Thearch.Thechar == '6' && Debug['8'] == 0 {
 			Lputb(uint32(addr >> 32))
 			l = 8
@@ -258,6 +216,7 @@ func putplan9sym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ 
 		Lputb(uint32(addr))
 		Cput(uint8(t + 0x80)) /* 0x80 is variable length */
 
+		var i int
 		if t == 'z' || t == 'Z' {
 			Cput(uint8(s[0]))
 			for i = 1; s[i] != 0 || s[i+1] != 0; i += 2 {
@@ -327,12 +286,6 @@ func Vputl(v uint64) {
 }
 
 func symtab() {
-	var s *LSym
-	var symtype *LSym
-	var symtypelink *LSym
-	var symgostring *LSym
-	var symgofunc *LSym
-
 	dosymtype()
 
 	// Define these so that they'll get put into the symbol table.
@@ -357,7 +310,7 @@ func symtab() {
 	xdefine("runtime.esymtab", SRODATA, 0)
 
 	// garbage collection symbols
-	s = Linklookup(Ctxt, "runtime.gcdata", 0)
+	s := Linklookup(Ctxt, "runtime.gcdata", 0)
 
 	s.Type = SRODATA
 	s.Size = 0
@@ -376,21 +329,21 @@ func symtab() {
 	s.Type = STYPE
 	s.Size = 0
 	s.Reachable = true
-	symtype = s
+	symtype := s
 
 	s = Linklookup(Ctxt, "go.string.*", 0)
 	s.Type = SGOSTRING
 	s.Size = 0
 	s.Reachable = true
-	symgostring = s
+	symgostring := s
 
 	s = Linklookup(Ctxt, "go.func.*", 0)
 	s.Type = SGOFUNC
 	s.Size = 0
 	s.Reachable = true
-	symgofunc = s
+	symgofunc := s
 
-	symtypelink = Linklookup(Ctxt, "runtime.typelink", 0)
+	symtypelink := Linklookup(Ctxt, "runtime.typelink", 0)
 
 	symt = Linklookup(Ctxt, "runtime.symtab", 0)
 	symt.Type = SSYMTAB
@@ -401,7 +354,7 @@ func symtab() {
 	// within a type they sort by size, so the .* symbols
 	// just defined above will be first.
 	// hide the specific symbols.
-	for s = Ctxt.Allsym; s != nil; s = s.Allsym {
+	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
 		if !s.Reachable || s.Special != 0 || s.Type != SRODATA {
 			continue
 		}
@@ -437,4 +390,38 @@ func symtab() {
 			liveness += (s.Size + int64(s.Align) - 1) &^ (int64(s.Align) - 1)
 		}
 	}
+
+	// Information about the layout of the executable image for the
+	// runtime to use. Any changes here must be matched by changes to
+	// the definition of moduledata in runtime/symtab.go.
+	moduledata := Linklookup(Ctxt, "runtime.themoduledata", 0)
+	moduledata.Type = SNOPTRDATA
+	moduledata.Size = 0 // truncate symbol back to 0 bytes to reinitialize
+	moduledata.Reachable = true
+	// Three slices (pclntable, ftab, filetab), uninitalized
+	moduledata.Size += int64((3 * 3 * Thearch.Ptrsize))
+	Symgrow(Ctxt, moduledata, moduledata.Size)
+	// Three uintptrs, initialized
+	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.pclntab", 0))
+	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.epclntab", 0))
+	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.findfunctab", 0))
+	// 2 more uintptrs (minpc, maxpc), uninitalized
+	moduledata.Size += int64(2 * Thearch.Ptrsize)
+	Symgrow(Ctxt, moduledata, moduledata.Size)
+	// more initialized uintptrs
+	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.text", 0))
+	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.etext", 0))
+	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.noptrdata", 0))
+	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.enoptrdata", 0))
+	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.data", 0))
+	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.edata", 0))
+	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.bss", 0))
+	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.ebss", 0))
+	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.noptrbss", 0))
+	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.enoptrbss", 0))
+	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.end", 0))
+	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.gcdata", 0))
+	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.gcbss", 0))
+	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.typelink", 0))
+	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.etypelink", 0))
 }

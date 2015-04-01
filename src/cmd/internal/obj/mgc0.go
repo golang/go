@@ -29,7 +29,10 @@ const (
 	BitsPointer     = 2
 	BitsMask        = 3
 	PointersPerByte = 8 / BitsPerPointer
-	InsData         = 1 + iota - 7
+)
+
+const (
+	InsData = 1 + iota
 	InsArray
 	InsArrayEnd
 	InsEnd

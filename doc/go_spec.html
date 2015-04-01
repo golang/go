@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of December 26, 2014",
+	"Subtitle": "Version of March 20, 2015",
 	"Path": "/ref/spec"
 }-->
 
@@ -2236,9 +2236,8 @@ LiteralType   = StructType | ArrayType | "[" "..." "]" ElementType |
 LiteralValue  = "{" [ ElementList [ "," ] ] "}" .
 ElementList   = Element { "," Element } .
 Element       = [ Key ":" ] Value .
-Key           = FieldName | ElementIndex .
+Key           = FieldName | Expression | LiteralValue .
 FieldName     = identifier .
-ElementIndex  = Expression .
 Value         = Expression | LiteralValue .
 </pre>
 
@@ -2357,17 +2356,21 @@ tmp[0 : n]
 
 <p>
 Within a composite literal of array, slice, or map type <code>T</code>,
-elements that are themselves composite literals may elide the respective
-literal type if it is identical to the element type of <code>T</code>.
-Similarly, elements that are addresses of composite literals may elide
-the <code>&amp;T</code> when the element type is <code>*T</code>.
+elements or map keys that are themselves composite literals may elide the respective
+literal type if it is identical to the element or key type of <code>T</code>.
+Similarly, elements or keys that are addresses of composite literals may elide
+the <code>&amp;T</code> when the element or key type is <code>*T</code>.
 </p>
 
 <pre>
-[...]Point{{1.5, -3.5}, {0, 0}}   // same as [...]Point{Point{1.5, -3.5}, Point{0, 0}}
-[][]int{{1, 2, 3}, {4, 5}}        // same as [][]int{[]int{1, 2, 3}, []int{4, 5}}
+[...]Point{{1.5, -3.5}, {0, 0}}     // same as [...]Point{Point{1.5, -3.5}, Point{0, 0}}
+[][]int{{1, 2, 3}, {4, 5}}          // same as [][]int{[]int{1, 2, 3}, []int{4, 5}}
+[][]Point{{{0, 1}, {1, 2}}}         // same as [][]Point{[]Point{Point{0, 1}, Point{1, 2}}}
+map[string]Point{"orig": {0, 0}}    // same as map[string]Point{"orig": Point{0, 0}}
 
-[...]*Point{{1.5, -3.5}, {0, 0}}  // same as [...]*Point{&amp;Point{1.5, -3.5}, &amp;Point{0, 0}}
+[...]*Point{{1.5, -3.5}, {0, 0}}    // same as [...]*Point{&amp;Point{1.5, -3.5}, &amp;Point{0, 0}}
+
+map[Point]string{{0, 0}: "orig"}    // same as map[Point]string{Point{0, 0}: "orig"}
 </pre>
 
 <p>

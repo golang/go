@@ -55,16 +55,15 @@ var oneptr = [...]uint8{typePointer}
 
 //go:nowritebarrier
 func markroot(desc *parfor, i uint32) {
-	var gcw gcWorkProducer
-	gcw.initFromCache()
+	var gcw gcWork
 
-	// Note: if you add a case here, please also update heapdump.c:dumproots.
+	// Note: if you add a case here, please also update heapdump.go:dumproots.
 	switch i {
 	case _RootData:
-		scanblock(uintptr(unsafe.Pointer(&data)), uintptr(unsafe.Pointer(&edata))-uintptr(unsafe.Pointer(&data)), gcdatamask.bytedata, &gcw)
+		scanblock(themoduledata.data, themoduledata.edata-themoduledata.data, gcdatamask.bytedata, &gcw)
 
 	case _RootBss:
-		scanblock(uintptr(unsafe.Pointer(&bss)), uintptr(unsafe.Pointer(&ebss))-uintptr(unsafe.Pointer(&bss)), gcbssmask.bytedata, &gcw)
+		scanblock(themoduledata.bss, themoduledata.ebss-themoduledata.bss, gcbssmask.bytedata, &gcw)
 
 	case _RootFinalizers:
 		for fb := allfin; fb != nil; fb = fb.alllink {
@@ -178,7 +177,6 @@ func gchelpwork() {
 		// hanging off the P where this is being run.
 		// scanstack(gp)
 	case _GCmark:
-		// Get a full work buffer and empty it.
 		// drain your own currentwbuf first in the hopes that it will
 		// be more cache friendly.
 		var gcw gcWork
@@ -248,7 +246,7 @@ func scanstack(gp *g) {
 		throw("can't scan gchelper stack")
 	}
 
-	var gcw gcWorkProducer
+	var gcw gcWork
 	gcw.initFromCache()
 	scanframe := func(frame *stkframe, unused unsafe.Pointer) bool {
 		// Pick up gcw as free variable so gentraceback and friends can
@@ -264,7 +262,7 @@ func scanstack(gp *g) {
 
 // Scan a stack frame: local variables and function arguments/results.
 //go:nowritebarrier
-func scanframeworker(frame *stkframe, unused unsafe.Pointer, gcw *gcWorkProducer) {
+func scanframeworker(frame *stkframe, unused unsafe.Pointer, gcw *gcWork) {
 
 	f := frame.fn
 	targetpc := frame.continpc
@@ -289,10 +287,13 @@ func scanframeworker(frame *stkframe, unused unsafe.Pointer, gcw *gcWorkProducer
 	// Scan local variables if stack frame has been allocated.
 	size := frame.varp - frame.sp
 	var minsize uintptr
-	if thechar != '6' && thechar != '8' {
-		minsize = ptrSize
-	} else {
+	switch thechar {
+	case '6', '8':
 		minsize = 0
+	case '7':
+		minsize = spAlign
+	default:
+		minsize = ptrSize
 	}
 	if size > minsize {
 		stkmap := (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))
@@ -334,7 +335,7 @@ func scanframeworker(frame *stkframe, unused unsafe.Pointer, gcw *gcWorkProducer
 	}
 }
 
-// gcDrain scans objects in work buffers (starting with wbuf), blackening grey
+// gcDrain scans objects in work buffers, blackening grey
 // objects until all work buffers have been drained.
 //go:nowritebarrier
 func gcDrain(gcw *gcWork) {
@@ -359,7 +360,7 @@ func gcDrain(gcw *gcWork) {
 		// out of the wbuf passed in + a single object placed
 		// into an empty wbuf in scanobject so there could be
 		// a performance hit as we keep fetching fresh wbufs.
-		scanobject(b, 0, nil, &gcw.gcWorkProducer)
+		scanobject(b, 0, nil, gcw)
 	}
 	checknocurrentwbuf()
 }
@@ -377,14 +378,14 @@ func gcDrainN(gcw *gcWork, n int) {
 		if b == 0 {
 			return
 		}
-		scanobject(b, 0, nil, &gcw.gcWorkProducer)
+		scanobject(b, 0, nil, gcw)
 	}
 }
 
 // scanblock scans b as scanobject would.
 // If the gcphase is GCscan, scanblock performs additional checks.
 //go:nowritebarrier
-func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWorkProducer) {
+func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
 	// Use local copies of original parameters, so that a stack trace
 	// due to one of the throws below shows the original block
 	// base and extent.
@@ -404,26 +405,28 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWorkProducer) {
 	}
 }
 
-// Scan the object b of size n, adding pointers to wbuf.
-// Return possibly new wbuf to use.
+// Scan the object b of size n bytes, adding pointers to wbuf.
 // If ptrmask != nil, it specifies where pointers are in b.
 // If ptrmask == nil, the GC bitmap should be consulted.
 // In this case, n may be an overestimate of the size; the GC bitmap
 // must also be used to make sure the scan stops at the end of b.
 //go:nowritebarrier
-func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWorkProducer) {
+func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWork) {
 	arena_start := mheap_.arena_start
 	arena_used := mheap_.arena_used
 
 	// Find bits of the beginning of the object.
 	var hbits heapBits
+
 	if ptrmask == nil {
-		b, hbits = heapBitsForObject(b)
+		var s *mspan
+		b, hbits, s = heapBitsForObject(b)
 		if b == 0 {
 			return
 		}
+		n = s.elemsize
 		if n == 0 {
-			n = mheap_.arena_used - b
+			throw("scanobject n == 0")
 		}
 	}
 	for i := uintptr(0); i < n; i += ptrSize {
@@ -433,15 +436,9 @@ func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWorkProducer) {
 			// dense mask (stack or data)
 			bits = (uintptr(*(*byte)(add(unsafe.Pointer(ptrmask), (i/ptrSize)/4))) >> (((i / ptrSize) % 4) * typeBitsWidth)) & typeMask
 		} else {
-			// Check if we have reached end of span.
-			// n is an overestimate of the size of the object.
-			if (b+i)%_PageSize == 0 && h_spans[(b-arena_start)>>_PageShift] != h_spans[(b+i-arena_start)>>_PageShift] {
-				break
-			}
-
 			bits = uintptr(hbits.typeBits())
-			if i > 0 && (hbits.isBoundary() || bits == typeDead) {
-				break // reached beginning of the next object
+			if bits == typeDead {
+				break // no more pointers in this object
 			}
 			hbits = hbits.next()
 		}
@@ -468,7 +465,7 @@ func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWorkProducer) {
 		}
 
 		// Mark the object.
-		if obj, hbits := heapBitsForObject(obj); obj != 0 {
+		if obj, hbits, _ := heapBitsForObject(obj); obj != 0 {
 			greyobject(obj, b, i, hbits, gcw)
 		}
 	}
@@ -481,7 +478,7 @@ func shade(b uintptr) {
 	if !inheap(b) {
 		throw("shade: passed an address not in the heap")
 	}
-	if obj, hbits := heapBitsForObject(b); obj != 0 {
+	if obj, hbits, _ := heapBitsForObject(b); obj != 0 {
 		// TODO: this would be a great place to put a check to see
 		// if we are harvesting and if we are then we should
 		// figure out why there is a call to shade when the
@@ -492,7 +489,7 @@ func shade(b uintptr) {
 		//	throw("shade during harvest")
 		// }
 
-		var gcw gcWorkProducer
+		var gcw gcWork
 		greyobject(obj, 0, 0, hbits, &gcw)
 		// This is part of the write barrier so put the wbuf back.
 		if gcphase == _GCmarktermination {
@@ -515,7 +512,7 @@ func shade(b uintptr) {
 // Return possibly new workbuf to use.
 // base and off are for debugging only and could be removed.
 //go:nowritebarrier
-func greyobject(obj, base, off uintptr, hbits heapBits, gcw *gcWorkProducer) {
+func greyobject(obj, base, off uintptr, hbits heapBits, gcw *gcWork) {
 	// obj should be start of allocation, and so must be at least pointer-aligned.
 	if obj&(ptrSize-1) != 0 {
 		throw("greyobject: obj not pointer-aligned")
@@ -523,45 +520,16 @@ func greyobject(obj, base, off uintptr, hbits heapBits, gcw *gcWorkProducer) {
 
 	if useCheckmark {
 		if !hbits.isMarked() {
+			printlock()
 			print("runtime:greyobject: checkmarks finds unexpected unmarked object obj=", hex(obj), "\n")
 			print("runtime: found obj at *(", hex(base), "+", hex(off), ")\n")
 
 			// Dump the source (base) object
-
-			kb := base >> _PageShift
-			xb := kb
-			xb -= mheap_.arena_start >> _PageShift
-			sb := h_spans[xb]
-			printlock()
-			print("runtime:greyobject Span: base=", hex(base), " kb=", hex(kb))
-			if sb == nil {
-				print(" sb=nil\n")
-			} else {
-				print(" sb.start*_PageSize=", hex(sb.start*_PageSize), " sb.limit=", hex(sb.limit), " sb.sizeclass=", sb.sizeclass, " sb.elemsize=", sb.elemsize, "\n")
-				// base is (a pointer to) the source object holding the reference to object. Create a pointer to each of the fields
-				// fields in base and print them out as hex values.
-				for i := 0; i < int(sb.elemsize/ptrSize); i++ {
-					print(" *(base+", i*ptrSize, ") = ", hex(*(*uintptr)(unsafe.Pointer(base + uintptr(i)*ptrSize))), "\n")
-				}
-			}
+			gcDumpObject("base", base, off)
 
 			// Dump the object
+			gcDumpObject("obj", obj, ^uintptr(0))
 
-			k := obj >> _PageShift
-			x := k
-			x -= mheap_.arena_start >> _PageShift
-			s := h_spans[x]
-			print("runtime:greyobject Span: obj=", hex(obj), " k=", hex(k))
-			if s == nil {
-				print(" s=nil\n")
-			} else {
-				print(" s.start=", hex(s.start*_PageSize), " s.limit=", hex(s.limit), " s.sizeclass=", s.sizeclass, " s.elemsize=", s.elemsize, "\n")
-				// NOTE(rsc): This code is using s.sizeclass as an approximation of the
-				// number of pointer-sized words in an object. Perhaps not what was intended.
-				for i := 0; i < int(s.sizeclass); i++ {
-					print(" *(obj+", i*ptrSize, ") = ", hex(*(*uintptr)(unsafe.Pointer(obj + uintptr(i)*ptrSize))), "\n")
-				}
-			}
 			throw("checkmark found unmarked object")
 		}
 		if !hbits.isCheckmarked() {
@@ -594,6 +562,28 @@ func greyobject(obj, base, off uintptr, hbits heapBits, gcw *gcWorkProducer) {
 	// Use of PREFETCHNTA might be more appropriate than PREFETCH
 
 	gcw.put(obj)
+}
+
+// gcDumpObject dumps the contents of obj for debugging and marks the
+// field at byte offset off in obj.
+func gcDumpObject(label string, obj, off uintptr) {
+	k := obj >> _PageShift
+	x := k
+	x -= mheap_.arena_start >> _PageShift
+	s := h_spans[x]
+	print(label, "=", hex(obj), " k=", hex(k))
+	if s == nil {
+		print(" s=nil\n")
+		return
+	}
+	print(" s.start*_PageSize=", hex(s.start*_PageSize), " s.limit=", hex(s.limit), " s.sizeclass=", s.sizeclass, " s.elemsize=", s.elemsize, "\n")
+	for i := uintptr(0); i < s.elemsize; i += ptrSize {
+		print(" *(", label, "+", i, ") = ", hex(*(*uintptr)(unsafe.Pointer(obj + uintptr(i)))))
+		if i == off {
+			print(" <==")
+		}
+		print("\n")
+	}
 }
 
 // When in GCmarkterminate phase we allocate black.

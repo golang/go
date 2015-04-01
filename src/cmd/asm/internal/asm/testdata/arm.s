@@ -229,8 +229,8 @@ TEXT	foo(SB), 0, $0
 //			(1<<4));			/* must be set */
 //		outcode(AMRC, Always, &nullgen, 0, &g);
 //	}
-// TODO: Disabled until printout for this instruction is the same for 32 and 64 bits.
-//	MRC.S	4, 6, R1, C2, C3, 7
+	MRC.S	4, 6, R1, C2, C3, 7
+	MCR.S	4, 6, R1, C2, C3, 7
 
 //
 // MULL r1,r2,(hi,lo)

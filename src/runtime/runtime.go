@@ -43,15 +43,11 @@ func tickspersecond() int64 {
 	return r
 }
 
-func makeStringSlice(n int) []string {
-	return make([]string, n)
-}
-
 var envs []string
 var argslice []string
 
 //go:linkname syscall_runtime_envs syscall.runtime_envs
-func syscall_runtime_envs() []string { return envs }
+func syscall_runtime_envs() []string { return append([]string{}, envs...) }
 
 //go:linkname os_runtime_args os.runtime_args
-func os_runtime_args() []string { return argslice }
+func os_runtime_args() []string { return append([]string{}, argslice...) }

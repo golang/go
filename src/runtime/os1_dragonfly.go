@@ -71,6 +71,8 @@ func futexwakeup(addr *uint32, cnt uint32) {
 
 func lwp_start(uintptr)
 
+// May run with m.p==nil, so write barriers are not allowed.
+//go:nowritebarrier
 func newosproc(mp *m, stk unsafe.Pointer) {
 	if false {
 		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " lwp_start=", funcPC(lwp_start), " id=", mp.id, "/", mp.tls[0], " ostk=", &mp, "\n")
@@ -87,7 +89,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 		tid2:       nil,
 	}
 
-	mp.tls[0] = uintptr(mp.id) // so 386 asm can find it
+	mp.tls[0] = uintptr(mp.id) // XXX so 386 asm can find it
 
 	lwp_create(&params)
 	sigprocmask(&oset, nil)

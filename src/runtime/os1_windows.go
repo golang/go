@@ -8,44 +8,43 @@ import (
 	"unsafe"
 )
 
-//go:cgo_import_dynamic runtime._AddVectoredExceptionHandler AddVectoredExceptionHandler "kernel32.dll"
-//go:cgo_import_dynamic runtime._CloseHandle CloseHandle "kernel32.dll"
-//go:cgo_import_dynamic runtime._CreateEventA CreateEventA "kernel32.dll"
-//go:cgo_import_dynamic runtime._CreateIoCompletionPort CreateIoCompletionPort "kernel32.dll"
-//go:cgo_import_dynamic runtime._CreateThread CreateThread "kernel32.dll"
-//go:cgo_import_dynamic runtime._CreateWaitableTimerA CreateWaitableTimerA "kernel32.dll"
-//go:cgo_import_dynamic runtime._CryptAcquireContextW CryptAcquireContextW "advapi32.dll"
-//go:cgo_import_dynamic runtime._CryptGenRandom CryptGenRandom "advapi32.dll"
-//go:cgo_import_dynamic runtime._CryptReleaseContext CryptReleaseContext "advapi32.dll"
-//go:cgo_import_dynamic runtime._DuplicateHandle DuplicateHandle "kernel32.dll"
-//go:cgo_import_dynamic runtime._ExitProcess ExitProcess "kernel32.dll"
-//go:cgo_import_dynamic runtime._FreeEnvironmentStringsW FreeEnvironmentStringsW "kernel32.dll"
-//go:cgo_import_dynamic runtime._GetEnvironmentStringsW GetEnvironmentStringsW "kernel32.dll"
-//go:cgo_import_dynamic runtime._GetProcAddress GetProcAddress "kernel32.dll"
-//go:cgo_import_dynamic runtime._GetQueuedCompletionStatus GetQueuedCompletionStatus "kernel32.dll"
-//go:cgo_import_dynamic runtime._GetStdHandle GetStdHandle "kernel32.dll"
-//go:cgo_import_dynamic runtime._GetSystemInfo GetSystemInfo "kernel32.dll"
-//go:cgo_import_dynamic runtime._GetThreadContext GetThreadContext "kernel32.dll"
-//go:cgo_import_dynamic runtime._LoadLibraryW LoadLibraryW "kernel32.dll"
-//go:cgo_import_dynamic runtime._LoadLibraryA LoadLibraryA "kernel32.dll"
-//go:cgo_import_dynamic runtime._NtWaitForSingleObject NtWaitForSingleObject "ntdll.dll"
-//go:cgo_import_dynamic runtime._ResumeThread ResumeThread "kernel32.dll"
-//go:cgo_import_dynamic runtime._SetConsoleCtrlHandler SetConsoleCtrlHandler "kernel32.dll"
-//go:cgo_import_dynamic runtime._SetErrorMode SetErrorMode "kernel32.dll"
-//go:cgo_import_dynamic runtime._SetEvent SetEvent "kernel32.dll"
-//go:cgo_import_dynamic runtime._SetProcessPriorityBoost SetProcessPriorityBoost "kernel32.dll"
-//go:cgo_import_dynamic runtime._SetThreadPriority SetThreadPriority "kernel32.dll"
-//go:cgo_import_dynamic runtime._SetUnhandledExceptionFilter SetUnhandledExceptionFilter "kernel32.dll"
-//go:cgo_import_dynamic runtime._SetWaitableTimer SetWaitableTimer "kernel32.dll"
-//go:cgo_import_dynamic runtime._Sleep Sleep "kernel32.dll"
-//go:cgo_import_dynamic runtime._SuspendThread SuspendThread "kernel32.dll"
-//go:cgo_import_dynamic runtime._VirtualAlloc VirtualAlloc "kernel32.dll"
-//go:cgo_import_dynamic runtime._VirtualFree VirtualFree "kernel32.dll"
-//go:cgo_import_dynamic runtime._VirtualProtect VirtualProtect "kernel32.dll"
-//go:cgo_import_dynamic runtime._WSAGetOverlappedResult WSAGetOverlappedResult "ws2_32.dll"
-//go:cgo_import_dynamic runtime._WaitForSingleObject WaitForSingleObject "kernel32.dll"
-//go:cgo_import_dynamic runtime._WriteFile WriteFile "kernel32.dll"
-//go:cgo_import_dynamic runtime._timeBeginPeriod timeBeginPeriod "winmm.dll"
+//go:cgo_import_dynamic runtime._AddVectoredExceptionHandler AddVectoredExceptionHandler%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._CloseHandle CloseHandle%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._CreateEventA CreateEventA%4 "kernel32.dll"
+//go:cgo_import_dynamic runtime._CreateIoCompletionPort CreateIoCompletionPort%4 "kernel32.dll"
+//go:cgo_import_dynamic runtime._CreateThread CreateThread%6 "kernel32.dll"
+//go:cgo_import_dynamic runtime._CreateWaitableTimerA CreateWaitableTimerA%3 "kernel32.dll"
+//go:cgo_import_dynamic runtime._CryptAcquireContextW CryptAcquireContextW%5 "advapi32.dll"
+//go:cgo_import_dynamic runtime._CryptGenRandom CryptGenRandom%3 "advapi32.dll"
+//go:cgo_import_dynamic runtime._CryptReleaseContext CryptReleaseContext%2 "advapi32.dll"
+//go:cgo_import_dynamic runtime._DuplicateHandle DuplicateHandle%7 "kernel32.dll"
+//go:cgo_import_dynamic runtime._ExitProcess ExitProcess%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._FreeEnvironmentStringsW FreeEnvironmentStringsW%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._GetEnvironmentStringsW GetEnvironmentStringsW%0 "kernel32.dll"
+//go:cgo_import_dynamic runtime._GetProcAddress GetProcAddress%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._GetQueuedCompletionStatus GetQueuedCompletionStatus%5 "kernel32.dll"
+//go:cgo_import_dynamic runtime._GetStdHandle GetStdHandle%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._GetSystemInfo GetSystemInfo%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._GetThreadContext GetThreadContext%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._GetVersion GetVersion%0 "kernel32.dll"
+//go:cgo_import_dynamic runtime._LoadLibraryW LoadLibraryW%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._LoadLibraryA LoadLibraryA%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._NtWaitForSingleObject NtWaitForSingleObject%3 "ntdll.dll"
+//go:cgo_import_dynamic runtime._ResumeThread ResumeThread%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._SetConsoleCtrlHandler SetConsoleCtrlHandler%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._SetErrorMode SetErrorMode%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._SetEvent SetEvent%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._SetProcessPriorityBoost SetProcessPriorityBoost%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._SetThreadPriority SetThreadPriority%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._SetUnhandledExceptionFilter SetUnhandledExceptionFilter%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._SetWaitableTimer SetWaitableTimer%6 "kernel32.dll"
+//go:cgo_import_dynamic runtime._SuspendThread SuspendThread%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._VirtualAlloc VirtualAlloc%4 "kernel32.dll"
+//go:cgo_import_dynamic runtime._VirtualFree VirtualFree%3 "kernel32.dll"
+//go:cgo_import_dynamic runtime._WSAGetOverlappedResult WSAGetOverlappedResult%5 "ws2_32.dll"
+//go:cgo_import_dynamic runtime._WaitForSingleObject WaitForSingleObject%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._WriteFile WriteFile%5 "kernel32.dll"
+//go:cgo_import_dynamic runtime._timeBeginPeriod timeBeginPeriod%1 "winmm.dll"
 
 var (
 	// Following syscalls are available on every Windows PC.
@@ -69,6 +68,7 @@ var (
 	_GetStdHandle,
 	_GetSystemInfo,
 	_GetThreadContext,
+	_GetVersion,
 	_LoadLibraryW,
 	_LoadLibraryA,
 	_NtWaitForSingleObject,
@@ -80,11 +80,9 @@ var (
 	_SetThreadPriority,
 	_SetUnhandledExceptionFilter,
 	_SetWaitableTimer,
-	_Sleep,
 	_SuspendThread,
 	_VirtualAlloc,
 	_VirtualFree,
-	_VirtualProtect,
 	_WSAGetOverlappedResult,
 	_WaitForSingleObject,
 	_WriteFile,
@@ -152,6 +150,12 @@ func disableWER() {
 	stdcall1(_SetErrorMode, uintptr(errormode)|SEM_FAILCRITICALERRORS|SEM_NOGPFAULTERRORBOX|SEM_NOOPENFILEERRORBOX)
 }
 
+func getVersion() (major, minor byte) {
+	v := uint32(stdcall0(_GetVersion))
+	low := uint16(v)
+	return byte(low), byte(low >> 8)
+}
+
 func osinit() {
 	setBadSignalMsg()
 
@@ -161,10 +165,15 @@ func osinit() {
 
 	externalthreadhandlerp = funcPC(externalthreadhandler)
 
+	major, _ := getVersion()
+
 	stdcall2(_AddVectoredExceptionHandler, 1, funcPC(exceptiontramp))
-	if _AddVectoredContinueHandler == nil || unsafe.Sizeof(&_AddVectoredContinueHandler) == 4 {
+	if _AddVectoredContinueHandler == nil || unsafe.Sizeof(&_AddVectoredContinueHandler) == 4 || major < 6 {
 		// use SetUnhandledExceptionFilter for windows-386 or
-		// if VectoredContinueHandler is unavailable.
+		// if VectoredContinueHandler is unavailable or
+		// if running windows-amd64 v5. V5 appears to fail to
+		// call the continue handlers if windows error reporting dialog
+		// is disabled.
 		// note: SetUnhandledExceptionFilter handler won't be called, if debugging.
 		stdcall1(_SetUnhandledExceptionFilter, funcPC(lastcontinuetramp))
 	} else {
@@ -220,7 +229,7 @@ func goenvs() {
 			n++
 		}
 	}
-	envs = makeStringSlice(n)
+	envs = make([]string, n)
 
 	for i := range envs {
 		envs[i] = gostringw(&p[0])
@@ -286,6 +295,8 @@ func semacreate() uintptr {
 	return stdcall4(_CreateEventA, 0, 0, 0, 0)
 }
 
+// May run with m.p==nil, so write barriers are not allowed.
+//go:nowritebarrier
 func newosproc(mp *m, stk unsafe.Pointer) {
 	const _STACK_SIZE_PARAM_IS_A_RESERVATION = 0x00010000
 	thandle := stdcall6(_CreateThread, 0, 0x20000,
@@ -363,6 +374,8 @@ func nanotime() int64 {
 }
 
 // Calling stdcall on os stack.
+// May run during STW, so write barriers are not allowed.
+//go:nowritebarrier
 //go:nosplit
 func stdcall(fn stdFunction) uintptr {
 	gp := getg()
@@ -371,7 +384,8 @@ func stdcall(fn stdFunction) uintptr {
 
 	if mp.profilehz != 0 {
 		// leave pc/sp for cpu profiler
-		mp.libcallg = gp
+		// gp is on allg, so this WB can be eliminated.
+		setGNoWriteBarrier(&mp.libcallg, gp)
 		mp.libcallpc = getcallerpc(unsafe.Pointer(&fn))
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them

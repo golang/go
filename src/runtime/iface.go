@@ -130,13 +130,15 @@ func typ2Itab(t *_type, inter *interfacetype, cache **itab) *itab {
 	return tab
 }
 
-func convT2E(t *_type, elem unsafe.Pointer) (e interface{}) {
+func convT2E(t *_type, elem unsafe.Pointer, x unsafe.Pointer) (e interface{}) {
 	ep := (*eface)(unsafe.Pointer(&e))
 	if isDirectIface(t) {
 		ep._type = t
 		typedmemmove(t, unsafe.Pointer(&ep.data), elem)
 	} else {
-		x := newobject(t)
+		if x == nil {
+			x = newobject(t)
+		}
 		// TODO: We allocate a zeroed object only to overwrite it with
 		// actual data.  Figure out how to avoid zeroing.  Also below in convT2I.
 		typedmemmove(t, x, elem)
@@ -146,7 +148,7 @@ func convT2E(t *_type, elem unsafe.Pointer) (e interface{}) {
 	return
 }
 
-func convT2I(t *_type, inter *interfacetype, cache **itab, elem unsafe.Pointer) (i fInterface) {
+func convT2I(t *_type, inter *interfacetype, cache **itab, elem unsafe.Pointer, x unsafe.Pointer) (i fInterface) {
 	tab := (*itab)(atomicloadp(unsafe.Pointer(cache)))
 	if tab == nil {
 		tab = getitab(inter, t, false)
@@ -157,12 +159,22 @@ func convT2I(t *_type, inter *interfacetype, cache **itab, elem unsafe.Pointer) 
 		pi.tab = tab
 		typedmemmove(t, unsafe.Pointer(&pi.data), elem)
 	} else {
-		x := newobject(t)
+		if x == nil {
+			x = newobject(t)
+		}
 		typedmemmove(t, x, elem)
 		pi.tab = tab
 		pi.data = x
 	}
 	return
+}
+
+func panicdottype(have, want, iface *_type) {
+	haveString := ""
+	if have != nil {
+		haveString = *have._string
+	}
+	panic(&TypeAssertionError{*iface._string, haveString, *want._string, ""})
 }
 
 func assertI2T(t *_type, i fInterface, r unsafe.Pointer) {
@@ -219,20 +231,17 @@ func assertE2T(t *_type, e interface{}, r unsafe.Pointer) {
 	}
 }
 
+// The compiler ensures that r is non-nil.
 func assertE2T2(t *_type, e interface{}, r unsafe.Pointer) bool {
 	ep := (*eface)(unsafe.Pointer(&e))
 	if ep._type != t {
-		if r != nil {
-			memclr(r, uintptr(t.size))
-		}
+		memclr(r, uintptr(t.size))
 		return false
 	}
-	if r != nil {
-		if isDirectIface(t) {
-			writebarrierptr((*uintptr)(r), uintptr(ep.data))
-		} else {
-			typedmemmove(t, r, ep.data)
-		}
+	if isDirectIface(t) {
+		writebarrierptr((*uintptr)(r), uintptr(ep.data))
+	} else {
+		typedmemmove(t, r, ep.data)
 	}
 	return true
 }
@@ -262,17 +271,16 @@ func assertI2E(inter *interfacetype, i fInterface, r *interface{}) {
 	return
 }
 
+// The compiler ensures that r is non-nil.
 func assertI2E2(inter *interfacetype, i fInterface, r *interface{}) bool {
 	ip := (*iface)(unsafe.Pointer(&i))
 	tab := ip.tab
 	if tab == nil {
 		return false
 	}
-	if r != nil {
-		rp := (*eface)(unsafe.Pointer(r))
-		rp._type = tab._type
-		rp.data = ip.data
-	}
+	rp := (*eface)(unsafe.Pointer(r))
+	rp._type = tab._type
+	rp.data = ip.data
 	return true
 }
 
@@ -386,17 +394,14 @@ func assertE2E(inter *interfacetype, e interface{}, r *interface{}) {
 	*r = e
 }
 
+// The compiler ensures that r is non-nil.
 func assertE2E2(inter *interfacetype, e interface{}, r *interface{}) bool {
 	ep := (*eface)(unsafe.Pointer(&e))
 	if ep._type == nil {
-		if r != nil {
-			*r = nil
-		}
+		*r = nil
 		return false
 	}
-	if r != nil {
-		*r = e
-	}
+	*r = e
 	return true
 }
 

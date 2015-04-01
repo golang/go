@@ -30,11 +30,11 @@
 
 package main
 
-import "cmd/internal/obj/i386"
+import "cmd/internal/obj/x86"
 import "cmd/internal/gc"
 
 const (
-	NREGVAR = 16
+	NREGVAR = 16 /* 8 integer + 8 floating */
 )
 
 var regname = []string{
@@ -62,28 +62,28 @@ func regnames(n *int) []string {
 }
 
 func excludedregs() uint64 {
-	return RtoB(i386.REG_SP)
+	return RtoB(x86.REG_SP)
 }
 
 func doregbits(r int) uint64 {
 	b := uint64(0)
-	if r >= i386.REG_AX && r <= i386.REG_DI {
+	if r >= x86.REG_AX && r <= x86.REG_DI {
 		b |= RtoB(r)
-	} else if r >= i386.REG_AL && r <= i386.REG_BL {
-		b |= RtoB(r - i386.REG_AL + i386.REG_AX)
-	} else if r >= i386.REG_AH && r <= i386.REG_BH {
-		b |= RtoB(r - i386.REG_AH + i386.REG_AX)
-	} else if r >= i386.REG_X0 && r <= i386.REG_X0+7 {
+	} else if r >= x86.REG_AL && r <= x86.REG_BL {
+		b |= RtoB(r - x86.REG_AL + x86.REG_AX)
+	} else if r >= x86.REG_AH && r <= x86.REG_BH {
+		b |= RtoB(r - x86.REG_AH + x86.REG_AX)
+	} else if r >= x86.REG_X0 && r <= x86.REG_X0+7 {
 		b |= FtoB(r)
 	}
 	return b
 }
 
 func RtoB(r int) uint64 {
-	if r < i386.REG_AX || r > i386.REG_DI {
+	if r < x86.REG_AX || r > x86.REG_DI {
 		return 0
 	}
-	return 1 << uint(r-i386.REG_AX)
+	return 1 << uint(r-x86.REG_AX)
 }
 
 func BtoR(b uint64) int {
@@ -91,14 +91,14 @@ func BtoR(b uint64) int {
 	if b == 0 {
 		return 0
 	}
-	return gc.Bitno(b) + i386.REG_AX
+	return gc.Bitno(b) + x86.REG_AX
 }
 
 func FtoB(f int) uint64 {
-	if f < i386.REG_X0 || f > i386.REG_X7 {
+	if f < x86.REG_X0 || f > x86.REG_X7 {
 		return 0
 	}
-	return 1 << uint(f-i386.REG_X0+8)
+	return 1 << uint(f-x86.REG_X0+8)
 }
 
 func BtoF(b uint64) int {
@@ -106,5 +106,5 @@ func BtoF(b uint64) int {
 	if b == 0 {
 		return 0
 	}
-	return gc.Bitno(b) - 8 + i386.REG_X0
+	return gc.Bitno(b) - 8 + x86.REG_X0
 }

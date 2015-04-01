@@ -32,7 +32,7 @@
 // describe p and the high 4 bits describe p+ptrSize.
 //
 // The 4 bits for each word are:
-//	0001 - bitBoundary: this is the start of an object
+//	0001 - not used
 //	0010 - bitMarked: this object has been marked by GC
 //	tt00 - word type bits, as in a type bitmap.
 //
@@ -77,7 +77,6 @@ const (
 
 	heapBitsWidth   = 4
 	heapBitmapScale = ptrSize * (8 / heapBitsWidth) // number of data bytes per heap bitmap byte
-	bitBoundary     = 1
 	bitMarked       = 2
 	typeShift       = 2
 )
@@ -151,30 +150,21 @@ func heapBitsForSpan(base uintptr) (hbits heapBits) {
 
 // heapBitsForObject returns the base address for the heap object
 // containing the address p, along with the heapBits for base.
-// If p does not point into a heap object, heapBitsForObject returns base == 0.
-func heapBitsForObject(p uintptr) (base uintptr, hbits heapBits) {
+// If p does not point into a heap object,
+// return base == 0
+// otherwise return the base of the object.
+func heapBitsForObject(p uintptr) (base uintptr, hbits heapBits, s *mspan) {
 	if p < mheap_.arena_start || p >= mheap_.arena_used {
 		return
 	}
 
-	// If heap bits for the pointer-sized word containing p have bitBoundary set,
-	// then we know this is the base of the object, and we can stop now.
-	// This handles the case where p is the base and, due to rounding
-	// when looking up the heap bits, also the case where p points beyond
-	// the base but still into the first pointer-sized word of the object.
-	hbits = heapBitsForAddr(p)
-	if hbits.isBoundary() {
-		base = p &^ (ptrSize - 1)
-		return
-	}
-
-	// Otherwise, p points into the middle of an object.
+	// p points into the heap, but possibly to the middle of an object.
 	// Consult the span table to find the block beginning.
 	// TODO(rsc): Factor this out.
 	k := p >> _PageShift
 	x := k
 	x -= mheap_.arena_start >> _PageShift
-	s := h_spans[x]
+	s = h_spans[x]
 	if s == nil || pageID(k) < s.start || p >= s.limit || s.state != mSpanInUse {
 		if s == nil || s.state == _MSpanStack {
 			// If s is nil, the virtual address has never been part of the heap.
@@ -202,19 +192,28 @@ func heapBitsForObject(p uintptr) (base uintptr, hbits heapBits) {
 	}
 	base = s.base()
 	if p-base >= s.elemsize {
-		base += (p - base) / s.elemsize * s.elemsize
-	}
-	if base == p {
-		print("runtime: failed to find block beginning for ", hex(p), " s=", hex(s.start*_PageSize), " s.limit=", hex(s.limit), "\n")
-		throw("failed to find block beginning")
-	}
+		// n := (p - base) / s.elemsize, using division by multiplication
+		n := uintptr(uint64(p-base) >> s.divShift * uint64(s.divMul) >> s.divShift2)
 
+		const debugMagic = false
+		if debugMagic {
+			n2 := (p - base) / s.elemsize
+			if n != n2 {
+				println("runtime: bad div magic", (p - base), s.elemsize, s.divShift, s.divMul, s.divShift2)
+				throw("bad div magic")
+			}
+		}
+
+		base += n * s.elemsize
+	}
 	// Now that we know the actual base, compute heapBits to return to caller.
 	hbits = heapBitsForAddr(base)
-	if !hbits.isBoundary() {
-		throw("missing boundary at computed object start")
-	}
 	return
+}
+
+// prefetch the bits.
+func (h heapBits) prefetch() {
+	prefetchnta(uintptr(unsafe.Pointer((h.bitp))))
 }
 
 // next returns the heapBits describing the next pointer-sized word in memory.
@@ -245,14 +244,6 @@ func (h heapBits) setMarked() {
 func (h heapBits) setMarkedNonAtomic() {
 	*h.bitp |= bitMarked << h.shift
 }
-
-// isBoundary reports whether the heap bits have the boundary bit set.
-func (h heapBits) isBoundary() bool {
-	return *h.bitp&(bitBoundary<<h.shift) != 0
-}
-
-// Note that there is no setBoundary or setBoundaryNonAtomic.
-// Boundaries are always in bulk, for the entire span.
 
 // typeBits returns the heap bits' type bits.
 func (h heapBits) typeBits() uint8 {
@@ -287,60 +278,8 @@ func (h heapBits) setCheckmarked() {
 
 // initSpan initializes the heap bitmap for a span.
 func (h heapBits) initSpan(size, n, total uintptr) {
-	if size == ptrSize {
-		// Only possible on 64-bit system, since minimum size is 8.
-		// Set all nibbles to bitBoundary using uint64 writes.
-		nbyte := n * ptrSize / heapBitmapScale
-		nuint64 := nbyte / 8
-		bitp := subtractb(h.bitp, nbyte-1)
-		for i := uintptr(0); i < nuint64; i++ {
-			const boundary64 = bitBoundary |
-				bitBoundary<<4 |
-				bitBoundary<<8 |
-				bitBoundary<<12 |
-				bitBoundary<<16 |
-				bitBoundary<<20 |
-				bitBoundary<<24 |
-				bitBoundary<<28 |
-				bitBoundary<<32 |
-				bitBoundary<<36 |
-				bitBoundary<<40 |
-				bitBoundary<<44 |
-				bitBoundary<<48 |
-				bitBoundary<<52 |
-				bitBoundary<<56 |
-				bitBoundary<<60
-
-			*(*uint64)(unsafe.Pointer(bitp)) = boundary64
-			bitp = addb(bitp, 8)
-		}
-		return
-	}
-
-	if size*n < total {
-		// To detect end of object during GC object scan,
-		// add boundary just past end of last block.
-		// The object scan knows to stop when it reaches
-		// the end of the span, but in this case the object
-		// ends before the end of the span.
-		//
-		// TODO(rsc): If the bitmap bits were going to be typeDead
-		// otherwise, what's the point of this?
-		// Can we delete this logic?
-		n++
-	}
-	step := size / heapBitmapScale
-	bitp := h.bitp
-	for i := uintptr(0); i < n; i++ {
-		*bitp = bitBoundary
-		bitp = subtractb(bitp, step)
-	}
-}
-
-// clearSpan clears the heap bitmap bytes for the span.
-func (h heapBits) clearSpan(size, n, total uintptr) {
 	if total%heapBitmapScale != 0 {
-		throw("clearSpan: unaligned length")
+		throw("initSpan: unaligned length")
 	}
 	nbyte := total / heapBitmapScale
 	memclr(unsafe.Pointer(subtractb(h.bitp, nbyte-1)), nbyte)
@@ -359,9 +298,7 @@ func (h heapBits) initCheckmarkSpan(size, n, total uintptr) {
 		bitp := h.bitp
 		for i := uintptr(0); i < n; i += 2 {
 			x := int(*bitp)
-			if x&0x11 != 0x11 {
-				throw("missing bitBoundary")
-			}
+
 			if (x>>typeShift)&typeMask == typeDead {
 				x += (typeScalar - typeDead) << typeShift
 			}
@@ -380,9 +317,6 @@ func (h heapBits) initCheckmarkSpan(size, n, total uintptr) {
 	bitp := h.bitp
 	step := size / heapBitmapScale
 	for i := uintptr(0); i < n; i++ {
-		if *bitp&bitBoundary == 0 {
-			throw("missing bitBoundary")
-		}
 		x := *bitp
 		if (x>>typeShift)&typeMask == typeDead {
 			x += (typeScalar - typeDead) << typeShift
@@ -404,10 +338,6 @@ func (h heapBits) clearCheckmarkSpan(size, n, total uintptr) {
 		bitp := h.bitp
 		for i := uintptr(0); i < n; i += 2 {
 			x := int(*bitp)
-			if x&(bitBoundary|bitBoundary<<4) != (bitBoundary | bitBoundary<<4) {
-				throw("missing bitBoundary")
-			}
-
 			switch typ := (x >> typeShift) & typeMask; typ {
 			case typeScalar:
 				x += (typeDead - typeScalar) << typeShift
@@ -436,10 +366,6 @@ func (h heapBits) clearCheckmarkSpan(size, n, total uintptr) {
 	step := size / heapBitmapScale
 	for i := uintptr(0); i < n; i++ {
 		x := int(*bitp)
-		if x&bitBoundary == 0 {
-			throw("missing bitBoundary")
-		}
-
 		switch typ := (x >> typeShift) & typeMask; {
 		case typ == typeScalarCheckmarked && (x>>(4+typeShift))&typeMask != typeDead:
 			x += (typeScalar - typeScalarCheckmarked) << typeShift
@@ -491,7 +417,7 @@ func heapBitsSweepSpan(base, size, n uintptr, f func(uintptr)) {
 		if x&bitMarked != 0 {
 			x &^= bitMarked
 		} else {
-			x = bitBoundary // clear marked bit, set type bits to typeDead
+			x = 0
 			f(base + i*size)
 		}
 		*bitp = uint8(x)
@@ -510,10 +436,6 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	// From here till marked label marking the object as allocated
 	// and storing type info in the GC bitmap.
 	h := heapBitsForAddr(x)
-	if debugMalloc && (*h.bitp>>h.shift)&0x0f != bitBoundary {
-		println("runtime: bits =", (*h.bitp>>h.shift)&0x0f)
-		throw("bad bits in markallocated")
-	}
 
 	var ti, te uintptr
 	var ptrmask *uint8
@@ -560,7 +482,8 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 		ptrmask = (*uint8)(unsafe.Pointer(typ.gc[0])) // pointer to unrolled mask
 	}
 	if size == 2*ptrSize {
-		*h.bitp = *ptrmask | bitBoundary
+		// h.shift is 0 for all sizes > ptrSize.
+		*h.bitp = *ptrmask
 		return
 	}
 	te = uintptr(typ.size) / ptrSize
@@ -569,14 +492,16 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 		te /= 2
 	}
 	// Copy pointer bitmask into the bitmap.
+	// TODO(rlh): add comment addressing the following concerns:
+	// If size > 2*ptrSize, is x guaranteed to be at least 2*ptrSize-aligned?
+	// And if type occupies and odd number of words, why are we only going through half
+	// of ptrmask and why don't we have to shift everything by 4 on odd iterations?
+
 	for i := uintptr(0); i < dataSize; i += 2 * ptrSize {
 		v := *(*uint8)(add(unsafe.Pointer(ptrmask), ti))
 		ti++
 		if ti == te {
 			ti = 0
-		}
-		if i == 0 {
-			v |= bitBoundary
 		}
 		if i+ptrSize == dataSize {
 			v &^= typeMask << (4 + typeShift)
@@ -771,12 +696,6 @@ func unrollgcproginplace_m(v unsafe.Pointer, typ *_type, size, size0 uintptr) {
 
 	// Mark first word as bitAllocated.
 	// Mark word after last as typeDead.
-	// TODO(rsc): Explain why we need to set this boundary.
-	// Aren't the boundaries always set for the whole span?
-	// Did unrollgcproc1 overwrite the boundary bit?
-	// Is that okay?
-	h := heapBitsForAddr(uintptr(v))
-	*h.bitp |= bitBoundary << h.shift
 	if size0 < size {
 		h := heapBitsForAddr(uintptr(v) + size0)
 		*h.bitp &^= typeMask << typeShift
@@ -828,12 +747,12 @@ func getgcmask(p unsafe.Pointer, t *_type, mask **byte, len *uintptr) {
 	const typeBitsPerByte = 8 / typeBitsWidth
 
 	// data
-	if uintptr(unsafe.Pointer(&data)) <= uintptr(p) && uintptr(p) < uintptr(unsafe.Pointer(&edata)) {
+	if themoduledata.data <= uintptr(p) && uintptr(p) < themoduledata.edata {
 		n := (*ptrtype)(unsafe.Pointer(t)).elem.size
 		*len = n / ptrSize
 		*mask = &make([]byte, *len)[0]
 		for i := uintptr(0); i < n; i += ptrSize {
-			off := (uintptr(p) + i - uintptr(unsafe.Pointer(&data))) / ptrSize
+			off := (uintptr(p) + i - themoduledata.data) / ptrSize
 			bits := (*(*byte)(add(unsafe.Pointer(gcdatamask.bytedata), off/typeBitsPerByte)) >> ((off % typeBitsPerByte) * typeBitsWidth)) & typeMask
 			*(*byte)(add(unsafe.Pointer(*mask), i/ptrSize)) = bits
 		}
@@ -841,12 +760,12 @@ func getgcmask(p unsafe.Pointer, t *_type, mask **byte, len *uintptr) {
 	}
 
 	// bss
-	if uintptr(unsafe.Pointer(&bss)) <= uintptr(p) && uintptr(p) < uintptr(unsafe.Pointer(&ebss)) {
+	if themoduledata.bss <= uintptr(p) && uintptr(p) < themoduledata.ebss {
 		n := (*ptrtype)(unsafe.Pointer(t)).elem.size
 		*len = n / ptrSize
 		*mask = &make([]byte, *len)[0]
 		for i := uintptr(0); i < n; i += ptrSize {
-			off := (uintptr(p) + i - uintptr(unsafe.Pointer(&bss))) / ptrSize
+			off := (uintptr(p) + i - themoduledata.bss) / ptrSize
 			bits := (*(*byte)(add(unsafe.Pointer(gcbssmask.bytedata), off/typeBitsPerByte)) >> ((off % typeBitsPerByte) * typeBitsWidth)) & typeMask
 			*(*byte)(add(unsafe.Pointer(*mask), i/ptrSize)) = bits
 		}

@@ -19,8 +19,10 @@ const (
 	_CLOCK_MONOTONIC = 3
 )
 
-var sigset_none = uint32(0)
-var sigset_all = ^sigset_none
+const (
+	sigset_none = uint32(0)
+	sigset_all  = ^uint32(0)
+)
 
 // From OpenBSD's <sys/sysctl.h>
 const (
@@ -96,6 +98,8 @@ func semawakeup(mp *m) {
 	}
 }
 
+// May run with m.p==nil, so write barriers are not allowed.
+//go:nowritebarrier
 func newosproc(mp *m, stk unsafe.Pointer) {
 	if false {
 		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, "/", int32(mp.tls[0]), " ostk=", &mp, "\n")
@@ -115,9 +119,6 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 
 	if ret < 0 {
 		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", -ret, ")\n")
-		if ret == -_ENOTSUP {
-			print("runtime: is kern.rthreads disabled?\n")
-		}
 		throw("runtime.newosproc")
 	}
 }

@@ -47,6 +47,9 @@ TEXT ·forkx(SB),NOSPLIT,$0
 TEXT ·gethostname(SB),NOSPLIT,$0
 	JMP	runtime·syscall_gethostname(SB)
 
+TEXT ·getpid(SB),NOSPLIT,$0
+	JMP	runtime·syscall_getpid(SB)
+
 TEXT ·ioctl(SB),NOSPLIT,$0
 	JMP	runtime·syscall_ioctl(SB)
 

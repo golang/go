@@ -9,8 +9,6 @@ package net
 
 import (
 	"os"
-	"runtime"
-	"strings"
 	"testing"
 	"time"
 )
@@ -21,24 +19,11 @@ import (
 //	golang.org/x/net/ipv6
 //	golang.org/x/net/icmp
 
-func packetConnTestData(t *testing.T, net string, i int) ([]byte, func()) {
-	switch net {
-	case "udp":
-		return []byte("UDP PACKETCONN TEST"), nil
-	case "unixgram":
-		switch runtime.GOOS {
-		case "nacl", "plan9", "windows":
-			return nil, func() {
-				t.Logf("skipping %q test on %q", net, runtime.GOOS)
-			}
-		default:
-			return []byte("UNIXGRAM PACKETCONN TEST"), nil
-		}
-	default:
-		return nil, func() {
-			t.Logf("skipping %q test", net)
-		}
+func packetConnTestData(t *testing.T, network string) ([]byte, func()) {
+	if !testableNetwork(network) {
+		return nil, func() { t.Logf("skipping %s test", network) }
 	}
+	return []byte("PACKETCONN TEST"), nil
 }
 
 var packetConnTests = []struct {
@@ -60,9 +45,8 @@ func TestPacketConn(t *testing.T) {
 		}
 	}
 
-	for i, tt := range packetConnTests {
-		netstr := strings.Split(tt.net, ":")
-		wb, skipOrFatalFn := packetConnTestData(t, netstr[0], i)
+	for _, tt := range packetConnTests {
+		wb, skipOrFatalFn := packetConnTestData(t, tt.net)
 		if skipOrFatalFn != nil {
 			skipOrFatalFn()
 			continue
@@ -72,7 +56,7 @@ func TestPacketConn(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ListenPacket failed: %v", err)
 		}
-		defer closer(c1, netstr[0], tt.addr1, tt.addr2)
+		defer closer(c1, tt.net, tt.addr1, tt.addr2)
 		c1.LocalAddr()
 		c1.SetDeadline(time.Now().Add(500 * time.Millisecond))
 		c1.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
@@ -82,7 +66,7 @@ func TestPacketConn(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ListenPacket failed: %v", err)
 		}
-		defer closer(c2, netstr[0], tt.addr1, tt.addr2)
+		defer closer(c2, tt.net, tt.addr1, tt.addr2)
 		c2.LocalAddr()
 		c2.SetDeadline(time.Now().Add(500 * time.Millisecond))
 		c2.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
@@ -115,10 +99,9 @@ func TestConnAndPacketConn(t *testing.T) {
 		}
 	}
 
-	for i, tt := range packetConnTests {
+	for _, tt := range packetConnTests {
 		var wb []byte
-		netstr := strings.Split(tt.net, ":")
-		wb, skipOrFatalFn := packetConnTestData(t, netstr[0], i)
+		wb, skipOrFatalFn := packetConnTestData(t, tt.net)
 		if skipOrFatalFn != nil {
 			skipOrFatalFn()
 			continue
@@ -128,7 +111,7 @@ func TestConnAndPacketConn(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ListenPacket failed: %v", err)
 		}
-		defer closer(c1, netstr[0], tt.addr1, tt.addr2)
+		defer closer(c1, tt.net, tt.addr1, tt.addr2)
 		c1.LocalAddr()
 		c1.SetDeadline(time.Now().Add(500 * time.Millisecond))
 		c1.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
@@ -153,9 +136,7 @@ func TestConnAndPacketConn(t *testing.T) {
 			t.Fatalf("PacketConn.ReadFrom failed: %v", err)
 		}
 		var dst Addr
-		switch netstr[0] {
-		case "ip":
-			dst = &IPAddr{IP: IPv4(127, 0, 0, 1)}
+		switch tt.net {
 		case "unixgram":
 			continue
 		default:

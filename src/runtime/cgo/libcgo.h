@@ -63,3 +63,13 @@ void crosscall_386(void (*fn)(void));
  * Prints error then calls abort. For linux and android.
  */
 void fatalf(const char* format, ...);
+
+/*
+ * Registers the current mach thread port for EXC_BAD_ACCESS processing.
+ */
+void darwin_arm_init_thread_exception_port(void);
+
+/*
+ * Starts a mach message server processing EXC_BAD_ACCESS.
+ */
+void darwin_arm_init_mach_exception_handler(void);

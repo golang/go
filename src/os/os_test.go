@@ -584,18 +584,18 @@ func TestHardLink(t *testing.T) {
 func chtmpdir(t *testing.T) func() {
 	oldwd, err := Getwd()
 	if err != nil {
-		t.Fatal("chtmpdir: %v", err)
+		t.Fatalf("chtmpdir: %v", err)
 	}
 	d, err := ioutil.TempDir("", "test")
 	if err != nil {
-		t.Fatal("chtmpdir: %v", err)
+		t.Fatalf("chtmpdir: %v", err)
 	}
 	if err := Chdir(d); err != nil {
-		t.Fatal("chtmpdir: %v", err)
+		t.Fatalf("chtmpdir: %v", err)
 	}
 	return func() {
 		if err := Chdir(oldwd); err != nil {
-			t.Fatal("chtmpdir: %v", err)
+			t.Fatalf("chtmpdir: %v", err)
 		}
 		RemoveAll(d)
 	}

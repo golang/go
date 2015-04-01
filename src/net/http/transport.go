@@ -662,7 +662,7 @@ func (t *Transport) dialConn(cm connectMethod) (*persistConn, error) {
 	return pconn, nil
 }
 
-// useProxy returns true if requests to addr should use a proxy,
+// useProxy reports whether requests to addr should use a proxy,
 // according to the NO_PROXY or no_proxy environment variable.
 // addr is always a canonicalAddr with a host and port.
 func useProxy(addr string) bool {

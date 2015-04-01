@@ -105,14 +105,45 @@ func IsARMSTREX(op int) bool {
 	return false
 }
 
+// MCR is not defined by the obj/arm; instead we define it privately here.
+// It is encoded as an MRC with a bit inside the instruction word,
+// passed to arch.ARMMRCOffset.
+const aMCR = arm.ALAST + 1
+
 // IsARMMRC reports whether the op (as defined by an arm.A* constant) is
 // MRC or MCR
 func IsARMMRC(op int) bool {
 	switch op {
-	case arm.AMRC /*, arm.AMCR*/ :
+	case arm.AMRC, aMCR: // Note: aMCR is defined in this package.
 		return true
 	}
 	return false
+}
+
+// ARMMRCOffset implements the peculiar encoding of the MRC and MCR instructions.
+// The difference between MRC and MCR is represented by a bit high in the word, not
+// in the usual way by the opcode itself. Asm must use AMRC for both instructions, so
+// we return the opcode for MRC so that asm doesn't need to import obj/arm.
+func ARMMRCOffset(op int, cond string, x0, x1, x2, x3, x4, x5 int64) (offset int64, op0 int16, ok bool) {
+	op1 := int64(0)
+	if op == arm.AMRC {
+		op1 = 1
+	}
+	bits, ok := ParseARMCondition(cond)
+	if !ok {
+		return
+	}
+	offset = (0xe << 24) | // opcode
+		(op1 << 20) | // MCR/MRC
+		((int64(bits) ^ arm.C_SCOND_XOR) << 28) | // scond
+		((x0 & 15) << 8) | //coprocessor number
+		((x1 & 7) << 21) | // coprocessor operation
+		((x2 & 15) << 12) | // ARM register
+		((x3 & 15) << 16) | // Crn
+		((x4 & 15) << 0) | // Crm
+		((x5 & 7) << 5) | // coprocessor information
+		(1 << 4) /* must be set */
+	return offset, arm.AMRC, true
 }
 
 // IsARMMULA reports whether the op (as defined by an arm.A* constant) is
@@ -167,6 +198,10 @@ func ARMConditionCodes(prog *obj.Prog, cond string) bool {
 // The input is a single string consisting of period-separated condition
 // codes, such as ".P.W". An initial period is ignored.
 func ParseARMCondition(cond string) (uint8, bool) {
+	return parseARMCondition(cond, armLS, armSCOND)
+}
+
+func parseARMCondition(cond string, ls, scond map[string]uint8) (uint8, bool) {
 	if strings.HasPrefix(cond, ".") {
 		cond = cond[1:]
 	}
@@ -176,11 +211,11 @@ func ParseARMCondition(cond string) (uint8, bool) {
 	names := strings.Split(cond, ".")
 	bits := uint8(0)
 	for _, name := range names {
-		if b, present := armLS[name]; present {
+		if b, present := ls[name]; present {
 			bits |= b
 			continue
 		}
-		if b, present := armSCOND[name]; present {
+		if b, present := scond[name]; present {
 			bits = (bits &^ arm.C_SCOND) | b
 			continue
 		}

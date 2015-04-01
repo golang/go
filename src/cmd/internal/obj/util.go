@@ -6,6 +6,7 @@ package obj
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -248,11 +249,93 @@ func (p *Prog) Line() string {
 	return Linklinefmt(p.Ctxt, int(p.Lineno), false, false)
 }
 
+var armCondCode = []string{
+	".EQ",
+	".NE",
+	".CS",
+	".CC",
+	".MI",
+	".PL",
+	".VS",
+	".VC",
+	".HI",
+	".LS",
+	".GE",
+	".LT",
+	".GT",
+	".LE",
+	"",
+	".NV",
+}
+
+/* ARM scond byte */
+const (
+	C_SCOND     = (1 << 4) - 1
+	C_SBIT      = 1 << 4
+	C_PBIT      = 1 << 5
+	C_WBIT      = 1 << 6
+	C_FBIT      = 1 << 7
+	C_UBIT      = 1 << 7
+	C_SCOND_XOR = 14
+)
+
+// CConv formats ARM condition codes.
+func CConv(s uint8) string {
+	if s == 0 {
+		return ""
+	}
+	sc := armCondCode[(s&C_SCOND)^C_SCOND_XOR]
+	if s&C_SBIT != 0 {
+		sc += ".S"
+	}
+	if s&C_PBIT != 0 {
+		sc += ".P"
+	}
+	if s&C_WBIT != 0 {
+		sc += ".W"
+	}
+	if s&C_UBIT != 0 { /* ambiguous with FBIT */
+		sc += ".U"
+	}
+	return sc
+}
+
 func (p *Prog) String() string {
 	if p.Ctxt == nil {
 		return "<Prog without ctxt>"
 	}
-	return p.Ctxt.Arch.Pconv(p)
+
+	sc := CConv(p.Scond)
+
+	var buf bytes.Buffer
+
+	fmt.Fprintf(&buf, "%.5d (%v)\t%v%s", p.Pc, p.Line(), Aconv(int(p.As)), sc)
+	sep := "\t"
+	if p.From.Type != TYPE_NONE {
+		fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, &p.From))
+		sep = ", "
+	}
+	if p.Reg != REG_NONE {
+		// Should not happen but might as well show it if it does.
+		fmt.Fprintf(&buf, "%s%v", sep, Rconv(int(p.Reg)))
+		sep = ", "
+	}
+	if p.From3.Type != TYPE_NONE {
+		if p.From3.Type == TYPE_CONST && (p.As == ADATA || p.As == ATEXT || p.As == AGLOBL) {
+			// Special case - omit $.
+			fmt.Fprintf(&buf, "%s%d", sep, p.From3.Offset)
+		} else {
+			fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, &p.From3))
+		}
+		sep = ", "
+	}
+	if p.To.Type != TYPE_NONE {
+		fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, &p.To))
+	}
+	if p.To2.Type != TYPE_NONE {
+		fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, &p.To2))
+	}
+	return buf.String()
 }
 
 func (ctxt *Link) NewProg() *Prog {
@@ -306,8 +389,8 @@ func Dconv(p *Prog, a *Addr) string {
 			str = fmt.Sprintf("%s(SB)", a.Sym.Name)
 		} else if p != nil && p.Pcond != nil {
 			str = fmt.Sprintf("%d", p.Pcond.Pc)
-		} else if a.U.Branch != nil {
-			str = fmt.Sprintf("%d", a.U.Branch.Pc)
+		} else if a.Val != nil {
+			str = fmt.Sprintf("%d", a.Val.(*Prog).Pc)
 		} else {
 			str = fmt.Sprintf("%d(PC)", a.Offset)
 		}
@@ -329,14 +412,14 @@ func Dconv(p *Prog, a *Addr) string {
 		}
 
 	case TYPE_TEXTSIZE:
-		if a.U.Argsize == ArgsSizeUnknown {
+		if a.Val.(int32) == ArgsSizeUnknown {
 			str = fmt.Sprintf("$%d", a.Offset)
 		} else {
-			str = fmt.Sprintf("$%d-%d", a.Offset, a.U.Argsize)
+			str = fmt.Sprintf("$%d-%d", a.Offset, a.Val.(int32))
 		}
 
 	case TYPE_FCONST:
-		str = fmt.Sprintf("%.17g", a.U.Dval)
+		str = fmt.Sprintf("%.17g", a.Val.(float64))
 		// Make sure 1 prints as 1.0
 		if !strings.ContainsAny(str, ".e") {
 			str += ".0"
@@ -344,7 +427,7 @@ func Dconv(p *Prog, a *Addr) string {
 		str = fmt.Sprintf("$(%s)", str)
 
 	case TYPE_SCONST:
-		str = fmt.Sprintf("$%q", a.U.Sval)
+		str = fmt.Sprintf("$%q", a.Val.(string))
 
 	case TYPE_ADDR:
 		str = fmt.Sprintf("$%s", Mconv(a))
@@ -443,10 +526,8 @@ const (
 	RBase386   = 1 * 1024
 	RBaseAMD64 = 2 * 1024
 	RBaseARM   = 3 * 1024
-	RBasePPC64 = 4 * 1024
-	// The next free base is 8*1024 (PPC64 has many registers).
-	// Alternatively, the next architecture, with an ordinary
-	// number of registers, could go under PPC64.
+	RBasePPC64 = 4 * 1024 // range [4k, 8k)
+	RBaseARM64 = 8 * 1024 // range [8k, 12k)
 )
 
 // RegisterRegister binds a pretty-printer (Rconv) for register
@@ -490,4 +571,70 @@ func regListConv(list int) string {
 
 	str += "]"
 	return str
+}
+
+/*
+	Each architecture defines an instruction (A*) space as a unique
+	integer range.
+	Global opcodes like CALL start at 0; the architecture-specific ones
+	start at a distinct, big-maskable offsets.
+	Here is the list of architectures and the base of their opcode spaces.
+*/
+
+const (
+	ABase386 = (1 + iota) << 12
+	ABaseARM
+	ABaseAMD64
+	ABasePPC64
+	ABaseARM64
+	AMask = 1<<12 - 1 // AND with this to use the opcode as an array index.
+)
+
+type opSet struct {
+	lo    int
+	names []string
+}
+
+// Not even worth sorting
+var aSpace []opSet
+
+// RegisterOpcode binds a list of instruction names
+// to a given instruction number range.
+func RegisterOpcode(lo int, Anames []string) {
+	aSpace = append(aSpace, opSet{lo, Anames})
+}
+
+func Aconv(a int) string {
+	if a < A_ARCHSPECIFIC {
+		return Anames[a]
+	}
+	for i := range aSpace {
+		as := &aSpace[i]
+		if as.lo <= a && a < as.lo+len(as.names) {
+			return as.names[a-as.lo]
+		}
+	}
+	return fmt.Sprintf("A???%d", a)
+}
+
+var Anames = []string{
+	"XXX",
+	"CALL",
+	"CHECKNIL",
+	"DATA",
+	"DUFFCOPY",
+	"DUFFZERO",
+	"END",
+	"FUNCDATA",
+	"GLOBL",
+	"JMP",
+	"NOP",
+	"PCDATA",
+	"RET",
+	"TEXT",
+	"TYPE",
+	"UNDEF",
+	"USEFIELD",
+	"VARDEF",
+	"VARKILL",
 }

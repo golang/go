@@ -1120,6 +1120,16 @@ fi
 unset GOPATH
 rm -rf $d
 
+TEST go get ./rsc.io/toolstash '(golang.org/issue/9767)'
+d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
+export GOPATH=$d
+export testgo=$(pwd)/testgo
+mkdir -p $GOPATH/src/rsc.io
+(cd $GOPATH/src/rsc.io && $testgo get ./toolstash) || ok=false
+unset GOPATH
+unset testgo
+rm -rf $d
+
 # clean up
 if $started; then stop; fi
 rm -rf testdata/bin testdata/bin1

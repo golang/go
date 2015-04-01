@@ -63,21 +63,18 @@ var headers = []struct {
 }
 
 func linknew(arch *LinkArch) *Link {
-	var ctxt *Link
-	var p string
-	var buf string
-
-	ctxt = new(Link)
+	ctxt := new(Link)
 	ctxt.Hash = make(map[symVer]*LSym)
 	ctxt.Arch = arch
 	ctxt.Version = HistVersion
 	ctxt.Goroot = obj.Getgoroot()
 
-	p = obj.Getgoarch()
+	p := obj.Getgoarch()
 	if p != arch.Name {
 		log.Fatalf("invalid goarch %s (want %s)", p, arch.Name)
 	}
 
+	var buf string
 	buf, _ = os.Getwd()
 	if buf == "" {
 		buf = "/???"
@@ -95,8 +92,7 @@ func linknew(arch *LinkArch) *Link {
 	default:
 		log.Fatalf("unknown thread-local storage offset for %s", Headstr(ctxt.Headtype))
 
-	case Hplan9,
-		Hwindows:
+	case Hplan9, Hwindows:
 		break
 
 		/*
@@ -110,7 +106,7 @@ func linknew(arch *LinkArch) *Link {
 		Hopenbsd,
 		Hdragonfly,
 		Hsolaris:
-		ctxt.Tlsoffset = -2 * ctxt.Arch.Ptrsize
+		ctxt.Tlsoffset = -1 * ctxt.Arch.Ptrsize
 
 	case Hnacl:
 		switch ctxt.Arch.Thechar {
@@ -149,7 +145,7 @@ func linknew(arch *LinkArch) *Link {
 
 	// On arm, record goarm.
 	if ctxt.Arch.Thechar == '5' {
-		p = obj.Getgoarm()
+		p := obj.Getgoarm()
 		if p != "" {
 			ctxt.Goarm = int32(obj.Atoi(p))
 		} else {
@@ -161,9 +157,7 @@ func linknew(arch *LinkArch) *Link {
 }
 
 func linknewsym(ctxt *Link, symb string, v int) *LSym {
-	var s *LSym
-
-	s = new(LSym)
+	s := new(LSym)
 	*s = LSym{}
 
 	s.Dynid = -1
@@ -173,7 +167,6 @@ func linknewsym(ctxt *Link, symb string, v int) *LSym {
 	s.Type = 0
 	s.Version = int16(v)
 	s.Value = 0
-	s.Sig = 0
 	s.Size = 0
 	ctxt.Nsymbol++
 
@@ -215,9 +208,7 @@ func Linkrlookup(ctxt *Link, name string, v int) *LSym {
 var headstr_buf string
 
 func Headstr(v int) string {
-	var i int
-
-	for i = 0; i < len(headers); i++ {
+	for i := 0; i < len(headers); i++ {
 		if v == headers[i].val {
 			return headers[i].name
 		}
@@ -227,9 +218,7 @@ func Headstr(v int) string {
 }
 
 func headtype(name string) int {
-	var i int
-
-	for i = 0; i < len(headers); i++ {
+	for i := 0; i < len(headers); i++ {
 		if name == headers[i].name {
 			return headers[i].val
 		}

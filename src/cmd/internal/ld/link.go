@@ -50,7 +50,6 @@ type LSym struct {
 	Localentry  uint8
 	Onlist      uint8
 	Dynid       int32
-	Sig         int32
 	Plt         int32
 	Got         int32
 	Align       int32
@@ -128,7 +127,6 @@ type LinkArch struct {
 	ByteOrder binary.ByteOrder
 	Name      string
 	Thechar   int
-	Endian    int32
 	Minlc     int
 	Ptrsize   int
 	Regsize   int
@@ -221,6 +219,7 @@ const (
 	R_SIZE
 	R_CALL
 	R_CALLARM
+	R_CALLARM64
 	R_CALLIND
 	R_CALLPOWER
 	R_CONST
@@ -268,11 +267,6 @@ const (
 
 // Link holds the context for writing object code from a compiler
 // to be linker input or for reading that input into the linker.
-
-const (
-	LittleEndian = 0x04030201
-	BigEndian    = 0x01020304
-)
 
 // LinkArch is the definition of a single architecture.
 

@@ -31,11 +31,11 @@
 package main
 
 import (
+	"cmd/internal/ld"
 	"cmd/internal/obj"
 	"fmt"
 	"log"
 )
-import "cmd/internal/ld"
 
 func PADDR(x uint32) uint32 {
 	return x &^ 0x80000000
@@ -44,17 +44,14 @@ func PADDR(x uint32) uint32 {
 var zeroes string
 
 func needlib(name string) int {
-	var p string
-	var s *ld.LSym
-
 	if name[0] == '\x00' {
 		return 0
 	}
 
 	/* reuse hash code in symbol table */
-	p = fmt.Sprintf(".elfload.%s", name)
+	p := fmt.Sprintf(".elfload.%s", name)
 
-	s = ld.Linklookup(ld.Ctxt, p, 0)
+	s := ld.Linklookup(ld.Ctxt, p, 0)
 
 	if s.Type == 0 {
 		s.Type = 100 // avoid SDATA, etc.
@@ -74,11 +71,7 @@ func adddynrela(rela *ld.LSym, s *ld.LSym, r *ld.Reloc) {
 }
 
 func adddynrel(s *ld.LSym, r *ld.Reloc) {
-	var targ *ld.LSym
-	var rela *ld.LSym
-	var got *ld.LSym
-
-	targ = r.Sym
+	targ := r.Sym
 	ld.Ctxt.Cursym = s
 
 	switch r.Type {
@@ -141,11 +134,11 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 		r.Type = ld.R_ADDR
 		return
 
-		// TODO: What is the difference between all these?
 	// Handle relocations found in Mach-O object files.
 	case 512 + ld.MACHO_X86_64_RELOC_UNSIGNED*2 + 0,
 		512 + ld.MACHO_X86_64_RELOC_SIGNED*2 + 0,
 		512 + ld.MACHO_X86_64_RELOC_BRANCH*2 + 0:
+		// TODO: What is the difference between all these?
 		r.Type = ld.R_ADDR
 
 		if targ.Type == ld.SDYNIMPORT {
@@ -211,10 +204,16 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 	switch r.Type {
 	case ld.R_CALL,
 		ld.R_PCREL:
-		addpltsym(targ)
-		r.Sym = ld.Linklookup(ld.Ctxt, ".plt", 0)
-		r.Add = int64(targ.Plt)
-		return
+		if ld.HEADTYPE == ld.Hwindows {
+			// nothing to do, the relocation will be laid out in pereloc1
+			return
+		} else {
+			// for both ELF and Mach-O
+			addpltsym(targ)
+			r.Sym = ld.Linklookup(ld.Ctxt, ".plt", 0)
+			r.Add = int64(targ.Plt)
+			return
+		}
 
 	case ld.R_ADDR:
 		if s.Type == ld.STEXT && ld.Iself {
@@ -233,7 +232,7 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 		}
 		if ld.Iself {
 			adddynsym(ld.Ctxt, targ)
-			rela = ld.Linklookup(ld.Ctxt, ".rela", 0)
+			rela := ld.Linklookup(ld.Ctxt, ".rela", 0)
 			ld.Addaddrplus(ld.Ctxt, rela, s, int64(r.Off))
 			if r.Siz == 8 {
 				ld.Adduint64(ld.Ctxt, rela, ld.ELF64_R_INFO(uint32(targ.Dynid), ld.R_X86_64_64))
@@ -258,7 +257,7 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 			// but we only need to support cgo and that's all it needs.
 			adddynsym(ld.Ctxt, targ)
 
-			got = ld.Linklookup(ld.Ctxt, ".got", 0)
+			got := ld.Linklookup(ld.Ctxt, ".got", 0)
 			s.Type = got.Type | ld.SSUB
 			s.Outer = got
 			s.Sub = got.Sub
@@ -269,6 +268,11 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 			r.Type = 256 // ignore during relocsym
 			return
 		}
+
+		if ld.HEADTYPE == ld.Hwindows {
+			// nothing to do, the relocation will be laid out in pereloc1
+			return
+		}
 	}
 
 	ld.Ctxt.Cursym = s
@@ -276,11 +280,9 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 }
 
 func elfreloc1(r *ld.Reloc, sectoff int64) int {
-	var elfsym int32
-
 	ld.Thearch.Vput(uint64(sectoff))
 
-	elfsym = r.Xsym.Elfsym
+	elfsym := r.Xsym.Elfsym
 	switch r.Type {
 	default:
 		return -1
@@ -297,6 +299,13 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
 	case ld.R_TLS_LE:
 		if r.Siz == 4 {
 			ld.Thearch.Vput(ld.R_X86_64_TPOFF32 | uint64(elfsym)<<32)
+		} else {
+			return -1
+		}
+
+	case ld.R_TLS_IE:
+		if r.Siz == 4 {
+			ld.Thearch.Vput(ld.R_X86_64_GOTTPOFF | uint64(elfsym)<<32)
 		} else {
 			return -1
 		}
@@ -337,9 +346,8 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
 
 func machoreloc1(r *ld.Reloc, sectoff int64) int {
 	var v uint32
-	var rs *ld.LSym
 
-	rs = r.Xsym
+	rs := r.Xsym
 
 	if rs.Type == ld.SHOSTOBJ || r.Type == ld.R_PCREL {
 		if rs.Dynid < 0 {
@@ -396,6 +404,40 @@ func machoreloc1(r *ld.Reloc, sectoff int64) int {
 	return 0
 }
 
+func pereloc1(r *ld.Reloc, sectoff int64) bool {
+	var v uint32
+
+	rs := r.Xsym
+
+	if rs.Dynid < 0 {
+		ld.Diag("reloc %d to non-coff symbol %s type=%d", r.Type, rs.Name, rs.Type)
+		return false
+	}
+
+	ld.Thearch.Lput(uint32(sectoff))
+	ld.Thearch.Lput(uint32(rs.Dynid))
+
+	switch r.Type {
+	default:
+		return false
+
+	case ld.R_ADDR:
+		if r.Siz == 8 {
+			v = ld.IMAGE_REL_AMD64_ADDR64
+		} else {
+			v = ld.IMAGE_REL_AMD64_ADDR32
+		}
+
+	case ld.R_CALL,
+		ld.R_PCREL:
+		v = ld.IMAGE_REL_AMD64_REL32
+	}
+
+	ld.Thearch.Wput(uint16(v))
+
+	return true
+}
+
 func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 	return -1
 }
@@ -406,11 +448,8 @@ func archrelocvariant(r *ld.Reloc, s *ld.LSym, t int64) int64 {
 }
 
 func elfsetupplt() {
-	var plt *ld.LSym
-	var got *ld.LSym
-
-	plt = ld.Linklookup(ld.Ctxt, ".plt", 0)
-	got = ld.Linklookup(ld.Ctxt, ".got.plt", 0)
+	plt := ld.Linklookup(ld.Ctxt, ".plt", 0)
+	got := ld.Linklookup(ld.Ctxt, ".got.plt", 0)
 	if plt.Size == 0 {
 		// pushq got+8(IP)
 		ld.Adduint8(ld.Ctxt, plt, 0xff)
@@ -443,13 +482,9 @@ func addpltsym(s *ld.LSym) {
 	adddynsym(ld.Ctxt, s)
 
 	if ld.Iself {
-		var plt *ld.LSym
-		var got *ld.LSym
-		var rela *ld.LSym
-
-		plt = ld.Linklookup(ld.Ctxt, ".plt", 0)
-		got = ld.Linklookup(ld.Ctxt, ".got.plt", 0)
-		rela = ld.Linklookup(ld.Ctxt, ".rela.plt", 0)
+		plt := ld.Linklookup(ld.Ctxt, ".plt", 0)
+		got := ld.Linklookup(ld.Ctxt, ".got.plt", 0)
+		rela := ld.Linklookup(ld.Ctxt, ".rela.plt", 0)
 		if plt.Size == 0 {
 			elfsetupplt()
 		}
@@ -491,10 +526,8 @@ func addpltsym(s *ld.LSym) {
 		// http://networkpx.blogspot.com/2009/09/about-lcdyldinfoonly-command.html
 		// has details about what we're avoiding.
 
-		var plt *ld.LSym
-
 		addgotsym(s)
-		plt = ld.Linklookup(ld.Ctxt, ".plt", 0)
+		plt := ld.Linklookup(ld.Ctxt, ".plt", 0)
 
 		ld.Adduint32(ld.Ctxt, ld.Linklookup(ld.Ctxt, ".linkedit.plt", 0), uint32(s.Dynid))
 
@@ -510,20 +543,17 @@ func addpltsym(s *ld.LSym) {
 }
 
 func addgotsym(s *ld.LSym) {
-	var got *ld.LSym
-	var rela *ld.LSym
-
 	if s.Got >= 0 {
 		return
 	}
 
 	adddynsym(ld.Ctxt, s)
-	got = ld.Linklookup(ld.Ctxt, ".got", 0)
+	got := ld.Linklookup(ld.Ctxt, ".got", 0)
 	s.Got = int32(got.Size)
 	ld.Adduint64(ld.Ctxt, got, 0)
 
 	if ld.Iself {
-		rela = ld.Linklookup(ld.Ctxt, ".rela", 0)
+		rela := ld.Linklookup(ld.Ctxt, ".rela", 0)
 		ld.Addaddrplus(ld.Ctxt, rela, got, int64(s.Got))
 		ld.Adduint64(ld.Ctxt, rela, ld.ELF64_R_INFO(uint32(s.Dynid), ld.R_X86_64_GLOB_DAT))
 		ld.Adduint64(ld.Ctxt, rela, 0)
@@ -535,10 +565,6 @@ func addgotsym(s *ld.LSym) {
 }
 
 func adddynsym(ctxt *ld.Link, s *ld.LSym) {
-	var d *ld.LSym
-	var t int
-	var name string
-
 	if s.Dynid >= 0 {
 		return
 	}
@@ -547,13 +573,13 @@ func adddynsym(ctxt *ld.Link, s *ld.LSym) {
 		s.Dynid = int32(ld.Nelfsym)
 		ld.Nelfsym++
 
-		d = ld.Linklookup(ctxt, ".dynsym", 0)
+		d := ld.Linklookup(ctxt, ".dynsym", 0)
 
-		name = s.Extname
+		name := s.Extname
 		ld.Adduint32(ctxt, d, uint32(ld.Addstring(ld.Linklookup(ctxt, ".dynstr", 0), name)))
 
 		/* type */
-		t = ld.STB_GLOBAL << 4
+		t := ld.STB_GLOBAL << 4
 
 		if s.Cgoexport != 0 && s.Type&ld.SMASK == ld.STEXT {
 			t |= ld.STT_FUNC
@@ -595,14 +621,12 @@ func adddynsym(ctxt *ld.Link, s *ld.LSym) {
 }
 
 func adddynlib(lib string) {
-	var s *ld.LSym
-
 	if needlib(lib) == 0 {
 		return
 	}
 
 	if ld.Iself {
-		s = ld.Linklookup(ld.Ctxt, ".dynstr", 0)
+		s := ld.Linklookup(ld.Ctxt, ".dynstr", 0)
 		if s.Size == 0 {
 			ld.Addstring(s, "")
 		}
@@ -615,15 +639,6 @@ func adddynlib(lib string) {
 }
 
 func asmb() {
-	var magic int32
-	var i int
-	var vl int64
-	var symo int64
-	var dwarfoff int64
-	var machlink int64
-	var sect *ld.Section
-	var sym *ld.LSym
-
 	if ld.Debug['v'] != 0 {
 		fmt.Fprintf(&ld.Bso, "%5.2f asmb\n", obj.Cputime())
 	}
@@ -638,7 +653,7 @@ func asmb() {
 		ld.Asmbelfsetup()
 	}
 
-	sect = ld.Segtext.Sect
+	sect := ld.Segtext.Sect
 	ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
 	ld.Codeblk(int64(sect.Vaddr), int64(sect.Length))
 	for sect = sect.Next; sect != nil; sect = sect.Next {
@@ -664,13 +679,13 @@ func asmb() {
 	ld.Cseek(int64(ld.Segdata.Fileoff))
 	ld.Datblk(int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
 
-	machlink = 0
+	machlink := int64(0)
 	if ld.HEADTYPE == ld.Hdarwin {
 		if ld.Debug['v'] != 0 {
 			fmt.Fprintf(&ld.Bso, "%5.2f dwarf\n", obj.Cputime())
 		}
 
-		dwarfoff = ld.Rnd(int64(uint64(ld.HEADR)+ld.Segtext.Length), int64(ld.INITRND)) + ld.Rnd(int64(ld.Segdata.Filelen), int64(ld.INITRND))
+		dwarfoff := ld.Rnd(int64(uint64(ld.HEADR)+ld.Segtext.Length), int64(ld.INITRND)) + ld.Rnd(int64(ld.Segdata.Filelen), int64(ld.INITRND))
 		ld.Cseek(dwarfoff)
 
 		ld.Segdwarf.Fileoff = uint64(ld.Cpos())
@@ -708,7 +723,7 @@ func asmb() {
 	ld.Symsize = 0
 	ld.Spsize = 0
 	ld.Lcsize = 0
-	symo = 0
+	symo := int64(0)
 	if ld.Debug['s'] == 0 {
 		if ld.Debug['v'] != 0 {
 			fmt.Fprintf(&ld.Bso, "%5.2f sym\n", obj.Cputime())
@@ -763,10 +778,10 @@ func asmb() {
 			ld.Asmplan9sym()
 			ld.Cflush()
 
-			sym = ld.Linklookup(ld.Ctxt, "pclntab", 0)
+			sym := ld.Linklookup(ld.Ctxt, "pclntab", 0)
 			if sym != nil {
 				ld.Lcsize = int32(len(sym.P))
-				for i = 0; int32(i) < ld.Lcsize; i++ {
+				for i := 0; int32(i) < ld.Lcsize; i++ {
 					ld.Cput(uint8(sym.P[i]))
 				}
 
@@ -795,7 +810,7 @@ func asmb() {
 	switch ld.HEADTYPE {
 	default:
 	case ld.Hplan9: /* plan9 */
-		magic = 4*26*26 + 7
+		magic := int32(4*26*26 + 7)
 
 		magic |= 0x00008000                  /* fat header */
 		ld.Lputb(uint32(magic))              /* magic */
@@ -803,7 +818,7 @@ func asmb() {
 		ld.Lputb(uint32(ld.Segdata.Filelen))
 		ld.Lputb(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
 		ld.Lputb(uint32(ld.Symsize)) /* nsyms */
-		vl = ld.Entryvalue()
+		vl := ld.Entryvalue()
 		ld.Lputb(PADDR(uint32(vl))) /* va of entry */
 		ld.Lputb(uint32(ld.Spsize)) /* sp offsets */
 		ld.Lputb(uint32(ld.Lcsize)) /* line offsets */

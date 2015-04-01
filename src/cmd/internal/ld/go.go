@@ -9,8 +9,8 @@ import (
 	"cmd/internal/obj"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
-	"unicode/utf8"
 )
 
 // go-specific code shared across loaders (5l, 6l, 8l).
@@ -38,56 +38,27 @@ func expandpkg(t0 string, pkg string) string {
  *	package import data
  */
 type Import struct {
-	hash   *Import
-	prefix string
+	prefix string // "type", "var", "func", "const"
 	name   string
 	def    string
 	file   string
 }
 
-const (
-	NIHASH = 1024
-)
+// importmap records type information about imported symbols to detect inconsistencies.
+// Entries are keyed by qualified symbol name (e.g., "runtime.Callers" or "net/url.Error").
+var importmap = map[string]*Import{}
 
-var ihash [NIHASH]*Import
-
-var nimport int
-
-func hashstr(name string) int {
-	var h uint32
-	var cp string
-
-	h = 0
-	for cp = name; cp != ""; cp = cp[1:] {
-		h = h*1119 + uint32(cp[0])
+func lookupImport(name string) *Import {
+	if x, ok := importmap[name]; ok {
+		return x
 	}
-	h &= 0xffffff
-	return int(h)
-}
-
-func ilookup(name string) *Import {
-	var h int
-	var x *Import
-
-	h = hashstr(name) % NIHASH
-	for x = ihash[h]; x != nil; x = x.hash {
-		if x.name[0] == name[0] && x.name == name {
-			return x
-		}
-	}
-	x = new(Import)
-	x.name = name
-	x.hash = ihash[h]
-	ihash[h] = x
-	nimport++
+	x := &Import{name: name}
+	importmap[name] = x
 	return x
 }
 
 func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
-	var bdata []byte
-	var data string
 	var p0, p1 int
-	var name string
 
 	if Debug['g'] != 0 {
 		return
@@ -101,7 +72,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 		return
 	}
 
-	bdata = make([]byte, length)
+	bdata := make([]byte, length)
 	if int64(Bread(f, bdata)) != length {
 		fmt.Fprintf(os.Stderr, "%s: short pkg read %s\n", os.Args[0], filename)
 		if Debug['u'] != 0 {
@@ -109,7 +80,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 		}
 		return
 	}
-	data = string(bdata)
+	data := string(bdata)
 
 	// first \n$$ marks beginning of exports - skip rest of line
 	p0 = strings.Index(data, "\n$$")
@@ -122,7 +93,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 	}
 
 	p0 += 3
-	for p0 < len(data) && data[0] != '\n' {
+	for p0 < len(data) && data[p0] != '\n' {
 		p0++
 	}
 
@@ -137,7 +108,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 	}
 	p1 += p0
 
-	for p0 < p1 && (data[p0] == ' ' || data[0] == '\t' || data[0] == '\n') {
+	for p0 < p1 && (data[p0] == ' ' || data[p0] == '\t' || data[p0] == '\n') {
 		p0++
 	}
 	if p0 < p1 {
@@ -153,7 +124,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 		for p0 < p1 && (data[p0] == ' ' || data[p0] == '\t' || data[p0] == '\n') {
 			p0++
 		}
-		name = data[p0:]
+		pname := p0
 		for p0 < p1 && data[p0] != ' ' && data[p0] != '\t' && data[p0] != '\n' {
 			p0++
 		}
@@ -163,16 +134,12 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 			Errorexit()
 		}
 
-		name = name[:p1-p0]
+		name := data[pname:p0]
+		for p0 < p1 && data[p0] != '\n' {
+			p0++
+		}
 		if p0 < p1 {
-			if data[p0] == '\n' {
-				p0++
-			} else {
-				p0++
-				for p0 < p1 && data[p0] != '\n' {
-					p0++
-				}
-			}
+			p0++
 		}
 
 		if pkg == "main" && name != "main" {
@@ -221,16 +188,13 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 }
 
 func loadpkgdata(file string, pkg string, data string) {
-	var p string
 	var prefix string
 	var name string
 	var def string
-	var x *Import
 
-	file = file
-	p = data
+	p := data
 	for parsepkgdata(file, pkg, &p, &prefix, &name, &def) > 0 {
-		x = ilookup(name)
+		x := lookupImport(name)
 		if x.prefix == "" {
 			x.prefix = prefix
 			x.def = def
@@ -250,15 +214,8 @@ func loadpkgdata(file string, pkg string, data string) {
 }
 
 func parsepkgdata(file string, pkg string, pp *string, prefixp *string, namep *string, defp *string) int {
-	var p string
-	var prefix string
-	var name string
-	var def string
-	var meth string
-	var inquote bool
-
 	// skip white space
-	p = *pp
+	p := *pp
 
 loop:
 	for len(p) > 0 && (p[0] == ' ' || p[0] == '\t' || p[0] == '\n') {
@@ -269,7 +226,7 @@ loop:
 	}
 
 	// prefix: (var|type|func|const)
-	prefix = p
+	prefix := p
 
 	if len(p) < 7 {
 		return -1
@@ -288,7 +245,7 @@ loop:
 			p = p[1:]
 		}
 		p = p[1:]
-		name := p
+		line := p
 		for len(p) > 0 && p[0] != '\n' {
 			p = p[1:]
 		}
@@ -297,9 +254,16 @@ loop:
 			nerrors++
 			return -1
 		}
-		name = name[:len(name)-len(p)]
+		line = line[:len(line)-len(p)]
+		line = strings.TrimSuffix(line, " // indirect")
+		path, err := strconv.Unquote(line)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s: confused in import path: %q\n", os.Args[0], file, line)
+			nerrors++
+			return -1
+		}
 		p = p[1:]
-		imported(pkg, name)
+		imported(pkg, path)
 		goto loop
 	} else {
 		fmt.Fprintf(os.Stderr, "%s: %s: confused in pkg data near <<%.40s>>\n", os.Args[0], file, prefix)
@@ -310,9 +274,9 @@ loop:
 	prefix = prefix[:len(prefix)-len(p)-1]
 
 	// name: a.b followed by space
-	name = p
+	name := p
 
-	inquote = false
+	inquote := false
 	for len(p) > 0 {
 		if p[0] == ' ' && !inquote {
 			break
@@ -334,7 +298,7 @@ loop:
 	p = p[1:]
 
 	// def: free form to new line
-	def = p
+	def := p
 
 	for len(p) > 0 && p[0] != '\n' {
 		p = p[1:]
@@ -347,6 +311,7 @@ loop:
 	p = p[1:]
 
 	// include methods on successive lines in def of named type
+	var meth string
 	for parsemethod(&p, &meth) > 0 {
 		if defbuf == nil {
 			defbuf = new(bytes.Buffer)
@@ -372,10 +337,8 @@ loop:
 }
 
 func parsemethod(pp *string, methp *string) int {
-	var p string
-
 	// skip white space
-	p = *pp
+	p := *pp
 
 	for len(p) > 0 && (p[0] == ' ' || p[0] == '\t') {
 		p = p[1:]
@@ -415,7 +378,6 @@ useline:
 
 func loadcgo(file string, pkg string, p string) {
 	var next string
-	var p0 string
 	var q string
 	var f []string
 	var local string
@@ -423,7 +385,7 @@ func loadcgo(file string, pkg string, p string) {
 	var lib string
 	var s *LSym
 
-	p0 = ""
+	p0 := ""
 	for ; p != ""; p = next {
 		if i := strings.Index(p, "\n"); i >= 0 {
 			p, next = p[:i], p[i+1:]
@@ -500,11 +462,6 @@ func loadcgo(file string, pkg string, p string) {
 		}
 
 		if f[0] == "cgo_export_static" || f[0] == "cgo_export_dynamic" {
-			// TODO: Remove once we know Windows is okay.
-			if f[0] == "cgo_export_static" && HEADTYPE == Hwindows {
-				continue
-			}
-
 			if len(f) < 2 || len(f) > 3 {
 				goto err
 			}
@@ -610,10 +567,9 @@ func mark(s *LSym) {
 
 func markflood() {
 	var a *Auto
-	var s *LSym
 	var i int
 
-	for s = markq; s != nil; s = s.Queue {
+	for s := markq; s != nil; s = s.Queue {
 		if s.Type == STEXT {
 			if Debug['v'] > 1 {
 				fmt.Fprintf(&Bso, "marktext %s\n", s.Name)
@@ -659,38 +615,32 @@ var markextra = []string{
 }
 
 func deadcode() {
-	var i int
-	var s *LSym
-	var last *LSym
-	var p *LSym
-	var fmt_ string
-
 	if Debug['v'] != 0 {
 		fmt.Fprintf(&Bso, "%5.2f deadcode\n", obj.Cputime())
 	}
 
 	mark(Linklookup(Ctxt, INITENTRY, 0))
-	for i = 0; i < len(markextra); i++ {
+	for i := 0; i < len(markextra); i++ {
 		mark(Linklookup(Ctxt, markextra[i], 0))
 	}
 
-	for i = 0; i < len(dynexp); i++ {
+	for i := 0; i < len(dynexp); i++ {
 		mark(dynexp[i])
 	}
 
 	markflood()
 
 	// keep each beginning with 'typelink.' if the symbol it points at is being kept.
-	for s = Ctxt.Allsym; s != nil; s = s.Allsym {
+	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
 		if strings.HasPrefix(s.Name, "go.typelink.") {
 			s.Reachable = len(s.R) == 1 && s.R[0].Sym.Reachable
 		}
 	}
 
 	// remove dead text but keep file information (z symbols).
-	last = nil
+	var last *LSym
 
-	for s = Ctxt.Textp; s != nil; s = s.Next {
+	for s := Ctxt.Textp; s != nil; s = s.Next {
 		if !s.Reachable {
 			continue
 		}
@@ -710,7 +660,7 @@ func deadcode() {
 		last.Next = nil
 	}
 
-	for s = Ctxt.Allsym; s != nil; s = s.Allsym {
+	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
 		if strings.HasPrefix(s.Name, "go.weak.") {
 			s.Special = 1 // do not lay out in data segment
 			s.Reachable = true
@@ -719,18 +669,19 @@ func deadcode() {
 	}
 
 	// record field tracking references
-	fmt_ = ""
-
-	for s = Ctxt.Allsym; s != nil; s = s.Allsym {
+	var buf bytes.Buffer
+	var p *LSym
+	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
 		if strings.HasPrefix(s.Name, "go.track.") {
 			s.Special = 1 // do not lay out in data segment
 			s.Hide = 1
 			if s.Reachable {
-				fmt_ += fmt.Sprintf("%s", s.Name[9:])
+				buf.WriteString(s.Name[9:])
 				for p = s.Reachparent; p != nil; p = p.Reachparent {
-					fmt_ += fmt.Sprintf("\t%s", p.Name)
+					buf.WriteString("\t")
+					buf.WriteString(p.Name)
 				}
-				fmt_ += fmt.Sprintf("\n")
+				buf.WriteString("\n")
 			}
 
 			s.Type = SCONST
@@ -741,20 +692,19 @@ func deadcode() {
 	if tracksym == "" {
 		return
 	}
-	s = Linklookup(Ctxt, tracksym, 0)
+	s := Linklookup(Ctxt, tracksym, 0)
 	if !s.Reachable {
 		return
 	}
-	addstrdata(tracksym, fmt_)
+	addstrdata(tracksym, buf.String())
 }
 
 func doweak() {
-	var s *LSym
 	var t *LSym
 
 	// resolve weak references only if
 	// target symbol will be in binary anyway.
-	for s = Ctxt.Allsym; s != nil; s = s.Allsym {
+	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
 		if strings.HasPrefix(s.Name, "go.weak.") {
 			t = Linkrlookup(Ctxt, s.Name[8:], int(s.Version))
 			if t != nil && t.Type != 0 && t.Reachable {
@@ -772,129 +722,70 @@ func doweak() {
 }
 
 func addexport() {
-	var i int
-
 	if HEADTYPE == Hdarwin {
 		return
 	}
 
-	for i = 0; i < len(dynexp); i++ {
+	for i := 0; i < len(dynexp); i++ {
 		Thearch.Adddynsym(Ctxt, dynexp[i])
 	}
 }
 
-/* %Z from gc, for quoting import paths */
-func Zconv(s string, flag int) string {
-	// NOTE: Keep in sync with gc Zconv.
-	var n int
-	var fp string
-	for i := 0; i < len(s); i += n {
-		var r rune
-		r, n = utf8.DecodeRuneInString(s[i:])
-		switch r {
-		case utf8.RuneError:
-			if n == 1 {
-				fp += fmt.Sprintf("\\x%02x", s[i])
-				break
-			}
-			fallthrough
-
-			// fall through
-		default:
-			if r < ' ' {
-				fp += fmt.Sprintf("\\x%02x", r)
-				break
-			}
-
-			fp += string(r)
-
-		case '\t':
-			fp += "\\t"
-
-		case '\n':
-			fp += "\\n"
-
-		case '"',
-			'\\':
-			fp += `\` + string(r)
-
-		case 0xFEFF: // BOM, basically disallowed in source code
-			fp += "\\uFEFF"
-		}
-	}
-
-	return fp
-}
-
 type Pkg struct {
-	mark    uint8
-	checked uint8
-	next    *Pkg
-	path_   string
+	mark    bool
+	checked bool
+	path    string
 	impby   []*Pkg
-	all     *Pkg
 }
 
-var phash [1024]*Pkg
+var (
+	// pkgmap records the imported-by relationship between packages.
+	// Entries are keyed by package path (e.g., "runtime" or "net/url").
+	pkgmap = map[string]*Pkg{}
 
-var pkgall *Pkg
+	pkgall []*Pkg
+)
 
-func getpkg(path_ string) *Pkg {
-	var p *Pkg
-	var h int
-
-	h = hashstr(path_) % len(phash)
-	for p = phash[h]; p != nil; p = p.next {
-		if p.path_ == path_ {
-			return p
-		}
+func lookupPkg(path string) *Pkg {
+	if p, ok := pkgmap[path]; ok {
+		return p
 	}
-	p = new(Pkg)
-	p.path_ = path_
-	p.next = phash[h]
-	phash[h] = p
-	p.all = pkgall
-	pkgall = p
+	p := &Pkg{path: path}
+	pkgmap[path] = p
+	pkgall = append(pkgall, p)
 	return p
 }
 
-func imported(pkg string, import_ string) {
-	var p *Pkg
-	var i *Pkg
-
+// imported records that package pkg imports package imp.
+func imported(pkg, imp string) {
 	// everyone imports runtime, even runtime.
-	if import_ == "\"runtime\"" {
+	if imp == "runtime" {
 		return
 	}
 
-	pkg = fmt.Sprintf("\"%v\"", Zconv(pkg, 0)) // turn pkg path into quoted form, freed below
-	p = getpkg(pkg)
-	i = getpkg(import_)
+	p := lookupPkg(pkg)
+	i := lookupPkg(imp)
 	i.impby = append(i.impby, p)
 }
 
-func cycle(p *Pkg) *Pkg {
-	var i int
-	var bad *Pkg
-
-	if p.checked != 0 {
+func (p *Pkg) cycle() *Pkg {
+	if p.checked {
 		return nil
 	}
 
-	if p.mark != 0 {
+	if p.mark {
 		nerrors++
 		fmt.Printf("import cycle:\n")
-		fmt.Printf("\t%s\n", p.path_)
+		fmt.Printf("\t%s\n", p.path)
 		return p
 	}
 
-	p.mark = 1
-	for i = 0; i < len(p.impby); i++ {
-		bad = cycle(p.impby[i])
-		if bad != nil {
-			p.mark = 0
-			p.checked = 1
-			fmt.Printf("\timports %s\n", p.path_)
+	p.mark = true
+	for _, q := range p.impby {
+		if bad := q.cycle(); bad != nil {
+			p.mark = false
+			p.checked = true
+			fmt.Printf("\timports %s\n", p.path)
 			if bad == p {
 				return nil
 			}
@@ -902,16 +793,14 @@ func cycle(p *Pkg) *Pkg {
 		}
 	}
 
-	p.checked = 1
-	p.mark = 0
+	p.checked = true
+	p.mark = false
 	return nil
 }
 
 func importcycles() {
-	var p *Pkg
-
-	for p = pkgall; p != nil; p = p.all {
-		cycle(p)
+	for _, p := range pkgall {
+		p.cycle()
 	}
 }
 

@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/internal/obj"
 	"fmt"
+	"strconv"
 )
 
 /*
@@ -71,7 +72,7 @@ func dumpobj() {
 
 	fmt.Fprintf(bout, "\n!\n")
 
-	externs := (*NodeList)(nil)
+	var externs *NodeList
 	if externdcl != nil {
 		externs = externdcl.End
 	}
@@ -101,8 +102,8 @@ func dumpobj() {
 			obj.Bputc(bout, 0)
 		}
 		obj.Bseek(bout, startobj-ArhdrSize, 0)
-		namebuf = fmt.Sprintf("_go_.%c", Thearch.Thechar)
-		formathdr(arhdr[:], namebuf, size)
+		name := fmt.Sprintf("_go_.%c", Thearch.Thechar)
+		formathdr(arhdr[:], name, size)
 		obj.Bwrite(bout, arhdr[:])
 	}
 
@@ -135,7 +136,7 @@ func dumpglobls() {
 
 	for l := funcsyms; l != nil; l = l.Next {
 		n = l.N
-		dsymptr(n.Sym, 0, n.Sym.Def.Shortname.Sym, 0)
+		dsymptr(n.Sym, 0, n.Sym.Def.Func.Shortname.Sym, 0)
 		ggloblsym(n.Sym, int32(Widthptr), obj.DUPOK|obj.RODATA)
 	}
 
@@ -155,16 +156,18 @@ func Linksym(s *Sym) *obj.LSym {
 	if s.Lsym != nil {
 		return s.Lsym
 	}
+	var name string
 	if isblanksym(s) {
-		s.Lsym = obj.Linklookup(Ctxt, "_", 0)
+		name = "_"
 	} else if s.Linkname != "" {
-		s.Lsym = obj.Linklookup(Ctxt, s.Linkname, 0)
+		name = s.Linkname
 	} else {
-		p := fmt.Sprintf("%s.%s", s.Pkg.Prefix, s.Name)
-		s.Lsym = obj.Linklookup(Ctxt, p, 0)
+		name = s.Pkg.Prefix + "." + s.Name
 	}
 
-	return s.Lsym
+	ls := obj.Linklookup(Ctxt, name, 0)
+	s.Lsym = ls
+	return ls
 }
 
 func duintxx(s *Sym, off int, v uint64, wid int) int {
@@ -199,28 +202,23 @@ func duintptr(s *Sym, off int, v uint64) int {
 var stringsym_gen int
 
 func stringsym(s string) *Sym {
-	var tmp struct {
-		lit Strlit
-		buf string
-	}
+	var symname string
 	var pkg *Pkg
-
 	if len(s) > 100 {
 		// huge strings are made static to avoid long names
 		stringsym_gen++
-		namebuf = fmt.Sprintf(".gostring.%d", stringsym_gen)
+		symname = fmt.Sprintf(".gostring.%d", stringsym_gen)
 
 		pkg = localpkg
 	} else {
 		// small strings get named by their contents,
 		// so that multiple modules using the same string
 		// can share it.
-		tmp.lit.S = s
-		namebuf = fmt.Sprintf("\"%v\"", Zconv(&tmp.lit, 0))
+		symname = strconv.Quote(s)
 		pkg = gostringpkg
 	}
 
-	sym := Pkglookup(namebuf, pkg)
+	sym := Pkglookup(symname, pkg)
 
 	// SymUniq flag indicates that data is generated already
 	if sym.Flags&SymUniq != 0 {
@@ -258,8 +256,8 @@ func slicebytes(nam *Node, s string, len int) {
 	var m int
 
 	slicebytes_gen++
-	namebuf = fmt.Sprintf(".gobytes.%d", slicebytes_gen)
-	sym := Pkglookup(namebuf, localpkg)
+	symname := fmt.Sprintf(".gobytes.%d", slicebytes_gen)
+	sym := Pkglookup(symname, localpkg)
 	sym.Def = newname(sym)
 
 	off := 0
@@ -300,9 +298,6 @@ func dstringptr(s *Sym, off int, str string) int {
 	return off
 }
 
-/*
- * gobj.c
- */
 func Datastring(s string, a *obj.Addr) {
 	sym := stringsym(s)
 	a.Type = obj.TYPE_MEM
@@ -313,8 +308,8 @@ func Datastring(s string, a *obj.Addr) {
 	a.Etype = Simtype[TINT]
 }
 
-func datagostring(sval *Strlit, a *obj.Addr) {
-	sym := stringsym(sval.S)
+func datagostring(sval string, a *obj.Addr) {
+	sym := stringsym(sval)
 	a.Type = obj.TYPE_MEM
 	a.Name = obj.NAME_EXTERN
 	a.Sym = Linksym(sym)
@@ -327,19 +322,13 @@ func dgostringptr(s *Sym, off int, str string) int {
 	if str == "" {
 		return duintptr(s, off, 0)
 	}
-
-	n := len(str)
-	lit := new(Strlit)
-	lit.S = str
-	lit.S = lit.S[:n]
-	return dgostrlitptr(s, off, lit)
+	return dgostrlitptr(s, off, &str)
 }
 
-func dgostrlitptr(s *Sym, off int, lit *Strlit) int {
+func dgostrlitptr(s *Sym, off int, lit *string) int {
 	if lit == nil {
 		return duintptr(s, off, 0)
 	}
-
 	off = int(Rnd(int64(off), int64(Widthptr)))
 	p := Thearch.Gins(obj.ADATA, nil, nil)
 	p.From.Type = obj.TYPE_MEM
@@ -348,7 +337,7 @@ func dgostrlitptr(s *Sym, off int, lit *Strlit) int {
 	p.From.Offset = int64(off)
 	p.From3.Type = obj.TYPE_CONST
 	p.From3.Offset = int64(Widthptr)
-	datagostring(lit, &p.To)
+	datagostring(*lit, &p.To)
 	p.To.Type = obj.TYPE_ADDR
 	p.To.Etype = Simtype[TINT]
 	off += Widthptr
@@ -366,7 +355,7 @@ func dsname(s *Sym, off int, t string) int {
 	p.From3.Offset = int64(len(t))
 
 	p.To.Type = obj.TYPE_SCONST
-	p.To.U.Sval = t
+	p.To.Val = t
 	return off + len(t)
 }
 
@@ -415,28 +404,28 @@ func gdatacomplex(nam *Node, cval *Mpcplx) {
 	p.From3.Type = obj.TYPE_CONST
 	p.From3.Offset = int64(w)
 	p.To.Type = obj.TYPE_FCONST
-	p.To.U.Dval = mpgetflt(&cval.Real)
+	p.To.Val = mpgetflt(&cval.Real)
 
 	p = Thearch.Gins(obj.ADATA, nam, nil)
 	p.From3.Type = obj.TYPE_CONST
 	p.From3.Offset = int64(w)
 	p.From.Offset += int64(w)
 	p.To.Type = obj.TYPE_FCONST
-	p.To.U.Dval = mpgetflt(&cval.Imag)
+	p.To.Val = mpgetflt(&cval.Imag)
 }
 
-func gdatastring(nam *Node, sval *Strlit) {
+func gdatastring(nam *Node, sval string) {
 	var nod1 Node
 
 	p := Thearch.Gins(obj.ADATA, nam, nil)
-	Datastring(sval.S, &p.To)
+	Datastring(sval, &p.To)
 	p.From3.Type = obj.TYPE_CONST
 	p.From3.Offset = Types[Tptr].Width
 	p.To.Type = obj.TYPE_ADDR
 
 	//print("%P\n", p);
 
-	Nodconst(&nod1, Types[TINT], int64(len(sval.S)))
+	Nodconst(&nod1, Types[TINT], int64(len(sval)))
 
 	p = Thearch.Gins(obj.ADATA, nam, &nod1)
 	p.From3.Type = obj.TYPE_CONST

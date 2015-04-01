@@ -1226,15 +1226,15 @@ yydefault:
 		{
 			if importpkg.Name == "" {
 				importpkg.Name = yyDollar[2].sym.Name
-				Pkglookup(yyDollar[2].sym.Name, nil).Npkg++
+				numImport[yyDollar[2].sym.Name]++
 			} else if importpkg.Name != yyDollar[2].sym.Name {
-				Yyerror("conflicting names %s and %s for package \"%v\"", importpkg.Name, yyDollar[2].sym.Name, Zconv(importpkg.Path, 0))
+				Yyerror("conflicting names %s and %s for package %q", importpkg.Name, yyDollar[2].sym.Name, importpkg.Path)
 			}
 			importpkg.Direct = 1
 			importpkg.Safe = curio.importsafe
 
 			if safemode != 0 && !curio.importsafe {
-				Yyerror("cannot import unsafe package \"%v\"", Zconv(importpkg.Path, 0))
+				Yyerror("cannot import unsafe package %q", importpkg.Path)
 			}
 		}
 	case 20:
@@ -1416,7 +1416,7 @@ yydefault:
 		yyDollar = yyS[yypt-2 : yypt+1]
 		//line go.y:406
 		{
-			yyVAL.node = typedcl1(yyDollar[1].node, yyDollar[2].node, 1)
+			yyVAL.node = typedcl1(yyDollar[1].node, yyDollar[2].node, true)
 		}
 	case 49:
 		yyDollar = yyS[yypt-1 : yypt+1]
@@ -1430,7 +1430,7 @@ yydefault:
 			switch yyVAL.node.Op {
 			case ONAME, ONONAME, OTYPE, OPACK, OLITERAL:
 				yyVAL.node = Nod(OPAREN, yyVAL.node, nil)
-				yyVAL.node.Implicit = 1
+				yyVAL.node.Implicit = true
 				break
 			}
 		}
@@ -1480,7 +1480,7 @@ yydefault:
 		//line go.y:461
 		{
 			yyVAL.node = Nod(OASOP, yyDollar[1].node, Nodintconst(1))
-			yyVAL.node.Implicit = 1
+			yyVAL.node.Implicit = true
 			yyVAL.node.Etype = OADD
 		}
 	case 54:
@@ -1488,7 +1488,7 @@ yydefault:
 		//line go.y:467
 		{
 			yyVAL.node = Nod(OASOP, yyDollar[1].node, Nodintconst(1))
-			yyVAL.node.Implicit = 1
+			yyVAL.node.Implicit = true
 			yyVAL.node.Etype = OSUB
 		}
 	case 55:
@@ -1991,7 +1991,7 @@ yydefault:
 				// Special case for &T{...}: turn into (*T){...}.
 				yyVAL.node = yyDollar[2].node
 				yyVAL.node.Right = Nod(OIND, yyVAL.node.Right, nil)
-				yyVAL.node.Right.Implicit = 1
+				yyVAL.node.Right.Implicit = true
 			} else {
 				yyVAL.node = Nod(OADDR, yyDollar[2].node, nil)
 			}
@@ -2052,7 +2052,7 @@ yydefault:
 		{
 			yyVAL.node = Nod(OCALL, yyDollar[1].node, nil)
 			yyVAL.node.List = yyDollar[3].list
-			yyVAL.node.Isddd = 1
+			yyVAL.node.Isddd = true
 		}
 	case 126:
 		yyDollar = yyS[yypt-1 : yypt+1]
@@ -2069,7 +2069,7 @@ yydefault:
 			if yyDollar[1].node.Op == OPACK {
 				var s *Sym
 				s = restrictlookup(yyDollar[3].sym.Name, yyDollar[1].node.Pkg)
-				yyDollar[1].node.Used = 1
+				yyDollar[1].node.Used = true
 				yyVAL.node = oldname(s)
 				break
 			}
@@ -2175,7 +2175,7 @@ yydefault:
 			switch yyVAL.node.Op {
 			case ONAME, ONONAME, OTYPE, OPACK, OLITERAL:
 				yyVAL.node = Nod(OPAREN, yyVAL.node, nil)
-				yyVAL.node.Implicit = 1
+				yyVAL.node.Implicit = true
 			}
 		}
 	case 143:
@@ -2276,7 +2276,7 @@ yydefault:
 		{
 			var p *Pkg
 
-			if yyDollar[2].val.U.Sval.S == "" {
+			if yyDollar[2].val.U.Sval == "" {
 				p = importpkg
 			} else {
 				if isbadimport(yyDollar[2].val.U.Sval) {
@@ -2292,7 +2292,7 @@ yydefault:
 		{
 			var p *Pkg
 
-			if yyDollar[2].val.U.Sval.S == "" {
+			if yyDollar[2].val.U.Sval == "" {
 				p = importpkg
 			} else {
 				if isbadimport(yyDollar[2].val.U.Sval) {
@@ -2308,7 +2308,7 @@ yydefault:
 		{
 			yyVAL.node = oldname(yyDollar[1].sym)
 			if yyVAL.node.Pack != nil {
-				yyVAL.node.Pack.Used = 1
+				yyVAL.node.Pack.Used = true
 			}
 		}
 	case 163:
@@ -2393,7 +2393,7 @@ yydefault:
 			if yyDollar[1].node.Op == OPACK {
 				var s *Sym
 				s = restrictlookup(yyDollar[3].sym.Name, yyDollar[1].node.Pkg)
-				yyDollar[1].node.Used = 1
+				yyDollar[1].node.Used = true
 				yyVAL.node = oldname(s)
 				break
 			}
@@ -2491,10 +2491,10 @@ yydefault:
 				Yyerror("can only use //go:noescape with external func implementations")
 			}
 			yyVAL.node.Nbody = yyDollar[3].list
-			yyVAL.node.Endlineno = lineno
+			yyVAL.node.Func.Endlineno = lineno
 			yyVAL.node.Noescape = noescape
-			yyVAL.node.Nosplit = nosplit
-			yyVAL.node.Nowritebarrier = nowritebarrier
+			yyVAL.node.Func.Nosplit = nosplit
+			yyVAL.node.Func.Nowritebarrier = nowritebarrier
 			funcbody(yyVAL.node)
 		}
 	case 205:
@@ -2523,7 +2523,7 @@ yydefault:
 			t.Rlist = yyDollar[5].list
 
 			yyVAL.node = Nod(ODCLFUNC, nil, nil)
-			yyVAL.node.Nname = newname(yyDollar[1].sym)
+			yyVAL.node.Nname = newfuncname(yyDollar[1].sym)
 			yyVAL.node.Nname.Defn = yyVAL.node
 			yyVAL.node.Nname.Ntype = t // TODO: check if nname already has an ntype
 			declare(yyVAL.node.Nname, PFUNC)
@@ -2559,8 +2559,8 @@ yydefault:
 			t.Rlist = yyDollar[8].list
 
 			yyVAL.node = Nod(ODCLFUNC, nil, nil)
-			yyVAL.node.Shortname = newname(yyDollar[4].sym)
-			yyVAL.node.Nname = methodname1(yyVAL.node.Shortname, rcvr.Right)
+			yyVAL.node.Func.Shortname = newfuncname(yyDollar[4].sym)
+			yyVAL.node.Nname = methodname1(yyVAL.node.Func.Shortname, rcvr.Right)
 			yyVAL.node.Nname.Defn = yyVAL.node
 			yyVAL.node.Nname.Ntype = t
 			yyVAL.node.Nname.Nointerface = nointerface
@@ -2589,7 +2589,7 @@ yydefault:
 				Yyerror("inconsistent definition for func %v during import\n\t%v\n\t%v", Sconv(s, 0), Tconv(s.Def.Type, 0), Tconv(t, 0))
 			}
 
-			yyVAL.node = newname(s)
+			yyVAL.node = newfuncname(s)
 			yyVAL.node.Type = t
 			declare(yyVAL.node, PFUNC)
 
@@ -2818,7 +2818,7 @@ yydefault:
 			yyVAL.sym = yyDollar[1].sym
 			n = oldname(yyDollar[1].sym)
 			if n.Pack != nil {
-				n.Pack.Used = 1
+				n.Pack.Used = true
 			}
 		}
 	case 237:
@@ -2831,7 +2831,7 @@ yydefault:
 				Yyerror("%v is not a package", Sconv(yyDollar[1].sym, 0))
 				pkg = localpkg
 			} else {
-				yyDollar[1].sym.Def.Used = 1
+				yyDollar[1].sym.Def.Used = true
 				pkg = yyDollar[1].sym.Def.Pkg
 			}
 			yyVAL.sym = restrictlookup(yyDollar[3].sym.Name, pkg)
@@ -3016,7 +3016,7 @@ yydefault:
 			if yyVAL.node.List == nil && Curfn != nil {
 				var l *NodeList
 
-				for l = Curfn.Dcl; l != nil; l = l.Next {
+				for l = Curfn.Func.Dcl; l != nil; l = l.Next {
 					if l.N.Class == PPARAM {
 						continue
 					}
@@ -3226,15 +3226,15 @@ yydefault:
 				break
 			}
 
-			yyDollar[2].node.Inl = yyDollar[3].list
+			yyDollar[2].node.Func.Inl = yyDollar[3].list
 
 			funcbody(yyDollar[2].node)
 			importlist = list(importlist, yyDollar[2].node)
 
 			if Debug['E'] > 0 {
-				print("import [%v] func %lN \n", Zconv(importpkg.Path, 0), yyDollar[2].node)
-				if Debug['m'] > 2 && yyDollar[2].node.Inl != nil {
-					print("inl body:%+H\n", yyDollar[2].node.Inl)
+				print("import [%q] func %lN \n", importpkg.Path, yyDollar[2].node)
+				if Debug['m'] > 2 && yyDollar[2].node.Func.Inl != nil {
+					print("inl body:%+H\n", yyDollar[2].node.Func.Inl)
 				}
 			}
 		}
@@ -3379,7 +3379,7 @@ yydefault:
 			if yyDollar[1].sym != nil {
 				yyVAL.node.Left = newname(yyDollar[1].sym)
 			}
-			yyVAL.node.Isddd = 1
+			yyVAL.node.Isddd = true
 			yyVAL.node.Val = yyDollar[4].val
 		}
 	case 332:
@@ -3394,7 +3394,7 @@ yydefault:
 				yyVAL.node.Val = yyDollar[3].val
 			} else {
 				s = yyDollar[2].typ.Sym
-				if s == nil && Isptr[yyDollar[2].typ.Etype] != 0 {
+				if s == nil && Isptr[yyDollar[2].typ.Etype] {
 					s = yyDollar[2].typ.Type.Sym
 				}
 				p = importpkg

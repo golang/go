@@ -572,6 +572,22 @@ func (db *DB) SetMaxOpenConns(n int) {
 	}
 }
 
+// DBStats contains database statistics.
+type DBStats struct {
+	// OpenConnections is the number of open connections to the database.
+	OpenConnections int
+}
+
+// Stats returns database statistics.
+func (db *DB) Stats() DBStats {
+	db.mu.Lock()
+	stats := DBStats{
+		OpenConnections: db.numOpen,
+	}
+	db.mu.Unlock()
+	return stats
+}
+
 // Assumes db.mu is locked.
 // If there are connRequests and the connection limit hasn't been reached,
 // then tell the connectionOpener to open new connections.

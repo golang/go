@@ -385,7 +385,7 @@ func (x *Rat) Sign() int {
 	return x.a.Sign()
 }
 
-// IsInt returns true if the denominator of x is 1.
+// IsInt reports whether the denominator of x is 1.
 func (x *Rat) IsInt() bool {
 	return len(x.b.abs) == 0 || x.b.abs.cmp(natOne) == 0
 }

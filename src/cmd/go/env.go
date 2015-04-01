@@ -36,7 +36,6 @@ func mkEnv() []envVar {
 	env := []envVar{
 		{"GOARCH", goarch},
 		{"GOBIN", gobin},
-		{"GOCHAR", archChar},
 		{"GOEXE", exeSuffix},
 		{"GOHOSTARCH", runtime.GOARCH},
 		{"GOHOSTOS", runtime.GOOS},
@@ -48,6 +47,10 @@ func mkEnv() []envVar {
 
 		// disable escape codes in clang errors
 		{"TERM", "dumb"},
+	}
+
+	if archCharErr == nil {
+		env = append(env, envVar{"GOCHAR", archChar()})
 	}
 
 	if goos != "plan9" {

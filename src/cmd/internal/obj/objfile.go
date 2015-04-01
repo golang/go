@@ -2,6 +2,102 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Writing of Go object files.
+//
+// Originally, Go object files were Plan 9 object files, but no longer.
+// Now they are more like standard object files, in that each symbol is defined
+// by an associated memory image (bytes) and a list of relocations to apply
+// during linking. We do not (yet?) use a standard file format, however.
+// For now, the format is chosen to be as simple as possible to read and write.
+// It may change for reasons of efficiency, or we may even switch to a
+// standard file format if there are compelling benefits to doing so.
+// See golang.org/s/go13linker for more background.
+//
+// The file format is:
+//
+//	- magic header: "\x00\x00go13ld"
+//	- byte 1 - version number
+//	- sequence of strings giving dependencies (imported packages)
+//	- empty string (marks end of sequence)
+//	- sequence of defined symbols
+//	- byte 0xff (marks end of sequence)
+//	- magic footer: "\xff\xffgo13ld"
+//
+// All integers are stored in a zigzag varint format.
+// See golang.org/s/go12symtab for a definition.
+//
+// Data blocks and strings are both stored as an integer
+// followed by that many bytes.
+//
+// A symbol reference is a string name followed by a version.
+// An empty name corresponds to a nil LSym* pointer.
+//
+// Each symbol is laid out as the following fields (taken from LSym*):
+//
+//	- byte 0xfe (sanity check for synchronization)
+//	- type [int]
+//	- name [string]
+//	- version [int]
+//	- flags [int]
+//		1 dupok
+//	- size [int]
+//	- gotype [symbol reference]
+//	- p [data block]
+//	- nr [int]
+//	- r [nr relocations, sorted by off]
+//
+// If type == STEXT, there are a few more fields:
+//
+//	- args [int]
+//	- locals [int]
+//	- nosplit [int]
+//	- flags [int]
+//		1 leaf
+//		2 C function
+//	- nlocal [int]
+//	- local [nlocal automatics]
+//	- pcln [pcln table]
+//
+// Each relocation has the encoding:
+//
+//	- off [int]
+//	- siz [int]
+//	- type [int]
+//	- add [int]
+//	- xadd [int]
+//	- sym [symbol reference]
+//	- xsym [symbol reference]
+//
+// Each local has the encoding:
+//
+//	- asym [symbol reference]
+//	- offset [int]
+//	- type [int]
+//	- gotype [symbol reference]
+//
+// The pcln table has the encoding:
+//
+//	- pcsp [data block]
+//	- pcfile [data block]
+//	- pcline [data block]
+//	- npcdata [int]
+//	- pcdata [npcdata data blocks]
+//	- nfuncdata [int]
+//	- funcdata [nfuncdata symbol references]
+//	- funcdatasym [nfuncdata ints]
+//	- nfile [int]
+//	- file [nfile symbol references]
+//
+// The file layout and meaning of type integers are architecture-independent.
+//
+// TODO(rsc): The file format is good for a first pass but needs work.
+//	- There are SymID in the object file that should really just be strings.
+//	- The actual symbol memory images are interlaced with the symbol
+//	  metadata. They should be separated, to reduce the I/O required to
+//	  load just the metadata.
+//	- The symbol references should be shortened, either with a symbol
+//	  table or by using a simple backward index to an earlier mentioned symbol.
+
 package obj
 
 import (
@@ -26,12 +122,12 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 	// Build list of symbols, and assign instructions to lists.
 	// Ignore ctxt->plist boundaries. There are no guarantees there,
 	// and the C compilers and assemblers just use one big list.
-	text := (*LSym)(nil)
+	var text *LSym
 
-	curtext := (*LSym)(nil)
-	data := (*LSym)(nil)
-	etext := (*LSym)(nil)
-	edata := (*LSym)(nil)
+	var curtext *LSym
+	var data *LSym
+	var etext *LSym
+	var edata *LSym
 	for pl := ctxt.Plist; pl != nil; pl = pl.Link {
 		for p = pl.Firstpc; p != nil; p = plink {
 			if ctxt.Debugasm != 0 && ctxt.Debugvlog != 0 {
@@ -210,10 +306,8 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 	Bputc(b, 1) // version
 
 	// Emit autolib.
-	for h := ctxt.Hist; h != nil; h = h.Link {
-		if h.Offset < 0 {
-			wrstring(b, h.Name)
-		}
+	for _, pkg := range ctxt.Imports {
+		wrstring(b, pkg)
 	}
 	wrstring(b, "")
 

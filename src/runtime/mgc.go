@@ -130,9 +130,6 @@ const (
 	_RootCount       = 5
 )
 
-// linker-provided
-var data, edata, bss, ebss, gcdata, gcbss, noptrdata, enoptrdata, noptrbss, enoptrbss, end struct{}
-
 //go:linkname weak_cgo_allocate go.weak.runtime._cgo_allocate_internal
 var weak_cgo_allocate byte
 
@@ -140,17 +137,6 @@ var weak_cgo_allocate byte
 //go:nowritebarrier
 func have_cgo_allocate() bool {
 	return &weak_cgo_allocate != nil
-}
-
-// Slow for now as we serialize this, since this is on a debug path
-// speed is not critical at this point.
-var andlock mutex
-
-//go:nowritebarrier
-func atomicand8(src *byte, val byte) {
-	lock(&andlock)
-	*src &= val
-	unlock(&andlock)
 }
 
 var gcdatamask bitvector
@@ -171,9 +157,19 @@ func gcinit() {
 
 	work.markfor = parforalloc(_MaxGcproc)
 	gcpercent = readgogc()
-	gcdatamask = unrollglobgcprog((*byte)(unsafe.Pointer(&gcdata)), uintptr(unsafe.Pointer(&edata))-uintptr(unsafe.Pointer(&data)))
-	gcbssmask = unrollglobgcprog((*byte)(unsafe.Pointer(&gcbss)), uintptr(unsafe.Pointer(&ebss))-uintptr(unsafe.Pointer(&bss)))
+	gcdatamask = unrollglobgcprog((*byte)(unsafe.Pointer(themoduledata.gcdata)), themoduledata.edata-themoduledata.data)
+	gcbssmask = unrollglobgcprog((*byte)(unsafe.Pointer(themoduledata.gcbss)), themoduledata.ebss-themoduledata.bss)
 	memstats.next_gc = heapminimum
+}
+
+// gcenable is called after the bulk of the runtime initialization,
+// just before we're about to start letting user code run.
+// It kicks off the background sweeper goroutine and enables GC.
+func gcenable() {
+	c := make(chan int, 1)
+	go bgsweep(c)
+	<-c
+	memstats.enablegc = true // now that runtime is initialized, GC is okay
 }
 
 func setGCPercent(in int32) (out int32) {
@@ -260,7 +256,7 @@ func startGC(mode int) {
 		go backgroundgc()
 	} else if bggc.working == 0 {
 		bggc.working = 1
-		ready(bggc.g)
+		ready(bggc.g, 0)
 	}
 	unlock(&bggc.lock)
 }
@@ -281,7 +277,7 @@ func backgroundgc() {
 		gc(gcBackgroundMode)
 		lock(&bggc.lock)
 		bggc.working = 0
-		goparkunlock(&bggc.lock, "Concurrent GC wait", traceEvGoBlock)
+		goparkunlock(&bggc.lock, "Concurrent GC wait", traceEvGoBlock, 1)
 	}
 }
 
@@ -309,6 +305,9 @@ func gc(mode int) {
 
 	systemstack(stoptheworld)
 	systemstack(finishsweep_m) // finish sweep before we start concurrent scan.
+	// clearpools before we start the GC. If we wait they memory will not be
+	// reclaimed until the next GC cycle.
+	clearpools()
 
 	if mode == gcBackgroundMode { // Do as much work concurrently as possible
 		systemstack(func() {
@@ -320,23 +319,30 @@ func gc(mode int) {
 			gcscan_m()
 			gctimer.cycle.installmarkwb = nanotime()
 
-			// Sync.
+			// Enter mark phase and enable write barriers.
 			stoptheworld()
 			gcphase = _GCmark
-			harvestwbufs()
 
 			// Concurrent mark.
 			starttheworld()
-			gctimer.cycle.mark = nanotime()
-			var gcw gcWork
-			gcDrain(&gcw)
-			gcw.dispose()
-
-			// Begin mark termination.
-			gctimer.cycle.markterm = nanotime()
-			stoptheworld()
-			gcphase = _GCoff
 		})
+		gctimer.cycle.mark = nanotime()
+		var gcw gcWork
+		gcDrain(&gcw)
+		gcw.dispose()
+		// Despite the barrier in gcDrain, gcDrainNs may still
+		// be doing work at this point. This is okay because
+		// 1) the gcDrainNs happen on the system stack, so
+		// they will flush their work to the global queues
+		// before we can stop the world, and 2) it's fine if
+		// we go into mark termination with some work queued.
+
+		// Begin mark termination.
+		gctimer.cycle.markterm = nanotime()
+		systemstack(stoptheworld)
+		// The gcphase is _GCmark, it will transition to _GCmarktermination
+		// below. The important thing is that the wb remains active until
+		// all marking is complete. This includes writes made by the GC.
 	} else {
 		// For non-concurrent GC (mode != gcBackgroundMode)
 		// The g stacks have not been scanned so clear g state
@@ -344,13 +350,14 @@ func gc(mode int) {
 		gcResetGState()
 	}
 
+	// World is stopped.
+	// Start marktermination which includes enabling the write barrier.
+	gcphase = _GCmarktermination
+
 	startTime := nanotime()
 	if mp != acquirem() {
 		throw("gcwork: rescheduled")
 	}
-
-	// TODO(rsc): Should the concurrent GC clear pools earlier?
-	clearpools()
 
 	_g_ := getg()
 	_g_.m.traceback = 2
@@ -373,6 +380,9 @@ func gc(mode int) {
 			gcMark(startTime)
 			clearCheckmarks()
 		}
+
+		// marking is complete so we can turn the write barrier off
+		gcphase = _GCoff
 		gcSweep(mode)
 
 		if debug.gctrace > 1 {
@@ -382,7 +392,13 @@ func gc(mode int) {
 			// Reset these so that all stacks will be rescanned.
 			gcResetGState()
 			finishsweep_m()
+
+			// Still in STW but gcphase is _GCoff, reset to _GCmarktermination
+			// At this point all objects will be found during the gcMark which
+			// does a complete STW mark and object scan.
+			gcphase = _GCmarktermination
 			gcMark(startTime)
+			gcphase = _GCoff // marking is done, turn off wb.
 			gcSweep(mode)
 		}
 	})
@@ -412,6 +428,10 @@ func gc(mode int) {
 		}
 	}
 
+	if gcphase != _GCoff {
+		throw("gc done but gcphase != _GCoff")
+	}
+
 	systemstack(starttheworld)
 
 	releasem(mp)
@@ -432,16 +452,17 @@ func gcMark(start_time int64) {
 		tracegc()
 	}
 
+	if gcphase != _GCmarktermination {
+		throw("in gcMark expecting to see gcphase as _GCmarktermination")
+	}
 	t0 := start_time
 	work.tstart = start_time
-	gcphase = _GCmarktermination
-
 	var t1 int64
 	if debug.gctrace > 0 {
 		t1 = nanotime()
 	}
 
-	gcCopySpans()
+	gcCopySpans() // TODO(rlh): should this be hoisted and done only once? Right now it is done for normal marking and also for checkmarking.
 
 	work.nwait = 0
 	work.ndone = 0
@@ -476,7 +497,6 @@ func gcMark(start_time int64) {
 		throw("work.partial != 0")
 	}
 
-	gcphase = _GCoff
 	var t3 int64
 	if debug.gctrace > 0 {
 		t3 = nanotime()
@@ -546,6 +566,9 @@ func gcMark(start_time int64) {
 }
 
 func gcSweep(mode int) {
+	if gcphase != _GCoff {
+		throw("gcSweep being done but phase is not GCoff")
+	}
 	gcCopySpans()
 
 	lock(&mheap_.lock)
@@ -568,12 +591,9 @@ func gcSweep(mode int) {
 
 	// Background sweep.
 	lock(&sweep.lock)
-	if !sweep.started {
-		go bgsweep()
-		sweep.started = true
-	} else if sweep.parked {
+	if sweep.parked {
 		sweep.parked = false
-		ready(sweep.g)
+		ready(sweep.g, 0)
 	}
 	unlock(&sweep.lock)
 	mProf_GC()
@@ -628,6 +648,34 @@ func clearpools() {
 		poolcleanup()
 	}
 
+	// Clear central sudog cache.
+	// Leave per-P caches alone, they have strictly bounded size.
+	// Disconnect cached list before dropping it on the floor,
+	// so that a dangling ref to one entry does not pin all of them.
+	lock(&sched.sudoglock)
+	var sg, sgnext *sudog
+	for sg = sched.sudogcache; sg != nil; sg = sgnext {
+		sgnext = sg.next
+		sg.next = nil
+	}
+	sched.sudogcache = nil
+	unlock(&sched.sudoglock)
+
+	// Clear central defer pools.
+	// Leave per-P pools alone, they have strictly bounded size.
+	lock(&sched.deferlock)
+	for i := range sched.deferpool {
+		// disconnect cached list before dropping it on the floor,
+		// so that a dangling ref to one entry does not pin all of them.
+		var d, dlink *_defer
+		for d = sched.deferpool[i]; d != nil; d = dlink {
+			dlink = d.link
+			d.link = nil
+		}
+		sched.deferpool[i] = nil
+	}
+	unlock(&sched.deferlock)
+
 	for _, p := range &allp {
 		if p == nil {
 			break
@@ -636,27 +684,6 @@ func clearpools() {
 		if c := p.mcache; c != nil {
 			c.tiny = nil
 			c.tinyoffset = 0
-
-			// disconnect cached list before dropping it on the floor,
-			// so that a dangling ref to one entry does not pin all of them.
-			var sg, sgnext *sudog
-			for sg = c.sudogcache; sg != nil; sg = sgnext {
-				sgnext = sg.next
-				sg.next = nil
-			}
-			c.sudogcache = nil
-		}
-
-		// clear defer pools
-		for i := range p.deferpool {
-			// disconnect cached list before dropping it on the floor,
-			// so that a dangling ref to one entry does not pin all of them.
-			var d, dlink *_defer
-			for d = p.deferpool[i]; d != nil; d = dlink {
-				dlink = d.link
-				d.link = nil
-			}
-			p.deferpool[i] = nil
 		}
 	}
 }

@@ -23,6 +23,13 @@ func (a *IPAddr) String() string {
 	return a.IP.String()
 }
 
+func (a *IPAddr) isWildcard() bool {
+	if a == nil || a.IP == nil {
+		return true
+	}
+	return a.IP.IsUnspecified()
+}
+
 func (a *IPAddr) toAddr() Addr {
 	if a == nil {
 		return nil

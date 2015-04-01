@@ -81,7 +81,8 @@ and test commands:
 		print the commands but do not run them.
 	-p n
 		the number of builds that can be run in parallel.
-		The default is the number of CPUs available.
+		The default is the number of CPUs available, except
+		on darwin/arm which defaults to 1.
 	-race
 		enable data race detection.
 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64.
@@ -106,6 +107,8 @@ and test commands:
 		or, if set explicitly, has _race appended to it.
 	-ldflags 'flag list'
 		arguments to pass on each 5l, 6l, 8l, or 9l linker invocation.
+	-asmflags 'flag list'
+		arguments to pass on each asm assembler invocation.
 	-tags 'tag list'
 		a list of build tags to consider satisfied during the build.
 		For more information about build tags, see the description of
@@ -930,6 +933,9 @@ system.
 
 - "std" is like all but expands to just the packages in the standard
 Go library.
+
+- "cmd" expands to the Go repository's commands and their
+internal libraries.
 
 An import path is a pattern if it includes one or more "..." wildcards,
 each of which can match any string, including the empty string and

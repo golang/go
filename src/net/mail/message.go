@@ -428,7 +428,7 @@ var atextChars = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
 	"0123456789" +
 	"!#$%&'*+-/=?^_`{|}~")
 
-// isAtext returns true if c is an RFC 5322 atext character.
+// isAtext reports whether c is an RFC 5322 atext character.
 // If dot is true, period is included.
 func isAtext(c byte, dot bool) bool {
 	if dot && c == '.' {
@@ -437,7 +437,7 @@ func isAtext(c byte, dot bool) bool {
 	return bytes.IndexByte(atextChars, c) >= 0
 }
 
-// isQtext returns true if c is an RFC 5322 qtext character.
+// isQtext reports whether c is an RFC 5322 qtext character.
 func isQtext(c byte) bool {
 	// Printable US-ASCII, excluding backslash or quote.
 	if c == '\\' || c == '"' {
@@ -446,13 +446,13 @@ func isQtext(c byte) bool {
 	return '!' <= c && c <= '~'
 }
 
-// isVchar returns true if c is an RFC 5322 VCHAR character.
+// isVchar reports whether c is an RFC 5322 VCHAR character.
 func isVchar(c byte) bool {
 	// Visible (printing) characters.
 	return '!' <= c && c <= '~'
 }
 
-// isWSP returns true if c is a WSP (white space).
+// isWSP reports whether c is a WSP (white space).
 // WSP is a space or horizontal tab (RFC5234 Appendix B).
 func isWSP(c byte) bool {
 	return c == ' ' || c == '\t'
