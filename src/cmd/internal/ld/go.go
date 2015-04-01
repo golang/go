@@ -631,6 +631,10 @@ func deadcode() {
 		mark(Linkrlookup(Ctxt, "main.init", 0))
 	} else {
 		mark(Linklookup(Ctxt, INITENTRY, 0))
+		if Linkshared && Buildmode == BuildmodeExe {
+			mark(Linkrlookup(Ctxt, "main.main", 0))
+			mark(Linkrlookup(Ctxt, "main.init", 0))
+		}
 		for i := 0; i < len(markextra); i++ {
 			mark(Linklookup(Ctxt, markextra[i], 0))
 		}
