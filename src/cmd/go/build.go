@@ -159,6 +159,7 @@ var buildLinkshared bool     // -linkshared flag
 
 var buildContext = build.Default
 var buildToolchain toolchain = noToolchain{}
+var ldBuildmode string
 
 // buildCompiler implements flag.Var.
 // It implements Set by updating both
@@ -307,7 +308,7 @@ func pkgsNotMain(pkgs []*Package) (res []*Package) {
 var pkgsFilter = func(pkgs []*Package) []*Package { return pkgs }
 
 func buildModeInit() {
-	var codegenArg, ldBuildmode string
+	var codegenArg string
 	platform := goos + "/" + goarch
 	switch buildBuildmode {
 	case "archive":
@@ -361,9 +362,6 @@ func buildModeInit() {
 		codegenArg = "-dynlink"
 		// TODO(mwhudson): remove -w when that gets fixed in linker.
 		buildLdflags = append(buildLdflags, "-linkshared", "-w")
-	}
-	if ldBuildmode != "" {
-		buildLdflags = append(buildLdflags, "-buildmode="+ldBuildmode)
 	}
 	if codegenArg != "" {
 		buildAsmflags = append(buildAsmflags, codegenArg)
@@ -1286,6 +1284,7 @@ func (b *builder) linkShared(a *action) (err error) {
 	importArgs := b.includeArgs("-L", allactions[:len(allactions)-1])
 	// TODO(mwhudson): this does not check for cxx-ness, extldflags etc
 	ldflags := []string{"-installsuffix", buildContext.InstallSuffix}
+	ldflags = append(ldflags, "-buildmode="+ldBuildmode)
 	ldflags = append(ldflags, buildLdflags...)
 	for _, d := range a.deps {
 		if d.target != "" { // omit unsafe etc
@@ -2082,6 +2081,7 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action, 
 			}
 		}
 	}
+	ldflags = append(ldflags, "-buildmode="+ldBuildmode)
 	ldflags = append(ldflags, buildLdflags...)
 	return b.run(".", p.ImportPath, nil, buildToolExec, tool(archChar()+"l"), "-o", out, importArgs, ldflags, mainpkg)
 }
