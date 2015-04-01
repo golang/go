@@ -409,6 +409,15 @@ func Cgen(n *Node, res *Node) {
 		cgen_norm(n, &n1, res)
 		return
 
+	case OSQRT:
+		var n1 Node
+		Regalloc(&n1, nl.Type, res)
+		Cgen(n.Left, &n1)
+		Thearch.Gins(Thearch.Optoas(OSQRT, nl.Type), &n1, &n1)
+		Thearch.Gmove(&n1, res)
+		Regfree(&n1)
+		return
+
 		// symmetric binary
 	case OAND,
 		OOR,

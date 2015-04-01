@@ -293,7 +293,7 @@ const (
 	OREGISTER // a register, such as AX.
 	OINDREG   // offset plus indirect of a register, such as 8(SP).
 
-	// 386/amd64-specific opcodes
+	// arch-specific opcodes
 	OCMP    // compare: ACMP.
 	ODEC    // decrement: ADEC.
 	OINC    // increment: AINC.
@@ -303,6 +303,7 @@ const (
 	ORROTC  // right rotate-carry: ARCR.
 	ORETJMP // return to other function
 	OPS     // compare parity set (for x86 NaN check)
+	OSQRT   // sqrt(float64), on systems that have hw support
 
 	OEND
 )

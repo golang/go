@@ -70,16 +70,17 @@ var progtable = [arm.ALAST]obj.ProgInfo{
 	arm.ATST:    {gc.SizeL | gc.LeftRead | gc.RightRead, 0, 0, 0},
 
 	// Floating point.
-	arm.AADDD: {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
-	arm.AADDF: {gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
-	arm.ACMPD: {gc.SizeD | gc.LeftRead | gc.RightRead, 0, 0, 0},
-	arm.ACMPF: {gc.SizeF | gc.LeftRead | gc.RightRead, 0, 0, 0},
-	arm.ADIVD: {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
-	arm.ADIVF: {gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
-	arm.AMULD: {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
-	arm.AMULF: {gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
-	arm.ASUBD: {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
-	arm.ASUBF: {gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
+	arm.AADDD:  {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
+	arm.AADDF:  {gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
+	arm.ACMPD:  {gc.SizeD | gc.LeftRead | gc.RightRead, 0, 0, 0},
+	arm.ACMPF:  {gc.SizeF | gc.LeftRead | gc.RightRead, 0, 0, 0},
+	arm.ADIVD:  {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
+	arm.ADIVF:  {gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
+	arm.AMULD:  {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
+	arm.AMULF:  {gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
+	arm.ASUBD:  {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
+	arm.ASUBF:  {gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
+	arm.ASQRTD: {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
 
 	// Conversions.
 	arm.AMOVWD: {gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},

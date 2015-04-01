@@ -1101,6 +1101,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		return 0
 
 	case obj.ANOP, /* read,, write */
+		arm.ASQRTD,
 		arm.AMOVW,
 		arm.AMOVF,
 		arm.AMOVD,

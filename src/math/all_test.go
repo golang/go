@@ -2977,15 +2977,56 @@ func BenchmarkSinh(b *testing.B) {
 	}
 }
 
+var Global float64
+
 func BenchmarkSqrt(b *testing.B) {
+	x, y := 0.0, 10.0
 	for i := 0; i < b.N; i++ {
-		Sqrt(10)
+		x += Sqrt(y)
 	}
+	Global = x
+}
+
+func BenchmarkSqrtIndirect(b *testing.B) {
+	x, y := 0.0, 10.0
+	f := Sqrt
+	for i := 0; i < b.N; i++ {
+		x += f(y)
+	}
+	Global = x
 }
 
 func BenchmarkSqrtGo(b *testing.B) {
+	x, y := 0.0, 10.0
 	for i := 0; i < b.N; i++ {
-		SqrtGo(10)
+		x += SqrtGo(y)
+	}
+	Global = x
+}
+
+func isPrime(i int) bool {
+	// Yes, this is a dumb way to write this code,
+	// but calling Sqrt repeatedly in this way demonstrates
+	// the benefit of using a direct SQRT instruction on systems
+	// that have one, whereas the obvious loop seems not to
+	// demonstrate such a benefit.
+	for j := 2; float64(j) <= Sqrt(float64(i)); j++ {
+		if i%j == 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func BenchmarkSqrtPrime(b *testing.B) {
+	any := false
+	for i := 0; i < b.N; i++ {
+		if isPrime(100003) {
+			any = true
+		}
+	}
+	if any {
+		Global = 1
 	}
 }
 

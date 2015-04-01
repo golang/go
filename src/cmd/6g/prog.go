@@ -204,6 +204,7 @@ var progtable = [x86.ALAST]obj.ProgInfo{
 	x86.ASHRL:     {gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
 	x86.ASHRQ:     {gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
 	x86.ASHRW:     {gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+	x86.ASQRTSD:   {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
 	x86.ASTOSB:    {gc.OK, AX | DI, DI, 0},
 	x86.ASTOSL:    {gc.OK, AX | DI, DI, 0},
 	x86.ASTOSQ:    {gc.OK, AX | DI, DI, 0},
