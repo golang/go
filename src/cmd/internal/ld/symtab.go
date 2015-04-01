@@ -464,4 +464,11 @@ func symtab() {
 	// The rest of moduledata is zero initialized.
 	moduledata.Size = moduledatasize
 	Symgrow(Ctxt, moduledata, moduledatasize)
+
+	lastmoduledatap := Linklookup(Ctxt, "runtime.lastmoduledatap", 0)
+	if lastmoduledatap.Type != SDYNIMPORT {
+		lastmoduledatap.Type = SNOPTRDATA
+		lastmoduledatap.Size = 0 // overwrite existing value
+		Addaddr(Ctxt, lastmoduledatap, moduledata)
+	}
 }

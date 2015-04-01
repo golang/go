@@ -61,7 +61,61 @@ func needlib(name string) int {
 	return 0
 }
 
+func Addcall(ctxt *ld.Link, s *ld.LSym, t *ld.LSym) int64 {
+	s.Reachable = true
+	i := s.Size
+	s.Size += 4
+	ld.Symgrow(ctxt, s, s.Size)
+	r := ld.Addrel(s)
+	r.Sym = t
+	r.Off = int32(i)
+	r.Type = ld.R_CALL
+	r.Siz = 4
+	return i + int64(r.Siz)
+}
+
 func gentext() {
+	if !ld.DynlinkingGo() {
+		return
+	}
+	addmoduledata := ld.Linklookup(ld.Ctxt, "runtime.addmoduledata", 0)
+	if addmoduledata.Type == ld.STEXT {
+		// we're linking a module containing the runtime -> no need for
+		// an init function
+		return
+	}
+	addmoduledata.Reachable = true
+	initfunc := ld.Linklookup(ld.Ctxt, "go.link.addmoduledata", 0)
+	initfunc.Type = ld.STEXT
+	initfunc.Local = true
+	initfunc.Reachable = true
+	o := func(op ...uint8) {
+		for _, op1 := range op {
+			ld.Adduint8(ld.Ctxt, initfunc, op1)
+		}
+	}
+	// 0000000000000000 <local.dso_init>:
+	//    0:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi        # 7 <local.dso_init+0x7>
+	// 			3: R_X86_64_PC32	runtime.firstmoduledata-0x4
+	o(0x48, 0x8d, 0x3d)
+	ld.Addpcrelplus(ld.Ctxt, initfunc, ld.Linklookup(ld.Ctxt, "runtime.firstmoduledata", 0), 0)
+	//    7:	e8 00 00 00 00       	callq  c <local.dso_init+0xc>
+	// 			8: R_X86_64_PLT32	runtime.addmoduledata-0x4
+	o(0xe8)
+	Addcall(ld.Ctxt, initfunc, addmoduledata)
+	//    c:	c3                   	retq
+	o(0xc3)
+	if ld.Ctxt.Etextp != nil {
+		ld.Ctxt.Etextp.Next = initfunc
+	} else {
+		ld.Ctxt.Textp = initfunc
+	}
+	ld.Ctxt.Etextp = initfunc
+	initarray_entry := ld.Linklookup(ld.Ctxt, "go.link.addmoduledatainit", 0)
+	initarray_entry.Reachable = true
+	initarray_entry.Local = true
+	initarray_entry.Type = ld.SINITARR
+	ld.Addaddr(ld.Ctxt, initarray_entry, initfunc)
 }
 
 func adddynrela(rela *ld.LSym, s *ld.LSym, r *ld.Reloc) {

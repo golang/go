@@ -1331,10 +1331,15 @@ func dodata() {
 
 	sect.Length = uint64(datsize) - sect.Vaddr
 
+	hasinitarr := Linkshared
+
 	/* shared library initializer */
 	switch Buildmode {
 	case BuildmodeCArchive, BuildmodeCShared, BuildmodeShared:
-		// TODO(mwhudson): switch on Linkshared
+		hasinitarr = true
+	}
+
+	if hasinitarr {
 		sect := addsection(&Segdata, ".init_array", 06)
 		sect.Align = maxalign(s, SINITARR)
 		datsize = Rnd(datsize, int64(sect.Align))
