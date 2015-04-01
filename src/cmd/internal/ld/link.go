@@ -114,6 +114,7 @@ type Link struct {
 	Tlsg      *LSym
 	Libdir    []string
 	Library   []Library
+	Shlibs    []string
 	Tlsoffset int
 	Diag      func(string, ...interface{})
 	Cursym    *LSym
@@ -138,6 +139,7 @@ type Library struct {
 	Srcref string
 	File   string
 	Pkg    string
+	Shlib  string
 }
 
 type Pcln struct {
