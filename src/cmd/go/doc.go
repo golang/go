@@ -97,6 +97,9 @@ and test commands:
 
 	-buildmode mode
 		build mode to use. See 'go help buildmodes' for more.
+	-linkshared
+		link against shared libraries previously created with
+		-buildmode=shared
 	-compiler name
 		name of compiler to use, as in runtime.Compiler (gccgo or gc).
 	-gccgoflags 'arg list'

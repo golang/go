@@ -77,6 +77,9 @@ and test commands:
 
 	-buildmode mode
 		build mode to use. See 'go help buildmodes' for more.
+	-linkshared
+		link against shared libraries previously created with
+		-buildmode=shared
 	-compiler name
 		name of compiler to use, as in runtime.Compiler (gccgo or gc).
 	-gccgoflags 'arg list'
@@ -149,6 +152,7 @@ var buildGccgoflags []string // -gccgoflags flag
 var buildRace bool           // -race flag
 var buildToolExec []string   // -toolexec flag
 var buildBuildmode string    // -buildmode flag
+var buildLinkshared bool     // -linkshared flag
 
 var buildContext = build.Default
 var buildToolchain toolchain = noToolchain{}
@@ -204,6 +208,7 @@ func addBuildFlags(cmd *Command) {
 	cmd.Flag.BoolVar(&buildRace, "race", false, "")
 	cmd.Flag.Var((*stringsFlag)(&buildToolExec), "toolexec", "")
 	cmd.Flag.StringVar(&buildBuildmode, "buildmode", "default", "")
+	cmd.Flag.BoolVar(&buildLinkshared, "linkshared", false, "")
 }
 
 func addBuildFlagsNX(cmd *Command) {
@@ -306,6 +311,15 @@ func buildModeInit() {
 		ldBuildmode = "exe"
 	default:
 		fatalf("buildmode=%s not supported", buildBuildmode)
+	}
+	if buildLinkshared {
+		if goarch != "amd64" || goos != "linux" {
+			fmt.Fprintf(os.Stderr, "go %s: -linkshared is only supported on linux/amd64\n", flag.Args()[0])
+			os.Exit(2)
+		}
+		codegenArg = "-dynlink"
+		// TODO(mwhudson): remove -w when that gets fixed in linker.
+		buildLdflags = append(buildLdflags, "-linkshared", "-w")
 	}
 	if ldBuildmode != "" {
 		buildLdflags = append(buildLdflags, "-buildmode="+ldBuildmode)
