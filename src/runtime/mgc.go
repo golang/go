@@ -215,6 +215,10 @@ var work struct {
 
 	// Copy of mheap.allspans for marker or sweeper.
 	spans []*mspan
+
+	// totaltime is the CPU nanoseconds spent in GC since the
+	// program started if debug.gctrace > 0.
+	totaltime int64
 }
 
 // GC runs a garbage collection.
@@ -470,23 +474,37 @@ func gc(mode int) {
 
 	memstats.numgc++
 	if debug.gctrace > 0 {
-		// TODO(austin): Cumulative utilization %
 		// TODO(austin): Marked heap size at end
 		tEnd := nanotime()
+
+		// Update work.totaltime
+		sweepTermCpu := int64(stwprocs) * (tScan - tSweepTerm)
+		scanCpu := tInstallWB - tScan
+		installWBCpu := int64(stwprocs) * (tMark - tInstallWB)
+		markCpu := tMarkTerm - tMark
+		markTermCpu := int64(stwprocs) * (tEnd - tMarkTerm)
+		cycleCpu := sweepTermCpu + scanCpu + installWBCpu + markCpu + markTermCpu
+		work.totaltime += cycleCpu
+
+		// Compute overall utilization
+		totalCpu := sched.totaltime + (tEnd-sched.procresizetime)*int64(gomaxprocs)
+		util := work.totaltime * 100 / totalCpu
+
 		var sbuf [24]byte
 		printlock()
 		print("gc #", memstats.numgc,
-			" @", string(itoaDiv(sbuf[:], uint64(tEnd-runtimeInitTime)/1e6, 3)), "s: ",
+			" @", string(itoaDiv(sbuf[:], uint64(tEnd-runtimeInitTime)/1e6, 3)), "s ",
+			util, "%: ",
 			(tScan-tSweepTerm)/1e6,
 			"+", (tInstallWB-tScan)/1e6,
 			"+", (tMark-tInstallWB)/1e6,
 			"+", (tMarkTerm-tMark)/1e6,
 			"+", (tEnd-tMarkTerm)/1e6, " ms clock, ",
-			int64(stwprocs)*(tScan-tSweepTerm)/1e6,
-			"+", (tInstallWB-tScan)/1e6,
-			"+", int64(stwprocs)*(tMark-tInstallWB)/1e6,
-			"+", (tMarkTerm-tMark)/1e6, "+",
-			int64(stwprocs)*(tEnd-tMarkTerm)/1e6, " ms cpu, ",
+			sweepTermCpu/1e6,
+			"+", scanCpu/1e6,
+			"+", installWBCpu/1e6,
+			"+", markCpu/1e6,
+			"+", markTermCpu/1e6, " ms cpu, ",
 			heap0>>20, "->", heap1>>20, " MB, ",
 			maxprocs, " P")
 		if mode != gcBackgroundMode {

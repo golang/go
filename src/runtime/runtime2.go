@@ -421,6 +421,9 @@ type schedt struct {
 	lastpoll   uint64
 
 	profilehz int32 // cpu profiling rate
+
+	procresizetime int64 // nanotime() of last change to gomaxprocs
+	totaltime      int64 // ∫gomaxprocs dt up to procresizetime
 }
 
 // The m->locked word holds two pieces of state counting active calls to LockOSThread/lockOSThread.
