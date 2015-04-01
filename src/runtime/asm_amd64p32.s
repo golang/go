@@ -73,7 +73,7 @@ ok:
 	CALL	runtime·schedinit(SB)
 
 	// create a new goroutine to start program
-	MOVL	$runtime·main·f(SB), AX	// entry
+	MOVL	$runtime·mainPC(SB), AX	// entry
 	MOVL	$0, 0(SP)
 	MOVL	AX, 4(SP)
 	CALL	runtime·newproc(SB)
@@ -84,8 +84,8 @@ ok:
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-DATA	runtime·main·f+0(SB)/4,$runtime·main(SB)
-GLOBL	runtime·main·f(SB),RODATA,$4
+DATA	runtime·mainPC+0(SB)/4,$runtime·main(SB)
+GLOBL	runtime·mainPC(SB),RODATA,$4
 
 TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
 	INT $3
@@ -541,6 +541,14 @@ TEXT runtime·atomicor8(SB), NOSPLIT, $0-5
 	ORB	AX, 0(BX)
 	RET
 
+// void	runtime·atomicand8(byte volatile*, byte);
+TEXT runtime·atomicand8(SB), NOSPLIT, $0-5
+	MOVL	ptr+0(FP), BX
+	MOVB	val+4(FP), AX
+	LOCK
+	ANDB	AX, 0(BX)
+	RET
+
 // void jmpdefer(fn, sp);
 // called from deferreturn.
 // 1. pop the caller
@@ -822,7 +830,7 @@ TEXT bytes·Compare(SB),NOSPLIT,$0-28
 	MOVL	s2+12(FP), DI
 	MOVL	s2+16(FP), DX
 	CALL	runtime·cmpbody(SB)
-	MOVQ	AX, res+24(FP)
+	MOVL	AX, res+24(FP)
 	RET
 
 // input:
@@ -943,7 +951,7 @@ allsame:
 	LEAQ	-1(CX)(AX*2), AX	// 1,0,-1 result
 	RET
 
-TEXT bytes·IndexByte(SB),NOSPLIT,$0
+TEXT bytes·IndexByte(SB),NOSPLIT,$0-20
 	MOVL s+0(FP), SI
 	MOVL s_len+4(FP), BX
 	MOVB c+12(FP), AL
@@ -951,7 +959,7 @@ TEXT bytes·IndexByte(SB),NOSPLIT,$0
 	MOVL AX, ret+16(FP)
 	RET
 
-TEXT strings·IndexByte(SB),NOSPLIT,$0
+TEXT strings·IndexByte(SB),NOSPLIT,$0-20
 	MOVL s+0(FP), SI
 	MOVL s_len+4(FP), BX
 	MOVB c+8(FP), AL

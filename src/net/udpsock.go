@@ -25,6 +25,13 @@ func (a *UDPAddr) String() string {
 	return JoinHostPort(ip, itoa(a.Port))
 }
 
+func (a *UDPAddr) isWildcard() bool {
+	if a == nil || a.IP == nil {
+		return true
+	}
+	return a.IP.IsUnspecified()
+}
+
 func (a *UDPAddr) toAddr() Addr {
 	if a == nil {
 		return nil

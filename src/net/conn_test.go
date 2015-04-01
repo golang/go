@@ -9,7 +9,6 @@ package net
 
 import (
 	"os"
-	"runtime"
 	"testing"
 	"time"
 )
@@ -30,19 +29,9 @@ const someTimeout = 10 * time.Second
 
 func TestConnAndListener(t *testing.T) {
 	for _, tt := range connTests {
-		switch tt.net {
-		case "unix":
-			switch runtime.GOOS {
-			case "nacl", "plan9", "windows":
-				continue
-			}
-		case "unixpacket":
-			switch runtime.GOOS {
-			case "android", "darwin", "nacl", "openbsd", "plan9", "windows":
-				continue
-			case "freebsd": // FreeBSD 8 doesn't support unixpacket
-				continue
-			}
+		if !testableNetwork(tt.net) {
+			t.Logf("skipping %s test", tt.net)
+			continue
 		}
 
 		ln, err := Listen(tt.net, tt.addr)

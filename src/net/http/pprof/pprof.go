@@ -222,17 +222,17 @@ var indexTmpl = template.Must(template.New("index").Parse(`<html>
 <head>
 <title>/debug/pprof/</title>
 </head>
+<body>
 /debug/pprof/<br>
 <br>
-<body>
 profiles:<br>
 <table>
 {{range .}}
-<tr><td align=right>{{.Count}}<td><a href="/debug/pprof/{{.Name}}?debug=1">{{.Name}}</a>
+<tr><td align=right>{{.Count}}<td><a href="{{.Name}}?debug=1">{{.Name}}</a>
 {{end}}
 </table>
 <br>
-<a href="/debug/pprof/goroutine?debug=2">full goroutine stack dump</a><br>
+<a href="goroutine?debug=2">full goroutine stack dump</a><br>
 </body>
 </html>
 `))

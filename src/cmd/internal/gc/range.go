@@ -41,7 +41,7 @@ func typecheckrange(n *Node) {
 		}
 	}
 
-	if Isptr[t.Etype] != 0 && Isfixedarray(t.Type) {
+	if Isptr[t.Etype] && Isfixedarray(t.Type) {
 		t = t.Type
 	}
 	n.Type = t
@@ -135,17 +135,23 @@ out:
 }
 
 func walkrange(n *Node) {
+	// variable name conventions:
+	//	ohv1, hv1, hv2: hidden (old) val 1, 2
+	//	ha, hit: hidden aggregate, iterator
+	//	hn, hp: hidden len, pointer
+	//	hb: hidden bool
+	//	a, v1, v2: not hidden aggregate, val 1, 2
+
 	t := n.Type
-	init := (*NodeList)(nil)
 
 	a := n.Right
 	lno := int(setlineno(a))
 
-	v1 := (*Node)(nil)
+	var v1 *Node
 	if n.List != nil {
 		v1 = n.List.N
 	}
-	v2 := (*Node)(nil)
+	var v2 *Node
 	if n.List != nil && n.List.Next != nil && !isblank(n.List.Next.N) {
 		v2 = n.List.Next.N
 	}
@@ -154,9 +160,8 @@ func walkrange(n *Node) {
 	// to avoid erroneous processing by racewalk.
 	n.List = nil
 
-	hv2 := (*Node)(nil)
-
 	var body *NodeList
+	var init *NodeList
 	switch t.Etype {
 	default:
 		Fatal("walkrange")
@@ -250,7 +255,7 @@ func walkrange(n *Node) {
 
 		hv1 := temp(Types[TINT])
 		hn := temp(Types[TINT])
-		hp := (*Node)(nil)
+		var hp *Node
 
 		init = list(init, Nod(OAS, hv1, nil))
 		init = list(init, Nod(OAS, hn, Nod(OLEN, ha, nil)))
@@ -301,19 +306,17 @@ func walkrange(n *Node) {
 		hit := n.Alloc
 		hit.Type = th
 		n.Left = nil
-		keyname := newname(th.Type.Sym)      // depends on layout of iterator struct.  See reflect.c:hiter
+		keyname := newname(th.Type.Sym)      // depends on layout of iterator struct.  See reflect.go:hiter
 		valname := newname(th.Type.Down.Sym) // ditto
 
 		fn := syslook("mapiterinit", 1)
 
-		argtype(fn, t.Down)
-		argtype(fn, t.Type)
-		argtype(fn, th)
+		substArgTypes(fn, t.Down, t.Type, th)
 		init = list(init, mkcall1(fn, nil, nil, typename(t), ha, Nod(OADDR, hit, nil)))
 		n.Ntest = Nod(ONE, Nod(ODOT, hit, keyname), nodnil())
 
 		fn = syslook("mapiternext", 1)
-		argtype(fn, th)
+		substArgTypes(fn, th)
 		n.Nincr = mkcall1(fn, nil, nil, Nod(OADDR, hit, nil))
 
 		key := Nod(ODOT, hit, keyname)
@@ -366,6 +369,7 @@ func walkrange(n *Node) {
 		init = list(init, Nod(OAS, hv1, nil))
 
 		var a *Node
+		var hv2 *Node
 		if v2 == nil {
 			a = Nod(OAS, hv1, mkcall("stringiter", Types[TINT], nil, ha, hv1))
 		} else {

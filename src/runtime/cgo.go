@@ -21,3 +21,10 @@ var (
 	_cgo_free         unsafe.Pointer
 	_cgo_thread_start unsafe.Pointer
 )
+
+// iscgo is set to true by the runtime/cgo package
+var iscgo bool
+
+// cgoHasExtraM is set on startup when an extra M is created for cgo.
+// The extra M must be created before any C/C++ code calls cgocallback.
+var cgoHasExtraM bool

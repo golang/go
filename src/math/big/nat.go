@@ -335,7 +335,7 @@ func karatsuba(z, x, y nat) {
 	}
 }
 
-// alias returns true if x and y share the same base array.
+// alias reports whether x and y share the same base array.
 func alias(x, y nat) bool {
 	return cap(x) > 0 && cap(y) > 0 && &x[0:cap(x)][cap(x)-1] == &y[0:cap(y)][cap(y)-1]
 }
@@ -819,7 +819,7 @@ func (z nat) xor(x, y nat) nat {
 	return z.norm()
 }
 
-// greaterThan returns true iff (x1<<_W + x2) > (y1<<_W + y2)
+// greaterThan reports whether (x1<<_W + x2) > (y1<<_W + y2)
 func greaterThan(x1, x2, y1, y2 Word) bool {
 	return x1 > y1 || x1 == y1 && x2 > y2
 }

@@ -10,7 +10,7 @@ package runtime
 //uint32 runtime·panicking;
 var paniclk mutex
 
-const hasLinkRegister = GOARCH == "arm" || GOARCH == "ppc64" || GOARCH == "ppc64le"
+const hasLinkRegister = GOARCH == "arm" || GOARCH == "arm64" || GOARCH == "ppc64" || GOARCH == "ppc64le"
 
 // Unwind the stack after a deferred function calls recover
 // after a panic.  Then arrange to continue running as though

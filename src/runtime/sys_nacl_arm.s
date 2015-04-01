@@ -301,6 +301,13 @@ nog:
 TEXT runtime·nacl_sysinfo(SB),NOSPLIT,$16
 	RET
 
+// func getRandomData([]byte)
+TEXT runtime·getRandomData(SB),NOSPLIT,$0-12
+	MOVW buf+0(FP), R0
+	MOVW len+4(FP), R1
+	NACL_SYSCALL(SYS_get_random_bytes)
+	RET
+
 TEXT runtime·casp1(SB),NOSPLIT,$0
 	B	runtime·cas(SB)
 

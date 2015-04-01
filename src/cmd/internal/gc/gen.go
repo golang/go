@@ -57,8 +57,7 @@ func addrescapes(n *Node) {
 		// so the param already has a valid xoffset.
 
 		// expression to refer to stack copy
-		case PPARAM,
-			PPARAMOUT:
+		case PPARAM, PPARAMOUT:
 			n.Stackparam = Nod(OPARAM, n, nil)
 
 			n.Stackparam.Type = n.Type
@@ -93,8 +92,7 @@ func addrescapes(n *Node) {
 			Curfn = oldfn
 		}
 
-	case OIND,
-		ODOTPTR:
+	case OIND, ODOTPTR:
 		break
 
 		// ODOTPTR has already been introduced,
@@ -102,8 +100,7 @@ func addrescapes(n *Node) {
 	// In &x[0], if x is a slice, then x does not
 	// escape--the pointer inside x does, but that
 	// is always a heap pointer anyway.
-	case ODOT,
-		OINDEX:
+	case ODOT, OINDEX:
 		if !Isslice(n.Left.Type) {
 			addrescapes(n.Left)
 		}
@@ -171,9 +168,9 @@ func checkgoto(from *Node, to *Node) {
 		// decide what to complain about.
 		// prefer to complain about 'into block' over declarations,
 		// so scan backward to find most recent block or else dcl.
-		block := (*Sym)(nil)
+		var block *Sym
 
-		dcl := (*Sym)(nil)
+		var dcl *Sym
 		ts := to.Sym
 		for ; nt > nf; nt-- {
 			if ts.Pkg == nil {
@@ -235,13 +232,13 @@ func cgen_proc(n *Node, proc int) {
 		Fatal("cgen_proc: unknown call %v", Oconv(int(n.Left.Op), 0))
 
 	case OCALLMETH:
-		Cgen_callmeth(n.Left, proc)
+		cgen_callmeth(n.Left, proc)
 
 	case OCALLINTER:
-		Thearch.Cgen_callinter(n.Left, nil, proc)
+		cgen_callinter(n.Left, nil, proc)
 
 	case OCALLFUNC:
-		Thearch.Cgen_call(n.Left, proc)
+		cgen_call(n.Left, proc)
 	}
 }
 
@@ -332,29 +329,24 @@ func cgen_discard(nr *Node) {
  * clearslim generates code to zero a slim node.
  */
 func Clearslim(n *Node) {
-	z := Node{}
+	var z Node
 	z.Op = OLITERAL
 	z.Type = n.Type
 	z.Addable = 1
 
 	switch Simtype[n.Type.Etype] {
-	case TCOMPLEX64,
-		TCOMPLEX128:
+	case TCOMPLEX64, TCOMPLEX128:
 		z.Val.U.Cval = new(Mpcplx)
 		Mpmovecflt(&z.Val.U.Cval.Real, 0.0)
 		Mpmovecflt(&z.Val.U.Cval.Imag, 0.0)
 
-	case TFLOAT32,
-		TFLOAT64:
+	case TFLOAT32, TFLOAT64:
 		var zero Mpflt
 		Mpmovecflt(&zero, 0.0)
 		z.Val.Ctype = CTFLT
 		z.Val.U.Fval = &zero
 
-	case TPTR32,
-		TPTR64,
-		TCHAN,
-		TMAP:
+	case TPTR32, TPTR64, TCHAN, TMAP:
 		z.Val.Ctype = CTNIL
 
 	case TBOOL:
@@ -377,7 +369,7 @@ func Clearslim(n *Node) {
 	}
 
 	ullmancalc(&z)
-	Thearch.Cgen(&z, n)
+	Cgen(&z, n)
 }
 
 /*
@@ -393,17 +385,177 @@ func Cgen_eface(n *Node, res *Node) {
 	 */
 
 	tmp := temp(Types[Tptr])
-	Thearch.Cgen(n.Right, tmp)
+	Cgen(n.Right, tmp)
 
 	Gvardef(res)
 
 	dst := *res
 	dst.Type = Types[Tptr]
 	dst.Xoffset += int64(Widthptr)
-	Thearch.Cgen(tmp, &dst)
+	Cgen(tmp, &dst)
 
 	dst.Xoffset -= int64(Widthptr)
-	Thearch.Cgen(n.Left, &dst)
+	Cgen(n.Left, &dst)
+}
+
+/*
+ * generate one of:
+ *	res, resok = x.(T)
+ *	res = x.(T) (when resok == nil)
+ * n.Left is x
+ * n.Type is T
+ */
+func cgen_dottype(n *Node, res, resok *Node) {
+	if Debug_typeassert > 0 {
+		Warn("type assertion inlined")
+	}
+	//	iface := n.Left
+	//	r1 := iword(iface)
+	//	if n.Left is non-empty interface {
+	//		r1 = *r1
+	//	}
+	//	if r1 == T {
+	//		res = idata(iface)
+	//		resok = true
+	//	} else {
+	//		assert[EI]2T(x, T, nil) // (when resok == nil; does not return)
+	//		resok = false // (when resok != nil)
+	//	}
+	//
+	var iface Node
+	Igen(n.Left, &iface, res)
+	var r1, r2 Node
+	byteptr := Ptrto(Types[TUINT8]) // type used in runtime prototypes for runtime type (*byte)
+	Regalloc(&r1, byteptr, nil)
+	iface.Type = byteptr
+	Cgen(&iface, &r1)
+	if !isnilinter(n.Left.Type) {
+		// Holding itab, want concrete type in second word.
+		Thearch.Gins(Thearch.Optoas(OCMP, byteptr), &r1, Nodintconst(0))
+		p := Gbranch(Thearch.Optoas(OEQ, byteptr), nil, -1)
+		r2 = r1
+		r2.Op = OINDREG
+		r2.Xoffset = int64(Widthptr)
+		Cgen(&r2, &r1)
+		Patch(p, Pc)
+	}
+	Regalloc(&r2, byteptr, nil)
+	Cgen(typename(n.Type), &r2)
+	Thearch.Gins(Thearch.Optoas(OCMP, byteptr), &r1, &r2)
+	p := Gbranch(Thearch.Optoas(ONE, byteptr), nil, -1)
+	iface.Xoffset += int64(Widthptr)
+	Cgen(&iface, &r1)
+	Regfree(&iface)
+
+	if resok == nil {
+		r1.Type = res.Type
+		Cgen(&r1, res)
+		q := Gbranch(obj.AJMP, nil, 0)
+		Patch(p, Pc)
+
+		fn := syslook("panicdottype", 0)
+		dowidth(fn.Type)
+		call := Nod(OCALLFUNC, fn, nil)
+		r1.Type = byteptr
+		r2.Type = byteptr
+		call.List = list(list(list1(&r1), &r2), typename(n.Left.Type))
+		call.List = ascompatte(OCALLFUNC, call, false, getinarg(fn.Type), call.List, 0, nil)
+		gen(call)
+		Regfree(&r1)
+		Regfree(&r2)
+		Thearch.Gins(obj.AUNDEF, nil, nil)
+		Patch(q, Pc)
+	} else {
+		// This half is handling the res, resok = x.(T) case,
+		// which is called from gen, not cgen, and is consequently fussier
+		// about blank assignments. We have to avoid calling cgen for those.
+		Regfree(&r2)
+		r1.Type = res.Type
+		if !isblank(res) {
+			Cgen(&r1, res)
+		}
+		Regfree(&r1)
+		if !isblank(resok) {
+			Cgen(Nodbool(true), resok)
+		}
+		q := Gbranch(obj.AJMP, nil, 0)
+		Patch(p, Pc)
+		if !isblank(res) {
+			n := nodnil()
+			n.Type = res.Type
+			Cgen(n, res)
+		}
+		if !isblank(resok) {
+			Cgen(Nodbool(false), resok)
+		}
+		Patch(q, Pc)
+	}
+}
+
+/*
+ * generate:
+ *	res, resok = x.(T)
+ * n.Left is x
+ * n.Type is T
+ */
+func Cgen_As2dottype(n, res, resok *Node) {
+	if Debug_typeassert > 0 {
+		Warn("type assertion inlined")
+	}
+	//	iface := n.Left
+	//	r1 := iword(iface)
+	//	if n.Left is non-empty interface {
+	//		r1 = *r1
+	//	}
+	//	if r1 == T {
+	//		res = idata(iface)
+	//		resok = true
+	//	} else {
+	//		res = nil
+	//		resok = false
+	//	}
+	//
+	var iface Node
+	Igen(n.Left, &iface, nil)
+	var r1, r2 Node
+	byteptr := Ptrto(Types[TUINT8]) // type used in runtime prototypes for runtime type (*byte)
+	Regalloc(&r1, byteptr, res)
+	iface.Type = byteptr
+	Cgen(&iface, &r1)
+	if !isnilinter(n.Left.Type) {
+		// Holding itab, want concrete type in second word.
+		Thearch.Gins(Thearch.Optoas(OCMP, byteptr), &r1, Nodintconst(0))
+		p := Gbranch(Thearch.Optoas(OEQ, byteptr), nil, -1)
+		r2 = r1
+		r2.Op = OINDREG
+		r2.Xoffset = int64(Widthptr)
+		Cgen(&r2, &r1)
+		Patch(p, Pc)
+	}
+	Regalloc(&r2, byteptr, nil)
+	Cgen(typename(n.Type), &r2)
+	Thearch.Gins(Thearch.Optoas(OCMP, byteptr), &r1, &r2)
+	p := Gbranch(Thearch.Optoas(ONE, byteptr), nil, -1)
+	iface.Type = n.Type
+	iface.Xoffset += int64(Widthptr)
+	Cgen(&iface, &r1)
+	if iface.Op != 0 {
+		Regfree(&iface)
+	}
+	Cgen(&r1, res)
+	q := Gbranch(obj.AJMP, nil, 0)
+	Patch(p, Pc)
+
+	fn := syslook("panicdottype", 0)
+	dowidth(fn.Type)
+	call := Nod(OCALLFUNC, fn, nil)
+	call.List = list(list(list1(&r1), &r2), typename(n.Left.Type))
+	call.List = ascompatte(OCALLFUNC, call, false, getinarg(fn.Type), call.List, 0, nil)
+	gen(call)
+	Regfree(&r1)
+	Regfree(&r2)
+	Thearch.Gins(obj.AUNDEF, nil, nil)
+	Patch(q, Pc)
 }
 
 /*
@@ -418,7 +570,7 @@ func Cgen_eface(n *Node, res *Node) {
 func Cgen_slice(n *Node, res *Node) {
 	cap := n.List.N
 	len := n.List.Next.N
-	offs := (*Node)(nil)
+	var offs *Node
 	if n.List.Next.Next != nil {
 		offs = n.List.Next.Next.N
 	}
@@ -443,7 +595,7 @@ func Cgen_slice(n *Node, res *Node) {
 	var src Node
 	if isnil(n.Left) {
 		Tempname(&src, n.Left.Type)
-		Thearch.Cgen(n.Left, &src)
+		Cgen(n.Left, &src)
 	} else {
 		src = *n.Left
 	}
@@ -452,14 +604,14 @@ func Cgen_slice(n *Node, res *Node) {
 	}
 
 	if n.Op == OSLICEARR || n.Op == OSLICE3ARR {
-		if Isptr[n.Left.Type.Etype] == 0 {
+		if !Isptr[n.Left.Type.Etype] {
 			Fatal("slicearr is supposed to work on pointer: %v\n", Nconv(n, obj.FmtSign))
 		}
-		Thearch.Cgen(&src, base)
+		Cgen(&src, base)
 		Cgen_checknil(base)
 	} else {
 		src.Type = Types[Tptr]
-		Thearch.Cgen(&src, base)
+		Cgen(&src, base)
 	}
 
 	// committed to the update
@@ -468,10 +620,10 @@ func Cgen_slice(n *Node, res *Node) {
 	// compute len and cap.
 	// len = n-i, cap = m-i, and offs = i*width.
 	// computing offs last lets the multiply overwrite i.
-	Thearch.Cgen((*Node)(len), tmplen)
+	Cgen((*Node)(len), tmplen)
 
 	if n.Op != OSLICESTR {
-		Thearch.Cgen(cap, tmpcap)
+		Cgen(cap, tmpcap)
 	}
 
 	// if new cap != 0 { base += add }
@@ -489,11 +641,11 @@ func Cgen_slice(n *Node, res *Node) {
 		Nodconst(&con, tmpcap.Type, 0)
 		cmp := Nod(OEQ, tmpcap, &con)
 		typecheck(&cmp, Erv)
-		Thearch.Bgen(cmp, true, -1, p2)
+		Bgen(cmp, true, -1, p2)
 
 		add := Nod(OADD, base, offs)
 		typecheck(&add, Erv)
-		Thearch.Cgen(add, base)
+		Cgen(add, base)
 
 		Patch(p2, Pc)
 	}
@@ -503,14 +655,14 @@ func Cgen_slice(n *Node, res *Node) {
 
 	dst.Xoffset += int64(Array_array)
 	dst.Type = Types[Tptr]
-	Thearch.Cgen(base, &dst)
+	Cgen(base, &dst)
 
 	// dst.len = hi [ - lo ]
 	dst = *res
 
 	dst.Xoffset += int64(Array_nel)
 	dst.Type = Types[Simtype[TUINT]]
-	Thearch.Cgen(tmplen, &dst)
+	Cgen(tmplen, &dst)
 
 	if n.Op != OSLICESTR {
 		// dst.cap = cap [ - lo ]
@@ -518,7 +670,7 @@ func Cgen_slice(n *Node, res *Node) {
 
 		dst.Xoffset += int64(Array_cap)
 		dst.Type = Types[Simtype[TUINT]]
-		Thearch.Cgen(tmpcap, &dst)
+		Cgen(tmpcap, &dst)
 	}
 }
 
@@ -590,10 +742,8 @@ func Tempname(nn *Node, t *Type) {
 
 	// give each tmp a different name so that there
 	// a chance to registerizer them
-	namebuf = fmt.Sprintf("autotmp_%.4d", statuniqgen)
-
+	s := Lookupf("autotmp_%.4d", statuniqgen)
 	statuniqgen++
-	s := Lookup(namebuf)
 	n := Nod(ONAME, nil, nil)
 	n.Sym = s
 	s.Def = n
@@ -603,7 +753,7 @@ func Tempname(nn *Node, t *Type) {
 	n.Ullman = 1
 	n.Esc = EscNever
 	n.Curfn = Curfn
-	Curfn.Dcl = list(Curfn.Dcl, n)
+	Curfn.Func.Dcl = list(Curfn.Func.Dcl, n)
 
 	dowidth(t)
 	n.Xoffset = 0
@@ -613,7 +763,7 @@ func Tempname(nn *Node, t *Type) {
 func temp(t *Type) *Node {
 	n := Nod(OXXX, nil, nil)
 	Tempname(n, t)
-	n.Sym.Def.Used = 1
+	n.Sym.Def.Used = true
 	return n.Orig
 }
 
@@ -622,7 +772,7 @@ func gen(n *Node) {
 
 	lno := setlineno(n)
 
-	wasregalloc := Thearch.Anyregalloc()
+	wasregalloc := Anyregalloc()
 
 	if n == nil {
 		goto ret
@@ -675,9 +825,7 @@ func gen(n *Node) {
 		if n.Defn != nil {
 			switch n.Defn.Op {
 			// so stmtlabel can find the label
-			case OFOR,
-				OSWITCH,
-				OSELECT:
+			case OFOR, OSWITCH, OSELECT:
 				n.Defn.Sym = lab.Sym
 			}
 		}
@@ -762,10 +910,10 @@ func gen(n *Node) {
 			lab.Continpc = continpc
 		}
 
-		gen(n.Nincr)                              // contin:	incr
-		Patch(p1, Pc)                             // test:
-		Thearch.Bgen(n.Ntest, false, -1, breakpc) //		if(!test) goto break
-		Genlist(n.Nbody)                          //		body
+		gen(n.Nincr)                      // contin:	incr
+		Patch(p1, Pc)                     // test:
+		Bgen(n.Ntest, false, -1, breakpc) //		if(!test) goto break
+		Genlist(n.Nbody)                  //		body
 		gjmp(continpc)
 		Patch(breakpc, Pc) // done:
 		continpc = scontin
@@ -776,15 +924,15 @@ func gen(n *Node) {
 		}
 
 	case OIF:
-		p1 := gjmp(nil)                                  //		goto test
-		p2 := gjmp(nil)                                  // p2:		goto else
-		Patch(p1, Pc)                                    // test:
-		Thearch.Bgen(n.Ntest, false, int(-n.Likely), p2) //		if(!test) goto p2
-		Genlist(n.Nbody)                                 //		then
-		p3 := gjmp(nil)                                  //		goto done
-		Patch(p2, Pc)                                    // else:
-		Genlist(n.Nelse)                                 //		else
-		Patch(p3, Pc)                                    // done:
+		p1 := gjmp(nil)                          //		goto test
+		p2 := gjmp(nil)                          // p2:		goto else
+		Patch(p1, Pc)                            // test:
+		Bgen(n.Ntest, false, int(-n.Likely), p2) //		if(!test) goto p2
+		Genlist(n.Nbody)                         //		then
+		p3 := gjmp(nil)                          //		goto done
+		Patch(p2, Pc)                            // else:
+		Genlist(n.Nelse)                         //		else
+		Patch(p3, Pc)                            // done:
 
 	case OSWITCH:
 		sbreak := breakpc
@@ -833,14 +981,17 @@ func gen(n *Node) {
 		}
 		Cgen_as(n.Left, n.Right)
 
+	case OAS2DOTTYPE:
+		cgen_dottype(n.Rlist.N, n.List.N, n.List.Next.N)
+
 	case OCALLMETH:
-		Cgen_callmeth(n, 0)
+		cgen_callmeth(n, 0)
 
 	case OCALLINTER:
-		Thearch.Cgen_callinter(n, nil, 0)
+		cgen_callinter(n, nil, 0)
 
 	case OCALLFUNC:
-		Thearch.Cgen_call(n, 0)
+		cgen_call(n, 0)
 
 	case OPROC:
 		cgen_proc(n, 1)
@@ -848,9 +999,8 @@ func gen(n *Node) {
 	case ODEFER:
 		cgen_proc(n, 2)
 
-	case ORETURN,
-		ORETJMP:
-		Thearch.Cgen_ret(n)
+	case ORETURN, ORETJMP:
+		cgen_ret(n)
 
 	case OCHECKNIL:
 		Cgen_checknil(n.Left)
@@ -860,7 +1010,7 @@ func gen(n *Node) {
 	}
 
 ret:
-	if Thearch.Anyregalloc() != wasregalloc {
+	if Anyregalloc() != wasregalloc {
 		Dump("node", n)
 		Fatal("registers left allocated")
 	}
@@ -910,10 +1060,10 @@ func Cgen_as(nl *Node, nr *Node) {
 		return
 	}
 
-	Thearch.Cgen(nr, nl)
+	Cgen(nr, nl)
 }
 
-func Cgen_callmeth(n *Node, proc int) {
+func cgen_callmeth(n *Node, proc int) {
 	// generate a rewrite in n2 for the method call
 	// (p.f)(...) goes to (f)(p,...)
 
@@ -931,7 +1081,7 @@ func Cgen_callmeth(n *Node, proc int) {
 	if n2.Left.Op == ONAME {
 		n2.Left.Class = PFUNC
 	}
-	Thearch.Cgen_call(&n2, proc)
+	cgen_call(&n2, proc)
 }
 
 func checklabels() {
@@ -957,4 +1107,279 @@ func checklabels() {
 			checkgoto(l.N, lab.Def)
 		}
 	}
+}
+
+/*
+ * copy a composite value by moving its individual components.
+ * Slices, strings and interfaces are supported.
+ * Small structs or arrays with elements of basic type are
+ * also supported.
+ * nr is N when assigning a zero value.
+ * return 1 if can do, 0 if can't.
+ */
+func Componentgen(nr *Node, nl *Node) bool {
+	var nodl Node
+	var nodr Node
+
+	freel := 0
+	freer := 0
+
+	var isConstString bool
+
+	switch nl.Type.Etype {
+	default:
+		goto no
+
+	case TARRAY:
+		t := nl.Type
+
+		// Slices are ok.
+		if Isslice(t) {
+			break
+		}
+
+		// Small arrays are ok.
+		if t.Bound > 0 && t.Bound <= 3 && !Isfat(t.Type) {
+			break
+		}
+
+		goto no
+
+		// Small structs with non-fat types are ok.
+	// Zero-sized structs are treated separately elsewhere.
+	case TSTRUCT:
+		fldcount := int64(0)
+
+		for t := nl.Type.Type; t != nil; t = t.Down {
+			if Isfat(t.Type) && !Isslice(t) {
+				goto no
+			}
+			if t.Etype != TFIELD {
+				Fatal("componentgen: not a TFIELD: %v", Tconv(t, obj.FmtLong))
+			}
+			fldcount++
+		}
+
+		if fldcount == 0 || fldcount > 4 {
+			goto no
+		}
+
+	case TSTRING, TINTER:
+		break
+	}
+
+	isConstString = Isconst(nr, CTSTR)
+	nodl = *nl
+	if !cadable(nl) {
+		if nr != nil && !cadable(nr) && !isConstString {
+			goto no
+		}
+		Igen(nl, &nodl, nil)
+		freel = 1
+	}
+
+	if nr != nil {
+		nodr = *nr
+		if !cadable(nr) && !isConstString {
+			Igen(nr, &nodr, nil)
+			freer = 1
+		}
+	} else {
+		// When zeroing, prepare a register containing zero.
+		var tmp Node
+		Nodconst(&tmp, nl.Type, 0)
+
+		Regalloc(&nodr, Types[TUINT], nil)
+		Thearch.Gmove(&tmp, &nodr)
+		freer = 1
+	}
+
+	// nl and nr are 'cadable' which basically means they are names (variables) now.
+	// If they are the same variable, don't generate any code, because the
+	// VARDEF we generate will mark the old value as dead incorrectly.
+	// (And also the assignments are useless.)
+	if nr != nil && nl.Op == ONAME && nr.Op == ONAME && nl == nr {
+		goto yes
+	}
+
+	switch nl.Type.Etype {
+	// componentgen for arrays.
+	case TARRAY:
+		if nl.Op == ONAME {
+			Gvardef(nl)
+		}
+		t := nl.Type
+		if !Isslice(t) {
+			nodl.Type = t.Type
+			nodr.Type = nodl.Type
+			for fldcount := int64(0); fldcount < t.Bound; fldcount++ {
+				if nr == nil {
+					Clearslim(&nodl)
+				} else {
+					Thearch.Gmove(&nodr, &nodl)
+				}
+				nodl.Xoffset += t.Type.Width
+				nodr.Xoffset += t.Type.Width
+			}
+
+			goto yes
+		}
+
+		// componentgen for slices.
+		nodl.Xoffset += int64(Array_array)
+
+		nodl.Type = Ptrto(nl.Type.Type)
+
+		if nr != nil {
+			nodr.Xoffset += int64(Array_array)
+			nodr.Type = nodl.Type
+		}
+
+		Thearch.Gmove(&nodr, &nodl)
+
+		nodl.Xoffset += int64(Array_nel) - int64(Array_array)
+		nodl.Type = Types[Simtype[TUINT]]
+
+		if nr != nil {
+			nodr.Xoffset += int64(Array_nel) - int64(Array_array)
+			nodr.Type = nodl.Type
+		}
+
+		Thearch.Gmove(&nodr, &nodl)
+
+		nodl.Xoffset += int64(Array_cap) - int64(Array_nel)
+		nodl.Type = Types[Simtype[TUINT]]
+
+		if nr != nil {
+			nodr.Xoffset += int64(Array_cap) - int64(Array_nel)
+			nodr.Type = nodl.Type
+		}
+
+		Thearch.Gmove(&nodr, &nodl)
+
+		goto yes
+
+	case TSTRING:
+		if nl.Op == ONAME {
+			Gvardef(nl)
+		}
+		nodl.Xoffset += int64(Array_array)
+		nodl.Type = Ptrto(Types[TUINT8])
+
+		if isConstString {
+			Regalloc(&nodr, Types[Tptr], nil)
+			p := Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), nil, &nodr)
+			Datastring(nr.Val.U.Sval, &p.From)
+			p.From.Type = obj.TYPE_ADDR
+			Regfree(&nodr)
+		} else if nr != nil {
+			nodr.Xoffset += int64(Array_array)
+			nodr.Type = nodl.Type
+		}
+
+		Thearch.Gmove(&nodr, &nodl)
+
+		nodl.Xoffset += int64(Array_nel) - int64(Array_array)
+		nodl.Type = Types[Simtype[TUINT]]
+
+		if isConstString {
+			Nodconst(&nodr, nodl.Type, int64(len(nr.Val.U.Sval)))
+		} else if nr != nil {
+			nodr.Xoffset += int64(Array_nel) - int64(Array_array)
+			nodr.Type = nodl.Type
+		}
+
+		Thearch.Gmove(&nodr, &nodl)
+
+		goto yes
+
+	case TINTER:
+		if nl.Op == ONAME {
+			Gvardef(nl)
+		}
+		nodl.Xoffset += int64(Array_array)
+		nodl.Type = Ptrto(Types[TUINT8])
+
+		if nr != nil {
+			nodr.Xoffset += int64(Array_array)
+			nodr.Type = nodl.Type
+		}
+
+		Thearch.Gmove(&nodr, &nodl)
+
+		nodl.Xoffset += int64(Array_nel) - int64(Array_array)
+		nodl.Type = Ptrto(Types[TUINT8])
+
+		if nr != nil {
+			nodr.Xoffset += int64(Array_nel) - int64(Array_array)
+			nodr.Type = nodl.Type
+		}
+
+		Thearch.Gmove(&nodr, &nodl)
+
+		goto yes
+
+	case TSTRUCT:
+		if nl.Op == ONAME {
+			Gvardef(nl)
+		}
+		loffset := nodl.Xoffset
+		roffset := nodr.Xoffset
+
+		// funarg structs may not begin at offset zero.
+		if nl.Type.Etype == TSTRUCT && nl.Type.Funarg != 0 && nl.Type.Type != nil {
+			loffset -= nl.Type.Type.Width
+		}
+		if nr != nil && nr.Type.Etype == TSTRUCT && nr.Type.Funarg != 0 && nr.Type.Type != nil {
+			roffset -= nr.Type.Type.Width
+		}
+
+		for t := nl.Type.Type; t != nil; t = t.Down {
+			nodl.Xoffset = loffset + t.Width
+			nodl.Type = t.Type
+
+			if nr == nil {
+				Clearslim(&nodl)
+			} else {
+				nodr.Xoffset = roffset + t.Width
+				nodr.Type = nodl.Type
+				Thearch.Gmove(&nodr, &nodl)
+			}
+		}
+
+		goto yes
+	}
+
+no:
+	if freer != 0 {
+		Regfree(&nodr)
+	}
+	if freel != 0 {
+		Regfree(&nodl)
+	}
+	return false
+
+yes:
+	if freer != 0 {
+		Regfree(&nodr)
+	}
+	if freel != 0 {
+		Regfree(&nodl)
+	}
+	return true
+}
+
+func cadable(n *Node) bool {
+	if n.Addable == 0 {
+		// dont know how it happens,
+		// but it does
+		return false
+	}
+
+	switch n.Op {
+	case ONAME:
+		return true
+	}
+
+	return false
 }

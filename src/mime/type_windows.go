@@ -9,7 +9,11 @@ import (
 	"unsafe"
 )
 
-func initMime() {
+func init() {
+	osInitMime = initMimeWindows
+}
+
+func initMimeWindows() {
 	var root syscall.Handle
 	rootpathp, _ := syscall.UTF16PtrFromString(`\`)
 	if syscall.RegOpenKeyEx(syscall.HKEY_CLASSES_ROOT, rootpathp,
@@ -21,6 +25,7 @@ func initMime() {
 	if syscall.RegQueryInfoKey(root, nil, nil, nil, &count, nil, nil, nil, nil, nil, nil, nil) != nil {
 		return
 	}
+	contenttypep, _ := syscall.UTF16PtrFromString("Content Type")
 	var buf [1 << 10]uint16
 	for i := uint32(0); i < count; i++ {
 		n := uint32(len(buf))
@@ -40,7 +45,6 @@ func initMime() {
 		}
 		var typ uint32
 		n = uint32(len(buf) * 2) // api expects array of bytes, not uint16
-		contenttypep, _ := syscall.UTF16PtrFromString("Content Type")
 		if syscall.RegQueryValueEx(
 			h, contenttypep,
 			nil, &typ, (*byte)(unsafe.Pointer(&buf[0])), &n) != nil {

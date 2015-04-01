@@ -981,7 +981,7 @@ func statusLine(req *Request, code int) string {
 	return line
 }
 
-// bodyAllowed returns true if a Write is allowed for this response type.
+// bodyAllowed reports whether a Write is allowed for this response type.
 // It's illegal to call this before the header has been flushed.
 func (w *response) bodyAllowed() bool {
 	if !w.wroteHeader {

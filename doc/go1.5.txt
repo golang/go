@@ -1,41 +1,77 @@
 Overall:
+toolchain in Go
+new GC
 
-build: Go 1.4 required to build (https://golang.org/cl/2470, https://golang.org/cl/2993)
+Language:
+permit omission of key type in map composite literals where key is a composite literal (https://golang.org/cl/2591)
+
+Build:
+Go 1.4 required to build (https://golang.org/cl/2470, https://golang.org/cl/2993)
 
 New Ports:
-Darwin/ARM, a.k.a iOS. (https://golang.org/cl/2118, 2119, 3273, 2121, 2122, ..., 2127)
+darwin/arm, a.k.a iOS. (https://golang.org/cl/2118, 2119, 3273, 2121, 2122, ..., 2127)
+linux/arm64
+
+Removed Ports:
+dragonfly/386 (https://golang.org/cl/7543)
 
 API additions and behavior changes:
 
+archive/zip: add (*Writer).SetOffset method (https://golang.org/cl/7445)
 bufio: add Reader.Discard (https://golang.org/cl/2260)
 crypto/cipher: clarify what will happen if len(src) != len(dst) for the Stream interface. (https://golang.org/cl/1754)
 crypto/elliptic: add Name field to CurveParams struct (https://golang.org/cl/2133)
 crypto/tls: change default minimum version to TLS 1.0. (https://golang.org/cl/1791)
 crypto/x509: wildcards are now only accepted as the first label (https://golang.org/cl/5691)
 encoding/base64: add unpadded encodings (https://golang.org/cl/1511)
+flag: new nicer format for PrintDefaults (https://go-review.googlesource.com/7330)
 go/ast: add Implicit field to ast.EmptyStmt; changed meaning of ast.EmptyStmt.Semicolon position (https://golang.org/cl/5720)
 log: add SetOutput functions (https://golang.org/cl/2686, https://golang.org/cl/3023)
+math/big: add arbitrary precision Floats (many cl's)
+mime: add ExtensionByType (https://golang.org/cl/7444)
 net/http: support for setting trailers from a server Handler (https://golang.org/cl/2157)
+net/http: ignore the Unix epoch time in ServeContent (https://golang.org/cl/7915)
 net/http/cgi: fix REMOTE_ADDR, REMOTE_HOST, add REMOTE_PORT (https://golang.org/cl/4933)
 net/smtp: add TLSConnectionState accessor (https://golang.org/cl/2151)
 os/signal: add Ignore and Reset (https://golang.org/cl/3580)
 runtime, syscall: use SYSCALL instruction on FreeBSD (Go 1.5 now requires FreeBSD 8-STABLE+) (https://golang.org/cl/3020)
+runtime, syscall: use get_random_bytes syscall for NaCl (Go 1.5 now requires NaCl SDK pepper-39 or above) (https://golang.org/cl/1755)
 strings: add Compare(x, y string) int, for symmetry with bytes.Compare (https://golang.org/cl/2828)
+syscall: Add Foreground and Pgid to SysProcAttr (https://golang.org/cl/5130)
+syscall: add missing Syscall9 for darwin/amd64 (https://golang.org/cl/6555)
 testing/quick: support generation of arrays (https://golang.org/cl/3865)
 
 Tools:
 
+build: external linking support for windows (https://golang.org/cl/7163, 7282, 7283, 7284, 7534, 7535)
+cmd/go, go/build: add ${SRCDIR} variable expansion to cgo lines (https://golang.org/cl/1756)
+cmd/go: add $DOLLAR to generate's variables (https://golang.org/cl/8091)
 cmd/go: std wildcard now excludes commands in main repo (https://golang.org/cl/5550)
+cmd/go: .swig/.swigcxx files now require SWIG 3.0.6 or later
 cmd/vet: better validation of struct tags (https://golang.org/cl/2685)
 cmd/ld: no longer record build timestamp in Windows PE file header (https://golang.org/cl/3740)
+cmd/trace: new command to view traces (https://golang.org/cl/3601)
 
 Performance:
 
+cmd/gc: evaluate concrete == interface without allocating (https://golang.org/cl/2096)
 cmd/gc: optimize memclr of slices and arrays (https://golang.org/cl/2520)
+cmd/gc: transform closure calls to function calls (https://golang.org/cl/4050)
+cmd/gc: transitive inlining (https://golang.org/cl/5952)
+cmd/gc, runtime: speed up some cases of _, ok := i.(T) (https://golang.org/cl/7697)
+cmd/gc: speed up large string switches (https://golang.org/cl/7698)
+cmd/gc: inline x := y.(*T) and x, ok := y.(*T) (https://golang.org/cl/7862)
+cmd/gc: allocate backing storage for non-escaping interfaces on stack (https://golang.org/cl/8201)
+encoding/xml: avoid an allocation for tags without attributes (https://golang.org/cl/4160)
+image: many optimizations
+runtime: add ARM runtime.cmpstring and bytes.Compare (https://golang.org/cl/8010)
 sort: number of Sort performance optimizations (https://golang.org/cl/2100, https://golang.org/cl/2614, ...)
 strconv: optimize decimal to string conversion (https://golang.org/cl/2105)
+strconv: optimize float to string conversion (https://golang.org/cl/5600)
+sync: add active spinning to Mutex (https://golang.org/cl/5430)
 math/big: faster assembly kernels for amd64 and 386 (https://golang.org/cl/2503, https://golang.org/cl/2560)
 math/big: faster "pure Go" kernels for platforms w/o assembly kernels (https://golang.org/cl/2480)
+regexp: port RE2's bitstate backtracker to the regexp package (https://golang.org/cl/2153)
 
 Assembler:
 

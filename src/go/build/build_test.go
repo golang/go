@@ -109,6 +109,10 @@ func TestMultiplePackageImport(t *testing.T) {
 }
 
 func TestLocalDirectory(t *testing.T) {
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
+		t.Skipf("skipping on %s/%s, no valid GOROOT", runtime.GOOS, runtime.GOARCH)
+	}
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
@@ -223,6 +227,10 @@ func TestMatchFile(t *testing.T) {
 }
 
 func TestImportCmd(t *testing.T) {
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
+		t.Skipf("skipping on %s/%s, no valid GOROOT", runtime.GOOS, runtime.GOARCH)
+	}
+
 	p, err := Import("cmd/internal/objfile", "", 0)
 	if err != nil {
 		t.Fatal(err)

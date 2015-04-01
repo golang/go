@@ -31,11 +31,11 @@
 package main
 
 import (
+	"cmd/internal/gc"
 	"cmd/internal/obj"
 	"cmd/internal/obj/x86"
 	"fmt"
 )
-import "cmd/internal/gc"
 
 var gactive uint32
 
@@ -45,14 +45,12 @@ const (
 
 // do we need the carry bit
 func needc(p *obj.Prog) bool {
-	var info gc.ProgInfo
-
 	for p != nil {
-		proginfo(&info, p)
-		if info.Flags&gc.UseCarry != 0 {
+		flags := progcarryflags(p)
+		if flags&gc.UseCarry != 0 {
 			return true
 		}
-		if info.Flags&(gc.SetCarry|gc.KillCarry) != 0 {
+		if flags&(gc.SetCarry|gc.KillCarry) != 0 {
 			return false
 		}
 		p = p.Link
@@ -308,7 +306,7 @@ func pushback(r0 *gc.Flow) {
 	var r *gc.Flow
 	var p *obj.Prog
 
-	b := (*gc.Flow)(nil)
+	var b *gc.Flow
 	p0 := (*obj.Prog)(r0.Prog)
 	for r = gc.Uniqp(r0); r != nil && gc.Uniqs(r) != nil; r = gc.Uniqp(r) {
 		p = r.Prog
@@ -328,7 +326,7 @@ func pushback(r0 *gc.Flow) {
 	}
 
 	if b == nil {
-		if gc.Debug['v'] != 0 {
+		if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 			fmt.Printf("no pushback: %v\n", r0.Prog)
 			if r != nil {
 				fmt.Printf("\t%v [%d]\n", r.Prog, gc.Uniqs(r) != nil)
@@ -338,7 +336,7 @@ func pushback(r0 *gc.Flow) {
 		return
 	}
 
-	if gc.Debug['v'] != 0 {
+	if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 		fmt.Printf("pushback\n")
 		for r := (*gc.Flow)(b); ; r = r.Link {
 			fmt.Printf("\t%v\n", r.Prog)
@@ -368,7 +366,7 @@ func pushback(r0 *gc.Flow) {
 	p0.From = t.From
 	p0.To = t.To
 
-	if gc.Debug['v'] != 0 {
+	if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 		fmt.Printf("\tafter\n")
 		for r := (*gc.Flow)(b); ; r = r.Link {
 			fmt.Printf("\t%v\n", r.Prog)
@@ -508,15 +506,12 @@ func regconsttyp(a *obj.Addr) bool {
 
 // is reg guaranteed to be truncated by a previous L instruction?
 func prevl(r0 *gc.Flow, reg int) bool {
-	var p *obj.Prog
-	var info gc.ProgInfo
-
 	for r := (*gc.Flow)(gc.Uniqp(r0)); r != nil; r = gc.Uniqp(r) {
-		p = r.Prog
+		p := r.Prog
 		if p.To.Type == obj.TYPE_REG && int(p.To.Reg) == reg {
-			proginfo(&info, p)
-			if info.Flags&gc.RightWrite != 0 {
-				if info.Flags&gc.SizeL != 0 {
+			flags := progflags(p)
+			if flags&gc.RightWrite != 0 {
+				if flags&gc.SizeL != 0 {
 					return true
 				}
 				return false
@@ -562,9 +557,7 @@ func subprop(r0 *gc.Flow) bool {
 		return false
 	}
 
-	var info gc.ProgInfo
-	var r *gc.Flow
-	for r = gc.Uniqp(r0); r != nil; r = gc.Uniqp(r) {
+	for r := gc.Uniqp(r0); r != nil; r = gc.Uniqp(r) {
 		if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 			fmt.Printf("\t? %v\n", r.Prog)
 		}
@@ -579,23 +572,46 @@ func subprop(r0 *gc.Flow) bool {
 		if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
 			continue
 		}
-		proginfo(&info, p)
-		if info.Flags&gc.Call != 0 {
+		if p.Info.Flags&gc.Call != 0 {
 			if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 				fmt.Printf("\tfound %v; return 0\n", p)
 			}
 			return false
 		}
 
-		if info.Reguse|info.Regset != 0 {
+		if p.Info.Reguse|p.Info.Regset != 0 {
 			if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 				fmt.Printf("\tfound %v; return 0\n", p)
 			}
 			return false
 		}
 
-		if (info.Flags&gc.Move != 0) && (info.Flags&(gc.SizeL|gc.SizeQ|gc.SizeF|gc.SizeD) != 0) && p.To.Type == v1.Type && p.To.Reg == v1.Reg {
-			goto gotit
+		if (p.Info.Flags&gc.Move != 0) && (p.Info.Flags&(gc.SizeL|gc.SizeQ|gc.SizeF|gc.SizeD) != 0) && p.To.Type == v1.Type && p.To.Reg == v1.Reg {
+			copysub(&p.To, v1, v2, 1)
+			if gc.Debug['P'] != 0 {
+				fmt.Printf("gotit: %v->%v\n%v", gc.Ctxt.Dconv(v1), gc.Ctxt.Dconv(v2), r.Prog)
+				if p.From.Type == v2.Type && p.From.Reg == v2.Reg {
+					fmt.Printf(" excise")
+				}
+				fmt.Printf("\n")
+			}
+
+			for r = gc.Uniqs(r); r != r0; r = gc.Uniqs(r) {
+				p = r.Prog
+				copysub(&p.From, v1, v2, 1)
+				copysub(&p.To, v1, v2, 1)
+				if gc.Debug['P'] != 0 {
+					fmt.Printf("%v\n", r.Prog)
+				}
+			}
+
+			t := int(int(v1.Reg))
+			v1.Reg = v2.Reg
+			v2.Reg = int16(t)
+			if gc.Debug['P'] != 0 {
+				fmt.Printf("%v last\n", r.Prog)
+			}
+			return true
 		}
 
 		if copyau(&p.From, v2) || copyau(&p.To, v2) {
@@ -617,33 +633,6 @@ func subprop(r0 *gc.Flow) bool {
 		fmt.Printf("\tran off end; return 0\n")
 	}
 	return false
-
-gotit:
-	copysub(&p.To, v1, v2, 1)
-	if gc.Debug['P'] != 0 {
-		fmt.Printf("gotit: %v->%v\n%v", gc.Ctxt.Dconv(v1), gc.Ctxt.Dconv(v2), r.Prog)
-		if p.From.Type == v2.Type && p.From.Reg == v2.Reg {
-			fmt.Printf(" excise")
-		}
-		fmt.Printf("\n")
-	}
-
-	for r = gc.Uniqs(r); r != r0; r = gc.Uniqs(r) {
-		p = r.Prog
-		copysub(&p.From, v1, v2, 1)
-		copysub(&p.To, v1, v2, 1)
-		if gc.Debug['P'] != 0 {
-			fmt.Printf("%v\n", r.Prog)
-		}
-	}
-
-	t := int(int(v1.Reg))
-	v1.Reg = v2.Reg
-	v2.Reg = int16(t)
-	if gc.Debug['P'] != 0 {
-		fmt.Printf("%v last\n", r.Prog)
-	}
-	return true
 }
 
 /*
@@ -829,26 +818,24 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 	if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
 		return 0
 	}
-	var info gc.ProgInfo
-	proginfo(&info, p)
 
-	if (info.Reguse|info.Regset)&RtoB(int(v.Reg)) != 0 {
+	if (p.Info.Reguse|p.Info.Regset)&RtoB(int(v.Reg)) != 0 {
 		return 2
 	}
 
-	if info.Flags&gc.LeftAddr != 0 {
+	if p.Info.Flags&gc.LeftAddr != 0 {
 		if copyas(&p.From, v) {
 			return 2
 		}
 	}
 
-	if info.Flags&(gc.RightRead|gc.RightWrite) == gc.RightRead|gc.RightWrite {
+	if p.Info.Flags&(gc.RightRead|gc.RightWrite) == gc.RightRead|gc.RightWrite {
 		if copyas(&p.To, v) {
 			return 2
 		}
 	}
 
-	if info.Flags&gc.RightWrite != 0 {
+	if p.Info.Flags&gc.RightWrite != 0 {
 		if copyas(&p.To, v) {
 			if s != nil {
 				return copysub(&p.From, v, s, 1)
@@ -860,7 +847,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		}
 	}
 
-	if info.Flags&(gc.LeftAddr|gc.LeftRead|gc.LeftWrite|gc.RightAddr|gc.RightRead|gc.RightWrite) != 0 {
+	if p.Info.Flags&(gc.LeftAddr|gc.LeftRead|gc.LeftWrite|gc.RightAddr|gc.RightRead|gc.RightWrite) != 0 {
 		if s != nil {
 			if copysub(&p.From, v, s, 1) != 0 {
 				return 1
@@ -1027,7 +1014,7 @@ loop:
 					if p.From.Node == p0.From.Node {
 						if p.From.Offset == p0.From.Offset {
 							if p.From.Scale == p0.From.Scale {
-								if p.From.Type == obj.TYPE_FCONST && p.From.U.Dval == p0.From.U.Dval {
+								if p.From.Type == obj.TYPE_FCONST && p.From.Val.(float64) == p0.From.Val.(float64) {
 									if p.From.Index == p0.From.Index {
 										excise(r)
 										goto loop

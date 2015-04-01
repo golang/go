@@ -866,7 +866,7 @@ var t interface{}
 t = functionOfSomeType()
 switch t := t.(type) {
 default:
-    fmt.Printf("unexpected type %T", t)       // %T prints whatever type t has
+    fmt.Printf("unexpected type %T\n", t)     // %T prints whatever type t has
 case bool:
     fmt.Printf("boolean %t\n", t)             // t has type bool
 case int:

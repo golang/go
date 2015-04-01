@@ -31,11 +31,11 @@
 package main
 
 import (
+	"cmd/internal/ld"
 	"cmd/internal/obj"
 	"fmt"
 	"log"
 )
-import "cmd/internal/ld"
 
 // Reading object files.
 

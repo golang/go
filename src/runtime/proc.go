@@ -58,7 +58,7 @@ func main() {
 		}
 	}()
 
-	memstats.enablegc = true // now that runtime is initialized, GC is okay
+	gcenable()
 
 	if iscgo {
 		if _cgo_thread_start == nil {
@@ -95,13 +95,21 @@ func main() {
 	// let the other goroutine finish printing the panic trace.
 	// Once it does, it will exit. See issue 3934.
 	if panicking != 0 {
-		gopark(nil, nil, "panicwait", traceEvGoStop)
+		gopark(nil, nil, "panicwait", traceEvGoStop, 1)
 	}
 
 	exit(0)
 	for {
 		var x *int32
 		*x = 0
+	}
+}
+
+// os_beforeExit is called from os.Exit(0).
+//go:linkname os_beforeExit os.runtime_beforeExit
+func os_beforeExit() {
+	if raceenabled {
+		racefini()
 	}
 }
 
@@ -118,7 +126,7 @@ func forcegchelper() {
 			throw("forcegc: phase error")
 		}
 		atomicstore(&forcegc.idle, 1)
-		goparkunlock(&forcegc.lock, "force gc (idle)", traceEvGoBlock)
+		goparkunlock(&forcegc.lock, "force gc (idle)", traceEvGoBlock, 1)
 		// this goroutine is explicitly resumed by sysmon
 		if debug.gctrace > 0 {
 			println("GC forced")
@@ -137,7 +145,7 @@ func Gosched() {
 
 // Puts the current goroutine into a waiting state and calls unlockf.
 // If unlockf returns false, the goroutine is resumed.
-func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason string, traceEv byte) {
+func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason string, traceEv byte, traceskip int) {
 	mp := acquirem()
 	gp := mp.curg
 	status := readgstatus(gp)
@@ -148,6 +156,7 @@ func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason s
 	mp.waitunlockf = *(*unsafe.Pointer)(unsafe.Pointer(&unlockf))
 	gp.waitreason = reason
 	mp.waittraceev = traceEv
+	mp.waittraceskip = traceskip
 	releasem(mp)
 	// can't do anything that might move the G between Ms here.
 	mcall(park_m)
@@ -155,29 +164,18 @@ func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason s
 
 // Puts the current goroutine into a waiting state and unlocks the lock.
 // The goroutine can be made runnable again by calling goready(gp).
-func goparkunlock(lock *mutex, reason string, traceEv byte) {
-	gopark(parkunlock_c, unsafe.Pointer(lock), reason, traceEv)
+func goparkunlock(lock *mutex, reason string, traceEv byte, traceskip int) {
+	gopark(parkunlock_c, unsafe.Pointer(lock), reason, traceEv, traceskip)
 }
 
-func goready(gp *g) {
+func goready(gp *g, traceskip int) {
 	systemstack(func() {
-		ready(gp)
+		ready(gp, traceskip)
 	})
 }
 
 //go:nosplit
 func acquireSudog() *sudog {
-	c := gomcache()
-	s := c.sudogcache
-	if s != nil {
-		if s.elem != nil {
-			throw("acquireSudog: found s.elem != nil in cache")
-		}
-		c.sudogcache = s.next
-		s.next = nil
-		return s
-	}
-
 	// Delicate dance: the semaphore implementation calls
 	// acquireSudog, acquireSudog calls new(sudog),
 	// new calls malloc, malloc can call the garbage collector,
@@ -187,12 +185,31 @@ func acquireSudog() *sudog {
 	// The acquirem/releasem increments m.locks during new(sudog),
 	// which keeps the garbage collector from being invoked.
 	mp := acquirem()
-	p := new(sudog)
-	if p.elem != nil {
-		throw("acquireSudog: found p.elem != nil after new")
+	pp := mp.p
+	if len(pp.sudogcache) == 0 {
+		lock(&sched.sudoglock)
+		// First, try to grab a batch from central cache.
+		for len(pp.sudogcache) < cap(pp.sudogcache)/2 && sched.sudogcache != nil {
+			s := sched.sudogcache
+			sched.sudogcache = s.next
+			s.next = nil
+			pp.sudogcache = append(pp.sudogcache, s)
+		}
+		unlock(&sched.sudoglock)
+		// If the central cache is empty, allocate a new one.
+		if len(pp.sudogcache) == 0 {
+			pp.sudogcache = append(pp.sudogcache, new(sudog))
+		}
+	}
+	n := len(pp.sudogcache)
+	s := pp.sudogcache[n-1]
+	pp.sudogcache[n-1] = nil
+	pp.sudogcache = pp.sudogcache[:n-1]
+	if s.elem != nil {
+		throw("acquireSudog: found s.elem != nil in cache")
 	}
 	releasem(mp)
-	return p
+	return s
 }
 
 //go:nosplit
@@ -216,9 +233,30 @@ func releaseSudog(s *sudog) {
 	if gp.param != nil {
 		throw("runtime: releaseSudog with non-nil gp.param")
 	}
-	c := gomcache()
-	s.next = c.sudogcache
-	c.sudogcache = s
+	mp := acquirem() // avoid rescheduling to another P
+	pp := mp.p
+	if len(pp.sudogcache) == cap(pp.sudogcache) {
+		// Transfer half of local cache to the central cache.
+		var first, last *sudog
+		for len(pp.sudogcache) > cap(pp.sudogcache)/2 {
+			n := len(pp.sudogcache)
+			p := pp.sudogcache[n-1]
+			pp.sudogcache[n-1] = nil
+			pp.sudogcache = pp.sudogcache[:n-1]
+			if first == nil {
+				first = p
+			} else {
+				last.next = p
+			}
+			last = p
+		}
+		lock(&sched.sudoglock)
+		last.next = sched.sudogcache
+		sched.sudogcache = first
+		unlock(&sched.sudoglock)
+	}
+	pp.sudogcache = append(pp.sudogcache, s)
+	releasem(mp)
 }
 
 // funcPC returns the entry PC of the function f.

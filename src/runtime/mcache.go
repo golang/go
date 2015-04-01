@@ -24,8 +24,6 @@ type mcache struct {
 
 	stackcache [_NumStackOrders]stackfreelist
 
-	sudogcache *sudog
-
 	// Local allocator stats, flushed during GC.
 	local_nlookup    uintptr                  // number of pointer lookups
 	local_largefree  uintptr                  // bytes freed for large objects (>maxsmallsize)

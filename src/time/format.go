@@ -288,7 +288,7 @@ var longMonthNames = []string{
 	"December",
 }
 
-// match returns true if s1 and s2 match ignoring case.
+// match reports whether s1 and s2 match ignoring case.
 // It is assumed s1 and s2 are the same length.
 func match(s1, s2 string) bool {
 	for i := 0; i < len(s1); i++ {
@@ -620,8 +620,7 @@ func (e *ParseError) Error() string {
 		quote(e.Value) + e.Message
 }
 
-// isDigit returns true if s[i] is a decimal digit, false if not or
-// if s[i] is out of range.
+// isDigit reports whether s[i] is in range and is a decimal digit.
 func isDigit(s string, i int) bool {
 	if len(s) <= i {
 		return false
@@ -681,10 +680,13 @@ func skip(value, prefix string) (string, error) {
 // would be interpreted if it were the value; it serves as an example of
 // the input format. The same interpretation will then be made to the
 // input string.
+//
 // Predefined layouts ANSIC, UnixDate, RFC3339 and others describe standard
 // and convenient representations of the reference time. For more information
 // about the formats and the definition of the reference time, see the
 // documentation for ANSIC and the other constants defined by this package.
+// Also, the executable Example for time.Format demonstrates the working
+// of the layout string in detail and is a good reference.
 //
 // Elements omitted from the value are assumed to be zero or, when
 // zero is impossible, one, so parsing "3:04pm" returns the time

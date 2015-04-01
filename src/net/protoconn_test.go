@@ -35,15 +35,6 @@ func testUnixAddr() string {
 	return addr
 }
 
-var condFatalf = func() func(*testing.T, string, ...interface{}) {
-	// A few APIs are not implemented yet on both Plan 9 and Windows.
-	switch runtime.GOOS {
-	case "plan9", "windows":
-		return (*testing.T).Logf
-	}
-	return (*testing.T).Fatalf
-}()
-
 func TestTCPListenerSpecificMethods(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
@@ -218,9 +209,8 @@ func TestIPConnSpecificMethods(t *testing.T) {
 }
 
 func TestUnixListenerSpecificMethods(t *testing.T) {
-	switch runtime.GOOS {
-	case "nacl", "plan9", "windows":
-		t.Skipf("skipping test on %q", runtime.GOOS)
+	if !testableNetwork("unix") {
+		t.Skip("unix test")
 	}
 
 	addr := testUnixAddr()
@@ -260,9 +250,8 @@ func TestUnixListenerSpecificMethods(t *testing.T) {
 }
 
 func TestUnixConnSpecificMethods(t *testing.T) {
-	switch runtime.GOOS {
-	case "nacl", "plan9", "windows":
-		t.Skipf("skipping test on %q", runtime.GOOS)
+	if !testableNetwork("unixgram") {
+		t.Skip("unixgram test")
 	}
 
 	addr1, addr2, addr3 := testUnixAddr(), testUnixAddr(), testUnixAddr()

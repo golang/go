@@ -14,31 +14,28 @@ import "cmd/internal/obj"
  * rewrite with a constant
  */
 func unsafenmagic(nn *Node) *Node {
-	var r *Node
-	var s *Sym
-	var v int64
-
 	fn := nn.Left
 	args := nn.List
 
 	if safemode != 0 || fn == nil || fn.Op != ONAME {
-		goto no
+		return nil
 	}
-	s = fn.Sym
+	s := fn.Sym
 	if s == nil {
-		goto no
+		return nil
 	}
 	if s.Pkg != unsafepkg {
-		goto no
+		return nil
 	}
 
 	if args == nil {
 		Yyerror("missing argument for %v", Sconv(s, 0))
-		goto no
+		return nil
 	}
 
-	r = args.N
+	r := args.N
 
+	var v int64
 	if s.Name == "Sizeof" {
 		typecheck(&r, Erv)
 		defaultlit(&r, nil)
@@ -65,8 +62,7 @@ func unsafenmagic(nn *Node) *Node {
 		base := r.Left
 		typecheck(&r, Erv)
 		switch r.Op {
-		case ODOT,
-			ODOTPTR:
+		case ODOT, ODOTPTR:
 			break
 
 		case OCALLPART:
@@ -127,7 +123,6 @@ func unsafenmagic(nn *Node) *Node {
 		goto yes
 	}
 
-no:
 	return nil
 
 bad:

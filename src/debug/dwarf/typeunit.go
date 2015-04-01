@@ -27,16 +27,10 @@ func (d *Data) parseTypes(name string, types []byte) error {
 	b := makeBuf(d, unknownFormat{}, name, 0, types)
 	for len(b.data) > 0 {
 		base := b.off
-		dwarf64 := false
-		n := b.uint32()
-		if n == 0xffffffff {
-			n64 := b.uint64()
-			if n64 != uint64(uint32(n64)) {
-				b.error("type unit length overflow")
-				return b.err
-			}
-			n = uint32(n64)
-			dwarf64 = true
+		n, dwarf64 := b.unitLength()
+		if n != Offset(uint32(n)) {
+			b.error("type unit length overflow")
+			return b.err
 		}
 		hdroff := b.off
 		vers := b.uint16()
@@ -79,7 +73,7 @@ func (d *Data) parseTypes(name string, types []byte) error {
 			unit: unit{
 				base:   base,
 				off:    boff,
-				data:   b.bytes(int(Offset(n) - (b.off - hdroff))),
+				data:   b.bytes(int(n - (b.off - hdroff))),
 				atable: atable,
 				asize:  int(asize),
 				vers:   int(vers),

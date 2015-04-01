@@ -140,14 +140,24 @@ func parseNetworkLayerAddr(b []byte, family byte) (Sockaddr, error) {
 	if len(b) < l {
 		return nil, EINVAL
 	}
-	switch family {
-	case AF_INET6:
+	// Don't reorder case expressions.
+	// The case expressions for IPv6 must come first.
+	switch {
+	case b[0] == SizeofSockaddrInet6:
+		sa := &SockaddrInet6{}
+		copy(sa.Addr[:], b[offsetofInet6:])
+		return sa, nil
+	case family == AF_INET6:
 		sa := &SockaddrInet6{}
 		if l-1 < offsetofInet6 {
 			copy(sa.Addr[:], b[1:l])
 		} else {
 			copy(sa.Addr[:], b[l-offsetofInet6:l])
 		}
+		return sa, nil
+	case b[0] == SizeofSockaddrInet4:
+		sa := &SockaddrInet4{}
+		copy(sa.Addr[:], b[offsetofInet4:])
 		return sa, nil
 	default: // an old fashion, AF_UNSPEC or unknown means AF_INET
 		sa := &SockaddrInet4{}

@@ -213,7 +213,7 @@ func TestMkdirAllAtSlash(t *testing.T) {
 		}
 	}
 	RemoveAll("/_go_os_test")
-	const dir = "/go_os_test/dir"
+	const dir = "/_go_os_test/dir"
 	err := MkdirAll(dir, 0777)
 	if err != nil {
 		pathErr, ok := err.(*PathError)
@@ -221,7 +221,7 @@ func TestMkdirAllAtSlash(t *testing.T) {
 		if ok && (pathErr.Err == syscall.EACCES || isReadonlyError(pathErr.Err)) {
 			t.Skipf("could not create %v: %v", dir, err)
 		}
-		t.Fatalf(`MkdirAll "/_go_os_test/dir": %v, %s, %d`, err, pathErr.Err, pathErr.Err)
+		t.Fatalf(`MkdirAll "/_go_os_test/dir": %v, %s`, err, pathErr.Err)
 	}
 	RemoveAll("/_go_os_test")
 }

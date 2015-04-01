@@ -49,7 +49,7 @@ func addexp(s string) {
 	os.Exit(2)
 }
 
-func linksetexp() {
+func init() {
 	for _, f := range strings.Split(goexperiment, ",") {
 		if f != "" {
 			addexp(f)

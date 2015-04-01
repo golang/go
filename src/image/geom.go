@@ -5,6 +5,7 @@
 package image
 
 import (
+	"image/color"
 	"strconv"
 )
 
@@ -77,6 +78,10 @@ func Pt(X, Y int) Point {
 // It is well-formed if Min.X <= Max.X and likewise for Y. Points are always
 // well-formed. A rectangle's methods always return well-formed outputs for
 // well-formed inputs.
+//
+// A Rectangle is also an Image whose bounds are the rectangle itself. At
+// returns color.Opaque for points in the rectangle and color.Transparent
+// otherwise.
 type Rectangle struct {
 	Min, Max Point
 }
@@ -224,6 +229,24 @@ func (r Rectangle) Canon() Rectangle {
 		r.Min.Y, r.Max.Y = r.Max.Y, r.Min.Y
 	}
 	return r
+}
+
+// At implements the Image interface.
+func (r Rectangle) At(x, y int) color.Color {
+	if (Point{x, y}).In(r) {
+		return color.Opaque
+	}
+	return color.Transparent
+}
+
+// Bounds implements the Image interface.
+func (r Rectangle) Bounds() Rectangle {
+	return r
+}
+
+// ColorModel implements the Image interface.
+func (r Rectangle) ColorModel() color.Model {
+	return color.Alpha16Model
 }
 
 // ZR is the zero Rectangle.

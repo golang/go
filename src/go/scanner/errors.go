@@ -62,7 +62,14 @@ func (p ErrorList) Less(i, j int) bool {
 			return true
 		}
 		if e.Line == f.Line {
-			return e.Column < f.Column
+			if e.Column < f.Column {
+				return true
+			}
+			if e.Column == f.Column {
+				if p[i].Msg < p[j].Msg {
+					return true
+				}
+			}
 		}
 	}
 	return false

@@ -31,14 +31,111 @@
 package gc
 
 import (
+	"bytes"
 	"cmd/internal/obj"
 	"fmt"
 	"sort"
+	"strings"
 )
 
-var firstf *Flow
+// A Var represents a single variable that may be stored in a register.
+// That variable may itself correspond to a hardware register,
+// to represent the use of registers in the unoptimized instruction stream.
+type Var struct {
+	offset     int64
+	node       *Node
+	nextinnode *Var
+	width      int
+	id         int // index in vars
+	name       int8
+	etype      int8
+	addr       int8
+}
 
-var first int = 1
+// Bits represents a set of Vars, stored as a bit set of var numbers
+// (the index in vars, or equivalently v.id).
+type Bits struct {
+	b [BITS]uint64
+}
+
+const (
+	BITS = 3
+	NVAR = BITS * 64
+)
+
+var (
+	vars [NVAR]Var // variables under consideration
+	nvar int       // number of vars
+
+	regbits uint64 // bits for hardware registers
+
+	zbits   Bits // zero
+	externs Bits // global variables
+	params  Bits // function parameters and results
+	ivar    Bits // function parameters (inputs)
+	ovar    Bits // function results (outputs)
+	consts  Bits // constant values
+	addrs   Bits // variables with address taken
+)
+
+// A Reg is a wrapper around a single Prog (one instruction) that holds
+// register optimization information while the optimizer runs.
+// r->prog is the instruction.
+type Reg struct {
+	set  Bits // regopt variables written by this instruction.
+	use1 Bits // regopt variables read by prog->from.
+	use2 Bits // regopt variables read by prog->to.
+
+	// refahead/refbehind are the regopt variables whose current
+	// value may be used in the following/preceding instructions
+	// up to a CALL (or the value is clobbered).
+	refbehind Bits
+	refahead  Bits
+
+	// calahead/calbehind are similar, but for variables in
+	// instructions that are reachable after hitting at least one
+	// CALL.
+	calbehind Bits
+	calahead  Bits
+
+	regdiff Bits
+	act     Bits
+	regu    uint64 // register used bitmap
+}
+
+// A Rgn represents a single regopt variable over a region of code
+// where a register could potentially be dedicated to that variable.
+// The code encompassed by a Rgn is defined by the flow graph,
+// starting at enter, flood-filling forward while varno is refahead
+// and backward while varno is refbehind, and following branches.
+// A single variable may be represented by multiple disjoint Rgns and
+// each Rgn may choose a different register for that variable.
+// Registers are allocated to regions greedily in order of descending
+// cost.
+type Rgn struct {
+	enter *Flow
+	cost  int16
+	varno int16
+	regno int16
+}
+
+// The Plan 9 C compilers used a limit of 600 regions,
+// but the yacc-generated parser in y.go has 3100 regions.
+// We set MaxRgn large enough to handle that.
+// There's not a huge cost to having too many regions:
+// the main processing traces the live area for each variable,
+// which is limited by the number of variables times the area,
+// not the raw region count. If there are many regions, they
+// are almost certainly small and easy to trace.
+// The only operation that scales with region count is the
+// sorting by cost, which uses sort.Sort and is therefore
+// guaranteed n log n.
+const MaxRgn = 6000
+
+var (
+	region  []Rgn
+	nregion int
+)
 
 type rcmp []Rgn
 
@@ -75,13 +172,13 @@ func setaddrs(bit Bits) {
 		// convert each bit to a variable
 		i = bnum(bit)
 
-		node = var_[i].node
-		n = int(var_[i].name)
+		node = vars[i].node
+		n = int(vars[i].name)
 		biclr(&bit, uint(i))
 
 		// disable all pieces of that variable
 		for i = 0; i < nvar; i++ {
-			v = &var_[i:][0]
+			v = &vars[i]
 			if v.node == node && int(v.name) == n {
 				v.addr = 2
 			}
@@ -135,7 +232,7 @@ func addmove(r *Flow, bn int, rn int, f int) {
 	p.Link = p1
 	p1.Lineno = p.Lineno
 
-	v := &var_[bn:][0]
+	v := &vars[bn]
 
 	a := &p1.To
 	a.Offset = v.offset
@@ -154,7 +251,7 @@ func addmove(r *Flow, bn int, rn int, f int) {
 	p1.As = int16(Thearch.Optoas(OAS, Types[uint8(v.etype)]))
 
 	// TODO(rsc): Remove special case here.
-	if (Thearch.Thechar == '9' || Thearch.Thechar == '5') && v.etype == TBOOL {
+	if (Thearch.Thechar == '5' || Thearch.Thechar == '7' || Thearch.Thechar == '9') && v.etype == TBOOL {
 		p1.As = int16(Thearch.Optoas(OAS, Types[TUINT8]))
 	}
 	p1.From.Type = obj.TYPE_REG
@@ -185,32 +282,22 @@ func overlap_reg(o1 int64, w1 int, o2 int64, w2 int) bool {
 }
 
 func mkvar(f *Flow, a *obj.Addr) Bits {
-	var v *Var
-	var i int
-	var n int
-	var et int
-	var flag int
-	var w int64
-	var o int64
-	var bit Bits
-	var node *Node
-	var r *Reg
-
 	/*
 	 * mark registers used
 	 */
 	if a.Type == obj.TYPE_NONE {
-		goto none
+		return zbits
 	}
 
-	r = f.Data.(*Reg)
+	r := f.Data.(*Reg)
 	r.use1.b[0] |= Thearch.Doregbits(int(a.Index)) // TODO: Use RtoB
 
+	var n int
 	switch a.Type {
 	default:
 		regu := Thearch.Doregbits(int(a.Reg)) | Thearch.RtoB(int(a.Reg)) // TODO: Use RtoB
 		if regu == 0 {
-			goto none
+			return zbits
 		}
 		bit := zbits
 		bit.b[0] = regu
@@ -219,7 +306,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 		// TODO(rsc): Remove special case here.
 	case obj.TYPE_ADDR:
 		var bit Bits
-		if Thearch.Thechar == '9' || Thearch.Thechar == '5' {
+		if Thearch.Thechar == '5' || Thearch.Thechar == '7' || Thearch.Thechar == '9' {
 			goto memcase
 		}
 		a.Type = obj.TYPE_MEM
@@ -227,13 +314,13 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 		setaddrs(bit)
 		a.Type = obj.TYPE_ADDR
 		Ostats.Naddr++
-		goto none
+		return zbits
 
 	memcase:
 		fallthrough
 
 	case obj.TYPE_MEM:
-		if r != R {
+		if r != nil {
 			r.use1.b[0] |= Thearch.RtoB(int(a.Reg))
 		}
 
@@ -243,37 +330,43 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 		*/
 		switch a.Name {
 		default:
-			goto none
+			// Note: This case handles NAME_EXTERN and NAME_STATIC.
+			// We treat these as requiring eager writes to memory, due to
+			// the possibility of a fault handler looking at them, so there is
+			// not much point in registerizing the loads.
+			// If we later choose the set of candidate variables from a
+			// larger list, these cases could be deprioritized instead of
+			// removed entirely.
+			return zbits
 
-		case obj.NAME_EXTERN,
-			obj.NAME_STATIC,
-			obj.NAME_PARAM,
+		case obj.NAME_PARAM,
 			obj.NAME_AUTO:
 			n = int(a.Name)
 		}
 	}
 
-	node, _ = a.Node.(*Node)
+	node, _ := a.Node.(*Node)
 	if node == nil || node.Op != ONAME || node.Orig == nil {
-		goto none
+		return zbits
 	}
 	node = node.Orig
 	if node.Orig != node {
 		Fatal("%v: bad node", Ctxt.Dconv(a))
 	}
 	if node.Sym == nil || node.Sym.Name[0] == '.' {
-		goto none
+		return zbits
 	}
-	et = int(a.Etype)
-	o = a.Offset
-	w = a.Width
+	et := int(a.Etype)
+	o := a.Offset
+	w := a.Width
 	if w < 0 {
 		Fatal("bad width %d for %v", w, Ctxt.Dconv(a))
 	}
 
-	flag = 0
+	flag := 0
+	var v *Var
 	for i := 0; i < nvar; i++ {
-		v = &var_[i:][0]
+		v = &vars[i]
 		if v.node == node && int(v.name) == n {
 			if v.offset == o {
 				if int(v.etype) == et {
@@ -297,14 +390,16 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 	}
 
 	switch et {
-	case 0,
-		TFUNC:
-		goto none
+	case 0, TFUNC:
+		return zbits
 	}
 
 	if nvar >= NVAR {
 		if Debug['w'] > 1 && node != nil {
 			Fatal("variable not optimized: %v", Nconv(node, obj.FmtSharp))
+		}
+		if Debug['v'] > 0 {
+			Warn("variable not optimized: %v", Nconv(node, obj.FmtSharp))
 		}
 
 		// If we're not tracking a word in a variable, mark the rest as
@@ -313,18 +408,18 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 		// a variable but not all of it.
 		var v *Var
 		for i := 0; i < nvar; i++ {
-			v = &var_[i:][0]
+			v = &vars[i]
 			if v.node == node {
 				v.addr = 1
 			}
 		}
 
-		goto none
+		return zbits
 	}
 
-	i = nvar
+	i := nvar
 	nvar++
-	v = &var_[i:][0]
+	v = &vars[i]
 	v.id = i
 	v.offset = o
 	v.name = int8(n)
@@ -341,7 +436,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 
 	node.Opt = v
 
-	bit = blsh(uint(i))
+	bit := blsh(uint(i))
 	if n == obj.NAME_EXTERN || n == obj.NAME_STATIC {
 		for z := 0; z < BITS; z++ {
 			externs.b[z] |= bit.b[z]
@@ -379,7 +474,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 	// If we were better about _ elision, _ = &x would suffice too.
 	// The broader := in a closure problem is mentioned in a comment in
 	// closure.c:/^typecheckclosure and dcl.c:/^oldname.
-	if node.Addrtaken != 0 {
+	if node.Addrtaken {
 		v.addr = 1
 	}
 
@@ -401,10 +496,9 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 	Ostats.Nvar++
 
 	return bit
-
-none:
-	return zbits
 }
+
+var change int
 
 func prop(f *Flow, ref Bits, cal Bits) {
 	var f1 *Flow
@@ -420,13 +514,13 @@ func prop(f *Flow, ref Bits, cal Bits) {
 			ref.b[z] |= r1.refahead.b[z]
 			if ref.b[z] != r1.refahead.b[z] {
 				r1.refahead.b[z] = ref.b[z]
-				change++
+				change = 1
 			}
 
 			cal.b[z] |= r1.calahead.b[z]
 			if cal.b[z] != r1.calahead.b[z] {
 				r1.calahead.b[z] = cal.b[z]
-				change++
+				change = 1
 			}
 		}
 
@@ -468,7 +562,7 @@ func prop(f *Flow, ref Bits, cal Bits) {
 					if z*64+i >= nvar || (cal.b[z]>>uint(i))&1 == 0 {
 						continue
 					}
-					v = &var_[z*64+i:][0]
+					v = &vars[z*64+i]
 					if v.node.Opt == nil { // v represents fixed register, not Go variable
 						continue
 					}
@@ -539,7 +633,7 @@ func synch(f *Flow, dif Bits) {
 			dif.b[z] = dif.b[z]&^(^r1.refbehind.b[z]&r1.refahead.b[z]) | r1.set.b[z] | r1.regdiff.b[z]
 			if dif.b[z] != r1.regdiff.b[z] {
 				r1.regdiff.b[z] = dif.b[z]
-				change++
+				change = 1
 			}
 		}
 
@@ -557,7 +651,7 @@ func synch(f *Flow, dif Bits) {
 }
 
 func allreg(b uint64, r *Rgn) uint64 {
-	v := &var_[r.varno:][0]
+	v := &vars[r.varno]
 	r.regno = 0
 	switch v.etype {
 	default:
@@ -583,8 +677,7 @@ func allreg(b uint64, r *Rgn) uint64 {
 			return Thearch.RtoB(i)
 		}
 
-	case TFLOAT32,
-		TFLOAT64:
+	case TFLOAT32, TFLOAT64:
 		i := Thearch.BtoF(^b)
 		if i != 0 && r.cost > 0 {
 			r.regno = int16(i)
@@ -602,6 +695,13 @@ func LOAD(r *Reg, z int) uint64 {
 func STORE(r *Reg, z int) uint64 {
 	return ^r.calbehind.b[z] & r.calahead.b[z]
 }
+
+// Cost parameters
+const (
+	CLOAD = 5 // cost of load
+	CREF  = 5 // cost of reference if not registerized
+	LOOP  = 3 // loop execution count (applied in popt.go)
+)
 
 func paint1(f *Flow, bn int) {
 	z := bn / 64
@@ -867,31 +967,31 @@ func dumpone(f *Flow, isreg int) {
 		if bany(&bit) {
 			fmt.Printf("\t")
 			if bany(&r.set) {
-				fmt.Printf(" s:%v", Qconv(r.set, 0))
+				fmt.Printf(" s:%v", &r.set)
 			}
 			if bany(&r.use1) {
-				fmt.Printf(" u1:%v", Qconv(r.use1, 0))
+				fmt.Printf(" u1:%v", &r.use1)
 			}
 			if bany(&r.use2) {
-				fmt.Printf(" u2:%v", Qconv(r.use2, 0))
+				fmt.Printf(" u2:%v", &r.use2)
 			}
 			if bany(&r.refbehind) {
-				fmt.Printf(" rb:%v ", Qconv(r.refbehind, 0))
+				fmt.Printf(" rb:%v ", &r.refbehind)
 			}
 			if bany(&r.refahead) {
-				fmt.Printf(" ra:%v ", Qconv(r.refahead, 0))
+				fmt.Printf(" ra:%v ", &r.refahead)
 			}
 			if bany(&r.calbehind) {
-				fmt.Printf(" cb:%v ", Qconv(r.calbehind, 0))
+				fmt.Printf(" cb:%v ", &r.calbehind)
 			}
 			if bany(&r.calahead) {
-				fmt.Printf(" ca:%v ", Qconv(r.calahead, 0))
+				fmt.Printf(" ca:%v ", &r.calahead)
 			}
 			if bany(&r.regdiff) {
-				fmt.Printf(" d:%v ", Qconv(r.regdiff, 0))
+				fmt.Printf(" d:%v ", &r.regdiff)
 			}
 			if bany(&r.act) {
-				fmt.Printf(" a:%v ", Qconv(r.act, 0))
+				fmt.Printf(" a:%v ", &r.act)
 			}
 		}
 	}
@@ -934,10 +1034,6 @@ func Dumpit(str string, r0 *Flow, isreg int) {
 }
 
 func regopt(firstp *obj.Prog) {
-	if first != 0 {
-		first = 0
-	}
-
 	mergetemp(firstp)
 
 	/*
@@ -950,13 +1046,13 @@ func regopt(firstp *obj.Prog) {
 
 	nvar = nreg
 	for i := 0; i < nreg; i++ {
-		var_[i] = Var{}
+		vars[i] = Var{}
 	}
 	for i := 0; i < nreg; i++ {
 		if regnodes[i] == nil {
 			regnodes[i] = newname(Lookup(regnames[i]))
 		}
-		var_[i].node = regnodes[i]
+		vars[i].node = regnodes[i]
 	}
 
 	regbits = Thearch.Excludedregs()
@@ -974,27 +1070,20 @@ func regopt(firstp *obj.Prog) {
 	 * find use and set of variables
 	 */
 	g := Flowstart(firstp, func() interface{} { return new(Reg) })
-
 	if g == nil {
 		for i := 0; i < nvar; i++ {
-			var_[i].node.Opt = nil
+			vars[i].node.Opt = nil
 		}
 		return
 	}
 
-	firstf = g.Start
+	firstf := g.Start
 
-	var r *Reg
-	var info ProgInfo
-	var p *obj.Prog
-	var bit Bits
-	var z int
 	for f := firstf; f != nil; f = f.Link {
-		p = f.Prog
+		p := f.Prog
 		if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
 			continue
 		}
-		Thearch.Proginfo(&info, p)
 
 		// Avoid making variables for direct-called functions.
 		if p.As == obj.ACALL && p.To.Type == obj.TYPE_MEM && p.To.Name == obj.NAME_EXTERN {
@@ -1002,30 +1091,29 @@ func regopt(firstp *obj.Prog) {
 		}
 
 		// from vs to doesn't matter for registers.
-		r = f.Data.(*Reg)
+		r := f.Data.(*Reg)
+		r.use1.b[0] |= p.Info.Reguse | p.Info.Regindex
+		r.set.b[0] |= p.Info.Regset
 
-		r.use1.b[0] |= info.Reguse | info.Regindex
-		r.set.b[0] |= info.Regset
-
-		bit = mkvar(f, &p.From)
+		bit := mkvar(f, &p.From)
 		if bany(&bit) {
-			if info.Flags&LeftAddr != 0 {
+			if p.Info.Flags&LeftAddr != 0 {
 				setaddrs(bit)
 			}
-			if info.Flags&LeftRead != 0 {
-				for z = 0; z < BITS; z++ {
+			if p.Info.Flags&LeftRead != 0 {
+				for z := 0; z < BITS; z++ {
 					r.use1.b[z] |= bit.b[z]
 				}
 			}
-			if info.Flags&LeftWrite != 0 {
-				for z = 0; z < BITS; z++ {
+			if p.Info.Flags&LeftWrite != 0 {
+				for z := 0; z < BITS; z++ {
 					r.set.b[z] |= bit.b[z]
 				}
 			}
 		}
 
 		// Compute used register for reg
-		if info.Flags&RegRead != 0 {
+		if p.Info.Flags&RegRead != 0 {
 			r.use1.b[0] |= Thearch.RtoB(int(p.Reg))
 		}
 
@@ -1037,16 +1125,16 @@ func regopt(firstp *obj.Prog) {
 
 		bit = mkvar(f, &p.To)
 		if bany(&bit) {
-			if info.Flags&RightAddr != 0 {
+			if p.Info.Flags&RightAddr != 0 {
 				setaddrs(bit)
 			}
-			if info.Flags&RightRead != 0 {
-				for z = 0; z < BITS; z++ {
+			if p.Info.Flags&RightRead != 0 {
+				for z := 0; z < BITS; z++ {
 					r.use2.b[z] |= bit.b[z]
 				}
 			}
-			if info.Flags&RightWrite != 0 {
-				for z = 0; z < BITS; z++ {
+			if p.Info.Flags&RightWrite != 0 {
+				for z := 0; z < BITS; z++ {
 					r.set.b[z] |= bit.b[z]
 				}
 			}
@@ -1054,10 +1142,10 @@ func regopt(firstp *obj.Prog) {
 	}
 
 	for i := 0; i < nvar; i++ {
-		v := &var_[i:][0]
+		v := &vars[i]
 		if v.addr != 0 {
-			bit = blsh(uint(i))
-			for z = 0; z < BITS; z++ {
+			bit := blsh(uint(i))
+			for z := 0; z < BITS; z++ {
 				addrs.b[z] |= bit.b[z]
 			}
 		}
@@ -1092,12 +1180,12 @@ func regopt(firstp *obj.Prog) {
 
 	for f := firstf; f != nil; f = f.Link {
 		f.Active = 0
-		r = f.Data.(*Reg)
+		r := f.Data.(*Reg)
 		r.act = zbits
 	}
 
 	for f := firstf; f != nil; f = f.Link {
-		p = f.Prog
+		p := f.Prog
 		if p.As == obj.AVARDEF && Isfat(((p.To.Node).(*Node)).Type) && ((p.To.Node).(*Node)).Opt != nil {
 			active++
 			walkvardef(p.To.Node.(*Node), f, active)
@@ -1173,7 +1261,7 @@ loop2:
 	 */
 	mask := uint64((1 << uint(nreg)) - 1)
 	for f := firstf; f != nil; f = f.Link {
-		r = f.Data.(*Reg)
+		r := f.Data.(*Reg)
 		r.regu = (r.refbehind.b[0] | r.set.b[0]) & mask
 		r.set.b[0] &^= mask
 		r.use1.b[0] &^= mask
@@ -1195,9 +1283,8 @@ loop2:
 	 * isolate regions
 	 * calculate costs (paint1)
 	 */
-	f = firstf
-
-	if f != nil {
+	var bit Bits
+	if f := firstf; f != nil {
 		r := f.Data.(*Reg)
 		for z := 0; z < BITS; z++ {
 			bit.b[z] = (r.refahead.b[z] | r.calahead.b[z]) &^ (externs.b[z] | params.b[z] | addrs.b[z] | consts.b[z])
@@ -1205,7 +1292,7 @@ loop2:
 		if bany(&bit) && f.Refset == 0 {
 			// should never happen - all variables are preset
 			if Debug['w'] != 0 {
-				fmt.Printf("%v: used and not set: %v\n", f.Prog.Line(), Qconv(bit, 0))
+				fmt.Printf("%v: used and not set: %v\n", f.Prog.Line(), &bit)
 			}
 			f.Refset = 1
 		}
@@ -1215,21 +1302,22 @@ loop2:
 		(f.Data.(*Reg)).act = zbits
 	}
 	nregion = 0
+	region = region[:0]
 	var rgp *Rgn
 	for f := firstf; f != nil; f = f.Link {
-		r = f.Data.(*Reg)
-		for z = 0; z < BITS; z++ {
+		r := f.Data.(*Reg)
+		for z := 0; z < BITS; z++ {
 			bit.b[z] = r.set.b[z] &^ (r.refahead.b[z] | r.calahead.b[z] | addrs.b[z])
 		}
 		if bany(&bit) && f.Refset == 0 {
 			if Debug['w'] != 0 {
-				fmt.Printf("%v: set and not used: %v\n", f.Prog.Line(), Qconv(bit, 0))
+				fmt.Printf("%v: set and not used: %v\n", f.Prog.Line(), &bit)
 			}
 			f.Refset = 1
 			Thearch.Excise(f)
 		}
 
-		for z = 0; z < BITS; z++ {
+		for z := 0; z < BITS; z++ {
 			bit.b[z] = LOAD(r, z) &^ (r.act.b[z] | addrs.b[z])
 		}
 		for bany(&bit) {
@@ -1240,22 +1328,30 @@ loop2:
 			if change <= 0 {
 				continue
 			}
-			if nregion >= NRGN {
-				if Debug['R'] != 0 && Debug['v'] != 0 {
-					fmt.Printf("too many regions\n")
-				}
-				goto brk
+			if nregion >= MaxRgn {
+				nregion++
+				continue
 			}
 
-			rgp = &region[nregion]
-			rgp.enter = f
-			rgp.varno = int16(i)
-			rgp.cost = int16(change)
+			region = append(region, Rgn{
+				enter: f,
+				cost:  int16(change),
+				varno: int16(i),
+			})
 			nregion++
 		}
 	}
 
-brk:
+	if false && Debug['v'] != 0 && strings.Contains(Curfn.Nname.Sym.Name, "Parse") {
+		Warn("regions: %d\n", nregion)
+	}
+	if nregion >= MaxRgn {
+		if Debug['v'] != 0 {
+			Warn("too many regions: %d\n", nregion)
+		}
+		nregion = MaxRgn
+	}
+
 	sort.Sort(rcmp(region[:nregion]))
 
 	if Debug['R'] != 0 && Debug['v'] != 0 {
@@ -1282,7 +1378,7 @@ brk:
 		vreg = allreg(usedreg, rgp)
 		if rgp.regno != 0 {
 			if Debug['R'] != 0 && Debug['v'] != 0 {
-				v := &var_[rgp.varno:][0]
+				v := &vars[rgp.varno]
 				fmt.Printf("registerize %v+%d (bit=%2d et=%v) in %v usedreg=%#x vreg=%#x\n", Nconv(v.node, 0), v.offset, rgp.varno, Econv(int(v.etype), 0), obj.Rconv(int(rgp.regno)), usedreg, vreg)
 			}
 
@@ -1294,7 +1390,7 @@ brk:
 	 * free aux structures. peep allocates new ones.
 	 */
 	for i := 0; i < nvar; i++ {
-		var_[i].node.Opt = nil
+		vars[i].node.Opt = nil
 	}
 	Flowend(g)
 	firstf = nil
@@ -1302,7 +1398,6 @@ brk:
 	if Debug['R'] != 0 && Debug['v'] != 0 {
 		// Rebuild flow graph, since we inserted instructions
 		g := Flowstart(firstp, nil)
-
 		firstf = g.Start
 		Dumpit("pass6", firstf, 0)
 		Flowend(g)
@@ -1325,8 +1420,8 @@ brk:
 			p.Link = p.Link.Link
 		}
 		if p.To.Type == obj.TYPE_BRANCH {
-			for p.To.U.Branch != nil && p.To.U.Branch.As == obj.ANOP {
-				p.To.U.Branch = p.To.U.Branch.Link
+			for p.To.Val.(*obj.Prog) != nil && p.To.Val.(*obj.Prog).As == obj.ANOP {
+				p.To.Val = p.To.Val.(*obj.Prog).Link
 			}
 		}
 	}
@@ -1357,4 +1452,108 @@ brk:
 
 		Ostats = OptStats{}
 	}
+}
+
+// bany reports whether any bits in a are set.
+func bany(a *Bits) bool {
+	for _, x := range &a.b { // & to avoid making a copy of a.b
+		if x != 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// bnum reports the lowest index of a 1 bit in a.
+func bnum(a Bits) int {
+	for i, x := range &a.b { // & to avoid making a copy of a.b
+		if x != 0 {
+			return 64*i + Bitno(x)
+		}
+	}
+
+	Fatal("bad in bnum")
+	return 0
+}
+
+// blsh returns a Bits with 1 at index n, 0 elsewhere (1<<n).
+func blsh(n uint) Bits {
+	c := zbits
+	c.b[n/64] = 1 << (n % 64)
+	return c
+}
+
+// btest reports whether bit n is 1.
+func btest(a *Bits, n uint) bool {
+	return a.b[n/64]&(1<<(n%64)) != 0
+}
+
+// biset sets bit n to 1.
+func biset(a *Bits, n uint) {
+	a.b[n/64] |= 1 << (n % 64)
+}
+
+// biclr sets bit n to 0.
+func biclr(a *Bits, n uint) {
+	a.b[n/64] &^= (1 << (n % 64))
+}
+
+// Bitno reports the lowest index of a 1 bit in b.
+// It calls Fatal if there is no 1 bit.
+func Bitno(b uint64) int {
+	if b == 0 {
+		Fatal("bad in bitno")
+	}
+	n := 0
+	if b&(1<<32-1) == 0 {
+		n += 32
+		b >>= 32
+	}
+	if b&(1<<16-1) == 0 {
+		n += 16
+		b >>= 16
+	}
+	if b&(1<<8-1) == 0 {
+		n += 8
+		b >>= 8
+	}
+	if b&(1<<4-1) == 0 {
+		n += 4
+		b >>= 4
+	}
+	if b&(1<<2-1) == 0 {
+		n += 2
+		b >>= 2
+	}
+	if b&1 == 0 {
+		n++
+	}
+	return n
+}
+
+// String returns a space-separated list of the variables represented by bits.
+func (bits Bits) String() string {
+	// Note: This method takes a value receiver, both for convenience
+	// and to make it safe to modify the bits as we process them.
+	// Even so, most prints above use &bits, because then the value
+	// being stored in the interface{} is a pointer and does not require
+	// an allocation and copy to create the interface{}.
+	var buf bytes.Buffer
+	sep := ""
+	for bany(&bits) {
+		i := bnum(bits)
+		buf.WriteString(sep)
+		sep = " "
+		v := &vars[i]
+		if v.node == nil || v.node.Sym == nil {
+			fmt.Fprintf(&buf, "$%d", i)
+		} else {
+			fmt.Fprintf(&buf, "%s(%d)", v.node.Sym.Name, i)
+			if v.offset != 0 {
+				fmt.Fprintf(&buf, "%+d", int64(v.offset))
+			}
+		}
+		biclr(&bits, uint(i))
+	}
+	return buf.String()
 }

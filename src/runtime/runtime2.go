@@ -14,7 +14,7 @@ const (
 	//
 	// If you add to this list, add to the list
 	// of "okay during garbage collection" status
-	// in mgc0.c too.
+	// in mgcmark.go too.
 	_Gidle            = iota // 0
 	_Grunnable               // 1 runnable and on a run queue
 	_Grunning                // 2
@@ -117,6 +117,38 @@ func (gp guintptr) ptr() *g {
 	return (*g)(unsafe.Pointer(gp))
 }
 
+// ps, ms, gs, and mcache are structures that must be manipulated at a level
+// lower than that of the normal Go language. For example the routine that
+// stops the world removes the p from the m structure informing the GC that
+// this P is stopped and then it moves the g to the global runnable queue.
+// If write barriers were allowed to happen at this point not only does
+// the GC think the thread is stopped but the underlying structures
+// like a p or m are not in a state that is not coherent enough to
+// support the write barrier actions.
+// This is particularly painful since a partially executed write barrier
+// may mark the object but be delinquent in informing the GC that the
+// object needs to be scanned.
+
+// setGNoWriteBarriers does *gdst = gval without a write barrier.
+func setGNoWriteBarrier(gdst **g, gval *g) {
+	*(*uintptr)(unsafe.Pointer(gdst)) = uintptr(unsafe.Pointer(gval))
+}
+
+// setMNoWriteBarriers does *mdst = mval without a write barrier.
+func setMNoWriteBarrier(mdst **m, mval *m) {
+	*(*uintptr)(unsafe.Pointer(mdst)) = uintptr(unsafe.Pointer(mval))
+}
+
+// setPNoWriteBarriers does *pdst = pval without a write barrier.
+func setPNoWriteBarrier(pdst **p, pval *p) {
+	*(*uintptr)(unsafe.Pointer(pdst)) = uintptr(unsafe.Pointer(pval))
+}
+
+// setMcacheNoWriteBarriers does *mcachedst = mcacheval without a write barrier.
+func setMcacheNoWriteBarrier(mcachedst **mcache, mcacheval *mcache) {
+	*(*uintptr)(unsafe.Pointer(mcachedst)) = uintptr(unsafe.Pointer(mcacheval))
+}
+
 type gobuf struct {
 	// The offsets of sp, pc, and g are known to (hard-coded in) libmach.
 	sp   uintptr
@@ -129,7 +161,7 @@ type gobuf struct {
 }
 
 // Known to compiler.
-// Changes here must also be made in src/cmd/gc/select.c's selecttype.
+// Changes here must also be made in src/cmd/internal/gc/select.go's selecttype.
 type sudog struct {
 	g           *g
 	selectdone  *uint32
@@ -233,13 +265,13 @@ type m struct {
 	morebuf gobuf // gobuf arg to morestack
 
 	// Fields not known to debuggers.
-	procid        uint64         // for debuggers, but offset not hard-coded
-	gsignal       *g             // signal-handling g
-	tls           [4]uintptr     // thread-local storage (for x86 extern register)
-	mstartfn      unsafe.Pointer // todo go func()
-	curg          *g             // current running goroutine
-	caughtsig     *g             // goroutine running during fatal signal
-	p             *p             // attached p for executing go code (nil if not executing go code)
+	procid        uint64     // for debuggers, but offset not hard-coded
+	gsignal       *g         // signal-handling g
+	tls           [4]uintptr // thread-local storage (for x86 extern register)
+	mstartfn      uintptr    // TODO: type as func(); note: this is a non-heap allocated func()
+	curg          *g         // current running goroutine
+	caughtsig     *g         // goroutine running during fatal signal
+	p             *p         // attached p for executing go code (nil if not executing go code)
 	nextp         *p
 	id            int32
 	mallocing     int32
@@ -269,7 +301,7 @@ type m struct {
 	freghi        [16]uint32  // d[i] msb and f[i+16]
 	fflag         uint32      // floating point compare flags
 	locked        uint32      // tracking for lockosthread
-	nextwaitm     *m          // next m waiting for lock
+	nextwaitm     uintptr     // next m waiting for lock
 	waitsema      uintptr     // semaphore for parking on locks
 	waitsemacount uint32
 	waitsemalock  uint32
@@ -280,6 +312,7 @@ type m struct {
 	waitunlockf   unsafe.Pointer // todo go func(*g, unsafe.pointer) bool
 	waitlock      unsafe.Pointer
 	waittraceev   byte
+	waittraceskip int
 	syscalltick   uint32
 	//#ifdef GOOS_windows
 	thread uintptr // thread handle
@@ -314,7 +347,9 @@ type p struct {
 	syscalltick uint32 // incremented on every system call
 	m           *m     // back-link to associated m (nil if idle)
 	mcache      *mcache
-	deferpool   [5]*_defer // pool of available defer structs of different sizes (see panic.c)
+
+	deferpool    [5][]*_defer // pool of available defer structs of different sizes (see panic.go)
+	deferpoolbuf [5][32]*_defer
 
 	// Cache of goroutine ids, amortizes accesses to runtime·sched.goidgen.
 	goidcache    uint64
@@ -329,7 +364,12 @@ type p struct {
 	gfree    *g
 	gfreecnt int32
 
+	sudogcache []*sudog
+	sudogbuf   [128]*sudog
+
 	tracebuf *traceBuf
+
+	palloc persistentAlloc // per-P to avoid mutex
 
 	pad [64]byte
 }
@@ -364,6 +404,14 @@ type schedt struct {
 	gflock mutex
 	gfree  *g
 	ngfree int32
+
+	// Central cache of sudog structs.
+	sudoglock  mutex
+	sudogcache *sudog
+
+	// Central pool of available defer structs of different sizes.
+	deferlock mutex
+	deferpool [5]*_defer
 
 	gcwaiting  uint32 // gc is waiting to run
 	stopwait   int32
@@ -406,7 +454,7 @@ const (
 
 // Layout of in-memory per-function information prepared by linker
 // See http://golang.org/s/go12symtab.
-// Keep in sync with linker and with ../../libmach/sym.c
+// Keep in sync with linker
 // and with package debug/gosym and with symtab.go in package runtime.
 type _func struct {
 	entry   uintptr // start pc
@@ -557,11 +605,9 @@ var (
 	allm        *m
 	allp        [_MaxGomaxprocs + 1]*p
 	gomaxprocs  int32
-	needextram  uint32
 	panicking   uint32
 	goos        *int8
 	ncpu        int32
-	iscgo       bool
 	signote     note
 	forcegc     forcegcstate
 	sched       schedt

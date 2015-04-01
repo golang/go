@@ -443,7 +443,7 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
 // String reassembles the URL into a valid URL string.
 // The general form of the result is one of:
 //
-//	scheme:opaque
+//	scheme:opaque?query#fragment
 //	scheme://userinfo@host/path?query#fragment
 //
 // If u.Opaque is non-empty, String uses the first form;
@@ -639,7 +639,7 @@ func resolvePath(base, ref string) string {
 	return "/" + strings.TrimLeft(strings.Join(dst, "/"), "/")
 }
 
-// IsAbs returns true if the URL is absolute.
+// IsAbs reports whether the URL is absolute.
 func (u *URL) IsAbs() bool {
 	return u.Scheme != ""
 }

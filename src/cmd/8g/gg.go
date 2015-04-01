@@ -4,7 +4,7 @@
 
 package main
 
-import "cmd/internal/obj/i386"
+import "cmd/internal/obj/x86"
 import "cmd/internal/gc"
 
 // TODO(rsc):
@@ -21,7 +21,7 @@ const (
 	Fpop2 = 1 << 2
 )
 
-var reg [i386.MAXREG]uint8
+var reg [x86.MAXREG]uint8
 
 var panicdiv *gc.Node
 

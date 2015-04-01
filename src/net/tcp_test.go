@@ -59,6 +59,9 @@ func BenchmarkTCP6PersistentTimeout(b *testing.B) {
 }
 
 func benchmarkTCP(b *testing.B, persistent, timeout bool, laddr string) {
+	uninstallTestHooks()
+	defer installTestHooks()
+
 	const msgLen = 512
 	conns := b.N
 	numConcurrent := runtime.GOMAXPROCS(-1) * 2
@@ -172,6 +175,8 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
 	// The benchmark stresses concurrent reading and writing to the same connection.
 	// Such pattern is used in net/http and net/rpc.
 
+	uninstallTestHooks()
+	defer installTestHooks()
 	b.StopTimer()
 
 	P := runtime.GOMAXPROCS(0)
@@ -494,13 +499,11 @@ func TestTCPConcurrentAccept(t *testing.T) {
 
 func TestTCPReadWriteAllocs(t *testing.T) {
 	switch runtime.GOOS {
-	case "nacl", "windows", "darwin", "dragonfly":
+	case "nacl", "windows":
 		// NaCl needs to allocate pseudo file descriptor
 		// stuff. See syscall/fd_nacl.go.
 		// Windows uses closures and channels for IO
 		// completion port-based netpoll. See fd_windows.go.
-		// Darwin is unreliable for unknown reasons (issue 8859).
-		// Dragonfly also unreliable (lumped into issue 8859).
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 

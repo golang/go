@@ -147,14 +147,16 @@ loop:
 	return
 }
 
-func lookupIP(host string) (ips []IP, err error) {
-	addrs, err := LookupHost(host)
+func lookupIP(host string) (addrs []IPAddr, err error) {
+	lits, err := LookupHost(host)
 	if err != nil {
 		return
 	}
-	for _, addr := range addrs {
-		if ip := ParseIP(addr); ip != nil {
-			ips = append(ips, ip)
+	for _, lit := range lits {
+		host, zone := splitHostZone(lit)
+		if ip := ParseIP(host); ip != nil {
+			addr := IPAddr{IP: ip, Zone: zone}
+			addrs = append(addrs, addr)
 		}
 	}
 	return

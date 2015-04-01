@@ -37,6 +37,9 @@ const maxShift = _W - 4
 // precision argument and keeping track of when a number was truncated early
 // (equivalent of "sticky bit" in binary rounding).
 
+// TODO(gri) Along the same lines, enforce some limit to shift magnitudes
+// to avoid "infinitely" long running conversions (until we run out of space).
+
 // Init initializes x to the decimal representation of m << shift (for
 // shift >= 0), or m >> -shift (for shift < 0).
 func (x *decimal) init(m nat, shift int) {

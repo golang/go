@@ -11,7 +11,7 @@ func typecheckselect(sel *Node) {
 	var ncase *Node
 	var n *Node
 
-	def := (*Node)(nil)
+	var def *Node
 	lno := int(setlineno(sel))
 	count := 0
 	typechecklist(sel.Ninit, Etop)
@@ -45,7 +45,7 @@ func typecheckselect(sel *Node) {
 			// remove implicit conversions; the eventual assignment
 			// will reintroduce them.
 			case OAS:
-				if (n.Right.Op == OCONVNOP || n.Right.Op == OCONVIFACE) && n.Right.Implicit != 0 {
+				if (n.Right.Op == OCONVNOP || n.Right.Op == OCONVIFACE) && n.Right.Implicit {
 					n.Right = n.Right.Left
 				}
 
@@ -129,8 +129,7 @@ func walkselect(sel *Node) {
 			case OSEND:
 				ch = n.Left
 
-			case OSELRECV,
-				OSELRECV2:
+			case OSELRECV, OSELRECV2:
 				ch = n.Right.Left
 				if n.Op == OSELRECV || n.Ntest == nil {
 					if n.Left == nil {
@@ -185,8 +184,7 @@ func walkselect(sel *Node) {
 			n.Right = Nod(OADDR, n.Right, nil)
 			typecheck(&n.Right, Erv)
 
-		case OSELRECV,
-			OSELRECV2:
+		case OSELRECV, OSELRECV2:
 			if n.Op == OSELRECV2 && n.Ntest == nil {
 				n.Op = OSELRECV
 			}
@@ -324,7 +322,7 @@ out:
 	lineno = int32(lno)
 }
 
-// Keep in sync with src/runtime/chan.h.
+// Keep in sync with src/runtime/runtime2.go and src/runtime/select.go.
 func selecttype(size int32) *Type {
 	// TODO(dvyukov): it's possible to generate SudoG and Scase only once
 	// and then cache; and also cache Select per size.
@@ -340,7 +338,7 @@ func selecttype(size int32) *Type {
 	sudog.List = list(sudog.List, Nod(ODCLFIELD, newname(Lookup("waitlink")), typenod(Ptrto(Types[TUINT8]))))
 	typecheck(&sudog, Etype)
 	sudog.Type.Noalg = 1
-	sudog.Type.Local = 1
+	sudog.Type.Local = true
 
 	scase := Nod(OTSTRUCT, nil, nil)
 	scase.List = list(scase.List, Nod(ODCLFIELD, newname(Lookup("elem")), typenod(Ptrto(Types[TUINT8]))))
@@ -352,7 +350,7 @@ func selecttype(size int32) *Type {
 	scase.List = list(scase.List, Nod(ODCLFIELD, newname(Lookup("releasetime")), typenod(Types[TUINT64])))
 	typecheck(&scase, Etype)
 	scase.Type.Noalg = 1
-	scase.Type.Local = 1
+	scase.Type.Local = true
 
 	sel := Nod(OTSTRUCT, nil, nil)
 	sel.List = list(sel.List, Nod(ODCLFIELD, newname(Lookup("tcase")), typenod(Types[TUINT16])))
@@ -367,7 +365,7 @@ func selecttype(size int32) *Type {
 	sel.List = list(sel.List, Nod(ODCLFIELD, newname(Lookup("pollorderarr")), arr))
 	typecheck(&sel, Etype)
 	sel.Type.Noalg = 1
-	sel.Type.Local = 1
+	sel.Type.Local = true
 
 	return sel.Type
 }

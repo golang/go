@@ -83,6 +83,7 @@ type Package struct {
 	allgofiles   []string             // gofiles + IgnoredGoFiles, absolute paths
 	target       string               // installed file for this package (may be executable)
 	fake         bool                 // synthesized package
+	external     bool                 // synthesized external test package
 	forceBuild   bool                 // this package must be rebuilt
 	forceLibrary bool                 // this package is a library (even if named "main")
 	cmdline      bool                 // defined by files listed on command line
@@ -176,7 +177,7 @@ func (s *importStack) copy() []string {
 	return append([]string{}, *s...)
 }
 
-// shorterThan returns true if sp is shorter than t.
+// shorterThan reports whether sp is shorter than t.
 // We use this to record the shortest import sequence
 // that leads to a particular package.
 func (sp *importStack) shorterThan(t []string) bool {
@@ -395,6 +396,8 @@ var goTools = map[string]targetDir{
 	"cmd/5l":                               toTool,
 	"cmd/6g":                               toTool,
 	"cmd/6l":                               toTool,
+	"cmd/7g":                               toTool,
+	"cmd/7l":                               toTool,
 	"cmd/8g":                               toTool,
 	"cmd/8l":                               toTool,
 	"cmd/9g":                               toTool,

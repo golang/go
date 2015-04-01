@@ -7,6 +7,9 @@
 #ifdef GOARCH_arm
 #define JMP B
 #endif
+#ifdef GOARCH_arm64
+#define JMP B
+#endif
 #ifdef GOARCH_ppc64
 #define JMP BR
 #endif

@@ -56,13 +56,17 @@ const (
 	SyscallP // depicts returns from syscalls
 )
 
-// parseTrace parses, post-processes and verifies the trace.
+// Parse parses, post-processes and verifies the trace.
 func Parse(r io.Reader) ([]*Event, error) {
 	rawEvents, err := readTrace(r)
 	if err != nil {
 		return nil, err
 	}
 	events, err := parseEvents(rawEvents)
+	if err != nil {
+		return nil, err
+	}
+	events, err = removeFutile(events)
 	if err != nil {
 		return nil, err
 	}
@@ -265,6 +269,61 @@ func parseEvents(rawEvents []rawEvent) (events []*Event, err error) {
 	return
 }
 
+// removeFutile removes all constituents of futile wakeups (block, unblock, start).
+// For example, a goroutine was unblocked on a mutex, but another goroutine got
+// ahead and acquired the mutex before the first goroutine is scheduled,
+// so the first goroutine has to block again. Such wakeups happen on buffered
+// channels and sync.Mutex, but are generally not interesting for end user.
+func removeFutile(events []*Event) ([]*Event, error) {
+	// Two non-trivial aspects:
+	// 1. A goroutine can be preempted during a futile wakeup and migrate to another P.
+	//	We want to remove all of that.
+	// 2. Tracing can start in the middle of a futile wakeup.
+	//	That is, we can see a futile wakeup event w/o the actual wakeup before it.
+	// postProcessTrace runs after us and ensures that we leave the trace in a consistent state.
+
+	// Phase 1: determine futile wakeup sequences.
+	type G struct {
+		futile bool
+		wakeup []*Event // wakeup sequence (subject for removal)
+	}
+	gs := make(map[uint64]G)
+	futile := make(map[*Event]bool)
+	for _, ev := range events {
+		switch ev.Type {
+		case EvGoUnblock:
+			g := gs[ev.Args[0]]
+			g.wakeup = []*Event{ev}
+			gs[ev.Args[0]] = g
+		case EvGoStart, EvGoPreempt, EvFutileWakeup:
+			g := gs[ev.G]
+			g.wakeup = append(g.wakeup, ev)
+			if ev.Type == EvFutileWakeup {
+				g.futile = true
+			}
+			gs[ev.G] = g
+		case EvGoBlock, EvGoBlockSend, EvGoBlockRecv, EvGoBlockSelect, EvGoBlockSync, EvGoBlockCond:
+			g := gs[ev.G]
+			if g.futile {
+				futile[ev] = true
+				for _, ev1 := range g.wakeup {
+					futile[ev1] = true
+				}
+			}
+			delete(gs, ev.G)
+		}
+	}
+
+	// Phase 2: remove futile wakeup sequences.
+	newEvents := events[:0] // overwrite the original slice
+	for _, ev := range events {
+		if !futile[ev] {
+			newEvents = append(newEvents, ev)
+		}
+	}
+	return newEvents, nil
+}
+
 // postProcessTrace does inter-event verification and information restoration.
 // The resulting trace is guaranteed to be consistent
 // (for example, a P does not run two Gs at the same time, or a G is indeed
@@ -277,9 +336,10 @@ func postProcessTrace(events []*Event) error {
 		gWaiting
 	)
 	type gdesc struct {
-		state   int
-		ev      *Event
-		evStart *Event
+		state    int
+		ev       *Event
+		evStart  *Event
+		evCreate *Event
 	}
 	type pdesc struct {
 		running bool
@@ -371,7 +431,7 @@ func postProcessTrace(events []*Event) error {
 			if _, ok := gs[ev.Args[0]]; ok {
 				return fmt.Errorf("g %v already exists (offset %v, time %v)", ev.Args[0], ev.Off, ev.Ts)
 			}
-			gs[ev.Args[0]] = gdesc{state: gRunnable, ev: ev}
+			gs[ev.Args[0]] = gdesc{state: gRunnable, ev: ev, evCreate: ev}
 		case EvGoStart:
 			if g.state != gRunnable {
 				return fmt.Errorf("g %v is not runnable before start (offset %v, time %v)", ev.G, ev.Off, ev.Ts)
@@ -382,11 +442,13 @@ func postProcessTrace(events []*Event) error {
 			g.state = gRunning
 			g.evStart = ev
 			p.g = ev.G
+			if g.evCreate != nil {
+				// +1 because symblizer expects return pc.
+				ev.Stk = []*Frame{&Frame{PC: g.evCreate.Args[1] + 1}}
+				g.evCreate = nil
+			}
+
 			if g.ev != nil {
-				if g.ev.Type == EvGoCreate {
-					// +1 because symblizer expects return pc.
-					ev.Stk = []*Frame{&Frame{PC: g.ev.Args[1] + 1}}
-				}
 				g.ev.Link = ev
 				g.ev = nil
 			}
@@ -584,7 +646,7 @@ const (
 	EvFrequency      = 2  // contains tracer timer frequency [frequency (ticks per second)]
 	EvStack          = 3  // stack [stack id, number of PCs, array of PCs]
 	EvGomaxprocs     = 4  // current value of GOMAXPROCS [timestamp, GOMAXPROCS, stack id]
-	EvProcStart      = 5  // start of P [timestamp]
+	EvProcStart      = 5  // start of P [timestamp, thread id]
 	EvProcStop       = 6  // stop of P [timestamp]
 	EvGCStart        = 7  // GC start [timestamp, stack id]
 	EvGCDone         = 8  // GC done [timestamp]
@@ -609,13 +671,14 @@ const (
 	EvGoBlockNet     = 27 // goroutine blocks on network [timestamp, stack]
 	EvGoSysCall      = 28 // syscall enter [timestamp, stack]
 	EvGoSysExit      = 29 // syscall exit [timestamp, goroutine id]
-	EvGoSysBlock     = 30 // syscall blocks [timestamp, stack]
+	EvGoSysBlock     = 30 // syscall blocks [timestamp]
 	EvGoWaiting      = 31 // denotes that goroutine is blocked when tracing starts [goroutine id]
 	EvGoInSyscall    = 32 // denotes that goroutine is in syscall when tracing starts [goroutine id]
 	EvHeapAlloc      = 33 // memstats.heap_alloc change [timestamp, heap_alloc]
 	EvNextGC         = 34 // memstats.next_gc change [timestamp, next_gc]
 	EvTimerGoroutine = 35 // denotes timer goroutine [timer goroutine id]
-	EvCount          = 36
+	EvFutileWakeup   = 36 // denotes that the revious wakeup of this goroutine was futile [timestamp]
+	EvCount          = 37
 )
 
 var EventDescriptions = [EvCount]struct {
@@ -628,7 +691,7 @@ var EventDescriptions = [EvCount]struct {
 	EvFrequency:      {"Frequency", false, []string{"freq"}},
 	EvStack:          {"Stack", false, []string{"id", "siz"}},
 	EvGomaxprocs:     {"Gomaxprocs", true, []string{"procs"}},
-	EvProcStart:      {"ProcStart", false, []string{}},
+	EvProcStart:      {"ProcStart", false, []string{"thread"}},
 	EvProcStop:       {"ProcStop", false, []string{}},
 	EvGCStart:        {"GCStart", true, []string{}},
 	EvGCDone:         {"GCDone", false, []string{}},
@@ -653,10 +716,11 @@ var EventDescriptions = [EvCount]struct {
 	EvGoBlockNet:     {"GoBlockNet", true, []string{}},
 	EvGoSysCall:      {"GoSysCall", true, []string{}},
 	EvGoSysExit:      {"GoSysExit", false, []string{"g"}},
-	EvGoSysBlock:     {"GoSysBlock", true, []string{}},
+	EvGoSysBlock:     {"GoSysBlock", false, []string{}},
 	EvGoWaiting:      {"GoWaiting", false, []string{"g"}},
 	EvGoInSyscall:    {"GoInSyscall", false, []string{"g"}},
 	EvHeapAlloc:      {"HeapAlloc", false, []string{"mem"}},
 	EvNextGC:         {"NextGC", false, []string{"mem"}},
 	EvTimerGoroutine: {"TimerGoroutine", false, []string{"g"}},
+	EvFutileWakeup:   {"FutileWakeup", false, []string{}},
 }

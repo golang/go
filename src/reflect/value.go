@@ -176,7 +176,7 @@ type emptyInterface struct {
 
 // nonEmptyInterface is the header for a interface value with methods.
 type nonEmptyInterface struct {
-	// see ../runtime/iface.c:/Itab
+	// see ../runtime/iface.go:/Itab
 	itab *struct {
 		ityp   *rtype // static interface type
 		typ    *rtype // dynamic concrete type
@@ -268,7 +268,7 @@ func (v Value) runes() []rune {
 	return *(*[]rune)(v.ptr)
 }
 
-// CanAddr returns true if the value's address can be obtained with Addr.
+// CanAddr reports whether the value's address can be obtained with Addr.
 // Such values are called addressable.  A value is addressable if it is
 // an element of a slice, an element of an addressable array,
 // a field of an addressable struct, or the result of dereferencing a pointer.
@@ -277,7 +277,7 @@ func (v Value) CanAddr() bool {
 	return v.flag&flagAddr != 0
 }
 
-// CanSet returns true if the value of v can be changed.
+// CanSet reports whether the value of v can be changed.
 // A Value can be changed only if it is addressable and was not
 // obtained by the use of unexported struct fields.
 // If CanSet returns false, calling Set or any type-specific
@@ -884,7 +884,7 @@ func (v Value) Int() int64 {
 	panic(&ValueError{"reflect.Value.Int", v.kind()})
 }
 
-// CanInterface returns true if Interface can be used without panicking.
+// CanInterface reports whether Interface can be used without panicking.
 func (v Value) CanInterface() bool {
 	if v.flag == 0 {
 		panic(&ValueError{"reflect.Value.CanInterface", Invalid})
@@ -971,7 +971,7 @@ func (v Value) IsNil() bool {
 	panic(&ValueError{"reflect.Value.IsNil", v.kind()})
 }
 
-// IsValid returns true if v represents a value.
+// IsValid reports whether v represents a value.
 // It returns false if v is the zero Value.
 // If IsValid returns false, all other methods except String panic.
 // Most functions and methods never return an invalid value.
@@ -1148,7 +1148,7 @@ func (v Value) NumField() int {
 	return len(tt.fields)
 }
 
-// OverflowComplex returns true if the complex128 x cannot be represented by v's type.
+// OverflowComplex reports whether the complex128 x cannot be represented by v's type.
 // It panics if v's Kind is not Complex64 or Complex128.
 func (v Value) OverflowComplex(x complex128) bool {
 	k := v.kind()
@@ -1161,7 +1161,7 @@ func (v Value) OverflowComplex(x complex128) bool {
 	panic(&ValueError{"reflect.Value.OverflowComplex", v.kind()})
 }
 
-// OverflowFloat returns true if the float64 x cannot be represented by v's type.
+// OverflowFloat reports whether the float64 x cannot be represented by v's type.
 // It panics if v's Kind is not Float32 or Float64.
 func (v Value) OverflowFloat(x float64) bool {
 	k := v.kind()
@@ -1181,7 +1181,7 @@ func overflowFloat32(x float64) bool {
 	return math.MaxFloat32 < x && x <= math.MaxFloat64
 }
 
-// OverflowInt returns true if the int64 x cannot be represented by v's type.
+// OverflowInt reports whether the int64 x cannot be represented by v's type.
 // It panics if v's Kind is not Int, Int8, int16, Int32, or Int64.
 func (v Value) OverflowInt(x int64) bool {
 	k := v.kind()
@@ -1194,7 +1194,7 @@ func (v Value) OverflowInt(x int64) bool {
 	panic(&ValueError{"reflect.Value.OverflowInt", v.kind()})
 }
 
-// OverflowUint returns true if the uint64 x cannot be represented by v's type.
+// OverflowUint reports whether the uint64 x cannot be represented by v's type.
 // It panics if v's Kind is not Uint, Uintptr, Uint8, Uint16, Uint32, or Uint64.
 func (v Value) OverflowUint(x uint64) bool {
 	k := v.kind()
@@ -1647,7 +1647,7 @@ func (v Value) TryRecv() (x Value, ok bool) {
 
 // TrySend attempts to send x on the channel v but will not block.
 // It panics if v's Kind is not Chan.
-// It returns true if the value was sent, false otherwise.
+// It reports whether the value was sent.
 // As in Go, x's value must be assignable to the channel's element type.
 func (v Value) TrySend(x Value) bool {
 	v.mustBe(Chan)

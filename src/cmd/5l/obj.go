@@ -31,11 +31,11 @@
 package main
 
 import (
+	"cmd/internal/ld"
 	"cmd/internal/obj"
 	"fmt"
 	"log"
 )
-import "cmd/internal/ld"
 
 // Reading object files.
 
@@ -74,15 +74,13 @@ func linkarchinit() {
 
 	ld.Thearch.Linuxdynld = "/lib/ld-linux.so.3" // 2 for OABI, 3 for EABI
 	ld.Thearch.Freebsddynld = "/usr/libexec/ld-elf.so.1"
-	ld.Thearch.Openbsddynld = "XXX"
+	ld.Thearch.Openbsddynld = "/usr/libexec/ld.so"
 	ld.Thearch.Netbsddynld = "/libexec/ld.elf_so"
 	ld.Thearch.Dragonflydynld = "XXX"
 	ld.Thearch.Solarisdynld = "XXX"
 }
 
 func archinit() {
-	var s *ld.LSym
-
 	// getgoextlinkenabled is based on GO_EXTLINK_ENABLED when
 	// Go was built; see ../../make.bash.
 	if ld.Linkmode == ld.LinkAuto && obj.Getgoextlinkenabled() == "0" {
@@ -126,7 +124,8 @@ func archinit() {
 
 	case ld.Hlinux, /* arm elf */
 		ld.Hfreebsd,
-		ld.Hnetbsd:
+		ld.Hnetbsd,
+		ld.Hopenbsd:
 		ld.Debug['d'] = 0
 		// with dynamic linking
 		ld.Elfinit()
@@ -175,7 +174,7 @@ func archinit() {
 	}
 
 	// embed goarm to runtime.goarm
-	s = ld.Linklookup(ld.Ctxt, "runtime.goarm", 0)
+	s := ld.Linklookup(ld.Ctxt, "runtime.goarm", 0)
 
 	s.Type = ld.SRODATA
 	ld.Adduint8(ld.Ctxt, s, uint8(ld.Ctxt.Goarm))

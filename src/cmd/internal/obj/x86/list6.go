@@ -35,63 +35,6 @@ import (
 	"fmt"
 )
 
-//
-// Format conversions
-//	%A int		Opcodes (instruction mnemonics)
-//
-//	%D Addr*	Addresses (instruction operands)
-//
-//	%P Prog*	Instructions
-//
-//	%R int		Registers
-//
-//	%$ char*	String constant addresses (for internal use only)
-
-const (
-	STRINGSZ = 1000
-)
-
-var bigP *obj.Prog
-
-func Pconv(p *obj.Prog) string {
-	var str string
-	var fp string
-
-	switch p.As {
-	case obj.ADATA:
-		str = fmt.Sprintf("%.5d (%v)\t%v\t%v/%d,%v",
-			p.Pc, p.Line(), Aconv(int(p.As)), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
-
-	case obj.ATEXT:
-		if p.From3.Offset != 0 {
-			str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%d,%v",
-				p.Pc, p.Line(), Aconv(int(p.As)), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
-			break
-		}
-
-		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%v",
-			p.Pc, p.Line(), Aconv(int(p.As)), obj.Dconv(p, &p.From), obj.Dconv(p, &p.To))
-
-	default:
-		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%v",
-			p.Pc, p.Line(), Aconv(int(p.As)), obj.Dconv(p, &p.From), obj.Dconv(p, &p.To))
-
-		// TODO(rsc): This special case is for SHRQ $32, AX:DX, which encodes as
-		//	SHRQ $32(DX*0), AX
-		// Remove.
-		if (p.From.Type == obj.TYPE_REG || p.From.Type == obj.TYPE_CONST) && p.From.Index != REG_NONE {
-			str += fmt.Sprintf(":%v", Rconv(int(p.From.Index)))
-		}
-	}
-
-	fp += str
-	return fp
-}
-
-func Aconv(i int) string {
-	return Anames[i]
-}
-
 var Register = []string{
 	"AL", /* [D_AL] */
 	"CL",
@@ -210,11 +153,12 @@ var Register = []string{
 
 func init() {
 	obj.RegisterRegister(REG_AL, REG_AL+len(Register), Rconv)
+	obj.RegisterOpcode(obj.ABaseAMD64, Anames)
 }
 
 func Rconv(r int) string {
 	if REG_AL <= r && r-REG_AL < len(Register) {
-		return fmt.Sprintf("%s", Register[r-REG_AL])
+		return Register[r-REG_AL]
 	}
 	return fmt.Sprintf("Rgok(%d)", r-obj.RBaseAMD64)
 }

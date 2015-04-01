@@ -80,7 +80,7 @@ func goenvs_unix() {
 
 	envs = make([]string, n)
 	for i := int32(0); i < n; i++ {
-		envs[i] = gostringnocopy(argv_index(argv, argc+1+i))
+		envs[i] = gostring(argv_index(argv, argc+1+i))
 	}
 }
 
@@ -316,6 +316,7 @@ var debug struct {
 	schedtrace     int32
 	wbshadow       int32
 	gccheckmark    int32
+	sbrk           int32
 }
 
 var dbgvars = []dbgVar{
@@ -329,6 +330,7 @@ var dbgvars = []dbgVar{
 	{"schedtrace", &debug.schedtrace},
 	{"wbshadow", &debug.wbshadow},
 	{"gccheckmark", &debug.gccheckmark},
+	{"sbrk", &debug.sbrk},
 }
 
 func parsedebugvars() {
@@ -422,20 +424,18 @@ func gomcache() *mcache {
 	return getg().m.mcache
 }
 
-var typelink, etypelink [0]byte
-
 //go:linkname reflect_typelinks reflect.typelinks
 //go:nosplit
 func reflect_typelinks() []*_type {
 	var ret []*_type
 	sp := (*slice)(unsafe.Pointer(&ret))
-	sp.array = (*byte)(unsafe.Pointer(&typelink))
-	sp.len = uint((uintptr(unsafe.Pointer(&etypelink)) - uintptr(unsafe.Pointer(&typelink))) / unsafe.Sizeof(ret[0]))
+	sp.array = (*byte)(unsafe.Pointer(themoduledata.typelink))
+	sp.len = uint((themoduledata.etypelink - themoduledata.typelink) / unsafe.Sizeof(ret[0]))
 	sp.cap = sp.len
 	return ret
 }
 
-// TODO: move back into mgc0.c when converted to Go
+// TODO: move back into mgc.go
 func readgogc() int32 {
 	p := gogetenv("GOGC")
 	if p == "" {

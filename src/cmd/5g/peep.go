@@ -31,11 +31,11 @@
 package main
 
 import (
+	"cmd/internal/gc"
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm"
 	"fmt"
 )
-import "cmd/internal/gc"
 
 var gactive uint32
 
@@ -257,9 +257,7 @@ func subprop(r0 *gc.Flow) bool {
 	if !regtyp(v2) {
 		return false
 	}
-	var r *gc.Flow
-	var info gc.ProgInfo
-	for r = gc.Uniqp(r0); r != nil; r = gc.Uniqp(r) {
+	for r := gc.Uniqp(r0); r != nil; r = gc.Uniqp(r) {
 		if gc.Uniqs(r) == nil {
 			break
 		}
@@ -267,14 +265,16 @@ func subprop(r0 *gc.Flow) bool {
 		if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
 			continue
 		}
-		proginfo(&info, p)
-		if info.Flags&gc.Call != 0 {
+		if p.Info.Flags&gc.Call != 0 {
 			return false
 		}
 
-		if (info.Flags&gc.CanRegRead != 0) && p.To.Type == obj.TYPE_REG {
-			info.Flags |= gc.RegRead
-			info.Flags &^= (gc.CanRegRead | gc.RightRead)
+		// TODO(rsc): Whatever invalidated the info should have done this call.
+		proginfo(p)
+
+		if (p.Info.Flags&gc.CanRegRead != 0) && p.To.Type == obj.TYPE_REG {
+			p.Info.Flags |= gc.RegRead
+			p.Info.Flags &^= (gc.CanRegRead | gc.RightRead)
 			p.Reg = p.To.Reg
 		}
 
@@ -285,11 +285,36 @@ func subprop(r0 *gc.Flow) bool {
 			return false
 		}
 
-		if info.Flags&(gc.RightRead|gc.RightWrite) == gc.RightWrite {
+		if p.Info.Flags&(gc.RightRead|gc.RightWrite) == gc.RightWrite {
 			if p.To.Type == v1.Type {
 				if p.To.Reg == v1.Reg {
 					if p.Scond == arm.C_SCOND_NONE {
-						goto gotit
+						copysub(&p.To, v1, v2, 1)
+						if gc.Debug['P'] != 0 {
+							fmt.Printf("gotit: %v->%v\n%v", gc.Ctxt.Dconv(v1), gc.Ctxt.Dconv(v2), r.Prog)
+							if p.From.Type == v2.Type {
+								fmt.Printf(" excise")
+							}
+							fmt.Printf("\n")
+						}
+
+						for r = gc.Uniqs(r); r != r0; r = gc.Uniqs(r) {
+							p = r.Prog
+							copysub(&p.From, v1, v2, 1)
+							copysub1(p, v1, v2, 1)
+							copysub(&p.To, v1, v2, 1)
+							if gc.Debug['P'] != 0 {
+								fmt.Printf("%v\n", r.Prog)
+							}
+						}
+
+						t := int(int(v1.Reg))
+						v1.Reg = v2.Reg
+						v2.Reg = int16(t)
+						if gc.Debug['P'] != 0 {
+							fmt.Printf("%v last\n", r.Prog)
+						}
+						return true
 					}
 				}
 			}
@@ -304,34 +329,6 @@ func subprop(r0 *gc.Flow) bool {
 	}
 
 	return false
-
-gotit:
-	copysub(&p.To, v1, v2, 1)
-	if gc.Debug['P'] != 0 {
-		fmt.Printf("gotit: %v->%v\n%v", gc.Ctxt.Dconv(v1), gc.Ctxt.Dconv(v2), r.Prog)
-		if p.From.Type == v2.Type {
-			fmt.Printf(" excise")
-		}
-		fmt.Printf("\n")
-	}
-
-	for r = gc.Uniqs(r); r != r0; r = gc.Uniqs(r) {
-		p = r.Prog
-		copysub(&p.From, v1, v2, 1)
-		copysub1(p, v1, v2, 1)
-		copysub(&p.To, v1, v2, 1)
-		if gc.Debug['P'] != 0 {
-			fmt.Printf("%v\n", r.Prog)
-		}
-	}
-
-	t := int(int(v1.Reg))
-	v1.Reg = v2.Reg
-	v2.Reg = int16(t)
-	if gc.Debug['P'] != 0 {
-		fmt.Printf("%v last\n", r.Prog)
-	}
-	return true
 }
 
 /*
@@ -548,7 +545,7 @@ gotit:
 	}
 
 	if gc.Debug['P'] != 0 {
-		fmt.Printf(" => %v\n", arm.Aconv(int(p.As)))
+		fmt.Printf(" => %v\n", obj.Aconv(int(p.As)))
 	}
 	return true
 }
@@ -792,7 +789,7 @@ func shiftprop(r *gc.Flow) bool {
 func findpre(r *gc.Flow, v *obj.Addr) *gc.Flow {
 	var r1 *gc.Flow
 
-	for r1 = gc.Uniqp(r); r1 != nil; (func() { r = r1; r1 = gc.Uniqp(r) })() {
+	for r1 = gc.Uniqp(r); r1 != nil; r, r1 = r1, gc.Uniqp(r1) {
 		if gc.Uniqs(r1) != r {
 			return nil
 		}
@@ -818,7 +815,7 @@ func findinc(r *gc.Flow, r2 *gc.Flow, v *obj.Addr) *gc.Flow {
 	var r1 *gc.Flow
 	var p *obj.Prog
 
-	for r1 = gc.Uniqs(r); r1 != nil && r1 != r2; (func() { r = r1; r1 = gc.Uniqs(r) })() {
+	for r1 = gc.Uniqs(r); r1 != nil && r1 != r2; r, r1 = r1, gc.Uniqs(r1) {
 		if gc.Uniqp(r1) != r {
 			return nil
 		}
@@ -1047,7 +1044,7 @@ func xtramodes(g *gc.Graph, r *gc.Flow, a *obj.Addr) bool {
 func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 	switch p.As {
 	default:
-		fmt.Printf("copyu: can't find %v\n", arm.Aconv(int(p.As)))
+		fmt.Printf("copyu: can't find %v\n", obj.Aconv(int(p.As)))
 		return 2
 
 	case arm.AMOVM:
@@ -1333,10 +1330,10 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 	// R1 is ptr to memory, used and set, cannot be substituted.
 	case obj.ADUFFZERO:
 		if v.Type == obj.TYPE_REG {
-			if v.Reg == REGALLOC_R0 {
+			if v.Reg == arm.REG_R0 {
 				return 1
 			}
-			if v.Reg == REGALLOC_R0+1 {
+			if v.Reg == arm.REG_R0+1 {
 				return 2
 			}
 		}
@@ -1347,10 +1344,10 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 	// R1, R2 areptr to src, dst, used and set, cannot be substituted.
 	case obj.ADUFFCOPY:
 		if v.Type == obj.TYPE_REG {
-			if v.Reg == REGALLOC_R0 {
+			if v.Reg == arm.REG_R0 {
 				return 3
 			}
-			if v.Reg == REGALLOC_R0+1 || v.Reg == REGALLOC_R0+2 {
+			if v.Reg == arm.REG_R0+1 || v.Reg == arm.REG_R0+2 {
 				return 2
 			}
 		}

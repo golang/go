@@ -34,6 +34,17 @@ func NewWriter(w io.Writer) *Writer {
 	return &Writer{cw: &countWriter{w: bufio.NewWriter(w)}}
 }
 
+// SetOffset sets the offset of the beginning of the zip data within the
+// underlying writer. It should be used when the zip data is appended to an
+// existing file, such as a binary executable.
+// It must be called before any data is written.
+func (w *Writer) SetOffset(n int64) {
+	if w.cw.count != 0 {
+		panic("zip: SetOffset called after data was written")
+	}
+	w.cw.count = n
+}
+
 // Flush flushes any buffered data to the underlying writer.
 // Calling Flush is not normally necessary; calling Close is sufficient.
 func (w *Writer) Flush() error {

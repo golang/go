@@ -64,7 +64,7 @@ label:
 // LTYPES spec5	{ outcode($1, &$2); }
 	SHLL	R11, R12
 	SHLL	R11, foo+4(SB)
-	SHLL	R11, R11:AX
+	SHLL	R11, R11:AX // Old syntax, still accepted.
 
 // LTYPEM spec6	{ outcode($1, &$2); }
 	MOVL	AX, R11
@@ -88,6 +88,10 @@ label:
 
 // LTYPERT spec10	{ outcode($1, &$2); }
 	RETFL	$4
+
+// Was bug: LOOP is a branch instruction.
+loop:
+	LOOP	loop
 
 // LTYPE0 nonnon	{ outcode($1, &$2); }
 	RET

@@ -49,7 +49,7 @@ var (
 )
 
 // The known architecture letters.
-var gochars = "566899"
+var gochars = "5667899"
 
 // The known architectures.
 var okgoarch = []string{
@@ -57,6 +57,7 @@ var okgoarch = []string{
 	"arm",
 	"amd64",
 	"amd64p32",
+	"arm64",
 	"386",
 	"ppc64",
 	"ppc64le",
@@ -613,10 +614,11 @@ func install(dir string) {
 
 	// For package runtime, copy some files into the work space.
 	if dir == "runtime" {
+		xmkdirall(pathf("%s/pkg/include", goroot))
 		// For use by assembly and C files.
-		copyfile(pathf("%s/pkg/%s_%s/textflag.h", goroot, goos, goarch),
+		copyfile(pathf("%s/pkg/include/textflag.h", goroot),
 			pathf("%s/src/runtime/textflag.h", goroot), 0)
-		copyfile(pathf("%s/pkg/%s_%s/funcdata.h", goroot, goos, goarch),
+		copyfile(pathf("%s/pkg/include/funcdata.h", goroot),
 			pathf("%s/src/runtime/funcdata.h", goroot), 0)
 	}
 
@@ -691,7 +693,7 @@ func install(dir string) {
 		compile = []string{
 			pathf("%s/asm", tooldir),
 			"-I", workdir,
-			"-I", pathf("%s/pkg/%s_%s", goroot, goos, goarch),
+			"-I", pathf("%s/pkg/include", goroot),
 			"-D", "GOOS_" + goos,
 			"-D", "GOARCH_" + goarch,
 			"-D", "GOOS_GOARCH_" + goos + "_" + goarch,
@@ -908,6 +910,8 @@ var cleantab = []string{
 	"cmd/5l",
 	"cmd/6g",
 	"cmd/6l",
+	"cmd/7g",
+	"cmd/7l",
 	"cmd/8g",
 	"cmd/8l",
 	"cmd/9g",
@@ -1016,6 +1020,7 @@ func usage() {
 		"clean          deletes all built files\n" +
 		"env [-p]       print environment (-p: include $PATH)\n" +
 		"install [dir]  install individual directory\n" +
+		"test [-h]      run Go test(s)\n" +
 		"version        print Go version\n" +
 		"\n" +
 		"All commands take -v flags to emit extra information.\n",

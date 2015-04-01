@@ -27,6 +27,8 @@ var bootstrapDirs = []string{
 	"5l",
 	"6g",
 	"6l",
+	"7g",
+	"7l",
 	"8g",
 	"8l",
 	"9g",
@@ -41,7 +43,7 @@ var bootstrapDirs = []string{
 	"internal/ld",
 	"internal/obj",
 	"internal/obj/arm",
-	"internal/obj/i386",
+	"internal/obj/arm64",
 	"internal/obj/ppc64",
 	"internal/obj/x86",
 	"old5a",
@@ -137,7 +139,7 @@ func bootstrapFixImports(text, srcFile string) string {
 		}
 	}
 
-	lines[0] = "// Do not edit. Bootstrap copy of " + srcFile + "\n\n" + lines[0]
+	lines[0] = "// Do not edit. Bootstrap copy of " + srcFile + "\n\n//line " + srcFile + ":1\n" + lines[0]
 
 	return strings.Join(lines, "")
 }

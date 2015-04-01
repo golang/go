@@ -97,7 +97,7 @@ func semacquire(addr *uint32, profile bool) {
 		// Any semrelease after the cansemacquire knows we're waiting
 		// (we set nwait above), so go to sleep.
 		root.queue(addr, s)
-		goparkunlock(&root.lock, "semacquire", traceEvGoBlockSync)
+		goparkunlock(&root.lock, "semacquire", traceEvGoBlockSync, 4)
 		if cansemacquire(addr) {
 			break
 		}
@@ -140,7 +140,7 @@ func semrelease(addr *uint32) {
 		if s.releasetime != 0 {
 			s.releasetime = cputicks()
 		}
-		goready(s.g)
+		goready(s.g, 4)
 	}
 }
 
@@ -214,7 +214,7 @@ func syncsemacquire(s *syncSema) {
 		unlock(&s.lock)
 		if wake != nil {
 			wake.next = nil
-			goready(wake.g)
+			goready(wake.g, 4)
 		}
 	} else {
 		// Enqueue itself.
@@ -234,7 +234,7 @@ func syncsemacquire(s *syncSema) {
 			s.tail.next = w
 		}
 		s.tail = w
-		goparkunlock(&s.lock, "semacquire", traceEvGoBlockCond)
+		goparkunlock(&s.lock, "semacquire", traceEvGoBlockCond, 3)
 		if t0 != 0 {
 			blockevent(int64(w.releasetime)-t0, 2)
 		}
@@ -257,7 +257,7 @@ func syncsemrelease(s *syncSema, n uint32) {
 			wake.releasetime = cputicks()
 		}
 		wake.next = nil
-		goready(wake.g)
+		goready(wake.g, 4)
 		n--
 	}
 	if n > 0 {
@@ -273,7 +273,7 @@ func syncsemrelease(s *syncSema, n uint32) {
 			s.tail.next = w
 		}
 		s.tail = w
-		goparkunlock(&s.lock, "semarelease", traceEvGoBlockCond)
+		goparkunlock(&s.lock, "semarelease", traceEvGoBlockCond, 3)
 		releaseSudog(w)
 	} else {
 		unlock(&s.lock)

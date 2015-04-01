@@ -60,7 +60,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$-4
 	BL	runtime·schedinit(SB)
 
 	// create a new goroutine to start program
-	MOVW	$runtime·main·f(SB), R0
+	MOVW	$runtime·mainPC(SB), R0
 	MOVW.W	R0, -4(R13)
 	MOVW	$8, R0
 	MOVW.W	R0, -4(R13)
@@ -76,8 +76,8 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$-4
 	MOVW	$1000, R1
 	MOVW	R0, (R1)	// fail hard
 
-DATA	runtime·main·f+0(SB)/4,$runtime·main(SB)
-GLOBL	runtime·main·f(SB),RODATA,$4
+DATA	runtime·mainPC+0(SB)/4,$runtime·main(SB)
+GLOBL	runtime·mainPC(SB),RODATA,$4
 
 TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
 	// gdb won't skip this breakpoint instruction automatically,
@@ -782,6 +782,57 @@ eq:
 	MOVB	R0, ret+8(FP)
 	RET
 
+TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
+	MOVW	s1_base+0(FP), R2
+	MOVW	s1_len+4(FP), R0
+	MOVW	s2_base+8(FP), R3
+	MOVW	s2_len+12(FP), R1
+	BL	runtime·cmpbody(SB)
+	MOVW	R8, ret+16(FP)
+	RET
+
+TEXT bytes·Compare(SB),NOSPLIT,$0-28
+	MOVW	s1+0(FP), R2
+	MOVW	s1+4(FP), R0
+	MOVW	s2+12(FP), R3
+	MOVW	s2+16(FP), R1
+	BL	runtime·cmpbody(SB)
+	MOVW	R8, ret+24(FP)
+	RET
+
+// On entry:
+// R0 is the length of s1
+// R1 is the length of s2
+// R2 points to the start of s1
+// R3 points to the start of s2
+//
+// On exit:
+// R8 is -1/0/+1
+// R5, R4, and R6 are clobbered
+TEXT runtime·cmpbody(SB),NOSPLIT,$-4-0
+	CMP 	R0, R1
+	MOVW 	R0, R6
+	MOVW.LT	R1, R6	// R6 is min(R0, R1)
+
+	ADD	R2, R6	// R2 is current byte in s1, R6 is last byte in s1 to compare
+loop:
+	CMP	R2, R6
+	BEQ	samebytes // all compared bytes were the same; compare lengths
+	MOVBU.P	1(R2), R4
+	MOVBU.P	1(R3), R5
+	CMP	R4, R5
+	BEQ	loop
+	// bytes differed
+	MOVW.LT	$1, R8
+	MOVW.GT	$-1, R8
+	RET
+samebytes:
+	CMP	R0, R1
+	MOVW.LT	$1, R8
+	MOVW.GT	$-1, R8
+	MOVW.EQ	$0, R8
+	RET
+
 // eqstring tests whether two strings are equal.
 // The compiler guarantees that strings passed
 // to eqstring have equal length.
@@ -808,7 +859,7 @@ loop:
 	RET
 
 // TODO: share code with memeq?
-TEXT bytes·Equal(SB),NOSPLIT,$0
+TEXT bytes·Equal(SB),NOSPLIT,$0-25
 	MOVW	a_len+4(FP), R1
 	MOVW	b_len+16(FP), R3
 	
@@ -837,12 +888,12 @@ equal:
 	MOVBU	R0, ret+24(FP)
 	RET
 
-TEXT bytes·IndexByte(SB),NOSPLIT,$0
+TEXT bytes·IndexByte(SB),NOSPLIT,$0-20
 	MOVW	s+0(FP), R0
 	MOVW	s_len+4(FP), R1
 	MOVBU	c+12(FP), R2	// byte to find
 	MOVW	R0, R4		// store base for later
-	ADD	R0, R1		// end 
+	ADD	R0, R1		// end
 
 _loop:
 	CMP	R0, R1
@@ -853,7 +904,7 @@ _loop:
 
 	SUB	$1, R0		// R0 will be one beyond the position we want
 	SUB	R4, R0		// remove base
-	MOVW    R0, ret+16(FP) 
+	MOVW    R0, ret+16(FP)
 	RET
 
 _notfound:
@@ -861,12 +912,12 @@ _notfound:
 	MOVW	R0, ret+16(FP)
 	RET
 
-TEXT strings·IndexByte(SB),NOSPLIT,$0
+TEXT strings·IndexByte(SB),NOSPLIT,$0-16
 	MOVW	s+0(FP), R0
 	MOVW	s_len+4(FP), R1
 	MOVBU	c+8(FP), R2	// byte to find
 	MOVW	R0, R4		// store base for later
-	ADD	R0, R1		// end 
+	ADD	R0, R1		// end
 
 _sib_loop:
 	CMP	R0, R1
@@ -877,7 +928,7 @@ _sib_loop:
 
 	SUB	$1, R0		// R0 will be one beyond the position we want
 	SUB	R4, R0		// remove base
-	MOVW	R0, ret+12(FP) 
+	MOVW	R0, ret+12(FP)
 	RET
 
 _sib_notfound:

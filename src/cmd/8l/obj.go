@@ -31,11 +31,11 @@
 package main
 
 import (
+	"cmd/internal/ld"
 	"cmd/internal/obj"
 	"fmt"
 	"log"
 )
-import "cmd/internal/ld"
 
 // Reading object files.
 
@@ -68,6 +68,7 @@ func linkarchinit() {
 	ld.Thearch.Elfsetupplt = elfsetupplt
 	ld.Thearch.Gentext = gentext
 	ld.Thearch.Machoreloc1 = machoreloc1
+	ld.Thearch.PEreloc1 = pereloc1
 	ld.Thearch.Lput = ld.Lputl
 	ld.Thearch.Wput = ld.Wputl
 	ld.Thearch.Vput = ld.Vputl
@@ -76,7 +77,6 @@ func linkarchinit() {
 	ld.Thearch.Freebsddynld = "/usr/libexec/ld-elf.so.1"
 	ld.Thearch.Openbsddynld = "/usr/libexec/ld.so"
 	ld.Thearch.Netbsddynld = "/usr/libexec/ld.elf_so"
-	ld.Thearch.Dragonflydynld = "/usr/libexec/ld-elf.so.2"
 	ld.Thearch.Solarisdynld = "/lib/ld.so.1"
 }
 
@@ -97,11 +97,11 @@ func archinit() {
 		}
 
 	case ld.Hdarwin,
-		ld.Hdragonfly,
 		ld.Hfreebsd,
 		ld.Hlinux,
 		ld.Hnetbsd,
-		ld.Hopenbsd:
+		ld.Hopenbsd,
+		ld.Hwindows:
 		break
 	}
 
@@ -141,8 +141,7 @@ func archinit() {
 	case ld.Hlinux, /* elf32 executable */
 		ld.Hfreebsd,
 		ld.Hnetbsd,
-		ld.Hopenbsd,
-		ld.Hdragonfly:
+		ld.Hopenbsd:
 		ld.Elfinit()
 
 		ld.HEADR = ld.ELFRESERVE

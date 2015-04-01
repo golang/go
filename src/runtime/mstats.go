@@ -64,9 +64,6 @@ type mstats struct {
 
 var memstats mstats
 
-// Note: the MemStats struct should be kept in sync with
-// struct MStats in malloc.h
-
 // A MemStats records statistics about the memory allocator.
 type MemStats struct {
 	// General statistics.

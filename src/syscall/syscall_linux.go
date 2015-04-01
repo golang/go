@@ -820,8 +820,8 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 //sys	Chdir(path string) (err error)
 //sys	Chroot(path string) (err error)
 //sys	Close(fd int) (err error)
-//sysnb	Dup(oldfd int) (fd int, err error)
-//sysnb	Dup3(oldfd int, newfd int, flags int) (err error)
+//sys	Dup(oldfd int) (fd int, err error)
+//sys	Dup3(oldfd int, newfd int, flags int) (err error)
 //sysnb	EpollCreate(size int) (fd int, err error)
 //sysnb	EpollCreate1(flag int) (fd int, err error)
 //sysnb	EpollCtl(epfd int, op int, fd int, event *EpollEvent) (err error)
@@ -839,7 +839,12 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 //sys	Fsync(fd int) (err error)
 //sys	Getdents(fd int, buf []byte) (n int, err error) = SYS_GETDENTS64
 //sysnb	Getpgid(pid int) (pgid int, err error)
-//sysnb	Getpgrp() (pid int)
+
+func Getpgrp() (pid int) {
+	pid, _ = Getpgid(0)
+	return
+}
+
 //sysnb	Getpid() (pid int)
 //sysnb	Getppid() (ppid int)
 //sys	Getpriority(which int, who int) (prio int, err error)

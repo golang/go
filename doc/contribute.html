@@ -64,10 +64,8 @@ After running for a while, the command should print
 <h2 id="Code_review">Code review</h2>
 
 <p>
-Changes to Go must be reviewed before they are submitted,
+Changes to Go must be reviewed before they are accepted,
 no matter who makes the change.
-(In exceptional cases, such as fixing a build, the review can
-follow shortly after submitting.)
 A custom git command called <code>git-codereview</code>,
 discussed below, helps manage the code review process through a Google-hosted
 <a href="https://go-review.googlesource.com/">instance</a> of the code review
@@ -77,49 +75,51 @@ system called <a href="https://code.google.com/p/gerrit/">Gerrit</a>.
 <h3>Set up authentication for code review</h3>
 
 <p>
-The Git code hosting server and Gerrit code review server both use a Google
-Account to authenticate. You therefore need a Google Account to proceed.
-(If you can use the account to
-<a href="https://www.google.com/accounts/Login">sign in at google.com</a>,
-you can use it to sign in to the code review server.)
-The email address you use with the code review system
-will be recorded in the <a href="https://go.googlesource.com/go">change log</a>
-and in the <a href="/CONTRIBUTORS"><code>CONTRIBUTORS</code></a> file.
-You can <a href="https://www.google.com/accounts/NewAccount">create a Google Account</a>
-associated with any address where you receive email.
+Gerrit uses Google Accounts for authentication. If you don't have
+a Google Account, you can create an account which
+<a href="https://www.google.com/accounts/NewAccount">includes
+a new Gmail email account</a> or create an account associated
+<a href="https://accounts.google.com/SignUpWithoutGmail">with your existing
+email address</a>.
 </p>
 
 <p>
-Visit the site <a href="https://go.googlesource.com">go.googlesource.com</a>
-and log in using your Google Account.
-Click on the "Generate Password" link that appears at the top of the page.
+The email address associated with the Google Account you use will be recorded in
+the <a href="https://go.googlesource.com/go/+log/">change log</a>
+and in the <a href="/CONTRIBUTORS">contributors file</a>.
 </p>
 
 <p>
-Click the radio button that says "Only <code>go.googlesource.com</code>"
-to use this authentication token only for the Go project.
+To set up your account in Gerrit, visit
+<a href="https://go.googlesource.com">go.googlesource.com</a>
+and click on "Generate Password" in the page's top right menu bar.
 </p>
 
 <p>
-Further down the page is a box containing commands to install
-the authentication cookie in file called <code>.gitcookies</code> in your home
-directory.
-Copy the text for the commands into a Unix shell window to execute it.
-That will install the authentication token.
+You will be redirected to accounts.google.com to sign in.
 </p>
 
 <p>
+Once signed in, you are returned back to go.googlesource.com to "Configure Git".
+Follow the instructions on the page.
 (If you are on a Windows computer, you should instead follow the instructions
 in the yellow box to run the command.)
+</p>
+
+<p>
+Your secret authentication token is now in a <code>.gitcookie</code> file
+and Git is configured to use this file.
 </p>
 
 <h3>Register with Gerrit</h3>
 
 <p>
-Now that you have a Google account and the authentication token,
-you need to register your account with Gerrit, the code review system.
-To do this, visit <a href="https://golang.org/cl">golang.org/cl</a>
-and log in using the same Google Account you used above.
+Now that you have your authentication token,
+you need to register your account with Gerrit.
+To do this, visit
+<a href="https://go-review.googlesource.com/login/">
+go-review.googlesource.com/login/</a>. You will immediately be redirected
+to Google Accounts. Sign in using the same Google Account you used above.
 That is all that is required.
 </p>
 
@@ -130,7 +130,7 @@ Now install the <code>git-codereview</code> command by running,
 </p>
 
 <pre>
-go get -u golang.org/x/review/git-codereview
+$ go get -u golang.org/x/review/git-codereview
 </pre>
 
 <p>
@@ -482,7 +482,7 @@ $ git sync
 Failed to merge in the changes.
 Patch failed at 0023 math: improved Sin, Cos and Tan precision for very large arguments
 The copy of the patch that failed is found in:
-   /home/you/repo/.git/rebase-apply/patch
+   /home/you/repo/.git/rebase-apply/patch
 
 When you have resolved this problem, run "git rebase --continue".
 If you prefer to skip this patch, run "git rebase --skip" instead.
@@ -505,15 +505,15 @@ The output will look something like this:
 <pre>
 rebase in progress; onto a24c3eb
 You are currently rebasing branch 'mcgillicutty' on 'a24c3eb'.
-  (fix conflicts and then run "git rebase --continue")
-  (use "git rebase --skip" to skip this patch)
-  (use "git rebase --abort" to check out the original branch)
+  (fix conflicts and then run "git rebase --continue")
+  (use "git rebase --skip" to skip this patch)
+  (use "git rebase --abort" to check out the original branch)
 
 Unmerged paths:
-  (use "git reset HEAD &lt;file&gt;..." to unstage)
-  (use "git add &lt;file&gt;..." to mark resolution)
+  (use "git reset HEAD &lt;file&gt;..." to unstage)
+  (use "git add &lt;file&gt;..." to mark resolution)
 
-	<i>both modified:   sin.go</i>
+	<i>both modified: sin.go</i>
 </pre>
 
 <p>
@@ -530,9 +530,9 @@ might turn up:
 <pre>
 	arg = scale(arg)
 &lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD
-	if arg > 1e9 {
+	if arg &lt; 1e9 {
 =======
-	if arg > 1e10 {
+	if arg &lh; 1e10 {
 &gt;&gt;&gt;&gt;&gt;&gt;&gt; mcgillicutty
 		largeReduce(arg)
 </pre>
@@ -546,7 +546,7 @@ to remove the markers and leave the correct code:
 
 <pre>
 	arg = scale(arg)
-	if arg > 1e10 {
+	if arg &lt; 1e10 {
 		largeReduce(arg)
 </pre>
 
@@ -577,7 +577,7 @@ It should look something like this:
 </p>
 
 <pre>
-$ git fetch https://go.googlesource.com/review refs/changes/21/1221/1 && git checkout FETCH_HEAD
+$ git fetch https://go.googlesource.com/review refs/changes/21/1221/1 &amp;&amp; git checkout FETCH_HEAD
 </pre>
 
 <p>

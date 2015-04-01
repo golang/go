@@ -37,9 +37,6 @@ import (
 )
 
 func progedit(ctxt *obj.Link, p *obj.Prog) {
-	var literal string
-	var s *obj.LSym
-
 	p.From.Class = 0
 	p.To.Class = 0
 
@@ -59,12 +56,10 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 	switch p.As {
 	case AFMOVS:
 		if p.From.Type == obj.TYPE_FCONST {
-			var i32 uint32
-			var f32 float32
-			f32 = float32(p.From.U.Dval)
-			i32 = math.Float32bits(f32)
-			literal = fmt.Sprintf("$f32.%08x", i32)
-			s = obj.Linklookup(ctxt, literal, 0)
+			f32 := float32(p.From.Val.(float64))
+			i32 := math.Float32bits(f32)
+			literal := fmt.Sprintf("$f32.%08x", i32)
+			s := obj.Linklookup(ctxt, literal, 0)
 			s.Size = 4
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = s
@@ -74,10 +69,9 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 
 	case AFMOVD:
 		if p.From.Type == obj.TYPE_FCONST {
-			var i64 uint64
-			i64 = math.Float64bits(p.From.U.Dval)
-			literal = fmt.Sprintf("$f64.%016x", i64)
-			s = obj.Linklookup(ctxt, literal, 0)
+			i64 := math.Float64bits(p.From.Val.(float64))
+			literal := fmt.Sprintf("$f64.%016x", i64)
+			s := obj.Linklookup(ctxt, literal, 0)
 			s.Size = 8
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = s
@@ -88,8 +82,8 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		// Put >32-bit constants in memory and load them
 	case AMOVD:
 		if p.From.Type == obj.TYPE_CONST && p.From.Name == obj.NAME_NONE && p.From.Reg == 0 && int64(int32(p.From.Offset)) != p.From.Offset {
-			literal = fmt.Sprintf("$i64.%016x", uint64(p.From.Offset))
-			s = obj.Linklookup(ctxt, literal, 0)
+			literal := fmt.Sprintf("$i64.%016x", uint64(p.From.Offset))
+			s := obj.Linklookup(ctxt, literal, 0)
 			s.Size = 8
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = s
@@ -121,17 +115,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 }
 
 func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
-	var p *obj.Prog
-	var q *obj.Prog
-	var p1 *obj.Prog
-	var p2 *obj.Prog
-	var q1 *obj.Prog
-	var o int
-	var mov int
-	var aoffset int
-	var textstksiz int64
-	var autosize int32
-
 	if ctxt.Symmorestack[0] == nil {
 		ctxt.Symmorestack[0] = obj.Linklookup(ctxt, "runtime.morestack", 0)
 		ctxt.Symmorestack[1] = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
@@ -144,10 +127,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		return
 	}
 
-	p = cursym.Text
-	textstksiz = p.To.Offset
+	p := cursym.Text
+	textstksiz := p.To.Offset
 
-	cursym.Args = p.To.U.Argsize
+	cursym.Args = p.To.Val.(int32)
 	cursym.Locals = int32(textstksiz)
 
 	/*
@@ -161,8 +144,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	}
 	obj.Bflush(ctxt.Bso)
 
-	q = nil
-	for p = cursym.Text; p != nil; p = p.Link {
+	var q *obj.Prog
+	var q1 *obj.Prog
+	for p := cursym.Text; p != nil; p = p.Link {
 		switch p.As {
 		/* too hard, just leave alone */
 		case obj.ATEXT:
@@ -214,9 +198,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			p.Mark |= LABEL | SYNC
 			continue
 
-		case AMOVW,
-			AMOVWZ,
-			AMOVD:
+		case AMOVW, AMOVWZ, AMOVD:
 			q = p
 			if p.From.Reg >= REG_SPECIAL || p.To.Reg >= REG_SPECIAL {
 				p.Mark |= LABEL | SYNC
@@ -301,8 +283,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			}
 			continue
 
-		case AFCMPO,
-			AFCMPU:
+		case AFCMPO, AFCMPU:
 			q = p
 			p.Mark |= FCMP | FLOAT
 			continue
@@ -326,8 +307,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		}
 	}
 
-	autosize = 0
-	for p = cursym.Text; p != nil; p = p.Link {
+	autosize := int32(0)
+	var aoffset int
+	var mov int
+	var o int
+	var p1 *obj.Prog
+	var p2 *obj.Prog
+	for p := cursym.Text; p != nil; p = p.Link {
 		o = int(p.As)
 		switch o {
 		case obj.ATEXT:
@@ -643,9 +629,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	}
 */
 func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt bool) *obj.Prog {
-	var q *obj.Prog
-	var q1 *obj.Prog
-
 	// MOVD	g_stackguard(g), R3
 	p = obj.Appendp(ctxt, p)
 
@@ -659,7 +642,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt bool) *obj.
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = REG_R3
 
-	q = nil
+	var q *obj.Prog
 	if framesize <= obj.StackSmall {
 		// small stack: SP < stackguard
 		//	CMP	stackguard, SP
@@ -750,7 +733,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt bool) *obj.
 
 	// q1: BLT	done
 	p = obj.Appendp(ctxt, p)
-	q1 = p
+	q1 := p
 
 	p.As = ABLT
 	p.To.Type = obj.TYPE_BRANCH
@@ -795,13 +778,10 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt bool) *obj.
 }
 
 func follow(ctxt *obj.Link, s *obj.LSym) {
-	var firstp *obj.Prog
-	var lastp *obj.Prog
-
 	ctxt.Cursym = s
 
-	firstp = ctxt.NewProg()
-	lastp = firstp
+	firstp := ctxt.NewProg()
+	lastp := firstp
 	xfol(ctxt, s.Text, &lastp)
 	lastp.Link = nil
 	s.Text = firstp.Link
@@ -872,7 +852,7 @@ loop:
 	if p.Mark&FOLL != 0 {
 		i = 0
 		q = p
-		for ; i < 4; (func() { i++; q = q.Link })() {
+		for ; i < 4; i, q = i+1, q.Link {
 			if q == *last || (q.Mark&NOSCHED != 0) {
 				break
 			}
@@ -965,12 +945,9 @@ loop:
 }
 
 var Linkppc64 = obj.LinkArch{
-	Rconv:      Rconv,
 	ByteOrder:  binary.BigEndian,
-	Pconv:      Pconv,
 	Name:       "ppc64",
 	Thechar:    '9',
-	Endian:     obj.BigEndian,
 	Preprocess: preprocess,
 	Assemble:   span9,
 	Follow:     follow,
@@ -981,12 +958,9 @@ var Linkppc64 = obj.LinkArch{
 }
 
 var Linkppc64le = obj.LinkArch{
-	Rconv:      Rconv,
 	ByteOrder:  binary.LittleEndian,
-	Pconv:      Pconv,
 	Name:       "ppc64le",
 	Thechar:    '9',
-	Endian:     obj.LittleEndian,
 	Preprocess: preprocess,
 	Assemble:   span9,
 	Follow:     follow,

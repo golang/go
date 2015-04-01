@@ -140,7 +140,7 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 		entropylen = 32
 	}
 	entropy := make([]byte, entropylen)
-	_, err = rand.Read(entropy)
+	_, err = io.ReadFull(rand, entropy)
 	if err != nil {
 		return
 	}

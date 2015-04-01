@@ -206,23 +206,35 @@ const (
 )
 
 type EscState struct {
-	theSink   Node
+	// Fake node that all
+	//   - return values and output variables
+	//   - parameters on imported functions not marked 'safe'
+	//   - assignments to global variables
+	// flow to.
+	theSink Node
+
+	// If an analyzed function is recorded to return
+	// pieces obtained via indirection from a parameter,
+	// and later there is a call f(x) to that function,
+	// we create a link funcParam <- x to record that fact.
+	// The funcParam node is handled specially in escflood.
 	funcParam Node
-	dsts      *NodeList
-	loopdepth int
-	pdepth    int
-	dstcount  int
-	edgecount int
-	noesc     *NodeList
-	recursive bool
+
+	dsts      *NodeList // all dst nodes
+	loopdepth int       // for detecting nested loop scopes
+	pdepth    int       // for debug printing in recursions.
+	dstcount  int       // diagnostic
+	edgecount int       // diagnostic
+	noesc     *NodeList // list of possible non-escaping nodes, for printing
+	recursive bool      // recursive function or group of mutually recursive functions.
 }
 
-var tags [16]*Strlit
+var tags [16]*string
 
-func mktag(mask int) *Strlit {
+// mktag returns the string representation for an escape analysis tag.
+func mktag(mask int) *string {
 	switch mask & EscMask {
-	case EscNone,
-		EscReturn:
+	case EscNone, EscReturn:
 		break
 
 	default:
@@ -235,22 +247,18 @@ func mktag(mask int) *Strlit {
 		return tags[mask]
 	}
 
-	buf := fmt.Sprintf("esc:0x%x", mask)
-	s := newstrlit(buf)
+	s := fmt.Sprintf("esc:0x%x", mask)
 	if mask < len(tags) {
-		tags[mask] = s
+		tags[mask] = &s
 	}
-	return s
+	return &s
 }
 
-func parsetag(note *Strlit) int {
-	if note == nil {
+func parsetag(note *string) int {
+	if note == nil || !strings.HasPrefix(*note, "esc:") {
 		return EscUnknown
 	}
-	if !strings.HasPrefix(note.S, "esc:") {
-		return EscUnknown
-	}
-	em := atoi(note.S[4:])
+	em := atoi((*note)[4:])
 	if em == 0 {
 		return EscNone
 	}
@@ -258,7 +266,7 @@ func parsetag(note *Strlit) int {
 }
 
 func escAnalyze(all *NodeList, recursive bool) {
-	es := EscState{}
+	var es EscState
 	e := &es
 	e.theSink.Op = ONAME
 	e.theSink.Orig = &e.theSink
@@ -329,7 +337,7 @@ func escfunc(e *EscState, func_ *Node) {
 	savefn := Curfn
 	Curfn = func_
 
-	for ll := Curfn.Dcl; ll != nil; ll = ll.Next {
+	for ll := Curfn.Func.Dcl; ll != nil; ll = ll.Next {
 		if ll.N.Op != ONAME {
 			continue
 		}
@@ -354,7 +362,7 @@ func escfunc(e *EscState, func_ *Node) {
 
 	// in a mutually recursive group we lose track of the return values
 	if e.recursive {
-		for ll := Curfn.Dcl; ll != nil; ll = ll.Next {
+		for ll := Curfn.Func.Dcl; ll != nil; ll = ll.Next {
 			if ll.N.Op == ONAME && ll.N.Class == PPARAMOUT {
 				escflows(e, &e.theSink, ll.N)
 			}
@@ -428,9 +436,6 @@ func esclist(e *EscState, l *NodeList, up *Node) {
 }
 
 func esc(e *EscState, n *Node, up *Node) {
-	var ll *NodeList
-	var lr *NodeList
-
 	if n == nil {
 		return
 	}
@@ -449,7 +454,7 @@ func esc(e *EscState, n *Node, up *Node) {
 	// must happen before processing of switch body,
 	// so before recursion.
 	if n.Op == OSWITCH && n.Ntest != nil && n.Ntest.Op == OTYPESW {
-		for ll = n.List; ll != nil; ll = ll.Next { // cases
+		for ll := n.List; ll != nil; ll = ll.Next { // cases
 
 			// ll->n->nname is the variable per case
 			if ll.N.Nname != nil {
@@ -514,7 +519,7 @@ func esc(e *EscState, n *Node, up *Node) {
 
 	case OSWITCH:
 		if n.Ntest != nil && n.Ntest.Op == OTYPESW {
-			for ll = n.List; ll != nil; ll = ll.Next { // cases
+			for ll := n.List; ll != nil; ll = ll.Next { // cases
 
 				// ntest->right is the argument of the .(type),
 				// ll->n->nname is the variable per case
@@ -532,9 +537,11 @@ func esc(e *EscState, n *Node, up *Node) {
 	// This assignment is a no-op for escape analysis,
 	// it does not store any new pointers into b that were not already there.
 	// However, without this special case b will escape, because we assign to OIND/ODOTPTR.
-	case OAS,
-		OASOP:
-		if (n.Left.Op == OIND || n.Left.Op == ODOTPTR) && n.Left.Left.Op == ONAME && (n.Right.Op == OSLICE || n.Right.Op == OSLICE3 || n.Right.Op == OSLICESTR) && (n.Right.Left.Op == OIND || n.Right.Left.Op == ODOTPTR) && n.Right.Left.Left.Op == ONAME && n.Left.Left == n.Right.Left.Left { // dst is ONAME dereference // src is slice operation // slice is applied to ONAME dereference // dst and src reference the same base ONAME
+	case OAS, OASOP:
+		if (n.Left.Op == OIND || n.Left.Op == ODOTPTR) && n.Left.Left.Op == ONAME && // dst is ONAME dereference
+			(n.Right.Op == OSLICE || n.Right.Op == OSLICE3 || n.Right.Op == OSLICESTR) && // src is slice operation
+			(n.Right.Left.Op == OIND || n.Right.Left.Op == ODOTPTR) && n.Right.Left.Left.Op == ONAME && // slice is applied to ONAME dereference
+			n.Left.Left == n.Right.Left.Left { // dst and src reference the same base ONAME
 
 			// Here we also assume that the statement will not contain calls,
 			// that is, that order will move any calls to init.
@@ -563,9 +570,9 @@ func esc(e *EscState, n *Node, up *Node) {
 
 	case OAS2: // x,y = a,b
 		if count(n.List) == count(n.Rlist) {
-			ll = n.List
-			lr = n.Rlist
-			for ; ll != nil; (func() { ll = ll.Next; lr = lr.Next })() {
+			ll := n.List
+			lr := n.Rlist
+			for ; ll != nil; ll, lr = ll.Next, lr.Next {
 				escassign(e, ll.N, lr.N)
 			}
 		}
@@ -582,30 +589,28 @@ func esc(e *EscState, n *Node, up *Node) {
 		if e.loopdepth == 1 { // top level
 			break
 		}
+		// arguments leak out of scope
+		// TODO: leak to a dummy node instead
 		fallthrough
 
-		// go f(x) - f and x escape
-	// arguments leak out of scope
-	// TODO: leak to a dummy node instead
-	// fallthrough
 	case OPROC:
+		// go f(x) - f and x escape
 		escassign(e, &e.theSink, n.Left.Left)
 
 		escassign(e, &e.theSink, n.Left.Right) // ODDDARG for call
-		for ll = n.Left.List; ll != nil; ll = ll.Next {
+		for ll := n.Left.List; ll != nil; ll = ll.Next {
 			escassign(e, &e.theSink, ll.N)
 		}
 
-	case OCALLMETH,
-		OCALLFUNC,
-		OCALLINTER:
+	case OCALLMETH, OCALLFUNC, OCALLINTER:
 		esccall(e, n, up)
 
 		// esccall already done on n->rlist->n. tie it's escretval to n->list
 	case OAS2FUNC: // x,y = f()
-		lr = n.Rlist.N.Escretval
+		lr := n.Rlist.N.Escretval
 
-		for ll = n.List; lr != nil && ll != nil; (func() { lr = lr.Next; ll = ll.Next })() {
+		var ll *NodeList
+		for ll = n.List; lr != nil && ll != nil; lr, ll = lr.Next, ll.Next {
 			escassign(e, ll.N, lr.N)
 		}
 		if lr != nil || ll != nil {
@@ -613,7 +618,7 @@ func esc(e *EscState, n *Node, up *Node) {
 		}
 
 	case ORETURN:
-		ll = n.List
+		ll := n.List
 		if count(n.List) == 1 && Curfn.Type.Outtuple > 1 {
 			// OAS2FUNC in disguise
 			// esccall already done on n->list->n
@@ -621,7 +626,7 @@ func esc(e *EscState, n *Node, up *Node) {
 			ll = n.List.N.Escretval
 		}
 
-		for lr = Curfn.Dcl; lr != nil && ll != nil; lr = lr.Next {
+		for lr := Curfn.Func.Dcl; lr != nil && ll != nil; lr = lr.Next {
 			if lr.N.Op != ONAME || lr.N.Class != PPARAMOUT {
 				continue
 			}
@@ -638,15 +643,19 @@ func esc(e *EscState, n *Node, up *Node) {
 		escassign(e, &e.theSink, n.Left)
 
 	case OAPPEND:
-		if n.Isddd == 0 {
-			for ll = n.List.Next; ll != nil; ll = ll.Next {
+		if !n.Isddd {
+			for ll := n.List.Next; ll != nil; ll = ll.Next {
 				escassign(e, &e.theSink, ll.N) // lose track of assign to dereference
 			}
 		}
 
-	case OCONV,
-		OCONVNOP,
-		OCONVIFACE:
+	case OCONV, OCONVNOP:
+		escassign(e, n, n.Left)
+
+	case OCONVIFACE:
+		n.Esc = EscNone // until proven otherwise
+		e.noesc = list(e.noesc, n)
+		n.Escloopdepth = e.loopdepth
 		escassign(e, n, n.Left)
 
 	case OARRAYLIT:
@@ -656,19 +665,19 @@ func esc(e *EscState, n *Node, up *Node) {
 			n.Escloopdepth = e.loopdepth
 
 			// Values make it to memory, lose track.
-			for ll = n.List; ll != nil; ll = ll.Next {
+			for ll := n.List; ll != nil; ll = ll.Next {
 				escassign(e, &e.theSink, ll.N.Right)
 			}
 		} else {
 			// Link values to array.
-			for ll = n.List; ll != nil; ll = ll.Next {
+			for ll := n.List; ll != nil; ll = ll.Next {
 				escassign(e, n, ll.N.Right)
 			}
 		}
 
 		// Link values to struct.
 	case OSTRUCTLIT:
-		for ll = n.List; ll != nil; ll = ll.Next {
+		for ll := n.List; ll != nil; ll = ll.Next {
 			escassign(e, n, ll.N.Right)
 		}
 
@@ -694,7 +703,7 @@ func esc(e *EscState, n *Node, up *Node) {
 		n.Escloopdepth = e.loopdepth
 
 		// Keys and values make it to memory, lose track.
-		for ll = n.List; ll != nil; ll = ll.Next {
+		for ll := n.List; ll != nil; ll = ll.Next {
 			escassign(e, &e.theSink, ll.N.Left)
 			escassign(e, &e.theSink, ll.N.Right)
 		}
@@ -703,13 +712,13 @@ func esc(e *EscState, n *Node, up *Node) {
 	case OCLOSURE:
 		var a *Node
 		var v *Node
-		for ll = n.Cvars; ll != nil; ll = ll.Next {
+		for ll := n.Func.Cvars; ll != nil; ll = ll.Next {
 			v = ll.N
 			if v.Op == OXXX { // unnamed out argument; see dcl.c:/^funcargs
 				continue
 			}
 			a = v.Closure
-			if v.Byval == 0 {
+			if !v.Byval {
 				a = Nod(OADDR, a, nil)
 				a.Lineno = v.Lineno
 				a.Escloopdepth = e.loopdepth
@@ -766,8 +775,7 @@ func esc(e *EscState, n *Node, up *Node) {
 			// so that writing the address of one result
 			// to another (or the same) result makes the
 			// first result move to the heap.
-			case PPARAM,
-				PPARAMOUT:
+			case PPARAM, PPARAMOUT:
 				n.Escloopdepth = 1
 			}
 		}
@@ -833,8 +841,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
 
 		dst = &e.theSink // lose track of dereference
 
-	case OIND,
-		ODOTPTR:
+	case OIND, ODOTPTR:
 		dst = &e.theSink // lose track of dereference
 
 		// lose track of key and value
@@ -869,14 +876,13 @@ func escassign(e *EscState, dst *Node, src *Node) {
 		ONEW,
 		OCLOSURE,
 		OCALLPART,
-		ORUNESTR:
+		ORUNESTR,
+		OCONVIFACE:
 		escflows(e, dst, src)
 
 		// Flowing multiple returns to a single dst happens when
 	// analyzing "go f(g())": here g() flows to sink (issue 4529).
-	case OCALLMETH,
-		OCALLFUNC,
-		OCALLINTER:
+	case OCALLMETH, OCALLFUNC, OCALLINTER:
 		for ll := src.Escretval; ll != nil; ll = ll.Next {
 			escflows(e, dst, ll.N)
 		}
@@ -891,7 +897,6 @@ func escassign(e *EscState, dst *Node, src *Node) {
 		// Conversions, field access, slice all preserve the input value.
 	// fallthrough
 	case OCONV,
-		OCONVIFACE,
 		OCONVNOP,
 		ODOTMETH,
 		// treat recv.meth as a value with recv in it, only happens in ODEFER and OPROC
@@ -903,14 +908,15 @@ func escassign(e *EscState, dst *Node, src *Node) {
 		OSLICEARR,
 		OSLICE3ARR,
 		OSLICESTR:
+		// Conversions, field access, slice all preserve the input value.
 		escassign(e, dst, src.Left)
 
-		// Append returns first argument.
 	case OAPPEND:
+		// Append returns first argument.
 		escassign(e, dst, src.List.N)
 
-		// Index of array preserves input value.
 	case OINDEX:
+		// Index of array preserves input value.
 		if Isfixedarray(src.Left.Type) {
 			escassign(e, dst, src.Left)
 		}
@@ -941,10 +947,8 @@ func escassign(e *EscState, dst *Node, src *Node) {
 	lineno = int32(lno)
 }
 
-func escassignfromtag(e *EscState, note *Strlit, dsts *NodeList, src *Node) int {
-	var em int
-
-	em = parsetag(note)
+func escassignfromtag(e *EscState, note *string, dsts *NodeList, src *Node) int {
+	em := parsetag(note)
 
 	if em == EscUnknown {
 		escassign(e, &e.theSink, src)
@@ -962,14 +966,14 @@ func escassignfromtag(e *EscState, note *Strlit, dsts *NodeList, src *Node) int 
 	}
 
 	em0 := em
-	for em >>= EscReturnBits; em != 0 && dsts != nil; (func() { em >>= 1; dsts = dsts.Next })() {
+	for em >>= EscReturnBits; em != 0 && dsts != nil; em, dsts = em>>1, dsts.Next {
 		if em&1 != 0 {
 			escassign(e, dsts.N, src)
 		}
 	}
 
 	if em != 0 && dsts == nil {
-		Fatal("corrupt esc tag %v or messed up escretval list\n", Zconv(note, 0))
+		Fatal("corrupt esc tag %q or messed up escretval list\n", note)
 	}
 	return em0
 }
@@ -981,11 +985,9 @@ func escassignfromtag(e *EscState, note *Strlit, dsts *NodeList, src *Node) int 
 // different for methods vs plain functions and for imported vs
 // this-package
 func esccall(e *EscState, n *Node, up *Node) {
-	var ll *NodeList
-	var lr *NodeList
 	var fntype *Type
 
-	fn := (*Node)(nil)
+	var fn *Node
 	switch n.Op {
 	default:
 		Fatal("esccall")
@@ -1006,7 +1008,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 		fntype = n.Left.Type
 	}
 
-	ll = n.List
+	ll := n.List
 	if n.List != nil && n.List.Next == nil {
 		a := n.List.N
 		if a.Type.Etype == TSTRUCT && a.Type.Funarg != 0 { // f(g()).
@@ -1022,7 +1024,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 		}
 
 		// set up out list on this call node
-		for lr = fn.Ntype.Rlist; lr != nil; lr = lr.Next {
+		for lr := fn.Ntype.Rlist; lr != nil; lr = lr.Next {
 			n.Escretval = list(n.Escretval, lr.N.Left) // type.rlist ->  dclfield -> ONAME (PPARAMOUT)
 		}
 
@@ -1032,9 +1034,9 @@ func esccall(e *EscState, n *Node, up *Node) {
 		}
 
 		var src *Node
-		for lr = fn.Ntype.List; ll != nil && lr != nil; (func() { ll = ll.Next; lr = lr.Next })() {
+		for lr := fn.Ntype.List; ll != nil && lr != nil; ll, lr = ll.Next, lr.Next {
 			src = ll.N
-			if lr.N.Isddd != 0 && n.Isddd == 0 {
+			if lr.N.Isddd && !n.Isddd {
 				// Introduce ODDDARG node to represent ... allocation.
 				src = Nod(ODDDARG, nil, nil)
 
@@ -1084,7 +1086,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 		src.Class = PAUTO
 		src.Curfn = Curfn
 		src.Escloopdepth = e.loopdepth
-		src.Used = 1
+		src.Used = true
 		src.Lineno = n.Lineno
 		n.Escretval = list(n.Escretval, src)
 	}
@@ -1103,7 +1105,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 	var a *Node
 	for t := getinargx(fntype).Type; ll != nil; ll = ll.Next {
 		src = ll.N
-		if t.Isddd != 0 && n.Isddd == 0 {
+		if t.Isddd && !n.Isddd {
 			// Introduce ODDDARG node to represent ... allocation.
 			src = Nod(ODDDARG, nil, nil)
 
@@ -1193,8 +1195,7 @@ func escflows(e *EscState, dst *Node, src *Node) {
 // escaping to the global scope.
 func escflood(e *EscState, dst *Node) {
 	switch dst.Op {
-	case ONAME,
-		OCLOSURE:
+	case ONAME, OCLOSURE:
 		break
 
 	default:
@@ -1300,8 +1301,7 @@ func escwalk(e *EscState, level int, dst *Node, src *Node) {
 			escwalk(e, level, dst, src.Closure)
 		}
 
-	case OPTRLIT,
-		OADDR:
+	case OPTRLIT, OADDR:
 		if leaks {
 			src.Esc = EscHeap
 			addrescapes(src.Left)
@@ -1336,7 +1336,8 @@ func escwalk(e *EscState, level int, dst *Node, src *Node) {
 		ONEW,
 		OCLOSURE,
 		OCALLPART,
-		ORUNESTR:
+		ORUNESTR,
+		OCONVIFACE:
 		if leaks {
 			src.Esc = EscHeap
 			if Debug['m'] != 0 {
@@ -1360,9 +1361,7 @@ func escwalk(e *EscState, level int, dst *Node, src *Node) {
 		fallthrough
 
 		// fall through
-	case ODOTPTR,
-		OINDEXMAP,
-		OIND:
+	case ODOTPTR, OINDEXMAP, OIND:
 		newlevel := level
 
 		if level > MinLevel {
@@ -1399,7 +1398,7 @@ func esctag(e *EscState, func_ *Node) {
 	savefn := Curfn
 	Curfn = func_
 
-	for ll := Curfn.Dcl; ll != nil; ll = ll.Next {
+	for ll := Curfn.Func.Dcl; ll != nil; ll = ll.Next {
 		if ll.N.Op != ONAME || ll.N.Class != PPARAM {
 			continue
 		}

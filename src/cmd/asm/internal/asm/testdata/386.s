@@ -78,5 +78,9 @@ label:
 	PINSRD	$1, (AX), X0
 	PINSRD	$2, foo+4(FP), X0
 
+// Was bug: LOOP is a branch instruction.
+loop:
+	LOOP	loop
+
 // LTYPE0 nonnon	{ outcode(int($1), &$2); }
 	RET

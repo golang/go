@@ -249,15 +249,15 @@ import_package:
 	{
 		if importpkg.Name == "" {
 			importpkg.Name = $2.Name;
-			Pkglookup($2.Name, nil).Npkg++;
+			numImport[$2.Name]++
 		} else if importpkg.Name != $2.Name {
-			Yyerror("conflicting names %s and %s for package \"%v\"", importpkg.Name, $2.Name, Zconv(importpkg.Path, 0));
+			Yyerror("conflicting names %s and %s for package %q", importpkg.Name, $2.Name, importpkg.Path);
 		}
 		importpkg.Direct = 1;
 		importpkg.Safe = curio.importsafe
 
 		if safemode != 0 && !curio.importsafe {
-			Yyerror("cannot import unsafe package \"%v\"", Zconv(importpkg.Path, 0));
+			Yyerror("cannot import unsafe package %q", importpkg.Path);
 		}
 	}
 
@@ -404,7 +404,7 @@ typedclname:
 typedcl:
 	typedclname ntype
 	{
-		$$ = typedcl1($1, $2, 1);
+		$$ = typedcl1($1, $2, true);
 	}
 
 simple_stmt:
@@ -418,7 +418,7 @@ simple_stmt:
 		switch($$.Op) {
 		case ONAME, ONONAME, OTYPE, OPACK, OLITERAL:
 			$$ = Nod(OPAREN, $$, nil);
-			$$.Implicit = 1;
+			$$.Implicit = true;
 			break;
 		}
 	}
@@ -460,13 +460,13 @@ simple_stmt:
 |	expr LINC
 	{
 		$$ = Nod(OASOP, $1, Nodintconst(1));
-		$$.Implicit = 1;
+		$$.Implicit = true;
 		$$.Etype = OADD;
 	}
 |	expr LDEC
 	{
 		$$ = Nod(OASOP, $1, Nodintconst(1));
-		$$.Implicit = 1;
+		$$.Implicit = true;
 		$$.Etype = OSUB;
 	}
 
@@ -886,7 +886,7 @@ uexpr:
 			// Special case for &T{...}: turn into (*T){...}.
 			$$ = $2;
 			$$.Right = Nod(OIND, $$.Right, nil);
-			$$.Right.Implicit = 1;
+			$$.Right.Implicit = true;
 		} else {
 			$$ = Nod(OADDR, $2, nil);
 		}
@@ -935,7 +935,7 @@ pseudocall:
 	{
 		$$ = Nod(OCALL, $1, nil);
 		$$.List = $3;
-		$$.Isddd = 1;
+		$$.Isddd = true;
 	}
 
 pexpr_no_paren:
@@ -949,7 +949,7 @@ pexpr_no_paren:
 		if $1.Op == OPACK {
 			var s *Sym
 			s = restrictlookup($3.Name, $1.Pkg);
-			$1.Used = 1;
+			$1.Used = true;
 			$$ = oldname(s);
 			break;
 		}
@@ -1034,7 +1034,7 @@ bare_complitexpr:
 		switch($$.Op) {
 		case ONAME, ONONAME, OTYPE, OPACK, OLITERAL:
 			$$ = Nod(OPAREN, $$, nil);
-			$$.Implicit = 1;
+			$$.Implicit = true;
 		}
 	}
 |	'{' start_complit braced_keyval_list '}'
@@ -1130,7 +1130,7 @@ hidden_importsym:
 	{
 		var p *Pkg
 
-		if $2.U.Sval.S == "" {
+		if $2.U.Sval == "" {
 			p = importpkg;
 		} else {
 			if isbadimport($2.U.Sval) {
@@ -1144,7 +1144,7 @@ hidden_importsym:
 	{
 		var p *Pkg
 
-		if $2.U.Sval.S == "" {
+		if $2.U.Sval == "" {
 			p = importpkg;
 		} else {
 			if isbadimport($2.U.Sval) {
@@ -1160,7 +1160,7 @@ name:
 	{
 		$$ = oldname($1);
 		if $$.Pack != nil {
-			$$.Pack.Used = 1;
+			$$.Pack.Used = true;
 		}
 	}
 
@@ -1238,7 +1238,7 @@ dotname:
 		if $1.Op == OPACK {
 			var s *Sym
 			s = restrictlookup($3.Name, $1.Pkg);
-			$1.Used = 1;
+			$1.Used = true;
 			$$ = oldname(s);
 			break;
 		}
@@ -1326,10 +1326,10 @@ xfndcl:
 			Yyerror("can only use //go:noescape with external func implementations");
 		}
 		$$.Nbody = $3;
-		$$.Endlineno = lineno;
+		$$.Func.Endlineno = lineno;
 		$$.Noescape = noescape;
-		$$.Nosplit = nosplit;
-		$$.Nowritebarrier = nowritebarrier;
+		$$.Func.Nosplit = nosplit;
+		$$.Func.Nowritebarrier = nowritebarrier;
 		funcbody($$);
 	}
 
@@ -1358,7 +1358,7 @@ fndcl:
 		t.Rlist = $5;
 
 		$$ = Nod(ODCLFUNC, nil, nil);
-		$$.Nname = newname($1);
+		$$.Nname = newfuncname($1);
 		$$.Nname.Defn = $$;
 		$$.Nname.Ntype = t;		// TODO: check if nname already has an ntype
 		declare($$.Nname, PFUNC);
@@ -1392,8 +1392,8 @@ fndcl:
 		t.Rlist = $8;
 
 		$$ = Nod(ODCLFUNC, nil, nil);
-		$$.Shortname = newname($4);
-		$$.Nname = methodname1($$.Shortname, rcvr.Right);
+		$$.Func.Shortname = newfuncname($4);
+		$$.Nname = methodname1($$.Func.Shortname, rcvr.Right);
 		$$.Nname.Defn = $$;
 		$$.Nname.Ntype = t;
 		$$.Nname.Nointerface = nointerface;
@@ -1422,7 +1422,7 @@ hidden_fndcl:
 			Yyerror("inconsistent definition for func %v during import\n\t%v\n\t%v", Sconv(s, 0), Tconv(s.Def.Type, 0), Tconv(t, 0));
 		}
 
-		$$ = newname(s);
+		$$ = newfuncname(s);
 		$$.Type = t;
 		declare($$, PFUNC);
 
@@ -1626,7 +1626,7 @@ packname:
 		$$ = $1;
 		n = oldname($1);
 		if n.Pack != nil {
-			n.Pack.Used = 1;
+			n.Pack.Used = true;
 		}
 	}
 |	LNAME '.' sym
@@ -1637,7 +1637,7 @@ packname:
 			Yyerror("%v is not a package", Sconv($1, 0));
 			pkg = localpkg;
 		} else {
-			$1.Def.Used = 1;
+			$1.Def.Used = true;
 			pkg = $1.Def.Pkg;
 		}
 		$$ = restrictlookup($3.Name, pkg);
@@ -1787,7 +1787,7 @@ non_dcl_stmt:
 		if $$.List == nil && Curfn != nil {
 			var l *NodeList
 
-			for l=Curfn.Dcl; l != nil; l=l.Next {
+			for l=Curfn.Func.Dcl; l != nil; l=l.Next {
 				if l.N.Class == PPARAM {
 					continue;
 				}
@@ -1969,15 +1969,15 @@ hidden_import:
 			break;
 		}
 
-		$2.Inl = $3;
+		$2.Func.Inl = $3;
 
 		funcbody($2);
 		importlist = list(importlist, $2);
 
 		if Debug['E'] > 0 {
-			print("import [%v] func %lN \n", Zconv(importpkg.Path, 0), $2);
-			if Debug['m'] > 2 && $2.Inl != nil {
-				print("inl body:%+H\n", $2.Inl);
+			print("import [%q] func %lN \n", importpkg.Path, $2);
+			if Debug['m'] > 2 && $2.Func.Inl != nil {
+				print("inl body:%+H\n", $2.Func.Inl);
 			}
 		}
 	}
@@ -2103,7 +2103,7 @@ hidden_funarg:
 		if $1 != nil {
 			$$.Left = newname($1);
 		}
-		$$.Isddd = 1;
+		$$.Isddd = true;
 		$$.Val = $4;
 	}
 
@@ -2118,7 +2118,7 @@ hidden_structdcl:
 			$$.Val = $3;
 		} else {
 			s = $2.Sym;
-			if s == nil && Isptr[$2.Etype] != 0 {
+			if s == nil && Isptr[$2.Etype] {
 				s = $2.Type.Sym;
 			}
 			p = importpkg;

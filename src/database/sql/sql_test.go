@@ -1093,6 +1093,26 @@ func TestSingleOpenConn(t *testing.T) {
 	}
 }
 
+func TestStats(t *testing.T) {
+	db := newTestDB(t, "people")
+	stats := db.Stats()
+	if got := stats.OpenConnections; got != 1 {
+		t.Errorf("stats.OpenConnections = %d; want 1", got)
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx.Commit()
+
+	closeDB(t, db)
+	stats = db.Stats()
+	if got := stats.OpenConnections; got != 0 {
+		t.Errorf("stats.OpenConnections = %d; want 0", got)
+	}
+}
+
 // golang.org/issue/5323
 func TestStmtCloseDeps(t *testing.T) {
 	if testing.Short() {

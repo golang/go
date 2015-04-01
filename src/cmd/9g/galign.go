@@ -5,10 +5,10 @@
 package main
 
 import (
+	"cmd/internal/gc"
 	"cmd/internal/obj"
 	"cmd/internal/obj/ppc64"
 )
-import "cmd/internal/gc"
 
 var thechar int = '9'
 
@@ -53,32 +53,38 @@ func main() {
 	gc.Thearch.Typedefs = typedefs
 	gc.Thearch.REGSP = ppc64.REGSP
 	gc.Thearch.REGCTXT = ppc64.REGCTXT
+	gc.Thearch.REGCALLX = ppc64.REG_R3
+	gc.Thearch.REGCALLX2 = ppc64.REG_R4
+	gc.Thearch.REGRETURN = ppc64.REG_R3
+	gc.Thearch.REGMIN = ppc64.REG_R0
+	gc.Thearch.REGMAX = ppc64.REG_R31
+	gc.Thearch.FREGMIN = ppc64.REG_F0
+	gc.Thearch.FREGMAX = ppc64.REG_F31
 	gc.Thearch.MAXWIDTH = MAXWIDTH
-	gc.Thearch.Anyregalloc = anyregalloc
+	gc.Thearch.ReservedRegs = resvd
+
 	gc.Thearch.Betypeinit = betypeinit
-	gc.Thearch.Bgen = bgen
-	gc.Thearch.Cgen = cgen
-	gc.Thearch.Cgen_call = cgen_call
-	gc.Thearch.Cgen_callinter = cgen_callinter
-	gc.Thearch.Cgen_ret = cgen_ret
+	gc.Thearch.Cgen_hmul = cgen_hmul
+	gc.Thearch.Cgen_shift = cgen_shift
 	gc.Thearch.Clearfat = clearfat
 	gc.Thearch.Defframe = defframe
+	gc.Thearch.Dodiv = dodiv
 	gc.Thearch.Excise = excise
 	gc.Thearch.Expandchecks = expandchecks
-	gc.Thearch.Gclean = gclean
-	gc.Thearch.Ginit = ginit
 	gc.Thearch.Gins = gins
-	gc.Thearch.Ginscall = ginscall
-	gc.Thearch.Igen = igen
+	gc.Thearch.Ginscon = ginscon
+	gc.Thearch.Ginsnop = ginsnop
+	gc.Thearch.Gmove = gmove
 	gc.Thearch.Linkarchinit = linkarchinit
 	gc.Thearch.Peep = peep
 	gc.Thearch.Proginfo = proginfo
-	gc.Thearch.Regalloc = regalloc
-	gc.Thearch.Regfree = regfree
 	gc.Thearch.Regtyp = regtyp
 	gc.Thearch.Sameaddr = sameaddr
 	gc.Thearch.Smallindir = smallindir
 	gc.Thearch.Stackaddr = stackaddr
+	gc.Thearch.Stackcopy = stackcopy
+	gc.Thearch.Sudoaddable = sudoaddable
+	gc.Thearch.Sudoclean = sudoclean
 	gc.Thearch.Excludedregs = excludedregs
 	gc.Thearch.RtoB = RtoB
 	gc.Thearch.FtoB = RtoB

@@ -58,7 +58,7 @@ const (
 	IMAGE_SYM_CLASS_MEMBER_OF_ENUM   = 16
 	IMAGE_SYM_CLASS_REGISTER_PARAM   = 17
 	IMAGE_SYM_CLASS_BIT_FIELD        = 18
-	IMAGE_SYM_CLASS_FAR_EXTERNAL     = 68
+	IMAGE_SYM_CLASS_FAR_EXTERNAL     = 68 /* Not in PECOFF v8 spec */
 	IMAGE_SYM_CLASS_BLOCK            = 100
 	IMAGE_SYM_CLASS_FUNCTION         = 101
 	IMAGE_SYM_CLASS_END_OF_STRUCT    = 102
@@ -127,36 +127,31 @@ type PeObj struct {
 }
 
 func ldpe(f *Biobuf, pkg string, length int64, pn string) {
-	var err error
-	var name string
-	var base int32
-	var l uint32
-	var i int
-	var j int
-	var numaux int
-	var peobj *PeObj
-	var sect *PeSect
-	var rsect *PeSect
-	var symbuf [18]uint8
-	var s *LSym
-	var r []Reloc
-	var rp *Reloc
-	var sym *PeSym
-
 	if Debug['v'] != 0 {
 		fmt.Fprintf(&Bso, "%5.2f ldpe %s\n", obj.Cputime(), pn)
 	}
 
-	sect = nil
+	var sect *PeSect
 	Ctxt.Version++
-	base = int32(Boffset(f))
+	base := int32(Boffset(f))
 
-	peobj = new(PeObj)
+	peobj := new(PeObj)
 	peobj.f = f
 	peobj.base = uint32(base)
 	peobj.name = pn
 
 	// read header
+	var err error
+	var j int
+	var l uint32
+	var name string
+	var numaux int
+	var r []Reloc
+	var rp *Reloc
+	var rsect *PeSect
+	var s *LSym
+	var sym *PeSym
+	var symbuf [18]uint8
 	if err = binary.Read(f, binary.LittleEndian, &peobj.fh); err != nil {
 		goto bad
 	}
@@ -165,7 +160,7 @@ func ldpe(f *Biobuf, pkg string, length int64, pn string) {
 	peobj.sect = make([]PeSect, peobj.fh.NumberOfSections)
 
 	peobj.nsect = uint(peobj.fh.NumberOfSections)
-	for i = 0; i < int(peobj.fh.NumberOfSections); i++ {
+	for i := 0; i < int(peobj.fh.NumberOfSections); i++ {
 		if err = binary.Read(f, binary.LittleEndian, &peobj.sect[i].sh); err != nil {
 			goto bad
 		}
@@ -189,7 +184,7 @@ func ldpe(f *Biobuf, pkg string, length int64, pn string) {
 	}
 
 	// rewrite section names if they start with /
-	for i = 0; i < int(peobj.fh.NumberOfSections); i++ {
+	for i := 0; i < int(peobj.fh.NumberOfSections); i++ {
 		if peobj.sect[i].name == "" {
 			continue
 		}
@@ -205,7 +200,7 @@ func ldpe(f *Biobuf, pkg string, length int64, pn string) {
 
 	peobj.npesym = uint(peobj.fh.NumberOfSymbols)
 	Bseek(f, int64(base)+int64(peobj.fh.PointerToSymbolTable), 0)
-	for i = 0; uint32(i) < peobj.fh.NumberOfSymbols; i += numaux + 1 {
+	for i := 0; uint32(i) < peobj.fh.NumberOfSymbols; i += numaux + 1 {
 		Bseek(f, int64(base)+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(i), 0)
 		if Bread(f, symbuf[:]) != len(symbuf) {
 			goto bad
@@ -230,7 +225,7 @@ func ldpe(f *Biobuf, pkg string, length int64, pn string) {
 	}
 
 	// create symbols for mapped sections
-	for i = 0; uint(i) < peobj.nsect; i++ {
+	for i := 0; uint(i) < peobj.nsect; i++ {
 		sect = &peobj.sect[i]
 		if sect.sh.Characteristics&IMAGE_SCN_MEM_DISCARDABLE != 0 {
 			continue
@@ -277,7 +272,7 @@ func ldpe(f *Biobuf, pkg string, length int64, pn string) {
 	}
 
 	// load relocations
-	for i = 0; uint(i) < peobj.nsect; i++ {
+	for i := 0; uint(i) < peobj.nsect; i++ {
 		rsect = &peobj.sect[i]
 		if rsect.sym == nil || rsect.sh.NumberOfRelocations == 0 {
 			continue
@@ -298,12 +293,9 @@ func ldpe(f *Biobuf, pkg string, length int64, pn string) {
 			if Bread(f, symbuf[:10]) != 10 {
 				goto bad
 			}
-			var rva uint32
-			var symindex uint32
-			var type_ uint16
-			rva = Le32(symbuf[0:])
-			symindex = Le32(symbuf[4:])
-			type_ = Le16(symbuf[8:])
+			rva := Le32(symbuf[0:])
+			symindex := Le32(symbuf[4:])
+			type_ := Le16(symbuf[8:])
 			if err = readpesym(peobj, int(symindex), &sym); err != nil {
 				goto bad
 			}
@@ -320,16 +312,14 @@ func ldpe(f *Biobuf, pkg string, length int64, pn string) {
 				Diag("%s: unknown relocation type %d;", pn, type_)
 				fallthrough
 
-			case IMAGE_REL_I386_REL32,
-				IMAGE_REL_AMD64_REL32,
+			case IMAGE_REL_I386_REL32, IMAGE_REL_AMD64_REL32,
 				IMAGE_REL_AMD64_ADDR32, // R_X86_64_PC32
 				IMAGE_REL_AMD64_ADDR32NB:
 				rp.Type = R_PCREL
 
 				rp.Add = int64(int32(Le32(rsect.base[rp.Off:])))
 
-			case IMAGE_REL_I386_DIR32NB,
-				IMAGE_REL_I386_DIR32:
+			case IMAGE_REL_I386_DIR32NB, IMAGE_REL_I386_DIR32:
 				rp.Type = R_ADDR
 
 				// load addend from image
@@ -360,7 +350,7 @@ func ldpe(f *Biobuf, pkg string, length int64, pn string) {
 	}
 
 	// enter sub-symbols into symbol table.
-	for i = 0; uint(i) < peobj.npesym; i++ {
+	for i := 0; uint(i) < peobj.npesym; i++ {
 		if peobj.pesym[i].name == "" {
 			continue
 		}
@@ -429,7 +419,7 @@ func ldpe(f *Biobuf, pkg string, length int64, pn string) {
 
 	// Sort outer lists by address, adding to textp.
 	// This keeps textp in increasing address order.
-	for i = 0; uint(i) < peobj.nsect; i++ {
+	for i := 0; uint(i) < peobj.nsect; i++ {
 		s = peobj.sect[i].sym
 		if s == nil {
 			continue
@@ -486,18 +476,15 @@ func issect(s *PeSym) bool {
 }
 
 func readpesym(peobj *PeObj, i int, y **PeSym) (err error) {
-	var s *LSym
-	var sym *PeSym
-	var name string
-
 	if uint(i) >= peobj.npesym || i < 0 {
 		err = fmt.Errorf("invalid pe symbol index")
 		return err
 	}
 
-	sym = &peobj.pesym[i]
+	sym := &peobj.pesym[i]
 	*y = sym
 
+	var name string
 	if issect(sym) {
 		name = peobj.sect[sym.sectnum-1].sym.Name
 	} else {
@@ -515,20 +502,18 @@ func readpesym(peobj *PeObj, i int, y **PeSym) (err error) {
 		name = name[:i]
 	}
 
+	var s *LSym
 	switch sym.type_ {
 	default:
 		err = fmt.Errorf("%s: invalid symbol type %d", sym.name, sym.type_)
 		return err
 
-	case IMAGE_SYM_DTYPE_FUNCTION,
-		IMAGE_SYM_DTYPE_NULL:
+	case IMAGE_SYM_DTYPE_FUNCTION, IMAGE_SYM_DTYPE_NULL:
 		switch sym.sclass {
 		case IMAGE_SYM_CLASS_EXTERNAL: //global
 			s = Linklookup(Ctxt, name, 0)
 
-		case IMAGE_SYM_CLASS_NULL,
-			IMAGE_SYM_CLASS_STATIC,
-			IMAGE_SYM_CLASS_LABEL:
+		case IMAGE_SYM_CLASS_NULL, IMAGE_SYM_CLASS_STATIC, IMAGE_SYM_CLASS_LABEL:
 			s = Linklookup(Ctxt, name, Ctxt.Version)
 			s.Dupok = 1
 

@@ -31,11 +31,11 @@
 package main
 
 import (
+	"cmd/internal/gc"
 	"cmd/internal/obj"
 	"cmd/internal/obj/ppc64"
 	"fmt"
 )
-import "cmd/internal/gc"
 
 // TODO(rsc): Can make this bigger if we move
 // the text segment up higher in 6l for all GOOS.
@@ -62,171 +62,6 @@ var resvd = []int{
 	ppc64.FREGTWO,
 }
 
-func ginit() {
-	for i := 0; i < len(reg); i++ {
-		reg[i] = 1
-	}
-	for i := 0; i < ppc64.NREG+ppc64.NFREG; i++ {
-		reg[i] = 0
-	}
-
-	for i := 0; i < len(resvd); i++ {
-		reg[resvd[i]-ppc64.REG_R0]++
-	}
-}
-
-var regpc [len(reg)]uint32
-
-func gclean() {
-	for i := int(0); i < len(resvd); i++ {
-		reg[resvd[i]-ppc64.REG_R0]--
-	}
-
-	for i := int(0); i < len(reg); i++ {
-		if reg[i] != 0 {
-			gc.Yyerror("reg %v left allocated, %p\n", obj.Rconv(i+ppc64.REG_R0), regpc[i])
-		}
-	}
-}
-
-func anyregalloc() bool {
-	var j int
-
-	for i := int(0); i < len(reg); i++ {
-		if reg[i] == 0 {
-			goto ok
-		}
-		for j = 0; j < len(resvd); j++ {
-			if resvd[j] == i {
-				goto ok
-			}
-		}
-		return true
-	ok:
-	}
-
-	return false
-}
-
-/*
- * allocate register of type t, leave in n.
- * if o != N, o is desired fixed register.
- * caller must regfree(n).
- */
-func regalloc(n *gc.Node, t *gc.Type, o *gc.Node) {
-	if t == nil {
-		gc.Fatal("regalloc: t nil")
-	}
-	et := int(int(gc.Simtype[t.Etype]))
-
-	if gc.Debug['r'] != 0 {
-		fixfree := int(0)
-		fltfree := int(0)
-		for i := int(ppc64.REG_R0); i < ppc64.REG_F31; i++ {
-			if reg[i-ppc64.REG_R0] == 0 {
-				if i < ppc64.REG_F0 {
-					fixfree++
-				} else {
-					fltfree++
-				}
-			}
-		}
-
-		fmt.Printf("regalloc fix %d flt %d free\n", fixfree, fltfree)
-	}
-
-	var i int
-	switch et {
-	case gc.TINT8,
-		gc.TUINT8,
-		gc.TINT16,
-		gc.TUINT16,
-		gc.TINT32,
-		gc.TUINT32,
-		gc.TINT64,
-		gc.TUINT64,
-		gc.TPTR32,
-		gc.TPTR64,
-		gc.TBOOL:
-		if o != nil && o.Op == gc.OREGISTER {
-			i = int(o.Val.U.Reg)
-			if i >= ppc64.REGMIN && i <= ppc64.REGMAX {
-				goto out
-			}
-		}
-
-		for i = ppc64.REGMIN; i <= ppc64.REGMAX; i++ {
-			if reg[i-ppc64.REG_R0] == 0 {
-				regpc[i-ppc64.REG_R0] = uint32(obj.Getcallerpc(&n))
-				goto out
-			}
-		}
-
-		gc.Flusherrors()
-		for i := int(ppc64.REG_R0); i < ppc64.REG_R0+ppc64.NREG; i++ {
-			fmt.Printf("R%d %p\n", i, regpc[i-ppc64.REG_R0])
-		}
-		gc.Fatal("out of fixed registers")
-
-	case gc.TFLOAT32,
-		gc.TFLOAT64:
-		if o != nil && o.Op == gc.OREGISTER {
-			i = int(o.Val.U.Reg)
-			if i >= ppc64.FREGMIN && i <= ppc64.FREGMAX {
-				goto out
-			}
-		}
-
-		for i = ppc64.FREGMIN; i <= ppc64.FREGMAX; i++ {
-			if reg[i-ppc64.REG_R0] == 0 {
-				regpc[i-ppc64.REG_R0] = uint32(obj.Getcallerpc(&n))
-				goto out
-			}
-		}
-
-		gc.Flusherrors()
-		for i := int(ppc64.REG_F0); i < ppc64.REG_F0+ppc64.NREG; i++ {
-			fmt.Printf("F%d %p\n", i, regpc[i-ppc64.REG_R0])
-		}
-		gc.Fatal("out of floating registers")
-
-	case gc.TCOMPLEX64,
-		gc.TCOMPLEX128:
-		gc.Tempname(n, t)
-		return
-	}
-
-	gc.Fatal("regalloc: unknown type %v", gc.Tconv(t, 0))
-	return
-
-out:
-	reg[i-ppc64.REG_R0]++
-	gc.Nodreg(n, t, i)
-}
-
-func regfree(n *gc.Node) {
-	if n.Op == gc.ONAME {
-		return
-	}
-	if n.Op != gc.OREGISTER && n.Op != gc.OINDREG {
-		gc.Fatal("regfree: not a register")
-	}
-	i := int(int(n.Val.U.Reg) - ppc64.REG_R0)
-	if i == ppc64.REGSP-ppc64.REG_R0 {
-		return
-	}
-	if i < 0 || i >= len(reg) {
-		gc.Fatal("regfree: reg out of range")
-	}
-	if reg[i] <= 0 {
-		gc.Fatal("regfree: reg not allocated")
-	}
-	reg[i]--
-	if reg[i] == 0 {
-		regpc[i] = 0
-	}
-}
-
 /*
  * generate
  *	as $c, n
@@ -236,19 +71,19 @@ func ginscon(as int, c int64, n2 *gc.Node) {
 
 	gc.Nodconst(&n1, gc.Types[gc.TINT64], c)
 
-	if as != ppc64.AMOVD && (c < -ppc64.BIG || c > ppc64.BIG) {
+	if as != ppc64.AMOVD && (c < -ppc64.BIG || c > ppc64.BIG) || n2.Op != gc.OREGISTER || as == ppc64.AMULLD {
 		// cannot have more than 16-bit of immediate in ADD, etc.
 		// instead, MOV into register first.
 		var ntmp gc.Node
-		regalloc(&ntmp, gc.Types[gc.TINT64], nil)
+		gc.Regalloc(&ntmp, gc.Types[gc.TINT64], nil)
 
-		gins(ppc64.AMOVD, &n1, &ntmp)
-		gins(as, &ntmp, n2)
-		regfree(&ntmp)
+		rawgins(ppc64.AMOVD, &n1, &ntmp)
+		rawgins(as, &ntmp, n2)
+		gc.Regfree(&ntmp)
 		return
 	}
 
-	gins(as, &n1, n2)
+	rawgins(as, &n1, n2)
 }
 
 /*
@@ -266,24 +101,24 @@ func ginscon2(as int, n2 *gc.Node, c int64) {
 
 	case ppc64.ACMP:
 		if -ppc64.BIG <= c && c <= ppc64.BIG {
-			gins(as, n2, &n1)
+			rawgins(as, n2, &n1)
 			return
 		}
 
 	case ppc64.ACMPU:
 		if 0 <= c && c <= 2*ppc64.BIG {
-			gins(as, n2, &n1)
+			rawgins(as, n2, &n1)
 			return
 		}
 	}
 
 	// MOV n1 into register first
 	var ntmp gc.Node
-	regalloc(&ntmp, gc.Types[gc.TINT64], nil)
+	gc.Regalloc(&ntmp, gc.Types[gc.TINT64], nil)
 
-	gins(ppc64.AMOVD, &n1, &ntmp)
-	gins(as, n2, &ntmp)
-	regfree(&ntmp)
+	rawgins(ppc64.AMOVD, &n1, &ntmp)
+	rawgins(as, n2, &ntmp)
+	gc.Regfree(&ntmp)
 }
 
 /*
@@ -325,7 +160,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 	tt := int(gc.Simsimtype(t.Type))
 	cvt := (*gc.Type)(t.Type)
 
-	if gc.Iscomplex[ft] != 0 || gc.Iscomplex[tt] != 0 {
+	if gc.Iscomplex[ft] || gc.Iscomplex[tt] {
 		gc.Complexmove(f, t)
 		return
 	}
@@ -351,10 +186,10 @@ func gmove(f *gc.Node, t *gc.Node) {
 			var con gc.Node
 			gc.Convconst(&con, gc.Types[gc.TINT64], &f.Val)
 			var r1 gc.Node
-			regalloc(&r1, con.Type, t)
+			gc.Regalloc(&r1, con.Type, t)
 			gins(ppc64.AMOVD, &con, &r1)
 			gmove(&r1, t)
-			regfree(&r1)
+			gc.Regfree(&r1)
 			return
 
 		case gc.TUINT32,
@@ -363,10 +198,10 @@ func gmove(f *gc.Node, t *gc.Node) {
 			var con gc.Node
 			gc.Convconst(&con, gc.Types[gc.TUINT64], &f.Val)
 			var r1 gc.Node
-			regalloc(&r1, con.Type, t)
+			gc.Regalloc(&r1, con.Type, t)
 			gins(ppc64.AMOVD, &con, &r1)
 			gmove(&r1, t)
-			regfree(&r1)
+			gc.Regfree(&r1)
 			return
 		}
 
@@ -546,21 +381,21 @@ func gmove(f *gc.Node, t *gc.Node) {
 		bignodes()
 
 		var r1 gc.Node
-		regalloc(&r1, gc.Types[ft], f)
+		gc.Regalloc(&r1, gc.Types[ft], f)
 		gmove(f, &r1)
 		if tt == gc.TUINT64 {
-			regalloc(&r2, gc.Types[gc.TFLOAT64], nil)
+			gc.Regalloc(&r2, gc.Types[gc.TFLOAT64], nil)
 			gmove(&bigf, &r2)
 			gins(ppc64.AFCMPU, &r1, &r2)
 			p1 := (*obj.Prog)(gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TFLOAT64]), nil, +1))
 			gins(ppc64.AFSUB, &r2, &r1)
 			gc.Patch(p1, gc.Pc)
-			regfree(&r2)
+			gc.Regfree(&r2)
 		}
 
-		regalloc(&r2, gc.Types[gc.TFLOAT64], nil)
+		gc.Regalloc(&r2, gc.Types[gc.TFLOAT64], nil)
 		var r3 gc.Node
-		regalloc(&r3, gc.Types[gc.TINT64], t)
+		gc.Regalloc(&r3, gc.Types[gc.TINT64], t)
 		gins(ppc64.AFCTIDZ, &r1, &r2)
 		p1 := (*obj.Prog)(gins(ppc64.AFMOVD, &r2, nil))
 		p1.To.Type = obj.TYPE_MEM
@@ -570,8 +405,8 @@ func gmove(f *gc.Node, t *gc.Node) {
 		p1.From.Type = obj.TYPE_MEM
 		p1.From.Reg = ppc64.REGSP
 		p1.From.Offset = -8
-		regfree(&r2)
-		regfree(&r1)
+		gc.Regfree(&r2)
+		gc.Regfree(&r1)
 		if tt == gc.TUINT64 {
 			p1 := (*obj.Prog)(gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TFLOAT64]), nil, +1)) // use CR0 here again
 			gc.Nodreg(&r1, gc.Types[gc.TINT64], ppc64.REGTMP)
@@ -581,7 +416,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 		}
 
 		gmove(&r3, t)
-		regfree(&r3)
+		gc.Regfree(&r3)
 		return
 
 		//warn("gmove: convert int to float not implemented: %N -> %N\n", f, t);
@@ -611,7 +446,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 		bignodes()
 
 		var r1 gc.Node
-		regalloc(&r1, gc.Types[gc.TINT64], nil)
+		gc.Regalloc(&r1, gc.Types[gc.TINT64], nil)
 		gmove(f, &r1)
 		if ft == gc.TUINT64 {
 			gc.Nodreg(&r2, gc.Types[gc.TUINT64], ppc64.REGTMP)
@@ -624,7 +459,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 			gc.Patch(p1, gc.Pc)
 		}
 
-		regalloc(&r2, gc.Types[gc.TFLOAT64], t)
+		gc.Regalloc(&r2, gc.Types[gc.TFLOAT64], t)
 		p1 := (*obj.Prog)(gins(ppc64.AMOVD, &r1, nil))
 		p1.To.Type = obj.TYPE_MEM
 		p1.To.Reg = ppc64.REGSP
@@ -634,7 +469,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 		p1.From.Reg = ppc64.REGSP
 		p1.From.Offset = -8
 		gins(ppc64.AFCFID, &r2, &r2)
-		regfree(&r1)
+		gc.Regfree(&r1)
 		if ft == gc.TUINT64 {
 			p1 := (*obj.Prog)(gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT64]), nil, +1)) // use CR0 here again
 			gc.Nodreg(&r1, gc.Types[gc.TFLOAT64], ppc64.FREGTWO)
@@ -643,7 +478,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 		}
 
 		gmove(&r2, t)
-		regfree(&r2)
+		gc.Regfree(&r2)
 		return
 
 		/*
@@ -669,47 +504,104 @@ func gmove(f *gc.Node, t *gc.Node) {
 
 	// requires register destination
 rdst:
-	regalloc(&r1, t.Type, t)
+	{
+		gc.Regalloc(&r1, t.Type, t)
 
-	gins(a, f, &r1)
-	gmove(&r1, t)
-	regfree(&r1)
-	return
+		gins(a, f, &r1)
+		gmove(&r1, t)
+		gc.Regfree(&r1)
+		return
+	}
 
 	// requires register intermediate
 hard:
-	regalloc(&r1, cvt, t)
+	gc.Regalloc(&r1, cvt, t)
 
 	gmove(f, &r1)
 	gmove(&r1, t)
-	regfree(&r1)
+	gc.Regfree(&r1)
 	return
+}
+
+func intLiteral(n *gc.Node) (x int64, ok bool) {
+	if n == nil || n.Op != gc.OLITERAL {
+		return
+	}
+	switch n.Val.Ctype {
+	case gc.CTINT, gc.CTRUNE:
+		return gc.Mpgetfix(n.Val.U.Xval), true
+	case gc.CTBOOL:
+		return int64(n.Val.U.Bval), true
+	}
+	return
+}
+
+// gins is called by the front end.
+// It synthesizes some multiple-instruction sequences
+// so the front end can stay simpler.
+func gins(as int, f, t *gc.Node) *obj.Prog {
+	if as >= obj.A_ARCHSPECIFIC {
+		if x, ok := intLiteral(f); ok {
+			ginscon(as, x, t)
+			return nil // caller must not use
+		}
+	}
+	if as == ppc64.ACMP || as == ppc64.ACMPU {
+		if x, ok := intLiteral(t); ok {
+			ginscon2(as, f, x)
+			return nil // caller must not use
+		}
+	}
+	return rawgins(as, f, t)
 }
 
 /*
  * generate one instruction:
  *	as f, t
  */
-func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+func rawgins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 	// TODO(austin): Add self-move test like in 6g (but be careful
 	// of truncation moves)
 
-	af := obj.Addr(obj.Addr{})
+	p := gc.Prog(as)
+	gc.Naddr(&p.From, f)
+	gc.Naddr(&p.To, t)
 
-	at := obj.Addr(obj.Addr{})
-	if f != nil {
-		gc.Naddr(f, &af, 1)
+	switch as {
+	case obj.ACALL:
+		if p.To.Type == obj.TYPE_REG && p.To.Reg != ppc64.REG_CTR {
+			// Allow front end to emit CALL REG, and rewrite into MOV REG, CTR; CALL CTR.
+			pp := gc.Prog(as)
+			pp.From = p.From
+			pp.To.Type = obj.TYPE_REG
+			pp.To.Reg = ppc64.REG_CTR
+
+			p.As = ppc64.AMOVD
+			p.From = p.To
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = ppc64.REG_CTR
+
+			if gc.Debug['g'] != 0 {
+				fmt.Printf("%v\n", p)
+				fmt.Printf("%v\n", pp)
+			}
+
+			return pp
+		}
+
+	// Bad things the front end has done to us. Crash to find call stack.
+	case ppc64.AAND, ppc64.AMULLD:
+		if p.From.Type == obj.TYPE_CONST {
+			gc.Debug['h'] = 1
+			gc.Fatal("bad inst: %v", p)
+		}
+	case ppc64.ACMP, ppc64.ACMPU:
+		if p.From.Type == obj.TYPE_MEM || p.To.Type == obj.TYPE_MEM {
+			gc.Debug['h'] = 1
+			gc.Fatal("bad inst: %v", p)
+		}
 	}
-	if t != nil {
-		gc.Naddr(t, &at, 1)
-	}
-	p := (*obj.Prog)(gc.Prog(as))
-	if f != nil {
-		p.From = af
-	}
-	if t != nil {
-		p.To = at
-	}
+
 	if gc.Debug['g'] != 0 {
 		fmt.Printf("%v\n", p)
 	}
@@ -736,16 +628,16 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 
 	case ppc64.AMOVD,
 		ppc64.AMOVDU:
-		if af.Type == obj.TYPE_CONST || af.Type == obj.TYPE_ADDR {
+		if p.From.Type == obj.TYPE_CONST || p.From.Type == obj.TYPE_ADDR {
 			break
 		}
 		w = 8
 	}
 
-	if w != 0 && ((f != nil && af.Width < int64(w)) || (t != nil && at.Type != obj.TYPE_REG && at.Width > int64(w))) {
+	if w != 0 && ((f != nil && p.From.Width < int64(w)) || (t != nil && p.To.Type != obj.TYPE_REG && p.To.Width > int64(w))) {
 		gc.Dump("f", f)
 		gc.Dump("t", t)
-		gc.Fatal("bad width: %v (%d, %d)\n", p, af.Width, at.Width)
+		gc.Fatal("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
 	}
 
 	return p
@@ -841,10 +733,9 @@ func optoas(op int, t *gc.Type) int {
 		// ACMPU
 		gc.OLE<<16 | gc.TUINT16,
 		gc.OLE<<16 | gc.TUINT32,
-		gc.OLE<<16 | gc.TUINT64,
-		gc.OLE<<16 | gc.TFLOAT32,
-		// AFCMPU
-		gc.OLE<<16 | gc.TFLOAT64:
+		gc.OLE<<16 | gc.TUINT64:
+		// No OLE for floats, because it mishandles NaN.
+		// Front end must reverse comparison or use OLT and OEQ together.
 		a = ppc64.ABLE
 
 	case gc.OGT<<16 | gc.TINT8,
@@ -866,9 +757,9 @@ func optoas(op int, t *gc.Type) int {
 		gc.OGE<<16 | gc.TUINT8,
 		gc.OGE<<16 | gc.TUINT16,
 		gc.OGE<<16 | gc.TUINT32,
-		gc.OGE<<16 | gc.TUINT64,
-		gc.OGE<<16 | gc.TFLOAT32,
-		gc.OGE<<16 | gc.TFLOAT64:
+		gc.OGE<<16 | gc.TUINT64:
+		// No OGE for floats, because it mishandles NaN.
+		// Front end must reverse comparison or use OLT and OEQ together.
 		a = ppc64.ABGE
 
 	case gc.OCMP<<16 | gc.TBOOL,

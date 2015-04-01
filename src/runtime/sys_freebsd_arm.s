@@ -93,6 +93,7 @@ TEXT runtime·open(SB),NOSPLIT,$-8
 	MOVW perm+8(FP), R2	// arg 3 perm
 	MOVW $SYS_open, R7
 	SWI $0
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
@@ -102,6 +103,7 @@ TEXT runtime·read(SB),NOSPLIT,$-8
 	MOVW n+8(FP), R2	// arg 3 count
 	MOVW $SYS_read, R7
 	SWI $0
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
@@ -111,6 +113,7 @@ TEXT runtime·write(SB),NOSPLIT,$-8
 	MOVW n+8(FP), R2	// arg 3 count
 	MOVW $SYS_write, R7
 	SWI $0
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
@@ -118,6 +121,7 @@ TEXT runtime·close(SB),NOSPLIT,$-8
 	MOVW fd+0(FP), R0	// arg 1 fd
 	MOVW $SYS_close, R7
 	SWI $0
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+4(FP)
 	RET
 

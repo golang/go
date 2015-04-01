@@ -69,7 +69,7 @@ nocgo:
 	BL	runtime·schedinit(SB)
 
 	// create a new goroutine to start program
-	MOVD	$runtime·main·f(SB), R3		// entry
+	MOVD	$runtime·mainPC(SB), R3		// entry
 	MOVDU	R3, -8(R1)
 	MOVDU	R0, -8(R1)
 	MOVDU	R0, -8(R1)
@@ -82,8 +82,8 @@ nocgo:
 	MOVD	R0, 1(R0)
 	RETURN
 
-DATA	runtime·main·f+0(SB)/8,$runtime·main(SB)
-GLOBL	runtime·main·f(SB),RODATA,$8
+DATA	runtime·mainPC+0(SB)/8,$runtime·main(SB)
+GLOBL	runtime·mainPC(SB),RODATA,$8
 
 TEXT runtime·breakpoint(SB),NOSPLIT,$-8-0
 	MOVD	R0, 2(R0) // TODO: TD
@@ -609,12 +609,42 @@ TEXT runtime·atomicor8(SB), NOSPLIT, $0-9
 	// Shift val for aligned ptr.  R4 = val << R6
 	SLD	R6, R4, R4
 
-atomicor8_again:
+again:
 	SYNC
 	LWAR	(R5), R6
 	OR	R4, R6
 	STWCCC	R6, (R5)
-	BNE	atomicor8_again
+	BNE	again
+	SYNC
+	ISYNC
+	RETURN
+
+// void	runtime·atomicand8(byte volatile*, byte);
+TEXT runtime·atomicand8(SB), NOSPLIT, $0-9
+	MOVD	ptr+0(FP), R3
+	MOVBZ	val+8(FP), R4
+	// Align ptr down to 4 bytes so we can use 32-bit load/store.
+	// R5 = (R3 << 0) & ~3
+	RLDCR	$0, R3, $~3, R5
+	// Compute val shift.
+#ifdef GOARCH_ppc64
+	// Big endian.  ptr = ptr ^ 3
+	XOR	$3, R3
+#endif
+	// R6 = ((ptr & 3) * 8) = (ptr << 3) & (3*8)
+	RLDC	$3, R3, $(3*8), R6
+	// Shift val for aligned ptr.  R4 = val << R6 | ^(0xFF << R6)
+	MOVD	$0xFF, R7
+	SLD	R6, R4
+	SLD	R6, R7
+	XOR $-1, R7
+	OR	R7, R4
+again:
+	SYNC
+	LWAR	(R5), R6
+	AND	R4, R6
+	STWCCC	R6, (R5)
+	BNE	again
 	SYNC
 	ISYNC
 	RETURN
@@ -1039,7 +1069,7 @@ notfound:
 	MOVD	R3, ret+32(FP)
 	RETURN
 
-TEXT strings·IndexByte(SB),NOSPLIT,$0
+TEXT strings·IndexByte(SB),NOSPLIT,$0-32
 	MOVD	p+0(FP), R3
 	MOVD	b_len+8(FP), R4
 	MOVBZ	c+16(FP), R5	// byte to find

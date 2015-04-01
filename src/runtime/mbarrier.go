@@ -53,11 +53,13 @@ import "unsafe"
 //
 // ld r1, [slotmark]       ld r2, [slot]
 //
-// This is a classic example of independent reads of independent writes,
-// aka IRIW. The question is if r1==r2==0 is allowed and for most HW the
-// answer is yes without inserting a memory barriers between the st and the ld.
-// These barriers are expensive so we have decided that we will
-// always grey the ptr object regardless of the slot's color.
+// Without an expensive memory barrier between the st and the ld, the final
+// result on most HW (including 386/amd64) can be r1==r2==0. This is a classic
+// example of what can happen when loads are allowed to be reordered with older
+// stores (avoiding such reorderings lies at the heart of the classic
+// Peterson/Dekker algorithms for mutual exclusion). Rather than require memory
+// barriers, which will slow down both the mutator and the GC, we always grey
+// the ptr object regardless of the slot's color.
 //go:nowritebarrier
 func gcmarkwb_m(slot *uintptr, ptr uintptr) {
 	switch gcphase {
@@ -81,6 +83,19 @@ func needwb() bool {
 	return gcphase == _GCmark || gcphase == _GCmarktermination || mheap_.shadow_enabled
 }
 
+// Write barrier calls must not happen during critical GC and scheduler
+// related operations. In particular there are times when the GC assumes
+// that the world is stopped but scheduler related code is still being
+// executed, dealing with syscalls, dealing with putting gs on runnable
+// queues and so forth. This code can not execute write barriers because
+// the GC might drop them on the floor. Stopping the world involves removing
+// the p associated with an m. We use the fact that m.p == nil to indicate
+// that we are in one these critical section and throw if the write is of
+// a pointer to a heap object.
+// The p, m, and g pointers are the pointers that are used by the scheduler
+// and need to be operated on without write barriers. We use
+// the setPNoWriteBarrier, setMNoWriteBarrier and setGNowriteBarrier to
+// avoid having to do the write barrier.
 //go:nosplit
 func writebarrierptr_nostore1(dst *uintptr, src uintptr) {
 	mp := acquirem()
@@ -88,8 +103,11 @@ func writebarrierptr_nostore1(dst *uintptr, src uintptr) {
 		releasem(mp)
 		return
 	}
-	mp.inwb = true
 	systemstack(func() {
+		if mp.p == nil && memstats.enablegc && !mp.inwb && inheap(src) {
+			throw("writebarrierptr_nostore1 called with mp.p == nil")
+		}
+		mp.inwb = true
 		gcmarkwb_m(dst, src)
 	})
 	mp.inwb = false
@@ -410,29 +428,29 @@ func wbshadowinit() {
 	mheap_.shadow_reserved = reserved
 	start := ^uintptr(0)
 	end := uintptr(0)
-	if start > uintptr(unsafe.Pointer(&noptrdata)) {
-		start = uintptr(unsafe.Pointer(&noptrdata))
+	if start > themoduledata.noptrdata {
+		start = themoduledata.noptrdata
 	}
-	if start > uintptr(unsafe.Pointer(&data)) {
-		start = uintptr(unsafe.Pointer(&data))
+	if start > themoduledata.data {
+		start = themoduledata.data
 	}
-	if start > uintptr(unsafe.Pointer(&noptrbss)) {
-		start = uintptr(unsafe.Pointer(&noptrbss))
+	if start > themoduledata.noptrbss {
+		start = themoduledata.noptrbss
 	}
-	if start > uintptr(unsafe.Pointer(&bss)) {
-		start = uintptr(unsafe.Pointer(&bss))
+	if start > themoduledata.bss {
+		start = themoduledata.bss
 	}
-	if end < uintptr(unsafe.Pointer(&enoptrdata)) {
-		end = uintptr(unsafe.Pointer(&enoptrdata))
+	if end < themoduledata.enoptrdata {
+		end = themoduledata.enoptrdata
 	}
-	if end < uintptr(unsafe.Pointer(&edata)) {
-		end = uintptr(unsafe.Pointer(&edata))
+	if end < themoduledata.edata {
+		end = themoduledata.edata
 	}
-	if end < uintptr(unsafe.Pointer(&enoptrbss)) {
-		end = uintptr(unsafe.Pointer(&enoptrbss))
+	if end < themoduledata.enoptrbss {
+		end = themoduledata.enoptrbss
 	}
-	if end < uintptr(unsafe.Pointer(&ebss)) {
-		end = uintptr(unsafe.Pointer(&ebss))
+	if end < themoduledata.ebss {
+		end = themoduledata.ebss
 	}
 	start &^= _PhysPageSize - 1
 	end = round(end, _PhysPageSize)

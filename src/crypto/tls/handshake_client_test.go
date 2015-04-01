@@ -344,6 +344,16 @@ func TestHandshakeClientCertRSA(t *testing.T) {
 
 	runClientTestTLS10(t, test)
 	runClientTestTLS12(t, test)
+
+	test = &clientTest{
+		name:    "ClientCert-RSA-AES256-GCM-SHA384",
+		command: []string{"openssl", "s_server", "-cipher", "ECDHE-RSA-AES256-GCM-SHA384", "-verify", "1"},
+		config:  &config,
+		cert:    testRSACertificate,
+		key:     testRSAPrivateKey,
+	}
+
+	runClientTestTLS12(t, test)
 }
 
 func TestHandshakeClientCertECDSA(t *testing.T) {

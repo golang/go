@@ -8,99 +8,66 @@ import (
 	"flag"
 	"io"
 	"os"
-	"runtime"
 	"testing"
 	"time"
 )
 
-func skipServerTest(net, unixsotype, addr string, ipv6, ipv4map, linuxOnly bool) bool {
-	switch runtime.GOOS {
-	case "linux":
-	case "nacl", "plan9", "windows":
-		// "unix" sockets are not supported on Windows and Plan 9.
-		if net == unixsotype {
-			return true
-		}
-	default:
-		if net == unixsotype && linuxOnly {
-			return true
-		}
-	}
-	switch addr {
-	case "", "0.0.0.0", "[::ffff:0.0.0.0]", "[::]":
-		if testing.Short() || !*testExternal {
-			return true
-		}
-	}
-	if ipv6 && !supportsIPv6 {
-		return true
-	}
-	if ipv4map && !supportsIPv4map {
-		return true
-	}
-	return false
-}
-
 var streamConnServerTests = []struct {
-	snet      string // server side
-	saddr     string
-	cnet      string // client side
-	caddr     string
-	ipv6      bool // test with underlying AF_INET6 socket
-	ipv4map   bool // test with IPv6 IPv4-mapping functionality
-	empty     bool // test with empty data
-	linuxOnly bool // test with abstract unix domain socket, a Linux-ism
+	snet  string // server side
+	saddr string
+	cnet  string // client side
+	caddr string
+	empty bool // test with empty data
 }{
-	{snet: "tcp", saddr: "", cnet: "tcp", caddr: "127.0.0.1"},
-	{snet: "tcp", saddr: "0.0.0.0", cnet: "tcp", caddr: "127.0.0.1"},
-	{snet: "tcp", saddr: "[::ffff:0.0.0.0]", cnet: "tcp", caddr: "127.0.0.1"},
-	{snet: "tcp", saddr: "[::]", cnet: "tcp", caddr: "[::1]", ipv6: true},
+	{snet: "tcp", saddr: ":0", cnet: "tcp", caddr: "127.0.0.1"},
+	{snet: "tcp", saddr: "0.0.0.0:0", cnet: "tcp", caddr: "127.0.0.1"},
+	{snet: "tcp", saddr: "[::ffff:0.0.0.0]:0", cnet: "tcp", caddr: "127.0.0.1"},
+	{snet: "tcp", saddr: "[::]:0", cnet: "tcp", caddr: "::1"},
 
-	{snet: "tcp", saddr: "", cnet: "tcp", caddr: "[::1]", ipv4map: true},
-	{snet: "tcp", saddr: "0.0.0.0", cnet: "tcp", caddr: "[::1]", ipv4map: true},
-	{snet: "tcp", saddr: "[::ffff:0.0.0.0]", cnet: "tcp", caddr: "[::1]", ipv4map: true},
-	{snet: "tcp", saddr: "[::]", cnet: "tcp", caddr: "127.0.0.1", ipv4map: true},
+	{snet: "tcp", saddr: ":0", cnet: "tcp", caddr: "::1"},
+	{snet: "tcp", saddr: "0.0.0.0:0", cnet: "tcp", caddr: "::1"},
+	{snet: "tcp", saddr: "[::ffff:0.0.0.0]:0", cnet: "tcp", caddr: "::1"},
+	{snet: "tcp", saddr: "[::]:0", cnet: "tcp", caddr: "127.0.0.1"},
 
-	{snet: "tcp", saddr: "", cnet: "tcp4", caddr: "127.0.0.1"},
-	{snet: "tcp", saddr: "0.0.0.0", cnet: "tcp4", caddr: "127.0.0.1"},
-	{snet: "tcp", saddr: "[::ffff:0.0.0.0]", cnet: "tcp4", caddr: "127.0.0.1"},
-	{snet: "tcp", saddr: "[::]", cnet: "tcp6", caddr: "[::1]", ipv6: true},
+	{snet: "tcp", saddr: ":0", cnet: "tcp4", caddr: "127.0.0.1"},
+	{snet: "tcp", saddr: "0.0.0.0:0", cnet: "tcp4", caddr: "127.0.0.1"},
+	{snet: "tcp", saddr: "[::ffff:0.0.0.0]:0", cnet: "tcp4", caddr: "127.0.0.1"},
+	{snet: "tcp", saddr: "[::]:0", cnet: "tcp6", caddr: "::1"},
 
-	{snet: "tcp", saddr: "", cnet: "tcp6", caddr: "[::1]", ipv4map: true},
-	{snet: "tcp", saddr: "0.0.0.0", cnet: "tcp6", caddr: "[::1]", ipv4map: true},
-	{snet: "tcp", saddr: "[::ffff:0.0.0.0]", cnet: "tcp6", caddr: "[::1]", ipv4map: true},
-	{snet: "tcp", saddr: "[::]", cnet: "tcp4", caddr: "127.0.0.1", ipv4map: true},
+	{snet: "tcp", saddr: ":0", cnet: "tcp6", caddr: "::1"},
+	{snet: "tcp", saddr: "0.0.0.0:0", cnet: "tcp6", caddr: "::1"},
+	{snet: "tcp", saddr: "[::ffff:0.0.0.0]:0", cnet: "tcp6", caddr: "::1"},
+	{snet: "tcp", saddr: "[::]:0", cnet: "tcp4", caddr: "127.0.0.1"},
 
-	{snet: "tcp", saddr: "127.0.0.1", cnet: "tcp", caddr: "127.0.0.1"},
-	{snet: "tcp", saddr: "[::ffff:127.0.0.1]", cnet: "tcp", caddr: "127.0.0.1"},
-	{snet: "tcp", saddr: "[::1]", cnet: "tcp", caddr: "[::1]", ipv6: true},
+	{snet: "tcp", saddr: "127.0.0.1:0", cnet: "tcp", caddr: "127.0.0.1"},
+	{snet: "tcp", saddr: "[::ffff:127.0.0.1]:0", cnet: "tcp", caddr: "127.0.0.1"},
+	{snet: "tcp", saddr: "[::1]:0", cnet: "tcp", caddr: "::1"},
 
-	{snet: "tcp4", saddr: "", cnet: "tcp4", caddr: "127.0.0.1"},
-	{snet: "tcp4", saddr: "0.0.0.0", cnet: "tcp4", caddr: "127.0.0.1"},
-	{snet: "tcp4", saddr: "[::ffff:0.0.0.0]", cnet: "tcp4", caddr: "127.0.0.1"},
+	{snet: "tcp4", saddr: ":0", cnet: "tcp4", caddr: "127.0.0.1"},
+	{snet: "tcp4", saddr: "0.0.0.0:0", cnet: "tcp4", caddr: "127.0.0.1"},
+	{snet: "tcp4", saddr: "[::ffff:0.0.0.0]:0", cnet: "tcp4", caddr: "127.0.0.1"},
 
-	{snet: "tcp4", saddr: "127.0.0.1", cnet: "tcp4", caddr: "127.0.0.1"},
+	{snet: "tcp4", saddr: "127.0.0.1:0", cnet: "tcp4", caddr: "127.0.0.1"},
 
-	{snet: "tcp6", saddr: "", cnet: "tcp6", caddr: "[::1]", ipv6: true},
-	{snet: "tcp6", saddr: "[::]", cnet: "tcp6", caddr: "[::1]", ipv6: true},
+	{snet: "tcp6", saddr: ":0", cnet: "tcp6", caddr: "::1"},
+	{snet: "tcp6", saddr: "[::]:0", cnet: "tcp6", caddr: "::1"},
 
-	{snet: "tcp6", saddr: "[::1]", cnet: "tcp6", caddr: "[::1]", ipv6: true},
+	{snet: "tcp6", saddr: "[::1]:0", cnet: "tcp6", caddr: "::1"},
 
 	{snet: "unix", saddr: testUnixAddr(), cnet: "unix", caddr: testUnixAddr()},
-	{snet: "unix", saddr: "@gotest2/net", cnet: "unix", caddr: "@gotest2/net.local", linuxOnly: true},
+	{snet: "unix", saddr: "@gotest2/net", cnet: "unix", caddr: "@gotest2/net.local"},
 }
 
 func TestStreamConnServer(t *testing.T) {
 	for _, tt := range streamConnServerTests {
-		if skipServerTest(tt.snet, "unix", tt.saddr, tt.ipv6, tt.ipv4map, tt.linuxOnly) {
+		if !testableListenArgs(tt.snet, tt.saddr, tt.caddr) {
+			t.Logf("skipping %s test", tt.snet+":"+tt.saddr+"->"+tt.caddr)
 			continue
 		}
 
 		listening := make(chan string)
 		done := make(chan int)
 		switch tt.snet {
-		case "tcp", "tcp4", "tcp6":
-			tt.saddr += ":0"
 		case "unix":
 			os.Remove(tt.saddr)
 			os.Remove(tt.caddr)
@@ -115,7 +82,7 @@ func TestStreamConnServer(t *testing.T) {
 			if err != nil {
 				t.Fatalf("SplitHostPort(%q) failed: %v", taddr, err)
 			}
-			taddr = tt.caddr + ":" + port
+			taddr = JoinHostPort(tt.caddr, port)
 		}
 
 		runStreamConnClient(t, tt.cnet, taddr, tt.empty)
@@ -130,26 +97,19 @@ func TestStreamConnServer(t *testing.T) {
 }
 
 var seqpacketConnServerTests = []struct {
-	net       string
-	saddr     string // server address
-	caddr     string // client address
-	empty     bool   // test with empty data
-	linuxOnly bool   // test with abstract unix domain socket, a Linux-ism
+	net   string
+	saddr string // server address
+	caddr string // client address
+	empty bool   // test with empty data
 }{
 	{net: "unixpacket", saddr: testUnixAddr(), caddr: testUnixAddr()},
-	{net: "unixpacket", saddr: "@gotest4/net", caddr: "@gotest4/net.local", linuxOnly: true},
+	{net: "unixpacket", saddr: "@gotest4/net", caddr: "@gotest4/net.local"},
 }
 
 func TestSeqpacketConnServer(t *testing.T) {
-	switch runtime.GOOS {
-	case "darwin", "nacl", "openbsd", "plan9", "windows":
-		fallthrough
-	case "freebsd": // FreeBSD 8 doesn't support unixpacket
-		t.Skipf("skipping test on %q", runtime.GOOS)
-	}
-
 	for _, tt := range seqpacketConnServerTests {
-		if runtime.GOOS != "linux" && tt.linuxOnly {
+		if !testableListenArgs(tt.net, tt.saddr, tt.caddr) {
+			t.Logf("skipping %s test", tt.net+":"+tt.saddr+"->"+tt.caddr)
 			continue
 		}
 		listening := make(chan string)
@@ -248,65 +208,62 @@ func runStreamConnClient(t *testing.T, net, taddr string, isEmpty bool) {
 var testDatagram = flag.Bool("datagram", false, "whether to test udp and unixgram")
 
 var datagramPacketConnServerTests = []struct {
-	snet      string // server side
-	saddr     string
-	cnet      string // client side
-	caddr     string
-	ipv6      bool // test with underlying AF_INET6 socket
-	ipv4map   bool // test with IPv6 IPv4-mapping functionality
-	dial      bool // test with Dial or DialUnix
-	empty     bool // test with empty data
-	linuxOnly bool // test with abstract unix domain socket, a Linux-ism
+	snet  string // server side
+	saddr string
+	cnet  string // client side
+	caddr string
+	dial  bool // test with Dial or DialUnix
+	empty bool // test with empty data
 }{
-	{snet: "udp", saddr: "", cnet: "udp", caddr: "127.0.0.1"},
-	{snet: "udp", saddr: "0.0.0.0", cnet: "udp", caddr: "127.0.0.1"},
-	{snet: "udp", saddr: "[::ffff:0.0.0.0]", cnet: "udp", caddr: "127.0.0.1"},
-	{snet: "udp", saddr: "[::]", cnet: "udp", caddr: "[::1]", ipv6: true},
+	{snet: "udp", saddr: ":0", cnet: "udp", caddr: "127.0.0.1"},
+	{snet: "udp", saddr: "0.0.0.0:0", cnet: "udp", caddr: "127.0.0.1"},
+	{snet: "udp", saddr: "[::ffff:0.0.0.0]:0", cnet: "udp", caddr: "127.0.0.1"},
+	{snet: "udp", saddr: "[::]:0", cnet: "udp", caddr: "::1"},
 
-	{snet: "udp", saddr: "", cnet: "udp", caddr: "[::1]", ipv4map: true},
-	{snet: "udp", saddr: "0.0.0.0", cnet: "udp", caddr: "[::1]", ipv4map: true},
-	{snet: "udp", saddr: "[::ffff:0.0.0.0]", cnet: "udp", caddr: "[::1]", ipv4map: true},
-	{snet: "udp", saddr: "[::]", cnet: "udp", caddr: "127.0.0.1", ipv4map: true},
+	{snet: "udp", saddr: ":0", cnet: "udp", caddr: "::1"},
+	{snet: "udp", saddr: "0.0.0.0:0", cnet: "udp", caddr: "::1"},
+	{snet: "udp", saddr: "[::ffff:0.0.0.0]:0", cnet: "udp", caddr: "::1"},
+	{snet: "udp", saddr: "[::]:0", cnet: "udp", caddr: "127.0.0.1"},
 
-	{snet: "udp", saddr: "", cnet: "udp4", caddr: "127.0.0.1"},
-	{snet: "udp", saddr: "0.0.0.0", cnet: "udp4", caddr: "127.0.0.1"},
-	{snet: "udp", saddr: "[::ffff:0.0.0.0]", cnet: "udp4", caddr: "127.0.0.1"},
-	{snet: "udp", saddr: "[::]", cnet: "udp6", caddr: "[::1]", ipv6: true},
+	{snet: "udp", saddr: ":0", cnet: "udp4", caddr: "127.0.0.1"},
+	{snet: "udp", saddr: "0.0.0.0:0", cnet: "udp4", caddr: "127.0.0.1"},
+	{snet: "udp", saddr: "[::ffff:0.0.0.0]:0", cnet: "udp4", caddr: "127.0.0.1"},
+	{snet: "udp", saddr: "[::]:0", cnet: "udp6", caddr: "::1"},
 
-	{snet: "udp", saddr: "", cnet: "udp6", caddr: "[::1]", ipv4map: true},
-	{snet: "udp", saddr: "0.0.0.0", cnet: "udp6", caddr: "[::1]", ipv4map: true},
-	{snet: "udp", saddr: "[::ffff:0.0.0.0]", cnet: "udp6", caddr: "[::1]", ipv4map: true},
-	{snet: "udp", saddr: "[::]", cnet: "udp4", caddr: "127.0.0.1", ipv4map: true},
+	{snet: "udp", saddr: ":0", cnet: "udp6", caddr: "::1"},
+	{snet: "udp", saddr: "0.0.0.0:0", cnet: "udp6", caddr: "::1"},
+	{snet: "udp", saddr: "[::ffff:0.0.0.0]:0", cnet: "udp6", caddr: "::1"},
+	{snet: "udp", saddr: "[::]:0", cnet: "udp4", caddr: "127.0.0.1"},
 
-	{snet: "udp", saddr: "127.0.0.1", cnet: "udp", caddr: "127.0.0.1"},
-	{snet: "udp", saddr: "[::ffff:127.0.0.1]", cnet: "udp", caddr: "127.0.0.1"},
-	{snet: "udp", saddr: "[::1]", cnet: "udp", caddr: "[::1]", ipv6: true},
+	{snet: "udp", saddr: "127.0.0.1:0", cnet: "udp", caddr: "127.0.0.1"},
+	{snet: "udp", saddr: "[::ffff:127.0.0.1]:0", cnet: "udp", caddr: "127.0.0.1"},
+	{snet: "udp", saddr: "[::1]:0", cnet: "udp", caddr: "::1"},
 
-	{snet: "udp4", saddr: "", cnet: "udp4", caddr: "127.0.0.1"},
-	{snet: "udp4", saddr: "0.0.0.0", cnet: "udp4", caddr: "127.0.0.1"},
-	{snet: "udp4", saddr: "[::ffff:0.0.0.0]", cnet: "udp4", caddr: "127.0.0.1"},
+	{snet: "udp4", saddr: ":0", cnet: "udp4", caddr: "127.0.0.1"},
+	{snet: "udp4", saddr: "0.0.0.0:0", cnet: "udp4", caddr: "127.0.0.1"},
+	{snet: "udp4", saddr: "[::ffff:0.0.0.0]:0", cnet: "udp4", caddr: "127.0.0.1"},
 
-	{snet: "udp4", saddr: "127.0.0.1", cnet: "udp4", caddr: "127.0.0.1"},
+	{snet: "udp4", saddr: "127.0.0.1:0", cnet: "udp4", caddr: "127.0.0.1"},
 
-	{snet: "udp6", saddr: "", cnet: "udp6", caddr: "[::1]", ipv6: true},
-	{snet: "udp6", saddr: "[::]", cnet: "udp6", caddr: "[::1]", ipv6: true},
+	{snet: "udp6", saddr: ":0", cnet: "udp6", caddr: "::1"},
+	{snet: "udp6", saddr: "[::]:0", cnet: "udp6", caddr: "::1"},
 
-	{snet: "udp6", saddr: "[::1]", cnet: "udp6", caddr: "[::1]", ipv6: true},
+	{snet: "udp6", saddr: "[::1]:0", cnet: "udp6", caddr: "::1"},
 
-	{snet: "udp", saddr: "127.0.0.1", cnet: "udp", caddr: "127.0.0.1", dial: true},
-	{snet: "udp", saddr: "127.0.0.1", cnet: "udp", caddr: "127.0.0.1", empty: true},
-	{snet: "udp", saddr: "127.0.0.1", cnet: "udp", caddr: "127.0.0.1", dial: true, empty: true},
+	{snet: "udp", saddr: "127.0.0.1:0", cnet: "udp", caddr: "127.0.0.1", dial: true},
+	{snet: "udp", saddr: "127.0.0.1:0", cnet: "udp", caddr: "127.0.0.1", empty: true},
+	{snet: "udp", saddr: "127.0.0.1:0", cnet: "udp", caddr: "127.0.0.1", dial: true, empty: true},
 
-	{snet: "udp", saddr: "[::1]", cnet: "udp", caddr: "[::1]", ipv6: true, dial: true},
-	{snet: "udp", saddr: "[::1]", cnet: "udp", caddr: "[::1]", ipv6: true, empty: true},
-	{snet: "udp", saddr: "[::1]", cnet: "udp", caddr: "[::1]", ipv6: true, dial: true, empty: true},
+	{snet: "udp", saddr: "[::1]:0", cnet: "udp", caddr: "::1", dial: true},
+	{snet: "udp", saddr: "[::1]:0", cnet: "udp", caddr: "::1", empty: true},
+	{snet: "udp", saddr: "[::1]:0", cnet: "udp", caddr: "::1", dial: true, empty: true},
 
 	{snet: "unixgram", saddr: testUnixAddr(), cnet: "unixgram", caddr: testUnixAddr()},
 	{snet: "unixgram", saddr: testUnixAddr(), cnet: "unixgram", caddr: testUnixAddr(), dial: true},
 	{snet: "unixgram", saddr: testUnixAddr(), cnet: "unixgram", caddr: testUnixAddr(), empty: true},
 	{snet: "unixgram", saddr: testUnixAddr(), cnet: "unixgram", caddr: testUnixAddr(), dial: true, empty: true},
 
-	{snet: "unixgram", saddr: "@gotest6/net", cnet: "unixgram", caddr: "@gotest6/net.local", linuxOnly: true},
+	{snet: "unixgram", saddr: "@gotest6/net", cnet: "unixgram", caddr: "@gotest6/net.local"},
 }
 
 func TestDatagramPacketConnServer(t *testing.T) {
@@ -315,15 +272,14 @@ func TestDatagramPacketConnServer(t *testing.T) {
 	}
 
 	for _, tt := range datagramPacketConnServerTests {
-		if skipServerTest(tt.snet, "unixgram", tt.saddr, tt.ipv6, tt.ipv4map, tt.linuxOnly) {
+		if !testableListenArgs(tt.snet, tt.saddr, tt.caddr) {
+			t.Logf("skipping %s test", tt.snet+":"+tt.saddr+"->"+tt.caddr)
 			continue
 		}
 
 		listening := make(chan string)
 		done := make(chan int)
 		switch tt.snet {
-		case "udp", "udp4", "udp6":
-			tt.saddr += ":0"
 		case "unixgram":
 			os.Remove(tt.saddr)
 			os.Remove(tt.caddr)
@@ -338,8 +294,8 @@ func TestDatagramPacketConnServer(t *testing.T) {
 			if err != nil {
 				t.Fatalf("SplitHostPort(%q) failed: %v", taddr, err)
 			}
-			taddr = tt.caddr + ":" + port
-			tt.caddr += ":0"
+			taddr = JoinHostPort(tt.caddr, port)
+			tt.caddr = JoinHostPort(tt.caddr, "0")
 		}
 		if tt.dial {
 			runDatagramConnClient(t, tt.cnet, tt.caddr, taddr, tt.empty)

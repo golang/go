@@ -7,11 +7,8 @@ package gc
 import (
 	"bytes"
 	"cmd/internal/obj"
+	"math/big"
 )
-
-// Copyright 2009 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
 
 // avoid <ctype.h>
 
@@ -20,16 +17,21 @@ import (
 // or bison will check for its definition and use
 // a potentially smaller value if it is undefined.
 const (
-	NHUNK    = 50000
-	BUFSIZ   = 8192
-	NSYMB    = 500
-	NHASH    = 1024
-	STRINGSZ = 200
-	MAXALIGN = 7
-	UINF     = 100
-	PRIME1   = 3
-	AUNK     = 100
-	AMEM     = 0 + iota - 9
+	NHUNK           = 50000
+	BUFSIZ          = 8192
+	NSYMB           = 500
+	NHASH           = 1024
+	MAXALIGN        = 7
+	UINF            = 100
+	PRIME1          = 3
+	BADWIDTH        = -1000000000
+	MaxStackVarSize = 10 * 1024 * 1024
+)
+
+const (
+	// These values are known by runtime.
+	// The MEMx and NOEQx values must run in parallel.  See algtype.
+	AMEM = iota
 	AMEM0
 	AMEM8
 	AMEM16
@@ -51,37 +53,35 @@ const (
 	AFLOAT64
 	ACPLX64
 	ACPLX128
-	BADWIDTH        = -1000000000
-	MaxStackVarSize = 10 * 1024 * 1024
+	AUNK = 100
 )
 
-/*
- * note this is the representation
- * of the compilers string literals,
- * it is not the runtime representation
- */
-type Strlit struct {
-	S string
-}
-
 const (
-	Mpscale = 29
-	Mpprec  = 16
-	Mpnorm  = Mpprec - 1
+	Mpscale = 29         // safely smaller than bits in a long
+	Mpprec  = 16         // Mpscale*Mpprec is max number of bits
+	Mpnorm  = Mpprec - 1 // significant words in a normalized float
 	Mpbase  = 1 << Mpscale
 	Mpsign  = Mpbase >> 1
 	Mpmask  = Mpbase - 1
 	Mpdebug = 0
 )
 
+// Mpint represents an integer constant.
 type Mpint struct {
+	Val big.Int
+	Ovf bool // set if Val overflowed compiler limit (sticky)
+}
+
+// Mpfix is the original (old) representation of an integer constant.
+// Still needed for Mpflt.
+type Mpfix struct {
 	A   [Mpprec]int
 	Neg uint8
 	Ovf uint8
 }
 
 type Mpflt struct {
-	Val Mpint
+	Val Mpfix
 	Exp int16
 }
 
@@ -93,156 +93,45 @@ type Mpcplx struct {
 type Val struct {
 	Ctype int16
 	U     struct {
-		Reg  int16
-		Bval int16
-		Xval *Mpint
-		Fval *Mpflt
-		Cval *Mpcplx
-		Sval *Strlit
+		Reg  int16   // OREGISTER
+		Bval int16   // bool value CTBOOL
+		Xval *Mpint  // int CTINT, rune CTRUNE
+		Fval *Mpflt  // float CTFLT
+		Cval *Mpcplx // float CTCPLX
+		Sval string  // string CTSTR
 	}
 }
 
-type Array struct {
-	length   int32
-	size     int32
-	capacity int32
-	data     string
-}
-
-type Bvec struct {
-	n int32
-	b []uint32
-}
-
 type Pkg struct {
-	Name     string
-	Path     *Strlit
+	Name     string // package name
+	Path     string // string literal used in import statement
 	Pathsym  *Sym
-	Prefix   string
-	Link     *Pkg
-	Imported uint8
-	Exported int8
-	Direct   int8
-	Safe     bool
+	Prefix   string // escaped path for use in symbol table
+	Imported uint8  // export data of this package was parsed
+	Exported int8   // import line written in export data
+	Direct   int8   // imported directly
+	Safe     bool   // whether the package is marked as safe
+	Syms     map[string]*Sym
 }
 
 type Sym struct {
-	Lexical    uint16
-	Flags      uint8
-	Sym        uint8
-	Link       *Sym
-	Npkg       int32
-	Uniqgen    uint32
-	Importdef  *Pkg
-	Linkname   string
+	Lexical   uint16
+	Flags     uint8
+	Link      *Sym
+	Uniqgen   uint32
+	Importdef *Pkg   // where imported definition was found
+	Linkname  string // link name
+
+	// saved and restored by dcopy
 	Pkg        *Pkg
-	Name       string
-	Def        *Node
-	Label      *Label
-	Block      int32
-	Lastlineno int32
-	Origpkg    *Pkg
+	Name       string // variable name
+	Def        *Node  // definition: ONAME OTYPE OPACK or OLITERAL
+	Label      *Label // corresponding label (ephemeral)
+	Block      int32  // blocknumber to catch redeclaration
+	Lastlineno int32  // last declaration for diagnostic
+	Origpkg    *Pkg   // original package for . import
 	Lsym       *obj.LSym
-}
-
-type Node struct {
-	Left           *Node
-	Right          *Node
-	Ntest          *Node
-	Nincr          *Node
-	Ninit          *NodeList
-	Nbody          *NodeList
-	Nelse          *NodeList
-	List           *NodeList
-	Rlist          *NodeList
-	Op             uint8
-	Nointerface    bool
-	Ullman         uint8
-	Addable        uint8
-	Trecur         uint8
-	Etype          uint8
-	Bounded        bool
-	Class          uint8
-	Method         uint8
-	Embedded       uint8
-	Colas          uint8
-	Diag           uint8
-	Noescape       bool
-	Nosplit        bool
-	Builtin        uint8
-	Nowritebarrier bool
-	Walkdef        uint8
-	Typecheck      uint8
-	Local          uint8
-	Dodata         uint8
-	Initorder      uint8
-	Used           uint8
-	Isddd          uint8
-	Readonly       uint8
-	Implicit       uint8
-	Addrtaken      uint8
-	Assigned       uint8
-	Captured       uint8
-	Byval          uint8
-	Dupok          uint8
-	Wrapper        uint8
-	Reslice        uint8
-	Likely         int8
-	Hasbreak       uint8
-	Needzero       uint8
-	Needctxt       bool
-	Esc            uint
-	Funcdepth      int
-	Type           *Type
-	Orig           *Node
-	Nname          *Node
-	Shortname      *Node
-	Enter          *NodeList
-	Exit           *NodeList
-	Cvars          *NodeList
-	Dcl            *NodeList
-	Inl            *NodeList
-	Inldcl         *NodeList
-	Closgen        int
-	Outerfunc      *Node
-	Val            Val
-	Ntype          *Node
-	Defn           *Node
-	Pack           *Node
-	Curfn          *Node
-	Paramfld       *Type
-	Decldepth      int
-	Heapaddr       *Node
-	Outerexpr      *Node
-	Stackparam     *Node
-	Alloc          *Node
-	Outer          *Node
-	Closure        *Node
-	Top            int
-	Inlvar         *Node
-	Pkg            *Pkg
-	Initplan       *InitPlan
-	Escflowsrc     *NodeList
-	Escretval      *NodeList
-	Escloopdepth   int
-	Sym            *Sym
-	InlCost        int32
-	Vargen         int32
-	Lineno         int32
-	Endlineno      int32
-	Xoffset        int64
-	Stkdelta       int64
-	Ostk           int32
-	Iota           int32
-	Walkgen        uint32
-	Esclevel       int32
-	Opt            interface{}
-}
-
-type NodeList struct {
-	N    *Node
-	Next *NodeList
-	End  *NodeList
+	Fsym       *Sym // funcsym
 }
 
 type Type struct {
@@ -250,63 +139,83 @@ type Type struct {
 	Nointerface bool
 	Noalg       uint8
 	Chan        uint8
-	Trecur      uint8
+	Trecur      uint8 // to detect loops
 	Printed     uint8
-	Embedded    uint8
+	Embedded    uint8 // TFIELD embedded type
 	Siggen      uint8
-	Funarg      uint8
+	Funarg      uint8 // on TSTRUCT and TFIELD
 	Copyany     uint8
-	Local       uint8
+	Local       bool // created in this file
 	Deferwidth  uint8
-	Broke       uint8
-	Isddd       uint8
+	Broke       uint8 // broken type definition.
+	Isddd       bool  // TFIELD is ... argument
 	Align       uint8
-	Haspointers uint8
-	Nod         *Node
-	Orig        *Type
-	Lineno      int
-	Thistuple   int
-	Outtuple    int
-	Intuple     int
-	Outnamed    uint8
-	Method      *Type
-	Xmethod     *Type
-	Sym         *Sym
-	Vargen      int32
-	Nname       *Node
-	Argwid      int64
-	Type        *Type
-	Width       int64
-	Down        *Type
-	Outer       *Type
-	Note        *Strlit
-	Bound       int64
-	Bucket      *Type
-	Hmap        *Type
-	Hiter       *Type
-	Map         *Type
-	Maplineno   int32
-	Embedlineno int32
-	Copyto      *NodeList
-	Lastfn      *Node
+	Haspointers uint8 // 0 unknown, 1 no, 2 yes
+
+	Nod    *Node // canonical OTYPE node
+	Orig   *Type // original type (type literal or predefined type)
+	Lineno int
+
+	// TFUNC
+	Thistuple int
+	Outtuple  int
+	Intuple   int
+	Outnamed  uint8
+
+	Method  *Type
+	Xmethod *Type
+
+	Sym    *Sym
+	Vargen int32 // unique name for OTYPE/ONAME
+
+	Nname  *Node
+	Argwid int64
+
+	// most nodes
+	Type  *Type // actual type for TFIELD, element type for TARRAY, TCHAN, TMAP, TPTRxx
+	Width int64 // offset in TFIELD, width in all others
+
+	// TFIELD
+	Down  *Type   // next struct field, also key type in TMAP
+	Outer *Type   // outer struct
+	Note  *string // literal string annotation
+
+	// TARRAY
+	Bound int64 // negative is dynamic array
+
+	// TMAP
+	Bucket *Type // internal type representing a hash bucket
+	Hmap   *Type // internal type representing a Hmap (map header object)
+	Hiter  *Type // internal type representing hash iterator state
+	Map    *Type // link from the above 3 internal types back to the map type.
+
+	Maplineno   int32 // first use of TFORW as map key
+	Embedlineno int32 // first use of TFORW as embedded type
+
+	// for TFORW, where to copy the eventual value to
+	Copyto *NodeList
+
+	Lastfn *Node // for usefield
 }
 
 type Label struct {
-	Used     uint8
-	Sym      *Sym
-	Def      *Node
-	Use      *NodeList
-	Link     *Label
-	Gotopc   *obj.Prog
-	Labelpc  *obj.Prog
-	Breakpc  *obj.Prog
-	Continpc *obj.Prog
+	Used uint8
+	Sym  *Sym
+	Def  *Node
+	Use  *NodeList
+	Link *Label
+
+	// for use during gen
+	Gotopc   *obj.Prog // pointer to unresolved gotos
+	Labelpc  *obj.Prog // pointer to code
+	Breakpc  *obj.Prog // pointer to code
+	Continpc *obj.Prog // pointer to code
 }
 
 type InitEntry struct {
-	Xoffset int64
-	Key     *Node
-	Expr    *Node
+	Xoffset int64 // struct, array only
+	Key     *Node // map only
+	Expr    *Node // bytes of run-time computed expressions
 }
 
 type InitPlan struct {
@@ -325,30 +234,14 @@ const (
 	EscNever
 	EscBits           = 3
 	EscMask           = (1 << EscBits) - 1
-	EscContentEscapes = 1 << EscBits
+	EscContentEscapes = 1 << EscBits // value obtained by indirect of parameter escapes to some returned result
 	EscReturnBits     = EscBits + 1
 )
 
-/*
- * Every node has a walkgen field.
- * If you want to do a traversal of a node graph that
- * might contain duplicates and want to avoid
- * visiting the same nodes twice, increment walkgen
- * before starting.  Then before processing a node, do
- *
- *	if(n->walkgen == walkgen)
- *		return;
- *	n->walkgen = walkgen;
- *
- * Such a walk cannot call another such walk recursively,
- * because of the use of the global walkgen.
- */
-var walkgen uint32
-
 const (
-	SymExport   = 1 << 0
+	SymExport   = 1 << 0 // to be exported
 	SymPackage  = 1 << 1
-	SymExported = 1 << 2
+	SymExported = 1 << 2 // already written out by export
 	SymUniq     = 1 << 3
 	SymSiggen   = 1 << 4
 	SymAsm      = 1 << 5
@@ -365,165 +258,9 @@ type Iter struct {
 	N     *Node
 }
 
-// Node ops.
-const (
-	OXXX = iota
-	ONAME
-	ONONAME
-	OTYPE
-	OPACK
-	OLITERAL
-	OADD
-	OSUB
-	OOR
-	OXOR
-	OADDSTR
-	OADDR
-	OANDAND
-	OAPPEND
-	OARRAYBYTESTR
-	OARRAYBYTESTRTMP
-	OARRAYRUNESTR
-	OSTRARRAYBYTE
-	OSTRARRAYBYTETMP
-	OSTRARRAYRUNE
-	OAS
-	OAS2
-	OAS2FUNC
-	OAS2RECV
-	OAS2MAPR
-	OAS2DOTTYPE
-	OASOP
-	OCALL
-	OCALLFUNC
-	OCALLMETH
-	OCALLINTER
-	OCALLPART
-	OCAP
-	OCLOSE
-	OCLOSURE
-	OCMPIFACE
-	OCMPSTR
-	OCOMPLIT
-	OMAPLIT
-	OSTRUCTLIT
-	OARRAYLIT
-	OPTRLIT
-	OCONV
-	OCONVIFACE
-	OCONVNOP
-	OCOPY
-	ODCL
-	ODCLFUNC
-	ODCLFIELD
-	ODCLCONST
-	ODCLTYPE
-	ODELETE
-	ODOT
-	ODOTPTR
-	ODOTMETH
-	ODOTINTER
-	OXDOT
-	ODOTTYPE
-	ODOTTYPE2
-	OEQ
-	ONE
-	OLT
-	OLE
-	OGE
-	OGT
-	OIND
-	OINDEX
-	OINDEXMAP
-	OKEY
-	OPARAM
-	OLEN
-	OMAKE
-	OMAKECHAN
-	OMAKEMAP
-	OMAKESLICE
-	OMUL
-	ODIV
-	OMOD
-	OLSH
-	ORSH
-	OAND
-	OANDNOT
-	ONEW
-	ONOT
-	OCOM
-	OPLUS
-	OMINUS
-	OOROR
-	OPANIC
-	OPRINT
-	OPRINTN
-	OPAREN
-	OSEND
-	OSLICE
-	OSLICEARR
-	OSLICESTR
-	OSLICE3
-	OSLICE3ARR
-	ORECOVER
-	ORECV
-	ORUNESTR
-	OSELRECV
-	OSELRECV2
-	OIOTA
-	OREAL
-	OIMAG
-	OCOMPLEX
-	OBLOCK
-	OBREAK
-	OCASE
-	OXCASE
-	OCONTINUE
-	ODEFER
-	OEMPTY
-	OFALL
-	OXFALL
-	OFOR
-	OGOTO
-	OIF
-	OLABEL
-	OPROC
-	ORANGE
-	ORETURN
-	OSELECT
-	OSWITCH
-	OTYPESW
-	OTCHAN
-	OTMAP
-	OTSTRUCT
-	OTINTER
-	OTFUNC
-	OTARRAY
-	ODDD
-	ODDDARG
-	OINLCALL
-	OEFACE
-	OITAB
-	OSPTR
-	OCLOSUREVAR
-	OCFUNC
-	OCHECKNIL
-	OVARKILL
-	OREGISTER
-	OINDREG
-	OCMP
-	ODEC
-	OINC
-	OEXTEND
-	OHMUL
-	OLROT
-	ORROTC
-	ORETJMP
-	OEND
-)
-
 const (
 	Txxx = iota
+
 	TINT8
 	TUINT8
 	TINT16
@@ -535,13 +272,18 @@ const (
 	TINT
 	TUINT
 	TUINTPTR
+
 	TCOMPLEX64
 	TCOMPLEX128
+
 	TFLOAT32
 	TFLOAT64
+
 	TBOOL
+
 	TPTR32
 	TPTR64
+
 	TFUNC
 	TARRAY
 	T_old_DARRAY
@@ -554,17 +296,23 @@ const (
 	TANY
 	TSTRING
 	TUNSAFEPTR
+
+	// pseudo-types for literals
 	TIDEAL
 	TNIL
 	TBLANK
+
+	// pseudo-type for frame layout
 	TFUNCARGS
 	TCHANARGS
 	TINTERMETH
+
 	NTYPE
 )
 
 const (
 	CTxxx = iota
+
 	CTINT
 	CTRUNE
 	CTFLT
@@ -575,6 +323,8 @@ const (
 )
 
 const (
+	/* types of channel */
+	/* must match ../../pkg/nreflect/type.go:/Chandir */
 	Cxxx  = 0
 	Crecv = 1 << 0
 	Csend = 1 << 1
@@ -583,54 +333,32 @@ const (
 
 // declaration context
 const (
-	Pxxx = iota
-	PEXTERN
-	PAUTO
-	PPARAM
-	PPARAMOUT
-	PPARAMREF
-	PFUNC
-	PDISCARD
-	PHEAP = 1 << 7
+	Pxxx      = iota
+	PEXTERN   // global variable
+	PAUTO     // local variables
+	PPARAM    // input arguments
+	PPARAMOUT // output results
+	PPARAMREF // closure variable reference
+	PFUNC     // global function
+
+	PDISCARD // discard during parse of duplicate import
+
+	PHEAP = 1 << 7 // an extra bit to identify an escaped variable
 )
 
 const (
-	Etop      = 1 << 1
-	Erv       = 1 << 2
+	Etop      = 1 << 1 // evaluated at statement level
+	Erv       = 1 << 2 // evaluated in value context
 	Etype     = 1 << 3
-	Ecall     = 1 << 4
-	Efnstruct = 1 << 5
-	Eiota     = 1 << 6
-	Easgn     = 1 << 7
-	Eindir    = 1 << 8
-	Eaddr     = 1 << 9
-	Eproc     = 1 << 10
-	Ecomplit  = 1 << 11
+	Ecall     = 1 << 4  // call-only expressions are ok
+	Efnstruct = 1 << 5  // multivalue function returns are ok
+	Eiota     = 1 << 6  // iota is ok
+	Easgn     = 1 << 7  // assigning to expression
+	Eindir    = 1 << 8  // indirecting through expression
+	Eaddr     = 1 << 9  // taking address of expression
+	Eproc     = 1 << 10 // inside a go statement
+	Ecomplit  = 1 << 11 // type in composite literal
 )
-
-const (
-	BITS = 3
-	NVAR = BITS * 64
-)
-
-type Bits struct {
-	b [BITS]uint64
-}
-
-var zbits Bits
-
-type Var struct {
-	offset     int64
-	node       *Node
-	nextinnode *Var
-	width      int
-	id         int
-	name       int8
-	etype      int8
-	addr       int8
-}
-
-var var_ [NVAR]Var
 
 type Typedef struct {
 	Name   string
@@ -652,13 +380,12 @@ type Sig struct {
 type Io struct {
 	infile     string
 	bin        *obj.Biobuf
-	ilineno    int32
 	nlsemi     int
 	eofnl      int
 	last       int
 	peekc      int
-	peekc1     int
-	cp         string
+	peekc1     int    // second peekc for ...
+	cp         string // used for content when bin==nil
 	importsafe bool
 }
 
@@ -676,14 +403,18 @@ type Idir struct {
  * smagic and umagic
  */
 type Magic struct {
-	W   int
-	S   int
-	Bad int
-	Sd  int64
-	Sm  int64
-	Ud  uint64
-	Um  uint64
-	Ua  int
+	W   int // input for both - width
+	S   int // output for both - shift
+	Bad int // output for both - unexpected failure
+
+	// magic multiplier for signed literal divisors
+	Sd int64 // input - literal divisor
+	Sm int64 // output - multiplier
+
+	// magic multiplier for unsigned literal divisors
+	Ud uint64 // input - literal divisor
+	Um uint64 // output - multiplier
+	Ua int    // output - adder
 }
 
 /*
@@ -749,8 +480,6 @@ var safemode int
 
 var nolocalimports int
 
-var namebuf string
-
 var lexbuf bytes.Buffer
 var strbuf bytes.Buffer
 
@@ -761,8 +490,7 @@ var Debug [256]int
 var debugstr string
 
 var Debug_checknil int
-
-var hash [NHASH]*Sym
+var Debug_typeassert int
 
 var importmyname *Sym // my name for package
 
@@ -796,8 +524,6 @@ var trackpkg *Pkg // fake package for field tracking
 
 var rawpkg *Pkg // fake package for raw symbol names
 
-var phash [128]*Pkg
-
 var Tptr int // either TPTR32 or TPTR64
 
 var myimportpath string
@@ -822,43 +548,33 @@ var errortype *Type
 
 var Simtype [NTYPE]uint8
 
-var Isptr [NTYPE]uint8
+var (
+	Isptr     [NTYPE]bool
+	isforw    [NTYPE]bool
+	Isint     [NTYPE]bool
+	Isfloat   [NTYPE]bool
+	Iscomplex [NTYPE]bool
+	Issigned  [NTYPE]bool
+	issimple  [NTYPE]bool
+)
 
-var isforw [NTYPE]uint8
+var (
+	okforeq    [NTYPE]bool
+	okforadd   [NTYPE]bool
+	okforand   [NTYPE]bool
+	okfornone  [NTYPE]bool
+	okforcmp   [NTYPE]bool
+	okforbool  [NTYPE]bool
+	okforcap   [NTYPE]bool
+	okforlen   [NTYPE]bool
+	okforarith [NTYPE]bool
+	okforconst [NTYPE]bool
+)
 
-var Isint [NTYPE]uint8
-
-var Isfloat [NTYPE]uint8
-
-var Iscomplex [NTYPE]uint8
-
-var Issigned [NTYPE]uint8
-
-var issimple [NTYPE]uint8
-
-var okforeq [NTYPE]uint8
-
-var okforadd [NTYPE]uint8
-
-var okforand [NTYPE]uint8
-
-var okfornone [NTYPE]uint8
-
-var okforcmp [NTYPE]uint8
-
-var okforbool [NTYPE]uint8
-
-var okforcap [NTYPE]uint8
-
-var okforlen [NTYPE]uint8
-
-var okforarith [NTYPE]uint8
-
-var okforconst [NTYPE]uint8
-
-var okfor [OEND][]byte
-
-var iscmp [OEND]uint8
+var (
+	okfor [OEND][]bool
+	iscmp [OEND]bool
+)
 
 var Minintval [NTYPE]*Mpint
 
@@ -916,7 +632,7 @@ var typesw *Node
 
 var nblank *Node
 
-var Use_sse int
+var Use_sse bool // should we generate SSE2 instructions for 386 targets
 
 var hunk string
 
@@ -924,7 +640,7 @@ var nhunk int32
 
 var thunk int32
 
-var Funcdepth int
+var Funcdepth int32
 
 var typecheckok int
 
@@ -962,81 +678,6 @@ var bstdout obj.Biobuf
 
 var Nacl bool
 
-/*
- *	y.tab.c
- */
-
-/*
- *	align.c
- */
-
-/*
- *	array.c
- */
-
-/*
- *	bits.c
- */
-
-/*
- *	mparith1.c
- */
-
-/*
- *	mparith2.c
- */
-
-/*
- *	mparith3.c
- */
-
-/*
- *	obj.c
- */
-
-/*
- *	order.c
- */
-
-/*
- *	range.c
- */
-
-/*
- *	reflect.c
- */
-
-/*
- *	select.c
- */
-
-/*
- *	sinit.c
- */
-
-/*
- *	subr.c
- */
-
-/*
- *	swt.c
- */
-
-/*
- *	typecheck.c
- */
-
-/*
- *	unsafe.c
- */
-
-/*
- *	walk.c
- */
-
-/*
- *	thearch-specific ggen.c/gsubr.c/gobj.c/pgen.c/plive.c
- */
 var continpc *obj.Prog
 
 var breakpc *obj.Prog
@@ -1051,118 +692,146 @@ var Disable_checknil int
 
 var zerosize int64
 
-/*
- *	racewalk.c
- */
-
-/*
- *	flow.c
- */
 type Flow struct {
-	Prog   *obj.Prog
-	P1     *Flow
-	P2     *Flow
+	Prog   *obj.Prog // actual instruction
+	P1     *Flow     // predecessors of this instruction: p1,
+	P2     *Flow     // and then p2 linked though p2link.
 	P2link *Flow
-	S1     *Flow
+	S1     *Flow // successors of this instruction (at most two: s1 and s2).
 	S2     *Flow
-	Link   *Flow
-	Active int32
-	Id     int32
-	Rpo    int32
-	Loop   uint16
-	Refset uint8
-	Data   interface{}
+	Link   *Flow // next instruction in function code
+
+	Active int32 // usable by client
+
+	Id     int32  // sequence number in flow graph
+	Rpo    int32  // reverse post ordering
+	Loop   uint16 // x5 for every loop
+	Refset uint8  // diagnostic generated
+
+	Data interface{} // for use by client
 }
 
 type Graph struct {
 	Start *Flow
 	Num   int
-	Rpo   []*Flow
+
+	// After calling flowrpo, rpo lists the flow nodes in reverse postorder,
+	// and each non-dead Flow node f has g->rpo[f->rpo] == f.
+	Rpo []*Flow
 }
 
 /*
  *	interface to back end
  */
-type ProgInfo struct {
-	Flags    uint32
-	Reguse   uint64
-	Regset   uint64
-	Regindex uint64
-}
 
 const (
-	Pseudo     = 1 << 1
-	OK         = 1 << 2
-	SizeB      = 1 << 3
-	SizeW      = 1 << 4
-	SizeL      = 1 << 5
-	SizeQ      = 1 << 6
-	SizeF      = 1 << 7
-	SizeD      = 1 << 8
-	LeftAddr   = 1 << 9
-	LeftRead   = 1 << 10
-	LeftWrite  = 1 << 11
+	// Pseudo-op, like TEXT, GLOBL, TYPE, PCDATA, FUNCDATA.
+	Pseudo = 1 << 1
+
+	// There's nothing to say about the instruction,
+	// but it's still okay to see.
+	OK = 1 << 2
+
+	// Size of right-side write, or right-side read if no write.
+	SizeB = 1 << 3
+	SizeW = 1 << 4
+	SizeL = 1 << 5
+	SizeQ = 1 << 6
+	SizeF = 1 << 7
+	SizeD = 1 << 8
+
+	// Left side (Prog.from): address taken, read, write.
+	LeftAddr  = 1 << 9
+	LeftRead  = 1 << 10
+	LeftWrite = 1 << 11
+
+	// Register in middle (Prog.reg); only ever read. (arm, ppc64)
 	RegRead    = 1 << 12
 	CanRegRead = 1 << 13
+
+	// Right side (Prog.to): address taken, read, write.
 	RightAddr  = 1 << 14
 	RightRead  = 1 << 15
 	RightWrite = 1 << 16
-	Move       = 1 << 17
-	Conv       = 1 << 18
-	Cjmp       = 1 << 19
-	Break      = 1 << 20
-	Call       = 1 << 21
-	Jump       = 1 << 22
-	Skip       = 1 << 23
-	SetCarry   = 1 << 24
-	UseCarry   = 1 << 25
-	KillCarry  = 1 << 26
-	ShiftCX    = 1 << 27
-	ImulAXDX   = 1 << 28
-	PostInc    = 1 << 29
+
+	// Instruction kinds
+	Move  = 1 << 17 // straight move
+	Conv  = 1 << 18 // size conversion
+	Cjmp  = 1 << 19 // conditional jump
+	Break = 1 << 20 // breaks control flow (no fallthrough)
+	Call  = 1 << 21 // function call
+	Jump  = 1 << 22 // jump
+	Skip  = 1 << 23 // data instruction
+
+	// Set, use, or kill of carry bit.
+	// Kill means we never look at the carry bit after this kind of instruction.
+	SetCarry  = 1 << 24
+	UseCarry  = 1 << 25
+	KillCarry = 1 << 26
+
+	// Special cases for register use. (amd64, 386)
+	ShiftCX  = 1 << 27 // possible shift by CX
+	ImulAXDX = 1 << 28 // possible multiply into DX:AX
+
+	// Instruction updates whichever of from/to is type D_OREG. (ppc64)
+	PostInc = 1 << 29
 )
 
 type Arch struct {
-	Thechar        int
-	Thestring      string
-	Thelinkarch    *obj.LinkArch
-	Typedefs       []Typedef
-	REGSP          int
-	REGCTXT        int
-	MAXWIDTH       int64
-	Anyregalloc    func() bool
-	Betypeinit     func()
-	Bgen           func(*Node, bool, int, *obj.Prog)
-	Cgen           func(*Node, *Node)
-	Cgen_call      func(*Node, int)
-	Cgen_callinter func(*Node, *Node, int)
-	Cgen_ret       func(*Node)
-	Clearfat       func(*Node)
-	Defframe       func(*obj.Prog)
-	Excise         func(*Flow)
-	Expandchecks   func(*obj.Prog)
-	Gclean         func()
-	Ginit          func()
-	Gins           func(int, *Node, *Node) *obj.Prog
-	Ginscall       func(*Node, int)
-	Igen           func(*Node, *Node, *Node)
-	Linkarchinit   func()
-	Peep           func(*obj.Prog)
-	Proginfo       func(*ProgInfo, *obj.Prog)
-	Regalloc       func(*Node, *Type, *Node)
-	Regfree        func(*Node)
-	Regtyp         func(*obj.Addr) bool
-	Sameaddr       func(*obj.Addr, *obj.Addr) bool
-	Smallindir     func(*obj.Addr, *obj.Addr) bool
-	Stackaddr      func(*obj.Addr) bool
-	Excludedregs   func() uint64
-	RtoB           func(int) uint64
-	FtoB           func(int) uint64
-	BtoR           func(uint64) int
-	BtoF           func(uint64) int
-	Optoas         func(int, *Type) int
-	Doregbits      func(int) uint64
-	Regnames       func(*int) []string
+	Thechar      int
+	Thestring    string
+	Thelinkarch  *obj.LinkArch
+	Typedefs     []Typedef
+	REGSP        int
+	REGCTXT      int
+	REGCALLX     int // BX
+	REGCALLX2    int // AX
+	REGRETURN    int // AX
+	REGMIN       int
+	REGMAX       int
+	FREGMIN      int
+	FREGMAX      int
+	MAXWIDTH     int64
+	ReservedRegs []int
+
+	AddIndex     func(*Node, int64, *Node) bool // optional
+	Betypeinit   func()
+	Bgen_float   func(*Node, int, int, *obj.Prog) // optional
+	Cgen64       func(*Node, *Node)               // only on 32-bit systems
+	Cgenindex    func(*Node, *Node, bool) *obj.Prog
+	Cgen_bmul    func(int, *Node, *Node, *Node) bool
+	Cgen_float   func(*Node, *Node) // optional
+	Cgen_hmul    func(*Node, *Node, *Node)
+	Cgen_shift   func(int, bool, *Node, *Node, *Node)
+	Clearfat     func(*Node)
+	Cmp64        func(*Node, *Node, int, int, *obj.Prog) // only on 32-bit systems
+	Defframe     func(*obj.Prog)
+	Dodiv        func(int, *Node, *Node, *Node)
+	Excise       func(*Flow)
+	Expandchecks func(*obj.Prog)
+	Gins         func(int, *Node, *Node) *obj.Prog
+	Ginscon      func(int, int64, *Node)
+	Ginsnop      func()
+	Gmove        func(*Node, *Node)
+	Igenindex    func(*Node, *Node, bool) *obj.Prog
+	Linkarchinit func()
+	Peep         func(*obj.Prog)
+	Proginfo     func(*obj.Prog) // fills in Prog.Info
+	Regtyp       func(*obj.Addr) bool
+	Sameaddr     func(*obj.Addr, *obj.Addr) bool
+	Smallindir   func(*obj.Addr, *obj.Addr) bool
+	Stackaddr    func(*obj.Addr) bool
+	Stackcopy    func(*Node, *Node, int64, int64, int64)
+	Sudoaddable  func(int, *Node, *obj.Addr) bool
+	Sudoclean    func()
+	Excludedregs func() uint64
+	RtoB         func(int) uint64
+	FtoB         func(int) uint64
+	BtoR         func(uint64) int
+	BtoF         func(uint64) int
+	Optoas       func(int, *Type) int
+	Doregbits    func(int) uint64
+	Regnames     func(*int) []string
 }
 
 var pcloc int32

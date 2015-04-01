@@ -32,11 +32,13 @@ package x86
 
 import "cmd/internal/obj"
 
+//go:generate go run ../stringer.go -i $GOFILE -o anames.go -p x86
+
 /*
  *	amd64
  */
 const (
-	AAAA = obj.A_ARCHSPECIFIC + iota
+	AAAA = obj.ABaseAMD64 + obj.A_ARCHSPECIFIC + iota
 	AAAD
 	AAAM
 	AAAS
@@ -264,6 +266,7 @@ const (
 	AXORB
 	AXORL
 	AXORW
+
 	AFMOVB
 	AFMOVBP
 	AFMOVD
@@ -278,6 +281,7 @@ const (
 	AFMOVWP
 	AFMOVX
 	AFMOVXP
+
 	AFCOMB
 	AFCOMBP
 	AFCOMD
@@ -292,38 +296,46 @@ const (
 	AFUCOM
 	AFUCOMP
 	AFUCOMPP
+
 	AFADDDP
 	AFADDW
 	AFADDL
 	AFADDF
 	AFADDD
+
 	AFMULDP
 	AFMULW
 	AFMULL
 	AFMULF
 	AFMULD
+
 	AFSUBDP
 	AFSUBW
 	AFSUBL
 	AFSUBF
 	AFSUBD
+
 	AFSUBRDP
 	AFSUBRW
 	AFSUBRL
 	AFSUBRF
 	AFSUBRD
+
 	AFDIVDP
 	AFDIVW
 	AFDIVL
 	AFDIVF
 	AFDIVD
+
 	AFDIVRDP
 	AFDIVRW
 	AFDIVRL
 	AFDIVRF
 	AFDIVRD
+
 	AFXCHD
 	AFFREE
+
 	AFLDCW
 	AFLDENV
 	AFRSTOR
@@ -331,6 +343,7 @@ const (
 	AFSTCW
 	AFSTENV
 	AFSTSW
+
 	AF2XM1
 	AFABS
 	AFCHS
@@ -361,6 +374,8 @@ const (
 	AFXTRACT
 	AFYL2X
 	AFYL2XP1
+
+	// extra 32-bit operations
 	ACMPXCHGB
 	ACMPXCHGL
 	ACMPXCHGW
@@ -382,6 +397,8 @@ const (
 	AXADDB
 	AXADDL
 	AXADDW
+
+	// conditional move
 	ACMOVLCC
 	ACMOVLCS
 	ACMOVLEQ
@@ -430,6 +447,8 @@ const (
 	ACMOVWPC
 	ACMOVWPL
 	ACMOVWPS
+
+	// 64-bit
 	AADCQ
 	AADDQ
 	AANDQ
@@ -481,6 +500,8 @@ const (
 	AXADDQ
 	AXCHGQ
 	AXORQ
+
+	// media
 	AADDPD
 	AADDPS
 	AADDSD
@@ -682,6 +703,7 @@ const (
 	AUNPCKLPS
 	AXORPD
 	AXORPS
+
 	APF2IW
 	APF2IL
 	API2FW
@@ -690,31 +712,55 @@ const (
 	ARETFL
 	ARETFQ
 	ASWAPGS
+
 	AMODE
 	ACRC32B
 	ACRC32Q
 	AIMUL3Q
+
 	APREFETCHT0
 	APREFETCHT1
 	APREFETCHT2
 	APREFETCHNTA
+
 	AMOVQL
 	ABSWAPL
 	ABSWAPQ
+
 	AAESENC
 	AAESENCLAST
 	AAESDEC
 	AAESDECLAST
 	AAESIMC
 	AAESKEYGENASSIST
+
 	APSHUFD
 	APCLMULQDQ
+
+	// from 386
+	AJCXZW
+	AFCMOVCC
+	AFCMOVCS
+	AFCMOVEQ
+	AFCMOVHI
+	AFCMOVLS
+	AFCMOVNE
+	AFCMOVNU
+	AFCMOVUN
+	AFCOMI
+	AFCOMIP
+	AFUCOMI
+	AFUCOMIP
+
 	ALAST
 )
 
 const (
 	REG_NONE = 0
-	REG_AL   = obj.RBaseAMD64 + 0 + iota - 1
+)
+
+const (
+	REG_AL = obj.RBaseAMD64 + iota
 	REG_CL
 	REG_DL
 	REG_BL
@@ -730,7 +776,8 @@ const (
 	REG_R13B
 	REG_R14B
 	REG_R15B
-	REG_AX = obj.RBaseAMD64 + 16 + iota - 17
+
+	REG_AX
 	REG_CX
 	REG_DX
 	REG_BX
@@ -746,13 +793,31 @@ const (
 	REG_R13
 	REG_R14
 	REG_R15
-	REG_AH = obj.RBaseAMD64 + 32 + iota - 33
+
+	REG_AH
 	REG_CH
 	REG_DH
 	REG_BH
-	REG_F0 = obj.RBaseAMD64 + 36
-	REG_M0 = obj.RBaseAMD64 + 44
-	REG_X0 = obj.RBaseAMD64 + 52 + iota - 39
+
+	REG_F0
+	REG_F1
+	REG_F2
+	REG_F3
+	REG_F4
+	REG_F5
+	REG_F6
+	REG_F7
+
+	REG_M0
+	REG_M1
+	REG_M2
+	REG_M3
+	REG_M4
+	REG_M5
+	REG_M6
+	REG_M7
+
+	REG_X0
 	REG_X1
 	REG_X2
 	REG_X3
@@ -768,31 +833,72 @@ const (
 	REG_X13
 	REG_X14
 	REG_X15
-	REG_CS = obj.RBaseAMD64 + 68 + iota - 55
+
+	REG_CS
 	REG_SS
 	REG_DS
 	REG_ES
 	REG_FS
 	REG_GS
-	REG_GDTR
-	REG_IDTR
-	REG_LDTR
-	REG_MSW
-	REG_TASK
-	REG_CR  = obj.RBaseAMD64 + 79
-	REG_DR  = obj.RBaseAMD64 + 95
-	REG_TR  = obj.RBaseAMD64 + 103
-	REG_TLS = obj.RBaseAMD64 + 111 + iota - 69
+
+	REG_GDTR /* global descriptor table register */
+	REG_IDTR /* interrupt descriptor table register */
+	REG_LDTR /* local descriptor table register */
+	REG_MSW  /* machine status word */
+	REG_TASK /* task register */
+
+	REG_CR0
+	REG_CR1
+	REG_CR2
+	REG_CR3
+	REG_CR4
+	REG_CR5
+	REG_CR6
+	REG_CR7
+	REG_CR8
+	REG_CR9
+	REG_CR10
+	REG_CR11
+	REG_CR12
+	REG_CR13
+	REG_CR14
+	REG_CR15
+
+	REG_DR0
+	REG_DR1
+	REG_DR2
+	REG_DR3
+	REG_DR4
+	REG_DR5
+	REG_DR6
+	REG_DR7
+
+	REG_TR0
+	REG_TR1
+	REG_TR2
+	REG_TR3
+	REG_TR4
+	REG_TR5
+	REG_TR6
+	REG_TR7
+
+	REG_TLS
+
 	MAXREG
+
+	REG_CR = REG_CR0
+	REG_DR = REG_DR0
+	REG_TR = REG_TR0
+
 	REGARG   = -1
 	REGRET   = REG_AX
 	FREGRET  = REG_X0
 	REGSP    = REG_SP
 	REGTMP   = REG_DI
 	REGCTXT  = REG_DX
-	REGEXT   = REG_R15
-	FREGMIN  = REG_X0 + 5
-	FREGEXT  = REG_X0 + 15
+	REGEXT   = REG_R15     /* compiler allocates external registers R15 down */
+	FREGMIN  = REG_X0 + 5  /* first register variable */
+	FREGEXT  = REG_X0 + 15 /* first external register */
 	T_TYPE   = 1 << 0
 	T_INDEX  = 1 << 1
 	T_OFFSET = 1 << 2

@@ -35,36 +35,32 @@ func (wp wbufptr) ptr() *workbuf {
 	return (*workbuf)(unsafe.Pointer(wp))
 }
 
-// A gcWorkProducer provides the interface to produce work for the
+// A gcWork provides the interface to produce and consume work for the
 // garbage collector.
 //
-// The usual pattern for using gcWorkProducer is:
+// The usual pattern for using gcWork is:
 //
-//     var gcw gcWorkProducer
-//     .. call gcw.put() ..
+//     var gcw gcWork
+//     disable preemption
+//     .. call gcw.put() to produce and gcw.get() to consume ..
 //     gcw.dispose()
-type gcWorkProducer struct {
+//     enable preemption
+//
+// It's important that any use of gcWork during the mark phase prevent
+// the garbage collector from transitioning to mark termination since
+// gcWork may locally hold GC work buffers. This can be done by
+// disabling preemption (systemstack or acquirem).
+type gcWork struct {
 	// Invariant: wbuf is never full or empty
 	wbuf wbufptr
 }
 
-// A gcWork provides the interface to both produce and consume work
-// for the garbage collector.
-//
-// The pattern for using gcWork is the same as gcWorkProducer.
-type gcWork struct {
-	gcWorkProducer
-}
-
-// Note that there is no need for a gcWorkConsumer because everything
-// that consumes pointers also produces them.
-
 // initFromCache fetches work from this M's currentwbuf cache.
 //go:nowritebarrier
-func (w *gcWorkProducer) initFromCache() {
-	// TODO: Instead of making gcWorkProducer pull from the
-	// currentwbuf cache, use a gcWorkProducer as the cache and
-	// make shade pass around that gcWorkProducer.
+func (w *gcWork) initFromCache() {
+	// TODO: Instead of making gcWork pull from the currentwbuf
+	// cache, use a gcWork as the cache and make shade pass around
+	// that gcWork.
 	if w.wbuf == 0 {
 		w.wbuf = wbufptr(xchguintptr(&getg().m.currentwbuf, 0))
 	}
@@ -72,8 +68,8 @@ func (w *gcWorkProducer) initFromCache() {
 
 // put enqueues a pointer for the garbage collector to trace.
 //go:nowritebarrier
-func (ww *gcWorkProducer) put(obj uintptr) {
-	w := (*gcWorkProducer)(noescape(unsafe.Pointer(ww))) // TODO: remove when escape analysis is fixed
+func (ww *gcWork) put(obj uintptr) {
+	w := (*gcWork)(noescape(unsafe.Pointer(ww))) // TODO: remove when escape analysis is fixed
 
 	wbuf := w.wbuf.ptr()
 	if wbuf == nil {
@@ -86,28 +82,6 @@ func (ww *gcWorkProducer) put(obj uintptr) {
 
 	if wbuf.nobj == len(wbuf.obj) {
 		putfull(wbuf, 50)
-		w.wbuf = 0
-	}
-}
-
-// dispose returns any cached pointers to the global queue.
-//go:nowritebarrier
-func (w *gcWorkProducer) dispose() {
-	if wbuf := w.wbuf; wbuf != 0 {
-		putpartial(wbuf.ptr(), 58)
-		w.wbuf = 0
-	}
-}
-
-// disposeToCache returns any cached pointers to this M's currentwbuf.
-// It calls throw if currentwbuf is non-nil.
-//go:nowritebarrier
-func (w *gcWorkProducer) disposeToCache() {
-	if wbuf := w.wbuf; wbuf != 0 {
-		wbuf = wbufptr(xchguintptr(&getg().m.currentwbuf, uintptr(wbuf)))
-		if wbuf != 0 {
-			throw("m.currentwbuf non-nil in disposeToCache")
-		}
 		w.wbuf = 0
 	}
 }
@@ -175,11 +149,20 @@ func (ww *gcWork) get() uintptr {
 //go:nowritebarrier
 func (w *gcWork) dispose() {
 	if wbuf := w.wbuf; wbuf != 0 {
-		// Even though wbuf may only be partially full, we
-		// want to keep it on the consumer's queues rather
-		// than putting it back on the producer's queues.
-		// Hence, we use putfull here.
-		putfull(wbuf.ptr(), 133)
+		putpartial(wbuf.ptr(), 167)
+		w.wbuf = 0
+	}
+}
+
+// disposeToCache returns any cached pointers to this M's currentwbuf.
+// It calls throw if currentwbuf is non-nil.
+//go:nowritebarrier
+func (w *gcWork) disposeToCache() {
+	if wbuf := w.wbuf; wbuf != 0 {
+		wbuf = wbufptr(xchguintptr(&getg().m.currentwbuf, uintptr(wbuf)))
+		if wbuf != 0 {
+			throw("m.currentwbuf non-nil in disposeToCache")
+		}
 		w.wbuf = 0
 	}
 }
@@ -443,7 +426,7 @@ func getfull(entry int) *workbuf {
 
 	xadd(&work.nwait, +1)
 	for i := 0; ; i++ {
-		if work.full != 0 {
+		if work.full != 0 || work.partial != 0 {
 			xadd(&work.nwait, -1)
 			b = (*workbuf)(lfstackpop(&work.full))
 			if b == nil {
