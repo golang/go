@@ -60,7 +60,8 @@ type moduledata struct {
 	next *moduledata
 }
 
-var firstmoduledata moduledata // linker symbol
+var firstmoduledata moduledata  // linker symbol
+var lastmoduledatap *moduledata // linker symbol
 
 type functab struct {
 	entry   uintptr

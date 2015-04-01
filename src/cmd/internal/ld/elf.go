@@ -1658,9 +1658,15 @@ func doelf() {
 		Addstring(shstrtab, ".note.GNU-stack")
 	}
 
+	hasinitarr := Linkshared
+
+	/* shared library initializer */
 	switch Buildmode {
 	case BuildmodeCArchive, BuildmodeCShared, BuildmodeShared:
-		// TODO(mwhudson): switch on Linkshared
+		hasinitarr = true
+	}
+
+	if hasinitarr {
 		Addstring(shstrtab, ".init_array")
 		switch Thearch.Thechar {
 		case '6', '7', '9':

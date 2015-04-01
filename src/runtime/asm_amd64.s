@@ -1692,3 +1692,10 @@ TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
 	MOVQ	addr+0(FP), AX
 	PREFETCHNTA	(AX)
 	RET
+
+// This is called from .init_array and follows the platform, not Go, ABI.
+TEXT runtime·addmoduledata(SB),NOSPLIT,$0-8
+	MOVQ	runtime·lastmoduledatap(SB), AX
+	MOVQ	DI, moduledata_next(AX)
+	MOVQ	DI, runtime·lastmoduledatap(SB)
+	RET
