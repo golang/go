@@ -314,6 +314,7 @@ func runTest(cmd *Command, args []string) {
 	findExecCmd() // initialize cached result
 
 	raceInit()
+	buildModeInit()
 	pkgs := packagesForBuild(pkgArgs)
 	if len(pkgs) == 0 {
 		fatalf("no packages to test")
