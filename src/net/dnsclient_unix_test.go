@@ -219,8 +219,7 @@ func TestReloadResolvConfChange(t *testing.T) {
 }
 
 func BenchmarkGoLookupIP(b *testing.B) {
-	uninstallTestHooks()
-	defer installTestHooks()
+	testHookUninstaller.Do(func() { uninstallTestHooks() })
 
 	for i := 0; i < b.N; i++ {
 		goLookupIP("www.example.com")
@@ -228,8 +227,7 @@ func BenchmarkGoLookupIP(b *testing.B) {
 }
 
 func BenchmarkGoLookupIPNoSuchHost(b *testing.B) {
-	uninstallTestHooks()
-	defer installTestHooks()
+	testHookUninstaller.Do(func() { uninstallTestHooks() })
 
 	for i := 0; i < b.N; i++ {
 		goLookupIP("some.nonexistent")
@@ -237,8 +235,7 @@ func BenchmarkGoLookupIPNoSuchHost(b *testing.B) {
 }
 
 func BenchmarkGoLookupIPWithBrokenNameServer(b *testing.B) {
-	uninstallTestHooks()
-	defer installTestHooks()
+	testHookUninstaller.Do(func() { uninstallTestHooks() })
 
 	onceLoadConfig.Do(loadDefaultConfig)
 	if cfg.dnserr != nil || cfg.dnsConfig == nil {
