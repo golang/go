@@ -229,8 +229,7 @@ func testMulticastAddrs(t *testing.T, ifmat []Addr) (nmaf4, nmaf6 int) {
 }
 
 func BenchmarkInterfaces(b *testing.B) {
-	uninstallTestHooks()
-	defer installTestHooks()
+	testHookUninstaller.Do(func() { uninstallTestHooks() })
 
 	for i := 0; i < b.N; i++ {
 		if _, err := Interfaces(); err != nil {
@@ -240,8 +239,7 @@ func BenchmarkInterfaces(b *testing.B) {
 }
 
 func BenchmarkInterfaceByIndex(b *testing.B) {
-	uninstallTestHooks()
-	defer installTestHooks()
+	testHookUninstaller.Do(func() { uninstallTestHooks() })
 
 	ifi := loopbackInterface()
 	if ifi == nil {
@@ -255,8 +253,7 @@ func BenchmarkInterfaceByIndex(b *testing.B) {
 }
 
 func BenchmarkInterfaceByName(b *testing.B) {
-	uninstallTestHooks()
-	defer installTestHooks()
+	testHookUninstaller.Do(func() { uninstallTestHooks() })
 
 	ifi := loopbackInterface()
 	if ifi == nil {
@@ -270,8 +267,7 @@ func BenchmarkInterfaceByName(b *testing.B) {
 }
 
 func BenchmarkInterfaceAddrs(b *testing.B) {
-	uninstallTestHooks()
-	defer installTestHooks()
+	testHookUninstaller.Do(func() { uninstallTestHooks() })
 
 	for i := 0; i < b.N; i++ {
 		if _, err := InterfaceAddrs(); err != nil {
@@ -281,8 +277,7 @@ func BenchmarkInterfaceAddrs(b *testing.B) {
 }
 
 func BenchmarkInterfacesAndAddrs(b *testing.B) {
-	uninstallTestHooks()
-	defer installTestHooks()
+	testHookUninstaller.Do(func() { uninstallTestHooks() })
 
 	ifi := loopbackInterface()
 	if ifi == nil {
@@ -296,8 +291,7 @@ func BenchmarkInterfacesAndAddrs(b *testing.B) {
 }
 
 func BenchmarkInterfacesAndMulticastAddrs(b *testing.B) {
-	uninstallTestHooks()
-	defer installTestHooks()
+	testHookUninstaller.Do(func() { uninstallTestHooks() })
 
 	ifi := loopbackInterface()
 	if ifi == nil {
