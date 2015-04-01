@@ -622,6 +622,16 @@ func walkexpr(np **Node, init **NodeList) {
 		walkexpr(&n.Left, init)
 		walkexprlist(n.List, init)
 
+		if n.Left.Op == ONAME && n.Left.Sym.Name == "Sqrt" && n.Left.Sym.Pkg.Path == "math" {
+			switch Thearch.Thechar {
+			case '5', '6':
+				n.Op = OSQRT
+				n.Left = n.List.N
+				n.List = nil
+				goto ret
+			}
+		}
+
 		ll := ascompatte(int(n.Op), n, n.Isddd, getinarg(t), n.List, 0, init)
 		n.List = reorder1(ll)
 		goto ret

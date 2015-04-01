@@ -1131,6 +1131,9 @@ func optoas(op int, t *gc.Type) int {
 
 	case gc.ODIV<<16 | gc.TFLOAT64:
 		a = x86.ADIVSD
+
+	case gc.OSQRT<<16 | gc.TFLOAT64:
+		a = x86.ASQRTSD
 	}
 
 	return a

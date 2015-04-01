@@ -1002,6 +1002,9 @@ func gen(n *Node) {
 	case ORETURN, ORETJMP:
 		cgen_ret(n)
 
+	case OSQRT:
+		cgen_discard(n.Left)
+
 	case OCHECKNIL:
 		Cgen_checknil(n.Left)
 
