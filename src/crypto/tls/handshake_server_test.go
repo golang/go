@@ -63,6 +63,10 @@ func init() {
 	testConfig.BuildNameToCertificate()
 }
 
+func testClientHello(t *testing.T, serverConfig *Config, m handshakeMessage) {
+	testClientHelloFailure(t, serverConfig, m, "")
+}
+
 func testClientHelloFailure(t *testing.T, serverConfig *Config, m handshakeMessage, expectedSubStr string) {
 	// Create in-memory network connection,
 	// send message to server.  Should return
@@ -78,7 +82,11 @@ func testClientHelloFailure(t *testing.T, serverConfig *Config, m handshakeMessa
 	}()
 	err := Server(s, serverConfig).Handshake()
 	s.Close()
-	if err == nil || !strings.Contains(err.Error(), expectedSubStr) {
+	if len(expectedSubStr) == 0 {
+		if err != nil && err != io.EOF {
+			t.Errorf("Got error: %s; expected to succeed", err, expectedSubStr)
+		}
+	} else if err == nil || !strings.Contains(err.Error(), expectedSubStr) {
 		t.Errorf("Got error: %s; expected to match substring '%s'", err, expectedSubStr)
 	}
 }
@@ -123,6 +131,55 @@ func TestNoRC4ByDefault(t *testing.T) {
 	// Reset the enabled cipher suites to nil in order to test the
 	// defaults.
 	serverConfig.CipherSuites = nil
+	testClientHelloFailure(t, &serverConfig, clientHello, "no cipher suite supported by both client and server")
+}
+
+func TestDontSelectECDSAWithRSAKey(t *testing.T) {
+	// Test that, even when both sides support an ECDSA cipher suite, it
+	// won't be selected if the server's private key doesn't support it.
+	clientHello := &clientHelloMsg{
+		vers:               0x0301,
+		cipherSuites:       []uint16{TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA},
+		compressionMethods: []uint8{0},
+		supportedCurves:    []CurveID{CurveP256},
+		supportedPoints:    []uint8{pointFormatUncompressed},
+	}
+	serverConfig := *testConfig
+	serverConfig.CipherSuites = clientHello.cipherSuites
+	serverConfig.Certificates = make([]Certificate, 1)
+	serverConfig.Certificates[0].Certificate = [][]byte{testECDSACertificate}
+	serverConfig.Certificates[0].PrivateKey = testECDSAPrivateKey
+	serverConfig.BuildNameToCertificate()
+	// First test that it *does* work when the server's key is ECDSA.
+	testClientHello(t, &serverConfig, clientHello)
+
+	// Now test that switching to an RSA key causes the expected error (and
+	// not an internal error about a signing failure).
+	serverConfig.Certificates = testConfig.Certificates
+	testClientHelloFailure(t, &serverConfig, clientHello, "no cipher suite supported by both client and server")
+}
+
+func TestDontSelectRSAWithECDSAKey(t *testing.T) {
+	// Test that, even when both sides support an RSA cipher suite, it
+	// won't be selected if the server's private key doesn't support it.
+	clientHello := &clientHelloMsg{
+		vers:               0x0301,
+		cipherSuites:       []uint16{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA},
+		compressionMethods: []uint8{0},
+		supportedCurves:    []CurveID{CurveP256},
+		supportedPoints:    []uint8{pointFormatUncompressed},
+	}
+	serverConfig := *testConfig
+	serverConfig.CipherSuites = clientHello.cipherSuites
+	// First test that it *does* work when the server's key is RSA.
+	testClientHello(t, &serverConfig, clientHello)
+
+	// Now test that switching to an ECDSA key causes the expected error
+	// (and not an internal error about a signing failure).
+	serverConfig.Certificates = make([]Certificate, 1)
+	serverConfig.Certificates[0].Certificate = [][]byte{testECDSACertificate}
+	serverConfig.Certificates[0].PrivateKey = testECDSAPrivateKey
+	serverConfig.BuildNameToCertificate()
 	testClientHelloFailure(t, &serverConfig, clientHello, "no cipher suite supported by both client and server")
 }
 
