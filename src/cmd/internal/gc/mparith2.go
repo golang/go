@@ -35,10 +35,7 @@ func mpmovefltfix(a *Mpint, b *Mpflt) int {
 		return 0
 	}
 
-	// TODO(gri) reduce the value of delta - currently
-	// we use the size of a mp-word of the old implementation
-	// for approximately similar behavior.
-	const delta = 29 // a reasonably small number of bits > 0
+	const delta = 16 // a reasonably small number of bits > 0
 	var t big.Float
 	t.SetPrec(Mpprec - delta)
 

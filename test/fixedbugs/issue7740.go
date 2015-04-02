@@ -21,7 +21,7 @@ func main() {
 	var prec float64
 	switch runtime.Compiler {
 	case "gc":
-		prec = 16 * 29
+		prec = 512
 	case "gccgo":
 		prec = 256
 	default:

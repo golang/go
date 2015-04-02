@@ -57,10 +57,11 @@ const (
 )
 
 const (
-	// TODO(gri) consider increasing Mpprec to 512 or perhaps 1024
-	// (this would permit enabling additional tests).
-	Mpprec  = 16 * 29 // == 464, to match original value
-	Mpdebug = 0
+	// Maximum size in bits for Mpints before signalling
+	// overflow and also mantissa precision for Mpflts.
+	Mpprec = 512
+	// Turn on for constant arithmetic debugging output.
+	Mpdebug = false
 )
 
 // Mpint represents an integer constant.
