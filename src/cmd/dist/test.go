@@ -154,7 +154,7 @@ func (t *tester) registerTests() {
 	}
 	// ranGoTest and stdMatches are state closed over by the
 	// stdlib testing func below. The tests are run sequentially,
-	// so there'no need for locks.
+	// so there's no need for locks.
 	var (
 		ranGoTest  bool
 		stdMatches []string
@@ -280,7 +280,7 @@ func (t *tester) registerTests() {
 		}
 	}
 	if t.hasBash() && t.goos != "nacl" && t.goos != "android" && !iOS {
-		t.registerTest("doc_progs", "../doc/progs", "time", "./run")
+		t.registerTest("doc_progs", "../doc/progs", "time", "go", "run", "run.go")
 		t.registerTest("wiki", "../doc/articles/wiki", "./test.bash")
 		t.registerTest("codewalk", "../doc/codewalk", "time", "./run")
 		t.registerTest("shootout", "../test/bench/shootout", "time", "./timing.sh", "-test")
