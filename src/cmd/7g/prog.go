@@ -57,7 +57,7 @@ var progtable = [arm64.ALAST]obj.ProgInfo{
 	arm64.ALSL:   {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
 	arm64.ALSR:   {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
 	arm64.AASR:   {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
-	arm64.ACMP:   {gc.SizeQ | gc.LeftRead | gc.RightRead, 0, 0, 0},
+	arm64.ACMP:   {gc.SizeQ | gc.LeftRead | gc.RegRead, 0, 0, 0},
 
 	// Floating point.
 	arm64.AFADDD: {gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
