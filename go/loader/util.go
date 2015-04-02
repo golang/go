@@ -17,6 +17,10 @@ import (
 	"golang.org/x/tools/go/buildutil"
 )
 
+// We use a counting semaphore to limit
+// the number of parallel I/O calls per process.
+var sema = make(chan bool, 10)
+
 // parseFiles parses the Go source files within directory dir and
 // returns the ASTs of the ones that could be at least partially parsed,
 // along with a list of I/O and parse errors encountered.
@@ -38,7 +42,11 @@ func parseFiles(fset *token.FileSet, ctxt *build.Context, displayPath func(strin
 		}
 		wg.Add(1)
 		go func(i int, file string) {
-			defer wg.Done()
+			sema <- true // wait
+			defer func() {
+				wg.Done()
+				<-sema // signal
+			}()
 			var rd io.ReadCloser
 			var err error
 			if ctxt.OpenFile != nil {
