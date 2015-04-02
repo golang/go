@@ -5,6 +5,7 @@
 package net
 
 import (
+	"flag"
 	"fmt"
 	"net/internal/socktest"
 	"os"
@@ -20,6 +21,26 @@ var (
 
 	// uninstallTestHooks runs just before a run of benchmarks.
 	testHookUninstaller sync.Once
+)
+
+var (
+	// Do not test datagrams with empty payload by default.
+	// It depends on each platform implementation whether generic
+	// read, socket recv system calls return the result of zero
+	// byte read.
+	testDatagram = flag.Bool("datagram", false, "whether to test UDP and unixgram")
+
+	testDNSFlood = flag.Bool("dnsflood", false, "whether to test DNS query flooding")
+
+	testExternal = flag.Bool("external", true, "allow use of external networks during long test")
+
+	// If external IPv6 connectivity exists, we can try dialing
+	// non-node/interface local scope IPv6 addresses.
+	testIPv6 = flag.Bool("ipv6", false, "assume external IPv6 connectivity exists")
+
+	// BUG: TestDialError has been broken, and so this flag
+	// exists. We should fix the test and remove this flag soon.
+	runErrorTest = flag.Bool("run_error_test", false, "let TestDialError check for DNS errors")
 )
 
 func TestMain(m *testing.M) {

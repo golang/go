@@ -5,7 +5,6 @@
 package net
 
 import (
-	"flag"
 	"io"
 	"os"
 	"testing"
@@ -200,12 +199,6 @@ func runStreamConnClient(t *testing.T, net, taddr string, isEmpty bool) {
 		c.Write([]byte("END"))
 	}
 }
-
-// Do not test empty datagrams by default.
-// It causes unexplained timeouts on some systems,
-// including Snow Leopard.  I think that the kernel
-// doesn't quite expect them.
-var testDatagram = flag.Bool("datagram", false, "whether to test udp and unixgram")
 
 var datagramPacketConnServerTests = []struct {
 	snet  string // server side
