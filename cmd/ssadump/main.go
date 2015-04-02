@@ -42,7 +42,7 @@ Usage: ssadump [<flag> ...] <args> ...
 Use -help flag to display options.
 
 Examples:
-% ssadump -build=FPG hello.go            # quickly dump SSA form of a single package
+% ssadump -build=FP -importbin hello.go  # quickly dump SSA form of a single package
 % ssadump -run -interp=T hello.go        # interpret a program, with tracing
 % ssadump -run -test unicode -- -test.v  # interpret the unicode package's tests, verbosely
 ` + loader.FromArgsUsage +
