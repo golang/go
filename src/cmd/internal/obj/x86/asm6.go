@@ -2911,7 +2911,6 @@ var bpduff1 = []byte{
 }
 
 var bpduff2 = []byte{
-	0x90,
 	0x48, 0x8b, 0x6d, 0x00, // MOVQ 0(BP), BP
 }
 
