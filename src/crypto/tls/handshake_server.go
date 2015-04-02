@@ -25,9 +25,8 @@ type serverHandshakeState struct {
 	suite           *cipherSuite
 	ellipticOk      bool
 	ecdsaOk         bool
-	rsaOk           bool
-	signOk          bool
-	decryptOk       bool
+	rsaDecryptOk    bool
+	rsaSignOk       bool
 	sessionState    *sessionState
 	finishedHash    finishedHash
 	masterSecret    []byte
@@ -201,22 +200,20 @@ Curves:
 	}
 
 	if priv, ok := hs.cert.PrivateKey.(crypto.Signer); ok {
-		hs.signOk = true
 		switch priv.Public().(type) {
 		case *ecdsa.PublicKey:
 			hs.ecdsaOk = true
 		case *rsa.PublicKey:
-			hs.rsaOk = true
+			hs.rsaSignOk = true
 		default:
 			c.sendAlert(alertInternalError)
 			return false, fmt.Errorf("crypto/tls: unsupported signing key type (%T)", priv.Public())
 		}
 	}
 	if priv, ok := hs.cert.PrivateKey.(crypto.Decrypter); ok {
-		hs.decryptOk = true
 		switch priv.Public().(type) {
 		case *rsa.PublicKey:
-			hs.rsaOk = true
+			hs.rsaDecryptOk = true
 		default:
 			c.sendAlert(alertInternalError)
 			return false, fmt.Errorf("crypto/tls: unsupported decryption key type (%T)", priv.Public())
@@ -692,17 +689,17 @@ func (hs *serverHandshakeState) setCipherSuite(id uint16, supportedCipherSuites 
 			// Don't select a ciphersuite which we can't
 			// support for this client.
 			if candidate.flags&suiteECDHE != 0 {
-				if !hs.ellipticOk || !hs.signOk {
+				if !hs.ellipticOk {
 					continue
 				}
 				if candidate.flags&suiteECDSA != 0 {
 					if !hs.ecdsaOk {
 						continue
 					}
-				} else if !hs.rsaOk {
+				} else if !hs.rsaSignOk {
 					continue
 				}
-			} else if !hs.decryptOk || !hs.rsaOk {
+			} else if !hs.rsaDecryptOk {
 				continue
 			}
 			if version < VersionTLS12 && candidate.flags&suiteTLS12 != 0 {
