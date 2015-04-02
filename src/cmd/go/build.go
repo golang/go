@@ -2645,15 +2645,19 @@ func (b *builder) swigOne(p *Package, file, obj string, pcCFLAGS []string, cxx b
 		args = append(args, "-c++")
 	}
 
-	if out, err := b.runOut(p.Dir, p.ImportPath, nil, "swig", args, file); err != nil {
+	out, err := b.runOut(p.Dir, p.ImportPath, nil, "swig", args, file)
+	if err != nil {
 		if len(out) > 0 {
 			if bytes.Contains(out, []byte("-intgosize")) || bytes.Contains(out, []byte("-cgo")) {
 				return "", "", errors.New("must have SWIG version >= 3.0.6")
 			}
-			b.showOutput(p.Dir, p.ImportPath, b.processOutput(out))
+			b.showOutput(p.Dir, p.ImportPath, b.processOutput(out)) // swig error
 			return "", "", errPrintedOutput
 		}
 		return "", "", err
+	}
+	if len(out) > 0 {
+		b.showOutput(p.Dir, p.ImportPath, b.processOutput(out)) // swig warning
 	}
 
 	return obj + goFile, obj + gccBase + gccExt, nil
