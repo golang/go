@@ -78,23 +78,26 @@ func TestAcceptTimeout(t *testing.T) {
 		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
-	ln := newLocalListener(t).(*TCPListener)
+	ln, err := newLocalListener("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer ln.Close()
-	ln.SetDeadline(time.Now().Add(-1 * time.Second))
+	ln.(*TCPListener).SetDeadline(time.Now().Add(-1 * time.Second))
 	if _, err := ln.Accept(); !isTimeout(err) {
 		t.Fatalf("Accept: expected err %v, got %v", errTimeout, err)
 	}
 	if _, err := ln.Accept(); !isTimeout(err) {
 		t.Fatalf("Accept: expected err %v, got %v", errTimeout, err)
 	}
-	ln.SetDeadline(time.Now().Add(100 * time.Millisecond))
+	ln.(*TCPListener).SetDeadline(time.Now().Add(100 * time.Millisecond))
 	if _, err := ln.Accept(); !isTimeout(err) {
 		t.Fatalf("Accept: expected err %v, got %v", errTimeout, err)
 	}
 	if _, err := ln.Accept(); !isTimeout(err) {
 		t.Fatalf("Accept: expected err %v, got %v", errTimeout, err)
 	}
-	ln.SetDeadline(noDeadline)
+	ln.(*TCPListener).SetDeadline(noDeadline)
 	errc := make(chan error)
 	go func() {
 		_, err := ln.Accept()
@@ -125,7 +128,10 @@ func TestReadTimeout(t *testing.T) {
 		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
-	ln := newLocalListener(t)
+	ln, err := newLocalListener("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer ln.Close()
 	c, err := DialTCP("tcp", nil, ln.Addr().(*TCPAddr))
 	if err != nil {
@@ -183,7 +189,10 @@ func TestWriteTimeout(t *testing.T) {
 		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
-	ln := newLocalListener(t)
+	ln, err := newLocalListener("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer ln.Close()
 	c, err := DialTCP("tcp", nil, ln.Addr().(*TCPAddr))
 	if err != nil {
@@ -475,14 +484,12 @@ func testVariousDeadlines(t *testing.T, maxProcs int) {
 	}
 
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(maxProcs))
-	ln := newLocalListener(t)
-	defer ln.Close()
-	acceptc := make(chan error, 1)
 
+	acceptc := make(chan error, 1)
 	// The server, with no timeouts of its own, sending bytes to clients
 	// as fast as it can.
 	servec := make(chan copyRes)
-	go func() {
+	handler := func(ls *localServer, ln Listener) {
 		for {
 			c, err := ln.Accept()
 			if err != nil {
@@ -497,7 +504,15 @@ func testVariousDeadlines(t *testing.T, maxProcs int) {
 				servec <- copyRes{n, err, d}
 			}()
 		}
-	}()
+	}
+	ls, err := newLocalServer("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ls.teardown()
+	if err := ls.buildup(handler); err != nil {
+		t.Fatal(err)
+	}
 
 	for _, timeout := range []time.Duration{
 		1 * time.Nanosecond,
@@ -531,7 +546,7 @@ func testVariousDeadlines(t *testing.T, maxProcs int) {
 			name := fmt.Sprintf("%v run %d/%d", timeout, run+1, numRuns)
 			t.Log(name)
 
-			c, err := Dial("tcp", ln.Addr().String())
+			c, err := Dial("tcp", ls.Listener.Addr().String())
 			if err != nil {
 				t.Fatalf("Dial: %v", err)
 			}
@@ -577,12 +592,9 @@ func TestReadDeadlineDataAvailable(t *testing.T) {
 		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
-	ln := newLocalListener(t)
-	defer ln.Close()
-
 	servec := make(chan copyRes)
 	const msg = "data client shouldn't read, even though it'll be waiting"
-	go func() {
+	handler := func(ls *localServer, ln Listener) {
 		c, err := ln.Accept()
 		if err != nil {
 			t.Errorf("Accept: %v", err)
@@ -591,9 +603,17 @@ func TestReadDeadlineDataAvailable(t *testing.T) {
 		defer c.Close()
 		n, err := c.Write([]byte(msg))
 		servec <- copyRes{n: int64(n), err: err}
-	}()
+	}
+	ls, err := newLocalServer("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ls.teardown()
+	if err := ls.buildup(handler); err != nil {
+		t.Fatal(err)
+	}
 
-	c, err := Dial("tcp", ln.Addr().String())
+	c, err := Dial("tcp", ls.Listener.Addr().String())
 	if err != nil {
 		t.Fatalf("Dial: %v", err)
 	}
@@ -617,11 +637,8 @@ func TestWriteDeadlineBufferAvailable(t *testing.T) {
 		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
-	ln := newLocalListener(t)
-	defer ln.Close()
-
 	servec := make(chan copyRes)
-	go func() {
+	handler := func(ls *localServer, ln Listener) {
 		c, err := ln.Accept()
 		if err != nil {
 			t.Errorf("Accept: %v", err)
@@ -631,9 +648,17 @@ func TestWriteDeadlineBufferAvailable(t *testing.T) {
 		c.SetWriteDeadline(time.Now().Add(-5 * time.Second)) // in the past
 		n, err := c.Write([]byte{'x'})
 		servec <- copyRes{n: int64(n), err: err}
-	}()
+	}
+	ls, err := newLocalServer("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ls.teardown()
+	if err := ls.buildup(handler); err != nil {
+		t.Fatal(err)
+	}
 
-	c, err := Dial("tcp", ln.Addr().String())
+	c, err := Dial("tcp", ls.Listener.Addr().String())
 	if err != nil {
 		t.Fatalf("Dial: %v", err)
 	}
@@ -655,7 +680,10 @@ func TestAcceptDeadlineConnectionAvailable(t *testing.T) {
 		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
-	ln := newLocalListener(t).(*TCPListener)
+	ln, err := newLocalListener("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer ln.Close()
 
 	go func() {
@@ -669,7 +697,7 @@ func TestAcceptDeadlineConnectionAvailable(t *testing.T) {
 		c.Read(buf[:]) // block until the connection or listener is closed
 	}()
 	time.Sleep(10 * time.Millisecond)
-	ln.SetDeadline(time.Now().Add(-5 * time.Second)) // in the past
+	ln.(*TCPListener).SetDeadline(time.Now().Add(-5 * time.Second)) // in the past
 	c, err := ln.Accept()
 	if err == nil {
 		defer c.Close()
@@ -682,7 +710,10 @@ func TestAcceptDeadlineConnectionAvailable(t *testing.T) {
 // TestConnectDeadlineInThePast tests that connect deadlines work, even
 // if the connection can be established w/o blocking.
 func TestConnectDeadlineInThePast(t *testing.T) {
-	ln := newLocalListener(t).(*TCPListener)
+	ln, err := newLocalListener("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer ln.Close()
 
 	go func() {
@@ -709,10 +740,8 @@ func TestProlongTimeout(t *testing.T) {
 		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
-	ln := newLocalListener(t)
-	defer ln.Close()
 	connected := make(chan bool)
-	go func() {
+	handler := func(ls *localServer, ln Listener) {
 		s, err := ln.Accept()
 		connected <- true
 		if err != nil {
@@ -739,8 +768,17 @@ func TestProlongTimeout(t *testing.T) {
 			}
 			s.SetDeadline(time.Now().Add(time.Hour))
 		}
-	}()
-	c, err := Dial("tcp", ln.Addr().String())
+	}
+	ls, err := newLocalServer("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ls.teardown()
+	if err := ls.buildup(handler); err != nil {
+		t.Fatal(err)
+	}
+
+	c, err := Dial("tcp", ls.Listener.Addr().String())
 	if err != nil {
 		t.Fatalf("DialTCP: %v", err)
 	}
@@ -763,7 +801,10 @@ func TestDeadlineRace(t *testing.T) {
 		N = 50
 	}
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
-	ln := newLocalListener(t)
+	ln, err := newLocalListener("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer ln.Close()
 	c, err := Dial("tcp", ln.Addr().String())
 	if err != nil {

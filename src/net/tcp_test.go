@@ -414,6 +414,7 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
 			{"tcp6", "[ip6-localhost%" + ifi.Name + "]:0", true},
 		}...)
 	}
+	handler := func(ls *localServer, ln Listener) { transponder(t, ln) }
 	for _, tt := range tests {
 		ln, err := Listen(tt.net, tt.addr)
 		if err != nil {
@@ -422,15 +423,19 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
 			t.Logf("Listen failed: %v", err)
 			continue
 		}
-		defer ln.Close()
+		ls, err := (&streamListener{Listener: ln}).newLocalServer()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer ls.teardown()
+		if err := ls.buildup(handler); err != nil {
+			t.Fatal(err)
+		}
 		if la, ok := ln.Addr().(*TCPAddr); !ok || !tt.nameLookup && la.Zone == "" {
 			t.Fatalf("got %v; expected a proper address with zone identifier", la)
 		}
 
-		done := make(chan int)
-		go transponder(t, ln, done)
-
-		c, err := Dial(tt.net, ln.Addr().String())
+		c, err := Dial(tt.net, ls.Listener.Addr().String())
 		if err != nil {
 			t.Fatalf("Dial failed: %v", err)
 		}
@@ -449,8 +454,6 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
 		if _, err := c.Read(b); err != nil {
 			t.Fatalf("Conn.Read failed: %v", err)
 		}
-
-		<-done
 	}
 }
 

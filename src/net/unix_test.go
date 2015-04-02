@@ -235,6 +235,7 @@ func TestUnixConnLocalAndRemoteNames(t *testing.T) {
 		t.Skip("unix test")
 	}
 
+	handler := func(ls *localServer, ln Listener) {}
 	for _, laddr := range []string{"", testUnixAddr()} {
 		laddr := laddr
 		taddr := testUnixAddr()
@@ -246,13 +247,14 @@ func TestUnixConnLocalAndRemoteNames(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ListenUnix failed: %v", err)
 		}
-		defer func() {
-			ln.Close()
-			os.Remove(taddr)
-		}()
-
-		done := make(chan int)
-		go transponder(t, ln, done)
+		ls, err := (&streamListener{Listener: ln}).newLocalServer()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer ls.teardown()
+		if err := ls.buildup(handler); err != nil {
+			t.Fatal(err)
+		}
 
 		la, err := ResolveUnixAddr("unix", laddr)
 		if err != nil {
@@ -288,8 +290,6 @@ func TestUnixConnLocalAndRemoteNames(t *testing.T) {
 				t.Fatalf("got %#v, expected %#v", ca.got, ca.want)
 			}
 		}
-
-		<-done
 	}
 }
 
