@@ -8,19 +8,9 @@
 package net
 
 import (
-	"os"
 	"testing"
 	"time"
 )
-
-var connTests = []struct {
-	net  string
-	addr string
-}{
-	{"tcp", "127.0.0.1:0"},
-	{"unix", testUnixAddr()},
-	{"unixpacket", testUnixAddr()},
-}
 
 // someTimeout is used just to test that net.Conn implementations
 // don't explode when their SetFooDeadline methods are called.
@@ -28,37 +18,32 @@ var connTests = []struct {
 const someTimeout = 10 * time.Second
 
 func TestConnAndListener(t *testing.T) {
-	for _, tt := range connTests {
-		if !testableNetwork(tt.net) {
-			t.Logf("skipping %s test", tt.net)
+	handler := func(ls *localServer, ln Listener) { transponder(t, ln) }
+	for _, network := range []string{"tcp", "unix", "unixpacket"} {
+		if !testableNetwork(network) {
+			t.Logf("skipping %s test", network)
 			continue
 		}
 
-		ln, err := Listen(tt.net, tt.addr)
+		ls, err := newLocalServer(network)
 		if err != nil {
 			t.Fatalf("Listen failed: %v", err)
 		}
-		defer func(ln Listener, net, addr string) {
-			ln.Close()
-			switch net {
-			case "unix", "unixpacket":
-				os.Remove(addr)
-			}
-		}(ln, tt.net, tt.addr)
-		if ln.Addr().Network() != tt.net {
-			t.Fatalf("got %v; expected %v", ln.Addr().Network(), tt.net)
+		defer ls.teardown()
+		if err := ls.buildup(handler); err != nil {
+			t.Fatal(err)
+		}
+		if ls.Listener.Addr().Network() != network {
+			t.Fatalf("got %s; want %s", ls.Listener.Addr().Network(), network)
 		}
 
-		done := make(chan int)
-		go transponder(t, ln, done)
-
-		c, err := Dial(tt.net, ln.Addr().String())
+		c, err := Dial(ls.Listener.Addr().Network(), ls.Listener.Addr().String())
 		if err != nil {
 			t.Fatalf("Dial failed: %v", err)
 		}
 		defer c.Close()
-		if c.LocalAddr().Network() != tt.net || c.LocalAddr().Network() != tt.net {
-			t.Fatalf("got %v->%v; expected %v->%v", c.LocalAddr().Network(), c.RemoteAddr().Network(), tt.net, tt.net)
+		if c.LocalAddr().Network() != network || c.LocalAddr().Network() != network {
+			t.Fatalf("got %v->%v; want %v->%v", c.LocalAddr().Network(), c.RemoteAddr().Network(), network, network)
 		}
 		c.SetDeadline(time.Now().Add(someTimeout))
 		c.SetReadDeadline(time.Now().Add(someTimeout))
@@ -71,14 +56,10 @@ func TestConnAndListener(t *testing.T) {
 		if _, err := c.Read(rb); err != nil {
 			t.Fatalf("Conn.Read failed: %v", err)
 		}
-
-		<-done
 	}
 }
 
-func transponder(t *testing.T, ln Listener, done chan<- int) {
-	defer func() { done <- 1 }()
-
+func transponder(t *testing.T, ln Listener) {
 	switch ln := ln.(type) {
 	case *TCPListener:
 		ln.SetDeadline(time.Now().Add(someTimeout))
@@ -91,6 +72,7 @@ func transponder(t *testing.T, ln Listener, done chan<- int) {
 		return
 	}
 	defer c.Close()
+
 	network := ln.Addr().Network()
 	if c.LocalAddr().Network() != network || c.LocalAddr().Network() != network {
 		t.Errorf("got %v->%v; expected %v->%v", c.LocalAddr().Network(), c.RemoteAddr().Network(), network, network)

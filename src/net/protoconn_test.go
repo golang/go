@@ -84,13 +84,17 @@ func TestTCPConnSpecificMethods(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListenTCP failed: %v", err)
 	}
-	defer ln.Close()
-	ln.Addr()
+	handler := func(ls *localServer, ln Listener) { transponder(t, ls.Listener) }
+	ls, err := (&streamListener{Listener: ln}).newLocalServer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ls.teardown()
+	if err := ls.buildup(handler); err != nil {
+		t.Fatal(err)
+	}
 
-	done := make(chan int)
-	go transponder(t, ln, done)
-
-	ra, err := ResolveTCPAddr("tcp4", ln.Addr().String())
+	ra, err := ResolveTCPAddr("tcp4", ls.Listener.Addr().String())
 	if err != nil {
 		t.Fatalf("ResolveTCPAddr failed: %v", err)
 	}
@@ -116,8 +120,6 @@ func TestTCPConnSpecificMethods(t *testing.T) {
 	if _, err := c.Read(rb); err != nil {
 		t.Fatalf("TCPConn.Read failed: %v", err)
 	}
-
-	<-done
 }
 
 func TestUDPConnSpecificMethods(t *testing.T) {

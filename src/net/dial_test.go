@@ -19,17 +19,6 @@ import (
 	"time"
 )
 
-func newLocalListener(t *testing.T) Listener {
-	ln, err := Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		ln, err = Listen("tcp6", "[::1]:0")
-	}
-	if err != nil {
-		t.Fatal(err)
-	}
-	return ln
-}
-
 func TestSelfConnect(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		// TODO(brainman): do not know why it hangs.
@@ -249,7 +238,7 @@ func TestDialMultiFDLeak(t *testing.T) {
 		t.Skip("neither ipv4 nor ipv6 is supported")
 	}
 
-	halfDeadServer := func(dss *dualStackServer, ln Listener) {
+	handler := func(dss *dualStackServer, ln Listener) {
 		for {
 			if c, err := ln.Accept(); err != nil {
 				return
@@ -262,14 +251,14 @@ func TestDialMultiFDLeak(t *testing.T) {
 		}
 	}
 	dss, err := newDualStackServer([]streamListener{
-		{net: "tcp4", addr: "127.0.0.1"},
-		{net: "tcp6", addr: "[::1]"},
+		{network: "tcp4", address: "127.0.0.1"},
+		{network: "tcp6", address: "::1"},
 	})
 	if err != nil {
 		t.Fatalf("newDualStackServer failed: %v", err)
 	}
 	defer dss.teardown()
-	if err := dss.buildup(halfDeadServer); err != nil {
+	if err := dss.buildup(handler); err != nil {
 		t.Fatalf("dualStackServer.buildup failed: %v", err)
 	}
 
@@ -319,14 +308,9 @@ func TestDialMultiFDLeak(t *testing.T) {
 	}
 }
 
-func TestDialer(t *testing.T) {
-	ln, err := Listen("tcp4", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("Listen failed: %v", err)
-	}
-	defer ln.Close()
+func TestDialerLocalAddr(t *testing.T) {
 	ch := make(chan error, 1)
-	go func() {
+	handler := func(ls *localServer, ln Listener) {
 		c, err := ln.Accept()
 		if err != nil {
 			ch <- fmt.Errorf("Accept failed: %v", err)
@@ -334,14 +318,23 @@ func TestDialer(t *testing.T) {
 		}
 		defer c.Close()
 		ch <- nil
-	}()
+	}
+	ls, err := newLocalServer("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ls.teardown()
+	if err := ls.buildup(handler); err != nil {
+		t.Fatal(err)
+	}
 
-	laddr, err := ResolveTCPAddr("tcp4", "127.0.0.1:0")
+	laddr, err := ResolveTCPAddr(ls.Listener.Addr().Network(), ls.Listener.Addr().String())
 	if err != nil {
 		t.Fatalf("ResolveTCPAddr failed: %v", err)
 	}
+	laddr.Port = 0
 	d := &Dialer{LocalAddr: laddr}
-	c, err := d.Dial("tcp4", ln.Addr().String())
+	c, err := d.Dial(ls.Listener.Addr().Network(), ls.Addr().String())
 	if err != nil {
 		t.Fatalf("Dial failed: %v", err)
 	}
@@ -353,7 +346,7 @@ func TestDialer(t *testing.T) {
 	}
 }
 
-func TestDialDualStackLocalhost(t *testing.T) {
+func TestDialerDualStack(t *testing.T) {
 	switch runtime.GOOS {
 	case "nacl":
 		t.Skipf("skipping test on %q", runtime.GOOS)
@@ -365,7 +358,7 @@ func TestDialDualStackLocalhost(t *testing.T) {
 		t.Skip("localhost doesn't have a pair of different address family IP addresses")
 	}
 
-	touchAndByeServer := func(dss *dualStackServer, ln Listener) {
+	handler := func(dss *dualStackServer, ln Listener) {
 		for {
 			if c, err := ln.Accept(); err != nil {
 				return
@@ -375,20 +368,20 @@ func TestDialDualStackLocalhost(t *testing.T) {
 		}
 	}
 	dss, err := newDualStackServer([]streamListener{
-		{net: "tcp4", addr: "127.0.0.1"},
-		{net: "tcp6", addr: "[::1]"},
+		{network: "tcp4", address: "127.0.0.1"},
+		{network: "tcp6", address: "::1"},
 	})
 	if err != nil {
 		t.Fatalf("newDualStackServer failed: %v", err)
 	}
 	defer dss.teardown()
-	if err := dss.buildup(touchAndByeServer); err != nil {
+	if err := dss.buildup(handler); err != nil {
 		t.Fatalf("dualStackServer.buildup failed: %v", err)
 	}
 
 	d := &Dialer{DualStack: true}
 	for range dss.lns {
-		if c, err := d.Dial("tcp", "localhost:"+dss.port); err != nil {
+		if c, err := d.Dial("tcp", JoinHostPort("localhost", dss.port)); err != nil {
 			t.Errorf("Dial failed: %v", err)
 		} else {
 			if addr := c.LocalAddr().(*TCPAddr); addr.IP.To4() != nil {
@@ -402,12 +395,7 @@ func TestDialDualStackLocalhost(t *testing.T) {
 }
 
 func TestDialerKeepAlive(t *testing.T) {
-	ln := newLocalListener(t)
-	defer ln.Close()
-	defer func() {
-		testHookSetKeepAlive = func() {}
-	}()
-	go func() {
+	handler := func(ls *localServer, ln Listener) {
 		for {
 			c, err := ln.Accept()
 			if err != nil {
@@ -415,7 +403,19 @@ func TestDialerKeepAlive(t *testing.T) {
 			}
 			c.Close()
 		}
+	}
+	ls, err := newLocalServer("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ls.teardown()
+	if err := ls.buildup(handler); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		testHookSetKeepAlive = func() {}
 	}()
+
 	for _, keepAlive := range []bool{false, true} {
 		got := false
 		testHookSetKeepAlive = func() { got = true }
@@ -423,7 +423,7 @@ func TestDialerKeepAlive(t *testing.T) {
 		if keepAlive {
 			d.KeepAlive = 30 * time.Second
 		}
-		c, err := d.Dial("tcp", ln.Addr().String())
+		c, err := d.Dial("tcp", ls.Listener.Addr().String())
 		if err != nil {
 			t.Fatal(err)
 		}
