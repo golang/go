@@ -112,11 +112,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			i32 := math.Float32bits(f32)
 			literal := fmt.Sprintf("$f32.%08x", i32)
 			s := obj.Linklookup(ctxt, literal, 0)
-			if s.Type == 0 {
-				s.Type = obj.SRODATA
-				obj.Adduint32(ctxt, s, i32)
-			}
-
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = s
 			p.From.Name = obj.NAME_EXTERN
@@ -128,11 +123,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			i64 := math.Float64bits(p.From.Val.(float64))
 			literal := fmt.Sprintf("$f64.%016x", i64)
 			s := obj.Linklookup(ctxt, literal, 0)
-			if s.Type == 0 {
-				s.Type = obj.SRODATA
-				obj.Adduint64(ctxt, s, i64)
-			}
-
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = s
 			p.From.Name = obj.NAME_EXTERN
