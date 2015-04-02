@@ -59,6 +59,10 @@ func callers(q *Query) error {
 		return fmt.Errorf("no SSA function built for this location (dead code?)")
 	}
 
+	// TODO(adonovan): opt: if function is never address-taken, skip
+	// the pointer analysis.  Just look for direct calls.  This can
+	// be done in a single pass over the SSA.
+
 	// Run the pointer analysis, recording each
 	// call found to originate from target.
 	ptaConfig.BuildCallGraph = true
