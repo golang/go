@@ -33,9 +33,9 @@ func (d *Data) parseTypes(name string, types []byte) error {
 			return b.err
 		}
 		hdroff := b.off
-		vers := b.uint16()
+		vers := int(b.uint16())
 		if vers != 4 {
-			b.error("unsupported DWARF version " + strconv.Itoa(int(vers)))
+			b.error("unsupported DWARF version " + strconv.Itoa(vers))
 			return b.err
 		}
 		var ao uint32
@@ -49,7 +49,7 @@ func (d *Data) parseTypes(name string, types []byte) error {
 			}
 			ao = uint32(ao64)
 		}
-		atable, err := d.parseAbbrev(ao)
+		atable, err := d.parseAbbrev(ao, vers)
 		if err != nil {
 			return err
 		}

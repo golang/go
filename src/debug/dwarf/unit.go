@@ -67,7 +67,7 @@ func (d *Data) parseUnits() ([]unit, error) {
 			break
 		}
 		u.vers = int(vers)
-		atable, err := d.parseAbbrev(b.uint32())
+		atable, err := d.parseAbbrev(b.uint32(), u.vers)
 		if err != nil {
 			if b.err == nil {
 				b.err = err
