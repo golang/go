@@ -73,7 +73,7 @@ type ErrNaN struct {
 
 // NewFloat allocates and returns a new Float set to x,
 // with precision 53 and rounding mode ToNearestEven.
-// NewFloat panics with ErrNan if x is a NaN.
+// NewFloat panics with ErrNaN if x is a NaN.
 func NewFloat(x float64) *Float {
 	if math.IsNaN(x) {
 		panic(ErrNaN{"NewFloat(NaN)"})
@@ -1400,8 +1400,9 @@ func (x *Float) ucmp(y *Float) int {
 // it is changed to the larger of x's or y's precision before the operation.
 // Rounding is performed according to z's precision and rounding mode; and
 // z's accuracy reports the result error relative to the exact (not rounded)
-// result.
-// BUG(gri) Float.Add panics if an operand is Inf.
+// result. Add panics with ErrNaN if x and y are infinities with opposite
+// signs. The value of z is undefined in that case.
+//
 // BUG(gri) When rounding ToNegativeInf, the sign of Float values rounded to 0 is incorrect.
 func (z *Float) Add(x, y *Float) *Float {
 	if debugFloat {
@@ -1413,46 +1414,59 @@ func (z *Float) Add(x, y *Float) *Float {
 		z.prec = umax32(x.prec, y.prec)
 	}
 
-	// special cases
-	if x.form != finite || y.form != finite {
-		if x.form > finite || y.form > finite {
-			// TODO(gri) handle Inf separately
-			panic("Inf operand")
-		}
-		if x.form == zero {
-			z.Set(y)
-			if z.form == zero {
-				z.neg = x.neg && y.neg // -0 + -0 == -0
+	if x.form == finite && y.form == finite {
+		// x + y (commom case)
+		z.neg = x.neg
+		if x.neg == y.neg {
+			// x + y == x + y
+			// (-x) + (-y) == -(x + y)
+			z.uadd(x, y)
+		} else {
+			// x + (-y) == x - y == -(y - x)
+			// (-x) + y == y - x == -(x - y)
+			if x.ucmp(y) > 0 {
+				z.usub(x, y)
+			} else {
+				z.neg = !z.neg
+				z.usub(y, x)
 			}
-			return z
 		}
-		// y == ±0
+		return z
+	}
+
+	if x.form == inf && y.form == inf && x.neg != y.neg {
+		// +Inf + -Inf
+		// -Inf + +Inf
+		// value of z is undefined but make sure it's valid
+		z.acc = Exact
+		z.form = zero
+		z.neg = false
+		panic(ErrNaN{"addition of infinities with opposite signs"})
+	}
+
+	if x.form == zero && y.form == zero {
+		// ±0 + ±0
+		z.acc = Exact
+		z.form = zero
+		z.neg = x.neg && y.neg // -0 + -0 == -0
+		return z
+	}
+
+	if x.form == inf || y.form == zero {
+		// ±Inf + y
+		// x + ±0
 		return z.Set(x)
 	}
 
-	// x, y != 0
-	z.neg = x.neg
-	if x.neg == y.neg {
-		// x + y == x + y
-		// (-x) + (-y) == -(x + y)
-		z.uadd(x, y)
-	} else {
-		// x + (-y) == x - y == -(y - x)
-		// (-x) + y == y - x == -(x - y)
-		if x.ucmp(y) > 0 {
-			z.usub(x, y)
-		} else {
-			z.neg = !z.neg
-			z.usub(y, x)
-		}
-	}
-
-	return z
+	// ±0 + y
+	// x + ±Inf
+	return z.Set(y)
 }
 
 // Sub sets z to the rounded difference x-y and returns z.
 // Precision, rounding, and accuracy reporting are as for Add.
-// BUG(gri) Float.Sub panics if an operand is Inf.
+// Sub panics with ErrNaN if x and y are infinities with equal
+// signs. The value of z is undefined in that case.
 func (z *Float) Sub(x, y *Float) *Float {
 	if debugFloat {
 		x.validate()
@@ -1463,46 +1477,59 @@ func (z *Float) Sub(x, y *Float) *Float {
 		z.prec = umax32(x.prec, y.prec)
 	}
 
-	// special cases
-	if x.form != finite || y.form != finite {
-		if x.form > finite || y.form > finite {
-			// TODO(gri) handle Inf separately
-			panic("Inf operand")
-		}
-		if x.form == zero {
-			z.Neg(y)
-			if z.form == zero {
-				z.neg = x.neg && !y.neg // -0 - 0 == -0
+	if x.form == finite && y.form == finite {
+		// x - y (common case)
+		z.neg = x.neg
+		if x.neg != y.neg {
+			// x - (-y) == x + y
+			// (-x) - y == -(x + y)
+			z.uadd(x, y)
+		} else {
+			// x - y == x - y == -(y - x)
+			// (-x) - (-y) == y - x == -(x - y)
+			if x.ucmp(y) > 0 {
+				z.usub(x, y)
+			} else {
+				z.neg = !z.neg
+				z.usub(y, x)
 			}
-			return z
 		}
-		// y == ±0
+		return z
+	}
+
+	if x.form == inf && y.form == inf && x.neg == y.neg {
+		// +Inf - +Inf
+		// -Inf - -Inf
+		// value of z is undefined but make sure it's valid
+		z.acc = Exact
+		z.form = zero
+		z.neg = false
+		panic(ErrNaN{"subtraction of infinities with equal signs"})
+	}
+
+	if x.form == zero && y.form == zero {
+		// ±0 - ±0
+		z.acc = Exact
+		z.form = zero
+		z.neg = x.neg && !y.neg // -0 - +0 == -0
+		return z
+	}
+
+	if x.form == inf || y.form == zero {
+		// ±Inf - y
+		// x - ±0
 		return z.Set(x)
 	}
 
-	// x, y != 0
-	z.neg = x.neg
-	if x.neg != y.neg {
-		// x - (-y) == x + y
-		// (-x) - y == -(x + y)
-		z.uadd(x, y)
-	} else {
-		// x - y == x - y == -(y - x)
-		// (-x) - (-y) == y - x == -(x - y)
-		if x.ucmp(y) > 0 {
-			z.usub(x, y)
-		} else {
-			z.neg = !z.neg
-			z.usub(y, x)
-		}
-	}
-
-	return z
+	// ±0 - y
+	// x - ±Inf
+	return z.Neg(y)
 }
 
 // Mul sets z to the rounded product x*y and returns z.
 // Precision, rounding, and accuracy reporting are as for Add.
-// BUG(gri) Float.Mul panics if an operand is Inf.
+// Mul panics with ErrNaN if one operand is zero and the other
+// operand an infinity. The value of z is undefined in that case.
 func (z *Float) Mul(x, y *Float) *Float {
 	if debugFloat {
 		x.validate()
@@ -1515,28 +1542,39 @@ func (z *Float) Mul(x, y *Float) *Float {
 
 	z.neg = x.neg != y.neg
 
-	// special cases
-	if x.form != finite || y.form != finite {
-		if x.form > finite || y.form > finite {
-			// TODO(gri) handle Inf separately
-			panic("Inf operand")
-		}
-		// x == ±0 || y == ±0
-		z.acc = Exact
-		z.form = zero
+	if x.form == finite && y.form == finite {
+		// x * y (common case)
+		z.umul(x, y)
 		return z
 	}
 
-	// x, y != 0
-	z.umul(x, y)
+	z.acc = Exact
+	if x.form == zero && y.form == inf || x.form == inf && y.form == zero {
+		// ±0 * ±Inf
+		// ±Inf * ±0
+		// value of z is undefined but make sure it's valid
+		z.form = zero
+		z.neg = false
+		panic(ErrNaN{"multiplication of zero with infinity"})
+	}
 
+	if x.form == inf || y.form == inf {
+		// ±Inf * y
+		// x * ±Inf
+		z.form = inf
+		return z
+	}
+
+	// ±0 * y
+	// x * ±0
+	z.form = zero
 	return z
 }
 
 // Quo sets z to the rounded quotient x/y and returns z.
 // Precision, rounding, and accuracy reporting are as for Add.
-// Quo panics is both operands are 0.
-// BUG(gri) Float.Quo panics if an operand is Inf.
+// Quo panics with ErrNaN if both operands are zero or infinities.
+// The value of z is undefined in that case.
 func (z *Float) Quo(x, y *Float) *Float {
 	if debugFloat {
 		x.validate()
@@ -1549,29 +1587,32 @@ func (z *Float) Quo(x, y *Float) *Float {
 
 	z.neg = x.neg != y.neg
 
-	// special cases
-	z.acc = Exact
-	if x.form != finite || y.form != finite {
-		if x.form > finite || y.form > finite {
-			// TODO(gri) handle Inf separately
-			panic("Inf operand")
-		}
-		// x == ±0 || y == ±0
-		if x.form == zero {
-			if y.form == zero {
-				panic("0/0")
-			}
-			z.form = zero
-			return z
-		}
-		// y == ±0
-		z.form = inf
+	if x.form == finite && y.form == finite {
+		// x / y (common case)
+		z.uquo(x, y)
 		return z
 	}
 
-	// x, y != 0
-	z.uquo(x, y)
+	z.acc = Exact
+	if x.form == zero && y.form == zero || x.form == inf && y.form == inf {
+		// ±0 / ±0
+		// ±Inf / ±Inf
+		// value of z is undefined but make sure it's valid
+		z.form = zero
+		z.neg = false
+		panic(ErrNaN{"division of zero by zero or infinity by infinity"})
+	}
 
+	if x.form == zero || y.form == inf {
+		// ±0 / y
+		// x / ±Inf
+		z.form = zero
+		return z
+	}
+
+	// x / ±0
+	// ±Inf / y
+	z.form = inf
 	return z
 }
 

@@ -1438,7 +1438,7 @@ func TestFloatQuoSmoke(t *testing.T) {
 
 // TestFloatArithmeticSpecialValues tests that Float operations produce the
 // correct results for combinations of zero (±0), finite (±1 and ±2.71828),
-// and non-finite (±Inf) operands.
+// and infinite (±Inf) operands.
 func TestFloatArithmeticSpecialValues(t *testing.T) {
 	zero := 0.0
 	args := []float64{math.Inf(-1), -2.71828, -1, -zero, zero, 1, 2.71828, math.Inf(1)}
@@ -1456,37 +1456,52 @@ func TestFloatArithmeticSpecialValues(t *testing.T) {
 				t.Errorf("Float(%g) == %g (%s)", x, got, acc)
 			}
 			for _, y := range args {
-				// At the moment an Inf operand always leads to a panic (known bug).
-				// TODO(gri) remove this once the bug is fixed.
-				if math.IsInf(x, 0) || math.IsInf(y, 0) {
-					continue
-				}
 				yy.SetFloat64(y)
-				var op string
-				var z float64
+				var (
+					op string
+					z  float64
+					f  func(z, x, y *Float) *Float
+				)
 				switch i {
 				case 0:
 					op = "+"
 					z = x + y
-					got.Add(xx, yy)
+					f = (*Float).Add
 				case 1:
 					op = "-"
 					z = x - y
-					got.Sub(xx, yy)
+					f = (*Float).Sub
 				case 2:
 					op = "*"
 					z = x * y
-					got.Mul(xx, yy)
+					f = (*Float).Mul
 				case 3:
-					if x == 0 && y == 0 {
-						// TODO(gri) check for ErrNaN
-						continue // 0/0 panics with ErrNaN
-					}
 					op = "/"
 					z = x / y
-					got.Quo(xx, yy)
+					f = (*Float).Quo
 				default:
 					panic("unreachable")
+				}
+				var errnan bool // set if execution of f panicked with ErrNaN
+				// protect execution of f
+				func() {
+					defer func() {
+						if p := recover(); p != nil {
+							_ = p.(ErrNaN) // re-panic if not ErrNaN
+							errnan = true
+						}
+					}()
+					f(got, xx, yy)
+				}()
+				if math.IsNaN(z) {
+					if !errnan {
+						t.Errorf("%5g %s %5g = %5s; want ErrNaN panic", x, op, y, got)
+					}
+					continue
+				}
+				if errnan {
+					t.Errorf("%5g %s %5g panicked with ErrNan; want %5s", x, op, y, want)
+					continue
 				}
 				want.SetFloat64(z)
 				if !alike(got, want) {
@@ -1614,7 +1629,7 @@ func TestFloatArithmeticRounding(t *testing.T) {
 }
 
 // TestFloatCmpSpecialValues tests that Cmp produces the correct results for
-// combinations of zero (±0), finite (±1 and ±2.71828), and non-finite (±Inf)
+// combinations of zero (±0), finite (±1 and ±2.71828), and infinite (±Inf)
 // operands.
 func TestFloatCmpSpecialValues(t *testing.T) {
 	zero := 0.0
