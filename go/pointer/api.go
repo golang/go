@@ -21,6 +21,12 @@ type Config struct {
 	// Mains contains the set of 'main' packages to analyze
 	// Clients must provide the analysis with at least one
 	// package defining a main() function.
+	//
+	// Non-main packages in the ssa.Program that are not
+	// dependencies of any main package may still affect the
+	// analysis result, because they contribute runtime types and
+	// thus methods.
+	// TODO(adonovan): investigate whether this is desirable.
 	Mains []*ssa.Package
 
 	// Reflection determines whether to handle reflection
