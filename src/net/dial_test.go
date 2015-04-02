@@ -6,7 +6,6 @@ package net
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -76,8 +75,6 @@ func TestSelfConnect(t *testing.T) {
 		}
 	}
 }
-
-var runErrorTest = flag.Bool("run_error_test", false, "let TestDialError check for dns errors")
 
 type DialErrorTest struct {
 	Net     string

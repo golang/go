@@ -8,14 +8,11 @@
 package net
 
 import (
-	"flag"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
 )
-
-var testExternal = flag.Bool("external", true, "allow use of external networks during long test")
 
 var lookupGoogleSRVTests = []struct {
 	service, proto, name string
@@ -231,8 +228,6 @@ func TestReverseAddress(t *testing.T) {
 		}
 	}
 }
-
-var testDNSFlood = flag.Bool("dnsflood", false, "whether to test dns query flooding")
 
 func TestLookupIPDeadline(t *testing.T) {
 	if !*testDNSFlood {

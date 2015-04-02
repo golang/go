@@ -5,16 +5,12 @@
 package net
 
 import (
-	"flag"
 	"fmt"
 	"io"
 	"strings"
 	"syscall"
 	"testing"
 )
-
-// If an IPv6 tunnel is running, we can try dialing a real IPv6 address.
-var testIPv6 = flag.Bool("ipv6", false, "assume ipv6 tunnel is present")
 
 func TestResolveGoogle(t *testing.T) {
 	if testing.Short() || !*testExternal {
