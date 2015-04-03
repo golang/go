@@ -310,11 +310,42 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	MOVW	R0, (R1)
 
 // int32 clone0(int32 flags, void *stack, void* fn, void* fnarg);
-TEXT runtime·clone0(SB),NOSPLIT,$0
-	// TODO(spetrovic): Implement this method.
-	MOVW	$-1, R0
+TEXT runtime·clone0(SB),NOSPLIT,$0-20
+	MOVW	flags+0(FP), R0
+	MOVW	stack+4(FP), R1
+	// Update child's future stack and save fn and fnarg on it.
+	MOVW	$-8(R1), R1
+	MOVW	fn+8(FP), R6
+	MOVW	R6, 0(R1)
+	MOVW	fnarg+12(FP), R6
+	MOVW	R6, 4(R1)
+	MOVW	$0, R2	// parent tid ptr
+	MOVW	$0, R3	// tls_val
+	MOVW	$0, R4	// child tid ptr
+	MOVW	$0, R5
+	MOVW	$SYS_clone, R7
+	SWI	$0
+
+	// In parent, return.
+	CMP	$0, R0
+	BEQ	3(PC)
 	MOVW	R0, ret+16(FP)
 	RET
+
+	// In child.
+	MOVW	0(R13), R6   // fn
+	MOVW	4(R13), R0   // fnarg
+	MOVW	$8(R13), R13
+	BL	(R6)
+
+	MOVW	$0, R0
+	MOVW	R0, 4(R13)
+	BL	runtime·exit1(SB)
+
+	// It shouldn't return
+	MOVW	$1234, R0
+	MOVW	$1005, R1
+	MOVW	R0, (R1)
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$0
 	MOVW	new+0(FP), R0
