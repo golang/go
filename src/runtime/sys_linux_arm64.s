@@ -359,7 +359,8 @@ again:
 // int32 clone0(int32 flags, void *stack, void* fn, void* fnarg);
 TEXT runtime·clone0(SB),NOSPLIT,$0
 	// TODO(spetrovic): Implement this method.
-	MOVW	$-1, ret+32(FP)
+	MOVW	$-1, R0
+	MOVW	R0, ret+32(FP)
 	RET
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
