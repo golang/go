@@ -20,6 +20,10 @@ if [ "$GOOS" != "darwin" ]; then
 	echo "iostest.bash requires GOOS=darwin, got GOOS=$GOOS" 1>&2
 	exit 1
 fi
+if [ "$GOARCH" != "arm" ] && [ "$GOARCH" != "arm64" ]; then
+	echo "iostest.bash requires GOARCH=arm or GOARCH=arm64, got GOARCH=$GOARCH" 1>&2
+	exit 1
+fi
 if [ "$GOARCH" == "arm" ]; then
 	export GOARM=7
 fi
