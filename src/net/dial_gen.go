@@ -12,12 +12,12 @@ import "time"
 // used on operating systems where the deadline hasn't been pushed
 // down into the pollserver. (Plan 9 and some old versions of Windows)
 func dialChannel(net string, ra Addr, dialer func(time.Time) (Conn, error), deadline time.Time) (Conn, error) {
-	var timeout time.Duration
-	if !deadline.IsZero() {
-		timeout = deadline.Sub(time.Now())
-	}
-	if timeout <= 0 {
+	if deadline.IsZero() {
 		return dialer(noDeadline)
+	}
+	timeout := deadline.Sub(time.Now())
+	if timeout <= 0 {
+		return nil, &OpError{Op: "dial", Net: net, Addr: ra, Err: errTimeout}
 	}
 	t := time.NewTimer(timeout)
 	defer t.Stop()

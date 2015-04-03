@@ -682,11 +682,6 @@ func TestAcceptDeadlineConnectionAvailable(t *testing.T) {
 // TestConnectDeadlineInThePast tests that connect deadlines work, even
 // if the connection can be established w/o blocking.
 func TestConnectDeadlineInThePast(t *testing.T) {
-	switch runtime.GOOS {
-	case "plan9":
-		t.Skipf("skipping test on %q", runtime.GOOS)
-	}
-
 	ln := newLocalListener(t).(*TCPListener)
 	defer ln.Close()
 
