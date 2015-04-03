@@ -217,7 +217,10 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$64
 	// where g is not set.
 	// first save R0, because runtime·load_g will clobber it
 	MOVW	R0, 8(RSP)
-	// TODO(minux): iscgo & load_g
+	MOVBU	runtime·iscgo(SB), R0
+	CMP	$0, R0
+	BEQ	2(PC)
+	BL	runtime·load_g(SB)
 
 	// check that g exists
 	CMP	g, ZR
