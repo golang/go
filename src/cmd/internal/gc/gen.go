@@ -61,7 +61,7 @@ func addrescapes(n *Node) {
 			n.Stackparam = Nod(OPARAM, n, nil)
 
 			n.Stackparam.Type = n.Type
-			n.Stackparam.Addable = 1
+			n.Stackparam.Addable = true
 			if n.Xoffset == BADWIDTH {
 				Fatal("addrescapes before param assignment")
 			}
@@ -73,7 +73,7 @@ func addrescapes(n *Node) {
 		case PAUTO:
 			n.Class |= PHEAP
 
-			n.Addable = 0
+			n.Addable = false
 			n.Ullman = 2
 			n.Xoffset = 0
 
@@ -332,7 +332,7 @@ func Clearslim(n *Node) {
 	var z Node
 	z.Op = OLITERAL
 	z.Type = n.Type
-	z.Addable = 1
+	z.Addable = true
 
 	switch Simtype[n.Type.Etype] {
 	case TCOMPLEX64, TCOMPLEX128:
@@ -749,7 +749,7 @@ func Tempname(nn *Node, t *Type) {
 	s.Def = n
 	n.Type = t
 	n.Class = PAUTO
-	n.Addable = 1
+	n.Addable = true
 	n.Ullman = 1
 	n.Esc = EscNever
 	n.Curfn = Curfn
@@ -1373,7 +1373,7 @@ yes:
 }
 
 func cadable(n *Node) bool {
-	if n.Addable == 0 {
+	if !n.Addable {
 		// dont know how it happens,
 		// but it does
 		return false

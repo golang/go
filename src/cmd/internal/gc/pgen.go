@@ -331,7 +331,7 @@ func Cgen_checknil(n *Node) {
 		Fatal("bad checknil")
 	}
 
-	if ((Thearch.Thechar == '5' || Thearch.Thechar == '7' || Thearch.Thechar == '9') && n.Op != OREGISTER) || n.Addable == 0 || n.Op == OLITERAL {
+	if ((Thearch.Thechar == '5' || Thearch.Thechar == '7' || Thearch.Thechar == '9') && n.Op != OREGISTER) || !n.Addable || n.Op == OLITERAL {
 		var reg Node
 		Regalloc(&reg, Types[Tptr], n)
 		Cgen(n, &reg)

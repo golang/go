@@ -26,13 +26,13 @@ type Node struct {
 	Op          uint8
 	Nointerface bool
 	Ullman      uint8 // sethi/ullman number
-	Addable     uint8 // type of addressability - 0 is not addressable
+	Addable     bool  // addressable
 	Etype       uint8 // op for OASOP, etype for OTYPE, exclam for export
 	Bounded     bool  // bounds check unnecessary
 	Class       uint8 // PPARAM, PAUTO, PEXTERN, etc
-	Method      uint8 // OCALLMETH name
+	Method      bool  // OCALLMETH is direct method call
 	Embedded    uint8 // ODCLFIELD embedded type
-	Colas       uint8 // OAS resulting from :=
+	Colas       bool  // OAS resulting from :=
 	Diag        uint8 // already printed error about this
 	Noescape    bool  // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
 	Walkdef     uint8

@@ -63,14 +63,14 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 	l := n.Left
 	r := n.Right
-	if l.Addable == 0 {
+	if !l.Addable {
 		var t1 gc.Node
 		gc.Tempname(&t1, l.Type)
 		gc.Cgen(l, &t1)
 		l = &t1
 	}
 
-	if r != nil && r.Addable == 0 {
+	if r != nil && !r.Addable {
 		var t2 gc.Node
 		gc.Tempname(&t2, r.Type)
 		gc.Cgen(r, &t2)

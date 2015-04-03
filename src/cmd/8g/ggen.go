@@ -637,7 +637,7 @@ func cgen_float387(n *gc.Node, res *gc.Node) {
 		// binary
 		if nl.Ullman >= nr.Ullman {
 			gc.Cgen(nl, &f0)
-			if nr.Addable != 0 {
+			if nr.Addable {
 				gins(foptoas(int(n.Op), n.Type, 0), nr, &f0)
 			} else {
 				gc.Cgen(nr, &f0)
@@ -645,7 +645,7 @@ func cgen_float387(n *gc.Node, res *gc.Node) {
 			}
 		} else {
 			gc.Cgen(nr, &f0)
-			if nl.Addable != 0 {
+			if nl.Addable {
 				gins(foptoas(int(n.Op), n.Type, Frev), nl, &f0)
 			} else {
 				gc.Cgen(nl, &f0)
@@ -762,14 +762,14 @@ func bgen_float(n *gc.Node, true_ int, likely int, to *obj.Prog) {
 	var n2 gc.Node
 	var ax gc.Node
 	if !gc.Thearch.Use387 {
-		if nl.Addable == 0 {
+		if !nl.Addable {
 			var n1 gc.Node
 			gc.Tempname(&n1, nl.Type)
 			gc.Cgen(nl, &n1)
 			nl = &n1
 		}
 
-		if nr.Addable == 0 {
+		if !nr.Addable {
 			var tmp gc.Node
 			gc.Tempname(&tmp, nr.Type)
 			gc.Cgen(nr, &tmp)

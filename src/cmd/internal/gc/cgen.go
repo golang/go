@@ -34,7 +34,7 @@ func Cgen(n *Node, res *Node) {
 
 	switch n.Op {
 	case OSLICE, OSLICEARR, OSLICESTR, OSLICE3, OSLICE3ARR:
-		if res.Op != ONAME || res.Addable == 0 {
+		if res.Op != ONAME || !res.Addable {
 			var n1 Node
 			Tempname(&n1, n.Type)
 			Cgen_slice(n, &n1)
@@ -45,7 +45,7 @@ func Cgen(n *Node, res *Node) {
 		return
 
 	case OEFACE:
-		if res.Op != ONAME || res.Addable == 0 {
+		if res.Op != ONAME || !res.Addable {
 			var n1 Node
 			Tempname(&n1, n.Type)
 			Cgen_eface(n, &n1)
@@ -81,7 +81,7 @@ func Cgen(n *Node, res *Node) {
 		return
 	}
 
-	if res.Addable == 0 {
+	if !res.Addable {
 		if n.Ullman > res.Ullman {
 			if Ctxt.Arch.Regsize == 4 && Is64(n.Type) {
 				var n1 Node
@@ -188,7 +188,7 @@ func Cgen(n *Node, res *Node) {
 
 	if Ctxt.Arch.Thechar == '5' { // TODO(rsc): Maybe more often?
 		// if both are addressable, move
-		if n.Addable != 0 && res.Addable != 0 {
+		if n.Addable && res.Addable {
 			if Is64(n.Type) || Is64(res.Type) || n.Op == OREGISTER || res.Op == OREGISTER || Iscomplex[n.Type.Etype] || Iscomplex[res.Type.Etype] {
 				Thearch.Gmove(n, res)
 			} else {
@@ -203,7 +203,7 @@ func Cgen(n *Node, res *Node) {
 		}
 
 		// if both are not addressable, use a temporary.
-		if n.Addable == 0 && res.Addable == 0 {
+		if !n.Addable && !res.Addable {
 			// could use regalloc here sometimes,
 			// but have to check for ullman >= UINF.
 			var n1 Node
@@ -215,7 +215,7 @@ func Cgen(n *Node, res *Node) {
 
 		// if result is not addressable directly but n is,
 		// compute its address and then store via the address.
-		if res.Addable == 0 {
+		if !res.Addable {
 			var n1 Node
 			Igen(res, &n1, nil)
 			Cgen(n, &n1)
@@ -229,14 +229,14 @@ func Cgen(n *Node, res *Node) {
 		return
 	}
 
-	if (Ctxt.Arch.Thechar == '6' || Ctxt.Arch.Thechar == '8') && n.Addable != 0 {
+	if (Ctxt.Arch.Thechar == '6' || Ctxt.Arch.Thechar == '8') && n.Addable {
 		Thearch.Gmove(n, res)
 		return
 	}
 
 	if Ctxt.Arch.Thechar == '7' || Ctxt.Arch.Thechar == '9' {
 		// if both are addressable, move
-		if n.Addable != 0 {
+		if n.Addable {
 			if n.Op == OREGISTER || res.Op == OREGISTER {
 				Thearch.Gmove(n, res)
 			} else {
@@ -458,7 +458,7 @@ func Cgen(n *Node, res *Node) {
 		var n1 Node
 		var n2 Node
 		if Ctxt.Arch.Thechar == '5' {
-			if nl.Addable != 0 && !Is64(nl.Type) {
+			if nl.Addable && !Is64(nl.Type) {
 				Regalloc(&n1, nl.Type, res)
 				Thearch.Gmove(nl, &n1)
 			} else {
@@ -795,7 +795,7 @@ func cgen_norm(n, n1, res *Node) {
 func Mgen(n *Node, n1 *Node, rg *Node) {
 	n1.Op = OEMPTY
 
-	if n.Addable != 0 {
+	if n.Addable {
 		*n1 = *n
 		if n1.Op == OREGISTER || n1.Op == OINDREG {
 			reg[n.Val.U.Reg-int16(Thearch.REGMIN)]++
@@ -832,7 +832,7 @@ func Cgenr(n *Node, a *Node, res *Node) {
 		Fatal("cgenr on fat node")
 	}
 
-	if n.Addable != 0 {
+	if n.Addable {
 		Regalloc(a, n.Type, res)
 		Thearch.Gmove(n, a)
 		return
@@ -891,7 +891,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 			bounded := Debug['B'] != 0 || n.Bounded
 			var n1 Node
 			var n3 Node
-			if nr.Addable != 0 {
+			if nr.Addable {
 				var tmp Node
 				if !Isconst(nr, CTINT) {
 					Tempname(&tmp, Types[TINT32])
@@ -904,7 +904,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 					Regalloc(&n1, tmp.Type, nil)
 					Thearch.Gmove(&tmp, &n1)
 				}
-			} else if nl.Addable != 0 {
+			} else if nl.Addable {
 				if !Isconst(nr, CTINT) {
 					var tmp Node
 					Tempname(&tmp, Types[TINT32])
@@ -1040,7 +1040,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 			var n3 Node
 			var tmp Node
 			var n1 Node
-			if nr.Addable != 0 {
+			if nr.Addable {
 				// Generate &nl first, and move nr into register.
 				if !Isconst(nl, CTSTR) {
 					Igen(nl, &n3, res)
@@ -1050,7 +1050,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 					Regalloc(&n1, tmp.Type, nil)
 					Thearch.Gmove(&tmp, &n1)
 				}
-			} else if nl.Addable != 0 {
+			} else if nl.Addable {
 				// Generate nr first, and move &nl into register.
 				if !Isconst(nr, CTINT) {
 					p2 = Thearch.Igenindex(nr, &tmp, bounded)
@@ -1201,10 +1201,10 @@ func Agenr(n *Node, a *Node, res *Node) {
 		var nlen Node
 		var tmp Node
 		var n1 Node
-		if nr.Addable != 0 {
+		if nr.Addable {
 			goto irad
 		}
-		if nl.Addable != 0 {
+		if nl.Addable {
 			Cgenr(nr, &n1, nil)
 			if !Isconst(nl, CTSTR) {
 				if Isfixedarray(nl.Type) {
@@ -1233,7 +1233,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 			if Isfixedarray(nl.Type) {
 				Agenr(nl, &n3, res)
 			} else {
-				if nl.Addable == 0 {
+				if !nl.Addable {
 					if res != nil && res.Op == OREGISTER { // give up res, which we don't need yet.
 						Regfree(res)
 					}
@@ -1432,7 +1432,7 @@ func Agen(n *Node, res *Node) {
 		return
 	}
 
-	if n.Addable != 0 {
+	if n.Addable {
 		if n.Op == OREGISTER {
 			Fatal("agen OREGISTER")
 		}
@@ -1592,7 +1592,7 @@ func Igen(n *Node, a *Node, res *Node) {
 		*a = Node{}
 		a.Op = OINDREG
 		a.Val.U.Reg = int16(Thearch.REGSP)
-		a.Addable = 1
+		a.Addable = true
 		a.Xoffset = fp.Width
 		if HasLinkRegister() {
 			a.Xoffset += int64(Ctxt.Arch.Ptrsize)
@@ -1692,7 +1692,7 @@ func Bgen(n *Node, true_ bool, likely int, to *obj.Prog) {
 		return
 
 	case ONAME:
-		if n.Addable == 0 || Ctxt.Arch.Thechar == '5' || Ctxt.Arch.Thechar == '7' || Ctxt.Arch.Thechar == '9' {
+		if !n.Addable || Ctxt.Arch.Thechar == '5' || Ctxt.Arch.Thechar == '7' || Ctxt.Arch.Thechar == '9' {
 			goto def
 		}
 		var n1 Node
@@ -1824,14 +1824,14 @@ func Bgen(n *Node, true_ bool, likely int, to *obj.Prog) {
 		}
 
 		if Ctxt.Arch.Regsize == 4 && Is64(nr.Type) {
-			if nl.Addable == 0 || Isconst(nl, CTINT) {
+			if !nl.Addable || Isconst(nl, CTINT) {
 				var n1 Node
 				Tempname(&n1, nl.Type)
 				Cgen(nl, &n1)
 				nl = &n1
 			}
 
-			if nr.Addable == 0 {
+			if !nr.Addable {
 				var n2 Node
 				Tempname(&n2, nr.Type)
 				Cgen(nr, &n2)
@@ -1862,7 +1862,7 @@ func Bgen(n *Node, true_ bool, likely int, to *obj.Prog) {
 			goto cmp
 		}
 
-		if nl.Addable == 0 && Ctxt.Arch.Thechar == '8' {
+		if !nl.Addable && Ctxt.Arch.Thechar == '8' {
 			Tempname(&n1, nl.Type)
 		} else {
 			Regalloc(&n1, nl.Type, nil)
@@ -1879,7 +1879,7 @@ func Bgen(n *Node, true_ bool, likely int, to *obj.Prog) {
 			break
 		}
 
-		if nr.Addable == 0 && Ctxt.Arch.Thechar == '8' {
+		if !nr.Addable && Ctxt.Arch.Thechar == '8' {
 			var tmp Node
 			Tempname(&tmp, nr.Type)
 			Cgen(nr, &tmp)
@@ -2199,7 +2199,7 @@ func cgen_callinter(n *Node, res *Node, proc int) {
 
 	i = i.Left // interface
 
-	if i.Addable == 0 {
+	if !i.Addable {
 		var tmpi Node
 		Tempname(&tmpi, i.Type)
 		Cgen(i, &tmpi)
@@ -2304,7 +2304,7 @@ func cgen_call(n *Node, proc int) {
 	}
 
 	// call direct
-	n.Left.Method = 1
+	n.Left.Method = true
 
 	Ginscall(n.Left, proc)
 }
@@ -2334,7 +2334,7 @@ func cgen_callret(n *Node, res *Node) {
 	var nod Node
 	nod.Op = OINDREG
 	nod.Val.U.Reg = int16(Thearch.REGSP)
-	nod.Addable = 1
+	nod.Addable = true
 
 	nod.Xoffset = fp.Width
 	if HasLinkRegister() {
@@ -2364,7 +2364,7 @@ func cgen_aret(n *Node, res *Node) {
 	var nod1 Node
 	nod1.Op = OINDREG
 	nod1.Val.U.Reg = int16(Thearch.REGSP)
-	nod1.Addable = 1
+	nod1.Addable = true
 	nod1.Xoffset = fp.Width
 	if HasLinkRegister() {
 		nod1.Xoffset += int64(Ctxt.Arch.Ptrsize)

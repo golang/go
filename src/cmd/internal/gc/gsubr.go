@@ -133,7 +133,7 @@ func Nodreg(n *Node, t *Type, r int) {
 
 	*n = Node{}
 	n.Op = OREGISTER
-	n.Addable = 1
+	n.Addable = true
 	ullmancalc(n)
 	n.Val.U.Reg = int16(r)
 	n.Type = t
@@ -361,7 +361,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		if s == nil {
 			s = Lookup(".noname")
 		}
-		if n.Method != 0 {
+		if n.Method {
 			if n.Type != nil {
 				if n.Type.Sym != nil {
 					if n.Type.Sym.Pkg != nil {
@@ -520,7 +520,7 @@ func nodarg(t *Type, fp int) *Node {
 			Fatal("nodarg: offset not computed for %v", Tconv(t, 0))
 		}
 		n.Xoffset = first.Width
-		n.Addable = 1
+		n.Addable = true
 		goto fp
 	}
 
@@ -546,7 +546,7 @@ func nodarg(t *Type, fp int) *Node {
 		Fatal("nodarg: offset not computed for %v", Tconv(t, 0))
 	}
 	n.Xoffset = t.Width
-	n.Addable = 1
+	n.Addable = true
 	n.Orig = t.Nname
 
 	// Rewrite argument named _ to __,

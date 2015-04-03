@@ -770,7 +770,7 @@ func orderstmt(n *Node, order *Order) {
 				// declaration (and possible allocation) until inside the case body.
 				// Delete the ODCL nodes here and recreate them inside the body below.
 				case OSELRECV, OSELRECV2:
-					if r.Colas != 0 {
+					if r.Colas {
 						t = r.Ninit
 						if t != nil && t.N.Op == ODCL && t.N.Left == r.Left {
 							t = t.Next
@@ -814,7 +814,7 @@ func orderstmt(n *Node, order *Order) {
 						// the conversion happens in the OAS instead.
 						tmp1 = r.Left
 
-						if r.Colas != 0 {
+						if r.Colas {
 							tmp2 = Nod(ODCL, tmp1, nil)
 							typecheck(&tmp2, Etop)
 							l.N.Ninit = list(l.N.Ninit, tmp2)
@@ -831,7 +831,7 @@ func orderstmt(n *Node, order *Order) {
 					}
 					if r.Ntest != nil {
 						tmp1 = r.Ntest
-						if r.Colas != 0 {
+						if r.Colas {
 							tmp2 = Nod(ODCL, tmp1, nil)
 							typecheck(&tmp2, Etop)
 							l.N.Ninit = list(l.N.Ninit, tmp2)

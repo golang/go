@@ -669,7 +669,7 @@ func sortinter(t *Type) *Type {
 
 func Nodintconst(v int64) *Node {
 	c := Nod(OLITERAL, nil, nil)
-	c.Addable = 1
+	c.Addable = true
 	c.Val.U.Xval = new(Mpint)
 	Mpmovecfix(c.Val.U.Xval, v)
 	c.Val.Ctype = CTINT
@@ -680,7 +680,7 @@ func Nodintconst(v int64) *Node {
 
 func nodfltconst(v *Mpflt) *Node {
 	c := Nod(OLITERAL, nil, nil)
-	c.Addable = 1
+	c.Addable = true
 	c.Val.U.Fval = newMpflt()
 	mpmovefltflt(c.Val.U.Fval, v)
 	c.Val.Ctype = CTFLT
@@ -692,7 +692,7 @@ func nodfltconst(v *Mpflt) *Node {
 func Nodconst(n *Node, t *Type, v int64) {
 	*n = Node{}
 	n.Op = OLITERAL
-	n.Addable = 1
+	n.Addable = true
 	ullmancalc(n)
 	n.Val.U.Xval = new(Mpint)
 	Mpmovecfix(n.Val.U.Xval, v)
@@ -2572,7 +2572,7 @@ func genhash(sym *Sym, t *Type) {
 		ni := newname(Lookup("i"))
 		ni.Type = Types[TINT]
 		n.List = list1(ni)
-		n.Colas = 1
+		n.Colas = true
 		colasdefn(n.List, n)
 		ni = n.List.N
 
@@ -2824,7 +2824,7 @@ func geneq(sym *Sym, t *Type) {
 		ni := newname(Lookup("i"))
 		ni.Type = Types[TINT]
 		nrange.List = list1(ni)
-		nrange.Colas = 1
+		nrange.Colas = true
 		colasdefn(nrange.List, nrange)
 		ni = nrange.List.N
 

@@ -201,7 +201,7 @@ func Jconv(n *Node, flag int) string {
 		fmt.Fprintf(&buf, " u(%d)", n.Ullman)
 	}
 
-	if c == 0 && n.Addable != 0 {
+	if c == 0 && n.Addable {
 		fmt.Fprintf(&buf, " a(%d)", n.Addable)
 	}
 
@@ -229,7 +229,7 @@ func Jconv(n *Node, flag int) string {
 		}
 	}
 
-	if n.Colas != 0 {
+	if n.Colas {
 		fmt.Fprintf(&buf, " colas(%d)", n.Colas)
 	}
 
@@ -822,7 +822,7 @@ func stmtfmt(n *Node) string {
 			break
 		}
 
-		if n.Colas != 0 && !complexinit {
+		if n.Colas && !complexinit {
 			f += fmt.Sprintf("%v := %v", Nconv(n.Left, 0), Nconv(n.Right, 0))
 		} else {
 			f += fmt.Sprintf("%v = %v", Nconv(n.Left, 0), Nconv(n.Right, 0))
@@ -841,7 +841,7 @@ func stmtfmt(n *Node) string {
 		f += fmt.Sprintf("%v %v= %v", Nconv(n.Left, 0), Oconv(int(n.Etype), obj.FmtSharp), Nconv(n.Right, 0))
 
 	case OAS2:
-		if n.Colas != 0 && !complexinit {
+		if n.Colas && !complexinit {
 			f += fmt.Sprintf("%v := %v", Hconv(n.List, obj.FmtComma), Hconv(n.Rlist, obj.FmtComma))
 			break
 		}

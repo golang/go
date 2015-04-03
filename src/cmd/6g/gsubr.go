@@ -1247,7 +1247,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
 			return false
 		}
 
-		if nn.Addable != 0 && o == 1 && oary[0] >= 0 {
+		if nn.Addable && o == 1 && oary[0] >= 0 {
 			// directly addressable set of DOTs
 			n1 := *nn
 

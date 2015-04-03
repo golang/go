@@ -882,7 +882,7 @@ func typenamesym(t *Type) *Sym {
 		n := Nod(ONAME, nil, nil)
 		n.Sym = s
 		n.Type = Types[TUINT8]
-		n.Addable = 1
+		n.Addable = true
 		n.Ullman = 1
 		n.Class = PEXTERN
 		n.Xoffset = 0
@@ -899,7 +899,7 @@ func typename(t *Type) *Node {
 	s := typenamesym(t)
 	n := Nod(OADDR, s.Def, nil)
 	n.Type = Ptrto(s.Def.Type)
-	n.Addable = 1
+	n.Addable = true
 	n.Ullman = 2
 	n.Typecheck = 1
 	return n

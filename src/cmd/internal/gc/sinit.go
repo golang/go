@@ -529,7 +529,7 @@ func simplename(n *Node) bool {
 	if n.Op != ONAME {
 		return false
 	}
-	if n.Addable == 0 {
+	if !n.Addable {
 		return false
 	}
 	if n.Class&PHEAP != 0 {
@@ -1239,7 +1239,7 @@ func stataddr(nam *Node, n *Node) bool {
 	switch n.Op {
 	case ONAME:
 		*nam = *n
-		return n.Addable != 0
+		return n.Addable
 
 	case ODOT:
 		if !stataddr(nam, n.Left) {

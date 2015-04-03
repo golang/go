@@ -564,16 +564,16 @@ func walkexpr(np **Node, init **NodeList) {
 		goto ret
 
 	case OLITERAL:
-		n.Addable = 1
+		n.Addable = true
 		goto ret
 
 	case OCLOSUREVAR, OCFUNC:
-		n.Addable = 1
+		n.Addable = true
 		goto ret
 
 	case ONAME:
 		if n.Class&PHEAP == 0 && n.Class != PPARAMREF {
-			n.Addable = 1
+			n.Addable = true
 		}
 		goto ret
 
@@ -975,7 +975,7 @@ func walkexpr(np **Node, init **NodeList) {
 				l := Nod(ONAME, nil, nil)
 				l.Sym = sym
 				l.Type = Ptrto(Types[TUINT8])
-				l.Addable = 1
+				l.Addable = true
 				l.Class = PEXTERN
 				l.Xoffset = 0
 				sym.Def = l
@@ -983,7 +983,7 @@ func walkexpr(np **Node, init **NodeList) {
 			}
 
 			l := Nod(OADDR, sym.Def, nil)
-			l.Addable = 1
+			l.Addable = true
 			ll = list(ll, l)
 
 			if isdirectiface(n.Left.Type) {
