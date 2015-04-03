@@ -18,5 +18,8 @@ cp $BIGDIR/*.go .
 sed 's/^\/\/ \+build math_big_pure_go$//' arith_decl_pure.go > arith_decl.go
 rm arith_decl_pure.go
 
+# gofmt to clean up after sed
+gofmt -w .
+
 # Test that it works
 go test -short
