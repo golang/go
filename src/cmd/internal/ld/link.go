@@ -216,6 +216,7 @@ const (
 const (
 	R_ADDR = 1 + iota
 	R_ADDRPOWER
+	R_ADDRARM64
 	R_SIZE
 	R_CALL
 	R_CALLARM

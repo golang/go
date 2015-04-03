@@ -33,6 +33,7 @@ package main
 import (
 	"cmd/internal/ld"
 	"cmd/internal/obj"
+	"encoding/binary"
 	"fmt"
 	"log"
 )
@@ -83,6 +84,13 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
 			return -1
 		}
 
+	case ld.R_ADDRARM64:
+		// two relocations: R_AARCH64_ADR_PREL_PG_HI21 and R_AARCH64_ADD_ABS_LO12_NC
+		ld.Thearch.Vput(ld.R_AARCH64_ADR_PREL_PG_HI21 | uint64(elfsym)<<32)
+		ld.Thearch.Vput(uint64(r.Xadd))
+		ld.Thearch.Vput(uint64(sectoff + 4))
+		ld.Thearch.Vput(ld.R_AARCH64_ADD_ABS_LO12_NC | uint64(elfsym)<<32)
+
 	case ld.R_CALLARM64:
 		if r.Siz != 4 {
 			return -1
@@ -110,6 +118,36 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 		default:
 			return -1
 
+		case ld.R_ADDRARM64:
+			r.Done = 0
+
+			// the first instruction is always at the lower address, this is endian neutral;
+			// but note that o0 and o1 should still use the target endian.
+			o0 := ld.Thelinkarch.ByteOrder.Uint32(s.P[r.Off : r.Off+4])
+			o1 := ld.Thelinkarch.ByteOrder.Uint32(s.P[r.Off+4 : r.Off+8])
+
+			// when laid out, the instruction order must always be o1, o2.
+			if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
+				*val = int64(o0)<<32 | int64(o1)
+			} else {
+				*val = int64(o1)<<32 | int64(o0)
+			}
+
+			// set up addend for eventual relocation via outer symbol.
+			rs := r.Sym
+			r.Xadd = r.Add
+			for rs.Outer != nil {
+				r.Xadd += ld.Symaddr(rs) - ld.Symaddr(rs.Outer)
+				rs = rs.Outer
+			}
+
+			if rs.Type != ld.SHOSTOBJ && rs.Sect == nil {
+				ld.Diag("missing section for %s", rs.Name)
+			}
+			r.Xsym = rs
+
+			return 0
+
 		case ld.R_CALLARM64:
 			r.Done = 0
 			r.Xsym = r.Sym
@@ -127,6 +165,28 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 
 	case ld.R_GOTOFF:
 		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ld.Ctxt, ".got", 0))
+		return 0
+
+	case ld.R_ADDRARM64:
+		t := ld.Symaddr(r.Sym) + r.Add - ((s.Value + int64(r.Off)) &^ 0xfff)
+		if t >= 1<<32 || t < -1<<32 {
+			ld.Diag("program too large, address relocation distance = %d", t)
+		}
+
+		// the first instruction is always at the lower address, this is endian neutral;
+		// but note that o0 and o1 should still use the target endian.
+		o0 := ld.Thelinkarch.ByteOrder.Uint32(s.P[r.Off : r.Off+4])
+		o1 := ld.Thelinkarch.ByteOrder.Uint32(s.P[r.Off+4 : r.Off+8])
+
+		o0 |= (uint32((t>>12)&3) << 29) | (uint32((t>>12>>2)&0x7ffff) << 5)
+		o1 |= uint32(t&0xfff) << 10
+
+		// when laid out, the instruction order must always be o1, o2.
+		if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
+			*val = int64(o0)<<32 | int64(o1)
+		} else {
+			*val = int64(o1)<<32 | int64(o0)
+		}
 		return 0
 
 	case ld.R_CALLARM64:
