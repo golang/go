@@ -494,3 +494,10 @@ func addindex(index *gc.Node, width int64, addr *gc.Node) bool {
 	}
 	return false
 }
+
+// res = runtime.getg()
+func getg(res *gc.Node) {
+	var n1 gc.Node
+	gc.Nodreg(&n1, res.Type, arm.REGG)
+	gmove(&n1, res)
+}

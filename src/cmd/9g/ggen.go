@@ -549,3 +549,10 @@ func expandchecks(firstp *obj.Prog) {
 		p2.To.Offset = 0
 	}
 }
+
+// res = runtime.getg()
+func getg(res *gc.Node) {
+	var n1 gc.Node
+	gc.Nodreg(&n1, res.Type, ppc64.REGG)
+	gmove(&n1, res)
+}

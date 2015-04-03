@@ -944,3 +944,20 @@ func addindex(index *gc.Node, width int64, addr *gc.Node) bool {
 	}
 	return false
 }
+
+// res = runtime.getg()
+func getg(res *gc.Node) {
+	var n1 gc.Node
+	gc.Regalloc(&n1, res.Type, res)
+	mov := optoas(gc.OAS, gc.Types[gc.Tptr])
+	p := gins(mov, nil, &n1)
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = x86.REG_TLS
+	p = gins(mov, nil, &n1)
+	p.From = p.To
+	p.From.Type = obj.TYPE_MEM
+	p.From.Index = x86.REG_TLS
+	p.From.Scale = 1
+	gmove(&n1, res)
+	gc.Regfree(&n1)
+}

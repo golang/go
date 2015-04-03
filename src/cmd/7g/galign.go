@@ -62,6 +62,7 @@ func main() {
 	gc.Thearch.Dodiv = dodiv
 	gc.Thearch.Excise = excise
 	gc.Thearch.Expandchecks = expandchecks
+	gc.Thearch.Getg = getg
 	gc.Thearch.Gins = gins
 	gc.Thearch.Ginscon = ginscon
 	gc.Thearch.Ginsnop = ginsnop
