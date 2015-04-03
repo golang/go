@@ -219,7 +219,8 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 		OPLUS,
 		OREAL,
 		OIMAG,
-		OCOM:
+		OCOM,
+		OSQRT:
 		racewalknode(&n.Left, init, wr, 0)
 		goto ret
 
