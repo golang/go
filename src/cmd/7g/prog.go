@@ -70,8 +70,8 @@ var progtable = [arm64.ALAST]obj.ProgInfo{
 	arm64.AFMULS: {gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
 	arm64.AFDIVD: {gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
 	arm64.AFDIVS: {gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
-	arm64.AFCMPD: {gc.SizeD | gc.LeftRead | gc.RightRead, 0, 0, 0},
-	arm64.AFCMPS: {gc.SizeF | gc.LeftRead | gc.RightRead, 0, 0, 0},
+	arm64.AFCMPD: {gc.SizeD | gc.LeftRead | gc.RegRead, 0, 0, 0},
+	arm64.AFCMPS: {gc.SizeF | gc.LeftRead | gc.RegRead, 0, 0, 0},
 
 	// float -> integer
 	arm64.AFCVTZSD:  {gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
