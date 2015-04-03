@@ -369,6 +369,12 @@ func loadlib() {
 		}
 	}
 
+	// cmd/7l doesn't support cgo internal linking
+	// This is https://golang.org/issue/10373.
+	if iscgo && goarch == "arm64" {
+		Linkmode = LinkExternal
+	}
+
 	if Linkmode == LinkExternal && !iscgo {
 		// This indicates a user requested -linkmode=external.
 		// The startup code uses an import of runtime/cgo to decide
