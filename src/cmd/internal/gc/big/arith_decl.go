@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-
-
 package big
 
 func mulWW(x, y Word) (z1, z0 Word) {
