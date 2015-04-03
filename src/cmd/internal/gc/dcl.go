@@ -367,7 +367,7 @@ func newname(s *Sym) *Node {
 	n := Nod(ONAME, nil, nil)
 	n.Sym = s
 	n.Type = nil
-	n.Addable = 1
+	n.Addable = true
 	n.Ullman = 1
 	n.Xoffset = 0
 	return n
@@ -438,7 +438,7 @@ func oldname(s *Sym) *Node {
 			c.Class = PPARAMREF
 			c.Isddd = n.Isddd
 			c.Defn = n
-			c.Addable = 0
+			c.Addable = false
 			c.Ullman = 2
 			c.Funcdepth = Funcdepth
 			c.Outer = n.Closure
@@ -521,7 +521,7 @@ func colas(left *NodeList, right *NodeList, lno int32) *Node {
 	as := Nod(OAS2, nil, nil)
 	as.List = left
 	as.Rlist = right
-	as.Colas = 1
+	as.Colas = true
 	as.Lineno = lno
 	colasdefn(left, as)
 

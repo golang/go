@@ -599,7 +599,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	ptr := Nod(ONAME, nil, nil)
 	ptr.Sym = Lookup("rcvr")
 	ptr.Class = PAUTO
-	ptr.Addable = 1
+	ptr.Addable = true
 	ptr.Ullman = 1
 	ptr.Used = true
 	ptr.Curfn = xfunc

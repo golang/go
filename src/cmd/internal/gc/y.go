@@ -1733,7 +1733,7 @@ yydefault:
 		{
 			yyVAL.node = Nod(ORANGE, nil, yyDollar[4].node)
 			yyVAL.node.List = yyDollar[1].list
-			yyVAL.node.Colas = 1
+			yyVAL.node.Colas = true
 			colasdefn(yyDollar[1].list, yyVAL.node)
 		}
 	case 69:
@@ -1748,7 +1748,7 @@ yydefault:
 		//line go.y:632
 		{
 			// init ; test ; incr
-			if yyDollar[5].node != nil && yyDollar[5].node.Colas != 0 {
+			if yyDollar[5].node != nil && yyDollar[5].node.Colas {
 				Yyerror("cannot declare in the for-increment")
 			}
 			yyVAL.node = Nod(OFOR, nil, nil)

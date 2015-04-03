@@ -618,7 +618,7 @@ range_stmt:
 	{
 		$$ = Nod(ORANGE, nil, $4);
 		$$.List = $1;
-		$$.Colas = 1;
+		$$.Colas = true;
 		colasdefn($1, $$);
 	}
 |	LRANGE expr
@@ -631,7 +631,7 @@ for_header:
 	osimple_stmt ';' osimple_stmt ';' osimple_stmt
 	{
 		// init ; test ; incr
-		if $5 != nil && $5.Colas != 0 {
+		if $5 != nil && $5.Colas {
 			Yyerror("cannot declare in the for-increment");
 		}
 		$$ = Nod(OFOR, nil, nil);

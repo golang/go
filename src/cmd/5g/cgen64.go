@@ -24,7 +24,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 	l := n.Left
 	var t1 gc.Node
-	if l.Addable == 0 {
+	if !l.Addable {
 		gc.Tempname(&t1, l.Type)
 		gc.Cgen(l, &t1)
 		l = &t1
@@ -108,7 +108,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	// setup for binary operators
 	r := n.Right
 
-	if r != nil && r.Addable == 0 {
+	if r != nil && !r.Addable {
 		var t2 gc.Node
 		gc.Tempname(&t2, r.Type)
 		gc.Cgen(r, &t2)

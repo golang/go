@@ -1732,7 +1732,7 @@ func dotaddable(n *gc.Node, n1 *gc.Node) bool {
 	var oary [10]int64
 	var nn *gc.Node
 	o := gc.Dotoffset(n, oary[:], &nn)
-	if nn != nil && nn.Addable != 0 && o == 1 && oary[0] >= 0 {
+	if nn != nil && nn.Addable && o == 1 && oary[0] >= 0 {
 		*n1 = *nn
 		n1.Type = n.Type
 		n1.Xoffset += oary[0]

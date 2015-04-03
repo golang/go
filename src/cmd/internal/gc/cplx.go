@@ -23,13 +23,13 @@ func Complexbool(op int, nl *Node, nr *Node, true_ bool, likely int, to *obj.Pro
 
 	// make both sides addable in ullman order
 	if nr != nil {
-		if nl.Ullman > nr.Ullman && nl.Addable == 0 {
+		if nl.Ullman > nr.Ullman && !nl.Addable {
 			Tempname(&tnl, nl.Type)
 			Cgen(nl, &tnl)
 			nl = &tnl
 		}
 
-		if nr.Addable == 0 {
+		if !nr.Addable {
 			var tnr Node
 			Tempname(&tnr, nr.Type)
 			Cgen(nr, &tnr)
@@ -37,7 +37,7 @@ func Complexbool(op int, nl *Node, nr *Node, true_ bool, likely int, to *obj.Pro
 		}
 	}
 
-	if nl.Addable == 0 {
+	if !nl.Addable {
 		Tempname(&tnl, nl.Type)
 		Cgen(nl, &tnl)
 		nl = &tnl
@@ -83,7 +83,7 @@ func Complexbool(op int, nl *Node, nr *Node, true_ bool, likely int, to *obj.Pro
 
 // break addable nc-complex into nr-real and ni-imaginary
 func subnode(nr *Node, ni *Node, nc *Node) {
-	if nc.Addable == 0 {
+	if !nc.Addable {
 		Fatal("subnode not addable")
 	}
 
@@ -227,7 +227,7 @@ func complexmul(nl *Node, nr *Node, res *Node) {
 func nodfconst(n *Node, t *Type, fval *Mpflt) {
 	*n = Node{}
 	n.Op = OLITERAL
-	n.Addable = 1
+	n.Addable = true
 	ullmancalc(n)
 	n.Val.U.Fval = fval
 	n.Val.Ctype = CTFLT
@@ -291,7 +291,7 @@ func Complexmove(f *Node, t *Node) {
 		Dump("complexmove-t", t)
 	}
 
-	if t.Addable == 0 {
+	if !t.Addable {
 		Fatal("complexmove: to not addable")
 	}
 
@@ -308,7 +308,7 @@ func Complexmove(f *Node, t *Node) {
 		TCOMPLEX64<<16 | TCOMPLEX128,
 		TCOMPLEX128<<16 | TCOMPLEX64,
 		TCOMPLEX128<<16 | TCOMPLEX128:
-		if f.Addable == 0 || overlap_cplx(f, t) {
+		if !f.Addable || overlap_cplx(f, t) {
 			var tmp Node
 			Tempname(&tmp, f.Type)
 			Complexmove(f, &tmp)
@@ -340,7 +340,7 @@ func Complexgen(n *Node, res *Node) {
 	// pick off float/complex opcodes
 	switch n.Op {
 	case OCOMPLEX:
-		if res.Addable != 0 {
+		if res.Addable {
 			var n1 Node
 			var n2 Node
 			subnode(&n1, &n2, res)
@@ -354,7 +354,7 @@ func Complexgen(n *Node, res *Node) {
 
 	case OREAL, OIMAG:
 		nl := n.Left
-		if nl.Addable == 0 {
+		if !nl.Addable {
 			var tmp Node
 			Tempname(&tmp, nl.Type)
 			Complexgen(nl, &tmp)
@@ -380,7 +380,7 @@ func Complexgen(n *Node, res *Node) {
 	tr := Simsimtype(n.Type)
 	tr = cplxsubtype(tr)
 	if tl != tr {
-		if n.Addable == 0 {
+		if !n.Addable {
 			var n1 Node
 			Tempname(&n1, n.Type)
 			Complexmove(n, &n1)
@@ -391,7 +391,7 @@ func Complexgen(n *Node, res *Node) {
 		return
 	}
 
-	if res.Addable == 0 {
+	if !res.Addable {
 		var n1 Node
 		Igen(res, &n1, nil)
 		Cgen(n, &n1)
@@ -399,7 +399,7 @@ func Complexgen(n *Node, res *Node) {
 		return
 	}
 
-	if n.Addable != 0 {
+	if n.Addable {
 		Complexmove(n, res)
 		return
 	}
@@ -444,13 +444,13 @@ func Complexgen(n *Node, res *Node) {
 	// make both sides addable in ullman order
 	var tnl Node
 	if nr != nil {
-		if nl.Ullman > nr.Ullman && nl.Addable == 0 {
+		if nl.Ullman > nr.Ullman && !nl.Addable {
 			Tempname(&tnl, nl.Type)
 			Cgen(nl, &tnl)
 			nl = &tnl
 		}
 
-		if nr.Addable == 0 {
+		if !nr.Addable {
 			var tnr Node
 			Tempname(&tnr, nr.Type)
 			Cgen(nr, &tnr)
@@ -458,7 +458,7 @@ func Complexgen(n *Node, res *Node) {
 		}
 	}
 
-	if nl.Addable == 0 {
+	if !nl.Addable {
 		Tempname(&tnl, nl.Type)
 		Cgen(nl, &tnl)
 		nl = &tnl
