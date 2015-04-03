@@ -1489,10 +1489,11 @@ func elfshreloc(sect *Section) *ElfShdr {
 
 	var prefix string
 	var typ int
-	if Thearch.Thechar == '6' || Thearch.Thechar == '9' {
+	switch Thearch.Thechar {
+	case '6', '7', '9':
 		prefix = ".rela"
 		typ = SHT_RELA
-	} else {
+	default:
 		prefix = ".rel"
 		typ = SHT_REL
 	}
@@ -1657,9 +1658,10 @@ func doelf() {
 
 	if Flag_shared != 0 {
 		Addstring(shstrtab, ".init_array")
-		if Thearch.Thechar == '6' || Thearch.Thechar == '9' {
+		switch Thearch.Thechar {
+		case '6', '7', '9':
 			Addstring(shstrtab, ".rela.init_array")
-		} else {
+		default:
 			Addstring(shstrtab, ".rel.init_array")
 		}
 	}
@@ -1683,10 +1685,11 @@ func doelf() {
 		Addstring(shstrtab, ".dynamic")
 		Addstring(shstrtab, ".dynsym")
 		Addstring(shstrtab, ".dynstr")
-		if Thearch.Thechar == '6' || Thearch.Thechar == '9' {
+		switch Thearch.Thechar {
+		case '6', '7', '9':
 			Addstring(shstrtab, ".rela")
 			Addstring(shstrtab, ".rela.plt")
-		} else {
+		default:
 			Addstring(shstrtab, ".rel")
 			Addstring(shstrtab, ".rel.plt")
 		}
@@ -1700,9 +1703,10 @@ func doelf() {
 
 		s.Type = SELFROSECT
 		s.Reachable = true
-		if Thearch.Thechar == '6' || Thearch.Thechar == '9' {
+		switch Thearch.Thechar {
+		case '6', '7', '9':
 			s.Size += ELF64SYMSIZE
-		} else {
+		default:
 			s.Size += ELF32SYMSIZE
 		}
 
@@ -1791,9 +1795,10 @@ func doelf() {
 		elfwritedynentsym(s, DT_HASH, Linklookup(Ctxt, ".hash", 0))
 
 		elfwritedynentsym(s, DT_SYMTAB, Linklookup(Ctxt, ".dynsym", 0))
-		if Thearch.Thechar == '6' || Thearch.Thechar == '9' {
+		switch Thearch.Thechar {
+		case '6', '7', '9':
 			Elfwritedynent(s, DT_SYMENT, ELF64SYMSIZE)
-		} else {
+		default:
 			Elfwritedynent(s, DT_SYMENT, ELF32SYMSIZE)
 		}
 		elfwritedynentsym(s, DT_STRTAB, Linklookup(Ctxt, ".dynstr", 0))

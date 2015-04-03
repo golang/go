@@ -2367,12 +2367,13 @@ func dwarfaddshstrings(shstrtab *LSym) {
 	elfstrdbg[ElfStrDebugStr] = Addstring(shstrtab, ".debug_str")
 	elfstrdbg[ElfStrGDBScripts] = Addstring(shstrtab, ".debug_gdb_scripts")
 	if Linkmode == LinkExternal {
-		if Thearch.Thechar == '6' || Thearch.Thechar == '9' {
+		switch Thearch.Thechar {
+		case '6', '7', '9':
 			elfstrdbg[ElfStrRelDebugInfo] = Addstring(shstrtab, ".rela.debug_info")
 			elfstrdbg[ElfStrRelDebugAranges] = Addstring(shstrtab, ".rela.debug_aranges")
 			elfstrdbg[ElfStrRelDebugLine] = Addstring(shstrtab, ".rela.debug_line")
 			elfstrdbg[ElfStrRelDebugFrame] = Addstring(shstrtab, ".rela.debug_frame")
-		} else {
+		default:
 			elfstrdbg[ElfStrRelDebugInfo] = Addstring(shstrtab, ".rel.debug_info")
 			elfstrdbg[ElfStrRelDebugAranges] = Addstring(shstrtab, ".rel.debug_aranges")
 			elfstrdbg[ElfStrRelDebugLine] = Addstring(shstrtab, ".rel.debug_line")
@@ -2419,9 +2420,10 @@ func dwarfaddelfsectionsyms() {
 
 func dwarfaddelfrelocheader(elfstr int, shdata *ElfShdr, off int64, size int64) {
 	sh := newElfShdr(elfstrdbg[elfstr])
-	if Thearch.Thechar == '6' || Thearch.Thechar == '9' {
+	switch Thearch.Thechar {
+	case '6', '7', '9':
 		sh.type_ = SHT_RELA
-	} else {
+	default:
 		sh.type_ = SHT_REL
 	}
 

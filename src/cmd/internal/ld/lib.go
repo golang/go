@@ -711,6 +711,9 @@ func hostlink() {
 
 	case '5':
 		argv = append(argv, "-marm")
+
+	case '7':
+		// nothing needed
 	}
 
 	if Debug['s'] == 0 && debug_s == 0 {
