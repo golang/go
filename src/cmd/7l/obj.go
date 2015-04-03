@@ -119,8 +119,7 @@ func archinit() {
 			ld.INITRND = 4096
 		}
 
-	case ld.Hlinux: /* ppc64 elf */
-		ld.Debug['d'] = 1 // TODO(aram): dynamic linking is not supported yet.
+	case ld.Hlinux: /* arm64 elf */
 		ld.Elfinit()
 		ld.HEADR = ld.ELFRESERVE
 		if ld.INITTEXT == -1 {
