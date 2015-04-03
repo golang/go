@@ -624,7 +624,7 @@ func walkexpr(np **Node, init **NodeList) {
 
 		if n.Left.Op == ONAME && n.Left.Sym.Name == "Sqrt" && n.Left.Sym.Pkg.Path == "math" {
 			switch Thearch.Thechar {
-			case '5', '6':
+			case '5', '6', '7':
 				n.Op = OSQRT
 				n.Left = n.List.N
 				n.List = nil
