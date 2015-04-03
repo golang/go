@@ -3212,7 +3212,7 @@ type $$Parser interface {
 
 type $$ParserImpl struct {
 	lookahead func() int
-	state func() int
+	state     func() int
 }
 
 func (p *$$ParserImpl) Lookahead() int {
@@ -3222,7 +3222,7 @@ func (p *$$ParserImpl) Lookahead() int {
 func $$NewParser() $$Parser {
 	p := &$$ParserImpl{
 		lookahead: func() int { return -1 },
-		state: func() int { return -1 },
+		state:     func() int { return -1 },
 	}
 	return p
 }
@@ -3245,6 +3245,63 @@ func $$Statname(s int) string {
 		}
 	}
 	return __yyfmt__.Sprintf("state-%v", s)
+}
+
+func $$ErrorMessage(state, lookAhead int) string {
+	const TOKSTART = 4
+
+	if !$$ErrorVerbose {
+		return "syntax error"
+	}
+	res := "syntax error: unexpected " + $$Tokname(lookAhead)
+
+	// To match Bison, suggest at most four expected tokens.
+	expected := make([]int, 0, 4)
+
+	// Look for shiftable tokens.
+	base := $$Pact[state]
+	for tok := TOKSTART; tok-1 < len($$Toknames); tok++ {
+		if n := base + tok; n >= 0 && n < $$Last && $$Chk[$$Act[n]] == tok {
+			if len(expected) == cap(expected) {
+				return res
+			}
+			expected = append(expected, tok)
+		}
+	}
+
+	if $$Def[state] == -2 {
+		i := 0
+		for $$Exca[i] != -1 || $$Exca[i+1] != state {
+			i += 2
+		}
+
+		// Look for tokens that we accept or reduce.
+		for i += 2; $$Exca[i] >= 0; i += 2 {
+			tok := $$Exca[i]
+			if tok < TOKSTART || $$Exca[i+1] == 0 {
+				continue
+			}
+			if len(expected) == cap(expected) {
+				return res
+			}
+			expected = append(expected, tok)
+		}
+
+		// If the default action is to accept or reduce, give up.
+		if $$Exca[i+1] != 0 {
+			return res
+		}
+	}
+
+	for i, tok := range expected {
+		if i == 0 {
+			res += ", expecting "
+		} else {
+			res += " or "
+		}
+		res += $$Tokname(tok)
+	}
+	return res
 }
 
 func $$lex1(lex $$Lexer, lval *$$SymType) (char, token int) {
@@ -3385,11 +3442,7 @@ $$default:
 		/* error ... attempt to resume parsing */
 		switch Errflag {
 		case 0: /* brand new error */
-			$$ErrMsg := "syntax error"
-			if $$ErrorVerbose {
-				$$ErrMsg += ": unexpected " + $$Tokname($$token)
-			}
-			$$lex.Error($$ErrMsg)
+			$$lex.Error($$ErrorMessage($$state, $$token))
 			Nerrs++
 			if $$Debug >= 1 {
 				__yyfmt__.Printf("%s", $$Statname($$state))

@@ -162,18 +162,13 @@ func Yyerror(format string, args ...interface{}) {
 			return
 		}
 
-		// TODO(mdempsky): Extend cmd/yacc's verbose error
-		// messages to suggest expected tokens like Bison:
-		// "syntax error: unexpected literal 2.01, expecting semicolon or newline or }"
-		if false {
-			// The grammar has { and LBRACE but both show up as {.
-			// Rewrite syntax error referring to "{ or {" to say just "{".
-			// The grammar has ? and @ but only for reading imports.
-			// Silence them in ordinary errors.
-			msg = strings.Replace(msg, "{ or {", "{", -1)
-			msg = strings.Replace(msg, " or ?", "", -1)
-			msg = strings.Replace(msg, " or @", "", -1)
-		}
+		// The grammar has { and LBRACE but both show up as {.
+		// Rewrite syntax error referring to "{ or {" to say just "{".
+		// The grammar has ? and @ but only for reading imports.
+		// Silence them in ordinary errors.
+		msg = strings.Replace(msg, "{ or {", "{", -1)
+		msg = strings.Replace(msg, " or ?", "", -1)
+		msg = strings.Replace(msg, " or @", "", -1)
 
 		msg = strings.Replace(msg, "LLITERAL", litbuf, -1)
 
