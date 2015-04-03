@@ -18,6 +18,7 @@ type common struct {
 	// expose reflection to the client.
 	parseFuncs FuncMap
 	execFuncs  map[string]reflect.Value
+	option     option
 }
 
 // Template is the representation of a parsed template. The *parse.Tree
