@@ -163,22 +163,52 @@ func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 	}
 	// exp10 != 0
 
-	// compute decimal exponent power
-	expabs := exp10
-	if expabs < 0 {
-		expabs = -expabs
-	}
-	powTen := nat(nil).expNN(natTen, nat(nil).setUint64(uint64(expabs)), nil)
-	fpowTen := new(Float).SetInt(new(Int).SetBits(powTen))
-
 	// apply 10**exp10
+	p := new(Float).SetPrec(z.Prec() + 64) // use more bits for p -- TODO(gri) what is the right number?
 	if exp10 < 0 {
-		z.uquo(z, fpowTen)
+		z.uquo(z, p.pow10(-exp10))
 	} else {
-		z.umul(z, fpowTen)
+		z.umul(z, p.pow10(exp10))
 	}
 
 	return
+}
+
+// These powers of 10 can be represented exactly as a float64.
+var pow10tab = [...]float64{
+	1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9,
+	1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19,
+}
+
+// pow10 sets z to 10**n and returns z.
+// n must not be negative.
+func (z *Float) pow10(n int64) *Float {
+	if n < 0 {
+		panic("pow10 called with negative argument")
+	}
+
+	const m = int64(len(pow10tab) - 1)
+	if n <= m {
+		return z.SetFloat64(pow10tab[n])
+	}
+	// n > m
+
+	z.SetFloat64(pow10tab[m])
+	n -= m
+
+	// use more bits for f than for z
+	// TODO(gri) what is the right number?
+	f := new(Float).SetPrec(z.Prec() + 64).SetInt64(10)
+
+	for n > 0 {
+		if n&1 != 0 {
+			z.Mul(z, f)
+		}
+		f.Mul(f, f)
+		n >>= 1
+	}
+
+	return z
 }
 
 // Parse is like z.Scan(r, base), but instead of reading from an
