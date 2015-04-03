@@ -10,8 +10,8 @@ TEXT _rt0_amd64_linux(SB),NOSPLIT,$-8
 	MOVQ	$main(SB), AX
 	JMP	AX
 
-// When linking with -shared, this symbol is called when the shared library
-// is loaded.
+// When building with -buildmode=c-shared, this symbol is called when the shared
+// library is loaded.
 TEXT _rt0_amd64_linux_lib(SB),NOSPLIT,$40
 	MOVQ	DI, _rt0_amd64_linux_lib_argc<>(SB)
 	MOVQ	SI, _rt0_amd64_linux_lib_argv<>(SB)

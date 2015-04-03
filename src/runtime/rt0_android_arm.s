@@ -10,8 +10,26 @@ TEXT _rt0_arm_android(SB),NOSPLIT,$-4
 	MOVW		$_rt0_arm_linux1(SB), R4
 	B		(R4)
 
-// This symbol is called when a shared library is loaded.
+// When building with -buildmode=c-shared, this symbol is called when the shared
+// library is loaded.
 TEXT _rt0_arm_android_lib(SB),NOSPLIT,$0
-	// TODO(crawshaw): initialize runtime.
-	// At the moment this is done in mobile/app/android.c:init_go_runtime
+	MOVW	$1, R0                          // argc
+	MOVW	$_rt0_arm_android_argv(SB), R1  // **argv
+	BL _rt0_arm_linux_lib(SB)
 	RET
+
+DATA _rt0_arm_android_argv+0x00(SB)/4,$_rt0_arm_android_argv0(SB)
+DATA _rt0_arm_android_argv+0x04(SB)/4,$0
+DATA _rt0_arm_android_argv+0x08(SB)/4,$0
+DATA _rt0_arm_android_argv+0x0C(SB)/4,$15      // AT_PLATFORM
+DATA _rt0_arm_android_argv+0x10(SB)/4,$_rt0_arm_android_auxv0(SB)
+DATA _rt0_arm_android_argv+0x14(SB)/4,$16      // AT_HWCAP
+DATA _rt0_arm_android_argv+0x18(SB)/4,$0x2040  // HWCAP_VFP | HWCAP_VFPv3
+DATA _rt0_arm_android_argv+0x1C(SB)/4,$0
+GLOBL _rt0_arm_android_argv(SB),NOPTR,$0x20
+
+DATA _rt0_arm_android_argv0(SB)/8, $"gojni"
+GLOBL _rt0_arm_android_argv0(SB),RODATA,$8
+
+DATA _rt0_arm_android_auxv0(SB)/4, $"v7l"
+GLOBL _rt0_arm_android_auxv0(SB),RODATA,$4
