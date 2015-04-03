@@ -330,6 +330,12 @@ func TestFloatFormat(t *testing.T) {
 		{"3e40", 100, 'f', 4, "30000000000000000000000000000000000000000.0000"},
 		{"3e40", 100, 'g', 40, "3e+40"},
 
+		// make sure "stupid" exponents don't stall the machine
+		{"1e1000000", 64, 'p', 0, "0x.88b3a28a05eade3ap3321929"},
+		{"1e1000000000", 64, 'p', 0, "0x.ecc5f45aa573d3p1538481529"},
+		{"1e-1000000", 64, 'p', 0, "0x.efb4542cc8ca418ap-3321928"},
+		{"1e-1000000000", 64, 'p', 0, "0x.8a64dd983a4c7dabp-1538481528"},
+
 		// TODO(gri) need tests for actual large Floats
 
 		{"0", 53, 'b', 0, "0"},
