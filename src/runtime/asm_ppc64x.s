@@ -1134,10 +1134,6 @@ TEXT runtime·goexit(SB),NOSPLIT,$-8-0
 	// traceback from goexit1 must hit code range of goexit
 	MOVD	R0, R0	// NOP
 
-TEXT runtime·getg(SB),NOSPLIT,$-8-8
-	MOVD	g, ret+0(FP)
-	RETURN
-
 TEXT runtime·prefetcht0(SB),NOSPLIT,$0-8
 	RETURN
 

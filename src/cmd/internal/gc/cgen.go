@@ -418,6 +418,10 @@ func Cgen(n *Node, res *Node) {
 		Regfree(&n1)
 		return
 
+	case OGETG:
+		Thearch.Getg(res)
+		return
+
 		// symmetric binary
 	case OAND,
 		OOR,

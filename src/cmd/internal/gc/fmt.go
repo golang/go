@@ -976,6 +976,7 @@ var opprec = []int{
 	OCONV:         8,
 	OCOPY:         8,
 	ODELETE:       8,
+	OGETG:         8,
 	OLEN:          8,
 	OLITERAL:      8,
 	OMAKESLICE:    8,
@@ -1363,7 +1364,7 @@ func exprfmt(n *Node, prec int) string {
 		}
 		return fmt.Sprintf("%v(%v)", Oconv(int(n.Op), obj.FmtSharp), Hconv(n.List, obj.FmtComma))
 
-	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH:
+	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH, OGETG:
 		var f string
 		f += exprfmt(n.Left, nprec)
 		if n.Isddd {

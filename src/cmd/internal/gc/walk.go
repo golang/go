@@ -179,7 +179,8 @@ func walkstmt(np **Node) {
 		OPRINTN,
 		OPANIC,
 		OEMPTY,
-		ORECOVER:
+		ORECOVER,
+		OGETG:
 		if n.Typecheck == 0 {
 			Fatal("missing typecheck: %v", Nconv(n, obj.FmtSign))
 		}
@@ -424,7 +425,8 @@ func walkexpr(np **Node, init **NodeList) {
 		ONONAME,
 		OINDREG,
 		OEMPTY,
-		OPARAM:
+		OPARAM,
+		OGETG:
 		goto ret
 
 	case ONOT,

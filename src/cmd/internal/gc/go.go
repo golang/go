@@ -798,6 +798,7 @@ type Arch struct {
 	Dodiv        func(int, *Node, *Node, *Node)
 	Excise       func(*Flow)
 	Expandchecks func(*obj.Prog)
+	Getg         func(*Node)
 	Gins         func(int, *Node, *Node) *obj.Prog
 	Ginscon      func(int, int64, *Node)
 	Ginsnop      func()

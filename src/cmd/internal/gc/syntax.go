@@ -304,6 +304,7 @@ const (
 	ORETJMP // return to other function
 	OPS     // compare parity set (for x86 NaN check)
 	OSQRT   // sqrt(float64), on systems that have hw support
+	OGETG   // runtime.getg() (read g pointer)
 
 	OEND
 )

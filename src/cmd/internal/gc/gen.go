@@ -1002,6 +1002,10 @@ func gen(n *Node) {
 	case ORETURN, ORETJMP:
 		cgen_ret(n)
 
+	// Function calls turned into compiler intrinsics.
+	// At top level, can just ignore the call and make sure to preserve side effects in the argument, if any.
+	case OGETG:
+		// nothing
 	case OSQRT:
 		cgen_discard(n.Left)
 
