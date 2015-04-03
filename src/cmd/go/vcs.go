@@ -422,7 +422,7 @@ func vcsForDir(p *Package) (vcs *vcsCmd, root string, err error) {
 	origDir := dir
 	for len(dir) > len(srcRoot) {
 		for _, vcs := range vcsList {
-			if fi, err := os.Stat(filepath.Join(dir, "."+vcs.cmd)); err == nil && fi.IsDir() {
+			if _, err := os.Stat(filepath.Join(dir, "."+vcs.cmd)); err == nil {
 				return vcs, dir[len(srcRoot)+1:], nil
 			}
 		}
