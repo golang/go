@@ -46,7 +46,7 @@ var lookupGroup singleflight
 // is always owned by the caller.
 func lookupIPMerge(host string) (addrs []IPAddr, err error) {
 	addrsi, err, shared := lookupGroup.Do(host, func() (interface{}, error) {
-		return lookupIP(host)
+		return testHookLookupIP(lookupIP, host)
 	})
 	return lookupIPReturn(addrsi, err, shared)
 }
@@ -84,7 +84,7 @@ func lookupIPDeadline(host string, deadline time.Time) (addrs []IPAddr, err erro
 	defer t.Stop()
 
 	ch := lookupGroup.DoChan(host, func() (interface{}, error) {
-		return lookupIP(host)
+		return testHookLookupIP(lookupIP, host)
 	})
 
 	select {
