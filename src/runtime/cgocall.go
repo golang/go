@@ -218,6 +218,10 @@ func cgocallbackg1() {
 		// On arm, stack frame is two words and there's a saved LR between
 		// SP and the stack frame and between the stack frame and the arguments.
 		cb = (*args)(unsafe.Pointer(sp + 4*ptrSize))
+	case "arm64":
+		// On arm64, stack frame is four words and there's a saved LR between
+		// SP and the stack frame and between the stack frame and the arguments.
+		cb = (*args)(unsafe.Pointer(sp + 5*ptrSize))
 	case "amd64":
 		// On amd64, stack frame is one word, plus caller PC.
 		if framepointer_enabled {
@@ -268,6 +272,8 @@ func unwindm(restore *bool) {
 		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp))
 	case "arm":
 		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + 4))
+	case "arm64":
+		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + 16))
 	case "ppc64", "ppc64le":
 		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + 8))
 	}
