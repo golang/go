@@ -66,8 +66,33 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 }
 
 func elfreloc1(r *ld.Reloc, sectoff int64) int {
-	// TODO(minux)
-	return -1
+	ld.Thearch.Vput(uint64(sectoff))
+
+	elfsym := r.Xsym.Elfsym
+	switch r.Type {
+	default:
+		return -1
+
+	case ld.R_ADDR:
+		switch r.Siz {
+		case 4:
+			ld.Thearch.Vput(ld.R_AARCH64_ABS32 | uint64(elfsym)<<32)
+		case 8:
+			ld.Thearch.Vput(ld.R_AARCH64_ABS64 | uint64(elfsym)<<32)
+		default:
+			return -1
+		}
+
+	case ld.R_CALLARM64:
+		if r.Siz != 4 {
+			return -1
+		}
+		ld.Thearch.Vput(ld.R_AARCH64_CALL26 | uint64(elfsym)<<32)
+
+	}
+	ld.Thearch.Vput(uint64(r.Xadd))
+
+	return 0
 }
 
 func elfsetupplt() {
@@ -81,8 +106,18 @@ func machoreloc1(r *ld.Reloc, sectoff int64) int {
 
 func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 	if ld.Linkmode == ld.LinkExternal {
-		// TODO(minux): translate R_CALLARM64 into standard ELF relocation.
-		return -1
+		switch r.Type {
+		default:
+			return -1
+
+		case ld.R_CALLARM64:
+			r.Done = 0
+			r.Xsym = r.Sym
+			*val = int64(0xfc000000 & uint32(r.Add))
+			r.Xadd = int64((uint32(r.Add) &^ 0xfc000000) * 4)
+			r.Add = 0
+			return 0
+		}
 	}
 
 	switch r.Type {
@@ -108,7 +143,7 @@ func archrelocvariant(r *ld.Reloc, s *ld.LSym, t int64) int64 {
 }
 
 func adddynsym(ctxt *ld.Link, s *ld.LSym) {
-	log.Fatalf("adddynsym not implemented")
+	// TODO(minux): implement when needed.
 }
 
 func adddynlib(lib string) {
