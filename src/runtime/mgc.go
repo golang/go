@@ -261,10 +261,22 @@ func startGC(mode int) {
 	if !bggc.started {
 		bggc.working = 1
 		bggc.started = true
+		// This puts the G on the end of the current run
+		// queue, so it may take a while to actually start.
+		// This is only a problem for the first GC cycle.
 		go backgroundgc()
 	} else if bggc.working == 0 {
 		bggc.working = 1
-		ready(bggc.g, 0)
+		if getg().m.lockedg != nil {
+			// We can't directly switch to GC on a locked
+			// M, so put it on the run queue and someone
+			// will get to it.
+			ready(bggc.g, 0)
+		} else {
+			unlock(&bggc.lock)
+			readyExecute(bggc.g, 0)
+			return
+		}
 	}
 	unlock(&bggc.lock)
 }
@@ -299,6 +311,13 @@ func gc(mode int) {
 	semacquire(&worldsema, false)
 
 	// Pick up the remaining unswept/not being swept spans concurrently
+	//
+	// TODO(austin): If the last GC cycle shrank the heap, our 1:1
+	// sweeping rule will undershoot and we'll wind up doing
+	// sweeping here, which will allow the mutator to do more
+	// allocation than we intended before we "really" start GC.
+	// Compute an allocation sweep ratio so we're done sweeping by
+	// the time we hit next_gc.
 	for gosweepone() != ^uintptr(0) {
 		sweep.nbgsweep++
 	}
