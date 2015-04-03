@@ -507,29 +507,6 @@ outer:
 		errorf("unexpected EOF before %%")
 	}
 
-	// put out non-literal terminals
-	for i := TOKSTART; i <= ntokens; i++ {
-		// non-literals
-		if !tokset[i].noconst {
-			fmt.Fprintf(ftable, "const %v = %v\n", tokset[i].name, tokset[i].value)
-		}
-	}
-
-	// put out names of token names
-	ftable.WriteRune('\n')
-	fmt.Fprintf(ftable, "var %sToknames = [...]string{\n", prefix)
-	for i := TOKSTART; i <= ntokens; i++ {
-		fmt.Fprintf(ftable, "\t\"%v\",\n", tokset[i].name)
-	}
-	fmt.Fprintf(ftable, "}\n")
-
-	// put out names of state names
-	fmt.Fprintf(ftable, "var %sStatenames = [...]string{", prefix)
-	//	for i:=TOKSTART; i<=ntokens; i++ {
-	//		fmt.Fprintf(ftable, "\t\"%v\",\n", tokset[i].name);
-	//	}
-	fmt.Fprintf(ftable, "}\n")
-
 	fmt.Fprintf(fcode, "switch %snt {\n", prefix)
 
 	moreprod()
@@ -678,6 +655,29 @@ outer:
 	//
 
 	fmt.Fprintf(fcode, "\n\t}")
+
+	// put out non-literal terminals
+	for i := TOKSTART; i <= ntokens; i++ {
+		// non-literals
+		if !tokset[i].noconst {
+			fmt.Fprintf(ftable, "const %v = %v\n", tokset[i].name, tokset[i].value)
+		}
+	}
+
+	// put out names of token names
+	ftable.WriteRune('\n')
+	fmt.Fprintf(ftable, "var %sToknames = [...]string{\n", prefix)
+	for i := 1; i <= ntokens; i++ {
+		fmt.Fprintf(ftable, "\t\"%v\",\n", tokset[i].name)
+	}
+	fmt.Fprintf(ftable, "}\n")
+
+	// put out names of state names
+	fmt.Fprintf(ftable, "var %sStatenames = [...]string{", prefix)
+	//	for i:=TOKSTART; i<=ntokens; i++ {
+	//		fmt.Fprintf(ftable, "\t\"%v\",\n", tokset[i].name);
+	//	}
+	fmt.Fprintf(ftable, "}\n")
 
 	ftable.WriteRune('\n')
 	fmt.Fprintf(ftable, "const %sEofCode = 1\n", prefix)
@@ -3198,7 +3198,10 @@ var yaccpar string // will be processed version of yaccpartext: s/$$/prefix/g
 var yaccpartext = `
 /*	parser for yacc output	*/
 
-var $$Debug = 0
+var (
+	$$Debug        = 0
+	$$ErrorVerbose = false
+)
 
 type $$Lexer interface {
 	Lex(lval *$$SymType) int
@@ -3230,10 +3233,9 @@ func $$NewParser() $$Parser {
 const $$Flag = -1000
 
 func $$Tokname(c int) string {
-	// 4 is TOKSTART above
-	if c >= 4 && c-4 < len($$Toknames) {
-		if $$Toknames[c-4] != "" {
-			return $$Toknames[c-4]
+	if c >= 1 && c-1 < len($$Toknames) {
+		if $$Toknames[c-1] != "" {
+			return $$Toknames[c-1]
 		}
 	}
 	return __yyfmt__.Sprintf("tok-%v", c)
@@ -3386,7 +3388,11 @@ $$default:
 		/* error ... attempt to resume parsing */
 		switch Errflag {
 		case 0: /* brand new error */
-			$$lex.Error("syntax error")
+			$$ErrMsg := "syntax error"
+			if $$ErrorVerbose {
+				$$ErrMsg += ": unexpected " + $$Tokname($$token)
+			}
+			$$lex.Error($$ErrMsg)
 			Nerrs++
 			if $$Debug >= 1 {
 				__yyfmt__.Printf("%s", $$Statname($$state))

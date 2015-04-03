@@ -15,7 +15,7 @@ var yymsg = []struct {
 	msg     string
 }{
 	// Each line of the form % token list
-	// is converted by bisonerrors into the yystate and yychar caused
+	// is converted by yaccerrors.go into the yystate and yychar caused
 	// by that token list.
 
 	{332, ',',

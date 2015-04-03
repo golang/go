@@ -55,7 +55,7 @@ func adderrorname(n *Node) {
 	}
 }
 
-func adderr(line int, format string, args []interface{}) {
+func adderr(line int, format string, args ...interface{}) {
 	errors = append(errors, Error{
 		seq:    len(errors),
 		lineno: line,
@@ -110,8 +110,8 @@ func hcrash() {
 	}
 }
 
-func yyerrorl(line int, fmt_ string, args ...interface{}) {
-	adderr(line, fmt_, args)
+func yyerrorl(line int, format string, args ...interface{}) {
+	adderr(line, format, args...)
 
 	hcrash()
 	nerrors++
@@ -124,15 +124,9 @@ func yyerrorl(line int, fmt_ string, args ...interface{}) {
 
 var yyerror_lastsyntax int
 
-func Yyerror(fmt_ string, args ...interface{}) {
-	// bison used to invoke yyerror("syntax error").
-	// With Go yacc we get yyerror("%s", "syntax error").
-	// Convert to keep the old code working.
-	if fmt_ == "%s" && len(args) == 1 && args[0] == "syntax error" {
-		fmt_ = "syntax error"
-		args = nil
-	}
-	if strings.HasPrefix(fmt_, "syntax error") {
+func Yyerror(format string, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	if strings.HasPrefix(msg, "syntax error") {
 		nsyntaxerrors++
 
 		yystate := theparser.(*yyParserImpl).state()
@@ -154,16 +148,6 @@ func Yyerror(fmt_ string, args ...interface{}) {
 		}
 		yyerror_lastsyntax = int(lexlineno)
 
-		if strings.Contains(fmt_, "{ or {") || strings.Contains(fmt_, " or ?") || strings.Contains(fmt_, " or @") {
-			// The grammar has { and LBRACE but both show up as {.
-			// Rewrite syntax error referring to "{ or {" to say just "{".
-			// The grammar has ? and @ but only for reading imports.
-			// Silence them in ordinary errors.
-			fmt_ = strings.Replace(fmt_, "{ or {", "{", -1)
-			fmt_ = strings.Replace(fmt_, " or ?", "", -1)
-			fmt_ = strings.Replace(fmt_, " or @", "", -1)
-		}
-
 		// look for parse state-specific errors in list (see go.errors).
 		for i := range yymsg {
 			if yymsg[i].yystate == yystate && yymsg[i].yychar == yychar {
@@ -173,22 +157,31 @@ func Yyerror(fmt_ string, args ...interface{}) {
 		}
 
 		// plain "syntax error" gets "near foo" added
-		if fmt_ == "syntax error" {
+		if msg == "syntax error" {
 			yyerrorl(int(lexlineno), "syntax error near %s", lexbuf.String())
 			return
 		}
 
-		// if bison says "syntax error, more info"; print "syntax error: more info".
-		if fmt_[12] == ',' {
-			yyerrorl(int(lexlineno), "syntax error:%s", fmt_[13:])
-			return
+		// TODO(mdempsky): Extend cmd/yacc's verbose error
+		// messages to suggest expected tokens like Bison:
+		// "syntax error: unexpected literal 2.01, expecting semicolon or newline or }"
+		if false {
+			// The grammar has { and LBRACE but both show up as {.
+			// Rewrite syntax error referring to "{ or {" to say just "{".
+			// The grammar has ? and @ but only for reading imports.
+			// Silence them in ordinary errors.
+			msg = strings.Replace(msg, "{ or {", "{", -1)
+			msg = strings.Replace(msg, " or ?", "", -1)
+			msg = strings.Replace(msg, " or @", "", -1)
 		}
 
-		yyerrorl(int(lexlineno), "%s", fmt_)
+		msg = strings.Replace(msg, "LLITERAL", litbuf, -1)
+
+		yyerrorl(int(lexlineno), "%s", msg)
 		return
 	}
 
-	adderr(parserline(), fmt_, args)
+	adderr(parserline(), "%s", msg)
 
 	hcrash()
 	nerrors++
@@ -200,13 +193,13 @@ func Yyerror(fmt_ string, args ...interface{}) {
 }
 
 func Warn(fmt_ string, args ...interface{}) {
-	adderr(parserline(), fmt_, args)
+	adderr(parserline(), fmt_, args...)
 
 	hcrash()
 }
 
 func Warnl(line int, fmt_ string, args ...interface{}) {
-	adderr(line, fmt_, args)
+	adderr(line, fmt_, args...)
 	if Debug['m'] != 0 {
 		Flusherrors()
 	}

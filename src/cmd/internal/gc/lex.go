@@ -2436,7 +2436,6 @@ var yytfix = []struct {
 	want string
 }{
 	{"$end", "EOF"},
-	{"LLITERAL", "literal"},
 	{"LASOP", "op="},
 	{"LBREAK", "break"},
 	{"LCASE", "case"},
@@ -2484,6 +2483,27 @@ var yytfix = []struct {
 	// spell out to avoid confusion with punctuation in error messages
 	{"';'", "semicolon or newline"},
 	{"','", "comma"},
+}
+
+func init() {
+	yyErrorVerbose = true
+
+Outer:
+	for i, s := range yyToknames {
+		// Apply yytfix if possible.
+		for _, fix := range yytfix {
+			if s == fix.have {
+				yyToknames[i] = fix.want
+				continue Outer
+			}
+		}
+
+		// Turn 'x' into x.
+		if len(s) == 3 && s[0] == '\'' && s[2] == '\'' {
+			yyToknames[i] = s[1:2]
+			continue
+		}
+	}
 }
 
 func pkgnotused(lineno int, path string, name string) {

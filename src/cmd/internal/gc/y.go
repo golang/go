@@ -70,6 +70,9 @@ const NotParen = 57393
 const PreferToRightParen = 57394
 
 var yyToknames = [...]string{
+	"$end",
+	"error",
+	"$unk",
 	"LLITERAL",
 	"LASOP",
 	"LCOLAS",
@@ -129,6 +132,20 @@ var yyToknames = [...]string{
 	"'('",
 	"')'",
 	"PreferToRightParen",
+	"';'",
+	"'.'",
+	"'$'",
+	"'='",
+	"':'",
+	"'{'",
+	"'}'",
+	"'!'",
+	"'~'",
+	"'['",
+	"']'",
+	"'?'",
+	"'@'",
+	"','",
 }
 var yyStatenames = [...]string{}
 
@@ -843,7 +860,10 @@ var yyTok3 = [...]int{
 
 /*	parser for yacc output	*/
 
-var yyDebug = 0
+var (
+	yyDebug        = 0
+	yyErrorVerbose = false
+)
 
 type yyLexer interface {
 	Lex(lval *yySymType) int
@@ -875,10 +895,9 @@ func yyNewParser() yyParser {
 const yyFlag = -1000
 
 func yyTokname(c int) string {
-	// 4 is TOKSTART above
-	if c >= 4 && c-4 < len(yyToknames) {
-		if yyToknames[c-4] != "" {
-			return yyToknames[c-4]
+	if c >= 1 && c-1 < len(yyToknames) {
+		if yyToknames[c-1] != "" {
+			return yyToknames[c-1]
 		}
 	}
 	return __yyfmt__.Sprintf("tok-%v", c)
@@ -1031,7 +1050,11 @@ yydefault:
 		/* error ... attempt to resume parsing */
 		switch Errflag {
 		case 0: /* brand new error */
-			yylex.Error("syntax error")
+			yyErrMsg := "syntax error"
+			if yyErrorVerbose {
+				yyErrMsg += ": unexpected " + yyTokname(yytoken)
+			}
+			yylex.Error(yyErrMsg)
 			Nerrs++
 			if yyDebug >= 1 {
 				__yyfmt__.Printf("%s", yyStatname(yystate))
