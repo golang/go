@@ -57,7 +57,7 @@ func (b *Buffer) String() string {
 func (b *Buffer) Len() int { return len(b.buf) - b.off }
 
 // Cap returns the capacity of the buffer's underlying byte slice, that is, the
-// total space allocated for the the buffer's data.
+// total space allocated for the buffer's data.
 func (b *Buffer) Cap() int { return cap(b.buf) }
 
 // Truncate discards all but the first n unread bytes from the buffer.
