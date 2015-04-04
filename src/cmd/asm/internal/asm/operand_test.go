@@ -287,6 +287,7 @@ var armOperandTests = []operandTest{
 	{"retlo+12(FP)", "retlo+12(FP)"},
 	{"runtime·_sfloat2(SB)", "runtime._sfloat2(SB)"},
 	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
+	{"(R1, R3)", "(R1, R3)"},
 }
 
 var ppc64OperandTests = []operandTest{
@@ -424,4 +425,5 @@ var arm64OperandTests = []operandTest{
 	{"$runtime·badsystemstack(SB)", "$runtime.badsystemstack(SB)"},
 	{"ZR", "ZR"},
 	{"(ZR)", "(ZR)"},
+	{"(R29, RSP)", "(R29, RSP)"},
 }
