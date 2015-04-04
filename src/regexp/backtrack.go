@@ -47,6 +47,9 @@ var notBacktrack *bitState = nil
 // maxBitStateLen returns the maximum length of a string to search with
 // the backtracker using prog.
 func maxBitStateLen(prog *syntax.Prog) int {
+	if !shouldBacktrack(prog) {
+		return 0
+	}
 	return maxBacktrackVector / len(prog.Inst)
 }
 
@@ -54,12 +57,18 @@ func maxBitStateLen(prog *syntax.Prog) int {
 // or notBacktrack if the size of the prog exceeds the maximum size that
 // the backtracker will be run for.
 func newBitState(prog *syntax.Prog) *bitState {
-	if len(prog.Inst) > maxBacktrackProg {
+	if !shouldBacktrack(prog) {
 		return notBacktrack
 	}
 	return &bitState{
 		prog: prog,
 	}
+}
+
+// shouldBacktrack reports whether the program is too
+// long for the backtracker to run.
+func shouldBacktrack(prog *syntax.Prog) bool {
+	return len(prog.Inst) <= maxBacktrackProg
 }
 
 // reset resets the state of the backtracker.
