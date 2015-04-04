@@ -380,6 +380,8 @@ func Nod(op int, nleft *Node, nright *Node) *Node {
 	switch op {
 	case OCLOSURE, ODCLFUNC:
 		n.Func = new(Func)
+	case ONAME:
+		n.Name = new(Name)
 	}
 	return n
 }
@@ -771,7 +773,6 @@ func treecopy(n *Node) *Node {
 		}
 		fallthrough
 
-		// fall through
 	case ONAME, OLITERAL, OTYPE:
 		m = n
 	}

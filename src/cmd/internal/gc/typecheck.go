@@ -891,6 +891,9 @@ OpSwitch:
 			}
 
 			n.Op = ONAME
+			if n.Name == nil {
+				n.Name = new(Name)
+			}
 			n.Sym = n.Right.Sym
 			n.Type = methodfunc(n.Type, n.Left.Type)
 			n.Xoffset = 0
