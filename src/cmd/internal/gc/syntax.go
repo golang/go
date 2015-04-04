@@ -30,7 +30,6 @@ type Node struct {
 	Etype       uint8 // op for OASOP, etype for OTYPE, exclam for export
 	Bounded     bool  // bounds check unnecessary
 	Class       uint8 // PPARAM, PAUTO, PEXTERN, etc
-	Method      bool  // OCALLMETH is direct method call
 	Embedded    uint8 // ODCLFIELD embedded type
 	Colas       bool  // OAS resulting from :=
 	Diag        uint8 // already printed error about this
@@ -42,15 +41,11 @@ type Node struct {
 	Initorder   uint8
 	Used        bool
 	Isddd       bool // is the argument variadic
-	Readonly    bool
 	Implicit    bool
 	Addrtaken   bool   // address taken, even if not moved to heap
 	Assigned    bool   // is the variable ever assigned to
-	Captured    bool   // is the variable captured by a closure
-	Byval       bool   // is the variable captured by value or by reference
 	Likely      int8   // likeliness of if statement
 	Hasbreak    bool   // has break statement
-	Needzero    bool   // if it contains pointers, needs to be zeroed on function entry
 	Esc         uint16 // EscXXX
 	Funcdepth   int32
 
@@ -69,15 +64,14 @@ type Node struct {
 	Reg int16
 
 	// ONAME
-	Ntype     *Node
-	Defn      *Node // ONAME: initializing assignment; OLABEL: labeled statement
-	Pack      *Node // real package for import . names
-	Curfn     *Node // function for local variables
-	Paramfld  *Type // TFIELD for this PPARAM; also for ODOT, curfn
-	Decldepth int   // declaration loop depth, increased for every loop or label
+	*Name
+	Ntype    *Node
+	Defn     *Node // ONAME: initializing assignment; OLABEL: labeled statement
+	Pack     *Node // real package for import . names
+	Curfn    *Node // function for local variables
+	Paramfld *Type // TFIELD for this PPARAM; also for ODOT, curfn
 
 	// ONAME func param with PHEAP
-	Heapaddr   *Node // temp holding heap address of param
 	Outerexpr  *Node // expression copied into closure for variable
 	Stackparam *Node // OPARAM node referring to stack copy of param
 	Alloc      *Node // allocation call
@@ -86,9 +80,6 @@ type Node struct {
 	Outer   *Node // outer PPARAMREF in nested closure
 	Closure *Node // ONAME/PHEAP <-> ONAME/PPARAMREF
 	Top     int   // top context (Ecall, Eproc, etc)
-
-	// ONAME substitute while inlining
-	Inlvar *Node
 
 	// OPACK
 	Pkg *Pkg
@@ -111,6 +102,18 @@ type Node struct {
 	Walkgen  uint32
 	Esclevel Level
 	Opt      interface{} // for optimization passes
+}
+
+// Name holds Node fields used only by ONAME nodes.
+type Name struct {
+	Heapaddr  *Node // temp holding heap address of param
+	Inlvar    *Node // ONAME substitute while inlining
+	Decldepth int   // declaration loop depth, increased for every loop or label
+	Method    bool  // OCALLMETH name
+	Readonly  bool
+	Captured  bool // is the variable captured by a closure
+	Byval     bool // is the variable captured by value or by reference
+	Needzero  bool // if it contains pointers, needs to be zeroed on function entry
 }
 
 // Func holds Node fields used only with function-like nodes.
