@@ -118,12 +118,12 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
 			Diag("missing section in putelfsym")
 			return
 		}
-		if (xo.Sect.(*Section)).Elfsect == nil {
+		if xo.Sect.(*Section).Elfsect == nil {
 			Ctxt.Cursym = x
 			Diag("missing ELF section in putelfsym")
 			return
 		}
-		elfshnum = ((xo.Sect.(*Section)).Elfsect.(*ElfShdr)).shnum
+		elfshnum = xo.Sect.(*Section).Elfsect.(*ElfShdr).shnum
 	}
 
 	// One pass for each binding: STB_LOCAL, STB_GLOBAL,
@@ -148,7 +148,7 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
 
 	off := putelfstr(s)
 	if Linkmode == LinkExternal && elfshnum != SHN_UNDEF {
-		addr -= int64((xo.Sect.(*Section)).Vaddr)
+		addr -= int64(xo.Sect.(*Section).Vaddr)
 	}
 	other := STV_DEFAULT
 	if x.Type&SHIDDEN != 0 {
