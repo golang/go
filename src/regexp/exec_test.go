@@ -713,3 +713,15 @@ func TestLongest(t *testing.T) {
 		t.Errorf("longest match was %q, want %q", g, w)
 	}
 }
+
+// TestProgramTooLongForBacktrace tests that a regex which is too long
+// for the backtracker still executes properly.
+func TestProgramTooLongForBacktrack(t *testing.T) {
+	longRegex := MustCompile(`(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|twentyone|twentytwo|twentythree|twentyfour|twentyfive|twentysix|twentyseven|twentyeight|twentynine|thirty|thirtyone|thirtytwo|thirtythree|thirtyfour|thirtyfive|thirtysix|thirtyseven|thirtyeight|thirtynine|forty|fortyone|fortytwo|fortythree|fortyfour|fortyfive|fortysix|fortyseven|fortyeight|fortynine|fifty|fiftyone|fiftytwo|fiftythree|fiftyfour|fiftyfive|fiftysix|fiftyseven|fiftyeight|fiftynine|sixty|sixtyone|sixtytwo|sixtythree|sixtyfour|sixtyfive|sixtysix|sixtyseven|sixtyeight|sixtynine|seventy|seventyone|seventytwo|seventythree|seventyfour|seventyfive|seventysix|seventyseven|seventyeight|seventynine|eighty|eightyone|eightytwo|eightythree|eightyfour|eightyfive|eightysix|eightyseven|eightyeight|eightynine|ninety|ninetyone|ninetytwo|ninetythree|ninetyfour|ninetyfive|ninetysix|ninetyseven|ninetyeight|ninetynine|onehundred)`)
+	if !longRegex.MatchString("two") {
+		t.Errorf("longRegex.MatchString(\"two\") was false, want true")
+	}
+	if longRegex.MatchString("xxx") {
+		t.Errorf("longRegex.MatchString(\"xxx\") was true, want false")
+	}
+}
