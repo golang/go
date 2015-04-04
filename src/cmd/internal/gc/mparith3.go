@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/internal/gc/big"
 	"cmd/internal/obj"
 	"fmt"
 	"math"
@@ -184,8 +185,47 @@ func mpatoflt(a *Mpflt, as string) {
 }
 
 func Fconv(fvp *Mpflt, flag int) string {
-	if flag&obj.FmtSharp != 0 {
-		return fvp.Val.Format('g', 6)
+	if flag&obj.FmtSharp == 0 {
+		return fvp.Val.Format('b', 0)
 	}
-	return fvp.Val.Format('b', 0)
+
+	// use decimal format for error messages
+
+	// determine sign
+	f := &fvp.Val
+	var sign string
+	if fvp.Val.Signbit() {
+		sign = "-"
+		f = new(big.Float).Abs(f)
+	} else if flag&obj.FmtSign != 0 {
+		sign = "+"
+	}
+
+	// Use fmt formatting if in float64 range (common case).
+	if x, _ := f.Float64(); !math.IsInf(x, 0) {
+		return fmt.Sprintf("%s%.6g", sign, x)
+	}
+
+	// Out of float64 range. Do approximate manual to decimal
+	// conversion to avoid precise but possibly slow Float
+	// formatting. The exponent is > 0 since a negative out-
+	// of-range exponent would have underflowed and led to 0.
+	// f = mant * 2**exp
+	var mant big.Float
+	exp := float64(f.MantExp(&mant)) // 0.5 <= mant < 1.0, exp > 0
+
+	// approximate float64 mantissa m and decimal exponent d
+	// f ~ m * 10**d
+	m, _ := mant.Float64()            // 0.5 <= m < 1.0
+	d := exp * (math.Ln2 / math.Ln10) // log_10(2)
+
+	// adjust m for truncated (integer) decimal exponent e
+	e := int64(d)
+	m *= math.Pow(10, d-float64(e))
+	for m >= 10 {
+		m /= 10
+		e++
+	}
+
+	return fmt.Sprintf("%s%.5fe+%d", sign, m, e)
 }
