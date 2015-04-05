@@ -484,13 +484,7 @@ func dimportpath(p *Pkg) {
 		dimportpath_gopkg.Name = "go"
 	}
 
-	var nam string
-	if p == localpkg {
-		// Note: myimportpath != "", or else dgopkgpath won't call dimportpath.
-		nam = "importpath." + pathtoprefix(myimportpath) + "."
-	} else {
-		nam = "importpath." + p.Prefix + "."
-	}
+	nam := "importpath." + p.Prefix + "."
 
 	n := Nod(ONAME, nil, nil)
 	n.Sym = Pkglookup(nam, dimportpath_gopkg)
@@ -499,7 +493,12 @@ func dimportpath(p *Pkg) {
 	n.Xoffset = 0
 	p.Pathsym = n.Sym
 
-	gdatastring(n, p.Path)
+	if p == localpkg {
+		// Note: myimportpath != "", or else dgopkgpath won't call dimportpath.
+		gdatastring(n, myimportpath)
+	} else {
+		gdatastring(n, p.Path)
+	}
 	ggloblsym(n.Sym, int32(Types[TSTRING].Width), obj.DUPOK|obj.RODATA)
 }
 
