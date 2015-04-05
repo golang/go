@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO It would be nice to use a mock DNS server, to eliminate
-// external dependencies.
-
 package net
 
 import (
@@ -13,6 +10,18 @@ import (
 	"testing"
 	"time"
 )
+
+func lookupLocalhost(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, error) {
+	switch host {
+	case "localhost":
+		return []IPAddr{
+			{IP: IPv4(127, 0, 0, 1)},
+			{IP: IPv6loopback},
+		}, nil
+	default:
+		return fn(host)
+	}
+}
 
 var lookupGoogleSRVTests = []struct {
 	service, proto, name string

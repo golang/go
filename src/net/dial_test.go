@@ -5,15 +5,11 @@
 package net
 
 import (
-	"bytes"
 	"fmt"
 	"net/internal/socktest"
-	"os"
-	"os/exec"
 	"reflect"
 	"regexp"
 	"runtime"
-	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -216,38 +212,27 @@ func TestDialTimeoutFDLeak(t *testing.T) {
 	}
 }
 
-func numTCP() (ntcp, nopen, nclose int, err error) {
-	lsof, err := exec.Command("lsof", "-n", "-p", strconv.Itoa(os.Getpid())).Output()
-	if err != nil {
-		return 0, 0, 0, err
+func TestDialerDualStackFDLeak(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("%s does not have full support of socktest", runtime.GOOS)
+	case "windows":
+		t.Skipf("not implemented a way to cancel dial racers in TCP SYN-SENT state on %s", runtime.GOOS)
 	}
-	ntcp += bytes.Count(lsof, []byte("TCP"))
-	for _, state := range []string{"LISTEN", "SYN_SENT", "SYN_RECEIVED", "ESTABLISHED"} {
-		nopen += bytes.Count(lsof, []byte(state))
-	}
-	for _, state := range []string{"CLOSED", "CLOSE_WAIT", "LAST_ACK", "FIN_WAIT_1", "FIN_WAIT_2", "CLOSING", "TIME_WAIT"} {
-		nclose += bytes.Count(lsof, []byte(state))
-	}
-	return ntcp, nopen, nclose, nil
-}
-
-func TestDialMultiFDLeak(t *testing.T) {
-	t.Skip("flaky test - golang.org/issue/8764")
-
 	if !supportsIPv4 || !supportsIPv6 {
-		t.Skip("neither ipv4 nor ipv6 is supported")
+		t.Skip("ipv4 or ipv6 is not supported")
 	}
 
+	origTestHookLookupIP := testHookLookupIP
+	defer func() { testHookLookupIP = origTestHookLookupIP }()
+	testHookLookupIP = lookupLocalhost
 	handler := func(dss *dualStackServer, ln Listener) {
 		for {
-			if c, err := ln.Accept(); err != nil {
+			c, err := ln.Accept()
+			if err != nil {
 				return
-			} else {
-				// It just keeps established
-				// connections like a half-dead server
-				// does.
-				dss.putConn(c)
 			}
+			c.Close()
 		}
 	}
 	dss, err := newDualStackServer([]streamListener{
@@ -255,56 +240,35 @@ func TestDialMultiFDLeak(t *testing.T) {
 		{network: "tcp6", address: "::1"},
 	})
 	if err != nil {
-		t.Fatalf("newDualStackServer failed: %v", err)
+		t.Fatal(err)
 	}
 	defer dss.teardown()
 	if err := dss.buildup(handler); err != nil {
-		t.Fatalf("dualStackServer.buildup failed: %v", err)
+		t.Fatal(err)
 	}
 
-	_, before, _, err := numTCP()
-	if err != nil {
-		t.Skipf("skipping test; error finding or running lsof: %v", err)
-	}
-
-	var wg sync.WaitGroup
-	portnum, _, _ := dtoi(dss.port, 0)
-	ras := addrList{
-		// Losers that will fail to connect, see RFC 6890.
-		&TCPAddr{IP: IPv4(198, 18, 0, 254), Port: portnum},
-		&TCPAddr{IP: ParseIP("2001:2::254"), Port: portnum},
-
-		// Winner candidates of this race.
-		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: portnum},
-		&TCPAddr{IP: IPv6loopback, Port: portnum},
-
-		// Losers that will have established connections.
-		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: portnum},
-		&TCPAddr{IP: IPv6loopback, Port: portnum},
-	}
-	const T1 = 10 * time.Millisecond
-	const T2 = 2 * T1
+	before := sw.Sockets()
+	const T = 100 * time.Millisecond
 	const N = 10
+	var wg sync.WaitGroup
+	wg.Add(N)
+	d := &Dialer{DualStack: true, Timeout: T}
 	for i := 0; i < N; i++ {
-		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if c, err := dialMulti("tcp", "fast failover test", nil, ras, time.Now().Add(T1)); err == nil {
-				c.Close()
+			c, err := d.Dial("tcp", JoinHostPort("localhost", dss.port))
+			if err != nil {
+				t.Error(err)
+				return
 			}
+			c.Close()
 		}()
 	}
 	wg.Wait()
-	time.Sleep(T2)
-
-	ntcp, after, nclose, err := numTCP()
-	if err != nil {
-		t.Skipf("skipping test; error finding or running lsof: %v", err)
-	}
-	t.Logf("tcp sessions: %v, open sessions: %v, closing sessions: %v", ntcp, after, nclose)
-
-	if after != before {
-		t.Fatalf("got %v open sessions; expected %v", after, before)
+	time.Sleep(2 * T) // wait for the dial racers to stop
+	after := sw.Sockets()
+	if len(after) != len(before) {
+		t.Errorf("got %d; want %d", len(after), len(before))
 	}
 }
 
@@ -347,24 +311,20 @@ func TestDialerLocalAddr(t *testing.T) {
 }
 
 func TestDialerDualStack(t *testing.T) {
-	switch runtime.GOOS {
-	case "nacl":
-		t.Skipf("skipping test on %q", runtime.GOOS)
+	if !supportsIPv4 || !supportsIPv6 {
+		t.Skip("ipv4 or ipv6 is not supported")
 	}
 
-	if ips, err := LookupIP("localhost"); err != nil {
-		t.Fatalf("LookupIP failed: %v", err)
-	} else if len(ips) < 2 || !supportsIPv4 || !supportsIPv6 {
-		t.Skip("localhost doesn't have a pair of different address family IP addresses")
-	}
-
+	origTestHookLookupIP := testHookLookupIP
+	defer func() { testHookLookupIP = origTestHookLookupIP }()
+	testHookLookupIP = lookupLocalhost
 	handler := func(dss *dualStackServer, ln Listener) {
 		for {
-			if c, err := ln.Accept(); err != nil {
+			c, err := ln.Accept()
+			if err != nil {
 				return
-			} else {
-				c.Close()
 			}
+			c.Close()
 		}
 	}
 	dss, err := newDualStackServer([]streamListener{
@@ -372,26 +332,30 @@ func TestDialerDualStack(t *testing.T) {
 		{network: "tcp6", address: "::1"},
 	})
 	if err != nil {
-		t.Fatalf("newDualStackServer failed: %v", err)
+		t.Fatal(err)
 	}
 	defer dss.teardown()
 	if err := dss.buildup(handler); err != nil {
-		t.Fatalf("dualStackServer.buildup failed: %v", err)
+		t.Fatal(err)
 	}
 
-	d := &Dialer{DualStack: true}
+	const T = 100 * time.Millisecond
+	d := &Dialer{DualStack: true, Timeout: T}
 	for range dss.lns {
-		if c, err := d.Dial("tcp", JoinHostPort("localhost", dss.port)); err != nil {
-			t.Errorf("Dial failed: %v", err)
-		} else {
-			if addr := c.LocalAddr().(*TCPAddr); addr.IP.To4() != nil {
-				dss.teardownNetwork("tcp4")
-			} else if addr.IP.To16() != nil && addr.IP.To4() == nil {
-				dss.teardownNetwork("tcp6")
-			}
-			c.Close()
+		c, err := d.Dial("tcp", JoinHostPort("localhost", dss.port))
+		if err != nil {
+			t.Error(err)
+			continue
 		}
+		switch addr := c.LocalAddr().(*TCPAddr); {
+		case addr.IP.To4() != nil:
+			dss.teardownNetwork("tcp4")
+		case addr.IP.To16() != nil && addr.IP.To4() == nil:
+			dss.teardownNetwork("tcp6")
+		}
+		c.Close()
 	}
+	time.Sleep(2 * T) // wait for the dial racers to stop
 }
 
 func TestDialerKeepAlive(t *testing.T) {

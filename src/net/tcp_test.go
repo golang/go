@@ -5,7 +5,6 @@
 package net
 
 import (
-	"fmt"
 	"io"
 	"reflect"
 	"runtime"
@@ -288,7 +287,7 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
 }
 
 type resolveTCPAddrTest struct {
-	net           string
+	network       string
 	litAddrOrName string
 	addr          *TCPAddr
 	err           error
@@ -298,8 +297,8 @@ var resolveTCPAddrTests = []resolveTCPAddrTest{
 	{"tcp", "127.0.0.1:0", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 0}, nil},
 	{"tcp4", "127.0.0.1:65535", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 65535}, nil},
 
-	{"tcp", "[::1]:1", &TCPAddr{IP: ParseIP("::1"), Port: 1}, nil},
-	{"tcp6", "[::1]:65534", &TCPAddr{IP: ParseIP("::1"), Port: 65534}, nil},
+	{"tcp", "[::1]:0", &TCPAddr{IP: ParseIP("::1"), Port: 0}, nil},
+	{"tcp6", "[::1]:65535", &TCPAddr{IP: ParseIP("::1"), Port: 65535}, nil},
 
 	{"tcp", "[::1%en0]:1", &TCPAddr{IP: ParseIP("::1"), Port: 1, Zone: "en0"}, nil},
 	{"tcp6", "[::1%911]:2", &TCPAddr{IP: ParseIP("::1"), Port: 2, Zone: "911"}, nil},
@@ -312,41 +311,26 @@ var resolveTCPAddrTests = []resolveTCPAddrTest{
 	{"http", "127.0.0.1:0", nil, UnknownNetworkError("http")},
 }
 
-func init() {
-	if ifi := loopbackInterface(); ifi != nil {
-		index := fmt.Sprintf("%v", ifi.Index)
-		resolveTCPAddrTests = append(resolveTCPAddrTests, []resolveTCPAddrTest{
-			{"tcp6", "[fe80::1%" + ifi.Name + "]:3", &TCPAddr{IP: ParseIP("fe80::1"), Port: 3, Zone: zoneToString(ifi.Index)}, nil},
-			{"tcp6", "[fe80::1%" + index + "]:4", &TCPAddr{IP: ParseIP("fe80::1"), Port: 4, Zone: index}, nil},
-		}...)
-	}
-	if ips, err := LookupIP("localhost"); err == nil && len(ips) > 1 && supportsIPv4 && supportsIPv6 {
-		resolveTCPAddrTests = append(resolveTCPAddrTests, []resolveTCPAddrTest{
-			{"tcp", "localhost:5", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5}, nil},
-			{"tcp4", "localhost:6", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 6}, nil},
-			{"tcp6", "localhost:7", &TCPAddr{IP: IPv6loopback, Port: 7}, nil},
-		}...)
-	}
-}
-
 func TestResolveTCPAddr(t *testing.T) {
-	for _, tt := range resolveTCPAddrTests {
-		addr, err := ResolveTCPAddr(tt.net, tt.litAddrOrName)
+	origTestHookLookupIP := testHookLookupIP
+	defer func() { testHookLookupIP = origTestHookLookupIP }()
+	testHookLookupIP = lookupLocalhost
+
+	for i, tt := range resolveTCPAddrTests {
+		addr, err := ResolveTCPAddr(tt.network, tt.litAddrOrName)
 		if err != tt.err {
-			t.Fatalf("ResolveTCPAddr(%q, %q) failed: %v", tt.net, tt.litAddrOrName, err)
+			t.Errorf("#%d: %v", i, err)
+		} else if !reflect.DeepEqual(addr, tt.addr) {
+			t.Errorf("#%d: got %#v; want %#v", i, addr, tt.addr)
 		}
-		if !reflect.DeepEqual(addr, tt.addr) {
-			t.Fatalf("ResolveTCPAddr(%q, %q) = %#v, want %#v", tt.net, tt.litAddrOrName, addr, tt.addr)
+		if err != nil {
+			continue
 		}
-		if err == nil {
-			str := addr.String()
-			addr1, err := ResolveTCPAddr(tt.net, str)
-			if err != nil {
-				t.Fatalf("ResolveTCPAddr(%q, %q) [from %q]: %v", tt.net, str, tt.litAddrOrName, err)
-			}
-			if !reflect.DeepEqual(addr1, addr) {
-				t.Fatalf("ResolveTCPAddr(%q, %q) [from %q] = %#v, want %#v", tt.net, str, tt.litAddrOrName, addr1, addr)
-			}
+		rtaddr, err := ResolveTCPAddr(addr.Network(), addr.String())
+		if err != nil {
+			t.Errorf("#%d: %v", i, err)
+		} else if !reflect.DeepEqual(rtaddr, addr) {
+			t.Errorf("#%d: got %#v; want %#v", i, rtaddr, addr)
 		}
 	}
 }
