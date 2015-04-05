@@ -1851,6 +1851,9 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool, 
 	}
 
 	gcargs := []string{"-p", p.ImportPath}
+	if p.Name == "main" {
+		gcargs[1] = "main"
+	}
 	if p.Standard && p.ImportPath == "runtime" {
 		// runtime compiles with a special 6g flag to emit
 		// additional reflect type data.
