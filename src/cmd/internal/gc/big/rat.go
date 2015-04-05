@@ -546,7 +546,7 @@ func (z *Rat) GobDecode(buf []byte) error {
 	}
 	b := buf[0]
 	if b>>1 != ratGobVersion {
-		return errors.New(fmt.Sprintf("Rat.GobDecode: encoding version %d not supported", b>>1))
+		return fmt.Errorf("Rat.GobDecode: encoding version %d not supported", b>>1)
 	}
 	const j = 1 + 4
 	i := j + binary.BigEndian.Uint32(buf[j-4:j])
