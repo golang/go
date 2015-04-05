@@ -7,30 +7,55 @@ package net
 import (
 	"reflect"
 	"runtime"
-	"strings"
 	"testing"
 	"time"
 )
 
+type resolveUDPAddrTest struct {
+	network       string
+	litAddrOrName string
+	addr          *UDPAddr
+	err           error
+}
+
+var resolveUDPAddrTests = []resolveUDPAddrTest{
+	{"udp", "127.0.0.1:0", &UDPAddr{IP: IPv4(127, 0, 0, 1), Port: 0}, nil},
+	{"udp4", "127.0.0.1:65535", &UDPAddr{IP: IPv4(127, 0, 0, 1), Port: 65535}, nil},
+
+	{"udp", "[::1]:0", &UDPAddr{IP: ParseIP("::1"), Port: 0}, nil},
+	{"udp6", "[::1]:65535", &UDPAddr{IP: ParseIP("::1"), Port: 65535}, nil},
+
+	{"udp", "[::1%en0]:1", &UDPAddr{IP: ParseIP("::1"), Port: 1, Zone: "en0"}, nil},
+	{"udp6", "[::1%911]:2", &UDPAddr{IP: ParseIP("::1"), Port: 2, Zone: "911"}, nil},
+
+	{"", "127.0.0.1:0", &UDPAddr{IP: IPv4(127, 0, 0, 1), Port: 0}, nil}, // Go 1.0 behavior
+	{"", "[::1]:0", &UDPAddr{IP: ParseIP("::1"), Port: 0}, nil},         // Go 1.0 behavior
+
+	{"udp", ":12345", &UDPAddr{Port: 12345}, nil},
+
+	{"http", "127.0.0.1:0", nil, UnknownNetworkError("http")},
+}
+
 func TestResolveUDPAddr(t *testing.T) {
-	for _, tt := range resolveTCPAddrTests {
-		net := strings.Replace(tt.net, "tcp", "udp", -1)
-		addr, err := ResolveUDPAddr(net, tt.litAddrOrName)
+	origTestHookLookupIP := testHookLookupIP
+	defer func() { testHookLookupIP = origTestHookLookupIP }()
+	testHookLookupIP = lookupLocalhost
+
+	for i, tt := range resolveUDPAddrTests {
+		addr, err := ResolveUDPAddr(tt.network, tt.litAddrOrName)
 		if err != tt.err {
-			t.Fatalf("ResolveUDPAddr(%q, %q) failed: %v", net, tt.litAddrOrName, err)
+			t.Errorf("#%d: %v", i, err)
+		} else if !reflect.DeepEqual(addr, tt.addr) {
+			t.Errorf("#%d: got %#v; want %#v", i, addr, tt.addr)
 		}
-		if !reflect.DeepEqual(addr, (*UDPAddr)(tt.addr)) {
-			t.Fatalf("ResolveUDPAddr(%q, %q) = %#v, want %#v", net, tt.litAddrOrName, addr, tt.addr)
+		if err != nil {
+			continue
 		}
-		if err == nil {
-			str := addr.String()
-			addr1, err := ResolveUDPAddr(net, str)
-			if err != nil {
-				t.Fatalf("ResolveUDPAddr(%q, %q) [from %q]: %v", net, str, tt.litAddrOrName, err)
-			}
-			if !reflect.DeepEqual(addr1, addr) {
-				t.Fatalf("ResolveUDPAddr(%q, %q) [from %q] = %#v, want %#v", net, str, tt.litAddrOrName, addr1, addr)
-			}
+		rtaddr, err := ResolveUDPAddr(addr.Network(), addr.String())
+		if err != nil {
+			t.Errorf("#%d: %v", i, err)
+		} else if !reflect.DeepEqual(rtaddr, addr) {
+			t.Errorf("#%d: got %#v; want %#v", i, rtaddr, addr)
 		}
 	}
 }
