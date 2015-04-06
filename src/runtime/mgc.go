@@ -434,6 +434,8 @@ func (c *gcControllerState) revise() {
 // endCycle updates the GC controller state at the end of the
 // concurrent part of the GC cycle.
 func (c *gcControllerState) endCycle() {
+	h_t := c.triggerRatio // For debugging
+
 	// Proportional response gain for the trigger controller. Must
 	// be in [0, 1]. Lower values smooth out transient effects but
 	// take longer to respond to phase changes. Higher values
@@ -487,6 +489,32 @@ func (c *gcControllerState) endCycle() {
 
 	// Update EWMA of recent scan work ratios.
 	c.workRatioAvg = workRatioWeight*workRatio + (1-workRatioWeight)*c.workRatioAvg
+
+	if debug.gcpacertrace > 0 {
+		// Print controller state in terms of the design
+		// document.
+		H_m_prev := memstats.heap_marked
+		H_T := memstats.next_gc
+		h_a := actualGrowthRatio
+		H_a := memstats.heap_live
+		h_g := goalGrowthRatio
+		H_g := int64(float64(H_m_prev) * (1 + h_g))
+		u_a := utilization
+		u_g := gcGoalUtilization
+		W_a := c.scanWork
+		w_a := workRatio
+		w_ewma := c.workRatioAvg
+		print("pacer: H_m_prev=", H_m_prev,
+			" h_t=", h_t, " H_T=", H_T,
+			" h_a=", h_a, " H_a=", H_a,
+			" h_g=", h_g, " H_g=", H_g,
+			" u_a=", u_a, " u_g=", u_g,
+			" W_a=", W_a, " w_a=", w_a, " w_ewma=", w_ewma,
+			" goalΔ=", goalGrowthRatio-h_t,
+			" actualΔ=", h_a-h_t,
+			" u_a/u_g=", u_a/u_g,
+			"\n")
+	}
 }
 
 // findRunnableGCWorker returns the background mark worker for _p_ if it
