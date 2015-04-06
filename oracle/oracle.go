@@ -278,6 +278,9 @@ func parseQueryPos(lprog *loader.Program, posFlag string, needExact bool) (*quer
 // allowErrors causes type errors to be silently ignored.
 // (Not suitable if SSA construction follows.)
 func allowErrors(lconf *loader.Config) {
+	ctxt := *lconf.Build // copy
+	ctxt.CgoEnabled = false
+	lconf.Build = &ctxt
 	lconf.AllowErrors = true
 	lconf.TypeChecker.Error = func(err error) {}
 }
