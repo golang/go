@@ -317,6 +317,7 @@ var debug struct {
 	wbshadow       int32
 	gccheckmark    int32
 	sbrk           int32
+	gcpacertrace   int32
 }
 
 var dbgvars = []dbgVar{
@@ -331,6 +332,7 @@ var dbgvars = []dbgVar{
 	{"wbshadow", &debug.wbshadow},
 	{"gccheckmark", &debug.gccheckmark},
 	{"sbrk", &debug.sbrk},
+	{"gcpacertrace", &debug.gcpacertrace},
 }
 
 func parsedebugvars() {
