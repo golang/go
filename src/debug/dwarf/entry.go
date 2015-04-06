@@ -335,9 +335,18 @@ func (i Class) GoString() string {
 //	v, ok := e.Val(AttrSibling).(int64)
 //
 func (e *Entry) Val(a Attr) interface{} {
-	for _, f := range e.Field {
+	if f := e.AttrField(a); f != nil {
+		return f.Val
+	}
+	return nil
+}
+
+// AttrField returns the Field associated with attribute Attr in
+// Entry, or nil if there is no such attribute.
+func (e *Entry) AttrField(a Attr) *Field {
+	for i, f := range e.Field {
 		if f.Attr == a {
-			return f.Val
+			return &e.Field[i]
 		}
 	}
 	return nil
