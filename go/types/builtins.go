@@ -10,7 +10,6 @@ import (
 	"go/ast"
 	"go/token"
 
-	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/exact"
 )
 
@@ -608,7 +607,16 @@ func implicitArrayDeref(typ Type) Type {
 	return typ
 }
 
-func unparen(x ast.Expr) ast.Expr { return astutil.Unparen(x) }
+// unparen returns e with any enclosing parentheses stripped.
+func unparen(e ast.Expr) ast.Expr {
+	for {
+		p, ok := e.(*ast.ParenExpr)
+		if !ok {
+			return e
+		}
+		e = p.X
+	}
+}
 
 func (check *Checker) complexArg(x *operand) bool {
 	t, _ := x.typ.Underlying().(*Basic)
