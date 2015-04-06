@@ -182,6 +182,17 @@ func (state *decoderState) decodeInt() int64 {
 	return int64(x >> 1)
 }
 
+// getLength decodes the next uint and makes sure it is a possible
+// size for a data item that follows, which means it must fit in a
+// non-negative int and fit in the buffer.
+func (state *decoderState) getLength() (int, bool) {
+	n := int(state.decodeUint())
+	if n < 0 || state.b.Len() < n || tooBig <= n {
+		return 0, false
+	}
+	return n, true
+}
+
 // decOp is the signature of a decoding operator for a given type.
 type decOp func(i *decInstr, state *decoderState, v reflect.Value)
 
@@ -363,16 +374,9 @@ func decComplex128(i *decInstr, state *decoderState, value reflect.Value) {
 // describing the data.
 // uint8 slices are encoded as an unsigned count followed by the raw bytes.
 func decUint8Slice(i *decInstr, state *decoderState, value reflect.Value) {
-	u := state.decodeUint()
-	n := int(u)
-	if n < 0 || uint64(n) != u {
-		errorf("length of %s exceeds input size (%d bytes)", value.Type(), u)
-	}
-	if n > state.b.Len() {
-		errorf("%s data too long for buffer: %d", value.Type(), n)
-	}
-	if n > tooBig {
-		errorf("byte slice too big: %d", n)
+	n, ok := state.getLength()
+	if !ok {
+		errorf("bad %s slice length: %d", value.Type(), n)
 	}
 	if value.Cap() < n {
 		value.Set(reflect.MakeSlice(value.Type(), n, n))
@@ -388,13 +392,9 @@ func decUint8Slice(i *decInstr, state *decoderState, value reflect.Value) {
 // describing the data.
 // Strings are encoded as an unsigned count followed by the raw bytes.
 func decString(i *decInstr, state *decoderState, value reflect.Value) {
-	u := state.decodeUint()
-	n := int(u)
-	if n < 0 || uint64(n) != u || n > state.b.Len() {
-		errorf("length of %s exceeds input size (%d bytes)", value.Type(), u)
-	}
-	if n > state.b.Len() {
-		errorf("%s data too long for buffer: %d", value.Type(), n)
+	n, ok := state.getLength()
+	if !ok {
+		errorf("bad %s slice length: %d", value.Type(), n)
 	}
 	// Read the data.
 	data := make([]byte, n)
@@ -406,7 +406,11 @@ func decString(i *decInstr, state *decoderState, value reflect.Value) {
 
 // ignoreUint8Array skips over the data for a byte slice value with no destination.
 func ignoreUint8Array(i *decInstr, state *decoderState, value reflect.Value) {
-	b := make([]byte, state.decodeUint())
+	n, ok := state.getLength()
+	if !ok {
+		errorf("slice length too large")
+	}
+	b := make([]byte, n)
 	state.b.Read(b)
 }
 
@@ -688,8 +692,8 @@ func (dec *Decoder) ignoreInterface(state *decoderState) {
 		error_(dec.err)
 	}
 	// At this point, the decoder buffer contains a delimited value. Just toss it.
-	n := int(state.decodeUint())
-	if n < 0 || state.b.Len() < n {
+	n, ok := state.getLength()
+	if !ok {
 		errorf("bad interface encoding: length too large for buffer")
 	}
 	state.b.Drop(n)
