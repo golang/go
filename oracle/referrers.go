@@ -10,7 +10,6 @@ import (
 	"go/ast"
 	"go/token"
 	"io/ioutil"
-	"os"
 	"sort"
 
 	"golang.org/x/tools/go/loader"
@@ -64,6 +63,9 @@ func referrers(q *Query) error {
 		// If the identifier is exported, we must load all packages that
 		// depend transitively upon the package that defines it.
 		//
+		// TODO(adonovan): we should do this for PkgName objects
+		// too, even though they're lowercase.
+		//
 		// TODO(adonovan): opt: skip this step if obj.Pkg() is a test or
 		// main package.
 		if pass2 || !obj.Exported() {
@@ -71,13 +73,8 @@ func referrers(q *Query) error {
 		}
 
 		// Scan the workspace and build the import graph.
-		_, rev, errors := importgraph.Build(q.Build)
-		if len(errors) > 0 {
-			for path, err := range errors {
-				fmt.Fprintf(os.Stderr, "Package %q: %s.\n", path, err)
-			}
-			return fmt.Errorf("failed to scan import graph for workspace")
-		}
+		// Ignore broken packages.
+		_, rev, _ := importgraph.Build(q.Build)
 
 		// Re-load the larger program.
 		// Create a new file set so that ...
