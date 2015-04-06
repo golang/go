@@ -9,3 +9,9 @@ TEXT _rt0_arm_android(SB),NOSPLIT,$-4
 	MOVW		$4(R13), R1    // argv
 	MOVW		$_rt0_arm_linux1(SB), R4
 	B		(R4)
+
+// This symbol is called when a shared library is loaded.
+TEXT _rt0_arm_android_lib(SB),NOSPLIT,$0
+	// TODO(crawshaw): initialize runtime.
+	// At the moment this is done in mobile/app/android.c:init_go_runtime
+	RET
