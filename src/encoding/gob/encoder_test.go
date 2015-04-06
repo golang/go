@@ -954,3 +954,17 @@ func TestErrorForHugeSlice(t *testing.T) {
 		t.Fatalf("decode: expected slice too big error, got %s", err.Error())
 	}
 }
+
+// Don't crash, just give error with corrupted length.
+// Issue 10270.
+func TestErrorBadDrop(t *testing.T) {
+	data := []byte{0x05, 0x10, 0x00, 0x28, 0x55, 0x7b, 0x02, 0x02, 0x7f, 0x83, 0x02}
+	d := NewDecoder(bytes.NewReader(data))
+	err := d.Decode(nil)
+	if err == nil {
+		t.Fatal("decode: no error")
+	}
+	if !strings.Contains(err.Error(), "interface encoding") {
+		t.Fatalf("decode: expected interface encoding error, got %s", err.Error())
+	}
+}

@@ -688,7 +688,11 @@ func (dec *Decoder) ignoreInterface(state *decoderState) {
 		error_(dec.err)
 	}
 	// At this point, the decoder buffer contains a delimited value. Just toss it.
-	state.b.Drop(int(state.decodeUint()))
+	n := int(state.decodeUint())
+	if n < 0 || state.b.Len() < n {
+		errorf("bad interface encoding: length too large for buffer")
+	}
+	state.b.Drop(n)
 }
 
 // decodeGobDecoder decodes something implementing the GobDecoder interface.
