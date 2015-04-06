@@ -677,7 +677,7 @@ outer:
 	fmt.Fprintf(ftable, "}\n")
 
 	ftable.WriteRune('\n')
-	fmt.Fprintf(ftable, "const %sEofCode = 1\n", prefix)
+	fmt.Fprintf(ftable, "const %sEOFCode = 1\n", prefix)
 	fmt.Fprintf(ftable, "const %sErrCode = 2\n", prefix)
 	fmt.Fprintf(ftable, "const %sMaxDepth = %v\n", prefix, stacksize)
 
@@ -3423,7 +3423,7 @@ $$default:
 			if $$Debug >= 2 {
 				__yyfmt__.Printf("error recovery discards %s\n", $$Tokname($$token))
 			}
-			if $$token == $$EofCode {
+			if $$token == $$EOFCode {
 				goto ret1
 			}
 			$$char = -1
