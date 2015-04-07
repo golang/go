@@ -1091,6 +1091,14 @@ func cgen_callmeth(n *Node, proc int) {
 	cgen_call(&n2, proc)
 }
 
+// CgenTemp creates a temporary node, assigns n to it, and returns it.
+func CgenTemp(n *Node) *Node {
+	var tmp Node
+	Tempname(&tmp, n.Type)
+	Cgen(n, &tmp)
+	return &tmp
+}
+
 func checklabels() {
 	var l *NodeList
 
