@@ -410,9 +410,6 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 		OLABEL:
 		goto ret
 
-	case OGETG:
-		Yyerror("racewalk: OGETG can happen only in runtime which we don't instrument")
-
 		// does not require instrumentation
 	case OPRINT, // don't bother instrumenting it
 		OPRINTN,     // don't bother instrumenting it
@@ -428,6 +425,11 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 		ONONAME,
 		OLITERAL,
 		OSLICESTR,
+		// g is goroutine local so cannot race. Although we don't instrument
+		// the runtime package, through inlining the call to runtime.getg can
+		// appear in non runtime packages, for example, after inlining
+		// runtime.LockOSThread.
+		OGETG,
 		// always preceded by bounds checking, avoid double instrumentation.
 		OTYPESW: // ignored by code generation, do not instrument.
 		goto ret
