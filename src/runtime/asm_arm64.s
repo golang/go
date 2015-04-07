@@ -801,6 +801,56 @@ eq:
 	MOVB	R3, ret+16(FP)
 	RET
 
+TEXT runtime·cmpstring(SB),NOSPLIT,$0-40
+	MOVD	s1_base+0(FP), R2
+	MOVD	s1_len+8(FP), R0
+	MOVD	s2_base+16(FP), R3
+	MOVD	s2_len+24(FP), R1
+	BL	runtime·cmpbody(SB)
+	MOVD	R8, ret+32(FP)
+	RET
+
+TEXT bytes·Compare(SB),NOSPLIT,$0-56
+	MOVD	s1+0(FP), R2
+	MOVD	s1+8(FP), R0
+	MOVD	s2+24(FP), R3
+	MOVD	s2+32(FP), R1
+	BL	runtime·cmpbody(SB)
+	MOVD	R8, ret+48(FP)
+	RET
+
+// On entry:
+// R0 is the length of s1
+// R1 is the length of s2
+// R2 points to the start of s1
+// R3 points to the start of s2
+//
+// On exit:
+// R8 is -1/0/+1
+// R5, R4, and R6 are clobbered
+TEXT runtime·cmpbody<>(SB),NOSPLIT,$-4-0
+	CMP	R0, R1
+	CSEL    LT, R1, R0, R6 // R6 is min(R0, R1)
+
+	ADD	R2, R6	// R2 is current byte in s1, R6 is last byte in s1 to compare
+loop:
+	CMP	R2, R6
+	BEQ	samebytes // all compared bytes were the same; compare lengths
+	MOVBU.P	1(R2), R4
+	MOVBU.P	1(R3), R5
+	CMP	R4, R5
+	BEQ	loop
+	// bytes differed
+	MOVD	$1, R8
+	CSNEG	LT, R8, R8, R8
+	RET
+samebytes:
+	MOVD	$1, R8
+	CMP	R0, R1
+	CSNEG	LT, R8, R8, R8
+	CSEL	EQ, ZR, R8, R8
+	RET
+
 // eqstring tests whether two strings are equal.
 // The compiler guarantees that strings passed
 // to eqstring have equal length.
