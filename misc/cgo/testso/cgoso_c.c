@@ -4,6 +4,8 @@
 
 // +build ignore
 
+#include "cgoso_c.h"
+
 #ifdef WIN32
 // A Windows DLL is unable to call an arbitrary function in
 // the main executable. Work around that by making the main
@@ -28,3 +30,5 @@ void sofunc(void)
 {
 	goCallback();
 }
+
+const char *exported_var = "Hello world";

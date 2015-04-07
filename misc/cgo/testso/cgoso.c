@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "cgoso_c.h"
 #include "_cgo_export.h"
 
 #ifdef WIN32
@@ -12,3 +13,7 @@ void init() {
 #else
 void init() {}
 #endif
+
+const char* getVar() {
+    return exported_var;
+}
