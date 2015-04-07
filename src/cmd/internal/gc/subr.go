@@ -125,13 +125,6 @@ func Yyerror(format string, args ...interface{}) {
 	if strings.HasPrefix(msg, "syntax error") {
 		nsyntaxerrors++
 
-		yystate := theparser.(*yyParserImpl).state()
-		yychar := theparser.Lookahead()
-
-		if Debug['x'] != 0 {
-			fmt.Printf("yyerror: yystate=%d yychar=%d\n", yystate, yychar)
-		}
-
 		// An unexpected EOF caused a syntax error. Use the previous
 		// line number since getc generated a fake newline character.
 		if curio.eofnl != 0 {
@@ -143,14 +136,6 @@ func Yyerror(format string, args ...interface{}) {
 			return
 		}
 		yyerror_lastsyntax = int(lexlineno)
-
-		// look for parse state-specific errors in list (see go.errors).
-		for i := range yymsg {
-			if yymsg[i].yystate == yystate && yymsg[i].yychar == yychar {
-				yyerrorl(int(lexlineno), "syntax error: %s", yymsg[i].msg)
-				return
-			}
-		}
 
 		// plain "syntax error" gets "near foo" added
 		if msg == "syntax error" {
