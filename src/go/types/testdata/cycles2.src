@@ -1,0 +1,118 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+import "unsafe"
+
+// Test case for issue 5090
+
+type t interface {
+	f(u)
+}
+
+type u interface {
+	t
+}
+
+func _() {
+	var t t
+	var u u
+
+	t.f(t)
+	t.f(u)
+	
+	u.f(t)
+	u.f(u)
+}
+
+
+// Test case for issue 6589.
+
+type A interface {
+	a() interface {
+		AB
+	}
+}
+
+type B interface {
+	a() interface {
+		AB
+	}
+}
+
+type AB interface {
+	a() interface {
+		A
+		B /* ERROR a redeclared */
+	}
+	b() interface {
+		A
+		B /* ERROR a redeclared */
+	}
+}
+
+var x AB
+var y interface {
+	A
+	B /* ERROR a redeclared */
+}
+var _ = x /* ERROR cannot compare */ == y
+
+
+// Test case for issue 6638.
+
+type T interface {
+	m() [T /* ERROR no value */ (nil).m()[0]]int
+}
+
+// Variations of this test case.
+
+type T1 interface {
+	m() [x1 /* ERROR no value */ .m()[0]]int
+}
+
+var x1 T1
+
+type T2 interface {
+	m() [len(x2 /* ERROR no value */ .m())]int
+}
+
+var x2 T2
+
+type T3 interface {
+	m() [unsafe.Sizeof(x3.m)]int
+}
+
+var x3 T3
+
+// The test case below should also report an error for
+// the cast inside the T4 interface (like it does for the
+// variable initialization). The reason why it does not is
+// that inside T4, the method x4.m depends on T4 which is not
+// fully set up yet. The x4.m method happens to have an empty
+// signature which is why the cast is permitted.
+// TODO(gri) Consider marking methods as incomplete and provide
+// a better error message in that case.
+
+type T4 interface {
+	m() [unsafe.Sizeof(cast4(x4.m))]int
+}
+
+var x4 T4
+var _ = cast4(x4 /* ERROR cannot convert */.m)
+
+type cast4 func()
+
+// This test is symmetric to the T4 case: Here the cast is
+// "correct", but it doesn't work inside the T5 interface.
+
+type T5 interface {
+	m() [unsafe.Sizeof(cast5(x5 /* ERROR cannot convert */ .m))]int
+}
+
+var x5 T5
+var _ = cast5(x5.m)
+
+type cast5 func() [0]int
