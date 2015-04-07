@@ -1796,10 +1796,8 @@ func getinargx(t *Type) *Type {
 	return *getinarg(t)
 }
 
-/*
- * return !(op)
- * eg == <=> !=
- */
+// Brcom returns !(op).
+// For example, Brcom(==) is !=.
 func Brcom(a int) int {
 	switch a {
 	case OEQ:
@@ -1815,15 +1813,12 @@ func Brcom(a int) int {
 	case OGE:
 		return OLT
 	}
-
-	Fatal("brcom: no com for %v\n", Oconv(int(a), 0))
+	Fatal("brcom: no com for %v\n", Oconv(a, 0))
 	return a
 }
 
-/*
- * return reverse(op)
- * eg a op b <=> b r(op) a
- */
+// Brrev returns reverse(op).
+// For example, Brrev(<) is >.
 func Brrev(a int) int {
 	switch a {
 	case OEQ:
@@ -1839,8 +1834,7 @@ func Brrev(a int) int {
 	case OGE:
 		return OLE
 	}
-
-	Fatal("brcom: no rev for %v\n", Oconv(int(a), 0))
+	Fatal("brrev: no rev for %v\n", Oconv(a, 0))
 	return a
 }
 

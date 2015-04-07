@@ -776,8 +776,8 @@ type Arch struct {
 
 	AddIndex     func(*Node, int64, *Node) bool // optional
 	Betypeinit   func()
-	Bgen_float   func(*Node, int, int, *obj.Prog) // optional
-	Cgen64       func(*Node, *Node)               // only on 32-bit systems
+	Bgen_float   func(*Node, bool, int, *obj.Prog) // optional
+	Cgen64       func(*Node, *Node)                // only on 32-bit systems
 	Cgenindex    func(*Node, *Node, bool) *obj.Prog
 	Cgen_bmul    func(int, *Node, *Node, *Node) bool
 	Cgen_float   func(*Node, *Node) // optional

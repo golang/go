@@ -738,42 +738,74 @@ abop: // asymmetric binary
 	return
 }
 
-func bgen_float(n *gc.Node, true_ int, likely int, to *obj.Prog) {
+func bgen_float(n *gc.Node, wantTrue bool, likely int, to *obj.Prog) {
 	nl := n.Left
 	nr := n.Right
 	a := int(n.Op)
-	if true_ == 0 {
+	if !wantTrue {
 		// brcom is not valid on floats when NaN is involved.
 		p1 := gc.Gbranch(obj.AJMP, nil, 0)
-
 		p2 := gc.Gbranch(obj.AJMP, nil, 0)
 		gc.Patch(p1, gc.Pc)
 
 		// No need to avoid re-genning ninit.
-		bgen_float(n, 1, -likely, p2)
+		bgen_float(n, true, -likely, p2)
 
 		gc.Patch(gc.Gbranch(obj.AJMP, nil, 0), to)
 		gc.Patch(p2, gc.Pc)
 		return
 	}
 
-	var tmp gc.Node
-	var et int
-	var n2 gc.Node
-	var ax gc.Node
-	if !gc.Thearch.Use387 {
-		if !nl.Addable {
-			var n1 gc.Node
-			gc.Tempname(&n1, nl.Type)
-			gc.Cgen(nl, &n1)
-			nl = &n1
+	if gc.Thearch.Use387 {
+		a = gc.Brrev(a) // because the args are stacked
+		if a == gc.OGE || a == gc.OGT {
+			// only < and <= work right with NaN; reverse if needed
+			nl, nr = nr, nl
+			a = gc.Brrev(a)
 		}
 
+		var ax, n2, tmp gc.Node
+		gc.Nodreg(&tmp, nr.Type, x86.REG_F0)
+		gc.Nodreg(&n2, nr.Type, x86.REG_F0+1)
+		gc.Nodreg(&ax, gc.Types[gc.TUINT16], x86.REG_AX)
+		if gc.Simsimtype(nr.Type) == gc.TFLOAT64 {
+			if nl.Ullman > nr.Ullman {
+				gc.Cgen(nl, &tmp)
+				gc.Cgen(nr, &tmp)
+				gins(x86.AFXCHD, &tmp, &n2)
+			} else {
+				gc.Cgen(nr, &tmp)
+				gc.Cgen(nl, &tmp)
+			}
+
+			gins(x86.AFUCOMIP, &tmp, &n2)
+			gins(x86.AFMOVDP, &tmp, &tmp) // annoying pop but still better than STSW+SAHF
+		} else {
+			// TODO(rsc): The moves back and forth to memory
+			// here are for truncating the value to 32 bits.
+			// This handles 32-bit comparison but presumably
+			// all the other ops have the same problem.
+			// We need to figure out what the right general
+			// solution is, besides telling people to use float64.
+			var t1 gc.Node
+			gc.Tempname(&t1, gc.Types[gc.TFLOAT32])
+
+			var t2 gc.Node
+			gc.Tempname(&t2, gc.Types[gc.TFLOAT32])
+			gc.Cgen(nr, &t1)
+			gc.Cgen(nl, &t2)
+			gmove(&t2, &tmp)
+			gins(x86.AFCOMFP, &t1, &tmp)
+			gins(x86.AFSTSW, nil, &ax)
+			gins(x86.ASAHF, nil, nil)
+		}
+	} else {
+		// Not 387
+		if !nl.Addable {
+			nl = gc.CgenTemp(nl)
+		}
 		if !nr.Addable {
-			var tmp gc.Node
-			gc.Tempname(&tmp, nr.Type)
-			gc.Cgen(nr, &tmp)
-			nr = &tmp
+			nr = gc.CgenTemp(nr)
 		}
 
 		var n2 gc.Node
@@ -790,10 +822,7 @@ func bgen_float(n *gc.Node, true_ int, likely int, to *obj.Prog) {
 
 		if a == gc.OGE || a == gc.OGT {
 			// only < and <= work right with NaN; reverse if needed
-			r := nr
-
-			nr = nl
-			nl = r
+			nl, nr = nr, nl
 			a = gc.Brrev(a)
 		}
 
@@ -802,75 +831,21 @@ func bgen_float(n *gc.Node, true_ int, likely int, to *obj.Prog) {
 			gc.Regfree(nl)
 		}
 		gc.Regfree(nr)
-		goto ret
-	} else {
-		goto x87
 	}
 
-x87:
-	a = gc.Brrev(a) // because the args are stacked
-	if a == gc.OGE || a == gc.OGT {
-		// only < and <= work right with NaN; reverse if needed
-		r := nr
-
-		nr = nl
-		nl = r
-		a = gc.Brrev(a)
-	}
-
-	gc.Nodreg(&tmp, nr.Type, x86.REG_F0)
-	gc.Nodreg(&n2, nr.Type, x86.REG_F0+1)
-	gc.Nodreg(&ax, gc.Types[gc.TUINT16], x86.REG_AX)
-	et = gc.Simsimtype(nr.Type)
-	if et == gc.TFLOAT64 {
-		if nl.Ullman > nr.Ullman {
-			gc.Cgen(nl, &tmp)
-			gc.Cgen(nr, &tmp)
-			gins(x86.AFXCHD, &tmp, &n2)
-		} else {
-			gc.Cgen(nr, &tmp)
-			gc.Cgen(nl, &tmp)
-		}
-
-		gins(x86.AFUCOMIP, &tmp, &n2)
-		gins(x86.AFMOVDP, &tmp, &tmp) // annoying pop but still better than STSW+SAHF
-	} else {
-		// TODO(rsc): The moves back and forth to memory
-		// here are for truncating the value to 32 bits.
-		// This handles 32-bit comparison but presumably
-		// all the other ops have the same problem.
-		// We need to figure out what the right general
-		// solution is, besides telling people to use float64.
-		var t1 gc.Node
-		gc.Tempname(&t1, gc.Types[gc.TFLOAT32])
-
-		var t2 gc.Node
-		gc.Tempname(&t2, gc.Types[gc.TFLOAT32])
-		gc.Cgen(nr, &t1)
-		gc.Cgen(nl, &t2)
-		gmove(&t2, &tmp)
-		gins(x86.AFCOMFP, &t1, &tmp)
-		gins(x86.AFSTSW, nil, &ax)
-		gins(x86.ASAHF, nil, nil)
-	}
-
-	goto ret
-
-ret:
-	if a == gc.OEQ {
+	switch a {
+	case gc.OEQ:
 		// neither NE nor P
 		p1 := gc.Gbranch(x86.AJNE, nil, -likely)
-
 		p2 := gc.Gbranch(x86.AJPS, nil, -likely)
 		gc.Patch(gc.Gbranch(obj.AJMP, nil, 0), to)
 		gc.Patch(p1, gc.Pc)
 		gc.Patch(p2, gc.Pc)
-	} else if a == gc.ONE {
+	case gc.ONE:
 		// either NE or P
 		gc.Patch(gc.Gbranch(x86.AJNE, nil, likely), to)
-
 		gc.Patch(gc.Gbranch(x86.AJPS, nil, likely), to)
-	} else {
+	default:
 		gc.Patch(gc.Gbranch(optoas(a, nr.Type), nil, likely), to)
 	}
 }
