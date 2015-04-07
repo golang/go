@@ -376,6 +376,12 @@ func (t *tester) cgoTest() error {
 		return cmd.Run()
 	}
 
+	cmd := t.dirCmd("misc/cgo/test", "go", "test", "-ldflags", "-linkmode=auto")
+	cmd.Env = env
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
 	if t.gohostos != "dragonfly" {
 		// linkmode=internal fails on dragonfly since errno is a TLS relocation.
 		cmd := t.dirCmd("misc/cgo/test", "go", "test", "-ldflags", "-linkmode=internal")
