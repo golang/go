@@ -119,29 +119,29 @@ func raceinit() uintptr {
 	// Round data segment to page boundaries, because it's used in mmap().
 	start := ^uintptr(0)
 	end := uintptr(0)
-	if start > themoduledata.noptrdata {
-		start = themoduledata.noptrdata
+	if start > firstmoduledata.noptrdata {
+		start = firstmoduledata.noptrdata
 	}
-	if start > themoduledata.data {
-		start = themoduledata.data
+	if start > firstmoduledata.data {
+		start = firstmoduledata.data
 	}
-	if start > themoduledata.noptrbss {
-		start = themoduledata.noptrbss
+	if start > firstmoduledata.noptrbss {
+		start = firstmoduledata.noptrbss
 	}
-	if start > themoduledata.bss {
-		start = themoduledata.bss
+	if start > firstmoduledata.bss {
+		start = firstmoduledata.bss
 	}
-	if end < themoduledata.enoptrdata {
-		end = themoduledata.enoptrdata
+	if end < firstmoduledata.enoptrdata {
+		end = firstmoduledata.enoptrdata
 	}
-	if end < themoduledata.edata {
-		end = themoduledata.edata
+	if end < firstmoduledata.edata {
+		end = firstmoduledata.edata
 	}
-	if end < themoduledata.enoptrbss {
-		end = themoduledata.enoptrbss
+	if end < firstmoduledata.enoptrbss {
+		end = firstmoduledata.enoptrbss
 	}
-	if end < themoduledata.ebss {
-		end = themoduledata.ebss
+	if end < firstmoduledata.ebss {
+		end = firstmoduledata.ebss
 	}
 	size := round(end-start, _PageSize)
 	racecall(&__tsan_map_shadow, start, size, 0, 0)
