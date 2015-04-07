@@ -178,6 +178,7 @@ func TestParseMultipartForm(t *testing.T) {
 }
 
 func TestRedirect(t *testing.T) {
+	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		switch r.URL.Path {
 		case "/":

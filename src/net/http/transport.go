@@ -279,6 +279,7 @@ func (t *Transport) CloseIdleConnections() {
 func (t *Transport) CancelRequest(req *Request) {
 	t.reqMu.Lock()
 	cancel := t.reqCanceler[req]
+	delete(t.reqCanceler, req)
 	t.reqMu.Unlock()
 	if cancel != nil {
 		cancel()
@@ -805,6 +806,7 @@ type persistConn struct {
 	numExpectedResponses int
 	closed               bool // whether conn has been closed
 	broken               bool // an error has happened on this connection; marked broken so it's not reused.
+	canceled             bool // whether this conn was broken due a CancelRequest
 	// mutateHeaderFunc is an optional func to modify extra
 	// headers on each outbound request before it's written. (the
 	// original Request given to RoundTrip is not modified)
@@ -819,8 +821,18 @@ func (pc *persistConn) isBroken() bool {
 	return b
 }
 
+// isCanceled reports whether this connection was closed due to CancelRequest.
+func (pc *persistConn) isCanceled() bool {
+	pc.lk.Lock()
+	defer pc.lk.Unlock()
+	return pc.canceled
+}
+
 func (pc *persistConn) cancelRequest() {
-	pc.conn.Close()
+	pc.lk.Lock()
+	defer pc.lk.Unlock()
+	pc.canceled = true
+	pc.closeLocked()
 }
 
 var remoteSideClosedFunc func(error) bool // or nil to use default
@@ -836,8 +848,13 @@ func remoteSideClosed(err error) bool {
 }
 
 func (pc *persistConn) readLoop() {
-	alive := true
+	// eofc is used to block http.Handler goroutines reading from Response.Body
+	// at EOF until this goroutines has (potentially) added the connection
+	// back to the idle pool.
+	eofc := make(chan struct{})
+	defer close(eofc) // unblock reader on errors
 
+	alive := true
 	for alive {
 		pb, err := pc.br.Peek(1)
 
@@ -895,22 +912,22 @@ func (pc *persistConn) readLoop() {
 			alive = false
 		}
 
-		var waitForBodyRead chan bool
+		var waitForBodyRead chan bool // channel is nil when there's no body
 		if hasBody {
 			waitForBodyRead = make(chan bool, 2)
 			resp.Body.(*bodyEOFSignal).earlyCloseFn = func() error {
-				// Sending false here sets alive to
-				// false and closes the connection
-				// below.
 				waitForBodyRead <- false
 				return nil
 			}
-			resp.Body.(*bodyEOFSignal).fn = func(err error) {
-				waitForBodyRead <- alive &&
-					err == nil &&
-					!pc.sawEOF &&
-					pc.wroteRequest() &&
-					pc.t.putIdleConn(pc)
+			resp.Body.(*bodyEOFSignal).fn = func(err error) error {
+				isEOF := err == io.EOF
+				waitForBodyRead <- isEOF
+				if isEOF {
+					<-eofc // see comment at top
+				} else if err != nil && pc.isCanceled() {
+					return errRequestCanceled
+				}
+				return err
 			}
 		}
 
@@ -924,28 +941,33 @@ func (pc *persistConn) readLoop() {
 		// on the response channel before erroring out.
 		rc.ch <- responseAndError{resp, err}
 
-		if alive && !hasBody {
-			alive = !pc.sawEOF &&
-				pc.wroteRequest() &&
-				pc.t.putIdleConn(pc)
-		}
-
-		// Wait for the just-returned response body to be fully consumed
-		// before we race and peek on the underlying bufio reader.
-		if waitForBodyRead != nil {
+		if hasBody {
+			// To avoid a race, wait for the just-returned
+			// response body to be fully consumed before peek on
+			// the underlying bufio reader.
 			select {
-			case alive = <-waitForBodyRead:
+			case bodyEOF := <-waitForBodyRead:
+				pc.t.setReqCanceler(rc.req, nil) // before pc might return to idle pool
+				alive = alive &&
+					bodyEOF &&
+					!pc.sawEOF &&
+					pc.wroteRequest() &&
+					pc.t.putIdleConn(pc)
+				if bodyEOF {
+					eofc <- struct{}{}
+				}
 			case <-pc.closech:
 				alive = false
 			}
-		}
-
-		pc.t.setReqCanceler(rc.req, nil)
-
-		if !alive {
-			pc.close()
+		} else {
+			pc.t.setReqCanceler(rc.req, nil) // before pc might return to idle pool
+			alive = alive &&
+				!pc.sawEOF &&
+				pc.wroteRequest() &&
+				pc.t.putIdleConn(pc)
 		}
 	}
+	pc.close()
 }
 
 func (pc *persistConn) writeLoop() {
@@ -1035,6 +1057,7 @@ func (e *httpError) Temporary() bool { return true }
 
 var errTimeout error = &httpError{err: "net/http: timeout awaiting response headers", timeout: true}
 var errClosed error = &httpError{err: "net/http: transport closed before response was received"}
+var errRequestCanceled = errors.New("net/http: request canceled")
 
 var testHookPersistConnClosedGotRes func() // nil except for tests
 
@@ -1183,16 +1206,18 @@ func canonicalAddr(url *url.URL) string {
 
 // bodyEOFSignal wraps a ReadCloser but runs fn (if non-nil) at most
 // once, right before its final (error-producing) Read or Close call
-// returns. If earlyCloseFn is non-nil and Close is called before
-// io.EOF is seen, earlyCloseFn is called instead of fn, and its
-// return value is the return value from Close.
+// returns. fn should return the new error to return from Read or Close.
+//
+// If earlyCloseFn is non-nil and Close is called before io.EOF is
+// seen, earlyCloseFn is called instead of fn, and its return value is
+// the return value from Close.
 type bodyEOFSignal struct {
 	body         io.ReadCloser
-	mu           sync.Mutex   // guards following 4 fields
-	closed       bool         // whether Close has been called
-	rerr         error        // sticky Read error
-	fn           func(error)  // error will be nil on Read io.EOF
-	earlyCloseFn func() error // optional alt Close func used if io.EOF not seen
+	mu           sync.Mutex        // guards following 4 fields
+	closed       bool              // whether Close has been called
+	rerr         error             // sticky Read error
+	fn           func(error) error // err will be nil on Read io.EOF
+	earlyCloseFn func() error      // optional alt Close func used if io.EOF not seen
 }
 
 func (es *bodyEOFSignal) Read(p []byte) (n int, err error) {
@@ -1213,7 +1238,7 @@ func (es *bodyEOFSignal) Read(p []byte) (n int, err error) {
 		if es.rerr == nil {
 			es.rerr = err
 		}
-		es.condfn(err)
+		err = es.condfn(err)
 	}
 	return
 }
@@ -1229,20 +1254,17 @@ func (es *bodyEOFSignal) Close() error {
 		return es.earlyCloseFn()
 	}
 	err := es.body.Close()
-	es.condfn(err)
-	return err
+	return es.condfn(err)
 }
 
 // caller must hold es.mu.
-func (es *bodyEOFSignal) condfn(err error) {
+func (es *bodyEOFSignal) condfn(err error) error {
 	if es.fn == nil {
-		return
+		return err
 	}
-	if err == io.EOF {
-		err = nil
-	}
-	es.fn(err)
+	err = es.fn(err)
 	es.fn = nil
+	return err
 }
 
 // gzipReader wraps a response body so it can lazily
