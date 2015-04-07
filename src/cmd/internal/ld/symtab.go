@@ -425,7 +425,6 @@ func symtab() {
 	// This code uses several global variables that are set by pcln.go:pclntab.
 	moduledata := Linklookup(Ctxt, "runtime.firstmoduledata", 0)
 	moduledata.Type = obj.SNOPTRDATA
-	moduledatasize := moduledata.Size
 	moduledata.Size = 0 // truncate symbol back to 0 bytes to reinitialize
 	moduledata.Reachable = true
 	moduledata.Local = true
@@ -465,8 +464,12 @@ func symtab() {
 	adduint(Ctxt, moduledata, uint64(ntypelinks))
 	adduint(Ctxt, moduledata, uint64(ntypelinks))
 	// The rest of moduledata is zero initialized.
-	moduledata.Size = moduledatasize
-	Symgrow(Ctxt, moduledata, moduledatasize)
+	// When linking an object that does not contain the runtime we are
+	// creating the moduledata from scratch and it does not have a
+	// compiler-provided size, so read it from the type data.
+	moduledatatype := Linkrlookup(Ctxt, "type.runtime.moduledata", 0)
+	moduledata.Size = decodetype_size(moduledatatype)
+	Symgrow(Ctxt, moduledata, moduledata.Size)
 
 	lastmoduledatap := Linklookup(Ctxt, "runtime.lastmoduledatap", 0)
 	if lastmoduledatap.Type != obj.SDYNIMPORT {
