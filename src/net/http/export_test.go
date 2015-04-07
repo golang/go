@@ -110,3 +110,5 @@ func SetPendingDialHooks(before, after func()) {
 var ExportServerNewConn = (*Server).newConn
 
 var ExportCloseWriteAndWait = (*conn).closeWriteAndWait
+
+var ExportErrRequestCanceled = errRequestCanceled

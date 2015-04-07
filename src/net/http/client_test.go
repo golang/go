@@ -334,6 +334,7 @@ var echoCookiesRedirectHandler = HandlerFunc(func(w ResponseWriter, r *Request) 
 })
 
 func TestClientSendsCookieFromJar(t *testing.T) {
+	defer afterTest(t)
 	tr := &recordingTransport{}
 	client := &Client{Transport: tr}
 	client.Jar = &TestJar{perURL: make(map[string][]*Cookie)}
