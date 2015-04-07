@@ -1120,7 +1120,7 @@ type emptyStruct struct{}
 
 var emptyStructType = reflect.TypeOf(emptyStruct{})
 
-// getDecEnginePtr returns the engine for the specified type when the value is to be discarded.
+// getIgnoreEnginePtr returns the engine for the specified type when the value is to be discarded.
 func (dec *Decoder) getIgnoreEnginePtr(wireId typeId) (enginePtr **decEngine, err error) {
 	var ok bool
 	if enginePtr, ok = dec.ignorerCache[wireId]; !ok {
