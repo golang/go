@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build api_tool
-
 // Binary api computes the exported API of a set of Go packages.
 package main
 
@@ -16,6 +14,7 @@ import (
 	"go/build"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"io"
 	"io/ioutil"
 	"log"
@@ -26,8 +25,6 @@ import (
 	"runtime"
 	"sort"
 	"strings"
-
-	"code.google.com/p/go.tools/go/types"
 )
 
 // Flags
@@ -608,12 +605,14 @@ func (w *Walker) writeType(buf *bytes.Buffer, typ types.Type) {
 	case *types.Chan:
 		var s string
 		switch typ.Dir() {
-		case ast.SEND:
+		case types.SendOnly:
 			s = "chan<- "
-		case ast.RECV:
+		case types.RecvOnly:
 			s = "<-chan "
-		default:
+		case types.SendRecv:
 			s = "chan "
+		default:
+			panic("unreachable")
 		}
 		buf.WriteString(s)
 		w.writeType(buf, typ.Elem())
@@ -633,7 +632,7 @@ func (w *Walker) writeType(buf *bytes.Buffer, typ types.Type) {
 }
 
 func (w *Walker) writeSignature(buf *bytes.Buffer, sig *types.Signature) {
-	w.writeParams(buf, sig.Params(), sig.IsVariadic())
+	w.writeParams(buf, sig.Params(), sig.Variadic())
 	switch res := sig.Results(); res.Len() {
 	case 0:
 		// nothing to do
@@ -705,10 +704,10 @@ func (w *Walker) emitType(obj *types.TypeName) {
 
 	// emit methods with value receiver
 	var methodNames map[string]bool
-	vset := typ.MethodSet()
+	vset := types.NewMethodSet(typ)
 	for i, n := 0, vset.Len(); i < n; i++ {
 		m := vset.At(i)
-		if m.Obj().IsExported() {
+		if m.Obj().Exported() {
 			w.emitMethod(m)
 			if methodNames == nil {
 				methodNames = make(map[string]bool)
@@ -720,10 +719,10 @@ func (w *Walker) emitType(obj *types.TypeName) {
 	// emit methods with pointer receiver; exclude
 	// methods that we have emitted already
 	// (the method set of *T includes the methods of T)
-	pset := types.NewPointer(typ).MethodSet()
+	pset := types.NewMethodSet(types.NewPointer(typ))
 	for i, n := 0, pset.Len(); i < n; i++ {
 		m := pset.At(i)
-		if m.Obj().IsExported() && !methodNames[m.Obj().Name()] {
+		if m.Obj().Exported() && !methodNames[m.Obj().Name()] {
 			w.emitMethod(m)
 		}
 	}
@@ -736,7 +735,7 @@ func (w *Walker) emitStructType(name string, typ *types.Struct) {
 
 	for i := 0; i < typ.NumFields(); i++ {
 		f := typ.Field(i)
-		if !f.IsExported() {
+		if !f.Exported() {
 			continue
 		}
 		typ := f.Type()
@@ -753,10 +752,10 @@ func (w *Walker) emitIfaceType(name string, typ *types.Interface) {
 
 	var methodNames []string
 	complete := true
-	mset := typ.MethodSet()
+	mset := types.NewMethodSet(typ)
 	for i, n := 0, mset.Len(); i < n; i++ {
 		m := mset.At(i).Obj().(*types.Func)
-		if !m.IsExported() {
+		if !m.Exported() {
 			complete = false
 			continue
 		}
@@ -807,7 +806,7 @@ func (w *Walker) emitMethod(m *types.Selection) {
 		if p, _ := recv.(*types.Pointer); p != nil {
 			base = p.Elem()
 		}
-		if obj := base.(*types.Named).Obj(); !obj.IsExported() {
+		if obj := base.(*types.Named).Obj(); !obj.Exported() {
 			log.Fatalf("exported method with unexported receiver base type: %s", m)
 		}
 	}
