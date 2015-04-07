@@ -36,7 +36,11 @@ func main() {
 	p := new(Proxy)
 	go p.run()
 	http.Handle("/", p)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		p.stop()
+		log.Fatal(err)
+	}
 }
 
 // Proxy implements the tip.golang.org server: a reverse-proxy
@@ -82,6 +86,14 @@ func (p *Proxy) run() {
 	for {
 		p.poll()
 		time.Sleep(30 * time.Second)
+	}
+}
+
+func (p *Proxy) stop() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.cmd != nil {
+		p.cmd.Process.Kill()
 	}
 }
 
