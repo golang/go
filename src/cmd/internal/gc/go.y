@@ -117,7 +117,68 @@ import (
 %left		')'
 %left		PreferToRightParen
 
-// TODO(rsc): Add %error-verbose
+%error loadsys package LIMPORT '(' LLITERAL import_package import_there ',':
+	"unexpected comma during import block"
+
+%error loadsys package LIMPORT LNAME ';':
+	"missing import path; require quoted string"
+
+%error loadsys package imports LFUNC LNAME '(' ')' '{' LIF if_header ';':
+	"missing { after if clause"
+
+%error loadsys package imports LFUNC LNAME '(' ')' '{' LSWITCH if_header ';':
+	"missing { after switch clause"
+
+%error loadsys package imports LFUNC LNAME '(' ')' '{' LFOR for_header ';':
+	"missing { after for clause"
+
+%error loadsys package imports LFUNC LNAME '(' ')' '{' LFOR ';' LBODY:
+	"missing { after for clause"
+
+%error loadsys package imports LFUNC LNAME '(' ')' ';' '{':
+	"unexpected semicolon or newline before {"
+
+%error loadsys package imports LTYPE LNAME ';':
+	"unexpected semicolon or newline in type declaration"
+
+%error loadsys package imports LCHAN '}':
+	"unexpected } in channel type"
+
+%error loadsys package imports LCHAN ')':
+	"unexpected ) in channel type"
+
+%error loadsys package imports LCHAN ',':
+	"unexpected comma in channel type"
+
+%error loadsys package imports LFUNC LNAME '(' ')' '{' if_stmt ';' LELSE:
+	"unexpected semicolon or newline before else"
+
+%error loadsys package imports LTYPE LNAME LINTERFACE '{' LNAME ',' LNAME:
+	"name list not allowed in interface type"
+
+%error loadsys package imports LFUNC LNAME '(' ')' '{' LFOR LVAR LNAME '=' LNAME:
+	"var declaration not allowed in for initializer"
+
+%error loadsys package imports LVAR LNAME '[' ']' LNAME '{':
+	"unexpected { at end of statement"
+
+%error loadsys package imports LFUNC LNAME '(' ')' '{' LVAR LNAME '[' ']' LNAME '{':
+	"unexpected { at end of statement"
+
+%error loadsys package imports LFUNC LNAME '(' ')' '{' LDEFER LNAME ';':
+	"argument to go/defer must be function call"
+
+%error loadsys package imports LVAR LNAME '=' LNAME '{' LNAME ';':
+	"need trailing comma before newline in composite literal"
+
+%error loadsys package imports LVAR LNAME '=' comptype '{' LNAME ';':
+	"need trailing comma before newline in composite literal"
+
+%error loadsys package imports LFUNC LNAME '(' ')' '{' LFUNC LNAME:
+	"nested func not allowed"
+
+%error loadsys package imports LFUNC LNAME '(' ')' '{' LIF if_header loop_body LELSE ';':
+	"else must be followed by if or statement block"
 
 %%
 file:
