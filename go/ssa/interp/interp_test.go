@@ -158,7 +158,6 @@ var gorootSrcTests = []string{
 	"encoding/csv",
 	"encoding/hex",
 	"encoding/pem",
-	"hash/crc32",
 	// "testing", // TODO(adonovan): implement runtime.Goexit correctly
 	"text/scanner",
 	"unicode",
@@ -168,6 +167,7 @@ var gorootSrcTests = []string{
 	// "hash/adler32",
 
 	// TODO(adonovan): packages with Examples require os.Pipe (unimplemented):
+	// "hash/crc32",
 	// "unicode/utf8",
 	// "log",
 	// "path",
