@@ -4,4 +4,7 @@
 
 package net
 
-var testHookLookupIP = func(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, error) { return fn(host) }
+var (
+	testHookLookupIP     = func(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, error) { return fn(host) }
+	testHookSetKeepAlive = func() {}
+)

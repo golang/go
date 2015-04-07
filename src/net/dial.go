@@ -180,8 +180,6 @@ func (d *Dialer) Dial(network, address string) (Conn, error) {
 	return c, err
 }
 
-var testHookSetKeepAlive = func() {} // changed by dial_test.go
-
 // dialMulti attempts to establish connections to each destination of
 // the list of addresses. It will return the first established
 // connection and close the other connections. Otherwise it returns
