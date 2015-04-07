@@ -410,6 +410,9 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 		OLABEL:
 		goto ret
 
+	case OGETG:
+		Yyerror("racewalk: OGETG can happen only in runtime which we don't instrument")
+
 		// does not require instrumentation
 	case OPRINT, // don't bother instrumenting it
 		OPRINTN,     // don't bother instrumenting it
