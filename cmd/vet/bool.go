@@ -9,8 +9,6 @@ package main
 import (
 	"go/ast"
 	"go/token"
-
-	"golang.org/x/tools/go/ast/astutil"
 )
 
 func init() {
@@ -164,7 +162,7 @@ func hasSideEffects(e ast.Expr) bool {
 // split returns []{d, c, b, a}.
 func (op boolOp) split(e ast.Expr) (exprs []ast.Expr) {
 	for {
-		e = astutil.Unparen(e)
+		e = unparen(e)
 		if b, ok := e.(*ast.BinaryExpr); ok && b.Op == op.tok {
 			exprs = append(exprs, op.split(b.Y)...)
 			e = b.X
@@ -174,4 +172,15 @@ func (op boolOp) split(e ast.Expr) (exprs []ast.Expr) {
 		}
 	}
 	return
+}
+
+// unparen returns e with any enclosing parentheses stripped.
+func unparen(e ast.Expr) ast.Expr {
+	for {
+		p, ok := e.(*ast.ParenExpr)
+		if !ok {
+			return e
+		}
+		e = p.X
+	}
 }
