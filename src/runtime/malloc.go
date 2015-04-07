@@ -322,7 +322,7 @@ func mallocinit() {
 			// So adjust it upward a little bit ourselves: 1/4 MB to get
 			// away from the running binary image and then round up
 			// to a MB boundary.
-			p = round(themoduledata.end+(1<<18), 1<<20)
+			p = round(firstmoduledata.end+(1<<18), 1<<20)
 			pSize = bitmapSize + spansSize + arenaSize + _PageSize
 			p = uintptr(sysReserve(unsafe.Pointer(p), pSize, &reserved))
 			if p != 0 {

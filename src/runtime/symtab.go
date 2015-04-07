@@ -60,7 +60,7 @@ type moduledata struct {
 	next *moduledata
 }
 
-var themoduledata moduledata // linker symbol
+var firstmoduledata moduledata // linker symbol
 
 type functab struct {
 	entry   uintptr
@@ -87,34 +87,34 @@ func symtabverify() {
 	// See golang.org/s/go12symtab for header: 0xfffffffb,
 	// two zero bytes, a byte giving the PC quantum,
 	// and a byte giving the pointer width in bytes.
-	pcln := *(**[8]byte)(unsafe.Pointer(&themoduledata.pclntable))
-	pcln32 := *(**[2]uint32)(unsafe.Pointer(&themoduledata.pclntable))
+	pcln := *(**[8]byte)(unsafe.Pointer(&firstmoduledata.pclntable))
+	pcln32 := *(**[2]uint32)(unsafe.Pointer(&firstmoduledata.pclntable))
 	if pcln32[0] != 0xfffffffb || pcln[4] != 0 || pcln[5] != 0 || pcln[6] != _PCQuantum || pcln[7] != ptrSize {
 		println("runtime: function symbol table header:", hex(pcln32[0]), hex(pcln[4]), hex(pcln[5]), hex(pcln[6]), hex(pcln[7]))
 		throw("invalid function symbol table\n")
 	}
 
 	// ftab is lookup table for function by program counter.
-	nftab := len(themoduledata.ftab) - 1
+	nftab := len(firstmoduledata.ftab) - 1
 	for i := 0; i < nftab; i++ {
 		// NOTE: ftab[nftab].entry is legal; it is the address beyond the final function.
-		if themoduledata.ftab[i].entry > themoduledata.ftab[i+1].entry {
-			f1 := (*_func)(unsafe.Pointer(&themoduledata.pclntable[themoduledata.ftab[i].funcoff]))
-			f2 := (*_func)(unsafe.Pointer(&themoduledata.pclntable[themoduledata.ftab[i+1].funcoff]))
+		if firstmoduledata.ftab[i].entry > firstmoduledata.ftab[i+1].entry {
+			f1 := (*_func)(unsafe.Pointer(&firstmoduledata.pclntable[firstmoduledata.ftab[i].funcoff]))
+			f2 := (*_func)(unsafe.Pointer(&firstmoduledata.pclntable[firstmoduledata.ftab[i+1].funcoff]))
 			f2name := "end"
 			if i+1 < nftab {
 				f2name = funcname(f2)
 			}
-			println("function symbol table not sorted by program counter:", hex(themoduledata.ftab[i].entry), funcname(f1), ">", hex(themoduledata.ftab[i+1].entry), f2name)
+			println("function symbol table not sorted by program counter:", hex(firstmoduledata.ftab[i].entry), funcname(f1), ">", hex(firstmoduledata.ftab[i+1].entry), f2name)
 			for j := 0; j <= i; j++ {
-				print("\t", hex(themoduledata.ftab[j].entry), " ", funcname((*_func)(unsafe.Pointer(&themoduledata.pclntable[themoduledata.ftab[j].funcoff]))), "\n")
+				print("\t", hex(firstmoduledata.ftab[j].entry), " ", funcname((*_func)(unsafe.Pointer(&firstmoduledata.pclntable[firstmoduledata.ftab[j].funcoff]))), "\n")
 			}
 			throw("invalid runtime symbol table")
 		}
 	}
 
-	if themoduledata.minpc != themoduledata.ftab[0].entry ||
-		themoduledata.maxpc != themoduledata.ftab[nftab].entry {
+	if firstmoduledata.minpc != firstmoduledata.ftab[0].entry ||
+		firstmoduledata.maxpc != firstmoduledata.ftab[nftab].entry {
 		throw("minpc or maxpc invalid")
 	}
 }
@@ -147,7 +147,7 @@ func (f *Func) FileLine(pc uintptr) (file string, line int) {
 }
 
 func findmoduledatap(pc uintptr) *moduledata {
-	for datap := &themoduledata; datap != nil; datap = datap.next {
+	for datap := &firstmoduledata; datap != nil; datap = datap.next {
 		if datap.minpc <= pc && pc <= datap.maxpc {
 			return datap
 		}

@@ -202,7 +202,7 @@ func container(s *LSym) int {
 
 var pclntab_zpcln Pcln
 
-// These variables are used to initialize runtime.themoduledata, see symtab.go:symtab.
+// These variables are used to initialize runtime.firstmoduledata, see symtab.go:symtab.
 var pclntabNfunc int32
 var pclntabFiletabOffset int32
 var pclntabPclntabOffset int32

@@ -116,7 +116,7 @@ func memRound(p uintptr) uintptr {
 }
 
 func initBloc() {
-	bloc = memRound(themoduledata.end)
+	bloc = memRound(firstmoduledata.end)
 }
 
 func sbrk(n uintptr) unsafe.Pointer {

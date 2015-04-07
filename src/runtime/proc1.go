@@ -2406,7 +2406,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 			// If all of the above has failed, account it against abstract "System" or "GC".
 			n = 2
 			// "ExternalCode" is better than "etext".
-			if pc > themoduledata.etext {
+			if pc > firstmoduledata.etext {
 				pc = funcPC(_ExternalCode) + _PCQuantum
 			}
 			stk[0] = pc
