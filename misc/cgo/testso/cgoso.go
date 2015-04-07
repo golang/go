@@ -5,7 +5,6 @@
 package cgosotest
 
 /*
-#cgo windows CFLAGS: -DIMPORT_DLL
 // intentionally write the same LDFLAGS differently
 // to test correct handling of LDFLAGS.
 #cgo linux LDFLAGS: -L. -lcgosotest
@@ -16,32 +15,14 @@ package cgosotest
 #cgo darwin LDFLAGS: -L. libcgosotest.dylib
 #cgo windows LDFLAGS: -L. libcgosotest.dll
 
-#include "cgoso_c.h"
-
 void init(void);
 void sofunc(void);
-const char* getVar(void);
 */
 import "C"
-
-import "fmt"
 
 func Test() {
 	C.init()
 	C.sofunc()
-	testExportedVar()
-}
-
-func testExportedVar() {
-	const want = "Hello world"
-	got := C.GoString(C.getVar())
-	if got != want {
-		panic(fmt.Sprintf("testExportedVar: got %q, but want %q", got, want))
-	}
-	got = C.GoString(C.exported_var)
-	if got != want {
-		panic(fmt.Sprintf("testExportedVar: got %q, but want %q", got, want))
-	}
 }
 
 //export goCallback
