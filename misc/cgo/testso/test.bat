@@ -4,7 +4,7 @@
 
 @echo off
 
-gcc -c cgoso_c.c -DEXPORT_DLL
+gcc -c cgoso_c.c
 gcc -shared -o libcgosotest.dll cgoso_c.o
 if not exist libcgosotest.dll goto fail
 go build main.go
