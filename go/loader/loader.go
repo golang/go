@@ -257,6 +257,8 @@ type Config struct {
 	//
 	// NB: there is a bug when loading multiple initial packages with
 	// this flag enabled: https://github.com/golang/go/issues/9955.
+	//
+	// THIS FEATURE IS DEPRECATED and will be removed shortly (Apr 2015).
 	ImportFromBinary bool
 
 	// If Build is non-nil, it is used to locate source packages.
@@ -321,6 +323,8 @@ type Config struct {
 	// the package scope, for example.
 	//
 	// It must be safe to call concurrently from multiple goroutines.
+	//
+	// THIS FEATURE IS DEPRECATED and will be removed shortly (Apr 2015).
 	PackageCreated func(*types.Package)
 }
 

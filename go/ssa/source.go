@@ -140,7 +140,7 @@ func findNamedFunc(pkg *Package, pos token.Pos) *Function {
 //    - f was not built with debug information; or
 //    - e is a constant expression.  (For efficiency, no debug
 //      information is stored for constants. Use
-//      loader.PackageInfo.ValueOf(e) instead.)
+//      go/types.Info.Types[e].Value instead.)
 //    - e is a reference to nil or a built-in function.
 //    - the value was optimised away.
 //

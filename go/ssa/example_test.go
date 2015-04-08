@@ -8,28 +8,17 @@ import (
 	"fmt"
 	"os"
 
+	"go/ast"
+	"go/parser"
+	"go/token"
+
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/ssa"
+	"golang.org/x/tools/go/ssa/ssautil"
+	"golang.org/x/tools/go/types"
 )
 
-// This program demonstrates how to run the SSA builder on a "Hello,
-// World!" program and shows the printed representation of packages,
-// functions and instructions.
-//
-// Within the function listing, the name of each BasicBlock such as
-// ".0.entry" is printed left-aligned, followed by the block's
-// Instructions.
-//
-// For each instruction that defines an SSA virtual register
-// (i.e. implements Value), the type of that value is shown in the
-// right column.
-//
-// Build and run the ssadump.go program if you want a standalone tool
-// with similar functionality. It is located at
-// golang.org/x/tools/cmd/ssadump.
-//
-func Example() {
-	const hello = `
+const hello = `
 package main
 
 import "fmt"
@@ -40,49 +29,64 @@ func main() {
 	fmt.Println(message)
 }
 `
-	var conf loader.Config
 
-	// Parse the input file.
-	file, err := conf.ParseFile("hello.go", hello)
+// This program demonstrates how to run the SSA builder on a single
+// package of one or more already-parsed files.  Its dependencies are
+// loaded from compiler export data.  This is what you'd typically use
+// for a compiler; it does not depend on golang.org/x/tools/go/loader.
+//
+// It shows the printed representation of packages, functions, and
+// instructions.  Within the function listing, the name of each
+// BasicBlock such as ".0.entry" is printed left-aligned, followed by
+// the block's Instructions.
+//
+// For each instruction that defines an SSA virtual register
+// (i.e. implements Value), the type of that value is shown in the
+// right column.
+//
+// Build and run the ssadump.go program if you want a standalone tool
+// with similar functionality. It is located at
+// golang.org/x/tools/cmd/ssadump.
+//
+func ExampleLoadPackage() {
+	// Parse the source files.
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "hello.go", hello, parser.ParseComments)
 	if err != nil {
 		fmt.Print(err) // parse error
 		return
 	}
+	files := []*ast.File{f}
 
-	// Create single-file main package.
-	conf.CreateFromFiles("main", file)
+	// Create the type-checker's package.
+	pkg := types.NewPackage("hello", "")
 
-	// Load the main package and its dependencies.
-	iprog, err := conf.Load()
+	// Type-check the package, load dependencies.
+	// Create and build the SSA program.
+	hello, _, err := ssautil.LoadPackage(
+		new(types.Config), fset, pkg, files, ssa.SanityCheckFunctions)
 	if err != nil {
 		fmt.Print(err) // type error in some package
 		return
 	}
 
-	// Create SSA-form program representation.
-	prog := ssa.Create(iprog, ssa.SanityCheckFunctions)
-	mainPkg := prog.Package(iprog.Created[0].Pkg)
-
 	// Print out the package.
-	mainPkg.WriteTo(os.Stdout)
-
-	// Build SSA code for bodies of functions in mainPkg.
-	mainPkg.Build()
+	hello.WriteTo(os.Stdout)
 
 	// Print out the package-level functions.
-	mainPkg.Func("init").WriteTo(os.Stdout)
-	mainPkg.Func("main").WriteTo(os.Stdout)
+	hello.Func("init").WriteTo(os.Stdout)
+	hello.Func("main").WriteTo(os.Stdout)
 
 	// Output:
 	//
-	// package main:
+	// package hello:
 	//   func  init       func()
 	//   var   init$guard bool
 	//   func  main       func()
 	//   const message    message = "Hello, World!":untyped string
 	//
-	// # Name: main.init
-	// # Package: main
+	// # Name: hello.init
+	// # Package: hello
 	// # Synthetic: package initializer
 	// func init():
 	// 0:                                                                entry P:0 S:2
@@ -95,8 +99,8 @@ func main() {
 	// 2:                                                            init.done P:2 S:0
 	// 	return
 	//
-	// # Name: main.main
-	// # Package: main
+	// # Name: hello.main
+	// # Package: hello
 	// # Location: hello.go:8:6
 	// func main():
 	// 0:                                                                entry P:0 S:0
@@ -107,4 +111,28 @@ func main() {
 	// 	t3 = slice t0[:]                                          []interface{}
 	// 	t4 = fmt.Println(t3...)                              (n int, err error)
 	// 	return
+}
+
+// This program shows how to load a main package (cmd/nm) and all its
+// dependencies from source, using the loader, and then build SSA code
+// for the entire program.  This is what you'd typically use for a
+// whole-program analysis.
+//
+func ExampleLoadProgram() {
+	// Load cmd/nm and its dependencies.
+	var conf loader.Config
+	conf.Import("cmd/nm")
+	lprog, err := conf.Load()
+	if err != nil {
+		fmt.Print(err) // type error in some package
+		return
+	}
+
+	// Create SSA-form program representation.
+	prog := ssautil.CreateProgram(lprog, ssa.SanityCheckFunctions)
+
+	// Build SSA code for the entire cmd/nm program.
+	prog.BuildAll()
+
+	// Output:
 }

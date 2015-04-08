@@ -14,7 +14,6 @@ import (
 	"sync"
 
 	"golang.org/x/tools/go/exact"
-	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/go/types/typeutil"
 )
@@ -54,9 +53,10 @@ type Package struct {
 
 	// The following fields are set transiently, then cleared
 	// after building.
-	started int32               // atomically tested and set at start of build phase
-	ninit   int32               // number of init functions
-	info    *loader.PackageInfo // package ASTs and type information
+	started int32       // atomically tested and set at start of build phase
+	ninit   int32       // number of init functions
+	info    *types.Info // package type information
+	files   []*ast.File // package ASTs
 }
 
 // A Member is a member of a Go package, implemented by *NamedConst,

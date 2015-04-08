@@ -2212,7 +2212,12 @@ func (b *builder) buildFuncDecl(pkg *Package, decl *ast.FuncDecl) {
 // BuildAll calls Package.Build() for each package in prog.
 // Building occurs in parallel unless the BuildSerially mode flag was set.
 //
+// BuildAll is intended for whole-program analysis; a typical compiler
+// need only build a single package.
+//
 // BuildAll is idempotent and thread-safe.
+//
+// TODO(adonovan): rename to Build.
 //
 func (prog *Program) BuildAll() {
 	var wg sync.WaitGroup
@@ -2245,7 +2250,7 @@ func (p *Package) Build() {
 	if p.info == nil {
 		return // synthetic package, e.g. "testmain"
 	}
-	if len(p.info.Files) == 0 {
+	if p.files == nil {
 		p.info = nil
 		return // package loaded from export data
 	}
@@ -2276,7 +2281,7 @@ func (p *Package) Build() {
 		emitStore(init, initguard, vTrue, token.NoPos)
 
 		// Call the init() function of each package we import.
-		for _, pkg := range p.info.Pkg.Imports() {
+		for _, pkg := range p.Object.Imports() {
 			prereq := p.Prog.packages[pkg]
 			if prereq == nil {
 				panic(fmt.Sprintf("Package(%q).Build(): unsatisfied import: Program.CreatePackage(%q) was not called", p.Object.Path(), pkg.Path()))
@@ -2321,7 +2326,7 @@ func (p *Package) Build() {
 	// Build all package-level functions, init functions
 	// and methods, including unreachable/blank ones.
 	// We build them in source order, but it's not significant.
-	for _, file := range p.info.Files {
+	for _, file := range p.files {
 		for _, decl := range file.Decls {
 			if decl, ok := decl.(*ast.FuncDecl); ok {
 				b.buildFuncDecl(p, decl)
