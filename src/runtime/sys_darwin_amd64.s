@@ -303,15 +303,15 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 	SYSCALL
 	RET
 
-// func bsdthread_create(stk unsafe.Pointer, mm *m, gg *g, fn uintptr) int32
+// func bsdthread_create(stk, arg unsafe.Pointer, fn uintptr) int32
 TEXT runtime·bsdthread_create(SB),NOSPLIT,$0
 	// Set up arguments to bsdthread_create system call.
 	// The ones in quotes pass through to the thread callback
 	// uninterpreted, so we can put whatever we want there.
-	MOVQ	fn+32(SP), DI	// "func"
-	MOVQ	mm+16(SP), SI	// "arg"
+	MOVQ	fn+24(SP), DI	// "func"
+	MOVQ	arg+16(SP), SI	// "arg"
 	MOVQ	stk+8(SP), DX	// stack
-	MOVQ	gg+24(SP), R10	// "pthread"
+	MOVQ	$0, R10		// "pthread", paranoia
 	MOVQ	$0x01000000, R8	// flags = PTHREAD_START_CUSTOM
 	MOVQ	$0, R9	// paranoia
 	MOVQ	$(0x2000000+360), AX	// bsdthread_create

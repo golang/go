@@ -6,7 +6,7 @@ package runtime
 
 import "unsafe"
 
-func bsdthread_create(stk unsafe.Pointer, mm *m, gg *g, fn uintptr) int32
+func bsdthread_create(stk, arg unsafe.Pointer, fn uintptr) int32
 func bsdthread_register() int32
 
 //go:noescape
