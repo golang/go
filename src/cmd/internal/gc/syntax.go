@@ -306,6 +306,7 @@ const (
 	ORROTC  // right rotate-carry: ARCR.
 	ORETJMP // return to other function
 	OPS     // compare parity set (for x86 NaN check)
+	OPC     // compare parity clear (for x86 NaN check)
 	OSQRT   // sqrt(float64), on systems that have hw support
 	OGETG   // runtime.getg() (read g pointer)
 

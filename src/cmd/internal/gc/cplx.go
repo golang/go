@@ -14,7 +14,7 @@ func overlap_cplx(f *Node, t *Node) bool {
 	return f.Op == OINDREG && t.Op == OINDREG && f.Xoffset+f.Type.Width >= t.Xoffset && t.Xoffset+t.Type.Width >= f.Xoffset
 }
 
-func complexbool(op int, nl, nr *Node, wantTrue bool, likely int, to *obj.Prog) {
+func complexbool(op int, nl, nr, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 	// make both sides addable in ullman order
 	if nr != nil {
 		if nl.Ullman > nr.Ullman && !nl.Addable {
@@ -35,7 +35,10 @@ func complexbool(op int, nl, nr *Node, wantTrue bool, likely int, to *obj.Prog) 
 	subnode(&rreal, &rimag, nr)
 
 	// build tree
-	// real(l) == real(r) && imag(l) == imag(r)
+	// if branching:
+	// 	real(l) == real(r) && imag(l) == imag(r)
+	// if generating a value, use a branch-free version:
+	// 	real(l) == real(r) & imag(l) == imag(r)
 	realeq := Node{
 		Op:    OEQ,
 		Left:  &lreal,
@@ -55,6 +58,19 @@ func complexbool(op int, nl, nr *Node, wantTrue bool, likely int, to *obj.Prog) 
 		Type:  Types[TBOOL],
 	}
 
+	if res != nil {
+		// generating a value
+		and.Op = OAND
+		if op == ONE {
+			and.Op = OOR
+			realeq.Op = ONE
+			imageq.Op = ONE
+		}
+		Bvgen(&and, res, true)
+		return
+	}
+
+	// generating a branch
 	if op == ONE {
 		wantTrue = !wantTrue
 	}
