@@ -156,7 +156,7 @@ func (l *Logger) Output(calldepth int, s string) error {
 	l.buf = l.buf[:0]
 	l.formatHeader(&l.buf, now, file, line)
 	l.buf = append(l.buf, s...)
-	if len(s) > 0 && s[len(s)-1] != '\n' {
+	if len(s) == 0 || s[len(s)-1] != '\n' {
 		l.buf = append(l.buf, '\n')
 	}
 	_, err := l.out.Write(l.buf)

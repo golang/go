@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"os"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -17,7 +18,7 @@ const (
 	Rdate         = `[0-9][0-9][0-9][0-9]/[0-9][0-9]/[0-9][0-9]`
 	Rtime         = `[0-9][0-9]:[0-9][0-9]:[0-9][0-9]`
 	Rmicroseconds = `\.[0-9][0-9][0-9][0-9][0-9][0-9]`
-	Rline         = `(54|56):` // must update if the calls to l.Printf / l.Print below move
+	Rline         = `(55|57):` // must update if the calls to l.Printf / l.Print below move
 	Rlongfile     = `.*/[A-Za-z0-9_\-]+\.go:` + Rline
 	Rshortfile    = `[A-Za-z0-9_\-]+\.go:` + Rline
 )
@@ -115,6 +116,20 @@ func TestFlagAndPrefixSetting(t *testing.T) {
 	}
 	if !matched {
 		t.Error("message did not match pattern")
+	}
+}
+
+func TestEmptyPrintCreatesLine(t *testing.T) {
+	var b bytes.Buffer
+	l := New(&b, "Header:", LstdFlags)
+	l.Print()
+	l.Println("non-empty")
+	output := b.String()
+	if n := strings.Count(output, "Header"); n != 2 {
+		t.Errorf("expected 2 headers, got %d", n)
+	}
+	if n := strings.Count(output, "\n"); n != 2 {
+		t.Errorf("expected 2 lines, got %d", n)
 	}
 }
 
