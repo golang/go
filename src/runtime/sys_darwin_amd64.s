@@ -308,12 +308,12 @@ TEXT runtime·bsdthread_create(SB),NOSPLIT,$0
 	// Set up arguments to bsdthread_create system call.
 	// The ones in quotes pass through to the thread callback
 	// uninterpreted, so we can put whatever we want there.
-	MOVQ	fn+24(SP), DI	// "func"
-	MOVQ	arg+16(SP), SI	// "arg"
-	MOVQ	stk+8(SP), DX	// stack
-	MOVQ	$0, R10		// "pthread", paranoia
-	MOVQ	$0x01000000, R8	// flags = PTHREAD_START_CUSTOM
-	MOVQ	$0, R9	// paranoia
+	MOVQ	fn+24(SP),   DI
+	MOVQ	arg+16(SP),  SI
+	MOVQ	stk+8(SP),   DX
+	MOVQ	$0x01000000, R8  // flags = PTHREAD_START_CUSTOM
+	MOVQ	$0,          R9  // paranoia
+	MOVQ	$0,          R10 // paranoia, "pthread"
 	MOVQ	$(0x2000000+360), AX	// bsdthread_create
 	SYSCALL
 	JCC 4(PC)

@@ -327,33 +327,32 @@ TEXT runtime·usleep(SB),NOSPLIT,$32
 	INT	$0x80
 	RET
 
-// func bsdthread_create(stk unsafe.Pointer, mm *m, gg *g, fn uintptr) int32
+// func bsdthread_create(stk, arg unsafe.Pointer, fn uintptr) int32
 // System call args are: func arg stack pthread flags.
 TEXT runtime·bsdthread_create(SB),NOSPLIT,$32
 	MOVL	$360, AX
 	// 0(SP) is where the caller PC would be; kernel skips it
-	MOVL	fn+12(FP), BX
+	MOVL	fn+8(FP), BX
 	MOVL	BX, 4(SP)	// func
-	MOVL	mm+4(FP), BX
+	MOVL	arg+4(FP), BX
 	MOVL	BX, 8(SP)	// arg
 	MOVL	stk+0(FP), BX
 	MOVL	BX, 12(SP)	// stack
-	MOVL	gg+8(FP), BX
-	MOVL	BX, 16(SP)	// pthread
+	MOVL    $0, 16(SP)      // pthread
 	MOVL	$0x1000000, 20(SP)	// flags = PTHREAD_START_CUSTOM
 	INT	$0x80
 	JAE	4(PC)
 	NEGL	AX
-	MOVL	AX, ret+16(FP)
+	MOVL	AX, ret+12(FP)
 	RET
 	MOVL	$0, AX
-	MOVL	AX, ret+16(FP)
+	MOVL	AX, ret+12(FP)
 	RET
 
 // The thread that bsdthread_create creates starts executing here,
 // because we registered this function using bsdthread_register
 // at startup.
-//	AX = "pthread" (= g)
+//	AX = "pthread" (= 0x0)
 //	BX = mach thread port
 //	CX = "func" (= fn)
 //	DX = "arg" (= m)
@@ -380,6 +379,7 @@ TEXT runtime·bsdthread_start(SB),NOSPLIT,$0
 
 	// Now segment is established.  Initialize m, g.
 	get_tls(BP)
+	MOVL    m_g0(DX), AX
 	MOVL	AX, g(BP)
 	MOVL	DX, g_m(AX)
 	MOVL	BX, m_procid(DX)	// m->procid = thread port (for debuggers)
