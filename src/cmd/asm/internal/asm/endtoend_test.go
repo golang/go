@@ -78,6 +78,10 @@ func TestARMEndToEnd(t *testing.T) {
 	testEndToEnd(t, "arm")
 }
 
+func TestARM64EndToEnd(t *testing.T) {
+	testEndToEnd(t, "arm64")
+}
+
 func TestAMD64EndToEnd(t *testing.T) {
 	testEndToEnd(t, "amd64")
 }
