@@ -791,6 +791,13 @@ type Arch struct {
 	Expandchecks func(*obj.Prog)
 	Getg         func(*Node)
 	Gins         func(int, *Node, *Node) *obj.Prog
+	// Ginsboolval inserts instructions to convert the result
+	// of a just-completed comparison to a boolean value.
+	// The first argument is the conditional jump instruction
+	// corresponding to the desired value.
+	// The second argument is the destination.
+	// If not present, Ginsboolval will be emulated with jumps.
+	Ginsboolval  func(int, *Node)
 	Ginscon      func(int, int64, *Node)
 	Ginsnop      func()
 	Gmove        func(*Node, *Node)

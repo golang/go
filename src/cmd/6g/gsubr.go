@@ -99,6 +99,10 @@ func ginscon(as int, c int64, n2 *gc.Node) {
 	gins(as, &n1, n2)
 }
 
+func ginsboolval(a int, n *gc.Node) {
+	gins(jmptoset(a), nil, n)
+}
+
 /*
  * set up nodes representing 2^63
  */
@@ -698,6 +702,21 @@ func optoas(op int, t *gc.Type) int {
 		gc.OPS<<16 | gc.TFLOAT64:
 		a = x86.AJPS
 
+	case gc.OPC<<16 | gc.TBOOL,
+		gc.OPC<<16 | gc.TINT8,
+		gc.OPC<<16 | gc.TUINT8,
+		gc.OPC<<16 | gc.TINT16,
+		gc.OPC<<16 | gc.TUINT16,
+		gc.OPC<<16 | gc.TINT32,
+		gc.OPC<<16 | gc.TUINT32,
+		gc.OPC<<16 | gc.TINT64,
+		gc.OPC<<16 | gc.TUINT64,
+		gc.OPC<<16 | gc.TPTR32,
+		gc.OPC<<16 | gc.TPTR64,
+		gc.OPC<<16 | gc.TFLOAT32,
+		gc.OPC<<16 | gc.TFLOAT64:
+		a = x86.AJPC
+
 	case gc.OLT<<16 | gc.TINT8,
 		gc.OLT<<16 | gc.TINT16,
 		gc.OLT<<16 | gc.TINT32,
@@ -902,7 +921,8 @@ func optoas(op int, t *gc.Type) int {
 		gc.OMINUS<<16 | gc.TPTR64:
 		a = x86.ANEGQ
 
-	case gc.OAND<<16 | gc.TINT8,
+	case gc.OAND<<16 | gc.TBOOL,
+		gc.OAND<<16 | gc.TINT8,
 		gc.OAND<<16 | gc.TUINT8:
 		a = x86.AANDB
 
@@ -920,7 +940,8 @@ func optoas(op int, t *gc.Type) int {
 		gc.OAND<<16 | gc.TPTR64:
 		a = x86.AANDQ
 
-	case gc.OOR<<16 | gc.TINT8,
+	case gc.OOR<<16 | gc.TBOOL,
+		gc.OOR<<16 | gc.TINT8,
 		gc.OOR<<16 | gc.TUINT8:
 		a = x86.AORB
 
@@ -1132,6 +1153,46 @@ func optoas(op int, t *gc.Type) int {
 	}
 
 	return a
+}
+
+// jmptoset returns ASETxx for AJxx.
+func jmptoset(jmp int) int {
+	switch jmp {
+	case x86.AJEQ:
+		return x86.ASETEQ
+	case x86.AJNE:
+		return x86.ASETNE
+	case x86.AJLT:
+		return x86.ASETLT
+	case x86.AJCS:
+		return x86.ASETCS
+	case x86.AJLE:
+		return x86.ASETLE
+	case x86.AJLS:
+		return x86.ASETLS
+	case x86.AJGT:
+		return x86.ASETGT
+	case x86.AJHI:
+		return x86.ASETHI
+	case x86.AJGE:
+		return x86.ASETGE
+	case x86.AJCC:
+		return x86.ASETCC
+	case x86.AJMI:
+		return x86.ASETMI
+	case x86.AJOC:
+		return x86.ASETOC
+	case x86.AJOS:
+		return x86.ASETOS
+	case x86.AJPC:
+		return x86.ASETPC
+	case x86.AJPL:
+		return x86.ASETPL
+	case x86.AJPS:
+		return x86.ASETPS
+	}
+	gc.Fatal("jmptoset: no entry for %v", gc.Oconv(jmp, 0))
+	panic("unreachable")
 }
 
 const (

@@ -345,20 +345,12 @@ func Cgen(n *Node, res *Node) {
 		Dump("cgen-res", res)
 		Fatal("cgen: unknown op %v", Nconv(n, obj.FmtShort|obj.FmtSign))
 
-	// these call bgen to get a bool value
 	case OOROR, OANDAND,
 		OEQ, ONE,
 		OLT, OLE,
 		OGE, OGT,
 		ONOT:
-		p1 := Gbranch(obj.AJMP, nil, 0)
-		p2 := Pc
-		Thearch.Gmove(Nodbool(true), res)
-		p3 := Gbranch(obj.AJMP, nil, 0)
-		Patch(p1, Pc)
-		Bgen(n, true, 0, p2)
-		Thearch.Gmove(Nodbool(false), res)
-		Patch(p3, Pc)
+		Bvgen(n, res, true)
 		return
 
 	case OPLUS:
@@ -1640,10 +1632,55 @@ func Igen(n *Node, a *Node, res *Node) {
 // 		goto to
 // 	}
 func Bgen(n *Node, wantTrue bool, likely int, to *obj.Prog) {
-	if Debug['g'] != 0 {
-		fmt.Printf("\nbgen wantTrue=%t likely=%d to=%v\n", wantTrue, likely, to)
-		Dump("bgen", n)
+	bgenx(n, nil, wantTrue, likely, to)
+}
+
+// Bvgen generates code for calculating boolean values:
+// 	res = n == wantTrue
+func Bvgen(n, res *Node, wantTrue bool) {
+	if Thearch.Ginsboolval == nil {
+		// Direct value generation not implemented for this architecture.
+		// Implement using jumps.
+		bvgenjump(n, res, wantTrue, true)
+		return
 	}
+	bgenx(n, res, wantTrue, 0, nil)
+}
+
+// bvgenjump implements boolean value generation using jumps:
+// 	if n == wantTrue {
+// 		res = 1
+// 	} else {
+// 		res = 0
+// 	}
+// geninit controls whether n's Ninit is generated.
+func bvgenjump(n, res *Node, wantTrue, geninit bool) {
+	init := n.Ninit
+	if !geninit {
+		n.Ninit = nil
+	}
+	p1 := Gbranch(obj.AJMP, nil, 0)
+	p2 := Pc
+	Thearch.Gmove(Nodbool(true), res)
+	p3 := Gbranch(obj.AJMP, nil, 0)
+	Patch(p1, Pc)
+	Bgen(n, wantTrue, 0, p2)
+	Thearch.Gmove(Nodbool(false), res)
+	Patch(p3, Pc)
+	n.Ninit = init
+}
+
+// bgenx is the backend for Bgen and Bvgen.
+// If res is nil, it generates a branch.
+// Otherwise, it generates a boolean value.
+func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+	if Debug['g'] != 0 {
+		fmt.Printf("\nbgenx wantTrue=%t likely=%d to=%v\n", wantTrue, likely, to)
+		Dump("n", n)
+		Dump("res", res)
+	}
+
+	genval := res != nil
 
 	if n == nil {
 		n = Nodbool(true)
@@ -1659,9 +1696,7 @@ func Bgen(n *Node, wantTrue bool, likely int, to *obj.Prog) {
 	}
 
 	if n.Type.Etype != TBOOL {
-		Yyerror("cgen: bad type %v for %v", n.Type, Oconv(int(n.Op), 0))
-		Patch(Thearch.Gins(obj.AEND, nil, nil), to)
-		return
+		Fatal("bgen: bad type %v for %v", n.Type, Oconv(int(n.Op), 0))
 	}
 
 	for n.Op == OCONVNOP {
@@ -1670,44 +1705,90 @@ func Bgen(n *Node, wantTrue bool, likely int, to *obj.Prog) {
 	}
 
 	if Thearch.Bgen_float != nil && n.Left != nil && Isfloat[n.Left.Type.Etype] {
+		if genval {
+			bvgenjump(n, res, wantTrue, false)
+			return
+		}
 		Thearch.Bgen_float(n, wantTrue, likely, to)
 		return
 	}
 
 	switch n.Op {
 	default:
+		if genval {
+			Cgen(n, res)
+			if !wantTrue {
+				Thearch.Gins(Thearch.Optoas(OXOR, Types[TUINT8]), Nodintconst(1), res)
+			}
+			return
+		}
+
 		var tmp Node
 		Regalloc(&tmp, n.Type, nil)
 		Cgen(n, &tmp)
-		bgenNonZero(&tmp, wantTrue, likely, to)
+		bgenNonZero(&tmp, nil, wantTrue, likely, to)
 		Regfree(&tmp)
 		return
 
 	case ONAME:
+		if genval {
+			// 5g, 7g, and 9g might need a temporary or other help here,
+			// but they don't support direct generation of a bool value yet.
+			// We can fix that as we go.
+			switch Ctxt.Arch.Thechar {
+			case '5', '7', '9':
+				Fatal("genval 5g, 7g, 9g ONAMES not fully implemented")
+			}
+			Cgen(n, res)
+			if !wantTrue {
+				Thearch.Gins(Thearch.Optoas(OXOR, Types[TUINT8]), Nodintconst(1), res)
+			}
+			return
+		}
+
 		if n.Addable && Ctxt.Arch.Thechar != '5' && Ctxt.Arch.Thechar != '7' && Ctxt.Arch.Thechar != '9' {
 			// no need for a temporary
-			bgenNonZero(n, wantTrue, likely, to)
+			bgenNonZero(n, nil, wantTrue, likely, to)
 			return
 		}
 		var tmp Node
 		Regalloc(&tmp, n.Type, nil)
 		Cgen(n, &tmp)
-		bgenNonZero(&tmp, wantTrue, likely, to)
+		bgenNonZero(&tmp, nil, wantTrue, likely, to)
 		Regfree(&tmp)
 		return
 
 	case OLITERAL:
-		// n is a constant. If n == wantTrue, jump; otherwise do nothing.
+		// n is a constant.
 		if !Isconst(n, CTBOOL) {
 			Fatal("bgen: non-bool const %v\n", Nconv(n, obj.FmtLong))
 		}
+		if genval {
+			Cgen(Nodbool(wantTrue == n.Val.U.Bval), res)
+			return
+		}
+		// If n == wantTrue, jump; otherwise do nothing.
 		if wantTrue == n.Val.U.Bval {
 			Patch(Gbranch(obj.AJMP, nil, likely), to)
 		}
 		return
 
 	case OANDAND, OOROR:
-		if (n.Op == OANDAND) == wantTrue {
+		and := (n.Op == OANDAND) == wantTrue
+		if genval {
+			p1 := Gbranch(obj.AJMP, nil, 0)
+			p2 := Gbranch(obj.AJMP, nil, 0)
+			Patch(p2, Pc)
+			Cgen(Nodbool(!and), res)
+			p3 := Gbranch(obj.AJMP, nil, 0)
+			Patch(p1, Pc)
+			Bgen(n.Left, wantTrue != and, 0, p2)
+			Bvgen(n.Right, res, wantTrue)
+			Patch(p3, Pc)
+			return
+		}
+
+		if and {
 			p1 := Gbranch(obj.AJMP, nil, 0)
 			p2 := Gbranch(obj.AJMP, nil, 0)
 			Patch(p1, Pc)
@@ -1726,7 +1807,7 @@ func Bgen(n *Node, wantTrue bool, likely int, to *obj.Prog) {
 		if n.Left == nil || n.Left.Type == nil {
 			return
 		}
-		Bgen(n.Left, !wantTrue, likely, to)
+		bgenx(n.Left, res, !wantTrue, likely, to)
 		return
 
 	case OEQ, ONE, OLT, OGT, OLE, OGE:
@@ -1743,15 +1824,21 @@ func Bgen(n *Node, wantTrue bool, likely int, to *obj.Prog) {
 	if !wantTrue {
 		if Isfloat[nr.Type.Etype] {
 			// Brcom is not valid on floats when NaN is involved.
+			ll := n.Ninit // avoid re-genning Ninit
+			n.Ninit = nil
+			if genval {
+				bgenx(n, res, true, likely, to)
+				Thearch.Gins(Thearch.Optoas(OXOR, Types[TUINT8]), Nodintconst(1), res) // res = !res
+				n.Ninit = ll
+				return
+			}
 			p1 := Gbranch(obj.AJMP, nil, 0)
 			p2 := Gbranch(obj.AJMP, nil, 0)
 			Patch(p1, Pc)
-			ll := n.Ninit // avoid re-genning Ninit
-			n.Ninit = nil
-			Bgen(n, true, -likely, p2)
-			n.Ninit = ll
+			bgenx(n, res, true, -likely, p2)
 			Patch(Gbranch(obj.AJMP, nil, 0), to)
 			Patch(p2, Pc)
+			n.Ninit = ll
 			return
 		}
 
@@ -1786,17 +1873,22 @@ func Bgen(n *Node, wantTrue bool, likely int, to *obj.Prog) {
 		Regalloc(&tmp, ptr.Type, &ptr)
 		Cgen(&ptr, &tmp)
 		Regfree(&ptr)
-		bgenNonZero(&tmp, a == OEQ != wantTrue, likely, to)
+		bgenNonZero(&tmp, res, a == OEQ != wantTrue, likely, to)
 		Regfree(&tmp)
 		return
 	}
 
 	if Iscomplex[nl.Type.Etype] {
-		complexbool(a, nl, nr, wantTrue, likely, to)
+		complexbool(a, nl, nr, res, wantTrue, likely, to)
 		return
 	}
 
 	if Ctxt.Arch.Regsize == 4 && Is64(nr.Type) {
+		if genval {
+			// TODO: Teach Cmp64 to generate boolean values and remove this.
+			bvgenjump(n, res, wantTrue, false)
+			return
+		}
 		if !nl.Addable || Isconst(nl, CTINT) {
 			nl = CgenTemp(nl)
 		}
@@ -1838,7 +1930,7 @@ func Bgen(n *Node, wantTrue bool, likely int, to *obj.Prog) {
 
 		if Smallintconst(nr) && Ctxt.Arch.Thechar != '9' {
 			Thearch.Gins(Thearch.Optoas(OCMP, nr.Type), nl, nr)
-			Patch(Gbranch(Thearch.Optoas(a, nr.Type), nr.Type, likely), to)
+			bins(nr.Type, res, a, likely, to)
 			return
 		}
 
@@ -1869,6 +1961,9 @@ func Bgen(n *Node, wantTrue bool, likely int, to *obj.Prog) {
 	if Isfloat[nl.Type.Etype] {
 		switch Ctxt.Arch.Thechar {
 		case '5':
+			if genval {
+				Fatal("genval 5g Isfloat special cases not implemented")
+			}
 			switch n.Op {
 			case ONE:
 				Patch(Gbranch(Thearch.Optoas(OPS, nr.Type), nr.Type, likely), to)
@@ -1883,19 +1978,40 @@ func Bgen(n *Node, wantTrue bool, likely int, to *obj.Prog) {
 			switch n.Op {
 			case OEQ:
 				// neither NE nor P
-				p1 := Gbranch(Thearch.Optoas(ONE, nr.Type), nil, -likely)
-				p2 := Gbranch(Thearch.Optoas(OPS, nr.Type), nil, -likely)
-				Patch(Gbranch(obj.AJMP, nil, 0), to)
-				Patch(p1, Pc)
-				Patch(p2, Pc)
+				if genval {
+					var reg Node
+					Regalloc(&reg, Types[TBOOL], nil)
+					Thearch.Ginsboolval(Thearch.Optoas(OEQ, nr.Type), &reg)
+					Thearch.Ginsboolval(Thearch.Optoas(OPC, nr.Type), res)
+					Thearch.Gins(Thearch.Optoas(OAND, Types[TBOOL]), &reg, res)
+					Regfree(&reg)
+				} else {
+					p1 := Gbranch(Thearch.Optoas(ONE, nr.Type), nil, -likely)
+					p2 := Gbranch(Thearch.Optoas(OPS, nr.Type), nil, -likely)
+					Patch(Gbranch(obj.AJMP, nil, 0), to)
+					Patch(p1, Pc)
+					Patch(p2, Pc)
+				}
 				return
 			case ONE:
 				// either NE or P
-				Patch(Gbranch(Thearch.Optoas(ONE, nr.Type), nil, likely), to)
-				Patch(Gbranch(Thearch.Optoas(OPS, nr.Type), nil, likely), to)
+				if genval {
+					var reg Node
+					Regalloc(&reg, Types[TBOOL], nil)
+					Thearch.Ginsboolval(Thearch.Optoas(ONE, nr.Type), &reg)
+					Thearch.Ginsboolval(Thearch.Optoas(OPS, nr.Type), res)
+					Thearch.Gins(Thearch.Optoas(OOR, Types[TBOOL]), &reg, res)
+					Regfree(&reg)
+				} else {
+					Patch(Gbranch(Thearch.Optoas(ONE, nr.Type), nil, likely), to)
+					Patch(Gbranch(Thearch.Optoas(OPS, nr.Type), nil, likely), to)
+				}
 				return
 			}
 		case '7', '9':
+			if genval {
+				Fatal("genval 7g, 9g Isfloat special cases not implemented")
+			}
 			switch n.Op {
 			// On arm64 and ppc64, <= and >= mishandle NaN. Must decompose into < or > and =.
 			// TODO(josh): Convert a <= b to b > a instead?
@@ -1912,11 +2028,11 @@ func Bgen(n *Node, wantTrue bool, likely int, to *obj.Prog) {
 		}
 	}
 
-	// Not a special case. Insert an appropriate conditional jump.
-	Patch(Gbranch(Thearch.Optoas(a, nr.Type), nr.Type, likely), to)
+	// Not a special case. Insert the conditional jump or value gen.
+	bins(nr.Type, res, a, likely, to)
 }
 
-func bgenNonZero(n *Node, wantTrue bool, likely int, to *obj.Prog) {
+func bgenNonZero(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 	// TODO: Optimize on systems that can compare to zero easily.
 	a := ONE
 	if !wantTrue {
@@ -1925,7 +2041,21 @@ func bgenNonZero(n *Node, wantTrue bool, likely int, to *obj.Prog) {
 	var zero Node
 	Nodconst(&zero, n.Type, 0)
 	Thearch.Gins(Thearch.Optoas(OCMP, n.Type), n, &zero)
-	Patch(Gbranch(Thearch.Optoas(a, n.Type), n.Type, likely), to)
+	bins(n.Type, res, a, likely, to)
+}
+
+// bins inserts an instruction to handle the result of a compare.
+// If res is non-nil, it inserts appropriate value generation instructions.
+// If res is nil, it inserts a branch to to.
+func bins(typ *Type, res *Node, a, likely int, to *obj.Prog) {
+	a = Thearch.Optoas(a, typ)
+	if res != nil {
+		// value gen
+		Thearch.Ginsboolval(a, res)
+	} else {
+		// jump
+		Patch(Gbranch(a, typ, likely), to)
+	}
 }
 
 /*
