@@ -390,6 +390,11 @@ func machoshbits(mseg *MachoSeg, sect *Section, segname string) {
 		msect.flag = 6                                                     /* section with nonlazy symbol pointers */
 		msect.res1 = uint32(Linklookup(Ctxt, ".linkedit.plt", 0).Size / 4) /* offset into indirect symbol table */
 	}
+
+	if sect.Name == ".init_array" {
+		msect.name = "__mod_init_func"
+		msect.flag = 9 // S_MOD_INIT_FUNC_POINTERS
+	}
 }
 
 func Asmbmacho() {
