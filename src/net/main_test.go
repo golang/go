@@ -142,7 +142,7 @@ func printLeakedSockets() {
 	}
 	fmt.Fprintf(os.Stderr, "Leaked sockets:\n")
 	for s, so := range sos {
-		fmt.Fprintf(os.Stderr, "%v: %+v\n", s, so)
+		fmt.Fprintf(os.Stderr, "%v: %v\n", s, so)
 	}
 	fmt.Fprintf(os.Stderr, "\n")
 }
@@ -154,7 +154,7 @@ func printSocketStats() {
 	}
 	fmt.Fprintf(os.Stderr, "Socket statistical information:\n")
 	for _, st := range sts {
-		fmt.Fprintf(os.Stderr, "%+v\n", st)
+		fmt.Fprintf(os.Stderr, "%v\n", st)
 	}
 	fmt.Fprintf(os.Stderr, "\n")
 }

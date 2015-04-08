@@ -163,7 +163,7 @@ func (fd *netFD) listenStream(laddr sockaddr, backlog int) error {
 			return os.NewSyscallError("bind", err)
 		}
 	}
-	if err := syscall.Listen(fd.sysfd, backlog); err != nil {
+	if err := listenFunc(fd.sysfd, backlog); err != nil {
 		return os.NewSyscallError("listen", err)
 	}
 	if err := fd.init(); err != nil {

@@ -17,4 +17,5 @@ var (
 	closeFunc     func(syscall.Handle) error                                                                = syscall.Closesocket
 	connectFunc   func(syscall.Handle, syscall.Sockaddr) error                                              = syscall.Connect
 	connectExFunc func(syscall.Handle, syscall.Sockaddr, *byte, uint32, *uint32, *syscall.Overlapped) error = syscall.ConnectEx
+	listenFunc    func(syscall.Handle, int) error                                                           = syscall.Listen
 )
