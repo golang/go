@@ -13,7 +13,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -24,13 +23,6 @@ var (
 )
 
 func TestGolden(t *testing.T) {
-	// test fails on NaCl - skip for now
-	// (goapi_test.go:35: open testdata/src/pkg: No such file or directory)
-	// TODO(gri) fix this ASAP
-	if runtime.GOOS == "nacl" {
-		return
-	}
-
 	td, err := os.Open("testdata/src/pkg")
 	if err != nil {
 		t.Fatal(err)
