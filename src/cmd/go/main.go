@@ -91,6 +91,7 @@ var commands = []*Command{
 	cmdVet,
 
 	helpC,
+	helpBuildmode,
 	helpFileType,
 	helpGopath,
 	helpImportPath,
