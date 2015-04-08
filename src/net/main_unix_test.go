@@ -11,6 +11,7 @@ var (
 	origSocket        = socketFunc
 	origClose         = closeFunc
 	origConnect       = connectFunc
+	origListen        = listenFunc
 	origAccept        = acceptFunc
 	origGetsockoptInt = getsockoptIntFunc
 
@@ -22,6 +23,7 @@ func installTestHooks() {
 	socketFunc = sw.Socket
 	closeFunc = sw.Close
 	connectFunc = sw.Connect
+	listenFunc = sw.Listen
 	acceptFunc = sw.Accept
 	getsockoptIntFunc = sw.GetsockoptInt
 
@@ -34,6 +36,7 @@ func uninstallTestHooks() {
 	socketFunc = origSocket
 	closeFunc = origClose
 	connectFunc = origConnect
+	listenFunc = origListen
 	acceptFunc = origAccept
 	getsockoptIntFunc = origGetsockoptInt
 
