@@ -30,7 +30,7 @@ func init() {
 	types.DefaultImport = Import
 }
 
-var pkgExts = [...]string{".a", ".5", ".6", ".8"}
+var pkgExts = [...]string{".a", ".5", ".6", ".7", ".8", ".9"}
 
 // FindPkg returns the filename and unique package id for an import
 // path based on package information provided by build.Import (using
