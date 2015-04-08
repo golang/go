@@ -167,7 +167,7 @@ func putelfsectionsym(s *LSym, shndx int) {
 
 func putelfsymshndx(sympos int64, shndx int) {
 	here := Cpos()
-	if elf64 != 0 {
+	if elf64 {
 		Cseek(sympos + 6)
 	} else {
 		Cseek(sympos + 14)

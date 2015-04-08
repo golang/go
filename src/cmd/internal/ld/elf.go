@@ -725,7 +725,7 @@ var Iself bool
 
 var Nelfsym int = 1
 
-var elf64 int
+var elf64 bool
 
 var ehdr ElfEhdr
 
@@ -764,7 +764,7 @@ func Elfinit() {
 		fallthrough
 
 	case '6', '7':
-		elf64 = 1
+		elf64 = true
 
 		ehdr.phoff = ELF64HDRSIZE      /* Must be be ELF64HDRSIZE: first PHdr must follow ELF header */
 		ehdr.shoff = ELF64HDRSIZE      /* Will move as we add PHeaders */
@@ -854,7 +854,7 @@ func elf32shdr(e *ElfShdr) {
 }
 
 func elfwriteshdrs() uint32 {
-	if elf64 != 0 {
+	if elf64 {
 		for i := 0; i < int(ehdr.shnum); i++ {
 			elf64shdr(shdr[i])
 		}
@@ -879,7 +879,7 @@ func elfsetstring(s string, off int) {
 }
 
 func elfwritephdrs() uint32 {
-	if elf64 != 0 {
+	if elf64 {
 		for i := 0; i < int(ehdr.phnum); i++ {
 			elf64phdr(phdr[i])
 		}
@@ -900,7 +900,7 @@ func newElfPhdr() *ElfPhdr {
 		phdr[ehdr.phnum] = e
 		ehdr.phnum++
 	}
-	if elf64 != 0 {
+	if elf64 {
 		ehdr.shoff += ELF64PHDRSIZE
 	} else {
 		ehdr.shoff += ELF32PHDRSIZE
@@ -967,7 +967,7 @@ func elf32writehdr() uint32 {
 }
 
 func elfwritehdr() uint32 {
-	if elf64 != 0 {
+	if elf64 {
 		return elf64writehdr()
 	}
 	return elf32writehdr()
@@ -991,7 +991,7 @@ func elfhash(name []byte) uint32 {
 }
 
 func Elfwritedynent(s *LSym, tag int, val uint64) {
-	if elf64 != 0 {
+	if elf64 {
 		Adduint64(Ctxt, s, uint64(tag))
 		Adduint64(Ctxt, s, val)
 	} else {
@@ -1005,7 +1005,7 @@ func elfwritedynentsym(s *LSym, tag int, t *LSym) {
 }
 
 func Elfwritedynentsymplus(s *LSym, tag int, t *LSym, add int64) {
-	if elf64 != 0 {
+	if elf64 {
 		Adduint64(Ctxt, s, uint64(tag))
 	} else {
 		Adduint32(Ctxt, s, uint32(tag))
@@ -1014,7 +1014,7 @@ func Elfwritedynentsymplus(s *LSym, tag int, t *LSym, add int64) {
 }
 
 func elfwritedynentsymsize(s *LSym, tag int, t *LSym) {
-	if elf64 != 0 {
+	if elf64 {
 		Adduint64(Ctxt, s, uint64(tag))
 	} else {
 		Adduint32(Ctxt, s, uint32(tag))
@@ -2015,7 +2015,7 @@ func Asmbelf(symo int64) {
 		sh := elfshname(".dynsym")
 		sh.type_ = SHT_DYNSYM
 		sh.flags = SHF_ALLOC
-		if elf64 != 0 {
+		if elf64 {
 			sh.entsize = ELF64SYMSIZE
 		} else {
 			sh.entsize = ELF32SYMSIZE
@@ -2266,7 +2266,7 @@ elfobj:
 	} else if HEADTYPE == Hdragonfly {
 		eh.ident[EI_OSABI] = ELFOSABI_NONE
 	}
-	if elf64 != 0 {
+	if elf64 {
 		eh.ident[EI_CLASS] = ELFCLASS64
 	} else {
 		eh.ident[EI_CLASS] = ELFCLASS32
