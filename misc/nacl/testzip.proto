@@ -10,6 +10,9 @@ usr	src=../misc/nacl/testdata
 go	src=..
 	src
 		cmd
+			api
+				testdata
+					+
 			asm
 				internal
 					asm
