@@ -809,7 +809,7 @@ type Arch struct {
 	Sameaddr     func(*obj.Addr, *obj.Addr) bool
 	Smallindir   func(*obj.Addr, *obj.Addr) bool
 	Stackaddr    func(*obj.Addr) bool
-	Stackcopy    func(*Node, *Node, int64, int64, int64)
+	Blockcopy    func(*Node, *Node, int64, int64, int64)
 	Sudoaddable  func(int, *Node, *obj.Addr) bool
 	Sudoclean    func()
 	Excludedregs func() uint64

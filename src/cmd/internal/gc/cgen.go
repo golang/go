@@ -2312,7 +2312,7 @@ func sgen_wb(n *Node, ns *Node, w int64, wb bool) {
 		return
 	}
 
-	Thearch.Stackcopy(n, ns, osrc, odst, w)
+	Thearch.Blockcopy(n, ns, osrc, odst, w)
 }
 
 /*

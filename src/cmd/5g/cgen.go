@@ -75,7 +75,7 @@ func gencmp0(n *gc.Node, t *gc.Type, o int, likely int, to *obj.Prog) {
 	gc.Regfree(&n1)
 }
 
-func stackcopy(n, res *gc.Node, osrc, odst, w int64) {
+func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
 	// determine alignment.
 	// want to avoid unaligned access, so have to use
 	// smaller operations for less aligned types.

@@ -111,7 +111,7 @@ func main() {
 	gc.Thearch.Sameaddr = sameaddr
 	gc.Thearch.Smallindir = smallindir
 	gc.Thearch.Stackaddr = stackaddr
-	gc.Thearch.Stackcopy = stackcopy
+	gc.Thearch.Blockcopy = blockcopy
 	gc.Thearch.Sudoaddable = sudoaddable
 	gc.Thearch.Sudoclean = sudoclean
 	gc.Thearch.Excludedregs = excludedregs
