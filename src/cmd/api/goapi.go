@@ -202,7 +202,8 @@ func main() {
 	}
 	optional := fileFeatures(*nextFile)
 	exception := fileFeatures(*exceptFile)
-	fail = !compareAPI(bw, features, required, optional, exception)
+	fail = !compareAPI(bw, features, required, optional, exception,
+		*allowNew && strings.Contains(runtime.Version(), "devel"))
 }
 
 // export emits the exported package features.
@@ -238,7 +239,7 @@ func featureWithoutContext(f string) string {
 	return spaceParensRx.ReplaceAllString(f, "")
 }
 
-func compareAPI(w io.Writer, features, required, optional, exception []string) (ok bool) {
+func compareAPI(w io.Writer, features, required, optional, exception []string, allowAdd bool) (ok bool) {
 	ok = true
 
 	optionalSet := set(optional)
@@ -280,7 +281,7 @@ func compareAPI(w io.Writer, features, required, optional, exception []string) (
 				delete(optionalSet, newFeature)
 			} else {
 				fmt.Fprintf(w, "+%s\n", newFeature)
-				if !*allowNew || !strings.Contains(runtime.Version(), "devel") {
+				if !allowAdd {
 					ok = false // we're in lock-down mode for next release
 				}
 			}
