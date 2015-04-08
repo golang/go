@@ -131,7 +131,7 @@ func TestCompareAPI(t *testing.T) {
 	}
 	for _, tt := range tests {
 		buf := new(bytes.Buffer)
-		gotok := compareAPI(buf, tt.features, tt.required, tt.optional, tt.exception)
+		gotok := compareAPI(buf, tt.features, tt.required, tt.optional, tt.exception, true)
 		if gotok != tt.ok {
 			t.Errorf("%s: ok = %v; want %v", tt.name, gotok, tt.ok)
 		}
