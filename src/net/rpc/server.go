@@ -13,6 +13,7 @@
 	Only methods that satisfy these criteria will be made available for remote access;
 	other methods will be ignored:
 
+		- the method's type is exported.
 		- the method is exported.
 		- the method has two arguments, both exported (or builtin) types.
 		- the method's second argument is a pointer.
@@ -216,7 +217,7 @@ func isExportedOrBuiltinType(t reflect.Type) bool {
 
 // Register publishes in the server the set of methods of the
 // receiver value that satisfy the following conditions:
-//	- exported method
+//	- exported method of exported type
 //	- two arguments, both of exported type
 //	- the second argument is a pointer
 //	- one return value, of type error
