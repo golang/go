@@ -129,6 +129,46 @@ loop1:
 		goto ret /* allow following code improvement to be suppressed */
 	}
 
+	// MOVD $c, R'; ADD R', R (R' unused) -> ADD $c, R
+	for r := (*gc.Flow)(g.Start); r != nil; r = r.Link {
+		p = r.Prog
+		switch p.As {
+		default:
+			continue
+
+		case arm64.AMOVD:
+			if p.To.Type != obj.TYPE_REG {
+				continue
+			}
+			if p.From.Type != obj.TYPE_CONST {
+				continue
+			}
+			if p.From.Offset < 0 || 4096 <= p.From.Offset {
+				continue
+			}
+		}
+		r1 = r.Link
+		if r1 == nil {
+			continue
+		}
+		p1 = r1.Prog
+		if p1.As != arm64.AADD && p1.As != arm64.ASUB { // TODO(aram): also logical after we have bimm.
+			continue
+		}
+		if p1.From.Type != obj.TYPE_REG || p1.From.Reg != p.To.Reg {
+			continue
+		}
+		if p1.To.Type != obj.TYPE_REG {
+			continue
+		}
+		if gc.Debug['P'] != 0 {
+			fmt.Printf("encoding $%d directly into %v in:\n%v\n%v\n", p.From.Offset, obj.Aconv(int(p1.As)), p, p1)
+		}
+		p1.From.Type = obj.TYPE_CONST
+		p1.From = p.From
+		excise(r)
+	}
+
 	/* TODO(minux):
 	 * look for OP x,y,R; CMP R, $0 -> OP.S x,y,R
 	 * when OP can set condition codes correctly
