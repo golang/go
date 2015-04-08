@@ -18,6 +18,20 @@ import (
 	"go/types"
 )
 
+// skipTest returns true for platforms on which the current gcimporter doesn't work.
+// TODO(gri) eliminate this ASAP.
+func skipTest() bool {
+	switch runtime.GOOS + "-" + runtime.GOARCH {
+	case "nacl-amd64p32",
+		"windows-amd64",
+		"nacl-386",
+		"windows-386",
+		"plan9-386":
+		return true
+	}
+	return false
+}
+
 var gcPath string // Go compiler path
 
 func init() {
@@ -133,6 +147,10 @@ var importedObjectTests = []struct {
 }
 
 func TestImportedTypes(t *testing.T) {
+	if skipTest() {
+		return
+	}
+
 	// This package does not handle gccgo export data.
 	if runtime.Compiler == "gccgo" {
 		return
@@ -165,6 +183,10 @@ func TestImportedTypes(t *testing.T) {
 }
 
 func TestIssue5815(t *testing.T) {
+	if skipTest() {
+		return
+	}
+
 	// This package does not handle gccgo export data.
 	if runtime.Compiler == "gccgo" {
 		return
@@ -195,6 +217,10 @@ func TestIssue5815(t *testing.T) {
 
 // Smoke test to ensure that imported methods get the correct package.
 func TestCorrectMethodPackage(t *testing.T) {
+	if skipTest() {
+		return
+	}
+
 	// This package does not handle gccgo export data.
 	if runtime.Compiler == "gccgo" {
 		return

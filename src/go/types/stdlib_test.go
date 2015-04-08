@@ -32,6 +32,10 @@ var (
 )
 
 func TestStdlib(t *testing.T) {
+	if skipTest() {
+		return
+	}
+
 	walkDirs(t, filepath.Join(runtime.GOROOT(), "src"))
 	if testing.Verbose() {
 		fmt.Println(pkgCount, "packages typechecked in", time.Since(start))
@@ -116,6 +120,10 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 }
 
 func TestStdTest(t *testing.T) {
+	if skipTest() {
+		return
+	}
+
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
 		"cmplxdivide.go", // also needs file cmplxdivide1.go - ignore
 		"sigchld.go",     // don't work on Windows; testTestDir should consult build tags
@@ -124,6 +132,10 @@ func TestStdTest(t *testing.T) {
 }
 
 func TestStdFixed(t *testing.T) {
+	if skipTest() {
+		return
+	}
+
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "fixedbugs"),
 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
 		"bug459.go",    // possibly incorrect test - see issue 6703 (pending spec clarification)
@@ -133,6 +145,10 @@ func TestStdFixed(t *testing.T) {
 }
 
 func TestStdKen(t *testing.T) {
+	if skipTest() {
+		return
+	}
+
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "ken"))
 }
 

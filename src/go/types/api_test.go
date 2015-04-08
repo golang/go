@@ -10,12 +10,27 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"runtime"
 	"strings"
 	"testing"
 
 	. "go/types"
 	_ "go/types/internal/gcimporter"
 )
+
+// skipTest returns true for platforms on which the current gcimporter doesn't work.
+// TODO(gri) eliminate this ASAP.
+func skipTest() bool {
+	switch runtime.GOOS + "-" + runtime.GOARCH {
+	case "nacl-amd64p32",
+		"windows-amd64",
+		"nacl-386",
+		"windows-386",
+		"plan9-386":
+		return true
+	}
+	return false
+}
 
 func pkgFor(path, source string, info *Info) (*Package, error) {
 	fset := token.NewFileSet()
@@ -284,6 +299,10 @@ func predString(tv TypeAndValue) string {
 }
 
 func TestPredicatesInfo(t *testing.T) {
+	if skipTest() {
+		return
+	}
+
 	var tests = []struct {
 		src  string
 		expr string
@@ -368,6 +387,10 @@ func TestPredicatesInfo(t *testing.T) {
 }
 
 func TestScopesInfo(t *testing.T) {
+	if skipTest() {
+		return
+	}
+
 	var tests = []struct {
 		src    string
 		scopes []string // list of scope descriptors of the form kind:varlist

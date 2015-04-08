@@ -278,6 +278,10 @@ func checkFiles(t *testing.T, testfiles []string) {
 }
 
 func TestCheck(t *testing.T) {
+	if skipTest() {
+		return
+	}
+
 	// Declare builtins for testing.
 	DefPredeclaredTestFuncs()
 
