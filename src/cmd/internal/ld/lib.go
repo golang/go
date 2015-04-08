@@ -35,6 +35,7 @@ import (
 	"cmd/internal/obj"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -738,8 +739,6 @@ func hostlinksetup() {
 	coutbuf = *Binitw(cout)
 }
 
-var hostlink_buf = make([]byte, 64*1024)
-
 func hostlink() {
 	if Linkmode != LinkExternal || nerrors > 0 {
 		return
@@ -811,23 +810,20 @@ func hostlink() {
 
 	// already wrote main object file
 	// copy host objects to temporary directory
-	var f *Biobuf
-	var h *Hostobj
-	var length int
-	var n int
-	var p string
-	for i := 0; i < len(hostobj); i++ {
-		h = &hostobj[i]
-		var err error
-		f, err = Bopenr(h.file)
-		if f == nil {
+	for i, h := range hostobj {
+		f, err := os.Open(h.file)
+		if err != nil {
 			Ctxt.Cursym = nil
 			Diag("cannot reopen %s: %v", h.pn, err)
 			Errorexit()
 		}
+		if _, err := f.Seek(h.off, 0); err != nil {
+			Ctxt.Cursym = nil
+			Diag("cannot seek %s: %v", h.pn, err)
+			Errorexit()
+		}
 
-		Bseek(f, h.off, 0)
-		p = fmt.Sprintf("%s/%06d.o", tmpdir, i)
+		p := fmt.Sprintf("%s/%06d.o", tmpdir, i)
 		argv = append(argv, p)
 		w, err := os.Create(p)
 		if err != nil {
@@ -835,38 +831,22 @@ func hostlink() {
 			Diag("cannot create %s: %v", p, err)
 			Errorexit()
 		}
-
-		length = int(h.length)
-		for length > 0 {
-			n = Bread(f, hostlink_buf)
-			if n <= 0 {
-				break
-			}
-			if n > length {
-				n = length
-			}
-			if _, err = w.Write(hostlink_buf[:n]); err != nil {
-				log.Fatal(err)
-			}
-			length -= n
-		}
-
-		if err := w.Close(); err != nil {
+		if _, err := io.CopyN(w, f, h.length); err != nil {
 			Ctxt.Cursym = nil
 			Diag("cannot write %s: %v", p, err)
 			Errorexit()
 		}
-
-		Bterm(f)
+		if err := w.Close(); err != nil {
+			Ctxt.Cursym = nil
+			Diag("cannot close %s: %v", p, err)
+			Errorexit()
+		}
 	}
 
 	argv = append(argv, fmt.Sprintf("%s/go.o", tmpdir))
-	var i int
-	for i = 0; i < len(ldflag); i++ {
-		argv = append(argv, ldflag[i])
-	}
+	argv = append(argv, ldflag...)
 
-	for _, p = range strings.Fields(extldflags) {
+	for _, p := range strings.Fields(extldflags) {
 		argv = append(argv, p)
 
 		// clang, unlike GCC, passes -rdynamic to the linker
@@ -876,7 +856,7 @@ func hostlink() {
 		// only adding -rdynamic later, so that -extldflags
 		// can override -rdynamic without using -static.
 		if Iself && p == "-static" {
-			for i = range argv {
+			for i := range argv {
 				if argv[i] == "-rdynamic" {
 					argv[i] = "-static"
 				}
@@ -889,8 +869,8 @@ func hostlink() {
 
 	if Debug['v'] != 0 {
 		fmt.Fprintf(&Bso, "host link:")
-		for i = range argv {
-			fmt.Fprintf(&Bso, " %v", plan9quote(argv[i]))
+		for _, v := range argv {
+			fmt.Fprintf(&Bso, " %q", v)
 		}
 		fmt.Fprintf(&Bso, "\n")
 		Bflush(&Bso)

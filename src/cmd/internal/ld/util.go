@@ -24,18 +24,6 @@ func cstring(x []byte) string {
 	return string(x)
 }
 
-func plan9quote(s string) string {
-	if s == "" {
-		return "'" + strings.Replace(s, "'", "''", -1) + "'"
-	}
-	for i := 0; i < len(s); i++ {
-		if s[i] <= ' ' || s[i] == '\'' {
-			return "'" + strings.Replace(s, "'", "''", -1) + "'"
-		}
-	}
-	return s
-}
-
 func tokenize(s string) []string {
 	var f []string
 	for {
