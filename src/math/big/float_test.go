@@ -12,6 +12,9 @@ import (
 	"testing"
 )
 
+// Verify that ErrNaN implements the error interface.
+var _ error = ErrNaN{}
+
 func (x *Float) uint64() uint64 {
 	u, acc := x.Uint64()
 	if acc != Exact {

@@ -71,6 +71,11 @@ type ErrNaN struct {
 	msg string
 }
 
+// ErrNan implements the error interface.
+func (err ErrNaN) Error() string {
+	return err.msg
+}
+
 // NewFloat allocates and returns a new Float set to x,
 // with precision 53 and rounding mode ToNearestEven.
 // NewFloat panics with ErrNaN if x is a NaN.
