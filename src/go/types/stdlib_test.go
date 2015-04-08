@@ -127,7 +127,6 @@ func TestStdTest(t *testing.T) {
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
 		"cmplxdivide.go", // also needs file cmplxdivide1.go - ignore
 		"sigchld.go",     // don't work on Windows; testTestDir should consult build tags
-		"float_lit2.go",  // TODO(gri) enable for releases 1.4 and higher
 	)
 }
 
