@@ -57,7 +57,8 @@ func main() {
 	var ok bool
 	pList.Firstpc, ok = parser.Parse()
 	if !ok {
-		log.Fatalf("asm: assembly of %s failed", flag.Arg(0))
+		log.Printf("asm: assembly of %s failed", flag.Arg(0))
+		os.Remove(*flags.OutputFile)
 		os.Exit(1)
 	}
 	obj.Writeobjdirect(ctxt, output)
