@@ -116,9 +116,7 @@ var dependentTestTypes = []testEntry{
 }
 
 func TestTypeString(t *testing.T) {
-	if skipTest() {
-		return
-	}
+	skipSpecialPlatforms(t)
 
 	var tests []testEntry
 	tests = append(tests, independentTestTypes...)

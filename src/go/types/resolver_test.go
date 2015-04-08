@@ -89,9 +89,7 @@ var pkgnames = []string{
 }
 
 func TestResolveIdents(t *testing.T) {
-	if skipTest() {
-		return
-	}
+	skipSpecialPlatforms(t)
 
 	// parse package files
 	fset := token.NewFileSet()

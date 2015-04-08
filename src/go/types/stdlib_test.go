@@ -32,9 +32,7 @@ var (
 )
 
 func TestStdlib(t *testing.T) {
-	if skipTest() {
-		return
-	}
+	skipSpecialPlatforms(t)
 
 	walkDirs(t, filepath.Join(runtime.GOROOT(), "src"))
 	if testing.Verbose() {
@@ -120,7 +118,11 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 }
 
 func TestStdTest(t *testing.T) {
-	if skipTest() {
+	skipSpecialPlatforms(t)
+
+	// test/recover4.go is only built for Linux and Darwin.
+	// TODO(gri) Remove once tests consider +build tags (issue 10370).
+	if runtime.GOOS != "linux" || runtime.GOOS != "darwin" {
 		return
 	}
 
@@ -131,9 +133,7 @@ func TestStdTest(t *testing.T) {
 }
 
 func TestStdFixed(t *testing.T) {
-	if skipTest() {
-		return
-	}
+	skipSpecialPlatforms(t)
 
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "fixedbugs"),
 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
@@ -144,9 +144,7 @@ func TestStdFixed(t *testing.T) {
 }
 
 func TestStdKen(t *testing.T) {
-	if skipTest() {
-		return
-	}
+	skipSpecialPlatforms(t)
 
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "ken"))
 }

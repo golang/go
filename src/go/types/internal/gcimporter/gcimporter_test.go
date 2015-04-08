@@ -18,18 +18,17 @@ import (
 	"go/types"
 )
 
-// skipTest returns true for platforms on which the current gcimporter doesn't work.
-// TODO(gri) eliminate this ASAP.
-func skipTest() bool {
-	switch runtime.GOOS + "-" + runtime.GOARCH {
+// skipSpecialPlatforms causes the test to be skipped for platforms where
+// builders (build.golang.org) don't have access to compiled packages for
+// import.
+func skipSpecialPlatforms(t *testing.T) {
+	switch platform := runtime.GOOS + "-" + runtime.GOARCH; platform {
 	case "nacl-amd64p32",
-		"windows-amd64",
 		"nacl-386",
-		"windows-386",
-		"plan9-386":
-		return true
+		"darwin-arm",
+		"darwin-arm64":
+		t.Skipf("no compiled packages available for import on %s", platform)
 	}
-	return false
 }
 
 var gcPath string // Go compiler path
@@ -111,8 +110,9 @@ func testDir(t *testing.T, dir string, endTime time.Time) (nimports int) {
 }
 
 func TestImport(t *testing.T) {
-	// This package does not handle gccgo export data.
-	if runtime.Compiler == "gccgo" {
+	// This package only handles gc export data.
+	if runtime.Compiler != "gc" {
+		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
 		return
 	}
 
@@ -147,14 +147,14 @@ var importedObjectTests = []struct {
 }
 
 func TestImportedTypes(t *testing.T) {
-	if skipTest() {
+	skipSpecialPlatforms(t)
+
+	// This package only handles gc export data.
+	if runtime.Compiler != "gc" {
+		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
 		return
 	}
 
-	// This package does not handle gccgo export data.
-	if runtime.Compiler == "gccgo" {
-		return
-	}
 	for _, test := range importedObjectTests {
 		s := strings.Split(test.name, ".")
 		if len(s) != 2 {
@@ -183,12 +183,11 @@ func TestImportedTypes(t *testing.T) {
 }
 
 func TestIssue5815(t *testing.T) {
-	if skipTest() {
-		return
-	}
+	skipSpecialPlatforms(t)
 
-	// This package does not handle gccgo export data.
-	if runtime.Compiler == "gccgo" {
+	// This package only handles gc export data.
+	if runtime.Compiler != "gc" {
+		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
 		return
 	}
 
@@ -217,12 +216,11 @@ func TestIssue5815(t *testing.T) {
 
 // Smoke test to ensure that imported methods get the correct package.
 func TestCorrectMethodPackage(t *testing.T) {
-	if skipTest() {
-		return
-	}
+	skipSpecialPlatforms(t)
 
-	// This package does not handle gccgo export data.
-	if runtime.Compiler == "gccgo" {
+	// This package only handles gc export data.
+	if runtime.Compiler != "gc" {
+		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
 		return
 	}
 
