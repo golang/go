@@ -317,14 +317,12 @@ func asmb() {
 			fmt.Fprintf(&ld.Bso, "%5.2f dwarf\n", obj.Cputime())
 		}
 
-		if ld.Debug['w'] == 0 { // TODO(minux): enable DWARF Support
-			dwarfoff := uint32(ld.Rnd(int64(uint64(ld.HEADR)+ld.Segtext.Length), int64(ld.INITRND)) + ld.Rnd(int64(ld.Segdata.Filelen), int64(ld.INITRND)))
-			ld.Cseek(int64(dwarfoff))
+		dwarfoff := uint32(ld.Rnd(int64(uint64(ld.HEADR)+ld.Segtext.Length), int64(ld.INITRND)) + ld.Rnd(int64(ld.Segdata.Filelen), int64(ld.INITRND)))
+		ld.Cseek(int64(dwarfoff))
 
-			ld.Segdwarf.Fileoff = uint64(ld.Cpos())
-			ld.Dwarfemitdebugsections()
-			ld.Segdwarf.Filelen = uint64(ld.Cpos()) - ld.Segdwarf.Fileoff
-		}
+		ld.Segdwarf.Fileoff = uint64(ld.Cpos())
+		ld.Dwarfemitdebugsections()
+		ld.Segdwarf.Filelen = uint64(ld.Cpos()) - ld.Segdwarf.Fileoff
 
 		machlink = uint32(ld.Domacholink())
 	}
@@ -351,7 +349,7 @@ func asmb() {
 			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
 
 		case obj.Hdarwin:
-			symo = uint32(ld.Rnd(int64(uint64(ld.HEADR)+ld.Segtext.Filelen), int64(ld.INITRND)) + ld.Rnd(int64(ld.Segdata.Filelen), int64(ld.INITRND)) + int64(machlink))
+			symo = uint32(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(ld.INITRND))) + uint64(machlink))
 		}
 
 		ld.Cseek(int64(symo))
