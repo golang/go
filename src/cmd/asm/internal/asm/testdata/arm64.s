@@ -134,13 +134,16 @@ again:
 //	}
 	CSET	GT, R1
 //
-// CSEL/CINC/CNEG/CINV
+// CSEL/CSINC/CSNEG/CSINV
 //
 //		LTYPES cond ',' reg ',' reg ',' reg
 //	{
 //		outgcode($1, &$2, $6.reg, &$4, &$8);
 //	}
-//	CSEL	LT, R1, R2, ZR
+	CSEL	LT, R1, R2, ZR
+	CSINC	GT, R1, ZR, R3
+	CSNEG	MI, R1, R2, R3
+	CSINV	CS, R1, R2, R3
 
 //		LTYPES cond ',' reg ',' reg
 //	{
@@ -154,7 +157,7 @@ again:
 //	{
 //		outgcode($1, &$2, $6.reg, &$4, &$8);
 //	}
-// 	CCMN	MI, $1, R1, $4
+	CCMN	MI, ZR, R1, $4
 
 //
 // FADDD

@@ -2110,7 +2110,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 		rt := int(p.To.Reg)
-		o1 |= (uint32(r&31) << 16) | (uint32(cond) << 12) | (uint32(rf&31) << 5) | uint32(rt&31)
+		o1 |= (uint32(rf&31) << 16) | (uint32(cond&31) << 12) | (uint32(r&31) << 5) | uint32(rt&31)
 
 	case 19: /* CCMN cond, (Rm|uimm5),Rn, uimm4 -> ccmn Rn,Rm,uimm4,cond */
 		nzcv := int(p.To.Offset)

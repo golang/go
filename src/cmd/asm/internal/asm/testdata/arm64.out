@@ -34,13 +34,18 @@
 116 00034 (testdata/arm64.s:116)	CMP	R1, R2
 126 00035 (testdata/arm64.s:126)	CBZ	R1
 135 00036 (testdata/arm64.s:135)	CSET	GT, R1
-149 00037 (testdata/arm64.s:149)	CSEL	LT, R1, R2
-166 00038 (testdata/arm64.s:166)	FADDD	$(0.5), F1
-167 00039 (testdata/arm64.s:167)	FADDD	F1, F2
-173 00040 (testdata/arm64.s:173)	FADDD	$(0.69999999999999996), F1, F2
-174 00041 (testdata/arm64.s:174)	FADDD	F1, F2, F3
-226 00042 (testdata/arm64.s:226)	DMB	$1
-235 00043 (testdata/arm64.s:235)	LDAXRW	(R0), R2
-236 00044 (testdata/arm64.s:236)	STLXRW	R1, (R0), R3
-244 00045 (testdata/arm64.s:244)	RET
-252 00046 (testdata/arm64.s:252)	END
+143 00037 (testdata/arm64.s:143)	CSEL	LT, R1, R2, ZR
+144 00038 (testdata/arm64.s:144)	CSINC	GT, R1, ZR, R3
+145 00039 (testdata/arm64.s:145)	CSNEG	MI, R1, R2, R3
+146 00040 (testdata/arm64.s:146)	CSINV	0, R1, R2, R3
+152 00041 (testdata/arm64.s:152)	CSEL	LT, R1, R2
+160 00042 (testdata/arm64.s:160)	CCMN	MI, ZR, R1, $4
+169 00043 (testdata/arm64.s:169)	FADDD	$(0.5), F1
+170 00044 (testdata/arm64.s:170)	FADDD	F1, F2
+176 00045 (testdata/arm64.s:176)	FADDD	$(0.69999999999999996), F1, F2
+177 00046 (testdata/arm64.s:177)	FADDD	F1, F2, F3
+229 00047 (testdata/arm64.s:229)	DMB	$1
+238 00048 (testdata/arm64.s:238)	LDAXRW	(R0), R2
+239 00049 (testdata/arm64.s:239)	STLXRW	R1, (R0), R3
+247 00050 (testdata/arm64.s:247)	RET
+255 00051 (testdata/arm64.s:255)	END
