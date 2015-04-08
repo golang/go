@@ -922,7 +922,7 @@ func hostlink() {
 	}
 
 	if HEADTYPE == obj.Hdarwin {
-		argv = append(argv, "-Wl,-no_pie,-pagezero_size,4000000")
+		argv = append(argv, "-Wl,-no_pie,-pagezero_size,4000000,-headerpad,1144")
 	}
 	if HEADTYPE == obj.Hopenbsd {
 		argv = append(argv, "-Wl,-nopie")
@@ -1028,6 +1028,25 @@ func hostlink() {
 
 	if out, err := exec.Command(argv[0], argv[1:]...).CombinedOutput(); err != nil {
 		Exitf("running %s failed: %v\n%s", argv[0], err, out)
+	}
+
+	if Debug['s'] == 0 && debug_s == 0 && HEADTYPE == obj.Hdarwin {
+		dsym := fmt.Sprintf("%s/go.dwarf", tmpdir)
+		if out, err := exec.Command("dsymutil", "-f", outfile, "-o", dsym).CombinedOutput(); err != nil {
+			Ctxt.Cursym = nil
+			Exitf("%s: running dsymutil failed: %v\n%s", os.Args[0], err, out)
+		}
+		combinedOutput := fmt.Sprintf("%s/go.combined", tmpdir)
+		if err := machoCombineDwarf(outfile, dsym, combinedOutput); err != nil {
+			Ctxt.Cursym = nil
+			Exitf("%s: combining dwarf failed: %v", os.Args[0], err)
+		}
+		origOutput := fmt.Sprintf("%s/go.orig", tmpdir)
+		os.Rename(outfile, origOutput)
+		if err := os.Rename(combinedOutput, outfile); err != nil {
+			Ctxt.Cursym = nil
+			Exitf("%s: rename(%s, %s) failed: %v", os.Args[0], combinedOutput, outfile, err)
+		}
 	}
 }
 
