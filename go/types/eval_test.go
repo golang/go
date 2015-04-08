@@ -83,6 +83,8 @@ func TestEvalArith(t *testing.T) {
 }
 
 func TestEvalContext(t *testing.T) {
+	skipSpecialPlatforms(t)
+
 	src := `
 package p
 import "fmt"
