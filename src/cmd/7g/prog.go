@@ -122,6 +122,8 @@ var progtable = [arm64.ALAST]obj.ProgInfo{
 	arm64.ABLS:    {gc.Cjmp, 0, 0, 0},
 	arm64.ABHI:    {gc.Cjmp, 0, 0, 0},
 	arm64.ABHS:    {gc.Cjmp, 0, 0, 0},
+	arm64.ACBZ:    {gc.Cjmp, 0, 0, 0},
+	arm64.ACBNZ:   {gc.Cjmp, 0, 0, 0},
 	obj.ARET:      {gc.Break, 0, 0, 0},
 	obj.ADUFFZERO: {gc.Call, 0, 0, 0},
 	obj.ADUFFCOPY: {gc.Call, 0, 0, 0},

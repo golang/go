@@ -483,7 +483,6 @@ func clearfat(nl *gc.Node) {
 // Expand CHECKNIL pseudo-op into actual nil pointer check.
 func expandchecks(firstp *obj.Prog) {
 	var p1 *obj.Prog
-	var p2 *obj.Prog
 
 	for p := (*obj.Prog)(firstp); p != nil; p = p.Link {
 		if gc.Debug_checknil != 0 && gc.Ctxt.Debugvlog != 0 {
@@ -500,38 +499,26 @@ func expandchecks(firstp *obj.Prog) {
 		}
 
 		// check is
-		//	CMP arg, ZR
-		//	BNE 2(PC) [likely]
+		//	CBNZ arg, 2(PC)
 		//	MOVD ZR, 0(arg)
 		p1 = gc.Ctxt.NewProg()
-
-		p2 = gc.Ctxt.NewProg()
 		gc.Clearp(p1)
-		gc.Clearp(p2)
-		p1.Link = p2
-		p2.Link = p.Link
+		p1.Link = p.Link
 		p.Link = p1
 		p1.Lineno = p.Lineno
-		p2.Lineno = p.Lineno
 		p1.Pc = 9999
-		p2.Pc = 9999
-		p.As = arm64.ACMP
-		p.Reg = arm64.REGZERO
-		p1.As = arm64.ABNE
 
-		//p1->from.type = TYPE_CONST;
-		//p1->from.offset = 1; // likely
-		p1.To.Type = obj.TYPE_BRANCH
-
-		p1.To.Val = p2.Link
+		p.As = arm64.ACBNZ
+		p.To.Type = obj.TYPE_BRANCH
+		p.To.Val = p1.Link
 
 		// crash by write to memory address 0.
-		p2.As = arm64.AMOVD
-		p2.From.Type = obj.TYPE_REG
-		p2.From.Reg = arm64.REGZERO
-		p2.To.Type = obj.TYPE_MEM
-		p2.To.Reg = p.From.Reg
-		p2.To.Offset = 0
+		p1.As = arm64.AMOVD
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = arm64.REGZERO
+		p1.To.Type = obj.TYPE_MEM
+		p1.To.Reg = p.From.Reg
+		p1.To.Offset = 0
 	}
 }
 
