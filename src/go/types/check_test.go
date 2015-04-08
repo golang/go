@@ -278,9 +278,7 @@ func checkFiles(t *testing.T, testfiles []string) {
 }
 
 func TestCheck(t *testing.T) {
-	if skipTest() {
-		return
-	}
+	skipSpecialPlatforms(t)
 
 	// Declare builtins for testing.
 	DefPredeclaredTestFuncs()

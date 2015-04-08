@@ -18,18 +18,17 @@ import (
 	_ "go/types/internal/gcimporter"
 )
 
-// skipTest returns true for platforms on which the current gcimporter doesn't work.
-// TODO(gri) eliminate this ASAP.
-func skipTest() bool {
-	switch runtime.GOOS + "-" + runtime.GOARCH {
+// skipSpecialPlatforms causes the test to be skipped for platforms where
+// builders (build.golang.org) don't have access to compiled packages for
+// import.
+func skipSpecialPlatforms(t *testing.T) {
+	switch platform := runtime.GOOS + "-" + runtime.GOARCH; platform {
 	case "nacl-amd64p32",
-		"windows-amd64",
 		"nacl-386",
-		"windows-386",
-		"plan9-386":
-		return true
+		"darwin-arm",
+		"darwin-arm64":
+		t.Skipf("no compiled packages available for import on %s", platform)
 	}
-	return false
 }
 
 func pkgFor(path, source string, info *Info) (*Package, error) {
@@ -299,9 +298,7 @@ func predString(tv TypeAndValue) string {
 }
 
 func TestPredicatesInfo(t *testing.T) {
-	if skipTest() {
-		return
-	}
+	skipSpecialPlatforms(t)
 
 	var tests = []struct {
 		src  string
@@ -387,9 +384,7 @@ func TestPredicatesInfo(t *testing.T) {
 }
 
 func TestScopesInfo(t *testing.T) {
-	if skipTest() {
-		return
-	}
+	skipSpecialPlatforms(t)
 
 	var tests = []struct {
 		src    string

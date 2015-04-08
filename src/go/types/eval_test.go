@@ -83,9 +83,7 @@ func TestEvalArith(t *testing.T) {
 }
 
 func TestEvalContext(t *testing.T) {
-	if skipTest() {
-		return
-	}
+	skipSpecialPlatforms(t)
 
 	src := `
 package p
