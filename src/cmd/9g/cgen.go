@@ -10,7 +10,7 @@ import (
 	"cmd/internal/obj/ppc64"
 )
 
-func stackcopy(n, res *gc.Node, osrc, odst, w int64) {
+func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
 	// determine alignment.
 	// want to avoid unaligned access, so have to use
 	// smaller operations for less aligned types.

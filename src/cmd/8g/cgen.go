@@ -48,7 +48,7 @@ func igenindex(n *gc.Node, res *gc.Node, bounded bool) *obj.Prog {
 	return gc.Gbranch(x86.AJNE, nil, +1)
 }
 
-func stackcopy(n, res *gc.Node, osrc, odst, w int64) {
+func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
 	var dst gc.Node
 	gc.Nodreg(&dst, gc.Types[gc.Tptr], x86.REG_DI)
 	var src gc.Node

@@ -15,7 +15,7 @@
 // the routine to copy chunks of memory.
 // Source and destination must not overlap.
 // Do not change duffcopy without also
-// changing stackcopy in cmd/?g/cgen.go.
+// changing blockcopy in cmd/?g/cgen.go.
 
 // See the zero* and copy* generators below
 // for architecture-specific comments.

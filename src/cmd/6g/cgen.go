@@ -10,7 +10,7 @@ import (
 	"cmd/internal/obj/x86"
 )
 
-func stackcopy(n, ns *gc.Node, osrc, odst, w int64) {
+func blockcopy(n, ns *gc.Node, osrc, odst, w int64) {
 	var noddi gc.Node
 	gc.Nodreg(&noddi, gc.Types[gc.Tptr], x86.REG_DI)
 	var nodsi gc.Node
