@@ -25,13 +25,14 @@ func (sw *Switch) Socket(family, sotype, proto int) (s syscall.Handle, err error
 		return syscall.InvalidHandle, err
 	}
 
+	sw.smu.Lock()
+	defer sw.smu.Unlock()
 	if so.Err != nil {
+		sw.stats.getLocked(so.Cookie).OpenFailed++
 		return syscall.InvalidHandle, so.Err
 	}
-	sw.smu.Lock()
 	nso := sw.addLocked(s, family, sotype, proto)
 	sw.stats.getLocked(nso.Cookie).Opened++
-	sw.smu.Unlock()
 	return s, nil
 }
 
@@ -54,13 +55,14 @@ func (sw *Switch) Closesocket(s syscall.Handle) (err error) {
 		return err
 	}
 
+	sw.smu.Lock()
+	defer sw.smu.Unlock()
 	if so.Err != nil {
+		sw.stats.getLocked(so.Cookie).CloseFailed++
 		return so.Err
 	}
-	sw.smu.Lock()
 	delete(sw.sotab, s)
 	sw.stats.getLocked(so.Cookie).Closed++
-	sw.smu.Unlock()
 	return nil
 }
 
@@ -83,12 +85,13 @@ func (sw *Switch) Connect(s syscall.Handle, sa syscall.Sockaddr) (err error) {
 		return err
 	}
 
+	sw.smu.Lock()
+	defer sw.smu.Unlock()
 	if so.Err != nil {
+		sw.stats.getLocked(so.Cookie).ConnectFailed++
 		return so.Err
 	}
-	sw.smu.Lock()
 	sw.stats.getLocked(so.Cookie).Connected++
-	sw.smu.Unlock()
 	return nil
 }
 
@@ -111,11 +114,41 @@ func (sw *Switch) ConnectEx(s syscall.Handle, sa syscall.Sockaddr, b *byte, n ui
 		return err
 	}
 
+	sw.smu.Lock()
+	defer sw.smu.Unlock()
 	if so.Err != nil {
+		sw.stats.getLocked(so.Cookie).ConnectFailed++
 		return so.Err
 	}
-	sw.smu.Lock()
 	sw.stats.getLocked(so.Cookie).Connected++
-	sw.smu.Unlock()
+	return nil
+}
+
+// Listen wraps syscall.Listen.
+func (sw *Switch) Listen(s syscall.Handle, backlog int) (err error) {
+	so := sw.sockso(s)
+	if so == nil {
+		return syscall.Listen(s, backlog)
+	}
+	sw.fmu.RLock()
+	f, _ := sw.fltab[FilterListen]
+	sw.fmu.RUnlock()
+
+	af, err := f.apply(so)
+	if err != nil {
+		return err
+	}
+	so.Err = syscall.Listen(s, backlog)
+	if err = af.apply(so); err != nil {
+		return err
+	}
+
+	sw.smu.Lock()
+	defer sw.smu.Unlock()
+	if so.Err != nil {
+		sw.stats.getLocked(so.Cookie).ListenFailed++
+		return so.Err
+	}
+	sw.stats.getLocked(so.Cookie).Listened++
 	return nil
 }

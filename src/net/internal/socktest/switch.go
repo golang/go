@@ -5,7 +5,10 @@
 // Package socktest provides utilities for socket testing.
 package socktest
 
-import "sync"
+import (
+	"fmt"
+	"sync"
+)
 
 func switchInit(sw *Switch) {
 	sw.fltab = make(map[FilterType]Filter)
@@ -70,7 +73,11 @@ func cookie(family, sotype, proto int) Cookie {
 type Status struct {
 	Cookie    Cookie
 	Err       error // error status of socket system call
-	SocketErr int   // error status of socket by SO_ERROR
+	SocketErr error // error status of socket by SO_ERROR
+}
+
+func (so Status) String() string {
+	return fmt.Sprintf("(%s, %s, %s): syscallerr=%v, socketerr=%v", familyString(so.Cookie.Family()), typeString(so.Cookie.Type()), protocolString(so.Cookie.Protocol()), so.Err, so.SocketErr)
 }
 
 // A Stat represents a per-cookie socket statistics.
@@ -80,9 +87,20 @@ type Stat struct {
 	Protocol int // protocol number
 
 	Opened    uint64 // number of sockets opened
-	Accepted  uint64 // number of sockets accepted
 	Connected uint64 // number of sockets connected
+	Listened  uint64 // number of sockets listened
+	Accepted  uint64 // number of sockets accepted
 	Closed    uint64 // number of sockets closed
+
+	OpenFailed    uint64 // number of sockets open failed
+	ConnectFailed uint64 // number of sockets connect failed
+	ListenFailed  uint64 // number of sockets listen failed
+	AcceptFailed  uint64 // number of sockets accept failed
+	CloseFailed   uint64 // number of sockets close failed
+}
+
+func (st Stat) String() string {
+	return fmt.Sprintf("(%s, %s, %s): opened=%d, connected=%d, listened=%d, accepted=%d, closed=%d, openfailed=%d, connectfailed=%d, listenfailed=%d, acceptfailed=%d, closefailed=%d", familyString(st.Family), typeString(st.Type), protocolString(st.Protocol), st.Opened, st.Connected, st.Listened, st.Accepted, st.Closed, st.OpenFailed, st.ConnectFailed, st.ListenFailed, st.AcceptFailed, st.CloseFailed)
 }
 
 type stats map[Cookie]*Stat
@@ -101,8 +119,9 @@ type FilterType int
 
 const (
 	FilterSocket        FilterType = iota // for Socket
-	FilterAccept                          // for Accept or Accept4
 	FilterConnect                         // for Connect or ConnectEx
+	FilterListen                          // for Listen
+	FilterAccept                          // for Accept or Accept4
 	FilterGetsockoptInt                   // for GetsockoptInt
 	FilterClose                           // for Close or Closesocket
 )

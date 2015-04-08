@@ -30,12 +30,13 @@ func (sw *Switch) Accept4(s, flags int) (ns int, sa syscall.Sockaddr, err error)
 		return -1, nil, err
 	}
 
+	sw.smu.Lock()
+	defer sw.smu.Unlock()
 	if so.Err != nil {
+		sw.stats.getLocked(so.Cookie).AcceptFailed++
 		return -1, nil, so.Err
 	}
-	sw.smu.Lock()
 	nso := sw.addLocked(ns, so.Cookie.Family(), so.Cookie.Type(), so.Cookie.Protocol())
 	sw.stats.getLocked(nso.Cookie).Accepted++
-	sw.smu.Unlock()
 	return ns, sa, nil
 }
