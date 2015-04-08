@@ -682,7 +682,11 @@ func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, valu
 // ignoreInterface discards the data for an interface value with no destination.
 func (dec *Decoder) ignoreInterface(state *decoderState) {
 	// Read the name of the concrete type.
-	b := make([]byte, state.decodeUint())
+	n, ok := state.getLength()
+	if !ok {
+		errorf("bad interface encoding: name too large for buffer")
+	}
+	b := make([]byte, n)
 	_, err := state.b.Read(b)
 	if err != nil {
 		error_(err)
@@ -692,9 +696,9 @@ func (dec *Decoder) ignoreInterface(state *decoderState) {
 		error_(dec.err)
 	}
 	// At this point, the decoder buffer contains a delimited value. Just toss it.
-	n, ok := state.getLength()
+	n, ok = state.getLength()
 	if !ok {
-		errorf("bad interface encoding: length too large for buffer")
+		errorf("bad interface encoding: data length too large for buffer")
 	}
 	state.b.Drop(n)
 }
@@ -703,7 +707,11 @@ func (dec *Decoder) ignoreInterface(state *decoderState) {
 // The data is encoded as a byte slice.
 func (dec *Decoder) decodeGobDecoder(ut *userTypeInfo, state *decoderState, value reflect.Value) {
 	// Read the bytes for the value.
-	b := make([]byte, state.decodeUint())
+	n, ok := state.getLength()
+	if !ok {
+		errorf("GobDecoder: length too large for buffer")
+	}
+	b := make([]byte, n)
 	_, err := state.b.Read(b)
 	if err != nil {
 		error_(err)
@@ -725,7 +733,11 @@ func (dec *Decoder) decodeGobDecoder(ut *userTypeInfo, state *decoderState, valu
 // ignoreGobDecoder discards the data for a GobDecoder value with no destination.
 func (dec *Decoder) ignoreGobDecoder(state *decoderState) {
 	// Read the bytes for the value.
-	b := make([]byte, state.decodeUint())
+	n, ok := state.getLength()
+	if !ok {
+		errorf("GobDecoder: length too large for buffer")
+	}
+	b := make([]byte, n)
 	_, err := state.b.Read(b)
 	if err != nil {
 		error_(err)
