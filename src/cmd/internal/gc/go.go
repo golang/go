@@ -769,6 +769,7 @@ type Arch struct {
 	REGRETURN    int // AX
 	REGMIN       int
 	REGMAX       int
+	REGZERO      int // architectural zero register, if available
 	FREGMIN      int
 	FREGMAX      int
 	MAXWIDTH     int64

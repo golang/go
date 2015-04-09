@@ -49,6 +49,7 @@ func main() {
 	gc.Thearch.REGRETURN = arm64.REG_R0
 	gc.Thearch.REGMIN = arm64.REG_R0
 	gc.Thearch.REGMAX = arm64.REG_R31
+	gc.Thearch.REGZERO = arm64.REGZERO
 	gc.Thearch.FREGMIN = arm64.REG_F0
 	gc.Thearch.FREGMAX = arm64.REG_F31
 	gc.Thearch.MAXWIDTH = MAXWIDTH
