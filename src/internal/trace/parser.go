@@ -350,7 +350,6 @@ func postProcessTrace(events []*Event) error {
 	type pdesc struct {
 		running bool
 		g       uint64
-		evGC    *Event
 		evScan  *Event
 		evSweep *Event
 	}
@@ -358,6 +357,7 @@ func postProcessTrace(events []*Event) error {
 	gs := make(map[uint64]gdesc)
 	ps := make(map[int]pdesc)
 	gs[0] = gdesc{state: gRunning}
+	var evGC *Event
 
 	checkRunning := func(p pdesc, g gdesc, ev *Event) error {
 		name := EventDescriptions[ev.Type].Name
@@ -389,16 +389,16 @@ func postProcessTrace(events []*Event) error {
 			}
 			p.running = false
 		case EvGCStart:
-			if p.evGC != nil {
+			if evGC != nil {
 				return fmt.Errorf("previous GC is not ended before a new one (offset %v, time %v)", ev.Off, ev.Ts)
 			}
-			p.evGC = ev
+			evGC = ev
 		case EvGCDone:
-			if p.evGC == nil {
+			if evGC == nil {
 				return fmt.Errorf("bogus GC end (offset %v, time %v)", ev.Off, ev.Ts)
 			}
-			p.evGC.Link = ev
-			p.evGC = nil
+			evGC.Link = ev
+			evGC = nil
 		case EvGCScanStart:
 			if p.evScan != nil {
 				return fmt.Errorf("previous scanning is not ended before a new one (offset %v, time %v)", ev.Off, ev.Ts)
