@@ -148,8 +148,7 @@ func Ldmain() {
 		if Buildmode == BuildmodeExe {
 			Buildmode = BuildmodeCShared
 		} else if Buildmode != BuildmodeCShared {
-			Diag("-shared and -buildmode=%s are incompatible\n", Buildmode.String())
-			Errorexit()
+			Exitf("-shared and -buildmode=%s are incompatible", Buildmode.String())
 		}
 	}
 
@@ -178,8 +177,7 @@ func Ldmain() {
 	Thearch.Archinit()
 
 	if Linkshared && !Iself {
-		Diag("-linkshared can only be used on elf systems")
-		Errorexit()
+		Exitf("-linkshared can only be used on elf systems")
 	}
 
 	if Debug['v'] != 0 {
@@ -246,5 +244,5 @@ func Ldmain() {
 
 	Bflush(&Bso)
 
-	Errorexit()
+	errorexit()
 }

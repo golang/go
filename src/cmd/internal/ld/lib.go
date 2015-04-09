@@ -356,8 +356,7 @@ func libinit() {
 	mayberemoveoutfile()
 	f, err := os.OpenFile(outfile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0775)
 	if err != nil {
-		Diag("cannot create %s: %v", outfile, err)
-		Errorexit()
+		Exitf("cannot create %s: %v", outfile, err)
 	}
 
 	cout = f
@@ -381,7 +380,16 @@ func libinit() {
 	}
 }
 
-func Errorexit() {
+func Exitf(format string, a ...interface{}) {
+	fmt.Fprintf(os.Stderr, os.Args[0]+": "+format+"\n", a...)
+	if cout != nil {
+		cout.Close()
+		mayberemoveoutfile()
+	}
+	Exit(2)
+}
+
+func errorexit() {
 	if cout != nil {
 		// For rmtemp run at atexit time on Windows.
 		cout.Close()
@@ -621,8 +629,7 @@ func objfile(file string, pkg string) {
 	var f *Biobuf
 	f, err = Bopenr(file)
 	if err != nil {
-		Diag("cannot open file %s: %v", file, err)
-		Errorexit()
+		Exitf("cannot open file %s: %v", file, err)
 	}
 
 	magbuf := make([]byte, len(ARMAG))
@@ -686,9 +693,7 @@ func objfile(file string, pkg string) {
 			break
 		}
 		if l < 0 {
-			Diag("%s: malformed archive", file)
-			Errorexit()
-			goto out
+			Exitf("%s: malformed archive", file)
 		}
 
 		off += l
@@ -767,9 +772,7 @@ func hostobjs() {
 		var err error
 		f, err = Bopenr(h.file)
 		if f == nil {
-			Ctxt.Cursym = nil
-			Diag("cannot reopen %s: %v", h.pn, err)
-			Errorexit()
+			Exitf("cannot reopen %s: %v", h.pn, err)
 		}
 
 		Bseek(f, h.off, 0)
@@ -806,8 +809,7 @@ func hostlinksetup() {
 	var err error
 	cout, err = os.OpenFile(p, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0775)
 	if err != nil {
-		Diag("cannot create %s: %v", p, err)
-		Errorexit()
+		Exitf("cannot create %s: %v", p, err)
 	}
 
 	coutbuf = *Binitw(cout)
@@ -819,33 +821,23 @@ func hostobjCopy() (paths []string) {
 	for i, h := range hostobj {
 		f, err := os.Open(h.file)
 		if err != nil {
-			Ctxt.Cursym = nil
-			Diag("cannot reopen %s: %v", h.pn, err)
-			Errorexit()
+			Exitf("cannot reopen %s: %v", h.pn, err)
 		}
 		if _, err := f.Seek(h.off, 0); err != nil {
-			Ctxt.Cursym = nil
-			Diag("cannot seek %s: %v", h.pn, err)
-			Errorexit()
+			Exitf("cannot seek %s: %v", h.pn, err)
 		}
 
 		p := fmt.Sprintf("%s/%06d.o", tmpdir, i)
 		paths = append(paths, p)
 		w, err := os.Create(p)
 		if err != nil {
-			Ctxt.Cursym = nil
-			Diag("cannot create %s: %v", p, err)
-			Errorexit()
+			Exitf("cannot create %s: %v", p, err)
 		}
 		if _, err := io.CopyN(w, f, h.length); err != nil {
-			Ctxt.Cursym = nil
-			Diag("cannot write %s: %v", p, err)
-			Errorexit()
+			Exitf("cannot write %s: %v", p, err)
 		}
 		if err := w.Close(); err != nil {
-			Ctxt.Cursym = nil
-			Diag("cannot close %s: %v", p, err)
-			Errorexit()
+			Exitf("cannot close %s: %v", p, err)
 		}
 	}
 	return paths
@@ -868,9 +860,7 @@ func archive() {
 	}
 
 	if out, err := exec.Command(argv[0], argv[1:]...).CombinedOutput(); err != nil {
-		Ctxt.Cursym = nil
-		Diag("%s: running %s failed: %v\n%s", os.Args[0], argv[0], err, out)
-		Errorexit()
+		Exitf("running %s failed: %v\n%s", argv[0], err, out)
 	}
 }
 
@@ -1014,9 +1004,7 @@ func hostlink() {
 	}
 
 	if out, err := exec.Command(argv[0], argv[1:]...).CombinedOutput(); err != nil {
-		Ctxt.Cursym = nil
-		Diag("%s: running %s failed: %v\n%s", os.Args[0], argv[0], err, out)
-		Errorexit()
+		Exitf("running %s failed: %v\n%s", argv[0], err, out)
 	}
 }
 
@@ -1050,39 +1038,32 @@ func ldobj(f *Biobuf, pkg string, length int64, pn string, file string, whence i
 
 	/* check the header */
 	line := Brdline(f, '\n')
-
-	var import0 int64
-	var import1 int64
-	var t string
 	if line == "" {
 		if Blinelen(f) > 0 {
 			Diag("%s: not an object file", pn)
 			return
 		}
-
-		goto eof
+		Diag("truncated object file: %s", pn)
+		return
 	}
 
 	if !strings.HasPrefix(line, "go object ") {
 		if strings.HasSuffix(pn, ".go") {
-			fmt.Printf("%cl: input %s is not .%c file (use %cg to compile .go files)\n", Thearch.Thechar, pn, Thearch.Thechar, Thearch.Thechar)
-			Errorexit()
+			Exitf("%cl: input %s is not .%c file (use %cg to compile .go files)", Thearch.Thechar, pn, Thearch.Thechar, Thearch.Thechar)
 		}
 
 		if line == Thestring {
 			// old header format: just $GOOS
 			Diag("%s: stale object file", pn)
-
 			return
 		}
 
 		Diag("%s: not an object file", pn)
-
 		return
 	}
 
 	// First, check that the basic goos, goarch, and version match.
-	t = fmt.Sprintf("%s %s %s ", goos, obj.Getgoarch(), obj.Getgoversion())
+	t := fmt.Sprintf("%s %s %s ", goos, obj.Getgoarch(), obj.Getgoversion())
 
 	line = strings.TrimRight(line, "\n")
 	if !strings.HasPrefix(line[10:]+" ", t) && Debug['f'] == 0 {
@@ -1103,7 +1084,7 @@ func ldobj(f *Biobuf, pkg string, length int64, pn string, file string, whence i
 	}
 
 	/* skip over exports and other info -- ends with \n!\n */
-	import0 = Boffset(f)
+	import0 := Boffset(f)
 
 	c1 = '\n' // the last line ended in \n
 	c2 = Bgetc(f)
@@ -1113,22 +1094,18 @@ func ldobj(f *Biobuf, pkg string, length int64, pn string, file string, whence i
 		c2 = c3
 		c3 = Bgetc(f)
 		if c3 == Beof {
-			goto eof
+			Diag("truncated object file: %s", pn)
+			return
 		}
 	}
 
-	import1 = Boffset(f)
+	import1 := Boffset(f)
 
 	Bseek(f, import0, 0)
 	ldpkg(f, pkg, import1-import0-2, pn, whence) // -2 for !\n
 	Bseek(f, import1, 0)
 
 	ldobjfile(Ctxt, f, pkg, eof-Boffset(f), pn)
-
-	return
-
-eof:
-	Diag("truncated object file: %s", pn)
 }
 
 func ldshlibsyms(shlib string) {
@@ -1553,8 +1530,7 @@ func usage() {
 func setheadtype(s string) {
 	h := headtype(s)
 	if h < 0 {
-		fmt.Fprintf(os.Stderr, "unknown header type -H %s\n", s)
-		Errorexit()
+		Exitf("unknown header type -H %s", s)
 	}
 
 	headstring = s
@@ -1567,8 +1543,7 @@ func setinterp(s string) {
 }
 
 func doversion() {
-	fmt.Printf("%cl version %s\n", Thearch.Thechar, obj.Getgoversion())
-	Errorexit()
+	Exitf("version %s", obj.Getgoversion())
 }
 
 func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
@@ -1756,7 +1731,7 @@ func undef() {
 		undefsym(s)
 	}
 	if nerrors > 0 {
-		Errorexit()
+		errorexit()
 	}
 }
 
@@ -1791,8 +1766,7 @@ func Diag(format string, args ...interface{}) {
 
 	nerrors++
 	if nerrors > 20 {
-		fmt.Printf("too many errors\n")
-		Errorexit()
+		Exitf("too many errors")
 	}
 }
 

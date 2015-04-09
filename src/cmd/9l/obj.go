@@ -111,9 +111,7 @@ func archinit() {
 
 	switch ld.HEADTYPE {
 	default:
-		ld.Diag("unknown -H option")
-		ld.Errorexit()
-		fallthrough
+		ld.Exitf("unknown -H option: %v", ld.HEADTYPE)
 
 	case ld.Hplan9: /* plan 9 */
 		ld.HEADR = 32

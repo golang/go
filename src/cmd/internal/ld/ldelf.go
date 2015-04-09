@@ -597,11 +597,6 @@ func ldelf(f *Biobuf, pkg string, length int64, pn string) {
 	// symbol 0 is the null symbol.
 	symbols = make([]*LSym, elfobj.nsymtab)
 
-	if symbols == nil {
-		Diag("out of memory")
-		Errorexit()
-	}
-
 	for i := 1; i < elfobj.nsymtab; i++ {
 		if err = readelfsym(elfobj, i, &sym, 1); err != nil {
 			goto bad
@@ -643,8 +638,7 @@ func ldelf(f *Biobuf, pkg string, length int64, pn string) {
 			if s.Dupok != 0 {
 				continue
 			}
-			Diag("%s: duplicate symbol reference: %s in both %s and %s", pn, s.Name, s.Outer.Name, sect.sym.Name)
-			Errorexit()
+			Exitf("%s: duplicate symbol reference: %s in both %s and %s", pn, s.Name, s.Outer.Name, sect.sym.Name)
 		}
 
 		s.Sub = sect.sym.Sub

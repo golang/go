@@ -389,7 +389,7 @@ var ncoffsym int
 func addpesection(name string, sectsize int, filesize int) *IMAGE_SECTION_HEADER {
 	if pensect == 16 {
 		Diag("too many sections")
-		Errorexit()
+		errorexit()
 	}
 
 	h := &sh[pensect]
@@ -410,19 +410,19 @@ func addpesection(name string, sectsize int, filesize int) *IMAGE_SECTION_HEADER
 func chksectoff(h *IMAGE_SECTION_HEADER, off int64) {
 	if off != int64(h.PointerToRawData) {
 		Diag("%s.PointerToRawData = %#x, want %#x", cstring(h.Name[:]), uint64(int64(h.PointerToRawData)), uint64(off))
-		Errorexit()
+		errorexit()
 	}
 }
 
 func chksectseg(h *IMAGE_SECTION_HEADER, s *Segment) {
 	if s.Vaddr-PEBASE != uint64(h.VirtualAddress) {
 		Diag("%s.VirtualAddress = %#x, want %#x", cstring(h.Name[:]), uint64(int64(h.VirtualAddress)), uint64(int64(s.Vaddr-PEBASE)))
-		Errorexit()
+		errorexit()
 	}
 
 	if s.Fileoff != uint64(h.PointerToRawData) {
 		Diag("%s.PointerToRawData = %#x, want %#x", cstring(h.Name[:]), uint64(int64(h.PointerToRawData)), uint64(int64(s.Fileoff)))
-		Errorexit()
+		errorexit()
 	}
 }
 
@@ -711,7 +711,7 @@ func initdynexport() {
 		}
 		if nexport+1 > len(dexport) {
 			Diag("pe dynexport table is full")
-			Errorexit()
+			errorexit()
 		}
 
 		dexport[nexport] = s
@@ -1096,13 +1096,9 @@ func addpersrc() {
 func Asmbpe() {
 	switch Thearch.Thechar {
 	default:
-		Diag("unknown PE architecture")
-		Errorexit()
-		fallthrough
-
+		Exitf("unknown PE architecture: %v", Thearch.Thechar)
 	case '6':
 		fh.Machine = IMAGE_FILE_MACHINE_AMD64
-
 	case '8':
 		fh.Machine = IMAGE_FILE_MACHINE_I386
 	}

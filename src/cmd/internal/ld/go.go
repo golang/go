@@ -67,7 +67,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 	if int64(int(length)) != length {
 		fmt.Fprintf(os.Stderr, "%s: too much pkg data in %s\n", os.Args[0], filename)
 		if Debug['u'] != 0 {
-			Errorexit()
+			errorexit()
 		}
 		return
 	}
@@ -76,7 +76,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 	if int64(Bread(f, bdata)) != length {
 		fmt.Fprintf(os.Stderr, "%s: short pkg read %s\n", os.Args[0], filename)
 		if Debug['u'] != 0 {
-			Errorexit()
+			errorexit()
 		}
 		return
 	}
@@ -86,8 +86,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 	p0 = strings.Index(data, "\n$$")
 	if p0 < 0 {
 		if Debug['u'] != 0 && whence != ArchiveObj {
-			fmt.Fprintf(os.Stderr, "%s: cannot find export data in %s\n", os.Args[0], filename)
-			Errorexit()
+			Exitf("cannot find export data in %s", filename)
 		}
 		return
 	}
@@ -102,7 +101,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 	if p1 < 0 {
 		fmt.Fprintf(os.Stderr, "%s: cannot find end of exports in %s\n", os.Args[0], filename)
 		if Debug['u'] != 0 {
-			Errorexit()
+			errorexit()
 		}
 		return
 	}
@@ -115,7 +114,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 		if !strings.HasPrefix(data[p0:], "package ") {
 			fmt.Fprintf(os.Stderr, "%s: bad package section in %s - %.20s\n", os.Args[0], filename, data[p0:])
 			if Debug['u'] != 0 {
-				Errorexit()
+				errorexit()
 			}
 			return
 		}
@@ -129,9 +128,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 			p0++
 		}
 		if Debug['u'] != 0 && whence != ArchiveObj && (p0+6 > p1 || !strings.HasPrefix(data[p0:], " safe\n")) {
-			fmt.Fprintf(os.Stderr, "%s: load of unsafe package %s\n", os.Args[0], filename)
-			nerrors++
-			Errorexit()
+			Exitf("load of unsafe package %s", filename)
 		}
 
 		name := data[pname:p0]
@@ -143,9 +140,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 		}
 
 		if pkg == "main" && name != "main" {
-			fmt.Fprintf(os.Stderr, "%s: %s: not package main (package %s)\n", os.Args[0], filename, name)
-			nerrors++
-			Errorexit()
+			Exitf("%s: not package main (package %s)", filename, name)
 		}
 
 		loadpkgdata(filename, pkg, data[p0:p1])
@@ -164,7 +159,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 		if i < 0 {
 			fmt.Fprintf(os.Stderr, "%s: found $$ // cgo but no newline in %s\n", os.Args[0], filename)
 			if Debug['u'] != 0 {
-				Errorexit()
+				errorexit()
 			}
 			return
 		}
@@ -177,7 +172,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 		if p1 < 0 {
 			fmt.Fprintf(os.Stderr, "%s: cannot find end of // cgo section in %s\n", os.Args[0], filename)
 			if Debug['u'] != 0 {
-				Errorexit()
+				errorexit()
 			}
 			return
 		}
@@ -832,7 +827,6 @@ func setlinkmode(arg string) {
 	} else if arg == "auto" {
 		Linkmode = LinkAuto
 	} else {
-		fmt.Fprintf(os.Stderr, "unknown link mode -linkmode %s\n", arg)
-		Errorexit()
+		Exitf("unknown link mode -linkmode %s", arg)
 	}
 }
