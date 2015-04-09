@@ -324,7 +324,6 @@ func gc(mode int) {
 	}
 
 	if trace.enabled {
-		traceGoSched()
 		traceGCStart()
 	}
 
@@ -459,7 +458,6 @@ func gc(mode int) {
 
 	if trace.enabled {
 		traceGCDone()
-		traceGoStart()
 	}
 
 	// all done
