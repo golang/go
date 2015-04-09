@@ -71,7 +71,7 @@ var testingWER bool
 
 // lastcontinuehandler is reached, because runtime cannot handle
 // current exception. lastcontinuehandler will print crash info and exit.
-func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) uint32 {
+func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
 	if testingWER {
 		return _EXCEPTION_CONTINUE_SEARCH
 	}
