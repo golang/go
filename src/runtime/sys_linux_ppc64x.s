@@ -196,6 +196,15 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT,$-8-36
 	MOVW	R3, ret+32(FP)
 	RETURN
 
+TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+	MOVW	sig+8(FP), R3
+	MOVD	info+16(FP), R4
+	MOVD	ctx+24(FP), R5
+	MOVD	fn+0(FP), R31
+	MOVD	R31, CTR
+	BL	(CTR)
+	RETURN
+
 #ifdef GOARCH_ppc64le
 // ppc64le doesn't need function descriptors
 TEXT runtime·sigtramp(SB),NOSPLIT,$64
@@ -217,33 +226,12 @@ TEXT runtime·_sigtramp(SB),NOSPLIT,$64
 	BEQ	2(PC)
 	BL	runtime·load_g(SB)
 
-	// check that g exists
-	CMP	g, $0
-	BNE	6(PC)
-	MOVD	R3, 8(R1)
-	MOVD	$runtime·badsignal(SB), R31
-	MOVD	R31, CTR
-	BL	(CTR)
-	RETURN
-
-	// save g
-	MOVD	g, 40(R1)
-	MOVD	g, R6
-
-	// g = m->gsignal
-	MOVD	g_m(g), R7
-	MOVD	m_gsignal(R7), g
-
 	MOVW	R3, 8(R1)
 	MOVD	R4, 16(R1)
 	MOVD	R5, 24(R1)
-	MOVD	R6, 32(R1)
-
-	BL	runtime·sighandler(SB)
-
-	// restore g
-	MOVD	40(R1), g
-
+	MOVD	$runtime·sigtrampgo(SB), R31
+	MOVD	R31, CTR
+	BL	(CTR)
 	RETURN
 
 TEXT runtime·mmap(SB),NOSPLIT,$-8

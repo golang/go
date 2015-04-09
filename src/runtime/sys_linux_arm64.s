@@ -215,7 +215,15 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT,$-8-36
 	MOVW	R0, ret+32(FP)
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$64
+TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+	MOVW	sig+8(FP), R0
+	MOVD	info+16(FP), R1
+	MOVD	ctx+24(FP), R2
+	MOVD	fn+0(FP), R11
+	BL	(R11)
+	RET
+
+TEXT runtime·sigtramp(SB),NOSPLIT,$24
 	// this might be called in external code context,
 	// where g is not set.
 	// first save R0, because runtime·load_g will clobber it
@@ -225,31 +233,10 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$64
 	BEQ	2(PC)
 	BL	runtime·load_g(SB)
 
-	// check that g exists
-	CMP	g, ZR
-	BNE	ok
-	MOVD	$runtime·badsignal(SB), R0
-	BL	(R0)
-	RET
-
-ok:
-	// save g
-	MOVD	g, 40(RSP)
-	MOVD	g, R6
-
-	// g = m->gsignal
-	MOVD	g_m(g), R7
-	MOVD	m_gsignal(R7), g
-
-	// R0 is already saved above
 	MOVD	R1, 16(RSP)
 	MOVD	R2, 24(RSP)
-	MOVD	R6, 32(RSP)
-
-	BL	runtime·sighandler(SB)
-
-	// restore g
-	MOVD	40(RSP), g
+	MOVD	$runtime·sigtrampgo(SB), R0
+	BL	(R0)
 	RET
 
 TEXT runtime·mmap(SB),NOSPLIT,$-8
