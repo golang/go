@@ -34,7 +34,6 @@ import (
 	"bytes"
 	"cmd/internal/obj"
 	"debug/elf"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -257,27 +256,35 @@ type BuildMode uint8
 
 const (
 	BuildmodeExe BuildMode = iota
+	BuildmodeCArchive
 	BuildmodeCShared
 	BuildmodeShared
 )
 
 func (mode *BuildMode) Set(s string) error {
+	goos := obj.Getgoos()
+	goarch := obj.Getgoarch()
+	badmode := func() error {
+		return fmt.Errorf("buildmode %s not supported on %s/%s", s, goos, goarch)
+	}
 	switch s {
 	default:
-		return errors.New("invalid mode")
+		return fmt.Errorf("invalid buildmode: %q", s)
 	case "exe":
 		*mode = BuildmodeExe
+	case "c-archive":
+		if goos != "darwin" {
+			return badmode()
+		}
+		*mode = BuildmodeCArchive
 	case "c-shared":
-		goarch := obj.Getgoarch()
 		if goarch != "amd64" && goarch != "arm" {
-			return fmt.Errorf("not supported on %s", goarch)
+			return badmode()
 		}
 		*mode = BuildmodeCShared
 	case "shared":
-		goos := obj.Getgoos()
-		goarch := obj.Getgoarch()
 		if goos != "linux" || goarch != "amd64" {
-			return fmt.Errorf("not supported on %s/%s", goos, goarch)
+			return badmode()
 		}
 		*mode = BuildmodeShared
 	}
@@ -288,6 +295,8 @@ func (mode *BuildMode) String() string {
 	switch *mode {
 	case BuildmodeExe:
 		return "exe"
+	case BuildmodeCArchive:
+		return "c-archive"
 	case BuildmodeCShared:
 		return "c-shared"
 	case BuildmodeShared:
@@ -339,7 +348,7 @@ func libinit() {
 
 	if INITENTRY == "" {
 		switch Buildmode {
-		case BuildmodeCShared:
+		case BuildmodeCShared, BuildmodeCArchive:
 			INITENTRY = fmt.Sprintf("_rt0_%s_%s_lib", goarch, goos)
 		case BuildmodeExe:
 			INITENTRY = fmt.Sprintf("_rt0_%s_%s", goarch, goos)
@@ -402,8 +411,13 @@ func loadinternal(name string) {
 }
 
 func loadlib() {
-	if Buildmode == BuildmodeCShared {
+	switch Buildmode {
+	case BuildmodeCShared:
 		s := Linklookup(Ctxt, "runtime.islibrary", 0)
+		s.Dupok = 1
+		Adduint8(Ctxt, s, 1)
+	case BuildmodeCArchive:
+		s := Linklookup(Ctxt, "runtime.isarchive", 0)
 		s.Dupok = 1
 		Adduint8(Ctxt, s, 1)
 	}
@@ -782,14 +796,79 @@ func hostlinksetup() {
 	coutbuf = *Binitw(cout)
 }
 
+// hostobjCopy creates a copy of the object files in hostobj in a
+// temporary directory.
+func hostobjCopy() (paths []string) {
+	for i, h := range hostobj {
+		f, err := os.Open(h.file)
+		if err != nil {
+			Ctxt.Cursym = nil
+			Diag("cannot reopen %s: %v", h.pn, err)
+			Errorexit()
+		}
+		if _, err := f.Seek(h.off, 0); err != nil {
+			Ctxt.Cursym = nil
+			Diag("cannot seek %s: %v", h.pn, err)
+			Errorexit()
+		}
+
+		p := fmt.Sprintf("%s/%06d.o", tmpdir, i)
+		paths = append(paths, p)
+		w, err := os.Create(p)
+		if err != nil {
+			Ctxt.Cursym = nil
+			Diag("cannot create %s: %v", p, err)
+			Errorexit()
+		}
+		if _, err := io.CopyN(w, f, h.length); err != nil {
+			Ctxt.Cursym = nil
+			Diag("cannot write %s: %v", p, err)
+			Errorexit()
+		}
+		if err := w.Close(); err != nil {
+			Ctxt.Cursym = nil
+			Diag("cannot close %s: %v", p, err)
+			Errorexit()
+		}
+	}
+	return paths
+}
+
+// archive builds a .a archive from the hostobj object files.
+func archive() {
+	if Buildmode != BuildmodeCArchive {
+		return
+	}
+
+	os.Remove(outfile)
+	argv := []string{"ar", "-q", "-c", outfile}
+	argv = append(argv, hostobjCopy()...)
+	argv = append(argv, fmt.Sprintf("%s/go.o", tmpdir))
+
+	if Debug['v'] != 0 {
+		fmt.Fprintf(&Bso, "archive: %s\n", strings.Join(argv, " "))
+		Bflush(&Bso)
+	}
+
+	if out, err := exec.Command(argv[0], argv[1:]...).CombinedOutput(); err != nil {
+		Ctxt.Cursym = nil
+		Diag("%s: running %s failed: %v\n%s", os.Args[0], argv[0], err, out)
+		Errorexit()
+	}
+}
+
 func hostlink() {
 	if Linkmode != LinkExternal || nerrors > 0 {
+		return
+	}
+	if Buildmode == BuildmodeCArchive {
 		return
 	}
 
 	if extld == "" {
 		extld = "gcc"
 	}
+
 	var argv []string
 	argv = append(argv, extld)
 	switch Thearch.Thechar {
@@ -830,10 +909,11 @@ func hostlink() {
 		argv = append(argv, "-Wl,--rosegment")
 	}
 
-	if Buildmode == BuildmodeCShared {
+	switch Buildmode {
+	case BuildmodeCShared:
 		argv = append(argv, "-Wl,-Bsymbolic")
 		argv = append(argv, "-shared")
-	} else if Buildmode == BuildmodeShared {
+	case BuildmodeShared:
 		// TODO(mwhudson): unless you do this, dynamic relocations fill
 		// out the findfunctab table and for some reason shared libraries
 		// and the executable both define a main function and putting the
@@ -868,41 +948,7 @@ func hostlink() {
 		argv = append(argv, "-Qunused-arguments")
 	}
 
-	// already wrote main object file
-	// copy host objects to temporary directory
-	for i, h := range hostobj {
-		f, err := os.Open(h.file)
-		if err != nil {
-			Ctxt.Cursym = nil
-			Diag("cannot reopen %s: %v", h.pn, err)
-			Errorexit()
-		}
-		if _, err := f.Seek(h.off, 0); err != nil {
-			Ctxt.Cursym = nil
-			Diag("cannot seek %s: %v", h.pn, err)
-			Errorexit()
-		}
-
-		p := fmt.Sprintf("%s/%06d.o", tmpdir, i)
-		argv = append(argv, p)
-		w, err := os.Create(p)
-		if err != nil {
-			Ctxt.Cursym = nil
-			Diag("cannot create %s: %v", p, err)
-			Errorexit()
-		}
-		if _, err := io.CopyN(w, f, h.length); err != nil {
-			Ctxt.Cursym = nil
-			Diag("cannot write %s: %v", p, err)
-			Errorexit()
-		}
-		if err := w.Close(); err != nil {
-			Ctxt.Cursym = nil
-			Diag("cannot close %s: %v", p, err)
-			Errorexit()
-		}
-	}
-
+	argv = append(argv, hostobjCopy()...)
 	argv = append(argv, fmt.Sprintf("%s/go.o", tmpdir))
 
 	if Linkshared {

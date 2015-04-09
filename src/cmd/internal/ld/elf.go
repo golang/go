@@ -1658,7 +1658,9 @@ func doelf() {
 		Addstring(shstrtab, ".note.GNU-stack")
 	}
 
-	if Buildmode == BuildmodeCShared || DynlinkingGo() {
+	switch Buildmode {
+	case BuildmodeCArchive, BuildmodeCShared, BuildmodeShared:
+		// TODO(mwhudson): switch on Linkshared
 		Addstring(shstrtab, ".init_array")
 		switch Thearch.Thechar {
 		case '6', '7', '9':
