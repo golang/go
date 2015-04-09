@@ -94,6 +94,12 @@ var (
 	_GetQueuedCompletionStatusEx stdFunction
 )
 
+// Call a Windows function with stdcall conventions,
+// and switch to os stack during the call.
+func asmstdcall(fn unsafe.Pointer)
+
+var asmstdcallAddr unsafe.Pointer
+
 func loadOptionalSyscalls() {
 	var buf [50]byte // large enough for longest string
 	strtoptr := func(s string) uintptr {
@@ -157,6 +163,8 @@ func getVersion() (major, minor byte) {
 }
 
 func osinit() {
+	asmstdcallAddr = unsafe.Pointer(funcPC(asmstdcall))
+
 	setBadSignalMsg()
 
 	loadOptionalSyscalls()
@@ -391,7 +399,7 @@ func stdcall(fn stdFunction) uintptr {
 		// all three values to be non-zero, it will use them
 		mp.libcallsp = getcallersp(unsafe.Pointer(&fn))
 	}
-	asmcgocall(unsafe.Pointer(funcPC(asmstdcall)), unsafe.Pointer(&mp.libcall))
+	asmcgocall(asmstdcallAddr, unsafe.Pointer(&mp.libcall))
 	mp.libcallsp = 0
 	return mp.libcall.r1
 }
