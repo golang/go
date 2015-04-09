@@ -327,7 +327,15 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$0
 	MOVW.HI	R8, (R8)
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$24
+TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
+	MOVW	sig+4(FP), R0
+	MOVW	info+8(FP), R1
+	MOVW	ctx+12(FP), R2
+	MOVW	fn+0(FP), R11
+	BL	(R11)
+	RET
+
+TEXT runtime·sigtramp(SB),NOSPLIT,$12
 	// this might be called in external code context,
 	// where g is not set.
 	// first save R0, because runtime·load_g will clobber it
@@ -336,32 +344,10 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$24
 	CMP 	$0, R0
 	BL.NE	runtime·load_g(SB)
 
-	CMP 	$0, g
-	BNE 	4(PC)
-	// signal number is already prepared in 4(R13)
-	MOVW  	$runtime·badsignal(SB), R11
-	BL	(R11)
-	RET
-
-	// save g
-	MOVW	g, R3
-	MOVW	g, 20(R13)
-
-	// g = m->gsignal
-	MOVW	g_m(g), R8
-	MOVW	m_gsignal(R8), g
-
-	// copy arguments for call to sighandler
-	// R0 is already saved above
 	MOVW	R1, 8(R13)
 	MOVW	R2, 12(R13)
-	MOVW	R3, 16(R13)
-
-	BL	runtime·sighandler(SB)
-
-	// restore g
-	MOVW	20(R13), g
-
+	MOVW  	$runtime·sigtrampgo(SB), R11
+	BL	(R11)
 	RET
 
 TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0
