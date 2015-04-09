@@ -65,13 +65,12 @@ type Float struct {
 	exp  int32
 }
 
-// Float operations that would lead to a NaN under IEEE-754 rules cause
-// a run-time panic of ErrNaN type.
+// An ErrNaN panic is raised by a Float operation that would lead to
+// a NaN under IEEE-754 rules. An ErrNaN implements the error interface.
 type ErrNaN struct {
 	msg string
 }
 
-// ErrNan implements the error interface.
 func (err ErrNaN) Error() string {
 	return err.msg
 }
