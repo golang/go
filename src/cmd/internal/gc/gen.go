@@ -1183,12 +1183,18 @@ func Componentgen(nr *Node, nl *Node) bool {
 		}
 	} else {
 		// When zeroing, prepare a register containing zero.
-		var tmp Node
-		Nodconst(&tmp, nl.Type, 0)
+		if Thearch.REGZERO != 0 {
+			// cpu has a dedicated zero register
+			Nodreg(&nodr, Types[TUINT], Thearch.REGZERO)
+		} else {
+			// no dedicated zero register
+			var tmp Node
+			Nodconst(&tmp, nl.Type, 0)
 
-		Regalloc(&nodr, Types[TUINT], nil)
-		Thearch.Gmove(&tmp, &nodr)
-		defer Regfree(&nodr)
+			Regalloc(&nodr, Types[TUINT], nil)
+			Thearch.Gmove(&tmp, &nodr)
+			defer Regfree(&nodr)
+		}
 	}
 
 	// nl and nr are 'cadable' which basically means they are names (variables) now.
