@@ -1622,6 +1622,8 @@ func (v Value) Slice3(i, j, k int) Value {
 // String is a special case because of Go's String method convention.
 // Unlike the other getters, it does not panic if v's Kind is not String.
 // Instead, it returns a string of the form "<T value>" where T is v's type.
+// The fmt package treats Values specially. It does not call their String
+// method implicitly but instead prints the concrete values they hold.
 func (v Value) String() string {
 	switch k := v.kind(); k {
 	case Invalid:

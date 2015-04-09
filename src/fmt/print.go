@@ -789,6 +789,8 @@ func (p *pp) printArg(arg interface{}, verb rune, depth int) (wasString bool) {
 	case []byte:
 		p.fmtBytes(f, verb, nil, depth)
 		wasString = verb == 's'
+	case reflect.Value:
+		return p.printReflectValue(f, verb, depth)
 	default:
 		// If the type is not simple, it might have methods.
 		if handled := p.handleMethods(verb, depth); handled {
