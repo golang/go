@@ -1116,26 +1116,16 @@ func checklabels() {
 	}
 }
 
-/*
- * copy a composite value by moving its individual components.
- * Slices, strings and interfaces are supported.
- * Small structs or arrays with elements of basic type are
- * also supported.
- * nr is N when assigning a zero value.
- * return 1 if can do, 0 if can't.
- */
+// Componentgen copies a composite value by moving its individual components.
+// Slices, strings and interfaces are supported. Small structs or arrays with
+// elements of basic type are also supported.
+// nr is nil when assigning a zero value.
 func Componentgen(nr *Node, nl *Node) bool {
-	var nodl Node
-	var nodr Node
-
-	freel := 0
-	freer := 0
-
-	var isConstString bool
+	var nodl, nodr Node
 
 	switch nl.Type.Etype {
 	default:
-		goto no
+		return false
 
 	case TARRAY:
 		t := nl.Type
@@ -1150,16 +1140,16 @@ func Componentgen(nr *Node, nl *Node) bool {
 			break
 		}
 
-		goto no
+		return false
 
-		// Small structs with non-fat types are ok.
-	// Zero-sized structs are treated separately elsewhere.
 	case TSTRUCT:
+		// Small structs with non-fat types are ok.
+		// Zero-sized structs are treated separately elsewhere.
 		fldcount := int64(0)
 
 		for t := nl.Type.Type; t != nil; t = t.Down {
 			if Isfat(t.Type) && !Isslice(t) {
-				goto no
+				return false
 			}
 			if t.Etype != TFIELD {
 				Fatal("componentgen: not a TFIELD: %v", Tconv(t, obj.FmtLong))
@@ -1168,28 +1158,28 @@ func Componentgen(nr *Node, nl *Node) bool {
 		}
 
 		if fldcount == 0 || fldcount > 4 {
-			goto no
+			return false
 		}
 
 	case TSTRING, TINTER:
 		break
 	}
 
-	isConstString = Isconst(nr, CTSTR)
+	isConstString := Isconst(nr, CTSTR)
 	nodl = *nl
 	if !cadable(nl) {
 		if nr != nil && !cadable(nr) && !isConstString {
-			goto no
+			return false
 		}
 		Igen(nl, &nodl, nil)
-		freel = 1
+		defer Regfree(&nodl)
 	}
 
 	if nr != nil {
 		nodr = *nr
 		if !cadable(nr) && !isConstString {
 			Igen(nr, &nodr, nil)
-			freer = 1
+			defer Regfree(&nodr)
 		}
 	} else {
 		// When zeroing, prepare a register containing zero.
@@ -1198,7 +1188,7 @@ func Componentgen(nr *Node, nl *Node) bool {
 
 		Regalloc(&nodr, Types[TUINT], nil)
 		Thearch.Gmove(&tmp, &nodr)
-		freer = 1
+		defer Regfree(&nodr)
 	}
 
 	// nl and nr are 'cadable' which basically means they are names (variables) now.
@@ -1206,12 +1196,15 @@ func Componentgen(nr *Node, nl *Node) bool {
 	// VARDEF we generate will mark the old value as dead incorrectly.
 	// (And also the assignments are useless.)
 	if nr != nil && nl.Op == ONAME && nr.Op == ONAME && nl == nr {
-		goto yes
+		return true
 	}
 
 	switch nl.Type.Etype {
-	// componentgen for arrays.
+	default:
+		return false
+
 	case TARRAY:
+		// componentgen for arrays.
 		if nl.Op == ONAME {
 			Gvardef(nl)
 		}
@@ -1228,8 +1221,7 @@ func Componentgen(nr *Node, nl *Node) bool {
 				nodl.Xoffset += t.Type.Width
 				nodr.Xoffset += t.Type.Width
 			}
-
-			goto yes
+			return true
 		}
 
 		// componentgen for slices.
@@ -1263,8 +1255,7 @@ func Componentgen(nr *Node, nl *Node) bool {
 		}
 
 		Thearch.Gmove(&nodr, &nodl)
-
-		goto yes
+		return true
 
 	case TSTRING:
 		if nl.Op == ONAME {
@@ -1297,8 +1288,7 @@ func Componentgen(nr *Node, nl *Node) bool {
 		}
 
 		Thearch.Gmove(&nodr, &nodl)
-
-		goto yes
+		return true
 
 	case TINTER:
 		if nl.Op == ONAME {
@@ -1323,8 +1313,7 @@ func Componentgen(nr *Node, nl *Node) bool {
 		}
 
 		Thearch.Gmove(&nodr, &nodl)
-
-		goto yes
+		return true
 
 	case TSTRUCT:
 		if nl.Op == ONAME {
@@ -1353,27 +1342,8 @@ func Componentgen(nr *Node, nl *Node) bool {
 				Thearch.Gmove(&nodr, &nodl)
 			}
 		}
-
-		goto yes
+		return true
 	}
-
-no:
-	if freer != 0 {
-		Regfree(&nodr)
-	}
-	if freel != 0 {
-		Regfree(&nodl)
-	}
-	return false
-
-yes:
-	if freer != 0 {
-		Regfree(&nodr)
-	}
-	if freel != 0 {
-		Regfree(&nodl)
-	}
-	return true
 }
 
 func cadable(n *Node) bool {
