@@ -99,6 +99,11 @@ func main() {
 	needUnlock = false
 	unlockOSThread()
 
+	if isarchive {
+		// A program compiled with -buildmode=c-archive has a main,
+		// but it is not executed.
+		return
+	}
 	main_main()
 	if raceenabled {
 		racefini()
