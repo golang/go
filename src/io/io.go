@@ -336,9 +336,8 @@ func CopyN(dst Writer, src Reader, n int64) (written int64, err error) {
 }
 
 // Copy copies from src to dst until either EOF is reached
-// on src or an error occurs. It returns the number of bytes
-// copied and the error that prevented it from progressing
-// further, if any.
+// on src or an error occurs.  It returns the number of bytes
+// copied and the first error encountered while copying, if any.
 //
 // A successful Copy returns err == nil, not err == EOF.
 // Because Copy is defined to read from src until EOF, it does
@@ -349,6 +348,23 @@ func CopyN(dst Writer, src Reader, n int64) (written int64, err error) {
 // Otherwise, if dst implements the ReaderFrom interface,
 // the copy is implemented by calling dst.ReadFrom(src).
 func Copy(dst Writer, src Reader) (written int64, err error) {
+	return copyBuffer(dst, src, nil)
+}
+
+// CopyBuffer is identical to Copy except that it stages through the
+// provided buffer (if one is required) rather than allocating a
+// temporary one. If buf is nil, one is allocated; otherwise if it has
+// zero length, CopyBuffer panics.
+func CopyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
+	if buf != nil && len(buf) == 0 {
+		panic("empty buffer in io.CopyBuffer")
+	}
+	return copyBuffer(dst, src, buf)
+}
+
+// copyBuffer is the actual implementation of Copy and CopyBuffer.
+// if buf is nil, one is allocated.
+func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 	// If the reader has a WriteTo method, use it to do the copy.
 	// Avoids an allocation and a copy.
 	if wt, ok := src.(WriterTo); ok {
@@ -358,7 +374,9 @@ func Copy(dst Writer, src Reader) (written int64, err error) {
 	if rt, ok := dst.(ReaderFrom); ok {
 		return rt.ReadFrom(src)
 	}
-	buf := make([]byte, 32*1024)
+	if buf == nil {
+		buf = make([]byte, 32*1024)
+	}
 	for {
 		nr, er := src.Read(buf)
 		if nr > 0 {
