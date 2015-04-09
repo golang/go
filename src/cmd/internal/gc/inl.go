@@ -124,6 +124,16 @@ func caninl(fn *Node) {
 		}
 	}
 
+	// Runtime package must not be race instrumented.
+	// Racewalk skips runtime package. However, some runtime code can be
+	// inlined into other packages and instrumented there. To avoid this,
+	// we disable inlining of runtime functions in race mode.
+	// The example that we observed is inlining of LockOSThread,
+	// which lead to false race reports on m contents.
+	if flag_race != 0 && myimportpath == "runtime" {
+		return
+	}
+
 	const maxBudget = 80
 	budget := maxBudget // allowed hairyness
 	if ishairylist(fn.Nbody, &budget) || budget < 0 {

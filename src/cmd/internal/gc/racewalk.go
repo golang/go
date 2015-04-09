@@ -391,7 +391,10 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 		// impossible nodes: only appear in backend.
 	case ORROTC, OEXTEND:
 		Yyerror("racewalk: %v cannot exist now", Oconv(int(n.Op), 0))
+		goto ret
 
+	case OGETG:
+		Yyerror("racewalk: OGETG can happen only in runtime which we don't instrument")
 		goto ret
 
 		// just do generic traversal
@@ -424,14 +427,8 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 		OTYPE,
 		ONONAME,
 		OLITERAL,
-		OSLICESTR,
-		// g is goroutine local so cannot race. Although we don't instrument
-		// the runtime package, through inlining the call to runtime.getg can
-		// appear in non runtime packages, for example, after inlining
-		// runtime.LockOSThread.
-		OGETG,
-		// always preceded by bounds checking, avoid double instrumentation.
-		OTYPESW: // ignored by code generation, do not instrument.
+		OSLICESTR, // always preceded by bounds checking, avoid double instrumentation.
+		OTYPESW:   // ignored by code generation, do not instrument.
 		goto ret
 	}
 
