@@ -7,7 +7,6 @@ package ld
 import (
 	"encoding/binary"
 	"fmt"
-	"os"
 )
 
 /*
@@ -870,7 +869,7 @@ func elfwriteshdrs() uint32 {
 func elfsetstring(s string, off int) {
 	if nelfstr >= len(elfstr) {
 		Diag("too many elf strings")
-		Errorexit()
+		errorexit()
 	}
 
 	elfstr[nelfstr].s = s
@@ -1133,8 +1132,7 @@ func addbuildinfo(val string) {
 	var j int
 
 	if val[0] != '0' || val[1] != 'x' {
-		fmt.Fprintf(os.Stderr, "%s: -B argument must start with 0x: %s\n", os.Args[0], val)
-		Exit(2)
+		Exitf("-B argument must start with 0x: %s", val)
 	}
 
 	ov := val
@@ -1143,8 +1141,7 @@ func addbuildinfo(val string) {
 	var b int
 	for val != "" {
 		if len(val) == 1 {
-			fmt.Fprintf(os.Stderr, "%s: -B argument must have even number of digits: %s\n", os.Args[0], ov)
-			Exit(2)
+			Exitf("-B argument must have even number of digits: %s", ov)
 		}
 
 		b = 0
@@ -1157,15 +1154,13 @@ func addbuildinfo(val string) {
 			} else if val[0] >= 'A' && val[0] <= 'F' {
 				b += int(val[0]) - 'A' + 10
 			} else {
-				fmt.Fprintf(os.Stderr, "%s: -B argument contains invalid hex digit %c: %s\n", os.Args[0], val[0], ov)
-				Exit(2)
+				Exitf("-B argument contains invalid hex digit %c: %s", val[0], ov)
 			}
 		}
 
 		const maxLen = 32
 		if i >= maxLen {
-			fmt.Fprintf(os.Stderr, "%s: -B option too long (max %d digits): %s\n", os.Args[0], maxLen, ov)
-			Exit(2)
+			Exitf("-B option too long (max %d digits): %s", maxLen, ov)
 		}
 
 		buildinfo = append(buildinfo, uint8(b))
@@ -1264,21 +1259,7 @@ func elfdynhash() {
 	need := make([]*Elfaux, nsym)
 	chain := make([]uint32, nsym)
 	buckets := make([]uint32, nbucket)
-	if need == nil || chain == nil || buckets == nil {
-		Ctxt.Cursym = nil
-		Diag("out of memory")
-		Errorexit()
-	}
 
-	for i := 0; i < nsym; i++ {
-		need[i] = nil
-	}
-	for i := 0; i < nsym; i++ {
-		chain[i] = 0
-	}
-	for i := 0; i < nbucket; i++ {
-		buckets[i] = 0
-	}
 	var b int
 	var hc uint32
 	var name string
@@ -1434,7 +1415,7 @@ func elfshname(name string) *ElfShdr {
 	}
 
 	Diag("cannot find elf name %s", name)
-	Errorexit()
+	errorexit()
 	return nil
 }
 
@@ -1884,22 +1865,15 @@ func Asmbelf(symo int64) {
 	eh := getElfEhdr()
 	switch Thearch.Thechar {
 	default:
-		Diag("unknown architecture in asmbelf")
-		Errorexit()
-		fallthrough
-
+		Exitf("unknown architecture in asmbelf: %v", Thearch.Thechar)
 	case '5':
 		eh.machine = EM_ARM
-
 	case '6':
 		eh.machine = EM_X86_64
-
 	case '7':
 		eh.machine = EM_AARCH64
-
 	case '8':
 		eh.machine = EM_386
-
 	case '9':
 		eh.machine = EM_PPC64
 	}

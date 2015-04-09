@@ -298,7 +298,7 @@ func pclntab() {
 				for pciterinit(Ctxt, &it, &pcln.Pcfile); it.done == 0; pciternext(&it) {
 					if it.value < 1 || it.value > Ctxt.Nhistfile {
 						Diag("bad file number in pcfile: %d not in range [1, %d]\n", it.value, Ctxt.Nhistfile)
-						Errorexit()
+						errorexit()
 					}
 				}
 			}
@@ -337,7 +337,7 @@ func pclntab() {
 
 		if off != end {
 			Diag("bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, pcln.Npcdata, pcln.Nfuncdata, Thearch.Ptrsize)
-			Errorexit()
+			errorexit()
 		}
 
 		nfunc++

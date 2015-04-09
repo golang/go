@@ -159,8 +159,7 @@ func newMachoLoad(type_ uint32, ndata uint32) *MachoLoad {
 
 func newMachoSeg(name string, msect int) *MachoSeg {
 	if nseg >= len(seg) {
-		Diag("too many segs")
-		Errorexit()
+		Exitf("too many segs")
 	}
 
 	s := &seg[nseg]
@@ -173,8 +172,7 @@ func newMachoSeg(name string, msect int) *MachoSeg {
 
 func newMachoSect(seg *MachoSeg, name string, segname string) *MachoSect {
 	if seg.nsect >= seg.msect {
-		Diag("too many sects in segment %s", seg.name)
-		Errorexit()
+		Exitf("too many sects in segment %s", seg.name)
 	}
 
 	s := &seg.sect[seg.nsect]
@@ -419,9 +417,7 @@ func Asmbmacho() {
 	mh := getMachoHdr()
 	switch Thearch.Thechar {
 	default:
-		Diag("unknown mach architecture")
-		Errorexit()
-		fallthrough
+		Exitf("unknown macho architecture: %v", Thearch.Thechar)
 
 	case '5':
 		mh.cpu = MACHO_CPU_ARM
@@ -491,9 +487,7 @@ func Asmbmacho() {
 	if Linkmode != LinkExternal {
 		switch Thearch.Thechar {
 		default:
-			Diag("unknown macho architecture")
-			Errorexit()
-			fallthrough
+			Exitf("unknown macho architecture: %v", Thearch.Thechar)
 
 		case '5':
 			ml := newMachoLoad(5, 17+2)          /* unix thread */
@@ -572,7 +566,7 @@ func Asmbmacho() {
 
 	a := machowrite()
 	if int32(a) > HEADR {
-		Diag("HEADR too small: %d > %d", a, HEADR)
+		Exitf("HEADR too small: %d > %d", a, HEADR)
 	}
 }
 

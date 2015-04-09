@@ -674,13 +674,11 @@ notfound:
 	return nil
 }
 
-func find_or_diag(die *DWDie, name string) *DWDie {
+func mustFind(die *DWDie, name string) *DWDie {
 	r := find(die, name)
 	if r == nil {
-		Diag("dwarf find: %s %p has no %s", getattr(die, DW_AT_name).data, die, name)
-		Errorexit()
+		Exitf("dwarf find: %s %p has no %s", getattr(die, DW_AT_name).data, die, name)
 	}
-
 	return r
 }
 
@@ -843,9 +841,7 @@ func putattr(abbrev int, form int, cls int, value int64, data interface{}) {
 		DW_FORM_indirect: // (see Section 7.5.3)
 		fallthrough
 	default:
-		Diag("dwarf: unsupported attribute form %d / class %d", form, cls)
-
-		Errorexit()
+		Exitf("dwarf: unsupported attribute form %d / class %d", form, cls)
 	}
 }
 
@@ -924,8 +920,7 @@ func newabslocexprattr(die *DWDie, addr int64, sym *LSym) {
 func lookup_or_diag(n string) *LSym {
 	s := Linkrlookup(Ctxt, n, 0)
 	if s == nil || s.Size == 0 {
-		Diag("dwarf: missing type: %s", n)
-		Errorexit()
+		Exitf("dwarf: missing type: %s", n)
 	}
 
 	return s
@@ -961,12 +956,12 @@ func dotypedef(parent *DWDie, name string, def *DWDie) {
 // Define gotype, for composite ones recurse into constituents.
 func defgotype(gotype *LSym) *DWDie {
 	if gotype == nil {
-		return find_or_diag(&dwtypes, "<unspecified>")
+		return mustFind(&dwtypes, "<unspecified>")
 	}
 
 	if !strings.HasPrefix(gotype.Name, "type.") {
 		Diag("dwarf: type name doesn't start with \".type\": %s", gotype.Name)
-		return find_or_diag(&dwtypes, "<unspecified>")
+		return mustFind(&dwtypes, "<unspecified>")
 	}
 
 	name := gotype.Name[5:] // could also decode from Type.string
@@ -1032,7 +1027,7 @@ func defgotype(gotype *LSym) *DWDie {
 		// use actual length not upper bound; correct for 0-length arrays.
 		newattr(fld, DW_AT_count, DW_CLS_CONSTANT, decodetype_arraylen(gotype), 0)
 
-		newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"))
+		newrefattr(fld, DW_AT_type, mustFind(&dwtypes, "uintptr"))
 
 	case obj.KindChan:
 		die = newdie(&dwtypes, DW_ABRV_CHANTYPE, name)
@@ -1043,7 +1038,7 @@ func defgotype(gotype *LSym) *DWDie {
 	case obj.KindFunc:
 		die = newdie(&dwtypes, DW_ABRV_FUNCTYPE, name)
 		dotypedef(&dwtypes, name, die)
-		newrefattr(die, DW_AT_type, find_or_diag(&dwtypes, "void"))
+		newrefattr(die, DW_AT_type, mustFind(&dwtypes, "void"))
 		nfields := decodetype_funcincount(gotype)
 		var fld *DWDie
 		var s *LSym
@@ -1125,7 +1120,7 @@ func defgotype(gotype *LSym) *DWDie {
 	default:
 		Diag("dwarf: definition of unknown kind %d: %s", kind, gotype.Name)
 		die = newdie(&dwtypes, DW_ABRV_TYPEDECL, name)
-		newrefattr(die, DW_AT_type, find_or_diag(&dwtypes, "<unspecified>"))
+		newrefattr(die, DW_AT_type, mustFind(&dwtypes, "<unspecified>"))
 	}
 
 	newattr(die, DW_AT_go_kind, DW_CLS_CONSTANT, int64(kind), 0)
@@ -1173,7 +1168,7 @@ func copychildren(dst *DWDie, src *DWDie) {
 // Search children (assumed to have DW_TAG_member) for the one named
 // field and set its DW_AT_type to dwtype
 func substitutetype(structdie *DWDie, field string, dwtype *DWDie) {
-	child := find_or_diag(structdie, field)
+	child := mustFind(structdie, field)
 	if child == nil {
 		return
 	}
@@ -1302,7 +1297,7 @@ func synthesizemaptypes(die *DWDie) {
 		newrefattr(dwhk, DW_AT_type, t)
 		fld = newdie(dwhk, DW_ABRV_ARRAYRANGE, "size")
 		newattr(fld, DW_AT_count, DW_CLS_CONSTANT, BucketSize, 0)
-		newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"))
+		newrefattr(fld, DW_AT_type, mustFind(&dwtypes, "uintptr"))
 
 		// Construct type to represent an array of BucketSize values
 		dwhv = newdie(&dwtypes, DW_ABRV_ARRAYTYPE, mkinternaltypename("[]val", getattr(valtype, DW_AT_name).data.(string), ""))
@@ -1315,7 +1310,7 @@ func synthesizemaptypes(die *DWDie) {
 		newrefattr(dwhv, DW_AT_type, t)
 		fld = newdie(dwhv, DW_ABRV_ARRAYRANGE, "size")
 		newattr(fld, DW_AT_count, DW_CLS_CONSTANT, BucketSize, 0)
-		newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"))
+		newrefattr(fld, DW_AT_type, mustFind(&dwtypes, "uintptr"))
 
 		// Construct bucket<K,V>
 		dwhb = newdie(&dwtypes, DW_ABRV_STRUCTTYPE, mkinternaltypename("bucket", getattr(keytype, DW_AT_name).data.(string), getattr(valtype, DW_AT_name).data.(string)))
@@ -1335,7 +1330,7 @@ func synthesizemaptypes(die *DWDie) {
 		newmemberoffsetattr(fld, BucketSize+BucketSize*(int32(keysize)+int32(valsize)))
 		if Thearch.Regsize > Thearch.Ptrsize {
 			fld = newdie(dwhb, DW_ABRV_STRUCTFIELD, "pad")
-			newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"))
+			newrefattr(fld, DW_AT_type, mustFind(&dwtypes, "uintptr"))
 			newmemberoffsetattr(fld, BucketSize+BucketSize*(int32(keysize)+int32(valsize))+int32(Thearch.Ptrsize))
 		}
 
@@ -1804,8 +1799,7 @@ func writeframes() {
 	pad := CIERESERVE + frameo + 4 - Cpos()
 
 	if pad < 0 {
-		Diag("dwarf: CIERESERVE too small by %d bytes.", -pad)
-		Errorexit()
+		Exitf("dwarf: CIERESERVE too small by %d bytes.", -pad)
 	}
 
 	strnput("", int(pad))
@@ -2150,13 +2144,11 @@ func Dwarfemitdebugsections() {
 		Cseek(infoo)
 		writeinfo()
 		if fwdcount > 0 {
-			Diag("dwarf: unresolved references after first dwarf info pass")
-			Errorexit()
+			Exitf("dwarf: unresolved references after first dwarf info pass")
 		}
 
 		if infoe != Cpos() {
-			Diag("dwarf: inconsistent second dwarf info pass")
-			Errorexit()
+			Exitf("dwarf: inconsistent second dwarf info pass")
 		}
 	}
 

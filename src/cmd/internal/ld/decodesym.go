@@ -35,10 +35,10 @@ func decode_inuxi(p []byte, sz int) uint64 {
 		return uint64(Ctxt.Arch.ByteOrder.Uint32(p))
 	case 8:
 		return Ctxt.Arch.ByteOrder.Uint64(p)
+	default:
+		Exitf("dwarf: decode inuxi %d", sz)
+		panic("unreachable")
 	}
-	Diag("dwarf: decode inuxi %d", sz)
-	Errorexit()
-	return 0
 }
 
 func commonsize() int {

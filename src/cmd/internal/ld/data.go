@@ -482,7 +482,7 @@ func relocsym(s *LSym) {
 			// 64-bit architectures so as to be future-proof.
 			if int32(o) < 0 && Thearch.Ptrsize > 4 && siz == 4 {
 				Diag("non-pc-relative relocation address is too big: %#x (%#x + %#x)", uint64(o), Symaddr(r.Sym), r.Add)
-				Errorexit()
+				errorexit()
 			}
 
 			// r->sym can be null when CALL $(constant) is transformed from absolute PC to relative PC call.
@@ -713,7 +713,7 @@ func blk(start *LSym, addr int64, size int64) {
 		Ctxt.Cursym = sym
 		if sym.Value < addr {
 			Diag("phase error: addr=%#x but sym=%#x type=%d", int64(addr), int64(sym.Value), sym.Type)
-			Errorexit()
+			errorexit()
 		}
 
 		for ; addr < sym.Value; addr++ {
@@ -731,7 +731,7 @@ func blk(start *LSym, addr int64, size int64) {
 		}
 		if addr != sym.Value+sym.Size {
 			Diag("phase error: addr=%#x value+size=%#x", int64(addr), int64(sym.Value)+sym.Size)
-			Errorexit()
+			errorexit()
 		}
 
 		if sym.Value+sym.Size >= eaddr {

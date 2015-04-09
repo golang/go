@@ -399,8 +399,7 @@ func ldpe(f *Biobuf, pkg string, length int64, pn string) {
 			if s.Dupok != 0 {
 				continue
 			}
-			Diag("%s: duplicate symbol reference: %s in both %s and %s", pn, s.Name, s.Outer.Name, sect.sym.Name)
-			Errorexit()
+			Exitf("%s: duplicate symbol reference: %s in both %s and %s", pn, s.Name, s.Outer.Name, sect.sym.Name)
 		}
 
 		s.Sub = sect.sym.Sub

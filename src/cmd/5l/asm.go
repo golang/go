@@ -93,9 +93,7 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 		return
 
 	case 256 + ld.R_ARM_THM_PC22: // R_ARM_THM_CALL
-		ld.Diag("R_ARM_THM_CALL, are you using -marm?")
-
-		ld.Errorexit()
+		ld.Exitf("R_ARM_THM_CALL, are you using -marm?")
 		return
 
 	case 256 + ld.R_ARM_GOT32: // R_ARM_GOT_BREL
