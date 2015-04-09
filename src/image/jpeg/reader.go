@@ -298,6 +298,9 @@ func (d *decoder) ignore(n int) error {
 
 // Specified in section B.2.2.
 func (d *decoder) processSOF(n int) error {
+	if d.nComp != 0 {
+		return FormatError("multiple SOF markers")
+	}
 	switch n {
 	case 6 + 3*1: // Grayscale image.
 		d.nComp = 1
