@@ -806,7 +806,7 @@ TEXT runtime·cmpstring(SB),NOSPLIT,$0-40
 	MOVD	s1_len+8(FP), R0
 	MOVD	s2_base+16(FP), R3
 	MOVD	s2_len+24(FP), R1
-	BL	runtime·cmpbody(SB)
+	BL	runtime·cmpbody<>(SB)
 	MOVD	R8, ret+32(FP)
 	RET
 
@@ -815,7 +815,7 @@ TEXT bytes·Compare(SB),NOSPLIT,$0-56
 	MOVD	s1+8(FP), R0
 	MOVD	s2+24(FP), R3
 	MOVD	s2+32(FP), R1
-	BL	runtime·cmpbody(SB)
+	BL	runtime·cmpbody<>(SB)
 	MOVD	R8, ret+48(FP)
 	RET
 
