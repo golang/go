@@ -97,8 +97,13 @@ func asmOutput(t *testing.T, s string) []byte {
 	if err != nil {
 		t.Fatal(err)
 	}
+	gofolder := filepath.Join(build.Default.GOROOT, "bin")
+	if gobin := os.Getenv("GOBIN"); len(gobin) != 0 {
+		gofolder = gobin
+	}
+
 	cmd := exec.Command(
-		build.Default.GOROOT+"/bin/go", "tool", "asm", "-S", "-dynlink",
+		filepath.Join(gofolder, "go"), "tool", "asm", "-S", "-dynlink",
 		"-o", filepath.Join(tmpdir, "output.6"), tmpfile.Name())
 
 	var env []string
