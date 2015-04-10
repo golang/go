@@ -80,6 +80,9 @@ func TestGdbPython(t *testing.T) {
 		"-ex", "echo BEGIN print ptrvar\n",
 		"-ex", "print ptrvar",
 		"-ex", "echo END\n",
+		"-ex", "echo BEGIN goroutine 2 bt\n",
+		"-ex", "goroutine 2 bt",
+		"-ex", "echo END\n",
 		filepath.Join(dir, "a.exe")).CombinedOutput()
 
 	firstLine := bytes.SplitN(got, []byte("\n"), 2)[0]
@@ -111,5 +114,10 @@ func TestGdbPython(t *testing.T) {
 
 	if bl := blocks["print ptrvar"]; !strVarRe.MatchString(bl) {
 		t.Fatalf("print ptrvar failed: %s", bl)
+	}
+
+	btGoroutineRe := regexp.MustCompile(`^#0\s+runtime.+at`)
+	if bl := blocks["goroutine 2 bt"]; !btGoroutineRe.MatchString(bl) {
+		t.Fatalf("goroutine 2 bt failed: %s", bl)
 	}
 }
