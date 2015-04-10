@@ -148,12 +148,12 @@ func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
 		}
 		var new []*mspan
 		sp := (*slice)(unsafe.Pointer(&new))
-		sp.array = (*byte)(sysAlloc(uintptr(n)*ptrSize, &memstats.other_sys))
+		sp.array = sysAlloc(uintptr(n)*ptrSize, &memstats.other_sys)
 		if sp.array == nil {
 			throw("runtime: cannot allocate memory")
 		}
-		sp.len = uint(len(h_allspans))
-		sp.cap = uint(n)
+		sp.len = len(h_allspans)
+		sp.cap = n
 		if len(h_allspans) > 0 {
 			copy(new, h_allspans)
 			// Don't free the old array if it's referenced by sweep.
@@ -256,9 +256,9 @@ func mHeap_Init(h *mheap, spans_size uintptr) {
 	}
 
 	sp := (*slice)(unsafe.Pointer(&h_spans))
-	sp.array = (*byte)(unsafe.Pointer(h.spans))
-	sp.len = uint(spans_size / ptrSize)
-	sp.cap = uint(spans_size / ptrSize)
+	sp.array = unsafe.Pointer(h.spans)
+	sp.len = int(spans_size / ptrSize)
+	sp.cap = int(spans_size / ptrSize)
 }
 
 func mHeap_MapSpans(h *mheap) {

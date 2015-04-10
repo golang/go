@@ -87,12 +87,6 @@ type eface struct {
 	data  unsafe.Pointer
 }
 
-type slice struct {
-	array *byte // actual data
-	len   uint  // number of elements
-	cap   uint  // allocated number of elements
-}
-
 // A guintptr holds a goroutine pointer, but typed as a uintptr
 // to bypass write barriers. It is used in the Gobuf goroutine state.
 //

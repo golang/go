@@ -281,7 +281,7 @@ func stringHash(s string, seed uintptr) uintptr {
 }
 
 func bytesHash(b []byte, seed uintptr) uintptr {
-	s := (*sliceStruct)(unsafe.Pointer(&b))
+	s := (*slice)(unsafe.Pointer(&b))
 	return memhash(s.array, seed, uintptr(s.len))
 }
 
@@ -305,7 +305,7 @@ func ifaceHash(i interface {
 
 // Testing adapter for memclr
 func memclrBytes(b []byte) {
-	s := (*sliceStruct)(unsafe.Pointer(&b))
+	s := (*slice)(unsafe.Pointer(&b))
 	memclr(s.array, uintptr(s.len))
 }
 

@@ -159,7 +159,7 @@ func selectdefaultImpl(sel *hselect, callerpc uintptr, so uintptr) {
 }
 
 func sellock(sel *hselect) {
-	lockslice := sliceStruct{unsafe.Pointer(sel.lockorder), int(sel.ncase), int(sel.ncase)}
+	lockslice := slice{unsafe.Pointer(sel.lockorder), int(sel.ncase), int(sel.ncase)}
 	lockorder := *(*[]*hchan)(unsafe.Pointer(&lockslice))
 	var c *hchan
 	for _, c0 := range lockorder {
@@ -181,7 +181,7 @@ func selunlock(sel *hselect) {
 	// Now if the first M touches sel, it will access freed memory.
 	n := int(sel.ncase)
 	r := 0
-	lockslice := sliceStruct{unsafe.Pointer(sel.lockorder), n, n}
+	lockslice := slice{unsafe.Pointer(sel.lockorder), n, n}
 	lockorder := *(*[]*hchan)(unsafe.Pointer(&lockslice))
 	// skip the default case
 	if n > 0 && lockorder[0] == nil {
@@ -221,7 +221,7 @@ func selectgoImpl(sel *hselect) (uintptr, uint16) {
 		print("select: sel=", sel, "\n")
 	}
 
-	scaseslice := sliceStruct{unsafe.Pointer(&sel.scase), int(sel.ncase), int(sel.ncase)}
+	scaseslice := slice{unsafe.Pointer(&sel.scase), int(sel.ncase), int(sel.ncase)}
 	scases := *(*[]scase)(unsafe.Pointer(&scaseslice))
 
 	var t0 int64
@@ -241,7 +241,7 @@ func selectgoImpl(sel *hselect) (uintptr, uint16) {
 	// optimizing (and needing to test).
 
 	// generate permuted order
-	pollslice := sliceStruct{unsafe.Pointer(sel.pollorder), int(sel.ncase), int(sel.ncase)}
+	pollslice := slice{unsafe.Pointer(sel.pollorder), int(sel.ncase), int(sel.ncase)}
 	pollorder := *(*[]uint16)(unsafe.Pointer(&pollslice))
 	for i := 0; i < int(sel.ncase); i++ {
 		pollorder[i] = uint16(i)
@@ -255,7 +255,7 @@ func selectgoImpl(sel *hselect) (uintptr, uint16) {
 
 	// sort the cases by Hchan address to get the locking order.
 	// simple heap sort, to guarantee n log n time and constant stack footprint.
-	lockslice := sliceStruct{unsafe.Pointer(sel.lockorder), int(sel.ncase), int(sel.ncase)}
+	lockslice := slice{unsafe.Pointer(sel.lockorder), int(sel.ncase), int(sel.ncase)}
 	lockorder := *(*[]*hchan)(unsafe.Pointer(&lockslice))
 	for i := 0; i < int(sel.ncase); i++ {
 		j := i

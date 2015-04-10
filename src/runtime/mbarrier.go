@@ -355,7 +355,7 @@ func typedslicecopy(typ *_type, dst, src slice) int {
 
 	if !needwb() {
 		memmove(dstp, srcp, uintptr(n)*typ.size)
-		return int(n)
+		return n
 	}
 
 	systemstack(func() {
@@ -365,7 +365,7 @@ func typedslicecopy(typ *_type, dst, src slice) int {
 			// out of the array they point into.
 			dstp = add(dstp, uintptr(n-1)*typ.size)
 			srcp = add(srcp, uintptr(n-1)*typ.size)
-			i := uint(0)
+			i := 0
 			for {
 				typedmemmove(typ, dstp, srcp)
 				if i++; i >= n {
@@ -377,7 +377,7 @@ func typedslicecopy(typ *_type, dst, src slice) int {
 		} else {
 			// Copy forward, being careful not to move dstp/srcp
 			// out of the array they point into.
-			i := uint(0)
+			i := 0
 			for {
 				typedmemmove(typ, dstp, srcp)
 				if i++; i >= n {
