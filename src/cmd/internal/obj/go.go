@@ -25,14 +25,8 @@ var exper = []struct {
 	name string
 	val  *int
 }{
-	struct {
-		name string
-		val  *int
-	}{"fieldtrack", &Fieldtrack_enabled},
-	struct {
-		name string
-		val  *int
-	}{"framepointer", &Framepointer_enabled},
+	{"fieldtrack", &Fieldtrack_enabled},
+	{"framepointer", &Framepointer_enabled},
 }
 
 func addexp(s string) {

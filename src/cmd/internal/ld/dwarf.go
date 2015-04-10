@@ -223,382 +223,261 @@ const (
 type DWAbbrev struct {
 	tag      uint8
 	children uint8
-	attr     [30]DWAttrForm
+	attr     []DWAttrForm
 }
 
-var abbrevs = [DW_NABRV]struct {
-	tag      uint8
-	children uint8
-	attr     [30]DWAttrForm
-}{
+var abbrevs = [DW_NABRV]DWAbbrev{
 	/* The mandatory DW_ABRV_NULL entry. */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{0, 0, [30]DWAttrForm{}},
+	{0, 0, []DWAttrForm{}},
 
 	/* COMPUNIT */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_compile_unit,
 		DW_CHILDREN_yes,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_language, DW_FORM_data1},
-			DWAttrForm{DW_AT_low_pc, DW_FORM_addr},
-			DWAttrForm{DW_AT_high_pc, DW_FORM_addr},
-			DWAttrForm{DW_AT_stmt_list, DW_FORM_data4},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_language, DW_FORM_data1},
+			{DW_AT_low_pc, DW_FORM_addr},
+			{DW_AT_high_pc, DW_FORM_addr},
+			{DW_AT_stmt_list, DW_FORM_data4},
 		},
 	},
 
 	/* FUNCTION */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_subprogram,
 		DW_CHILDREN_yes,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_low_pc, DW_FORM_addr},
-			DWAttrForm{DW_AT_high_pc, DW_FORM_addr},
-			DWAttrForm{DW_AT_external, DW_FORM_flag},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_low_pc, DW_FORM_addr},
+			{DW_AT_high_pc, DW_FORM_addr},
+			{DW_AT_external, DW_FORM_flag},
 		},
 	},
 
 	/* VARIABLE */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_variable,
 		DW_CHILDREN_no,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_location, DW_FORM_block1},
-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
-			DWAttrForm{DW_AT_external, DW_FORM_flag},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_location, DW_FORM_block1},
+			{DW_AT_type, DW_FORM_ref_addr},
+			{DW_AT_external, DW_FORM_flag},
 		},
 	},
 
 	/* AUTO */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_variable,
 		DW_CHILDREN_no,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_location, DW_FORM_block1},
-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_location, DW_FORM_block1},
+			{DW_AT_type, DW_FORM_ref_addr},
 		},
 	},
 
 	/* PARAM */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_formal_parameter,
 		DW_CHILDREN_no,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_location, DW_FORM_block1},
-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_location, DW_FORM_block1},
+			{DW_AT_type, DW_FORM_ref_addr},
 		},
 	},
 
 	/* STRUCTFIELD */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_member,
 		DW_CHILDREN_no,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_data_member_location, DW_FORM_block1},
-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_data_member_location, DW_FORM_block1},
+			{DW_AT_type, DW_FORM_ref_addr},
 		},
 	},
 
 	/* FUNCTYPEPARAM */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_formal_parameter,
 		DW_CHILDREN_no,
 
 		// No name!
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_type, DW_FORM_ref_addr},
 		},
 	},
 
 	/* DOTDOTDOT */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_unspecified_parameters,
 		DW_CHILDREN_no,
-		[30]DWAttrForm{DWAttrForm{0, 0}},
+		[]DWAttrForm{},
 	},
 
 	/* ARRAYRANGE */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_subrange_type,
 		DW_CHILDREN_no,
 
 		// No name!
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
-			DWAttrForm{DW_AT_count, DW_FORM_udata},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_type, DW_FORM_ref_addr},
+			{DW_AT_count, DW_FORM_udata},
 		},
 	},
 
 	// Below here are the types considered public by ispubtype
 	/* NULLTYPE */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_unspecified_type,
 		DW_CHILDREN_no,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
 		},
 	},
 
 	/* BASETYPE */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_base_type,
 		DW_CHILDREN_no,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_encoding, DW_FORM_data1},
-			DWAttrForm{DW_AT_byte_size, DW_FORM_data1},
-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_encoding, DW_FORM_data1},
+			{DW_AT_byte_size, DW_FORM_data1},
+			{DW_AT_go_kind, DW_FORM_data1},
 		},
 	},
 
 	/* ARRAYTYPE */
 	// child is subrange with upper bound
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_array_type,
 		DW_CHILDREN_yes,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
-			DWAttrForm{DW_AT_byte_size, DW_FORM_udata},
-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_type, DW_FORM_ref_addr},
+			{DW_AT_byte_size, DW_FORM_udata},
+			{DW_AT_go_kind, DW_FORM_data1},
 		},
 	},
 
 	/* CHANTYPE */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_typedef,
 		DW_CHILDREN_no,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
-			DWAttrForm{DW_AT_go_elem, DW_FORM_ref_addr},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_type, DW_FORM_ref_addr},
+			{DW_AT_go_kind, DW_FORM_data1},
+			{DW_AT_go_elem, DW_FORM_ref_addr},
 		},
 	},
 
 	/* FUNCTYPE */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_subroutine_type,
 		DW_CHILDREN_yes,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-
-			//		{DW_AT_type,	DW_FORM_ref_addr},
-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			// {DW_AT_type,	DW_FORM_ref_addr},
+			{DW_AT_go_kind, DW_FORM_data1},
 		},
 	},
 
 	/* IFACETYPE */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_typedef,
 		DW_CHILDREN_yes,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_type, DW_FORM_ref_addr},
+			{DW_AT_go_kind, DW_FORM_data1},
 		},
 	},
 
 	/* MAPTYPE */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_typedef,
 		DW_CHILDREN_no,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
-			DWAttrForm{DW_AT_go_key, DW_FORM_ref_addr},
-			DWAttrForm{DW_AT_go_elem, DW_FORM_ref_addr},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_type, DW_FORM_ref_addr},
+			{DW_AT_go_kind, DW_FORM_data1},
+			{DW_AT_go_key, DW_FORM_ref_addr},
+			{DW_AT_go_elem, DW_FORM_ref_addr},
 		},
 	},
 
 	/* PTRTYPE */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_pointer_type,
 		DW_CHILDREN_no,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_type, DW_FORM_ref_addr},
+			{DW_AT_go_kind, DW_FORM_data1},
 		},
 	},
 
 	/* BARE_PTRTYPE */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_pointer_type,
 		DW_CHILDREN_no,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
 		},
 	},
 
 	/* SLICETYPE */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_structure_type,
 		DW_CHILDREN_yes,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_byte_size, DW_FORM_udata},
-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
-			DWAttrForm{DW_AT_go_elem, DW_FORM_ref_addr},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_byte_size, DW_FORM_udata},
+			{DW_AT_go_kind, DW_FORM_data1},
+			{DW_AT_go_elem, DW_FORM_ref_addr},
 		},
 	},
 
 	/* STRINGTYPE */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_structure_type,
 		DW_CHILDREN_yes,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_byte_size, DW_FORM_udata},
-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_byte_size, DW_FORM_udata},
+			{DW_AT_go_kind, DW_FORM_data1},
 		},
 	},
 
 	/* STRUCTTYPE */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_structure_type,
 		DW_CHILDREN_yes,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_byte_size, DW_FORM_udata},
-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_byte_size, DW_FORM_udata},
+			{DW_AT_go_kind, DW_FORM_data1},
 		},
 	},
 
 	/* TYPEDECL */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_typedef,
 		DW_CHILDREN_no,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_type, DW_FORM_ref_addr},
 		},
 	},
 }
 
 func writeabbrev() {
-	var j int
-	var f *DWAttrForm
-
 	abbrevo = Cpos()
 	for i := 1; i < DW_NABRV; i++ {
 		// See section 7.5.3
@@ -606,14 +485,12 @@ func writeabbrev() {
 
 		uleb128put(int64(abbrevs[i].tag))
 		Cput(abbrevs[i].children)
-		for j = 0; j < len(abbrevs[i].attr); j++ {
-			f = &abbrevs[i].attr[j]
+		for _, f := range abbrevs[i].attr {
 			uleb128put(int64(f.attr))
 			uleb128put(int64(f.form))
-			if f.attr == 0 {
-				break
-			}
 		}
+		uleb128put(0)
+		uleb128put(0)
 	}
 
 	Cput(0)
@@ -975,18 +852,16 @@ func putattr(abbrev int, form int, cls int, value int64, data interface{}) {
 // Note that we can (and do) add arbitrary attributes to a DIE, but
 // only the ones actually listed in the Abbrev will be written out.
 func putattrs(abbrev int, attr *DWAttr) {
-	var ap *DWAttr
-
-	for af := abbrevs[abbrev].attr[:]; af[0].attr != 0; af = af[1:] {
-		for ap = attr; ap != nil; ap = ap.link {
-			if ap.atr == af[0].attr {
-				putattr(abbrev, int(af[0].form), int(ap.cls), ap.value, ap.data)
-				goto done
+Outer:
+	for _, f := range abbrevs[abbrev].attr {
+		for ap := attr; ap != nil; ap = ap.link {
+			if ap.atr == f.attr {
+				putattr(abbrev, int(f.form), int(ap.cls), ap.value, ap.data)
+				continue Outer
 			}
 		}
 
-		putattr(abbrev, int(af[0].form), 0, 0, nil)
-	done:
+		putattr(abbrev, int(f.form), 0, 0, nil)
 	}
 }
 
