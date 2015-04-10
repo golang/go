@@ -4,7 +4,10 @@
 
 package net
 
-import "time"
+import (
+	"internal/singleflight"
+	"time"
+)
 
 // protocols contains minimal mappings between internet protocol
 // names and numbers for platforms that don't have a complete list of
@@ -39,7 +42,7 @@ func LookupIP(host string) (ips []IP, err error) {
 	return
 }
 
-var lookupGroup singleflight
+var lookupGroup singleflight.Group
 
 // lookupIPMerge wraps lookupIP, but makes sure that for any given
 // host, only one lookup is in-flight at a time. The returned memory
@@ -98,7 +101,7 @@ func lookupIPDeadline(host string, deadline time.Time) (addrs []IPAddr, err erro
 		return nil, errTimeout
 
 	case r := <-ch:
-		return lookupIPReturn(r.v, r.err, r.shared)
+		return lookupIPReturn(r.Val, r.Err, r.Shared)
 	}
 }
 

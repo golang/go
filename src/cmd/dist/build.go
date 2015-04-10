@@ -859,6 +859,7 @@ var buildorder = []string{
 	"errors",
 	"sync/atomic",
 	"sync",
+	"internal/singleflight",
 	"io",
 	"unicode",
 	"unicode/utf8",
