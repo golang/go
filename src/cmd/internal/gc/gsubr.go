@@ -466,9 +466,6 @@ func Naddr(a *obj.Addr, n *Node) {
 			break // len(nil)
 		}
 		a.Etype = Simtype[TUINT]
-		if Thearch.Thechar == '7' || Thearch.Thechar == '9' {
-			a.Etype = Simtype[TINT]
-		}
 		a.Offset += int64(Array_nel)
 		if Thearch.Thechar != '5' { // TODO(rsc): Do this even on arm.
 			a.Width = int64(Widthint)
@@ -482,9 +479,6 @@ func Naddr(a *obj.Addr, n *Node) {
 			break // cap(nil)
 		}
 		a.Etype = Simtype[TUINT]
-		if Thearch.Thechar == '7' || Thearch.Thechar == '9' {
-			a.Etype = Simtype[TINT]
-		}
 		a.Offset += int64(Array_cap)
 		if Thearch.Thechar != '5' { // TODO(rsc): Do this even on arm.
 			a.Width = int64(Widthint)
