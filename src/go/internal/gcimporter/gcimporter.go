@@ -4,7 +4,7 @@
 
 // Package gcimporter implements Import for gc-generated object files.
 // Importing this package installs Import as go/types.DefaultImport.
-package gcimporter // import "go/types/internal/gcimporter"
+package gcimporter // import "go/internal/gcimporter"
 
 import (
 	"bufio"

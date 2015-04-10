@@ -135,7 +135,7 @@ func (check *Checker) collectObjects() {
 		} else {
 			// Panic if we encounter an import.
 			importer = func(map[string]*Package, string) (*Package, error) {
-				panic(`no Config.Import or DefaultImport (missing import _ "go/types/internal/gcimporter"?)`)
+				panic(`no Config.Import or DefaultImport (missing import _ "go/internal/gcimporter"?)`)
 			}
 		}
 	}

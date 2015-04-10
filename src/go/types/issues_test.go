@@ -14,8 +14,8 @@ import (
 	"strings"
 	"testing"
 
+	_ "go/internal/gcimporter"
 	. "go/types"
-	_ "go/types/internal/gcimporter"
 )
 
 func TestIssue5770(t *testing.T) {

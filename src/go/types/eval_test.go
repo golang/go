@@ -13,8 +13,8 @@ import (
 	"strings"
 	"testing"
 
+	_ "go/internal/gcimporter"
 	. "go/types"
-	_ "go/types/internal/gcimporter"
 )
 
 func testEval(t *testing.T, pkg *Package, scope *Scope, str string, typ Type, typStr, valStr string) {

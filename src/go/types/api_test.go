@@ -14,8 +14,8 @@ import (
 	"strings"
 	"testing"
 
+	_ "go/internal/gcimporter"
 	. "go/types"
-	_ "go/types/internal/gcimporter"
 )
 
 // skipSpecialPlatforms causes the test to be skipped for platforms where

@@ -40,7 +40,7 @@ function vendor() (
 		# copy $f and update imports
 		sed -e 's|"golang.org/x/tools/go/exact"|"go/exact"|' \
 		    -e 's|"golang.org/x/tools/go/types"|"go/types"|' \
-		    -e 's|"golang.org/x/tools/go/gcimporter"|"go/types/internal/gcimporter"|' \
+		    -e 's|"golang.org/x/tools/go/gcimporter"|"go/internal/gcimporter"|' \
 		    $f | gofmt > tmp.go
 		mv -f tmp.go `basename $f`
 	done
@@ -81,9 +81,9 @@ vendor go/types types
 install types
 
 ### go/gcimporter
-vendor go/gcimporter types/internal/gcimporter
-test types/internal/gcimporter
-install types/internal/gcimporter
+vendor go/gcimporter internal/gcimporter
+test internal/gcimporter
+install internal/gcimporter
 
 ### test go/types (requires gcimporter)
 test types
