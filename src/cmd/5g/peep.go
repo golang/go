@@ -1508,102 +1508,22 @@ var predinfo = []struct {
 	scond     int
 	notscond  int
 }{
-	struct {
-		opcode    int
-		notopcode int
-		scond     int
-		notscond  int
-	}{arm.ABEQ, arm.ABNE, 0x0, 0x1},
-	struct {
-		opcode    int
-		notopcode int
-		scond     int
-		notscond  int
-	}{arm.ABNE, arm.ABEQ, 0x1, 0x0},
-	struct {
-		opcode    int
-		notopcode int
-		scond     int
-		notscond  int
-	}{arm.ABCS, arm.ABCC, 0x2, 0x3},
-	struct {
-		opcode    int
-		notopcode int
-		scond     int
-		notscond  int
-	}{arm.ABHS, arm.ABLO, 0x2, 0x3},
-	struct {
-		opcode    int
-		notopcode int
-		scond     int
-		notscond  int
-	}{arm.ABCC, arm.ABCS, 0x3, 0x2},
-	struct {
-		opcode    int
-		notopcode int
-		scond     int
-		notscond  int
-	}{arm.ABLO, arm.ABHS, 0x3, 0x2},
-	struct {
-		opcode    int
-		notopcode int
-		scond     int
-		notscond  int
-	}{arm.ABMI, arm.ABPL, 0x4, 0x5},
-	struct {
-		opcode    int
-		notopcode int
-		scond     int
-		notscond  int
-	}{arm.ABPL, arm.ABMI, 0x5, 0x4},
-	struct {
-		opcode    int
-		notopcode int
-		scond     int
-		notscond  int
-	}{arm.ABVS, arm.ABVC, 0x6, 0x7},
-	struct {
-		opcode    int
-		notopcode int
-		scond     int
-		notscond  int
-	}{arm.ABVC, arm.ABVS, 0x7, 0x6},
-	struct {
-		opcode    int
-		notopcode int
-		scond     int
-		notscond  int
-	}{arm.ABHI, arm.ABLS, 0x8, 0x9},
-	struct {
-		opcode    int
-		notopcode int
-		scond     int
-		notscond  int
-	}{arm.ABLS, arm.ABHI, 0x9, 0x8},
-	struct {
-		opcode    int
-		notopcode int
-		scond     int
-		notscond  int
-	}{arm.ABGE, arm.ABLT, 0xA, 0xB},
-	struct {
-		opcode    int
-		notopcode int
-		scond     int
-		notscond  int
-	}{arm.ABLT, arm.ABGE, 0xB, 0xA},
-	struct {
-		opcode    int
-		notopcode int
-		scond     int
-		notscond  int
-	}{arm.ABGT, arm.ABLE, 0xC, 0xD},
-	struct {
-		opcode    int
-		notopcode int
-		scond     int
-		notscond  int
-	}{arm.ABLE, arm.ABGT, 0xD, 0xC},
+	{arm.ABEQ, arm.ABNE, 0x0, 0x1},
+	{arm.ABNE, arm.ABEQ, 0x1, 0x0},
+	{arm.ABCS, arm.ABCC, 0x2, 0x3},
+	{arm.ABHS, arm.ABLO, 0x2, 0x3},
+	{arm.ABCC, arm.ABCS, 0x3, 0x2},
+	{arm.ABLO, arm.ABHS, 0x3, 0x2},
+	{arm.ABMI, arm.ABPL, 0x4, 0x5},
+	{arm.ABPL, arm.ABMI, 0x5, 0x4},
+	{arm.ABVS, arm.ABVC, 0x6, 0x7},
+	{arm.ABVC, arm.ABVS, 0x7, 0x6},
+	{arm.ABHI, arm.ABLS, 0x8, 0x9},
+	{arm.ABLS, arm.ABHI, 0x9, 0x8},
+	{arm.ABGE, arm.ABLT, 0xA, 0xB},
+	{arm.ABLT, arm.ABGE, 0xB, 0xA},
+	{arm.ABGT, arm.ABLE, 0xC, 0xD},
+	{arm.ABLE, arm.ABGT, 0xD, 0xC},
 }
 
 type Joininfo struct {

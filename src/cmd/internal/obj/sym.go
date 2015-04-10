@@ -47,58 +47,19 @@ var headers = []struct {
 	name string
 	val  int
 }{
-	struct {
-		name string
-		val  int
-	}{"darwin", Hdarwin},
-	struct {
-		name string
-		val  int
-	}{"dragonfly", Hdragonfly},
-	struct {
-		name string
-		val  int
-	}{"elf", Helf},
-	struct {
-		name string
-		val  int
-	}{"freebsd", Hfreebsd},
-	struct {
-		name string
-		val  int
-	}{"linux", Hlinux},
-	struct {
-		name string
-		val  int
-	}{"android", Hlinux}, // must be after "linux" entry or else headstr(Hlinux) == "android"
-	struct {
-		name string
-		val  int
-	}{"nacl", Hnacl},
-	struct {
-		name string
-		val  int
-	}{"netbsd", Hnetbsd},
-	struct {
-		name string
-		val  int
-	}{"openbsd", Hopenbsd},
-	struct {
-		name string
-		val  int
-	}{"plan9", Hplan9},
-	struct {
-		name string
-		val  int
-	}{"solaris", Hsolaris},
-	struct {
-		name string
-		val  int
-	}{"windows", Hwindows},
-	struct {
-		name string
-		val  int
-	}{"windowsgui", Hwindows},
+	{"darwin", Hdarwin},
+	{"dragonfly", Hdragonfly},
+	{"elf", Helf},
+	{"freebsd", Hfreebsd},
+	{"linux", Hlinux},
+	{"android", Hlinux}, // must be after "linux" entry or else headstr(Hlinux) == "android"
+	{"nacl", Hnacl},
+	{"netbsd", Hnetbsd},
+	{"openbsd", Hopenbsd},
+	{"plan9", Hplan9},
+	{"solaris", Hsolaris},
+	{"windows", Hwindows},
+	{"windowsgui", Hwindows},
 }
 
 func headtype(name string) int {
