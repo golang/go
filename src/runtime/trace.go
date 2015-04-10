@@ -45,7 +45,7 @@ const (
 	traceEvGoBlockCond    = 26 // goroutine blocks on Cond [timestamp, stack]
 	traceEvGoBlockNet     = 27 // goroutine blocks on network [timestamp, stack]
 	traceEvGoSysCall      = 28 // syscall enter [timestamp, stack]
-	traceEvGoSysExit      = 29 // syscall exit [timestamp, goroutine id]
+	traceEvGoSysExit      = 29 // syscall exit [timestamp, goroutine id, real timestamp]
 	traceEvGoSysBlock     = 30 // syscall blocks [timestamp]
 	traceEvGoWaiting      = 31 // denotes that goroutine is blocked when tracing starts [goroutine id]
 	traceEvGoInSyscall    = 32 // denotes that goroutine is in syscall when tracing starts [goroutine id]
@@ -797,8 +797,8 @@ func traceGoSysCall() {
 	traceEvent(traceEvGoSysCall, 4)
 }
 
-func traceGoSysExit() {
-	traceEvent(traceEvGoSysExit, -1, uint64(getg().m.curg.goid))
+func traceGoSysExit(ts int64) {
+	traceEvent(traceEvGoSysExit, -1, uint64(getg().m.curg.goid), uint64(ts)/traceTickDiv)
 }
 
 func traceGoSysBlock(pp *p) {

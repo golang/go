@@ -1813,23 +1813,29 @@ func exitsyscall(dummy int32) {
 		return
 	}
 
+	var exitTicks int64
 	if trace.enabled {
 		// Wait till traceGoSysBlock event is emited.
 		// This ensures consistency of the trace (the goroutine is started after it is blocked).
 		for oldp != nil && oldp.syscalltick == _g_.m.syscalltick {
 			osyield()
 		}
-		// This can't be done since the GC may be running and this code
-		// will invoke write barriers.
-		// TODO: Figure out how to get traceGoSysExit into the trace log or
-		// it is likely not to work as expected.
-		//		systemstack(traceGoSysExit)
+		// We can't trace syscall exit right now because we don't have a P.
+		// Tracing code can invoke write barriers that cannot run without a P.
+		// So instead we remember the syscall exit time and emit the event
+		// below when we have a P.
+		exitTicks = cputicks()
 	}
 
 	_g_.m.locks--
 
 	// Call the scheduler.
 	mcall(exitsyscall0)
+
+	// The goroutine must not be re-scheduled up to traceGoSysExit.
+	// Otherwise we can emit GoStart but not GoSysExit, that would lead
+	// no an inconsistent trace.
+	_g_.m.locks++
 
 	if _g_.m.mcache == nil {
 		throw("lost mcache")
@@ -1844,6 +1850,13 @@ func exitsyscall(dummy int32) {
 	_g_.syscallsp = 0
 	_g_.m.p.syscalltick++
 	_g_.throwsplit = false
+
+	if exitTicks != 0 {
+		systemstack(func() {
+			traceGoSysExit(exitTicks)
+		})
+	}
+	_g_.m.locks--
 }
 
 //go:nosplit
@@ -1871,7 +1884,7 @@ func exitsyscallfast() bool {
 					// Denote blocking of the new syscall.
 					traceGoSysBlock(_g_.m.p)
 					// Denote completion of the current syscall.
-					traceGoSysExit()
+					traceGoSysExit(0)
 				})
 			}
 			_g_.m.p.syscalltick++
@@ -1895,7 +1908,7 @@ func exitsyscallfast() bool {
 						osyield()
 					}
 				}
-				traceGoSysExit()
+				traceGoSysExit(0)
 			}
 		})
 		if ok {
