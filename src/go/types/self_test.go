@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
+	_ "go/internal/gcimporter"
 	. "go/types"
-	_ "go/types/internal/gcimporter"
 )
 
 var benchmark = flag.Bool("b", false, "run benchmarks")
