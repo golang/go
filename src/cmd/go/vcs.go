@@ -9,12 +9,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"internal/singleflight"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 // A vcsCmd describes how to use a version control system
@@ -566,7 +568,7 @@ func repoRootForImportPathStatic(importPath, scheme string) (*repoRoot, error) {
 // repoRootForImportDynamic finds a *repoRoot for a custom domain that's not
 // statically known by repoRootForImportPathStatic.
 //
-// This handles "vanity import paths" like "name.tld/pkg/foo".
+// This handles custom import paths like "name.tld/pkg/foo".
 func repoRootForImportDynamic(importPath string) (*repoRoot, error) {
 	slash := strings.Index(importPath, "/")
 	if slash < 0 {
@@ -585,7 +587,8 @@ func repoRootForImportDynamic(importPath string) (*repoRoot, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parsing %s: %v", importPath, err)
 	}
-	metaImport, err := matchGoImport(imports, importPath)
+	// Find the matched meta import.
+	mmi, err := matchGoImport(imports, importPath)
 	if err != nil {
 		if err != errNoMatch {
 			return nil, fmt.Errorf("parse %s: %v", urlStr, err)
@@ -593,7 +596,7 @@ func repoRootForImportDynamic(importPath string) (*repoRoot, error) {
 		return nil, fmt.Errorf("parse %s: no go-import meta tags", urlStr)
 	}
 	if buildV {
-		log.Printf("get %q: found meta tag %#v at %s", importPath, metaImport, urlStr)
+		log.Printf("get %q: found meta tag %#v at %s", importPath, mmi, urlStr)
 	}
 	// If the import was "uni.edu/bob/project", which said the
 	// prefix was "uni.edu" and the RepoRoot was "evilroot.com",
@@ -601,40 +604,87 @@ func repoRootForImportDynamic(importPath string) (*repoRoot, error) {
 	// "uni.edu" yet (possibly overwriting/preempting another
 	// non-evil student).  Instead, first verify the root and see
 	// if it matches Bob's claim.
-	if metaImport.Prefix != importPath {
+	if mmi.Prefix != importPath {
 		if buildV {
 			log.Printf("get %q: verifying non-authoritative meta tag", importPath)
 		}
 		urlStr0 := urlStr
-		urlStr, body, err = httpsOrHTTP(metaImport.Prefix)
+		var imports []metaImport
+		urlStr, imports, err = metaImportsForPrefix(mmi.Prefix)
 		if err != nil {
-			return nil, fmt.Errorf("fetch %s: %v", urlStr, err)
-		}
-		imports, err := parseMetaGoImports(body)
-		if err != nil {
-			return nil, fmt.Errorf("parsing %s: %v", importPath, err)
-		}
-		if len(imports) == 0 {
-			return nil, fmt.Errorf("fetch %s: no go-import meta tag", urlStr)
+			return nil, err
 		}
 		metaImport2, err := matchGoImport(imports, importPath)
-		if err != nil || metaImport != metaImport2 {
-			return nil, fmt.Errorf("%s and %s disagree about go-import for %s", urlStr0, urlStr, metaImport.Prefix)
+		if err != nil || mmi != metaImport2 {
+			return nil, fmt.Errorf("%s and %s disagree about go-import for %s", urlStr0, urlStr, mmi.Prefix)
 		}
 	}
 
-	if !strings.Contains(metaImport.RepoRoot, "://") {
-		return nil, fmt.Errorf("%s: invalid repo root %q; no scheme", urlStr, metaImport.RepoRoot)
+	if !strings.Contains(mmi.RepoRoot, "://") {
+		return nil, fmt.Errorf("%s: invalid repo root %q; no scheme", urlStr, mmi.RepoRoot)
 	}
 	rr := &repoRoot{
-		vcs:  vcsByCmd(metaImport.VCS),
-		repo: metaImport.RepoRoot,
-		root: metaImport.Prefix,
+		vcs:  vcsByCmd(mmi.VCS),
+		repo: mmi.RepoRoot,
+		root: mmi.Prefix,
 	}
 	if rr.vcs == nil {
-		return nil, fmt.Errorf("%s: unknown vcs %q", urlStr, metaImport.VCS)
+		return nil, fmt.Errorf("%s: unknown vcs %q", urlStr, mmi.VCS)
 	}
 	return rr, nil
+}
+
+var fetchGroup singleflight.Group
+var (
+	fetchCacheMu sync.Mutex
+	fetchCache   = map[string]fetchResult{} // key is metaImportsForPrefix's importPrefix
+)
+
+// metaImportsForPrefix takes a package's root import path as declared in a <meta> tag
+// and returns its HTML discovery URL and the parsed metaImport lines
+// found on the page.
+//
+// The importPath is of the form "golang.org/x/tools".
+// It is an error if no imports are found.
+// urlStr will still be valid if err != nil.
+// The returned urlStr will be of the form "https://golang.org/x/tools?go-get=1"
+func metaImportsForPrefix(importPrefix string) (urlStr string, imports []metaImport, err error) {
+	setCache := func(res fetchResult) (fetchResult, error) {
+		fetchCacheMu.Lock()
+		defer fetchCacheMu.Unlock()
+		fetchCache[importPrefix] = res
+		return res, nil
+	}
+
+	resi, _, _ := fetchGroup.Do(importPrefix, func() (resi interface{}, err error) {
+		fetchCacheMu.Lock()
+		if res, ok := fetchCache[importPrefix]; ok {
+			fetchCacheMu.Unlock()
+			return res, nil
+		}
+		fetchCacheMu.Unlock()
+
+		urlStr, body, err := httpsOrHTTP(importPrefix)
+		if err != nil {
+			return setCache(fetchResult{urlStr: urlStr, err: fmt.Errorf("fetch %s: %v", urlStr, err)})
+		}
+		imports, err := parseMetaGoImports(body)
+		if err != nil {
+			return setCache(fetchResult{urlStr: urlStr, err: fmt.Errorf("parsing %s: %v", urlStr, err)})
+		}
+		if len(imports) == 0 {
+			err = fmt.Errorf("fetch %s: no go-import meta tag", urlStr)
+		}
+		return setCache(fetchResult{urlStr: urlStr, imports: imports, err: err})
+	})
+	res := resi.(fetchResult)
+	return res.urlStr, res.imports, res.err
+}
+
+type fetchResult struct {
+	urlStr  string // e.g. "https://foo.com/x/bar?go-get=1"
+	imports []metaImport
+	err     error
 }
 
 // metaImport represents the parsed <meta name="go-import"
