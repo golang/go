@@ -8,14 +8,14 @@ import (
 	"unsafe"
 )
 
-type sliceStruct struct {
+type slice struct {
 	array unsafe.Pointer
 	len   int
 	cap   int
 }
 
 // TODO: take uintptrs instead of int64s?
-func makeslice(t *slicetype, len64 int64, cap64 int64) sliceStruct {
+func makeslice(t *slicetype, len64, cap64 int64) slice {
 	// NOTE: The len > MaxMem/elemsize check here is not strictly necessary,
 	// but it produces a 'len out of range' error instead of a 'cap out of range' error
 	// when someone does make([]T, bignumber). 'cap out of range' is true too,
@@ -30,10 +30,10 @@ func makeslice(t *slicetype, len64 int64, cap64 int64) sliceStruct {
 		panic(errorString("makeslice: cap out of range"))
 	}
 	p := newarray(t.elem, uintptr(cap))
-	return sliceStruct{p, len, cap}
+	return slice{p, len, cap}
 }
 
-func growslice(t *slicetype, old sliceStruct, n int) sliceStruct {
+func growslice(t *slicetype, old slice, n int) slice {
 	if n < 1 {
 		panic(errorString("growslice: invalid n"))
 	}
@@ -52,7 +52,7 @@ func growslice(t *slicetype, old sliceStruct, n int) sliceStruct {
 	if et.size == 0 {
 		// append should not create a slice with nil pointer but non-zero len.
 		// We assume that append doesn't need to preserve old.array in this case.
-		return sliceStruct{unsafe.Pointer(&zerobase), old.len, cap}
+		return slice{unsafe.Pointer(&zerobase), old.len, cap}
 	}
 
 	newcap := old.cap
@@ -91,10 +91,10 @@ func growslice(t *slicetype, old sliceStruct, n int) sliceStruct {
 		}
 	}
 
-	return sliceStruct{p, old.len, newcap}
+	return slice{p, old.len, newcap}
 }
 
-func slicecopy(to sliceStruct, fm sliceStruct, width uintptr) int {
+func slicecopy(to, fm slice, width uintptr) int {
 	if fm.len == 0 || to.len == 0 {
 		return 0
 	}

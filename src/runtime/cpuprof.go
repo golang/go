@@ -396,8 +396,8 @@ Flush:
 }
 
 func uintptrBytes(p []uintptr) (ret []byte) {
-	pp := (*sliceStruct)(unsafe.Pointer(&p))
-	rp := (*sliceStruct)(unsafe.Pointer(&ret))
+	pp := (*slice)(unsafe.Pointer(&p))
+	rp := (*slice)(unsafe.Pointer(&ret))
 
 	rp.array = pp.array
 	rp.len = pp.len * int(unsafe.Sizeof(p[0]))

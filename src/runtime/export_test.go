@@ -76,8 +76,10 @@ func GCMask(x interface{}) (ret []byte) {
 	s := (*slice)(unsafe.Pointer(&ret))
 	systemstack(func() {
 		var len uintptr
-		getgcmask(e.data, e._type, &s.array, &len)
-		s.len = uint(len)
+		var a *byte
+		getgcmask(e.data, e._type, &a, &len)
+		s.array = unsafe.Pointer(a)
+		s.len = int(len)
 		s.cap = s.len
 	})
 	return
