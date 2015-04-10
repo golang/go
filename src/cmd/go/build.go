@@ -286,22 +286,48 @@ func (v *stringsFlag) String() string {
 	return "<stringsFlag>"
 }
 
-var pkgFilter = func(p *Package) bool { return true }
+func pkgsMain(pkgs []*Package) (res []*Package) {
+	for _, p := range pkgs {
+		if p.Name == "main" {
+			res = append(res, p)
+		}
+	}
+	return res
+}
+
+func pkgsNotMain(pkgs []*Package) (res []*Package) {
+	for _, p := range pkgs {
+		if p.Name != "main" {
+			res = append(res, p)
+		}
+	}
+	return res
+}
+
+var pkgsFilter = func(pkgs []*Package) []*Package { return pkgs }
 
 func buildModeInit() {
 	var codegenArg, ldBuildmode string
 	switch buildBuildmode {
 	case "archive":
-		pkgFilter = func(p *Package) bool { return p.Name != "main" }
+		pkgsFilter = pkgsNotMain
+	case "c-archive":
+		pkgsFilter = func(p []*Package) []*Package {
+			if len(p) != 1 || p[0].Name != "main" {
+				fatalf("-buildmode=c-archive requires exactly one main package")
+			}
+			return p
+		}
+		exeSuffix = ".a"
+		ldBuildmode = "c-archive"
 	case "c-shared":
-		pkgFilter = func(p *Package) bool { return p.Name == "main" }
+		pkgsFilter = pkgsMain
 		platform := goos + "/" + goarch
 		switch platform {
 		case "linux/amd64":
 		case "android/arm":
 		default:
-			fmt.Fprintf(os.Stderr, "go %s: -buildmode=c-shared not supported on %s\n", platform)
-			os.Exit(2)
+			fatalf("-buildmode=c-shared not supported on %s\n", platform)
 		}
 		if goarch == "amd64" {
 			codegenArg = "-shared"
@@ -310,7 +336,7 @@ func buildModeInit() {
 	case "default":
 		ldBuildmode = "exe"
 	case "exe":
-		pkgFilter = func(p *Package) bool { return p.Name == "main" }
+		pkgsFilter = pkgsMain
 		ldBuildmode = "exe"
 	default:
 		fatalf("buildmode=%s not supported", buildBuildmode)
@@ -385,10 +411,8 @@ func runBuild(cmd *Command, args []string) {
 	}
 
 	a := &action{}
-	for _, p := range packages(args) {
-		if pkgFilter(p) {
-			a.deps = append(a.deps, b.action(modeBuild, depMode, p))
-		}
+	for _, p := range pkgsFilter(packages(args)) {
+		a.deps = append(a.deps, b.action(modeBuild, depMode, p))
 	}
 	b.do(a)
 }
@@ -409,7 +433,7 @@ See also: go build, go get, go clean.
 
 func runInstall(cmd *Command, args []string) {
 	raceInit()
-	pkgs := packagesForBuild(args)
+	pkgs := pkgsFilter(packagesForBuild(args))
 
 	for _, p := range pkgs {
 		if p.Target == "" && (!p.Standard || p.ImportPath != "unsafe") {
@@ -429,9 +453,6 @@ func runInstall(cmd *Command, args []string) {
 	a := &action{}
 	var tools []*action
 	for _, p := range pkgs {
-		if !pkgFilter(p) {
-			continue
-		}
 		// If p is a tool, delay the installation until the end of the build.
 		// This avoids installing assemblers/compilers that are being executed
 		// by other steps in the build.

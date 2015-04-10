@@ -376,6 +376,12 @@ are:
 		Build the listed non-main packages into .a files. Packages named
 		main are ignored.
 
+	-buildmode=c-archive
+		Build the listed main package, plus all packages it imports,
+		into a C archive file. The only callable symbols will be those
+		functions marked as exported. Requires exactly one main package
+		to be listed.
+
 	-buildmode=c-shared
 		Build the listed main packages, plus all packages that they
 		import, into C shared libraries. The only callable symbols will
