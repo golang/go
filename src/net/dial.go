@@ -21,6 +21,9 @@ type Dialer struct {
 	//
 	// The default is no timeout.
 	//
+	// When dialing a name with multiple IP addresses, the timeout
+	// may be divided between them.
+	//
 	// With or without a timeout, the operating system may impose
 	// its own earlier timeout. For instance, TCP timeouts are
 	// often around 3 minutes.
@@ -38,12 +41,16 @@ type Dialer struct {
 	// If nil, a local address is automatically chosen.
 	LocalAddr Addr
 
-	// DualStack allows a single dial to attempt to establish
-	// multiple IPv4 and IPv6 connections and to return the first
-	// established connection when the network is "tcp" and the
-	// destination is a host name that has multiple address family
-	// DNS records.
+	// DualStack enables RFC 6555-compliant "Happy Eyeballs" dialing
+	// when the network is "tcp" and the destination is a host name
+	// with both IPv4 and IPv6 addresses. This allows a client to
+	// tolerate networks where one address family is silently broken.
 	DualStack bool
+
+	// FallbackDelay specifies the length of time to wait before
+	// spawning a fallback connection, when DualStack is enabled.
+	// If zero, a default delay of 300ms is used.
+	FallbackDelay time.Duration
 
 	// KeepAlive specifies the keep-alive period for an active
 	// network connection.
@@ -54,15 +61,48 @@ type Dialer struct {
 
 // Return either now+Timeout or Deadline, whichever comes first.
 // Or zero, if neither is set.
-func (d *Dialer) deadline() time.Time {
+func (d *Dialer) deadline(now time.Time) time.Time {
 	if d.Timeout == 0 {
 		return d.Deadline
 	}
-	timeoutDeadline := time.Now().Add(d.Timeout)
+	timeoutDeadline := now.Add(d.Timeout)
 	if d.Deadline.IsZero() || timeoutDeadline.Before(d.Deadline) {
 		return timeoutDeadline
 	} else {
 		return d.Deadline
+	}
+}
+
+// partialDeadline returns the deadline to use for a single address,
+// when multiple addresses are pending.
+func (d *Dialer) partialDeadline(now time.Time, addrsRemaining int) (time.Time, error) {
+	deadline := d.deadline(now)
+	if deadline.IsZero() {
+		return deadline, nil
+	}
+	timeRemaining := deadline.Sub(now)
+	if timeRemaining <= 0 {
+		return time.Time{}, errTimeout
+	}
+	// Tentatively allocate equal time to each remaining address.
+	timeout := timeRemaining / time.Duration(addrsRemaining)
+	// If the time per address is too short, steal from the end of the list.
+	const saneMinimum = 2 * time.Second
+	if timeout < saneMinimum {
+		if timeRemaining < saneMinimum {
+			timeout = timeRemaining
+		} else {
+			timeout = saneMinimum
+		}
+	}
+	return now.Add(timeout), nil
+}
+
+func (d *Dialer) fallbackDelay() time.Duration {
+	if d.FallbackDelay > 0 {
+		return d.FallbackDelay
+	} else {
+		return 300 * time.Millisecond
 	}
 }
 
@@ -154,30 +194,44 @@ func DialTimeout(network, address string, timeout time.Duration) (Conn, error) {
 	return d.Dial(network, address)
 }
 
+// dialContext holds common state for all dial operations.
+type dialContext struct {
+	Dialer
+	network, address string
+}
+
 // Dial connects to the address on the named network.
 //
 // See func Dial for a description of the network and address
 // parameters.
 func (d *Dialer) Dial(network, address string) (Conn, error) {
-	addrs, err := resolveAddrList("dial", network, address, d.deadline())
+	addrs, err := resolveAddrList("dial", network, address, d.deadline(time.Now()))
 	if err != nil {
 		return nil, &OpError{Op: "dial", Net: network, Source: nil, Addr: nil, Err: err}
 	}
-	var dialer func(deadline time.Time) (Conn, error)
+
+	ctx := &dialContext{
+		Dialer:  *d,
+		network: network,
+		address: address,
+	}
+
+	var primaries, fallbacks addrList
 	if d.DualStack && network == "tcp" {
-		primaries, fallbacks := addrs.partition(isIPv4)
-		if len(fallbacks) > 0 {
-			dialer = func(deadline time.Time) (Conn, error) {
-				return dialMulti(network, address, d.LocalAddr, addrList{primaries[0], fallbacks[0]}, deadline)
-			}
-		}
+		primaries, fallbacks = addrs.partition(isIPv4)
+	} else {
+		primaries = addrs
 	}
-	if dialer == nil {
-		dialer = func(deadline time.Time) (Conn, error) {
-			return dialSingle(network, address, d.LocalAddr, addrs.first(isIPv4), deadline)
-		}
+
+	var c Conn
+	if len(fallbacks) == 0 {
+		// dialParallel can accept an empty fallbacks list,
+		// but this shortcut avoids the goroutine/channel overhead.
+		c, err = dialSerial(ctx, primaries, nil)
+	} else {
+		c, err = dialParallel(ctx, primaries, fallbacks)
 	}
-	c, err := dial(network, addrs.first(isIPv4), dialer, d.deadline())
+
 	if d.KeepAlive > 0 && err == nil {
 		if tc, ok := c.(*TCPConn); ok {
 			setKeepAlive(tc.fd, true)
@@ -188,70 +242,135 @@ func (d *Dialer) Dial(network, address string) (Conn, error) {
 	return c, err
 }
 
-// dialMulti attempts to establish connections to each destination of
-// the list of addresses. It will return the first established
-// connection and close the other connections. Otherwise it returns
-// error on the last attempt.
-func dialMulti(net, addr string, la Addr, ras addrList, deadline time.Time) (Conn, error) {
-	type racer struct {
-		Conn
-		error
-	}
-	// Sig controls the flow of dial results on lane. It passes a
-	// token to the next racer and also indicates the end of flow
-	// by using closed channel.
-	sig := make(chan bool, 1)
-	lane := make(chan racer, 1)
-	for _, ra := range ras {
-		go func(ra Addr) {
-			c, err := dialSingle(net, addr, la, ra, deadline)
-			if _, ok := <-sig; ok {
-				lane <- racer{c, err}
-			} else if err == nil {
-				// We have to return the resources
-				// that belong to the other
-				// connections here for avoiding
-				// unnecessary resource starvation.
-				c.Close()
-			}
-		}(ra)
-	}
-	defer close(sig)
-	lastErr := errTimeout
-	nracers := len(ras)
-	for nracers > 0 {
-		sig <- true
-		racer := <-lane
-		if racer.error == nil {
-			return racer.Conn, nil
+// dialParallel races two copies of dialSerial, giving the first a
+// head start. It returns the first established connection and
+// closes the others. Otherwise it returns an error from the first
+// primary address.
+func dialParallel(ctx *dialContext, primaries, fallbacks addrList) (Conn, error) {
+	results := make(chan dialResult) // unbuffered, so dialSerialAsync can detect race loss & cleanup
+	cancel := make(chan struct{})
+	defer close(cancel)
+
+	// Spawn the primary racer.
+	go dialSerialAsync(ctx, primaries, nil, cancel, results)
+
+	// Spawn the fallback racer.
+	fallbackTimer := time.NewTimer(ctx.fallbackDelay())
+	go dialSerialAsync(ctx, fallbacks, fallbackTimer, cancel, results)
+
+	var primaryErr error
+	for nracers := 2; nracers > 0; nracers-- {
+		res := <-results
+		// If we're still waiting for a connection, then hasten the delay.
+		// Otherwise, disable the Timer and let cancel take over.
+		if fallbackTimer.Stop() && res.error != nil {
+			fallbackTimer.Reset(0)
 		}
-		lastErr = racer.error
-		nracers--
+		if res.error == nil {
+			return res.Conn, nil
+		}
+		if res.primary {
+			primaryErr = res.error
+		}
 	}
-	return nil, lastErr
+	return nil, primaryErr
+}
+
+type dialResult struct {
+	Conn
+	error
+	primary bool
+}
+
+// dialSerialAsync runs dialSerial after some delay, and returns the
+// resulting connection through a channel. When racing two connections,
+// the primary goroutine uses a nil timer to omit the delay.
+func dialSerialAsync(ctx *dialContext, ras addrList, timer *time.Timer, cancel <-chan struct{}, results chan<- dialResult) {
+	if timer != nil {
+		// We're in the fallback goroutine; sleep before connecting.
+		select {
+		case <-timer.C:
+		case <-cancel:
+			return
+		}
+	}
+	c, err := dialSerial(ctx, ras, cancel)
+	select {
+	case results <- dialResult{c, err, timer == nil}:
+		// We won the race.
+	case <-cancel:
+		// The other goroutine won the race.
+		if c != nil {
+			c.Close()
+		}
+	}
+}
+
+// dialSerial connects to a list of addresses in sequence, returning
+// either the first successful connection, or the first error.
+func dialSerial(ctx *dialContext, ras addrList, cancel <-chan struct{}) (Conn, error) {
+	var firstErr error // The error from the first address is most relevant.
+
+	for i, ra := range ras {
+		select {
+		case <-cancel:
+			return nil, &OpError{Op: "dial", Net: ctx.network, Source: ctx.LocalAddr, Addr: ra, Err: errCanceled}
+		default:
+		}
+
+		partialDeadline, err := ctx.partialDeadline(time.Now(), len(ras)-i)
+		if err != nil {
+			// Ran out of time.
+			if firstErr == nil {
+				firstErr = &OpError{Op: "dial", Net: ctx.network, Source: ctx.LocalAddr, Addr: ra, Err: err}
+			}
+			break
+		}
+
+		// dialTCP does not support cancelation (see golang.org/issue/11225),
+		// so if cancel fires, we'll continue trying to connect until the next
+		// timeout, or return a spurious connection for the caller to close.
+		dialer := func(d time.Time) (Conn, error) {
+			return dialSingle(ctx, ra, d)
+		}
+		c, err := dial(ctx.network, ra, dialer, partialDeadline)
+		if err == nil {
+			return c, nil
+		}
+		if firstErr == nil {
+			firstErr = err
+		}
+	}
+
+	if firstErr == nil {
+		firstErr = &OpError{Op: "dial", Net: ctx.network, Source: nil, Addr: nil, Err: errMissingAddress}
+	}
+	return nil, firstErr
 }
 
 // dialSingle attempts to establish and returns a single connection to
-// the destination address.
-func dialSingle(net, addr string, la, ra Addr, deadline time.Time) (c Conn, err error) {
+// the destination address. This must be called through the OS-specific
+// dial function, because some OSes don't implement the deadline feature.
+func dialSingle(ctx *dialContext, ra Addr, deadline time.Time) (c Conn, err error) {
+	la := ctx.LocalAddr
 	if la != nil && la.Network() != ra.Network() {
-		return nil, &OpError{Op: "dial", Net: net, Source: la, Addr: ra, Err: errors.New("mismatched local address type " + la.Network())}
+		return nil, &OpError{Op: "dial", Net: ctx.network, Source: la, Addr: ra, Err: errors.New("mismatched local address type " + la.Network())}
 	}
 	switch ra := ra.(type) {
 	case *TCPAddr:
 		la, _ := la.(*TCPAddr)
-		c, err = dialTCP(net, la, ra, deadline)
+		c, err = testHookDialTCP(ctx.network, la, ra, deadline)
 	case *UDPAddr:
 		la, _ := la.(*UDPAddr)
-		c, err = dialUDP(net, la, ra, deadline)
+		c, err = dialUDP(ctx.network, la, ra, deadline)
 	case *IPAddr:
 		la, _ := la.(*IPAddr)
-		c, err = dialIP(net, la, ra, deadline)
+		c, err = dialIP(ctx.network, la, ra, deadline)
 	case *UnixAddr:
 		la, _ := la.(*UnixAddr)
-		c, err = dialUnix(net, la, ra, deadline)
+		c, err = dialUnix(ctx.network, la, ra, deadline)
 	default:
-		return nil, &OpError{Op: "dial", Net: net, Source: la, Addr: ra, Err: &AddrError{Err: "unexpected address type", Addr: addr}}
+		return nil, &OpError{Op: "dial", Net: ctx.network, Source: la, Addr: ra, Err: &AddrError{Err: "unexpected address type", Addr: ctx.address}}
 	}
 	if err != nil {
 		return nil, err // c is non-nil interface containing nil pointer
