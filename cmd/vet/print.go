@@ -10,13 +10,12 @@ import (
 	"bytes"
 	"flag"
 	"go/ast"
+	"go/exact"
 	"go/token"
+	"go/types"
 	"strconv"
 	"strings"
 	"unicode/utf8"
-
-	"golang.org/x/tools/go/exact"
-	"golang.org/x/tools/go/types"
 )
 
 var printfuncs = flag.String("printfuncs", "", "comma-separated list of print function names to check")

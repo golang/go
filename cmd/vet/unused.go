@@ -11,10 +11,8 @@ import (
 	"flag"
 	"go/ast"
 	"go/token"
+	"go/types"
 	"strings"
-
-	"golang.org/x/tools/go/ast/astutil"
-	"golang.org/x/tools/go/types"
 )
 
 var unusedFuncsFlag = flag.String("unusedfuncs",
@@ -56,11 +54,11 @@ func initUnusedFlags() {
 }
 
 func checkUnusedResult(f *File, n ast.Node) {
-	call, ok := astutil.Unparen(n.(*ast.ExprStmt).X).(*ast.CallExpr)
+	call, ok := unparen(n.(*ast.ExprStmt).X).(*ast.CallExpr)
 	if !ok {
 		return // not a call statement
 	}
-	fun := astutil.Unparen(call.Fun)
+	fun := unparen(call.Fun)
 
 	if f.pkg.types[fun].IsType() {
 		return // a conversion, not a call
