@@ -376,10 +376,11 @@ var allowedErrors = map[osPkg]bool{
 }
 
 func TestDependencies(t *testing.T) {
-	if runtime.GOOS == "nacl" || (runtime.GOOS == "darwin" && runtime.GOARCH == "arm") {
+	iOS := runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64")
+	if runtime.GOOS == "nacl" || iOS {
 		// Tests run in a limited file system and we do not
 		// provide access to every source file.
-		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+		t.Skipf("skipping on %s/%s, missing full GOROOT", runtime.GOOS, runtime.GOARCH)
 	}
 	var all []string
 
