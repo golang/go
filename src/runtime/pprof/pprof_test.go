@@ -122,7 +122,10 @@ func parseProfile(t *testing.T, bytes []byte, f func(uintptr, []uintptr)) {
 func testCPUProfile(t *testing.T, need []string, f func()) {
 	switch runtime.GOOS {
 	case "darwin":
-		if runtime.GOARCH != "arm" {
+		switch runtime.GOARCH {
+		case "arm", "arm64":
+			// nothing
+		default:
 			out, err := exec.Command("uname", "-a").CombinedOutput()
 			if err != nil {
 				t.Fatal(err)
@@ -207,8 +210,9 @@ func testCPUProfile(t *testing.T, need []string, f func()) {
 // Ensure that we do not do this.
 func TestCPUProfileWithFork(t *testing.T) {
 	if runtime.GOOS == "darwin" {
-		if runtime.GOARCH == "arm" {
-			t.Skipf("skipping on darwin/arm")
+		switch runtime.GOARCH {
+		case "arm", "arm64":
+			t.Skipf("skipping on %s/%s, cannot fork", runtime.GOOS, runtime.GOARCH)
 		}
 	}
 
