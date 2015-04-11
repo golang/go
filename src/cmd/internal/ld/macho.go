@@ -63,6 +63,8 @@ const (
 	MACHO_CPU_ARM                 = 12
 	MACHO_SUBCPU_ARM              = 0
 	MACHO_SUBCPU_ARMV7            = 9
+	MACHO_CPU_ARM64               = 1<<24 | 12
+	MACHO_SUBCPU_ARM64_ALL        = 0
 	MACHO32SYMSIZE                = 12
 	MACHO64SYMSIZE                = 16
 	MACHO_X86_64_RELOC_UNSIGNED   = 0
@@ -76,6 +78,11 @@ const (
 	MACHO_X86_64_RELOC_SIGNED_4   = 8
 	MACHO_ARM_RELOC_VANILLA       = 0
 	MACHO_ARM_RELOC_BR24          = 5
+	MACHO_ARM64_RELOC_UNSIGNED    = 0
+	MACHO_ARM64_RELOC_BRANCH26    = 2
+	MACHO_ARM64_RELOC_PAGE21      = 3
+	MACHO_ARM64_RELOC_PAGEOFF12   = 4
+	MACHO_ARM64_RELOC_ADDEND      = 10
 	MACHO_GENERIC_RELOC_VANILLA   = 0
 	MACHO_FAKE_GOTPCREL           = 100
 )
@@ -125,7 +132,7 @@ var load_budget int = INITIAL_MACHO_HEADR - 2*1024
 func Machoinit() {
 	switch Thearch.Thechar {
 	// 64-bit architectures
-	case '6', '9':
+	case '6', '7', '9':
 		macho64 = true
 
 		// 32-bit architectures
@@ -349,7 +356,15 @@ func Machoadddynlib(lib string) {
 func machoshbits(mseg *MachoSeg, sect *Section, segname string) {
 	buf := "__" + strings.Replace(sect.Name[1:], ".", "_", -1)
 
-	msect := newMachoSect(mseg, buf, segname)
+	var msect *MachoSect
+	if Thearch.Thechar == '7' && sect.Rwx&1 == 0 {
+		// darwin/arm64 forbids absolute relocs in __TEXT, so if
+		// the section is not executable, put it in __DATA segment.
+		msect = newMachoSect(mseg, buf, "__DATA")
+	} else {
+		msect = newMachoSect(mseg, buf, segname)
+	}
+
 	if sect.Rellen > 0 {
 		msect.reloc = uint32(sect.Reloff)
 		msect.nreloc = uint32(sect.Rellen / 8)
@@ -415,6 +430,10 @@ func Asmbmacho() {
 	case '6':
 		mh.cpu = MACHO_CPU_AMD64
 		mh.subcpu = MACHO_SUBCPU_X86
+
+	case '7':
+		mh.cpu = MACHO_CPU_ARM64
+		mh.subcpu = MACHO_SUBCPU_ARM64_ALL
 
 	case '8':
 		mh.cpu = MACHO_CPU_386
@@ -483,11 +502,18 @@ func Asmbmacho() {
 			ml.data[2+15] = uint32(Entryvalue()) /* start pc */
 
 		case '6':
-			ml := newMachoLoad(5, 42+2)                        /* unix thread */
-			ml.data[0] = 4                                     /* thread type */
-			ml.data[1] = 42                                    /* word count */
-			ml.data[2+32] = uint32(Entryvalue())               /* start pc */
-			ml.data[2+32+1] = uint32(Entryvalue() >> 16 >> 16) // hide >>32 for 8l
+			ml := newMachoLoad(5, 42+2)          /* unix thread */
+			ml.data[0] = 4                       /* thread type */
+			ml.data[1] = 42                      /* word count */
+			ml.data[2+32] = uint32(Entryvalue()) /* start pc */
+			ml.data[2+32+1] = uint32(Entryvalue() >> 32)
+
+		case '7':
+			ml := newMachoLoad(5, 68+2)          /* unix thread */
+			ml.data[0] = 6                       /* thread type */
+			ml.data[1] = 68                      /* word count */
+			ml.data[2+64] = uint32(Entryvalue()) /* start pc */
+			ml.data[2+64+1] = uint32(Entryvalue() >> 32)
 
 		case '8':
 			ml := newMachoLoad(5, 16+2)          /* unix thread */

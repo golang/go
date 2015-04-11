@@ -88,6 +88,11 @@ func archinit() {
 		ld.Linkmode = ld.LinkInternal
 	}
 
+	// Darwin/arm64 only supports external linking
+	if ld.HEADTYPE == ld.Hdarwin {
+		ld.Linkmode = ld.LinkExternal
+	}
+
 	switch ld.HEADTYPE {
 	default:
 		if ld.Linkmode == ld.LinkAuto {
@@ -96,7 +101,7 @@ func archinit() {
 		if ld.Linkmode == ld.LinkExternal && obj.Getgoextlinkenabled() != "1" {
 			log.Fatalf("cannot use -linkmode=external with -H %s", ld.Headstr(int(ld.HEADTYPE)))
 		}
-	case ld.Hlinux:
+	case ld.Hlinux, ld.Hdarwin:
 		break
 	}
 
@@ -130,6 +135,20 @@ func archinit() {
 		}
 		if ld.INITRND == -1 {
 			ld.INITRND = 0x10000
+		}
+
+	case ld.Hdarwin: /* apple MACH */
+		ld.Debug['w'] = 1 // disable DWARF generation
+		ld.Machoinit()
+		ld.HEADR = ld.INITIAL_MACHO_HEADR
+		if ld.INITTEXT == -1 {
+			ld.INITTEXT = 4096 + int64(ld.HEADR)
+		}
+		if ld.INITDAT == -1 {
+			ld.INITDAT = 0
+		}
+		if ld.INITRND == -1 {
+			ld.INITRND = 4096
 		}
 
 	case ld.Hnacl:

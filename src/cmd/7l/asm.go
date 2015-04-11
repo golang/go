@@ -109,7 +109,82 @@ func elfsetupplt() {
 }
 
 func machoreloc1(r *ld.Reloc, sectoff int64) int {
-	return -1
+	var v uint32
+
+	rs := r.Xsym
+
+	// ld64 has a bug handling MACHO_ARM64_RELOC_UNSIGNED with !extern relocation.
+	// see cmd/internal/ld/data.go for details. The workarond is that don't use !extern
+	// UNSIGNED relocation at all.
+	if rs.Type == ld.SHOSTOBJ || r.Type == ld.R_CALLARM64 || r.Type == ld.R_ADDRARM64 || r.Type == ld.R_ADDR {
+		if rs.Dynid < 0 {
+			ld.Diag("reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
+			return -1
+		}
+
+		v = uint32(rs.Dynid)
+		v |= 1 << 27 // external relocation
+	} else {
+		v = uint32((rs.Sect.(*ld.Section)).Extnum)
+		if v == 0 {
+			ld.Diag("reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, (rs.Sect.(*ld.Section)).Name, rs.Type)
+			return -1
+		}
+	}
+
+	switch r.Type {
+	default:
+		return -1
+
+	case ld.R_ADDR:
+		v |= ld.MACHO_ARM64_RELOC_UNSIGNED << 28
+
+	case ld.R_CALLARM64:
+		if r.Xadd != 0 {
+			ld.Diag("ld64 doesn't allow BR26 reloc with non-zero addend: %s+%d", rs.Name, r.Xadd)
+		}
+
+		v |= 1 << 24 // pc-relative bit
+		v |= ld.MACHO_ARM64_RELOC_BRANCH26 << 28
+
+	case ld.R_ADDRARM64:
+		r.Siz = 4
+		// Two relocation entries: MACHO_ARM64_RELOC_PAGEOFF12 MACHO_ARM64_RELOC_PAGE21
+		// if r.Xadd is non-zero, add two MACHO_ARM64_RELOC_ADDEND.
+		if r.Xadd != 0 {
+			ld.Thearch.Lput(uint32(sectoff + 4))
+			ld.Thearch.Lput((ld.MACHO_ARM64_RELOC_ADDEND << 28) | (2 << 25) | uint32(r.Xadd&0xffffff))
+		}
+		ld.Thearch.Lput(uint32(sectoff + 4))
+		ld.Thearch.Lput(v | (ld.MACHO_ARM64_RELOC_PAGEOFF12 << 28) | (2 << 25))
+		if r.Xadd != 0 {
+			ld.Thearch.Lput(uint32(sectoff))
+			ld.Thearch.Lput((ld.MACHO_ARM64_RELOC_ADDEND << 28) | (2 << 25) | uint32(r.Xadd&0xffffff))
+		}
+		v |= 1 << 24 // pc-relative bit
+		v |= ld.MACHO_ARM64_RELOC_PAGE21 << 28
+	}
+
+	switch r.Siz {
+	default:
+		return -1
+
+	case 1:
+		v |= 0 << 25
+
+	case 2:
+		v |= 1 << 25
+
+	case 4:
+		v |= 2 << 25
+
+	case 8:
+		v |= 3 << 25
+	}
+
+	ld.Thearch.Lput(uint32(sectoff))
+	ld.Thearch.Lput(v)
+	return 0
 }
 
 func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
@@ -120,18 +195,6 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 
 		case ld.R_ADDRARM64:
 			r.Done = 0
-
-			// the first instruction is always at the lower address, this is endian neutral;
-			// but note that o0 and o1 should still use the target endian.
-			o0 := ld.Thelinkarch.ByteOrder.Uint32(s.P[r.Off : r.Off+4])
-			o1 := ld.Thelinkarch.ByteOrder.Uint32(s.P[r.Off+4 : r.Off+8])
-
-			// when laid out, the instruction order must always be o1, o2.
-			if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
-				*val = int64(o0)<<32 | int64(o1)
-			} else {
-				*val = int64(o1)<<32 | int64(o0)
-			}
 
 			// set up addend for eventual relocation via outer symbol.
 			rs := r.Sym
@@ -145,6 +208,34 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 				ld.Diag("missing section for %s", rs.Name)
 			}
 			r.Xsym = rs
+
+			// the first instruction is always at the lower address, this is endian neutral;
+			// but note that o0 and o1 should still use the target endian.
+			o0 := ld.Thelinkarch.ByteOrder.Uint32(s.P[r.Off : r.Off+4])
+			o1 := ld.Thelinkarch.ByteOrder.Uint32(s.P[r.Off+4 : r.Off+8])
+
+			// Note: ld64 currently has a bug that any non-zero addend for BR26 relocation
+			// will make the linking fail because it thinks the code is not PIC even though
+			// the BR26 relocation should be fully resolved at link time.
+			// That is the reason why the next if block is disabled. When the bug in ld64
+			// is fixed, we can enable this block and also enable duff's device in cmd/7g.
+			if false && ld.HEADTYPE == ld.Hdarwin {
+				// Mach-O wants the addend to be encoded in the instruction
+				// Note that although Mach-O supports ARM64_RELOC_ADDEND, it
+				// can only encode 24-bit of signed addend, but the instructions
+				// supports 33-bit of signed addend, so we always encode the
+				// addend in place.
+				o0 |= (uint32((r.Xadd>>12)&3) << 29) | (uint32((r.Xadd>>12>>2)&0x7ffff) << 5)
+				o1 |= uint32(r.Xadd&0xfff) << 10
+				r.Xadd = 0
+			}
+
+			// when laid out, the instruction order must always be o1, o2.
+			if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
+				*val = int64(o0)<<32 | int64(o1)
+			} else {
+				*val = int64(o1)<<32 | int64(o0)
+			}
 
 			return 0
 
@@ -217,6 +308,8 @@ func adddynlib(lib string) {
 			ld.Addstring(s, "")
 		}
 		ld.Elfwritedynent(ld.Linklookup(ld.Ctxt, ".dynamic", 0), ld.DT_NEEDED, uint64(ld.Addstring(s, lib)))
+	} else if ld.HEADTYPE == ld.Hdarwin {
+		ld.Machoadddynlib(lib)
 	} else {
 		ld.Diag("adddynlib: unsupported binary format")
 	}
@@ -258,6 +351,24 @@ func asmb() {
 	ld.Cseek(int64(ld.Segdata.Fileoff))
 	ld.Datblk(int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
 
+	machlink := uint32(0)
+	if ld.HEADTYPE == ld.Hdarwin {
+		if ld.Debug['v'] != 0 {
+			fmt.Fprintf(&ld.Bso, "%5.2f dwarf\n", obj.Cputime())
+		}
+
+		if ld.Debug['w'] == 0 { // TODO(minux): enable DWARF Support
+			dwarfoff := uint32(ld.Rnd(int64(uint64(ld.HEADR)+ld.Segtext.Length), int64(ld.INITRND)) + ld.Rnd(int64(ld.Segdata.Filelen), int64(ld.INITRND)))
+			ld.Cseek(int64(dwarfoff))
+
+			ld.Segdwarf.Fileoff = uint64(ld.Cpos())
+			ld.Dwarfemitdebugsections()
+			ld.Segdwarf.Filelen = uint64(ld.Cpos()) - ld.Segdwarf.Fileoff
+		}
+
+		machlink = uint32(ld.Domacholink())
+	}
+
 	/* output symbol table */
 	ld.Symsize = 0
 
@@ -278,6 +389,9 @@ func asmb() {
 
 		case ld.Hplan9:
 			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+
+		case ld.Hdarwin:
+			symo = uint32(ld.Rnd(int64(uint64(ld.HEADR)+ld.Segtext.Filelen), int64(ld.INITRND)) + ld.Rnd(int64(ld.Segdata.Filelen), int64(ld.INITRND)) + int64(machlink))
 		}
 
 		ld.Cseek(int64(symo))
@@ -314,6 +428,11 @@ func asmb() {
 
 				ld.Cflush()
 			}
+
+		case ld.Hdarwin:
+			if ld.Linkmode == ld.LinkExternal {
+				ld.Machoemitreloc()
+			}
 		}
 	}
 
@@ -341,6 +460,9 @@ func asmb() {
 		ld.Hopenbsd,
 		ld.Hnacl:
 		ld.Asmbelf(int64(symo))
+
+	case ld.Hdarwin:
+		ld.Asmbmacho()
 	}
 
 	ld.Cflush()
