@@ -7,10 +7,10 @@ package types_test
 import (
 	"fmt"
 	"go/ast"
+	"go/importer"
 	"go/parser"
 	"testing"
 
-	_ "go/internal/gcimporter"
 	. "go/types"
 )
 
@@ -133,7 +133,7 @@ func testBuiltinSignature(t *testing.T, name, src0, want string) {
 		return
 	}
 
-	var conf Config
+	conf := Config{Importer: importer.Default()}
 	uses := make(map[*ast.Ident]Object)
 	types := make(map[ast.Expr]TypeAndValue)
 	_, err = conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Uses: uses, Types: types})

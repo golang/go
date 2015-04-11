@@ -28,6 +28,7 @@ package types_test
 import (
 	"flag"
 	"go/ast"
+	"go/importer"
 	"go/parser"
 	"go/scanner"
 	"go/token"
@@ -36,7 +37,6 @@ import (
 	"strings"
 	"testing"
 
-	_ "go/internal/gcimporter"
 	. "go/types"
 )
 
@@ -244,6 +244,7 @@ func checkFiles(t *testing.T, testfiles []string) {
 
 	// typecheck and collect typechecker errors
 	var conf Config
+	conf.Importer = importer.Default()
 	conf.Error = func(err error) {
 		if *listErrors {
 			t.Error(err)

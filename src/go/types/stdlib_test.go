@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/build"
+	"go/importer"
 	"go/parser"
 	"go/scanner"
 	"go/token"
@@ -22,18 +23,22 @@ import (
 	"testing"
 	"time"
 
-	_ "go/internal/gcimporter"
 	. "go/types"
 )
 
 var (
 	pkgCount int // number of packages processed
-	start    = time.Now()
+	start    time.Time
+
+	// Use the same importer for all std lib tests to
+	// avoid repeated importing of the same packages.
+	stdLibImporter = importer.Default()
 )
 
 func TestStdlib(t *testing.T) {
 	skipSpecialPlatforms(t)
 
+	start = time.Now()
 	walkDirs(t, filepath.Join(runtime.GOROOT(), "src"))
 	if testing.Verbose() {
 		fmt.Println(pkgCount, "packages typechecked in", time.Since(start))
@@ -102,7 +107,8 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 		// parse and type-check file
 		file, err := parser.ParseFile(fset, filename, nil, 0)
 		if err == nil {
-			_, err = Check(filename, fset, []*ast.File{file})
+			conf := Config{Importer: stdLibImporter}
+			_, err = conf.Check(filename, fset, []*ast.File{file}, nil)
 		}
 
 		if expectErrors {
@@ -185,8 +191,10 @@ func typecheck(t *testing.T, path string, filenames []string) {
 	}
 
 	// typecheck package files
-	var conf Config
-	conf.Error = func(err error) { t.Error(err) }
+	conf := Config{
+		Error:    func(err error) { t.Error(err) },
+		Importer: stdLibImporter,
+	}
 	info := Info{Uses: make(map[*ast.Ident]Object)}
 	conf.Check(path, fset, files, &info)
 	pkgCount++

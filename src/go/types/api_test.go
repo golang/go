@@ -8,13 +8,13 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
+	"go/importer"
 	"go/parser"
 	"go/token"
 	"runtime"
 	"strings"
 	"testing"
 
-	_ "go/internal/gcimporter"
 	. "go/types"
 )
 
@@ -38,7 +38,7 @@ func pkgFor(path, source string, info *Info) (*Package, error) {
 		return nil, err
 	}
 
-	var conf Config
+	conf := Config{Importer: importer.Default()}
 	return conf.Check(f.Name.Name, fset, []*ast.File{f}, info)
 }
 
@@ -676,16 +676,21 @@ func TestFiles(t *testing.T) {
 	}
 }
 
+type testImporter map[string]*Package
+
+func (m testImporter) Import(path string) (*Package, error) {
+	if pkg := m[path]; pkg != nil {
+		return pkg, nil
+	}
+	return nil, fmt.Errorf("package %q not found", path)
+}
+
 func TestSelection(t *testing.T) {
 	selections := make(map[*ast.SelectorExpr]*Selection)
 
 	fset := token.NewFileSet()
-	conf := Config{
-		Packages: make(map[string]*Package),
-		Import: func(imports map[string]*Package, path string) (*Package, error) {
-			return imports[path], nil
-		},
-	}
+	imports := make(testImporter)
+	conf := Config{Importer: imports}
 	makePkg := func(path, src string) {
 		f, err := parser.ParseFile(fset, path+".go", src, 0)
 		if err != nil {
@@ -695,7 +700,7 @@ func TestSelection(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		conf.Packages[path] = pkg
+		imports[path] = pkg
 	}
 
 	const libSrc = `
@@ -845,12 +850,10 @@ func main() {
 
 func TestIssue8518(t *testing.T) {
 	fset := token.NewFileSet()
+	imports := make(testImporter)
 	conf := Config{
-		Packages: make(map[string]*Package),
 		Error:    func(err error) { t.Log(err) }, // don't exit after first error
-		Import: func(imports map[string]*Package, path string) (*Package, error) {
-			return imports[path], nil
-		},
+		Importer: imports,
 	}
 	makePkg := func(path, src string) {
 		f, err := parser.ParseFile(fset, path, src, 0)
@@ -858,7 +861,7 @@ func TestIssue8518(t *testing.T) {
 			t.Fatal(err)
 		}
 		pkg, _ := conf.Check(path, fset, []*ast.File{f}, nil) // errors logged via conf.Error
-		conf.Packages[path] = pkg
+		imports[path] = pkg
 	}
 
 	const libSrc = `

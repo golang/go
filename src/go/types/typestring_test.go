@@ -6,11 +6,11 @@ package types_test
 
 import (
 	"go/ast"
+	"go/importer"
 	"go/parser"
 	"go/token"
 	"testing"
 
-	_ "go/internal/gcimporter"
 	. "go/types"
 )
 
@@ -23,7 +23,8 @@ func makePkg(t *testing.T, src string) (*Package, error) {
 		return nil, err
 	}
 	// use the package name as package path
-	return Check(file.Name.Name, fset, []*ast.File{file})
+	conf := Config{Importer: importer.Default()}
+	return conf.Check(file.Name.Name, fset, []*ast.File{file}, nil)
 }
 
 type testEntry struct {

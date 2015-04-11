@@ -8,9 +8,8 @@ package types
 
 import (
 	"go/ast"
-	"go/token"
-
 	"go/exact"
+	"go/token"
 )
 
 // builtin type-checks a call to the built-in specified by id and

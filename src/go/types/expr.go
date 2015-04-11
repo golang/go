@@ -9,10 +9,9 @@ package types
 import (
 	"fmt"
 	"go/ast"
+	"go/exact"
 	"go/token"
 	"math"
-
-	"go/exact"
 )
 
 /*

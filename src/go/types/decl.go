@@ -6,9 +6,8 @@ package types
 
 import (
 	"go/ast"
-	"go/token"
-
 	"go/exact"
+	"go/token"
 )
 
 func (check *Checker) reportAltDecl(obj Object) {

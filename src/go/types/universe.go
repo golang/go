@@ -7,10 +7,9 @@
 package types
 
 import (
+	"go/exact"
 	"go/token"
 	"strings"
-
-	"go/exact"
 )
 
 var (
