@@ -8,7 +8,6 @@
 
 set -eu
 
-export GOPATH="$(pwd)"
 
 die () {
     echo $@
@@ -23,8 +22,14 @@ rootdir="$(dirname $(go list -f '{{.Target}}' runtime))"
 template="${rootdir}_XXXXXXXX_dynlink"
 std_install_dir=$(mktemp -d "$template")
 
+scratch_dir=$(mktemp -d)
+cp -a . $scratch_dir
+opwd="$(pwd)"
+cd $scratch_dir
+export GOPATH="$(pwd)"
+
 cleanup () {
-    rm -rf $std_install_dir ./bin/ ./pkg/
+    rm -rf $std_install_dir $scratch_dir
 }
 trap cleanup EXIT
 
@@ -109,3 +114,24 @@ will_check_rebuilt $rootdir/libdep.so $rootdir/dep.a
 go install  -installsuffix="$mysuffix" -linkshared exe
 assert_not_rebuilt $rootdir/dep.a
 assert_rebuilt $rootdir/libdep.so
+
+# If we make an ABI-breaking change to dep and rebuild libp.so but not exe, exe will
+# abort with a complaint on startup.
+# This assumes adding an exported function breaks ABI, which is not true in some
+# senses but suffices for the narrow definition of ABI compatiblity the toolchain
+# uses today.
+echo "func ABIBreak() {}" >> src/dep/dep.go
+go install -installsuffix="$mysuffix" -buildmode=shared -linkshared dep
+output="$(./bin/exe 2>&1)" && die "exe succeeded after ABI break" || true
+msg="abi mismatch detected between the executable and libdep.so"
+{ echo "$output" | grep -q "$msg"; } || die "exe did not fail with expected message"
+
+# Rebuilding exe makes it work again.
+go install -installsuffix="$mysuffix" -linkshared exe
+./bin/exe || die "exe failed after rebuild"
+
+# If we make a change which does not break ABI (such as adding an
+# unexported function) and rebuild libdep.so, exe still works.
+echo "func noABIBreak() {}" >> src/dep/dep.go
+go install -installsuffix="$mysuffix" -buildmode=shared -linkshared dep
+./bin/exe || die "exe failed after non-ABI breaking change"

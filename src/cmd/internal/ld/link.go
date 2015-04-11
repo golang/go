@@ -106,6 +106,11 @@ type Auto struct {
 	Gotype  *LSym
 }
 
+type Shlib struct {
+	Path string
+	Hash []byte
+}
+
 type Link struct {
 	Thechar   int32
 	Thestring string
@@ -122,8 +127,8 @@ type Link struct {
 	Nsymbol   int32
 	Tlsg      *LSym
 	Libdir    []string
-	Library   []Library
-	Shlibs    []string
+	Library   []*Library
+	Shlibs    []Shlib
 	Tlsoffset int
 	Diag      func(string, ...interface{})
 	Cursym    *LSym
@@ -149,6 +154,7 @@ type Library struct {
 	File   string
 	Pkg    string
 	Shlib  string
+	hash   []byte
 }
 
 type Pcln struct {
