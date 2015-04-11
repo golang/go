@@ -7,12 +7,12 @@ package types_test
 import (
 	"fmt"
 	"go/ast"
+	"go/importer"
 	"go/parser"
 	"go/token"
 	"sort"
 	"testing"
 
-	_ "go/internal/gcimporter"
 	. "go/types"
 )
 
@@ -88,6 +88,24 @@ var pkgnames = []string{
 	"math",
 }
 
+type resolveTestImporter struct {
+	importer Importer
+	imported map[string]bool
+}
+
+func (imp *resolveTestImporter) Import(path string) (*Package, error) {
+	if imp.importer == nil {
+		imp.importer = importer.Default()
+		imp.imported = make(map[string]bool)
+	}
+	pkg, err := imp.importer.Import(path)
+	if err != nil {
+		return nil, err
+	}
+	imp.imported[path] = true
+	return pkg, nil
+}
+
 func TestResolveIdents(t *testing.T) {
 	skipSpecialPlatforms(t)
 
@@ -103,7 +121,8 @@ func TestResolveIdents(t *testing.T) {
 	}
 
 	// resolve and type-check package AST
-	var conf Config
+	importer := new(resolveTestImporter)
+	conf := Config{Importer: importer}
 	uses := make(map[*ast.Ident]Object)
 	defs := make(map[*ast.Ident]Object)
 	_, err := conf.Check("testResolveIdents", fset, files, &Info{Defs: defs, Uses: uses})
@@ -113,7 +132,7 @@ func TestResolveIdents(t *testing.T) {
 
 	// check that all packages were imported
 	for _, name := range pkgnames {
-		if conf.Packages[name] == nil {
+		if !importer.imported[name] {
 			t.Errorf("package %s not imported", name)
 		}
 	}

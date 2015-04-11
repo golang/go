@@ -3,8 +3,10 @@
 // license that can be found in the LICENSE file.
 
 // Package types declares the data types and implements
-// the algorithms for type-checking of Go packages.
-// Use Check and Config.Check to invoke the type-checker.
+// the algorithms for type-checking of Go packages. Use
+// Config.Check to invoke the type checker for a package.
+// Alternatively, create a new type checked with NewChecker
+// and invoke it incrementally by calling Checker.Files.
 //
 // Type-checking consists of several interdependent phases:
 //
@@ -26,25 +28,9 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
-	"go/token"
-
 	"go/exact"
+	"go/token"
 )
-
-// Check type-checks a package and returns the resulting complete package
-// object, or a nil package and the first error. The package is specified
-// by a list of *ast.Files and corresponding file set, and the import path
-// the package is identified with. The clean path must not be empty or dot (".").
-//
-// For more control over type-checking and results, use Config.Check.
-func Check(path string, fset *token.FileSet, files []*ast.File) (*Package, error) {
-	var conf Config
-	pkg, err := conf.Check(path, fset, files, nil)
-	if err != nil {
-		return nil, err
-	}
-	return pkg, nil
-}
 
 // An Error describes a type-checking error; it implements the error interface.
 // A "soft" error is an error that still permits a valid interpretation of a
@@ -64,17 +50,14 @@ func (err Error) Error() string {
 }
 
 // An importer resolves import paths to Packages.
-// The imports map records packages already known,
-// indexed by package path. The type-checker
-// will invoke Import with Config.Packages.
-// An importer must determine the canonical package path and
-// check imports to see if it is already present in the map.
-// If so, the Importer can return the map entry.  Otherwise,
-// the importer must load the package data for the given path
-// into a new *Package, record it in imports map, and return
-// the package.
-// TODO(gri) Need to be clearer about requirements of completeness.
-type Importer func(map[string]*Package, string) (*Package, error)
+// See go/importer for existing implementations.
+type Importer interface {
+	// Import returns the imported package for the given import
+	// path, or an error if the package couldn't be imported.
+	// Import is responsible for returning the same package for
+	// matching import paths.
+	Import(path string) (*Package, error)
+}
 
 // A Config specifies the configuration for type checking.
 // The zero value for Config is a ready-to-use default configuration.
@@ -92,11 +75,6 @@ type Config struct {
 	//          Do not use casually!
 	FakeImportC bool
 
-	// Packages is used to look up (and thus canonicalize) packages by
-	// package path. If Packages is nil, it is set to a new empty map.
-	// During type-checking, imported packages are added to the map.
-	Packages map[string]*Package
-
 	// If Error != nil, it is called with each error found
 	// during type checking; err has dynamic type Error.
 	// Secondary errors (for instance, to enumerate all types
@@ -106,9 +84,10 @@ type Config struct {
 	// error found.
 	Error func(err error)
 
-	// If Import != nil, it is called for each imported package.
-	// Otherwise, DefaultImport is called.
-	Import Importer
+	// Importer is called for each import declaration except when
+	// importing package "unsafe". An error is reported if an
+	// importer is needed but none was installed.
+	Importer Importer
 
 	// If Sizes != nil, it provides the sizing functions for package unsafe.
 	// Otherwise &StdSizes{WordSize: 8, MaxAlign: 8} is used instead.
@@ -118,14 +97,6 @@ type Config struct {
 	// for unused imports.
 	DisableUnusedImportCheck bool
 }
-
-// DefaultImport is the default importer invoked if Config.Import == nil.
-// The declaration:
-//
-//	import _ "go/internal/gcimporter"
-//
-// in a client of go/types will initialize DefaultImport to gcimporter.Import.
-var DefaultImport Importer
 
 // Info holds result type information for a type-checked package.
 // Only the information for which a map is provided is collected.

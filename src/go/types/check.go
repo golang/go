@@ -8,9 +8,8 @@ package types
 
 import (
 	"go/ast"
-	"go/token"
-
 	"go/exact"
+	"go/token"
 )
 
 // debugging/development support
@@ -149,11 +148,6 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 	// make sure we have a configuration
 	if conf == nil {
 		conf = new(Config)
-	}
-
-	// make sure we have a package canonicalization map
-	if conf.Packages == nil {
-		conf.Packages = make(map[string]*Package)
 	}
 
 	// make sure we have an info struct

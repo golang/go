@@ -8,9 +8,8 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
-	"go/token"
-
 	"go/exact"
+	"go/token"
 )
 
 // TODO(gri) Document factory, accessor methods, and fields. General clean-up.

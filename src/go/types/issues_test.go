@@ -9,12 +9,12 @@ package types_test
 import (
 	"fmt"
 	"go/ast"
+	"go/importer"
 	"go/parser"
 	"sort"
 	"strings"
 	"testing"
 
-	_ "go/internal/gcimporter"
 	. "go/types"
 )
 
@@ -25,7 +25,8 @@ func TestIssue5770(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = Check(f.Name.Name, fset, []*ast.File{f}) // do not crash
+	conf := Config{Importer: importer.Default()}
+	_, err = conf.Check(f.Name.Name, fset, []*ast.File{f}, nil) // do not crash
 	want := "undeclared name: T"
 	if err == nil || !strings.Contains(err.Error(), want) {
 		t.Errorf("got: %v; want: %s", err, want)

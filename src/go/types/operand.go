@@ -9,9 +9,8 @@ package types
 import (
 	"bytes"
 	"go/ast"
-	"go/token"
-
 	"go/exact"
+	"go/token"
 )
 
 // An operandMode specifies the (addressing) mode of an operand.

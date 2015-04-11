@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 // Package gcimporter implements Import for gc-generated object files.
-// Importing this package installs Import as go/types.DefaultImport.
 package gcimporter // import "go/internal/gcimporter"
 
 import (
@@ -25,10 +24,6 @@ import (
 
 // debugging/development support
 const debug = false
-
-func init() {
-	types.DefaultImport = Import
-}
 
 var pkgExts = [...]string{".a", ".5", ".6", ".7", ".8", ".9"}
 
@@ -116,8 +111,9 @@ func ImportData(imports map[string]*types.Package, filename, id string, data io.
 // The imports map must contains all packages already imported.
 //
 func Import(imports map[string]*types.Package, path string) (pkg *types.Package, err error) {
+	// package "unsafe" is handled by the type checker
 	if path == "unsafe" {
-		return types.Unsafe, nil
+		panic(`gcimporter.Import called for package "unsafe"`)
 	}
 
 	srcDir := "."

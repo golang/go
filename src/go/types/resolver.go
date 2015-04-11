@@ -5,16 +5,14 @@
 package types
 
 import (
-	"errors"
 	"fmt"
 	"go/ast"
+	"go/exact"
 	"go/token"
 	pathLib "path"
 	"strconv"
 	"strings"
 	"unicode"
-
-	"go/exact"
 )
 
 // A declInfo describes a package-level const, type, var, or func declaration.
@@ -128,18 +126,6 @@ func (check *Checker) filename(fileNo int) string {
 func (check *Checker) collectObjects() {
 	pkg := check.pkg
 
-	importer := check.conf.Import
-	if importer == nil {
-		if DefaultImport != nil {
-			importer = DefaultImport
-		} else {
-			// Panic if we encounter an import.
-			importer = func(map[string]*Package, string) (*Package, error) {
-				panic(`no Config.Import or DefaultImport (missing import _ "go/internal/gcimporter"?)`)
-			}
-		}
-	}
-
 	// pkgImports is the set of packages already imported by any package file seen
 	// so far. Used to avoid duplicate entries in pkg.imports. Allocate and populate
 	// it (pkg.imports may not be empty if we are checking test files incrementally).
@@ -177,11 +163,17 @@ func (check *Checker) collectObjects() {
 							// TODO(gri) shouldn't create a new one each time
 							imp = NewPackage("C", "C")
 							imp.fake = true
+						} else if path == "unsafe" {
+							// package "unsafe" is known to the language
+							imp = Unsafe
 						} else {
-							var err error
-							imp, err = importer(check.conf.Packages, path)
-							if imp == nil && err == nil {
-								err = errors.New("Config.Import returned nil but no error")
+							if importer := check.conf.Importer; importer != nil {
+								imp, err = importer.Import(path)
+								if imp == nil && err == nil {
+									err = fmt.Errorf("Config.Importer.Import(%s) returned nil but no error", path)
+								}
+							} else {
+								err = fmt.Errorf("Config.Importer not installed")
 							}
 							if err != nil {
 								check.errorf(s.Path.Pos(), "could not import %s (%s)", path, err)

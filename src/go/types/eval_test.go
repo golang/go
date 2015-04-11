@@ -8,6 +8,7 @@ package types_test
 
 import (
 	"go/ast"
+	"go/importer"
 	"go/parser"
 	"go/token"
 	"strings"
@@ -106,7 +107,8 @@ func f(a int, s string) float64 {
 		t.Fatal(err)
 	}
 
-	pkg, err := Check("p", fset, []*ast.File{file})
+	conf := Config{Importer: importer.Default()}
+	pkg, err := conf.Check("p", fset, []*ast.File{file}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

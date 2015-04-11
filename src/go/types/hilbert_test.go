@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"go/ast"
+	"go/importer"
 	"go/parser"
 	"go/token"
 	"io/ioutil"
@@ -39,7 +40,8 @@ func TestHilbert(t *testing.T) {
 
 	// type-check file
 	DefPredeclaredTestFuncs() // define assert built-in
-	_, err = Check(f.Name.Name, fset, []*ast.File{f})
+	conf := Config{Importer: importer.Default()}
+	_, err = conf.Check(f.Name.Name, fset, []*ast.File{f}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

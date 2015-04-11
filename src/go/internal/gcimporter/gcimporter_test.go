@@ -129,7 +129,6 @@ var importedObjectTests = []struct {
 	name string
 	want string
 }{
-	{"unsafe.Pointer", "type Pointer unsafe.Pointer"},
 	{"math.Pi", "const Pi untyped float"},
 	{"io.Reader", "type Reader interface{Read(p []byte) (n int, err error)}"},
 	{"io.ReadWriter", "type ReadWriter interface{Read(p []byte) (n int, err error); Write(p []byte) (n int, err error)}"},

@@ -9,9 +9,8 @@ package types
 import (
 	"fmt"
 	"go/ast"
-	"go/token"
-
 	"go/exact"
+	"go/token"
 )
 
 func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body *ast.BlockStmt) {

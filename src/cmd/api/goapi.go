@@ -152,7 +152,8 @@ func main() {
 					// w.Import(name) will return nil
 					continue
 				}
-				w.export(w.Import(name))
+				pkg, _ := w.Import(name)
+				w.export(pkg)
 			}
 		}
 
@@ -417,13 +418,13 @@ func tagKey(dir string, context *build.Context, tags []string) string {
 // for a package that is in the process of being imported.
 var importing types.Package
 
-func (w *Walker) Import(name string) (pkg *types.Package) {
-	pkg = w.imported[name]
+func (w *Walker) Import(name string) (*types.Package, error) {
+	pkg := w.imported[name]
 	if pkg != nil {
 		if pkg == &importing {
 			log.Fatalf("cycle importing package %q", name)
 		}
-		return pkg
+		return pkg, nil
 	}
 	w.imported[name] = &importing
 
@@ -447,7 +448,7 @@ func (w *Walker) Import(name string) (pkg *types.Package) {
 			key = tagKey(dir, context, tags)
 			if pkg := pkgCache[key]; pkg != nil {
 				w.imported[name] = pkg
-				return pkg
+				return pkg, nil
 			}
 		}
 	}
@@ -455,7 +456,7 @@ func (w *Walker) Import(name string) (pkg *types.Package) {
 	info, err := context.ImportDir(dir, 0)
 	if err != nil {
 		if _, nogo := err.(*build.NoGoError); nogo {
-			return
+			return nil, nil
 		}
 		log.Fatalf("pkg %q, dir %q: ScanDir: %v", name, dir, err)
 	}
@@ -484,11 +485,7 @@ func (w *Walker) Import(name string) (pkg *types.Package) {
 	conf := types.Config{
 		IgnoreFuncBodies: true,
 		FakeImportC:      true,
-		Import: func(imports map[string]*types.Package, name string) (*types.Package, error) {
-			pkg := w.Import(name)
-			imports[name] = pkg
-			return pkg, nil
-		},
+		Importer:         w,
 	}
 	pkg, err = conf.Check(name, fset, files, nil)
 	if err != nil {
@@ -504,7 +501,7 @@ func (w *Walker) Import(name string) (pkg *types.Package) {
 	}
 
 	w.imported[name] = pkg
-	return
+	return pkg, nil
 }
 
 // pushScope enters a new scope (walking a package, type, node, etc)
