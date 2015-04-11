@@ -1,8 +1,11 @@
-// Created by root_darwin_arm_gen --output root_darwin_arm.go; DO NOT EDIT
+// Created by root_darwin_arm_gen --output root_darwin_armx.go; DO NOT EDIT
 
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+// +build darwin
+// +build arm arm64
 
 package x509
 
