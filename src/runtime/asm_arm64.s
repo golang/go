@@ -35,8 +35,11 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 
 	MRS_TPIDR_R0			// load TLS base pointer
 	MOVD	R0, R3			// arg 3: TLS base pointer
-	//MOVD	$runtime·tlsg(SB), R2 	// arg 2: tlsg
+#ifdef TLSG_IS_VARIABLE
+	MOVD	$runtime·tls_g(SB), R2 	// arg 2: tlsg
+#else
 	MOVD	$0x10, R2		// arg 2: tlsg TODO(minux): hardcoded for linux
+#endif
 	MOVD	$setg_gcc<>(SB), R1	// arg 1: setg
 	MOVD	g, R0			// arg 0: G
 	BL	(R12)
