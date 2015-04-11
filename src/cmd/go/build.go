@@ -127,12 +127,15 @@ func init() {
 	addBuildFlags(cmdBuild)
 	addBuildFlags(cmdInstall)
 
-	if buildContext.GOOS == "darwin" && buildContext.GOARCH == "arm" {
-		// darwin/arm cannot run multiple tests simultaneously.
-		// Parallelism is limited in go_darwin_arm_exec, but
-		// also needs to be limited here so go test std does not
-		// timeout tests that waiting to run.
-		buildP = 1
+	if buildContext.GOOS == "darwin" {
+		switch buildContext.GOARCH {
+		case "arm", "arm64":
+			// darwin/arm cannot run multiple tests simultaneously.
+			// Parallelism is limited in go_darwin_arm_exec, but
+			// also needs to be limited here so go test std does not
+			// timeout tests that waiting to run.
+			buildP = 1
+		}
 	}
 }
 
