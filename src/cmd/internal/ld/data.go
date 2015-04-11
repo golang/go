@@ -963,6 +963,22 @@ func Addstring(s *LSym, str string) int64 {
 	return int64(r)
 }
 
+// addgostring adds str, as a Go string value, to s. symname is the name of the
+// symbol used to define the string data and must be unique per linked object.
+func addgostring(s *LSym, symname, str string) {
+	sym := Linklookup(Ctxt, symname, 0)
+	if sym.Type != obj.Sxxx {
+		Diag("duplicate symname in addgostring: %s", symname)
+	}
+	sym.Reachable = true
+	sym.Local = true
+	sym.Type = obj.SRODATA
+	sym.Size = int64(len(str))
+	sym.P = []byte(str)
+	Addaddr(Ctxt, s, sym)
+	adduint(Ctxt, s, uint64(len(str)))
+}
+
 func addinitarrdata(s *LSym) {
 	p := s.Name + ".ptr"
 	sp := Linklookup(Ctxt, p, 0)

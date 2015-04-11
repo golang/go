@@ -109,8 +109,8 @@ func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg strin
 		fmt.Fprintf(ctxt.Bso, "%5.2f addlibpath: srcref: %s objref: %s file: %s pkg: %s shlibnamefile: %s\n", obj.Cputime(), srcref, objref, file, pkg, shlibnamefile)
 	}
 
-	ctxt.Library = append(ctxt.Library, Library{})
-	l := &ctxt.Library[len(ctxt.Library)-1]
+	ctxt.Library = append(ctxt.Library, &Library{})
+	l := ctxt.Library[len(ctxt.Library)-1]
 	l.Objref = objref
 	l.Srcref = srcref
 	l.File = file

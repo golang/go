@@ -32,6 +32,10 @@ package ld
 
 import (
 	"cmd/internal/obj"
+	"crypto/sha1"
+	"fmt"
+	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -294,6 +298,20 @@ func Vputl(v uint64) {
 	Lputl(uint32(v >> 32))
 }
 
+type byPkg []*Library
+
+func (libs byPkg) Len() int {
+	return len(libs)
+}
+
+func (libs byPkg) Less(a, b int) bool {
+	return libs[a].Pkg < libs[b].Pkg
+}
+
+func (libs byPkg) Swap(a, b int) {
+	libs[a], libs[b] = libs[b], libs[a]
+}
+
 func symtab() {
 	dosymtype()
 
@@ -410,6 +428,19 @@ func symtab() {
 		}
 	}
 
+	if Buildmode == BuildmodeShared {
+		sort.Sort(byPkg(Ctxt.Library))
+		h := sha1.New()
+		for _, l := range Ctxt.Library {
+			h.Write(l.hash)
+		}
+		abihashgostr := Linklookup(Ctxt, "go.link.abihash."+filepath.Base(outfile), 0)
+		abihashgostr.Reachable = true
+		abihashgostr.Type = obj.SRODATA
+		var hashbytes []byte
+		addgostring(abihashgostr, "go.link.abihashbytes", string(h.Sum(hashbytes)))
+	}
+
 	// Information about the layout of the executable image for the
 	// runtime to use. Any changes here must be matched by changes to
 	// the definition of moduledata in runtime/symtab.go.
@@ -454,6 +485,38 @@ func symtab() {
 	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.typelink", 0))
 	adduint(Ctxt, moduledata, uint64(ntypelinks))
 	adduint(Ctxt, moduledata, uint64(ntypelinks))
+	if len(Ctxt.Shlibs) > 0 {
+		thismodulename := filepath.Base(outfile)
+		if Buildmode == BuildmodeExe {
+			// When linking an executable, outfile is just "a.out". Make
+			// it something slightly more comprehensible.
+			thismodulename = "the executable"
+		}
+		addgostring(moduledata, "go.link.thismodulename", thismodulename)
+
+		modulehashes := Linklookup(Ctxt, "go.link.abihashes", 0)
+		modulehashes.Reachable = true
+		modulehashes.Local = true
+		modulehashes.Type = obj.SRODATA
+
+		for i, shlib := range Ctxt.Shlibs {
+			// modulehashes[i].modulename
+			modulename := filepath.Base(shlib.Path)
+			addgostring(modulehashes, fmt.Sprintf("go.link.libname.%d", i), modulename)
+
+			// modulehashes[i].linktimehash
+			addgostring(modulehashes, fmt.Sprintf("go.link.linkhash.%d", i), string(shlib.Hash))
+
+			// modulehashes[i].runtimehash
+			abihash := Linklookup(Ctxt, "go.link.abihash."+modulename, 0)
+			abihash.Reachable = true
+			Addaddr(Ctxt, modulehashes, abihash)
+		}
+
+		Addaddr(Ctxt, moduledata, modulehashes)
+		adduint(Ctxt, moduledata, uint64(len(Ctxt.Shlibs)))
+		adduint(Ctxt, moduledata, uint64(len(Ctxt.Shlibs)))
+	}
 	// The rest of moduledata is zero initialized.
 	// When linking an object that does not contain the runtime we are
 	// creating the moduledata from scratch and it does not have a

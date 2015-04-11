@@ -48,9 +48,22 @@ type moduledata struct {
 
 	typelinks []*_type
 
+	modulename   string
+	modulehashes []modulehash
+
 	gcdatamask, gcbssmask bitvector
 
 	next *moduledata
+}
+
+// For each shared library a module links against, the linker creates an entry in the
+// moduledata.modulehashes slice containing the name of the module, the abi hash seen
+// at link time and a pointer to the runtime abi hash. These are checked in
+// moduledataverify1 below.
+type modulehash struct {
+	modulename   string
+	linktimehash string
+	runtimehash  *string
 }
 
 var firstmoduledata moduledata  // linker symbol
@@ -116,6 +129,13 @@ func moduledataverify1(datap *moduledata) {
 	if datap.minpc != datap.ftab[0].entry ||
 		datap.maxpc != datap.ftab[nftab].entry {
 		throw("minpc or maxpc invalid")
+	}
+
+	for _, modulehash := range datap.modulehashes {
+		if modulehash.linktimehash != *modulehash.runtimehash {
+			println("abi mismatch detected between", datap.modulename, "and", modulehash.modulename)
+			throw("abi mismatch")
+		}
 	}
 }
 
