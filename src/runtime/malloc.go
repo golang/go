@@ -155,7 +155,10 @@ const (
 	// See http://golang.org/issue/5402 and http://golang.org/issue/5236.
 	// On other 64-bit platforms, we limit the arena to 128GB, or 37 bits.
 	// On 32-bit, we don't bother limiting anything, so we use the full 32-bit address.
-	_MHeapMap_TotalBits = (_64bit*goos_windows)*35 + (_64bit*(1-goos_windows))*37 + (1-_64bit)*32
+	// On Darwin/arm64, we cannot reserve more than ~5GB of virtual memory,
+	// but as most devices have less than 4GB of physical memory anyway, we
+	// try to be conservative here, and only ask for a 2GB heap.
+	_MHeapMap_TotalBits = (_64bit*goos_windows)*35 + (_64bit*(1-goos_windows)*(1-goos_darwin*goarch_arm64))*37 + goos_darwin*goarch_arm64*31 + (1-_64bit)*32
 	_MHeapMap_Bits      = _MHeapMap_TotalBits - _PageShift
 
 	_MaxMem = uintptr(1<<_MHeapMap_TotalBits - 1)
@@ -257,14 +260,18 @@ func mallocinit() {
 		// However, on arm64, we ignore all this advice above and slam the
 		// allocation at 0x40 << 32 because when using 4k pages with 3-level
 		// translation buffers, the user address space is limited to 39 bits
+		// On darwin/arm64, the address space is even smaller.
 		arenaSize := round(_MaxMem, _PageSize)
 		bitmapSize = arenaSize / (ptrSize * 8 / 4)
 		spansSize = arenaSize / _PageSize * ptrSize
 		spansSize = round(spansSize, _PageSize)
 		for i := 0; i <= 0x7f; i++ {
-			if GOARCH == "arm64" {
+			switch {
+			case GOARCH == "arm64" && GOOS == "darwin":
+				p = uintptr(i)<<40 | uintptrMask&(0x0013<<28)
+			case GOARCH == "arm64":
 				p = uintptr(i)<<40 | uintptrMask&(0x0040<<32)
-			} else {
+			default:
 				p = uintptr(i)<<40 | uintptrMask&(0x00c0<<32)
 			}
 			pSize = bitmapSize + spansSize + arenaSize + _PageSize
