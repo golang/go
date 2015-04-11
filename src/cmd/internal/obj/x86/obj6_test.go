@@ -148,9 +148,9 @@ func parseOutput(t *testing.T, td *ParsedTestData, asmout []byte) {
 }
 
 func TestDynlink(t *testing.T) {
-	if runtime.GOOS == "nacl" || runtime.GOOS == "android" || (runtime.GOOS == "darwin" && runtime.GOARCH == "arm") {
-		// iOS and nacl cannot fork
-		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+	iOS := runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64")
+	if runtime.GOOS == "nacl" || runtime.GOOS == "android" || iOS {
+		t.Skipf("skipping on %s/%s, cannot fork", runtime.GOOS, runtime.GOARCH)
 	}
 	testdata := parseTestData(t)
 	asmout := asmOutput(t, testdata.input)
