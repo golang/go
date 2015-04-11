@@ -62,6 +62,8 @@ func defframe(ptxt *obj.Prog) {
 	zerorange(p, int64(frame), lo, hi)
 }
 
+var darwin = obj.Getgoos() == "darwin"
+
 func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
 	cnt := hi - lo
 	if cnt == 0 {
@@ -71,7 +73,7 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
 		for i := int64(0); i < cnt; i += int64(gc.Widthptr) {
 			p = appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGZERO, 0, obj.TYPE_MEM, arm64.REGSP, 8+frame+lo+i)
 		}
-	} else if cnt <= int64(128*gc.Widthptr) {
+	} else if cnt <= int64(128*gc.Widthptr) && !darwin { // darwin ld64 cannot handle BR26 reloc with non-zero addend
 		p = appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGSP, 0, obj.TYPE_REG, arm64.REGRT1, 0)
 		p = appendpp(p, arm64.AADD, obj.TYPE_CONST, 0, 8+frame+lo-8, obj.TYPE_REG, arm64.REGRT1, 0)
 		p.Reg = arm64.REGRT1
@@ -443,7 +445,7 @@ func clearfat(nl *gc.Node) {
 
 		// The loop leaves R16 on the last zeroed dword
 		boff = 8
-	} else if q >= 4 {
+	} else if q >= 4 && !darwin { // darwin ld64 cannot handle BR26 reloc with non-zero addend
 		p := gins(arm64.ASUB, nil, &dst)
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = 8
