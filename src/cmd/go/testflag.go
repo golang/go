@@ -170,7 +170,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			case "set", "count", "atomic":
 				testCoverMode = value
 			default:
-				fatalf("invalid flag argument for -cover: %q", value)
+				fatalf("invalid flag argument for -covermode: %q", value)
 			}
 			testCover = true
 		case "outputdir":
