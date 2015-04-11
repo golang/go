@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // +build darwin dragonfly freebsd linux netbsd
+// +build !ppc64,!ppc64le
 
 #include <pthread.h>
 #include <stdio.h>
