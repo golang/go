@@ -14,7 +14,7 @@ type DNSError struct {
 	Err       string // description of the error
 	Name      string // name looked for
 	Server    string // server used
-	IsTimeout bool
+	IsTimeout bool   // if true, timed out; not all timeouts set this
 }
 
 func (e *DNSError) Error() string {
@@ -29,7 +29,14 @@ func (e *DNSError) Error() string {
 	return s
 }
 
-func (e *DNSError) Timeout() bool   { return e.IsTimeout }
+// Timeout reports whether the DNS lookup is known to have timed out.
+// This is not always known; a DNS lookup may fail due to a timeout
+// and return a DNSError for which Timeout returns false.
+func (e *DNSError) Timeout() bool { return e.IsTimeout }
+
+// Temporary reports whether the DNS error is known to be temporary.
+// This is not always known; a DNS lookup may fail due to a temporary
+// error and return a DNSError for which Temporary returns false.
 func (e *DNSError) Temporary() bool { return e.IsTimeout }
 
 const noSuchHost = "no such host"
