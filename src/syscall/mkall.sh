@@ -124,6 +124,11 @@ darwin_amd64)
 	mksysnum="./mksysnum_darwin.pl /usr/include/sys/syscall.h"
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	;;
+darwin_arm64)
+	mkerrors="$mkerrors -m64"
+	mksysnum="./mksysnum_darwin.pl /usr/include/sys/syscall.h"
+	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+	;;
 dragonfly_386)
 	mkerrors="$mkerrors -m32"
 	mksyscall="./mksyscall.pl -l32 -dragonfly"
