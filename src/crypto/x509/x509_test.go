@@ -830,8 +830,9 @@ func TestImports(t *testing.T) {
 	case "android", "nacl":
 		t.Skipf("skipping on %s", runtime.GOOS)
 	case "darwin":
-		if runtime.GOARCH == "arm" {
-			t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+		switch runtime.GOARCH {
+		case "arm", "arm64":
+			t.Skipf("skipping on %s/%s, cannot fork", runtime.GOOS, runtime.GOARCH)
 		}
 	}
 
