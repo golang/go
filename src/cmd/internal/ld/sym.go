@@ -132,14 +132,17 @@ func linknew(arch *LinkArch) *Link {
 		default:
 			log.Fatalf("unknown thread-local storage offset for darwin/%s", ctxt.Arch.Name)
 
+		case '5':
+			ctxt.Tlsoffset = 0 // dummy value, not needed
+
 		case '6':
 			ctxt.Tlsoffset = 0x8a0
 
+		case '7':
+			ctxt.Tlsoffset = 0 // dummy value, not needed
+
 		case '8':
 			ctxt.Tlsoffset = 0x468
-
-		case '5':
-			ctxt.Tlsoffset = 0 // dummy value, not needed
 		}
 	}
 

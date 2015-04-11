@@ -475,7 +475,7 @@ func loadlib() {
 		// dependency problems when compiling natively (external linking requires
 		// runtime/cgo, runtime/cgo requires cmd/cgo, but cmd/cgo needs to be
 		// compiled using external linking.)
-		if Thearch.Thechar == '5' && HEADTYPE == Hdarwin && iscgo {
+		if (Thearch.Thechar == '5' || Thearch.Thechar == '7') && HEADTYPE == Hdarwin && iscgo {
 			Linkmode = LinkExternal
 		}
 	}
@@ -1599,6 +1599,7 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 			STYPE,
 			SSTRING,
 			SGOSTRING,
+			SGOFUNC,
 			SWINDOWS:
 			if !s.Reachable {
 				continue
