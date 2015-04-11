@@ -99,8 +99,9 @@ func TestRuntimeGogoBytes(t *testing.T) {
 	case "android", "nacl":
 		t.Skipf("skipping on %s", GOOS)
 	case "darwin":
-		if GOARCH == "arm" {
-			t.Skipf("skipping on %s/%s", GOOS, GOARCH)
+		switch GOARCH {
+		case "arm", "arm64":
+			t.Skipf("skipping on %s/%s, no fork", GOOS, GOARCH)
 		}
 	}
 
