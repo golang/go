@@ -96,7 +96,7 @@ and test commands:
 		print the commands.
 
 	-buildmode mode
-		build mode to use. See 'go help buildmodes' for more.
+		build mode to use. See 'go help buildmode' for more.
 	-linkshared
 		link against shared libraries previously created with
 		-buildmode=shared
