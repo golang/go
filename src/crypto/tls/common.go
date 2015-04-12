@@ -10,6 +10,7 @@ import (
 	"crypto/rand"
 	"crypto/sha512"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -270,10 +271,12 @@ type Config struct {
 	NameToCertificate map[string]*Certificate
 
 	// GetCertificate returns a Certificate based on the given
-	// ClientHelloInfo. If GetCertificate is nil or returns nil, then the
-	// certificate is retrieved from NameToCertificate. If
-	// NameToCertificate is nil, the first element of Certificates will be
-	// used.
+	// ClientHelloInfo. It will only be called if the client supplies SNI
+	// information or if Certificates is empty.
+	//
+	// If GetCertificate is nil or returns nil, then the certificate is
+	// retrieved from NameToCertificate. If NameToCertificate is nil, the
+	// first element of Certificates will be used.
 	GetCertificate func(clientHello *ClientHelloInfo) (*Certificate, error)
 
 	// RootCAs defines the set of root certificate authorities
@@ -500,11 +503,16 @@ func (c *Config) mutualVersion(vers uint16) (uint16, bool) {
 // getCertificate returns the best certificate for the given ClientHelloInfo,
 // defaulting to the first element of c.Certificates.
 func (c *Config) getCertificate(clientHello *ClientHelloInfo) (*Certificate, error) {
-	if c.GetCertificate != nil {
+	if c.GetCertificate != nil &&
+		(len(c.Certificates) == 0 || len(clientHello.ServerName) > 0) {
 		cert, err := c.GetCertificate(clientHello)
 		if cert != nil || err != nil {
 			return cert, err
 		}
+	}
+
+	if len(c.Certificates) == 0 {
+		return nil, errors.New("crypto/tls: no certificates configured")
 	}
 
 	if len(c.Certificates) == 1 || c.NameToCertificate == nil {

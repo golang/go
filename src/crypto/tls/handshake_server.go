@@ -189,22 +189,14 @@ Curves:
 		}
 	}
 
-	if len(config.Certificates) == 0 {
+	if hs.cert, err = config.getCertificate(&ClientHelloInfo{
+		CipherSuites:    hs.clientHello.cipherSuites,
+		ServerName:      hs.clientHello.serverName,
+		SupportedCurves: hs.clientHello.supportedCurves,
+		SupportedPoints: hs.clientHello.supportedPoints,
+	}); err != nil {
 		c.sendAlert(alertInternalError)
-		return false, errors.New("tls: no certificates configured")
-	}
-	hs.cert = &config.Certificates[0]
-	if len(hs.clientHello.serverName) > 0 {
-		chi := &ClientHelloInfo{
-			CipherSuites:    hs.clientHello.cipherSuites,
-			ServerName:      hs.clientHello.serverName,
-			SupportedCurves: hs.clientHello.supportedCurves,
-			SupportedPoints: hs.clientHello.supportedPoints,
-		}
-		if hs.cert, err = config.getCertificate(chi); err != nil {
-			c.sendAlert(alertInternalError)
-			return false, err
-		}
+		return false, err
 	}
 	if hs.clientHello.scts {
 		hs.hello.scts = hs.cert.SignedCertificateTimestamps
