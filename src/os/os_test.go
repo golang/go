@@ -1040,6 +1040,57 @@ func TestChdirAndGetwd(t *testing.T) {
 	fd.Close()
 }
 
+// Test that Chdir+Getwd is program-wide.
+func TestProgWideChdir(t *testing.T) {
+	const N = 10
+	c := make(chan bool)
+	cpwd := make(chan string)
+	for i := 0; i < N; i++ {
+		go func(i int) {
+			// Lock half the goroutines in their own operating system
+			// thread to exercise more scheduler possibilities.
+			if i%2 == 1 {
+				// On Plan 9, after calling LockOSThread, the goroutines
+				// run on different processes which don't share the working
+				// directory. This used to be an issue because Go expects
+				// the working directory to be program-wide.
+				// See issue 9428.
+				runtime.LockOSThread()
+			}
+			<-c
+			pwd, err := Getwd()
+			if err != nil {
+				t.Fatal("Getwd: %v", err)
+			}
+			cpwd <- pwd
+		}(i)
+	}
+	oldwd, err := Getwd()
+	if err != nil {
+		t.Fatal("Getwd: %v", err)
+	}
+	d, err := ioutil.TempDir("", "test")
+	if err != nil {
+		t.Fatal("TempDir: %v", err)
+	}
+	defer func() {
+		if err := Chdir(oldwd); err != nil {
+			t.Fatal("Chdir: %v", err)
+		}
+		RemoveAll(d)
+	}()
+	if err := Chdir(d); err != nil {
+		t.Fatal("Chdir: %v", err)
+	}
+	close(c)
+	for i := 0; i < N; i++ {
+		pwd := <-cpwd
+		if pwd != d {
+			t.Errorf("Getwd returned %q want %q", pwd, d)
+		}
+	}
+}
+
 func TestSeek(t *testing.T) {
 	f := newFile("TestSeek", t)
 	defer Remove(f.Name())
