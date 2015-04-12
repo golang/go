@@ -108,12 +108,27 @@ type Arch struct {
 	Vput             func(uint64)
 }
 
+type Rpath struct {
+	set bool
+	val string
+}
+
+func (r *Rpath) Set(val string) error {
+	r.set = true
+	r.val = val
+	return nil
+}
+
+func (r *Rpath) String() string {
+	return r.val
+}
+
 var (
 	Thearch Arch
 	datap   *LSym
 	Debug   [128]int
 	Lcsize  int32
-	rpath   string
+	rpath   Rpath
 	Spsize  int32
 	Symsize int32
 )
@@ -935,8 +950,8 @@ func hostlink() {
 	argv = append(argv, "-o")
 	argv = append(argv, outfile)
 
-	if rpath != "" {
-		argv = append(argv, fmt.Sprintf("-Wl,-rpath,%s", rpath))
+	if rpath.val != "" {
+		argv = append(argv, fmt.Sprintf("-Wl,-rpath,%s", rpath.val))
 	}
 
 	// Force global symbols to be exported for dlopen, etc.
@@ -955,7 +970,9 @@ func hostlink() {
 		for _, shlib := range Ctxt.Shlibs {
 			dir, base := filepath.Split(shlib)
 			argv = append(argv, "-L"+dir)
-			argv = append(argv, "-Wl,-rpath="+dir)
+			if !rpath.set {
+				argv = append(argv, "-Wl,-rpath="+dir)
+			}
 			base = strings.TrimSuffix(base, ".so")
 			base = strings.TrimPrefix(base, "lib")
 			argv = append(argv, "-l"+base)

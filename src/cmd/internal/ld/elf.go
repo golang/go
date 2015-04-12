@@ -1818,8 +1818,8 @@ func doelf() {
 			Elfwritedynent(s, DT_RELENT, ELF32RELSIZE)
 		}
 
-		if rpath != "" {
-			Elfwritedynent(s, DT_RUNPATH, uint64(Addstring(dynstr, rpath)))
+		if rpath.val != "" {
+			Elfwritedynent(s, DT_RUNPATH, uint64(Addstring(dynstr, rpath.val)))
 		}
 
 		if Thearch.Thechar == '9' {

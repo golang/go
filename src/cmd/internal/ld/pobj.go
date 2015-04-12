@@ -115,7 +115,7 @@ func Ldmain() {
 	flag.BoolVar(&Linkshared, "linkshared", false, "link against installed Go shared libraries")
 	obj.Flagcount("n", "dump symbol table", &Debug['n'])
 	obj.Flagstr("o", "outfile: set output file", &outfile)
-	obj.Flagstr("r", "dir1:dir2:...: set ELF dynamic linker search path", &rpath)
+	flag.Var(&rpath, "r", "dir1:dir2:...: set ELF dynamic linker search path")
 	obj.Flagcount("race", "enable race detector", &flag_race)
 	obj.Flagcount("s", "disable symbol table", &Debug['s'])
 	var flagShared int
