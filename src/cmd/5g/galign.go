@@ -23,7 +23,7 @@ var MAXWIDTH int64 = (1 << 32) - 1
 
 /*
  * go declares several platform-specific type aliases:
- * int, uint, float, and uintptr
+ * int, uint, and uintptr
  */
 var typedefs = []gc.Typedef{
 	gc.Typedef{"int", gc.TINT, gc.TINT32},
@@ -35,7 +35,6 @@ func betypeinit() {
 	gc.Widthptr = 4
 	gc.Widthint = 4
 	gc.Widthreg = 4
-
 }
 
 func main() {
