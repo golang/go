@@ -60,3 +60,20 @@ func TestIssue6255(t *testing.T) {
 		t.Fatalf("Given sequence of bits is bad and should not succeed.")
 	}
 }
+
+func TestInvalidEncoding(t *testing.T) {
+	// Initialize Huffman decoder to recognize "0".
+	var h huffmanDecoder
+	if !h.init([]int{1}) {
+		t.Fatal("Failed to initialize Huffman decoder")
+	}
+
+	// Initialize decompressor with invalid Huffman coding.
+	var f decompressor
+	f.r = bytes.NewReader([]byte{0xff})
+
+	_, err := f.huffSym(&h)
+	if err == nil {
+		t.Fatal("Should have rejected invalid bit sequence")
+	}
+}
