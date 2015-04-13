@@ -308,6 +308,7 @@ var pkgsFilter = func(pkgs []*Package) []*Package { return pkgs }
 
 func buildModeInit() {
 	var codegenArg, ldBuildmode string
+	platform := goos + "/" + goarch
 	switch buildBuildmode {
 	case "archive":
 		pkgsFilter = pkgsNotMain
@@ -322,15 +323,15 @@ func buildModeInit() {
 		ldBuildmode = "c-archive"
 	case "c-shared":
 		pkgsFilter = pkgsMain
-		platform := goos + "/" + goarch
 		switch platform {
 		case "linux/amd64":
+			codegenArg = "-shared"
+			buildGcflags = append(buildGcflags, codegenArg)
+		case "linux/arm":
+			codegenArg = "-shared"
 		case "android/arm":
 		default:
 			fatalf("-buildmode=c-shared not supported on %s\n", platform)
-		}
-		if goarch == "amd64" {
-			codegenArg = "-shared"
 		}
 		ldBuildmode = "c-shared"
 	case "default":
@@ -342,11 +343,12 @@ func buildModeInit() {
 		fatalf("buildmode=%s not supported", buildBuildmode)
 	}
 	if buildLinkshared {
-		if goarch != "amd64" || goos != "linux" {
+		if platform != "linux/amd64" {
 			fmt.Fprintf(os.Stderr, "go %s: -linkshared is only supported on linux/amd64\n", flag.Args()[0])
 			os.Exit(2)
 		}
 		codegenArg = "-dynlink"
+		buildGcflags = append(buildGcflags, codegenArg)
 		// TODO(mwhudson): remove -w when that gets fixed in linker.
 		buildLdflags = append(buildLdflags, "-linkshared", "-w")
 	}
@@ -355,7 +357,6 @@ func buildModeInit() {
 	}
 	if codegenArg != "" {
 		buildAsmflags = append(buildAsmflags, codegenArg)
-		buildGcflags = append(buildGcflags, codegenArg)
 		if buildContext.InstallSuffix != "" {
 			buildContext.InstallSuffix += "_"
 		}
