@@ -8,6 +8,40 @@ import (
 	"unsafe"
 )
 
+func disableWER() {
+	// do not display Windows Error Reporting dialogue
+	const (
+		SEM_FAILCRITICALERRORS     = 0x0001
+		SEM_NOGPFAULTERRORBOX      = 0x0002
+		SEM_NOALIGNMENTFAULTEXCEPT = 0x0004
+		SEM_NOOPENFILEERRORBOX     = 0x8000
+	)
+	errormode := uint32(stdcall1(_SetErrorMode, SEM_NOGPFAULTERRORBOX))
+	stdcall1(_SetErrorMode, uintptr(errormode)|SEM_FAILCRITICALERRORS|SEM_NOGPFAULTERRORBOX|SEM_NOOPENFILEERRORBOX)
+}
+
+// in sys_windows_386.s and sys_windows_amd64.s
+func exceptiontramp()
+func firstcontinuetramp()
+func lastcontinuetramp()
+
+func initExceptionHandler() {
+	major, _ := getVersion()
+	stdcall2(_AddVectoredExceptionHandler, 1, funcPC(exceptiontramp))
+	if _AddVectoredContinueHandler == nil || unsafe.Sizeof(&_AddVectoredContinueHandler) == 4 || major < 6 {
+		// use SetUnhandledExceptionFilter for windows-386 or
+		// if VectoredContinueHandler is unavailable or
+		// if running windows-amd64 v5. V5 appears to fail to
+		// call the continue handlers if windows error reporting dialog
+		// is disabled.
+		// note: SetUnhandledExceptionFilter handler won't be called, if debugging.
+		stdcall1(_SetUnhandledExceptionFilter, funcPC(lastcontinuetramp))
+	} else {
+		stdcall2(_AddVectoredContinueHandler, 1, funcPC(firstcontinuetramp))
+		stdcall2(_AddVectoredContinueHandler, 0, funcPC(lastcontinuetramp))
+	}
+}
+
 func isgoexception(info *exceptionrecord, r *context) bool {
 	// Only handle exception if executing instructions in Go binary
 	// (not Windows library code).
@@ -16,17 +50,26 @@ func isgoexception(info *exceptionrecord, r *context) bool {
 		return false
 	}
 
-	if issigpanic(info.exceptioncode) == 0 {
+	// Go will only handle some exceptions.
+	switch info.exceptioncode {
+	default:
 		return false
+	case _EXCEPTION_ACCESS_VIOLATION:
+	case _EXCEPTION_INT_DIVIDE_BY_ZERO:
+	case _EXCEPTION_INT_OVERFLOW:
+	case _EXCEPTION_FLT_DENORMAL_OPERAND:
+	case _EXCEPTION_FLT_DIVIDE_BY_ZERO:
+	case _EXCEPTION_FLT_INEXACT_RESULT:
+	case _EXCEPTION_FLT_OVERFLOW:
+	case _EXCEPTION_FLT_UNDERFLOW:
+	case _EXCEPTION_BREAKPOINT:
 	}
-
 	return true
 }
 
 // Called by sigtramp from Windows VEH handler.
 // Return value signals whether the exception has been handled (EXCEPTION_CONTINUE_EXECUTION)
 // or should be made available to other handlers in the chain (EXCEPTION_CONTINUE_SEARCH).
-
 func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
 	if !isgoexception(info, r) {
 		return _EXCEPTION_CONTINUE_SEARCH
@@ -108,6 +151,51 @@ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
 	return 0 // not reached
 }
 
+func sigpanic() {
+	g := getg()
+	if !canpanic(g) {
+		throw("unexpected signal during runtime execution")
+	}
+
+	switch uint32(g.sig) {
+	case _EXCEPTION_ACCESS_VIOLATION:
+		if g.sigcode1 < 0x1000 || g.paniconfault {
+			panicmem()
+		}
+		print("unexpected fault address ", hex(g.sigcode1), "\n")
+		throw("fault")
+	case _EXCEPTION_INT_DIVIDE_BY_ZERO:
+		panicdivide()
+	case _EXCEPTION_INT_OVERFLOW:
+		panicoverflow()
+	case _EXCEPTION_FLT_DENORMAL_OPERAND,
+		_EXCEPTION_FLT_DIVIDE_BY_ZERO,
+		_EXCEPTION_FLT_INEXACT_RESULT,
+		_EXCEPTION_FLT_OVERFLOW,
+		_EXCEPTION_FLT_UNDERFLOW:
+		panicfloat()
+	}
+	throw("fault")
+}
+
+var (
+	badsignalmsg [100]byte
+	badsignallen int32
+)
+
+func setBadSignalMsg() {
+	const msg = "runtime: signal received on thread not created by Go.\n"
+	for i, c := range msg {
+		badsignalmsg[i] = byte(c)
+		badsignallen++
+	}
+}
+
+// Following are not implemented.
+
+func initsig() {
+}
+
 func sigenable(sig uint32) {
 }
 
@@ -115,4 +203,15 @@ func sigdisable(sig uint32) {
 }
 
 func sigignore(sig uint32) {
+}
+
+func crash() {
+	// TODO: This routine should do whatever is needed
+	// to make the Windows program abort/crash as it
+	// would if Go was not intercepting signals.
+	// On Unix the routine would remove the custom signal
+	// handler and then raise a signal (like SIGABRT).
+	// Something like that should happen here.
+	// It's okay to leave this empty for now: if crash returns
+	// the ordinary exit-after-panic happens.
 }
