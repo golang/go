@@ -40,7 +40,7 @@ TEXT runtime·open(SB),NOSPLIT,$-4
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$-4
+TEXT runtime·closefd(SB),NOSPLIT,$-4
 	MOVW	path+0(FP), R0		// arg 1 - path
 	MOVW	$6, R12			// sys_close
 	SWI	$0

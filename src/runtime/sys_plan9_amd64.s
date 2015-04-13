@@ -51,7 +51,7 @@ TEXT runtime·seek(SB),NOSPLIT,$32
 	MOVQ	$-1, ret+24(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$0
+TEXT runtime·closefd(SB),NOSPLIT,$0
 	MOVQ	$4, BP
 	SYSCALL
 	MOVL	AX, ret+8(FP)
