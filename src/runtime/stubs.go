@@ -33,7 +33,10 @@ func getg() *g
 // run other goroutines.
 //
 // mcall can only be called from g stacks (not g0, not gsignal).
-//go:noescape
+//
+// This must NOT be go:noescape: if fn is a stack-allocated closure,
+// fn puts g on a run queue, and g executes before fn returns, the
+// closure will be invalidated while it is still executing.
 func mcall(fn func(*g))
 
 // systemstack runs fn on a system stack.
