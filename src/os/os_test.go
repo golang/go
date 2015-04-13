@@ -1060,7 +1060,8 @@ func TestProgWideChdir(t *testing.T) {
 			<-c
 			pwd, err := Getwd()
 			if err != nil {
-				t.Fatal("Getwd: %v", err)
+				t.Errorf("Getwd on goroutine %d: %v", i, err)
+				return
 			}
 			cpwd <- pwd
 		}(i)
@@ -1082,11 +1083,17 @@ func TestProgWideChdir(t *testing.T) {
 	if err := Chdir(d); err != nil {
 		t.Fatal("Chdir: %v", err)
 	}
+	// OS X sets TMPDIR to a symbolic link.
+	// So we resolve our working directory again before the test.
+	d, err = Getwd()
+	if err != nil {
+		t.Fatal("Getwd: %v", err)
+	}
 	close(c)
 	for i := 0; i < N; i++ {
 		pwd := <-cpwd
 		if pwd != d {
-			t.Errorf("Getwd returned %q want %q", pwd, d)
+			t.Errorf("Getwd returned %q; want %q", pwd, d)
 		}
 	}
 }
