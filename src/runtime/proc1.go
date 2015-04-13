@@ -158,7 +158,15 @@ func ready(gp *g, traceskip int) {
 // readyExecute marks gp ready to run, preempt the current g, and execute gp.
 // This is used to start concurrent GC promptly when we reach its trigger.
 func readyExecute(gp *g, traceskip int) {
+	// Squirrel away gp so we don't allocate a closure for the
+	// mcall'd func below. If we allocate a closure, it could go
+	// away as soon as we put _g_ on the runqueue.
+	getg().readyg = gp
+
 	mcall(func(_g_ *g) {
+		gp := _g_.readyg
+		_g_.readyg = nil
+
 		if trace.enabled {
 			traceGoUnpark(gp, traceskip)
 			traceGoSched()
