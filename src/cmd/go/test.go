@@ -430,6 +430,10 @@ func runTest(cmd *Command, args []string) {
 
 		// Mark all the coverage packages for rebuilding with coverage.
 		for _, p := range testCoverPkgs {
+			// There is nothing to cover in package unsafe; it comes from the compiler.
+			if p.ImportPath == "unsafe" {
+				continue
+			}
 			p.Stale = true // rebuild
 			p.fake = true  // do not warn about rebuild
 			p.coverMode = testCoverMode
