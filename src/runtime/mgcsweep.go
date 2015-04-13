@@ -293,7 +293,6 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 	}
 	if trace.enabled {
 		traceGCSweepDone()
-		traceNextGC()
 	}
 	return res
 }
