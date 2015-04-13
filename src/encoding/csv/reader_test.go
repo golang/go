@@ -282,3 +282,25 @@ func TestRead(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkRead(b *testing.B) {
+	data := `x,y,z,w
+x,y,z,
+x,y,,
+x,,,
+,,,
+"x","y","z","w"
+"x","y","z",""
+"x","y","",""
+"x","","",""
+"","","",""
+`
+
+	for i := 0; i < b.N; i++ {
+		_, err := NewReader(strings.NewReader(data)).ReadAll()
+
+		if err != nil {
+			b.Fatalf("could not read data: %s", err)
+		}
+	}
+}
