@@ -186,6 +186,26 @@ func pixString(pix []byte, stride, x, y int) string {
 	return s.String()
 }
 
+func TestTruncatedSOSDataDoesntPanic(t *testing.T) {
+	b, err := ioutil.ReadFile("../testdata/video-005.gray.q50.jpeg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sosMarker := []byte{0xff, 0xda}
+	i := bytes.Index(b, sosMarker)
+	if i < 0 {
+		t.Fatal("SOS marker not found")
+	}
+	i += len(sosMarker)
+	j := i + 10
+	if j > len(b) {
+		j = len(b)
+	}
+	for ; i < j; i++ {
+		Decode(bytes.NewReader(b[:i]))
+	}
+}
+
 func TestExtraneousData(t *testing.T) {
 	// Encode a 1x1 red image.
 	src := image.NewRGBA(image.Rect(0, 0, 1, 1))
