@@ -4,15 +4,13 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#include <string.h>
 
-typedef struct { char *p; intmax_t n; } GoString;
 extern signed char DidInitRun();
 extern signed char DidMainRun();
-extern GoString FromPkg();
+extern int32_t FromPkg();
 
 int main(void) {
-	GoString res;
+	int32_t res;
 
 	if (DidMainRun()) {
 		fprintf(stderr, "ERROR: buildmode=c-archive should not run main\n");
@@ -25,8 +23,8 @@ int main(void) {
 	}
 
 	res = FromPkg();
-	if (strcmp(res.p, "str")) {
-		fprintf(stderr, "ERROR: FromPkg()='%s', want 'str'\n", res.p);
+	if (res != 1024) {
+		fprintf(stderr, "ERROR: FromPkg()=%d, want 1024\n", res);
 		return 2;
 	}
 
