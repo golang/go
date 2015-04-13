@@ -12,13 +12,13 @@ extern int32_t FromPkg();
 int main(void) {
 	int32_t res;
 
-	if (DidMainRun()) {
-		fprintf(stderr, "ERROR: buildmode=c-archive should not run main\n");
+	if (!DidInitRun()) {
+		fprintf(stderr, "ERROR: buildmode=c-archive init should run\n");
 		return 2;
 	}
 
-	if (!DidInitRun()) {
-		fprintf(stderr, "ERROR: buildmode=c-archive init should run\n");
+	if (DidMainRun()) {
+		fprintf(stderr, "ERROR: buildmode=c-archive should not run main\n");
 		return 2;
 	}
 

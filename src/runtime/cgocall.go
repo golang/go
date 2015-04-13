@@ -193,6 +193,14 @@ func cgocallbackg1() {
 		systemstack(newextram)
 	}
 
+	if gp.m.ncgo == 0 {
+		// The C call to Go came from a thread not currently running
+		// any Go. In the case of -buildmode=c-archive or c-shared,
+		// this call may be coming in before package initialization
+		// is complete. Wait until it is.
+		<-main_init_done
+	}
+
 	// Add entry to defer stack in case of panic.
 	restore := true
 	defer unwindm(&restore)
