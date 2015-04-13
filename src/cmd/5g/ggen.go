@@ -155,11 +155,11 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		}
 
 		// n2 * n1 -> (n1 n2)
-		p.Reg = n1.Val.U.Reg
+		p.Reg = n1.Reg
 
 		p.To.Type = obj.TYPE_REGREG
-		p.To.Reg = n1.Val.U.Reg
-		p.To.Offset = int64(n2.Val.U.Reg)
+		p.To.Reg = n1.Reg
+		p.To.Offset = int64(n2.Reg)
 
 	default:
 		gc.Fatal("cgen_hmul %v", gc.Tconv(t, 0))
@@ -349,10 +349,10 @@ func clearfat(nl *gc.Node) {
 	var r0 gc.Node
 	r0.Op = gc.OREGISTER
 
-	r0.Val.U.Reg = arm.REG_R0
+	r0.Reg = arm.REG_R0
 	var r1 gc.Node
 	r1.Op = gc.OREGISTER
-	r1.Val.U.Reg = arm.REG_R1
+	r1.Reg = arm.REG_R1
 	var dst gc.Node
 	gc.Regalloc(&dst, gc.Types[gc.Tptr], &r1)
 	gc.Agen(nl, &dst)

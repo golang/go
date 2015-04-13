@@ -802,7 +802,7 @@ func Mgen(n *Node, n1 *Node, rg *Node) {
 	if n.Addable {
 		*n1 = *n
 		if n1.Op == OREGISTER || n1.Op == OINDREG {
-			reg[n.Val.U.Reg-int16(Thearch.REGMIN)]++
+			reg[n.Reg-int16(Thearch.REGMIN)]++
 		}
 		return
 	}
@@ -1557,8 +1557,8 @@ func Igen(n *Node, a *Node, res *Node) {
 	case OINDREG:
 		// Increase the refcount of the register so that igen's caller
 		// has to call Regfree.
-		if n.Val.U.Reg != int16(Thearch.REGSP) {
-			reg[n.Val.U.Reg-int16(Thearch.REGMIN)]++
+		if n.Reg != int16(Thearch.REGSP) {
+			reg[n.Reg-int16(Thearch.REGMIN)]++
 		}
 		*a = *n
 		return
@@ -1595,7 +1595,7 @@ func Igen(n *Node, a *Node, res *Node) {
 		fp := Structfirst(&flist, Getoutarg(n.Left.Type))
 		*a = Node{}
 		a.Op = OINDREG
-		a.Val.U.Reg = int16(Thearch.REGSP)
+		a.Reg = int16(Thearch.REGSP)
 		a.Addable = true
 		a.Xoffset = fp.Width
 		if HasLinkRegister() {
@@ -2149,7 +2149,7 @@ func Ginscall(f *Node, proc int) {
 
 		// size of arguments at 0(SP)
 		stk.Op = OINDREG
-		stk.Val.U.Reg = int16(Thearch.REGSP)
+		stk.Reg = int16(Thearch.REGSP)
 		stk.Xoffset = 0
 		if HasLinkRegister() {
 			stk.Xoffset += int64(Ctxt.Arch.Ptrsize)
@@ -2337,7 +2337,7 @@ func cgen_callret(n *Node, res *Node) {
 
 	var nod Node
 	nod.Op = OINDREG
-	nod.Val.U.Reg = int16(Thearch.REGSP)
+	nod.Reg = int16(Thearch.REGSP)
 	nod.Addable = true
 
 	nod.Xoffset = fp.Width
@@ -2367,7 +2367,7 @@ func cgen_aret(n *Node, res *Node) {
 
 	var nod1 Node
 	nod1.Op = OINDREG
-	nod1.Val.U.Reg = int16(Thearch.REGSP)
+	nod1.Reg = int16(Thearch.REGSP)
 	nod1.Addable = true
 	nod1.Xoffset = fp.Width
 	if HasLinkRegister() {
@@ -2560,7 +2560,7 @@ func Fixlargeoffset(n *Node) {
 	if n.Op != OINDREG {
 		return
 	}
-	if n.Val.U.Reg == int16(Thearch.REGSP) { // stack offset cannot be large
+	if n.Reg == int16(Thearch.REGSP) { // stack offset cannot be large
 		return
 	}
 	if n.Xoffset != int64(int32(n.Xoffset)) {

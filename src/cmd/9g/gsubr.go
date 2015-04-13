@@ -645,7 +645,7 @@ func fixlargeoffset(n *gc.Node) {
 	if n.Op != gc.OINDREG {
 		return
 	}
-	if n.Val.U.Reg == ppc64.REGSP { // stack offset cannot be large
+	if n.Reg == ppc64.REGSP { // stack offset cannot be large
 		return
 	}
 	if n.Xoffset != int64(int32(n.Xoffset)) {

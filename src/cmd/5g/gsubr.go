@@ -399,7 +399,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 		gmove(f, &r1)
 		p1 := gins(arm.AMOVW, &r1, &r2)
 		p1.From.Type = obj.TYPE_SHIFT
-		p1.From.Offset = 2<<5 | 31<<7 | int64(r1.Val.U.Reg)&15 // r1->31
+		p1.From.Offset = 2<<5 | 31<<7 | int64(r1.Reg)&15 // r1->31
 		p1.From.Reg = 0
 
 		//print("gmove: %P\n", p1);
@@ -623,7 +623,7 @@ func samaddr(f *gc.Node, t *gc.Node) bool {
 
 	switch f.Op {
 	case gc.OREGISTER:
-		if f.Val.U.Reg != t.Val.U.Reg {
+		if f.Reg != t.Reg {
 			break
 		}
 		return true
@@ -741,7 +741,7 @@ func gshift(as int, lhs *gc.Node, stype int32, sval int32, rhs *gc.Node) *obj.Pr
 
 	p := gins(as, nil, rhs)
 	p.From.Type = obj.TYPE_SHIFT
-	p.From.Offset = int64(stype) | int64(sval)<<7 | int64(lhs.Val.U.Reg)&15
+	p.From.Offset = int64(stype) | int64(sval)<<7 | int64(lhs.Reg)&15
 	return p
 }
 
@@ -750,7 +750,7 @@ func gshift(as int, lhs *gc.Node, stype int32, sval int32, rhs *gc.Node) *obj.Pr
 func gregshift(as int, lhs *gc.Node, stype int32, reg *gc.Node, rhs *gc.Node) *obj.Prog {
 	p := gins(as, nil, rhs)
 	p.From.Type = obj.TYPE_SHIFT
-	p.From.Offset = int64(stype) | (int64(reg.Val.U.Reg)&15)<<8 | 1<<4 | int64(lhs.Val.U.Reg)&15
+	p.From.Offset = int64(stype) | (int64(reg.Reg)&15)<<8 | 1<<4 | int64(lhs.Reg)&15
 	return p
 }
 

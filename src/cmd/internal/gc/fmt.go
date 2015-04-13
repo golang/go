@@ -1100,7 +1100,7 @@ func exprfmt(n *Node, prec int) string {
 		return "... argument"
 
 	case OREGISTER:
-		return obj.Rconv(int(n.Val.U.Reg))
+		return obj.Rconv(int(n.Reg))
 
 	case OLITERAL: // this is a bit of a mess
 		if fmtmode == FErr {
@@ -1515,7 +1515,7 @@ func nodedump(n *Node, flag int) string {
 		fmt.Fprintf(&buf, "%v%v", Oconv(int(n.Op), 0), Jconv(n, 0))
 
 	case OREGISTER, OINDREG:
-		fmt.Fprintf(&buf, "%v-%v%v", Oconv(int(n.Op), 0), obj.Rconv(int(n.Val.U.Reg)), Jconv(n, 0))
+		fmt.Fprintf(&buf, "%v-%v%v", Oconv(int(n.Op), 0), obj.Rconv(int(n.Reg)), Jconv(n, 0))
 
 	case OLITERAL:
 		fmt.Fprintf(&buf, "%v-%v%v", Oconv(int(n.Op), 0), Vconv(&n.Val, 0), Jconv(n, 0))

@@ -188,11 +188,11 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		p1 := gins(arm.AMULLU, nil, nil)
 
 		p1.From.Type = obj.TYPE_REG
-		p1.From.Reg = bl.Val.U.Reg
-		p1.Reg = cl.Val.U.Reg
+		p1.From.Reg = bl.Reg
+		p1.Reg = cl.Reg
 		p1.To.Type = obj.TYPE_REGREG
-		p1.To.Reg = ah.Val.U.Reg
-		p1.To.Offset = int64(al.Val.U.Reg)
+		p1.To.Reg = ah.Reg
+		p1.To.Offset = int64(al.Reg)
 
 		//print("%P\n", p1);
 
@@ -200,11 +200,11 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		p1 = gins(arm.AMULA, nil, nil)
 
 		p1.From.Type = obj.TYPE_REG
-		p1.From.Reg = bl.Val.U.Reg
-		p1.Reg = ch.Val.U.Reg
+		p1.From.Reg = bl.Reg
+		p1.Reg = ch.Reg
 		p1.To.Type = obj.TYPE_REGREG2
-		p1.To.Reg = ah.Val.U.Reg
-		p1.To.Offset = int64(ah.Val.U.Reg)
+		p1.To.Reg = ah.Reg
+		p1.To.Offset = int64(ah.Reg)
 
 		//print("%P\n", p1);
 
@@ -212,11 +212,11 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		p1 = gins(arm.AMULA, nil, nil)
 
 		p1.From.Type = obj.TYPE_REG
-		p1.From.Reg = bh.Val.U.Reg
-		p1.Reg = cl.Val.U.Reg
+		p1.From.Reg = bh.Reg
+		p1.Reg = cl.Reg
 		p1.To.Type = obj.TYPE_REGREG2
-		p1.To.Reg = ah.Val.U.Reg
-		p1.To.Offset = int64(ah.Val.U.Reg)
+		p1.To.Reg = ah.Reg
+		p1.To.Offset = int64(ah.Reg)
 
 		//print("%P\n", p1);
 

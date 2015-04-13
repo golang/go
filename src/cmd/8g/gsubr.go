@@ -1421,7 +1421,7 @@ func floatmove_387(f *gc.Node, t *gc.Node) {
 			goto hard
 		}
 		if f.Op == gc.OREGISTER && t.Op == gc.OREGISTER {
-			if f.Val.U.Reg != x86.REG_F0 || t.Val.U.Reg != x86.REG_F0 {
+			if f.Reg != x86.REG_F0 || t.Reg != x86.REG_F0 {
 				goto fatal
 			}
 			return
@@ -1432,7 +1432,7 @@ func floatmove_387(f *gc.Node, t *gc.Node) {
 			a = x86.AFMOVD
 		}
 		if gc.Ismem(t) {
-			if f.Op != gc.OREGISTER || f.Val.U.Reg != x86.REG_F0 {
+			if f.Op != gc.OREGISTER || f.Reg != x86.REG_F0 {
 				gc.Fatal("gmove %v", gc.Nconv(f, 0))
 			}
 			a = x86.AFMOVFP
@@ -1446,7 +1446,7 @@ func floatmove_387(f *gc.Node, t *gc.Node) {
 			goto hard
 		}
 		if f.Op == gc.OREGISTER && t.Op == gc.OREGISTER {
-			if f.Val.U.Reg != x86.REG_F0 || t.Val.U.Reg != x86.REG_F0 {
+			if f.Reg != x86.REG_F0 || t.Reg != x86.REG_F0 {
 				goto fatal
 			}
 			return
@@ -1638,7 +1638,7 @@ func samaddr(f *gc.Node, t *gc.Node) bool {
 
 	switch f.Op {
 	case gc.OREGISTER:
-		if f.Val.U.Reg != t.Val.U.Reg {
+		if f.Reg != t.Reg {
 			break
 		}
 		return true
@@ -1658,7 +1658,7 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 	if as == x86.ACVTSD2SS && f != nil && f.Op == gc.OLITERAL {
 		gc.Fatal("gins CVTSD2SS const")
 	}
-	if as == x86.AMOVSD && t != nil && t.Op == gc.OREGISTER && t.Val.U.Reg == x86.REG_F0 {
+	if as == x86.AMOVSD && t != nil && t.Op == gc.OREGISTER && t.Reg == x86.REG_F0 {
 		gc.Fatal("gins MOVSD into F0")
 	}
 

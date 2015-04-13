@@ -230,7 +230,7 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		// TODO(minux): add gins3?
 		p1.Reg = p1.To.Reg
 
-		p1.To.Reg = tm.Val.U.Reg
+		p1.To.Reg = tm.Reg
 		gins(optoas(gc.OMUL, t), &tr, &tm)
 		gc.Regfree(&tr)
 		gins(optoas(gc.OSUB, t), &tm, &tl)

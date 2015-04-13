@@ -274,7 +274,7 @@ func savex(dr int, x *gc.Node, oldx *gc.Node, res *gc.Node, t *gc.Type) {
 func restx(x *gc.Node, oldx *gc.Node) {
 	if oldx.Op != 0 {
 		x.Type = gc.Types[gc.TINT64]
-		reg[x.Val.U.Reg] = uint8(oldx.Ostk)
+		reg[x.Reg] = uint8(oldx.Ostk)
 		gmove(oldx, x)
 		gc.Regfree(oldx)
 	}
@@ -469,9 +469,9 @@ func cgen_bmul(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) bool {
 		t = gc.Types[gc.TINT64]
 	}
 	var n1 gc.Node
-	gc.Nodreg(&n1, t, int(n1b.Val.U.Reg))
+	gc.Nodreg(&n1, t, int(n1b.Reg))
 	var n2 gc.Node
-	gc.Nodreg(&n2, t, int(n2b.Val.U.Reg))
+	gc.Nodreg(&n2, t, int(n2b.Reg))
 	a := optoas(op, t)
 	gins(a, &n2, &n1)
 
