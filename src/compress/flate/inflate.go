@@ -105,9 +105,6 @@ func (h *huffmanDecoder) init(bits []int) bool {
 	// Sanity enables additional runtime tests during Huffman
 	// table construction.  It's intended to be used during
 	// development to supplement the currently ad-hoc unit tests.
-	//
-	// TODO(mdempsky): TestIssue5962 and TestIssue6255 currently
-	// fail with these enabled.
 	const sanity = false
 
 	if h.min != 0 {
@@ -134,39 +131,41 @@ func (h *huffmanDecoder) init(bits []int) bool {
 		return false
 	}
 
-	h.min = min
-	var linkBits uint
-	var numLinks int
-	if max > huffmanChunkBits {
-		linkBits = uint(max) - huffmanChunkBits
-		numLinks = 1 << linkBits
-		h.linkMask = uint32(numLinks - 1)
-	}
 	code := 0
 	var nextcode [maxCodeLen]int
 	for i := min; i <= max; i++ {
-		if i == huffmanChunkBits+1 {
-			// create link tables
-			link := code >> 1
-			if huffmanNumChunks < link {
-				return false
-			}
-			h.links = make([][]uint32, huffmanNumChunks-link)
-			for j := uint(link); j < huffmanNumChunks; j++ {
-				reverse := int(reverseByte[j>>8]) | int(reverseByte[j&0xff])<<8
-				reverse >>= uint(16 - huffmanChunkBits)
-				off := j - uint(link)
-				if sanity && h.chunks[reverse] != 0 {
-					panic("impossible: overwriting existing chunk")
-				}
-				h.chunks[reverse] = uint32(off<<huffmanValueShift + uint(i))
-				h.links[off] = make([]uint32, 1<<linkBits)
-			}
-		}
-		n := count[i]
-		nextcode[i] = code
-		code += n
 		code <<= 1
+		nextcode[i] = code
+		code += count[i]
+	}
+
+	// Check that the coding is complete (i.e., that we've
+	// assigned all 2-to-the-max possible bit sequences).
+	// Exception: To be compatible with zlib, we also need to
+	// accept degenerate single-code codings.  See also
+	// TestDegenerateHuffmanCoding.
+	if code != 1<<uint(max) && !(code == 1 && max == 1) {
+		return false
+	}
+
+	h.min = min
+	if max > huffmanChunkBits {
+		numLinks := 1 << (uint(max) - huffmanChunkBits)
+		h.linkMask = uint32(numLinks - 1)
+
+		// create link tables
+		link := nextcode[huffmanChunkBits+1] >> 1
+		h.links = make([][]uint32, huffmanNumChunks-link)
+		for j := uint(link); j < huffmanNumChunks; j++ {
+			reverse := int(reverseByte[j>>8]) | int(reverseByte[j&0xff])<<8
+			reverse >>= uint(16 - huffmanChunkBits)
+			off := j - uint(link)
+			if sanity && h.chunks[reverse] != 0 {
+				panic("impossible: overwriting existing chunk")
+			}
+			h.chunks[reverse] = uint32(off<<huffmanValueShift | (huffmanChunkBits + 1))
+			h.links[off] = make([]uint32, numLinks)
+		}
 	}
 
 	for i, n := range bits {
@@ -179,7 +178,7 @@ func (h *huffmanDecoder) init(bits []int) bool {
 		reverse := int(reverseByte[code>>8]) | int(reverseByte[code&0xff])<<8
 		reverse >>= uint(16 - n)
 		if n <= huffmanChunkBits {
-			for off := reverse; off < huffmanNumChunks; off += 1 << uint(n) {
+			for off := reverse; off < len(h.chunks); off += 1 << uint(n) {
 				// We should never need to overwrite
 				// an existing chunk.  Also, 0 is
 				// never a valid chunk, because the
@@ -198,12 +197,9 @@ func (h *huffmanDecoder) init(bits []int) bool {
 				panic("impossible: not an indirect chunk")
 			}
 			value := h.chunks[j] >> huffmanValueShift
-			if value >= uint32(len(h.links)) {
-				return false
-			}
 			linktab := h.links[value]
 			reverse >>= huffmanChunkBits
-			for off := reverse; off < numLinks; off += 1 << uint(n-huffmanChunkBits) {
+			for off := reverse; off < len(linktab); off += 1 << uint(n-huffmanChunkBits) {
 				if sanity && linktab[off] != 0 {
 					panic("impossible: overwriting existing chunk")
 				}
