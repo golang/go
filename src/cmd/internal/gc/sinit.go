@@ -1363,7 +1363,7 @@ func iszero(n *Node) bool {
 			return n.Val.U.Sval == ""
 
 		case CTBOOL:
-			return n.Val.U.Bval == 0
+			return !n.Val.U.Bval
 
 		case CTINT, CTRUNE:
 			return mpcmpfixc(n.Val.U.Xval, 0) == 0

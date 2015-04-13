@@ -710,7 +710,7 @@ func nodnil() *Node {
 func Nodbool(b bool) *Node {
 	c := Nodintconst(0)
 	c.Val.Ctype = CTBOOL
-	c.Val.U.Bval = int16(bool2int(b))
+	c.Val.U.Bval = b
 	c.Type = idealbool
 	return c
 }

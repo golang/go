@@ -447,7 +447,7 @@ func intLiteral(n *gc.Node) (x int64, ok bool) {
 	case gc.CTINT, gc.CTRUNE:
 		return gc.Mpgetfix(n.Val.U.Xval), true
 	case gc.CTBOOL:
-		return int64(n.Val.U.Bval), true
+		return int64(bool2int(n.Val.U.Bval)), true
 	}
 	return
 }

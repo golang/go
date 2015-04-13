@@ -417,7 +417,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		case CTBOOL:
 			a.Sym = nil
 			a.Type = obj.TYPE_CONST
-			a.Offset = int64(n.Val.U.Bval)
+			a.Offset = int64(bool2int(n.Val.U.Bval))
 
 		case CTNIL:
 			a.Sym = nil
