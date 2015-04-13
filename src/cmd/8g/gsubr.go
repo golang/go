@@ -42,6 +42,13 @@ import (
 // At the same time, can raise StackBig in ../../runtime/stack.h.
 var unmappedzero uint32 = 4096
 
+// foptoas flags
+const (
+	Frev  = 1 << 0
+	Fpop  = 1 << 1
+	Fpop2 = 1 << 2
+)
+
 /*
  * return Axxx for Oxxx on type t.
  */

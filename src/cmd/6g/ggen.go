@@ -166,6 +166,8 @@ func appendpp(p *obj.Prog, as int, ftype int, freg int, foffset int64, ttype int
 	return q
 }
 
+var panicdiv *gc.Node
+
 /*
  * generate division.
  * generates one of:

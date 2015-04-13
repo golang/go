@@ -124,6 +124,8 @@ func ginsnop() {
 	gins(arm64.AHINT, &con, nil)
 }
 
+var panicdiv *gc.Node
+
 /*
  * generate division.
  * generates one of:
