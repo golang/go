@@ -37,6 +37,8 @@ const (
 	NREGVAR = 16 /* 8 integer + 8 floating */
 )
 
+var reg [x86.MAXREG]uint8
+
 var regname = []string{
 	".ax",
 	".cx",

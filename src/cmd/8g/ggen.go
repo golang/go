@@ -189,6 +189,8 @@ func clearfat(nl *gc.Node) {
 	}
 }
 
+var panicdiv *gc.Node
+
 /*
  * generate division.
  * caller must set:
