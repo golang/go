@@ -623,7 +623,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 				}
 			}
 		}
-		c.local_cachealloc += intptr(size)
+		c.local_cachealloc += size
 	} else {
 		var s *mspan
 		shouldhelpgc = true
