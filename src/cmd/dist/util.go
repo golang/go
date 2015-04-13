@@ -480,18 +480,6 @@ func xsamefile(f1, f2 string) bool {
 	return os.SameFile(fi1, fi2)
 }
 
-func cpuid(info *[4]uint32, ax uint32)
-
-func cansse2() bool {
-	if gohostarch != "386" && gohostarch != "amd64" {
-		return false
-	}
-
-	var info [4]uint32
-	cpuid(&info, 1)
-	return info[3]&(1<<26) != 0 // SSE2
-}
-
 func xgetgoarm() string {
 	if goos == "nacl" {
 		// NaCl guarantees VFPv3 and is always cross-compiled.
