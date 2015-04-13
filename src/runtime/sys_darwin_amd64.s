@@ -43,7 +43,7 @@ TEXT runtime·open(SB),NOSPLIT,$0
 	MOVL	AX, ret+16(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$0
+TEXT runtime·closefd(SB),NOSPLIT,$0
 	MOVL	fd+0(FP), DI		// arg 1 fd
 	MOVL	$(0x2000000+6), AX	// syscall entry
 	SYSCALL

@@ -68,7 +68,7 @@ done:
 	MOVW	R0, ret+16(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$-8-12
+TEXT runtime·closefd(SB),NOSPLIT,$-8-12
 	MOVW	fd+0(FP), R0
 	MOVD	$SYS_close, R8
 	SVC

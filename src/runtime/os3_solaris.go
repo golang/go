@@ -173,7 +173,7 @@ var urandom_dev = []byte("/dev/urandom\x00")
 func getRandomData(r []byte) {
 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
-	close(fd)
+	closefd(fd)
 	extendRandom(r, int(n))
 }
 
@@ -351,7 +351,7 @@ func semawakeup(mp *m) {
 }
 
 //go:nosplit
-func close(fd int32) int32 {
+func closefd(fd int32) int32 {
 	return int32(sysvicall1(libc_close, uintptr(fd)))
 }
 

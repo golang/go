@@ -18,7 +18,7 @@ func open(name *byte, mode, perm int32) int32 {
 	throw("unimplemented")
 	return -1
 }
-func close(fd int32) int32 {
+func closefd(fd int32) int32 {
 	throw("unimplemented")
 	return -1
 }

@@ -67,7 +67,7 @@ TEXT runtime·open(SB),NOSPLIT,$-8-20
 	MOVW	R3, ret+16(FP)
 	RETURN
 
-TEXT runtime·close(SB),NOSPLIT,$-8-12
+TEXT runtime·closefd(SB),NOSPLIT,$-8-12
 	MOVW	fd+0(FP), R3
 	SYSCALL	$SYS_close
 	BVC	2(PC)

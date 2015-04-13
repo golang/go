@@ -119,7 +119,7 @@ var Maxstring = &maxstring
 type Uintreg uintreg
 
 var Open = open
-var Close = close
+var Close = closefd
 var Read = read
 var Write = write
 
