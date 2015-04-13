@@ -394,6 +394,8 @@ var fmtTests = []struct {
 	{"%v", &slice, "&[1 2 3 4 5]"},
 	{"%v", &islice, "&[1 hello 2.5 <nil>]"},
 	{"%v", &bslice, "&[1 2 3 4 5]"},
+	{"%v", []byte{1}, "[1]"},
+	{"%v", []byte{}, "[]"},
 
 	// complexes with %v
 	{"%v", 1 + 2i, "(1+2i)"},
@@ -447,6 +449,12 @@ var fmtTests = []struct {
 	{"%d", []int{1, 2, 15}, `[1 2 15]`},
 	{"%d", []byte{1, 2, 15}, `[1 2 15]`},
 	{"%q", []string{"a", "b"}, `["a" "b"]`},
+	{"% 02x", []byte{1}, "01"},
+	{"% 02x", []byte{1, 2, 3}, "01 02 03"},
+	// Special care for empty slices.
+	{"%x", []byte{}, ""},
+	{"%02x", []byte{}, ""},
+	{"% 02x", []byte{}, ""},
 
 	// renamings
 	{"%v", renamedBool(true), "true"},
