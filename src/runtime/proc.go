@@ -12,6 +12,12 @@ func runtime_init()
 //go:linkname main_init main.init
 func main_init()
 
+// main_init_done is a signal used by cgocallbackg that initialization
+// has been completed. It is made before _cgo_notify_runtime_init_done,
+// so all cgo calls can rely on it existing. When main_init is complete,
+// it is closed, meaning cgocallbackg can reliably receive from it.
+var main_init_done chan bool
+
 //go:linkname main_main main.main
 func main_main()
 
@@ -70,6 +76,7 @@ func main() {
 		// Allocate new M as main_main() is expected to block forever.
 		systemstack(newextram)
 	}
+	main_init_done = make(chan bool)
 	if iscgo {
 		if _cgo_thread_start == nil {
 			throw("_cgo_thread_start missing")
@@ -95,6 +102,7 @@ func main() {
 	}
 
 	main_init()
+	close(main_init_done)
 
 	needUnlock = false
 	unlockOSThread()
