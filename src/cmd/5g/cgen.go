@@ -116,13 +116,13 @@ func stackcopy(n, res *gc.Node, osrc, odst, w int64) {
 	if op == arm.AMOVW && !gc.Nacl && dir > 0 && c >= 4 && c <= 128 {
 		var r0 gc.Node
 		r0.Op = gc.OREGISTER
-		r0.Val.U.Reg = arm.REG_R0
+		r0.Reg = arm.REG_R0
 		var r1 gc.Node
 		r1.Op = gc.OREGISTER
-		r1.Val.U.Reg = arm.REG_R0 + 1
+		r1.Reg = arm.REG_R0 + 1
 		var r2 gc.Node
 		r2.Op = gc.OREGISTER
-		r2.Val.U.Reg = arm.REG_R0 + 2
+		r2.Reg = arm.REG_R0 + 2
 
 		var src gc.Node
 		gc.Regalloc(&src, gc.Types[gc.Tptr], &r1)

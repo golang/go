@@ -75,7 +75,7 @@ func Samereg(a *Node, b *Node) bool {
 	if b.Op != OREGISTER {
 		return false
 	}
-	if a.Val.U.Reg != b.Val.U.Reg {
+	if a.Reg != b.Reg {
 		return false
 	}
 	return true
@@ -135,7 +135,7 @@ func Nodreg(n *Node, t *Type, r int) {
 	n.Op = OREGISTER
 	n.Addable = true
 	ullmancalc(n)
-	n.Val.U.Reg = int16(r)
+	n.Reg = int16(r)
 	n.Type = t
 }
 
@@ -304,7 +304,7 @@ func Naddr(a *obj.Addr, n *Node) {
 
 	case OREGISTER:
 		a.Type = obj.TYPE_REG
-		a.Reg = n.Val.U.Reg
+		a.Reg = n.Reg
 		a.Sym = nil
 		if Thearch.Thechar == '8' { // TODO(rsc): Never clear a->width.
 			a.Width = 0
@@ -312,7 +312,7 @@ func Naddr(a *obj.Addr, n *Node) {
 
 	case OINDREG:
 		a.Type = obj.TYPE_MEM
-		a.Reg = n.Val.U.Reg
+		a.Reg = n.Reg
 		a.Sym = Linksym(n.Sym)
 		a.Offset = n.Xoffset
 		if a.Offset != int64(int32(a.Offset)) {
@@ -561,7 +561,7 @@ fp:
 	case 0: // output arg
 		n.Op = OINDREG
 
-		n.Val.U.Reg = int16(Thearch.REGSP)
+		n.Reg = int16(Thearch.REGSP)
 		if HasLinkRegister() {
 			n.Xoffset += int64(Ctxt.Arch.Ptrsize)
 		}
@@ -673,7 +673,7 @@ Switch:
 
 	case TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64, TUINT64, TPTR32, TPTR64, TBOOL:
 		if o != nil && o.Op == OREGISTER {
-			i = int(o.Val.U.Reg)
+			i = int(o.Reg)
 			if Thearch.REGMIN <= i && i <= Thearch.REGMAX {
 				break Switch
 			}
@@ -693,7 +693,7 @@ Switch:
 			break Switch
 		}
 		if o != nil && o.Op == OREGISTER {
-			i = int(o.Val.U.Reg)
+			i = int(o.Reg)
 			if Thearch.FREGMIN <= i && i <= Thearch.FREGMAX {
 				break Switch
 			}
@@ -732,7 +732,7 @@ func Regfree(n *Node) {
 	if n.Op != OREGISTER && n.Op != OINDREG {
 		Fatal("regfree: not a register")
 	}
-	i := int(n.Val.U.Reg)
+	i := int(n.Reg)
 	if i == Thearch.REGSP {
 		return
 	}
@@ -773,7 +773,7 @@ func Regrealloc(n *Node) {
 	if n.Op != OREGISTER && n.Op != OINDREG {
 		Fatal("regrealloc: not a register")
 	}
-	i := int(n.Val.U.Reg)
+	i := int(n.Reg)
 	if i == Thearch.REGSP {
 		return
 	}

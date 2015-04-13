@@ -84,7 +84,6 @@ type Mpcplx struct {
 type Val struct {
 	Ctype int16
 	U     struct {
-		Reg  int16   // OREGISTER
 		Bval bool    // bool value CTBOOL
 		Xval *Mpint  // int CTINT, rune CTRUNE
 		Fval *Mpflt  // float CTFLT
