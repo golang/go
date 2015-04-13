@@ -218,7 +218,7 @@ func (s *exprSwitch) walk(sw *Node) {
 	s.kind = switchKindExpr
 	if Isconst(sw.Ntest, CTBOOL) {
 		s.kind = switchKindTrue
-		if sw.Ntest.Val.U.Bval == 0 {
+		if !sw.Ntest.Val.U.Bval {
 			s.kind = switchKindFalse
 		}
 	}

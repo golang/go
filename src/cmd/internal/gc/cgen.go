@@ -1690,7 +1690,7 @@ func Bgen(n *Node, true_ bool, likely int, to *obj.Prog) {
 
 		// need to ask if it is bool?
 	case OLITERAL:
-		if !true_ == (n.Val.U.Bval == 0) {
+		if true_ == n.Val.U.Bval {
 			Patch(Gbranch(obj.AJMP, nil, likely), to)
 		}
 		return

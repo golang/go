@@ -344,7 +344,7 @@ func Vconv(v *Val, flag int) string {
 		return strconv.Quote(v.U.Sval)
 
 	case CTBOOL:
-		if v.U.Bval != 0 {
+		if v.U.Bval {
 			return "true"
 		}
 		return "false"

@@ -650,7 +650,7 @@ func evconst(n *Node) {
 			mpnegflt(&v.U.Cval.Imag)
 
 		case ONOT<<16 | CTBOOL:
-			if v.U.Bval == 0 {
+			if !v.U.Bval {
 				goto settrue
 			}
 			goto setfalse
@@ -990,13 +990,13 @@ func evconst(n *Node) {
 		goto setfalse
 
 	case OOROR<<16 | CTBOOL:
-		if v.U.Bval != 0 || rv.U.Bval != 0 {
+		if v.U.Bval || rv.U.Bval {
 			goto settrue
 		}
 		goto setfalse
 
 	case OANDAND<<16 | CTBOOL:
-		if v.U.Bval != 0 && rv.U.Bval != 0 {
+		if v.U.Bval && rv.U.Bval {
 			goto settrue
 		}
 		goto setfalse
@@ -1418,7 +1418,7 @@ func Convconst(con *Node, t *Type, val *Val) {
 			i = Mpgetfix(val.U.Xval)
 
 		case CTBOOL:
-			i = int64(val.U.Bval)
+			i = int64(bool2int(val.U.Bval))
 
 		case CTNIL:
 			i = 0
