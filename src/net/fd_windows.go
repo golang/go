@@ -5,7 +5,7 @@
 package net
 
 import (
-	"errors"
+	"io"
 	"os"
 	"runtime"
 	"sync"
@@ -154,7 +154,7 @@ func (s *ioSrv) ExecIO(o *operation, name string, submit func(o *operation) erro
 	// Notify runtime netpoll about starting IO.
 	err := fd.pd.Prepare(int(o.mode))
 	if err != nil {
-		return 0, &OpError{name, fd.net, fd.laddr, err}
+		return 0, err
 	}
 	// Start IO.
 	if canCancelIO {
@@ -177,7 +177,7 @@ func (s *ioSrv) ExecIO(o *operation, name string, submit func(o *operation) erro
 		// IO started, and we have to wait for its completion.
 		err = nil
 	default:
-		return 0, &OpError{name, fd.net, fd.laddr, err}
+		return 0, err
 	}
 	// Wait for our request to complete.
 	err = fd.pd.Wait(int(o.mode))
@@ -185,7 +185,7 @@ func (s *ioSrv) ExecIO(o *operation, name string, submit func(o *operation) erro
 		// All is good. Extract our IO results and return.
 		if o.errno != 0 {
 			err = syscall.Errno(o.errno)
-			return 0, &OpError{name, fd.net, fd.laddr, err}
+			return 0, err
 		}
 		return int(o.qty), nil
 	}
@@ -216,7 +216,7 @@ func (s *ioSrv) ExecIO(o *operation, name string, submit func(o *operation) erro
 		if err == syscall.ERROR_OPERATION_ABORTED { // IO Canceled
 			err = netpollErr
 		}
-		return 0, &OpError{name, fd.net, fd.laddr, err}
+		return 0, err
 	}
 	// We issued cancellation request. But, it seems, IO operation succeeded
 	// before cancellation request run. We need to treat IO operation as
@@ -455,7 +455,7 @@ func (fd *netFD) closeWrite() error {
 
 func (fd *netFD) Read(buf []byte) (int, error) {
 	if err := fd.readLock(); err != nil {
-		return 0, err
+		return 0, &OpError{Op: "read", Net: fd.net, Addr: fd.raddr, Err: err}
 	}
 	defer fd.readUnlock()
 	o := &fd.rop
@@ -467,20 +467,23 @@ func (fd *netFD) Read(buf []byte) (int, error) {
 		raceAcquire(unsafe.Pointer(&ioSync))
 	}
 	err = fd.eofError(n, err)
+	if err != nil && err != io.EOF {
+		err = &OpError{Op: "read", Net: fd.net, Addr: fd.raddr, Err: err}
+	}
 	return n, err
 }
 
-func (fd *netFD) readFrom(buf []byte) (n int, sa syscall.Sockaddr, err error) {
+func (fd *netFD) readFrom(buf []byte) (int, syscall.Sockaddr, error) {
 	if len(buf) == 0 {
 		return 0, nil, nil
 	}
 	if err := fd.readLock(); err != nil {
-		return 0, nil, err
+		return 0, nil, &OpError{Op: "read", Net: fd.net, Addr: fd.laddr, Err: err}
 	}
 	defer fd.readUnlock()
 	o := &fd.rop
 	o.InitBuf(buf)
-	n, err = rsrv.ExecIO(o, "WSARecvFrom", func(o *operation) error {
+	n, err := rsrv.ExecIO(o, "WSARecvFrom", func(o *operation) error {
 		if o.rsa == nil {
 			o.rsa = new(syscall.RawSockaddrAny)
 		}
@@ -488,16 +491,16 @@ func (fd *netFD) readFrom(buf []byte) (n int, sa syscall.Sockaddr, err error) {
 		return syscall.WSARecvFrom(o.fd.sysfd, &o.buf, 1, &o.qty, &o.flags, o.rsa, &o.rsan, &o.o, nil)
 	})
 	err = fd.eofError(n, err)
-	if err != nil {
-		return 0, nil, err
+	if err != nil && err != io.EOF {
+		err = &OpError{Op: "read", Net: fd.net, Addr: fd.laddr, Err: err}
 	}
-	sa, _ = o.rsa.Sockaddr()
-	return
+	sa, _ := o.rsa.Sockaddr()
+	return n, sa, err
 }
 
 func (fd *netFD) Write(buf []byte) (int, error) {
 	if err := fd.writeLock(); err != nil {
-		return 0, err
+		return 0, &OpError{Op: "write", Net: fd.net, Addr: fd.raddr, Err: err}
 	}
 	defer fd.writeUnlock()
 	if raceenabled {
@@ -505,9 +508,13 @@ func (fd *netFD) Write(buf []byte) (int, error) {
 	}
 	o := &fd.wop
 	o.InitBuf(buf)
-	return wsrv.ExecIO(o, "WSASend", func(o *operation) error {
+	n, err := wsrv.ExecIO(o, "WSASend", func(o *operation) error {
 		return syscall.WSASend(o.fd.sysfd, &o.buf, 1, &o.qty, 0, &o.o, nil)
 	})
+	if err != nil {
+		err = &OpError{Op: "write", Net: fd.net, Addr: fd.raddr, Err: err}
+	}
+	return n, err
 }
 
 func (fd *netFD) writeTo(buf []byte, sa syscall.Sockaddr) (int, error) {
@@ -515,15 +522,19 @@ func (fd *netFD) writeTo(buf []byte, sa syscall.Sockaddr) (int, error) {
 		return 0, nil
 	}
 	if err := fd.writeLock(); err != nil {
-		return 0, err
+		return 0, &OpError{Op: "write", Net: fd.net, Addr: fd.laddr, Err: err}
 	}
 	defer fd.writeUnlock()
 	o := &fd.wop
 	o.InitBuf(buf)
 	o.sa = sa
-	return wsrv.ExecIO(o, "WSASendto", func(o *operation) error {
+	n, err := wsrv.ExecIO(o, "WSASendto", func(o *operation) error {
 		return syscall.WSASendto(o.fd.sysfd, &o.buf, 1, &o.qty, 0, o.sa, &o.o, nil)
 	})
+	if err != nil {
+		err = &OpError{Op: "write", Net: fd.net, Addr: fd.laddr, Err: err}
+	}
+	return n, err
 }
 
 func (fd *netFD) acceptOne(rawsa []syscall.RawSockaddrAny, o *operation) (*netFD, error) {
@@ -620,12 +631,10 @@ func (fd *netFD) dup() (*os.File, error) {
 	return nil, os.NewSyscallError("dup", syscall.EWINDOWS)
 }
 
-var errNoSupport = errors.New("address family not supported")
-
 func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
-	return 0, 0, 0, nil, errNoSupport
+	return 0, 0, 0, nil, &OpError{Op: "read", Net: fd.net, Addr: fd.laddr, Err: syscall.EWINDOWS}
 }
 
 func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
-	return 0, 0, errNoSupport
+	return 0, 0, &OpError{Op: "write", Net: fd.net, Addr: fd.laddr, Err: syscall.EWINDOWS}
 }

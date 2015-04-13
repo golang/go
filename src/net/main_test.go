@@ -41,10 +41,6 @@ var (
 	// If external IPv6 connectivity exists, we can try dialing
 	// non-node/interface local scope IPv6 addresses.
 	testIPv6 = flag.Bool("ipv6", false, "assume external IPv6 connectivity exists")
-
-	// BUG: TestDialError has been broken, and so this flag
-	// exists. We should fix the test and remove this flag soon.
-	runErrorTest = flag.Bool("run_error_test", false, "let TestDialError check for DNS errors")
 )
 
 func TestMain(m *testing.M) {

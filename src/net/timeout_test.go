@@ -51,19 +51,13 @@ func TestDialTimeout(t *testing.T) {
 	case <-tmo.C:
 		t.Fatal("dial has not returned")
 	case err := <-ch:
-		nerr, ok := err.(Error)
-		if !ok {
-			t.Fatalf("got %v; want error implements Error interface", err)
+		if perr := parseDialError(err); perr != nil {
+			t.Error(perr)
 		}
-		if !nerr.Timeout() {
-			t.Fatalf("got %v; want timeout error", err)
+		if !isTimeoutError(err) {
+			t.Fatalf("got %v; want timeout", err)
 		}
 	}
-}
-
-func isTimeout(err error) bool {
-	e, ok := err.(Error)
-	return ok && e.Timeout()
 }
 
 type copyRes struct {
@@ -84,17 +78,17 @@ func TestAcceptTimeout(t *testing.T) {
 	}
 	defer ln.Close()
 	ln.(*TCPListener).SetDeadline(time.Now().Add(-1 * time.Second))
-	if _, err := ln.Accept(); !isTimeout(err) {
+	if _, err := ln.Accept(); !isTimeoutError(err) {
 		t.Fatalf("Accept: expected err %v, got %v", errTimeout, err)
 	}
-	if _, err := ln.Accept(); !isTimeout(err) {
+	if _, err := ln.Accept(); !isTimeoutError(err) {
 		t.Fatalf("Accept: expected err %v, got %v", errTimeout, err)
 	}
 	ln.(*TCPListener).SetDeadline(time.Now().Add(100 * time.Millisecond))
-	if _, err := ln.Accept(); !isTimeout(err) {
+	if _, err := ln.Accept(); !isTimeoutError(err) {
 		t.Fatalf("Accept: expected err %v, got %v", errTimeout, err)
 	}
-	if _, err := ln.Accept(); !isTimeout(err) {
+	if _, err := ln.Accept(); !isTimeoutError(err) {
 		t.Fatalf("Accept: expected err %v, got %v", errTimeout, err)
 	}
 	ln.(*TCPListener).SetDeadline(noDeadline)
@@ -141,17 +135,17 @@ func TestReadTimeout(t *testing.T) {
 	c.SetDeadline(time.Now().Add(time.Hour))
 	c.SetReadDeadline(time.Now().Add(-1 * time.Second))
 	buf := make([]byte, 1)
-	if _, err = c.Read(buf); !isTimeout(err) {
+	if _, err = c.Read(buf); !isTimeoutError(err) {
 		t.Fatalf("Read: expected err %v, got %v", errTimeout, err)
 	}
-	if _, err = c.Read(buf); !isTimeout(err) {
+	if _, err = c.Read(buf); !isTimeoutError(err) {
 		t.Fatalf("Read: expected err %v, got %v", errTimeout, err)
 	}
 	c.SetDeadline(time.Now().Add(100 * time.Millisecond))
-	if _, err = c.Read(buf); !isTimeout(err) {
+	if _, err = c.Read(buf); !isTimeoutError(err) {
 		t.Fatalf("Read: expected err %v, got %v", errTimeout, err)
 	}
-	if _, err = c.Read(buf); !isTimeout(err) {
+	if _, err = c.Read(buf); !isTimeoutError(err) {
 		t.Fatalf("Read: expected err %v, got %v", errTimeout, err)
 	}
 	c.SetReadDeadline(noDeadline)
@@ -206,7 +200,7 @@ func TestWriteTimeout(t *testing.T) {
 		for {
 			_, err := c.Write(buf)
 			if err != nil {
-				if isTimeout(err) {
+				if isTimeoutError(err) {
 					return
 				}
 				t.Fatalf("Write: expected err %v, got %v", errTimeout, err)
@@ -563,7 +557,7 @@ func testVariousDeadlines(t *testing.T, maxProcs int) {
 			tooLong := 5 * time.Second
 			select {
 			case res := <-clientc:
-				if isTimeout(res.err) {
+				if isTimeoutError(res.err) {
 					t.Logf("for %v, good client timeout after %v, reading %d bytes", name, res.d, res.n)
 				} else {
 					t.Fatalf("for %v: client Copy = %d, %v (want timeout)", name, res.n, res.err)
@@ -624,7 +618,7 @@ func TestReadDeadlineDataAvailable(t *testing.T) {
 	c.SetReadDeadline(time.Now().Add(-5 * time.Second)) // in the psat.
 	buf := make([]byte, len(msg)/2)
 	n, err := c.Read(buf)
-	if n > 0 || !isTimeout(err) {
+	if n > 0 || !isTimeoutError(err) {
 		t.Fatalf("client read = %d (%q) err=%v; want 0, timeout", n, buf[:n], err)
 	}
 }
@@ -667,7 +661,7 @@ func TestWriteDeadlineBufferAvailable(t *testing.T) {
 	if res.n != 0 {
 		t.Errorf("Write = %d; want 0", res.n)
 	}
-	if !isTimeout(res.err) {
+	if !isTimeoutError(res.err) {
 		t.Errorf("Write error = %v; want timeout", res.err)
 	}
 }
@@ -702,7 +696,7 @@ func TestAcceptDeadlineConnectionAvailable(t *testing.T) {
 	if err == nil {
 		defer c.Close()
 	}
-	if !isTimeout(err) {
+	if !isTimeoutError(err) {
 		t.Fatalf("Accept: got %v; want timeout", err)
 	}
 }
@@ -727,8 +721,11 @@ func TestConnectDeadlineInThePast(t *testing.T) {
 	if err == nil {
 		defer c.Close()
 	}
-	if !isTimeout(err) {
-		t.Fatalf("DialTimeout: got %v; want timeout", err)
+	if perr := parseDialError(err); perr != nil {
+		t.Error(perr)
+	}
+	if !isTimeoutError(err) {
+		t.Fatalf("got %v; want timeout", err)
 	}
 }
 
