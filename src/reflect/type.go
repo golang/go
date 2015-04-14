@@ -1009,8 +1009,8 @@ func (t *structType) FieldByName(name string) (f StructField, present bool) {
 	return t.FieldByNameFunc(func(s string) bool { return s == name })
 }
 
-// TypeOf returns the reflection Type of the value in the interface{}.
-// TypeOf(nil) returns nil.
+// TypeOf returns the reflection Type that represents the dynamic type of i.
+// If i is a nil interface value, TypeOf returns nil.
 func TypeOf(i interface{}) Type {
 	eface := *(*emptyInterface)(unsafe.Pointer(&i))
 	return toType(eface.typ)
