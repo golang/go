@@ -47,7 +47,7 @@ func TestStdlib(t *testing.T) {
 	}
 
 	// Create SSA packages.
-	prog := ssa.Create(iprog, 0)
+	prog := ssautil.CreateProgram(iprog, 0)
 	prog.BuildAll()
 
 	numPkgs := len(prog.AllPackages())

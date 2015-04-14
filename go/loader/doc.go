@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package loader loads, parses and type-checks packages of Go code
-// plus their transitive closure, and retains both the ASTs and the
-// derived facts.
+// Package loader loads a complete Go program from source code, parsing
+// and type-checking the initial packages plus their transitive closure
+// of dependencies.  The ASTs and the derived facts are retained for
+// later use.
 //
 // THIS INTERFACE IS EXPERIMENTAL AND IS LIKELY TO CHANGE.
 //
@@ -25,11 +26,11 @@
 //      // See FromArgsUsage for help.
 //      rest, err := conf.FromArgs(os.Args[1:], wantTests)
 //
-//      // Parse the specified files and create an ad-hoc package with path "foo".
+//      // Parse the specified files and create an ad hoc package with path "foo".
 //      // All files must have the same 'package' declaration.
 //      conf.CreateFromFilenames("foo", "foo.go", "bar.go")
 //
-//      // Create an ad-hoc package with path "foo" from
+//      // Create an ad hoc package with path "foo" from
 //      // the specified already-parsed files.
 //      // All ASTs must have the same 'package' declaration.
 //      conf.CreateFromFiles("foo", parsedFiles)
@@ -49,7 +50,7 @@
 //
 // CONCEPTS AND TERMINOLOGY
 //
-// An AD-HOC package is one specified as a set of source files on the
+// An AD HOC package is one specified as a set of source files on the
 // command line.  In the simplest case, it may consist of a single file
 // such as $GOROOT/src/net/http/triv.go.
 //
@@ -61,10 +62,10 @@
 // spec.  The Path() of each importable package is unique within a
 // Program.
 //
-// Ad-hoc packages and external test packages are NON-IMPORTABLE.  The
-// Path() of an ad-hoc package is inferred from the package
+// ad hoc packages and external test packages are NON-IMPORTABLE.  The
+// Path() of an ad hoc package is inferred from the package
 // declarations of its files and is therefore not a unique package key.
-// For example, Config.CreatePkgs may specify two initial ad-hoc
+// For example, Config.CreatePkgs may specify two initial ad hoc
 // packages both called "main".
 //
 // An AUGMENTED package is an importable package P plus all the
@@ -125,7 +126,7 @@ package loader
 // list of files passed to (Checker).Files at once.  Many of these lists
 // are the production code of an importable Go package, so those nodes
 // are labelled by the package's import path.  The remaining nodes are
-// ad-hoc packages and lists of in-package *_test.go files that augment
+// ad hoc packages and lists of in-package *_test.go files that augment
 // an importable package; those nodes have no label.
 //
 // The edges of the graph represent import statements appearing within a

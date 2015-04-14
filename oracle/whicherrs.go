@@ -47,7 +47,7 @@ func whicherrs(q *Query) error {
 		return err
 	}
 
-	prog := ssa.Create(lprog, ssa.GlobalDebug)
+	prog := ssautil.CreateProgram(lprog, ssa.GlobalDebug)
 
 	ptaConfig, err := setupPTA(prog, lprog, q.PTALog, q.Reflection)
 	if err != nil {

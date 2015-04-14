@@ -393,7 +393,7 @@ func Run(pta bool, result *Result) {
 
 	// Create SSA-form program representation.
 	// Only the transitively error-free packages are used.
-	prog := ssa.Create(iprog, ssa.GlobalDebug)
+	prog := ssautil.CreateProgram(iprog, ssa.GlobalDebug)
 
 	// Compute the set of main packages, including testmain.
 	allPackages := prog.AllPackages()

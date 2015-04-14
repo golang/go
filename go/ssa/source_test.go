@@ -20,6 +20,7 @@ import (
 	"golang.org/x/tools/go/exact"
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/ssa"
+	"golang.org/x/tools/go/ssa/ssautil"
 	"golang.org/x/tools/go/types"
 )
 
@@ -54,7 +55,7 @@ func TestObjValueLookup(t *testing.T) {
 		return
 	}
 
-	prog := ssa.Create(iprog, 0 /*|ssa.PrintFunctions*/)
+	prog := ssautil.CreateProgram(iprog, 0 /*|ssa.PrintFunctions*/)
 	mainInfo := iprog.Created[0]
 	mainPkg := prog.Package(mainInfo.Pkg)
 	mainPkg.SetDebugMode(true)
@@ -204,7 +205,7 @@ func TestValueForExpr(t *testing.T) {
 
 	mainInfo := iprog.Created[0]
 
-	prog := ssa.Create(iprog, 0)
+	prog := ssautil.CreateProgram(iprog, 0)
 	mainPkg := prog.Package(mainInfo.Pkg)
 	mainPkg.SetDebugMode(true)
 	mainPkg.Build()

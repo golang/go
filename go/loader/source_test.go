@@ -16,6 +16,7 @@ import (
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/ssa"
+	"golang.org/x/tools/go/ssa/ssautil"
 )
 
 // findInterval parses input and returns the [start, end) positions of
@@ -100,7 +101,7 @@ func TestEnclosingFunction(t *testing.T) {
 			t.Error(err)
 			continue
 		}
-		prog := ssa.Create(iprog, 0)
+		prog := ssautil.CreateProgram(iprog, 0)
 		pkg := prog.Package(iprog.Created[0].Pkg)
 		pkg.Build()
 

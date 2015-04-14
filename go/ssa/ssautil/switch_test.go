@@ -29,7 +29,7 @@ func TestSwitches(t *testing.T) {
 		return
 	}
 
-	prog := ssa.Create(iprog, 0)
+	prog := ssautil.CreateProgram(iprog, 0)
 	mainPkg := prog.Package(iprog.Created[0].Pkg)
 	mainPkg.Build()
 

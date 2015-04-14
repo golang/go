@@ -25,16 +25,23 @@ import (
 // mode controls diagnostics and checking during SSA construction.
 //
 func CreateProgram(lprog *loader.Program, mode ssa.BuilderMode) *ssa.Program {
-	// TODO(adonovan): inline and delete ssa.Create.
-	return ssa.Create(lprog, mode)
+	prog := ssa.NewProgram(lprog.Fset, mode)
+
+	for _, info := range lprog.AllPackages {
+		if info.TransitivelyErrorFree {
+			prog.CreatePackage(info.Pkg, info.Files, &info.Info, info.Importable)
+		}
+	}
+
+	return prog
 }
 
-// LoadPackage builds SSA code for a single package.
+// BuildPackage builds an SSA program with IR for a single package.
 //
 // It populates pkg by type-checking the specified file ASTs.  All
 // dependencies are loaded using the importer specified by tc, which
 // typically loads compiler export data; SSA code cannot be built for
-// those packages.  LoadPackage then constructs an ssa.Program with all
+// those packages.  BuildPackage then constructs an ssa.Program with all
 // dependency packages created, and builds and returns the SSA package
 // corresponding to pkg.
 //
@@ -42,30 +49,14 @@ func CreateProgram(lprog *loader.Program, mode ssa.BuilderMode) *ssa.Program {
 //
 // The operation fails if there were any type-checking or import errors.
 //
-// LoadPackage modifies the tc.Import field.
+// See ../ssa/example_test.go for an example.
 //
-func LoadPackage(tc *types.Config, fset *token.FileSet, pkg *types.Package, files []*ast.File, mode ssa.BuilderMode) (*ssa.Package, *types.Info, error) {
+func BuildPackage(tc *types.Config, fset *token.FileSet, pkg *types.Package, files []*ast.File, mode ssa.BuilderMode) (*ssa.Package, *types.Info, error) {
 	if fset == nil {
 		panic("no token.FileSet")
 	}
 	if pkg.Path() == "" {
-		panic("no package path")
-	}
-
-	// client's effective import function
-	clientImport := tc.Import
-	if clientImport == nil {
-		clientImport = types.DefaultImport
-	}
-
-	deps := make(map[*types.Package]bool)
-
-	tc.Import = func(packages map[string]*types.Package, path string) (pkg *types.Package, err error) {
-		pkg, err = clientImport(packages, path)
-		if pkg != nil {
-			deps[pkg] = true
-		}
-		return
+		panic("package has no import path")
 	}
 
 	info := &types.Info{
@@ -80,11 +71,24 @@ func LoadPackage(tc *types.Config, fset *token.FileSet, pkg *types.Package, file
 		return nil, nil, err
 	}
 
-	// Create the SSA program and its packages.
 	prog := ssa.NewProgram(fset, mode)
-	for dep := range deps {
-		prog.CreatePackage(dep, nil, nil, true)
+
+	// Create SSA packages for all imports.
+	// Order is not significant.
+	created := make(map[*types.Package]bool)
+	var createAll func(pkgs []*types.Package)
+	createAll = func(pkgs []*types.Package) {
+		for _, p := range pkgs {
+			if !created[p] {
+				created[p] = true
+				prog.CreatePackage(p, nil, nil, true)
+				createAll(p.Imports())
+			}
+		}
 	}
+	createAll(pkg.Imports())
+
+	// Create and build the primary package.
 	ssapkg := prog.CreatePackage(pkg, files, info, false)
 	ssapkg.Build()
 	return ssapkg, info, nil

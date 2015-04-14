@@ -16,14 +16,11 @@ import (
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/interp"
+	"golang.org/x/tools/go/ssa/ssautil"
 	"golang.org/x/tools/go/types"
 )
 
 var (
-	importbinFlag = flag.Bool("importbin", false,
-		"Import binary export data from gc's object files, not source. "+
-			"Imported functions will have no bodies.")
-
 	modeFlag = ssa.BuilderModeFlag(flag.CommandLine, "build", 0)
 
 	testFlag = flag.Bool("test", false, "Loads test code (*_test.go) for imported packages.")
@@ -78,10 +75,7 @@ func doMain() error {
 	flag.Parse()
 	args := flag.Args()
 
-	conf := loader.Config{
-		Build:            &build.Default,
-		ImportFromBinary: *importbinFlag,
-	}
+	conf := loader.Config{Build: &build.Default}
 	// TODO(adonovan): make go/types choose its default Sizes from
 	// build.Default or a specified *build.Context.
 	var wordSize int64 = 8
@@ -140,11 +134,18 @@ func doMain() error {
 	}
 
 	// Create and build SSA-form program representation.
-	prog := ssa.Create(iprog, *modeFlag)
-	prog.BuildAll()
+	prog := ssautil.CreateProgram(iprog, *modeFlag)
+
+	// Build and display only the initial packages
+	// (and synthetic wrappers), unless -run is specified.
+	for _, info := range iprog.InitialPackages() {
+		prog.Package(info.Pkg).Build()
+	}
 
 	// Run the interpreter.
 	if *runFlag {
+		prog.BuildAll()
+
 		var main *ssa.Package
 		pkgs := prog.AllPackages()
 		if *testFlag {

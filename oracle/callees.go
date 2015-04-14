@@ -13,6 +13,7 @@ import (
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/pointer"
 	"golang.org/x/tools/go/ssa"
+	"golang.org/x/tools/go/ssa/ssautil"
 	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/oracle/serial"
 )
@@ -38,7 +39,7 @@ func callees(q *Query) error {
 		return err
 	}
 
-	prog := ssa.Create(lprog, 0)
+	prog := ssautil.CreateProgram(lprog, 0)
 
 	ptaConfig, err := setupPTA(prog, lprog, q.PTALog, q.Reflection)
 	if err != nil {

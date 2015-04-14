@@ -37,6 +37,7 @@ import (
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/pointer"
 	"golang.org/x/tools/go/ssa"
+	"golang.org/x/tools/go/ssa/ssautil"
 )
 
 var algoFlag = flag.String("algo", "rta",
@@ -173,7 +174,7 @@ func doCallgraph(ctxt *build.Context, algo, format string, tests bool, args []st
 	}
 
 	// Create and build SSA-form program representation.
-	prog := ssa.Create(iprog, 0)
+	prog := ssautil.CreateProgram(iprog, 0)
 	prog.BuildAll()
 
 	// -- call graph construction ------------------------------------------

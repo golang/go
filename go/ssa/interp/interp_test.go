@@ -19,6 +19,7 @@ import (
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/interp"
+	"golang.org/x/tools/go/ssa/ssautil"
 	"golang.org/x/tools/go/types"
 )
 
@@ -217,7 +218,7 @@ func run(t *testing.T, dir, input string, success successPredicate) bool {
 		return false
 	}
 
-	prog := ssa.Create(iprog, ssa.SanityCheckFunctions)
+	prog := ssautil.CreateProgram(iprog, ssa.SanityCheckFunctions)
 	prog.BuildAll()
 
 	var mainPkg *ssa.Package
@@ -345,7 +346,7 @@ func TestNullTestmainPackage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreatePackages failed: %s", err)
 	}
-	prog := ssa.Create(iprog, ssa.SanityCheckFunctions)
+	prog := ssautil.CreateProgram(iprog, ssa.SanityCheckFunctions)
 	mainPkg := prog.Package(iprog.Created[0].Pkg)
 	if mainPkg.Func("main") != nil {
 		t.Fatalf("unexpected main function")

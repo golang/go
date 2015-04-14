@@ -14,6 +14,7 @@ import (
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/pointer"
 	"golang.org/x/tools/go/ssa"
+	"golang.org/x/tools/go/ssa/ssautil"
 	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/oracle/serial"
 )
@@ -44,7 +45,7 @@ func pointsto(q *Query) error {
 		return err
 	}
 
-	prog := ssa.Create(lprog, ssa.GlobalDebug)
+	prog := ssautil.CreateProgram(lprog, ssa.GlobalDebug)
 
 	ptaConfig, err := setupPTA(prog, lprog, q.PTALog, q.Reflection)
 	if err != nil {

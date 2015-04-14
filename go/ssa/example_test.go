@@ -48,7 +48,7 @@ func main() {
 // with similar functionality. It is located at
 // golang.org/x/tools/cmd/ssadump.
 //
-func ExampleLoadPackage() {
+func ExampleBuildPackage() {
 	// Parse the source files.
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "hello.go", hello, parser.ParseComments)
@@ -63,7 +63,7 @@ func ExampleLoadPackage() {
 
 	// Type-check the package, load dependencies.
 	// Create and build the SSA program.
-	hello, _, err := ssautil.LoadPackage(
+	hello, _, err := ssautil.BuildPackage(
 		new(types.Config), fset, pkg, files, ssa.SanityCheckFunctions)
 	if err != nil {
 		fmt.Print(err) // type error in some package

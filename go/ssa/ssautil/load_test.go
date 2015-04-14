@@ -13,6 +13,8 @@ import (
 
 	"golang.org/x/tools/go/ssa/ssautil"
 	"golang.org/x/tools/go/types"
+
+	_ "golang.org/x/tools/go/gcimporter"
 )
 
 const hello = `package main
@@ -24,7 +26,10 @@ func main() {
 }
 `
 
-func TestLoadPackage(t *testing.T) {
+func TestBuildPackage(t *testing.T) {
+	// There is a more substantial test of BuildPackage and the
+	// SSA program it builds in ../ssa/builder_test.go.
+
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "hello.go", hello, 0)
 	if err != nil {
@@ -32,7 +37,7 @@ func TestLoadPackage(t *testing.T) {
 	}
 
 	pkg := types.NewPackage("hello", "")
-	ssapkg, _, err := ssautil.LoadPackage(new(types.Config), fset, pkg, []*ast.File{f}, 0)
+	ssapkg, _, err := ssautil.BuildPackage(new(types.Config), fset, pkg, []*ast.File{f}, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +50,7 @@ func TestLoadPackage(t *testing.T) {
 	}
 }
 
-func TestLoadPackage_MissingImport(t *testing.T) {
+func TestBuildPackage_MissingImport(t *testing.T) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "bad.go", `package bad; import "missing"`, 0)
 	if err != nil {
@@ -53,8 +58,8 @@ func TestLoadPackage_MissingImport(t *testing.T) {
 	}
 
 	pkg := types.NewPackage("bad", "")
-	ssapkg, _, err := ssautil.LoadPackage(new(types.Config), fset, pkg, []*ast.File{f}, 0)
+	ssapkg, _, err := ssautil.BuildPackage(new(types.Config), fset, pkg, []*ast.File{f}, 0)
 	if err == nil || ssapkg != nil {
-		t.Fatal("LoadPackage succeeded unexpectedly")
+		t.Fatal("BuildPackage succeeded unexpectedly")
 	}
 }

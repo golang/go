@@ -14,7 +14,6 @@ import (
 	"os"
 	"sync"
 
-	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/go/types/typeutil"
 )
@@ -36,29 +35,6 @@ func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 	h := typeutil.MakeHasher() // protected by methodsMu, in effect
 	prog.methodSets.SetHasher(h)
 	prog.canon.SetHasher(h)
-
-	return prog
-}
-
-// Create returns a new SSA Program.  An SSA Package is created for
-// each transitively error-free package of lprog.
-//
-// Code for bodies of functions is not built until BuildAll() is called
-// on the result.
-//
-// mode controls diagnostics and checking during SSA construction.
-//
-// TODO(adonovan): move this to ssautil and breaking the go/ssa ->
-// go/loader dependency.
-//
-func Create(lprog *loader.Program, mode BuilderMode) *Program {
-	prog := NewProgram(lprog.Fset, mode)
-
-	for _, info := range lprog.AllPackages {
-		if info.TransitivelyErrorFree {
-			prog.CreatePackage(info.Pkg, info.Files, &info.Info, info.Importable)
-		}
-	}
 
 	return prog
 }
