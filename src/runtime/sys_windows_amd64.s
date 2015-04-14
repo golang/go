@@ -250,9 +250,11 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 	MOVQ	CX, g_stackguard1(SP)
 	MOVQ	DX, (g_stack+stack_hi)(SP)
 
+	PUSHQ	AX			// room for return value
 	PUSHQ	32(BP)			// arg for handler
 	CALL	16(BP)
 	POPQ	CX
+	POPQ	AX			// pass return value to Windows in AX
 
 	get_tls(CX)
 	MOVQ	g(CX), CX

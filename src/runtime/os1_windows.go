@@ -492,7 +492,7 @@ func profilem(mp *m) {
 	sigprof(r.ip(), r.sp(), 0, gp, mp)
 }
 
-func profileloop1() {
+func profileloop1(param uintptr) uint32 {
 	stdcall2(_SetThreadPriority, currentThread, _THREAD_PRIORITY_HIGHEST)
 
 	for {
