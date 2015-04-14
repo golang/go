@@ -1249,15 +1249,7 @@ func (b *builder) includeArgs(flag string, all []*action) []string {
 	for _, a1 := range all {
 		if dir := a1.pkgdir; dir == a1.p.build.PkgRoot && !incMap[dir] {
 			incMap[dir] = true
-			if _, ok := buildToolchain.(gccgoToolchain); ok {
-				dir = filepath.Join(dir, "gccgo_"+goos+"_"+goarch)
-			} else {
-				dir = filepath.Join(dir, goos+"_"+goarch)
-				if buildContext.InstallSuffix != "" {
-					dir += "_" + buildContext.InstallSuffix
-				}
-			}
-			inc = append(inc, flag, dir)
+			inc = append(inc, flag, a1.p.build.PkgTargetRoot)
 		}
 	}
 
