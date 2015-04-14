@@ -466,16 +466,16 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 	var pkgtargetroot string
 	var pkga string
 	var pkgerr error
+	suffix := ""
+	if ctxt.InstallSuffix != "" {
+		suffix = "_" + ctxt.InstallSuffix
+	}
 	switch ctxt.Compiler {
 	case "gccgo":
-		pkgtargetroot = "pkg/gccgo_" + ctxt.GOOS + "_" + ctxt.GOARCH
+		pkgtargetroot = "pkg/gccgo_" + ctxt.GOOS + "_" + ctxt.GOARCH + suffix
 		dir, elem := pathpkg.Split(p.ImportPath)
 		pkga = pkgtargetroot + "/" + dir + "lib" + elem + ".a"
 	case "gc":
-		suffix := ""
-		if ctxt.InstallSuffix != "" {
-			suffix = "_" + ctxt.InstallSuffix
-		}
 		pkgtargetroot = "pkg/" + ctxt.GOOS + "_" + ctxt.GOARCH + suffix
 		pkga = pkgtargetroot + "/" + p.ImportPath + ".a"
 	default:
