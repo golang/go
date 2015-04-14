@@ -165,6 +165,8 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 		traceGCSweepStart()
 	}
 
+	xadd64(&mheap_.pagesSwept, int64(s.npages))
+
 	cl := s.sizeclass
 	size := s.elemsize
 	res := false

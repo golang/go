@@ -580,12 +580,11 @@ func gc(mode int) {
 
 	// Pick up the remaining unswept/not being swept spans concurrently
 	//
-	// TODO(austin): If the last GC cycle shrank the heap, our 1:1
-	// sweeping rule will undershoot and we'll wind up doing
-	// sweeping here, which will allow the mutator to do more
-	// allocation than we intended before we "really" start GC.
-	// Compute an allocation sweep ratio so we're done sweeping by
-	// the time we hit next_gc.
+	// This shouldn't happen if we're being invoked in background
+	// mode since proportional sweep should have just finished
+	// sweeping everything, but rounding errors, etc, may leave a
+	// few spans unswept. In forced mode, this is necessary since
+	// GC can be forced at any point in the sweeping cycle.
 	for gosweepone() != ^uintptr(0) {
 		sweep.nbgsweep++
 	}
@@ -1025,6 +1024,11 @@ func gcSweep(mode int) {
 
 	if !_ConcurrentSweep || mode == gcForceBlockMode {
 		// Special case synchronous sweep.
+		// Record that no proportional sweeping has to happen.
+		lock(&mheap_.lock)
+		mheap_.sweepPagesPerByte = 0
+		mheap_.pagesSwept = 0
+		unlock(&mheap_.lock)
 		// Sweep all spans eagerly.
 		for sweepone() != ^uintptr(0) {
 			sweep.npausesweep++
@@ -1034,6 +1038,27 @@ func gcSweep(mode int) {
 		mProf_GC()
 		return
 	}
+
+	// Account how much sweeping needs to be done before the next
+	// GC cycle and set up proportional sweep statistics.
+	var pagesToSweep uintptr
+	for _, s := range work.spans {
+		if s.state == mSpanInUse {
+			pagesToSweep += s.npages
+		}
+	}
+	heapDistance := int64(memstats.next_gc) - int64(memstats.heap_live)
+	// Add a little margin so rounding errors and concurrent
+	// sweep are less likely to leave pages unswept when GC starts.
+	heapDistance -= 1024 * 1024
+	if heapDistance < _PageSize {
+		// Avoid setting the sweep ratio extremely high
+		heapDistance = _PageSize
+	}
+	lock(&mheap_.lock)
+	mheap_.sweepPagesPerByte = float64(pagesToSweep) / float64(heapDistance)
+	mheap_.pagesSwept = 0
+	unlock(&mheap_.lock)
 
 	// Background sweep.
 	lock(&sweep.lock)
