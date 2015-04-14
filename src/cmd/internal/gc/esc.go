@@ -885,6 +885,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
 		a := Nod(OADDR, src, nil)
 		a.Lineno = src.Lineno
 		a.Escloopdepth = src.Escloopdepth
+		a.Type = Ptrto(src.Type)
 		escflows(e, dst, a)
 
 		// Flowing multiple returns to a single dst happens when
