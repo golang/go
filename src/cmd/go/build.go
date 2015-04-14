@@ -402,7 +402,6 @@ func runBuild(cmd *Command, args []string) {
 	}
 
 	depMode := modeBuild
-	mode := modeBuild
 	if buildI {
 		depMode = modeInstall
 	}
@@ -423,23 +422,12 @@ func runBuild(cmd *Command, args []string) {
 
 	var a *action
 	if buildBuildmode == "shared" {
-		a = b.libaction(libname(args))
-		mode = depMode
-
-		// Currently build mode shared forces external linking
-		// mode, and external linking mode forces an import of
-		// runtime/cgo.
-		var stk importStack
-		p := loadPackage("runtime/cgo", &stk)
-		if p.Error != nil {
-			fatalf("load runtime/cgo: %v", p.Error)
-		}
-		a.deps = append(a.deps, b.action(mode, depMode, p))
+		a = b.libaction(libname(args), pkgsFilter(packages(args)), modeBuild, depMode)
 	} else {
 		a = &action{}
-	}
-	for _, p := range pkgsFilter(packages(args)) {
-		a.deps = append(a.deps, b.action(mode, depMode, p))
+		for _, p := range pkgsFilter(packages(args)) {
+			a.deps = append(a.deps, b.action(modeBuild, depMode, p))
+		}
 	}
 	b.do(a)
 }
@@ -504,32 +492,7 @@ func runInstall(cmd *Command, args []string) {
 	b.init()
 	a := &action{}
 	if buildBuildmode == "shared" {
-		var libdir string
-		for _, p := range pkgs {
-			plibdir := p.build.PkgTargetRoot
-			if libdir == "" {
-				libdir = plibdir
-			} else if libdir != plibdir {
-				fatalf("multiple roots %s & %s", libdir, plibdir)
-			}
-		}
-
-		a.f = (*builder).install
-		libfilename := libname(args)
-		linkSharedAction := b.libaction(libfilename)
-		a.target = filepath.Join(libdir, libfilename)
-		a.deps = append(a.deps, linkSharedAction)
-		for _, p := range pkgs {
-			if p.target == "" {
-				continue
-			}
-			shlibnameaction := &action{}
-			shlibnameaction.f = (*builder).installShlibname
-			shlibnameaction.target = p.target[:len(p.target)-2] + ".shlibname"
-			a.deps = append(a.deps, shlibnameaction)
-			shlibnameaction.deps = append(shlibnameaction.deps, linkSharedAction)
-			linkSharedAction.deps = append(linkSharedAction.deps, b.action(modeInstall, modeInstall, p))
-		}
+		a = b.libaction(libname(args), pkgs, modeInstall, modeInstall)
 	} else {
 		var tools []*action
 		for _, p := range pkgs {
@@ -849,10 +812,53 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action 
 	return a
 }
 
-func (b *builder) libaction(libname string) *action {
+func (b *builder) libaction(libname string, pkgs []*Package, mode, depMode buildMode) *action {
 	a := &action{}
-	a.f = (*builder).linkShared
-	a.target = filepath.Join(b.work, libname)
+	if mode == modeBuild {
+		a.f = (*builder).linkShared
+		a.target = filepath.Join(b.work, libname)
+		for _, p := range pkgs {
+			if p.target == "" {
+				continue
+			}
+			a.deps = append(a.deps, b.action(depMode, depMode, p))
+		}
+		// Currently build mode shared forces external linking
+		// mode, and external linking mode forces an import of
+		// runtime/cgo.
+		var stk importStack
+		p := loadPackage("runtime/cgo", &stk)
+		if p.Error != nil {
+			fatalf("load runtime/cgo: %v", p.Error)
+		}
+		a.deps = append(a.deps, b.action(depMode, depMode, p))
+	} else if mode == modeInstall {
+		a.f = (*builder).install
+		var libdir string
+		for _, p := range pkgs {
+			plibdir := p.build.PkgTargetRoot
+			if libdir == "" {
+				libdir = plibdir
+			} else if libdir != plibdir {
+				fatalf("multiple roots %s & %s", libdir, plibdir)
+			}
+		}
+		a.target = filepath.Join(libdir, libname)
+		linkSharedAction := b.libaction(libname, pkgs, modeBuild, depMode)
+		a.deps = append(a.deps, linkSharedAction)
+		for _, p := range pkgs {
+			if p.target == "" {
+				continue
+			}
+			shlibnameaction := &action{}
+			shlibnameaction.f = (*builder).installShlibname
+			shlibnameaction.target = p.target[:len(p.target)-2] + ".shlibname"
+			a.deps = append(a.deps, shlibnameaction)
+			shlibnameaction.deps = append(shlibnameaction.deps, linkSharedAction)
+		}
+	} else {
+		fatalf("unregonized mode %v", mode)
+	}
 	return a
 }
 
@@ -1297,9 +1303,19 @@ func (b *builder) linkShared(a *action) (err error) {
 	ldflags = append(ldflags, "-buildmode="+ldBuildmode)
 	ldflags = append(ldflags, buildLdflags...)
 	for _, d := range a.deps {
-		if d.target != "" { // omit unsafe etc
-			ldflags = append(ldflags, d.p.ImportPath+"="+d.target)
+		if d.target == "" { // omit unsafe etc
+			continue
 		}
+		if d.p.ImportPath == "runtime/cgo" {
+			// Fudge: we always ensure runtime/cgo is built, but sometimes it is
+			// already available as a shared library.  The linker will always look
+			// for runtime/cgo and knows how to tell if it's in a shared library so
+			// rather than duplicate the logic here, just don't pass it.
+			// TODO(mwhudson): fix this properly as part of implementing the
+			// rebuilding of stale shared libraries
+			continue
+		}
+		ldflags = append(ldflags, d.p.ImportPath+"="+d.target)
 	}
 	return b.run(".", a.target, nil, buildToolExec, tool(archChar()+"l"), "-o", a.target, importArgs, ldflags)
 }
