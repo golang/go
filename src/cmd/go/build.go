@@ -507,10 +507,11 @@ func runInstall(cmd *Command, args []string) {
 
 	var b builder
 	b.init()
-	a := &action{}
+	var a *action
 	if buildBuildmode == "shared" {
 		a = b.libaction(libname(args), pkgs, modeInstall, modeInstall)
 	} else {
+		a = &action{}
 		var tools []*action
 		for _, p := range pkgs {
 			// If p is a tool, delay the installation until the end of the build.
@@ -608,8 +609,9 @@ type action struct {
 
 // cacheKey is the key for the action cache.
 type cacheKey struct {
-	mode buildMode
-	p    *Package
+	mode  buildMode
+	p     *Package
+	shlib string
 }
 
 // buildMode specifies the build mode:
@@ -732,12 +734,53 @@ func goFilesPackage(gofiles []string) *Package {
 	return pkg
 }
 
+func readpkglist(shlibpath string) []*Package {
+	pkglistbytes, err := readnote(shlibpath, "GO\x00\x00", 1)
+	if err != nil {
+		fatalf("readnote failed: %v", err)
+	}
+	scanner := bufio.NewScanner(bytes.NewBuffer(pkglistbytes))
+	var pkgs []*Package
+	var stk importStack
+	for scanner.Scan() {
+		t := scanner.Text()
+		pkgs = append(pkgs, loadPackage(t, &stk))
+	}
+	return pkgs
+}
+
 // action returns the action for applying the given operation (mode) to the package.
 // depMode is the action to use when building dependencies.
+// action never looks for p in a shared library.
 func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action {
-	key := cacheKey{mode, p}
+	return b.action1(mode, depMode, p, false)
+}
+
+// action1 returns the action for applying the given operation (mode) to the package.
+// depMode is the action to use when building dependencies.
+// action1 will look for p in a shared library if lookshared is true.
+func (b *builder) action1(mode buildMode, depMode buildMode, p *Package, lookshared bool) *action {
+	shlib := ""
+	if lookshared {
+		shlib = p.Shlib
+	}
+	key := cacheKey{mode, p, shlib}
+
 	a := b.actionCache[key]
 	if a != nil {
+		return a
+	}
+	if shlib != "" {
+		key2 := cacheKey{modeInstall, nil, shlib}
+		a = b.actionCache[key2]
+		if a != nil {
+			b.actionCache[key] = a
+			return a
+		}
+		pkgs := readpkglist(filepath.Join(p.build.PkgTargetRoot, shlib))
+		a = b.libaction(shlib, pkgs, modeInstall, depMode)
+		b.actionCache[key2] = a
+		b.actionCache[key] = a
 		return a
 	}
 
@@ -745,11 +788,16 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action 
 	if p.pkgdir != "" { // overrides p.t
 		a.pkgdir = p.pkgdir
 	}
-
 	b.actionCache[key] = a
 
 	for _, p1 := range p.imports {
-		a.deps = append(a.deps, b.action(depMode, depMode, p1))
+		ls := buildLinkshared
+		// If p1 is part of the same shared library as p, we need the action
+		// that builds p here, not the shared libary or we get action loops.
+		if p1.Shlib == p.Shlib {
+			ls = false
+		}
+		a.deps = append(a.deps, b.action1(depMode, depMode, p1, ls))
 	}
 
 	// If we are not doing a cross-build, then record the binary we'll
@@ -758,7 +806,7 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action 
 	// a package is using it.  If this is a cross-build, then the cgo we
 	// are writing is not the cgo we need to use.
 	if goos == runtime.GOOS && goarch == runtime.GOARCH && !buildRace {
-		if len(p.CgoFiles) > 0 || p.Standard && p.ImportPath == "runtime/cgo" {
+		if (len(p.CgoFiles) > 0 || p.Standard && p.ImportPath == "runtime/cgo") && !buildLinkshared && buildBuildmode != "shared" {
 			var stk importStack
 			p1 := loadPackage("cmd/cgo", &stk)
 			if p1.Error != nil {
@@ -805,7 +853,7 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action 
 	switch mode {
 	case modeInstall:
 		a.f = (*builder).install
-		a.deps = []*action{b.action(modeBuild, depMode, p)}
+		a.deps = []*action{b.action1(modeBuild, depMode, p, lookshared)}
 		a.target = a.p.target
 	case modeBuild:
 		a.f = (*builder).build
@@ -840,17 +888,33 @@ func (b *builder) libaction(libname string, pkgs []*Package, mode, depMode build
 			}
 			a.deps = append(a.deps, b.action(depMode, depMode, p))
 		}
-		// Currently build mode shared forces external linking
-		// mode, and external linking mode forces an import of
-		// runtime/cgo.
-		var stk importStack
-		p := loadPackage("runtime/cgo", &stk)
-		if p.Error != nil {
-			fatalf("load runtime/cgo: %v", p.Error)
-		}
-		a.deps = append(a.deps, b.action(depMode, depMode, p))
 	} else if mode == modeInstall {
-		a.f = (*builder).install
+		// Currently build mode shared forces external linking mode, and
+		// external linking mode forces an import of runtime/cgo. So if it
+		// was not passed on the command line and it is not present in
+		// another shared library, add it here.
+		seencgo := false
+		for _, p := range pkgs {
+			seencgo = seencgo || (p.Standard && p.ImportPath == "runtime/cgo")
+		}
+		if !seencgo {
+			var stk importStack
+			p := loadPackage("runtime/cgo", &stk)
+			if p.Error != nil {
+				fatalf("load runtime/cgo: %v", p.Error)
+			}
+			computeStale(p)
+			// If runtime/cgo is in another shared library, then that's
+			// also the shared library that contains runtime, so
+			// something will depend on it and so runtime/cgo's staleness
+			// will be checked when processing that library.
+			if p.Shlib == "" || p.Shlib == libname {
+				pkgs = append([]*Package{}, pkgs...)
+				pkgs = append(pkgs, p)
+			}
+		}
+
+		// Figure out where the library will go.
 		var libdir string
 		for _, p := range pkgs {
 			plibdir := p.build.PkgTargetRoot
@@ -861,17 +925,39 @@ func (b *builder) libaction(libname string, pkgs []*Package, mode, depMode build
 			}
 		}
 		a.target = filepath.Join(libdir, libname)
-		linkSharedAction := b.libaction(libname, pkgs, modeBuild, depMode)
-		a.deps = append(a.deps, linkSharedAction)
+
+		// Now we can check whether we need to rebuild it.
+		stale := false
+		var built time.Time
+		if fi, err := os.Stat(a.target); err == nil {
+			built = fi.ModTime()
+		}
 		for _, p := range pkgs {
 			if p.target == "" {
 				continue
 			}
-			shlibnameaction := &action{}
-			shlibnameaction.f = (*builder).installShlibname
-			shlibnameaction.target = p.target[:len(p.target)-2] + ".shlibname"
-			a.deps = append(a.deps, shlibnameaction)
-			shlibnameaction.deps = append(shlibnameaction.deps, linkSharedAction)
+			stale = stale || p.Stale
+			lstat, err := os.Stat(p.target)
+			if err != nil || lstat.ModTime().After(built) {
+				stale = true
+			}
+			a.deps = append(a.deps, b.action(depMode, depMode, p))
+		}
+
+		if stale {
+			a.f = (*builder).install
+			buildAction := b.libaction(libname, pkgs, modeBuild, depMode)
+			a.deps = []*action{buildAction}
+			for _, p := range pkgs {
+				if p.target == "" {
+					continue
+				}
+				shlibnameaction := &action{}
+				shlibnameaction.f = (*builder).installShlibname
+				shlibnameaction.target = p.target[:len(p.target)-2] + ".shlibname"
+				a.deps = append(a.deps, shlibnameaction)
+				shlibnameaction.deps = append(shlibnameaction.deps, buildAction)
+			}
 		}
 	} else {
 		fatalf("unregonized mode %v", mode)
@@ -897,6 +983,31 @@ func actionList(root *action) []*action {
 	}
 	walk(root)
 	return all
+}
+
+// allArchiveActions returns a list of the archive dependencies of root.
+// This is needed because if package p depends on package q that is in libr.so, the
+// action graph looks like p->libr.so->q and so just scanning through p's
+// dependencies does not find the import dir for q.
+func allArchiveActions(root *action) []*action {
+	seen := map[*action]bool{}
+	r := []*action{}
+	var walk func(*action)
+	walk = func(a *action) {
+		if seen[a] {
+			return
+		}
+		seen[a] = true
+		if strings.HasSuffix(a.target, ".so") || a == root {
+			for _, a1 := range a.deps {
+				walk(a1)
+			}
+		} else if strings.HasSuffix(a.target, ".a") {
+			r = append(r, a)
+		}
+	}
+	walk(root)
+	return r
 }
 
 // do runs the action graph rooted at root.
@@ -1166,7 +1277,7 @@ func (b *builder) build(a *action) (err error) {
 	}
 
 	// Prepare Go import path list.
-	inc := b.includeArgs("-I", a.deps)
+	inc := b.includeArgs("-I", allArchiveActions(a))
 
 	// Compile Go.
 	ofile, out, err := buildToolchain.gc(b, a.p, a.objpkg, obj, len(sfiles) > 0, inc, gofiles)
@@ -1346,7 +1457,7 @@ func (b *builder) linkShared(a *action) (err error) {
 	allactions := actionList(a)
 	importArgs := b.includeArgs("-L", allactions[:len(allactions)-1])
 	ldflags := []string{"-installsuffix", buildContext.InstallSuffix}
-	ldflags = append(ldflags, "-buildmode="+ldBuildmode)
+	ldflags = append(ldflags, "-buildmode=shared")
 	ldflags = append(ldflags, buildLdflags...)
 	cxx := a.p != nil && (len(a.p.CXXFiles) > 0 || len(a.p.SwigCXXFiles) > 0)
 	for _, a := range allactions {
@@ -1366,16 +1477,7 @@ func (b *builder) linkShared(a *action) (err error) {
 	}
 	ldflags = setextld(ldflags, compiler)
 	for _, d := range a.deps {
-		if d.target == "" { // omit unsafe etc
-			continue
-		}
-		if d.p.ImportPath == "runtime/cgo" {
-			// Fudge: we always ensure runtime/cgo is built, but sometimes it is
-			// already available as a shared library.  The linker will always look
-			// for runtime/cgo and knows how to tell if it's in a shared library so
-			// rather than duplicate the logic here, just don't pass it.
-			// TODO(mwhudson): fix this properly as part of implementing the
-			// rebuilding of stale shared libraries
+		if !strings.HasSuffix(d.target, ".a") { // omit unsafe etc and actions for other shared libraries
 			continue
 		}
 		ldflags = append(ldflags, d.p.ImportPath+"="+d.target)
@@ -1430,6 +1532,9 @@ func (b *builder) includeArgs(flag string, all []*action) []string {
 	// This is the $WORK/my/package/_test directory for the
 	// package being built, so there are few of these.
 	for _, a1 := range all {
+		if a1.p == nil {
+			continue
+		}
 		if dir := a1.pkgdir; dir != a1.p.build.PkgRoot && !incMap[dir] {
 			incMap[dir] = true
 			inc = append(inc, flag, dir)
@@ -1442,6 +1547,9 @@ func (b *builder) includeArgs(flag string, all []*action) []string {
 
 	// Finally, look in the installed package directories for each action.
 	for _, a1 := range all {
+		if a1.p == nil {
+			continue
+		}
 		if dir := a1.pkgdir; dir == a1.p.build.PkgRoot && !incMap[dir] {
 			incMap[dir] = true
 			inc = append(inc, flag, a1.p.build.PkgTargetRoot)

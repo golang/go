@@ -11,6 +11,7 @@ import (
 	"go/build"
 	"go/scanner"
 	"go/token"
+	"io/ioutil"
 	"os"
 	pathpkg "path"
 	"path/filepath"
@@ -32,6 +33,7 @@ type Package struct {
 	Name          string `json:",omitempty"` // package name
 	Doc           string `json:",omitempty"` // package documentation string
 	Target        string `json:",omitempty"` // install path
+	Shlib         string `json:",omitempty"` // the shared library that contains this package (only set when -linkshared)
 	Goroot        bool   `json:",omitempty"` // is this package found in the Go root?
 	Standard      bool   `json:",omitempty"` // is this package part of the standard Go library?
 	Stale         bool   `json:",omitempty"` // would 'go install' do anything for this package?
@@ -522,6 +524,15 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		p.target = ""
 	} else {
 		p.target = p.build.PkgObj
+		if buildLinkshared {
+			shlibnamefile := p.target[:len(p.target)-2] + ".shlibname"
+			shlib, err := ioutil.ReadFile(shlibnamefile)
+			if err == nil {
+				p.Shlib = strings.TrimSpace(string(shlib))
+			} else if !os.IsNotExist(err) {
+				fatalf("unexpected error reading %s: %v", shlibnamefile, err)
+			}
+		}
 	}
 
 	importPaths := p.Imports
