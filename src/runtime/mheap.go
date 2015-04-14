@@ -59,6 +59,10 @@ type mheap struct {
 	specialprofilealloc   fixalloc // allocator for specialprofile*
 	speciallock           mutex    // lock for sepcial record allocators.
 
+	// Proportional sweep
+	pagesSwept        uint64  // pages swept this cycle; updated atomically
+	sweepPagesPerByte float64 // proportional sweep ratio; written with lock, read without
+
 	// Malloc stats.
 	largefree  uint64                  // bytes freed for large objects (>maxsmallsize)
 	nlargefree uint64                  // number of frees for large objects (>maxsmallsize)
@@ -362,6 +366,13 @@ func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan 
 	// To prevent excessive heap growth, before allocating n pages
 	// we need to sweep and reclaim at least n pages.
 	if h.sweepdone == 0 {
+		// TODO(austin): This tends to sweep a large number of
+		// spans in order to find a few completely free spans
+		// (for example, in the garbage benchmark, this sweeps
+		// ~30x the number of pages its trying to allocate).
+		// If GC kept a bit for whether there were any marks
+		// in a span, we could release these free spans
+		// at the end of GC and eliminate this entirely.
 		mHeap_Reclaim(h, npage)
 	}
 
