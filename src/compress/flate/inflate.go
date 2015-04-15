@@ -102,6 +102,14 @@ type huffmanDecoder struct {
 
 // Initialize Huffman decoding tables from array of code lengths.
 func (h *huffmanDecoder) init(bits []int) bool {
+	// Sanity enables additional runtime tests during Huffman
+	// table construction.  It's intended to be used during
+	// development to supplement the currently ad-hoc unit tests.
+	//
+	// TODO(mdempsky): TestIssue5962 and TestIssue6255 currently
+	// fail with these enabled.
+	const sanity = false
+
 	if h.min != 0 {
 		*h = huffmanDecoder{}
 	}
@@ -148,6 +156,9 @@ func (h *huffmanDecoder) init(bits []int) bool {
 				reverse := int(reverseByte[j>>8]) | int(reverseByte[j&0xff])<<8
 				reverse >>= uint(16 - huffmanChunkBits)
 				off := j - uint(link)
+				if sanity && h.chunks[reverse] != 0 {
+					panic("impossible: overwriting existing chunk")
+				}
 				h.chunks[reverse] = uint32(off<<huffmanValueShift + uint(i))
 				h.links[off] = make([]uint32, 1<<linkBits)
 			}
@@ -169,20 +180,62 @@ func (h *huffmanDecoder) init(bits []int) bool {
 		reverse >>= uint(16 - n)
 		if n <= huffmanChunkBits {
 			for off := reverse; off < huffmanNumChunks; off += 1 << uint(n) {
+				// We should never need to overwrite
+				// an existing chunk.  Also, 0 is
+				// never a valid chunk, because the
+				// lower 4 "count" bits should be
+				// between 1 and 15.
+				if sanity && h.chunks[off] != 0 {
+					panic("impossible: overwriting existing chunk")
+				}
 				h.chunks[off] = chunk
 			}
 		} else {
-			value := h.chunks[reverse&(huffmanNumChunks-1)] >> huffmanValueShift
+			j := reverse & (huffmanNumChunks - 1)
+			if sanity && h.chunks[j]&huffmanCountMask != huffmanChunkBits+1 {
+				// Longer codes should have been
+				// associated with a link table above.
+				panic("impossible: not an indirect chunk")
+			}
+			value := h.chunks[j] >> huffmanValueShift
 			if value >= uint32(len(h.links)) {
 				return false
 			}
 			linktab := h.links[value]
 			reverse >>= huffmanChunkBits
 			for off := reverse; off < numLinks; off += 1 << uint(n-huffmanChunkBits) {
+				if sanity && linktab[off] != 0 {
+					panic("impossible: overwriting existing chunk")
+				}
 				linktab[off] = chunk
 			}
 		}
 	}
+
+	if sanity {
+		// Above we've sanity checked that we never overwrote
+		// an existing entry.  Here we additionally check that
+		// we filled the tables completely.
+		for i, chunk := range h.chunks {
+			if chunk == 0 {
+				// As an exception, in the degenerate
+				// single-code case, we allow odd
+				// chunks to be missing.
+				if code == 1 && i%2 == 1 {
+					continue
+				}
+				panic("impossible: missing chunk")
+			}
+		}
+		for _, linktab := range h.links {
+			for _, chunk := range linktab {
+				if chunk == 0 {
+					panic("impossible: missing chunk")
+				}
+			}
+		}
+	}
+
 	return true
 }
 
