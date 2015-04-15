@@ -257,7 +257,7 @@ func run(bin string, args []string) (err error) {
 	}
 
 	// Wait for installation and connection.
-	if err := waitFor("ios-deploy before run", "(lldb)     connect\r\nProcess 0 connected\r\n", 0); err != nil {
+	if err := waitFor("ios-deploy before run", "(lldb)", 0); err != nil {
 		// Retry if we see a rare and longstanding ios-deploy bug.
 		// https://github.com/phonegap/ios-deploy/issues/11
 		//	Assertion failed: (AMDeviceStartService(device, CFSTR("com.apple.debugserver"), &gdbfd, NULL) == 0)
@@ -313,20 +313,6 @@ func run(bin string, args []string) (err error) {
 		do(`call (void)chdir($mem)`)
 	}
 
-	// Watch for SIGSEGV. Ideally lldb would never break on SIGSEGV.
-	// http://golang.org/issue/10043
-	go func() {
-		<-w.find("stop reason = EXC_BAD_ACCESS", 0)
-		// cannot use do here, as the defer/recover is not available
-		// on this goroutine.
-		fmt.Fprintln(lldb, `bt`)
-		waitFor("finish backtrace", "(lldb)", 0)
-		w.printBuf()
-		if p := cmd.Process; p != nil {
-			p.Kill()
-		}
-	}()
-
 	// Run the tests.
 	w.trimSuffix("(lldb) ")
 	fmt.Fprintln(lldb, `process continue`)
@@ -339,6 +325,13 @@ func run(bin string, args []string) (err error) {
 			p.Kill()
 		}
 		return errors.New("timeout running tests")
+	case <-w.find("\nPASS", 0):
+		passed := w.isPass()
+		w.printBuf()
+		if passed {
+			return nil
+		}
+		return errors.New("test failure")
 	case err := <-exited:
 		// The returned lldb error code is usually non-zero.
 		// We check for test success by scanning for the final
@@ -370,6 +363,12 @@ func (w *bufWriter) Write(in []byte) (n int, err error) {
 
 	n = len(in)
 	in = bytes.TrimSuffix(in, w.suffix)
+
+	if debug {
+		inTxt := strings.Replace(string(in), "\n", "\\n", -1)
+		findTxt := strings.Replace(string(w.findTxt), "\n", "\\n", -1)
+		fmt.Printf("debug --> %s <-- debug (findTxt='%s')\n", inTxt, findTxt)
+	}
 
 	w.buf = append(w.buf, in...)
 
@@ -404,9 +403,6 @@ func (w *bufWriter) printBuf() {
 func (w *bufWriter) clearTo(i int) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	if debug {
-		fmt.Fprintf(os.Stderr, "--- go_darwin_arm_exec clear ---\n%s\n--- go_darwin_arm_exec clear ---\n", w.buf[:i])
-	}
 	w.buf = w.buf[i:]
 }
 
