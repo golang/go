@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package syscall
+package unix
 
 import (
 	"runtime"
 	"sync/atomic"
-	stdsyscall "syscall"
+	"syscall"
 	"unsafe"
 )
 
@@ -36,20 +36,20 @@ const (
 // See https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=c6e9d6f38894798696f23c8084ca7edbf16ee895
 func GetRandom(p []byte, flags GetRandomFlag) (n int, err error) {
 	if randomTrap == 0 {
-		return 0, stdsyscall.ENOSYS
+		return 0, syscall.ENOSYS
 	}
 	if len(p) == 0 {
 		return 0, nil
 	}
 	if atomic.LoadInt32(&randomUnsupported) != 0 {
-		return 0, stdsyscall.ENOSYS
+		return 0, syscall.ENOSYS
 	}
-	r1, _, errno := stdsyscall.Syscall(randomTrap,
+	r1, _, errno := syscall.Syscall(randomTrap,
 		uintptr(unsafe.Pointer(&p[0])),
 		uintptr(len(p)),
 		uintptr(flags))
 	if errno != 0 {
-		if errno == stdsyscall.ENOSYS {
+		if errno == syscall.ENOSYS {
 			atomic.StoreInt32(&randomUnsupported, 1)
 		}
 		return 0, errno
