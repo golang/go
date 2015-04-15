@@ -206,6 +206,24 @@ func BenchmarkClearFat32(b *testing.B) {
 		_ = x
 	}
 }
+func BenchmarkClearFat40(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var x [40 / 4]uint32
+		_ = x
+	}
+}
+func BenchmarkClearFat48(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var x [48 / 4]uint32
+		_ = x
+	}
+}
+func BenchmarkClearFat56(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var x [56 / 4]uint32
+		_ = x
+	}
+}
 func BenchmarkClearFat64(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		var x [64 / 4]uint32

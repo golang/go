@@ -62,6 +62,55 @@ func defframe(ptxt *obj.Prog) {
 	zerorange(p, int64(frame), lo, hi, &ax)
 }
 
+// DUFFZERO consists of repeated blocks of 4 MOVs + ADD,
+// with 4 STOSQs at the very end.
+// The trailing STOSQs prevent the need for a DI preadjustment
+// for small numbers of words to clear.
+// See runtime/mkduff.go.
+const (
+	dzBlocks    = 31 // number of MOV/ADD blocks
+	dzBlockLen  = 4  // number of clears per block
+	dzBlockSize = 19 // size of instructions in a single block
+	dzMovSize   = 4  // size of single MOV instruction w/ offset
+	dzAddSize   = 4  // size of single ADD instruction
+	dzDIStep    = 8  // number of bytes cleared by each MOV instruction
+
+	dzTailLen  = 4 // number of final STOSQ instructions
+	dzTailSize = 2 // size of single STOSQ instruction
+
+	dzSize = dzBlocks*dzBlockSize + dzTailLen*dzTailSize // total size of DUFFZERO routine
+)
+
+// duffzeroDI returns the pre-adjustment to DI for a call to DUFFZERO.
+// q is the number of words to zero.
+func dzDI(q int64) int64 {
+	if q < dzTailLen {
+		return 0
+	}
+	q -= dzTailLen
+	if q%dzBlockLen == 0 {
+		return 0
+	}
+	return -dzDIStep * (dzBlockLen - q%dzBlockLen)
+}
+
+// dzOff returns the offset for a jump into DUFFZERO.
+// q is the number of words to zero.
+func dzOff(q int64) int64 {
+	off := int64(dzSize)
+	if q < dzTailLen {
+		return off - q*dzTailSize
+	}
+	off -= dzTailLen * dzTailSize
+	q -= dzTailLen
+	blocks, steps := q/dzBlockLen, q%dzBlockLen
+	off -= dzBlockSize * blocks
+	if steps > 0 {
+		off -= dzAddSize + dzMovSize*steps
+	}
+	return off
+}
+
 func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32) *obj.Prog {
 	cnt := hi - lo
 	if cnt == 0 {
@@ -87,8 +136,9 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32) *obj.Pr
 			p = appendpp(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, frame+lo+i)
 		}
 	} else if !gc.Nacl && (cnt <= int64(128*gc.Widthreg)) {
-		p = appendpp(p, leaptr, obj.TYPE_MEM, x86.REG_SP, frame+lo, obj.TYPE_REG, x86.REG_DI, 0)
-		p = appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_ADDR, 0, 2*(128-cnt/int64(gc.Widthreg)))
+		q := cnt / int64(gc.Widthreg)
+		p = appendpp(p, leaptr, obj.TYPE_MEM, x86.REG_SP, frame+lo+dzDI(q), obj.TYPE_REG, x86.REG_DI, 0)
+		p = appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_ADDR, 0, dzOff(q))
 		p.To.Sym = gc.Linksym(gc.Pkglookup("duffzero", gc.Runtimepkg))
 	} else {
 		p = appendpp(p, x86.AMOVQ, obj.TYPE_CONST, 0, cnt/int64(gc.Widthreg), obj.TYPE_REG, x86.REG_CX, 0)
@@ -562,12 +612,13 @@ func clearfat(nl *gc.Node) {
 		gins(x86.AREP, nil, nil)   // repeat
 		gins(x86.ASTOSQ, nil, nil) // STOQ AL,*(DI)+
 	} else {
+		if di := dzDI(q); di != 0 {
+			gconreg(addptr, di, x86.REG_DI)
+		}
 		p := gins(obj.ADUFFZERO, nil, nil)
 		p.To.Type = obj.TYPE_ADDR
 		p.To.Sym = gc.Linksym(gc.Pkglookup("duffzero", gc.Runtimepkg))
-
-		// 2 and 128 = magic constants: see ../../runtime/asm_amd64.s
-		p.To.Offset = 2 * (128 - q)
+		p.To.Offset = dzOff(q)
 	}
 
 	z := ax
