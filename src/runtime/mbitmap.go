@@ -154,17 +154,16 @@ func heapBitsForSpan(base uintptr) (hbits heapBits) {
 // return base == 0
 // otherwise return the base of the object.
 func heapBitsForObject(p uintptr) (base uintptr, hbits heapBits, s *mspan) {
-	if p < mheap_.arena_start || p >= mheap_.arena_used {
+	arenaStart := mheap_.arena_start
+	if p < arenaStart || p >= mheap_.arena_used {
 		return
 	}
-
+	off := p - arenaStart
+	idx := off >> _PageShift
 	// p points into the heap, but possibly to the middle of an object.
 	// Consult the span table to find the block beginning.
-	// TODO(rsc): Factor this out.
 	k := p >> _PageShift
-	x := k
-	x -= mheap_.arena_start >> _PageShift
-	s = h_spans[x]
+	s = h_spans[idx]
 	if s == nil || pageID(k) < s.start || p >= s.limit || s.state != mSpanInUse {
 		if s == nil || s.state == _MSpanStack {
 			// If s is nil, the virtual address has never been part of the heap.
@@ -188,23 +187,23 @@ func heapBitsForObject(p uintptr) (base uintptr, hbits heapBits, s *mspan) {
 			printunlock()
 			throw("objectstart: bad pointer in unexpected span")
 		}
-		return
 	}
-	base = s.base()
-	if p-base >= s.elemsize {
-		// n := (p - base) / s.elemsize, using division by multiplication
-		n := uintptr(uint64(p-base) >> s.divShift * uint64(s.divMul) >> s.divShift2)
-
-		const debugMagic = false
-		if debugMagic {
-			n2 := (p - base) / s.elemsize
-			if n != n2 {
-				println("runtime: bad div magic", (p - base), s.elemsize, s.divShift, s.divMul, s.divShift2)
-				throw("bad div magic")
-			}
+	// If this span holds object of a power of 2 size, just mask off the bits to
+	// the interior of the object. Otherwise use the size to get the base.
+	if s.baseMask != 0 {
+		// optimize for power of 2 sized objects.
+		base = s.base()
+		base = base + (p-base)&s.baseMask
+		// base = p & s.baseMask is faster for small spans,
+		// but doesn't work for large spans.
+		// Overall, it's faster to use the more general computation above.
+	} else {
+		base = s.base()
+		if p-base >= s.elemsize {
+			// n := (p - base) / s.elemsize, using division by multiplication
+			n := uintptr(uint64(p-base) >> s.divShift * uint64(s.divMul) >> s.divShift2)
+			base += n * s.elemsize
 		}
-
-		base += n * s.elemsize
 	}
 	// Now that we know the actual base, compute heapBits to return to caller.
 	hbits = heapBitsForAddr(base)

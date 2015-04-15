@@ -24,7 +24,6 @@ type mheap struct {
 	nspan     uint32
 	sweepgen  uint32 // sweep generation, see comment in mspan
 	sweepdone uint32 // all spans are swept
-
 	// span lookup
 	spans        **mspan
 	spans_mapped uintptr
@@ -99,6 +98,7 @@ type mspan struct {
 	// if sweepgen == h->sweepgen - 1, the span is currently being swept
 	// if sweepgen == h->sweepgen, the span is swept and ready to use
 	// h->sweepgen is incremented by 2 after every GC
+
 	sweepgen    uint32
 	divMul      uint32   // for divide by elemsize - divMagic.mul
 	ref         uint16   // capacity - number of objects in freelist
@@ -114,6 +114,7 @@ type mspan struct {
 	limit       uintptr  // end of data in span
 	speciallock mutex    // guards specials list
 	specials    *special // linked list of special records sorted by offset.
+	baseMask    uintptr  // if non-0, elemsize is a power of 2, & this will get object allocation base
 }
 
 func (s *mspan) base() uintptr {
@@ -384,12 +385,14 @@ func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan 
 			s.divShift = 0
 			s.divMul = 0
 			s.divShift2 = 0
+			s.baseMask = 0
 		} else {
 			s.elemsize = uintptr(class_to_size[sizeclass])
 			m := &class_to_divmagic[sizeclass]
 			s.divShift = m.shift
 			s.divMul = m.mul
 			s.divShift2 = m.shift2
+			s.baseMask = m.baseMask
 		}
 
 		// update stats, sweep lists
