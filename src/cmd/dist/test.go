@@ -272,7 +272,7 @@ func (t *tester) registerTests() {
 		} else if t.hasBash() && t.goos != "android" && !iOS {
 			t.registerTest("testso", "../misc/cgo/testso", "./test.bash")
 		}
-		if t.goos == "darwin" && t.goarch == "amd64" {
+		if t.extLink() && t.goos == "darwin" && t.goarch == "amd64" {
 			// TODO(crawshaw): add darwin/arm{,64}
 			t.registerTest("testcarchive", "../misc/cgo/testcarchive", "./test.bash")
 		}
