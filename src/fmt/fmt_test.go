@@ -686,6 +686,14 @@ var fmtTests = []struct {
 	// Issue 8965.
 	{"%v", reflect.ValueOf(A{}).Field(0).String(), "<int Value>"}, // Equivalent to the old way.
 	{"%v", reflect.ValueOf(A{}).Field(0), "0"},                    // Sees inside the field.
+
+	// verbs apply to the extracted value too.
+	{"%s", reflect.ValueOf("hello"), "hello"},
+	{"%q", reflect.ValueOf("hello"), `"hello"`},
+	{"%#04x", reflect.ValueOf(256), "0x0100"},
+
+	// invalid reflect.Value doesn't crash.
+	{"%v", reflect.Value{}, "<nil>"},
 }
 
 // zeroFill generates zero-filled strings of the specified width. The length
