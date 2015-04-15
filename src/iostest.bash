@@ -60,5 +60,10 @@ GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go build \
 	-o ../bin/go_darwin_${GOARCH}_exec \
 	../misc/ios/go_darwin_arm_exec.go
 
+if [ "$GOIOS_DEV_ID" == "" ]; then
+	echo "detecting iOS development identity"
+	eval $(GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go run ../misc/ios/detect.go)
+fi
+
 # Run standard build and tests.
 ./all.bash --no-clean
