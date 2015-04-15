@@ -47,6 +47,10 @@ const (
 	cbTCA16
 )
 
+func cbPaletted(cb int) bool {
+	return cbP1 <= cb && cb <= cbP8
+}
+
 // Filter type, as per the PNG spec.
 const (
 	ftNone    = 0
@@ -81,15 +85,16 @@ var interlacing = []interlaceScan{
 }
 
 // Decoding stage.
-// The PNG specification says that the IHDR, PLTE (if present), IDAT and IEND
-// chunks must appear in that order. There may be multiple IDAT chunks, and
-// IDAT chunks must be sequential (i.e. they may not have any other chunks
-// between them).
+// The PNG specification says that the IHDR, PLTE (if present), tRNS (if
+// present), IDAT and IEND chunks must appear in that order. There may be
+// multiple IDAT chunks, and IDAT chunks must be sequential (i.e. they may not
+// have any other chunks between them).
 // http://www.w3.org/TR/PNG/#5ChunkOrdering
 const (
 	dsStart = iota
 	dsSeenIHDR
 	dsSeenPLTE
+	dsSeentRNS
 	dsSeenIDAT
 	dsSeenIEND
 )
@@ -687,9 +692,10 @@ func (d *decoder) parseChunk() error {
 		if d.stage != dsSeenPLTE {
 			return chunkOrderError
 		}
+		d.stage = dsSeentRNS
 		return d.parsetRNS(length)
 	case "IDAT":
-		if d.stage < dsSeenIHDR || d.stage > dsSeenIDAT || (d.cb == cbP8 && d.stage == dsSeenIHDR) {
+		if d.stage < dsSeenIHDR || d.stage > dsSeenIDAT || (d.stage == dsSeenIHDR && cbPaletted(d.cb)) {
 			return chunkOrderError
 		}
 		d.stage = dsSeenIDAT
@@ -779,7 +785,7 @@ func DecodeConfig(r io.Reader) (image.Config, error) {
 			}
 			return image.Config{}, err
 		}
-		paletted := d.cb == cbP8 || d.cb == cbP4 || d.cb == cbP2 || d.cb == cbP1
+		paletted := cbPaletted(d.cb)
 		if d.stage == dsSeenIHDR && !paletted {
 			break
 		}

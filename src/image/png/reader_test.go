@@ -6,6 +6,7 @@ package png
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"image"
 	"image/color"
@@ -315,6 +316,64 @@ func TestPalettedDecodeConfig(t *testing.T) {
 		if pal == nil {
 			t.Errorf("%s: palette not initialized", fn)
 			continue
+		}
+	}
+}
+
+func TestMultipletRNSChunks(t *testing.T) {
+	/*
+		The following is a valid 1x1 paletted PNG image with a 1-element palette
+		containing color.NRGBA{0xff, 0x00, 0x00, 0x7f}:
+			0000000: 8950 4e47 0d0a 1a0a 0000 000d 4948 4452  .PNG........IHDR
+			0000010: 0000 0001 0000 0001 0803 0000 0028 cb34  .............(.4
+			0000020: bb00 0000 0350 4c54 45ff 0000 19e2 0937  .....PLTE......7
+			0000030: 0000 0001 7452 4e53 7f80 5cb4 cb00 0000  ....tRNS..\.....
+			0000040: 0e49 4441 5478 9c62 6200 0400 00ff ff00  .IDATx.bb.......
+			0000050: 0600 03fa d059 ae00 0000 0049 454e 44ae  .....Y.....IEND.
+			0000060: 4260 82                                  B`.
+		Dropping the tRNS chunk makes that color's alpha 0xff instead of 0x7f.
+	*/
+	const (
+		ihdr = "\x00\x00\x00\x0dIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x03\x00\x00\x00\x28\xcb\x34\xbb"
+		plte = "\x00\x00\x00\x03PLTE\xff\x00\x00\x19\xe2\x09\x37"
+		trns = "\x00\x00\x00\x01tRNS\x7f\x80\x5c\xb4\xcb"
+		idat = "\x00\x00\x00\x0eIDAT\x78\x9c\x62\x62\x00\x04\x00\x00\xff\xff\x00\x06\x00\x03\xfa\xd0\x59\xae"
+		iend = "\x00\x00\x00\x00IEND\xae\x42\x60\x82"
+	)
+	for i := 0; i < 4; i++ {
+		var b []byte
+		b = append(b, pngHeader...)
+		b = append(b, ihdr...)
+		b = append(b, plte...)
+		for j := 0; j < i; j++ {
+			b = append(b, trns...)
+		}
+		b = append(b, idat...)
+		b = append(b, iend...)
+
+		var want color.Color
+		m, err := Decode(bytes.NewReader(b))
+		switch i {
+		case 0:
+			if err != nil {
+				t.Errorf("%d tRNS chunks: %v", i, err)
+				continue
+			}
+			want = color.RGBA{0xff, 0x00, 0x00, 0xff}
+		case 1:
+			if err != nil {
+				t.Errorf("%d tRNS chunks: %v", i, err)
+				continue
+			}
+			want = color.NRGBA{0xff, 0x00, 0x00, 0x7f}
+		default:
+			if err == nil {
+				t.Errorf("%d tRNS chunks: got nil error, want non-nil", i)
+			}
+			continue
+		}
+		if got := m.At(0, 0); got != want {
+			t.Errorf("%d tRNS chunks: got %T %v, want %T %v", i, got, got, want, want)
 		}
 	}
 }
