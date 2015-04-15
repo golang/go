@@ -170,6 +170,37 @@ func setGCPercent(in int32) (out int32) {
 	return out
 }
 
+// gcMarkWorkerMode represents the mode that a concurrent mark worker
+// should operate in.
+//
+// Concurrent marking happens through four different mechanisms. One
+// is mutator assists, which happen in response to allocations and are
+// not scheduled. The other three are variations in the per-P mark
+// workers and are distinguished by gcMarkWorkerMode.
+type gcMarkWorkerMode int
+
+const (
+	// gcMarkWorkerDedicatedMode indicates that the P of a mark
+	// worker is dedicated to running that mark worker. The mark
+	// worker should run without preemption until concurrent mark
+	// is done.
+	gcMarkWorkerDedicatedMode gcMarkWorkerMode = iota
+
+	// gcMarkWorkerFractionalMode indicates that a P is currently
+	// running the "fractional" mark worker. The fractional worker
+	// is necessary when GOMAXPROCS*gcGoalUtilization is not an
+	// integer. The fractional worker should run until it is
+	// preempted and will be scheduled to pick up the fractional
+	// part of GOMAXPROCS*gcGoalUtilization.
+	gcMarkWorkerFractionalMode
+
+	// gcMarkWorkerIdleMode indicates that a P is running the mark
+	// worker because it has nothing else to do. The idle worker
+	// should run until it is preempted and account its time
+	// against gcController.idleMarkTime.
+	gcMarkWorkerIdleMode
+)
+
 // gcController implements the GC pacing controller that determines
 // when to trigger concurrent garbage collection and how much marking
 // work to do in mutator assists and background marking.
@@ -212,10 +243,16 @@ type gcControllerState struct {
 	// throughout the cycle.
 	assistTime int64
 
-	// bgMarkTime is the nanoseconds spent in background marking
-	// during this cycle. This is updated atomically throughout
-	// the cycle.
-	bgMarkTime int64
+	// dedicatedMarkTime is the nanoseconds spent in dedicated
+	// mark workers during this cycle. This is updated atomically
+	// at the end of the concurrent mark phase.
+	dedicatedMarkTime int64
+
+	// fractionalMarkTime is the nanoseconds spent in the
+	// fractional mark worker during this cycle. This is updated
+	// atomically throughout the cycle and will be up-to-date if
+	// the fractional mark worker is not currently running.
+	fractionalMarkTime int64
 
 	// idleMarkTime is the nanoseconds spent in idle marking
 	// during this cycle. This is udpated atomically throughout
@@ -226,6 +263,12 @@ type gcControllerState struct {
 	// that the background mark phase started.
 	bgMarkStartTime int64
 
+	// dedicatedMarkWorkersNeeded is the number of dedicated mark
+	// workers that need to be started. This is computed at the
+	// beginning of each cycle and decremented atomically as
+	// dedicated mark workers get started.
+	dedicatedMarkWorkersNeeded int64
+
 	// workRatioAvg is a moving average of the scan work ratio
 	// (scan work per byte marked).
 	workRatioAvg float64
@@ -234,6 +277,15 @@ type gcControllerState struct {
 	// that should be performed by mutator assists. This is
 	// computed at the beginning of each cycle.
 	assistRatio float64
+
+	// fractionalUtilizationGoal is the fraction of wall clock
+	// time that should be spent in the fractional mark worker.
+	// For example, if the overall mark utilization goal is 25%
+	// and GOMAXPROCS is 6, one P will be a dedicated mark worker
+	// and this will be set to 0.5 so that 50% of the time some P
+	// is in a fractional mark worker. This is computed at the
+	// beginning of each cycle.
+	fractionalUtilizationGoal float64
 
 	// triggerRatio is the heap growth ratio at which the garbage
 	// collection cycle should start. E.g., if this is 0.6, then
@@ -244,10 +296,11 @@ type gcControllerState struct {
 
 	_ [_CacheLineSize]byte
 
-	// bgMarkCount is the number of Ps currently running
-	// background marking. This is updated at every scheduling
-	// point (hence it gets it own cache line).
-	bgMarkCount uint32
+	// fractionalMarkWorkersNeeded is the number of fractional
+	// mark workers that need to be started. This is either 0 or
+	// 1. This is potentially updated atomically at every
+	// scheduling point (hence it gets its own cache line).
+	fractionalMarkWorkersNeeded int64
 
 	_ [_CacheLineSize]byte
 }
@@ -258,7 +311,8 @@ func (c *gcControllerState) startCycle() {
 	c.scanWork = 0
 	c.bgScanCredit = 0
 	c.assistTime = 0
-	c.bgMarkTime = 0
+	c.dedicatedMarkTime = 0
+	c.fractionalMarkTime = 0
 	c.idleMarkTime = 0
 
 	// If this is the first GC cycle or we're operating on a very
@@ -289,6 +343,17 @@ func (c *gcControllerState) startCycle() {
 		heapDistance = 1024 * 1024
 	}
 	c.assistRatio = float64(scanWorkExpected) / float64(heapDistance)
+
+	// Compute the total mark utilization goal and divide it among
+	// dedicated and fractional workers.
+	totalUtilizationGoal := float64(gomaxprocs) * gcGoalUtilization
+	c.dedicatedMarkWorkersNeeded = int64(totalUtilizationGoal)
+	c.fractionalUtilizationGoal = totalUtilizationGoal - float64(c.dedicatedMarkWorkersNeeded)
+	if c.fractionalUtilizationGoal > 0 {
+		c.fractionalMarkWorkersNeeded = 1
+	} else {
+		c.fractionalMarkWorkersNeeded = 0
+	}
 
 	// Clear per-P state
 	for _, p := range &allp {
@@ -326,7 +391,7 @@ func (c *gcControllerState) endCycle() {
 	goalGrowthRatio := float64(gcpercent) / 100
 	actualGrowthRatio := float64(memstats.heap_live)/float64(memstats.heap_marked) - 1
 	duration := nanotime() - c.bgMarkStartTime
-	utilization := float64(c.assistTime+c.bgMarkTime) / float64(duration*int64(gomaxprocs))
+	utilization := float64(c.assistTime+c.dedicatedMarkTime+c.fractionalMarkTime) / float64(duration*int64(gomaxprocs))
 	triggerError := goalGrowthRatio - c.triggerRatio - utilization/gcGoalUtilization*(actualGrowthRatio-c.triggerRatio)
 
 	// Finally, we adjust the trigger for next time by this error,
@@ -347,11 +412,6 @@ func (c *gcControllerState) endCycle() {
 
 	// Update EWMA of recent scan work ratios.
 	c.workRatioAvg = workRatioWeight*workRatio + (1-workRatioWeight)*c.workRatioAvg
-
-	// Check that there aren't any background workers left.
-	if atomicload(&c.bgMarkCount) != 0 {
-		throw("endCycle: bgMarkCount != 0")
-	}
 }
 
 // findRunnable returns the background mark worker for _p_ if it
@@ -380,56 +440,66 @@ func (c *gcControllerState) findRunnable(_p_ *p) *g {
 		return nil
 	}
 
-	// Get the count of Ps currently running background mark and
-	// take a slot for this P (which we may undo below).
-	//
-	// TODO(austin): Fast path for case where we don't run background GC?
-	count := xadd(&c.bgMarkCount, +1) - 1
-
-	runBg := false
-	if c.bgMarkTime == 0 {
-		// At the beginning of a cycle, the common case logic
-		// below is right on the edge depending on whether
-		// assists have slipped in. Give background GC a
-		// little kick in the beginning.
-		runBg = count == 0 || count <= uint32(gomaxprocs/int32(1/gcGoalUtilization))
-	} else {
-		// If this P were to run background GC in addition to
-		// the Ps that currently are, then, as of the next
-		// scheduling tick, would the assist+background
-		// utilization be <= the goal utilization?
-		//
-		// TODO(austin): This assumes all Ps currently running
-		// background GC have a whole schedule quantum left.
-		// Can we do something with real time to alleviate
-		// that?
-		timeUsed := c.assistTime + c.bgMarkTime
-		timeUsedIfRun := timeUsed + int64(count+1)*forcePreemptNS
-		timeLimit := (nanotime() - gcController.bgMarkStartTime + forcePreemptNS) * int64(gomaxprocs) / int64(1/gcGoalUtilization)
-
-		runBg = timeUsedIfRun <= timeLimit
-	}
-
-	if runBg {
-		_p_.gcBgMarkIdle = false
-		gp := _p_.gcBgMarkWorker
-		casgstatus(gp, _Gwaiting, _Grunnable)
-		if trace.enabled {
-			traceGoUnpark(gp, 0)
+	decIfPositive := func(ptr *int64) bool {
+		if *ptr > 0 {
+			if xaddint64(ptr, -1) >= 0 {
+				return true
+			}
+			// We lost a race
+			xaddint64(ptr, +1)
 		}
-		return gp
+		return false
 	}
 
-	// Return unused ticket
-	xadd(&c.bgMarkCount, -1)
-	return nil
+	if decIfPositive(&c.dedicatedMarkWorkersNeeded) {
+		// This P is now dedicated to marking until the end of
+		// the concurrent mark phase.
+		_p_.gcMarkWorkerMode = gcMarkWorkerDedicatedMode
+		// TODO(austin): This P isn't going to run anything
+		// else for a while, so kick everything out of its run
+		// queue.
+	} else if decIfPositive(&c.fractionalMarkWorkersNeeded) {
+		// This P has picked the token for the fractional
+		// worker. If this P were to run the worker for the
+		// next time slice, then at the end of that time
+		// slice, would it be under the utilization goal?
+		//
+		// TODO(austin): We could fast path this and basically
+		// eliminate contention on c.bgMarkCount by
+		// precomputing the minimum time at which it's worth
+		// next scheduling the fractional worker. Then Ps
+		// don't have to fight in the window where we've
+		// passed that deadline and no one has started the
+		// worker yet.
+		//
+		// TODO(austin): Shorter preemption interval for mark
+		// worker to improve fairness and give this
+		// finer-grained control over schedule?
+		now := nanotime() - gcController.bgMarkStartTime
+		then := now + forcePreemptNS
+		timeUsedIfRun := c.fractionalMarkTime + forcePreemptNS
+		if float64(timeUsedIfRun)/float64(then) > c.fractionalUtilizationGoal {
+			// Nope, we'd overshoot the utilization goal
+			xaddint64(&c.fractionalMarkWorkersNeeded, +1)
+			return nil
+		}
+		_p_.gcMarkWorkerMode = gcMarkWorkerFractionalMode
+	} else {
+		// All workers that need to be running are running
+		return nil
+	}
+
+	// Run the background mark worker
+	gp := _p_.gcBgMarkWorker
+	casgstatus(gp, _Gwaiting, _Grunnable)
+	if trace.enabled {
+		traceGoUnpark(gp, 0)
+	}
+	return gp
 }
 
-// gcGoalUtilization is the goal CPU utilization for mutator assists
-// plus background marking as a fraction of GOMAXPROCS.
-//
-// This must be 1/N for some integer N. This limitation is not
-// fundamental, but this lets us use integer math.
+// gcGoalUtilization is the goal CPU utilization for background
+// marking as a fraction of GOMAXPROCS.
 const gcGoalUtilization = 0.25
 
 // gcBgCreditSlack is the amount of scan work credit background
@@ -783,7 +853,7 @@ func gc(mode int) {
 		installWBCpu := int64(stwprocs) * (tMark - tInstallWB)
 		// We report idle marking time below, but omit it from
 		// the overall utilization here since it's "free".
-		markCpu := gcController.assistTime + gcController.bgMarkTime
+		markCpu := gcController.assistTime + gcController.dedicatedMarkTime + gcController.fractionalMarkTime
 		markTermCpu := int64(stwprocs) * (tEnd - tMarkTerm)
 		cycleCpu := sweepTermCpu + scanCpu + installWBCpu + markCpu + markTermCpu
 		work.totaltime += cycleCpu
@@ -806,7 +876,7 @@ func gc(mode int) {
 			"+", scanCpu/1e6,
 			"+", installWBCpu/1e6,
 			"+", gcController.assistTime/1e6,
-			"/", gcController.bgMarkTime/1e6,
+			"/", (gcController.dedicatedMarkTime+gcController.fractionalMarkTime)/1e6,
 			"/", gcController.idleMarkTime/1e6,
 			"+", markTermCpu/1e6, " ms cpu, ",
 			heap0>>20, "->", heap1>>20, "->", heap2>>20, " MB, ",
@@ -892,7 +962,7 @@ func gcBgMarkWorker(p *p) {
 		gopark(func(g *g, mp unsafe.Pointer) bool {
 			releasem((*m)(mp))
 			return true
-		}, unsafe.Pointer(mp), "background mark (idle)", traceEvGoBlock, 0)
+		}, unsafe.Pointer(mp), "mark worker (idle)", traceEvGoBlock, 0)
 
 		// Loop until the P dies and disassociates this
 		// worker. (The P may later be reused, in which case
@@ -910,25 +980,37 @@ func gcBgMarkWorker(p *p) {
 
 		xadd(&work.nwait, -1)
 
-		gcDrainUntilPreempt(&gcw, gcBgCreditSlack)
+		done := false
+		switch p.gcMarkWorkerMode {
+		case gcMarkWorkerDedicatedMode:
+			gcDrain(&gcw, gcBgCreditSlack)
+			// gcDrain did the xadd(&work.nwait +1) to
+			// match the decrement above. It only returns
+			// at a mark completion point.
+			done = true
+		case gcMarkWorkerFractionalMode, gcMarkWorkerIdleMode:
+			gcDrainUntilPreempt(&gcw, gcBgCreditSlack)
+			// Was this the last worker and did we run out
+			// of work?
+			done = xadd(&work.nwait, +1) == work.nproc && work.full == 0 && work.partial == 0
+		}
 		gcw.dispose()
 
-		// If this is the last worker and we ran out of work,
-		// signal a completion point.
-		if xadd(&work.nwait, +1) == work.nproc && work.full == 0 && work.partial == 0 {
-			// This has reached a background completion
-			// point. Is it the first this cycle?
-			if cas(&work.bgMarkDone, 0, 1) {
-				notewakeup(&work.bgMarkNote)
-			}
+		// If this is the first worker to reach a background
+		// completion point this cycle, signal the coordinator.
+		if done && cas(&work.bgMarkDone, 0, 1) {
+			notewakeup(&work.bgMarkNote)
 		}
 
 		duration := nanotime() - startTime
-		if p.gcBgMarkIdle {
+		switch p.gcMarkWorkerMode {
+		case gcMarkWorkerDedicatedMode:
+			xaddint64(&gcController.dedicatedMarkTime, duration)
+		case gcMarkWorkerFractionalMode:
+			xaddint64(&gcController.fractionalMarkTime, duration)
+			xaddint64(&gcController.fractionalMarkWorkersNeeded, 1)
+		case gcMarkWorkerIdleMode:
 			xaddint64(&gcController.idleMarkTime, duration)
-		} else {
-			xaddint64(&gcController.bgMarkTime, duration)
-			xadd(&gcController.bgMarkCount, -1)
 		}
 	}
 }
