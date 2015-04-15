@@ -127,15 +127,6 @@ const (
 	_RootCount       = 5
 )
 
-//go:linkname weak_cgo_allocate go.weak.runtime._cgo_allocate_internal
-var weak_cgo_allocate byte
-
-// Is _cgo_allocate linked into the binary?
-//go:nowritebarrier
-func have_cgo_allocate() bool {
-	return &weak_cgo_allocate != nil
-}
-
 // heapminimum is the minimum number of bytes in the heap.
 // This cleans up the corner case of where we have a very small live set but a lot
 // of allocations and collecting every GOGC * live set is expensive.

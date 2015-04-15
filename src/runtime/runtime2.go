@@ -283,7 +283,6 @@ type m struct {
 	fastrand      uint32
 	ncgocall      uint64 // number of cgo calls in total
 	ncgo          int32  // number of cgo calls currently in progress
-	cgomal        *cgomal
 	park          note
 	alllink       *m // on allm
 	schedlink     *m
@@ -483,13 +482,6 @@ type itab struct {
 type lfnode struct {
 	next    uint64
 	pushcnt uintptr
-}
-
-// Track memory allocated by code not written in Go during a cgo call,
-// so that the garbage collector can see them.
-type cgomal struct {
-	next  *cgomal
-	alloc unsafe.Pointer
 }
 
 // Indicates to write barrier and sychronization task to preform.

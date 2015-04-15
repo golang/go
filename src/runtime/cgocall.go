@@ -132,12 +132,6 @@ func cgocall_errno(fn, arg unsafe.Pointer) int32 {
 //go:nosplit
 func endcgo(mp *m) {
 	mp.ncgo--
-	if mp.ncgo == 0 {
-		// We are going back to Go and are not in a recursive
-		// call.  Let the GC collect any memory allocated via
-		// _cgo_allocate that is no longer referenced.
-		mp.cgomal = nil
-	}
 
 	if raceenabled {
 		raceacquire(unsafe.Pointer(&racecgosync))
