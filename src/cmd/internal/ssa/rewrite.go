@@ -4,16 +4,22 @@
 
 package ssa
 
-import (
-	"cmd/internal/ssa/types" // TODO: use golang.org/x/tools/go/types instead
-)
+import "fmt"
 
 func applyRewrite(f *Func, r func(*Value) bool) {
 	// repeat rewrites until we find no more rewrites
+	var curv *Value
+	defer func() {
+		if curv != nil {
+			fmt.Printf("panic during rewrite of %s\n", curv.LongString())
+			// TODO(khr): print source location also
+		}
+	}()
 	for {
 		change := false
 		for _, b := range f.Blocks {
 			for _, v := range b.Values {
+				curv = v
 				if r(v) {
 					change = true
 				}
@@ -28,36 +34,21 @@ func applyRewrite(f *Func, r func(*Value) bool) {
 // Common functions called from rewriting rules
 
 func is64BitInt(t Type) bool {
-	if b, ok := t.Underlying().(*types.Basic); ok {
-		switch b.Kind() {
-		case types.Int64, types.Uint64:
-			return true
-		}
-	}
-	return false
+	return t.Size() == 8 && t.IsInteger()
 }
 
 func is32BitInt(t Type) bool {
-	if b, ok := t.Underlying().(*types.Basic); ok {
-		switch b.Kind() {
-		case types.Int32, types.Uint32:
-			return true
-		}
-	}
-	return false
+	return t.Size() == 4 && t.IsInteger()
+}
+
+func isPtr(t Type) bool {
+	return t.IsPtr()
 }
 
 func isSigned(t Type) bool {
-	if b, ok := t.Underlying().(*types.Basic); ok {
-		switch b.Kind() {
-		case types.Int8, types.Int16, types.Int32, types.Int64:
-			return true
-		}
-	}
-	return false
+	return t.IsSigned()
 }
 
-var sizer types.Sizes = &types.StdSizes{int64(ptrSize), int64(ptrSize)} // TODO(khr): from config
 func typeSize(t Type) int64 {
-	return sizer.Sizeof(t)
+	return t.Size()
 }

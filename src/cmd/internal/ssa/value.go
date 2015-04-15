@@ -101,15 +101,3 @@ func (v *Value) resetArgs() {
 	v.argstorage[1] = nil
 	v.Args = v.argstorage[:0]
 }
-
-// CopyFrom converts v to be the same value as w.  v and w must
-// have the same type.
-func (v *Value) CopyFrom(w *Value) {
-	if !typeIdentical(v.Type, w.Type) {
-		panic("copyFrom with unequal types")
-	}
-	v.Op = w.Op
-	v.Aux = w.Aux
-	v.resetArgs()
-	v.AddArgs(w.Args...)
-}

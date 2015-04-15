@@ -17,8 +17,8 @@ const (
 
 	// machine-independent opcodes
 
-	OpNop   // should never be used, appears only briefly during construction,  Has type Void.
-	OpThunk // used during ssa construction.  Like OpCopy, but the arg has not been specified yet.
+	OpNop    // should never be used, appears only briefly during construction,  Has type Void.
+	OpFwdRef // used during ssa construction.  Like OpCopy, but the arg has not been specified yet.
 
 	// 2-input arithmetic
 	OpAdd
@@ -28,7 +28,12 @@ const (
 	// 2-input comparisons
 	OpLess
 
-	// constants
+	// constants.  Constant values are stored in the aux field.
+	// booleans have a bool aux field, strings have a string aux
+	// field, and so on.  All integer types store their value
+	// in the aux field as an int64 (including int, uint64, etc.).
+	// We could store int8 as an int8, but that won't work for int,
+	// as it may be different widths on the host and target.
 	OpConst
 
 	OpArg    // address of a function parameter/result.  Memory input is an arg called ".mem".
@@ -46,12 +51,11 @@ const (
 	OpStringPtr
 	OpStringLen
 
-	OpSlice
-	OpIndex
-	OpIndexAddr
+	OpSliceIndex
+	OpSliceIndexAddr
 
-	OpLoad  // args are ptr, memory
-	OpStore // args are ptr, value, memory, returns memory
+	OpLoad  // args are ptr, memory.  Loads from ptr+aux.(int64)
+	OpStore // args are ptr, value, memory, returns memory.  Stores to ptr+aux.(int64)
 
 	OpCheckNil   // arg[0] != nil
 	OpCheckBound // 0 <= arg[0] < arg[1]
@@ -71,14 +75,6 @@ const (
 	OpFPAddr // offset from FP (+ == args from caller, - == locals)
 	OpSPAddr // offset from SP
 
-	// load/store from constant offsets from SP/FP
-	// The distinction between FP/SP needs to be maintained until after
-	// register allocation because we don't know the size of the frame yet.
-	OpLoadFP
-	OpLoadSP
-	OpStoreFP
-	OpStoreSP
-
 	// spill&restore ops for the register allocator.  These are
 	// semantically identical to OpCopy; they do not take/return
 	// stores like regular memory ops do.  We can get away without memory
@@ -93,12 +89,22 @@ const (
 	OpSUBQ
 	OpADDCQ // 1 input arg.  output = input + aux.(int64)
 	OpSUBCQ // 1 input arg.  output = input - aux.(int64)
+	OpMULQ
+	OpMULCQ // output = input * aux.(int64)
+	OpSHLQ  // output = input0 << input1
+	OpSHLCQ // output = input << aux.(int64)
 	OpNEGQ
 	OpCMPQ
 	OpCMPCQ // 1 input arg.  Compares input with aux.(int64)
 	OpADDL
-	OpSETL // generate bool = "flags encode less than"
-	OpSETGE
+	OpTESTQ // compute flags of arg[0] & arg[1]
+	OpSETEQ
+	OpSETNE
+
+	// generate boolean based on the flags setting
+	OpSETL  // less than
+	OpSETGE // >=
+	OpSETB  // "below" = unsigned less than
 
 	// InvertFlags reverses direction of flags register interpretation:
 	// (InvertFlags (OpCMPQ a b)) == (OpCMPQ b a)
@@ -110,11 +116,16 @@ const (
 	OpLEAQ4 // x+4*y
 	OpLEAQ8 // x+8*y
 
+	OpMOVQload   // (ptr, mem): loads from ptr+aux.(int64)
+	OpMOVQstore  // (ptr, val, mem): stores val to ptr+aux.(int64), returns mem
+	OpMOVQload8  // (ptr,idx,mem): loads from ptr+idx*8+aux.(int64)
+	OpMOVQstore8 // (ptr,idx,val,mem): stores to ptr+idx*8+aux.(int64), returns mem
+
 	// load/store 8-byte integer register from stack slot.
-	OpLoadFP8
-	OpLoadSP8
-	OpStoreFP8
-	OpStoreSP8
+	OpMOVQloadFP
+	OpMOVQloadSP
+	OpMOVQstoreFP
+	OpMOVQstoreSP
 
 	OpMax // sentinel
 )
@@ -184,7 +195,9 @@ var shift = [2][]regMask{{gp, cx}, {overwrite0}}
 var gp2_flags = [2][]regMask{{gp, gp}, {flags}}
 var gp1_flags = [2][]regMask{{gp}, {flags}}
 var gpload = [2][]regMask{{gp, 0}, {gp}}
+var gploadX = [2][]regMask{{gp, gp, 0}, {gp}} // indexed loads
 var gpstore = [2][]regMask{{gp, gp, 0}, {0}}
+var gpstoreX = [2][]regMask{{gp, gp, gp, 0}, {0}} // indexed stores
 
 // Opcodes that represent the input Go program
 var genericTable = [...]OpInfo{
@@ -197,7 +210,7 @@ var genericTable = [...]OpInfo{
 	OpLess: {},
 
 	OpConst:  {}, // aux matches the type (e.g. bool, int64 float64)
-	OpArg:    {}, // aux is the name of the input variable  TODO:?
+	OpArg:    {}, // aux is the name of the input variable.  Currently only ".mem" is used
 	OpGlobal: {}, // address of a global variable
 	OpFunc:   {},
 	OpCopy:   {},
@@ -251,17 +264,25 @@ var amd64Table = [...]OpInfo{
 	OpADDCQ: {asm: "ADDQ\t$%A,%I0,%O0", reg: gp11_overwrite},                 // aux = int64 constant to add
 	OpSUBQ:  {asm: "SUBQ\t%I0,%I1,%O0", reg: gp21},
 	OpSUBCQ: {asm: "SUBQ\t$%A,%I0,%O0", reg: gp11_overwrite},
+	OpMULQ:  {asm: "MULQ\t%I0,%I1,%O0", reg: gp21},
+	OpMULCQ: {asm: "MULQ\t$%A,%I0,%O0", reg: gp11_overwrite},
+	OpSHLQ:  {asm: "SHLQ\t%I0,%I1,%O0", reg: gp21},
+	OpSHLCQ: {asm: "SHLQ\t$%A,%I0,%O0", reg: gp11_overwrite},
 
 	OpCMPQ:  {asm: "CMPQ\t%I0,%I1", reg: gp2_flags}, // compute arg[0]-arg[1] and produce flags
 	OpCMPCQ: {asm: "CMPQ\t$%A,%I0", reg: gp1_flags},
+	OpTESTQ: {asm: "TESTQ\t%I0,%I1", reg: gp2_flags},
 
 	OpLEAQ:  {flags: OpFlagCommutative, asm: "LEAQ\t%A(%I0)(%I1*1),%O0", reg: gp21}, // aux = int64 constant to add
 	OpLEAQ2: {asm: "LEAQ\t%A(%I0)(%I1*2),%O0"},
 	OpLEAQ4: {asm: "LEAQ\t%A(%I0)(%I1*4),%O0"},
 	OpLEAQ8: {asm: "LEAQ\t%A(%I0)(%I1*8),%O0"},
 
-	//OpLoad8:  {asm: "MOVQ\t%A(%I0),%O0", reg: gpload},
-	//OpStore8: {asm: "MOVQ\t%I1,%A(%I0)", reg: gpstore},
+	// loads and stores
+	OpMOVQload:   {asm: "MOVQ\t%A(%I0),%O0", reg: gpload},
+	OpMOVQstore:  {asm: "MOVQ\t%I1,%A(%I0)", reg: gpstore},
+	OpMOVQload8:  {asm: "MOVQ\t%A(%I0)(%I1*8),%O0", reg: gploadX},
+	OpMOVQstore8: {asm: "MOVQ\t%I2,%A(%I0)(%I1*8)", reg: gpstoreX},
 
 	OpStaticCall: {asm: "CALL\t%A(SB)"},
 
@@ -271,10 +292,10 @@ var amd64Table = [...]OpInfo{
 	OpSETL: {},
 
 	// ops for load/store to stack
-	OpLoadFP8:  {asm: "MOVQ\t%A(FP),%O0"},
-	OpLoadSP8:  {asm: "MOVQ\t%A(SP),%O0"},
-	OpStoreFP8: {asm: "MOVQ\t%I0,%A(FP)"},
-	OpStoreSP8: {asm: "MOVQ\t%I0,%A(SP)"},
+	OpMOVQloadFP:  {asm: "MOVQ\t%A(FP),%O0"},
+	OpMOVQloadSP:  {asm: "MOVQ\t%A(SP),%O0"},
+	OpMOVQstoreFP: {asm: "MOVQ\t%I0,%A(FP)"},
+	OpMOVQstoreSP: {asm: "MOVQ\t%I0,%A(SP)"},
 
 	// ops for spilling of registers
 	// unlike regular loads & stores, these take no memory argument.

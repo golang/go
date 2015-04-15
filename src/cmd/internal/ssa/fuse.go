@@ -30,6 +30,9 @@ func fuse(f *Func) {
 				}
 			}
 		}
+		if f.Entry == b {
+			f.Entry = c
+		}
 
 		// trash b, just in case
 		b.Kind = BlockUnknown

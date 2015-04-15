@@ -16,8 +16,6 @@ import (
 	"strconv"
 	"strings"
 
-	"cmd/internal/ssa/types"
-
 	"cmd/internal/ssa"
 )
 
@@ -227,9 +225,9 @@ func buildFunc(lines []sexpr) *ssa.Func {
 				b.Control = v
 			}
 		}
-		// link up thunks to their actual values
+		// link up forward references to their actual values
 		for _, v := range b.Values {
-			if v.Op != ssa.OpThunk {
+			if v.Op != ssa.OpFwdRef {
 				continue
 			}
 			varid := v.Aux.(int)
@@ -302,7 +300,7 @@ func genExpr(state *ssaFuncState, b *ssa.Block, e sexpr) *ssa.Value {
 		if err != nil {
 			panic("bad cint value")
 		}
-		return b.Func.ConstInt(c)
+		return b.Func.ConstInt(ssa.TypeInt64, c)
 	case "LT":
 		x := genExpr(state, b, e.parts[1])
 		y := genExpr(state, b, e.parts[2])
@@ -310,28 +308,30 @@ func genExpr(state *ssaFuncState, b *ssa.Block, e sexpr) *ssa.Value {
 		v.AddArg(x)
 		v.AddArg(y)
 		return v
-	case "FP":
-		typ := state.types[e.parts[1].name]
-		offset, err := strconv.ParseInt(e.parts[2].name, 10, 64)
-		if err != nil {
-			panic(err)
-		}
-		v := b.NewValue(ssa.OpFPAddr, types.NewPointer(typ), offset)
-		return v
-	case "SP":
-		typ := state.types[e.parts[1].name]
-		offset, err := strconv.ParseInt(e.parts[2].name, 10, 64)
-		if err != nil {
-			panic(err)
-		}
-		v := b.NewValue(ssa.OpSPAddr, types.NewPointer(typ), offset)
-		return v
-	case "LOAD":
-		p := genExpr(state, b, e.parts[1])
-		v := b.NewValue(ssa.OpLoad, p.Type.(*types.Pointer).Elem(), nil)
-		v.AddArg(p)
-		v.AddArg(genVar(state, b, state.memID))
-		return v
+		/*
+			case "FP":
+				typ := state.types[e.parts[1].name]
+				offset, err := strconv.ParseInt(e.parts[2].name, 10, 64)
+				if err != nil {
+					panic(err)
+				}
+				v := b.NewValue(ssa.OpFPAddr, types.NewPointer(typ), offset)
+				return v
+			case "SP":
+				typ := state.types[e.parts[1].name]
+				offset, err := strconv.ParseInt(e.parts[2].name, 10, 64)
+				if err != nil {
+					panic(err)
+				}
+				v := b.NewValue(ssa.OpSPAddr, types.NewPointer(typ), offset)
+				return v
+			case "LOAD":
+				p := genExpr(state, b, e.parts[1])
+				v := b.NewValue(ssa.OpLoad, p.Type.(*types.Pointer).Elem(), nil)
+				v.AddArg(p)
+				v.AddArg(genVar(state, b, state.memID))
+				return v
+		*/
 	default:
 		fmt.Println(e.parts[0].name)
 		panic("unknown op")
@@ -372,9 +372,9 @@ func lookupVarOutgoing(state *ssaFuncState, b *ssa.Block, id int) *ssa.Value {
 		return v
 	}
 	// We don't know about defined variables in this block (yet).
-	// Make a thunk for this variable.
-	fmt.Printf("making thunk for var=%d in block=%d\n", id, b.ID)
-	v = b.NewValue(ssa.OpThunk, state.vartypes[id], id)
+	// Make a forward reference for this variable.
+	fmt.Printf("making fwdRef for var=%d in block=%d\n", id, b.ID)
+	v = b.NewValue(ssa.OpFwdRef, state.vartypes[id], id)
 
 	// memoize result
 	state.defs[blockvar{b.ID, id}] = v
@@ -400,7 +400,7 @@ func lookupVarIncoming(state *ssaFuncState, b *ssa.Block, id int) *ssa.Value {
 			args[i] = lookupVarOutgoing(state, p, id)
 		}
 
-		// if <=1 value that isn't this variable's thunk, don't make phi
+		// if <=1 value that isn't this variable's fwdRef, don't make phi
 		v.Op = ssa.OpPhi
 		v.AddArgs(args...) // note: order corresponding to b.Pred
 	}
@@ -418,20 +418,22 @@ func parseSexprType(e sexpr) ssa.Type {
 			panic("unknown type")
 		}
 	}
-	if e.parts[0].name == "FUNC" {
-		// TODO: receiver?  Already folded into args?  Variadic?
-		var args, rets []*types.Var
-		for _, s := range e.parts[1].parts {
-			t := parseSexprType(s)
-			args = append(args, types.NewParam(0, nil, "noname", t))
+	/*
+		if e.parts[0].name == "FUNC" {
+			// TODO: receiver?  Already folded into args?  Variadic?
+			var args, rets []*types.Var
+			for _, s := range e.parts[1].parts {
+				t := parseSexprType(s)
+				args = append(args, types.NewParam(0, nil, "noname", t))
+			}
+			for _, s := range e.parts[2].parts {
+				t := parseSexprType(s)
+				rets = append(rets, types.NewParam(0, nil, "noname", t))
+			}
+			sig := types.NewSignature(nil, nil, types.NewTuple(args...), types.NewTuple(rets...), false)
+			return ssa.Type(sig)
 		}
-		for _, s := range e.parts[2].parts {
-			t := parseSexprType(s)
-			rets = append(rets, types.NewParam(0, nil, "noname", t))
-		}
-		sig := types.NewSignature(nil, nil, types.NewTuple(args...), types.NewTuple(rets...), false)
-		return ssa.Type(sig)
-	}
+	*/
 	// TODO: array/struct/...
 	panic("compound type")
 }

@@ -14,6 +14,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"crypto/md5"
 	"fmt"
 	"go/format"
 	"io"
@@ -96,10 +97,15 @@ func main() {
 		ops = append(ops, op)
 	}
 	sort.Strings(ops)
-	rulenum := 0
 	for _, op := range ops {
 		fmt.Fprintf(w, "case Op%s:\n", op)
 		for _, rule := range oprules[op] {
+			// Note: we use a hash to identify the rule so that its
+			// identity is invariant to adding/removing rules elsewhere
+			// in the rules file.  This is useful to squash spurious
+			// diffs that would occur if we used rule index.
+			rulehash := fmt.Sprintf("%02x", md5.Sum([]byte(rule)))
+
 			// split at ->
 			s := strings.Split(rule, "->")
 			if len(s) != 2 {
@@ -120,7 +126,7 @@ func main() {
 			fmt.Fprintf(w, "// cond: %s\n", cond)
 			fmt.Fprintf(w, "// result: %s\n", result)
 
-			fail := fmt.Sprintf("{\ngoto end%d\n}\n", rulenum)
+			fail := fmt.Sprintf("{\ngoto end%s\n}\n", rulehash)
 
 			fmt.Fprintf(w, "{\n")
 			genMatch(w, match, fail)
@@ -133,8 +139,8 @@ func main() {
 			fmt.Fprintf(w, "return true\n")
 
 			fmt.Fprintf(w, "}\n")
-			fmt.Fprintf(w, "end%d:;\n", rulenum)
-			rulenum++
+			fmt.Fprintf(w, "goto end%s\n", rulehash) // use label
+			fmt.Fprintf(w, "end%s:;\n", rulehash)
 		}
 	}
 	fmt.Fprintf(w, "}\n")
@@ -249,7 +255,7 @@ func genResult0(w io.Writer, result string, alloc *int, top bool) string {
 		v = "v"
 		fmt.Fprintf(w, "v.Op = Op%s\n", s[0])
 		fmt.Fprintf(w, "v.Aux = nil\n")
-		fmt.Fprintf(w, "v.Args = v.argstorage[:0]\n")
+		fmt.Fprintf(w, "v.resetArgs()\n")
 		hasType = true
 	} else {
 		v = fmt.Sprintf("v%d", *alloc)

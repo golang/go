@@ -106,7 +106,6 @@ func checkFunc(f *Func) {
 				log.Panicf("phi length %s does not match pred length %d for block %s", v.LongString(), len(b.Preds), b)
 			}
 
-			// TODO: check idom
 			// TODO: check for cycles in values
 			// TODO: check type
 		}

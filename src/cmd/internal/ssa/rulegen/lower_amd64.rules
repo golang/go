@@ -13,35 +13,72 @@
 //  - aux will be nil if not specified.
 
 // x86 register conventions:
-//  - Integer types live in the low portion of registers.  Upper portions are junk.
+//  - Integer types live in the low portion of registers.
+//    Upper portions are correctly extended.
 //  - Boolean types use the low-order byte of a register.  Upper bytes are junk.
 //  - We do not use AH,BH,CH,DH registers.
 //  - Floating-point types will live in the low natural slot of an sse2 register.
 //    Unused portions are junk.
 
 // These are the lowerings themselves
-(Add <t> x y) && is64BitInt(t) -> (ADDQ x y)
+(Add <t> x y) && (is64BitInt(t) || isPtr(t)) -> (ADDQ x y)
 (Add <t> x y) && is32BitInt(t) -> (ADDL x y)
 
 (Sub <t> x y) && is64BitInt(t) -> (SUBQ x y)
 
+(Mul <t> x y) && is64BitInt(t) -> (MULQ x y)
+
 (Less x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETL (CMPQ <TypeFlags> x y))
 
-// stack loads/stores
-(LoadFP <t> [offset] mem) && typeSize(t) == 8 -> (LoadFP8 <t> [offset] mem)
-(StoreFP [offset] val mem) && typeSize(val.Type) == 8 -> (StoreFP8 [offset] val mem)
-(LoadSP <t> [offset] mem) && typeSize(t) == 8 -> (LoadSP8 <t> [offset] mem)
-(StoreSP [offset] val mem) && typeSize(val.Type) == 8 -> (StoreSP8 [offset] val mem)
+(Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) -> (MOVQload [int64(0)] ptr mem)
+(Store ptr val mem) && (is64BitInt(val.Type) || isPtr(val.Type)) -> (MOVQstore [int64(0)] ptr val mem)
+
+// checks
+(CheckNil p) -> (SETNE (TESTQ <TypeFlags> p p))
+(CheckBound idx len) -> (SETB (CMPQ <TypeFlags> idx len))
 
 // Rules below here apply some simple optimizations after lowering.
 // TODO: Should this be a separate pass?
 
+// stack loads/stores
+(MOVQload [off1] (FPAddr [off2]) mem) -> (MOVQloadFP [off1.(int64)+off2.(int64)] mem)
+(MOVQload [off1] (SPAddr [off2]) mem) -> (MOVQloadSP [off1.(int64)+off2.(int64)] mem)
+(MOVQstore [off1] (FPAddr [off2]) val mem) -> (MOVQstoreFP [off1.(int64)+off2.(int64)] val mem)
+(MOVQstore [off1] (SPAddr [off2]) val mem) -> (MOVQstoreSP [off1.(int64)+off2.(int64)] val mem)
+
+// fold constants into instructions
 (ADDQ x (Const [c])) -> (ADDCQ [c] x) // TODO: restrict c to int32 range?
 (ADDQ (Const [c]) x) -> (ADDCQ [c] x)
 (SUBQ x (Const [c])) -> (SUBCQ x [c])
 (SUBQ <t> (Const [c]) x) -> (NEGQ (SUBCQ <t> x [c]))
+(MULQ x (Const [c])) -> (MULCQ [c] x)
+(MULQ (Const [c]) x) -> (MULCQ [c] x)
 (CMPQ x (Const [c])) -> (CMPCQ x [c])
 (CMPQ (Const [c]) x) -> (InvertFlags (CMPCQ <TypeFlags> x [c]))
 
+// strength reduction
+// TODO: do this a lot more generically
+(MULCQ [c] x) && c.(int64) == 8 -> (SHLCQ [int64(3)] x)
+
+// fold add/shift into leaq
+(ADDQ x (SHLCQ [shift] y)) && shift.(int64) == 3 -> (LEAQ8 [int64(0)] x y)
+(ADDCQ [c] (LEAQ8 [d] x y)) -> (LEAQ8 [c.(int64)+d.(int64)] x y)
+
 // reverse ordering of compare instruction
 (SETL (InvertFlags x)) -> (SETGE x)
+
+// fold constants into memory operations
+// Note that this is not always a good idea because if not all the uses of
+// the ADDCQ get eliminated, we still have to compute the ADDCQ and we now
+// have potentially two live values (ptr and (ADDCQ [off] ptr)) instead of one.
+// Nevertheless, let's do it!
+(MOVQload [off1] (ADDCQ [off2] ptr) mem) -> (MOVQload [off1.(int64)+off2.(int64)] ptr mem)
+(MOVQstore [off1] (ADDCQ [off2] ptr) val mem) -> (MOVQstore [off1.(int64)+off2.(int64)] ptr val mem)
+
+// indexed loads and stores
+(MOVQload [off1] (LEAQ8 [off2] ptr idx) mem) -> (MOVQload8 [off1.(int64)+off2.(int64)] ptr idx mem)
+(MOVQstore [off1] (LEAQ8 [off2] ptr idx) val mem) -> (MOVQstore8 [off1.(int64)+off2.(int64)] ptr idx val mem)
+
+// Combine the offset of a stack object with the offset within a stack object
+(ADDCQ [off1] (FPAddr [off2])) -> (FPAddr [off1.(int64)+off2.(int64)])
+(ADDCQ [off1] (SPAddr [off2])) -> (SPAddr [off1.(int64)+off2.(int64)])

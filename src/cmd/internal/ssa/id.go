@@ -31,8 +31,6 @@ func (a *idAlloc) get() ID {
 // put deallocates an ID.
 func (a *idAlloc) put(x ID) {
 	a.free = append(a.free, x)
-	// TODO: IR check should make sure that the IR contains
-	// no IDs that are in the free list.
 }
 
 // num returns the maximum ID ever returned + 1.

@@ -4,9 +4,7 @@
 
 package ssa
 
-import (
-	"sort"
-)
+import "sort"
 
 // cse does common-subexpression elimination on the Function.
 // Values are just relinked, nothing is deleted.  A subsequent deadcode
@@ -115,7 +113,9 @@ func cse(f *Func) {
 			// Replace all elements of e which v dominates
 			for i := 0; i < len(e); {
 				w := e[i]
-				if w != v && dom(v.Block, w.Block, idom) {
+				if w == v {
+					e, e[i] = e[:len(e)-1], e[len(e)-1]
+				} else if dom(v.Block, w.Block, idom) {
 					rewrite[w.ID] = v
 					e, e[i] = e[:len(e)-1], e[len(e)-1]
 				} else {

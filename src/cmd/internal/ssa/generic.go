@@ -11,23 +11,24 @@ func genericRules(v *Value) bool {
 		{
 			t := v.Type
 			if v.Args[0].Op != OpConst {
-				goto end0
+				goto endc86f5c160a87f6f5ec90b6551ec099d9
 			}
 			c := v.Args[0].Aux
 			if v.Args[1].Op != OpConst {
-				goto end0
+				goto endc86f5c160a87f6f5ec90b6551ec099d9
 			}
 			d := v.Args[1].Aux
 			if !(is64BitInt(t) && isSigned(t)) {
-				goto end0
+				goto endc86f5c160a87f6f5ec90b6551ec099d9
 			}
 			v.Op = OpConst
 			v.Aux = nil
-			v.Args = v.argstorage[:0]
+			v.resetArgs()
 			v.Aux = c.(int64) + d.(int64)
 			return true
 		}
-	end0:
+		goto endc86f5c160a87f6f5ec90b6551ec099d9
+	endc86f5c160a87f6f5ec90b6551ec099d9:
 		;
 		// match: (Add <t> (Const [c]) (Const [d]))
 		// cond: is64BitInt(t) && !isSigned(t)
@@ -35,101 +36,130 @@ func genericRules(v *Value) bool {
 		{
 			t := v.Type
 			if v.Args[0].Op != OpConst {
-				goto end1
+				goto end8941c2a515c1bd38530b7fd96862bac4
 			}
 			c := v.Args[0].Aux
 			if v.Args[1].Op != OpConst {
-				goto end1
+				goto end8941c2a515c1bd38530b7fd96862bac4
 			}
 			d := v.Args[1].Aux
 			if !(is64BitInt(t) && !isSigned(t)) {
-				goto end1
+				goto end8941c2a515c1bd38530b7fd96862bac4
 			}
 			v.Op = OpConst
 			v.Aux = nil
-			v.Args = v.argstorage[:0]
+			v.resetArgs()
 			v.Aux = c.(uint64) + d.(uint64)
 			return true
 		}
-	end1:
+		goto end8941c2a515c1bd38530b7fd96862bac4
+	end8941c2a515c1bd38530b7fd96862bac4:
 		;
-	case OpLoad:
-		// match: (Load (FPAddr [offset]) mem)
+	case OpSliceCap:
+		// match: (SliceCap (Load ptr mem))
 		// cond:
-		// result: (LoadFP [offset] mem)
+		// result: (Load (Add <ptr.Type> ptr (Const <v.Block.Func.Config.UIntPtr> [int64(v.Block.Func.Config.ptrSize*2)])) mem)
 		{
-			if v.Args[0].Op != OpFPAddr {
-				goto end2
+			if v.Args[0].Op != OpLoad {
+				goto ende03f9b79848867df439b56889bb4e55d
 			}
-			offset := v.Args[0].Aux
-			mem := v.Args[1]
-			v.Op = OpLoadFP
+			ptr := v.Args[0].Args[0]
+			mem := v.Args[0].Args[1]
+			v.Op = OpLoad
 			v.Aux = nil
-			v.Args = v.argstorage[:0]
-			v.Aux = offset
+			v.resetArgs()
+			v0 := v.Block.NewValue(OpAdd, TypeInvalid, nil)
+			v0.Type = ptr.Type
+			v0.AddArg(ptr)
+			v1 := v.Block.NewValue(OpConst, TypeInvalid, nil)
+			v1.Type = v.Block.Func.Config.UIntPtr
+			v1.Aux = int64(v.Block.Func.Config.ptrSize * 2)
+			v0.AddArg(v1)
+			v.AddArg(v0)
 			v.AddArg(mem)
 			return true
 		}
-	end2:
+		goto ende03f9b79848867df439b56889bb4e55d
+	ende03f9b79848867df439b56889bb4e55d:
 		;
-		// match: (Load (SPAddr [offset]) mem)
+	case OpSliceIndex:
+		// match: (SliceIndex s i mem)
 		// cond:
-		// result: (LoadSP [offset] mem)
+		// result: (Load (Add <s.Type.Elem().PtrTo()> (SlicePtr <s.Type.Elem().PtrTo()> s) (Mul <v.Block.Func.Config.UIntPtr> i (Const <v.Block.Func.Config.UIntPtr> [s.Type.Elem().Size()]))) mem)
 		{
-			if v.Args[0].Op != OpSPAddr {
-				goto end3
-			}
-			offset := v.Args[0].Aux
-			mem := v.Args[1]
-			v.Op = OpLoadSP
-			v.Aux = nil
-			v.Args = v.argstorage[:0]
-			v.Aux = offset
-			v.AddArg(mem)
-			return true
-		}
-	end3:
-		;
-	case OpStore:
-		// match: (Store (FPAddr [offset]) val mem)
-		// cond:
-		// result: (StoreFP [offset] val mem)
-		{
-			if v.Args[0].Op != OpFPAddr {
-				goto end4
-			}
-			offset := v.Args[0].Aux
-			val := v.Args[1]
+			s := v.Args[0]
+			i := v.Args[1]
 			mem := v.Args[2]
-			v.Op = OpStoreFP
+			v.Op = OpLoad
 			v.Aux = nil
-			v.Args = v.argstorage[:0]
-			v.Aux = offset
-			v.AddArg(val)
+			v.resetArgs()
+			v0 := v.Block.NewValue(OpAdd, TypeInvalid, nil)
+			v0.Type = s.Type.Elem().PtrTo()
+			v1 := v.Block.NewValue(OpSlicePtr, TypeInvalid, nil)
+			v1.Type = s.Type.Elem().PtrTo()
+			v1.AddArg(s)
+			v0.AddArg(v1)
+			v2 := v.Block.NewValue(OpMul, TypeInvalid, nil)
+			v2.Type = v.Block.Func.Config.UIntPtr
+			v2.AddArg(i)
+			v3 := v.Block.NewValue(OpConst, TypeInvalid, nil)
+			v3.Type = v.Block.Func.Config.UIntPtr
+			v3.Aux = s.Type.Elem().Size()
+			v2.AddArg(v3)
+			v0.AddArg(v2)
+			v.AddArg(v0)
 			v.AddArg(mem)
 			return true
 		}
-	end4:
+		goto end733704831a61760840348f790b3ab045
+	end733704831a61760840348f790b3ab045:
 		;
-		// match: (Store (SPAddr [offset]) val mem)
+	case OpSliceLen:
+		// match: (SliceLen (Load ptr mem))
 		// cond:
-		// result: (StoreSP [offset] val mem)
+		// result: (Load (Add <ptr.Type> ptr (Const <v.Block.Func.Config.UIntPtr> [int64(v.Block.Func.Config.ptrSize)])) mem)
 		{
-			if v.Args[0].Op != OpSPAddr {
-				goto end5
+			if v.Args[0].Op != OpLoad {
+				goto ende94950a57eca1871c93afdeaadb90223
 			}
-			offset := v.Args[0].Aux
-			val := v.Args[1]
-			mem := v.Args[2]
-			v.Op = OpStoreSP
+			ptr := v.Args[0].Args[0]
+			mem := v.Args[0].Args[1]
+			v.Op = OpLoad
 			v.Aux = nil
-			v.Args = v.argstorage[:0]
-			v.Aux = offset
-			v.AddArg(val)
+			v.resetArgs()
+			v0 := v.Block.NewValue(OpAdd, TypeInvalid, nil)
+			v0.Type = ptr.Type
+			v0.AddArg(ptr)
+			v1 := v.Block.NewValue(OpConst, TypeInvalid, nil)
+			v1.Type = v.Block.Func.Config.UIntPtr
+			v1.Aux = int64(v.Block.Func.Config.ptrSize)
+			v0.AddArg(v1)
+			v.AddArg(v0)
 			v.AddArg(mem)
 			return true
 		}
-	end5:
+		goto ende94950a57eca1871c93afdeaadb90223
+	ende94950a57eca1871c93afdeaadb90223:
+		;
+	case OpSlicePtr:
+		// match: (SlicePtr (Load ptr mem))
+		// cond:
+		// result: (Load ptr mem)
+		{
+			if v.Args[0].Op != OpLoad {
+				goto end459613b83f95b65729d45c2ed663a153
+			}
+			ptr := v.Args[0].Args[0]
+			mem := v.Args[0].Args[1]
+			v.Op = OpLoad
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(ptr)
+			v.AddArg(mem)
+			return true
+		}
+		goto end459613b83f95b65729d45c2ed663a153
+	end459613b83f95b65729d45c2ed663a153:
 	}
 	return false
 }
