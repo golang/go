@@ -27,7 +27,7 @@ func TestDeadLoop(t *testing.T) {
 	addEdge(deadblock, exit)
 
 	// dead value in dead block
-	deadval := deadblock.NewValue(OpConstBool, TypeBool, true)
+	deadval := deadblock.NewValue(OpConst, TypeBool, true)
 	deadblock.Control = deadval
 
 	CheckFunc(f)
@@ -55,7 +55,7 @@ func TestDeadValue(t *testing.T) {
 	mem := entry.NewValue(OpArg, TypeMem, ".mem")
 	exit.Control = mem
 
-	deadval := entry.NewValue(OpConstInt, TypeInt, 37)
+	deadval := entry.NewValue(OpConst, TypeInt64, int64(37))
 
 	CheckFunc(f)
 	Deadcode(f)
@@ -84,7 +84,7 @@ func TestNeverTaken(t *testing.T) {
 	mem := entry.NewValue(OpArg, TypeMem, ".mem")
 	exit.Control = mem
 
-	cond := entry.NewValue(OpConstBool, TypeBool, false)
+	cond := entry.NewValue(OpConst, TypeBool, false)
 	entry.Control = cond
 
 	CheckFunc(f)

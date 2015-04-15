@@ -4,89 +4,71 @@
 
 package ssa
 
-import (
-	"cmd/internal/ssa/types" // TODO: use golang.org/x/tools/go/types instead
-)
+// TODO: use go/types instead?
 
-// We just inherit types from go/types
-type Type types.Type
+// A type interface used to import cmd/internal/gc:Type
+// Type instances are not guaranteed to be canonical.
+type Type interface {
+	Size() int64 // return the size in bytes
+
+	IsBoolean() bool // is a named or unnamed boolean type
+	IsInteger() bool //  ... ditto for the others
+	IsSigned() bool
+	IsFloat() bool
+	IsPtr() bool
+
+	IsMemory() bool // special ssa-package-only types
+	IsFlags() bool
+
+	Elem() Type  // given []T or *T, return T
+	PtrTo() Type // given T, return *T
+
+	String() string
+}
+
+// Stub implementation for now, until we are completely using ../gc:Type
+type TypeImpl struct {
+	Size_   int64
+	Boolean bool
+	Integer bool
+	Signed  bool
+	Float   bool
+	Ptr     bool
+
+	Memory bool
+	Flags  bool
+
+	Name string
+}
+
+func (t *TypeImpl) Size() int64     { return t.Size_ }
+func (t *TypeImpl) IsBoolean() bool { return t.Boolean }
+func (t *TypeImpl) IsInteger() bool { return t.Integer }
+func (t *TypeImpl) IsSigned() bool  { return t.Signed }
+func (t *TypeImpl) IsFloat() bool   { return t.Float }
+func (t *TypeImpl) IsPtr() bool     { return t.Ptr }
+func (t *TypeImpl) IsMemory() bool  { return t.Memory }
+func (t *TypeImpl) IsFlags() bool   { return t.Flags }
+func (t *TypeImpl) String() string  { return t.Name }
+func (t *TypeImpl) Elem() Type      { panic("not implemented"); return nil }
+func (t *TypeImpl) PtrTo() Type     { panic("not implemented"); return nil }
 
 var (
 	// shortcuts for commonly used basic types
-	//TypeInt     = types.Typ[types.Int]
-	//TypeUint    = types.Typ[types.Uint]
-	TypeInt8   = types.Typ[types.Int8]
-	TypeInt16  = types.Typ[types.Int16]
-	TypeInt32  = types.Typ[types.Int32]
-	TypeInt64  = types.Typ[types.Int64]
-	TypeUint8  = types.Typ[types.Uint8]
-	TypeUint16 = types.Typ[types.Uint16]
-	TypeUint32 = types.Typ[types.Uint32]
-	TypeUint64 = types.Typ[types.Uint64]
-	//TypeUintptr = types.Typ[types.Uintptr]
-	TypeBool   = types.Typ[types.Bool]
-	TypeString = types.Typ[types.String]
+	TypeInt8   = &TypeImpl{Size_: 1, Integer: true, Signed: true, Name: "int8"}
+	TypeInt16  = &TypeImpl{Size_: 2, Integer: true, Signed: true, Name: "int16"}
+	TypeInt32  = &TypeImpl{Size_: 4, Integer: true, Signed: true, Name: "int32"}
+	TypeInt64  = &TypeImpl{Size_: 8, Integer: true, Signed: true, Name: "int64"}
+	TypeUInt8  = &TypeImpl{Size_: 1, Integer: true, Name: "uint8"}
+	TypeUInt16 = &TypeImpl{Size_: 2, Integer: true, Name: "uint16"}
+	TypeUInt32 = &TypeImpl{Size_: 4, Integer: true, Name: "uint32"}
+	TypeUInt64 = &TypeImpl{Size_: 8, Integer: true, Name: "uint64"}
+	TypeBool   = &TypeImpl{Size_: 1, Boolean: true, Name: "bool"}
+	//TypeString = types.Typ[types.String]
 
-	TypeInvalid = types.Typ[types.Invalid]
+	TypeInvalid = &TypeImpl{Name: "invalid"}
 
 	// Additional compiler-only types go here.
-	TypeMem   = &Memory{}
-	TypeFlags = &Flags{}
-
-	// TODO(khr): we probably shouldn't use int/uint/uintptr as Value types in the compiler.
-	// In OpConst's case, their width is the compiler's width, not the to-be-compiled
-	// program's width.  For now, we can translate int/uint/uintptr to their specific
-	// widths variants before SSA.
-	// However, we may need at some point to maintain all possible user types in the
-	// compiler to handle things like interface conversion.  At that point, we may
-	// need to revisit this decision.
+	TypeMem   = &TypeImpl{Memory: true, Name: "mem"}
+	TypeFlags = &TypeImpl{Flags: true, Name: "flags"}
 )
-
-// typeIdentical reports whether its two arguments are the same type.
-func typeIdentical(t, u Type) bool {
-	if t == TypeMem {
-		return u == TypeMem
-	}
-	if t == TypeFlags {
-		return u == TypeFlags
-	}
-	return types.Identical(t, u)
-}
-
-// A type representing all of memory
-type Memory struct {
-}
-
-func (t *Memory) Underlying() types.Type { panic("Underlying of Memory") }
-func (t *Memory) String() string         { return "mem" }
-
-// A type representing the unknown type
-type Unknown struct {
-}
-
-func (t *Unknown) Underlying() types.Type { panic("Underlying of Unknown") }
-func (t *Unknown) String() string         { return "unk" }
-
-// A type representing the void type.  Used during building, should always
-// be eliminated by the first deadcode pass.
-type Void struct {
-}
-
-func (t *Void) Underlying() types.Type { panic("Underlying of Void") }
-func (t *Void) String() string         { return "void" }
-
-// A type representing the results of a nil check or bounds check.
-// TODO: or type check?
-// TODO: just use bool?
-type Check struct {
-}
-
-func (t *Check) Underlying() types.Type { panic("Underlying of Check") }
-func (t *Check) String() string         { return "check" }
-
-// x86 flags type
-type Flags struct {
-}
-
-func (t *Flags) Underlying() types.Type { panic("Underlying of Flags") }
-func (t *Flags) String() string         { return "flags" }

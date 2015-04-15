@@ -115,6 +115,7 @@ func deadcode(f *Func) {
 	f.Blocks = f.Blocks[:i]
 
 	// TODO: renumber Blocks and Values densely?
+	// TODO: save dead Values and Blocks for reuse?  Or should we just let GC handle it?
 }
 
 // There was an edge b->c.  It has been removed from b's successors.

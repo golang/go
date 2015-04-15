@@ -418,6 +418,15 @@ func compile(fn *Node) {
 		goto ret
 	}
 
+	// Build an SSA backend function
+	{
+		name := Curfn.Nname.Sym.Name
+		if len(name) > 4 && name[len(name)-4:] == "_ssa" {
+			buildssa(Curfn)
+			// TODO(khr): use result of buildssa
+		}
+	}
+
 	continpc = nil
 	breakpc = nil
 

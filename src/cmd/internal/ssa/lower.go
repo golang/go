@@ -4,19 +4,12 @@
 
 package ssa
 
-var (
-	// TODO(khr): put arch configuration constants together somewhere
-	intSize = 8
-	ptrSize = 8
-)
-
 //go:generate go run rulegen/rulegen.go rulegen/lower_amd64.rules lowerAmd64 lowerAmd64.go
 
 // convert to machine-dependent ops
 func lower(f *Func) {
 	// repeat rewrites until we find no more rewrites
-	// TODO: pick the target arch from config
-	applyRewrite(f, lowerAmd64)
+	applyRewrite(f, f.Config.lower)
 
 	// TODO: check for unlowered opcodes, fail if we find one
 
@@ -29,11 +22,32 @@ func lower(f *Func) {
 			case OpSETL:
 				b.Kind = BlockLT
 				b.Control = b.Control.Args[0]
+			case OpSETNE:
+				b.Kind = BlockNE
+				b.Control = b.Control.Args[0]
+			case OpSETB:
+				b.Kind = BlockULT
+				b.Control = b.Control.Args[0]
 				// TODO: others
 			}
 		case BlockLT:
 			if b.Control.Op == OpInvertFlags {
 				b.Kind = BlockGE
+				b.Control = b.Control.Args[0]
+			}
+		case BlockULT:
+			if b.Control.Op == OpInvertFlags {
+				b.Kind = BlockUGE
+				b.Control = b.Control.Args[0]
+			}
+		case BlockEQ:
+			if b.Control.Op == OpInvertFlags {
+				b.Kind = BlockNE
+				b.Control = b.Control.Args[0]
+			}
+		case BlockNE:
+			if b.Control.Op == OpInvertFlags {
+				b.Kind = BlockEQ
 				b.Control = b.Control.Args[0]
 			}
 			// TODO: others

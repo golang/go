@@ -4,7 +4,11 @@
 
 package ssa
 
-import "fmt"
+import (
+	"bytes"
+	"fmt"
+	"os"
+)
 
 // cgen selects machine instructions for the function.
 // This pass generates assembly output for now, but should
@@ -20,27 +24,30 @@ func cgen(f *Func) {
 	for idx, b := range f.Blocks {
 		fmt.Printf("%d:\n", b.ID)
 		for _, v := range b.Values {
+			var buf bytes.Buffer
 			asm := opcodeTable[v.Op].asm
-			fmt.Print("\t")
-			if asm == "" {
-				fmt.Print("\t")
-			}
+			buf.WriteString("        ")
 			for i := 0; i < len(asm); i++ {
 				switch asm[i] {
 				default:
-					fmt.Printf("%c", asm[i])
+					buf.WriteByte(asm[i])
+				case '\t':
+					buf.WriteByte(' ')
+					for buf.Len()%8 != 0 {
+						buf.WriteByte(' ')
+					}
 				case '%':
 					i++
 					switch asm[i] {
 					case '%':
-						fmt.Print("%")
+						buf.WriteByte('%')
 					case 'I':
 						i++
 						n := asm[i] - '0'
 						if f.RegAlloc[v.Args[n].ID] != nil {
-							fmt.Print(f.RegAlloc[v.Args[n].ID].Name())
+							buf.WriteString(f.RegAlloc[v.Args[n].ID].Name())
 						} else {
-							fmt.Printf("v%d", v.Args[n].ID)
+							fmt.Fprintf(&buf, "v%d", v.Args[n].ID)
 						}
 					case 'O':
 						i++
@@ -49,17 +56,22 @@ func cgen(f *Func) {
 							panic("can only handle 1 output for now")
 						}
 						if f.RegAlloc[v.ID] != nil {
-							// TODO: output tuple
-							fmt.Print(f.RegAlloc[v.ID].Name())
+							buf.WriteString(f.RegAlloc[v.ID].Name())
 						} else {
-							fmt.Printf("v%d", v.ID)
+							fmt.Fprintf(&buf, "v%d", v.ID)
 						}
 					case 'A':
-						fmt.Print(v.Aux)
+						fmt.Fprint(&buf, v.Aux)
 					}
 				}
 			}
-			fmt.Println("\t; " + v.LongString())
+			for buf.Len() < 40 {
+				buf.WriteByte(' ')
+			}
+			buf.WriteString("; ")
+			buf.WriteString(v.LongString())
+			buf.WriteByte('\n')
+			os.Stdout.Write(buf.Bytes())
 		}
 		// find next block in layout sequence
 		var next *Block
@@ -104,6 +116,15 @@ func cgen(f *Func) {
 				fmt.Printf("\tJLT\t%d\n", b.Succs[0].ID)
 			} else {
 				fmt.Printf("\tJLT\t%d\n", b.Succs[0].ID)
+				fmt.Printf("\tJMP\t%d\n", b.Succs[1].ID)
+			}
+		case BlockULT:
+			if b.Succs[0] == next {
+				fmt.Printf("\tJAE\t%d\n", b.Succs[1].ID)
+			} else if b.Succs[1] == next {
+				fmt.Printf("\tJB\t%d\n", b.Succs[0].ID)
+			} else {
+				fmt.Printf("\tJB\t%d\n", b.Succs[0].ID)
 				fmt.Printf("\tJMP\t%d\n", b.Succs[1].ID)
 			}
 		default:
