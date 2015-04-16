@@ -73,6 +73,7 @@ const (
 	extensionSupportedPoints     uint16 = 11
 	extensionSignatureAlgorithms uint16 = 13
 	extensionALPN                uint16 = 16
+	extensionSCT                 uint16 = 18 // https://tools.ietf.org/html/rfc6962#section-6
 	extensionSessionTicket       uint16 = 35
 	extensionNextProtoNeg        uint16 = 13172 // not IANA assigned
 	extensionRenegotiationInfo   uint16 = 0xff01
@@ -157,15 +158,16 @@ var supportedClientCertSignatureAlgorithms = []signatureAndHash{
 
 // ConnectionState records basic TLS details about the connection.
 type ConnectionState struct {
-	Version                    uint16                // TLS version used by the connection (e.g. VersionTLS12)
-	HandshakeComplete          bool                  // TLS handshake is complete
-	DidResume                  bool                  // connection resumes a previous TLS connection
-	CipherSuite                uint16                // cipher suite in use (TLS_RSA_WITH_RC4_128_SHA, ...)
-	NegotiatedProtocol         string                // negotiated next protocol (from Config.NextProtos)
-	NegotiatedProtocolIsMutual bool                  // negotiated protocol was advertised by server
-	ServerName                 string                // server name requested by client, if any (server side only)
-	PeerCertificates           []*x509.Certificate   // certificate chain presented by remote peer
-	VerifiedChains             [][]*x509.Certificate // verified chains built from PeerCertificates
+	Version                     uint16                // TLS version used by the connection (e.g. VersionTLS12)
+	HandshakeComplete           bool                  // TLS handshake is complete
+	DidResume                   bool                  // connection resumes a previous TLS connection
+	CipherSuite                 uint16                // cipher suite in use (TLS_RSA_WITH_RC4_128_SHA, ...)
+	NegotiatedProtocol          string                // negotiated next protocol (from Config.NextProtos)
+	NegotiatedProtocolIsMutual  bool                  // negotiated protocol was advertised by server
+	ServerName                  string                // server name requested by client, if any (server side only)
+	PeerCertificates            []*x509.Certificate   // certificate chain presented by remote peer
+	VerifiedChains              [][]*x509.Certificate // verified chains built from PeerCertificates
+	SignedCertificateTimestamps [][]byte              // SCTs from the server, if any
 
 	// TLSUnique contains the "tls-unique" channel binding value (see RFC
 	// 5929, section 3). For resumed sessions this value will be nil
@@ -497,6 +499,9 @@ type Certificate struct {
 	// OCSPStaple contains an optional OCSP response which will be served
 	// to clients that request it.
 	OCSPStaple []byte
+	// SignedCertificateTimestamps contains an optional list of Signed
+	// Certificate Timestamps which will be served to clients that request it.
+	SignedCertificateTimestamps [][]byte
 	// Leaf is the parsed form of the leaf certificate, which may be
 	// initialized using x509.ParseCertificate to reduce per-handshake
 	// processing for TLS clients doing client authentication. If nil, the

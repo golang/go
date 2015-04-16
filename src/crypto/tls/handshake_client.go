@@ -54,6 +54,7 @@ func (c *Conn) clientHandshake() error {
 		compressionMethods:  []uint8{compressionNone},
 		random:              make([]byte, 32),
 		ocspStapling:        true,
+		scts:                true,
 		serverName:          c.config.ServerName,
 		supportedCurves:     c.config.curvePreferences(),
 		supportedPoints:     []uint8{pointFormatUncompressed},
@@ -522,6 +523,7 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
 		c.clientProtocol = hs.serverHello.alpnProtocol
 		c.clientProtocolFallback = false
 	}
+	c.scts = hs.serverHello.scts
 
 	if hs.serverResumedSession() {
 		// Restore masterSecret and peerCerts from previous state

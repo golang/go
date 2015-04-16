@@ -303,19 +303,20 @@ func TestClose(t *testing.T) {
 	}
 }
 
-func testHandshake(clientConfig, serverConfig *Config) (state ConnectionState, err error) {
+func testHandshake(clientConfig, serverConfig *Config) (serverState, clientState ConnectionState, err error) {
 	c, s := net.Pipe()
 	done := make(chan bool)
 	go func() {
 		cli := Client(c, clientConfig)
 		cli.Handshake()
+		clientState = cli.ConnectionState()
 		c.Close()
 		done <- true
 	}()
 	server := Server(s, serverConfig)
 	err = server.Handshake()
 	if err == nil {
-		state = server.ConnectionState()
+		serverState = server.ConnectionState()
 	}
 	s.Close()
 	<-done
@@ -330,7 +331,7 @@ func TestVersion(t *testing.T) {
 	clientConfig := &Config{
 		InsecureSkipVerify: true,
 	}
-	state, err := testHandshake(clientConfig, serverConfig)
+	state, _, err := testHandshake(clientConfig, serverConfig)
 	if err != nil {
 		t.Fatalf("handshake failed: %s", err)
 	}
@@ -349,7 +350,7 @@ func TestCipherSuitePreference(t *testing.T) {
 		CipherSuites:       []uint16{TLS_RSA_WITH_AES_128_CBC_SHA, TLS_RSA_WITH_RC4_128_SHA},
 		InsecureSkipVerify: true,
 	}
-	state, err := testHandshake(clientConfig, serverConfig)
+	state, _, err := testHandshake(clientConfig, serverConfig)
 	if err != nil {
 		t.Fatalf("handshake failed: %s", err)
 	}
@@ -359,12 +360,39 @@ func TestCipherSuitePreference(t *testing.T) {
 	}
 
 	serverConfig.PreferServerCipherSuites = true
-	state, err = testHandshake(clientConfig, serverConfig)
+	state, _, err = testHandshake(clientConfig, serverConfig)
 	if err != nil {
 		t.Fatalf("handshake failed: %s", err)
 	}
 	if state.CipherSuite != TLS_RSA_WITH_RC4_128_SHA {
 		t.Fatalf("Server's preference was not used, got %x", state.CipherSuite)
+	}
+}
+
+func TestSCTHandshake(t *testing.T) {
+	expected := [][]byte{[]byte("certificate"), []byte("transparency")}
+	serverConfig := &Config{
+		Certificates: []Certificate{{
+			Certificate:                 [][]byte{testRSACertificate},
+			PrivateKey:                  testRSAPrivateKey,
+			SignedCertificateTimestamps: expected,
+		}},
+	}
+	clientConfig := &Config{
+		InsecureSkipVerify: true,
+	}
+	_, state, err := testHandshake(clientConfig, serverConfig)
+	if err != nil {
+		t.Fatalf("handshake failed: %s", err)
+	}
+	actual := state.SignedCertificateTimestamps
+	if len(actual) != len(expected) {
+		t.Fatalf("got %d scts, want %d", len(actual), len(expected))
+	}
+	for i, sct := range expected {
+		if !bytes.Equal(sct, actual[i]) {
+			t.Fatalf("SCT #%d was %x, but expected %x", i, actual[i], sct)
+		}
 	}
 }
 

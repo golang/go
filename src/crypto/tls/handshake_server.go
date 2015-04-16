@@ -198,6 +198,9 @@ Curves:
 			return false, err
 		}
 	}
+	if hs.clientHello.scts {
+		hs.hello.scts = hs.cert.SignedCertificateTimestamps
+	}
 
 	if priv, ok := hs.cert.PrivateKey.(crypto.Signer); ok {
 		switch priv.Public().(type) {
