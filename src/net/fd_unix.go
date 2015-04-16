@@ -226,7 +226,7 @@ func (fd *netFD) Read(p []byte) (n int, err error) {
 	}
 	defer fd.readUnlock()
 	if err := fd.pd.PrepareRead(); err != nil {
-		return 0, &OpError{"read", fd.net, fd.raddr, err}
+		return 0, err
 	}
 	for {
 		n, err = syscall.Read(int(fd.sysfd), p)
@@ -241,9 +241,6 @@ func (fd *netFD) Read(p []byte) (n int, err error) {
 		err = fd.eofError(n, err)
 		break
 	}
-	if err != nil && err != io.EOF {
-		err = &OpError{"read", fd.net, fd.raddr, err}
-	}
 	return
 }
 
@@ -253,7 +250,7 @@ func (fd *netFD) readFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
 	}
 	defer fd.readUnlock()
 	if err := fd.pd.PrepareRead(); err != nil {
-		return 0, nil, &OpError{"read", fd.net, fd.laddr, err}
+		return 0, nil, err
 	}
 	for {
 		n, sa, err = syscall.Recvfrom(fd.sysfd, p, 0)
@@ -268,9 +265,6 @@ func (fd *netFD) readFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
 		err = fd.eofError(n, err)
 		break
 	}
-	if err != nil && err != io.EOF {
-		err = &OpError{"read", fd.net, fd.laddr, err}
-	}
 	return
 }
 
@@ -280,7 +274,7 @@ func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.S
 	}
 	defer fd.readUnlock()
 	if err := fd.pd.PrepareRead(); err != nil {
-		return 0, 0, 0, nil, &OpError{"read", fd.net, fd.laddr, err}
+		return 0, 0, 0, nil, err
 	}
 	for {
 		n, oobn, flags, sa, err = syscall.Recvmsg(fd.sysfd, p, oob, 0)
@@ -294,9 +288,6 @@ func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.S
 		}
 		err = fd.eofError(n, err)
 		break
-	}
-	if err != nil && err != io.EOF {
-		err = &OpError{"read", fd.net, fd.laddr, err}
 	}
 	return
 }

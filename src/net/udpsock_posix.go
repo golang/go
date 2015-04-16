@@ -53,10 +53,11 @@ func newUDPConn(fd *netFD) *UDPConn { return &UDPConn{conn{fd}} }
 // ReadFromUDP can be made to time out and return an error with
 // Timeout() == true after a fixed time limit; see SetDeadline and
 // SetReadDeadline.
-func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
+func (c *UDPConn) ReadFromUDP(b []byte) (int, *UDPAddr, error) {
 	if !c.ok() {
 		return 0, nil, syscall.EINVAL
 	}
+	var addr *UDPAddr
 	n, sa, err := c.fd.readFrom(b)
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
@@ -64,7 +65,10 @@ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
 	case *syscall.SockaddrInet6:
 		addr = &UDPAddr{IP: sa.Addr[0:], Port: sa.Port, Zone: zoneToString(int(sa.ZoneId))}
 	}
-	return
+	if err != nil {
+		err = &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
+	}
+	return n, addr, err
 }
 
 // ReadFrom implements the PacketConn ReadFrom method.
@@ -95,6 +99,9 @@ func (c *UDPConn) ReadMsgUDP(b, oob []byte) (n, oobn, flags int, addr *UDPAddr, 
 		addr = &UDPAddr{IP: sa.Addr[0:], Port: sa.Port}
 	case *syscall.SockaddrInet6:
 		addr = &UDPAddr{IP: sa.Addr[0:], Port: sa.Port, Zone: zoneToString(int(sa.ZoneId))}
+	}
+	if err != nil {
+		err = &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
 	}
 	return
 }

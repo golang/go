@@ -24,12 +24,12 @@ type UnixConn struct {
 // Timeout() == true after a fixed time limit; see SetDeadline and
 // SetReadDeadline.
 func (c *UnixConn) ReadFromUnix(b []byte) (int, *UnixAddr, error) {
-	return 0, nil, syscall.EPLAN9
+	return 0, nil, &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: syscall.EPLAN9}
 }
 
 // ReadFrom implements the PacketConn ReadFrom method.
 func (c *UnixConn) ReadFrom(b []byte) (int, Addr, error) {
-	return 0, nil, syscall.EPLAN9
+	return 0, nil, &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: syscall.EPLAN9}
 }
 
 // ReadMsgUnix reads a packet from c, copying the payload into b and
@@ -37,7 +37,7 @@ func (c *UnixConn) ReadFrom(b []byte) (int, Addr, error) {
 // bytes copied into b, the number of bytes copied into oob, the flags
 // that were set on the packet, and the source address of the packet.
 func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAddr, err error) {
-	return 0, 0, 0, nil, syscall.EPLAN9
+	return 0, 0, 0, nil, &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: syscall.EPLAN9}
 }
 
 // WriteToUnix writes a packet to addr via c, copying the payload from b.

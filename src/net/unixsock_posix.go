@@ -113,10 +113,11 @@ func newUnixConn(fd *netFD) *UnixConn { return &UnixConn{conn{fd}} }
 // ReadFromUnix can be made to time out and return an error with
 // Timeout() == true after a fixed time limit; see SetDeadline and
 // SetReadDeadline.
-func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err error) {
+func (c *UnixConn) ReadFromUnix(b []byte) (int, *UnixAddr, error) {
 	if !c.ok() {
 		return 0, nil, syscall.EINVAL
 	}
+	var addr *UnixAddr
 	n, sa, err := c.fd.readFrom(b)
 	switch sa := sa.(type) {
 	case *syscall.SockaddrUnix:
@@ -124,7 +125,10 @@ func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err error) {
 			addr = &UnixAddr{Name: sa.Name, Net: sotypeToNet(c.fd.sotype)}
 		}
 	}
-	return
+	if err != nil {
+		err = &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
+	}
+	return n, addr, err
 }
 
 // ReadFrom implements the PacketConn ReadFrom method.
@@ -153,6 +157,9 @@ func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAdd
 		if sa.Name != "" {
 			addr = &UnixAddr{Name: sa.Name, Net: sotypeToNet(c.fd.sotype)}
 		}
+	}
+	if err != nil {
+		err = &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
 	}
 	return
 }

@@ -5,7 +5,6 @@
 package net
 
 import (
-	"io"
 	"os"
 	"runtime"
 	"sync"
@@ -455,7 +454,7 @@ func (fd *netFD) closeWrite() error {
 
 func (fd *netFD) Read(buf []byte) (int, error) {
 	if err := fd.readLock(); err != nil {
-		return 0, &OpError{Op: "read", Net: fd.net, Addr: fd.raddr, Err: err}
+		return 0, err
 	}
 	defer fd.readUnlock()
 	o := &fd.rop
@@ -466,11 +465,7 @@ func (fd *netFD) Read(buf []byte) (int, error) {
 	if raceenabled {
 		raceAcquire(unsafe.Pointer(&ioSync))
 	}
-	err = fd.eofError(n, err)
-	if err != nil && err != io.EOF {
-		err = &OpError{Op: "read", Net: fd.net, Addr: fd.raddr, Err: err}
-	}
-	return n, err
+	return n, fd.eofError(n, err)
 }
 
 func (fd *netFD) readFrom(buf []byte) (int, syscall.Sockaddr, error) {
@@ -478,7 +473,7 @@ func (fd *netFD) readFrom(buf []byte) (int, syscall.Sockaddr, error) {
 		return 0, nil, nil
 	}
 	if err := fd.readLock(); err != nil {
-		return 0, nil, &OpError{Op: "read", Net: fd.net, Addr: fd.laddr, Err: err}
+		return 0, nil, err
 	}
 	defer fd.readUnlock()
 	o := &fd.rop
@@ -490,12 +485,8 @@ func (fd *netFD) readFrom(buf []byte) (int, syscall.Sockaddr, error) {
 		o.rsan = int32(unsafe.Sizeof(*o.rsa))
 		return syscall.WSARecvFrom(o.fd.sysfd, &o.buf, 1, &o.qty, &o.flags, o.rsa, &o.rsan, &o.o, nil)
 	})
-	err = fd.eofError(n, err)
-	if err != nil && err != io.EOF {
-		err = &OpError{Op: "read", Net: fd.net, Addr: fd.laddr, Err: err}
-	}
 	sa, _ := o.rsa.Sockaddr()
-	return n, sa, err
+	return n, sa, fd.eofError(n, err)
 }
 
 func (fd *netFD) Write(buf []byte) (int, error) {
@@ -632,7 +623,7 @@ func (fd *netFD) dup() (*os.File, error) {
 }
 
 func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
-	return 0, 0, 0, nil, &OpError{Op: "read", Net: fd.net, Addr: fd.laddr, Err: syscall.EWINDOWS}
+	return 0, 0, 0, nil, syscall.EWINDOWS
 }
 
 func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {

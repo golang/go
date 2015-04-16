@@ -33,6 +33,9 @@ func TestShutdown(t *testing.T) {
 		}
 		var buf [10]byte
 		n, err := c.Read(buf[:])
+		if perr := parseReadError(err); perr != nil {
+			t.Error(perr)
+		}
 		if n != 0 || err != io.EOF {
 			t.Errorf("server Read = %d, %v; want 0, io.EOF", n, err)
 			return
@@ -91,6 +94,9 @@ func TestShutdownUnix(t *testing.T) {
 		}
 		var buf [10]byte
 		n, err := c.Read(buf[:])
+		if perr := parseReadError(err); perr != nil {
+			t.Error(perr)
+		}
 		if n != 0 || err != io.EOF {
 			t.Errorf("server Read = %d, %v; want 0, io.EOF", n, err)
 			return
@@ -166,6 +172,9 @@ func TestUDPListenClose(t *testing.T) {
 	}()
 	go func() {
 		_, _, err = ln.ReadFrom(buf)
+		if perr := parseReadError(err); perr != nil {
+			t.Error(perr)
+		}
 		if err == nil {
 			t.Error("ReadFrom succeeded")
 		} else {
