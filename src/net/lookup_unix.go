@@ -49,20 +49,28 @@ func lookupProtocol(name string) (int, error) {
 	return proto, nil
 }
 
-func lookupHost(host string) ([]string, error) {
-	addrs, err, ok := cgoLookupHost(host)
-	if !ok {
-		addrs, err = goLookupHost(host)
+func lookupHost(host string) (addrs []string, err error) {
+	order := systemConf().hostLookupOrder(host)
+	if order == hostLookupCgo {
+		if addrs, err, ok := cgoLookupHost(host); ok {
+			return addrs, err
+		}
+		// cgo not available (or netgo); fall back to Go's DNS resolver
+		order = hostLookupFilesDNS
 	}
-	return addrs, err
+	return goLookupHostOrder(host, order)
 }
 
-func lookupIP(host string) ([]IPAddr, error) {
-	addrs, err, ok := cgoLookupIP(host)
-	if !ok {
-		addrs, err = goLookupIP(host)
+func lookupIP(host string) (addrs []IPAddr, err error) {
+	order := systemConf().hostLookupOrder(host)
+	if order == hostLookupCgo {
+		if addrs, err, ok := cgoLookupIP(host); ok {
+			return addrs, err
+		}
+		// cgo not available (or netgo); fall back to Go's DNS resolver
+		order = hostLookupFilesDNS
 	}
-	return addrs, err
+	return goLookupIPOrder(host, order)
 }
 
 func lookupPort(network, service string) (int, error) {

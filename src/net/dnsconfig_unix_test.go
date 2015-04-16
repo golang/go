@@ -13,22 +13,23 @@ import (
 
 var dnsReadConfigTests = []struct {
 	name string
-	conf dnsConfig
+	want *dnsConfig
 }{
 	{
 		name: "testdata/resolv.conf",
-		conf: dnsConfig{
-			servers:  []string{"8.8.8.8", "2001:4860:4860::8888", "fe80::1%lo0"},
-			search:   []string{"localdomain"},
-			ndots:    5,
-			timeout:  10,
-			attempts: 3,
-			rotate:   true,
+		want: &dnsConfig{
+			servers:    []string{"8.8.8.8", "2001:4860:4860::8888", "fe80::1%lo0"},
+			search:     []string{"localdomain"},
+			ndots:      5,
+			timeout:    10,
+			attempts:   3,
+			rotate:     true,
+			unknownOpt: true, // the "options attempts 3" line
 		},
 	},
 	{
 		name: "testdata/domain-resolv.conf",
-		conf: dnsConfig{
+		want: &dnsConfig{
 			servers:  []string{"8.8.8.8"},
 			search:   []string{"localdomain"},
 			ndots:    1,
@@ -38,7 +39,7 @@ var dnsReadConfigTests = []struct {
 	},
 	{
 		name: "testdata/search-resolv.conf",
-		conf: dnsConfig{
+		want: &dnsConfig{
 			servers:  []string{"8.8.8.8"},
 			search:   []string{"test", "invalid"},
 			ndots:    1,
@@ -48,10 +49,21 @@ var dnsReadConfigTests = []struct {
 	},
 	{
 		name: "testdata/empty-resolv.conf",
-		conf: dnsConfig{
+		want: &dnsConfig{
 			ndots:    1,
 			timeout:  5,
 			attempts: 2,
+		},
+	},
+	{
+		name: "testdata/openbsd-resolv.conf",
+		want: &dnsConfig{
+			ndots:    1,
+			timeout:  5,
+			attempts: 2,
+			lookup:   []string{"file", "bind"},
+			servers:  []string{"169.254.169.254", "10.240.0.1"},
+			search:   []string{"c.symbolic-datum-552.internal."},
 		},
 	},
 }
@@ -62,8 +74,8 @@ func TestDNSReadConfig(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !reflect.DeepEqual(conf, &tt.conf) {
-			t.Errorf("got %v; want %v", conf, &tt.conf)
+		if !reflect.DeepEqual(conf, tt.want) {
+			t.Errorf("%s:\n got: %+v\nwant: %+v", tt.name, conf, tt.want)
 		}
 	}
 }
