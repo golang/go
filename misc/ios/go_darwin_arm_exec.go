@@ -618,11 +618,11 @@ func entitlementsPlist() string {
 <plist version="1.0">
 <dict>
 	<key>keychain-access-groups</key>
-	<array><string>` + teamID + `.golang.gotest</string></array>
+	<array><string>` + appID + `.golang.gotest</string></array>
 	<key>get-task-allow</key>
 	<true/>
 	<key>application-identifier</key>
-	<string>` + teamID + `.golang.gotest</string>
+	<string>` + appID + `.golang.gotest</string>
 	<key>com.apple.developer.team-identifier</key>
 	<string>` + teamID + `</string>
 </dict>
