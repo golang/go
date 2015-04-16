@@ -72,10 +72,6 @@ func main() {
 
 	gcenable()
 
-	if islibrary {
-		// Allocate new M as main_main() is expected to block forever.
-		systemstack(newextram)
-	}
 	main_init_done = make(chan bool)
 	if iscgo {
 		if _cgo_thread_start == nil {
@@ -107,9 +103,9 @@ func main() {
 	needUnlock = false
 	unlockOSThread()
 
-	if isarchive {
-		// A program compiled with -buildmode=c-archive has a main,
-		// but it is not executed.
+	if isarchive || islibrary {
+		// A program compiled with -buildmode=c-archive or c-shared
+		// has a main, but it is not executed.
 		return
 	}
 	main_main()
