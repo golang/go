@@ -353,3 +353,41 @@ func purgecachedstats(c *mcache) {
 		c.local_nsmallfree[i] = 0
 	}
 }
+
+// Atomically increases a given *system* memory stat.  We are counting on this
+// stat never overflowing a uintptr, so this function must only be used for
+// system memory stats.
+//
+// The current implementation for little endian architectures is based on
+// xadduintptr(), which is less than ideal: xadd64() should really be used.
+// Using xadduintptr() is a stop-gap solution until arm supports xadd64() that
+// doesn't use locks.  (Locks are a problem as they require a valid G, which
+// restricts their useability.)
+//
+// A side-effect of using xadduintptr() is that we need to check for
+// overflow errors.
+//go:nosplit
+func mSysStatInc(sysStat *uint64, n uintptr) {
+	if _BigEndian != 0 {
+		xadd64(sysStat, int64(n))
+		return
+	}
+	if val := xadduintptr((*uintptr)(unsafe.Pointer(sysStat)), n); val < n {
+		print("runtime: stat overflow: val ", val, ", n ", n, "\n")
+		exit(2)
+	}
+}
+
+// Atomically decreases a given *system* memory stat.  Same comments as
+// mSysStatInc apply.
+//go:nosplit
+func mSysStatDec(sysStat *uint64, n uintptr) {
+	if _BigEndian != 0 {
+		xadd64(sysStat, -int64(n))
+		return
+	}
+	if val := xadduintptr((*uintptr)(unsafe.Pointer(sysStat)), uintptr(-int64(n))); val+n < n {
+		print("runtime: stat underflow: val ", val, ", n ", n, "\n")
+		exit(2)
+	}
+}

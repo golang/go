@@ -32,6 +32,10 @@ func xadd64(ptr *uint64, delta int64) uint64 {
 	}
 }
 
+//go:noescape
+//go:linkname xadduintptr runtime.xadd
+func xadduintptr(ptr *uintptr, delta uintptr) uintptr
+
 //go:nosplit
 func xchg64(ptr *uint64, new uint64) uint64 {
 	for {

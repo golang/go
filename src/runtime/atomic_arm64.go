@@ -13,6 +13,10 @@ func xadd(ptr *uint32, delta int32) uint32
 func xadd64(ptr *uint64, delta int64) uint64
 
 //go:noescape
+//go:linkname xadduintptr runtime.xadd64
+func xadduintptr(ptr *uintptr, delta uintptr) uintptr
+
+//go:noescape
 func xchg(ptr *uint32, new uint32) uint32
 
 //go:noescape
