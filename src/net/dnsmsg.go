@@ -306,7 +306,23 @@ func (rr *dnsRR_TXT) Header() *dnsRR_Header {
 }
 
 func (rr *dnsRR_TXT) Walk(f func(v interface{}, name, tag string) bool) bool {
-	return rr.Hdr.Walk(f) && f(&rr.Txt, "Txt", "")
+	if !rr.Hdr.Walk(f) {
+		return false
+	}
+	var n uint16 = 0
+	for n < rr.Hdr.Rdlength {
+		var txt string
+		if !f(&txt, "Txt", "") {
+			return false
+		}
+		// more bytes than rr.Hdr.Rdlength said there woudld be
+		if rr.Hdr.Rdlength-n < uint16(len(txt))+1 {
+			return false
+		}
+		n += uint16(len(txt)) + 1
+		rr.Txt += txt
+	}
+	return true
 }
 
 type dnsRR_SRV struct {
