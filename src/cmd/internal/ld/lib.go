@@ -288,7 +288,9 @@ func (mode *BuildMode) Set(s string) error {
 	case "exe":
 		*mode = BuildmodeExe
 	case "c-archive":
-		if goos != "darwin" {
+		switch goos {
+		case "darwin", "linux":
+		default:
 			return badmode()
 		}
 		*mode = BuildmodeCArchive
