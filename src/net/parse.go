@@ -232,3 +232,132 @@ func last(s string, b byte) int {
 	}
 	return i
 }
+
+// lowerASCIIBytes makes x ASCII lowercase in-place.
+func lowerASCIIBytes(x []byte) {
+	for i, b := range x {
+		if 'A' <= b && b <= 'Z' {
+			x[i] += 'a' - 'A'
+		}
+	}
+}
+
+// lowerASCII returns the ASCII lowercase version of b.
+func lowerASCII(b byte) byte {
+	if 'A' <= b && b <= 'Z' {
+		return b + ('a' - 'A')
+	}
+	return b
+}
+
+// trimSpace returns x without any leading or trailing ASCII whitespace.
+func trimSpace(x []byte) []byte {
+	for len(x) > 0 && isSpace(x[0]) {
+		x = x[1:]
+	}
+	for len(x) > 0 && isSpace(x[len(x)-1]) {
+		x = x[:len(x)-1]
+	}
+	return x
+}
+
+// isSpace reports whether b is an ASCII space character.
+func isSpace(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
+}
+
+// removeComment returns line, removing any '#' byte and any following
+// bytes.
+func removeComment(line []byte) []byte {
+	if i := bytesIndexByte(line, '#'); i != -1 {
+		return line[:i]
+	}
+	return line
+}
+
+// foreachLine runs fn on each line of x.
+// Each line (except for possibly the last) ends in '\n'.
+// It returns the first non-nil error returned by fn.
+func foreachLine(x []byte, fn func(line []byte) error) error {
+	for len(x) > 0 {
+		nl := bytesIndexByte(x, '\n')
+		if nl == -1 {
+			return fn(x)
+		}
+		line := x[:nl+1]
+		x = x[nl+1:]
+		if err := fn(line); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// foreachField runs fn on each non-empty run of non-space bytes in x.
+// It returns the first non-nil error returned by fn.
+func foreachField(x []byte, fn func(field []byte) error) error {
+	x = trimSpace(x)
+	for len(x) > 0 {
+		sp := bytesIndexByte(x, ' ')
+		if sp == -1 {
+			return fn(x)
+		}
+		if field := trimSpace(x[:sp]); len(field) > 0 {
+			if err := fn(field); err != nil {
+				return err
+			}
+		}
+		x = trimSpace(x[sp+1:])
+	}
+	return nil
+}
+
+// bytesIndexByte is bytes.IndexByte. It returns the index of the
+// first instance of c in s, or -1 if c is not present in s.
+func bytesIndexByte(s []byte, c byte) int {
+	for i, b := range s {
+		if b == c {
+			return i
+		}
+	}
+	return -1
+}
+
+// stringsHasSuffix is strings.HasSuffix. It reports whether s ends in
+// suffix.
+func stringsHasSuffix(s, suffix string) bool {
+	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
+}
+
+// stringsHasSuffixFold reports whether s ends in suffix,
+// ASCII-case-insensitively.
+func stringsHasSuffixFold(s, suffix string) bool {
+	if len(suffix) > len(s) {
+		return false
+	}
+	for i := 0; i < len(suffix); i++ {
+		if lowerASCII(suffix[i]) != lowerASCII(s[len(s)-len(suffix)+i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// stringsHasPrefix is strings.HasPrefix. It reports whether s begins with prefix.
+func stringsHasPrefix(s, prefix string) bool {
+	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
+}
+
+func readFull(r io.Reader) (all []byte, err error) {
+	buf := make([]byte, 1024)
+	for {
+		n, err := r.Read(buf)
+		all = append(all, buf[:n]...)
+		if err == io.EOF {
+			return all, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+}
