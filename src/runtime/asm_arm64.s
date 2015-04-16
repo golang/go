@@ -469,6 +469,20 @@ TEXT runtime·atomicloaduint(SB), NOSPLIT, $-8-16
 TEXT runtime·atomicstoreuintptr(SB), NOSPLIT, $0-16
 	B	runtime·atomicstore64(SB)
 
+// AES hashing not implemented for ARM64, issue #10109.
+TEXT runtime·aeshash(SB),NOSPLIT,$-8-0
+	MOVW	$0, R0
+	MOVW	(R0), R1
+TEXT runtime·aeshash32(SB),NOSPLIT,$-8-0
+	MOVW	$0, R0
+	MOVW	(R0), R1
+TEXT runtime·aeshash64(SB),NOSPLIT,$-8-0
+	MOVW	$0, R0
+	MOVW	(R0), R1
+TEXT runtime·aeshashstr(SB),NOSPLIT,$-8-0
+	MOVW	$0, R0
+	MOVW	(R0), R1
+
 // bool casp(void **val, void *old, void *new)
 // Atomically:
 //	if(*val == old){
