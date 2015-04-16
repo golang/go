@@ -211,6 +211,9 @@ func TestWriteTimeout(t *testing.T) {
 	writeUntilTimeout := func() {
 		for {
 			_, err := c.Write(buf)
+			if perr := parseWriteError(err); perr != nil {
+				t.Error(perr)
+			}
 			if err != nil {
 				if isTimeoutError(err) {
 					return
@@ -241,15 +244,9 @@ func TestWriteTimeout(t *testing.T) {
 	default:
 	}
 	c.Close()
-	switch nerr := <-errc; err := nerr.(type) {
-	case *OpError:
-		if err.Err != errClosing {
-			t.Fatalf("Write: expected err %v, got %v", errClosing, err)
-		}
-	default:
-		if err != errClosing {
-			t.Fatalf("Write: expected err %v, got %v", errClosing, err)
-		}
+	err = <-errc
+	if perr := parseWriteError(err); perr != nil {
+		t.Error(perr)
 	}
 }
 
@@ -675,6 +672,9 @@ func TestWriteDeadlineBufferAvailable(t *testing.T) {
 	res := <-servec
 	if res.n != 0 {
 		t.Errorf("Write = %d; want 0", res.n)
+	}
+	if perr := parseWriteError(res.err); perr != nil {
+		t.Error(perr)
 	}
 	if !isTimeoutError(res.err) {
 		t.Errorf("Write error = %v; want timeout", res.err)

@@ -154,9 +154,13 @@ func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (int, error) {
 	}
 	sa, err := addr.sockaddr(c.fd.family)
 	if err != nil {
-		return 0, &OpError{"write", c.fd.net, addr, err}
+		return 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: err}
 	}
-	return c.fd.writeTo(b, sa)
+	n, err := c.fd.writeTo(b, sa)
+	if err != nil {
+		err = &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: err}
+	}
+	return n, err
 }
 
 // WriteTo implements the PacketConn WriteTo method.
@@ -166,7 +170,7 @@ func (c *IPConn) WriteTo(b []byte, addr Addr) (int, error) {
 	}
 	a, ok := addr.(*IPAddr)
 	if !ok {
-		return 0, &OpError{"write", c.fd.net, addr, syscall.EINVAL}
+		return 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: syscall.EINVAL}
 	}
 	return c.WriteToIP(b, a)
 }
@@ -184,11 +188,16 @@ func (c *IPConn) WriteMsgIP(b, oob []byte, addr *IPAddr) (n, oobn int, err error
 	if addr == nil {
 		return 0, 0, &OpError{Op: "write", Net: c.fd.net, Addr: nil, Err: errMissingAddress}
 	}
-	sa, err := addr.sockaddr(c.fd.family)
+	var sa syscall.Sockaddr
+	sa, err = addr.sockaddr(c.fd.family)
 	if err != nil {
-		return 0, 0, &OpError{"write", c.fd.net, addr, err}
+		return 0, 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: err}
 	}
-	return c.fd.writeMsg(b, oob, sa)
+	n, oobn, err = c.fd.writeMsg(b, oob, sa)
+	if err != nil {
+		err = &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: err}
+	}
+	return
 }
 
 // DialIP connects to the remote address raddr on the network protocol

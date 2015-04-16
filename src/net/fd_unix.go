@@ -298,7 +298,7 @@ func (fd *netFD) Write(p []byte) (nn int, err error) {
 	}
 	defer fd.writeUnlock()
 	if err := fd.pd.PrepareWrite(); err != nil {
-		return 0, &OpError{"write", fd.net, fd.raddr, err}
+		return 0, err
 	}
 	for {
 		var n int
@@ -323,9 +323,6 @@ func (fd *netFD) Write(p []byte) (nn int, err error) {
 			break
 		}
 	}
-	if err != nil {
-		err = &OpError{"write", fd.net, fd.raddr, err}
-	}
 	return nn, err
 }
 
@@ -335,7 +332,7 @@ func (fd *netFD) writeTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
 	}
 	defer fd.writeUnlock()
 	if err := fd.pd.PrepareWrite(); err != nil {
-		return 0, &OpError{"write", fd.net, fd.raddr, err}
+		return 0, err
 	}
 	for {
 		err = syscall.Sendto(fd.sysfd, p, 0, sa)
@@ -348,8 +345,6 @@ func (fd *netFD) writeTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
 	}
 	if err == nil {
 		n = len(p)
-	} else {
-		err = &OpError{"write", fd.net, fd.raddr, err}
 	}
 	return
 }
@@ -360,7 +355,7 @@ func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oob
 	}
 	defer fd.writeUnlock()
 	if err := fd.pd.PrepareWrite(); err != nil {
-		return 0, 0, &OpError{"write", fd.net, fd.raddr, err}
+		return 0, 0, err
 	}
 	for {
 		n, err = syscall.SendmsgN(fd.sysfd, p, oob, sa, 0)
@@ -373,8 +368,6 @@ func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oob
 	}
 	if err == nil {
 		oobn = len(oob)
-	} else {
-		err = &OpError{"write", fd.net, fd.raddr, err}
 	}
 	return
 }

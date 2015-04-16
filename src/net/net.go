@@ -138,7 +138,16 @@ func (c *conn) Write(b []byte) (int, error) {
 	if !c.ok() {
 		return 0, syscall.EINVAL
 	}
-	return c.fd.Write(b)
+	n, err := c.fd.Write(b)
+	if err != nil {
+		err = &OpError{Op: "write", Net: c.fd.net, Err: err}
+		if c.fd.raddr != nil {
+			err.(*OpError).Addr = c.fd.raddr
+		} else {
+			err.(*OpError).Addr = c.fd.laddr // for unconnected-mode sockets
+		}
+	}
+	return n, err
 }
 
 // Close closes the connection.

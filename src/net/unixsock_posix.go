@@ -170,7 +170,7 @@ func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAdd
 // Timeout() == true after a fixed time limit; see SetDeadline and
 // SetWriteDeadline.  On packet-oriented connections, write timeouts
 // are rare.
-func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err error) {
+func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (int, error) {
 	if !c.ok() {
 		return 0, syscall.EINVAL
 	}
@@ -181,10 +181,14 @@ func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err error) {
 		return 0, &OpError{Op: "write", Net: c.fd.net, Addr: nil, Err: errMissingAddress}
 	}
 	if addr.Net != sotypeToNet(c.fd.sotype) {
-		return 0, syscall.EAFNOSUPPORT
+		return 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: syscall.EAFNOSUPPORT}
 	}
 	sa := &syscall.SockaddrUnix{Name: addr.Name}
-	return c.fd.writeTo(b, sa)
+	n, err := c.fd.writeTo(b, sa)
+	if err != nil {
+		err = &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: err}
+	}
+	return n, err
 }
 
 // WriteTo implements the PacketConn WriteTo method.
@@ -194,7 +198,7 @@ func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err error) {
 	}
 	a, ok := addr.(*UnixAddr)
 	if !ok {
-		return 0, &OpError{"write", c.fd.net, addr, syscall.EINVAL}
+		return 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: syscall.EINVAL}
 	}
 	return c.WriteToUnix(b, a)
 }
@@ -209,14 +213,18 @@ func (c *UnixConn) WriteMsgUnix(b, oob []byte, addr *UnixAddr) (n, oobn int, err
 	if c.fd.sotype == syscall.SOCK_DGRAM && c.fd.isConnected {
 		return 0, 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: ErrWriteToConnected}
 	}
+	var sa syscall.Sockaddr
 	if addr != nil {
 		if addr.Net != sotypeToNet(c.fd.sotype) {
-			return 0, 0, syscall.EAFNOSUPPORT
+			return 0, 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: syscall.EAFNOSUPPORT}
 		}
-		sa := &syscall.SockaddrUnix{Name: addr.Name}
-		return c.fd.writeMsg(b, oob, sa)
+		sa = &syscall.SockaddrUnix{Name: addr.Name}
 	}
-	return c.fd.writeMsg(b, oob, nil)
+	n, oobn, err = c.fd.writeMsg(b, oob, sa)
+	if err != nil {
+		err = &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: err}
+	}
+	return
 }
 
 // CloseRead shuts down the reading side of the Unix domain connection.
