@@ -86,6 +86,8 @@ threadentry(void *v)
 	ts = *(ThreadStart*)v;
 	free(v);
 
+	darwin_arm_init_thread_exception_port();
+
 	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
 	return nil;
 }
@@ -147,6 +149,9 @@ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
 
 	// yes, tlsbase from mrs might not be correctly aligned.
 	inittls(tlsg, (void**)((uintptr)tlsbase & ~7));
+
+	darwin_arm_init_mach_exception_handler();
+	darwin_arm_init_thread_exception_port();
 
 	init_working_dir();
 }
