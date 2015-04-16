@@ -271,30 +271,37 @@ func (p Palette) Convert(c Color) Color {
 }
 
 // Index returns the index of the palette color closest to c in Euclidean
-// R,G,B space.
+// R,G,B,A space.
 func (p Palette) Index(c Color) int {
 	// A batch version of this computation is in image/draw/draw.go.
 
-	cr, cg, cb, _ := c.RGBA()
-	ret, bestSSD := 0, uint32(1<<32-1)
+	cr, cg, cb, ca := c.RGBA()
+	ret, bestSum := 0, uint32(1<<32-1)
 	for i, v := range p {
-		vr, vg, vb, _ := v.RGBA()
-		// We shift by 1 bit to avoid potential uint32 overflow in
-		// sum-squared-difference.
-		delta := (int32(cr) - int32(vr)) >> 1
-		ssd := uint32(delta * delta)
-		delta = (int32(cg) - int32(vg)) >> 1
-		ssd += uint32(delta * delta)
-		delta = (int32(cb) - int32(vb)) >> 1
-		ssd += uint32(delta * delta)
-		if ssd < bestSSD {
-			if ssd == 0 {
+		vr, vg, vb, va := v.RGBA()
+		sum := sqDiff(cr, vr) + sqDiff(cg, vg) + sqDiff(cb, vb) + sqDiff(ca, va)
+		if sum < bestSum {
+			if sum == 0 {
 				return i
 			}
-			ret, bestSSD = i, ssd
+			ret, bestSum = i, sum
 		}
 	}
 	return ret
+}
+
+// sqDiff returns the squared-difference of x and y, shifted by 2 so that
+// adding four of those won't overflow a uint32.
+//
+// x and y are both assumed to be in the range [0, 0xffff].
+func sqDiff(x, y uint32) uint32 {
+	var d uint32
+	if x > y {
+		d = x - y
+	} else {
+		d = y - x
+	}
+	return (d * d) >> 2
 }
 
 // Standard colors.
