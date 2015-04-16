@@ -130,19 +130,19 @@ func sbrk(n uintptr) unsafe.Pointer {
 	return unsafe.Pointer(bl)
 }
 
-func sysAlloc(n uintptr, stat *uint64) unsafe.Pointer {
+func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
 	lock(&memlock)
 	p := memAlloc(n)
 	memCheck()
 	unlock(&memlock)
 	if p != nil {
-		xadd64(stat, int64(n))
+		mSysStatInc(sysStat, n)
 	}
 	return p
 }
 
-func sysFree(v unsafe.Pointer, n uintptr, stat *uint64) {
-	xadd64(stat, -int64(n))
+func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+	mSysStatDec(sysStat, n)
 	lock(&memlock)
 	memFree(v, n)
 	memCheck()
@@ -155,10 +155,10 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 func sysUsed(v unsafe.Pointer, n uintptr) {
 }
 
-func sysMap(v unsafe.Pointer, n uintptr, reserved bool, stat *uint64) {
+func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
 	// sysReserve has already allocated all heap memory,
 	// but has not adjusted stats.
-	xadd64(stat, int64(n))
+	mSysStatInc(sysStat, n)
 }
 
 func sysFault(v unsafe.Pointer, n uintptr) {

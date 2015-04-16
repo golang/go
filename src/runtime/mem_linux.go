@@ -48,8 +48,10 @@ func mmap_fixed(v unsafe.Pointer, n uintptr, prot, flags, fd int32, offset uint3
 	return p
 }
 
+// Don't split the stack as this method may be invoked without a valid G, which
+// prevents us from allocating more stack.
 //go:nosplit
-func sysAlloc(n uintptr, stat *uint64) unsafe.Pointer {
+func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
 	p := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
 	if uintptr(p) < 4096 {
 		if uintptr(p) == _EACCES {
@@ -62,7 +64,7 @@ func sysAlloc(n uintptr, stat *uint64) unsafe.Pointer {
 		}
 		return nil
 	}
-	xadd64(stat, int64(n))
+	mSysStatInc(sysStat, n)
 	return p
 }
 
@@ -93,8 +95,11 @@ func sysUsed(v unsafe.Pointer, n uintptr) {
 	}
 }
 
-func sysFree(v unsafe.Pointer, n uintptr, stat *uint64) {
-	xadd64(stat, -int64(n))
+// Don't split the stack as this function may be invoked without a valid G,
+// which prevents us from allocating more stack.
+//go:nosplit
+func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+	mSysStatDec(sysStat, n)
 	munmap(v, n)
 }
 
@@ -128,8 +133,8 @@ func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
 	return p
 }
 
-func sysMap(v unsafe.Pointer, n uintptr, reserved bool, stat *uint64) {
-	xadd64(stat, int64(n))
+func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
+	mSysStatInc(sysStat, n)
 
 	// On 64-bit, we don't actually have v reserved, so tread carefully.
 	if !reserved {

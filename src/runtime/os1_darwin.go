@@ -98,8 +98,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 //
 //go:nosplit
 func newosproc0(stacksize uintptr, fn unsafe.Pointer, fnarg uintptr) {
-	var dummy uint64
-	stack := sysAlloc(stacksize, &dummy)
+	stack := sysAlloc(stacksize, &memstats.stacks_sys)
 	if stack == nil {
 		write(2, unsafe.Pointer(&failallocatestack[0]), int32(len(failallocatestack)))
 		exit(1)

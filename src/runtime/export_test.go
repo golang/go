@@ -21,6 +21,7 @@ var F64toint = f64toint
 var Entersyscall = entersyscall
 var Exitsyscall = exitsyscall
 var LockedOSThread = lockedOSThread
+var Xadduintptr = xadduintptr
 
 var FuncPC = funcPC
 
@@ -129,3 +130,5 @@ var Write = write
 
 func Envs() []string     { return envs }
 func SetEnvs(e []string) { envs = e }
+
+var BigEndian = _BigEndian

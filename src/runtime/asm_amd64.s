@@ -530,6 +530,9 @@ TEXT runtime·xadd64(SB), NOSPLIT, $0-24
 	MOVQ	AX, ret+16(FP)
 	RET
 
+TEXT runtime·xadduintptr(SB), NOSPLIT, $0-24
+	JMP	runtime·xadd64(SB)
+
 TEXT runtime·xchg(SB), NOSPLIT, $0-20
 	MOVQ	ptr+0(FP), BX
 	MOVL	new+8(FP), AX

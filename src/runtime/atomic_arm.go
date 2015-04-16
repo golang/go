@@ -27,6 +27,10 @@ func xadd(val *uint32, delta int32) uint32 {
 	}
 }
 
+//go:noescape
+//go:linkname xadduintptr runtime.xadd
+func xadduintptr(ptr *uintptr, delta uintptr) uintptr
+
 //go:nosplit
 func xchg(addr *uint32, v uint32) uint32 {
 	for {

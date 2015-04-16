@@ -790,7 +790,7 @@ var globalAlloc struct {
 // There is no associated free operation.
 // Intended for things like function/type/debug-related persistent data.
 // If align is 0, uses default align (currently 8).
-func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer {
+func persistentalloc(size, align uintptr, sysStat *uint64) unsafe.Pointer {
 	const (
 		chunk    = 256 << 10
 		maxBlock = 64 << 10 // VM reservation granularity is 64K on windows
@@ -811,7 +811,7 @@ func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer {
 	}
 
 	if size >= maxBlock {
-		return sysAlloc(size, stat)
+		return sysAlloc(size, sysStat)
 	}
 
 	mp := acquirem()
@@ -840,9 +840,9 @@ func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer {
 		unlock(&globalAlloc.mutex)
 	}
 
-	if stat != &memstats.other_sys {
-		xadd64(stat, int64(size))
-		xadd64(&memstats.other_sys, -int64(size))
+	if sysStat != &memstats.other_sys {
+		mSysStatInc(sysStat, size)
+		mSysStatDec(&memstats.other_sys, size)
 	}
 	return p
 }
