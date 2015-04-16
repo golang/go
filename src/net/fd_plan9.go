@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// Network file descritor.
+// Network file descriptor.
 type netFD struct {
 	// locking/lifetime of sysfd + serialize access to Read and Write methods
 	fdmu fdMutex
