@@ -11,7 +11,7 @@ import (
 // successful. If it returns false, no dst pixels were changed.
 //
 // This function assumes that r is entirely within dst's bounds and the
-// translation of r from dst co-ordinate space to src co-ordinate space is
+// translation of r from dst coordinate space to src coordinate space is
 // entirely within src's bounds.
 func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Point) (ok bool) {
 	// This function exists in the image/internal/imageutil package because it
