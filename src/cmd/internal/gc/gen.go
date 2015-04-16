@@ -1129,52 +1129,19 @@ func checklabels() {
 // elements of basic type are also supported.
 // nr is nil when assigning a zero value.
 func Componentgen(nr *Node, nl *Node) bool {
-	var nodl, nodr Node
-
-	switch nl.Type.Etype {
-	default:
+	// Count number of moves required to move components.
+	const maxMoves = 8
+	n := 0
+	visitComponents(nl.Type, 0, func(t *Type, offset int64) bool {
+		n++
+		return n <= maxMoves
+	})
+	if n > maxMoves {
 		return false
-
-	case TARRAY:
-		t := nl.Type
-
-		// Slices are ok.
-		if Isslice(t) {
-			break
-		}
-
-		// Small arrays are ok.
-		if t.Bound > 0 && t.Bound <= 3 && !Isfat(t.Type) {
-			break
-		}
-
-		return false
-
-	case TSTRUCT:
-		// Small structs with non-fat types are ok.
-		// Zero-sized structs are treated separately elsewhere.
-		fldcount := int64(0)
-
-		for t := nl.Type.Type; t != nil; t = t.Down {
-			if Isfat(t.Type) && !Isslice(t) {
-				return false
-			}
-			if t.Etype != TFIELD {
-				Fatal("componentgen: not a TFIELD: %v", Tconv(t, obj.FmtLong))
-			}
-			fldcount++
-		}
-
-		if fldcount == 0 || fldcount > 4 {
-			return false
-		}
-
-	case TSTRING, TINTER:
-		break
 	}
 
 	isConstString := Isconst(nr, CTSTR)
-	nodl = *nl
+	nodl := *nl
 	if !cadable(nl) {
 		if nr != nil && !cadable(nr) && !isConstString {
 			return false
@@ -1182,195 +1149,195 @@ func Componentgen(nr *Node, nl *Node) bool {
 		Igen(nl, &nodl, nil)
 		defer Regfree(&nodl)
 	}
+	lbase := nodl.Xoffset
 
-	if nr != nil {
-		nodr = *nr
-		if !cadable(nr) && !isConstString {
-			Igen(nr, &nodr, nil)
-			defer Regfree(&nodr)
+	// Must call emitVardef on every path out of this function,
+	// but only after evaluating rhs.
+	emitVardef := func() {
+		// Emit vardef if needed.
+		if nl.Op == ONAME {
+			switch nl.Type.Etype {
+			case TARRAY, TSTRING, TINTER, TSTRUCT:
+				Gvardef(nl)
+			}
 		}
-	} else {
+	}
+
+	// Special case: zeroing.
+	var nodr Node
+	if nr == nil {
 		// When zeroing, prepare a register containing zero.
+		// TODO(rsc): Check that this is actually generating the best code.
 		if Thearch.REGZERO != 0 {
 			// cpu has a dedicated zero register
 			Nodreg(&nodr, Types[TUINT], Thearch.REGZERO)
 		} else {
 			// no dedicated zero register
-			var tmp Node
-			Nodconst(&tmp, nl.Type, 0)
-
+			var zero Node
+			Nodconst(&zero, nl.Type, 0)
 			Regalloc(&nodr, Types[TUINT], nil)
-			Thearch.Gmove(&tmp, &nodr)
+			Thearch.Gmove(&zero, &nodr)
 			defer Regfree(&nodr)
 		}
-	}
 
-	// nl and nr are 'cadable' which basically means they are names (variables) now.
-	// If they are the same variable, don't generate any code, because the
-	// VARDEF we generate will mark the old value as dead incorrectly.
-	// (And also the assignments are useless.)
-	if nr != nil && nl.Op == ONAME && nr.Op == ONAME && nl == nr {
+		emitVardef()
+		visitComponents(nl.Type, 0, func(t *Type, offset int64) bool {
+			nodl.Type = t
+			nodl.Xoffset = lbase + offset
+			nodr.Type = t
+			if Isfloat[t.Etype] {
+				// TODO(rsc): Cache zero register like we do for integers?
+				Clearslim(&nodl)
+			} else {
+				Thearch.Gmove(&nodr, &nodl)
+			}
+			return true
+		})
 		return true
 	}
 
-	switch nl.Type.Etype {
-	default:
-		return false
+	// Special case: assignment of string constant.
+	if isConstString {
+		emitVardef()
 
-	case TARRAY:
-		// componentgen for arrays.
-		if nl.Op == ONAME {
-			Gvardef(nl)
-		}
-		t := nl.Type
-		if !Isslice(t) {
-			nodl.Type = t.Type
-			nodr.Type = nodl.Type
-			for fldcount := int64(0); fldcount < t.Bound; fldcount++ {
-				if nr == nil {
-					Clearslim(&nodl)
-				} else {
-					Thearch.Gmove(&nodr, &nodl)
-				}
-				nodl.Xoffset += t.Type.Width
-				nodr.Xoffset += t.Type.Width
-			}
-			return true
-		}
-
-		// componentgen for slices.
-		nodl.Xoffset += int64(Array_array)
-
-		nodl.Type = Ptrto(nl.Type.Type)
-
-		if nr != nil {
-			nodr.Xoffset += int64(Array_array)
-			nodr.Type = nodl.Type
-		}
-
+		// base
+		nodl.Type = Ptrto(Types[TUINT8])
+		Regalloc(&nodr, Types[Tptr], nil)
+		p := Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), nil, &nodr)
+		Datastring(nr.Val.U.Sval, &p.From)
+		p.From.Type = obj.TYPE_ADDR
 		Thearch.Gmove(&nodr, &nodl)
+		Regfree(&nodr)
 
+		// length
+		nodl.Type = Types[Simtype[TUINT]]
 		nodl.Xoffset += int64(Array_nel) - int64(Array_array)
-		nodl.Type = Types[Simtype[TUINT]]
-
-		if nr != nil {
-			nodr.Xoffset += int64(Array_nel) - int64(Array_array)
-			nodr.Type = nodl.Type
-		}
-
+		Nodconst(&nodr, nodl.Type, int64(len(nr.Val.U.Sval)))
 		Thearch.Gmove(&nodr, &nodl)
+		return true
+	}
 
-		nodl.Xoffset += int64(Array_cap) - int64(Array_nel)
-		nodl.Type = Types[Simtype[TUINT]]
+	// General case: copy nl = nr.
+	nodr = *nr
+	if !cadable(nr) {
+		Igen(nr, &nodr, nil)
+		defer Regfree(&nodr)
+	}
+	rbase := nodr.Xoffset
 
-		if nr != nil {
-			nodr.Xoffset += int64(Array_cap) - int64(Array_nel)
-			nodr.Type = nodl.Type
-		}
+	// Don't generate any code for complete copy of a variable into itself.
+	// It's useless, and the VARDEF will incorrectly mark the old value as dead.
+	// (This check assumes that the arguments passed to componentgen did not
+	// themselves come from Igen, or else we could have Op==ONAME but
+	// with a Type and Xoffset describing an individual field, not the entire
+	// variable.)
+	if nl.Op == ONAME && nr.Op == ONAME && nl == nr {
+		return true
+	}
 
+	emitVardef()
+	visitComponents(nl.Type, 0, func(t *Type, offset int64) bool {
+		nodl.Type = t
+		nodl.Xoffset = lbase + offset
+		nodr.Type = t
+		nodr.Xoffset = rbase + offset
 		Thearch.Gmove(&nodr, &nodl)
+		return true
+	})
+	return true
+}
+
+// visitComponents walks the individual components of the type t,
+// walking into array elements, struct fields, the real and imaginary
+// parts of complex numbers, and on 32-bit systems the high and
+// low halves of 64-bit integers.
+// It calls f for each such component, passing the component (aka element)
+// type and memory offset, assuming t starts at startOffset.
+// If f ever returns false, visitComponents returns false without any more
+// calls to f. Otherwise visitComponents returns true.
+func visitComponents(t *Type, startOffset int64, f func(elem *Type, elemOffset int64) bool) bool {
+	switch t.Etype {
+	case TINT64:
+		if Widthreg == 8 {
+			break
+		}
+		// NOTE: Assuming little endian (signed top half at offset 4).
+		// We don't have any 32-bit big-endian systems.
+		if Thearch.Thechar != '5' && Thearch.Thechar != '8' {
+			Fatal("unknown 32-bit architecture")
+		}
+		return f(Types[TUINT32], startOffset) &&
+			f(Types[TINT32], startOffset+4)
+
+	case TUINT64:
+		if Widthreg == 8 {
+			break
+		}
+		return f(Types[TUINT32], startOffset) &&
+			f(Types[TUINT32], startOffset+4)
+
+	case TCOMPLEX64:
+		return f(Types[TFLOAT32], startOffset) &&
+			f(Types[TFLOAT32], startOffset+4)
+
+	case TCOMPLEX128:
+		return f(Types[TFLOAT64], startOffset) &&
+			f(Types[TFLOAT64], startOffset+8)
+
+	case TINTER:
+		return f(Ptrto(Types[TUINT8]), startOffset) &&
+			f(Ptrto(Types[TUINT8]), startOffset+int64(Widthptr))
 		return true
 
 	case TSTRING:
-		if nl.Op == ONAME {
-			Gvardef(nl)
-		}
-		nodl.Xoffset += int64(Array_array)
-		nodl.Type = Ptrto(Types[TUINT8])
+		return f(Ptrto(Types[TUINT8]), startOffset) &&
+			f(Types[Simtype[TUINT]], startOffset+int64(Widthptr))
 
-		if isConstString {
-			Regalloc(&nodr, Types[Tptr], nil)
-			p := Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), nil, &nodr)
-			Datastring(nr.Val.U.Sval, &p.From)
-			p.From.Type = obj.TYPE_ADDR
-			Regfree(&nodr)
-		} else if nr != nil {
-			nodr.Xoffset += int64(Array_array)
-			nodr.Type = nodl.Type
+	case TARRAY:
+		if Isslice(t) {
+			return f(Ptrto(t.Type), startOffset+int64(Array_array)) &&
+				f(Types[Simtype[TUINT]], startOffset+int64(Array_nel)) &&
+				f(Types[Simtype[TUINT]], startOffset+int64(Array_cap))
 		}
 
-		Thearch.Gmove(&nodr, &nodl)
-
-		nodl.Xoffset += int64(Array_nel) - int64(Array_array)
-		nodl.Type = Types[Simtype[TUINT]]
-
-		if isConstString {
-			Nodconst(&nodr, nodl.Type, int64(len(nr.Val.U.Sval)))
-		} else if nr != nil {
-			nodr.Xoffset += int64(Array_nel) - int64(Array_array)
-			nodr.Type = nodl.Type
+		// Short-circuit [1e6]struct{}.
+		if t.Type.Width == 0 {
+			return true
 		}
 
-		Thearch.Gmove(&nodr, &nodl)
-		return true
-
-	case TINTER:
-		if nl.Op == ONAME {
-			Gvardef(nl)
+		for i := int64(0); i < t.Bound; i++ {
+			if !visitComponents(t.Type, startOffset+i*t.Type.Width, f) {
+				return false
+			}
 		}
-		nodl.Xoffset += int64(Array_array)
-		nodl.Type = Ptrto(Types[TUINT8])
-
-		if nr != nil {
-			nodr.Xoffset += int64(Array_array)
-			nodr.Type = nodl.Type
-		}
-
-		Thearch.Gmove(&nodr, &nodl)
-
-		nodl.Xoffset += int64(Array_nel) - int64(Array_array)
-		nodl.Type = Ptrto(Types[TUINT8])
-
-		if nr != nil {
-			nodr.Xoffset += int64(Array_nel) - int64(Array_array)
-			nodr.Type = nodl.Type
-		}
-
-		Thearch.Gmove(&nodr, &nodl)
 		return true
 
 	case TSTRUCT:
-		if nl.Op == ONAME {
-			Gvardef(nl)
-		}
-		loffset := nodl.Xoffset
-		roffset := nodr.Xoffset
-
-		// funarg structs may not begin at offset zero.
-		if nl.Type.Etype == TSTRUCT && nl.Type.Funarg != 0 && nl.Type.Type != nil {
-			loffset -= nl.Type.Type.Width
-		}
-		if nr != nil && nr.Type.Etype == TSTRUCT && nr.Type.Funarg != 0 && nr.Type.Type != nil {
-			roffset -= nr.Type.Type.Width
+		if t.Type != nil && t.Type.Width != 0 {
+			// NOTE(rsc): If this happens, the right thing to do is to say
+			//	startOffset -= t.Type.Width
+			// but I want to see if it does.
+			// The old version of componentgen handled this,
+			// in code introduced in CL 6932045 to fix issue #4518.
+			// But the test case in issue 4518 does not trigger this anymore,
+			// so maybe this complication is no longer needed.
+			Fatal("struct not at offset 0")
 		}
 
-		for t := nl.Type.Type; t != nil; t = t.Down {
-			nodl.Xoffset = loffset + t.Width
-			nodl.Type = t.Type
-
-			if nr == nil {
-				Clearslim(&nodl)
-			} else {
-				nodr.Xoffset = roffset + t.Width
-				nodr.Type = nodl.Type
-				Thearch.Gmove(&nodr, &nodl)
+		for field := t.Type; field != nil; field = field.Down {
+			if field.Etype != TFIELD {
+				Fatal("bad struct")
+			}
+			if !visitComponents(field.Type, startOffset+field.Width, f) {
+				return false
 			}
 		}
 		return true
 	}
+	return f(t, startOffset)
 }
 
 func cadable(n *Node) bool {
-	if !n.Addable {
-		// dont know how it happens,
-		// but it does
-		return false
-	}
-
-	switch n.Op {
-	case ONAME:
-		return true
-	}
-
-	return false
+	// Note: Not sure why you can have n.Op == ONAME without n.Addable, but you can.
+	return n.Addable && n.Op == ONAME
 }

@@ -235,6 +235,11 @@ func getvariables(fn *Node) []*Node {
 			// is the index in the variables list.
 			ll.N.Opt = nil
 
+			// The compiler doesn't emit initializations for zero-width parameters or results.
+			if ll.N.Type.Width == 0 {
+				continue
+			}
+
 			ll.N.Curfn = Curfn
 			switch ll.N.Class {
 			case PAUTO:
