@@ -6,6 +6,7 @@ package net
 
 import (
 	"fmt"
+	"io"
 	"net/internal/socktest"
 	"os"
 	"runtime"
@@ -247,4 +248,47 @@ func TestListenPacketError(t *testing.T) {
 			continue
 		}
 	}
+}
+
+// parseReadError parses nestedErr and reports whether it is a valid
+// error value from Read functions.
+// It returns nil when nestedErr is valid.
+func parseReadError(nestedErr error) error {
+	if nestedErr == nil {
+		return nil
+	}
+
+	switch err := nestedErr.(type) {
+	case *OpError:
+		if err := err.isValid(); err != nil {
+			return err
+		}
+		nestedErr = err.Err
+		goto second
+	}
+	if nestedErr == io.EOF {
+		return nil
+	}
+	return fmt.Errorf("unexpected type on 1st nested level: %T", nestedErr)
+
+second:
+	if isPlatformError(nestedErr) {
+		return nil
+	}
+	switch err := nestedErr.(type) {
+	case *os.SyscallError:
+		nestedErr = err.Err
+		goto third
+	}
+	switch nestedErr {
+	case errClosing, errTimeout:
+		return nil
+	}
+	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
+
+third:
+	if isPlatformError(nestedErr) {
+		return nil
+	}
+	return fmt.Errorf("unexpected type on 3rd nested level: %T", nestedErr)
 }

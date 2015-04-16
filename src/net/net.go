@@ -121,7 +121,16 @@ func (c *conn) Read(b []byte) (int, error) {
 	if !c.ok() {
 		return 0, syscall.EINVAL
 	}
-	return c.fd.Read(b)
+	n, err := c.fd.Read(b)
+	if err != nil && err != io.EOF {
+		err = &OpError{Op: "read", Net: c.fd.net, Err: err}
+		if c.fd.raddr != nil {
+			err.(*OpError).Addr = c.fd.raddr
+		} else {
+			err.(*OpError).Addr = c.fd.laddr // for unconnected-mode sockets
+		}
+	}
+	return n, err
 }
 
 // Write implements the Conn Write method.

@@ -80,6 +80,9 @@ func (c *IPConn) ReadFromIP(b []byte) (int, *IPAddr, error) {
 	case *syscall.SockaddrInet6:
 		addr = &IPAddr{IP: sa.Addr[0:], Zone: zoneToString(int(sa.ZoneId))}
 	}
+	if err != nil {
+		err = &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
+	}
 	return n, addr, err
 }
 
@@ -125,6 +128,9 @@ func (c *IPConn) ReadMsgIP(b, oob []byte) (n, oobn, flags int, addr *IPAddr, err
 		addr = &IPAddr{IP: sa.Addr[0:]}
 	case *syscall.SockaddrInet6:
 		addr = &IPAddr{IP: sa.Addr[0:], Zone: zoneToString(int(sa.ZoneId))}
+	}
+	if err != nil {
+		err = &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
 	}
 	return
 }

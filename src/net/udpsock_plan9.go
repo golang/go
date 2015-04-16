@@ -33,10 +33,10 @@ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
 	buf := make([]byte, udpHeaderSize+len(b))
 	m, err := c.fd.data.Read(buf)
 	if err != nil {
-		return
+		return 0, nil, &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
 	}
 	if m < udpHeaderSize {
-		return 0, nil, errors.New("short read reading UDP header")
+		return 0, nil, &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: errors.New("short read reading UDP header")}
 	}
 	buf = buf[:m]
 
@@ -59,7 +59,7 @@ func (c *UDPConn) ReadFrom(b []byte) (int, Addr, error) {
 // flags that were set on the packet and the source address of the
 // packet.
 func (c *UDPConn) ReadMsgUDP(b, oob []byte) (n, oobn, flags int, addr *UDPAddr, err error) {
-	return 0, 0, 0, nil, syscall.EPLAN9
+	return 0, 0, 0, nil, &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: syscall.EPLAN9}
 }
 
 // WriteToUDP writes a UDP packet to addr via c, copying the payload

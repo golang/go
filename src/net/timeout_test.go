@@ -138,15 +138,27 @@ func TestReadTimeout(t *testing.T) {
 	if _, err = c.Read(buf); !isTimeoutError(err) {
 		t.Fatalf("Read: expected err %v, got %v", errTimeout, err)
 	}
+	if perr := parseReadError(err); perr != nil {
+		t.Error(perr)
+	}
 	if _, err = c.Read(buf); !isTimeoutError(err) {
 		t.Fatalf("Read: expected err %v, got %v", errTimeout, err)
+	}
+	if perr := parseReadError(err); perr != nil {
+		t.Error(perr)
 	}
 	c.SetDeadline(time.Now().Add(100 * time.Millisecond))
 	if _, err = c.Read(buf); !isTimeoutError(err) {
 		t.Fatalf("Read: expected err %v, got %v", errTimeout, err)
 	}
+	if perr := parseReadError(err); perr != nil {
+		t.Error(perr)
+	}
 	if _, err = c.Read(buf); !isTimeoutError(err) {
 		t.Fatalf("Read: expected err %v, got %v", errTimeout, err)
+	}
+	if perr := parseReadError(err); perr != nil {
+		t.Error(perr)
 	}
 	c.SetReadDeadline(noDeadline)
 	c.SetWriteDeadline(time.Now().Add(-1 * time.Second))
@@ -164,15 +176,15 @@ func TestReadTimeout(t *testing.T) {
 	c.Close()
 	switch nerr := <-errc; err := nerr.(type) {
 	case *OpError:
-		if err.Err != errClosing {
-			t.Fatalf("Read: expected err %v, got %v", errClosing, err)
+		if perr := parseReadError(err); perr != nil {
+			t.Error(perr)
 		}
 	default:
 		if err == io.EOF && runtime.GOOS == "nacl" { // close enough; golang.org/issue/8044
 			break
 		}
-		if err != errClosing {
-			t.Fatalf("Read: expected err %v, got %v", errClosing, err)
+		if perr := parseReadError(err); perr != nil {
+			t.Error(perr)
 		}
 	}
 }
@@ -618,6 +630,9 @@ func TestReadDeadlineDataAvailable(t *testing.T) {
 	c.SetReadDeadline(time.Now().Add(-5 * time.Second)) // in the psat.
 	buf := make([]byte, len(msg)/2)
 	n, err := c.Read(buf)
+	if perr := parseReadError(err); perr != nil {
+		t.Error(perr)
+	}
 	if n > 0 || !isTimeoutError(err) {
 		t.Fatalf("client read = %d (%q) err=%v; want 0, timeout", n, buf[:n], err)
 	}

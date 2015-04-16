@@ -23,7 +23,11 @@ func newTCPConn(fd *netFD) *TCPConn {
 
 // ReadFrom implements the io.ReaderFrom ReadFrom method.
 func (c *TCPConn) ReadFrom(r io.Reader) (int64, error) {
-	return genericReadFrom(c, r)
+	n, err := genericReadFrom(c, r)
+	if err != nil && err != io.EOF {
+		err = &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.raddr, Err: err}
+	}
+	return n, err
 }
 
 // CloseRead shuts down the reading side of the TCP connection.

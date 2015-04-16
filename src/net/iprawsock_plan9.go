@@ -23,12 +23,12 @@ type IPConn struct {
 // Timeout() == true after a fixed time limit; see SetDeadline and
 // SetReadDeadline.
 func (c *IPConn) ReadFromIP(b []byte) (int, *IPAddr, error) {
-	return 0, nil, syscall.EPLAN9
+	return 0, nil, &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: syscall.EPLAN9}
 }
 
 // ReadFrom implements the PacketConn ReadFrom method.
 func (c *IPConn) ReadFrom(b []byte) (int, Addr, error) {
-	return 0, nil, syscall.EPLAN9
+	return 0, nil, &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: syscall.EPLAN9}
 }
 
 // ReadMsgIP reads a packet from c, copying the payload into b and the
@@ -36,7 +36,7 @@ func (c *IPConn) ReadFrom(b []byte) (int, Addr, error) {
 // bytes copied into b, the number of bytes copied into oob, the flags
 // that were set on the packet and the source address of the packet.
 func (c *IPConn) ReadMsgIP(b, oob []byte) (n, oobn, flags int, addr *IPAddr, err error) {
-	return 0, 0, 0, nil, syscall.EPLAN9
+	return 0, 0, 0, nil, &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: syscall.EPLAN9}
 }
 
 // WriteToIP writes an IP packet to addr via c, copying the payload
