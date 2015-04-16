@@ -272,8 +272,7 @@ func (t *tester) registerTests() {
 		} else if t.hasBash() && t.goos != "android" && !iOS {
 			t.registerTest("testso", "../misc/cgo/testso", "./test.bash")
 		}
-		if t.extLink() && t.goos == "darwin" && t.goarch == "amd64" {
-			// TODO(crawshaw): add darwin/arm{,64}
+		if t.buildmode("c-archive") {
 			t.registerTest("testcarchive", "../misc/cgo/testcarchive", "./test.bash")
 		}
 		if t.gohostos == "linux" && t.goarch == "amd64" {
@@ -368,6 +367,26 @@ func (t *tester) extLink() bool {
 		return major > 10
 	}
 	return false
+}
+
+func (t *tester) buildmode(mode string) bool {
+	switch mode {
+	case "c-archive":
+		switch {
+		case !t.extLink():
+			return false
+		case t.goos == "darwin" && t.goarch == "amd64":
+			// TODO(crawshaw): add darwin/arm{,64}
+			return true
+		case t.goos == "linux" && t.goarch == "amd64":
+			return true
+		default:
+			return false
+		}
+	default:
+		log.Fatal("internal error: unknown buildmode %s", mode)
+		return false
+	}
 }
 
 func (t *tester) cgoTest() error {
