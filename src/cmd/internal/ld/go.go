@@ -622,7 +622,7 @@ func deadcode() {
 		fmt.Fprintf(&Bso, "%5.2f deadcode\n", obj.Cputime())
 	}
 
-	if Buildmode == BuildmodeShared || Buildmode == BuildmodeCArchive {
+	if Buildmode == BuildmodeShared {
 		// Mark all symbols as reachable when building a
 		// shared library.
 		for s := Ctxt.Allsym; s != nil; s = s.Allsym {
