@@ -68,7 +68,7 @@ func (floydSteinberg) Draw(dst Image, r image.Rectangle, src image.Image, sp ima
 }
 
 // clip clips r against each image's bounds (after translating into the
-// destination image's co-ordinate space) and shifts the points sp and mp by
+// destination image's coordinate space) and shifts the points sp and mp by
 // the same amount as the change in r.Min.
 func clip(dst Image, r *image.Rectangle, src image.Image, sp *image.Point, mask image.Image, mp *image.Point) {
 	orig := r.Min
@@ -336,9 +336,11 @@ func drawCopySrc(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.P
 		ddelta = dst.Stride
 		sdelta = src.Stride
 	} else {
-		// If the source start point is higher than the destination start point, then we compose the rows
-		// in bottom-up order instead of top-down. Unlike the drawCopyOver function, we don't have to
-		// check the x co-ordinates because the built-in copy function can handle overlapping slices.
+		// If the source start point is higher than the destination start
+		// point, then we compose the rows in bottom-up order instead of
+		// top-down. Unlike the drawCopyOver function, we don't have to check
+		// the x coordinates because the built-in copy function can handle
+		// overlapping slices.
 		d0 += (dy - 1) * dst.Stride
 		s0 += (dy - 1) * src.Stride
 		ddelta = -dst.Stride
