@@ -292,3 +292,43 @@ third:
 	}
 	return fmt.Errorf("unexpected type on 3rd nested level: %T", nestedErr)
 }
+
+// parseWriteError parses nestedErr and reports whether it is a valid
+// error value from Write functions.
+// It returns nil when nestedErr is valid.
+func parseWriteError(nestedErr error) error {
+	if nestedErr == nil {
+		return nil
+	}
+
+	switch err := nestedErr.(type) {
+	case *OpError:
+		if err := err.isValid(); err != nil {
+			return err
+		}
+		nestedErr = err.Err
+		goto second
+	}
+	return fmt.Errorf("unexpected type on 1st nested level: %T", nestedErr)
+
+second:
+	if isPlatformError(nestedErr) {
+		return nil
+	}
+	switch err := nestedErr.(type) {
+	case *os.SyscallError:
+		nestedErr = err.Err
+		goto third
+	}
+	switch nestedErr {
+	case errClosing, errTimeout, ErrWriteToConnected, io.ErrUnexpectedEOF:
+		return nil
+	}
+	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
+
+third:
+	if isPlatformError(nestedErr) {
+		return nil
+	}
+	return fmt.Errorf("unexpected type on 3rd nested level: %T", nestedErr)
+}

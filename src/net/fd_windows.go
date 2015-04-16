@@ -491,7 +491,7 @@ func (fd *netFD) readFrom(buf []byte) (int, syscall.Sockaddr, error) {
 
 func (fd *netFD) Write(buf []byte) (int, error) {
 	if err := fd.writeLock(); err != nil {
-		return 0, &OpError{Op: "write", Net: fd.net, Addr: fd.raddr, Err: err}
+		return 0, err
 	}
 	defer fd.writeUnlock()
 	if raceenabled {
@@ -502,9 +502,6 @@ func (fd *netFD) Write(buf []byte) (int, error) {
 	n, err := wsrv.ExecIO(o, "WSASend", func(o *operation) error {
 		return syscall.WSASend(o.fd.sysfd, &o.buf, 1, &o.qty, 0, &o.o, nil)
 	})
-	if err != nil {
-		err = &OpError{Op: "write", Net: fd.net, Addr: fd.raddr, Err: err}
-	}
 	return n, err
 }
 
@@ -513,7 +510,7 @@ func (fd *netFD) writeTo(buf []byte, sa syscall.Sockaddr) (int, error) {
 		return 0, nil
 	}
 	if err := fd.writeLock(); err != nil {
-		return 0, &OpError{Op: "write", Net: fd.net, Addr: fd.laddr, Err: err}
+		return 0, err
 	}
 	defer fd.writeUnlock()
 	o := &fd.wop
@@ -522,9 +519,6 @@ func (fd *netFD) writeTo(buf []byte, sa syscall.Sockaddr) (int, error) {
 	n, err := wsrv.ExecIO(o, "WSASendto", func(o *operation) error {
 		return syscall.WSASendto(o.fd.sysfd, &o.buf, 1, &o.qty, 0, o.sa, &o.o, nil)
 	})
-	if err != nil {
-		err = &OpError{Op: "write", Net: fd.net, Addr: fd.laddr, Err: err}
-	}
 	return n, err
 }
 
@@ -627,5 +621,5 @@ func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.S
 }
 
 func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
-	return 0, 0, &OpError{Op: "write", Net: fd.net, Addr: fd.laddr, Err: syscall.EWINDOWS}
+	return 0, 0, syscall.EWINDOWS
 }

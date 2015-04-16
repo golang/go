@@ -86,7 +86,11 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
 	buf := make([]byte, udpHeaderSize+len(b))
 	i := copy(buf, h.Bytes())
 	copy(buf[i:], b)
-	return c.fd.data.Write(buf)
+	n, err := c.fd.data.Write(buf)
+	if err != nil {
+		err = &OpError{Op: "write", Net: c.fd.dir, Addr: addr, Err: err}
+	}
+	return n, err
 }
 
 // WriteTo implements the PacketConn WriteTo method.
@@ -96,7 +100,7 @@ func (c *UDPConn) WriteTo(b []byte, addr Addr) (int, error) {
 	}
 	a, ok := addr.(*UDPAddr)
 	if !ok {
-		return 0, &OpError{"write", c.fd.dir, addr, syscall.EINVAL}
+		return 0, &OpError{Op: "write", Net: c.fd.dir, Addr: addr, Err: syscall.EINVAL}
 	}
 	return c.WriteToUDP(b, a)
 }
@@ -107,7 +111,7 @@ func (c *UDPConn) WriteTo(b []byte, addr Addr) (int, error) {
 // out-of-band data is copied from oob.  It returns the number of
 // payload and out-of-band bytes written.
 func (c *UDPConn) WriteMsgUDP(b, oob []byte, addr *UDPAddr) (n, oobn int, err error) {
-	return 0, 0, syscall.EPLAN9
+	return 0, 0, &OpError{Op: "write", Net: c.fd.dir, Addr: addr, Err: syscall.EPLAN9}
 }
 
 // DialUDP connects to the remote address raddr on the network net,
