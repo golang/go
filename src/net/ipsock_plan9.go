@@ -193,7 +193,7 @@ func listenPlan9(net string, laddr Addr) (fd *netFD, err error) {
 }
 
 func (l *netFD) netFD() (*netFD, error) {
-	return newFD(l.proto, l.n, l.ctl, l.data, l.laddr, l.raddr)
+	return newFD(l.net, l.n, l.ctl, l.data, l.laddr, l.raddr)
 }
 
 func (l *netFD) acceptPlan9() (fd *netFD, err error) {
@@ -213,16 +213,16 @@ func (l *netFD) acceptPlan9() (fd *netFD, err error) {
 		return nil, &OpError{"accept", l.dir + "/listen", l.laddr, err}
 	}
 	name := string(buf[:n])
-	data, err := os.OpenFile(netdir+"/"+l.proto+"/"+name+"/data", os.O_RDWR, 0)
+	data, err := os.OpenFile(netdir+"/"+l.net+"/"+name+"/data", os.O_RDWR, 0)
 	if err != nil {
 		f.Close()
-		return nil, &OpError{"accept", l.proto, l.laddr, err}
+		return nil, &OpError{"accept", l.net, l.laddr, err}
 	}
-	raddr, err := readPlan9Addr(l.proto, netdir+"/"+l.proto+"/"+name+"/remote")
+	raddr, err := readPlan9Addr(l.net, netdir+"/"+l.net+"/"+name+"/remote")
 	if err != nil {
 		data.Close()
 		f.Close()
-		return nil, &OpError{"accept", l.proto, l.laddr, err}
+		return nil, &OpError{"accept", l.net, l.laddr, err}
 	}
-	return newFD(l.proto, name, f, data, l.laddr, raddr)
+	return newFD(l.net, name, f, data, l.laddr, raddr)
 }
