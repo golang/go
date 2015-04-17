@@ -233,7 +233,11 @@ func (c *UnixConn) CloseRead() error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return c.fd.closeRead()
+	err := c.fd.closeRead()
+	if err != nil {
+		err = &OpError{Op: "close", Net: c.fd.net, Addr: c.fd.raddr, Err: err}
+	}
+	return err
 }
 
 // CloseWrite shuts down the writing side of the Unix domain connection.
@@ -242,7 +246,11 @@ func (c *UnixConn) CloseWrite() error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return c.fd.closeWrite()
+	err := c.fd.closeWrite()
+	if err != nil {
+		err = &OpError{Op: "close", Net: c.fd.net, Addr: c.fd.raddr, Err: err}
+	}
+	return err
 }
 
 // DialUnix connects to the remote address raddr on the network net,
@@ -335,7 +343,11 @@ func (l *UnixListener) Close() error {
 	if l.path[0] != '@' {
 		syscall.Unlink(l.path)
 	}
-	return l.fd.Close()
+	err := l.fd.Close()
+	if err != nil {
+		err = &OpError{Op: "close", Net: l.fd.net, Addr: l.fd.laddr, Err: err}
+	}
+	return err
 }
 
 // Addr returns the listener's network address.

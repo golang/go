@@ -332,3 +332,95 @@ third:
 	}
 	return fmt.Errorf("unexpected type on 3rd nested level: %T", nestedErr)
 }
+
+// parseCloseError parses nestedErr and reports whether it is a valid
+// error value from Close functions.
+// It returns nil when nestedErr is valid.
+func parseCloseError(nestedErr error) error {
+	if nestedErr == nil {
+		return nil
+	}
+
+	switch err := nestedErr.(type) {
+	case *OpError:
+		if err := err.isValid(); err != nil {
+			return err
+		}
+		nestedErr = err.Err
+		goto second
+	}
+	return fmt.Errorf("unexpected type on 1st nested level: %T", nestedErr)
+
+second:
+	if isPlatformError(nestedErr) {
+		return nil
+	}
+	switch err := nestedErr.(type) {
+	case *os.SyscallError:
+		nestedErr = err.Err
+		goto third
+	case *os.PathError: // for Plan 9
+		nestedErr = err.Err
+		goto third
+	}
+	switch nestedErr {
+	case errClosing:
+		return nil
+	}
+	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
+
+third:
+	if isPlatformError(nestedErr) {
+		return nil
+	}
+	return fmt.Errorf("unexpected type on 3rd nested level: %T", nestedErr)
+}
+
+func TestCloseError(t *testing.T) {
+	ln, err := newLocalListener("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	c, err := Dial(ln.Addr().Network(), ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+
+	for i := 0; i < 3; i++ {
+		err = c.(*TCPConn).CloseRead()
+		if perr := parseCloseError(err); perr != nil {
+			t.Errorf("#%d: %v", i, perr)
+		}
+	}
+	for i := 0; i < 3; i++ {
+		err = c.(*TCPConn).CloseWrite()
+		if perr := parseCloseError(err); perr != nil {
+			t.Errorf("#%d: %v", i, perr)
+		}
+	}
+	for i := 0; i < 3; i++ {
+		err = c.Close()
+		if perr := parseCloseError(err); perr != nil {
+			t.Errorf("#%d: %v", i, perr)
+		}
+		err = ln.Close()
+		if perr := parseCloseError(err); perr != nil {
+			t.Errorf("#%d: %v", i, perr)
+		}
+	}
+
+	pc, err := ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pc.Close()
+
+	for i := 0; i < 3; i++ {
+		err = pc.Close()
+		if perr := parseCloseError(err); perr != nil {
+			t.Errorf("#%d: %v", i, perr)
+		}
+	}
+}

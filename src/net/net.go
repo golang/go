@@ -155,7 +155,16 @@ func (c *conn) Close() error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return c.fd.Close()
+	err := c.fd.Close()
+	if err != nil {
+		err = &OpError{Op: "close", Net: c.fd.net, Err: err}
+		if c.fd.raddr != nil {
+			err.(*OpError).Addr = c.fd.raddr
+		} else {
+			err.(*OpError).Addr = c.fd.laddr // for unconnected-mode sockets
+		}
+	}
+	return err
 }
 
 // LocalAddr returns the local network address.
