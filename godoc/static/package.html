@@ -249,35 +249,47 @@
 		<h2 id="stdlib">Standard library</h2>
 		<img class="gopher" src="/doc/gopher/pkg.png"/>
 	{{end}}
-	<table class="dir">
-	<tr>
-	<th>Name</th>
-	<th>&nbsp;&nbsp;&nbsp;&nbsp;</th>
-	<th style="text-align: left; width: auto">Synopsis</th>
-	</tr>
-	{{if not (or (eq $.Dirname "/src") (eq $.Dirname "/src/cmd") $.DirFlat)}}
-		<tr>
-		<td><a href="..">..</a></td>
-		</tr>
-	{{end}}
-	{{range .List}}
-		{{if $.DirFlat}}
-			{{if .HasPkg}}
-				<tr>
-				<td class="name"><a href="{{html .Path}}/">{{html .Path}}</a></td>
-				<td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
-				<td style="width: auto">{{html .Synopsis}}</td>
-				</tr>
-			{{end}}
-		{{else}}
+
+
+	<div class="pkg-dir">
+		<table>
 			<tr>
-			<td class="name">{{repeat `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;` .Depth}}<a href="{{html .Path}}/">{{html .Name}}</a></td>
-			<td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
-			<td style="width: auto">{{html .Synopsis}}</td>
+				<th class="pkg-name">Name</th>
+				<th class="pkg-synopsis">Synopsis</th>
 			</tr>
-		{{end}}
-	{{end}}
-	</table>
+
+			{{if not (or (eq $.Dirname "/src") (eq $.Dirname "/src/cmd") $.DirFlat)}}
+			<tr>
+				<td colspan="2"><a href="..">..</a></td>
+			</tr>
+			{{end}}
+
+			{{range .List}}
+				{{if $.DirFlat}}
+					{{if .HasPkg}}
+						<tr>
+							<td class="pkg-name">
+								<a href="{{html .Path}}/">{{html .Path}}</a>
+							</td>
+							<td class="pkg-synopsis">
+								{{html .Synopsis}}
+							</td>
+						</tr>
+					{{end}}
+				{{else}}
+					<tr>
+						<td class="pkg-name" style="padding-left: {{multiply .Depth 20}}px;">
+							<a href="{{html .Path}}/">{{html .Name}}</a>
+						</td>
+						<td class="pkg-synopsis">
+							{{html .Synopsis}}
+						</td>
+					</tr>
+				{{end}}
+			{{end}}
+		</table>
+	</div>
+
 
 	{{if eq $.Dirname "/src"}}
 	<h2 id="other">Other packages</h2>

@@ -473,6 +473,8 @@ var Files = map[string]string{
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#375EAB">
 {{with .Tabtitle}}
   <title>{{html .}} - The Go Programming Language</title>
 {{else}}
@@ -492,7 +494,9 @@ var Files = map[string]string{
 </div><!-- #lowframe -->
 
 <div id="topbar"{{if .Title}} class="wide"{{end}}><div class="container">
-
+<div class="top-heading" id="heading-wide"><a href="/">The Go Programming Language</a></div>
+<div class="top-heading" id="heading-narrow"><a href="/">Go</a></div>
+<a href="#" id="menu-button"><span id="menu-button-arrow">&#9661;</span></a>
 <form method="GET" action="/search">
 <div id="menu">
 <a href="/doc/">Documents</a>
@@ -505,7 +509,6 @@ var Files = map[string]string{
 {{end}}
 <input type="text" id="search" name="q" class="inactive" value="Search" placeholder="Search">
 </div>
-<div id="heading"><a href="/">The Go Programming Language</a></div>
 </form>
 
 </div></div>
@@ -588,6 +591,19 @@ and code is licensed under a <a href="/LICENSE">BSD license</a>.<br>
 
 (function() {
 'use strict';
+
+// Mobile-friendly topbar menu
+$(function() {
+  var menu = $('#menu');
+  var menuButton = $('#menu-button');
+  var menuButtonArrow = $('#menu-button-arrow');
+  menuButton.click(function(event) {
+    menu.toggleClass('menu-visible');
+    menuButtonArrow.toggleClass('vertical-flip');
+    event.preventDefault();
+    return false;
+  });
+});
 
 function bindSearchEvents() {
 
@@ -1762,35 +1778,47 @@ function cgAddChild(tree, ul, cgn) {
 		<h2 id="stdlib">Standard library</h2>
 		<img class="gopher" src="/doc/gopher/pkg.png"/>
 	{{end}}
-	<table class="dir">
-	<tr>
-	<th>Name</th>
-	<th>&nbsp;&nbsp;&nbsp;&nbsp;</th>
-	<th style="text-align: left; width: auto">Synopsis</th>
-	</tr>
-	{{if not (or (eq $.Dirname "/src") (eq $.Dirname "/src/cmd") $.DirFlat)}}
-		<tr>
-		<td><a href="..">..</a></td>
-		</tr>
-	{{end}}
-	{{range .List}}
-		{{if $.DirFlat}}
-			{{if .HasPkg}}
-				<tr>
-				<td class="name"><a href="{{html .Path}}/">{{html .Path}}</a></td>
-				<td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
-				<td style="width: auto">{{html .Synopsis}}</td>
-				</tr>
-			{{end}}
-		{{else}}
+
+
+	<div class="pkg-dir">
+		<table>
 			<tr>
-			<td class="name">{{repeat ` + "`" + `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;` + "`" + ` .Depth}}<a href="{{html .Path}}/">{{html .Name}}</a></td>
-			<td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
-			<td style="width: auto">{{html .Synopsis}}</td>
+				<th class="pkg-name">Name</th>
+				<th class="pkg-synopsis">Synopsis</th>
 			</tr>
-		{{end}}
-	{{end}}
-	</table>
+
+			{{if not (or (eq $.Dirname "/src") (eq $.Dirname "/src/cmd") $.DirFlat)}}
+			<tr>
+				<td colspan="2"><a href="..">..</a></td>
+			</tr>
+			{{end}}
+
+			{{range .List}}
+				{{if $.DirFlat}}
+					{{if .HasPkg}}
+						<tr>
+							<td class="pkg-name">
+								<a href="{{html .Path}}/">{{html .Path}}</a>
+							</td>
+							<td class="pkg-synopsis">
+								{{html .Synopsis}}
+							</td>
+						</tr>
+					{{end}}
+				{{else}}
+					<tr>
+						<td class="pkg-name" style="padding-left: {{multiply .Depth 20}}px;">
+							<a href="{{html .Path}}/">{{html .Name}}</a>
+						</td>
+						<td class="pkg-synopsis">
+							{{html .Synopsis}}
+						</td>
+					</tr>
+				{{end}}
+			{{end}}
+		</table>
+	</div>
+
 
 	{{if eq $.Dirname "/src"}}
 	<h2 id="other">Other packages</h2>
@@ -2696,9 +2724,10 @@ function PlaygroundOutput(el) {
 
 	"style.css": `body {
 	margin: 0;
-	font-family: Helvetica, Arial, sans-serif;
+	font-family: Arial, sans-serif;
 	font-size: 16px;
 	background-color: #fff;
+	line-height: 1.3em;
 }
 pre,
 code {
@@ -2706,7 +2735,8 @@ code {
 	font-size: 14px;
 }
 pre {
-	line-height: 18px;
+	line-height: 1.4em;
+	overflow-x: auto;
 }
 pre .comment {
 	color: #006600;
@@ -2736,6 +2766,10 @@ a:hover,
 .exampleHeading .text:hover {
 	text-decoration: underline;
 }
+p {
+	max-width: 800px;
+	word-wrap: break-word;
+}
 p,
 pre,
 ul,
@@ -2743,7 +2777,7 @@ ol {
 	margin: 20px;
 }
 pre {
-	background: #e9e9e9;
+	background: #EFEFEF;
 	padding: 10px;
 
 	-webkit-border-radius: 5px;
@@ -2756,18 +2790,24 @@ h2,
 h3,
 h4,
 .rootHeading {
-	margin: 20px 0;
+	margin: 40px 0 20px;
 	padding: 0;
 	color: #375EAB;
 	font-weight: bold;
 }
 h1 {
-	font-size: 24px;
+	font-size: 28px;
+	line-height: 1;
 }
 h2 {
 	font-size: 20px;
 	background: #E0EBF5;
-	padding: 2px 5px;
+	padding: 8px;
+	line-height: 1.25;
+	font-weight: normal;
+}
+h2 a {
+	font-weight: bold;
 }
 h3 {
 	font-size: 20px;
@@ -2788,7 +2828,7 @@ dl {
 	margin: 20px;
 }
 dd {
-	margin: 2px 20px;
+	margin: 0;
 }
 dl,
 dd {
@@ -2798,28 +2838,28 @@ div#nav table td {
 	vertical-align: top;
 }
 
-table.dir th {
-	text-align: left;
+
+.pkg-dir {
+	padding: 0 10px;
 }
-table.dir td {
-	word-wrap: break-word;
-	vertical-align: top;
+.pkg-dir table {
+	border-collapse: collapse;
+	border-spacing: 0;
 }
-div#page.wide table.dir td.name {
-	white-space: nowrap;
+.pkg-name {
+	padding-right: 10px;
 }
 .alert {
 	color: #AA0000;
 }
 
-div#heading {
+.top-heading {
 	float: left;
-	margin: 0 0 10px 0;
 	padding: 21px 0;
 	font-size: 20px;
 	font-weight: normal;
 }
-div#heading a {
+.top-heading a {
 	color: #222;
 	text-decoration: none;
 }
@@ -2842,11 +2882,14 @@ div#topbar > .container {
 	margin-left: auto;
 	margin-right: auto;
 	padding: 0 20px;
-	width: 900px;
+}
+div#topbar > .container,
+div#page > .container {
+	max-width: 950px;
 }
 div#page.wide > .container,
 div#topbar.wide > .container {
-	width: auto;
+	max-width: none;
 }
 div#plusone {
 	float: right;
@@ -2865,7 +2908,8 @@ div#menu > a,
 div#menu > input,
 div#learn .buttons a,
 div.play .buttons a,
-div#blog .read a {
+div#blog .read a,
+#menu-button {
 	padding: 10px;
 
 	text-decoration: none;
@@ -2877,11 +2921,13 @@ div#blog .read a {
 }
 div#playground .buttons a,
 div#menu > a,
-div#menu > input {
+div#menu > input,
+#menu-button {
 	border: 1px solid #375EAB;
 }
 div#playground .buttons a,
-div#menu > a {
+div#menu > a,
+#menu-button {
 	color: white;
 	background: #375EAB;
 }
@@ -2902,39 +2948,61 @@ div#blog .read a {
 }
 
 div#menu {
-	float: right;
-	min-width: 590px;
-	padding: 10px 0;
 	text-align: right;
+	padding: 10px;
+	white-space: nowrap;
+	max-height: 0;
+	-moz-transition: max-height .25s linear;
+	transition: max-height .25s linear;
+	width: 100%;
 }
-div#menu > a {
-	margin-right: 5px;
-	margin-bottom: 10px;
-
+div#menu.menu-visible {
+	max-height: 500px;
+}
+div#menu > a,
+#menu-button {
+	margin: 10px 2px;
 	padding: 10px;
 }
 div#menu > input {
 	position: relative;
 	top: 1px;
-	width: 60px;
+	width: 140px;
 	background: white;
 	color: #222;
+	box-sizing: border-box;
 }
 div#menu > input.inactive {
 	color: #999;
 }
 
+#menu-button {
+	display: none;
+	position: absolute;
+	right: 5px;
+	top: 0;
+	margin-right: 5px;
+}
+#menu-button-arrow {
+	display: inline-block;
+}
+.vertical-flip {
+	transform: rotate(-180deg);
+}
+
 div.left {
 	float: left;
 	clear: left;
+	margin-right: 2.5%;
 }
 div.right {
 	float: right;
 	clear: right;
+	margin-left: 2.5%;
 }
 div.left,
 div.right {
-	width: 415px;
+	width: 45%;
 }
 
 div#learn,
@@ -2947,10 +3015,7 @@ div#about {
 }
 div#about {
 	font-size: 20px;
-}
-
-div#about {
-	height: 96px;
+	margin: 0 auto 30px;
 }
 div#gopher {
 	background: url(/doc/gopher/frontpage.png) no-repeat;
@@ -3067,6 +3132,9 @@ div#learn .output .exit {
 	display: none;
 }
 
+div#video {
+	max-width: 100%;
+}
 div#blog,
 div#video {
 	margin-top: 40px;
@@ -3290,5 +3358,134 @@ a.error {
         border-top-right-radius: 4px;
         padding: 2px 4px 2px 4px; /* TRBL */
 }
-`,
+
+
+#heading-narrow {
+	display: none;
+}
+
+@media (max-width: 930px) {
+	#heading-wide {
+		display: none;
+	}
+	#heading-narrow {
+		display: block;
+	}
+}
+
+
+@media (max-width: 760px) {
+	.container .left,
+	.container .right {
+		width: auto;
+		float: none;
+	}
+
+	div#about {
+		max-width: 500px;
+		text-align: center;
+	}
+}
+
+@media (min-width: 700px) and (max-width: 1000px) {
+	div#menu > a {
+		margin: 5px 0;
+		font-size: 14px;
+	}
+
+	div#menu > input {
+		font-size: 14px;
+	}
+}
+
+@media (max-width: 700px) {
+	body {
+		font-size: 15px;
+	}
+
+	pre,
+	code {
+		font-size: 13px;
+	}
+
+	div#page > .container {
+		padding: 0 10px;
+	}
+
+	div#topbar {
+		height: auto;
+		padding: 10px;
+	}
+
+	div#topbar > .container {
+		padding: 0;
+	}
+
+	#heading-wide {
+		display: block;
+	}
+	#heading-narrow {
+		display: none;
+	}
+
+	.top-heading {
+		float: none;
+		display: inline-block;
+		padding: 12px;
+	}
+
+	div#menu {
+		padding: 0;
+		min-width: 0;
+		text-align: left;
+		float: left;
+	}
+
+	div#menu > a,
+	div#menu > input {
+		display: block;
+		margin-left: 0;
+		margin-right: 0;
+	}
+
+	div#menu > input {
+		width: 100%;
+	}
+
+	#menu-button {
+		display: inline-block;
+	}
+
+	p,
+	pre,
+	ul,
+	ol {
+		margin: 10px;
+	}
+
+	.pkg-synopsis {
+		display: none;
+	}
+
+	img.gopher {
+		display: none;
+	}
+}
+
+@media (max-width: 480px) {
+	#heading-wide {
+		display: none;
+	}
+	#heading-narrow {
+		display: block;
+	}
+}
+
+@media print {
+	pre {
+		background: #FFF;
+		border: 1px solid #BBB;
+		white-space: pre-wrap;
+	}
+}`,
 }

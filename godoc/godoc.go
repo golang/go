@@ -98,6 +98,9 @@ func (p *Presentation) initFuncMap() {
 
 		// formatting of Notes
 		"noteTitle": noteTitle,
+
+		// Number operation
+		"multiply": multiply,
 	}
 	if p.URLForSrc != nil {
 		p.funcMap["srcLink"] = p.URLForSrc
@@ -109,6 +112,8 @@ func (p *Presentation) initFuncMap() {
 		p.funcMap["queryLink"] = p.URLForSrcQuery
 	}
 }
+
+func multiply(a, b int) int { return a * b }
 
 func filenameFunc(path string) string {
 	_, localname := pathpkg.Split(path)
