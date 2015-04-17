@@ -217,18 +217,19 @@ func (d *decoder) readByteStuffedByte() (x byte, err error) {
 		return 0xff, nil
 	}
 
+	d.bytes.nUnreadable = 0
+
 	x, err = d.readByte()
 	if err != nil {
 		return 0, err
 	}
+	d.bytes.nUnreadable = 1
 	if x != 0xff {
-		d.bytes.nUnreadable = 1
 		return x, nil
 	}
 
 	x, err = d.readByte()
 	if err != nil {
-		d.bytes.nUnreadable = 1
 		return 0, err
 	}
 	d.bytes.nUnreadable = 2
