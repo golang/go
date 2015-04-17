@@ -241,7 +241,7 @@ func (l *TCPListener) AcceptTCP() (*TCPConn, error) {
 	}
 	fd, err := l.fd.accept()
 	if err != nil {
-		return nil, err
+		return nil, &OpError{Op: "accept", Net: l.fd.net, Addr: l.fd.laddr, Err: err}
 	}
 	return newTCPConn(fd), nil
 }

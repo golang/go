@@ -307,10 +307,9 @@ func (l *UnixListener) AcceptUnix() (*UnixConn, error) {
 	}
 	fd, err := l.fd.accept()
 	if err != nil {
-		return nil, err
+		return nil, &OpError{Op: "accept", Net: l.fd.net, Addr: l.fd.laddr, Err: err}
 	}
-	c := newUnixConn(fd)
-	return c, nil
+	return newUnixConn(fd), nil
 }
 
 // Accept implements the Accept method in the Listener interface; it

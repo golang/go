@@ -99,13 +99,13 @@ func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
 // AcceptUnix accepts the next incoming call and returns the new
 // connection.
 func (l *UnixListener) AcceptUnix() (*UnixConn, error) {
-	return nil, syscall.EPLAN9
+	return nil, &OpError{Op: "accept", Net: "<nil>", Addr: nil, Err: syscall.EPLAN9}
 }
 
 // Accept implements the Accept method in the Listener interface; it
 // waits for the next call and returns a generic Conn.
 func (l *UnixListener) Accept() (Conn, error) {
-	return nil, syscall.EPLAN9
+	return nil, &OpError{Op: "accept", Net: "<nil>", Addr: nil, Err: syscall.EPLAN9}
 }
 
 // Close stops listening on the Unix address.  Already accepted

@@ -11,6 +11,7 @@ import (
 	"os"
 	"runtime"
 	"testing"
+	"time"
 )
 
 func isTimeoutError(err error) bool {
@@ -423,4 +424,77 @@ func TestCloseError(t *testing.T) {
 			t.Errorf("#%d: %v", i, perr)
 		}
 	}
+}
+
+// parseAcceptError parses nestedErr and reports whether it is a valid
+// error value from Accept functions.
+// It returns nil when nestedErr is valid.
+func parseAcceptError(nestedErr error) error {
+	if nestedErr == nil {
+		return nil
+	}
+
+	switch err := nestedErr.(type) {
+	case *OpError:
+		if err := err.isValid(); err != nil {
+			return err
+		}
+		nestedErr = err.Err
+		goto second
+	}
+	return fmt.Errorf("unexpected type on 1st nested level: %T", nestedErr)
+
+second:
+	if isPlatformError(nestedErr) {
+		return nil
+	}
+	switch err := nestedErr.(type) {
+	case *os.SyscallError:
+		nestedErr = err.Err
+		goto third
+	}
+	switch nestedErr {
+	case errClosing, errTimeout:
+		return nil
+	}
+	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
+
+third:
+	if isPlatformError(nestedErr) {
+		return nil
+	}
+	return fmt.Errorf("unexpected type on 3rd nested level: %T", nestedErr)
+}
+
+func TestAcceptError(t *testing.T) {
+	handler := func(ls *localServer, ln Listener) {
+		for {
+			ln.(*TCPListener).SetDeadline(time.Now().Add(5 * time.Millisecond))
+			c, err := ln.Accept()
+			if perr := parseAcceptError(err); perr != nil {
+				t.Error(perr)
+			}
+			if err != nil {
+				if c != nil {
+					t.Errorf("Accept returned non-nil interface %T(%v) with err != nil", c, c)
+				}
+				if !isTimeoutError(err) && !isTemporaryError(err) {
+					return
+				}
+				continue
+			}
+			c.Close()
+		}
+	}
+	ls, err := newLocalServer("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ls.buildup(handler); err != nil {
+		ls.teardown()
+		t.Fatal(err)
+	}
+
+	time.Sleep(100 * time.Millisecond)
+	ls.teardown()
 }
