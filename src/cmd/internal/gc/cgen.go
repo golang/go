@@ -804,7 +804,7 @@ func cgen_wbptr(n, res *Node) {
 	}
 
 	Thearch.Gins(Thearch.Optoas(OCMP, Types[TUINT8]), syslook("writeBarrierEnabled", 0), Nodintconst(0))
-	pbr := Gbranch(Thearch.Optoas(ONE, Types[TUINT32]), nil, -1)
+	pbr := Gbranch(Thearch.Optoas(ONE, Types[TUINT8]), nil, -1)
 	Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), &src, &dst)
 	pjmp := Gbranch(obj.AJMP, nil, 0)
 	Patch(pbr, Pc)
@@ -861,13 +861,14 @@ func cgen_wbfat(n, res *Node) {
 	p2.To = p.To
 	p2.To.Offset += int64(Widthptr)
 	Regfree(&dst)
-	Regfree(&src)
 	if needType {
-		p3 := Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), typename(n.Type), nil)
+		src.Type = Types[Tptr]
+		Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), typename(n.Type), &src)
+		p3 := Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), &src, nil)
 		p3.To = p2.To
 		p3.To.Offset -= 2 * int64(Widthptr)
-		Regfree(&src)
 	}
+	Regfree(&src)
 	Ginscall(writebarrierfn(funcName, Types[Tptr], Types[Tptr]), 0)
 }
 
