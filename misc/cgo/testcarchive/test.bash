@@ -22,10 +22,10 @@ fi
 
 GOPATH=$(pwd) go build -buildmode=c-archive src/libgo/libgo.go
 $(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main.c libgo.a
-$bin
+$bin arg1 arg2
 rm libgo.a testp
 
 GOPATH=$(pwd) go build -buildmode=c-archive -o libgo.a libgo
 $(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main.c libgo.a
-$bin
+$bin arg1 arg2
 rm libgo.a testp
