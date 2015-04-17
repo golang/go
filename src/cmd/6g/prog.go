@@ -293,4 +293,16 @@ func proginfo(p *obj.Prog) {
 	if p.To.Index != x86.REG_NONE {
 		info.Regindex |= RtoB(int(p.To.Index))
 	}
+	if gc.Ctxt.Flag_dynlink {
+		// When -dynlink is passed, many operations on external names (and
+		// also calling duffzero/duffcopy) use R15 as a scratch register.
+		if p.As == x86.ALEAQ || info.Flags == gc.Pseudo || p.As == obj.ACALL || p.As == obj.ARET || p.As == obj.AJMP {
+			return
+		}
+		if p.As == obj.ADUFFZERO || p.As == obj.ADUFFCOPY || p.From.Name == obj.NAME_EXTERN || p.To.Name == obj.NAME_EXTERN {
+			info.Reguse |= R15
+			info.Regset |= R15
+			return
+		}
+	}
 }
