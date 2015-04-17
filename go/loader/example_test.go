@@ -15,7 +15,7 @@ import (
 	"golang.org/x/tools/go/loader"
 )
 
-func printProg(prog *loader.Program) {
+func printProgram(prog *loader.Program) {
 	// Created packages are the initial packages specified by a call
 	// to CreateFromFilenames or CreateFromFiles.
 	var names []string
@@ -58,11 +58,11 @@ func printFilenames(fset *token.FileSet, info *loader.PackageInfo) {
 	fmt.Printf("%s.Files: %s\n", info.Pkg.Path(), names)
 }
 
-// ExampleFromArgs loads a set of packages and all their dependencies
+// This example loads a set of packages and all of their dependencies
 // from a typical command-line.  FromArgs parses a command line and
 // makes calls to the other methods of Config shown in the examples that
 // follow.
-func ExampleFromArgs() {
+func ExampleConfig_FromArgs() {
 	args := []string{"mytool", "unicode/utf8", "errors", "runtime", "--", "foo", "bar"}
 	const wantTests = false
 
@@ -74,7 +74,7 @@ func ExampleFromArgs() {
 	}
 
 	fmt.Printf("rest: %s\n", rest)
-	printProg(prog)
+	printProgram(prog)
 	// Output:
 	// rest: [foo bar]
 	// created: []
@@ -83,9 +83,9 @@ func ExampleFromArgs() {
 	// all: [errors runtime unicode/utf8]
 }
 
-// ExampleCreateFromFilenames loads a single package (without tests) and
-// all its dependencies from a list of filenames.
-func ExampleCreateFromFilenames() {
+// This example creates and type-checks a single package (without tests)
+// from a list of filenames, and loads all of its dependencies.
+func ExampleConfig_CreateFromFilenames() {
 	var conf loader.Config
 	filename := filepath.Join(runtime.GOROOT(), "src/container/heap/heap.go")
 	conf.CreateFromFilenames("container/heap", filename)
@@ -94,7 +94,7 @@ func ExampleCreateFromFilenames() {
 		log.Fatal(err)
 	}
 
-	printProg(prog)
+	printProgram(prog)
 	// Output:
 	// created: [container/heap]
 	// imported: []
@@ -116,9 +116,9 @@ func main() {
 }
 `
 
-// ExampleCreateFromFiles loads a package and all its dependencies from
-// a list of already-parsed files.
-func ExampleCreateFromFiles() {
+// This example creates and type-checks a package from a list of
+// already-parsed files, and loads all its dependencies.
+func ExampleConfig_CreateFromFiles() {
 	var conf loader.Config
 	f, err := conf.ParseFile("hello.go", hello)
 	if err != nil {
@@ -130,7 +130,7 @@ func ExampleCreateFromFiles() {
 		log.Fatal(err)
 	}
 
-	printProg(prog)
+	printProgram(prog)
 	printFilenames(prog.Fset, prog.Package("strconv"))
 	// Output:
 	// created: [hello]
@@ -140,12 +140,13 @@ func ExampleCreateFromFiles() {
 	// strconv.Files: [atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go isprint.go itoa.go quote.go]
 }
 
-// ExampleImport loads three packages and all their dependencies.
-func ExampleImport() {
+// This example imports three packages, including the tests for one of
+// them, and loads all their dependencies.
+func ExampleConfig_Import() {
 	// ImportWithTest("strconv") causes strconv to include
 	// internal_test.go, and creates an external test package,
 	// strconv_test.
-	// (Compare with output of ExampleCreateFromFiles.)
+	// (Compare with the example of CreateFromFiles.)
 
 	var conf loader.Config
 	conf.Import("unicode/utf8")
@@ -156,7 +157,7 @@ func ExampleImport() {
 		log.Fatal(err)
 	}
 
-	printProg(prog)
+	printProgram(prog)
 	printFilenames(prog.Fset, prog.Package("strconv"))
 	printFilenames(prog.Fset, prog.Package("strconv_test"))
 	// Output:
