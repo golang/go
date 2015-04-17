@@ -78,7 +78,7 @@ function generateTOC() {
     if ($(node).is('h2')) {
       item = $('<dt/>');
     } else { // h3
-      item = $('<dd/>');
+      item = $('<dd class="indent"/>');
     }
     item.append(link);
     toc_items.push(item);

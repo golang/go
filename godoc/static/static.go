@@ -39,18 +39,6 @@ var Files = map[string]string{
   results in the source and package views.  This document provides a
   brief tour of these features.
 </p>
-<p>
-  The current status of the analysis features is that of a technology
-  preview; there are many problems and user-interface difficulties
-  which will be addressed in due course.  Some known problems are
-  mentioned in passing, accompanied by a warning triangle, <span
-  style='font-size:120%; color:darkred; background-color:
-  yellow'>⚠</span>.
-
-  Nonetheless, godoc's static analysis may be immediately useful today
-  for small-to-medium sized Go corpora, and it contains several
-  advances over the state of the art in code browsing.
-</p>
 
 <h2>Type analysis features</h2>
 <p>
@@ -71,10 +59,6 @@ var Files = map[string]string{
   displays the error message.
 </p>
 <img class="ss" width='811' src='error1.png'><br/>
-<p>
-  <span class='err'>⚠</span> The mark-up for compilation errors may
-  cause duplication of portions of the input.
-</p>
 
 <h3>Identifier resolution</h3>
 <p>
@@ -135,8 +119,8 @@ var Files = map[string]string{
   channel.
 </p>
 <p>
-  Pointer analysis is slower than type analysis, taking an additional
-  15 seconds or so for the standard libraries and their tests.
+  Compared to type analysis, pointer analysis requires more time and
+  memory, and is impractical for code bases exceeding a million lines.
 </p>
 
 <h3>Call graph navigation</h3>
@@ -270,21 +254,24 @@ var Files = map[string]string{
 
 <h2>Known issues</h2>
 <p>
-  <span class='err'>⚠</span> All analysis results pertain to exactly
+  All analysis results pertain to exactly
   one configuration (e.g. amd64 linux).  Files that are conditionally
   compiled based on different platforms or build tags are not visible
-  to the analysis.<br/>
-
-  <span class='err'>⚠</span> Files that <code>import "C"</code> require
+  to the analysis.
+</p>
+<p>
+  Files that <code>import "C"</code> require
   preprocessing by the cgo tool.  The file offsets after preprocessing
-  do not align with the unpreprocessed file, so markup is misaligned.<br/>
-
-  <span class='err'>⚠</span> Files are not periodically re-analyzed.
+  do not align with the unpreprocessed file, so markup is misaligned.
+</p>
+<p>
+  Files are not periodically re-analyzed.
   If the files change underneath the running server, the displayed
-  markup is misaligned.<br/>
-
-  <span class='err'>⚠</span> Additional issues are listed at
-  <a href='https://go.googlesource.com/tools/+/master/godoc/analysis/README'>tools/godoc/analysis/README</a>.<br/>
+  markup is misaligned.
+</p>
+<p>
+  Additional issues are listed at
+  <a href='https://go.googlesource.com/tools/+/master/godoc/analysis/README'>tools/godoc/analysis/README</a>.
 </p>
 `,
 
@@ -656,7 +643,7 @@ function generateTOC() {
     if ($(node).is('h2')) {
       item = $('<dt/>');
     } else { // h3
-      item = $('<dd/>');
+      item = $('<dd class="indent"/>');
     }
     item.append(link);
     toc_items.push(item);
@@ -2829,6 +2816,9 @@ dl {
 }
 dd {
 	margin: 0;
+}
+dd.indent {
+	margin: 0 20px;
 }
 dl,
 dd {

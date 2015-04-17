@@ -106,6 +106,9 @@ dl {
 dd {
 	margin: 0;
 }
+dd.indent {
+	margin: 0 20px;
+}
 dl,
 dd {
 	font-size: 14px;
