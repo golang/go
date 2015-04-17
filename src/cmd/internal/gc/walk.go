@@ -2218,10 +2218,14 @@ func applywritebarrier(n *Node, init **NodeList) *Node {
 		if Curfn != nil && Curfn.Func.Nowritebarrier {
 			Yyerror("write barrier prohibited")
 		}
+		t := n.Left.Type
+		if t.Width == int64(Widthptr) {
+			n.Op = OASWB
+			return n
+		}
 		if Debug_wb > 0 {
 			Warnl(int(n.Lineno), "write barrier")
 		}
-		t := n.Left.Type
 		l := Nod(OADDR, n.Left, nil)
 		l.Etype = 1 // addr does not escape
 		if t.Width == int64(Widthptr) {
@@ -2274,7 +2278,6 @@ func applywritebarrier(n *Node, init **NodeList) *Node {
 			n = mkcall1(writebarrierfn("typedmemmove", t, r.Left.Type), nil, init, typename(t), l, r)
 		}
 	}
-
 	return n
 }
 

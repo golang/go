@@ -170,6 +170,7 @@ const (
 	OAS2MAPR         // x, ok = m["foo"]
 	OAS2DOTTYPE      // x, ok = I.(int)
 	OASOP            // x += y
+	OASWB            // OAS but with write barrier
 	OCALL            // function call, method call or type conversion, possibly preceded by defer or go.
 	OCALLFUNC        // f()
 	OCALLMETH        // t.Method()
