@@ -6,10 +6,10 @@ package runtime
 
 import _ "unsafe" // for go:cgo_export_static and go:cgo_export_dynamic
 
-// Export the runtime entry point symbol.
+// Export the main function.
 //
-// Used by the app package to start the Go runtime after loading
-// a shared library via JNI. See golang.org/x/mobile/app.
+// Used by the app package to start all-Go Android apps that are
+// loaded via JNI. See golang.org/x/mobile/app.
 
-//go:cgo_export_static _rt0_arm_linux1
-//go:cgo_export_dynamic _rt0_arm_linux1
+//go:cgo_export_static main.main
+//go:cgo_export_dynamic main.main
