@@ -8,6 +8,7 @@
 extern signed char DidInitRun();
 extern signed char DidMainRun();
 extern int32_t FromPkg();
+extern void CheckArgs();
 
 int main(void) {
 	int32_t res;
@@ -27,6 +28,8 @@ int main(void) {
 		fprintf(stderr, "ERROR: FromPkg()=%d, want 1024\n", res);
 		return 2;
 	}
+
+	CheckArgs();
 
 	return 0;
 }

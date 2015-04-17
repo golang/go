@@ -5,9 +5,13 @@
 package main
 
 import (
-	_ "p"
+	"fmt"
+	"os"
+	"reflect"
 	"syscall"
 	"time"
+
+	_ "p"
 )
 
 import "C"
@@ -40,3 +44,12 @@ func DidInitRun() bool {
 
 //export DidMainRun
 func DidMainRun() bool { return ranMain }
+
+//export CheckArgs
+func CheckArgs() {
+	want := []string{"./testp", "arg1", "arg2"}
+	if !reflect.DeepEqual(want, os.Args) {
+		fmt.Printf("CheckArgs: want %v, got: %v\n", want, os.Args)
+		os.Exit(2)
+	}
+}
