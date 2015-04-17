@@ -184,6 +184,10 @@ func mpatoflt(a *Mpflt, as string) {
 	}
 }
 
+func (f *Mpflt) String() string {
+	return Fconv(f, 0)
+}
+
 func Fconv(fvp *Mpflt, flag int) string {
 	if flag&obj.FmtSharp == 0 {
 		return fvp.Val.Format('b', 0)

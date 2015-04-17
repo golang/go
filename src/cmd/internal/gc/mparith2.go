@@ -288,6 +288,10 @@ func mpatofix(a *Mpint, as string) {
 	}
 }
 
+func (x *Mpint) String() string {
+	return Bconv(x, 0)
+}
+
 func Bconv(xval *Mpint, flag int) string {
 	if flag&obj.FmtSharp != 0 {
 		return fmt.Sprintf("%#x", &xval.Val)
