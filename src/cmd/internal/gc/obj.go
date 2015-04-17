@@ -245,7 +245,7 @@ func stringsym(s string) *Sym {
 
 	off = duint8(sym, off, 0)                    // terminating NUL for runtime
 	off = (off + Widthptr - 1) &^ (Widthptr - 1) // round to pointer alignment
-	ggloblsym(sym, int32(off), obj.DUPOK|obj.RODATA)
+	ggloblsym(sym, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
 
 	return sym
 }
@@ -269,7 +269,7 @@ func slicebytes(nam *Node, s string, len int) {
 		off = dsname(sym, off, s[n:n+m])
 	}
 
-	ggloblsym(sym, int32(off), obj.NOPTR)
+	ggloblsym(sym, int32(off), obj.NOPTR|obj.LOCAL)
 
 	if nam.Op != ONAME {
 		Fatal("slicebytes %v", nam)

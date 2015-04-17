@@ -814,7 +814,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 			for i := 0; i < 2*Widthptr; i++ {
 				duint8(sbits, i, gcmask[i])
 			}
-			ggloblsym(sbits, 2*int32(Widthptr), obj.DUPOK|obj.RODATA)
+			ggloblsym(sbits, 2*int32(Widthptr), obj.DUPOK|obj.RODATA|obj.LOCAL)
 		}
 
 		ot = dsymptr(s, ot, sbits, 0)
@@ -1203,7 +1203,7 @@ ok:
 	}
 
 	ot = dextratype(s, ot, t, xt)
-	ggloblsym(s, int32(ot), int8(dupok|obj.RODATA))
+	ggloblsym(s, int32(ot), int16(dupok|obj.RODATA))
 
 	// generate typelink.foo pointing at s = type.foo.
 	// The linker will leave a table of all the typelinks for
@@ -1229,7 +1229,7 @@ ok:
 		case TARRAY, TCHAN, TFUNC, TMAP:
 			slink := typelinksym(t)
 			dsymptr(slink, 0, s, 0)
-			ggloblsym(slink, int32(Widthptr), int8(dupok|obj.RODATA))
+			ggloblsym(slink, int32(Widthptr), int16(dupok|obj.RODATA))
 		}
 	}
 

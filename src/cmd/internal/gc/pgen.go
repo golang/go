@@ -161,7 +161,7 @@ func emitptrargsmap() {
 		}
 	}
 
-	ggloblsym(sym, int32(off), obj.RODATA)
+	ggloblsym(sym, int32(off), obj.RODATA|obj.LOCAL)
 }
 
 // Sort the list of stack variables. Autos after anything else,

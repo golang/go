@@ -273,6 +273,7 @@ const (
 	A_ARCHSPECIFIC
 )
 
+// An LSym is the sort of symbol that is written to an object file.
 type LSym struct {
 	Name      string
 	Type      int16
@@ -283,18 +284,25 @@ type LSym struct {
 	Leaf      uint8
 	Seenglobl uint8
 	Onlist    uint8
-	Args      int32
-	Locals    int32
-	Value     int64
-	Size      int64
-	Next      *LSym
-	Gotype    *LSym
-	Autom     *Auto
-	Text      *Prog
-	Etext     *Prog
-	Pcln      *Pcln
-	P         []byte
-	R         []Reloc
+	// Local means make the symbol local even when compiling Go code to reference Go
+	// symbols in other shared libraries, as in this mode symbols are global by
+	// default. "local" here means in the sense of the dynamic linker, i.e. not
+	// visible outside of the module (shared library or executable) that contains its
+	// definition. (When not compiling to support Go shared libraries, all symbols are
+	// local in this sense unless there is a cgo_export_* directive).
+	Local  bool
+	Args   int32
+	Locals int32
+	Value  int64
+	Size   int64
+	Next   *LSym
+	Gotype *LSym
+	Autom  *Auto
+	Text   *Prog
+	Etext  *Prog
+	Pcln   *Pcln
+	P      []byte
+	R      []Reloc
 }
 
 type Pcln struct {

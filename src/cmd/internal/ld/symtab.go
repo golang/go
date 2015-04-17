@@ -373,15 +373,7 @@ func symtab() {
 	// just defined above will be first.
 	// hide the specific symbols.
 	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
-		if !s.Reachable || s.Special != 0 {
-			continue
-		}
-
-		if strings.Contains(s.Name, "..gostring.") || strings.Contains(s.Name, "..gobytes.") {
-			s.Local = true
-		}
-
-		if s.Type != obj.SRODATA {
+		if !s.Reachable || s.Special != 0 || s.Type != obj.SRODATA {
 			continue
 		}
 
