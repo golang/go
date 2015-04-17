@@ -348,7 +348,7 @@ func restx(x *gc.Node, oldx *gc.Node) {
  */
 func cgen_div(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	if gc.Is64(nl.Type) {
-		gc.Fatal("cgen_div %v", gc.Tconv(nl.Type, 0))
+		gc.Fatal("cgen_div %v", nl.Type)
 	}
 
 	var t *gc.Type
@@ -375,7 +375,7 @@ func cgen_div(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
  */
 func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	if nl.Type.Width > 4 {
-		gc.Fatal("cgen_shift %v", gc.Tconv(nl.Type, 0))
+		gc.Fatal("cgen_shift %v", nl.Type)
 	}
 
 	w := int(nl.Type.Width * 8)

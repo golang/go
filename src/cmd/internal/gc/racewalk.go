@@ -77,11 +77,11 @@ func racewalk(fn *Node) {
 	fn.Func.Exit = list(fn.Func.Exit, nd)
 
 	if Debug['W'] != 0 {
-		s := fmt.Sprintf("after racewalk %v", Sconv(fn.Nname.Sym, 0))
+		s := fmt.Sprintf("after racewalk %v", fn.Nname.Sym)
 		dumplist(s, fn.Nbody)
-		s = fmt.Sprintf("enter %v", Sconv(fn.Nname.Sym, 0))
+		s = fmt.Sprintf("enter %v", fn.Nname.Sym)
 		dumplist(s, fn.Func.Enter)
-		s = fmt.Sprintf("exit %v", Sconv(fn.Nname.Sym, 0))
+		s = fmt.Sprintf("exit %v", fn.Nname.Sym)
 		dumplist(s, fn.Func.Exit)
 	}
 }

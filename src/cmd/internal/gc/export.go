@@ -21,7 +21,7 @@ func exportsym(n *Node) {
 	}
 	if n.Sym.Flags&(SymExport|SymPackage) != 0 {
 		if n.Sym.Flags&SymPackage != 0 {
-			Yyerror("export/package mismatch: %v", Sconv(n.Sym, 0))
+			Yyerror("export/package mismatch: %v", n.Sym)
 		}
 		return
 	}
@@ -29,7 +29,7 @@ func exportsym(n *Node) {
 	n.Sym.Flags |= SymExport
 
 	if Debug['E'] != 0 {
-		fmt.Printf("export symbol %v\n", Sconv(n.Sym, 0))
+		fmt.Printf("export symbol %v\n", n.Sym)
 	}
 	exportlist = list(exportlist, n)
 }
@@ -123,7 +123,7 @@ func reexportdep(n *Node) {
 		case PEXTERN:
 			if n.Sym != nil && !exportedsym(n.Sym) {
 				if Debug['E'] != 0 {
-					fmt.Printf("reexport name %v\n", Sconv(n.Sym, 0))
+					fmt.Printf("reexport name %v\n", n.Sym)
 				}
 				exportlist = list(exportlist, n)
 			}
@@ -139,7 +139,7 @@ func reexportdep(n *Node) {
 			}
 			if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
 				if Debug['E'] != 0 {
-					fmt.Printf("reexport type %v from declaration\n", Sconv(t.Sym, 0))
+					fmt.Printf("reexport type %v from declaration\n", t.Sym)
 				}
 				exportlist = list(exportlist, t.Sym.Def)
 			}
@@ -153,7 +153,7 @@ func reexportdep(n *Node) {
 			}
 			if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
 				if Debug['E'] != 0 {
-					fmt.Printf("reexport literal type %v\n", Sconv(t.Sym, 0))
+					fmt.Printf("reexport literal type %v\n", t.Sym)
 				}
 				exportlist = list(exportlist, t.Sym.Def)
 			}
@@ -164,7 +164,7 @@ func reexportdep(n *Node) {
 	case OTYPE:
 		if n.Sym != nil && !exportedsym(n.Sym) {
 			if Debug['E'] != 0 {
-				fmt.Printf("reexport literal/type %v\n", Sconv(n.Sym, 0))
+				fmt.Printf("reexport literal/type %v\n", n.Sym)
 			}
 			exportlist = list(exportlist, n)
 		}
@@ -193,7 +193,7 @@ func reexportdep(n *Node) {
 		}
 		if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
 			if Debug['E'] != 0 {
-				fmt.Printf("reexport type for expression %v\n", Sconv(t.Sym, 0))
+				fmt.Printf("reexport type for expression %v\n", t.Sym)
 			}
 			exportlist = list(exportlist, t.Sym.Def)
 		}
@@ -214,7 +214,7 @@ func dumpexportconst(s *Sym) {
 	n := s.Def
 	typecheck(&n, Erv)
 	if n == nil || n.Op != OLITERAL {
-		Fatal("dumpexportconst: oconst nil: %v", Sconv(s, 0))
+		Fatal("dumpexportconst: oconst nil: %v", s)
 	}
 
 	t := n.Type // may or may not be specified
@@ -231,7 +231,7 @@ func dumpexportvar(s *Sym) {
 	n := s.Def
 	typecheck(&n, Erv|Ecall)
 	if n == nil || n.Type == nil {
-		Yyerror("variable exported but not defined: %v", Sconv(s, 0))
+		Yyerror("variable exported but not defined: %v", s)
 		return
 	}
 
@@ -337,7 +337,7 @@ func dumpsym(s *Sym) {
 	s.Flags |= SymExported
 
 	if s.Def == nil {
-		Yyerror("unknown export symbol: %v", Sconv(s, 0))
+		Yyerror("unknown export symbol: %v", s)
 		return
 	}
 
@@ -346,14 +346,14 @@ func dumpsym(s *Sym) {
 
 	switch s.Def.Op {
 	default:
-		Yyerror("unexpected export symbol: %v %v", Oconv(int(s.Def.Op), 0), Sconv(s, 0))
+		Yyerror("unexpected export symbol: %v %v", Oconv(int(s.Def.Op), 0), s)
 
 	case OLITERAL:
 		dumpexportconst(s)
 
 	case OTYPE:
 		if s.Def.Type.Etype == TFORW {
-			Yyerror("export of incomplete type %v", Sconv(s, 0))
+			Yyerror("export of incomplete type %v", s)
 		} else {
 			dumpexporttype(s.Def.Type)
 		}
@@ -424,7 +424,7 @@ func pkgtype(s *Sym) *Type {
 	}
 
 	if s.Def.Type == nil {
-		Yyerror("pkgtype %v", Sconv(s, 0))
+		Yyerror("pkgtype %v", s)
 	}
 	return s.Def.Type
 }
@@ -477,7 +477,7 @@ func importconst(s *Sym, t *Type, n *Node) {
 	declare(n, PEXTERN)
 
 	if Debug['E'] != 0 {
-		fmt.Printf("import const %v\n", Sconv(s, 0))
+		fmt.Printf("import const %v\n", s)
 	}
 }
 
@@ -487,7 +487,7 @@ func importvar(s *Sym, t *Type) {
 		if Eqtype(t, s.Def.Type) {
 			return
 		}
-		Yyerror("inconsistent definition for var %v during import\n\t%v (in %q)\n\t%v (in %q)", Sconv(s, 0), Tconv(s.Def.Type, 0), s.Importdef.Path, Tconv(t, 0), importpkg.Path)
+		Yyerror("inconsistent definition for var %v during import\n\t%v (in %q)\n\t%v (in %q)", s, s.Def.Type, s.Importdef.Path, t, importpkg.Path)
 	}
 
 	n := newname(s)
@@ -496,7 +496,7 @@ func importvar(s *Sym, t *Type) {
 	declare(n, PEXTERN)
 
 	if Debug['E'] != 0 {
-		fmt.Printf("import var %v %v\n", Sconv(s, 0), Tconv(t, obj.FmtLong))
+		fmt.Printf("import var %v %v\n", s, Tconv(t, obj.FmtLong))
 	}
 }
 
@@ -517,11 +517,11 @@ func importtype(pt *Type, t *Type) {
 		declare(n, PEXTERN)
 		checkwidth(pt)
 	} else if !Eqtype(pt.Orig, t) {
-		Yyerror("inconsistent definition for type %v during import\n\t%v (in %q)\n\t%v (in %q)", Sconv(pt.Sym, 0), Tconv(pt, obj.FmtLong), pt.Sym.Importdef.Path, Tconv(t, obj.FmtLong), importpkg.Path)
+		Yyerror("inconsistent definition for type %v during import\n\t%v (in %q)\n\t%v (in %q)", pt.Sym, Tconv(pt, obj.FmtLong), pt.Sym.Importdef.Path, Tconv(t, obj.FmtLong), importpkg.Path)
 	}
 
 	if Debug['E'] != 0 {
-		fmt.Printf("import type %v %v\n", Tconv(pt, 0), Tconv(t, obj.FmtLong))
+		fmt.Printf("import type %v %v\n", pt, Tconv(t, obj.FmtLong))
 	}
 }
 

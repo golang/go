@@ -1151,7 +1151,7 @@ func regopt(firstp *obj.Prog) {
 		}
 
 		if Debug['R'] != 0 && Debug['v'] != 0 {
-			fmt.Printf("bit=%2d addr=%d et=%v w=%-2d s=%v + %d\n", i, v.addr, Econv(int(v.etype), 0), v.width, Nconv(v.node, 0), v.offset)
+			fmt.Printf("bit=%2d addr=%d et=%v w=%-2d s=%v + %d\n", i, v.addr, Econv(int(v.etype), 0), v.width, v.node, v.offset)
 		}
 	}
 
@@ -1379,7 +1379,7 @@ loop2:
 		if rgp.regno != 0 {
 			if Debug['R'] != 0 && Debug['v'] != 0 {
 				v := &vars[rgp.varno]
-				fmt.Printf("registerize %v+%d (bit=%2d et=%v) in %v usedreg=%#x vreg=%#x\n", Nconv(v.node, 0), v.offset, rgp.varno, Econv(int(v.etype), 0), obj.Rconv(int(rgp.regno)), usedreg, vreg)
+				fmt.Printf("registerize %v+%d (bit=%2d et=%v) in %v usedreg=%#x vreg=%#x\n", v.node, v.offset, rgp.varno, Econv(int(v.etype), 0), obj.Rconv(int(rgp.regno)), usedreg, vreg)
 			}
 
 			paint3(rgp.enter, int(rgp.varno), vreg, int(rgp.regno))

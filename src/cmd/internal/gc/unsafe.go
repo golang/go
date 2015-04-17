@@ -29,7 +29,7 @@ func unsafenmagic(nn *Node) *Node {
 	}
 
 	if args == nil {
-		Yyerror("missing argument for %v", Sconv(s, 0))
+		Yyerror("missing argument for %v", s)
 		return nil
 	}
 
@@ -66,7 +66,7 @@ func unsafenmagic(nn *Node) *Node {
 			break
 
 		case OCALLPART:
-			Yyerror("invalid expression %v: argument is a method value", Nconv(nn, 0))
+			Yyerror("invalid expression %v: argument is a method value", nn)
 			v = 0
 			goto ret
 
@@ -84,7 +84,7 @@ func unsafenmagic(nn *Node) *Node {
 				v += r1.Xoffset
 
 			case ODOTPTR:
-				Yyerror("invalid expression %v: selector implies indirection of embedded %v", Nconv(nn, 0), Nconv(r1.Left, 0))
+				Yyerror("invalid expression %v: selector implies indirection of embedded %v", nn, r1.Left)
 				goto ret
 
 			default:
@@ -126,13 +126,13 @@ func unsafenmagic(nn *Node) *Node {
 	return nil
 
 bad:
-	Yyerror("invalid expression %v", Nconv(nn, 0))
+	Yyerror("invalid expression %v", nn)
 	v = 0
 	goto ret
 
 yes:
 	if args.Next != nil {
-		Yyerror("extra arguments for %v", Sconv(s, 0))
+		Yyerror("extra arguments for %v", s)
 	}
 
 	// any side effects disappear; ignore init

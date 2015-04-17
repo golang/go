@@ -1380,7 +1380,7 @@ talph:
 	}
 
 	if Debug['x'] != 0 {
-		fmt.Printf("lex: %s %s\n", Sconv(s, 0), lexname(int(s.Lexical)))
+		fmt.Printf("lex: %s %s\n", s, lexname(int(s.Lexical)))
 	}
 	yylval.sym = s
 	return int32(s.Lexical)

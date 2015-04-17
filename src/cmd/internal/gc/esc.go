@@ -318,7 +318,7 @@ func escAnalyze(all *NodeList, recursive bool) {
 				} else {
 					tmp = nil
 				}
-				Warnl(int(l.N.Lineno), "%v %v does not escape", Sconv(tmp, 0), Nconv(l.N, obj.FmtShort))
+				Warnl(int(l.N.Lineno), "%v %v does not escape", tmp, Nconv(l.N, obj.FmtShort))
 			}
 		}
 	}
@@ -328,7 +328,7 @@ func escfunc(e *EscState, func_ *Node) {
 	//	print("escfunc %N %s\n", func->nname, e->recursive?"(recursive)":"");
 
 	if func_.Esc != 1 {
-		Fatal("repeat escfunc %v", Nconv(func_.Nname, 0))
+		Fatal("repeat escfunc %v", func_.Nname)
 	}
 	func_.Esc = EscFuncStarted
 
@@ -483,7 +483,7 @@ func esc(e *EscState, n *Node, up *Node) {
 		} else {
 			tmp = nil
 		}
-		fmt.Printf("%v:[%d] %v esc: %v\n", Ctxt.Line(int(lineno)), e.loopdepth, Sconv(tmp, 0), Nconv(n, 0))
+		fmt.Printf("%v:[%d] %v esc: %v\n", Ctxt.Line(int(lineno)), e.loopdepth, tmp, n)
 	}
 
 	switch n.Op {
@@ -496,11 +496,11 @@ func esc(e *EscState, n *Node, up *Node) {
 	case OLABEL:
 		if n.Left.Sym.Label == &nonlooping {
 			if Debug['m'] > 1 {
-				fmt.Printf("%v:%v non-looping label\n", Ctxt.Line(int(lineno)), Nconv(n, 0))
+				fmt.Printf("%v:%v non-looping label\n", Ctxt.Line(int(lineno)), n)
 			}
 		} else if n.Left.Sym.Label == &looping {
 			if Debug['m'] > 1 {
-				fmt.Printf("%v: %v looping label\n", Ctxt.Line(int(lineno)), Nconv(n, 0))
+				fmt.Printf("%v: %v looping label\n", Ctxt.Line(int(lineno)), n)
 			}
 			e.loopdepth++
 		}
@@ -560,7 +560,7 @@ func esc(e *EscState, n *Node, up *Node) {
 				} else {
 					tmp = nil
 				}
-				Warnl(int(n.Lineno), "%v ignoring self-assignment to %v", Sconv(tmp, 0), Nconv(n.Left, obj.FmtShort))
+				Warnl(int(n.Lineno), "%v ignoring self-assignment to %v", tmp, Nconv(n.Left, obj.FmtShort))
 			}
 
 			break
@@ -800,7 +800,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
 		} else {
 			tmp = nil
 		}
-		fmt.Printf("%v:[%d] %v escassign: %v(%v) = %v(%v)\n", Ctxt.Line(int(lineno)), e.loopdepth, Sconv(tmp, 0), Nconv(dst, obj.FmtShort), Jconv(dst, obj.FmtShort), Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort))
+		fmt.Printf("%v:[%d] %v escassign: %v(%v) = %v(%v)\n", Ctxt.Line(int(lineno)), e.loopdepth, tmp, Nconv(dst, obj.FmtShort), Jconv(dst, obj.FmtShort), Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort))
 	}
 
 	setlineno(dst)
@@ -1217,7 +1217,7 @@ func escflood(e *EscState, dst *Node) {
 		} else {
 			tmp = nil
 		}
-		fmt.Printf("\nescflood:%d: dst %v scope:%v[%d]\n", walkgen, Nconv(dst, obj.FmtShort), Sconv(tmp, 0), dst.Escloopdepth)
+		fmt.Printf("\nescflood:%d: dst %v scope:%v[%d]\n", walkgen, Nconv(dst, obj.FmtShort), tmp, dst.Escloopdepth)
 	}
 
 	for l := dst.Escflowsrc; l != nil; l = l.Next {
@@ -1255,7 +1255,7 @@ func escwalk(e *EscState, level int, dst *Node, src *Node) {
 		} else {
 			tmp = nil
 		}
-		fmt.Printf("escwalk: level:%d depth:%d %.*s %v(%v) scope:%v[%d]\n", level, e.pdepth, e.pdepth, "\t\t\t\t\t\t\t\t\t\t", Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort), Sconv(tmp, 0), src.Escloopdepth)
+		fmt.Printf("escwalk: level:%d depth:%d %.*s %v(%v) scope:%v[%d]\n", level, e.pdepth, e.pdepth, "\t\t\t\t\t\t\t\t\t\t", Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort), tmp, src.Escloopdepth)
 	}
 
 	e.pdepth++
@@ -1266,7 +1266,7 @@ func escwalk(e *EscState, level int, dst *Node, src *Node) {
 		if src.Op == ONAME && src.Class == PPARAM && src.Curfn == dst.Curfn && src.Esc != EscScope && src.Esc != EscHeap {
 			if level == 0 {
 				if Debug['m'] != 0 {
-					Warnl(int(src.Lineno), "leaking param: %v to result %v", Nconv(src, obj.FmtShort), Sconv(dst.Sym, 0))
+					Warnl(int(src.Lineno), "leaking param: %v to result %v", Nconv(src, obj.FmtShort), dst.Sym)
 				}
 				if src.Esc&EscMask != EscReturn {
 					src.Esc = EscReturn
@@ -1275,7 +1275,7 @@ func escwalk(e *EscState, level int, dst *Node, src *Node) {
 				goto recurse
 			} else if level > 0 {
 				if Debug['m'] != 0 {
-					Warnl(int(src.Lineno), "%v leaking param %v content to result %v", Nconv(src.Curfn.Nname, 0), Nconv(src, obj.FmtShort), Sconv(dst.Sym, 0))
+					Warnl(int(src.Lineno), "%v leaking param %v content to result %v", src.Curfn.Nname, Nconv(src, obj.FmtShort), dst.Sym)
 				}
 				if src.Esc&EscMask != EscReturn {
 					src.Esc = EscReturn

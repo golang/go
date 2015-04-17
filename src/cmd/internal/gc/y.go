@@ -1543,7 +1543,7 @@ yydefault:
 				if yyDollar[1].list.Next != nil {
 					Yyerror("argument count mismatch: %d = %d", count(yyDollar[1].list), 1)
 				} else if (yyDollar[1].list.N.Op != ONAME && yyDollar[1].list.N.Op != OTYPE && yyDollar[1].list.N.Op != ONONAME) || isblank(yyDollar[1].list.N) {
-					Yyerror("invalid variable name %s in type switch", Nconv(yyDollar[1].list.N, 0))
+					Yyerror("invalid variable name %s in type switch", yyDollar[1].list.N)
 				} else {
 					yyVAL.node.Left = dclname(yyDollar[1].list.N.Sym)
 				} // it's a colas, so must not re-use an oldname.
@@ -2588,7 +2588,7 @@ yydefault:
 					dclcontext = PDISCARD // since we skip funchdr below
 					break
 				}
-				Yyerror("inconsistent definition for func %v during import\n\t%v\n\t%v", Sconv(s, 0), Tconv(s.Def.Type, 0), Tconv(t, 0))
+				Yyerror("inconsistent definition for func %v during import\n\t%v\n\t%v", s, s.Def.Type, t)
 			}
 
 			yyVAL.node = newfuncname(s)
@@ -2824,7 +2824,7 @@ yydefault:
 			var pkg *Pkg
 
 			if yyDollar[1].sym.Def == nil || yyDollar[1].sym.Def.Op != OPACK {
-				Yyerror("%v is not a package", Sconv(yyDollar[1].sym, 0))
+				Yyerror("%v is not a package", yyDollar[1].sym)
 				pkg = localpkg
 			} else {
 				yyDollar[1].sym.Def.Used = true
@@ -3422,7 +3422,7 @@ yydefault:
 		{
 			yyVAL.node = oldname(Pkglookup(yyDollar[1].sym.Name, builtinpkg))
 			if yyVAL.node.Op != OLITERAL {
-				Yyerror("bad constant %v", Sconv(yyVAL.node.Sym, 0))
+				Yyerror("bad constant %v", yyVAL.node.Sym)
 			}
 		}
 	case 343:

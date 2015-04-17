@@ -50,7 +50,7 @@ type Order struct {
 // described in the comment at the top of the file.
 func order(fn *Node) {
 	if Debug['W'] > 1 {
-		s := fmt.Sprintf("\nbefore order %v", Sconv(fn.Nname.Sym, 0))
+		s := fmt.Sprintf("\nbefore order %v", fn.Nname.Sym)
 		dumplist(s, fn.Nbody)
 	}
 
@@ -323,7 +323,7 @@ func ismulticall(l *NodeList) bool {
 // and then returns the list t1, t2, ....
 func copyret(n *Node, order *Order) *NodeList {
 	if n.Type.Etype != TSTRUCT || n.Type.Funarg == 0 {
-		Fatal("copyret %v %d", Tconv(n.Type, 0), n.Left.Type.Outtuple)
+		Fatal("copyret %v %d", n.Type, n.Left.Type.Outtuple)
 	}
 
 	var l1 *NodeList
@@ -680,7 +680,7 @@ func orderstmt(n *Node, order *Order) {
 		orderexpr(&n.Right, order)
 		switch n.Type.Etype {
 		default:
-			Fatal("orderstmt range %v", Tconv(n.Type, 0))
+			Fatal("orderstmt range %v", n.Type)
 
 			// Mark []byte(str) range expression to reuse string backing storage.
 		// It is safe because the storage cannot be mutated.

@@ -269,7 +269,7 @@ func capturevars(xfunc *Node) {
 			if v.Byval {
 				how = "value"
 			}
-			Warnl(int(v.Lineno), "%v capturing by %s: %v (addr=%v assign=%v width=%d)", Sconv(name, 0), how, Sconv(v.Sym, 0), v.Closure.Addrtaken, v.Closure.Assigned, int32(v.Type.Width))
+			Warnl(int(v.Lineno), "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym, v.Closure.Addrtaken, v.Closure.Assigned, int32(v.Type.Width))
 		}
 
 		typecheck(&outer, Erv)
@@ -517,7 +517,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 		basetype = basetype.Type
 	}
 	if basetype.Etype != TINTER && basetype.Sym == nil {
-		Fatal("missing base type for %v", Tconv(rcvrtype, 0))
+		Fatal("missing base type for %v", rcvrtype)
 	}
 
 	var spkg *Pkg

@@ -121,7 +121,7 @@ func dumpglobls() {
 		}
 
 		if n.Type == nil {
-			Fatal("external %v nil type\n", Nconv(n, 0))
+			Fatal("external %v nil type\n", n)
 		}
 		if n.Class == PFUNC {
 			continue
@@ -272,7 +272,7 @@ func slicebytes(nam *Node, s string, len int) {
 	ggloblsym(sym, int32(off), obj.NOPTR)
 
 	if nam.Op != ONAME {
-		Fatal("slicebytes %v", Nconv(nam, 0))
+		Fatal("slicebytes %v", nam)
 	}
 	off = int(nam.Xoffset)
 	off = dsymptr(nam.Sym, off, sym, 0)

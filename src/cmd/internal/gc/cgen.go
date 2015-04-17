@@ -75,7 +75,7 @@ func Cgen(n *Node, res *Node) {
 
 	if Isfat(n.Type) {
 		if n.Type.Width < 0 {
-			Fatal("forgot to compute width for %v", Tconv(n.Type, 0))
+			Fatal("forgot to compute width for %v", n.Type)
 		}
 		sgen(n, res, n.Type.Width)
 		return
@@ -1659,7 +1659,7 @@ func Bgen(n *Node, wantTrue bool, likely int, to *obj.Prog) {
 	}
 
 	if n.Type.Etype != TBOOL {
-		Yyerror("cgen: bad type %v for %v", Tconv(n.Type, 0), Oconv(int(n.Op), 0))
+		Yyerror("cgen: bad type %v for %v", n.Type, Oconv(int(n.Op), 0))
 		Patch(Thearch.Gins(obj.AEND, nil, nil), to)
 		return
 	}

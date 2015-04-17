@@ -82,12 +82,12 @@ func addrescapes(n *Node) {
 
 			Curfn = n.Curfn
 			n.Heapaddr = temp(Ptrto(n.Type))
-			buf := fmt.Sprintf("&%v", Sconv(n.Sym, 0))
+			buf := fmt.Sprintf("&%v", n.Sym)
 			n.Heapaddr.Sym = Lookup(buf)
 			n.Heapaddr.Orig.Sym = n.Heapaddr.Sym
 			n.Esc = EscHeap
 			if Debug['m'] != 0 {
-				fmt.Printf("%v: moved to heap: %v\n", n.Line(), Nconv(n, 0))
+				fmt.Printf("%v: moved to heap: %v\n", n.Line(), n)
 			}
 			Curfn = oldfn
 		}
@@ -133,7 +133,7 @@ func newlab(n *Node) *Label {
 
 	if n.Op == OLABEL {
 		if lab.Def != nil {
-			Yyerror("label %v already defined at %v", Sconv(s, 0), lab.Def.Line())
+			Yyerror("label %v already defined at %v", s, lab.Def.Line())
 		} else {
 			lab.Def = n
 		}
@@ -192,9 +192,9 @@ func checkgoto(from *Node, to *Node) {
 		}
 
 		if block != nil {
-			Yyerror("goto %v jumps into block starting at %v", Sconv(from.Left.Sym, 0), Ctxt.Line(int(block.Lastlineno)))
+			Yyerror("goto %v jumps into block starting at %v", from.Left.Sym, Ctxt.Line(int(block.Lastlineno)))
 		} else {
-			Yyerror("goto %v jumps over declaration of %v at %v", Sconv(from.Left.Sym, 0), Sconv(dcl, 0), Ctxt.Line(int(dcl.Lastlineno)))
+			Yyerror("goto %v jumps over declaration of %v at %v", from.Left.Sym, dcl, Ctxt.Line(int(dcl.Lastlineno)))
 		}
 		lineno = int32(lno)
 	}
@@ -260,7 +260,7 @@ func cgen_dcl(n *Node) {
 		return
 	}
 	if compiling_runtime != 0 {
-		Yyerror("%v escapes to heap, not allowed in runtime.", Nconv(n, 0))
+		Yyerror("%v escapes to heap, not allowed in runtime.", n)
 	}
 	if n.Alloc == nil {
 		n.Alloc = callnew(n.Type)
@@ -365,7 +365,7 @@ func Clearslim(n *Node) {
 		Mpmovecfix(z.Val.U.Xval, 0)
 
 	default:
-		Fatal("clearslim called on type %v", Tconv(n.Type, 0))
+		Fatal("clearslim called on type %v", n.Type)
 	}
 
 	ullmancalc(&z)
@@ -850,13 +850,13 @@ func gen(n *Node) {
 		if n.Left != nil {
 			lab := n.Left.Sym.Label
 			if lab == nil {
-				Yyerror("break label not defined: %v", Sconv(n.Left.Sym, 0))
+				Yyerror("break label not defined: %v", n.Left.Sym)
 				break
 			}
 
 			lab.Used = 1
 			if lab.Breakpc == nil {
-				Yyerror("invalid break label %v", Sconv(n.Left.Sym, 0))
+				Yyerror("invalid break label %v", n.Left.Sym)
 				break
 			}
 
@@ -875,13 +875,13 @@ func gen(n *Node) {
 		if n.Left != nil {
 			lab := n.Left.Sym.Label
 			if lab == nil {
-				Yyerror("continue label not defined: %v", Sconv(n.Left.Sym, 0))
+				Yyerror("continue label not defined: %v", n.Left.Sym)
 				break
 			}
 
 			lab.Used = 1
 			if lab.Continpc == nil {
-				Yyerror("invalid continue label %v", Sconv(n.Left.Sym, 0))
+				Yyerror("invalid continue label %v", n.Left.Sym)
 				break
 			}
 
@@ -1105,18 +1105,18 @@ func checklabels() {
 	for lab := labellist; lab != nil; lab = lab.Link {
 		if lab.Def == nil {
 			for l = lab.Use; l != nil; l = l.Next {
-				yyerrorl(int(l.N.Lineno), "label %v not defined", Sconv(lab.Sym, 0))
+				yyerrorl(int(l.N.Lineno), "label %v not defined", lab.Sym)
 			}
 			continue
 		}
 
 		if lab.Use == nil && lab.Used == 0 {
-			yyerrorl(int(lab.Def.Lineno), "label %v defined and not used", Sconv(lab.Sym, 0))
+			yyerrorl(int(lab.Def.Lineno), "label %v defined and not used", lab.Sym)
 			continue
 		}
 
 		if lab.Gotopc != nil {
-			Fatal("label %v never resolved", Sconv(lab.Sym, 0))
+			Fatal("label %v never resolved", lab.Sym)
 		}
 		for l = lab.Use; l != nil; l = l.Next {
 			checkgoto(l.N, lab.Def)

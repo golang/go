@@ -215,7 +215,7 @@ func nodfconst(n *Node, t *Type, fval *Mpflt) {
 	n.Type = t
 
 	if !Isfloat[t.Etype] {
-		Fatal("nodfconst: bad type %v", Tconv(t, 0))
+		Fatal("nodfconst: bad type %v", t)
 	}
 }
 
@@ -280,7 +280,7 @@ func Complexmove(f *Node, t *Node) {
 	tt := Simsimtype(t.Type)
 	switch uint32(ft)<<16 | uint32(tt) {
 	default:
-		Fatal("complexmove: unknown conversion: %v -> %v\n", Tconv(f.Type, 0), Tconv(t.Type, 0))
+		Fatal("complexmove: unknown conversion: %v -> %v\n", f.Type, t.Type)
 
 		// complex to complex move/convert.
 	// make f addable.
