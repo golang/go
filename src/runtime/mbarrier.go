@@ -92,10 +92,6 @@ func needwb() bool {
 // the p associated with an m. We use the fact that m.p == nil to indicate
 // that we are in one these critical section and throw if the write is of
 // a pointer to a heap object.
-// The p, m, and g pointers are the pointers that are used by the scheduler
-// and need to be operated on without write barriers. We use
-// the setPNoWriteBarrier, setMNoWriteBarrier and setGNowriteBarrier to
-// avoid having to do the write barrier.
 //go:nosplit
 func writebarrierptr_nostore1(dst *uintptr, src uintptr) {
 	mp := acquirem()
@@ -104,7 +100,7 @@ func writebarrierptr_nostore1(dst *uintptr, src uintptr) {
 		return
 	}
 	systemstack(func() {
-		if mp.p == nil && memstats.enablegc && !mp.inwb && inheap(src) {
+		if mp.p == 0 && memstats.enablegc && !mp.inwb && inheap(src) {
 			throw("writebarrierptr_nostore1 called with mp.p == nil")
 		}
 		mp.inwb = true

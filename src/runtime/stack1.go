@@ -680,7 +680,7 @@ func newstack() {
 	// it needs a lock held by the goroutine), that small preemption turns
 	// into a real deadlock.
 	if preempt {
-		if thisg.m.locks != 0 || thisg.m.mallocing != 0 || thisg.m.preemptoff != "" || thisg.m.p.status != _Prunning {
+		if thisg.m.locks != 0 || thisg.m.mallocing != 0 || thisg.m.preemptoff != "" || thisg.m.p.ptr().status != _Prunning {
 			// Let the goroutine keep running for now.
 			// gp->preempt is set, so it will be preempted next time.
 			gp.stackguard0 = gp.stack.lo + _StackGuard
@@ -724,7 +724,7 @@ func newstack() {
 		if gp == thisg.m.g0 {
 			throw("runtime: preempt g0")
 		}
-		if thisg.m.p == nil && thisg.m.locks == 0 {
+		if thisg.m.p == 0 && thisg.m.locks == 0 {
 			throw("runtime: g is running but p is not")
 		}
 		if gp.preemptscan {

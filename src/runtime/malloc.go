@@ -817,8 +817,8 @@ func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer {
 
 	mp := acquirem()
 	var persistent *persistentAlloc
-	if mp != nil && mp.p != nil {
-		persistent = &mp.p.palloc
+	if mp != nil && mp.p != 0 {
+		persistent = &mp.p.ptr().palloc
 	} else {
 		lock(&globalAlloc.mutex)
 		persistent = &globalAlloc.persistentAlloc
