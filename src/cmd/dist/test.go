@@ -378,7 +378,7 @@ func (t *tester) buildmode(mode string) bool {
 		case t.goos == "darwin" && t.goarch == "amd64":
 			// TODO(crawshaw): add darwin/arm{,64}
 			return true
-		case t.goos == "linux" && t.goarch == "amd64":
+		case t.goos == "linux" && (t.goarch == "amd64" || t.goarch == "386"):
 			return true
 		default:
 			return false
