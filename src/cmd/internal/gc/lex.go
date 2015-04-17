@@ -35,6 +35,8 @@ var goarch string
 
 var goroot string
 
+var Debug_wb int
+
 // Debug arguments.
 // These can be specified with the -d flag, as in "-d nil"
 // to set the debug_checknil variable. In general the list passed
@@ -46,6 +48,7 @@ var debugtab = []struct {
 	{"nil", &Debug_checknil},          // print information about nil checks
 	{"typeassert", &Debug_typeassert}, // print information about type assertion inlining
 	{"disablenil", &Disable_checknil}, // disable nil checks
+	{"wb", &Debug_wb},                 // print information about write barriers
 }
 
 // Our own isdigit, isspace, isalpha, isalnum that take care
