@@ -263,6 +263,14 @@ type gcControllerState struct {
 	// that the background mark phase started.
 	bgMarkStartTime int64
 
+	// initialHeapLive is the value of memstats.heap_live at the
+	// beginning of this cycle.
+	initialHeapLive uint64
+
+	// heapGoal is the goal memstats.heap_live for when this cycle
+	// ends. This is computed at the beginning of each cycle.
+	heapGoal uint64
+
 	// dedicatedMarkWorkersNeeded is the number of dedicated mark
 	// workers that need to be started. This is computed at the
 	// beginning of each cycle and decremented atomically as
@@ -314,6 +322,7 @@ func (c *gcControllerState) startCycle() {
 	c.dedicatedMarkTime = 0
 	c.fractionalMarkTime = 0
 	c.idleMarkTime = 0
+	c.initialHeapLive = memstats.heap_live
 
 	// If this is the first GC cycle or we're operating on a very
 	// small heap, fake heap_marked so it looks like next_gc is
@@ -325,24 +334,8 @@ func (c *gcControllerState) startCycle() {
 		memstats.heap_marked = uint64(float64(memstats.next_gc) / (1 + c.triggerRatio))
 	}
 
-	// Compute the expected work based on last cycle's marked bytes.
-	scanWorkExpected := uint64(float64(memstats.heap_marked) * c.workRatioAvg)
-
-	// Compute the mutator assist ratio so by the time the mutator
-	// allocates the remaining heap bytes up to next_gc, it will
-	// have done (or stolen) the estimated amount of scan work.
-	heapGoal := memstats.heap_marked + memstats.heap_marked*uint64(gcpercent)/100
-	heapDistance := int64(heapGoal) - int64(memstats.heap_live)
-	if heapDistance <= 1024*1024 {
-		// heapDistance can be negative if GC start is delayed
-		// or if the allocation that pushed heap_live over
-		// next_gc is large or if the trigger is really close
-		// to GOGC. We don't want to set the assist negative
-		// (or divide by zero, or set it really high), so
-		// enforce a minimum on the distance.
-		heapDistance = 1024 * 1024
-	}
-	c.assistRatio = float64(scanWorkExpected) / float64(heapDistance)
+	// Compute the heap goal for this cycle
+	c.heapGoal = memstats.heap_marked + memstats.heap_marked*uint64(gcpercent)/100
 
 	// Compute the total mark utilization goal and divide it among
 	// dedicated and fractional workers.
@@ -355,6 +348,10 @@ func (c *gcControllerState) startCycle() {
 		c.fractionalMarkWorkersNeeded = 0
 	}
 
+	// Compute initial values for controls that are updated
+	// throughout the cycle.
+	c.revise()
+
 	// Clear per-P state
 	for _, p := range &allp {
 		if p == nil {
@@ -364,6 +361,42 @@ func (c *gcControllerState) startCycle() {
 	}
 
 	return
+}
+
+// revise updates the assist ratio during the GC cycle to account for
+// improved estimates. This should be called periodically during
+// concurrent mark.
+func (c *gcControllerState) revise() {
+	// Estimate the size of the marked heap. We don't have much to
+	// go on, so at the beginning of the cycle this uses the
+	// marked heap size from last cycle. If the reachable heap has
+	// grown since last cycle, we'll eventually mark more than
+	// this and we can revise our estimate. This way, if we
+	// overshoot our initial estimate, the assist ratio will climb
+	// smoothly and put more pressure on mutator assists to finish
+	// the cycle.
+	heapMarkedEstimate := memstats.heap_marked
+	if heapMarkedEstimate < work.bytesMarked {
+		heapMarkedEstimate = work.bytesMarked
+	}
+
+	// Compute the expected work based on this estimate.
+	scanWorkExpected := uint64(float64(heapMarkedEstimate) * c.workRatioAvg)
+
+	// Compute the mutator assist ratio so by the time the mutator
+	// allocates the remaining heap bytes up to next_gc, it will
+	// have done (or stolen) the estimated amount of scan work.
+	heapDistance := int64(c.heapGoal) - int64(c.initialHeapLive)
+	if heapDistance <= 1024*1024 {
+		// heapDistance can be negative if GC start is delayed
+		// or if the allocation that pushed heap_live over
+		// next_gc is large or if the trigger is really close
+		// to GOGC. We don't want to set the assist negative
+		// (or divide by zero, or set it really high), so
+		// enforce a minimum on the distance.
+		heapDistance = 1024 * 1024
+	}
+	c.assistRatio = float64(scanWorkExpected) / float64(heapDistance)
 }
 
 // endCycle updates the GC controller state at the end of the
@@ -725,7 +758,9 @@ func gc(mode int) {
 		if debug.gctrace > 0 {
 			tMark = nanotime()
 		}
-		notetsleepg(&work.bgMarkNote, -1)
+		for !notetsleepg(&work.bgMarkNote, 10*1000*1000) {
+			gcController.revise()
+		}
 		noteclear(&work.bgMarkNote)
 
 		// Begin mark termination.
