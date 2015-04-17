@@ -1089,20 +1089,20 @@ TEST 'go generate variable substitution'
 if ! ./testgo generate ./testdata/generate/test3.go > testdata/std.out; then
 	echo "go generate ./testdata/generate/test3.go failed to run"
 	ok=false
-elif ! grep "$GOARCH test3.go p xyzp/test3.go/123" testdata/std.out > /dev/null; then
+elif ! grep "$GOARCH test3.go:7 pabc xyzp/test3.go/123" testdata/std.out > /dev/null; then
 	echo "go generate ./testdata/generate/test3.go generated wrong output"
 	ok=false
 fi
 
 TEST 'go generate run flag'
 if ! ./testgo generate -run y.s ./testdata/generate/test4.go > testdata/std.out; then
-	echo "go test -run y.s ./testdata/generate/test4.go failed to run"
+	echo "go test -run yes ./testdata/generate/test4.go failed to run"
 	ok=false
 elif ! grep "yes" testdata/std.out > /dev/null; then
-	echo "go generate -run y.s ./testdata/generate/test4.go did not select yes"
+	echo "go generate -run yes ./testdata/generate/test4.go did not select yes"
 	ok=false
 elif grep "no" testdata/std.out > /dev/null; then
-	echo "go generate -run y.s ./testdata/generate/test4.go selected no"
+	echo "go generate -run yes ./testdata/generate/test4.go selected no"
 	ok=false
 fi
 

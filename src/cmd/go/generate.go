@@ -18,7 +18,6 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
-	"unicode/utf8"
 )
 
 var cmdGenerate = &Command{
@@ -63,6 +62,8 @@ Go generate sets several variables when it runs the generator:
 		The execution operating system (linux, windows, etc.)
 	$GOFILE
 		The base name of the file.
+	$GOLINE
+		The line number of the directive in the source file.
 	$GOPACKAGE
 		The name of the package of the file containing the directive.
 	$DOLLAR
@@ -177,7 +178,7 @@ type Generator struct {
 	file     string // base name of file.
 	pkg      string
 	commands map[string][]string
-	lineNum  int
+	lineNum  int // current line number.
 }
 
 // run runs the generators in the current file.
@@ -325,7 +326,7 @@ Words:
 	}
 	// Substitute environment variables.
 	for i, word := range words {
-		words[i] = g.expandEnv(word)
+		words[i] = os.Expand(word, g.expandVar)
 	}
 	return words
 }
@@ -341,40 +342,25 @@ func (g *Generator) errorf(format string, args ...interface{}) {
 	panic(stop)
 }
 
-// expandEnv expands any $XXX invocations in word.
-func (g *Generator) expandEnv(word string) string {
-	if !strings.ContainsRune(word, '$') {
-		return word
+// expandVar expands the $XXX invocation in word. It is called
+// by os.Expand.
+func (g *Generator) expandVar(word string) string {
+	switch word {
+	case "GOARCH":
+		return runtime.GOARCH
+	case "GOOS":
+		return runtime.GOOS
+	case "GOFILE":
+		return g.file
+	case "GOLINE":
+		return fmt.Sprint(g.lineNum)
+	case "GOPACKAGE":
+		return g.pkg
+	case "DOLLAR":
+		return "$"
+	default:
+		return os.Getenv(word)
 	}
-	var buf bytes.Buffer
-	var w int
-	var r rune
-	for i := 0; i < len(word); i += w {
-		r, w = utf8.DecodeRuneInString(word[i:])
-		if r != '$' {
-			buf.WriteRune(r)
-			continue
-		}
-		w += g.identLength(word[i+w:])
-		envVar := word[i+1 : i+w]
-		var sub string
-		switch envVar {
-		case "GOARCH":
-			sub = runtime.GOARCH
-		case "GOOS":
-			sub = runtime.GOOS
-		case "GOFILE":
-			sub = g.file
-		case "GOPACKAGE":
-			sub = g.pkg
-		case "DOLLAR":
-			sub = "$"
-		default:
-			sub = os.Getenv(envVar)
-		}
-		buf.WriteString(sub)
-	}
-	return buf.String()
 }
 
 // identLength returns the length of the identifier beginning the string.
