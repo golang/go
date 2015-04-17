@@ -15,20 +15,20 @@
 package obj
 
 const (
-	FmtWidth    = 1
-	FmtLeft     = FmtWidth << 1
-	FmtPrec     = FmtLeft << 1
-	FmtSharp    = FmtPrec << 1
-	FmtSpace    = FmtSharp << 1
-	FmtSign     = FmtSpace << 1
-	FmtApost    = FmtSign << 1
-	FmtZero     = FmtApost << 1
-	FmtUnsigned = FmtZero << 1
-	FmtShort    = FmtUnsigned << 1
-	FmtLong     = FmtShort << 1
-	FmtVLong    = FmtLong << 1
-	FmtComma    = FmtVLong << 1
-	FmtByte     = FmtComma << 1
-	FmtLDouble  = FmtByte << 1
-	FmtFlag     = FmtLDouble << 1
+	FmtWidth = 1 << iota
+	FmtLeft
+	FmtPrec
+	FmtSharp
+	FmtSpace
+	FmtSign
+	FmtApost
+	FmtZero
+	FmtUnsigned
+	FmtShort
+	FmtLong
+	FmtVLong
+	FmtComma
+	FmtByte
+	FmtLDouble
+	FmtFlag
 )
