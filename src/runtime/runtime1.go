@@ -334,9 +334,6 @@ var dbgvars = []dbgVar{
 }
 
 func parsedebugvars() {
-	// gccheckmark is enabled by default for the 1.5 dev cycle
-	debug.gccheckmark = 1
-
 	for p := gogetenv("GODEBUG"); p != ""; {
 		field := ""
 		i := index(p, ",")
