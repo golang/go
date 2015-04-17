@@ -953,6 +953,8 @@ var badDataTests = []badDataTest{
 	{"130a00fb5dad0bf8ff020263e70002fa28020202a89859", "slice length too large", nil},
 	{"0f1000fb285d003316020735ff023a65c5", "interface encoding", nil},
 	{"03fffb0616fffc00f902ff02ff03bf005d02885802a311a8120228022c028ee7", "GobDecoder", nil},
+	// Issue 10491.
+	{"10fe010f020102fe01100001fe010e000016fe010d030102fe010e00010101015801fe01100000000bfe011000f85555555555555555", "length exceeds input size", nil},
 }
 
 // TestBadData tests that various problems caused by malformed input

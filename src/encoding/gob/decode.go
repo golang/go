@@ -575,6 +575,9 @@ func (dec *Decoder) decodeMap(mtyp reflect.Type, state *decoderState, value refl
 func (dec *Decoder) ignoreArrayHelper(state *decoderState, elemOp decOp, length int) {
 	instr := &decInstr{elemOp, 0, nil, errors.New("no error")}
 	for i := 0; i < length; i++ {
+		if state.b.Len() == 0 {
+			errorf("decoding array or slice: length exceeds input size (%d elements)", length)
+		}
 		elemOp(instr, state, noValue)
 	}
 }
