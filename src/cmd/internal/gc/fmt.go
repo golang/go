@@ -816,7 +816,7 @@ func stmtfmt(n *Node) string {
 		// Don't export "v = <N>" initializing statements, hope they're always
 	// preceded by the DCL which will be re-parsed and typecheck to reproduce
 	// the "v = <N>" again.
-	case OAS:
+	case OAS, OASWB:
 		if fmtmode == FExp && n.Right == nil {
 			break
 		}

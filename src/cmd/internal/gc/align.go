@@ -411,6 +411,8 @@ func resumecheckwidth() {
 	defercalc = 0
 }
 
+var itable *Type // distinguished *byte
+
 func typeinit() {
 	if Widthptr == 0 {
 		Fatal("typeinit before betypeinit")
@@ -664,6 +666,9 @@ func typeinit() {
 
 	dowidth(Types[TSTRING])
 	dowidth(idealstring)
+
+	itable = typ(Tptr)
+	itable.Type = Types[TUINT8]
 }
 
 /*

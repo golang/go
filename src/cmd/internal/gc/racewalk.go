@@ -137,7 +137,7 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 	default:
 		Fatal("racewalk: unknown node type %v", Oconv(int(n.Op), 0))
 
-	case OAS, OAS2FUNC:
+	case OAS, OASWB, OAS2FUNC:
 		racewalknode(&n.Left, init, 1, 0)
 		racewalknode(&n.Right, init, 0, 0)
 		goto ret

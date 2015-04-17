@@ -1614,7 +1614,7 @@ func ullmancalc(n *Node) {
 		}
 		goto out
 
-	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER:
+	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER, OASWB:
 		ul = UINF
 		goto out
 

@@ -403,7 +403,7 @@ func Cgen_eface(n *Node, res *Node) {
  * n.Left is x
  * n.Type is T
  */
-func cgen_dottype(n *Node, res, resok *Node) {
+func cgen_dottype(n *Node, res, resok *Node, wb bool) {
 	if Debug_typeassert > 0 {
 		Warn("type assertion inlined")
 	}
@@ -441,16 +441,17 @@ func cgen_dottype(n *Node, res, resok *Node) {
 	Cgen(typename(n.Type), &r2)
 	Thearch.Gins(Thearch.Optoas(OCMP, byteptr), &r1, &r2)
 	p := Gbranch(Thearch.Optoas(ONE, byteptr), nil, -1)
+	Regfree(&r2) // not needed for success path; reclaimed on one failure path
 	iface.Xoffset += int64(Widthptr)
 	Cgen(&iface, &r1)
 	Regfree(&iface)
 
 	if resok == nil {
 		r1.Type = res.Type
-		Cgen(&r1, res)
+		cgen_wb(&r1, res, wb)
 		q := Gbranch(obj.AJMP, nil, 0)
 		Patch(p, Pc)
-
+		Regrealloc(&r2) // reclaim from above, for this failure path
 		fn := syslook("panicdottype", 0)
 		dowidth(fn.Type)
 		call := Nod(OCALLFUNC, fn, nil)
@@ -467,10 +468,9 @@ func cgen_dottype(n *Node, res, resok *Node) {
 		// This half is handling the res, resok = x.(T) case,
 		// which is called from gen, not cgen, and is consequently fussier
 		// about blank assignments. We have to avoid calling cgen for those.
-		Regfree(&r2)
 		r1.Type = res.Type
 		if !isblank(res) {
-			Cgen(&r1, res)
+			cgen_wb(&r1, res, wb)
 		}
 		Regfree(&r1)
 		if !isblank(resok) {
@@ -979,8 +979,11 @@ func gen(n *Node) {
 		}
 		Cgen_as(n.Left, n.Right)
 
+	case OASWB:
+		Cgen_as_wb(n.Left, n.Right, true)
+
 	case OAS2DOTTYPE:
-		cgen_dottype(n.Rlist.N, n.List.N, n.List.Next.N)
+		cgen_dottype(n.Rlist.N, n.List.N, n.List.Next.N, false)
 
 	case OCALLMETH:
 		cgen_callmeth(n, 0)
@@ -1023,10 +1026,18 @@ ret:
 	lineno = lno
 }
 
-func Cgen_as(nl *Node, nr *Node) {
+func Cgen_as(nl, nr *Node) {
+	Cgen_as_wb(nl, nr, false)
+}
+
+func Cgen_as_wb(nl, nr *Node, wb bool) {
 	if Debug['g'] != 0 {
-		Dump("cgen_as", nl)
-		Dump("cgen_as = ", nr)
+		op := "cgen_as"
+		if wb {
+			op = "cgen_as_wb"
+		}
+		Dump(op, nl)
+		Dump(op+" = ", nr)
 	}
 
 	for nr != nil && nr.Op == OCONVNOP {
@@ -1065,7 +1076,7 @@ func Cgen_as(nl *Node, nr *Node) {
 		return
 	}
 
-	Cgen(nr, nl)
+	cgen_wb(nr, nl, wb)
 }
 
 func cgen_callmeth(n *Node, proc int) {
@@ -1126,31 +1137,40 @@ func checklabels() {
 // Slices, strings and interfaces are supported. Small structs or arrays with
 // elements of basic type are also supported.
 // nr is nil when assigning a zero value.
-func Componentgen(nr *Node, nl *Node) bool {
+func Componentgen(nr, nl *Node) bool {
+	return componentgen_wb(nr, nl, false)
+}
+
+// componentgen_wb is like componentgen but if wb==true emits write barriers for pointer updates.
+func componentgen_wb(nr, nl *Node, wb bool) bool {
+	// Don't generate any code for complete copy of a variable into itself.
+	// It's useless, and the VARDEF will incorrectly mark the old value as dead.
+	// (This check assumes that the arguments passed to componentgen did not
+	// themselves come from Igen, or else we could have Op==ONAME but
+	// with a Type and Xoffset describing an individual field, not the entire
+	// variable.)
+	if nl.Op == ONAME && nl == nr {
+		return true
+	}
+
 	// Count number of moves required to move components.
+	// If using write barrier, can only emit one pointer.
+	// TODO(rsc): Allow more pointers, for reflect.Value.
 	const maxMoves = 8
 	n := 0
+	numPtr := 0
 	visitComponents(nl.Type, 0, func(t *Type, offset int64) bool {
 		n++
-		return n <= maxMoves
+		if int(Simtype[t.Etype]) == Tptr && t != itable {
+			numPtr++
+		}
+		return n <= maxMoves && (!wb || numPtr <= 1)
 	})
-	if n > maxMoves {
+	if n > maxMoves || wb && numPtr > 1 {
 		return false
 	}
 
-	isConstString := Isconst(nr, CTSTR)
-	nodl := *nl
-	if !cadable(nl) {
-		if nr != nil && !cadable(nr) && !isConstString {
-			return false
-		}
-		Igen(nl, &nodl, nil)
-		defer Regfree(&nodl)
-	}
-	lbase := nodl.Xoffset
-
-	// Must call emitVardef on every path out of this function,
-	// but only after evaluating rhs.
+	// Must call emitVardef after evaluating rhs but before writing to lhs.
 	emitVardef := func() {
 		// Emit vardef if needed.
 		if nl.Op == ONAME {
@@ -1160,6 +1180,26 @@ func Componentgen(nr *Node, nl *Node) bool {
 			}
 		}
 	}
+
+	isConstString := Isconst(nr, CTSTR)
+
+	if !cadable(nl) && nr != nil && !cadable(nr) && !isConstString {
+		return false
+	}
+
+	var nodl Node
+	if cadable(nl) {
+		nodl = *nl
+	} else {
+		if nr != nil && !cadable(nr) && !isConstString {
+			return false
+		}
+		if nr == nil || isConstString || nl.Ullman >= nr.Ullman {
+			Igen(nl, &nodl, nil)
+			defer Regfree(&nodl)
+		}
+	}
+	lbase := nodl.Xoffset
 
 	// Special case: zeroing.
 	var nodr Node
@@ -1218,23 +1258,34 @@ func Componentgen(nr *Node, nl *Node) bool {
 	// General case: copy nl = nr.
 	nodr = *nr
 	if !cadable(nr) {
+		if nr.Ullman >= UINF && nodl.Op == OINDREG {
+			Fatal("miscompile")
+		}
 		Igen(nr, &nodr, nil)
 		defer Regfree(&nodr)
 	}
 	rbase := nodr.Xoffset
 
-	// Don't generate any code for complete copy of a variable into itself.
-	// It's useless, and the VARDEF will incorrectly mark the old value as dead.
-	// (This check assumes that the arguments passed to componentgen did not
-	// themselves come from Igen, or else we could have Op==ONAME but
-	// with a Type and Xoffset describing an individual field, not the entire
-	// variable.)
-	if nl.Op == ONAME && nr.Op == ONAME && nl == nr {
-		return true
+	if nodl.Op == 0 {
+		Igen(nl, &nodl, nil)
+		defer Regfree(&nodl)
+		lbase = nodl.Xoffset
 	}
 
 	emitVardef()
+	var (
+		ptrType   *Type
+		ptrOffset int64
+	)
 	visitComponents(nl.Type, 0, func(t *Type, offset int64) bool {
+		if wb && int(Simtype[t.Etype]) == Tptr && t != itable {
+			if ptrType != nil {
+				Fatal("componentgen_wb %v", Tconv(nl.Type, 0))
+			}
+			ptrType = t
+			ptrOffset = offset
+			return true
+		}
 		nodl.Type = t
 		nodl.Xoffset = lbase + offset
 		nodr.Type = t
@@ -1242,6 +1293,13 @@ func Componentgen(nr *Node, nl *Node) bool {
 		Thearch.Gmove(&nodr, &nodl)
 		return true
 	})
+	if ptrType != nil {
+		nodl.Type = ptrType
+		nodl.Xoffset = lbase + ptrOffset
+		nodr.Type = ptrType
+		nodr.Xoffset = rbase + ptrOffset
+		cgen_wbptr(&nodr, &nodl)
+	}
 	return true
 }
 
@@ -1283,7 +1341,7 @@ func visitComponents(t *Type, startOffset int64, f func(elem *Type, elemOffset i
 			f(Types[TFLOAT64], startOffset+8)
 
 	case TINTER:
-		return f(Ptrto(Types[TUINT8]), startOffset) &&
+		return f(itable, startOffset) &&
 			f(Ptrto(Types[TUINT8]), startOffset+int64(Widthptr))
 		return true
 
