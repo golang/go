@@ -299,7 +299,7 @@ func proginfo(p *obj.Prog) {
 		if p.As == x86.ALEAQ || info.Flags == gc.Pseudo || p.As == obj.ACALL || p.As == obj.ARET || p.As == obj.AJMP {
 			return
 		}
-		if p.As == obj.ADUFFZERO || p.As == obj.ADUFFCOPY || p.From.Name == obj.NAME_EXTERN || p.To.Name == obj.NAME_EXTERN {
+		if p.As == obj.ADUFFZERO || p.As == obj.ADUFFCOPY || (p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local) || (p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local) {
 			info.Reguse |= R15
 			info.Regset |= R15
 			return

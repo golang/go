@@ -218,11 +218,15 @@ func ggloblnod(nam *Node) {
 	}
 }
 
-func ggloblsym(s *Sym, width int32, flags int8) {
+func ggloblsym(s *Sym, width int32, flags int16) {
 	p := Thearch.Gins(obj.AGLOBL, nil, nil)
 	p.From.Type = obj.TYPE_MEM
 	p.From.Name = obj.NAME_EXTERN
 	p.From.Sym = Linksym(s)
+	if flags&obj.LOCAL != 0 {
+		p.From.Sym.Local = true
+		flags &= ^obj.LOCAL
+	}
 	p.To.Type = obj.TYPE_CONST
 	p.To.Offset = int64(width)
 	p.From3.Offset = int64(flags)

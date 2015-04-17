@@ -400,7 +400,11 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
 	wrint(b, int64(s.Type))
 	wrstring(b, s.Name)
 	wrint(b, int64(s.Version))
-	wrint(b, int64(s.Dupok))
+	flags := int64(s.Dupok)
+	if s.Local {
+		flags |= 2
+	}
+	wrint(b, flags)
 	wrint(b, s.Size)
 	wrsym(b, s.Gotype)
 	wrdata(b, s.P)

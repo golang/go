@@ -251,6 +251,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			p.From.Type = obj.TYPE_MEM
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Sym = s
+			p.From.Sym.Local = true
 			p.From.Offset = 0
 		}
 
@@ -294,6 +295,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			p.From.Type = obj.TYPE_MEM
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Sym = s
+			p.From.Sym.Local = true
 			p.From.Offset = 0
 		}
 	}
@@ -327,11 +329,11 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 	}
 
 	if ctxt.Flag_dynlink {
-		if p.As == ALEAQ && p.From.Type == obj.TYPE_MEM && p.From.Name == obj.NAME_EXTERN {
+		if p.As == ALEAQ && p.From.Type == obj.TYPE_MEM && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
 			p.As = AMOVQ
 			p.From.Type = obj.TYPE_ADDR
 		}
-		if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN {
+		if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
 			if p.As != AMOVQ {
 				ctxt.Diag("do not know how to handle TYPE_ADDR in %v with -dynlink", p)
 			}
@@ -356,12 +358,12 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			ctxt.Diag("don't know how to handle %v with -dynlink", p)
 		}
 		var source *obj.Addr
-		if p.From.Name == obj.NAME_EXTERN {
-			if p.To.Name == obj.NAME_EXTERN {
+		if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
+			if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
 				ctxt.Diag("cannot handle NAME_EXTERN on both sides in %v with -dynlink", p)
 			}
 			source = &p.From
-		} else if p.To.Name == obj.NAME_EXTERN {
+		} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
 			source = &p.To
 		} else {
 			return

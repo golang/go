@@ -72,8 +72,12 @@ func readsym(ctxt *Link, f *Biobuf, pkg string, pn string) {
 	if v != 0 && v != 1 {
 		log.Fatalf("invalid symbol version %d", v)
 	}
-	dupok := int(rdint(f))
-	dupok &= 1
+	flags := int(rdint(f))
+	dupok := flags & 1
+	local := false
+	if flags&2 != 0 {
+		local = true
+	}
 	size := int(rdint(f))
 	typ := rdsym(ctxt, f, pkg)
 	var data []byte
@@ -125,6 +129,7 @@ overwrite:
 	if s.Size < int64(size) {
 		s.Size = int64(size)
 	}
+	s.Local = local
 	if typ != nil { // if bss sym defined multiple times, take type from any one def
 		s.Gotype = typ
 	}
