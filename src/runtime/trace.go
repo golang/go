@@ -506,7 +506,7 @@ func traceEvent(ev byte, skip int, args ...uint64) {
 // traceAcquireBuffer returns trace buffer to use and, if necessary, locks it.
 func traceAcquireBuffer() (mp *m, pid int32, bufp **traceBuf) {
 	mp = acquirem()
-	if p := mp.p; p != nil {
+	if p := mp.p.ptr(); p != nil {
 		return mp, p.id, &p.tracebuf
 	}
 	lock(&trace.bufLock)
@@ -732,7 +732,7 @@ func traceProcStop(pp *p) {
 	// to handle this we temporary employ the P.
 	mp := acquirem()
 	oldp := mp.p
-	mp.p = pp
+	mp.p.set(pp)
 	traceEvent(traceEvProcStop, -1)
 	mp.p = oldp
 	releasem(mp)
@@ -806,7 +806,7 @@ func traceGoSysBlock(pp *p) {
 	// to handle this we temporary employ the P.
 	mp := acquirem()
 	oldp := mp.p
-	mp.p = pp
+	mp.p.set(pp)
 	traceEvent(traceEvGoSysBlock, -1)
 	mp.p = oldp
 	releasem(mp)

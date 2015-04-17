@@ -87,8 +87,28 @@ type eface struct {
 	data  unsafe.Pointer
 }
 
+// The guintptr, muintptr, and puintptr are all used to bypass write barriers.
+// It is particularly important to avoid write barriers when the current P has
+// been released, because the GC thinks the world is stopped, and an
+// unexpected write barrier would not be synchronized with the GC,
+// which can lead to a half-executed write barrier that has marked the object
+// but not queued it. If the GC skips the object and completes before the
+// queuing can occur, it will incorrectly free the object.
+//
+// We tried using special assignment functions invoked only when not
+// holding a running P, but then some updates to a particular memory
+// word went through write barriers and some did not. This breaks the
+// write barrier shadow checking mode, and it is also scary: better to have
+// a word that is completely ignored by the GC than to have one for which
+// only a few updates are ignored.
+//
+// Gs, Ms, and Ps are always reachable via true pointers in the
+// allgs, allm, and allp lists or (during allocation before they reach those lists)
+// from stack variables.
+
 // A guintptr holds a goroutine pointer, but typed as a uintptr
-// to bypass write barriers. It is used in the Gobuf goroutine state.
+// to bypass write barriers. It is used in the Gobuf goroutine state
+// and in scheduling lists that are manipulated without a P.
 //
 // The Gobuf.g goroutine pointer is almost always updated by assembly code.
 // In one of the few places it is updated by Go code - func save - it must be
@@ -107,41 +127,18 @@ type eface struct {
 // alternate arena. Using guintptr doesn't make that problem any worse.
 type guintptr uintptr
 
-func (gp guintptr) ptr() *g {
-	return (*g)(unsafe.Pointer(gp))
-}
+func (gp guintptr) ptr() *g   { return (*g)(unsafe.Pointer(gp)) }
+func (gp *guintptr) set(g *g) { *gp = guintptr(unsafe.Pointer(g)) }
 
-// ps, ms, gs, and mcache are structures that must be manipulated at a level
-// lower than that of the normal Go language. For example the routine that
-// stops the world removes the p from the m structure informing the GC that
-// this P is stopped and then it moves the g to the global runnable queue.
-// If write barriers were allowed to happen at this point not only does
-// the GC think the thread is stopped but the underlying structures
-// like a p or m are not in a state that is not coherent enough to
-// support the write barrier actions.
-// This is particularly painful since a partially executed write barrier
-// may mark the object but be delinquent in informing the GC that the
-// object needs to be scanned.
+type puintptr uintptr
 
-// setGNoWriteBarriers does *gdst = gval without a write barrier.
-func setGNoWriteBarrier(gdst **g, gval *g) {
-	*(*uintptr)(unsafe.Pointer(gdst)) = uintptr(unsafe.Pointer(gval))
-}
+func (pp puintptr) ptr() *p   { return (*p)(unsafe.Pointer(pp)) }
+func (pp *puintptr) set(p *p) { *pp = puintptr(unsafe.Pointer(p)) }
 
-// setMNoWriteBarriers does *mdst = mval without a write barrier.
-func setMNoWriteBarrier(mdst **m, mval *m) {
-	*(*uintptr)(unsafe.Pointer(mdst)) = uintptr(unsafe.Pointer(mval))
-}
+type muintptr uintptr
 
-// setPNoWriteBarriers does *pdst = pval without a write barrier.
-func setPNoWriteBarrier(pdst **p, pval *p) {
-	*(*uintptr)(unsafe.Pointer(pdst)) = uintptr(unsafe.Pointer(pval))
-}
-
-// setMcacheNoWriteBarriers does *mcachedst = mcacheval without a write barrier.
-func setMcacheNoWriteBarrier(mcachedst **mcache, mcacheval *mcache) {
-	*(*uintptr)(unsafe.Pointer(mcachedst)) = uintptr(unsafe.Pointer(mcacheval))
-}
+func (mp muintptr) ptr() *m   { return (*m)(unsafe.Pointer(mp)) }
+func (mp *muintptr) set(m *m) { *mp = muintptr(unsafe.Pointer(m)) }
 
 type gobuf struct {
 	// The offsets of sp, pc, and g are known to (hard-coded in) libmach.
@@ -224,7 +221,7 @@ type g struct {
 	goid         int64
 	waitsince    int64  // approx time when the g become blocked
 	waitreason   string // if status==gwaiting
-	schedlink    *g
+	schedlink    guintptr
 	preempt      bool // preemption signal, duplicates stackguard0 = stackpreempt
 	paniconfault bool // panic (instead of crash) on unexpected fault address
 	preemptscan  bool // preempted g does scan for gc
@@ -263,11 +260,11 @@ type m struct {
 	procid        uint64     // for debuggers, but offset not hard-coded
 	gsignal       *g         // signal-handling g
 	tls           [4]uintptr // thread-local storage (for x86 extern register)
-	mstartfn      uintptr    // TODO: type as func(); note: this is a non-heap allocated func()
-	curg          *g         // current running goroutine
-	caughtsig     *g         // goroutine running during fatal signal
-	p             *p         // attached p for executing go code (nil if not executing go code)
-	nextp         *p
+	mstartfn      func()
+	curg          *g       // current running goroutine
+	caughtsig     guintptr // goroutine running during fatal signal
+	p             puintptr // attached p for executing go code (nil if not executing go code)
+	nextp         puintptr
 	id            int32
 	mallocing     int32
 	throwing      int32
@@ -286,7 +283,7 @@ type m struct {
 	ncgo          int32  // number of cgo calls currently in progress
 	park          note
 	alllink       *m // on allm
-	schedlink     *m
+	schedlink     muintptr
 	machport      uint32 // return address for mach ipc (os x)
 	mcache        *mcache
 	lockedg       *g
@@ -315,7 +312,7 @@ type m struct {
 	libcall   libcall
 	libcallpc uintptr // for cpu profiler
 	libcallsp uintptr
-	libcallg  *g
+	libcallg  guintptr
 	//#endif
 	//#ifdef GOOS_solaris
 	perrno *int32 // pointer to tls errno
@@ -336,10 +333,10 @@ type p struct {
 
 	id          int32
 	status      uint32 // one of pidle/prunning/...
-	link        *p
-	schedtick   uint32 // incremented on every scheduler call
-	syscalltick uint32 // incremented on every system call
-	m           *m     // back-link to associated m (nil if idle)
+	link        puintptr
+	schedtick   uint32   // incremented on every scheduler call
+	syscalltick uint32   // incremented on every system call
+	m           muintptr // back-link to associated m (nil if idle)
 	mcache      *mcache
 
 	deferpool    [5][]*_defer // pool of available defer structs of different sizes (see panic.go)
@@ -379,19 +376,19 @@ type schedt struct {
 
 	goidgen uint64
 
-	midle        *m    // idle m's waiting for work
-	nmidle       int32 // number of idle m's waiting for work
-	nmidlelocked int32 // number of locked m's waiting for work
-	mcount       int32 // number of m's that have been created
-	maxmcount    int32 // maximum number of m's allowed (or die)
+	midle        muintptr // idle m's waiting for work
+	nmidle       int32    // number of idle m's waiting for work
+	nmidlelocked int32    // number of locked m's waiting for work
+	mcount       int32    // number of m's that have been created
+	maxmcount    int32    // maximum number of m's allowed (or die)
 
-	pidle      *p // idle p's
+	pidle      puintptr // idle p's
 	npidle     uint32
 	nmspinning uint32
 
 	// Global runnable queue.
-	runqhead *g
-	runqtail *g
+	runqhead guintptr
+	runqtail guintptr
 	runqsize int32
 
 	// Global cache of dead G's.

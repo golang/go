@@ -363,8 +363,7 @@ func stdcall(fn stdFunction) uintptr {
 
 	if mp.profilehz != 0 {
 		// leave pc/sp for cpu profiler
-		// gp is on allg, so this WB can be eliminated.
-		setGNoWriteBarrier(&mp.libcallg, gp)
+		mp.libcallg.set(gp)
 		mp.libcallpc = getcallerpc(unsafe.Pointer(&fn))
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them

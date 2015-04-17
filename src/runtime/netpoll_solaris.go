@@ -179,9 +179,9 @@ var netpolllasterr int32
 
 // polls for ready network connections
 // returns list of goroutines that become runnable
-func netpoll(block bool) (gp *g) {
+func netpoll(block bool) *g {
 	if portfd == -1 {
-		return
+		return nil
 	}
 
 	var wait *timespec
@@ -201,7 +201,7 @@ retry:
 		goto retry
 	}
 
-	gp = nil
+	var gp guintptr
 	for i := 0; i < int(n); i++ {
 		ev := &events[i]
 
@@ -232,12 +232,12 @@ retry:
 		}
 
 		if mode != 0 {
-			netpollready((**g)(noescape(unsafe.Pointer(&gp))), pd, mode)
+			netpollready(&gp, pd, mode)
 		}
 	}
 
-	if block && gp == nil {
+	if block && gp == 0 {
 		goto retry
 	}
-	return gp
+	return gp.ptr()
 }

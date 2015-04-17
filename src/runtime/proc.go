@@ -208,7 +208,7 @@ func acquireSudog() *sudog {
 	// The acquirem/releasem increments m.locks during new(sudog),
 	// which keeps the garbage collector from being invoked.
 	mp := acquirem()
-	pp := mp.p
+	pp := mp.p.ptr()
 	if len(pp.sudogcache) == 0 {
 		lock(&sched.sudoglock)
 		// First, try to grab a batch from central cache.
@@ -257,7 +257,7 @@ func releaseSudog(s *sudog) {
 		throw("runtime: releaseSudog with non-nil gp.param")
 	}
 	mp := acquirem() // avoid rescheduling to another P
-	pp := mp.p
+	pp := mp.p.ptr()
 	if len(pp.sudogcache) == cap(pp.sudogcache) {
 		// Transfer half of local cache to the central cache.
 		var first, last *sudog

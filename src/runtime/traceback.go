@@ -528,7 +528,7 @@ func gcallers(gp *g, skip int, pcbuf []uintptr) int {
 
 func showframe(f *_func, gp *g) bool {
 	g := getg()
-	if g.m.throwing > 0 && gp != nil && (gp == g.m.curg || gp == g.m.caughtsig) {
+	if g.m.throwing > 0 && gp != nil && (gp == g.m.curg || gp == g.m.caughtsig.ptr()) {
 		return true
 	}
 	traceback := gotraceback(nil)

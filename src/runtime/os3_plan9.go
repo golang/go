@@ -81,7 +81,7 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 	}
 Throw:
 	_g_.m.throwing = 1
-	setGNoWriteBarrier(&_g_.m.caughtsig, gp)
+	_g_.m.caughtsig.set(gp)
 	startpanic()
 	print(notestr, "\n")
 	print("PC=", hex(c.pc()), "\n")
