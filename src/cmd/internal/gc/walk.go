@@ -21,7 +21,7 @@ func walk(fn *Node) {
 	Curfn = fn
 
 	if Debug['W'] != 0 {
-		s := fmt.Sprintf("\nbefore %v", Sconv(Curfn.Nname.Sym, 0))
+		s := fmt.Sprintf("\nbefore %v", Curfn.Nname.Sym)
 		dumplist(s, Curfn.Nbody)
 	}
 
@@ -51,11 +51,11 @@ func walk(fn *Node) {
 				continue
 			}
 			lineno = l.N.Defn.Left.Lineno
-			Yyerror("%v declared and not used", Sconv(l.N.Sym, 0))
+			Yyerror("%v declared and not used", l.N.Sym)
 			l.N.Defn.Left.Used = true // suppress repeats
 		} else {
 			lineno = l.N.Lineno
-			Yyerror("%v declared and not used", Sconv(l.N.Sym, 0))
+			Yyerror("%v declared and not used", l.N.Sym)
 		}
 	}
 
@@ -65,13 +65,13 @@ func walk(fn *Node) {
 	}
 	walkstmtlist(Curfn.Nbody)
 	if Debug['W'] != 0 {
-		s := fmt.Sprintf("after walk %v", Sconv(Curfn.Nname.Sym, 0))
+		s := fmt.Sprintf("after walk %v", Curfn.Nname.Sym)
 		dumplist(s, Curfn.Nbody)
 	}
 
 	heapmoves()
 	if Debug['W'] != 0 && Curfn.Func.Enter != nil {
-		s := fmt.Sprintf("enter %v", Sconv(Curfn.Nname.Sym, 0))
+		s := fmt.Sprintf("enter %v", Curfn.Nname.Sym)
 		dumplist(s, Curfn.Func.Enter)
 	}
 }
@@ -154,7 +154,7 @@ func walkstmt(np **Node) {
 	switch n.Op {
 	default:
 		if n.Op == ONAME {
-			Yyerror("%v is not a top level statement", Sconv(n.Sym, 0))
+			Yyerror("%v is not a top level statement", n.Sym)
 		} else {
 			Yyerror("%v is not a top level statement", Oconv(int(n.Op), 0))
 		}
@@ -311,7 +311,7 @@ func walkstmt(np **Node) {
 				f := n.List.N
 
 				if f.Op != OCALLFUNC && f.Op != OCALLMETH && f.Op != OCALLINTER {
-					Fatal("expected return of call, have %v", Nconv(f, 0))
+					Fatal("expected return of call, have %v", f)
 				}
 				n.List = concat(list1(f), ascompatet(int(n.Op), rl, &f.Type, 0, &n.Ninit))
 				break
@@ -1390,7 +1390,7 @@ func walkexpr(np **Node, init **NodeList) {
 
 		typecheck(&r, Erv)
 		if n.Type.Etype != TBOOL {
-			Fatal("cmp %v", Tconv(n.Type, 0))
+			Fatal("cmp %v", n.Type)
 		}
 		r.Type = n.Type
 		n = r
@@ -1570,7 +1570,7 @@ func walkexpr(np **Node, init **NodeList) {
 		// ifaceeq(i1 any-1, i2 any-2) (ret bool);
 	case OCMPIFACE:
 		if !Eqtype(n.Left.Type, n.Right.Type) {
-			Fatal("ifaceeq %v %v %v", Oconv(int(n.Op), 0), Tconv(n.Left.Type, 0), Tconv(n.Right.Type, 0))
+			Fatal("ifaceeq %v %v %v", Oconv(int(n.Op), 0), n.Left.Type, n.Right.Type)
 		}
 		var fn *Node
 		if isnilinter(n.Left.Type) {
@@ -2247,7 +2247,7 @@ func applywritebarrier(n *Node, init **NodeList) *Node {
 			var name string
 			switch t.Width / int64(Widthptr) {
 			default:
-				Fatal("found writebarrierfat for %d-byte object of type %v", int(t.Width), Tconv(t, 0))
+				Fatal("found writebarrierfat for %d-byte object of type %v", int(t.Width), t)
 
 			case 2:
 				name = fmt.Sprintf("writebarrierfat%d%d", bvget(applywritebarrier_bv, PtrBit), bvget(applywritebarrier_bv, obj.BitsPerPointer+PtrBit))
@@ -2721,7 +2721,7 @@ func paramstoheap(argin **Type, out int) *NodeList {
 
 		// generate allocation & copying code
 		if compiling_runtime != 0 {
-			Yyerror("%v escapes to heap, not allowed in runtime.", Nconv(v, 0))
+			Yyerror("%v escapes to heap, not allowed in runtime.", v)
 		}
 		if v.Alloc == nil {
 			v.Alloc = callnew(v.Type)
@@ -2777,7 +2777,7 @@ func heapmoves() {
 
 func vmkcall(fn *Node, t *Type, init **NodeList, va []*Node) *Node {
 	if fn.Type == nil || fn.Type.Etype != TFUNC {
-		Fatal("mkcall %v %v", Nconv(fn, 0), Tconv(fn.Type, 0))
+		Fatal("mkcall %v %v", fn, fn.Type)
 	}
 
 	var args *NodeList
@@ -2818,7 +2818,7 @@ func conv(n *Node, t *Type) *Node {
 
 func chanfn(name string, n int, t *Type) *Node {
 	if t.Etype != TCHAN {
-		Fatal("chanfn %v", Tconv(t, 0))
+		Fatal("chanfn %v", t)
 	}
 	fn := syslook(name, 1)
 	switch n {
@@ -2834,7 +2834,7 @@ func chanfn(name string, n int, t *Type) *Node {
 
 func mapfn(name string, t *Type) *Node {
 	if t.Etype != TMAP {
-		Fatal("mapfn %v", Tconv(t, 0))
+		Fatal("mapfn %v", t)
 	}
 	fn := syslook(name, 1)
 	substArgTypes(fn, t.Down, t.Type, t.Down, t.Type)
@@ -2843,7 +2843,7 @@ func mapfn(name string, t *Type) *Node {
 
 func mapfndel(name string, t *Type) *Node {
 	if t.Etype != TMAP {
-		Fatal("mapfn %v", Tconv(t, 0))
+		Fatal("mapfn %v", t)
 	}
 	fn := syslook(name, 1)
 	substArgTypes(fn, t.Down, t.Type, t.Down)
@@ -3379,7 +3379,7 @@ func eqfor(t *Type, needsize *int) *Node {
 	a := algtype1(t, nil)
 
 	if a != AMEM && a != -1 {
-		Fatal("eqfor %v", Tconv(t, 0))
+		Fatal("eqfor %v", t)
 	}
 
 	if a == AMEM {
@@ -3486,7 +3486,7 @@ func walkcompare(np **Node, init **NodeList) {
 	}
 
 	if !islvalue(cmpl) || !islvalue(cmpr) {
-		Fatal("arguments of comparison must be lvalues - %v %v", Nconv(cmpl, 0), Nconv(cmpr, 0))
+		Fatal("arguments of comparison must be lvalues - %v %v", cmpl, cmpr)
 	}
 
 	l = temp(Ptrto(t))
@@ -4087,7 +4087,7 @@ func usefield(n *Node) {
 
 	field := n.Paramfld
 	if field == nil {
-		Fatal("usefield %v %v without paramfld", Tconv(n.Left.Type, 0), Sconv(n.Right.Sym, 0))
+		Fatal("usefield %v %v without paramfld", n.Left.Type, n.Right.Sym)
 	}
 	if field.Note == nil || !strings.Contains(*field.Note, "go:\"track\"") {
 		return

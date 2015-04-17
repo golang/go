@@ -374,7 +374,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		a.Type = obj.TYPE_MEM
 		switch n.Class {
 		default:
-			Fatal("naddr: ONAME class %v %d\n", Sconv(n.Sym, 0), n.Class)
+			Fatal("naddr: ONAME class %v %d\n", n.Sym, n.Class)
 
 		case PEXTERN:
 			a.Name = obj.NAME_EXTERN
@@ -511,7 +511,7 @@ func nodarg(t *Type, fp int) *Node {
 			Fatal("nodarg: bad struct")
 		}
 		if first.Width == BADWIDTH {
-			Fatal("nodarg: offset not computed for %v", Tconv(t, 0))
+			Fatal("nodarg: offset not computed for %v", t)
 		}
 		n.Xoffset = first.Width
 		n.Addable = true
@@ -519,7 +519,7 @@ func nodarg(t *Type, fp int) *Node {
 	}
 
 	if t.Etype != TFIELD {
-		Fatal("nodarg: not field %v", Tconv(t, 0))
+		Fatal("nodarg: not field %v", t)
 	}
 
 	if fp == 1 {
@@ -537,7 +537,7 @@ func nodarg(t *Type, fp int) *Node {
 	n.Sym = t.Sym
 
 	if t.Width == BADWIDTH {
-		Fatal("nodarg: offset not computed for %v", Tconv(t, 0))
+		Fatal("nodarg: offset not computed for %v", t)
 	}
 	n.Xoffset = t.Width
 	n.Addable = true
@@ -663,7 +663,7 @@ func Regalloc(n *Node, t *Type, o *Node) {
 Switch:
 	switch et {
 	default:
-		Fatal("regalloc: unknown type %v", Tconv(t, 0))
+		Fatal("regalloc: unknown type %v", t)
 
 	case TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64, TUINT64, TPTR32, TPTR64, TBOOL:
 		if o != nil && o.Op == OREGISTER {

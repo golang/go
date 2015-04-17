@@ -53,7 +53,7 @@ func optoas(op int, t *gc.Type) int {
 	a := obj.AXXX
 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
 	default:
-		gc.Fatal("optoas: no entry %v-%v", gc.Oconv(int(op), 0), gc.Tconv(t, 0))
+		gc.Fatal("optoas: no entry %v-%v", gc.Oconv(int(op), 0), t)
 
 	case gc.OADDR<<16 | gc.TPTR32:
 		a = x86.ALEAL
@@ -405,7 +405,7 @@ func foptoas(op int, t *gc.Type, flg int) int {
 	if !gc.Thearch.Use387 {
 		switch uint32(op)<<16 | uint32(et) {
 		default:
-			gc.Fatal("foptoas-sse: no entry %v-%v", gc.Oconv(int(op), 0), gc.Tconv(t, 0))
+			gc.Fatal("foptoas-sse: no entry %v-%v", gc.Oconv(int(op), 0), t)
 
 		case gc.OCMP<<16 | gc.TFLOAT32:
 			a = x86.AUCOMISS
@@ -538,7 +538,7 @@ func foptoas(op int, t *gc.Type, flg int) int {
 		return x86.AFCHS
 	}
 
-	gc.Fatal("foptoas %v %v %#x", gc.Oconv(int(op), 0), gc.Tconv(t, 0), flg)
+	gc.Fatal("foptoas %v %v %#x", gc.Oconv(int(op), 0), t, flg)
 	return 0
 }
 
@@ -608,7 +608,7 @@ var nsclean int
  */
 func split64(n *gc.Node, lo *gc.Node, hi *gc.Node) {
 	if !gc.Is64(n.Type) {
-		gc.Fatal("split64 %v", gc.Tconv(n.Type, 0))
+		gc.Fatal("split64 %v", n.Type)
 	}
 
 	if nsclean >= len(sclean) {
@@ -715,7 +715,7 @@ func memname(n *gc.Node, t *gc.Type) {
 
 func gmove(f *gc.Node, t *gc.Node) {
 	if gc.Debug['M'] != 0 {
-		fmt.Printf("gmove %v -> %v\n", gc.Nconv(f, 0), gc.Nconv(t, 0))
+		fmt.Printf("gmove %v -> %v\n", f, t)
 	}
 
 	ft := gc.Simsimtype(f.Type)
@@ -758,7 +758,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 	switch uint32(ft)<<16 | uint32(tt) {
 	default:
 		// should not happen
-		gc.Fatal("gmove %v -> %v", gc.Nconv(f, 0), gc.Nconv(t, 0))
+		gc.Fatal("gmove %v -> %v", f, t)
 		return
 
 		/*
@@ -1322,7 +1322,7 @@ func floatmove_387(f *gc.Node, t *gc.Node) {
 		gmove(f, &t1)
 		switch tt {
 		default:
-			gc.Fatal("gmove %v", gc.Nconv(t, 0))
+			gc.Fatal("gmove %v", t)
 
 		case gc.TINT8:
 			gins(x86.ACMPL, &t1, ncon(-0x80&(1<<32-1)))
@@ -1433,7 +1433,7 @@ func floatmove_387(f *gc.Node, t *gc.Node) {
 		}
 		if gc.Ismem(t) {
 			if f.Op != gc.OREGISTER || f.Reg != x86.REG_F0 {
-				gc.Fatal("gmove %v", gc.Nconv(f, 0))
+				gc.Fatal("gmove %v", f)
 			}
 			a = x86.AFMOVFP
 			if ft == gc.TFLOAT64 {
@@ -1517,7 +1517,7 @@ func floatmove_sse(f *gc.Node, t *gc.Node) {
 	switch uint32(ft)<<16 | uint32(tt) {
 	// should not happen
 	default:
-		gc.Fatal("gmove %v -> %v", gc.Nconv(f, 0), gc.Nconv(t, 0))
+		gc.Fatal("gmove %v -> %v", f, t)
 
 		return
 
@@ -1681,7 +1681,7 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 
 	case x86.ALEAL:
 		if f != nil && gc.Isconst(f, gc.CTNIL) {
-			gc.Fatal("gins LEAL nil %v", gc.Tconv(f.Type, 0))
+			gc.Fatal("gins LEAL nil %v", f.Type)
 		}
 	}
 

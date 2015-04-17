@@ -263,7 +263,7 @@ func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
 
 	if nf >= MaxFlowProg {
 		if Debug['v'] != 0 {
-			Warn("%v is too big (%d instructions)", Sconv(Curfn.Nname.Sym, 0), nf)
+			Warn("%v is too big (%d instructions)", Curfn.Nname.Sym, nf)
 		}
 		return nil
 	}
@@ -652,7 +652,7 @@ func mergetemp(firstp *obj.Prog) {
 				p.To = obj.Addr{}
 				v.removed = 1
 				if debugmerge > 0 && Debug['v'] != 0 {
-					fmt.Printf("drop write-only %v\n", Sconv(v.node.Sym, 0))
+					fmt.Printf("drop write-only %v\n", v.node.Sym)
 				}
 			} else {
 				Fatal("temp used and not set: %v", p)
@@ -675,7 +675,7 @@ func mergetemp(firstp *obj.Prog) {
 				Thearch.Excise(f)
 				v.removed = 1
 				if debugmerge > 0 && Debug['v'] != 0 {
-					fmt.Printf("drop immediate-use %v\n", Sconv(v.node.Sym, 0))
+					fmt.Printf("drop immediate-use %v\n", v.node.Sym)
 				}
 			}
 
@@ -752,7 +752,7 @@ func mergetemp(firstp *obj.Prog) {
 		for j = nfree; j < len(var_); j++ {
 			v1 = inuse[j]
 			if debugmerge > 0 && Debug['v'] != 0 {
-				fmt.Printf("consider %v: maybe %v: type=%v,%v addrtaken=%v,%v\n", Nconv(v.node, obj.FmtSharp), Nconv(v1.node, obj.FmtSharp), Tconv(t, 0), Tconv(v1.node.Type, 0), v.node.Addrtaken, v1.node.Addrtaken)
+				fmt.Printf("consider %v: maybe %v: type=%v,%v addrtaken=%v,%v\n", Nconv(v.node, obj.FmtSharp), Nconv(v1.node, obj.FmtSharp), t, v1.node.Type, v.node.Addrtaken, v1.node.Addrtaken)
 			}
 
 			// Require the types to match but also require the addrtaken bits to match.
@@ -786,11 +786,11 @@ func mergetemp(firstp *obj.Prog) {
 	}
 
 	if debugmerge > 0 && Debug['v'] != 0 {
-		fmt.Printf("%v [%d - %d]\n", Sconv(Curfn.Nname.Sym, 0), len(var_), nkill)
+		fmt.Printf("%v [%d - %d]\n", Curfn.Nname.Sym, len(var_), nkill)
 		var v *TempVar
 		for i := 0; i < len(var_); i++ {
 			v = &var_[i]
-			fmt.Printf("var %v %v %d-%d", Nconv(v.node, obj.FmtSharp), Tconv(v.node.Type, 0), v.start, v.end)
+			fmt.Printf("var %v %v %d-%d", Nconv(v.node, obj.FmtSharp), v.node.Type, v.start, v.end)
 			if v.addr != 0 {
 				fmt.Printf(" addr=1")
 			}
@@ -980,7 +980,7 @@ func nilopt(firstp *obj.Prog) {
 	Flowend(g)
 
 	if Debug_checknil > 1 {
-		fmt.Printf("%v: removed %d of %d nil checks\n", Sconv(Curfn.Nname.Sym, 0), nkill, ncheck)
+		fmt.Printf("%v: removed %d of %d nil checks\n", Curfn.Nname.Sym, nkill, ncheck)
 	}
 }
 

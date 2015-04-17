@@ -532,7 +532,7 @@ func cmp64(nl *gc.Node, nr *gc.Node, op int, likely int, to *obj.Prog) {
 	var br *obj.Prog
 	switch op {
 	default:
-		gc.Fatal("cmp64 %v %v", gc.Oconv(int(op), 0), gc.Tconv(t, 0))
+		gc.Fatal("cmp64 %v %v", gc.Oconv(int(op), 0), t)
 
 		// cmp hi
 	// jne L

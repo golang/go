@@ -449,7 +449,7 @@ simple_stmt:
 			if $1.Next != nil {
 				Yyerror("argument count mismatch: %d = %d", count($1), 1);
 			} else if ($1.N.Op != ONAME && $1.N.Op != OTYPE && $1.N.Op != ONONAME) || isblank($1.N) {
-				Yyerror("invalid variable name %s in type switch", Nconv($1.N, 0));
+				Yyerror("invalid variable name %s in type switch", $1.N);
 			} else {
 				$$.Left = dclname($1.N.Sym);
 			}  // it's a colas, so must not re-use an oldname.
@@ -1419,7 +1419,7 @@ hidden_fndcl:
 				dclcontext = PDISCARD;  // since we skip funchdr below
 				break;
 			}
-			Yyerror("inconsistent definition for func %v during import\n\t%v\n\t%v", Sconv(s, 0), Tconv(s.Def.Type, 0), Tconv(t, 0));
+			Yyerror("inconsistent definition for func %v during import\n\t%v\n\t%v", s, s.Def.Type, t);
 		}
 
 		$$ = newfuncname(s);
@@ -1634,7 +1634,7 @@ packname:
 		var pkg *Pkg
 
 		if $1.Def == nil || $1.Def.Op != OPACK {
-			Yyerror("%v is not a package", Sconv($1, 0));
+			Yyerror("%v is not a package", $1);
 			pkg = localpkg;
 		} else {
 			$1.Def.Used = true;
@@ -2188,7 +2188,7 @@ hidden_literal:
 	{
 		$$ = oldname(Pkglookup($1.Name, builtinpkg));
 		if $$.Op != OLITERAL {
-			Yyerror("bad constant %v", Sconv($$.Sym, 0));
+			Yyerror("bad constant %v", $$.Sym);
 		}
 	}
 

@@ -34,13 +34,13 @@ func mpmovefltflt(a *Mpflt, b *Mpflt) {
 
 func mpaddfltflt(a *Mpflt, b *Mpflt) {
 	if Mpdebug {
-		fmt.Printf("\n%v + %v", Fconv(a, 0), Fconv(b, 0))
+		fmt.Printf("\n%v + %v", a, b)
 	}
 
 	a.Val.Add(&a.Val, &b.Val)
 
 	if Mpdebug {
-		fmt.Printf(" = %v\n\n", Fconv(a, 0))
+		fmt.Printf(" = %v\n\n", a)
 	}
 }
 
@@ -53,25 +53,25 @@ func mpaddcflt(a *Mpflt, c float64) {
 
 func mpsubfltflt(a *Mpflt, b *Mpflt) {
 	if Mpdebug {
-		fmt.Printf("\n%v - %v", Fconv(a, 0), Fconv(b, 0))
+		fmt.Printf("\n%v - %v", a, b)
 	}
 
 	a.Val.Sub(&a.Val, &b.Val)
 
 	if Mpdebug {
-		fmt.Printf(" = %v\n\n", Fconv(a, 0))
+		fmt.Printf(" = %v\n\n", a)
 	}
 }
 
 func mpmulfltflt(a *Mpflt, b *Mpflt) {
 	if Mpdebug {
-		fmt.Printf("%v\n * %v\n", Fconv(a, 0), Fconv(b, 0))
+		fmt.Printf("%v\n * %v\n", a, b)
 	}
 
 	a.Val.Mul(&a.Val, &b.Val)
 
 	if Mpdebug {
-		fmt.Printf(" = %v\n\n", Fconv(a, 0))
+		fmt.Printf(" = %v\n\n", a)
 	}
 }
 
@@ -84,13 +84,13 @@ func mpmulcflt(a *Mpflt, c float64) {
 
 func mpdivfltflt(a *Mpflt, b *Mpflt) {
 	if Mpdebug {
-		fmt.Printf("%v\n / %v\n", Fconv(a, 0), Fconv(b, 0))
+		fmt.Printf("%v\n / %v\n", a, b)
 	}
 
 	a.Val.Quo(&a.Val, &b.Val)
 
 	if Mpdebug {
-		fmt.Printf(" = %v\n\n", Fconv(a, 0))
+		fmt.Printf(" = %v\n\n", a)
 	}
 }
 
@@ -148,7 +148,7 @@ func Mpmovecflt(a *Mpflt, c float64) {
 	a.Val.SetFloat64(c)
 
 	if Mpdebug {
-		fmt.Printf(" = %v\n", Fconv(a, 0))
+		fmt.Printf(" = %v\n", a)
 	}
 }
 

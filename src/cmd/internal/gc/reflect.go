@@ -335,13 +335,13 @@ func methods(t *Type) *Sig {
 	var method *Sym
 	for f := mt.Xmethod; f != nil; f = f.Down {
 		if f.Etype != TFIELD {
-			Fatal("methods: not field %v", Tconv(f, 0))
+			Fatal("methods: not field %v", f)
 		}
 		if f.Type.Etype != TFUNC || f.Type.Thistuple == 0 {
-			Fatal("non-method on %v method %v %v\n", Tconv(mt, 0), Sconv(f.Sym, 0), Tconv(f, 0))
+			Fatal("non-method on %v method %v %v\n", mt, f.Sym, f)
 		}
 		if getthisx(f.Type).Type == nil {
-			Fatal("receiver with no type on %v method %v %v\n", Tconv(mt, 0), Sconv(f.Sym, 0), Tconv(f, 0))
+			Fatal("receiver with no type on %v method %v %v\n", mt, f.Sym, f)
 		}
 		if f.Nointerface {
 			continue
@@ -753,7 +753,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 		i = 1
 	}
 	if i&(i-1) != 0 {
-		Fatal("invalid alignment %d for %v", t.Align, Tconv(t, 0))
+		Fatal("invalid alignment %d for %v", t.Align, t)
 	}
 	ot = duint8(s, ot, t.Align) // align
 	ot = duint8(s, ot, t.Align) // fieldAlign
@@ -876,7 +876,7 @@ func typesymprefix(prefix string, t *Type) *Sym {
 
 func typenamesym(t *Type) *Sym {
 	if t == nil || (Isptr[t.Etype] && t.Type == nil) || isideal(t) {
-		Fatal("typename %v", Tconv(t, 0))
+		Fatal("typename %v", t)
 	}
 	s := typesym(t)
 	if s.Def == nil {
@@ -949,7 +949,7 @@ func isreflexive(t *Type) bool {
 
 	case TARRAY:
 		if Isslice(t) {
-			Fatal("slice can't be a map key: %v", Tconv(t, 0))
+			Fatal("slice can't be a map key: %v", t)
 		}
 		return isreflexive(t.Type)
 
@@ -963,7 +963,7 @@ func isreflexive(t *Type) bool {
 		return true
 
 	default:
-		Fatal("bad type for map key: %v", Tconv(t, 0))
+		Fatal("bad type for map key: %v", t)
 		return false
 	}
 }
@@ -977,7 +977,7 @@ func dtypesym(t *Type) *Sym {
 	}
 
 	if isideal(t) {
-		Fatal("dtypesym %v", Tconv(t, 0))
+		Fatal("dtypesym %v", t)
 	}
 
 	s := typesym(t)
@@ -1631,6 +1631,6 @@ func gengcprog1(g *ProgGen, t *Type, xoffset *int64) {
 		*xoffset += t.Width - o
 
 	default:
-		Fatal("gengcprog1: unexpected type, %v", Tconv(t, 0))
+		Fatal("gengcprog1: unexpected type, %v", t)
 	}
 }

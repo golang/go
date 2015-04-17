@@ -288,7 +288,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		}
 
 	default:
-		gc.Fatal("cgen_hmul %v", gc.Tconv(t, 0))
+		gc.Fatal("cgen_hmul %v", t)
 	}
 
 	gc.Cgen(&n1, res)
@@ -394,7 +394,7 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 func clearfat(nl *gc.Node) {
 	/* clear a fat object */
 	if gc.Debug['g'] != 0 {
-		fmt.Printf("clearfat %v (%v, size: %d)\n", gc.Nconv(nl, 0), gc.Tconv(nl.Type, 0), nl.Type.Width)
+		fmt.Printf("clearfat %v (%v, size: %d)\n", nl, nl.Type, nl.Type.Width)
 	}
 
 	w := uint64(uint64(nl.Type.Width))

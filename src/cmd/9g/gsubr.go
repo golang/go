@@ -651,7 +651,7 @@ func fixlargeoffset(n *gc.Node) {
 	if n.Xoffset != int64(int32(n.Xoffset)) {
 		// TODO(minux): offset too large, move into R31 and add to R31 instead.
 		// this is used only in test/fixedbugs/issue6036.go.
-		gc.Fatal("offset too large: %v", gc.Nconv(n, 0))
+		gc.Fatal("offset too large: %v", n)
 
 		a := gc.Node(*n)
 		a.Op = gc.OREGISTER
@@ -674,7 +674,7 @@ func optoas(op int, t *gc.Type) int {
 	a := int(obj.AXXX)
 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
 	default:
-		gc.Fatal("optoas: no entry for op=%v type=%v", gc.Oconv(int(op), 0), gc.Tconv(t, 0))
+		gc.Fatal("optoas: no entry for op=%v type=%v", gc.Oconv(int(op), 0), t)
 
 	case gc.OEQ<<16 | gc.TBOOL,
 		gc.OEQ<<16 | gc.TINT8,

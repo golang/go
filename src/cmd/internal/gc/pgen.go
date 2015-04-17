@@ -88,7 +88,7 @@ func gvardefx(n *Node, as int) {
 		Fatal("gvardef nil")
 	}
 	if n.Op != ONAME {
-		Yyerror("gvardef %v; %v", Oconv(int(n.Op), obj.FmtSharp), Nconv(n, 0))
+		Yyerror("gvardef %v; %v", Oconv(int(n.Op), obj.FmtSharp), n)
 		return
 	}
 

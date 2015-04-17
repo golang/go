@@ -740,7 +740,7 @@ func printnode(node *Node) {
 	if node.Addrtaken {
 		a = "@"
 	}
-	fmt.Printf(" %v%s%s", Nconv(node, 0), p, a)
+	fmt.Printf(" %v%s%s", node, p, a)
 }
 
 // Pretty print a list of variables.  The vars argument is an array of Node*s.
@@ -812,13 +812,13 @@ func checkauto(fn *Node, p *obj.Prog, n *Node) {
 	}
 
 	if n == nil {
-		fmt.Printf("%v: checkauto %v: nil node in %v\n", p.Line(), Nconv(Curfn, 0), p)
+		fmt.Printf("%v: checkauto %v: nil node in %v\n", p.Line(), Curfn, p)
 		return
 	}
 
-	fmt.Printf("checkauto %v: %v (%p; class=%d) not found in %v\n", Nconv(Curfn, 0), Nconv(n, 0), n, n.Class, p)
+	fmt.Printf("checkauto %v: %v (%p; class=%d) not found in %v\n", Curfn, n, n, n.Class, p)
 	for l := fn.Func.Dcl; l != nil; l = l.Next {
-		fmt.Printf("\t%v (%p; class=%d)\n", Nconv(l.N, 0), l.N, l.N.Class)
+		fmt.Printf("\t%v (%p; class=%d)\n", l.N, l.N, l.N.Class)
 	}
 	Yyerror("checkauto: invariant lost")
 }
@@ -837,9 +837,9 @@ func checkparam(fn *Node, p *obj.Prog, n *Node) {
 		}
 	}
 
-	fmt.Printf("checkparam %v: %v (%p; class=%d) not found in %v\n", Nconv(Curfn, 0), Nconv(n, 0), n, n.Class, p)
+	fmt.Printf("checkparam %v: %v (%p; class=%d) not found in %v\n", Curfn, n, n, n.Class, p)
 	for l := fn.Func.Dcl; l != nil; l = l.Next {
-		fmt.Printf("\t%v (%p; class=%d)\n", Nconv(l.N, 0), l.N, l.N.Class)
+		fmt.Printf("\t%v (%p; class=%d)\n", l.N, l.N, l.N.Class)
 	}
 	Yyerror("checkparam: invariant lost")
 }
@@ -885,7 +885,7 @@ func checkptxt(fn *Node, firstp *obj.Prog) {
 // accounts for 40% of the 6g execution time.
 func twobitwalktype1(t *Type, xoffset *int64, bv Bvec) {
 	if t.Align > 0 && *xoffset&int64(t.Align-1) != 0 {
-		Fatal("twobitwalktype1: invalid initial alignment, %v", Tconv(t, 0))
+		Fatal("twobitwalktype1: invalid initial alignment, %v", t)
 	}
 
 	switch t.Etype {
@@ -918,7 +918,7 @@ func twobitwalktype1(t *Type, xoffset *int64, bv Bvec) {
 		TCHAN,
 		TMAP:
 		if *xoffset&int64(Widthptr-1) != 0 {
-			Fatal("twobitwalktype1: invalid alignment, %v", Tconv(t, 0))
+			Fatal("twobitwalktype1: invalid alignment, %v", t)
 		}
 		bvset(bv, int32((*xoffset/int64(Widthptr))*obj.BitsPerPointer+1)) // 2 = live ptr (BitsPointer)
 		*xoffset += t.Width
@@ -926,7 +926,7 @@ func twobitwalktype1(t *Type, xoffset *int64, bv Bvec) {
 		// struct { byte *str; intgo len; }
 	case TSTRING:
 		if *xoffset&int64(Widthptr-1) != 0 {
-			Fatal("twobitwalktype1: invalid alignment, %v", Tconv(t, 0))
+			Fatal("twobitwalktype1: invalid alignment, %v", t)
 		}
 		bvset(bv, int32((*xoffset/int64(Widthptr))*obj.BitsPerPointer+1)) // 2 = live ptr in first slot (BitsPointer)
 		*xoffset += t.Width
@@ -936,7 +936,7 @@ func twobitwalktype1(t *Type, xoffset *int64, bv Bvec) {
 	// struct { Type *type; union { void *ptr, uintptr val } data; }
 	case TINTER:
 		if *xoffset&int64(Widthptr-1) != 0 {
-			Fatal("twobitwalktype1: invalid alignment, %v", Tconv(t, 0))
+			Fatal("twobitwalktype1: invalid alignment, %v", t)
 		}
 		bvset(bv, int32((*xoffset/int64(Widthptr))*obj.BitsPerPointer+1)) // 2 = live ptr in first slot (BitsPointer)
 		bvset(bv, int32((*xoffset/int64(Widthptr))*obj.BitsPerPointer+3)) // 2 = live ptr in second slot (BitsPointer)
@@ -946,12 +946,12 @@ func twobitwalktype1(t *Type, xoffset *int64, bv Bvec) {
 	// for fixed array types.  All other values are invalid.
 	case TARRAY:
 		if t.Bound < -1 {
-			Fatal("twobitwalktype1: invalid bound, %v", Tconv(t, 0))
+			Fatal("twobitwalktype1: invalid bound, %v", t)
 		}
 		if Isslice(t) {
 			// struct { byte *array; uintgo len; uintgo cap; }
 			if *xoffset&int64(Widthptr-1) != 0 {
-				Fatal("twobitwalktype1: invalid TARRAY alignment, %v", Tconv(t, 0))
+				Fatal("twobitwalktype1: invalid TARRAY alignment, %v", t)
 			}
 			bvset(bv, int32((*xoffset/int64(Widthptr))*obj.BitsPerPointer+1)) // 2 = live ptr in first slot (BitsPointer)
 			*xoffset += t.Width
@@ -974,7 +974,7 @@ func twobitwalktype1(t *Type, xoffset *int64, bv Bvec) {
 		*xoffset += t.Width - o
 
 	default:
-		Fatal("twobitwalktype1: unexpected type, %v", Tconv(t, 0))
+		Fatal("twobitwalktype1: unexpected type, %v", t)
 	}
 }
 
@@ -1283,7 +1283,7 @@ func livenessepilogue(lv *Liveness) {
 						if !n.Needzero {
 							n.Needzero = true
 							if debuglive >= 1 {
-								Warnl(int(p.Lineno), "%v: %v is ambiguously live", Nconv(Curfn.Nname, 0), Nconv(n, obj.FmtLong))
+								Warnl(int(p.Lineno), "%v: %v is ambiguously live", Curfn.Nname, Nconv(n, obj.FmtLong))
 							}
 
 							// Record in 'ambiguous' bitmap.
@@ -1380,7 +1380,7 @@ func livenessepilogue(lv *Liveness) {
 						}
 						n = lv.vars[j]
 						if n.Class != PPARAM {
-							yyerrorl(int(p.Lineno), "internal error: %v %v recorded as live on entry", Nconv(Curfn.Nname, 0), Nconv(n, obj.FmtLong))
+							yyerrorl(int(p.Lineno), "internal error: %v %v recorded as live on entry", Curfn.Nname, Nconv(n, obj.FmtLong))
 						}
 					}
 				}
@@ -1416,7 +1416,7 @@ func livenessepilogue(lv *Liveness) {
 					for j = 0; j < int32(len(lv.vars)); j++ {
 						n = lv.vars[j]
 						if islive(n, args, locals) {
-							fmt_ += fmt.Sprintf(" %v", Nconv(n, 0))
+							fmt_ += fmt.Sprintf(" %v", n)
 							numlive++
 						}
 					}
@@ -1689,7 +1689,7 @@ func livenessprintdebug(lv *Liveness) {
 						if tmp9 != 0 {
 							fmt.Printf(",")
 						}
-						fmt.Printf("%v", Nconv(n, 0))
+						fmt.Printf("%v", n)
 					}
 				}
 

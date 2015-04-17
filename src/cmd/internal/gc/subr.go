@@ -45,9 +45,9 @@ func adderrorname(n *Node) {
 	if n.Op != ODOT {
 		return
 	}
-	old := fmt.Sprintf("%v: undefined: %v\n", n.Line(), Nconv(n.Left, 0))
+	old := fmt.Sprintf("%v: undefined: %v\n", n.Line(), n.Left)
 	if len(errors) > 0 && int32(errors[len(errors)-1].lineno) == n.Lineno && errors[len(errors)-1].msg == old {
-		errors[len(errors)-1].msg = fmt.Sprintf("%v: undefined: %v in %v\n", n.Line(), Nconv(n.Left, 0), Nconv(n, 0))
+		errors[len(errors)-1].msg = fmt.Sprintf("%v: undefined: %v in %v\n", n.Line(), n.Left, n)
 	}
 }
 
@@ -398,7 +398,7 @@ func saveorignode(n *Node) {
 // the last field, total gives the size of the enclosing struct.
 func ispaddedfield(t *Type, total int64) bool {
 	if t.Etype != TFIELD {
-		Fatal("ispaddedfield called non-field %v", Tconv(t, 0))
+		Fatal("ispaddedfield called non-field %v", t)
 	}
 	if t.Down == nil {
 		return t.Width+t.Type.Width != total
@@ -514,7 +514,7 @@ func algtype1(t *Type, bad **Type) int {
 		return ret
 	}
 
-	Fatal("algtype1: unexpected type %v", Tconv(t, 0))
+	Fatal("algtype1: unexpected type %v", t)
 	return 0
 }
 
@@ -561,7 +561,7 @@ func maptype(key *Type, val *Type) *Type {
 		switch mtype {
 		default:
 			if atype == ANOEQ {
-				Yyerror("invalid map key type %v", Tconv(key, 0))
+				Yyerror("invalid map key type %v", key)
 			}
 
 			// will be resolved later.
@@ -696,7 +696,7 @@ func Nodconst(n *Node, t *Type, v int64) {
 	n.Type = t
 
 	if Isfloat[t.Etype] {
-		Fatal("nodconst: bad type %v", Tconv(t, 0))
+		Fatal("nodconst: bad type %v", t)
 	}
 }
 
@@ -986,7 +986,7 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
 		t2 = t2.Type
 		for ; t1 != nil && t2 != nil; t1, t2 = t1.Down, t2.Down {
 			if t1.Etype != TFIELD || t2.Etype != TFIELD {
-				Fatal("struct/interface missing field: %v %v", Tconv(t1, 0), Tconv(t2, 0))
+				Fatal("struct/interface missing field: %v %v", t1, t2)
 			}
 			if t1.Sym != t2.Sym || t1.Embedded != t2.Embedded || !eqtype1(t1.Type, t2.Type, &l) || !eqnote(t1.Note, t2.Note) {
 				return false
@@ -1004,7 +1004,7 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
 		t2 = t2.Type
 		for ; t1 != nil && t2 != nil; t1, t2 = t1.Down, t2.Down {
 			if t1.Etype != TSTRUCT || t2.Etype != TSTRUCT {
-				Fatal("func missing struct: %v %v", Tconv(t1, 0), Tconv(t2, 0))
+				Fatal("func missing struct: %v %v", t1, t2)
 			}
 
 			// Loop over fields in structs, ignoring argument names.
@@ -1012,7 +1012,7 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
 			tb := t2.Type
 			for ; ta != nil && tb != nil; ta, tb = ta.Down, tb.Down {
 				if ta.Etype != TFIELD || tb.Etype != TFIELD {
-					Fatal("func struct missing field: %v %v", Tconv(ta, 0), Tconv(tb, 0))
+					Fatal("func struct missing field: %v %v", ta, tb)
 				}
 				if ta.Isddd != tb.Isddd || !eqtype1(ta.Type, tb.Type, &l) {
 					return false
@@ -1120,17 +1120,17 @@ func assignop(src *Type, dst *Type, why *string) int {
 
 		if why != nil {
 			if isptrto(src, TINTER) {
-				*why = fmt.Sprintf(":\n\t%v is pointer to interface, not interface", Tconv(src, 0))
+				*why = fmt.Sprintf(":\n\t%v is pointer to interface, not interface", src)
 			} else if have != nil && have.Sym == missing.Sym && have.Nointerface {
-				*why = fmt.Sprintf(":\n\t%v does not implement %v (%v method is marked 'nointerface')", Tconv(src, 0), Tconv(dst, 0), Sconv(missing.Sym, 0))
+				*why = fmt.Sprintf(":\n\t%v does not implement %v (%v method is marked 'nointerface')", src, dst, missing.Sym)
 			} else if have != nil && have.Sym == missing.Sym {
-				*why = fmt.Sprintf(":\n\t%v does not implement %v (wrong type for %v method)\n"+"\t\thave %v%v\n\t\twant %v%v", Tconv(src, 0), Tconv(dst, 0), Sconv(missing.Sym, 0), Sconv(have.Sym, 0), Tconv(have.Type, obj.FmtShort|obj.FmtByte), Sconv(missing.Sym, 0), Tconv(missing.Type, obj.FmtShort|obj.FmtByte))
+				*why = fmt.Sprintf(":\n\t%v does not implement %v (wrong type for %v method)\n"+"\t\thave %v%v\n\t\twant %v%v", src, dst, missing.Sym, have.Sym, Tconv(have.Type, obj.FmtShort|obj.FmtByte), missing.Sym, Tconv(missing.Type, obj.FmtShort|obj.FmtByte))
 			} else if ptr != 0 {
-				*why = fmt.Sprintf(":\n\t%v does not implement %v (%v method has pointer receiver)", Tconv(src, 0), Tconv(dst, 0), Sconv(missing.Sym, 0))
+				*why = fmt.Sprintf(":\n\t%v does not implement %v (%v method has pointer receiver)", src, dst, missing.Sym)
 			} else if have != nil {
-				*why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)\n"+"\t\thave %v%v\n\t\twant %v%v", Tconv(src, 0), Tconv(dst, 0), Sconv(missing.Sym, 0), Sconv(have.Sym, 0), Tconv(have.Type, obj.FmtShort|obj.FmtByte), Sconv(missing.Sym, 0), Tconv(missing.Type, obj.FmtShort|obj.FmtByte))
+				*why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)\n"+"\t\thave %v%v\n\t\twant %v%v", src, dst, missing.Sym, have.Sym, Tconv(have.Type, obj.FmtShort|obj.FmtByte), missing.Sym, Tconv(missing.Type, obj.FmtShort|obj.FmtByte))
 			} else {
-				*why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)", Tconv(src, 0), Tconv(dst, 0), Sconv(missing.Sym, 0))
+				*why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)", src, dst, missing.Sym)
 			}
 		}
 
@@ -1139,7 +1139,7 @@ func assignop(src *Type, dst *Type, why *string) int {
 
 	if isptrto(dst, TINTER) {
 		if why != nil {
-			*why = fmt.Sprintf(":\n\t%v is pointer to interface, not interface", Tconv(dst, 0))
+			*why = fmt.Sprintf(":\n\t%v is pointer to interface, not interface", dst)
 		}
 		return 0
 	}
@@ -1333,7 +1333,7 @@ func assignconvfn(n *Node, t *Type, context func() string) *Node {
 	var why string
 	op := assignop(n.Type, t, &why)
 	if op == 0 {
-		Yyerror("cannot use %v as type %v in %s%s", Nconv(n, obj.FmtLong), Tconv(t, 0), context(), why)
+		Yyerror("cannot use %v as type %v in %s%s", Nconv(n, obj.FmtLong), t, context(), why)
 		op = OCONV
 	}
 
@@ -1564,7 +1564,7 @@ func frame(context int) {
 		fmt.Printf("--- external frame ---\n")
 		l = externdcl
 	} else if Curfn != nil {
-		fmt.Printf("--- %v frame ---\n", Sconv(Curfn.Nname.Sym, 0))
+		fmt.Printf("--- %v frame ---\n", Curfn.Nname.Sym)
 		l = Curfn.Func.Dcl
 	} else {
 		return
@@ -1580,10 +1580,10 @@ func frame(context int) {
 		}
 		switch n.Op {
 		case ONAME:
-			fmt.Printf("%v %v G%d %v width=%d\n", Oconv(int(n.Op), 0), Sconv(n.Sym, 0), n.Vargen, Tconv(n.Type, 0), w)
+			fmt.Printf("%v %v G%d %v width=%d\n", Oconv(int(n.Op), 0), n.Sym, n.Vargen, n.Type, w)
 
 		case OTYPE:
-			fmt.Printf("%v %v width=%d\n", Oconv(int(n.Op), 0), Tconv(n.Type, 0), w)
+			fmt.Printf("%v %v width=%d\n", Oconv(int(n.Op), 0), n.Type, w)
 		}
 	}
 }
@@ -1651,10 +1651,10 @@ out:
 func badtype(o int, tl *Type, tr *Type) {
 	fmt_ := ""
 	if tl != nil {
-		fmt_ += fmt.Sprintf("\n\t%v", Tconv(tl, 0))
+		fmt_ += fmt.Sprintf("\n\t%v", tl)
 	}
 	if tr != nil {
-		fmt_ += fmt.Sprintf("\n\t%v", Tconv(tr, 0))
+		fmt_ += fmt.Sprintf("\n\t%v", tr)
 	}
 
 	// common mistake: *struct and *interface.
@@ -1695,14 +1695,14 @@ func Structfirst(s *Iter, nn **Type) *Type {
 	}
 
 	if t.Etype != TFIELD {
-		Fatal("structfirst: not field %v", Tconv(t, 0))
+		Fatal("structfirst: not field %v", t)
 	}
 
 	s.T = t
 	return t
 
 bad:
-	Fatal("structfirst: not struct %v", Tconv(n, 0))
+	Fatal("structfirst: not struct %v", n)
 
 	return nil
 }
@@ -1715,7 +1715,7 @@ func structnext(s *Iter) *Type {
 	}
 
 	if t.Etype != TFIELD {
-		Fatal("structnext: not struct %v", Tconv(n, 0))
+		Fatal("structnext: not struct %v", n)
 
 		return nil
 	}
@@ -1749,7 +1749,7 @@ func funcfirst(s *Iter, t *Type) *Type {
 	return fp
 
 bad:
-	Fatal("funcfirst: not func %v", Tconv(t, 0))
+	Fatal("funcfirst: not func %v", t)
 	return nil
 }
 
@@ -1765,21 +1765,21 @@ func funcnext(s *Iter) *Type {
 
 func getthis(t *Type) **Type {
 	if t.Etype != TFUNC {
-		Fatal("getthis: not a func %v", Tconv(t, 0))
+		Fatal("getthis: not a func %v", t)
 	}
 	return &t.Type
 }
 
 func Getoutarg(t *Type) **Type {
 	if t.Etype != TFUNC {
-		Fatal("getoutarg: not a func %v", Tconv(t, 0))
+		Fatal("getoutarg: not a func %v", t)
 	}
 	return &t.Type.Down
 }
 
 func getinarg(t *Type) **Type {
 	if t.Etype != TFUNC {
-		Fatal("getinarg: not a func %v", Tconv(t, 0))
+		Fatal("getinarg: not a func %v", t)
 	}
 	return &t.Type.Down.Down
 }
@@ -1896,7 +1896,7 @@ func safeexpr(n *Node, init **NodeList) *Node {
 
 	// make a copy; must not be used as an lvalue
 	if islvalue(n) {
-		Fatal("missing lvalue case in safeexpr: %v", Nconv(n, 0))
+		Fatal("missing lvalue case in safeexpr: %v", n)
 	}
 	return cheapexpr(n, init)
 }
@@ -1940,11 +1940,11 @@ func Setmaxarg(t *Type, extra int32) {
 	dowidth(t)
 	w := t.Argwid
 	if w >= Thearch.MAXWIDTH {
-		Fatal("bad argwid %v", Tconv(t, 0))
+		Fatal("bad argwid %v", t)
 	}
 	w += int64(extra)
 	if w >= Thearch.MAXWIDTH {
-		Fatal("bad argwid %d + %v", extra, Tconv(t, 0))
+		Fatal("bad argwid %d + %v", extra, t)
 	}
 	if w > Maxarg {
 		Maxarg = w
@@ -2073,7 +2073,7 @@ func adddot(n *Node) *Node {
 		c = adddot1(s, t, d, nil, 0)
 		if c > 0 {
 			if c > 1 {
-				Yyerror("ambiguous selector %v", Nconv(n, 0))
+				Yyerror("ambiguous selector %v", n)
 				n.Left = nil
 				return n
 			}
@@ -2311,7 +2311,7 @@ var genwrapper_linehistdone int = 0
 
 func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 	if false && Debug['r'] != 0 {
-		fmt.Printf("genwrapper rcvrtype=%v method=%v newnam=%v\n", Tconv(rcvr, 0), Tconv(method, 0), Sconv(newnam, 0))
+		fmt.Printf("genwrapper rcvrtype=%v method=%v newnam=%v\n", rcvr, method, newnam)
 	}
 
 	lexlineno++
@@ -2514,7 +2514,7 @@ func hashfor(t *Type) *Node {
  */
 func genhash(sym *Sym, t *Type) {
 	if Debug['r'] != 0 {
-		fmt.Printf("genhash %v %v\n", Sconv(sym, 0), Tconv(t, 0))
+		fmt.Printf("genhash %v %v\n", sym, t)
 	}
 
 	lineno = 1 // less confusing than end of input
@@ -2546,11 +2546,11 @@ func genhash(sym *Sym, t *Type) {
 	// so t must be either an array or a struct.
 	switch t.Etype {
 	default:
-		Fatal("genhash %v", Tconv(t, 0))
+		Fatal("genhash %v", t)
 
 	case TARRAY:
 		if Isslice(t) {
-			Fatal("genhash %v", Tconv(t, 0))
+			Fatal("genhash %v", t)
 		}
 
 		// An array of pure memory would be handled by the
@@ -2766,7 +2766,7 @@ func eqmem(p *Node, q *Node, field *Node, size int64) *Node {
  */
 func geneq(sym *Sym, t *Type) {
 	if Debug['r'] != 0 {
-		fmt.Printf("geneq %v %v\n", Sconv(sym, 0), Tconv(t, 0))
+		fmt.Printf("geneq %v %v\n", sym, t)
 	}
 
 	lineno = 1 // less confusing than end of input
@@ -2797,11 +2797,11 @@ func geneq(sym *Sym, t *Type) {
 	// so t must be either an array or a struct.
 	switch t.Etype {
 	default:
-		Fatal("geneq %v", Tconv(t, 0))
+		Fatal("geneq %v", t)
 
 	case TARRAY:
 		if Isslice(t) {
-			Fatal("geneq %v", Tconv(t, 0))
+			Fatal("geneq %v", t)
 		}
 
 		// An array of pure memory would be handled by the
@@ -2931,7 +2931,7 @@ func ifacelookdot(s *Sym, t *Type, followptr *int, ignorecase int) *Type {
 	for d := 0; d < len(dotlist); d++ {
 		c = adddot1(s, t, d, &m, ignorecase)
 		if c > 1 {
-			Yyerror("%v.%v is ambiguous", Tconv(t, 0), Sconv(s, 0))
+			Yyerror("%v.%v is ambiguous", t, s)
 			return nil
 		}
 
@@ -2944,7 +2944,7 @@ func ifacelookdot(s *Sym, t *Type, followptr *int, ignorecase int) *Type {
 			}
 
 			if m.Type.Etype != TFUNC || m.Type.Thistuple == 0 {
-				Yyerror("%v.%v is a field, not a method", Tconv(t, 0), Sconv(s, 0))
+				Yyerror("%v.%v is a field, not a method", t, s)
 				return nil
 			}
 
@@ -3134,7 +3134,7 @@ func tounsigned(t *Type) *Type {
 	// that this relation is immutable
 	switch t.Etype {
 	default:
-		fmt.Printf("tounsigned: unknown type %v\n", Tconv(t, 0))
+		fmt.Printf("tounsigned: unknown type %v\n", t)
 		t = nil
 
 	case TINT:
