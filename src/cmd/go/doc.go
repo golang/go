@@ -276,6 +276,8 @@ Go generate sets several variables when it runs the generator:
 		The execution operating system (linux, windows, etc.)
 	$GOFILE
 		The base name of the file.
+	$GOLINE
+		The line number of the directive in the source file.
 	$GOPACKAGE
 		The name of the package of the file containing the directive.
 	$DOLLAR
