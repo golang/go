@@ -202,7 +202,7 @@ func Jconv(n *Node, flag int) string {
 	}
 
 	if c == 0 && n.Addable {
-		fmt.Fprintf(&buf, " a(%d)", n.Addable)
+		fmt.Fprintf(&buf, " a(%v)", n.Addable)
 	}
 
 	if c == 0 && n.Vargen != 0 {
@@ -230,7 +230,7 @@ func Jconv(n *Node, flag int) string {
 	}
 
 	if n.Colas {
-		fmt.Fprintf(&buf, " colas(%d)", n.Colas)
+		fmt.Fprintf(&buf, " colas(%v)", n.Colas)
 	}
 
 	if n.Funcdepth != 0 {
