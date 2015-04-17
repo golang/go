@@ -1591,6 +1591,10 @@ func nodedump(n *Node, flag int) string {
 	return buf.String()
 }
 
+func (s *Sym) String() string {
+	return Sconv(s, 0)
+}
+
 // Fmt "%S": syms
 // Flags:  "%hS" suppresses qualifying with package
 func Sconv(s *Sym, flag int) string {
@@ -1614,6 +1618,10 @@ func Sconv(s *Sym, flag int) string {
 	flag = sf
 	fmtmode = sm
 	return str
+}
+
+func (t *Type) String() string {
+	return Tconv(t, 0)
 }
 
 // Fmt "%T": types.
@@ -1654,6 +1662,10 @@ func Tconv(t *Type, flag int) string {
 	return str
 }
 
+func (n *Node) String() string {
+	return Nconv(n, 0)
+}
+
 // Fmt '%N': Nodes.
 // Flags: 'l' suffix with "(type %T)" where possible
 //	  '+h' in debug mode, don't recurse, no multiline output
@@ -1683,6 +1695,10 @@ func Nconv(n *Node, flag int) string {
 	flag = sf
 	fmtmode = sm
 	return str
+}
+
+func (l *NodeList) String() string {
+	return Hconv(l, 0)
 }
 
 // Fmt '%H': NodeList.
