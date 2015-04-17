@@ -150,6 +150,9 @@ func TestDialError(t *testing.T) {
 			c.Close()
 			continue
 		}
+		if c != nil {
+			t.Errorf("Dial returned non-nil interface %T(%v) with err != nil", c, c)
+		}
 		if err = parseDialError(err); err != nil {
 			t.Errorf("#%d: %v", i, err)
 			continue
@@ -166,6 +169,11 @@ var listenErrorTests = []struct {
 	{"tcp", "127.0.0.1:☺"},
 	{"tcp", "no-such-name:80"},
 	{"tcp", "mh/astro/r70:http"},
+
+	{"tcp", "127.0.0.1:0"},
+
+	{"unix", "/path/to/somewhere"},
+	{"unixpacket", "/path/to/somewhere"},
 }
 
 func TestListenError(t *testing.T) {
@@ -190,6 +198,49 @@ func TestListenError(t *testing.T) {
 			t.Errorf("#%d: should fail; %s:%s->", i, tt.network, ln.Addr())
 			ln.Close()
 			continue
+		}
+		if ln != nil {
+			t.Errorf("Listen returned non-nil interface %T(%v) with err != nil", ln, ln)
+		}
+		if err = parseDialError(err); err != nil {
+			t.Errorf("#%d: %v", i, err)
+			continue
+		}
+	}
+}
+
+var listenPacketErrorTests = []struct {
+	network, address string
+}{
+	{"foo", ""},
+	{"bar", "baz"},
+	{"datakit", "mh/astro/r70"},
+	{"udp", "127.0.0.1:☺"},
+	{"udp", "no-such-name:80"},
+	{"udp", "mh/astro/r70:http"},
+}
+
+func TestListenPacketError(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("%s does not have full support of socktest", runtime.GOOS)
+	}
+
+	origTestHookLookupIP := testHookLookupIP
+	defer func() { testHookLookupIP = origTestHookLookupIP }()
+	testHookLookupIP = func(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, error) {
+		return nil, &DNSError{Err: "listen error test", Name: "name", Server: "server", IsTimeout: true}
+	}
+
+	for i, tt := range listenPacketErrorTests {
+		c, err := ListenPacket(tt.network, tt.address)
+		if err == nil {
+			t.Errorf("#%d: should fail; %s:%s->", i, tt.network, c.LocalAddr())
+			c.Close()
+			continue
+		}
+		if c != nil {
+			t.Errorf("ListenPacket returned non-nil interface %T(%v) with err != nil", c, c)
 		}
 		if err = parseDialError(err); err != nil {
 			t.Errorf("#%d: %v", i, err)
