@@ -84,7 +84,7 @@ second:
 		return nil
 	}
 	switch err := nestedErr.(type) {
-	case *AddrError, *DNSError, InvalidAddrError, *ParseError, UnknownNetworkError, *timeoutError:
+	case *AddrError, addrinfoErrno, *DNSError, InvalidAddrError, *ParseError, *timeoutError, UnknownNetworkError:
 		return nil
 	case *DNSConfigError:
 		nestedErr = err.Err
