@@ -275,6 +275,9 @@ func (t *tester) registerTests() {
 		if t.buildmode("c-archive") {
 			t.registerTest("testcarchive", "../misc/cgo/testcarchive", "./test.bash")
 		}
+		if t.buildmode("c-shared") {
+			t.registerTest("testcshared", "../misc/cgo/testcshared", "./test.bash")
+		}
 		if t.gohostos == "linux" && t.goarch == "amd64" {
 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
 		}
@@ -383,6 +386,9 @@ func (t *tester) buildmode(mode string) bool {
 		default:
 			return false
 		}
+	case "c-shared":
+		// TODO(hyangah): add linux/386.
+		return t.goos == "linux" && t.goarch == "amd64"
 	default:
 		log.Fatal("internal error: unknown buildmode %s", mode)
 		return false
