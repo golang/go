@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -108,9 +109,10 @@ The generator is run in the package's source directory.
 Go generate accepts one specific flag:
 
 	-run=""
-		TODO: This flag is unimplemented.
-		if non-empty, specifies a regular expression to
-		select directives whose command matches the expression.
+		if non-empty, specifies a regular expression to select
+		directives whose full original source text (excluding
+		any trailing spaces and final newline) matches the
+		expression.
 
 It also accepts the standard build flags -v, -n, and -x.
 The -v flag prints the names of packages and files as they are
@@ -122,7 +124,10 @@ For more about specifying packages, see 'go help packages'.
 	`,
 }
 
-var generateRunFlag string // generate -run flag
+var (
+	generateRunFlag string         // generate -run flag
+	generateRunRE   *regexp.Regexp // compiled expression for -run
+)
 
 func init() {
 	addBuildFlags(cmdGenerate)
@@ -130,6 +135,13 @@ func init() {
 }
 
 func runGenerate(cmd *Command, args []string) {
+	if generateRunFlag != "" {
+		var err error
+		generateRunRE, err = regexp.Compile(generateRunFlag)
+		if err != nil {
+			log.Fatalf("generate: %s", err)
+		}
+	}
 	// Even if the arguments are .go files, this loop suffices.
 	for _, pkg := range packages(args) {
 		for _, file := range pkg.gofiles {
@@ -222,6 +234,11 @@ func (g *Generator) run() (ok bool) {
 
 		if !isGoGenerate(buf) {
 			continue
+		}
+		if generateRunFlag != "" {
+			if !generateRunRE.Match(bytes.TrimSpace(buf)) {
+				continue
+			}
 		}
 
 		words := g.split(string(buf))

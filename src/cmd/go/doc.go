@@ -322,9 +322,10 @@ The generator is run in the package's source directory.
 Go generate accepts one specific flag:
 
 	-run=""
-		TODO: This flag is unimplemented.
-		if non-empty, specifies a regular expression to
-		select directives whose command matches the expression.
+		if non-empty, specifies a regular expression to select
+		directives whose full original source text (excluding
+		any trailing spaces and final newline) matches the
+		expression.
 
 It also accepts the standard build flags -v, -n, and -x.
 The -v flag prints the names of packages and files as they are
