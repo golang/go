@@ -36,7 +36,11 @@ func (c *TCPConn) CloseRead() error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return c.fd.closeRead()
+	err := c.fd.closeRead()
+	if err != nil {
+		err = &OpError{Op: "close", Net: c.fd.net, Addr: c.fd.raddr, Err: err}
+	}
+	return err
 }
 
 // CloseWrite shuts down the writing side of the TCP connection.
@@ -45,7 +49,11 @@ func (c *TCPConn) CloseWrite() error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return c.fd.closeWrite()
+	err := c.fd.closeWrite()
+	if err != nil {
+		err = &OpError{Op: "close", Net: c.fd.net, Addr: c.fd.raddr, Err: err}
+	}
+	return err
 }
 
 // SetLinger sets the behavior of Close on a connection which still
@@ -155,9 +163,13 @@ func (l *TCPListener) Close() error {
 	}
 	if _, err := l.fd.ctl.WriteString("hangup"); err != nil {
 		l.fd.ctl.Close()
-		return &OpError{"close", l.fd.ctl.Name(), l.fd.laddr, err}
+		return &OpError{Op: "close", Net: l.fd.net, Addr: l.fd.laddr, Err: err}
 	}
-	return l.fd.ctl.Close()
+	err := l.fd.ctl.Close()
+	if err != nil {
+		err = &OpError{Op: "close", Net: l.fd.net, Addr: l.fd.laddr, Err: err}
+	}
+	return err
 }
 
 // Addr returns the listener's network address, a *TCPAddr.

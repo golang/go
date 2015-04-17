@@ -65,13 +65,13 @@ func (c *UnixConn) WriteMsgUnix(b, oob []byte, addr *UnixAddr) (n, oobn int, err
 // CloseRead shuts down the reading side of the Unix domain connection.
 // Most callers should just use Close.
 func (c *UnixConn) CloseRead() error {
-	return syscall.EPLAN9
+	return &OpError{Op: "close", Net: c.fd.net, Addr: c.fd.raddr, Err: syscall.EPLAN9}
 }
 
 // CloseWrite shuts down the writing side of the Unix domain connection.
 // Most callers should just use Close.
 func (c *UnixConn) CloseWrite() error {
-	return syscall.EPLAN9
+	return &OpError{Op: "close", Net: c.fd.net, Addr: c.fd.raddr, Err: syscall.EPLAN9}
 }
 
 // DialUnix connects to the remote address raddr on the network net,
@@ -111,7 +111,7 @@ func (l *UnixListener) Accept() (Conn, error) {
 // Close stops listening on the Unix address.  Already accepted
 // connections are not closed.
 func (l *UnixListener) Close() error {
-	return syscall.EPLAN9
+	return &OpError{Op: "close", Net: "<nil>", Addr: nil, Err: syscall.EPLAN9}
 }
 
 // Addr returns the listener's network address.

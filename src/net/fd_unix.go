@@ -205,11 +205,7 @@ func (fd *netFD) shutdown(how int) error {
 		return err
 	}
 	defer fd.decref()
-	err := syscall.Shutdown(fd.sysfd, how)
-	if err != nil {
-		return &OpError{"shutdown", fd.net, fd.laddr, err}
-	}
-	return nil
+	return syscall.Shutdown(fd.sysfd, how)
 }
 
 func (fd *netFD) closeRead() error {
