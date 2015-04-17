@@ -81,15 +81,27 @@ func TestAcceptTimeout(t *testing.T) {
 	if _, err := ln.Accept(); !isTimeoutError(err) {
 		t.Fatalf("Accept: expected err %v, got %v", errTimeout, err)
 	}
+	if perr := parseAcceptError(err); perr != nil {
+		t.Error(perr)
+	}
 	if _, err := ln.Accept(); !isTimeoutError(err) {
 		t.Fatalf("Accept: expected err %v, got %v", errTimeout, err)
+	}
+	if perr := parseAcceptError(err); perr != nil {
+		t.Error(perr)
 	}
 	ln.(*TCPListener).SetDeadline(time.Now().Add(100 * time.Millisecond))
 	if _, err := ln.Accept(); !isTimeoutError(err) {
 		t.Fatalf("Accept: expected err %v, got %v", errTimeout, err)
 	}
+	if perr := parseAcceptError(err); perr != nil {
+		t.Error(perr)
+	}
 	if _, err := ln.Accept(); !isTimeoutError(err) {
 		t.Fatalf("Accept: expected err %v, got %v", errTimeout, err)
+	}
+	if perr := parseAcceptError(err); perr != nil {
+		t.Error(perr)
 	}
 	ln.(*TCPListener).SetDeadline(noDeadline)
 	errc := make(chan error)
@@ -104,15 +116,9 @@ func TestAcceptTimeout(t *testing.T) {
 	default:
 	}
 	ln.Close()
-	switch nerr := <-errc; err := nerr.(type) {
-	case *OpError:
-		if err.Err != errClosing {
-			t.Fatalf("Accept: expected err %v, got %v", errClosing, err)
-		}
-	default:
-		if err != errClosing {
-			t.Fatalf("Accept: expected err %v, got %v", errClosing, err)
-		}
+	err = <-errc
+	if perr := parseAcceptError(err); perr != nil {
+		t.Error(perr)
 	}
 }
 
@@ -356,18 +362,18 @@ func TestDeadlineReset(t *testing.T) {
 	}
 }
 
-func TestTimeoutAccept(t *testing.T) {
+func TestConcurrentAcceptTimeout(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
 		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
-	ln, err := Listen("tcp", "127.0.0.1:0")
+
+	ln, err := newLocalListener("tcp")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer ln.Close()
-	tl := ln.(*TCPListener)
-	tl.SetDeadline(time.Now().Add(100 * time.Millisecond))
+	ln.(*TCPListener).SetDeadline(time.Now().Add(100 * time.Millisecond))
 	errc := make(chan error, 1)
 	go func() {
 		_, err := ln.Accept()
@@ -376,9 +382,11 @@ func TestTimeoutAccept(t *testing.T) {
 	select {
 	case <-time.After(1 * time.Second):
 		// Accept shouldn't block indefinitely
-		t.Errorf("Accept didn't return in an expected time")
-	case <-errc:
-		// Pass.
+		t.Error("Accept didn't return in an expected time")
+	case err := <-errc:
+		if perr := parseAcceptError(err); perr != nil {
+			t.Error(perr)
+		}
 	}
 }
 

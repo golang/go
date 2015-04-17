@@ -377,7 +377,7 @@ func (fd *netFD) accept() (netfd *netFD, err error) {
 	var s int
 	var rsa syscall.Sockaddr
 	if err = fd.pd.PrepareRead(); err != nil {
-		return nil, &OpError{"accept", fd.net, fd.laddr, err}
+		return nil, err
 	}
 	for {
 		s, rsa, err = accept(fd.sysfd)
@@ -391,7 +391,7 @@ func (fd *netFD) accept() (netfd *netFD, err error) {
 				// before we Accept()ed it; it's a silly error, so try again.
 				continue
 			}
-			return nil, &OpError{"accept", fd.net, fd.laddr, err}
+			return nil, err
 		}
 		break
 	}

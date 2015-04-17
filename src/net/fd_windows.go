@@ -522,14 +522,14 @@ func (fd *netFD) acceptOne(rawsa []syscall.RawSockaddrAny, o *operation) (*netFD
 	// Get new socket.
 	s, err := sysSocket(fd.family, fd.sotype, 0)
 	if err != nil {
-		return nil, &OpError{"socket", fd.net, fd.laddr, err}
+		return nil, err
 	}
 
 	// Associate our new socket with IOCP.
 	netfd, err := newFD(s, fd.family, fd.sotype, fd.net)
 	if err != nil {
 		closeFunc(s)
-		return nil, &OpError{"accept", fd.net, fd.laddr, err}
+		return nil, err
 	}
 	if err := netfd.init(); err != nil {
 		fd.Close()
@@ -551,7 +551,7 @@ func (fd *netFD) acceptOne(rawsa []syscall.RawSockaddrAny, o *operation) (*netFD
 	err = syscall.Setsockopt(s, syscall.SOL_SOCKET, syscall.SO_UPDATE_ACCEPT_CONTEXT, (*byte)(unsafe.Pointer(&fd.sysfd)), int32(unsafe.Sizeof(fd.sysfd)))
 	if err != nil {
 		netfd.Close()
-		return nil, &OpError{"Setsockopt", fd.net, fd.laddr, err}
+		return nil, err
 	}
 
 	return netfd, nil
@@ -577,11 +577,7 @@ func (fd *netFD) accept() (*netFD, error) {
 		// before AcceptEx could complete. These errors relate to new
 		// connection, not to AcceptEx, so ignore broken connection and
 		// try AcceptEx again for more connections.
-		operr, ok := err.(*OpError)
-		if !ok {
-			return nil, err
-		}
-		errno, ok := operr.Err.(syscall.Errno)
+		errno, ok := err.(syscall.Errno)
 		if !ok {
 			return nil, err
 		}
