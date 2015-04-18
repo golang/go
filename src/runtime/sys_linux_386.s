@@ -291,18 +291,18 @@ TEXT runtime·futex(SB),NOSPLIT,$0
 // int32 clone(int32 flags, void *stack, M *mp, G *gp, void (*fn)(void));
 TEXT runtime·clone(SB),NOSPLIT,$0
 	MOVL	$120, AX	// clone
-	MOVL	flags+4(SP), BX
-	MOVL	stack+8(SP), CX
+	MOVL	flags+0(FP), BX
+	MOVL	stack+4(FP), CX
 	MOVL	$0, DX	// parent tid ptr
 	MOVL	$0, DI	// child tid ptr
 
 	// Copy mp, gp, fn off parent stack for use by child.
 	SUBL	$16, CX
-	MOVL	mm+12(SP), SI
+	MOVL	mm+8(FP), SI
 	MOVL	SI, 0(CX)
-	MOVL	gg+16(SP), SI
+	MOVL	gg+12(FP), SI
 	MOVL	SI, 4(CX)
-	MOVL	fn+20(SP), SI
+	MOVL	fn+16(FP), SI
 	MOVL	SI, 8(CX)
 	MOVL	$1234, 12(CX)
 
@@ -319,7 +319,7 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	RET
 
 	// Paranoia: check that SP is as we expect.
-	MOVL	mm+8(FP), BP
+	MOVL	12(SP), BP
 	CMPL	BP, $1234
 	JEQ	2(PC)
 	INT	$3
@@ -328,10 +328,14 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	MOVL	$224, AX
 	CALL	*runtime·_vdso(SB)
 
-	// In child on new stack.  Reload registers (paranoia).
-	MOVL	0(SP), BX	// m
-	MOVL	flags+0(FP), DX	// g
-	MOVL	stk+4(FP), SI	// fn
+	MOVL	0(SP), BX	    // m
+	MOVL	4(SP), DX	    // g
+	MOVL	8(SP), SI	    // fn
+
+	CMPL	BX, $0
+	JEQ	nog
+	CMPL	DX, $0
+	JEQ	nog
 
 	MOVL	AX, m_procid(BX)	// save tid as m->procid
 
@@ -365,15 +369,10 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	CALL	runtime·emptyfunc(SB)
 	POPAL
 
+nog:
 	CALL	SI	// fn()
 	CALL	runtime·exit1(SB)
 	MOVL	$0x1234, 0x1005
-
-// int32 clone0(int32 flags, void *stack, void* fn, void* fnarg);
-TEXT runtime·clone0(SB),NOSPLIT,$0
-	// TODO(spetrovic): Implement this method.
-	MOVL	$-1, ret+16(FP)
-	RET
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVL	$186, AX	// sigaltstack

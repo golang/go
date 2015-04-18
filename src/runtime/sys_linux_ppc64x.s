@@ -323,9 +323,14 @@ TEXT runtime·clone(SB),NOSPLIT,$-8
 	// Initialize m->procid to Linux tid
 	SYSCALL $SYS_gettid
 
-	MOVD	-24(R1), R12
-	MOVD	-16(R1), R8
-	MOVD	-8(R1), R7
+	MOVD	-24(R1), R12       // fn
+	MOVD	-16(R1), R8        // g
+	MOVD	-8(R1), R7         // m
+
+	CMP	R7, $0
+	BEQ	nog
+	CMP	R8, $0
+	BEQ	nog
 
 	MOVD	R3, m_procid(R7)
 
@@ -336,6 +341,7 @@ TEXT runtime·clone(SB),NOSPLIT,$-8
 	MOVD	R8, g
 	//CALL	runtime·stackcheck(SB)
 
+nog:
 	// Call fn
 	MOVD	R12, CTR
 	BL	(CTR)
@@ -344,13 +350,6 @@ TEXT runtime·clone(SB),NOSPLIT,$-8
 	MOVW	$111, R3
 	SYSCALL $SYS_exit_group
 	BR	-2(PC)	// keep exiting
-
-// int32 clone0(int32 flags, void *stack, void* fn, void* fnarg);
-TEXT runtime·clone0(SB),NOSPLIT,$0
-	// TODO(spetrovic): Implement this method.
-	MOVW	$-1, R3
-	MOVW	R3, ret+32(FP)
-	RETURN
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVD	new+0(FP), R3

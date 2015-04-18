@@ -13,9 +13,6 @@ func futex(addr unsafe.Pointer, op int32, val uint32, ts, addr2 unsafe.Pointer, 
 func clone(flags int32, stk, mm, gg, fn unsafe.Pointer) int32
 
 //go:noescape
-func clone0(flags int32, stk, fn, fnarg unsafe.Pointer) int32
-
-//go:noescape
 func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32
 
 //go:noescape

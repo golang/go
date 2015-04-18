@@ -12,15 +12,15 @@ TEXT _rt0_arm_linux(SB),NOSPLIT,$-4
 
 // When building with -buildmode=c-shared, this symbol is called when the shared
 // library is loaded.
-TEXT _rt0_arm_linux_lib(SB),NOSPLIT,$40
+TEXT _rt0_arm_linux_lib(SB),NOSPLIT,$32
 	// Preserve callee-save registers.  Raspberry Pi's dlopen(), for example,
 	// actually cares that R11 is preserved.
-	MOVW	R4, 16(R13)
-	MOVW	R5, 20(R13)
-	MOVW	R6, 24(R13)
-	MOVW	R7, 28(R13)
-	MOVW	R8, 32(R13)
-	MOVW	R11, 36(R13)
+	MOVW	R4, 12(R13)
+	MOVW	R5, 16(R13)
+	MOVW	R6, 20(R13)
+	MOVW	R7, 24(R13)
+	MOVW	R8, 28(R13)
+	MOVW	R11, 32(R13)
 
 	// Save argc/argv.
 	MOVW	R0, _rt0_arm_linux_lib_argc<>(SB)
@@ -37,19 +37,17 @@ TEXT _rt0_arm_linux_lib(SB),NOSPLIT,$40
 nocgo:
 	MOVW	$0x800000, R0                     // stacksize = 8192KB
 	MOVW	$_rt0_arm_linux_lib_go<>(SB), R1  // fn
-	MOVW	$0, R2                            // fnarg
 	MOVW	R0, 4(R13)
 	MOVW	R1, 8(R13)
-	MOVW	R2, 12(R13)
 	BL	runtime·newosproc0(SB)
 rr:
 	// Restore callee-save registers and return.
-	MOVW	16(R13), R4
-	MOVW	20(R13), R5
-	MOVW	24(R13), R6
-	MOVW	28(R13), R7
-	MOVW	32(R13), R8
-	MOVW	36(R13), R11
+	MOVW	12(R13), R4
+	MOVW	16(R13), R5
+	MOVW	20(R13), R6
+	MOVW	24(R13), R7
+	MOVW	28(R13), R8
+	MOVW	32(R13), R11
 	RET
 
 TEXT _rt0_arm_linux_lib_go<>(SB),NOSPLIT,$8
