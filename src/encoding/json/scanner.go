@@ -38,8 +38,15 @@ func nextValue(data []byte, scan *scanner) (value, rest []byte, err error) {
 	scan.reset()
 	for i, c := range data {
 		v := scan.step(scan, int(c))
-		if v >= scanEnd {
+		if v >= scanEndObject {
 			switch v {
+			// probe the scanner with a space to determine whether we will
+			// get scanEnd on the next character. Otherwise, if the next character
+			// is not a space, scanEndTop allocates a needless error.
+			case scanEndObject, scanEndArray:
+				if scan.step(scan, ' ') == scanEnd {
+					return data[:i+1], data[i+1:], nil
+				}
 			case scanError:
 				return nil, nil, scan.err
 			case scanEnd:
