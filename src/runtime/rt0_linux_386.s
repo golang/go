@@ -42,7 +42,6 @@ nocgo:
 	MOVL	$0x800000, 0(SP)                    // stacksize = 8192KB
 	MOVL	$_rt0_386_linux_lib_go(SB), AX
 	MOVL	AX, 4(SP)                           // fn
-	MOVL	$0, 8(SP)                           // fnarg
 	MOVL	$runtime·newosproc0(SB), AX
 	CALL	AX
 

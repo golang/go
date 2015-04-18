@@ -333,14 +333,19 @@ child:
 	MOVD	$0, R0
 	MOVD	R0, (R0)	// crash
 
-	// Initialize m->procid to Linux tid
 good:
+	// Initialize m->procid to Linux tid
 	MOVD	$SYS_gettid, R8
 	SVC
 
-	MOVD	-24(RSP), R12
-	MOVD	-16(RSP), R11
-	MOVD	-8(RSP), R10
+	MOVD	-24(RSP), R12     // fn
+	MOVD	-16(RSP), R11     // g
+	MOVD	-8(RSP), R10      // m
+
+	CMP	$0, R10
+	BEQ	nog
+	CMP	$0, R11
+	BEQ	nog
 
 	MOVD	R0, m_procid(R10)
 
@@ -351,6 +356,7 @@ good:
 	MOVD	R11, g
 	//CALL	runtime·stackcheck(SB)
 
+nog:
 	// Call fn
 	MOVD	R12, R0
 	BL	(R0)
@@ -361,13 +367,6 @@ again:
 	MOVD	$SYS_exit_group, R8
 	SVC
 	B	again	// keep exiting
-
-// int32 clone0(int32 flags, void *stack, void* fn, void* fnarg);
-TEXT runtime·clone0(SB),NOSPLIT,$0
-	// TODO(spetrovic): Implement this method.
-	MOVW	$-1, R0
-	MOVW	R0, ret+32(FP)
-	RET
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVD	new+0(FP), R0

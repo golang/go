@@ -302,14 +302,16 @@ TEXT runtime·futex(SB),NOSPLIT,$0
 
 // int32 clone(int32 flags, void *stack, M *mp, G *gp, void (*fn)(void));
 TEXT runtime·clone(SB),NOSPLIT,$0
-	MOVL	flags+8(SP), DI
-	MOVQ	stack+16(SP), SI
+	MOVL	flags+0(FP), DI
+	MOVQ	stack+8(FP), SI
+	MOVQ	$0, DX
+	MOVQ	$0, R10
 
 	// Copy mp, gp, fn off parent stack for use by child.
 	// Careful: Linux system call clobbers CX and R11.
-	MOVQ	mm+24(SP), R8
-	MOVQ	gg+32(SP), R9
-	MOVQ	fn+40(SP), R12
+	MOVQ	mp+16(FP), R8
+	MOVQ	gp+24(FP), R9
+	MOVQ	fn+32(FP), R12
 
 	MOVL	$56, AX
 	SYSCALL
@@ -322,6 +324,12 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 
 	// In child, on new stack.
 	MOVQ	SI, SP
+
+	// If g or m are nil, skip Go-related setup.
+	CMPQ	R8, $0    // m
+	JEQ	nog
+	CMPQ	R9, $0    // g
+	JEQ	nog
 
 	// Initialize m->procid to Linux tid
 	MOVL	$186, AX	// gettid
@@ -338,38 +346,11 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	MOVQ	R9, g(CX)
 	CALL	runtime·stackcheck(SB)
 
+nog:
 	// Call fn
 	CALL	R12
 
 	// It shouldn't return.  If it does, exit
-	MOVL	$111, DI
-	MOVL	$60, AX
-	SYSCALL
-	JMP	-3(PC)	// keep exiting
-
-// int32 clone0(int32 flags, void *stack, void* fn, void* fnarg);
-TEXT runtime·clone0(SB),NOSPLIT,$16-36
-	MOVL	flags+0(FP), DI
-	MOVQ	stack+8(FP), SI
-	MOVQ	fn+16(FP), R12      // used by the child
-	MOVQ	fnarg+24(FP), R13   // used by the child
-	MOVL	$0, DX
-	MOVL	$0, R10
-	MOVL	$56, AX
-	SYSCALL
-
-	CMPQ	AX, $0
-	JEQ	child
-	// In parent, return.
-	MOVL	AX, ret+32(FP)
-	RET
-child:
-	MOVQ	SI, SP
-	MOVQ	R12, AX  // fn
-	MOVQ	R13, DI  // fnarg
-	CALL	AX
-
-	// fn shouldn't return; if it does, exit.
 	MOVL	$111, DI
 	MOVL	$60, AX
 	SYSCALL

@@ -22,6 +22,8 @@ var Entersyscall = entersyscall
 var Exitsyscall = exitsyscall
 var LockedOSThread = lockedOSThread
 
+var FuncPC = funcPC
+
 type LFNode struct {
 	Next    uint64
 	Pushcnt uintptr
