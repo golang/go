@@ -187,3 +187,14 @@ func BenchmarkUnmarshalInt64(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkIssue10335(b *testing.B) {
+	b.ReportAllocs()
+	var s struct{}
+	j := []byte(`{"a":{ }}`)
+	for n := 0; n < b.N; n++ {
+		if err := Unmarshal(j, &s); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
