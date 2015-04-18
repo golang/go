@@ -290,7 +290,13 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
 // The returned os.File's file descriptor is different from the
 // connection's.  Attempting to change properties of the original
 // using this duplicate may or may not have the desired effect.
-func (l *TCPListener) File() (f *os.File, err error) { return l.fd.dup() }
+func (l *TCPListener) File() (f *os.File, err error) {
+	f, err = l.fd.dup()
+	if err != nil {
+		err = &OpError{Op: "file", Net: l.fd.net, Addr: l.fd.laddr, Err: err}
+	}
+	return
+}
 
 // ListenTCP announces on the TCP address laddr and returns a TCP
 // listener.  Net must be "tcp", "tcp4", or "tcp6".  If laddr has a

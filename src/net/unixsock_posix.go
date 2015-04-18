@@ -370,7 +370,13 @@ func (l *UnixListener) SetDeadline(t time.Time) (err error) {
 // The returned os.File's file descriptor is different from the
 // connection's.  Attempting to change properties of the original
 // using this duplicate may or may not have the desired effect.
-func (l *UnixListener) File() (f *os.File, err error) { return l.fd.dup() }
+func (l *UnixListener) File() (f *os.File, err error) {
+	f, err = l.fd.dup()
+	if err != nil {
+		err = &OpError{Op: "file", Net: l.fd.net, Addr: l.fd.laddr, Err: err}
+	}
+	return
+}
 
 // ListenUnixgram listens for incoming Unix datagram packets addressed
 // to the local address laddr.  The network net must be "unixgram".

@@ -459,7 +459,7 @@ func dupCloseOnExecOld(fd int) (newfd int, err error) {
 func (fd *netFD) dup() (f *os.File, err error) {
 	ns, err := dupCloseOnExec(fd.sysfd)
 	if err != nil {
-		return nil, &OpError{"dup", fd.net, fd.laddr, err}
+		return nil, err
 	}
 
 	// We want blocking mode for the new fd, hence the double negative.
@@ -467,7 +467,7 @@ func (fd *netFD) dup() (f *os.File, err error) {
 	// I/O will block the thread instead of letting us use the epoll server.
 	// Everything will still work, just with more threads.
 	if err = syscall.SetNonblock(ns, false); err != nil {
-		return nil, &OpError{"setnonblock", fd.net, fd.laddr, err}
+		return nil, err
 	}
 
 	return os.NewFile(uintptr(ns), fd.name()), nil

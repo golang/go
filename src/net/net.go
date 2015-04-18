@@ -236,7 +236,13 @@ func (c *conn) SetWriteBuffer(bytes int) error {
 // The returned os.File's file descriptor is different from the connection's.
 // Attempting to change properties of the original using this duplicate
 // may or may not have the desired effect.
-func (c *conn) File() (f *os.File, err error) { return c.fd.dup() }
+func (c *conn) File() (f *os.File, err error) {
+	f, err = c.fd.dup()
+	if err != nil {
+		err = &OpError{Op: "file", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
+	}
+	return
+}
 
 // An Error represents a network error.
 type Error interface {
