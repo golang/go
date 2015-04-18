@@ -33,6 +33,7 @@ type Package struct {
 	PtrSize     int64
 	IntSize     int64
 	GccOptions  []string
+	GccIsClang  bool
 	CgoFlags    map[string][]string // #cgo flags (CFLAGS, LDFLAGS)
 	Written     map[string]bool
 	Name        map[string]*Name // accumulated Name from Files
