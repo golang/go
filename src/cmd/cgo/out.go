@@ -626,7 +626,7 @@ func (p *Package) writeGccgoOutputFunc(fgcc *os.File, n *Name) {
 // and http://golang.org/issue/5603.
 func (p *Package) packedAttribute() string {
 	s := "__attribute__((__packed__"
-	if !strings.Contains(p.gccBaseCmd()[0], "clang") && (goarch == "amd64" || goarch == "386") {
+	if !p.GccIsClang && (goarch == "amd64" || goarch == "386") {
 		s += ", __gcc_struct__"
 	}
 	return s + "))"
