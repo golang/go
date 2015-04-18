@@ -202,7 +202,7 @@ func (fd *netFD) file(f *os.File, s string) (*os.File, error) {
 	dfd, err := syscall.Dup(int(f.Fd()), -1)
 	syscall.ForkLock.RUnlock()
 	if err != nil {
-		return nil, &OpError{"dup", s, fd.laddr, err}
+		return nil, err
 	}
 	return os.NewFile(uintptr(dfd), s), nil
 }

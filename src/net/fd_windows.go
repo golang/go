@@ -605,7 +605,7 @@ func (fd *netFD) accept() (*netFD, error) {
 
 func (fd *netFD) dup() (*os.File, error) {
 	// TODO: Implement this
-	return nil, os.NewSyscallError("dup", syscall.EWINDOWS)
+	return nil, syscall.EWINDOWS
 }
 
 func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {

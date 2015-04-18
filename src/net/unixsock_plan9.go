@@ -133,7 +133,7 @@ func (l *UnixListener) SetDeadline(t time.Time) error {
 // connection's.  Attempting to change properties of the original
 // using this duplicate may or may not have the desired effect.
 func (l *UnixListener) File() (*os.File, error) {
-	return nil, syscall.EPLAN9
+	return nil, &OpError{Op: "file", Net: "<nil>", Addr: nil, Err: syscall.EPLAN9}
 }
 
 // ListenUnixgram listens for incoming Unix datagram packets addressed

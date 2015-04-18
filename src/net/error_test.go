@@ -7,6 +7,7 @@ package net
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/internal/socktest"
 	"os"
 	"runtime"
@@ -54,6 +55,10 @@ func (e *OpError) isValid() error {
 		}
 	case *pipeAddr:
 		if addr == nil {
+			return fmt.Errorf("OpError.Addr is empty: %v", e)
+		}
+	case fileAddr:
+		if addr == "" {
 			return fmt.Errorf("OpError.Addr is empty: %v", e)
 		}
 	}
@@ -502,4 +507,113 @@ func TestAcceptError(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 	ls.teardown()
+}
+
+// parseCommonError parses nestedErr and reports whether it is a valid
+// error value from miscellaneous functions.
+// It returns nil when nestedErr is valid.
+func parseCommonError(nestedErr error) error {
+	if nestedErr == nil {
+		return nil
+	}
+
+	switch err := nestedErr.(type) {
+	case *OpError:
+		if err := err.isValid(); err != nil {
+			return err
+		}
+		nestedErr = err.Err
+		goto second
+	}
+	return fmt.Errorf("unexpected type on 1st nested level: %T", nestedErr)
+
+second:
+	if isPlatformError(nestedErr) {
+		return nil
+	}
+	switch err := nestedErr.(type) {
+	case *os.SyscallError:
+		nestedErr = err.Err
+		goto third
+	case *os.LinkError:
+		nestedErr = err.Err
+		goto third
+	case *os.PathError:
+		nestedErr = err.Err
+		goto third
+	}
+	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
+
+third:
+	if isPlatformError(nestedErr) {
+		return nil
+	}
+	return fmt.Errorf("unexpected type on 3rd nested level: %T", nestedErr)
+}
+
+func TestFileError(t *testing.T) {
+	switch runtime.GOOS {
+	case "windows":
+		t.Skip("not supported on %s", runtime.GOOS)
+	}
+
+	f, err := ioutil.TempFile("", "nettest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	c, err := FileConn(f)
+	if err != nil {
+		if c != nil {
+			t.Errorf("FileConn returned non-nil interface %T(%v) with err != nil", c, c)
+		}
+		if perr := parseCommonError(err); perr != nil {
+			t.Error(perr)
+		}
+	} else {
+		c.Close()
+		t.Error("should fail")
+	}
+	ln, err := FileListener(f)
+	if err != nil {
+		if ln != nil {
+			t.Errorf("FileListener returned non-nil interface %T(%v) with err != nil", ln, ln)
+		}
+		if perr := parseCommonError(err); perr != nil {
+			t.Error(perr)
+		}
+	} else {
+		ln.Close()
+		t.Error("should fail")
+	}
+	pc, err := FilePacketConn(f)
+	if err != nil {
+		if pc != nil {
+			t.Errorf("FilePacketConn returned non-nil interface %T(%v) with err != nil", pc, pc)
+		}
+		if perr := parseCommonError(err); perr != nil {
+			t.Error(perr)
+		}
+	} else {
+		pc.Close()
+		t.Error("should fail")
+	}
+
+	ln, err = newLocalListener("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i := 0; i < 3; i++ {
+		f, err := ln.(*TCPListener).File()
+		if err != nil {
+			if perr := parseCommonError(err); perr != nil {
+				t.Error(perr)
+			}
+		} else {
+			f.Close()
+		}
+		ln.Close()
+	}
 }
