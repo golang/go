@@ -15,6 +15,7 @@ import (
 	"compress/gzip"
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -124,6 +125,28 @@ func BenchmarkCodeDecoder(b *testing.B) {
 		}
 	}
 	b.SetBytes(int64(len(codeJSON)))
+}
+
+func BenchmarkDecoderStream(b *testing.B) {
+	b.StopTimer()
+	var buf bytes.Buffer
+	dec := NewDecoder(&buf)
+	buf.WriteString(`"` + strings.Repeat("x", 1000000) + `"` + "\n\n\n")
+	var x interface{}
+	if err := dec.Decode(&x); err != nil {
+		b.Fatal("Decode:", err)
+	}
+	ones := strings.Repeat(" 1\n", 300000) + "\n\n\n"
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		if i%300000 == 0 {
+			buf.WriteString(ones)
+		}
+		x = nil
+		if err := dec.Decode(&x); err != nil || x != 1.0 {
+			b.Fatalf("Decode: %v after %d", err, i)
+		}
+	}
 }
 
 func BenchmarkCodeUnmarshal(b *testing.B) {
