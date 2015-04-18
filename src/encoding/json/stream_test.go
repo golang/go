@@ -6,6 +6,7 @@ package json
 
 import (
 	"bytes"
+	"io"
 	"io/ioutil"
 	"net"
 	"reflect"
@@ -203,4 +204,114 @@ func BenchmarkEncoderEncode(b *testing.B) {
 			b.Fatal(err)
 		}
 	}
+}
+
+type tokenStreamCase struct {
+	json      string
+	expTokens []interface{}
+}
+
+type decodeThis struct {
+	v interface{}
+}
+
+var tokenStreamCases []tokenStreamCase = []tokenStreamCase{
+	// streaming token cases
+	{json: `10`, expTokens: []interface{}{float64(10)}},
+	{json: ` [10] `, expTokens: []interface{}{
+		Delim('['), float64(10), Delim(']')}},
+	{json: ` [false,10,"b"] `, expTokens: []interface{}{
+		Delim('['), false, float64(10), "b", Delim(']')}},
+	{json: `{ "a": 1 }`, expTokens: []interface{}{
+		Delim('{'), "a", float64(1), Delim('}')}},
+	{json: `{"a": 1, "b":"3"}`, expTokens: []interface{}{
+		Delim('{'), "a", float64(1), "b", "3", Delim('}')}},
+	{json: ` [{"a": 1},{"a": 2}] `, expTokens: []interface{}{
+		Delim('['),
+		Delim('{'), "a", float64(1), Delim('}'),
+		Delim('{'), "a", float64(2), Delim('}'),
+		Delim(']')}},
+	{json: `{"obj": {"a": 1}}`, expTokens: []interface{}{
+		Delim('{'), "obj", Delim('{'), "a", float64(1), Delim('}'),
+		Delim('}')}},
+	{json: `{"obj": [{"a": 1}]}`, expTokens: []interface{}{
+		Delim('{'), "obj", Delim('['),
+		Delim('{'), "a", float64(1), Delim('}'),
+		Delim(']'), Delim('}')}},
+
+	// streaming tokens with intermittent Decode()
+	{json: `{ "a": 1 }`, expTokens: []interface{}{
+		Delim('{'), "a",
+		decodeThis{float64(1)},
+		Delim('}')}},
+	{json: ` [ { "a" : 1 } ] `, expTokens: []interface{}{
+		Delim('['),
+		decodeThis{map[string]interface{}{"a": float64(1)}},
+		Delim(']')}},
+	{json: ` [{"a": 1},{"a": 2}] `, expTokens: []interface{}{
+		Delim('['),
+		decodeThis{map[string]interface{}{"a": float64(1)}},
+		decodeThis{map[string]interface{}{"a": float64(2)}},
+		Delim(']')}},
+	{json: `{ "obj" : [ { "a" : 1 } ] }`, expTokens: []interface{}{
+		Delim('{'), "obj", Delim('['),
+		decodeThis{map[string]interface{}{"a": float64(1)}},
+		Delim(']'), Delim('}')}},
+
+	{json: `{"obj": {"a": 1}}`, expTokens: []interface{}{
+		Delim('{'), "obj",
+		decodeThis{map[string]interface{}{"a": float64(1)}},
+		Delim('}')}},
+	{json: `{"obj": [{"a": 1}]}`, expTokens: []interface{}{
+		Delim('{'), "obj",
+		decodeThis{[]interface{}{
+			map[string]interface{}{"a": float64(1)},
+		}},
+		Delim('}')}},
+	{json: ` [{"a": 1} {"a": 2}] `, expTokens: []interface{}{
+		Delim('['),
+		decodeThis{map[string]interface{}{"a": float64(1)}},
+		decodeThis{&SyntaxError{"expected comma after array element", 0}},
+	}},
+	{json: `{ "a" 1 }`, expTokens: []interface{}{
+		Delim('{'), "a",
+		decodeThis{&SyntaxError{"expected colon after object key", 0}},
+	}},
+}
+
+func TestDecodeInStream(t *testing.T) {
+
+	for ci, tcase := range tokenStreamCases {
+
+		dec := NewDecoder(strings.NewReader(tcase.json))
+		for i, etk := range tcase.expTokens {
+
+			var tk interface{}
+			var err error
+
+			if dt, ok := etk.(decodeThis); ok {
+				etk = dt.v
+				err = dec.Decode(&tk)
+			} else {
+				tk, err = dec.Token()
+			}
+			if experr, ok := etk.(error); ok {
+				if err == nil || err.Error() != experr.Error() {
+					t.Errorf("case %v: Expected error %v in %q, but was %v", ci, experr, tcase.json, err)
+				}
+				break
+			} else if err == io.EOF {
+				t.Errorf("case %v: Unexpected EOF in %q", ci, tcase.json)
+				break
+			} else if err != nil {
+				t.Errorf("case %v: Unexpected error '%v' in %q", ci, err, tcase.json)
+				break
+			}
+			if !reflect.DeepEqual(tk, etk) {
+				t.Errorf(`case %v: %q @ %v expected %T(%v) was %T(%v)`, ci, tcase.json, i, etk, etk, tk, tk)
+				break
+			}
+		}
+	}
+
 }
