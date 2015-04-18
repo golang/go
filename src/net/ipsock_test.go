@@ -226,7 +226,7 @@ func TestAddrList(t *testing.T) {
 		}
 		if tt.err != nil {
 			if len(addrs) != 0 {
-				t.Errorf("#%v: got %v; want 0", len(addrs))
+				t.Errorf("#%v: got %v; want 0", i, len(addrs))
 			}
 			continue
 		}
