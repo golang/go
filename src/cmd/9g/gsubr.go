@@ -638,31 +638,6 @@ func rawgins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 	return p
 }
 
-func fixlargeoffset(n *gc.Node) {
-	if n == nil {
-		return
-	}
-	if n.Op != gc.OINDREG {
-		return
-	}
-	if n.Reg == ppc64.REGSP { // stack offset cannot be large
-		return
-	}
-	if n.Xoffset != int64(int32(n.Xoffset)) {
-		// TODO(minux): offset too large, move into R31 and add to R31 instead.
-		// this is used only in test/fixedbugs/issue6036.go.
-		gc.Fatal("offset too large: %v", n)
-
-		a := gc.Node(*n)
-		a.Op = gc.OREGISTER
-		a.Type = gc.Types[gc.Tptr]
-		a.Xoffset = 0
-		gc.Cgen_checknil(&a)
-		ginscon(optoas(gc.OADD, gc.Types[gc.Tptr]), n.Xoffset, &a)
-		n.Xoffset = 0
-	}
-}
-
 /*
  * return Axxx for Oxxx on type t.
  */

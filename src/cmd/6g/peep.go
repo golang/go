@@ -329,7 +329,7 @@ func pushback(r0 *gc.Flow) {
 		if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 			fmt.Printf("no pushback: %v\n", r0.Prog)
 			if r != nil {
-				fmt.Printf("\t%v [%d]\n", r.Prog, gc.Uniqs(r) != nil)
+				fmt.Printf("\t%v [%v]\n", r.Prog, gc.Uniqs(r) != nil)
 			}
 		}
 

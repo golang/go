@@ -791,14 +791,14 @@ func Codeblk(addr int64, size int64) {
 		q = sym.P
 
 		for n >= 16 {
-			fmt.Fprintf(&Bso, "%.6x\t%%-20.16I\n", uint64(addr), q)
+			fmt.Fprintf(&Bso, "%.6x\t%-20.16I\n", uint64(addr), q)
 			addr += 16
 			q = q[16:]
 			n -= 16
 		}
 
 		if n > 0 {
-			fmt.Fprintf(&Bso, "%.6x\t%%-20.*I\n", uint64(addr), int(n), q)
+			fmt.Fprintf(&Bso, "%.6x\t%-20.*I\n", uint64(addr), int(n), q)
 		}
 		addr += n
 	}

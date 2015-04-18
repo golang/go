@@ -543,25 +543,6 @@ func rawgins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 	return p
 }
 
-func fixlargeoffset(n *gc.Node) {
-	if n == nil {
-		return
-	}
-	if n.Op != gc.OINDREG {
-		return
-	}
-	if -4096 <= n.Xoffset && n.Xoffset < 4096 {
-		return
-	}
-	a := gc.Node(*n)
-	a.Op = gc.OREGISTER
-	a.Type = gc.Types[gc.Tptr]
-	a.Xoffset = 0
-	gc.Cgen_checknil(&a)
-	ginscon(optoas(gc.OADD, gc.Types[gc.Tptr]), n.Xoffset, &a)
-	n.Xoffset = 0
-}
-
 /*
  * insert n into reg slot of p
  */
