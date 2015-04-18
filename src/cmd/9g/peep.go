@@ -481,7 +481,7 @@ func copyprop(r0 *gc.Flow) bool {
 	v2 := (*obj.Addr)(&p.To)
 	if copyas(v1, v2) {
 		if gc.Debug['P'] != 0 {
-			fmt.Printf("eliminating self-move\n", r0.Prog)
+			fmt.Printf("eliminating self-move: %v\n", r0.Prog)
 		}
 		return true
 	}

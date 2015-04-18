@@ -973,7 +973,7 @@ func defgotype(gotype *LSym) *DWDie {
 	}
 
 	if false && Debug['v'] > 2 {
-		fmt.Printf("new type: %%Y\n", gotype)
+		fmt.Printf("new type: %v\n", gotype)
 	}
 
 	kind := decodetype_kind(gotype)

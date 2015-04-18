@@ -781,7 +781,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			}
 
 			p.As = obj.ARET
-			p.Lineno = p.Lineno
 			p.To.Type = obj.TYPE_MEM
 			p.To.Offset = 0
 			p.To.Reg = REGLINK

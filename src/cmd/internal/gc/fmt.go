@@ -1184,7 +1184,6 @@ func exprfmt(n *Node, prec int) string {
 				return fmt.Sprintf("chan %v", n.Left)
 			}
 		}
-		fallthrough
 
 	case OTSTRUCT:
 		return "<struct>"

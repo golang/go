@@ -1738,51 +1738,48 @@ OpSwitch:
 		break OpSwitch
 
 	case OCONV:
-		{
-			ok |= Erv
-			saveorignode(n)
-			typecheck(&n.Left, Erv|top&(Eindir|Eiota))
-			convlit1(&n.Left, n.Type, true)
-			t := n.Left.Type
-			if t == nil || n.Type == nil {
-				n.Type = nil
-				return
-			}
-			var why string
-			n.Op = uint8(convertop(t, n.Type, &why))
-			if (n.Op) == 0 {
-				if n.Diag == 0 && n.Type.Broke == 0 {
-					Yyerror("cannot convert %v to type %v%s", Nconv(n.Left, obj.FmtLong), n.Type, why)
-					n.Diag = 1
-				}
-
-				n.Op = OCONV
-			}
-
-			switch n.Op {
-			case OCONVNOP:
-				if n.Left.Op == OLITERAL && n.Type != Types[TBOOL] {
-					r := Nod(OXXX, nil, nil)
-					n.Op = OCONV
-					n.Orig = r
-					*r = *n
-					n.Op = OLITERAL
-					n.Val = n.Left.Val
-				}
-
-				// do not use stringtoarraylit.
-			// generated code and compiler memory footprint is better without it.
-			case OSTRARRAYBYTE:
-				break
-
-			case OSTRARRAYRUNE:
-				if n.Left.Op == OLITERAL {
-					stringtoarraylit(&n)
-				}
-			}
-
-			break OpSwitch
+		ok |= Erv
+		saveorignode(n)
+		typecheck(&n.Left, Erv|top&(Eindir|Eiota))
+		convlit1(&n.Left, n.Type, true)
+		t := n.Left.Type
+		if t == nil || n.Type == nil {
+			n.Type = nil
+			return
 		}
+		var why string
+		n.Op = uint8(convertop(t, n.Type, &why))
+		if (n.Op) == 0 {
+			if n.Diag == 0 && n.Type.Broke == 0 {
+				Yyerror("cannot convert %v to type %v%s", Nconv(n.Left, obj.FmtLong), n.Type, why)
+				n.Diag = 1
+			}
+
+			n.Op = OCONV
+		}
+
+		switch n.Op {
+		case OCONVNOP:
+			if n.Left.Op == OLITERAL && n.Type != Types[TBOOL] {
+				r := Nod(OXXX, nil, nil)
+				n.Op = OCONV
+				n.Orig = r
+				*r = *n
+				n.Op = OLITERAL
+				n.Val = n.Left.Val
+			}
+
+			// do not use stringtoarraylit.
+		// generated code and compiler memory footprint is better without it.
+		case OSTRARRAYBYTE:
+			break
+
+		case OSTRARRAYRUNE:
+			if n.Left.Op == OLITERAL {
+				stringtoarraylit(&n)
+			}
+		}
+
 		break OpSwitch
 
 	case OMAKE:

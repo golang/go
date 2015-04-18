@@ -1011,8 +1011,6 @@ func hostlink() {
 func ldobj(f *Biobuf, pkg string, length int64, pn string, file string, whence int) {
 	eof := Boffset(f) + length
 
-	pn = pn
-
 	start := Boffset(f)
 	c1 := Bgetc(f)
 	c2 := Bgetc(f)

@@ -1135,7 +1135,6 @@ func idealkind(n *Node) int {
 		} else {
 			return k2
 		}
-		fallthrough
 
 	case OREAL, OIMAG:
 		return CTFLT
