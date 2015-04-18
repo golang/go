@@ -8,6 +8,7 @@ import (
 	"container/list"
 	"crypto"
 	"crypto/rand"
+	"crypto/sha512"
 	"crypto/x509"
 	"fmt"
 	"io"
@@ -347,6 +348,38 @@ type Config struct {
 	CurvePreferences []CurveID
 
 	serverInitOnce sync.Once // guards calling (*Config).serverInit
+
+	// mutex protects sessionTicketKeys
+	mutex sync.RWMutex
+	// sessionTicketKeys contains zero or more ticket keys. If the length
+	// is zero, SessionTicketsDisabled must be true. The first key is used
+	// for new tickets and any subsequent keys can be used to decrypt old
+	// tickets.
+	sessionTicketKeys []ticketKey
+}
+
+// ticketKeyNameLen is the number of bytes of identifier that is prepended to
+// an encrypted session ticket in order to identify the key used to encrypt it.
+const ticketKeyNameLen = 16
+
+// ticketKey is the internal representation of a session ticket key.
+type ticketKey struct {
+	// keyName is an opaque byte string that serves to identify the session
+	// ticket key. It's exposed as plaintext in every session ticket.
+	keyName [ticketKeyNameLen]byte
+	aesKey  [16]byte
+	hmacKey [16]byte
+}
+
+// ticketKeyFromBytes converts from the external representation of a session
+// ticket key to a ticketKey. Externally, session ticket keys are 32 random
+// bytes and this function expands that into sufficient name and key material.
+func ticketKeyFromBytes(b [32]byte) (key ticketKey) {
+	hashed := sha512.Sum512(b[:])
+	copy(key.keyName[:], hashed[:ticketKeyNameLen])
+	copy(key.aesKey[:], hashed[ticketKeyNameLen:ticketKeyNameLen+16])
+	copy(key.hmacKey[:], hashed[ticketKeyNameLen+16:ticketKeyNameLen+32])
+	return key
 }
 
 func (c *Config) serverInit() {
@@ -354,16 +387,51 @@ func (c *Config) serverInit() {
 		return
 	}
 
-	// If the key has already been set then we have nothing to do.
+	alreadySet := false
 	for _, b := range c.SessionTicketKey {
 		if b != 0 {
+			alreadySet = true
+			break
+		}
+	}
+
+	if !alreadySet {
+		if _, err := io.ReadFull(c.rand(), c.SessionTicketKey[:]); err != nil {
+			c.SessionTicketsDisabled = true
 			return
 		}
 	}
 
-	if _, err := io.ReadFull(c.rand(), c.SessionTicketKey[:]); err != nil {
-		c.SessionTicketsDisabled = true
+	c.sessionTicketKeys = []ticketKey{ticketKeyFromBytes(c.SessionTicketKey)}
+}
+
+func (c *Config) ticketKeys() []ticketKey {
+	c.mutex.RLock()
+	// c.sessionTicketKeys is constant once created. SetSessionTicketKeys
+	// will only update it by replacing it with a new value.
+	ret := c.sessionTicketKeys
+	c.mutex.RUnlock()
+	return ret
+}
+
+// SetSessionTicketKeys updates the session ticket keys for a server. The first
+// key will be used when creating new tickets, while all keys can be used for
+// decrypting tickets. It is safe to call this function while the server is
+// running in order to rotate the session ticket keys. The function will panic
+// if keys is empty.
+func (c *Config) SetSessionTicketKeys(keys [][32]byte) {
+	if len(keys) == 0 {
+		panic("tls: keys must have at least one key")
 	}
+
+	newKeys := make([]ticketKey, len(keys))
+	for i, bytes := range keys {
+		newKeys[i] = ticketKeyFromBytes(bytes)
+	}
+
+	c.mutex.Lock()
+	c.sessionTicketKeys = newKeys
+	c.mutex.Unlock()
 }
 
 func (c *Config) rand() io.Reader {

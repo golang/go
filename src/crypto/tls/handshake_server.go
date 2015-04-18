@@ -61,6 +61,14 @@ func (c *Conn) serverHandshake() error {
 		if err := hs.establishKeys(); err != nil {
 			return err
 		}
+		// ticketSupported is set in a resumption handshake if the
+		// ticket from the client was encrypted with an old session
+		// ticket key and thus a refreshed ticket should be sent.
+		if hs.hello.ticketSupported {
+			if err := hs.sendSessionTicket(); err != nil {
+				return err
+			}
+		}
 		if err := hs.sendFinished(c.firstFinished[:]); err != nil {
 			return err
 		}
@@ -319,6 +327,7 @@ func (hs *serverHandshakeState) doResumeHandshake() error {
 	// We echo the client's session ID in the ServerHello to let it know
 	// that we're doing a resumption.
 	hs.hello.sessionId = hs.clientHello.sessionId
+	hs.hello.ticketSupported = hs.sessionState.usedOldKey
 	hs.finishedHash.Write(hs.hello.marshal())
 	c.writeRecord(recordTypeHandshake, hs.hello.marshal())
 

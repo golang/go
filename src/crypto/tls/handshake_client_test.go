@@ -422,14 +422,37 @@ func TestClientResumption(t *testing.T) {
 		}
 	}
 
-	testResumeState("Handshake", false)
-	testResumeState("Resume", true)
-
-	if _, err := io.ReadFull(serverConfig.rand(), serverConfig.SessionTicketKey[:]); err != nil {
-		t.Fatalf("Failed to invalidate SessionTicketKey")
+	getTicket := func() []byte {
+		return clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).state.sessionTicket
 	}
+	randomKey := func() [32]byte {
+		var k [32]byte
+		if _, err := io.ReadFull(serverConfig.rand(), k[:]); err != nil {
+			t.Fatalf("Failed to read new SessionTicketKey: %s", err)
+		}
+		return k
+	}
+
+	testResumeState("Handshake", false)
+	ticket := getTicket()
+	testResumeState("Resume", true)
+	if !bytes.Equal(ticket, getTicket()) {
+		t.Fatal("first ticket doesn't match ticket after resumption")
+	}
+
+	key2 := randomKey()
+	serverConfig.SetSessionTicketKeys([][32]byte{key2})
+
 	testResumeState("InvalidSessionTicketKey", false)
 	testResumeState("ResumeAfterInvalidSessionTicketKey", true)
+
+	serverConfig.SetSessionTicketKeys([][32]byte{randomKey(), key2})
+	ticket = getTicket()
+	testResumeState("KeyChange", true)
+	if bytes.Equal(ticket, getTicket()) {
+		t.Fatal("new ticket wasn't included while resuming")
+	}
+	testResumeState("KeyChangeFinish", true)
 
 	clientConfig.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_RC4_128_SHA}
 	testResumeState("DifferentCipherSuite", false)
