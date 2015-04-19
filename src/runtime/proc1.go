@@ -2711,6 +2711,13 @@ func incidlelocked(v int32) {
 // Check for deadlock situation.
 // The check is based on number of running M's, if 0 -> deadlock.
 func checkdead() {
+	// For -buildmode=c-shared or -buildmode=c-archive it's OK if
+	// there are no running goroutines.  The calling program is
+	// assumed to be running.
+	if islibrary || isarchive {
+		return
+	}
+
 	// If we are dying because of a signal caught on an already idle thread,
 	// freezetheworld will cause all running threads to block.
 	// And runtime will essentially enter into deadlock state,
