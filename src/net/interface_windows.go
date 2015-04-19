@@ -6,7 +6,6 @@ package net
 
 import (
 	"internal/syscall/windows"
-	"os"
 	"syscall"
 	"unsafe"
 )
@@ -27,7 +26,7 @@ func getAdapters() (*windows.IpAdapterAddresses, error) {
 			break
 		}
 		if err.(syscall.Errno) != syscall.ERROR_BUFFER_OVERFLOW {
-			return nil, os.NewSyscallError("GetAdaptersAddresses", err)
+			return nil, err
 		}
 	}
 	return &addrs[0], nil
@@ -36,16 +35,16 @@ func getAdapters() (*windows.IpAdapterAddresses, error) {
 func getInterfaceInfos() ([]syscall.InterfaceInfo, error) {
 	s, err := sysSocket(syscall.AF_INET, syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
 	if err != nil {
-		return nil, os.NewSyscallError("Socket", err)
+		return nil, err
 	}
-	defer syscall.Closesocket(s)
+	defer closeFunc(s)
 
 	iia := [20]syscall.InterfaceInfo{}
 	ret := uint32(0)
 	size := uint32(unsafe.Sizeof(iia))
 	err = syscall.WSAIoctl(s, syscall.SIO_GET_INTERFACE_LIST, nil, 0, (*byte)(unsafe.Pointer(&iia[0])), size, &ret, nil, 0)
 	if err != nil {
-		return nil, os.NewSyscallError("WSAIoctl", err)
+		return nil, err
 	}
 	iilen := ret / uint32(unsafe.Sizeof(iia[0]))
 	return iia[:iilen-1], nil
