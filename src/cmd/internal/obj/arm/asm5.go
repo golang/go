@@ -1673,8 +1673,6 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 				if ctxt.Flag_shared != 0 {
 					rel.Add += ctxt.Pc - p.Pcrel.Pc - 8 - int64(rel.Siz)
 				}
-				rel.Xadd = rel.Add
-				rel.Xsym = rel.Sym
 			} else if ctxt.Flag_shared != 0 {
 				rel.Type = obj.R_PCREL
 				rel.Add += ctxt.Pc - p.Pcrel.Pc - 8
