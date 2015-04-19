@@ -501,7 +501,7 @@ func (c *gcControllerState) findRunnable(_p_ *p) *g {
 		// else for a while, so kick everything out of its run
 		// queue.
 	} else {
-		if _p_.m.ptr().currentwbuf == 0 && work.full == 0 && work.partial == 0 {
+		if _p_.gcw.wbuf == 0 && work.full == 0 && work.partial == 0 {
 			// No work to be done right now. This can
 			// happen at the end of the mark phase when
 			// there are still assists tapering off. Don't
@@ -1026,7 +1026,6 @@ func gcBgMarkWorker(p *p) {
 	// is set, this puts itself into _Gwaiting to be woken up by
 	// gcController.findRunnable at the appropriate time.
 	notewakeup(&work.bgMarkReady)
-	var gcw gcWork
 	for {
 		// Go to sleep until woken by gcContoller.findRunnable.
 		// We can't releasem yet since even the call to gopark
@@ -1055,18 +1054,19 @@ func gcBgMarkWorker(p *p) {
 		done := false
 		switch p.gcMarkWorkerMode {
 		case gcMarkWorkerDedicatedMode:
-			gcDrain(&gcw, gcBgCreditSlack)
+			gcDrain(&p.gcw, gcBgCreditSlack)
 			// gcDrain did the xadd(&work.nwait +1) to
 			// match the decrement above. It only returns
 			// at a mark completion point.
 			done = true
 		case gcMarkWorkerFractionalMode, gcMarkWorkerIdleMode:
-			gcDrainUntilPreempt(&gcw, gcBgCreditSlack)
+			gcDrainUntilPreempt(&p.gcw, gcBgCreditSlack)
 			// Was this the last worker and did we run out
 			// of work?
 			done = xadd(&work.nwait, +1) == work.nproc && work.full == 0 && work.partial == 0
 		}
-		gcw.dispose()
+		// We're not in mark termination, so there's no need
+		// to dispose p.gcw.
 
 		// If this worker reached a background mark completion
 		// point, signal the main GC goroutine.
@@ -1121,6 +1121,14 @@ func gcMark(start_time int64) {
 
 	gcCopySpans() // TODO(rlh): should this be hoisted and done only once? Right now it is done for normal marking and also for checkmarking.
 
+	// Gather all cached GC work. All other Ps are stopped, so
+	// it's safe to manipulate their GC work caches. During mark
+	// termination, these caches can still be used temporarily,
+	// but must be disposed to the global lists immediately.
+	for i := 0; i < int(gomaxprocs); i++ {
+		allp[i].gcw.dispose()
+	}
+
 	work.nwait = 0
 	work.ndone = 0
 	work.nproc = uint32(gcprocs())
@@ -1135,9 +1143,9 @@ func gcMark(start_time int64) {
 		helpgc(int32(work.nproc))
 	}
 
-	harvestwbufs() // move local workbufs onto global queues where the GC can find them
 	gchelperstart()
 	parfordo(work.markfor)
+
 	var gcw gcWork
 	gcDrain(&gcw, -1)
 	gcw.dispose()
@@ -1151,6 +1159,12 @@ func gcMark(start_time int64) {
 
 	if work.nproc > 1 {
 		notesleep(&work.alldone)
+	}
+
+	for i := 0; i < int(gomaxprocs); i++ {
+		if allp[i].gcw.wbuf != 0 {
+			throw("P has cached GC work at end of mark termination")
+		}
 	}
 
 	if trace.enabled {
