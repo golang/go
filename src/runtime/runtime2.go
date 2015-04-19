@@ -304,7 +304,6 @@ type m struct {
 	waitsemacount uint32
 	waitsemalock  uint32
 	gcstats       gcstats
-	currentwbuf   uintptr // use locks or atomic operations such as xchguinptr to access.
 	needextram    bool
 	traceback     uint8
 	waitunlockf   unsafe.Pointer // todo go func(*g, unsafe.pointer) bool
@@ -383,6 +382,11 @@ type p struct {
 	gcAssistTime     int64 // Nanoseconds in assistAlloc
 	gcBgMarkWorker   *g
 	gcMarkWorkerMode gcMarkWorkerMode
+
+	// gcw is this P's GC work buffer cache. The work buffer is
+	// filled by write barriers, drained by mutator assists, and
+	// disposed on certain GC state transitions.
+	gcw gcWork
 
 	pad [64]byte
 }

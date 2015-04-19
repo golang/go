@@ -55,6 +55,7 @@ var oneptr = [...]uint8{typePointer}
 
 //go:nowritebarrier
 func markroot(desc *parfor, i uint32) {
+	// TODO: Consider using getg().m.p.ptr().gcw.
 	var gcw gcWork
 
 	// Note: if you add a case here, please also update heapdump.go:dumproots.
@@ -172,6 +173,8 @@ func markroot(desc *parfor, i uint32) {
 // allocations performed by this mutator since the last assist.
 //
 // It should only be called during gcphase == _GCmark.
+//
+// This must be called with preemption disabled.
 //go:nowritebarrier
 func gcAssistAlloc(size uintptr, allowAssist bool) {
 	// Find the G responsible for this assist.
@@ -228,19 +231,14 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 
 		xadd(&work.nwait, -1)
 
-		// drain own current wbuf first in the hopes that it
+		// drain own cached work first in the hopes that it
 		// will be more cache friendly.
-		var gcw gcWork
-		gcw.initFromCache()
+		gcw := &getg().m.p.ptr().gcw
 		startScanWork := gcw.scanWork
-		gcDrainN(&gcw, scanWork)
+		gcDrainN(gcw, scanWork)
 		// Record that we did this much scan work.
 		gp.gcscanwork += gcw.scanWork - startScanWork
-		// TODO(austin): This is the vast majority of our
-		// disposes. Instead of constantly disposing, keep a
-		// per-P gcWork cache (probably combined with the
-		// write barrier wbuf cache).
-		gcw.dispose()
+		// No need to dispose since we're not in mark termination.
 
 		// If this is the last worker and we ran out of work,
 		// signal a completion point.
@@ -315,21 +313,24 @@ func scanstack(gp *g) {
 		throw("can't scan gchelper stack")
 	}
 
-	var gcw gcWork
-	gcw.initFromCache()
+	gcw := &getg().m.p.ptr().gcw
+	origBytesMarked := gcw.bytesMarked
+	origScanWork := gcw.scanWork
 	scanframe := func(frame *stkframe, unused unsafe.Pointer) bool {
 		// Pick up gcw as free variable so gentraceback and friends can
 		// keep the same signature.
-		scanframeworker(frame, unused, &gcw)
+		scanframeworker(frame, unused, gcw)
 		return true
 	}
 	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, scanframe, nil, 0)
 	tracebackdefers(gp, scanframe, nil)
 	// Stacks aren't part of the heap, so don't count them toward
 	// marked heap bytes.
-	gcw.bytesMarked = 0
-	gcw.scanWork = 0
-	gcw.disposeToCache()
+	gcw.bytesMarked = origBytesMarked
+	gcw.scanWork = origScanWork
+	if gcphase == _GCmarktermination {
+		gcw.dispose()
+	}
 	gp.gcscanvalid = true
 }
 
@@ -462,7 +463,6 @@ func gcDrain(gcw *gcWork, flushScanCredit int64) {
 		credit := gcw.scanWork - lastScanFlush
 		xaddint64(&gcController.bgScanCredit, credit)
 	}
-	checknocurrentwbuf()
 }
 
 // gcDrainUntilPreempt blackens grey objects until g.preempt is set.
@@ -524,7 +524,6 @@ func gcDrainUntilPreempt(gcw *gcWork, flushScanCredit int64) {
 // scanning is always done in whole object increments.
 //go:nowritebarrier
 func gcDrainN(gcw *gcWork, scanWork int64) {
-	checknocurrentwbuf()
 	targetScanWork := gcw.scanWork + scanWork
 	for gcw.scanWork < targetScanWork {
 		// This might be a good place to add prefetch code...
@@ -646,33 +645,16 @@ func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWork) {
 
 // Shade the object if it isn't already.
 // The object is not nil and known to be in the heap.
+// Preemption must be disabled.
 //go:nowritebarrier
 func shade(b uintptr) {
 	if obj, hbits, span := heapBitsForObject(b); obj != 0 {
-		// TODO: this would be a great place to put a check to see
-		// if we are harvesting and if we are then we should
-		// figure out why there is a call to shade when the
-		// harvester thinks we are in a STW.
-		// if atomicload(&harvestingwbufs) == uint32(1) {
-		//	// Throw here to discover write barriers
-		//	// being executed during a STW.
-		//	throw("shade during harvest")
-		// }
-
-		var gcw gcWork
-		greyobject(obj, 0, 0, hbits, span, &gcw)
-		// This is part of the write barrier so put the wbuf back.
+		gcw := &getg().m.p.ptr().gcw
+		greyobject(obj, 0, 0, hbits, span, gcw)
 		if gcphase == _GCmarktermination {
+			// Ps aren't allowed to cache work during mark
+			// termination.
 			gcw.dispose()
-		} else {
-			// If we added any pointers to the gcw, then
-			// currentwbuf must be nil because 1)
-			// greyobject got its wbuf from currentwbuf
-			// and 2) shade runs on the systemstack, so
-			// we're still on the same M.  If either of
-			// these becomes no longer true, we need to
-			// rethink this.
-			gcw.disposeToCache()
 		}
 	}
 }
