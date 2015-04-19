@@ -2460,11 +2460,6 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
 		r.Off = -1 // caller must fill in
 		r.Sym = s
 		r.Add = a.Offset
-		if s.Type == obj.STLSBSS {
-			r.Xadd = r.Add - int64(r.Siz)
-			r.Type = obj.R_TLS
-			r.Xsym = s
-		}
 
 		return 0
 	}

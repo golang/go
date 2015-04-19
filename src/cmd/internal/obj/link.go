@@ -356,9 +356,7 @@ type Reloc struct {
 	Siz  uint8
 	Type int32
 	Add  int64
-	Xadd int64
 	Sym  *LSym
-	Xsym *LSym
 }
 
 // Reloc.type
