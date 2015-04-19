@@ -416,13 +416,8 @@ func (e *AddrError) Error() string {
 	return s
 }
 
-func (e *AddrError) Temporary() bool {
-	return false
-}
-
-func (e *AddrError) Timeout() bool {
-	return false
-}
+func (e *AddrError) Temporary() bool { return false }
+func (e *AddrError) Timeout() bool   { return false }
 
 type UnknownNetworkError string
 
@@ -441,12 +436,44 @@ type DNSConfigError struct {
 	Err error
 }
 
-func (e *DNSConfigError) Error() string {
-	return "error reading DNS config: " + e.Err.Error()
-}
-
+func (e *DNSConfigError) Error() string   { return "error reading DNS config: " + e.Err.Error() }
 func (e *DNSConfigError) Timeout() bool   { return false }
 func (e *DNSConfigError) Temporary() bool { return false }
+
+// Various errors contained in DNSError.
+var (
+	errNoSuchHost = errors.New("no such host")
+)
+
+// DNSError represents a DNS lookup error.
+type DNSError struct {
+	Err       string // description of the error
+	Name      string // name looked for
+	Server    string // server used
+	IsTimeout bool   // if true, timed out; not all timeouts set this
+}
+
+func (e *DNSError) Error() string {
+	if e == nil {
+		return "<nil>"
+	}
+	s := "lookup " + e.Name
+	if e.Server != "" {
+		s += " on " + e.Server
+	}
+	s += ": " + e.Err
+	return s
+}
+
+// Timeout reports whether the DNS lookup is known to have timed out.
+// This is not always known; a DNS lookup may fail due to a timeout
+// and return a DNSError for which Timeout returns false.
+func (e *DNSError) Timeout() bool { return e.IsTimeout }
+
+// Temporary reports whether the DNS error is known to be temporary.
+// This is not always known; a DNS lookup may fail due to a temporary
+// error and return a DNSError for which Temporary returns false.
+func (e *DNSError) Temporary() bool { return e.IsTimeout }
 
 type writerOnly struct {
 	io.Writer

@@ -54,7 +54,7 @@ func cgoLookupPort(network, service string) (port int, err error, completed bool
 		hints.ai_socktype = C.SOCK_DGRAM
 		hints.ai_protocol = C.IPPROTO_UDP
 	default:
-		return 0, UnknownNetworkError(network), true
+		return 0, &DNSError{Err: "unknown network", Name: network + "/" + service}, true
 	}
 	if len(network) >= 4 {
 		switch network[3] {
@@ -78,7 +78,7 @@ func cgoLookupPort(network, service string) (port int, err error, completed bool
 		default:
 			err = addrinfoErrno(gerrno)
 		}
-		return 0, err, true
+		return 0, &DNSError{Err: err.Error(), Name: network + "/" + service}, true
 	}
 	defer C.freeaddrinfo(res)
 
@@ -94,7 +94,7 @@ func cgoLookupPort(network, service string) (port int, err error, completed bool
 			return int(p[0])<<8 | int(p[1]), nil, true
 		}
 	}
-	return 0, &AddrError{"unknown port", network + "/" + service}, true
+	return 0, &DNSError{Err: "unknown port", Name: network + "/" + service}, true
 }
 
 func cgoLookupIPCNAME(name string) (addrs []IPAddr, cname string, err error, completed bool) {
@@ -110,7 +110,6 @@ func cgoLookupIPCNAME(name string) (addrs []IPAddr, cname string, err error, com
 	var res *C.struct_addrinfo
 	gerrno, err := C.getaddrinfo(h, nil, &hints, &res)
 	if gerrno != 0 {
-		var str string
 		switch gerrno {
 		case C.EAI_SYSTEM:
 			if err == nil {
@@ -123,13 +122,12 @@ func cgoLookupIPCNAME(name string) (addrs []IPAddr, cname string, err error, com
 				// comes up again. golang.org/issue/6232.
 				err = syscall.EMFILE
 			}
-			str = err.Error()
 		case C.EAI_NONAME:
-			str = noSuchHost
+			err = errNoSuchHost
 		default:
-			str = addrinfoErrno(gerrno).Error()
+			err = addrinfoErrno(gerrno)
 		}
-		return nil, "", &DNSError{Err: str, Name: name}, true
+		return nil, "", &DNSError{Err: err.Error(), Name: name}, true
 	}
 	defer C.freeaddrinfo(res)
 

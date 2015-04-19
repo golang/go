@@ -69,5 +69,5 @@ func goLookupPort(network, service string) (port int, err error) {
 			return
 		}
 	}
-	return 0, &AddrError{"unknown port", network + "/" + service}
+	return 0, &AddrError{Err: "unknown port", Addr: network + "/" + service}
 }

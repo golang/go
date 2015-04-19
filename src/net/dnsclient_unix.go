@@ -185,7 +185,7 @@ func tryOneName(cfg *dnsConfig, name string, qtype uint16) (string, []dnsRR, err
 				continue
 			}
 			cname, addrs, err := answer(name, server, msg, qtype)
-			if err == nil || err.(*DNSError).Err == noSuchHost {
+			if err == nil || err.(*DNSError).Err == errNoSuchHost.Error() {
 				return cname, addrs, err
 			}
 			lastErr = err
@@ -269,7 +269,7 @@ func loadConfig(resolvConfPath string, reloadTime time.Duration, quit <-chan cha
 	}()
 }
 
-func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err error) {
+func lookup(name string, qtype uint16) (cname string, rrs []dnsRR, err error) {
 	if !isDomainName(name) {
 		return name, nil, &DNSError{Err: "invalid domain name", Name: name}
 	}
@@ -296,7 +296,7 @@ func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err error) 
 			rname += "."
 		}
 		// Can try as ordinary name.
-		cname, addrs, err = tryOneName(cfg.dnsConfig, rname, qtype)
+		cname, rrs, err = tryOneName(cfg.dnsConfig, rname, qtype)
 		if rooted || err == nil {
 			return
 		}
@@ -308,7 +308,7 @@ func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err error) 
 		if rname[len(rname)-1] != '.' {
 			rname += "."
 		}
-		cname, addrs, err = tryOneName(cfg.dnsConfig, rname, qtype)
+		cname, rrs, err = tryOneName(cfg.dnsConfig, rname, qtype)
 		if err == nil {
 			return
 		}
@@ -317,7 +317,7 @@ func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err error) 
 	// Last ditch effort: try unsuffixed only if we haven't already,
 	// that is, name is not rooted and has less than ndots dots.
 	if count(name, '.') < cfg.dnsConfig.ndots {
-		cname, addrs, err = tryOneName(cfg.dnsConfig, name+".", qtype)
+		cname, rrs, err = tryOneName(cfg.dnsConfig, name+".", qtype)
 		if err == nil {
 			return
 		}
