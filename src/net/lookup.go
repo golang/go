@@ -132,22 +132,22 @@ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err err
 }
 
 // LookupMX returns the DNS MX records for the given domain name sorted by preference.
-func LookupMX(name string) (mx []*MX, err error) {
+func LookupMX(name string) (mxs []*MX, err error) {
 	return lookupMX(name)
 }
 
 // LookupNS returns the DNS NS records for the given domain name.
-func LookupNS(name string) (ns []*NS, err error) {
+func LookupNS(name string) (nss []*NS, err error) {
 	return lookupNS(name)
 }
 
 // LookupTXT returns the DNS TXT records for the given domain name.
-func LookupTXT(name string) (txt []string, err error) {
+func LookupTXT(name string) (txts []string, err error) {
 	return lookupTXT(name)
 }
 
 // LookupAddr performs a reverse lookup for the given address, returning a list
 // of names mapping to that address.
-func LookupAddr(addr string) (name []string, err error) {
+func LookupAddr(addr string) (names []string, err error) {
 	return lookupAddr(addr)
 }
