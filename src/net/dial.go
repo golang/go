@@ -180,8 +180,8 @@ func (d *Dialer) Dial(network, address string) (Conn, error) {
 	c, err := dial(network, addrs.first(isIPv4), dialer, d.deadline())
 	if d.KeepAlive > 0 && err == nil {
 		if tc, ok := c.(*TCPConn); ok {
-			tc.SetKeepAlive(true)
-			tc.SetKeepAlivePeriod(d.KeepAlive)
+			setKeepAlive(tc.fd, true)
+			setKeepAlivePeriod(tc.fd, d.KeepAlive)
 			testHookSetKeepAlive()
 		}
 	}
