@@ -192,7 +192,10 @@ func (c *conn) SetDeadline(t time.Time) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return c.fd.setDeadline(t)
+	if err := c.fd.setDeadline(t); err != nil {
+		return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
+	}
+	return nil
 }
 
 // SetReadDeadline implements the Conn SetReadDeadline method.
@@ -200,7 +203,10 @@ func (c *conn) SetReadDeadline(t time.Time) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return c.fd.setReadDeadline(t)
+	if err := c.fd.setReadDeadline(t); err != nil {
+		return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
+	}
+	return nil
 }
 
 // SetWriteDeadline implements the Conn SetWriteDeadline method.
@@ -208,7 +214,10 @@ func (c *conn) SetWriteDeadline(t time.Time) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return c.fd.setWriteDeadline(t)
+	if err := c.fd.setWriteDeadline(t); err != nil {
+		return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
+	}
+	return nil
 }
 
 // SetReadBuffer sets the size of the operating system's
@@ -217,7 +226,10 @@ func (c *conn) SetReadBuffer(bytes int) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return setReadBuffer(c.fd, bytes)
+	if err := setReadBuffer(c.fd, bytes); err != nil {
+		return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
+	}
+	return nil
 }
 
 // SetWriteBuffer sets the size of the operating system's
@@ -226,7 +238,10 @@ func (c *conn) SetWriteBuffer(bytes int) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return setWriteBuffer(c.fd, bytes)
+	if err := setWriteBuffer(c.fd, bytes); err != nil {
+		return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
+	}
+	return nil
 }
 
 // File sets the underlying os.File to blocking mode and returns a copy.

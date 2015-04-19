@@ -122,7 +122,7 @@ func (l *UnixListener) Addr() Addr { return nil }
 // SetDeadline sets the deadline associated with the listener.
 // A zero time value disables the deadline.
 func (l *UnixListener) SetDeadline(t time.Time) error {
-	return syscall.EPLAN9
+	return &OpError{Op: "set", Net: "<nil>", Addr: nil, Err: syscall.EPLAN9}
 }
 
 // File returns a copy of the underlying os.File, set to blocking

@@ -53,7 +53,7 @@ type TCPConn struct {
 
 func newTCPConn(fd *netFD) *TCPConn {
 	c := &TCPConn{conn{fd}}
-	c.SetNoDelay(true)
+	setNoDelay(c.fd, true)
 	return c
 }
 
@@ -114,7 +114,10 @@ func (c *TCPConn) SetLinger(sec int) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return setLinger(c.fd, sec)
+	if err := setLinger(c.fd, sec); err != nil {
+		return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
+	}
+	return nil
 }
 
 // SetKeepAlive sets whether the operating system should send
@@ -123,7 +126,10 @@ func (c *TCPConn) SetKeepAlive(keepalive bool) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return setKeepAlive(c.fd, keepalive)
+	if err := setKeepAlive(c.fd, keepalive); err != nil {
+		return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
+	}
+	return nil
 }
 
 // SetKeepAlivePeriod sets period between keep alives.
@@ -131,7 +137,10 @@ func (c *TCPConn) SetKeepAlivePeriod(d time.Duration) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return setKeepAlivePeriod(c.fd, d)
+	if err := setKeepAlivePeriod(c.fd, d); err != nil {
+		return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
+	}
+	return nil
 }
 
 // SetNoDelay controls whether the operating system should delay
@@ -142,7 +151,10 @@ func (c *TCPConn) SetNoDelay(noDelay bool) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return setNoDelay(c.fd, noDelay)
+	if err := setNoDelay(c.fd, noDelay); err != nil {
+		return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
+	}
+	return nil
 }
 
 // DialTCP connects to the remote address raddr on the network net,
@@ -280,7 +292,10 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
 	if l == nil || l.fd == nil {
 		return syscall.EINVAL
 	}
-	return l.fd.setDeadline(t)
+	if err := l.fd.setDeadline(t); err != nil {
+		return &OpError{Op: "set", Net: l.fd.net, Addr: l.fd.laddr, Err: err}
+	}
+	return nil
 }
 
 // File returns a copy of the underlying os.File, set to blocking

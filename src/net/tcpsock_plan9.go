@@ -69,7 +69,7 @@ func (c *TCPConn) CloseWrite() error {
 // some operating systems after sec seconds have elapsed any remaining
 // unsent data may be discarded.
 func (c *TCPConn) SetLinger(sec int) error {
-	return syscall.EPLAN9
+	return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: syscall.EPLAN9}
 }
 
 // SetKeepAlive sets whether the operating system should send
@@ -78,7 +78,10 @@ func (c *TCPConn) SetKeepAlive(keepalive bool) error {
 	if !c.ok() {
 		return syscall.EPLAN9
 	}
-	return setKeepAlive(c.fd, keepalive)
+	if err := setKeepAlive(c.fd, keepalive); err != nil {
+		return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
+	}
+	return nil
 }
 
 // SetKeepAlivePeriod sets period between keep alives.
@@ -86,7 +89,10 @@ func (c *TCPConn) SetKeepAlivePeriod(d time.Duration) error {
 	if !c.ok() {
 		return syscall.EPLAN9
 	}
-	return setKeepAlivePeriod(c.fd, d)
+	if err := setKeepAlivePeriod(c.fd, d); err != nil {
+		return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
+	}
+	return nil
 }
 
 // SetNoDelay controls whether the operating system should delay
@@ -94,7 +100,7 @@ func (c *TCPConn) SetKeepAlivePeriod(d time.Duration) error {
 // algorithm).  The default is true (no delay), meaning that data is
 // sent as soon as possible after a Write.
 func (c *TCPConn) SetNoDelay(noDelay bool) error {
-	return syscall.EPLAN9
+	return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: syscall.EPLAN9}
 }
 
 // DialTCP connects to the remote address raddr on the network net,
@@ -183,7 +189,10 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
 	if l == nil || l.fd == nil || l.fd.ctl == nil {
 		return syscall.EINVAL
 	}
-	return l.fd.setDeadline(t)
+	if err := l.fd.setDeadline(t); err != nil {
+		return &OpError{Op: "set", Net: l.fd.net, Addr: l.fd.laddr, Err: err}
+	}
+	return nil
 }
 
 // File returns a copy of the underlying os.File, set to blocking

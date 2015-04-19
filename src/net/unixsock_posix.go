@@ -356,11 +356,14 @@ func (l *UnixListener) Addr() Addr { return l.fd.laddr }
 
 // SetDeadline sets the deadline associated with the listener.
 // A zero time value disables the deadline.
-func (l *UnixListener) SetDeadline(t time.Time) (err error) {
+func (l *UnixListener) SetDeadline(t time.Time) error {
 	if l == nil || l.fd == nil {
 		return syscall.EINVAL
 	}
-	return l.fd.setDeadline(t)
+	if err := l.fd.setDeadline(t); err != nil {
+		return &OpError{Op: "set", Net: l.fd.net, Addr: l.fd.laddr, Err: err}
+	}
+	return nil
 }
 
 // File returns a copy of the underlying os.File, set to blocking
