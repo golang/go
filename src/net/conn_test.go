@@ -18,8 +18,7 @@ import (
 const someTimeout = 10 * time.Second
 
 func TestConnAndListener(t *testing.T) {
-	handler := func(ls *localServer, ln Listener) { transponder(t, ln) }
-	for _, network := range []string{"tcp", "unix", "unixpacket"} {
+	for i, network := range []string{"tcp", "unix", "unixpacket"} {
 		if !testableNetwork(network) {
 			t.Logf("skipping %s test", network)
 			continue
@@ -30,6 +29,8 @@ func TestConnAndListener(t *testing.T) {
 			t.Fatalf("Listen failed: %v", err)
 		}
 		defer ls.teardown()
+		ch := make(chan error, 1)
+		handler := func(ls *localServer, ln Listener) { transponder(ln, ch) }
 		if err := ls.buildup(handler); err != nil {
 			t.Fatal(err)
 		}
@@ -56,40 +57,9 @@ func TestConnAndListener(t *testing.T) {
 		if _, err := c.Read(rb); err != nil {
 			t.Fatalf("Conn.Read failed: %v", err)
 		}
-	}
-}
 
-func transponder(t *testing.T, ln Listener) {
-	switch ln := ln.(type) {
-	case *TCPListener:
-		ln.SetDeadline(time.Now().Add(someTimeout))
-	case *UnixListener:
-		ln.SetDeadline(time.Now().Add(someTimeout))
-	}
-	c, err := ln.Accept()
-	if err != nil {
-		t.Errorf("Listener.Accept failed: %v", err)
-		return
-	}
-	defer c.Close()
-
-	network := ln.Addr().Network()
-	if c.LocalAddr().Network() != network || c.LocalAddr().Network() != network {
-		t.Errorf("got %v->%v; expected %v->%v", c.LocalAddr().Network(), c.RemoteAddr().Network(), network, network)
-		return
-	}
-	c.SetDeadline(time.Now().Add(someTimeout))
-	c.SetReadDeadline(time.Now().Add(someTimeout))
-	c.SetWriteDeadline(time.Now().Add(someTimeout))
-
-	b := make([]byte, 128)
-	n, err := c.Read(b)
-	if err != nil {
-		t.Errorf("Conn.Read failed: %v", err)
-		return
-	}
-	if _, err := c.Write(b[:n]); err != nil {
-		t.Errorf("Conn.Write failed: %v", err)
-		return
+		for err := range ch {
+			t.Errorf("#%d: %v", i, err)
+		}
 	}
 }

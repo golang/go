@@ -8,7 +8,6 @@
 package net
 
 import (
-	"io/ioutil"
 	"os"
 	"runtime"
 	"testing"
@@ -20,20 +19,6 @@ import (
 //	golang.org/x/net/ipv4
 //	golang.org/x/net/ipv6
 //	golang.org/x/net/icmp
-
-// testUnixAddr uses ioutil.TempFile to get a name that is unique. It
-// also uses /tmp directory in case it is prohibited to create UNIX
-// sockets in TMPDIR.
-func testUnixAddr() string {
-	f, err := ioutil.TempFile("", "nettest")
-	if err != nil {
-		panic(err)
-	}
-	addr := f.Name()
-	f.Close()
-	os.Remove(addr)
-	return addr
-}
 
 func TestTCPListenerSpecificMethods(t *testing.T) {
 	switch runtime.GOOS {
@@ -84,7 +69,8 @@ func TestTCPConnSpecificMethods(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListenTCP failed: %v", err)
 	}
-	handler := func(ls *localServer, ln Listener) { transponder(t, ls.Listener) }
+	ch := make(chan error, 1)
+	handler := func(ls *localServer, ln Listener) { transponder(ls.Listener, ch) }
 	ls, err := (&streamListener{Listener: ln}).newLocalServer()
 	if err != nil {
 		t.Fatal(err)
@@ -119,6 +105,10 @@ func TestTCPConnSpecificMethods(t *testing.T) {
 	rb := make([]byte, 128)
 	if _, err := c.Read(rb); err != nil {
 		t.Fatalf("TCPConn.Read failed: %v", err)
+	}
+
+	for err := range ch {
+		t.Error(err)
 	}
 }
 
