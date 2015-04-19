@@ -398,8 +398,7 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
 			{"tcp6", "[ip6-localhost%" + ifi.Name + "]:0", true},
 		}...)
 	}
-	handler := func(ls *localServer, ln Listener) { transponder(t, ln) }
-	for _, tt := range tests {
+	for i, tt := range tests {
 		ln, err := Listen(tt.net, tt.addr)
 		if err != nil {
 			// It might return "LookupHost returned no
@@ -412,6 +411,8 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer ls.teardown()
+		ch := make(chan error, 1)
+		handler := func(ls *localServer, ln Listener) { transponder(ln, ch) }
 		if err := ls.buildup(handler); err != nil {
 			t.Fatal(err)
 		}
@@ -437,6 +438,10 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
 		b := make([]byte, 32)
 		if _, err := c.Read(b); err != nil {
 			t.Fatalf("Conn.Read failed: %v", err)
+		}
+
+		for err := range ch {
+			t.Errorf("#%d: %v", i, err)
 		}
 	}
 }
