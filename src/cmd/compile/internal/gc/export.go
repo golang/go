@@ -361,6 +361,9 @@ func dumpsym(s *Sym) {
 func dumpexport() {
 	lno := lineno
 
+	if buildid != "" {
+		fmt.Fprintf(bout, "build id %q\n", buildid)
+	}
 	fmt.Fprintf(bout, "\n$$\npackage %s", localpkg.Name)
 	if safemode != 0 {
 		fmt.Fprintf(bout, " safe")
