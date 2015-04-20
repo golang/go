@@ -24,12 +24,6 @@ var (
 )
 
 var (
-	// Do not test datagrams with empty payload by default.
-	// It depends on each platform implementation whether generic
-	// read, socket recv system calls return the result of zero
-	// byte read.
-	testDatagram = flag.Bool("datagram", false, "whether to test UDP and unixgram")
-
 	testDNSFlood = flag.Bool("dnsflood", false, "whether to test DNS query flooding")
 
 	testExternal = flag.Bool("external", true, "allow use of external networks during long test")

@@ -259,53 +259,6 @@ var datagramPacketConnServerTests = []struct {
 	{snet: "unixgram", saddr: "@gotest6/net", cnet: "unixgram", caddr: "@gotest6/net.local"},
 }
 
-func TestDatagramPacketConnServer(t *testing.T) {
-	if !*testDatagram {
-		return
-	}
-
-	for _, tt := range datagramPacketConnServerTests {
-		if !testableListenArgs(tt.snet, tt.saddr, tt.caddr) {
-			t.Logf("skipping %s test", tt.snet+":"+tt.saddr+"->"+tt.caddr)
-			continue
-		}
-
-		listening := make(chan string)
-		done := make(chan int)
-		switch tt.snet {
-		case "unixgram":
-			os.Remove(tt.saddr)
-			os.Remove(tt.caddr)
-		}
-
-		go runDatagramPacketConnServer(t, tt.snet, tt.saddr, listening, done)
-		taddr := <-listening // wait for server to start
-
-		switch tt.cnet {
-		case "udp", "udp4", "udp6":
-			_, port, err := SplitHostPort(taddr)
-			if err != nil {
-				t.Fatalf("SplitHostPort(%q) failed: %v", taddr, err)
-			}
-			taddr = JoinHostPort(tt.caddr, port)
-			tt.caddr = JoinHostPort(tt.caddr, "0")
-		}
-		if tt.dial {
-			runDatagramConnClient(t, tt.cnet, tt.caddr, taddr, tt.empty)
-		} else {
-			runDatagramPacketConnClient(t, tt.cnet, tt.caddr, taddr, tt.empty)
-		}
-		<-done // tell server to stop
-		<-done // make sure server stopped
-
-		switch tt.snet {
-		case "unixgram":
-			os.Remove(tt.saddr)
-			os.Remove(tt.caddr)
-		}
-	}
-}
-
 func runDatagramPacketConnServer(t *testing.T, net, laddr string, listening chan<- string, done chan<- int) {
 	c, err := ListenPacket(net, laddr)
 	if err != nil {

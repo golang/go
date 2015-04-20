@@ -355,3 +355,77 @@ func TestIPv6LinkLocalUnicastUDP(t *testing.T) {
 		}
 	}
 }
+
+func TestUDPZeroBytePayload(t *testing.T) {
+	switch runtime.GOOS {
+	case "nacl", "plan9":
+		t.Skipf("not supported on %s", runtime.GOOS)
+	}
+
+	c, err := newLocalPacketListener("udp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+
+	for _, genericRead := range []bool{false, true} {
+		n, err := c.WriteTo(nil, c.LocalAddr())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if n != 0 {
+			t.Errorf("got %d; want 0", n)
+		}
+		c.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+		var b [1]byte
+		if genericRead {
+			_, err = c.(Conn).Read(b[:])
+		} else {
+			_, _, err = c.ReadFrom(b[:])
+		}
+		switch err {
+		case nil: // ReadFrom succeeds
+		default: // Read may timeout, it depends on the platform
+			if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+				t.Fatal(err)
+			}
+		}
+	}
+}
+
+func TestUDPZeroByteBuffer(t *testing.T) {
+	switch runtime.GOOS {
+	case "nacl", "plan9":
+		t.Skipf("not supported on %s", runtime.GOOS)
+	}
+
+	c, err := newLocalPacketListener("udp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+
+	b := []byte("UDP ZERO BYTE BUFFER")
+	for _, genericRead := range []bool{false, true} {
+		n, err := c.WriteTo(b, c.LocalAddr())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if n != len(b) {
+			t.Errorf("got %d; want %d", n, len(b))
+		}
+		c.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+		if genericRead {
+			_, err = c.(Conn).Read(nil)
+		} else {
+			_, _, err = c.ReadFrom(nil)
+		}
+		switch err {
+		case nil: // ReadFrom succeeds
+		default: // Read may timeout, it depends on the platform
+			if nerr, ok := err.(Error); (!ok || !nerr.Timeout()) && runtime.GOOS != "windows" { // Windows retruns WSAEMSGSIZ
+				t.Fatal(err)
+			}
+		}
+	}
+}
