@@ -492,9 +492,13 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 			p.Dir = ctxt.joinPath(srcDir, path)
 		}
 		// Determine canonical import path, if any.
+		// Exclude results where the import path would include /testdata/.
+		inTestdata := func(sub string) bool {
+			return strings.Contains(sub, "/testdata/") || strings.HasSuffix(sub, "/testdata") || strings.HasPrefix(sub, "testdata/") || sub == "testdata"
+		}
 		if ctxt.GOROOT != "" {
 			root := ctxt.joinPath(ctxt.GOROOT, "src")
-			if sub, ok := ctxt.hasSubdir(root, p.Dir); ok {
+			if sub, ok := ctxt.hasSubdir(root, p.Dir); ok && !inTestdata(sub) {
 				p.Goroot = true
 				p.ImportPath = sub
 				p.Root = ctxt.GOROOT
@@ -504,7 +508,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 		all := ctxt.gopath()
 		for i, root := range all {
 			rootsrc := ctxt.joinPath(root, "src")
-			if sub, ok := ctxt.hasSubdir(rootsrc, p.Dir); ok {
+			if sub, ok := ctxt.hasSubdir(rootsrc, p.Dir); ok && !inTestdata(sub) {
 				// We found a potential import path for dir,
 				// but check that using it wouldn't find something
 				// else first.
