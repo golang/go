@@ -82,6 +82,10 @@ func SetInstallConnClosedHook(f func()) {
 	testHookPersistConnClosedGotRes = f
 }
 
+func SetEnterRoundTripHook(f func()) {
+	testHookEnterRoundTrip = f
+}
+
 func NewTestTimeoutHandler(handler Handler, ch <-chan time.Time) Handler {
 	f := func() <-chan time.Time {
 		return ch

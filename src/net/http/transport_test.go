@@ -2400,6 +2400,32 @@ func TestTransportResponseCancelRace(t *testing.T) {
 	res.Body.Close()
 }
 
+func TestTransportDialCancelRace(t *testing.T) {
+	defer afterTest(t)
+
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
+	defer ts.Close()
+
+	tr := &Transport{}
+	defer tr.CloseIdleConnections()
+
+	req, err := NewRequest("GET", ts.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	SetEnterRoundTripHook(func() {
+		tr.CancelRequest(req)
+	})
+	defer SetEnterRoundTripHook(nil)
+	res, err := tr.RoundTrip(req)
+	if err != ExportErrRequestCanceled {
+		t.Errorf("expected canceled request error; got %v", err)
+		if err == nil {
+			res.Body.Close()
+		}
+	}
+}
+
 func wantBody(res *http.Response, err error, want string) error {
 	if err != nil {
 		return err
