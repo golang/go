@@ -40,7 +40,7 @@ func main() {
 	if *flags.PrintOut {
 		ctxt.Debugasm = 1
 	}
-	ctxt.Trimpath = *flags.TrimPath
+	ctxt.LineHist.TrimPathPrefix = *flags.TrimPath
 	ctxt.Flag_dynlink = *flags.Dynlink
 	if *flags.Shared || *flags.Dynlink {
 		ctxt.Flag_shared = 1

@@ -192,7 +192,7 @@ func Main() {
 	flag.Var((*count)(&debug['S']), "S", "print assembly and machine code")
 	flag.Var((*count)(&debug['m']), "m", "debug preprocessor macros")
 	flag.StringVar(&outfile, "o", "", "file: set output file")
-	flag.StringVar(&Ctxt.Trimpath, "trimpath", "", "prefix: remove prefix from recorded source file paths")
+	flag.StringVar(&Ctxt.LineHist.TrimPathPrefix, "trimpath", "", "prefix: remove prefix from recorded source file paths")
 
 	flag.Parse()
 

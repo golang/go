@@ -213,7 +213,7 @@ func Main() {
 	obj.Flagcount("r", "debug generated wrappers", &Debug['r'])
 	obj.Flagcount("race", "enable race detector", &flag_race)
 	obj.Flagcount("s", "warn about composite literals that can be simplified", &Debug['s'])
-	obj.Flagstr("trimpath", "prefix: remove prefix from recorded source file paths", &Ctxt.Trimpath)
+	obj.Flagstr("trimpath", "prefix: remove prefix from recorded source file paths", &Ctxt.LineHist.TrimPathPrefix)
 	obj.Flagcount("u", "reject unsafe code", &safemode)
 	obj.Flagcount("v", "increase debug verbosity", &Debug['v'])
 	obj.Flagcount("w", "debug type checking", &Debug['w'])
