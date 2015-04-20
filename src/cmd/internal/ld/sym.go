@@ -33,10 +33,10 @@ package ld
 
 import (
 	"cmd/internal/obj"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 )
 
 func yy_isalpha(c int) bool {
@@ -208,16 +208,13 @@ func Linkrlookup(ctxt *Link, name string, v int) *LSym {
 	return _lookup(ctxt, name, v, 0)
 }
 
-var headstr_buf string
-
 func Headstr(v int) string {
 	for i := 0; i < len(headers); i++ {
 		if v == headers[i].val {
 			return headers[i].name
 		}
 	}
-	headstr_buf = fmt.Sprintf("%d", v)
-	return headstr_buf
+	return strconv.Itoa(v)
 }
 
 func headtype(name string) int {

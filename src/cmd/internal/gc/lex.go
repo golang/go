@@ -2424,16 +2424,13 @@ var lexn = []struct {
 	{LVAR, "VAR"},
 }
 
-var lexname_buf string
-
 func lexname(lex int) string {
 	for i := 0; i < len(lexn); i++ {
 		if lexn[i].lex == lex {
 			return lexn[i].name
 		}
 	}
-	lexname_buf = fmt.Sprintf("LEX-%d", lex)
-	return lexname_buf
+	return fmt.Sprintf("LEX-%d", lex)
 }
 
 var yytfix = []struct {
