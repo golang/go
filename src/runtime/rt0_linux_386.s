@@ -14,11 +14,19 @@ TEXT _rt0_386_linux(SB),NOSPLIT,$8
 
 // When building with -buildmode=c-shared, this symbol is called when the shared
 // library is loaded.
-TEXT _rt0_386_linux_lib(SB),NOSPLIT,$12
-	MOVL	16(SP), AX
+TEXT _rt0_386_linux_lib(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	PUSHL	BX
+	PUSHL	SI
+	PUSHL	DI
+
+	MOVL	8(BP), AX
 	MOVL	AX, _rt0_386_linux_lib_argc<>(SB)
-	MOVL	20(SP), AX
+	MOVL	12(BP), AX
 	MOVL	AX, _rt0_386_linux_lib_argv<>(SB)
+
+	SUBL	$8, SP
 
 	// Create a new thread to do the runtime initialization.
 	MOVL	_cgo_sys_thread_create(SB), AX
@@ -28,7 +36,7 @@ TEXT _rt0_386_linux_lib(SB),NOSPLIT,$12
 	MOVL	BX, 0(SP)
 	MOVL	$0, 4(SP)
 	CALL	AX
-	RET
+	JMP	restore
 
 nocgo:
 	MOVL	$0x800000, 0(SP)                    // stacksize = 8192KB
@@ -37,6 +45,13 @@ nocgo:
 	MOVL	$0, 8(SP)                           // fnarg
 	MOVL	$runtime·newosproc0(SB), AX
 	CALL	AX
+
+restore:
+	ADDL	$8, SP
+	POPL	DI
+	POPL	SI
+	POPL	BX
+	POPL	BP
 	RET
 
 TEXT _rt0_386_linux_lib_go(SB),NOSPLIT,$12
