@@ -540,6 +540,30 @@ func runInstall(cmd *Command, args []string) {
 		}
 	}
 	b.do(a)
+	exitIfErrors()
+
+	// Success. If this command is 'go install' with no arguments
+	// and the current directory (the implicit argument) is a command,
+	// remove any leftover command binary from a previous 'go build'.
+	// The binary is installed; it's not needed here anymore.
+	// And worse it might be a stale copy, which you don't want to find
+	// instead of the installed one if $PATH contains dot.
+	// One way to view this behavior is that it is as if 'go install' first
+	// runs 'go build' and the moves the generated file to the install dir.
+	// See issue 9645.
+	if len(args) == 0 && len(pkgs) == 1 && pkgs[0].Name == "main" {
+		// Compute file 'go build' would have created.
+		// If it exists and is an executable file, remove it.
+		_, targ := filepath.Split(pkgs[0].ImportPath)
+		targ += exeSuffix
+		fi, err := os.Stat(targ)
+		if err == nil {
+			m := fi.Mode()
+			if m.IsRegular() && m&0111 != 0 {
+				os.Remove(targ)
+			}
+		}
+	}
 }
 
 // Global build parameters (used during package load)

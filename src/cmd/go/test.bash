@@ -96,6 +96,55 @@ elif grep -q runtime $d/err.out; then
 fi
 rm -r $d
 
+TEST 'go install cleans up after go build'
+d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
+export GOPATH=$d
+mkdir -p $d/src/mycmd
+echo 'package main; func main(){}' >$d/src/mycmd/main.go
+old=$(pwd)
+cd $d/src/mycmd
+"$old/testgo" build
+if [ ! -x mycmd ]; then
+	echo "testgo build did not write command binary"
+	ok=false
+fi
+"$old/testgo" install
+if [ -e mycmd ]; then
+	echo "testgo install did not remove command binary"
+	ok=false
+fi
+"$old/testgo" build
+if [ ! -x mycmd ]; then
+	echo "testgo build did not write command binary (second time)"
+	ok=false
+fi
+# install with arguments does not remove the target,
+# even in the same directory
+"$old/testgo" install mycmd
+if [ ! -e mycmd ]; then
+	echo "testgo install mycmd removed command binary when run in mycmd"
+	ok=false
+fi
+"$old/testgo" build
+if [ ! -x mycmd ]; then
+	echo "testgo build did not write command binary (third time)"
+	ok=false
+fi
+# and especially not outside the directory
+cd $d
+cp src/mycmd/mycmd .
+"$old/testgo" install mycmd
+if [ ! -e $d/src/mycmd/mycmd ]; then
+	echo "testgo install mycmd removed command binary from its source dir when run outside mycmd"
+	ok=false
+fi
+if [ ! -e $d/mycmd ]; then
+	echo "testgo install mycmd removed command binary from current dir when run outside mycmd"
+	ok=false
+fi
+cd "$old"
+rm -r $d
+
 TEST 'go install rebuilds stale packages in other GOPATH'
 d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
 export GOPATH=$d/d1:$d/d2
