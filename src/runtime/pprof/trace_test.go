@@ -231,7 +231,6 @@ func TestTraceStress(t *testing.T) {
 // And concurrently with all that start/stop trace 3 times.
 func TestTraceStressStartStop(t *testing.T) {
 	skipTraceTestsIfNeeded(t)
-	t.Skip("test is unreliable; issue #10476")
 
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(8))
 	outerDone := make(chan bool)
