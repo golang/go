@@ -96,6 +96,74 @@ elif grep -q runtime $d/err.out; then
 fi
 rm -r $d
 
+TEST 'go install detects removed files'
+d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
+export GOPATH=$d
+mkdir -p $d/src/mypkg
+echo package mypkg >$d/src/mypkg/x.go
+echo package mypkg >$d/src/mypkg/y.go
+echo '// +build missingtag
+
+package mypkg' >$d/src/mypkg/z.go
+if ! ./testgo install mypkg; then
+	echo "testgo install mypkg failed"
+	ok=false
+elif [ "$(./testgo list -f '{{.Stale}}' mypkg)" != false ]; then
+	echo "./testgo list mypkg claims mypkg is stale, incorrectly"
+	ok=false
+else
+	# z.go was not part of the build; removing it is okay.
+	rm $d/src/mypkg/z.go
+	if [ "$(./testgo list -f '{{.Stale}}' mypkg)" != false ]; then
+		echo "./testgo list mypkg claims mypkg is stale after removing z.go; should not be stale"
+		ok=false
+		./testgo install mypkg
+	fi
+	# y.go was part of the package; removing it should be detected.
+	rm $d/src/mypkg/y.go
+	if [ "$(./testgo list -f '{{.Stale}}' mypkg)" != true ]; then
+		echo "./testgo list mypkg claims mypkg is NOT stale after removing y.go; should be stale"
+		ok=false
+	fi
+fi
+rm -r $d
+
+TEST 'go install detects removed files in package main'
+d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
+export GOPATH=$d
+mkdir -p $d/src/mycmd
+echo 'package main
+
+func main() {}
+' >$d/src/mycmd/x.go
+echo package main >$d/src/mycmd/y.go
+echo '// +build missingtag
+
+package main' >$d/src/mycmd/z.go
+if ! ./testgo install mycmd; then
+	echo "./testgo install mycmd failed"
+	ok=false
+elif [ "$(./testgo list -f '{{.Stale}}' mycmd)" != false ]; then
+	echo "./testgo list mypkg claims mycmd is stale, incorrectly"
+	ok=false
+else
+	# z.go was not part of the build; removing it is okay.
+	rm $d/src/mycmd/z.go
+	if [ "$(./testgo list -f '{{.Stale}}' mycmd)" != false ]; then
+		echo "./testgo list mycmd claims mycmd is stale after removing z.go; should not be stale"
+		ok=false
+		./testgo install mycmd
+	fi
+	# y.go was part of the package; removing it should be detected.
+	rm $d/src/mycmd/y.go
+	if [ "$(./testgo list -f '{{.Stale}}' mycmd)" != true ]; then
+		echo "./testgo list mycmd claims mycmd is NOT stale after removing y.go; should be stale"
+		ok=false
+	fi
+fi
+rm -r $d
+
+
 # Test local (./) imports.
 testlocal() {
 	local="$1"

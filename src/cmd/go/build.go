@@ -1406,6 +1406,26 @@ func (b *builder) build(a *action) (err error) {
 		if err := buildToolchain.ld(b, a.p, a.target, all, a.objpkg, objects); err != nil {
 			return err
 		}
+
+		// Write build ID to end of binary.
+		// We could try to put it in a custom section or some such,
+		// but then we'd need different code for ELF, Mach-O, PE, and Plan 9.
+		// Instead, just append to the binary. No one should care.
+		// Issue #11048 is to fix this for ELF and Mach-O at least.
+		if buildToolchain == (gcToolchain{}) && a.p.buildID != "" {
+			f, err := os.OpenFile(a.target, os.O_WRONLY|os.O_APPEND, 0)
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+			// Note: This string must match readBuildIDFromBinary in pkg.go.
+			if _, err := fmt.Fprintf(f, "\x00\n\ngo binary\nbuild id %q\nend go binary\n", a.p.buildID); err != nil {
+				return err
+			}
+			if err := f.Close(); err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
@@ -2130,6 +2150,9 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool, 
 	}
 	if buildContext.InstallSuffix != "" {
 		gcargs = append(gcargs, "-installsuffix", buildContext.InstallSuffix)
+	}
+	if p.buildID != "" {
+		gcargs = append(gcargs, "-buildid", p.buildID)
 	}
 
 	args := []interface{}{buildToolExec, tool("compile"), "-o", ofile, "-trimpath", b.work, buildGcflags, gcargs, "-D", p.localPrefix, importArgs}
