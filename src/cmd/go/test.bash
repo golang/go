@@ -203,7 +203,7 @@ q' | ed $d/src/$config >/dev/null 2>&1
 			echo "go get -d -u $url succeeded with wrong remote repo"
 			cat $d/err
 			ok=false
-		elif ! grep 'should be from' $d/err >/dev/null; then
+		elif ! grep 'is a custom import path for' $d/err >/dev/null; then
 			echo "go get -d -u $url failed for wrong reason"
 			cat $d/err
 			ok=false
@@ -222,9 +222,13 @@ q' | ed $d/src/$config >/dev/null 2>&1
 	rm -rf $d
 }
 
-testmove hg rsc.io/x86/x86asm x86 rsc.io/x86/.hg/hgrc
 testmove git rsc.io/pdf pdf rsc.io/pdf/.git/config
-testmove svn code.google.com/p/rsc-svn/trunk - -
+
+# TODO(rsc): Set up a test case on bitbucket for hg.
+# testmove hg rsc.io/x86/x86asm x86 rsc.io/x86/.hg/hgrc
+
+# TODO(rsc): Set up a test case on SourceForge (?) for svn.
+# testmove svn code.google.com/p/rsc-svn/trunk - -
 
 export GOPATH=$(pwd)/testdata/importcom
 TEST 'import comment - match'
@@ -896,30 +900,32 @@ if ! ./testgo test -c -test.bench=XXX fmt; then
 fi
 rm -f fmt.test
 
-TEST 'Issue 7573: cmd/cgo: undefined reference when linking a C-library using gccgo'
-d=$(mktemp -d -t testgoXXX)
-export GOPATH=$d
-mkdir -p $d/src/cgoref
-ldflags="-L alibpath -lalib"
-echo "
-package main
-// #cgo LDFLAGS: $ldflags
-// void f(void) {}
-import \"C\"
-
-func main() { C.f() }
-" >$d/src/cgoref/cgoref.go
-go_cmds="$(./testgo build -n -compiler gccgo cgoref 2>&1 1>/dev/null)"
-ldflags_count="$(echo "$go_cmds" | egrep -c "^gccgo.*$(echo $ldflags | sed -e 's/-/\\-/g')" || true)"
-if [ "$ldflags_count" -lt 1 ]; then
-	echo "No Go-inline "#cgo LDFLAGS:" (\"$ldflags\") passed to gccgo linking stage."
-	ok=false
+if which gccgo >/dev/null; then
+	TEST 'Issue 7573: cmd/cgo: undefined reference when linking a C-library using gccgo'
+	d=$(mktemp -d -t testgoXXX)
+	export GOPATH=$d
+	mkdir -p $d/src/cgoref
+	ldflags="-L alibpath -lalib"
+	echo "
+	package main
+	// #cgo LDFLAGS: $ldflags
+	// void f(void) {}
+	import \"C\"
+	
+	func main() { C.f() }
+	" >$d/src/cgoref/cgoref.go
+	go_cmds="$(./testgo build -n -compiler gccgo cgoref 2>&1 1>/dev/null)"
+	ldflags_count="$(echo "$go_cmds" | egrep -c "^gccgo.*$(echo $ldflags | sed -e 's/-/\\-/g')" || true)"
+	if [ "$ldflags_count" -lt 1 ]; then
+		echo "No Go-inline "#cgo LDFLAGS:" (\"$ldflags\") passed to gccgo linking stage."
+		ok=false
+	fi
+	rm -rf $d
+	unset ldflags_count
+	unset go_cmds
+	unset ldflags
+	unset GOPATH
 fi
-rm -rf $d
-unset ldflags_count
-unset go_cmds
-unset ldflags
-unset GOPATH
 
 TEST list template can use context function
 if ! ./testgo list -f "GOARCH: {{context.GOARCH}}"; then 
@@ -1049,6 +1055,7 @@ elif ! grep 'File with non-runnable example was built.' testdata/std.out > /dev/
 	echo "file with non-runnable example was not built"
 	ok=false
 fi
+rm -f testdata/std.out
 
 TEST 'go generate handles simple command'
 if ! ./testgo generate ./testdata/generate/test1.go > testdata/std.out; then
@@ -1103,6 +1110,8 @@ rm -rf $d
 
 TEST go vet with external tests
 d=$(mktemp -d -t testgoXXX)
+export GOPATH=$d
+./testgo get golang.org/x/tools/cmd/vet
 export GOPATH=$(pwd)/testdata
 if ./testgo vet vetpkg >$d/err 2>&1; then
 	echo "go vet vetpkg passes incorrectly"
@@ -1127,7 +1136,7 @@ rm -rf $d
 
 # clean up
 if $started; then stop; fi
-rm -rf testdata/bin testdata/bin1
+rm -rf testdata/bin testdata/bin1 testdata/std.out
 rm -f testgo
 
 if $allok; then

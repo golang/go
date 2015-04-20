@@ -60,12 +60,12 @@ func Ldmain() {
 	INITENTRY = ""
 	Linkmode = LinkAuto
 
-	// For testing behavior of go command when tools crash.
+	// For testing behavior of go command when tools crash silently.
 	// Undocumented, not in standard flag parser to avoid
 	// exposing in usage message.
 	for _, arg := range os.Args {
 		if arg == "-crash_for_testing" {
-			*(*int)(nil) = 0
+			os.Exit(2)
 		}
 	}
 
