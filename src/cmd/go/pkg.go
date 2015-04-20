@@ -534,6 +534,14 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 	if len(p.CgoFiles) > 0 && (!p.Standard || !cgoSyscallExclude[p.ImportPath]) {
 		importPaths = append(importPaths, "syscall")
 	}
+
+	// Currently build mode c-shared, or -linkshared, forces
+	// external linking mode, and external linking mode forces an
+	// import of runtime/cgo.
+	if p.Name == "main" && !p.Goroot && (buildBuildmode == "c-shared" || buildLinkshared) {
+		importPaths = append(importPaths, "runtime/cgo")
+	}
+
 	// Everything depends on runtime, except runtime and unsafe.
 	if !p.Standard || (p.ImportPath != "runtime" && p.ImportPath != "unsafe") {
 		importPaths = append(importPaths, "runtime")
