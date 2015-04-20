@@ -809,11 +809,11 @@ func shouldbuild(file, dir string) bool {
 }
 
 // copy copies the file src to dst, via memory (so only good for small files).
-func copyfile(dst, src string, exec int) {
+func copyfile(dst, src string, flag int) {
 	if vflag > 1 {
 		errprintf("cp %s %s\n", src, dst)
 	}
-	writefile(readfile(src), dst, exec)
+	writefile(readfile(src), dst, flag)
 }
 
 // dopack copies the package src to dst,

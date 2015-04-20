@@ -118,7 +118,7 @@ func bootstrapBuildTools() {
 	// Copy binaries into tool binary directory.
 	for _, name := range bootstrapDirs {
 		if !strings.Contains(name, "/") {
-			copyfile(pathf("%s/%s%s", tooldir, name, exe), pathf("%s/bin/%s%s", workspace, name, exe), 1)
+			copyfile(pathf("%s/%s%s", tooldir, name, exe), pathf("%s/bin/%s%s", workspace, name, exe), writeExec)
 		}
 	}
 
