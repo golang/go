@@ -371,6 +371,10 @@ func TestTraceFutileWakeup(t *testing.T) {
 	// The test generates a full-load of futile wakeups on channels,
 	// and ensures that the trace is consistent after their removal.
 	skipTraceTestsIfNeeded(t)
+	if runtime.GOOS == "linux" && runtime.GOARCH == "ppc64le" {
+		t.Skip("test is unreliable; issue #10512")
+	}
+
 	buf := new(bytes.Buffer)
 	if err := StartTrace(buf); err != nil {
 		t.Fatalf("failed to start tracing: %v", err)
