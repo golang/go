@@ -246,16 +246,16 @@ func ldpe(f *Biobuf, pkg string, length int64, pn string) {
 
 		switch sect.sh.Characteristics & (IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE) {
 		case IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ: //.rdata
-			s.Type = SRODATA
+			s.Type = obj.SRODATA
 
 		case IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE: //.bss
-			s.Type = SNOPTRBSS
+			s.Type = obj.SNOPTRBSS
 
 		case IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE: //.data
-			s.Type = SNOPTRDATA
+			s.Type = obj.SNOPTRDATA
 
 		case IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ: //.text
-			s.Type = STEXT
+			s.Type = obj.STEXT
 
 		default:
 			err = fmt.Errorf("unexpected flags %#06x for PE section %s", sect.sh.Characteristics, sect.name)
@@ -315,12 +315,12 @@ func ldpe(f *Biobuf, pkg string, length int64, pn string) {
 			case IMAGE_REL_I386_REL32, IMAGE_REL_AMD64_REL32,
 				IMAGE_REL_AMD64_ADDR32, // R_X86_64_PC32
 				IMAGE_REL_AMD64_ADDR32NB:
-				rp.Type = R_PCREL
+				rp.Type = obj.R_PCREL
 
 				rp.Add = int64(int32(Le32(rsect.base[rp.Off:])))
 
 			case IMAGE_REL_I386_DIR32NB, IMAGE_REL_I386_DIR32:
-				rp.Type = R_ADDR
+				rp.Type = obj.R_ADDR
 
 				// load addend from image
 				rp.Add = int64(int32(Le32(rsect.base[rp.Off:])))
@@ -328,7 +328,7 @@ func ldpe(f *Biobuf, pkg string, length int64, pn string) {
 			case IMAGE_REL_AMD64_ADDR64: // R_X86_64_64
 				rp.Siz = 8
 
-				rp.Type = R_ADDR
+				rp.Type = obj.R_ADDR
 
 				// load addend from image
 				rp.Add = int64(Le64(rsect.base[rp.Off:]))
@@ -373,11 +373,11 @@ func ldpe(f *Biobuf, pkg string, length int64, pn string) {
 
 		s = sym.sym
 		if sym.sectnum == 0 { // extern
-			if s.Type == SDYNIMPORT {
+			if s.Type == obj.SDYNIMPORT {
 				s.Plt = -2 // flag for dynimport in PE object files.
 			}
-			if s.Type == SXREF && sym.value > 0 { // global data
-				s.Type = SNOPTRDATA
+			if s.Type == obj.SXREF && sym.value > 0 { // global data
+				s.Type = obj.SNOPTRDATA
 				s.Size = int64(sym.value)
 			}
 
@@ -404,11 +404,11 @@ func ldpe(f *Biobuf, pkg string, length int64, pn string) {
 
 		s.Sub = sect.sym.Sub
 		sect.sym.Sub = s
-		s.Type = sect.sym.Type | SSUB
+		s.Type = sect.sym.Type | obj.SSUB
 		s.Value = int64(sym.value)
 		s.Size = 4
 		s.Outer = sect.sym
-		if sect.sym.Type == STEXT {
+		if sect.sym.Type == obj.STEXT {
 			if s.External != 0 && s.Dupok == 0 {
 				Diag("%s: duplicate definition of %s", pn, s.Name)
 			}
@@ -426,7 +426,7 @@ func ldpe(f *Biobuf, pkg string, length int64, pn string) {
 		if s.Sub != nil {
 			s.Sub = listsort(s.Sub, valuecmp, listsubp)
 		}
-		if s.Type == STEXT {
+		if s.Type == obj.STEXT {
 			if s.Onlist != 0 {
 				log.Fatalf("symbol %s listed multiple times", s.Name)
 			}
@@ -523,7 +523,7 @@ func readpesym(peobj *PeObj, i int, y **PeSym) (err error) {
 	}
 
 	if s != nil && s.Type == 0 && (sym.sclass != IMAGE_SYM_CLASS_STATIC || sym.value != 0) {
-		s.Type = SXREF
+		s.Type = obj.SXREF
 	}
 	if strings.HasPrefix(sym.name, "__imp_") {
 		s.Got = -2 // flag for __imp_

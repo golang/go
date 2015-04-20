@@ -688,7 +688,7 @@ func adddwarfrel(sec *LSym, sym *LSym, offsetbase int64, siz int, addend int64) 
 	r.Xsym = sym
 	r.Off = int32(Cpos() - offsetbase)
 	r.Siz = uint8(siz)
-	r.Type = R_ADDR
+	r.Type = obj.R_ADDR
 	r.Add = addend
 	r.Xadd = addend
 	if Iself && Thearch.Thechar == '6' {
@@ -1691,11 +1691,11 @@ func writelines() {
 		varhash = [HASHSIZE]*DWDie{}
 		for a = s.Autom; a != nil; a = a.Link {
 			switch a.Name {
-			case A_AUTO:
+			case obj.A_AUTO:
 				dt = DW_ABRV_AUTO
 				offs = int64(a.Aoffset) - int64(Thearch.Ptrsize)
 
-			case A_PARAM:
+			case obj.A_PARAM:
 				dt = DW_ABRV_PARAM
 				offs = int64(a.Aoffset)
 
@@ -2039,7 +2039,7 @@ func writegdbscript() int64 {
 }
 
 func align(size int64) {
-	if HEADTYPE == Hwindows { // Only Windows PE need section align.
+	if HEADTYPE == obj.Hwindows { // Only Windows PE need section align.
 		strnput("", int(Rnd(size, PEFILEALIGN)-size))
 	}
 }
@@ -2053,7 +2053,7 @@ func writedwarfreloc(s *LSym) int64 {
 		r = &s.R[ri]
 		if Iself {
 			i = Thearch.Elfreloc1(r, int64(r.Off))
-		} else if HEADTYPE == Hdarwin {
+		} else if HEADTYPE == obj.Hdarwin {
 			i = Thearch.Machoreloc1(r, int64(r.Off))
 		} else {
 			i = -1

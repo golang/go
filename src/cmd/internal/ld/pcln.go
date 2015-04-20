@@ -143,10 +143,10 @@ func renumberfiles(ctxt *Link, files []*LSym, d *Pcdata) {
 	// Give files numbers.
 	for i := 0; i < len(files); i++ {
 		f = files[i]
-		if f.Type != SFILEPATH {
+		if f.Type != obj.SFILEPATH {
 			ctxt.Nhistfile++
 			f.Value = int64(ctxt.Nhistfile)
-			f.Type = SFILEPATH
+			f.Type = obj.SFILEPATH
 			f.Next = ctxt.Filesyms
 			ctxt.Filesyms = f
 		}
@@ -212,7 +212,7 @@ var pclntabLastFunc *LSym
 func pclntab() {
 	funcdata_bytes := int64(0)
 	ftab := Linklookup(Ctxt, "runtime.pclntab", 0)
-	ftab.Type = SPCLNTAB
+	ftab.Type = obj.SPCLNTAB
 	ftab.Reachable = true
 
 	// See golang.org/s/go12symtab for the format. Briefly:
@@ -378,7 +378,7 @@ const (
 // function for a pc.  See src/runtime/symtab.go:findfunc for details.
 func findfunctab() {
 	t := Linklookup(Ctxt, "runtime.findfunctab", 0)
-	t.Type = SRODATA
+	t.Type = obj.SRODATA
 	t.Reachable = true
 	t.Local = true
 

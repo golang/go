@@ -5,6 +5,7 @@
 package ld
 
 import (
+	"cmd/internal/obj"
 	"encoding/binary"
 	"fmt"
 	"sort"
@@ -450,9 +451,9 @@ func Peinit() {
 	nextfileoff = int(PEFILEHEADR)
 
 	// some mingw libs depend on this symbol, for example, FindPESectionByName
-	xdefine("__image_base__", SDATA, PEBASE)
+	xdefine("__image_base__", obj.SDATA, PEBASE)
 
-	xdefine("_image_base__", SDATA, PEBASE)
+	xdefine("_image_base__", obj.SDATA, PEBASE)
 }
 
 func pewrite() {
@@ -487,7 +488,7 @@ func initdynimport() *Dll {
 	dr = nil
 	var m *Imp
 	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
-		if !s.Reachable || s.Type != SDYNIMPORT {
+		if !s.Reachable || s.Type != obj.SDYNIMPORT {
 			continue
 		}
 		for d = dr; d != nil; d = d.next {
@@ -529,7 +530,7 @@ func initdynimport() *Dll {
 		// Add real symbol name
 		for d := dr; d != nil; d = d.next {
 			for m = d.ms; m != nil; m = m.next {
-				m.s.Type = SDATA
+				m.s.Type = obj.SDATA
 				Symgrow(Ctxt, m.s, int64(Thearch.Ptrsize))
 				dynName := m.s.Extname
 				// only windows/386 requires stdcall decoration
@@ -538,12 +539,12 @@ func initdynimport() *Dll {
 				}
 				dynSym := Linklookup(Ctxt, dynName, 0)
 				dynSym.Reachable = true
-				dynSym.Type = SHOSTOBJ
+				dynSym.Type = obj.SHOSTOBJ
 				r := Addrel(m.s)
 				r.Sym = dynSym
 				r.Off = 0
 				r.Siz = uint8(Thearch.Ptrsize)
-				r.Type = R_ADDR
+				r.Type = obj.R_ADDR
 
 				// pre-allocate symtab entries for those symbols
 				dynSym.Dynid = int32(ncoffsym)
@@ -553,10 +554,10 @@ func initdynimport() *Dll {
 	} else {
 		dynamic := Linklookup(Ctxt, ".windynamic", 0)
 		dynamic.Reachable = true
-		dynamic.Type = SWINDOWS
+		dynamic.Type = obj.SWINDOWS
 		for d := dr; d != nil; d = d.next {
 			for m = d.ms; m != nil; m = m.next {
-				m.s.Type = SWINDOWS | SSUB
+				m.s.Type = obj.SWINDOWS | obj.SSUB
 				m.s.Sub = dynamic.Sub
 				dynamic.Sub = m.s
 				m.s.Value = dynamic.Size
@@ -902,7 +903,7 @@ func dope() {
 	rel := Linklookup(Ctxt, ".rel", 0)
 
 	rel.Reachable = true
-	rel.Type = SELFROSECT
+	rel.Type = obj.SELFROSECT
 
 	initdynimport()
 	initdynexport()
@@ -954,7 +955,7 @@ func addpesym(s *LSym, name string, type_ int, addr int64, size int64, ver int, 
 
 	if coffsym != nil {
 		// only windows/386 requires underscore prefix on external symbols
-		if Thearch.Thechar == '8' && Linkmode == LinkExternal && (s.Type == SHOSTOBJ || s.Cgoexport != 0) && s.Name == s.Extname {
+		if Thearch.Thechar == '8' && Linkmode == LinkExternal && (s.Type == obj.SHOSTOBJ || s.Cgoexport != 0) && s.Name == s.Extname {
 			s.Name = "_" + s.Name
 		}
 		cs := &coffsym[ncoffsym]
@@ -964,7 +965,7 @@ func addpesym(s *LSym, name string, type_ int, addr int64, size int64, ver int, 
 		}
 		// Note: although address of runtime.edata (type SDATA) is at the start of .bss section
 		// it still belongs to the .data section, not the .bss section.
-		if uint64(s.Value) >= Segdata.Vaddr+Segdata.Filelen && s.Type != SDATA && Linkmode == LinkExternal {
+		if uint64(s.Value) >= Segdata.Vaddr+Segdata.Filelen && s.Type != obj.SDATA && Linkmode == LinkExternal {
 			cs.value = int64(uint64(s.Value) - Segdata.Vaddr - Segdata.Filelen)
 			cs.sect = bsssect
 		} else if uint64(s.Value) >= Segdata.Vaddr {

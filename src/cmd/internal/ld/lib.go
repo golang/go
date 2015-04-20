@@ -376,7 +376,7 @@ func libinit() {
 	}
 
 	if !DynlinkingGo() {
-		Linklookup(Ctxt, INITENTRY, 0).Type = SXREF
+		Linklookup(Ctxt, INITENTRY, 0).Type = obj.SXREF
 	}
 }
 
@@ -485,7 +485,7 @@ func loadlib() {
 		// dependency problems when compiling natively (external linking requires
 		// runtime/cgo, runtime/cgo requires cmd/cgo, but cmd/cgo needs to be
 		// compiled using external linking.)
-		if (Thearch.Thechar == '5' || Thearch.Thechar == '7') && HEADTYPE == Hdarwin && iscgo {
+		if (Thearch.Thechar == '5' || Thearch.Thechar == '7') && HEADTYPE == obj.Hdarwin && iscgo {
 			Linkmode = LinkExternal
 		}
 	}
@@ -516,13 +516,13 @@ func loadlib() {
 		// Drop all the cgo_import_static declarations.
 		// Turns out we won't be needing them.
 		for s := Ctxt.Allsym; s != nil; s = s.Allsym {
-			if s.Type == SHOSTOBJ {
+			if s.Type == obj.SHOSTOBJ {
 				// If a symbol was marked both
 				// cgo_import_static and cgo_import_dynamic,
 				// then we want to make it cgo_import_dynamic
 				// now.
 				if s.Extname != "" && s.Dynimplib != "" && s.Cgoexport == 0 {
-					s.Type = SDYNIMPORT
+					s.Type = obj.SDYNIMPORT
 				} else {
 					s.Type = 0
 				}
@@ -539,8 +539,8 @@ func loadlib() {
 	// TODO(crawshaw): android should require leaving the tlsg->type
 	// alone (as the runtime-provided SNOPTRBSS) just like darwin/arm.
 	// But some other part of the linker is expecting STLSBSS.
-	if tlsg.Type != SDYNIMPORT && (goos != "darwin" || Thearch.Thechar != '5') {
-		tlsg.Type = STLSBSS
+	if tlsg.Type != obj.SDYNIMPORT && (goos != "darwin" || Thearch.Thechar != '5') {
+		tlsg.Type = obj.STLSBSS
 	}
 	tlsg.Size = int64(Thearch.Ptrsize)
 	tlsg.Reachable = true
@@ -579,7 +579,7 @@ func loadlib() {
 	// binaries, so leave it enabled on OS X (Mach-O) binaries.
 	// Also leave it enabled on Solaris which doesn't support
 	// statically linked binaries.
-	if Buildmode == BuildmodeExe && havedynamic == 0 && HEADTYPE != Hdarwin && HEADTYPE != Hsolaris {
+	if Buildmode == BuildmodeExe && havedynamic == 0 && HEADTYPE != obj.Hdarwin && HEADTYPE != obj.Hsolaris {
 		Debug['d'] = 1
 	}
 
@@ -743,7 +743,7 @@ func ldhostobj(ld func(*Biobuf, string, int64, string), f *Biobuf, pkg string, l
 	// force external linking for any libraries that link in code that
 	// uses errno. This can be removed if the Go linker ever supports
 	// these relocation types.
-	if HEADTYPE == Hdragonfly {
+	if HEADTYPE == obj.Hdragonfly {
 		if pkg == "net" || pkg == "os/user" {
 			isinternal = false
 		}
@@ -898,13 +898,13 @@ func hostlink() {
 		argv = append(argv, "-s")
 	}
 
-	if HEADTYPE == Hdarwin {
+	if HEADTYPE == obj.Hdarwin {
 		argv = append(argv, "-Wl,-no_pie,-pagezero_size,4000000")
 	}
-	if HEADTYPE == Hopenbsd {
+	if HEADTYPE == obj.Hopenbsd {
 		argv = append(argv, "-Wl,-nopie")
 	}
-	if HEADTYPE == Hwindows {
+	if HEADTYPE == obj.Hwindows {
 		if headstring == "windowsgui" {
 			argv = append(argv, "-mwindows")
 		} else {
@@ -990,7 +990,7 @@ func hostlink() {
 			}
 		}
 	}
-	if HEADTYPE == Hwindows {
+	if HEADTYPE == obj.Hwindows {
 		argv = append(argv, peimporteddlls()...)
 	}
 
@@ -1157,7 +1157,7 @@ func ldshlibsyms(shlib string) {
 				"Found duplicate symbol %s reading from %s, first found in %s",
 				s.Name, shlib, lsym.File)
 		}
-		lsym.Type = SDYNIMPORT
+		lsym.Type = obj.SDYNIMPORT
 		lsym.File = libpath
 	}
 
@@ -1168,7 +1168,7 @@ func ldshlibsyms(shlib string) {
 	var last *LSym
 
 	for s := Ctxt.Textp; s != nil; s = s.Next {
-		if s.Type == SDYNIMPORT {
+		if s.Type == obj.SDYNIMPORT {
 			continue
 		}
 
@@ -1360,7 +1360,7 @@ func stkcheck(up *Chain, depth int) int {
 		// should never be called directly.
 		// only diagnose the direct caller.
 		// TODO(mwhudson): actually think about this.
-		if depth == 1 && s.Type != SXREF && !DynlinkingGo() {
+		if depth == 1 && s.Type != obj.SXREF && !DynlinkingGo() {
 			Diag("call to external function %s", s.Name)
 		}
 		return -1
@@ -1401,7 +1401,7 @@ func stkcheck(up *Chain, depth int) int {
 			r = &s.R[ri]
 			switch r.Type {
 			// Direct call.
-			case R_CALL, R_CALLARM, R_CALLARM64, R_CALLPOWER:
+			case obj.R_CALL, obj.R_CALLARM, obj.R_CALLARM64, obj.R_CALLPOWER:
 				ch.limit = int(int32(limit) - pcsp.value - int32(callsize()))
 
 				ch.sym = r.Sym
@@ -1422,7 +1422,7 @@ func stkcheck(up *Chain, depth int) int {
 			// so we have to make sure it can call morestack.
 			// Arrange the data structures to report both calls, so that
 			// if there is an error, stkprint shows all the steps involved.
-			case R_CALLIND:
+			case obj.R_CALLIND:
 				ch.limit = int(int32(limit) - pcsp.value - int32(callsize()))
 
 				ch.sym = nil
@@ -1549,11 +1549,11 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 	// skip STEXT symbols. Normal STEXT symbols are emitted by walking textp.
 	s := Linklookup(Ctxt, "runtime.text", 0)
 
-	if s.Type == STEXT {
+	if s.Type == obj.STEXT {
 		put(s, s.Name, 'T', s.Value, s.Size, int(s.Version), nil)
 	}
 	s = Linklookup(Ctxt, "runtime.etext", 0)
-	if s.Type == STEXT {
+	if s.Type == obj.STEXT {
 		put(s, s.Name, 'T', s.Value, s.Size, int(s.Version), nil)
 	}
 
@@ -1561,27 +1561,27 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 		if s.Hide != 0 || (s.Name[0] == '.' && s.Version == 0 && s.Name != ".rathole") {
 			continue
 		}
-		switch s.Type & SMASK {
-		case SCONST,
-			SRODATA,
-			SSYMTAB,
-			SPCLNTAB,
-			SINITARR,
-			SDATA,
-			SNOPTRDATA,
-			SELFROSECT,
-			SMACHOGOT,
-			STYPE,
-			SSTRING,
-			SGOSTRING,
-			SGOFUNC,
-			SWINDOWS:
+		switch s.Type & obj.SMASK {
+		case obj.SCONST,
+			obj.SRODATA,
+			obj.SSYMTAB,
+			obj.SPCLNTAB,
+			obj.SINITARR,
+			obj.SDATA,
+			obj.SNOPTRDATA,
+			obj.SELFROSECT,
+			obj.SMACHOGOT,
+			obj.STYPE,
+			obj.SSTRING,
+			obj.SGOSTRING,
+			obj.SGOFUNC,
+			obj.SWINDOWS:
 			if !s.Reachable {
 				continue
 			}
 			put(s, s.Name, 'D', Symaddr(s), s.Size, int(s.Version), s.Gotype)
 
-		case SBSS, SNOPTRBSS:
+		case obj.SBSS, obj.SNOPTRBSS:
 			if !s.Reachable {
 				continue
 			}
@@ -1590,22 +1590,22 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 			}
 			put(s, s.Name, 'B', Symaddr(s), s.Size, int(s.Version), s.Gotype)
 
-		case SFILE:
+		case obj.SFILE:
 			put(nil, s.Name, 'f', s.Value, 0, int(s.Version), nil)
 
-		case SHOSTOBJ:
-			if HEADTYPE == Hwindows || Iself {
+		case obj.SHOSTOBJ:
+			if HEADTYPE == obj.Hwindows || Iself {
 				put(s, s.Name, 'U', s.Value, 0, int(s.Version), nil)
 			}
 
-		case SDYNIMPORT:
+		case obj.SDYNIMPORT:
 			if !s.Reachable {
 				continue
 			}
 			put(s, s.Extname, 'U', 0, 0, int(s.Version), nil)
 
-		case STLSBSS:
-			if Linkmode == LinkExternal && HEADTYPE != Hopenbsd {
+		case obj.STLSBSS:
+			if Linkmode == LinkExternal && HEADTYPE != obj.Hopenbsd {
 				var type_ int
 				if goos == "android" {
 					type_ = 'B'
@@ -1628,12 +1628,12 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 		for a = s.Autom; a != nil; a = a.Link {
 			// Emit a or p according to actual offset, even if label is wrong.
 			// This avoids negative offsets, which cannot be encoded.
-			if a.Name != A_AUTO && a.Name != A_PARAM {
+			if a.Name != obj.A_AUTO && a.Name != obj.A_PARAM {
 				continue
 			}
 
 			// compute offset relative to FP
-			if a.Name == A_PARAM {
+			if a.Name == obj.A_PARAM {
 				off = a.Aoffset
 			} else {
 				off = a.Aoffset - int32(Thearch.Ptrsize)
@@ -1697,7 +1697,7 @@ func Entryvalue() int64 {
 	if s.Type == 0 {
 		return INITTEXT
 	}
-	if s.Type != STEXT {
+	if s.Type != obj.STEXT {
 		Diag("entry not text: %s", s.Name)
 	}
 	return s.Value
@@ -1712,7 +1712,7 @@ func undefsym(s *LSym) {
 		if r.Sym == nil { // happens for some external ARM relocs
 			continue
 		}
-		if r.Sym.Type == Sxxx || r.Sym.Type == SXREF {
+		if r.Sym.Type == obj.Sxxx || r.Sym.Type == obj.SXREF {
 			Diag("undefined: %s", r.Sym.Name)
 		}
 		if !r.Sym.Reachable {
@@ -1746,7 +1746,7 @@ func callgraph() {
 			if r.Sym == nil {
 				continue
 			}
-			if (r.Type == R_CALL || r.Type == R_CALLARM || r.Type == R_CALLPOWER) && r.Sym.Type == STEXT {
+			if (r.Type == obj.R_CALL || r.Type == obj.R_CALLARM || r.Type == obj.R_CALLPOWER) && r.Sym.Type == obj.STEXT {
 				fmt.Fprintf(&Bso, "%s calls %s\n", s.Name, r.Sym.Name)
 			}
 		}
@@ -1790,7 +1790,7 @@ func checkgo() {
 					if r.Sym == nil {
 						continue
 					}
-					if (r.Type == R_CALL || r.Type == R_CALLARM) && r.Sym.Type == STEXT {
+					if (r.Type == obj.R_CALL || r.Type == obj.R_CALLARM) && r.Sym.Type == obj.STEXT {
 						if r.Sym.Cfunc == 1 {
 							changed = 1
 							r.Sym.Cfunc = 2
@@ -1813,7 +1813,7 @@ func checkgo() {
 				if r.Sym == nil {
 					continue
 				}
-				if (r.Type == R_CALL || r.Type == R_CALLARM) && r.Sym.Type == STEXT {
+				if (r.Type == obj.R_CALL || r.Type == obj.R_CALLARM) && r.Sym.Type == obj.STEXT {
 					if s.Cfunc == 0 && r.Sym.Cfunc == 2 && r.Sym.Nosplit == 0 {
 						fmt.Printf("Go %s calls C %s\n", s.Name, r.Sym.Name)
 					} else if s.Cfunc == 2 && s.Nosplit != 0 && r.Sym.Nosplit == 0 {

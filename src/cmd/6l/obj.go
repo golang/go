@@ -104,15 +104,15 @@ func archinit() {
 			log.Fatalf("cannot use -linkmode=external with -H %s", ld.Headstr(int(ld.HEADTYPE)))
 		}
 
-	case ld.Hdarwin,
-		ld.Hdragonfly,
-		ld.Hfreebsd,
-		ld.Hlinux,
-		ld.Hnacl,
-		ld.Hnetbsd,
-		ld.Hopenbsd,
-		ld.Hsolaris,
-		ld.Hwindows:
+	case obj.Hdarwin,
+		obj.Hdragonfly,
+		obj.Hfreebsd,
+		obj.Hlinux,
+		obj.Hnacl,
+		obj.Hnetbsd,
+		obj.Hopenbsd,
+		obj.Hsolaris,
+		obj.Hwindows:
 		break
 	}
 
@@ -120,7 +120,7 @@ func archinit() {
 	default:
 		ld.Exitf("unknown -H option: %v", ld.HEADTYPE)
 
-	case ld.Hplan9: /* plan 9 */
+	case obj.Hplan9: /* plan 9 */
 		ld.HEADR = 32 + 8
 
 		if ld.INITTEXT == -1 {
@@ -133,7 +133,7 @@ func archinit() {
 			ld.INITRND = 0x200000
 		}
 
-	case ld.Helf: /* elf32 executable */
+	case obj.Helf: /* elf32 executable */
 		ld.HEADR = int32(ld.Rnd(52+3*32, 16))
 
 		if ld.INITTEXT == -1 {
@@ -146,7 +146,7 @@ func archinit() {
 			ld.INITRND = 4096
 		}
 
-	case ld.Hdarwin: /* apple MACH */
+	case obj.Hdarwin: /* apple MACH */
 		ld.Machoinit()
 
 		ld.HEADR = ld.INITIAL_MACHO_HEADR
@@ -160,12 +160,12 @@ func archinit() {
 			ld.INITDAT = 0
 		}
 
-	case ld.Hlinux, /* elf64 executable */
-		ld.Hfreebsd,   /* freebsd */
-		ld.Hnetbsd,    /* netbsd */
-		ld.Hopenbsd,   /* openbsd */
-		ld.Hdragonfly, /* dragonfly */
-		ld.Hsolaris:   /* solaris */
+	case obj.Hlinux, /* elf64 executable */
+		obj.Hfreebsd,   /* freebsd */
+		obj.Hnetbsd,    /* netbsd */
+		obj.Hopenbsd,   /* openbsd */
+		obj.Hdragonfly, /* dragonfly */
+		obj.Hsolaris:   /* solaris */
 		ld.Elfinit()
 
 		ld.HEADR = ld.ELFRESERVE
@@ -179,7 +179,7 @@ func archinit() {
 			ld.INITRND = 4096
 		}
 
-	case ld.Hnacl:
+	case obj.Hnacl:
 		ld.Elfinit()
 		ld.Debug['w']++ // disable dwarf, which gets confused and is useless anyway
 		ld.HEADR = 0x10000
@@ -194,7 +194,7 @@ func archinit() {
 			ld.INITRND = 0x10000
 		}
 
-	case ld.Hwindows: /* PE executable */
+	case obj.Hwindows: /* PE executable */
 		ld.Peinit()
 
 		ld.HEADR = ld.PEFILEHEADR

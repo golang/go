@@ -432,12 +432,12 @@ func loadcgo(file string, pkg string, p string) {
 			s = Linklookup(Ctxt, local, 0)
 			if local != f[1] {
 			}
-			if s.Type == 0 || s.Type == SXREF || s.Type == SHOSTOBJ {
+			if s.Type == 0 || s.Type == obj.SXREF || s.Type == obj.SHOSTOBJ {
 				s.Dynimplib = lib
 				s.Extname = remote
 				s.Dynimpvers = q
-				if s.Type != SHOSTOBJ {
-					s.Type = SDYNIMPORT
+				if s.Type != obj.SHOSTOBJ {
+					s.Type = obj.SDYNIMPORT
 				}
 				havedynamic = 1
 			}
@@ -451,7 +451,7 @@ func loadcgo(file string, pkg string, p string) {
 			}
 			local = f[1]
 			s = Linklookup(Ctxt, local, 0)
-			s.Type = SHOSTOBJ
+			s.Type = obj.SHOSTOBJ
 			s.Size = 0
 			continue
 		}
@@ -568,7 +568,7 @@ func markflood() {
 	var i int
 
 	for s := markq; s != nil; s = s.Queue {
-		if s.Type == STEXT {
+		if s.Type == obj.STEXT {
 			if Debug['v'] > 1 {
 				fmt.Fprintf(&Bso, "marktext %s\n", s.Name)
 			}
@@ -699,7 +699,7 @@ func deadcode() {
 				buf.WriteString("\n")
 			}
 
-			s.Type = SCONST
+			s.Type = obj.SCONST
 			s.Value = 0
 		}
 	}
@@ -727,7 +727,7 @@ func doweak() {
 				s.Type = t.Type
 				s.Outer = t
 			} else {
-				s.Type = SCONST
+				s.Type = obj.SCONST
 				s.Value = 0
 			}
 
@@ -737,7 +737,7 @@ func doweak() {
 }
 
 func addexport() {
-	if HEADTYPE == Hdarwin {
+	if HEADTYPE == obj.Hdarwin {
 		return
 	}
 

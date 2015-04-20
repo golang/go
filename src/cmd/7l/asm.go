@@ -74,7 +74,7 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
 	default:
 		return -1
 
-	case ld.R_ADDR:
+	case obj.R_ADDR:
 		switch r.Siz {
 		case 4:
 			ld.Thearch.Vput(ld.R_AARCH64_ABS32 | uint64(elfsym)<<32)
@@ -84,14 +84,14 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
 			return -1
 		}
 
-	case ld.R_ADDRARM64:
+	case obj.R_ADDRARM64:
 		// two relocations: R_AARCH64_ADR_PREL_PG_HI21 and R_AARCH64_ADD_ABS_LO12_NC
 		ld.Thearch.Vput(ld.R_AARCH64_ADR_PREL_PG_HI21 | uint64(elfsym)<<32)
 		ld.Thearch.Vput(uint64(r.Xadd))
 		ld.Thearch.Vput(uint64(sectoff + 4))
 		ld.Thearch.Vput(ld.R_AARCH64_ADD_ABS_LO12_NC | uint64(elfsym)<<32)
 
-	case ld.R_CALLARM64:
+	case obj.R_CALLARM64:
 		if r.Siz != 4 {
 			return -1
 		}
@@ -116,7 +116,7 @@ func machoreloc1(r *ld.Reloc, sectoff int64) int {
 	// ld64 has a bug handling MACHO_ARM64_RELOC_UNSIGNED with !extern relocation.
 	// see cmd/internal/ld/data.go for details. The workarond is that don't use !extern
 	// UNSIGNED relocation at all.
-	if rs.Type == ld.SHOSTOBJ || r.Type == ld.R_CALLARM64 || r.Type == ld.R_ADDRARM64 || r.Type == ld.R_ADDR {
+	if rs.Type == obj.SHOSTOBJ || r.Type == obj.R_CALLARM64 || r.Type == obj.R_ADDRARM64 || r.Type == obj.R_ADDR {
 		if rs.Dynid < 0 {
 			ld.Diag("reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
 			return -1
@@ -136,10 +136,10 @@ func machoreloc1(r *ld.Reloc, sectoff int64) int {
 	default:
 		return -1
 
-	case ld.R_ADDR:
+	case obj.R_ADDR:
 		v |= ld.MACHO_ARM64_RELOC_UNSIGNED << 28
 
-	case ld.R_CALLARM64:
+	case obj.R_CALLARM64:
 		if r.Xadd != 0 {
 			ld.Diag("ld64 doesn't allow BR26 reloc with non-zero addend: %s+%d", rs.Name, r.Xadd)
 		}
@@ -147,7 +147,7 @@ func machoreloc1(r *ld.Reloc, sectoff int64) int {
 		v |= 1 << 24 // pc-relative bit
 		v |= ld.MACHO_ARM64_RELOC_BRANCH26 << 28
 
-	case ld.R_ADDRARM64:
+	case obj.R_ADDRARM64:
 		r.Siz = 4
 		// Two relocation entries: MACHO_ARM64_RELOC_PAGEOFF12 MACHO_ARM64_RELOC_PAGE21
 		// if r.Xadd is non-zero, add two MACHO_ARM64_RELOC_ADDEND.
@@ -193,7 +193,7 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 		default:
 			return -1
 
-		case ld.R_ADDRARM64:
+		case obj.R_ADDRARM64:
 			r.Done = 0
 
 			// set up addend for eventual relocation via outer symbol.
@@ -204,7 +204,7 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 				rs = rs.Outer
 			}
 
-			if rs.Type != ld.SHOSTOBJ && rs.Sect == nil {
+			if rs.Type != obj.SHOSTOBJ && rs.Sect == nil {
 				ld.Diag("missing section for %s", rs.Name)
 			}
 			r.Xsym = rs
@@ -219,7 +219,7 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 			// the BR26 relocation should be fully resolved at link time.
 			// That is the reason why the next if block is disabled. When the bug in ld64
 			// is fixed, we can enable this block and also enable duff's device in cmd/7g.
-			if false && ld.HEADTYPE == ld.Hdarwin {
+			if false && ld.HEADTYPE == obj.Hdarwin {
 				// Mach-O wants the addend to be encoded in the instruction
 				// Note that although Mach-O supports ARM64_RELOC_ADDEND, it
 				// can only encode 24-bit of signed addend, but the instructions
@@ -239,7 +239,7 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 
 			return 0
 
-		case ld.R_CALLARM64:
+		case obj.R_CALLARM64:
 			r.Done = 0
 			r.Xsym = r.Sym
 			*val = int64(0xfc000000 & uint32(r.Add))
@@ -250,15 +250,15 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 	}
 
 	switch r.Type {
-	case ld.R_CONST:
+	case obj.R_CONST:
 		*val = r.Add
 		return 0
 
-	case ld.R_GOTOFF:
+	case obj.R_GOTOFF:
 		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ld.Ctxt, ".got", 0))
 		return 0
 
-	case ld.R_ADDRARM64:
+	case obj.R_ADDRARM64:
 		t := ld.Symaddr(r.Sym) + r.Add - ((s.Value + int64(r.Off)) &^ 0xfff)
 		if t >= 1<<32 || t < -1<<32 {
 			ld.Diag("program too large, address relocation distance = %d", t)
@@ -280,7 +280,7 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 		}
 		return 0
 
-	case ld.R_CALLARM64:
+	case obj.R_CALLARM64:
 		*val = int64((0xfc000000 & uint32(r.Add)) | uint32((ld.Symaddr(r.Sym)+r.Add*4-(s.Value+int64(r.Off)))/4))
 		return 0
 	}
@@ -308,7 +308,7 @@ func adddynlib(lib string) {
 			ld.Addstring(s, "")
 		}
 		ld.Elfwritedynent(ld.Linklookup(ld.Ctxt, ".dynamic", 0), ld.DT_NEEDED, uint64(ld.Addstring(s, lib)))
-	} else if ld.HEADTYPE == ld.Hdarwin {
+	} else if ld.HEADTYPE == obj.Hdarwin {
 		ld.Machoadddynlib(lib)
 	} else {
 		ld.Diag("adddynlib: unsupported binary format")
@@ -352,7 +352,7 @@ func asmb() {
 	ld.Datblk(int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
 
 	machlink := uint32(0)
-	if ld.HEADTYPE == ld.Hdarwin {
+	if ld.HEADTYPE == obj.Hdarwin {
 		if ld.Debug['v'] != 0 {
 			fmt.Fprintf(&ld.Bso, "%5.2f dwarf\n", obj.Cputime())
 		}
@@ -387,10 +387,10 @@ func asmb() {
 				symo = uint32(ld.Rnd(int64(symo), int64(ld.INITRND)))
 			}
 
-		case ld.Hplan9:
+		case obj.Hplan9:
 			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
 
-		case ld.Hdarwin:
+		case obj.Hdarwin:
 			symo = uint32(ld.Rnd(int64(uint64(ld.HEADR)+ld.Segtext.Filelen), int64(ld.INITRND)) + ld.Rnd(int64(ld.Segdata.Filelen), int64(ld.INITRND)) + int64(machlink))
 		}
 
@@ -415,7 +415,7 @@ func asmb() {
 				}
 			}
 
-		case ld.Hplan9:
+		case obj.Hplan9:
 			ld.Asmplan9sym()
 			ld.Cflush()
 
@@ -429,7 +429,7 @@ func asmb() {
 				ld.Cflush()
 			}
 
-		case ld.Hdarwin:
+		case obj.Hdarwin:
 			if ld.Linkmode == ld.LinkExternal {
 				ld.Machoemitreloc()
 			}
@@ -444,7 +444,7 @@ func asmb() {
 	ld.Cseek(0)
 	switch ld.HEADTYPE {
 	default:
-	case ld.Hplan9: /* plan 9 */
+	case obj.Hplan9: /* plan 9 */
 		ld.Thearch.Lput(0x647)                      /* magic */
 		ld.Thearch.Lput(uint32(ld.Segtext.Filelen)) /* sizes */
 		ld.Thearch.Lput(uint32(ld.Segdata.Filelen))
@@ -454,14 +454,14 @@ func asmb() {
 		ld.Thearch.Lput(0)
 		ld.Thearch.Lput(uint32(ld.Lcsize))
 
-	case ld.Hlinux,
-		ld.Hfreebsd,
-		ld.Hnetbsd,
-		ld.Hopenbsd,
-		ld.Hnacl:
+	case obj.Hlinux,
+		obj.Hfreebsd,
+		obj.Hnetbsd,
+		obj.Hopenbsd,
+		obj.Hnacl:
 		ld.Asmbelf(int64(symo))
 
-	case ld.Hdarwin:
+	case obj.Hdarwin:
 		ld.Asmbmacho()
 	}
 
