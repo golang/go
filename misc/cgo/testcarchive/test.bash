@@ -10,7 +10,7 @@ if [ "$(go env GOOS)" == "darwin" ]; then
 	ccargs="-Wl,-no_pie"
 	# For darwin/arm.
 	# TODO(crawshaw): Can we do better?
-	ccargs="$ccargs -framework CoreFoundation"
+	ccargs="$ccargs -framework CoreFoundation -framework Foundation"
 fi
 
 # TODO(crawshaw): Consider a go env for exec script name.
