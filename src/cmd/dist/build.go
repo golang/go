@@ -714,15 +714,29 @@ func install(dir string) {
 	run("", CheckExit|ShowOutput, link...)
 }
 
-// matchfield reports whether the field matches this build.
+// matchfield reports whether the field (x,y,z) matches this build.
+// all the elements in the field must be satisfied.
 func matchfield(f string) bool {
 	for _, tag := range strings.Split(f, ",") {
-		if tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" || (goos == "android" && tag == "linux") {
-			continue
+		if !matchtag(tag) {
+			return false
 		}
-		return false
 	}
 	return true
+}
+
+// matchtag reports whether the tag (x or !x) matches this build.
+func matchtag(tag string) bool {
+	if tag == "" {
+		return false
+	}
+	if tag[0] == '!' {
+		if len(tag) == 1 || tag[1] == '!' {
+			return false
+		}
+		return !matchtag(tag[1:])
+	}
+	return tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" || (goos == "android" && tag == "linux")
 }
 
 // shouldbuild reports whether we should build this file.
@@ -783,7 +797,7 @@ func shouldbuild(file, dir string) bool {
 			continue
 		}
 		for _, p := range fields[2:] {
-			if (p[0] == '!' && !matchfield(p[1:])) || matchfield(p) {
+			if matchfield(p) {
 				goto fieldmatch
 			}
 		}
