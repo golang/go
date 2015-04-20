@@ -241,7 +241,7 @@ func Atoi(s string) int {
 }
 
 func (p *Prog) Line() string {
-	return Linklinefmt(p.Ctxt, int(p.Lineno), false, false)
+	return p.Ctxt.LineHist.LineString(int(p.Lineno))
 }
 
 var armCondCode = []string{
@@ -340,7 +340,7 @@ func (ctxt *Link) NewProg() *Prog {
 }
 
 func (ctxt *Link) Line(n int) string {
-	return Linklinefmt(ctxt, n, false, false)
+	return ctxt.LineHist.LineString(n)
 }
 
 func Getcallerpc(interface{}) uintptr {

@@ -13,7 +13,6 @@ import (
 	"text/scanner"
 
 	"cmd/asm/internal/flags"
-	"cmd/internal/obj"
 )
 
 // Input is the main input: a stack of readers and some macro definitions.
@@ -436,7 +435,7 @@ func (in *Input) line() {
 	if tok != '\n' {
 		in.Error("unexpected token at end of #line: ", tok)
 	}
-	obj.Linklinehist(linkCtxt, histLine, file, line)
+	linkCtxt.LineHist.Update(histLine, file, line)
 	in.Stack.SetPos(line, file)
 }
 

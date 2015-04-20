@@ -241,12 +241,6 @@ func (h *LineHist) LineString(lineno int) string {
 	return text
 }
 
-// TODO(rsc): Replace call sites with use of ctxt.LineHist.
-// Note that all call sites use showAll=false, showFullPath=false.
-func Linklinefmt(ctxt *Link, lineno int, showAll, showFullPath bool) string {
-	return ctxt.LineHist.LineString(lineno)
-}
-
 // FileLine returns the file name and line number
 // at the top of the stack for the given lineno.
 func (h *LineHist) FileLine(lineno int) (file string, line int) {
@@ -286,31 +280,4 @@ func linkgetline(ctxt *Link, lineno int32, f **LSym, l *int32) {
 
 func Linkprfile(ctxt *Link, line int) {
 	fmt.Printf("%s ", ctxt.LineHist.LineString(line))
-}
-
-// Linklinehist pushes, amends, or pops an entry on the line history stack.
-// If f != "<pop>" and n == 0, the call pushes the start of a new file named f at lineno.
-// If f != "<pop>" and n > 0, the call amends the top of the stack to record that lineno
-// now corresponds to f at line n.
-// If f == "<pop>", the call pops the topmost entry from the stack, picking up
-// the parent file at the line following the one where the corresponding push occurred.
-//
-// If n < 0, linklinehist records f as a package required by the current compilation
-// (nothing to do with line numbers).
-//
-// TODO(rsc): Replace uses with direct calls to ctxt.Hist methods.
-func Linklinehist(ctxt *Link, lineno int, f string, n int) {
-	switch {
-	case n < 0:
-		ctxt.AddImport(f)
-
-	case f == "<pop>":
-		ctxt.LineHist.Pop(lineno)
-
-	case n == 0:
-		ctxt.LineHist.Push(lineno, f)
-
-	default:
-		ctxt.LineHist.Update(lineno, f, n)
-	}
 }

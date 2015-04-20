@@ -313,7 +313,7 @@ func Main() {
 	lexlineno = 1
 
 	for _, infile = range flag.Args() {
-		linehist(infile, 0, 0)
+		linehistpush(infile)
 
 		curio.infile = infile
 		var err error
@@ -344,7 +344,7 @@ func Main() {
 			errorexit()
 		}
 
-		linehist("<pop>", 0, 0)
+		linehistpop()
 		if curio.bin != nil {
 			obj.Bterm(curio.bin)
 		}
@@ -763,7 +763,7 @@ func importfile(f *Val, line int) {
 
 	// assume files move (get installed)
 	// so don't record the full path.
-	linehist(file[len(file)-len(path_)-2:], -1, 1) // acts as #pragma lib
+	linehistpragma(file[len(file)-len(path_)-2:]) // acts as #pragma lib
 
 	/*
 	 * position the input right
@@ -1654,7 +1654,7 @@ func getlinepragma() int {
 	}
 
 	name = text[:linep-1]
-	linehist(name, int32(n), 0)
+	linehistupdate(name, n)
 	return c
 
 out:
