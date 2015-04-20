@@ -352,6 +352,7 @@ func (t *tester) extLink() bool {
 	pair := t.gohostos + "-" + t.goarch
 	switch pair {
 	case "android-arm",
+		"darwin-arm", "darwin-arm64",
 		"dragonfly-386", "dragonfly-amd64",
 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
 		"linux-386", "linux-amd64", "linux-arm",
@@ -378,9 +379,14 @@ func (t *tester) buildmode(mode string) bool {
 		switch {
 		case !t.extLink():
 			return false
-		case t.goos == "darwin" && t.goarch == "amd64":
-			// TODO(crawshaw): add darwin/arm{,64}
-			return true
+		case t.goos == "darwin":
+			switch t.goarch {
+			case "amd64", "arm":
+				// TODO(crawshaw): add darwin/arm64
+				return true
+			default:
+				return false
+			}
 		case t.goos == "linux" && (t.goarch == "amd64" || t.goarch == "386"):
 			return true
 		default:

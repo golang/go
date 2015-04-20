@@ -7,7 +7,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"reflect"
 	"syscall"
 	"time"
 
@@ -47,9 +46,8 @@ func DidMainRun() bool { return ranMain }
 
 //export CheckArgs
 func CheckArgs() {
-	want := []string{"./testp", "arg1", "arg2"}
-	if !reflect.DeepEqual(want, os.Args) {
-		fmt.Printf("CheckArgs: want %v, got: %v\n", want, os.Args)
+	if len(os.Args) != 3 || os.Args[1] != "arg1" || os.Args[2] != "arg2" {
+		fmt.Printf("CheckArgs: want [_, arg1, arg2], got: %v\n", os.Args)
 		os.Exit(2)
 	}
 }

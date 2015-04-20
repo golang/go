@@ -31,5 +31,6 @@ int main(void) {
 
 	CheckArgs();
 
+	fprintf(stderr, "PASS\n");
 	return 0;
 }
