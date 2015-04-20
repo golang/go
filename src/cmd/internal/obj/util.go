@@ -379,7 +379,7 @@ func Dconv(p *Prog, a *Addr) string {
 			break
 		}
 
-		str = fmt.Sprintf("%v", Rconv(int(a.Reg)))
+		str = Rconv(int(a.Reg))
 		if a.Name != TYPE_NONE || a.Sym != nil {
 			str = fmt.Sprintf("%v(%v)(REG)", Mconv(a), Rconv(int(a.Reg)))
 		}
@@ -388,9 +388,9 @@ func Dconv(p *Prog, a *Addr) string {
 		if a.Sym != nil {
 			str = fmt.Sprintf("%s(SB)", a.Sym.Name)
 		} else if p != nil && p.Pcond != nil {
-			str = fmt.Sprintf("%d", p.Pcond.Pc)
+			str = fmt.Sprint(p.Pcond.Pc)
 		} else if a.Val != nil {
-			str = fmt.Sprintf("%d", a.Val.(*Prog).Pc)
+			str = fmt.Sprint(a.Val.(*Prog).Pc)
 		} else {
 			str = fmt.Sprintf("%d(PC)", a.Offset)
 		}
@@ -467,7 +467,7 @@ func Mconv(a *Addr) string {
 	case NAME_NONE:
 		switch {
 		case a.Reg == REG_NONE:
-			str = fmt.Sprintf("%d", a.Offset)
+			str = fmt.Sprint(a.Offset)
 		case a.Offset == 0:
 			str = fmt.Sprintf("(%v)", Rconv(int(a.Reg)))
 		case a.Offset != 0:

@@ -75,8 +75,6 @@ var _typekind = []string{
 	TIDEAL:      "untyped number",
 }
 
-var typekind_buf string
-
 func typekind(t *Type) string {
 	if Isslice(t) {
 		return "slice"
@@ -88,8 +86,7 @@ func typekind(t *Type) string {
 			return s
 		}
 	}
-	typekind_buf = fmt.Sprintf("etype=%d", et)
-	return typekind_buf
+	return fmt.Sprintf("etype=%d", et)
 }
 
 /*
