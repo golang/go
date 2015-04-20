@@ -28,11 +28,12 @@ var yylast int
 
 var imported_unsafe int
 
-var goos string
-
-var goarch string
-
-var goroot string
+var (
+	goos    string
+	goarch  string
+	goroot  string
+	buildid string
+)
 
 var (
 	Debug_wb     int
@@ -203,6 +204,7 @@ func Main() {
 	obj.Flagfn0("V", "print compiler version", doversion)
 	obj.Flagcount("W", "debug parse tree after type checking", &Debug['W'])
 	obj.Flagstr("asmhdr", "write assembly header to `file`", &asmhdr)
+	obj.Flagstr("buildid", "record `id` as the build id in the export metadata", &buildid)
 	obj.Flagcount("complete", "compiling complete package (no C or assembly)", &pure_go)
 	obj.Flagstr("d", "print debug information about items in `list`", &debugstr)
 	obj.Flagcount("e", "no limit on number of errors reported", &Debug['e'])
