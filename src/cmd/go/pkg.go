@@ -759,13 +759,8 @@ func packageList(roots []*Package) []*Package {
 // computeStale computes the Stale flag in the package dag that starts
 // at the named pkgs (command-line arguments).
 func computeStale(pkgs ...*Package) {
-	topRoot := map[string]bool{}
-	for _, p := range pkgs {
-		topRoot[p.Root] = true
-	}
-
 	for _, p := range packageList(pkgs) {
-		p.Stale = isStale(p, topRoot)
+		p.Stale = isStale(p)
 	}
 }
 
@@ -776,7 +771,7 @@ func computeStale(pkgs ...*Package) {
 var isGoRelease = strings.HasPrefix(runtime.Version(), "go1")
 
 // isStale reports whether package p needs to be rebuilt.
-func isStale(p *Package, topRoot map[string]bool) bool {
+func isStale(p *Package) bool {
 	if p.Standard && (p.ImportPath == "unsafe" || buildContext.Compiler == "gccgo") {
 		// fake, builtin package
 		return false
@@ -795,16 +790,8 @@ func isStale(p *Package, topRoot map[string]bool) bool {
 		return false
 	}
 
-	// If we are running a release copy of Go, do not rebuild the standard packages.
-	// They may not be writable anyway, but they are certainly not changing.
-	// This makes 'go build -a' skip the standard packages when using an official release.
-	// See issue 4106 and issue 8290.
-	pkgBuildA := buildA
-	if p.Standard && isGoRelease {
-		pkgBuildA = false
-	}
-
-	if pkgBuildA || p.target == "" || p.Stale {
+	// If there's no install target or it's already marked stale, we have to rebuild.
+	if p.target == "" || p.Stale {
 		return true
 	}
 
@@ -814,6 +801,22 @@ func isStale(p *Package, topRoot map[string]bool) bool {
 		built = fi.ModTime()
 	}
 	if built.IsZero() {
+		return true
+	}
+
+	// If we are running a release copy of Go, do not rebuild the standard packages.
+	// They may not be writable anyway, but they are certainly not changing.
+	// This makes 'go build' and 'go build -a' skip the standard packages when
+	// using an official release. See issue 3036, issue 3149, issue 4106, issue 8290.
+	// (If a change to a release tree must be made by hand, the way to force the
+	// install is to run make.bash, which will remove the old package archives
+	// before rebuilding.)
+	if p.Standard && isGoRelease {
+		return false
+	}
+
+	// If the -a flag is given, rebuild everything (except standard packages; see above).
+	if buildA {
 		return true
 	}
 
@@ -844,8 +847,12 @@ func isStale(p *Package, topRoot map[string]bool) bool {
 	// back-dated, as some binary distributions may do, but it does handle
 	// a very common case.
 	// See issue 3036.
-	// Assume code in $GOROOT is up to date, since it may not be writeable.
-	// See issue 4106.
+	// Exclude $GOROOT, under the assumption that people working on
+	// the compiler may want to control when everything gets rebuilt,
+	// and people updating the Go repository will run make.bash or all.bash
+	// and get a full rebuild anyway.
+	// Excluding $GOROOT used to also fix issue 4106, but that's now
+	// taken care of above (at least when the installed Go is a released version).
 	if p.Root != goroot {
 		if olderThan(buildToolchain.compiler()) {
 			return true
@@ -855,20 +862,43 @@ func isStale(p *Package, topRoot map[string]bool) bool {
 		}
 	}
 
-	// Have installed copy, probably built using current compilers,
-	// built with the right set of source files,
-	// and built after its imported packages. The only reason now
-	// that we'd have to rebuild it is if the sources were newer than
-	// the package. If a package p is not in the same tree as any
-	// package named on the command-line, assume it is up-to-date
-	// no matter what the modification times on the source files indicate.
-	// This avoids rebuilding $GOROOT packages when people are
-	// working outside the Go root, and it effectively makes each tree
-	// listed in $GOPATH a separate compilation world.
-	// See issue 3149.
-	if p.Root != "" && !topRoot[p.Root] {
-		return false
-	}
+	// Note: Until Go 1.5, we had an additional shortcut here.
+	// We built a list of the workspace roots ($GOROOT, each $GOPATH)
+	// containing targets directly named on the command line,
+	// and if p were not in any of those, it would be treated as up-to-date
+	// as long as it is built. The goal was to avoid rebuilding a system-installed
+	// $GOROOT, unless something from $GOROOT were explicitly named
+	// on the command line (like go install math).
+	// That's now handled by the isGoRelease clause above.
+	// The other effect of the shortcut was to isolate different entries in
+	// $GOPATH from each other. This had the unfortunate effect that
+	// if you had (say), GOPATH listing two entries, one for commands
+	// and one for libraries, and you did a 'git pull' in the library one
+	// and then tried 'go install commands/...', it would build the new libraries
+	// during the first build (because they wouldn't have been installed at all)
+	// but then subsequent builds would not rebuild the libraries, even if the
+	// mtimes indicate they are stale, because the different GOPATH entries
+	// were treated differently. This behavior was confusing when using
+	// non-trivial GOPATHs, which were particularly common with some
+	// code management conventions, like the original godep.
+	// Since the $GOROOT case (the original motivation) is handled separately,
+	// we no longer put a barrier between the different $GOPATH entries.
+	//
+	// One implication of this is that if there is a system directory for
+	// non-standard Go packages that is included in $GOPATH, the mtimes
+	// on those compiled packages must be no earlier than the mtimes
+	// on the source files. Since most distributions use the same mtime
+	// for all files in a tree, they will be unaffected. People using plain
+	// tar x to extract system-installed packages will need to adjust mtimes,
+	// but it's better to force them to get the mtimes right than to ignore
+	// the mtimes and thereby do the wrong thing in common use cases.
+	//
+	// So there is no GOPATH vs GOPATH shortcut here anymore.
+	//
+	// If something needs to come back here, we could try writing a dummy
+	// file with a random name to the $GOPATH/pkg directory (and removing it)
+	// to test for write access, and then skip GOPATH roots we don't have write
+	// access to. But hopefully we can just use the mtimes always.
 
 	srcs := stringList(p.GoFiles, p.CFiles, p.CXXFiles, p.MFiles, p.HFiles, p.SFiles, p.CgoFiles, p.SysoFiles, p.SwigFiles, p.SwigCXXFiles)
 	for _, src := range srcs {
