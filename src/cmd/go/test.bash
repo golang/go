@@ -96,6 +96,55 @@ elif grep -q runtime $d/err.out; then
 fi
 rm -r $d
 
+TEST 'go install rebuilds stale packages in other GOPATH'
+d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
+export GOPATH=$d/d1:$d/d2
+mkdir -p $d/d1/src/p1 $d/d2/src/p2
+echo 'package p1
+
+import "p2"
+
+func F() { p2.F() }
+' > $d/d1/src/p1/p1.go
+echo 'package p2
+
+func F() {}
+' > $d/d2/src/p2/p2.go
+if ! ./testgo install p1; then
+	echo "./testgo install p1 failed"
+	ok=false
+elif [ "$(./testgo list -f '{{.Stale}}' p1)" != false ]; then
+	echo "./testgo list mypkg claims p1 is stale, incorrectly"
+	ok=false
+elif [ "$(./testgo list -f '{{.Stale}}' p2)" != false ]; then
+	echo "./testgo list mypkg claims p2 is stale, incorrectly"
+	ok=false
+else
+	sleep 1
+	echo 'func G() {}' >>$d/d2/src/p2/p2.go
+	if [ "$(./testgo list -f '{{.Stale}}' p2)" != true ]; then
+		echo "./testgo list mypkg claims p2 is NOT stale, incorrectly"
+		ok=false
+	elif [ "$(./testgo list -f '{{.Stale}}' p1)" != true ]; then
+		echo "./testgo list mypkg claims p1 is NOT stale, incorrectly"
+		ok=false
+	fi
+	
+	if ! ./testgo install p1; then
+		echo "./testgo install p1 failed second time"
+		ok=false
+	else
+		if [ "$(./testgo list -f '{{.Stale}}' p2)" != false ]; then
+			echo "./testgo list mypkg claims p2 is stale after reinstall, incorrectly"
+			ok=false
+		elif [ "$(./testgo list -f '{{.Stale}}' p1)" != false ]; then
+			echo "./testgo list mypkg claims p1 is stale after reinstall, incorrectly"
+			ok=false
+		fi
+	fi		
+fi
+rm -r $d
+
 TEST 'go install detects removed files'
 d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
 export GOPATH=$d
@@ -106,7 +155,7 @@ echo '// +build missingtag
 
 package mypkg' >$d/src/mypkg/z.go
 if ! ./testgo install mypkg; then
-	echo "testgo install mypkg failed"
+	echo "./testgo install mypkg failed"
 	ok=false
 elif [ "$(./testgo list -f '{{.Stale}}' mypkg)" != false ]; then
 	echo "./testgo list mypkg claims mypkg is stale, incorrectly"
