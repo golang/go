@@ -5,6 +5,7 @@
 package ld
 
 import (
+	"cmd/internal/obj"
 	"encoding/binary"
 	"fmt"
 )
@@ -775,7 +776,7 @@ func Elfinit() {
 	// 32-bit architectures
 	case '5':
 		// we use EABI on both linux/arm and freebsd/arm.
-		if HEADTYPE == Hlinux || HEADTYPE == Hfreebsd {
+		if HEADTYPE == obj.Hlinux || HEADTYPE == obj.Hfreebsd {
 			ehdr.flags = 0x5000002 // has entry point, Version5 EABI
 		}
 		fallthrough
@@ -1245,7 +1246,7 @@ func elfdynhash() {
 
 	nsym := Nelfsym
 	s := Linklookup(Ctxt, ".hash", 0)
-	s.Type = SELFROSECT
+	s.Type = obj.SELFROSECT
 	s.Reachable = true
 
 	i := nsym
@@ -1576,7 +1577,7 @@ func doelf() {
 	/* predefine strings we need for section headers */
 	shstrtab := Linklookup(Ctxt, ".shstrtab", 0)
 
-	shstrtab.Type = SELFROSECT
+	shstrtab.Type = obj.SELFROSECT
 	shstrtab.Reachable = true
 
 	Addstring(shstrtab, "")
@@ -1590,15 +1591,15 @@ func doelf() {
 	// for dynamic internal linker or external linking, so that various
 	// binutils could correctly calculate PT_TLS size.
 	// see http://golang.org/issue/5200.
-	if HEADTYPE != Hopenbsd {
+	if HEADTYPE != obj.Hopenbsd {
 		if Debug['d'] == 0 || Linkmode == LinkExternal {
 			Addstring(shstrtab, ".tbss")
 		}
 	}
-	if HEADTYPE == Hnetbsd {
+	if HEADTYPE == obj.Hnetbsd {
 		Addstring(shstrtab, ".note.netbsd.ident")
 	}
-	if HEADTYPE == Hopenbsd {
+	if HEADTYPE == obj.Hopenbsd {
 		Addstring(shstrtab, ".note.openbsd.ident")
 	}
 	if len(buildinfo) > 0 {
@@ -1692,7 +1693,7 @@ func doelf() {
 		/* dynamic symbol table - first entry all zeros */
 		s := Linklookup(Ctxt, ".dynsym", 0)
 
-		s.Type = SELFROSECT
+		s.Type = obj.SELFROSECT
 		s.Reachable = true
 		switch Thearch.Thechar {
 		case '6', '7', '9':
@@ -1704,7 +1705,7 @@ func doelf() {
 		/* dynamic string table */
 		s = Linklookup(Ctxt, ".dynstr", 0)
 
-		s.Type = SELFROSECT
+		s.Type = obj.SELFROSECT
 		s.Reachable = true
 		if s.Size == 0 {
 			Addstring(s, "")
@@ -1719,30 +1720,30 @@ func doelf() {
 			s = Linklookup(Ctxt, ".rel", 0)
 		}
 		s.Reachable = true
-		s.Type = SELFROSECT
+		s.Type = obj.SELFROSECT
 
 		/* global offset table */
 		s = Linklookup(Ctxt, ".got", 0)
 
 		s.Reachable = true
-		s.Type = SELFGOT // writable
+		s.Type = obj.SELFGOT // writable
 
 		/* ppc64 glink resolver */
 		if Thearch.Thechar == '9' {
 			s := Linklookup(Ctxt, ".glink", 0)
 			s.Reachable = true
-			s.Type = SELFRXSECT
+			s.Type = obj.SELFRXSECT
 		}
 
 		/* hash */
 		s = Linklookup(Ctxt, ".hash", 0)
 
 		s.Reachable = true
-		s.Type = SELFROSECT
+		s.Type = obj.SELFROSECT
 
 		s = Linklookup(Ctxt, ".got.plt", 0)
 		s.Reachable = true
-		s.Type = SELFSECT // writable
+		s.Type = obj.SELFSECT // writable
 
 		s = Linklookup(Ctxt, ".plt", 0)
 
@@ -1750,9 +1751,9 @@ func doelf() {
 		if Thearch.Thechar == '9' {
 			// In the ppc64 ABI, .plt is a data section
 			// written by the dynamic linker.
-			s.Type = SELFSECT
+			s.Type = obj.SELFSECT
 		} else {
-			s.Type = SELFRXSECT
+			s.Type = obj.SELFRXSECT
 		}
 
 		Thearch.Elfsetupplt()
@@ -1764,21 +1765,21 @@ func doelf() {
 			s = Linklookup(Ctxt, ".rel.plt", 0)
 		}
 		s.Reachable = true
-		s.Type = SELFROSECT
+		s.Type = obj.SELFROSECT
 
 		s = Linklookup(Ctxt, ".gnu.version", 0)
 		s.Reachable = true
-		s.Type = SELFROSECT
+		s.Type = obj.SELFROSECT
 
 		s = Linklookup(Ctxt, ".gnu.version_r", 0)
 		s.Reachable = true
-		s.Type = SELFROSECT
+		s.Type = obj.SELFROSECT
 
 		/* define dynamic elf table */
 		s = Linklookup(Ctxt, ".dynamic", 0)
 
 		s.Reachable = true
-		s.Type = SELFSECT // writable
+		s.Type = obj.SELFSECT // writable
 
 		/*
 		 * .dynamic table
@@ -1906,7 +1907,7 @@ func Asmbelf(symo int64) {
 	 * segment boundaries downwards to include it.
 	 * Except on NaCl where it must not be loaded.
 	 */
-	if HEADTYPE != Hnacl {
+	if HEADTYPE != obj.Hnacl {
 		o := int64(Segtext.Vaddr - pph.vaddr)
 		Segtext.Vaddr -= uint64(o)
 		Segtext.Length += uint64(o)
@@ -1924,22 +1925,22 @@ func Asmbelf(symo int64) {
 		sh.addralign = 1
 		if interpreter == "" {
 			switch HEADTYPE {
-			case Hlinux:
+			case obj.Hlinux:
 				interpreter = Thearch.Linuxdynld
 
-			case Hfreebsd:
+			case obj.Hfreebsd:
 				interpreter = Thearch.Freebsddynld
 
-			case Hnetbsd:
+			case obj.Hnetbsd:
 				interpreter = Thearch.Netbsddynld
 
-			case Hopenbsd:
+			case obj.Hopenbsd:
 				interpreter = Thearch.Openbsddynld
 
-			case Hdragonfly:
+			case obj.Hdragonfly:
 				interpreter = Thearch.Dragonflydynld
 
-			case Hsolaris:
+			case obj.Hsolaris:
 				interpreter = Thearch.Solarisdynld
 			}
 		}
@@ -1953,14 +1954,14 @@ func Asmbelf(symo int64) {
 	}
 
 	pnote = nil
-	if HEADTYPE == Hnetbsd || HEADTYPE == Hopenbsd {
+	if HEADTYPE == obj.Hnetbsd || HEADTYPE == obj.Hopenbsd {
 		var sh *ElfShdr
 		switch HEADTYPE {
-		case Hnetbsd:
+		case obj.Hnetbsd:
 			sh = elfshname(".note.netbsd.ident")
 			resoff -= int64(elfnetbsdsig(sh, uint64(startva), uint64(resoff)))
 
-		case Hopenbsd:
+		case obj.Hopenbsd:
 			sh = elfshname(".note.openbsd.ident")
 			resoff -= int64(elfopenbsdsig(sh, uint64(startva), uint64(resoff)))
 		}
@@ -2141,7 +2142,7 @@ func Asmbelf(symo int64) {
 		// Do not emit PT_TLS for OpenBSD since ld.so(1) does
 		// not currently support it. This is handled
 		// appropriately in runtime/cgo.
-		if Ctxt.Tlsoffset != 0 && HEADTYPE != Hopenbsd {
+		if Ctxt.Tlsoffset != 0 && HEADTYPE != obj.Hopenbsd {
 			ph := newElfPhdr()
 			ph.type_ = PT_TLS
 			ph.flags = PF_R
@@ -2150,7 +2151,7 @@ func Asmbelf(symo int64) {
 		}
 	}
 
-	if HEADTYPE == Hlinux {
+	if HEADTYPE == obj.Hlinux {
 		ph := newElfPhdr()
 		ph.type_ = PT_GNU_STACK
 		ph.flags = PF_W + PF_R
@@ -2206,7 +2207,7 @@ elfobj:
 
 	// generate .tbss section for dynamic internal linking (except for OpenBSD)
 	// external linking generates .tbss in data.c
-	if Linkmode == LinkInternal && Debug['d'] == 0 && HEADTYPE != Hopenbsd {
+	if Linkmode == LinkInternal && Debug['d'] == 0 && HEADTYPE != obj.Hopenbsd {
 		sh := elfshname(".tbss")
 		sh.type_ = SHT_NOBITS
 		sh.addralign = uint64(Thearch.Regsize)
@@ -2239,13 +2240,13 @@ elfobj:
 	eh.ident[EI_MAG1] = 'E'
 	eh.ident[EI_MAG2] = 'L'
 	eh.ident[EI_MAG3] = 'F'
-	if HEADTYPE == Hfreebsd {
+	if HEADTYPE == obj.Hfreebsd {
 		eh.ident[EI_OSABI] = ELFOSABI_FREEBSD
-	} else if HEADTYPE == Hnetbsd {
+	} else if HEADTYPE == obj.Hnetbsd {
 		eh.ident[EI_OSABI] = ELFOSABI_NETBSD
-	} else if HEADTYPE == Hopenbsd {
+	} else if HEADTYPE == obj.Hopenbsd {
 		eh.ident[EI_OSABI] = ELFOSABI_OPENBSD
-	} else if HEADTYPE == Hdragonfly {
+	} else if HEADTYPE == obj.Hdragonfly {
 		eh.ident[EI_OSABI] = ELFOSABI_NONE
 	}
 	if elf64 {
@@ -2286,10 +2287,10 @@ elfobj:
 		a += int64(elfwriteinterp())
 	}
 	if Linkmode != LinkExternal {
-		if HEADTYPE == Hnetbsd {
+		if HEADTYPE == obj.Hnetbsd {
 			a += int64(elfwritenetbsdsig())
 		}
-		if HEADTYPE == Hopenbsd {
+		if HEADTYPE == obj.Hopenbsd {
 			a += int64(elfwriteopenbsdsig())
 		}
 		if len(buildinfo) > 0 {

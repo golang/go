@@ -6,6 +6,7 @@ package ld
 
 import (
 	"bytes"
+	"cmd/internal/obj"
 	"fmt"
 	"log"
 	"strconv"
@@ -84,8 +85,8 @@ func readsym(ctxt *Link, f *Biobuf, pkg string, pn string) {
 	}
 	s := Linklookup(ctxt, name, v)
 	var dup *LSym
-	if s.Type != 0 && s.Type != SXREF {
-		if (t == SDATA || t == SBSS || t == SNOPTRBSS) && len(data) == 0 && nreloc == 0 {
+	if s.Type != 0 && s.Type != obj.SXREF {
+		if (t == obj.SDATA || t == obj.SBSS || t == obj.SNOPTRBSS) && len(data) == 0 && nreloc == 0 {
 			if s.Size < int64(size) {
 				s.Size = int64(size)
 			}
@@ -95,10 +96,10 @@ func readsym(ctxt *Link, f *Biobuf, pkg string, pn string) {
 			return
 		}
 
-		if (s.Type == SDATA || s.Type == SBSS || s.Type == SNOPTRBSS) && len(s.P) == 0 && len(s.R) == 0 {
+		if (s.Type == obj.SDATA || s.Type == obj.SBSS || s.Type == obj.SNOPTRBSS) && len(s.P) == 0 && len(s.R) == 0 {
 			goto overwrite
 		}
-		if s.Type != SBSS && s.Type != SNOPTRBSS && dupok == 0 && s.Dupok == 0 {
+		if s.Type != obj.SBSS && s.Type != obj.SNOPTRBSS && dupok == 0 && s.Dupok == 0 {
 			log.Fatalf("duplicate symbol %s (types %d and %d) in %s and %s", s.Name, s.Type, t, s.File, pn)
 		}
 		if len(s.P) > 0 {
@@ -111,13 +112,13 @@ func readsym(ctxt *Link, f *Biobuf, pkg string, pn string) {
 overwrite:
 	s.File = pkg
 	s.Dupok = uint8(dupok)
-	if t == SXREF {
+	if t == obj.SXREF {
 		log.Fatalf("bad sxref")
 	}
 	if t == 0 {
 		log.Fatalf("missing type for %s in %s", name, pn)
 	}
-	if t == SBSS && (s.Type == SRODATA || s.Type == SNOPTRBSS) {
+	if t == obj.SBSS && (s.Type == obj.SRODATA || s.Type == obj.SNOPTRBSS) {
 		t = int(s.Type)
 	}
 	s.Type = int16(t)
@@ -156,7 +157,7 @@ overwrite:
 		}
 	}
 
-	if s.Type == STEXT {
+	if s.Type == obj.STEXT {
 		s.Args = int32(rdint(f))
 		s.Locals = int32(rdint(f))
 		s.Nosplit = uint8(rdint(f))
@@ -235,7 +236,7 @@ overwrite:
 			fmt.Fprintf(ctxt.Bso, "nosplit ")
 		}
 		fmt.Fprintf(ctxt.Bso, "size=%d value=%d", int64(s.Size), int64(s.Value))
-		if s.Type == STEXT {
+		if s.Type == obj.STEXT {
 			fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x", uint64(s.Args), uint64(s.Locals))
 		}
 		fmt.Fprintf(ctxt.Bso, "\n")
@@ -326,14 +327,14 @@ func rdsym(ctxt *Link, f *Biobuf, pkg string) *LSym {
 		if strings.HasPrefix(s.Name, "$f32.") {
 			x, _ := strconv.ParseUint(s.Name[5:], 16, 32)
 			i32 := int32(x)
-			s.Type = SRODATA
+			s.Type = obj.SRODATA
 			s.Local = true
 			Adduint32(ctxt, s, uint32(i32))
 			s.Reachable = false
 		} else if strings.HasPrefix(s.Name, "$f64.") || strings.HasPrefix(s.Name, "$i64.") {
 			x, _ := strconv.ParseUint(s.Name[5:], 16, 64)
 			i64 := int64(x)
-			s.Type = SRODATA
+			s.Type = obj.SRODATA
 			s.Local = true
 			Adduint64(ctxt, s, uint64(i64))
 			s.Reachable = false

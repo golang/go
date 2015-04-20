@@ -5,6 +5,7 @@
 package ld
 
 import (
+	"cmd/internal/obj"
 	"sort"
 	"strings"
 )
@@ -306,31 +307,31 @@ func domacho() {
 	// empirically, string table must begin with " \x00".
 	s := Linklookup(Ctxt, ".machosymstr", 0)
 
-	s.Type = SMACHOSYMSTR
+	s.Type = obj.SMACHOSYMSTR
 	s.Reachable = true
 	Adduint8(Ctxt, s, ' ')
 	Adduint8(Ctxt, s, '\x00')
 
 	s = Linklookup(Ctxt, ".machosymtab", 0)
-	s.Type = SMACHOSYMTAB
+	s.Type = obj.SMACHOSYMTAB
 	s.Reachable = true
 
 	if Linkmode != LinkExternal {
 		s := Linklookup(Ctxt, ".plt", 0) // will be __symbol_stub
-		s.Type = SMACHOPLT
+		s.Type = obj.SMACHOPLT
 		s.Reachable = true
 
 		s = Linklookup(Ctxt, ".got", 0) // will be __nl_symbol_ptr
-		s.Type = SMACHOGOT
+		s.Type = obj.SMACHOGOT
 		s.Reachable = true
 		s.Align = 4
 
 		s = Linklookup(Ctxt, ".linkedit.plt", 0) // indirect table for .plt
-		s.Type = SMACHOINDIRECTPLT
+		s.Type = obj.SMACHOINDIRECTPLT
 		s.Reachable = true
 
 		s = Linklookup(Ctxt, ".linkedit.got", 0) // indirect table for .got
-		s.Type = SMACHOINDIRECTGOT
+		s.Type = obj.SMACHOINDIRECTGOT
 		s.Reachable = true
 	}
 }
@@ -571,7 +572,7 @@ func Asmbmacho() {
 }
 
 func symkind(s *LSym) int {
-	if s.Type == SDYNIMPORT {
+	if s.Type == obj.SDYNIMPORT {
 		return SymKindUndef
 	}
 	if s.Cgoexport != 0 {
@@ -627,7 +628,7 @@ func (x machoscmp) Less(i, j int) bool {
 func machogenasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 	genasmsym(put)
 	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
-		if s.Type == SDYNIMPORT || s.Type == SHOSTOBJ {
+		if s.Type == obj.SDYNIMPORT || s.Type == obj.SHOSTOBJ {
 			if s.Reachable {
 				put(s, "", 'D', 0, 0, 0, nil)
 			}
@@ -685,7 +686,7 @@ func machosymtab() {
 			Adduint8(Ctxt, symstr, '\x00')
 		}
 
-		if s.Type == SDYNIMPORT || s.Type == SHOSTOBJ {
+		if s.Type == obj.SDYNIMPORT || s.Type == obj.SHOSTOBJ {
 			Adduint8(Ctxt, symtab, 0x01)                // type N_EXT, external symbol
 			Adduint8(Ctxt, symtab, 0)                   // no section
 			Adduint16(Ctxt, symtab, 0)                  // desc

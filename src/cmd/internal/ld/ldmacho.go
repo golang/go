@@ -1,6 +1,7 @@
 package ld
 
 import (
+	"cmd/internal/obj"
 	"encoding/binary"
 	"fmt"
 	"log"
@@ -583,16 +584,16 @@ func ldmacho(f *Biobuf, pkg string, length int64, pn string) {
 
 		if sect.segname == "__TEXT" {
 			if sect.name == "__text" {
-				s.Type = STEXT
+				s.Type = obj.STEXT
 			} else {
-				s.Type = SRODATA
+				s.Type = obj.SRODATA
 			}
 		} else {
 			if sect.name == "__bss" {
-				s.Type = SNOPTRBSS
+				s.Type = obj.SNOPTRBSS
 				s.P = s.P[:0]
 			} else {
-				s.Type = SNOPTRDATA
+				s.Type = obj.SNOPTRDATA
 			}
 		}
 
@@ -644,7 +645,7 @@ func ldmacho(f *Biobuf, pkg string, length int64, pn string) {
 			Exitf("%s: duplicate symbol reference: %s in both %s and %s", pn, s.Name, s.Outer.Name, sect.sym.Name)
 		}
 
-		s.Type = outer.Type | SSUB
+		s.Type = outer.Type | obj.SSUB
 		s.Sub = outer.Sub
 		outer.Sub = s
 		s.Outer = outer
@@ -652,7 +653,7 @@ func ldmacho(f *Biobuf, pkg string, length int64, pn string) {
 		if s.Cgoexport&CgoExportDynamic == 0 {
 			s.Dynimplib = "" // satisfy dynimport
 		}
-		if outer.Type == STEXT {
+		if outer.Type == obj.STEXT {
 			if s.External != 0 && s.Dupok == 0 {
 				Diag("%s: duplicate definition of %s", pn, s.Name)
 			}
@@ -683,7 +684,7 @@ func ldmacho(f *Biobuf, pkg string, length int64, pn string) {
 			}
 		}
 
-		if s.Type == STEXT {
+		if s.Type == obj.STEXT {
 			if s.Onlist != 0 {
 				log.Fatalf("symbol %s listed multiple times", s.Name)
 			}
@@ -760,7 +761,7 @@ func ldmacho(f *Biobuf, pkg string, length int64, pn string) {
 				// want to make it pc-relative aka relative to rp->off+4
 				// but the scatter asks for relative to off = sect->rel[j+1].value - sect->addr.
 				// adjust rp->add accordingly.
-				rp.Type = R_PCREL
+				rp.Type = obj.R_PCREL
 
 				rp.Add += int64(uint64(int64(rp.Off)+4) - (uint64(sect.rel[j+1].value) - sect.addr))
 

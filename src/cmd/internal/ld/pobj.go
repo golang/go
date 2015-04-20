@@ -157,7 +157,7 @@ func Ldmain() {
 	}
 
 	if outfile == "" {
-		if HEADTYPE == Hwindows {
+		if HEADTYPE == obj.Hwindows {
 			outfile = fmt.Sprintf("%c.out.exe", Thearch.Thechar)
 		} else {
 			outfile = fmt.Sprintf("%c.out", Thearch.Thechar)
@@ -215,11 +215,11 @@ func Ldmain() {
 	callgraph()
 
 	doelf()
-	if HEADTYPE == Hdarwin {
+	if HEADTYPE == obj.Hdarwin {
 		domacho()
 	}
 	dostkcheck()
-	if HEADTYPE == Hwindows {
+	if HEADTYPE == obj.Hwindows {
 		dope()
 	}
 	addexport()

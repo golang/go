@@ -30,7 +30,10 @@
 
 package ld
 
-import "strings"
+import (
+	"cmd/internal/obj"
+	"strings"
+)
 
 // Symbol table.
 
@@ -118,7 +121,7 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
 	}
 
 	var elfshnum int
-	if xo.Type == SDYNIMPORT || xo.Type == SHOSTOBJ {
+	if xo.Type == obj.SDYNIMPORT || xo.Type == obj.SHOSTOBJ {
 		elfshnum = SHN_UNDEF
 	} else {
 		if xo.Sect == nil {
@@ -138,7 +141,7 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
 	// maybe one day STB_WEAK.
 	bind := STB_GLOBAL
 
-	if ver != 0 || (x.Type&SHIDDEN != 0) || x.Local {
+	if ver != 0 || (x.Type&obj.SHIDDEN != 0) || x.Local {
 		bind = STB_LOCAL
 	}
 
@@ -160,7 +163,7 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
 		addr -= int64(xo.Sect.(*Section).Vaddr)
 	}
 	other := STV_DEFAULT
-	if x.Type&SHIDDEN != 0 {
+	if x.Type&obj.SHIDDEN != 0 {
 		other = STV_HIDDEN
 	}
 	putelfsyment(off, addr, size, bind<<4|type_&0xf, elfshnum, other)
@@ -215,7 +218,7 @@ func putplan9sym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ 
 		'Z',
 		'm':
 		l := 4
-		if HEADTYPE == Hplan9 && Thearch.Thechar == '6' && Debug['8'] == 0 {
+		if HEADTYPE == obj.Hplan9 && Thearch.Thechar == '6' && Debug['8'] == 0 {
 			Lputb(uint32(addr >> 32))
 			l = 8
 		}
@@ -297,59 +300,59 @@ func symtab() {
 
 	// Define these so that they'll get put into the symbol table.
 	// data.c:/^address will provide the actual values.
-	xdefine("runtime.text", STEXT, 0)
+	xdefine("runtime.text", obj.STEXT, 0)
 
-	xdefine("runtime.etext", STEXT, 0)
-	xdefine("runtime.typelink", SRODATA, 0)
-	xdefine("runtime.etypelink", SRODATA, 0)
-	xdefine("runtime.rodata", SRODATA, 0)
-	xdefine("runtime.erodata", SRODATA, 0)
-	xdefine("runtime.noptrdata", SNOPTRDATA, 0)
-	xdefine("runtime.enoptrdata", SNOPTRDATA, 0)
-	xdefine("runtime.data", SDATA, 0)
-	xdefine("runtime.edata", SDATA, 0)
-	xdefine("runtime.bss", SBSS, 0)
-	xdefine("runtime.ebss", SBSS, 0)
-	xdefine("runtime.noptrbss", SNOPTRBSS, 0)
-	xdefine("runtime.enoptrbss", SNOPTRBSS, 0)
-	xdefine("runtime.end", SBSS, 0)
-	xdefine("runtime.epclntab", SRODATA, 0)
-	xdefine("runtime.esymtab", SRODATA, 0)
+	xdefine("runtime.etext", obj.STEXT, 0)
+	xdefine("runtime.typelink", obj.SRODATA, 0)
+	xdefine("runtime.etypelink", obj.SRODATA, 0)
+	xdefine("runtime.rodata", obj.SRODATA, 0)
+	xdefine("runtime.erodata", obj.SRODATA, 0)
+	xdefine("runtime.noptrdata", obj.SNOPTRDATA, 0)
+	xdefine("runtime.enoptrdata", obj.SNOPTRDATA, 0)
+	xdefine("runtime.data", obj.SDATA, 0)
+	xdefine("runtime.edata", obj.SDATA, 0)
+	xdefine("runtime.bss", obj.SBSS, 0)
+	xdefine("runtime.ebss", obj.SBSS, 0)
+	xdefine("runtime.noptrbss", obj.SNOPTRBSS, 0)
+	xdefine("runtime.enoptrbss", obj.SNOPTRBSS, 0)
+	xdefine("runtime.end", obj.SBSS, 0)
+	xdefine("runtime.epclntab", obj.SRODATA, 0)
+	xdefine("runtime.esymtab", obj.SRODATA, 0)
 
 	// garbage collection symbols
 	s := Linklookup(Ctxt, "runtime.gcdata", 0)
 
-	s.Type = SRODATA
+	s.Type = obj.SRODATA
 	s.Size = 0
 	s.Reachable = true
-	xdefine("runtime.egcdata", SRODATA, 0)
+	xdefine("runtime.egcdata", obj.SRODATA, 0)
 
 	s = Linklookup(Ctxt, "runtime.gcbss", 0)
-	s.Type = SRODATA
+	s.Type = obj.SRODATA
 	s.Size = 0
 	s.Reachable = true
-	xdefine("runtime.egcbss", SRODATA, 0)
+	xdefine("runtime.egcbss", obj.SRODATA, 0)
 
 	// pseudo-symbols to mark locations of type, string, and go string data.
 	var symtype *LSym
 	if !DynlinkingGo() {
 		s = Linklookup(Ctxt, "type.*", 0)
 
-		s.Type = STYPE
+		s.Type = obj.STYPE
 		s.Size = 0
 		s.Reachable = true
 		symtype = s
 	}
 
 	s = Linklookup(Ctxt, "go.string.*", 0)
-	s.Type = SGOSTRING
+	s.Type = obj.SGOSTRING
 	s.Local = true
 	s.Size = 0
 	s.Reachable = true
 	symgostring := s
 
 	s = Linklookup(Ctxt, "go.func.*", 0)
-	s.Type = SGOFUNC
+	s.Type = obj.SGOFUNC
 	s.Local = true
 	s.Size = 0
 	s.Reachable = true
@@ -359,7 +362,7 @@ func symtab() {
 
 	symt = Linklookup(Ctxt, "runtime.symtab", 0)
 	symt.Local = true
-	symt.Type = SSYMTAB
+	symt.Type = obj.SSYMTAB
 	symt.Size = 0
 	symt.Reachable = true
 
@@ -378,37 +381,37 @@ func symtab() {
 			s.Local = true
 		}
 
-		if s.Type != SRODATA {
+		if s.Type != obj.SRODATA {
 			continue
 		}
 
 		if strings.HasPrefix(s.Name, "type.") && !DynlinkingGo() {
-			s.Type = STYPE
+			s.Type = obj.STYPE
 			s.Hide = 1
 			s.Outer = symtype
 		}
 
 		if strings.HasPrefix(s.Name, "go.typelink.") {
 			ntypelinks++
-			s.Type = STYPELINK
+			s.Type = obj.STYPELINK
 			s.Hide = 1
 			s.Outer = symtypelink
 		}
 
 		if strings.HasPrefix(s.Name, "go.string.") {
-			s.Type = SGOSTRING
+			s.Type = obj.SGOSTRING
 			s.Hide = 1
 			s.Outer = symgostring
 		}
 
 		if strings.HasPrefix(s.Name, "go.func.") {
-			s.Type = SGOFUNC
+			s.Type = obj.SGOFUNC
 			s.Hide = 1
 			s.Outer = symgofunc
 		}
 
 		if strings.HasPrefix(s.Name, "gcargs.") || strings.HasPrefix(s.Name, "gclocals.") || strings.HasPrefix(s.Name, "gclocals·") {
-			s.Type = SGOFUNC
+			s.Type = obj.SGOFUNC
 			s.Hide = 1
 			s.Outer = symgofunc
 			s.Align = 4
@@ -421,7 +424,7 @@ func symtab() {
 	// the definition of moduledata in runtime/symtab.go.
 	// This code uses several global variables that are set by pcln.go:pclntab.
 	moduledata := Linklookup(Ctxt, "runtime.firstmoduledata", 0)
-	moduledata.Type = SNOPTRDATA
+	moduledata.Type = obj.SNOPTRDATA
 	moduledatasize := moduledata.Size
 	moduledata.Size = 0 // truncate symbol back to 0 bytes to reinitialize
 	moduledata.Reachable = true
@@ -466,8 +469,8 @@ func symtab() {
 	Symgrow(Ctxt, moduledata, moduledatasize)
 
 	lastmoduledatap := Linklookup(Ctxt, "runtime.lastmoduledatap", 0)
-	if lastmoduledatap.Type != SDYNIMPORT {
-		lastmoduledatap.Type = SNOPTRDATA
+	if lastmoduledatap.Type != obj.SDYNIMPORT {
+		lastmoduledatap.Type = obj.SNOPTRDATA
 		lastmoduledatap.Size = 0 // overwrite existing value
 		Addaddr(Ctxt, lastmoduledatap, moduledata)
 	}
