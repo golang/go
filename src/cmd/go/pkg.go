@@ -6,17 +6,20 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"errors"
 	"fmt"
 	"go/build"
 	"go/scanner"
 	"go/token"
+	"io"
 	"io/ioutil"
 	"os"
 	pathpkg "path"
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -95,6 +98,7 @@ type Package struct {
 	coverMode    string               // preprocess Go source files with the coverage tool in this mode
 	coverVars    map[string]*CoverVar // variables created by coverage analysis
 	omitDWARF    bool                 // tell linker not to write DWARF information
+	buildID      string               // expected build ID for generated package
 }
 
 // CoverVar holds the name of the generated coverage variables targeting the named file.
@@ -687,6 +691,36 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		}
 	}
 
+	// Compute build ID for this package.
+	// Build ID is hash of information we want to detect changes in.
+	// The mtime-based checks in computeStale take care of most
+	// of that information, but they cannot detect the removal of a
+	// source file from a directory (with no changes to files that remain
+	// and no new files in that directory). We hash the list of source
+	// files (without full path, to allow moving the entire tree)
+	// so that if one is removed, we detect it via the build IDs.
+	// In the future we might include other relevant information,
+	// like build tags or whether we're using the race detector or
+	// (if it becomes cheap enough) file contents.
+	h := sha1.New()
+	inputFiles := stringList(
+		p.GoFiles,
+		p.CgoFiles,
+		p.CFiles,
+		p.CXXFiles,
+		p.MFiles,
+		p.HFiles,
+		p.SFiles,
+		p.SysoFiles,
+		p.SwigFiles,
+		p.SwigCXXFiles,
+	)
+	fmt.Fprintf(h, "%d files\n", len(inputFiles))
+	for _, file := range inputFiles {
+		fmt.Fprintf(h, "%s\n", file)
+	}
+	p.buildID = fmt.Sprintf("%x", h.Sum(nil))
+
 	return p
 }
 
@@ -795,6 +829,14 @@ func isStale(p *Package, topRoot map[string]bool) bool {
 		}
 	}
 
+	// Package is stale if the expected build ID differs from the
+	// recorded build ID. This catches changes like a source file
+	// being removed from a package directory. See issue 3895.
+	targetBuildID, err := readBuildID(p)
+	if err == nil && targetBuildID != p.buildID {
+		return true
+	}
+
 	// As a courtesy to developers installing new versions of the compiler
 	// frequently, define that packages are stale if they are
 	// older than the compiler, and commands if they are older than
@@ -814,9 +856,10 @@ func isStale(p *Package, topRoot map[string]bool) bool {
 	}
 
 	// Have installed copy, probably built using current compilers,
-	// and built after its imported packages.  The only reason now
+	// built with the right set of source files,
+	// and built after its imported packages. The only reason now
 	// that we'd have to rebuild it is if the sources were newer than
-	// the package.   If a package p is not in the same tree as any
+	// the package. If a package p is not in the same tree as any
 	// package named on the command-line, assume it is up-to-date
 	// no matter what the modification times on the source files indicate.
 	// This avoids rebuilding $GOROOT packages when people are
@@ -993,4 +1036,170 @@ func hasSubdir(root, dir string) (rel string, ok bool) {
 		return "", false
 	}
 	return filepath.ToSlash(dir[len(root):]), true
+}
+
+var (
+	errBuildIDToolchain = fmt.Errorf("build ID only supported in gc toolchain")
+	errBuildIDMalformed = fmt.Errorf("malformed object file")
+	errBuildIDUnknown   = fmt.Errorf("lost build ID")
+)
+
+var (
+	bangArch = []byte("!<arch>")
+	pkgdef   = []byte("__.PKGDEF")
+	goobject = []byte("go object ")
+	buildid  = []byte("build id ")
+)
+
+// readBuildID reads the build ID from an archive or binary.
+// It only supports the gc toolchain.
+// Other toolchain maintainers should adjust this function.
+func readBuildID(p *Package) (id string, err error) {
+	if buildToolchain != (gcToolchain{}) {
+		return "", errBuildIDToolchain
+	}
+
+	// For commands, read build ID directly from binary.
+	if p.Name == "main" {
+		return readBuildIDFromBinary(p)
+	}
+
+	// Otherwise, we expect to have an archive (.a) file,
+	// and we can read the build ID from the Go export data.
+	if !strings.HasSuffix(p.Target, ".a") {
+		return "", &os.PathError{Op: "parse", Path: p.Target, Err: errBuildIDUnknown}
+	}
+
+	// Read just enough of the target to fetch the build ID.
+	// The archive is expected to look like:
+	//
+	//	!<arch>
+	//	__.PKGDEF       0           0     0     644     7955      `
+	//	go object darwin amd64 devel X:none
+	//	build id "b41e5c45250e25c9fd5e9f9a1de7857ea0d41224"
+	//
+	// The variable-sized strings are GOOS, GOARCH, and the experiment list (X:none).
+	// Reading the first 1024 bytes should be plenty.
+	f, err := os.Open(p.Target)
+	if err != nil {
+		return "", err
+	}
+	data := make([]byte, 1024)
+	n, err := io.ReadFull(f, data)
+	f.Close()
+
+	if err != nil && n == 0 {
+		return "", err
+	}
+
+	bad := func() (string, error) {
+		return "", &os.PathError{Op: "parse", Path: p.Target, Err: errBuildIDMalformed}
+	}
+
+	// Archive header.
+	for i := 0; ; i++ { // returns during i==3
+		j := bytes.IndexByte(data, '\n')
+		if j < 0 {
+			return bad()
+		}
+		line := data[:j]
+		data = data[j+1:]
+		switch i {
+		case 0:
+			if !bytes.Equal(line, bangArch) {
+				return bad()
+			}
+		case 1:
+			if !bytes.HasPrefix(line, pkgdef) {
+				return bad()
+			}
+		case 2:
+			if !bytes.HasPrefix(line, goobject) {
+				return bad()
+			}
+		case 3:
+			if !bytes.HasPrefix(line, buildid) {
+				// Found the object header, just doesn't have a build id line.
+				// Treat as successful, with empty build id.
+				return "", nil
+			}
+			id, err := strconv.Unquote(string(line[len(buildid):]))
+			if err != nil {
+				return bad()
+			}
+			return id, nil
+		}
+	}
+}
+
+var (
+	goBinary          = []byte("\x00\n\ngo binary\n")
+	endGoBinary       = []byte("\nend go binary\n")
+	newlineAndBuildid = []byte("\nbuild id ")
+)
+
+// readBuildIDFromBinary reads the build ID from a binary.
+// Instead of trying to be good citizens and store the build ID in a
+// custom section of the binary, which would be different for each
+// of the four binary types we support (ELF, Mach-O, Plan 9, PE),
+// we write a few lines to the end of the binary.
+//
+// At the very end of the binary we expect to find:
+//
+//	<NUL>
+//
+//	go binary
+//	build id "XXX"
+//	end go binary
+//
+func readBuildIDFromBinary(p *Package) (id string, err error) {
+	if p.Target == "" {
+		return "", &os.PathError{Op: "parse", Path: p.Target, Err: errBuildIDUnknown}
+	}
+
+	f, err := os.Open(p.Target)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	off, err := f.Seek(0, 2)
+	if err != nil {
+		return "", err
+	}
+	n := 1024
+	if off < int64(n) {
+		n = int(off)
+	}
+	if _, err := f.Seek(off-int64(n), 0); err != nil {
+		return "", err
+	}
+	data := make([]byte, n)
+	if _, err := io.ReadFull(f, data); err != nil {
+		return "", err
+	}
+	if !bytes.HasSuffix(data, endGoBinary) {
+		// Trailer missing. Treat as successful but build ID empty.
+		return "", nil
+	}
+	i := bytes.LastIndex(data, goBinary)
+	if i < 0 {
+		// Trailer missing. Treat as successful but build ID empty.
+		return "", nil
+	}
+
+	// Have trailer. Find build id line.
+	data = data[i:]
+	i = bytes.Index(data, newlineAndBuildid)
+	if i < 0 {
+		// Trailer present; build ID missing. Treat as successful but empty.
+		return "", nil
+	}
+	line := data[i+len(newlineAndBuildid):]
+	j := bytes.IndexByte(line, '\n') // must succeed - endGoBinary is at end and has newlines
+	id, err = strconv.Unquote(string(line[:j]))
+	if err != nil {
+		return "", &os.PathError{Op: "parse", Path: p.Target, Err: errBuildIDMalformed}
+	}
+	return id, nil
 }

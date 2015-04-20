@@ -888,63 +888,10 @@ var buildorder = []string{
 	"text/template",
 	"go/doc",
 	"go/build",
+	"hash",
+	"crypto",
+	"crypto/sha1",
 	"cmd/go",
-}
-
-// cleantab records the directories to clean in 'go clean'.
-// It is bigger than the buildorder because we clean all the
-// compilers but build only the $GOARCH ones.
-var cleantab = []string{
-	// Commands and C libraries.
-	"cmd/compile",
-	"cmd/go",
-	"cmd/link",
-	"cmd/old5a",
-	"cmd/old6a",
-	"cmd/old8a",
-	"cmd/old9a",
-
-	// Go packages.
-	"bufio",
-	"bytes",
-	"container/heap",
-	"encoding",
-	"encoding/base64",
-	"encoding/json",
-	"errors",
-	"flag",
-	"fmt",
-	"go/ast",
-	"go/build",
-	"go/doc",
-	"go/parser",
-	"go/scanner",
-	"go/token",
-	"io",
-	"io/ioutil",
-	"log",
-	"math",
-	"net/url",
-	"os",
-	"os/exec",
-	"path",
-	"path/filepath",
-	"reflect",
-	"regexp",
-	"regexp/syntax",
-	"runtime",
-	"sort",
-	"strconv",
-	"strings",
-	"sync",
-	"sync/atomic",
-	"syscall",
-	"text/template",
-	"text/template/parse",
-	"time",
-	"unicode",
-	"unicode/utf16",
-	"unicode/utf8",
 }
 
 var runtimegen = []string{
@@ -953,7 +900,7 @@ var runtimegen = []string{
 }
 
 func clean() {
-	for _, name := range cleantab {
+	for _, name := range buildorder {
 		path := pathf("%s/src/%s", goroot, name)
 		// Remove generated files.
 		for _, elem := range xreaddir(path) {
