@@ -425,6 +425,16 @@ func runBuild(cmd *Command, args []string) {
 	if buildBuildmode == "shared" {
 		a = b.libaction(libname(args))
 		mode = depMode
+
+		// Currently build mode shared forces external linking
+		// mode, and external linking mode forces an import of
+		// runtime/cgo.
+		var stk importStack
+		p := loadPackage("runtime/cgo", &stk)
+		if p.Error != nil {
+			fatalf("load runtime/cgo: %v", p.Error)
+		}
+		a.deps = append(a.deps, b.action(mode, depMode, p))
 	} else {
 		a = &action{}
 	}
