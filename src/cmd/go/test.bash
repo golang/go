@@ -156,9 +156,13 @@ elif ! grep 'use of internal package not allowed' testdata/std.out >/dev/null; t
 	ok=false
 fi
 
-TEST 'internal packages outside $GOROOT are not respected'
-if ! ./testgo build -v ./testdata/testinternal2; then
-	echo "go build ./testdata/testinternal2 failed"
+TEST 'internal packages outside $GOROOT are respected (as of Go 1.5)'
+if ./testgo build -v ./testdata/testinternal2 >testdata/std.out 2>&1; then
+	echo "go build ./testdata/testinternal2 succeeded incorrectly"
+	ok=false
+elif ! grep 'use of internal package not allowed' testdata/std.out >/dev/null; then
+	echo "wrong error message for testdata/testinternal2"
+	cat std.out
 	ok=false
 fi
 

@@ -322,13 +322,6 @@ func disallowInternal(srcDir string, p *Package, stk *importStack) *Package {
 	// An import of a path containing the element “internal”
 	// is disallowed if the importing code is outside the tree
 	// rooted at the parent of the “internal” directory.
-	//
-	// ... For Go 1.4, we will implement the rule first for $GOROOT, but not $GOPATH.
-
-	// Only applies to $GOROOT.
-	if !p.Standard {
-		return p
-	}
 
 	// The stack includes p.ImportPath.
 	// If that's the only thing on the stack, we started
