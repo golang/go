@@ -514,7 +514,3 @@ func wrsym(b *Biobuf, s *LSym) {
 	wrstring(b, s.Name)
 	wrint(b, int64(s.Version))
 }
-
-var startmagic string = "\x00\x00go13ld"
-
-var endmagic string = "\xff\xffgo13ld"

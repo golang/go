@@ -481,7 +481,7 @@ type Link struct {
 
 type SymVer struct {
 	Name    string
-	Version int
+	Version int // TODO: make int16 to match LSym.Version?
 }
 
 // LinkArch is the definition of a single architecture.
@@ -527,13 +527,11 @@ type Plist struct {
  */
 func Linknewplist(ctxt *Link) *Plist {
 	pl := new(Plist)
-	*pl = Plist{}
 	if ctxt.Plist == nil {
 		ctxt.Plist = pl
 	} else {
 		ctxt.Plast.Link = pl
 	}
 	ctxt.Plast = pl
-
 	return pl
 }

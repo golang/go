@@ -32,16 +32,12 @@
 package obj
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 )
-
-func yy_isalpha(c int) bool {
-	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z'
-}
 
 var headers = []struct {
 	name string
@@ -71,16 +67,13 @@ func headtype(name string) int {
 	return -1
 }
 
-var headstr_buf string
-
 func Headstr(v int) string {
 	for i := 0; i < len(headers); i++ {
 		if v == headers[i].val {
 			return headers[i].name
 		}
 	}
-	headstr_buf = fmt.Sprintf("%d", v)
-	return headstr_buf
+	return strconv.Itoa(v)
 }
 
 func Linknew(arch *LinkArch) *Link {
@@ -185,38 +178,31 @@ func Linknew(arch *LinkArch) *Link {
 	return ctxt
 }
 
-func linknewsym(ctxt *Link, symb string, v int) *LSym {
-	s := new(LSym)
-	*s = LSym{}
-
-	s.Name = symb
-	s.Type = 0
-	s.Version = int16(v)
-	s.Value = 0
-	s.Size = 0
-
-	return s
-}
-
-func _lookup(ctxt *Link, symb string, v int, creat int) *LSym {
+func _lookup(ctxt *Link, symb string, v int, create bool) *LSym {
 	s := ctxt.Hash[SymVer{symb, v}]
-	if s != nil || creat == 0 {
+	if s != nil || !create {
 		return s
 	}
 
-	s = linknewsym(ctxt, symb, v)
+	s = &LSym{
+		Name:    symb,
+		Type:    0,
+		Version: int16(v),
+		Value:   0,
+		Size:    0,
+	}
 	ctxt.Hash[SymVer{symb, v}] = s
 
 	return s
 }
 
 func Linklookup(ctxt *Link, name string, v int) *LSym {
-	return _lookup(ctxt, name, v, 1)
+	return _lookup(ctxt, name, v, true)
 }
 
 // read-only lookup
 func linkrlookup(ctxt *Link, name string, v int) *LSym {
-	return _lookup(ctxt, name, v, 0)
+	return _lookup(ctxt, name, v, false)
 }
 
 func Linksymfmt(s *LSym) string {
