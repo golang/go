@@ -32,7 +32,6 @@ package asm
 
 import (
 	"bytes"
-	"cmd/internal/obj"
 	"fmt"
 	"os"
 	"strings"
@@ -683,7 +682,7 @@ func maclin() {
 	}
 
 nn:
-	obj.Linklinehist(Ctxt, int(Lineno), symb, int(n))
+	Ctxt.LineHist.Update(int(Lineno), symb, int(n))
 	return
 
 bad:
@@ -796,7 +795,7 @@ func macprag() {
 		/*
 		 * put pragma-line in as a funny history
 		 */
-		obj.Linklinehist(Ctxt, int(Lineno), symb, -1)
+		Ctxt.AddImport(symb)
 		return
 	}
 	if s != nil && s.Name == "pack" {

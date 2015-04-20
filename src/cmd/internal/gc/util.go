@@ -1,7 +1,6 @@
 package gc
 
 import (
-	"cmd/internal/obj"
 	"os"
 	"runtime"
 	"runtime/pprof"
@@ -10,7 +9,7 @@ import (
 )
 
 func (n *Node) Line() string {
-	return obj.Linklinefmt(Ctxt, int(n.Lineno), false, false)
+	return Ctxt.LineHist.LineString(int(n.Lineno))
 }
 
 func atoi(s string) int {

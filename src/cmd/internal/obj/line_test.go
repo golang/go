@@ -13,13 +13,13 @@ func TestLineHist(t *testing.T) {
 	ctxt := new(Link)
 	ctxt.Hash = make(map[SymVer]*LSym)
 
-	Linklinehist(ctxt, 1, "a.c", 0)
-	Linklinehist(ctxt, 3, "a.h", 0)
-	Linklinehist(ctxt, 5, "<pop>", 0)
-	Linklinehist(ctxt, 7, "linedir", 2)
-	Linklinehist(ctxt, 9, "<pop>", 0)
-	Linklinehist(ctxt, 11, "b.c", 0)
-	Linklinehist(ctxt, 13, "<pop>", 0)
+	ctxt.LineHist.Push(1, "a.c")
+	ctxt.LineHist.Push(3, "a.h")
+	ctxt.LineHist.Pop(5)
+	ctxt.LineHist.Update(7, "linedir", 2)
+	ctxt.LineHist.Pop(9)
+	ctxt.LineHist.Push(11, "b.c")
+	ctxt.LineHist.Pop(13)
 
 	var expect = []string{
 		0:  "??:0",
