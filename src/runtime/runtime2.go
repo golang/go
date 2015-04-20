@@ -220,39 +220,41 @@ type g struct {
 	stackguard0 uintptr // offset known to liblink
 	stackguard1 uintptr // offset known to liblink
 
-	_panic       *_panic // innermost panic - offset known to liblink
-	_defer       *_defer // innermost defer
-	stackAlloc   uintptr // stack allocation is [stack.lo,stack.lo+stackAlloc)
-	sched        gobuf
-	syscallsp    uintptr        // if status==Gsyscall, syscallsp = sched.sp to use during gc
-	syscallpc    uintptr        // if status==Gsyscall, syscallpc = sched.pc to use during gc
-	stkbar       []stkbar       // stack barriers, from low to high
-	stkbarPos    uintptr        // index of lowest stack barrier not hit
-	param        unsafe.Pointer // passed parameter on wakeup
-	atomicstatus uint32
-	goid         int64
-	waitsince    int64  // approx time when the g become blocked
-	waitreason   string // if status==Gwaiting
-	schedlink    guintptr
-	preempt      bool // preemption signal, duplicates stackguard0 = stackpreempt
-	paniconfault bool // panic (instead of crash) on unexpected fault address
-	preemptscan  bool // preempted g does scan for gc
-	gcscandone   bool // g has scanned stack; protected by _Gscan bit in status
-	gcscanvalid  bool // false at start of gc cycle, true if G has not run since last scan
-	throwsplit   bool // must not split stack
-	raceignore   int8 // ignore race detection events
-	m            *m   // for debuggers, but offset not hard-coded
-	lockedm      *m
-	sig          uint32
-	writebuf     []byte
-	sigcode0     uintptr
-	sigcode1     uintptr
-	sigpc        uintptr
-	gopc         uintptr // pc of go statement that created this goroutine
-	startpc      uintptr // pc of goroutine function
-	racectx      uintptr
-	waiting      *sudog // sudog structures this g is waiting on (that have a valid elem ptr)
-	readyg       *g     // scratch for readyExecute
+	_panic         *_panic // innermost panic - offset known to liblink
+	_defer         *_defer // innermost defer
+	stackAlloc     uintptr // stack allocation is [stack.lo,stack.lo+stackAlloc)
+	sched          gobuf
+	syscallsp      uintptr        // if status==Gsyscall, syscallsp = sched.sp to use during gc
+	syscallpc      uintptr        // if status==Gsyscall, syscallpc = sched.pc to use during gc
+	stkbar         []stkbar       // stack barriers, from low to high
+	stkbarPos      uintptr        // index of lowest stack barrier not hit
+	param          unsafe.Pointer // passed parameter on wakeup
+	atomicstatus   uint32
+	goid           int64
+	waitsince      int64  // approx time when the g become blocked
+	waitreason     string // if status==Gwaiting
+	schedlink      guintptr
+	preempt        bool  // preemption signal, duplicates stackguard0 = stackpreempt
+	paniconfault   bool  // panic (instead of crash) on unexpected fault address
+	preemptscan    bool  // preempted g does scan for gc
+	gcscandone     bool  // g has scanned stack; protected by _Gscan bit in status
+	gcscanvalid    bool  // false at start of gc cycle, true if G has not run since last scan
+	throwsplit     bool  // must not split stack
+	raceignore     int8  // ignore race detection events
+	sysblocktraced bool  // StartTrace has emitted EvGoInSyscall about this goroutine
+	sysexitticks   int64 // cputicks when syscall has returned (for tracing)
+	m              *m    // for debuggers, but offset not hard-coded
+	lockedm        *m
+	sig            uint32
+	writebuf       []byte
+	sigcode0       uintptr
+	sigcode1       uintptr
+	sigpc          uintptr
+	gopc           uintptr // pc of go statement that created this goroutine
+	startpc        uintptr // pc of goroutine function
+	racectx        uintptr
+	waiting        *sudog // sudog structures this g is waiting on (that have a valid elem ptr)
+	readyg         *g     // scratch for readyExecute
 
 	// Per-G gcController state
 	gcalloc    uintptr // bytes allocated during this GC cycle
@@ -320,6 +322,7 @@ type m struct {
 	waitlock      unsafe.Pointer
 	waittraceev   byte
 	waittraceskip int
+	startingtrace bool
 	syscalltick   uint32
 	//#ifdef GOOS_windows
 	thread uintptr // thread handle
