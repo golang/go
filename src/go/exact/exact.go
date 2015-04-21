@@ -145,9 +145,15 @@ func MakeFloat64(x float64) Value {
 }
 
 // MakeFromLiteral returns the corresponding integer, floating-point,
-// imaginary, character, or string value for a Go literal string. The
-// result is nil if the literal string is invalid.
-func MakeFromLiteral(lit string, tok token.Token) Value {
+// imaginary, character, or string value for a Go literal string.
+// If prec > 0, prec specifies an upper limit for the precision of
+// a numeric value. If the literal string is invalid, the result is
+// nil.
+// BUG(gri) Only prec == 0 is supported at the moment.
+func MakeFromLiteral(lit string, tok token.Token, prec uint) Value {
+	if prec != 0 {
+		panic("limited precision not supported")
+	}
 	switch tok {
 	case token.INT:
 		if x, err := strconv.ParseInt(lit, 0, 64); err == nil {
@@ -489,10 +495,10 @@ func is63bit(x int64) bool {
 
 // UnaryOp returns the result of the unary expression op y.
 // The operation must be defined for the operand.
-// If size >= 0 it specifies the ^ (xor) result size in bytes.
+// If prec > 0 it specifies the ^ (xor) result size in bits.
 // If y is Unknown, the result is Unknown.
 //
-func UnaryOp(op token.Token, y Value, size int) Value {
+func UnaryOp(op token.Token, y Value, prec uint) Value {
 	switch op {
 	case token.ADD:
 		switch y.(type) {
@@ -530,11 +536,10 @@ func UnaryOp(op token.Token, y Value, size int) Value {
 			goto Error
 		}
 		// For unsigned types, the result will be negative and
-		// thus "too large": We must limit the result size to
-		// the type's size.
-		if size >= 0 {
-			s := uint(size) * 8
-			z.AndNot(&z, new(big.Int).Lsh(big.NewInt(-1), s)) // z &^= (-1)<<s
+		// thus "too large": We must limit the result precision
+		// to the type's precision.
+		if prec > 0 {
+			z.AndNot(&z, new(big.Int).Lsh(big.NewInt(-1), prec)) // z &^= (-1)<<prec
 		}
 		return normInt(&z)
 

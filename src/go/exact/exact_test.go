@@ -227,7 +227,7 @@ func val(lit string) Value {
 		}
 	}
 
-	return MakeFromLiteral(lit, tok)
+	return MakeFromLiteral(lit, tok, 0)
 }
 
 var optab = map[string]token.Token{
@@ -272,7 +272,7 @@ func doOp(x Value, op token.Token, y Value) (z Value) {
 	defer panicHandler(&z)
 
 	if x == nil {
-		return UnaryOp(op, y, -1)
+		return UnaryOp(op, y, 0)
 	}
 
 	switch op {
@@ -354,7 +354,7 @@ func TestUnknown(t *testing.T) {
 		MakeBool(false), // token.ADD ok below, operation is never considered
 		MakeString(""),
 		MakeInt64(1),
-		MakeFromLiteral("-1234567890123456789012345678901234567890", token.INT),
+		MakeFromLiteral("-1234567890123456789012345678901234567890", token.INT, 0),
 		MakeFloat64(1.2),
 		MakeImag(MakeFloat64(1.2)),
 	}
