@@ -123,12 +123,7 @@ func (c *conn) Read(b []byte) (int, error) {
 	}
 	n, err := c.fd.Read(b)
 	if err != nil && err != io.EOF {
-		err = &OpError{Op: "read", Net: c.fd.net, Err: err}
-		if c.fd.raddr != nil {
-			err.(*OpError).Addr = c.fd.raddr
-		} else {
-			err.(*OpError).Addr = c.fd.laddr // for unconnected-mode sockets
-		}
+		err = &OpError{Op: "read", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 	}
 	return n, err
 }
@@ -140,12 +135,7 @@ func (c *conn) Write(b []byte) (int, error) {
 	}
 	n, err := c.fd.Write(b)
 	if err != nil {
-		err = &OpError{Op: "write", Net: c.fd.net, Err: err}
-		if c.fd.raddr != nil {
-			err.(*OpError).Addr = c.fd.raddr
-		} else {
-			err.(*OpError).Addr = c.fd.laddr // for unconnected-mode sockets
-		}
+		err = &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 	}
 	return n, err
 }
@@ -157,12 +147,7 @@ func (c *conn) Close() error {
 	}
 	err := c.fd.Close()
 	if err != nil {
-		err = &OpError{Op: "close", Net: c.fd.net, Err: err}
-		if c.fd.raddr != nil {
-			err.(*OpError).Addr = c.fd.raddr
-		} else {
-			err.(*OpError).Addr = c.fd.laddr // for unconnected-mode sockets
-		}
+		err = &OpError{Op: "close", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 	}
 	return err
 }
@@ -193,7 +178,7 @@ func (c *conn) SetDeadline(t time.Time) error {
 		return syscall.EINVAL
 	}
 	if err := c.fd.setDeadline(t); err != nil {
-		return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
+		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
 	}
 	return nil
 }
@@ -204,7 +189,7 @@ func (c *conn) SetReadDeadline(t time.Time) error {
 		return syscall.EINVAL
 	}
 	if err := c.fd.setReadDeadline(t); err != nil {
-		return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
+		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
 	}
 	return nil
 }
@@ -215,7 +200,7 @@ func (c *conn) SetWriteDeadline(t time.Time) error {
 		return syscall.EINVAL
 	}
 	if err := c.fd.setWriteDeadline(t); err != nil {
-		return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
+		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
 	}
 	return nil
 }
@@ -227,7 +212,7 @@ func (c *conn) SetReadBuffer(bytes int) error {
 		return syscall.EINVAL
 	}
 	if err := setReadBuffer(c.fd, bytes); err != nil {
-		return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
+		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
 	}
 	return nil
 }
@@ -239,7 +224,7 @@ func (c *conn) SetWriteBuffer(bytes int) error {
 		return syscall.EINVAL
 	}
 	if err := setWriteBuffer(c.fd, bytes); err != nil {
-		return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
+		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
 	}
 	return nil
 }
@@ -254,7 +239,7 @@ func (c *conn) SetWriteBuffer(bytes int) error {
 func (c *conn) File() (f *os.File, err error) {
 	f, err = c.fd.dup()
 	if err != nil {
-		err = &OpError{Op: "file", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
+		err = &OpError{Op: "file", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 	}
 	return
 }
@@ -352,7 +337,17 @@ type OpError struct {
 	// such as "tcp" or "udp6".
 	Net string
 
-	// Addr is the network address on which this error occurred.
+	// For operations involving a remote network connection, like
+	// Dial, Read, or Write, Source is the corresponding local
+	// network address.
+	Source Addr
+
+	// Addr is the network address for which this error occurred.
+	// For local operations, like Listen or SetDeadline, Addr is
+	// the address of the local endpoint being manipulated.
+	// For operations involving a remote network connection, like
+	// Dial, Read, or Write, Addr is the remote address of that
+	// connection.
 	Addr Addr
 
 	// Err is the error that occurred during the operation.
@@ -367,8 +362,16 @@ func (e *OpError) Error() string {
 	if e.Net != "" {
 		s += " " + e.Net
 	}
+	if e.Source != nil {
+		s += " " + e.Source.String()
+	}
 	if e.Addr != nil {
-		s += " " + e.Addr.String()
+		if e.Source != nil {
+			s += "->"
+		} else {
+			s += " "
+		}
+		s += e.Addr.String()
 	}
 	s += ": " + e.Err.Error()
 	return s

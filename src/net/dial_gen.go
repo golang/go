@@ -17,7 +17,7 @@ func dialChannel(net string, ra Addr, dialer func(time.Time) (Conn, error), dead
 	}
 	timeout := deadline.Sub(time.Now())
 	if timeout <= 0 {
-		return nil, &OpError{Op: "dial", Net: net, Addr: ra, Err: errTimeout}
+		return nil, &OpError{Op: "dial", Net: net, Source: nil, Addr: ra, Err: errTimeout}
 	}
 	t := time.NewTimer(timeout)
 	defer t.Stop()
@@ -33,7 +33,7 @@ func dialChannel(net string, ra Addr, dialer func(time.Time) (Conn, error), dead
 	}()
 	select {
 	case <-t.C:
-		return nil, &OpError{Op: "dial", Net: net, Addr: ra, Err: errTimeout}
+		return nil, &OpError{Op: "dial", Net: net, Source: nil, Addr: ra, Err: errTimeout}
 	case racer := <-ch:
 		return racer.Conn, racer.error
 	}
