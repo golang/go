@@ -481,8 +481,12 @@ func (fd *netFD) readFrom(buf []byte) (int, syscall.Sockaddr, error) {
 		o.rsan = int32(unsafe.Sizeof(*o.rsa))
 		return syscall.WSARecvFrom(o.fd.sysfd, &o.buf, 1, &o.qty, &o.flags, o.rsa, &o.rsan, &o.o, nil)
 	})
+	err = fd.eofError(n, err)
+	if err != nil {
+		return n, nil, err
+	}
 	sa, _ := o.rsa.Sockaddr()
-	return n, sa, fd.eofError(n, err)
+	return n, sa, err
 }
 
 func (fd *netFD) Write(buf []byte) (int, error) {
