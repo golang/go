@@ -358,16 +358,16 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 
 	f, err := fs.Open(name)
 	if err != nil {
-		// TODO expose actual error?
-		NotFound(w, r)
+		msg, code := toHTTPError(err)
+		Error(w, msg, code)
 		return
 	}
 	defer f.Close()
 
 	d, err1 := f.Stat()
 	if err1 != nil {
-		// TODO expose actual error?
-		NotFound(w, r)
+		msg, code := toHTTPError(err)
+		Error(w, msg, code)
 		return
 	}
 
@@ -415,6 +415,22 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 	// serveContent will check modification time
 	sizeFunc := func() (int64, error) { return d.Size(), nil }
 	serveContent(w, r, d.Name(), d.ModTime(), sizeFunc, f)
+}
+
+// toHTTPError returns a non-specific HTTP error message and status code
+// for a given non-nil error value. It's important that toHTTPError does not
+// actually return err.Error(), since msg and httpStatus are returned to users,
+// and historically Go's ServeContent always returned just "404 Not Found" for
+// all errors. We don't want to start leaking information in error messages.
+func toHTTPError(err error) (msg string, httpStatus int) {
+	if os.IsNotExist(err) {
+		return "404 page not found", StatusNotFound
+	}
+	if os.IsPermission(err) {
+		return "403 Forbidden", StatusForbidden
+	}
+	// Default:
+	return "500 Internal Server Error", StatusInternalServerError
 }
 
 // localRedirect gives a Moved Permanently response.
