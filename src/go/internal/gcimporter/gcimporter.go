@@ -706,7 +706,7 @@ func (p *parser) parseInt() string {
 //
 func (p *parser) parseNumber() (typ *types.Basic, val exact.Value) {
 	// mantissa
-	mant := exact.MakeFromLiteral(p.parseInt(), token.INT)
+	mant := exact.MakeFromLiteral(p.parseInt(), token.INT, 0)
 	if mant == nil {
 		panic("invalid mantissa")
 	}
@@ -793,13 +793,13 @@ func (p *parser) parseConstDecl() {
 	case scanner.Char:
 		// rune_lit
 		typ = types.Typ[types.UntypedRune]
-		val = exact.MakeFromLiteral(p.lit, token.CHAR)
+		val = exact.MakeFromLiteral(p.lit, token.CHAR, 0)
 		p.next()
 
 	case scanner.String:
 		// string_lit
 		typ = types.Typ[types.UntypedString]
-		val = exact.MakeFromLiteral(p.lit, token.STRING)
+		val = exact.MakeFromLiteral(p.lit, token.STRING, 0)
 		p.next()
 
 	default:

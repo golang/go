@@ -166,7 +166,7 @@ func (x *operand) String() string {
 
 // setConst sets x to the untyped constant for literal lit.
 func (x *operand) setConst(tok token.Token, lit string) {
-	val := exact.MakeFromLiteral(lit, tok)
+	val := exact.MakeFromLiteral(lit, tok, 0)
 	if val == nil {
 		// TODO(gri) Should we make it an unknown constant instead?
 		x.mode = invalid
