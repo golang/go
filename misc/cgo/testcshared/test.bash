@@ -6,7 +6,7 @@
 set -e
 
 function cleanup() {
-	rm libgo.so testp
+	rm -f libgo.so libgo2.so testp testp2
 }
 trap cleanup EXIT
 
@@ -23,6 +23,16 @@ fi
 $(go env CC) $(go env GOGCCFLAGS) -o testp main1.c -ldl
 output=$(./testp ./libgo.so) 
 # testp prints PASS at the end of its execution.
+if [ "$output" != "PASS" ]; then
+	echo "FAIL: got $output"
+	exit 1
+fi
+
+GOPATH=$(pwd) go build -buildmode=c-shared -o libgo2.so src/libgo2/libgo2.go
+
+$(go env CC) $(go env GOGCCFLAGS) -o testp2 main2.c -Wl,--no-as-needed libgo2.so
+output=$(LD_LIBRARY_PATH=$LD_LIBRARY_PATH:. ./testp2)
+# testp2 prints PASS at the end of its execution.
 if [ "$output" != "PASS" ]; then
 	echo "FAIL: got $output"
 	exit 1
