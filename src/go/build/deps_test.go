@@ -344,7 +344,7 @@ var pkgDeps = map[string][]string{
 	"go/constant":                       {"fmt", "go/token", "math/big", "strconv"},
 	"go/format":                         {"bytes", "fmt", "go/ast", "go/parser", "go/printer", "go/token", "internal/format", "io"},
 	"go/importer":                       {"go/internal/gcimporter", "go/internal/gccgoimporter", "go/types", "io", "runtime"},
-	"go/internal/gcimporter":            {"bufio", "errors", "fmt", "go/build", "go/constant", "go/token", "go/types", "io", "os", "path/filepath", "strconv", "strings", "text/scanner"},
+	"go/internal/gcimporter":            {"bufio", "errors", "fmt", "go/build", "go/constant", "go/token", "go/types", "io", "os", "path/filepath", "sort", "strconv", "strings", "text/scanner"},
 	"go/internal/gccgoimporter":         {"bufio", "bytes", "debug/elf", "errors", "fmt", "go/constant", "go/token", "go/types", "io", "os", "os/exec", "path/filepath", "strconv", "strings", "text/scanner"},
 	"go/types":                          {"bytes", "container/heap", "fmt", "go/ast", "go/constant", "go/parser", "go/token", "io", "math", "path", "sort", "strconv", "strings", "sync", "unicode"},
 	"image/internal/imageutil":          {"image"},
