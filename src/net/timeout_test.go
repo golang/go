@@ -307,15 +307,14 @@ func TestTimeoutUDP(t *testing.T) {
 		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
-	// set up a listener that won't talk back
-	listening := make(chan string)
-	done := make(chan int)
-	go runDatagramPacketConnServer(t, "udp", "127.0.0.1:0", listening, done)
-	addr := <-listening
+	c, err := newLocalPacketListener("udp") // a listener that won't talk back
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	testTimeout(t, "udp", addr, false)
-	testTimeout(t, "udp", addr, true)
-	<-done
+	testTimeout(t, "udp", c.LocalAddr().String(), false)
+	testTimeout(t, "udp", c.LocalAddr().String(), true)
+	c.Close()
 }
 
 func TestTimeoutTCP(t *testing.T) {
@@ -324,14 +323,25 @@ func TestTimeoutTCP(t *testing.T) {
 		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
-	// set up a listener that won't talk back
-	listening := make(chan string)
-	done := make(chan int)
-	go runStreamConnServer(t, "tcp", "127.0.0.1:0", listening, done)
-	addr := <-listening
+	handler := func(ls *localServer, ln Listener) { // a listener that won't talk back
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				break
+			}
+			defer c.Close()
+		}
+	}
+	ls, err := newLocalServer("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ls.teardown()
+	if err := ls.buildup(handler); err != nil {
+		t.Fatal(err)
+	}
 
-	testTimeout(t, "tcp", addr, false)
-	<-done
+	testTimeout(t, "tcp", ls.Listener.Addr().String(), false)
 }
 
 func TestDeadlineReset(t *testing.T) {
