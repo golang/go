@@ -9,7 +9,10 @@
 
 package net
 
-import "syscall"
+import (
+	"os"
+	"syscall"
+)
 
 // Wrapper around the socket system call that marks the returned file
 // descriptor as nonblocking and close-on-exec.
@@ -22,11 +25,11 @@ func sysSocket(family, sotype, proto int) (int, error) {
 	}
 	syscall.ForkLock.RUnlock()
 	if err != nil {
-		return -1, err
+		return -1, os.NewSyscallError("socket", err)
 	}
 	if err = syscall.SetNonblock(s, true); err != nil {
 		closeFunc(s)
-		return -1, err
+		return -1, os.NewSyscallError("setnonblock", err)
 	}
 	return s, nil
 }
@@ -44,11 +47,11 @@ func accept(s int) (int, syscall.Sockaddr, error) {
 		syscall.CloseOnExec(ns)
 	}
 	if err != nil {
-		return -1, nil, err
+		return -1, nil, os.NewSyscallError("accept", err)
 	}
 	if err = syscall.SetNonblock(ns, true); err != nil {
 		closeFunc(ns)
-		return -1, nil, err
+		return -1, nil, os.NewSyscallError("setnonblock", err)
 	}
 	return ns, sa, nil
 }

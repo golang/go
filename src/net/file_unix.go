@@ -19,13 +19,13 @@ func newFileFD(f *os.File) (*netFD, error) {
 
 	if err = syscall.SetNonblock(fd, true); err != nil {
 		closeFunc(fd)
-		return nil, err
+		return nil, os.NewSyscallError("setnonblock", err)
 	}
 
 	sotype, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_TYPE)
 	if err != nil {
 		closeFunc(fd)
-		return nil, err
+		return nil, os.NewSyscallError("getsockopt", err)
 	}
 
 	family := syscall.AF_UNSPEC
