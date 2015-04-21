@@ -13,7 +13,7 @@ import (
 /// implements fix arithmetic
 
 func mpsetovf(a *Mpint) {
-	a.Val.SetUint64(0)
+	a.Val.SetUint64(1) // avoid spurious div-zero errors
 	a.Ovf = true
 }
 
