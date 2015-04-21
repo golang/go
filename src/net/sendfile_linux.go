@@ -72,5 +72,8 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 	if lr != nil {
 		lr.N = remain
 	}
+	if err != nil {
+		err = os.NewSyscallError("sendfile", err)
+	}
 	return written, err, written > 0
 }

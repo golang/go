@@ -244,13 +244,6 @@ func (c *conn) File() (f *os.File, err error) {
 	return
 }
 
-// An Error represents a network error.
-type Error interface {
-	error
-	Timeout() bool   // Is the error a timeout?
-	Temporary() bool // Is the error temporary?
-}
-
 // PacketConn is a generic packet-oriented network connection.
 //
 // Multiple goroutines may invoke methods on a PacketConn simultaneously.
@@ -312,6 +305,13 @@ type Listener interface {
 
 	// Addr returns the listener's network address.
 	Addr() Addr
+}
+
+// An Error represents a network error.
+type Error interface {
+	error
+	Timeout() bool   // Is the error a timeout?
+	Temporary() bool // Is the error temporary?
 }
 
 // Various errors contained in OpError.
@@ -377,15 +377,6 @@ func (e *OpError) Error() string {
 	return s
 }
 
-type temporary interface {
-	Temporary() bool
-}
-
-func (e *OpError) Temporary() bool {
-	t, ok := e.Err.(temporary)
-	return ok && t.Temporary()
-}
-
 var noDeadline = time.Time{}
 
 type timeout interface {
@@ -393,8 +384,25 @@ type timeout interface {
 }
 
 func (e *OpError) Timeout() bool {
+	if ne, ok := e.Err.(*os.SyscallError); ok {
+		t, ok := ne.Err.(timeout)
+		return ok && t.Timeout()
+	}
 	t, ok := e.Err.(timeout)
 	return ok && t.Timeout()
+}
+
+type temporary interface {
+	Temporary() bool
+}
+
+func (e *OpError) Temporary() bool {
+	if ne, ok := e.Err.(*os.SyscallError); ok {
+		t, ok := ne.Err.(temporary)
+		return ok && t.Temporary()
+	}
+	t, ok := e.Err.(temporary)
+	return ok && t.Temporary()
 }
 
 type timeoutError struct{}
@@ -402,6 +410,18 @@ type timeoutError struct{}
 func (e *timeoutError) Error() string   { return "i/o timeout" }
 func (e *timeoutError) Timeout() bool   { return true }
 func (e *timeoutError) Temporary() bool { return true }
+
+// A ParseError is the error type of literal network address parsers.
+type ParseError struct {
+	// Type is the type of string that was expected, such as
+	// "IP address", "CIDR address".
+	Type string
+
+	// Text is the malformed text string.
+	Text string
+}
+
+func (e *ParseError) Error() string { return "invalid " + e.Type + ": " + e.Text }
 
 type AddrError struct {
 	Err  string
@@ -419,14 +439,14 @@ func (e *AddrError) Error() string {
 	return s
 }
 
-func (e *AddrError) Temporary() bool { return false }
 func (e *AddrError) Timeout() bool   { return false }
+func (e *AddrError) Temporary() bool { return false }
 
 type UnknownNetworkError string
 
 func (e UnknownNetworkError) Error() string   { return "unknown network " + string(e) }
-func (e UnknownNetworkError) Temporary() bool { return false }
 func (e UnknownNetworkError) Timeout() bool   { return false }
+func (e UnknownNetworkError) Temporary() bool { return false }
 
 type InvalidAddrError string
 

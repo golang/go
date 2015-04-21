@@ -38,7 +38,7 @@ func sysInit() {
 	var d syscall.WSAData
 	e := syscall.WSAStartup(uint32(0x202), &d)
 	if e != nil {
-		initErr = os.NewSyscallError("WSAStartup", e)
+		initErr = os.NewSyscallError("wsastartup", e)
 	}
 	canCancelIO = syscall.LoadCancelIoEx() == nil
 	if syscall.LoadGetAddrInfo() == nil {
@@ -297,7 +297,7 @@ func (fd *netFD) init() error {
 		size := uint32(unsafe.Sizeof(flag))
 		err := syscall.WSAIoctl(fd.sysfd, syscall.SIO_UDP_CONNRESET, (*byte)(unsafe.Pointer(&flag)), size, nil, 0, &ret, nil, 0)
 		if err != nil {
-			return os.NewSyscallError("WSAIoctl", err)
+			return os.NewSyscallError("wsaioctl", err)
 		}
 	}
 	fd.rop.mode = 'r'
@@ -331,7 +331,7 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
 		defer fd.setWriteDeadline(noDeadline)
 	}
 	if !canUseConnectEx(fd.net) {
-		return connectFunc(fd.sysfd, ra)
+		return os.NewSyscallError("connect", connectFunc(fd.sysfd, ra))
 	}
 	// ConnectEx windows API requires an unconnected, previously bound socket.
 	if la == nil {
@@ -344,7 +344,7 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
 			panic("unexpected type in connect")
 		}
 		if err := syscall.Bind(fd.sysfd, la); err != nil {
-			return err
+			return os.NewSyscallError("bind", err)
 		}
 	}
 	// Call ConnectEx API.
@@ -354,10 +354,13 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
 		return connectExFunc(o.fd.sysfd, o.sa, nil, 0, nil, &o.o)
 	})
 	if err != nil {
+		if _, ok := err.(syscall.Errno); ok {
+			err = os.NewSyscallError("connectex", err)
+		}
 		return err
 	}
 	// Refresh socket properties.
-	return syscall.Setsockopt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_UPDATE_CONNECT_CONTEXT, (*byte)(unsafe.Pointer(&fd.sysfd)), int32(unsafe.Sizeof(fd.sysfd)))
+	return os.NewSyscallError("setsockopt", syscall.Setsockopt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_UPDATE_CONNECT_CONTEXT, (*byte)(unsafe.Pointer(&fd.sysfd)), int32(unsafe.Sizeof(fd.sysfd))))
 }
 
 func (fd *netFD) destroy() {
@@ -461,7 +464,11 @@ func (fd *netFD) Read(buf []byte) (int, error) {
 	if raceenabled {
 		raceAcquire(unsafe.Pointer(&ioSync))
 	}
-	return n, fd.eofError(n, err)
+	err = fd.eofError(n, err)
+	if _, ok := err.(syscall.Errno); ok {
+		err = os.NewSyscallError("wsarecv", err)
+	}
+	return n, err
 }
 
 func (fd *netFD) readFrom(buf []byte) (int, syscall.Sockaddr, error) {
@@ -482,11 +489,14 @@ func (fd *netFD) readFrom(buf []byte) (int, syscall.Sockaddr, error) {
 		return syscall.WSARecvFrom(o.fd.sysfd, &o.buf, 1, &o.qty, &o.flags, o.rsa, &o.rsan, &o.o, nil)
 	})
 	err = fd.eofError(n, err)
+	if _, ok := err.(syscall.Errno); ok {
+		err = os.NewSyscallError("wsarecvfrom", err)
+	}
 	if err != nil {
 		return n, nil, err
 	}
 	sa, _ := o.rsa.Sockaddr()
-	return n, sa, err
+	return n, sa, nil
 }
 
 func (fd *netFD) Write(buf []byte) (int, error) {
@@ -502,6 +512,9 @@ func (fd *netFD) Write(buf []byte) (int, error) {
 	n, err := wsrv.ExecIO(o, "WSASend", func(o *operation) error {
 		return syscall.WSASend(o.fd.sysfd, &o.buf, 1, &o.qty, 0, &o.o, nil)
 	})
+	if _, ok := err.(syscall.Errno); ok {
+		err = os.NewSyscallError("wsasend", err)
+	}
 	return n, err
 }
 
@@ -519,6 +532,9 @@ func (fd *netFD) writeTo(buf []byte, sa syscall.Sockaddr) (int, error) {
 	n, err := wsrv.ExecIO(o, "WSASendto", func(o *operation) error {
 		return syscall.WSASendto(o.fd.sysfd, &o.buf, 1, &o.qty, 0, o.sa, &o.o, nil)
 	})
+	if _, ok := err.(syscall.Errno); ok {
+		err = os.NewSyscallError("wsasendto", err)
+	}
 	return n, err
 }
 
@@ -548,6 +564,9 @@ func (fd *netFD) acceptOne(rawsa []syscall.RawSockaddrAny, o *operation) (*netFD
 	})
 	if err != nil {
 		netfd.Close()
+		if _, ok := err.(syscall.Errno); ok {
+			err = os.NewSyscallError("acceptex", err)
+		}
 		return nil, err
 	}
 
@@ -555,7 +574,7 @@ func (fd *netFD) acceptOne(rawsa []syscall.RawSockaddrAny, o *operation) (*netFD
 	err = syscall.Setsockopt(s, syscall.SOL_SOCKET, syscall.SO_UPDATE_ACCEPT_CONTEXT, (*byte)(unsafe.Pointer(&fd.sysfd)), int32(unsafe.Sizeof(fd.sysfd)))
 	if err != nil {
 		netfd.Close()
-		return nil, err
+		return nil, os.NewSyscallError("setsockopt", err)
 	}
 
 	return netfd, nil
@@ -581,7 +600,11 @@ func (fd *netFD) accept() (*netFD, error) {
 		// before AcceptEx could complete. These errors relate to new
 		// connection, not to AcceptEx, so ignore broken connection and
 		// try AcceptEx again for more connections.
-		errno, ok := err.(syscall.Errno)
+		nerr, ok := err.(*os.SyscallError)
+		if !ok {
+			return nil, err
+		}
+		errno, ok := nerr.Err.(syscall.Errno)
 		if !ok {
 			return nil, err
 		}

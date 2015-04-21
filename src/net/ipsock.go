@@ -122,7 +122,7 @@ func SplitHostPort(hostport string) (host, port string, err error) {
 		// Expect the first ']' just before the last ':'.
 		end := byteIndex(hostport, ']')
 		if end < 0 {
-			err = &AddrError{"missing ']' in address", hostport}
+			err = &AddrError{Err: "missing ']' in address", Addr: hostport}
 			return
 		}
 		switch end + 1 {
@@ -151,11 +151,11 @@ func SplitHostPort(hostport string) (host, port string, err error) {
 		}
 	}
 	if byteIndex(hostport[j:], '[') >= 0 {
-		err = &AddrError{"unexpected '[' in address", hostport}
+		err = &AddrError{Err: "unexpected '[' in address", Addr: hostport}
 		return
 	}
 	if byteIndex(hostport[k:], ']') >= 0 {
-		err = &AddrError{"unexpected ']' in address", hostport}
+		err = &AddrError{Err: "unexpected ']' in address", Addr: hostport}
 		return
 	}
 
@@ -163,15 +163,15 @@ func SplitHostPort(hostport string) (host, port string, err error) {
 	return
 
 missingPort:
-	err = &AddrError{"missing port in address", hostport}
+	err = &AddrError{Err: "missing port in address", Addr: hostport}
 	return
 
 tooManyColons:
-	err = &AddrError{"too many colons in address", hostport}
+	err = &AddrError{Err: "too many colons in address", Addr: hostport}
 	return
 
 missingBrackets:
-	err = &AddrError{"missing brackets in address", hostport}
+	err = &AddrError{Err: "missing brackets in address", Addr: hostport}
 	return
 }
 

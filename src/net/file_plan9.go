@@ -39,7 +39,7 @@ func newFileFD(f *os.File) (net *netFD, err error) {
 
 	path, err := syscall.Fd2path(int(f.Fd()))
 	if err != nil {
-		return nil, err
+		return nil, os.NewSyscallError("fd2path", err)
 	}
 	comp := splitAtBytes(path, "/")
 	n := len(comp)
@@ -54,7 +54,7 @@ func newFileFD(f *os.File) (net *netFD, err error) {
 		fd, err := syscall.Dup(int(f.Fd()), -1)
 		syscall.ForkLock.RUnlock()
 		if err != nil {
-			return nil, err
+			return nil, os.NewSyscallError("dup", err)
 		}
 		defer close(fd)
 

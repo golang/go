@@ -5,6 +5,7 @@
 package net
 
 import (
+	"os"
 	"runtime"
 	"syscall"
 	"unsafe"
@@ -18,7 +19,7 @@ var (
 func getprotobyname(name string) (proto int, err error) {
 	p, err := syscall.GetProtoByName(name)
 	if err != nil {
-		return 0, err
+		return 0, os.NewSyscallError("getorotobyname", err)
 	}
 	return int(p.Proto), nil
 }
@@ -66,7 +67,7 @@ func gethostbyname(name string) (addrs []IPAddr, err error) {
 	// caller already acquired thread
 	h, err := syscall.GetHostByName(name)
 	if err != nil {
-		return nil, err
+		return nil, os.NewSyscallError("gethostbyname", err)
 	}
 	switch h.AddrType {
 	case syscall.AF_INET:
@@ -116,7 +117,7 @@ func newLookupIP(name string) ([]IPAddr, error) {
 	var result *syscall.AddrinfoW
 	e := syscall.GetAddrInfoW(syscall.StringToUTF16Ptr(name), nil, &hints, &result)
 	if e != nil {
-		return nil, &DNSError{Err: e.Error(), Name: name}
+		return nil, &DNSError{Err: os.NewSyscallError("getaddrinfow", e).Error(), Name: name}
 	}
 	defer syscall.FreeAddrInfoW(result)
 	addrs := make([]IPAddr, 0, 5)
@@ -148,7 +149,7 @@ func getservbyname(network, service string) (int, error) {
 	}
 	s, err := syscall.GetServByName(service, network)
 	if err != nil {
-		return 0, err
+		return 0, os.NewSyscallError("getservbyname", err)
 	}
 	return int(syscall.Ntohs(s.Port)), nil
 }
@@ -194,7 +195,7 @@ func newLookupPort(network, service string) (int, error) {
 	var result *syscall.AddrinfoW
 	e := syscall.GetAddrInfoW(nil, syscall.StringToUTF16Ptr(service), &hints, &result)
 	if e != nil {
-		return 0, &DNSError{Err: e.Error(), Name: network + "/" + service}
+		return 0, &DNSError{Err: os.NewSyscallError("getaddrinfow", e).Error(), Name: network + "/" + service}
 	}
 	defer syscall.FreeAddrInfoW(result)
 	if result == nil {
@@ -226,7 +227,7 @@ func lookupCNAME(name string) (string, error) {
 		return name, nil
 	}
 	if e != nil {
-		return "", &DNSError{Err: e.Error(), Name: name}
+		return "", &DNSError{Err: os.NewSyscallError("dnsquery", e).Error(), Name: name}
 	}
 	defer syscall.DnsRecordListFree(r, 1)
 
@@ -247,7 +248,7 @@ func lookupSRV(service, proto, name string) (string, []*SRV, error) {
 	var r *syscall.DNSRecord
 	e := syscall.DnsQuery(target, syscall.DNS_TYPE_SRV, 0, nil, &r, nil)
 	if e != nil {
-		return "", nil, &DNSError{Err: e.Error(), Name: target}
+		return "", nil, &DNSError{Err: os.NewSyscallError("dnsquery", e).Error(), Name: target}
 	}
 	defer syscall.DnsRecordListFree(r, 1)
 
@@ -266,7 +267,7 @@ func lookupMX(name string) ([]*MX, error) {
 	var r *syscall.DNSRecord
 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_MX, 0, nil, &r, nil)
 	if e != nil {
-		return nil, &DNSError{Err: e.Error(), Name: name}
+		return nil, &DNSError{Err: os.NewSyscallError("dnsquery", e).Error(), Name: name}
 	}
 	defer syscall.DnsRecordListFree(r, 1)
 
@@ -285,7 +286,7 @@ func lookupNS(name string) ([]*NS, error) {
 	var r *syscall.DNSRecord
 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_NS, 0, nil, &r, nil)
 	if e != nil {
-		return nil, &DNSError{Err: e.Error(), Name: name}
+		return nil, &DNSError{Err: os.NewSyscallError("dnsquery", e).Error(), Name: name}
 	}
 	defer syscall.DnsRecordListFree(r, 1)
 
@@ -303,7 +304,7 @@ func lookupTXT(name string) ([]string, error) {
 	var r *syscall.DNSRecord
 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_TEXT, 0, nil, &r, nil)
 	if e != nil {
-		return nil, &DNSError{Err: e.Error(), Name: name}
+		return nil, &DNSError{Err: os.NewSyscallError("dnsquery", e).Error(), Name: name}
 	}
 	defer syscall.DnsRecordListFree(r, 1)
 
@@ -328,7 +329,7 @@ func lookupAddr(addr string) ([]string, error) {
 	var r *syscall.DNSRecord
 	e := syscall.DnsQuery(arpa, syscall.DNS_TYPE_PTR, 0, nil, &r, nil)
 	if e != nil {
-		return nil, &DNSError{Err: e.Error(), Name: addr}
+		return nil, &DNSError{Err: os.NewSyscallError("dnsquery", e).Error(), Name: addr}
 	}
 	defer syscall.DnsRecordListFree(r, 1)
 

@@ -7,7 +7,6 @@
 package net
 
 import (
-	"errors"
 	"os"
 	"syscall"
 )
@@ -60,15 +59,15 @@ func parsePlan9Addr(s string) (ip IP, iport int, err error) {
 	if i >= 0 {
 		addr = ParseIP(s[:i])
 		if addr == nil {
-			return nil, 0, errors.New("parsing IP failed")
+			return nil, 0, &ParseError{Type: "IP address", Text: s}
 		}
 	}
 	p, _, ok := dtoi(s[i+1:], 0)
 	if !ok {
-		return nil, 0, errors.New("parsing port failed")
+		return nil, 0, &ParseError{Type: "port", Text: s}
 	}
 	if p < 0 || p > 0xFFFF {
-		return nil, 0, &AddrError{"invalid port", string(p)}
+		return nil, 0, &AddrError{Err: "invalid port", Addr: string(p)}
 	}
 	return addr, p, nil
 }
@@ -95,7 +94,7 @@ func readPlan9Addr(proto, filename string) (addr Addr, err error) {
 	case "udp":
 		addr = &UDPAddr{IP: ip, Port: port}
 	default:
-		return nil, errors.New("unknown protocol " + proto)
+		return nil, UnknownNetworkError(proto)
 	}
 	return addr, nil
 }

@@ -5,6 +5,7 @@
 package net
 
 import (
+	"os"
 	"syscall"
 	"unsafe"
 )
@@ -15,11 +16,11 @@ import (
 func interfaceTable(ifindex int) ([]Interface, error) {
 	tab, err := syscall.NetlinkRIB(syscall.RTM_GETLINK, syscall.AF_UNSPEC)
 	if err != nil {
-		return nil, err
+		return nil, os.NewSyscallError("netlinkrib", err)
 	}
 	msgs, err := syscall.ParseNetlinkMessage(tab)
 	if err != nil {
-		return nil, err
+		return nil, os.NewSyscallError("parsenetlinkmessage", err)
 	}
 	var ift []Interface
 loop:
@@ -32,7 +33,7 @@ loop:
 			if ifindex == 0 || ifindex == int(ifim.Index) {
 				attrs, err := syscall.ParseNetlinkRouteAttr(&m)
 				if err != nil {
-					return nil, err
+					return nil, os.NewSyscallError("parsenetlinkrouteattr", err)
 				}
 				ift = append(ift, *newLink(ifim, attrs))
 				if ifindex == int(ifim.Index) {
@@ -119,11 +120,11 @@ func linkFlags(rawFlags uint32) Flags {
 func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
 	tab, err := syscall.NetlinkRIB(syscall.RTM_GETADDR, syscall.AF_UNSPEC)
 	if err != nil {
-		return nil, err
+		return nil, os.NewSyscallError("netlinkrib", err)
 	}
 	msgs, err := syscall.ParseNetlinkMessage(tab)
 	if err != nil {
-		return nil, err
+		return nil, os.NewSyscallError("parsenetlinkmessage", err)
 	}
 	var ift []Interface
 	if ifi == nil {
@@ -159,7 +160,7 @@ loop:
 				}
 				attrs, err := syscall.ParseNetlinkRouteAttr(&m)
 				if err != nil {
-					return nil, err
+					return nil, os.NewSyscallError("parsenetlinkrouteattr", err)
 				}
 				ifa := newAddr(ifi, ifam, attrs)
 				if ifa != nil {
