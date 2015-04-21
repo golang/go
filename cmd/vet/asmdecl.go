@@ -60,6 +60,7 @@ type asmVar struct {
 var (
 	asmArch386       = asmArch{"386", 4, 4, 4, false, "SP", false}
 	asmArchArm       = asmArch{"arm", 4, 4, 4, false, "R13", true}
+	asmArchArm64     = asmArch{"arm64", 8, 8, 8, false, "RSP", true}
 	asmArchAmd64     = asmArch{"amd64", 8, 8, 8, false, "SP", false}
 	asmArchAmd64p32  = asmArch{"amd64p32", 4, 4, 8, false, "SP", false}
 	asmArchPower64   = asmArch{"power64", 8, 8, 8, true, "R1", true}
@@ -68,6 +69,7 @@ var (
 	arches = []*asmArch{
 		&asmArch386,
 		&asmArchArm,
+		&asmArchArm64,
 		&asmArchAmd64,
 		&asmArchAmd64p32,
 		&asmArchPower64,
