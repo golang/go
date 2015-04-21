@@ -14,7 +14,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"text/scanner"
@@ -75,18 +74,18 @@ func FindPkg(path, srcDir string) (filename, id string) {
 }
 
 // ImportData imports a package by reading the gc-generated export data,
-// adds the corresponding package object to the packages map indexed by id,
+// adds the corresponding package object to the imports map indexed by id,
 // and returns the object.
 //
-// The packages map must contains all packages already imported. The data
+// The imports map must contains all packages already imported. The data
 // reader position must be the beginning of the export data section. The
 // filename is only used in error messages.
 //
-// If packages[id] contains the completely imported package, that package
+// If imports[id] contains the completely imported package, that package
 // can be used directly, and there is no need to call this function (but
 // there is also no harm but for extra time used).
 //
-func ImportData(packages map[string]*types.Package, filename, id string, data io.Reader) (pkg *types.Package, err error) {
+func ImportData(imports map[string]*types.Package, filename, id string, data io.Reader) (pkg *types.Package, err error) {
 	// support for parser error handling
 	defer func() {
 		switch r := recover().(type) {
@@ -100,18 +99,18 @@ func ImportData(packages map[string]*types.Package, filename, id string, data io
 	}()
 
 	var p parser
-	p.init(filename, id, data, packages)
+	p.init(filename, id, data, imports)
 	pkg = p.parseExport()
 
 	return
 }
 
 // Import imports a gc-generated package given its import path, adds the
-// corresponding package object to the packages map, and returns the object.
+// corresponding package object to the imports map, and returns the object.
 // Local import paths are interpreted relative to the current working directory.
-// The packages map must contain all packages already imported.
+// The imports map must contains all packages already imported.
 //
-func Import(packages map[string]*types.Package, path string) (pkg *types.Package, err error) {
+func Import(imports map[string]*types.Package, path string) (pkg *types.Package, err error) {
 	// package "unsafe" is handled by the type checker
 	if path == "unsafe" {
 		panic(`gcimporter.Import called for package "unsafe"`)
@@ -132,7 +131,7 @@ func Import(packages map[string]*types.Package, path string) (pkg *types.Package
 	}
 
 	// no need to re-import if the package was imported completely before
-	if pkg = packages[id]; pkg != nil && pkg.Complete() {
+	if pkg = imports[id]; pkg != nil && pkg.Complete() {
 		return
 	}
 
@@ -154,7 +153,7 @@ func Import(packages map[string]*types.Package, path string) (pkg *types.Package
 		return
 	}
 
-	pkg, err = ImportData(packages, filename, id, buf)
+	pkg, err = ImportData(imports, filename, id, buf)
 
 	return
 }
@@ -171,15 +170,14 @@ func Import(packages map[string]*types.Package, path string) (pkg *types.Package
 // parser parses the exports inside a gc compiler-produced
 // object/archive file and populates its scope with the results.
 type parser struct {
-	scanner    scanner.Scanner
-	tok        rune                      // current token
-	lit        string                    // literal string; only valid for Ident, Int, String tokens
-	id         string                    // package id of imported package
-	sharedPkgs map[string]*types.Package // package id -> package object (across importer)
-	localPkgs  map[string]*types.Package // package id -> package object (just this package)
+	scanner scanner.Scanner
+	tok     rune                      // current token
+	lit     string                    // literal string; only valid for Ident, Int, String tokens
+	id      string                    // package id of imported package
+	imports map[string]*types.Package // package id -> package object
 }
 
-func (p *parser) init(filename, id string, src io.Reader, packages map[string]*types.Package) {
+func (p *parser) init(filename, id string, src io.Reader, imports map[string]*types.Package) {
 	p.scanner.Init(src)
 	p.scanner.Error = func(_ *scanner.Scanner, msg string) { p.error(msg) }
 	p.scanner.Mode = scanner.ScanIdents | scanner.ScanInts | scanner.ScanChars | scanner.ScanStrings | scanner.ScanComments | scanner.SkipComments
@@ -187,10 +185,10 @@ func (p *parser) init(filename, id string, src io.Reader, packages map[string]*t
 	p.scanner.Filename = filename // for good error messages
 	p.next()
 	p.id = id
-	p.sharedPkgs = packages
+	p.imports = imports
 	if debug {
-		// check consistency of packages map
-		for _, pkg := range packages {
+		// check consistency of imports map
+		for _, pkg := range imports {
 			if pkg.Name() == "" {
 				fmt.Printf("no package name for %s\n", pkg.Path())
 			}
@@ -336,32 +334,17 @@ func (p *parser) parseQualifiedName() (id, name string) {
 
 // getPkg returns the package for a given id. If the package is
 // not found but we have a package name, create the package and
-// add it to the p.localPkgs and p.sharedPkgs maps.
-//
-// id identifies a package, usually by a canonical package path like
-// "encoding/json" but possibly by a non-canonical import path like
-// "./json".
+// add it to the p.imports map.
 //
 func (p *parser) getPkg(id, name string) *types.Package {
-	// package unsafe is not in the packages maps - handle explicitly
+	// package unsafe is not in the imports map - handle explicitly
 	if id == "unsafe" {
 		return types.Unsafe
 	}
-
-	pkg := p.localPkgs[id]
+	pkg := p.imports[id]
 	if pkg == nil && name != "" {
-		// first import of id from this package
-		pkg = p.sharedPkgs[id]
-		if pkg == nil {
-			// first import of id by this importer
-			pkg = types.NewPackage(id, name)
-			p.sharedPkgs[id] = pkg
-		}
-
-		if p.localPkgs == nil {
-			p.localPkgs = make(map[string]*types.Package)
-		}
-		p.localPkgs[id] = pkg
+		pkg = types.NewPackage(id, name)
+		p.imports[id] = pkg
 	}
 	return pkg
 }
@@ -422,21 +405,21 @@ func (p *parser) parseMapType() types.Type {
 //
 // If materializePkg is set, the returned package is guaranteed to be set.
 // For fully qualified names, the returned package may be a fake package
-// (without name, scope, and not in the p.sharedPkgs map), created for the
+// (without name, scope, and not in the p.imports map), created for the
 // sole purpose of providing a package path. Fake packages are created
-// when the package id is not found in the p.sharedPkgs map; in that case
+// when the package id is not found in the p.imports map; in that case
 // we cannot create a real package because we don't have a package name.
 // For non-qualified names, the returned package is the imported package.
 //
 func (p *parser) parseName(materializePkg bool) (pkg *types.Package, name string) {
 	switch p.tok {
 	case scanner.Ident:
-		pkg = p.sharedPkgs[p.id]
+		pkg = p.imports[p.id]
 		name = p.lit
 		p.next()
 	case '?':
 		// anonymous
-		pkg = p.sharedPkgs[p.id]
+		pkg = p.imports[p.id]
 		p.next()
 	case '@':
 		// exported name prefixed with package path
@@ -967,25 +950,8 @@ func (p *parser) parseExport() *types.Package {
 		p.errorf("expected no scanner errors, got %d", n)
 	}
 
-	// Record all referenced packages as imports.
-	var imports []*types.Package
-	for id, pkg2 := range p.localPkgs {
-		if id == p.id {
-			continue // avoid self-edge
-		}
-		imports = append(imports, pkg2)
-	}
-	sort.Sort(byPath(imports))
-	pkg.SetImports(imports)
-
 	// package was imported completely and without errors
 	pkg.MarkComplete()
 
 	return pkg
 }
-
-type byPath []*types.Package
-
-func (a byPath) Len() int           { return len(a) }
-func (a byPath) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a byPath) Less(i, j int) bool { return a[i].Path() < a[j].Path() }
