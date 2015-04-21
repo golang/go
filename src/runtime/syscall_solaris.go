@@ -9,9 +9,6 @@ import "unsafe"
 var (
 	libc_chdir,
 	libc_chroot,
-	libc_dlopen,
-	libc_dlclose,
-	libc_dlsym,
 	libc_execve,
 	libc_fcntl,
 	libc_forkx,
@@ -83,48 +80,6 @@ func syscall_chroot(path uintptr) (err uintptr) {
 //go:nosplit
 func syscall_close(fd int32) int32 {
 	return int32(sysvicall1(&libc_close, uintptr(fd)))
-}
-
-func syscall_dlopen(name *byte, mode uintptr) (handle uintptr, err uintptr) {
-	call := libcall{
-		fn:   uintptr(unsafe.Pointer(&libc_dlopen)),
-		n:    2,
-		args: uintptr(unsafe.Pointer(&name)),
-	}
-	entersyscallblock(0)
-	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
-	exitsyscall(0)
-	if call.r1 == 0 {
-		return call.r1, call.err
-	}
-	return call.r1, 0
-}
-
-func syscall_dlclose(handle uintptr) (err uintptr) {
-	call := libcall{
-		fn:   uintptr(unsafe.Pointer(&libc_dlclose)),
-		n:    1,
-		args: uintptr(unsafe.Pointer(&handle)),
-	}
-	entersyscallblock(0)
-	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
-	exitsyscall(0)
-	return call.r1
-}
-
-func syscall_dlsym(handle uintptr, name *byte) (proc uintptr, err uintptr) {
-	call := libcall{
-		fn:   uintptr(unsafe.Pointer(&libc_dlsym)),
-		n:    2,
-		args: uintptr(unsafe.Pointer(&handle)),
-	}
-	entersyscallblock(0)
-	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
-	exitsyscall(0)
-	if call.r1 == 0 {
-		return call.r1, call.err
-	}
-	return call.r1, 0
 }
 
 //go:nosplit
