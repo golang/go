@@ -72,6 +72,7 @@ TEXT runtime·closefd(SB),NOSPLIT,$-8-12
 	MOVW	fd+0(FP), R0
 	MOVD	$SYS_close, R8
 	SVC
+	CMN	$4095, R0
 	BCC	done
 	MOVW	$-1, R0
 done:
@@ -84,6 +85,7 @@ TEXT runtime·write(SB),NOSPLIT,$-8-28
 	MOVW	n+16(FP), R2
 	MOVD	$SYS_write, R8
 	SVC
+	CMN	$4095, R0
 	BCC	done
 	MOVW	$-1, R0
 done:
@@ -96,6 +98,7 @@ TEXT runtime·read(SB),NOSPLIT,$-8-28
 	MOVW	n+16(FP), R2
 	MOVD	$SYS_read, R8
 	SVC
+	CMN	$4095, R0
 	BCC	done
 	MOVW	$-1, R0
 done:
