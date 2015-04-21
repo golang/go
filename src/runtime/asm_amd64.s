@@ -1262,9 +1262,8 @@ TEXT runtime·memeq(SB),NOSPLIT,$0-25
 	MOVQ	a+0(FP), SI
 	MOVQ	b+8(FP), DI
 	MOVQ	size+16(FP), BX
-	CALL	runtime·memeqbody(SB)
-	MOVB	AX, ret+24(FP)
-	RET
+	LEAQ	ret+24(FP), AX
+	JMP	runtime·memeqbody(SB)
 
 // memequal_varlen(a, b unsafe.Pointer) bool
 TEXT runtime·memequal_varlen(SB),NOSPLIT,$0-17
@@ -1273,9 +1272,8 @@ TEXT runtime·memequal_varlen(SB),NOSPLIT,$0-17
 	CMPQ	SI, DI
 	JEQ	eq
 	MOVQ	8(DX), BX    // compiler stores size at offset 8 in the closure
-	CALL	runtime·memeqbody(SB)
-	MOVB	AX, ret+16(FP)
-	RET
+	LEAQ	ret+16(FP), AX
+	JMP	runtime·memeqbody(SB)
 eq:
 	MOVB	$1, ret+16(FP)
 	RET
@@ -1291,9 +1289,8 @@ TEXT runtime·eqstring(SB),NOSPLIT,$0-33
 	CMPQ	SI, DI
 	JEQ	eq
 	MOVQ	s1len+8(FP), BX
-	CALL	runtime·memeqbody(SB)
-	MOVB	AX, v+32(FP)
-	RET
+	LEAQ	v+32(FP), AX
+	JMP	runtime·memeqbody(SB)
 eq:
 	MOVB	$1, v+32(FP)
 	RET
@@ -1301,9 +1298,8 @@ eq:
 // a in SI
 // b in DI
 // count in BX
+// address of result byte in AX
 TEXT runtime·memeqbody(SB),NOSPLIT,$0-0
-	XORQ	AX, AX
-
 	CMPQ	BX, $8
 	JB	small
 	
@@ -1332,6 +1328,7 @@ hugeloop:
 	SUBQ	$64, BX
 	CMPL	DX, $0xffff
 	JEQ	hugeloop
+	MOVB	$0, (AX)
 	RET
 
 	// 8 bytes at a time using 64-bit register
@@ -1345,6 +1342,7 @@ bigloop:
 	SUBQ	$8, BX
 	CMPQ	CX, DX
 	JEQ	bigloop
+	MOVB	$0, (AX)
 	RET
 
 	// remaining 0-8 bytes
@@ -1352,7 +1350,7 @@ leftover:
 	MOVQ	-8(SI)(BX*1), CX
 	MOVQ	-8(DI)(BX*1), DX
 	CMPQ	CX, DX
-	SETEQ	AX
+	SETEQ	(AX)
 	RET
 
 small:
@@ -1387,7 +1385,7 @@ di_finish:
 	SUBQ	SI, DI
 	SHLQ	CX, DI
 equal:
-	SETEQ	AX
+	SETEQ	(AX)
 	RET
 
 TEXT runtime·cmpstring(SB),NOSPLIT,$0-40
@@ -1395,26 +1393,23 @@ TEXT runtime·cmpstring(SB),NOSPLIT,$0-40
 	MOVQ	s1_len+8(FP), BX
 	MOVQ	s2_base+16(FP), DI
 	MOVQ	s2_len+24(FP), DX
-	CALL	runtime·cmpbody(SB)
-	MOVQ	AX, ret+32(FP)
-	RET
+	LEAQ	ret+32(FP), R9
+	JMP	runtime·cmpbody(SB)
 
 TEXT bytes·Compare(SB),NOSPLIT,$0-56
 	MOVQ	s1+0(FP), SI
 	MOVQ	s1+8(FP), BX
 	MOVQ	s2+24(FP), DI
 	MOVQ	s2+32(FP), DX
-	CALL	runtime·cmpbody(SB)
-	MOVQ	AX, res+48(FP)
-	RET
+	LEAQ	res+48(FP), R9
+	JMP	runtime·cmpbody(SB)
 
 // input:
 //   SI = a
 //   DI = b
 //   BX = alen
 //   DX = blen
-// output:
-//   AX = 1/0/-1
+//   R9 = address of output word (stores -1/0/1 here)
 TEXT runtime·cmpbody(SB),NOSPLIT,$0-0
 	CMPQ	SI, DI
 	JEQ	allsame
@@ -1446,6 +1441,7 @@ diff16:
 	CMPB	CX, (DI)(BX*1)
 	SETHI	AX
 	LEAQ	-1(AX*2), AX	// convert 1/0 to +1/-1
+	MOVQ	AX, (R9)
 	RET
 
 	// 0 through 16 bytes left, alen>=8, blen>=8
@@ -1471,6 +1467,7 @@ diff8:
 	SHRQ	CX, AX	// move a's bit to bottom
 	ANDQ	$1, AX	// mask bit
 	LEAQ	-1(AX*2), AX // 1/0 => +1/-1
+	MOVQ	AX, (R9)
 	RET
 
 	// 0-7 bytes in common
@@ -1509,6 +1506,7 @@ di_finish:
 	SHRQ	CX, SI	// move a's bit to bottom
 	ANDQ	$1, SI	// mask bit
 	LEAQ	-1(SI*2), AX // 1/0 => +1/-1
+	MOVQ	AX, (R9)
 	RET
 
 allsame:
@@ -1518,30 +1516,28 @@ allsame:
 	SETGT	AX	// 1 if alen > blen
 	SETEQ	CX	// 1 if alen == blen
 	LEAQ	-1(CX)(AX*2), AX	// 1,0,-1 result
+	MOVQ	AX, (R9)
 	RET
 
 TEXT bytes·IndexByte(SB),NOSPLIT,$0-40
 	MOVQ s+0(FP), SI
 	MOVQ s_len+8(FP), BX
 	MOVB c+24(FP), AL
-	CALL runtime·indexbytebody(SB)
-	MOVQ AX, ret+32(FP)
-	RET
+	LEAQ ret+32(FP), R8
+	JMP  runtime·indexbytebody(SB)
 
 TEXT strings·IndexByte(SB),NOSPLIT,$0-32
 	MOVQ s+0(FP), SI
 	MOVQ s_len+8(FP), BX
 	MOVB c+16(FP), AL
-	CALL runtime·indexbytebody(SB)
-	MOVQ AX, ret+24(FP)
-	RET
+	LEAQ ret+24(FP), R8
+	JMP  runtime·indexbytebody(SB)
 
 // input:
 //   SI: data
 //   BX: data len
 //   AL: byte sought
-// output:
-//   AX
+//   R8: address to put result
 TEXT runtime·indexbytebody(SB),NOSPLIT,$0
 	MOVQ SI, DI
 
@@ -1600,7 +1596,7 @@ condition:
 	JZ success
 
 failure:
-	MOVQ $-1, AX
+	MOVQ $-1, (R8)
 	RET
 
 // handle for lengths < 16
@@ -1608,7 +1604,7 @@ small:
 	MOVQ BX, CX
 	REPN; SCASB
 	JZ success
-	MOVQ $-1, AX
+	MOVQ $-1, (R8)
 	RET
 
 // we've found the chunk containing the byte
@@ -1618,26 +1614,26 @@ ssesuccess:
 	BSFW DX, DX
 	SUBQ SI, DI
 	ADDQ DI, DX
-	MOVQ DX, AX
+	MOVQ DX, (R8)
 	RET
 
 success:
 	SUBQ SI, DI
 	SUBL $1, DI
-	MOVQ DI, AX
+	MOVQ DI, (R8)
 	RET
 
 TEXT bytes·Equal(SB),NOSPLIT,$0-49
 	MOVQ	a_len+8(FP), BX
 	MOVQ	b_len+32(FP), CX
-	XORQ	AX, AX
 	CMPQ	BX, CX
 	JNE	eqret
 	MOVQ	a+0(FP), SI
 	MOVQ	b+24(FP), DI
-	CALL	runtime·memeqbody(SB)
+	LEAQ	ret+48(FP), AX
+	JMP	runtime·memeqbody(SB)
 eqret:
-	MOVB	AX, ret+48(FP)
+	MOVB	$0, ret+48(FP)
 	RET
 
 TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
