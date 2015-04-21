@@ -332,10 +332,11 @@ func (c *gcControllerState) startCycle() {
 	// error response).
 	if memstats.next_gc <= heapminimum {
 		memstats.heap_marked = uint64(float64(memstats.next_gc) / (1 + c.triggerRatio))
+		memstats.heap_reachable = memstats.heap_marked
 	}
 
 	// Compute the heap goal for this cycle
-	c.heapGoal = memstats.heap_marked + memstats.heap_marked*uint64(gcpercent)/100
+	c.heapGoal = memstats.heap_reachable + memstats.heap_reachable*uint64(gcpercent)/100
 
 	// Compute the total mark utilization goal and divide it among
 	// dedicated and fractional workers.
@@ -1117,11 +1118,21 @@ func gcMark(start_time int64) {
 
 	cachestats()
 
-	// Trigger the next GC cycle when the allocated heap has
-	// grown by triggerRatio over the marked heap size.
+	// Compute the reachable heap size at the beginning of the
+	// cycle. This is approximately the marked heap size at the
+	// end (which we know) minus the amount of marked heap that
+	// was allocated after marking began (which we don't know, but
+	// is approximately the amount of heap that was allocated
+	// since marking began).
+	memstats.heap_reachable = work.bytesMarked - (memstats.heap_live - gcController.initialHeapLive)
+
+	// Trigger the next GC cycle when the allocated heap has grown
+	// by triggerRatio over the reachable heap size. Assume that
+	// we're in steady state, so the reachable heap size is the
+	// same now as it was at the beginning of the GC cycle.
 	memstats.heap_live = work.bytesMarked
 	memstats.heap_marked = work.bytesMarked
-	memstats.next_gc = uint64(float64(memstats.heap_live) * (1 + gcController.triggerRatio))
+	memstats.next_gc = uint64(float64(memstats.heap_reachable) * (1 + gcController.triggerRatio))
 	if memstats.next_gc < heapminimum {
 		memstats.next_gc = heapminimum
 	}
