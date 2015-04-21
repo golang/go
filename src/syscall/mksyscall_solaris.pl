@@ -61,8 +61,8 @@ sub parseparam($) {
 my $package = "";
 my $text = "";
 my $vars = "";
-my $mods = "";
-my $modnames = "";
+my $dynimports = "";
+my $linknames = "";
 while(<>) {
 	chomp;
 	s/\s+/ /g;
@@ -93,11 +93,6 @@ while(<>) {
 	if($modname eq "") {
 		$modname = "libc";
 	}
-	my $modvname = "mod$modname";
-	if($modnames !~ /$modname/) {
-		$modnames .= ".$modname";
-		$mods .= "\t$modvname = ${syscalldot}newLazySO(\"$modname.so\")\n";
-	}
 
 	# System call name.
 	if($sysname eq "") {
@@ -105,14 +100,20 @@ while(<>) {
 	}
 
 	# System call pointer variable name.
-	my $sysvarname = "proc$sysname";
+	my $sysvarname = "libc_$sysname";
 
 	my $strconvfunc = "BytePtrFromString";
 	my $strconvtype = "*byte";
 
 	# Library proc address variable.
 	$sysname =~ y/A-Z/a-z/; # All libc functions are lowercase.
-	$vars .= "\t$sysvarname = $modvname.NewProc(\"$sysname\")\n";
+	if($vars eq "") {
+		$vars .= "\t$sysvarname";
+	} else {
+		$vars .= ",\n\t$sysvarname";
+	}
+	$dynimports .= "//go:cgo_import_dynamic $sysvarname $sysname \"$modname.so\"\n";
+	$linknames .= "//go:linkname $sysvarname $sysvarname\n";
 
 	# Go function header.
 	$out = join(', ', @out);
@@ -196,7 +197,7 @@ while(<>) {
 
 	# Actual call.
 	my $args = join(', ', @args);
-	my $call = "$asm($sysvarname.Addr(), $nargs, $args)";
+	my $call = "$asm(uintptr(unsafe.Pointer(&$sysvarname)), $nargs, $args)";
 
 	# Assign return values.
 	my $body = "";
@@ -272,9 +273,12 @@ print "import \"syscall\"\n" if $package ne "syscall";
 
 print <<EOF;
 
+$dynimports
+$linknames
+type libcFunc uintptr
+
 var (
-$mods
-$vars
+$vars libcFunc
 )
 
 $text

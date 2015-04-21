@@ -6,13 +6,21 @@
 
 package syscall
 
+import "unsafe"
+
+//go:cgo_import_dynamic libc_Getpgid getpgid "libc.so"
+//go:cgo_import_dynamic libc_Getpgrp getpgrp "libc.so"
+
+//go:linkname libc_Getpgid libc_Getpgid
+//go:linkname libc_Getpgrp libc_Getpgrp
+
 var (
-	procGetpgid = modlibc.NewProc("getpgid")
-	procGetpgrp = modlibc.NewProc("getpgrp")
+	libc_Getpgid,
+	libc_Getpgrp libcFunc
 )
 
 func Getpgid(pid int) (pgid int, err error) {
-	r0, _, e1 := sysvicall6(procGetpgid.Addr(), 1, uintptr(pid), 0, 0, 0, 0, 0)
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Getpgid)), 1, uintptr(pid), 0, 0, 0, 0, 0)
 	pgid = int(r0)
 	if e1 != 0 {
 		err = e1
@@ -21,7 +29,7 @@ func Getpgid(pid int) (pgid int, err error) {
 }
 
 func Getpgrp() (pgrp int) {
-	r0, _, _ := sysvicall6(procGetpgrp.Addr(), 0, 0, 0, 0, 0, 0, 0)
+	r0, _, _ := sysvicall6(uintptr(unsafe.Pointer(&libc_Getpgrp)), 0, 0, 0, 0, 0, 0, 0)
 	pgrp = int(r0)
 	return
 }
