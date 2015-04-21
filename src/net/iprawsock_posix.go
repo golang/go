@@ -81,7 +81,7 @@ func (c *IPConn) ReadFromIP(b []byte) (int, *IPAddr, error) {
 		addr = &IPAddr{IP: sa.Addr[0:], Zone: zoneToString(int(sa.ZoneId))}
 	}
 	if err != nil {
-		err = &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
+		err = &OpError{Op: "read", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 	}
 	return n, addr, err
 }
@@ -130,7 +130,7 @@ func (c *IPConn) ReadMsgIP(b, oob []byte) (n, oobn, flags int, addr *IPAddr, err
 		addr = &IPAddr{IP: sa.Addr[0:], Zone: zoneToString(int(sa.ZoneId))}
 	}
 	if err != nil {
-		err = &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
+		err = &OpError{Op: "read", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 	}
 	return
 }
@@ -147,18 +147,18 @@ func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (int, error) {
 		return 0, syscall.EINVAL
 	}
 	if c.fd.isConnected {
-		return 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: ErrWriteToConnected}
+		return 0, &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: addr, Err: ErrWriteToConnected}
 	}
 	if addr == nil {
-		return 0, &OpError{Op: "write", Net: c.fd.net, Addr: nil, Err: errMissingAddress}
+		return 0, &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: addr, Err: errMissingAddress}
 	}
 	sa, err := addr.sockaddr(c.fd.family)
 	if err != nil {
-		return 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: err}
+		return 0, &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: addr, Err: err}
 	}
 	n, err := c.fd.writeTo(b, sa)
 	if err != nil {
-		err = &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: err}
+		err = &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: addr, Err: err}
 	}
 	return n, err
 }
@@ -170,7 +170,7 @@ func (c *IPConn) WriteTo(b []byte, addr Addr) (int, error) {
 	}
 	a, ok := addr.(*IPAddr)
 	if !ok {
-		return 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: syscall.EINVAL}
+		return 0, &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: addr, Err: syscall.EINVAL}
 	}
 	return c.WriteToIP(b, a)
 }
@@ -183,19 +183,19 @@ func (c *IPConn) WriteMsgIP(b, oob []byte, addr *IPAddr) (n, oobn int, err error
 		return 0, 0, syscall.EINVAL
 	}
 	if c.fd.isConnected {
-		return 0, 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: ErrWriteToConnected}
+		return 0, 0, &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: addr, Err: ErrWriteToConnected}
 	}
 	if addr == nil {
-		return 0, 0, &OpError{Op: "write", Net: c.fd.net, Addr: nil, Err: errMissingAddress}
+		return 0, 0, &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: addr, Err: errMissingAddress}
 	}
 	var sa syscall.Sockaddr
 	sa, err = addr.sockaddr(c.fd.family)
 	if err != nil {
-		return 0, 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: err}
+		return 0, 0, &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: addr, Err: err}
 	}
 	n, oobn, err = c.fd.writeMsg(b, oob, sa)
 	if err != nil {
-		err = &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: err}
+		err = &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: addr, Err: err}
 	}
 	return
 }
@@ -210,19 +210,19 @@ func DialIP(netProto string, laddr, raddr *IPAddr) (*IPConn, error) {
 func dialIP(netProto string, laddr, raddr *IPAddr, deadline time.Time) (*IPConn, error) {
 	net, proto, err := parseNetwork(netProto)
 	if err != nil {
-		return nil, &OpError{Op: "dial", Net: netProto, Addr: raddr, Err: err}
+		return nil, &OpError{Op: "dial", Net: netProto, Source: laddr, Addr: raddr, Err: err}
 	}
 	switch net {
 	case "ip", "ip4", "ip6":
 	default:
-		return nil, &OpError{Op: "dial", Net: netProto, Addr: raddr, Err: UnknownNetworkError(netProto)}
+		return nil, &OpError{Op: "dial", Net: netProto, Source: laddr, Addr: raddr, Err: UnknownNetworkError(netProto)}
 	}
 	if raddr == nil {
-		return nil, &OpError{Op: "dial", Net: netProto, Addr: nil, Err: errMissingAddress}
+		return nil, &OpError{Op: "dial", Net: netProto, Source: laddr, Addr: raddr, Err: errMissingAddress}
 	}
 	fd, err := internetSocket(net, laddr, raddr, deadline, syscall.SOCK_RAW, proto, "dial")
 	if err != nil {
-		return nil, &OpError{Op: "dial", Net: netProto, Addr: raddr, Err: err}
+		return nil, &OpError{Op: "dial", Net: netProto, Source: laddr, Addr: raddr, Err: err}
 	}
 	return newIPConn(fd), nil
 }
@@ -234,16 +234,16 @@ func dialIP(netProto string, laddr, raddr *IPAddr, deadline time.Time) (*IPConn,
 func ListenIP(netProto string, laddr *IPAddr) (*IPConn, error) {
 	net, proto, err := parseNetwork(netProto)
 	if err != nil {
-		return nil, &OpError{Op: "dial", Net: netProto, Addr: laddr, Err: err}
+		return nil, &OpError{Op: "dial", Net: netProto, Source: nil, Addr: laddr, Err: err}
 	}
 	switch net {
 	case "ip", "ip4", "ip6":
 	default:
-		return nil, &OpError{Op: "listen", Net: netProto, Addr: laddr, Err: UnknownNetworkError(netProto)}
+		return nil, &OpError{Op: "listen", Net: netProto, Source: nil, Addr: laddr, Err: UnknownNetworkError(netProto)}
 	}
 	fd, err := internetSocket(net, laddr, nil, noDeadline, syscall.SOCK_RAW, proto, "listen")
 	if err != nil {
-		return nil, &OpError{Op: "listen", Net: netProto, Addr: laddr, Err: err}
+		return nil, &OpError{Op: "listen", Net: netProto, Source: nil, Addr: laddr, Err: err}
 	}
 	return newIPConn(fd), nil
 }

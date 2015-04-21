@@ -33,10 +33,10 @@ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
 	buf := make([]byte, udpHeaderSize+len(b))
 	m, err := c.fd.data.Read(buf)
 	if err != nil {
-		return 0, nil, &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
+		return 0, nil, &OpError{Op: "read", Net: c.fd.dir, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 	}
 	if m < udpHeaderSize {
-		return 0, nil, &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: errors.New("short read reading UDP header")}
+		return 0, nil, &OpError{Op: "read", Net: c.fd.dir, Source: c.fd.laddr, Addr: c.fd.raddr, Err: errors.New("short read reading UDP header")}
 	}
 	buf = buf[:m]
 
@@ -59,7 +59,7 @@ func (c *UDPConn) ReadFrom(b []byte) (int, Addr, error) {
 // flags that were set on the packet and the source address of the
 // packet.
 func (c *UDPConn) ReadMsgUDP(b, oob []byte) (n, oobn, flags int, addr *UDPAddr, err error) {
-	return 0, 0, 0, nil, &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: syscall.EPLAN9}
+	return 0, 0, 0, nil, &OpError{Op: "read", Net: c.fd.dir, Source: c.fd.laddr, Addr: c.fd.raddr, Err: syscall.EPLAN9}
 }
 
 // WriteToUDP writes a UDP packet to addr via c, copying the payload
@@ -74,7 +74,7 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
 		return 0, syscall.EINVAL
 	}
 	if addr == nil {
-		return 0, &OpError{Op: "write", Net: c.fd.dir, Addr: nil, Err: errMissingAddress}
+		return 0, &OpError{Op: "write", Net: c.fd.dir, Source: c.fd.laddr, Addr: addr, Err: errMissingAddress}
 	}
 	h := new(udpHeader)
 	h.raddr = addr.IP.To16()
@@ -87,7 +87,7 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
 	i := copy(buf, h.Bytes())
 	copy(buf[i:], b)
 	if _, err := c.fd.data.Write(buf); err != nil {
-		return 0, &OpError{Op: "write", Net: c.fd.dir, Addr: addr, Err: err}
+		return 0, &OpError{Op: "write", Net: c.fd.dir, Source: c.fd.laddr, Addr: addr, Err: err}
 	}
 	return len(b), nil
 }
@@ -99,7 +99,7 @@ func (c *UDPConn) WriteTo(b []byte, addr Addr) (int, error) {
 	}
 	a, ok := addr.(*UDPAddr)
 	if !ok {
-		return 0, &OpError{Op: "write", Net: c.fd.dir, Addr: addr, Err: syscall.EINVAL}
+		return 0, &OpError{Op: "write", Net: c.fd.dir, Source: c.fd.laddr, Addr: addr, Err: syscall.EINVAL}
 	}
 	return c.WriteToUDP(b, a)
 }
@@ -110,7 +110,7 @@ func (c *UDPConn) WriteTo(b []byte, addr Addr) (int, error) {
 // out-of-band data is copied from oob.  It returns the number of
 // payload and out-of-band bytes written.
 func (c *UDPConn) WriteMsgUDP(b, oob []byte, addr *UDPAddr) (n, oobn int, err error) {
-	return 0, 0, &OpError{Op: "write", Net: c.fd.dir, Addr: addr, Err: syscall.EPLAN9}
+	return 0, 0, &OpError{Op: "write", Net: c.fd.dir, Source: c.fd.laddr, Addr: addr, Err: syscall.EPLAN9}
 }
 
 // DialUDP connects to the remote address raddr on the network net,
@@ -127,10 +127,10 @@ func dialUDP(net string, laddr, raddr *UDPAddr, deadline time.Time) (*UDPConn, e
 	switch net {
 	case "udp", "udp4", "udp6":
 	default:
-		return nil, UnknownNetworkError(net)
+		return nil, &OpError{Op: "dial", Net: net, Source: laddr, Addr: raddr, Err: UnknownNetworkError(net)}
 	}
 	if raddr == nil {
-		return nil, &OpError{"dial", net, nil, errMissingAddress}
+		return nil, &OpError{Op: "dial", Net: net, Source: laddr, Addr: raddr, Err: errMissingAddress}
 	}
 	fd, err := dialPlan9(net, laddr, raddr)
 	if err != nil {
@@ -178,7 +178,7 @@ func ListenUDP(net string, laddr *UDPAddr) (*UDPConn, error) {
 	switch net {
 	case "udp", "udp4", "udp6":
 	default:
-		return nil, UnknownNetworkError(net)
+		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr, Err: UnknownNetworkError(net)}
 	}
 	if laddr == nil {
 		laddr = &UDPAddr{}
@@ -189,11 +189,11 @@ func ListenUDP(net string, laddr *UDPAddr) (*UDPConn, error) {
 	}
 	_, err = l.ctl.WriteString("headers")
 	if err != nil {
-		return nil, err
+		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr, Err: err}
 	}
 	l.data, err = os.OpenFile(l.dir+"/data", os.O_RDWR, 0)
 	if err != nil {
-		return nil, err
+		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr, Err: err}
 	}
 	fd, err := l.netFD()
 	return newUDPConn(fd), err
@@ -204,5 +204,5 @@ func ListenUDP(net string, laddr *UDPAddr) (*UDPConn, error) {
 // interface to join.  ListenMulticastUDP uses default multicast
 // interface if ifi is nil.
 func ListenMulticastUDP(net string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
-	return nil, syscall.EPLAN9
+	return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: gaddr, Err: syscall.EPLAN9}
 }
