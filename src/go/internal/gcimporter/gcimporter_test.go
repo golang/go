@@ -5,7 +5,6 @@
 package gcimporter
 
 import (
-	"fmt"
 	"go/build"
 	"io/ioutil"
 	"os"
@@ -59,15 +58,15 @@ func compile(t *testing.T, dirname, filename string) string {
 // as if all tested packages were imported into a single package.
 var imports = make(map[string]*types.Package)
 
-func testPath(t *testing.T, path string) *types.Package {
+func testPath(t *testing.T, path string) bool {
 	t0 := time.Now()
-	pkg, err := Import(imports, path)
+	_, err := Import(imports, path)
 	if err != nil {
 		t.Errorf("testPath(%s): %s", path, err)
-		return nil
+		return false
 	}
 	t.Logf("testPath(%s): %v", path, time.Since(t0))
-	return pkg
+	return true
 }
 
 const maxTime = 30 * time.Second
@@ -89,7 +88,7 @@ func testDir(t *testing.T, dir string, endTime time.Time) (nimports int) {
 			for _, ext := range pkgExts {
 				if strings.HasSuffix(f.Name(), ext) {
 					name := f.Name()[0 : len(f.Name())-len(ext)] // remove extension
-					if testPath(t, filepath.Join(dir, name)) != nil {
+					if testPath(t, filepath.Join(dir, name)) {
 						nimports++
 					}
 				}
@@ -119,17 +118,8 @@ func TestImport(t *testing.T) {
 	}
 
 	nimports := 0
-	if pkg := testPath(t, "./testdata/exports"); pkg != nil {
+	if testPath(t, "./testdata/exports") {
 		nimports++
-		// The package's Imports should include all the types
-		// referenced by the exportdata, which may be more than
-		// the import statements in the package's source, but
-		// fewer than the transitive closure of dependencies.
-		want := `[package ast ("go/ast") package token ("go/token") package runtime ("runtime")]`
-		got := fmt.Sprint(pkg.Imports())
-		if got != want {
-			t.Errorf(`Package("exports").Imports() = %s, want %s`, got, want)
-		}
 	}
 	nimports += testDir(t, "", time.Now().Add(maxTime)) // installed packages
 	t.Logf("tested %d imports", nimports)
