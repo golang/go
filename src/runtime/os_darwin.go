@@ -33,5 +33,5 @@ func sigtramp()
 //go:noescape
 func setitimer(mode int32, new, old *itimerval)
 
-func raise(int32)
+func raise(sig int32)
 func raiseproc(int32)
