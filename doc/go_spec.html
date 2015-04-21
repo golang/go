@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of March 20, 2015",
+	"Subtitle": "Version of April 22, 2015",
 	"Path": "/ref/spec"
 }-->
 
@@ -3305,7 +3305,7 @@ Operators combine operands into expressions.
 </p>
 
 <pre class="ebnf">
-Expression = UnaryExpr | Expression binary_op UnaryExpr .
+Expression = UnaryExpr | Expression binary_op Expression .
 UnaryExpr  = PrimaryExpr | unary_op UnaryExpr .
 
 binary_op  = "||" | "&amp;&amp;" | rel_op | add_op | mul_op .
