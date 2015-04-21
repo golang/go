@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 
+	"golang.org/x/tools/go/buildutil"
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/interp"
@@ -39,7 +40,7 @@ Usage: ssadump [<flag> ...] <args> ...
 Use -help flag to display options.
 
 Examples:
-% ssadump -build=FP -importbin hello.go  # quickly dump SSA form of a single package
+% ssadump -build=F hello.go              # dump SSA form of a single package
 % ssadump -run -interp=T hello.go        # interpret a program, with tracing
 % ssadump -run -test unicode -- -test.v  # interpret the unicode package's tests, verbosely
 ` + loader.FromArgsUsage +
@@ -53,6 +54,8 @@ if set, it runs the tests of each package.
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 
 func init() {
+	flag.Var((*buildutil.TagsFlag)(&build.Default.BuildTags), "tags", buildutil.TagsFlagDoc)
+
 	// If $GOMAXPROCS isn't set, use the full capacity of the machine.
 	// For small machines, use at least 4 threads.
 	if os.Getenv("GOMAXPROCS") == "" {
@@ -76,8 +79,8 @@ func doMain() error {
 	args := flag.Args()
 
 	conf := loader.Config{Build: &build.Default}
-	// TODO(adonovan): make go/types choose its default Sizes from
-	// build.Default or a specified *build.Context.
+
+	// Choose types.Sizes from conf.Build.
 	var wordSize int64 = 8
 	switch conf.Build.GOARCH {
 	case "386", "arm":

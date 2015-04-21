@@ -12,6 +12,7 @@ import (
 	"go/build"
 	"os"
 
+	"golang.org/x/tools/go/buildutil"
 	"golang.org/x/tools/refactor/rename"
 )
 
@@ -21,6 +22,10 @@ var (
 	vcsMvCmdFlag = flag.String("vcs_mv_cmd", "", `A template for the version control system's "move directory" command, e.g. "git mv {{.Src}} {{.Dst}}`)
 	helpFlag     = flag.Bool("help", false, "show usage message")
 )
+
+func init() {
+	flag.Var((*buildutil.TagsFlag)(&build.Default.BuildTags), "tags", buildutil.TagsFlagDoc)
+}
 
 const Usage = `gomvpkg: moves a package, updating import declarations
 

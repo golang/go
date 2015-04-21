@@ -30,6 +30,7 @@ import (
 	"runtime"
 	"text/template"
 
+	"golang.org/x/tools/go/buildutil"
 	"golang.org/x/tools/go/callgraph"
 	"golang.org/x/tools/go/callgraph/cha"
 	"golang.org/x/tools/go/callgraph/rta"
@@ -49,6 +50,10 @@ var testFlag = flag.Bool("test", false,
 var formatFlag = flag.String("format",
 	"{{.Caller}}\t--{{.Dynamic}}-{{.Line}}:{{.Column}}-->\t{{.Callee}}",
 	"A template expression specifying how to format an edge")
+
+func init() {
+	flag.Var((*buildutil.TagsFlag)(&build.Default.BuildTags), "tags", buildutil.TagsFlagDoc)
+}
 
 const Usage = `callgraph: display the the call graph of a Go program.
 

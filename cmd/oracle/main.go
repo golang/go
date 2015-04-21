@@ -23,6 +23,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 
+	"golang.org/x/tools/go/buildutil"
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/oracle"
 )
@@ -37,6 +38,10 @@ var ptalogFlag = flag.String("ptalog", "",
 var formatFlag = flag.String("format", "plain", "Output format.  One of {plain,json,xml}.")
 
 var reflectFlag = flag.Bool("reflect", false, "Analyze reflection soundly (slow).")
+
+func init() {
+	flag.Var((*buildutil.TagsFlag)(&build.Default.BuildTags), "tags", buildutil.TagsFlagDoc)
+}
 
 const useHelp = "Run 'oracle -help' for more information.\n"
 

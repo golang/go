@@ -6,6 +6,7 @@ package main // import "golang.org/x/tools/cmd/eg"
 import (
 	"flag"
 	"fmt"
+	"go/build"
 	"go/parser"
 	"go/printer"
 	"go/token"
@@ -13,6 +14,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"golang.org/x/tools/go/buildutil"
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/refactor/eg"
 )
@@ -25,6 +27,10 @@ var (
 	writeFlag      = flag.Bool("w", false, "rewrite input files in place (by default, the results are printed to standard output)")
 	verboseFlag    = flag.Bool("v", false, "show verbose matcher diagnostics")
 )
+
+func init() {
+	flag.Var((*buildutil.TagsFlag)(&build.Default.BuildTags), "tags", buildutil.TagsFlagDoc)
+}
 
 const usage = `eg: an example-based refactoring tool.
 

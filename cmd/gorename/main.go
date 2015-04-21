@@ -14,6 +14,7 @@ import (
 	"os"
 	"runtime"
 
+	"golang.org/x/tools/go/buildutil"
 	"golang.org/x/tools/refactor/rename"
 )
 
@@ -25,6 +26,7 @@ var (
 )
 
 func init() {
+	flag.Var((*buildutil.TagsFlag)(&build.Default.BuildTags), "tags", buildutil.TagsFlagDoc)
 	flag.BoolVar(&rename.Force, "force", false, "proceed, even if conflicts were reported")
 	flag.BoolVar(&rename.DryRun, "dryrun", false, "show the change, but do not apply it")
 	flag.BoolVar(&rename.Verbose, "v", false, "print verbose information")
