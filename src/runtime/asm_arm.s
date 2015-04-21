@@ -782,33 +782,31 @@ eq:
 	MOVB	R0, ret+8(FP)
 	RET
 
-TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
+TEXT runtime·cmpstring(SB),NOSPLIT,$-4-20
 	MOVW	s1_base+0(FP), R2
 	MOVW	s1_len+4(FP), R0
 	MOVW	s2_base+8(FP), R3
 	MOVW	s2_len+12(FP), R1
-	BL	runtime·cmpbody(SB)
-	MOVW	R8, ret+16(FP)
-	RET
+	ADD	$20, R13, R7
+	B	runtime·cmpbody(SB)
 
-TEXT bytes·Compare(SB),NOSPLIT,$0-28
+TEXT bytes·Compare(SB),NOSPLIT,$-4-28
 	MOVW	s1+0(FP), R2
 	MOVW	s1+4(FP), R0
 	MOVW	s2+12(FP), R3
 	MOVW	s2+16(FP), R1
-	BL	runtime·cmpbody(SB)
-	MOVW	R8, ret+24(FP)
-	RET
+	ADD	$28, R13, R7
+	B	runtime·cmpbody(SB)
 
 // On entry:
 // R0 is the length of s1
 // R1 is the length of s2
 // R2 points to the start of s1
 // R3 points to the start of s2
+// R7 points to return value (-1/0/1 will be written here)
 //
 // On exit:
-// R8 is -1/0/+1
-// R5, R4, and R6 are clobbered
+// R4, R5, and R6 are clobbered
 TEXT runtime·cmpbody(SB),NOSPLIT,$-4-0
 	CMP 	R0, R1
 	MOVW 	R0, R6
@@ -823,14 +821,16 @@ loop:
 	CMP	R4, R5
 	BEQ	loop
 	// bytes differed
-	MOVW.LT	$1, R8
-	MOVW.GT	$-1, R8
+	MOVW.LT	$1, R0
+	MOVW.GT	$-1, R0
+	MOVW	R0, (R7)
 	RET
 samebytes:
 	CMP	R0, R1
-	MOVW.LT	$1, R8
-	MOVW.GT	$-1, R8
-	MOVW.EQ	$0, R8
+	MOVW.LT	$1, R0
+	MOVW.GT	$-1, R0
+	MOVW.EQ	$0, R0
+	MOVW	R0, (R7)
 	RET
 
 // eqstring tests whether two strings are equal.
