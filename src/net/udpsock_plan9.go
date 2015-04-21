@@ -86,11 +86,10 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
 	buf := make([]byte, udpHeaderSize+len(b))
 	i := copy(buf, h.Bytes())
 	copy(buf[i:], b)
-	n, err := c.fd.data.Write(buf)
-	if err != nil {
-		err = &OpError{Op: "write", Net: c.fd.dir, Addr: addr, Err: err}
+	if _, err := c.fd.data.Write(buf); err != nil {
+		return 0, &OpError{Op: "write", Net: c.fd.dir, Addr: addr, Err: err}
 	}
-	return n, err
+	return len(b), nil
 }
 
 // WriteTo implements the PacketConn WriteTo method.
