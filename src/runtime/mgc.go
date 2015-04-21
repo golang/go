@@ -424,7 +424,15 @@ func (c *gcControllerState) endCycle() {
 	goalGrowthRatio := float64(gcpercent) / 100
 	actualGrowthRatio := float64(memstats.heap_live)/float64(memstats.heap_marked) - 1
 	duration := nanotime() - c.bgMarkStartTime
-	utilization := float64(c.assistTime+c.dedicatedMarkTime+c.fractionalMarkTime) / float64(duration*int64(gomaxprocs))
+	var utilization float64
+	if duration <= 0 {
+		// Avoid divide-by-zero computing utilization. This
+		// has the effect of ignoring the utilization in the
+		// error term.
+		utilization = gcGoalUtilization
+	} else {
+		utilization = float64(c.assistTime+c.dedicatedMarkTime+c.fractionalMarkTime) / float64(duration*int64(gomaxprocs))
+	}
 	triggerError := goalGrowthRatio - c.triggerRatio - utilization/gcGoalUtilization*(actualGrowthRatio-c.triggerRatio)
 
 	// Finally, we adjust the trigger for next time by this error,
