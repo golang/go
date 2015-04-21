@@ -931,6 +931,10 @@ func (pc *persistConn) readLoop() {
 			}
 		}
 
+		pc.lk.Lock()
+		pc.numExpectedResponses--
+		pc.lk.Unlock()
+
 		// The connection might be going away when we put the
 		// idleConn below. When that happens, we close the response channel to signal
 		// to roundTrip that the connection is gone. roundTrip waits for
@@ -1154,10 +1158,6 @@ WaitResponse:
 			break WaitResponse
 		}
 	}
-
-	pc.lk.Lock()
-	pc.numExpectedResponses--
-	pc.lk.Unlock()
 
 	if re.err != nil {
 		pc.t.setReqCanceler(req.Request, nil)
