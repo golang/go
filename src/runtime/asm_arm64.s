@@ -538,11 +538,11 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-16
 	BL	asmcgocall<>(SB)
 	RET
 
-TEXT ·asmcgocall_errno(SB),NOSPLIT,$0-24
+TEXT ·asmcgocall_errno(SB),NOSPLIT,$0-20
 	MOVD	fn+0(FP), R1
 	MOVD	arg+8(FP), R0
 	BL	asmcgocall<>(SB)
-	MOVD	R0, ret+16(FP)
+	MOVW	R0, ret+16(FP)
 	RET
 
 // asmcgocall common code. fn in R1, arg in R0. returns errno in R0.

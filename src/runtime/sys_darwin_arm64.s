@@ -81,7 +81,7 @@ TEXT runtime·read(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·exit(SB),NOSPLIT,$-8
-	MOVW	n+0(FP), R0
+	MOVW	code+0(FP), R0
 	MOVW	$SYS_exit, R16
 	SVC	$0x80
 	MOVD	$1234, R0
@@ -419,14 +419,14 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
 	MOVW	R0, ret+0(FP)
 	RET
 
-// int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int events, Timespec *timeout)
+// int32 runtime·kevent(int kq, Kevent *ch, int nch, Kevent *ev, int nev, Timespec *ts)
 TEXT runtime·kevent(SB),NOSPLIT,$0
 	MOVW	kq+0(FP), R0
-	MOVD	changelist+8(FP), R1
-	MOVW	nchanges+16(FP), R2
-	MOVD	eventlist+24(FP), R3
-	MOVW	nevents+32(FP), R4
-	MOVD	timeout+40(FP), R5
+	MOVD	ch+8(FP), R1
+	MOVW	nch+16(FP), R2
+	MOVD	ev+24(FP), R3
+	MOVW	nev+32(FP), R4
+	MOVD	ts+40(FP), R5
 	MOVW	$SYS_kevent, R16
 	SVC	$0x80
 	BCC	2(PC)
