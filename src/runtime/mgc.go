@@ -684,7 +684,7 @@ func gc(mode int) {
 	// debug.gctrace variables
 	var stwprocs, maxprocs int32
 	var tSweepTerm, tScan, tInstallWB, tMark, tMarkTerm int64
-	var heap0, heap1, heap2 uint64
+	var heap0, heap1, heap2, heapGoal uint64
 
 	// Ok, we're doing it!  Stop everybody else
 	semacquire(&worldsema, false)
@@ -732,6 +732,7 @@ func gc(mode int) {
 
 	if mode == gcBackgroundMode { // Do as much work concurrently as possible
 		gcController.startCycle()
+		heapGoal = gcController.heapGoal
 
 		systemstack(func() {
 			gcphase = _GCscan
@@ -791,6 +792,7 @@ func gc(mode int) {
 		if debug.gctrace > 0 {
 			t := nanotime()
 			tScan, tInstallWB, tMark, tMarkTerm = t, t, t, t
+			heapGoal = heap0
 		}
 	}
 
@@ -923,6 +925,7 @@ func gc(mode int) {
 			"/", gcController.idleMarkTime/1e6,
 			"+", markTermCpu/1e6, " ms cpu, ",
 			heap0>>20, "->", heap1>>20, "->", heap2>>20, " MB, ",
+			heapGoal>>20, " MB goal, ",
 			maxprocs, " P")
 		if mode != gcBackgroundMode {
 			print(" (forced)")
