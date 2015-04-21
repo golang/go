@@ -131,7 +131,9 @@ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
 
 	print("PC=", hex(r.ip()), "\n")
 	if _g_.m.lockedg != nil && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
-		print("signal arrived during cgo execution\n")
+		if iscgo {
+			print("signal arrived during external code execution\n")
+		}
 		gp = _g_.m.lockedg
 	}
 	print("\n")
