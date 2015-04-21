@@ -774,7 +774,7 @@ func evconst(n *Node) {
 		ODIV<<16 | CTRUNE:
 		if mpcmpfixc(rv.U.Xval, 0) == 0 {
 			Yyerror("division by zero")
-			Mpmovecfix(v.U.Xval, 1)
+			mpsetovf(v.U.Xval)
 			break
 		}
 
@@ -784,7 +784,7 @@ func evconst(n *Node) {
 		OMOD<<16 | CTRUNE:
 		if mpcmpfixc(rv.U.Xval, 0) == 0 {
 			Yyerror("division by zero")
-			Mpmovecfix(v.U.Xval, 1)
+			mpsetovf(v.U.Xval)
 			break
 		}
 

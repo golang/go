@@ -146,6 +146,7 @@ func TestStdFixed(t *testing.T) {
 		"bug459.go",    // possibly incorrect test - see issue 6703 (pending spec clarification)
 		"issue3924.go", // possibly incorrect test - see issue 6671 (pending spec clarification)
 		"issue6889.go", // gc-specific test
+		"issue7746.go", // large constants - consumes too much memory
 	)
 }
 
