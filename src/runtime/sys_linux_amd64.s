@@ -350,7 +350,7 @@ nog:
 	// Call fn
 	CALL	R12
 
-	// It shouldn't return.  If it does, exit
+	// It shouldn't return.  If it does, exit that thread.
 	MOVL	$111, DI
 	MOVL	$60, AX
 	SYSCALL

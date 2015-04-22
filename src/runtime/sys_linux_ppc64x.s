@@ -346,9 +346,9 @@ nog:
 	MOVD	R12, CTR
 	BL	(CTR)
 
-	// It shouldn't return.  If it does, exit
+	// It shouldn't return.	 If it does, exit that thread.
 	MOVW	$111, R3
-	SYSCALL $SYS_exit_group
+	SYSCALL	$SYS_exit
 	BR	-2(PC)	// keep exiting
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
