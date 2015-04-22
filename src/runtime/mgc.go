@@ -590,7 +590,13 @@ var work struct {
 
 	bgMarkReady note   // signal background mark worker has started
 	bgMarkDone  uint32 // cas to 1 when at a background mark completion point
-	bgMarkNote  note   // signal background mark completion
+
+	// Background mark completion signaling
+	bgMarkWake struct {
+		lock mutex
+		g    *g
+		wake bool
+	}
 
 	// Copy of mheap.allspans for marker or sweeper.
 	spans []*mspan
@@ -781,8 +787,18 @@ func gc(mode int) {
 		if debug.gctrace > 0 {
 			tMark = nanotime()
 		}
-		notetsleepg(&work.bgMarkNote, -1)
-		noteclear(&work.bgMarkNote)
+
+		// Wait for background mark completion.
+		lock(&work.bgMarkWake.lock)
+		if work.bgMarkWake.wake {
+			// Wakeup already happened
+			unlock(&work.bgMarkWake.lock)
+		} else {
+			work.bgMarkWake.g = getg()
+			goparkunlock(&work.bgMarkWake.lock, "mark wait (idle)", traceEvGoBlock, 1)
+		}
+		work.bgMarkWake.wake = false
+		work.bgMarkWake.g = nil
 
 		// Begin mark termination.
 		gctimer.cycle.markterm = nanotime()
@@ -1054,10 +1070,10 @@ func gcBgMarkWorker(p *p) {
 		}
 		gcw.dispose()
 
-		// If this is the first worker to reach a background
-		// completion point this cycle, signal the coordinator.
-		if done && cas(&work.bgMarkDone, 0, 1) {
-			notewakeup(&work.bgMarkNote)
+		// If this worker reached a background mark completion
+		// point, signal the main GC goroutine.
+		if done {
+			gcBgMarkDone()
 		}
 
 		duration := nanotime() - startTime
@@ -1070,6 +1086,24 @@ func gcBgMarkWorker(p *p) {
 		case gcMarkWorkerIdleMode:
 			xaddint64(&gcController.idleMarkTime, duration)
 		}
+	}
+}
+
+// gcBgMarkDone signals the completion of background marking. This can
+// be called multiple times during a cycle; only the first call has
+// any effect.
+func gcBgMarkDone() {
+	if cas(&work.bgMarkDone, 0, 1) {
+		// This is the first worker to reach completion.
+		// Signal the main GC goroutine.
+		lock(&work.bgMarkWake.lock)
+		if work.bgMarkWake.g == nil {
+			// It hasn't parked yet.
+			work.bgMarkWake.wake = true
+		} else {
+			ready(work.bgMarkWake.g, 0)
+		}
+		unlock(&work.bgMarkWake.lock)
 	}
 }
 
