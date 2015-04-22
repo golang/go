@@ -596,11 +596,14 @@ func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWork) {
 			// dense mask (stack or data)
 			bits = (uintptr(*(*byte)(add(unsafe.Pointer(ptrmask), (i/ptrSize)/4))) >> (((i / ptrSize) % 4) * typeBitsWidth)) & typeMask
 		} else {
+			if i != 0 {
+				// Avoid needless hbits.next() on last iteration.
+				hbits = hbits.next()
+			}
 			bits = uintptr(hbits.typeBits())
 			if bits == typeDead {
 				break // no more pointers in this object
 			}
-			hbits = hbits.next()
 		}
 
 		if bits <= typeScalar { // typeScalar, typeDead, typeScalarMarked
@@ -647,9 +650,6 @@ func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWork) {
 // The object is not nil and known to be in the heap.
 //go:nowritebarrier
 func shade(b uintptr) {
-	if !inheap(b) {
-		throw("shade: passed an address not in the heap")
-	}
 	if obj, hbits, span := heapBitsForObject(b); obj != 0 {
 		// TODO: this would be a great place to put a check to see
 		// if we are harvesting and if we are then we should
