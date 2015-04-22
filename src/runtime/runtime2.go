@@ -129,6 +129,9 @@ type guintptr uintptr
 
 func (gp guintptr) ptr() *g   { return (*g)(unsafe.Pointer(gp)) }
 func (gp *guintptr) set(g *g) { *gp = guintptr(unsafe.Pointer(g)) }
+func (gp *guintptr) cas(old, new guintptr) bool {
+	return casuintptr((*uintptr)(unsafe.Pointer(gp)), uintptr(old), uintptr(new))
+}
 
 type puintptr uintptr
 
@@ -350,10 +353,20 @@ type p struct {
 	goidcache    uint64
 	goidcacheend uint64
 
-	// Queue of runnable goroutines.
+	// Queue of runnable goroutines. Accessed without lock.
 	runqhead uint32
 	runqtail uint32
 	runq     [256]*g
+	// runnext, if non-nil, is a runnable G that was ready'd by
+	// the current G and should be run next instead of what's in
+	// runq if there's time remaining in the running G's time
+	// slice. It will inherit the time left in the current time
+	// slice. If a set of goroutines is locked in a
+	// communicate-and-wait pattern, this schedules that set as a
+	// unit and eliminates the (potentially large) scheduling
+	// latency that otherwise arises from adding the ready'd
+	// goroutines to the end of the run queue.
+	runnext guintptr
 
 	// Available G's (status == Gdead)
 	gfree    *g

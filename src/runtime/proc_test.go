@@ -292,6 +292,57 @@ func main() {
 }
 `
 
+func TestPingPongHog(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in -short mode")
+	}
+
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+	done := make(chan bool)
+	hogChan, lightChan := make(chan bool), make(chan bool)
+	hogCount, lightCount := 0, 0
+
+	run := func(limit int, counter *int, wake chan bool) {
+		for {
+			select {
+			case <-done:
+				return
+
+			case <-wake:
+				for i := 0; i < limit; i++ {
+					*counter++
+				}
+				wake <- true
+			}
+		}
+	}
+
+	// Start two co-scheduled hog goroutines.
+	for i := 0; i < 2; i++ {
+		go run(1e6, &hogCount, hogChan)
+	}
+
+	// Start two co-scheduled light goroutines.
+	for i := 0; i < 2; i++ {
+		go run(1e3, &lightCount, lightChan)
+	}
+
+	// Start goroutine pairs and wait for a few preemption rounds.
+	hogChan <- true
+	lightChan <- true
+	time.Sleep(100 * time.Millisecond)
+	close(done)
+	<-hogChan
+	<-lightChan
+
+	// Check that hogCount and lightCount are within a factor of
+	// 2, which indicates that both pairs of goroutines handed off
+	// the P within a time-slice to their buddy.
+	if hogCount > lightCount*2 || lightCount > hogCount*2 {
+		t.Fatalf("want hogCount/lightCount in [0.5, 2]; got %d/%d = %g", hogCount, lightCount, float64(hogCount)/float64(lightCount))
+	}
+}
+
 func BenchmarkPingPongHog(b *testing.B) {
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 
