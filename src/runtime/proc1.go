@@ -1115,7 +1115,7 @@ func startm(_p_ *p, spinning bool) {
 //go:nowritebarrier
 func handoffp(_p_ *p) {
 	// if it has local work, start it straight away
-	if _p_.runqhead != _p_.runqtail || sched.runqsize != 0 {
+	if !runqempty(_p_) || sched.runqsize != 0 {
 		startm(_p_, false)
 		return
 	}
@@ -1369,7 +1369,7 @@ stop:
 	// check all runqueues once again
 	for i := 0; i < int(gomaxprocs); i++ {
 		_p_ := allp[i]
-		if _p_ != nil && _p_.runqhead != _p_.runqtail {
+		if _p_ != nil && !runqempty(_p_) {
 			lock(&sched.lock)
 			_p_ = pidleget()
 			unlock(&sched.lock)
@@ -2657,7 +2657,7 @@ func procresize(nprocs int32) *p {
 			continue
 		}
 		p.status = _Pidle
-		if p.runqhead == p.runqtail {
+		if runqempty(p) {
 			pidleput(p)
 		} else {
 			p.m.set(mget())
@@ -2940,7 +2940,7 @@ func retake(now int64) uint32 {
 			// On the one hand we don't want to retake Ps if there is no other work to do,
 			// but on the other hand we want to retake them eventually
 			// because they can prevent the sysmon thread from deep sleep.
-			if _p_.runqhead == _p_.runqtail && atomicload(&sched.nmspinning)+atomicload(&sched.npidle) > 0 && pd.syscallwhen+10*1000*1000 > now {
+			if runqempty(_p_) && atomicload(&sched.nmspinning)+atomicload(&sched.npidle) > 0 && pd.syscallwhen+10*1000*1000 > now {
 				continue
 			}
 			// Need to decrement number of idle locked M's
@@ -3220,6 +3220,12 @@ func pidleget() *p {
 	return _p_
 }
 
+// runqempty returns true if _p_ has no Gs on its local run queue.
+// Note that this test is generally racy.
+func runqempty(_p_ *p) bool {
+	return _p_.runqhead == _p_.runqtail
+}
+
 // Try to put g on local runnable queue.
 // If it's full, put onto global queue.
 // Executed only by the owner P.
@@ -3479,7 +3485,7 @@ func sync_runtime_canSpin(i int) bool {
 	if i >= active_spin || ncpu <= 1 || gomaxprocs <= int32(sched.npidle+sched.nmspinning)+1 {
 		return false
 	}
-	if p := getg().m.p.ptr(); p.runqhead != p.runqtail {
+	if p := getg().m.p.ptr(); !runqempty(p) {
 		return false
 	}
 	return true
