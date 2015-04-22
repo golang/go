@@ -8,13 +8,6 @@ import (
 	"strings"
 )
 
-func bool2int(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
-}
-
 func (n *Node) Line() string {
 	return obj.Linklinefmt(Ctxt, int(n.Lineno), false, false)
 }

@@ -678,7 +678,7 @@ func haspointers(t *Type) bool {
 		ret = true
 	}
 
-	t.Haspointers = 1 + uint8(bool2int(ret))
+	t.Haspointers = 1 + uint8(obj.Bool2int(ret))
 	return ret
 }
 
@@ -1066,7 +1066,7 @@ ok:
 
 		ot = dcommontype(s, ot, t)
 		xt = ot - 3*Widthptr
-		ot = duint8(s, ot, uint8(bool2int(isddd)))
+		ot = duint8(s, ot, uint8(obj.Bool2int(isddd)))
 
 		// two slice headers: in and out.
 		ot = int(Rnd(int64(ot), int64(Widthptr)))
@@ -1146,7 +1146,7 @@ ok:
 		}
 
 		ot = duint16(s, ot, uint16(mapbucket(t).Width))
-		ot = duint8(s, ot, uint8(bool2int(isreflexive(t.Down))))
+		ot = duint8(s, ot, uint8(obj.Bool2int(isreflexive(t.Down))))
 
 	case TPTR32, TPTR64:
 		if t.Type.Etype == TANY {
