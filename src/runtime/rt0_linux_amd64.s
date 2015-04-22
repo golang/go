@@ -12,7 +12,7 @@ TEXT _rt0_amd64_linux(SB),NOSPLIT,$-8
 
 // When building with -buildmode=c-shared, this symbol is called when the shared
 // library is loaded.
-TEXT _rt0_amd64_linux_lib(SB),NOSPLIT,$0x40
+TEXT _rt0_amd64_linux_lib(SB),NOSPLIT,$0x48
 	MOVQ	BX, 0x10(SP)
 	MOVQ	BP, 0x18(SP)
 	MOVQ	R12, 0x20(SP)
