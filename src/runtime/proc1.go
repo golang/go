@@ -155,45 +155,6 @@ func ready(gp *g, traceskip int) {
 	}
 }
 
-// readyExecute marks gp ready to run, preempt the current g, and execute gp.
-// This is used to start concurrent GC promptly when we reach its trigger.
-func readyExecute(gp *g, traceskip int) {
-	// Squirrel away gp so we don't allocate a closure for the
-	// mcall'd func below. If we allocate a closure, it could go
-	// away as soon as we put _g_ on the runqueue.
-	getg().readyg = gp
-
-	mcall(func(_g_ *g) {
-		gp := _g_.readyg
-		_g_.readyg = nil
-
-		if trace.enabled {
-			traceGoUnpark(gp, traceskip)
-			traceGoSched()
-		}
-
-		if _g_.m.locks != 0 {
-			throw("readyExecute: holding locks")
-		}
-		if _g_.m.lockedg != nil {
-			throw("cannot readyExecute from a locked g")
-		}
-		if readgstatus(gp)&^_Gscan != _Gwaiting {
-			dumpgstatus(gp)
-			throw("bad gp.status in readyExecute")
-		}
-
-		// Preempt the current g
-		casgstatus(_g_, _Grunning, _Grunnable)
-		runqput(_g_.m.p.ptr(), _g_, false)
-		dropg()
-
-		// Ready gp and switch to it
-		casgstatus(gp, _Gwaiting, _Grunnable)
-		execute(gp, false)
-	})
-}
-
 func gcprocs() int32 {
 	// Figure out how many CPUs to use during GC.
 	// Limited by gomaxprocs, number of actual CPUs, and MaxGcproc.

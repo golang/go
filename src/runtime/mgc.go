@@ -655,28 +655,24 @@ func startGC(mode int) {
 	}
 
 	// trigger concurrent GC
+	readied := false
 	lock(&bggc.lock)
 	if !bggc.started {
 		bggc.working = 1
 		bggc.started = true
-		// This puts the G on the end of the current run
-		// queue, so it may take a while to actually start.
-		// This is only a problem for the first GC cycle.
+		readied = true
 		go backgroundgc()
 	} else if bggc.working == 0 {
 		bggc.working = 1
-		if getg().m.lockedg != nil {
-			// We can't directly switch to GC on a locked
-			// M, so put it on the run queue and someone
-			// will get to it.
-			ready(bggc.g, 0)
-		} else {
-			unlock(&bggc.lock)
-			readyExecute(bggc.g, 0)
-			return
-		}
+		readied = true
+		ready(bggc.g, 0)
 	}
 	unlock(&bggc.lock)
+	if readied {
+		// This G just started or ready()d the GC goroutine.
+		// Switch directly to it by yielding.
+		Gosched()
+	}
 }
 
 // State of the background concurrent GC goroutine.
