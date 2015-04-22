@@ -216,6 +216,34 @@ func basicMul(z, x, y nat) {
 	}
 }
 
+// montgomery computes x*y*2^(-n*_W) mod m,
+// assuming k = -1/m mod 2^_W.
+// z is used for storing the result which is returned;
+// z must not alias x, y or m.
+func (z nat) montgomery(x, y, m nat, k Word, n int) nat {
+	var c1, c2 Word
+	z = z.make(n)
+	z.clear()
+	for i := 0; i < n; i++ {
+		d := y[i]
+		c1 += addMulVVW(z, x, d)
+		t := z[0] * k
+		c2 = addMulVVW(z, m, t)
+
+		copy(z, z[1:])
+		z[n-1] = c1 + c2
+		if z[n-1] < c1 {
+			c1 = 1
+		} else {
+			c1 = 0
+		}
+	}
+	if c1 != 0 {
+		subVV(z, z, m)
+	}
+	return z
+}
+
 // Fast version of z[0:n+n>>1].add(z[0:n+n>>1], x[0:n]) w/o bounds checks.
 // Factored out for readability - do not use outside karatsuba.
 func karatsubaAdd(z, x nat, n int) {
@@ -905,8 +933,11 @@ func (z nat) expNN(x, y, m nat) nat {
 	// 4-bit, windowed exponentiation. This involves precomputing 14 values
 	// (x^2...x^15) but then reduces the number of multiply-reduces by a
 	// third. Even for a 32-bit exponent, this reduces the number of
-	// operations.
+	// operations. Uses Montgomery method for odd moduli.
 	if len(x) > 1 && len(y) > 1 && len(m) > 0 {
+		if m[0]&1 == 1 {
+			return z.expNNMontgomery(x, y, m)
+		}
 		return z.expNNWindowed(x, y, m)
 	}
 
@@ -1027,6 +1058,87 @@ func (z nat) expNNWindowed(x, y, m nat) nat {
 	}
 
 	return z.norm()
+}
+
+// expNNMontgomery calculates x**y mod m using a fixed, 4-bit window.
+// Uses Montgomery representation.
+func (z nat) expNNMontgomery(x, y, m nat) nat {
+	var zz, one, rr, RR nat
+
+	numWords := len(m)
+
+	// We want the lengths of x and m to be equal.
+	if len(x) > numWords {
+		_, rr = rr.div(rr, x, m)
+	} else if len(x) < numWords {
+		rr = rr.make(numWords)
+		rr.clear()
+		for i := range x {
+			rr[i] = x[i]
+		}
+	} else {
+		rr = x
+	}
+	x = rr
+
+	// Ideally the precomputations would be performed outside, and reused
+	// k0 = -mˆ-1 mod 2ˆ_W. Algorithm from: Dumas, J.G. "On Newton–Raphson
+	// Iteration for Multiplicative Inverses Modulo Prime Powers".
+	k0 := 2 - m[0]
+	t := m[0] - 1
+	for i := 1; i < _W; i <<= 1 {
+		t *= t
+		k0 *= (t + 1)
+	}
+	k0 = -k0
+
+	// RR = 2ˆ(2*_W*len(m)) mod m
+	RR = RR.setWord(1)
+	zz = zz.shl(RR, uint(2*numWords*_W))
+	_, RR = RR.div(RR, zz, m)
+	if len(RR) < numWords {
+		zz = zz.make(numWords)
+		copy(zz, RR)
+		RR = zz
+	}
+	// one = 1, with equal length to that of m
+	one = one.make(numWords)
+	one.clear()
+	one[0] = 1
+
+	const n = 4
+	// powers[i] contains x^i
+	var powers [1 << n]nat
+	powers[0] = powers[0].montgomery(one, RR, m, k0, numWords)
+	powers[1] = powers[1].montgomery(x, RR, m, k0, numWords)
+	for i := 2; i < 1<<n; i++ {
+		powers[i] = powers[i].montgomery(powers[i-1], powers[1], m, k0, numWords)
+	}
+
+	// initialize z = 1 (Montgomery 1)
+	z = z.make(numWords)
+	copy(z, powers[0])
+
+	zz = zz.make(numWords)
+
+	// same windowed exponent, but with Montgomery multiplications
+	for i := len(y) - 1; i >= 0; i-- {
+		yi := y[i]
+		for j := 0; j < _W; j += n {
+			if i != len(y)-1 || j != 0 {
+				zz = zz.montgomery(z, z, m, k0, numWords)
+				z = z.montgomery(zz, zz, m, k0, numWords)
+				zz = zz.montgomery(z, z, m, k0, numWords)
+				z = z.montgomery(zz, zz, m, k0, numWords)
+			}
+			zz = zz.montgomery(z, powers[yi>>(_W-n)], m, k0, numWords)
+			z, zz = zz, z
+			yi <<= n
+		}
+	}
+	// convert to regular number
+	zz = zz.montgomery(z, one, m, k0, numWords)
+	return zz.norm()
 }
 
 // probablyPrime performs reps Miller-Rabin tests to check whether n is prime.
