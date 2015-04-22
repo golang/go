@@ -5,6 +5,18 @@
 // Package crc32 implements the 32-bit cyclic redundancy check, or CRC-32,
 // checksum. See http://en.wikipedia.org/wiki/Cyclic_redundancy_check for
 // information.
+//
+// Polynomials are represented in LSB-first form also known as reversed representation.
+//
+// LSB-first representation is a hexadecimal number with n bits, the most
+// significant bit represents the coefficient of x^0 and the least significant
+// bit represents the coefficient of x^(n-1).
+//
+// For example, x^5 + x^2 + x^0 is (binary:10100, hexadecimal:0x14) in 5-bit LSB-first form,
+// as opposed to (binary:00101, hexadecimal:0x05) in MSB-first (normal) form.
+//
+// See http://en.wikipedia.org/wiki/Mathematics_of_cyclic_redundancy_checks#Reversed_representations_and_reciprocal_polynomials
+// for information.
 package crc32
 
 import (
