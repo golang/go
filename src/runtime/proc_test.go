@@ -292,6 +292,43 @@ func main() {
 }
 `
 
+func BenchmarkPingPongHog(b *testing.B) {
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+
+	// Create a CPU hog
+	stop, done := make(chan bool), make(chan bool)
+	go func() {
+		for {
+			select {
+			case <-stop:
+				done <- true
+				return
+			default:
+			}
+		}
+	}()
+
+	// Ping-pong b.N times
+	ping, pong := make(chan bool), make(chan bool)
+	go func() {
+		for j := 0; j < b.N; j++ {
+			pong <- <-ping
+		}
+		close(stop)
+	}()
+	go func() {
+		for i := 0; i < b.N; i++ {
+			ping <- <-pong
+		}
+	}()
+	b.ResetTimer()
+	ping <- true // Start ping-pong
+	<-stop
+	b.StopTimer()
+	<-ping // Let last ponger exit
+	<-done // Make sure hog exits
+}
+
 func stackGrowthRecursive(i int) {
 	var pad [128]uint64
 	if i != 0 && pad[0] == 0 {
