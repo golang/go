@@ -1831,8 +1831,8 @@ OpSwitch:
 				n.Type = nil
 				return
 			}
-			et := bool2int(checkmake(t, "len", l) < 0)
-			et |= bool2int(r != nil && checkmake(t, "cap", r) < 0)
+			et := obj.Bool2int(checkmake(t, "len", l) < 0)
+			et |= obj.Bool2int(r != nil && checkmake(t, "cap", r) < 0)
 			if et != 0 {
 				n.Type = nil
 				return
@@ -2820,12 +2820,12 @@ func keydup(n *Node, hash []*Node) {
 			if Eqtype(a.Left.Type, n.Type) {
 				cmp.Right = a.Left
 				evconst(&cmp)
-				b = uint32(bool2int(cmp.Val.U.Bval))
+				b = uint32(obj.Bool2int(cmp.Val.U.Bval))
 			}
 		} else if Eqtype(a.Type, n.Type) {
 			cmp.Right = a
 			evconst(&cmp)
-			b = uint32(bool2int(cmp.Val.U.Bval))
+			b = uint32(obj.Bool2int(cmp.Val.U.Bval))
 		}
 
 		if b != 0 {

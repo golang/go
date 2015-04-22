@@ -87,7 +87,7 @@ func Gbranch(as int, t *Type, likely int) *obj.Prog {
 	p.To.Val = nil
 	if as != obj.AJMP && likely != 0 && Thearch.Thechar != '9' && Thearch.Thechar != '7' {
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(bool2int(likely > 0))
+		p.From.Offset = int64(obj.Bool2int(likely > 0))
 	}
 
 	return p
@@ -417,7 +417,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		case CTBOOL:
 			a.Sym = nil
 			a.Type = obj.TYPE_CONST
-			a.Offset = int64(bool2int(n.Val.U.Bval))
+			a.Offset = int64(obj.Bool2int(n.Val.U.Bval))
 
 		case CTNIL:
 			a.Sym = nil

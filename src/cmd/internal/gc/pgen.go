@@ -191,17 +191,17 @@ func cmpstackvar(a *Node, b *Node) int {
 	}
 
 	if a.Used != b.Used {
-		return bool2int(b.Used) - bool2int(a.Used)
+		return obj.Bool2int(b.Used) - obj.Bool2int(a.Used)
 	}
 
-	ap := bool2int(haspointers(a.Type))
-	bp := bool2int(haspointers(b.Type))
+	ap := obj.Bool2int(haspointers(a.Type))
+	bp := obj.Bool2int(haspointers(b.Type))
 	if ap != bp {
 		return bp - ap
 	}
 
-	ap = bool2int(a.Needzero)
-	bp = bool2int(b.Needzero)
+	ap = obj.Bool2int(a.Needzero)
+	bp = obj.Bool2int(b.Needzero)
 	if ap != bp {
 		return bp - ap
 	}

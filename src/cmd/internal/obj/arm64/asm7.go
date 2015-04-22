@@ -831,7 +831,7 @@ func regoff(ctxt *obj.Link, a *obj.Addr) uint32 {
 
 func ispcdisp(v int32) int {
 	/* pc-relative addressing will reach? */
-	return bool2int(v >= -0xfffff && v <= 0xfffff && (v&3) == 0)
+	return obj.Bool2int(v >= -0xfffff && v <= 0xfffff && (v&3) == 0)
 }
 
 func isaddcon(v int64) int {
@@ -842,14 +842,14 @@ func isaddcon(v int64) int {
 	if (v & 0xFFF) == 0 {
 		v >>= 12
 	}
-	return bool2int(v <= 0xFFF)
+	return obj.Bool2int(v <= 0xFFF)
 }
 
 func isbitcon(v uint64) int {
 	/*  fancy bimm32 or bimm64? */
 	// TODO(aram):
 	return 0
-	// return bool2int(findmask(v) != nil || (v>>32) == 0 && findmask(v|(v<<32)) != nil)
+	// return obj.Bool2int(findmask(v) != nil || (v>>32) == 0 && findmask(v|(v<<32)) != nil)
 }
 
 func autoclass(l int64) int {
@@ -2188,7 +2188,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 	case 24: /* mov/mvn Rs,Rd -> add $0,Rs,Rd or orr Rs,ZR,Rd */
 		rf := int(p.From.Reg)
 		rt := int(p.To.Reg)
-		s := bool2int(rf == REGSP || rt == REGSP)
+		s := obj.Bool2int(rf == REGSP || rt == REGSP)
 		if p.As == AMVN || p.As == AMVNW {
 			if s != 0 {
 				ctxt.Diag("illegal SP reference\n%v", p)

@@ -1417,7 +1417,7 @@ func Convconst(con *Node, t *Type, val *Val) {
 			i = Mpgetfix(val.U.Xval)
 
 		case CTBOOL:
-			i = int64(bool2int(val.U.Bval))
+			i = int64(obj.Bool2int(val.U.Bval))
 
 		case CTNIL:
 			i = 0
