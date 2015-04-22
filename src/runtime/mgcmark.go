@@ -246,10 +246,8 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 		// signal a completion point.
 		if xadd(&work.nwait, +1) == work.nproc && work.full == 0 && work.partial == 0 {
 			// This has reached a background completion
-			// point. Is it the first this cycle?
-			if cas(&work.bgMarkDone, 0, 1) {
-				notewakeup(&work.bgMarkNote)
-			}
+			// point.
+			gcBgMarkDone()
 		}
 
 		duration := nanotime() - startTime
