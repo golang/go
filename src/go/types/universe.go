@@ -7,7 +7,7 @@
 package types
 
 import (
-	"go/exact"
+	exact "go/constants" // Renamed to reduce diffs from x/tools.  TODO: remove
 	"go/token"
 	"strings"
 )

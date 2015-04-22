@@ -4,7 +4,7 @@
 
 // +build !go1.4
 
-package exact
+package constants
 
 import (
 	"math"

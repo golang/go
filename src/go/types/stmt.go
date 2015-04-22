@@ -9,7 +9,7 @@ package types
 import (
 	"fmt"
 	"go/ast"
-	"go/exact"
+	exact "go/constants" // Renamed to reduce diffs from x/tools.  TODO: remove
 	"go/token"
 )
 

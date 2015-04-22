@@ -9,6 +9,10 @@
 # original sources in x/tools. Imports are renamed as needed.
 #
 # Delete this script once go/exact and go/types don't exist anymore in x/tools.
+#
+# NOTE(adonovan): the standard packages have intentionally diverged
+# from x/tools, so this script is a unlikely to be useful.  Upstream
+# changes should be cherry-picked in to the standard library.
 
 set -e
 

@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package exact implements Values representing untyped
+// Package constants implements Values representing untyped
 // Go constants and the corresponding operations. Values
-// and operations have unlimited precision.
+// and operations may have arbitrary or unlimited precision.
 //
 // A special Unknown value may be used when a value
 // is unknown due to an error. Operations on unknown
 // values produce unknown values unless specified
 // otherwise.
 //
-package exact // import "go/exact"
+package constants // import "go/constants"
 
 import (
 	"fmt"
