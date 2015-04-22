@@ -277,8 +277,8 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$0
-	MOVQ	new+8(SP), DI
-	MOVQ	old+16(SP), SI
+	MOVQ	new+0(FP), DI
+	MOVQ	old+8(FP), SI
 	MOVQ	$(0x2000000+53), AX
 	SYSCALL
 	JCC	2(PC)
@@ -308,9 +308,9 @@ TEXT runtime·bsdthread_create(SB),NOSPLIT,$0
 	// Set up arguments to bsdthread_create system call.
 	// The ones in quotes pass through to the thread callback
 	// uninterpreted, so we can put whatever we want there.
-	MOVQ	fn+24(SP),   DI
-	MOVQ	arg+16(SP),  SI
-	MOVQ	stk+8(SP),   DX
+	MOVQ	fn+16(FP),   DI
+	MOVQ	arg+8(FP),  SI
+	MOVQ	stk+0(FP),   DX
 	MOVQ	$0x01000000, R8  // flags = PTHREAD_START_CUSTOM
 	MOVQ	$0,          R9  // paranoia
 	MOVQ	$0,          R10 // paranoia, "pthread"
@@ -318,10 +318,10 @@ TEXT runtime·bsdthread_create(SB),NOSPLIT,$0
 	SYSCALL
 	JCC 4(PC)
 	NEGQ	AX
-	MOVL	AX, ret+32(FP)
+	MOVL	AX, ret+24(FP)
 	RET
 	MOVL	$0, AX
-	MOVL	AX, ret+32(FP)
+	MOVL	AX, ret+24(FP)
 	RET
 
 // The thread that bsdthread_create creates starts executing here,
