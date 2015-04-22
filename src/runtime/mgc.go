@@ -298,6 +298,10 @@ type gcControllerState struct {
 	// at the end of of each cycle.
 	triggerRatio float64
 
+	// reviseTimer is a timer that triggers periodic revision of
+	// control variables during the cycle.
+	reviseTimer timer
+
 	_ [_CacheLineSize]byte
 
 	// fractionalMarkWorkersNeeded is the number of fractional
@@ -344,10 +348,6 @@ func (c *gcControllerState) startCycle() {
 		c.fractionalMarkWorkersNeeded = 0
 	}
 
-	// Compute initial values for controls that are updated
-	// throughout the cycle.
-	c.revise()
-
 	// Clear per-P state
 	for _, p := range &allp {
 		if p == nil {
@@ -356,7 +356,17 @@ func (c *gcControllerState) startCycle() {
 		p.gcAssistTime = 0
 	}
 
-	return
+	// Compute initial values for controls that are updated
+	// throughout the cycle.
+	c.revise()
+
+	// Set up a timer to revise periodically
+	c.reviseTimer.f = func(interface{}, uintptr) {
+		gcController.revise()
+	}
+	c.reviseTimer.period = 10 * 1000 * 1000
+	c.reviseTimer.when = nanotime() + c.reviseTimer.period
+	addtimer(&c.reviseTimer)
 }
 
 // revise updates the assist ratio during the GC cycle to account for
@@ -407,6 +417,9 @@ func (c *gcControllerState) endCycle() {
 
 	// EWMA weight given to this cycle's scan work ratio.
 	const workRatioWeight = 0.75
+
+	// Stop the revise timer
+	deltimer(&c.reviseTimer)
 
 	// Compute next cycle trigger ratio. First, this computes the
 	// "error" for this cycle; that is, how far off the trigger
@@ -768,9 +781,7 @@ func gc(mode int) {
 		if debug.gctrace > 0 {
 			tMark = nanotime()
 		}
-		for !notetsleepg(&work.bgMarkNote, 10*1000*1000) {
-			gcController.revise()
-		}
+		notetsleepg(&work.bgMarkNote, -1)
 		noteclear(&work.bgMarkNote)
 
 		// Begin mark termination.
