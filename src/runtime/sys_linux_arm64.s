@@ -361,10 +361,10 @@ nog:
 	MOVD	R12, R0
 	BL	(R0)
 
-	// It shouldn't return.	 If it does, exit
+	// It shouldn't return.	 If it does, exit that thread.
 	MOVW	$111, R0
 again:
-	MOVD	$SYS_exit_group, R8
+	MOVD	$SYS_exit, R8
 	SVC
 	B	again	// keep exiting
 

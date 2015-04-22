@@ -307,7 +307,7 @@ nog:
 	MOVW	$16(R13), R13
 	BL	(R0)
 
-	// It shouldn't return
+	// It shouldn't return.  If it does, exit that thread.
 	MOVW	$0, R0
 	MOVW	R0, 4(R13)
 	BL	runtime·exit1(SB)
