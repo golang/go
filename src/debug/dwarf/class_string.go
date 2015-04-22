@@ -4,9 +4,9 @@ package dwarf
 
 import "fmt"
 
-const _Class_name = "ClassAddressClassBlockClassConstantClassExprLocClassFlagClassLinePtrClassLocListPtrClassMacPtrClassRangeListPtrClassReferenceClassStringClassReferenceAltClassStringAlt"
+const _Class_name = "ClassAddressClassBlockClassConstantClassExprLocClassFlagClassLinePtrClassLocListPtrClassMacPtrClassRangeListPtrClassReferenceClassReferenceSigClassStringClassReferenceAltClassStringAlt"
 
-var _Class_index = [...]uint8{0, 12, 22, 35, 47, 56, 68, 83, 94, 111, 125, 136, 153, 167}
+var _Class_index = [...]uint8{0, 12, 22, 35, 47, 56, 68, 83, 94, 111, 125, 142, 153, 170, 184}
 
 func (i Class) String() string {
 	i -= 1
