@@ -35,6 +35,7 @@ func referrers(q *Query) error {
 	var obj types.Object
 	var lprog *loader.Program
 	var pass2 bool
+	var qpos *queryPos
 	for {
 		// Load/parse/type-check the program.
 		var err error
@@ -44,7 +45,7 @@ func referrers(q *Query) error {
 		}
 		q.Fset = lprog.Fset
 
-		qpos, err := parseQueryPos(lprog, q.Pos, false)
+		qpos, err = parseQueryPos(lprog, q.Pos, false)
 		if err != nil {
 			return err
 		}
@@ -104,7 +105,7 @@ func referrers(q *Query) error {
 	sort.Sort(byNamePos{q.Fset, refs})
 
 	q.result = &referrersResult{
-		fset:  q.Fset,
+		qpos:  qpos,
 		query: id,
 		obj:   obj,
 		refs:  refs,
@@ -152,14 +153,14 @@ func (p byNamePos) Less(i, j int) bool {
 }
 
 type referrersResult struct {
-	fset  *token.FileSet
+	qpos  *queryPos
 	query *ast.Ident   // identifier of query
 	obj   types.Object // object it denotes
 	refs  []*ast.Ident // set of all other references to it
 }
 
 func (r *referrersResult) display(printf printfFunc) {
-	printf(r.obj, "%d references to %s", len(r.refs), r.obj)
+	printf(r.obj, "%d references to %s", len(r.refs), r.qpos.objectString(r.obj))
 
 	// Show referring lines, like grep.
 	type fileinfo struct {
@@ -172,7 +173,7 @@ func (r *referrersResult) display(printf printfFunc) {
 
 	// First pass: start the file reads concurrently.
 	for _, ref := range r.refs {
-		posn := r.fset.Position(ref.Pos())
+		posn := r.qpos.fset.Position(ref.Pos())
 		fi := fileinfosByName[posn.Filename]
 		if fi == nil {
 			fi = &fileinfo{data: make(chan []byte)}

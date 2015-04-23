@@ -1,3 +1,8 @@
+-------- @referrers ref-type --------
+2 references to type s struct{f int}
+	_ = s{}.f // @referrers ref-field "f"
+	var s2 s
+
 -------- @referrers ref-package --------
 2 references to package lib
 	var v lib.Type = lib.Const // @referrers ref-package "lib"

@@ -6,7 +6,7 @@ package main
 
 import "lib"
 
-type s struct {
+type s struct { // @referrers ref-type " s "
 	f int
 }
 
