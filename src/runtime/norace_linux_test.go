@@ -22,6 +22,11 @@ func newOSProcCreated() {
 }
 
 func TestNewOSProc0(t *testing.T) {
+	if runtime.GOOS == "android" && runtime.GOARCH == "arm" {
+		// newosproc0 does not work for android/arm.
+		// See issue 10548.
+		t.Skipf("skipping on %v", runtime.GOOS)
+	}
 	runtime.NewOSProc0(0x800000, unsafe.Pointer(runtime.FuncPC(newOSProcCreated)))
 	check, end := time.Tick(1*time.Second), time.Tick(5*time.Second)
 	for {
