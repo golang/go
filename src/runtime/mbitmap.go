@@ -187,6 +187,7 @@ func heapBitsForObject(p uintptr) (base uintptr, hbits heapBits, s *mspan) {
 			printunlock()
 			throw("objectstart: bad pointer in unexpected span")
 		}
+		return
 	}
 	// If this span holds object of a power of 2 size, just mask off the bits to
 	// the interior of the object. Otherwise use the size to get the base.
