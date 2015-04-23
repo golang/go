@@ -326,9 +326,15 @@ func (d *decoder) decode() (image.Image, error) {
 	var img image.Image
 	if d.interlace == itNone {
 		img, err = d.readImagePass(r, 0, false)
+		if err != nil {
+			return nil, err
+		}
 	} else if d.interlace == itAdam7 {
 		// Allocate a blank image of the full size.
 		img, err = d.readImagePass(nil, 0, true)
+		if err != nil {
+			return nil, err
+		}
 		for pass := 0; pass < 7; pass++ {
 			imagePass, err := d.readImagePass(r, pass, false)
 			if err != nil {
@@ -430,6 +436,9 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 		// Read the decompressed bytes.
 		_, err := io.ReadFull(r, cr)
 		if err != nil {
+			if err == io.EOF || err == io.ErrUnexpectedEOF {
+				return nil, FormatError("not enough pixel data")
+			}
 			return nil, err
 		}
 

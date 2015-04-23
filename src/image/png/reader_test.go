@@ -320,6 +320,21 @@ func TestPalettedDecodeConfig(t *testing.T) {
 	}
 }
 
+func TestIncompleteIDATOnRowBoundary(t *testing.T) {
+	// The following is an invalid 1x2 grayscale PNG image. The header is OK,
+	// but the zlib-compressed IDAT payload contains two bytes "\x02\x00",
+	// which is only one row of data (the leading "\x02" is a row filter).
+	const (
+		ihdr = "\x00\x00\x00\x0dIHDR\x00\x00\x00\x01\x00\x00\x00\x02\x08\x00\x00\x00\x00\xbc\xea\xe9\xfb"
+		idat = "\x00\x00\x00\x0eIDAT\x78\x9c\x62\x62\x00\x04\x00\x00\xff\xff\x00\x06\x00\x03\xfa\xd0\x59\xae"
+		iend = "\x00\x00\x00\x00IEND\xae\x42\x60\x82"
+	)
+	_, err := Decode(strings.NewReader(pngHeader + ihdr + idat + iend))
+	if err == nil {
+		t.Fatal("got nil error, want non-nil")
+	}
+}
+
 func TestMultipletRNSChunks(t *testing.T) {
 	/*
 		The following is a valid 1x1 paletted PNG image with a 1-element palette
