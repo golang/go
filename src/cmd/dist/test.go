@@ -383,26 +383,25 @@ func (t *tester) extLink() bool {
 }
 
 func (t *tester) buildmode(mode string) bool {
+	pair := t.goos + "-" + t.goarch
 	switch mode {
 	case "c-archive":
-		switch {
-		case !t.extLink():
-			return false
-		case t.goos == "darwin":
-			switch t.goarch {
-			case "amd64", "arm", "arm64":
-				return true
-			default:
-				return false
-			}
-		case t.goos == "linux" && (t.goarch == "amd64" || t.goarch == "386"):
-			return true
-		default:
+		if !t.extLink() {
 			return false
 		}
+		switch pair {
+		case "darwin-amd64", "darwin-arm", "darwin-arm64",
+			"linux-amd64", "linux-386":
+			return true
+		}
+		return false
 	case "c-shared":
-		// TODO(hyangah): add linux/386.
-		return t.goos == "linux" && t.goarch == "amd64"
+		// TODO(hyangah): add linux-386.
+		switch pair {
+		case "linux-amd64", "android-arm":
+			return true
+		}
+		return false
 	default:
 		log.Fatal("internal error: unknown buildmode %s", mode)
 		return false
