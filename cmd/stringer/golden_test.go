@@ -51,7 +51,7 @@ const _Day_name = "MondayTuesdayWednesdayThursdayFridaySaturdaySunday"
 var _Day_index = [...]uint8{0, 6, 13, 22, 30, 36, 44, 50}
 
 func (i Day) String() string {
-	if i < 0 || i+1 >= Day(len(_Day_index)) {
+	if i < 0 || i >= Day(len(_Day_index)-1) {
 		return fmt.Sprintf("Day(%d)", i)
 	}
 	return _Day_name[_Day_index[i]:_Day_index[i+1]]
@@ -77,7 +77,7 @@ var _Number_index = [...]uint8{0, 3, 6, 11}
 
 func (i Number) String() string {
 	i -= 1
-	if i < 0 || i+1 >= Number(len(_Number_index)) {
+	if i < 0 || i >= Number(len(_Number_index)-1) {
 		return fmt.Sprintf("Number(%d)", i+1)
 	}
 	return _Number_name[_Number_index[i]:_Number_index[i+1]]
@@ -145,7 +145,7 @@ var _Num_index = [...]uint8{0, 3, 6, 8, 10, 12}
 
 func (i Num) String() string {
 	i -= -2
-	if i < 0 || i+1 >= Num(len(_Num_index)) {
+	if i < 0 || i >= Num(len(_Num_index)-1) {
 		return fmt.Sprintf("Num(%d)", i+-2)
 	}
 	return _Num_name[_Num_index[i]:_Num_index[i+1]]
