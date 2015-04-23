@@ -23,7 +23,6 @@ func init() {
 
 func main() {
 	ranMain = true
-	panic("FAIL: main ran")
 }
 
 //export DidInitRun
