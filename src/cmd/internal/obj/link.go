@@ -472,7 +472,6 @@ type Link struct {
 	Sym_divu           *LSym
 	Sym_mod            *LSym
 	Sym_modu           *LSym
-	Symmorestack       [2]*LSym
 	Tlsg               *LSym
 	Plan9privates      *LSym
 	Curp               *Prog

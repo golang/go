@@ -49,7 +49,7 @@ var complements = []int16{
 	ACMNW: ACMPW,
 }
 
-func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt int) *obj.Prog {
+func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 	// MOV	g_stackguard(g), R1
 	p = obj.Appendp(ctxt, p)
 
@@ -186,8 +186,10 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt int) *obj.P
 	p.To.Type = obj.TYPE_BRANCH
 	if ctxt.Cursym.Cfunc != 0 {
 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
+	} else if ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
+		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
 	} else {
-		p.To.Sym = ctxt.Symmorestack[noctxt]
+		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack", 0)
 	}
 
 	// B	start
@@ -465,11 +467,6 @@ loop:
 }
 
 func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
-	if ctxt.Symmorestack[0] == nil {
-		ctxt.Symmorestack[0] = obj.Linklookup(ctxt, "runtime.morestack", 0)
-		ctxt.Symmorestack[1] = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
-	}
-
 	ctxt.Cursym = cursym
 
 	if cursym.Text == nil || cursym.Text.Link == nil {
@@ -583,7 +580,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			}
 
 			if !(p.From3.Offset&obj.NOSPLIT != 0) {
-				p = stacksplit(ctxt, p, ctxt.Autosize, obj.Bool2int(cursym.Text.From3.Offset&obj.NEEDCTXT == 0)) // emit split check
+				p = stacksplit(ctxt, p, ctxt.Autosize) // emit split check
 			}
 
 			aoffset = ctxt.Autosize
