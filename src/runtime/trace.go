@@ -60,8 +60,13 @@ const (
 	// Timestamps in trace are cputicks/traceTickDiv.
 	// This makes absolute values of timestamp diffs smaller,
 	// and so they are encoded in less number of bytes.
-	// 64 is somewhat arbitrary (one tick is ~20ns on a 3GHz machine).
-	traceTickDiv = 64
+	// 64 on x86 is somewhat arbitrary (one tick is ~20ns on a 3GHz machine).
+	// The suggested increment frequency for PowerPC's time base register is
+	// 512 MHz according to Power ISA v2.07 section 6.2, so we use 16 on ppc64
+	// and ppc64le.
+	// Tracing won't work reliably for architectures where cputicks is emulated
+	// by nanotime, so the value doesn't matter for those architectures.
+	traceTickDiv = 16 + 48*(goarch_386|goarch_amd64|goarch_amd64p32)
 	// Maximum number of PCs in a single stack trace.
 	// Since events contain only stack id rather than whole stack trace,
 	// we can allow quite large values here.
