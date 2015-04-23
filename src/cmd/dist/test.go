@@ -98,6 +98,12 @@ func (t *tester) run() {
 	if t.goarch == "arm" || t.goos == "windows" {
 		t.timeoutScale = 2
 	}
+	if s := os.Getenv("GO_TEST_TIMEOUT_SCALE"); s != "" {
+		t.timeoutScale, err = strconv.Atoi(s)
+		if err != nil {
+			log.Fatalf("failed to parse $GO_TEST_TIMEOUT_SCALE = %q as integer: %v", s, err)
+		}
+	}
 
 	if t.runRxStr != "" {
 		t.runRx = regexp.MustCompile(t.runRxStr)
