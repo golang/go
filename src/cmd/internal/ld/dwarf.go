@@ -1435,7 +1435,6 @@ func defdwsymb(sym *LSym, s string, t int, v int64, size int64, ver int, gotype 
 		}
 		fallthrough
 
-		// fallthrough
 	case 'a', 'p':
 		dt = defgotype(gotype)
 	}

@@ -119,7 +119,6 @@ func reexportdep(n *Node) {
 			}
 			fallthrough
 
-			// fallthrough
 		case PEXTERN:
 			if n.Sym != nil && !exportedsym(n.Sym) {
 				if Debug['E'] != 0 {
@@ -160,7 +159,6 @@ func reexportdep(n *Node) {
 		}
 		fallthrough
 
-		// fallthrough
 	case OTYPE:
 		if n.Sym != nil && !exportedsym(n.Sym) {
 			if Debug['E'] != 0 {

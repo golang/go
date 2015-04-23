@@ -836,7 +836,6 @@ func structfield(n *Node) *Type {
 		Yyerror("field annotation must be string")
 		fallthrough
 
-		// fallthrough
 	case CTxxx:
 		f.Note = nil
 	}

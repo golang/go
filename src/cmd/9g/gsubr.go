@@ -936,11 +936,10 @@ func optoas(op int, t *gc.Type) int {
 		gc.OMUL<<16 | gc.TUINT32,
 		gc.OMUL<<16 | gc.TPTR32,
 		// don't use word multiply, the high 32-bit are undefined.
-		// fallthrough
 		gc.OMUL<<16 | gc.TUINT64,
 		gc.OMUL<<16 | gc.TPTR64:
-		a = ppc64.AMULLD
 		// for 64-bit multiplies, signedness doesn't matter.
+		a = ppc64.AMULLD
 
 	case gc.OMUL<<16 | gc.TFLOAT32:
 		a = ppc64.AFMULS

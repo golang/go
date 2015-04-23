@@ -514,7 +514,6 @@ func typefmt(t *Type, flag int) string {
 			}
 			fallthrough
 
-			// fallthrough
 		case FExp:
 			if t.Sym.Pkg == localpkg && t.Vargen != 0 {
 				return fmt.Sprintf("%v·%d", t.Sym, t.Vargen)
@@ -847,7 +846,6 @@ func stmtfmt(n *Node) string {
 		}
 		fallthrough
 
-		// fallthrough
 	case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
 		f += fmt.Sprintf("%v = %v", Hconv(n.List, obj.FmtComma), Hconv(n.Rlist, obj.FmtComma))
 
@@ -1256,8 +1254,6 @@ func exprfmt(n *Node, prec int) string {
 			return f
 		}
 		fallthrough
-
-		// fallthrough
 
 	case OARRAYLIT, OMAPLIT:
 		if fmtmode == FErr {

@@ -781,7 +781,6 @@ func Elfinit() {
 		}
 		fallthrough
 
-		// fallthrough
 	default:
 		ehdr.phoff = ELF32HDRSIZE
 		/* Must be be ELF32HDRSIZE: first PHdr must follow ELF header */
