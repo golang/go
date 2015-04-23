@@ -449,10 +449,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	if ctxt.Tlsg == nil {
 		ctxt.Tlsg = obj.Linklookup(ctxt, "runtime.tlsg", 0)
 	}
-	if ctxt.Symmorestack[0] == nil {
-		ctxt.Symmorestack[0] = obj.Linklookup(ctxt, "runtime.morestack", 0)
-		ctxt.Symmorestack[1] = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
-	}
 
 	if ctxt.Headtype == obj.Hplan9 && ctxt.Plan9privates == nil {
 		ctxt.Plan9privates = obj.Linklookup(ctxt, "_privates", 0)
@@ -514,7 +510,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 	var q *obj.Prog
 	if cursym.Text.From3.Offset&obj.NOSPLIT == 0 {
-		p = stacksplit(ctxt, p, autoffset, int32(textarg), cursym.Text.From3.Offset&obj.NEEDCTXT == 0, &q) // emit split check
+		p = stacksplit(ctxt, p, autoffset, int32(textarg), &q) // emit split check
 	}
 
 	if autoffset != 0 {
@@ -871,7 +867,7 @@ func load_g_cx(ctxt *obj.Link, p *obj.Prog) *obj.Prog {
 // Returns last new instruction.
 // On return, *jmpok is the instruction that should jump
 // to the stack frame allocation if no split is needed.
-func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32, noctxt bool, jmpok **obj.Prog) *obj.Prog {
+func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32, jmpok **obj.Prog) *obj.Prog {
 	cmp := ACMPQ
 	lea := ALEAQ
 	mov := AMOVQ
@@ -997,8 +993,10 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32, noc
 	p.To.Type = obj.TYPE_BRANCH
 	if ctxt.Cursym.Cfunc != 0 {
 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
+	} else if ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
+		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
 	} else {
-		p.To.Sym = ctxt.Symmorestack[obj.Bool2int(noctxt)]
+		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack", 0)
 	}
 
 	p = obj.Appendp(ctxt, p)
