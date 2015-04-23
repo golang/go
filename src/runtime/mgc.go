@@ -485,8 +485,7 @@ func (c *gcControllerState) findRunnable(_p_ *p) *g {
 		// No work to be done right now. This can happen at
 		// the end of the mark phase when there are still
 		// assists tapering off. Don't bother running
-		// background mark because it'll just return and
-		// bgMarkCount might hover above zero.
+		// background mark because it'll just return immediately.
 		return nil
 	}
 
@@ -515,7 +514,7 @@ func (c *gcControllerState) findRunnable(_p_ *p) *g {
 		// slice, would it be under the utilization goal?
 		//
 		// TODO(austin): We could fast path this and basically
-		// eliminate contention on c.bgMarkCount by
+		// eliminate contention on c.fractionalMarkWorkersNeeded by
 		// precomputing the minimum time at which it's worth
 		// next scheduling the fractional worker. Then Ps
 		// don't have to fight in the window where we've
