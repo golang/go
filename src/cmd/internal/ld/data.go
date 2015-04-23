@@ -412,7 +412,13 @@ func relocsym(s *LSym) {
 				break
 			}
 
-			o = int64(Ctxt.Tlsoffset) + r.Add
+			if Iself || Ctxt.Headtype == obj.Hplan9 {
+				o = int64(Ctxt.Tlsoffset) + r.Add
+			} else if Ctxt.Headtype == obj.Hwindows {
+				o = r.Add
+			} else {
+				log.Fatalf("unexpected R_TLS_LE relocation for %s", Headstr(Ctxt.Headtype))
+			}
 
 		case obj.R_TLS_IE:
 			if Linkmode == LinkExternal && Iself && HEADTYPE != obj.Hopenbsd {
@@ -426,14 +432,7 @@ func relocsym(s *LSym) {
 				}
 				break
 			}
-
-			if Iself || Ctxt.Headtype == obj.Hplan9 {
-				o = int64(Ctxt.Tlsoffset) + r.Add
-			} else if Ctxt.Headtype == obj.Hwindows {
-				o = r.Add
-			} else {
-				log.Fatalf("unexpected R_TLS_IE relocation for %s", Headstr(Ctxt.Headtype))
-			}
+			log.Fatalf("cannot handle R_TLS_IE when linking internally")
 
 		case obj.R_ADDR:
 			if Linkmode == LinkExternal && r.Sym.Type != obj.SCONST {
