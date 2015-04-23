@@ -862,6 +862,7 @@ var buildorder = []string{
 	"container/heap",
 	"encoding/base64",
 	"syscall",
+	"internal/syscall/windows/registry",
 	"time",
 	"internal/syscall/windows",
 	"os",
