@@ -481,13 +481,6 @@ func (c *gcControllerState) findRunnable(_p_ *p) *g {
 		// immediately with no work to do.)
 		return nil
 	}
-	if work.full == 0 && work.partial == 0 {
-		// No work to be done right now. This can happen at
-		// the end of the mark phase when there are still
-		// assists tapering off. Don't bother running
-		// background mark because it'll just return immediately.
-		return nil
-	}
 
 	decIfPositive := func(ptr *int64) bool {
 		if *ptr > 0 {
@@ -507,7 +500,20 @@ func (c *gcControllerState) findRunnable(_p_ *p) *g {
 		// TODO(austin): This P isn't going to run anything
 		// else for a while, so kick everything out of its run
 		// queue.
-	} else if decIfPositive(&c.fractionalMarkWorkersNeeded) {
+	} else {
+		if work.full == 0 && work.partial == 0 {
+			// No work to be done right now. This can
+			// happen at the end of the mark phase when
+			// there are still assists tapering off. Don't
+			// bother running background mark because
+			// it'll just return immediately.
+			return nil
+		}
+		if !decIfPositive(&c.fractionalMarkWorkersNeeded) {
+			// No more workers are need right now.
+			return nil
+		}
+
 		// This P has picked the token for the fractional
 		// worker. If this P were to run the worker for the
 		// next time slice, then at the end of that time
@@ -533,9 +539,6 @@ func (c *gcControllerState) findRunnable(_p_ *p) *g {
 			return nil
 		}
 		_p_.gcMarkWorkerMode = gcMarkWorkerFractionalMode
-	} else {
-		// All workers that need to be running are running
-		return nil
 	}
 
 	// Run the background mark worker
