@@ -162,7 +162,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	//	shld hi:lo, c
 	//	shld lo:t, c
 	case gc.OLROT:
-		v := uint64(gc.Mpgetfix(r.Val.U.Xval))
+		v := uint64(r.Int())
 
 		if v >= 32 {
 			// reverse during load to do the first 32 bits of rotate
@@ -189,7 +189,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 	case gc.OLSH:
 		if r.Op == gc.OLITERAL {
-			v := uint64(gc.Mpgetfix(r.Val.U.Xval))
+			v := uint64(r.Int())
 			if v >= 64 {
 				if gc.Is64(r.Type) {
 					splitclean()
@@ -278,7 +278,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 	case gc.ORSH:
 		if r.Op == gc.OLITERAL {
-			v := uint64(gc.Mpgetfix(r.Val.U.Xval))
+			v := uint64(r.Int())
 			if v >= 64 {
 				if gc.Is64(r.Type) {
 					splitclean()
@@ -400,9 +400,8 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 		if lo2.Op == gc.OLITERAL {
 			// special cases for constants.
-			lv := uint32(gc.Mpgetfix(lo2.Val.U.Xval))
-
-			hv := uint32(gc.Mpgetfix(hi2.Val.U.Xval))
+			lv := uint32(lo2.Int())
+			hv := uint32(hi2.Int())
 			splitclean() // right side
 			split64(res, &lo2, &hi2)
 			switch n.Op {

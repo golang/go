@@ -53,7 +53,7 @@ func ncon(i uint32) *gc.Node {
 	if ncon_n.Type == nil {
 		gc.Nodconst(&ncon_n, gc.Types[gc.TUINT32], 0)
 	}
-	gc.Mpmovecfix(ncon_n.Val.U.Xval, int64(i))
+	ncon_n.SetInt(int64(i))
 	return &ncon_n
 }
 
@@ -112,7 +112,7 @@ func split64(n *gc.Node, lo *gc.Node, hi *gc.Node) {
 	case gc.OLITERAL:
 		var n1 gc.Node
 		gc.Convconst(&n1, n.Type, &n.Val)
-		i := gc.Mpgetfix(n1.Val.U.Xval)
+		i := n1.Int()
 		gc.Nodconst(lo, gc.Types[gc.TUINT32], int64(uint32(i)))
 		i >>= 32
 		if n.Type.Etype == gc.TINT64 {
@@ -1118,7 +1118,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
 		if !gc.Isconst(n, gc.CTINT) {
 			break
 		}
-		v := gc.Mpgetfix(n.Val.U.Xval)
+		v := n.Int()
 		if v >= 32000 || v <= -32000 {
 			break
 		}

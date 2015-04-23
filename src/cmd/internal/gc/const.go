@@ -5,9 +5,37 @@
 package gc
 
 import (
+	"cmd/internal/gc/big"
 	"cmd/internal/obj"
 	"strings"
 )
+
+// Int returns n as an int.
+// n must be an integer constant.
+func (n *Node) Int() int64 {
+	if !Isconst(n, CTINT) {
+		Fatal("Int(%v)", n)
+	}
+	return Mpgetfix(n.Val.U.Xval)
+}
+
+// SetInt sets n's value to i.
+// n must be an integer constant.
+func (n *Node) SetInt(i int64) {
+	if !Isconst(n, CTINT) {
+		Fatal("SetInt(%v)", n)
+	}
+	Mpmovecfix(n.Val.U.Xval, i)
+}
+
+// SetBigInt sets n's value to x.
+// n must be an integer constant.
+func (n *Node) SetBigInt(x *big.Int) {
+	if !Isconst(n, CTINT) {
+		Fatal("SetBigInt(%v)", n)
+	}
+	n.Val.U.Xval.Val.Set(x)
+}
 
 /*
  * truncate float literal fv to 32-bit or 64-bit precision

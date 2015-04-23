@@ -216,9 +216,9 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node, ax *gc.Node, dx *gc.N
 	check := 0
 	if gc.Issigned[t.Etype] {
 		check = 1
-		if gc.Isconst(nl, gc.CTINT) && gc.Mpgetfix(nl.Val.U.Xval) != -1<<uint64(t.Width*8-1) {
+		if gc.Isconst(nl, gc.CTINT) && nl.Int() != -1<<uint64(t.Width*8-1) {
 			check = 0
-		} else if gc.Isconst(nr, gc.CTINT) && gc.Mpgetfix(nr.Val.U.Xval) != -1 {
+		} else if gc.Isconst(nr, gc.CTINT) && nr.Int() != -1 {
 			check = 0
 		}
 	}
@@ -391,7 +391,7 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		var n1 gc.Node
 		gc.Regalloc(&n1, nl.Type, res)
 		gmove(&n2, &n1)
-		sc := uint64(gc.Mpgetfix(nr.Val.U.Xval))
+		sc := uint64(nr.Int())
 		if sc >= uint64(nl.Type.Width*8) {
 			// large shift gets 2 shifts by width-1
 			gins(a, ncon(uint32(w)-1), &n1)

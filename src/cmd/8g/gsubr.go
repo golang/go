@@ -32,6 +32,7 @@ package main
 
 import (
 	"cmd/internal/gc"
+	"cmd/internal/gc/big"
 	"cmd/internal/obj"
 	"cmd/internal/obj/x86"
 	"fmt"
@@ -641,7 +642,7 @@ func ncon(i uint32) *gc.Node {
 	if ncon_n.Type == nil {
 		gc.Nodconst(&ncon_n, gc.Types[gc.TUINT32], 0)
 	}
-	gc.Mpmovecfix(ncon_n.Val.U.Xval, int64(i))
+	ncon_n.SetInt(int64(i))
 	return &ncon_n
 }
 
@@ -700,7 +701,7 @@ func split64(n *gc.Node, lo *gc.Node, hi *gc.Node) {
 	case gc.OLITERAL:
 		var n1 gc.Node
 		gc.Convconst(&n1, n.Type, &n.Val)
-		i := gc.Mpgetfix(n1.Val.U.Xval)
+		i := n1.Int()
 		gc.Nodconst(lo, gc.Types[gc.TUINT32], int64(uint32(i)))
 		i >>= 32
 		if n.Type.Etype == gc.TINT64 {
@@ -721,36 +722,36 @@ func splitclean() {
 	}
 }
 
-/*
- * set up nodes representing fp constants
- */
-var zerof gc.Node
-
-var two64f gc.Node
-
-var two63f gc.Node
-
-var bignodes_did int
+// set up nodes representing fp constants
+var (
+	zerof        gc.Node
+	two63f       gc.Node
+	two64f       gc.Node
+	bignodes_did bool
+)
 
 func bignodes() {
-	if bignodes_did != 0 {
+	if bignodes_did {
 		return
 	}
-	bignodes_did = 1
+	bignodes_did = true
 
-	two64f = *ncon(0)
-	two64f.Type = gc.Types[gc.TFLOAT64]
-	two64f.Val.Ctype = gc.CTFLT
-	two64f.Val.U.Fval = new(gc.Mpflt)
-	gc.Mpmovecflt(two64f.Val.U.Fval, 18446744073709551616.)
+	gc.Nodconst(&zerof, gc.Types[gc.TINT64], 0)
+	gc.Convconst(&zerof, gc.Types[gc.TFLOAT64], &zerof.Val)
 
-	two63f = two64f
-	two63f.Val.U.Fval = new(gc.Mpflt)
-	gc.Mpmovecflt(two63f.Val.U.Fval, 9223372036854775808.)
+	var i big.Int
+	i.SetInt64(1)
+	i.Lsh(&i, 63)
+	var bigi gc.Node
 
-	zerof = two64f
-	zerof.Val.U.Fval = new(gc.Mpflt)
-	gc.Mpmovecflt(zerof.Val.U.Fval, 0)
+	gc.Nodconst(&bigi, gc.Types[gc.TUINT64], 0)
+	bigi.SetBigInt(&i)
+	gc.Convconst(&two63f, gc.Types[gc.TFLOAT64], &bigi.Val)
+
+	gc.Nodconst(&bigi, gc.Types[gc.TUINT64], 0)
+	i.Lsh(&i, 1)
+	bigi.SetBigInt(&i)
+	gc.Convconst(&two64f, gc.Types[gc.TFLOAT64], &bigi.Val)
 }
 
 func memname(n *gc.Node, t *gc.Type) {
