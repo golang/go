@@ -168,7 +168,7 @@ var goopnames = []string{
 
 // Fmt "%O":  Node opcodes
 func Oconv(o int, flag int) string {
-	if (flag&obj.FmtSharp != 0 /*untyped*/) || fmtmode != FDbg {
+	if (flag&obj.FmtSharp != 0) || fmtmode != FDbg {
 		if o >= 0 && o < len(goopnames) && goopnames[o] != "" {
 			return goopnames[o]
 		}
@@ -301,7 +301,7 @@ func Jconv(n *Node, flag int) string {
 func Vconv(v *Val, flag int) string {
 	switch v.Ctype {
 	case CTINT:
-		if (flag&obj.FmtSharp != 0 /*untyped*/) || fmtmode == FExp {
+		if (flag&obj.FmtSharp != 0) || fmtmode == FExp {
 			return Bconv(v.U.Xval, obj.FmtSharp)
 		}
 		return Bconv(v.U.Xval, 0)
@@ -320,13 +320,13 @@ func Vconv(v *Val, flag int) string {
 		return fmt.Sprintf("('\\x00' + %v)", v.U.Xval)
 
 	case CTFLT:
-		if (flag&obj.FmtSharp != 0 /*untyped*/) || fmtmode == FExp {
+		if (flag&obj.FmtSharp != 0) || fmtmode == FExp {
 			return Fconv(v.U.Fval, 0)
 		}
 		return Fconv(v.U.Fval, obj.FmtSharp)
 
 	case CTCPLX:
-		if (flag&obj.FmtSharp != 0 /*untyped*/) || fmtmode == FExp {
+		if (flag&obj.FmtSharp != 0) || fmtmode == FExp {
 			return fmt.Sprintf("(%v+%vi)", &v.U.Cval.Real, &v.U.Cval.Imag)
 		}
 		if mpcmpfltc(&v.U.Cval.Real, 0) == 0 {
@@ -406,7 +406,7 @@ func Econv(et int, flag int) string {
 
 // Fmt "%S": syms
 func symfmt(s *Sym, flag int) string {
-	if s.Pkg != nil && flag&obj.FmtShort == 0 /*untyped*/ {
+	if s.Pkg != nil && flag&obj.FmtShort == 0 {
 		switch fmtmode {
 		case FErr: // This is for the user
 			if s.Pkg == localpkg {
@@ -438,7 +438,7 @@ func symfmt(s *Sym, flag int) string {
 		}
 	}
 
-	if flag&obj.FmtByte != 0 /*untyped*/ {
+	if flag&obj.FmtByte != 0 {
 		// FmtByte (hh) implies FmtShort (h)
 		// skip leading "type." in method name
 		p := s.Name
@@ -499,17 +499,17 @@ func typefmt(t *Type, flag int) string {
 	}
 
 	// Unless the 'l' flag was specified, if the type has a name, just print that name.
-	if flag&obj.FmtLong == 0 /*untyped*/ && t.Sym != nil && t.Etype != TFIELD && t != Types[t.Etype] {
+	if flag&obj.FmtLong == 0 && t.Sym != nil && t.Etype != TFIELD && t != Types[t.Etype] {
 		switch fmtmode {
 		case FTypeId:
-			if flag&obj.FmtShort != 0 /*untyped*/ {
+			if flag&obj.FmtShort != 0 {
 				if t.Vargen != 0 {
 					return fmt.Sprintf("%v·%d", Sconv(t.Sym, obj.FmtShort), t.Vargen)
 				}
 				return Sconv(t.Sym, obj.FmtShort)
 			}
 
-			if flag&obj.FmtUnsigned != 0 /*untyped*/ {
+			if flag&obj.FmtUnsigned != 0 {
 				return Sconv(t.Sym, obj.FmtUnsigned)
 			}
 			fallthrough
@@ -541,7 +541,7 @@ func typefmt(t *Type, flag int) string {
 
 	switch t.Etype {
 	case TPTR32, TPTR64:
-		if fmtmode == FTypeId && (flag&obj.FmtShort != 0 /*untyped*/) {
+		if fmtmode == FTypeId && (flag&obj.FmtShort != 0) {
 			return fmt.Sprintf("*%v", Tconv(t.Type, obj.FmtShort))
 		}
 		return fmt.Sprintf("*%v", t.Type)
@@ -681,7 +681,7 @@ func typefmt(t *Type, flag int) string {
 
 	case TFIELD:
 		var name string
-		if flag&obj.FmtShort == 0 /*untyped*/ {
+		if flag&obj.FmtShort == 0 {
 			s := t.Sym
 
 			// Take the name from the original, lest we substituted it with ~r%d or ~b%d.
@@ -1462,7 +1462,7 @@ func nodefmt(n *Node, flag int) string {
 		n = n.Orig
 	}
 
-	if flag&obj.FmtLong != 0 /*untyped*/ && t != nil {
+	if flag&obj.FmtLong != 0 && t != nil {
 		if t.Etype == TNIL {
 			return "nil"
 		} else {
@@ -1493,7 +1493,7 @@ func nodedump(n *Node, flag int) string {
 		return ""
 	}
 
-	recur := flag&obj.FmtShort == 0 /*untyped*/
+	recur := flag&obj.FmtShort == 0
 
 	var buf bytes.Buffer
 	if recur {
@@ -1597,7 +1597,7 @@ func (s *Sym) String() string {
 // Fmt "%S": syms
 // Flags:  "%hS" suppresses qualifying with package
 func Sconv(s *Sym, flag int) string {
-	if flag&obj.FmtLong != 0 /*untyped*/ {
+	if flag&obj.FmtLong != 0 {
 		panic("linksymfmt")
 	}
 
@@ -1714,7 +1714,7 @@ func Hconv(l *NodeList, flag int) string {
 	sep := "; "
 	if fmtmode == FDbg {
 		sep = "\n"
-	} else if flag&obj.FmtComma != 0 /*untyped*/ {
+	} else if flag&obj.FmtComma != 0 {
 		sep = ", "
 	}
 
