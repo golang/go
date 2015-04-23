@@ -263,10 +263,6 @@ type gcControllerState struct {
 	// that the background mark phase started.
 	bgMarkStartTime int64
 
-	// initialHeapLive is the value of memstats.heap_live at the
-	// beginning of this cycle.
-	initialHeapLive uint64
-
 	// heapGoal is the goal memstats.heap_live for when this cycle
 	// ends. This is computed at the beginning of each cycle.
 	heapGoal uint64
@@ -322,7 +318,6 @@ func (c *gcControllerState) startCycle() {
 	c.dedicatedMarkTime = 0
 	c.fractionalMarkTime = 0
 	c.idleMarkTime = 0
-	c.initialHeapLive = memstats.heap_live
 
 	// If this is the first GC cycle or we're operating on a very
 	// small heap, fake heap_marked so it looks like next_gc is
@@ -387,7 +382,7 @@ func (c *gcControllerState) revise() {
 	// Compute the mutator assist ratio so by the time the mutator
 	// allocates the remaining heap bytes up to next_gc, it will
 	// have done (or stolen) the estimated amount of scan work.
-	heapDistance := int64(c.heapGoal) - int64(c.initialHeapLive)
+	heapDistance := int64(c.heapGoal) - int64(work.initialHeapLive)
 	if heapDistance <= 1024*1024 {
 		// heapDistance can be negative if GC start is delayed
 		// or if the allocation that pushed heap_live over
@@ -603,6 +598,10 @@ var work struct {
 	// be the exact number of marked bytes, but it should be very
 	// close.
 	bytesMarked uint64
+
+	// initialHeapLive is the value of memstats.heap_live at the
+	// beginning of this GC cycle.
+	initialHeapLive uint64
 }
 
 // GC runs a garbage collection.
@@ -730,6 +729,7 @@ func gc(mode int) {
 	clearpools()
 
 	work.bytesMarked = 0
+	work.initialHeapLive = memstats.heap_live
 
 	if mode == gcBackgroundMode { // Do as much work concurrently as possible
 		gcController.startCycle()
@@ -1124,18 +1124,33 @@ func gcMark(start_time int64) {
 	// was allocated after marking began (which we don't know, but
 	// is approximately the amount of heap that was allocated
 	// since marking began).
-	memstats.heap_reachable = work.bytesMarked - (memstats.heap_live - gcController.initialHeapLive)
+	allocatedDuringCycle := memstats.heap_live - work.initialHeapLive
+	if work.bytesMarked >= allocatedDuringCycle {
+		memstats.heap_reachable = work.bytesMarked - allocatedDuringCycle
+	} else {
+		// This can happen if most of the allocation during
+		// the cycle never became reachable from the heap.
+		// Just set the reachable heap appropriation to 0 and
+		// let the heapminimum kick in below.
+		memstats.heap_reachable = 0
+	}
 
 	// Trigger the next GC cycle when the allocated heap has grown
 	// by triggerRatio over the reachable heap size. Assume that
 	// we're in steady state, so the reachable heap size is the
 	// same now as it was at the beginning of the GC cycle.
-	memstats.heap_live = work.bytesMarked
-	memstats.heap_marked = work.bytesMarked
 	memstats.next_gc = uint64(float64(memstats.heap_reachable) * (1 + gcController.triggerRatio))
 	if memstats.next_gc < heapminimum {
 		memstats.next_gc = heapminimum
 	}
+	if int64(memstats.next_gc) < 0 {
+		print("next_gc=", memstats.next_gc, " bytesMarked=", work.bytesMarked, " heap_live=", memstats.heap_live, " initialHeapLive=", work.initialHeapLive, "\n")
+		throw("next_gc underflow")
+	}
+
+	// Update other GC heap size stats.
+	memstats.heap_live = work.bytesMarked
+	memstats.heap_marked = work.bytesMarked
 
 	if trace.enabled {
 		traceHeapAlloc()
