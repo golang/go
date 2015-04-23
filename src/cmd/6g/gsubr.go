@@ -32,6 +32,7 @@ package main
 
 import (
 	"cmd/internal/gc"
+	"cmd/internal/gc/big"
 	"cmd/internal/obj"
 	"cmd/internal/obj/x86"
 	"fmt"
@@ -139,29 +140,27 @@ func ginsboolval(a int, n *gc.Node) {
 	gins(jmptoset(a), nil, n)
 }
 
-/*
- * set up nodes representing 2^63
- */
-var bigi gc.Node
-
-var bigf gc.Node
-
-var bignodes_did int
+// set up nodes representing 2^63
+var (
+	bigi         gc.Node
+	bigf         gc.Node
+	bignodes_did bool
+)
 
 func bignodes() {
-	if bignodes_did != 0 {
+	if bignodes_did {
 		return
 	}
-	bignodes_did = 1
+	bignodes_did = true
 
-	gc.Nodconst(&bigi, gc.Types[gc.TUINT64], 1)
-	gc.Mpshiftfix(bigi.Val.U.Xval, 63)
+	var i big.Int
+	i.SetInt64(1)
+	i.Lsh(&i, 63)
 
-	bigf = bigi
-	bigf.Type = gc.Types[gc.TFLOAT64]
-	bigf.Val.Ctype = gc.CTFLT
-	bigf.Val.U.Fval = new(gc.Mpflt)
-	gc.Mpmovefixflt(bigf.Val.U.Fval, bigi.Val.U.Xval)
+	gc.Nodconst(&bigi, gc.Types[gc.TUINT64], 0)
+	bigi.SetBigInt(&i)
+
+	gc.Convconst(&bigf, gc.Types[gc.TFLOAT64], &bigi.Val)
 }
 
 /*
@@ -206,10 +205,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 			// 64-bit immediates are really 32-bit sign-extended
 			// unless moving into a register.
 			if gc.Isint[tt] {
-				if gc.Mpcmpfixfix(con.Val.U.Xval, gc.Minintval[gc.TINT32]) < 0 {
-					goto hard
-				}
-				if gc.Mpcmpfixfix(con.Val.U.Xval, gc.Maxintval[gc.TINT32]) > 0 {
+				if i := con.Int(); int64(int32(i)) != i {
 					goto hard
 				}
 			}
@@ -1273,7 +1269,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
 		if !gc.Isconst(n, gc.CTINT) {
 			break
 		}
-		v := gc.Mpgetfix(n.Val.U.Xval)
+		v := n.Int()
 		if v >= 32000 || v <= -32000 {
 			break
 		}

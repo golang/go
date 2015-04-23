@@ -32,6 +32,7 @@ package main
 
 import (
 	"cmd/internal/gc"
+	"cmd/internal/gc/big"
 	"cmd/internal/obj"
 	"cmd/internal/obj/ppc64"
 	"fmt"
@@ -129,7 +130,7 @@ func ginscmp(op int, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
 	gc.Cgen(n1, &g1)
 	gmove(&g1, &r1)
 	if gc.Isint[t.Etype] && gc.Isconst(n2, gc.CTINT) {
-		ginscon2(optoas(gc.OCMP, t), &r1, gc.Mpgetfix(n2.Val.U.Xval))
+		ginscon2(optoas(gc.OCMP, t), &r1, n2.Int())
 	} else {
 		gc.Regalloc(&r2, t, n2)
 		gc.Regalloc(&g2, n1.Type, &r2)
@@ -144,29 +145,27 @@ func ginscmp(op int, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
 	return gc.Gbranch(optoas(op, t), nil, likely)
 }
 
-/*
- * set up nodes representing 2^63
- */
-var bigi gc.Node
-
-var bigf gc.Node
-
-var bignodes_did int
+// set up nodes representing 2^63
+var (
+	bigi         gc.Node
+	bigf         gc.Node
+	bignodes_did bool
+)
 
 func bignodes() {
-	if bignodes_did != 0 {
+	if bignodes_did {
 		return
 	}
-	bignodes_did = 1
+	bignodes_did = true
 
-	gc.Nodconst(&bigi, gc.Types[gc.TUINT64], 1)
-	gc.Mpshiftfix(bigi.Val.U.Xval, 63)
+	var i big.Int
+	i.SetInt64(1)
+	i.Lsh(&i, 63)
 
-	bigf = bigi
-	bigf.Type = gc.Types[gc.TFLOAT64]
-	bigf.Val.Ctype = gc.CTFLT
-	bigf.Val.U.Fval = new(gc.Mpflt)
-	gc.Mpmovefixflt(bigf.Val.U.Fval, bigi.Val.U.Xval)
+	gc.Nodconst(&bigi, gc.Types[gc.TUINT64], 0)
+	bigi.SetBigInt(&i)
+
+	gc.Convconst(&bigf, gc.Types[gc.TFLOAT64], &bigi.Val)
 }
 
 /*
@@ -552,7 +551,7 @@ func intLiteral(n *gc.Node) (x int64, ok bool) {
 	}
 	switch n.Val.Ctype {
 	case gc.CTINT, gc.CTRUNE:
-		return gc.Mpgetfix(n.Val.U.Xval), true
+		return n.Int(), true
 	case gc.CTBOOL:
 		return int64(obj.Bool2int(n.Val.U.Bval)), true
 	}

@@ -115,7 +115,7 @@ func ginscmp(op int, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
 	gc.Cgen(n1, &g1)
 	gmove(&g1, &r1)
 	if gc.Isint[t.Etype] && gc.Isconst(n2, gc.CTINT) {
-		ginscon2(optoas(gc.OCMP, t), &r1, gc.Mpgetfix(n2.Val.U.Xval))
+		ginscon2(optoas(gc.OCMP, t), &r1, n2.Int())
 	} else {
 		gc.Regalloc(&r2, t, n2)
 		gc.Regalloc(&g2, n1.Type, &r2)
@@ -473,7 +473,7 @@ func intLiteral(n *gc.Node) (x int64, ok bool) {
 	}
 	switch n.Val.Ctype {
 	case gc.CTINT, gc.CTRUNE:
-		return gc.Mpgetfix(n.Val.U.Xval), true
+		return n.Int(), true
 	case gc.CTBOOL:
 		return int64(obj.Bool2int(n.Val.U.Bval)), true
 	}
