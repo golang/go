@@ -400,7 +400,6 @@ func inlnode(np **Node) {
 		}
 		fallthrough
 
-		// fallthrough
 	default:
 		for l := n.List; l != nil; l = l.Next {
 			if l.N.Op == OINLCALL {
@@ -421,7 +420,6 @@ func inlnode(np **Node) {
 		}
 		fallthrough
 
-		// fallthrough
 	default:
 		for l := n.Rlist; l != nil; l = l.Next {
 			if l.N.Op == OINLCALL {

@@ -68,8 +68,6 @@ func addrescapes(n *Node) {
 			n.Stackparam.Xoffset = n.Xoffset
 			fallthrough
 
-			// fallthrough
-
 		case PAUTO:
 			n.Class |= PHEAP
 

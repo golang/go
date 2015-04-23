@@ -1271,7 +1271,6 @@ func walkexpr(np **Node, init **NodeList) {
 		}
 		fallthrough
 
-		// fallthrough
 	case OSLICEARR, OSLICESTR:
 		if n.Right == nil { // already processed
 			goto ret

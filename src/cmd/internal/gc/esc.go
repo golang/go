@@ -729,7 +729,6 @@ func esc(e *EscState, n *Node, up *Node) {
 		}
 		fallthrough
 
-		// fallthrough
 	case OMAKECHAN,
 		OMAKEMAP,
 		OMAKESLICE,
@@ -903,7 +902,6 @@ func escassign(e *EscState, dst *Node, src *Node) {
 		fallthrough
 
 		// Conversions, field access, slice all preserve the input value.
-	// fallthrough
 	case OCONV,
 		OCONVNOP,
 		ODOTMETH,
