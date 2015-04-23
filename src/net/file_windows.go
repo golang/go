@@ -23,3 +23,13 @@ func filePacketConn(f *os.File) (PacketConn, error) {
 	// TODO: Implement this
 	return nil, syscall.EWINDOWS
 }
+
+func socketConn(f *os.File, sa SocketAddr) (Conn, error) {
+	// TODO: Implement this
+	return nil, syscall.EWINDOWS
+}
+
+func socketPacketConn(f *os.File, sa SocketAddr) (PacketConn, error) {
+	// TODO: Implement this
+	return nil, syscall.EWINDOWS
+}
