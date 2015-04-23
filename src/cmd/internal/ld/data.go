@@ -372,6 +372,14 @@ func relocsym(s *LSym) {
 			}
 
 		case obj.R_TLS:
+			if Linkmode == LinkExternal && Iself && HEADTYPE != obj.Hopenbsd {
+				r.Done = 0
+				r.Sym = Ctxt.Tlsg
+				r.Xsym = Ctxt.Tlsg
+				r.Xadd = r.Add
+				o = r.Add
+				break
+			}
 			if Linkmode == LinkInternal && Iself && Thearch.Thechar == '5' {
 				// On ELF ARM, the thread pointer is 8 bytes before
 				// the start of the thread-local data block, so add 8
