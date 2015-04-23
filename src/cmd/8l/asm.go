@@ -269,8 +269,7 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
 			return -1
 		}
 
-	case obj.R_TLS_LE,
-		obj.R_TLS_IE:
+	case obj.R_TLS_LE:
 		if r.Siz == 4 {
 			ld.Thearch.Lput(ld.R_386_TLS_LE | uint32(elfsym)<<8)
 		} else {

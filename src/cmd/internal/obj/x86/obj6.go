@@ -38,7 +38,7 @@ import (
 	"math"
 )
 
-func canuselocaltls(ctxt *obj.Link) bool {
+func canuse1insntls(ctxt *obj.Link) bool {
 	if ctxt.Arch.Regsize == 4 {
 		switch ctxt.Headtype {
 		case obj.Hlinux,
@@ -92,29 +92,36 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 	// if the linker needs to adjust the offset, it can. For example:
 	//
 	//         MOVQ TLS, AX
-	//         MOVQ 8(AX)(TLS*1), CX // load m into CX
+	//         MOVQ 0(AX)(TLS*1), CX // load g into CX
 	//
 	// On systems that support direct access to the TLS memory, this
 	// pair of instructions can be reduced to a direct TLS memory reference:
 	//
-	//         MOVQ 8(TLS), CX // load m into CX
+	//         MOVQ 0(TLS), CX // load g into CX
 	//
-	// The 2-instruction and 1-instruction forms correspond roughly to
-	// ELF TLS initial exec mode and ELF TLS local exec mode, respectively.
+	// The 2-instruction and 1-instruction forms correspond to the two code
+	// sequences for loading a TLS variable in the local exec model given in "ELF
+	// Handling For Thread-Local Storage".
 	//
-	// We applies this rewrite on systems that support the 1-instruction form.
-	// The decision is made using only the operating system (and probably
-	// the -shared flag, eventually), not the link mode. If some link modes
-	// on a particular operating system require the 2-instruction form,
-	// then all builds for that operating system will use the 2-instruction
-	// form, so that the link mode decision can be delayed to link time.
+	// We apply this rewrite on systems that support the 1-instruction form.
+	// The decision is made using only the operating system and the -shared flag,
+	// not the link mode. If some link modes on a particular operating system
+	// require the 2-instruction form, then all builds for that operating system
+	// will use the 2-instruction form, so that the link mode decision can be
+	// delayed to link time.
 	//
 	// In this way, all supported systems use identical instructions to
 	// access TLS, and they are rewritten appropriately first here in
 	// liblink and then finally using relocations in the linker.
+	//
+	// When -shared is passed, we leave the code in the 2-instruction form but
+	// assemble (and relocate) them in different ways to generate the initial
+	// exec code sequence. It's a bit of a fluke that this is possible without
+	// rewriting the instructions more comprehensively, and it only does because
+	// we only support a single TLS variable (g).
 
-	if canuselocaltls(ctxt) {
-		// Reduce TLS initial exec model to TLS local exec model.
+	if canuse1insntls(ctxt) {
+		// Reduce 2-instruction sequence to 1-instruction sequence.
 		// Sequences like
 		//	MOVQ TLS, BX
 		//	... off(BX)(TLS*1) ...
@@ -140,13 +147,12 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			p.To.Index = REG_NONE
 		}
 	} else {
-		// As a courtesy to the C compilers, rewrite TLS local exec load as TLS initial exec load.
-		// The instruction
-		//	MOVQ off(TLS), BX
-		// becomes the sequence
+		// load_g_cx, below, always inserts the 1-instruction sequence. Rewrite it
+		// as the 2-instruction sequence if necessary.
+		//	MOVQ 0(TLS), BX
+		// becomes
 		//	MOVQ TLS, BX
-		//	MOVQ off(BX)(TLS*1), BX
-		// This allows the C compilers to emit references to m and g using the direct off(TLS) form.
+		//	MOVQ 0(BX)(TLS*1), BX
 		if (p.As == AMOVQ || p.As == AMOVL) && p.From.Type == obj.TYPE_MEM && p.From.Reg == REG_TLS && p.To.Type == obj.TYPE_REG && REG_AX <= p.To.Reg && p.To.Reg <= REG_R15 {
 			q := obj.Appendp(ctxt, p)
 			q.As = p.As
