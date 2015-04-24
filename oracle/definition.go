@@ -46,7 +46,9 @@ func definition(q *Query) error {
 
 	obj := qpos.info.ObjectOf(id)
 	if obj == nil {
-		// Happens for y in "switch y := x.(type)", but I think that's all.
+		// Happens for y in "switch y := x.(type)",
+		// and the package declaration,
+		// but I think that's all.
 		return fmt.Errorf("no object for identifier")
 	}
 

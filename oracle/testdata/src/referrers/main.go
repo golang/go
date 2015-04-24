@@ -1,4 +1,4 @@
-package main
+package main // @referrers package-decl "main"
 
 // Tests of 'referrers' query.
 // See go.tools/oracle/oracle_test.go for explanation.
@@ -6,9 +6,11 @@ package main
 
 import "lib"
 
-type s struct { // @referrers ref-type " s "
+type s struct { // @referrers type " s "
 	f int
 }
+
+type T int
 
 func main() {
 	var v lib.Type = lib.Const // @referrers ref-package "lib"

@@ -18,9 +18,6 @@ import (
 	"golang.org/x/tools/refactor/importgraph"
 )
 
-// TODO(adonovan): use golang.org/x/tools/refactor/importgraph to choose
-// the scope automatically.
-
 // Referrers reports all identifiers that resolve to the same object
 // as the queried identifier, within any package in the analysis scope.
 func referrers(q *Query) error {
@@ -57,20 +54,26 @@ func referrers(q *Query) error {
 
 		obj = qpos.info.ObjectOf(id)
 		if obj == nil {
-			// Happens for y in "switch y := x.(type)", but I think that's all.
-			return fmt.Errorf("no object for identifier")
+			// Happens for y in "switch y := x.(type)",
+			// the package declaration,
+			// and unresolved identifiers.
+			if _, ok := qpos.path[1].(*ast.File); ok { // package decl?
+				pkg := qpos.info.Pkg
+				obj = types.NewPkgName(id.Pos(), pkg, pkg.Name(), pkg)
+			} else {
+				return fmt.Errorf("no object for identifier: %T", qpos.path[1])
+			}
+		}
+
+		if pass2 {
+			break
 		}
 
 		// If the identifier is exported, we must load all packages that
 		// depend transitively upon the package that defines it.
-		//
-		// TODO(adonovan): we should do this for PkgName objects
-		// too, even though they're lowercase.
-		//
-		// TODO(adonovan): opt: skip this step if obj.Pkg() is a test or
-		// main package.
-		if pass2 || !obj.Exported() {
-			break
+		// Treat PkgNames as exported, even though they're lowercase.
+		if _, isPkg := obj.(*types.PkgName); !(isPkg || obj.Exported()) {
+			break // not exported
 		}
 
 		// Scan the workspace and build the import graph.
