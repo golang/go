@@ -1598,7 +1598,7 @@ top:
 		}
 	}
 	if gp == nil && gcBlackenEnabled != 0 {
-		gp = gcController.findRunnable(_g_.m.p.ptr())
+		gp = gcController.findRunnableGCWorker(_g_.m.p.ptr())
 		if gp != nil {
 			resetspinning()
 		}
