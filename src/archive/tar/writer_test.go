@@ -489,3 +489,20 @@ func TestValidTypeflagWithPAXHeader(t *testing.T) {
 		}
 	}
 }
+
+func TestWriteAfterClose(t *testing.T) {
+	var buffer bytes.Buffer
+	tw := NewWriter(&buffer)
+
+	hdr := &Header{
+		Name: "small.txt",
+		Size: 5,
+	}
+	if err := tw.WriteHeader(hdr); err != nil {
+		t.Fatalf("Failed to write header: %s", err)
+	}
+	tw.Close()
+	if _, err := tw.Write([]byte("Kilts")); err != ErrWriteAfterClose {
+		t.Fatalf("Write: got %v; want ErrWriteAfterClose", err)
+	}
+}
