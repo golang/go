@@ -40,7 +40,11 @@ function run() {
 			args[$i]=${args[$i]//.\//${androidpath}\/}
 			args[$i]=${args[$i]//=./=${androidpath}}
 		done
-		echo $(adb shell ${args} | tr -d '\r')
+		output=$(adb shell ${args} | tr -d '\r')
+		case $output in
+			*PASS) echo "PASS";; 
+			*) echo "$output";;
+		esac
 		;;
 	*)
 		echo $(env $@)
