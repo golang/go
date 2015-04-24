@@ -258,24 +258,29 @@ func Main() {
 
 	// parse -d argument
 	if debugstr != "" {
-		var j int
-		f := strings.Split(debugstr, ",")
-		for i := range f {
-			if f[i] == "" {
+	Split:
+		for _, name := range strings.Split(debugstr, ",") {
+			if name == "" {
 				continue
 			}
-			for j = 0; j < len(debugtab); j++ {
-				if debugtab[j].name == f[i] {
-					if debugtab[j].val != nil {
-						*debugtab[j].val = 1
+			val := 1
+			if i := strings.Index(name, "="); i >= 0 {
+				var err error
+				val, err = strconv.Atoi(name[i+1:])
+				if err != nil {
+					log.Fatalf("invalid debug value %v", name)
+				}
+				name = name[:i]
+			}
+			for _, t := range debugtab {
+				if t.name == name {
+					if t.val != nil {
+						*t.val = val
+						continue Split
 					}
-					break
 				}
 			}
-
-			if j >= len(debugtab) {
-				log.Fatalf("unknown debug information -d '%s'\n", f[i])
-			}
+			log.Fatalf("unknown debug key -d %s\n", name)
 		}
 	}
 
