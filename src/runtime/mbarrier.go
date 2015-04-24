@@ -76,13 +76,6 @@ func gcmarkwb_m(slot *uintptr, ptr uintptr) {
 	}
 }
 
-// needwb reports whether a write barrier is needed now
-// (otherwise the write can be made directly).
-//go:nosplit
-func needwb() bool {
-	return gcphase == _GCmark || gcphase == _GCmarktermination || mheap_.shadow_enabled
-}
-
 // Write barrier calls must not happen during critical GC and scheduler
 // related operations. In particular there are times when the GC assumes
 // that the world is stopped but scheduler related code is still being
@@ -114,7 +107,7 @@ func writebarrierptr_nostore1(dst *uintptr, src uintptr) {
 // but if we do that, Go inserts a write barrier on *dst = src.
 //go:nosplit
 func writebarrierptr(dst *uintptr, src uintptr) {
-	if !needwb() {
+	if !writeBarrierEnabled {
 		*dst = src
 		return
 	}
@@ -155,7 +148,7 @@ func writebarrierptr_shadow(dst *uintptr, src uintptr) {
 // Do not reapply.
 //go:nosplit
 func writebarrierptr_nostore(dst *uintptr, src uintptr) {
-	if !needwb() {
+	if !writeBarrierEnabled {
 		return
 	}
 
@@ -224,7 +217,7 @@ func writebarrieriface(dst *[2]uintptr, src [2]uintptr) {
 // typedmemmove copies a value of type t to dst from src.
 //go:nosplit
 func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
-	if !needwb() || (typ.kind&kindNoPointers) != 0 {
+	if !writeBarrierEnabled || (typ.kind&kindNoPointers) != 0 {
 		memmove(dst, src, typ.size)
 		return
 	}
@@ -266,7 +259,7 @@ func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 // dst and src point off bytes into the value and only copies size bytes.
 //go:linkname reflect_typedmemmovepartial reflect.typedmemmovepartial
 func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
-	if !needwb() || (typ.kind&kindNoPointers) != 0 || size < ptrSize {
+	if !writeBarrierEnabled || (typ.kind&kindNoPointers) != 0 || size < ptrSize {
 		memmove(dst, src, size)
 		return
 	}
@@ -309,7 +302,7 @@ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size 
 // not to be preempted before the write barriers have been run.
 //go:nosplit
 func callwritebarrier(typ *_type, frame unsafe.Pointer, framesize, retoffset uintptr) {
-	if !needwb() || typ == nil || (typ.kind&kindNoPointers) != 0 || framesize-retoffset < ptrSize {
+	if !writeBarrierEnabled || typ == nil || (typ.kind&kindNoPointers) != 0 || framesize-retoffset < ptrSize {
 		return
 	}
 
@@ -349,7 +342,7 @@ func typedslicecopy(typ *_type, dst, src slice) int {
 		racereadrangepc(srcp, uintptr(n)*typ.size, callerpc, pc)
 	}
 
-	if !needwb() {
+	if !writeBarrierEnabled {
 		memmove(dstp, srcp, uintptr(n)*typ.size)
 		return n
 	}
@@ -465,6 +458,7 @@ func wbshadowinit() {
 	}
 
 	mheap_.shadow_enabled = true
+	writeBarrierEnabled = true
 }
 
 // shadowptr returns a pointer to the shadow value for addr.
