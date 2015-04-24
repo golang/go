@@ -501,7 +501,7 @@ func (c *gcControllerState) findRunnable(_p_ *p) *g {
 		// else for a while, so kick everything out of its run
 		// queue.
 	} else {
-		if work.full == 0 && work.partial == 0 {
+		if _p_.m.ptr().currentwbuf == 0 && work.full == 0 && work.partial == 0 {
 			// No work to be done right now. This can
 			// happen at the end of the mark phase when
 			// there are still assists tapering off. Don't
