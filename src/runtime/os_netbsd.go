@@ -16,6 +16,11 @@ func sigaction(sig int32, new, old *sigactiont)
 func sigaltstack(new, old *sigaltstackt)
 
 //go:noescape
+func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer) {
+	throw("sigfwd not implemented")
+}
+
+//go:noescape
 func sigprocmask(mode int32, new, old *sigset)
 
 //go:noescape
