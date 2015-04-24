@@ -209,7 +209,7 @@ func (enc *Encoder) EncodeToken(t Token) error {
 			return err
 		}
 	case CharData:
-		EscapeText(p, t)
+		escapeText(p, t, false)
 	case Comment:
 		if bytes.Contains(t, endComment) {
 			return fmt.Errorf("xml: EncodeToken of Comment containing --> marker")
