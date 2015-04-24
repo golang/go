@@ -2265,7 +2265,7 @@ func applywritebarrier(n *Node, init **NodeList) *Node {
 				name = fmt.Sprintf("writebarrierfat%d%d%d%d", bvget(applywritebarrier_bv, PtrBit), bvget(applywritebarrier_bv, obj.BitsPerPointer+PtrBit), bvget(applywritebarrier_bv, 2*obj.BitsPerPointer+PtrBit), bvget(applywritebarrier_bv, 3*obj.BitsPerPointer+PtrBit))
 			}
 
-			n = mkcall1(writebarrierfn(name, t, n.Right.Type), nil, init, l, nodnil(), n.Right)
+			n = mkcall1(writebarrierfn(name, t, n.Right.Type), nil, init, l, Nodintconst(0), n.Right)
 		} else {
 			r := n.Right
 			for r.Op == OCONVNOP {
