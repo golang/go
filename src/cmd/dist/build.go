@@ -775,17 +775,6 @@ func shouldbuild(file, dir string) bool {
 		return false
 	}
 
-	// cmd/go/doc.go has a giant /* */ comment before
-	// it gets to the important detail that it is not part of
-	// package main.  We don't parse those comments,
-	// so special case that file.
-	if strings.HasSuffix(file, "cmd/go/doc.go") || strings.HasSuffix(file, "cmd\\go\\doc.go") {
-		return false
-	}
-	if strings.HasSuffix(file, "cmd/cgo/doc.go") || strings.HasSuffix(file, "cmd\\cgo\\doc.go") {
-		return false
-	}
-
 	// Check file contents for // +build lines.
 	for _, p := range splitlines(readfile(file)) {
 		p = strings.TrimSpace(p)
