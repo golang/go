@@ -108,7 +108,8 @@ func chanrecv2(chanType *byte, hchan <-chan any, elem *any) bool
 func chansend1(chanType *byte, hchan chan<- any, elem *any)
 func closechan(hchan any)
 
-// *byte is really *runtime.Type
+var writeBarrierEnabled bool
+
 func writebarrierptr(dst *any, src any)
 func writebarrierstring(dst *any, src any)
 func writebarrierslice(dst *any, src any)
@@ -144,6 +145,7 @@ func writebarrierfat1101(dst *any, _ uintptr, src any)
 func writebarrierfat1110(dst *any, _ uintptr, src any)
 func writebarrierfat1111(dst *any, _ uintptr, src any)
 
+// *byte is really *runtime.Type
 func typedmemmove(typ *byte, dst *any, src *any)
 func typedslicecopy(typ *byte, dst any, src any) int
 
