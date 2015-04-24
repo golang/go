@@ -514,29 +514,11 @@ type lfnode struct {
 	pushcnt uintptr
 }
 
-// Indicates to write barrier and sychronization task to preform.
-const (
-	_GCoff             = iota // GC not running, write barrier disabled
-	_GCquiesce                // unused state
-	_GCstw                    // unused state
-	_GCscan                   // GC collecting roots into workbufs, write barrier disabled
-	_GCmark                   // GC marking from workbufs, write barrier ENABLED
-	_GCmarktermination        // GC mark termination: allocate black, P's help GC, write barrier ENABLED
-	_GCsweep                  // GC mark completed; sweeping in background, write barrier disabled
-)
-
 type forcegcstate struct {
 	lock mutex
 	g    *g
 	idle uint32
 }
-
-var gcphase uint32
-
-// gcBlackenEnabled is 1 if mutator assists and background mark
-// workers are allowed to blacken objects. This must only be set when
-// gcphase == _GCmark.
-var gcBlackenEnabled uint32
 
 /*
  * known to compiler
