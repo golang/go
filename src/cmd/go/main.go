@@ -77,6 +77,7 @@ func (c *Command) Runnable() bool {
 var commands = []*Command{
 	cmdBuild,
 	cmdClean,
+	cmdDoc,
 	cmdEnv,
 	cmdFix,
 	cmdFmt,
