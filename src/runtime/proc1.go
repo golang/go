@@ -3180,6 +3180,9 @@ func globrunqget(_p_ *p, max int32) *g {
 // May run during STW, so write barriers are not allowed.
 //go:nowritebarrier
 func pidleput(_p_ *p) {
+	if !runqempty(_p_) {
+		throw("pidleput: P has non-empty run queue")
+	}
 	_p_.link = sched.pidle
 	sched.pidle.set(_p_)
 	xadd(&sched.npidle, 1) // TODO: fast atomic
