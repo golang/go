@@ -868,6 +868,8 @@ Go searches each directory listed in GOPATH to find source code,
 but new packages are always downloaded into the first directory
 in the list.
 
+See https://golang.org/doc/code.html for an example.
+
 
 Import path syntax
 

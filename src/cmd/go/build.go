@@ -505,7 +505,8 @@ func runInstall(cmd *Command, args []string) {
 			} else if p.ConflictDir != "" {
 				errorf("go install: no install location for %s: hidden by %s", p.Dir, p.ConflictDir)
 			} else {
-				errorf("go install: no install location for directory %s outside GOPATH", p.Dir)
+				errorf("go install: no install location for directory %s outside GOPATH\n"+
+					"\tFor more details see: go help gopath", p.Dir)
 			}
 		}
 	}
