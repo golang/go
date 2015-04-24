@@ -1512,6 +1512,17 @@ func Agen(n *Node, res *Node) {
 		return
 	}
 
+	if n.Op == OINDREG && n.Xoffset == 0 {
+		// Generate MOVW R0, R1 instead of MOVW $0(R0), R1.
+		// This allows better move propagation in the back ends
+		// (and maybe it helps the processor).
+		n1 := *n
+		n1.Op = OREGISTER
+		n1.Type = res.Type
+		Thearch.Gmove(&n1, res)
+		return
+	}
+
 	if n.Addable {
 		if n.Op == OREGISTER {
 			Fatal("agen OREGISTER")
