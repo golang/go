@@ -207,6 +207,7 @@ var handlers = []struct {
 }{
 	{"/", "Default"},
 	{"/someDir/", "someDir"},
+	{"/#/", "hash"},
 	{"someHost.com/someDir/", "someHost.com/someDir"},
 }
 
@@ -215,12 +216,14 @@ var vtests = []struct {
 	expected string
 }{
 	{"http://localhost/someDir/apage", "someDir"},
+	{"http://localhost/%23/apage", "hash"},
 	{"http://localhost/otherDir/apage", "Default"},
 	{"http://someHost.com/someDir/apage", "someHost.com/someDir"},
 	{"http://otherHost.com/someDir/apage", "someDir"},
 	{"http://otherHost.com/aDir/apage", "Default"},
 	// redirections for trees
 	{"http://localhost/someDir", "/someDir/"},
+	{"http://localhost/%23", "/%23/"},
 	{"http://someHost.com/someDir", "/someDir/"},
 }
 

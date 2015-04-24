@@ -1667,7 +1667,8 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
 			// strings.Index can't be -1.
 			path = pattern[strings.Index(pattern, "/"):]
 		}
-		mux.m[pattern[0:n-1]] = muxEntry{h: RedirectHandler(path, StatusMovedPermanently), pattern: pattern}
+		url := &url.URL{Path: path}
+		mux.m[pattern[0:n-1]] = muxEntry{h: RedirectHandler(url.String(), StatusMovedPermanently), pattern: pattern}
 	}
 }
 
