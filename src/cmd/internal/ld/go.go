@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// go-specific code shared across loaders (5l, 6l, 8l).
+
 package ld
 
 import (
@@ -19,12 +21,6 @@ import (
 func expandpkg(t0 string, pkg string) string {
 	return strings.Replace(t0, `"".`, pkg+".", -1)
 }
-
-// Copyright 2009 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
-// go-specific code shared across loaders (5l, 6l, 8l).
 
 // accumulate all type information from .6 files.
 // check for inconsistencies.

@@ -158,16 +158,16 @@ func sleb128enc(v int64, dst []byte) int {
 	return int(length)
 }
 
+var encbuf [10]byte
+
 func uleb128put(v int64) {
-	var buf [10]byte
-	n := uleb128enc(uint64(v), buf[:])
-	Cwrite(buf[:n])
+	n := uleb128enc(uint64(v), encbuf[:])
+	Cwrite(encbuf[:n])
 }
 
 func sleb128put(v int64) {
-	var buf [10]byte
-	n := sleb128enc(v, buf[:])
-	Cwrite(buf[:n])
+	n := sleb128enc(v, encbuf[:])
+	Cwrite(encbuf[:n])
 }
 
 /*
