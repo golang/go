@@ -80,8 +80,7 @@ func readsym(ctxt *Link, f *Biobuf, pkg string, pn string) {
 	}
 	size := int(rdint(f))
 	typ := rdsym(ctxt, f, pkg)
-	var data []byte
-	rddata(f, &data)
+	data := rddata(f)
 	nreloc := int(rdint(f))
 
 	if v != 0 {
@@ -183,14 +182,14 @@ overwrite:
 
 		s.Pcln = new(Pcln)
 		pc := s.Pcln
-		rddata(f, &pc.Pcsp.P)
-		rddata(f, &pc.Pcfile.P)
-		rddata(f, &pc.Pcline.P)
+		pc.Pcsp.P = rddata(f)
+		pc.Pcfile.P = rddata(f)
+		pc.Pcline.P = rddata(f)
 		n = int(rdint(f))
 		pc.Pcdata = make([]Pcdata, n)
 		pc.Npcdata = n
 		for i := 0; i < n; i++ {
-			rddata(f, &pc.Pcdata[i].P)
+			pc.Pcdata[i].P = rddata(f)
 		}
 		n = int(rdint(f))
 		pc.Funcdata = make([]*LSym, n)
@@ -302,10 +301,11 @@ func rdstring(f *Biobuf) string {
 	return string(p)
 }
 
-func rddata(f *Biobuf, pp *[]byte) {
+func rddata(f *Biobuf) []byte {
 	n := rdint(f)
-	*pp = make([]byte, n)
-	Bread(f, *pp)
+	p := make([]byte, n)
+	Bread(f, p)
+	return p
 }
 
 var symbuf []byte
