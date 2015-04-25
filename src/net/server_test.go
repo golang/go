@@ -69,6 +69,11 @@ func TestTCPServer(t *testing.T) {
 
 		var lss []*localServer
 		var tpchs []chan error
+		defer func() {
+			for _, ls := range lss {
+				ls.teardown()
+			}
+		}()
 		for i := 0; i < N; i++ {
 			ls, err := (&streamListener{Listener: ln}).newLocalServer()
 			if err != nil {
@@ -77,11 +82,6 @@ func TestTCPServer(t *testing.T) {
 			lss = append(lss, ls)
 			tpchs = append(tpchs, make(chan error, 1))
 		}
-		defer func() {
-			for _, ls := range lss {
-				ls.teardown()
-			}
-		}()
 		for i := 0; i < N; i++ {
 			ch := tpchs[i]
 			handler := func(ls *localServer, ln Listener) { transponder(ln, ch) }
@@ -153,6 +153,11 @@ func TestUnixAndUnixpacketServer(t *testing.T) {
 
 		var lss []*localServer
 		var tpchs []chan error
+		defer func() {
+			for _, ls := range lss {
+				ls.teardown()
+			}
+		}()
 		for i := 0; i < N; i++ {
 			ls, err := (&streamListener{Listener: ln}).newLocalServer()
 			if err != nil {
@@ -161,11 +166,6 @@ func TestUnixAndUnixpacketServer(t *testing.T) {
 			lss = append(lss, ls)
 			tpchs = append(tpchs, make(chan error, 1))
 		}
-		defer func() {
-			for _, ls := range lss {
-				ls.teardown()
-			}
-		}()
 		for i := 0; i < N; i++ {
 			ch := tpchs[i]
 			handler := func(ls *localServer, ln Listener) { transponder(ln, ch) }
