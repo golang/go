@@ -995,6 +995,7 @@ func (c *Conn) ConnectionState() ConnectionState {
 		state.VerifiedChains = c.verifiedChains
 		state.ServerName = c.serverName
 		state.SignedCertificateTimestamps = c.scts
+		state.OCSPResponse = c.ocspResponse
 		if !c.didResume {
 			state.TLSUnique = c.firstFinished[:]
 		}
