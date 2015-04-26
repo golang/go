@@ -488,6 +488,16 @@ type Certificate struct {
 	// field is not populated when parsing certificates, see Extensions.
 	ExtraExtensions []pkix.Extension
 
+	// UnhandledCriticalExtensions contains a list of extension IDs that
+	// were not (fully) processed when parsing. Verify will fail if this
+	// slice is non-empty, unless verification is delegated to an OS
+	// library which understands all the critical extensions.
+	//
+	// Users can access these extensions using Extensions and can remove
+	// elements from this slice if they believe that they have been
+	// handled.
+	UnhandledCriticalExtensions []asn1.ObjectIdentifier
+
 	ExtKeyUsage        []ExtKeyUsage           // Sequence of extended key usages.
 	UnknownExtKeyUsage []asn1.ObjectIdentifier // Encountered extended key usages unknown to this package.
 
@@ -897,7 +907,7 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 
 	for _, e := range in.TBSCertificate.Extensions {
 		out.Extensions = append(out.Extensions, e)
-		failIfCritical := false
+		unhandled := false
 
 		if len(e.Id) == 4 && e.Id[0] == 2 && e.Id[1] == 5 && e.Id[2] == 29 {
 			switch e.Id[3] {
@@ -936,7 +946,7 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 
 				if len(out.DNSNames) == 0 && len(out.EmailAddresses) == 0 && len(out.IPAddresses) == 0 {
 					// If we didn't parse anything then we do the critical check, below.
-					failIfCritical = true
+					unhandled = true
 				}
 
 			case 30:
@@ -1054,8 +1064,8 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 				}
 
 			default:
-				// Unknown extensions cause an error if marked as critical.
-				failIfCritical = true
+				// Unknown extensions are recorded if critical.
+				unhandled = true
 			}
 		} else if e.Id.Equal(oidExtensionAuthorityInfoAccess) {
 			// RFC 5280 4.2.2.1: Authority Information Access
@@ -1076,12 +1086,12 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 				}
 			}
 		} else {
-			// Unknown extensions cause an error if marked as critical.
-			failIfCritical = true
+			// Unknown extensions are recorded if critical.
+			unhandled = true
 		}
 
-		if e.Critical && failIfCritical {
-			return out, UnhandledCriticalExtension{}
+		if e.Critical && unhandled {
+			out.UnhandledCriticalExtensions = append(out.UnhandledCriticalExtensions, e.Id)
 		}
 	}
 
