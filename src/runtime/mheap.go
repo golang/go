@@ -192,6 +192,25 @@ func inheap(b uintptr) bool {
 	return true
 }
 
+// TODO: spanOf and spanOfUnchecked are open-coded in a lot of places.
+// Use the functions instead.
+
+// spanOf returns the span of p. If p does not point into the heap or
+// no span contains p, spanOf returns nil.
+func spanOf(p uintptr) *mspan {
+	if p == 0 || p < mheap_.arena_start || p >= mheap_.arena_used {
+		return nil
+	}
+	return spanOfUnchecked(p)
+}
+
+// spanOfUnchecked is equivalent to spanOf, but the caller must ensure
+// that p points into the heap (that is, mheap_.arena_start <= p <
+// mheap_.arena_used).
+func spanOfUnchecked(p uintptr) *mspan {
+	return h_spans[(p-mheap_.arena_start)>>_PageShift]
+}
+
 func mlookup(v uintptr, base *uintptr, size *uintptr, sp **mspan) int32 {
 	_g_ := getg()
 
