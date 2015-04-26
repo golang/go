@@ -509,7 +509,13 @@ func TestUnknownCriticalExtension(t *testing.T) {
 				CommonName: "foo",
 			},
 			NotBefore: time.Unix(1000, 0),
-			NotAfter:  time.Unix(100000, 0),
+			NotAfter:  time.Now().AddDate(1, 0, 0),
+
+			BasicConstraintsValid: true,
+			IsCA: true,
+
+			KeyUsage:    KeyUsageCertSign,
+			ExtKeyUsage: []ExtKeyUsage{ExtKeyUsageServerAuth},
 
 			ExtraExtensions: []pkix.Extension{
 				{
@@ -525,12 +531,28 @@ func TestUnknownCriticalExtension(t *testing.T) {
 			t.Fatalf("failed to create certificate: %s", err)
 		}
 
-		_, err = ParseCertificate(derBytes)
+		cert, err := ParseCertificate(derBytes)
+		if err != nil {
+			t.Fatalf("Certificate with unknown critical extension was not parsed: %s", err)
+		}
+
+		roots := NewCertPool()
+		roots.AddCert(cert)
+
+		// Setting Roots ensures that Verify won't delegate to the OS
+		// library and thus the correct error should always be
+		// returned.
+		_, err = cert.Verify(VerifyOptions{Roots: roots})
 		if err == nil {
-			t.Fatalf("Certificate with critical extension was parsed without error.")
+			t.Fatal("Certificate with unknown critical extension was verified without error")
 		}
 		if _, ok := err.(UnhandledCriticalExtension); !ok {
 			t.Fatalf("Error was %#v, but wanted one of type UnhandledCriticalExtension", err)
+		}
+
+		cert.UnhandledCriticalExtensions = nil
+		if _, err = cert.Verify(VerifyOptions{Roots: roots}); err != nil {
+			t.Errorf("Certificate failed to verify after unhandled critical extensions were cleared: %s", err)
 		}
 	}
 }
