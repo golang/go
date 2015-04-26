@@ -8,6 +8,8 @@
 
 package net
 
+var defaultNS = []string{"127.0.0.1", "::1"}
+
 type dnsConfig struct {
 	servers    []string // servers to use
 	search     []string // suffixes to append to local name
@@ -17,22 +19,25 @@ type dnsConfig struct {
 	rotate     bool     // round robin among servers
 	unknownOpt bool     // anything unknown was encountered
 	lookup     []string // OpenBSD top-level database "lookup" order
+	err        error    // any error that occurs during open of resolv.conf
 }
 
 // See resolv.conf(5) on a Linux machine.
 // TODO(rsc): Supposed to call uname() and chop the beginning
 // of the host name to get the default search domain.
-func dnsReadConfig(filename string) (*dnsConfig, error) {
-	file, err := open(filename)
-	if err != nil {
-		return nil, &DNSConfigError{err}
-	}
-	defer file.close()
+func dnsReadConfig(filename string) *dnsConfig {
 	conf := &dnsConfig{
 		ndots:    1,
 		timeout:  5,
 		attempts: 2,
 	}
+	file, err := open(filename)
+	if err != nil {
+		conf.servers = defaultNS
+		conf.err = err
+		return conf
+	}
+	defer file.close()
 	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
 		if len(line) > 0 && (line[0] == ';' || line[0] == '#') {
 			// comment.
@@ -104,7 +109,10 @@ func dnsReadConfig(filename string) (*dnsConfig, error) {
 			conf.unknownOpt = true
 		}
 	}
-	return conf, nil
+	if len(conf.servers) == 0 {
+		conf.servers = defaultNS
+	}
+	return conf
 }
 
 func hasPrefix(s, prefix string) bool {

@@ -19,6 +19,15 @@ type nssHostTest struct {
 
 func nssStr(s string) *nssConf { return parseNSSConf(strings.NewReader(s)) }
 
+// represents a dnsConfig returned by parsing a nonexistent resolv.conf
+var defaultResolvConf = &dnsConfig{
+	servers:  defaultNS,
+	ndots:    1,
+	timeout:  5,
+	attempts: 2,
+	err:      os.ErrNotExist,
+}
+
 func TestConfHostLookupOrder(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -31,6 +40,7 @@ func TestConfHostLookupOrder(t *testing.T) {
 			c: &conf{
 				forceCgoLookupHost: true,
 				nss:                nssStr("foo: bar"),
+				resolv:             defaultResolvConf,
 			},
 			hostTests: []nssHostTest{
 				{"foo.local", hostLookupCgo},
@@ -40,7 +50,8 @@ func TestConfHostLookupOrder(t *testing.T) {
 		{
 			name: "ubuntu_trusty_avahi",
 			c: &conf{
-				nss: nssStr("hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4"),
+				nss:    nssStr("hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4"),
+				resolv: defaultResolvConf,
 			},
 			hostTests: []nssHostTest{
 				{"foo.local", hostLookupCgo},
@@ -53,8 +64,9 @@ func TestConfHostLookupOrder(t *testing.T) {
 		{
 			name: "freebsdlinux_no_resolv_conf",
 			c: &conf{
-				goos: "freebsd",
-				nss:  nssStr("foo: bar"),
+				goos:   "freebsd",
+				nss:    nssStr("foo: bar"),
+				resolv: defaultResolvConf,
 			},
 			hostTests: []nssHostTest{{"google.com", hostLookupFilesDNS}},
 		},
@@ -62,15 +74,17 @@ func TestConfHostLookupOrder(t *testing.T) {
 		{
 			name: "openbsd_no_resolv_conf",
 			c: &conf{
-				goos: "openbsd",
+				goos:   "openbsd",
+				resolv: defaultResolvConf,
 			},
 			hostTests: []nssHostTest{{"google.com", hostLookupFiles}},
 		},
 		{
 			name: "solaris_no_nsswitch",
 			c: &conf{
-				goos: "solaris",
-				nss:  &nssConf{err: os.ErrNotExist},
+				goos:   "solaris",
+				nss:    &nssConf{err: os.ErrNotExist},
+				resolv: defaultResolvConf,
 			},
 			hostTests: []nssHostTest{{"google.com", hostLookupCgo}},
 		},
@@ -138,14 +152,18 @@ func TestConfHostLookupOrder(t *testing.T) {
 		{
 			name: "linux_no_nsswitch.conf",
 			c: &conf{
-				goos: "linux",
-				nss:  &nssConf{err: os.ErrNotExist},
+				goos:   "linux",
+				nss:    &nssConf{err: os.ErrNotExist},
+				resolv: defaultResolvConf,
 			},
 			hostTests: []nssHostTest{{"google.com", hostLookupDNSFiles}},
 		},
 		{
 			name: "files_mdns_dns",
-			c:    &conf{nss: nssStr("hosts: files mdns dns")},
+			c: &conf{
+				nss:    nssStr("hosts: files mdns dns"),
+				resolv: defaultResolvConf,
+			},
 			hostTests: []nssHostTest{
 				{"x.com", hostLookupFilesDNS},
 				{"x.local", hostLookupCgo},
@@ -153,7 +171,10 @@ func TestConfHostLookupOrder(t *testing.T) {
 		},
 		{
 			name: "dns_special_hostnames",
-			c:    &conf{nss: nssStr("hosts: dns")},
+			c: &conf{
+				nss:    nssStr("hosts: dns"),
+				resolv: defaultResolvConf,
+			},
 			hostTests: []nssHostTest{
 				{"x.com", hostLookupDNS},
 				{"x\\.com", hostLookupCgo},     // punt on weird glibc escape
@@ -164,6 +185,7 @@ func TestConfHostLookupOrder(t *testing.T) {
 			name: "mdns_allow",
 			c: &conf{
 				nss:          nssStr("hosts: files mdns dns"),
+				resolv:       defaultResolvConf,
 				hasMDNSAllow: true,
 			},
 			hostTests: []nssHostTest{
@@ -173,7 +195,10 @@ func TestConfHostLookupOrder(t *testing.T) {
 		},
 		{
 			name: "files_dns",
-			c:    &conf{nss: nssStr("hosts: files dns")},
+			c: &conf{
+				nss:    nssStr("hosts: files dns"),
+				resolv: defaultResolvConf,
+			},
 			hostTests: []nssHostTest{
 				{"x.com", hostLookupFilesDNS},
 				{"x", hostLookupFilesDNS},
@@ -182,7 +207,10 @@ func TestConfHostLookupOrder(t *testing.T) {
 		},
 		{
 			name: "dns_files",
-			c:    &conf{nss: nssStr("hosts: dns files")},
+			c: &conf{
+				nss:    nssStr("hosts: dns files"),
+				resolv: defaultResolvConf,
+			},
 			hostTests: []nssHostTest{
 				{"x.com", hostLookupDNSFiles},
 				{"x", hostLookupDNSFiles},
@@ -191,14 +219,20 @@ func TestConfHostLookupOrder(t *testing.T) {
 		},
 		{
 			name: "something_custom",
-			c:    &conf{nss: nssStr("hosts: dns files something_custom")},
+			c: &conf{
+				nss:    nssStr("hosts: dns files something_custom"),
+				resolv: defaultResolvConf,
+			},
 			hostTests: []nssHostTest{
 				{"x.com", hostLookupCgo},
 			},
 		},
 		{
 			name: "myhostname",
-			c:    &conf{nss: nssStr("hosts: files dns myhostname")},
+			c: &conf{
+				nss:    nssStr("hosts: files dns myhostname"),
+				resolv: defaultResolvConf,
+			},
 			hostTests: []nssHostTest{
 				{"x.com", hostLookupFilesDNS},
 				{"somehostname", hostLookupCgo},
@@ -206,7 +240,10 @@ func TestConfHostLookupOrder(t *testing.T) {
 		},
 		{
 			name: "ubuntu14.04.02",
-			c:    &conf{nss: nssStr("hosts: files myhostname mdns4_minimal [NOTFOUND=return] dns mdns4")},
+			c: &conf{
+				nss:    nssStr("hosts: files myhostname mdns4_minimal [NOTFOUND=return] dns mdns4"),
+				resolv: defaultResolvConf,
+			},
 			hostTests: []nssHostTest{
 				{"x.com", hostLookupFilesDNS},
 				{"somehostname", hostLookupCgo},
@@ -218,7 +255,10 @@ func TestConfHostLookupOrder(t *testing.T) {
 		// files.
 		{
 			name: "debian_squeeze",
-			c:    &conf{nss: nssStr("hosts: dns [success=return notfound=continue unavail=continue tryagain=continue] files [notfound=return]")},
+			c: &conf{
+				nss:    nssStr("hosts: dns [success=return notfound=continue unavail=continue tryagain=continue] files [notfound=return]"),
+				resolv: defaultResolvConf,
+			},
 			hostTests: []nssHostTest{
 				{"x.com", hostLookupDNSFiles},
 				{"somehostname", hostLookupDNSFiles},
@@ -228,7 +268,7 @@ func TestConfHostLookupOrder(t *testing.T) {
 			name: "resolv.conf-unknown",
 			c: &conf{
 				nss:    nssStr("foo: bar"),
-				resolv: &dnsConfig{unknownOpt: true},
+				resolv: &dnsConfig{servers: defaultNS, ndots: 1, timeout: 5, attempts: 2, unknownOpt: true},
 			},
 			hostTests: []nssHostTest{{"google.com", hostLookupCgo}},
 		},

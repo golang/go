@@ -216,10 +216,10 @@ func convertRR_AAAA(records []dnsRR) []IP {
 
 var cfg struct {
 	ch        chan struct{}
-	mu        sync.RWMutex // protects dnsConfig and dnserr
+	mu        sync.RWMutex // protects dnsConfig
 	dnsConfig *dnsConfig
-	dnserr    error
 }
+
 var onceLoadConfig sync.Once
 
 // Assume dns config file is /etc/resolv.conf here
@@ -230,12 +230,12 @@ func loadDefaultConfig() {
 func loadConfig(resolvConfPath string, reloadTime time.Duration, quit <-chan chan struct{}) {
 	var mtime time.Time
 	cfg.ch = make(chan struct{}, 1)
-	if fi, err := os.Stat(resolvConfPath); err != nil {
-		cfg.dnserr = err
-	} else {
+	if fi, err := os.Stat(resolvConfPath); err == nil {
 		mtime = fi.ModTime()
-		cfg.dnsConfig, cfg.dnserr = dnsReadConfig(resolvConfPath)
 	}
+
+	cfg.dnsConfig = dnsReadConfig(resolvConfPath)
+
 	go func() {
 		for {
 			time.Sleep(reloadTime)
@@ -258,14 +258,11 @@ func loadConfig(resolvConfPath string, reloadTime time.Duration, quit <-chan cha
 			}
 			mtime = m
 			// In case of error, we keep the previous config
-			ncfg, err := dnsReadConfig(resolvConfPath)
-			if err != nil || len(ncfg.servers) == 0 {
-				continue
+			if ncfg := dnsReadConfig(resolvConfPath); ncfg.err == nil {
+				cfg.mu.Lock()
+				cfg.dnsConfig = ncfg
+				cfg.mu.Unlock()
 			}
-			cfg.mu.Lock()
-			cfg.dnsConfig = ncfg
-			cfg.dnserr = nil
-			cfg.mu.Unlock()
 		}
 	}()
 }
@@ -284,10 +281,6 @@ func lookup(name string, qtype uint16) (cname string, rrs []dnsRR, err error) {
 	cfg.mu.RLock()
 	defer cfg.mu.RUnlock()
 
-	if cfg.dnserr != nil || cfg.dnsConfig == nil {
-		err = cfg.dnserr
-		return
-	}
 	// If name is rooted (trailing dot) or has enough dots,
 	// try it by itself first.
 	rooted := len(name) > 0 && name[len(name)-1] == '.'
