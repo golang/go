@@ -7,6 +7,7 @@
 package net
 
 import (
+	"os"
 	"reflect"
 	"testing"
 )
@@ -50,6 +51,7 @@ var dnsReadConfigTests = []struct {
 	{
 		name: "testdata/empty-resolv.conf",
 		want: &dnsConfig{
+			servers:  defaultNS,
 			ndots:    1,
 			timeout:  5,
 			attempts: 2,
@@ -70,12 +72,29 @@ var dnsReadConfigTests = []struct {
 
 func TestDNSReadConfig(t *testing.T) {
 	for _, tt := range dnsReadConfigTests {
-		conf, err := dnsReadConfig(tt.name)
-		if err != nil {
-			t.Fatal(err)
+		conf := dnsReadConfig(tt.name)
+		if conf.err != nil {
+			t.Fatal(conf.err)
 		}
 		if !reflect.DeepEqual(conf, tt.want) {
 			t.Errorf("%s:\n got: %+v\nwant: %+v", tt.name, conf, tt.want)
 		}
+	}
+}
+
+func TestDNSReadMissingFile(t *testing.T) {
+	conf := dnsReadConfig("a-nonexistent-file")
+	if !os.IsNotExist(conf.err) {
+		t.Errorf("Missing resolv.conf:\n got: %v\nwant: %v", conf.err, os.ErrNotExist)
+	}
+	conf.err = nil
+	want := &dnsConfig{
+		servers:  defaultNS,
+		ndots:    1,
+		timeout:  5,
+		attempts: 2,
+	}
+	if !reflect.DeepEqual(conf, want) {
+		t.Errorf("Missing resolv.conf:\n got: %+v\nwant: %+v", conf, want)
 	}
 }

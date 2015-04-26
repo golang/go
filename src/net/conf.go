@@ -68,9 +68,9 @@ func initConfVal() {
 		confVal.nss = parseNSSConfFile("/etc/nsswitch.conf")
 	}
 
-	if resolv, err := dnsReadConfig("/etc/resolv.conf"); err == nil {
-		confVal.resolv = resolv
-	} else if !os.IsNotExist(err.(*DNSConfigError).Err) {
+	confVal.resolv = dnsReadConfig("/etc/resolv.conf")
+	if confVal.resolv.err != nil && !os.IsNotExist(confVal.resolv.err) &&
+		!os.IsPermission(confVal.resolv.err) {
 		// If we can't read the resolv.conf file, assume it
 		// had something important in it and defer to cgo.
 		// libc's resolver might then fail too, but at least
@@ -85,7 +85,7 @@ func initConfVal() {
 
 // hostLookupOrder determines which strategy to use to resolve hostname.
 func (c *conf) hostLookupOrder(hostname string) hostLookupOrder {
-	if c.forceCgoLookupHost {
+	if c.forceCgoLookupHost || c.resolv.unknownOpt {
 		return hostLookupCgo
 	}
 	if byteIndex(hostname, '\\') != -1 || byteIndex(hostname, '%') != -1 {
@@ -100,7 +100,7 @@ func (c *conf) hostLookupOrder(hostname string) hostLookupOrder {
 		// OpenBSD's resolv.conf manpage says that a non-existent
 		// resolv.conf means "lookup" defaults to only "files",
 		// without DNS lookups.
-		if c.resolv == nil {
+		if os.IsNotExist(c.resolv.err) {
 			return hostLookupFiles
 		}
 		lookup := c.resolv.lookup
@@ -134,9 +134,6 @@ func (c *conf) hostLookupOrder(hostname string) hostLookupOrder {
 		default:
 			return hostLookupCgo
 		}
-	}
-	if c.resolv != nil && c.resolv.unknownOpt {
-		return hostLookupCgo
 	}
 
 	hasDot := byteIndex(hostname, '.') != -1

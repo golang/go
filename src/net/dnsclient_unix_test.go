@@ -171,23 +171,26 @@ func TestReloadResolvConfFail(t *testing.T) {
 	r := newResolvConfTest(t)
 	defer r.Close()
 
-	// resolv.conf.tmp does not exist yet
 	r.Start()
-	if _, err := goLookupIP("golang.org"); err == nil {
-		t.Fatal("goLookupIP(missing) succeeded")
-	}
-
 	r.SetConf("nameserver 8.8.8.8")
+
 	if _, err := goLookupIP("golang.org"); err != nil {
 		t.Fatalf("goLookupIP(missing; good) failed: %v", err)
 	}
 
-	// Using a bad resolv.conf while we had a good
-	// one before should not update the config
+	// Using an empty resolv.conf should use localhost as servers
 	r.SetConf("")
-	if _, err := goLookupIP("golang.org"); err != nil {
-		t.Fatalf("goLookupIP(missing; good; bad) failed: %v", err)
+
+	if len(cfg.dnsConfig.servers) != len(defaultNS) {
+		t.Fatalf("goLookupIP(missing; good; bad) failed: servers=%v, want: %v", cfg.dnsConfig.servers, defaultNS)
 	}
+
+	for i := range cfg.dnsConfig.servers {
+		if cfg.dnsConfig.servers[i] != defaultNS[i] {
+			t.Fatalf("goLookupIP(missing; good; bad) failed: servers=%v, want: %v", cfg.dnsConfig.servers, defaultNS)
+		}
+	}
+
 }
 
 func TestReloadResolvConfChange(t *testing.T) {
@@ -198,19 +201,25 @@ func TestReloadResolvConfChange(t *testing.T) {
 	r := newResolvConfTest(t)
 	defer r.Close()
 
-	r.SetConf("nameserver 8.8.8.8")
 	r.Start()
+	r.SetConf("nameserver 8.8.8.8")
 
 	if _, err := goLookupIP("golang.org"); err != nil {
 		t.Fatalf("goLookupIP(good) failed: %v", err)
 	}
 	r.WantServers([]string{"8.8.8.8"})
 
-	// Using a bad resolv.conf when we had a good one
-	// before should not update the config
+	// Using an empty resolv.conf should use localhost as servers
 	r.SetConf("")
-	if _, err := goLookupIP("golang.org"); err != nil {
-		t.Fatalf("goLookupIP(good; bad) failed: %v", err)
+
+	if len(cfg.dnsConfig.servers) != len(defaultNS) {
+		t.Fatalf("goLookupIP(missing; good; bad) failed: servers=%v, want: %v", cfg.dnsConfig.servers, defaultNS)
+	}
+
+	for i := range cfg.dnsConfig.servers {
+		if cfg.dnsConfig.servers[i] != defaultNS[i] {
+			t.Fatalf("goLookupIP(missing; good; bad) failed: servers=%v, want: %v", cfg.dnsConfig.servers, defaultNS)
+		}
 	}
 
 	// A new good config should get picked up
@@ -238,9 +247,7 @@ func BenchmarkGoLookupIPWithBrokenNameServer(b *testing.B) {
 	testHookUninstaller.Do(func() { uninstallTestHooks() })
 
 	onceLoadConfig.Do(loadDefaultConfig)
-	if cfg.dnserr != nil || cfg.dnsConfig == nil {
-		b.Fatalf("loadConfig failed: %v", cfg.dnserr)
-	}
+
 	// This looks ugly but it's safe as long as benchmarks are run
 	// sequentially in package testing.
 	orig := cfg.dnsConfig
