@@ -412,7 +412,7 @@ func relocsym(s *LSym) {
 				break
 			}
 
-			if Iself || Ctxt.Headtype == obj.Hplan9 {
+			if Iself || Ctxt.Headtype == obj.Hplan9 || Ctxt.Headtype == obj.Hdarwin {
 				o = int64(Ctxt.Tlsoffset) + r.Add
 			} else if Ctxt.Headtype == obj.Hwindows {
 				o = r.Add
