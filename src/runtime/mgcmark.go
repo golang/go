@@ -561,11 +561,12 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
 	}
 }
 
-// Scan the object b of size n bytes, adding pointers to wbuf.
-// If ptrmask != nil, it specifies where pointers are in b.
-// If ptrmask == nil, the GC bitmap should be consulted.
-// In this case, n may be an overestimate of the size; the GC bitmap
-// must also be used to make sure the scan stops at the end of b.
+// scanobject scans memory starting at b, adding pointers to gcw.
+// If ptrmask != nil, it specifies the pointer mask starting at b and
+// n specifies the number of bytes to scan.
+// If ptrmask == nil, b must point to the beginning of a heap object
+// and scanobject consults the GC bitmap for the pointer mask and the
+// spans for the size of the object (it ignores n).
 //go:nowritebarrier
 func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWork) {
 	arena_start := mheap_.arena_start
@@ -576,11 +577,10 @@ func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWork) {
 	var hbits heapBits
 
 	if ptrmask == nil {
-		var s *mspan
-		b, hbits, s = heapBitsForObject(b)
-		if b == 0 {
-			return
-		}
+		// b must point to the beginning of a heap object, so
+		// we can get its bits and span directly.
+		hbits = heapBitsForAddr(b)
+		s := spanOfUnchecked(b)
 		n = s.elemsize
 		if n == 0 {
 			throw("scanobject n == 0")

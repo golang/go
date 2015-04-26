@@ -73,6 +73,7 @@ type gcWork struct {
 }
 
 // put enqueues a pointer for the garbage collector to trace.
+// obj must point to the beginning of a heap object.
 //go:nowritebarrier
 func (ww *gcWork) put(obj uintptr) {
 	w := (*gcWork)(noescape(unsafe.Pointer(ww))) // TODO: remove when escape analysis is fixed
