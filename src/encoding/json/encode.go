@@ -275,8 +275,6 @@ func (e *encodeState) error(err error) {
 	panic(err)
 }
 
-var byteSliceType = reflect.TypeOf([]byte(nil))
-
 func isEmptyValue(v reflect.Value) bool {
 	switch v.Kind() {
 	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
