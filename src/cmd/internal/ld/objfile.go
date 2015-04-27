@@ -41,9 +41,11 @@ func ldobjfile(ctxt *Link, f *Biobuf, pkg string, length int64, pn string) {
 	}
 
 	for {
-		c = Bgetc(f)
-		Bungetc(f)
-		if c == 0xff {
+		c, err := f.r.Peek(1)
+		if err != nil {
+			log.Fatalf("%s: peeking: %v", pn, err)
+		}
+		if c[0] == 0xff {
 			break
 		}
 		readsym(ctxt, f, pkg, pn)
