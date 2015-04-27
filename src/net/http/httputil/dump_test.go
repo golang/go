@@ -71,7 +71,7 @@ var dumpTests = []dumpTest{
 
 		WantDumpOut: "GET /foo HTTP/1.1\r\n" +
 			"Host: example.com\r\n" +
-			"User-Agent: Go 1.1 package http\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
 			"Accept-Encoding: gzip\r\n\r\n",
 	},
 
@@ -83,7 +83,7 @@ var dumpTests = []dumpTest{
 
 		WantDumpOut: "GET /foo HTTP/1.1\r\n" +
 			"Host: example.com\r\n" +
-			"User-Agent: Go 1.1 package http\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
 			"Accept-Encoding: gzip\r\n\r\n",
 	},
 
@@ -105,7 +105,7 @@ var dumpTests = []dumpTest{
 
 		WantDumpOut: "POST / HTTP/1.1\r\n" +
 			"Host: post.tld\r\n" +
-			"User-Agent: Go 1.1 package http\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
 			"Content-Length: 6\r\n" +
 			"Accept-Encoding: gzip\r\n\r\n",
 
@@ -130,7 +130,7 @@ var dumpTests = []dumpTest{
 
 		WantDumpOut: "POST / HTTP/1.1\r\n" +
 			"Host: post.tld\r\n" +
-			"User-Agent: Go 1.1 package http\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
 			"Content-Length: 8193\r\n" +
 			"Accept-Encoding: gzip\r\n\r\n" +
 			strings.Repeat("a", 8193),
