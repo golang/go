@@ -64,6 +64,7 @@ cmd/go: std wildcard now excludes commands in main repo (https://golang.org/cl/5
 cmd/go: .swig/.swigcxx files now require SWIG 3.0.6 or later
 cmd/go: add -run flag to go generate (https://golang.org/cl/9005)
 cmd/go: add $GOLINE to generate's variables (https://golang.org/cl/9007)
+cmd/go: add go doc (https://golang.org/cl/9227)
 cmd/vet: better validation of struct tags (https://golang.org/cl/2685)
 cmd/ld: no longer record build timestamp in Windows PE file header (https://golang.org/cl/3740)
 cmd/go: add -toolexec build option
