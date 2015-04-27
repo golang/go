@@ -1063,6 +1063,7 @@ func TestRaceCrawl(t *testing.T) {
 		}()
 		seen[u] = true
 		if d <= 0 {
+			wg.Done()
 			return
 		}
 		urls := [...]string{"a", "b", "c"}
