@@ -77,12 +77,10 @@ func cutStringAtNUL(s string) string {
 }
 
 type Biobuf struct {
-	unget    [2]int
-	numUnget int
-	f        *os.File
-	r        *bufio.Reader
-	w        *bufio.Writer
-	linelen  int
+	f       *os.File
+	r       *bufio.Reader
+	w       *bufio.Writer
+	linelen int
 }
 
 func Bopenw(name string) (*Biobuf, error) {
@@ -164,10 +162,6 @@ func Bputc(b *Biobuf, c byte) {
 const Beof = -1
 
 func Bread(b *Biobuf, p []byte) int {
-	if b.numUnget > 0 {
-		Bseek(b, -int64(b.numUnget), 1)
-		b.numUnget = 0
-	}
 	n, err := io.ReadFull(b.r, p)
 	if n == 0 {
 		if err != nil && err != io.EOF {
@@ -178,25 +172,14 @@ func Bread(b *Biobuf, p []byte) int {
 }
 
 func Bgetc(b *Biobuf) int {
-	if b.numUnget > 0 {
-		b.numUnget--
-		return int(b.unget[b.numUnget])
-	}
 	c, err := b.r.ReadByte()
-	r := int(c)
 	if err != nil {
-		r = -1
+		return -1
 	}
-	b.unget[1] = b.unget[0]
-	b.unget[0] = r
-	return r
+	return int(c)
 }
 
 func Bgetrune(b *Biobuf) int {
-	if b.numUnget > 0 {
-		Bseek(b, -int64(b.numUnget), 1)
-		b.numUnget = 0
-	}
 	r, _, err := b.r.ReadRune()
 	if err != nil {
 		return -1
@@ -204,19 +187,11 @@ func Bgetrune(b *Biobuf) int {
 	return int(r)
 }
 
-func Bungetrune(b *Biobuf) {
-	b.r.UnreadRune()
-}
-
 func (b *Biobuf) Read(p []byte) (int, error) {
 	return b.r.Read(p)
 }
 
 func Brdline(b *Biobuf, delim int) string {
-	if b.numUnget > 0 {
-		Bseek(b, -int64(b.numUnget), 1)
-		b.numUnget = 0
-	}
 	s, err := b.r.ReadBytes(byte(delim))
 	if err != nil {
 		log.Fatalf("reading input: %v", err)
@@ -226,10 +201,6 @@ func Brdline(b *Biobuf, delim int) string {
 }
 
 func Brdstr(b *Biobuf, delim int, cut int) string {
-	if b.numUnget > 0 {
-		Bseek(b, -int64(b.numUnget), 1)
-		b.numUnget = 0
-	}
 	s, err := b.r.ReadString(byte(delim))
 	if err != nil {
 		log.Fatalf("reading input: %v", err)
@@ -253,10 +224,6 @@ func Access(name string, mode int) int {
 
 func Blinelen(b *Biobuf) int {
 	return b.linelen
-}
-
-func Bungetc(b *Biobuf) {
-	b.numUnget++
 }
 
 func Bflush(b *Biobuf) error {
