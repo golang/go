@@ -429,7 +429,6 @@ type flags struct {
 	flagCommands      map[string]*bool   // pprof commands without parameters
 	flagParamCommands map[string]*string // pprof commands with parameters
 
-	flagSVGPan *string // URL to fetch the SVG Pan library
 	flagOutput *string // Output file name
 
 	flagCum      *bool // Sort by cumulative data
@@ -625,7 +624,6 @@ func getFlags(flag plugin.FlagSet, overrides commands.Commands, ui plugin.UI) (*
 		flagBase:         flag.String("base", "", "Source for base profile for comparison"),
 		flagDropNegative: flag.Bool("drop_negative", false, "Ignore negative differences"),
 
-		flagSVGPan: flag.String("svgpan", "https://www.cyberz.org/projects/SVGPan/SVGPan.js", "URL for SVGPan Library"),
 		// Data sorting criteria.
 		flagCum: flag.Bool("cum", false, "Sort by cumulative data"),
 		// Graph handling options.
@@ -670,8 +668,7 @@ func getFlags(flag plugin.FlagSet, overrides commands.Commands, ui plugin.UI) (*
 
 	// Flags used during command processing
 	interactive := &f.flagInteractive
-	svgpan := &f.flagSVGPan
-	f.commands = commands.PProf(functionCompleter, interactive, svgpan)
+	f.commands = commands.PProf(functionCompleter, interactive)
 
 	// Override commands
 	for name, cmd := range overrides {
