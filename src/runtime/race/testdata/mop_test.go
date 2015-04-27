@@ -335,6 +335,8 @@ func TestRaceRange(t *testing.T) {
 			}
 			done <- true
 		}(i)
+		// Ensure the goroutine runs before we continue the loop.
+		runtime.Gosched()
 	}
 	for i := 0; i < N; i++ {
 		<-done
@@ -1727,13 +1729,16 @@ func TestNoRaceAsFunc4(t *testing.T) {
 }
 
 func TestRaceHeapParam(t *testing.T) {
+	done := make(chan bool)
 	x := func() (x int) {
 		go func() {
 			x = 42
+			done <- true
 		}()
 		return
 	}()
 	_ = x
+	<-done
 }
 
 func TestNoRaceEmptyStruct(t *testing.T) {
