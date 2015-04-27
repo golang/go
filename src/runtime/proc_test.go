@@ -366,18 +366,22 @@ func BenchmarkPingPongHog(b *testing.B) {
 			pong <- <-ping
 		}
 		close(stop)
+		done <- true
 	}()
 	go func() {
 		for i := 0; i < b.N; i++ {
 			ping <- <-pong
 		}
+		done <- true
 	}()
 	b.ResetTimer()
 	ping <- true // Start ping-pong
 	<-stop
 	b.StopTimer()
 	<-ping // Let last ponger exit
-	<-done // Make sure hog exits
+	<-done // Make sure goroutines exit
+	<-done
+	<-done
 }
 
 func stackGrowthRecursive(i int) {
