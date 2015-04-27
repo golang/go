@@ -328,11 +328,10 @@ func valueOrDefault(value, def string) string {
 }
 
 // NOTE: This is not intended to reflect the actual Go version being used.
-// It was changed from "Go http package" to "Go 1.1 package http" at the
-// time of the Go 1.1 release because the former User-Agent had ended up
-// on a blacklist for some intrusion detection systems.
+// It was changed at the time of Go 1.1 release because the former User-Agent
+// had ended up on a blacklist for some intrusion detection systems.
 // See https://codereview.appspot.com/7532043.
-const defaultUserAgent = "Go 1.1 package http"
+const defaultUserAgent = "Go-http-client/1.1"
 
 // Write writes an HTTP/1.1 request -- header and body -- in wire format.
 // This method consults the following fields of the request:
