@@ -281,6 +281,9 @@ func (t *tester) registerTests() {
 		if t.buildmode("c-shared") {
 			t.registerTest("testcshared", "../misc/cgo/testcshared", "./test.bash")
 		}
+		if t.buildmode("shared") {
+			t.registerTest("testshared", "../misc/cgo/testshared", "./test.bash")
+		}
 		if t.gohostos == "linux" && t.goarch == "amd64" {
 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
 		}
@@ -396,6 +399,12 @@ func (t *tester) buildmode(mode string) bool {
 		// TODO(hyangah): add linux-386.
 		switch pair {
 		case "linux-amd64", "android-arm":
+			return true
+		}
+		return false
+	case "shared":
+		switch pair {
+		case "linux-amd64":
 			return true
 		}
 		return false
