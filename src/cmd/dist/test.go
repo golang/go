@@ -199,21 +199,18 @@ func (t *tester) registerTests() {
 	}
 
 	// Runtime CPU tests.
-	for _, cpu := range []string{"1", "2", "4"} {
-		cpu := cpu
-		testName := "runtime:cpu" + cpu
-		t.tests = append(t.tests, distTest{
-			name:    testName,
-			heading: "GOMAXPROCS=2 runtime -cpu=1,2,4",
-			fn: func() error {
-				cmd := t.dirCmd("src", "go", "test", "-short", t.timeout(300), "runtime", "-cpu="+cpu)
-				// We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
-				// creation of first goroutines and first garbage collections in the parallel setting.
-				cmd.Env = mergeEnvLists([]string{"GOMAXPROCS=2"}, os.Environ())
-				return cmd.Run()
-			},
-		})
-	}
+	testName := "runtime:cpu124"
+	t.tests = append(t.tests, distTest{
+		name:    testName,
+		heading: "GOMAXPROCS=2 runtime -cpu=1,2,4",
+		fn: func() error {
+			cmd := t.dirCmd("src", "go", "test", "-short", t.timeout(300), "runtime", "-cpu=1,2,4")
+			// We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
+			// creation of first goroutines and first garbage collections in the parallel setting.
+			cmd.Env = mergeEnvLists([]string{"GOMAXPROCS=2"}, os.Environ())
+			return cmd.Run()
+		},
+	})
 
 	// sync tests
 	t.tests = append(t.tests, distTest{
