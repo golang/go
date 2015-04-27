@@ -748,7 +748,7 @@ func mstart1() {
 // safe point and execute fn on that P. If the P is not executing code
 // (it is idle or in a syscall), this will call fn(p) directly while
 // preventing the P from exiting its state. This does not ensure that
-// fn will run on every CPU executing Go code, but it act as a global
+// fn will run on every CPU executing Go code, but it acts as a global
 // memory barrier. GC uses this as a "ragged barrier."
 //
 // The caller must hold worldsema.
