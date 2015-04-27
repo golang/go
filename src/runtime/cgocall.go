@@ -83,7 +83,7 @@ import "unsafe"
 
 // Call from Go to C.
 //go:nosplit
-func cgocall_errno(fn, arg unsafe.Pointer) int32 {
+func cgocall(fn, arg unsafe.Pointer) int32 {
 	if !iscgo && GOOS != "solaris" && GOOS != "windows" {
 		throw("cgocall unavailable")
 	}
@@ -118,7 +118,7 @@ func cgocall_errno(fn, arg unsafe.Pointer) int32 {
 	 * the $GOMAXPROCS accounting.
 	 */
 	entersyscall(0)
-	errno := asmcgocall_errno(fn, arg)
+	errno := asmcgocall(fn, arg)
 	exitsyscall(0)
 
 	return errno
@@ -143,7 +143,7 @@ func cmalloc(n uintptr) unsafe.Pointer {
 		ret unsafe.Pointer
 	}
 	args.n = uint64(n)
-	cgocall_errno(_cgo_malloc, unsafe.Pointer(&args))
+	cgocall(_cgo_malloc, unsafe.Pointer(&args))
 	if args.ret == nil {
 		throw("C malloc failed")
 	}
@@ -151,7 +151,7 @@ func cmalloc(n uintptr) unsafe.Pointer {
 }
 
 func cfree(p unsafe.Pointer) {
-	cgocall_errno(_cgo_free, p)
+	cgocall(_cgo_free, p)
 }
 
 // Call from C back to Go.

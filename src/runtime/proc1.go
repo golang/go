@@ -1093,7 +1093,7 @@ func newm(fn func(), _p_ *p) {
 		ts.g.set(mp.g0)
 		ts.tls = (*uint64)(unsafe.Pointer(&mp.tls[0]))
 		ts.fn = unsafe.Pointer(funcPC(mstart))
-		asmcgocall_errno(_cgo_thread_start, unsafe.Pointer(&ts))
+		asmcgocall(_cgo_thread_start, unsafe.Pointer(&ts))
 		return
 	}
 	newosproc(mp, unsafe.Pointer(mp.g0.stack.hi))

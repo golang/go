@@ -466,7 +466,7 @@ func (p *Package) writeDefsFunc(fgo2 io.Writer, n *Name) {
 	if n.AddError {
 		prefix = "errno := "
 	}
-	fmt.Fprintf(fgo2, "\t%s_cgo_runtime_cgocall_errno(%s, %s)\n", prefix, cname, arg)
+	fmt.Fprintf(fgo2, "\t%s_cgo_runtime_cgocall(%s, %s)\n", prefix, cname, arg)
 	if n.AddError {
 		fmt.Fprintf(fgo2, "\tif errno != 0 { r2 = syscall.Errno(errno) }\n")
 	}
@@ -1232,8 +1232,8 @@ void *_CMalloc(size_t);
 `
 
 const goProlog = `
-//go:linkname _cgo_runtime_cgocall_errno runtime.cgocall_errno
-func _cgo_runtime_cgocall_errno(unsafe.Pointer, uintptr) int32
+//go:linkname _cgo_runtime_cgocall runtime.cgocall
+func _cgo_runtime_cgocall(unsafe.Pointer, uintptr) int32
 
 //go:linkname _cgo_runtime_cmalloc runtime.cmalloc
 func _cgo_runtime_cmalloc(uintptr) unsafe.Pointer

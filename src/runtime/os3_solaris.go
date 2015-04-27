@@ -201,7 +201,7 @@ func msigsave(mp *m) {
 // Called on the new thread, can not allocate memory.
 func minit() {
 	_g_ := getg()
-	asmcgocall_errno(unsafe.Pointer(funcPC(miniterrno)), unsafe.Pointer(&libc____errno))
+	asmcgocall(unsafe.Pointer(funcPC(miniterrno)), unsafe.Pointer(&libc____errno))
 	// Initialize signal handling
 	signalstack(&_g_.m.gsignal.stack)
 
@@ -317,7 +317,7 @@ func semacreate() uintptr {
 	memclr(unsafe.Pointer(&_g_.m.scratch), uintptr(len(_g_.m.scratch.v)))
 	_g_.m.scratch.v[0] = unsafe.Sizeof(*sem)
 	_g_.m.libcall.args = uintptr(unsafe.Pointer(&_g_.m.scratch))
-	asmcgocall_errno(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&_g_.m.libcall))
+	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&_g_.m.libcall))
 	sem = (*semt)(unsafe.Pointer(_g_.m.libcall.r1))
 	if sem_init(sem, 0, 0) != 0 {
 		throw("sem_init")
@@ -338,7 +338,7 @@ func semasleep(ns int64) int32 {
 		_m_.scratch.v[0] = _m_.waitsema
 		_m_.scratch.v[1] = uintptr(unsafe.Pointer(&_m_.ts))
 		_m_.libcall.args = uintptr(unsafe.Pointer(&_m_.scratch))
-		asmcgocall_errno(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&_m_.libcall))
+		asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&_m_.libcall))
 		if *_m_.perrno != 0 {
 			if *_m_.perrno == _ETIMEDOUT || *_m_.perrno == _EAGAIN || *_m_.perrno == _EINTR {
 				return -1
@@ -353,7 +353,7 @@ func semasleep(ns int64) int32 {
 		memclr(unsafe.Pointer(&_m_.scratch), uintptr(len(_m_.scratch.v)))
 		_m_.scratch.v[0] = _m_.waitsema
 		_m_.libcall.args = uintptr(unsafe.Pointer(&_m_.scratch))
-		asmcgocall_errno(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&_m_.libcall))
+		asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&_m_.libcall))
 		if _m_.libcall.r1 == 0 {
 			break
 		}

@@ -372,7 +372,7 @@ func stdcall(fn stdFunction) uintptr {
 		// all three values to be non-zero, it will use them
 		mp.libcallsp = getcallersp(unsafe.Pointer(&fn))
 	}
-	asmcgocall_errno(asmstdcallAddr, unsafe.Pointer(&mp.libcall))
+	asmcgocall(asmstdcallAddr, unsafe.Pointer(&mp.libcall))
 	mp.libcallsp = 0
 	return mp.libcall.r1
 }
