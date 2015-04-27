@@ -205,7 +205,7 @@ func getcallerpc(argp unsafe.Pointer) uintptr
 func getcallersp(argp unsafe.Pointer) uintptr
 
 //go:noescape
-func asmcgocall_errno(fn, arg unsafe.Pointer) int32
+func asmcgocall(fn, arg unsafe.Pointer) int32
 
 // argp used in Defer structs when there is no argp.
 const _NoArgs = ^uintptr(0)

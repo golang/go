@@ -95,7 +95,7 @@ func syscall_loadlibrary(filename *uint16) (handle, err uintptr) {
 	c.fn = getLoadLibrary()
 	c.n = 1
 	c.args = uintptr(unsafe.Pointer(&filename))
-	cgocall_errno(asmstdcallAddr, unsafe.Pointer(&c))
+	cgocall(asmstdcallAddr, unsafe.Pointer(&c))
 	handle = c.r1
 	if handle == 0 {
 		err = c.err
@@ -110,7 +110,7 @@ func syscall_getprocaddress(handle uintptr, procname *byte) (outhandle, err uint
 	c.fn = getGetProcAddress()
 	c.n = 2
 	c.args = uintptr(unsafe.Pointer(&handle))
-	cgocall_errno(asmstdcallAddr, unsafe.Pointer(&c))
+	cgocall(asmstdcallAddr, unsafe.Pointer(&c))
 	outhandle = c.r1
 	if outhandle == 0 {
 		err = c.err
@@ -125,7 +125,7 @@ func syscall_Syscall(fn, nargs, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 	c.fn = fn
 	c.n = nargs
 	c.args = uintptr(unsafe.Pointer(&a1))
-	cgocall_errno(asmstdcallAddr, unsafe.Pointer(&c))
+	cgocall(asmstdcallAddr, unsafe.Pointer(&c))
 	return c.r1, c.r2, c.err
 }
 
@@ -136,7 +136,7 @@ func syscall_Syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err ui
 	c.fn = fn
 	c.n = nargs
 	c.args = uintptr(unsafe.Pointer(&a1))
-	cgocall_errno(asmstdcallAddr, unsafe.Pointer(&c))
+	cgocall(asmstdcallAddr, unsafe.Pointer(&c))
 	return c.r1, c.r2, c.err
 }
 
@@ -147,7 +147,7 @@ func syscall_Syscall9(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1
 	c.fn = fn
 	c.n = nargs
 	c.args = uintptr(unsafe.Pointer(&a1))
-	cgocall_errno(asmstdcallAddr, unsafe.Pointer(&c))
+	cgocall(asmstdcallAddr, unsafe.Pointer(&c))
 	return c.r1, c.r2, c.err
 }
 
@@ -158,7 +158,7 @@ func syscall_Syscall12(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, 
 	c.fn = fn
 	c.n = nargs
 	c.args = uintptr(unsafe.Pointer(&a1))
-	cgocall_errno(asmstdcallAddr, unsafe.Pointer(&c))
+	cgocall(asmstdcallAddr, unsafe.Pointer(&c))
 	return c.r1, c.r2, c.err
 }
 
@@ -169,6 +169,6 @@ func syscall_Syscall15(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, 
 	c.fn = fn
 	c.n = nargs
 	c.args = uintptr(unsafe.Pointer(&a1))
-	cgocall_errno(asmstdcallAddr, unsafe.Pointer(&c))
+	cgocall(asmstdcallAddr, unsafe.Pointer(&c))
 	return c.r1, c.r2, c.err
 }

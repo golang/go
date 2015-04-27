@@ -545,19 +545,14 @@ TEXT gosave<>(SB),NOSPLIT,$-8
 	MOVD	$0, (g_sched+gobuf_ctxt)(g)
 	RET
 
-// asmcgocall(void(*fn)(void*), void *arg)
+// func asmcgocall(fn, arg unsafe.Pointer) int32
 // Call fn(arg) on the scheduler stack,
 // aligned appropriately for the gcc ABI.
 // See cgocall.go for more details.
-TEXT ·asmcgocall_errno(SB),NOSPLIT,$0-20
+TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	MOVD	fn+0(FP), R1
 	MOVD	arg+8(FP), R0
-	BL	asmcgocall<>(SB)
-	MOVW	R0, ret+16(FP)
-	RET
 
-// asmcgocall common code. fn in R1, arg in R0. returns errno in R0.
-TEXT asmcgocall<>(SB),NOSPLIT,$0-0
 	MOVD	RSP, R2		// save original stack pointer
 	MOVD	g, R4
 
@@ -598,6 +593,8 @@ g0:
 	SUB	R6, R5
 	MOVD	R9, R0
 	MOVD	R5, RSP
+
+	MOVW	R0, ret+16(FP)
 	RET
 
 // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)

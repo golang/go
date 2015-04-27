@@ -94,7 +94,7 @@ func main() {
 		if _cgo_notify_runtime_init_done == nil {
 			throw("_cgo_notify_runtime_init_done missing")
 		}
-		cgocall_errno(_cgo_notify_runtime_init_done, nil)
+		cgocall(_cgo_notify_runtime_init_done, nil)
 	}
 
 	main_init()
