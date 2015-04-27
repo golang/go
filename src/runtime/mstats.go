@@ -176,7 +176,7 @@ func readmemstats_m(stats *MemStats) {
 	memmove(unsafe.Pointer(stats), unsafe.Pointer(&memstats), sizeof_C_MStats)
 
 	// Stack numbers are part of the heap numbers, separate those out for user consumption
-	stats.StackSys = stats.StackInuse
+	stats.StackSys += stats.StackInuse
 	stats.HeapInuse -= stats.StackInuse
 	stats.HeapSys -= stats.StackInuse
 }
