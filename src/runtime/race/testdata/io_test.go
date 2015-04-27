@@ -49,7 +49,7 @@ func TestNoRaceIOHttp(t *testing.T) {
 			fmt.Fprintf(w, "test")
 			x = 42
 		})
-		err := http.ListenAndServe(":23651", nil)
+		err := http.ListenAndServe("127.0.0.1:23651", nil)
 		if err != nil {
 			t.Fatalf("http.ListenAndServe: %v", err)
 		}
