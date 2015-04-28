@@ -257,8 +257,9 @@ func shouldRedirectPost(statusCode int) bool {
 	return false
 }
 
-// Get issues a GET to the specified URL.  If the response is one of the following
-// redirect codes, Get follows the redirect, up to a maximum of 10 redirects:
+// Get issues a GET to the specified URL. If the response is one of
+// the following redirect codes, Get follows the redirect, up to a
+// maximum of 10 redirects:
 //
 //    301 (Moved Permanently)
 //    302 (Found)
@@ -273,11 +274,14 @@ func shouldRedirectPost(statusCode int) bool {
 // Caller should close resp.Body when done reading from it.
 //
 // Get is a wrapper around DefaultClient.Get.
+//
+// To make a request with custom headers, use NewRequest and
+// DefaultClient.Do.
 func Get(url string) (resp *Response, err error) {
 	return DefaultClient.Get(url)
 }
 
-// Get issues a GET to the specified URL.  If the response is one of the
+// Get issues a GET to the specified URL. If the response is one of the
 // following redirect codes, Get follows the redirect after calling the
 // Client's CheckRedirect function.
 //
@@ -292,6 +296,8 @@ func Get(url string) (resp *Response, err error) {
 //
 // When err is nil, resp always contains a non-nil resp.Body.
 // Caller should close resp.Body when done reading from it.
+//
+// To make a request with custom headers, use NewRequest and Client.Do.
 func (c *Client) Get(url string) (resp *Response, err error) {
 	req, err := NewRequest("GET", url, nil)
 	if err != nil {
@@ -438,7 +444,12 @@ func defaultCheckRedirect(req *Request, via []*Request) error {
 //
 // Caller should close resp.Body when done reading from it.
 //
-// Post is a wrapper around DefaultClient.Post
+// If the provided body is an io.Closer, it is closed after the
+// request.
+//
+// Post is a wrapper around DefaultClient.Post.
+//
+// To set custom headers, use NewRequest and DefaultClient.Do.
 func Post(url string, bodyType string, body io.Reader) (resp *Response, err error) {
 	return DefaultClient.Post(url, bodyType, body)
 }
@@ -447,8 +458,10 @@ func Post(url string, bodyType string, body io.Reader) (resp *Response, err erro
 //
 // Caller should close resp.Body when done reading from it.
 //
-// If the provided body is also an io.Closer, it is closed after the
+// If the provided body is an io.Closer, it is closed after the
 // request.
+//
+// To set custom headers, use NewRequest and Client.Do.
 func (c *Client) Post(url string, bodyType string, body io.Reader) (resp *Response, err error) {
 	req, err := NewRequest("POST", url, body)
 	if err != nil {
@@ -461,16 +474,22 @@ func (c *Client) Post(url string, bodyType string, body io.Reader) (resp *Respon
 // PostForm issues a POST to the specified URL, with data's keys and
 // values URL-encoded as the request body.
 //
+// The Content-Type header is set to application/x-www-form-urlencoded.
+// To set other headers, use NewRequest and DefaultClient.Do.
+//
 // When err is nil, resp always contains a non-nil resp.Body.
 // Caller should close resp.Body when done reading from it.
 //
-// PostForm is a wrapper around DefaultClient.PostForm
+// PostForm is a wrapper around DefaultClient.PostForm.
 func PostForm(url string, data url.Values) (resp *Response, err error) {
 	return DefaultClient.PostForm(url, data)
 }
 
 // PostForm issues a POST to the specified URL,
-// with data's keys and values urlencoded as the request body.
+// with data's keys and values URL-encoded as the request body.
+//
+// The Content-Type header is set to application/x-www-form-urlencoded.
+// To set other headers, use NewRequest and DefaultClient.Do.
 //
 // When err is nil, resp always contains a non-nil resp.Body.
 // Caller should close resp.Body when done reading from it.

@@ -169,8 +169,9 @@ type Request struct {
 	// The HTTP client ignores Form and uses Body instead.
 	Form url.Values
 
-	// PostForm contains the parsed form data from POST or PUT
-	// body parameters.
+	// PostForm contains the parsed form data from POST, PATCH,
+	// or PUT body parameters.
+	//
 	// This field is only available after ParseForm is called.
 	// The HTTP client ignores PostForm and uses Body instead.
 	PostForm url.Values
@@ -506,6 +507,13 @@ func ParseHTTPVersion(vers string) (major, minor int, ok bool) {
 // If the provided body is also an io.Closer, the returned
 // Request.Body is set to body and will be closed by the Client
 // methods Do, Post, and PostForm, and Transport.RoundTrip.
+//
+// NewRequest returns a Request suitable for use with Client.Do or
+// Transport.RoundTrip.
+// To create a request for use with testing a Server Handler use either
+// ReadRequest or manually update the Request fields. See the Request
+// type's documentation for the difference between inbound and outbound
+// request fields.
 func NewRequest(method, urlStr string, body io.Reader) (*Request, error) {
 	u, err := url.Parse(urlStr)
 	if err != nil {
@@ -605,7 +613,7 @@ func putTextprotoReader(r *textproto.Reader) {
 	textprotoReaderPool.Put(r)
 }
 
-// ReadRequest reads and parses a request from b.
+// ReadRequest reads and parses an incoming request from b.
 func ReadRequest(b *bufio.Reader) (req *Request, err error) {
 
 	tp := newTextprotoReader(b)
