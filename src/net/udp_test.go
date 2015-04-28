@@ -95,7 +95,8 @@ func TestReadFromUDP(t *testing.T) {
 	_, _, err = c.ReadFromUDP(b)
 	if err == nil {
 		t.Fatal("ReadFromUDP should fail")
-	} else if !isTimeoutError(err) {
+	}
+	if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
 		t.Fatal(err)
 	}
 }

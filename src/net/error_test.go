@@ -15,16 +15,6 @@ import (
 	"time"
 )
 
-func isTimeoutError(err error) bool {
-	nerr, ok := err.(Error)
-	return ok && nerr.Timeout()
-}
-
-func isTemporaryError(err error) bool {
-	nerr, ok := err.(Error)
-	return ok && nerr.Temporary()
-}
-
 func (e *OpError) isValid() error {
 	if e.Op == "" {
 		return fmt.Errorf("OpError.Op is empty: %v", e)
@@ -467,7 +457,7 @@ func TestAcceptError(t *testing.T) {
 				if c != nil {
 					t.Errorf("Accept returned non-nil interface %T(%v) with err != nil", c, c)
 				}
-				if !isTimeoutError(err) && !isTemporaryError(err) {
+				if nerr, ok := err.(Error); !ok || (!nerr.Timeout() && !nerr.Temporary()) {
 					return
 				}
 				continue
@@ -520,6 +510,10 @@ second:
 	case *os.PathError:
 		nestedErr = err.Err
 		goto third
+	}
+	switch nestedErr {
+	case errClosing:
+		return nil
 	}
 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
 

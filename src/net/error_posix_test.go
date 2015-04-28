@@ -8,7 +8,10 @@ package net
 
 import "syscall"
 
-var errOpNotSupported = syscall.EOPNOTSUPP
+var (
+	errTimedout       = syscall.ETIMEDOUT
+	errOpNotSupported = syscall.EOPNOTSUPP
+)
 
 func isPlatformError(err error) bool {
 	_, ok := err.(syscall.Errno)
