@@ -1032,7 +1032,7 @@ func maxalign(s *LSym, type_ int) int32 {
 type ProgGen struct {
 	s        *LSym
 	datasize int32
-	data     [256 / obj.PointersPerByte]uint8
+	data     [256 / 8]uint8
 	pos      int64
 }
 
@@ -1040,7 +1040,7 @@ func proggeninit(g *ProgGen, s *LSym) {
 	g.s = s
 	g.datasize = 0
 	g.pos = 0
-	g.data = [256 / obj.PointersPerByte]uint8{}
+	g.data = [256 / 8]uint8{}
 }
 
 func proggenemit(g *ProgGen, v uint8) {
@@ -1054,16 +1054,16 @@ func proggendataflush(g *ProgGen) {
 	}
 	proggenemit(g, obj.InsData)
 	proggenemit(g, uint8(g.datasize))
-	s := (g.datasize + obj.PointersPerByte - 1) / obj.PointersPerByte
+	s := (g.datasize + 7) / 8
 	for i := int32(0); i < s; i++ {
 		proggenemit(g, g.data[i])
 	}
 	g.datasize = 0
-	g.data = [256 / obj.PointersPerByte]uint8{}
+	g.data = [256 / 8]uint8{}
 }
 
 func proggendata(g *ProgGen, d uint8) {
-	g.data[g.datasize/obj.PointersPerByte] |= d << uint((g.datasize%obj.PointersPerByte)*obj.BitsPerPointer)
+	g.data[g.datasize/8] |= d << uint(g.datasize%8)
 	g.datasize++
 	if g.datasize == 255 {
 		proggendataflush(g)
@@ -1074,7 +1074,7 @@ func proggendata(g *ProgGen, d uint8) {
 func proggenskip(g *ProgGen, off int64, v int64) {
 	for i := off; i < off+v; i++ {
 		if (i % int64(Thearch.Ptrsize)) == 0 {
-			proggendata(g, obj.BitsScalar)
+			proggendata(g, 0)
 		}
 	}
 }
@@ -1119,35 +1119,18 @@ func proggenaddsym(g *ProgGen, s *LSym) {
 	// Leave debugging the SDATA issue for the Go rewrite.
 
 	if s.Gotype == nil && s.Size >= int64(Thearch.Ptrsize) && s.Name[0] != '.' {
-		// conservative scan
 		Diag("missing Go type information for global symbol: %s size %d", s.Name, int(s.Size))
+		return
+	}
 
-		if (s.Size%int64(Thearch.Ptrsize) != 0) || (g.pos%int64(Thearch.Ptrsize) != 0) {
-			Diag("proggenaddsym: unaligned conservative symbol %s: size=%d pos=%d", s.Name, s.Size, g.pos)
-		}
-		size := (s.Size + int64(Thearch.Ptrsize) - 1) / int64(Thearch.Ptrsize) * int64(Thearch.Ptrsize)
-		if size < int64(32*Thearch.Ptrsize) {
-			// Emit small symbols as data.
-			for i := int64(0); i < size/int64(Thearch.Ptrsize); i++ {
-				proggendata(g, obj.BitsPointer)
-			}
-		} else {
-			// Emit large symbols as array.
-			proggenarray(g, size/int64(Thearch.Ptrsize))
-
-			proggendata(g, obj.BitsPointer)
-			proggenarrayend(g)
-		}
-
-		g.pos = s.Value + size
-	} else if s.Gotype == nil || decodetype_noptr(s.Gotype) != 0 || s.Size < int64(Thearch.Ptrsize) || s.Name[0] == '.' {
+	if s.Gotype == nil || decodetype_noptr(s.Gotype) != 0 || s.Size < int64(Thearch.Ptrsize) || s.Name[0] == '.' {
 		// no scan
 		if s.Size < int64(32*Thearch.Ptrsize) {
 			// Emit small symbols as data.
 			// This case also handles unaligned and tiny symbols, so tread carefully.
 			for i := s.Value; i < s.Value+s.Size; i++ {
 				if (i % int64(Thearch.Ptrsize)) == 0 {
-					proggendata(g, obj.BitsScalar)
+					proggendata(g, 0)
 				}
 			}
 		} else {
@@ -1156,7 +1139,7 @@ func proggenaddsym(g *ProgGen, s *LSym) {
 				Diag("proggenaddsym: unaligned noscan symbol %s: size=%d pos=%d", s.Name, s.Size, g.pos)
 			}
 			proggenarray(g, s.Size/int64(Thearch.Ptrsize))
-			proggendata(g, obj.BitsScalar)
+			proggendata(g, 0)
 			proggenarrayend(g)
 		}
 
@@ -1183,7 +1166,8 @@ func proggenaddsym(g *ProgGen, s *LSym) {
 			Diag("proggenaddsym: unaligned gcmask symbol %s: size=%d pos=%d", s.Name, s.Size, g.pos)
 		}
 		for i := int64(0); i < size; i += int64(Thearch.Ptrsize) {
-			proggendata(g, uint8((mask[i/int64(Thearch.Ptrsize)/2]>>uint64((i/int64(Thearch.Ptrsize)%2)*4+2))&obj.BitsMask))
+			word := uint(i / int64(Thearch.Ptrsize))
+			proggendata(g, (mask[word/8]>>(word%8))&1)
 		}
 		g.pos = s.Value + size
 	}

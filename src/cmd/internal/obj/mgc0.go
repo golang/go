@@ -22,16 +22,6 @@ package obj
 // Used by cmd/gc.
 
 const (
-	GcBits          = 4
-	BitsPerPointer  = 2
-	BitsDead        = 0
-	BitsScalar      = 1
-	BitsPointer     = 2
-	BitsMask        = 3
-	PointersPerByte = 8 / BitsPerPointer
-)
-
-const (
 	InsData = 1 + iota
 	InsArray
 	InsArrayEnd

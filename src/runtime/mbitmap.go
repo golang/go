@@ -446,25 +446,23 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	// and storing type info in the GC bitmap.
 	h := heapBitsForAddr(x)
 
-	var ti, te uintptr
 	var ptrmask *uint8
 	if size == ptrSize {
 		// It's one word and it has pointers, it must be a pointer.
 		// The bitmap byte is shared with the one-word object
 		// next to it, and concurrent GC might be marking that
 		// object, so we must use an atomic update.
+		// TODO(rsc): It may make sense to set all the pointer bits
+		// when initializing the span, and then the atomicor8 here
+		// goes away - heapBitsSetType would be a no-op
+		// in that case.
 		atomicor8(h.bitp, typePointer<<(typeShift+h.shift))
 		return
 	}
 	if typ.kind&kindGCProg != 0 {
 		nptr := (uintptr(typ.size) + ptrSize - 1) / ptrSize
-		masksize := nptr
-		if masksize%2 != 0 {
-			masksize *= 2 // repeated
-		}
-		const typeBitsPerByte = 8 / typeBitsWidth
-		masksize = masksize * typeBitsPerByte / 8 // 4 bits per word
-		masksize++                                // unroll flag in the beginning
+		masksize := (nptr + 7) / 8
+		masksize++ // unroll flag in the beginning
 		if masksize > maxGCMask && typ.gc[1] != 0 {
 			// write barriers have not been updated to deal with this case yet.
 			throw("maxGCMask too small for now")
@@ -490,64 +488,55 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	} else {
 		ptrmask = (*uint8)(unsafe.Pointer(typ.gc[0])) // pointer to unrolled mask
 	}
-	if size == 2*ptrSize {
-		// h.shift is 0 for all sizes > ptrSize.
-		*h.bitp = *ptrmask
-		return
-	}
-	te = uintptr(typ.size) / ptrSize
-	// If the type occupies odd number of words, its mask is repeated.
-	if te%2 == 0 {
-		te /= 2
-	}
-	// Copy pointer bitmask into the bitmap.
-	// TODO(rlh): add comment addressing the following concerns:
-	// If size > 2*ptrSize, is x guaranteed to be at least 2*ptrSize-aligned?
-	// And if type occupies and odd number of words, why are we only going through half
-	// of ptrmask and why don't we have to shift everything by 4 on odd iterations?
 
-	for i := uintptr(0); i < dataSize; i += 2 * ptrSize {
-		v := *(*uint8)(add(unsafe.Pointer(ptrmask), ti))
-		ti++
-		if ti == te {
-			ti = 0
+	// Copy from 1-bit ptrmask into 4-bit bitmap.
+	elemSize := typ.size
+	var v uint32 // pending byte of 4-bit bitmap; uint32 for better code gen
+	nv := 0      // number of bits added to v
+	for i := uintptr(0); i < dataSize; i += elemSize {
+		// At each word, b holds the pending bits from the 1-bit bitmap,
+		// with a sentinel 1 bit above all the actual bits.
+		// When b == 1, that means it is out of bits and needs to be refreshed.
+		// *(p+1) is the next byte to read.
+		p := ptrmask
+		b := uint32(*p) | 0x100
+		for j := uintptr(0); j < elemSize; j += ptrSize {
+			if b == 1 {
+				p = addb(p, 1)
+				b = uint32(*p) | 0x100
+			}
+			// b&1 is 1 for pointer, 0 for scalar.
+			// We want typePointer (2) or typeScalar (1), so add 1.
+			v |= ((b & 1) + 1) << (uint(nv) + typeShift)
+			b >>= 1
+			if nv += heapBitsWidth; nv == 8 {
+				*h.bitp = uint8(v)
+				h.bitp = subtractb(h.bitp, 1)
+				v = 0
+				nv = 0
+			}
 		}
-		if i+ptrSize == dataSize {
-			v &^= typeMask << (4 + typeShift)
-		}
+	}
 
-		*h.bitp = v
+	// Finish final byte of bitmap and mark next word (if any) with typeDead (0)
+	if nv != 0 {
+		*h.bitp = uint8(v)
 		h.bitp = subtractb(h.bitp, 1)
-	}
-	if dataSize%(2*ptrSize) == 0 && dataSize < size {
-		// Mark the word after last object's word as typeDead.
+	} else if dataSize < size {
 		*h.bitp = 0
 	}
 }
 
-// typeBitmapInHeapBitmapFormat returns a bitmap holding
-// the type bits for the type typ, but expanded into heap bitmap format
-// to make it easier to copy them into the heap bitmap.
-// TODO(rsc): Change clients to use the type bitmap format instead,
-// which can be stored more densely (especially if we drop to 1 bit per pointer).
-//
-// To make it easier to replicate the bits when filling out the heap
-// bitmap for an array of typ, if typ holds an odd number of words
-// (meaning the heap bitmap would stop halfway through a byte),
-// typeBitmapInHeapBitmapFormat returns the bitmap for two instances
-// of typ in a row.
-// TODO(rsc): Remove doubling.
-func typeBitmapInHeapBitmapFormat(typ *_type) []uint8 {
+// ptrBitmapForType returns a bitmap indicating where pointers are
+// in the memory representation of the type typ.
+// The bit x[i/8]&(1<<(i%8)) is 1 if the i'th word in a value of type typ
+// is a pointer.
+func ptrBitmapForType(typ *_type) []uint8 {
 	var ptrmask *uint8
 	nptr := (uintptr(typ.size) + ptrSize - 1) / ptrSize
 	if typ.kind&kindGCProg != 0 {
-		masksize := nptr
-		if masksize%2 != 0 {
-			masksize *= 2 // repeated
-		}
-		const typeBitsPerByte = 8 / typeBitsWidth
-		masksize = masksize * typeBitsPerByte / 8 // 4 bits per word
-		masksize++                                // unroll flag in the beginning
+		masksize := (nptr + 7) / 8
+		masksize++ // unroll flag in the beginning
 		if masksize > maxGCMask && typ.gc[1] != 0 {
 			// write barriers have not been updated to deal with this case yet.
 			throw("maxGCMask too small for now")
@@ -565,7 +554,7 @@ func typeBitmapInHeapBitmapFormat(typ *_type) []uint8 {
 	} else {
 		ptrmask = (*uint8)(unsafe.Pointer(typ.gc[0])) // pointer to unrolled mask
 	}
-	return (*[1 << 30]byte)(unsafe.Pointer(ptrmask))[:(nptr+1)/2]
+	return (*[1 << 30]byte)(unsafe.Pointer(ptrmask))[:(nptr+7)/8]
 }
 
 // GC type info programs
@@ -625,10 +614,7 @@ func unrollgcprog1(maskp *byte, prog *byte, ppos *uintptr, inplace, sparse bool)
 			prog = addb(prog, 1)
 			p := (*[1 << 30]byte)(unsafe.Pointer(prog))
 			for i := 0; i < siz; i++ {
-				const typeBitsPerByte = 8 / typeBitsWidth
-				v := p[i/typeBitsPerByte]
-				v >>= (uint(i) % typeBitsPerByte) * typeBitsWidth
-				v &= typeMask
+				v := p[i/8] >> (uint(i) % 8) & 1
 				if inplace {
 					// Store directly into GC bitmap.
 					h := heapBitsForAddr(uintptr(unsafe.Pointer(&mask[pos])))
@@ -639,18 +625,18 @@ func unrollgcprog1(maskp *byte, prog *byte, ppos *uintptr, inplace, sparse bool)
 					}
 					pos += ptrSize
 				} else if sparse {
+					throw("sparse")
 					// 4-bits per word, type bits in high bits
 					v <<= (pos % 8) + typeShift
 					mask[pos/8] |= v
 					pos += heapBitsWidth
 				} else {
 					// 1 bit per word, for data/bss bitmap
-					v >>= 1 // convert typePointer to 1, others to 0
 					mask[pos/8] |= v << (pos % 8)
 					pos++
 				}
 			}
-			prog = addb(prog, round(uintptr(siz)*typeBitsWidth, 8)/8)
+			prog = addb(prog, (uintptr(siz)+7)/8)
 
 		case insArray:
 			prog = (*byte)(add(unsafe.Pointer(prog), 1))
@@ -675,7 +661,7 @@ func unrollgcprog1(maskp *byte, prog *byte, ppos *uintptr, inplace, sparse bool)
 	}
 }
 
-// Unrolls GC program prog for data/bss, returns dense GC mask.
+// Unrolls GC program prog for data/bss, returns 1-bit GC mask.
 func unrollglobgcprog(prog *byte, size uintptr) bitvector {
 	masksize := round(round(size, ptrSize)/ptrSize, 8) / 8
 	mask := (*[1 << 30]byte)(persistentalloc(masksize+1, 0, &memstats.gc_sys))
@@ -721,16 +707,10 @@ func unrollgcprog_m(typ *_type) {
 	if *mask == 0 {
 		pos := uintptr(8) // skip the unroll flag
 		prog := (*byte)(unsafe.Pointer(uintptr(typ.gc[1])))
-		prog = unrollgcprog1(mask, prog, &pos, false, true)
+		prog = unrollgcprog1(mask, prog, &pos, false, false)
 		if *prog != insEnd {
 			throw("unrollgcprog: program does not end with insEnd")
 		}
-		if typ.size/ptrSize%2 != 0 {
-			// repeat the program
-			prog := (*byte)(unsafe.Pointer(uintptr(typ.gc[1])))
-			unrollgcprog1(mask, prog, &pos, false, true)
-		}
-
 		// atomic way to say mask[0] = 1
 		atomicor8(mask, 1)
 	}
@@ -749,21 +729,21 @@ func getgcmaskcb(frame *stkframe, ctxt unsafe.Pointer) bool {
 }
 
 // Returns GC type info for object p for testing.
-func getgcmask(p unsafe.Pointer, t *_type, mask **byte, len *uintptr) {
-	*mask = nil
-	*len = 0
-
-	// data
+func getgcmask(ep interface{}) (mask []byte) {
+	e := *(*eface)(unsafe.Pointer(&ep))
+	p := e.data
+	t := e._type
+	// data or bss
 	for datap := &firstmoduledata; datap != nil; datap = datap.next {
+		// data
 		if datap.data <= uintptr(p) && uintptr(p) < datap.edata {
 			n := (*ptrtype)(unsafe.Pointer(t)).elem.size
-			*len = n / ptrSize
-			*mask = &make([]byte, *len)[0]
+			mask = make([]byte, n/ptrSize)
 			for i := uintptr(0); i < n; i += ptrSize {
 				off := (uintptr(p) + i - datap.data) / ptrSize
 				bits := (*addb(datap.gcdatamask.bytedata, off/8) >> (off % 8)) & 1
 				bits += 1 // convert 1-bit to 2-bit
-				*addb(*mask, i/ptrSize) = bits
+				mask[i/ptrSize] = bits
 			}
 			return
 		}
@@ -771,13 +751,12 @@ func getgcmask(p unsafe.Pointer, t *_type, mask **byte, len *uintptr) {
 		// bss
 		if datap.bss <= uintptr(p) && uintptr(p) < datap.ebss {
 			n := (*ptrtype)(unsafe.Pointer(t)).elem.size
-			*len = n / ptrSize
-			*mask = &make([]byte, *len)[0]
+			mask = make([]byte, n/ptrSize)
 			for i := uintptr(0); i < n; i += ptrSize {
 				off := (uintptr(p) + i - datap.bss) / ptrSize
 				bits := (*addb(datap.gcbssmask.bytedata, off/8) >> (off % 8)) & 1
 				bits += 1 // convert 1-bit to 2-bit
-				*addb(*mask, i/ptrSize) = bits
+				mask[i/ptrSize] = bits
 			}
 			return
 		}
@@ -787,11 +766,10 @@ func getgcmask(p unsafe.Pointer, t *_type, mask **byte, len *uintptr) {
 	var n uintptr
 	var base uintptr
 	if mlookup(uintptr(p), &base, &n, nil) != 0 {
-		*len = n / ptrSize
-		*mask = &make([]byte, *len)[0]
+		mask = make([]byte, n/ptrSize)
 		for i := uintptr(0); i < n; i += ptrSize {
 			bits := heapBitsForAddr(base + i).typeBits()
-			*addb(*mask, i/ptrSize) = bits
+			mask[i/ptrSize] = bits
 		}
 		return
 	}
@@ -821,13 +799,13 @@ func getgcmask(p unsafe.Pointer, t *_type, mask **byte, len *uintptr) {
 		bv := stackmapdata(stkmap, pcdata)
 		size := uintptr(bv.n) * ptrSize
 		n := (*ptrtype)(unsafe.Pointer(t)).elem.size
-		*len = n / ptrSize
-		*mask = &make([]byte, *len)[0]
+		mask = make([]byte, n/ptrSize)
 		for i := uintptr(0); i < n; i += ptrSize {
 			off := (uintptr(p) + i - frame.varp + size) / ptrSize
 			bits := (*addb(bv.bytedata, off/8) >> (off % 8)) & 1
 			bits += 1 // convert 1-bit to 2-bit
-			*addb(*mask, i/ptrSize) = bits
+			mask[i/ptrSize] = bits
 		}
 	}
+	return
 }

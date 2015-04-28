@@ -76,15 +76,8 @@ func ParForIters(desc *ParFor, tid uint32) (uint32, uint32) {
 }
 
 func GCMask(x interface{}) (ret []byte) {
-	e := (*eface)(unsafe.Pointer(&x))
-	s := (*slice)(unsafe.Pointer(&ret))
 	systemstack(func() {
-		var len uintptr
-		var a *byte
-		getgcmask(e.data, e._type, &a, &len)
-		s.array = unsafe.Pointer(a)
-		s.len = int(len)
-		s.cap = s.len
+		ret = getgcmask(x)
 	})
 	return
 }

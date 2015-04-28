@@ -1430,11 +1430,7 @@ func usegcprog(t *Type) bool {
 	// Calculate size of the unrolled GC mask.
 	nptr := (t.Width + int64(Widthptr) - 1) / int64(Widthptr)
 
-	size := nptr
-	if size%2 != 0 {
-		size *= 2 // repeated
-	}
-	size = size * obj.GcBits / 8 // 4 bits per word
+	size := (nptr + 7) / 8
 
 	// Decide whether to use unrolled GC mask or GC program.
 	// We could use a more elaborate condition, but this seems to work well in practice.
@@ -1445,7 +1441,7 @@ func usegcprog(t *Type) bool {
 	return size > int64(2*Widthptr)
 }
 
-// Generates sparse GC bitmask (4 bits per word).
+// Generates GC bitmask (1 bit per word).
 func gengcmask(t *Type, gcmask []byte) {
 	for i := int64(0); i < 16; i++ {
 		gcmask[i] = 0
@@ -1454,40 +1450,14 @@ func gengcmask(t *Type, gcmask []byte) {
 		return
 	}
 
-	// Generate compact mask as stacks use.
-	xoffset := int64(0)
-
 	vec := bvalloc(2 * int32(Widthptr) * 8)
+	xoffset := int64(0)
 	onebitwalktype1(t, &xoffset, vec)
 
-	// Unfold the mask for the GC bitmap format:
-	// 4 bits per word, 2 high bits encode pointer info.
-	pos := gcmask
-
 	nptr := (t.Width + int64(Widthptr) - 1) / int64(Widthptr)
-	half := false
-
-	// If number of words is odd, repeat the mask.
-	// This makes simpler handling of arrays in runtime.
-	var i int64
-	var bits uint8
-	for j := int64(0); j <= (nptr % 2); j++ {
-		for i = 0; i < nptr; i++ {
-			// convert 0=scalar / 1=pointer to GC bit encoding
-			if bvget(vec, int32(i)) == 0 {
-				bits = obj.BitsScalar
-			} else {
-				bits = obj.BitsPointer
-			}
-			bits <<= 2
-			if half {
-				bits <<= 4
-			}
-			pos[0] |= byte(bits)
-			half = !half
-			if !half {
-				pos = pos[1:]
-			}
+	for i := int64(0); i < nptr; i++ {
+		if bvget(vec, int32(i)) == 1 {
+			gcmask[i/8] |= 1 << (uint(i) % 8)
 		}
 	}
 }
@@ -1496,7 +1466,7 @@ func gengcmask(t *Type, gcmask []byte) {
 type ProgGen struct {
 	s        *Sym
 	datasize int32
-	data     [256 / obj.PointersPerByte]uint8
+	data     [256 / 8]uint8
 	ot       int64
 }
 
@@ -1504,7 +1474,7 @@ func proggeninit(g *ProgGen, s *Sym) {
 	g.s = s
 	g.datasize = 0
 	g.ot = 0
-	g.data = [256 / obj.PointersPerByte]uint8{}
+	g.data = [256 / 8]uint8{}
 }
 
 func proggenemit(g *ProgGen, v uint8) {
@@ -1518,16 +1488,16 @@ func proggendataflush(g *ProgGen) {
 	}
 	proggenemit(g, obj.InsData)
 	proggenemit(g, uint8(g.datasize))
-	s := (g.datasize + obj.PointersPerByte - 1) / obj.PointersPerByte
+	s := (g.datasize + 7) / 8
 	for i := int32(0); i < s; i++ {
 		proggenemit(g, g.data[i])
 	}
 	g.datasize = 0
-	g.data = [256 / obj.PointersPerByte]uint8{}
+	g.data = [256 / 8]uint8{}
 }
 
 func proggendata(g *ProgGen, d uint8) {
-	g.data[g.datasize/obj.PointersPerByte] |= d << uint((g.datasize%obj.PointersPerByte)*obj.BitsPerPointer)
+	g.data[g.datasize/8] |= d << uint(g.datasize%8)
 	g.datasize++
 	if g.datasize == 255 {
 		proggendataflush(g)
@@ -1538,7 +1508,7 @@ func proggendata(g *ProgGen, d uint8) {
 func proggenskip(g *ProgGen, off int64, v int64) {
 	for i := off; i < off+v; i++ {
 		if (i % int64(Widthptr)) == 0 {
-			proggendata(g, obj.BitsScalar)
+			proggendata(g, 0)
 		}
 	}
 }
@@ -1566,12 +1536,7 @@ func proggenfini(g *ProgGen) int64 {
 // Generates GC program for large types.
 func gengcprog(t *Type, pgc0 **Sym, pgc1 **Sym) {
 	nptr := (t.Width + int64(Widthptr) - 1) / int64(Widthptr)
-	size := nptr
-	if size%2 != 0 {
-		size *= 2 // repeated twice
-	}
-	size = size * obj.PointersPerByte / 8 // 4 bits per word
-	size++                                // unroll flag in the beginning, used by runtime (see runtime.markallocated)
+	size := nptr + 1 // unroll flag in the beginning, used by runtime (see runtime.markallocated)
 
 	// emity space in BSS for unrolled program
 	*pgc0 = nil
@@ -1623,26 +1588,25 @@ func gengcprog1(g *ProgGen, t *Type, xoffset *int64) {
 		TFUNC,
 		TCHAN,
 		TMAP:
-		proggendata(g, obj.BitsPointer)
+		proggendata(g, 1)
 		*xoffset += t.Width
 
 	case TSTRING:
-		proggendata(g, obj.BitsPointer)
-		proggendata(g, obj.BitsScalar)
+		proggendata(g, 1)
+		proggendata(g, 0)
 		*xoffset += t.Width
 
 		// Assuming IfacePointerOnly=1.
 	case TINTER:
-		proggendata(g, obj.BitsPointer)
-
-		proggendata(g, obj.BitsPointer)
+		proggendata(g, 1)
+		proggendata(g, 1)
 		*xoffset += t.Width
 
 	case TARRAY:
 		if Isslice(t) {
-			proggendata(g, obj.BitsPointer)
-			proggendata(g, obj.BitsScalar)
-			proggendata(g, obj.BitsScalar)
+			proggendata(g, 1)
+			proggendata(g, 0)
+			proggendata(g, 0)
 		} else {
 			t1 := t.Type
 			if t1.Width == 0 {
@@ -1656,7 +1620,7 @@ func gengcprog1(g *ProgGen, t *Type, xoffset *int64) {
 				n := t.Width
 				n -= -*xoffset & (int64(Widthptr) - 1) // skip to next ptr boundary
 				proggenarray(g, (n+int64(Widthptr)-1)/int64(Widthptr))
-				proggendata(g, obj.BitsScalar)
+				proggendata(g, 0)
 				proggenarrayend(g)
 				*xoffset -= (n+int64(Widthptr)-1)/int64(Widthptr)*int64(Widthptr) - t.Width
 			} else {

@@ -1701,14 +1701,14 @@ func (gc *gcProg) appendProg(t *rtype) {
 	default:
 		panic("reflect: non-pointer type marked as having pointers")
 	case Ptr, UnsafePointer, Chan, Func, Map:
-		gc.appendWord(bitsPointer)
+		gc.appendWord(1)
 	case Slice:
-		gc.appendWord(bitsPointer)
-		gc.appendWord(bitsScalar)
-		gc.appendWord(bitsScalar)
+		gc.appendWord(1)
+		gc.appendWord(0)
+		gc.appendWord(0)
 	case String:
-		gc.appendWord(bitsPointer)
-		gc.appendWord(bitsScalar)
+		gc.appendWord(1)
+		gc.appendWord(0)
 	case Array:
 		c := t.Len()
 		e := t.Elem().common()
@@ -1716,8 +1716,8 @@ func (gc *gcProg) appendProg(t *rtype) {
 			gc.appendProg(e)
 		}
 	case Interface:
-		gc.appendWord(bitsPointer)
-		gc.appendWord(bitsPointer)
+		gc.appendWord(1)
+		gc.appendWord(1)
 	case Struct:
 		oldsize := gc.size
 		c := t.NumField()
@@ -1737,13 +1737,12 @@ func (gc *gcProg) appendWord(v byte) {
 		panic("reflect: unaligned GC program")
 	}
 	nptr := gc.size / ptrsize
-	for uintptr(len(gc.gc)) < nptr/2+1 {
-		gc.gc = append(gc.gc, 0x44) // BitsScalar
+	for uintptr(len(gc.gc)) <= nptr/8 {
+		gc.gc = append(gc.gc, 0)
 	}
-	gc.gc[nptr/2] &= ^(3 << ((nptr%2)*4 + 2))
-	gc.gc[nptr/2] |= v << ((nptr%2)*4 + 2)
+	gc.gc[nptr/8] |= v << (nptr % 8)
 	gc.size += ptrsize
-	if v == bitsPointer {
+	if v == 1 {
 		gc.hasPtr = true
 	}
 }
@@ -1758,32 +1757,19 @@ func (gc *gcProg) finalize() (unsafe.Pointer, bool) {
 	ptrsize := unsafe.Sizeof(uintptr(0))
 	gc.align(ptrsize)
 	nptr := gc.size / ptrsize
-	for uintptr(len(gc.gc)) < nptr/2+1 {
-		gc.gc = append(gc.gc, 0x44) // BitsScalar
-	}
-	// If number of words is odd, repeat the mask twice.
-	// Compiler does the same.
-	if nptr%2 != 0 {
-		for i := uintptr(0); i < nptr; i++ {
-			gc.appendWord(extractGCWord(gc.gc, i))
-		}
+	for uintptr(len(gc.gc)) <= nptr/8 {
+		gc.gc = append(gc.gc, 0)
 	}
 	return unsafe.Pointer(&gc.gc[0]), gc.hasPtr
 }
 
 func extractGCWord(gc []byte, i uintptr) byte {
-	return (gc[i/2] >> ((i%2)*4 + 2)) & 3
+	return gc[i/8] >> (i % 8) & 1
 }
 
 func (gc *gcProg) align(a uintptr) {
 	gc.size = align(gc.size, a)
 }
-
-// These constants must stay in sync with ../runtime/mbitmap.go.
-const (
-	bitsScalar  = 1
-	bitsPointer = 2
-)
 
 // Make sure these routines stay in sync with ../../runtime/hashmap.go!
 // These types exist only for GC, so we only fill out GC relevant info.
@@ -1814,7 +1800,7 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 	var gc gcProg
 	// topbits
 	for i := 0; i < int(bucketSize*unsafe.Sizeof(uint8(0))/ptrsize); i++ {
-		gc.append(bitsScalar)
+		gc.append(0)
 	}
 	// keys
 	for i := 0; i < bucketSize; i++ {
@@ -1825,10 +1811,10 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 		gc.appendProg(etyp)
 	}
 	// overflow
-	gc.append(bitsPointer)
+	gc.append(1)
 	ptrdata := gc.size
 	if runtime.GOARCH == "amd64p32" {
-		gc.append(bitsScalar)
+		gc.append(0)
 	}
 
 	b := new(rtype)
@@ -2058,16 +2044,16 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
 		// space no matter how big they actually are.
 		if ifaceIndir(rcvr) {
 			// we pass a pointer to the receiver.
-			gc.append(bitsPointer)
-			stack.append2(bitsPointer)
+			gc.append(1)
+			stack.append2(1)
 		} else if rcvr.pointers() {
 			// rcvr is a one-word pointer object.  Its gc program
 			// is just what we need here.
-			gc.append(bitsPointer)
-			stack.append2(bitsPointer)
+			gc.append(1)
+			stack.append2(1)
 		} else {
-			gc.append(bitsScalar)
-			stack.append2(bitsScalar)
+			gc.append(0)
+			stack.append2(0)
 		}
 		offset += ptrSize
 	}
@@ -2154,17 +2140,17 @@ func addTypeBits(bv *bitVector, offset *uintptr, t *rtype) {
 	case Chan, Func, Map, Ptr, Slice, String, UnsafePointer:
 		// 1 pointer at start of representation
 		for bv.n < 2*uint32(*offset/uintptr(ptrSize)) {
-			bv.append2(bitsScalar)
+			bv.append2(0)
 		}
-		bv.append2(bitsPointer)
+		bv.append2(1)
 
 	case Interface:
 		// 2 pointers
 		for bv.n < 2*uint32(*offset/uintptr(ptrSize)) {
-			bv.append2(bitsScalar)
+			bv.append2(0)
 		}
-		bv.append2(bitsPointer)
-		bv.append2(bitsPointer)
+		bv.append2(1)
+		bv.append2(1)
 
 	case Array:
 		// repeat inner type
