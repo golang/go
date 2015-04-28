@@ -12,6 +12,7 @@ New Ports:
 darwin/arm, a.k.a iOS. (https://golang.org/cl/2118, 2119, 3273, 2121, 2122, ..., 2127)
 darwin/arm64
 linux/arm64 (cgo is supported, but only with external linking)
+The port to Snow Leopard (OS X 10.6) is no longer actively maintained.
 
 Runtime:
 goroutine scheduling order changed; never guaranteed by language, but can break tests that implicitly assume a specific execution order
