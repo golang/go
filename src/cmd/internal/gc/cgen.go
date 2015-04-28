@@ -803,7 +803,19 @@ func cgen_wbptr(n, res *Node) {
 		Cgenr(n, &src, nil)
 	}
 
-	Thearch.Gins(Thearch.Optoas(OCMP, Types[TUINT8]), syslook("writeBarrierEnabled", 0), Nodintconst(0))
+	wbEnabled := syslook("writeBarrierEnabled", 0)
+	switch Ctxt.Arch.Thechar {
+	default:
+		Fatal("cgen_wbptr: unknown architecture")
+	case '5', '7', '9':
+		var tmp Node
+		Regalloc(&tmp, Types[TUINT8], nil)
+		Thearch.Gmove(wbEnabled, &tmp)
+		Thearch.Gins(Thearch.Optoas(OCMP, Types[TUINT8]), &tmp, Nodintconst(0))
+		Regfree(&tmp)
+	case '6', '8':
+		Thearch.Gins(Thearch.Optoas(OCMP, Types[TUINT8]), wbEnabled, Nodintconst(0))
+	}
 	pbr := Gbranch(Thearch.Optoas(ONE, Types[TUINT8]), nil, -1)
 	Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), &src, &dst)
 	pjmp := Gbranch(obj.AJMP, nil, 0)
