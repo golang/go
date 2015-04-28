@@ -18,8 +18,6 @@ func IsRO(v Value) bool {
 var CallGC = &callGC
 
 const PtrSize = ptrSize
-const BitsPointer = bitsPointer
-const BitsScalar = bitsScalar
 
 func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr, stack []byte, gc []byte, ptrs bool) {
 	var ft *rtype
@@ -38,7 +36,7 @@ func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr, 
 	}
 	gcdata := (*[1000]byte)(ft.gc[0])
 	for i := uintptr(0); i < ft.size/ptrSize; i++ {
-		gc = append(gc, gcdata[i/2]>>(i%2*4+2)&3)
+		gc = append(gc, gcdata[i/8]>>(i%8)&1)
 	}
 	ptrs = ft.kind&kindNoPointers == 0
 	return

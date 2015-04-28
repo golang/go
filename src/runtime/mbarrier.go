@@ -223,29 +223,25 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 	}
 
 	systemstack(func() {
-		mask := typeBitmapInHeapBitmapFormat(typ)
+		dst := dst // make local copies
+		src := src
 		nptr := typ.size / ptrSize
-		for i := uintptr(0); i < nptr; i += 2 {
-			bits := mask[i/2]
-			if (bits>>2)&typeMask == typePointer {
-				writebarrierptr((*uintptr)(dst), *(*uintptr)(src))
-			} else {
-				*(*uintptr)(dst) = *(*uintptr)(src)
+		i := uintptr(0)
+	Copy:
+		for _, bits := range ptrBitmapForType(typ) {
+			for j := 0; j < 8; j++ {
+				if bits&1 != 0 {
+					writebarrierptr((*uintptr)(dst), *(*uintptr)(src))
+				} else {
+					*(*uintptr)(dst) = *(*uintptr)(src)
+				}
+				if i++; i >= nptr {
+					break Copy
+				}
+				dst = add(dst, ptrSize)
+				src = add(src, ptrSize)
+				bits >>= 1
 			}
-			// TODO(rsc): The noescape calls should be unnecessary.
-			dst = add(noescape(dst), ptrSize)
-			src = add(noescape(src), ptrSize)
-			if i+1 == nptr {
-				break
-			}
-			bits >>= 4
-			if (bits>>2)&typeMask == typePointer {
-				writebarrierptr((*uintptr)(dst), *(*uintptr)(src))
-			} else {
-				*(*uintptr)(dst) = *(*uintptr)(src)
-			}
-			dst = add(noescape(dst), ptrSize)
-			src = add(noescape(src), ptrSize)
 		}
 	})
 }
@@ -274,18 +270,25 @@ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size 
 		off += frag
 	}
 
-	mask := typeBitmapInHeapBitmapFormat(typ)
+	mask := ptrBitmapForType(typ)
 	nptr := (off + size) / ptrSize
-	for i := uintptr(off / ptrSize); i < nptr; i++ {
-		bits := mask[i/2] >> ((i & 1) << 2)
-		if (bits>>2)&typeMask == typePointer {
-			writebarrierptr((*uintptr)(dst), *(*uintptr)(src))
-		} else {
-			*(*uintptr)(dst) = *(*uintptr)(src)
+	i := uintptr(off / ptrSize)
+Copy:
+	for {
+		bits := mask[i/8] >> (i % 8)
+		for j := i % 8; j < 8; j++ {
+			if bits&1 != 0 {
+				writebarrierptr((*uintptr)(dst), *(*uintptr)(src))
+			} else {
+				*(*uintptr)(dst) = *(*uintptr)(src)
+			}
+			if i++; i >= nptr {
+				break Copy
+			}
+			dst = add(dst, ptrSize)
+			src = add(src, ptrSize)
+			bits >>= 1
 		}
-		// TODO(rsc): The noescape calls should be unnecessary.
-		dst = add(noescape(dst), ptrSize)
-		src = add(noescape(src), ptrSize)
 	}
 	size &= ptrSize - 1
 	if size > 0 {
@@ -307,18 +310,25 @@ func callwritebarrier(typ *_type, frame unsafe.Pointer, framesize, retoffset uin
 	}
 
 	systemstack(func() {
-		mask := typeBitmapInHeapBitmapFormat(typ)
+		mask := ptrBitmapForType(typ)
 		// retoffset is known to be pointer-aligned (at least).
 		// TODO(rsc): The noescape call should be unnecessary.
 		dst := add(noescape(frame), retoffset)
 		nptr := framesize / ptrSize
-		for i := uintptr(retoffset / ptrSize); i < nptr; i++ {
-			bits := mask[i/2] >> ((i & 1) << 2)
-			if (bits>>2)&typeMask == typePointer {
-				writebarrierptr_nostore((*uintptr)(dst), *(*uintptr)(dst))
+		i := uintptr(retoffset / ptrSize)
+	Copy:
+		for {
+			bits := mask[i/8] >> (i % 8)
+			for j := i % 8; j < 8; j++ {
+				if bits&1 != 0 {
+					writebarrierptr_nostore((*uintptr)(dst), *(*uintptr)(dst))
+				}
+				if i++; i >= nptr {
+					break Copy
+				}
+				dst = add(dst, ptrSize)
+				bits >>= 1
 			}
-			// TODO(rsc): The noescape call should be unnecessary.
-			dst = add(noescape(dst), ptrSize)
 		}
 	})
 }

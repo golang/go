@@ -28,13 +28,13 @@ func TestGCInfo(t *testing.T) {
 	verifyGCInfo(t, "data eface", &dataEface, infoEface)
 	verifyGCInfo(t, "data iface", &dataIface, infoIface)
 
-	verifyGCInfo(t, "stack ScalarPtr", new(ScalarPtr), infoScalarPtr)
-	verifyGCInfo(t, "stack PtrScalar", new(PtrScalar), infoPtrScalar)
-	verifyGCInfo(t, "stack BigStruct", new(BigStruct), infoBigStruct())
-	verifyGCInfo(t, "stack string", new(string), infoString)
-	verifyGCInfo(t, "stack slice", new([]string), infoSlice)
-	verifyGCInfo(t, "stack eface", new(interface{}), infoEface)
-	verifyGCInfo(t, "stack iface", new(Iface), infoIface)
+	verifyGCInfo(t, "stack ScalarPtr", new(ScalarPtr), nonStackInfo(infoScalarPtr))
+	verifyGCInfo(t, "stack PtrScalar", new(PtrScalar), nonStackInfo(infoPtrScalar))
+	verifyGCInfo(t, "stack BigStruct", new(BigStruct), nonStackInfo(infoBigStruct()))
+	verifyGCInfo(t, "stack string", new(string), nonStackInfo(infoString))
+	verifyGCInfo(t, "stack slice", new([]string), nonStackInfo(infoSlice))
+	verifyGCInfo(t, "stack eface", new(interface{}), nonStackInfo(infoEface))
+	verifyGCInfo(t, "stack iface", new(Iface), nonStackInfo(infoIface))
 
 	for i := 0; i < 10; i++ {
 		verifyGCInfo(t, "heap ScalarPtr", escape(new(ScalarPtr)), infoScalarPtr)
