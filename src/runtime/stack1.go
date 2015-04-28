@@ -298,10 +298,9 @@ func stackfree(stk stack) {
 
 var maxstacksize uintptr = 1 << 20 // enough until runtime.main sets it for real
 
-var mapnames = []string{
-	typeDead:    "---",
-	typeScalar:  "scalar",
-	typePointer: "ptr",
+var ptrnames = []string{
+	0: "scalar",
+	1: "ptr",
 }
 
 // Stack frame layout
@@ -365,8 +364,8 @@ func gobv(bv bitvector) gobitvector {
 	}
 }
 
-func ptrbits(bv *gobitvector, i uintptr) uint8 {
-	return (bv.bytedata[i/4] >> ((i & 3) * 2)) & 3
+func ptrbit(bv *gobitvector, i uintptr) uint8 {
+	return (bv.bytedata[i/8] >> (i % 8)) & 1
 }
 
 // bv describes the memory starting at address scanp.
@@ -376,21 +375,12 @@ func adjustpointers(scanp unsafe.Pointer, cbv *bitvector, adjinfo *adjustinfo, f
 	minp := adjinfo.old.lo
 	maxp := adjinfo.old.hi
 	delta := adjinfo.delta
-	num := uintptr(bv.n) / typeBitsWidth
+	num := uintptr(bv.n)
 	for i := uintptr(0); i < num; i++ {
 		if stackDebug >= 4 {
-			print("        ", add(scanp, i*ptrSize), ":", mapnames[ptrbits(&bv, i)], ":", hex(*(*uintptr)(add(scanp, i*ptrSize))), " # ", i, " ", bv.bytedata[i/4], "\n")
+			print("        ", add(scanp, i*ptrSize), ":", ptrnames[ptrbit(&bv, i)], ":", hex(*(*uintptr)(add(scanp, i*ptrSize))), " # ", i, " ", bv.bytedata[i/4], "\n")
 		}
-		switch ptrbits(&bv, i) {
-		default:
-			throw("unexpected pointer bits")
-		case typeDead:
-			if debug.gcdead != 0 {
-				*(*unsafe.Pointer)(add(scanp, i*ptrSize)) = unsafe.Pointer(uintptr(poisonStack))
-			}
-		case typeScalar:
-			// ok
-		case typePointer:
+		if ptrbit(&bv, i) == 1 {
 			p := *(*unsafe.Pointer)(add(scanp, i*ptrSize))
 			up := uintptr(p)
 			if f != nil && 0 < up && up < _PageSize && debug.invalidptr != 0 || up == poisonStack {
@@ -461,7 +451,7 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 			throw("bad symbol table")
 		}
 		bv = stackmapdata(stackmap, pcdata)
-		size = (uintptr(bv.n) / typeBitsWidth) * ptrSize
+		size = uintptr(bv.n) * ptrSize
 		if stackDebug >= 3 {
 			print("      locals ", pcdata, "/", stackmap.n, " ", size/ptrSize, " words ", bv.bytedata, "\n")
 		}

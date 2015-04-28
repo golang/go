@@ -886,11 +886,11 @@ func checkptxt(fn *Node, firstp *obj.Prog) {
 
 // NOTE: The bitmap for a specific type t should be cached in t after the first run
 // and then simply copied into bv at the correct offset on future calls with
-// the same type t. On https://rsc.googlecode.com/hg/testdata/slow.go, twobitwalktype1
+// the same type t. On https://rsc.googlecode.com/hg/testdata/slow.go, onebitwalktype1
 // accounts for 40% of the 6g execution time.
-func twobitwalktype1(t *Type, xoffset *int64, bv Bvec) {
+func onebitwalktype1(t *Type, xoffset *int64, bv Bvec) {
 	if t.Align > 0 && *xoffset&int64(t.Align-1) != 0 {
-		Fatal("twobitwalktype1: invalid initial alignment, %v", t)
+		Fatal("onebitwalktype1: invalid initial alignment, %v", t)
 	}
 
 	switch t.Etype {
@@ -910,10 +910,6 @@ func twobitwalktype1(t *Type, xoffset *int64, bv Bvec) {
 		TFLOAT64,
 		TCOMPLEX64,
 		TCOMPLEX128:
-		for i := int64(0); i < t.Width; i++ {
-			bvset(bv, int32(((*xoffset+i)/int64(Widthptr))*obj.BitsPerPointer)) // 1 = live scalar (BitsScalar)
-		}
-
 		*xoffset += t.Width
 
 	case TPTR32,
@@ -923,46 +919,46 @@ func twobitwalktype1(t *Type, xoffset *int64, bv Bvec) {
 		TCHAN,
 		TMAP:
 		if *xoffset&int64(Widthptr-1) != 0 {
-			Fatal("twobitwalktype1: invalid alignment, %v", t)
+			Fatal("onebitwalktype1: invalid alignment, %v", t)
 		}
-		bvset(bv, int32((*xoffset/int64(Widthptr))*obj.BitsPerPointer+1)) // 2 = live ptr (BitsPointer)
+		bvset(bv, int32(*xoffset/int64(Widthptr))) // pointer
 		*xoffset += t.Width
 
-		// struct { byte *str; intgo len; }
 	case TSTRING:
+		// struct { byte *str; intgo len; }
 		if *xoffset&int64(Widthptr-1) != 0 {
-			Fatal("twobitwalktype1: invalid alignment, %v", t)
+			Fatal("onebitwalktype1: invalid alignment, %v", t)
 		}
-		bvset(bv, int32((*xoffset/int64(Widthptr))*obj.BitsPerPointer+1)) // 2 = live ptr in first slot (BitsPointer)
+		bvset(bv, int32(*xoffset/int64(Widthptr))) //pointer in first slot
 		*xoffset += t.Width
 
-		// struct { Itab *tab;	union { void *ptr, uintptr val } data; }
-	// or, when isnilinter(t)==true:
-	// struct { Type *type; union { void *ptr, uintptr val } data; }
 	case TINTER:
+		// struct { Itab *tab;	void *data; }
+		// or, when isnilinter(t)==true:
+		// struct { Type *type; void *data; }
 		if *xoffset&int64(Widthptr-1) != 0 {
-			Fatal("twobitwalktype1: invalid alignment, %v", t)
+			Fatal("onebitwalktype1: invalid alignment, %v", t)
 		}
-		bvset(bv, int32((*xoffset/int64(Widthptr))*obj.BitsPerPointer+1)) // 2 = live ptr in first slot (BitsPointer)
-		bvset(bv, int32((*xoffset/int64(Widthptr))*obj.BitsPerPointer+3)) // 2 = live ptr in second slot (BitsPointer)
+		bvset(bv, int32(*xoffset/int64(Widthptr)))   // pointer in first slot
+		bvset(bv, int32(*xoffset/int64(Widthptr)+1)) // pointer in second slot
 		*xoffset += t.Width
 
-		// The value of t->bound is -1 for slices types and >0 for
-	// for fixed array types.  All other values are invalid.
 	case TARRAY:
+		// The value of t->bound is -1 for slices types and >0 for
+		// for fixed array types.  All other values are invalid.
 		if t.Bound < -1 {
-			Fatal("twobitwalktype1: invalid bound, %v", t)
+			Fatal("onebitwalktype1: invalid bound, %v", t)
 		}
 		if Isslice(t) {
 			// struct { byte *array; uintgo len; uintgo cap; }
 			if *xoffset&int64(Widthptr-1) != 0 {
-				Fatal("twobitwalktype1: invalid TARRAY alignment, %v", t)
+				Fatal("onebitwalktype1: invalid TARRAY alignment, %v", t)
 			}
-			bvset(bv, int32((*xoffset/int64(Widthptr))*obj.BitsPerPointer+1)) // 2 = live ptr in first slot (BitsPointer)
+			bvset(bv, int32(*xoffset/int64(Widthptr))) // pointer in first slot (BitsPointer)
 			*xoffset += t.Width
 		} else {
 			for i := int64(0); i < t.Bound; i++ {
-				twobitwalktype1(t.Type, xoffset, bv)
+				onebitwalktype1(t.Type, xoffset, bv)
 			}
 		}
 
@@ -972,14 +968,14 @@ func twobitwalktype1(t *Type, xoffset *int64, bv Bvec) {
 		for t1 := t.Type; t1 != nil; t1 = t1.Down {
 			fieldoffset = t1.Width
 			*xoffset += fieldoffset - o
-			twobitwalktype1(t1.Type, xoffset, bv)
+			onebitwalktype1(t1.Type, xoffset, bv)
 			o = fieldoffset + t1.Type.Width
 		}
 
 		*xoffset += t.Width - o
 
 	default:
-		Fatal("twobitwalktype1: unexpected type, %v", t)
+		Fatal("onebitwalktype1: unexpected type, %v", t)
 	}
 }
 
@@ -996,7 +992,7 @@ func argswords() int32 {
 // Generates live pointer value maps for arguments and local variables.  The
 // this argument and the in arguments are always assumed live.  The vars
 // argument is an array of Node*s.
-func twobitlivepointermap(lv *Liveness, liveout Bvec, vars []*Node, args Bvec, locals Bvec) {
+func onebitlivepointermap(lv *Liveness, liveout Bvec, vars []*Node, args Bvec, locals Bvec) {
 	var node *Node
 	var xoffset int64
 
@@ -1009,11 +1005,11 @@ func twobitlivepointermap(lv *Liveness, liveout Bvec, vars []*Node, args Bvec, l
 		switch node.Class {
 		case PAUTO:
 			xoffset = node.Xoffset + stkptrsize
-			twobitwalktype1(node.Type, &xoffset, locals)
+			onebitwalktype1(node.Type, &xoffset, locals)
 
 		case PPARAM, PPARAMOUT:
 			xoffset = node.Xoffset
-			twobitwalktype1(node.Type, &xoffset, args)
+			onebitwalktype1(node.Type, &xoffset, args)
 		}
 	}
 
@@ -1025,13 +1021,13 @@ func twobitlivepointermap(lv *Liveness, liveout Bvec, vars []*Node, args Bvec, l
 
 	if thisargtype != nil {
 		xoffset = 0
-		twobitwalktype1(thisargtype, &xoffset, args)
+		onebitwalktype1(thisargtype, &xoffset, args)
 	}
 
 	inargtype := getinargx(lv.fn.Type)
 	if inargtype != nil {
 		xoffset = 0
-		twobitwalktype1(inargtype, &xoffset, args)
+		onebitwalktype1(inargtype, &xoffset, args)
 	}
 }
 
@@ -1202,15 +1198,15 @@ func livenesssolve(lv *Liveness) {
 func islive(n *Node, args Bvec, locals Bvec) bool {
 	switch n.Class {
 	case PPARAM, PPARAMOUT:
-		for i := 0; int64(i) < n.Type.Width/int64(Widthptr)*obj.BitsPerPointer; i++ {
-			if bvget(args, int32(n.Xoffset/int64(Widthptr)*obj.BitsPerPointer+int64(i))) != 0 {
+		for i := 0; int64(i) < n.Type.Width/int64(Widthptr); i++ {
+			if bvget(args, int32(n.Xoffset/int64(Widthptr)+int64(i))) != 0 {
 				return true
 			}
 		}
 
 	case PAUTO:
-		for i := 0; int64(i) < n.Type.Width/int64(Widthptr)*obj.BitsPerPointer; i++ {
-			if bvget(locals, int32((n.Xoffset+stkptrsize)/int64(Widthptr)*obj.BitsPerPointer+int64(i))) != 0 {
+		for i := 0; int64(i) < n.Type.Width/int64(Widthptr); i++ {
+			if bvget(locals, int32((n.Xoffset+stkptrsize)/int64(Widthptr)+int64(i))) != 0 {
 				return true
 			}
 		}
@@ -1239,7 +1235,7 @@ func livenessepilogue(lv *Liveness) {
 	avarinit := bvalloc(nvars)
 	any := bvalloc(nvars)
 	all := bvalloc(nvars)
-	ambig := bvalloc(localswords() * obj.BitsPerPointer)
+	ambig := bvalloc(localswords())
 	nmsg := int32(0)
 	startmsg := int32(0)
 
@@ -1294,7 +1290,7 @@ func livenessepilogue(lv *Liveness) {
 							// Record in 'ambiguous' bitmap.
 							xoffset = n.Xoffset + stkptrsize
 
-							twobitwalktype1(n.Type, &xoffset, ambig)
+							onebitwalktype1(n.Type, &xoffset, ambig)
 						}
 					}
 				}
@@ -1303,10 +1299,10 @@ func livenessepilogue(lv *Liveness) {
 				// value we are tracking.
 
 				// Live stuff first.
-				args = bvalloc(argswords() * obj.BitsPerPointer)
+				args = bvalloc(argswords())
 
 				lv.argslivepointers = append(lv.argslivepointers, args)
-				locals = bvalloc(localswords() * obj.BitsPerPointer)
+				locals = bvalloc(localswords())
 				lv.livepointers = append(lv.livepointers, locals)
 
 				if debuglive >= 3 {
@@ -1319,7 +1315,7 @@ func livenessepilogue(lv *Liveness) {
 				// because the any/all calculation requires walking forward
 				// over the block (as this loop does), while the liveout
 				// requires walking backward (as the next loop does).
-				twobitlivepointermap(lv, any, lv.vars, args, locals)
+				onebitlivepointermap(lv, any, lv.vars, args, locals)
 			}
 
 			if p == bb.last {
@@ -1394,7 +1390,7 @@ func livenessepilogue(lv *Liveness) {
 				args = lv.argslivepointers[pos]
 
 				locals = lv.livepointers[pos]
-				twobitlivepointermap(lv, liveout, lv.vars, args, locals)
+				onebitlivepointermap(lv, liveout, lv.vars, args, locals)
 
 				// Ambiguously live variables are zeroed immediately after
 				// function entry. Mark them live for all the non-entry bitmaps
@@ -1727,7 +1723,7 @@ func livenessprintdebug(lv *Liveness) {
 // length of the bitmaps.  All bitmaps are assumed to be of equal length.  The
 // words that are followed are the raw bitmap words.  The arr argument is an
 // array of Node*s.
-func twobitwritesymbol(arr []Bvec, sym *Sym) {
+func onebitwritesymbol(arr []Bvec, sym *Sym) {
 	var i int
 	var j int
 	var word uint32
@@ -1816,9 +1812,9 @@ func liveness(fn *Node, firstp *obj.Prog, argssym *Sym, livesym *Sym) {
 	}
 
 	// Emit the live pointer map data structures
-	twobitwritesymbol(lv.livepointers, livesym)
+	onebitwritesymbol(lv.livepointers, livesym)
 
-	twobitwritesymbol(lv.argslivepointers, argssym)
+	onebitwritesymbol(lv.argslivepointers, argssym)
 
 	// Free everything.
 	for l := fn.Func.Dcl; l != nil; l = l.Next {

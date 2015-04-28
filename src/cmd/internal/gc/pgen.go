@@ -142,12 +142,12 @@ func emitptrargsmap() {
 	var xoffset int64
 	if Curfn.Type.Thistuple > 0 {
 		xoffset = 0
-		twobitwalktype1(getthisx(Curfn.Type), &xoffset, bv)
+		onebitwalktype1(getthisx(Curfn.Type), &xoffset, bv)
 	}
 
 	if Curfn.Type.Intuple > 0 {
 		xoffset = 0
-		twobitwalktype1(getinargx(Curfn.Type), &xoffset, bv)
+		onebitwalktype1(getinargx(Curfn.Type), &xoffset, bv)
 	}
 
 	for j := 0; int32(j) < bv.n; j += 32 {
@@ -155,7 +155,7 @@ func emitptrargsmap() {
 	}
 	if Curfn.Type.Outtuple > 0 {
 		xoffset = 0
-		twobitwalktype1(getoutargx(Curfn.Type), &xoffset, bv)
+		onebitwalktype1(getoutargx(Curfn.Type), &xoffset, bv)
 		for j := 0; int32(j) < bv.n; j += 32 {
 			off = duint32(sym, off, bv.b[j/32])
 		}
