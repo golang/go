@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"sync"
+	"testing"
 	"time"
 )
 
@@ -250,6 +251,54 @@ func transceiver(c Conn, wb []byte, ch chan<- error) {
 	}
 }
 
+func timeoutReceiver(c Conn, d, min, max time.Duration, ch chan<- error) {
+	var err error
+	defer func() { ch <- err }()
+
+	t0 := time.Now()
+	if err = c.SetReadDeadline(time.Now().Add(d)); err != nil {
+		return
+	}
+	b := make([]byte, 256)
+	var n int
+	n, err = c.Read(b)
+	t1 := time.Now()
+	if n != 0 || err == nil || !err.(Error).Timeout() {
+		err = fmt.Errorf("Read did not return (0, timeout): (%d, %v)", n, err)
+		return
+	}
+	if dt := t1.Sub(t0); min > dt || dt > max && !testing.Short() {
+		err = fmt.Errorf("Read took %s; expected %s", dt, d)
+		return
+	}
+}
+
+func timeoutTransmitter(c Conn, d, min, max time.Duration, ch chan<- error) {
+	var err error
+	defer func() { ch <- err }()
+
+	t0 := time.Now()
+	if err = c.SetWriteDeadline(time.Now().Add(d)); err != nil {
+		return
+	}
+	var n int
+	for {
+		n, err = c.Write([]byte("TIMEOUT TRANSMITTER"))
+		if err != nil {
+			break
+		}
+	}
+	t1 := time.Now()
+	if err == nil || !err.(Error).Timeout() {
+		err = fmt.Errorf("Write did not return (any, timeout): (%d, %v)", n, err)
+		return
+	}
+	if dt := t1.Sub(t0); min > dt || dt > max && !testing.Short() {
+		err = fmt.Errorf("Write took %s; expected %s", dt, d)
+		return
+	}
+}
+
 func newLocalPacketListener(network string) (PacketConn, error) {
 	switch network {
 	case "udp", "udp4", "udp6":
@@ -378,5 +427,27 @@ func packetTransceiver(c PacketConn, wb []byte, dst Addr, ch chan<- error) {
 	}
 	if n != len(wb) {
 		ch <- fmt.Errorf("read %d; want %d", n, len(wb))
+	}
+}
+
+func timeoutPacketReceiver(c PacketConn, d, min, max time.Duration, ch chan<- error) {
+	var err error
+	defer func() { ch <- err }()
+
+	t0 := time.Now()
+	if err = c.SetReadDeadline(time.Now().Add(d)); err != nil {
+		return
+	}
+	b := make([]byte, 256)
+	var n int
+	n, _, err = c.ReadFrom(b)
+	t1 := time.Now()
+	if n != 0 || err == nil || !err.(Error).Timeout() {
+		err = fmt.Errorf("ReadFrom did not return (0, timeout): (%d, %v)", n, err)
+		return
+	}
+	if dt := t1.Sub(t0); min > dt || dt > max && !testing.Short() {
+		err = fmt.Errorf("ReadFrom took %s; expected %s", dt, d)
+		return
 	}
 }
