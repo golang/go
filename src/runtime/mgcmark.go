@@ -51,7 +51,7 @@ func gcscan_m() {
 }
 
 // ptrmask for an allocation containing a single pointer.
-var oneptr = [...]uint8{typePointer}
+var oneptrmask = [...]uint8{1}
 
 //go:nowritebarrier
 func markroot(desc *parfor, i uint32) {
@@ -98,9 +98,9 @@ func markroot(desc *parfor, i uint32) {
 				// A finalizer can be set for an inner byte of an object, find object beginning.
 				p := uintptr(s.start<<_PageShift) + uintptr(spf.special.offset)/s.elemsize*s.elemsize
 				if gcphase != _GCscan {
-					scanblock(p, s.elemsize, nil, &gcw) // scanned during mark phase
+					scanobject(p, &gcw) // scanned during mark termination
 				}
-				scanblock(uintptr(unsafe.Pointer(&spf.fn)), ptrSize, &oneptr[0], &gcw)
+				scanblock(uintptr(unsafe.Pointer(&spf.fn)), ptrSize, &oneptrmask[0], &gcw)
 			}
 		}
 
@@ -383,7 +383,7 @@ func scanframeworker(frame *stkframe, unused unsafe.Pointer, gcw *gcWork) {
 			throw("scanframe: bad symbol table")
 		}
 		bv := stackmapdata(stkmap, pcdata)
-		size = (uintptr(bv.n) / typeBitsWidth) * ptrSize
+		size = uintptr(bv.n) * ptrSize
 		scanblock(frame.varp-size, size, bv.bytedata, gcw)
 	}
 
@@ -405,7 +405,7 @@ func scanframeworker(frame *stkframe, unused unsafe.Pointer, gcw *gcWork) {
 			}
 			bv = stackmapdata(stkmap, pcdata)
 		}
-		scanblock(frame.argp, uintptr(bv.n)/typeBitsWidth*ptrSize, bv.bytedata, gcw)
+		scanblock(frame.argp, uintptr(bv.n)*ptrSize, bv.bytedata, gcw)
 	}
 }
 
@@ -447,7 +447,7 @@ func gcDrain(gcw *gcWork, flushScanCredit int64) {
 		// out of the wbuf passed in + a single object placed
 		// into an empty wbuf in scanobject so there could be
 		// a performance hit as we keep fetching fresh wbufs.
-		scanobject(b, 0, nil, gcw)
+		scanobject(b, gcw)
 
 		// Flush background scan work credit to the global
 		// account if we've accumulated enough locally so
@@ -499,7 +499,7 @@ func gcDrainUntilPreempt(gcw *gcWork, flushScanCredit int64) {
 			// No more work
 			break
 		}
-		scanobject(b, 0, nil, gcw)
+		scanobject(b, gcw)
 
 		// Flush background scan work credit to the global
 		// account if we've accumulated enough locally so
@@ -534,12 +534,12 @@ func gcDrainN(gcw *gcWork, scanWork int64) {
 		if b == 0 {
 			return
 		}
-		scanobject(b, 0, nil, gcw)
+		scanobject(b, gcw)
 	}
 }
 
-// scanblock scans b as scanobject would.
-// If the gcphase is GCscan, scanblock performs additional checks.
+// scanblock scans b as scanobject would, but using an explicit
+// pointer bitmap instead of the heap bitmap.
 //go:nowritebarrier
 func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
 	// Use local copies of original parameters, so that a stack trace
@@ -548,59 +548,69 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
 	b := b0
 	n := n0
 
-	// ptrmask can have 2 possible values:
-	// 1. nil - obtain pointer mask from GC bitmap.
-	// 2. pointer to a compact mask (for stacks and data).
+	arena_start := mheap_.arena_start
+	arena_used := mheap_.arena_used
+	scanWork := int64(0)
 
-	scanobject(b, n, ptrmask, gcw)
-	if gcphase == _GCscan {
-		if inheap(b) && ptrmask == nil {
-			// b is in heap, we are in GCscan so there should be a ptrmask.
-			throw("scanblock: In GCscan phase and inheap is true.")
+	for i := uintptr(0); i < n; {
+		// Find bits for the next word.
+		bits := uint32(*addb(ptrmask, i/(ptrSize*8)))
+		if bits == 0 {
+			i += ptrSize * 8
+			continue
+		}
+		for j := 0; j < 8 && i < n; j++ {
+			if bits&1 != 0 {
+				// Same work as in scanobject; see comments there.
+				obj := *(*uintptr)(unsafe.Pointer(b + i))
+				scanWork++
+				if obj != 0 && arena_start <= obj && obj < arena_used {
+					if mheap_.shadow_enabled && debug.wbshadow >= 2 && debug.gccheckmark > 0 && useCheckmark {
+						checkwbshadow((*uintptr)(unsafe.Pointer(b + i)))
+					}
+					if obj, hbits, span := heapBitsForObject(obj); obj != 0 {
+						greyobject(obj, b, i, hbits, span, gcw)
+					}
+				}
+			}
+			bits >>= 1
+			i += ptrSize
 		}
 	}
+
+	gcw.bytesMarked += uint64(n)
+	gcw.scanWork += scanWork
 }
 
-// scanobject scans memory starting at b, adding pointers to gcw.
-// If ptrmask != nil, it specifies the pointer mask starting at b and
-// n specifies the number of bytes to scan.
-// If ptrmask == nil, b must point to the beginning of a heap object
-// and scanobject consults the GC bitmap for the pointer mask and the
-// spans for the size of the object (it ignores n).
+// scanobject scans the object starting at b, adding pointers to gcw.
+// b must point to the beginning of a heap object; scanobject consults
+// the GC bitmap for the pointer mask and the spans for the size of the
+// object (it ignores n).
 //go:nowritebarrier
-func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWork) {
+func scanobject(b uintptr, gcw *gcWork) {
 	arena_start := mheap_.arena_start
 	arena_used := mheap_.arena_used
 	scanWork := int64(0)
 
 	// Find bits of the beginning of the object.
-	var hbits heapBits
-
-	if ptrmask == nil {
-		// b must point to the beginning of a heap object, so
-		// we can get its bits and span directly.
-		hbits = heapBitsForAddr(b)
-		s := spanOfUnchecked(b)
-		n = s.elemsize
-		if n == 0 {
-			throw("scanobject n == 0")
-		}
+	// b must point to the beginning of a heap object, so
+	// we can get its bits and span directly.
+	hbits := heapBitsForAddr(b)
+	s := spanOfUnchecked(b)
+	n := s.elemsize
+	if n == 0 {
+		throw("scanobject n == 0")
 	}
+
 	for i := uintptr(0); i < n; i += ptrSize {
 		// Find bits for this word.
-		var bits uintptr
-		if ptrmask != nil {
-			// dense mask (stack or data)
-			bits = (uintptr(*(*byte)(add(unsafe.Pointer(ptrmask), (i/ptrSize)/4))) >> (((i / ptrSize) % 4) * typeBitsWidth)) & typeMask
-		} else {
-			if i != 0 {
-				// Avoid needless hbits.next() on last iteration.
-				hbits = hbits.next()
-			}
-			bits = uintptr(hbits.typeBits())
-			if bits == typeDead {
-				break // no more pointers in this object
-			}
+		if i != 0 {
+			// Avoid needless hbits.next() on last iteration.
+			hbits = hbits.next()
+		}
+		bits := uintptr(hbits.typeBits())
+		if bits == typeDead {
+			break // no more pointers in this object
 		}
 
 		if bits <= typeScalar { // typeScalar, typeDead, typeScalarMarked
@@ -608,9 +618,12 @@ func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWork) {
 		}
 
 		if bits&typePointer != typePointer {
-			print("gc useCheckmark=", useCheckmark, " b=", hex(b), " ptrmask=", ptrmask, "\n")
+			print("gc useCheckmark=", useCheckmark, " b=", hex(b), "\n")
 			throw("unexpected garbage collection bits")
 		}
+
+		// Work here is duplicated in scanblock.
+		// If you make changes here, make changes there too.
 
 		obj := *(*uintptr)(unsafe.Pointer(b + i))
 
@@ -626,17 +639,15 @@ func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWork) {
 
 		// At this point we have extracted the next potential pointer.
 		// Check if it points into heap.
-		if obj == 0 || obj < arena_start || obj >= arena_used {
-			continue
-		}
+		if obj != 0 && arena_start <= obj && obj < arena_used {
+			if mheap_.shadow_enabled && debug.wbshadow >= 2 && debug.gccheckmark > 0 && useCheckmark {
+				checkwbshadow((*uintptr)(unsafe.Pointer(b + i)))
+			}
 
-		if mheap_.shadow_enabled && debug.wbshadow >= 2 && debug.gccheckmark > 0 && useCheckmark {
-			checkwbshadow((*uintptr)(unsafe.Pointer(b + i)))
-		}
-
-		// Mark the object.
-		if obj, hbits, span := heapBitsForObject(obj); obj != 0 {
-			greyobject(obj, b, i, hbits, span, gcw)
+			// Mark the object.
+			if obj, hbits, span := heapBitsForObject(obj); obj != 0 {
+				greyobject(obj, b, i, hbits, span, gcw)
+			}
 		}
 	}
 	gcw.bytesMarked += uint64(n)

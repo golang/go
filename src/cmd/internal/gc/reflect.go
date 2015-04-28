@@ -1404,7 +1404,7 @@ func gengcmask(t *Type, gcmask []byte) {
 	xoffset := int64(0)
 
 	vec := bvalloc(2 * int32(Widthptr) * 8)
-	twobitwalktype1(t, &xoffset, vec)
+	onebitwalktype1(t, &xoffset, vec)
 
 	// Unfold the mask for the GC bitmap format:
 	// 4 bits per word, 2 high bits encode pointer info.
@@ -1419,13 +1419,11 @@ func gengcmask(t *Type, gcmask []byte) {
 	var bits uint8
 	for j := int64(0); j <= (nptr % 2); j++ {
 		for i = 0; i < nptr; i++ {
-			bits = uint8(bvget(vec, int32(i*obj.BitsPerPointer)) | bvget(vec, int32(i*obj.BitsPerPointer+1))<<1)
-
-			// Some fake types (e.g. Hmap) has missing fileds.
-			// twobitwalktype1 generates BitsDead for that holes,
-			// replace BitsDead with BitsScalar.
-			if bits == obj.BitsDead {
+			// convert 0=scalar / 1=pointer to GC bit encoding
+			if bvget(vec, int32(i)) == 0 {
 				bits = obj.BitsScalar
+			} else {
+				bits = obj.BitsPointer
 			}
 			bits <<= 2
 			if half {

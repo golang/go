@@ -20,7 +20,7 @@ var finlock mutex  // protects the following variables
 var fing *g        // goroutine that runs finalizers
 var finq *finblock // list of finalizers that are to be executed
 var finc *finblock // cache of free blocks
-var finptrmask [_FinBlockSize / typeBitmapScale]byte
+var finptrmask [_FinBlockSize / ptrSize / 8]byte
 var fingwait bool
 var fingwake bool
 var allfin *finblock // list of all blocks
@@ -35,25 +35,31 @@ type finalizer struct {
 }
 
 var finalizer1 = [...]byte{
-	// Each Finalizer is 5 words, ptr ptr uintptr ptr ptr.
-	// Each byte describes 4 words.
-	// Need 4 Finalizers described by 5 bytes before pattern repeats:
-	//	ptr ptr uintptr ptr ptr
-	//	ptr ptr uintptr ptr ptr
-	//	ptr ptr uintptr ptr ptr
-	//	ptr ptr uintptr ptr ptr
+	// Each Finalizer is 5 words, ptr ptr INT ptr ptr (INT = uintptr here)
+	// Each byte describes 8 words.
+	// Need 8 Finalizers described by 5 bytes before pattern repeats:
+	//	ptr ptr INT ptr ptr
+	//	ptr ptr INT ptr ptr
+	//	ptr ptr INT ptr ptr
+	//	ptr ptr INT ptr ptr
+	//	ptr ptr INT ptr ptr
+	//	ptr ptr INT ptr ptr
+	//	ptr ptr INT ptr ptr
+	//	ptr ptr INT ptr ptr
 	// aka
-	//	ptr ptr uintptr ptr
-	//	ptr ptr ptr uintptr
-	//	ptr ptr ptr ptr
-	//	uintptr ptr ptr ptr
-	//	ptr uintptr ptr ptr
+	//
+	//	ptr ptr INT ptr ptr ptr ptr INT
+	//	ptr ptr ptr ptr INT ptr ptr ptr
+	//	ptr INT ptr ptr ptr ptr INT ptr
+	//	ptr ptr ptr INT ptr ptr ptr ptr
+	//	INT ptr ptr ptr ptr INT ptr ptr
+	//
 	// Assumptions about Finalizer layout checked below.
-	typePointer | typePointer<<2 | typeScalar<<4 | typePointer<<6,
-	typePointer | typePointer<<2 | typePointer<<4 | typeScalar<<6,
-	typePointer | typePointer<<2 | typePointer<<4 | typePointer<<6,
-	typeScalar | typePointer<<2 | typePointer<<4 | typePointer<<6,
-	typePointer | typeScalar<<2 | typePointer<<4 | typePointer<<6,
+	1<<0 | 1<<1 | 0<<2 | 1<<3 | 1<<4 | 1<<5 | 1<<6 | 0<<7,
+	1<<0 | 1<<1 | 1<<2 | 1<<3 | 0<<4 | 1<<5 | 1<<6 | 1<<7,
+	1<<0 | 0<<1 | 1<<2 | 1<<3 | 1<<4 | 1<<5 | 0<<6 | 1<<7,
+	1<<0 | 1<<1 | 1<<2 | 0<<3 | 1<<4 | 1<<5 | 1<<6 | 1<<7,
+	0<<0 | 1<<1 | 1<<2 | 1<<3 | 1<<4 | 0<<5 | 1<<6 | 1<<7,
 }
 
 func queuefinalizer(p unsafe.Pointer, fn *funcval, nret uintptr, fint *_type, ot *ptrtype) {
@@ -72,8 +78,7 @@ func queuefinalizer(p unsafe.Pointer, fn *funcval, nret uintptr, fint *_type, ot
 					unsafe.Offsetof(finalizer{}.arg) != ptrSize ||
 					unsafe.Offsetof(finalizer{}.nret) != 2*ptrSize ||
 					unsafe.Offsetof(finalizer{}.fint) != 3*ptrSize ||
-					unsafe.Offsetof(finalizer{}.ot) != 4*ptrSize ||
-					typeBitsWidth != 2) {
+					unsafe.Offsetof(finalizer{}.ot) != 4*ptrSize) {
 					throw("finalizer out of sync")
 				}
 				for i := range finptrmask {

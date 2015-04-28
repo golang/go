@@ -237,18 +237,10 @@ type childInfo struct {
 // dump kinds & offsets of interesting fields in bv
 func dumpbv(cbv *bitvector, offset uintptr) {
 	bv := gobv(*cbv)
-	for i := uintptr(0); i < uintptr(bv.n); i += typeBitsWidth {
-		switch bv.bytedata[i/8] >> (i % 8) & typeMask {
-		default:
-			throw("unexpected pointer bits")
-		case typeDead:
-			// typeDead has already been processed in makeheapobjbv.
-			// We should only see it in stack maps, in which case we should continue processing.
-		case typeScalar:
-			// ok
-		case typePointer:
+	for i := uintptr(0); i < uintptr(bv.n); i++ {
+		if bv.bytedata[i/8]>>(i%8)&1 == 1 {
 			dumpint(fieldKindPtr)
-			dumpint(uint64(offset + i/typeBitsWidth*ptrSize))
+			dumpint(uint64(offset + i*ptrSize))
 		}
 	}
 }
@@ -278,7 +270,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 	var bv bitvector
 	if stkmap != nil && stkmap.n > 0 {
 		bv = stackmapdata(stkmap, pcdata)
-		dumpbvtypes(&bv, unsafe.Pointer(s.varp-uintptr(bv.n/typeBitsWidth*ptrSize)))
+		dumpbvtypes(&bv, unsafe.Pointer(s.varp-uintptr(bv.n*ptrSize)))
 	} else {
 		bv.n = -1
 	}
@@ -326,7 +318,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 	} else if stkmap.n > 0 {
 		// Locals bitmap information, scan just the pointers in
 		// locals.
-		dumpbv(&bv, s.varp-uintptr(bv.n)/typeBitsWidth*ptrSize-s.sp)
+		dumpbv(&bv, s.varp-uintptr(bv.n)*ptrSize-s.sp)
 	}
 	dumpint(fieldKindEol)
 
@@ -651,7 +643,7 @@ func dumpmemprof() {
 	}
 }
 
-var dumphdr = []byte("go1.4 heap dump\n")
+var dumphdr = []byte("go1.5 heap dump\n")
 
 func mdump() {
 	// make sure we're done sweeping
@@ -720,18 +712,21 @@ func dumpbvtypes(bv *bitvector, base unsafe.Pointer) {
 func makeheapobjbv(p uintptr, size uintptr) bitvector {
 	// Extend the temp buffer if necessary.
 	nptr := size / ptrSize
-	if uintptr(len(tmpbuf)) < nptr*typeBitsWidth/8+1 {
+	if uintptr(len(tmpbuf)) < nptr/8+1 {
 		if tmpbuf != nil {
 			sysFree(unsafe.Pointer(&tmpbuf[0]), uintptr(len(tmpbuf)), &memstats.other_sys)
 		}
-		n := nptr*typeBitsWidth/8 + 1
+		n := nptr/8 + 1
 		p := sysAlloc(n, &memstats.other_sys)
 		if p == nil {
 			throw("heapdump: out of memory")
 		}
 		tmpbuf = (*[1 << 30]byte)(p)[:n]
 	}
-	// Convert heap bitmap to type bitmap.
+	// Convert heap bitmap to pointer bitmap.
+	for i := uintptr(0); i < nptr/8+1; i++ {
+		tmpbuf[i] = 0
+	}
 	i := uintptr(0)
 	hbits := heapBitsForAddr(p)
 	for ; i < nptr; i++ {
@@ -740,8 +735,9 @@ func makeheapobjbv(p uintptr, size uintptr) bitvector {
 			break // end of object
 		}
 		hbits = hbits.next()
-		tmpbuf[i*typeBitsWidth/8] &^= (typeMask << ((i * typeBitsWidth) % 8))
-		tmpbuf[i*typeBitsWidth/8] |= bits << ((i * typeBitsWidth) % 8)
+		if bits == typePointer {
+			tmpbuf[i/8] |= 1 << (i % 8)
+		}
 	}
-	return bitvector{int32(i * typeBitsWidth), &tmpbuf[0]}
+	return bitvector{int32(i), &tmpbuf[0]}
 }

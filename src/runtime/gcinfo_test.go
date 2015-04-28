@@ -12,21 +12,21 @@ import (
 
 // TestGCInfo tests that various objects in heap, data and bss receive correct GC pointer type info.
 func TestGCInfo(t *testing.T) {
-	verifyGCInfo(t, "bss ScalarPtr", &bssScalarPtr, nonStackInfo(infoScalarPtr))
-	verifyGCInfo(t, "bss PtrScalar", &bssPtrScalar, nonStackInfo(infoPtrScalar))
-	verifyGCInfo(t, "bss BigStruct", &bssBigStruct, nonStackInfo(infoBigStruct()))
-	verifyGCInfo(t, "bss string", &bssString, nonStackInfo(infoString))
-	verifyGCInfo(t, "bss slice", &bssSlice, nonStackInfo(infoSlice))
-	verifyGCInfo(t, "bss eface", &bssEface, nonStackInfo(infoEface))
-	verifyGCInfo(t, "bss iface", &bssIface, nonStackInfo(infoIface))
+	verifyGCInfo(t, "bss ScalarPtr", &bssScalarPtr, infoScalarPtr)
+	verifyGCInfo(t, "bss PtrScalar", &bssPtrScalar, infoPtrScalar)
+	verifyGCInfo(t, "bss BigStruct", &bssBigStruct, infoBigStruct())
+	verifyGCInfo(t, "bss string", &bssString, infoString)
+	verifyGCInfo(t, "bss slice", &bssSlice, infoSlice)
+	verifyGCInfo(t, "bss eface", &bssEface, infoEface)
+	verifyGCInfo(t, "bss iface", &bssIface, infoIface)
 
-	verifyGCInfo(t, "data ScalarPtr", &dataScalarPtr, nonStackInfo(infoScalarPtr))
-	verifyGCInfo(t, "data PtrScalar", &dataPtrScalar, nonStackInfo(infoPtrScalar))
-	verifyGCInfo(t, "data BigStruct", &dataBigStruct, nonStackInfo(infoBigStruct()))
-	verifyGCInfo(t, "data string", &dataString, nonStackInfo(infoString))
-	verifyGCInfo(t, "data slice", &dataSlice, nonStackInfo(infoSlice))
-	verifyGCInfo(t, "data eface", &dataEface, nonStackInfo(infoEface))
-	verifyGCInfo(t, "data iface", &dataIface, nonStackInfo(infoIface))
+	verifyGCInfo(t, "data ScalarPtr", &dataScalarPtr, infoScalarPtr)
+	verifyGCInfo(t, "data PtrScalar", &dataPtrScalar, infoPtrScalar)
+	verifyGCInfo(t, "data BigStruct", &dataBigStruct, infoBigStruct())
+	verifyGCInfo(t, "data string", &dataString, infoString)
+	verifyGCInfo(t, "data slice", &dataSlice, infoSlice)
+	verifyGCInfo(t, "data eface", &dataEface, infoEface)
+	verifyGCInfo(t, "data iface", &dataIface, infoIface)
 
 	verifyGCInfo(t, "stack ScalarPtr", new(ScalarPtr), infoScalarPtr)
 	verifyGCInfo(t, "stack PtrScalar", new(PtrScalar), infoPtrScalar)
@@ -37,12 +37,12 @@ func TestGCInfo(t *testing.T) {
 	verifyGCInfo(t, "stack iface", new(Iface), infoIface)
 
 	for i := 0; i < 10; i++ {
-		verifyGCInfo(t, "heap ScalarPtr", escape(new(ScalarPtr)), nonStackInfo(infoScalarPtr))
-		verifyGCInfo(t, "heap PtrScalar", escape(new(PtrScalar)), nonStackInfo(infoPtrScalar))
-		verifyGCInfo(t, "heap BigStruct", escape(new(BigStruct)), nonStackInfo(infoBigStruct()))
-		verifyGCInfo(t, "heap string", escape(new(string)), nonStackInfo(infoString))
-		verifyGCInfo(t, "heap eface", escape(new(interface{})), nonStackInfo(infoEface))
-		verifyGCInfo(t, "heap iface", escape(new(Iface)), nonStackInfo(infoIface))
+		verifyGCInfo(t, "heap ScalarPtr", escape(new(ScalarPtr)), infoScalarPtr)
+		verifyGCInfo(t, "heap PtrScalar", escape(new(PtrScalar)), infoPtrScalar)
+		verifyGCInfo(t, "heap BigStruct", escape(new(BigStruct)), infoBigStruct())
+		verifyGCInfo(t, "heap string", escape(new(string)), infoString)
+		verifyGCInfo(t, "heap eface", escape(new(interface{})), infoEface)
+		verifyGCInfo(t, "heap iface", escape(new(Iface)), infoIface)
 	}
 
 }
@@ -130,25 +130,25 @@ func infoBigStruct() []byte {
 		return []byte{
 			typePointer,                                                // q *int
 			typeScalar, typeScalar, typeScalar, typeScalar, typeScalar, // w byte; e [17]byte
-			typePointer, typeDead, typeDead, // r []byte
+			typePointer, typeScalar, typeScalar, // r []byte
 			typeScalar, typeScalar, typeScalar, typeScalar, // t int; y uint16; u uint64
-			typePointer, typeDead, // i string
+			typePointer, typeScalar, // i string
 		}
 	case "arm64", "amd64", "ppc64", "ppc64le":
 		return []byte{
 			typePointer,                        // q *int
 			typeScalar, typeScalar, typeScalar, // w byte; e [17]byte
-			typePointer, typeDead, typeDead, // r []byte
+			typePointer, typeScalar, typeScalar, // r []byte
 			typeScalar, typeScalar, typeScalar, // t int; y uint16; u uint64
-			typePointer, typeDead, // i string
+			typePointer, typeScalar, // i string
 		}
 	case "amd64p32":
 		return []byte{
 			typePointer,                                                // q *int
 			typeScalar, typeScalar, typeScalar, typeScalar, typeScalar, // w byte; e [17]byte
-			typePointer, typeDead, typeDead, // r []byte
-			typeScalar, typeScalar, typeDead, typeScalar, typeScalar, // t int; y uint16; u uint64
-			typePointer, typeDead, // i string
+			typePointer, typeScalar, typeScalar, // r []byte
+			typeScalar, typeScalar, typeScalar, typeScalar, typeScalar, // t int; y uint16; u uint64
+			typePointer, typeScalar, // i string
 		}
 	default:
 		panic("unknown arch")
@@ -183,8 +183,8 @@ var (
 	dataEface     interface{} = 42
 	dataIface     Iface       = IfaceImpl(42)
 
-	infoString = []byte{typePointer, typeDead}
-	infoSlice  = []byte{typePointer, typeDead, typeDead}
+	infoString = []byte{typePointer, typeScalar}
+	infoSlice  = []byte{typePointer, typeScalar, typeScalar}
 	infoEface  = []byte{typePointer, typePointer}
 	infoIface  = []byte{typePointer, typePointer}
 )

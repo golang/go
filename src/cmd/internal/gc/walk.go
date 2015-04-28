@@ -2243,30 +2243,23 @@ func applywritebarrier(n *Node, init **NodeList) *Node {
 		} else if t.Width <= int64(4*Widthptr) {
 			x := int64(0)
 			if applywritebarrier_bv.b == nil {
-				applywritebarrier_bv = bvalloc(obj.BitsPerPointer * 4)
+				applywritebarrier_bv = bvalloc(4)
 			}
 			bvresetall(applywritebarrier_bv)
-			twobitwalktype1(t, &x, applywritebarrier_bv)
-			const (
-				PtrBit = 1
-			)
-			// The bvgets are looking for BitsPointer in successive slots.
-			if obj.BitsPointer != 1<<PtrBit {
-				Fatal("wrong PtrBit")
-			}
+			onebitwalktype1(t, &x, applywritebarrier_bv)
 			var name string
 			switch t.Width / int64(Widthptr) {
 			default:
 				Fatal("found writebarrierfat for %d-byte object of type %v", int(t.Width), t)
 
 			case 2:
-				name = fmt.Sprintf("writebarrierfat%d%d", bvget(applywritebarrier_bv, PtrBit), bvget(applywritebarrier_bv, obj.BitsPerPointer+PtrBit))
+				name = fmt.Sprintf("writebarrierfat%d%d", bvget(applywritebarrier_bv, 0), bvget(applywritebarrier_bv, 1))
 
 			case 3:
-				name = fmt.Sprintf("writebarrierfat%d%d%d", bvget(applywritebarrier_bv, PtrBit), bvget(applywritebarrier_bv, obj.BitsPerPointer+PtrBit), bvget(applywritebarrier_bv, 2*obj.BitsPerPointer+PtrBit))
+				name = fmt.Sprintf("writebarrierfat%d%d%d", bvget(applywritebarrier_bv, 0), bvget(applywritebarrier_bv, 1), bvget(applywritebarrier_bv, 2))
 
 			case 4:
-				name = fmt.Sprintf("writebarrierfat%d%d%d%d", bvget(applywritebarrier_bv, PtrBit), bvget(applywritebarrier_bv, obj.BitsPerPointer+PtrBit), bvget(applywritebarrier_bv, 2*obj.BitsPerPointer+PtrBit), bvget(applywritebarrier_bv, 3*obj.BitsPerPointer+PtrBit))
+				name = fmt.Sprintf("writebarrierfat%d%d%d%d", bvget(applywritebarrier_bv, 0), bvget(applywritebarrier_bv, 1), bvget(applywritebarrier_bv, 2), bvget(applywritebarrier_bv, 3))
 			}
 
 			n = mkcall1(writebarrierfn(name, t, n.Right.Type), nil, init, l, Nodintconst(0), n.Right)
