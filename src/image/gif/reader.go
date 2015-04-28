@@ -32,15 +32,9 @@ type reader interface {
 // Masks etc.
 const (
 	// Fields.
-	fColorMapFollows = 1 << 7
-
-	// Screen Descriptor flags.
-	sdGlobalColorTable = 1 << 7
-
-	// Image fields.
-	ifLocalColorTable = 1 << 7
-	ifInterlace       = 1 << 6
-	ifPixelSizeMask   = 7
+	fColorTable         = 1 << 7
+	fInterlace          = 1 << 6
+	fColorTableBitsMask = 7
 
 	// Graphic control flags.
 	gcTransparentColorSet = 1 << 0
@@ -77,14 +71,10 @@ type decoder struct {
 	vers            string
 	width           int
 	height          int
-	headerFields    byte
-	backgroundIndex byte
 	loopCount       int
 	delayTime       int
+	backgroundIndex byte
 	disposalMethod  byte
-
-	// Unused from header.
-	aspect byte
 
 	// From image descriptor.
 	imageFields byte
@@ -94,7 +84,6 @@ type decoder struct {
 	hasTransparentIndex bool
 
 	// Computed.
-	pixelSize      uint
 	globalColorMap color.Palette
 
 	// Used when decoding.
@@ -134,7 +123,7 @@ func (b *blockReader) Read(p []byte) (int, error) {
 			b.err = io.EOF
 			return 0, b.err
 		}
-		b.slice = b.tmp[0:blockLen]
+		b.slice = b.tmp[:blockLen]
 		if _, b.err = io.ReadFull(b.r, b.slice); b.err != nil {
 			return 0, b.err
 		}
@@ -161,12 +150,6 @@ func (d *decoder) decode(r io.Reader, configOnly bool) error {
 		return nil
 	}
 
-	if d.headerFields&fColorMapFollows != 0 {
-		if d.globalColorMap, err = d.readColorMap(); err != nil {
-			return err
-		}
-	}
-
 	for {
 		c, err := d.r.ReadByte()
 		if err != nil {
@@ -183,9 +166,9 @@ func (d *decoder) decode(r io.Reader, configOnly bool) error {
 			if err != nil {
 				return err
 			}
-			useLocalColorMap := d.imageFields&fColorMapFollows != 0
+			useLocalColorMap := d.imageFields&fColorTable != 0
 			if useLocalColorMap {
-				m.Palette, err = d.readColorMap()
+				m.Palette, err = d.readColorMap(d.imageFields)
 				if err != nil {
 					return err
 				}
@@ -241,7 +224,7 @@ func (d *decoder) decode(r io.Reader, configOnly bool) error {
 			}
 
 			// Undo the interlacing if necessary.
-			if d.imageFields&ifInterlace != 0 {
+			if d.imageFields&fInterlace != 0 {
 				uninterlace(m)
 			}
 
@@ -267,40 +250,35 @@ func (d *decoder) decode(r io.Reader, configOnly bool) error {
 }
 
 func (d *decoder) readHeaderAndScreenDescriptor() error {
-	_, err := io.ReadFull(d.r, d.tmp[0:13])
+	_, err := io.ReadFull(d.r, d.tmp[:13])
 	if err != nil {
 		return err
 	}
-	d.vers = string(d.tmp[0:6])
+	d.vers = string(d.tmp[:6])
 	if d.vers != "GIF87a" && d.vers != "GIF89a" {
 		return fmt.Errorf("gif: can't recognize format %s", d.vers)
 	}
 	d.width = int(d.tmp[6]) + int(d.tmp[7])<<8
 	d.height = int(d.tmp[8]) + int(d.tmp[9])<<8
-	d.headerFields = d.tmp[10]
-	if d.headerFields&sdGlobalColorTable != 0 {
+	if fields := d.tmp[10]; fields&fColorTable != 0 {
 		d.backgroundIndex = d.tmp[11]
+		// readColorMap overwrites the contents of d.tmp, but that's OK.
+		if d.globalColorMap, err = d.readColorMap(fields); err != nil {
+			return err
+		}
 	}
-	d.aspect = d.tmp[12]
+	// d.tmp[12] is the Pixel Aspect Ratio, which is ignored.
 	d.loopCount = -1
-	d.pixelSize = uint(d.headerFields&7) + 1
 	return nil
 }
 
-func (d *decoder) readColorMap() (color.Palette, error) {
-	if d.pixelSize > 8 {
-		return nil, fmt.Errorf("gif: can't handle %d bits per pixel", d.pixelSize)
-	}
-	numColors := 1 << d.pixelSize
-	if d.imageFields&ifLocalColorTable != 0 {
-		numColors = 1 << ((d.imageFields & ifPixelSizeMask) + 1)
-	}
-	numValues := 3 * numColors
-	_, err := io.ReadFull(d.r, d.tmp[0:numValues])
+func (d *decoder) readColorMap(fields byte) (color.Palette, error) {
+	n := 1 << (1 + uint(fields&fColorTableBitsMask))
+	_, err := io.ReadFull(d.r, d.tmp[:3*n])
 	if err != nil {
 		return nil, fmt.Errorf("gif: short read on color map: %s", err)
 	}
-	colorMap := make(color.Palette, numColors)
+	colorMap := make(color.Palette, n)
 	j := 0
 	for i := range colorMap {
 		colorMap[i] = color.RGBA{d.tmp[j+0], d.tmp[j+1], d.tmp[j+2], 0xFF}
@@ -333,7 +311,7 @@ func (d *decoder) readExtension() error {
 		return fmt.Errorf("gif: unknown extension 0x%.2x", extension)
 	}
 	if size > 0 {
-		if _, err := io.ReadFull(d.r, d.tmp[0:size]); err != nil {
+		if _, err := io.ReadFull(d.r, d.tmp[:size]); err != nil {
 			return err
 		}
 	}
@@ -358,7 +336,7 @@ func (d *decoder) readExtension() error {
 }
 
 func (d *decoder) readGraphicControl() error {
-	if _, err := io.ReadFull(d.r, d.tmp[0:6]); err != nil {
+	if _, err := io.ReadFull(d.r, d.tmp[:6]); err != nil {
 		return fmt.Errorf("gif: can't read graphic control: %s", err)
 	}
 	flags := d.tmp[1]
@@ -372,7 +350,7 @@ func (d *decoder) readGraphicControl() error {
 }
 
 func (d *decoder) newImageFromDescriptor() (*image.Paletted, error) {
-	if _, err := io.ReadFull(d.r, d.tmp[0:9]); err != nil {
+	if _, err := io.ReadFull(d.r, d.tmp[:9]); err != nil {
 		return nil, fmt.Errorf("gif: can't read image descriptor: %s", err)
 	}
 	left := int(d.tmp[0]) + int(d.tmp[1])<<8
@@ -396,7 +374,7 @@ func (d *decoder) readBlock() (int, error) {
 	if n == 0 || err != nil {
 		return 0, err
 	}
-	return io.ReadFull(d.r, d.tmp[0:n])
+	return io.ReadFull(d.r, d.tmp[:n])
 }
 
 // interlaceScan defines the ordering for a pass of the interlace algorithm.
@@ -444,10 +422,21 @@ func Decode(r io.Reader) (image.Image, error) {
 type GIF struct {
 	Image     []*image.Paletted // The successive images.
 	Delay     []int             // The successive delay times, one per frame, in 100ths of a second.
-	Disposal  []byte            // The successive disposal methods, one per frame.
 	LoopCount int               // The loop count.
-	Config    image.Config
-	// The background index in the Global Color Map.
+	// Disposal is the successive disposal methods, one per frame. For
+	// backwards compatibility, a nil Disposal is valid to pass to EncodeAll,
+	// and implies that each frame's disposal method is 0 (no disposal
+	// specified).
+	Disposal []byte
+	// Config is the global color map (palette), width and height. A nil or
+	// empty-color.Palette Config.ColorModel means that each frame has its own
+	// color map and there is no global color map. For backwards compatibility,
+	// a zero-valued Config is valid to pass to EncodeAll, and implies that the
+	// overall GIF's width and height equals the first frame's width and
+	// height.
+	Config image.Config
+	// BackgroundIndex is the background index in the global color map, for use
+	// with the DisposalBackground disposal method.
 	BackgroundIndex byte
 }
 

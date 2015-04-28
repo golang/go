@@ -52,7 +52,7 @@ type encoder struct {
 	w   writer
 	err error
 	// g is a reference to the data that is being encoded.
-	g *GIF
+	g GIF
 	// buf is a scratch buffer. It must be at least 768 so we can write the color map.
 	buf [1024]byte
 }
@@ -116,18 +116,26 @@ func (e *encoder) writeHeader() {
 		return
 	}
 
-	pm := e.g.Image[0]
 	// Logical screen width and height.
-	writeUint16(e.buf[0:2], uint16(pm.Bounds().Dx()))
-	writeUint16(e.buf[2:4], uint16(pm.Bounds().Dy()))
+	writeUint16(e.buf[0:2], uint16(e.g.Config.Width))
+	writeUint16(e.buf[2:4], uint16(e.g.Config.Height))
 	e.write(e.buf[:4])
 
-	// All frames have a local color table, so a global color table
-	// is not needed.
-	e.buf[0] = 0x00
-	e.buf[1] = 0x00 // Background Color Index.
-	e.buf[2] = 0x00 // Pixel Aspect Ratio.
-	e.write(e.buf[:3])
+	if p, ok := e.g.Config.ColorModel.(color.Palette); ok && len(p) > 0 {
+		paddedSize := log2(len(p)) // Size of Global Color Table: 2^(1+n).
+		e.buf[0] = fColorTable | uint8(paddedSize)
+		e.buf[1] = e.g.BackgroundIndex
+		e.buf[2] = 0x00 // Pixel Aspect Ratio.
+		e.write(e.buf[:3])
+		e.writeColorTable(p, paddedSize)
+	} else {
+		// All frames have a local color table, so a global color table
+		// is not needed.
+		e.buf[0] = 0x00
+		e.buf[1] = 0x00 // Background Color Index.
+		e.buf[2] = 0x00 // Pixel Aspect Ratio.
+		e.write(e.buf[:3])
+	}
 
 	// Add animation info if necessary.
 	if len(e.g.Image) > 1 {
@@ -168,7 +176,7 @@ func (e *encoder) writeColorTable(p color.Palette, size int) {
 	e.write(e.buf[:3*log2Lookup[size]])
 }
 
-func (e *encoder) writeImageBlock(pm *image.Paletted, delay int) {
+func (e *encoder) writeImageBlock(pm *image.Paletted, delay int, disposal byte) {
 	if e.err != nil {
 		return
 	}
@@ -192,14 +200,14 @@ func (e *encoder) writeImageBlock(pm *image.Paletted, delay int) {
 		}
 	}
 
-	if delay > 0 || transparentIndex != -1 {
+	if delay > 0 || disposal != 0 || transparentIndex != -1 {
 		e.buf[0] = sExtension  // Extension Introducer.
 		e.buf[1] = gcLabel     // Graphic Control Label.
 		e.buf[2] = gcBlockSize // Block Size.
 		if transparentIndex != -1 {
-			e.buf[3] = 0x01
+			e.buf[3] = 0x01 | disposal<<2
 		} else {
-			e.buf[3] = 0x00
+			e.buf[3] = 0x00 | disposal<<2
 		}
 		writeUint16(e.buf[4:6], uint16(delay)) // Delay Time (1/100ths of a second)
 
@@ -281,7 +289,23 @@ func EncodeAll(w io.Writer, g *GIF) error {
 		g.LoopCount = 0
 	}
 
-	e := encoder{g: g}
+	e := encoder{g: *g}
+	// The GIF.Disposal, GIF.Config and GIF.BackgroundIndex fields were added
+	// in Go 1.5. Valid Go 1.4 code, such as when the Disposal field is omitted
+	// in a GIF struct literal, should still produce valid GIFs.
+	if e.g.Disposal != nil && len(e.g.Image) != len(e.g.Disposal) {
+		return errors.New("gif: mismatched image and disposal lengths")
+	}
+	if e.g.Config == (image.Config{}) {
+		b := g.Image[0].Bounds()
+		e.g.Config.Width = b.Dx()
+		e.g.Config.Height = b.Dy()
+	} else if e.g.Config.ColorModel != nil {
+		if _, ok := e.g.Config.ColorModel.(color.Palette); !ok {
+			return errors.New("gif: GIF color model must be a color.Palette")
+		}
+	}
+
 	if ww, ok := w.(writer); ok {
 		e.w = ww
 	} else {
@@ -290,7 +314,11 @@ func EncodeAll(w io.Writer, g *GIF) error {
 
 	e.writeHeader()
 	for i, pm := range g.Image {
-		e.writeImageBlock(pm, g.Delay[i])
+		disposal := uint8(0)
+		if g.Disposal != nil {
+			disposal = g.Disposal[i]
+		}
+		e.writeImageBlock(pm, g.Delay[i], disposal)
 	}
 	e.writeByte(sTrailer)
 	e.flush()
@@ -329,5 +357,10 @@ func Encode(w io.Writer, m image.Image, o *Options) error {
 	return EncodeAll(w, &GIF{
 		Image: []*image.Paletted{pm},
 		Delay: []int{0},
+		Config: image.Config{
+			ColorModel: pm.Palette,
+			Width:      b.Dx(),
+			Height:     b.Dy(),
+		},
 	})
 }
