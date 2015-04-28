@@ -32,6 +32,9 @@ func (e *Error) Error() string {
 }
 
 // Cmd represents an external command being prepared or run.
+//
+// A Cmd cannot be reused after calling its Run, Output or CombinedOutput
+// methods.
 type Cmd struct {
 	// Path is the path of the command to run.
 	//
