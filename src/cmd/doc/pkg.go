@@ -218,89 +218,89 @@ func (pkg *Package) typeSummary() {
 	}
 }
 
-// findValue finds the doc.Value that describes the symbol.
-func (pkg *Package) findValue(symbol string, values []*doc.Value) *doc.Value {
-	for _, value := range values {
+// findValues finds the doc.Values that describe the symbol.
+func (pkg *Package) findValues(symbol string, docValues []*doc.Value) (values []*doc.Value) {
+	for _, value := range docValues {
 		for _, name := range value.Names {
 			if match(symbol, name) {
-				return value
+				values = append(values, value)
 			}
 		}
 	}
-	return nil
+	return
 }
 
-// findType finds the doc.Func that describes the symbol.
-func (pkg *Package) findFunc(symbol string) *doc.Func {
+// findFuncs finds the doc.Funcs that describes the symbol.
+func (pkg *Package) findFuncs(symbol string) (funcs []*doc.Func) {
 	for _, fun := range pkg.doc.Funcs {
 		if match(symbol, fun.Name) {
-			return fun
+			funcs = append(funcs, fun)
 		}
 	}
-	return nil
+	return
 }
 
-// findType finds the doc.Type that describes the symbol.
-func (pkg *Package) findType(symbol string) *doc.Type {
+// findTypes finds the doc.Types that describes the symbol.
+func (pkg *Package) findTypes(symbol string) (types []*doc.Type) {
 	for _, typ := range pkg.doc.Types {
 		if match(symbol, typ.Name) {
-			return typ
+			types = append(types, typ)
 		}
 	}
-	return nil
+	return
 }
 
 // findTypeSpec returns the ast.TypeSpec within the declaration that defines the symbol.
+// The name must match exactly.
 func (pkg *Package) findTypeSpec(decl *ast.GenDecl, symbol string) *ast.TypeSpec {
 	for _, spec := range decl.Specs {
 		typeSpec := spec.(*ast.TypeSpec) // Must succeed.
-		if match(symbol, typeSpec.Name.Name) {
+		if symbol == typeSpec.Name.Name {
 			return typeSpec
 		}
 	}
 	return nil
 }
 
-// symbolDoc prints the doc for symbol. If it is a type, this includes its methods,
-// factories (TODO) and associated constants.
+// symbolDoc prints the docs for symbol. There may be multiple matches.
+// If symbol matches a type, output includes its methods factories and associated constants.
 func (pkg *Package) symbolDoc(symbol string) {
-	// TODO: resolve ambiguity in doc foo vs. doc Foo.
+	found := false
 	// Functions.
-	if fun := pkg.findFunc(symbol); fun != nil {
+	for _, fun := range pkg.findFuncs(symbol) {
 		// Symbol is a function.
 		decl := fun.Decl
 		decl.Body = nil
 		pkg.emit(fun.Doc, decl)
-		return
+		found = true
 	}
 	// Constants and variables behave the same.
-	value := pkg.findValue(symbol, pkg.doc.Consts)
-	if value == nil {
-		value = pkg.findValue(symbol, pkg.doc.Vars)
-	}
-	if value != nil {
+	values := pkg.findValues(symbol, pkg.doc.Consts)
+	values = append(values, pkg.findValues(symbol, pkg.doc.Vars)...)
+	for _, value := range values {
 		pkg.emit(value.Doc, value.Decl)
-		return
+		found = true
 	}
 	// Types.
-	typ := pkg.findType(symbol)
-	if typ == nil {
+	for _, typ := range pkg.findTypes(symbol) {
+		decl := typ.Decl
+		spec := pkg.findTypeSpec(decl, typ.Name)
+		trimUnexportedFields(spec)
+		// If there are multiple types defined, reduce to just this one.
+		if len(decl.Specs) > 1 {
+			decl.Specs = []ast.Spec{spec}
+		}
+		pkg.emit(typ.Doc, decl)
+		// Show associated methods, constants, etc.
+		pkg.valueSummary(typ.Consts)
+		pkg.valueSummary(typ.Vars)
+		pkg.funcSummary(typ.Funcs)
+		pkg.funcSummary(typ.Methods)
+		found = true
+	}
+	if !found {
 		log.Fatalf("symbol %s not present in package %s installed in %q", symbol, pkg.name, pkg.build.ImportPath)
 	}
-	decl := typ.Decl
-	spec := pkg.findTypeSpec(decl, symbol)
-	trimUnexportedFields(spec)
-	// If there are multiple types defined, reduce to just this one.
-	if len(decl.Specs) > 1 {
-		decl.Specs = []ast.Spec{spec}
-	}
-	pkg.emit(typ.Doc, decl)
-	// TODO: Show factory functions.
-	// Show associated methods, constants, etc.
-	pkg.valueSummary(typ.Consts)
-	pkg.valueSummary(typ.Vars)
-	pkg.funcSummary(typ.Funcs)
-	pkg.funcSummary(typ.Methods)
 }
 
 // trimUnexportedFields modifies spec in place to elide unexported fields (unless
@@ -347,21 +347,26 @@ func trimUnexportedFields(spec *ast.TypeSpec) {
 	}
 }
 
-// methodDoc prints the doc for symbol.method.
+// methodDoc prints the docs for matches of symbol.method.
 func (pkg *Package) methodDoc(symbol, method string) {
-	typ := pkg.findType(symbol)
-	if typ == nil {
+	types := pkg.findTypes(symbol)
+	if types == nil {
 		log.Fatalf("symbol %s is not a type in package %s installed in %q", symbol, pkg.name, pkg.build.ImportPath)
 	}
-	for _, meth := range typ.Methods {
-		if match(method, meth.Name) {
-			decl := meth.Decl
-			decl.Body = nil
-			pkg.emit(meth.Doc, decl)
-			return
+	found := false
+	for _, typ := range types {
+		for _, meth := range typ.Methods {
+			if match(method, meth.Name) {
+				decl := meth.Decl
+				decl.Body = nil
+				pkg.emit(meth.Doc, decl)
+				found = true
+			}
 		}
 	}
-	log.Fatalf("no method %s.%s in package %s installed in %q", symbol, method, pkg.name, pkg.build.ImportPath)
+	if !found {
+		log.Fatalf("no method %s.%s in package %s installed in %q", symbol, method, pkg.name, pkg.build.ImportPath)
+	}
 }
 
 // match reports whether the user's symbol matches the program's.

@@ -40,7 +40,9 @@ The package paths must be either a qualified path or a proper suffix of a path
 path elements like . and ... are not implemented by go doc.
 
 When matching symbols, lower-case letters match either case but upper-case letters
-match exactly.
+match exactly. This means that there may be multiple matches in a package if
+different symbols have different cases. If this occurs, documentation for all
+matches is printed.
 
 Examples:
 	go doc
