@@ -1452,19 +1452,23 @@ func testHandlerPanic(t *testing.T, withHijack bool, panicValue interface{}) {
 	}
 }
 
-func TestNoDate(t *testing.T) {
+func TestServerNoDate(t *testing.T)        { testServerNoHeader(t, "Date") }
+func TestServerNoContentType(t *testing.T) { testServerNoHeader(t, "Content-Type") }
+
+func testServerNoHeader(t *testing.T, header string) {
 	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
-		w.Header()["Date"] = nil
+		w.Header()[header] = nil
+		io.WriteString(w, "<html>foo</html>") // non-empty
 	}))
 	defer ts.Close()
 	res, err := Get(ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, present := res.Header["Date"]
-	if present {
-		t.Fatalf("Expected no Date header; got %v", res.Header["Date"])
+	res.Body.Close()
+	if got, ok := res.Header[header]; ok {
+		t.Fatalf("Expected no %s header; got %q", header, got)
 	}
 }
 

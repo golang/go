@@ -61,6 +61,7 @@ type ResponseWriter interface {
 	// WriteHeader (or Write) has no effect unless the modified
 	// headers were declared as trailers by setting the
 	// "Trailer" header before the call to WriteHeader.
+	// To suppress implicit response headers, set their value to nil.
 	Header() Header
 
 	// Write writes the data to the connection as part of an HTTP reply.
