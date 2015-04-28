@@ -141,21 +141,14 @@ type signatureAndHash struct {
 	hash, signature uint8
 }
 
-// supportedSKXSignatureAlgorithms contains the signature and hash algorithms
-// that the code advertises as supported in a TLS 1.2 ClientHello.
-var supportedSKXSignatureAlgorithms = []signatureAndHash{
+// supportedSignatureAlgorithms contains the signature and hash algorithms that
+// the code advertises as supported in a TLS 1.2 ClientHello and in a TLS 1.2
+// CertificateRequest.
+var supportedSignatureAlgorithms = []signatureAndHash{
 	{hashSHA256, signatureRSA},
 	{hashSHA256, signatureECDSA},
 	{hashSHA1, signatureRSA},
 	{hashSHA1, signatureECDSA},
-}
-
-// supportedClientCertSignatureAlgorithms contains the signature and hash
-// algorithms that the code advertises as supported in a TLS 1.2
-// CertificateRequest.
-var supportedClientCertSignatureAlgorithms = []signatureAndHash{
-	{hashSHA256, signatureRSA},
-	{hashSHA256, signatureECDSA},
 }
 
 // ConnectionState records basic TLS details about the connection.
@@ -704,4 +697,13 @@ func initDefaultCipherSuites() {
 
 func unexpectedMessageError(wanted, got interface{}) error {
 	return fmt.Errorf("tls: received unexpected handshake message of type %T when waiting for %T", got, wanted)
+}
+
+func isSupportedSignatureAndHash(sigHash signatureAndHash, sigHashes []signatureAndHash) bool {
+	for _, s := range sigHashes {
+		if s == sigHash {
+			return true
+		}
+	}
+	return false
 }
