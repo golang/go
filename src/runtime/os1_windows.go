@@ -282,7 +282,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 		funcPC(tstart_stdcall), uintptr(unsafe.Pointer(mp)),
 		_STACK_SIZE_PARAM_IS_A_RESERVATION, 0)
 	if thandle == 0 {
-		println("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", getlasterror(), ")")
+		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", getlasterror(), ")\n")
 		throw("runtime.newosproc")
 	}
 }

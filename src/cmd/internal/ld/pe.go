@@ -1225,12 +1225,13 @@ func Asmbpe() {
 	// for other threads we specify stack size in runtime explicitly
 	// (runtime knows whether cgo is enabled or not).
 	// If you change stack reserve sizes here,
-	// change STACKSIZE in runtime/cgo/gcc_windows_{386,amd64}.c as well.
+	// change STACKSIZE in runtime/cgo/gcc_windows_{386,amd64}.c and correspondent
+	// CreateThread parameter in runtime.newosproc as well.
 	if !iscgo {
-		oh64.SizeOfStackReserve = 0x00010000
-		oh.SizeOfStackReserve = 0x00010000
-		oh64.SizeOfStackCommit = 0x0000ffff
-		oh.SizeOfStackCommit = 0x0000ffff
+		oh64.SizeOfStackReserve = 0x00020000
+		oh.SizeOfStackReserve = 0x00020000
+		oh64.SizeOfStackCommit = 0x00001000
+		oh.SizeOfStackCommit = 0x00001000
 	} else {
 		oh64.SizeOfStackReserve = 0x00200000
 		oh.SizeOfStackReserve = 0x00100000
