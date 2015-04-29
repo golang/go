@@ -357,7 +357,60 @@ func TestEncodeImplicitConfigSize(t *testing.T) {
 	}
 }
 
-// TODO: add test for when a frame has the same color map (palette) as the global one.
+func TestEncodePalettes(t *testing.T) {
+	const w, h = 5, 5
+	pals := []color.Palette{{
+		color.RGBA{0x00, 0x00, 0x00, 0xff},
+		color.RGBA{0x01, 0x00, 0x00, 0xff},
+		color.RGBA{0x02, 0x00, 0x00, 0xff},
+	}, {
+		color.RGBA{0x00, 0x00, 0x00, 0xff},
+		color.RGBA{0x00, 0x01, 0x00, 0xff},
+	}, {
+		color.RGBA{0x00, 0x00, 0x03, 0xff},
+		color.RGBA{0x00, 0x00, 0x02, 0xff},
+		color.RGBA{0x00, 0x00, 0x01, 0xff},
+		color.RGBA{0x00, 0x00, 0x00, 0xff},
+	}, {
+		color.RGBA{0x10, 0x07, 0xf0, 0xff},
+		color.RGBA{0x20, 0x07, 0xf0, 0xff},
+		color.RGBA{0x30, 0x07, 0xf0, 0xff},
+		color.RGBA{0x40, 0x07, 0xf0, 0xff},
+		color.RGBA{0x50, 0x07, 0xf0, 0xff},
+	}}
+	g0 := &GIF{
+		Image: []*image.Paletted{
+			image.NewPaletted(image.Rect(0, 0, w, h), pals[0]),
+			image.NewPaletted(image.Rect(0, 0, w, h), pals[1]),
+			image.NewPaletted(image.Rect(0, 0, w, h), pals[2]),
+			image.NewPaletted(image.Rect(0, 0, w, h), pals[3]),
+		},
+		Delay:    make([]int, len(pals)),
+		Disposal: make([]byte, len(pals)),
+		Config: image.Config{
+			ColorModel: pals[2],
+			Width:      w,
+			Height:     h,
+		},
+	}
+
+	var buf bytes.Buffer
+	if err := EncodeAll(&buf, g0); err != nil {
+		t.Fatalf("EncodeAll: %v", err)
+	}
+	g1, err := DecodeAll(&buf)
+	if err != nil {
+		t.Fatalf("DecodeAll: %v", err)
+	}
+	if len(g0.Image) != len(g1.Image) {
+		t.Fatalf("image lengths differ: %d and %d", len(g0.Image), len(g1.Image))
+	}
+	for i, m := range g1.Image {
+		if got, want := m.Palette, pals[i]; !palettesEqual(got, want) {
+			t.Errorf("frame %d:\ngot  %v\nwant %v", i, got, want)
+		}
+	}
+}
 
 func BenchmarkEncode(b *testing.B) {
 	b.StopTimer()

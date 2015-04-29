@@ -6,6 +6,7 @@ package gif
 
 import (
 	"bufio"
+	"bytes"
 	"compress/lzw"
 	"errors"
 	"image"
@@ -53,8 +54,12 @@ type encoder struct {
 	err error
 	// g is a reference to the data that is being encoded.
 	g GIF
-	// buf is a scratch buffer. It must be at least 768 so we can write the color map.
-	buf [1024]byte
+	// globalCT is the size in bytes of the global color table.
+	globalCT int
+	// buf is a scratch buffer. It must be at least 256 for the blockWriter.
+	buf              [256]byte
+	globalColorTable [3 * 256]byte
+	localColorTable  [3 * 256]byte
 }
 
 // blockWriter writes the block structure of GIF image data, which
@@ -127,7 +132,8 @@ func (e *encoder) writeHeader() {
 		e.buf[1] = e.g.BackgroundIndex
 		e.buf[2] = 0x00 // Pixel Aspect Ratio.
 		e.write(e.buf[:3])
-		e.writeColorTable(p, paddedSize)
+		e.globalCT = encodeColorTable(e.globalColorTable[:], p, paddedSize)
+		e.write(e.globalColorTable[:e.globalCT])
 	} else {
 		// All frames have a local color table, so a global color table
 		// is not needed.
@@ -155,25 +161,22 @@ func (e *encoder) writeHeader() {
 	}
 }
 
-func (e *encoder) writeColorTable(p color.Palette, size int) {
-	if e.err != nil {
-		return
-	}
-
-	for i := 0; i < log2Lookup[size]; i++ {
+func encodeColorTable(dst []byte, p color.Palette, size int) int {
+	n := log2Lookup[size]
+	for i := 0; i < n; i++ {
 		if i < len(p) {
 			r, g, b, _ := p[i].RGBA()
-			e.buf[3*i+0] = uint8(r >> 8)
-			e.buf[3*i+1] = uint8(g >> 8)
-			e.buf[3*i+2] = uint8(b >> 8)
+			dst[3*i+0] = uint8(r >> 8)
+			dst[3*i+1] = uint8(g >> 8)
+			dst[3*i+2] = uint8(b >> 8)
 		} else {
 			// Pad with black.
-			e.buf[3*i+0] = 0x00
-			e.buf[3*i+1] = 0x00
-			e.buf[3*i+2] = 0x00
+			dst[3*i+0] = 0x00
+			dst[3*i+1] = 0x00
+			dst[3*i+2] = 0x00
 		}
 	}
-	e.write(e.buf[:3*log2Lookup[size]])
+	return 3 * n
 }
 
 func (e *encoder) writeImageBlock(pm *image.Paletted, delay int, disposal byte) {
@@ -232,11 +235,15 @@ func (e *encoder) writeImageBlock(pm *image.Paletted, delay int, disposal byte) 
 	e.write(e.buf[:9])
 
 	paddedSize := log2(len(pm.Palette)) // Size of Local Color Table: 2^(1+n).
-	// Interlacing is not supported.
-	e.writeByte(0x80 | uint8(paddedSize))
-
-	// Local Color Table.
-	e.writeColorTable(pm.Palette, paddedSize)
+	ct := encodeColorTable(e.localColorTable[:], pm.Palette, paddedSize)
+	if ct != e.globalCT || !bytes.Equal(e.globalColorTable[:ct], e.localColorTable[:ct]) {
+		// Use a local color table.
+		e.writeByte(fColorTable | uint8(paddedSize))
+		e.write(e.localColorTable[:ct])
+	} else {
+		// Use the global color table.
+		e.writeByte(0)
+	}
 
 	litWidth := paddedSize + 1
 	if litWidth < 2 {
