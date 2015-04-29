@@ -536,3 +536,19 @@ func _() {
 		goto L // ERROR "goto L jumps into block starting at LINE-4|goto jumps into block"
 	}
 }
+
+// issue 8042
+func _() {
+	goto L
+	type a int
+	L:
+}
+
+// make sure we only complain about variable declarations.
+func _() {
+	goto L // ERROR "goto L jumps over declaration of x at LINE+2|goto jumps over declaration"
+	type a int
+	x := 1	// GCCGO_ERROR "defined here"
+	_ = x
+L:
+}
