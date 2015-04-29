@@ -89,7 +89,7 @@ func parseArgs() (*build.Package, string, string) {
 		usage()
 	case 0:
 		// Easy: current directory.
-		return importDir("."), "", ""
+		return importDir(pwd()), "", ""
 	case 1:
 		// Done below.
 	case 2:
@@ -156,7 +156,7 @@ func parseArgs() (*build.Package, string, string) {
 		log.Fatalf("no such package %s", arg[0:period])
 	}
 	// Guess it's a symbol in the current directory.
-	return importDir("."), "", arg
+	return importDir(pwd()), "", arg
 }
 
 // importDir is just an error-catching wrapper for build.ImportDir.
@@ -284,4 +284,13 @@ func pathFor(root, pkg string) (result string) {
 
 	filepath.Walk(root, visit)
 	return "" // Call to panic above sets the real value.
+}
+
+// pwd returns the current directory.
+func pwd() string {
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
+	}
+	return wd
 }
