@@ -271,6 +271,16 @@ func LastIndexAny(s, chars string) int {
 	return -1
 }
 
+// LastIndexByte returns the index of the last instance of c in s, or -1 if c is not present in s.
+func LastIndexByte(s string, c byte) int {
+	for i := len(s) - 1; i >= 0; i-- {
+		if s[i] == c {
+			return i
+		}
+	}
+	return -1
+}
+
 // Generic split: splits after each instance of sep,
 // including sepSave bytes of sep in the subarrays.
 func genSplit(s, sep string, sepSave, n int) []string {
