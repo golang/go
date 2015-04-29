@@ -474,7 +474,7 @@ func pewrite() {
 }
 
 func strput(s string) {
-	coutbuf.w.WriteString(s)
+	coutbuf.WriteString(s)
 	Cput(0)
 	// string must be padded to even size
 	if (len(s)+1)%2 != 0 {

@@ -31,6 +31,7 @@
 package ld
 
 import (
+	"bufio"
 	"bytes"
 	"cmd/internal/obj"
 	"debug/elf"
@@ -229,9 +230,13 @@ const (
 var (
 	headstring string
 	// buffered output
-	Bso     Biobuf
-	coutbuf Biobuf
+	Bso Biobuf
 )
+
+var coutbuf struct {
+	*bufio.Writer
+	f *os.File
+}
 
 const (
 	// Whether to assume that the external linker is "gold"
@@ -245,7 +250,6 @@ const (
 )
 
 var (
-	cout *os.File
 	// Set if we see an object compiled by the host compiler that is not
 	// from a package that is known to support internal linking mode.
 	externalobj = false
@@ -359,8 +363,8 @@ func libinit() {
 		Exitf("cannot create %s: %v", outfile, err)
 	}
 
-	cout = f
-	coutbuf = *Binitw(f)
+	coutbuf.Writer = bufio.NewWriter(f)
+	coutbuf.f = f
 
 	if INITENTRY == "" {
 		switch Buildmode {
@@ -382,21 +386,26 @@ func libinit() {
 
 func Exitf(format string, a ...interface{}) {
 	fmt.Fprintf(os.Stderr, os.Args[0]+": "+format+"\n", a...)
-	if cout != nil {
-		cout.Close()
+	if coutbuf.f != nil {
+		coutbuf.f.Close()
 		mayberemoveoutfile()
 	}
 	Exit(2)
 }
 
 func errorexit() {
-	if cout != nil {
+	if coutbuf.f != nil {
+		if nerrors != 0 {
+			Cflush()
+		}
 		// For rmtemp run at atexit time on Windows.
-		cout.Close()
+		if err := coutbuf.f.Close(); err != nil {
+			Exitf("close: %v", err)
+		}
 	}
 
 	if nerrors != 0 {
-		if cout != nil {
+		if coutbuf.f != nil {
 			mayberemoveoutfile()
 		}
 		Exit(2)
@@ -803,16 +812,17 @@ func hostlinksetup() {
 	}
 
 	// change our output to temporary object file
-	cout.Close()
+	coutbuf.f.Close()
 
 	p := fmt.Sprintf("%s/go.o", tmpdir)
 	var err error
-	cout, err = os.OpenFile(p, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0775)
+	f, err := os.OpenFile(p, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0775)
 	if err != nil {
 		Exitf("cannot create %s: %v", p, err)
 	}
 
-	coutbuf = *Binitw(cout)
+	coutbuf.Writer = bufio.NewWriter(f)
+	coutbuf.f = f
 }
 
 // hostobjCopy creates a copy of the object files in hostobj in a
@@ -1555,23 +1565,33 @@ func Yconv(s *LSym) string {
 }
 
 func Cflush() {
-	Bflush(&coutbuf)
+	if err := coutbuf.Writer.Flush(); err != nil {
+		Exitf("flushing %s: %v", coutbuf.f.Name(), err)
+	}
 }
 
 func Cpos() int64 {
-	return Boffset(&coutbuf)
+	Cflush()
+	off, err := coutbuf.f.Seek(0, 1)
+	if err != nil {
+		Exitf("seeking in output [0, 1]: %v", err)
+	}
+	return off
 }
 
 func Cseek(p int64) {
-	Bseek(&coutbuf, p, 0)
+	Cflush()
+	if _, err := coutbuf.f.Seek(p, 0); err != nil {
+		Exitf("seeking in output [0, 1]: %v", err)
+	}
 }
 
 func Cwrite(p []byte) {
-	Bwrite(&coutbuf, p)
+	coutbuf.Write(p)
 }
 
 func Cput(c uint8) {
-	Bputc(&coutbuf, c)
+	coutbuf.WriteByte(c)
 }
 
 func usage() {
