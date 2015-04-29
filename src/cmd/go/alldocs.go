@@ -188,41 +188,52 @@ Show documentation for package or symbol
 
 Usage:
 
-	go doc [-u] [package|[package.]symbol[.method]]
+	go doc [-u] [-c] [package|[package.]symbol[.method]]
 
-Doc accepts at most one argument, indicating either a package, a symbol within a
-package, or a method of a symbol.
+Doc prints the documentation comments associated with the item identified by its
+arguments (a package, const, func, type, var, or method) followed by a one-line
+summary of each of the first-level items "under" that item (package-level declarations
+for a package, methods for a type, etc.).
+
+Doc accepts zero, one, or two arguments.
+
+Given no arguments, that is, when run as
 
 	go doc
+
+it prints the package documentation for the package in the current directory.
+
+When run with one argument, the argument is treated as a Go-syntax-like representation
+of the item to be documented. What the argument selects depends on what is installed
+in GOROOT and GOPATH, as well as the form of the argument, which is schematically
+one of these:
+
 	go doc <pkg>
 	go doc <sym>[.<method>]
 	go doc [<pkg>].<sym>[.<method>]
 
-Doc interprets the argument to see what it represents, determined by its syntax
-and which packages and symbols are present in the source directories of GOROOT and
-GOPATH.
-
-The first item in this list that succeeds is the one whose documentation is printed.
-For packages, the order of scanning is determined lexically, however the GOROOT
-tree is always scanned before GOPATH.
+The first item in this list matched by the argument is the one whose documentation
+is printed. (See the examples below.) For packages, the order of scanning is
+determined lexically, but the GOROOT tree is always scanned before GOPATH.
 
 If there is no package specified or matched, the package in the current directory
-is selected, so "go doc" shows the documentation for the current package and
-"go doc Foo" shows the documentation for symbol Foo in the current package.
+is selected, so "go doc Foo" shows the documentation for symbol Foo in the current
+package.
 
-Doc prints the documentation comments associated with the top-level item the
-argument identifies (package, type, method) followed by a one-line summary of each
-of the first-level items "under" that item (package-level declarations for a
-package, methods for a type, etc.).
+The package path must be either a qualified path or a proper suffix of a path. The
+go tool's usual package mechanism does not apply: package path elements like . and
+... are not implemented by go doc.
 
-The package paths must be either a qualified path or a proper suffix of a path
-(see examples below). The go tool's usual package mechanism does not apply: package
-path elements like . and ... are not implemented by go doc.
+When run with two arguments, the first must be a full package path (not just a
+suffix), and the second is a symbol or symbol and method; this is similar to the
+syntax accepted by godoc:
 
-When matching symbols, lower-case letters match either case but upper-case letters
-match exactly. This means that there may be multiple matches in a package if
-different symbols have different cases. If this occurs, documentation for all
-matches is printed.
+	go doc <pkg> <sym>[.<method>]
+
+In all forms, when matching symbols, lower-case letters in the argument match
+either case but upper-case letters match exactly. This means that there may be
+multiple matches of a lower-case argument in a package if different symbols have
+different cases. If this occurs, documentation for all matches is printed.
 
 Examples:
 	go doc
@@ -238,8 +249,17 @@ Examples:
 		Show documentation and method summary for json.Number.
 	go doc json.Number.Int64 (or go doc json.number.int64)
 		Show documentation for json.Number's Int64 method.
+	go doc template.new
+		Show documentation for html/template's New function.
+		(html/template is lexically before text/template)
+	go doc text/template.new # One argument
+		Show documentation for text/template's New function.
+	go doc text/template new # Two arguments
+		Show documentation for text/template's New function.
 
 Flags:
+	-c
+		Respect case when matching symbols.
 	-u
 		Show documentation for unexported as well as exported
 		symbols and methods.

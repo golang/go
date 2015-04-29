@@ -20,17 +20,19 @@ import (
 )
 
 type Package struct {
-	name  string       // Package name, json for encoding/json.
-	pkg   *ast.Package // Parsed package.
-	file  *ast.File    // Merged from all files in the package
-	doc   *doc.Package
-	build *build.Package
-	fs    *token.FileSet // Needed for printing.
+	name     string       // Package name, json for encoding/json.
+	userPath string       // String the user used to find this package.
+	pkg      *ast.Package // Parsed package.
+	file     *ast.File    // Merged from all files in the package
+	doc      *doc.Package
+	build    *build.Package
+	fs       *token.FileSet // Needed for printing.
+	buf      bytes.Buffer
 }
 
 // parsePackage turns the build package we found into a parsed package
 // we can then use to generate documentation.
-func parsePackage(pkg *build.Package) *Package {
+func parsePackage(pkg *build.Package, userPath string) *Package {
 	fs := token.NewFileSet()
 	// include tells parser.ParseDir which files to include.
 	// That means the file must be in the build package's GoFiles or CgoFiles
@@ -73,34 +75,53 @@ func parsePackage(pkg *build.Package) *Package {
 	}
 
 	return &Package{
-		name:  pkg.Name,
-		pkg:   astPkg,
-		file:  ast.MergePackageFiles(astPkg, 0),
-		doc:   docPkg,
-		build: pkg,
-		fs:    fs,
+		name:     pkg.Name,
+		userPath: userPath,
+		pkg:      astPkg,
+		file:     ast.MergePackageFiles(astPkg, 0),
+		doc:      docPkg,
+		build:    pkg,
+		fs:       fs,
 	}
 }
 
-var formatBuf bytes.Buffer // One instance to minimize allocation. TODO: Buffer all output.
+func (pkg *Package) Printf(format string, args ...interface{}) {
+	fmt.Fprintf(&pkg.buf, format, args...)
+}
+
+func (pkg *Package) flush() {
+	_, err := os.Stdout.Write(pkg.buf.Bytes())
+	if err != nil {
+		log.Fatal(err)
+	}
+	pkg.buf.Reset() // Not needed, but it's a flush.
+}
+
+var newlineBytes = []byte("\n\n") // We never ask for more than 2.
+
+// newlines guarantees there are n newlines at the end of the buffer.
+func (pkg *Package) newlines(n int) {
+	for !bytes.HasSuffix(pkg.buf.Bytes(), newlineBytes[:n]) {
+		pkg.buf.WriteRune('\n')
+	}
+}
 
 // emit prints the node.
 func (pkg *Package) emit(comment string, node ast.Node) {
 	if node != nil {
-		formatBuf.Reset()
-		if comment != "" {
-			doc.ToText(&formatBuf, comment, "", "\t", 80)
-		}
-		err := format.Node(&formatBuf, pkg.fs, node)
+		err := format.Node(&pkg.buf, pkg.fs, node)
 		if err != nil {
 			log.Fatal(err)
 		}
-		if formatBuf.Len() > 0 && formatBuf.Bytes()[formatBuf.Len()-1] != '\n' {
-			formatBuf.WriteRune('\n')
+		if comment != "" {
+			pkg.newlines(1)
+			doc.ToText(&pkg.buf, comment, "    ", "\t", 80)
 		}
-		os.Stdout.Write(formatBuf.Bytes())
+		pkg.newlines(1)
 	}
 }
+
+var formatBuf bytes.Buffer // Reusable to avoid allocation.
 
 // formatNode is a helper function for printing.
 func (pkg *Package) formatNode(node ast.Node) []byte {
@@ -137,7 +158,7 @@ func (pkg *Package) oneLineValueGenDecl(decl *ast.GenDecl) {
 		if i < len(valueSpec.Values) && valueSpec.Values[i] != nil {
 			val = fmt.Sprintf(" = %s", pkg.formatNode(valueSpec.Values[i]))
 		}
-		fmt.Printf("%s %s%s%s%s\n", decl.Tok, valueSpec.Names[0], typ, val, dotDotDot)
+		pkg.Printf("%s %s%s%s%s\n", decl.Tok, valueSpec.Names[0], typ, val, dotDotDot)
 		break
 	}
 }
@@ -148,33 +169,46 @@ func (pkg *Package) oneLineTypeDecl(spec *ast.TypeSpec) {
 	spec.Comment = nil
 	switch spec.Type.(type) {
 	case *ast.InterfaceType:
-		fmt.Printf("type %s interface { ... }\n", spec.Name)
+		pkg.Printf("type %s interface { ... }\n", spec.Name)
 	case *ast.StructType:
-		fmt.Printf("type %s struct { ... }\n", spec.Name)
+		pkg.Printf("type %s struct { ... }\n", spec.Name)
 	default:
-		fmt.Printf("type %s %s\n", spec.Name, pkg.formatNode(spec.Type))
+		pkg.Printf("type %s %s\n", spec.Name, pkg.formatNode(spec.Type))
 	}
 }
 
 // packageDoc prints the docs for the package (package doc plus one-liners of the rest).
-// TODO: Sort the output.
 func (pkg *Package) packageDoc() {
-	// Package comment.
-	importPath := pkg.build.ImportComment
-	if importPath == "" {
-		importPath = pkg.build.ImportPath
-	}
-	fmt.Printf("package %s // import %q\n\n", pkg.name, importPath)
-	if importPath != pkg.build.ImportPath {
-		fmt.Printf("WARNING: package source is installed in %q\n", pkg.build.ImportPath)
-	}
-	doc.ToText(os.Stdout, pkg.doc.Doc, "", "\t", 80)
-	fmt.Print("\n")
+	defer pkg.flush()
+	pkg.packageClause(false)
+
+	doc.ToText(&pkg.buf, pkg.doc.Doc, "", "\t", 80)
+	pkg.newlines(2)
 
 	pkg.valueSummary(pkg.doc.Consts)
 	pkg.valueSummary(pkg.doc.Vars)
 	pkg.funcSummary(pkg.doc.Funcs)
 	pkg.typeSummary()
+}
+
+// packageClause prints the package clause.
+// The argument boolean, if true, suppresses the output if the
+// user's argument is identical to the actual package path or
+// is empty, meaning it's the current directory.
+func (pkg *Package) packageClause(checkUserPath bool) {
+	if checkUserPath {
+		if pkg.userPath == "" || pkg.userPath == pkg.build.ImportPath {
+			return
+		}
+	}
+	importPath := pkg.build.ImportComment
+	if importPath == "" {
+		importPath = pkg.build.ImportPath
+	}
+	pkg.Printf("package %s // import %q\n\n", pkg.name, importPath)
+	if importPath != pkg.build.ImportPath {
+		pkg.Printf("WARNING: package source is installed in %q\n", pkg.build.ImportPath)
+	}
 }
 
 // valueSummary prints a one-line summary for each set of values and constants.
@@ -265,9 +299,13 @@ func (pkg *Package) findTypeSpec(decl *ast.GenDecl, symbol string) *ast.TypeSpec
 // symbolDoc prints the docs for symbol. There may be multiple matches.
 // If symbol matches a type, output includes its methods factories and associated constants.
 func (pkg *Package) symbolDoc(symbol string) {
+	defer pkg.flush()
 	found := false
 	// Functions.
 	for _, fun := range pkg.findFuncs(symbol) {
+		if !found {
+			pkg.packageClause(true)
+		}
 		// Symbol is a function.
 		decl := fun.Decl
 		decl.Body = nil
@@ -278,11 +316,17 @@ func (pkg *Package) symbolDoc(symbol string) {
 	values := pkg.findValues(symbol, pkg.doc.Consts)
 	values = append(values, pkg.findValues(symbol, pkg.doc.Vars)...)
 	for _, value := range values {
+		if !found {
+			pkg.packageClause(true)
+		}
 		pkg.emit(value.Doc, value.Decl)
 		found = true
 	}
 	// Types.
 	for _, typ := range pkg.findTypes(symbol) {
+		if !found {
+			pkg.packageClause(true)
+		}
 		decl := typ.Decl
 		spec := pkg.findTypeSpec(decl, typ.Name)
 		trimUnexportedFields(spec)
@@ -306,7 +350,7 @@ func (pkg *Package) symbolDoc(symbol string) {
 // trimUnexportedFields modifies spec in place to elide unexported fields (unless
 // the unexported flag is set). If spec is not a structure declartion, nothing happens.
 func trimUnexportedFields(spec *ast.TypeSpec) {
-	if unexported {
+	if *unexported {
 		// We're printing all fields.
 		return
 	}
@@ -349,6 +393,7 @@ func trimUnexportedFields(spec *ast.TypeSpec) {
 
 // methodDoc prints the docs for matches of symbol.method.
 func (pkg *Package) methodDoc(symbol, method string) {
+	defer pkg.flush()
 	types := pkg.findTypes(symbol)
 	if types == nil {
 		log.Fatalf("symbol %s is not a type in package %s installed in %q", symbol, pkg.name, pkg.build.ImportPath)
@@ -375,6 +420,9 @@ func (pkg *Package) methodDoc(symbol, method string) {
 func match(user, program string) bool {
 	if !isExported(program) {
 		return false
+	}
+	if *matchCase {
+		return user == program
 	}
 	for _, u := range user {
 		p, w := utf8.DecodeRuneInString(program)
