@@ -2,14 +2,26 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Doc (usually run as go doc) accepts zero or one argument, interpreted as:
+// Doc (usually run as go doc) accepts zero, one or two arguments.
+//
+// Zero arguments:
 //	go doc
+// Show the documentation for the package in the current directory.
+//
+// One argument:
 //	go doc <pkg>
 //	go doc <sym>[.<method>]
 //	go doc [<pkg>].<sym>[.<method>]
 // The first item in this list that succeeds is the one whose documentation
-// is printed. If there is no argument, the package in the current directory
-// is chosen.
+// is printed. If there is a symbol but no package, the package in the current
+// directory is chosen.
+//
+// Two arguments:
+//	go doc <pkg> <sym>[.<method>]
+//
+// Show the documentation for the package, symbol, and method. The
+// first argument must be a full package path. This is similar to the
+// command-line usage for the godoc command.
 //
 // For complete documentation, run "go help doc".
 package main
@@ -28,13 +40,9 @@ import (
 )
 
 var (
-	unexported bool
+	unexported = flag.Bool("u", false, "show unexported symbols as well as exported")
+	matchCase  = flag.Bool("c", false, "symbol matching honors case (paths not affected)")
 )
-
-func init() {
-	flag.BoolVar(&unexported, "unexported", false, "show unexported symbols as well as exported")
-	flag.BoolVar(&unexported, "u", false, "shorthand for -unexported")
-}
 
 // usage is a replacement usage function for the flags package.
 func usage() {
@@ -43,6 +51,7 @@ func usage() {
 	fmt.Fprintf(os.Stderr, "\tgo doc <pkg>\n")
 	fmt.Fprintf(os.Stderr, "\tgo doc <sym>[.<method>]\n")
 	fmt.Fprintf(os.Stderr, "\tgo doc [<pkg>].<sym>[.<method>]\n")
+	fmt.Fprintf(os.Stderr, "\tgo doc <pkg> <sym>[.<method>]\n")
 	fmt.Fprintf(os.Stderr, "For more information run\n")
 	fmt.Fprintf(os.Stderr, "\tgo help doc\n\n")
 	fmt.Fprintf(os.Stderr, "Flags:\n")
@@ -55,9 +64,9 @@ func main() {
 	log.SetPrefix("doc: ")
 	flag.Usage = usage
 	flag.Parse()
-	buildPackage, symbol := parseArg()
+	buildPackage, userPath, symbol := parseArgs()
 	symbol, method := parseSymbol(symbol)
-	pkg := parsePackage(buildPackage)
+	pkg := parsePackage(buildPackage, userPath)
 	switch {
 	case symbol == "":
 		pkg.packageDoc()
@@ -69,18 +78,27 @@ func main() {
 	}
 }
 
-// parseArg analyzes the argument (if any) and returns the package
-// it represents and the symbol (possibly with a .method) within that
-// package. parseSymbol is used to analyze the symbol itself.
-func parseArg() (*build.Package, string) {
+// parseArgs analyzes the arguments (if any) and returns the package
+// it represents, the part of the argument the user used to identify
+// the path (or "" if it's the current package) and the symbol
+// (possibly with a .method) within that package.
+// parseSymbol is used to analyze the symbol itself.
+func parseArgs() (*build.Package, string, string) {
 	switch flag.NArg() {
 	default:
 		usage()
 	case 0:
 		// Easy: current directory.
-		return importDir("."), ""
+		return importDir("."), "", ""
 	case 1:
 		// Done below.
+	case 2:
+		// Package must be importable.
+		pkg, err := build.Import(flag.Arg(0), "", build.ImportComment)
+		if err != nil {
+			log.Fatal(err)
+		}
+		return pkg, flag.Arg(0), flag.Arg(1)
 	}
 	// Usual case: one argument.
 	arg := flag.Arg(0)
@@ -90,17 +108,16 @@ func parseArg() (*build.Package, string) {
 	// package paths as their prefix.
 	pkg, err := build.Import(arg, "", build.ImportComment)
 	if err == nil {
-		return pkg, ""
+		return pkg, arg, ""
 	}
 	// Another disambiguator: If the symbol starts with an upper
 	// case letter, it can only be a symbol in the current directory.
 	// Kills the problem caused by case-insensitive file systems
 	// matching an upper case name as a package name.
 	if isUpper(arg) {
-		println("HERE", arg)
 		pkg, err := build.ImportDir(".", build.ImportComment)
 		if err == nil {
-			return pkg, arg
+			return pkg, "", arg
 		}
 	}
 	// If it has a slash, it must be a package path but there is a symbol.
@@ -125,16 +142,13 @@ func parseArg() (*build.Package, string) {
 		// Have we identified a package already?
 		pkg, err := build.Import(arg[0:period], "", build.ImportComment)
 		if err == nil {
-			return pkg, symbol
+			return pkg, arg[0:period], symbol
 		}
 		// See if we have the basename or tail of a package, as in json for encoding/json
 		// or ivy/value for robpike.io/ivy/value.
 		path := findPackage(arg[0:period])
 		if path != "" {
-			return importDir(path), symbol
-		}
-		if path != "" {
-			return importDir(path), symbol
+			return importDir(path), arg[0:period], symbol
 		}
 	}
 	// If it has a slash, we've failed.
@@ -142,7 +156,7 @@ func parseArg() (*build.Package, string) {
 		log.Fatalf("no such package %s", arg[0:period])
 	}
 	// Guess it's a symbol in the current directory.
-	return importDir("."), arg
+	return importDir("."), "", arg
 }
 
 // importDir is just an error-catching wrapper for build.ImportDir.
@@ -194,7 +208,7 @@ func isIdentifier(name string) {
 // If the unexported flag (-u) is true, isExported returns true because
 // it means that we treat the name as if it is exported.
 func isExported(name string) bool {
-	return unexported || isUpper(name)
+	return *unexported || isUpper(name)
 }
 
 // isUpper reports whether the name starts with an upper case letter.
