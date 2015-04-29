@@ -1034,7 +1034,7 @@ func elfinterp(sh *ElfShdr, startva uint64, resoff uint64, p string) int {
 func elfwriteinterp() int {
 	sh := elfshname(".interp")
 	Cseek(int64(sh.off))
-	coutbuf.w.WriteString(interp)
+	coutbuf.WriteString(interp)
 	Cput(0)
 	return int(sh.size)
 }
