@@ -313,14 +313,12 @@ func lexInsideAction(l *lexer) stateFn {
 	case r == '(':
 		l.emit(itemLeftParen)
 		l.parenDepth++
-		return lexInsideAction
 	case r == ')':
 		l.emit(itemRightParen)
 		l.parenDepth--
 		if l.parenDepth < 0 {
 			return l.errorf("unexpected right paren %#U", r)
 		}
-		return lexInsideAction
 	case r <= unicode.MaxASCII && unicode.IsPrint(r):
 		l.emit(itemChar)
 		return lexInsideAction
