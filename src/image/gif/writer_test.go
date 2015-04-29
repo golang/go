@@ -297,8 +297,66 @@ func TestEncodeZeroGIF(t *testing.T) {
 	}
 }
 
-// TODO: add test for when individual frames are out of the global bounds.
-// TODO: add test for when the first frame's bounds are not the same as the global bounds.
+func TestEncodeFrameOutOfBounds(t *testing.T) {
+	images := []*image.Paletted{
+		image.NewPaletted(image.Rect(0, 0, 5, 5), palette.Plan9),
+		image.NewPaletted(image.Rect(2, 2, 8, 8), palette.Plan9),
+		image.NewPaletted(image.Rect(3, 3, 4, 4), palette.Plan9),
+	}
+	for _, upperBound := range []int{6, 10} {
+		g := &GIF{
+			Image:    images,
+			Delay:    make([]int, len(images)),
+			Disposal: make([]byte, len(images)),
+			Config: image.Config{
+				Width:  upperBound,
+				Height: upperBound,
+			},
+		}
+		err := EncodeAll(ioutil.Discard, g)
+		if upperBound >= 8 {
+			if err != nil {
+				t.Errorf("upperBound=%d: %v", upperBound, err)
+			}
+		} else {
+			if err == nil {
+				t.Errorf("upperBound=%d: got nil error, want non-nil", upperBound)
+			}
+		}
+	}
+}
+
+func TestEncodeImplicitConfigSize(t *testing.T) {
+	// For backwards compatibility for Go 1.4 and earlier code, the Config
+	// field is optional, and if zero, the width and height is implied by the
+	// first (and in this case only) frame's width and height.
+	//
+	// A Config only specifies a width and height (two integers) while an
+	// image.Image's Bounds method returns an image.Rectangle (four integers).
+	// For a gif.GIF, the overall bounds' top-left point is always implicitly
+	// (0, 0), and any frame whose bounds have a negative X or Y will be
+	// outside those overall bounds, so encoding should fail.
+	for _, lowerBound := range []int{-1, 0, 1} {
+		images := []*image.Paletted{
+			image.NewPaletted(image.Rect(lowerBound, lowerBound, 4, 4), palette.Plan9),
+		}
+		g := &GIF{
+			Image: images,
+			Delay: make([]int, len(images)),
+		}
+		err := EncodeAll(ioutil.Discard, g)
+		if lowerBound >= 0 {
+			if err != nil {
+				t.Errorf("lowerBound=%d: %v", lowerBound, err)
+			}
+		} else {
+			if err == nil {
+				t.Errorf("lowerBound=%d: got nil error, want non-nil", lowerBound)
+			}
+		}
+	}
+}
+
 // TODO: add test for when a frame has the same color map (palette) as the global one.
 
 func BenchmarkEncode(b *testing.B) {

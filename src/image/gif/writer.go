@@ -191,6 +191,10 @@ func (e *encoder) writeImageBlock(pm *image.Paletted, delay int, disposal byte) 
 		e.err = errors.New("gif: image block is too large to encode")
 		return
 	}
+	if !b.In(image.Rectangle{Max: image.Point{e.g.Config.Width, e.g.Config.Height}}) {
+		e.err = errors.New("gif: image block is out of bounds")
+		return
+	}
 
 	transparentIndex := -1
 	for i, c := range pm.Palette {
@@ -297,9 +301,9 @@ func EncodeAll(w io.Writer, g *GIF) error {
 		return errors.New("gif: mismatched image and disposal lengths")
 	}
 	if e.g.Config == (image.Config{}) {
-		b := g.Image[0].Bounds()
-		e.g.Config.Width = b.Dx()
-		e.g.Config.Height = b.Dy()
+		p := g.Image[0].Bounds().Max
+		e.g.Config.Width = p.X
+		e.g.Config.Height = p.Y
 	} else if e.g.Config.ColorModel != nil {
 		if _, ok := e.g.Config.ColorModel.(color.Palette); !ok {
 			return errors.New("gif: GIF color model must be a color.Palette")

@@ -430,10 +430,13 @@ type GIF struct {
 	Disposal []byte
 	// Config is the global color map (palette), width and height. A nil or
 	// empty-color.Palette Config.ColorModel means that each frame has its own
-	// color map and there is no global color map. For backwards compatibility,
-	// a zero-valued Config is valid to pass to EncodeAll, and implies that the
-	// overall GIF's width and height equals the first frame's width and
-	// height.
+	// color map and there is no global color map. Each frame's bounds must be
+	// within the rectangle defined by the two points (0, 0) and (Config.Width,
+	// Config.Height).
+	//
+	// For backwards compatibility, a zero-valued Config is valid to pass to
+	// EncodeAll, and implies that the overall GIF's width and height equals
+	// the first frame's bounds' Rectangle.Max point.
 	Config image.Config
 	// BackgroundIndex is the background index in the global color map, for use
 	// with the DisposalBackground disposal method.
