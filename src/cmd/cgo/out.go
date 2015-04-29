@@ -840,6 +840,8 @@ func (p *Package) writeGccgoExports(fgo2, fm io.Writer) {
 	fmt.Fprintf(fgcc, "/* Created by cgo - DO NOT EDIT. */\n")
 	fmt.Fprintf(fgcc, "#include \"_cgo_export.h\"\n")
 
+	fmt.Fprintf(fgcc, "%s\n", gccgoExportFileProlog)
+
 	for _, exp := range p.ExpFunc {
 		fn := exp.Func
 		fntype := fn.Type
@@ -908,6 +910,8 @@ func (p *Package) writeGccgoExports(fgo2, fm io.Writer) {
 
 		fmt.Fprint(fgcc, "\n")
 		fmt.Fprintf(fgcc, "%s %s %s {\n", cRet, exp.ExpName, cParams)
+		fmt.Fprintf(fgcc, "\tif(_cgo_wait_runtime_init_done)\n")
+		fmt.Fprintf(fgcc, "\t\t_cgo_wait_runtime_init_done();\n")
 		fmt.Fprint(fgcc, "\t")
 		if resultCount > 0 {
 			fmt.Fprint(fgcc, "return ")
@@ -1323,4 +1327,20 @@ typedef void *GoMap;
 typedef void *GoChan;
 typedef struct { void *t; void *v; } GoInterface;
 typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
+`
+
+// gccgoExportFileProlog is written to the _cgo_export.c file when
+// using gccgo.
+// We use weak declarations, and test the addresses, so that this code
+// works with older versions of gccgo.
+const gccgoExportFileProlog = `
+extern _Bool runtime_iscgo __attribute__ ((weak));
+
+static void GoInit(void) __attribute__ ((constructor));
+static void GoInit(void) {
+	if(&runtime_iscgo)
+		runtime_iscgo = 1;
+}
+
+extern void _cgo_wait_runtime_init_done() __attribute__ ((weak));
 `
