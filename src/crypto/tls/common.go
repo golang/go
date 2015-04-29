@@ -147,6 +147,8 @@ type signatureAndHash struct {
 var supportedSignatureAlgorithms = []signatureAndHash{
 	{hashSHA256, signatureRSA},
 	{hashSHA256, signatureECDSA},
+	{hashSHA384, signatureRSA},
+	{hashSHA384, signatureECDSA},
 	{hashSHA1, signatureRSA},
 	{hashSHA1, signatureECDSA},
 }
