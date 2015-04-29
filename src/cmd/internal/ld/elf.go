@@ -1039,11 +1039,13 @@ func elfwriteinterp() int {
 	return int(sh.size)
 }
 
-func elfnote(sh *ElfShdr, startva uint64, resoff uint64, sz int) int {
+func elfnote(sh *ElfShdr, startva uint64, resoff uint64, sz int, alloc bool) int {
 	n := 3*4 + uint64(sz) + resoff%4
 
 	sh.type_ = SHT_NOTE
-	sh.flags = SHF_ALLOC
+	if alloc {
+		sh.flags = SHF_ALLOC
+	}
 	sh.addralign = 4
 	sh.addr = startva + resoff - n
 	sh.off = resoff - n
@@ -1077,7 +1079,7 @@ var ELF_NOTE_NETBSD_NAME = []byte("NetBSD\x00")
 
 func elfnetbsdsig(sh *ElfShdr, startva uint64, resoff uint64) int {
 	n := int(Rnd(ELF_NOTE_NETBSD_NAMESZ, 4) + Rnd(ELF_NOTE_NETBSD_DESCSZ, 4))
-	return elfnote(sh, startva, resoff, n)
+	return elfnote(sh, startva, resoff, n, true)
 }
 
 func elfwritenetbsdsig() int {
@@ -1109,7 +1111,7 @@ var ELF_NOTE_OPENBSD_NAME = []byte("OpenBSD\x00")
 
 func elfopenbsdsig(sh *ElfShdr, startva uint64, resoff uint64) int {
 	n := ELF_NOTE_OPENBSD_NAMESZ + ELF_NOTE_OPENBSD_DESCSZ
-	return elfnote(sh, startva, resoff, n)
+	return elfnote(sh, startva, resoff, n, true)
 }
 
 func elfwriteopenbsdsig() int {
@@ -1180,7 +1182,7 @@ var ELF_NOTE_BUILDINFO_NAME = []byte("GNU\x00")
 
 func elfbuildinfo(sh *ElfShdr, startva uint64, resoff uint64) int {
 	n := int(ELF_NOTE_BUILDINFO_NAMESZ + Rnd(int64(len(buildinfo)), 4))
-	return elfnote(sh, startva, resoff, n)
+	return elfnote(sh, startva, resoff, n, true)
 }
 
 func elfwritebuildinfo() int {
@@ -1193,6 +1195,32 @@ func elfwritebuildinfo() int {
 	Cwrite(buildinfo)
 	var zero = make([]byte, 4)
 	Cwrite(zero[:int(Rnd(int64(len(buildinfo)), 4)-int64(len(buildinfo)))])
+
+	return int(sh.size)
+}
+
+// Go package list note
+const (
+	ELF_NOTE_GOPKGLIST_TAG = 1
+)
+
+var ELF_NOTE_GO_NAME = []byte("GO\x00\x00")
+
+func elfgopkgnote(sh *ElfShdr, startva uint64, resoff uint64) int {
+	n := len(ELF_NOTE_GO_NAME) + int(Rnd(int64(len(pkglistfornote)), 4))
+	return elfnote(sh, startva, resoff, n, false)
+}
+
+func elfwritegopkgnote() int {
+	sh := elfwritenotehdr(".note.go.pkg-list", uint32(len(ELF_NOTE_GO_NAME)), uint32(len(pkglistfornote)), ELF_NOTE_GOPKGLIST_TAG)
+	if sh == nil {
+		return 0
+	}
+
+	Cwrite(ELF_NOTE_GO_NAME)
+	Cwrite(pkglistfornote)
+	var zero = make([]byte, 4)
+	Cwrite(zero[:int(Rnd(int64(len(pkglistfornote)), 4)-int64(len(pkglistfornote)))])
 
 	return int(sh.size)
 }
@@ -1604,6 +1632,9 @@ func doelf() {
 	if len(buildinfo) > 0 {
 		Addstring(shstrtab, ".note.gnu.build-id")
 	}
+	if Buildmode == BuildmodeShared {
+		Addstring(shstrtab, ".note.go.pkg-list")
+	}
 	Addstring(shstrtab, ".elfdata")
 	Addstring(shstrtab, ".rodata")
 	Addstring(shstrtab, ".typelink")
@@ -1888,6 +1919,11 @@ func Asmbelf(symo int64) {
 		eh.phoff = 0
 
 		eh.phentsize = 0
+
+		if Buildmode == BuildmodeShared {
+			sh := elfshname(".note.go.pkg-list")
+			resoff -= int64(elfgopkgnote(sh, uint64(startva), uint64(resoff)))
+		}
 		goto elfobj
 	}
 
@@ -2295,6 +2331,9 @@ elfobj:
 		if len(buildinfo) > 0 {
 			a += int64(elfwritebuildinfo())
 		}
+	}
+	if Buildmode == BuildmodeShared {
+		a += int64(elfwritegopkgnote())
 	}
 
 	if a > ELFRESERVE {

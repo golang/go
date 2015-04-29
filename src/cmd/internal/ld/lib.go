@@ -516,6 +516,15 @@ func loadlib() {
 			if Ctxt.Library[i].Shlib != "" {
 				ldshlibsyms(Ctxt.Library[i].Shlib)
 			} else {
+				// Because the linker always looks for runtime/cgo when
+				// -buildmode=shared is passed, the go tool never passes
+				// runtime/cgo on the command line. But runtime/cgo needs
+				// to end up in the package list if it is being built into
+				// the shared libarary.
+				if Buildmode == BuildmodeShared {
+					pkglistfornote = append(pkglistfornote, "runtime/cgo"...)
+					pkglistfornote = append(pkglistfornote, '\n')
+				}
 				objfile(Ctxt.Library[i].File, Ctxt.Library[i].Pkg)
 			}
 		}
