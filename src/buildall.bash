@@ -51,7 +51,7 @@ do
         export GOARCH=386
         export GO386=387
     fi
-    if ! go build -a std; then
+    if ! "$GOROOT/bin/go" build -a std; then
         failed=true
         if $sete; then
             exit 1
