@@ -311,7 +311,6 @@ func (fd *netFD) Write(p []byte) (nn int, err error) {
 			}
 		}
 		if err != nil {
-			n = 0
 			break
 		}
 		if n == 0 {
