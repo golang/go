@@ -6,8 +6,8 @@
 # Usage: buildall.sh [-e] [pattern]
 #
 # buildall.bash builds the standard library for all Go-supported
-# architectures. It is used by the linux-amd64-compilesmoke trybot
-# builder, as a smoke test to quickly flag portability issues.
+# architectures. It is used by the "all-compile" trybot builder,
+# as a smoke test to quickly flag portability issues.
 #
 # Options:
 #   -e: stop at first failure
