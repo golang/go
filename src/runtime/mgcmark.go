@@ -719,6 +719,10 @@ func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork
 // gcDumpObject dumps the contents of obj for debugging and marks the
 // field at byte offset off in obj.
 func gcDumpObject(label string, obj, off uintptr) {
+	if obj < mheap_.arena_start || obj >= mheap_.arena_used {
+		print(label, "=", hex(obj), " is not a heap object\n")
+		return
+	}
 	k := obj >> _PageShift
 	x := k
 	x -= mheap_.arena_start >> _PageShift
