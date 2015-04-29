@@ -227,7 +227,11 @@ func TestAfterQueuing(t *testing.T) {
 	const attempts = 3
 	err := errors.New("!=nil")
 	for i := 0; i < attempts && err != nil; i++ {
-		if err = testAfterQueuing(t); err != nil {
+		delta := 100 * Millisecond
+		if i == 0 && testing.Short() {
+			delta = 20 * Millisecond
+		}
+		if err = testAfterQueuing(t, delta); err != nil {
 			t.Logf("attempt %v failed: %v", i, err)
 		}
 	}
@@ -247,11 +251,7 @@ func await(slot int, result chan<- afterResult, ac <-chan Time) {
 	result <- afterResult{slot, <-ac}
 }
 
-func testAfterQueuing(t *testing.T) error {
-	Delta := 100 * Millisecond
-	if testing.Short() {
-		Delta = 20 * Millisecond
-	}
+func testAfterQueuing(t *testing.T, delta Duration) error {
 	// make the result channel buffered because we don't want
 	// to depend on channel queueing semantics that might
 	// possibly change in the future.
@@ -259,7 +259,7 @@ func testAfterQueuing(t *testing.T) error {
 
 	t0 := Now()
 	for _, slot := range slots {
-		go await(slot, result, After(Duration(slot)*Delta))
+		go await(slot, result, After(Duration(slot)*delta))
 	}
 	sort.Ints(slots)
 	for _, slot := range slots {
@@ -268,9 +268,9 @@ func testAfterQueuing(t *testing.T) error {
 			return fmt.Errorf("after slot %d, expected %d", r.slot, slot)
 		}
 		dt := r.t.Sub(t0)
-		target := Duration(slot) * Delta
-		if dt < target-Delta/2 || dt > target+Delta*10 {
-			return fmt.Errorf("After(%s) arrived at %s, expected [%s,%s]", target, dt, target-Delta/2, target+Delta*10)
+		target := Duration(slot) * delta
+		if dt < target-delta/2 || dt > target+delta*10 {
+			return fmt.Errorf("After(%s) arrived at %s, expected [%s,%s]", target, dt, target-delta/2, target+delta*10)
 		}
 	}
 	return nil
