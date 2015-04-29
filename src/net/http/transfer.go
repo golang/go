@@ -138,6 +138,9 @@ func (t *transferWriter) shouldSendContentLength() bool {
 	if t.ContentLength > 0 {
 		return true
 	}
+	if t.ContentLength < 0 {
+		return false
+	}
 	// Many servers expect a Content-Length for these methods
 	if t.Method == "POST" || t.Method == "PUT" {
 		return true
