@@ -46,6 +46,9 @@ var (
 	timerprocPC          uintptr
 	gcBgMarkWorkerPC     uintptr
 	systemstack_switchPC uintptr
+	systemstackPC        uintptr
+
+	gogoPC uintptr
 
 	externalthreadhandlerp uintptr // initialized elsewhere
 )
@@ -69,6 +72,10 @@ func tracebackinit() {
 	timerprocPC = funcPC(timerproc)
 	gcBgMarkWorkerPC = funcPC(gcBgMarkWorker)
 	systemstack_switchPC = funcPC(systemstack_switch)
+	systemstackPC = funcPC(systemstack)
+
+	// used by sigprof handler
+	gogoPC = funcPC(gogo)
 }
 
 // Traceback over the deferred function calls.
@@ -194,7 +201,14 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		// Found an actual function.
 		// Derive frame pointer and link register.
 		if frame.fp == 0 {
-			frame.fp = frame.sp + uintptr(funcspdelta(f, frame.pc))
+			// We want to jump over the systemstack switch. If we're running on the
+			// g0, this systemstack is at the top of the stack.
+			// if we're not on g0 or there's a no curg, then this is a regular call.
+			sp := frame.sp
+			if flags&_TraceJumpStack != 0 && f.entry == systemstackPC && gp == g.m.g0 && gp.m.curg != nil {
+				sp = gp.m.curg.sched.sp
+			}
+			frame.fp = sp + uintptr(funcspdelta(f, frame.pc))
 			if !usesLR {
 				// On x86, call instruction pushes return PC before entering new function.
 				frame.fp += regSize

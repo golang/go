@@ -106,11 +106,6 @@ var MemclrBytes = memclrBytes
 
 var HashLoad = &hashLoad
 
-// For testing.
-func GogoBytes() int32 {
-	return _RuntimeGogoBytes
-}
-
 // entry point for testing
 func GostringW(w []uint16) (s string) {
 	systemstack(func() {
