@@ -169,7 +169,7 @@ var tests = []testcase{
 	{"image_package6", `^8 4 true$`},
 
 	// other
-	{"go1", `^Christmas is a holiday: true Sleeping for 0.123s.*go1.go already exists$`},
+	{"go1", `^Christmas is a holiday: true .*go1.go already exists$`},
 	{"slices", ""},
 }
 
