@@ -14,32 +14,46 @@ import (
 	"testing"
 )
 
-var listenerTests = []struct {
-	net      string
-	laddr    string
-	ipv6     bool // test with underlying AF_INET6 socket
-	wildcard bool // test with wildcard address
+func (ln *TCPListener) port() string {
+	_, port, err := SplitHostPort(ln.Addr().String())
+	if err != nil {
+		return ""
+	}
+	return port
+}
+
+func (c *UDPConn) port() string {
+	_, port, err := SplitHostPort(c.LocalAddr().String())
+	if err != nil {
+		return ""
+	}
+	return port
+}
+
+var tcpListenerTests = []struct {
+	network string
+	address string
 }{
-	{net: "tcp", laddr: "", wildcard: true},
-	{net: "tcp", laddr: "0.0.0.0", wildcard: true},
-	{net: "tcp", laddr: "[::ffff:0.0.0.0]", wildcard: true},
-	{net: "tcp", laddr: "[::]", ipv6: true, wildcard: true},
+	{"tcp", ""},
+	{"tcp", "0.0.0.0"},
+	{"tcp", "::ffff:0.0.0.0"},
+	{"tcp", "::"},
 
-	{net: "tcp", laddr: "127.0.0.1"},
-	{net: "tcp", laddr: "[::ffff:127.0.0.1]"},
-	{net: "tcp", laddr: "[::1]", ipv6: true},
+	{"tcp", "127.0.0.1"},
+	{"tcp", "::ffff:127.0.0.1"},
+	{"tcp", "::1"},
 
-	{net: "tcp4", laddr: "", wildcard: true},
-	{net: "tcp4", laddr: "0.0.0.0", wildcard: true},
-	{net: "tcp4", laddr: "[::ffff:0.0.0.0]", wildcard: true},
+	{"tcp4", ""},
+	{"tcp4", "0.0.0.0"},
+	{"tcp4", "::ffff:0.0.0.0"},
 
-	{net: "tcp4", laddr: "127.0.0.1"},
-	{net: "tcp4", laddr: "[::ffff:127.0.0.1]"},
+	{"tcp4", "127.0.0.1"},
+	{"tcp4", "::ffff:127.0.0.1"},
 
-	{net: "tcp6", laddr: "", ipv6: true, wildcard: true},
-	{net: "tcp6", laddr: "[::]", ipv6: true, wildcard: true},
+	{"tcp6", ""},
+	{"tcp6", "::"},
 
-	{net: "tcp6", laddr: "[::1]", ipv6: true},
+	{"tcp6", "::1"},
 }
 
 // TestTCPListener tests both single and double listen to a test
@@ -48,22 +62,59 @@ var listenerTests = []struct {
 func TestTCPListener(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
-		t.Skipf("skipping test on %q", runtime.GOOS)
+		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	for _, tt := range listenerTests {
-		if tt.wildcard && (testing.Short() || !*testExternal) {
+	for _, tt := range tcpListenerTests {
+		if !testableListenArgs(tt.network, JoinHostPort(tt.address, "0"), "") {
+			t.Logf("skipping %s test", tt.network+" "+tt.address)
 			continue
 		}
-		if tt.ipv6 && !supportsIPv6 {
-			continue
+
+		ln1, err := Listen(tt.network, JoinHostPort(tt.address, "0"))
+		if err != nil {
+			t.Fatal(err)
 		}
-		l1, port := usableListenPort(t, tt.net, tt.laddr)
-		checkFirstListener(t, tt.net, tt.laddr+":"+port, l1)
-		l2, err := Listen(tt.net, tt.laddr+":"+port)
-		checkSecondListener(t, tt.net, tt.laddr+":"+port, err, l2)
-		l1.Close()
+		if err := checkFirstListener(tt.network, ln1); err != nil {
+			ln1.Close()
+			t.Fatal(err)
+		}
+		ln2, err := Listen(tt.network, JoinHostPort(tt.address, ln1.(*TCPListener).port()))
+		if err == nil {
+			ln2.Close()
+		}
+		if err := checkSecondListener(tt.network, tt.address, err); err != nil {
+			ln1.Close()
+			t.Fatal(err)
+		}
+		ln1.Close()
 	}
+}
+
+var udpListenerTests = []struct {
+	network string
+	address string
+}{
+	{"udp", ""},
+	{"udp", "0.0.0.0"},
+	{"udp", "::ffff:0.0.0.0"},
+	{"udp", "::"},
+
+	{"udp", "127.0.0.1"},
+	{"udp", "::ffff:127.0.0.1"},
+	{"udp", "::1"},
+
+	{"udp4", ""},
+	{"udp4", "0.0.0.0"},
+	{"udp4", "::ffff:0.0.0.0"},
+
+	{"udp4", "127.0.0.1"},
+	{"udp4", "::ffff:127.0.0.1"},
+
+	{"udp6", ""},
+	{"udp6", "::"},
+
+	{"udp6", "::1"},
 }
 
 // TestUDPListener tests both single and double listen to a test
@@ -72,44 +123,39 @@ func TestTCPListener(t *testing.T) {
 func TestUDPListener(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
-		t.Skipf("skipping test on %q", runtime.GOOS)
+		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	toudpnet := func(net string) string {
-		switch net {
-		case "tcp":
-			return "udp"
-		case "tcp4":
-			return "udp4"
-		case "tcp6":
-			return "udp6"
+	for _, tt := range udpListenerTests {
+		if !testableListenArgs(tt.network, JoinHostPort(tt.address, "0"), "") {
+			t.Logf("skipping %s test", tt.network+" "+tt.address)
+			continue
 		}
-		return "<nil>"
-	}
 
-	for _, tt := range listenerTests {
-		if tt.wildcard && (testing.Short() || !*testExternal) {
-			continue
+		c1, err := ListenPacket(tt.network, JoinHostPort(tt.address, "0"))
+		if err != nil {
+			t.Fatal(err)
 		}
-		if tt.ipv6 && !supportsIPv6 {
-			continue
+		if err := checkFirstListener(tt.network, c1); err != nil {
+			c1.Close()
+			t.Fatal(err)
 		}
-		tt.net = toudpnet(tt.net)
-		l1, port := usableListenPacketPort(t, tt.net, tt.laddr)
-		checkFirstListener(t, tt.net, tt.laddr+":"+port, l1)
-		l2, err := ListenPacket(tt.net, tt.laddr+":"+port)
-		checkSecondListener(t, tt.net, tt.laddr+":"+port, err, l2)
-		l1.Close()
+		c2, err := ListenPacket(tt.network, JoinHostPort(tt.address, c1.(*UDPConn).port()))
+		if err == nil {
+			c2.Close()
+		}
+		if err := checkSecondListener(tt.network, tt.address, err); err != nil {
+			c1.Close()
+			t.Fatal(err)
+		}
+		c1.Close()
 	}
 }
 
-var dualStackListenerTests = []struct {
-	net1     string // first listener
-	laddr1   string
-	net2     string // second listener
-	laddr2   string
-	wildcard bool  // test with wildcard address
-	xerr     error // expected error value, nil or other
+var dualStackTCPListenerTests = []struct {
+	network1, address1 string // first listener
+	network2, address2 string // second listener
+	xerr               error  // expected error value, nil or other
 }{
 	// Test cases and expected results for the attemping 2nd listen on the same port
 	// 1st listen                2nd listen                 darwin  freebsd  linux  openbsd
@@ -145,150 +191,167 @@ var dualStackListenerTests = []struct {
 	// openbsd, kernel version 5.0
 	//	net.inet6.ip6.v6only=1 (overriding is prohibited)
 
-	{net1: "tcp", laddr1: "", net2: "tcp", laddr2: "", wildcard: true, xerr: syscall.EADDRINUSE},
-	{net1: "tcp", laddr1: "", net2: "tcp", laddr2: "0.0.0.0", wildcard: true, xerr: syscall.EADDRINUSE},
-	{net1: "tcp", laddr1: "0.0.0.0", net2: "tcp", laddr2: "", wildcard: true, xerr: syscall.EADDRINUSE},
+	{"tcp", "", "tcp", "", syscall.EADDRINUSE},
+	{"tcp", "", "tcp", "0.0.0.0", syscall.EADDRINUSE},
+	{"tcp", "0.0.0.0", "tcp", "", syscall.EADDRINUSE},
 
-	{net1: "tcp", laddr1: "", net2: "tcp", laddr2: "[::]", wildcard: true, xerr: syscall.EADDRINUSE},
-	{net1: "tcp", laddr1: "[::]", net2: "tcp", laddr2: "", wildcard: true, xerr: syscall.EADDRINUSE},
-	{net1: "tcp", laddr1: "0.0.0.0", net2: "tcp", laddr2: "[::]", wildcard: true, xerr: syscall.EADDRINUSE},
-	{net1: "tcp", laddr1: "[::]", net2: "tcp", laddr2: "0.0.0.0", wildcard: true, xerr: syscall.EADDRINUSE},
-	{net1: "tcp", laddr1: "[::ffff:0.0.0.0]", net2: "tcp", laddr2: "[::]", wildcard: true, xerr: syscall.EADDRINUSE},
-	{net1: "tcp", laddr1: "[::]", net2: "tcp", laddr2: "[::ffff:0.0.0.0]", wildcard: true, xerr: syscall.EADDRINUSE},
+	{"tcp", "", "tcp", "::", syscall.EADDRINUSE},
+	{"tcp", "::", "tcp", "", syscall.EADDRINUSE},
+	{"tcp", "0.0.0.0", "tcp", "::", syscall.EADDRINUSE},
+	{"tcp", "::", "tcp", "0.0.0.0", syscall.EADDRINUSE},
+	{"tcp", "::ffff:0.0.0.0", "tcp", "::", syscall.EADDRINUSE},
+	{"tcp", "::", "tcp", "::ffff:0.0.0.0", syscall.EADDRINUSE},
 
-	{net1: "tcp4", laddr1: "", net2: "tcp6", laddr2: "", wildcard: true},
-	{net1: "tcp6", laddr1: "", net2: "tcp4", laddr2: "", wildcard: true},
-	{net1: "tcp4", laddr1: "0.0.0.0", net2: "tcp6", laddr2: "[::]", wildcard: true},
-	{net1: "tcp6", laddr1: "[::]", net2: "tcp4", laddr2: "0.0.0.0", wildcard: true},
+	{"tcp4", "", "tcp6", "", nil},
+	{"tcp6", "", "tcp4", "", nil},
+	{"tcp4", "0.0.0.0", "tcp6", "::", nil},
+	{"tcp6", "::", "tcp4", "0.0.0.0", nil},
 
-	{net1: "tcp", laddr1: "127.0.0.1", net2: "tcp", laddr2: "[::1]"},
-	{net1: "tcp", laddr1: "[::1]", net2: "tcp", laddr2: "127.0.0.1"},
-	{net1: "tcp4", laddr1: "127.0.0.1", net2: "tcp6", laddr2: "[::1]"},
-	{net1: "tcp6", laddr1: "[::1]", net2: "tcp4", laddr2: "127.0.0.1"},
+	{"tcp", "127.0.0.1", "tcp", "::1", nil},
+	{"tcp", "::1", "tcp", "127.0.0.1", nil},
+	{"tcp4", "127.0.0.1", "tcp6", "::1", nil},
+	{"tcp6", "::1", "tcp4", "127.0.0.1", nil},
 }
 
 // TestDualStackTCPListener tests both single and double listen
 // to a test listener with various address families, different
 // listening address and same port.
 func TestDualStackTCPListener(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping in -short mode, see issue 5001")
-	}
 	switch runtime.GOOS {
-	case "plan9":
-		t.Skipf("skipping test on %q", runtime.GOOS)
-	}
-	if !supportsIPv6 {
-		t.Skip("ipv6 is not supported")
+	case "nacl", "plan9":
+		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	for _, tt := range dualStackListenerTests {
-		if tt.wildcard && !*testExternal {
+	for _, tt := range dualStackTCPListenerTests {
+		if !testableListenArgs(tt.network1, JoinHostPort(tt.address1, "0"), "") {
+			t.Logf("skipping %s test", tt.network1+" "+tt.address1)
 			continue
 		}
-		switch runtime.GOOS {
-		case "openbsd":
-			if tt.wildcard && differentWildcardAddr(tt.laddr1, tt.laddr2) {
-				tt.xerr = nil
-			}
+
+		if runtime.GOOS == "openbsd" && differentWildcardAddr(tt.address1, tt.address2) {
+			tt.xerr = nil
 		}
-		l1, port := usableListenPort(t, tt.net1, tt.laddr1)
-		laddr := tt.laddr1 + ":" + port
-		checkFirstListener(t, tt.net1, laddr, l1)
-		laddr = tt.laddr2 + ":" + port
-		l2, err := Listen(tt.net2, laddr)
-		checkDualStackSecondListener(t, tt.net2, laddr, tt.xerr, err, l2)
-		l1.Close()
+		var firstErr, secondErr error
+		for i := 0; i < 5; i++ {
+			lns, err := newDualStackListener()
+			if err != nil {
+				t.Fatal(err)
+			}
+			port := lns[0].port()
+			for _, ln := range lns {
+				ln.Close()
+			}
+			var ln1 Listener
+			ln1, firstErr = Listen(tt.network1, JoinHostPort(tt.address1, port))
+			if firstErr != nil {
+				continue
+			}
+			if err := checkFirstListener(tt.network1, ln1); err != nil {
+				ln1.Close()
+				t.Fatal(err)
+			}
+			ln2, err := Listen(tt.network2, JoinHostPort(tt.address2, ln1.(*TCPListener).port()))
+			if err == nil {
+				ln2.Close()
+			}
+			if secondErr = checkDualStackSecondListener(tt.network2, tt.address2, err, tt.xerr); secondErr != nil {
+				ln1.Close()
+				continue
+			}
+			ln1.Close()
+			break
+		}
+		if firstErr != nil {
+			t.Error(firstErr)
+		}
+		if secondErr != nil {
+			t.Error(secondErr)
+		}
 	}
+}
+
+var dualStackUDPListenerTests = []struct {
+	network1, address1 string // first listener
+	network2, address2 string // second listener
+	xerr               error  // expected error value, nil or other
+}{
+	{"udp", "", "udp", "", syscall.EADDRINUSE},
+	{"udp", "", "udp", "0.0.0.0", syscall.EADDRINUSE},
+	{"udp", "0.0.0.0", "udp", "", syscall.EADDRINUSE},
+
+	{"udp", "", "udp", "::", syscall.EADDRINUSE},
+	{"udp", "::", "udp", "", syscall.EADDRINUSE},
+	{"udp", "0.0.0.0", "udp", "::", syscall.EADDRINUSE},
+	{"udp", "::", "udp", "0.0.0.0", syscall.EADDRINUSE},
+	{"udp", "::ffff:0.0.0.0", "udp", "::", syscall.EADDRINUSE},
+	{"udp", "::", "udp", "::ffff:0.0.0.0", syscall.EADDRINUSE},
+
+	{"udp4", "", "udp6", "", nil},
+	{"udp6", "", "udp4", "", nil},
+	{"udp4", "0.0.0.0", "udp6", "::", nil},
+	{"udp6", "::", "udp4", "0.0.0.0", nil},
+
+	{"udp", "127.0.0.1", "udp", "::1", nil},
+	{"udp", "::1", "udp", "127.0.0.1", nil},
+	{"udp4", "127.0.0.1", "udp6", "::1", nil},
+	{"udp6", "::1", "udp4", "127.0.0.1", nil},
 }
 
 // TestDualStackUDPListener tests both single and double listen
 // to a test listener with various address families, differnet
 // listening address and same port.
 func TestDualStackUDPListener(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping in -short mode, see issue 5001")
-	}
 	switch runtime.GOOS {
-	case "plan9":
-		t.Skipf("skipping test on %q", runtime.GOOS)
-	}
-	if !supportsIPv6 {
-		t.Skip("ipv6 is not supported")
+	case "nacl", "plan9":
+		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	toudpnet := func(net string) string {
-		switch net {
-		case "tcp":
-			return "udp"
-		case "tcp4":
-			return "udp4"
-		case "tcp6":
-			return "udp6"
-		}
-		return "<nil>"
-	}
-
-	for _, tt := range dualStackListenerTests {
-		if tt.wildcard && (testing.Short() || !*testExternal) {
+	for _, tt := range dualStackUDPListenerTests {
+		if !testableListenArgs(tt.network1, JoinHostPort(tt.address1, "0"), "") {
+			t.Logf("skipping %s test", tt.network1+" "+tt.address1)
 			continue
 		}
-		tt.net1 = toudpnet(tt.net1)
-		tt.net2 = toudpnet(tt.net2)
-		switch runtime.GOOS {
-		case "openbsd":
-			if tt.wildcard && differentWildcardAddr(tt.laddr1, tt.laddr2) {
-				tt.xerr = nil
+
+		if runtime.GOOS == "openbsd" && differentWildcardAddr(tt.address1, tt.address2) {
+			tt.xerr = nil
+		}
+		var firstErr, secondErr error
+		for i := 0; i < 5; i++ {
+			cs, err := newDualStackPacketListener()
+			if err != nil {
+				t.Fatal(err)
 			}
+			port := cs[0].port()
+			for _, c := range cs {
+				c.Close()
+			}
+			var c1 PacketConn
+			c1, firstErr = ListenPacket(tt.network1, JoinHostPort(tt.address1, port))
+			if firstErr != nil {
+				continue
+			}
+			if err := checkFirstListener(tt.network1, c1); err != nil {
+				c1.Close()
+				t.Fatal(err)
+			}
+			c2, err := ListenPacket(tt.network2, JoinHostPort(tt.address2, c1.(*UDPConn).port()))
+			if err == nil {
+				c2.Close()
+			}
+			if secondErr = checkDualStackSecondListener(tt.network2, tt.address2, err, tt.xerr); secondErr != nil {
+				c1.Close()
+				continue
+			}
+			c1.Close()
+			break
 		}
-		l1, port := usableListenPacketPort(t, tt.net1, tt.laddr1)
-		laddr := tt.laddr1 + ":" + port
-		checkFirstListener(t, tt.net1, laddr, l1)
-		laddr = tt.laddr2 + ":" + port
-		l2, err := ListenPacket(tt.net2, laddr)
-		checkDualStackSecondListener(t, tt.net2, laddr, tt.xerr, err, l2)
-		l1.Close()
-	}
-}
-
-func usableListenPort(t *testing.T, net, laddr string) (l Listener, port string) {
-	var nladdr string
-	var err error
-	switch net {
-	default:
-		panic("usableListenPort net=" + net)
-	case "tcp", "tcp4", "tcp6":
-		l, err = Listen(net, laddr+":0")
-		if err != nil {
-			t.Fatalf("Probe Listen(%q, %q) failed: %v", net, laddr, err)
+		if firstErr != nil {
+			t.Error(firstErr)
 		}
-		nladdr = l.(*TCPListener).Addr().String()
-	}
-	_, port, err = SplitHostPort(nladdr)
-	if err != nil {
-		t.Fatalf("SplitHostPort failed: %v", err)
-	}
-	return l, port
-}
-
-func usableListenPacketPort(t *testing.T, net, laddr string) (l PacketConn, port string) {
-	var nladdr string
-	var err error
-	switch net {
-	default:
-		panic("usableListenPacketPort net=" + net)
-	case "udp", "udp4", "udp6":
-		l, err = ListenPacket(net, laddr+":0")
-		if err != nil {
-			t.Fatalf("Probe ListenPacket(%q, %q) failed: %v", net, laddr, err)
+		if secondErr != nil {
+			t.Error(secondErr)
 		}
-		nladdr = l.(*UDPConn).LocalAddr().String()
 	}
-	_, port, err = SplitHostPort(nladdr)
-	if err != nil {
-		t.Fatalf("SplitHostPort failed: %v", err)
-	}
-	return l, port
 }
 
 func differentWildcardAddr(i, j string) bool {
@@ -301,78 +364,77 @@ func differentWildcardAddr(i, j string) bool {
 	return true
 }
 
-func checkFirstListener(t *testing.T, net, laddr string, l interface{}) {
-	switch net {
+func checkFirstListener(network string, ln interface{}) error {
+	switch network {
 	case "tcp":
-		fd := l.(*TCPListener).fd
-		checkDualStackAddrFamily(t, net, laddr, fd)
+		fd := ln.(*TCPListener).fd
+		if err := checkDualStackAddrFamily(fd); err != nil {
+			return err
+		}
 	case "tcp4":
-		fd := l.(*TCPListener).fd
+		fd := ln.(*TCPListener).fd
 		if fd.family != syscall.AF_INET {
-			t.Fatalf("First Listen(%q, %q) returns address family %v, expected %v", net, laddr, fd.family, syscall.AF_INET)
+			return fmt.Errorf("%v got %v; want %v", fd.laddr, fd.family, syscall.AF_INET)
 		}
 	case "tcp6":
-		fd := l.(*TCPListener).fd
+		fd := ln.(*TCPListener).fd
 		if fd.family != syscall.AF_INET6 {
-			t.Fatalf("First Listen(%q, %q) returns address family %v, expected %v", net, laddr, fd.family, syscall.AF_INET6)
+			return fmt.Errorf("%v got %v; want %v", fd.laddr, fd.family, syscall.AF_INET6)
 		}
 	case "udp":
-		fd := l.(*UDPConn).fd
-		checkDualStackAddrFamily(t, net, laddr, fd)
+		fd := ln.(*UDPConn).fd
+		if err := checkDualStackAddrFamily(fd); err != nil {
+			return err
+		}
 	case "udp4":
-		fd := l.(*UDPConn).fd
+		fd := ln.(*UDPConn).fd
 		if fd.family != syscall.AF_INET {
-			t.Fatalf("First ListenPacket(%q, %q) returns address family %v, expected %v", net, laddr, fd.family, syscall.AF_INET)
+			return fmt.Errorf("%v got %v; want %v", fd.laddr, fd.family, syscall.AF_INET)
 		}
 	case "udp6":
-		fd := l.(*UDPConn).fd
+		fd := ln.(*UDPConn).fd
 		if fd.family != syscall.AF_INET6 {
-			t.Fatalf("First ListenPacket(%q, %q) returns address family %v, expected %v", net, laddr, fd.family, syscall.AF_INET6)
+			return fmt.Errorf("%v got %v; want %v", fd.laddr, fd.family, syscall.AF_INET6)
 		}
 	default:
-		t.Fatalf("Unexpected network: %q", net)
+		return UnknownNetworkError(network)
 	}
+	return nil
 }
 
-func checkSecondListener(t *testing.T, net, laddr string, err error, l interface{}) {
-	switch net {
+func checkSecondListener(network, address string, err error) error {
+	switch network {
 	case "tcp", "tcp4", "tcp6":
 		if err == nil {
-			l.(*TCPListener).Close()
-			t.Fatalf("Second Listen(%q, %q) should fail", net, laddr)
+			return fmt.Errorf("%s should fail", network+" "+address)
 		}
 	case "udp", "udp4", "udp6":
 		if err == nil {
-			l.(*UDPConn).Close()
-			t.Fatalf("Second ListenPacket(%q, %q) should fail", net, laddr)
+			return fmt.Errorf("%s should fail", network+" "+address)
 		}
 	default:
-		t.Fatalf("Unexpected network: %q", net)
+		return UnknownNetworkError(network)
 	}
+	return nil
 }
 
-func checkDualStackSecondListener(t *testing.T, net, laddr string, xerr, err error, l interface{}) {
-	switch net {
+func checkDualStackSecondListener(network, address string, err, xerr error) error {
+	switch network {
 	case "tcp", "tcp4", "tcp6":
 		if xerr == nil && err != nil || xerr != nil && err == nil {
-			t.Fatalf("Second Listen(%q, %q) returns %v, expected %v", net, laddr, err, xerr)
-		}
-		if err == nil {
-			l.(*TCPListener).Close()
+			return fmt.Errorf("%s got %v; want %v", network+" "+address, err, xerr)
 		}
 	case "udp", "udp4", "udp6":
 		if xerr == nil && err != nil || xerr != nil && err == nil {
-			t.Fatalf("Second ListenPacket(%q, %q) returns %v, expected %v", net, laddr, err, xerr)
-		}
-		if err == nil {
-			l.(*UDPConn).Close()
+			return fmt.Errorf("%s got %v; want %v", network+" "+address, err, xerr)
 		}
 	default:
-		t.Fatalf("Unexpected network: %q", net)
+		return UnknownNetworkError(network)
 	}
+	return nil
 }
 
-func checkDualStackAddrFamily(t *testing.T, net, laddr string, fd *netFD) {
+func checkDualStackAddrFamily(fd *netFD) error {
 	switch a := fd.laddr.(type) {
 	case *TCPAddr:
 		// If a node under test supports both IPv6 capability
@@ -381,11 +443,11 @@ func checkDualStackAddrFamily(t *testing.T, net, laddr string, fd *netFD) {
 		// AF_INET6 socket.
 		if supportsIPv4map && fd.laddr.(*TCPAddr).isWildcard() {
 			if fd.family != syscall.AF_INET6 {
-				t.Fatalf("Listen(%q, %q) returns address family %v, expected %v", net, laddr, fd.family, syscall.AF_INET6)
+				return fmt.Errorf("Listen(%s, %v) returns %v; want %v", fd.net, fd.laddr, fd.family, syscall.AF_INET6)
 			}
 		} else {
 			if fd.family != a.family() {
-				t.Fatalf("Listen(%q, %q) returns address family %v, expected %v", net, laddr, fd.family, a.family())
+				return fmt.Errorf("Listen(%s, %v) returns %v; want %v", fd.net, fd.laddr, fd.family, a.family())
 			}
 		}
 	case *UDPAddr:
@@ -395,61 +457,31 @@ func checkDualStackAddrFamily(t *testing.T, net, laddr string, fd *netFD) {
 		// AF_INET6 socket.
 		if supportsIPv4map && fd.laddr.(*UDPAddr).isWildcard() {
 			if fd.family != syscall.AF_INET6 {
-				t.Fatalf("ListenPacket(%q, %q) returns address family %v, expected %v", net, laddr, fd.family, syscall.AF_INET6)
+				return fmt.Errorf("ListenPacket(%s, %v) returns %v; want %v", fd.net, fd.laddr, fd.family, syscall.AF_INET6)
 			}
 		} else {
 			if fd.family != a.family() {
-				t.Fatalf("ListenPacket(%q, %q) returns address family %v, expected %v", net, laddr, fd.family, a.family())
+				return fmt.Errorf("ListenPacket(%s, %v) returns %v; want %v", fd.net, fd.laddr, fd.family, a.family())
 			}
 		}
 	default:
-		t.Fatalf("Unexpected protocol address type: %T", a)
+		return fmt.Errorf("unexpected protocol address type: %T", a)
 	}
-}
-
-var prohibitionaryDialArgTests = []struct {
-	net  string
-	addr string
-}{
-	{"tcp6", "127.0.0.1"},
-	{"tcp6", "[::ffff:127.0.0.1]"},
-}
-
-func TestProhibitionaryDialArgs(t *testing.T) {
-	switch runtime.GOOS {
-	case "plan9":
-		t.Skipf("skipping test on %q", runtime.GOOS)
-	}
-	// This test requires both IPv6 and IPv6 IPv4-mapping functionality.
-	if !supportsIPv4map || testing.Short() || !*testExternal {
-		return
-	}
-
-	l, port := usableListenPort(t, "tcp", "[::]")
-	defer l.Close()
-
-	for _, tt := range prohibitionaryDialArgTests {
-		c, err := Dial(tt.net, tt.addr+":"+port)
-		if err == nil {
-			c.Close()
-			t.Fatalf("Dial(%q, %q) should fail", tt.net, tt.addr)
-		}
-	}
+	return nil
 }
 
 func TestWildWildcardListener(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
-		t.Skipf("skipping test on %q", runtime.GOOS)
+		t.Skipf("not supported on %s", runtime.GOOS)
 	}
-
 	if testing.Short() || !*testExternal {
-		t.Skip("skipping test to avoid external network")
+		t.Skip("avoid external network")
 	}
 
 	defer func() {
 		if p := recover(); p != nil {
-			t.Fatalf("Listen, ListenPacket or protocol-specific Listen panicked: %v", p)
+			t.Fatal("panicked: %v", p)
 		}
 	}()
 
@@ -485,9 +517,9 @@ var ipv4MulticastListenerTests = []struct {
 func TestIPv4MulticastListener(t *testing.T) {
 	switch runtime.GOOS {
 	case "android", "nacl", "plan9":
-		t.Skipf("skipping test on %q", runtime.GOOS)
+		t.Skipf("not supported on %s", runtime.GOOS)
 	case "solaris":
-		t.Skipf("skipping test on solaris, see issue 7399")
+		t.Skipf("not supported on solaris, see golang.org/issue/7399")
 	}
 
 	closer := func(cs []*UDPConn) {
@@ -511,7 +543,7 @@ func TestIPv4MulticastListener(t *testing.T) {
 			var err error
 			cs := make([]*UDPConn, 2)
 			if cs[0], err = ListenMulticastUDP(tt.net, ifi, tt.gaddr); err != nil {
-				t.Fatalf("First ListenMulticastUDP on %v failed: %v", ifi, err)
+				t.Fatal(err)
 			}
 			if err := checkMulticastListener(cs[0], tt.gaddr.IP); err != nil {
 				closer(cs)
@@ -519,7 +551,7 @@ func TestIPv4MulticastListener(t *testing.T) {
 			}
 			if cs[1], err = ListenMulticastUDP(tt.net, ifi, tt.gaddr); err != nil {
 				closer(cs)
-				t.Fatalf("Second ListenMulticastUDP on %v failed: %v", ifi, err)
+				t.Fatal(err)
 			}
 			if err := checkMulticastListener(cs[1], tt.gaddr.IP); err != nil {
 				closer(cs)
@@ -555,15 +587,15 @@ var ipv6MulticastListenerTests = []struct {
 func TestIPv6MulticastListener(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
-		t.Skipf("skipping test on %q", runtime.GOOS)
+		t.Skipf("not supported on %s", runtime.GOOS)
 	case "solaris":
-		t.Skipf("skipping test on solaris, see issue 7399")
+		t.Skipf("not supported on solaris, see issue 7399")
 	}
 	if !supportsIPv6 {
 		t.Skip("ipv6 is not supported")
 	}
 	if os.Getuid() != 0 {
-		t.Skip("skipping test; must be root")
+		t.Skip("must be root")
 	}
 
 	closer := func(cs []*UDPConn) {
@@ -587,7 +619,7 @@ func TestIPv6MulticastListener(t *testing.T) {
 			var err error
 			cs := make([]*UDPConn, 2)
 			if cs[0], err = ListenMulticastUDP(tt.net, ifi, tt.gaddr); err != nil {
-				t.Fatalf("First ListenMulticastUDP on %v failed: %v", ifi, err)
+				t.Fatal(err)
 			}
 			if err := checkMulticastListener(cs[0], tt.gaddr.IP); err != nil {
 				closer(cs)
@@ -595,7 +627,7 @@ func TestIPv6MulticastListener(t *testing.T) {
 			}
 			if cs[1], err = ListenMulticastUDP(tt.net, ifi, tt.gaddr); err != nil {
 				closer(cs)
-				t.Fatalf("Second ListenMulticastUDP on %v failed: %v", ifi, err)
+				t.Fatal(err)
 			}
 			if err := checkMulticastListener(cs[1], tt.gaddr.IP); err != nil {
 				closer(cs)
@@ -610,11 +642,11 @@ func checkMulticastListener(c *UDPConn, ip IP) error {
 	if ok, err := multicastRIBContains(ip); err != nil {
 		return err
 	} else if !ok {
-		return fmt.Errorf("%q not found in multicast RIB", ip.String())
+		return fmt.Errorf("%s not found in multicast rib", ip.String())
 	}
 	la := c.LocalAddr()
 	if la, ok := la.(*UDPAddr); !ok || la.Port == 0 {
-		return fmt.Errorf("got %v; expected a proper address with non-zero port number", la)
+		return fmt.Errorf("got %v; want a proper address with non-zero port number", la)
 	}
 	return nil
 }

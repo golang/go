@@ -13,6 +13,46 @@ import (
 	"time"
 )
 
+var prohibitionaryDialArgTests = []struct {
+	network string
+	address string
+}{
+	{"tcp6", "127.0.0.1"},
+	{"tcp6", "::ffff:127.0.0.1"},
+}
+
+func TestProhibitionaryDialArg(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("not supported on %s", runtime.GOOS)
+	}
+	if testing.Short() || !*testExternal {
+		t.Skip("avoid external network")
+	}
+	if !supportsIPv4map {
+		t.Skip("mapping ipv4 address inside ipv6 address not supported")
+	}
+
+	ln, err := Listen("tcp", "[::]:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	_, port, err := SplitHostPort(ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i, tt := range prohibitionaryDialArgTests {
+		c, err := Dial(tt.network, JoinHostPort(tt.address, port))
+		if err == nil {
+			c.Close()
+			t.Errorf("#%d: %v", i, err)
+		}
+	}
+}
+
 func TestSelfConnect(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		// TODO(brainman): do not know why it hangs.
