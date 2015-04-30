@@ -1095,3 +1095,16 @@ func TestMissingMapKey(t *testing.T) {
 		t.Errorf("expected error; got none")
 	}
 }
+
+// Test that the error message for multiline unterminated string
+// refers to the line number of the opening quote.
+func TestUnterminatedStringError(t *testing.T) {
+	_, err := New("X").Parse("hello\n\n{{`unterminated\n\n\n\n}}\n some more\n\n")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	str := err.Error()
+	if !strings.Contains(str, "X:3: unexpected unterminated raw quoted strin") {
+		t.Fatalf("unexpected error: %s", str)
+	}
+}

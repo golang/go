@@ -525,7 +525,7 @@ func lexRawQuote(l *lexer) stateFn {
 Loop:
 	for {
 		switch l.next() {
-		case eof, '\n':
+		case eof:
 			return l.errorf("unterminated raw quoted string")
 		case '`':
 			break Loop
