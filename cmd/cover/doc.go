@@ -17,5 +17,11 @@ be mildly confused by single statements with multiple function literals.
 For usage information, please see:
 	go help testflag
 	go tool cover -help
+
+No longer maintained:
+
+For Go releases 1.5 and later, this tool lives in the
+standard repository. The code here is not maintained.
+
 */
 package main // import "golang.org/x/tools/cmd/cover"
