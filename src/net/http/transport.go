@@ -877,6 +877,11 @@ func (pc *persistConn) readLoop() {
 	eofc := make(chan struct{})
 	defer close(eofc) // unblock reader on errors
 
+	// Read this once, before loop starts. (to avoid races in tests)
+	testHookMu.Lock()
+	testHookReadLoopBeforeNextRead := testHookReadLoopBeforeNextRead
+	testHookMu.Unlock()
+
 	alive := true
 	for alive {
 		pb, err := pc.br.Peek(1)
@@ -993,6 +998,10 @@ func (pc *persistConn) readLoop() {
 				pc.wroteRequest() &&
 				pc.t.putIdleConn(pc)
 		}
+
+		if hook := testHookReadLoopBeforeNextRead; hook != nil {
+			hook()
+		}
 	}
 	pc.close()
 }
@@ -1090,6 +1099,8 @@ var errRequestCanceled = errors.New("net/http: request canceled")
 var (
 	testHookPersistConnClosedGotRes func()
 	testHookEnterRoundTrip          func()
+	testHookMu                      sync.Locker = fakeLocker{} // guards following
+	testHookReadLoopBeforeNextRead  func()
 )
 
 func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err error) {
@@ -1344,3 +1355,11 @@ func (nr noteEOFReader) Read(p []byte) (n int, err error) {
 	}
 	return
 }
+
+// fakeLocker is a sync.Locker which does nothing. It's used to guard
+// test-only fields when not under test, to avoid runtime atomic
+// overhead.
+type fakeLocker struct{}
+
+func (fakeLocker) Lock()   {}
+func (fakeLocker) Unlock() {}
