@@ -738,12 +738,6 @@ elif ! grep "case-insensitive file name collision" $d/out >/dev/null; then
 	ok=false
 fi
 
-TEST go get cover
-./testgo get golang.org/x/tools/cmd/cover || ok=false
-
-unset GOPATH
-rm -rf $d
-
 TEST go get -t "code.google.com/p/go-get-issue-8181/{a,b}"
 d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
 export GOPATH=$d
