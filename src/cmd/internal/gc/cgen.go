@@ -1132,12 +1132,18 @@ func Agenr(n *Node, a *Node, res *Node) {
 			} else if w == 1 {
 				Thearch.Gins(Thearch.Optoas(OADD, Types[Tptr]), &n2, &n3)
 			} else {
-				Regalloc(&n4, Types[TUINT32], nil)
-				Nodconst(&n1, Types[TUINT32], int64(w))
-				Thearch.Gmove(&n1, &n4)
-				Thearch.Gins(Thearch.Optoas(OMUL, Types[TUINT32]), &n4, &n2)
+				if w&(w-1) == 0 {
+					// Power of 2.  Use shift.
+					Thearch.Ginscon(Thearch.Optoas(OLSH, Types[TUINT32]), int64(log2(uint64(w))), &n2)
+				} else {
+					// Not a power of 2.  Use multiply.
+					Regalloc(&n4, Types[TUINT32], nil)
+					Nodconst(&n1, Types[TUINT32], int64(w))
+					Thearch.Gmove(&n1, &n4)
+					Thearch.Gins(Thearch.Optoas(OMUL, Types[TUINT32]), &n4, &n2)
+					Regfree(&n4)
+				}
 				Thearch.Gins(Thearch.Optoas(OADD, Types[Tptr]), &n2, &n3)
-				Regfree(&n4)
 			}
 			*a = n3
 			Regfree(&n2)
@@ -1292,8 +1298,13 @@ func Agenr(n *Node, a *Node, res *Node) {
 			} else if w == 1 {
 				Thearch.Gins(Thearch.Optoas(OADD, Types[Tptr]), &n2, &n3)
 			} else {
-				Nodconst(&tmp, Types[TUINT32], int64(w))
-				Thearch.Gins(Thearch.Optoas(OMUL, Types[TUINT32]), &tmp, &n2)
+				if w&(w-1) == 0 {
+					// Power of 2.  Use shift.
+					Thearch.Ginscon(Thearch.Optoas(OLSH, Types[TUINT32]), int64(log2(uint64(w))), &n2)
+				} else {
+					// Not a power of 2.  Use multiply.
+					Thearch.Ginscon(Thearch.Optoas(OMUL, Types[TUINT32]), int64(w), &n2)
+				}
 				Thearch.Gins(Thearch.Optoas(OADD, Types[Tptr]), &n2, &n3)
 			}
 
@@ -1485,7 +1496,13 @@ func Agenr(n *Node, a *Node, res *Node) {
 		} else if w == 1 {
 			Thearch.Gins(Thearch.Optoas(OADD, Types[Tptr]), &n2, &n3)
 		} else {
-			Thearch.Ginscon(Thearch.Optoas(OMUL, t), int64(w), &n2)
+			if w&(w-1) == 0 {
+				// Power of 2.  Use shift.
+				Thearch.Ginscon(Thearch.Optoas(OLSH, t), int64(log2(w)), &n2)
+			} else {
+				// Not a power of 2.  Use multiply.
+				Thearch.Ginscon(Thearch.Optoas(OMUL, t), int64(w), &n2)
+			}
 			Thearch.Gins(Thearch.Optoas(OADD, Types[Tptr]), &n2, &n3)
 		}
 
@@ -1500,6 +1517,15 @@ func Agenr(n *Node, a *Node, res *Node) {
 		Regalloc(a, Types[Tptr], res)
 		Agen(n, a)
 	}
+}
+
+// log2 returns the logarithm base 2 of n.  n must be a power of 2.
+func log2(n uint64) int {
+	x := 0
+	for n>>uint(x) != 1 {
+		x++
+	}
+	return x
 }
 
 /*
