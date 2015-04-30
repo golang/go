@@ -22,8 +22,25 @@
   "Options specific to the Go oracle."
   :group 'go)
 
-(defcustom go-oracle-command (concat (car (go-root-and-paths)) "/bin/oracle")
-  "The Go oracle command; the default is $GOROOT/bin/oracle."
+(defcustom go-oracle-command
+  (let* ((dirs (go-root-and-paths))
+         (gopath (cdr dirs))
+         (gobin (getenv "GOBIN"))
+         (goroot-cmd (concat (car dirs) "/bin/oracle"))
+         cmd)
+    (if gobin
+        (let ((gobin-cmd (concat gobin "/oracle")))
+          (if (file-executable-p gobin-cmd)
+              (setq cmd gobin-cmd)))) ; use $GOBIN/oracle if executable
+    (and (null cmd)
+         gopath
+         (let ((gopath-cmd (concat (car gopath) "/bin/oracle")))
+           (if (file-executable-p gopath-cmd)
+               (setq cmd gopath-cmd)))) ; use GOPATH[0]/bin if executable
+    (or cmd goroot-cmd)) ; use $GOROOT/bin by default
+  "The Go oracle command.  The following directories are
+searched: (1) $GOBIN; (2) dir/bin, where dir is the first
+directory on $GOPATH; (3) $GOROOT/bin."
   :type 'string
   :group 'go-oracle)
 
