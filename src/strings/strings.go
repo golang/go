@@ -185,14 +185,7 @@ func LastIndex(s, sep string) int {
 	case n == 0:
 		return len(s)
 	case n == 1:
-		// special case worth making fast
-		c := sep[0]
-		for i := len(s) - 1; i >= 0; i-- {
-			if s[i] == c {
-				return i
-			}
-		}
-		return -1
+		return LastIndexByte(s, sep[0])
 	case n == len(s):
 		if sep == s {
 			return 0
