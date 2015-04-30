@@ -94,6 +94,29 @@ func (t *tester) run() {
 		}
 	}
 
+	if t.iOS() {
+		// Install the Mach exception handler used to intercept
+		// EXC_BAD_ACCESS and convert it into a Go panic. This is
+		// necessary for a Go program running under lldb (the way
+		// we run tests). It is disabled by default because iOS
+		// apps are not allowed to access the exc_server symbol.
+		cmd := exec.Command("go", "install", "-a", "-tags", "lldb", "runtime/cgo")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			log.Fatalf("building mach exception handler: %v", err)
+		}
+
+		defer func() {
+			cmd := exec.Command("go", "install", "-a", "runtime/cgo")
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+				log.Fatalf("reverting mach exception handler: %v", err)
+			}
+		}()
+	}
+
 	t.timeoutScale = 1
 	if t.goarch == "arm" || t.goos == "windows" {
 		t.timeoutScale = 2
@@ -350,6 +373,10 @@ func (t *tester) dirCmd(dir string, bin string, args ...string) *exec.Cmd {
 	return cmd
 }
 
+func (t *tester) iOS() bool {
+	return t.goos == "darwin" && (t.goarch == "arm" || t.goarch == "arm64")
+}
+
 func (t *tester) out(v string) {
 	if t.banner == "" {
 		return
@@ -417,8 +444,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 func (t *tester) cgoTest() error {
 	env := mergeEnvLists([]string{"GOTRACEBACK=2"}, os.Environ())
 
-	iOS := t.goos == "darwin" && (t.goarch == "arm" || t.goarch == "arm64")
-	if t.goos == "android" || iOS {
+	if t.goos == "android" || t.iOS() {
 		cmd := t.dirCmd("misc/cgo/test", "go", "test")
 		cmd.Env = env
 		return cmd.Run()
