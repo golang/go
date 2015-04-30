@@ -5,6 +5,7 @@
 package net
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -40,6 +41,37 @@ func newLocalListener(network string) (Listener, error) {
 		return Listen(network, testUnixAddr())
 	}
 	return nil, fmt.Errorf("%s is not supported", network)
+}
+
+func newDualStackListener() (lns []*TCPListener, err error) {
+	var args = []struct {
+		network string
+		TCPAddr
+	}{
+		{"tcp4", TCPAddr{IP: IPv4(127, 0, 0, 1)}},
+		{"tcp6", TCPAddr{IP: IPv6loopback}},
+	}
+	for i := 0; i < 64; i++ {
+		var port int
+		var lns []*TCPListener
+		for _, arg := range args {
+			arg.TCPAddr.Port = port
+			ln, err := ListenTCP(arg.network, &arg.TCPAddr)
+			if err != nil {
+				continue
+			}
+			port = ln.Addr().(*TCPAddr).Port
+			lns = append(lns, ln)
+		}
+		if len(lns) != len(args) {
+			for _, ln := range lns {
+				ln.Close()
+			}
+			continue
+		}
+		return lns, nil
+	}
+	return nil, errors.New("no dualstack port available")
 }
 
 type localServer struct {
@@ -312,6 +344,37 @@ func newLocalPacketListener(network string) (PacketConn, error) {
 		return ListenPacket(network, testUnixAddr())
 	}
 	return nil, fmt.Errorf("%s is not supported", network)
+}
+
+func newDualStackPacketListener() (cs []*UDPConn, err error) {
+	var args = []struct {
+		network string
+		UDPAddr
+	}{
+		{"udp4", UDPAddr{IP: IPv4(127, 0, 0, 1)}},
+		{"udp6", UDPAddr{IP: IPv6loopback}},
+	}
+	for i := 0; i < 64; i++ {
+		var port int
+		var cs []*UDPConn
+		for _, arg := range args {
+			arg.UDPAddr.Port = port
+			c, err := ListenUDP(arg.network, &arg.UDPAddr)
+			if err != nil {
+				continue
+			}
+			port = c.LocalAddr().(*UDPAddr).Port
+			cs = append(cs, c)
+		}
+		if len(cs) != len(args) {
+			for _, c := range cs {
+				c.Close()
+			}
+			continue
+		}
+		return cs, nil
+	}
+	return nil, errors.New("no dualstack port available")
 }
 
 type localPacketServer struct {
