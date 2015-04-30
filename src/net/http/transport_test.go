@@ -1827,6 +1827,11 @@ func TestIdleConnChannelLeak(t *testing.T) {
 	}))
 	defer ts.Close()
 
+	const nReqs = 5
+	didRead := make(chan bool, nReqs)
+	SetReadLoopBeforeNextReadHook(func() { didRead <- true })
+	defer SetReadLoopBeforeNextReadHook(nil)
+
 	tr := &Transport{
 		Dial: func(netw, addr string) (net.Conn, error) {
 			return net.Dial(netw, ts.Listener.Addr().String())
@@ -1839,12 +1844,28 @@ func TestIdleConnChannelLeak(t *testing.T) {
 	// First, without keep-alives.
 	for _, disableKeep := range []bool{true, false} {
 		tr.DisableKeepAlives = disableKeep
-		for i := 0; i < 5; i++ {
+		for i := 0; i < nReqs; i++ {
 			_, err := c.Get(fmt.Sprintf("http://foo-host-%d.tld/", i))
 			if err != nil {
 				t.Fatal(err)
 			}
+			// Note: no res.Body.Close is needed here, since the
+			// response Content-Length is zero. Perhaps the test
+			// should be more explicit and use a HEAD, but tests
+			// elsewhere guarantee that zero byte responses generate
+			// a "Content-Length: 0" instead of chunking.
 		}
+
+		// At this point, each of the 5 Transport.readLoop goroutines
+		// are scheduling noting that there are no response bodies (see
+		// earlier comment), and are then calling putIdleConn, which
+		// decrements this count. Usually that happens quickly, which is
+		// why this test has seemed to work for ages. But it's still
+		// racey: we have wait for them to finish first. See Issue 10427
+		for i := 0; i < nReqs; i++ {
+			<-didRead
+		}
+
 		if got := tr.IdleConnChMapSizeForTesting(); got != 0 {
 			t.Fatalf("ForDisableKeepAlives = %v, map size = %d; want 0", disableKeep, got)
 		}
