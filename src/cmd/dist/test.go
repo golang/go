@@ -275,13 +275,13 @@ func (t *tester) registerTests() {
 		} else if t.hasBash() && t.goos != "android" && !iOS {
 			t.registerTest("testso", "../misc/cgo/testso", "./test.bash")
 		}
-		if t.buildmode("c-archive") {
+		if t.supportedBuildmode("c-archive") {
 			t.registerTest("testcarchive", "../misc/cgo/testcarchive", "./test.bash")
 		}
-		if t.buildmode("c-shared") {
+		if t.supportedBuildmode("c-shared") {
 			t.registerTest("testcshared", "../misc/cgo/testcshared", "./test.bash")
 		}
-		if t.buildmode("shared") {
+		if t.supportedBuildmode("shared") {
 			t.registerTest("testshared", "../misc/cgo/testshared", "./test.bash")
 		}
 		if t.gohostos == "linux" && t.goarch == "amd64" {
@@ -382,7 +382,7 @@ func (t *tester) extLink() bool {
 	return false
 }
 
-func (t *tester) buildmode(mode string) bool {
+func (t *tester) supportedBuildmode(mode string) bool {
 	pair := t.goos + "-" + t.goarch
 	switch mode {
 	case "c-archive":
