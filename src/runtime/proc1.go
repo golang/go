@@ -691,7 +691,7 @@ func mstart() {
 		// Cgo may have left stack size in stack.hi.
 		size := _g_.stack.hi
 		if size == 0 {
-			size = 8192
+			size = 8192 * stackGuardMultiplier
 		}
 		_g_.stack.hi = uintptr(noescape(unsafe.Pointer(&size)))
 		_g_.stack.lo = _g_.stack.hi - size + 1024
@@ -890,7 +890,7 @@ func allocm(_p_ *p, fn func()) *m {
 	if iscgo || GOOS == "solaris" || GOOS == "windows" || GOOS == "plan9" {
 		mp.g0 = malg(-1)
 	} else {
-		mp.g0 = malg(8192)
+		mp.g0 = malg(8192 * stackGuardMultiplier)
 	}
 	mp.g0.m = mp
 
