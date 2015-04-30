@@ -459,15 +459,14 @@ func (c *gcControllerState) endCycle() {
 	goalGrowthRatio := float64(gcpercent) / 100
 	actualGrowthRatio := float64(memstats.heap_live)/float64(memstats.heap_marked) - 1
 	duration := nanotime() - c.bgMarkStartTime
-	var utilization float64
-	if duration <= 0 {
-		// Avoid divide-by-zero computing utilization. This
-		// has the effect of ignoring the utilization in the
-		// error term.
-		utilization = gcGoalUtilization
-	} else {
-		utilization = float64(c.assistTime+c.dedicatedMarkTime+c.fractionalMarkTime) / float64(duration*int64(gomaxprocs))
+
+	// Assume background mark hit its utilization goal.
+	utilization := gcGoalUtilization
+	// Add assist utilization; avoid divide by zero.
+	if duration > 0 {
+		utilization += float64(c.assistTime) / float64(duration*int64(gomaxprocs))
 	}
+
 	triggerError := goalGrowthRatio - c.triggerRatio - utilization/gcGoalUtilization*(actualGrowthRatio-c.triggerRatio)
 
 	// Finally, we adjust the trigger for next time by this error,
@@ -540,11 +539,26 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 			return nil
 		}
 
-		// This P has picked the token for the fractional
-		// worker. If this P were to run the worker for the
-		// next time slice, then at the end of that time
-		// slice, would it be under the utilization goal?
+		// This P has picked the token for the fractional worker.
+		// Is the GC currently under or at the utilization goal?
+		// If so, do more work.
 		//
+		// We used to check whether doing one time slice of work
+		// would remain under the utilization goal, but that has the
+		// effect of delaying work until the mutator has run for
+		// enough time slices to pay for the work. During those time
+		// slices, write barriers are enabled, so the mutator is running slower.
+		// Now instead we do the work whenever we're under or at the
+		// utilization work and pay for it by letting the mutator run later.
+		// This doesn't change the overall utilization averages, but it
+		// front loads the GC work so that the GC finishes earlier and
+		// write barriers can be turned off sooner, effectively giving
+		// the mutator a faster machine.
+		//
+		// The old, slower behavior can be restored by setting
+		//	gcForcePreemptNS = forcePreemptNS.
+		const gcForcePreemptNS = 0
+
 		// TODO(austin): We could fast path this and basically
 		// eliminate contention on c.fractionalMarkWorkersNeeded by
 		// precomputing the minimum time at which it's worth
@@ -557,9 +571,9 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 		// worker to improve fairness and give this
 		// finer-grained control over schedule?
 		now := nanotime() - gcController.bgMarkStartTime
-		then := now + forcePreemptNS
-		timeUsedIfRun := c.fractionalMarkTime + forcePreemptNS
-		if float64(timeUsedIfRun)/float64(then) > c.fractionalUtilizationGoal {
+		then := now + gcForcePreemptNS
+		timeUsed := c.fractionalMarkTime + gcForcePreemptNS
+		if then > 0 && float64(timeUsed)/float64(then) > c.fractionalUtilizationGoal {
 			// Nope, we'd overshoot the utilization goal
 			xaddint64(&c.fractionalMarkWorkersNeeded, +1)
 			return nil
