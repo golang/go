@@ -13,7 +13,6 @@ import (
 
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/types"
-	"golang.org/x/tools/refactor/lexical"
 	"golang.org/x/tools/refactor/satisfy"
 )
 
@@ -101,18 +100,20 @@ func (r *renamer) checkInPackageBlock(from types.Object) {
 	}
 
 	info := r.packages[from.Pkg()]
-	lexinfo := lexical.Structure(r.iprog.Fset, from.Pkg(), &info.Info, info.Files)
 
 	// Check that in the package block, "init" is a function, and never referenced.
 	if r.to == "init" {
 		kind := objectKind(from)
 		if kind == "func" {
 			// Reject if intra-package references to it exist.
-			if refs := lexinfo.Refs[from]; len(refs) > 0 {
-				r.errorf(from.Pos(),
-					"renaming this func %q to %q would make it a package initializer",
-					from.Name(), r.to)
-				r.errorf(refs[0].Id.Pos(), "\tbut references to it exist")
+			for id, obj := range info.Uses {
+				if obj == from {
+					r.errorf(from.Pos(),
+						"renaming this func %q to %q would make it a package initializer",
+						from.Name(), r.to)
+					r.errorf(id.Pos(), "\tbut references to it exist")
+					break
+				}
 			}
 		} else {
 			r.errorf(from.Pos(), "you cannot have a %s at package level named %q",
@@ -122,7 +123,9 @@ func (r *renamer) checkInPackageBlock(from types.Object) {
 
 	// Check for conflicts between package block and all file blocks.
 	for _, f := range info.Files {
-		if prev, b := lexinfo.Blocks[f].Lookup(r.to); b == lexinfo.Blocks[f] {
+		fileScope := info.Info.Scopes[f]
+		b, prev := fileScope.LookupParent(r.to)
+		if b == fileScope {
 			r.errorf(from.Pos(), "renaming this %s %q to %q would conflict",
 				objectKind(from), from.Name(), r.to)
 			r.errorf(prev.Pos(), "\twith this %s",
@@ -205,11 +208,9 @@ func (r *renamer) checkInLocalScope(from types.Object) {
 // requires no checks.
 //
 func (r *renamer) checkInLexicalScope(from types.Object, info *loader.PackageInfo) {
-	lexinfo := lexical.Structure(r.iprog.Fset, info.Pkg, &info.Info, info.Files)
-
-	b := lexinfo.Defs[from] // the block defining the 'from' object
+	b := from.Parent() // the block defining the 'from' object
 	if b != nil {
-		to, toBlock := b.Lookup(r.to)
+		toBlock, to := b.LookupParent(r.to)
 		if toBlock == b {
 			// same-block conflict
 			r.errorf(from.Pos(), "renaming this %s %q to %q",
@@ -221,42 +222,45 @@ func (r *renamer) checkInLexicalScope(from types.Object, info *loader.PackageInf
 			// Check for super-block conflict.
 			// The name r.to is defined in a superblock.
 			// Is that name referenced from within this block?
-			for _, ref := range lexinfo.Refs[to] {
-				if obj, _ := ref.Env.Lookup(from.Name()); obj == from {
+			forEachLexicalRef(info, to, func(id *ast.Ident, block *types.Scope) bool {
+				_, obj := lexicalLookup(block, from.Name(), id.Pos())
+				if obj == from {
 					// super-block conflict
 					r.errorf(from.Pos(), "renaming this %s %q to %q",
 						objectKind(from), from.Name(), r.to)
-					r.errorf(ref.Id.Pos(), "\twould shadow this reference")
+					r.errorf(id.Pos(), "\twould shadow this reference")
 					r.errorf(to.Pos(), "\tto the %s declared here",
 						objectKind(to))
-					return
+					return false // stop
 				}
-			}
+				return true
+			})
 		}
 	}
 
 	// Check for sub-block conflict.
 	// Is there an intervening definition of r.to between
 	// the block defining 'from' and some reference to it?
-	for _, ref := range lexinfo.Refs[from] {
-		// TODO(adonovan): think about dot imports.
-		// (Is b == fromBlock an invariant?)
-		_, fromBlock := ref.Env.Lookup(from.Name())
-		fromDepth := fromBlock.Depth()
+	forEachLexicalRef(info, from, func(id *ast.Ident, block *types.Scope) bool {
+		// Find the block that defines the found reference.
+		// It may be an ancestor.
+		fromBlock, _ := lexicalLookup(block, from.Name(), id.Pos())
 
-		to, toBlock := ref.Env.Lookup(r.to)
+		// See what r.to would resolve to in the same scope.
+		toBlock, to := lexicalLookup(block, r.to, id.Pos())
 		if to != nil {
 			// sub-block conflict
-			if toBlock.Depth() > fromDepth {
+			if deeper(toBlock, fromBlock) {
 				r.errorf(from.Pos(), "renaming this %s %q to %q",
 					objectKind(from), from.Name(), r.to)
-				r.errorf(ref.Id.Pos(), "\twould cause this reference to become shadowed")
+				r.errorf(id.Pos(), "\twould cause this reference to become shadowed")
 				r.errorf(to.Pos(), "\tby this intervening %s definition",
 					objectKind(to))
-				return
+				return false // stop
 			}
 		}
-	}
+		return true
+	})
 
 	// Renaming a type that is used as an embedded field
 	// requires renaming the field too. e.g.
@@ -272,6 +276,123 @@ func (r *renamer) checkInLexicalScope(from types.Object, info *loader.PackageInf
 			}
 		}
 	}
+}
+
+// lexicalLookup is like (*types.Scope).LookupParent but respects the
+// environment visible at pos.  It assumes the relative position
+// information is correct with each file.
+func lexicalLookup(block *types.Scope, name string, pos token.Pos) (*types.Scope, types.Object) {
+	for b := block; b != nil; b = b.Parent() {
+		obj := b.Lookup(name)
+		// The scope of a package-level object is the entire package,
+		// so ignore pos in that case.
+		// No analogous clause is needed for file-level objects
+		// since no reference can appear before an import decl.
+		if obj != nil && (b == obj.Pkg().Scope() || obj.Pos() < pos) {
+			return b, obj
+		}
+	}
+	return nil, nil
+}
+
+// deeper reports whether block x is lexically deeper than y.
+func deeper(x, y *types.Scope) bool {
+	if x == y || x == nil {
+		return false
+	} else if y == nil {
+		return true
+	} else {
+		return deeper(x.Parent(), y.Parent())
+	}
+}
+
+// forEachLexicalRef calls fn(id, block) for each identifier id in package
+// info that is a reference to obj in lexical scope.  block is the
+// lexical block enclosing the reference.  If fn returns false the
+// iteration is terminated and findLexicalRefs returns false.
+func forEachLexicalRef(info *loader.PackageInfo, obj types.Object, fn func(id *ast.Ident, block *types.Scope) bool) bool {
+	ok := true
+	var stack []ast.Node
+
+	var visit func(n ast.Node) bool
+	visit = func(n ast.Node) bool {
+		if n == nil {
+			stack = stack[:len(stack)-1] // pop
+			return false
+		}
+		if !ok {
+			return false // bail out
+		}
+
+		stack = append(stack, n) // push
+		switch n := n.(type) {
+		case *ast.Ident:
+			if info.Uses[n] == obj {
+				block := enclosingBlock(&info.Info, stack)
+				if !fn(n, block) {
+					ok = false
+				}
+			}
+			return visit(nil) // pop stack
+
+		case *ast.SelectorExpr:
+			// don't visit n.Sel
+			ast.Inspect(n.X, visit)
+			return visit(nil) // pop stack, don't descend
+
+		case *ast.CompositeLit:
+			// Handle recursion ourselves for struct literals
+			// so we don't visit field identifiers.
+			tv := info.Types[n]
+			if _, ok := deref(tv.Type).Underlying().(*types.Struct); ok {
+				if n.Type != nil {
+					ast.Inspect(n.Type, visit)
+				}
+				for _, elt := range n.Elts {
+					if kv, ok := elt.(*ast.KeyValueExpr); ok {
+						ast.Inspect(kv.Value, visit)
+					} else {
+						ast.Inspect(elt, visit)
+					}
+				}
+				return visit(nil) // pop stack, don't descend
+			}
+		}
+		return true
+	}
+
+	for _, f := range info.Files {
+		ast.Inspect(f, visit)
+		if len(stack) != 0 {
+			panic(stack)
+		}
+		if !ok {
+			break
+		}
+	}
+	return ok
+}
+
+// enclosingBlock returns the innermost block enclosing the specified
+// AST node, specified in the form of a path from the root of the file,
+// [file...n].
+func enclosingBlock(info *types.Info, stack []ast.Node) *types.Scope {
+	for i := range stack {
+		n := stack[len(stack)-1-i]
+		// For some reason, go/types always associates a
+		// function's scope with its FuncType.
+		// TODO(adonovan): feature or a bug?
+		switch f := n.(type) {
+		case *ast.FuncDecl:
+			n = f.Type
+		case *ast.FuncLit:
+			n = f.Type
+		}
+		if b := info.Scopes[n]; b != nil {
+			return b
+		}
+	}
+	panic("no Scope for *ast.File")
 }
 
 func (r *renamer) checkLabel(label *types.Label) {
