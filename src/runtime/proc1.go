@@ -216,9 +216,6 @@ const freezeStopWait = 0x7fffffff
 // There is no reverse operation, used during crashing.
 // This function must not lock any mutexes.
 func freezetheworld() {
-	if gomaxprocs == 1 {
-		return
-	}
 	// stopwait and preemption requests can be lost
 	// due to races with concurrently executing threads,
 	// so try several times
