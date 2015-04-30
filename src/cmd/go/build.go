@@ -308,6 +308,7 @@ func pkgsNotMain(pkgs []*Package) (res []*Package) {
 var pkgsFilter = func(pkgs []*Package) []*Package { return pkgs }
 
 func buildModeInit() {
+	_, gccgo := buildToolchain.(gccgoToolchain)
 	var codegenArg string
 	platform := goos + "/" + goarch
 	switch buildBuildmode {
@@ -324,14 +325,18 @@ func buildModeInit() {
 		ldBuildmode = "c-archive"
 	case "c-shared":
 		pkgsFilter = pkgsMain
-		switch platform {
-		case "linux/amd64":
-			codegenArg = "-shared"
-		case "linux/arm":
-			buildAsmflags = append(buildAsmflags, "-shared")
-		case "android/arm":
-		default:
-			fatalf("-buildmode=c-shared not supported on %s\n", platform)
+		if gccgo {
+			codegenArg = "-fPIC"
+		} else {
+			switch platform {
+			case "linux/amd64":
+				codegenArg = "-shared"
+			case "linux/arm":
+				buildAsmflags = append(buildAsmflags, "-shared")
+			case "android/arm":
+			default:
+				fatalf("-buildmode=c-shared not supported on %s\n", platform)
+			}
 		}
 		ldBuildmode = "c-shared"
 	case "default":
@@ -341,31 +346,43 @@ func buildModeInit() {
 		ldBuildmode = "exe"
 	case "shared":
 		pkgsFilter = pkgsNotMain
-		switch platform {
-		case "linux/amd64":
-		default:
-			fatalf("-buildmode=shared not supported on %s\n", platform)
+		if gccgo {
+			codegenArg = "-fPIC"
+		} else {
+			switch platform {
+			case "linux/amd64":
+			default:
+				fatalf("-buildmode=shared not supported on %s\n", platform)
+			}
+			codegenArg = "-dynlink"
 		}
 		if *buildO != "" {
 			fatalf("-buildmode=shared and -o not supported together")
 		}
-		codegenArg = "-dynlink"
 		ldBuildmode = "shared"
 	default:
 		fatalf("buildmode=%s not supported", buildBuildmode)
 	}
 	if buildLinkshared {
-		if platform != "linux/amd64" {
-			fmt.Fprintf(os.Stderr, "go %s: -linkshared is only supported on linux/amd64\n", flag.Args()[0])
-			os.Exit(2)
+		if gccgo {
+			codegenArg = "-fPIC"
+		} else {
+			if platform != "linux/amd64" {
+				fmt.Fprintf(os.Stderr, "go %s: -linkshared is only supported on linux/amd64\n", flag.Args()[0])
+				os.Exit(2)
+			}
+			codegenArg = "-dynlink"
+			// TODO(mwhudson): remove -w when that gets fixed in linker.
+			buildLdflags = append(buildLdflags, "-linkshared", "-w")
 		}
-		codegenArg = "-dynlink"
-		// TODO(mwhudson): remove -w when that gets fixed in linker.
-		buildLdflags = append(buildLdflags, "-linkshared", "-w")
 	}
 	if codegenArg != "" {
-		buildAsmflags = append(buildAsmflags, codegenArg)
-		buildGcflags = append(buildGcflags, codegenArg)
+		if gccgo {
+			buildGccgoflags = append(buildGccgoflags, codegenArg)
+		} else {
+			buildAsmflags = append(buildAsmflags, codegenArg)
+			buildGcflags = append(buildGcflags, codegenArg)
+		}
 		if buildContext.InstallSuffix != "" {
 			buildContext.InstallSuffix += "_"
 		}
@@ -2166,6 +2183,7 @@ func (tools gccgoToolchain) asm(b *builder, p *Package, obj, ofile, sfile string
 	if pkgpath := gccgoCleanPkgpath(p); pkgpath != "" {
 		defs = append(defs, `-D`, `GOPKGPATH="`+pkgpath+`"`)
 	}
+	defs = tools.maybePIC(defs)
 	defs = append(defs, b.gccArchArgs()...)
 	return b.run(p.Dir, p.ImportPath, nil, tools.compiler(), "-I", obj, "-o", ofile, defs, sfile)
 }
@@ -2244,13 +2262,15 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
 		}
 	}
 
-	if ldBuildmode == "c-archive" {
+	switch ldBuildmode {
+	case "c-archive", "c-shared":
 		ldflags = append(ldflags, "-Wl,--whole-archive")
 	}
 
 	ldflags = append(ldflags, afiles...)
 
-	if ldBuildmode == "c-archive" {
+	switch ldBuildmode {
+	case "c-archive", "c-shared":
 		ldflags = append(ldflags, "-Wl,--no-whole-archive")
 	}
 
@@ -2265,12 +2285,6 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
 	case "exe":
 		if usesCgo && goos == "linux" {
 			ldflags = append(ldflags, "-Wl,-E")
-		}
-		if cxx {
-			ldflags = append(ldflags, "-lstdc++")
-		}
-		if objc {
-			ldflags = append(ldflags, "-lobjc")
 		}
 
 	case "c-archive":
@@ -2296,8 +2310,21 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
 		realOut = out
 		out = out + ".o"
 
+	case "c-shared":
+		ldflags = append(ldflags, "-shared", "-nostdlib", "-Wl,--whole-archive", "-lgolibbegin", "-Wl,--no-whole-archive", "-lgo", "-lgcc_s", "-lgcc")
+
 	default:
 		fatalf("-buildmode=%s not supported for gccgo", ldBuildmode)
+	}
+
+	switch ldBuildmode {
+	case "exe", "c-shared":
+		if cxx {
+			ldflags = append(ldflags, "-lstdc++")
+		}
+		if objc {
+			ldflags = append(ldflags, "-lobjc")
+		}
 	}
 
 	if err := b.run(".", p.ImportPath, nil, tools.linker(), "-o", out, ofiles, ldflags, buildGccgoflags); err != nil {
@@ -2314,7 +2341,7 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
 	return nil
 }
 
-func (gccgoToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
+func (tools gccgoToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
 	inc := filepath.Join(goroot, "pkg", "include")
 	cfile = mkAbs(p.Dir, cfile)
 	defs := []string{"-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch}
@@ -2326,8 +2353,18 @@ func (gccgoToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) er
 	case "386", "amd64":
 		defs = append(defs, "-fsplit-stack")
 	}
+	defs = tools.maybePIC(defs)
 	return b.run(p.Dir, p.ImportPath, nil, envList("CC", defaultCC), "-Wall", "-g",
 		"-I", objdir, "-I", inc, "-o", ofile, defs, "-c", cfile)
+}
+
+// maybePIC adds -fPIC to the list of arguments if needed.
+func (tools gccgoToolchain) maybePIC(args []string) []string {
+	switch buildBuildmode {
+	case "c-shared", "shared":
+		args = append(args, "-fPIC")
+	}
+	return args
 }
 
 func gccgoPkgpath(p *Package) string {
