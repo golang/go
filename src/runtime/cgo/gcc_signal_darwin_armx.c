@@ -15,12 +15,9 @@
 // chance to resolve exceptions before the task handler, so we can generate
 // the panic and avoid lldb's SIGSEGV handler.
 //
-// If you want to debug a segfault under lldb, compile the standard library
-// with the build tag lldb:
-//
-//	go test -tags lldb -installsuffix lldb
+// The dist tool enables this by build flag when testing.
 
-// +build !lldb
+// +build lldb
 // +build darwin
 // +build arm arm64
 
