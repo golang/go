@@ -28,12 +28,10 @@ func Cputime() float64 {
 }
 
 type Biobuf struct {
-	unget    [2]int
-	numUnget int
-	f        *os.File
-	r        *bufio.Reader
-	w        *bufio.Writer
-	linelen  int
+	f       *os.File
+	r       *bufio.Reader
+	w       *bufio.Writer
+	linelen int
 }
 
 func Bopenw(name string) (*Biobuf, error) {
@@ -116,18 +114,11 @@ func Bread(b *Biobuf, p []byte) int {
 }
 
 func Bgetc(b *Biobuf) int {
-	if b.numUnget > 0 {
-		b.numUnget--
-		return int(b.unget[b.numUnget])
-	}
 	c, err := b.r.ReadByte()
-	r := int(c)
 	if err != nil {
-		r = -1
+		return -1
 	}
-	b.unget[1] = b.unget[0]
-	b.unget[0] = r
-	return r
+	return int(c)
 }
 
 func Bgetrune(b *Biobuf) int {
@@ -144,6 +135,10 @@ func Bungetrune(b *Biobuf) {
 
 func (b *Biobuf) Read(p []byte) (int, error) {
 	return b.r.Read(p)
+}
+
+func (b *Biobuf) Peek(n int) ([]byte, error) {
+	return b.r.Peek(n)
 }
 
 func Brdline(b *Biobuf, delim int) string {
@@ -179,10 +174,6 @@ func Access(name string, mode int) int {
 
 func Blinelen(b *Biobuf) int {
 	return b.linelen
-}
-
-func Bungetc(b *Biobuf) {
-	b.numUnget++
 }
 
 func Bterm(b *Biobuf) error {
