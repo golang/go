@@ -288,11 +288,12 @@ func (t *Tree) parse(treeSet map[string]*Tree) (next Node) {
 			}
 			t.backup2(delim)
 		}
-		n := t.textOrAction()
-		if n.Type() == nodeEnd {
+		switch n := t.textOrAction(); n.Type() {
+		case nodeEnd, nodeElse:
 			t.errorf("unexpected %s", n)
+		default:
+			t.Root.append(n)
 		}
-		t.Root.append(n)
 	}
 	return nil
 }
