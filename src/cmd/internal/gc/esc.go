@@ -343,12 +343,11 @@ const (
 // escMax returns the maximum of an existing escape value
 // (and its additional parameter flow flags) and a new escape type.
 func escMax(e, etype uint16) uint16 {
-	if e&EscMask == EscHeap {
+	if e&EscMask >= EscScope {
 		// normalize
-		if e != EscHeap {
-			Fatal("Escape information had tag bits combined with 'EscHeap' ")
+		if e&^EscMask != 0 {
+			Fatal("Escape information had unexpected return encoding bits (w/ EscScope, EscHeap, EscNever), e&EscMask=%v", e&EscMask)
 		}
-		return EscHeap
 	}
 	if e&EscMask > etype {
 		return e
@@ -1563,7 +1562,7 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
 
 	// Input parameter flowing to output parameter?
 	var leaks bool
-	if funcOutputAndInput(dst, src) && src.Esc&EscMask != EscScope && src.Esc != EscHeap && dst.Esc != EscHeap {
+	if funcOutputAndInput(dst, src) && src.Esc&EscMask < EscScope && dst.Esc != EscHeap {
 		// This case handles:
 		// 1. return in
 		// 2. return &in
@@ -1586,7 +1585,7 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
 	// If parameter content escapes to heap, set EscContentEscapes
 	// Note minor confusion around escape from pointer-to-struct vs escape from struct
 	if dst.Esc == EscHeap &&
-		src.Op == ONAME && src.Class == PPARAM && src.Esc != EscHeap &&
+		src.Op == ONAME && src.Class == PPARAM && src.Esc&EscMask < EscScope &&
 		level.int() > 0 {
 		src.Esc = escMax(EscContentEscapes|src.Esc, EscNone)
 		if Debug['m'] != 0 {
@@ -1598,7 +1597,7 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
 
 	switch src.Op {
 	case ONAME:
-		if src.Class == PPARAM && (leaks || dst.Escloopdepth < 0) && src.Esc != EscHeap {
+		if src.Class == PPARAM && (leaks || dst.Escloopdepth < 0) && src.Esc&EscMask < EscScope {
 			if level.guaranteedDereference() > 0 {
 				src.Esc = escMax(EscContentEscapes|src.Esc, EscNone)
 				if Debug['m'] != 0 {
