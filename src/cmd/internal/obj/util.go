@@ -99,10 +99,6 @@ func (b *Biobuf) Flush() error {
 	return b.w.Flush()
 }
 
-func Bwrite(b *Biobuf, p []byte) (int, error) {
-	return b.w.Write(p)
-}
-
 func Bputc(b *Biobuf, c byte) {
 	b.w.WriteByte(c)
 }
@@ -187,10 +183,6 @@ func Blinelen(b *Biobuf) int {
 
 func Bungetc(b *Biobuf) {
 	b.numUnget++
-}
-
-func Bflush(b *Biobuf) error {
-	return b.w.Flush()
 }
 
 func Bterm(b *Biobuf) error {

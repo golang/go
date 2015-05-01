@@ -485,7 +485,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	 * strip NOPs
 	 * expand RET
 	 */
-	obj.Bflush(ctxt.Bso)
+	ctxt.Bso.Flush()
 	q := (*obj.Prog)(nil)
 	var q1 *obj.Prog
 	for p := cursym.Text; p != nil; p = p.Link {
@@ -575,7 +575,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				if ctxt.Debugvlog != 0 {
 					fmt.Fprintf(ctxt.Bso, "save suppressed in: %s\n", cursym.Text.From.Sym.Name)
 				}
-				obj.Bflush(ctxt.Bso)
+				ctxt.Bso.Flush()
 				cursym.Text.Mark |= LEAF
 			}
 

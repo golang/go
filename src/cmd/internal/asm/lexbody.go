@@ -98,7 +98,7 @@ func setinclude(p string) {
 }
 
 func errorexit() {
-	obj.Bflush(&bstdout)
+	bstdout.Flush()
 	if outfile != "" {
 		os.Remove(outfile)
 	}

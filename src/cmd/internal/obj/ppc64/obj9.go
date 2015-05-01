@@ -137,7 +137,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	if ctxt.Debugvlog != 0 {
 		fmt.Fprintf(ctxt.Bso, "%5.2f noops\n", obj.Cputime())
 	}
-	obj.Bflush(ctxt.Bso)
+	ctxt.Bso.Flush()
 
 	var q *obj.Prog
 	var q1 *obj.Prog
@@ -346,7 +346,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			} else if cursym.Text.Mark&LEAF == 0 {
 				if ctxt.Debugvlog != 0 {
 					fmt.Fprintf(ctxt.Bso, "save suppressed in: %s\n", cursym.Name)
-					obj.Bflush(ctxt.Bso)
+					ctxt.Bso.Flush()
 				}
 
 				cursym.Text.Mark |= LEAF

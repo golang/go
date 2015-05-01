@@ -82,7 +82,7 @@ func (x errcmp) Less(i, j int) bool {
 }
 
 func Flusherrors() {
-	obj.Bflush(&bstdout)
+	bstdout.Flush()
 	if len(errors) == 0 {
 		return
 	}

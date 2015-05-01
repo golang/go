@@ -209,7 +209,7 @@ func Main() {
 	if assemble(flag.Arg(0)) != 0 {
 		errorexit()
 	}
-	obj.Bflush(&bstdout)
+	bstdout.Flush()
 	if nerrors > 0 {
 		errorexit()
 	}
@@ -244,7 +244,7 @@ func assemble(file string) int {
 	}
 
 	obj.Writeobjdirect(Ctxt, &obuf)
-	obj.Bflush(&obuf)
+	obuf.Flush()
 	return 0
 }
 
