@@ -78,7 +78,7 @@ var (
 func TestParseProcNet(t *testing.T) {
 	defer func() {
 		if p := recover(); p != nil {
-			t.Fatalf("parseProcNetIGMP or parseProtNetIGMP6 panicked: %v", p)
+			t.Fatalf("panicked: %v", p)
 		}
 	}()
 
@@ -88,7 +88,7 @@ func TestParseProcNet(t *testing.T) {
 		ifmat4 = append(ifmat4, ifmat...)
 	}
 	if len(ifmat4) != numOfTestIPv4MCAddrs {
-		t.Fatalf("parseProcNetIGMP returns %v addresses, expected %v", len(ifmat4), numOfTestIPv4MCAddrs)
+		t.Fatalf("got %d; want %d", len(ifmat4), numOfTestIPv4MCAddrs)
 	}
 
 	var ifmat6 []Addr
@@ -97,6 +97,6 @@ func TestParseProcNet(t *testing.T) {
 		ifmat6 = append(ifmat6, ifmat...)
 	}
 	if len(ifmat6) != numOfTestIPv6MCAddrs {
-		t.Fatalf("parseProcNetIGMP6 returns %v addresses, expected %v", len(ifmat6), numOfTestIPv6MCAddrs)
+		t.Fatalf("got %d; want %d", len(ifmat6), numOfTestIPv6MCAddrs)
 	}
 }

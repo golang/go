@@ -88,11 +88,11 @@ func TestIPConnLocalName(t *testing.T) {
 		}
 		c, err := ListenIP(tt.net, tt.laddr)
 		if err != nil {
-			t.Fatalf("ListenIP failed: %v", err)
+			t.Fatal(err)
 		}
 		defer c.Close()
 		if la := c.LocalAddr(); la == nil {
-			t.Fatal("IPConn.LocalAddr failed")
+			t.Fatal("should not fail")
 		}
 	}
 }
@@ -105,10 +105,10 @@ func TestIPConnRemoteName(t *testing.T) {
 	raddr := &IPAddr{IP: IPv4(127, 0, 0, 1).To4()}
 	c, err := DialIP("ip:tcp", &IPAddr{IP: IPv4(127, 0, 0, 1)}, raddr)
 	if err != nil {
-		t.Fatalf("DialIP failed: %v", err)
+		t.Fatal(err)
 	}
 	defer c.Close()
 	if !reflect.DeepEqual(raddr, c.RemoteAddr()) {
-		t.Fatalf("got %#v, expected %#v", c.RemoteAddr(), raddr)
+		t.Fatalf("got %#v; want %#v", c.RemoteAddr(), raddr)
 	}
 }

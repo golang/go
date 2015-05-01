@@ -24,11 +24,11 @@ func TestReadUnixgramWithUnnamedSocket(t *testing.T) {
 	addr := testUnixAddr()
 	la, err := ResolveUnixAddr("unixgram", addr)
 	if err != nil {
-		t.Fatalf("ResolveUnixAddr failed: %v", err)
+		t.Fatal(err)
 	}
 	c, err := ListenUnixgram("unixgram", la)
 	if err != nil {
-		t.Fatalf("ListenUnixgram failed: %v", err)
+		t.Fatal(err)
 	}
 	defer func() {
 		c.Close()
@@ -41,13 +41,13 @@ func TestReadUnixgramWithUnnamedSocket(t *testing.T) {
 		defer func() { off <- true }()
 		s, err := syscall.Socket(syscall.AF_UNIX, syscall.SOCK_DGRAM, 0)
 		if err != nil {
-			t.Errorf("syscall.Socket failed: %v", err)
+			t.Error(err)
 			return
 		}
 		defer syscall.Close(s)
 		rsa := &syscall.SockaddrUnix{Name: addr}
 		if err := syscall.Sendto(s, data[:], 0, rsa); err != nil {
-			t.Errorf("syscall.Sendto failed: %v", err)
+			t.Error(err)
 			return
 		}
 	}()
@@ -57,13 +57,13 @@ func TestReadUnixgramWithUnnamedSocket(t *testing.T) {
 	c.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 	n, from, err := c.ReadFrom(b)
 	if err != nil {
-		t.Fatalf("UnixConn.ReadFrom failed: %v", err)
+		t.Fatal(err)
 	}
 	if from != nil {
-		t.Fatalf("neighbor address is %v", from)
+		t.Fatalf("unexpected peer address: %v", from)
 	}
 	if !bytes.Equal(b[:n], data[:]) {
-		t.Fatalf("got %v, want %v", b[:n], data[:])
+		t.Fatalf("got %v; want %v", b[:n], data[:])
 	}
 }
 
@@ -136,7 +136,7 @@ func TestUnixgramZeroByteBuffer(t *testing.T) {
 	defer os.Remove(c2.LocalAddr().String())
 	defer c2.Close()
 
-	b := []byte("UNIXGRAM ZERO BYTE BUFFER")
+	b := []byte("UNIXGRAM ZERO BYTE BUFFER TEST")
 	for _, genericRead := range []bool{false, true} {
 		n, err := c2.Write(b)
 		if err != nil {
@@ -167,13 +167,13 @@ func TestUnixgramZeroByteBuffer(t *testing.T) {
 
 func TestUnixgramAutobind(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("skipping: autobind is linux only")
+		t.Skip("autobind is linux only")
 	}
 
 	laddr := &UnixAddr{Name: "", Net: "unixgram"}
 	c1, err := ListenUnixgram("unixgram", laddr)
 	if err != nil {
-		t.Fatalf("ListenUnixgram failed: %v", err)
+		t.Fatal(err)
 	}
 	defer c1.Close()
 
@@ -188,7 +188,7 @@ func TestUnixgramAutobind(t *testing.T) {
 
 	c2, err := DialUnix("unixgram", nil, autoAddr)
 	if err != nil {
-		t.Fatalf("DialUnix failed: %v", err)
+		t.Fatal(err)
 	}
 	defer c2.Close()
 
@@ -199,13 +199,13 @@ func TestUnixgramAutobind(t *testing.T) {
 
 func TestUnixAutobindClose(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("skipping: autobind is linux only")
+		t.Skip("autobind is linux only")
 	}
 
 	laddr := &UnixAddr{Name: "", Net: "unix"}
 	ln, err := ListenUnix("unix", laddr)
 	if err != nil {
-		t.Fatalf("ListenUnix failed: %v", err)
+		t.Fatal(err)
 	}
 	ln.Close()
 }
@@ -218,11 +218,11 @@ func TestUnixgramWrite(t *testing.T) {
 	addr := testUnixAddr()
 	laddr, err := ResolveUnixAddr("unixgram", addr)
 	if err != nil {
-		t.Fatalf("ResolveUnixAddr failed: %v", err)
+		t.Fatal(err)
 	}
 	c, err := ListenPacket("unixgram", addr)
 	if err != nil {
-		t.Fatalf("ListenPacket failed: %v", err)
+		t.Fatal(err)
 	}
 	defer os.Remove(addr)
 	defer c.Close()
@@ -234,27 +234,28 @@ func TestUnixgramWrite(t *testing.T) {
 func testUnixgramWriteConn(t *testing.T, raddr *UnixAddr) {
 	c, err := Dial("unixgram", raddr.String())
 	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
+		t.Fatal(err)
 	}
 	defer c.Close()
 
-	if _, err := c.(*UnixConn).WriteToUnix([]byte("Connection-oriented mode socket"), raddr); err == nil {
-		t.Fatal("WriteToUnix should fail")
+	b := []byte("CONNECTED-MODE SOCKET")
+	if _, err := c.(*UnixConn).WriteToUnix(b, raddr); err == nil {
+		t.Fatal("should fail")
 	} else if err.(*OpError).Err != ErrWriteToConnected {
-		t.Fatalf("WriteToUnix should fail as ErrWriteToConnected: %v", err)
+		t.Fatalf("should fail as ErrWriteToConnected: %v", err)
 	}
-	if _, err = c.(*UnixConn).WriteTo([]byte("Connection-oriented mode socket"), raddr); err == nil {
-		t.Fatal("WriteTo should fail")
+	if _, err = c.(*UnixConn).WriteTo(b, raddr); err == nil {
+		t.Fatal("should fail")
 	} else if err.(*OpError).Err != ErrWriteToConnected {
-		t.Fatalf("WriteTo should fail as ErrWriteToConnected: %v", err)
+		t.Fatalf("should fail as ErrWriteToConnected: %v", err)
 	}
-	if _, _, err = c.(*UnixConn).WriteMsgUnix([]byte("Connection-oriented mode socket"), nil, raddr); err == nil {
-		t.Fatal("WriteTo should fail")
+	if _, _, err = c.(*UnixConn).WriteMsgUnix(b, nil, raddr); err == nil {
+		t.Fatal("should fail")
 	} else if err.(*OpError).Err != ErrWriteToConnected {
-		t.Fatalf("WriteMsgUnix should fail as ErrWriteToConnected: %v", err)
+		t.Fatalf("should fail as ErrWriteToConnected: %v", err)
 	}
-	if _, err := c.Write([]byte("Connection-oriented mode socket")); err != nil {
-		t.Fatalf("Write failed: %v", err)
+	if _, err := c.Write(b); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -262,22 +263,23 @@ func testUnixgramWritePacketConn(t *testing.T, raddr *UnixAddr) {
 	addr := testUnixAddr()
 	c, err := ListenPacket("unixgram", addr)
 	if err != nil {
-		t.Fatalf("ListenPacket failed: %v", err)
+		t.Fatal(err)
 	}
 	defer os.Remove(addr)
 	defer c.Close()
 
-	if _, err := c.(*UnixConn).WriteToUnix([]byte("Connectionless mode socket"), raddr); err != nil {
-		t.Fatalf("WriteToUnix failed: %v", err)
+	b := []byte("UNCONNECTED-MODE SOCKET")
+	if _, err := c.(*UnixConn).WriteToUnix(b, raddr); err != nil {
+		t.Fatal(err)
 	}
-	if _, err := c.WriteTo([]byte("Connectionless mode socket"), raddr); err != nil {
-		t.Fatalf("WriteTo failed: %v", err)
+	if _, err := c.WriteTo(b, raddr); err != nil {
+		t.Fatal(err)
 	}
-	if _, _, err := c.(*UnixConn).WriteMsgUnix([]byte("Connectionless mode socket"), nil, raddr); err != nil {
-		t.Fatalf("WriteMsgUnix failed: %v", err)
+	if _, _, err := c.(*UnixConn).WriteMsgUnix(b, nil, raddr); err != nil {
+		t.Fatal(err)
 	}
-	if _, err := c.(*UnixConn).Write([]byte("Connectionless mode socket")); err == nil {
-		t.Fatal("Write should fail")
+	if _, err := c.(*UnixConn).Write(b); err == nil {
+		t.Fatal("should fail")
 	}
 }
 
@@ -292,11 +294,11 @@ func TestUnixConnLocalAndRemoteNames(t *testing.T) {
 		taddr := testUnixAddr()
 		ta, err := ResolveUnixAddr("unix", taddr)
 		if err != nil {
-			t.Fatalf("ResolveUnixAddr failed: %v", err)
+			t.Fatal(err)
 		}
 		ln, err := ListenUnix("unix", ta)
 		if err != nil {
-			t.Fatalf("ListenUnix failed: %v", err)
+			t.Fatal(err)
 		}
 		ls, err := (&streamListener{Listener: ln}).newLocalServer()
 		if err != nil {
@@ -309,11 +311,11 @@ func TestUnixConnLocalAndRemoteNames(t *testing.T) {
 
 		la, err := ResolveUnixAddr("unix", laddr)
 		if err != nil {
-			t.Fatalf("ResolveUnixAddr failed: %v", err)
+			t.Fatal(err)
 		}
 		c, err := DialUnix("unix", la, ta)
 		if err != nil {
-			t.Fatalf("DialUnix failed: %v", err)
+			t.Fatal(err)
 		}
 		defer func() {
 			c.Close()
@@ -322,7 +324,7 @@ func TestUnixConnLocalAndRemoteNames(t *testing.T) {
 			}
 		}()
 		if _, err := c.Write([]byte("UNIXCONN LOCAL AND REMOTE NAME TEST")); err != nil {
-			t.Fatalf("UnixConn.Write failed: %v", err)
+			t.Fatal(err)
 		}
 
 		switch runtime.GOOS {
@@ -354,11 +356,11 @@ func TestUnixgramConnLocalAndRemoteNames(t *testing.T) {
 		taddr := testUnixAddr()
 		ta, err := ResolveUnixAddr("unixgram", taddr)
 		if err != nil {
-			t.Fatalf("ResolveUnixAddr failed: %v", err)
+			t.Fatal(err)
 		}
 		c1, err := ListenUnixgram("unixgram", ta)
 		if err != nil {
-			t.Fatalf("ListenUnixgram failed: %v", err)
+			t.Fatal(err)
 		}
 		defer func() {
 			c1.Close()
@@ -368,12 +370,12 @@ func TestUnixgramConnLocalAndRemoteNames(t *testing.T) {
 		var la *UnixAddr
 		if laddr != "" {
 			if la, err = ResolveUnixAddr("unixgram", laddr); err != nil {
-				t.Fatalf("ResolveUnixAddr failed: %v", err)
+				t.Fatal(err)
 			}
 		}
 		c2, err := DialUnix("unixgram", la, ta)
 		if err != nil {
-			t.Fatalf("DialUnix failed: %v", err)
+			t.Fatal(err)
 		}
 		defer func() {
 			c2.Close()
@@ -397,7 +399,7 @@ func TestUnixgramConnLocalAndRemoteNames(t *testing.T) {
 		}
 		for _, ca := range connAddrs {
 			if !reflect.DeepEqual(ca.got, ca.want) {
-				t.Fatalf("got %#v, expected %#v", ca.got, ca.want)
+				t.Fatalf("got %#v; want %#v", ca.got, ca.want)
 			}
 		}
 	}

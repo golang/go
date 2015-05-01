@@ -15,20 +15,20 @@ func TestReadLine(t *testing.T) {
 	// /etc/services file does not exist on android, plan9, windows.
 	switch runtime.GOOS {
 	case "android", "plan9", "windows":
-		t.Skipf("skipping test on %q", runtime.GOOS)
+		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 	filename := "/etc/services" // a nice big file
 
 	fd, err := os.Open(filename)
 	if err != nil {
-		t.Fatalf("open %s: %v", filename, err)
+		t.Fatal(err)
 	}
 	defer fd.Close()
 	br := bufio.NewReader(fd)
 
 	file, err := open(filename)
 	if file == nil {
-		t.Fatalf("net.open(%s) = nil", filename)
+		t.Fatal(err)
 	}
 	defer file.close()
 
@@ -41,8 +41,7 @@ func TestReadLine(t *testing.T) {
 		}
 		line, ok := file.readLine()
 		if (berr != nil) != !ok || bline != line {
-			t.Fatalf("%s:%d (#%d)\nbufio => %q, %v\nnet => %q, %v",
-				filename, lineno, byteno, bline, berr, line, ok)
+			t.Fatalf("%s:%d (#%d)\nbufio => %q, %v\nnet => %q, %v", filename, lineno, byteno, bline, berr, line, ok)
 		}
 		if !ok {
 			break

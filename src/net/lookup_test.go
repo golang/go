@@ -39,7 +39,7 @@ var lookupGoogleSRVTests = []struct {
 
 func TestLookupGoogleSRV(t *testing.T) {
 	if testing.Short() || !*testExternal {
-		t.Skip("skipping test to avoid external network")
+		t.Skip("avoid external network")
 	}
 
 	for _, tt := range lookupGoogleSRVTests {
@@ -63,7 +63,7 @@ func TestLookupGoogleSRV(t *testing.T) {
 
 func TestLookupGmailMX(t *testing.T) {
 	if testing.Short() || !*testExternal {
-		t.Skip("skipping test to avoid external network")
+		t.Skip("avoid external network")
 	}
 
 	mxs, err := LookupMX("gmail.com")
@@ -82,7 +82,7 @@ func TestLookupGmailMX(t *testing.T) {
 
 func TestLookupGmailNS(t *testing.T) {
 	if testing.Short() || !*testExternal {
-		t.Skip("skipping test to avoid external network")
+		t.Skip("avoid external network")
 	}
 
 	nss, err := LookupNS("gmail.com")
@@ -101,7 +101,7 @@ func TestLookupGmailNS(t *testing.T) {
 
 func TestLookupGmailTXT(t *testing.T) {
 	if testing.Short() || !*testExternal {
-		t.Skip("skipping test to avoid external network")
+		t.Skip("avoid external network")
 	}
 
 	txts, err := LookupTXT("gmail.com")
@@ -130,7 +130,7 @@ var lookupGooglePublicDNSAddrs = []struct {
 
 func TestLookupGooglePublicDNSAddr(t *testing.T) {
 	if testing.Short() || !*testExternal {
-		t.Skip("skipping test to avoid external network")
+		t.Skip("avoid external network")
 	}
 
 	for _, tt := range lookupGooglePublicDNSAddrs {
@@ -151,7 +151,7 @@ func TestLookupGooglePublicDNSAddr(t *testing.T) {
 
 func TestLookupIANACNAME(t *testing.T) {
 	if testing.Short() || !*testExternal {
-		t.Skip("skipping test to avoid external network")
+		t.Skip("avoid external network")
 	}
 
 	cname, err := LookupCNAME("www.iana.org")
@@ -165,7 +165,7 @@ func TestLookupIANACNAME(t *testing.T) {
 
 func TestLookupGoogleHost(t *testing.T) {
 	if testing.Short() || !*testExternal {
-		t.Skip("skipping test to avoid external network")
+		t.Skip("avoid external network")
 	}
 
 	addrs, err := LookupHost("google.com")
@@ -184,7 +184,7 @@ func TestLookupGoogleHost(t *testing.T) {
 
 func TestLookupGoogleIP(t *testing.T) {
 	if testing.Short() || !*testExternal {
-		t.Skip("skipping test to avoid external network")
+		t.Skip("avoid external network")
 	}
 
 	ips, err := LookupIP("google.com")

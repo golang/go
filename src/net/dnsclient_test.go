@@ -47,7 +47,7 @@ func testUniformity(t *testing.T, size int, margin float64) {
 	checkDistribution(t, data, margin)
 }
 
-func TestUniformity(t *testing.T) {
+func TestDNSSRVUniformity(t *testing.T) {
 	testUniformity(t, 2, 0.05)
 	testUniformity(t, 3, 0.10)
 	testUniformity(t, 10, 0.20)

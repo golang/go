@@ -16,9 +16,9 @@ func TestCgoLookupIP(t *testing.T) {
 		t.Errorf("cgoLookupIP must not be a placeholder")
 	}
 	if err != nil {
-		t.Errorf("cgoLookupIP failed: %v", err)
+		t.Error(err)
 	}
 	if _, err := goLookupIP(host); err != nil {
-		t.Errorf("goLookupIP failed: %v", err)
+		t.Error(err)
 	}
 }

@@ -481,7 +481,7 @@ func TestWildWildcardListener(t *testing.T) {
 
 	defer func() {
 		if p := recover(); p != nil {
-			t.Fatal("panicked: %v", p)
+			t.Fatalf("panicked: %v", p)
 		}
 	}()
 

@@ -77,7 +77,7 @@ func TestDNSReadConfig(t *testing.T) {
 			t.Fatal(conf.err)
 		}
 		if !reflect.DeepEqual(conf, tt.want) {
-			t.Errorf("%s:\n got: %+v\nwant: %+v", tt.name, conf, tt.want)
+			t.Errorf("%s:\ngot: %+v\nwant: %+v", tt.name, conf, tt.want)
 		}
 	}
 }
@@ -85,7 +85,7 @@ func TestDNSReadConfig(t *testing.T) {
 func TestDNSReadMissingFile(t *testing.T) {
 	conf := dnsReadConfig("a-nonexistent-file")
 	if !os.IsNotExist(conf.err) {
-		t.Errorf("Missing resolv.conf:\n got: %v\nwant: %v", conf.err, os.ErrNotExist)
+		t.Errorf("missing resolv.conf:\ngot: %v\nwant: %v", conf.err, os.ErrNotExist)
 	}
 	conf.err = nil
 	want := &dnsConfig{
@@ -95,6 +95,6 @@ func TestDNSReadMissingFile(t *testing.T) {
 		attempts: 2,
 	}
 	if !reflect.DeepEqual(conf, want) {
-		t.Errorf("Missing resolv.conf:\n got: %+v\nwant: %+v", conf, want)
+		t.Errorf("missing resolv.conf:\ngot: %+v\nwant: %+v", conf, want)
 	}
 }

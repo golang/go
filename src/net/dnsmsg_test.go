@@ -66,7 +66,7 @@ func TestDNSParseCorruptSRVReply(t *testing.T) {
 	msg := new(dnsMsg)
 	ok := msg.Unpack(data)
 	if !ok {
-		t.Fatalf("unpacking packet failed")
+		t.Fatal("unpacking packet failed")
 	}
 	msg.String() // exercise this code path
 	if g, e := len(msg.answer), 5; g != e {

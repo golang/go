@@ -26,7 +26,7 @@ func TestConnAndListener(t *testing.T) {
 
 		ls, err := newLocalServer(network)
 		if err != nil {
-			t.Fatalf("Listen failed: %v", err)
+			t.Fatal(err)
 		}
 		defer ls.teardown()
 		ch := make(chan error, 1)
@@ -40,22 +40,22 @@ func TestConnAndListener(t *testing.T) {
 
 		c, err := Dial(ls.Listener.Addr().Network(), ls.Listener.Addr().String())
 		if err != nil {
-			t.Fatalf("Dial failed: %v", err)
+			t.Fatal(err)
 		}
 		defer c.Close()
 		if c.LocalAddr().Network() != network || c.LocalAddr().Network() != network {
-			t.Fatalf("got %v->%v; want %v->%v", c.LocalAddr().Network(), c.RemoteAddr().Network(), network, network)
+			t.Fatalf("got %s->%s; want %s->%s", c.LocalAddr().Network(), c.RemoteAddr().Network(), network, network)
 		}
 		c.SetDeadline(time.Now().Add(someTimeout))
 		c.SetReadDeadline(time.Now().Add(someTimeout))
 		c.SetWriteDeadline(time.Now().Add(someTimeout))
 
-		if _, err := c.Write([]byte("CONN TEST")); err != nil {
-			t.Fatalf("Conn.Write failed: %v", err)
+		if _, err := c.Write([]byte("CONN AND LISTENER TEST")); err != nil {
+			t.Fatal(err)
 		}
 		rb := make([]byte, 128)
 		if _, err := c.Read(rb); err != nil {
-			t.Fatalf("Conn.Read failed: %v", err)
+			t.Fatal(err)
 		}
 
 		for err := range ch {
