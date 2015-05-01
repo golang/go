@@ -230,6 +230,9 @@ var parseTests = []parseTest{
 	// Errors.
 	{"unclosed action", "hello{{range", hasError, ""},
 	{"unmatched end", "{{end}}", hasError, ""},
+	{"unmatched else", "{{else}}", hasError, ""},
+	{"unmatched else after if", "{{if .X}}hello{{end}}{{else}}", hasError, ""},
+	{"multiple else", "{{if .X}}1{{else}}2{{else}}3{{end}}", hasError, ""},
 	{"missing end", "hello{{range .x}}", hasError, ""},
 	{"missing end after else", "hello{{range .x}}{{else}}", hasError, ""},
 	{"undefined function", "hello{{undefined}}", hasError, ""},
