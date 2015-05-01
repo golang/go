@@ -77,16 +77,16 @@ func Ldmain() {
 	if Thearch.Thechar == '6' {
 		obj.Flagcount("8", "assume 64-bit addresses", &Debug['8'])
 	}
-	obj.Flagfn1("B", "add an ELF NT_GNU_BUILD_ID note when using ELF", addbuildinfo)
+	obj.Flagfn1("B", "add an ELF NT_GNU_BUILD_ID `note` when using ELF", addbuildinfo)
 	obj.Flagcount("C", "check Go calls to C code", &Debug['C'])
-	obj.Flagint64("D", "set data segment address", &INITDAT)
-	obj.Flagstr("E", "set entry symbol name", &INITENTRY)
+	obj.Flagint64("D", "set data segment `address`", &INITDAT)
+	obj.Flagstr("E", "set `entry` symbol name", &INITENTRY)
 	if Thearch.Thechar == '5' {
 		obj.Flagcount("G", "debug pseudo-ops", &Debug['G'])
 	}
-	obj.Flagfn1("I", "specify which ELF dynamic linker to use", setinterp)
-	obj.Flagfn1("L", "add specified directory to library path", Lflag)
-	obj.Flagfn1("H", "set header type to specified value", setheadtype)
+	obj.Flagfn1("I", "use `linker` as ELF dynamic linker", setinterp)
+	obj.Flagfn1("L", "add specified `directory` to library path", Lflag)
+	obj.Flagfn1("H", "set header `type`", setheadtype)
 	obj.Flagcount("K", "add stack underflow checks", &Debug['K'])
 	if Thearch.Thechar == '5' {
 		obj.Flagcount("M", "disable software div/mod", &Debug['M'])
@@ -96,35 +96,35 @@ func Ldmain() {
 	if Thearch.Thechar == '5' {
 		obj.Flagcount("P", "debug code generation", &Debug['P'])
 	}
-	obj.Flagint32("R", "set address rounding value", &INITRND)
+	obj.Flagint32("R", "set address rounding `quantum`", &INITRND)
 	obj.Flagcount("nil", "check type signatures", &Debug['S'])
-	obj.Flagint64("T", "set text segment address", &INITTEXT)
+	obj.Flagint64("T", "set text segment `address`", &INITTEXT)
 	obj.Flagfn0("V", "print version and exit", doversion)
 	obj.Flagcount("W", "disassemble input", &Debug['W'])
 	obj.Flagfn1("X", "set the value of a string variable; the next two arguments are its name and value", addstrdata1)
 	obj.Flagcount("Z", "clear stack frame on entry", &Debug['Z'])
 	obj.Flagcount("a", "disassemble output", &Debug['a'])
-	flag.Var(&Buildmode, "buildmode", "build mode to use")
+	flag.Var(&Buildmode, "buildmode", "set build `mode`")
 	obj.Flagcount("c", "dump call graph", &Debug['c'])
 	obj.Flagcount("d", "disable dynamic executable", &Debug['d'])
-	obj.Flagstr("extld", "set name of linker to run in external mode", &extld)
-	obj.Flagstr("extldflags", "set linker flags for external linker", &extldflags)
+	obj.Flagstr("extld", "use `linker` when linking in external mode", &extld)
+	obj.Flagstr("extldflags", "pass `flags` to external linker", &extldflags)
 	obj.Flagcount("f", "ignore version mismatch", &Debug['f'])
 	obj.Flagcount("g", "disable go package data checks", &Debug['g'])
-	obj.Flagstr("installsuffix", "set package directory suffix", &flag_installsuffix)
-	obj.Flagstr("k", "set field tracking symbol", &tracksym)
-	obj.Flagfn1("linkmode", "set link mode (internal, external, auto)", setlinkmode)
+	obj.Flagstr("installsuffix", "set package directory `suffix`", &flag_installsuffix)
+	obj.Flagstr("k", "set field tracking `symbol`", &tracksym)
+	obj.Flagfn1("linkmode", "set link `mode` (internal, external, auto)", setlinkmode)
 	flag.BoolVar(&Linkshared, "linkshared", false, "link against installed Go shared libraries")
 	obj.Flagcount("n", "dump symbol table", &Debug['n'])
-	obj.Flagstr("o", "set output file", &outfile)
-	flag.Var(&rpath, "r", "set the ELF dynamic linker search path to dir1:dir2:...")
+	obj.Flagstr("o", "write output to `file`", &outfile)
+	flag.Var(&rpath, "r", "set the ELF dynamic linker search `path` to dir1:dir2:...")
 	obj.Flagcount("race", "enable race detector", &flag_race)
 	obj.Flagcount("s", "disable symbol table", &Debug['s'])
 	var flagShared int
 	if Thearch.Thechar == '5' || Thearch.Thechar == '6' {
 		obj.Flagcount("shared", "generate shared object (implies -linkmode external)", &flagShared)
 	}
-	obj.Flagstr("tmpdir", "use specified directory for temporary files", &tmpdir)
+	obj.Flagstr("tmpdir", "use `directory` for temporary files", &tmpdir)
 	obj.Flagcount("u", "reject unsafe packages", &Debug['u'])
 	obj.Flagcount("v", "print link trace", &Debug['v'])
 	obj.Flagcount("w", "disable DWARF generation", &Debug['w'])
@@ -140,9 +140,9 @@ func Ldmain() {
 			i++
 		}
 	}
-	obj.Flagstr("cpuprofile", "write cpu profile to file", &cpuprofile)
-	obj.Flagstr("memprofile", "write memory profile to file", &memprofile)
-	obj.Flagint64("memprofilerate", "set runtime.MemProfileRate", &memprofilerate)
+	obj.Flagstr("cpuprofile", "write cpu profile to `file`", &cpuprofile)
+	obj.Flagstr("memprofile", "write memory profile to `file`", &memprofile)
+	obj.Flagint64("memprofilerate", "set runtime.MemProfileRate to `rate`", &memprofilerate)
 	obj.Flagparse(usage)
 	startProfile()
 	Ctxt.Bso = &Bso
