@@ -1865,20 +1865,21 @@ func getc() int {
 			curio.cp = curio.cp[1:]
 		}
 	} else {
-		var c1 int
-		var c2 int
 	loop:
 		c = obj.Bgetc(curio.bin)
 		if c == 0xef {
-			c1 = obj.Bgetc(curio.bin)
-			c2 = obj.Bgetc(curio.bin)
-			if c1 == 0xbb && c2 == 0xbf {
+			buf, err := curio.bin.Peek(2)
+			if err != nil {
+				log.Fatalf("getc: peeking: %v", err)
+			}
+			if buf[0] == 0xbb && buf[1] == 0xbf {
 				yyerrorl(int(lexlineno), "Unicode (UTF-8) BOM in middle of file")
+
+				// consume BOM bytes
+				obj.Bgetc(curio.bin)
+				obj.Bgetc(curio.bin)
 				goto loop
 			}
-
-			obj.Bungetc(curio.bin)
-			obj.Bungetc(curio.bin)
 		}
 	}
 
