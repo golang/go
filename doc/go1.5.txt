@@ -70,6 +70,7 @@ time: add time.AppendFormat(https://golang.org/cl/1760)
 Tools:
 
 build: external linking support for windows (https://golang.org/cl/7163, 7282, 7283, 7284, 7534, 7535)
+cmd/cover: tool now lives in the standard repository (https://golang.org/cl/9560)
 cmd/gc: constant arithmetic is based on math/big (https://golang.org/cl/7830, 7851, 7857, 8426, 7858, 7912, 8171)
 cmd/go, go/build: add ${SRCDIR} variable expansion to cgo lines (https://golang.org/cl/1756)
 cmd/go: add $DOLLAR to generate's variables (https://golang.org/cl/8091)
