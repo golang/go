@@ -161,10 +161,6 @@ func markroot(desc *parfor, i uint32) {
 		}
 	}
 
-	// Root aren't part of the heap, so don't count them toward
-	// marked heap bytes.
-	gcw.bytesMarked = 0
-	gcw.scanWork = 0
 	gcw.dispose()
 }
 
@@ -314,8 +310,6 @@ func scanstack(gp *g) {
 	}
 
 	gcw := &getg().m.p.ptr().gcw
-	origBytesMarked := gcw.bytesMarked
-	origScanWork := gcw.scanWork
 	scanframe := func(frame *stkframe, unused unsafe.Pointer) bool {
 		// Pick up gcw as free variable so gentraceback and friends can
 		// keep the same signature.
@@ -324,10 +318,6 @@ func scanstack(gp *g) {
 	}
 	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, scanframe, nil, 0)
 	tracebackdefers(gp, scanframe, nil)
-	// Stacks aren't part of the heap, so don't count them toward
-	// marked heap bytes.
-	gcw.bytesMarked = origBytesMarked
-	gcw.scanWork = origScanWork
 	if gcphase == _GCmarktermination {
 		gcw.dispose()
 	}
@@ -578,7 +568,6 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
 		}
 	}
 
-	gcw.bytesMarked += uint64(n)
 	gcw.scanWork += scanWork
 }
 
