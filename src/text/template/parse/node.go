@@ -592,6 +592,11 @@ func (t *Tree) newNumber(pos Pos, text string, typ itemType) (*NumberNode, error
 	} else {
 		f, err := strconv.ParseFloat(text, 64)
 		if err == nil {
+			// If we parsed it as a float but it looks like an integer,
+			// it's a huge number too large to fit in an int. Reject it.
+			if !strings.ContainsAny(text, ".eE") {
+				return nil, fmt.Errorf("integer overflow: %q", text)
+			}
 			n.IsFloat = true
 			n.Float64 = f
 			// If a floating-point extraction succeeded, extract the int if needed.
