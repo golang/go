@@ -7,7 +7,7 @@ package runtime
 import "unsafe"
 
 const (
-	// StackDebug == 0: no logging
+	// stackDebug == 0: no logging
 	//            == 1: logging of per-stack operations
 	//            == 2: logging of per-frame operations
 	//            == 3: logging of per-word updates
