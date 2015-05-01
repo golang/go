@@ -871,6 +871,11 @@ func gc(mode int) {
 		// below. The important thing is that the wb remains active until
 		// all marking is complete. This includes writes made by the GC.
 
+		// Flush the gcWork caches. This must be done before
+		// endCycle since endCycle depends on statistics kept
+		// in these caches.
+		gcFlushGCWork()
+
 		gcController.endCycle()
 	} else {
 		// For non-concurrent GC (mode != gcBackgroundMode)
@@ -1163,6 +1168,17 @@ func gcBgMarkDone() {
 	}
 }
 
+// gcFlushGCWork disposes the gcWork caches of all Ps. The world must
+// be stopped.
+//go:nowritebarrier
+func gcFlushGCWork() {
+	// Gather all cached GC work. All other Ps are stopped, so
+	// it's safe to manipulate their GC work caches.
+	for i := 0; i < int(gomaxprocs); i++ {
+		allp[i].gcw.dispose()
+	}
+}
+
 // gcMark runs the mark (or, for concurrent GC, mark termination)
 // STW is in effect at this point.
 //TODO go:nowritebarrier
@@ -1179,13 +1195,10 @@ func gcMark(start_time int64) {
 
 	gcCopySpans() // TODO(rlh): should this be hoisted and done only once? Right now it is done for normal marking and also for checkmarking.
 
-	// Gather all cached GC work. All other Ps are stopped, so
-	// it's safe to manipulate their GC work caches. During mark
+	// Make sure the per-P gcWork caches are empty. During mark
 	// termination, these caches can still be used temporarily,
 	// but must be disposed to the global lists immediately.
-	for i := 0; i < int(gomaxprocs); i++ {
-		allp[i].gcw.dispose()
-	}
+	gcFlushGCWork()
 
 	work.nwait = 0
 	work.ndone = 0
