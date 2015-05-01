@@ -781,6 +781,9 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		foreachHeaderElement(v, cw.res.declareTrailer)
 	}
 
+	te := header.get("Transfer-Encoding")
+	hasTE := te != ""
+
 	// If the handler is done but never sent a Content-Length
 	// response header and this is our first (and last) write, set
 	// it, even to zero. This helps HTTP/1.0 clients keep their
@@ -793,7 +796,9 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	// write non-zero bytes.  If it's actually 0 bytes and the
 	// handler never looked at the Request.Method, we just don't
 	// send a Content-Length header.
-	if w.handlerDone && !trailers && bodyAllowedForStatus(w.status) && header.get("Content-Length") == "" && (!isHEAD || len(p) > 0) {
+	// Further, we don't send an automatic Content-Length if they
+	// set a Transfer-Encoding, because they're generally incompatible.
+	if w.handlerDone && !trailers && !hasTE && bodyAllowedForStatus(w.status) && header.get("Content-Length") == "" && (!isHEAD || len(p) > 0) {
 		w.contentLength = int64(len(p))
 		setHeader.contentLength = strconv.AppendInt(cw.res.clenBuf[:0], int64(len(p)), 10)
 	}
@@ -845,7 +850,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	if bodyAllowedForStatus(code) {
 		// If no content type, apply sniffing algorithm to body.
 		_, haveType := header["Content-Type"]
-		if !haveType {
+		if !haveType && !hasTE {
 			setHeader.contentType = DetectContentType(p)
 		}
 	} else {
@@ -858,8 +863,6 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		setHeader.date = appendTime(cw.res.dateBuf[:0], time.Now())
 	}
 
-	te := header.get("Transfer-Encoding")
-	hasTE := te != ""
 	if hasCL && hasTE && te != "identity" {
 		// TODO: return an error if WriteHeader gets a return parameter
 		// For now just ignore the Content-Length.
