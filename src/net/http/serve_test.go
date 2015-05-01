@@ -2767,6 +2767,43 @@ func TestServerKeepAliveAfterWriteError(t *testing.T) {
 	}
 }
 
+// Issue 9987: shouldn't add automatic Content-Length (or
+// Content-Type) if a Transfer-Encoding was set by the handler.
+func TestNoContentLengthIfTransferEncoding(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Transfer-Encoding", "foo")
+		io.WriteString(w, "<html>")
+	}))
+	defer ts.Close()
+	c, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	defer c.Close()
+	if _, err := io.WriteString(c, "GET / HTTP/1.1\r\nHost: foo\r\n\r\n"); err != nil {
+		t.Fatal(err)
+	}
+	bs := bufio.NewScanner(c)
+	var got bytes.Buffer
+	for bs.Scan() {
+		if strings.TrimSpace(bs.Text()) == "" {
+			break
+		}
+		got.WriteString(bs.Text())
+		got.WriteByte('\n')
+	}
+	if err := bs.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(got.String(), "Content-Length") {
+		t.Errorf("Unexpected Content-Length in response headers: %s", got.String())
+	}
+	if strings.Contains(got.String(), "Content-Type") {
+		t.Errorf("Unexpected Content-Type in response headers: %s", got.String())
+	}
+}
+
 func BenchmarkClientServer(b *testing.B) {
 	b.ReportAllocs()
 	b.StopTimer()
