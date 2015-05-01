@@ -42,14 +42,13 @@ func (ti *testInterface) teardown() error {
 
 func TestPointToPointInterface(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping test in short mode")
+		t.Skip("avoid external network")
 	}
-	switch {
-	case runtime.GOOS == "darwin":
-		t.Skipf("skipping read test on %q", runtime.GOOS)
+	if runtime.GOOS == "darwin" {
+		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 	if os.Getuid() != 0 {
-		t.Skip("skipping test; must be root")
+		t.Skip("must be root")
 	}
 
 	local, remote := "169.254.0.1", "169.254.0.254"
@@ -60,21 +59,21 @@ func TestPointToPointInterface(t *testing.T) {
 			t.Skipf("test requries external command: %v", err)
 		}
 		if err := ti.setup(); err != nil {
-			t.Fatalf("testInterface.setup failed: %v", err)
+			t.Fatal(err)
 		} else {
 			time.Sleep(3 * time.Millisecond)
 		}
 		ift, err := Interfaces()
 		if err != nil {
 			ti.teardown()
-			t.Fatalf("Interfaces failed: %v", err)
+			t.Fatal(err)
 		}
 		for _, ifi := range ift {
 			if ti.name == ifi.Name {
 				ifat, err := ifi.Addrs()
 				if err != nil {
 					ti.teardown()
-					t.Fatalf("Interface.Addrs failed: %v", err)
+					t.Fatal(err)
 				}
 				for _, ifa := range ifat {
 					if ip.Equal(ifa.(*IPNet).IP) {
@@ -85,7 +84,7 @@ func TestPointToPointInterface(t *testing.T) {
 			}
 		}
 		if err := ti.teardown(); err != nil {
-			t.Fatalf("testInterface.teardown failed: %v", err)
+			t.Fatal(err)
 		} else {
 			time.Sleep(3 * time.Millisecond)
 		}
@@ -94,30 +93,30 @@ func TestPointToPointInterface(t *testing.T) {
 
 func TestInterfaceArrivalAndDeparture(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping test in short mode")
+		t.Skip("avoid external network")
 	}
 	if os.Getuid() != 0 {
-		t.Skip("skipping test; must be root")
+		t.Skip("must be root")
 	}
 
 	for i := 0; i < 3; i++ {
 		ift1, err := Interfaces()
 		if err != nil {
-			t.Fatalf("Interfaces failed: %v", err)
+			t.Fatal(err)
 		}
 		ti := &testInterface{}
 		if err := ti.setBroadcast(5682 + i); err != nil {
 			t.Skipf("test requires external command: %v", err)
 		}
 		if err := ti.setup(); err != nil {
-			t.Fatalf("testInterface.setup failed: %v", err)
+			t.Fatal(err)
 		} else {
 			time.Sleep(3 * time.Millisecond)
 		}
 		ift2, err := Interfaces()
 		if err != nil {
 			ti.teardown()
-			t.Fatalf("Interfaces failed: %v", err)
+			t.Fatal(err)
 		}
 		if len(ift2) <= len(ift1) {
 			for _, ifi := range ift1 {
@@ -130,13 +129,13 @@ func TestInterfaceArrivalAndDeparture(t *testing.T) {
 			t.Fatalf("got %v; want gt %v", len(ift2), len(ift1))
 		}
 		if err := ti.teardown(); err != nil {
-			t.Fatalf("testInterface.teardown failed: %v", err)
+			t.Fatal(err)
 		} else {
 			time.Sleep(3 * time.Millisecond)
 		}
 		ift3, err := Interfaces()
 		if err != nil {
-			t.Fatalf("Interfaces failed: %v", err)
+			t.Fatal(err)
 		}
 		if len(ift3) >= len(ift2) {
 			for _, ifi := range ift2 {

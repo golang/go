@@ -5,7 +5,6 @@
 package net
 
 import (
-	"fmt"
 	"net/internal/socktest"
 	"runtime"
 	"sync"
@@ -56,7 +55,7 @@ func TestProhibitionaryDialArg(t *testing.T) {
 func TestSelfConnect(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		// TODO(brainman): do not know why it hangs.
-		t.Skip("skipping known-broken test on windows")
+		t.Skip("known-broken test on windows")
 	}
 
 	// Test that Dial does not honor self-connects.
@@ -213,7 +212,7 @@ func TestDialerLocalAddr(t *testing.T) {
 	handler := func(ls *localServer, ln Listener) {
 		c, err := ln.Accept()
 		if err != nil {
-			ch <- fmt.Errorf("Accept failed: %v", err)
+			ch <- err
 			return
 		}
 		defer c.Close()
@@ -230,13 +229,13 @@ func TestDialerLocalAddr(t *testing.T) {
 
 	laddr, err := ResolveTCPAddr(ls.Listener.Addr().Network(), ls.Listener.Addr().String())
 	if err != nil {
-		t.Fatalf("ResolveTCPAddr failed: %v", err)
+		t.Fatal(err)
 	}
 	laddr.Port = 0
 	d := &Dialer{LocalAddr: laddr}
 	c, err := d.Dial(ls.Listener.Addr().Network(), ls.Addr().String())
 	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
+		t.Fatal(err)
 	}
 	defer c.Close()
 	c.Read(make([]byte, 1))
@@ -312,9 +311,7 @@ func TestDialerKeepAlive(t *testing.T) {
 	if err := ls.buildup(handler); err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		testHookSetKeepAlive = func() {}
-	}()
+	defer func() { testHookSetKeepAlive = func() {} }()
 
 	for _, keepAlive := range []bool{false, true} {
 		got := false

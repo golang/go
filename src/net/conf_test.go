@@ -277,7 +277,7 @@ func TestConfHostLookupOrder(t *testing.T) {
 		for _, ht := range tt.hostTests {
 			gotOrder := tt.c.hostLookupOrder(ht.host)
 			if gotOrder != ht.want {
-				t.Errorf("%s: useCgoLookupHost(%q) = %v; want %v", tt.name, ht.host, gotOrder, ht.want)
+				t.Errorf("%s: hostLookupOrder(%q) = %v; want %v", tt.name, ht.host, gotOrder, ht.want)
 			}
 		}
 	}

@@ -39,14 +39,12 @@ func TestLookupStaticHost(t *testing.T) {
 		tt := hosttests[i]
 		ips := lookupStaticHost(tt.host)
 		if len(ips) != len(tt.ips) {
-			t.Errorf("# of hosts = %v; want %v",
-				len(ips), len(tt.ips))
+			t.Errorf("# of hosts = %v; want %v", len(ips), len(tt.ips))
 			continue
 		}
 		for k, v := range ips {
 			if tt.ips[k].String() != v {
-				t.Errorf("lookupStaticHost(%q) = %v; want %v",
-					tt.host, v, tt.ips[k])
+				t.Errorf("lookupStaticHost(%q) = %v; want %v", tt.host, v, tt.ips[k])
 			}
 		}
 	}

@@ -31,7 +31,7 @@ var dnsTransportFallbackTests = []struct {
 
 func TestDNSTransportFallback(t *testing.T) {
 	if testing.Short() || !*testExternal {
-		t.Skip("skipping test to avoid external network")
+		t.Skip("avoid external network")
 	}
 
 	for _, tt := range dnsTransportFallbackTests {
@@ -73,7 +73,7 @@ var specialDomainNameTests = []struct {
 
 func TestSpecialDomainName(t *testing.T) {
 	if testing.Short() || !*testExternal {
-		t.Skip("skipping test to avoid external network")
+		t.Skip("avoid external network")
 	}
 
 	server := "8.8.8.8:53"
@@ -103,7 +103,7 @@ type resolvConfTest struct {
 func newResolvConfTest(t *testing.T) *resolvConfTest {
 	dir, err := ioutil.TempDir("", "resolvConfTest")
 	if err != nil {
-		t.Fatalf("could not create temp dir: %v", err)
+		t.Fatal(err)
 	}
 
 	// Disable the default loadConfig
@@ -150,7 +150,7 @@ func (r *resolvConfTest) WantServers(want []string) {
 	cfg.mu.RLock()
 	defer cfg.mu.RUnlock()
 	if got := cfg.dnsConfig.servers; !reflect.DeepEqual(got, want) {
-		r.Fatalf("Unexpected dns server loaded, got %v want %v", got, want)
+		r.Fatalf("unexpected dns server loaded, got %v want %v", got, want)
 	}
 }
 
@@ -165,7 +165,7 @@ func (r *resolvConfTest) Close() {
 
 func TestReloadResolvConfFail(t *testing.T) {
 	if testing.Short() || !*testExternal {
-		t.Skip("skipping test to avoid external network")
+		t.Skip("avoid external network")
 	}
 
 	r := newResolvConfTest(t)
@@ -175,7 +175,7 @@ func TestReloadResolvConfFail(t *testing.T) {
 	r.SetConf("nameserver 8.8.8.8")
 
 	if _, err := goLookupIP("golang.org"); err != nil {
-		t.Fatalf("goLookupIP(missing; good) failed: %v", err)
+		t.Fatal(err)
 	}
 
 	// Using an empty resolv.conf should use localhost as servers
@@ -190,12 +190,11 @@ func TestReloadResolvConfFail(t *testing.T) {
 			t.Fatalf("goLookupIP(missing; good; bad) failed: servers=%v, want: %v", cfg.dnsConfig.servers, defaultNS)
 		}
 	}
-
 }
 
 func TestReloadResolvConfChange(t *testing.T) {
 	if testing.Short() || !*testExternal {
-		t.Skip("skipping test to avoid external network")
+		t.Skip("avoid external network")
 	}
 
 	r := newResolvConfTest(t)
@@ -205,7 +204,7 @@ func TestReloadResolvConfChange(t *testing.T) {
 	r.SetConf("nameserver 8.8.8.8")
 
 	if _, err := goLookupIP("golang.org"); err != nil {
-		t.Fatalf("goLookupIP(good) failed: %v", err)
+		t.Fatal(err)
 	}
 	r.WantServers([]string{"8.8.8.8"})
 

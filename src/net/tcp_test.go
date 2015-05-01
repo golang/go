@@ -77,7 +77,7 @@ func benchmarkTCP(b *testing.B, persistent, timeout bool, laddr string) {
 	sendMsg := func(c Conn, buf []byte) bool {
 		n, err := c.Write(buf)
 		if n != len(buf) || err != nil {
-			b.Logf("Write failed: %v", err)
+			b.Log(err)
 			return false
 		}
 		return true
@@ -87,7 +87,7 @@ func benchmarkTCP(b *testing.B, persistent, timeout bool, laddr string) {
 			n, err := c.Read(buf)
 			read += n
 			if err != nil {
-				b.Logf("Read failed: %v", err)
+				b.Log(err)
 				return false
 			}
 		}
@@ -95,7 +95,7 @@ func benchmarkTCP(b *testing.B, persistent, timeout bool, laddr string) {
 	}
 	ln, err := Listen("tcp", laddr)
 	if err != nil {
-		b.Fatalf("Listen failed: %v", err)
+		b.Fatal(err)
 	}
 	defer ln.Close()
 	serverSem := make(chan bool, numConcurrent)
@@ -135,7 +135,7 @@ func benchmarkTCP(b *testing.B, persistent, timeout bool, laddr string) {
 			}()
 			c, err := Dial("tcp", ln.Addr().String())
 			if err != nil {
-				b.Logf("Dial failed: %v", err)
+				b.Log(err)
 				return
 			}
 			defer c.Close()
@@ -186,7 +186,7 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
 	servers := make([]Conn, P)
 	ln, err := Listen("tcp", laddr)
 	if err != nil {
-		b.Fatalf("Listen failed: %v", err)
+		b.Fatal(err)
 	}
 	defer ln.Close()
 	done := make(chan bool)
@@ -194,7 +194,7 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
 		for p := 0; p < P; p++ {
 			s, err := ln.Accept()
 			if err != nil {
-				b.Errorf("Accept failed: %v", err)
+				b.Error(err)
 				return
 			}
 			servers[p] = s
@@ -204,7 +204,7 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
 	for p := 0; p < P; p++ {
 		c, err := Dial("tcp", ln.Addr().String())
 		if err != nil {
-			b.Fatalf("Dial failed: %v", err)
+			b.Fatal(err)
 		}
 		clients[p] = c
 	}
@@ -227,7 +227,7 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
 				buf[0] = v
 				_, err := c.Write(buf[:])
 				if err != nil {
-					b.Errorf("Write failed: %v", err)
+					b.Error(err)
 					return
 				}
 			}
@@ -243,7 +243,7 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
 			for i := 0; i < N; i++ {
 				_, err := s.Read(buf[:])
 				if err != nil {
-					b.Errorf("Read failed: %v", err)
+					b.Error(err)
 					return
 				}
 				pipe <- buf[0]
@@ -262,7 +262,7 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
 				buf[0] = v
 				_, err := s.Write(buf[:])
 				if err != nil {
-					b.Errorf("Write failed: %v", err)
+					b.Error(err)
 					return
 				}
 			}
@@ -276,7 +276,7 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
 			for i := 0; i < N; i++ {
 				_, err := c.Read(buf[:])
 				if err != nil {
-					b.Errorf("Read failed: %v", err)
+					b.Error(err)
 					return
 				}
 			}
@@ -346,13 +346,13 @@ var tcpListenerNameTests = []struct {
 
 func TestTCPListenerName(t *testing.T) {
 	if testing.Short() || !*testExternal {
-		t.Skip("skipping test to avoid external network")
+		t.Skip("avoid external network")
 	}
 
 	for _, tt := range tcpListenerNameTests {
 		ln, err := ListenTCP(tt.net, tt.laddr)
 		if err != nil {
-			t.Fatalf("ListenTCP failed: %v", err)
+			t.Fatal(err)
 		}
 		defer ln.Close()
 		la := ln.Addr()
@@ -364,7 +364,7 @@ func TestTCPListenerName(t *testing.T) {
 
 func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
 	if testing.Short() || !*testExternal {
-		t.Skip("skipping test to avoid external network")
+		t.Skip("avoid external network")
 	}
 	if !supportsIPv6 {
 		t.Skip("ipv6 is not supported")
@@ -403,7 +403,7 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
 		if err != nil {
 			// It might return "LookupHost returned no
 			// suitable address" error on some platforms.
-			t.Logf("Listen failed: %v", err)
+			t.Log(err)
 			continue
 		}
 		ls, err := (&streamListener{Listener: ln}).newLocalServer()
@@ -422,7 +422,7 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
 
 		c, err := Dial(tt.net, ls.Listener.Addr().String())
 		if err != nil {
-			t.Fatalf("Dial failed: %v", err)
+			t.Fatal(err)
 		}
 		defer c.Close()
 		if la, ok := c.LocalAddr().(*TCPAddr); !ok || !tt.nameLookup && la.Zone == "" {
@@ -433,11 +433,11 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
 		}
 
 		if _, err := c.Write([]byte("TCP OVER IPV6 LINKLOCAL TEST")); err != nil {
-			t.Fatalf("Conn.Write failed: %v", err)
+			t.Fatal(err)
 		}
 		b := make([]byte, 32)
 		if _, err := c.Read(b); err != nil {
-			t.Fatalf("Conn.Read failed: %v", err)
+			t.Fatal(err)
 		}
 
 		for err := range ch {
@@ -450,7 +450,7 @@ func TestTCPConcurrentAccept(t *testing.T) {
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
 	ln, err := Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		t.Fatalf("Listen failed: %v", err)
+		t.Fatal(err)
 	}
 	const N = 10
 	var wg sync.WaitGroup
@@ -546,7 +546,7 @@ func TestTCPStress(t *testing.T) {
 	sendMsg := func(c Conn, buf []byte) bool {
 		n, err := c.Write(buf)
 		if n != len(buf) || err != nil {
-			t.Logf("Write failed: %v", err)
+			t.Log(err)
 			return false
 		}
 		return true
@@ -556,7 +556,7 @@ func TestTCPStress(t *testing.T) {
 			n, err := c.Read(buf)
 			read += n
 			if err != nil {
-				t.Logf("Read failed: %v", err)
+				t.Log(err)
 				return false
 			}
 		}
@@ -565,7 +565,7 @@ func TestTCPStress(t *testing.T) {
 
 	ln, err := Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		t.Fatalf("Listen failed: %v", err)
+		t.Fatal(err)
 	}
 	defer ln.Close()
 	// Acceptor.
@@ -596,7 +596,7 @@ func TestTCPStress(t *testing.T) {
 			}()
 			c, err := Dial("tcp", ln.Addr().String())
 			if err != nil {
-				t.Logf("Dial failed: %v", err)
+				t.Log(err)
 				return
 			}
 			defer c.Close()
