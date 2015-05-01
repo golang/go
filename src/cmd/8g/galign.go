@@ -8,6 +8,8 @@ import (
 	"cmd/internal/gc"
 	"cmd/internal/obj"
 	"cmd/internal/obj/x86"
+	"fmt"
+	"os"
 )
 
 var thechar int = '8'
@@ -58,7 +60,8 @@ func main() {
 		gc.Thearch.FREGMIN = x86.REG_X0
 		gc.Thearch.FREGMAX = x86.REG_X7
 	default:
-		gc.Fatal("unsupported setting GO386=%s", v)
+		fmt.Fprintf(os.Stderr, "unsupported setting GO386=%s\n", v)
+		os.Exit(1)
 	}
 	gc.Thearch.MAXWIDTH = MAXWIDTH
 	gc.Thearch.ReservedRegs = resvd
