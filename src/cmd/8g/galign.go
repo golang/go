@@ -61,7 +61,7 @@ func main() {
 		gc.Thearch.FREGMAX = x86.REG_X7
 	default:
 		fmt.Fprintf(os.Stderr, "unsupported setting GO386=%s\n", v)
-		os.Exit(1)
+		gc.Exit(1)
 	}
 	gc.Thearch.MAXWIDTH = MAXWIDTH
 	gc.Thearch.ReservedRegs = resvd

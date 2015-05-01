@@ -481,7 +481,7 @@ func wrint(b *Biobuf, sval int64) {
 	}
 	p[0] = uint8(v)
 	p = p[1:]
-	Bwrite(b, varintbuf[:len(varintbuf)-len(p)])
+	b.Write(varintbuf[:len(varintbuf)-len(p)])
 }
 
 func wrstring(b *Biobuf, s string) {
@@ -497,7 +497,7 @@ func wrpath(ctxt *Link, b *Biobuf, p string) {
 
 func wrdata(b *Biobuf, v []byte) {
 	wrint(b, int64(len(v)))
-	Bwrite(b, v)
+	b.Write(v)
 }
 
 func wrpathsym(ctxt *Link, b *Biobuf, s *LSym) {
