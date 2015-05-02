@@ -369,6 +369,14 @@ var urltests = []URLTest{
 		},
 		"http://[fe80::1%25en01-._~]:8080/",
 	},
+	// host with port and no scheme
+	{
+		"www.whitehouse.gov:443", 
+		&URL {
+			Scheme : "",
+			Host: "www.whitehouse.gov:443"
+		}
+	},
 }
 
 // more useful string for debugging than fmt's struct printer
