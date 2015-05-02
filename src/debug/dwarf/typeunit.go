@@ -129,6 +129,11 @@ func (tur *typeUnitReader) Seek(off Offset) {
 	tur.b = makeBuf(tur.d, tur.tu, tur.tu.name, off, tur.tu.data[doff:])
 }
 
+// AddressSize returns the size in bytes of addresses in the current type unit.
+func (tur *typeUnitReader) AddressSize() int {
+	return tur.tu.unit.asize
+}
+
 // Next reads the next Entry from the type unit.
 func (tur *typeUnitReader) Next() (*Entry, error) {
 	if tur.err != nil {
