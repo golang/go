@@ -24,6 +24,7 @@ func cmdtest() {
 	var t tester
 	flag.BoolVar(&t.listMode, "list", false, "list available tests")
 	flag.BoolVar(&t.noRebuild, "no-rebuild", false, "don't rebuild std and cmd packages")
+	flag.BoolVar(&t.keepGoing, "k", false, "keep going even when error occurred")
 	flag.StringVar(&t.banner, "banner", "##### ", "banner prefix; blank means no section banners")
 	flag.StringVar(&t.runRxStr, "run", os.Getenv("GOTESTONLY"),
 		"run only those tests matching the regular expression; empty means to run all. "+
@@ -36,6 +37,7 @@ func cmdtest() {
 type tester struct {
 	listMode  bool
 	noRebuild bool
+	keepGoing bool
 	runRxStr  string
 	runRx     *regexp.Regexp
 	runRxWant bool
@@ -163,6 +165,7 @@ func (t *tester) run() {
 	os.Unsetenv("GOROOT_FINAL")
 
 	var lastHeading string
+	ok := true
 	for _, dt := range t.tests {
 		if t.runRx != nil && (t.runRx.MatchString(dt.name) != t.runRxWant) {
 			t.partial = true
@@ -176,10 +179,18 @@ func (t *tester) run() {
 			fmt.Printf("# go tool dist test -run=^%s$\n", dt.name)
 		}
 		if err := dt.fn(); err != nil {
-			log.Fatalf("Failed: %v", err)
+			ok = false
+			if t.keepGoing {
+				log.Printf("Failed: %v", err)
+			} else {
+				log.Fatalf("Failed: %v", err)
+			}
 		}
 	}
-	if t.partial {
+	if !ok {
+		fmt.Println("\nFAILED")
+		os.Exit(1)
+	} else if t.partial {
 		fmt.Println("\nALL TESTS PASSED (some were excluded)")
 	} else {
 		fmt.Println("\nALL TESTS PASSED")
