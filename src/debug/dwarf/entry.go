@@ -522,6 +522,12 @@ func (d *Data) Reader() *Reader {
 	return r
 }
 
+// AddressSize returns the size in bytes of addresses in the current compilation
+// unit.
+func (r *Reader) AddressSize() int {
+	return r.d.unit[r.unit].asize
+}
+
 // Seek positions the Reader at offset off in the encoded entry stream.
 // Offset 0 can be used to denote the first entry.
 func (r *Reader) Seek(off Offset) {
@@ -541,6 +547,7 @@ func (r *Reader) Seek(off Offset) {
 	i := d.offsetToUnit(off)
 	if i == -1 {
 		r.err = errors.New("offset out of range")
+		return
 	}
 	u := &d.unit[i]
 	r.unit = i
