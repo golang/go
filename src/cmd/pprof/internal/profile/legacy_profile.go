@@ -554,9 +554,10 @@ func parseHeap(b []byte) (p *Profile, err error) {
 			}
 		}
 
-		if l = strings.TrimSpace(l); l == "" {
+		if isSpaceOrComment(l) {
 			continue
 		}
+		l = strings.TrimSpace(l)
 
 		if sectionTrigger(l) != unrecognizedSection {
 			break
