@@ -83,12 +83,17 @@ func Bseek(b *Biobuf, offset int64, whence int) int64 {
 }
 
 func Boffset(b *Biobuf) int64 {
-	if err := b.w.Flush(); err != nil {
-		log.Fatalf("writing output: %v", err)
+	if b.w != nil {
+		if err := b.w.Flush(); err != nil {
+			log.Fatalf("writing output: %v", err)
+		}
 	}
 	off, err := b.f.Seek(0, 1)
 	if err != nil {
-		log.Fatalf("seeking in output: %v", err)
+		log.Fatalf("seeking in output [0, 1]: %v", err)
+	}
+	if b.r != nil {
+		off -= int64(b.r.Buffered())
 	}
 	return off
 }

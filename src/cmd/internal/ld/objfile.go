@@ -18,15 +18,15 @@ const (
 	endmagic   = "\xff\xffgo13ld"
 )
 
-func ldobjfile(ctxt *Link, f *Biobuf, pkg string, length int64, pn string) {
-	start := Boffset(f)
+func ldobjfile(ctxt *Link, f *obj.Biobuf, pkg string, length int64, pn string) {
+	start := obj.Boffset(f)
 	ctxt.Version++
 	var buf [8]uint8
-	Bread(f, buf[:])
+	obj.Bread(f, buf[:])
 	if string(buf[:]) != startmagic {
 		log.Fatalf("%s: invalid file start %x %x %x %x %x %x %x %x", pn, buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7])
 	}
-	c := Bgetc(f)
+	c := obj.Bgetc(f)
 	if c != 1 {
 		log.Fatalf("%s: invalid file version number %d", pn, c)
 	}
@@ -41,7 +41,7 @@ func ldobjfile(ctxt *Link, f *Biobuf, pkg string, length int64, pn string) {
 	}
 
 	for {
-		c, err := f.r.Peek(1)
+		c, err := f.Peek(1)
 		if err != nil {
 			log.Fatalf("%s: peeking: %v", pn, err)
 		}
@@ -52,20 +52,20 @@ func ldobjfile(ctxt *Link, f *Biobuf, pkg string, length int64, pn string) {
 	}
 
 	buf = [8]uint8{}
-	Bread(f, buf[:])
+	obj.Bread(f, buf[:])
 	if string(buf[:]) != endmagic {
 		log.Fatalf("%s: invalid file end", pn)
 	}
 
-	if Boffset(f) != start+length {
-		log.Fatalf("%s: unexpected end at %d, want %d", pn, int64(Boffset(f)), int64(start+length))
+	if obj.Boffset(f) != start+length {
+		log.Fatalf("%s: unexpected end at %d, want %d", pn, int64(obj.Boffset(f)), int64(start+length))
 	}
 }
 
 var readsym_ndup int
 
-func readsym(ctxt *Link, f *Biobuf, pkg string, pn string) {
-	if Bgetc(f) != 0xfe {
+func readsym(ctxt *Link, f *obj.Biobuf, pkg string, pn string) {
+	if obj.Bgetc(f) != 0xfe {
 		log.Fatalf("readsym out of sync")
 	}
 	t := int(rdint(f))
@@ -278,7 +278,7 @@ overwrite:
 	}
 }
 
-func rdint(f *Biobuf) int64 {
+func rdint(f *obj.Biobuf) int64 {
 	var c int
 
 	uv := uint64(0)
@@ -286,7 +286,7 @@ func rdint(f *Biobuf) int64 {
 		if shift >= 64 {
 			log.Fatalf("corrupt input")
 		}
-		c = Bgetc(f)
+		c = obj.Bgetc(f)
 		uv |= uint64(c&0x7F) << uint(shift)
 		if c&0x80 == 0 {
 			break
@@ -296,23 +296,23 @@ func rdint(f *Biobuf) int64 {
 	return int64(uv>>1) ^ (int64(uint64(uv)<<63) >> 63)
 }
 
-func rdstring(f *Biobuf) string {
+func rdstring(f *obj.Biobuf) string {
 	n := rdint(f)
 	p := make([]byte, n)
-	Bread(f, p)
+	obj.Bread(f, p)
 	return string(p)
 }
 
-func rddata(f *Biobuf) []byte {
+func rddata(f *obj.Biobuf) []byte {
 	n := rdint(f)
 	p := make([]byte, n)
-	Bread(f, p)
+	obj.Bread(f, p)
 	return p
 }
 
 var symbuf []byte
 
-func rdsym(ctxt *Link, f *Biobuf, pkg string) *LSym {
+func rdsym(ctxt *Link, f *obj.Biobuf, pkg string) *LSym {
 	n := int(rdint(f))
 	if n == 0 {
 		rdint(f)
@@ -322,7 +322,7 @@ func rdsym(ctxt *Link, f *Biobuf, pkg string) *LSym {
 	if len(symbuf) < n {
 		symbuf = make([]byte, n)
 	}
-	Bread(f, symbuf[:n])
+	obj.Bread(f, symbuf[:n])
 	p := string(symbuf[:n])
 	v := int(rdint(f))
 	if v != 0 {

@@ -53,7 +53,7 @@ func lookupImport(name string) *Import {
 	return x
 }
 
-func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
+func ldpkg(f *obj.Biobuf, pkg string, length int64, filename string, whence int) {
 	var p0, p1 int
 
 	if Debug['g'] != 0 {
@@ -69,7 +69,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 	}
 
 	bdata := make([]byte, length)
-	if int64(Bread(f, bdata)) != length {
+	if int64(obj.Bread(f, bdata)) != length {
 		fmt.Fprintf(os.Stderr, "%s: short pkg read %s\n", os.Args[0], filename)
 		if Debug['u'] != 0 {
 			errorexit()

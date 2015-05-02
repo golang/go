@@ -230,7 +230,7 @@ const (
 var (
 	headstring string
 	// buffered output
-	Bso Biobuf
+	Bso obj.Biobuf
 )
 
 var coutbuf struct {
@@ -608,13 +608,13 @@ func loadlib() {
  * look for the next file in an archive.
  * adapted from libmach.
  */
-func nextar(bp *Biobuf, off int64, a *ArHdr) int64 {
+func nextar(bp *obj.Biobuf, off int64, a *ArHdr) int64 {
 	if off&1 != 0 {
 		off++
 	}
-	Bseek(bp, off, 0)
+	obj.Bseek(bp, off, 0)
 	buf := make([]byte, SAR_HDR)
-	if n := Bread(bp, buf); n < len(buf) {
+	if n := obj.Bread(bp, buf); n < len(buf) {
 		if n >= 0 {
 			return 0
 		}
@@ -642,28 +642,28 @@ func objfile(file string, pkg string) {
 	if Debug['v'] > 1 {
 		fmt.Fprintf(&Bso, "%5.2f ldobj: %s (%s)\n", obj.Cputime(), file, pkg)
 	}
-	Bflush(&Bso)
+	Bso.Flush()
 	var err error
-	var f *Biobuf
-	f, err = Bopenr(file)
+	var f *obj.Biobuf
+	f, err = obj.Bopenr(file)
 	if err != nil {
 		Exitf("cannot open file %s: %v", file, err)
 	}
 
 	magbuf := make([]byte, len(ARMAG))
-	if Bread(f, magbuf) != len(magbuf) || !strings.HasPrefix(string(magbuf), ARMAG) {
+	if obj.Bread(f, magbuf) != len(magbuf) || !strings.HasPrefix(string(magbuf), ARMAG) {
 		/* load it as a regular file */
-		l := Bseek(f, 0, 2)
+		l := obj.Bseek(f, 0, 2)
 
-		Bseek(f, 0, 0)
+		obj.Bseek(f, 0, 0)
 		ldobj(f, pkg, l, file, file, FileObj)
-		Bterm(f)
+		obj.Bterm(f)
 
 		return
 	}
 
 	/* skip over optional __.GOSYMDEF and process __.PKGDEF */
-	off := Boffset(f)
+	off := obj.Boffset(f)
 
 	var arhdr ArHdr
 	l := nextar(f, off, &arhdr)
@@ -722,11 +722,11 @@ func objfile(file string, pkg string) {
 	}
 
 out:
-	Bterm(f)
+	obj.Bterm(f)
 }
 
 type Hostobj struct {
-	ld     func(*Biobuf, string, int64, string)
+	ld     func(*obj.Biobuf, string, int64, string)
 	pkg    string
 	pn     string
 	file   string
@@ -746,7 +746,7 @@ var internalpkg = []string{
 	"runtime/race",
 }
 
-func ldhostobj(ld func(*Biobuf, string, int64, string), f *Biobuf, pkg string, length int64, pn string, file string) {
+func ldhostobj(ld func(*obj.Biobuf, string, int64, string), f *obj.Biobuf, pkg string, length int64, pn string, file string) {
 	isinternal := false
 	for i := 0; i < len(internalpkg); i++ {
 		if pkg == internalpkg[i] {
@@ -777,25 +777,25 @@ func ldhostobj(ld func(*Biobuf, string, int64, string), f *Biobuf, pkg string, l
 	h.pkg = pkg
 	h.pn = pn
 	h.file = file
-	h.off = Boffset(f)
+	h.off = obj.Boffset(f)
 	h.length = length
 }
 
 func hostobjs() {
-	var f *Biobuf
+	var f *obj.Biobuf
 	var h *Hostobj
 
 	for i := 0; i < len(hostobj); i++ {
 		h = &hostobj[i]
 		var err error
-		f, err = Bopenr(h.file)
+		f, err = obj.Bopenr(h.file)
 		if f == nil {
 			Exitf("cannot reopen %s: %v", h.pn, err)
 		}
 
-		Bseek(f, h.off, 0)
+		obj.Bseek(f, h.off, 0)
 		h.ld(f, h.pkg, h.length, h.pn)
-		Bterm(f)
+		obj.Bterm(f)
 	}
 }
 
@@ -875,7 +875,7 @@ func archive() {
 
 	if Debug['v'] != 0 {
 		fmt.Fprintf(&Bso, "archive: %s\n", strings.Join(argv, " "))
-		Bflush(&Bso)
+		Bso.Flush()
 	}
 
 	if out, err := exec.Command(argv[0], argv[1:]...).CombinedOutput(); err != nil {
@@ -1019,7 +1019,7 @@ func hostlink() {
 			fmt.Fprintf(&Bso, " %q", v)
 		}
 		fmt.Fprintf(&Bso, "\n")
-		Bflush(&Bso)
+		Bso.Flush()
 	}
 
 	if out, err := exec.Command(argv[0], argv[1:]...).CombinedOutput(); err != nil {
@@ -1027,15 +1027,15 @@ func hostlink() {
 	}
 }
 
-func ldobj(f *Biobuf, pkg string, length int64, pn string, file string, whence int) {
-	eof := Boffset(f) + length
+func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, whence int) {
+	eof := obj.Boffset(f) + length
 
-	start := Boffset(f)
-	c1 := Bgetc(f)
-	c2 := Bgetc(f)
-	c3 := Bgetc(f)
-	c4 := Bgetc(f)
-	Bseek(f, start, 0)
+	start := obj.Boffset(f)
+	c1 := obj.Bgetc(f)
+	c2 := obj.Bgetc(f)
+	c3 := obj.Bgetc(f)
+	c4 := obj.Bgetc(f)
+	obj.Bseek(f, start, 0)
 
 	magic := uint32(c1)<<24 | uint32(c2)<<16 | uint32(c3)<<8 | uint32(c4)
 	if magic == 0x7f454c46 { // \x7F E L F
@@ -1054,9 +1054,9 @@ func ldobj(f *Biobuf, pkg string, length int64, pn string, file string, whence i
 	}
 
 	/* check the header */
-	line := Brdline(f, '\n')
+	line := obj.Brdline(f, '\n')
 	if line == "" {
-		if Blinelen(f) > 0 {
+		if obj.Blinelen(f) > 0 {
 			Diag("%s: not an object file", pn)
 			return
 		}
@@ -1101,28 +1101,28 @@ func ldobj(f *Biobuf, pkg string, length int64, pn string, file string, whence i
 	}
 
 	/* skip over exports and other info -- ends with \n!\n */
-	import0 := Boffset(f)
+	import0 := obj.Boffset(f)
 
 	c1 = '\n' // the last line ended in \n
-	c2 = Bgetc(f)
-	c3 = Bgetc(f)
+	c2 = obj.Bgetc(f)
+	c3 = obj.Bgetc(f)
 	for c1 != '\n' || c2 != '!' || c3 != '\n' {
 		c1 = c2
 		c2 = c3
-		c3 = Bgetc(f)
-		if c3 == Beof {
+		c3 = obj.Bgetc(f)
+		if c3 == obj.Beof {
 			Diag("truncated object file: %s", pn)
 			return
 		}
 	}
 
-	import1 := Boffset(f)
+	import1 := obj.Boffset(f)
 
-	Bseek(f, import0, 0)
+	obj.Bseek(f, import0, 0)
 	ldpkg(f, pkg, import1-import0-2, pn, whence) // -2 for !\n
-	Bseek(f, import1, 0)
+	obj.Bseek(f, import1, 0)
 
-	ldobjfile(Ctxt, f, pkg, eof-Boffset(f), pn)
+	ldobjfile(Ctxt, f, pkg, eof-obj.Boffset(f), pn)
 }
 
 func ldshlibsyms(shlib string) {
@@ -1146,7 +1146,7 @@ func ldshlibsyms(shlib string) {
 	}
 	if Ctxt.Debugvlog > 1 && Ctxt.Bso != nil {
 		fmt.Fprintf(Ctxt.Bso, "%5.2f ldshlibsyms: found library with name %s at %s\n", obj.Cputime(), shlib, libpath)
-		Bflush(Ctxt.Bso)
+		Ctxt.Bso.Flush()
 	}
 
 	f, err := elf.Open(libpath)
@@ -1739,7 +1739,7 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 	if Debug['v'] != 0 || Debug['n'] != 0 {
 		fmt.Fprintf(&Bso, "%5.2f symsize = %d\n", obj.Cputime(), uint32(Symsize))
 	}
-	Bflush(&Bso)
+	Bso.Flush()
 }
 
 func Symaddr(s *LSym) int64 {

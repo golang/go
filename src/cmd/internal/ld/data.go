@@ -609,7 +609,7 @@ func reloc() {
 	if Debug['v'] != 0 {
 		fmt.Fprintf(&Bso, "%5.2f reloc\n", obj.Cputime())
 	}
-	Bflush(&Bso)
+	Bso.Flush()
 
 	for s := Ctxt.Textp; s != nil; s = s.Next {
 		relocsym(s)
@@ -685,7 +685,7 @@ func dynreloc() {
 	if Debug['v'] != 0 {
 		fmt.Fprintf(&Bso, "%5.2f reloc\n", obj.Cputime())
 	}
-	Bflush(&Bso)
+	Bso.Flush()
 
 	for s := Ctxt.Textp; s != nil; s = s.Next {
 		dynrelocsym(s)
@@ -817,7 +817,7 @@ func Codeblk(addr int64, size int64) {
 		}
 	}
 
-	Bflush(&Bso)
+	Bso.Flush()
 }
 
 func Datblk(addr int64, size int64) {
@@ -1204,7 +1204,7 @@ func dodata() {
 	if Debug['v'] != 0 {
 		fmt.Fprintf(&Bso, "%5.2f dodata\n", obj.Cputime())
 	}
-	Bflush(&Bso)
+	Bso.Flush()
 
 	var last *LSym
 	datap = nil
