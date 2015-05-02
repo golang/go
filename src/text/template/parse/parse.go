@@ -554,7 +554,7 @@ func (t *Tree) command() *CommandNode {
 			t.backup()
 		case itemPipe:
 		default:
-			t.errorf("unexpected %s in operand; missing space?", token)
+			t.errorf("unexpected %s in operand", token)
 		}
 		break
 	}
@@ -582,12 +582,15 @@ func (t *Tree) operand() Node {
 		// Compatibility with original API: If the term is of type NodeField
 		// or NodeVariable, just put more fields on the original.
 		// Otherwise, keep the Chain node.
-		// TODO: Switch to Chains always when we can.
+		// Obvious parsing errors involving literal values are detected here.
+		// More complex error cases will have to be handled at execution time.
 		switch node.Type() {
 		case NodeField:
 			node = t.newField(chain.Position(), chain.String())
 		case NodeVariable:
 			node = t.newVariable(chain.Position(), chain.String())
+		case NodeBool, NodeString, NodeNumber, NodeNil, NodeDot:
+			t.errorf("unexpected . after term %q", node.String())
 		default:
 			node = chain
 		}

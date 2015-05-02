@@ -260,6 +260,14 @@ var parseTests = []parseTest{
 	{"bug1a", "{{$x:=.}}{{$x!2}}", hasError, ""},                     // ! is just illegal here.
 	{"bug1b", "{{$x:=.}}{{$x+2}}", hasError, ""},                     // $x+2 should not parse as ($x) (+2).
 	{"bug1c", "{{$x:=.}}{{$x +2}}", noError, "{{$x := .}}{{$x +2}}"}, // It's OK with a space.
+	// dot following a literal value
+	{"dot after integer", "{{1.E}}", hasError, ""},
+	{"dot after float", "{{0.1.E}}", hasError, ""},
+	{"dot after boolean", "{{true.E}}", hasError, ""},
+	{"dot after char", "{{'a'.any}}", hasError, ""},
+	{"dot after string", `{{"hello".guys}}`, hasError, ""},
+	{"dot after dot", "{{..E}}", hasError, ""},
+	{"dot after nil", "{{nil.E}}", hasError, ""},
 }
 
 var builtins = map[string]interface{}{
@@ -378,7 +386,7 @@ var errorTests = []parseTest{
 		hasError, `unexpected ")"`},
 	{"space",
 		"{{`x`3}}",
-		hasError, `missing space?`},
+		hasError, `in operand`},
 	{"idchar",
 		"{{a#}}",
 		hasError, `'#'`},
@@ -410,6 +418,9 @@ var errorTests = []parseTest{
 	{"undefvar",
 		"{{$a}}",
 		hasError, `undefined variable`},
+	{"wrongdot",
+		"{{true.any}}",
+		hasError, `unexpected . after term`},
 }
 
 func TestErrors(t *testing.T) {
