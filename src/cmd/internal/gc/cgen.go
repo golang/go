@@ -2396,7 +2396,7 @@ func Ginscall(f *Node, proc int) {
 		if HasLinkRegister() {
 			stk.Xoffset += int64(Ctxt.Arch.Ptrsize)
 		}
-		Thearch.Ginscon(Thearch.Optoas(OAS, Types[Tptr]), int64(Argsize(f.Type)), &stk)
+		Thearch.Ginscon(Thearch.Optoas(OAS, Types[TINT32]), int64(Argsize(f.Type)), &stk)
 
 		// FuncVal* at 8(SP)
 		stk.Xoffset = int64(Widthptr)
