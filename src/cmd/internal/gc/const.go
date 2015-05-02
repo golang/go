@@ -204,6 +204,9 @@ func convlit1(np **Node, t *Type, explicit bool) {
 		}
 
 	case CTINT, CTRUNE, CTFLT, CTCPLX:
+		if n.Type.Etype == TUNSAFEPTR && t.Etype != TUINTPTR {
+			goto bad
+		}
 		ct := int(n.Val.Ctype)
 		if Isint[et] {
 			switch ct {
@@ -264,8 +267,6 @@ bad:
 		defaultlit(&n, nil)
 		*np = n
 	}
-
-	return
 }
 
 func copyval(v Val) Val {
@@ -393,6 +394,11 @@ func overflow(v Val, t *Type) {
 	// v has already been converted
 	// to appropriate form for t.
 	if t == nil || t.Etype == TIDEAL {
+		return
+	}
+
+	// Only uintptrs may be converted to unsafe.Pointer, which cannot overflow.
+	if t.Etype == TUNSAFEPTR {
 		return
 	}
 
