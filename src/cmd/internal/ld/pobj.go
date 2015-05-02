@@ -49,7 +49,7 @@ func Ldmain() {
 	Ctxt.Diag = Diag
 	Ctxt.Bso = &Bso
 
-	Bso = *Binitw(os.Stdout)
+	Bso = *obj.Binitw(os.Stdout)
 	Debug = [128]int{}
 	nerrors = 0
 	outfile = ""
@@ -186,7 +186,7 @@ func Ldmain() {
 	if Debug['v'] != 0 {
 		fmt.Fprintf(&Bso, "HEADER = -H%d -T0x%x -D0x%x -R0x%x\n", HEADTYPE, uint64(INITTEXT), uint64(INITDAT), uint32(INITRND))
 	}
-	Bflush(&Bso)
+	Bso.Flush()
 
 	if Buildmode == BuildmodeShared {
 		for i := 0; i < flag.NArg(); i++ {
@@ -247,7 +247,7 @@ func Ldmain() {
 		fmt.Fprintf(&Bso, "%d liveness data\n", liveness)
 	}
 
-	Bflush(&Bso)
+	Bso.Flush()
 
 	errorexit()
 }

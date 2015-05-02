@@ -579,7 +579,7 @@ func asmb() {
 	if ld.Debug['v'] != 0 {
 		fmt.Fprintf(&ld.Bso, "%5.2f asmb\n", obj.Cputime())
 	}
-	ld.Bflush(&ld.Bso)
+	ld.Bso.Flush()
 
 	if ld.Iself {
 		ld.Asmbelfsetup()
@@ -597,7 +597,7 @@ func asmb() {
 		if ld.Debug['v'] != 0 {
 			fmt.Fprintf(&ld.Bso, "%5.2f rodatblk\n", obj.Cputime())
 		}
-		ld.Bflush(&ld.Bso)
+		ld.Bso.Flush()
 
 		ld.Cseek(int64(ld.Segrodata.Fileoff))
 		ld.Datblk(int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
@@ -606,7 +606,7 @@ func asmb() {
 	if ld.Debug['v'] != 0 {
 		fmt.Fprintf(&ld.Bso, "%5.2f datblk\n", obj.Cputime())
 	}
-	ld.Bflush(&ld.Bso)
+	ld.Bso.Flush()
 
 	ld.Cseek(int64(ld.Segdata.Fileoff))
 	ld.Datblk(int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
@@ -639,7 +639,7 @@ func asmb() {
 		if ld.Debug['v'] != 0 {
 			fmt.Fprintf(&ld.Bso, "%5.2f sym\n", obj.Cputime())
 		}
-		ld.Bflush(&ld.Bso)
+		ld.Bso.Flush()
 		switch ld.HEADTYPE {
 		default:
 			if ld.Iself {
@@ -700,7 +700,7 @@ func asmb() {
 	if ld.Debug['v'] != 0 {
 		fmt.Fprintf(&ld.Bso, "%5.2f header\n", obj.Cputime())
 	}
-	ld.Bflush(&ld.Bso)
+	ld.Bso.Flush()
 	ld.Cseek(0)
 	switch ld.HEADTYPE {
 	default:

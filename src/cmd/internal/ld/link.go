@@ -30,7 +30,10 @@
 
 package ld
 
-import "encoding/binary"
+import (
+	"cmd/internal/obj"
+	"encoding/binary"
+)
 
 type LSym struct {
 	Name        string
@@ -106,7 +109,7 @@ type Link struct {
 	Arch      *LinkArch
 	Debugasm  int32
 	Debugvlog int32
-	Bso       *Biobuf
+	Bso       *obj.Biobuf
 	Windows   int32
 	Goroot    string
 	Hash      map[symVer]*LSym
