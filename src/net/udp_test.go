@@ -60,47 +60,6 @@ func TestResolveUDPAddr(t *testing.T) {
 	}
 }
 
-func TestReadFromUDP(t *testing.T) {
-	switch runtime.GOOS {
-	case "nacl", "plan9":
-		t.Skipf("skipping test on %q, see issue 8916", runtime.GOOS)
-	}
-
-	ra, err := ResolveUDPAddr("udp", "127.0.0.1:7")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	la, err := ResolveUDPAddr("udp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	c, err := ListenUDP("udp", la)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer c.Close()
-
-	_, err = c.WriteToUDP([]byte("a"), ra)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = c.SetDeadline(time.Now().Add(100 * time.Millisecond))
-	if err != nil {
-		t.Fatal(err)
-	}
-	b := make([]byte, 1)
-	_, _, err = c.ReadFromUDP(b)
-	if err == nil {
-		t.Fatal("ReadFromUDP should fail")
-	}
-	if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
-		t.Fatal(err)
-	}
-}
-
 func TestWriteToUDP(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
