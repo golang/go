@@ -626,25 +626,31 @@ func entitlementsPlist() string {
 	<key>com.apple.developer.team-identifier</key>
 	<string>` + teamID + `</string>
 </dict>
-</plist>`
+</plist>
+`
 }
 
 const resourceRules = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-        <key>rules</key>
-        <dict>
-                <key>.*</key><true/>
-		<key>Info.plist</key> 
+	<key>rules</key>
+	<dict>
+		<key>.*</key>
+		<true/>
+		<key>Info.plist</key>
 		<dict>
-			<key>omit</key> <true/>
-			<key>weight</key> <real>10</real>
+			<key>omit</key>
+			<true/>
+			<key>weight</key>
+			<integer>10</integer>
 		</dict>
 		<key>ResourceRules.plist</key>
 		<dict>
-			<key>omit</key> <true/>
-			<key>weight</key> <real>100</real>
+			<key>omit</key>
+			<true/>
+			<key>weight</key>
+			<integer>100</integer>
 		</dict>
 	</dict>
 </dict>
