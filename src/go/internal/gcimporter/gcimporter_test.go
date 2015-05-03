@@ -25,6 +25,7 @@ func skipSpecialPlatforms(t *testing.T) {
 	switch platform := runtime.GOOS + "-" + runtime.GOARCH; platform {
 	case "nacl-amd64p32",
 		"nacl-386",
+		"nacl-arm",
 		"darwin-arm",
 		"darwin-arm64":
 		t.Skipf("no compiled packages available for import on %s", platform)
