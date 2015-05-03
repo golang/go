@@ -822,6 +822,7 @@ var reorderTests = []struct {
 	{"%d %d %d %#[1]o %#o %#o %#o", SE{11, 12, 13}, "11 12 13 013 014 015 %!o(MISSING)"},
 	{"%[5]d %[2]d %d", SE{1, 2, 3}, "%!d(BADINDEX) 2 3"},
 	{"%d %[3]d %d", SE{1, 2}, "1 %!d(BADINDEX) 2"}, // Erroneous index does not affect sequence.
+	{"%.[]", SE{}, "%!](BADINDEX)"},                // Issue 10675
 }
 
 func TestReorder(t *testing.T) {
