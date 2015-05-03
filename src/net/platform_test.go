@@ -40,7 +40,7 @@ func testableNetwork(network string) bool {
 		}
 	case "unixpacket":
 		switch runtime.GOOS {
-		case "android", "darwin", "nacl", "openbsd", "plan9", "windows":
+		case "android", "darwin", "nacl", "plan9", "windows":
 			fallthrough
 		case "freebsd": // FreeBSD 8 and below don't support unixpacket
 			return false
