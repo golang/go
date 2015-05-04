@@ -3193,6 +3193,21 @@ func walkcompare(np **Node, init **NodeList) {
 		return
 	}
 
+	if t.Etype == TARRAY {
+		// Zero- or single-element array, of any type.
+		switch t.Bound {
+		case 0:
+			finishcompare(np, n, Nodbool(n.Op == OEQ), init)
+			return
+		case 1:
+			l0 := Nod(OINDEX, l, Nodintconst(0))
+			r0 := Nod(OINDEX, r, Nodintconst(0))
+			a := Nod(n.Op, l0, r0)
+			finishcompare(np, n, a, init)
+			return
+		}
+	}
+
 	if t.Etype == TSTRUCT && countfield(t) <= 4 {
 		// Struct of four or fewer fields.
 		// Inline comparisons.
