@@ -5,6 +5,7 @@
 package main
 
 import (
+	"flag"
 	"go/build"
 	"internal/testenv"
 	"io/ioutil"
@@ -49,6 +50,16 @@ var armNeed = []string{
 	"RET",
 }
 
+var ppcNeed = []string{
+	"fmthello.go:6",
+	"TEXT main.main(SB)",
+	"BR main.main(SB)",
+	"BL fmt.Println(SB)",
+	"RET",
+}
+
+var target = flag.String("target", "", "test disassembly of `goos/goarch` binary")
+
 // objdump is fully cross platform: it can handle binaries
 // from any known operating system and architecture.
 // We could in principle add binaries to testdata and check
@@ -62,6 +73,19 @@ func testDisasm(t *testing.T, flags ...string) {
 	tmp, exe := buildObjdump(t)
 	defer os.RemoveAll(tmp)
 
+	goarch := runtime.GOARCH
+	if *target != "" {
+		f := strings.Split(*target, "/")
+		if len(f) != 2 {
+			t.Fatalf("-target argument must be goos/goarch")
+		}
+		defer os.Setenv("GOOS", os.Getenv("GOOS"))
+		defer os.Setenv("GOARCH", os.Getenv("GOARCH"))
+		os.Setenv("GOOS", f[0])
+		os.Setenv("GOARCH", f[1])
+		goarch = f[1]
+	}
+
 	hello := filepath.Join(tmp, "hello.exe")
 	args := []string{"build", "-o", hello}
 	args = append(args, flags...)
@@ -74,11 +98,13 @@ func testDisasm(t *testing.T, flags ...string) {
 		"fmthello.go:6",
 		"TEXT main.main(SB)",
 	}
-	switch runtime.GOARCH {
+	switch goarch {
 	case "amd64", "386":
 		need = append(need, x86Need...)
 	case "arm":
 		need = append(need, armNeed...)
+	case "ppc64", "ppc64le":
+		need = append(need, ppcNeed...)
 	}
 
 	out, err = exec.Command(exe, "-s", "main.main", hello).CombinedOutput()
@@ -101,8 +127,6 @@ func testDisasm(t *testing.T, flags ...string) {
 
 func TestDisasm(t *testing.T) {
 	switch runtime.GOARCH {
-	case "ppc64", "ppc64le":
-		t.Skipf("skipping on %s, issue 9039", runtime.GOARCH)
 	case "arm64":
 		t.Skipf("skipping on %s, issue 10106", runtime.GOARCH)
 	case "mips64", "mips64le":
