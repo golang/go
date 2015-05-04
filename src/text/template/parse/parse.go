@@ -196,6 +196,7 @@ func (t *Tree) recover(errp *error) {
 			panic(e)
 		}
 		if t != nil {
+			t.lex.drain()
 			t.stopParse()
 		}
 		*errp = e.(error)
