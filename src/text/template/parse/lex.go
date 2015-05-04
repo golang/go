@@ -167,10 +167,21 @@ func (l *lexer) errorf(format string, args ...interface{}) stateFn {
 }
 
 // nextItem returns the next item from the input.
+// Called by the parser, not in the lexing goroutine.
 func (l *lexer) nextItem() item {
 	item := <-l.items
 	l.lastPos = item.pos
 	return item
+}
+
+// drain drains the output so the lexing goroutine will exit.
+// Called by the parser, not in the lexing goroutine.
+func (l *lexer) drain() {
+	if l == nil {
+		return
+	}
+	for range l.items {
+	}
 }
 
 // lex creates a new scanner for the input string.
@@ -197,6 +208,7 @@ func (l *lexer) run() {
 	for l.state = lexText; l.state != nil; {
 		l.state = l.state(l)
 	}
+	close(l.items)
 }
 
 // state functions
