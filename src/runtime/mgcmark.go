@@ -540,7 +540,6 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
 
 	arena_start := mheap_.arena_start
 	arena_used := mheap_.arena_used
-	scanWork := int64(0)
 
 	for i := uintptr(0); i < n; {
 		// Find bits for the next word.
@@ -553,7 +552,6 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
 			if bits&1 != 0 {
 				// Same work as in scanobject; see comments there.
 				obj := *(*uintptr)(unsafe.Pointer(b + i))
-				scanWork++
 				if obj != 0 && arena_start <= obj && obj < arena_used {
 					if mheap_.shadow_enabled && debug.wbshadow >= 2 && debug.gccheckmark > 0 && useCheckmark {
 						checkwbshadow((*uintptr)(unsafe.Pointer(b + i)))
@@ -568,7 +566,7 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
 		}
 	}
 
-	gcw.scanWork += scanWork
+	gcw.scanWork += int64(n)
 }
 
 // scanobject scans the object starting at b, adding pointers to gcw.
@@ -579,7 +577,6 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
 func scanobject(b uintptr, gcw *gcWork) {
 	arena_start := mheap_.arena_start
 	arena_used := mheap_.arena_used
-	scanWork := int64(0)
 
 	// Find bits of the beginning of the object.
 	// b must point to the beginning of a heap object, so
@@ -591,7 +588,8 @@ func scanobject(b uintptr, gcw *gcWork) {
 		throw("scanobject n == 0")
 	}
 
-	for i := uintptr(0); i < n; i += ptrSize {
+	var i uintptr
+	for i = 0; i < n; i += ptrSize {
 		// Find bits for this word.
 		if i != 0 {
 			// Avoid needless hbits.next() on last iteration.
@@ -616,16 +614,6 @@ func scanobject(b uintptr, gcw *gcWork) {
 
 		obj := *(*uintptr)(unsafe.Pointer(b + i))
 
-		// Track the scan work performed as a way to estimate
-		// GC time. We use the number of pointers scanned
-		// because pointer scanning dominates the cost of
-		// scanning.
-		//
-		// TODO(austin): Consider counting only pointers into
-		// the heap, since nil and non-heap pointers are
-		// probably cheap to scan.
-		scanWork++
-
 		// At this point we have extracted the next potential pointer.
 		// Check if it points into heap.
 		if obj != 0 && arena_start <= obj && obj < arena_used {
@@ -640,7 +628,7 @@ func scanobject(b uintptr, gcw *gcWork) {
 		}
 	}
 	gcw.bytesMarked += uint64(n)
-	gcw.scanWork += scanWork
+	gcw.scanWork += int64(i)
 }
 
 // Shade the object if it isn't already.
