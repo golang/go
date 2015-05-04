@@ -59,8 +59,15 @@ func main() {
 		log.Fatal("usage: go_darwin_arm_exec a.out")
 	}
 
+	// e.g. B393DDEB490947F5A463FD074299B6C0AXXXXXXX
 	devID = getenv("GOIOS_DEV_ID")
+
+	// e.g. Z8B3JBXXXX.org.golang.sample, Z8B3JBXXXX prefix is available at
+	// https://developer.apple.com/membercenter/index.action#accountSummary as Team ID.
 	appID = getenv("GOIOS_APP_ID")
+
+	// e.g. Z8B3JBXXXX, available at
+	// https://developer.apple.com/membercenter/index.action#accountSummary as Team ID.
 	teamID = getenv("GOIOS_TEAM_ID")
 
 	var err error
