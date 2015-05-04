@@ -10,6 +10,12 @@ import (
 	"testing"
 )
 
+const (
+	typeScalar  = 0
+	typePointer = 1
+	typeDead    = 255
+)
+
 // TestGCInfo tests that various objects in heap, data and bss receive correct GC pointer type info.
 func TestGCInfo(t *testing.T) {
 	verifyGCInfo(t, "bss ScalarPtr", &bssScalarPtr, infoScalarPtr)
@@ -37,7 +43,9 @@ func TestGCInfo(t *testing.T) {
 	verifyGCInfo(t, "stack iface", new(Iface), nonStackInfo(infoIface))
 
 	for i := 0; i < 10; i++ {
+		verifyGCInfo(t, "heap PtrSlice", escape(&make([]*byte, 10)[0]), infoPtr10)
 		verifyGCInfo(t, "heap ScalarPtr", escape(new(ScalarPtr)), infoScalarPtr)
+		verifyGCInfo(t, "heap ScalarPtrSlice", escape(&make([]ScalarPtr, 4)[0]), infoScalarPtr4)
 		verifyGCInfo(t, "heap PtrScalar", escape(new(PtrScalar)), infoPtrScalar)
 		verifyGCInfo(t, "heap BigStruct", escape(new(BigStruct)), infoBigStruct())
 		verifyGCInfo(t, "heap string", escape(new(string)), infoString)
@@ -78,18 +86,7 @@ func escape(p interface{}) interface{} {
 	return p
 }
 
-const (
-	typeDead = iota
-	typeScalar
-	typePointer
-)
-
-const (
-	BitsString = iota // unused
-	BitsSlice         // unused
-	BitsIface
-	BitsEface
-)
+var infoPtr10 = []byte{typePointer, typePointer, typePointer, typePointer, typePointer, typePointer, typePointer, typePointer, typePointer, typePointer}
 
 type ScalarPtr struct {
 	q int
@@ -101,6 +98,8 @@ type ScalarPtr struct {
 }
 
 var infoScalarPtr = []byte{typeScalar, typePointer, typeScalar, typePointer, typeScalar, typePointer}
+
+var infoScalarPtr4 = append(append(append(append([]byte(nil), infoScalarPtr...), infoScalarPtr...), infoScalarPtr...), infoScalarPtr...)
 
 type PtrScalar struct {
 	q *int

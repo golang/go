@@ -597,20 +597,19 @@ func scanobject(b uintptr, gcw *gcWork) {
 			// Avoid needless hbits.next() on last iteration.
 			hbits = hbits.next()
 		}
-		bits := uintptr(hbits.typeBits())
-		if bits == typeDead {
-			break // no more pointers in this object
+		// During checkmarking, 1-word objects store the checkmark
+		// in the type bit for the one word. The only one-word objects
+		// are pointers, or else they'd be merged with other non-pointer
+		// data into larger allocations.
+		if n != 1 {
+			b := hbits.bits()
+			if i >= 2*ptrSize && b&bitMarked == 0 {
+				break // no more pointers in this object
+			}
+			if b&bitPointer == 0 {
+				continue // not a pointer
+			}
 		}
-
-		if bits <= typeScalar { // typeScalar, typeDead, typeScalarMarked
-			continue
-		}
-
-		if bits&typePointer != typePointer {
-			print("gc useCheckmark=", useCheckmark, " b=", hex(b), "\n")
-			throw("unexpected garbage collection bits")
-		}
-
 		// Work here is duplicated in scanblock.
 		// If you make changes here, make changes there too.
 
@@ -673,11 +672,11 @@ func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork
 
 			throw("checkmark found unmarked object")
 		}
-		if hbits.isCheckmarked() {
+		if hbits.isCheckmarked(span.elemsize) {
 			return
 		}
-		hbits.setCheckmarked()
-		if !hbits.isCheckmarked() {
+		hbits.setCheckmarked(span.elemsize)
+		if !hbits.isCheckmarked(span.elemsize) {
 			throw("setCheckmarked and isCheckmarked disagree")
 		}
 	} else {
@@ -685,12 +684,11 @@ func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork
 		if hbits.isMarked() {
 			return
 		}
-
 		hbits.setMarked()
 
 		// If this is a noscan object, fast-track it to black
 		// instead of greying it.
-		if hbits.typeBits() == typeDead {
+		if !hbits.hasPointers(span.elemsize) {
 			gcw.bytesMarked += uint64(span.elemsize)
 			return
 		}
