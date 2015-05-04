@@ -41,23 +41,25 @@ func decode_inuxi(p []byte, sz int) uint64 {
 	}
 }
 
+// commonsize returns the size of the common prefix for all type
+// structures (runtime._type).
 func commonsize() int {
-	return 8*Thearch.Ptrsize + 8
+	return 9*Thearch.Ptrsize + 8
 }
 
 // Type.commonType.kind
 func decodetype_kind(s *LSym) uint8 {
-	return uint8(s.P[1*Thearch.Ptrsize+7] & obj.KindMask) //  0x13 / 0x1f
+	return uint8(s.P[2*Thearch.Ptrsize+7] & obj.KindMask) //  0x13 / 0x1f
 }
 
 // Type.commonType.kind
 func decodetype_noptr(s *LSym) uint8 {
-	return uint8(s.P[1*Thearch.Ptrsize+7] & obj.KindNoPointers) //  0x13 / 0x1f
+	return uint8(s.P[2*Thearch.Ptrsize+7] & obj.KindNoPointers) //  0x13 / 0x1f
 }
 
 // Type.commonType.kind
 func decodetype_usegcprog(s *LSym) uint8 {
-	return uint8(s.P[1*Thearch.Ptrsize+7] & obj.KindGCProg) //  0x13 / 0x1f
+	return uint8(s.P[2*Thearch.Ptrsize+7] & obj.KindGCProg) //  0x13 / 0x1f
 }
 
 // Type.commonType.size
@@ -72,11 +74,11 @@ func decodetype_gcprog(s *LSym) *LSym {
 		x := "type..gcprog." + s.Name[5:]
 		return Linklookup(Ctxt, x, 0)
 	}
-	return decode_reloc_sym(s, 1*int32(Thearch.Ptrsize)+8+2*int32(Thearch.Ptrsize))
+	return decode_reloc_sym(s, 2*int32(Thearch.Ptrsize)+8+2*int32(Thearch.Ptrsize))
 }
 
 func decodetype_gcprog_shlib(s *LSym) uint64 {
-	return decode_inuxi(s.P[1*int32(Thearch.Ptrsize)+8+1*int32(Thearch.Ptrsize):], Thearch.Ptrsize)
+	return decode_inuxi(s.P[2*int32(Thearch.Ptrsize)+8+1*int32(Thearch.Ptrsize):], Thearch.Ptrsize)
 }
 
 func decodetype_gcmask(s *LSym) []byte {
@@ -85,7 +87,7 @@ func decodetype_gcmask(s *LSym) []byte {
 		// of gcmask for types defined in that shared library.
 		return s.gcmask
 	}
-	mask := decode_reloc_sym(s, 1*int32(Thearch.Ptrsize)+8+1*int32(Thearch.Ptrsize))
+	mask := decode_reloc_sym(s, 2*int32(Thearch.Ptrsize)+8+1*int32(Thearch.Ptrsize))
 	return mask.P
 }
 
