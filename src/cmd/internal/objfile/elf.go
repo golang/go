@@ -9,6 +9,7 @@ package objfile
 import (
 	"debug/dwarf"
 	"debug/elf"
+	"encoding/binary"
 	"fmt"
 	"os"
 )
@@ -99,6 +100,9 @@ func (f *elfFile) goarch() string {
 	case elf.EM_ARM:
 		return "arm"
 	case elf.EM_PPC64:
+		if f.elf.ByteOrder == binary.LittleEndian {
+			return "ppc64le"
+		}
 		return "ppc64"
 	case elf.EM_S390:
 		return "s390x"

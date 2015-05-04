@@ -16,6 +16,7 @@ import (
 	"text/tabwriter"
 
 	"golang.org/x/arch/arm/armasm"
+	"golang.org/x/arch/ppc64/ppc64asm"
 	"golang.org/x/arch/x86/x86asm"
 )
 
@@ -49,6 +50,7 @@ func (f *File) Disasm() (*Disasm, error) {
 	}
 
 	goarch := f.GOARCH()
+	println("GOARCH", goarch)
 	disasm := disasms[goarch]
 	byteOrder := byteOrders[goarch]
 	if disasm == nil || byteOrder == nil {
@@ -170,7 +172,7 @@ func (d *Disasm) Decode(start, end uint64, relocs []Reloc, f func(pc, size uint6
 	lookup := d.lookup
 	for pc := start; pc < end; {
 		i := pc - d.textStart
-		text, size := d.disasm(code[i:], pc, lookup)
+		text, size := d.disasm(code[i:], pc, lookup, d.byteOrder)
 		file, line, _ := d.pcln.PCToLine(pc)
 		text += "\t"
 		first := true
@@ -189,13 +191,13 @@ func (d *Disasm) Decode(start, end uint64, relocs []Reloc, f func(pc, size uint6
 }
 
 type lookupFunc func(addr uint64) (sym string, base uint64)
-type disasmFunc func(code []byte, pc uint64, lookup lookupFunc) (text string, size int)
+type disasmFunc func(code []byte, pc uint64, lookup lookupFunc, ord binary.ByteOrder) (text string, size int)
 
-func disasm_386(code []byte, pc uint64, lookup lookupFunc) (string, int) {
+func disasm_386(code []byte, pc uint64, lookup lookupFunc, _ binary.ByteOrder) (string, int) {
 	return disasm_x86(code, pc, lookup, 32)
 }
 
-func disasm_amd64(code []byte, pc uint64, lookup lookupFunc) (string, int) {
+func disasm_amd64(code []byte, pc uint64, lookup lookupFunc, _ binary.ByteOrder) (string, int) {
 	return disasm_x86(code, pc, lookup, 64)
 }
 
@@ -232,7 +234,7 @@ func (r textReader) ReadAt(data []byte, off int64) (n int, err error) {
 	return
 }
 
-func disasm_arm(code []byte, pc uint64, lookup lookupFunc) (string, int) {
+func disasm_arm(code []byte, pc uint64, lookup lookupFunc, _ binary.ByteOrder) (string, int) {
 	inst, err := armasm.Decode(code, armasm.ModeARM)
 	var text string
 	size := inst.Len
@@ -245,10 +247,25 @@ func disasm_arm(code []byte, pc uint64, lookup lookupFunc) (string, int) {
 	return text, size
 }
 
+func disasm_ppc64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.ByteOrder) (string, int) {
+	inst, err := ppc64asm.Decode(code, byteOrder)
+	var text string
+	size := inst.Len
+	if err != nil || size == 0 || inst.Op == 0 {
+		size = 4
+		text = "?"
+	} else {
+		text = ppc64asm.GoSyntax(inst, pc, lookup)
+	}
+	return text, size
+}
+
 var disasms = map[string]disasmFunc{
-	"386":   disasm_386,
-	"amd64": disasm_amd64,
-	"arm":   disasm_arm,
+	"386":     disasm_386,
+	"amd64":   disasm_amd64,
+	"arm":     disasm_arm,
+	"ppc64":   disasm_ppc64,
+	"ppc64le": disasm_ppc64,
 }
 
 var byteOrders = map[string]binary.ByteOrder{
