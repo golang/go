@@ -102,13 +102,18 @@ func mapbucket(t *Type) *Type {
 		valtype = Ptrto(valtype)
 	}
 
+	field := make([]*Field, 0, 5)
+
 	// The first field is: uint8 topbits[BUCKETSIZE].
 	arr := typArray(Types[TUINT8], BUCKETSIZE)
-	field := make([]*Field, 0, 5)
 	field = append(field, makefield("topbits", arr))
+
 	arr = typArray(keytype, BUCKETSIZE)
+	arr.Noalg = true
 	field = append(field, makefield("keys", arr))
+
 	arr = typArray(valtype, BUCKETSIZE)
+	arr.Noalg = true
 	field = append(field, makefield("values", arr))
 
 	// Make sure the overflow pointer is the last memory in the struct,
