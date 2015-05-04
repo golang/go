@@ -676,10 +676,62 @@ func haspointers(t *Type) bool {
 		fallthrough
 	default:
 		ret = true
+
+	case TFIELD:
+		Fatal("haspointers: unexpected type, %v", t)
 	}
 
 	t.Haspointers = 1 + uint8(obj.Bool2int(ret))
 	return ret
+}
+
+// typeptrsize returns the length in bytes of the prefix of t
+// containing pointer data. Anything after this offset is scalar data.
+func typeptrsize(t *Type) uint64 {
+	if !haspointers(t) {
+		return 0
+	}
+
+	switch t.Etype {
+	case TPTR32,
+		TPTR64,
+		TUNSAFEPTR,
+		TFUNC,
+		TCHAN,
+		TMAP:
+		return uint64(Widthptr)
+
+	case TSTRING:
+		// struct { byte *str; intgo len; }
+		return uint64(Widthptr)
+
+	case TINTER:
+		// struct { Itab *tab;	void *data; } or
+		// struct { Type *type; void *data; }
+		return 2 * uint64(Widthptr)
+
+	case TARRAY:
+		if Isslice(t) {
+			// struct { byte *array; uintgo len; uintgo cap; }
+			return uint64(Widthptr)
+		}
+		// haspointers already eliminated t.Bound == 0.
+		return uint64(t.Bound-1)*uint64(t.Type.Width) + typeptrsize(t.Type)
+
+	case TSTRUCT:
+		// Find the last field that has pointers.
+		var lastPtrField *Type
+		for t1 := t.Type; t1 != nil; t1 = t1.Down {
+			if haspointers(t1.Type) {
+				lastPtrField = t1
+			}
+		}
+		return uint64(lastPtrField.Width) + typeptrsize(lastPtrField.Type)
+
+	default:
+		Fatal("typeptrsize: unexpected type, %v", t)
+		return 0
+	}
 }
 
 /*
@@ -728,6 +780,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	// actual type structure
 	//	type commonType struct {
 	//		size          uintptr
+	//		ptrsize       uintptr
 	//		hash          uint32
 	//		_             uint8
 	//		align         uint8
@@ -741,6 +794,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	//		zero          unsafe.Pointer
 	//	}
 	ot = duintptr(s, ot, uint64(t.Width))
+	ot = duintptr(s, ot, typeptrsize(t))
 
 	ot = duint32(s, ot, typehash(t))
 	ot = duint8(s, ot, 0) // unused

@@ -8,9 +8,12 @@ package runtime
 
 import "unsafe"
 
-// Needs to be in sync with ../../cmd/internal/ld/decodesym.go:/^commonsize and pkg/reflect/type.go:/type.
+// Needs to be in sync with ../cmd/internal/ld/decodesym.go:/^func.commonsize,
+// ../cmd/internal/gc/reflect.go:/^func.dcommontype and
+// ../reflect/type.go:/^type.rtype.
 type _type struct {
 	size       uintptr
+	ptrsize    uintptr // Bytes of prefix containing pointer slots.
 	hash       uint32
 	_unused    uint8
 	align      uint8
