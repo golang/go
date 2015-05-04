@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
-	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -261,14 +260,21 @@ func testAfterQueuing(t *testing.T, delta Duration) error {
 	for _, slot := range slots {
 		go await(slot, result, After(Duration(slot)*delta))
 	}
-	sort.Ints(slots)
-	for _, slot := range slots {
+	var order []int
+	var times []Time
+	for range slots {
 		r := <-result
-		if r.slot != slot {
-			return fmt.Errorf("after slot %d, expected %d", r.slot, slot)
+		order = append(order, r.slot)
+		times = append(times, r.t)
+	}
+	for i := range order {
+		if i > 0 && order[i] < order[i-1] {
+			return fmt.Errorf("After calls returned out of order: %v", order)
 		}
-		dt := r.t.Sub(t0)
-		target := Duration(slot) * delta
+	}
+	for i, t := range times {
+		dt := t.Sub(t0)
+		target := Duration(order[i]) * delta
 		if dt < target-delta/2 || dt > target+delta*10 {
 			return fmt.Errorf("After(%s) arrived at %s, expected [%s,%s]", target, dt, target-delta/2, target+delta*10)
 		}
