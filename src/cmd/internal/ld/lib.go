@@ -1224,10 +1224,7 @@ func ldshlibsyms(shlib string) {
 		if decodetype_noptr(t) != 0 || decodetype_usegcprog(t) != 0 {
 			continue
 		}
-		// The expression on the next line is a copy of the expression from
-		// decodetype_gcmask in decodesym.go, which in turn depends on details of
-		// how the type data is laid out, as seen in gc/reflect.go:dcommontype.
-		addr := decode_inuxi(t.P[1*int32(Thearch.Ptrsize)+8+1*int32(Thearch.Ptrsize):], Thearch.Ptrsize)
+		addr := decodetype_gcprog_shlib(t)
 		tgcmask, ok := gcmasks[addr]
 		if !ok {
 			Diag("bits not found for %s at %d", t.Name, addr)
