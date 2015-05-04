@@ -75,6 +75,10 @@ func decodetype_gcprog(s *LSym) *LSym {
 	return decode_reloc_sym(s, 1*int32(Thearch.Ptrsize)+8+2*int32(Thearch.Ptrsize))
 }
 
+func decodetype_gcprog_shlib(s *LSym) uint64 {
+	return decode_inuxi(s.P[1*int32(Thearch.Ptrsize)+8+1*int32(Thearch.Ptrsize):], Thearch.Ptrsize)
+}
+
 func decodetype_gcmask(s *LSym) []byte {
 	if s.Type == obj.SDYNIMPORT {
 		// ldshlibsyms makes special efforts to read the value
