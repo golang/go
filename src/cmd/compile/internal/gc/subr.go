@@ -2649,17 +2649,13 @@ func genhash(sym *Sym, t *Type) {
 	safemode = old_safemode
 }
 
-// Return node for
-//	if p.field != q.field { return false }
+// eqfield returns the node
+// 	p.field == q.field
 func eqfield(p *Node, q *Node, field *Node) *Node {
 	nx := Nod(OXDOT, p, field)
 	ny := Nod(OXDOT, q, field)
-	nif := Nod(OIF, nil, nil)
-	nif.Left = Nod(ONE, nx, ny)
-	r := Nod(ORETURN, nil, nil)
-	r.List = list(r.List, Nodbool(false))
-	nif.Nbody = list(nif.Nbody, r)
-	return nif
+	ne := Nod(OEQ, nx, ny)
+	return ne
 }
 
 func eqmemfunc(size int64, type_ *Type, needsize *int) *Node {
@@ -2680,8 +2676,8 @@ func eqmemfunc(size int64, type_ *Type, needsize *int) *Node {
 	return fn
 }
 
-// Return node for
-//	if !memequal(&p.field, &q.field [, size]) { return false }
+// eqmem returns the node
+// 	memequal(&p.field, &q.field [, size])
 func eqmem(p *Node, q *Node, field *Node, size int64) *Node {
 	var needsize int
 
@@ -2699,15 +2695,11 @@ func eqmem(p *Node, q *Node, field *Node, size int64) *Node {
 		call.List = list(call.List, Nodintconst(size))
 	}
 
-	nif := Nod(OIF, nil, nil)
-	nif.Left = Nod(ONOT, call, nil)
-	r := Nod(ORETURN, nil, nil)
-	r.List = list(r.List, Nodbool(false))
-	nif.Nbody = list(nif.Nbody, r)
-	return nif
+	return call
 }
 
-// Generate a helper function to check equality of two values of type t.
+// geneq generates a helper function to
+// check equality of two values of type t.
 func geneq(sym *Sym, t *Type) {
 	if Debug['r'] != 0 {
 		fmt.Printf("geneq %v %v\n", sym, t)
@@ -2777,12 +2769,18 @@ func geneq(sym *Sym, t *Type) {
 		nrange.Nbody = list(nrange.Nbody, nif)
 		fn.Nbody = list(fn.Nbody, nrange)
 
-		// Walk the struct using memequal for runs of AMEM
+		// return true
+		ret := Nod(ORETURN, nil, nil)
+		ret.List = list(ret.List, Nodbool(true))
+		fn.Nbody = list(fn.Nbody, ret)
+
+	// Walk the struct using memequal for runs of AMEM
 	// and calling specific equality tests for the others.
 	// Skip blank-named fields.
 	case TSTRUCT:
 		var first *Type
 
+		var conjuncts []*Node
 		offend := int64(0)
 		var size int64
 		for t1 := t.Type; ; t1 = t1.Down {
@@ -2805,17 +2803,17 @@ func geneq(sym *Sym, t *Type) {
 			// cross-package unexported fields.
 			if first != nil {
 				if first.Down == t1 {
-					fn.Nbody = list(fn.Nbody, eqfield(np, nq, newname(first.Sym)))
+					conjuncts = append(conjuncts, eqfield(np, nq, newname(first.Sym)))
 				} else if first.Down.Down == t1 {
-					fn.Nbody = list(fn.Nbody, eqfield(np, nq, newname(first.Sym)))
+					conjuncts = append(conjuncts, eqfield(np, nq, newname(first.Sym)))
 					first = first.Down
 					if !isblanksym(first.Sym) {
-						fn.Nbody = list(fn.Nbody, eqfield(np, nq, newname(first.Sym)))
+						conjuncts = append(conjuncts, eqfield(np, nq, newname(first.Sym)))
 					}
 				} else {
 					// More than two fields: use memequal.
 					size = offend - first.Width // first->width is offset
-					fn.Nbody = list(fn.Nbody, eqmem(np, nq, newname(first.Sym), size))
+					conjuncts = append(conjuncts, eqmem(np, nq, newname(first.Sym), size))
 				}
 
 				first = nil
@@ -2829,15 +2827,26 @@ func geneq(sym *Sym, t *Type) {
 			}
 
 			// Check this field, which is not just memory.
-			fn.Nbody = list(fn.Nbody, eqfield(np, nq, newname(t1.Sym)))
+			conjuncts = append(conjuncts, eqfield(np, nq, newname(t1.Sym)))
 		}
+
+		var and *Node
+		switch len(conjuncts) {
+		case 0:
+			and = Nodbool(true)
+		case 1:
+			and = conjuncts[0]
+		default:
+			and = Nod(OANDAND, conjuncts[0], conjuncts[1])
+			for _, conjunct := range conjuncts[2:] {
+				and = Nod(OANDAND, and, conjunct)
+			}
+		}
+
+		ret := Nod(ORETURN, nil, nil)
+		ret.List = list(ret.List, and)
+		fn.Nbody = list(fn.Nbody, ret)
 	}
-
-	// return true
-	r := Nod(ORETURN, nil, nil)
-
-	r.List = list(r.List, Nodbool(true))
-	fn.Nbody = list(fn.Nbody, r)
 
 	if Debug['r'] != 0 {
 		dumplist("geneq body", fn.Nbody)
