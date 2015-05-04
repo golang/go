@@ -601,18 +601,16 @@ func scanobject(b uintptr, gcw *gcWork) {
 		// in the type bit for the one word. The only one-word objects
 		// are pointers, or else they'd be merged with other non-pointer
 		// data into larger allocations.
-		if n != 1 {
-			b := hbits.bits()
-			if i >= 2*ptrSize && b&bitMarked == 0 {
-				break // no more pointers in this object
-			}
-			if b&bitPointer == 0 {
-				continue // not a pointer
-			}
+		bits := hbits.bits()
+		if i >= 2*ptrSize && bits&bitMarked == 0 {
+			break // no more pointers in this object
 		}
-		// Work here is duplicated in scanblock.
-		// If you make changes here, make changes there too.
+		if bits&bitPointer == 0 {
+			continue // not a pointer
+		}
 
+		// Work here is duplicated in scanblock and above.
+		// If you make changes here, make changes there too.
 		obj := *(*uintptr)(unsafe.Pointer(b + i))
 
 		// At this point we have extracted the next potential pointer.

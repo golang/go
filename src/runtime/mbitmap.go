@@ -476,12 +476,33 @@ func heapBitsSweepSpan(base, size, n uintptr, f func(uintptr)) {
 // (The number of values is given by dataSize / typ.size.)
 // If dataSize < size, the fragment [x+dataSize, x+size) is
 // recorded as non-pointer data.
+// It is known that the type has pointers somewhere;
+// malloc does not call heapBitsSetType when there are no pointers,
+// because all free objects are marked as noscan during
+// heapBitsSweepSpan.
+// There can only be one allocation from a given span active at a time,
+// so this code is not racing with other instances of itself,
+// and we don't allocate from a span until it has been swept,
+// so this code is not racing with heapBitsSweepSpan.
+// It is, however, racing with the concurrent GC mark phase,
+// which can be setting the mark bit in the leading 2-bit entry
+// of an allocated block. The block we are modifying is not quite
+// allocated yet, so the GC marker is not racing with updates to x's bits,
+// but if the start or end of x shares a bitmap byte with an adjacent
+// object, the GC marker is racing with updates to those object's mark bits.
 func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	// From here till marked label marking the object as allocated
 	// and storing type info in the GC bitmap.
 	h := heapBitsForAddr(x)
 
-	var ptrmask *uint8
+	// dataSize is always size rounded up to the next malloc size class,
+	// except in the case of allocating a defer block, in which case
+	// size is sizeof(_defer{}) (at least 6 words) and dataSize may be
+	// arbitrarily larger.
+	//
+	// The checks for size == ptrSize and size == 2*ptrSize can therefore
+	// assume that dataSize == size without checking it explicitly.
+
 	if size == ptrSize {
 		// It's one word and it has pointers, it must be a pointer.
 		// The bitmap byte is shared with the one-word object
@@ -494,6 +515,8 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 		atomicor8(h.bitp, bitPointer<<h.shift)
 		return
 	}
+
+	ptrmask := (*uint8)(unsafe.Pointer(typ.gc[0])) // pointer to unrolled mask
 	if typ.kind&kindGCProg != 0 {
 		nptr := (uintptr(typ.size) + ptrSize - 1) / ptrSize
 		masksize := (nptr + 7) / 8
@@ -510,7 +533,6 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 			})
 			return
 		}
-		ptrmask = (*uint8)(unsafe.Pointer(uintptr(typ.gc[0])))
 		// Check whether the program is already unrolled
 		// by checking if the unroll flag byte is set
 		maskword := uintptr(atomicloadp(unsafe.Pointer(ptrmask)))
@@ -519,33 +541,294 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 				unrollgcprog_m(typ)
 			})
 		}
-		ptrmask = (*uint8)(add(unsafe.Pointer(ptrmask), 1)) // skip the unroll flag byte
-	} else {
-		ptrmask = (*uint8)(unsafe.Pointer(typ.gc[0])) // pointer to unrolled mask
+		ptrmask = addb(ptrmask, 1) // skip the unroll flag byte
+	}
+
+	// Heap bitmap bits for 2-word object are only 4 bits,
+	// so also shared with objects next to it; use atomic updates.
+	// This is called out as a special case primarily for 32-bit systems,
+	// so that on 32-bit systems the code below can assume all objects
+	// are 4-word aligned (because they're all 16-byte aligned).
+	if size == 2*ptrSize {
+		if typ.size == ptrSize {
+			// 2-element slice of pointer.
+			atomicor8(h.bitp, (bitPointer|bitPointer<<heapBitsWidth)<<h.shift)
+			return
+		}
+		// Otherwise typ.size must be 2*ptrSize, and typ.kind&kindGCProg == 0.
+		b := uint32(*ptrmask)
+		hb := b&1 | (b&2)<<(heapBitsWidth-1)
+		atomicor8(h.bitp, uint8(hb<<h.shift))
+		return
 	}
 
 	// Copy from 1-bit ptrmask into 2-bit bitmap.
-	// If size is a multiple of 4 words, then the bitmap bytes for the object
-	// are not shared with any other object and can be written directly.
-	// On 64-bit systems, many sizes are only 16-byte aligned; half of
-	// those are not multiples of 4 words (for example, 48/8 = 6 words);
-	// those share either the leading byte or the trailing byte of their bitmaps
-	// with another object.
-	nptr := typ.size / ptrSize
-	_ = nptr
-	for i := uintptr(0); i < dataSize/ptrSize; i++ {
-		atomicand8(h.bitp, ^((bitPointer | bitMarked) << h.shift))
-		j := i % nptr
-		if (*addb(ptrmask, j/8)>>(j%8))&1 != 0 {
-			atomicor8(h.bitp, bitPointer<<h.shift)
+	// The basic approach is to use a single uintptr as a bit buffer,
+	// alternating between reloading the buffer and writing bitmap bytes.
+	// In general, one load can supply two bitmap byte writes.
+	// This is a lot of lines of code, but it compiles into relatively few
+	// machine instructions.
+	var (
+		p     *byte   // last ptrmask byte read
+		b     uintptr // ptrmask bits already loaded
+		nb    uint32  // number of bits in b at next read
+		endp  *byte   // final ptrmask byte to read (then repeat)
+		endnb uint32  // number of valid bits in *endp
+		pbits uintptr // alternate source of bits
+	)
+
+	p = ptrmask
+	if typ.size < dataSize {
+		// Filling in bits for an array of typ.
+		// Set up for repetition of ptrmask during main loop.
+		if typ.size/ptrSize+7 <= ptrSize*8 {
+			// Entire ptrmask + a leftover fragment fits in uintptr.
+			// Load into pbits and never read from ptrmask again.
+			// This is especially important when the ptrmask has
+			// fewer than 8 bits in it; otherwise the reload in the middle
+			// of the Phase 2 loop would itself need to loop to gather
+			// at least 8 bits.
+
+			// Accumulate ptrmask into b.
+			nb = uint32(typ.size / ptrSize)
+			for i := uint32(0); i < nb; i += 8 {
+				b |= uintptr(*p) << i
+				p = addb(p, 1)
+			}
+
+			// Replicate ptrmask to fill entire pbits uintptr.
+			// Doubling and truncating is fewer steps than
+			// iterating by nb each time. (nb could be 1.)
+			pbits = b
+			endnb = nb
+			for endnb <= ptrSize*8 {
+				pbits |= pbits << endnb
+				endnb += endnb
+			}
+			// Truncate to an multiple of original ptrmask.
+			endnb = (ptrSize*8 - 7) / nb * nb
+			pbits &= 1<<endnb - 1
+			b = pbits
+			nb = endnb
+
+			// Clear p and endp as sentinel for using pbits.
+			// Checked during Phase 2 loop.
+			p = nil
+			endp = nil
+		} else {
+			// Ptrmask is larger. Read it multiple times.
+			endp = addb(ptrmask, (typ.size/ptrSize+7)/8-1)
+			endnb = uint32(typ.size/ptrSize) % 8
+			if endnb == 0 {
+				endnb = 8
+			}
 		}
-		if i >= 2 {
-			atomicor8(h.bitp, bitMarked<<h.shift)
-		}
-		h = h.next()
 	}
-	if dataSize < size {
-		atomicand8(h.bitp, ^((bitPointer | bitMarked) << h.shift))
+	if p != nil {
+		b = uintptr(*p)
+		p = addb(p, 1)
+		nb = 8
+	}
+
+	w := uintptr(0)          // number of words processed
+	nw := dataSize / ptrSize // number of words to process
+
+	hbitp := h.bitp // next heap bitmap byte to write
+	var hb uintptr  // bits being preapred for *h.bitp
+
+	// Phase 1: Special case for leading byte (shift==0) or half-byte (shift==4).
+	// The leading byte is special because it contains the bits for words 0 and 1,
+	// which do not have the marked bits set.
+	// The leading half-byte is special because it's a half a byte and must be
+	// manipulated atomically.
+	switch h.shift {
+	default:
+		throw("heapBitsSetType: unexpected shift")
+
+	case 0:
+		// Ptrmask and heap bitmap are aligned.
+		// Handle first byte of bitmap specially.
+		// The first byte we write out contains the first two words of the object.
+		// In those words, the mark bits are mark and checkmark, respectively,
+		// and must not be set. In all following words, we want to set the mark bit
+		// as a signal that the object continues to the next 2-bit entry in the bitmap.
+		hb = b&1 | (b&2)<<(heapBitsWidth-1) | (b&4)<<(2*heapBitsWidth-2) | (b&8)<<(3*heapBitsWidth-3)
+		hb |= bitMarked<<(2*heapBitsWidth) | bitMarked<<(3*heapBitsWidth)
+		if w += 4; w >= nw {
+			goto Phase3
+		}
+		*hbitp = uint8(hb)
+		hbitp = subtractb(hbitp, 1)
+		b >>= 4
+		nb -= 4
+
+	case 4:
+		// Ptrmask and heap bitmap are misaligned.
+		// The bits for the first two words are in a byte shared with another object
+		// and must be updated atomically.
+		// NOTE(rsc): The atomic here may not be necessary.
+		// We took care of 1-word and 2-word objects above,
+		// so this is at least a 6-word object, so our start bits
+		// are shared only with the type bits of another object,
+		// not with its mark bit. Since there is only one allocation
+		// from a given span at a time, we should be able to set
+		// these bits non-atomically. Not worth the risk right now.
+		hb = (b&1)<<4 | (b&2)<<(4+heapBitsWidth-1) // bits being prepared for *h.bitp
+		b >>= 2
+		nb -= 2
+		// Note: no bitMarker in hb because the first two words don't get markers from us.
+		atomicor8(hbitp, uint8(hb))
+		hbitp = subtractb(hbitp, 1)
+
+		// Expand 8-bit chunks of ptrmask into pairs of heap bitmap bytes.
+		// We know the object size is a multiple of 2 words but not 4, so the
+		// object size minus the 2 words we just handled is a multiple of 4,
+		// so we can use non-atomic writes to the heap bitmap for the
+		// rest of this code, even for the final fragment or a trailing dead marker byte.
+
+		// Loop prepares bits for final byte but stops before writing them,
+		// so that in the case where we need to write only part of a byte,
+		// the code below the loop can truncate the bitMarked.
+		w += 2
+	}
+
+	// Phase 2: Full bytes in bitmap, up to but not including write to last byte (full or partial) in bitmap.
+	// The loop computes the bits for that last write but does not execute the write;
+	// it leaves the bits in hb for processing by phase 3.
+	// To avoid repeated adjustment of nb, we subtract out the 4 bits we're going to
+	// use in the first half of the loop right now, and then we only adjust nb explicitly
+	// if the 8 bits used by each iteration isn't balanced by 8 bits loaded mid-loop.
+	nb -= 4
+	for {
+		// Emit bitmap byte.
+		// b has at least nb+4 bits, with one exception:
+		// if w+4 >= nw, then b has only nw-w bits,
+		// but we'll stop at the break and then truncate
+		// appropriately in Phase 3.
+		hb = b&1 | (b&2)<<(heapBitsWidth-1) | (b&4)<<(2*heapBitsWidth-2) | (b&8)<<(3*heapBitsWidth-3)
+		hb |= bitMarked | bitMarked<<heapBitsWidth | bitMarked<<(2*heapBitsWidth) | bitMarked<<(3*heapBitsWidth)
+		if w += 4; w >= nw {
+			break
+		}
+		*hbitp = uint8(hb)
+		hbitp = subtractb(hbitp, 1)
+		b >>= 4
+
+		// Load more bits. b has nb right now.
+		if p != endp {
+			// Fast path: keep reading from ptrmask.
+			// nb unmodified: we just loaded 8 bits,
+			// and the next iteration will consume 8 bits,
+			// leaving us with the same nb the next time we're here.
+			b |= uintptr(*p) << nb
+			p = addb(p, 1)
+		} else if p == nil {
+			// Almost as fast path: track bit count and refill from pbits.
+			// For short repetitions.
+			if nb < 8 {
+				b |= pbits << nb
+				nb += endnb
+			}
+			nb -= 8 // for next iteration
+		} else {
+			// Slow path: reached end of ptrmask.
+			// Process final partial byte and rewind to start.
+			b |= uintptr(*p) << nb
+			nb += endnb
+			if nb < 8 {
+				b |= uintptr(*ptrmask) << nb
+				p = addb(ptrmask, 1)
+			} else {
+				nb -= 8
+				p = ptrmask
+			}
+		}
+
+		// Emit bitmap byte.
+		hb = b&1 | (b&2)<<(heapBitsWidth-1) | (b&4)<<(2*heapBitsWidth-2) | (b&8)<<(3*heapBitsWidth-3)
+		hb |= bitMarked | bitMarked<<heapBitsWidth | bitMarked<<(2*heapBitsWidth) | bitMarked<<(3*heapBitsWidth)
+		if w += 4; w >= nw {
+			break
+		}
+		*hbitp = uint8(hb)
+		hbitp = subtractb(hbitp, 1)
+		b >>= 4
+	}
+
+Phase3:
+	// Phase 3: Special case for final byte or half-byte describing final fragment of data.
+	// If there are not four data words for this final fragment, we must clear the mark bits
+	// in the 2-bit entries for the missing words. Clearing them creates a ``dead'' entry
+	// to tell the GC scan to stop scanning this object early.
+	// If there are four words in the final fragment but there is more data,
+	// then we must write a ``dead'' entry to the next bitmap byte.
+	if frag := (nw - w) % 4; frag != 0 {
+		// Data ends at least one word early.
+		hb &= 1<<(heapBitsWidth*frag) - 1
+		if w*ptrSize <= size {
+			// We own the whole byte and get the dead marker for free.
+			*hbitp = uint8(hb)
+		} else {
+			// We only own the bottom half of the byte.
+			// If frag == 1, we get a dead marker for free.
+			// If frag == 2, no dead marker needed (we've reached the end of the object).
+			atomicand8(hbitp, 0xf0)
+			atomicor8(hbitp, uint8(hb))
+		}
+	} else {
+		// Data ends with a full bitmap byte.
+		*hbitp = uint8(hb)
+		if w*ptrSize < size {
+			// There's more data in the allocated object.
+			// Write a dead marker in the next byte.
+			hbitp = subtractb(hbitp, 1)
+			if (w+4)*ptrSize <= size {
+				// We own the whole byte.
+				*hbitp = 0
+			} else {
+				// We only own the bottom half of the byte.
+				atomicand8(hbitp, 0xf0)
+			}
+		}
+	}
+
+	const test = false // slow but helpful
+	if test {
+		// Double-check that bits to be written were written correctly.
+		// Does not check that other bits were not written, unfortunately.
+		h := heapBitsForAddr(x)
+		nptr := typ.size / ptrSize
+		for i := uintptr(0); i <= dataSize/ptrSize; i++ {
+			j := i % nptr
+			var have, want uint8
+			if i == dataSize/ptrSize {
+				if dataSize >= size {
+					break
+				}
+				have = (*h.bitp >> h.shift) & 3
+				want = 0 // dead bits
+			} else {
+				have = (*h.bitp >> h.shift) & 3
+				if (*addb(ptrmask, j/8)>>(j%8))&1 != 0 {
+					want |= bitPointer
+				}
+				if i >= 2 {
+					want |= bitMarked
+				} else {
+					have &^= bitMarked
+				}
+			}
+			if have != want {
+				println("mismatch writing bits for", *typ._string, "x", dataSize/typ.size)
+				print("typ.size=", typ.size, " dataSize=", dataSize, " size=", size, "\n")
+				h = heapBitsForAddr(x)
+				print("initial bits h.bitp=", h.bitp, " h.shift=", h.shift, "\n")
+				print("p=", p, " endp=", endp, " endnb=", endnb, " pbits=", hex(pbits), " b=", hex(b), " nb=", nb, "\n")
+				println("at word", i, "offset", i*ptrSize, "have", have, "want", want)
+				throw("bad heapBitsSetType")
+			}
+			h = h.next()
+		}
 	}
 }
 
