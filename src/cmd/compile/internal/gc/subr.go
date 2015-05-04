@@ -465,6 +465,15 @@ func algtype1(t *Type, bad **Type) int {
 			return a
 		}
 
+		switch t.Bound {
+		case 0:
+			// We checked above that the element type is comparable.
+			return AMEM
+		case 1:
+			// Single-element array is same as its lone element.
+			return a
+		}
+
 		return -1 // needs special compare
 
 	case TSTRUCT:
