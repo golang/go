@@ -4,9 +4,9 @@ package buildutil
 
 import "fmt"
 
-const TagsFlagDoc = `'tag list'\ta list of build tags to consider satisfied during the build.
-For more information about build tags, see the description of
-build constraints in the documentation for the go/build package`
+const TagsFlagDoc = "a list of `build tags` to consider satisfied during the build. " +
+	"For more information about build tags, see the description of " +
+	"build constraints in the documentation for the go/build package"
 
 // TagsFlag is an implementation of the flag.Value interface that parses
 // a flag value in the same manner as go build's -tags flag and
