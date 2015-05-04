@@ -275,9 +275,10 @@ func (pkg *Package) findFuncs(symbol string) (funcs []*doc.Func) {
 }
 
 // findTypes finds the doc.Types that describes the symbol.
+// If symbol is empty, it finds all exported types.
 func (pkg *Package) findTypes(symbol string) (types []*doc.Type) {
 	for _, typ := range pkg.doc.Types {
-		if match(symbol, typ.Name) {
+		if symbol == "" && isExported(typ.Name) || match(symbol, typ.Name) {
 			types = append(types, typ)
 		}
 	}
@@ -298,6 +299,7 @@ func (pkg *Package) findTypeSpec(decl *ast.GenDecl, symbol string) *ast.TypeSpec
 
 // symbolDoc prints the docs for symbol. There may be multiple matches.
 // If symbol matches a type, output includes its methods factories and associated constants.
+// If there is no top-level symbol, symbolDoc looks for methods that match.
 func (pkg *Package) symbolDoc(symbol string) {
 	defer pkg.flush()
 	found := false
@@ -343,7 +345,10 @@ func (pkg *Package) symbolDoc(symbol string) {
 		found = true
 	}
 	if !found {
-		log.Fatalf("symbol %s not present in package %s installed in %q", symbol, pkg.name, pkg.build.ImportPath)
+		// See if there are methods.
+		if !pkg.printMethodDoc("", symbol) {
+			log.Printf("symbol %s not present in package %s installed in %q", symbol, pkg.name, pkg.build.ImportPath)
+		}
 	}
 }
 
@@ -391,11 +396,16 @@ func trimUnexportedFields(spec *ast.TypeSpec) {
 	}
 }
 
-// methodDoc prints the docs for matches of symbol.method.
-func (pkg *Package) methodDoc(symbol, method string) {
+// printMethodDoc prints the docs for matches of symbol.method.
+// If symbol is empty, it prints all methods that match the name.
+// It reports whether it found any methods.
+func (pkg *Package) printMethodDoc(symbol, method string) bool {
 	defer pkg.flush()
 	types := pkg.findTypes(symbol)
 	if types == nil {
+		if symbol == "" {
+			return false
+		}
 		log.Fatalf("symbol %s is not a type in package %s installed in %q", symbol, pkg.name, pkg.build.ImportPath)
 	}
 	found := false
@@ -409,7 +419,13 @@ func (pkg *Package) methodDoc(symbol, method string) {
 			}
 		}
 	}
-	if !found {
+	return found
+}
+
+// methodDoc prints the docs for matches of symbol.method.
+func (pkg *Package) methodDoc(symbol, method string) {
+	defer pkg.flush()
+	if !pkg.printMethodDoc(symbol, method) {
 		log.Fatalf("no method %s.%s in package %s installed in %q", symbol, method, pkg.name, pkg.build.ImportPath)
 	}
 }
