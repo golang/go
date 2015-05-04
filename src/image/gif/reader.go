@@ -84,13 +84,13 @@ type decoder struct {
 	hasTransparentIndex bool
 
 	// Computed.
-	globalColorMap color.Palette
+	globalColorTable color.Palette
 
 	// Used when decoding.
 	delay    []int
 	disposal []byte
 	image    []*image.Paletted
-	tmp      [1024]byte // must be at least 768 so we can read color map
+	tmp      [1024]byte // must be at least 768 so we can read color table
 }
 
 // blockReader parses the block structure of GIF image data, which
@@ -166,19 +166,19 @@ func (d *decoder) decode(r io.Reader, configOnly bool) error {
 			if err != nil {
 				return err
 			}
-			useLocalColorMap := d.imageFields&fColorTable != 0
-			if useLocalColorMap {
-				m.Palette, err = d.readColorMap(d.imageFields)
+			useLocalColorTable := d.imageFields&fColorTable != 0
+			if useLocalColorTable {
+				m.Palette, err = d.readColorTable(d.imageFields)
 				if err != nil {
 					return err
 				}
 			} else {
-				m.Palette = d.globalColorMap
+				m.Palette = d.globalColorTable
 			}
 			if d.hasTransparentIndex && int(d.transparentIndex) < len(m.Palette) {
-				if !useLocalColorMap {
-					// Clone the global color map.
-					m.Palette = append(color.Palette(nil), d.globalColorMap...)
+				if !useLocalColorTable {
+					// Clone the global color table.
+					m.Palette = append(color.Palette(nil), d.globalColorTable...)
 				}
 				m.Palette[d.transparentIndex] = color.RGBA{}
 			}
@@ -262,8 +262,8 @@ func (d *decoder) readHeaderAndScreenDescriptor() error {
 	d.height = int(d.tmp[8]) + int(d.tmp[9])<<8
 	if fields := d.tmp[10]; fields&fColorTable != 0 {
 		d.backgroundIndex = d.tmp[11]
-		// readColorMap overwrites the contents of d.tmp, but that's OK.
-		if d.globalColorMap, err = d.readColorMap(fields); err != nil {
+		// readColorTable overwrites the contents of d.tmp, but that's OK.
+		if d.globalColorTable, err = d.readColorTable(fields); err != nil {
 			return err
 		}
 	}
@@ -272,19 +272,18 @@ func (d *decoder) readHeaderAndScreenDescriptor() error {
 	return nil
 }
 
-func (d *decoder) readColorMap(fields byte) (color.Palette, error) {
+func (d *decoder) readColorTable(fields byte) (color.Palette, error) {
 	n := 1 << (1 + uint(fields&fColorTableBitsMask))
 	_, err := io.ReadFull(d.r, d.tmp[:3*n])
 	if err != nil {
-		return nil, fmt.Errorf("gif: short read on color map: %s", err)
+		return nil, fmt.Errorf("gif: short read on color table: %s", err)
 	}
-	colorMap := make(color.Palette, n)
-	j := 0
-	for i := range colorMap {
-		colorMap[i] = color.RGBA{d.tmp[j+0], d.tmp[j+1], d.tmp[j+2], 0xFF}
+	j, p := 0, make(color.Palette, n)
+	for i := range p {
+		p[i] = color.RGBA{d.tmp[j+0], d.tmp[j+1], d.tmp[j+2], 0xFF}
 		j += 3
 	}
-	return colorMap, nil
+	return p, nil
 }
 
 func (d *decoder) readExtension() error {
@@ -428,18 +427,18 @@ type GIF struct {
 	// and implies that each frame's disposal method is 0 (no disposal
 	// specified).
 	Disposal []byte
-	// Config is the global color map (palette), width and height. A nil or
+	// Config is the global color table (palette), width and height. A nil or
 	// empty-color.Palette Config.ColorModel means that each frame has its own
-	// color map and there is no global color map. Each frame's bounds must be
-	// within the rectangle defined by the two points (0, 0) and (Config.Width,
-	// Config.Height).
+	// color table and there is no global color table. Each frame's bounds must
+	// be within the rectangle defined by the two points (0, 0) and
+	// (Config.Width, Config.Height).
 	//
 	// For backwards compatibility, a zero-valued Config is valid to pass to
 	// EncodeAll, and implies that the overall GIF's width and height equals
 	// the first frame's bounds' Rectangle.Max point.
 	Config image.Config
-	// BackgroundIndex is the background index in the global color map, for use
-	// with the DisposalBackground disposal method.
+	// BackgroundIndex is the background index in the global color table, for
+	// use with the DisposalBackground disposal method.
 	BackgroundIndex byte
 }
 
@@ -456,7 +455,7 @@ func DecodeAll(r io.Reader) (*GIF, error) {
 		Delay:     d.delay,
 		Disposal:  d.disposal,
 		Config: image.Config{
-			ColorModel: d.globalColorMap,
+			ColorModel: d.globalColorTable,
 			Width:      d.width,
 			Height:     d.height,
 		},
@@ -473,7 +472,7 @@ func DecodeConfig(r io.Reader) (image.Config, error) {
 		return image.Config{}, err
 	}
 	return image.Config{
-		ColorModel: d.globalColorMap,
+		ColorModel: d.globalColorTable,
 		Width:      d.width,
 		Height:     d.height,
 	}, nil
