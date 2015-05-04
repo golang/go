@@ -238,13 +238,6 @@ const (
 // GOMAXPROCS. The high-level design of this algorithm is documented
 // at http://golang.org/s/go15gcpacing.
 var gcController = gcControllerState{
-	// Initial work ratio guess.
-	//
-	// TODO(austin): This is based on the work ratio of the
-	// compiler on ./all.bash. Run a wider variety of programs and
-	// see what their work ratios are.
-	workRatioAvg: 0.5 / float64(ptrSize),
-
 	// Initial trigger ratio guess.
 	triggerRatio: 7 / 8.0,
 }
@@ -254,6 +247,10 @@ type gcControllerState struct {
 	// is updated atomically during the cycle. Updates may be
 	// batched arbitrarily, since the value is only read at the
 	// end of the cycle.
+	//
+	// Currently this is the bytes of heap scanned. For most uses,
+	// this is an opaque unit of work, but for estimation the
+	// definition is important.
 	scanWork int64
 
 	// bgScanCredit is the scan work credit accumulated by the
@@ -298,10 +295,6 @@ type gcControllerState struct {
 	// beginning of each cycle and decremented atomically as
 	// dedicated mark workers get started.
 	dedicatedMarkWorkersNeeded int64
-
-	// workRatioAvg is a moving average of the scan work ratio
-	// (scan work per byte marked).
-	workRatioAvg float64
 
 	// assistRatio is the ratio of allocated bytes to scan work
 	// that should be performed by mutator assists. This is
@@ -399,21 +392,16 @@ func (c *gcControllerState) startCycle() {
 // improved estimates. This should be called periodically during
 // concurrent mark.
 func (c *gcControllerState) revise() {
-	// Estimate the size of the marked heap. We don't have much to
-	// go on, so at the beginning of the cycle this uses the
-	// marked heap size from last cycle. If the reachable heap has
-	// grown since last cycle, we'll eventually mark more than
-	// this and we can revise our estimate. This way, if we
-	// overshoot our initial estimate, the assist ratio will climb
-	// smoothly and put more pressure on mutator assists to finish
-	// the cycle.
-	heapMarkedEstimate := memstats.heap_marked
-	if heapMarkedEstimate < work.bytesMarked {
-		heapMarkedEstimate = work.bytesMarked
-	}
-
-	// Compute the expected work based on this estimate.
-	scanWorkExpected := uint64(float64(heapMarkedEstimate) * c.workRatioAvg)
+	// Compute the expected scan work. This is a strict upper
+	// bound on the possible scan work in the current heap.
+	//
+	// You might consider dividing this by 2 (or by
+	// (100+GOGC)/100) to counter this over-estimation, but
+	// benchmarks show that this has almost no effect on mean
+	// mutator utilization, heap size, or assist time and it
+	// introduces the danger of under-estimating and letting the
+	// mutator outpace the garbage collector.
+	scanWorkExpected := memstats.heap_scan
 
 	// Compute the mutator assist ratio so by the time the mutator
 	// allocates the remaining heap bytes up to next_gc, it will
@@ -442,9 +430,6 @@ func (c *gcControllerState) endCycle() {
 	// react to phase changes quickly, but are more affected by
 	// transient changes. Values near 1 may be unstable.
 	const triggerGain = 0.5
-
-	// EWMA weight given to this cycle's scan work ratio.
-	const workRatioWeight = 0.75
 
 	// Stop the revise timer
 	deltimer(&c.reviseTimer)
@@ -484,12 +469,6 @@ func (c *gcControllerState) endCycle() {
 		c.triggerRatio = goalGrowthRatio * 0.95
 	}
 
-	// Compute the scan work ratio for this cycle.
-	workRatio := float64(c.scanWork) / float64(work.bytesMarked)
-
-	// Update EWMA of recent scan work ratios.
-	c.workRatioAvg = workRatioWeight*workRatio + (1-workRatioWeight)*c.workRatioAvg
-
 	if debug.gcpacertrace > 0 {
 		// Print controller state in terms of the design
 		// document.
@@ -502,14 +481,12 @@ func (c *gcControllerState) endCycle() {
 		u_a := utilization
 		u_g := gcGoalUtilization
 		W_a := c.scanWork
-		w_a := workRatio
-		w_ewma := c.workRatioAvg
 		print("pacer: H_m_prev=", H_m_prev,
 			" h_t=", h_t, " H_T=", H_T,
 			" h_a=", h_a, " H_a=", H_a,
 			" h_g=", h_g, " H_g=", H_g,
 			" u_a=", u_a, " u_g=", u_g,
-			" W_a=", W_a, " w_a=", w_a, " w_ewma=", w_ewma,
+			" W_a=", W_a,
 			" goalΔ=", goalGrowthRatio-h_t,
 			" actualΔ=", h_a-h_t,
 			" u_a/u_g=", u_a/u_g,
