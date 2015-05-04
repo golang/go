@@ -530,6 +530,10 @@ func gcDrainN(gcw *gcWork, scanWork int64) {
 
 // scanblock scans b as scanobject would, but using an explicit
 // pointer bitmap instead of the heap bitmap.
+//
+// This is used to scan non-heap roots, so it does not update
+// gcw.bytesMarked or gcw.scanWork.
+//
 //go:nowritebarrier
 func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
 	// Use local copies of original parameters, so that a stack trace
@@ -565,8 +569,6 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
 			i += ptrSize
 		}
 	}
-
-	gcw.scanWork += int64(n)
 }
 
 // scanobject scans the object starting at b, adding pointers to gcw.

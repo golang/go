@@ -647,6 +647,16 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 			dataSize = unsafe.Sizeof(_defer{})
 		}
 		heapBitsSetType(uintptr(x), size, dataSize, typ)
+		if dataSize > typ.size {
+			// Array allocation. If there are any
+			// pointers, GC has to scan to the last
+			// element.
+			if typ.ptrdata != 0 {
+				c.local_scan += dataSize - typ.size + typ.ptrdata
+			}
+		} else {
+			c.local_scan += typ.ptrdata
+		}
 	}
 
 	// GCmarkterminate allocates black

@@ -1279,6 +1279,7 @@ func gcMark(start_time int64) {
 	// Update other GC heap size stats.
 	memstats.heap_live = work.bytesMarked
 	memstats.heap_marked = work.bytesMarked
+	memstats.heap_scan = uint64(gcController.scanWork)
 
 	if trace.enabled {
 		traceHeapAlloc()

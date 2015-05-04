@@ -69,6 +69,11 @@ type mstats struct {
 	// excludes unmarked objects that have not yet been swept.
 	heap_live uint64
 
+	// heap_scan is the number of bytes of "scannable" heap. This
+	// is the live heap (as counted by heap_live), but omitting
+	// no-scan objects and no-scan tails of objects.
+	heap_scan uint64
+
 	// heap_marked is the number of bytes marked by the previous
 	// GC. After mark termination, heap_live == heap_marked, but
 	// unlike heap_live, heap_marked does not change until the
@@ -340,6 +345,8 @@ func purgecachedstats(c *mcache) {
 	if trace.enabled {
 		traceHeapAlloc()
 	}
+	memstats.heap_scan += uint64(c.local_scan)
+	c.local_scan = 0
 	memstats.tinyallocs += uint64(c.local_tinyallocs)
 	c.local_tinyallocs = 0
 	memstats.nlookup += uint64(c.local_nlookup)

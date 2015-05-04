@@ -398,6 +398,8 @@ func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan 
 	// transfer stats from cache to global
 	memstats.heap_live += uint64(_g_.m.mcache.local_cachealloc)
 	_g_.m.mcache.local_cachealloc = 0
+	memstats.heap_scan += uint64(_g_.m.mcache.local_scan)
+	_g_.m.mcache.local_scan = 0
 	memstats.tinyallocs += uint64(_g_.m.mcache.local_tinyallocs)
 	_g_.m.mcache.local_tinyallocs = 0
 
@@ -656,6 +658,8 @@ func mHeap_Free(h *mheap, s *mspan, acct int32) {
 		lock(&h.lock)
 		memstats.heap_live += uint64(mp.mcache.local_cachealloc)
 		mp.mcache.local_cachealloc = 0
+		memstats.heap_scan += uint64(mp.mcache.local_scan)
+		mp.mcache.local_scan = 0
 		memstats.tinyallocs += uint64(mp.mcache.local_tinyallocs)
 		mp.mcache.local_tinyallocs = 0
 		if acct != 0 {
