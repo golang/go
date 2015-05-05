@@ -413,9 +413,8 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
 	for {
 		switch token := t.nextNonSpace(); token.typ {
 		case itemRightDelim, itemRightParen:
-			if len(pipe.Cmds) == 0 {
-				t.errorf("missing value for %s", context)
-			}
+			// At this point, the pipeline is complete
+			t.checkPipeline(pipe, context)
 			if token.typ == itemRightParen {
 				t.backup()
 			}
@@ -426,6 +425,21 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
 			pipe.append(t.command())
 		default:
 			t.unexpected(token, context)
+		}
+	}
+}
+
+func (t *Tree) checkPipeline(pipe *PipeNode, context string) {
+	// Reject empty pipelines
+	if len(pipe.Cmds) == 0 {
+		t.errorf("missing value for %s", context)
+	}
+	// Only the first command of a pipeline can start with a non executable operand
+	for i, c := range pipe.Cmds[1:] {
+		switch c.Args[0].Type() {
+		case NodeBool, NodeDot, NodeNil, NodeNumber, NodeString:
+			// With A|B|C, pipeline stage 2 is B
+			t.errorf("non executable command in pipeline stage %d", i+2)
 		}
 	}
 }
