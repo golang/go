@@ -127,6 +127,9 @@ const (
 	OpMOVQstoreFP
 	OpMOVQstoreSP
 
+	// materialize a constant into a register
+	OpMOVQconst
+
 	OpMax // sentinel
 )
 
@@ -151,14 +154,13 @@ type regMask uint64
 
 var regs386 = [...]string{
 	"AX",
-	"BX",
 	"CX",
 	"DX",
-	"SI",
-	"DI",
+	"BX",
 	"SP",
 	"BP",
-	"X0",
+	"SI",
+	"DI",
 
 	// pseudo registers
 	"FLAGS",
@@ -166,10 +168,10 @@ var regs386 = [...]string{
 }
 
 // TODO: match up these with regs386 above
-var gp regMask = 0xff
-var cx regMask = 0x4
-var flags regMask = 1 << 9
-var overwrite0 regMask = 1 << 10
+var gp regMask = 0xef
+var cx regMask = 0x2
+var flags regMask = 1 << 8
+var overwrite0 regMask = 1 << 9
 
 const (
 	// possible properties of opcodes
@@ -177,20 +179,23 @@ const (
 
 	// architecture constants
 	Arch386
-	ArchAmd64
-	ArchArm
+	ArchAMD64
+	ArchARM
 )
 
 // general purpose registers, 2 input, 1 output
 var gp21 = [2][]regMask{{gp, gp}, {gp}}
-var gp21_overwrite = [2][]regMask{{gp, gp}, {overwrite0}}
+var gp21_overwrite = [2][]regMask{{gp, gp}, {gp}}
 
 // general purpose registers, 1 input, 1 output
 var gp11 = [2][]regMask{{gp}, {gp}}
-var gp11_overwrite = [2][]regMask{{gp}, {overwrite0}}
+var gp11_overwrite = [2][]regMask{{gp}, {gp}}
+
+// general purpose registers, 0 input, 1 output
+var gp01 = [2][]regMask{{}, {gp}}
 
 // shift operations
-var shift = [2][]regMask{{gp, cx}, {overwrite0}}
+var shift = [2][]regMask{{gp, cx}, {gp}}
 
 var gp2_flags = [2][]regMask{{gp, gp}, {flags}}
 var gp1_flags = [2][]regMask{{gp}, {flags}}
@@ -198,6 +203,9 @@ var gpload = [2][]regMask{{gp, 0}, {gp}}
 var gploadX = [2][]regMask{{gp, gp, 0}, {gp}} // indexed loads
 var gpstore = [2][]regMask{{gp, gp, 0}, {0}}
 var gpstoreX = [2][]regMask{{gp, gp, gp, 0}, {0}} // indexed stores
+
+var gpload_stack = [2][]regMask{{0}, {gp}}
+var gpstore_stack = [2][]regMask{{gp, 0}, {0}}
 
 // Opcodes that represent the input Go program
 var genericTable = [...]OpInfo{
@@ -284,6 +292,8 @@ var amd64Table = [...]OpInfo{
 	OpMOVQload8:  {asm: "MOVQ\t%A(%I0)(%I1*8),%O0", reg: gploadX},
 	OpMOVQstore8: {asm: "MOVQ\t%I2,%A(%I0)(%I1*8)", reg: gpstoreX},
 
+	OpMOVQconst: {asm: "MOVQ\t$%A,%O0", reg: gp01},
+
 	OpStaticCall: {asm: "CALL\t%A(SB)"},
 
 	OpCopy: {asm: "MOVQ\t%I0,%O0", reg: gp11},
@@ -292,17 +302,17 @@ var amd64Table = [...]OpInfo{
 	OpSETL: {},
 
 	// ops for load/store to stack
-	OpMOVQloadFP:  {asm: "MOVQ\t%A(FP),%O0"},
-	OpMOVQloadSP:  {asm: "MOVQ\t%A(SP),%O0"},
-	OpMOVQstoreFP: {asm: "MOVQ\t%I0,%A(FP)"},
-	OpMOVQstoreSP: {asm: "MOVQ\t%I0,%A(SP)"},
+	OpMOVQloadFP:  {asm: "MOVQ\t%A(FP),%O0", reg: gpload_stack},  // mem -> value
+	OpMOVQloadSP:  {asm: "MOVQ\t%A(SP),%O0", reg: gpload_stack},  // mem -> value
+	OpMOVQstoreFP: {asm: "MOVQ\t%I0,%A(FP)", reg: gpstore_stack}, // mem, value -> mem
+	OpMOVQstoreSP: {asm: "MOVQ\t%I0,%A(SP)", reg: gpstore_stack}, // mem, value -> mem
 
 	// ops for spilling of registers
 	// unlike regular loads & stores, these take no memory argument.
 	// They are just like OpCopy but we use them during register allocation.
 	// TODO: different widths, float
-	OpLoadReg8:  {asm: "MOVQ\t%I0,%O0", reg: gp11},
-	OpStoreReg8: {asm: "MOVQ\t%I0,%O0", reg: gp11},
+	OpLoadReg8:  {asm: "MOVQ\t%I0,%O0"},
+	OpStoreReg8: {asm: "MOVQ\t%I0,%O0"},
 }
 
 // A Table is a list of opcodes with a common set of flags.
@@ -313,7 +323,7 @@ type Table struct {
 
 var tables = []Table{
 	{genericTable[:], 0},
-	{amd64Table[:], ArchAmd64}, // TODO: pick this dynamically
+	{amd64Table[:], ArchAMD64}, // TODO: pick this dynamically
 }
 
 // table of opcodes, indexed by opcode ID

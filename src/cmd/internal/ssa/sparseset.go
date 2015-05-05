@@ -28,9 +28,24 @@ func (s *sparseSet) contains(x ID) bool {
 }
 
 func (s *sparseSet) add(x ID) {
-	i := len(s.dense)
+	i := s.sparse[x]
+	if i < len(s.dense) && s.dense[i] == x {
+		return
+	}
 	s.dense = append(s.dense, x)
-	s.sparse[x] = i
+	s.sparse[x] = len(s.dense) - 1
+}
+
+func (s *sparseSet) addAll(a []ID) {
+	for _, x := range a {
+		s.add(x)
+	}
+}
+
+func (s *sparseSet) addAllValues(a []*Value) {
+	for _, v := range a {
+		s.add(v.ID)
+	}
 }
 
 func (s *sparseSet) remove(x ID) {

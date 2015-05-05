@@ -18,9 +18,6 @@ func cgen(f *Func) {
 
 	// TODO: prolog, allocate stack frame
 
-	// hack for now, until regalloc is done
-	f.RegAlloc = make([]Location, f.NumValues())
-
 	for idx, b := range f.Blocks {
 		fmt.Printf("%d:\n", b.ID)
 		for _, v := range b.Values {

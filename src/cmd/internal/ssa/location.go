@@ -28,7 +28,7 @@ type LocalSlot struct {
 }
 
 func (s *LocalSlot) Name() string {
-	return fmt.Sprintf("loc%d", s.idx)
+	return fmt.Sprintf("-%d(FP)", s.idx)
 }
 
 // An ArgSlot is a location in the parents' stack frame where it passed us an argument.
