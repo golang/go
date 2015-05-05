@@ -424,9 +424,6 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
 		if raceenabled {
 			racemapshadow((unsafe.Pointer)(p), n)
 		}
-		if mheap_.shadow_enabled {
-			sysMap(unsafe.Pointer(p+mheap_.shadow_heap), n, h.shadow_reserved, &memstats.other_sys)
-		}
 
 		if uintptr(p)&(_PageSize-1) != 0 {
 			throw("misrounded allocation in MHeap_SysAlloc")
@@ -667,10 +664,6 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 		systemstack(func() {
 			gcmarknewobject_m(uintptr(x), size)
 		})
-	}
-
-	if mheap_.shadow_enabled {
-		clearshadow(uintptr(x), size)
 	}
 
 	if raceenabled {

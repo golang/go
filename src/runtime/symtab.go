@@ -50,13 +50,6 @@ type moduledata struct {
 
 	gcdatamask, gcbssmask bitvector
 
-	// write barrier shadow data
-	// 64-bit systems only, enabled by GODEBUG=wbshadow=1.
-	// See also the shadow_* fields on mheap in mheap.go.
-	shadow_data uintptr // data-addr + shadow_data = shadow data addr
-	data_start  uintptr // start of shadowed data addresses
-	data_end    uintptr // end of shadowed data addresses
-
 	next *moduledata
 }
 
