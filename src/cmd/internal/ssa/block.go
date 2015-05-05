@@ -19,7 +19,7 @@ type Block struct {
 	Kind BlockKind
 
 	// Subsequent blocks, if any.  The number and order depend on the block kind.
-	// All blocks must be distinct (to make phi values in successors unambiguous).
+	// All successors must be distinct (to make phi values in successors unambiguous).
 	Succs []*Block
 
 	// Inverse of successors.
@@ -33,8 +33,9 @@ type Block struct {
 	// has a memory control value.
 	Control *Value
 
-	// The unordered set of Values contained in this block.
+	// The unordered set of Values that define the operation of this block.
 	// The list must include the control value, if any. (TODO: need this last condition?)
+	// After the scheduling pass, this list is ordered.
 	Values []*Value
 
 	// The containing function

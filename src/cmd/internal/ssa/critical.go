@@ -29,7 +29,7 @@ func critical(f *Func) {
 		// split input edges coming from multi-output blocks.
 		for i, c := range b.Preds {
 			if c.Kind == BlockPlain {
-				continue
+				continue // only single output block
 			}
 
 			// allocate a new block to place on the edge

@@ -63,8 +63,8 @@ var passes = [...]pass{
 	{"critical", critical}, // remove critical edges
 	{"layout", layout},     // schedule blocks
 	{"schedule", schedule}, // schedule values
-	// regalloc
-	// stack slot alloc (+size stack frame)
+	{"regalloc", regalloc},
+	{"stackalloc", stackalloc},
 	{"cgen", cgen},
 }
 
@@ -72,19 +72,26 @@ var passes = [...]pass{
 // This code is intended to document the ordering requirements
 // between different phases.  It does not override the passes
 // list above.
-var passOrder = map[string]string{
+type constraint struct {
+	a, b string // a must come before b
+}
+
+var passOrder = [...]constraint{
 	// don't layout blocks until critical edges have been removed
-	"critical": "layout",
+	{"critical", "layout"},
 	// regalloc requires the removal of all critical edges
-	//"critical": "regalloc",
+	{"critical", "regalloc"},
 	// regalloc requires all the values in a block to be scheduled
-	//"schedule": "regalloc",
-	// code generation requires register allocation
-	//"regalloc": "cgen",
+	{"schedule", "regalloc"},
+	// stack allocation requires register allocation
+	{"regalloc", "stackalloc"},
+	// code generation requires stack allocation
+	{"stackalloc", "cgen"},
 }
 
 func init() {
-	for a, b := range passOrder {
+	for _, c := range passOrder {
+		a, b := c.a, c.b
 		i := -1
 		j := -1
 		for k, p := range passes {
