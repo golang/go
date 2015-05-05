@@ -291,10 +291,12 @@ func parsenum(s string, start, end int) (num int, isnum bool, newi int) {
 		return 0, false, end
 	}
 	for newi = start; newi < end && '0' <= s[newi] && s[newi] <= '9'; newi++ {
-		num = num*10 + int(s[newi]-'0')
-		if num < 0 {
+		const maxInt32 = 1<<31 - 1 // 31 bits is plenty for a width.
+		max := maxInt32/10 - 1
+		if num > max {
 			return 0, false, end // Overflow; crazy long number most likely.
 		}
+		num = num*10 + int(s[newi]-'0')
 		isnum = true
 	}
 	return
