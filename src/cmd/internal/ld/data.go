@@ -1109,8 +1109,7 @@ func proggenaddsym(g *ProgGen, s *LSym) {
 
 	// Skip alignment hole from the previous symbol.
 	proggenskip(g, g.pos, s.Value-g.pos)
-
-	g.pos += s.Value - g.pos
+	g.pos = s.Value
 
 	// The test for names beginning with . here is meant
 	// to keep .dynamic and .dynsym from turning up as
@@ -1142,16 +1141,16 @@ func proggenaddsym(g *ProgGen, s *LSym) {
 			proggendata(g, 0)
 			proggenarrayend(g)
 		}
-
 		g.pos = s.Value + s.Size
 	} else if decodetype_usegcprog(s.Gotype) != 0 {
 		// gc program, copy directly
+		// TODO(rsc): Maybe someday the gc program will only describe
+		// the first decodetype_ptrdata(s.Gotype) bytes instead of the full size.
 		proggendataflush(g)
-
 		gcprog := decodetype_gcprog(s.Gotype)
 		size := decodetype_size(s.Gotype)
 		if (size%int64(Thearch.Ptrsize) != 0) || (g.pos%int64(Thearch.Ptrsize) != 0) {
-			Diag("proggenaddsym: unaligned gcprog symbol %s: size=%d pos=%d", s.Name, s.Size, g.pos)
+			Diag("proggenaddsym: unaligned gcprog symbol %s: size=%d pos=%d", s.Name, size, g.pos)
 		}
 		for i := int64(0); i < int64(len(gcprog.P)-1); i++ {
 			proggenemit(g, uint8(gcprog.P[i]))
@@ -1160,16 +1159,15 @@ func proggenaddsym(g *ProgGen, s *LSym) {
 	} else {
 		// gc mask, it's small so emit as data
 		mask := decodetype_gcmask(s.Gotype)
-
-		size := decodetype_size(s.Gotype)
-		if (size%int64(Thearch.Ptrsize) != 0) || (g.pos%int64(Thearch.Ptrsize) != 0) {
-			Diag("proggenaddsym: unaligned gcmask symbol %s: size=%d pos=%d", s.Name, s.Size, g.pos)
+		ptrdata := decodetype_ptrdata(s.Gotype)
+		if (ptrdata%int64(Thearch.Ptrsize) != 0) || (g.pos%int64(Thearch.Ptrsize) != 0) {
+			Diag("proggenaddsym: unaligned gcmask symbol %s: size=%d pos=%d", s.Name, ptrdata, g.pos)
 		}
-		for i := int64(0); i < size; i += int64(Thearch.Ptrsize) {
+		for i := int64(0); i < ptrdata; i += int64(Thearch.Ptrsize) {
 			word := uint(i / int64(Thearch.Ptrsize))
 			proggendata(g, (mask[word/8]>>(word%8))&1)
 		}
-		g.pos = s.Value + size
+		g.pos = s.Value + ptrdata
 	}
 }
 
