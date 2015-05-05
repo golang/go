@@ -1909,8 +1909,9 @@ func Asmbelf(symo int64) {
 		eh.machine = EM_PPC64
 	}
 
+	elfreserve := int64(ELFRESERVE)
 	startva := INITTEXT - int64(HEADR)
-	resoff := int64(ELFRESERVE)
+	resoff := elfreserve
 
 	var pph *ElfPhdr
 	var pnote *ElfPhdr
@@ -1921,6 +1922,12 @@ func Asmbelf(symo int64) {
 		eh.phentsize = 0
 
 		if Buildmode == BuildmodeShared {
+			// The package list note we make space for here can get quite
+			// large. The external linker will re-layout all the sections
+			// anyway, so making this larger just wastes a little space
+			// in the intermediate object file, not the final shared
+			// library.
+			elfreserve *= 3
 			sh := elfshname(".note.go.pkg-list")
 			resoff -= int64(elfgopkgnote(sh, uint64(startva), uint64(resoff)))
 		}
@@ -2336,8 +2343,8 @@ elfobj:
 		a += int64(elfwritegopkgnote())
 	}
 
-	if a > ELFRESERVE {
-		Diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE)
+	if a > elfreserve {
+		Diag("ELFRESERVE too small: %d > %d", a, elfreserve)
 	}
 }
 
