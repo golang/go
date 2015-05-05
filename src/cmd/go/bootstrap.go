@@ -29,7 +29,7 @@ func httpGET(url string) ([]byte, error) {
 	return nil, errHTTP
 }
 
-func httpsOrHTTP(importPath string) (string, io.ReadCloser, error) {
+func httpsOrHTTP(importPath string, security securityMode) (string, io.ReadCloser, error) {
 	return "", nil, errHTTP
 }
 

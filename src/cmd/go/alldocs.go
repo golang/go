@@ -424,7 +424,7 @@ Download and install packages and dependencies
 
 Usage:
 
-	go get [-d] [-f] [-fix] [-t] [-u] [build flags] [packages]
+	go get [-d] [-f] [-fix] [-insecure] [-t] [-u] [build flags] [packages]
 
 Get downloads and installs the packages named by the import paths,
 along with their dependencies.
@@ -439,6 +439,9 @@ of the original.
 
 The -fix flag instructs get to run the fix tool on the downloaded packages
 before resolving dependencies or building the code.
+
+The -insecure flag permits fetching from repositories and resolving
+custom domains using insecure schemes such as HTTP. Use with caution.
 
 The -t flag instructs get to also download the packages required to build
 the tests for the specified packages.
