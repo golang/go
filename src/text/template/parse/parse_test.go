@@ -269,6 +269,14 @@ var parseTests = []parseTest{
 	{"dot after string", `{{"hello".guys}}`, hasError, ""},
 	{"dot after dot", "{{..E}}", hasError, ""},
 	{"dot after nil", "{{nil.E}}", hasError, ""},
+	// Wrong pipeline
+	{"wrong pipeline dot", "{{12|.}}", hasError, ""},
+	{"wrong pipeline number", "{{.|12|printf}}", hasError, ""},
+	{"wrong pipeline string", "{{.|print|\"error\"}}", hasError, ""},
+	{"wrong pipeline char", "{{12|print|html|'e'}}", hasError, ""},
+	{"wrong pipeline boolean", "{{.|true}}", hasError, ""},
+	{"wrong pipeline nil", "{{'c'|nil}}", hasError, ""},
+	{"empty pipeline", `{{printf "%d" ( ) }}`, hasError, ""},
 }
 
 var builtins = map[string]interface{}{
@@ -422,6 +430,12 @@ var errorTests = []parseTest{
 	{"wrongdot",
 		"{{true.any}}",
 		hasError, `unexpected . after term`},
+	{"wrongpipeline",
+		"{{12|false}}",
+		hasError, `non executable command in pipeline`},
+	{"emptypipeline",
+		`{{ ( ) }}`,
+		hasError, `missing value for parenthesized pipeline`},
 }
 
 func TestErrors(t *testing.T) {
