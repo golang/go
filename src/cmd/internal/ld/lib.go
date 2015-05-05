@@ -1197,6 +1197,7 @@ func ldshlibsyms(shlib string) {
 				s.Name, shlib, lsym.File)
 		}
 		lsym.Type = obj.SDYNIMPORT
+		lsym.ElfType = elf.ST_TYPE(s.Info)
 		lsym.File = libpath
 		if strings.HasPrefix(lsym.Name, "type.") {
 			data := make([]byte, s.Size)

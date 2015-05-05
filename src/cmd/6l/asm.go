@@ -33,6 +33,7 @@ package main
 import (
 	"cmd/internal/ld"
 	"cmd/internal/obj"
+	"debug/elf"
 	"fmt"
 	"log"
 )
@@ -381,7 +382,11 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
 
 	case obj.R_PCREL:
 		if r.Siz == 4 {
-			ld.Thearch.Vput(ld.R_X86_64_PC32 | uint64(elfsym)<<32)
+			if r.Xsym.Type == obj.SDYNIMPORT && r.Xsym.ElfType == elf.STT_FUNC {
+				ld.Thearch.Vput(ld.R_X86_64_PLT32 | uint64(elfsym)<<32)
+			} else {
+				ld.Thearch.Vput(ld.R_X86_64_PC32 | uint64(elfsym)<<32)
+			}
 		} else {
 			return -1
 		}
