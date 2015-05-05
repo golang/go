@@ -538,6 +538,7 @@ var fmtTests = []struct {
 	{"%T", nil, "<nil>"},
 	{"%-1", 100, "%!(NOVERB)%!(EXTRA int=100)"},
 	{"%017091901790959340919092959340919017929593813360", 0, "%!(NOVERB)%!(EXTRA int=0)"},
+	{"%184467440737095516170v", 0, "%!(NOVERB)%!(EXTRA int=0)"},
 
 	// The "<nil>" show up because maps are printed by
 	// first obtaining a list of keys and then looking up
