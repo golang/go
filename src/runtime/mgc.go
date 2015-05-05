@@ -208,7 +208,7 @@ const (
 //go:nosplit
 func setGCPhase(x uint32) {
 	atomicstore(&gcphase, x)
-	writeBarrierEnabled = gcphase == _GCmark || gcphase == _GCmarktermination || mheap_.shadow_enabled
+	writeBarrierEnabled = gcphase == _GCmark || gcphase == _GCmarktermination
 }
 
 // gcMarkWorkerMode represents the mode that a concurrent mark worker
