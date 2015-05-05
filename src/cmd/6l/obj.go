@@ -169,6 +169,14 @@ func archinit() {
 		ld.Elfinit()
 
 		ld.HEADR = ld.ELFRESERVE
+		if ld.Buildmode == ld.BuildmodeShared {
+			// When building a shared library we write a package list
+			// note that can get quite large. The external linker will
+			// re-layout all the sections anyway, so making this larger
+			// just wastes a little space in the intermediate object
+			// file, not the final shared library.
+			ld.HEADR *= 3
+		}
 		if ld.INITTEXT == -1 {
 			ld.INITTEXT = (1 << 22) + int64(ld.HEADR)
 		}
