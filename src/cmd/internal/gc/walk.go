@@ -627,11 +627,6 @@ func walkexpr(np **Node, init **NodeList) {
 		if n.Left.Op == ONAME && n.Left.Sym.Name == "Sqrt" && n.Left.Sym.Pkg.Path == "math" {
 			switch Thearch.Thechar {
 			case '5', '6', '7':
-				// TODO(jsing): This currently breaks math.Sqrt
-				// on GOARM=5 (see issue 10641).
-				if Thearch.Thechar == '5' && obj.Getgoarm() == "5" {
-					break
-				}
 				n.Op = OSQRT
 				n.Left = n.List.N
 				n.List = nil
