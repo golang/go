@@ -2862,10 +2862,18 @@ func geneq(sym *Sym, t *Type) {
 	// for a struct containing a reflect.Value, which itself has
 	// an unexported field of type unsafe.Pointer.
 	old_safemode := safemode
-
 	safemode = 0
+
+	// Disable checknils while compiling this code.
+	// We are comparing a struct or an array,
+	// neither of which can be nil, and our comparisons
+	// are shallow.
+	Disable_checknil++
+
 	funccompile(fn)
+
 	safemode = old_safemode
+	Disable_checknil--
 }
 
 func ifacelookdot(s *Sym, t *Type, followptr *bool, ignorecase int) *Type {
