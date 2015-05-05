@@ -34,23 +34,23 @@ func TestGCInfo(t *testing.T) {
 	verifyGCInfo(t, "data eface", &dataEface, infoEface)
 	verifyGCInfo(t, "data iface", &dataIface, infoIface)
 
-	verifyGCInfo(t, "stack ScalarPtr", new(ScalarPtr), nonStackInfo(infoScalarPtr))
-	verifyGCInfo(t, "stack PtrScalar", new(PtrScalar), nonStackInfo(infoPtrScalar))
-	verifyGCInfo(t, "stack BigStruct", new(BigStruct), nonStackInfo(infoBigStruct()))
-	verifyGCInfo(t, "stack string", new(string), nonStackInfo(infoString))
-	verifyGCInfo(t, "stack slice", new([]string), nonStackInfo(infoSlice))
-	verifyGCInfo(t, "stack eface", new(interface{}), nonStackInfo(infoEface))
-	verifyGCInfo(t, "stack iface", new(Iface), nonStackInfo(infoIface))
+	verifyGCInfo(t, "stack ScalarPtr", new(ScalarPtr), infoScalarPtr)
+	verifyGCInfo(t, "stack PtrScalar", new(PtrScalar), infoPtrScalar)
+	verifyGCInfo(t, "stack BigStruct", new(BigStruct), infoBigStruct())
+	verifyGCInfo(t, "stack string", new(string), infoString)
+	verifyGCInfo(t, "stack slice", new([]string), infoSlice)
+	verifyGCInfo(t, "stack eface", new(interface{}), infoEface)
+	verifyGCInfo(t, "stack iface", new(Iface), infoIface)
 
 	for i := 0; i < 10; i++ {
-		verifyGCInfo(t, "heap PtrSlice", escape(&make([]*byte, 10)[0]), infoPtr10)
-		verifyGCInfo(t, "heap ScalarPtr", escape(new(ScalarPtr)), infoScalarPtr)
-		verifyGCInfo(t, "heap ScalarPtrSlice", escape(&make([]ScalarPtr, 4)[0]), infoScalarPtr4)
-		verifyGCInfo(t, "heap PtrScalar", escape(new(PtrScalar)), infoPtrScalar)
-		verifyGCInfo(t, "heap BigStruct", escape(new(BigStruct)), infoBigStruct())
-		verifyGCInfo(t, "heap string", escape(new(string)), infoString)
-		verifyGCInfo(t, "heap eface", escape(new(interface{})), infoEface)
-		verifyGCInfo(t, "heap iface", escape(new(Iface)), infoIface)
+		verifyGCInfo(t, "heap PtrSlice", escape(&make([]*byte, 10)[0]), trimDead(infoPtr10))
+		verifyGCInfo(t, "heap ScalarPtr", escape(new(ScalarPtr)), trimDead(infoScalarPtr))
+		verifyGCInfo(t, "heap ScalarPtrSlice", escape(&make([]ScalarPtr, 4)[0]), trimDead(infoScalarPtr4))
+		verifyGCInfo(t, "heap PtrScalar", escape(new(PtrScalar)), trimDead(infoPtrScalar))
+		verifyGCInfo(t, "heap BigStruct", escape(new(BigStruct)), trimDead(infoBigStruct()))
+		verifyGCInfo(t, "heap string", escape(new(string)), trimDead(infoString))
+		verifyGCInfo(t, "heap eface", escape(new(interface{})), trimDead(infoEface))
+		verifyGCInfo(t, "heap iface", escape(new(Iface)), trimDead(infoIface))
 	}
 
 }
@@ -67,16 +67,11 @@ func verifyGCInfo(t *testing.T, name string, p interface{}, mask0 []byte) {
 	}
 }
 
-func nonStackInfo(mask []byte) []byte {
-	// typeDead is replaced with typeScalar everywhere except stacks.
-	mask1 := make([]byte, len(mask))
-	for i, v := range mask {
-		if v == typeDead {
-			v = typeScalar
-		}
-		mask1[i] = v
+func trimDead(mask []byte) []byte {
+	for len(mask) > 2 && mask[len(mask)-1] == typeScalar {
+		mask = mask[:len(mask)-1]
 	}
-	return mask1
+	return mask
 }
 
 var gcinfoSink interface{}

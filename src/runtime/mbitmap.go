@@ -491,6 +491,8 @@ func heapBitsSweepSpan(base, size, n uintptr, f func(uintptr)) {
 // but if the start or end of x shares a bitmap byte with an adjacent
 // object, the GC marker is racing with updates to those object's mark bits.
 func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+	const doubleCheck = false // slow but helpful; enable to test modifications to this function
+
 	// From here till marked label marking the object as allocated
 	// and storing type info in the GC bitmap.
 	h := heapBitsForAddr(x)
@@ -518,7 +520,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 
 	ptrmask := (*uint8)(unsafe.Pointer(typ.gc[0])) // pointer to unrolled mask
 	if typ.kind&kindGCProg != 0 {
-		nptr := (uintptr(typ.size) + ptrSize - 1) / ptrSize
+		nptr := typ.ptrdata / ptrSize
 		masksize := (nptr + 7) / 8
 		masksize++ // unroll flag in the beginning
 		if masksize > maxGCMask && typ.gc[1] != 0 {
@@ -568,21 +570,56 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	// In general, one load can supply two bitmap byte writes.
 	// This is a lot of lines of code, but it compiles into relatively few
 	// machine instructions.
+
+	// Ptrmask buffer.
 	var (
 		p     *byte   // last ptrmask byte read
 		b     uintptr // ptrmask bits already loaded
-		nb    uint32  // number of bits in b at next read
+		nb    uintptr // number of bits in b at next read
 		endp  *byte   // final ptrmask byte to read (then repeat)
-		endnb uint32  // number of valid bits in *endp
+		endnb uintptr // number of valid bits in *endp
 		pbits uintptr // alternate source of bits
 	)
+
+	// Note about sizes:
+	//
+	// typ.size is the number of words in the object,
+	// and typ.ptrdata is the number of words in the prefix
+	// of the object that contains pointers. That is, the final
+	// typ.size - typ.ptrdata words contain no pointers.
+	// This allows optimization of a common pattern where
+	// an object has a small header followed by a large scalar
+	// buffer. If we know the pointers are over, we don't have
+	// to scan the buffer's heap bitmap at all.
+	// The 1-bit ptrmasks are sized to contain only bits for
+	// the typ.ptrdata prefix, zero padded out to a full byte
+	// of bitmap. This code sets nw (below) so that heap bitmap
+	// bits are only written for the typ.ptrdata prefix; if there is
+	// more room in the allocated object, the next heap bitmap
+	// entry is a 00, indicating that there are no more pointers
+	// to scan. So only the ptrmask for the ptrdata bytes is needed.
+	//
+	// Replicated copies are not as nice: if there is an array of
+	// objects with scalar tails, all but the last tail does have to
+	// be initialized, because there is no way to say "skip forward".
+	// However, because of the possibility of a repeated type with
+	// size not a multiple of 4 pointers (one heap bitmap byte),
+	// the code already must handle the last ptrmask byte specially
+	// by treating it as containing only the bits for endnb pointers,
+	// where endnb <= 4. We represent large scalar tails that must
+	// be expanded in the replication by setting endnb larger than 4.
+	// This will have the effect of reading many bits out of b,
+	// but once the real bits are shifted out, b will supply as many
+	// zero bits as we try to read, which is exactly what we need.
 
 	p = ptrmask
 	if typ.size < dataSize {
 		// Filling in bits for an array of typ.
 		// Set up for repetition of ptrmask during main loop.
-		if typ.size/ptrSize+7 <= ptrSize*8 {
-			// Entire ptrmask + a leftover fragment fits in uintptr.
+		// Note that ptrmask describes only a prefix of
+		const maxBits = ptrSize*8 - 7
+		if typ.ptrdata/ptrSize <= maxBits {
+			// Entire ptrmask fits in uintptr with room for a byte fragment.
 			// Load into pbits and never read from ptrmask again.
 			// This is especially important when the ptrmask has
 			// fewer than 8 bits in it; otherwise the reload in the middle
@@ -590,26 +627,34 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 			// at least 8 bits.
 
 			// Accumulate ptrmask into b.
-			nb = uint32(typ.size / ptrSize)
-			for i := uint32(0); i < nb; i += 8 {
+			// ptrmask is sized to describe only typ.ptrdata, but we record
+			// it as describing typ.size bytes, since all the high bits are zero.
+			nb = typ.ptrdata / ptrSize
+			for i := uintptr(0); i < nb; i += 8 {
 				b |= uintptr(*p) << i
 				p = addb(p, 1)
 			}
+			nb = typ.size / ptrSize
 
 			// Replicate ptrmask to fill entire pbits uintptr.
 			// Doubling and truncating is fewer steps than
 			// iterating by nb each time. (nb could be 1.)
+			// Since we loaded typ.ptrdata/ptrSize bits
+			// but are pretending to have typ.size/ptrSize,
+			// there might be no replication necessary/possible.
 			pbits = b
 			endnb = nb
-			for endnb <= ptrSize*8 {
-				pbits |= pbits << endnb
-				endnb += endnb
+			if nb+nb <= maxBits {
+				for endnb <= ptrSize*8 {
+					pbits |= pbits << endnb
+					endnb += endnb
+				}
+				// Truncate to a multiple of original ptrmask.
+				endnb = maxBits / nb * nb
+				pbits &= 1<<endnb - 1
+				b = pbits
+				nb = endnb
 			}
-			// Truncate to an multiple of original ptrmask.
-			endnb = (ptrSize*8 - 7) / nb * nb
-			pbits &= 1<<endnb - 1
-			b = pbits
-			nb = endnb
 
 			// Clear p and endp as sentinel for using pbits.
 			// Checked during Phase 2 loop.
@@ -617,11 +662,9 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 			endp = nil
 		} else {
 			// Ptrmask is larger. Read it multiple times.
-			endp = addb(ptrmask, (typ.size/ptrSize+7)/8-1)
-			endnb = uint32(typ.size/ptrSize) % 8
-			if endnb == 0 {
-				endnb = 8
-			}
+			n := (typ.ptrdata/ptrSize+7)/8 - 1
+			endp = addb(ptrmask, n)
+			endnb = typ.size/ptrSize - n*8
 		}
 	}
 	if p != nil {
@@ -630,8 +673,27 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 		nb = 8
 	}
 
-	w := uintptr(0)          // number of words processed
-	nw := dataSize / ptrSize // number of words to process
+	var w uintptr  // words processed
+	var nw uintptr // total number of words to process
+	if typ.size == dataSize {
+		// Single entry: can stop once we reach the non-pointer data.
+		nw = typ.ptrdata / ptrSize
+	} else {
+		// Repeated instances of typ in an array.
+		// Have to process the
+		nw = ((dataSize/typ.size-1)*typ.size + typ.ptrdata) / ptrSize
+	}
+	if nw == 0 {
+		// No pointers! Caller was supposed to check.
+		println("runtime: invalid type ", *typ._string)
+		throw("heapBitsSetType: called with non-pointer type")
+		return
+	}
+	if nw < 2 {
+		// Must write at least 2 words, because the "no scan"
+		// encoding doesn't take effect until the third word.
+		nw = 2
+	}
 
 	hbitp := h.bitp // next heap bitmap byte to write
 	var hb uintptr  // bits being preapred for *h.bitp
@@ -641,11 +703,11 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	// which do not have the marked bits set.
 	// The leading half-byte is special because it's a half a byte and must be
 	// manipulated atomically.
-	switch h.shift {
+	switch {
 	default:
 		throw("heapBitsSetType: unexpected shift")
 
-	case 0:
+	case h.shift == 0:
 		// Ptrmask and heap bitmap are aligned.
 		// Handle first byte of bitmap specially.
 		// The first byte we write out contains the first two words of the object.
@@ -662,7 +724,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 		b >>= 4
 		nb -= 4
 
-	case 4:
+	case ptrSize == 8 && h.shift == 4:
 		// Ptrmask and heap bitmap are misaligned.
 		// The bits for the first two words are in a byte shared with another object
 		// and must be updated atomically.
@@ -679,17 +741,13 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 		// Note: no bitMarker in hb because the first two words don't get markers from us.
 		atomicor8(hbitp, uint8(hb))
 		hbitp = subtractb(hbitp, 1)
-
-		// Expand 8-bit chunks of ptrmask into pairs of heap bitmap bytes.
-		// We know the object size is a multiple of 2 words but not 4, so the
-		// object size minus the 2 words we just handled is a multiple of 4,
-		// so we can use non-atomic writes to the heap bitmap for the
-		// rest of this code, even for the final fragment or a trailing dead marker byte.
-
-		// Loop prepares bits for final byte but stops before writing them,
-		// so that in the case where we need to write only part of a byte,
-		// the code below the loop can truncate the bitMarked.
-		w += 2
+		if w += 2; w >= nw {
+			// We know that there is more data, because we handled 2-word objects above.
+			// This must be at least a 6-word object. If we're out of pointer words,
+			// mark no scan in next bitmap byte and finish.
+			*hbitp = 0
+			goto Phase4
+		}
 	}
 
 	// Phase 2: Full bytes in bitmap, up to but not including write to last byte (full or partial) in bitmap.
@@ -792,24 +850,27 @@ Phase3:
 		}
 	}
 
-	const test = false // slow but helpful
-	if test {
+Phase4:
+	// Phase 4: all done (goto target).
+
+	if doubleCheck {
 		// Double-check that bits to be written were written correctly.
 		// Does not check that other bits were not written, unfortunately.
 		h := heapBitsForAddr(x)
-		nptr := typ.size / ptrSize
+		nptr := typ.ptrdata / ptrSize
+		ndata := typ.size / ptrSize
+		count := dataSize / typ.size
 		for i := uintptr(0); i <= dataSize/ptrSize; i++ {
-			j := i % nptr
+			j := i % ndata
 			var have, want uint8
-			if i == dataSize/ptrSize {
-				if dataSize >= size {
-					break
-				}
-				have = (*h.bitp >> h.shift) & 3
-				want = 0 // dead bits
+			if i == dataSize/ptrSize && dataSize >= size {
+				break
+			}
+			have = (*h.bitp >> h.shift) & 3
+			if i == dataSize/ptrSize || i/ndata == count-1 && j >= nptr {
+				want = 0 // dead marker
 			} else {
-				have = (*h.bitp >> h.shift) & 3
-				if (*addb(ptrmask, j/8)>>(j%8))&1 != 0 {
+				if j < nptr && (*addb(ptrmask, j/8)>>(j%8))&1 != 0 {
 					want |= bitPointer
 				}
 				if i >= 2 {
@@ -820,12 +881,17 @@ Phase3:
 			}
 			if have != want {
 				println("mismatch writing bits for", *typ._string, "x", dataSize/typ.size)
-				print("typ.size=", typ.size, " dataSize=", dataSize, " size=", size, "\n")
+				print("typ.size=", typ.size, " typ.ptrdata=", typ.ptrdata, " dataSize=", dataSize, " size=", size, "\n")
+				print("w=", w, " nw=", nw, " b=", hex(b), " nb=", nb, " hb=", hex(hb), "\n")
 				h = heapBitsForAddr(x)
 				print("initial bits h.bitp=", h.bitp, " h.shift=", h.shift, "\n")
-				print("p=", p, " endp=", endp, " endnb=", endnb, " pbits=", hex(pbits), " b=", hex(b), " nb=", nb, "\n")
+				print("ptrmask=", ptrmask, " p=", p, " endp=", endp, " endnb=", endnb, " pbits=", hex(pbits), " b=", hex(b), " nb=", nb, "\n")
 				println("at word", i, "offset", i*ptrSize, "have", have, "want", want)
 				throw("bad heapBitsSetType")
+			}
+			if i >= 2 && want == 0 {
+				// found dead marker; the rest is uninitialized
+				break
 			}
 			h = h.next()
 		}
@@ -1076,7 +1142,7 @@ func getgcmask(ep interface{}) (mask []byte) {
 				mask[i/ptrSize] = 1
 			}
 			if i >= 2*ptrSize && !hbits.isMarked() {
-				mask[i/ptrSize] = 255
+				mask = mask[:i/ptrSize]
 				break
 			}
 		}

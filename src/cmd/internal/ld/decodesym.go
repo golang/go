@@ -67,6 +67,11 @@ func decodetype_size(s *LSym) int64 {
 	return int64(decode_inuxi(s.P, Thearch.Ptrsize)) // 0x8 / 0x10
 }
 
+// Type.commonType.ptrdata
+func decodetype_ptrdata(s *LSym) int64 {
+	return int64(decode_inuxi(s.P[Thearch.Ptrsize:], Thearch.Ptrsize)) // 0x8 / 0x10
+}
+
 // Type.commonType.gc
 func decodetype_gcprog(s *LSym) *LSym {
 	if s.Type == obj.SDYNIMPORT {

@@ -687,7 +687,7 @@ func haspointers(t *Type) bool {
 
 // typeptrdata returns the length in bytes of the prefix of t
 // containing pointer data. Anything after this offset is scalar data.
-func typeptrdata(t *Type) uint64 {
+func typeptrdata(t *Type) int64 {
 	if !haspointers(t) {
 		return 0
 	}
@@ -699,24 +699,24 @@ func typeptrdata(t *Type) uint64 {
 		TFUNC,
 		TCHAN,
 		TMAP:
-		return uint64(Widthptr)
+		return int64(Widthptr)
 
 	case TSTRING:
 		// struct { byte *str; intgo len; }
-		return uint64(Widthptr)
+		return int64(Widthptr)
 
 	case TINTER:
 		// struct { Itab *tab;	void *data; } or
 		// struct { Type *type; void *data; }
-		return 2 * uint64(Widthptr)
+		return 2 * int64(Widthptr)
 
 	case TARRAY:
 		if Isslice(t) {
 			// struct { byte *array; uintgo len; uintgo cap; }
-			return uint64(Widthptr)
+			return int64(Widthptr)
 		}
 		// haspointers already eliminated t.Bound == 0.
-		return uint64(t.Bound-1)*uint64(t.Type.Width) + typeptrdata(t.Type)
+		return (t.Bound-1)*t.Type.Width + typeptrdata(t.Type)
 
 	case TSTRUCT:
 		// Find the last field that has pointers.
@@ -726,7 +726,7 @@ func typeptrdata(t *Type) uint64 {
 				lastPtrField = t1
 			}
 		}
-		return uint64(lastPtrField.Width) + typeptrdata(lastPtrField.Type)
+		return lastPtrField.Width + typeptrdata(lastPtrField.Type)
 
 	default:
 		Fatal("typeptrdata: unexpected type, %v", t)
@@ -794,7 +794,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	//		zero          unsafe.Pointer
 	//	}
 	ot = duintptr(s, ot, uint64(t.Width))
-	ot = duintptr(s, ot, typeptrdata(t))
+	ot = duintptr(s, ot, uint64(typeptrdata(t)))
 
 	ot = duint32(s, ot, typehash(t))
 	ot = duint8(s, ot, 0) // unused
@@ -1428,17 +1428,12 @@ func usegcprog(t *Type) bool {
 	}
 
 	// Calculate size of the unrolled GC mask.
-	nptr := (t.Width + int64(Widthptr) - 1) / int64(Widthptr)
-
-	size := (nptr + 7) / 8
+	nptr := typeptrdata(t) / int64(Widthptr)
 
 	// Decide whether to use unrolled GC mask or GC program.
 	// We could use a more elaborate condition, but this seems to work well in practice.
-	// For small objects GC program can't give significant reduction.
-	// While large objects usually contain arrays; and even if it don't
-	// the program uses 2-bits per word while mask uses 4-bits per word,
-	// so the program is still smaller.
-	return size > int64(2*Widthptr)
+	// For small objects, the GC program can't give significant reduction.
+	return nptr > int64(2*Widthptr*8)
 }
 
 // Generates GC bitmask (1 bit per word).
@@ -1450,11 +1445,11 @@ func gengcmask(t *Type, gcmask []byte) {
 		return
 	}
 
-	vec := bvalloc(2 * int32(Widthptr) * 8)
+	vec := bvalloc(int32(2 * Widthptr * 8))
 	xoffset := int64(0)
 	onebitwalktype1(t, &xoffset, vec)
 
-	nptr := (t.Width + int64(Widthptr) - 1) / int64(Widthptr)
+	nptr := typeptrdata(t) / int64(Widthptr)
 	for i := int64(0); i < nptr; i++ {
 		if bvget(vec, int32(i)) == 1 {
 			gcmask[i/8] |= 1 << (uint(i) % 8)
