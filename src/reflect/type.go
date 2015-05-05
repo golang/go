@@ -246,7 +246,7 @@ const (
 // so that code cannot convert from, say, *arrayType to *ptrType.
 type rtype struct {
 	size          uintptr
-	ptrsize       uintptr
+	ptrdata       uintptr
 	hash          uint32            // hash of type; avoids computation in hash tables
 	_             uint8             // unused/padding
 	align         uint8             // alignment of variable with this type
@@ -1826,14 +1826,14 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 	}
 	// overflow
 	gc.append(bitsPointer)
-	tptrsize := gc.size
+	ptrdata := gc.size
 	if runtime.GOARCH == "amd64p32" {
 		gc.append(bitsScalar)
 	}
 
 	b := new(rtype)
 	b.size = gc.size
-	b.ptrsize = tptrsize
+	b.ptrdata = ptrdata
 	b.kind = kind
 	b.gc[0], _ = gc.finalize()
 	s := "bucket(" + *ktyp.string + "," + *etyp.string + ")"
@@ -1920,8 +1920,8 @@ func ArrayOf(count int, elem Type) Type {
 		panic("reflect.ArrayOf: array size would exceed virtual address space")
 	}
 	array.size = typ.size * uintptr(count)
-	if count > 0 && typ.ptrsize != 0 {
-		array.ptrsize = typ.size*uintptr(count-1) + typ.ptrsize
+	if count > 0 && typ.ptrdata != 0 {
+		array.ptrdata = typ.size*uintptr(count-1) + typ.ptrdata
 	}
 	array.align = typ.align
 	array.fieldAlign = typ.fieldAlign
@@ -2090,7 +2090,7 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
 	// build dummy rtype holding gc program
 	x := new(rtype)
 	x.size = gc.size
-	x.ptrsize = gc.size // over-approximation
+	x.ptrdata = gc.size // over-approximation
 	var hasPtr bool
 	x.gc[0], hasPtr = gc.finalize()
 	if !hasPtr {
