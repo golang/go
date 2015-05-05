@@ -106,10 +106,9 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
 		type_ = STT_OBJECT
 
 	case 'U':
-		type_ = STT_NOTYPE
-		if x == Ctxt.Tlsg {
-			type_ = STT_TLS
-		}
+		// ElfType is only set for symbols read from Go shared libraries, but
+		// for other symbols it is left as STT_NOTYPE which is fine.
+		type_ = int(x.ElfType)
 
 	case 't':
 		type_ = STT_TLS
