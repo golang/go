@@ -297,7 +297,7 @@ func TestEncodeZeroGIF(t *testing.T) {
 	}
 }
 
-func TestEncodeFrameOutOfBounds(t *testing.T) {
+func TestEncodeAllFramesOutOfBounds(t *testing.T) {
 	images := []*image.Paletted{
 		image.NewPaletted(image.Rect(0, 0, 5, 5), palette.Plan9),
 		image.NewPaletted(image.Rect(2, 2, 8, 8), palette.Plan9),
@@ -322,6 +322,32 @@ func TestEncodeFrameOutOfBounds(t *testing.T) {
 			if err == nil {
 				t.Errorf("upperBound=%d: got nil error, want non-nil", upperBound)
 			}
+		}
+	}
+}
+
+func TestEncodeNonZeroMinPoint(t *testing.T) {
+	points := []image.Point{
+		image.Point{-8, -9},
+		image.Point{-4, -4},
+		image.Point{-3, +3},
+		image.Point{+0, +0},
+		image.Point{+2, +2},
+	}
+	for _, p := range points {
+		src := image.NewPaletted(image.Rectangle{Min: p, Max: p.Add(image.Point{6, 6})}, palette.Plan9)
+		var buf bytes.Buffer
+		if err := Encode(&buf, src, nil); err != nil {
+			t.Errorf("p=%v: Encode: %v", p, err)
+			continue
+		}
+		m, err := Decode(&buf)
+		if err != nil {
+			t.Errorf("p=%v: Decode: %v", p, err)
+			continue
+		}
+		if got, want := m.Bounds(), image.Rect(0, 0, 6, 6); got != want {
+			t.Errorf("p=%v: got %v, want %v", p, got, want)
 		}
 	}
 }

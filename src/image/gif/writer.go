@@ -190,7 +190,7 @@ func (e *encoder) writeImageBlock(pm *image.Paletted, delay int, disposal byte) 
 	}
 
 	b := pm.Bounds()
-	if b.Dx() >= 1<<16 || b.Dy() >= 1<<16 || b.Min.X < 0 || b.Min.X >= 1<<16 || b.Min.Y < 0 || b.Min.Y >= 1<<16 {
+	if b.Min.X < 0 || b.Max.X >= 1<<16 || b.Min.Y < 0 || b.Max.Y >= 1<<16 {
 		e.err = errors.New("gif: image block is too large to encode")
 		return
 	}
@@ -363,6 +363,15 @@ func Encode(w io.Writer, m image.Image, o *Options) error {
 			pm.Palette = opts.Quantizer.Quantize(make(color.Palette, 0, opts.NumColors), m)
 		}
 		opts.Drawer.Draw(pm, b, m, image.ZP)
+	}
+
+	// When calling Encode instead of EncodeAll, the single-frame image is
+	// translated such that its top-left corner is (0, 0), so that the single
+	// frame completely fills the overall GIF's bounds.
+	if pm.Rect.Min != (image.Point{}) {
+		dup := *pm
+		dup.Rect = dup.Rect.Sub(dup.Rect.Min)
+		pm = &dup
 	}
 
 	return EncodeAll(w, &GIF{
