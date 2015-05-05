@@ -13,7 +13,7 @@ import "unsafe"
 // ../reflect/type.go:/^type.rtype.
 type _type struct {
 	size       uintptr
-	ptrsize    uintptr // Bytes of prefix containing pointer slots.
+	ptrdata    uintptr // size of memory prefix holding all pointers
 	hash       uint32
 	_unused    uint8
 	align      uint8

@@ -685,9 +685,9 @@ func haspointers(t *Type) bool {
 	return ret
 }
 
-// typeptrsize returns the length in bytes of the prefix of t
+// typeptrdata returns the length in bytes of the prefix of t
 // containing pointer data. Anything after this offset is scalar data.
-func typeptrsize(t *Type) uint64 {
+func typeptrdata(t *Type) uint64 {
 	if !haspointers(t) {
 		return 0
 	}
@@ -716,7 +716,7 @@ func typeptrsize(t *Type) uint64 {
 			return uint64(Widthptr)
 		}
 		// haspointers already eliminated t.Bound == 0.
-		return uint64(t.Bound-1)*uint64(t.Type.Width) + typeptrsize(t.Type)
+		return uint64(t.Bound-1)*uint64(t.Type.Width) + typeptrdata(t.Type)
 
 	case TSTRUCT:
 		// Find the last field that has pointers.
@@ -726,10 +726,10 @@ func typeptrsize(t *Type) uint64 {
 				lastPtrField = t1
 			}
 		}
-		return uint64(lastPtrField.Width) + typeptrsize(lastPtrField.Type)
+		return uint64(lastPtrField.Width) + typeptrdata(lastPtrField.Type)
 
 	default:
-		Fatal("typeptrsize: unexpected type, %v", t)
+		Fatal("typeptrdata: unexpected type, %v", t)
 		return 0
 	}
 }
@@ -794,7 +794,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	//		zero          unsafe.Pointer
 	//	}
 	ot = duintptr(s, ot, uint64(t.Width))
-	ot = duintptr(s, ot, typeptrsize(t))
+	ot = duintptr(s, ot, typeptrdata(t))
 
 	ot = duint32(s, ot, typehash(t))
 	ot = duint8(s, ot, 0) // unused
