@@ -81,6 +81,7 @@ func Scanln(a ...interface{}) (n int, err error) {
 // Scanf scans text read from standard input, storing successive
 // space-separated values into successive arguments as determined by
 // the format.  It returns the number of items successfully scanned.
+// If that is less than the number of arguments, err will report why.
 func Scanf(format string, a ...interface{}) (n int, err error) {
 	return Fscanf(os.Stdin, format, a...)
 }
