@@ -94,3 +94,15 @@ func TestUnsetenv(t *testing.T) {
 		t.Fatal("Unsetenv didn't clear TestUnsetenv")
 	}
 }
+
+func TestLookupEnv(t *testing.T) {
+	value, ok := LookupEnv("GOROOT") // Should be set.
+	if !ok {
+		t.Errorf("GOROOT is not set")
+	}
+	const v = "Variable That Does Not Exist"
+	value, ok = LookupEnv(v) // Should not be set.
+	if ok || value != "" {
+		t.Errorf("%s is set: %q", v, value)
+	}
+}
