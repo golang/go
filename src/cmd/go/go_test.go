@@ -530,6 +530,17 @@ func (tg *testgoData) cleanup() {
 	}
 }
 
+// failSSH puts an ssh executable in the PATH that always fails.
+// This is to stub out uses of ssh by go get.
+func (tg *testgoData) failSSH() {
+	wd, err := os.Getwd()
+	if err != nil {
+		tg.t.Fatal(err)
+	}
+	fail := filepath.Join(wd, "testdata/failssh")
+	tg.setenv("PATH", fmt.Sprintf("%v%c%v", fail, filepath.ListSeparator, os.Getenv("PATH")))
+}
+
 func TestFileLineInErrorMessages(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -1847,4 +1858,62 @@ func TestIssue4210(t *testing.T) {
 	tg.setenv("GOPATH", tg.path("."))
 	tg.runFail("build", "y")
 	tg.grepBoth("is a program", `did not find expected error message ("is a program")`)
+}
+
+func TestGoGetInsecure(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.path("."))
+	tg.failSSH()
+
+	const repo = "wh3rd.net/git.git"
+
+	// Try go get -d of HTTP-only repo (should fail).
+	tg.runFail("get", "-d", repo)
+
+	// Try again with -insecure (should succeed).
+	tg.run("get", "-d", "-insecure", repo)
+
+	// Try updating without -insecure (should fail).
+	tg.runFail("get", "-d", "-u", "-f", repo)
+}
+
+func TestGoGetUpdateInsecure(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.path("."))
+
+	const repo = "github.com/golang/example"
+
+	// Clone the repo via HTTP manually.
+	cmd := exec.Command("git", "clone", "-q", "http://"+repo, tg.path("src/"+repo))
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("cloning %v repo: %v\n%s", repo, err, out)
+	}
+
+	// Update without -insecure should fail.
+	// Update with -insecure should succeed.
+	// We need -f to ignore import comments.
+	const pkg = repo + "/hello"
+	tg.runFail("get", "-d", "-u", "-f", pkg)
+	tg.run("get", "-d", "-u", "-f", "-insecure", pkg)
+}
+
+func TestGoGetInsecureCustomDomain(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.path("."))
+
+	const repo = "wh3rd.net/repo"
+	tg.runFail("get", "-d", repo)
+	tg.run("get", "-d", "-insecure", repo)
 }
