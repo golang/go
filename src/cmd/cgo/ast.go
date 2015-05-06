@@ -235,9 +235,17 @@ func (f *File) saveExport(x interface{}, context string) {
 			error_(c.Pos(), "export comment has wrong name %q, want %q", name, n.Name.Name)
 		}
 
+		doc := ""
+		for _, c1 := range n.Doc.List {
+			if c1 != c {
+				doc += c1.Text + "\n"
+			}
+		}
+
 		f.ExpFunc = append(f.ExpFunc, &ExpFunc{
 			Func:    n,
 			ExpName: name,
+			Doc:     doc,
 		})
 		break
 	}

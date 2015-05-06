@@ -638,9 +638,7 @@ func (p *Package) writeExports(fgo2, fm io.Writer) {
 	fgcc := creat(*objDir + "_cgo_export.c")
 	fgcch := creat(*objDir + "_cgo_export.h")
 
-	fmt.Fprintf(fgcch, "/* Created by cgo - DO NOT EDIT. */\n/*  This file is arch-specific.  */\n")
-	fmt.Fprintf(fgcch, "%s\n", p.Preamble)
-	fmt.Fprintf(fgcch, "%s\n", p.gccExportHeaderProlog())
+	p.writeExportHeader(fgcch)
 
 	fmt.Fprintf(fgcc, "/* Created by cgo - DO NOT EDIT. */\n")
 	fmt.Fprintf(fgcc, "#include \"_cgo_export.h\"\n\n")
@@ -737,6 +735,10 @@ func (p *Package) writeExports(fgo2, fm io.Writer) {
 				s += fmt.Sprintf("%s p%d", p.cgoType(atype).C, i)
 			})
 		s += ")"
+
+		if len(exp.Doc) > 0 {
+			fmt.Fprintf(fgcch, "\n%s", exp.Doc)
+		}
 		fmt.Fprintf(fgcch, "\nextern %s;\n", s)
 
 		fmt.Fprintf(fgcc, "extern void _cgoexp%s_%s(void *, int);\n", cPrefix, exp.ExpName)
@@ -833,9 +835,7 @@ func (p *Package) writeGccgoExports(fgo2, fm io.Writer) {
 
 	gccgoSymbolPrefix := p.gccgoSymbolPrefix()
 
-	fmt.Fprintf(fgcch, "/* Created by cgo - DO NOT EDIT. */\n")
-	fmt.Fprintf(fgcch, "%s\n", p.Preamble)
-	fmt.Fprintf(fgcch, "%s\n", p.gccExportHeaderProlog())
+	p.writeExportHeader(fgcch)
 
 	fmt.Fprintf(fgcc, "/* Created by cgo - DO NOT EDIT. */\n")
 	fmt.Fprintf(fgcc, "#include \"_cgo_export.h\"\n")
@@ -861,6 +861,7 @@ func (p *Package) writeGccgoExports(fgo2, fm io.Writer) {
 				})
 		default:
 			// Declare a result struct.
+			fmt.Fprintf(fgcch, "\n/* Return type for %s */\n", exp.ExpName)
 			fmt.Fprintf(fgcch, "struct %s_result {\n", exp.ExpName)
 			forFieldList(fntype.Results,
 				func(i int, atype ast.Expr) {
@@ -889,6 +890,10 @@ func (p *Package) writeGccgoExports(fgo2, fm io.Writer) {
 			})
 		fmt.Fprintf(cdeclBuf, ")")
 		cParams := cdeclBuf.String()
+
+		if len(exp.Doc) > 0 {
+			fmt.Fprintf(fgcch, "\n%s", exp.Doc)
+		}
 
 		// We need to use a name that will be exported by the
 		// Go code; otherwise gccgo will make it static and we
@@ -987,6 +992,22 @@ func (p *Package) writeGccgoExports(fgo2, fm io.Writer) {
 		fmt.Fprint(fgo2, ")\n")
 		fmt.Fprint(fgo2, "}\n")
 	}
+}
+
+// writeExportHeader writes out the start of the _cgo_export.h file.
+func (p *Package) writeExportHeader(fgcch io.Writer) {
+	fmt.Fprintf(fgcch, "/* Created by \"go tool cgo\" - DO NOT EDIT. */\n\n")
+	pkg := *importPath
+	if pkg == "" {
+		pkg = p.PackagePath
+	}
+	fmt.Fprintf(fgcch, "/* package %s */\n\n", pkg)
+
+	fmt.Fprintf(fgcch, "/* Start of preamble from import \"C\" comments.  */\n\n")
+	fmt.Fprintf(fgcch, "%s\n", p.Preamble)
+	fmt.Fprintf(fgcch, "\n/* End of preamble from import \"C\" comments.  */\n\n")
+
+	fmt.Fprintf(fgcch, "%s\n", p.gccExportHeaderProlog())
 }
 
 // Return the package prefix when using gccgo.
@@ -1302,6 +1323,8 @@ func (p *Package) gccExportHeaderProlog() string {
 }
 
 const gccExportHeaderProlog = `
+/* Start of boilerplate cgo prologue.  */
+
 typedef signed char GoInt8;
 typedef unsigned char GoUint8;
 typedef short GoInt16;
@@ -1327,6 +1350,8 @@ typedef void *GoMap;
 typedef void *GoChan;
 typedef struct { void *t; void *v; } GoInterface;
 typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
+
+/* End of boilerplate cgo prologue.  */
 `
 
 // gccgoExportFileProlog is written to the _cgo_export.c file when
