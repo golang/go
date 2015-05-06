@@ -38,6 +38,7 @@ var goroot string
 var (
 	Debug_wb     int
 	Debug_append int
+	Debug_slice  int
 )
 
 // Debug arguments.
@@ -53,6 +54,7 @@ var debugtab = []struct {
 	{"disablenil", &Disable_checknil}, // disable nil checks
 	{"wb", &Debug_wb},                 // print information about write barriers
 	{"append", &Debug_append},         // print information about append compilation
+	{"slice", &Debug_slice},           // print information about slice compilation
 }
 
 // Our own isdigit, isspace, isalpha, isalnum that take care

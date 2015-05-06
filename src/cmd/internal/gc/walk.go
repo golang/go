@@ -1280,56 +1280,39 @@ func walkexpr(np **Node, init **NodeList) {
 	case ORECV:
 		Fatal("walkexpr ORECV") // should see inside OAS only
 
-	case OSLICE:
-		if n.Right != nil && n.Right.Left == nil && n.Right.Right == nil { // noop
-			walkexpr(&n.Left, init)
-			n = n.Left
-			goto ret
-		}
-		fallthrough
-
-	case OSLICEARR, OSLICESTR:
-		if n.Right == nil { // already processed
-			goto ret
-		}
-
+	case OSLICE, OSLICEARR, OSLICESTR:
 		walkexpr(&n.Left, init)
-
-		// cgen_slice can't handle string literals as source
-		// TODO the OINDEX case is a bug elsewhere that needs to be traced.  it causes a crash on ([2][]int{ ... })[1][lo:hi]
-		if (n.Op == OSLICESTR && n.Left.Op == OLITERAL) || (n.Left.Op == OINDEX) {
-			n.Left = copyexpr(n.Left, n.Left.Type, init)
-		} else {
-			n.Left = safeexpr(n.Left, init)
-		}
 		walkexpr(&n.Right.Left, init)
-		n.Right.Left = safeexpr(n.Right.Left, init)
+		if n.Right.Left != nil && iszero(n.Right.Left) {
+			// Reduce x[0:j] to x[:j].
+			n.Right.Left = nil
+		}
 		walkexpr(&n.Right.Right, init)
-		n.Right.Right = safeexpr(n.Right.Right, init)
-		n = sliceany(n, init) // chops n.Right, sets n.List
+		n = reduceSlice(n)
 		goto ret
 
 	case OSLICE3, OSLICE3ARR:
-		if n.Right == nil { // already processed
+		walkexpr(&n.Left, init)
+		walkexpr(&n.Right.Left, init)
+		if n.Right.Left != nil && iszero(n.Right.Left) {
+			// Reduce x[0:j:k] to x[:j:k].
+			n.Right.Left = nil
+		}
+		walkexpr(&n.Right.Right.Left, init)
+		walkexpr(&n.Right.Right.Right, init)
+
+		r := n.Right.Right.Right
+		if r != nil && r.Op == OCAP && samesafeexpr(n.Left, r.Left) {
+			// Reduce x[i:j:cap(x)] to x[i:j].
+			n.Right.Right = n.Right.Right.Left
+			if n.Op == OSLICE3 {
+				n.Op = OSLICE
+			} else {
+				n.Op = OSLICEARR
+			}
+			n = reduceSlice(n)
 			goto ret
 		}
-
-		walkexpr(&n.Left, init)
-
-		// TODO the OINDEX case is a bug elsewhere that needs to be traced.  it causes a crash on ([2][]int{ ... })[1][lo:hi]
-		// TODO the comment on the previous line was copied from case OSLICE. it might not even be true.
-		if n.Left.Op == OINDEX {
-			n.Left = copyexpr(n.Left, n.Left.Type, init)
-		} else {
-			n.Left = safeexpr(n.Left, init)
-		}
-		walkexpr(&n.Right.Left, init)
-		n.Right.Left = safeexpr(n.Right.Left, init)
-		walkexpr(&n.Right.Right.Left, init)
-		n.Right.Right.Left = safeexpr(n.Right.Right.Left, init)
-		walkexpr(&n.Right.Right.Right, init)
-		n.Right.Right.Right = safeexpr(n.Right.Right.Right, init)
-		n = sliceany(n, init) // chops n.Right, sets n.List
 		goto ret
 
 	case OADDR:
@@ -1658,6 +1641,22 @@ ret:
 
 	lineno = lno
 	*np = n
+}
+
+func reduceSlice(n *Node) *Node {
+	r := n.Right.Right
+	if r != nil && r.Op == OLEN && samesafeexpr(n.Left, r.Left) {
+		// Reduce x[i:len(x)] to x[i:].
+		n.Right.Right = nil
+	}
+	if (n.Op == OSLICE || n.Op == OSLICESTR) && n.Right.Left == nil && n.Right.Right == nil {
+		// Reduce x[:] to x.
+		if Debug_slice > 0 {
+			Warn("slice: omit slice operation")
+		}
+		return n.Left
+	}
+	return n
 }
 
 func ascompatee1(op int, l *Node, r *Node, init **NodeList) *Node {
@@ -3176,213 +3175,6 @@ func copyany(n *Node, init **NodeList, runtimecall int) *Node {
 	walkstmtlist(l)
 	*init = concat(*init, l)
 	return nlen
-}
-
-// Generate frontend part for OSLICE[3][ARR|STR]
-//
-func sliceany(n *Node, init **NodeList) *Node {
-	var hb *Node
-	var cb *Node
-
-	//	print("before sliceany: %+N\n", n);
-
-	src := n.Left
-
-	lb := n.Right.Left
-	slice3 := n.Op == OSLICE3 || n.Op == OSLICE3ARR
-	if slice3 {
-		hb = n.Right.Right.Left
-		cb = n.Right.Right.Right
-	} else {
-		hb = n.Right.Right
-		cb = nil
-	}
-
-	bounded := int(n.Etype)
-
-	var bound *Node
-	if n.Op == OSLICESTR {
-		bound = Nod(OLEN, src, nil)
-	} else {
-		bound = Nod(OCAP, src, nil)
-	}
-
-	typecheck(&bound, Erv)
-	walkexpr(&bound, init) // if src is an array, bound will be a const now.
-
-	// static checks if possible
-	bv := int64(1 << 50)
-
-	if Isconst(bound, CTINT) {
-		if !Smallintconst(bound) {
-			Yyerror("array len too large")
-		} else {
-			bv = Mpgetfix(bound.Val.U.Xval)
-		}
-	}
-
-	if Isconst(cb, CTINT) {
-		cbv := Mpgetfix(cb.Val.U.Xval)
-		if cbv < 0 || cbv > bv {
-			Yyerror("slice index out of bounds")
-		}
-	}
-
-	if Isconst(hb, CTINT) {
-		hbv := Mpgetfix(hb.Val.U.Xval)
-		if hbv < 0 || hbv > bv {
-			Yyerror("slice index out of bounds")
-		}
-	}
-
-	if Isconst(lb, CTINT) {
-		lbv := Mpgetfix(lb.Val.U.Xval)
-		if lbv < 0 || lbv > bv {
-			Yyerror("slice index out of bounds")
-			lbv = -1
-		}
-
-		if lbv == 0 {
-			lb = nil
-		}
-	}
-
-	// Checking src[lb:hb:cb] or src[lb:hb].
-	// if chk0 || chk1 || chk2 { panicslice() }
-
-	// All comparisons are unsigned to avoid testing < 0.
-	bt := Types[Simtype[TUINT]]
-
-	if cb != nil && cb.Type.Width > 4 {
-		bt = Types[TUINT64]
-	}
-	if hb != nil && hb.Type.Width > 4 {
-		bt = Types[TUINT64]
-	}
-	if lb != nil && lb.Type.Width > 4 {
-		bt = Types[TUINT64]
-	}
-
-	bound = cheapexpr(conv(bound, bt), init)
-
-	var chk0 *Node // cap(src) < cb
-	if cb != nil {
-		cb = cheapexpr(conv(cb, bt), init)
-		if bounded == 0 {
-			chk0 = Nod(OLT, bound, cb)
-		}
-	} else if slice3 {
-		// When we figure out what this means, implement it.
-		Fatal("slice3 with cb == N") // rejected by parser
-	}
-
-	var chk1 *Node // cb < hb for src[lb:hb:cb]; cap(src) < hb for src[lb:hb]
-	if hb != nil {
-		hb = cheapexpr(conv(hb, bt), init)
-		if bounded == 0 {
-			if cb != nil {
-				chk1 = Nod(OLT, cb, hb)
-			} else {
-				chk1 = Nod(OLT, bound, hb)
-			}
-		}
-	} else if slice3 {
-		// When we figure out what this means, implement it.
-		Fatal("slice3 with hb == N") // rejected by parser
-	} else if n.Op == OSLICEARR {
-		hb = bound
-	} else {
-		hb = Nod(OLEN, src, nil)
-		typecheck(&hb, Erv)
-		walkexpr(&hb, init)
-		hb = cheapexpr(conv(hb, bt), init)
-	}
-
-	var chk2 *Node // hb < lb
-	if lb != nil {
-		lb = cheapexpr(conv(lb, bt), init)
-		if bounded == 0 {
-			chk2 = Nod(OLT, hb, lb)
-		}
-	}
-
-	if chk0 != nil || chk1 != nil || chk2 != nil {
-		chk := Nod(OIF, nil, nil)
-		chk.Nbody = list1(mkcall("panicslice", nil, init))
-		chk.Likely = -1
-		if chk0 != nil {
-			chk.Ntest = chk0
-		}
-		if chk1 != nil {
-			if chk.Ntest == nil {
-				chk.Ntest = chk1
-			} else {
-				chk.Ntest = Nod(OOROR, chk.Ntest, chk1)
-			}
-		}
-
-		if chk2 != nil {
-			if chk.Ntest == nil {
-				chk.Ntest = chk2
-			} else {
-				chk.Ntest = Nod(OOROR, chk.Ntest, chk2)
-			}
-		}
-
-		typecheck(&chk, Etop)
-		walkstmt(&chk)
-		*init = concat(*init, chk.Ninit)
-		chk.Ninit = nil
-		*init = list(*init, chk)
-	}
-
-	// prepare new cap, len and offs for backend cgen_slice
-	// cap = bound [ - lo ]
-	n.Right = nil
-
-	n.List = nil
-	if !slice3 {
-		cb = bound
-	}
-	if lb == nil {
-		bound = conv(cb, Types[Simtype[TUINT]])
-	} else {
-		bound = Nod(OSUB, conv(cb, Types[Simtype[TUINT]]), conv(lb, Types[Simtype[TUINT]]))
-	}
-	typecheck(&bound, Erv)
-	walkexpr(&bound, init)
-	n.List = list(n.List, bound)
-
-	// len = hi [ - lo]
-	if lb == nil {
-		hb = conv(hb, Types[Simtype[TUINT]])
-	} else {
-		hb = Nod(OSUB, conv(hb, Types[Simtype[TUINT]]), conv(lb, Types[Simtype[TUINT]]))
-	}
-	typecheck(&hb, Erv)
-	walkexpr(&hb, init)
-	n.List = list(n.List, hb)
-
-	// offs = [width *] lo, but omit if zero
-	if lb != nil {
-		var w int64
-		if n.Op == OSLICESTR {
-			w = 1
-		} else {
-			w = n.Type.Type.Width
-		}
-		lb = conv(lb, Types[TUINTPTR])
-		if w > 1 {
-			lb = Nod(OMUL, Nodintconst(w), lb)
-		}
-		typecheck(&lb, Erv)
-		walkexpr(&lb, init)
-		n.List = list(n.List, lb)
-	}
-
-	//	print("after sliceany: %+N\n", n);
-
-	return n
 }
 
 func eqfor(t *Type, needsize *int) *Node {
