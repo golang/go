@@ -272,6 +272,18 @@ func TestConfHostLookupOrder(t *testing.T) {
 			},
 			hostTests: []nssHostTest{{"google.com", hostLookupCgo}},
 		},
+		// Android should always use cgo.
+		{
+			name: "android",
+			c: &conf{
+				goos:   "android",
+				nss:    nssStr(""),
+				resolv: defaultResolvConf,
+			},
+			hostTests: []nssHostTest{
+				{"x.com", hostLookupCgo},
+			},
+		},
 	}
 	for _, tt := range tests {
 		for _, ht := range tt.hostTests {
