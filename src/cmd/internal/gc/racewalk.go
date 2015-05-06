@@ -324,9 +324,8 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 		}
 		goto ret
 
-		// Seems to only lead to double instrumentation.
-	//racewalknode(&n->left, init, 0, 0);
 	case OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR:
+		racewalknode(&n.Left, init, 0, 0)
 		goto ret
 
 	case OADDR:

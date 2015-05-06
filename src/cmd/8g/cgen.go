@@ -17,7 +17,7 @@ import (
  */
 func igenindex(n *gc.Node, res *gc.Node, bounded bool) *obj.Prog {
 	if !gc.Is64(n.Type) {
-		if n.Addable {
+		if n.Addable && (gc.Simtype[n.Etype] == gc.TUINT32 || gc.Simtype[n.Etype] == gc.TINT32) {
 			// nothing to do.
 			*res = *n
 		} else {
