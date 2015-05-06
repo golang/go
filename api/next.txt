@@ -778,9 +778,6 @@ pkg net/http/pprof, func Trace(http.ResponseWriter, *http.Request)
 pkg net/smtp, method (*Client) TLSConnectionState() (tls.ConnectionState, bool)
 pkg os/signal, func Ignore(...os.Signal)
 pkg os/signal, func Reset(...os.Signal)
-pkg runtime, func GCendtimes()
-pkg runtime, func GCprinttimes()
-pkg runtime, func GCstarttimes(int64)
 pkg runtime, func ReadTrace() []uint8
 pkg runtime, func StartTrace() error
 pkg runtime, func StopTrace()
