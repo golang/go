@@ -711,6 +711,23 @@ func walkexpr(np **Node, init **NodeList) {
 			n = mkcall1(chanfn("chanrecv1", 2, r.Type), nil, init, typename(r.Type), r, n1)
 			walkexpr(&n, init)
 			goto ret
+
+		case OAPPEND:
+			// x = append(...)
+			r := n.Right
+			if r.Isddd {
+				r = appendslice(r, init) // also works for append(slice, string).
+			} else {
+				r = walkappend(r, init, n)
+			}
+			n.Right = r
+			if r.Op == OAPPEND {
+				// Left in place for back end.
+				// Do not add a new write barrier.
+				goto ret
+			}
+			// Otherwise, lowered for race detector.
+			// Treat as ordinary assignment.
 		}
 
 		if n.Left != nil && n.Right != nil {
@@ -1400,12 +1417,8 @@ func walkexpr(np **Node, init **NodeList) {
 		goto ret
 
 	case OAPPEND:
-		if n.Isddd {
-			n = appendslice(n, init) // also works for append(slice, string).
-		} else {
-			n = walkappend(n, init)
-		}
-		goto ret
+		// order should make sure we only see OAS(node, OAPPEND), which we handle above.
+		Fatal("append outside assignment")
 
 	case OCOPY:
 		n = copyany(n, init, flag_race)
@@ -2108,9 +2121,8 @@ func isstack(n *Node) bool {
 	}
 
 	switch n.Op {
-	// OINDREG only ends up in walk if it's indirect of SP.
 	case OINDREG:
-		return true
+		return n.Reg == int16(Thearch.REGSP)
 
 	case ONAME:
 		switch n.Class {
@@ -3006,7 +3018,13 @@ func appendslice(n *Node, init **NodeList) *Node {
 	return s
 }
 
-// expand append(src, a [, b]* ) to
+// Rewrite append(src, x, y, z) so that any side effects in
+// x, y, z (including runtime panics) are evaluated in
+// initialization statements before the append.
+// For normal code generation, stop there and leave the
+// rest to cgen_append.
+//
+// For race detector, expand append(src, a [, b]* ) to
 //
 //   init {
 //     s := src
@@ -3021,13 +3039,21 @@ func appendslice(n *Node, init **NodeList) *Node {
 //     ...
 //   }
 //   s
-func walkappend(n *Node, init **NodeList) *Node {
-	walkexprlistsafe(n.List, init)
+func walkappend(n *Node, init **NodeList, dst *Node) *Node {
+	if !samesafeexpr(dst, n.List.N) {
+		l := n.List
+		l.N = safeexpr(l.N, init)
+		walkexpr(&l.N, init)
+	}
+	walkexprlistsafe(n.List.Next, init)
 
 	// walkexprlistsafe will leave OINDEX (s[n]) alone if both s
 	// and n are name or literal, but those may index the slice we're
 	// modifying here.  Fix explicitly.
-	for l := n.List; l != nil; l = l.Next {
+	// Using cheapexpr also makes sure that the evaluation
+	// of all arguments (and especially any panics) happen
+	// before we begin to modify the slice in a visible way.
+	for l := n.List.Next; l != nil; l = l.Next {
 		l.N = cheapexpr(l.N, init)
 	}
 
@@ -3040,6 +3066,12 @@ func walkappend(n *Node, init **NodeList) *Node {
 	argc := count(n.List) - 1
 	if argc < 1 {
 		return nsrc
+	}
+
+	// General case, with no function calls left as arguments.
+	// Leave for gen, except that race detector requires old form
+	if flag_race == 0 {
+		return n
 	}
 
 	var l *NodeList
