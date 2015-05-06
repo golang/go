@@ -223,13 +223,10 @@ func TestAfterStop(t *testing.T) {
 func TestAfterQueuing(t *testing.T) {
 	// This test flakes out on some systems,
 	// so we'll try it a few times before declaring it a failure.
-	const attempts = 3
+	const attempts = 5
 	err := errors.New("!=nil")
 	for i := 0; i < attempts && err != nil; i++ {
-		delta := 100 * Millisecond
-		if i == 0 && testing.Short() {
-			delta = 20 * Millisecond
-		}
+		delta := Duration(20+i*50) * Millisecond
 		if err = testAfterQueuing(t, delta); err != nil {
 			t.Logf("attempt %v failed: %v", i, err)
 		}
