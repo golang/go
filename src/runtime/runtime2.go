@@ -29,7 +29,7 @@ const (
 	// _Gscanidle =     _Gscan + _Gidle,      // Not used. Gidle only used with newly malloced gs
 	_Gscanrunnable = _Gscan + _Grunnable //  0x1001 When scanning complets make Grunnable (it is already on run queue)
 	_Gscanrunning  = _Gscan + _Grunning  //  0x1002 Used to tell preemption newstack routine to scan preempted stack.
-	_Gscansyscall  = _Gscan + _Gsyscall  //  0x1003 When scanning completes make is Gsyscall
+	_Gscansyscall  = _Gscan + _Gsyscall  //  0x1003 When scanning completes make it Gsyscall
 	_Gscanwaiting  = _Gscan + _Gwaiting  //  0x1004 When scanning completes make it Gwaiting
 	// _Gscanmoribund_unused,               //  not possible
 	// _Gscandead,                          //  not possible
@@ -217,13 +217,13 @@ type g struct {
 	_panic       *_panic // innermost panic - offset known to liblink
 	_defer       *_defer // innermost defer
 	sched        gobuf
-	syscallsp    uintptr        // if status==gsyscall, syscallsp = sched.sp to use during gc
-	syscallpc    uintptr        // if status==gsyscall, syscallpc = sched.pc to use during gc
+	syscallsp    uintptr        // if status==Gsyscall, syscallsp = sched.sp to use during gc
+	syscallpc    uintptr        // if status==Gsyscall, syscallpc = sched.pc to use during gc
 	param        unsafe.Pointer // passed parameter on wakeup
 	atomicstatus uint32
 	goid         int64
 	waitsince    int64  // approx time when the g become blocked
-	waitreason   string // if status==gwaiting
+	waitreason   string // if status==Gwaiting
 	schedlink    guintptr
 	preempt      bool // preemption signal, duplicates stackguard0 = stackpreempt
 	paniconfault bool // panic (instead of crash) on unexpected fault address
