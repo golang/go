@@ -103,15 +103,26 @@ func testableListenArgs(network, address, client string) bool {
 		return false
 	}
 
-	// Test functionality of IPv6 communication using AF_INET6
-	// sockets.
+	// Test functionality of IPv4 communication using AF_INET and
+	// IPv6 communication using AF_INET6 sockets.
+	if !supportsIPv4 && ip.To4() != nil {
+		return false
+	}
 	if !supportsIPv6 && ip.To16() != nil && ip.To4() == nil {
 		return false
+	}
+	cip := ParseIP(client)
+	if cip != nil {
+		if !supportsIPv4 && cip.To4() != nil {
+			return false
+		}
+		if !supportsIPv6 && cip.To16() != nil && cip.To4() == nil {
+			return false
+		}
 	}
 
 	// Test functionality of IPv4 communication using AF_INET6
 	// sockets.
-	cip := ParseIP(client)
 	if !supportsIPv4map && (network == "tcp" || network == "udp" || network == "ip") && wildcard {
 		// At this point, we prefer IPv4 when ip is nil.
 		// See favoriteAddrFamily for further information.
