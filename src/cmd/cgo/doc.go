@@ -239,6 +239,9 @@ The following options are available when running cgo directly:
 		syscall package when bootstrapping a new target.
 	-objdir directory
 		Put all generated files in directory.
+	-importpath string
+		The import path for the Go package. Optional; used for
+		nicer comments in the generated files.
 	-gccgo
 		Generate output for the gccgo compiler rather than the
 		gc compiler.

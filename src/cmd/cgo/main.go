@@ -99,6 +99,7 @@ func (n *Name) IsVar() bool {
 type ExpFunc struct {
 	Func    *ast.FuncDecl
 	ExpName string // name to use from C
+	Doc     string
 }
 
 // A TypeRepr contains the string representation of a type.
@@ -161,11 +162,13 @@ var dynout = flag.String("dynout", "", "write -dynimport output to this file")
 var dynpackage = flag.String("dynpackage", "main", "set Go package for -dynimport output")
 var dynlinker = flag.Bool("dynlinker", false, "record dynamic linker information in -dynimport mode")
 
-// These flags are for bootstrapping a new Go implementation,
+// This flag is for bootstrapping a new Go implementation,
 // to generate Go types that match the data layout and
 // constant values used in the host's C libraries and system calls.
 var godefs = flag.Bool("godefs", false, "for bootstrap: write Go definitions for C file to standard output")
+
 var objDir = flag.String("objdir", "", "object directory")
+var importPath = flag.String("importpath", "", "import path of package being built (for comments in generated files)")
 
 var gccgo = flag.Bool("gccgo", false, "generate files for use with gccgo")
 var gccgoprefix = flag.String("gccgoprefix", "", "-fgo-prefix option used with gccgo")
