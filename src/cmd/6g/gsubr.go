@@ -99,6 +99,42 @@ func ginscon(as int, c int64, n2 *gc.Node) {
 	gins(as, &n1, n2)
 }
 
+func ginscmp(op int, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+	if gc.Isint[t.Etype] && n1.Op == gc.OLITERAL && gc.Smallintconst(n1) && n2.Op != gc.OLITERAL {
+		// Reverse comparison to place constant last.
+		op = gc.Brrev(op)
+		n1, n2 = n2, n1
+	}
+	// General case.
+	var r1, r2, g1, g2 gc.Node
+	if n1.Op == gc.ONAME && n1.Class&gc.PHEAP == 0 || n1.Op == gc.OINDREG {
+		r1 = *n1
+	} else {
+		gc.Regalloc(&r1, t, n1)
+		gc.Regalloc(&g1, n1.Type, &r1)
+		gc.Cgen(n1, &g1)
+		gmove(&g1, &r1)
+	}
+	if n2.Op == gc.OLITERAL && gc.Isint[t.Etype] && gc.Smallintconst(n2) {
+		r2 = *n2
+	} else {
+		gc.Regalloc(&r2, t, n2)
+		gc.Regalloc(&g2, n1.Type, &r2)
+		gc.Cgen(n2, &g2)
+		gmove(&g2, &r2)
+	}
+	gins(optoas(gc.OCMP, t), &r1, &r2)
+	if r1.Op == gc.OREGISTER {
+		gc.Regfree(&g1)
+		gc.Regfree(&r1)
+	}
+	if r2.Op == gc.OREGISTER {
+		gc.Regfree(&g2)
+		gc.Regfree(&r2)
+	}
+	return gc.Gbranch(optoas(op, t), nil, likely)
+}
+
 func ginsboolval(a int, n *gc.Node) {
 	gins(jmptoset(a), nil, n)
 }

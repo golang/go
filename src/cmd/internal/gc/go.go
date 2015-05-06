@@ -778,13 +778,26 @@ type Arch struct {
 	Expandchecks func(*obj.Prog)
 	Getg         func(*Node)
 	Gins         func(int, *Node, *Node) *obj.Prog
+
+	// Ginscmp generates code comparing n1 to n2 and jumping away if op is satisfied.
+	// The returned prog should be Patch'ed with the jump target.
+	// If op is not satisfied, code falls through to the next emitted instruction.
+	// Likely is the branch prediction hint: +1 for likely, -1 for unlikely, 0 for no opinion.
+	//
+	// Ginscmp must be able to handle all kinds of arguments for n1 and n2,
+	// not just simple registers, although it can assume that there are no
+	// function calls needed during the evaluation, so no in-memory temporaries
+	// are necessary.
+	Ginscmp func(op int, t *Type, n1, n2 *Node, likely int) *obj.Prog
+
 	// Ginsboolval inserts instructions to convert the result
 	// of a just-completed comparison to a boolean value.
 	// The first argument is the conditional jump instruction
 	// corresponding to the desired value.
 	// The second argument is the destination.
 	// If not present, Ginsboolval will be emulated with jumps.
-	Ginsboolval  func(int, *Node)
+	Ginsboolval func(int, *Node)
+
 	Ginscon      func(int, int64, *Node)
 	Ginsnop      func()
 	Gmove        func(*Node, *Node)

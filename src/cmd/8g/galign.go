@@ -81,6 +81,7 @@ func main() {
 	gc.Thearch.Expandchecks = expandchecks
 	gc.Thearch.Getg = getg
 	gc.Thearch.Gins = gins
+	gc.Thearch.Ginscmp = ginscmp
 	gc.Thearch.Ginscon = ginscon
 	gc.Thearch.Ginsnop = ginsnop
 	gc.Thearch.Gmove = gmove

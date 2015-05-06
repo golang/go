@@ -53,28 +53,6 @@ func igenindex(n *gc.Node, res *gc.Node, bounded bool) *obj.Prog {
 	return cgenindex(n, res, bounded)
 }
 
-func gencmp0(n *gc.Node, t *gc.Type, o int, likely int, to *obj.Prog) {
-	var n1 gc.Node
-
-	gc.Regalloc(&n1, t, nil)
-	gc.Cgen(n, &n1)
-	a := optoas(gc.OCMP, t)
-	if a != arm.ACMP {
-		var n2 gc.Node
-		gc.Nodconst(&n2, t, 0)
-		var n3 gc.Node
-		gc.Regalloc(&n3, t, nil)
-		gmove(&n2, &n3)
-		gins(a, &n1, &n3)
-		gc.Regfree(&n3)
-	} else {
-		gins(arm.ATST, &n1, nil)
-	}
-	a = optoas(o, t)
-	gc.Patch(gc.Gbranch(a, t, likely), to)
-	gc.Regfree(&n1)
-}
-
 func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
 	// determine alignment.
 	// want to avoid unaligned access, so have to use
