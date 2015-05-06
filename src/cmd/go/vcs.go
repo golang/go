@@ -26,13 +26,13 @@ type vcsCmd struct {
 	name string
 	cmd  string // name of binary to invoke command
 
-	createCmd   string // command to download a fresh copy of a repository
-	downloadCmd string // command to download updates into an existing repository
+	createCmd   []string // commands to download a fresh copy of a repository
+	downloadCmd []string // commands to download updates into an existing repository
 
 	tagCmd         []tagCmd // commands to list tags
 	tagLookupCmd   []tagCmd // commands to lookup tags before running tagSyncCmd
-	tagSyncCmd     string   // command to sync to specific tag
-	tagSyncDefault string   // command to sync to default tag
+	tagSyncCmd     []string // commands to sync to specific tag
+	tagSyncDefault []string // commands to sync to default tag
 
 	scheme  []string
 	pingCmd string
@@ -88,8 +88,8 @@ var vcsHg = &vcsCmd{
 	name: "Mercurial",
 	cmd:  "hg",
 
-	createCmd:   "clone -U {repo} {dir}",
-	downloadCmd: "pull",
+	createCmd:   []string{"clone -U {repo} {dir}"},
+	downloadCmd: []string{"pull"},
 
 	// We allow both tag and branch names as 'tags'
 	// for selecting a version.  This lets people have
@@ -100,8 +100,8 @@ var vcsHg = &vcsCmd{
 		{"tags", `^(\S+)`},
 		{"branches", `^(\S+)`},
 	},
-	tagSyncCmd:     "update -r {tag}",
-	tagSyncDefault: "update default",
+	tagSyncCmd:     []string{"update -r {tag}"},
+	tagSyncDefault: []string{"update default"},
 
 	scheme:     []string{"https", "http", "ssh"},
 	pingCmd:    "identify {scheme}://{repo}",
@@ -121,8 +121,8 @@ var vcsGit = &vcsCmd{
 	name: "Git",
 	cmd:  "git",
 
-	createCmd:   "clone {repo} {dir}",
-	downloadCmd: "pull --ff-only",
+	createCmd:   []string{"clone {repo} {dir}", "--git-dir={dir}/.git submodule update --init --recursive"},
+	downloadCmd: []string{"pull --ff-only", "submodule update --init --recursive"},
 
 	tagCmd: []tagCmd{
 		// tags/xxx matches a git tag named xxx
@@ -132,12 +132,12 @@ var vcsGit = &vcsCmd{
 	tagLookupCmd: []tagCmd{
 		{"show-ref tags/{tag} origin/{tag}", `((?:tags|origin)/\S+)$`},
 	},
-	tagSyncCmd: "checkout {tag}",
+	tagSyncCmd: []string{"checkout {tag}", "submodule update --init --recursive"},
 	// both createCmd and downloadCmd update the working dir.
 	// No need to do more here. We used to 'checkout master'
 	// but that doesn't work if the default branch is not named master.
 	// See golang.org/issue/9032.
-	tagSyncDefault: "",
+	tagSyncDefault: []string{"checkout master", "submodule update --init --recursive"},
 
 	scheme:     []string{"git", "https", "http", "git+ssh"},
 	pingCmd:    "ls-remote {scheme}://{repo}",
@@ -178,15 +178,15 @@ var vcsBzr = &vcsCmd{
 	name: "Bazaar",
 	cmd:  "bzr",
 
-	createCmd: "branch {repo} {dir}",
+	createCmd: []string{"branch {repo} {dir}"},
 
 	// Without --overwrite bzr will not pull tags that changed.
 	// Replace by --overwrite-tags after http://pad.lv/681792 goes in.
-	downloadCmd: "pull --overwrite",
+	downloadCmd: []string{"pull --overwrite"},
 
 	tagCmd:         []tagCmd{{"tags", `^(\S+)`}},
-	tagSyncCmd:     "update -r {tag}",
-	tagSyncDefault: "update -r revno:-1",
+	tagSyncCmd:     []string{"update -r {tag}"},
+	tagSyncDefault: []string{"update -r revno:-1"},
 
 	scheme:      []string{"https", "http", "bzr", "bzr+ssh"},
 	pingCmd:     "info {scheme}://{repo}",
@@ -240,8 +240,8 @@ var vcsSvn = &vcsCmd{
 	name: "Subversion",
 	cmd:  "svn",
 
-	createCmd:   "checkout {repo} {dir}",
-	downloadCmd: "update",
+	createCmd:   []string{"checkout {repo} {dir}"},
+	downloadCmd: []string{"update"},
 
 	// There is no tag command in subversion.
 	// The branch information is all in the path names.
@@ -352,7 +352,15 @@ func (v *vcsCmd) ping(scheme, repo string) error {
 // create creates a new copy of repo in dir.
 // The parent of dir must exist; dir must not.
 func (v *vcsCmd) create(dir, repo string) error {
-	return v.run(".", v.createCmd, "dir", dir, "repo", repo)
+	for _, cmd := range v.createCmd {
+		if !go15VendorExperiment && strings.Contains(cmd, "submodule") {
+			continue
+		}
+		if err := v.run(".", cmd, "dir", dir, "repo", repo); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // download downloads any new changes for the repo in dir.
@@ -360,7 +368,15 @@ func (v *vcsCmd) download(dir string) error {
 	if err := v.fixDetachedHead(dir); err != nil {
 		return err
 	}
-	return v.run(dir, v.downloadCmd)
+	for _, cmd := range v.downloadCmd {
+		if !go15VendorExperiment && strings.Contains(cmd, "submodule") {
+			continue
+		}
+		if err := v.run(dir, cmd); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // fixDetachedHead switches a Git repository in dir from a detached head to the master branch.
@@ -406,7 +422,7 @@ func (v *vcsCmd) tags(dir string) ([]string, error) {
 // tagSync syncs the repo in dir to the named tag,
 // which either is a tag returned by tags or is v.tagDefault.
 func (v *vcsCmd) tagSync(dir, tag string) error {
-	if v.tagSyncCmd == "" {
+	if v.tagSyncCmd == nil {
 		return nil
 	}
 	if tag != "" {
@@ -423,10 +439,28 @@ func (v *vcsCmd) tagSync(dir, tag string) error {
 			}
 		}
 	}
-	if tag == "" && v.tagSyncDefault != "" {
-		return v.run(dir, v.tagSyncDefault)
+
+	if tag == "" && v.tagSyncDefault != nil {
+		for _, cmd := range v.tagSyncDefault {
+			if !go15VendorExperiment && strings.Contains(cmd, "submodule") {
+				continue
+			}
+			if err := v.run(dir, cmd); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
-	return v.run(dir, v.tagSyncCmd, "tag", tag)
+
+	for _, cmd := range v.tagSyncCmd {
+		if !go15VendorExperiment && strings.Contains(cmd, "submodule") {
+			continue
+		}
+		if err := v.run(dir, cmd, "tag", tag); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // A vcsPath describes how to convert an import path into a
