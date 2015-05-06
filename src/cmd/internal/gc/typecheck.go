@@ -3360,29 +3360,6 @@ func typecheckas(n *Node) {
 	if n.Left.Typecheck == 0 {
 		typecheck(&n.Left, Erv|Easgn)
 	}
-
-	// Recognize slices being updated in place, for better code generation later.
-	// Don't rewrite if using race detector, to avoid needing to teach race detector
-	// about this optimization.
-	if n.Left != nil && n.Left.Op != OINDEXMAP && n.Right != nil && flag_race == 0 {
-		switch n.Right.Op {
-		// For x = x[0:y], x can be updated in place, without touching pointer.
-		// TODO(rsc): Reenable once it is actually updated in place without touching the pointer.
-		case OSLICE, OSLICE3, OSLICESTR:
-			if false && samesafeexpr(n.Left, n.Right.Left) && (n.Right.Right.Left == nil || iszero(n.Right.Right.Left)) {
-				n.Right.Reslice = true
-			}
-
-			// For x = append(x, ...), x can be updated in place when there is capacity,
-		// without touching the pointer; otherwise the emitted code to growslice
-		// can take care of updating the pointer, and only in that case.
-		// TODO(rsc): Reenable once the emitted code does update the pointer.
-		case OAPPEND:
-			if false && n.Right.List != nil && samesafeexpr(n.Left, n.Right.List.N) {
-				n.Right.Reslice = true
-			}
-		}
-	}
 }
 
 func checkassignto(src *Type, dst *Node) {

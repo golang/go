@@ -48,7 +48,6 @@ type Node struct {
 	Assigned    bool   // is the variable ever assigned to
 	Captured    bool   // is the variable captured by a closure
 	Byval       bool   // is the variable captured by value or by reference
-	Reslice     bool   // this is a reslice x = x[0:y] or x = append(x, ...)
 	Likely      int8   // likeliness of if statement
 	Hasbreak    bool   // has break statement
 	Needzero    bool   // if it contains pointers, needs to be zeroed on function entry
