@@ -1325,6 +1325,9 @@ func (p *Package) gccExportHeaderProlog() string {
 const gccExportHeaderProlog = `
 /* Start of boilerplate cgo prologue.  */
 
+#ifndef GO_CGO_PROLOGUE_H
+#define GO_CGO_PROLOGUE_H
+
 typedef signed char GoInt8;
 typedef unsigned char GoUint8;
 typedef short GoInt16;
@@ -1350,6 +1353,8 @@ typedef void *GoMap;
 typedef void *GoChan;
 typedef struct { void *t; void *v; } GoInterface;
 typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
+
+#endif
 
 /* End of boilerplate cgo prologue.  */
 `
