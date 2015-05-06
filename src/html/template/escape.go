@@ -297,9 +297,9 @@ var redundantFuncs = map[string]map[string]bool{
 // unless it is redundant with the last command.
 func appendCmd(cmds []*parse.CommandNode, cmd *parse.CommandNode) []*parse.CommandNode {
 	if n := len(cmds); n != 0 {
-		last, ok := cmds[n-1].Args[0].(*parse.IdentifierNode)
-		next, _ := cmd.Args[0].(*parse.IdentifierNode)
-		if ok && redundantFuncs[last.Ident][next.Ident] {
+		last, okLast := cmds[n-1].Args[0].(*parse.IdentifierNode)
+		next, okNext := cmd.Args[0].(*parse.IdentifierNode)
+		if okLast && okNext && redundantFuncs[last.Ident][next.Ident] {
 			return cmds
 		}
 	}
