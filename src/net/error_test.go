@@ -524,10 +524,11 @@ func TestFileError(t *testing.T) {
 		t.Skip("not supported on %s", runtime.GOOS)
 	}
 
-	f, err := ioutil.TempFile("", "nettest")
+	f, err := ioutil.TempFile("", "go-nettest")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.Remove(f.Name())
 	defer f.Close()
 
 	c, err := FileConn(f)
