@@ -428,8 +428,7 @@ func cgen_dottype(n *Node, res, resok *Node, wb bool) {
 	Cgen(&iface, &r1)
 	if !isnilinter(n.Left.Type) {
 		// Holding itab, want concrete type in second word.
-		Thearch.Gins(Thearch.Optoas(OCMP, byteptr), &r1, Nodintconst(0))
-		p := Gbranch(Thearch.Optoas(OEQ, byteptr), nil, -1)
+		p := Thearch.Ginscmp(OEQ, byteptr, &r1, Nodintconst(0), -1)
 		r2 = r1
 		r2.Op = OINDREG
 		r2.Xoffset = int64(Widthptr)
@@ -438,8 +437,7 @@ func cgen_dottype(n *Node, res, resok *Node, wb bool) {
 	}
 	Regalloc(&r2, byteptr, nil)
 	Cgen(typename(n.Type), &r2)
-	Thearch.Gins(Thearch.Optoas(OCMP, byteptr), &r1, &r2)
-	p := Gbranch(Thearch.Optoas(ONE, byteptr), nil, -1)
+	p := Thearch.Ginscmp(ONE, byteptr, &r1, &r2, -1)
 	Regfree(&r2) // not needed for success path; reclaimed on one failure path
 	iface.Xoffset += int64(Widthptr)
 	Cgen(&iface, &r1)
@@ -521,8 +519,7 @@ func Cgen_As2dottype(n, res, resok *Node) {
 	Cgen(&iface, &r1)
 	if !isnilinter(n.Left.Type) {
 		// Holding itab, want concrete type in second word.
-		Thearch.Gins(Thearch.Optoas(OCMP, byteptr), &r1, Nodintconst(0))
-		p := Gbranch(Thearch.Optoas(OEQ, byteptr), nil, -1)
+		p := Thearch.Ginscmp(OEQ, byteptr, &r1, Nodintconst(0), -1)
 		r2 = r1
 		r2.Op = OINDREG
 		r2.Xoffset = int64(Widthptr)
@@ -531,8 +528,7 @@ func Cgen_As2dottype(n, res, resok *Node) {
 	}
 	Regalloc(&r2, byteptr, nil)
 	Cgen(typename(n.Type), &r2)
-	Thearch.Gins(Thearch.Optoas(OCMP, byteptr), &r1, &r2)
-	p := Gbranch(Thearch.Optoas(ONE, byteptr), nil, -1)
+	p := Thearch.Ginscmp(ONE, byteptr, &r1, &r2, -1)
 	iface.Type = n.Type
 	iface.Xoffset += int64(Widthptr)
 	Cgen(&iface, &r1)

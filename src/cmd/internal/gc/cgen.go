@@ -569,8 +569,7 @@ func cgen_wb(n, res *Node, wb bool) {
 
 			var n2 Node
 			Nodconst(&n2, Types[Tptr], 0)
-			Thearch.Gins(Thearch.Optoas(OCMP, Types[Tptr]), &n1, &n2)
-			p1 := Gbranch(Thearch.Optoas(OEQ, Types[Tptr]), nil, 0)
+			p1 := Thearch.Ginscmp(OEQ, Types[Tptr], &n1, &n2, 0)
 
 			n2 = n1
 			n2.Op = OINDREG
@@ -610,8 +609,7 @@ func cgen_wb(n, res *Node, wb bool) {
 
 			var n2 Node
 			Nodconst(&n2, Types[Tptr], 0)
-			Thearch.Gins(Thearch.Optoas(OCMP, Types[Tptr]), &n1, &n2)
-			p1 := Gbranch(Thearch.Optoas(OEQ, Types[Tptr]), nil, 0)
+			p1 := Thearch.Ginscmp(OEQ, Types[Tptr], &n1, &n2, 0)
 
 			n2 = n1
 			n2.Op = OINDREG
@@ -804,19 +802,7 @@ func cgen_wbptr(n, res *Node) {
 	}
 
 	wbEnabled := syslook("writeBarrierEnabled", 0)
-	switch Ctxt.Arch.Thechar {
-	default:
-		Fatal("cgen_wbptr: unknown architecture")
-	case '5', '7', '9':
-		var tmp Node
-		Regalloc(&tmp, Types[TUINT8], nil)
-		Thearch.Gmove(wbEnabled, &tmp)
-		Thearch.Gins(Thearch.Optoas(OCMP, Types[TUINT8]), &tmp, Nodintconst(0))
-		Regfree(&tmp)
-	case '6', '8':
-		Thearch.Gins(Thearch.Optoas(OCMP, Types[TUINT8]), wbEnabled, Nodintconst(0))
-	}
-	pbr := Gbranch(Thearch.Optoas(ONE, Types[TUINT8]), nil, -1)
+	pbr := Thearch.Ginscmp(ONE, Types[TUINT8], wbEnabled, Nodintconst(0), -1)
 	Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), &src, &dst)
 	pjmp := Gbranch(obj.AJMP, nil, 0)
 	Patch(pbr, Pc)
@@ -1055,13 +1041,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 						n1.Op = OINDREG
 						n1.Type = Types[Tptr]
 						n1.Xoffset = int64(Array_nel)
-						var n4 Node
-						Regalloc(&n4, n1.Type, nil)
-						Thearch.Gmove(&n1, &n4)
-						Nodconst(&n2, Types[TUINT32], int64(v))
-						Thearch.Gins(Thearch.Optoas(OCMP, Types[TUINT32]), &n4, &n2)
-						Regfree(&n4)
-						p1 := Gbranch(Thearch.Optoas(OGT, Types[TUINT32]), nil, +1)
+						p1 := Thearch.Ginscmp(OGT, Types[TUINT32], &n1, &n2, +1)
 						Ginscall(Panicindex, -1)
 						Patch(p1, Pc)
 					}
@@ -1099,12 +1079,10 @@ func Agenr(n *Node, a *Node, res *Node) {
 				} else {
 					Nodconst(&n4, Types[TUINT32], nl.Type.Bound)
 				}
-
-				Thearch.Gins(Thearch.Optoas(OCMP, Types[TUINT32]), &n2, &n4)
+				p1 := Thearch.Ginscmp(OLT, Types[TUINT32], &n2, &n4, +1)
 				if n4.Op == OREGISTER {
 					Regfree(&n4)
 				}
-				p1 := Gbranch(Thearch.Optoas(OLT, Types[TUINT32]), nil, +1)
 				if p2 != nil {
 					Patch(p2, Pc)
 				}
@@ -1213,8 +1191,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 						nlen.Type = Types[TUINT32]
 						nlen.Xoffset += int64(Array_nel)
 						Nodconst(&n2, Types[TUINT32], int64(v))
-						Thearch.Gins(Thearch.Optoas(OCMP, Types[TUINT32]), &nlen, &n2)
-						p1 := Gbranch(Thearch.Optoas(OGT, Types[TUINT32]), nil, +1)
+						p1 := Thearch.Ginscmp(OGT, Types[TUINT32], &nlen, &n2, +1)
 						Ginscall(Panicindex, -1)
 						Patch(p1, Pc)
 					}
@@ -1261,8 +1238,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 					Nodconst(&nlen, t, nl.Type.Bound)
 				}
 
-				Thearch.Gins(Thearch.Optoas(OCMP, t), &n2, &nlen)
-				p1 := Gbranch(Thearch.Optoas(OLT, t), nil, +1)
+				p1 := Thearch.Ginscmp(OLT, t, &n2, &nlen, +1)
 				if p2 != nil {
 					Patch(p2, Pc)
 				}
@@ -1401,25 +1377,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 			v := uint64(Mpgetfix(nr.Val.U.Xval))
 			if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
 				if Debug['B'] == 0 && !n.Bounded {
-					if nlen.Op != OREGISTER && (Ctxt.Arch.Thechar == '7' || Ctxt.Arch.Thechar == '9') {
-						var tmp2 Node
-						Regalloc(&tmp2, Types[Simtype[TUINT]], nil)
-						Thearch.Gmove(&nlen, &tmp2)
-						Regfree(&nlen) // in case it is OINDREG
-						nlen = tmp2
-					}
-					var n2 Node
-					Nodconst(&n2, Types[Simtype[TUINT]], int64(v))
-					if Smallintconst(nr) {
-						Thearch.Gins(Thearch.Optoas(OCMP, Types[Simtype[TUINT]]), &nlen, &n2)
-					} else {
-						Regalloc(&tmp, Types[Simtype[TUINT]], nil)
-						Thearch.Gmove(&n2, &tmp)
-						Thearch.Gins(Thearch.Optoas(OCMP, Types[Simtype[TUINT]]), &nlen, &tmp)
-						Regfree(&tmp)
-					}
-
-					p1 := Gbranch(Thearch.Optoas(OGT, Types[Simtype[TUINT]]), nil, +1)
+					p1 := Thearch.Ginscmp(OGT, Types[Simtype[TUINT]], &nlen, Nodintconst(int64(v)), +1)
 					Ginscall(Panicindex, -1)
 					Patch(p1, Pc)
 				}
@@ -1456,26 +1414,12 @@ func Agenr(n *Node, a *Node, res *Node) {
 			if Isconst(nl, CTSTR) {
 				Nodconst(&nlen, t, int64(len(nl.Val.U.Sval)))
 			} else if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
-				if Is64(nr.Type) || Ctxt.Arch.Thechar == '7' || Ctxt.Arch.Thechar == '9' {
-					var n5 Node
-					Regalloc(&n5, t, nil)
-					Thearch.Gmove(&nlen, &n5)
-					Regfree(&nlen)
-					nlen = n5
-				}
+				// nlen already initialized
 			} else {
 				Nodconst(&nlen, t, nl.Type.Bound)
-				if !Smallintconst(&nlen) {
-					var n5 Node
-					Regalloc(&n5, t, nil)
-					Thearch.Gmove(&nlen, &n5)
-					nlen = n5
-					freelen = 1
-				}
 			}
 
-			Thearch.Gins(Thearch.Optoas(OCMP, t), &n2, &nlen)
-			p1 := Gbranch(Thearch.Optoas(OLT, t), nil, +1)
+			p1 := Thearch.Ginscmp(OLT, t, &n2, &nlen, +1)
 			Ginscall(Panicindex, -1)
 			Patch(p1, Pc)
 		}
@@ -2446,8 +2390,7 @@ func Ginscall(f *Node, proc int) {
 
 		if proc == 2 {
 			Nodreg(&reg, Types[TINT32], Thearch.REGRETURN)
-			Thearch.Gins(Thearch.Optoas(OCMP, Types[TINT32]), &reg, Nodintconst(0))
-			p := Gbranch(Thearch.Optoas(OEQ, Types[TINT32]), nil, +1)
+			p := Thearch.Ginscmp(OEQ, Types[TINT32], &reg, Nodintconst(0), +1)
 			cgen_ret(nil)
 			Patch(p, Pc)
 		}

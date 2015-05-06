@@ -101,6 +101,7 @@ func main() {
 	gc.Thearch.Getg = getg
 	gc.Thearch.Gins = gins
 	gc.Thearch.Ginsboolval = ginsboolval
+	gc.Thearch.Ginscmp = ginscmp
 	gc.Thearch.Ginscon = ginscon
 	gc.Thearch.Ginsnop = ginsnop
 	gc.Thearch.Gmove = gmove

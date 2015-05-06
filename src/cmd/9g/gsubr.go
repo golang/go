@@ -116,6 +116,34 @@ func ginscon2(as int, n2 *gc.Node, c int64) {
 	gc.Regfree(&ntmp)
 }
 
+func ginscmp(op int, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+	if gc.Isint[t.Etype] && n1.Op == gc.OLITERAL && n2.Op != gc.OLITERAL {
+		// Reverse comparison to place constant last.
+		op = gc.Brrev(op)
+		n1, n2 = n2, n1
+	}
+
+	var r1, r2, g1, g2 gc.Node
+	gc.Regalloc(&r1, t, n1)
+	gc.Regalloc(&g1, n1.Type, &r1)
+	gc.Cgen(n1, &g1)
+	gmove(&g1, &r1)
+	if gc.Isint[t.Etype] && gc.Isconst(n2, gc.CTINT) {
+		ginscon2(optoas(gc.OCMP, t), &r1, gc.Mpgetfix(n2.Val.U.Xval))
+	} else {
+		gc.Regalloc(&r2, t, n2)
+		gc.Regalloc(&g2, n1.Type, &r2)
+		gc.Cgen(n2, &g2)
+		gmove(&g2, &r2)
+		rawgins(optoas(gc.OCMP, t), &r1, &r2)
+		gc.Regfree(&g2)
+		gc.Regfree(&r2)
+	}
+	gc.Regfree(&g1)
+	gc.Regfree(&r1)
+	return gc.Gbranch(optoas(op, t), nil, likely)
+}
+
 /*
  * set up nodes representing 2^63
  */
