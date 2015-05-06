@@ -96,13 +96,17 @@ func TestUnsetenv(t *testing.T) {
 }
 
 func TestLookupEnv(t *testing.T) {
-	value, ok := LookupEnv("GOROOT") // Should be set.
-	if !ok {
-		t.Errorf("GOROOT is not set")
-	}
-	const v = "Variable That Does Not Exist"
-	value, ok = LookupEnv(v) // Should not be set.
+	const smallpox = "SMALLPOX"      // No one has smallpox.
+	value, ok := LookupEnv(smallpox) // Should not exist.
 	if ok || value != "" {
-		t.Errorf("%s is set: %q", v, value)
+		t.Fatalf("%s=%q", smallpox, value)
+	}
+	err := Setenv(smallpox, "virus")
+	if err != nil {
+		t.Fatalf("failed to release smallpox virus")
+	}
+	value, ok = LookupEnv(smallpox)
+	if !ok {
+		t.Errorf("smallpox release failed; world remains safe but LookupEnv is broken")
 	}
 }
