@@ -130,6 +130,9 @@ const (
 // heapminimum is the minimum number of bytes in the heap.
 // This cleans up the corner case of where we have a very small live set but a lot
 // of allocations and collecting every GOGC * live set is expensive.
+// heapminimum is adjust by multiplying it by GOGC/100. In
+// the special case of GOGC==0 this will set heapminimum to 0 resulting
+// collecting at every allocation even when the heap size is small.
 var heapminimum = uint64(4 << 20)
 
 // Initialized from $GOGC.  GOGC=off means no GC.
@@ -141,12 +144,23 @@ func gcinit() {
 	}
 
 	work.markfor = parforalloc(_MaxGcproc)
-	gcpercent = readgogc()
+	_ = setGCPercent(readgogc())
 	for datap := &firstmoduledata; datap != nil; datap = datap.next {
 		datap.gcdatamask = unrollglobgcprog((*byte)(unsafe.Pointer(datap.gcdata)), datap.edata-datap.data)
 		datap.gcbssmask = unrollglobgcprog((*byte)(unsafe.Pointer(datap.gcbss)), datap.ebss-datap.bss)
 	}
 	memstats.next_gc = heapminimum
+}
+
+func readgogc() int32 {
+	p := gogetenv("GOGC")
+	if p == "" {
+		return 100
+	}
+	if p == "off" {
+		return -1
+	}
+	return int32(atoi(p))
 }
 
 // gcenable is called after the bulk of the runtime initialization,
@@ -166,6 +180,7 @@ func setGCPercent(in int32) (out int32) {
 		in = -1
 	}
 	gcpercent = in
+	heapminimum = heapminimum * uint64(gcpercent) / 100
 	unlock(&mheap_.lock)
 	return out
 }
