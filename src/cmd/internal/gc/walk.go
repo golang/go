@@ -2185,26 +2185,6 @@ func needwritebarrier(l *Node, r *Node) bool {
 		return false
 	}
 
-	// No write barrier for reslice: x = x[0:y] or x = append(x, ...).
-	// Both are compiled to modify x directly.
-	// In the case of append, a write barrier may still be needed
-	// if the underlying array grows, but the append code can
-	// generate the write barrier directly in that case.
-	// (It does not yet, but the cost of the write barrier will be
-	// small compared to the cost of the allocation.)
-	if r.Reslice {
-		switch r.Op {
-		case OSLICE, OSLICE3, OSLICESTR, OAPPEND:
-			break
-
-		default:
-			Dump("bad reslice-l", l)
-			Dump("bad reslice-r", r)
-		}
-
-		return false
-	}
-
 	// Otherwise, be conservative and use write barrier.
 	return true
 }
