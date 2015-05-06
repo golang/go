@@ -51,7 +51,7 @@ func schedinit() {
 	framepointer_enabled = haveexperiment("framepointer")
 
 	tracebackinit()
-	symtabverify()
+	moduledataverify()
 	stackinit()
 	mallocinit()
 	mcommoninit(_g_.m)
