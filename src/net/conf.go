@@ -85,7 +85,7 @@ func initConfVal() {
 
 // hostLookupOrder determines which strategy to use to resolve hostname.
 func (c *conf) hostLookupOrder(hostname string) hostLookupOrder {
-	if c.forceCgoLookupHost || c.resolv.unknownOpt {
+	if c.forceCgoLookupHost || c.resolv.unknownOpt || c.goos == "android" {
 		return hostLookupCgo
 	}
 	if byteIndex(hostname, '\\') != -1 || byteIndex(hostname, '%') != -1 {
