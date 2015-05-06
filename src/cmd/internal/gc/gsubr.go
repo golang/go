@@ -625,20 +625,20 @@ func gclean() {
 	for r := Thearch.REGMIN; r <= Thearch.REGMAX; r++ {
 		n := reg[r-Thearch.REGMIN]
 		if n != 0 {
-			Yyerror("reg %v left allocated", obj.Rconv(r))
 			if Debug['v'] != 0 {
 				Regdump()
 			}
+			Yyerror("reg %v left allocated", obj.Rconv(r))
 		}
 	}
 
 	for r := Thearch.FREGMIN; r <= Thearch.FREGMAX; r++ {
 		n := reg[r-Thearch.REGMIN]
 		if n != 0 {
-			Yyerror("reg %v left allocated", obj.Rconv(r))
 			if Debug['v'] != 0 {
 				Regdump()
 			}
+			Yyerror("reg %v left allocated", obj.Rconv(r))
 		}
 	}
 }
