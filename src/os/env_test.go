@@ -101,6 +101,7 @@ func TestLookupEnv(t *testing.T) {
 	if ok || value != "" {
 		t.Fatalf("%s=%q", smallpox, value)
 	}
+	defer Unsetenv(smallpox)
 	err := Setenv(smallpox, "virus")
 	if err != nil {
 		t.Fatalf("failed to release smallpox virus")
