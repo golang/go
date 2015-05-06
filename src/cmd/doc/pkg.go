@@ -71,6 +71,7 @@ func parsePackage(pkg *build.Package, userPath string) *Package {
 	docPkg := doc.New(astPkg, pkg.ImportPath, doc.AllDecls)
 	for _, typ := range docPkg.Types {
 		docPkg.Consts = append(docPkg.Consts, typ.Consts...)
+		docPkg.Vars = append(docPkg.Vars, typ.Vars...)
 		docPkg.Funcs = append(docPkg.Funcs, typ.Funcs...)
 	}
 
