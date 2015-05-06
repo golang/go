@@ -432,15 +432,3 @@ func reflect_typelinks() [][]*_type {
 	}
 	return ret
 }
-
-// TODO: move back into mgc.go
-func readgogc() int32 {
-	p := gogetenv("GOGC")
-	if p == "" {
-		return 100
-	}
-	if p == "off" {
-		return -1
-	}
-	return int32(atoi(p))
-}
