@@ -101,7 +101,7 @@ type resolvConfTest struct {
 }
 
 func newResolvConfTest(t *testing.T) *resolvConfTest {
-	dir, err := ioutil.TempDir("", "resolvConfTest")
+	dir, err := ioutil.TempDir("", "go-resolvconftest")
 	if err != nil {
 		t.Fatal(err)
 	}
