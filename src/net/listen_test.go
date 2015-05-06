@@ -218,8 +218,13 @@ var dualStackTCPListenerTests = []struct {
 // listening address and same port.
 func TestDualStackTCPListener(t *testing.T) {
 	switch runtime.GOOS {
+	case "dragonfly":
+		t.Skip("not supported on DragonFly, see golang.org/issue/10729")
 	case "nacl", "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
+	}
+	if !supportsIPv4 || !supportsIPv6 {
+		t.Skip("both IPv4 and IPv6 are required")
 	}
 
 	for _, tt := range dualStackTCPListenerTests {
@@ -304,6 +309,9 @@ func TestDualStackUDPListener(t *testing.T) {
 	switch runtime.GOOS {
 	case "nacl", "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
+	}
+	if !supportsIPv4 || !supportsIPv6 {
+		t.Skip("both IPv4 and IPv6 are required")
 	}
 
 	for _, tt := range dualStackUDPListenerTests {

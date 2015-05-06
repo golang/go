@@ -155,7 +155,7 @@ func TestDialerDualStackFDLeak(t *testing.T) {
 		t.Skipf("not implemented a way to cancel dial racers in TCP SYN-SENT state on %s", runtime.GOOS)
 	}
 	if !supportsIPv4 || !supportsIPv6 {
-		t.Skip("ipv4 or ipv6 is not supported")
+		t.Skip("both IPv4 and IPv6 are required")
 	}
 
 	origTestHookLookupIP := testHookLookupIP
@@ -247,7 +247,7 @@ func TestDialerLocalAddr(t *testing.T) {
 
 func TestDialerDualStack(t *testing.T) {
 	if !supportsIPv4 || !supportsIPv6 {
-		t.Skip("ipv4 or ipv6 is not supported")
+		t.Skip("both IPv4 and IPv6 are required")
 	}
 
 	origTestHookLookupIP := testHookLookupIP
