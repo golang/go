@@ -1062,7 +1062,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 						Thearch.Gins(Thearch.Optoas(OCMP, Types[TUINT32]), &n4, &n2)
 						Regfree(&n4)
 						p1 := Gbranch(Thearch.Optoas(OGT, Types[TUINT32]), nil, +1)
-						Ginscall(Panicindex, 0)
+						Ginscall(Panicindex, -1)
 						Patch(p1, Pc)
 					}
 
@@ -1108,7 +1108,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 				if p2 != nil {
 					Patch(p2, Pc)
 				}
-				Ginscall(Panicindex, 0)
+				Ginscall(Panicindex, -1)
 				Patch(p1, Pc)
 			}
 
