@@ -35,7 +35,10 @@ var goarch string
 
 var goroot string
 
-var Debug_wb int
+var (
+	Debug_wb     int
+	Debug_append int
+)
 
 // Debug arguments.
 // These can be specified with the -d flag, as in "-d nil"
@@ -49,6 +52,7 @@ var debugtab = []struct {
 	{"typeassert", &Debug_typeassert}, // print information about type assertion inlining
 	{"disablenil", &Disable_checknil}, // disable nil checks
 	{"wb", &Debug_wb},                 // print information about write barriers
+	{"append", &Debug_append},         // print information about append compilation
 }
 
 // Our own isdigit, isspace, isalpha, isalnum that take care

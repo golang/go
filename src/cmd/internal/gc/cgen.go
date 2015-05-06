@@ -67,6 +67,10 @@ func cgen_wb(n, res *Node, wb bool) {
 	case ODOTTYPE:
 		cgen_dottype(n, res, nil, wb)
 		return
+
+	case OAPPEND:
+		cgen_append(n, res)
+		return
 	}
 
 	if n.Ullman >= UINF {
@@ -2784,5 +2788,184 @@ func Fixlargeoffset(n *Node) {
 		Cgen_checknil(&a)
 		Thearch.Ginscon(Thearch.Optoas(OADD, Types[Tptr]), n.Xoffset, &a)
 		n.Xoffset = 0
+	}
+}
+
+func cgen_append(n, res *Node) {
+	if Debug['g'] != 0 {
+		Dump("cgen_append-n", n)
+		Dump("cgen_append-res", res)
+	}
+	if res.Op != ONAME && !samesafeexpr(res, n.List.N) {
+		Dump("cgen_append-n", n)
+		Dump("cgen_append-res", res)
+		Fatal("append not lowered")
+	}
+	for l := n.List; l != nil; l = l.Next {
+		if l.N.Ullman >= UINF {
+			Fatal("append with function call arguments")
+		}
+	}
+
+	// res = append(src, x, y, z)
+	//
+	// If res and src are the same, we can avoid writing to base and cap
+	// unless we grow the underlying array.
+	needFullUpdate := !samesafeexpr(res, n.List.N)
+
+	// Copy src triple into base, len, cap.
+	base := temp(Types[Tptr])
+	len := temp(Types[TUINT])
+	cap := temp(Types[TUINT])
+
+	var src Node
+	Igen(n.List.N, &src, nil)
+	src.Type = Types[Tptr]
+	Thearch.Gmove(&src, base)
+	src.Type = Types[TUINT]
+	src.Xoffset += int64(Widthptr)
+	Thearch.Gmove(&src, len)
+	src.Xoffset += int64(Widthptr)
+	Thearch.Gmove(&src, cap)
+
+	// if len+argc <= cap goto L1
+	var rlen Node
+	Regalloc(&rlen, Types[TUINT], nil)
+	Thearch.Gmove(len, &rlen)
+	Thearch.Ginscon(Thearch.Optoas(OADD, Types[TUINT]), int64(count(n.List)-1), &rlen)
+	p := Thearch.Ginscmp(OLE, Types[TUINT], &rlen, cap, +1)
+	// Note: rlen and src are Regrealloc'ed below at the target of the
+	// branch we just emitted; do not reuse these Go variables for
+	// other purposes. They need to still describe the same things
+	// below that they describe right here.
+	Regfree(&src)
+
+	// base, len, cap = growslice(type, base, len, cap, newlen)
+	var arg Node
+	arg.Op = OINDREG
+	arg.Reg = int16(Thearch.REGSP)
+	arg.Addable = true
+	arg.Xoffset = 0
+	if HasLinkRegister() {
+		arg.Xoffset = int64(Ctxt.Arch.Ptrsize)
+	}
+	arg.Type = Ptrto(Types[TUINT8])
+	Cgen(typename(res.Type), &arg)
+	arg.Xoffset += int64(Widthptr)
+
+	arg.Type = Types[Tptr]
+	Cgen(base, &arg)
+	arg.Xoffset += int64(Widthptr)
+
+	arg.Type = Types[TUINT]
+	Cgen(len, &arg)
+	arg.Xoffset += int64(Widthptr)
+
+	arg.Type = Types[TUINT]
+	Cgen(cap, &arg)
+	arg.Xoffset += int64(Widthptr)
+
+	arg.Type = Types[TUINT]
+	Cgen(&rlen, &arg)
+	arg.Xoffset += int64(Widthptr)
+	Regfree(&rlen)
+
+	fn := syslook("growslice", 1)
+	substArgTypes(fn, res.Type.Type, res.Type.Type)
+	Ginscall(fn, 0)
+
+	if Widthptr == 4 && Widthreg == 8 {
+		arg.Xoffset += 4
+	}
+
+	arg.Type = Types[Tptr]
+	Cgen(&arg, base)
+	arg.Xoffset += int64(Widthptr)
+
+	arg.Type = Types[TUINT]
+	Cgen(&arg, len)
+	arg.Xoffset += int64(Widthptr)
+
+	arg.Type = Types[TUINT]
+	Cgen(&arg, cap)
+
+	// Update res with base, len+argc, cap.
+	if needFullUpdate {
+		if Debug_append > 0 {
+			Warn("append: full update")
+		}
+		Patch(p, Pc)
+	}
+	if res.Op == ONAME {
+		Gvardef(res)
+	}
+	var dst, r1 Node
+	Igen(res, &dst, nil)
+	dst.Type = Types[TUINT]
+	dst.Xoffset += int64(Widthptr)
+	Regalloc(&r1, Types[TUINT], nil)
+	Thearch.Gmove(len, &r1)
+	Thearch.Ginscon(Thearch.Optoas(OADD, Types[TUINT]), int64(count(n.List)-1), &r1)
+	Thearch.Gmove(&r1, &dst)
+	Regfree(&r1)
+	dst.Xoffset += int64(Widthptr)
+	Thearch.Gmove(cap, &dst)
+	dst.Type = Types[Tptr]
+	dst.Xoffset -= 2 * int64(Widthptr)
+	cgen_wb(base, &dst, needwritebarrier(&dst, base))
+	Regfree(&dst)
+
+	if !needFullUpdate {
+		if Debug_append > 0 {
+			Warn("append: len-only update")
+		}
+		// goto L2;
+		// L1:
+		//	update len only
+		// L2:
+		q := Gbranch(obj.AJMP, nil, 0)
+		Patch(p, Pc)
+		// At the goto above, src refers to cap and rlen holds the new len
+		if src.Op == OREGISTER || src.Op == OINDREG {
+			Regrealloc(&src)
+		}
+		Regrealloc(&rlen)
+		src.Xoffset -= int64(Widthptr)
+		Thearch.Gmove(&rlen, &src)
+		Regfree(&src)
+		Regfree(&rlen)
+		Patch(q, Pc)
+	}
+
+	// Copy data into place.
+	// Could do write barrier check around entire copy instead of each element.
+	// Could avoid reloading registers on each iteration if we know the cgen_wb
+	// is not going to use a write barrier.
+	i := 0
+	var r2 Node
+	for l := n.List.Next; l != nil; l = l.Next {
+		Regalloc(&r1, Types[Tptr], nil)
+		Thearch.Gmove(base, &r1)
+		Regalloc(&r2, Types[TUINT], nil)
+		Thearch.Gmove(len, &r2)
+		if i > 0 {
+			Thearch.Gins(Thearch.Optoas(OADD, Types[TUINT]), Nodintconst(int64(i)), &r2)
+		}
+		w := res.Type.Type.Width
+		if Thearch.AddIndex != nil && Thearch.AddIndex(&r2, w, &r1) {
+			// r1 updated by back end
+		} else if w == 1 {
+			Thearch.Gins(Thearch.Optoas(OADD, Types[Tptr]), &r2, &r1)
+		} else {
+			Thearch.Ginscon(Thearch.Optoas(OMUL, Types[TUINT]), int64(w), &r2)
+			Thearch.Gins(Thearch.Optoas(OADD, Types[Tptr]), &r2, &r1)
+		}
+		Regfree(&r2)
+
+		r1.Op = OINDREG
+		r1.Type = res.Type.Type
+		cgen_wb(l.N, &r1, needwritebarrier(&r1, l.N))
+		Regfree(&r1)
+		i++
 	}
 }
