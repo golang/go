@@ -1928,6 +1928,7 @@ func Asmbelf(symo int64) {
 			// in the intermediate object file, not the final shared
 			// library.
 			elfreserve *= 3
+			resoff = elfreserve
 			sh := elfshname(".note.go.pkg-list")
 			resoff -= int64(elfgopkgnote(sh, uint64(startva), uint64(resoff)))
 		}
