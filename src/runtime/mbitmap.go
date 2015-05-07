@@ -8,7 +8,8 @@
 //
 // Stack frames and global variables in the data and bss sections are described
 // by 1-bit bitmaps in which 0 means uninteresting and 1 means live pointer
-// to be visited during GC.
+// to be visited during GC. The bits in each byte are consumed starting with
+// the low bit: 1<<0, 1<<1, and so on.
 //
 // Heap bitmap
 //
@@ -19,8 +20,6 @@
 // That is, the byte at address start-1 holds the 2-bit entries for the four words
 // start through start+3*ptrSize, the byte at start-2 holds the entries for
 // start+4*ptrSize through start+7*ptrSize, and so on.
-// In each byte, the low 2 bits describe the first word, the next 2 bits describe
-// the next word, and so on.
 //
 // In each 2-bit entry, the lower bit holds the same information as in the 1-bit
 // bitmaps: 0 means uninteresting and 1 means live pointer to be visited during GC.
@@ -32,6 +31,11 @@
 // the low bit can also be assumed to be 0, and the object description is over.
 // This 00 is called the ``dead'' encoding: it signals that the rest of the words
 // in the object are uninteresting to the garbage collector.
+//
+// The 2-bit entries are split when written into the byte, so that the top half
+// of the byte contains 4 mark bits and the bottom half contains 4 pointer bits.
+// This form allows a copy from the 1-bit to the 4-bit form to keep the
+// pointer bits contiguous, instead of having to space them out.
 //
 // The code makes use of the fact that the zero value for a heap bitmap
 // has no live pointer bit set and is (depending on position), not marked,
@@ -65,11 +69,15 @@ package runtime
 import "unsafe"
 
 const (
-	bitPointer = 1
-	bitMarked  = 2
+	bitPointer = 1 << 0
+	bitMarked  = 1 << 4
 
-	heapBitsWidth   = 2                             // heap bitmap bits to describe one pointer
-	heapBitmapScale = ptrSize * (8 / heapBitsWidth) // number of data bytes described by one heap bitmap byte
+	heapBitsShift   = 1                 // shift offset between successive bitPointer or bitMarked entries
+	heapBitmapScale = ptrSize * (8 / 2) // number of data bytes described by one heap bitmap byte
+
+	// all mark/pointer bits in a byte
+	bitMarkedAll  = bitMarked | bitMarked<<heapBitsShift | bitMarked<<(2*heapBitsShift) | bitMarked<<(3*heapBitsShift)
+	bitPointerAll = bitPointer | bitPointer<<heapBitsShift | bitPointer<<(2*heapBitsShift) | bitPointer<<(3*heapBitsShift)
 )
 
 // addb returns the byte pointer p+n.
@@ -119,7 +127,7 @@ type heapBits struct {
 func heapBitsForAddr(addr uintptr) heapBits {
 	// 2 bits per work, 4 pairs per byte, and a mask is hard coded.
 	off := (addr - mheap_.arena_start) / ptrSize
-	return heapBits{(*uint8)(unsafe.Pointer(mheap_.arena_start - off/4 - 1)), uint32(2 * (off & 3))}
+	return heapBits{(*uint8)(unsafe.Pointer(mheap_.arena_start - off/4 - 1)), uint32(off & 3)}
 }
 
 // heapBitsForSpan returns the heapBits for the span base address base.
@@ -206,8 +214,8 @@ func (h heapBits) prefetch() {
 // That is, if h describes address p, h.next() describes p+ptrSize.
 // Note that next does not modify h. The caller must record the result.
 func (h heapBits) next() heapBits {
-	if h.shift < 8-heapBitsWidth {
-		return heapBits{h.bitp, h.shift + heapBitsWidth}
+	if h.shift < 3*heapBitsShift {
+		return heapBits{h.bitp, h.shift + heapBitsShift}
 	}
 	return heapBits{subtractb(h.bitp, 1), 0}
 }
@@ -218,8 +226,8 @@ func (h heapBits) next() heapBits {
 // Note that forward does not modify h. The caller must record the result.
 // bits returns the heap bits for the current word.
 func (h heapBits) forward(n uintptr) heapBits {
-	n += uintptr(h.shift) / heapBitsWidth
-	return heapBits{subtractb(h.bitp, n/4), uint32(n%4) * heapBitsWidth}
+	n += uintptr(h.shift) / heapBitsShift
+	return heapBits{subtractb(h.bitp, n/4), uint32(n%4) * heapBitsShift}
 }
 
 // The caller can test isMarked and isPointer by &-ing with bitMarked and bitPointer.
@@ -270,7 +278,7 @@ func (h heapBits) hasPointers(size uintptr) bool {
 	// first two words out of *h.bitp.
 	// If either of the first two words is a pointer, not pointer free.
 	b := uint32(*h.bitp >> h.shift)
-	if b&(bitPointer|bitPointer<<heapBitsWidth) != 0 {
+	if b&(bitPointer|bitPointer<<heapBitsShift) != 0 {
 		return true
 	}
 	if size == 2*ptrSize {
@@ -278,7 +286,7 @@ func (h heapBits) hasPointers(size uintptr) bool {
 	}
 	// At least a 4-word object. Check scan bit (aka marked bit) in third word.
 	if h.shift == 0 {
-		return b&(bitMarked<<(2*heapBitsWidth)) != 0
+		return b&(bitMarked<<(2*heapBitsShift)) != 0
 	}
 	return uint32(*subtractb(h.bitp, 1))&bitMarked != 0
 }
@@ -295,7 +303,7 @@ func (h heapBits) isCheckmarked(size uintptr) bool {
 	// so we know that the initial word's 2-bit pair
 	// and the second word's 2-bit pair are in the
 	// same heap bitmap byte, *h.bitp.
-	return (*h.bitp>>(heapBitsWidth+h.shift))&bitMarked != 0
+	return (*h.bitp>>(heapBitsShift+h.shift))&bitMarked != 0
 }
 
 // setCheckmarked sets the checkmarked bit.
@@ -307,7 +315,7 @@ func (h heapBits) setCheckmarked(size uintptr) {
 		atomicor8(h.bitp, bitPointer<<h.shift)
 		return
 	}
-	atomicor8(h.bitp, bitMarked<<(heapBitsWidth+h.shift))
+	atomicor8(h.bitp, bitMarked<<(heapBitsShift+h.shift))
 }
 
 // The methods operating on spans all require that h has been returned
@@ -338,13 +346,13 @@ func (h heapBits) initCheckmarkSpan(size, n, total uintptr) {
 		// The type bit is the lower of every two-bit pair.
 		bitp := h.bitp
 		for i := uintptr(0); i < n; i += 4 {
-			*bitp &^= bitPointer | bitPointer<<2 | bitPointer<<4 | bitPointer<<6
+			*bitp &^= bitPointerAll
 			bitp = subtractb(bitp, 1)
 		}
 		return
 	}
 	for i := uintptr(0); i < n; i++ {
-		*h.bitp &^= bitMarked << (heapBitsWidth + h.shift)
+		*h.bitp &^= bitMarked << (heapBitsShift + h.shift)
 		h = h.forward(size / ptrSize)
 	}
 }
@@ -362,7 +370,7 @@ func (h heapBits) clearCheckmarkSpan(size, n, total uintptr) {
 		// The type bit is the lower of every two-bit pair.
 		bitp := h.bitp
 		for i := uintptr(0); i < n; i += 4 {
-			*bitp |= bitPointer | bitPointer<<2 | bitPointer<<4 | bitPointer<<6
+			*bitp |= bitPointerAll
 			bitp = subtractb(bitp, 1)
 		}
 	}
@@ -391,22 +399,22 @@ func heapBitsSweepSpan(base, size, n uintptr, f func(uintptr)) {
 				x &^= bitPointer
 				f(base + i*ptrSize)
 			}
-			if x&(bitMarked<<2) != 0 {
-				x &^= bitMarked << 2
+			if x&(bitMarked<<heapBitsShift) != 0 {
+				x &^= bitMarked << heapBitsShift
 			} else {
-				x &^= bitPointer << 2
+				x &^= bitPointer << heapBitsShift
 				f(base + (i+1)*ptrSize)
 			}
-			if x&(bitMarked<<4) != 0 {
-				x &^= bitMarked << 4
+			if x&(bitMarked<<(2*heapBitsShift)) != 0 {
+				x &^= bitMarked << (2 * heapBitsShift)
 			} else {
-				x &^= bitPointer << 4
+				x &^= bitPointer << (2 * heapBitsShift)
 				f(base + (i+2)*ptrSize)
 			}
-			if x&(bitMarked<<6) != 0 {
-				x &^= bitMarked << 6
+			if x&(bitMarked<<(3*heapBitsShift)) != 0 {
+				x &^= bitMarked << (3 * heapBitsShift)
 			} else {
-				x &^= bitPointer << 6
+				x &^= bitPointer << (3 * heapBitsShift)
 				f(base + (i+3)*ptrSize)
 			}
 			*bitp = uint8(x)
@@ -442,7 +450,7 @@ func heapBitsSweepSpan(base, size, n uintptr, f func(uintptr)) {
 			if x&bitMarked != 0 {
 				x &^= bitMarked
 			} else {
-				x &^= 0x0f
+				x &^= bitMarked | bitPointer | (bitMarked|bitPointer)<<heapBitsShift
 				f(base + i*size)
 				if size > 2*ptrSize {
 					x = 0
@@ -454,10 +462,10 @@ func heapBitsSweepSpan(base, size, n uintptr, f func(uintptr)) {
 			}
 			bitp = subtractb(bitp, step)
 			x = uint32(*bitp)
-			if x&(bitMarked<<4) != 0 {
-				x &^= bitMarked << 4
+			if x&(bitMarked<<(2*heapBitsShift)) != 0 {
+				x &^= bitMarked << (2 * heapBitsShift)
 			} else {
-				x &^= 0xf0
+				x &^= (bitMarked|bitPointer)<<(2*heapBitsShift) | (bitMarked|bitPointer)<<(3*heapBitsShift)
 				f(base + (i+1)*size)
 				if size > 2*ptrSize {
 					*subtractb(bitp, 1) = 0
@@ -554,12 +562,12 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	if size == 2*ptrSize {
 		if typ.size == ptrSize {
 			// 2-element slice of pointer.
-			atomicor8(h.bitp, (bitPointer|bitPointer<<heapBitsWidth)<<h.shift)
+			atomicor8(h.bitp, (bitPointer|bitPointer<<heapBitsShift)<<h.shift)
 			return
 		}
 		// Otherwise typ.size must be 2*ptrSize, and typ.kind&kindGCProg == 0.
 		b := uint32(*ptrmask)
-		hb := b&1 | (b&2)<<(heapBitsWidth-1)
+		hb := b & 3
 		atomicor8(h.bitp, uint8(hb<<h.shift))
 		return
 	}
@@ -714,8 +722,8 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 		// In those words, the mark bits are mark and checkmark, respectively,
 		// and must not be set. In all following words, we want to set the mark bit
 		// as a signal that the object continues to the next 2-bit entry in the bitmap.
-		hb = b&1 | (b&2)<<(heapBitsWidth-1) | (b&4)<<(2*heapBitsWidth-2) | (b&8)<<(3*heapBitsWidth-3)
-		hb |= bitMarked<<(2*heapBitsWidth) | bitMarked<<(3*heapBitsWidth)
+		hb = b & bitPointerAll
+		hb |= bitMarked<<(2*heapBitsShift) | bitMarked<<(3*heapBitsShift)
 		if w += 4; w >= nw {
 			goto Phase3
 		}
@@ -724,7 +732,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 		b >>= 4
 		nb -= 4
 
-	case ptrSize == 8 && h.shift == 4:
+	case ptrSize == 8 && h.shift == 2:
 		// Ptrmask and heap bitmap are misaligned.
 		// The bits for the first two words are in a byte shared with another object
 		// and must be updated atomically.
@@ -735,7 +743,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 		// not with its mark bit. Since there is only one allocation
 		// from a given span at a time, we should be able to set
 		// these bits non-atomically. Not worth the risk right now.
-		hb = (b&1)<<4 | (b&2)<<(4+heapBitsWidth-1) // bits being prepared for *h.bitp
+		hb = (b & 3) << (2 * heapBitsShift)
 		b >>= 2
 		nb -= 2
 		// Note: no bitMarker in hb because the first two words don't get markers from us.
@@ -763,8 +771,8 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 		// if w+4 >= nw, then b has only nw-w bits,
 		// but we'll stop at the break and then truncate
 		// appropriately in Phase 3.
-		hb = b&1 | (b&2)<<(heapBitsWidth-1) | (b&4)<<(2*heapBitsWidth-2) | (b&8)<<(3*heapBitsWidth-3)
-		hb |= bitMarked | bitMarked<<heapBitsWidth | bitMarked<<(2*heapBitsWidth) | bitMarked<<(3*heapBitsWidth)
+		hb = b & bitPointerAll
+		hb |= bitMarkedAll
 		if w += 4; w >= nw {
 			break
 		}
@@ -803,8 +811,8 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 		}
 
 		// Emit bitmap byte.
-		hb = b&1 | (b&2)<<(heapBitsWidth-1) | (b&4)<<(2*heapBitsWidth-2) | (b&8)<<(3*heapBitsWidth-3)
-		hb |= bitMarked | bitMarked<<heapBitsWidth | bitMarked<<(2*heapBitsWidth) | bitMarked<<(3*heapBitsWidth)
+		hb = b & bitPointerAll
+		hb |= bitMarkedAll
 		if w += 4; w >= nw {
 			break
 		}
@@ -822,15 +830,16 @@ Phase3:
 	// then we must write a ``dead'' entry to the next bitmap byte.
 	if frag := (nw - w) % 4; frag != 0 {
 		// Data ends at least one word early.
-		hb &= 1<<(heapBitsWidth*frag) - 1
+		mask := uintptr(1)<<frag - 1
+		hb &= mask | mask<<4 // apply mask to both pointer bits and mark bits
 		if w*ptrSize <= size {
 			// We own the whole byte and get the dead marker for free.
 			*hbitp = uint8(hb)
 		} else {
-			// We only own the bottom half of the byte.
+			// We only own the bottom two entries in the byte, bits 00110011.
 			// If frag == 1, we get a dead marker for free.
 			// If frag == 2, no dead marker needed (we've reached the end of the object).
-			atomicand8(hbitp, 0xf0)
+			atomicand8(hbitp, ^uint8(bitPointer|bitMarked|(bitPointer|bitMarked)<<heapBitsShift))
 			atomicor8(hbitp, uint8(hb))
 		}
 	} else {
@@ -844,8 +853,8 @@ Phase3:
 				// We own the whole byte.
 				*hbitp = 0
 			} else {
-				// We only own the bottom half of the byte.
-				atomicand8(hbitp, 0xf0)
+				// We only own the bottom two entries in the byte, bits 00110011.
+				atomicand8(hbitp, ^uint8(bitPointer|bitMarked|(bitPointer|bitMarked)<<heapBitsShift))
 			}
 		}
 	}
@@ -866,7 +875,7 @@ Phase4:
 			if i == dataSize/ptrSize && dataSize >= size {
 				break
 			}
-			have = (*h.bitp >> h.shift) & 3
+			have = (*h.bitp >> h.shift) & (bitPointer | bitMarked)
 			if i == dataSize/ptrSize || i/ndata == count-1 && j >= nptr {
 				want = 0 // dead marker
 			} else {
@@ -883,8 +892,9 @@ Phase4:
 				println("mismatch writing bits for", *typ._string, "x", dataSize/typ.size)
 				print("typ.size=", typ.size, " typ.ptrdata=", typ.ptrdata, " dataSize=", dataSize, " size=", size, "\n")
 				print("w=", w, " nw=", nw, " b=", hex(b), " nb=", nb, " hb=", hex(hb), "\n")
-				h = heapBitsForAddr(x)
-				print("initial bits h.bitp=", h.bitp, " h.shift=", h.shift, "\n")
+				h0 := heapBitsForAddr(x)
+				print("initial bits h0.bitp=", h0.bitp, " h0.shift=", h0.shift, "\n")
+				print("current bits h.bitp=", h.bitp, " h.shift=", h.shift, " *h.bitp=", hex(*h.bitp), "\n")
 				print("ptrmask=", ptrmask, " p=", p, " endp=", endp, " endnb=", endnb, " pbits=", hex(pbits), " b=", hex(b), " nb=", nb, "\n")
 				println("at word", i, "offset", i*ptrSize, "have", have, "want", want)
 				throw("bad heapBitsSetType")
