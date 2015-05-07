@@ -200,9 +200,16 @@ func ListenUDP(net string, laddr *UDPAddr) (*UDPConn, error) {
 }
 
 // ListenMulticastUDP listens for incoming multicast UDP packets
-// addressed to the group address gaddr on ifi, which specifies the
-// interface to join.  ListenMulticastUDP uses default multicast
-// interface if ifi is nil.
-func ListenMulticastUDP(net string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
-	return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: gaddr, Err: syscall.EPLAN9}
+// addressed to the group address gaddr on the interface ifi.
+// Network must be "udp", "udp4" or "udp6".
+// ListenMulticastUDP uses the system-assigned multicast interface
+// when ifi is nil, although this is not recommended because the
+// assignment depends on platforms and sometimes it might require
+// routing configuration.
+//
+// ListenMulticastUDP is just for convenience of simple, small
+// applications. There are golang.org/x/net/ipv4 and
+// golang.org/x/net/ipv6 packages for general purpose uses.
+func ListenMulticastUDP(network string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
+	return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: gaddr, Err: syscall.EPLAN9}
 }

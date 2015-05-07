@@ -220,32 +220,39 @@ func ListenUDP(net string, laddr *UDPAddr) (*UDPConn, error) {
 }
 
 // ListenMulticastUDP listens for incoming multicast UDP packets
-// addressed to the group address gaddr on ifi, which specifies the
-// interface to join.  ListenMulticastUDP uses default multicast
-// interface if ifi is nil.
-func ListenMulticastUDP(net string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
-	switch net {
+// addressed to the group address gaddr on the interface ifi.
+// Network must be "udp", "udp4" or "udp6".
+// ListenMulticastUDP uses the system-assigned multicast interface
+// when ifi is nil, although this is not recommended because the
+// assignment depends on platforms and sometimes it might require
+// routing configuration.
+//
+// ListenMulticastUDP is just for convenience of simple, small
+// applications. There are golang.org/x/net/ipv4 and
+// golang.org/x/net/ipv6 packages for general purpose uses.
+func ListenMulticastUDP(network string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
+	switch network {
 	case "udp", "udp4", "udp6":
 	default:
-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: gaddr, Err: UnknownNetworkError(net)}
+		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: gaddr, Err: UnknownNetworkError(network)}
 	}
 	if gaddr == nil || gaddr.IP == nil {
-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: gaddr, Err: errMissingAddress}
+		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: gaddr, Err: errMissingAddress}
 	}
-	fd, err := internetSocket(net, gaddr, nil, noDeadline, syscall.SOCK_DGRAM, 0, "listen")
+	fd, err := internetSocket(network, gaddr, nil, noDeadline, syscall.SOCK_DGRAM, 0, "listen")
 	if err != nil {
-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: gaddr, Err: err}
+		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: gaddr, Err: err}
 	}
 	c := newUDPConn(fd)
 	if ip4 := gaddr.IP.To4(); ip4 != nil {
 		if err := listenIPv4MulticastUDP(c, ifi, ip4); err != nil {
 			c.Close()
-			return nil, &OpError{Op: "listen", Net: net, Source: c.fd.laddr, Addr: &IPAddr{IP: ip4}, Err: err}
+			return nil, &OpError{Op: "listen", Net: network, Source: c.fd.laddr, Addr: &IPAddr{IP: ip4}, Err: err}
 		}
 	} else {
 		if err := listenIPv6MulticastUDP(c, ifi, gaddr.IP); err != nil {
 			c.Close()
-			return nil, &OpError{Op: "listen", Net: net, Source: c.fd.laddr, Addr: &IPAddr{IP: gaddr.IP}, Err: err}
+			return nil, &OpError{Op: "listen", Net: network, Source: c.fd.laddr, Addr: &IPAddr{IP: gaddr.IP}, Err: err}
 		}
 	}
 	return c, nil
