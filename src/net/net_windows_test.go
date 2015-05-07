@@ -16,8 +16,6 @@ import (
 )
 
 func TestAcceptIgnoreSomeErrors(t *testing.T) {
-	t.Skip("skipping temporarily, see issue 8662")
-
 	recv := func(ln Listener) (string, error) {
 		c, err := ln.Accept()
 		if err != nil {
