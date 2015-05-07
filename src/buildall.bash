@@ -33,7 +33,7 @@ if [ "$pattern" = "" ]; then
 fi
 
 # put linux, nacl first in the target list to get all the architectures up front.
-targets="$((ls runtime | sed -n 's/^rt0_\(.*\)_\(.*\)\.s/\1-\2/p'; echo linux-386-387) | sort | egrep -v android-arm | egrep "$pattern" | egrep 'linux|nacl')
+targets="$((ls runtime | sed -n 's/^rt0_\(.*\)_\(.*\)\.s/\1-\2/p'; echo linux-386-387 linux-arm-arm5) | sort | egrep -v android-arm | egrep "$pattern" | egrep 'linux|nacl')
 $(ls runtime | sed -n 's/^rt0_\(.*\)_\(.*\)\.s/\1-\2/p' | egrep -v 'android-arm|darwin-arm' | egrep "$pattern" | egrep -v 'linux|nacl')"
 
 ./make.bash
@@ -46,7 +46,11 @@ do
     echo "### Building $target"
     export GOOS=$(echo $target | sed 's/-.*//')
     export GOARCH=$(echo $target | sed 's/.*-//')
-    unset GO386
+    unset GO386 GOARM
+    if [ "$GOARCH" = "arm5" ]; then
+        export GOARCH=arm
+        export GOARM=5
+    fi
     if [ "$GOARCH" = "387" ]; then
         export GOARCH=386
         export GO386=387
