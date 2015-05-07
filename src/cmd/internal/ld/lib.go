@@ -86,6 +86,7 @@ type Arch struct {
 	Maxalign         int
 	Minlc            int
 	Dwarfregsp       int
+	Dwarfreglr       int
 	Linuxdynld       string
 	Freebsddynld     string
 	Netbsddynld      string
