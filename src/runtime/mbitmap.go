@@ -549,11 +549,19 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 		// The bitmap byte is shared with the one-word object
 		// next to it, and concurrent GC might be marking that
 		// object, so we must use an atomic update.
+		// We can skip this if the GC is completely off.
+		// Note that there is some marking that happens during
+		// gcphase == _GCscan, for completely scalar objects,
+		// so it is not safe to check just for the marking phases.
 		// TODO(rsc): It may make sense to set all the pointer bits
 		// when initializing the span, and then the atomicor8 here
 		// goes away - heapBitsSetType would be a no-op
 		// in that case.
-		atomicor8(h.bitp, bitPointer<<h.shift)
+		if gcphase == _GCoff {
+			*h.bitp |= bitPointer << h.shift
+		} else {
+			atomicor8(h.bitp, bitPointer<<h.shift)
+		}
 		return
 	}
 
@@ -593,13 +601,21 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	if size == 2*ptrSize {
 		if typ.size == ptrSize {
 			// 2-element slice of pointer.
-			atomicor8(h.bitp, (bitPointer|bitPointer<<heapBitsShift)<<h.shift)
+			if gcphase == _GCoff {
+				*h.bitp |= (bitPointer | bitPointer<<heapBitsShift) << h.shift
+			} else {
+				atomicor8(h.bitp, (bitPointer|bitPointer<<heapBitsShift)<<h.shift)
+			}
 			return
 		}
 		// Otherwise typ.size must be 2*ptrSize, and typ.kind&kindGCProg == 0.
 		b := uint32(*ptrmask)
 		hb := b & 3
-		atomicor8(h.bitp, uint8(hb<<h.shift))
+		if gcphase == _GCoff {
+			*h.bitp |= uint8(hb << h.shift)
+		} else {
+			atomicor8(h.bitp, uint8(hb<<h.shift))
+		}
 		return
 	}
 
@@ -779,7 +795,11 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 		b >>= 2
 		nb -= 2
 		// Note: no bitMarker in hb because the first two words don't get markers from us.
-		atomicor8(hbitp, uint8(hb))
+		if gcphase == _GCoff {
+			*hbitp |= uint8(hb)
+		} else {
+			atomicor8(hbitp, uint8(hb))
+		}
 		hbitp = subtractb(hbitp, 1)
 		if w += 2; w >= nw {
 			// We know that there is more data, because we handled 2-word objects above.
