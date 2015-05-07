@@ -336,7 +336,6 @@ var dbgvars = []dbgVar{
 }
 
 func parsedebugvars() {
-	debug.gccheckmark=1
 	for p := gogetenv("GODEBUG"); p != ""; {
 		field := ""
 		i := index(p, ",")
