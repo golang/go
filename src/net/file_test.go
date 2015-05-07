@@ -156,7 +156,8 @@ var filePacketConnTests = []struct {
 
 	{net: "udp6", addr: "[::1]:0"},
 
-	{net: "ip4:icmp", addr: "127.0.0.1"},
+	// TODO(mikioh,bradfitz): renable once 10730 is fixed
+	// {net: "ip4:icmp", addr: "127.0.0.1"},
 
 	{net: "unixgram", addr: "@gotest3/net"},
 }
