@@ -215,6 +215,10 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 		return c.systemVerify(&opts)
 	}
 
+	if len(c.UnhandledCriticalExtensions) > 0 {
+		return nil, UnhandledCriticalExtension{}
+	}
+
 	if opts.Roots == nil {
 		opts.Roots = systemRootsPool()
 		if opts.Roots == nil {

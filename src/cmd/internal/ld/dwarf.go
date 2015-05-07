@@ -158,16 +158,16 @@ func sleb128enc(v int64, dst []byte) int {
 	return int(length)
 }
 
+var encbuf [10]byte
+
 func uleb128put(v int64) {
-	var buf [10]byte
-	n := uleb128enc(uint64(v), buf[:])
-	Cwrite(buf[:n])
+	n := uleb128enc(uint64(v), encbuf[:])
+	Cwrite(encbuf[:n])
 }
 
 func sleb128put(v int64) {
-	var buf [10]byte
-	n := sleb128enc(v, buf[:])
-	Cwrite(buf[:n])
+	n := sleb128enc(v, encbuf[:])
+	Cwrite(encbuf[:n])
 }
 
 /*
@@ -223,382 +223,261 @@ const (
 type DWAbbrev struct {
 	tag      uint8
 	children uint8
-	attr     [30]DWAttrForm
+	attr     []DWAttrForm
 }
 
-var abbrevs = [DW_NABRV]struct {
-	tag      uint8
-	children uint8
-	attr     [30]DWAttrForm
-}{
+var abbrevs = [DW_NABRV]DWAbbrev{
 	/* The mandatory DW_ABRV_NULL entry. */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{0, 0, [30]DWAttrForm{}},
+	{0, 0, []DWAttrForm{}},
 
 	/* COMPUNIT */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_compile_unit,
 		DW_CHILDREN_yes,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_language, DW_FORM_data1},
-			DWAttrForm{DW_AT_low_pc, DW_FORM_addr},
-			DWAttrForm{DW_AT_high_pc, DW_FORM_addr},
-			DWAttrForm{DW_AT_stmt_list, DW_FORM_data4},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_language, DW_FORM_data1},
+			{DW_AT_low_pc, DW_FORM_addr},
+			{DW_AT_high_pc, DW_FORM_addr},
+			{DW_AT_stmt_list, DW_FORM_data4},
 		},
 	},
 
 	/* FUNCTION */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_subprogram,
 		DW_CHILDREN_yes,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_low_pc, DW_FORM_addr},
-			DWAttrForm{DW_AT_high_pc, DW_FORM_addr},
-			DWAttrForm{DW_AT_external, DW_FORM_flag},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_low_pc, DW_FORM_addr},
+			{DW_AT_high_pc, DW_FORM_addr},
+			{DW_AT_external, DW_FORM_flag},
 		},
 	},
 
 	/* VARIABLE */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_variable,
 		DW_CHILDREN_no,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_location, DW_FORM_block1},
-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
-			DWAttrForm{DW_AT_external, DW_FORM_flag},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_location, DW_FORM_block1},
+			{DW_AT_type, DW_FORM_ref_addr},
+			{DW_AT_external, DW_FORM_flag},
 		},
 	},
 
 	/* AUTO */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_variable,
 		DW_CHILDREN_no,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_location, DW_FORM_block1},
-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_location, DW_FORM_block1},
+			{DW_AT_type, DW_FORM_ref_addr},
 		},
 	},
 
 	/* PARAM */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_formal_parameter,
 		DW_CHILDREN_no,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_location, DW_FORM_block1},
-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_location, DW_FORM_block1},
+			{DW_AT_type, DW_FORM_ref_addr},
 		},
 	},
 
 	/* STRUCTFIELD */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_member,
 		DW_CHILDREN_no,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_data_member_location, DW_FORM_block1},
-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_data_member_location, DW_FORM_block1},
+			{DW_AT_type, DW_FORM_ref_addr},
 		},
 	},
 
 	/* FUNCTYPEPARAM */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_formal_parameter,
 		DW_CHILDREN_no,
 
 		// No name!
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_type, DW_FORM_ref_addr},
 		},
 	},
 
 	/* DOTDOTDOT */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_unspecified_parameters,
 		DW_CHILDREN_no,
-		[30]DWAttrForm{DWAttrForm{0, 0}},
+		[]DWAttrForm{},
 	},
 
 	/* ARRAYRANGE */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_subrange_type,
 		DW_CHILDREN_no,
 
 		// No name!
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
-			DWAttrForm{DW_AT_count, DW_FORM_udata},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_type, DW_FORM_ref_addr},
+			{DW_AT_count, DW_FORM_udata},
 		},
 	},
 
 	// Below here are the types considered public by ispubtype
 	/* NULLTYPE */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_unspecified_type,
 		DW_CHILDREN_no,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
 		},
 	},
 
 	/* BASETYPE */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_base_type,
 		DW_CHILDREN_no,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_encoding, DW_FORM_data1},
-			DWAttrForm{DW_AT_byte_size, DW_FORM_data1},
-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_encoding, DW_FORM_data1},
+			{DW_AT_byte_size, DW_FORM_data1},
+			{DW_AT_go_kind, DW_FORM_data1},
 		},
 	},
 
 	/* ARRAYTYPE */
 	// child is subrange with upper bound
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_array_type,
 		DW_CHILDREN_yes,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
-			DWAttrForm{DW_AT_byte_size, DW_FORM_udata},
-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_type, DW_FORM_ref_addr},
+			{DW_AT_byte_size, DW_FORM_udata},
+			{DW_AT_go_kind, DW_FORM_data1},
 		},
 	},
 
 	/* CHANTYPE */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_typedef,
 		DW_CHILDREN_no,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
-			DWAttrForm{DW_AT_go_elem, DW_FORM_ref_addr},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_type, DW_FORM_ref_addr},
+			{DW_AT_go_kind, DW_FORM_data1},
+			{DW_AT_go_elem, DW_FORM_ref_addr},
 		},
 	},
 
 	/* FUNCTYPE */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_subroutine_type,
 		DW_CHILDREN_yes,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-
-			//		{DW_AT_type,	DW_FORM_ref_addr},
-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			// {DW_AT_type,	DW_FORM_ref_addr},
+			{DW_AT_go_kind, DW_FORM_data1},
 		},
 	},
 
 	/* IFACETYPE */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_typedef,
 		DW_CHILDREN_yes,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_type, DW_FORM_ref_addr},
+			{DW_AT_go_kind, DW_FORM_data1},
 		},
 	},
 
 	/* MAPTYPE */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_typedef,
 		DW_CHILDREN_no,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
-			DWAttrForm{DW_AT_go_key, DW_FORM_ref_addr},
-			DWAttrForm{DW_AT_go_elem, DW_FORM_ref_addr},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_type, DW_FORM_ref_addr},
+			{DW_AT_go_kind, DW_FORM_data1},
+			{DW_AT_go_key, DW_FORM_ref_addr},
+			{DW_AT_go_elem, DW_FORM_ref_addr},
 		},
 	},
 
 	/* PTRTYPE */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_pointer_type,
 		DW_CHILDREN_no,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_type, DW_FORM_ref_addr},
+			{DW_AT_go_kind, DW_FORM_data1},
 		},
 	},
 
 	/* BARE_PTRTYPE */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_pointer_type,
 		DW_CHILDREN_no,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
 		},
 	},
 
 	/* SLICETYPE */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_structure_type,
 		DW_CHILDREN_yes,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_byte_size, DW_FORM_udata},
-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
-			DWAttrForm{DW_AT_go_elem, DW_FORM_ref_addr},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_byte_size, DW_FORM_udata},
+			{DW_AT_go_kind, DW_FORM_data1},
+			{DW_AT_go_elem, DW_FORM_ref_addr},
 		},
 	},
 
 	/* STRINGTYPE */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_structure_type,
 		DW_CHILDREN_yes,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_byte_size, DW_FORM_udata},
-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_byte_size, DW_FORM_udata},
+			{DW_AT_go_kind, DW_FORM_data1},
 		},
 	},
 
 	/* STRUCTTYPE */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_structure_type,
 		DW_CHILDREN_yes,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_byte_size, DW_FORM_udata},
-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_byte_size, DW_FORM_udata},
+			{DW_AT_go_kind, DW_FORM_data1},
 		},
 	},
 
 	/* TYPEDECL */
-	struct {
-		tag      uint8
-		children uint8
-		attr     [30]DWAttrForm
-	}{
+	{
 		DW_TAG_typedef,
 		DW_CHILDREN_no,
-		[30]DWAttrForm{
-			DWAttrForm{DW_AT_name, DW_FORM_string},
-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
-			DWAttrForm{0, 0},
+		[]DWAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_type, DW_FORM_ref_addr},
 		},
 	},
 }
 
 func writeabbrev() {
-	var j int
-	var f *DWAttrForm
-
 	abbrevo = Cpos()
 	for i := 1; i < DW_NABRV; i++ {
 		// See section 7.5.3
@@ -606,14 +485,12 @@ func writeabbrev() {
 
 		uleb128put(int64(abbrevs[i].tag))
 		Cput(abbrevs[i].children)
-		for j = 0; j < len(abbrevs[i].attr); j++ {
-			f = &abbrevs[i].attr[j]
+		for _, f := range abbrevs[i].attr {
 			uleb128put(int64(f.attr))
 			uleb128put(int64(f.form))
-			if f.attr == 0 {
-				break
-			}
 		}
+		uleb128put(0)
+		uleb128put(0)
 	}
 
 	Cput(0)
@@ -797,13 +674,11 @@ notfound:
 	return nil
 }
 
-func find_or_diag(die *DWDie, name string) *DWDie {
+func mustFind(die *DWDie, name string) *DWDie {
 	r := find(die, name)
 	if r == nil {
-		Diag("dwarf find: %s %p has no %s", getattr(die, DW_AT_name).data, die, name)
-		Errorexit()
+		Exitf("dwarf find: %s %p has no %s", getattr(die, DW_AT_name).data, die, name)
 	}
-
 	return r
 }
 
@@ -813,7 +688,7 @@ func adddwarfrel(sec *LSym, sym *LSym, offsetbase int64, siz int, addend int64) 
 	r.Xsym = sym
 	r.Off = int32(Cpos() - offsetbase)
 	r.Siz = uint8(siz)
-	r.Type = R_ADDR
+	r.Type = obj.R_ADDR
 	r.Add = addend
 	r.Xadd = addend
 	if Iself && Thearch.Thechar == '6' {
@@ -966,27 +841,23 @@ func putattr(abbrev int, form int, cls int, value int64, data interface{}) {
 		DW_FORM_indirect: // (see Section 7.5.3)
 		fallthrough
 	default:
-		Diag("dwarf: unsupported attribute form %d / class %d", form, cls)
-
-		Errorexit()
+		Exitf("dwarf: unsupported attribute form %d / class %d", form, cls)
 	}
 }
 
 // Note that we can (and do) add arbitrary attributes to a DIE, but
 // only the ones actually listed in the Abbrev will be written out.
 func putattrs(abbrev int, attr *DWAttr) {
-	var ap *DWAttr
-
-	for af := abbrevs[abbrev].attr[:]; af[0].attr != 0; af = af[1:] {
-		for ap = attr; ap != nil; ap = ap.link {
-			if ap.atr == af[0].attr {
-				putattr(abbrev, int(af[0].form), int(ap.cls), ap.value, ap.data)
-				goto done
+Outer:
+	for _, f := range abbrevs[abbrev].attr {
+		for ap := attr; ap != nil; ap = ap.link {
+			if ap.atr == f.attr {
+				putattr(abbrev, int(f.form), int(ap.cls), ap.value, ap.data)
+				continue Outer
 			}
 		}
 
-		putattr(abbrev, int(af[0].form), 0, 0, nil)
-	done:
+		putattr(abbrev, int(f.form), 0, 0, nil)
 	}
 }
 
@@ -1049,8 +920,7 @@ func newabslocexprattr(die *DWDie, addr int64, sym *LSym) {
 func lookup_or_diag(n string) *LSym {
 	s := Linkrlookup(Ctxt, n, 0)
 	if s == nil || s.Size == 0 {
-		Diag("dwarf: missing type: %s", n)
-		Errorexit()
+		Exitf("dwarf: missing type: %s", n)
 	}
 
 	return s
@@ -1086,12 +956,12 @@ func dotypedef(parent *DWDie, name string, def *DWDie) {
 // Define gotype, for composite ones recurse into constituents.
 func defgotype(gotype *LSym) *DWDie {
 	if gotype == nil {
-		return find_or_diag(&dwtypes, "<unspecified>")
+		return mustFind(&dwtypes, "<unspecified>")
 	}
 
 	if !strings.HasPrefix(gotype.Name, "type.") {
 		Diag("dwarf: type name doesn't start with \".type\": %s", gotype.Name)
-		return find_or_diag(&dwtypes, "<unspecified>")
+		return mustFind(&dwtypes, "<unspecified>")
 	}
 
 	name := gotype.Name[5:] // could also decode from Type.string
@@ -1103,7 +973,7 @@ func defgotype(gotype *LSym) *DWDie {
 	}
 
 	if false && Debug['v'] > 2 {
-		fmt.Printf("new type: %%Y\n", gotype)
+		fmt.Printf("new type: %v\n", gotype)
 	}
 
 	kind := decodetype_kind(gotype)
@@ -1157,7 +1027,7 @@ func defgotype(gotype *LSym) *DWDie {
 		// use actual length not upper bound; correct for 0-length arrays.
 		newattr(fld, DW_AT_count, DW_CLS_CONSTANT, decodetype_arraylen(gotype), 0)
 
-		newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"))
+		newrefattr(fld, DW_AT_type, mustFind(&dwtypes, "uintptr"))
 
 	case obj.KindChan:
 		die = newdie(&dwtypes, DW_ABRV_CHANTYPE, name)
@@ -1168,7 +1038,7 @@ func defgotype(gotype *LSym) *DWDie {
 	case obj.KindFunc:
 		die = newdie(&dwtypes, DW_ABRV_FUNCTYPE, name)
 		dotypedef(&dwtypes, name, die)
-		newrefattr(die, DW_AT_type, find_or_diag(&dwtypes, "void"))
+		newrefattr(die, DW_AT_type, mustFind(&dwtypes, "void"))
 		nfields := decodetype_funcincount(gotype)
 		var fld *DWDie
 		var s *LSym
@@ -1250,7 +1120,7 @@ func defgotype(gotype *LSym) *DWDie {
 	default:
 		Diag("dwarf: definition of unknown kind %d: %s", kind, gotype.Name)
 		die = newdie(&dwtypes, DW_ABRV_TYPEDECL, name)
-		newrefattr(die, DW_AT_type, find_or_diag(&dwtypes, "<unspecified>"))
+		newrefattr(die, DW_AT_type, mustFind(&dwtypes, "<unspecified>"))
 	}
 
 	newattr(die, DW_AT_go_kind, DW_CLS_CONSTANT, int64(kind), 0)
@@ -1298,7 +1168,7 @@ func copychildren(dst *DWDie, src *DWDie) {
 // Search children (assumed to have DW_TAG_member) for the one named
 // field and set its DW_AT_type to dwtype
 func substitutetype(structdie *DWDie, field string, dwtype *DWDie) {
-	child := find_or_diag(structdie, field)
+	child := mustFind(structdie, field)
 	if child == nil {
 		return
 	}
@@ -1427,7 +1297,7 @@ func synthesizemaptypes(die *DWDie) {
 		newrefattr(dwhk, DW_AT_type, t)
 		fld = newdie(dwhk, DW_ABRV_ARRAYRANGE, "size")
 		newattr(fld, DW_AT_count, DW_CLS_CONSTANT, BucketSize, 0)
-		newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"))
+		newrefattr(fld, DW_AT_type, mustFind(&dwtypes, "uintptr"))
 
 		// Construct type to represent an array of BucketSize values
 		dwhv = newdie(&dwtypes, DW_ABRV_ARRAYTYPE, mkinternaltypename("[]val", getattr(valtype, DW_AT_name).data.(string), ""))
@@ -1440,7 +1310,7 @@ func synthesizemaptypes(die *DWDie) {
 		newrefattr(dwhv, DW_AT_type, t)
 		fld = newdie(dwhv, DW_ABRV_ARRAYRANGE, "size")
 		newattr(fld, DW_AT_count, DW_CLS_CONSTANT, BucketSize, 0)
-		newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"))
+		newrefattr(fld, DW_AT_type, mustFind(&dwtypes, "uintptr"))
 
 		// Construct bucket<K,V>
 		dwhb = newdie(&dwtypes, DW_ABRV_STRUCTTYPE, mkinternaltypename("bucket", getattr(keytype, DW_AT_name).data.(string), getattr(valtype, DW_AT_name).data.(string)))
@@ -1460,7 +1330,7 @@ func synthesizemaptypes(die *DWDie) {
 		newmemberoffsetattr(fld, BucketSize+BucketSize*(int32(keysize)+int32(valsize)))
 		if Thearch.Regsize > Thearch.Ptrsize {
 			fld = newdie(dwhb, DW_ABRV_STRUCTFIELD, "pad")
-			newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"))
+			newrefattr(fld, DW_AT_type, mustFind(&dwtypes, "uintptr"))
 			newmemberoffsetattr(fld, BucketSize+BucketSize*(int32(keysize)+int32(valsize))+int32(Thearch.Ptrsize))
 		}
 
@@ -1565,7 +1435,6 @@ func defdwsymb(sym *LSym, s string, t int, v int64, size int64, ver int, gotype 
 		}
 		fallthrough
 
-		// fallthrough
 	case 'a', 'p':
 		dt = defgotype(gotype)
 	}
@@ -1821,11 +1690,11 @@ func writelines() {
 		varhash = [HASHSIZE]*DWDie{}
 		for a = s.Autom; a != nil; a = a.Link {
 			switch a.Name {
-			case A_AUTO:
+			case obj.A_AUTO:
 				dt = DW_ABRV_AUTO
 				offs = int64(a.Aoffset) - int64(Thearch.Ptrsize)
 
-			case A_PARAM:
+			case obj.A_PARAM:
 				dt = DW_ABRV_PARAM
 				offs = int64(a.Aoffset)
 
@@ -1929,8 +1798,7 @@ func writeframes() {
 	pad := CIERESERVE + frameo + 4 - Cpos()
 
 	if pad < 0 {
-		Diag("dwarf: CIERESERVE too small by %d bytes.", -pad)
-		Errorexit()
+		Exitf("dwarf: CIERESERVE too small by %d bytes.", -pad)
 	}
 
 	strnput("", int(pad))
@@ -2170,7 +2038,7 @@ func writegdbscript() int64 {
 }
 
 func align(size int64) {
-	if HEADTYPE == Hwindows { // Only Windows PE need section align.
+	if HEADTYPE == obj.Hwindows { // Only Windows PE need section align.
 		strnput("", int(Rnd(size, PEFILEALIGN)-size))
 	}
 }
@@ -2184,7 +2052,7 @@ func writedwarfreloc(s *LSym) int64 {
 		r = &s.R[ri]
 		if Iself {
 			i = Thearch.Elfreloc1(r, int64(r.Off))
-		} else if HEADTYPE == Hdarwin {
+		} else if HEADTYPE == obj.Hdarwin {
 			i = Thearch.Machoreloc1(r, int64(r.Off))
 		} else {
 			i = -1
@@ -2275,13 +2143,11 @@ func Dwarfemitdebugsections() {
 		Cseek(infoo)
 		writeinfo()
 		if fwdcount > 0 {
-			Diag("dwarf: unresolved references after first dwarf info pass")
-			Errorexit()
+			Exitf("dwarf: unresolved references after first dwarf info pass")
 		}
 
 		if infoe != Cpos() {
-			Diag("dwarf: inconsistent second dwarf info pass")
-			Errorexit()
+			Exitf("dwarf: inconsistent second dwarf info pass")
 		}
 	}
 
@@ -2367,12 +2233,13 @@ func dwarfaddshstrings(shstrtab *LSym) {
 	elfstrdbg[ElfStrDebugStr] = Addstring(shstrtab, ".debug_str")
 	elfstrdbg[ElfStrGDBScripts] = Addstring(shstrtab, ".debug_gdb_scripts")
 	if Linkmode == LinkExternal {
-		if Thearch.Thechar == '6' || Thearch.Thechar == '9' {
+		switch Thearch.Thechar {
+		case '6', '7', '9':
 			elfstrdbg[ElfStrRelDebugInfo] = Addstring(shstrtab, ".rela.debug_info")
 			elfstrdbg[ElfStrRelDebugAranges] = Addstring(shstrtab, ".rela.debug_aranges")
 			elfstrdbg[ElfStrRelDebugLine] = Addstring(shstrtab, ".rela.debug_line")
 			elfstrdbg[ElfStrRelDebugFrame] = Addstring(shstrtab, ".rela.debug_frame")
-		} else {
+		default:
 			elfstrdbg[ElfStrRelDebugInfo] = Addstring(shstrtab, ".rel.debug_info")
 			elfstrdbg[ElfStrRelDebugAranges] = Addstring(shstrtab, ".rel.debug_aranges")
 			elfstrdbg[ElfStrRelDebugLine] = Addstring(shstrtab, ".rel.debug_line")
@@ -2419,9 +2286,10 @@ func dwarfaddelfsectionsyms() {
 
 func dwarfaddelfrelocheader(elfstr int, shdata *ElfShdr, off int64, size int64) {
 	sh := newElfShdr(elfstrdbg[elfstr])
-	if Thearch.Thechar == '6' || Thearch.Thechar == '9' {
+	switch Thearch.Thechar {
+	case '6', '7', '9':
 		sh.type_ = SHT_RELA
-	} else {
+	default:
 		sh.type_ = SHT_REL
 	}
 

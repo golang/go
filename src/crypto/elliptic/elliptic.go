@@ -308,7 +308,8 @@ func Marshal(curve Curve, x, y *big.Int) []byte {
 	return ret
 }
 
-// Unmarshal converts a point, serialized by Marshal, into an x, y pair. On error, x = nil.
+// Unmarshal converts a point, serialized by Marshal, into an x, y pair.
+// It is an error if the point is not on the curve. On error, x = nil.
 func Unmarshal(curve Curve, data []byte) (x, y *big.Int) {
 	byteLen := (curve.Params().BitSize + 7) >> 3
 	if len(data) != 1+2*byteLen {
@@ -319,6 +320,9 @@ func Unmarshal(curve Curve, data []byte) (x, y *big.Int) {
 	}
 	x = new(big.Int).SetBytes(data[1 : 1+byteLen])
 	y = new(big.Int).SetBytes(data[1+byteLen:])
+	if !curve.Params().IsOnCurve(x, y) {
+		x, y = nil, nil
+	}
 	return
 }
 

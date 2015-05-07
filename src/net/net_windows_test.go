@@ -16,8 +16,6 @@ import (
 )
 
 func TestAcceptIgnoreSomeErrors(t *testing.T) {
-	t.Skip("skipping temporarily, see issue 8662")
-
 	recv := func(ln Listener) (string, error) {
 		c, err := ln.Accept()
 		if err != nil {
@@ -64,7 +62,7 @@ func TestAcceptIgnoreSomeErrors(t *testing.T) {
 		// In child process.
 		c, err := Dial("tcp", envaddr)
 		if err != nil {
-			t.Fatalf("Dial failed: %v", err)
+			t.Fatal(err)
 		}
 		fmt.Printf("sleeping\n")
 		time.Sleep(time.Minute) // process will be killed here
@@ -73,7 +71,7 @@ func TestAcceptIgnoreSomeErrors(t *testing.T) {
 
 	ln, err := Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		t.Fatalf("Listen failed: %v", err)
+		t.Fatal(err)
 	}
 	defer ln.Close()
 

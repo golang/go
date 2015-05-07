@@ -67,7 +67,7 @@ TEXT runtime·open(SB),NOSPLIT,$-8-20
 	MOVW	R3, ret+16(FP)
 	RETURN
 
-TEXT runtime·close(SB),NOSPLIT,$-8-12
+TEXT runtime·closefd(SB),NOSPLIT,$-8-12
 	MOVW	fd+0(FP), R3
 	SYSCALL	$SYS_close
 	BVC	2(PC)
@@ -196,6 +196,15 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT,$-8-36
 	MOVW	R3, ret+32(FP)
 	RETURN
 
+TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+	MOVW	sig+8(FP), R3
+	MOVD	info+16(FP), R4
+	MOVD	ctx+24(FP), R5
+	MOVD	fn+0(FP), R31
+	MOVD	R31, CTR
+	BL	(CTR)
+	RETURN
+
 #ifdef GOARCH_ppc64le
 // ppc64le doesn't need function descriptors
 TEXT runtime·sigtramp(SB),NOSPLIT,$64
@@ -217,33 +226,12 @@ TEXT runtime·_sigtramp(SB),NOSPLIT,$64
 	BEQ	2(PC)
 	BL	runtime·load_g(SB)
 
-	// check that g exists
-	CMP	g, $0
-	BNE	6(PC)
-	MOVD	R3, 8(R1)
-	MOVD	$runtime·badsignal(SB), R31
-	MOVD	R31, CTR
-	BL	(CTR)
-	RETURN
-
-	// save g
-	MOVD	g, 40(R1)
-	MOVD	g, R6
-
-	// g = m->gsignal
-	MOVD	g_m(g), R7
-	MOVD	m_gsignal(R7), g
-
 	MOVW	R3, 8(R1)
 	MOVD	R4, 16(R1)
 	MOVD	R5, 24(R1)
-	MOVD	R6, 32(R1)
-
-	BL	runtime·sighandler(SB)
-
-	// restore g
-	MOVD	40(R1), g
-
+	MOVD	$runtime·sigtrampgo(SB), R31
+	MOVD	R31, CTR
+	BL	(CTR)
 	RETURN
 
 TEXT runtime·mmap(SB),NOSPLIT,$-8
@@ -323,9 +311,14 @@ TEXT runtime·clone(SB),NOSPLIT,$-8
 	// Initialize m->procid to Linux tid
 	SYSCALL $SYS_gettid
 
-	MOVD	-24(R1), R12
-	MOVD	-16(R1), R8
-	MOVD	-8(R1), R7
+	MOVD	-24(R1), R12       // fn
+	MOVD	-16(R1), R8        // g
+	MOVD	-8(R1), R7         // m
+
+	CMP	R7, $0
+	BEQ	nog
+	CMP	R8, $0
+	BEQ	nog
 
 	MOVD	R3, m_procid(R7)
 
@@ -336,13 +329,14 @@ TEXT runtime·clone(SB),NOSPLIT,$-8
 	MOVD	R8, g
 	//CALL	runtime·stackcheck(SB)
 
+nog:
 	// Call fn
 	MOVD	R12, CTR
 	BL	(CTR)
 
-	// It shouldn't return.  If it does, exit
+	// It shouldn't return.	 If it does, exit that thread.
 	MOVW	$111, R3
-	SYSCALL $SYS_exit_group
+	SYSCALL	$SYS_exit
 	BR	-2(PC)	// keep exiting
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8

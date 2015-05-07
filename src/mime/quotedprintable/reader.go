@@ -13,19 +13,16 @@ import (
 	"io"
 )
 
-// Deviations from RFC 2045:
-// 1. in addition to "=\r\n", "=\n" is also treated as soft line break.
-// 2. it will pass through a '\r' or '\n' not preceded by '=', consistent
-//    with other broken QP encoders & decoders.
-type reader struct {
+// Reader is a quoted-printable decoder.
+type Reader struct {
 	br   *bufio.Reader
 	rerr error  // last read error
 	line []byte // to be consumed before more of br
 }
 
 // NewReader returns a quoted-printable reader, decoding from r.
-func NewReader(r io.Reader) io.Reader {
-	return &reader{
+func NewReader(r io.Reader) *Reader {
+	return &Reader{
 		br: bufio.NewReader(r),
 	}
 }
@@ -43,7 +40,7 @@ func fromHex(b byte) (byte, error) {
 	return 0, fmt.Errorf("quotedprintable: invalid hex byte 0x%02x", b)
 }
 
-func (q *reader) readHexByte(v []byte) (b byte, err error) {
+func readHexByte(v []byte) (b byte, err error) {
 	if len(v) < 2 {
 		return 0, io.ErrUnexpectedEOF
 	}
@@ -71,43 +68,48 @@ var (
 	softSuffix = []byte("=")
 )
 
-func (q *reader) Read(p []byte) (n int, err error) {
+// Read reads and decodes quoted-printable data from the underlying reader.
+func (r *Reader) Read(p []byte) (n int, err error) {
+	// Deviations from RFC 2045:
+	// 1. in addition to "=\r\n", "=\n" is also treated as soft line break.
+	// 2. it will pass through a '\r' or '\n' not preceded by '=', consistent
+	//    with other broken QP encoders & decoders.
 	for len(p) > 0 {
-		if len(q.line) == 0 {
-			if q.rerr != nil {
-				return n, q.rerr
+		if len(r.line) == 0 {
+			if r.rerr != nil {
+				return n, r.rerr
 			}
-			q.line, q.rerr = q.br.ReadSlice('\n')
+			r.line, r.rerr = r.br.ReadSlice('\n')
 
 			// Does the line end in CRLF instead of just LF?
-			hasLF := bytes.HasSuffix(q.line, lf)
-			hasCR := bytes.HasSuffix(q.line, crlf)
-			wholeLine := q.line
-			q.line = bytes.TrimRightFunc(wholeLine, isQPDiscardWhitespace)
-			if bytes.HasSuffix(q.line, softSuffix) {
-				rightStripped := wholeLine[len(q.line):]
-				q.line = q.line[:len(q.line)-1]
+			hasLF := bytes.HasSuffix(r.line, lf)
+			hasCR := bytes.HasSuffix(r.line, crlf)
+			wholeLine := r.line
+			r.line = bytes.TrimRightFunc(wholeLine, isQPDiscardWhitespace)
+			if bytes.HasSuffix(r.line, softSuffix) {
+				rightStripped := wholeLine[len(r.line):]
+				r.line = r.line[:len(r.line)-1]
 				if !bytes.HasPrefix(rightStripped, lf) && !bytes.HasPrefix(rightStripped, crlf) {
-					q.rerr = fmt.Errorf("quotedprintable: invalid bytes after =: %q", rightStripped)
+					r.rerr = fmt.Errorf("quotedprintable: invalid bytes after =: %q", rightStripped)
 				}
 			} else if hasLF {
 				if hasCR {
-					q.line = append(q.line, '\r', '\n')
+					r.line = append(r.line, '\r', '\n')
 				} else {
-					q.line = append(q.line, '\n')
+					r.line = append(r.line, '\n')
 				}
 			}
 			continue
 		}
-		b := q.line[0]
+		b := r.line[0]
 
 		switch {
 		case b == '=':
-			b, err = q.readHexByte(q.line[1:])
+			b, err = readHexByte(r.line[1:])
 			if err != nil {
 				return n, err
 			}
-			q.line = q.line[2:] // 2 of the 3; other 1 is done below
+			r.line = r.line[2:] // 2 of the 3; other 1 is done below
 		case b == '\t' || b == '\r' || b == '\n':
 			break
 		case b < ' ' || b > '~':
@@ -115,7 +117,7 @@ func (q *reader) Read(p []byte) (n int, err error) {
 		}
 		p[0] = b
 		p = p[1:]
-		q.line = q.line[1:]
+		r.line = r.line[1:]
 		n++
 	}
 	return n, nil

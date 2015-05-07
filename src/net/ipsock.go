@@ -26,93 +26,70 @@ var (
 	supportsIPv4map bool
 )
 
-func init() {
-	sysInit()
-	supportsIPv4 = probeIPv4Stack()
-	supportsIPv6, supportsIPv4map = probeIPv6Stack()
-}
-
-// A netaddr represents a network endpoint address or a list of
-// network endpoint addresses.
-type netaddr interface {
-	// toAddr returns the address represented in Addr interface.
-	// It returns a nil interface when the address is nil.
-	toAddr() Addr
-}
-
 // An addrList represents a list of network endpoint addresses.
-type addrList []netaddr
+type addrList []Addr
 
-func (al addrList) toAddr() Addr {
-	switch len(al) {
-	case 0:
-		return nil
-	case 1:
-		return al[0].toAddr()
-	default:
-		// For now, we'll roughly pick first one without
-		// considering dealing with any preferences such as
-		// DNS TTL, transport path quality, network routing
-		// information.
-		return al[0].toAddr()
+// isIPv4 returns true if the Addr contains an IPv4 address.
+func isIPv4(addr Addr) bool {
+	switch addr := addr.(type) {
+	case *TCPAddr:
+		return addr.IP.To4() != nil
+	case *UDPAddr:
+		return addr.IP.To4() != nil
+	case *IPAddr:
+		return addr.IP.To4() != nil
 	}
+	return false
+}
+
+// first returns the first address which satisfies strategy, or if
+// none do, then the first address of any kind.
+func (addrs addrList) first(strategy func(Addr) bool) Addr {
+	for _, addr := range addrs {
+		if strategy(addr) {
+			return addr
+		}
+	}
+	return addrs[0]
+}
+
+// partition divides an address list into two categories, using a
+// strategy function to assign a boolean label to each address.
+// The first address, and any with a matching label, are returned as
+// primaries, while addresses with the opposite label are returned
+// as fallbacks. For non-empty inputs, primaries is guaranteed to be
+// non-empty.
+func (addrs addrList) partition(strategy func(Addr) bool) (primaries, fallbacks addrList) {
+	var primaryLabel bool
+	for i, addr := range addrs {
+		label := strategy(addr)
+		if i == 0 || label == primaryLabel {
+			primaryLabel = label
+			primaries = append(primaries, addr)
+		} else {
+			fallbacks = append(fallbacks, addr)
+		}
+	}
+	return
 }
 
 var errNoSuitableAddress = errors.New("no suitable address found")
 
-// firstFavoriteAddr returns an address or a list of addresses that
-// implement the netaddr interface. Known filters are nil, ipv4only
-// and ipv6only. It returns any address when filter is nil. The result
-// contains at least one address when error is nil.
-func firstFavoriteAddr(filter func(IPAddr) bool, ips []IPAddr, inetaddr func(IPAddr) netaddr) (netaddr, error) {
-	if filter != nil {
-		return firstSupportedAddr(filter, ips, inetaddr)
-	}
-	var (
-		ipv4, ipv6, swap bool
-		list             addrList
-	)
+// filterAddrList applies a filter to a list of IP addresses,
+// yielding a list of Addr objects. Known filters are nil, ipv4only,
+// and ipv6only. It returns every address when the filter is nil.
+// The result contains at least one address when error is nil.
+func filterAddrList(filter func(IPAddr) bool, ips []IPAddr, inetaddr func(IPAddr) Addr) (addrList, error) {
+	var addrs addrList
 	for _, ip := range ips {
-		// We'll take any IP address, but since the dialing
-		// code does not yet try multiple addresses
-		// effectively, prefer to use an IPv4 address if
-		// possible. This is especially relevant if localhost
-		// resolves to [ipv6-localhost, ipv4-localhost]. Too
-		// much code assumes localhost == ipv4-localhost.
-		if ipv4only(ip) && !ipv4 {
-			list = append(list, inetaddr(ip))
-			ipv4 = true
-			if ipv6 {
-				swap = true
-			}
-		} else if ipv6only(ip) && !ipv6 {
-			list = append(list, inetaddr(ip))
-			ipv6 = true
-		}
-		if ipv4 && ipv6 {
-			if swap {
-				list[0], list[1] = list[1], list[0]
-			}
-			break
+		if filter == nil || filter(ip) {
+			addrs = append(addrs, inetaddr(ip))
 		}
 	}
-	switch len(list) {
-	case 0:
+	if len(addrs) == 0 {
 		return nil, errNoSuitableAddress
-	case 1:
-		return list[0], nil
-	default:
-		return list, nil
 	}
-}
-
-func firstSupportedAddr(filter func(IPAddr) bool, ips []IPAddr, inetaddr func(IPAddr) netaddr) (netaddr, error) {
-	for _, ip := range ips {
-		if filter(ip) {
-			return inetaddr(ip), nil
-		}
-	}
-	return nil, errNoSuitableAddress
+	return addrs, nil
 }
 
 // ipv4only reports whether the kernel supports IPv4 addressing mode
@@ -145,7 +122,7 @@ func SplitHostPort(hostport string) (host, port string, err error) {
 		// Expect the first ']' just before the last ':'.
 		end := byteIndex(hostport, ']')
 		if end < 0 {
-			err = &AddrError{"missing ']' in address", hostport}
+			err = &AddrError{Err: "missing ']' in address", Addr: hostport}
 			return
 		}
 		switch end + 1 {
@@ -174,11 +151,11 @@ func SplitHostPort(hostport string) (host, port string, err error) {
 		}
 	}
 	if byteIndex(hostport[j:], '[') >= 0 {
-		err = &AddrError{"unexpected '[' in address", hostport}
+		err = &AddrError{Err: "unexpected '[' in address", Addr: hostport}
 		return
 	}
 	if byteIndex(hostport[k:], ']') >= 0 {
-		err = &AddrError{"unexpected ']' in address", hostport}
+		err = &AddrError{Err: "unexpected ']' in address", Addr: hostport}
 		return
 	}
 
@@ -186,15 +163,15 @@ func SplitHostPort(hostport string) (host, port string, err error) {
 	return
 
 missingPort:
-	err = &AddrError{"missing port in address", hostport}
+	err = &AddrError{Err: "missing port in address", Addr: hostport}
 	return
 
 tooManyColons:
-	err = &AddrError{"too many colons in address", hostport}
+	err = &AddrError{Err: "too many colons in address", Addr: hostport}
 	return
 
 missingBrackets:
-	err = &AddrError{"missing brackets in address", hostport}
+	err = &AddrError{Err: "missing brackets in address", Addr: hostport}
 	return
 }
 
@@ -220,13 +197,11 @@ func JoinHostPort(host, port string) string {
 	return host + ":" + port
 }
 
-// resolveInternetAddr resolves addr that is either a literal IP
-// address or a DNS name and returns an internet protocol family
-// address. It returns a list that contains a pair of different
-// address family addresses when addr is a DNS name and the name has
-// multiple address family records. The result contains at least one
-// address when error is nil.
-func resolveInternetAddr(net, addr string, deadline time.Time) (netaddr, error) {
+// internetAddrList resolves addr, which may be a literal IP
+// address or a DNS name, and returns a list of internet protocol
+// family addresses. The result contains at least one address when
+// error is nil.
+func internetAddrList(net, addr string, deadline time.Time) (addrList, error) {
 	var (
 		err        error
 		host, port string
@@ -249,7 +224,7 @@ func resolveInternetAddr(net, addr string, deadline time.Time) (netaddr, error) 
 	default:
 		return nil, UnknownNetworkError(net)
 	}
-	inetaddr := func(ip IPAddr) netaddr {
+	inetaddr := func(ip IPAddr) Addr {
 		switch net {
 		case "tcp", "tcp4", "tcp6":
 			return &TCPAddr{IP: ip.IP, Port: portnum, Zone: ip.Zone}
@@ -262,16 +237,16 @@ func resolveInternetAddr(net, addr string, deadline time.Time) (netaddr, error) 
 		}
 	}
 	if host == "" {
-		return inetaddr(IPAddr{}), nil
+		return addrList{inetaddr(IPAddr{})}, nil
 	}
 	// Try as a literal IP address.
 	var ip IP
 	if ip = parseIPv4(host); ip != nil {
-		return inetaddr(IPAddr{IP: ip}), nil
+		return addrList{inetaddr(IPAddr{IP: ip})}, nil
 	}
 	var zone string
 	if ip, zone = parseIPv6(host, true); ip != nil {
-		return inetaddr(IPAddr{IP: ip, Zone: zone}), nil
+		return addrList{inetaddr(IPAddr{IP: ip, Zone: zone})}, nil
 	}
 	// Try as a DNS name.
 	ips, err := lookupIPDeadline(host, deadline)
@@ -285,7 +260,7 @@ func resolveInternetAddr(net, addr string, deadline time.Time) (netaddr, error) 
 	if net != "" && net[len(net)-1] == '6' {
 		filter = ipv6only
 	}
-	return firstFavoriteAddr(filter, ips, inetaddr)
+	return filterAddrList(filter, ips, inetaddr)
 }
 
 func zoneToString(zone int) string {

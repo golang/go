@@ -196,6 +196,7 @@ func (t *Tree) recover(errp *error) {
 			panic(e)
 		}
 		if t != nil {
+			t.lex.drain()
 			t.stopParse()
 		}
 		*errp = e.(error)
@@ -288,11 +289,12 @@ func (t *Tree) parse(treeSet map[string]*Tree) (next Node) {
 			}
 			t.backup2(delim)
 		}
-		n := t.textOrAction()
-		if n.Type() == nodeEnd {
+		switch n := t.textOrAction(); n.Type() {
+		case nodeEnd, nodeElse:
 			t.errorf("unexpected %s", n)
+		default:
+			t.Root.append(n)
 		}
-		t.Root.append(n)
 	}
 	return nil
 }
@@ -411,9 +413,8 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
 	for {
 		switch token := t.nextNonSpace(); token.typ {
 		case itemRightDelim, itemRightParen:
-			if len(pipe.Cmds) == 0 {
-				t.errorf("missing value for %s", context)
-			}
+			// At this point, the pipeline is complete
+			t.checkPipeline(pipe, context)
 			if token.typ == itemRightParen {
 				t.backup()
 			}
@@ -424,6 +425,21 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
 			pipe.append(t.command())
 		default:
 			t.unexpected(token, context)
+		}
+	}
+}
+
+func (t *Tree) checkPipeline(pipe *PipeNode, context string) {
+	// Reject empty pipelines
+	if len(pipe.Cmds) == 0 {
+		t.errorf("missing value for %s", context)
+	}
+	// Only the first command of a pipeline can start with a non executable operand
+	for i, c := range pipe.Cmds[1:] {
+		switch c.Args[0].Type() {
+		case NodeBool, NodeDot, NodeNil, NodeNumber, NodeString:
+			// With A|B|C, pipeline stage 2 is B
+			t.errorf("non executable command in pipeline stage %d", i+2)
 		}
 	}
 }
@@ -553,7 +569,7 @@ func (t *Tree) command() *CommandNode {
 			t.backup()
 		case itemPipe:
 		default:
-			t.errorf("unexpected %s in operand; missing space?", token)
+			t.errorf("unexpected %s in operand", token)
 		}
 		break
 	}
@@ -581,12 +597,15 @@ func (t *Tree) operand() Node {
 		// Compatibility with original API: If the term is of type NodeField
 		// or NodeVariable, just put more fields on the original.
 		// Otherwise, keep the Chain node.
-		// TODO: Switch to Chains always when we can.
+		// Obvious parsing errors involving literal values are detected here.
+		// More complex error cases will have to be handled at execution time.
 		switch node.Type() {
 		case NodeField:
 			node = t.newField(chain.Position(), chain.String())
 		case NodeVariable:
 			node = t.newVariable(chain.Position(), chain.String())
+		case NodeBool, NodeString, NodeNumber, NodeNil, NodeDot:
+			t.errorf("unexpected . after term %q", node.String())
 		default:
 			node = chain
 		}

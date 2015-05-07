@@ -6,16 +6,16 @@ package obj
 
 import (
 	"fmt"
-	"math"
 	"os"
 	"strings"
 )
 
 // go-specific code shared across loaders (5l, 6l, 8l).
 
-var Framepointer_enabled int
-
-var Fieldtrack_enabled int
+var (
+	Framepointer_enabled int
+	Fieldtrack_enabled   int
+)
 
 // Toolchain experiments.
 // These are controlled by the GOEXPERIMENT environment
@@ -25,14 +25,8 @@ var exper = []struct {
 	name string
 	val  *int
 }{
-	struct {
-		name string
-		val  *int
-	}{"fieldtrack", &Fieldtrack_enabled},
-	struct {
-		name string
-		val  *int
-	}{"framepointer", &Framepointer_enabled},
+	{"fieldtrack", &Fieldtrack_enabled},
+	{"framepointer", &Framepointer_enabled},
 }
 
 func addexp(s string) {
@@ -57,15 +51,6 @@ func init() {
 	}
 }
 
-// replace all "". with pkg.
-func Expandpkg(t0 string, pkg string) string {
-	return strings.Replace(t0, `"".`, pkg+".", -1)
-}
-
-func double2ieee(ieee *uint64, f float64) {
-	*ieee = math.Float64bits(f)
-}
-
 func Nopout(p *Prog) {
 	p.As = ANOP
 	p.Scond = 0
@@ -82,53 +67,6 @@ func Nocache(p *Prog) {
 	p.To.Class = 0
 }
 
-/*
- *	bv.c
- */
-
-/*
- *	closure.c
- */
-
-/*
- *	const.c
- */
-
-/*
- *	cplx.c
- */
-
-/*
- *	dcl.c
- */
-
-/*
- *	esc.c
- */
-
-/*
- *	export.c
- */
-
-/*
- *	fmt.c
- */
-
-/*
- *	gen.c
- */
-
-/*
- *	init.c
- */
-
-/*
- *	inl.c
- */
-
-/*
- *	lex.c
- */
 func Expstring() string {
 	buf := "X"
 	for i := range exper {

@@ -49,7 +49,7 @@ var complements = []int16{
 	ACMNW: ACMPW,
 }
 
-func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt int) *obj.Prog {
+func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 	// MOV	g_stackguard(g), R1
 	p = obj.Appendp(ctxt, p)
 
@@ -186,8 +186,10 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt int) *obj.P
 	p.To.Type = obj.TYPE_BRANCH
 	if ctxt.Cursym.Cfunc != 0 {
 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
+	} else if ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
+		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
 	} else {
-		p.To.Sym = ctxt.Symmorestack[noctxt]
+		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack", 0)
 	}
 
 	// B	start
@@ -465,11 +467,6 @@ loop:
 }
 
 func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
-	if ctxt.Symmorestack[0] == nil {
-		ctxt.Symmorestack[0] = obj.Linklookup(ctxt, "runtime.morestack", 0)
-		ctxt.Symmorestack[1] = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
-	}
-
 	ctxt.Cursym = cursym
 
 	if cursym.Text == nil || cursym.Text.Link == nil {
@@ -488,7 +485,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	 * strip NOPs
 	 * expand RET
 	 */
-	obj.Bflush(ctxt.Bso)
+	ctxt.Bso.Flush()
 	q := (*obj.Prog)(nil)
 	var q1 *obj.Prog
 	for p := cursym.Text; p != nil; p = p.Link {
@@ -578,12 +575,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				if ctxt.Debugvlog != 0 {
 					fmt.Fprintf(ctxt.Bso, "save suppressed in: %s\n", cursym.Text.From.Sym.Name)
 				}
-				obj.Bflush(ctxt.Bso)
+				ctxt.Bso.Flush()
 				cursym.Text.Mark |= LEAF
 			}
 
 			if !(p.From3.Offset&obj.NOSPLIT != 0) {
-				p = stacksplit(ctxt, p, ctxt.Autosize, bool2int(cursym.Text.From3.Offset&obj.NEEDCTXT == 0)) // emit split check
+				p = stacksplit(ctxt, p, ctxt.Autosize) // emit split check
 			}
 
 			aoffset = ctxt.Autosize
@@ -781,7 +778,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			}
 
 			p.As = obj.ARET
-			p.Lineno = p.Lineno
 			p.To.Type = obj.TYPE_MEM
 			p.To.Offset = 0
 			p.To.Reg = REGLINK
@@ -811,6 +807,7 @@ var unaryDst = map[int]bool{
 	ADWORD: true,
 	ABL:    true,
 	AB:     true,
+	ASVC:   true,
 }
 
 var Linkarm64 = obj.LinkArch{

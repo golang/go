@@ -32,7 +32,7 @@ TEXT runtime·open(SB),NOSPLIT,$-4
 	MOVL	AX, ret+12(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$-4
+TEXT runtime·closefd(SB),NOSPLIT,$-4
 	MOVL	$6, AX
 	INT	$0x80
 	JAE	2(PC)

@@ -146,6 +146,7 @@ func (ht handlerTest) rawResponse(req string) string {
 }
 
 func TestConsumingBodyOnNextConn(t *testing.T) {
+	defer afterTest(t)
 	conn := new(testConn)
 	for i := 0; i < 2; i++ {
 		conn.readBuf.Write([]byte(
@@ -1451,19 +1452,23 @@ func testHandlerPanic(t *testing.T, withHijack bool, panicValue interface{}) {
 	}
 }
 
-func TestNoDate(t *testing.T) {
+func TestServerNoDate(t *testing.T)        { testServerNoHeader(t, "Date") }
+func TestServerNoContentType(t *testing.T) { testServerNoHeader(t, "Content-Type") }
+
+func testServerNoHeader(t *testing.T, header string) {
 	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
-		w.Header()["Date"] = nil
+		w.Header()[header] = nil
+		io.WriteString(w, "<html>foo</html>") // non-empty
 	}))
 	defer ts.Close()
 	res, err := Get(ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, present := res.Header["Date"]
-	if present {
-		t.Fatalf("Expected no Date header; got %v", res.Header["Date"])
+	res.Body.Close()
+	if got, ok := res.Header[header]; ok {
+		t.Fatalf("Expected no %s header; got %q", header, got)
 	}
 }
 
@@ -2759,6 +2764,43 @@ func TestServerKeepAliveAfterWriteError(t *testing.T) {
 		case <-timeout.C:
 			t.Fatal("timeout waiting for requests to complete")
 		}
+	}
+}
+
+// Issue 9987: shouldn't add automatic Content-Length (or
+// Content-Type) if a Transfer-Encoding was set by the handler.
+func TestNoContentLengthIfTransferEncoding(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Transfer-Encoding", "foo")
+		io.WriteString(w, "<html>")
+	}))
+	defer ts.Close()
+	c, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	defer c.Close()
+	if _, err := io.WriteString(c, "GET / HTTP/1.1\r\nHost: foo\r\n\r\n"); err != nil {
+		t.Fatal(err)
+	}
+	bs := bufio.NewScanner(c)
+	var got bytes.Buffer
+	for bs.Scan() {
+		if strings.TrimSpace(bs.Text()) == "" {
+			break
+		}
+		got.WriteString(bs.Text())
+		got.WriteByte('\n')
+	}
+	if err := bs.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(got.String(), "Content-Length") {
+		t.Errorf("Unexpected Content-Length in response headers: %s", got.String())
+	}
+	if strings.Contains(got.String(), "Content-Type") {
+		t.Errorf("Unexpected Content-Type in response headers: %s", got.String())
 	}
 }
 

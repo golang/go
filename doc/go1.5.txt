@@ -10,7 +10,13 @@ Go 1.4 required to build (https://golang.org/cl/2470, https://golang.org/cl/2993
 
 New Ports:
 darwin/arm, a.k.a iOS. (https://golang.org/cl/2118, 2119, 3273, 2121, 2122, ..., 2127)
-linux/arm64
+darwin/arm64
+linux/arm64 (cgo is supported, but only with external linking)
+openbsd/arm (no cgo or external linking)
+The port to Snow Leopard (OS X 10.6) is no longer actively maintained.
+
+Runtime:
+goroutine scheduling order changed; never guaranteed by language, but can break tests that implicitly assume a specific execution order
 
 Removed Ports:
 dragonfly/386 (https://golang.org/cl/7543)
@@ -19,37 +25,72 @@ API additions and behavior changes:
 
 archive/zip: add (*Writer).SetOffset method (https://golang.org/cl/7445)
 bufio: add Reader.Discard (https://golang.org/cl/2260)
+bytes: add Buffer.Cap (https://golang.org/cl/8342)
+bytes, strings: add Reader.Size (https://golang.org/cl/3199)
+bytes, strings: add LastIndexByte (https://golang.org/cl/9500)
 crypto/cipher: clarify what will happen if len(src) != len(dst) for the Stream interface. (https://golang.org/cl/1754)
 crypto/elliptic: add Name field to CurveParams struct (https://golang.org/cl/2133)
+crypto/elliptic: Unmarshaling points now automatically checks that the point is on the curve (https://golang.org/cl/2421)
 crypto/tls: change default minimum version to TLS 1.0. (https://golang.org/cl/1791)
+crypto/tls: including Certificate Transparency SCTs in the handshake is now supported (https://golang.org/cl/8988)
+crypto/tls: session ticket keys can now be rotated at runtime (https://golang.org/cl/9072)
+crypto/tls: servers will now always call GetCertificate to pick a certificate for a connection when Certificates is empty (https://golang.org/cl/8792)
 crypto/x509: wildcards are now only accepted as the first label (https://golang.org/cl/5691)
+crypto/x509: unknown critical extensions now cause errors in Verify, not when parsing (https://golang.org/cl/9390)
+database/sql: add Stats (https://golang.org/cl/7950)
 encoding/base64: add unpadded encodings (https://golang.org/cl/1511)
-flag: new nicer format for PrintDefaults (https://go-review.googlesource.com/7330)
+flag: new nicer format for PrintDefaults (https://golang.org/cl/7330)
+fmt: empty slices now print nothing with %x (bug fix) (https://golang.org/cl/8864)
+fmt: reflect.Value now prints what it holds (https://golang.org/cl/8731)
 go/ast: add Implicit field to ast.EmptyStmt; changed meaning of ast.EmptyStmt.Semicolon position (https://golang.org/cl/5720)
+go/build: reserved GOARCHes for common architectures (https://golang.org/cl/9644)
+io: add CopyBuffer, Copy with user-provided buffer (https://golang.org/cl/8730)
 log: add SetOutput functions (https://golang.org/cl/2686, https://golang.org/cl/3023)
+log: add LUTC flag (https://golang.org/cl/8761)
 math/big: add arbitrary precision Floats (many cl's)
+math/big: add Jacobi and Int.ModSqrt (https://golang.org/cl/1886)
 mime: add ExtensionByType (https://golang.org/cl/7444)
+mime/quotedprintable: new package (https://golang.org/cl/5940 + others)
+net: add Source field to OpError (https://go-review.googlesource.com/9231)
+net: fix inconsistent errors (https://golang.org/cl/9236)
 net/http: support for setting trailers from a server Handler (https://golang.org/cl/2157)
 net/http: ignore the Unix epoch time in ServeContent (https://golang.org/cl/7915)
 net/http/cgi: fix REMOTE_ADDR, REMOTE_HOST, add REMOTE_PORT (https://golang.org/cl/4933)
 net/smtp: add TLSConnectionState accessor (https://golang.org/cl/2151)
+os: add LookupEnv (https://golang.org/cl/9791)
 os/signal: add Ignore and Reset (https://golang.org/cl/3580)
+reflect: add ArrayOf (https://golang.org/cl/4111)
+reflect: add FuncOf (https://golang.org/cl/1996)
 runtime, syscall: use SYSCALL instruction on FreeBSD (Go 1.5 now requires FreeBSD 8-STABLE+) (https://golang.org/cl/3020)
 runtime, syscall: use get_random_bytes syscall for NaCl (Go 1.5 now requires NaCl SDK pepper-39 or above) (https://golang.org/cl/1755)
 strings: add Compare(x, y string) int, for symmetry with bytes.Compare (https://golang.org/cl/2828)
 syscall: Add Foreground and Pgid to SysProcAttr (https://golang.org/cl/5130)
 syscall: add missing Syscall9 for darwin/amd64 (https://golang.org/cl/6555)
 testing/quick: support generation of arrays (https://golang.org/cl/3865)
+text/template: add Options method (https://golang.org/cl/8462)
+text/template: huge integers are now parse errors (https://golang.org/cl/9651)
+time: add time.AppendFormat(https://golang.org/cl/1760)
 
 Tools:
 
 build: external linking support for windows (https://golang.org/cl/7163, 7282, 7283, 7284, 7534, 7535)
+cmd/cover: tool now lives in the standard repository (https://golang.org/cl/9560)
+cmd/gc: constant arithmetic is based on math/big (https://golang.org/cl/7830, 7851, 7857, 8426, 7858, 7912, 8171)
 cmd/go, go/build: add ${SRCDIR} variable expansion to cgo lines (https://golang.org/cl/1756)
 cmd/go: add $DOLLAR to generate's variables (https://golang.org/cl/8091)
 cmd/go: std wildcard now excludes commands in main repo (https://golang.org/cl/5550)
 cmd/go: .swig/.swigcxx files now require SWIG 3.0.6 or later
+cmd/go: add -run flag to go generate (https://golang.org/cl/9005)
+cmd/go: add $GOLINE to generate's variables (https://golang.org/cl/9007)
+cmd/go: add go doc (https://golang.org/cl/9227)
 cmd/vet: better validation of struct tags (https://golang.org/cl/2685)
 cmd/ld: no longer record build timestamp in Windows PE file header (https://golang.org/cl/3740)
+cmd/go: add -toolexec build option
+cmd/go: drop -ccflags build option
+cmd/go: add -asmflags build option
+cmd/go: add -buildmode build option
+cmd/gc: add -dynlink option (for amd64 only)
+cmd/ld: add -buildmode option
 cmd/trace: new command to view traces (https://golang.org/cl/3601)
 
 Performance:
@@ -74,6 +115,10 @@ math/big: faster "pure Go" kernels for platforms w/o assembly kernels (https://g
 regexp: port RE2's bitstate backtracker to the regexp package (https://golang.org/cl/2153)
 
 Assembler:
+
+New cmd/asm tool (now use go tool asm, not go tool 6a)
+
+Assembler now supports -dynlink option.
 
 ARM assembly syntax has had some features removed.
 

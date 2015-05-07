@@ -35,10 +35,8 @@ var maxstring uintptr = 256 // a hint for print
 
 //go:nosplit
 func gostringnocopy(str *byte) string {
-	var s string
-	sp := (*stringStruct)(unsafe.Pointer(&s))
-	sp.str = unsafe.Pointer(str)
-	sp.len = findnull(str)
+	ss := stringStruct{str: unsafe.Pointer(str), len: findnull(str)}
+	s := *(*string)(unsafe.Pointer(&ss))
 	for {
 		ms := maxstring
 		if uintptr(len(s)) <= ms || casuintptr(&maxstring, ms, uintptr(len(s))) {

@@ -35,7 +35,8 @@ type Conn struct {
 	handshakeComplete bool
 	didResume         bool // whether this connection was a session resumption
 	cipherSuite       uint16
-	ocspResponse      []byte // stapled OCSP response
+	ocspResponse      []byte   // stapled OCSP response
+	scts              [][]byte // signed certificate timestamps from server
 	peerCertificates  []*x509.Certificate
 	// verifiedChains contains the certificate chains that we built, as
 	// opposed to the ones presented by the server.
@@ -993,6 +994,8 @@ func (c *Conn) ConnectionState() ConnectionState {
 		state.PeerCertificates = c.peerCertificates
 		state.VerifiedChains = c.verifiedChains
 		state.ServerName = c.serverName
+		state.SignedCertificateTimestamps = c.scts
+		state.OCSPResponse = c.ocspResponse
 		if !c.didResume {
 			state.TLSUnique = c.firstFinished[:]
 		}

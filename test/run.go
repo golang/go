@@ -36,6 +36,7 @@ var (
 	numParallel    = flag.Int("n", runtime.NumCPU(), "number of parallel tests to run")
 	summary        = flag.Bool("summary", false, "show summary of results")
 	showSkips      = flag.Bool("show_skips", false, "show skipped tests")
+	updateErrors   = flag.Bool("update_errors", false, "update error messages in test file based on compiler output")
 	runoutputLimit = flag.Int("l", defaultRunOutputLimit(), "number of parallel runoutput tests to run")
 )
 
@@ -50,8 +51,7 @@ var (
 
 	// dirs are the directories to look for *.go files in.
 	// TODO(bradfitz): just use all directories?
-	// TODO(rsc): Put syntax back. See issue 9968.
-	dirs = []string{".", "ken", "chan", "interface", "dwarf", "fixedbugs", "bugs"}
+	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "bugs"}
 
 	// ratec controls the max number of tests running at a time.
 	ratec chan bool
@@ -521,6 +521,9 @@ func (t *test) run() {
 				return
 			}
 		}
+		if *updateErrors {
+			t.updateErrors(string(out), long)
+		}
 		t.err = t.errorCheck(string(out), long, t.gofile)
 		return
 
@@ -721,6 +724,25 @@ func (t *test) expectedOutput() string {
 	return string(b)
 }
 
+func splitOutput(out string) []string {
+	// 6g error messages continue onto additional lines with leading tabs.
+	// Split the output at the beginning of each line that doesn't begin with a tab.
+	var res []string
+	for _, line := range strings.Split(out, "\n") {
+		if strings.HasSuffix(line, "\r") { // remove '\r', output by compiler on windows
+			line = line[:len(line)-1]
+		}
+		if strings.HasPrefix(line, "\t") {
+			res[len(res)-1] += "\n" + line
+		} else if strings.HasPrefix(line, "go tool") {
+			continue
+		} else if strings.TrimSpace(line) != "" {
+			res = append(res, line)
+		}
+	}
+	return res
+}
+
 func (t *test) errorCheck(outStr string, fullshort ...string) (err error) {
 	defer func() {
 		if *verbose && err != nil {
@@ -728,22 +750,7 @@ func (t *test) errorCheck(outStr string, fullshort ...string) (err error) {
 		}
 	}()
 	var errs []error
-
-	var out []string
-	// 6g error messages continue onto additional lines with leading tabs.
-	// Split the output at the beginning of each line that doesn't begin with a tab.
-	for _, line := range strings.Split(outStr, "\n") {
-		if strings.HasSuffix(line, "\r") { // remove '\r', output by compiler on windows
-			line = line[:len(line)-1]
-		}
-		if strings.HasPrefix(line, "\t") {
-			out[len(out)-1] += "\n" + line
-		} else if strings.HasPrefix(line, "go tool") {
-			continue
-		} else if strings.TrimSpace(line) != "" {
-			out = append(out, line)
-		}
-	}
+	out := splitOutput(outStr)
 
 	// Cut directory name.
 	for i := range out {
@@ -800,7 +807,72 @@ func (t *test) errorCheck(outStr string, fullshort ...string) (err error) {
 		fmt.Fprintf(&buf, "%s\n", err.Error())
 	}
 	return errors.New(buf.String())
+}
 
+func (t *test) updateErrors(out string, file string) {
+	// Read in source file.
+	src, err := ioutil.ReadFile(file)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	lines := strings.Split(string(src), "\n")
+	// Remove old errors.
+	for i, ln := range lines {
+		pos := strings.Index(ln, " // ERROR ")
+		if pos >= 0 {
+			lines[i] = ln[:pos]
+		}
+	}
+	// Parse new errors.
+	errors := make(map[int]map[string]bool)
+	tmpRe := regexp.MustCompile(`autotmp_[0-9]+`)
+	for _, errStr := range splitOutput(out) {
+		colon1 := strings.Index(errStr, ":")
+		if colon1 < 0 || errStr[:colon1] != file {
+			continue
+		}
+		colon2 := strings.Index(errStr[colon1+1:], ":")
+		if colon2 < 0 {
+			continue
+		}
+		colon2 += colon1 + 1
+		line, err := strconv.Atoi(errStr[colon1+1 : colon2])
+		line--
+		if err != nil || line < 0 || line >= len(lines) {
+			continue
+		}
+		msg := errStr[colon2+2:]
+		for _, r := range []string{`\`, `*`, `+`, `[`, `]`, `(`, `)`} {
+			msg = strings.Replace(msg, r, `\`+r, -1)
+		}
+		msg = strings.Replace(msg, `"`, `.`, -1)
+		msg = tmpRe.ReplaceAllLiteralString(msg, `autotmp_[0-9]+`)
+		if errors[line] == nil {
+			errors[line] = make(map[string]bool)
+		}
+		errors[line][msg] = true
+	}
+	// Add new errors.
+	for line, errs := range errors {
+		var sorted []string
+		for e := range errs {
+			sorted = append(sorted, e)
+		}
+		sort.Strings(sorted)
+		lines[line] += " // ERROR"
+		for _, e := range sorted {
+			lines[line] += fmt.Sprintf(` "%s$"`, e)
+		}
+	}
+	// Write new file.
+	err = ioutil.WriteFile(file, []byte(strings.Join(lines, "\n")), 0640)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	// Polish.
+	exec.Command("go", "fmt", file).CombinedOutput()
 }
 
 // matchPrefix reports whether s is of the form ^(.*/)?prefix(:|[),
@@ -884,7 +956,7 @@ func (t *test) wantedErrors(file, short string) (errs []wantedError) {
 				var err error
 				re, err = regexp.Compile(rx)
 				if err != nil {
-					log.Fatalf("%s:%d: invalid regexp in ERROR line: %v", t.goFileName(), lineNum, err)
+					log.Fatalf("%s:%d: invalid regexp \"%s\" in ERROR line: %v", t.goFileName(), lineNum, rx, err)
 				}
 				cache[rx] = re
 			}

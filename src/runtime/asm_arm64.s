@@ -4,6 +4,7 @@
 
 #include "go_asm.h"
 #include "go_tls.h"
+#include "tls_arm64.h"
 #include "funcdata.h"
 #include "textflag.h"
 
@@ -32,7 +33,19 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	CMP	$0, R12
 	BEQ	nocgo
 
-	BL	runtime·abort(SB)
+	MRS_TPIDR_R0			// load TLS base pointer
+	MOVD	R0, R3			// arg 3: TLS base pointer
+#ifdef TLSG_IS_VARIABLE
+	MOVD	$runtime·tls_g(SB), R2 	// arg 2: tlsg
+#else
+	MOVD	$0x10, R2		// arg 2: tlsg TODO(minux): hardcoded for linux
+#endif
+	MOVD	$setg_gcc<>(SB), R1	// arg 1: setg
+	MOVD	g, R0			// arg 0: G
+	BL	(R12)
+	MOVD	_cgo_init(SB), R12
+	CMP	$0, R12
+	BEQ	nocgo
 
 nocgo:
 	// update stackguard after _cgo_init
@@ -456,6 +469,20 @@ TEXT runtime·atomicloaduint(SB), NOSPLIT, $-8-16
 TEXT runtime·atomicstoreuintptr(SB), NOSPLIT, $0-16
 	B	runtime·atomicstore64(SB)
 
+// AES hashing not implemented for ARM64, issue #10109.
+TEXT runtime·aeshash(SB),NOSPLIT,$-8-0
+	MOVW	$0, R0
+	MOVW	(R0), R1
+TEXT runtime·aeshash32(SB),NOSPLIT,$-8-0
+	MOVW	$0, R0
+	MOVW	(R0), R1
+TEXT runtime·aeshash64(SB),NOSPLIT,$-8-0
+	MOVW	$0, R0
+	MOVW	(R0), R1
+TEXT runtime·aeshashstr(SB),NOSPLIT,$-8-0
+	MOVW	$0, R0
+	MOVW	(R0), R1
+
 // bool casp(void **val, void *old, void *new)
 // Atomically:
 //	if(*val == old){
@@ -504,62 +531,61 @@ TEXT gosave<>(SB),NOSPLIT,$-8
 // asmcgocall(void(*fn)(void*), void *arg)
 // Call fn(arg) on the scheduler stack,
 // aligned appropriately for the gcc ABI.
-// See cgocall.c for more details.
+// See cgocall.go for more details.
 TEXT ·asmcgocall(SB),NOSPLIT,$0-16
-	MOVD	fn+0(FP), R3
-	MOVD	arg+8(FP), R4
+	MOVD	fn+0(FP), R1
+	MOVD	arg+8(FP), R0
 	BL	asmcgocall<>(SB)
 	RET
 
 TEXT ·asmcgocall_errno(SB),NOSPLIT,$0-20
-	MOVD	fn+0(FP), R3
-	MOVD	arg+8(FP), R4
+	MOVD	fn+0(FP), R1
+	MOVD	arg+8(FP), R0
 	BL	asmcgocall<>(SB)
 	MOVW	R0, ret+16(FP)
 	RET
 
-// asmcgocall common code. fn in R3, arg in R4. returns errno in R0.
+// asmcgocall common code. fn in R1, arg in R0. returns errno in R0.
 TEXT asmcgocall<>(SB),NOSPLIT,$0-0
 	MOVD	RSP, R2		// save original stack pointer
-	MOVD	g, R5
+	MOVD	g, R4
 
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
 	// come in on the m->g0 stack already.
-	MOVD	g_m(g), R6
-	MOVD	m_g0(R6), R6
-	CMP	R6, g
+	MOVD	g_m(g), R8
+	MOVD	m_g0(R8), R3
+	CMP	R3, g
 	BEQ	g0
+	MOVD	R0, R9	// gosave<> and save_g might clobber R0
 	BL	gosave<>(SB)
-	MOVD	R6, g
+	MOVD	R3, g
 	BL	runtime·save_g(SB)
-	MOVD	(g_sched+gobuf_sp)(g), R13
-	MOVD	R13, RSP
+	MOVD	(g_sched+gobuf_sp)(g), R0
+	MOVD	R0, RSP
+	MOVD	R9, R0
 
 	// Now on a scheduling stack (a pthread-created stack).
 g0:
-	// Save room for two of our pointers, plus 32 bytes of callee
-	// save area that lives on the caller stack.
+	// Save room for two of our pointers /*, plus 32 bytes of callee
+	// save area that lives on the caller stack. */
 	MOVD	RSP, R13
-	SUB	$48, R13
-	AND	$~15, R13	// 16-byte alignment for gcc ABI
+	SUB	$16, R13
 	MOVD	R13, RSP
-	MOVD	R5, 40(RSP)	// save old g on stack
-	MOVD	(g_stack+stack_hi)(R5), R5
-	SUB	R2, R5
-	MOVD	R5, 32(RSP)	// save depth in old g stack (can't just save RSP, as stack might be copied during a callback)
-	MOVD	R0, 0(RSP)	// clear back chain pointer (TODO can we give it real back trace information?)
-	// This is a "global call", so put the global entry point in r12
-	MOVD	R3, R12
-	MOVD	R4, R0
-	BL	(R12)
+	MOVD	R4, 0(RSP)	// save old g on stack
+	MOVD	(g_stack+stack_hi)(R4), R4
+	SUB	R2, R4
+	MOVD	R4, 8(RSP)	// save depth in old g stack (can't just save SP, as stack might be copied during a callback)
+	BL	(R1)
+	MOVD	R0, R9
 
 	// Restore g, stack pointer.  R0 is errno, so don't touch it
-	MOVD	40(RSP), g
+	MOVD	0(RSP), g
 	BL	runtime·save_g(SB)
 	MOVD	(g_stack+stack_hi)(g), R5
-	MOVD	32(RSP), R6
+	MOVD	8(RSP), R6
 	SUB	R6, R5
+	MOVD	R9, R0
 	MOVD	R5, RSP
 	RET
 
@@ -567,27 +593,26 @@ g0:
 // Turn the fn into a Go func (by taking its address) and call
 // cgocallback_gofunc.
 TEXT runtime·cgocallback(SB),NOSPLIT,$24-24
-	MOVD	$fn+0(FP), R3
-	MOVD	R3, 8(RSP)
-	MOVD	frame+8(FP), R3
-	MOVD	R3, 16(RSP)
-	MOVD	framesize+16(FP), R3
-	MOVD	R3, 24(RSP)
-	MOVD	$runtime·cgocallback_gofunc(SB), R3
-	BL	(R3)
+	MOVD	$fn+0(FP), R0
+	MOVD	R0, 8(RSP)
+	MOVD	frame+8(FP), R0
+	MOVD	R0, 16(RSP)
+	MOVD	framesize+16(FP), R0
+	MOVD	R0, 24(RSP)
+	MOVD	$runtime·cgocallback_gofunc(SB), R0
+	BL	(R0)
 	RET
 
 // cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
-// See cgocall.c for more details.
+// See cgocall.go for more details.
 TEXT ·cgocallback_gofunc(SB),NOSPLIT,$16-24
 	NO_LOCAL_POINTERS
 
-	// Load m and g from thread-local storage.
+	// Load g from thread-local storage.
 	MOVB	runtime·iscgo(SB), R3
-	CMP	$0, R3 
+	CMP	$0, R3
 	BEQ	nocgo
-	// TODO(aram):
-	BL runtime·abort(SB)
+	BL	runtime·load_g(SB)
 nocgo:
 
 	// If g is nil, Go did not create the current thread.
@@ -598,8 +623,8 @@ nocgo:
 	CMP	$0, g
 	BNE	havem
 	MOVD	g, savedm-8(SP) // g is zero, so is m.
-	MOVD	$runtime·needm(SB), R3
-	BL	(R3)
+	MOVD	$runtime·needm(SB), R0
+	BL	(R0)
 
 	// Set m->sched.sp = SP, so that if a panic happens
 	// during the function we are about to execute, it will
@@ -612,8 +637,8 @@ nocgo:
 	// and then systemstack will try to use it. If we don't set it here,
 	// that restored SP will be uninitialized (typically 0) and
 	// will not be usable.
-	MOVD	g_m(g), R3
-	MOVD	m_g0(R3), R3
+	MOVD	g_m(g), R8
+	MOVD	m_g0(R8), R3
 	MOVD	RSP, R0
 	MOVD	R0, (g_sched+gobuf_sp)(R3)
 
@@ -624,7 +649,8 @@ havem:
 	// Save current m->g0->sched.sp on stack and then set it to SP.
 	// Save current sp in m->g0->sched.sp in preparation for
 	// switch back to m->curg stack.
-	// NOTE: unwindm knows that the saved g->sched.sp is at 8(R1) aka savedsp-16(SP).
+	// NOTE: unwindm knows that the saved g->sched.sp is at 16(RSP) aka savedsp-16(SP).
+	// Beware that the frame size is actually 32.
 	MOVD	m_g0(R8), R3
 	MOVD	(g_sched+gobuf_sp)(R3), R4
 	MOVD	R4, savedsp-16(SP)
@@ -650,15 +676,16 @@ havem:
 	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
 	MOVD	(g_sched+gobuf_pc)(g), R5
-	MOVD	R5, -24(R4)
-	MOVD	$-24(R4), R0
+	MOVD	R5, -(24+8)(R4)	// maintain 16-byte SP alignment
+	MOVD	$-(24+8)(R4), R0
 	MOVD	R0, RSP
 	BL	runtime·cgocallbackg(SB)
 
 	// Restore g->sched (== m->curg->sched) from saved values.
 	MOVD	0(RSP), R5
 	MOVD	R5, (g_sched+gobuf_pc)(g)
-	MOVD	$24(RSP), R4
+	MOVD	RSP, R4
+	ADD	$(24+8), R4, R4
 	MOVD	R4, (g_sched+gobuf_sp)(g)
 
 	// Switch back to m->g0's stack and restore m->g0->sched.sp.
@@ -677,11 +704,28 @@ havem:
 	MOVD	savedm-8(SP), R6
 	CMP	$0, R6
 	BNE	droppedm
-	MOVD	$runtime·dropm(SB), R3
-	BL	(R3)
+	MOVD	$runtime·dropm(SB), R0
+	BL	(R0)
 droppedm:
 
 	// Done!
+	RET
+
+// Called from cgo wrappers, this function returns g->m->curg.stack.hi.
+// Must obey the gcc calling convention.
+TEXT _cgo_topofstack(SB),NOSPLIT,$16
+	// g (R28) and REGTMP (R27)  might be clobbered by load_g. They
+	// are callee-save in the gcc calling convention, so save them.
+	MOVD	R27, savedR27-8(SP)
+	MOVD	g, saveG-16(SP)
+
+	BL	runtime·load_g(SB)
+	MOVD	g_m(g), R0
+	MOVD	m_curg(R0), R0
+	MOVD	(g_stack+stack_hi)(R0), R0
+
+	MOVD	saveG-16(SP), g
+	MOVD	savedR28-8(SP), R27
 	RET
 
 // void setg(G*); set g. for use by needm.
@@ -691,22 +735,13 @@ TEXT runtime·setg(SB), NOSPLIT, $0-8
 	BL	runtime·save_g(SB)
 	RET
 
-// save_g saves the g register into pthread-provided
-// thread-local memory, so that we can call externally compiled
-// ppc64 code that will overwrite this register.
-//
-// If !iscgo, this is a no-op.
-TEXT runtime·save_g(SB),NOSPLIT,$-8-0
-	MOVB	runtime·iscgo(SB), R0
-	CMP	$0, R0
-	BEQ	nocgo
-
-	// TODO: implement cgo.
-	BL	runtime·abort(SB)
-
-nocgo:
+// void setg_gcc(G*); set g called from gcc
+TEXT setg_gcc<>(SB),NOSPLIT,$8
+	MOVD	R0, g
+	MOVD	R27, savedR27-8(SP)
+	BL	runtime·save_g(SB)
+	MOVD	savedR27-8(SP), R27
 	RET
-
 
 TEXT runtime·getcallerpc(SB),NOSPLIT,$-8-16
 	MOVD	0(RSP), R0
@@ -781,6 +816,56 @@ TEXT runtime·memequal_varlen(SB),NOSPLIT,$40-17
 eq:
 	MOVD	$1, R3
 	MOVB	R3, ret+16(FP)
+	RET
+
+TEXT runtime·cmpstring(SB),NOSPLIT,$-4-40
+	MOVD	s1_base+0(FP), R2
+	MOVD	s1_len+8(FP), R0
+	MOVD	s2_base+16(FP), R3
+	MOVD	s2_len+24(FP), R1
+	ADD	$40, RSP, R7
+	B	runtime·cmpbody<>(SB)
+
+TEXT bytes·Compare(SB),NOSPLIT,$-4-56
+	MOVD	s1+0(FP), R2
+	MOVD	s1+8(FP), R0
+	MOVD	s2+24(FP), R3
+	MOVD	s2+32(FP), R1
+	ADD	$56, RSP, R7
+	B	runtime·cmpbody<>(SB)
+
+// On entry:
+// R0 is the length of s1
+// R1 is the length of s2
+// R2 points to the start of s1
+// R3 points to the start of s2
+// R7 points to return value (-1/0/1 will be written here)
+//
+// On exit:
+// R4, R5, and R6 are clobbered
+TEXT runtime·cmpbody<>(SB),NOSPLIT,$-4-0
+	CMP	R0, R1
+	CSEL    LT, R1, R0, R6 // R6 is min(R0, R1)
+
+	ADD	R2, R6	// R2 is current byte in s1, R6 is last byte in s1 to compare
+loop:
+	CMP	R2, R6
+	BEQ	samebytes // all compared bytes were the same; compare lengths
+	MOVBU.P	1(R2), R4
+	MOVBU.P	1(R3), R5
+	CMP	R4, R5
+	BEQ	loop
+	// bytes differed
+	MOVD	$1, R4
+	CSNEG	LT, R4, R4, R4
+	MOVD	R4, (R7)
+	RET
+samebytes:
+	MOVD	$1, R4
+	CMP	R0, R1
+	CSNEG	LT, R4, R4, R4
+	CSEL	EQ, ZR, R4, R4
+	MOVD	R4, (R7)
 	RET
 
 // eqstring tests whether two strings are equal.
@@ -881,145 +966,6 @@ equal:
 	MOVB	R0, ret+48(FP)
 	RET
 
-// A Duff's device for zeroing memory.
-// The compiler jumps to computed addresses within
-// this routine to zero chunks of memory.  Do not
-// change this code without also changing the code
-// in ../cmd/7g/ggen.c:/^clearfat.
-// ZR: always zero
-// R16 (aka REGRT1): ptr to memory to be zeroed - 8
-// On return, R16 points to the last zeroed dword.
-TEXT runtime·duffzero(SB), NOSPLIT, $-8-0
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	MOVD.W	ZR, 8(R16)
-	RET
-
 TEXT runtime·fastrand1(SB),NOSPLIT,$-8-4
 	MOVD	g_m(g), R1
 	MOVWU	m_fastrand(R1), R0
@@ -1041,10 +987,6 @@ TEXT runtime·return0(SB), NOSPLIT, $0
 TEXT runtime·goexit(SB),NOSPLIT,$-8-0
 	MOVD	R0, R0	// NOP
 	BL	runtime·goexit1(SB)	// does not return
-
-TEXT runtime·getg(SB),NOSPLIT,$-8-8
-	MOVD	g, ret+0(FP)
-	RET
 
 // TODO(aram): use PRFM here.
 TEXT runtime·prefetcht0(SB),NOSPLIT,$0-8

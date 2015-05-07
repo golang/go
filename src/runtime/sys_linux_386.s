@@ -36,7 +36,7 @@ TEXT runtime·open(SB),NOSPLIT,$0
 	MOVL	AX, ret+12(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$0
+TEXT runtime·closefd(SB),NOSPLIT,$0
 	MOVL	$6, AX		// syscall - close
 	MOVL	fd+0(FP), BX
 	CALL	*runtime·_vdso(SB)
@@ -191,43 +191,25 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT,$0
 	MOVL	AX, ret+16(FP)
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$44
-	get_tls(CX)
-
-	// check that g exists
-	MOVL	g(CX), DI
-	CMPL	DI, $0
-	JNE	6(PC)
-	MOVL	sig+0(FP), BX
-	MOVL	BX, 0(SP)
-	MOVL	$runtime·badsignal(SB), AX
+TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
+	MOVL	sig+4(FP), AX
+	MOVL	AX, 0(SP)
+	MOVL	info+8(FP), AX
+	MOVL	AX, 4(SP)
+	MOVL	ctx+12(FP), AX
+	MOVL	AX, 8(SP)
+	MOVL	fn+0(FP), AX
 	CALL	AX
 	RET
 
-	// save g
-	MOVL	DI, 20(SP)
-
-	// g = m->gsignal
-	MOVL	g_m(DI), BX
-	MOVL	m_gsignal(BX), BX
-	MOVL	BX, g(CX)
-
-	// copy arguments for call to sighandler
+TEXT runtime·sigtramp(SB),NOSPLIT,$12
 	MOVL	sig+0(FP), BX
 	MOVL	BX, 0(SP)
 	MOVL	info+4(FP), BX
 	MOVL	BX, 4(SP)
 	MOVL	context+8(FP), BX
 	MOVL	BX, 8(SP)
-	MOVL	DI, 12(SP)
-
-	CALL	runtime·sighandler(SB)
-
-	// restore g
-	get_tls(CX)
-	MOVL	20(SP), BX
-	MOVL	BX, g(CX)
-
+	CALL	runtime·sigtrampgo(SB)
 	RET
 
 TEXT runtime·sigreturn(SB),NOSPLIT,$0
@@ -291,18 +273,18 @@ TEXT runtime·futex(SB),NOSPLIT,$0
 // int32 clone(int32 flags, void *stack, M *mp, G *gp, void (*fn)(void));
 TEXT runtime·clone(SB),NOSPLIT,$0
 	MOVL	$120, AX	// clone
-	MOVL	flags+4(SP), BX
-	MOVL	stack+8(SP), CX
+	MOVL	flags+0(FP), BX
+	MOVL	stack+4(FP), CX
 	MOVL	$0, DX	// parent tid ptr
 	MOVL	$0, DI	// child tid ptr
 
 	// Copy mp, gp, fn off parent stack for use by child.
 	SUBL	$16, CX
-	MOVL	mm+12(SP), SI
+	MOVL	mm+8(FP), SI
 	MOVL	SI, 0(CX)
-	MOVL	gg+16(SP), SI
+	MOVL	gg+12(FP), SI
 	MOVL	SI, 4(CX)
-	MOVL	fn+20(SP), SI
+	MOVL	fn+16(FP), SI
 	MOVL	SI, 8(CX)
 	MOVL	$1234, 12(CX)
 
@@ -319,7 +301,7 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	RET
 
 	// Paranoia: check that SP is as we expect.
-	MOVL	mm+8(FP), BP
+	MOVL	12(SP), BP
 	CMPL	BP, $1234
 	JEQ	2(PC)
 	INT	$3
@@ -328,10 +310,14 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	MOVL	$224, AX
 	CALL	*runtime·_vdso(SB)
 
-	// In child on new stack.  Reload registers (paranoia).
-	MOVL	0(SP), BX	// m
-	MOVL	flags+0(FP), DX	// g
-	MOVL	stk+4(FP), SI	// fn
+	MOVL	0(SP), BX	    // m
+	MOVL	4(SP), DX	    // g
+	MOVL	8(SP), SI	    // fn
+
+	CMPL	BX, $0
+	JEQ	nog
+	CMPL	DX, $0
+	JEQ	nog
 
 	MOVL	AX, m_procid(BX)	// save tid as m->procid
 
@@ -365,6 +351,7 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	CALL	runtime·emptyfunc(SB)
 	POPAL
 
+nog:
 	CALL	SI	// fn()
 	CALL	runtime·exit1(SB)
 	MOVL	$0x1234, 0x1005

@@ -6,10 +6,6 @@ package gc
 
 import "cmd/internal/obj"
 
-func CASE(a int, b int) int {
-	return a<<16 | b
-}
-
 func overlap_cplx(f *Node, t *Node) bool {
 	// check whether f and t could be overlapping stack references.
 	// not exact, because it's hard to check for the stack register
@@ -18,72 +14,73 @@ func overlap_cplx(f *Node, t *Node) bool {
 	return f.Op == OINDREG && t.Op == OINDREG && f.Xoffset+f.Type.Width >= t.Xoffset && t.Xoffset+t.Type.Width >= f.Xoffset
 }
 
-func Complexbool(op int, nl *Node, nr *Node, true_ bool, likely int, to *obj.Prog) {
-	var tnl Node
-
+func complexbool(op int, nl, nr, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 	// make both sides addable in ullman order
 	if nr != nil {
-		if nl.Ullman > nr.Ullman && nl.Addable == 0 {
-			Tempname(&tnl, nl.Type)
-			Cgen(nl, &tnl)
-			nl = &tnl
+		if nl.Ullman > nr.Ullman && !nl.Addable {
+			nl = CgenTemp(nl)
 		}
 
-		if nr.Addable == 0 {
-			var tnr Node
-			Tempname(&tnr, nr.Type)
-			Cgen(nr, &tnr)
-			nr = &tnr
+		if !nr.Addable {
+			nr = CgenTemp(nr)
 		}
 	}
-
-	if nl.Addable == 0 {
-		Tempname(&tnl, nl.Type)
-		Cgen(nl, &tnl)
-		nl = &tnl
+	if !nl.Addable {
+		nl = CgenTemp(nl)
 	}
+
+	// Break nl and nr into real and imaginary components.
+	var lreal, limag, rreal, rimag Node
+	subnode(&lreal, &limag, nl)
+	subnode(&rreal, &rimag, nr)
 
 	// build tree
-	// real(l) == real(r) && imag(l) == imag(r)
-
-	var n2 Node
-	var n1 Node
-	subnode(&n1, &n2, nl)
-
-	var n3 Node
-	var n4 Node
-	subnode(&n3, &n4, nr)
-
-	var na Node
-	na.Op = OANDAND
-	var nb Node
-	na.Left = &nb
-	var nc Node
-	na.Right = &nc
-	na.Type = Types[TBOOL]
-
-	nb = Node{}
-	nb.Op = OEQ
-	nb.Left = &n1
-	nb.Right = &n3
-	nb.Type = Types[TBOOL]
-
-	nc = Node{}
-	nc.Op = OEQ
-	nc.Left = &n2
-	nc.Right = &n4
-	nc.Type = Types[TBOOL]
-
-	if op == ONE {
-		true_ = !true_
+	// if branching:
+	// 	real(l) == real(r) && imag(l) == imag(r)
+	// if generating a value, use a branch-free version:
+	// 	real(l) == real(r) & imag(l) == imag(r)
+	realeq := Node{
+		Op:    OEQ,
+		Left:  &lreal,
+		Right: &rreal,
+		Type:  Types[TBOOL],
+	}
+	imageq := Node{
+		Op:    OEQ,
+		Left:  &limag,
+		Right: &rimag,
+		Type:  Types[TBOOL],
+	}
+	and := Node{
+		Op:    OANDAND,
+		Left:  &realeq,
+		Right: &imageq,
+		Type:  Types[TBOOL],
 	}
 
-	Bgen(&na, true_, likely, to)
+	if res != nil {
+		// generating a value
+		and.Op = OAND
+		if op == ONE {
+			and.Op = OOR
+			realeq.Op = ONE
+			imageq.Op = ONE
+		}
+		Bvgen(&and, res, true)
+		return
+	}
+
+	// generating a branch
+	if op == ONE {
+		wantTrue = !wantTrue
+	}
+
+	Bgen(&and, wantTrue, likely, to)
 }
 
 // break addable nc-complex into nr-real and ni-imaginary
 func subnode(nr *Node, ni *Node, nc *Node) {
-	if nc.Addable == 0 {
+	if !nc.Addable {
 		Fatal("subnode not addable")
 	}
 
@@ -227,14 +224,14 @@ func complexmul(nl *Node, nr *Node, res *Node) {
 func nodfconst(n *Node, t *Type, fval *Mpflt) {
 	*n = Node{}
 	n.Op = OLITERAL
-	n.Addable = 1
+	n.Addable = true
 	ullmancalc(n)
 	n.Val.U.Fval = fval
 	n.Val.Ctype = CTFLT
 	n.Type = t
 
 	if !Isfloat[t.Etype] {
-		Fatal("nodfconst: bad type %v", Tconv(t, 0))
+		Fatal("nodfconst: bad type %v", t)
 	}
 }
 
@@ -291,7 +288,7 @@ func Complexmove(f *Node, t *Node) {
 		Dump("complexmove-t", t)
 	}
 
-	if t.Addable == 0 {
+	if !t.Addable {
 		Fatal("complexmove: to not addable")
 	}
 
@@ -299,7 +296,7 @@ func Complexmove(f *Node, t *Node) {
 	tt := Simsimtype(t.Type)
 	switch uint32(ft)<<16 | uint32(tt) {
 	default:
-		Fatal("complexmove: unknown conversion: %v -> %v\n", Tconv(f.Type, 0), Tconv(t.Type, 0))
+		Fatal("complexmove: unknown conversion: %v -> %v\n", f.Type, t.Type)
 
 		// complex to complex move/convert.
 	// make f addable.
@@ -308,7 +305,7 @@ func Complexmove(f *Node, t *Node) {
 		TCOMPLEX64<<16 | TCOMPLEX128,
 		TCOMPLEX128<<16 | TCOMPLEX64,
 		TCOMPLEX128<<16 | TCOMPLEX128:
-		if f.Addable == 0 || overlap_cplx(f, t) {
+		if !f.Addable || overlap_cplx(f, t) {
 			var tmp Node
 			Tempname(&tmp, f.Type)
 			Complexmove(f, &tmp)
@@ -340,7 +337,7 @@ func Complexgen(n *Node, res *Node) {
 	// pick off float/complex opcodes
 	switch n.Op {
 	case OCOMPLEX:
-		if res.Addable != 0 {
+		if res.Addable {
 			var n1 Node
 			var n2 Node
 			subnode(&n1, &n2, res)
@@ -354,7 +351,7 @@ func Complexgen(n *Node, res *Node) {
 
 	case OREAL, OIMAG:
 		nl := n.Left
-		if nl.Addable == 0 {
+		if !nl.Addable {
 			var tmp Node
 			Tempname(&tmp, nl.Type)
 			Complexgen(nl, &tmp)
@@ -380,7 +377,7 @@ func Complexgen(n *Node, res *Node) {
 	tr := Simsimtype(n.Type)
 	tr = cplxsubtype(tr)
 	if tl != tr {
-		if n.Addable == 0 {
+		if !n.Addable {
 			var n1 Node
 			Tempname(&n1, n.Type)
 			Complexmove(n, &n1)
@@ -391,7 +388,7 @@ func Complexgen(n *Node, res *Node) {
 		return
 	}
 
-	if res.Addable == 0 {
+	if !res.Addable {
 		var n1 Node
 		Igen(res, &n1, nil)
 		Cgen(n, &n1)
@@ -399,7 +396,7 @@ func Complexgen(n *Node, res *Node) {
 		return
 	}
 
-	if n.Addable != 0 {
+	if n.Addable {
 		Complexmove(n, res)
 		return
 	}
@@ -444,13 +441,13 @@ func Complexgen(n *Node, res *Node) {
 	// make both sides addable in ullman order
 	var tnl Node
 	if nr != nil {
-		if nl.Ullman > nr.Ullman && nl.Addable == 0 {
+		if nl.Ullman > nr.Ullman && !nl.Addable {
 			Tempname(&tnl, nl.Type)
 			Cgen(nl, &tnl)
 			nl = &tnl
 		}
 
-		if nr.Addable == 0 {
+		if !nr.Addable {
 			var tnr Node
 			Tempname(&tnr, nr.Type)
 			Cgen(nr, &tnr)
@@ -458,7 +455,7 @@ func Complexgen(n *Node, res *Node) {
 		}
 	}
 
-	if nl.Addable == 0 {
+	if !nl.Addable {
 		Tempname(&tnl, nl.Type)
 		Cgen(nl, &tnl)
 		nl = &tnl

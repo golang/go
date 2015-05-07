@@ -77,11 +77,11 @@ func racewalk(fn *Node) {
 	fn.Func.Exit = list(fn.Func.Exit, nd)
 
 	if Debug['W'] != 0 {
-		s := fmt.Sprintf("after racewalk %v", Sconv(fn.Nname.Sym, 0))
+		s := fmt.Sprintf("after racewalk %v", fn.Nname.Sym)
 		dumplist(s, fn.Nbody)
-		s = fmt.Sprintf("enter %v", Sconv(fn.Nname.Sym, 0))
+		s = fmt.Sprintf("enter %v", fn.Nname.Sym)
 		dumplist(s, fn.Func.Enter)
-		s = fmt.Sprintf("exit %v", Sconv(fn.Nname.Sym, 0))
+		s = fmt.Sprintf("exit %v", fn.Nname.Sym)
 		dumplist(s, fn.Func.Exit)
 	}
 }
@@ -137,7 +137,7 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 	default:
 		Fatal("racewalk: unknown node type %v", Oconv(int(n.Op), 0))
 
-	case OAS, OAS2FUNC:
+	case OAS, OASWB, OAS2FUNC:
 		racewalknode(&n.Left, init, 1, 0)
 		racewalknode(&n.Right, init, 0, 0)
 		goto ret
@@ -219,7 +219,8 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 		OPLUS,
 		OREAL,
 		OIMAG,
-		OCOM:
+		OCOM,
+		OSQRT:
 		racewalknode(&n.Left, init, wr, 0)
 		goto ret
 
@@ -390,7 +391,10 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 		// impossible nodes: only appear in backend.
 	case ORROTC, OEXTEND:
 		Yyerror("racewalk: %v cannot exist now", Oconv(int(n.Op), 0))
+		goto ret
 
+	case OGETG:
+		Yyerror("racewalk: OGETG can happen only in runtime which we don't instrument")
 		goto ret
 
 		// just do generic traversal
@@ -423,9 +427,8 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 		OTYPE,
 		ONONAME,
 		OLITERAL,
-		OSLICESTR,
-		// always preceded by bounds checking, avoid double instrumentation.
-		OTYPESW: // ignored by code generation, do not instrument.
+		OSLICESTR, // always preceded by bounds checking, avoid double instrumentation.
+		OTYPESW:   // ignored by code generation, do not instrument.
 		goto ret
 	}
 
@@ -492,7 +495,7 @@ func callinstr(np **Node, init **NodeList, wr int, skip int) bool {
 	if isartificial(b) {
 		return false
 	}
-	class := int(b.Class)
+	class := b.Class
 
 	// BUG: we _may_ want to instrument PAUTO sometimes
 	// e.g. if we've got a local variable/method receiver

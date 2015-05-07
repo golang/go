@@ -17,6 +17,14 @@ import (
 
 var errHTTP = errors.New("no http in bootstrap go command")
 
+type httpError struct {
+	statusCode int
+}
+
+func (e *httpError) Error() string {
+	panic("unreachable")
+}
+
 func httpGET(url string) ([]byte, error) {
 	return nil, errHTTP
 }
@@ -27,4 +35,8 @@ func httpsOrHTTP(importPath string) (string, io.ReadCloser, error) {
 
 func parseMetaGoImports(r io.Reader) ([]metaImport, error) {
 	panic("unreachable")
+}
+
+func readnote(a, b string, t int32) ([]byte, error) {
+	return nil, nil
 }

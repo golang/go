@@ -24,7 +24,6 @@ type mheap struct {
 	nspan     uint32
 	sweepgen  uint32 // sweep generation, see comment in mspan
 	sweepdone uint32 // all spans are swept
-
 	// span lookup
 	spans        **mspan
 	spans_mapped uintptr
@@ -37,14 +36,13 @@ type mheap struct {
 	arena_end      uintptr
 	arena_reserved bool
 
-	// write barrier shadow data+heap.
+	// write barrier shadow heap.
 	// 64-bit systems only, enabled by GODEBUG=wbshadow=1.
+	// See also shadow_data, data_start, data_end fields on moduledata in
+	// symtab.go.
 	shadow_enabled  bool    // shadow should be updated and checked
 	shadow_reserved bool    // shadow memory is reserved
 	shadow_heap     uintptr // heap-addr + shadow_heap = shadow heap addr
-	shadow_data     uintptr // data-addr + shadow_data = shadow data addr
-	data_start      uintptr // start of shadowed data addresses
-	data_end        uintptr // end of shadowed data addresses
 
 	// central free lists for small size classes.
 	// the padding makes sure that the MCentrals are
@@ -60,6 +58,10 @@ type mheap struct {
 	specialfinalizeralloc fixalloc // allocator for specialfinalizer*
 	specialprofilealloc   fixalloc // allocator for specialprofile*
 	speciallock           mutex    // lock for sepcial record allocators.
+
+	// Proportional sweep
+	pagesSwept        uint64  // pages swept this cycle; updated atomically
+	sweepPagesPerByte float64 // proportional sweep ratio; written with lock, read without
 
 	// Malloc stats.
 	largefree  uint64                  // bytes freed for large objects (>maxsmallsize)
@@ -100,6 +102,7 @@ type mspan struct {
 	// if sweepgen == h->sweepgen - 1, the span is currently being swept
 	// if sweepgen == h->sweepgen, the span is swept and ready to use
 	// h->sweepgen is incremented by 2 after every GC
+
 	sweepgen    uint32
 	divMul      uint32   // for divide by elemsize - divMagic.mul
 	ref         uint16   // capacity - number of objects in freelist
@@ -115,6 +118,7 @@ type mspan struct {
 	limit       uintptr  // end of data in span
 	speciallock mutex    // guards specials list
 	specials    *special // linked list of special records sorted by offset.
+	baseMask    uintptr  // if non-0, elemsize is a power of 2, & this will get object allocation base
 }
 
 func (s *mspan) base() uintptr {
@@ -149,12 +153,12 @@ func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
 		}
 		var new []*mspan
 		sp := (*slice)(unsafe.Pointer(&new))
-		sp.array = (*byte)(sysAlloc(uintptr(n)*ptrSize, &memstats.other_sys))
+		sp.array = sysAlloc(uintptr(n)*ptrSize, &memstats.other_sys)
 		if sp.array == nil {
 			throw("runtime: cannot allocate memory")
 		}
-		sp.len = uint(len(h_allspans))
-		sp.cap = uint(n)
+		sp.len = len(h_allspans)
+		sp.cap = n
 		if len(h_allspans) > 0 {
 			copy(new, h_allspans)
 			// Don't free the old array if it's referenced by sweep.
@@ -186,6 +190,25 @@ func inheap(b uintptr) bool {
 		return false
 	}
 	return true
+}
+
+// TODO: spanOf and spanOfUnchecked are open-coded in a lot of places.
+// Use the functions instead.
+
+// spanOf returns the span of p. If p does not point into the heap or
+// no span contains p, spanOf returns nil.
+func spanOf(p uintptr) *mspan {
+	if p == 0 || p < mheap_.arena_start || p >= mheap_.arena_used {
+		return nil
+	}
+	return spanOfUnchecked(p)
+}
+
+// spanOfUnchecked is equivalent to spanOf, but the caller must ensure
+// that p points into the heap (that is, mheap_.arena_start <= p <
+// mheap_.arena_used).
+func spanOfUnchecked(p uintptr) *mspan {
+	return h_spans[(p-mheap_.arena_start)>>_PageShift]
 }
 
 func mlookup(v uintptr, base *uintptr, size *uintptr, sp **mspan) int32 {
@@ -257,9 +280,9 @@ func mHeap_Init(h *mheap, spans_size uintptr) {
 	}
 
 	sp := (*slice)(unsafe.Pointer(&h_spans))
-	sp.array = (*byte)(unsafe.Pointer(h.spans))
-	sp.len = uint(spans_size / ptrSize)
-	sp.cap = uint(spans_size / ptrSize)
+	sp.array = unsafe.Pointer(h.spans)
+	sp.len = int(spans_size / ptrSize)
+	sp.cap = int(spans_size / ptrSize)
 }
 
 func mHeap_MapSpans(h *mheap) {
@@ -287,15 +310,9 @@ retry:
 			// swept spans are at the end of the list
 			mSpanList_InsertBack(list, s)
 			unlock(&h.lock)
+			snpages := s.npages
 			if mSpan_Sweep(s, false) {
-				// TODO(rsc,dvyukov): This is probably wrong.
-				// It is undercounting the number of pages reclaimed.
-				// See golang.org/issue/9048.
-				// Note that if we want to add the true count of s's pages,
-				// we must record that before calling mSpan_Sweep,
-				// because if mSpan_Sweep returns true the span has
-				// been
-				n++
+				n += snpages
 			}
 			lock(&h.lock)
 			if n >= npages {
@@ -368,12 +385,21 @@ func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan 
 	// To prevent excessive heap growth, before allocating n pages
 	// we need to sweep and reclaim at least n pages.
 	if h.sweepdone == 0 {
+		// TODO(austin): This tends to sweep a large number of
+		// spans in order to find a few completely free spans
+		// (for example, in the garbage benchmark, this sweeps
+		// ~30x the number of pages its trying to allocate).
+		// If GC kept a bit for whether there were any marks
+		// in a span, we could release these free spans
+		// at the end of GC and eliminate this entirely.
 		mHeap_Reclaim(h, npage)
 	}
 
 	// transfer stats from cache to global
-	memstats.heap_alloc += uint64(_g_.m.mcache.local_cachealloc)
+	memstats.heap_live += uint64(_g_.m.mcache.local_cachealloc)
 	_g_.m.mcache.local_cachealloc = 0
+	memstats.heap_scan += uint64(_g_.m.mcache.local_scan)
+	_g_.m.mcache.local_scan = 0
 	memstats.tinyallocs += uint64(_g_.m.mcache.local_tinyallocs)
 	_g_.m.mcache.local_tinyallocs = 0
 
@@ -391,18 +417,20 @@ func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan 
 			s.divShift = 0
 			s.divMul = 0
 			s.divShift2 = 0
+			s.baseMask = 0
 		} else {
 			s.elemsize = uintptr(class_to_size[sizeclass])
 			m := &class_to_divmagic[sizeclass]
 			s.divShift = m.shift
 			s.divMul = m.mul
 			s.divShift2 = m.shift2
+			s.baseMask = m.baseMask
 		}
 
 		// update stats, sweep lists
 		if large {
 			memstats.heap_objects++
-			memstats.heap_alloc += uint64(npage << _PageShift)
+			memstats.heap_live += uint64(npage << _PageShift)
 			// Swept spans are at the end of lists.
 			if s.npages < uintptr(len(h.free)) {
 				mSpanList_InsertBack(&h.busy[s.npages], s)
@@ -628,12 +656,13 @@ func mHeap_Free(h *mheap, s *mspan, acct int32) {
 	systemstack(func() {
 		mp := getg().m
 		lock(&h.lock)
-		memstats.heap_alloc += uint64(mp.mcache.local_cachealloc)
+		memstats.heap_live += uint64(mp.mcache.local_cachealloc)
 		mp.mcache.local_cachealloc = 0
+		memstats.heap_scan += uint64(mp.mcache.local_scan)
+		mp.mcache.local_scan = 0
 		memstats.tinyallocs += uint64(mp.mcache.local_tinyallocs)
 		mp.mcache.local_tinyallocs = 0
 		if acct != 0 {
-			memstats.heap_alloc -= uint64(s.npages << _PageShift)
 			memstats.heap_objects--
 		}
 		mHeap_FreeSpanLocked(h, s, true, true, 0)

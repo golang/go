@@ -121,8 +121,11 @@ func TestWithSimulated(t *testing.T) {
 	msg := "Test 123"
 	transport := []string{"unix", "unixgram", "udp", "tcp"}
 
-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
-		transport = []string{"udp", "tcp"}
+	if runtime.GOOS == "darwin" {
+		switch runtime.GOARCH {
+		case "arm", "arm64":
+			transport = []string{"udp", "tcp"}
+		}
 	}
 
 	for _, tr := range transport {
@@ -147,8 +150,11 @@ func TestWithSimulated(t *testing.T) {
 }
 
 func TestFlap(t *testing.T) {
-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
-		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+	if runtime.GOOS == "darwin" {
+		switch runtime.GOARCH {
+		case "arm", "arm64":
+			t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+		}
 	}
 
 	net := "unix"
@@ -315,8 +321,11 @@ func TestConcurrentReconnect(t *testing.T) {
 	const N = 10
 	const M = 100
 	net := "unix"
-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
-		net = "tcp"
+	if runtime.GOOS == "darwin" {
+		switch runtime.GOARCH {
+		case "arm", "arm64":
+			net = "tcp"
+		}
 	}
 	done := make(chan string, N*M)
 	addr, sock, srvWG := startServer(net, "", done)

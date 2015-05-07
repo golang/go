@@ -165,7 +165,7 @@ func newdefer(siz int32) *_defer {
 	sc := deferclass(uintptr(siz))
 	mp := acquirem()
 	if sc < uintptr(len(p{}.deferpool)) {
-		pp := mp.p
+		pp := mp.p.ptr()
 		if len(pp.deferpool[sc]) == 0 && sched.deferpool[sc] != nil {
 			lock(&sched.deferlock)
 			for len(pp.deferpool[sc]) < cap(pp.deferpool[sc])/2 && sched.deferpool[sc] != nil {
@@ -223,7 +223,7 @@ func freedefer(d *_defer) {
 	sc := deferclass(uintptr(d.siz))
 	if sc < uintptr(len(p{}.deferpool)) {
 		mp := acquirem()
-		pp := mp.p
+		pp := mp.p.ptr()
 		if len(pp.deferpool[sc]) == cap(pp.deferpool[sc]) {
 			// Transfer half of local cache to the central cache.
 			var first, last *_defer

@@ -1405,7 +1405,8 @@ func TestUnaligned64(t *testing.T) {
 func TestNilDeref(t *testing.T) {
 	switch runtime.GOOS {
 	case "darwin", "freebsd", "netbsd":
-		if runtime.GOARCH == "arm" {
+		switch runtime.GOARCH {
+		case "arm", "arm64":
 			t.Skipf("issue 7338: skipping test on %s/%s", runtime.GOOS, runtime.GOARCH)
 		}
 	}

@@ -38,7 +38,7 @@ import (
 	"math"
 )
 
-func canuselocaltls(ctxt *obj.Link) bool {
+func canuse1insntls(ctxt *obj.Link) bool {
 	if ctxt.Arch.Regsize == 4 {
 		switch ctxt.Headtype {
 		case obj.Hlinux,
@@ -92,29 +92,36 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 	// if the linker needs to adjust the offset, it can. For example:
 	//
 	//         MOVQ TLS, AX
-	//         MOVQ 8(AX)(TLS*1), CX // load m into CX
+	//         MOVQ 0(AX)(TLS*1), CX // load g into CX
 	//
 	// On systems that support direct access to the TLS memory, this
 	// pair of instructions can be reduced to a direct TLS memory reference:
 	//
-	//         MOVQ 8(TLS), CX // load m into CX
+	//         MOVQ 0(TLS), CX // load g into CX
 	//
-	// The 2-instruction and 1-instruction forms correspond roughly to
-	// ELF TLS initial exec mode and ELF TLS local exec mode, respectively.
+	// The 2-instruction and 1-instruction forms correspond to the two code
+	// sequences for loading a TLS variable in the local exec model given in "ELF
+	// Handling For Thread-Local Storage".
 	//
-	// We applies this rewrite on systems that support the 1-instruction form.
-	// The decision is made using only the operating system (and probably
-	// the -shared flag, eventually), not the link mode. If some link modes
-	// on a particular operating system require the 2-instruction form,
-	// then all builds for that operating system will use the 2-instruction
-	// form, so that the link mode decision can be delayed to link time.
+	// We apply this rewrite on systems that support the 1-instruction form.
+	// The decision is made using only the operating system and the -shared flag,
+	// not the link mode. If some link modes on a particular operating system
+	// require the 2-instruction form, then all builds for that operating system
+	// will use the 2-instruction form, so that the link mode decision can be
+	// delayed to link time.
 	//
 	// In this way, all supported systems use identical instructions to
 	// access TLS, and they are rewritten appropriately first here in
 	// liblink and then finally using relocations in the linker.
+	//
+	// When -shared is passed, we leave the code in the 2-instruction form but
+	// assemble (and relocate) them in different ways to generate the initial
+	// exec code sequence. It's a bit of a fluke that this is possible without
+	// rewriting the instructions more comprehensively, and it only does because
+	// we only support a single TLS variable (g).
 
-	if canuselocaltls(ctxt) {
-		// Reduce TLS initial exec model to TLS local exec model.
+	if canuse1insntls(ctxt) {
+		// Reduce 2-instruction sequence to 1-instruction sequence.
 		// Sequences like
 		//	MOVQ TLS, BX
 		//	... off(BX)(TLS*1) ...
@@ -140,13 +147,12 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			p.To.Index = REG_NONE
 		}
 	} else {
-		// As a courtesy to the C compilers, rewrite TLS local exec load as TLS initial exec load.
-		// The instruction
-		//	MOVQ off(TLS), BX
-		// becomes the sequence
+		// load_g_cx, below, always inserts the 1-instruction sequence. Rewrite it
+		// as the 2-instruction sequence if necessary.
+		//	MOVQ 0(TLS), BX
+		// becomes
 		//	MOVQ TLS, BX
-		//	MOVQ off(BX)(TLS*1), BX
-		// This allows the C compilers to emit references to m and g using the direct off(TLS) form.
+		//	MOVQ 0(BX)(TLS*1), BX
 		if (p.As == AMOVQ || p.As == AMOVL) && p.From.Type == obj.TYPE_MEM && p.From.Reg == REG_TLS && p.To.Type == obj.TYPE_REG && REG_AX <= p.To.Reg && p.To.Reg <= REG_R15 {
 			q := obj.Appendp(ctxt, p)
 			q.As = p.As
@@ -243,15 +249,10 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			i32 := math.Float32bits(f32)
 			literal := fmt.Sprintf("$f32.%08x", i32)
 			s := obj.Linklookup(ctxt, literal, 0)
-			if s.Type == 0 {
-				s.Type = obj.SRODATA
-				obj.Adduint32(ctxt, s, i32)
-				s.Reachable = 0
-			}
-
 			p.From.Type = obj.TYPE_MEM
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Sym = s
+			p.From.Sym.Local = true
 			p.From.Offset = 0
 		}
 
@@ -287,17 +288,118 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			i64 := math.Float64bits(p.From.Val.(float64))
 			literal := fmt.Sprintf("$f64.%016x", i64)
 			s := obj.Linklookup(ctxt, literal, 0)
-			if s.Type == 0 {
-				s.Type = obj.SRODATA
-				obj.Adduint64(ctxt, s, i64)
-				s.Reachable = 0
-			}
-
 			p.From.Type = obj.TYPE_MEM
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Sym = s
+			p.From.Sym.Local = true
 			p.From.Offset = 0
 		}
+	}
+
+	if ctxt.Flag_dynlink && (p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO) {
+		var sym *obj.LSym
+		if p.As == obj.ADUFFZERO {
+			sym = obj.Linklookup(ctxt, "runtime.duffzero", 0)
+		} else {
+			sym = obj.Linklookup(ctxt, "runtime.duffcopy", 0)
+		}
+		offset := p.To.Offset
+		p.As = AMOVQ
+		p.From.Type = obj.TYPE_MEM
+		p.From.Name = obj.NAME_GOTREF
+		p.From.Sym = sym
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_R15
+		p.To.Offset = 0
+		p.To.Sym = nil
+		p1 := obj.Appendp(ctxt, p)
+		p1.As = AADDQ
+		p1.From.Type = obj.TYPE_CONST
+		p1.From.Offset = offset
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = REG_R15
+		p2 := obj.Appendp(ctxt, p1)
+		p2.As = obj.ACALL
+		p2.To.Type = obj.TYPE_REG
+		p2.To.Reg = REG_R15
+	}
+
+	if ctxt.Flag_dynlink {
+		if p.As == ALEAQ && p.From.Type == obj.TYPE_MEM && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
+			p.As = AMOVQ
+			p.From.Type = obj.TYPE_ADDR
+		}
+		if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
+			if p.As != AMOVQ {
+				ctxt.Diag("do not know how to handle TYPE_ADDR in %v with -dynlink", p)
+			}
+			if p.To.Type != obj.TYPE_REG {
+				ctxt.Diag("do not know how to handle LEAQ-type insn to non-register in %v with -dynlink", p)
+			}
+			p.From.Type = obj.TYPE_MEM
+			p.From.Name = obj.NAME_GOTREF
+			if p.From.Offset != 0 {
+				q := obj.Appendp(ctxt, p)
+				q.As = AADDQ
+				q.From.Type = obj.TYPE_CONST
+				q.From.Offset = p.From.Offset
+				q.To = p.To
+				p.From.Offset = 0
+			}
+		}
+		if p.From3.Name == obj.NAME_EXTERN {
+			ctxt.Diag("don't know how to handle %v with -dynlink", p)
+		}
+		if p.To2.Name == obj.NAME_EXTERN {
+			ctxt.Diag("don't know how to handle %v with -dynlink", p)
+		}
+		var source *obj.Addr
+		if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
+			if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
+				ctxt.Diag("cannot handle NAME_EXTERN on both sides in %v with -dynlink", p)
+			}
+			source = &p.From
+		} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
+			source = &p.To
+		} else {
+			return
+		}
+		if p.As == obj.ATEXT || p.As == obj.AFUNCDATA || p.As == obj.ACALL || p.As == obj.ARET || p.As == obj.AJMP {
+			return
+		}
+		if source.Type != obj.TYPE_MEM {
+			ctxt.Diag("don't know how to handle %v with -dynlink", p)
+		}
+		p1 := obj.Appendp(ctxt, p)
+		p2 := obj.Appendp(ctxt, p1)
+
+		p1.As = AMOVQ
+		p1.From.Type = obj.TYPE_MEM
+		p1.From.Sym = source.Sym
+		p1.From.Name = obj.NAME_GOTREF
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = REG_R15
+
+		p2.As = p.As
+		p2.From = p.From
+		p2.To = p.To
+		if p.From.Name == obj.NAME_EXTERN {
+			p2.From.Reg = REG_R15
+			p2.From.Name = obj.NAME_NONE
+			p2.From.Sym = nil
+		} else if p.To.Name == obj.NAME_EXTERN {
+			p2.To.Reg = REG_R15
+			p2.To.Name = obj.NAME_NONE
+			p2.To.Sym = nil
+		} else {
+			return
+		}
+		l := p.Link
+		l2 := p2.Link
+		*p = *p1
+		*p1 = *p2
+		p.Link = l
+		p1.Link = l2
 	}
 }
 
@@ -336,10 +438,6 @@ func nacladdr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	if ctxt.Tlsg == nil {
 		ctxt.Tlsg = obj.Linklookup(ctxt, "runtime.tlsg", 0)
-	}
-	if ctxt.Symmorestack[0] == nil {
-		ctxt.Symmorestack[0] = obj.Linklookup(ctxt, "runtime.morestack", 0)
-		ctxt.Symmorestack[1] = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
 	}
 
 	if ctxt.Headtype == obj.Hplan9 && ctxt.Plan9privates == nil {
@@ -402,7 +500,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 	var q *obj.Prog
 	if cursym.Text.From3.Offset&obj.NOSPLIT == 0 {
-		p = stacksplit(ctxt, p, autoffset, int32(textarg), cursym.Text.From3.Offset&obj.NEEDCTXT == 0, &q) // emit split check
+		p = stacksplit(ctxt, p, autoffset, int32(textarg), &q) // emit split check
 	}
 
 	if autoffset != 0 {
@@ -759,7 +857,7 @@ func load_g_cx(ctxt *obj.Link, p *obj.Prog) *obj.Prog {
 // Returns last new instruction.
 // On return, *jmpok is the instruction that should jump
 // to the stack frame allocation if no split is needed.
-func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32, noctxt bool, jmpok **obj.Prog) *obj.Prog {
+func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32, jmpok **obj.Prog) *obj.Prog {
 	cmp := ACMPQ
 	lea := ALEAQ
 	mov := AMOVQ
@@ -885,8 +983,10 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32, noc
 	p.To.Type = obj.TYPE_BRANCH
 	if ctxt.Cursym.Cfunc != 0 {
 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
+	} else if ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
+		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
 	} else {
-		p.To.Sym = ctxt.Symmorestack[bool2int(noctxt)]
+		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack", 0)
 	}
 
 	p = obj.Appendp(ctxt, p)

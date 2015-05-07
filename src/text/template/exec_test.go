@@ -527,8 +527,10 @@ var execTests = []execTest{
 	{"bug12XE", "{{printf `%T` 0XEE}}", "int", T{}, true},
 	// Chained nodes did not work as arguments. Issue 8473.
 	{"bug13", "{{print (.Copy).I}}", "17", tVal, true},
-	// Didn't protect against explicit nil in field chains.
-	{"bug14", "{{nil.True}}", "", tVal, false},
+	// Didn't protect against nil or literal values in field chains.
+	{"bug14a", "{{(nil).True}}", "", tVal, false},
+	{"bug14b", "{{$x := nil}}{{$x.anything}}", "", tVal, false},
+	{"bug14c", `{{$x := (1.0)}}{{$y := ("hello")}}{{$x.anything}}{{$y.true}}`, "", tVal, false},
 }
 
 func zeroArgs() string {
@@ -1042,5 +1044,69 @@ func TestComparison(t *testing.T) {
 		if b.String() != test.truth {
 			t.Errorf("%s: want %s; got %s", test.expr, test.truth, b.String())
 		}
+	}
+}
+
+func TestMissingMapKey(t *testing.T) {
+	data := map[string]int{
+		"x": 99,
+	}
+	tmpl, err := New("t1").Parse("{{.x}} {{.y}}")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b bytes.Buffer
+	// By default, just get "<no value>"
+	err = tmpl.Execute(&b, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "99 <no value>"
+	got := b.String()
+	if got != want {
+		t.Errorf("got %q; expected %q", got, want)
+	}
+	// Same if we set the option explicitly to the default.
+	tmpl.Option("missingkey=default")
+	b.Reset()
+	err = tmpl.Execute(&b, data)
+	if err != nil {
+		t.Fatal("default:", err)
+	}
+	want = "99 <no value>"
+	got = b.String()
+	if got != want {
+		t.Errorf("got %q; expected %q", got, want)
+	}
+	// Next we ask for a zero value
+	tmpl.Option("missingkey=zero")
+	b.Reset()
+	err = tmpl.Execute(&b, data)
+	if err != nil {
+		t.Fatal("zero:", err)
+	}
+	want = "99 0"
+	got = b.String()
+	if got != want {
+		t.Errorf("got %q; expected %q", got, want)
+	}
+	// Now we ask for an error.
+	tmpl.Option("missingkey=error")
+	err = tmpl.Execute(&b, data)
+	if err == nil {
+		t.Errorf("expected error; got none")
+	}
+}
+
+// Test that the error message for multiline unterminated string
+// refers to the line number of the opening quote.
+func TestUnterminatedStringError(t *testing.T) {
+	_, err := New("X").Parse("hello\n\n{{`unterminated\n\n\n\n}}\n some more\n\n")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	str := err.Error()
+	if !strings.Contains(str, "X:3: unexpected unterminated raw quoted strin") {
+		t.Fatalf("unexpected error: %s", str)
 	}
 }

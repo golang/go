@@ -24,7 +24,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 	l := n.Left
 	var t1 gc.Node
-	if l.Addable == 0 {
+	if !l.Addable {
 		gc.Tempname(&t1, l.Type)
 		gc.Cgen(l, &t1)
 		l = &t1
@@ -108,7 +108,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	// setup for binary operators
 	r := n.Right
 
-	if r != nil && r.Addable == 0 {
+	if r != nil && !r.Addable {
 		var t2 gc.Node
 		gc.Tempname(&t2, r.Type)
 		gc.Cgen(r, &t2)
@@ -129,7 +129,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	// Do op.  Leave result in ah:al.
 	switch n.Op {
 	default:
-		gc.Fatal("cgen64: not implemented: %v\n", gc.Nconv(n, 0))
+		gc.Fatal("cgen64: not implemented: %v\n", n)
 
 		// TODO: Constants
 	case gc.OADD:
@@ -188,11 +188,11 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		p1 := gins(arm.AMULLU, nil, nil)
 
 		p1.From.Type = obj.TYPE_REG
-		p1.From.Reg = bl.Val.U.Reg
-		p1.Reg = cl.Val.U.Reg
+		p1.From.Reg = bl.Reg
+		p1.Reg = cl.Reg
 		p1.To.Type = obj.TYPE_REGREG
-		p1.To.Reg = ah.Val.U.Reg
-		p1.To.Offset = int64(al.Val.U.Reg)
+		p1.To.Reg = ah.Reg
+		p1.To.Offset = int64(al.Reg)
 
 		//print("%P\n", p1);
 
@@ -200,11 +200,11 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		p1 = gins(arm.AMULA, nil, nil)
 
 		p1.From.Type = obj.TYPE_REG
-		p1.From.Reg = bl.Val.U.Reg
-		p1.Reg = ch.Val.U.Reg
+		p1.From.Reg = bl.Reg
+		p1.Reg = ch.Reg
 		p1.To.Type = obj.TYPE_REGREG2
-		p1.To.Reg = ah.Val.U.Reg
-		p1.To.Offset = int64(ah.Val.U.Reg)
+		p1.To.Reg = ah.Reg
+		p1.To.Offset = int64(ah.Reg)
 
 		//print("%P\n", p1);
 
@@ -212,11 +212,11 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		p1 = gins(arm.AMULA, nil, nil)
 
 		p1.From.Type = obj.TYPE_REG
-		p1.From.Reg = bh.Val.U.Reg
-		p1.Reg = cl.Val.U.Reg
+		p1.From.Reg = bh.Reg
+		p1.Reg = cl.Reg
 		p1.To.Type = obj.TYPE_REGREG2
-		p1.To.Reg = ah.Val.U.Reg
-		p1.To.Offset = int64(ah.Val.U.Reg)
+		p1.To.Reg = ah.Reg
+		p1.To.Offset = int64(ah.Reg)
 
 		//print("%P\n", p1);
 
@@ -793,7 +793,7 @@ func cmp64(nl *gc.Node, nr *gc.Node, op int, likely int, to *obj.Prog) {
 	var br *obj.Prog
 	switch op {
 	default:
-		gc.Fatal("cmp64 %v %v", gc.Oconv(int(op), 0), gc.Tconv(t, 0))
+		gc.Fatal("cmp64 %v %v", gc.Oconv(int(op), 0), t)
 
 		// cmp hi
 	// bne L

@@ -400,7 +400,11 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
 	wrint(b, int64(s.Type))
 	wrstring(b, s.Name)
 	wrint(b, int64(s.Version))
-	wrint(b, int64(s.Dupok))
+	flags := int64(s.Dupok)
+	if s.Local {
+		flags |= 2
+	}
+	wrint(b, flags)
 	wrint(b, s.Size)
 	wrsym(b, s.Gotype)
 	wrdata(b, s.P)
@@ -413,9 +417,9 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
 		wrint(b, int64(r.Siz))
 		wrint(b, int64(r.Type))
 		wrint(b, r.Add)
-		wrint(b, r.Xadd)
+		wrint(b, 0) // Xadd, ignored
 		wrsym(b, r.Sym)
-		wrsym(b, r.Xsym)
+		wrsym(b, nil) // Xsym, ignored
 	}
 
 	if s.Type == STEXT {
@@ -463,18 +467,21 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
 	}
 }
 
+// Reusable buffer to avoid allocations.
+// This buffer was responsible for 15% of gc's allocations.
+var varintbuf [10]uint8
+
 func wrint(b *Biobuf, sval int64) {
 	var v uint64
-	var buf [10]uint8
 	uv := (uint64(sval) << 1) ^ uint64(int64(sval>>63))
-	p := buf[:]
+	p := varintbuf[:]
 	for v = uv; v >= 0x80; v >>= 7 {
 		p[0] = uint8(v | 0x80)
 		p = p[1:]
 	}
 	p[0] = uint8(v)
 	p = p[1:]
-	Bwrite(b, buf[:len(buf)-len(p)])
+	b.Write(varintbuf[:len(varintbuf)-len(p)])
 }
 
 func wrstring(b *Biobuf, s string) {
@@ -490,7 +497,7 @@ func wrpath(ctxt *Link, b *Biobuf, p string) {
 
 func wrdata(b *Biobuf, v []byte) {
 	wrint(b, int64(len(v)))
-	Bwrite(b, v)
+	b.Write(v)
 }
 
 func wrpathsym(ctxt *Link, b *Biobuf, s *LSym) {
@@ -514,7 +521,3 @@ func wrsym(b *Biobuf, s *LSym) {
 	wrstring(b, s.Name)
 	wrint(b, int64(s.Version))
 }
-
-var startmagic string = "\x00\x00go13ld"
-
-var endmagic string = "\xff\xffgo13ld"

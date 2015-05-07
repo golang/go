@@ -57,8 +57,6 @@ const _SYS_dup = SYS_DUP2
 //sys	sendmsg(s int, msg *Msghdr, flags int) (n int, err error)
 //sys	mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int64) (xaddr uintptr, err error)
 
-func Getpagesize() int { return 4096 }
-
 //go:noescape
 func gettimeofday(tv *Timeval) (err Errno)
 
@@ -69,6 +67,8 @@ func Gettimeofday(tv *Timeval) (err error) {
 	}
 	return nil
 }
+
+func Getpagesize() int { return 4096 }
 
 func Time(t *Time_t) (tt Time_t, err error) {
 	var tv Timeval

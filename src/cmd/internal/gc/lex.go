@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 //go:generate go tool yacc go.y
+//go:generate go run yaccerrors.go
 //go:generate go run mkbuiltin.go runtime unsafe
 
 package gc
@@ -22,8 +23,6 @@ import (
 	"unicode/utf8"
 )
 
-var yychar_lex int
-
 var yyprev int
 
 var yylast int
@@ -36,6 +35,8 @@ var goarch string
 
 var goroot string
 
+var Debug_wb int
+
 // Debug arguments.
 // These can be specified with the -d flag, as in "-d nil"
 // to set the debug_checknil variable. In general the list passed
@@ -47,6 +48,7 @@ var debugtab = []struct {
 	{"nil", &Debug_checknil},          // print information about nil checks
 	{"typeassert", &Debug_typeassert}, // print information about type assertion inlining
 	{"disablenil", &Disable_checknil}, // disable nil checks
+	{"wb", &Debug_wb},                 // print information about write barriers
 }
 
 // Our own isdigit, isspace, isalpha, isalnum that take care
@@ -182,9 +184,9 @@ func Main() {
 	obj.Flagcount("%", "debug non-static initializers", &Debug['%'])
 	obj.Flagcount("A", "for bootstrapping, allow 'any' type", &Debug['A'])
 	obj.Flagcount("B", "disable bounds checking", &Debug['B'])
-	obj.Flagstr("D", "path: set relative path for local imports", &localimport)
+	obj.Flagstr("D", "set relative `path` for local imports", &localimport)
 	obj.Flagcount("E", "debug symbol export", &Debug['E'])
-	obj.Flagfn1("I", "dir: add dir to import search path", addidir)
+	obj.Flagfn1("I", "add `directory` to import search path", addidir)
 	obj.Flagcount("K", "debug missing line numbers", &Debug['K'])
 	obj.Flagcount("L", "use full (long) path in error messages", &Debug['L'])
 	obj.Flagcount("M", "debug move generation", &Debug['M'])
@@ -194,27 +196,27 @@ func Main() {
 	obj.Flagcount("S", "print assembly listing", &Debug['S'])
 	obj.Flagfn0("V", "print compiler version", doversion)
 	obj.Flagcount("W", "debug parse tree after type checking", &Debug['W'])
-	obj.Flagstr("asmhdr", "file: write assembly header to named file", &asmhdr)
+	obj.Flagstr("asmhdr", "write assembly header to `file`", &asmhdr)
 	obj.Flagcount("complete", "compiling complete package (no C or assembly)", &pure_go)
-	obj.Flagstr("d", "list: print debug information about items in list", &debugstr)
+	obj.Flagstr("d", "print debug information about items in `list`", &debugstr)
 	obj.Flagcount("e", "no limit on number of errors reported", &Debug['e'])
 	obj.Flagcount("f", "debug stack frames", &Debug['f'])
 	obj.Flagcount("g", "debug code generation", &Debug['g'])
 	obj.Flagcount("h", "halt on error", &Debug['h'])
 	obj.Flagcount("i", "debug line number stack", &Debug['i'])
-	obj.Flagstr("installsuffix", "pkg directory suffix", &flag_installsuffix)
+	obj.Flagstr("installsuffix", "set pkg directory `suffix`", &flag_installsuffix)
 	obj.Flagcount("j", "debug runtime-initialized variables", &Debug['j'])
 	obj.Flagcount("l", "disable inlining", &Debug['l'])
 	obj.Flagcount("live", "debug liveness analysis", &debuglive)
 	obj.Flagcount("m", "print optimization decisions", &Debug['m'])
 	obj.Flagcount("nolocalimports", "reject local (relative) imports", &nolocalimports)
-	obj.Flagstr("o", "obj: set output file", &outfile)
-	obj.Flagstr("p", "path: set expected package import path", &myimportpath)
+	obj.Flagstr("o", "write output to `file`", &outfile)
+	obj.Flagstr("p", "set expected package import `path`", &myimportpath)
 	obj.Flagcount("pack", "write package file instead of object file", &writearchive)
 	obj.Flagcount("r", "debug generated wrappers", &Debug['r'])
 	obj.Flagcount("race", "enable race detector", &flag_race)
 	obj.Flagcount("s", "warn about composite literals that can be simplified", &Debug['s'])
-	obj.Flagstr("trimpath", "prefix: remove prefix from recorded source file paths", &Ctxt.Trimpath)
+	obj.Flagstr("trimpath", "remove `prefix` from recorded source file paths", &Ctxt.LineHist.TrimPathPrefix)
 	obj.Flagcount("u", "reject unsafe code", &safemode)
 	obj.Flagcount("v", "increase debug verbosity", &Debug['v'])
 	obj.Flagcount("w", "debug type checking", &Debug['w'])
@@ -223,15 +225,23 @@ func Main() {
 	obj.Flagcount("x", "debug lexer", &Debug['x'])
 	obj.Flagcount("y", "debug declarations in canned imports (with -d)", &Debug['y'])
 	var flag_shared int
+	var flag_dynlink bool
 	if Thearch.Thechar == '6' {
 		obj.Flagcount("largemodel", "generate code that assumes a large memory model", &flag_largemodel)
 		obj.Flagcount("shared", "generate code that can be linked into a shared library", &flag_shared)
+		flag.BoolVar(&flag_dynlink, "dynlink", false, "support references to Go symbols defined in other shared libraries")
 	}
-
-	obj.Flagstr("cpuprofile", "file: write cpu profile to file", &cpuprofile)
-	obj.Flagstr("memprofile", "file: write memory profile to file", &memprofile)
+	obj.Flagstr("cpuprofile", "write cpu profile to `file`", &cpuprofile)
+	obj.Flagstr("memprofile", "write memory profile to `file`", &memprofile)
+	obj.Flagint64("memprofilerate", "set runtime.MemProfileRate to `rate`", &memprofilerate)
 	obj.Flagparse(usage)
+
+	if flag_dynlink {
+		flag_shared = 1
+	}
 	Ctxt.Flag_shared = int32(flag_shared)
+	Ctxt.Flag_dynlink = flag_dynlink
+
 	Ctxt.Debugasm = int32(Debug['S'])
 	Ctxt.Debugvlog = int32(Debug['v'])
 
@@ -248,24 +258,29 @@ func Main() {
 
 	// parse -d argument
 	if debugstr != "" {
-		var j int
-		f := strings.Split(debugstr, ",")
-		for i := range f {
-			if f[i] == "" {
+	Split:
+		for _, name := range strings.Split(debugstr, ",") {
+			if name == "" {
 				continue
 			}
-			for j = 0; j < len(debugtab); j++ {
-				if debugtab[j].name == f[i] {
-					if debugtab[j].val != nil {
-						*debugtab[j].val = 1
+			val := 1
+			if i := strings.Index(name, "="); i >= 0 {
+				var err error
+				val, err = strconv.Atoi(name[i+1:])
+				if err != nil {
+					log.Fatalf("invalid debug value %v", name)
+				}
+				name = name[:i]
+			}
+			for _, t := range debugtab {
+				if t.name == name {
+					if t.val != nil {
+						*t.val = val
+						continue Split
 					}
-					break
 				}
 			}
-
-			if j >= len(debugtab) {
-				log.Fatalf("unknown debug information -d '%s'\n", f[i])
-			}
+			log.Fatalf("unknown debug key -d %s\n", name)
 		}
 	}
 
@@ -275,17 +290,6 @@ func Main() {
 	//	-ll, -lll: inlining on again, with extra debugging (debug['l'] > 1)
 	if Debug['l'] <= 1 {
 		Debug['l'] = 1 - Debug['l']
-	}
-
-	if Thearch.Thechar == '8' {
-		switch v := obj.Getgo386(); v {
-		case "387":
-			Use_sse = false
-		case "sse2":
-			Use_sse = true
-		default:
-			log.Fatalf("unsupported setting GO386=%s", v)
-		}
 	}
 
 	Thearch.Betypeinit()
@@ -1385,7 +1389,7 @@ talph:
 	}
 
 	if Debug['x'] != 0 {
-		fmt.Printf("lex: %s %s\n", Sconv(s, 0), lexname(int(s.Lexical)))
+		fmt.Printf("lex: %s %s\n", s, lexname(int(s.Lexical)))
 	}
 	yylval.sym = s
 	return int32(s.Lexical)
@@ -1454,7 +1458,7 @@ casei:
 	yylval.val.U.Cval = new(Mpcplx)
 	Mpmovecflt(&yylval.val.U.Cval.Real, 0.0)
 	mpatoflt(&yylval.val.U.Cval.Imag, str)
-	if yylval.val.U.Cval.Imag.Val.Ovf != 0 {
+	if yylval.val.U.Cval.Imag.Val.IsInf() {
 		Yyerror("overflow in imaginary constant")
 		Mpmovecflt(&yylval.val.U.Cval.Real, 0.0)
 	}
@@ -1471,9 +1475,9 @@ caseout:
 	ungetc(c)
 
 	str = lexbuf.String()
-	yylval.val.U.Fval = new(Mpflt)
+	yylval.val.U.Fval = newMpflt()
 	mpatoflt(yylval.val.U.Fval, str)
-	if yylval.val.U.Fval.Val.Ovf != 0 {
+	if yylval.val.U.Fval.Val.IsInf() {
 		Yyerror("overflow in float constant")
 		Mpmovecflt(yylval.val.U.Fval, 0.0)
 	}
@@ -1793,11 +1797,6 @@ func pragcgo(text string) {
 
 type yy struct{}
 
-var yymsg []struct {
-	yystate, yychar int
-	msg             string
-}
-
 func (yy) Lex(v *yySymType) int {
 	return int(yylex(v))
 }
@@ -1866,20 +1865,21 @@ func getc() int {
 			curio.cp = curio.cp[1:]
 		}
 	} else {
-		var c1 int
-		var c2 int
 	loop:
 		c = obj.Bgetc(curio.bin)
 		if c == 0xef {
-			c1 = obj.Bgetc(curio.bin)
-			c2 = obj.Bgetc(curio.bin)
-			if c1 == 0xbb && c2 == 0xbf {
+			buf, err := curio.bin.Peek(2)
+			if err != nil {
+				log.Fatalf("getc: peeking: %v", err)
+			}
+			if buf[0] == 0xbb && buf[1] == 0xbf {
 				yyerrorl(int(lexlineno), "Unicode (UTF-8) BOM in middle of file")
+
+				// consume BOM bytes
+				obj.Bgetc(curio.bin)
+				obj.Bgetc(curio.bin)
 				goto loop
 			}
-
-			obj.Bungetc(curio.bin)
-			obj.Bungetc(curio.bin)
 		}
 	}
 
@@ -2078,369 +2078,67 @@ var syms = []struct {
 	etype   int
 	op      int
 }{
-	/*	name		lexical		etype		op
-	 */
 	/* basic types */
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"int8", LNAME, TINT8, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"int16", LNAME, TINT16, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"int32", LNAME, TINT32, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"int64", LNAME, TINT64, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"uint8", LNAME, TUINT8, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"uint16", LNAME, TUINT16, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"uint32", LNAME, TUINT32, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"uint64", LNAME, TUINT64, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"float32", LNAME, TFLOAT32, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"float64", LNAME, TFLOAT64, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"complex64", LNAME, TCOMPLEX64, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"complex128", LNAME, TCOMPLEX128, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"bool", LNAME, TBOOL, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"string", LNAME, TSTRING, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"any", LNAME, TANY, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"break", LBREAK, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"case", LCASE, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"chan", LCHAN, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"const", LCONST, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"continue", LCONTINUE, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"default", LDEFAULT, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"else", LELSE, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"defer", LDEFER, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"fallthrough", LFALL, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"for", LFOR, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"func", LFUNC, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"go", LGO, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"goto", LGOTO, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"if", LIF, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"import", LIMPORT, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"interface", LINTERFACE, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"map", LMAP, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"package", LPACKAGE, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"range", LRANGE, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"return", LRETURN, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"select", LSELECT, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"struct", LSTRUCT, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"switch", LSWITCH, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"type", LTYPE, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"var", LVAR, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"append", LNAME, Txxx, OAPPEND},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"cap", LNAME, Txxx, OCAP},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"close", LNAME, Txxx, OCLOSE},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"complex", LNAME, Txxx, OCOMPLEX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"copy", LNAME, Txxx, OCOPY},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"delete", LNAME, Txxx, ODELETE},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"imag", LNAME, Txxx, OIMAG},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"len", LNAME, Txxx, OLEN},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"make", LNAME, Txxx, OMAKE},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"new", LNAME, Txxx, ONEW},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"panic", LNAME, Txxx, OPANIC},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"print", LNAME, Txxx, OPRINT},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"println", LNAME, Txxx, OPRINTN},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"real", LNAME, Txxx, OREAL},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"recover", LNAME, Txxx, ORECOVER},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"notwithstanding", LIGNORE, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"thetruthofthematter", LIGNORE, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"despiteallobjections", LIGNORE, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"whereas", LIGNORE, Txxx, OXXX},
-	struct {
-		name    string
-		lexical int
-		etype   int
-		op      int
-	}{"insofaras", LIGNORE, Txxx, OXXX},
+	{"int8", LNAME, TINT8, OXXX},
+	{"int16", LNAME, TINT16, OXXX},
+	{"int32", LNAME, TINT32, OXXX},
+	{"int64", LNAME, TINT64, OXXX},
+	{"uint8", LNAME, TUINT8, OXXX},
+	{"uint16", LNAME, TUINT16, OXXX},
+	{"uint32", LNAME, TUINT32, OXXX},
+	{"uint64", LNAME, TUINT64, OXXX},
+	{"float32", LNAME, TFLOAT32, OXXX},
+	{"float64", LNAME, TFLOAT64, OXXX},
+	{"complex64", LNAME, TCOMPLEX64, OXXX},
+	{"complex128", LNAME, TCOMPLEX128, OXXX},
+	{"bool", LNAME, TBOOL, OXXX},
+	{"string", LNAME, TSTRING, OXXX},
+	{"any", LNAME, TANY, OXXX},
+	{"break", LBREAK, Txxx, OXXX},
+	{"case", LCASE, Txxx, OXXX},
+	{"chan", LCHAN, Txxx, OXXX},
+	{"const", LCONST, Txxx, OXXX},
+	{"continue", LCONTINUE, Txxx, OXXX},
+	{"default", LDEFAULT, Txxx, OXXX},
+	{"else", LELSE, Txxx, OXXX},
+	{"defer", LDEFER, Txxx, OXXX},
+	{"fallthrough", LFALL, Txxx, OXXX},
+	{"for", LFOR, Txxx, OXXX},
+	{"func", LFUNC, Txxx, OXXX},
+	{"go", LGO, Txxx, OXXX},
+	{"goto", LGOTO, Txxx, OXXX},
+	{"if", LIF, Txxx, OXXX},
+	{"import", LIMPORT, Txxx, OXXX},
+	{"interface", LINTERFACE, Txxx, OXXX},
+	{"map", LMAP, Txxx, OXXX},
+	{"package", LPACKAGE, Txxx, OXXX},
+	{"range", LRANGE, Txxx, OXXX},
+	{"return", LRETURN, Txxx, OXXX},
+	{"select", LSELECT, Txxx, OXXX},
+	{"struct", LSTRUCT, Txxx, OXXX},
+	{"switch", LSWITCH, Txxx, OXXX},
+	{"type", LTYPE, Txxx, OXXX},
+	{"var", LVAR, Txxx, OXXX},
+	{"append", LNAME, Txxx, OAPPEND},
+	{"cap", LNAME, Txxx, OCAP},
+	{"close", LNAME, Txxx, OCLOSE},
+	{"complex", LNAME, Txxx, OCOMPLEX},
+	{"copy", LNAME, Txxx, OCOPY},
+	{"delete", LNAME, Txxx, ODELETE},
+	{"imag", LNAME, Txxx, OIMAG},
+	{"len", LNAME, Txxx, OLEN},
+	{"make", LNAME, Txxx, OMAKE},
+	{"new", LNAME, Txxx, ONEW},
+	{"panic", LNAME, Txxx, OPANIC},
+	{"print", LNAME, Txxx, OPRINT},
+	{"println", LNAME, Txxx, OPRINTN},
+	{"real", LNAME, Txxx, OREAL},
+	{"recover", LNAME, Txxx, ORECOVER},
+	{"notwithstanding", LIGNORE, Txxx, OXXX},
+	{"thetruthofthematter", LIGNORE, Txxx, OXXX},
+	{"despiteallobjections", LIGNORE, Txxx, OXXX},
+	{"whereas", LIGNORE, Txxx, OXXX},
+	{"insofaras", LIGNORE, Txxx, OXXX},
 }
 
 func lexinit() {
@@ -2690,185 +2388,51 @@ var lexn = []struct {
 	lex  int
 	name string
 }{
-	struct {
-		lex  int
-		name string
-	}{LANDAND, "ANDAND"},
-	struct {
-		lex  int
-		name string
-	}{LANDNOT, "ANDNOT"},
-	struct {
-		lex  int
-		name string
-	}{LASOP, "ASOP"},
-	struct {
-		lex  int
-		name string
-	}{LBREAK, "BREAK"},
-	struct {
-		lex  int
-		name string
-	}{LCASE, "CASE"},
-	struct {
-		lex  int
-		name string
-	}{LCHAN, "CHAN"},
-	struct {
-		lex  int
-		name string
-	}{LCOLAS, "COLAS"},
-	struct {
-		lex  int
-		name string
-	}{LCOMM, "<-"},
-	struct {
-		lex  int
-		name string
-	}{LCONST, "CONST"},
-	struct {
-		lex  int
-		name string
-	}{LCONTINUE, "CONTINUE"},
-	struct {
-		lex  int
-		name string
-	}{LDDD, "..."},
-	struct {
-		lex  int
-		name string
-	}{LDEC, "DEC"},
-	struct {
-		lex  int
-		name string
-	}{LDEFAULT, "DEFAULT"},
-	struct {
-		lex  int
-		name string
-	}{LDEFER, "DEFER"},
-	struct {
-		lex  int
-		name string
-	}{LELSE, "ELSE"},
-	struct {
-		lex  int
-		name string
-	}{LEQ, "EQ"},
-	struct {
-		lex  int
-		name string
-	}{LFALL, "FALL"},
-	struct {
-		lex  int
-		name string
-	}{LFOR, "FOR"},
-	struct {
-		lex  int
-		name string
-	}{LFUNC, "FUNC"},
-	struct {
-		lex  int
-		name string
-	}{LGE, "GE"},
-	struct {
-		lex  int
-		name string
-	}{LGO, "GO"},
-	struct {
-		lex  int
-		name string
-	}{LGOTO, "GOTO"},
-	struct {
-		lex  int
-		name string
-	}{LGT, "GT"},
-	struct {
-		lex  int
-		name string
-	}{LIF, "IF"},
-	struct {
-		lex  int
-		name string
-	}{LIMPORT, "IMPORT"},
-	struct {
-		lex  int
-		name string
-	}{LINC, "INC"},
-	struct {
-		lex  int
-		name string
-	}{LINTERFACE, "INTERFACE"},
-	struct {
-		lex  int
-		name string
-	}{LLE, "LE"},
-	struct {
-		lex  int
-		name string
-	}{LLITERAL, "LITERAL"},
-	struct {
-		lex  int
-		name string
-	}{LLSH, "LSH"},
-	struct {
-		lex  int
-		name string
-	}{LLT, "LT"},
-	struct {
-		lex  int
-		name string
-	}{LMAP, "MAP"},
-	struct {
-		lex  int
-		name string
-	}{LNAME, "NAME"},
-	struct {
-		lex  int
-		name string
-	}{LNE, "NE"},
-	struct {
-		lex  int
-		name string
-	}{LOROR, "OROR"},
-	struct {
-		lex  int
-		name string
-	}{LPACKAGE, "PACKAGE"},
-	struct {
-		lex  int
-		name string
-	}{LRANGE, "RANGE"},
-	struct {
-		lex  int
-		name string
-	}{LRETURN, "RETURN"},
-	struct {
-		lex  int
-		name string
-	}{LRSH, "RSH"},
-	struct {
-		lex  int
-		name string
-	}{LSELECT, "SELECT"},
-	struct {
-		lex  int
-		name string
-	}{LSTRUCT, "STRUCT"},
-	struct {
-		lex  int
-		name string
-	}{LSWITCH, "SWITCH"},
-	struct {
-		lex  int
-		name string
-	}{LTYPE, "TYPE"},
-	struct {
-		lex  int
-		name string
-	}{LVAR, "VAR"},
+	{LANDAND, "ANDAND"},
+	{LANDNOT, "ANDNOT"},
+	{LASOP, "ASOP"},
+	{LBREAK, "BREAK"},
+	{LCASE, "CASE"},
+	{LCHAN, "CHAN"},
+	{LCOLAS, "COLAS"},
+	{LCOMM, "<-"},
+	{LCONST, "CONST"},
+	{LCONTINUE, "CONTINUE"},
+	{LDDD, "..."},
+	{LDEC, "DEC"},
+	{LDEFAULT, "DEFAULT"},
+	{LDEFER, "DEFER"},
+	{LELSE, "ELSE"},
+	{LEQ, "EQ"},
+	{LFALL, "FALL"},
+	{LFOR, "FOR"},
+	{LFUNC, "FUNC"},
+	{LGE, "GE"},
+	{LGO, "GO"},
+	{LGOTO, "GOTO"},
+	{LGT, "GT"},
+	{LIF, "IF"},
+	{LIMPORT, "IMPORT"},
+	{LINC, "INC"},
+	{LINTERFACE, "INTERFACE"},
+	{LLE, "LE"},
+	{LLITERAL, "LITERAL"},
+	{LLSH, "LSH"},
+	{LLT, "LT"},
+	{LMAP, "MAP"},
+	{LNAME, "NAME"},
+	{LNE, "NE"},
+	{LOROR, "OROR"},
+	{LPACKAGE, "PACKAGE"},
+	{LRANGE, "RANGE"},
+	{LRETURN, "RETURN"},
+	{LRSH, "RSH"},
+	{LSELECT, "SELECT"},
+	{LSTRUCT, "STRUCT"},
+	{LSWITCH, "SWITCH"},
+	{LTYPE, "TYPE"},
+	{LVAR, "VAR"},
 }
-
-var lexname_buf string
 
 func lexname(lex int) string {
 	for i := 0; i < len(lexn); i++ {
@@ -2876,207 +2440,82 @@ func lexname(lex int) string {
 			return lexn[i].name
 		}
 	}
-	lexname_buf = fmt.Sprintf("LEX-%d", lex)
-	return lexname_buf
+	return fmt.Sprintf("LEX-%d", lex)
 }
 
 var yytfix = []struct {
 	have string
 	want string
 }{
-	struct {
-		have string
-		want string
-	}{"$end", "EOF"},
-	struct {
-		have string
-		want string
-	}{"LLITERAL", "literal"},
-	struct {
-		have string
-		want string
-	}{"LASOP", "op="},
-	struct {
-		have string
-		want string
-	}{"LBREAK", "break"},
-	struct {
-		have string
-		want string
-	}{"LCASE", "case"},
-	struct {
-		have string
-		want string
-	}{"LCHAN", "chan"},
-	struct {
-		have string
-		want string
-	}{"LCOLAS", ":="},
-	struct {
-		have string
-		want string
-	}{"LCONST", "const"},
-	struct {
-		have string
-		want string
-	}{"LCONTINUE", "continue"},
-	struct {
-		have string
-		want string
-	}{"LDDD", "..."},
-	struct {
-		have string
-		want string
-	}{"LDEFAULT", "default"},
-	struct {
-		have string
-		want string
-	}{"LDEFER", "defer"},
-	struct {
-		have string
-		want string
-	}{"LELSE", "else"},
-	struct {
-		have string
-		want string
-	}{"LFALL", "fallthrough"},
-	struct {
-		have string
-		want string
-	}{"LFOR", "for"},
-	struct {
-		have string
-		want string
-	}{"LFUNC", "func"},
-	struct {
-		have string
-		want string
-	}{"LGO", "go"},
-	struct {
-		have string
-		want string
-	}{"LGOTO", "goto"},
-	struct {
-		have string
-		want string
-	}{"LIF", "if"},
-	struct {
-		have string
-		want string
-	}{"LIMPORT", "import"},
-	struct {
-		have string
-		want string
-	}{"LINTERFACE", "interface"},
-	struct {
-		have string
-		want string
-	}{"LMAP", "map"},
-	struct {
-		have string
-		want string
-	}{"LNAME", "name"},
-	struct {
-		have string
-		want string
-	}{"LPACKAGE", "package"},
-	struct {
-		have string
-		want string
-	}{"LRANGE", "range"},
-	struct {
-		have string
-		want string
-	}{"LRETURN", "return"},
-	struct {
-		have string
-		want string
-	}{"LSELECT", "select"},
-	struct {
-		have string
-		want string
-	}{"LSTRUCT", "struct"},
-	struct {
-		have string
-		want string
-	}{"LSWITCH", "switch"},
-	struct {
-		have string
-		want string
-	}{"LTYPE", "type"},
-	struct {
-		have string
-		want string
-	}{"LVAR", "var"},
-	struct {
-		have string
-		want string
-	}{"LANDAND", "&&"},
-	struct {
-		have string
-		want string
-	}{"LANDNOT", "&^"},
-	struct {
-		have string
-		want string
-	}{"LBODY", "{"},
-	struct {
-		have string
-		want string
-	}{"LCOMM", "<-"},
-	struct {
-		have string
-		want string
-	}{"LDEC", "--"},
-	struct {
-		have string
-		want string
-	}{"LINC", "++"},
-	struct {
-		have string
-		want string
-	}{"LEQ", "=="},
-	struct {
-		have string
-		want string
-	}{"LGE", ">="},
-	struct {
-		have string
-		want string
-	}{"LGT", ">"},
-	struct {
-		have string
-		want string
-	}{"LLE", "<="},
-	struct {
-		have string
-		want string
-	}{"LLT", "<"},
-	struct {
-		have string
-		want string
-	}{"LLSH", "<<"},
-	struct {
-		have string
-		want string
-	}{"LRSH", ">>"},
-	struct {
-		have string
-		want string
-	}{"LOROR", "||"},
-	struct {
-		have string
-		want string
-	}{"LNE", "!="},
+	{"$end", "EOF"},
+	{"LASOP", "op="},
+	{"LBREAK", "break"},
+	{"LCASE", "case"},
+	{"LCHAN", "chan"},
+	{"LCOLAS", ":="},
+	{"LCONST", "const"},
+	{"LCONTINUE", "continue"},
+	{"LDDD", "..."},
+	{"LDEFAULT", "default"},
+	{"LDEFER", "defer"},
+	{"LELSE", "else"},
+	{"LFALL", "fallthrough"},
+	{"LFOR", "for"},
+	{"LFUNC", "func"},
+	{"LGO", "go"},
+	{"LGOTO", "goto"},
+	{"LIF", "if"},
+	{"LIMPORT", "import"},
+	{"LINTERFACE", "interface"},
+	{"LMAP", "map"},
+	{"LNAME", "name"},
+	{"LPACKAGE", "package"},
+	{"LRANGE", "range"},
+	{"LRETURN", "return"},
+	{"LSELECT", "select"},
+	{"LSTRUCT", "struct"},
+	{"LSWITCH", "switch"},
+	{"LTYPE", "type"},
+	{"LVAR", "var"},
+	{"LANDAND", "&&"},
+	{"LANDNOT", "&^"},
+	{"LBODY", "{"},
+	{"LCOMM", "<-"},
+	{"LDEC", "--"},
+	{"LINC", "++"},
+	{"LEQ", "=="},
+	{"LGE", ">="},
+	{"LGT", ">"},
+	{"LLE", "<="},
+	{"LLT", "<"},
+	{"LLSH", "<<"},
+	{"LRSH", ">>"},
+	{"LOROR", "||"},
+	{"LNE", "!="},
 	// spell out to avoid confusion with punctuation in error messages
-	struct {
-		have string
-		want string
-	}{"';'", "semicolon or newline"},
-	struct {
-		have string
-		want string
-	}{"','", "comma"},
+	{"';'", "semicolon or newline"},
+	{"','", "comma"},
+}
+
+func init() {
+	yyErrorVerbose = true
+
+Outer:
+	for i, s := range yyToknames {
+		// Apply yytfix if possible.
+		for _, fix := range yytfix {
+			if s == fix.have {
+				yyToknames[i] = fix.want
+				continue Outer
+			}
+		}
+
+		// Turn 'x' into x.
+		if len(s) == 3 && s[0] == '\'' && s[2] == '\'' {
+			yyToknames[i] = s[1:2]
+			continue
+		}
+	}
 }
 
 func pkgnotused(lineno int, path string, name string) {

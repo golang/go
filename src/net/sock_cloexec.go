@@ -9,7 +9,10 @@
 
 package net
 
-import "syscall"
+import (
+	"os"
+	"syscall"
+)
 
 // Wrapper around the socket system call that marks the returned file
 // descriptor as nonblocking and close-on-exec.
@@ -20,8 +23,12 @@ func sysSocket(family, sotype, proto int) (int, error) {
 	// introduced in 10 kernel. If we get an EINVAL error on Linux
 	// or EPROTONOSUPPORT error on FreeBSD, fall back to using
 	// socket without them.
-	if err == nil || (err != syscall.EPROTONOSUPPORT && err != syscall.EINVAL) {
-		return s, err
+	switch err {
+	case nil:
+		return s, nil
+	default:
+		return -1, os.NewSyscallError("socket", err)
+	case syscall.EPROTONOSUPPORT, syscall.EINVAL:
 	}
 
 	// See ../syscall/exec_unix.go for description of ForkLock.
@@ -32,11 +39,11 @@ func sysSocket(family, sotype, proto int) (int, error) {
 	}
 	syscall.ForkLock.RUnlock()
 	if err != nil {
-		return -1, err
+		return -1, os.NewSyscallError("socket", err)
 	}
 	if err = syscall.SetNonblock(s, true); err != nil {
 		closeFunc(s)
-		return -1, err
+		return -1, os.NewSyscallError("setnonblock", err)
 	}
 	return s, nil
 }
@@ -50,8 +57,10 @@ func accept(s int) (int, syscall.Sockaddr, error) {
 	// get an ENOSYS error on both Linux and FreeBSD, or EINVAL
 	// error on Linux, fall back to using accept.
 	switch err {
-	default: // nil and errors other than the ones listed
-		return ns, sa, err
+	case nil:
+		return ns, sa, nil
+	default: // errors other than the ones listed
+		return -1, sa, os.NewSyscallError("accept4", err)
 	case syscall.ENOSYS: // syscall missing
 	case syscall.EINVAL: // some Linux use this instead of ENOSYS
 	case syscall.EACCES: // some Linux use this instead of ENOSYS
@@ -68,11 +77,11 @@ func accept(s int) (int, syscall.Sockaddr, error) {
 		syscall.CloseOnExec(ns)
 	}
 	if err != nil {
-		return -1, nil, err
+		return -1, nil, os.NewSyscallError("accept", err)
 	}
 	if err = syscall.SetNonblock(ns, true); err != nil {
 		closeFunc(ns)
-		return -1, nil, err
+		return -1, nil, os.NewSyscallError("setnonblock", err)
 	}
 	return ns, sa, nil
 }

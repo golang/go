@@ -115,11 +115,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 }
 
 func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
-	if ctxt.Symmorestack[0] == nil {
-		ctxt.Symmorestack[0] = obj.Linklookup(ctxt, "runtime.morestack", 0)
-		ctxt.Symmorestack[1] = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
-	}
-
 	// TODO(minux): add morestack short-cuts with small fixed frame-size.
 	ctxt.Cursym = cursym
 
@@ -142,7 +137,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	if ctxt.Debugvlog != 0 {
 		fmt.Fprintf(ctxt.Bso, "%5.2f noops\n", obj.Cputime())
 	}
-	obj.Bflush(ctxt.Bso)
+	ctxt.Bso.Flush()
 
 	var q *obj.Prog
 	var q1 *obj.Prog
@@ -328,7 +323,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			p.To.Offset = int64(autosize) - 8
 
 			if p.From3.Offset&obj.NOSPLIT == 0 {
-				p = stacksplit(ctxt, p, autosize, cursym.Text.From3.Offset&obj.NEEDCTXT == 0) // emit split check
+				p = stacksplit(ctxt, p, autosize) // emit split check
 			}
 
 			q = p
@@ -351,7 +346,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			} else if cursym.Text.Mark&LEAF == 0 {
 				if ctxt.Debugvlog != 0 {
 					fmt.Fprintf(ctxt.Bso, "save suppressed in: %s\n", cursym.Name)
-					obj.Bflush(ctxt.Bso)
+					ctxt.Bso.Flush()
 				}
 
 				cursym.Text.Mark |= LEAF
@@ -628,7 +623,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		q = p;
 	}
 */
-func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt bool) *obj.Prog {
+func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 	// MOVD	g_stackguard(g), R3
 	p = obj.Appendp(ctxt, p)
 
@@ -757,8 +752,10 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt bool) *obj.
 	p.To.Type = obj.TYPE_BRANCH
 	if ctxt.Cursym.Cfunc != 0 {
 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
+	} else if ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
+		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
 	} else {
-		p.To.Sym = ctxt.Symmorestack[bool2int(noctxt)]
+		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack", 0)
 	}
 
 	// BR	start

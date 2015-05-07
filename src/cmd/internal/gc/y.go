@@ -69,7 +69,10 @@ const NotPackage = 57392
 const NotParen = 57393
 const PreferToRightParen = 57394
 
-var yyToknames = []string{
+var yyToknames = [...]string{
+	"$end",
+	"error",
+	"$unk",
 	"LLITERAL",
 	"LASOP",
 	"LCOLAS",
@@ -129,8 +132,22 @@ var yyToknames = []string{
 	"'('",
 	"')'",
 	"PreferToRightParen",
+	"';'",
+	"'.'",
+	"'$'",
+	"'='",
+	"':'",
+	"'{'",
+	"'}'",
+	"'!'",
+	"'~'",
+	"'['",
+	"']'",
+	"'?'",
+	"'@'",
+	"','",
 }
-var yyStatenames = []string{}
+var yyStatenames = [...]string{}
 
 const yyEofCode = 1
 const yyErrCode = 2
@@ -147,7 +164,7 @@ func fixlbrace(lbr int) {
 }
 
 //line yacctab:1
-var yyExca = []int{
+var yyExca = [...]int{
 	-1, 1,
 	1, -1,
 	-2, 0,
@@ -272,7 +289,7 @@ var yyStates []string
 
 const yyLast = 2282
 
-var yyAct = []int{
+var yyAct = [...]int{
 
 	74, 381, 304, 285, 291, 486, 610, 398, 545, 478,
 	549, 296, 186, 75, 400, 229, 302, 401, 103, 389,
@@ -504,7 +521,7 @@ var yyAct = []int{
 	137, 136, 0, 151, 141, 142, 143, 144, 145, 146,
 	147, 148,
 }
-var yyPact = []int{
+var yyPact = [...]int{
 
 	-1000, -1000, 542, 536, -1000, 164, -1000, 550, 555, 318,
 	-1000, -1000, -1000, 588, -1000, -1000, 549, 1340, 316, 155,
@@ -574,7 +591,7 @@ var yyPact = []int{
 	110, -1000, 37, 2017, -1000, -1000, 2017, -1000, -1000, -1000,
 	-1000, -1000, -1000, -1000, -1000, 1689, 518, -1000,
 }
-var yyPgo = []int{
+var yyPgo = [...]int{
 
 	0, 57, 771, 774, 45, 150, 26, 540, 29, 770,
 	768, 2, 28, 61, 322, 766, 17, 4, 765, 761,
@@ -592,7 +609,7 @@ var yyPgo = []int{
 	648, 647, 642, 639, 637, 634, 631, 627, 38, 623,
 	596, 593,
 }
-var yyR1 = []int{
+var yyR1 = [...]int{
 
 	0, 112, 114, 114, 116, 113, 115, 115, 119, 119,
 	119, 120, 120, 121, 121, 2, 2, 2, 117, 123,
@@ -631,7 +648,7 @@ var yyR1 = []int{
 	94, 94, 93, 93, 125, 125, 100, 100, 104, 104,
 	102, 102,
 }
-var yyR2 = []int{
+var yyR2 = [...]int{
 
 	0, 4, 0, 3, 0, 3, 0, 3, 2, 5,
 	3, 3, 2, 1, 3, 1, 2, 2, 4, 0,
@@ -670,7 +687,7 @@ var yyR2 = []int{
 	2, 1, 1, 5, 0, 2, 1, 3, 1, 3,
 	1, 3,
 }
-var yyChk = []int{
+var yyChk = [...]int{
 
 	-1000, -112, -113, -116, -114, 26, -117, 26, -115, -3,
 	25, -91, 74, 75, -118, -124, 25, -60, -119, 22,
@@ -740,7 +757,7 @@ var yyChk = []int{
 	15, 73, -58, 61, 61, 61, 61, -52, 67, 67,
 	21, -11, 69, -99, -99, -134, -24, -53,
 }
-var yyDef = []int{
+var yyDef = [...]int{
 
 	4, -2, 2, 0, 6, 0, 21, 0, 218, 0,
 	157, 158, 159, 0, 5, 344, 19, -2, 0, 0,
@@ -810,7 +827,7 @@ var yyDef = []int{
 	0, 133, 0, 335, 343, 337, 335, 206, 56, 57,
 	82, 87, 145, 333, 208, 294, 0, 83,
 }
-var yyTok1 = []int{
+var yyTok1 = [...]int{
 
 	1, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
@@ -826,7 +843,7 @@ var yyTok1 = []int{
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 68, 52, 69, 71,
 }
-var yyTok2 = []int{
+var yyTok2 = [...]int{
 
 	2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
 	12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
@@ -835,7 +852,7 @@ var yyTok2 = []int{
 	42, 43, 44, 45, 46, 47, 48, 49, 58, 59,
 	62,
 }
-var yyTok3 = []int{
+var yyTok3 = [...]int{
 	0,
 }
 
@@ -843,7 +860,10 @@ var yyTok3 = []int{
 
 /*	parser for yacc output	*/
 
-var yyDebug = 0
+var (
+	yyDebug        = 0
+	yyErrorVerbose = false
+)
 
 type yyLexer interface {
 	Lex(lval *yySymType) int
@@ -857,6 +877,7 @@ type yyParser interface {
 
 type yyParserImpl struct {
 	lookahead func() int
+	state     func() int
 }
 
 func (p *yyParserImpl) Lookahead() int {
@@ -866,6 +887,7 @@ func (p *yyParserImpl) Lookahead() int {
 func yyNewParser() yyParser {
 	p := &yyParserImpl{
 		lookahead: func() int { return -1 },
+		state:     func() int { return -1 },
 	}
 	return p
 }
@@ -873,10 +895,9 @@ func yyNewParser() yyParser {
 const yyFlag = -1000
 
 func yyTokname(c int) string {
-	// 4 is TOKSTART above
-	if c >= 4 && c-4 < len(yyToknames) {
-		if yyToknames[c-4] != "" {
-			return yyToknames[c-4]
+	if c >= 1 && c-1 < len(yyToknames) {
+		if yyToknames[c-1] != "" {
+			return yyToknames[c-1]
 		}
 	}
 	return __yyfmt__.Sprintf("tok-%v", c)
@@ -889,6 +910,63 @@ func yyStatname(s int) string {
 		}
 	}
 	return __yyfmt__.Sprintf("state-%v", s)
+}
+
+func yyErrorMessage(state, lookAhead int) string {
+	const TOKSTART = 4
+
+	if !yyErrorVerbose {
+		return "syntax error"
+	}
+	res := "syntax error: unexpected " + yyTokname(lookAhead)
+
+	// To match Bison, suggest at most four expected tokens.
+	expected := make([]int, 0, 4)
+
+	// Look for shiftable tokens.
+	base := yyPact[state]
+	for tok := TOKSTART; tok-1 < len(yyToknames); tok++ {
+		if n := base + tok; n >= 0 && n < yyLast && yyChk[yyAct[n]] == tok {
+			if len(expected) == cap(expected) {
+				return res
+			}
+			expected = append(expected, tok)
+		}
+	}
+
+	if yyDef[state] == -2 {
+		i := 0
+		for yyExca[i] != -1 || yyExca[i+1] != state {
+			i += 2
+		}
+
+		// Look for tokens that we accept or reduce.
+		for i += 2; yyExca[i] >= 0; i += 2 {
+			tok := yyExca[i]
+			if tok < TOKSTART || yyExca[i+1] == 0 {
+				continue
+			}
+			if len(expected) == cap(expected) {
+				return res
+			}
+			expected = append(expected, tok)
+		}
+
+		// If the default action is to accept or reduce, give up.
+		if yyExca[i+1] != 0 {
+			return res
+		}
+	}
+
+	for i, tok := range expected {
+		if i == 0 {
+			res += ", expecting "
+		} else {
+			res += " or "
+		}
+		res += yyTokname(tok)
+	}
+	return res
 }
 
 func yylex1(lex yyLexer, lval *yySymType) (char, token int) {
@@ -942,9 +1020,11 @@ func (yyrcvr *yyParserImpl) Parse(yylex yyLexer) int {
 	yystate := 0
 	yychar := -1
 	yytoken := -1 // yychar translated into internal numbering
+	yyrcvr.state = func() int { return yystate }
 	yyrcvr.lookahead = func() int { return yychar }
 	defer func() {
 		// Make sure we report no lookahead when not parsing.
+		yystate = -1
 		yychar = -1
 		yytoken = -1
 	}()
@@ -1027,7 +1107,7 @@ yydefault:
 		/* error ... attempt to resume parsing */
 		switch Errflag {
 		case 0: /* brand new error */
-			yylex.Error("syntax error")
+			yylex.Error(yyErrorMessage(yystate, yytoken))
 			Nerrs++
 			if yyDebug >= 1 {
 				__yyfmt__.Printf("%s", yyStatname(yystate))
@@ -1265,8 +1345,6 @@ yydefault:
 			Yyerror("empty top-level declaration")
 			yyVAL.list = nil
 		}
-	case 24:
-		yyVAL.list = yyS[yypt-0].list
 	case 25:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		//line go.y:292
@@ -1389,8 +1467,6 @@ yydefault:
 		{
 			yyVAL.list = constiter(yyDollar[1].list, nil, yyDollar[3].list)
 		}
-	case 44:
-		yyVAL.list = yyS[yypt-0].list
 	case 45:
 		yyDollar = yyS[yypt-2 : yypt+1]
 		//line go.y:387
@@ -1467,7 +1543,7 @@ yydefault:
 				if yyDollar[1].list.Next != nil {
 					Yyerror("argument count mismatch: %d = %d", count(yyDollar[1].list), 1)
 				} else if (yyDollar[1].list.N.Op != ONAME && yyDollar[1].list.N.Op != OTYPE && yyDollar[1].list.N.Op != ONONAME) || isblank(yyDollar[1].list.N) {
-					Yyerror("invalid variable name %s in type switch", Nconv(yyDollar[1].list.N, 0))
+					Yyerror("invalid variable name %s in type switch", yyDollar[1].list.N)
 				} else {
 					yyVAL.node.Left = dclname(yyDollar[1].list.N.Sym)
 				} // it's a colas, so must not re-use an oldname.
@@ -1657,7 +1733,7 @@ yydefault:
 		{
 			yyVAL.node = Nod(ORANGE, nil, yyDollar[4].node)
 			yyVAL.node.List = yyDollar[1].list
-			yyVAL.node.Colas = 1
+			yyVAL.node.Colas = true
 			colasdefn(yyDollar[1].list, yyVAL.node)
 		}
 	case 69:
@@ -1672,7 +1748,7 @@ yydefault:
 		//line go.y:632
 		{
 			// init ; test ; incr
-			if yyDollar[5].node != nil && yyDollar[5].node.Colas != 0 {
+			if yyDollar[5].node != nil && yyDollar[5].node.Colas {
 				Yyerror("cannot declare in the for-increment")
 			}
 			yyVAL.node = Nod(OFOR, nil, nil)
@@ -1690,8 +1766,6 @@ yydefault:
 			yyVAL.node = Nod(OFOR, nil, nil)
 			yyVAL.node.Ntest = yyDollar[1].node
 		}
-	case 72:
-		yyVAL.node = yyS[yypt-0].node
 	case 73:
 		yyDollar = yyS[yypt-2 : yypt+1]
 		//line go.y:654
@@ -1853,8 +1927,6 @@ yydefault:
 			yyVAL.node.List = yyDollar[4].list
 			typesw = typesw.Left
 		}
-	case 93:
-		yyVAL.node = yyS[yypt-0].node
 	case 94:
 		yyDollar = yyS[yypt-3 : yypt+1]
 		//line go.y:796
@@ -1975,8 +2047,6 @@ yydefault:
 		{
 			yyVAL.node = Nod(OSEND, yyDollar[1].node, yyDollar[3].node)
 		}
-	case 114:
-		yyVAL.node = yyS[yypt-0].node
 	case 115:
 		yyDollar = yyS[yypt-2 : yypt+1]
 		//line go.y:880
@@ -2060,8 +2130,6 @@ yydefault:
 		{
 			yyVAL.node = nodlit(yyDollar[1].val)
 		}
-	case 127:
-		yyVAL.node = yyS[yypt-0].node
 	case 128:
 		yyDollar = yyS[yypt-3 : yypt+1]
 		//line go.y:948
@@ -2111,8 +2179,6 @@ yydefault:
 			}
 			yyVAL.node = Nod(OSLICE3, yyDollar[1].node, Nod(OKEY, yyDollar[3].node, Nod(OKEY, yyDollar[5].node, yyDollar[7].node)))
 		}
-	case 134:
-		yyVAL.node = yyS[yypt-0].node
 	case 135:
 		yyDollar = yyS[yypt-5 : yypt+1]
 		//line go.y:986
@@ -2147,8 +2213,6 @@ yydefault:
 			yyVAL.node.Right = yyDollar[2].node
 			yyVAL.node.List = yyDollar[6].list
 		}
-	case 139:
-		yyVAL.node = yyS[yypt-0].node
 	case 140:
 		yyDollar = yyS[yypt-0 : yypt+1]
 		//line go.y:1014
@@ -2185,8 +2249,6 @@ yydefault:
 			yyVAL.node = yyDollar[2].node
 			yyVAL.node.List = yyDollar[3].list
 		}
-	case 144:
-		yyVAL.node = yyS[yypt-0].node
 	case 145:
 		yyDollar = yyS[yypt-4 : yypt+1]
 		//line go.y:1049
@@ -2194,8 +2256,6 @@ yydefault:
 			yyVAL.node = yyDollar[2].node
 			yyVAL.node.List = yyDollar[3].list
 		}
-	case 146:
-		yyVAL.node = yyS[yypt-0].node
 	case 147:
 		yyDollar = yyS[yypt-3 : yypt+1]
 		//line go.y:1057
@@ -2210,12 +2270,6 @@ yydefault:
 				yyVAL.node = Nod(OPAREN, yyVAL.node, nil)
 			}
 		}
-	case 148:
-		yyVAL.node = yyS[yypt-0].node
-	case 149:
-		yyVAL.node = yyS[yypt-0].node
-	case 150:
-		yyVAL.node = yyS[yypt-0].node
 	case 151:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		//line go.y:1078
@@ -2250,8 +2304,6 @@ yydefault:
 		{
 			yyVAL.node = nil
 		}
-	case 156:
-		yyVAL.node = yyS[yypt-0].node
 	case 157:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		//line go.y:1115
@@ -2262,8 +2314,6 @@ yydefault:
 				yyVAL.sym = Pkglookup(yyDollar[1].sym.Name, builtinpkg)
 			}
 		}
-	case 158:
-		yyVAL.sym = yyS[yypt-0].sym
 	case 159:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		//line go.y:1124
@@ -2311,8 +2361,6 @@ yydefault:
 				yyVAL.node.Pack.Used = true
 			}
 		}
-	case 163:
-		yyVAL.node = yyS[yypt-0].node
 	case 164:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		//line go.y:1181
@@ -2326,66 +2374,24 @@ yydefault:
 		{
 			yyVAL.node = Nod(ODDD, yyDollar[2].node, nil)
 		}
-	case 166:
-		yyVAL.node = yyS[yypt-0].node
-	case 167:
-		yyVAL.node = yyS[yypt-0].node
-	case 168:
-		yyVAL.node = yyS[yypt-0].node
-	case 169:
-		yyVAL.node = yyS[yypt-0].node
-	case 170:
-		yyVAL.node = yyS[yypt-0].node
 	case 171:
 		yyDollar = yyS[yypt-3 : yypt+1]
 		//line go.y:1197
 		{
 			yyVAL.node = yyDollar[2].node
 		}
-	case 172:
-		yyVAL.node = yyS[yypt-0].node
-	case 173:
-		yyVAL.node = yyS[yypt-0].node
-	case 174:
-		yyVAL.node = yyS[yypt-0].node
 	case 175:
 		yyDollar = yyS[yypt-2 : yypt+1]
 		//line go.y:1206
 		{
 			yyVAL.node = Nod(OIND, yyDollar[2].node, nil)
 		}
-	case 176:
-		yyVAL.node = yyS[yypt-0].node
-	case 177:
-		yyVAL.node = yyS[yypt-0].node
-	case 178:
-		yyVAL.node = yyS[yypt-0].node
-	case 179:
-		yyVAL.node = yyS[yypt-0].node
 	case 180:
 		yyDollar = yyS[yypt-3 : yypt+1]
 		//line go.y:1216
 		{
 			yyVAL.node = yyDollar[2].node
 		}
-	case 181:
-		yyVAL.node = yyS[yypt-0].node
-	case 182:
-		yyVAL.node = yyS[yypt-0].node
-	case 183:
-		yyVAL.node = yyS[yypt-0].node
-	case 184:
-		yyVAL.node = yyS[yypt-0].node
-	case 185:
-		yyVAL.node = yyS[yypt-0].node
-	case 186:
-		yyVAL.node = yyS[yypt-0].node
-	case 187:
-		yyVAL.node = yyS[yypt-0].node
-	case 188:
-		yyVAL.node = yyS[yypt-0].node
-	case 189:
-		yyVAL.node = yyS[yypt-0].node
 	case 190:
 		yyDollar = yyS[yypt-3 : yypt+1]
 		//line go.y:1237
@@ -2432,10 +2438,6 @@ yydefault:
 		{
 			yyVAL.node = Nod(OTMAP, yyDollar[3].node, yyDollar[5].node)
 		}
-	case 196:
-		yyVAL.node = yyS[yypt-0].node
-	case 197:
-		yyVAL.node = yyS[yypt-0].node
 	case 198:
 		yyDollar = yyS[yypt-2 : yypt+1]
 		//line go.y:1277
@@ -2586,7 +2588,7 @@ yydefault:
 					dclcontext = PDISCARD // since we skip funchdr below
 					break
 				}
-				Yyerror("inconsistent definition for func %v during import\n\t%v\n\t%v", Sconv(s, 0), Tconv(s.Def.Type, 0), Tconv(t, 0))
+				Yyerror("inconsistent definition for func %v during import\n\t%v\n\t%v", s, s.Def.Type, t)
 			}
 
 			yyVAL.node = newfuncname(s)
@@ -2694,16 +2696,12 @@ yydefault:
 			nosplit = false
 			nowritebarrier = false
 		}
-	case 220:
-		yyVAL.list = yyS[yypt-0].list
 	case 221:
 		yyDollar = yyS[yypt-3 : yypt+1]
 		//line go.y:1526
 		{
 			yyVAL.list = concat(yyDollar[1].list, yyDollar[3].list)
 		}
-	case 222:
-		yyVAL.list = yyS[yypt-0].list
 	case 223:
 		yyDollar = yyS[yypt-3 : yypt+1]
 		//line go.y:1533
@@ -2722,8 +2720,6 @@ yydefault:
 		{
 			yyVAL.list = list(yyDollar[1].list, yyDollar[3].node)
 		}
-	case 226:
-		yyVAL.list = yyS[yypt-0].list
 	case 227:
 		yyDollar = yyS[yypt-3 : yypt+1]
 		//line go.y:1550
@@ -2828,7 +2824,7 @@ yydefault:
 			var pkg *Pkg
 
 			if yyDollar[1].sym.Def == nil || yyDollar[1].sym.Def.Op != OPACK {
-				Yyerror("%v is not a package", Sconv(yyDollar[1].sym, 0))
+				Yyerror("%v is not a package", yyDollar[1].sym)
 				pkg = localpkg
 			} else {
 				yyDollar[1].sym.Def.Used = true
@@ -2872,8 +2868,6 @@ yydefault:
 			yyVAL.node.List = yyDollar[2].list
 			yyVAL.node.Rlist = yyDollar[4].list
 		}
-	case 243:
-		yyVAL.node = yyS[yypt-0].node
 	case 244:
 		yyDollar = yyS[yypt-2 : yypt+1]
 		//line go.y:1684
@@ -2890,8 +2884,6 @@ yydefault:
 			yyVAL.node.Sym = yyDollar[1].sym
 			yyVAL.node = Nod(OKEY, yyVAL.node, yyDollar[2].node)
 		}
-	case 246:
-		yyVAL.node = yyS[yypt-0].node
 	case 247:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		//line go.y:1699
@@ -2922,32 +2914,18 @@ yydefault:
 		{
 			yyVAL.node = nil
 		}
-	case 252:
-		yyVAL.node = yyS[yypt-0].node
 	case 253:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		//line go.y:1725
 		{
 			yyVAL.node = liststmt(yyDollar[1].list)
 		}
-	case 254:
-		yyVAL.node = yyS[yypt-0].node
 	case 255:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		//line go.y:1730
 		{
 			yyVAL.node = nil
 		}
-	case 256:
-		yyVAL.node = yyS[yypt-0].node
-	case 257:
-		yyVAL.node = yyS[yypt-0].node
-	case 258:
-		yyVAL.node = yyS[yypt-0].node
-	case 259:
-		yyVAL.node = yyS[yypt-0].node
-	case 260:
-		yyVAL.node = yyS[yypt-0].node
 	case 261:
 		yyDollar = yyS[yypt-2 : yypt+1]
 		//line go.y:1741
@@ -3137,56 +3115,42 @@ yydefault:
 		{
 			yyVAL.node = nil
 		}
-	case 291:
-		yyVAL.node = yyS[yypt-0].node
 	case 292:
 		yyDollar = yyS[yypt-0 : yypt+1]
 		//line go.y:1906
 		{
 			yyVAL.list = nil
 		}
-	case 293:
-		yyVAL.list = yyS[yypt-0].list
 	case 294:
 		yyDollar = yyS[yypt-0 : yypt+1]
 		//line go.y:1912
 		{
 			yyVAL.node = nil
 		}
-	case 295:
-		yyVAL.node = yyS[yypt-0].node
 	case 296:
 		yyDollar = yyS[yypt-0 : yypt+1]
 		//line go.y:1918
 		{
 			yyVAL.list = nil
 		}
-	case 297:
-		yyVAL.list = yyS[yypt-0].list
 	case 298:
 		yyDollar = yyS[yypt-0 : yypt+1]
 		//line go.y:1924
 		{
 			yyVAL.list = nil
 		}
-	case 299:
-		yyVAL.list = yyS[yypt-0].list
 	case 300:
 		yyDollar = yyS[yypt-0 : yypt+1]
 		//line go.y:1930
 		{
 			yyVAL.list = nil
 		}
-	case 301:
-		yyVAL.list = yyS[yypt-0].list
 	case 302:
 		yyDollar = yyS[yypt-0 : yypt+1]
 		//line go.y:1936
 		{
 			yyVAL.val.Ctype = CTxxx
 		}
-	case 303:
-		yyVAL.val = yyS[yypt-0].val
 	case 304:
 		yyDollar = yyS[yypt-4 : yypt+1]
 		//line go.y:1946
@@ -3252,16 +3216,6 @@ yydefault:
 			yyVAL.typ = pkgtype(yyDollar[1].sym)
 			importsym(yyDollar[1].sym, OTYPE)
 		}
-	case 312:
-		yyVAL.typ = yyS[yypt-0].typ
-	case 313:
-		yyVAL.typ = yyS[yypt-0].typ
-	case 314:
-		yyVAL.typ = yyS[yypt-0].typ
-	case 315:
-		yyVAL.typ = yyS[yypt-0].typ
-	case 316:
-		yyVAL.typ = yyS[yypt-0].typ
 	case 317:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		//line go.y:2014
@@ -3424,8 +3378,6 @@ yydefault:
 		{
 			yyVAL.list = nil
 		}
-	case 336:
-		yyVAL.list = yyS[yypt-0].list
 	case 337:
 		yyDollar = yyS[yypt-3 : yypt+1]
 		//line go.y:2152
@@ -3470,11 +3422,9 @@ yydefault:
 		{
 			yyVAL.node = oldname(Pkglookup(yyDollar[1].sym.Name, builtinpkg))
 			if yyVAL.node.Op != OLITERAL {
-				Yyerror("bad constant %v", Sconv(yyVAL.node.Sym, 0))
+				Yyerror("bad constant %v", yyVAL.node.Sym)
 			}
 		}
-	case 342:
-		yyVAL.node = yyS[yypt-0].node
 	case 343:
 		yyDollar = yyS[yypt-5 : yypt+1]
 		//line go.y:2198

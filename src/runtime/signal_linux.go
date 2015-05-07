@@ -4,6 +4,8 @@
 
 package runtime
 
+import "unsafe"
+
 type sigTabT struct {
 	flags int32
 	name  string
@@ -75,4 +77,20 @@ var sigtable = [...]sigTabT{
 	/* 62 */ {_SigNotify, "signal 62"},
 	/* 63 */ {_SigNotify, "signal 63"},
 	/* 64 */ {_SigNotify, "signal 64"},
+}
+
+// Continuation of the (assembly) sigtramp() logic.
+//go:nosplit
+func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+	if sigfwdgo(sig, info, ctx) {
+		return
+	}
+	g := getg()
+	if g == nil {
+		badsignal(uintptr(sig))
+		return
+	}
+	setg(g.m.gsignal)
+	sighandler(sig, info, ctx, g)
+	setg(g)
 }

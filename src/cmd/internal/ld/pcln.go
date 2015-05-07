@@ -143,10 +143,10 @@ func renumberfiles(ctxt *Link, files []*LSym, d *Pcdata) {
 	// Give files numbers.
 	for i := 0; i < len(files); i++ {
 		f = files[i]
-		if f.Type != SFILEPATH {
+		if f.Type != obj.SFILEPATH {
 			ctxt.Nhistfile++
 			f.Value = int64(ctxt.Nhistfile)
-			f.Type = SFILEPATH
+			f.Type = obj.SFILEPATH
 			f.Next = ctxt.Filesyms
 			ctxt.Filesyms = f
 		}
@@ -202,10 +202,17 @@ func container(s *LSym) int {
 
 var pclntab_zpcln Pcln
 
+// These variables are used to initialize runtime.firstmoduledata, see symtab.go:symtab.
+var pclntabNfunc int32
+var pclntabFiletabOffset int32
+var pclntabPclntabOffset int32
+var pclntabFirstFunc *LSym
+var pclntabLastFunc *LSym
+
 func pclntab() {
 	funcdata_bytes := int64(0)
 	ftab := Linklookup(Ctxt, "runtime.pclntab", 0)
-	ftab.Type = SPCLNTAB
+	ftab.Type = obj.SPCLNTAB
 	ftab.Reachable = true
 
 	// See golang.org/s/go12symtab for the format. Briefly:
@@ -222,11 +229,13 @@ func pclntab() {
 		}
 	}
 
+	pclntabNfunc = nfunc
 	Symgrow(Ctxt, ftab, 8+int64(Thearch.Ptrsize)+int64(nfunc)*2*int64(Thearch.Ptrsize)+int64(Thearch.Ptrsize)+4)
 	setuint32(Ctxt, ftab, 0, 0xfffffffb)
 	setuint8(Ctxt, ftab, 6, uint8(Thearch.Minlc))
 	setuint8(Ctxt, ftab, 7, uint8(Thearch.Ptrsize))
 	setuintxx(Ctxt, ftab, 8, uint64(nfunc), int64(Thearch.Ptrsize))
+	pclntabPclntabOffset = int32(8 + Thearch.Ptrsize)
 
 	nfunc = 0
 	var last *LSym
@@ -244,6 +253,10 @@ func pclntab() {
 		pcln = Ctxt.Cursym.Pcln
 		if pcln == nil {
 			pcln = &pclntab_zpcln
+		}
+
+		if pclntabFirstFunc == nil {
+			pclntabFirstFunc = Ctxt.Cursym
 		}
 
 		funcstart = int32(len(ftab.P))
@@ -285,7 +298,7 @@ func pclntab() {
 				for pciterinit(Ctxt, &it, &pcln.Pcfile); it.done == 0; pciternext(&it) {
 					if it.value < 1 || it.value > Ctxt.Nhistfile {
 						Diag("bad file number in pcfile: %d not in range [1, %d]\n", it.value, Ctxt.Nhistfile)
-						Errorexit()
+						errorexit()
 					}
 				}
 			}
@@ -324,12 +337,13 @@ func pclntab() {
 
 		if off != end {
 			Diag("bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, pcln.Npcdata, pcln.Nfuncdata, Thearch.Ptrsize)
-			Errorexit()
+			errorexit()
 		}
 
 		nfunc++
 	}
 
+	pclntabLastFunc = last
 	// Final entry of table is just end pc.
 	setaddrplus(Ctxt, ftab, 8+int64(Thearch.Ptrsize)+int64(nfunc)*2*int64(Thearch.Ptrsize), last, last.Size)
 
@@ -337,6 +351,7 @@ func pclntab() {
 	start := int32(len(ftab.P))
 
 	start += int32(-len(ftab.P)) & (int32(Thearch.Ptrsize) - 1)
+	pclntabFiletabOffset = start
 	setuint32(Ctxt, ftab, 8+int64(Thearch.Ptrsize)+int64(nfunc)*2*int64(Thearch.Ptrsize)+int64(Thearch.Ptrsize), uint32(start))
 
 	Symgrow(Ctxt, ftab, int64(start)+(int64(Ctxt.Nhistfile)+1)*4)
@@ -363,8 +378,9 @@ const (
 // function for a pc.  See src/runtime/symtab.go:findfunc for details.
 func findfunctab() {
 	t := Linklookup(Ctxt, "runtime.findfunctab", 0)
-	t.Type = SRODATA
+	t.Type = obj.SRODATA
 	t.Reachable = true
+	t.Local = true
 
 	// find min and max address
 	min := Ctxt.Textp.Value

@@ -19,5 +19,6 @@ Such changes are marked with 'RE2/Go'.
 RE2 Test Files
 
 re2-exhaustive.txt.bz2 and re2-search.txt are built by running
-'make log' in the RE2 distribution.  http://code.google.com/p/re2/.
+'make log' in the RE2 distribution https://github.com/google/re2/
+
 The exhaustive file is compressed because it is huge.

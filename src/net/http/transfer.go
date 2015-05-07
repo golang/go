@@ -138,6 +138,9 @@ func (t *transferWriter) shouldSendContentLength() bool {
 	if t.ContentLength > 0 {
 		return true
 	}
+	if t.ContentLength < 0 {
+		return false
+	}
 	// Many servers expect a Content-Length for these methods
 	if t.Method == "POST" || t.Method == "PUT" {
 		return true
@@ -505,14 +508,13 @@ func shouldClose(major, minor int, header Header, removeCloseHeader bool) bool {
 	if major < 1 {
 		return true
 	} else if major == 1 && minor == 0 {
-		if !strings.Contains(strings.ToLower(header.get("Connection")), "keep-alive") {
+		vv := header["Connection"]
+		if headerValuesContainsToken(vv, "close") || !headerValuesContainsToken(vv, "keep-alive") {
 			return true
 		}
 		return false
 	} else {
-		// TODO: Should split on commas, toss surrounding white space,
-		// and check each field.
-		if strings.ToLower(header.get("Connection")) == "close" {
+		if headerValuesContainsToken(header["Connection"], "close") {
 			if removeCloseHeader {
 				header.Del("Connection")
 			}

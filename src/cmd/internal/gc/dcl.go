@@ -46,7 +46,7 @@ func pushdcl(s *Sym) *Sym {
 	d := push()
 	dcopy(d, s)
 	if dflag() {
-		fmt.Printf("\t%v push %v %p\n", Ctxt.Line(int(lineno)), Sconv(s, 0), s.Def)
+		fmt.Printf("\t%v push %v %p\n", Ctxt.Line(int(lineno)), s, s.Def)
 	}
 	return d
 }
@@ -68,7 +68,7 @@ func popdcl() {
 		dcopy(s, d)
 		d.Lastlineno = int32(lno)
 		if dflag() {
-			fmt.Printf("\t%v pop %v %p\n", Ctxt.Line(int(lineno)), Sconv(s, 0), s.Def)
+			fmt.Printf("\t%v pop %v %p\n", Ctxt.Line(int(lineno)), s, s.Def)
 		}
 	}
 
@@ -114,7 +114,7 @@ func dumpdcl(st string) {
 
 		fmt.Printf(" '%s'", d.Name)
 		s = Pkglookup(d.Name, d.Pkg)
-		fmt.Printf(" %v\n", Sconv(s, 0))
+		fmt.Printf(" %v\n", s)
 	}
 }
 
@@ -139,7 +139,7 @@ func redeclare(s *Sym, where string) {
 			tmp = s.Pkg.Path
 		}
 		pkgstr := tmp
-		Yyerror("%v redeclared %s\n"+"\tprevious declaration during import %q", Sconv(s, 0), where, pkgstr)
+		Yyerror("%v redeclared %s\n"+"\tprevious declaration during import %q", s, where, pkgstr)
 	} else {
 		line1 := parserline()
 		line2 := int(s.Lastlineno)
@@ -153,7 +153,7 @@ func redeclare(s *Sym, where string) {
 			line1 = int(s.Lastlineno)
 		}
 
-		yyerrorl(int(line1), "%v redeclared %s\n"+"\tprevious declaration at %v", Sconv(s, 0), where, Ctxt.Line(line2))
+		yyerrorl(int(line1), "%v redeclared %s\n"+"\tprevious declaration at %v", s, where, Ctxt.Line(line2))
 	}
 }
 
@@ -165,7 +165,7 @@ var vargen int
 
 var declare_typegen int
 
-func declare(n *Node, ctxt int) {
+func declare(n *Node, ctxt uint8) {
 	if ctxt == PDISCARD {
 		return
 	}
@@ -179,7 +179,7 @@ func declare(n *Node, ctxt int) {
 
 	// kludgy: typecheckok means we're past parsing.  Eg genwrapper may declare out of package names later.
 	if importpkg == nil && typecheckok == 0 && s.Pkg != localpkg {
-		Yyerror("cannot declare name %v", Sconv(s, 0))
+		Yyerror("cannot declare name %v", s)
 	}
 
 	if ctxt == PEXTERN && s.Name == "init" {
@@ -190,7 +190,7 @@ func declare(n *Node, ctxt int) {
 	if ctxt == PEXTERN {
 		externdcl = list(externdcl, n)
 		if dflag() {
-			fmt.Printf("\t%v global decl %v %p\n", Ctxt.Line(int(lineno)), Sconv(s, 0), n)
+			fmt.Printf("\t%v global decl %v %p\n", Ctxt.Line(int(lineno)), s, n)
 		}
 	} else {
 		if Curfn == nil && ctxt == PAUTO {
@@ -232,9 +232,9 @@ func declare(n *Node, ctxt int) {
 	autoexport(n, ctxt)
 }
 
-func addvar(n *Node, t *Type, ctxt int) {
+func addvar(n *Node, t *Type, ctxt uint8) {
 	if n == nil || n.Sym == nil || (n.Op != ONAME && n.Op != ONONAME) || t == nil {
-		Fatal("addvar: n=%v t=%v nil", Nconv(n, 0), Tconv(t, 0))
+		Fatal("addvar: n=%v t=%v nil", n, t)
 	}
 
 	n.Op = ONAME
@@ -367,7 +367,7 @@ func newname(s *Sym) *Node {
 	n := Nod(ONAME, nil, nil)
 	n.Sym = s
 	n.Type = nil
-	n.Addable = 1
+	n.Addable = true
 	n.Ullman = 1
 	n.Xoffset = 0
 	return n
@@ -438,7 +438,7 @@ func oldname(s *Sym) *Node {
 			c.Class = PPARAMREF
 			c.Isddd = n.Isddd
 			c.Defn = n
-			c.Addable = 0
+			c.Addable = false
 			c.Ullman = 2
 			c.Funcdepth = Funcdepth
 			c.Outer = n.Closure
@@ -487,13 +487,13 @@ func colasdefn(left *NodeList, defn *Node) {
 			continue
 		}
 		if !colasname(n) {
-			yyerrorl(int(defn.Lineno), "non-name %v on left side of :=", Nconv(n, 0))
+			yyerrorl(int(defn.Lineno), "non-name %v on left side of :=", n)
 			nerr++
 			continue
 		}
 
 		if n.Sym.Flags&SymUniq == 0 {
-			yyerrorl(int(defn.Lineno), "%v repeated on left side of :=", Sconv(n.Sym, 0))
+			yyerrorl(int(defn.Lineno), "%v repeated on left side of :=", n.Sym)
 			n.Diag++
 			nerr++
 			continue
@@ -521,7 +521,7 @@ func colas(left *NodeList, right *NodeList, lno int32) *Node {
 	as := Nod(OAS2, nil, nil)
 	as.List = left
 	as.Rlist = right
-	as.Colas = 1
+	as.Colas = true
 	as.Lineno = lno
 	colasdefn(left, as)
 
@@ -695,7 +695,7 @@ func funcargs(nt *Node) {
  */
 func funcargs2(t *Type) {
 	if t.Etype != TFUNC {
-		Fatal("funcargs2 %v", Tconv(t, 0))
+		Fatal("funcargs2 %v", t)
 	}
 
 	if t.Thistuple != 0 {
@@ -803,7 +803,7 @@ func structfield(n *Node) *Type {
 	lineno = n.Lineno
 
 	if n.Op != ODCLFIELD {
-		Fatal("structfield: oops %v\n", Nconv(n, 0))
+		Fatal("structfield: oops %v\n", n)
 	}
 
 	f := typ(TFIELD)
@@ -836,7 +836,6 @@ func structfield(n *Node) *Type {
 		Yyerror("field annotation must be string")
 		fallthrough
 
-		// fallthrough
 	case CTxxx:
 		f.Note = nil
 	}
@@ -934,7 +933,7 @@ func interfacefield(n *Node) *Type {
 	lineno = n.Lineno
 
 	if n.Op != ODCLFIELD {
-		Fatal("interfacefield: oops %v\n", Nconv(n, 0))
+		Fatal("interfacefield: oops %v\n", n)
 	}
 
 	if n.Val.Ctype != CTxxx {
@@ -974,11 +973,11 @@ func interfacefield(n *Node) *Type {
 					break
 
 				case TFORW:
-					Yyerror("interface type loop involving %v", Tconv(n.Type, 0))
+					Yyerror("interface type loop involving %v", n.Type)
 					f.Broke = 1
 
 				default:
-					Yyerror("interface contains embedded non-interface %v", Tconv(n.Type, 0))
+					Yyerror("interface contains embedded non-interface %v", n.Type)
 					f.Broke = 1
 				}
 			}
@@ -1301,7 +1300,7 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
 	return s
 
 bad:
-	Yyerror("illegal receiver type: %v", Tconv(t0, 0))
+	Yyerror("illegal receiver type: %v", t0)
 	return nil
 }
 
@@ -1326,9 +1325,9 @@ func methodname1(n *Node, t *Node) *Node {
 
 	var p string
 	if star != "" {
-		p = fmt.Sprintf("(%s%v).%v", star, Sconv(t.Sym, 0), Sconv(n.Sym, 0))
+		p = fmt.Sprintf("(%s%v).%v", star, t.Sym, n.Sym)
 	} else {
-		p = fmt.Sprintf("%v.%v", Sconv(t.Sym, 0), Sconv(n.Sym, 0))
+		p = fmt.Sprintf("%v.%v", t.Sym, n.Sym)
 	}
 
 	if exportname(t.Sym.Name) {
@@ -1367,7 +1366,7 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
 		if t != nil {
 			if Isptr[t.Etype] {
 				if t.Sym != nil {
-					Yyerror("invalid receiver type %v (%v is a pointer type)", Tconv(pa, 0), Tconv(t, 0))
+					Yyerror("invalid receiver type %v (%v is a pointer type)", pa, t)
 					return
 				}
 
@@ -1378,24 +1377,24 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
 				return
 			}
 			if t.Sym == nil {
-				Yyerror("invalid receiver type %v (%v is an unnamed type)", Tconv(pa, 0), Tconv(t, 0))
+				Yyerror("invalid receiver type %v (%v is an unnamed type)", pa, t)
 				return
 			}
 
 			if Isptr[t.Etype] {
-				Yyerror("invalid receiver type %v (%v is a pointer type)", Tconv(pa, 0), Tconv(t, 0))
+				Yyerror("invalid receiver type %v (%v is a pointer type)", pa, t)
 				return
 			}
 
 			if t.Etype == TINTER {
-				Yyerror("invalid receiver type %v (%v is an interface type)", Tconv(pa, 0), Tconv(t, 0))
+				Yyerror("invalid receiver type %v (%v is an interface type)", pa, t)
 				return
 			}
 		}
 
 		// Should have picked off all the reasons above,
 		// but just in case, fall back to generic error.
-		Yyerror("invalid receiver type %v (%v / %v)", Tconv(pa, 0), Tconv(pa, obj.FmtLong), Tconv(t, obj.FmtLong))
+		Yyerror("invalid receiver type %v (%v / %v)", pa, Tconv(pa, obj.FmtLong), Tconv(t, obj.FmtLong))
 
 		return
 	}
@@ -1404,7 +1403,7 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
 	if pa.Etype == TSTRUCT {
 		for f := pa.Type; f != nil; f = f.Down {
 			if f.Sym == sf {
-				Yyerror("type %v has both field and method named %v", Tconv(pa, 0), Sconv(sf, 0))
+				Yyerror("type %v has both field and method named %v", pa, sf)
 				return
 			}
 		}
@@ -1412,7 +1411,7 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
 
 	if local && !pa.Local {
 		// defining method on non-local type.
-		Yyerror("cannot define new methods on non-local type %v", Tconv(pa, 0))
+		Yyerror("cannot define new methods on non-local type %v", pa)
 
 		return
 	}
@@ -1430,7 +1429,7 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
 			continue
 		}
 		if !Eqtype(t, f.Type) {
-			Yyerror("method redeclared: %v.%v\n\t%v\n\t%v", Tconv(pa, 0), Sconv(sf, 0), Tconv(f.Type, 0), Tconv(t, 0))
+			Yyerror("method redeclared: %v.%v\n\t%v\n\t%v", pa, sf, f.Type, t)
 		}
 		return
 	}
@@ -1466,7 +1465,7 @@ func funccompile(n *Node) {
 	checkwidth(n.Type)
 
 	if Curfn != nil {
-		Fatal("funccompile %v inside %v", Sconv(n.Nname.Sym, 0), Sconv(Curfn.Nname.Sym, 0))
+		Fatal("funccompile %v inside %v", n.Nname.Sym, Curfn.Nname.Sym)
 	}
 
 	Stksize = 0

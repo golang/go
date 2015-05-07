@@ -20,7 +20,7 @@ type Buffer struct {
 	WriterTo   // conflicts with and hides bytes.Buffer's WriterTo.
 }
 
-// Simple tests, primarily to verify the ReadFrom and WriteTo callouts inside Copy and CopyN.
+// Simple tests, primarily to verify the ReadFrom and WriteTo callouts inside Copy, CopyBuffer and CopyN.
 
 func TestCopy(t *testing.T) {
 	rb := new(Buffer)
@@ -29,6 +29,26 @@ func TestCopy(t *testing.T) {
 	Copy(wb, rb)
 	if wb.String() != "hello, world." {
 		t.Errorf("Copy did not work properly")
+	}
+}
+
+func TestCopyBuffer(t *testing.T) {
+	rb := new(Buffer)
+	wb := new(Buffer)
+	rb.WriteString("hello, world.")
+	CopyBuffer(wb, rb, make([]byte, 1)) // Tiny buffer to keep it honest.
+	if wb.String() != "hello, world." {
+		t.Errorf("CopyBuffer did not work properly")
+	}
+}
+
+func TestCopyBufferNil(t *testing.T) {
+	rb := new(Buffer)
+	wb := new(Buffer)
+	rb.WriteString("hello, world.")
+	CopyBuffer(wb, rb, nil) // Should allocate a buffer.
+	if wb.String() != "hello, world." {
+		t.Errorf("CopyBuffer did not work properly")
 	}
 }
 
@@ -75,6 +95,34 @@ func TestCopyPriority(t *testing.T) {
 		t.Errorf("Copy did not work properly")
 	} else if !rb.writeToCalled {
 		t.Errorf("WriteTo was not prioritized over ReadFrom")
+	}
+}
+
+type zeroErrReader struct {
+	err error
+}
+
+func (r zeroErrReader) Read(p []byte) (int, error) {
+	return copy(p, []byte{0}), r.err
+}
+
+type errWriter struct {
+	err error
+}
+
+func (w errWriter) Write([]byte) (int, error) {
+	return 0, w.err
+}
+
+// In case a Read results in an error with non-zero bytes read, and
+// the subsequent Write also results in an error, the error from Write
+// is returned, as it is the one that prevented progressing further.
+func TestCopyReadErrWriteErr(t *testing.T) {
+	er, ew := errors.New("readError"), errors.New("writeError")
+	r, w := zeroErrReader{err: er}, errWriter{err: ew}
+	n, err := Copy(w, r)
+	if n != 0 || err != ew {
+		t.Errorf("Copy(zeroErrReader, errWriter) = %d, %v; want 0, writeError", n, err)
 	}
 }
 

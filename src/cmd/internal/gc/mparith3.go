@@ -5,285 +5,131 @@
 package gc
 
 import (
+	"cmd/internal/gc/big"
+	"cmd/internal/obj"
 	"fmt"
 	"math"
 )
 
-/*
- * returns the leading non-zero
- * word of the number
- */
-func sigfig(a *Mpflt) int {
-	var i int
-
-	for i = Mpprec - 1; i >= 0; i-- {
-		if a.Val.A[i] != 0 {
-			break
-		}
-	}
-
-	//print("sigfig %d %d\n", i-z+1, z);
-	return i + 1
-}
-
-/*
- * sets the exponent.
- * a too large exponent is an error.
- * a too small exponent rounds the number to zero.
- */
-func mpsetexp(a *Mpflt, exp int) {
-	if int(int16(exp)) != exp {
-		if exp > 0 {
-			Yyerror("float constant is too large")
-			a.Exp = 0x7fff
-		} else {
-			Mpmovecflt(a, 0)
-		}
-	} else {
-		a.Exp = int16(exp)
-	}
-}
-
-/*
- * shifts the leading non-zero
- * word of the number to Mpnorm
- */
-func mpnorm(a *Mpflt) {
-	os := sigfig(a)
-	if os == 0 {
-		// zero
-		a.Exp = 0
-
-		a.Val.Neg = 0
-		return
-	}
-
-	// this will normalize to the nearest word
-	x := a.Val.A[os-1]
-
-	s := (Mpnorm - os) * Mpscale
-
-	// further normalize to the nearest bit
-	for {
-		x <<= 1
-		if x&Mpbase != 0 {
-			break
-		}
-		s++
-		if x == 0 {
-			// this error comes from trying to
-			// convert an Inf or something
-			// where the initial x=0x80000000
-			s = (Mpnorm - os) * Mpscale
-
-			break
-		}
-	}
-
-	_Mpshiftfix(&a.Val, s)
-	mpsetexp(a, int(a.Exp)-s)
-}
-
 /// implements float arihmetic
 
+func newMpflt() *Mpflt {
+	var a Mpflt
+	a.Val.SetPrec(Mpprec)
+	return &a
+}
+
+func Mpmovefixflt(a *Mpflt, b *Mpint) {
+	if b.Ovf {
+		// sign doesn't really matter but copy anyway
+		a.Val.SetInf(b.Val.Sign() < 0)
+		return
+	}
+	a.Val.SetInt(&b.Val)
+}
+
+func mpmovefltflt(a *Mpflt, b *Mpflt) {
+	a.Val.Set(&b.Val)
+}
+
 func mpaddfltflt(a *Mpflt, b *Mpflt) {
-	if Mpdebug != 0 /*TypeKind(100016)*/ {
-		fmt.Printf("\n%v + %v", Fconv(a, 0), Fconv(b, 0))
+	if Mpdebug {
+		fmt.Printf("\n%v + %v", a, b)
 	}
 
-	sa := sigfig(a)
-	var s int
-	var sb int
-	if sa == 0 {
-		mpmovefltflt(a, b)
-		goto out
+	a.Val.Add(&a.Val, &b.Val)
+
+	if Mpdebug {
+		fmt.Printf(" = %v\n\n", a)
+	}
+}
+
+func mpaddcflt(a *Mpflt, c float64) {
+	var b Mpflt
+
+	Mpmovecflt(&b, c)
+	mpaddfltflt(a, &b)
+}
+
+func mpsubfltflt(a *Mpflt, b *Mpflt) {
+	if Mpdebug {
+		fmt.Printf("\n%v - %v", a, b)
 	}
 
-	sb = sigfig(b)
-	if sb == 0 {
-		goto out
-	}
+	a.Val.Sub(&a.Val, &b.Val)
 
-	s = int(a.Exp) - int(b.Exp)
-	if s > 0 {
-		// a is larger, shift b right
-		var c Mpflt
-		mpmovefltflt(&c, b)
-
-		_Mpshiftfix(&c.Val, -s)
-		_mpaddfixfix(&a.Val, &c.Val, 0)
-		goto out
-	}
-
-	if s < 0 {
-		// b is larger, shift a right
-		_Mpshiftfix(&a.Val, s)
-
-		mpsetexp(a, int(a.Exp)-s)
-		_mpaddfixfix(&a.Val, &b.Val, 0)
-		goto out
-	}
-
-	_mpaddfixfix(&a.Val, &b.Val, 0)
-
-out:
-	mpnorm(a)
-	if Mpdebug != 0 /*TypeKind(100016)*/ {
-		fmt.Printf(" = %v\n\n", Fconv(a, 0))
+	if Mpdebug {
+		fmt.Printf(" = %v\n\n", a)
 	}
 }
 
 func mpmulfltflt(a *Mpflt, b *Mpflt) {
-	if Mpdebug != 0 /*TypeKind(100016)*/ {
-		fmt.Printf("%v\n * %v\n", Fconv(a, 0), Fconv(b, 0))
+	if Mpdebug {
+		fmt.Printf("%v\n * %v\n", a, b)
 	}
 
-	sa := sigfig(a)
-	if sa == 0 {
-		// zero
-		a.Exp = 0
+	a.Val.Mul(&a.Val, &b.Val)
 
-		a.Val.Neg = 0
-		return
+	if Mpdebug {
+		fmt.Printf(" = %v\n\n", a)
 	}
+}
 
-	sb := sigfig(b)
-	if sb == 0 {
-		// zero
-		mpmovefltflt(a, b)
+func mpmulcflt(a *Mpflt, c float64) {
+	var b Mpflt
 
-		return
-	}
-
-	mpmulfract(&a.Val, &b.Val)
-	mpsetexp(a, (int(a.Exp)+int(b.Exp))+Mpscale*Mpprec-Mpscale-1)
-
-	mpnorm(a)
-	if Mpdebug != 0 /*TypeKind(100016)*/ {
-		fmt.Printf(" = %v\n\n", Fconv(a, 0))
-	}
+	Mpmovecflt(&b, c)
+	mpmulfltflt(a, &b)
 }
 
 func mpdivfltflt(a *Mpflt, b *Mpflt) {
-	if Mpdebug != 0 /*TypeKind(100016)*/ {
-		fmt.Printf("%v\n / %v\n", Fconv(a, 0), Fconv(b, 0))
+	if Mpdebug {
+		fmt.Printf("%v\n / %v\n", a, b)
 	}
 
-	sb := sigfig(b)
-	if sb == 0 {
-		// zero and ovfl
-		a.Exp = 0
+	a.Val.Quo(&a.Val, &b.Val)
 
-		a.Val.Neg = 0
-		a.Val.Ovf = 1
-		Yyerror("constant division by zero")
-		return
-	}
-
-	sa := sigfig(a)
-	if sa == 0 {
-		// zero
-		a.Exp = 0
-
-		a.Val.Neg = 0
-		return
-	}
-
-	// adjust b to top
-	var c Mpflt
-	mpmovefltflt(&c, b)
-
-	_Mpshiftfix(&c.Val, Mpscale)
-
-	// divide
-	mpdivfract(&a.Val, &c.Val)
-
-	mpsetexp(a, (int(a.Exp)-int(c.Exp))-Mpscale*(Mpprec-1)+1)
-
-	mpnorm(a)
-	if Mpdebug != 0 /*TypeKind(100016)*/ {
-		fmt.Printf(" = %v\n\n", Fconv(a, 0))
+	if Mpdebug {
+		fmt.Printf(" = %v\n\n", a)
 	}
 }
 
+func mpcmpfltflt(a *Mpflt, b *Mpflt) int {
+	return a.Val.Cmp(&b.Val)
+}
+
+func mpcmpfltc(b *Mpflt, c float64) int {
+	var a Mpflt
+
+	Mpmovecflt(&a, c)
+	return mpcmpfltflt(b, &a)
+}
+
 func mpgetfltN(a *Mpflt, prec int, bias int) float64 {
-	if a.Val.Ovf != 0 && nsavederrors+nerrors == 0 {
+	var x float64
+	switch prec {
+	case 53:
+		x, _ = a.Val.Float64()
+	case 24:
+		// We should be using a.Val.Float32() here but that seems incorrect
+		// for certain denormal values (all.bash fails). The current code
+		// appears to work for all existing test cases, though there ought
+		// to be issues with denormal numbers that are incorrectly rounded.
+		// TODO(gri) replace with a.Val.Float32() once correctly working
+		// See also: https://github.com/golang/go/issues/10321
+		var t Mpflt
+		t.Val.SetPrec(24).Set(&a.Val)
+		x, _ = t.Val.Float64()
+	default:
+		panic("unreachable")
+	}
+
+	// check for overflow
+	if math.IsInf(x, 0) && nsavederrors+nerrors == 0 {
 		Yyerror("mpgetflt ovf")
 	}
 
-	s := sigfig(a)
-	if s == 0 {
-		return 0
-	}
-
-	if s != Mpnorm {
-		Yyerror("mpgetflt norm")
-		mpnorm(a)
-	}
-
-	for a.Val.A[Mpnorm-1]&Mpsign == 0 {
-		_Mpshiftfix(&a.Val, 1)
-		mpsetexp(a, int(a.Exp)-1) // can set 'a' to zero
-		s = sigfig(a)
-		if s == 0 {
-			return 0
-		}
-	}
-
-	// pick up the mantissa, a rounding bit, and a tie-breaking bit in a uvlong
-	s = prec + 2
-
-	v := uint64(0)
-	var i int
-	for i = Mpnorm - 1; s >= Mpscale; i-- {
-		v = v<<Mpscale | uint64(a.Val.A[i])
-		s -= Mpscale
-	}
-
-	if s > 0 {
-		v = v<<uint(s) | uint64(a.Val.A[i])>>uint(Mpscale-s)
-		if a.Val.A[i]&((1<<uint(Mpscale-s))-1) != 0 {
-			v |= 1
-		}
-		i--
-	}
-
-	for ; i >= 0; i-- {
-		if a.Val.A[i] != 0 {
-			v |= 1
-		}
-	}
-
-	// gradual underflow
-	e := Mpnorm*Mpscale + int(a.Exp) - prec
-
-	minexp := bias + 1 - prec + 1
-	if e < minexp {
-		s := minexp - e
-		if s > prec+1 {
-			s = prec + 1
-		}
-		if v&((1<<uint(s))-1) != 0 {
-			v |= 1 << uint(s)
-		}
-		v >>= uint(s)
-		e = minexp
-	}
-
-	// round to even
-	v |= (v & 4) >> 2
-
-	v += v & 1
-	v >>= 2
-
-	f := float64(v)
-	f = math.Ldexp(f, e)
-
-	if a.Val.Neg != 0 {
-		f = -f
-	}
-
-	return f
+	return x
 }
 
 func mpgetflt(a *Mpflt) float64 {
@@ -295,62 +141,95 @@ func mpgetflt32(a *Mpflt) float64 {
 }
 
 func Mpmovecflt(a *Mpflt, c float64) {
-	if Mpdebug != 0 /*TypeKind(100016)*/ {
+	if Mpdebug {
 		fmt.Printf("\nconst %g", c)
 	}
-	_Mpmovecfix(&a.Val, 0)
-	a.Exp = 0
-	var f float64
-	var l int
-	var i int
-	if c == 0 {
-		goto out
-	}
-	if c < 0 {
-		a.Val.Neg = 1
-		c = -c
-	}
 
-	f, i = math.Frexp(c)
-	a.Exp = int16(i)
+	a.Val.SetFloat64(c)
 
-	for i := 0; i < 10; i++ {
-		f = f * Mpbase
-		l = int(math.Floor(f))
-		f = f - float64(l)
-		a.Exp -= Mpscale
-		a.Val.A[0] = l
-		if f == 0 {
-			break
-		}
-		_Mpshiftfix(&a.Val, Mpscale)
-	}
-
-out:
-	mpnorm(a)
-	if Mpdebug != 0 /*TypeKind(100016)*/ {
-		fmt.Printf(" = %v\n", Fconv(a, 0))
+	if Mpdebug {
+		fmt.Printf(" = %v\n", a)
 	}
 }
 
 func mpnegflt(a *Mpflt) {
-	a.Val.Neg ^= 1
+	a.Val.Neg(&a.Val)
 }
 
-func mptestflt(a *Mpflt) int {
-	if Mpdebug != 0 /*TypeKind(100016)*/ {
-		fmt.Printf("\n%v?", Fconv(a, 0))
-	}
-	s := sigfig(a)
-	if s != 0 {
-		s = +1
-		if a.Val.Neg != 0 {
-			s = -1
-		}
+//
+// floating point input
+// required syntax is [+-]d*[.]d*[e[+-]d*] or [+-]0xH*[e[+-]d*]
+//
+func mpatoflt(a *Mpflt, as string) {
+	for len(as) > 0 && (as[0] == ' ' || as[0] == '\t') {
+		as = as[1:]
 	}
 
-	if Mpdebug != 0 /*TypeKind(100016)*/ {
-		fmt.Printf(" = %d\n", s)
+	f, ok := a.Val.SetString(as)
+	if !ok {
+		// At the moment we lose precise error cause;
+		// the old code additionally distinguished between:
+		// - malformed hex constant
+		// - decimal point in hex constant
+		// - constant exponent out of range
+		// - decimal point and binary point in constant
+		// TODO(gri) use different conversion function or check separately
+		Yyerror("malformed constant: %s", as)
+		a.Val.SetUint64(0)
 	}
-	return s
+
+	if f.IsInf() {
+		Yyerror("constant too large: %s", as)
+		a.Val.SetUint64(0)
+	}
+}
+
+func (f *Mpflt) String() string {
+	return Fconv(f, 0)
+}
+
+func Fconv(fvp *Mpflt, flag int) string {
+	if flag&obj.FmtSharp == 0 {
+		return fvp.Val.Format('b', 0)
+	}
+
+	// use decimal format for error messages
+
+	// determine sign
+	f := &fvp.Val
+	var sign string
+	if fvp.Val.Signbit() {
+		sign = "-"
+		f = new(big.Float).Abs(f)
+	} else if flag&obj.FmtSign != 0 {
+		sign = "+"
+	}
+
+	// Use fmt formatting if in float64 range (common case).
+	if x, _ := f.Float64(); !math.IsInf(x, 0) {
+		return fmt.Sprintf("%s%.6g", sign, x)
+	}
+
+	// Out of float64 range. Do approximate manual to decimal
+	// conversion to avoid precise but possibly slow Float
+	// formatting. The exponent is > 0 since a negative out-
+	// of-range exponent would have underflowed and led to 0.
+	// f = mant * 2**exp
+	var mant big.Float
+	exp := float64(f.MantExp(&mant)) // 0.5 <= mant < 1.0, exp > 0
+
+	// approximate float64 mantissa m and decimal exponent d
+	// f ~ m * 10**d
+	m, _ := mant.Float64()            // 0.5 <= m < 1.0
+	d := exp * (math.Ln2 / math.Ln10) // log_10(2)
+
+	// adjust m for truncated (integer) decimal exponent e
+	e := int64(d)
+	m *= math.Pow(10, d-float64(e))
+	for m >= 10 {
+		m /= 10
+		e++
+	}
+
+	return fmt.Sprintf("%s%.5fe+%d", sign, m, e)
 }

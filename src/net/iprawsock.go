@@ -30,13 +30,6 @@ func (a *IPAddr) isWildcard() bool {
 	return a.IP.IsUnspecified()
 }
 
-func (a *IPAddr) toAddr() Addr {
-	if a == nil {
-		return nil
-	}
-	return a
-}
-
 // ResolveIPAddr parses addr as an IP address of the form "host" or
 // "ipv6-host%zone" and resolves the domain name on the network net,
 // which must be "ip", "ip4" or "ip6".
@@ -53,9 +46,9 @@ func ResolveIPAddr(net, addr string) (*IPAddr, error) {
 	default:
 		return nil, UnknownNetworkError(net)
 	}
-	a, err := resolveInternetAddr(afnet, addr, noDeadline)
+	addrs, err := internetAddrList(afnet, addr, noDeadline)
 	if err != nil {
 		return nil, err
 	}
-	return a.toAddr().(*IPAddr), nil
+	return addrs.first(isIPv4).(*IPAddr), nil
 }

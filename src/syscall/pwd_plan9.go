@@ -29,10 +29,8 @@ func fixwdLocked() {
 	if !wdSet {
 		return
 	}
-	wd, err := getwd()
-	if err != nil {
-		return
-	}
+	// always call chdir when getwd returns an error
+	wd, _ := getwd()
 	if wd == wdStr {
 		return
 	}

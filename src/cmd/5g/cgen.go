@@ -75,7 +75,7 @@ func gencmp0(n *gc.Node, t *gc.Type, o int, likely int, to *obj.Prog) {
 	gc.Regfree(&n1)
 }
 
-func stackcopy(n, res *gc.Node, osrc, odst, w int64) {
+func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
 	// determine alignment.
 	// want to avoid unaligned access, so have to use
 	// smaller operations for less aligned types.
@@ -85,7 +85,7 @@ func stackcopy(n, res *gc.Node, osrc, odst, w int64) {
 	var op int
 	switch align {
 	default:
-		gc.Fatal("sgen: invalid alignment %d for %v", align, gc.Tconv(n.Type, 0))
+		gc.Fatal("sgen: invalid alignment %d for %v", align, n.Type)
 
 	case 1:
 		op = arm.AMOVB
@@ -98,7 +98,7 @@ func stackcopy(n, res *gc.Node, osrc, odst, w int64) {
 	}
 
 	if w%int64(align) != 0 {
-		gc.Fatal("sgen: unaligned size %d (align=%d) for %v", w, align, gc.Tconv(n.Type, 0))
+		gc.Fatal("sgen: unaligned size %d (align=%d) for %v", w, align, n.Type)
 	}
 	c := int32(w / int64(align))
 
@@ -116,13 +116,13 @@ func stackcopy(n, res *gc.Node, osrc, odst, w int64) {
 	if op == arm.AMOVW && !gc.Nacl && dir > 0 && c >= 4 && c <= 128 {
 		var r0 gc.Node
 		r0.Op = gc.OREGISTER
-		r0.Val.U.Reg = arm.REG_R0
+		r0.Reg = arm.REG_R0
 		var r1 gc.Node
 		r1.Op = gc.OREGISTER
-		r1.Val.U.Reg = arm.REG_R0 + 1
+		r1.Reg = arm.REG_R0 + 1
 		var r2 gc.Node
 		r2.Op = gc.OREGISTER
-		r2.Val.U.Reg = arm.REG_R0 + 2
+		r2.Reg = arm.REG_R0 + 2
 
 		var src gc.Node
 		gc.Regalloc(&src, gc.Types[gc.Tptr], &r1)

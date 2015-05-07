@@ -23,8 +23,8 @@ func truncfltlit(oldv *Mpflt, t *Type) *Mpflt {
 	v.U.Fval = oldv
 	overflow(v, t)
 
-	fv := new(Mpflt)
-	*fv = *oldv
+	fv := newMpflt()
+	mpmovefltflt(fv, oldv)
 
 	// convert large precision literal floating
 	// into limited precision (float64 or float32)
@@ -103,7 +103,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
 			n.Val = toint(n.Val)
 		}
 		if t != nil && !Isint[t.Etype] {
-			Yyerror("invalid operation: %v (shift of type %v)", Nconv(n, 0), Tconv(t, 0))
+			Yyerror("invalid operation: %v (shift of type %v)", n, t)
 			t = nil
 		}
 
@@ -255,7 +255,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
 bad:
 	if n.Diag == 0 {
 		if t.Broke == 0 {
-			Yyerror("cannot convert %v to type %v", Nconv(n, 0), Tconv(t, 0))
+			Yyerror("cannot convert %v to type %v", n, t)
 		}
 		n.Diag = 1
 	}
@@ -276,7 +276,7 @@ func copyval(v Val) Val {
 		v.U.Xval = i
 
 	case CTFLT:
-		f := new(Mpflt)
+		f := newMpflt()
 		mpmovefltflt(f, v.U.Fval)
 		v.U.Fval = f
 
@@ -313,13 +313,13 @@ func tocplx(v Val) Val {
 func toflt(v Val) Val {
 	switch v.Ctype {
 	case CTINT, CTRUNE:
-		f := new(Mpflt)
+		f := newMpflt()
 		Mpmovefixflt(f, v.U.Xval)
 		v.Ctype = CTFLT
 		v.U.Fval = f
 
 	case CTCPLX:
-		f := new(Mpflt)
+		f := newMpflt()
 		mpmovefltflt(f, &v.U.Cval.Real)
 		if mpcmpfltc(&v.U.Cval.Imag, 0) != 0 {
 			Yyerror("constant %v%vi truncated to real", Fconv(&v.U.Cval.Real, obj.FmtSharp), Fconv(&v.U.Cval.Imag, obj.FmtSharp|obj.FmtSign))
@@ -363,7 +363,7 @@ func doesoverflow(v Val, t *Type) bool {
 	switch v.Ctype {
 	case CTINT, CTRUNE:
 		if !Isint[t.Etype] {
-			Fatal("overflow: %v integer constant", Tconv(t, 0))
+			Fatal("overflow: %v integer constant", t)
 		}
 		if Mpcmpfixfix(v.U.Xval, Minintval[t.Etype]) < 0 || Mpcmpfixfix(v.U.Xval, Maxintval[t.Etype]) > 0 {
 			return true
@@ -371,7 +371,7 @@ func doesoverflow(v Val, t *Type) bool {
 
 	case CTFLT:
 		if !Isfloat[t.Etype] {
-			Fatal("overflow: %v floating-point constant", Tconv(t, 0))
+			Fatal("overflow: %v floating-point constant", t)
 		}
 		if mpcmpfltflt(v.U.Fval, minfltval[t.Etype]) <= 0 || mpcmpfltflt(v.U.Fval, maxfltval[t.Etype]) >= 0 {
 			return true
@@ -379,7 +379,7 @@ func doesoverflow(v Val, t *Type) bool {
 
 	case CTCPLX:
 		if !Iscomplex[t.Etype] {
-			Fatal("overflow: %v complex constant", Tconv(t, 0))
+			Fatal("overflow: %v complex constant", t)
 		}
 		if mpcmpfltflt(&v.U.Cval.Real, minfltval[t.Etype]) <= 0 || mpcmpfltflt(&v.U.Cval.Real, maxfltval[t.Etype]) >= 0 || mpcmpfltflt(&v.U.Cval.Imag, minfltval[t.Etype]) <= 0 || mpcmpfltflt(&v.U.Cval.Imag, maxfltval[t.Etype]) >= 0 {
 			return true
@@ -402,13 +402,13 @@ func overflow(v Val, t *Type) {
 
 	switch v.Ctype {
 	case CTINT, CTRUNE:
-		Yyerror("constant %v overflows %v", Bconv(v.U.Xval, 0), Tconv(t, 0))
+		Yyerror("constant %v overflows %v", v.U.Xval, t)
 
 	case CTFLT:
-		Yyerror("constant %v overflows %v", Fconv(v.U.Fval, obj.FmtSharp), Tconv(t, 0))
+		Yyerror("constant %v overflows %v", Fconv(v.U.Fval, obj.FmtSharp), t)
 
 	case CTCPLX:
-		Yyerror("constant %v overflows %v", Fconv(v.U.Fval, obj.FmtSharp), Tconv(t, 0))
+		Yyerror("constant %v overflows %v", Fconv(v.U.Fval, obj.FmtSharp), t)
 	}
 }
 
@@ -577,7 +577,7 @@ func evconst(n *Node) {
 		switch uint32(n.Op)<<16 | uint32(v.Ctype) {
 		default:
 			if n.Diag == 0 {
-				Yyerror("illegal constant expression %v %v", Oconv(int(n.Op), 0), Tconv(nl.Type, 0))
+				Yyerror("illegal constant expression %v %v", Oconv(int(n.Op), 0), nl.Type)
 				n.Diag = 1
 			}
 
@@ -650,7 +650,7 @@ func evconst(n *Node) {
 			mpnegflt(&v.U.Cval.Imag)
 
 		case ONOT<<16 | CTBOOL:
-			if v.U.Bval == 0 {
+			if !v.U.Bval {
 				goto settrue
 			}
 			goto setfalse
@@ -744,7 +744,7 @@ func evconst(n *Node) {
 		if (v.Ctype == 0 || rv.Ctype == 0) && nerrors > 0 {
 			return
 		}
-		Fatal("constant type mismatch %v(%d) %v(%d)", Tconv(nl.Type, 0), v.Ctype, Tconv(nr.Type, 0), rv.Ctype)
+		Fatal("constant type mismatch %v(%d) %v(%d)", nl.Type, v.Ctype, nr.Type, rv.Ctype)
 	}
 
 	// run op
@@ -990,13 +990,13 @@ func evconst(n *Node) {
 		goto setfalse
 
 	case OOROR<<16 | CTBOOL:
-		if v.U.Bval != 0 || rv.U.Bval != 0 {
+		if v.U.Bval || rv.U.Bval {
 			goto settrue
 		}
 		goto setfalse
 
 	case OANDAND<<16 | CTBOOL:
-		if v.U.Bval != 0 && rv.U.Bval != 0 {
+		if v.U.Bval && rv.U.Bval {
 			goto settrue
 		}
 		goto setfalse
@@ -1051,7 +1051,7 @@ setfalse:
 
 illegal:
 	if n.Diag == 0 {
-		Yyerror("illegal constant expression: %v %v %v", Tconv(nl.Type, 0), Oconv(int(n.Op), 0), Tconv(nr.Type, 0))
+		Yyerror("illegal constant expression: %v %v %v", nl.Type, Oconv(int(n.Op), 0), nr.Type)
 		n.Diag = 1
 	}
 
@@ -1135,7 +1135,6 @@ func idealkind(n *Node) int {
 		} else {
 			return k2
 		}
-		fallthrough
 
 	case OREAL, OIMAG:
 		return CTFLT
@@ -1205,7 +1204,7 @@ func defaultlit(np **Node, t *Type) {
 			break
 		}
 
-		Yyerror("defaultlit: unknown literal: %v", Nconv(n, 0))
+		Yyerror("defaultlit: unknown literal: %v", n)
 
 	case CTxxx:
 		Fatal("defaultlit: idealkind is CTxxx: %v", Nconv(n, obj.FmtSign))
@@ -1418,7 +1417,7 @@ func Convconst(con *Node, t *Type, val *Val) {
 			i = Mpgetfix(val.U.Xval)
 
 		case CTBOOL:
-			i = int64(val.U.Bval)
+			i = int64(obj.Bool2int(val.U.Bval))
 
 		case CTNIL:
 			i = 0
@@ -1432,7 +1431,7 @@ func Convconst(con *Node, t *Type, val *Val) {
 	if Isfloat[tt] {
 		con.Val = toflt(con.Val)
 		if con.Val.Ctype != CTFLT {
-			Fatal("convconst ctype=%d %v", con.Val.Ctype, Tconv(t, 0))
+			Fatal("convconst ctype=%d %v", con.Val.Ctype, t)
 		}
 		if tt == TFLOAT32 {
 			con.Val.U.Fval = truncfltlit(con.Val.U.Fval, t)

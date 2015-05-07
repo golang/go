@@ -40,6 +40,8 @@ const (
 	NREGVAR = 32
 )
 
+var reg [x86.MAXREG]uint8
+
 var regname = []string{
 	".AX",
 	".CX",
@@ -100,12 +102,13 @@ func doregbits(r int) uint64 {
 
 // For ProgInfo.
 const (
-	AX = 1 << (x86.REG_AX - x86.REG_AX)
-	BX = 1 << (x86.REG_BX - x86.REG_AX)
-	CX = 1 << (x86.REG_CX - x86.REG_AX)
-	DX = 1 << (x86.REG_DX - x86.REG_AX)
-	DI = 1 << (x86.REG_DI - x86.REG_AX)
-	SI = 1 << (x86.REG_SI - x86.REG_AX)
+	AX  = 1 << (x86.REG_AX - x86.REG_AX)
+	BX  = 1 << (x86.REG_BX - x86.REG_AX)
+	CX  = 1 << (x86.REG_CX - x86.REG_AX)
+	DX  = 1 << (x86.REG_DX - x86.REG_AX)
+	DI  = 1 << (x86.REG_DI - x86.REG_AX)
+	SI  = 1 << (x86.REG_SI - x86.REG_AX)
+	R15 = 1 << (x86.REG_R15 - x86.REG_AX)
 )
 
 func RtoB(r int) uint64 {
@@ -123,7 +126,6 @@ func BtoR(b uint64) int {
 		// BP is part of the calling convention if framepointer_enabled.
 		b &^= (1 << (x86.REG_BP - x86.REG_AX))
 	}
-
 	if b == 0 {
 		return 0
 	}

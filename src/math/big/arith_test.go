@@ -155,6 +155,7 @@ var sumVW = []argVW{
 	{nat{1}, nat{1}, 0, 0},
 	{nat{0}, nat{_M}, 1, 1},
 	{nat{0, 0, 0, 0}, nat{_M, _M, _M, _M}, 1, 1},
+	{nat{585}, nat{314}, 271, 0},
 }
 
 var prodVW = []argVW{

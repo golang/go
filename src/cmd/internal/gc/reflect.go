@@ -335,13 +335,13 @@ func methods(t *Type) *Sig {
 	var method *Sym
 	for f := mt.Xmethod; f != nil; f = f.Down {
 		if f.Etype != TFIELD {
-			Fatal("methods: not field %v", Tconv(f, 0))
+			Fatal("methods: not field %v", f)
 		}
 		if f.Type.Etype != TFUNC || f.Type.Thistuple == 0 {
-			Fatal("non-method on %v method %v %v\n", Tconv(mt, 0), Sconv(f.Sym, 0), Tconv(f, 0))
+			Fatal("non-method on %v method %v %v\n", mt, f.Sym, f)
 		}
 		if getthisx(f.Type).Type == nil {
-			Fatal("receiver with no type on %v method %v %v\n", Tconv(mt, 0), Sconv(f.Sym, 0), Tconv(f, 0))
+			Fatal("receiver with no type on %v method %v %v\n", mt, f.Sym, f)
 		}
 		if f.Nointerface {
 			continue
@@ -484,13 +484,7 @@ func dimportpath(p *Pkg) {
 		dimportpath_gopkg.Name = "go"
 	}
 
-	var nam string
-	if p == localpkg {
-		// Note: myimportpath != "", or else dgopkgpath won't call dimportpath.
-		nam = "importpath." + pathtoprefix(myimportpath) + "."
-	} else {
-		nam = "importpath." + p.Prefix + "."
-	}
+	nam := "importpath." + p.Prefix + "."
 
 	n := Nod(ONAME, nil, nil)
 	n.Sym = Pkglookup(nam, dimportpath_gopkg)
@@ -499,7 +493,12 @@ func dimportpath(p *Pkg) {
 	n.Xoffset = 0
 	p.Pathsym = n.Sym
 
-	gdatastring(n, p.Path)
+	if p == localpkg {
+		// Note: myimportpath != "", or else dgopkgpath won't call dimportpath.
+		gdatastring(n, myimportpath)
+	} else {
+		gdatastring(n, p.Path)
+	}
 	ggloblsym(n.Sym, int32(Types[TSTRING].Width), obj.DUPOK|obj.RODATA)
 }
 
@@ -677,10 +676,62 @@ func haspointers(t *Type) bool {
 		fallthrough
 	default:
 		ret = true
+
+	case TFIELD:
+		Fatal("haspointers: unexpected type, %v", t)
 	}
 
-	t.Haspointers = 1 + uint8(bool2int(ret))
+	t.Haspointers = 1 + uint8(obj.Bool2int(ret))
 	return ret
+}
+
+// typeptrdata returns the length in bytes of the prefix of t
+// containing pointer data. Anything after this offset is scalar data.
+func typeptrdata(t *Type) uint64 {
+	if !haspointers(t) {
+		return 0
+	}
+
+	switch t.Etype {
+	case TPTR32,
+		TPTR64,
+		TUNSAFEPTR,
+		TFUNC,
+		TCHAN,
+		TMAP:
+		return uint64(Widthptr)
+
+	case TSTRING:
+		// struct { byte *str; intgo len; }
+		return uint64(Widthptr)
+
+	case TINTER:
+		// struct { Itab *tab;	void *data; } or
+		// struct { Type *type; void *data; }
+		return 2 * uint64(Widthptr)
+
+	case TARRAY:
+		if Isslice(t) {
+			// struct { byte *array; uintgo len; uintgo cap; }
+			return uint64(Widthptr)
+		}
+		// haspointers already eliminated t.Bound == 0.
+		return uint64(t.Bound-1)*uint64(t.Type.Width) + typeptrdata(t.Type)
+
+	case TSTRUCT:
+		// Find the last field that has pointers.
+		var lastPtrField *Type
+		for t1 := t.Type; t1 != nil; t1 = t1.Down {
+			if haspointers(t1.Type) {
+				lastPtrField = t1
+			}
+		}
+		return uint64(lastPtrField.Width) + typeptrdata(lastPtrField.Type)
+
+	default:
+		Fatal("typeptrdata: unexpected type, %v", t)
+		return 0
+	}
 }
 
 /*
@@ -729,6 +780,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	// actual type structure
 	//	type commonType struct {
 	//		size          uintptr
+	//		ptrsize       uintptr
 	//		hash          uint32
 	//		_             uint8
 	//		align         uint8
@@ -742,6 +794,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	//		zero          unsafe.Pointer
 	//	}
 	ot = duintptr(s, ot, uint64(t.Width))
+	ot = duintptr(s, ot, typeptrdata(t))
 
 	ot = duint32(s, ot, typehash(t))
 	ot = duint8(s, ot, 0) // unused
@@ -753,7 +806,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 		i = 1
 	}
 	if i&(i-1) != 0 {
-		Fatal("invalid alignment %d for %v", t.Align, Tconv(t, 0))
+		Fatal("invalid alignment %d for %v", t.Align, t)
 	}
 	ot = duint8(s, ot, t.Align) // align
 	ot = duint8(s, ot, t.Align) // fieldAlign
@@ -815,7 +868,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 			for i := 0; i < 2*Widthptr; i++ {
 				duint8(sbits, i, gcmask[i])
 			}
-			ggloblsym(sbits, 2*int32(Widthptr), obj.DUPOK|obj.RODATA)
+			ggloblsym(sbits, 2*int32(Widthptr), obj.DUPOK|obj.RODATA|obj.LOCAL)
 		}
 
 		ot = dsymptr(s, ot, sbits, 0)
@@ -852,10 +905,11 @@ func typelinksym(t *Type) *Sym {
 	// %-T is the complete, unambiguous type name.
 	// We want the types to end up sorted by string field,
 	// so use that first in the name, and then add :%-T to
-	// disambiguate. The names are a little long but they are
-	// discarded by the linker and do not end up in the symbol
-	// table of the final binary.
-	p := Tconv(t, obj.FmtLeft|obj.FmtUnsigned) + "/" + Tconv(t, obj.FmtLeft)
+	// disambiguate. We use a tab character as the separator to
+	// ensure the types appear sorted by their string field. The
+	// names are a little long but they are discarded by the linker
+	// and do not end up in the symbol table of the final binary.
+	p := Tconv(t, obj.FmtLeft|obj.FmtUnsigned) + "\t" + Tconv(t, obj.FmtLeft)
 
 	s := Pkglookup(p, typelinkpkg)
 
@@ -875,14 +929,14 @@ func typesymprefix(prefix string, t *Type) *Sym {
 
 func typenamesym(t *Type) *Sym {
 	if t == nil || (Isptr[t.Etype] && t.Type == nil) || isideal(t) {
-		Fatal("typename %v", Tconv(t, 0))
+		Fatal("typename %v", t)
 	}
 	s := typesym(t)
 	if s.Def == nil {
 		n := Nod(ONAME, nil, nil)
 		n.Sym = s
 		n.Type = Types[TUINT8]
-		n.Addable = 1
+		n.Addable = true
 		n.Ullman = 1
 		n.Class = PEXTERN
 		n.Xoffset = 0
@@ -899,7 +953,7 @@ func typename(t *Type) *Node {
 	s := typenamesym(t)
 	n := Nod(OADDR, s.Def, nil)
 	n.Type = Ptrto(s.Def.Type)
-	n.Addable = 1
+	n.Addable = true
 	n.Ullman = 2
 	n.Typecheck = 1
 	return n
@@ -948,7 +1002,7 @@ func isreflexive(t *Type) bool {
 
 	case TARRAY:
 		if Isslice(t) {
-			Fatal("slice can't be a map key: %v", Tconv(t, 0))
+			Fatal("slice can't be a map key: %v", t)
 		}
 		return isreflexive(t.Type)
 
@@ -962,7 +1016,7 @@ func isreflexive(t *Type) bool {
 		return true
 
 	default:
-		Fatal("bad type for map key: %v", Tconv(t, 0))
+		Fatal("bad type for map key: %v", t)
 		return false
 	}
 }
@@ -976,7 +1030,7 @@ func dtypesym(t *Type) *Sym {
 	}
 
 	if isideal(t) {
-		Fatal("dtypesym %v", Tconv(t, 0))
+		Fatal("dtypesym %v", t)
 	}
 
 	s := typesym(t)
@@ -1066,7 +1120,7 @@ ok:
 
 		ot = dcommontype(s, ot, t)
 		xt = ot - 3*Widthptr
-		ot = duint8(s, ot, uint8(bool2int(isddd)))
+		ot = duint8(s, ot, uint8(obj.Bool2int(isddd)))
 
 		// two slice headers: in and out.
 		ot = int(Rnd(int64(ot), int64(Widthptr)))
@@ -1146,7 +1200,7 @@ ok:
 		}
 
 		ot = duint16(s, ot, uint16(mapbucket(t).Width))
-		ot = duint8(s, ot, uint8(bool2int(isreflexive(t.Down))))
+		ot = duint8(s, ot, uint8(obj.Bool2int(isreflexive(t.Down))))
 
 	case TPTR32, TPTR64:
 		if t.Type.Etype == TANY {
@@ -1203,7 +1257,7 @@ ok:
 	}
 
 	ot = dextratype(s, ot, t, xt)
-	ggloblsym(s, int32(ot), int8(dupok|obj.RODATA))
+	ggloblsym(s, int32(ot), int16(dupok|obj.RODATA))
 
 	// generate typelink.foo pointing at s = type.foo.
 	// The linker will leave a table of all the typelinks for
@@ -1212,10 +1266,24 @@ ok:
 	// we want be able to find.
 	if t.Sym == nil {
 		switch t.Etype {
-		case TARRAY, TCHAN, TMAP:
+		case TPTR32, TPTR64:
+			// The ptrto field of the type data cannot be relied on when
+			// dynamic linking: a type T may be defined in a module that makes
+			// no use of pointers to that type, but another module can contain
+			// a package that imports the first one and does use *T pointers.
+			// The second module will end up defining type data for *T and a
+			// type.*T symbol pointing at it. It's important that calling
+			// .PtrTo() on the refect.Type for T returns this type data and
+			// not some synthesized object, so we need reflect to be able to
+			// find it!
+			if !Ctxt.Flag_dynlink {
+				break
+			}
+			fallthrough
+		case TARRAY, TCHAN, TFUNC, TMAP:
 			slink := typelinksym(t)
 			dsymptr(slink, 0, s, 0)
-			ggloblsym(slink, int32(Widthptr), int8(dupok|obj.RODATA))
+			ggloblsym(slink, int32(Widthptr), int16(dupok|obj.RODATA))
 		}
 	}
 
@@ -1390,7 +1458,7 @@ func gengcmask(t *Type, gcmask []byte) {
 	xoffset := int64(0)
 
 	vec := bvalloc(2 * int32(Widthptr) * 8)
-	twobitwalktype1(t, &xoffset, vec)
+	onebitwalktype1(t, &xoffset, vec)
 
 	// Unfold the mask for the GC bitmap format:
 	// 4 bits per word, 2 high bits encode pointer info.
@@ -1405,13 +1473,11 @@ func gengcmask(t *Type, gcmask []byte) {
 	var bits uint8
 	for j := int64(0); j <= (nptr % 2); j++ {
 		for i = 0; i < nptr; i++ {
-			bits = uint8(bvget(vec, int32(i*obj.BitsPerPointer)) | bvget(vec, int32(i*obj.BitsPerPointer+1))<<1)
-
-			// Some fake types (e.g. Hmap) has missing fileds.
-			// twobitwalktype1 generates BitsDead for that holes,
-			// replace BitsDead with BitsScalar.
-			if bits == obj.BitsDead {
+			// convert 0=scalar / 1=pointer to GC bit encoding
+			if bvget(vec, int32(i)) == 0 {
 				bits = obj.BitsScalar
+			} else {
+				bits = obj.BitsPointer
 			}
 			bits <<= 2
 			if half {
@@ -1616,6 +1682,6 @@ func gengcprog1(g *ProgGen, t *Type, xoffset *int64) {
 		*xoffset += t.Width - o
 
 	default:
-		Fatal("gengcprog1: unexpected type, %v", Tconv(t, 0))
+		Fatal("gengcprog1: unexpected type, %v", t)
 	}
 }

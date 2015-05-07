@@ -22,32 +22,6 @@ func _runtime_cgocallback(unsafe.Pointer, unsafe.Pointer, uintptr)
 //go:cgo_export_static crosscall2
 //go:cgo_export_dynamic crosscall2
 
-// Allocate memory.  This allocates the requested number of bytes in
-// memory controlled by the Go runtime.  The allocated memory will be
-// zeroed.  You are responsible for ensuring that the Go garbage
-// collector can see a pointer to the allocated memory for as long as
-// it is valid, e.g., by storing a pointer in a local variable in your
-// C function, or in memory allocated by the Go runtime.  If the only
-// pointers are in a C global variable or in memory allocated via
-// malloc, then the Go garbage collector may collect the memory.
-
-// Call like this in code compiled with gcc:
-//   struct { size_t len; void *ret; } a;
-//   a.len = /* number of bytes to allocate */;
-//   crosscall2(_cgo_allocate, &a, sizeof a);
-//   /* Here a.ret is a pointer to the allocated memory.  */
-
-//go:linkname _runtime_cgo_allocate_internal runtime._cgo_allocate_internal
-var _runtime_cgo_allocate_internal byte
-
-//go:linkname _cgo_allocate _cgo_allocate
-//go:cgo_export_static _cgo_allocate
-//go:cgo_export_dynamic _cgo_allocate
-//go:nosplit
-func _cgo_allocate(a unsafe.Pointer, n int32) {
-	_runtime_cgocallback(unsafe.Pointer(&_runtime_cgo_allocate_internal), a, uintptr(n))
-}
-
 // Panic.  The argument is converted into a Go string.
 
 // Call like this in code compiled with gcc:
@@ -90,6 +64,32 @@ var _cgo_free = &x_cgo_free
 //go:linkname _cgo_thread_start _cgo_thread_start
 var x_cgo_thread_start byte
 var _cgo_thread_start = &x_cgo_thread_start
+
+// Creates a new system thread without updating any Go state.
+//
+// This method is invoked during shared library loading to create a new OS
+// thread to perform the runtime initialization.  This method is similar to
+// _cgo_sys_thread_start except that it doesn't update any Go state.
+
+//go:cgo_import_static x_cgo_sys_thread_create
+//go:linkname x_cgo_sys_thread_create x_cgo_sys_thread_create
+//go:linkname _cgo_sys_thread_create _cgo_sys_thread_create
+var x_cgo_sys_thread_create byte
+var _cgo_sys_thread_create = &x_cgo_sys_thread_create
+
+// Notifies that the runtime has been intialized.
+//
+// We currently block at every CGO entry point (via _cgo_wait_runtime_init_done)
+// to ensure that the runtime has been initialized before the CGO call is
+// executed.  This is necessary for shared libraries where we kickoff runtime
+// initialization in a separate thread and return without waiting for this
+// thread to complete the init.
+
+//go:cgo_import_static x_cgo_notify_runtime_init_done
+//go:linkname x_cgo_notify_runtime_init_done x_cgo_notify_runtime_init_done
+//go:linkname _cgo_notify_runtime_init_done _cgo_notify_runtime_init_done
+var x_cgo_notify_runtime_init_done byte
+var _cgo_notify_runtime_init_done = &x_cgo_notify_runtime_init_done
 
 //go:cgo_export_static _cgo_topofstack
 //go:cgo_export_dynamic _cgo_topofstack

@@ -319,7 +319,7 @@ func hasPrefix(s, prefix string) bool {
 	return len(s) >= len(prefix) && s[0:len(prefix)] == prefix
 }
 
-// Variant of LastIndex from the strings package.
+// LastIndexByte from the strings package.
 func lastIndex(s string, sep byte) int {
 	for i := len(s) - 1; i >= 0; i-- {
 		if s[i] == sep {

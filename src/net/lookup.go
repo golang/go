@@ -4,7 +4,10 @@
 
 package net
 
-import "time"
+import (
+	"internal/singleflight"
+	"time"
+)
 
 // protocols contains minimal mappings between internet protocol
 // names and numbers for platforms that don't have a complete list of
@@ -39,14 +42,14 @@ func LookupIP(host string) (ips []IP, err error) {
 	return
 }
 
-var lookupGroup singleflight
+var lookupGroup singleflight.Group
 
 // lookupIPMerge wraps lookupIP, but makes sure that for any given
 // host, only one lookup is in-flight at a time. The returned memory
 // is always owned by the caller.
 func lookupIPMerge(host string) (addrs []IPAddr, err error) {
 	addrsi, err, shared := lookupGroup.Do(host, func() (interface{}, error) {
-		return lookupIP(host)
+		return testHookLookupIP(lookupIP, host)
 	})
 	return lookupIPReturn(addrsi, err, shared)
 }
@@ -84,7 +87,7 @@ func lookupIPDeadline(host string, deadline time.Time) (addrs []IPAddr, err erro
 	defer t.Stop()
 
 	ch := lookupGroup.DoChan(host, func() (interface{}, error) {
-		return lookupIP(host)
+		return testHookLookupIP(lookupIP, host)
 	})
 
 	select {
@@ -98,7 +101,7 @@ func lookupIPDeadline(host string, deadline time.Time) (addrs []IPAddr, err erro
 		return nil, errTimeout
 
 	case r := <-ch:
-		return lookupIPReturn(r.v, r.err, r.shared)
+		return lookupIPReturn(r.Val, r.Err, r.Shared)
 	}
 }
 
@@ -129,22 +132,22 @@ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err err
 }
 
 // LookupMX returns the DNS MX records for the given domain name sorted by preference.
-func LookupMX(name string) (mx []*MX, err error) {
+func LookupMX(name string) (mxs []*MX, err error) {
 	return lookupMX(name)
 }
 
 // LookupNS returns the DNS NS records for the given domain name.
-func LookupNS(name string) (ns []*NS, err error) {
+func LookupNS(name string) (nss []*NS, err error) {
 	return lookupNS(name)
 }
 
 // LookupTXT returns the DNS TXT records for the given domain name.
-func LookupTXT(name string) (txt []string, err error) {
+func LookupTXT(name string) (txts []string, err error) {
 	return lookupTXT(name)
 }
 
 // LookupAddr performs a reverse lookup for the given address, returning a list
 // of names mapping to that address.
-func LookupAddr(addr string) (name []string, err error) {
+func LookupAddr(addr string) (names []string, err error) {
 	return lookupAddr(addr)
 }

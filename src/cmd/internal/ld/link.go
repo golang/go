@@ -30,25 +30,33 @@
 
 package ld
 
-import "encoding/binary"
+import (
+	"cmd/internal/obj"
+	"debug/elf"
+	"encoding/binary"
+)
 
 type LSym struct {
-	Name        string
-	Extname     string
-	Type        int16
-	Version     int16
-	Dupok       uint8
-	Cfunc       uint8
-	External    uint8
-	Nosplit     uint8
-	Reachable   bool
-	Cgoexport   uint8
-	Special     uint8
-	Stkcheck    uint8
-	Hide        uint8
-	Leaf        uint8
-	Localentry  uint8
-	Onlist      uint8
+	Name       string
+	Extname    string
+	Type       int16
+	Version    int16
+	Dupok      uint8
+	Cfunc      uint8
+	External   uint8
+	Nosplit    uint8
+	Reachable  bool
+	Cgoexport  uint8
+	Special    uint8
+	Stkcheck   uint8
+	Hide       uint8
+	Leaf       uint8
+	Localentry uint8
+	Onlist     uint8
+	// ElfType is set for symbols read from shared libraries by ldshlibsyms. It
+	// is not set for symbols defined by the packages being linked or by symbols
+	// read by ldelf (and so is left as elf.STT_NOTYPE).
+	ElfType     elf.SymType
 	Dynid       int32
 	Plt         int32
 	Got         int32
@@ -74,6 +82,8 @@ type LSym struct {
 	Pcln        *Pcln
 	P           []byte
 	R           []Reloc
+	Local       bool
+	gcmask      []byte
 }
 
 type Reloc struct {
@@ -104,7 +114,7 @@ type Link struct {
 	Arch      *LinkArch
 	Debugasm  int32
 	Debugvlog int32
-	Bso       *Biobuf
+	Bso       *obj.Biobuf
 	Windows   int32
 	Goroot    string
 	Hash      map[symVer]*LSym
@@ -113,6 +123,7 @@ type Link struct {
 	Tlsg      *LSym
 	Libdir    []string
 	Library   []Library
+	Shlibs    []string
 	Tlsoffset int
 	Diag      func(string, ...interface{})
 	Cursym    *LSym
@@ -137,6 +148,7 @@ type Library struct {
 	Srcref string
 	File   string
 	Pkg    string
+	Shlib  string
 }
 
 type Pcln struct {
@@ -170,71 +182,6 @@ type Pciter struct {
 	done    int
 }
 
-// LSym.type
-const (
-	Sxxx = iota
-	STEXT
-	SELFRXSECT
-	STYPE
-	SSTRING
-	SGOSTRING
-	SGOFUNC
-	SRODATA
-	SFUNCTAB
-	STYPELINK
-	SSYMTAB
-	SPCLNTAB
-	SELFROSECT
-	SMACHOPLT
-	SELFSECT
-	SMACHO
-	SMACHOGOT
-	SWINDOWS
-	SELFGOT
-	SNOPTRDATA
-	SINITARR
-	SDATA
-	SBSS
-	SNOPTRBSS
-	STLSBSS
-	SXREF
-	SMACHOSYMSTR
-	SMACHOSYMTAB
-	SMACHOINDIRECTPLT
-	SMACHOINDIRECTGOT
-	SFILE
-	SFILEPATH
-	SCONST
-	SDYNIMPORT
-	SHOSTOBJ
-	SSUB    = 1 << 8
-	SMASK   = SSUB - 1
-	SHIDDEN = 1 << 9
-)
-
-// Reloc.type
-const (
-	R_ADDR = 1 + iota
-	R_ADDRPOWER
-	R_SIZE
-	R_CALL
-	R_CALLARM
-	R_CALLARM64
-	R_CALLIND
-	R_CALLPOWER
-	R_CONST
-	R_PCREL
-	R_TLS
-	R_TLS_LE
-	R_TLS_IE
-	R_GOTOFF
-	R_PLT0
-	R_PLT1
-	R_PLT2
-	R_USEFIELD
-	R_POWER_TOC
-)
-
 // Reloc.variant
 const (
 	RV_NONE = iota
@@ -246,12 +193,6 @@ const (
 	RV_TYPE_MASK      = RV_CHECK_OVERFLOW - 1
 )
 
-// Auto.name
-const (
-	A_AUTO = 1 + iota
-	A_PARAM
-)
-
 const (
 	LINKHASH = 100003
 )
@@ -259,32 +200,10 @@ const (
 // Pcdata iterator.
 //	for(pciterinit(ctxt, &it, &pcd); !it.done; pciternext(&it)) { it.value holds in [it.pc, it.nextpc) }
 
-// symbol version, incremented each time a file is loaded.
-// version==1 is reserved for savehist.
-const (
-	HistVersion = 1
-)
-
 // Link holds the context for writing object code from a compiler
 // to be linker input or for reading that input into the linker.
 
 // LinkArch is the definition of a single architecture.
-
-/* executable header types */
-const (
-	Hunknown = 0 + iota
-	Hdarwin
-	Hdragonfly
-	Helf
-	Hfreebsd
-	Hlinux
-	Hnacl
-	Hnetbsd
-	Hopenbsd
-	Hplan9
-	Hsolaris
-	Hwindows
-)
 
 const (
 	LinkAuto = 0 + iota

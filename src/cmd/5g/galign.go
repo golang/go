@@ -23,7 +23,7 @@ var MAXWIDTH int64 = (1 << 32) - 1
 
 /*
  * go declares several platform-specific type aliases:
- * int, uint, float, and uintptr
+ * int, uint, and uintptr
  */
 var typedefs = []gc.Typedef{
 	gc.Typedef{"int", gc.TINT, gc.TINT32},
@@ -35,7 +35,6 @@ func betypeinit() {
 	gc.Widthptr = 4
 	gc.Widthint = 4
 	gc.Widthreg = 4
-
 }
 
 func main() {
@@ -64,6 +63,7 @@ func main() {
 	gc.Thearch.Defframe = defframe
 	gc.Thearch.Excise = excise
 	gc.Thearch.Expandchecks = expandchecks
+	gc.Thearch.Getg = getg
 	gc.Thearch.Gins = gins
 	gc.Thearch.Ginscon = ginscon
 	gc.Thearch.Ginsnop = ginsnop
@@ -76,7 +76,7 @@ func main() {
 	gc.Thearch.Sameaddr = sameaddr
 	gc.Thearch.Smallindir = smallindir
 	gc.Thearch.Stackaddr = stackaddr
-	gc.Thearch.Stackcopy = stackcopy
+	gc.Thearch.Blockcopy = blockcopy
 	gc.Thearch.Sudoaddable = sudoaddable
 	gc.Thearch.Sudoclean = sudoclean
 	gc.Thearch.Excludedregs = excludedregs

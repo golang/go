@@ -33,7 +33,7 @@ TEXT runtime·open(SB),NOSPLIT,$-8
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$-8
+TEXT runtime·closefd(SB),NOSPLIT,$-8
 	MOVW fd+0(FP), R0
 	SWI $0xa00006
 	MOVW.CS	$-1, R0

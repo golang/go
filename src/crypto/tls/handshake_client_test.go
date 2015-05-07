@@ -9,6 +9,8 @@ import (
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/base64"
+	"encoding/binary"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -49,6 +51,10 @@ type clientTest struct {
 	// key, if not nil, contains either a *rsa.PrivateKey or
 	// *ecdsa.PrivateKey which is the private key for the reference server.
 	key interface{}
+	// extensions, if not nil, contains a list of extension data to be returned
+	// from the ServerHello. The data should be in standard TLS format with
+	// a 2-byte uint16 type, 2-byte data length, followed by the extension data.
+	extensions [][]byte
 	// validate, if not nil, is a function that will be called with the
 	// ConnectionState of the resulting connection. It returns a non-nil
 	// error if the ConnectionState is unacceptable.
@@ -110,6 +116,19 @@ func (test *clientTest) connFromCommand() (conn *recordingConn, child *exec.Cmd,
 	// test, this isn't too bad.
 	const serverPort = 24323
 	command = append(command, "-accept", strconv.Itoa(serverPort))
+
+	if len(test.extensions) > 0 {
+		var serverInfo bytes.Buffer
+		for _, ext := range test.extensions {
+			pem.Encode(&serverInfo, &pem.Block{
+				Type:  fmt.Sprintf("SERVERINFO FOR EXTENSION %d", binary.BigEndian.Uint16(ext)),
+				Bytes: ext,
+			})
+		}
+		serverInfoPath := tempFile(serverInfo.String())
+		defer os.Remove(serverInfoPath)
+		command = append(command, "-serverinfo", serverInfoPath)
+	}
 
 	cmd := exec.Command(command[0], command[1:]...)
 	stdin = blockingSource(make(chan bool))
@@ -193,7 +212,7 @@ func (test *clientTest) run(t *testing.T, write bool) {
 		}
 		if test.validate != nil {
 			if err := test.validate(client.ConnectionState()); err != nil {
-				t.Logf("validate callback returned error: %s", err)
+				t.Errorf("validate callback returned error: %s", err)
 			}
 		}
 		client.Close()
@@ -394,7 +413,7 @@ func TestClientResumption(t *testing.T) {
 	}
 
 	testResumeState := func(test string, didResume bool) {
-		hs, err := testHandshake(clientConfig, serverConfig)
+		_, hs, err := testHandshake(clientConfig, serverConfig)
 		if err != nil {
 			t.Fatalf("%s: handshake failed: %s", test, err)
 		}
@@ -403,14 +422,37 @@ func TestClientResumption(t *testing.T) {
 		}
 	}
 
-	testResumeState("Handshake", false)
-	testResumeState("Resume", true)
-
-	if _, err := io.ReadFull(serverConfig.rand(), serverConfig.SessionTicketKey[:]); err != nil {
-		t.Fatalf("Failed to invalidate SessionTicketKey")
+	getTicket := func() []byte {
+		return clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).state.sessionTicket
 	}
+	randomKey := func() [32]byte {
+		var k [32]byte
+		if _, err := io.ReadFull(serverConfig.rand(), k[:]); err != nil {
+			t.Fatalf("Failed to read new SessionTicketKey: %s", err)
+		}
+		return k
+	}
+
+	testResumeState("Handshake", false)
+	ticket := getTicket()
+	testResumeState("Resume", true)
+	if !bytes.Equal(ticket, getTicket()) {
+		t.Fatal("first ticket doesn't match ticket after resumption")
+	}
+
+	key2 := randomKey()
+	serverConfig.SetSessionTicketKeys([][32]byte{key2})
+
 	testResumeState("InvalidSessionTicketKey", false)
 	testResumeState("ResumeAfterInvalidSessionTicketKey", true)
+
+	serverConfig.SetSessionTicketKeys([][32]byte{randomKey(), key2})
+	ticket = getTicket()
+	testResumeState("KeyChange", true)
+	if bytes.Equal(ticket, getTicket()) {
+		t.Fatal("new ticket wasn't included while resuming")
+	}
+	testResumeState("KeyChangeFinish", true)
 
 	clientConfig.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_RC4_128_SHA}
 	testResumeState("DifferentCipherSuite", false)
@@ -501,6 +543,44 @@ func TestHandshakeClientALPNNoMatch(t *testing.T) {
 			// There's no overlap so OpenSSL will not select a protocol.
 			if state.NegotiatedProtocol != "" {
 				return fmt.Errorf("Got protocol %q, wanted ''", state.NegotiatedProtocol)
+			}
+			return nil
+		},
+	}
+	runClientTestTLS12(t, test)
+}
+
+// sctsBase64 contains data from `openssl s_client -serverinfo 18 -connect ritter.vg:443`
+const sctsBase64 = "ABIBaQFnAHUApLkJkLQYWBSHuxOizGdwCjw1mAT5G9+443fNDsgN3BAAAAFHl5nuFgAABAMARjBEAiAcS4JdlW5nW9sElUv2zvQyPoZ6ejKrGGB03gjaBZFMLwIgc1Qbbn+hsH0RvObzhS+XZhr3iuQQJY8S9G85D9KeGPAAdgBo9pj4H2SCvjqM7rkoHUz8cVFdZ5PURNEKZ6y7T0/7xAAAAUeX4bVwAAAEAwBHMEUCIDIhFDgG2HIuADBkGuLobU5a4dlCHoJLliWJ1SYT05z6AiEAjxIoZFFPRNWMGGIjskOTMwXzQ1Wh2e7NxXE1kd1J0QsAdgDuS723dc5guuFCaR+r4Z5mow9+X7By2IMAxHuJeqj9ywAAAUhcZIqHAAAEAwBHMEUCICmJ1rBT09LpkbzxtUC+Hi7nXLR0J+2PmwLp+sJMuqK+AiEAr0NkUnEVKVhAkccIFpYDqHOlZaBsuEhWWrYpg2RtKp0="
+
+func TestHandshakClientSCTs(t *testing.T) {
+	config := *testConfig
+
+	scts, err := base64.StdEncoding.DecodeString(sctsBase64)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	test := &clientTest{
+		name: "SCT",
+		// Note that this needs OpenSSL 1.0.2 because that is the first
+		// version that supports the -serverinfo flag.
+		command:    []string{"openssl", "s_server"},
+		config:     &config,
+		extensions: [][]byte{scts},
+		validate: func(state ConnectionState) error {
+			expectedSCTs := [][]byte{
+				scts[8:125],
+				scts[127:245],
+				scts[247:],
+			}
+			if n := len(state.SignedCertificateTimestamps); n != len(expectedSCTs) {
+				return fmt.Errorf("Got %d scts, wanted %d", n, len(expectedSCTs))
+			}
+			for i, expected := range expectedSCTs {
+				if sct := state.SignedCertificateTimestamps[i]; !bytes.Equal(sct, expected) {
+					return fmt.Errorf("SCT #%d contained %x, expected %x", i, sct, expected)
+				}
 			}
 			return nil
 		},

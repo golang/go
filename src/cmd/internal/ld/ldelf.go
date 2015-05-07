@@ -265,7 +265,7 @@ type ElfSect struct {
 }
 
 type ElfObj struct {
-	f         *Biobuf
+	f         *obj.Biobuf
 	base      int64 // offset in f where ELF begins
 	length    int64 // length of ELF
 	is64      int
@@ -315,13 +315,13 @@ func valuecmp(a *LSym, b *LSym) int {
 	return 0
 }
 
-func ldelf(f *Biobuf, pkg string, length int64, pn string) {
+func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
 	if Debug['v'] != 0 {
 		fmt.Fprintf(&Bso, "%5.2f ldelf %s\n", obj.Cputime(), pn)
 	}
 
 	Ctxt.Version++
-	base := int32(Boffset(f))
+	base := int32(obj.Boffset(f))
 
 	var add uint64
 	var e binary.ByteOrder
@@ -344,7 +344,7 @@ func ldelf(f *Biobuf, pkg string, length int64, pn string) {
 	var sect *ElfSect
 	var sym ElfSym
 	var symbols []*LSym
-	if Bread(f, hdrbuf[:]) != len(hdrbuf) {
+	if obj.Bread(f, hdrbuf[:]) != len(hdrbuf) {
 		goto bad
 	}
 	hdr = new(ElfHdrBytes)
@@ -457,7 +457,7 @@ func ldelf(f *Biobuf, pkg string, length int64, pn string) {
 
 	elfobj.nsect = uint(elfobj.shnum)
 	for i := 0; uint(i) < elfobj.nsect; i++ {
-		if Bseek(f, int64(uint64(base)+elfobj.shoff+uint64(int64(i)*int64(elfobj.shentsize))), 0) < 0 {
+		if obj.Bseek(f, int64(uint64(base)+elfobj.shoff+uint64(int64(i)*int64(elfobj.shentsize))), 0) < 0 {
 			goto bad
 		}
 		sect = &elfobj.sect[i]
@@ -567,21 +567,21 @@ func ldelf(f *Biobuf, pkg string, length int64, pn string) {
 			goto bad
 
 		case ElfSectFlagAlloc:
-			s.Type = SRODATA
+			s.Type = obj.SRODATA
 
 		case ElfSectFlagAlloc + ElfSectFlagWrite:
 			if sect.type_ == ElfSectNobits {
-				s.Type = SNOPTRBSS
+				s.Type = obj.SNOPTRBSS
 			} else {
-				s.Type = SNOPTRDATA
+				s.Type = obj.SNOPTRDATA
 			}
 
 		case ElfSectFlagAlloc + ElfSectFlagExec:
-			s.Type = STEXT
+			s.Type = obj.STEXT
 		}
 
 		if sect.name == ".got" || sect.name == ".toc" {
-			s.Type = SELFGOT
+			s.Type = obj.SELFGOT
 		}
 		if sect.type_ == ElfSectProgbits {
 			s.P = sect.base
@@ -597,11 +597,6 @@ func ldelf(f *Biobuf, pkg string, length int64, pn string) {
 	// symbol 0 is the null symbol.
 	symbols = make([]*LSym, elfobj.nsymtab)
 
-	if symbols == nil {
-		Diag("out of memory")
-		Errorexit()
-	}
-
 	for i := 1; i < elfobj.nsymtab; i++ {
 		if err = readelfsym(elfobj, i, &sym, 1); err != nil {
 			goto bad
@@ -615,8 +610,8 @@ func ldelf(f *Biobuf, pkg string, length int64, pn string) {
 			if uint64(s.Size) < sym.size {
 				s.Size = int64(sym.size)
 			}
-			if s.Type == 0 || s.Type == SXREF {
-				s.Type = SNOPTRBSS
+			if s.Type == 0 || s.Type == obj.SXREF {
+				s.Type = obj.SNOPTRBSS
 			}
 			continue
 		}
@@ -643,20 +638,19 @@ func ldelf(f *Biobuf, pkg string, length int64, pn string) {
 			if s.Dupok != 0 {
 				continue
 			}
-			Diag("%s: duplicate symbol reference: %s in both %s and %s", pn, s.Name, s.Outer.Name, sect.sym.Name)
-			Errorexit()
+			Exitf("%s: duplicate symbol reference: %s in both %s and %s", pn, s.Name, s.Outer.Name, sect.sym.Name)
 		}
 
 		s.Sub = sect.sym.Sub
 		sect.sym.Sub = s
-		s.Type = sect.sym.Type | s.Type&^SMASK | SSUB
+		s.Type = sect.sym.Type | s.Type&^obj.SMASK | obj.SSUB
 		if s.Cgoexport&CgoExportDynamic == 0 {
 			s.Dynimplib = "" // satisfy dynimport
 		}
 		s.Value = int64(sym.value)
 		s.Size = int64(sym.size)
 		s.Outer = sect.sym
-		if sect.sym.Type == STEXT {
+		if sect.sym.Type == obj.STEXT {
 			if s.External != 0 && s.Dupok == 0 {
 				Diag("%s: duplicate definition of %s", pn, s.Name)
 			}
@@ -683,7 +677,7 @@ func ldelf(f *Biobuf, pkg string, length int64, pn string) {
 		if s.Sub != nil {
 			s.Sub = listsort(s.Sub, valuecmp, listsubp)
 		}
-		if s.Type == STEXT {
+		if s.Type == obj.STEXT {
 			if s.Onlist != 0 {
 				log.Fatalf("symbol %s listed multiple times", s.Name)
 			}
@@ -832,7 +826,7 @@ func elfmap(elfobj *ElfObj, sect *ElfSect) (err error) {
 
 	sect.base = make([]byte, sect.size)
 	err = fmt.Errorf("short read")
-	if Bseek(elfobj.f, int64(uint64(elfobj.base)+sect.off), 0) < 0 || Bread(elfobj.f, sect.base) != len(sect.base) {
+	if obj.Bseek(elfobj.f, int64(uint64(elfobj.base)+sect.off), 0) < 0 || obj.Bread(elfobj.f, sect.base) != len(sect.base) {
 		return err
 	}
 
@@ -899,7 +893,7 @@ func readelfsym(elfobj *ElfObj, i int, sym *ElfSym, needSym int) (err error) {
 				// set dupok generally. See http://codereview.appspot.com/5823055/
 				// comment #5 for details.
 				if s != nil && sym.other == 2 {
-					s.Type |= SHIDDEN
+					s.Type |= obj.SHIDDEN
 					s.Dupok = 1
 				}
 			}
@@ -916,7 +910,7 @@ func readelfsym(elfobj *ElfObj, i int, sym *ElfSym, needSym int) (err error) {
 				// so put it in the hash table.
 				if needSym != 0 {
 					s = Linklookup(Ctxt, sym.name, Ctxt.Version)
-					s.Type |= SHIDDEN
+					s.Type |= obj.SHIDDEN
 				}
 
 				break
@@ -928,14 +922,14 @@ func readelfsym(elfobj *ElfObj, i int, sym *ElfSym, needSym int) (err error) {
 				// don't bother to add them into hash table
 				s = linknewsym(Ctxt, sym.name, Ctxt.Version)
 
-				s.Type |= SHIDDEN
+				s.Type |= obj.SHIDDEN
 			}
 
 		case ElfSymBindWeak:
 			if needSym != 0 {
 				s = linknewsym(Ctxt, sym.name, 0)
 				if sym.other == 2 {
-					s.Type |= SHIDDEN
+					s.Type |= obj.SHIDDEN
 				}
 			}
 
@@ -946,7 +940,7 @@ func readelfsym(elfobj *ElfObj, i int, sym *ElfSym, needSym int) (err error) {
 	}
 
 	if s != nil && s.Type == 0 && sym.type_ != ElfSymTypeSection {
-		s.Type = SXREF
+		s.Type = obj.SXREF
 	}
 	sym.sym = s
 

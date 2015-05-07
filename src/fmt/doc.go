@@ -138,20 +138,23 @@
 	formatting considerations apply for operands that implement
 	certain interfaces. In order of application:
 
-	1. If an operand implements the Formatter interface, it will
+	1. If the operand is a reflect.Value, the concrete value it
+	holds is printed as if it was the operand.
+
+	2. If an operand implements the Formatter interface, it will
 	be invoked. Formatter provides fine control of formatting.
 
-	2. If the %v verb is used with the # flag (%#v) and the operand
+	3. If the %v verb is used with the # flag (%#v) and the operand
 	implements the GoStringer interface, that will be invoked.
 
 	If the format (which is implicitly %v for Println etc.) is valid
 	for a string (%s %q %v %x %X), the following two rules apply:
 
-	3. If an operand implements the error interface, the Error method
+	4. If an operand implements the error interface, the Error method
 	will be invoked to convert the object to a string, which will then
 	be formatted as required by the verb (if any).
 
-	4. If an operand implements method String() string, that method
+	5. If an operand implements method String() string, that method
 	will be invoked to convert the object to a string, which will then
 	be formatted as required by the verb (if any).
 

@@ -192,7 +192,7 @@ func Main() {
 	flag.Var((*count)(&debug['S']), "S", "print assembly and machine code")
 	flag.Var((*count)(&debug['m']), "m", "debug preprocessor macros")
 	flag.StringVar(&outfile, "o", "", "file: set output file")
-	flag.StringVar(&Ctxt.Trimpath, "trimpath", "", "prefix: remove prefix from recorded source file paths")
+	flag.StringVar(&Ctxt.LineHist.TrimPathPrefix, "trimpath", "", "prefix: remove prefix from recorded source file paths")
 
 	flag.Parse()
 
@@ -209,7 +209,7 @@ func Main() {
 	if assemble(flag.Arg(0)) != 0 {
 		errorexit()
 	}
-	obj.Bflush(&bstdout)
+	bstdout.Flush()
 	if nerrors > 0 {
 		errorexit()
 	}
@@ -244,7 +244,7 @@ func assemble(file string) int {
 	}
 
 	obj.Writeobjdirect(Ctxt, &obuf)
-	obj.Bflush(&obuf)
+	obuf.Flush()
 	return 0
 }
 

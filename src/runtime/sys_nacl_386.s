@@ -33,7 +33,7 @@ TEXT runtime·open(SB),NOSPLIT,$12
 	MOVL AX, ret+12(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$4
+TEXT runtime·closefd(SB),NOSPLIT,$4
 	MOVL fd+0(FP), AX
 	MOVL AX, 0(SP)
 	NACL_SYSCALL(SYS_close)

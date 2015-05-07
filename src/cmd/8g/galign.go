@@ -8,6 +8,8 @@ import (
 	"cmd/internal/gc"
 	"cmd/internal/obj"
 	"cmd/internal/obj/x86"
+	"fmt"
+	"os"
 )
 
 var thechar int = '8'
@@ -23,7 +25,7 @@ var MAXWIDTH int64 = (1 << 32) - 1
 
 /*
  * go declares several platform-specific type aliases:
- * int, uint, float, and uintptr
+ * int, uint, and uintptr
  */
 var typedefs = []gc.Typedef{
 	gc.Typedef{"int", gc.TINT, gc.TINT32},
@@ -35,7 +37,6 @@ func betypeinit() {
 	gc.Widthptr = 4
 	gc.Widthint = 4
 	gc.Widthreg = 4
-
 }
 
 func main() {
@@ -54,11 +55,13 @@ func main() {
 	case "387":
 		gc.Thearch.FREGMIN = x86.REG_F0
 		gc.Thearch.FREGMAX = x86.REG_F7
+		gc.Thearch.Use387 = true
 	case "sse2":
 		gc.Thearch.FREGMIN = x86.REG_X0
 		gc.Thearch.FREGMAX = x86.REG_X7
 	default:
-		gc.Fatal("unsupported setting GO386=%s", v)
+		fmt.Fprintf(os.Stderr, "unsupported setting GO386=%s\n", v)
+		gc.Exit(1)
 	}
 	gc.Thearch.MAXWIDTH = MAXWIDTH
 	gc.Thearch.ReservedRegs = resvd
@@ -76,6 +79,7 @@ func main() {
 	gc.Thearch.Dodiv = cgen_div
 	gc.Thearch.Excise = excise
 	gc.Thearch.Expandchecks = expandchecks
+	gc.Thearch.Getg = getg
 	gc.Thearch.Gins = gins
 	gc.Thearch.Ginscon = ginscon
 	gc.Thearch.Ginsnop = ginsnop
@@ -88,7 +92,7 @@ func main() {
 	gc.Thearch.Sameaddr = sameaddr
 	gc.Thearch.Smallindir = smallindir
 	gc.Thearch.Stackaddr = stackaddr
-	gc.Thearch.Stackcopy = stackcopy
+	gc.Thearch.Blockcopy = blockcopy
 	gc.Thearch.Sudoaddable = sudoaddable
 	gc.Thearch.Sudoclean = sudoclean
 	gc.Thearch.Excludedregs = excludedregs

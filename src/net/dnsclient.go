@@ -9,31 +9,6 @@ import (
 	"sort"
 )
 
-// DNSError represents a DNS lookup error.
-type DNSError struct {
-	Err       string // description of the error
-	Name      string // name looked for
-	Server    string // server used
-	IsTimeout bool
-}
-
-func (e *DNSError) Error() string {
-	if e == nil {
-		return "<nil>"
-	}
-	s := "lookup " + e.Name
-	if e.Server != "" {
-		s += " on " + e.Server
-	}
-	s += ": " + e.Err
-	return s
-}
-
-func (e *DNSError) Timeout() bool   { return e.IsTimeout }
-func (e *DNSError) Temporary() bool { return e.IsTimeout }
-
-const noSuchHost = "no such host"
-
 // reverseaddr returns the in-addr.arpa. or ip6.arpa. hostname of the IP
 // address addr suitable for rDNS (PTR) record lookup or an error if it fails
 // to parse the IP address.
@@ -43,8 +18,7 @@ func reverseaddr(addr string) (arpa string, err error) {
 		return "", &DNSError{Err: "unrecognized address", Name: addr}
 	}
 	if ip.To4() != nil {
-		return uitoa(uint(ip[15])) + "." + uitoa(uint(ip[14])) + "." + uitoa(uint(ip[13])) + "." +
-			uitoa(uint(ip[12])) + ".in-addr.arpa.", nil
+		return uitoa(uint(ip[15])) + "." + uitoa(uint(ip[14])) + "." + uitoa(uint(ip[13])) + "." + uitoa(uint(ip[12])) + ".in-addr.arpa.", nil
 	}
 	// Must be IPv6
 	buf := make([]byte, 0, len(ip)*4+len("ip6.arpa."))
@@ -67,7 +41,7 @@ func answer(name, server string, dns *dnsMsg, qtype uint16) (cname string, addrs
 	addrs = make([]dnsRR, 0, len(dns.answer))
 
 	if dns.rcode == dnsRcodeNameError && dns.recursion_available {
-		return "", nil, &DNSError{Err: noSuchHost, Name: name}
+		return "", nil, &DNSError{Err: errNoSuchHost.Error(), Name: name}
 	}
 	if dns.rcode != dnsRcodeSuccess {
 		// None of the error codes make sense
@@ -106,7 +80,7 @@ Cname:
 			}
 		}
 		if len(addrs) == 0 {
-			return "", nil, &DNSError{Err: noSuchHost, Name: name, Server: server}
+			return "", nil, &DNSError{Err: errNoSuchHost.Error(), Name: name, Server: server}
 		}
 		return name, addrs, nil
 	}
@@ -194,13 +168,10 @@ type SRV struct {
 type byPriorityWeight []*SRV
 
 func (s byPriorityWeight) Len() int { return len(s) }
-
-func (s byPriorityWeight) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-
 func (s byPriorityWeight) Less(i, j int) bool {
-	return s[i].Priority < s[j].Priority ||
-		(s[i].Priority == s[j].Priority && s[i].Weight < s[j].Weight)
+	return s[i].Priority < s[j].Priority || (s[i].Priority == s[j].Priority && s[i].Weight < s[j].Weight)
 }
+func (s byPriorityWeight) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 // shuffleByWeight shuffles SRV records by weight using the algorithm
 // described in RFC 2782.
@@ -248,11 +219,9 @@ type MX struct {
 // byPref implements sort.Interface to sort MX records by preference
 type byPref []*MX
 
-func (s byPref) Len() int { return len(s) }
-
+func (s byPref) Len() int           { return len(s) }
 func (s byPref) Less(i, j int) bool { return s[i].Pref < s[j].Pref }
-
-func (s byPref) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+func (s byPref) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 // sort reorders MX records as specified in RFC 5321.
 func (s byPref) sort() {

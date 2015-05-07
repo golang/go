@@ -23,14 +23,14 @@ func gogetenv(key string) string {
 	}
 	n := seek(fd, 0, 2)
 	if n <= 0 {
-		close(fd)
+		closefd(fd)
 		return ""
 	}
 
 	p := make([]byte, n)
 
 	r := pread(fd, unsafe.Pointer(&p[0]), int32(n), 0)
-	close(fd)
+	closefd(fd)
 	if r < 0 {
 		return ""
 	}

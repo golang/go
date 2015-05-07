@@ -46,6 +46,12 @@ import (
 	"time"
 )
 
+func init() {
+	sysInit()
+	supportsIPv4 = probeIPv4Stack()
+	supportsIPv6, supportsIPv4map = probeIPv6Stack()
+}
+
 // Addr represents a network end point address.
 type Addr interface {
 	Network() string // name of the network
@@ -115,7 +121,11 @@ func (c *conn) Read(b []byte) (int, error) {
 	if !c.ok() {
 		return 0, syscall.EINVAL
 	}
-	return c.fd.Read(b)
+	n, err := c.fd.Read(b)
+	if err != nil && err != io.EOF {
+		err = &OpError{Op: "read", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+	}
+	return n, err
 }
 
 // Write implements the Conn Write method.
@@ -123,7 +133,11 @@ func (c *conn) Write(b []byte) (int, error) {
 	if !c.ok() {
 		return 0, syscall.EINVAL
 	}
-	return c.fd.Write(b)
+	n, err := c.fd.Write(b)
+	if err != nil {
+		err = &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+	}
+	return n, err
 }
 
 // Close closes the connection.
@@ -131,7 +145,11 @@ func (c *conn) Close() error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return c.fd.Close()
+	err := c.fd.Close()
+	if err != nil {
+		err = &OpError{Op: "close", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+	}
+	return err
 }
 
 // LocalAddr returns the local network address.
@@ -159,7 +177,10 @@ func (c *conn) SetDeadline(t time.Time) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return c.fd.setDeadline(t)
+	if err := c.fd.setDeadline(t); err != nil {
+		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
+	}
+	return nil
 }
 
 // SetReadDeadline implements the Conn SetReadDeadline method.
@@ -167,7 +188,10 @@ func (c *conn) SetReadDeadline(t time.Time) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return c.fd.setReadDeadline(t)
+	if err := c.fd.setReadDeadline(t); err != nil {
+		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
+	}
+	return nil
 }
 
 // SetWriteDeadline implements the Conn SetWriteDeadline method.
@@ -175,7 +199,10 @@ func (c *conn) SetWriteDeadline(t time.Time) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return c.fd.setWriteDeadline(t)
+	if err := c.fd.setWriteDeadline(t); err != nil {
+		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
+	}
+	return nil
 }
 
 // SetReadBuffer sets the size of the operating system's
@@ -184,7 +211,10 @@ func (c *conn) SetReadBuffer(bytes int) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return setReadBuffer(c.fd, bytes)
+	if err := setReadBuffer(c.fd, bytes); err != nil {
+		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
+	}
+	return nil
 }
 
 // SetWriteBuffer sets the size of the operating system's
@@ -193,7 +223,10 @@ func (c *conn) SetWriteBuffer(bytes int) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return setWriteBuffer(c.fd, bytes)
+	if err := setWriteBuffer(c.fd, bytes); err != nil {
+		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
+	}
+	return nil
 }
 
 // File sets the underlying os.File to blocking mode and returns a copy.
@@ -203,13 +236,12 @@ func (c *conn) SetWriteBuffer(bytes int) error {
 // The returned os.File's file descriptor is different from the connection's.
 // Attempting to change properties of the original using this duplicate
 // may or may not have the desired effect.
-func (c *conn) File() (f *os.File, err error) { return c.fd.dup() }
-
-// An Error represents a network error.
-type Error interface {
-	error
-	Timeout() bool   // Is the error a timeout?
-	Temporary() bool // Is the error temporary?
+func (c *conn) File() (f *os.File, err error) {
+	f, err = c.fd.dup()
+	if err != nil {
+		err = &OpError{Op: "file", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+	}
+	return
 }
 
 // PacketConn is a generic packet-oriented network connection.
@@ -275,6 +307,13 @@ type Listener interface {
 	Addr() Addr
 }
 
+// An Error represents a network error.
+type Error interface {
+	error
+	Timeout() bool   // Is the error a timeout?
+	Temporary() bool // Is the error temporary?
+}
+
 // Various errors contained in OpError.
 var (
 	// For connection setup and write operations.
@@ -298,7 +337,17 @@ type OpError struct {
 	// such as "tcp" or "udp6".
 	Net string
 
-	// Addr is the network address on which this error occurred.
+	// For operations involving a remote network connection, like
+	// Dial, Read, or Write, Source is the corresponding local
+	// network address.
+	Source Addr
+
+	// Addr is the network address for which this error occurred.
+	// For local operations, like Listen or SetDeadline, Addr is
+	// the address of the local endpoint being manipulated.
+	// For operations involving a remote network connection, like
+	// Dial, Read, or Write, Addr is the remote address of that
+	// connection.
 	Addr Addr
 
 	// Err is the error that occurred during the operation.
@@ -313,20 +362,19 @@ func (e *OpError) Error() string {
 	if e.Net != "" {
 		s += " " + e.Net
 	}
+	if e.Source != nil {
+		s += " " + e.Source.String()
+	}
 	if e.Addr != nil {
-		s += " " + e.Addr.String()
+		if e.Source != nil {
+			s += "->"
+		} else {
+			s += " "
+		}
+		s += e.Addr.String()
 	}
 	s += ": " + e.Err.Error()
 	return s
-}
-
-type temporary interface {
-	Temporary() bool
-}
-
-func (e *OpError) Temporary() bool {
-	t, ok := e.Err.(temporary)
-	return ok && t.Temporary()
 }
 
 var noDeadline = time.Time{}
@@ -336,8 +384,25 @@ type timeout interface {
 }
 
 func (e *OpError) Timeout() bool {
+	if ne, ok := e.Err.(*os.SyscallError); ok {
+		t, ok := ne.Err.(timeout)
+		return ok && t.Timeout()
+	}
 	t, ok := e.Err.(timeout)
 	return ok && t.Timeout()
+}
+
+type temporary interface {
+	Temporary() bool
+}
+
+func (e *OpError) Temporary() bool {
+	if ne, ok := e.Err.(*os.SyscallError); ok {
+		t, ok := ne.Err.(temporary)
+		return ok && t.Temporary()
+	}
+	t, ok := e.Err.(temporary)
+	return ok && t.Temporary()
 }
 
 type timeoutError struct{}
@@ -345,6 +410,18 @@ type timeoutError struct{}
 func (e *timeoutError) Error() string   { return "i/o timeout" }
 func (e *timeoutError) Timeout() bool   { return true }
 func (e *timeoutError) Temporary() bool { return true }
+
+// A ParseError is the error type of literal network address parsers.
+type ParseError struct {
+	// Type is the type of string that was expected, such as
+	// "IP address", "CIDR address".
+	Type string
+
+	// Text is the malformed text string.
+	Text string
+}
+
+func (e *ParseError) Error() string { return "invalid " + e.Type + ": " + e.Text }
 
 type AddrError struct {
 	Err  string
@@ -362,19 +439,14 @@ func (e *AddrError) Error() string {
 	return s
 }
 
-func (e *AddrError) Temporary() bool {
-	return false
-}
-
-func (e *AddrError) Timeout() bool {
-	return false
-}
+func (e *AddrError) Timeout() bool   { return false }
+func (e *AddrError) Temporary() bool { return false }
 
 type UnknownNetworkError string
 
 func (e UnknownNetworkError) Error() string   { return "unknown network " + string(e) }
-func (e UnknownNetworkError) Temporary() bool { return false }
 func (e UnknownNetworkError) Timeout() bool   { return false }
+func (e UnknownNetworkError) Temporary() bool { return false }
 
 type InvalidAddrError string
 
@@ -383,16 +455,49 @@ func (e InvalidAddrError) Timeout() bool   { return false }
 func (e InvalidAddrError) Temporary() bool { return false }
 
 // DNSConfigError represents an error reading the machine's DNS configuration.
+// (No longer used; kept for compatibility.)
 type DNSConfigError struct {
 	Err error
 }
 
-func (e *DNSConfigError) Error() string {
-	return "error reading DNS config: " + e.Err.Error()
-}
-
+func (e *DNSConfigError) Error() string   { return "error reading DNS config: " + e.Err.Error() }
 func (e *DNSConfigError) Timeout() bool   { return false }
 func (e *DNSConfigError) Temporary() bool { return false }
+
+// Various errors contained in DNSError.
+var (
+	errNoSuchHost = errors.New("no such host")
+)
+
+// DNSError represents a DNS lookup error.
+type DNSError struct {
+	Err       string // description of the error
+	Name      string // name looked for
+	Server    string // server used
+	IsTimeout bool   // if true, timed out; not all timeouts set this
+}
+
+func (e *DNSError) Error() string {
+	if e == nil {
+		return "<nil>"
+	}
+	s := "lookup " + e.Name
+	if e.Server != "" {
+		s += " on " + e.Server
+	}
+	s += ": " + e.Err
+	return s
+}
+
+// Timeout reports whether the DNS lookup is known to have timed out.
+// This is not always known; a DNS lookup may fail due to a timeout
+// and return a DNSError for which Timeout returns false.
+func (e *DNSError) Timeout() bool { return e.IsTimeout }
+
+// Temporary reports whether the DNS error is known to be temporary.
+// This is not always known; a DNS lookup may fail due to a temporary
+// error and return a DNSError for which Temporary returns false.
+func (e *DNSError) Temporary() bool { return e.IsTimeout }
 
 type writerOnly struct {
 	io.Writer
@@ -412,10 +517,6 @@ func genericReadFrom(w io.Writer, r io.Reader) (n int64, err error) {
 // thread, and the system or the program runs out of threads.
 
 var threadLimit = make(chan struct{}, 500)
-
-// Using send for acquire is fine here because we are not using this
-// to protect any memory. All we care about is the number of goroutines
-// making calls at a time.
 
 func acquireThread() {
 	threadLimit <- struct{}{}

@@ -8,8 +8,11 @@
 package build
 
 import (
+	"os"
+	"path/filepath"
 	"runtime"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -122,7 +125,7 @@ var pkgDeps = map[string][]string{
 
 	// Operating system access.
 	"syscall":       {"L0", "unicode/utf16"},
-	"time":          {"L0", "syscall"},
+	"time":          {"L0", "syscall", "internal/syscall/windows/registry"},
 	"os":            {"L1", "os", "syscall", "time", "internal/syscall/windows"},
 	"path/filepath": {"L2", "os", "syscall"},
 	"io/ioutil":     {"L2", "os", "path/filepath", "time"},
@@ -213,7 +216,7 @@ var pkgDeps = map[string][]string{
 	"image/png":           {"L4", "compress/zlib"},
 	"index/suffixarray":   {"L4", "regexp"},
 	"math/big":            {"L4"},
-	"mime":                {"L4", "OS", "syscall"},
+	"mime":                {"L4", "OS", "syscall", "internal/syscall/windows/registry"},
 	"net/url":             {"L4"},
 	"text/scanner":        {"L4", "OS"},
 	"text/template/parse": {"L4"},
@@ -240,7 +243,7 @@ var pkgDeps = map[string][]string{
 	// Basic networking.
 	// Because net must be used by any package that wants to
 	// do networking portably, it must have a small dependency set: just L1+basic os.
-	"net": {"L1", "CGO", "os", "syscall", "time", "internal/syscall/windows"},
+	"net": {"L1", "CGO", "os", "syscall", "time", "internal/syscall/windows", "internal/singleflight"},
 
 	// NET enables use of basic network-related packages.
 	"NET": {
@@ -279,7 +282,7 @@ var pkgDeps = map[string][]string{
 	// Random byte, number generation.
 	// This would be part of core crypto except that it imports
 	// math/big, which imports fmt.
-	"crypto/rand": {"L4", "CRYPTO", "OS", "math/big", "syscall", "internal/syscall"},
+	"crypto/rand": {"L4", "CRYPTO", "OS", "math/big", "syscall", "internal/syscall/unix"},
 
 	// Mathematical crypto: dependencies on fmt (L4) and math/big.
 	// We could avoid some of the fmt, but math/big imports fmt anyway.
@@ -330,6 +333,30 @@ var pkgDeps = map[string][]string{
 	"net/http/pprof":    {"L4", "OS", "html/template", "net/http", "runtime/pprof"},
 	"net/rpc":           {"L4", "NET", "encoding/gob", "html/template", "net/http"},
 	"net/rpc/jsonrpc":   {"L4", "NET", "encoding/json", "net/rpc"},
+
+	// Packages below are grandfathered because of issue 10475.
+	// When updating these entries, move them to an appropriate
+	// location above and assign them a justified set of
+	// dependencies.  Do not simply update them in situ.
+	"container/heap":                    {"sort"},
+	"debug/plan9obj":                    {"encoding/binary", "errors", "fmt", "io", "os"},
+	"go/constants":                      {"fmt", "go/token", "math/big", "strconv"},
+	"go/format":                         {"bytes", "fmt", "go/ast", "go/parser", "go/printer", "go/token", "internal/format", "io"},
+	"go/importer":                       {"go/internal/gcimporter", "go/types", "io", "runtime"},
+	"go/internal/gcimporter":            {"bufio", "errors", "fmt", "go/build", "go/constants", "go/token", "go/types", "io", "os", "path/filepath", "strconv", "strings", "text/scanner"},
+	"go/types":                          {"bytes", "container/heap", "fmt", "go/ast", "go/constants", "go/parser", "go/token", "io", "math", "path", "sort", "strconv", "strings", "sync", "unicode"},
+	"image/internal/imageutil":          {"image"},
+	"internal/format":                   {"bytes", "go/ast", "go/parser", "go/printer", "go/token", "strings"},
+	"internal/mime":                     {"bytes", "encoding/base64", "errors", "fmt", "io", "io/ioutil", "strconv", "strings", "unicode"},
+	"internal/singleflight":             {"sync"},
+	"internal/syscall/unix":             {"runtime", "sync/atomic", "syscall", "unsafe"},
+	"internal/syscall/windows":          {"syscall", "unsafe"},
+	"internal/syscall/windows/registry": {"errors", "io", "syscall", "unicode/utf16", "unsafe"},
+	"internal/trace":                    {"bufio", "bytes", "fmt", "io", "os", "os/exec", "sort", "strconv", "strings"},
+	"mime/quotedprintable":              {"bufio", "bytes", "fmt", "io"},
+	"net/http/cookiejar":                {"errors", "fmt", "net", "net/http", "net/url", "sort", "strings", "sync", "time", "unicode/utf8"},
+	"net/http/internal":                 {"bufio", "bytes", "errors", "fmt", "io"},
+	"net/internal/socktest":             {"fmt", "sync", "syscall"},
 }
 
 // isMacro reports whether p is a package dependency macro
@@ -375,30 +402,61 @@ var allowedErrors = map[osPkg]bool{
 	osPkg{"plan9", "log/syslog"}:   true,
 }
 
+// listStdPkgs returns the same list of packages as "go list std".
+func listStdPkgs(goroot string) ([]string, error) {
+	// Based on cmd/go's matchPackages function.
+	var pkgs []string
+
+	src := filepath.Join(goroot, "src") + string(filepath.Separator)
+	walkFn := func(path string, fi os.FileInfo, err error) error {
+		if err != nil || !fi.IsDir() || path == src {
+			return nil
+		}
+
+		base := filepath.Base(path)
+		if strings.HasPrefix(base, ".") || strings.HasPrefix(base, "_") || base == "testdata" {
+			return filepath.SkipDir
+		}
+
+		name := filepath.ToSlash(path[len(src):])
+		if name == "builtin" || name == "cmd" || strings.Contains(name, ".") {
+			return filepath.SkipDir
+		}
+
+		pkgs = append(pkgs, name)
+		return nil
+	}
+	if err := filepath.Walk(src, walkFn); err != nil {
+		return nil, err
+	}
+	return pkgs, nil
+}
+
 func TestDependencies(t *testing.T) {
-	if runtime.GOOS == "nacl" || (runtime.GOOS == "darwin" && runtime.GOARCH == "arm") {
+	iOS := runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64")
+	if runtime.GOOS == "nacl" || iOS {
 		// Tests run in a limited file system and we do not
 		// provide access to every source file.
-		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+		t.Skipf("skipping on %s/%s, missing full GOROOT", runtime.GOOS, runtime.GOARCH)
 	}
-	var all []string
 
-	for k := range pkgDeps {
-		all = append(all, k)
+	ctxt := Default
+	all, err := listStdPkgs(ctxt.GOROOT)
+	if err != nil {
+		t.Fatal(err)
 	}
 	sort.Strings(all)
 
-	ctxt := Default
 	test := func(mustImport bool) {
 		for _, pkg := range all {
-			if isMacro(pkg) {
-				continue
-			}
 			if pkg == "runtime/cgo" && !ctxt.CgoEnabled {
 				continue
 			}
 			p, err := ctxt.Import(pkg, "", 0)
 			if err != nil {
+				if _, ok := err.(*NoGoError); ok {
+					continue
+				}
 				if allowedErrors[osPkg{ctxt.GOOS, pkg}] {
 					continue
 				}

@@ -565,3 +565,8 @@ func (p *Profile) Demangle(d Demangler) error {
 	}
 	return nil
 }
+
+// Empty returns true if the profile contains no samples.
+func (p *Profile) Empty() bool {
+	return len(p.Sample) == 0
+}

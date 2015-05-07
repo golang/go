@@ -228,6 +228,12 @@ func (r *Reader) parseRecord() (fields []string, err error) {
 	}
 	r.r.UnreadRune()
 
+	// If FieldsPerRecord is greater then 0 we can assume the final
+	// length of fields to be equal to FieldsPerRecord.
+	if r.FieldsPerRecord > 0 {
+		fields = make([]string, 0, r.FieldsPerRecord)
+	}
+
 	// At this point we have at least one field.
 	for {
 		haveField, delim, err := r.parseField()

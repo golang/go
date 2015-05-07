@@ -10,8 +10,9 @@ import (
 )
 
 func TestSystemRoots(t *testing.T) {
-	if runtime.GOARCH == "arm" {
-		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+	switch runtime.GOARCH {
+	case "arm", "arm64":
+		t.Skipf("skipping on %s/%s, no system root", runtime.GOOS, runtime.GOARCH)
 	}
 
 	sysRoots := systemRootsPool()         // actual system roots

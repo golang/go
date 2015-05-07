@@ -6,7 +6,7 @@ package runtime
 
 import "unsafe"
 
-func bsdthread_create(stk unsafe.Pointer, mm *m, gg *g, fn uintptr) int32
+func bsdthread_create(stk, arg unsafe.Pointer, fn uintptr) int32
 func bsdthread_register() int32
 
 //go:noescape
@@ -33,5 +33,5 @@ func sigtramp()
 //go:noescape
 func setitimer(mode int32, new, old *itimerval)
 
-func raise(int32)
+func raise(sig int32)
 func raiseproc(int32)

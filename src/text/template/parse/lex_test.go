@@ -58,18 +58,20 @@ type lexTest struct {
 }
 
 var (
-	tEOF      = item{itemEOF, 0, ""}
-	tFor      = item{itemIdentifier, 0, "for"}
-	tLeft     = item{itemLeftDelim, 0, "{{"}
-	tLpar     = item{itemLeftParen, 0, "("}
-	tPipe     = item{itemPipe, 0, "|"}
-	tQuote    = item{itemString, 0, `"abc \n\t\" "`}
-	tRange    = item{itemRange, 0, "range"}
-	tRight    = item{itemRightDelim, 0, "}}"}
-	tRpar     = item{itemRightParen, 0, ")"}
-	tSpace    = item{itemSpace, 0, " "}
-	raw       = "`" + `abc\n\t\" ` + "`"
-	tRawQuote = item{itemRawString, 0, raw}
+	tEOF        = item{itemEOF, 0, ""}
+	tFor        = item{itemIdentifier, 0, "for"}
+	tLeft       = item{itemLeftDelim, 0, "{{"}
+	tLpar       = item{itemLeftParen, 0, "("}
+	tPipe       = item{itemPipe, 0, "|"}
+	tQuote      = item{itemString, 0, `"abc \n\t\" "`}
+	tRange      = item{itemRange, 0, "range"}
+	tRight      = item{itemRightDelim, 0, "}}"}
+	tRpar       = item{itemRightParen, 0, ")"}
+	tSpace      = item{itemSpace, 0, " "}
+	raw         = "`" + `abc\n\t\" ` + "`"
+	rawNL       = "`now is{{\n}}the time`" // Contains newline inside raw quote.
+	tRawQuote   = item{itemRawString, 0, raw}
+	tRawQuoteNL = item{itemRawString, 0, rawNL}
 )
 
 var lexTests = []lexTest{
@@ -104,6 +106,7 @@ var lexTests = []lexTest{
 	{"for", `{{for}}`, []item{tLeft, tFor, tRight, tEOF}},
 	{"quote", `{{"abc \n\t\" "}}`, []item{tLeft, tQuote, tRight, tEOF}},
 	{"raw quote", "{{" + raw + "}}", []item{tLeft, tRawQuote, tRight, tEOF}},
+	{"raw quote with newline", "{{" + rawNL + "}}", []item{tLeft, tRawQuoteNL, tRight, tEOF}},
 	{"numbers", "{{1 02 0x14 -7.2i 1e3 +1.2e-4 4.2i 1+2i}}", []item{
 		tLeft,
 		{itemNumber, 0, "1"},
@@ -294,7 +297,7 @@ var lexTests = []lexTest{
 		tLeft,
 		{itemError, 0, "unterminated quoted string"},
 	}},
-	{"unclosed raw quote", "{{`xx\n`}}", []item{
+	{"unclosed raw quote", "{{`xx}}", []item{
 		tLeft,
 		{itemError, 0, "unterminated raw quoted string"},
 	}},
@@ -462,4 +465,32 @@ func TestPos(t *testing.T) {
 			}
 		}
 	}
+}
+
+// Test that an error shuts down the lexing goroutine.
+func TestShutdown(t *testing.T) {
+	// We need to duplicate template.Parse here to hold on to the lexer.
+	const text = "erroneous{{define}}{{else}}1234"
+	lexer := lex("foo", text, "{{", "}}")
+	_, err := New("root").parseLexer(lexer, text)
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+	// The error should have drained the input. Therefore, the lexer should be shut down.
+	token, ok := <-lexer.items
+	if ok {
+		t.Fatalf("input was not drained; got %v", token)
+	}
+}
+
+// parseLexer is a local version of parse that lets us pass in the lexer instead of building it.
+// We expect an error, so the tree set and funcs list are explicitly nil.
+func (t *Tree) parseLexer(lex *lexer, text string) (tree *Tree, err error) {
+	defer t.recover(&err)
+	t.ParseName = t.Name
+	t.startParse(nil, lex)
+	t.parse(nil)
+	t.add(nil)
+	t.stopParse()
+	return t, nil
 }

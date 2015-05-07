@@ -686,11 +686,11 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-16
 	BL	asmcgocall<>(SB)
 	RET
 
-TEXT ·asmcgocall_errno(SB),NOSPLIT,$0-24
+TEXT ·asmcgocall_errno(SB),NOSPLIT,$0-20
 	MOVD	fn+0(FP), R3
 	MOVD	arg+8(FP), R4
 	BL	asmcgocall<>(SB)
-	MOVD	R3, ret+16(FP)
+	MOVW	R3, ret+16(FP)
 	RET
 
 // asmcgocall common code. fn in R3, arg in R4. returns errno in R3.
@@ -1093,146 +1093,6 @@ notfound:
 	MOVD	R3, ret+24(FP)
 	RETURN
 
-
-// A Duff's device for zeroing memory.
-// The compiler jumps to computed addresses within
-// this routine to zero chunks of memory.  Do not
-// change this code without also changing the code
-// in ../../cmd/9g/ggen.c:/^clearfat.
-// R0: always zero
-// R3 (aka REGRT1): ptr to memory to be zeroed - 8
-// On return, R3 points to the last zeroed dword.
-TEXT runtime·duffzero(SB), NOSPLIT, $-8-0
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	MOVDU	R0, 8(R3)
-	RETURN
-
 TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
 	MOVD	g_m(g), R4
 	MOVWZ	m_fastrand(R4), R3
@@ -1273,10 +1133,6 @@ TEXT runtime·goexit(SB),NOSPLIT,$-8-0
 	BL	runtime·goexit1(SB)	// does not return
 	// traceback from goexit1 must hit code range of goexit
 	MOVD	R0, R0	// NOP
-
-TEXT runtime·getg(SB),NOSPLIT,$-8-8
-	MOVD	g, ret+0(FP)
-	RETURN
 
 TEXT runtime·prefetcht0(SB),NOSPLIT,$0-8
 	RETURN

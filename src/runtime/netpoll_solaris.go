@@ -89,23 +89,23 @@ func errno() int32 {
 }
 
 func fcntl(fd, cmd int32, arg uintptr) int32 {
-	return int32(sysvicall3(libc_fcntl, uintptr(fd), uintptr(cmd), arg))
+	return int32(sysvicall3(&libc_fcntl, uintptr(fd), uintptr(cmd), arg))
 }
 
 func port_create() int32 {
-	return int32(sysvicall0(libc_port_create))
+	return int32(sysvicall0(&libc_port_create))
 }
 
 func port_associate(port, source int32, object uintptr, events uint32, user uintptr) int32 {
-	return int32(sysvicall5(libc_port_associate, uintptr(port), uintptr(source), object, uintptr(events), user))
+	return int32(sysvicall5(&libc_port_associate, uintptr(port), uintptr(source), object, uintptr(events), user))
 }
 
 func port_dissociate(port, source int32, object uintptr) int32 {
-	return int32(sysvicall3(libc_port_dissociate, uintptr(port), uintptr(source), object))
+	return int32(sysvicall3(&libc_port_dissociate, uintptr(port), uintptr(source), object))
 }
 
 func port_getn(port int32, evs *portevent, max uint32, nget *uint32, timeout *timespec) int32 {
-	return int32(sysvicall5(libc_port_getn, uintptr(port), uintptr(unsafe.Pointer(evs)), uintptr(max), uintptr(unsafe.Pointer(nget)), uintptr(unsafe.Pointer(timeout))))
+	return int32(sysvicall5(&libc_port_getn, uintptr(port), uintptr(unsafe.Pointer(evs)), uintptr(max), uintptr(unsafe.Pointer(nget)), uintptr(unsafe.Pointer(timeout))))
 }
 
 var portfd int32 = -1
@@ -179,9 +179,9 @@ var netpolllasterr int32
 
 // polls for ready network connections
 // returns list of goroutines that become runnable
-func netpoll(block bool) (gp *g) {
+func netpoll(block bool) *g {
 	if portfd == -1 {
-		return
+		return nil
 	}
 
 	var wait *timespec
@@ -201,7 +201,7 @@ retry:
 		goto retry
 	}
 
-	gp = nil
+	var gp guintptr
 	for i := 0; i < int(n); i++ {
 		ev := &events[i]
 
@@ -232,12 +232,12 @@ retry:
 		}
 
 		if mode != 0 {
-			netpollready((**g)(noescape(unsafe.Pointer(&gp))), pd, mode)
+			netpollready(&gp, pd, mode)
 		}
 	}
 
-	if block && gp == nil {
+	if block && gp == 0 {
 		goto retry
 	}
-	return gp
+	return gp.ptr()
 }

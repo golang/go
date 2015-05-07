@@ -111,6 +111,12 @@ const (
 	_CLONE_STOPPED        = 0x2000000
 	_CLONE_NEWUTS         = 0x4000000
 	_CLONE_NEWIPC         = 0x8000000
+
+	cloneFlags = _CLONE_VM | /* share memory */
+		_CLONE_FS | /* share cwd, etc */
+		_CLONE_FILES | /* share fd table */
+		_CLONE_SIGHAND | /* share sig handler table */
+		_CLONE_THREAD /* revisit - okay for now */
 )
 
 // May run with m.p==nil, so write barriers are not allowed.
@@ -119,12 +125,6 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 	/*
 	 * note: strace gets confused if we use CLONE_PTRACE here.
 	 */
-	var flags int32 = _CLONE_VM | /* share memory */
-		_CLONE_FS | /* share cwd, etc */
-		_CLONE_FILES | /* share fd table */
-		_CLONE_SIGHAND | /* share sig handler table */
-		_CLONE_THREAD /* revisit - okay for now */
-
 	mp.tls[0] = uintptr(mp.id) // so 386 asm can find it
 	if false {
 		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " clone=", funcPC(clone), " id=", mp.id, "/", mp.tls[0], " ostk=", &mp, "\n")
@@ -134,7 +134,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 	// with signals disabled.  It will enable them in minit.
 	var oset sigset
 	rtsigprocmask(_SIG_SETMASK, &sigset_all, &oset, int32(unsafe.Sizeof(oset)))
-	ret := clone(flags, stk, unsafe.Pointer(mp), unsafe.Pointer(mp.g0), unsafe.Pointer(funcPC(mstart)))
+	ret := clone(cloneFlags, stk, unsafe.Pointer(mp), unsafe.Pointer(mp.g0), unsafe.Pointer(funcPC(mstart)))
 	rtsigprocmask(_SIG_SETMASK, &oset, nil, int32(unsafe.Sizeof(oset)))
 
 	if ret < 0 {
@@ -142,6 +142,24 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 		throw("newosproc")
 	}
 }
+
+// Version of newosproc that doesn't require a valid G.
+//go:nosplit
+func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
+	stack := sysAlloc(stacksize, &memstats.stacks_sys)
+	if stack == nil {
+		write(2, unsafe.Pointer(&failallocatestack[0]), int32(len(failallocatestack)))
+		exit(1)
+	}
+	ret := clone(cloneFlags, unsafe.Pointer(uintptr(stack)+stacksize), nil, nil, fn)
+	if ret < 0 {
+		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+		exit(1)
+	}
+}
+
+var failallocatestack = []byte("runtime: failed to allocate stack for the new OS thread\n")
+var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
 
 func osinit() {
 	ncpu = getproccount()
@@ -157,7 +175,7 @@ func getRandomData(r []byte) {
 	}
 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
-	close(fd)
+	closefd(fd)
 	extendRandom(r, int(n))
 }
 

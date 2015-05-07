@@ -17,10 +17,14 @@ var F32to64 = f32to64
 var Fcmp64 = fcmp64
 var Fintto64 = fintto64
 var F64toint = f64toint
+var Sqrt = sqrt
 
 var Entersyscall = entersyscall
 var Exitsyscall = exitsyscall
 var LockedOSThread = lockedOSThread
+var Xadduintptr = xadduintptr
+
+var FuncPC = funcPC
 
 type LFNode struct {
 	Next    uint64
@@ -76,8 +80,10 @@ func GCMask(x interface{}) (ret []byte) {
 	s := (*slice)(unsafe.Pointer(&ret))
 	systemstack(func() {
 		var len uintptr
-		getgcmask(e.data, e._type, &s.array, &len)
-		s.len = uint(len)
+		var a *byte
+		getgcmask(e.data, e._type, &a, &len)
+		s.array = unsafe.Pointer(a)
+		s.len = int(len)
 		s.cap = s.len
 	})
 	return
@@ -119,9 +125,11 @@ var Maxstring = &maxstring
 type Uintreg uintreg
 
 var Open = open
-var Close = close
+var Close = closefd
 var Read = read
 var Write = write
 
 func Envs() []string     { return envs }
 func SetEnvs(e []string) { envs = e }
+
+var BigEndian = _BigEndian

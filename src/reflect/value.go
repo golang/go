@@ -848,7 +848,7 @@ func (v Value) Index(i int) Value {
 		}
 		tt := (*sliceType)(unsafe.Pointer(v.typ))
 		typ := tt.elem
-		val := unsafe.Pointer(uintptr(s.Data) + uintptr(i)*typ.size)
+		val := arrayAt(s.Data, i, typ.size)
 		fl := flagAddr | flagIndir | v.flag&flagRO | flag(typ.Kind())
 		return Value{typ, val, fl}
 
@@ -857,7 +857,7 @@ func (v Value) Index(i int) Value {
 		if uint(i) >= uint(s.Len) {
 			panic("reflect: string index out of range")
 		}
-		p := unsafe.Pointer(uintptr(s.Data) + uintptr(i))
+		p := arrayAt(s.Data, i, 1)
 		fl := v.flag&flagRO | flag(Uint8) | flagIndir
 		return Value{uint8Type, p, fl}
 	}
@@ -1540,7 +1540,7 @@ func (v Value) Slice(i, j int) Value {
 		if i < 0 || j < i || j > s.Len {
 			panic("reflect.Value.Slice: string slice index out of bounds")
 		}
-		t := stringHeader{unsafe.Pointer(uintptr(s.Data) + uintptr(i)), j - i}
+		t := stringHeader{arrayAt(s.Data, i, 1), j - i}
 		return Value{v.typ, unsafe.Pointer(&t), v.flag}
 	}
 
@@ -1556,7 +1556,7 @@ func (v Value) Slice(i, j int) Value {
 	s.Len = j - i
 	s.Cap = cap - i
 	if cap-i > 0 {
-		s.Data = unsafe.Pointer(uintptr(base) + uintptr(i)*typ.elem.Size())
+		s.Data = arrayAt(base, i, typ.elem.Size())
 	} else {
 		// do not advance pointer, to avoid pointing beyond end of slice
 		s.Data = base
@@ -1608,7 +1608,7 @@ func (v Value) Slice3(i, j, k int) Value {
 	s.Len = j - i
 	s.Cap = k - i
 	if k-i > 0 {
-		s.Data = unsafe.Pointer(uintptr(base) + uintptr(i)*typ.elem.Size())
+		s.Data = arrayAt(base, i, typ.elem.Size())
 	} else {
 		// do not advance pointer, to avoid pointing beyond end of slice
 		s.Data = base
@@ -1622,6 +1622,8 @@ func (v Value) Slice3(i, j, k int) Value {
 // String is a special case because of Go's String method convention.
 // Unlike the other getters, it does not panic if v's Kind is not String.
 // Instead, it returns a string of the form "<T value>" where T is v's type.
+// The fmt package treats Values specially. It does not call their String
+// method implicitly but instead prints the concrete values they hold.
 func (v Value) String() string {
 	switch k := v.kind(); k {
 	case Invalid:
@@ -1763,6 +1765,12 @@ func typesMustMatch(what string, t1, t2 Type) {
 	if t1 != t2 {
 		panic(what + ": " + t1.String() + " != " + t2.String())
 	}
+}
+
+// arrayAt returns the i-th element of p, a C-array whose elements are
+// eltSize wide (in bytes).
+func arrayAt(p unsafe.Pointer, i int, eltSize uintptr) unsafe.Pointer {
+	return unsafe.Pointer(uintptr(p) + uintptr(i)*eltSize)
 }
 
 // grow grows the slice s so that it can hold extra more values, allocating

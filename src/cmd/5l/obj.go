@@ -96,20 +96,18 @@ func archinit() {
 			log.Fatalf("cannot use -linkmode=external with -H %s", ld.Headstr(int(ld.HEADTYPE)))
 		}
 
-	case ld.Hlinux,
-		ld.Hfreebsd,
-		ld.Hnacl,
-		ld.Hdarwin:
+	case obj.Hlinux,
+		obj.Hfreebsd,
+		obj.Hnacl,
+		obj.Hdarwin:
 		break
 	}
 
 	switch ld.HEADTYPE {
 	default:
-		ld.Diag("unknown -H option")
-		ld.Errorexit()
-		fallthrough
+		ld.Exitf("unknown -H option: %v", ld.HEADTYPE)
 
-	case ld.Hplan9: /* plan 9 */
+	case obj.Hplan9: /* plan 9 */
 		ld.HEADR = 32
 
 		if ld.INITTEXT == -1 {
@@ -122,10 +120,10 @@ func archinit() {
 			ld.INITRND = 4096
 		}
 
-	case ld.Hlinux, /* arm elf */
-		ld.Hfreebsd,
-		ld.Hnetbsd,
-		ld.Hopenbsd:
+	case obj.Hlinux, /* arm elf */
+		obj.Hfreebsd,
+		obj.Hnetbsd,
+		obj.Hopenbsd:
 		ld.Debug['d'] = 0
 		// with dynamic linking
 		ld.Elfinit()
@@ -140,7 +138,7 @@ func archinit() {
 			ld.INITRND = 4096
 		}
 
-	case ld.Hnacl:
+	case obj.Hnacl:
 		ld.Elfinit()
 		ld.HEADR = 0x10000
 		ld.Funcalign = 16
@@ -154,7 +152,7 @@ func archinit() {
 			ld.INITRND = 0x10000
 		}
 
-	case ld.Hdarwin: /* apple MACH */
+	case obj.Hdarwin: /* apple MACH */
 		ld.Debug['w'] = 1 // disable DWARF generataion
 		ld.Machoinit()
 		ld.HEADR = ld.INITIAL_MACHO_HEADR
@@ -176,6 +174,6 @@ func archinit() {
 	// embed goarm to runtime.goarm
 	s := ld.Linklookup(ld.Ctxt, "runtime.goarm", 0)
 
-	s.Type = ld.SRODATA
+	s.Type = obj.SRODATA
 	ld.Adduint8(ld.Ctxt, s, uint8(ld.Ctxt.Goarm))
 }

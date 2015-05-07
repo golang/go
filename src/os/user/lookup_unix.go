@@ -17,6 +17,7 @@ import (
 )
 
 /*
+#cgo solaris CFLAGS: -D_POSIX_PTHREAD_SEMANTICS
 #include <unistd.h>
 #include <sys/types.h>
 #include <pwd.h>
@@ -24,7 +25,12 @@ import (
 
 static int mygetpwuid_r(int uid, struct passwd *pwd,
 	char *buf, size_t buflen, struct passwd **result) {
- return getpwuid_r(uid, pwd, buf, buflen, result);
+	return getpwuid_r(uid, pwd, buf, buflen, result);
+}
+
+static int mygetpwnam_r(const char *name, struct passwd *pwd,
+	char *buf, size_t buflen, struct passwd **result) {
+	return getpwnam_r(name, pwd, buf, buflen, result);
 }
 */
 import "C"
@@ -67,7 +73,11 @@ func lookupUnix(uid int, username string, lookupByName bool) (*User, error) {
 	if lookupByName {
 		nameC := C.CString(username)
 		defer C.free(unsafe.Pointer(nameC))
-		rv = C.getpwnam_r(nameC,
+		// mygetpwnam_r is a wrapper around getpwnam_r to avoid
+		// passing a size_t to getpwnam_r, because for unknown
+		// reasons passing a size_t to getpwnam_r doesn't work on
+		// Solaris.
+		rv = C.mygetpwnam_r(nameC,
 			&pwd,
 			(*C.char)(buf),
 			C.size_t(bufSize),

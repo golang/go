@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
-	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -224,10 +223,11 @@ func TestAfterStop(t *testing.T) {
 func TestAfterQueuing(t *testing.T) {
 	// This test flakes out on some systems,
 	// so we'll try it a few times before declaring it a failure.
-	const attempts = 3
+	const attempts = 5
 	err := errors.New("!=nil")
 	for i := 0; i < attempts && err != nil; i++ {
-		if err = testAfterQueuing(t); err != nil {
+		delta := Duration(20+i*50) * Millisecond
+		if err = testAfterQueuing(t, delta); err != nil {
 			t.Logf("attempt %v failed: %v", i, err)
 		}
 	}
@@ -247,11 +247,7 @@ func await(slot int, result chan<- afterResult, ac <-chan Time) {
 	result <- afterResult{slot, <-ac}
 }
 
-func testAfterQueuing(t *testing.T) error {
-	Delta := 100 * Millisecond
-	if testing.Short() {
-		Delta = 20 * Millisecond
-	}
+func testAfterQueuing(t *testing.T, delta Duration) error {
 	// make the result channel buffered because we don't want
 	// to depend on channel queueing semantics that might
 	// possibly change in the future.
@@ -259,18 +255,25 @@ func testAfterQueuing(t *testing.T) error {
 
 	t0 := Now()
 	for _, slot := range slots {
-		go await(slot, result, After(Duration(slot)*Delta))
+		go await(slot, result, After(Duration(slot)*delta))
 	}
-	sort.Ints(slots)
-	for _, slot := range slots {
+	var order []int
+	var times []Time
+	for range slots {
 		r := <-result
-		if r.slot != slot {
-			return fmt.Errorf("after slot %d, expected %d", r.slot, slot)
+		order = append(order, r.slot)
+		times = append(times, r.t)
+	}
+	for i := range order {
+		if i > 0 && order[i] < order[i-1] {
+			return fmt.Errorf("After calls returned out of order: %v", order)
 		}
-		dt := r.t.Sub(t0)
-		target := Duration(slot) * Delta
-		if dt < target-Delta/2 || dt > target+Delta*10 {
-			return fmt.Errorf("After(%s) arrived at %s, expected [%s,%s]", target, dt, target-Delta/2, target+Delta*10)
+	}
+	for i, t := range times {
+		dt := t.Sub(t0)
+		target := Duration(order[i]) * delta
+		if dt < target-delta/2 || dt > target+delta*10 {
+			return fmt.Errorf("After(%s) arrived at %s, expected [%s,%s]", target, dt, target-delta/2, target+delta*10)
 		}
 	}
 	return nil

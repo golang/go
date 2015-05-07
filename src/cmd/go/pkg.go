@@ -11,6 +11,7 @@ import (
 	"go/build"
 	"go/scanner"
 	"go/token"
+	"io/ioutil"
 	"os"
 	pathpkg "path"
 	"path/filepath"
@@ -32,6 +33,7 @@ type Package struct {
 	Name          string `json:",omitempty"` // package name
 	Doc           string `json:",omitempty"` // package documentation string
 	Target        string `json:",omitempty"` // install path
+	Shlib         string `json:",omitempty"` // the shared library that contains this package (only set when -linkshared)
 	Goroot        bool   `json:",omitempty"` // is this package found in the Go root?
 	Standard      bool   `json:",omitempty"` // is this package part of the standard Go library?
 	Stale         bool   `json:",omitempty"` // would 'go install' do anything for this package?
@@ -406,7 +408,9 @@ var goTools = map[string]targetDir{
 	"cmd/api":                              toTool,
 	"cmd/asm":                              toTool,
 	"cmd/cgo":                              toTool,
+	"cmd/cover":                            toTool,
 	"cmd/dist":                             toTool,
+	"cmd/doc":                              toTool,
 	"cmd/fix":                              toTool,
 	"cmd/link":                             toTool,
 	"cmd/nm":                               toTool,
@@ -419,7 +423,6 @@ var goTools = map[string]targetDir{
 	"cmd/pprof":                            toTool,
 	"cmd/trace":                            toTool,
 	"cmd/yacc":                             toTool,
-	"golang.org/x/tools/cmd/cover":         toTool,
 	"golang.org/x/tools/cmd/godoc":         toBin,
 	"golang.org/x/tools/cmd/vet":           toTool,
 	"code.google.com/p/go.tools/cmd/cover": stalePath,
@@ -484,7 +487,15 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		return p
 	}
 
-	if p.Name == "main" {
+	useBindir := p.Name == "main"
+	if !p.Standard {
+		switch buildBuildmode {
+		case "c-archive", "c-shared":
+			useBindir = false
+		}
+	}
+
+	if useBindir {
 		// Report an error when the old code.google.com/p/go.tools paths are used.
 		if goTools[p.ImportPath] == stalePath {
 			newPath := strings.Replace(p.ImportPath, "code.google.com/p/go.", "golang.org/x/", 1)
@@ -521,6 +532,15 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		p.target = ""
 	} else {
 		p.target = p.build.PkgObj
+		if buildLinkshared {
+			shlibnamefile := p.target[:len(p.target)-2] + ".shlibname"
+			shlib, err := ioutil.ReadFile(shlibnamefile)
+			if err == nil {
+				p.Shlib = strings.TrimSpace(string(shlib))
+			} else if !os.IsNotExist(err) {
+				fatalf("unexpected error reading %s: %v", shlibnamefile, err)
+			}
+		}
 	}
 
 	importPaths := p.Imports
@@ -534,6 +554,14 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 	if len(p.CgoFiles) > 0 && (!p.Standard || !cgoSyscallExclude[p.ImportPath]) {
 		importPaths = append(importPaths, "syscall")
 	}
+
+	// Currently build mode c-shared, or -linkshared, forces
+	// external linking mode, and external linking mode forces an
+	// import of runtime/cgo.
+	if p.Name == "main" && !p.Goroot && (buildBuildmode == "c-shared" || buildLinkshared) {
+		importPaths = append(importPaths, "runtime/cgo")
+	}
+
 	// Everything depends on runtime, except runtime and unsafe.
 	if !p.Standard || (p.ImportPath != "runtime" && p.ImportPath != "unsafe") {
 		importPaths = append(importPaths, "runtime")

@@ -7,6 +7,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 )
 
 /*
@@ -18,6 +19,9 @@ import (
 //	package runtime
 //	const defaultGoroot = <goroot>
 //	const theVersion = <version>
+//	const goexperiment = <goexperiment>
+//	const stackGuardMultiplier = <multiplier value>
+//	const buildVersion = <build version>
 //
 func mkzversion(dir, file string) {
 	out := fmt.Sprintf(
@@ -28,7 +32,8 @@ func mkzversion(dir, file string) {
 			"const defaultGoroot = `%s`\n"+
 			"const theVersion = `%s`\n"+
 			"const goexperiment = `%s`\n"+
-			"var buildVersion = theVersion\n", goroot_final, findgoversion(), os.Getenv("GOEXPERIMENT"))
+			"const stackGuardMultiplier = %d\n"+
+			"var buildVersion = theVersion\n", goroot_final, findgoversion(), os.Getenv("GOEXPERIMENT"), stackGuardMultiplier())
 
 	writefile(out, file, 0)
 }
@@ -44,6 +49,7 @@ func mkzversion(dir, file string) {
 //	const defaultGOARCH = runtime.GOARCH
 //	const defaultGO_EXTLINK_ENABLED = <goextlinkenabled>
 //	const version = <version>
+//	const stackGuardMultiplier = <multiplier value>
 //	const goexperiment = <goexperiment>
 //
 // The use of runtime.GOOS and runtime.GOARCH makes sure that
@@ -70,8 +76,21 @@ func mkzbootstrap(file string) {
 			"const defaultGOARCH = runtime.GOARCH\n"+
 			"const defaultGO_EXTLINK_ENABLED = `%s`\n"+
 			"const version = `%s`\n"+
+			"const stackGuardMultiplier = %d\n"+
 			"const goexperiment = `%s`\n",
-		goroot_final, go386, goarm, goextlinkenabled, findgoversion(), os.Getenv("GOEXPERIMENT"))
+		goroot_final, go386, goarm, goextlinkenabled, findgoversion(), stackGuardMultiplier(), os.Getenv("GOEXPERIMENT"))
 
 	writefile(out, file, 0)
+}
+
+// stackGuardMultiplier returns a multiplier to apply to the default
+// stack guard size.  Larger multipliers are used for non-optimized
+// builds that have larger stack frames.
+func stackGuardMultiplier() int {
+	for _, s := range strings.Split(os.Getenv("GO_GCFLAGS"), " ") {
+		if s == "-N" {
+			return 2
+		}
+	}
+	return 1
 }

@@ -182,6 +182,17 @@ func (state *decoderState) decodeInt() int64 {
 	return int64(x >> 1)
 }
 
+// getLength decodes the next uint and makes sure it is a possible
+// size for a data item that follows, which means it must fit in a
+// non-negative int and fit in the buffer.
+func (state *decoderState) getLength() (int, bool) {
+	n := int(state.decodeUint())
+	if n < 0 || state.b.Len() < n || tooBig <= n {
+		return 0, false
+	}
+	return n, true
+}
+
 // decOp is the signature of a decoding operator for a given type.
 type decOp func(i *decInstr, state *decoderState, v reflect.Value)
 
@@ -363,16 +374,9 @@ func decComplex128(i *decInstr, state *decoderState, value reflect.Value) {
 // describing the data.
 // uint8 slices are encoded as an unsigned count followed by the raw bytes.
 func decUint8Slice(i *decInstr, state *decoderState, value reflect.Value) {
-	u := state.decodeUint()
-	n := int(u)
-	if n < 0 || uint64(n) != u {
-		errorf("length of %s exceeds input size (%d bytes)", value.Type(), u)
-	}
-	if n > state.b.Len() {
-		errorf("%s data too long for buffer: %d", value.Type(), n)
-	}
-	if n > tooBig {
-		errorf("byte slice too big: %d", n)
+	n, ok := state.getLength()
+	if !ok {
+		errorf("bad %s slice length: %d", value.Type(), n)
 	}
 	if value.Cap() < n {
 		value.Set(reflect.MakeSlice(value.Type(), n, n))
@@ -388,13 +392,9 @@ func decUint8Slice(i *decInstr, state *decoderState, value reflect.Value) {
 // describing the data.
 // Strings are encoded as an unsigned count followed by the raw bytes.
 func decString(i *decInstr, state *decoderState, value reflect.Value) {
-	u := state.decodeUint()
-	n := int(u)
-	if n < 0 || uint64(n) != u || n > state.b.Len() {
-		errorf("length of %s exceeds input size (%d bytes)", value.Type(), u)
-	}
-	if n > state.b.Len() {
-		errorf("%s data too long for buffer: %d", value.Type(), n)
+	n, ok := state.getLength()
+	if !ok {
+		errorf("bad %s slice length: %d", value.Type(), n)
 	}
 	// Read the data.
 	data := make([]byte, n)
@@ -406,7 +406,11 @@ func decString(i *decInstr, state *decoderState, value reflect.Value) {
 
 // ignoreUint8Array skips over the data for a byte slice value with no destination.
 func ignoreUint8Array(i *decInstr, state *decoderState, value reflect.Value) {
-	b := make([]byte, state.decodeUint())
+	n, ok := state.getLength()
+	if !ok {
+		errorf("slice length too large")
+	}
+	b := make([]byte, n)
 	state.b.Read(b)
 }
 
@@ -571,6 +575,9 @@ func (dec *Decoder) decodeMap(mtyp reflect.Type, state *decoderState, value refl
 func (dec *Decoder) ignoreArrayHelper(state *decoderState, elemOp decOp, length int) {
 	instr := &decInstr{elemOp, 0, nil, errors.New("no error")}
 	for i := 0; i < length; i++ {
+		if state.b.Len() == 0 {
+			errorf("decoding array or slice: length exceeds input size (%d elements)", length)
+		}
 		elemOp(instr, state, noValue)
 	}
 }
@@ -678,7 +685,11 @@ func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, valu
 // ignoreInterface discards the data for an interface value with no destination.
 func (dec *Decoder) ignoreInterface(state *decoderState) {
 	// Read the name of the concrete type.
-	b := make([]byte, state.decodeUint())
+	n, ok := state.getLength()
+	if !ok {
+		errorf("bad interface encoding: name too large for buffer")
+	}
+	b := make([]byte, n)
 	_, err := state.b.Read(b)
 	if err != nil {
 		error_(err)
@@ -688,14 +699,22 @@ func (dec *Decoder) ignoreInterface(state *decoderState) {
 		error_(dec.err)
 	}
 	// At this point, the decoder buffer contains a delimited value. Just toss it.
-	state.b.Drop(int(state.decodeUint()))
+	n, ok = state.getLength()
+	if !ok {
+		errorf("bad interface encoding: data length too large for buffer")
+	}
+	state.b.Drop(n)
 }
 
 // decodeGobDecoder decodes something implementing the GobDecoder interface.
 // The data is encoded as a byte slice.
 func (dec *Decoder) decodeGobDecoder(ut *userTypeInfo, state *decoderState, value reflect.Value) {
 	// Read the bytes for the value.
-	b := make([]byte, state.decodeUint())
+	n, ok := state.getLength()
+	if !ok {
+		errorf("GobDecoder: length too large for buffer")
+	}
+	b := make([]byte, n)
 	_, err := state.b.Read(b)
 	if err != nil {
 		error_(err)
@@ -717,7 +736,11 @@ func (dec *Decoder) decodeGobDecoder(ut *userTypeInfo, state *decoderState, valu
 // ignoreGobDecoder discards the data for a GobDecoder value with no destination.
 func (dec *Decoder) ignoreGobDecoder(state *decoderState) {
 	// Read the bytes for the value.
-	b := make([]byte, state.decodeUint())
+	n, ok := state.getLength()
+	if !ok {
+		errorf("GobDecoder: length too large for buffer")
+	}
+	b := make([]byte, n)
 	_, err := state.b.Read(b)
 	if err != nil {
 		error_(err)
@@ -1043,6 +1066,7 @@ func (dec *Decoder) compileIgnoreSingle(remoteId typeId) (engine *decEngine, err
 // compileDec compiles the decoder engine for a value.  If the value is not a struct,
 // it calls out to compileSingle.
 func (dec *Decoder) compileDec(remoteId typeId, ut *userTypeInfo) (engine *decEngine, err error) {
+	defer catchError(&err)
 	rt := ut.base
 	srt := rt
 	if srt.Kind() != reflect.Struct || ut.externalDec != 0 {
@@ -1116,7 +1140,7 @@ type emptyStruct struct{}
 
 var emptyStructType = reflect.TypeOf(emptyStruct{})
 
-// getDecEnginePtr returns the engine for the specified type when the value is to be discarded.
+// getIgnoreEnginePtr returns the engine for the specified type when the value is to be discarded.
 func (dec *Decoder) getIgnoreEnginePtr(wireId typeId) (enginePtr **decEngine, err error) {
 	var ok bool
 	if enginePtr, ok = dec.ignorerCache[wireId]; !ok {
@@ -1155,8 +1179,9 @@ func (dec *Decoder) decodeValue(wireId typeId, value reflect.Value) {
 	value = decAlloc(value)
 	engine := *enginePtr
 	if st := base; st.Kind() == reflect.Struct && ut.externalDec == 0 {
+		wt := dec.wireType[wireId]
 		if engine.numInstr == 0 && st.NumField() > 0 &&
-			dec.wireType[wireId] != nil && len(dec.wireType[wireId].StructT.Field) > 0 {
+			wt != nil && len(wt.StructT.Field) > 0 {
 			name := base.Name()
 			errorf("type mismatch: no fields matched compiling decoder for %s", name)
 		}

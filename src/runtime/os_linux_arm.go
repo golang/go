@@ -64,6 +64,7 @@ func sysargs(argc int32, argv **byte) {
 	}
 }
 
+//go:nosplit
 func cputicks() int64 {
 	// Currently cputicks() is used in blocking profiler and to seed fastrand1().
 	// nanotime() is a poor approximation of CPU ticks that is enough for the profiler.

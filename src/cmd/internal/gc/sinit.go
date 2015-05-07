@@ -111,16 +111,16 @@ func init1(n *Node, out **NodeList) {
 		for l = initlist; l.N != nv; l = l.Next {
 		}
 		for ; l != nil; l = l.End {
-			fmt.Printf("\t%v %v refers to\n", l.N.Line(), Sconv(l.N.Sym, 0))
+			fmt.Printf("\t%v %v refers to\n", l.N.Line(), l.N.Sym)
 		}
 
 		// Print n -> ... -> nv.
 		for l = initlist; l.N != n; l = l.Next {
 		}
 		for ; l.N != nv; l = l.End {
-			fmt.Printf("\t%v %v refers to\n", l.N.Line(), Sconv(l.N.Sym, 0))
+			fmt.Printf("\t%v %v refers to\n", l.N.Line(), l.N.Sym)
 		}
-		fmt.Printf("\t%v %v\n", nv.Line(), Sconv(nv.Sym, 0))
+		fmt.Printf("\t%v %v\n", nv.Line(), nv.Sym)
 		errorexit()
 	}
 
@@ -162,7 +162,7 @@ func init1(n *Node, out **NodeList) {
 
 			init2(n.Defn.Right, out)
 			if Debug['j'] != 0 {
-				fmt.Printf("%v\n", Sconv(n.Sym, 0))
+				fmt.Printf("%v\n", n.Sym)
 			}
 			if isblank(n) || !staticinit(n, out) {
 				if Debug['%'] != 0 {
@@ -207,7 +207,7 @@ func init2(n *Node, out **NodeList) {
 	}
 
 	if n.Op == ONAME && n.Ninit != nil {
-		Fatal("name %v with ninit: %v\n", Sconv(n.Sym, 0), Nconv(n, obj.FmtSign))
+		Fatal("name %v with ninit: %v\n", n.Sym, Nconv(n, obj.FmtSign))
 	}
 
 	init1(n, out)
@@ -529,7 +529,7 @@ func simplename(n *Node) bool {
 	if n.Op != ONAME {
 		return false
 	}
-	if n.Addable == 0 {
+	if !n.Addable {
 		return false
 	}
 	if n.Class&PHEAP != 0 {
@@ -593,7 +593,7 @@ func structlit(ctxt int, pass int, n *Node, var_ *Node, init **NodeList) {
 	for nl := n.List; nl != nil; nl = nl.Next {
 		r = nl.N
 		if r.Op != OKEY {
-			Fatal("structlit: rhs not OKEY: %v", Nconv(r, 0))
+			Fatal("structlit: rhs not OKEY: %v", r)
 		}
 		index = r.Left
 		value = r.Right
@@ -660,7 +660,7 @@ func arraylit(ctxt int, pass int, n *Node, var_ *Node, init **NodeList) {
 	for l := n.List; l != nil; l = l.Next {
 		r = l.N
 		if r.Op != OKEY {
-			Fatal("arraylit: rhs not OKEY: %v", Nconv(r, 0))
+			Fatal("arraylit: rhs not OKEY: %v", r)
 		}
 		index = r.Left
 		value = r.Right
@@ -835,7 +835,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 	for l := n.List; l != nil; l = l.Next {
 		r = l.N
 		if r.Op != OKEY {
-			Fatal("slicelit: rhs not OKEY: %v", Nconv(r, 0))
+			Fatal("slicelit: rhs not OKEY: %v", r)
 		}
 		index = r.Left
 		value = r.Right
@@ -892,7 +892,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 		r = l.N
 
 		if r.Op != OKEY {
-			Fatal("maplit: rhs not OKEY: %v", Nconv(r, 0))
+			Fatal("maplit: rhs not OKEY: %v", r)
 		}
 		index = r.Left
 		value = r.Right
@@ -943,7 +943,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 			r = l.N
 
 			if r.Op != OKEY {
-				Fatal("maplit: rhs not OKEY: %v", Nconv(r, 0))
+				Fatal("maplit: rhs not OKEY: %v", r)
 			}
 			index = r.Left
 			value = r.Right
@@ -1012,7 +1012,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 		r = l.N
 
 		if r.Op != OKEY {
-			Fatal("maplit: rhs not OKEY: %v", Nconv(r, 0))
+			Fatal("maplit: rhs not OKEY: %v", r)
 		}
 		index = r.Left
 		value = r.Right
@@ -1239,7 +1239,7 @@ func stataddr(nam *Node, n *Node) bool {
 	switch n.Op {
 	case ONAME:
 		*nam = *n
-		return n.Addable != 0
+		return n.Addable
 
 	case ODOT:
 		if !stataddr(nam, n.Left) {
@@ -1363,7 +1363,7 @@ func iszero(n *Node) bool {
 			return n.Val.U.Sval == ""
 
 		case CTBOOL:
-			return n.Val.U.Bval == 0
+			return !n.Val.U.Bval
 
 		case CTINT, CTRUNE:
 			return mpcmpfixc(n.Val.U.Xval, 0) == 0
