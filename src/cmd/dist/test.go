@@ -324,7 +324,7 @@ func (t *tester) registerTests() {
 			t.registerTest("testcshared", "../misc/cgo/testcshared", "./test.bash")
 		}
 		if t.supportedBuildmode("shared") {
-			t.registerTest("testshared", "../misc/cgo/testshared", "./test.bash")
+			t.registerTest("testshared", "../misc/cgo/testshared", "go", "test")
 		}
 		if t.gohostos == "linux" && t.goarch == "amd64" {
 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
