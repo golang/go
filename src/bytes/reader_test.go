@@ -244,3 +244,15 @@ func TestReaderCopyNothing(t *testing.T) {
 		t.Errorf("behavior differs: with = %#v; without: %#v", with, withOut)
 	}
 }
+
+// tests that Len is affected by reads, but Size is not.
+func TestReaderLenSize(t *testing.T) {
+	r := NewReader([]byte("abc"))
+	io.CopyN(ioutil.Discard, r, 1)
+	if r.Len() != 2 {
+		t.Errorf("Len = %d; want 2", r.Len())
+	}
+	if r.Size() != 3 {
+		t.Errorf("Size = %d; want 3", r.Size())
+	}
+}

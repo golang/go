@@ -18,7 +18,7 @@ structure as execution proceeds.
 The input text for a template is UTF-8-encoded text in any format.
 "Actions"--data evaluations or control structures--are delimited by
 "{{" and "}}"; all text outside actions is copied to the output unchanged.
-Actions may not span newlines, although comments can.
+Except for raw strings, actions may not span newlines, although comments can.
 
 Once parsed, a template may be executed safely in parallel.
 
@@ -106,7 +106,7 @@ An argument is a simple value, denoted by one of the following.
 
 	- A boolean, string, character, integer, floating-point, imaginary
 	  or complex constant in Go syntax. These behave like Go's untyped
-	  constants, although raw strings may not span newlines.
+	  constants.
 	- The keyword nil, representing an untyped Go nil.
 	- The character '.' (period):
 		.

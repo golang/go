@@ -888,6 +888,13 @@ func (z nat) expNN(x, y, m nat) nat {
 	}
 	// y > 0
 
+	// x**1 mod m == x mod m
+	if len(y) == 1 && y[0] == 1 && len(m) != 0 {
+		_, z = z.div(z, x, m)
+		return z
+	}
+	// y > 1
+
 	if len(m) != 0 {
 		// We likely end up being as long as the modulus.
 		z = z.make(len(m))

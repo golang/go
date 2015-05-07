@@ -54,7 +54,7 @@ func fnpkg(fn *Node) *Pkg {
 			rcvr = rcvr.Type
 		}
 		if rcvr.Sym == nil {
-			Fatal("receiver with no sym: [%v] %v  (%v)", Sconv(fn.Sym, 0), Nconv(fn, obj.FmtLong), Tconv(rcvr, 0))
+			Fatal("receiver with no sym: [%v] %v  (%v)", fn.Sym, Nconv(fn, obj.FmtLong), rcvr)
 		}
 		return rcvr.Sym.Pkg
 	}
@@ -79,7 +79,7 @@ func typecheckinl(fn *Node) {
 	}
 
 	if Debug['m'] > 2 {
-		fmt.Printf("typecheck import [%v] %v { %v }\n", Sconv(fn.Sym, 0), Nconv(fn, obj.FmtLong), Hconv(fn.Func.Inl, obj.FmtSharp))
+		fmt.Printf("typecheck import [%v] %v { %v }\n", fn.Sym, Nconv(fn, obj.FmtLong), Hconv(fn.Func.Inl, obj.FmtSharp))
 	}
 
 	save_safemode := safemode
@@ -100,7 +100,7 @@ func typecheckinl(fn *Node) {
 // fn and ->nbody will already have been typechecked.
 func caninl(fn *Node) {
 	if fn.Op != ODCLFUNC {
-		Fatal("caninl %v", Nconv(fn, 0))
+		Fatal("caninl %v", fn)
 	}
 	if fn.Nname == nil {
 		Fatal("caninl no nname %v", Nconv(fn, obj.FmtSign))
@@ -112,7 +112,7 @@ func caninl(fn *Node) {
 	}
 
 	if fn.Typecheck == 0 {
-		Fatal("caninl on non-typechecked function %v", Nconv(fn, 0))
+		Fatal("caninl on non-typechecked function %v", fn)
 	}
 
 	// can't handle ... args yet
@@ -122,6 +122,16 @@ func caninl(fn *Node) {
 				return
 			}
 		}
+	}
+
+	// Runtime package must not be race instrumented.
+	// Racewalk skips runtime package. However, some runtime code can be
+	// inlined into other packages and instrumented there. To avoid this,
+	// we disable inlining of runtime functions in race mode.
+	// The example that we observed is inlining of LockOSThread,
+	// which lead to false race reports on m contents.
+	if flag_race != 0 && myimportpath == "runtime" {
+		return
 	}
 
 	const maxBudget = 80
@@ -145,7 +155,7 @@ func caninl(fn *Node) {
 	if Debug['m'] > 1 {
 		fmt.Printf("%v: can inline %v as: %v { %v }\n", fn.Line(), Nconv(fn.Nname, obj.FmtSharp), Tconv(fn.Type, obj.FmtSharp), Hconv(fn.Nname.Func.Inl, obj.FmtSharp))
 	} else if Debug['m'] != 0 {
-		fmt.Printf("%v: can inline %v\n", fn.Line(), Nconv(fn.Nname, 0))
+		fmt.Printf("%v: can inline %v\n", fn.Line(), fn.Nname)
 	}
 
 	Curfn = savefn
@@ -390,7 +400,6 @@ func inlnode(np **Node) {
 		}
 		fallthrough
 
-		// fallthrough
 	default:
 		for l := n.List; l != nil; l = l.Next {
 			if l.N.Op == OINLCALL {
@@ -411,7 +420,6 @@ func inlnode(np **Node) {
 		}
 		fallthrough
 
-		// fallthrough
 	default:
 		for l := n.Rlist; l != nil; l = l.Next {
 			if l.N.Op == OINLCALL {
@@ -504,7 +512,7 @@ func mkinlcall(np **Node, fn *Node, isddd bool) {
 func tinlvar(t *Type) *Node {
 	if t.Nname != nil && !isblank(t.Nname) {
 		if t.Nname.Inlvar == nil {
-			Fatal("missing inlvar for %v\n", Nconv(t.Nname, 0))
+			Fatal("missing inlvar for %v\n", t.Nname)
 		}
 		return t.Nname.Inlvar
 	}
@@ -537,9 +545,9 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 
 	// Bingo, we have a function node, and it has an inlineable body
 	if Debug['m'] > 1 {
-		fmt.Printf("%v: inlining call to %v %v { %v }\n", n.Line(), Sconv(fn.Sym, 0), Tconv(fn.Type, obj.FmtSharp), Hconv(fn.Func.Inl, obj.FmtSharp))
+		fmt.Printf("%v: inlining call to %v %v { %v }\n", n.Line(), fn.Sym, Tconv(fn.Type, obj.FmtSharp), Hconv(fn.Func.Inl, obj.FmtSharp))
 	} else if Debug['m'] != 0 {
-		fmt.Printf("%v: inlining call to %v\n", n.Line(), Nconv(fn, 0))
+		fmt.Printf("%v: inlining call to %v\n", n.Line(), fn)
 	}
 
 	if Debug['m'] > 2 {
@@ -604,7 +612,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 		t := getthisx(fn.Type).Type
 
 		if t != nil && t.Nname != nil && !isblank(t.Nname) && t.Nname.Inlvar == nil {
-			Fatal("missing inlvar for %v\n", Nconv(t.Nname, 0))
+			Fatal("missing inlvar for %v\n", t.Nname)
 		}
 		if n.Left.Left == nil {
 			Fatal("method call without receiver: %v", Nconv(n, obj.FmtSign))
@@ -673,7 +681,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 		t := getthisx(fn.Type).Type
 
 		if t != nil && t.Nname != nil && !isblank(t.Nname) && t.Nname.Inlvar == nil {
-			Fatal("missing inlvar for %v\n", Nconv(t.Nname, 0))
+			Fatal("missing inlvar for %v\n", t.Nname)
 		}
 		if t == nil {
 			Fatal("method call unknown receiver type: %v", Nconv(n, obj.FmtSign))

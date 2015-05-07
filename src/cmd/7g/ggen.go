@@ -62,6 +62,8 @@ func defframe(ptxt *obj.Prog) {
 	zerorange(p, int64(frame), lo, hi)
 }
 
+var darwin = obj.Getgoos() == "darwin"
+
 func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
 	cnt := hi - lo
 	if cnt == 0 {
@@ -71,7 +73,7 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
 		for i := int64(0); i < cnt; i += int64(gc.Widthptr) {
 			p = appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGZERO, 0, obj.TYPE_MEM, arm64.REGSP, 8+frame+lo+i)
 		}
-	} else if cnt <= int64(128*gc.Widthptr) {
+	} else if cnt <= int64(128*gc.Widthptr) && !darwin { // darwin ld64 cannot handle BR26 reloc with non-zero addend
 		p = appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGSP, 0, obj.TYPE_REG, arm64.REGRT1, 0)
 		p = appendpp(p, arm64.AADD, obj.TYPE_CONST, 0, 8+frame+lo-8, obj.TYPE_REG, arm64.REGRT1, 0)
 		p.Reg = arm64.REGRT1
@@ -121,6 +123,8 @@ func ginsnop() {
 	gc.Nodconst(&con, gc.Types[gc.TINT], 0)
 	gins(arm64.AHINT, &con, nil)
 }
+
+var panicdiv *gc.Node
 
 /*
  * generate division.
@@ -230,7 +234,7 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		// TODO(minux): add gins3?
 		p1.Reg = p1.To.Reg
 
-		p1.To.Reg = tm.Val.U.Reg
+		p1.To.Reg = tm.Reg
 		gins(optoas(gc.OMUL, t), &tr, &tm)
 		gc.Regfree(&tr)
 		gins(optoas(gc.OSUB, t), &tm, &tl)
@@ -288,7 +292,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		}
 
 	default:
-		gc.Fatal("cgen_hmul %v", gc.Tconv(t, 0))
+		gc.Fatal("cgen_hmul %v", t)
 	}
 
 	gc.Cgen(&n1, res)
@@ -394,15 +398,15 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 func clearfat(nl *gc.Node) {
 	/* clear a fat object */
 	if gc.Debug['g'] != 0 {
-		fmt.Printf("clearfat %v (%v, size: %d)\n", gc.Nconv(nl, 0), gc.Tconv(nl.Type, 0), nl.Type.Width)
+		fmt.Printf("clearfat %v (%v, size: %d)\n", nl, nl.Type, nl.Type.Width)
 	}
 
 	w := uint64(uint64(nl.Type.Width))
 
 	// Avoid taking the address for simple enough types.
-	//if gc.Componentgen(nil, nl) {
-	//	return
-	//}
+	if gc.Componentgen(nil, nl) {
+		return
+	}
 
 	c := uint64(w % 8) // bytes
 	q := uint64(w / 8) // dwords
@@ -443,7 +447,7 @@ func clearfat(nl *gc.Node) {
 
 		// The loop leaves R16 on the last zeroed dword
 		boff = 8
-	} else if q >= 4 {
+	} else if q >= 4 && !darwin { // darwin ld64 cannot handle BR26 reloc with non-zero addend
 		p := gins(arm64.ASUB, nil, &dst)
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = 8
@@ -481,7 +485,6 @@ func clearfat(nl *gc.Node) {
 // Expand CHECKNIL pseudo-op into actual nil pointer check.
 func expandchecks(firstp *obj.Prog) {
 	var p1 *obj.Prog
-	var p2 *obj.Prog
 
 	for p := (*obj.Prog)(firstp); p != nil; p = p.Link {
 		if gc.Debug_checknil != 0 && gc.Ctxt.Debugvlog != 0 {
@@ -498,37 +501,32 @@ func expandchecks(firstp *obj.Prog) {
 		}
 
 		// check is
-		//	CMP arg, ZR
-		//	BNE 2(PC) [likely]
+		//	CBNZ arg, 2(PC)
 		//	MOVD ZR, 0(arg)
 		p1 = gc.Ctxt.NewProg()
-
-		p2 = gc.Ctxt.NewProg()
 		gc.Clearp(p1)
-		gc.Clearp(p2)
-		p1.Link = p2
-		p2.Link = p.Link
+		p1.Link = p.Link
 		p.Link = p1
 		p1.Lineno = p.Lineno
-		p2.Lineno = p.Lineno
 		p1.Pc = 9999
-		p2.Pc = 9999
-		p.As = arm64.ACMP
-		p.Reg = arm64.REGZERO
-		p1.As = arm64.ABNE
 
-		//p1->from.type = TYPE_CONST;
-		//p1->from.offset = 1; // likely
-		p1.To.Type = obj.TYPE_BRANCH
-
-		p1.To.Val = p2.Link
+		p.As = arm64.ACBNZ
+		p.To.Type = obj.TYPE_BRANCH
+		p.To.Val = p1.Link
 
 		// crash by write to memory address 0.
-		p2.As = arm64.AMOVD
-		p2.From.Type = obj.TYPE_REG
-		p2.From.Reg = arm64.REGZERO
-		p2.To.Type = obj.TYPE_MEM
-		p2.To.Reg = p.From.Reg
-		p2.To.Offset = 0
+		p1.As = arm64.AMOVD
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = arm64.REGZERO
+		p1.To.Type = obj.TYPE_MEM
+		p1.To.Reg = p.From.Reg
+		p1.To.Offset = 0
 	}
+}
+
+// res = runtime.getg()
+func getg(res *gc.Node) {
+	var n1 gc.Node
+	gc.Nodreg(&n1, res.Type, arm64.REGG)
+	gmove(&n1, res)
 }

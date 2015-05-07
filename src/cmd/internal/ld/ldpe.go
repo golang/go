@@ -115,7 +115,7 @@ type PeSect struct {
 }
 
 type PeObj struct {
-	f      *Biobuf
+	f      *obj.Biobuf
 	name   string
 	base   uint32
 	sect   []PeSect
@@ -126,14 +126,14 @@ type PeObj struct {
 	snames []byte
 }
 
-func ldpe(f *Biobuf, pkg string, length int64, pn string) {
+func ldpe(f *obj.Biobuf, pkg string, length int64, pn string) {
 	if Debug['v'] != 0 {
 		fmt.Fprintf(&Bso, "%5.2f ldpe %s\n", obj.Cputime(), pn)
 	}
 
 	var sect *PeSect
 	Ctxt.Version++
-	base := int32(Boffset(f))
+	base := int32(obj.Boffset(f))
 
 	peobj := new(PeObj)
 	peobj.f = f
@@ -171,15 +171,15 @@ func ldpe(f *Biobuf, pkg string, length int64, pn string) {
 	// TODO return error if found .cormeta
 
 	// load string table
-	Bseek(f, int64(base)+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(peobj.fh.NumberOfSymbols), 0)
+	obj.Bseek(f, int64(base)+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(peobj.fh.NumberOfSymbols), 0)
 
-	if Bread(f, symbuf[:4]) != 4 {
+	if obj.Bread(f, symbuf[:4]) != 4 {
 		goto bad
 	}
 	l = Le32(symbuf[:])
 	peobj.snames = make([]byte, l)
-	Bseek(f, int64(base)+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(peobj.fh.NumberOfSymbols), 0)
-	if Bread(f, peobj.snames) != len(peobj.snames) {
+	obj.Bseek(f, int64(base)+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(peobj.fh.NumberOfSymbols), 0)
+	if obj.Bread(f, peobj.snames) != len(peobj.snames) {
 		goto bad
 	}
 
@@ -199,10 +199,10 @@ func ldpe(f *Biobuf, pkg string, length int64, pn string) {
 	peobj.pesym = make([]PeSym, peobj.fh.NumberOfSymbols)
 
 	peobj.npesym = uint(peobj.fh.NumberOfSymbols)
-	Bseek(f, int64(base)+int64(peobj.fh.PointerToSymbolTable), 0)
+	obj.Bseek(f, int64(base)+int64(peobj.fh.PointerToSymbolTable), 0)
 	for i := 0; uint32(i) < peobj.fh.NumberOfSymbols; i += numaux + 1 {
-		Bseek(f, int64(base)+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(i), 0)
-		if Bread(f, symbuf[:]) != len(symbuf) {
+		obj.Bseek(f, int64(base)+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(i), 0)
+		if obj.Bread(f, symbuf[:]) != len(symbuf) {
 			goto bad
 		}
 
@@ -246,16 +246,16 @@ func ldpe(f *Biobuf, pkg string, length int64, pn string) {
 
 		switch sect.sh.Characteristics & (IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE) {
 		case IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ: //.rdata
-			s.Type = SRODATA
+			s.Type = obj.SRODATA
 
 		case IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE: //.bss
-			s.Type = SNOPTRBSS
+			s.Type = obj.SNOPTRBSS
 
 		case IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE: //.data
-			s.Type = SNOPTRDATA
+			s.Type = obj.SNOPTRDATA
 
 		case IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ: //.text
-			s.Type = STEXT
+			s.Type = obj.STEXT
 
 		default:
 			err = fmt.Errorf("unexpected flags %#06x for PE section %s", sect.sh.Characteristics, sect.name)
@@ -287,10 +287,10 @@ func ldpe(f *Biobuf, pkg string, length int64, pn string) {
 		}
 
 		r = make([]Reloc, rsect.sh.NumberOfRelocations)
-		Bseek(f, int64(peobj.base)+int64(rsect.sh.PointerToRelocations), 0)
+		obj.Bseek(f, int64(peobj.base)+int64(rsect.sh.PointerToRelocations), 0)
 		for j = 0; j < int(rsect.sh.NumberOfRelocations); j++ {
 			rp = &r[j]
-			if Bread(f, symbuf[:10]) != 10 {
+			if obj.Bread(f, symbuf[:10]) != 10 {
 				goto bad
 			}
 			rva := Le32(symbuf[0:])
@@ -315,12 +315,12 @@ func ldpe(f *Biobuf, pkg string, length int64, pn string) {
 			case IMAGE_REL_I386_REL32, IMAGE_REL_AMD64_REL32,
 				IMAGE_REL_AMD64_ADDR32, // R_X86_64_PC32
 				IMAGE_REL_AMD64_ADDR32NB:
-				rp.Type = R_PCREL
+				rp.Type = obj.R_PCREL
 
 				rp.Add = int64(int32(Le32(rsect.base[rp.Off:])))
 
 			case IMAGE_REL_I386_DIR32NB, IMAGE_REL_I386_DIR32:
-				rp.Type = R_ADDR
+				rp.Type = obj.R_ADDR
 
 				// load addend from image
 				rp.Add = int64(int32(Le32(rsect.base[rp.Off:])))
@@ -328,7 +328,7 @@ func ldpe(f *Biobuf, pkg string, length int64, pn string) {
 			case IMAGE_REL_AMD64_ADDR64: // R_X86_64_64
 				rp.Siz = 8
 
-				rp.Type = R_ADDR
+				rp.Type = obj.R_ADDR
 
 				// load addend from image
 				rp.Add = int64(Le64(rsect.base[rp.Off:]))
@@ -373,11 +373,11 @@ func ldpe(f *Biobuf, pkg string, length int64, pn string) {
 
 		s = sym.sym
 		if sym.sectnum == 0 { // extern
-			if s.Type == SDYNIMPORT {
+			if s.Type == obj.SDYNIMPORT {
 				s.Plt = -2 // flag for dynimport in PE object files.
 			}
-			if s.Type == SXREF && sym.value > 0 { // global data
-				s.Type = SNOPTRDATA
+			if s.Type == obj.SXREF && sym.value > 0 { // global data
+				s.Type = obj.SNOPTRDATA
 				s.Size = int64(sym.value)
 			}
 
@@ -399,17 +399,16 @@ func ldpe(f *Biobuf, pkg string, length int64, pn string) {
 			if s.Dupok != 0 {
 				continue
 			}
-			Diag("%s: duplicate symbol reference: %s in both %s and %s", pn, s.Name, s.Outer.Name, sect.sym.Name)
-			Errorexit()
+			Exitf("%s: duplicate symbol reference: %s in both %s and %s", pn, s.Name, s.Outer.Name, sect.sym.Name)
 		}
 
 		s.Sub = sect.sym.Sub
 		sect.sym.Sub = s
-		s.Type = sect.sym.Type | SSUB
+		s.Type = sect.sym.Type | obj.SSUB
 		s.Value = int64(sym.value)
 		s.Size = 4
 		s.Outer = sect.sym
-		if sect.sym.Type == STEXT {
+		if sect.sym.Type == obj.STEXT {
 			if s.External != 0 && s.Dupok == 0 {
 				Diag("%s: duplicate definition of %s", pn, s.Name)
 			}
@@ -427,7 +426,7 @@ func ldpe(f *Biobuf, pkg string, length int64, pn string) {
 		if s.Sub != nil {
 			s.Sub = listsort(s.Sub, valuecmp, listsubp)
 		}
-		if s.Type == STEXT {
+		if s.Type == obj.STEXT {
 			if s.Onlist != 0 {
 				log.Fatalf("symbol %s listed multiple times", s.Name)
 			}
@@ -464,7 +463,7 @@ func pemap(peobj *PeObj, sect *PeSect) int {
 	if sect.sh.PointerToRawData == 0 { // .bss doesn't have data in object file
 		return 0
 	}
-	if Bseek(peobj.f, int64(peobj.base)+int64(sect.sh.PointerToRawData), 0) < 0 || Bread(peobj.f, sect.base) != len(sect.base) {
+	if obj.Bseek(peobj.f, int64(peobj.base)+int64(sect.sh.PointerToRawData), 0) < 0 || obj.Bread(peobj.f, sect.base) != len(sect.base) {
 		return -1
 	}
 
@@ -524,7 +523,7 @@ func readpesym(peobj *PeObj, i int, y **PeSym) (err error) {
 	}
 
 	if s != nil && s.Type == 0 && (sym.sclass != IMAGE_SYM_CLASS_STATIC || sym.value != 0) {
-		s.Type = SXREF
+		s.Type = obj.SXREF
 	}
 	if strings.HasPrefix(sym.name, "__imp_") {
 		s.Got = -2 // flag for __imp_

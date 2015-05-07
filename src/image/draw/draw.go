@@ -68,7 +68,7 @@ func (floydSteinberg) Draw(dst Image, r image.Rectangle, src image.Image, sp ima
 }
 
 // clip clips r against each image's bounds (after translating into the
-// destination image's co-ordinate space) and shifts the points sp and mp by
+// destination image's coordinate space) and shifts the points sp and mp by
 // the same amount as the change in r.Min.
 func clip(dst Image, r *image.Rectangle, src image.Image, sp *image.Point, mask image.Image, mp *image.Point) {
 	orig := r.Min
@@ -336,9 +336,11 @@ func drawCopySrc(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.P
 		ddelta = dst.Stride
 		sdelta = src.Stride
 	} else {
-		// If the source start point is higher than the destination start point, then we compose the rows
-		// in bottom-up order instead of top-down. Unlike the drawCopyOver function, we don't have to
-		// check the x co-ordinates because the built-in copy function can handle overlapping slices.
+		// If the source start point is higher than the destination start
+		// point, then we compose the rows in bottom-up order instead of
+		// top-down. Unlike the drawCopyOver function, we don't have to check
+		// the x coordinates because the built-in copy function can handle
+		// overlapping slices.
 		d0 += (dy - 1) * dst.Stride
 		s0 += (dy - 1) * src.Stride
 		ddelta = -dst.Stride
@@ -552,6 +554,20 @@ func clamp(i int32) int32 {
 	return i
 }
 
+// sqDiff returns the squared-difference of x and y, shifted by 2 so that
+// adding four of those won't overflow a uint32.
+//
+// x and y are both assumed to be in the range [0, 0xffff].
+func sqDiff(x, y int32) uint32 {
+	var d uint32
+	if x > y {
+		d = uint32(x - y)
+	} else {
+		d = uint32(y - x)
+	}
+	return (d * d) >> 2
+}
+
 func drawPaletted(dst Image, r image.Rectangle, src image.Image, sp image.Point, floydSteinberg bool) {
 	// TODO(nigeltao): handle the case where the dst and src overlap.
 	// Does it even make sense to try and do Floyd-Steinberg whilst
@@ -561,14 +577,15 @@ func drawPaletted(dst Image, r image.Rectangle, src image.Image, sp image.Point,
 	// dst.At. The dst.Set equivalent is a batch version of the algorithm
 	// used by color.Palette's Index method in image/color/color.go, plus
 	// optional Floyd-Steinberg error diffusion.
-	palette, pix, stride := [][3]int32(nil), []byte(nil), 0
+	palette, pix, stride := [][4]int32(nil), []byte(nil), 0
 	if p, ok := dst.(*image.Paletted); ok {
-		palette = make([][3]int32, len(p.Palette))
+		palette = make([][4]int32, len(p.Palette))
 		for i, col := range p.Palette {
-			r, g, b, _ := col.RGBA()
+			r, g, b, a := col.RGBA()
 			palette[i][0] = int32(r)
 			palette[i][1] = int32(g)
 			palette[i][2] = int32(b)
+			palette[i][3] = int32(a)
 		}
 		pix, stride = p.Pix[p.PixOffset(r.Min.X, r.Min.Y):], p.Stride
 	}
@@ -576,10 +593,10 @@ func drawPaletted(dst Image, r image.Rectangle, src image.Image, sp image.Point,
 	// quantErrorCurr and quantErrorNext are the Floyd-Steinberg quantization
 	// errors that have been propagated to the pixels in the current and next
 	// rows. The +2 simplifies calculation near the edges.
-	var quantErrorCurr, quantErrorNext [][3]int32
+	var quantErrorCurr, quantErrorNext [][4]int32
 	if floydSteinberg {
-		quantErrorCurr = make([][3]int32, r.Dx()+2)
-		quantErrorNext = make([][3]int32, r.Dx()+2)
+		quantErrorCurr = make([][4]int32, r.Dx()+2)
+		quantErrorNext = make([][4]int32, r.Dx()+2)
 	}
 
 	// Loop over each source pixel.
@@ -588,30 +605,25 @@ func drawPaletted(dst Image, r image.Rectangle, src image.Image, sp image.Point,
 		for x := 0; x != r.Dx(); x++ {
 			// er, eg and eb are the pixel's R,G,B values plus the
 			// optional Floyd-Steinberg error.
-			sr, sg, sb, _ := src.At(sp.X+x, sp.Y+y).RGBA()
-			er, eg, eb := int32(sr), int32(sg), int32(sb)
+			sr, sg, sb, sa := src.At(sp.X+x, sp.Y+y).RGBA()
+			er, eg, eb, ea := int32(sr), int32(sg), int32(sb), int32(sa)
 			if floydSteinberg {
 				er = clamp(er + quantErrorCurr[x+1][0]/16)
 				eg = clamp(eg + quantErrorCurr[x+1][1]/16)
 				eb = clamp(eb + quantErrorCurr[x+1][2]/16)
+				ea = clamp(ea + quantErrorCurr[x+1][3]/16)
 			}
 
 			if palette != nil {
-				// Find the closest palette color in Euclidean R,G,B space: the
-				// one that minimizes sum-squared-difference. We shift by 1 bit
-				// to avoid potential uint32 overflow in sum-squared-difference.
+				// Find the closest palette color in Euclidean R,G,B,A space:
+				// the one that minimizes sum-squared-difference.
 				// TODO(nigeltao): consider smarter algorithms.
-				bestIndex, bestSSD := 0, uint32(1<<32-1)
+				bestIndex, bestSum := 0, uint32(1<<32-1)
 				for index, p := range palette {
-					delta := (er - p[0]) >> 1
-					ssd := uint32(delta * delta)
-					delta = (eg - p[1]) >> 1
-					ssd += uint32(delta * delta)
-					delta = (eb - p[2]) >> 1
-					ssd += uint32(delta * delta)
-					if ssd < bestSSD {
-						bestIndex, bestSSD = index, ssd
-						if ssd == 0 {
+					sum := sqDiff(er, p[0]) + sqDiff(eg, p[1]) + sqDiff(eb, p[2]) + sqDiff(ea, p[3])
+					if sum < bestSum {
+						bestIndex, bestSum = index, sum
+						if sum == 0 {
 							break
 						}
 					}
@@ -624,11 +636,13 @@ func drawPaletted(dst Image, r image.Rectangle, src image.Image, sp image.Point,
 				er -= int32(palette[bestIndex][0])
 				eg -= int32(palette[bestIndex][1])
 				eb -= int32(palette[bestIndex][2])
+				ea -= int32(palette[bestIndex][3])
 
 			} else {
 				out.R = uint16(er)
 				out.G = uint16(eg)
 				out.B = uint16(eb)
+				out.A = uint16(ea)
 				// The third argument is &out instead of out (and out is
 				// declared outside of the inner loop) to avoid the implicit
 				// conversion to color.Color here allocating memory in the
@@ -638,32 +652,37 @@ func drawPaletted(dst Image, r image.Rectangle, src image.Image, sp image.Point,
 				if !floydSteinberg {
 					continue
 				}
-				sr, sg, sb, _ = dst.At(r.Min.X+x, r.Min.Y+y).RGBA()
+				sr, sg, sb, sa = dst.At(r.Min.X+x, r.Min.Y+y).RGBA()
 				er -= int32(sr)
 				eg -= int32(sg)
 				eb -= int32(sb)
+				ea -= int32(sa)
 			}
 
 			// Propagate the Floyd-Steinberg quantization error.
 			quantErrorNext[x+0][0] += er * 3
 			quantErrorNext[x+0][1] += eg * 3
 			quantErrorNext[x+0][2] += eb * 3
+			quantErrorNext[x+0][3] += ea * 3
 			quantErrorNext[x+1][0] += er * 5
 			quantErrorNext[x+1][1] += eg * 5
 			quantErrorNext[x+1][2] += eb * 5
+			quantErrorNext[x+1][3] += ea * 5
 			quantErrorNext[x+2][0] += er * 1
 			quantErrorNext[x+2][1] += eg * 1
 			quantErrorNext[x+2][2] += eb * 1
+			quantErrorNext[x+2][3] += ea * 1
 			quantErrorCurr[x+2][0] += er * 7
 			quantErrorCurr[x+2][1] += eg * 7
 			quantErrorCurr[x+2][2] += eb * 7
+			quantErrorCurr[x+2][3] += ea * 7
 		}
 
 		// Recycle the quantization error buffers.
 		if floydSteinberg {
 			quantErrorCurr, quantErrorNext = quantErrorNext, quantErrorCurr
 			for i := range quantErrorNext {
-				quantErrorNext[i] = [3]int32{}
+				quantErrorNext[i] = [4]int32{}
 			}
 		}
 	}

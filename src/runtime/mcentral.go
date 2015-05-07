@@ -29,6 +29,24 @@ func mCentral_Init(c *mcentral, sizeclass int32) {
 
 // Allocate a span to use in an MCache.
 func mCentral_CacheSpan(c *mcentral) *mspan {
+	// Perform proportional sweep work. We don't directly reuse
+	// the spans we're sweeping here for this allocation because
+	// these can hold any size class. We'll sweep one more span
+	// below and use that because it will have the right size
+	// class and be hot in our cache.
+	pagesOwed := int64(mheap_.sweepPagesPerByte * float64(memstats.heap_live-memstats.heap_marked))
+	if pagesOwed-int64(mheap_.pagesSwept) > 1 {
+		// Get the debt down to one page, which we're likely
+		// to take care of below (if we don't, that's fine;
+		// we'll pick up the slack later).
+		for pagesOwed-int64(atomicload64(&mheap_.pagesSwept)) > 1 {
+			if gosweepone() == ^uintptr(0) {
+				mheap_.sweepPagesPerByte = 0
+				break
+			}
+		}
+	}
+
 	lock(&c.lock)
 	sg := mheap_.sweepgen
 retry:

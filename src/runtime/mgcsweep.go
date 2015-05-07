@@ -165,6 +165,8 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 		traceGCSweepStart()
 	}
 
+	xadd64(&mheap_.pagesSwept, int64(s.npages))
+
 	cl := s.sizeclass
 	size := s.elemsize
 	res := false
@@ -253,12 +255,6 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 			}
 			c.local_nlargefree++
 			c.local_largefree += size
-			reduction := int64(size) * int64(gcpercent+100) / 100
-			if int64(memstats.next_gc)-reduction > int64(heapminimum) {
-				xadd64(&memstats.next_gc, -reduction)
-			} else {
-				atomicstore64(&memstats.next_gc, heapminimum)
-			}
 			res = true
 		} else {
 			// Free small object.
@@ -294,19 +290,11 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 	}
 	if nfree > 0 {
 		c.local_nsmallfree[cl] += uintptr(nfree)
-		c.local_cachealloc -= intptr(uintptr(nfree) * size)
-		reduction := int64(nfree) * int64(size) * int64(gcpercent+100) / 100
-		if int64(memstats.next_gc)-reduction > int64(heapminimum) {
-			xadd64(&memstats.next_gc, -reduction)
-		} else {
-			atomicstore64(&memstats.next_gc, heapminimum)
-		}
 		res = mCentral_FreeSpan(&mheap_.central[cl].mcentral, s, int32(nfree), head, end, preserve)
 		// MCentral_FreeSpan updates sweepgen
 	}
 	if trace.enabled {
 		traceGCSweepDone()
-		traceNextGC()
 	}
 	return res
 }

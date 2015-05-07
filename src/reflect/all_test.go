@@ -15,6 +15,7 @@ import (
 	. "reflect"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -3388,24 +3389,240 @@ func checkSameType(t *testing.T, x, y interface{}) {
 }
 
 func TestArrayOf(t *testing.T) {
-	// TODO(rsc): Finish ArrayOf and enable-test.
-	t.Skip("ArrayOf is not finished (and not exported)")
-
 	// check construction and use of type not in binary
-	type T int
-	at := ArrayOf(10, TypeOf(T(1)))
-	v := New(at).Elem()
-	for i := 0; i < v.Len(); i++ {
-		v.Index(i).Set(ValueOf(T(i)))
-	}
-	s := fmt.Sprint(v.Interface())
-	want := "[0 1 2 3 4 5 6 7 8 9]"
-	if s != want {
-		t.Errorf("constructed array = %s, want %s", s, want)
+	for _, table := range []struct {
+		n          int
+		value      func(i int) interface{}
+		comparable bool
+		want       string
+	}{
+		{
+			n:          0,
+			value:      func(i int) interface{} { type Tint int; return Tint(i) },
+			comparable: true,
+			want:       "[]",
+		},
+		{
+			n:          10,
+			value:      func(i int) interface{} { type Tint int; return Tint(i) },
+			comparable: true,
+			want:       "[0 1 2 3 4 5 6 7 8 9]",
+		},
+		{
+			n:          10,
+			value:      func(i int) interface{} { type Tfloat float64; return Tfloat(i) },
+			comparable: true,
+			want:       "[0 1 2 3 4 5 6 7 8 9]",
+		},
+		{
+			n:          10,
+			value:      func(i int) interface{} { type Tstring string; return Tstring(strconv.Itoa(i)) },
+			comparable: true,
+			want:       "[0 1 2 3 4 5 6 7 8 9]",
+		},
+		{
+			n:          10,
+			value:      func(i int) interface{} { type Tstruct struct{ V int }; return Tstruct{i} },
+			comparable: true,
+			want:       "[{0} {1} {2} {3} {4} {5} {6} {7} {8} {9}]",
+		},
+		{
+			n:          10,
+			value:      func(i int) interface{} { type Tint int; return []Tint{Tint(i)} },
+			comparable: false,
+			want:       "[[0] [1] [2] [3] [4] [5] [6] [7] [8] [9]]",
+		},
+		{
+			n:          10,
+			value:      func(i int) interface{} { type Tint int; return [1]Tint{Tint(i)} },
+			comparable: true,
+			want:       "[[0] [1] [2] [3] [4] [5] [6] [7] [8] [9]]",
+		},
+		{
+			n:          10,
+			value:      func(i int) interface{} { type Tstruct struct{ V [1]int }; return Tstruct{[1]int{i}} },
+			comparable: true,
+			want:       "[{[0]} {[1]} {[2]} {[3]} {[4]} {[5]} {[6]} {[7]} {[8]} {[9]}]",
+		},
+		{
+			n:          10,
+			value:      func(i int) interface{} { type Tstruct struct{ V []int }; return Tstruct{[]int{i}} },
+			comparable: false,
+			want:       "[{[0]} {[1]} {[2]} {[3]} {[4]} {[5]} {[6]} {[7]} {[8]} {[9]}]",
+		},
+		{
+			n:          10,
+			value:      func(i int) interface{} { type TstructUV struct{ U, V int }; return TstructUV{i, i} },
+			comparable: true,
+			want:       "[{0 0} {1 1} {2 2} {3 3} {4 4} {5 5} {6 6} {7 7} {8 8} {9 9}]",
+		},
+		{
+			n: 10,
+			value: func(i int) interface{} {
+				type TstructUV struct {
+					U int
+					V float64
+				}
+				return TstructUV{i, float64(i)}
+			},
+			comparable: true,
+			want:       "[{0 0} {1 1} {2 2} {3 3} {4 4} {5 5} {6 6} {7 7} {8 8} {9 9}]",
+		},
+	} {
+		at := ArrayOf(table.n, TypeOf(table.value(0)))
+		v := New(at).Elem()
+		vok := New(at).Elem()
+		vnot := New(at).Elem()
+		for i := 0; i < v.Len(); i++ {
+			v.Index(i).Set(ValueOf(table.value(i)))
+			vok.Index(i).Set(ValueOf(table.value(i)))
+			j := i
+			if i+1 == v.Len() {
+				j = i + 1
+			}
+			vnot.Index(i).Set(ValueOf(table.value(j))) // make it differ only by last element
+		}
+		s := fmt.Sprint(v.Interface())
+		if s != table.want {
+			t.Errorf("constructed array = %s, want %s", s, table.want)
+		}
+
+		if table.comparable != at.Comparable() {
+			t.Errorf("constructed array (%#v) is comparable=%v, want=%v", v.Interface(), at.Comparable(), table.comparable)
+		}
+		if table.comparable {
+			if table.n > 0 {
+				if DeepEqual(vnot.Interface(), v.Interface()) {
+					t.Errorf(
+						"arrays (%#v) compare ok (but should not)",
+						v.Interface(),
+					)
+				}
+			}
+			if !DeepEqual(vok.Interface(), v.Interface()) {
+				t.Errorf(
+					"arrays (%#v) compare NOT-ok (but should)",
+					v.Interface(),
+				)
+			}
+		}
 	}
 
 	// check that type already in binary is found
+	type T int
 	checkSameType(t, Zero(ArrayOf(5, TypeOf(T(1)))).Interface(), [5]T{})
+}
+
+func TestArrayOfGC(t *testing.T) {
+	type T *uintptr
+	tt := TypeOf(T(nil))
+	const n = 100
+	var x []interface{}
+	for i := 0; i < n; i++ {
+		v := New(ArrayOf(n, tt)).Elem()
+		for j := 0; j < v.Len(); j++ {
+			p := new(uintptr)
+			*p = uintptr(i*n + j)
+			v.Index(j).Set(ValueOf(p).Convert(tt))
+		}
+		x = append(x, v.Interface())
+	}
+	runtime.GC()
+
+	for i, xi := range x {
+		v := ValueOf(xi)
+		for j := 0; j < v.Len(); j++ {
+			k := v.Index(j).Elem().Interface()
+			if k != uintptr(i*n+j) {
+				t.Errorf("lost x[%d][%d] = %d, want %d", i, j, k, i*n+j)
+			}
+		}
+	}
+}
+
+func TestArrayOfAlg(t *testing.T) {
+	at := ArrayOf(6, TypeOf(byte(0)))
+	v1 := New(at).Elem()
+	v2 := New(at).Elem()
+	if v1.Interface() != v1.Interface() {
+		t.Errorf("constructed array %v not equal to itself", v1.Interface())
+	}
+	v1.Index(5).Set(ValueOf(byte(1)))
+	if i1, i2 := v1.Interface(), v2.Interface(); i1 == i2 {
+		t.Errorf("constructed arrays %v and %v should not be equal", i1, i2)
+	}
+
+	at = ArrayOf(6, TypeOf([]int(nil)))
+	v1 = New(at).Elem()
+	shouldPanic(func() { _ = v1.Interface() == v1.Interface() })
+}
+
+func TestArrayOfGenericAlg(t *testing.T) {
+	at1 := ArrayOf(5, TypeOf(string("")))
+	at := ArrayOf(6, at1)
+	v1 := New(at).Elem()
+	v2 := New(at).Elem()
+	if v1.Interface() != v1.Interface() {
+		t.Errorf("constructed array %v not equal to itself", v1.Interface())
+	}
+
+	v1.Index(0).Index(0).Set(ValueOf("abc"))
+	v2.Index(0).Index(0).Set(ValueOf("efg"))
+	if i1, i2 := v1.Interface(), v2.Interface(); i1 == i2 {
+		t.Errorf("constructed arrays %v and %v should not be equal", i1, i2)
+	}
+
+	v1.Index(0).Index(0).Set(ValueOf("abc"))
+	v2.Index(0).Index(0).Set(ValueOf((v1.Index(0).Index(0).String() + " ")[:3]))
+	if i1, i2 := v1.Interface(), v2.Interface(); i1 != i2 {
+		t.Errorf("constructed arrays %v and %v should be equal", i1, i2)
+	}
+
+	// Test hash
+	m := MakeMap(MapOf(at, TypeOf(int(0))))
+	m.SetMapIndex(v1, ValueOf(1))
+	if i1, i2 := v1.Interface(), v2.Interface(); !m.MapIndex(v2).IsValid() {
+		t.Errorf("constructed arrays %v and %v have different hashes", i1, i2)
+	}
+}
+
+func TestArrayOfDirectIface(t *testing.T) {
+	{
+		type T [1]*byte
+		i1 := Zero(TypeOf(T{})).Interface()
+		v1 := ValueOf(&i1).Elem()
+		p1 := v1.InterfaceData()[1]
+
+		i2 := Zero(ArrayOf(1, PtrTo(TypeOf(int8(0))))).Interface()
+		v2 := ValueOf(&i2).Elem()
+		p2 := v2.InterfaceData()[1]
+
+		if p1 != 0 {
+			t.Errorf("got p1=%v. want=%v", p1, nil)
+		}
+
+		if p2 != 0 {
+			t.Errorf("got p2=%v. want=%v", p2, nil)
+		}
+	}
+	{
+		type T [0]*byte
+		i1 := Zero(TypeOf(T{})).Interface()
+		v1 := ValueOf(&i1).Elem()
+		p1 := v1.InterfaceData()[1]
+
+		i2 := Zero(ArrayOf(0, PtrTo(TypeOf(int8(0))))).Interface()
+		v2 := ValueOf(&i2).Elem()
+		p2 := v2.InterfaceData()[1]
+
+		if p1 == 0 {
+			t.Errorf("got p1=%v. want=not-%v", p1, nil)
+		}
+
+		if p2 == 0 {
+			t.Errorf("got p2=%v. want=not-%v", p2, nil)
+		}
+	}
 }
 
 func TestSliceOf(t *testing.T) {
@@ -3661,6 +3878,67 @@ func TestMapOfGCValues(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestTypelinksSorted(t *testing.T) {
+	var last string
+	for i, n := range TypeLinks() {
+		if n < last {
+			t.Errorf("typelinks not sorted: %q [%d] > %q [%d]", last, i-1, n, i)
+		}
+		last = n
+	}
+}
+
+func TestFuncOf(t *testing.T) {
+	// check construction and use of type not in binary
+	type K string
+	type V float64
+
+	fn := func(args []Value) []Value {
+		if len(args) != 1 {
+			t.Errorf("args == %v, want exactly one arg", args)
+		} else if args[0].Type() != TypeOf(K("")) {
+			t.Errorf("args[0] is type %v, want %v", args[0].Type, TypeOf(K("")))
+		} else if args[0].String() != "gopher" {
+			t.Errorf("args[0] = %q, want %q", args[0].String(), "gopher")
+		}
+		return []Value{ValueOf(V(3.14))}
+	}
+	v := MakeFunc(FuncOf([]Type{TypeOf(K(""))}, []Type{TypeOf(V(0))}, false), fn)
+
+	outs := v.Call([]Value{ValueOf(K("gopher"))})
+	if len(outs) != 1 {
+		t.Fatalf("v.Call returned %v, want exactly one result", outs)
+	} else if outs[0].Type() != TypeOf(V(0)) {
+		t.Fatalf("c.Call[0] is type %v, want %v", outs[0].Type, TypeOf(V(0)))
+	}
+	f := outs[0].Float()
+	if f != 3.14 {
+		t.Errorf("constructed func returned %f, want %f", f, 3.14)
+	}
+
+	// check that types already in binary are found
+	type T1 int
+	testCases := []struct {
+		in, out  []Type
+		variadic bool
+		want     interface{}
+	}{
+		{in: []Type{TypeOf(T1(0))}, want: (func(T1))(nil)},
+		{in: []Type{TypeOf(int(0))}, want: (func(int))(nil)},
+		{in: []Type{SliceOf(TypeOf(int(0)))}, variadic: true, want: (func(...int))(nil)},
+		{in: []Type{TypeOf(int(0))}, out: []Type{TypeOf(false)}, want: (func(int) bool)(nil)},
+		{in: []Type{TypeOf(int(0))}, out: []Type{TypeOf(false), TypeOf("")}, want: (func(int) (bool, string))(nil)},
+	}
+	for _, tt := range testCases {
+		checkSameType(t, Zero(FuncOf(tt.in, tt.out, tt.variadic)).Interface(), tt.want)
+	}
+
+	// check that variadic requires last element be a slice.
+	FuncOf([]Type{TypeOf(1), TypeOf(""), SliceOf(TypeOf(false))}, nil, true)
+	shouldPanic(func() { FuncOf([]Type{TypeOf(0), TypeOf(""), TypeOf(false)}, nil, true) })
+	shouldPanic(func() { FuncOf(nil, nil, true) })
 }
 
 type B1 struct {

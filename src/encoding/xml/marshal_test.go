@@ -1297,7 +1297,7 @@ var encodeTokenTests = []struct {
 	toks: []Token{
 		CharData(" \t\n"),
 	},
-	want: ` &#x9;&#xA;`,
+	want: " &#x9;\n",
 }, {
 	desc: "comment",
 	toks: []Token{

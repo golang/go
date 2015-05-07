@@ -94,3 +94,20 @@ func TestUnsetenv(t *testing.T) {
 		t.Fatal("Unsetenv didn't clear TestUnsetenv")
 	}
 }
+
+func TestLookupEnv(t *testing.T) {
+	const smallpox = "SMALLPOX"      // No one has smallpox.
+	value, ok := LookupEnv(smallpox) // Should not exist.
+	if ok || value != "" {
+		t.Fatalf("%s=%q", smallpox, value)
+	}
+	defer Unsetenv(smallpox)
+	err := Setenv(smallpox, "virus")
+	if err != nil {
+		t.Fatalf("failed to release smallpox virus")
+	}
+	value, ok = LookupEnv(smallpox)
+	if !ok {
+		t.Errorf("smallpox release failed; world remains safe but LookupEnv is broken")
+	}
+}

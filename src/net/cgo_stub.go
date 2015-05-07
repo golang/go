@@ -4,9 +4,13 @@
 
 // +build !cgo netgo
 
-// Stub cgo routines for systems that do not use cgo to do network lookups.
-
 package net
+
+type addrinfoErrno int
+
+func (eai addrinfoErrno) Error() string   { return "<nil>" }
+func (eai addrinfoErrno) Temporary() bool { return false }
+func (eai addrinfoErrno) Timeout() bool   { return false }
 
 func cgoLookupHost(name string) (addrs []string, err error, completed bool) {
 	return nil, nil, false

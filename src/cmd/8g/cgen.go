@@ -17,7 +17,7 @@ import (
  */
 func igenindex(n *gc.Node, res *gc.Node, bounded bool) *obj.Prog {
 	if !gc.Is64(n.Type) {
-		if n.Addable != 0 {
+		if n.Addable {
 			// nothing to do.
 			*res = *n
 		} else {
@@ -48,7 +48,7 @@ func igenindex(n *gc.Node, res *gc.Node, bounded bool) *obj.Prog {
 	return gc.Gbranch(x86.AJNE, nil, +1)
 }
 
-func stackcopy(n, res *gc.Node, osrc, odst, w int64) {
+func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
 	var dst gc.Node
 	gc.Nodreg(&dst, gc.Types[gc.Tptr], x86.REG_DI)
 	var src gc.Node
@@ -58,13 +58,13 @@ func stackcopy(n, res *gc.Node, osrc, odst, w int64) {
 	gc.Tempname(&tsrc, gc.Types[gc.Tptr])
 	var tdst gc.Node
 	gc.Tempname(&tdst, gc.Types[gc.Tptr])
-	if n.Addable == 0 {
+	if !n.Addable {
 		gc.Agen(n, &tsrc)
 	}
-	if res.Addable == 0 {
+	if !res.Addable {
 		gc.Agen(res, &tdst)
 	}
-	if n.Addable != 0 {
+	if n.Addable {
 		gc.Agen(n, &src)
 	} else {
 		gmove(&tsrc, &src)
@@ -74,7 +74,7 @@ func stackcopy(n, res *gc.Node, osrc, odst, w int64) {
 		gc.Gvardef(res)
 	}
 
-	if res.Addable != 0 {
+	if res.Addable {
 		gc.Agen(res, &dst)
 	} else {
 		gmove(&tdst, &dst)

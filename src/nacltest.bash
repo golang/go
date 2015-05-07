@@ -78,3 +78,5 @@ GOROOT=$GOROOT_BOOTSTRAP $gobin/go run ../misc/nacl/mkzip.go -p syscall -r .. ..
 # Run standard build and tests.
 export PATH=$(pwd)/../misc/nacl:$PATH
 GOOS=nacl GOARCH=$naclGOARCH ./all.bash
+
+rm -f syscall/fstest_nacl.go

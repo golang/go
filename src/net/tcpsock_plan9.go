@@ -23,7 +23,11 @@ func newTCPConn(fd *netFD) *TCPConn {
 
 // ReadFrom implements the io.ReaderFrom ReadFrom method.
 func (c *TCPConn) ReadFrom(r io.Reader) (int64, error) {
-	return genericReadFrom(c, r)
+	n, err := genericReadFrom(c, r)
+	if err != nil && err != io.EOF {
+		err = &OpError{Op: "read", Net: c.fd.dir, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+	}
+	return n, err
 }
 
 // CloseRead shuts down the reading side of the TCP connection.
@@ -32,7 +36,11 @@ func (c *TCPConn) CloseRead() error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return c.fd.closeRead()
+	err := c.fd.closeRead()
+	if err != nil {
+		err = &OpError{Op: "close", Net: c.fd.dir, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+	}
+	return err
 }
 
 // CloseWrite shuts down the writing side of the TCP connection.
@@ -41,7 +49,11 @@ func (c *TCPConn) CloseWrite() error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return c.fd.closeWrite()
+	err := c.fd.closeWrite()
+	if err != nil {
+		err = &OpError{Op: "close", Net: c.fd.dir, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+	}
+	return err
 }
 
 // SetLinger sets the behavior of Close on a connection which still
@@ -57,7 +69,7 @@ func (c *TCPConn) CloseWrite() error {
 // some operating systems after sec seconds have elapsed any remaining
 // unsent data may be discarded.
 func (c *TCPConn) SetLinger(sec int) error {
-	return syscall.EPLAN9
+	return &OpError{Op: "set", Net: c.fd.dir, Source: c.fd.laddr, Addr: c.fd.raddr, Err: syscall.EPLAN9}
 }
 
 // SetKeepAlive sets whether the operating system should send
@@ -66,7 +78,10 @@ func (c *TCPConn) SetKeepAlive(keepalive bool) error {
 	if !c.ok() {
 		return syscall.EPLAN9
 	}
-	return setKeepAlive(c.fd, keepalive)
+	if err := setKeepAlive(c.fd, keepalive); err != nil {
+		return &OpError{Op: "set", Net: c.fd.dir, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+	}
+	return nil
 }
 
 // SetKeepAlivePeriod sets period between keep alives.
@@ -74,7 +89,10 @@ func (c *TCPConn) SetKeepAlivePeriod(d time.Duration) error {
 	if !c.ok() {
 		return syscall.EPLAN9
 	}
-	return setKeepAlivePeriod(c.fd, d)
+	if err := setKeepAlivePeriod(c.fd, d); err != nil {
+		return &OpError{Op: "set", Net: c.fd.dir, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+	}
+	return nil
 }
 
 // SetNoDelay controls whether the operating system should delay
@@ -82,7 +100,7 @@ func (c *TCPConn) SetKeepAlivePeriod(d time.Duration) error {
 // algorithm).  The default is true (no delay), meaning that data is
 // sent as soon as possible after a Write.
 func (c *TCPConn) SetNoDelay(noDelay bool) error {
-	return syscall.EPLAN9
+	return &OpError{Op: "set", Net: c.fd.dir, Source: c.fd.laddr, Addr: c.fd.raddr, Err: syscall.EPLAN9}
 }
 
 // DialTCP connects to the remote address raddr on the network net,
@@ -99,10 +117,10 @@ func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time) (*TCPConn, e
 	switch net {
 	case "tcp", "tcp4", "tcp6":
 	default:
-		return nil, &OpError{"dial", net, raddr, UnknownNetworkError(net)}
+		return nil, &OpError{Op: "dial", Net: net, Source: laddr, Addr: raddr, Err: UnknownNetworkError(net)}
 	}
 	if raddr == nil {
-		return nil, &OpError{"dial", net, nil, errMissingAddress}
+		return nil, &OpError{Op: "dial", Net: net, Source: laddr, Addr: raddr, Err: errMissingAddress}
 	}
 	fd, err := dialPlan9(net, laddr, raddr)
 	if err != nil {
@@ -151,9 +169,13 @@ func (l *TCPListener) Close() error {
 	}
 	if _, err := l.fd.ctl.WriteString("hangup"); err != nil {
 		l.fd.ctl.Close()
-		return &OpError{"close", l.fd.ctl.Name(), l.fd.laddr, err}
+		return &OpError{Op: "close", Net: l.fd.dir, Source: nil, Addr: l.fd.laddr, Err: err}
 	}
-	return l.fd.ctl.Close()
+	err := l.fd.ctl.Close()
+	if err != nil {
+		err = &OpError{Op: "close", Net: l.fd.dir, Source: nil, Addr: l.fd.laddr, Err: err}
+	}
+	return err
 }
 
 // Addr returns the listener's network address, a *TCPAddr.
@@ -167,7 +189,10 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
 	if l == nil || l.fd == nil || l.fd.ctl == nil {
 		return syscall.EINVAL
 	}
-	return l.fd.setDeadline(t)
+	if err := l.fd.setDeadline(t); err != nil {
+		return &OpError{Op: "set", Net: l.fd.dir, Source: nil, Addr: l.fd.laddr, Err: err}
+	}
+	return nil
 }
 
 // File returns a copy of the underlying os.File, set to blocking
@@ -177,7 +202,13 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
 // The returned os.File's file descriptor is different from the
 // connection's.  Attempting to change properties of the original
 // using this duplicate may or may not have the desired effect.
-func (l *TCPListener) File() (f *os.File, err error) { return l.dup() }
+func (l *TCPListener) File() (f *os.File, err error) {
+	f, err = l.dup()
+	if err != nil {
+		err = &OpError{Op: "file", Net: l.fd.dir, Source: nil, Addr: l.fd.laddr, Err: err}
+	}
+	return
+}
 
 // ListenTCP announces on the TCP address laddr and returns a TCP
 // listener.  Net must be "tcp", "tcp4", or "tcp6".  If laddr has a
@@ -187,7 +218,7 @@ func ListenTCP(net string, laddr *TCPAddr) (*TCPListener, error) {
 	switch net {
 	case "tcp", "tcp4", "tcp6":
 	default:
-		return nil, &OpError{"listen", net, laddr, UnknownNetworkError(net)}
+		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr, Err: UnknownNetworkError(net)}
 	}
 	if laddr == nil {
 		laddr = &TCPAddr{}

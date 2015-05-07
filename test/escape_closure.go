@@ -131,7 +131,7 @@ func ClosureCallArgs14() {
 	x := 0 // ERROR "moved to heap: x"
 	// BAD: &x should not escape here
 	p := &x                  // ERROR "moved to heap: p" "&x escapes to heap"
-	_ = func(p **int) *int { // ERROR "leaking param p content to result ~r1" "func literal does not escape"
+	_ = func(p **int) *int { // ERROR "leaking param: p to result ~r1 level=1" "func literal does not escape"
 		return *p
 		// BAD: p should not escape here
 	}(&p) // ERROR "&p escapes to heap"
@@ -140,7 +140,7 @@ func ClosureCallArgs14() {
 func ClosureCallArgs15() {
 	x := 0                      // ERROR "moved to heap: x"
 	p := &x                     // ERROR "moved to heap: p" "&x escapes to heap"
-	sink = func(p **int) *int { // ERROR "leaking param p content to result ~r1" "func literal does not escape"
+	sink = func(p **int) *int { // ERROR "leaking param: p to result ~r1 level=1" "func literal does not escape"
 		return *p
 		// BAD: p should not escape here
 	}(&p) // ERROR "&p escapes to heap" "\(func literal\)\(&p\) escapes to heap"

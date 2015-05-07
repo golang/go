@@ -483,6 +483,9 @@ TEXT runtime·xadd64(SB), NOSPLIT, $0-24
 	MOVQ	AX, ret+16(FP)
 	RET
 
+TEXT runtime·xadduintptr(SB), NOSPLIT, $0-12
+	JMP	runtime·xadd(SB)
+
 TEXT runtime·xchg(SB), NOSPLIT, $0-12
 	MOVL	ptr+0(FP), BX
 	MOVL	new+4(FP), AX
@@ -1095,12 +1098,6 @@ TEXT runtime·goexit(SB),NOSPLIT,$0-0
 	CALL	runtime·goexit1(SB)	// does not return
 	// traceback from goexit1 must hit code range of goexit
 	BYTE	$0x90	// NOP
-
-TEXT runtime·getg(SB),NOSPLIT,$0-4
-	get_tls(CX)
-	MOVL	g(CX), AX
-	MOVL	AX, ret+0(FP)
-	RET
 
 TEXT runtime·prefetcht0(SB),NOSPLIT,$0-4
 	MOVL	addr+0(FP), AX

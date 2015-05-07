@@ -358,16 +358,16 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 
 	f, err := fs.Open(name)
 	if err != nil {
-		// TODO expose actual error?
-		NotFound(w, r)
+		msg, code := toHTTPError(err)
+		Error(w, msg, code)
 		return
 	}
 	defer f.Close()
 
 	d, err1 := f.Stat()
 	if err1 != nil {
-		// TODO expose actual error?
-		NotFound(w, r)
+		msg, code := toHTTPError(err)
+		Error(w, msg, code)
 		return
 	}
 
@@ -417,6 +417,22 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 	serveContent(w, r, d.Name(), d.ModTime(), sizeFunc, f)
 }
 
+// toHTTPError returns a non-specific HTTP error message and status code
+// for a given non-nil error value. It's important that toHTTPError does not
+// actually return err.Error(), since msg and httpStatus are returned to users,
+// and historically Go's ServeContent always returned just "404 Not Found" for
+// all errors. We don't want to start leaking information in error messages.
+func toHTTPError(err error) (msg string, httpStatus int) {
+	if os.IsNotExist(err) {
+		return "404 page not found", StatusNotFound
+	}
+	if os.IsPermission(err) {
+		return "403 Forbidden", StatusForbidden
+	}
+	// Default:
+	return "500 Internal Server Error", StatusInternalServerError
+}
+
 // localRedirect gives a Moved Permanently response.
 // It does not convert relative paths to absolute paths like Redirect does.
 func localRedirect(w ResponseWriter, r *Request, newPath string) {
@@ -427,7 +443,13 @@ func localRedirect(w ResponseWriter, r *Request, newPath string) {
 	w.WriteHeader(StatusMovedPermanently)
 }
 
-// ServeFile replies to the request with the contents of the named file or directory.
+// ServeFile replies to the request with the contents of the named
+// file or directory.
+//
+// As a special case, ServeFile redirects any request where r.URL.Path
+// ends in "/index.html" to the same path, without the final
+// "index.html". To avoid such redirects either modify the path or
+// use ServeContent.
 func ServeFile(w ResponseWriter, r *Request, name string) {
 	dir, file := filepath.Split(name)
 	serveFile(w, r, Dir(dir), file, false)
@@ -444,6 +466,10 @@ type fileHandler struct {
 // use http.Dir:
 //
 //     http.Handle("/", http.FileServer(http.Dir("/tmp")))
+//
+// As a special case, the returned file server redirects any request
+// ending in "/index.html" to the same path, without the final
+// "index.html".
 func FileServer(root FileSystem) Handler {
 	return &fileHandler{root}
 }

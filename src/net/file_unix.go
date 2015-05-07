@@ -14,12 +14,12 @@ import (
 func newFileFD(f *os.File) (*netFD, error) {
 	fd, err := dupCloseOnExec(int(f.Fd()))
 	if err != nil {
-		return nil, os.NewSyscallError("dup", err)
+		return nil, err
 	}
 
 	if err = syscall.SetNonblock(fd, true); err != nil {
 		closeFunc(fd)
-		return nil, err
+		return nil, os.NewSyscallError("setnonblock", err)
 	}
 
 	sotype, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_TYPE)
@@ -32,9 +32,6 @@ func newFileFD(f *os.File) (*netFD, error) {
 	toAddr := sockaddrToTCP
 	lsa, _ := syscall.Getsockname(fd)
 	switch lsa.(type) {
-	default:
-		closeFunc(fd)
-		return nil, syscall.EINVAL
 	case *syscall.SockaddrInet4:
 		family = syscall.AF_INET
 		if sotype == syscall.SOCK_DGRAM {
@@ -57,6 +54,9 @@ func newFileFD(f *os.File) (*netFD, error) {
 		} else if sotype == syscall.SOCK_SEQPACKET {
 			toAddr = sockaddrToUnixpacket
 		}
+	default:
+		closeFunc(fd)
+		return nil, syscall.EPROTONOSUPPORT
 	}
 	laddr := toAddr(lsa)
 	rsa, _ := syscall.Getpeername(fd)
@@ -75,11 +75,7 @@ func newFileFD(f *os.File) (*netFD, error) {
 	return netfd, nil
 }
 
-// FileConn returns a copy of the network connection corresponding to
-// the open file f.  It is the caller's responsibility to close f when
-// finished.  Closing c does not affect f, and closing f does not
-// affect c.
-func FileConn(f *os.File) (c Conn, err error) {
+func fileConn(f *os.File) (Conn, error) {
 	fd, err := newFileFD(f)
 	if err != nil {
 		return nil, err
@@ -98,11 +94,7 @@ func FileConn(f *os.File) (c Conn, err error) {
 	return nil, syscall.EINVAL
 }
 
-// FileListener returns a copy of the network listener corresponding
-// to the open file f.  It is the caller's responsibility to close l
-// when finished.  Closing l does not affect f, and closing f does not
-// affect l.
-func FileListener(f *os.File) (l Listener, err error) {
+func fileListener(f *os.File) (Listener, error) {
 	fd, err := newFileFD(f)
 	if err != nil {
 		return nil, err
@@ -117,11 +109,7 @@ func FileListener(f *os.File) (l Listener, err error) {
 	return nil, syscall.EINVAL
 }
 
-// FilePacketConn returns a copy of the packet network connection
-// corresponding to the open file f.  It is the caller's
-// responsibility to close f when finished.  Closing c does not affect
-// f, and closing f does not affect c.
-func FilePacketConn(f *os.File) (c PacketConn, err error) {
+func filePacketConn(f *os.File) (PacketConn, error) {
 	fd, err := newFileFD(f)
 	if err != nil {
 		return nil, err

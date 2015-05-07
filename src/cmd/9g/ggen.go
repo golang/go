@@ -230,7 +230,7 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		// TODO(minux): add gins3?
 		p1.Reg = p1.To.Reg
 
-		p1.To.Reg = tm.Val.U.Reg
+		p1.To.Reg = tm.Reg
 		gins(optoas(gc.OMUL, t), &tr, &tm)
 		gc.Regfree(&tr)
 		gins(optoas(gc.OSUB, t), &tm, &tl)
@@ -288,7 +288,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		}
 
 	default:
-		gc.Fatal("cgen_hmul %v", gc.Tconv(t, 0))
+		gc.Fatal("cgen_hmul %v", t)
 	}
 
 	gc.Cgen(&n1, res)
@@ -394,7 +394,7 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 func clearfat(nl *gc.Node) {
 	/* clear a fat object */
 	if gc.Debug['g'] != 0 {
-		fmt.Printf("clearfat %v (%v, size: %d)\n", gc.Nconv(nl, 0), gc.Tconv(nl.Type, 0), nl.Type.Width)
+		fmt.Printf("clearfat %v (%v, size: %d)\n", nl, nl.Type, nl.Type.Width)
 	}
 
 	w := uint64(uint64(nl.Type.Width))
@@ -548,4 +548,11 @@ func expandchecks(firstp *obj.Prog) {
 		p2.To.Reg = ppc64.REGZERO
 		p2.To.Offset = 0
 	}
+}
+
+// res = runtime.getg()
+func getg(res *gc.Node) {
+	var n1 gc.Node
+	gc.Nodreg(&n1, res.Type, ppc64.REGG)
+	gmove(&n1, res)
 }

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux
+// +build linux darwin
 
 package runtime
 
@@ -108,7 +108,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	}
 
 	_g_.m.throwing = 1
-	setGNoWriteBarrier(&_g_.m.caughtsig, gp)
+	_g_.m.caughtsig.set(gp)
 	startpanic()
 
 	if sig < uint32(len(sigtable)) {

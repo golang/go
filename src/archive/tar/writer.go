@@ -355,7 +355,7 @@ func paxHeader(msg string) string {
 // hdr.Size bytes are written after WriteHeader.
 func (tw *Writer) Write(b []byte) (n int, err error) {
 	if tw.closed {
-		err = ErrWriteTooLong
+		err = ErrWriteAfterClose
 		return
 	}
 	overwrite := false

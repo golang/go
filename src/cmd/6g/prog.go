@@ -196,6 +196,22 @@ var progtable = [x86.ALAST]obj.ProgInfo{
 	x86.ASBBL:     {gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
 	x86.ASBBQ:     {gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
 	x86.ASBBW:     {gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+	x86.ASETCC:    {gc.SizeB | gc.RightWrite | gc.UseCarry, 0, 0, 0},
+	x86.ASETCS:    {gc.SizeB | gc.RightWrite | gc.UseCarry, 0, 0, 0},
+	x86.ASETEQ:    {gc.SizeB | gc.RightWrite | gc.UseCarry, 0, 0, 0},
+	x86.ASETGE:    {gc.SizeB | gc.RightWrite | gc.UseCarry, 0, 0, 0},
+	x86.ASETGT:    {gc.SizeB | gc.RightWrite | gc.UseCarry, 0, 0, 0},
+	x86.ASETHI:    {gc.SizeB | gc.RightWrite | gc.UseCarry, 0, 0, 0},
+	x86.ASETLE:    {gc.SizeB | gc.RightWrite | gc.UseCarry, 0, 0, 0},
+	x86.ASETLS:    {gc.SizeB | gc.RightWrite | gc.UseCarry, 0, 0, 0},
+	x86.ASETLT:    {gc.SizeB | gc.RightWrite | gc.UseCarry, 0, 0, 0},
+	x86.ASETMI:    {gc.SizeB | gc.RightWrite | gc.UseCarry, 0, 0, 0},
+	x86.ASETNE:    {gc.SizeB | gc.RightWrite | gc.UseCarry, 0, 0, 0},
+	x86.ASETOC:    {gc.SizeB | gc.RightWrite | gc.UseCarry, 0, 0, 0},
+	x86.ASETOS:    {gc.SizeB | gc.RightWrite | gc.UseCarry, 0, 0, 0},
+	x86.ASETPC:    {gc.SizeB | gc.RightWrite | gc.UseCarry, 0, 0, 0},
+	x86.ASETPL:    {gc.SizeB | gc.RightWrite | gc.UseCarry, 0, 0, 0},
+	x86.ASETPS:    {gc.SizeB | gc.RightWrite | gc.UseCarry, 0, 0, 0},
 	x86.ASHLB:     {gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
 	x86.ASHLL:     {gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
 	x86.ASHLQ:     {gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
@@ -204,6 +220,7 @@ var progtable = [x86.ALAST]obj.ProgInfo{
 	x86.ASHRL:     {gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
 	x86.ASHRQ:     {gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
 	x86.ASHRW:     {gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+	x86.ASQRTSD:   {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
 	x86.ASTOSB:    {gc.OK, AX | DI, DI, 0},
 	x86.ASTOSL:    {gc.OK, AX | DI, DI, 0},
 	x86.ASTOSQ:    {gc.OK, AX | DI, DI, 0},
@@ -275,5 +292,17 @@ func proginfo(p *obj.Prog) {
 	}
 	if p.To.Index != x86.REG_NONE {
 		info.Regindex |= RtoB(int(p.To.Index))
+	}
+	if gc.Ctxt.Flag_dynlink {
+		// When -dynlink is passed, many operations on external names (and
+		// also calling duffzero/duffcopy) use R15 as a scratch register.
+		if p.As == x86.ALEAQ || info.Flags == gc.Pseudo || p.As == obj.ACALL || p.As == obj.ARET || p.As == obj.AJMP {
+			return
+		}
+		if p.As == obj.ADUFFZERO || p.As == obj.ADUFFCOPY || (p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local) || (p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local) {
+			info.Reguse |= R15
+			info.Regset |= R15
+			return
+		}
 	}
 }

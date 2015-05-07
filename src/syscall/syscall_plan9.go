@@ -140,12 +140,12 @@ func Fd2path(fd int) (path string, err error) {
 	return cstring(buf[:]), nil
 }
 
-//sys	pipe(p *[2]_C_int) (err error)
+//sys	pipe(p *[2]int32) (err error)
 func Pipe(p []int) (err error) {
 	if len(p) != 2 {
 		return NewError("bad arg in system call")
 	}
-	var pp [2]_C_int
+	var pp [2]int32
 	err = pipe(&pp)
 	p[0] = int(pp[0])
 	p[1] = int(pp[1])

@@ -33,10 +33,10 @@ package ld
 
 import (
 	"cmd/internal/obj"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 )
 
 func yy_isalpha(c int) bool {
@@ -47,26 +47,26 @@ var headers = []struct {
 	name string
 	val  int
 }{
-	{"darwin", Hdarwin},
-	{"dragonfly", Hdragonfly},
-	{"elf", Helf},
-	{"freebsd", Hfreebsd},
-	{"linux", Hlinux},
-	{"android", Hlinux}, // must be after "linux" entry or else headstr(Hlinux) == "android"
-	{"nacl", Hnacl},
-	{"netbsd", Hnetbsd},
-	{"openbsd", Hopenbsd},
-	{"plan9", Hplan9},
-	{"solaris", Hsolaris},
-	{"windows", Hwindows},
-	{"windowsgui", Hwindows},
+	{"darwin", obj.Hdarwin},
+	{"dragonfly", obj.Hdragonfly},
+	{"elf", obj.Helf},
+	{"freebsd", obj.Hfreebsd},
+	{"linux", obj.Hlinux},
+	{"android", obj.Hlinux}, // must be after "linux" entry or else headstr(Hlinux) == "android"
+	{"nacl", obj.Hnacl},
+	{"netbsd", obj.Hnetbsd},
+	{"openbsd", obj.Hopenbsd},
+	{"plan9", obj.Hplan9},
+	{"solaris", obj.Hsolaris},
+	{"windows", obj.Hwindows},
+	{"windowsgui", obj.Hwindows},
 }
 
 func linknew(arch *LinkArch) *Link {
 	ctxt := new(Link)
 	ctxt.Hash = make(map[symVer]*LSym)
 	ctxt.Arch = arch
-	ctxt.Version = HistVersion
+	ctxt.Version = obj.HistVersion
 	ctxt.Goroot = obj.Getgoroot()
 
 	p := obj.Getgoarch()
@@ -92,7 +92,7 @@ func linknew(arch *LinkArch) *Link {
 	default:
 		log.Fatalf("unknown thread-local storage offset for %s", Headstr(ctxt.Headtype))
 
-	case Hplan9, Hwindows:
+	case obj.Hplan9, obj.Hwindows:
 		break
 
 		/*
@@ -100,15 +100,15 @@ func linknew(arch *LinkArch) *Link {
 		 * Translate 0(FS) and 8(FS) into -16(FS) and -8(FS).
 		 * Known to low-level assembly in package runtime and runtime/cgo.
 		 */
-	case Hlinux,
-		Hfreebsd,
-		Hnetbsd,
-		Hopenbsd,
-		Hdragonfly,
-		Hsolaris:
+	case obj.Hlinux,
+		obj.Hfreebsd,
+		obj.Hnetbsd,
+		obj.Hopenbsd,
+		obj.Hdragonfly,
+		obj.Hsolaris:
 		ctxt.Tlsoffset = -1 * ctxt.Arch.Ptrsize
 
-	case Hnacl:
+	case obj.Hnacl:
 		switch ctxt.Arch.Thechar {
 		default:
 			log.Fatalf("unknown thread-local storage offset for nacl/%s", ctxt.Arch.Name)
@@ -127,19 +127,22 @@ func linknew(arch *LinkArch) *Link {
 		 * OS X system constants - offset from 0(GS) to our TLS.
 		 * Explained in ../../runtime/cgo/gcc_darwin_*.c.
 		 */
-	case Hdarwin:
+	case obj.Hdarwin:
 		switch ctxt.Arch.Thechar {
 		default:
 			log.Fatalf("unknown thread-local storage offset for darwin/%s", ctxt.Arch.Name)
 
+		case '5':
+			ctxt.Tlsoffset = 0 // dummy value, not needed
+
 		case '6':
 			ctxt.Tlsoffset = 0x8a0
 
+		case '7':
+			ctxt.Tlsoffset = 0 // dummy value, not needed
+
 		case '8':
 			ctxt.Tlsoffset = 0x468
-
-		case '5':
-			ctxt.Tlsoffset = 0 // dummy value, not needed
 		}
 	}
 
@@ -205,16 +208,13 @@ func Linkrlookup(ctxt *Link, name string, v int) *LSym {
 	return _lookup(ctxt, name, v, 0)
 }
 
-var headstr_buf string
-
 func Headstr(v int) string {
 	for i := 0; i < len(headers); i++ {
 		if v == headers[i].val {
 			return headers[i].name
 		}
 	}
-	headstr_buf = fmt.Sprintf("%d", v)
-	return headstr_buf
+	return strconv.Itoa(v)
 }
 
 func headtype(name string) int {

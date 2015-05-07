@@ -5,6 +5,7 @@
 package os
 
 import (
+	"internal/syscall/windows"
 	"io"
 	"runtime"
 	"sync"
@@ -460,6 +461,14 @@ func Remove(name string) error {
 	return &PathError{"remove", name, e}
 }
 
+func rename(oldname, newname string) error {
+	e := windows.Rename(oldname, newname)
+	if e != nil {
+		return &LinkError{"rename", oldname, newname, e}
+	}
+	return nil
+}
+
 // Pipe returns a connected pair of Files; reads from r return bytes written to w.
 // It returns the files and an error, if any.
 func Pipe() (r *File, w *File, err error) {
@@ -481,20 +490,18 @@ func Pipe() (r *File, w *File, err error) {
 
 // TempDir returns the default directory to use for temporary files.
 func TempDir() string {
-	const pathSep = '\\'
-	dirw := make([]uint16, syscall.MAX_PATH)
-	n, _ := syscall.GetTempPath(uint32(len(dirw)), &dirw[0])
-	if n > uint32(len(dirw)) {
-		dirw = make([]uint16, n)
-		n, _ = syscall.GetTempPath(uint32(len(dirw)), &dirw[0])
-		if n > uint32(len(dirw)) {
-			n = 0
+	n := uint32(syscall.MAX_PATH)
+	for {
+		b := make([]uint16, n)
+		n, _ = syscall.GetTempPath(uint32(len(b)), &b[0])
+		if n > uint32(len(b)) {
+			continue
 		}
+		if n > 0 && b[n-1] == '\\' {
+			n--
+		}
+		return string(utf16.Decode(b[:n]))
 	}
-	if n > 0 && dirw[n-1] == pathSep {
-		n--
-	}
-	return string(utf16.Decode(dirw[0:n]))
 }
 
 // Link creates newname as a hard link to the oldname file.

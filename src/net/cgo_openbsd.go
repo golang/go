@@ -11,6 +11,4 @@ package net
 */
 import "C"
 
-func cgoAddrInfoFlags() C.int {
-	return C.AI_CANONNAME
-}
+const cgoAddrInfoFlags = C.AI_CANONNAME

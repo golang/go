@@ -173,6 +173,9 @@ const (
 	NAME_STATIC
 	NAME_AUTO
 	NAME_PARAM
+	// A reference to name@GOT(SB) is a reference to the entry in the global offset
+	// table for 'name'.
+	NAME_GOTREF
 )
 
 const (
@@ -270,53 +273,36 @@ const (
 	A_ARCHSPECIFIC
 )
 
+// An LSym is the sort of symbol that is written to an object file.
 type LSym struct {
-	Name        string
-	Extname     string
-	Type        int16
-	Version     int16
-	Dupok       uint8
-	Cfunc       uint8
-	External    uint8
-	Nosplit     uint8
-	Reachable   uint8
-	Cgoexport   uint8
-	Special     uint8
-	Stkcheck    uint8
-	Hide        uint8
-	Leaf        uint8
-	Fnptr       uint8
-	Localentry  uint8
-	Seenglobl   uint8
-	Onlist      uint8
-	Printed     uint8
-	Symid       int16
-	Dynid       int32
-	Plt         int32
-	Got         int32
-	Align       int32
-	Elfsym      int32
-	Args        int32
-	Locals      int32
-	Value       int64
-	Size        int64
-	Allsym      *LSym
-	Next        *LSym
-	Sub         *LSym
-	Outer       *LSym
-	Gotype      *LSym
-	Reachparent *LSym
-	Queue       *LSym
-	File        string
-	Dynimplib   string
-	Dynimpvers  string
-	Sect        *struct{}
-	Autom       *Auto
-	Text        *Prog
-	Etext       *Prog
-	Pcln        *Pcln
-	P           []byte
-	R           []Reloc
+	Name      string
+	Type      int16
+	Version   int16
+	Dupok     uint8
+	Cfunc     uint8
+	Nosplit   uint8
+	Leaf      uint8
+	Seenglobl uint8
+	Onlist    uint8
+	// Local means make the symbol local even when compiling Go code to reference Go
+	// symbols in other shared libraries, as in this mode symbols are global by
+	// default. "local" here means in the sense of the dynamic linker, i.e. not
+	// visible outside of the module (shared library or executable) that contains its
+	// definition. (When not compiling to support Go shared libraries, all symbols are
+	// local in this sense unless there is a cgo_export_* directive).
+	Local  bool
+	Args   int32
+	Locals int32
+	Value  int64
+	Size   int64
+	Next   *LSym
+	Gotype *LSym
+	Autom  *Auto
+	Text   *Prog
+	Etext  *Prog
+	Pcln   *Pcln
+	P      []byte
+	R      []Reloc
 }
 
 type Pcln struct {
@@ -374,21 +360,18 @@ const (
 )
 
 type Reloc struct {
-	Off     int32
-	Siz     uint8
-	Done    uint8
-	Type    int32
-	Variant int32
-	Add     int64
-	Xadd    int64
-	Sym     *LSym
-	Xsym    *LSym
+	Off  int32
+	Siz  uint8
+	Type int32
+	Add  int64
+	Sym  *LSym
 }
 
 // Reloc.type
 const (
 	R_ADDR = 1 + iota
 	R_ADDRPOWER
+	R_ADDRARM64
 	R_SIZE
 	R_CALL
 	R_CALLARM
@@ -397,8 +380,23 @@ const (
 	R_CALLPOWER
 	R_CONST
 	R_PCREL
+	// R_TLS (only used on arm currently, and not on android and darwin where tlsg is
+	// a regular variable) resolves to data needed to access the thread-local g. It is
+	// interpreted differently depending on toolchain flags to implement either the
+	// "local exec" or "inital exec" model for tls access.
+	// TODO(mwhudson): change to use R_TLS_LE or R_TLS_IE as appropriate, not having
+	// R_TLS do double duty.
 	R_TLS
+	// R_TLS_LE (only used on 386 and amd64 currently) resolves to the offset of the
+	// thread-local g from the thread local base and is used to implement the "local
+	// exec" model for tls access (r.Sym is not set by the compiler for this case but
+	// is set to Tlsg in the linker when externally linking).
 	R_TLS_LE
+	// R_TLS_IE (only used on 386 and amd64 currently) resolves to the PC-relative
+	// offset to a GOT slot containing the offset the thread-local g from the thread
+	// local base and is used to implemented the "initial exec" model for tls access
+	// (r.Sym is not set by the compiler for this case but is set to Tlsg in the
+	// linker when externally linking).
 	R_TLS_IE
 	R_GOTOFF
 	R_PLT0
@@ -406,17 +404,7 @@ const (
 	R_PLT2
 	R_USEFIELD
 	R_POWER_TOC
-)
-
-// Reloc.variant
-const (
-	RV_NONE = iota
-	RV_POWER_LO
-	RV_POWER_HI
-	RV_POWER_HA
-	RV_POWER_DS
-	RV_CHECK_OVERFLOW = 1 << 8
-	RV_TYPE_MASK      = RV_CHECK_OVERFLOW - 1
+	R_GOTPCREL
 )
 
 type Auto struct {
@@ -438,7 +426,7 @@ type Pcdata struct {
 }
 
 // Pcdata iterator.
-//	for(pciterinit(ctxt, &it, &pcd); !it.done; pciternext(&it)) { it.value holds in [it.pc, it.nextpc) }
+//      for(pciterinit(ctxt, &it, &pcd); !it.done; pciternext(&it)) { it.value holds in [it.pc, it.nextpc) }
 type Pciter struct {
 	d       Pcdata
 	p       []byte
@@ -459,34 +447,23 @@ const (
 // Link holds the context for writing object code from a compiler
 // to be linker input or for reading that input into the linker.
 type Link struct {
-	Thechar            int32
-	Thestring          string
 	Goarm              int32
 	Headtype           int
 	Arch               *LinkArch
-	Ignore             func(string) int32
 	Debugasm           int32
-	Debugline          int32
-	Debughist          int32
-	Debugread          int32
 	Debugvlog          int32
-	Debugstack         int32
 	Debugzerostack     int32
 	Debugdivmod        int32
-	Debugfloat         int32
 	Debugpcln          int32
 	Flag_shared        int32
-	Iself              int32
+	Flag_dynlink       bool
 	Bso                *Biobuf
 	Pathname           string
 	Windows            int32
-	Trimpath           string
 	Goroot             string
 	Goroot_final       string
 	Enforce_data_order int32
 	Hash               map[SymVer]*LSym
-	Allsym             *LSym
-	Nsymbol            int32
 	LineHist           LineHist
 	Imports            []string
 	Plist              *Plist
@@ -495,7 +472,6 @@ type Link struct {
 	Sym_divu           *LSym
 	Sym_mod            *LSym
 	Sym_modu           *LSym
-	Symmorestack       [2]*LSym
 	Tlsg               *LSym
 	Plan9privates      *LSym
 	Curp               *Prog
@@ -513,32 +489,18 @@ type Link struct {
 	Autosize           int32
 	Armsize            int32
 	Pc                 int64
-	Libdir             []string
-	Library            []Library
 	Tlsoffset          int
 	Diag               func(string, ...interface{})
 	Mode               int
-	Curauto            *Auto
-	Curhist            *Auto
 	Cursym             *LSym
 	Version            int
 	Textp              *LSym
 	Etextp             *LSym
-	Histdepth          int32
-	Nhistfile          int32
-	Filesyms           *LSym
 }
 
 type SymVer struct {
 	Name    string
-	Version int
-}
-
-type Library struct {
-	Objref string
-	Srcref string
-	File   string
-	Pkg    string
+	Version int // TODO: make int16 to match LSym.Version?
 }
 
 // LinkArch is the definition of a single architecture.
@@ -572,14 +534,6 @@ const (
 	Hwindows
 )
 
-const (
-	LinkAuto = 0 + iota
-	LinkInternal
-	LinkExternal
-)
-
-var linkbasepointer int
-
 type Plist struct {
 	Name    *LSym
 	Firstpc *Prog
@@ -592,13 +546,11 @@ type Plist struct {
  */
 func Linknewplist(ctxt *Link) *Plist {
 	pl := new(Plist)
-	*pl = Plist{}
 	if ctxt.Plist == nil {
 		ctxt.Plist = pl
 	} else {
 		ctxt.Plast.Link = pl
 	}
 	ctxt.Plast = pl
-
 	return pl
 }

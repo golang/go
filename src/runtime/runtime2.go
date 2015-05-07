@@ -29,7 +29,7 @@ const (
 	// _Gscanidle =     _Gscan + _Gidle,      // Not used. Gidle only used with newly malloced gs
 	_Gscanrunnable = _Gscan + _Grunnable //  0x1001 When scanning complets make Grunnable (it is already on run queue)
 	_Gscanrunning  = _Gscan + _Grunning  //  0x1002 Used to tell preemption newstack routine to scan preempted stack.
-	_Gscansyscall  = _Gscan + _Gsyscall  //  0x1003 When scanning completes make is Gsyscall
+	_Gscansyscall  = _Gscan + _Gsyscall  //  0x1003 When scanning completes make it Gsyscall
 	_Gscanwaiting  = _Gscan + _Gwaiting  //  0x1004 When scanning completes make it Gwaiting
 	// _Gscanmoribund_unused,               //  not possible
 	// _Gscandead,                          //  not possible
@@ -38,8 +38,8 @@ const (
 
 const (
 	// P status
-	_Pidle = iota
-	_Prunning
+	_Pidle    = iota
+	_Prunning // Only this P is allowed to change from _Prunning.
 	_Psyscall
 	_Pgcstop
 	_Pdead
@@ -87,14 +87,28 @@ type eface struct {
 	data  unsafe.Pointer
 }
 
-type slice struct {
-	array *byte // actual data
-	len   uint  // number of elements
-	cap   uint  // allocated number of elements
-}
+// The guintptr, muintptr, and puintptr are all used to bypass write barriers.
+// It is particularly important to avoid write barriers when the current P has
+// been released, because the GC thinks the world is stopped, and an
+// unexpected write barrier would not be synchronized with the GC,
+// which can lead to a half-executed write barrier that has marked the object
+// but not queued it. If the GC skips the object and completes before the
+// queuing can occur, it will incorrectly free the object.
+//
+// We tried using special assignment functions invoked only when not
+// holding a running P, but then some updates to a particular memory
+// word went through write barriers and some did not. This breaks the
+// write barrier shadow checking mode, and it is also scary: better to have
+// a word that is completely ignored by the GC than to have one for which
+// only a few updates are ignored.
+//
+// Gs, Ms, and Ps are always reachable via true pointers in the
+// allgs, allm, and allp lists or (during allocation before they reach those lists)
+// from stack variables.
 
 // A guintptr holds a goroutine pointer, but typed as a uintptr
-// to bypass write barriers. It is used in the Gobuf goroutine state.
+// to bypass write barriers. It is used in the Gobuf goroutine state
+// and in scheduling lists that are manipulated without a P.
 //
 // The Gobuf.g goroutine pointer is almost always updated by assembly code.
 // In one of the few places it is updated by Go code - func save - it must be
@@ -113,41 +127,21 @@ type slice struct {
 // alternate arena. Using guintptr doesn't make that problem any worse.
 type guintptr uintptr
 
-func (gp guintptr) ptr() *g {
-	return (*g)(unsafe.Pointer(gp))
+func (gp guintptr) ptr() *g   { return (*g)(unsafe.Pointer(gp)) }
+func (gp *guintptr) set(g *g) { *gp = guintptr(unsafe.Pointer(g)) }
+func (gp *guintptr) cas(old, new guintptr) bool {
+	return casuintptr((*uintptr)(unsafe.Pointer(gp)), uintptr(old), uintptr(new))
 }
 
-// ps, ms, gs, and mcache are structures that must be manipulated at a level
-// lower than that of the normal Go language. For example the routine that
-// stops the world removes the p from the m structure informing the GC that
-// this P is stopped and then it moves the g to the global runnable queue.
-// If write barriers were allowed to happen at this point not only does
-// the GC think the thread is stopped but the underlying structures
-// like a p or m are not in a state that is not coherent enough to
-// support the write barrier actions.
-// This is particularly painful since a partially executed write barrier
-// may mark the object but be delinquent in informing the GC that the
-// object needs to be scanned.
+type puintptr uintptr
 
-// setGNoWriteBarriers does *gdst = gval without a write barrier.
-func setGNoWriteBarrier(gdst **g, gval *g) {
-	*(*uintptr)(unsafe.Pointer(gdst)) = uintptr(unsafe.Pointer(gval))
-}
+func (pp puintptr) ptr() *p   { return (*p)(unsafe.Pointer(pp)) }
+func (pp *puintptr) set(p *p) { *pp = puintptr(unsafe.Pointer(p)) }
 
-// setMNoWriteBarriers does *mdst = mval without a write barrier.
-func setMNoWriteBarrier(mdst **m, mval *m) {
-	*(*uintptr)(unsafe.Pointer(mdst)) = uintptr(unsafe.Pointer(mval))
-}
+type muintptr uintptr
 
-// setPNoWriteBarriers does *pdst = pval without a write barrier.
-func setPNoWriteBarrier(pdst **p, pval *p) {
-	*(*uintptr)(unsafe.Pointer(pdst)) = uintptr(unsafe.Pointer(pval))
-}
-
-// setMcacheNoWriteBarriers does *mcachedst = mcacheval without a write barrier.
-func setMcacheNoWriteBarrier(mcachedst **mcache, mcacheval *mcache) {
-	*(*uintptr)(unsafe.Pointer(mcachedst)) = uintptr(unsafe.Pointer(mcacheval))
-}
+func (mp muintptr) ptr() *m   { return (*m)(unsafe.Pointer(mp)) }
+func (mp *muintptr) set(m *m) { *mp = muintptr(unsafe.Pointer(m)) }
 
 type gobuf struct {
 	// The offsets of sp, pc, and g are known to (hard-coded in) libmach.
@@ -223,14 +217,14 @@ type g struct {
 	_panic       *_panic // innermost panic - offset known to liblink
 	_defer       *_defer // innermost defer
 	sched        gobuf
-	syscallsp    uintptr        // if status==gsyscall, syscallsp = sched.sp to use during gc
-	syscallpc    uintptr        // if status==gsyscall, syscallpc = sched.pc to use during gc
+	syscallsp    uintptr        // if status==Gsyscall, syscallsp = sched.sp to use during gc
+	syscallpc    uintptr        // if status==Gsyscall, syscallpc = sched.pc to use during gc
 	param        unsafe.Pointer // passed parameter on wakeup
 	atomicstatus uint32
 	goid         int64
 	waitsince    int64  // approx time when the g become blocked
-	waitreason   string // if status==gwaiting
-	schedlink    *g
+	waitreason   string // if status==Gwaiting
+	schedlink    guintptr
 	preempt      bool // preemption signal, duplicates stackguard0 = stackpreempt
 	paniconfault bool // panic (instead of crash) on unexpected fault address
 	preemptscan  bool // preempted g does scan for gc
@@ -249,6 +243,11 @@ type g struct {
 	startpc      uintptr // pc of goroutine function
 	racectx      uintptr
 	waiting      *sudog // sudog structures this g is waiting on (that have a valid elem ptr)
+	readyg       *g     // scratch for readyExecute
+
+	// Per-G gcController state
+	gcalloc    uintptr // bytes allocated during this GC cycle
+	gcscanwork int64   // scan work done (or stolen) this GC cycle
 }
 
 type mts struct {
@@ -268,11 +267,11 @@ type m struct {
 	procid        uint64     // for debuggers, but offset not hard-coded
 	gsignal       *g         // signal-handling g
 	tls           [4]uintptr // thread-local storage (for x86 extern register)
-	mstartfn      uintptr    // TODO: type as func(); note: this is a non-heap allocated func()
-	curg          *g         // current running goroutine
-	caughtsig     *g         // goroutine running during fatal signal
-	p             *p         // attached p for executing go code (nil if not executing go code)
-	nextp         *p
+	mstartfn      func()
+	curg          *g       // current running goroutine
+	caughtsig     guintptr // goroutine running during fatal signal
+	p             puintptr // attached p for executing go code (nil if not executing go code)
+	nextp         puintptr
 	id            int32
 	mallocing     int32
 	throwing      int32
@@ -289,10 +288,9 @@ type m struct {
 	fastrand      uint32
 	ncgocall      uint64 // number of cgo calls in total
 	ncgo          int32  // number of cgo calls currently in progress
-	cgomal        *cgomal
 	park          note
 	alllink       *m // on allm
-	schedlink     *m
+	schedlink     muintptr
 	machport      uint32 // return address for mach ipc (os x)
 	mcache        *mcache
 	lockedg       *g
@@ -306,7 +304,6 @@ type m struct {
 	waitsemacount uint32
 	waitsemalock  uint32
 	gcstats       gcstats
-	currentwbuf   uintptr // use locks or atomic operations such as xchguinptr to access.
 	needextram    bool
 	traceback     uint8
 	waitunlockf   unsafe.Pointer // todo go func(*g, unsafe.pointer) bool
@@ -321,7 +318,7 @@ type m struct {
 	libcall   libcall
 	libcallpc uintptr // for cpu profiler
 	libcallsp uintptr
-	libcallg  *g
+	libcallg  guintptr
 	//#endif
 	//#ifdef GOOS_solaris
 	perrno *int32 // pointer to tls errno
@@ -342,10 +339,10 @@ type p struct {
 
 	id          int32
 	status      uint32 // one of pidle/prunning/...
-	link        *p
-	schedtick   uint32 // incremented on every scheduler call
-	syscalltick uint32 // incremented on every system call
-	m           *m     // back-link to associated m (nil if idle)
+	link        puintptr
+	schedtick   uint32   // incremented on every scheduler call
+	syscalltick uint32   // incremented on every system call
+	m           muintptr // back-link to associated m (nil if idle)
 	mcache      *mcache
 
 	deferpool    [5][]*_defer // pool of available defer structs of different sizes (see panic.go)
@@ -355,10 +352,20 @@ type p struct {
 	goidcache    uint64
 	goidcacheend uint64
 
-	// Queue of runnable goroutines.
+	// Queue of runnable goroutines. Accessed without lock.
 	runqhead uint32
 	runqtail uint32
 	runq     [256]*g
+	// runnext, if non-nil, is a runnable G that was ready'd by
+	// the current G and should be run next instead of what's in
+	// runq if there's time remaining in the running G's time
+	// slice. It will inherit the time left in the current time
+	// slice. If a set of goroutines is locked in a
+	// communicate-and-wait pattern, this schedules that set as a
+	// unit and eliminates the (potentially large) scheduling
+	// latency that otherwise arises from adding the ready'd
+	// goroutines to the end of the run queue.
+	runnext guintptr
 
 	// Available G's (status == Gdead)
 	gfree    *g
@@ -370,6 +377,18 @@ type p struct {
 	tracebuf *traceBuf
 
 	palloc persistentAlloc // per-P to avoid mutex
+
+	// Per-P GC state
+	gcAssistTime     int64 // Nanoseconds in assistAlloc
+	gcBgMarkWorker   *g
+	gcMarkWorkerMode gcMarkWorkerMode
+
+	// gcw is this P's GC work buffer cache. The work buffer is
+	// filled by write barriers, drained by mutator assists, and
+	// disposed on certain GC state transitions.
+	gcw gcWork
+
+	runSafePointFn uint32 // if 1, run sched.safePointFn at next safe point
 
 	pad [64]byte
 }
@@ -385,19 +404,19 @@ type schedt struct {
 
 	goidgen uint64
 
-	midle        *m    // idle m's waiting for work
-	nmidle       int32 // number of idle m's waiting for work
-	nmidlelocked int32 // number of locked m's waiting for work
-	mcount       int32 // number of m's that have been created
-	maxmcount    int32 // maximum number of m's allowed (or die)
+	midle        muintptr // idle m's waiting for work
+	nmidle       int32    // number of idle m's waiting for work
+	nmidlelocked int32    // number of locked m's waiting for work
+	mcount       int32    // number of m's that have been created
+	maxmcount    int32    // maximum number of m's allowed (or die)
 
-	pidle      *p // idle p's
+	pidle      puintptr // idle p's
 	npidle     uint32
 	nmspinning uint32
 
 	// Global runnable queue.
-	runqhead *g
-	runqtail *g
+	runqhead guintptr
+	runqtail guintptr
 	runqsize int32
 
 	// Global cache of dead G's.
@@ -420,7 +439,14 @@ type schedt struct {
 	sysmonnote note
 	lastpoll   uint64
 
+	// safepointFn should be called on each P at the next GC
+	// safepoint if p.runSafePointFn is set.
+	safePointFn func(*p)
+
 	profilehz int32 // cpu profiling rate
+
+	procresizetime int64 // nanotime() of last change to gomaxprocs
+	totaltime      int64 // ∫gomaxprocs dt up to procresizetime
 }
 
 // The m->locked word holds two pieces of state counting active calls to LockOSThread/lockOSThread.
@@ -488,31 +514,11 @@ type lfnode struct {
 	pushcnt uintptr
 }
 
-// Track memory allocated by code not written in Go during a cgo call,
-// so that the garbage collector can see them.
-type cgomal struct {
-	next  *cgomal
-	alloc unsafe.Pointer
-}
-
-// Indicates to write barrier and sychronization task to preform.
-const (
-	_GCoff             = iota // GC not running, write barrier disabled
-	_GCquiesce                // unused state
-	_GCstw                    // unused state
-	_GCscan                   // GC collecting roots into workbufs, write barrier disabled
-	_GCmark                   // GC marking from workbufs, write barrier ENABLED
-	_GCmarktermination        // GC mark termination: allocate black, P's help GC, write barrier ENABLED
-	_GCsweep                  // GC mark completed; sweeping in background, write barrier disabled
-)
-
 type forcegcstate struct {
 	lock mutex
 	g    *g
 	idle uint32
 }
-
-var gcphase uint32
 
 /*
  * known to compiler
@@ -618,6 +624,12 @@ var (
 	cpuid_ecx         uint32
 	cpuid_edx         uint32
 	lfenceBeforeRdtsc bool
+)
+
+// Set by the linker so the runtime can determine the buildmode.
+var (
+	islibrary bool // -buildmode=c-shared
+	isarchive bool // -buildmode=c-archive
 )
 
 /*

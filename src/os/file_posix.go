@@ -28,14 +28,6 @@ func Readlink(name string) (string, error) {
 	}
 }
 
-func rename(oldname, newname string) error {
-	e := syscall.Rename(oldname, newname)
-	if e != nil {
-		return &LinkError{"rename", oldname, newname, e}
-	}
-	return nil
-}
-
 // syscallMode returns the syscall-specific mode bits from Go's portable mode bits.
 func syscallMode(i FileMode) (o uint32) {
 	o |= uint32(i.Perm())

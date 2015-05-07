@@ -17,8 +17,8 @@ import (
 const (
 	headerStr = "GIF89a" +
 		"\x02\x00\x01\x00" + // width=2, height=1
-		"\x80\x00\x00" // headerFields=(a color map of 2 pixels), backgroundIndex, aspect
-	paletteStr = "\x10\x20\x30\x40\x50\x60" // the color map, also known as a palette
+		"\x80\x00\x00" // headerFields=(a color table of 2 pixels), backgroundIndex, aspect
+	paletteStr = "\x10\x20\x30\x40\x50\x60" // the color table, also known as a palette
 	trailerStr = "\x3b"
 )
 
@@ -141,7 +141,7 @@ var testGIF = []byte{
 	'G', 'I', 'F', '8', '9', 'a',
 	1, 0, 1, 0, // w=1, h=1 (6)
 	128, 0, 0, // headerFields, bg, aspect (10)
-	0, 0, 0, 1, 1, 1, // color map and graphics control (13)
+	0, 0, 0, 1, 1, 1, // color table and graphics control (13)
 	0x21, 0xf9, 0x04, 0x00, 0x00, 0x00, 0xff, 0x00, // (19)
 	// frame 1 (0,0 - 1,1)
 	0x2c,

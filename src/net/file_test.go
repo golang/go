@@ -29,26 +29,26 @@ type connFile interface {
 func testFileListener(t *testing.T, net, laddr string) {
 	l, err := Listen(net, laddr)
 	if err != nil {
-		t.Fatalf("Listen failed: %v", err)
+		t.Fatal(err)
 	}
 	defer l.Close()
 	lf := l.(listenerFile)
 	f, err := lf.File()
 	if err != nil {
-		t.Fatalf("File failed: %v", err)
+		t.Fatal(err)
 	}
 	c, err := FileListener(f)
 	if err != nil {
-		t.Fatalf("FileListener failed: %v", err)
+		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(l.Addr(), c.Addr()) {
-		t.Fatalf("Addrs not equal: %#v != %#v", l.Addr(), c.Addr())
+		t.Fatalf("got %#v; want%#v", l.Addr(), c.Addr())
 	}
 	if err := c.Close(); err != nil {
-		t.Fatalf("Close failed: %v", err)
+		t.Fatal(err)
 	}
 	if err := f.Close(); err != nil {
-		t.Fatalf("Close failed: %v", err)
+		t.Fatal(err)
 	}
 }
 
@@ -84,12 +84,12 @@ var fileListenerTests = []struct {
 func TestFileListener(t *testing.T) {
 	switch runtime.GOOS {
 	case "nacl", "windows":
-		t.Skipf("skipping test on %q", runtime.GOOS)
+		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
 	for _, tt := range fileListenerTests {
 		if !testableListenArgs(tt.net, tt.laddr, "") {
-			t.Logf("skipping %s test", tt.net+":"+tt.laddr+"->")
+			t.Logf("skipping %s test", tt.net+" "+tt.laddr)
 			continue
 		}
 		testFileListener(t, tt.net, tt.laddr)
@@ -99,47 +99,47 @@ func TestFileListener(t *testing.T) {
 func testFilePacketConn(t *testing.T, pcf packetConnFile, listen bool) {
 	f, err := pcf.File()
 	if err != nil {
-		t.Fatalf("File failed: %v", err)
+		t.Fatal(err)
 	}
 	c, err := FilePacketConn(f)
 	if err != nil {
-		t.Fatalf("FilePacketConn failed: %v", err)
+		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(pcf.LocalAddr(), c.LocalAddr()) {
-		t.Fatalf("LocalAddrs not equal: %#v != %#v", pcf.LocalAddr(), c.LocalAddr())
+		t.Fatalf("got %#v; want %#v", pcf.LocalAddr(), c.LocalAddr())
 	}
 	if listen {
 		if _, err := c.WriteTo([]byte{}, c.LocalAddr()); err != nil {
-			t.Fatalf("WriteTo failed: %v", err)
+			t.Fatal(err)
 		}
 	}
 	if err := c.Close(); err != nil {
-		t.Fatalf("Close failed: %v", err)
+		t.Fatal(err)
 	}
 	if err := f.Close(); err != nil {
-		t.Fatalf("Close failed: %v", err)
+		t.Fatal(err)
 	}
 }
 
 func testFilePacketConnListen(t *testing.T, net, laddr string) {
 	l, err := ListenPacket(net, laddr)
 	if err != nil {
-		t.Fatalf("ListenPacket failed: %v", err)
+		t.Fatal(err)
 	}
 	testFilePacketConn(t, l.(packetConnFile), true)
 	if err := l.Close(); err != nil {
-		t.Fatalf("Close failed: %v", err)
+		t.Fatal(err)
 	}
 }
 
 func testFilePacketConnDial(t *testing.T, net, raddr string) {
 	c, err := Dial(net, raddr)
 	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
+		t.Fatal(err)
 	}
 	testFilePacketConn(t, c.(packetConnFile), false)
 	if err := c.Close(); err != nil {
-		t.Fatalf("Close failed: %v", err)
+		t.Fatal(err)
 	}
 }
 
@@ -156,7 +156,8 @@ var filePacketConnTests = []struct {
 
 	{net: "udp6", addr: "[::1]:0"},
 
-	{net: "ip4:icmp", addr: "127.0.0.1"},
+	// TODO(mikioh,bradfitz): renable once 10730 is fixed
+	// {net: "ip4:icmp", addr: "127.0.0.1"},
 
 	{net: "unixgram", addr: "@gotest3/net"},
 }
@@ -164,12 +165,12 @@ var filePacketConnTests = []struct {
 func TestFilePacketConn(t *testing.T) {
 	switch runtime.GOOS {
 	case "nacl", "plan9", "windows":
-		t.Skipf("skipping test on %q", runtime.GOOS)
+		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
 	for _, tt := range filePacketConnTests {
 		if !testableListenArgs(tt.net, tt.addr, "") {
-			t.Logf("skipping %s test", tt.net+":"+tt.addr+"->")
+			t.Logf("skipping %s test", tt.net+" "+tt.addr)
 			continue
 		}
 		if os.Getuid() != 0 && tt.net == "ip4:icmp" {

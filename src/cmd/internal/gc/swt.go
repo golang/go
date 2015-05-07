@@ -94,7 +94,7 @@ func typecheckswitch(n *Node) {
 			case t.Etype == TARRAY && Isfixedarray(t) && algtype1(t, nil) == ANOEQ:
 				Yyerror("cannot switch on %v", Nconv(n.Ntest, obj.FmtLong))
 			case t.Etype == TSTRUCT && algtype1(t, &badtype) == ANOEQ:
-				Yyerror("cannot switch on %v (struct containing %v cannot be compared)", Nconv(n.Ntest, obj.FmtLong), Tconv(badtype, 0))
+				Yyerror("cannot switch on %v (struct containing %v cannot be compared)", Nconv(n.Ntest, obj.FmtLong), badtype)
 			case t.Etype == TFUNC:
 				nilonly = "func"
 			case t.Etype == TMAP:
@@ -131,15 +131,15 @@ func typecheckswitch(n *Node) {
 					defaultlit(&ll.N, t)
 					switch {
 					case ll.N.Op == OTYPE:
-						Yyerror("type %v is not an expression", Tconv(ll.N.Type, 0))
+						Yyerror("type %v is not an expression", ll.N.Type)
 					case ll.N.Type != nil && assignop(ll.N.Type, t, nil) == 0 && assignop(t, ll.N.Type, nil) == 0:
 						if n.Ntest != nil {
-							Yyerror("invalid case %v in switch on %v (mismatched types %v and %v)", Nconv(ll.N, 0), Nconv(n.Ntest, 0), Tconv(ll.N.Type, 0), Tconv(t, 0))
+							Yyerror("invalid case %v in switch on %v (mismatched types %v and %v)", ll.N, n.Ntest, ll.N.Type, t)
 						} else {
-							Yyerror("invalid case %v in switch (mismatched types %v and bool)", Nconv(ll.N, 0), Tconv(ll.N.Type, 0))
+							Yyerror("invalid case %v in switch (mismatched types %v and bool)", ll.N, ll.N.Type)
 						}
 					case nilonly != "" && !Isconst(ll.N, CTNIL):
-						Yyerror("invalid case %v in switch (can only compare %s %v to nil)", Nconv(ll.N, 0), nilonly, Nconv(n.Ntest, 0))
+						Yyerror("invalid case %v in switch (can only compare %s %v to nil)", ll.N, nilonly, n.Ntest)
 					}
 
 				// type switch
@@ -154,9 +154,9 @@ func typecheckswitch(n *Node) {
 						ll.N = n.Ntest.Right
 					case ll.N.Type.Etype != TINTER && t.Etype == TINTER && !implements(ll.N.Type, t, &missing, &have, &ptr):
 						if have != nil && missing.Broke == 0 && have.Broke == 0 {
-							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (wrong type for %v method)\n\thave %v%v\n\twant %v%v", Nconv(n.Ntest.Right, obj.FmtLong), Tconv(ll.N.Type, 0), Sconv(missing.Sym, 0), Sconv(have.Sym, 0), Tconv(have.Type, obj.FmtShort), Sconv(missing.Sym, 0), Tconv(missing.Type, obj.FmtShort))
+							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (wrong type for %v method)\n\thave %v%v\n\twant %v%v", Nconv(n.Ntest.Right, obj.FmtLong), ll.N.Type, missing.Sym, have.Sym, Tconv(have.Type, obj.FmtShort), missing.Sym, Tconv(missing.Type, obj.FmtShort))
 						} else if missing.Broke == 0 {
-							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (missing %v method)", Nconv(n.Ntest.Right, obj.FmtLong), Tconv(ll.N.Type, 0), Sconv(missing.Sym, 0))
+							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (missing %v method)", Nconv(n.Ntest.Right, obj.FmtLong), ll.N.Type, missing.Sym)
 						}
 					}
 				}
@@ -218,7 +218,7 @@ func (s *exprSwitch) walk(sw *Node) {
 	s.kind = switchKindExpr
 	if Isconst(sw.Ntest, CTBOOL) {
 		s.kind = switchKindTrue
-		if sw.Ntest.Val.U.Bval == 0 {
+		if !sw.Ntest.Val.U.Bval {
 			s.kind = switchKindFalse
 		}
 	}
@@ -481,7 +481,7 @@ func caseClauses(sw *Node, kind int) []*caseClause {
 					break
 				}
 				if Eqtype(c1.node.Left.Type, c2.node.Left.Type) {
-					yyerrorl(int(c2.node.Lineno), "duplicate case %v in type switch\n\tprevious case at %v", Tconv(c2.node.Left.Type, 0), c1.node.Line())
+					yyerrorl(int(c2.node.Lineno), "duplicate case %v in type switch\n\tprevious case at %v", c2.node.Left.Type, c1.node.Line())
 				}
 			}
 		}
@@ -497,7 +497,7 @@ func caseClauses(sw *Node, kind int) []*caseClause {
 				continue
 			}
 			setlineno(c2.node)
-			Yyerror("duplicate case %v in switch\n\tprevious case at %v", Nconv(c1.node.Left, 0), c1.node.Line())
+			Yyerror("duplicate case %v in switch\n\tprevious case at %v", c1.node.Left, c1.node.Line())
 		}
 	}
 

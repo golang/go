@@ -6,8 +6,8 @@ package gob
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
-	"io"
 	"reflect"
 	"strings"
 	"testing"
@@ -185,24 +185,6 @@ func TestWrongTypeDecoder(t *testing.T) {
 	badTypeCheck(new(ET2), true, "no fields in common", t)
 	badTypeCheck(new(ET3), false, "different name of field", t)
 	badTypeCheck(new(ET4), true, "different type of field", t)
-}
-
-func corruptDataCheck(s string, err error, t *testing.T) {
-	b := bytes.NewBufferString(s)
-	dec := NewDecoder(b)
-	err1 := dec.Decode(new(ET2))
-	if err1 != err {
-		t.Errorf("from %q expected error %s; got %s", s, err, err1)
-	}
-}
-
-// Check that we survive bad data.
-func TestBadData(t *testing.T) {
-	corruptDataCheck("", io.EOF, t)
-	corruptDataCheck("\x7Fhi", io.ErrUnexpectedEOF, t)
-	corruptDataCheck("\x03now is the time for all good men", errBadType, t)
-	// issue 6323.
-	corruptDataCheck("\x04\x24foo", errRange, t)
 }
 
 // Types not supported at top level by the Encoder.
@@ -952,5 +934,45 @@ func TestErrorForHugeSlice(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "slice too big") {
 		t.Fatalf("decode: expected slice too big error, got %s", err.Error())
+	}
+}
+
+type badDataTest struct {
+	input string      // The input encoded as a hex string.
+	error string      // A substring of the error that should result.
+	data  interface{} // What to decode into.
+}
+
+var badDataTests = []badDataTest{
+	{"", "EOF", nil},
+	{"7F6869", "unexpected EOF", nil},
+	{"036e6f77206973207468652074696d6520666f7220616c6c20676f6f64206d656e", "unknown type id", new(ET2)},
+	{"0424666f6f", "field numbers out of bounds", new(ET2)}, // Issue 6323.
+	{"05100028557b02027f8302", "interface encoding", nil},   // Issue 10270.
+	// Issue 10273.
+	{"130a00fb5dad0bf8ff020263e70002fa28020202a89859", "slice length too large", nil},
+	{"0f1000fb285d003316020735ff023a65c5", "interface encoding", nil},
+	{"03fffb0616fffc00f902ff02ff03bf005d02885802a311a8120228022c028ee7", "GobDecoder", nil},
+	// Issue 10491.
+	{"10fe010f020102fe01100001fe010e000016fe010d030102fe010e00010101015801fe01100000000bfe011000f85555555555555555", "length exceeds input size", nil},
+}
+
+// TestBadData tests that various problems caused by malformed input
+// are caught as errors and do not cause panics.
+func TestBadData(t *testing.T) {
+	for i, test := range badDataTests {
+		data, err := hex.DecodeString(test.input)
+		if err != nil {
+			t.Fatalf("#%d: hex error: %s", i, err)
+		}
+		d := NewDecoder(bytes.NewReader(data))
+		err = d.Decode(test.data)
+		if err == nil {
+			t.Errorf("decode: no error")
+			continue
+		}
+		if !strings.Contains(err.Error(), test.error) {
+			t.Errorf("#%d: decode: expected %q error, got %s", i, test.error, err.Error())
+		}
 	}
 }

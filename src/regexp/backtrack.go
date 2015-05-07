@@ -36,7 +36,6 @@ type bitState struct {
 
 	end     int
 	cap     []int
-	reqcap  bool // whether any captures are requested
 	input   input
 	jobs    []job
 	visited []uint32
@@ -47,6 +46,9 @@ var notBacktrack *bitState = nil
 // maxBitStateLen returns the maximum length of a string to search with
 // the backtracker using prog.
 func maxBitStateLen(prog *syntax.Prog) int {
+	if !shouldBacktrack(prog) {
+		return 0
+	}
 	return maxBacktrackVector / len(prog.Inst)
 }
 
@@ -54,7 +56,7 @@ func maxBitStateLen(prog *syntax.Prog) int {
 // or notBacktrack if the size of the prog exceeds the maximum size that
 // the backtracker will be run for.
 func newBitState(prog *syntax.Prog) *bitState {
-	if len(prog.Inst) > maxBacktrackProg {
+	if !shouldBacktrack(prog) {
 		return notBacktrack
 	}
 	return &bitState{
@@ -62,13 +64,17 @@ func newBitState(prog *syntax.Prog) *bitState {
 	}
 }
 
+// shouldBacktrack reports whether the program is too
+// long for the backtracker to run.
+func shouldBacktrack(prog *syntax.Prog) bool {
+	return len(prog.Inst) <= maxBacktrackProg
+}
+
 // reset resets the state of the backtracker.
-// end is the end position in the input. ncap and reqcap are the number
-// of the machine's capture registers and the number of user-requested
-// captures respectively.
-func (b *bitState) reset(end int, ncap int, reqcap int) {
+// end is the end position in the input.
+// ncap is the number of captures.
+func (b *bitState) reset(end int, ncap int) {
 	b.end = end
-	b.reqcap = reqcap > 0
 
 	if cap(b.jobs) == 0 {
 		b.jobs = make([]job, 0, 256)
@@ -86,8 +92,10 @@ func (b *bitState) reset(end int, ncap int, reqcap int) {
 		}
 	}
 
-	if len(b.cap) < ncap {
+	if cap(b.cap) < ncap {
 		b.cap = make([]int, ncap)
+	} else {
+		b.cap = b.cap[:ncap]
 	}
 	for i := range b.cap {
 		b.cap[i] = -1
@@ -262,7 +270,7 @@ func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 		case syntax.InstMatch:
 			// We found a match. If the caller doesn't care
 			// where the match is, no point going further.
-			if !b.reqcap {
+			if len(b.cap) == 0 {
 				m.matched = true
 				return m.matched
 			}
@@ -270,7 +278,9 @@ func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 			// Record best match so far.
 			// Only need to check end point, because this entire
 			// call is only considering one start position.
-			b.cap[1] = pos
+			if len(b.cap) > 1 {
+				b.cap[1] = pos
+			}
 			if !m.matched || (longest && pos > 0 && pos > m.matchcap[1]) {
 				copy(m.matchcap, b.cap)
 			}
@@ -296,7 +306,7 @@ func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 }
 
 // backtrack runs a backtracking search of prog on the input starting at pos.
-func (m *machine) backtrack(i input, pos int, end int, reqcap int) bool {
+func (m *machine) backtrack(i input, pos int, end int, ncap int) bool {
 	if !i.canCheckPrefix() {
 		panic("backtrack called for a RuneReader")
 	}
@@ -311,15 +321,18 @@ func (m *machine) backtrack(i input, pos int, end int, reqcap int) bool {
 	}
 
 	b := m.b
-	b.reset(end, len(m.matchcap), reqcap)
+	b.reset(end, ncap)
 
+	m.matchcap = m.matchcap[:ncap]
 	for i := range m.matchcap {
 		m.matchcap[i] = -1
 	}
 
 	// Anchored search must start at the beginning of the input
 	if startCond&syntax.EmptyBeginText != 0 {
-		b.cap[0] = pos
+		if len(b.cap) > 0 {
+			b.cap[0] = pos
+		}
 		return m.tryBacktrack(b, i, uint32(m.p.Start), pos)
 	}
 
@@ -340,7 +353,9 @@ func (m *machine) backtrack(i input, pos int, end int, reqcap int) bool {
 			pos += advance
 		}
 
-		b.cap[0] = pos
+		if len(b.cap) > 0 {
+			b.cap[0] = pos
+		}
 		if m.tryBacktrack(b, i, uint32(m.p.Start), pos) {
 			// Match must be leftmost; done.
 			return true

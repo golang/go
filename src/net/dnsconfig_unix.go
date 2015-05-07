@@ -8,30 +8,41 @@
 
 package net
 
+var defaultNS = []string{"127.0.0.1", "::1"}
+
 type dnsConfig struct {
-	servers  []string // servers to use
-	search   []string // suffixes to append to local name
-	ndots    int      // number of dots in name to trigger absolute lookup
-	timeout  int      // seconds before giving up on packet
-	attempts int      // lost packets before giving up on server
-	rotate   bool     // round robin among servers
+	servers    []string // servers to use
+	search     []string // suffixes to append to local name
+	ndots      int      // number of dots in name to trigger absolute lookup
+	timeout    int      // seconds before giving up on packet
+	attempts   int      // lost packets before giving up on server
+	rotate     bool     // round robin among servers
+	unknownOpt bool     // anything unknown was encountered
+	lookup     []string // OpenBSD top-level database "lookup" order
+	err        error    // any error that occurs during open of resolv.conf
 }
 
 // See resolv.conf(5) on a Linux machine.
 // TODO(rsc): Supposed to call uname() and chop the beginning
 // of the host name to get the default search domain.
-func dnsReadConfig(filename string) (*dnsConfig, error) {
-	file, err := open(filename)
-	if err != nil {
-		return nil, &DNSConfigError{err}
-	}
-	defer file.close()
+func dnsReadConfig(filename string) *dnsConfig {
 	conf := &dnsConfig{
 		ndots:    1,
 		timeout:  5,
 		attempts: 2,
 	}
+	file, err := open(filename)
+	if err != nil {
+		conf.servers = defaultNS
+		conf.err = err
+		return conf
+	}
+	defer file.close()
 	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
+		if len(line) > 0 && (line[0] == ';' || line[0] == '#') {
+			// comment.
+			continue
+		}
 		f := getFields(line)
 		if len(f) < 1 {
 			continue
@@ -61,8 +72,7 @@ func dnsReadConfig(filename string) (*dnsConfig, error) {
 			}
 
 		case "options": // magic options
-			for i := 1; i < len(f); i++ {
-				s := f[i]
+			for _, s := range f[1:] {
 				switch {
 				case hasPrefix(s, "ndots:"):
 					n, _, _ := dtoi(s, 6)
@@ -84,11 +94,25 @@ func dnsReadConfig(filename string) (*dnsConfig, error) {
 					conf.attempts = n
 				case s == "rotate":
 					conf.rotate = true
+				default:
+					conf.unknownOpt = true
 				}
 			}
+
+		case "lookup":
+			// OpenBSD option:
+			// http://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man5/resolv.conf.5
+			// "the legal space-separated values are: bind, file, yp"
+			conf.lookup = f[1:]
+
+		default:
+			conf.unknownOpt = true
 		}
 	}
-	return conf, nil
+	if len(conf.servers) == 0 {
+		conf.servers = defaultNS
+	}
+	return conf
 }
 
 func hasPrefix(s, prefix string) bool {

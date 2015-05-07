@@ -19,8 +19,9 @@ func buildObjdump(t *testing.T) (tmp, exe string) {
 	case "android", "nacl":
 		t.Skipf("skipping on %s", runtime.GOOS)
 	case "darwin":
-		if runtime.GOARCH == "arm" {
-			t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+		switch runtime.GOARCH {
+		case "arm", "arm64":
+			t.Skipf("skipping on %s/%s, cannot fork", runtime.GOOS, runtime.GOARCH)
 		}
 	}
 
@@ -124,6 +125,10 @@ func TestDisasmExtld(t *testing.T) {
 		t.Skipf("skipping on %s, no support for external linking, issue 9038", runtime.GOARCH)
 	case "arm64":
 		t.Skipf("skipping on %s, issue 10106", runtime.GOARCH)
+	}
+	// TODO(jsing): Renable once openbsd/arm has external linking support.
+	if runtime.GOOS == "openbsd" && runtime.GOARCH == "arm" {
+		t.Skip("skipping on openbsd/arm, no support for external linking, issue 10619")
 	}
 	testDisasm(t, "-ldflags=-linkmode=external")
 }

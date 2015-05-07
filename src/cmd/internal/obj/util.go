@@ -28,12 +28,10 @@ func Cputime() float64 {
 }
 
 type Biobuf struct {
-	unget    [2]int
-	numUnget int
-	f        *os.File
-	r        *bufio.Reader
-	w        *bufio.Writer
-	linelen  int
+	f       *os.File
+	r       *bufio.Reader
+	w       *bufio.Writer
+	linelen int
 }
 
 func Bopenw(name string) (*Biobuf, error) {
@@ -85,22 +83,23 @@ func Bseek(b *Biobuf, offset int64, whence int) int64 {
 }
 
 func Boffset(b *Biobuf) int64 {
-	if err := b.w.Flush(); err != nil {
-		log.Fatalf("writing output: %v", err)
+	if b.w != nil {
+		if err := b.w.Flush(); err != nil {
+			log.Fatalf("writing output: %v", err)
+		}
 	}
 	off, err := b.f.Seek(0, 1)
 	if err != nil {
-		log.Fatalf("seeking in output: %v", err)
+		log.Fatalf("seeking in output [0, 1]: %v", err)
+	}
+	if b.r != nil {
+		off -= int64(b.r.Buffered())
 	}
 	return off
 }
 
 func (b *Biobuf) Flush() error {
 	return b.w.Flush()
-}
-
-func Bwrite(b *Biobuf, p []byte) (int, error) {
-	return b.w.Write(p)
 }
 
 func Bputc(b *Biobuf, c byte) {
@@ -120,18 +119,11 @@ func Bread(b *Biobuf, p []byte) int {
 }
 
 func Bgetc(b *Biobuf) int {
-	if b.numUnget > 0 {
-		b.numUnget--
-		return int(b.unget[b.numUnget])
-	}
 	c, err := b.r.ReadByte()
-	r := int(c)
 	if err != nil {
-		r = -1
+		return -1
 	}
-	b.unget[1] = b.unget[0]
-	b.unget[0] = r
-	return r
+	return int(c)
 }
 
 func Bgetrune(b *Biobuf) int {
@@ -148,6 +140,10 @@ func Bungetrune(b *Biobuf) {
 
 func (b *Biobuf) Read(p []byte) (int, error) {
 	return b.r.Read(p)
+}
+
+func (b *Biobuf) Peek(n int) ([]byte, error) {
+	return b.r.Peek(n)
 }
 
 func Brdline(b *Biobuf, delim int) string {
@@ -183,14 +179,6 @@ func Access(name string, mode int) int {
 
 func Blinelen(b *Biobuf) int {
 	return b.linelen
-}
-
-func Bungetc(b *Biobuf) {
-	b.numUnget++
-}
-
-func Bflush(b *Biobuf) error {
-	return b.w.Flush()
 }
 
 func Bterm(b *Biobuf) error {
@@ -379,7 +367,7 @@ func Dconv(p *Prog, a *Addr) string {
 			break
 		}
 
-		str = fmt.Sprintf("%v", Rconv(int(a.Reg)))
+		str = Rconv(int(a.Reg))
 		if a.Name != TYPE_NONE || a.Sym != nil {
 			str = fmt.Sprintf("%v(%v)(REG)", Mconv(a), Rconv(int(a.Reg)))
 		}
@@ -388,9 +376,9 @@ func Dconv(p *Prog, a *Addr) string {
 		if a.Sym != nil {
 			str = fmt.Sprintf("%s(SB)", a.Sym.Name)
 		} else if p != nil && p.Pcond != nil {
-			str = fmt.Sprintf("%d", p.Pcond.Pc)
+			str = fmt.Sprint(p.Pcond.Pc)
 		} else if a.Val != nil {
-			str = fmt.Sprintf("%d", a.Val.(*Prog).Pc)
+			str = fmt.Sprint(a.Val.(*Prog).Pc)
 		} else {
 			str = fmt.Sprintf("%d(PC)", a.Offset)
 		}
@@ -467,7 +455,7 @@ func Mconv(a *Addr) string {
 	case NAME_NONE:
 		switch {
 		case a.Reg == REG_NONE:
-			str = fmt.Sprintf("%d", a.Offset)
+			str = fmt.Sprint(a.Offset)
 		case a.Offset == 0:
 			str = fmt.Sprintf("(%v)", Rconv(int(a.Reg)))
 		case a.Offset != 0:
@@ -476,6 +464,9 @@ func Mconv(a *Addr) string {
 
 	case NAME_EXTERN:
 		str = fmt.Sprintf("%s%s(SB)", a.Sym.Name, offConv(a.Offset))
+
+	case NAME_GOTREF:
+		str = fmt.Sprintf("%s%s@GOT(SB)", a.Sym.Name, offConv(a.Offset))
 
 	case NAME_STATIC:
 		str = fmt.Sprintf("%s<>%s(SB)", a.Sym.Name, offConv(a.Offset))
@@ -637,4 +628,11 @@ var Anames = []string{
 	"USEFIELD",
 	"VARDEF",
 	"VARKILL",
+}
+
+func Bool2int(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }

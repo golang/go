@@ -88,7 +88,7 @@ func gvardefx(n *Node, as int) {
 		Fatal("gvardef nil")
 	}
 	if n.Op != ONAME {
-		Yyerror("gvardef %v; %v", Oconv(int(n.Op), obj.FmtSharp), Nconv(n, 0))
+		Yyerror("gvardef %v; %v", Oconv(int(n.Op), obj.FmtSharp), n)
 		return
 	}
 
@@ -142,12 +142,12 @@ func emitptrargsmap() {
 	var xoffset int64
 	if Curfn.Type.Thistuple > 0 {
 		xoffset = 0
-		twobitwalktype1(getthisx(Curfn.Type), &xoffset, bv)
+		onebitwalktype1(getthisx(Curfn.Type), &xoffset, bv)
 	}
 
 	if Curfn.Type.Intuple > 0 {
 		xoffset = 0
-		twobitwalktype1(getinargx(Curfn.Type), &xoffset, bv)
+		onebitwalktype1(getinargx(Curfn.Type), &xoffset, bv)
 	}
 
 	for j := 0; int32(j) < bv.n; j += 32 {
@@ -155,13 +155,13 @@ func emitptrargsmap() {
 	}
 	if Curfn.Type.Outtuple > 0 {
 		xoffset = 0
-		twobitwalktype1(getoutargx(Curfn.Type), &xoffset, bv)
+		onebitwalktype1(getoutargx(Curfn.Type), &xoffset, bv)
 		for j := 0; int32(j) < bv.n; j += 32 {
 			off = duint32(sym, off, bv.b[j/32])
 		}
 	}
 
-	ggloblsym(sym, int32(off), obj.RODATA)
+	ggloblsym(sym, int32(off), obj.RODATA|obj.LOCAL)
 }
 
 // Sort the list of stack variables. Autos after anything else,
@@ -191,17 +191,17 @@ func cmpstackvar(a *Node, b *Node) int {
 	}
 
 	if a.Used != b.Used {
-		return bool2int(b.Used) - bool2int(a.Used)
+		return obj.Bool2int(b.Used) - obj.Bool2int(a.Used)
 	}
 
-	ap := bool2int(haspointers(a.Type))
-	bp := bool2int(haspointers(b.Type))
+	ap := obj.Bool2int(haspointers(a.Type))
+	bp := obj.Bool2int(haspointers(b.Type))
 	if ap != bp {
 		return bp - ap
 	}
 
-	ap = bool2int(a.Needzero)
-	bp = bool2int(b.Needzero)
+	ap = obj.Bool2int(a.Needzero)
+	bp = obj.Bool2int(b.Needzero)
 	if ap != bp {
 		return bp - ap
 	}
@@ -331,7 +331,7 @@ func Cgen_checknil(n *Node) {
 		Fatal("bad checknil")
 	}
 
-	if ((Thearch.Thechar == '5' || Thearch.Thechar == '7' || Thearch.Thechar == '9') && n.Op != OREGISTER) || n.Addable == 0 || n.Op == OLITERAL {
+	if ((Thearch.Thechar == '5' || Thearch.Thechar == '7' || Thearch.Thechar == '9') && n.Op != OREGISTER) || !n.Addable || n.Op == OLITERAL {
 		var reg Node
 		Regalloc(&reg, Types[Tptr], n)
 		Cgen(n, &reg)

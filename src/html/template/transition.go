@@ -183,22 +183,52 @@ func tHTMLCmt(c context, s []byte) (context, int) {
 
 // specialTagEndMarkers maps element types to the character sequence that
 // case-insensitively signals the end of the special tag body.
-var specialTagEndMarkers = [...]string{
-	elementScript:   "</script",
-	elementStyle:    "</style",
-	elementTextarea: "</textarea",
-	elementTitle:    "</title",
+var specialTagEndMarkers = [...][]byte{
+	elementScript:   []byte("script"),
+	elementStyle:    []byte("style"),
+	elementTextarea: []byte("textarea"),
+	elementTitle:    []byte("title"),
 }
+
+var (
+	specialTagEndPrefix = []byte("</")
+	tagEndSeparators    = []byte("> \t\n\f/")
+)
 
 // tSpecialTagEnd is the context transition function for raw text and RCDATA
 // element states.
 func tSpecialTagEnd(c context, s []byte) (context, int) {
 	if c.element != elementNone {
-		if i := strings.Index(strings.ToLower(string(s)), specialTagEndMarkers[c.element]); i != -1 {
+		if i := indexTagEnd(s, specialTagEndMarkers[c.element]); i != -1 {
 			return context{}, i
 		}
 	}
 	return c, len(s)
+}
+
+// indexTagEnd finds the index of a special tag end in a case insensitive way, or returns -1
+func indexTagEnd(s []byte, tag []byte) int {
+	res := 0
+	plen := len(specialTagEndPrefix)
+	for len(s) > 0 {
+		// Try to find the tag end prefix first
+		i := bytes.Index(s, specialTagEndPrefix)
+		if i == -1 {
+			return i
+		}
+		s = s[i+plen:]
+		// Try to match the actual tag if there is still space for it
+		if len(tag) <= len(s) && bytes.EqualFold(tag, s[:len(tag)]) {
+			s = s[len(tag):]
+			// Check the tag is followed by a proper separator
+			if len(s) > 0 && bytes.IndexByte(tagEndSeparators, s[0]) != -1 {
+				return res + i
+			}
+			res += len(tag)
+		}
+		res += i + plen
+	}
+	return -1
 }
 
 // tAttr is the context transition function for the attribute state.

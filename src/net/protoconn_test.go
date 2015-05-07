@@ -8,7 +8,6 @@
 package net
 
 import (
-	"io/ioutil"
 	"os"
 	"runtime"
 	"testing"
@@ -21,33 +20,19 @@ import (
 //	golang.org/x/net/ipv6
 //	golang.org/x/net/icmp
 
-// testUnixAddr uses ioutil.TempFile to get a name that is unique. It
-// also uses /tmp directory in case it is prohibited to create UNIX
-// sockets in TMPDIR.
-func testUnixAddr() string {
-	f, err := ioutil.TempFile("", "nettest")
-	if err != nil {
-		panic(err)
-	}
-	addr := f.Name()
-	f.Close()
-	os.Remove(addr)
-	return addr
-}
-
 func TestTCPListenerSpecificMethods(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
-		t.Skipf("skipping test on %q", runtime.GOOS)
+		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
 	la, err := ResolveTCPAddr("tcp4", "127.0.0.1:0")
 	if err != nil {
-		t.Fatalf("ResolveTCPAddr failed: %v", err)
+		t.Fatal(err)
 	}
 	ln, err := ListenTCP("tcp4", la)
 	if err != nil {
-		t.Fatalf("ListenTCP failed: %v", err)
+		t.Fatal(err)
 	}
 	defer ln.Close()
 	ln.Addr()
@@ -55,21 +40,21 @@ func TestTCPListenerSpecificMethods(t *testing.T) {
 
 	if c, err := ln.Accept(); err != nil {
 		if !err.(Error).Timeout() {
-			t.Fatalf("TCPListener.Accept failed: %v", err)
+			t.Fatal(err)
 		}
 	} else {
 		c.Close()
 	}
 	if c, err := ln.AcceptTCP(); err != nil {
 		if !err.(Error).Timeout() {
-			t.Fatalf("TCPListener.AcceptTCP failed: %v", err)
+			t.Fatal(err)
 		}
 	} else {
 		c.Close()
 	}
 
 	if f, err := ln.File(); err != nil {
-		condFatalf(t, "TCPListener.File failed: %v", err)
+		condFatalf(t, "%v", err)
 	} else {
 		f.Close()
 	}
@@ -78,25 +63,30 @@ func TestTCPListenerSpecificMethods(t *testing.T) {
 func TestTCPConnSpecificMethods(t *testing.T) {
 	la, err := ResolveTCPAddr("tcp4", "127.0.0.1:0")
 	if err != nil {
-		t.Fatalf("ResolveTCPAddr failed: %v", err)
+		t.Fatal(err)
 	}
 	ln, err := ListenTCP("tcp4", la)
 	if err != nil {
-		t.Fatalf("ListenTCP failed: %v", err)
+		t.Fatal(err)
 	}
-	defer ln.Close()
-	ln.Addr()
-
-	done := make(chan int)
-	go transponder(t, ln, done)
-
-	ra, err := ResolveTCPAddr("tcp4", ln.Addr().String())
+	ch := make(chan error, 1)
+	handler := func(ls *localServer, ln Listener) { transponder(ls.Listener, ch) }
+	ls, err := (&streamListener{Listener: ln}).newLocalServer()
 	if err != nil {
-		t.Fatalf("ResolveTCPAddr failed: %v", err)
+		t.Fatal(err)
+	}
+	defer ls.teardown()
+	if err := ls.buildup(handler); err != nil {
+		t.Fatal(err)
+	}
+
+	ra, err := ResolveTCPAddr("tcp4", ls.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
 	}
 	c, err := DialTCP("tcp4", nil, ra)
 	if err != nil {
-		t.Fatalf("DialTCP failed: %v", err)
+		t.Fatal(err)
 	}
 	defer c.Close()
 	c.SetKeepAlive(false)
@@ -110,24 +100,26 @@ func TestTCPConnSpecificMethods(t *testing.T) {
 	c.SetWriteDeadline(time.Now().Add(someTimeout))
 
 	if _, err := c.Write([]byte("TCPCONN TEST")); err != nil {
-		t.Fatalf("TCPConn.Write failed: %v", err)
+		t.Fatal(err)
 	}
 	rb := make([]byte, 128)
 	if _, err := c.Read(rb); err != nil {
-		t.Fatalf("TCPConn.Read failed: %v", err)
+		t.Fatal(err)
 	}
 
-	<-done
+	for err := range ch {
+		t.Error(err)
+	}
 }
 
 func TestUDPConnSpecificMethods(t *testing.T) {
 	la, err := ResolveUDPAddr("udp4", "127.0.0.1:0")
 	if err != nil {
-		t.Fatalf("ResolveUDPAddr failed: %v", err)
+		t.Fatal(err)
 	}
 	c, err := ListenUDP("udp4", la)
 	if err != nil {
-		t.Fatalf("ListenUDP failed: %v", err)
+		t.Fatal(err)
 	}
 	defer c.Close()
 	c.LocalAddr()
@@ -141,27 +133,27 @@ func TestUDPConnSpecificMethods(t *testing.T) {
 	wb := []byte("UDPCONN TEST")
 	rb := make([]byte, 128)
 	if _, err := c.WriteToUDP(wb, c.LocalAddr().(*UDPAddr)); err != nil {
-		t.Fatalf("UDPConn.WriteToUDP failed: %v", err)
+		t.Fatal(err)
 	}
 	if _, _, err := c.ReadFromUDP(rb); err != nil {
-		t.Fatalf("UDPConn.ReadFromUDP failed: %v", err)
+		t.Fatal(err)
 	}
 	if _, _, err := c.WriteMsgUDP(wb, nil, c.LocalAddr().(*UDPAddr)); err != nil {
-		condFatalf(t, "UDPConn.WriteMsgUDP failed: %v", err)
+		condFatalf(t, "%v", err)
 	}
 	if _, _, _, _, err := c.ReadMsgUDP(rb, nil); err != nil {
-		condFatalf(t, "UDPConn.ReadMsgUDP failed: %v", err)
+		condFatalf(t, "%v", err)
 	}
 
 	if f, err := c.File(); err != nil {
-		condFatalf(t, "UDPConn.File failed: %v", err)
+		condFatalf(t, "%v", err)
 	} else {
 		f.Close()
 	}
 
 	defer func() {
 		if p := recover(); p != nil {
-			t.Fatalf("UDPConn.WriteToUDP or WriteMsgUDP panicked: %v", p)
+			t.Fatalf("panicked: %v", p)
 		}
 	}()
 
@@ -176,11 +168,11 @@ func TestIPConnSpecificMethods(t *testing.T) {
 
 	la, err := ResolveIPAddr("ip4", "127.0.0.1")
 	if err != nil {
-		t.Fatalf("ResolveIPAddr failed: %v", err)
+		t.Fatal(err)
 	}
 	c, err := ListenIP("ip4:icmp", la)
 	if err != nil {
-		t.Fatalf("ListenIP failed: %v", err)
+		t.Fatal(err)
 	}
 	defer c.Close()
 	c.LocalAddr()
@@ -192,14 +184,14 @@ func TestIPConnSpecificMethods(t *testing.T) {
 	c.SetWriteBuffer(2048)
 
 	if f, err := c.File(); err != nil {
-		condFatalf(t, "IPConn.File failed: %v", err)
+		condFatalf(t, "%v", err)
 	} else {
 		f.Close()
 	}
 
 	defer func() {
 		if p := recover(); p != nil {
-			t.Fatalf("IPConn.WriteToIP or WriteMsgIP panicked: %v", p)
+			t.Fatalf("panicked: %v", p)
 		}
 	}()
 
@@ -216,11 +208,11 @@ func TestUnixListenerSpecificMethods(t *testing.T) {
 	addr := testUnixAddr()
 	la, err := ResolveUnixAddr("unix", addr)
 	if err != nil {
-		t.Fatalf("ResolveUnixAddr failed: %v", err)
+		t.Fatal(err)
 	}
 	ln, err := ListenUnix("unix", la)
 	if err != nil {
-		t.Fatalf("ListenUnix failed: %v", err)
+		t.Fatal(err)
 	}
 	defer ln.Close()
 	defer os.Remove(addr)
@@ -229,21 +221,21 @@ func TestUnixListenerSpecificMethods(t *testing.T) {
 
 	if c, err := ln.Accept(); err != nil {
 		if !err.(Error).Timeout() {
-			t.Fatalf("UnixListener.Accept failed: %v", err)
+			t.Fatal(err)
 		}
 	} else {
 		c.Close()
 	}
 	if c, err := ln.AcceptUnix(); err != nil {
 		if !err.(Error).Timeout() {
-			t.Fatalf("UnixListener.AcceptUnix failed: %v", err)
+			t.Fatal(err)
 		}
 	} else {
 		c.Close()
 	}
 
 	if f, err := ln.File(); err != nil {
-		t.Fatalf("UnixListener.File failed: %v", err)
+		t.Fatal(err)
 	} else {
 		f.Close()
 	}
@@ -258,11 +250,11 @@ func TestUnixConnSpecificMethods(t *testing.T) {
 
 	a1, err := ResolveUnixAddr("unixgram", addr1)
 	if err != nil {
-		t.Fatalf("ResolveUnixAddr failed: %v", err)
+		t.Fatal(err)
 	}
 	c1, err := DialUnix("unixgram", a1, nil)
 	if err != nil {
-		t.Fatalf("DialUnix failed: %v", err)
+		t.Fatal(err)
 	}
 	defer c1.Close()
 	defer os.Remove(addr1)
@@ -276,11 +268,11 @@ func TestUnixConnSpecificMethods(t *testing.T) {
 
 	a2, err := ResolveUnixAddr("unixgram", addr2)
 	if err != nil {
-		t.Fatalf("ResolveUnixAddr failed: %v", err)
+		t.Fatal(err)
 	}
 	c2, err := DialUnix("unixgram", a2, nil)
 	if err != nil {
-		t.Fatalf("DialUnix failed: %v", err)
+		t.Fatal(err)
 	}
 	defer c2.Close()
 	defer os.Remove(addr2)
@@ -294,11 +286,11 @@ func TestUnixConnSpecificMethods(t *testing.T) {
 
 	a3, err := ResolveUnixAddr("unixgram", addr3)
 	if err != nil {
-		t.Fatalf("ResolveUnixAddr failed: %v", err)
+		t.Fatal(err)
 	}
 	c3, err := ListenUnixgram("unixgram", a3)
 	if err != nil {
-		t.Fatalf("ListenUnixgram failed: %v", err)
+		t.Fatal(err)
 	}
 	defer c3.Close()
 	defer os.Remove(addr3)
@@ -315,39 +307,39 @@ func TestUnixConnSpecificMethods(t *testing.T) {
 	rb2 := make([]byte, 128)
 	rb3 := make([]byte, 128)
 	if _, _, err := c1.WriteMsgUnix(wb, nil, a2); err != nil {
-		t.Fatalf("UnixConn.WriteMsgUnix failed: %v", err)
+		t.Fatal(err)
 	}
 	if _, _, _, _, err := c2.ReadMsgUnix(rb2, nil); err != nil {
-		t.Fatalf("UnixConn.ReadMsgUnix failed: %v", err)
+		t.Fatal(err)
 	}
 	if _, err := c2.WriteToUnix(wb, a1); err != nil {
-		t.Fatalf("UnixConn.WriteToUnix failed: %v", err)
+		t.Fatal(err)
 	}
 	if _, _, err := c1.ReadFromUnix(rb1); err != nil {
-		t.Fatalf("UnixConn.ReadFromUnix failed: %v", err)
+		t.Fatal(err)
 	}
 	if _, err := c3.WriteToUnix(wb, a1); err != nil {
-		t.Fatalf("UnixConn.WriteToUnix failed: %v", err)
+		t.Fatal(err)
 	}
 	if _, _, err := c1.ReadFromUnix(rb1); err != nil {
-		t.Fatalf("UnixConn.ReadFromUnix failed: %v", err)
+		t.Fatal(err)
 	}
 	if _, err := c2.WriteToUnix(wb, a3); err != nil {
-		t.Fatalf("UnixConn.WriteToUnix failed: %v", err)
+		t.Fatal(err)
 	}
 	if _, _, err := c3.ReadFromUnix(rb3); err != nil {
-		t.Fatalf("UnixConn.ReadFromUnix failed: %v", err)
+		t.Fatal(err)
 	}
 
 	if f, err := c1.File(); err != nil {
-		t.Fatalf("UnixConn.File failed: %v", err)
+		t.Fatal(err)
 	} else {
 		f.Close()
 	}
 
 	defer func() {
 		if p := recover(); p != nil {
-			t.Fatalf("UnixConn.WriteToUnix or WriteMsgUnix panicked: %v", p)
+			t.Fatalf("panicked: %v", p)
 		}
 	}()
 

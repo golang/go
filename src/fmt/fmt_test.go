@@ -9,6 +9,7 @@ import (
 	. "fmt"
 	"io"
 	"math"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -394,6 +395,8 @@ var fmtTests = []struct {
 	{"%v", &slice, "&[1 2 3 4 5]"},
 	{"%v", &islice, "&[1 hello 2.5 <nil>]"},
 	{"%v", &bslice, "&[1 2 3 4 5]"},
+	{"%v", []byte{1}, "[1]"},
+	{"%v", []byte{}, "[]"},
 
 	// complexes with %v
 	{"%v", 1 + 2i, "(1+2i)"},
@@ -447,6 +450,12 @@ var fmtTests = []struct {
 	{"%d", []int{1, 2, 15}, `[1 2 15]`},
 	{"%d", []byte{1, 2, 15}, `[1 2 15]`},
 	{"%q", []string{"a", "b"}, `["a" "b"]`},
+	{"% 02x", []byte{1}, "01"},
+	{"% 02x", []byte{1, 2, 3}, "01 02 03"},
+	// Special care for empty slices.
+	{"%x", []byte{}, ""},
+	{"%02x", []byte{}, ""},
+	{"% 02x", []byte{}, ""},
 
 	// renamings
 	{"%v", renamedBool(true), "true"},
@@ -528,6 +537,8 @@ var fmtTests = []struct {
 	{"%s", nil, "%!s(<nil>)"},
 	{"%T", nil, "<nil>"},
 	{"%-1", 100, "%!(NOVERB)%!(EXTRA int=100)"},
+	{"%017091901790959340919092959340919017929593813360", 0, "%!(NOVERB)%!(EXTRA int=0)"},
+	{"%184467440737095516170v", 0, "%!(NOVERB)%!(EXTRA int=0)"},
 
 	// The "<nil>" show up because maps are printed by
 	// first obtaining a list of keys and then looking up
@@ -545,6 +556,11 @@ var fmtTests = []struct {
 	{"%0100d", -1, zeroFill("-", 99, "1")},
 	{"%0.100f", 1.0, zeroFill("1.", 100, "")},
 	{"%0.100f", -1.0, zeroFill("-1.", 100, "")},
+
+	// Used to panic: integer function didn't look at f.prec or f.unicode.
+	{"%#.80x", 42, "0x0000000000000000000000000000000000000000000000000000000000000000000000000000002a"},
+	{"%.80U", 42, "U+0000000000000000000000000000000000000000000000000000000000000000000000000000002A"},
+	{"%#.80U", '日', "U+000000000000000000000000000000000000000000000000000000000000000000000000000065E5 '日'"},
 
 	// Comparison of padding rules with C printf.
 	/*
@@ -671,6 +687,20 @@ var fmtTests = []struct {
 	{"%x", byteFormatterSlice, "61626364"},
 	// This next case seems wrong, but the docs say the Formatter wins here.
 	{"%#v", byteFormatterSlice, "[]fmt_test.byteFormatter{X, X, X, X}"},
+
+	// reflect.Value handled specially in Go 1.5, making it possible to
+	// see inside non-exported fields (which cannot be accessed with Interface()).
+	// Issue 8965.
+	{"%v", reflect.ValueOf(A{}).Field(0).String(), "<int Value>"}, // Equivalent to the old way.
+	{"%v", reflect.ValueOf(A{}).Field(0), "0"},                    // Sees inside the field.
+
+	// verbs apply to the extracted value too.
+	{"%s", reflect.ValueOf("hello"), "hello"},
+	{"%q", reflect.ValueOf("hello"), `"hello"`},
+	{"%#04x", reflect.ValueOf(256), "0x0100"},
+
+	// invalid reflect.Value doesn't crash.
+	{"%v", reflect.Value{}, "<invalid reflect.Value>"},
 }
 
 // zeroFill generates zero-filled strings of the specified width. The length
@@ -797,6 +827,7 @@ var reorderTests = []struct {
 	{"%d %d %d %#[1]o %#o %#o %#o", SE{11, 12, 13}, "11 12 13 013 014 015 %!o(MISSING)"},
 	{"%[5]d %[2]d %d", SE{1, 2, 3}, "%!d(BADINDEX) 2 3"},
 	{"%d %[3]d %d", SE{1, 2}, "1 %!d(BADINDEX) 2"}, // Erroneous index does not affect sequence.
+	{"%.[]", SE{}, "%!](BADINDEX)"},                // Issue 10675
 }
 
 func TestReorder(t *testing.T) {

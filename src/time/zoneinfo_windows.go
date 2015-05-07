@@ -6,9 +6,9 @@ package time
 
 import (
 	"errors"
+	"internal/syscall/windows/registry"
 	"runtime"
 	"syscall"
-	"unsafe"
 )
 
 //go:generate go run genzabbrs.go -output zoneinfo_abbrs_windows.go
@@ -20,39 +20,23 @@ import (
 // The implementation assumes that this year's rules for daylight savings
 // time apply to all previous and future years as well.
 
-// getKeyValue retrieves the string value kname associated with the open registry key kh.
-func getKeyValue(kh syscall.Handle, kname string) (string, error) {
-	var buf [50]uint16 // buf needs to be large enough to fit zone descriptions
-	var typ uint32
-	n := uint32(len(buf) * 2) // RegQueryValueEx's signature expects array of bytes, not uint16
-	p, _ := syscall.UTF16PtrFromString(kname)
-	if err := syscall.RegQueryValueEx(kh, p, nil, &typ, (*byte)(unsafe.Pointer(&buf[0])), &n); err != nil {
-		return "", err
-	}
-	if typ != syscall.REG_SZ { // null terminated strings only
-		return "", errors.New("Key is not string")
-	}
-	return syscall.UTF16ToString(buf[:]), nil
-}
-
 // matchZoneKey checks if stdname and dstname match the corresponding "Std"
 // and "Dlt" key values in the kname key stored under the open registry key zones.
-func matchZoneKey(zones syscall.Handle, kname string, stdname, dstname string) (matched bool, err2 error) {
-	var h syscall.Handle
-	p, _ := syscall.UTF16PtrFromString(kname)
-	if err := syscall.RegOpenKeyEx(zones, p, 0, syscall.KEY_READ, &h); err != nil {
+func matchZoneKey(zones registry.Key, kname string, stdname, dstname string) (matched bool, err2 error) {
+	k, err := registry.OpenKey(zones, kname, registry.READ)
+	if err != nil {
 		return false, err
 	}
-	defer syscall.RegCloseKey(h)
+	defer k.Close()
 
-	s, err := getKeyValue(h, "Std")
+	s, _, err := k.GetStringValue("Std")
 	if err != nil {
 		return false, err
 	}
 	if s != stdname {
 		return false, nil
 	}
-	s, err = getKeyValue(h, "Dlt")
+	s, _, err = k.GetStringValue("Dlt")
 	if err != nil {
 		return false, err
 	}
@@ -65,28 +49,20 @@ func matchZoneKey(zones syscall.Handle, kname string, stdname, dstname string) (
 // toEnglishName searches the registry for an English name of a time zone
 // whose zone names are stdname and dstname and returns the English name.
 func toEnglishName(stdname, dstname string) (string, error) {
-	var zones syscall.Handle
-	p, _ := syscall.UTF16PtrFromString(`SOFTWARE\Microsoft\Windows NT\CurrentVersion\Time Zones`)
-	if err := syscall.RegOpenKeyEx(syscall.HKEY_LOCAL_MACHINE, p, 0, syscall.KEY_READ, &zones); err != nil {
+	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows NT\CurrentVersion\Time Zones`, registry.ENUMERATE_SUB_KEYS)
+	if err != nil {
 		return "", err
 	}
-	defer syscall.RegCloseKey(zones)
+	defer k.Close()
 
-	var count uint32
-	if err := syscall.RegQueryInfoKey(zones, nil, nil, nil, &count, nil, nil, nil, nil, nil, nil, nil); err != nil {
+	names, err := k.ReadSubKeyNames(-1)
+	if err != nil {
 		return "", err
 	}
-
-	var buf [50]uint16 // buf needs to be large enough to fit zone descriptions
-	for i := uint32(0); i < count; i++ {
-		n := uint32(len(buf))
-		if syscall.RegEnumKeyEx(zones, i, &buf[0], &n, nil, nil, nil, nil) != nil {
-			continue
-		}
-		kname := syscall.UTF16ToString(buf[:])
-		matched, err := matchZoneKey(zones, kname, stdname, dstname)
+	for _, name := range names {
+		matched, err := matchZoneKey(k, name, stdname, dstname)
 		if err == nil && matched {
-			return kname, nil
+			return name, nil
 		}
 	}
 	return "", errors.New(`English name for time zone "` + stdname + `" not found in registry`)

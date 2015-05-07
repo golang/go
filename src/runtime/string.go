@@ -148,7 +148,7 @@ func stringtoslicebytetmp(s string) []byte {
 	// for i, c := range []byte(str)
 
 	str := (*stringStruct)(unsafe.Pointer(&s))
-	ret := slice{array: (*byte)(str.str), len: uint(str.len), cap: uint(str.len)}
+	ret := slice{array: unsafe.Pointer(str.str), len: str.len, cap: str.len}
 	return *(*[]byte)(unsafe.Pointer(&ret))
 }
 
@@ -266,9 +266,7 @@ func rawstring(size int) (s string, b []byte) {
 	(*stringStruct)(unsafe.Pointer(&s)).str = p
 	(*stringStruct)(unsafe.Pointer(&s)).len = size
 
-	(*slice)(unsafe.Pointer(&b)).array = (*uint8)(p)
-	(*slice)(unsafe.Pointer(&b)).len = uint(size)
-	(*slice)(unsafe.Pointer(&b)).cap = uint(size)
+	*(*slice)(unsafe.Pointer(&b)) = slice{p, size, size}
 
 	for {
 		ms := maxstring
@@ -286,9 +284,7 @@ func rawbyteslice(size int) (b []byte) {
 		memclr(add(p, uintptr(size)), cap-uintptr(size))
 	}
 
-	(*slice)(unsafe.Pointer(&b)).array = (*uint8)(p)
-	(*slice)(unsafe.Pointer(&b)).len = uint(size)
-	(*slice)(unsafe.Pointer(&b)).cap = uint(cap)
+	*(*slice)(unsafe.Pointer(&b)) = slice{p, size, int(cap)}
 	return
 }
 
@@ -303,9 +299,7 @@ func rawruneslice(size int) (b []rune) {
 		memclr(add(p, uintptr(size)*4), mem-uintptr(size)*4)
 	}
 
-	(*slice)(unsafe.Pointer(&b)).array = (*uint8)(p)
-	(*slice)(unsafe.Pointer(&b)).len = uint(size)
-	(*slice)(unsafe.Pointer(&b)).cap = uint(mem / 4)
+	*(*slice)(unsafe.Pointer(&b)) = slice{p, size, int(mem / 4)}
 	return
 }
 

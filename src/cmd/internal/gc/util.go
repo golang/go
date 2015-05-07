@@ -3,17 +3,11 @@ package gc
 import (
 	"cmd/internal/obj"
 	"os"
+	"runtime"
 	"runtime/pprof"
 	"strconv"
 	"strings"
 )
-
-func bool2int(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
-}
 
 func (n *Node) Line() string {
 	return obj.Linklinefmt(Ctxt, int(n.Lineno), false, false)
@@ -49,14 +43,6 @@ func plan9quote(s string) string {
 	return s
 }
 
-// simulation of int(*s++) in C
-func intstarstringplusplus(s string) (int, string) {
-	if s == "" {
-		return 0, ""
-	}
-	return int(s[0]), s[1:]
-}
-
 // strings.Compare, introduced in Go 1.5.
 func stringsCompare(a, b string) int {
 	if a == b {
@@ -83,8 +69,11 @@ func Exit(code int) {
 	os.Exit(code)
 }
 
-var cpuprofile string
-var memprofile string
+var (
+	cpuprofile     string
+	memprofile     string
+	memprofilerate int64
+)
 
 func startProfile() {
 	if cpuprofile != "" {
@@ -98,11 +87,15 @@ func startProfile() {
 		AtExit(pprof.StopCPUProfile)
 	}
 	if memprofile != "" {
+		if memprofilerate != 0 {
+			runtime.MemProfileRate = int(memprofilerate)
+		}
 		f, err := os.Create(memprofile)
 		if err != nil {
 			Fatal("%v", err)
 		}
 		AtExit(func() {
+			runtime.GC() // profile all outstanding allocations
 			if err := pprof.WriteHeapProfile(f); err != nil {
 				Fatal("%v", err)
 			}

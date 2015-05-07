@@ -215,13 +215,23 @@ func roundupsize(size uintptr) uintptr {
 // http://ridiculousfish.com/blog/posts/labor-of-division-episode-i.html
 // http://ridiculousfish.com/blog/posts/labor-of-division-episode-iii.html
 type divMagic struct {
-	shift  uint8
-	mul    uint32
-	shift2 uint8
+	shift    uint8
+	mul      uint32
+	shift2   uint8
+	baseMask uintptr
 }
 
 func computeDivMagic(d uint32) divMagic {
 	var m divMagic
+
+	// If the size is a power of two, heapBitsForObject can divide even faster by masking.
+	// Compute this mask.
+	if d&(d-1) == 0 {
+		// It is a power of 2 (assuming dinptr != 1)
+		m.baseMask = ^(uintptr(d) - 1)
+	} else {
+		m.baseMask = 0
+	}
 
 	// Compute pre-shift by factoring power of 2 out of d.
 	for d&1 == 0 {
@@ -239,5 +249,6 @@ func computeDivMagic(d uint32) divMagic {
 	}
 	m.mul = uint32(((1 << k) + d64 - 1) / d64) //  ⌈2^k / d⌉
 	m.shift2 = k
+
 	return m
 }

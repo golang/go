@@ -52,11 +52,13 @@ func (p *Package) writeDefs() {
 	fmt.Fprintf(fm, "int main() { return 0; }\n")
 	if *importRuntimeCgo {
 		fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int), void *a, int c) { }\n")
+		fmt.Fprintf(fm, "void _cgo_wait_runtime_init_done() { }\n")
 		fmt.Fprintf(fm, "char* _cgo_topofstack(void) { return (char*)0; }\n")
 	} else {
 		// If we're not importing runtime/cgo, we *are* runtime/cgo,
-		// which provides crosscall2.  We just need a prototype.
+		// which provides these functions.  We just need a prototype.
 		fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int), void *a, int c);\n")
+		fmt.Fprintf(fm, "void _cgo_wait_runtime_init_done();\n")
 	}
 	fmt.Fprintf(fm, "void _cgo_allocate(void *a, int c) { }\n")
 	fmt.Fprintf(fm, "void _cgo_panic(void *a, int c) { }\n")
@@ -164,10 +166,33 @@ func (p *Package) writeDefs() {
 		}
 	}
 
+	fgcc := creat(*objDir + "_cgo_export.c")
+	fgcch := creat(*objDir + "_cgo_export.h")
 	if *gccgo {
-		p.writeGccgoExports(fgo2, fm)
+		p.writeGccgoExports(fgo2, fm, fgcc, fgcch)
 	} else {
-		p.writeExports(fgo2, fm)
+		p.writeExports(fgo2, fm, fgcc, fgcch)
+	}
+	if err := fgcc.Close(); err != nil {
+		fatalf("%s", err)
+	}
+	if err := fgcch.Close(); err != nil {
+		fatalf("%s", err)
+	}
+
+	if *exportHeader != "" && len(p.ExpFunc) > 0 {
+		fexp := creat(*exportHeader)
+		fgcch, err := os.Open(*objDir + "_cgo_export.h")
+		if err != nil {
+			fatalf("%s", err)
+		}
+		_, err = io.Copy(fexp, fgcch)
+		if err != nil {
+			fatalf("%s", err)
+		}
+		if err = fexp.Close(); err != nil {
+			fatalf("%s", err)
+		}
 	}
 
 	init := gccgoInit.String()
@@ -624,7 +649,7 @@ func (p *Package) writeGccgoOutputFunc(fgcc *os.File, n *Name) {
 // and http://golang.org/issue/5603.
 func (p *Package) packedAttribute() string {
 	s := "__attribute__((__packed__"
-	if !strings.Contains(p.gccBaseCmd()[0], "clang") && (goarch == "amd64" || goarch == "386") {
+	if !p.GccIsClang && (goarch == "amd64" || goarch == "386") {
 		s += ", __gcc_struct__"
 	}
 	return s + "))"
@@ -632,18 +657,14 @@ func (p *Package) packedAttribute() string {
 
 // Write out the various stubs we need to support functions exported
 // from Go so that they are callable from C.
-func (p *Package) writeExports(fgo2, fm io.Writer) {
-	fgcc := creat(*objDir + "_cgo_export.c")
-	fgcch := creat(*objDir + "_cgo_export.h")
-
-	fmt.Fprintf(fgcch, "/* Created by cgo - DO NOT EDIT. */\n/*  This file is arch-specific.  */\n")
-	fmt.Fprintf(fgcch, "%s\n", p.Preamble)
-	fmt.Fprintf(fgcch, "%s\n", p.gccExportHeaderProlog())
+func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
+	p.writeExportHeader(fgcch)
 
 	fmt.Fprintf(fgcc, "/* Created by cgo - DO NOT EDIT. */\n")
-	fmt.Fprintf(fgcc, "#include \"_cgo_export.h\"\n")
+	fmt.Fprintf(fgcc, "#include \"_cgo_export.h\"\n\n")
 
-	fmt.Fprintf(fgcc, "\nextern void crosscall2(void (*fn)(void *, int), void *, int);\n\n")
+	fmt.Fprintf(fgcc, "extern void crosscall2(void (*fn)(void *, int), void *, int);\n")
+	fmt.Fprintf(fgcc, "extern void _cgo_wait_runtime_init_done();\n\n")
 
 	for _, exp := range p.ExpFunc {
 		fn := exp.Func
@@ -734,11 +755,16 @@ func (p *Package) writeExports(fgo2, fm io.Writer) {
 				s += fmt.Sprintf("%s p%d", p.cgoType(atype).C, i)
 			})
 		s += ")"
+
+		if len(exp.Doc) > 0 {
+			fmt.Fprintf(fgcch, "\n%s", exp.Doc)
+		}
 		fmt.Fprintf(fgcch, "\nextern %s;\n", s)
 
 		fmt.Fprintf(fgcc, "extern void _cgoexp%s_%s(void *, int);\n", cPrefix, exp.ExpName)
 		fmt.Fprintf(fgcc, "\n%s\n", s)
 		fmt.Fprintf(fgcc, "{\n")
+		fmt.Fprintf(fgcc, "\t_cgo_wait_runtime_init_done();\n")
 		fmt.Fprintf(fgcc, "\t%s %v a;\n", ctype, p.packedAttribute())
 		if gccResult != "void" && (len(fntype.Results.List) > 1 || len(fntype.Results.List[0].Names) > 1) {
 			fmt.Fprintf(fgcc, "\t%s r;\n", gccResult)
@@ -823,18 +849,15 @@ func (p *Package) writeExports(fgo2, fm io.Writer) {
 }
 
 // Write out the C header allowing C code to call exported gccgo functions.
-func (p *Package) writeGccgoExports(fgo2, fm io.Writer) {
-	fgcc := creat(*objDir + "_cgo_export.c")
-	fgcch := creat(*objDir + "_cgo_export.h")
-
+func (p *Package) writeGccgoExports(fgo2, fm, fgcc, fgcch io.Writer) {
 	gccgoSymbolPrefix := p.gccgoSymbolPrefix()
 
-	fmt.Fprintf(fgcch, "/* Created by cgo - DO NOT EDIT. */\n")
-	fmt.Fprintf(fgcch, "%s\n", p.Preamble)
-	fmt.Fprintf(fgcch, "%s\n", p.gccExportHeaderProlog())
+	p.writeExportHeader(fgcch)
 
 	fmt.Fprintf(fgcc, "/* Created by cgo - DO NOT EDIT. */\n")
 	fmt.Fprintf(fgcc, "#include \"_cgo_export.h\"\n")
+
+	fmt.Fprintf(fgcc, "%s\n", gccgoExportFileProlog)
 
 	for _, exp := range p.ExpFunc {
 		fn := exp.Func
@@ -855,6 +878,7 @@ func (p *Package) writeGccgoExports(fgo2, fm io.Writer) {
 				})
 		default:
 			// Declare a result struct.
+			fmt.Fprintf(fgcch, "\n/* Return type for %s */\n", exp.ExpName)
 			fmt.Fprintf(fgcch, "struct %s_result {\n", exp.ExpName)
 			forFieldList(fntype.Results,
 				func(i int, atype ast.Expr) {
@@ -884,6 +908,10 @@ func (p *Package) writeGccgoExports(fgo2, fm io.Writer) {
 		fmt.Fprintf(cdeclBuf, ")")
 		cParams := cdeclBuf.String()
 
+		if len(exp.Doc) > 0 {
+			fmt.Fprintf(fgcch, "\n%s", exp.Doc)
+		}
+
 		// We need to use a name that will be exported by the
 		// Go code; otherwise gccgo will make it static and we
 		// will not be able to link against it from the C
@@ -904,6 +932,8 @@ func (p *Package) writeGccgoExports(fgo2, fm io.Writer) {
 
 		fmt.Fprint(fgcc, "\n")
 		fmt.Fprintf(fgcc, "%s %s %s {\n", cRet, exp.ExpName, cParams)
+		fmt.Fprintf(fgcc, "\tif(_cgo_wait_runtime_init_done)\n")
+		fmt.Fprintf(fgcc, "\t\t_cgo_wait_runtime_init_done();\n")
 		fmt.Fprint(fgcc, "\t")
 		if resultCount > 0 {
 			fmt.Fprint(fgcc, "return ")
@@ -979,6 +1009,22 @@ func (p *Package) writeGccgoExports(fgo2, fm io.Writer) {
 		fmt.Fprint(fgo2, ")\n")
 		fmt.Fprint(fgo2, "}\n")
 	}
+}
+
+// writeExportHeader writes out the start of the _cgo_export.h file.
+func (p *Package) writeExportHeader(fgcch io.Writer) {
+	fmt.Fprintf(fgcch, "/* Created by \"go tool cgo\" - DO NOT EDIT. */\n\n")
+	pkg := *importPath
+	if pkg == "" {
+		pkg = p.PackagePath
+	}
+	fmt.Fprintf(fgcch, "/* package %s */\n\n", pkg)
+
+	fmt.Fprintf(fgcch, "/* Start of preamble from import \"C\" comments.  */\n\n")
+	fmt.Fprintf(fgcch, "%s\n", p.Preamble)
+	fmt.Fprintf(fgcch, "\n/* End of preamble from import \"C\" comments.  */\n\n")
+
+	fmt.Fprintf(fgcch, "%s\n", p.gccExportHeaderProlog())
 }
 
 // Return the package prefix when using gccgo.
@@ -1294,6 +1340,11 @@ func (p *Package) gccExportHeaderProlog() string {
 }
 
 const gccExportHeaderProlog = `
+/* Start of boilerplate cgo prologue.  */
+
+#ifndef GO_CGO_PROLOGUE_H
+#define GO_CGO_PROLOGUE_H
+
 typedef signed char GoInt8;
 typedef unsigned char GoUint8;
 typedef short GoInt16;
@@ -1319,4 +1370,24 @@ typedef void *GoMap;
 typedef void *GoChan;
 typedef struct { void *t; void *v; } GoInterface;
 typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
+
+#endif
+
+/* End of boilerplate cgo prologue.  */
+`
+
+// gccgoExportFileProlog is written to the _cgo_export.c file when
+// using gccgo.
+// We use weak declarations, and test the addresses, so that this code
+// works with older versions of gccgo.
+const gccgoExportFileProlog = `
+extern _Bool runtime_iscgo __attribute__ ((weak));
+
+static void GoInit(void) __attribute__ ((constructor));
+static void GoInit(void) {
+	if(&runtime_iscgo)
+		runtime_iscgo = 1;
+}
+
+extern void _cgo_wait_runtime_init_done() __attribute__ ((weak));
 `

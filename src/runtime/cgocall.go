@@ -132,12 +132,6 @@ func cgocall_errno(fn, arg unsafe.Pointer) int32 {
 //go:nosplit
 func endcgo(mp *m) {
 	mp.ncgo--
-	if mp.ncgo == 0 {
-		// We are going back to Go and are not in a recursive
-		// call.  Let the GC collect any memory allocated via
-		// _cgo_allocate that is no longer referenced.
-		mp.cgomal = nil
-	}
 
 	if raceenabled {
 		raceacquire(unsafe.Pointer(&racecgosync))
@@ -193,6 +187,14 @@ func cgocallbackg1() {
 		systemstack(newextram)
 	}
 
+	if gp.m.ncgo == 0 {
+		// The C call to Go came from a thread not currently running
+		// any Go. In the case of -buildmode=c-archive or c-shared,
+		// this call may be coming in before package initialization
+		// is complete. Wait until it is.
+		<-main_init_done
+	}
+
 	// Add entry to defer stack in case of panic.
 	restore := true
 	defer unwindm(&restore)
@@ -218,6 +220,10 @@ func cgocallbackg1() {
 		// On arm, stack frame is two words and there's a saved LR between
 		// SP and the stack frame and between the stack frame and the arguments.
 		cb = (*args)(unsafe.Pointer(sp + 4*ptrSize))
+	case "arm64":
+		// On arm64, stack frame is four words and there's a saved LR between
+		// SP and the stack frame and between the stack frame and the arguments.
+		cb = (*args)(unsafe.Pointer(sp + 5*ptrSize))
 	case "amd64":
 		// On amd64, stack frame is one word, plus caller PC.
 		if framepointer_enabled {
@@ -268,6 +274,8 @@ func unwindm(restore *bool) {
 		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp))
 	case "arm":
 		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + 4))
+	case "arm64":
+		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + 16))
 	case "ppc64", "ppc64le":
 		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + 8))
 	}

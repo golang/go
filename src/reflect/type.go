@@ -246,6 +246,7 @@ const (
 // so that code cannot convert from, say, *arrayType to *ptrType.
 type rtype struct {
 	size          uintptr
+	ptrdata       uintptr
 	hash          uint32            // hash of type; avoids computation in hash tables
 	_             uint8             // unused/padding
 	align         uint8             // alignment of variable with this type
@@ -262,11 +263,11 @@ type rtype struct {
 // a copy of runtime.typeAlg
 type typeAlg struct {
 	// function for hashing objects of this type
-	// (ptr to object, size, seed) -> hash
-	hash func(unsafe.Pointer, uintptr, uintptr) uintptr
+	// (ptr to object, seed) -> hash
+	hash func(unsafe.Pointer, uintptr) uintptr
 	// function for comparing objects of this type
-	// (ptr to object A, ptr to object B, size) -> ==?
-	equal func(unsafe.Pointer, unsafe.Pointer, uintptr) bool
+	// (ptr to object A, ptr to object B) -> ==?
+	equal func(unsafe.Pointer, unsafe.Pointer) bool
 }
 
 // Method on non-interface type
@@ -1009,8 +1010,8 @@ func (t *structType) FieldByName(name string) (f StructField, present bool) {
 	return t.FieldByNameFunc(func(s string) bool { return s == name })
 }
 
-// TypeOf returns the reflection Type of the value in the interface{}.
-// TypeOf(nil) returns nil.
+// TypeOf returns the reflection Type that represents the dynamic type of i.
+// If i is a nil interface value, TypeOf returns nil.
 func TypeOf(i interface{}) Type {
 	eface := *(*emptyInterface)(unsafe.Pointer(&i))
 	return toType(eface.typ)
@@ -1057,6 +1058,17 @@ func (t *rtype) ptrTo() *rtype {
 		return &p.rtype
 	}
 
+	// Look in known types.
+	s := "*" + *t.string
+	for _, tt := range typesByString(s) {
+		p = (*ptrType)(unsafe.Pointer(tt))
+		if p.elem == t {
+			ptrMap.m[t] = p
+			ptrMap.Unlock()
+			return &p.rtype
+		}
+	}
+
 	// Create a new ptrType starting with the description
 	// of an *unsafe.Pointer.
 	p = new(ptrType)
@@ -1064,7 +1076,6 @@ func (t *rtype) ptrTo() *rtype {
 	prototype := *(**ptrType)(unsafe.Pointer(&iptr))
 	*p = *prototype
 
-	s := "*" + *t.string
 	p.string = &s
 
 	// For the type structures linked into the binary, the
@@ -1150,7 +1161,7 @@ func implements(T, V *rtype) bool {
 		for j := 0; j < len(v.methods); j++ {
 			tm := &t.methods[i]
 			vm := &v.methods[j]
-			if vm.name == tm.name && vm.pkgPath == tm.pkgPath && vm.typ == tm.typ {
+			if *vm.name == *tm.name && vm.pkgPath == tm.pkgPath && vm.typ == tm.typ {
 				if i++; i >= len(t.methods) {
 					return true
 				}
@@ -1167,7 +1178,7 @@ func implements(T, V *rtype) bool {
 	for j := 0; j < len(v.methods); j++ {
 		tm := &t.methods[i]
 		vm := &v.methods[j]
-		if vm.name == tm.name && vm.pkgPath == tm.pkgPath && vm.mtyp == tm.typ {
+		if *vm.name == *tm.name && vm.pkgPath == tm.pkgPath && vm.mtyp == tm.typ {
 			if i++; i >= len(t.methods) {
 				return true
 			}
@@ -1301,39 +1312,48 @@ func haveIdenticalUnderlyingType(T, V *rtype) bool {
 // there can be more than one with a given string.
 // Only types we might want to look up are included:
 // channels, maps, slices, and arrays.
-func typelinks() []*rtype
+func typelinks() [][]*rtype
 
 // typesByString returns the subslice of typelinks() whose elements have
 // the given string representation.
 // It may be empty (no known types with that string) or may have
 // multiple elements (multiple types with that string).
 func typesByString(s string) []*rtype {
-	typ := typelinks()
+	typs := typelinks()
+	var ret []*rtype
 
-	// We are looking for the first index i where the string becomes >= s.
-	// This is a copy of sort.Search, with f(h) replaced by (*typ[h].string >= s).
-	i, j := 0, len(typ)
-	for i < j {
-		h := i + (j-i)/2 // avoid overflow when computing h
-		// i ≤ h < j
-		if !(*typ[h].string >= s) {
-			i = h + 1 // preserves f(i-1) == false
-		} else {
-			j = h // preserves f(j) == true
+	for _, typ := range typs {
+		// We are looking for the first index i where the string becomes >= s.
+		// This is a copy of sort.Search, with f(h) replaced by (*typ[h].string >= s).
+		i, j := 0, len(typ)
+		for i < j {
+			h := i + (j-i)/2 // avoid overflow when computing h
+			// i ≤ h < j
+			if !(*typ[h].string >= s) {
+				i = h + 1 // preserves f(i-1) == false
+			} else {
+				j = h // preserves f(j) == true
+			}
+		}
+		// i == j, f(i-1) == false, and f(j) (= f(i)) == true  =>  answer is i.
+
+		// Having found the first, linear scan forward to find the last.
+		// We could do a second binary search, but the caller is going
+		// to do a linear scan anyway.
+		j = i
+		for j < len(typ) && *typ[j].string == s {
+			j++
+		}
+
+		if j > i {
+			if ret == nil {
+				ret = typ[i:j:j]
+			} else {
+				ret = append(ret, typ[i:j]...)
+			}
 		}
 	}
-	// i == j, f(i-1) == false, and f(j) (= f(i)) == true  =>  answer is i.
-
-	// Having found the first, linear scan forward to find the last.
-	// We could do a second binary search, but the caller is going
-	// to do a linear scan anyway.
-	j = i
-	for j < len(typ) && *typ[j].string == s {
-		j++
-	}
-
-	// This slice will be empty if the string is not found.
-	return typ[i:j]
+	return ret
 }
 
 // The lookupCache caches ChanOf, MapOf, and SliceOf lookups.
@@ -1385,6 +1405,14 @@ func cachePut(k cacheKey, t *rtype) Type {
 	lookupCache.m[k] = t
 	lookupCache.Unlock()
 	return t
+}
+
+// The funcLookupCache caches FuncOf lookups.
+// FuncOf does not share the common lookupCache since cacheKey is not
+// sufficient to represent functions unambiguously.
+var funcLookupCache struct {
+	sync.RWMutex
+	m map[uint32][]*rtype // keyed by hash calculated in FuncOf
 }
 
 // ChanOf returns the channel type with the given direction and element type.
@@ -1505,6 +1533,120 @@ func MapOf(key, elem Type) Type {
 	mt.zero = unsafe.Pointer(&make([]byte, mt.size)[0])
 
 	return cachePut(ckey, &mt.rtype)
+}
+
+// FuncOf returns the function type with the given argument and result types.
+// For example if k represents int and e represents string,
+// FuncOf([]Type{k}, []Type{e}, false) represents func(int) string.
+//
+// The variadic argument controls whether the function is variadic. FuncOf
+// panics if the in[len(in)-1] does not represent a slice and variadic is
+// true.
+func FuncOf(in, out []Type, variadic bool) Type {
+	if variadic && (len(in) == 0 || in[len(in)-1].Kind() != Slice) {
+		panic("reflect.FuncOf: last arg of variadic func must be slice")
+	}
+
+	// Make a func type.
+	var ifunc interface{} = (func())(nil)
+	prototype := *(**funcType)(unsafe.Pointer(&ifunc))
+	ft := new(funcType)
+	*ft = *prototype
+
+	// Build a hash and minimally populate ft.
+	var hash uint32
+	var fin, fout []*rtype
+	for _, in := range in {
+		t := in.(*rtype)
+		fin = append(fin, t)
+		hash = fnv1(hash, byte(t.hash>>24), byte(t.hash>>16), byte(t.hash>>8), byte(t.hash))
+	}
+	if variadic {
+		hash = fnv1(hash, 'v')
+	}
+	hash = fnv1(hash, '.')
+	for _, out := range out {
+		t := out.(*rtype)
+		fout = append(fout, t)
+		hash = fnv1(hash, byte(t.hash>>24), byte(t.hash>>16), byte(t.hash>>8), byte(t.hash))
+	}
+	ft.hash = hash
+	ft.in = fin
+	ft.out = fout
+	ft.dotdotdot = variadic
+
+	// Look in cache.
+	funcLookupCache.RLock()
+	for _, t := range funcLookupCache.m[hash] {
+		if haveIdenticalUnderlyingType(&ft.rtype, t) {
+			funcLookupCache.RUnlock()
+			return t
+		}
+	}
+	funcLookupCache.RUnlock()
+
+	// Not in cache, lock and retry.
+	funcLookupCache.Lock()
+	defer funcLookupCache.Unlock()
+	if funcLookupCache.m == nil {
+		funcLookupCache.m = make(map[uint32][]*rtype)
+	}
+	for _, t := range funcLookupCache.m[hash] {
+		if haveIdenticalUnderlyingType(&ft.rtype, t) {
+			return t
+		}
+	}
+
+	// Look in known types for the same string representation.
+	str := funcStr(ft)
+	for _, tt := range typesByString(str) {
+		if haveIdenticalUnderlyingType(&ft.rtype, tt) {
+			funcLookupCache.m[hash] = append(funcLookupCache.m[hash], tt)
+			return tt
+		}
+	}
+
+	// Populate the remaining fields of ft and store in cache.
+	ft.string = &str
+	ft.uncommonType = nil
+	ft.ptrToThis = nil
+	ft.zero = unsafe.Pointer(&make([]byte, ft.size)[0])
+	funcLookupCache.m[hash] = append(funcLookupCache.m[hash], &ft.rtype)
+
+	return ft
+}
+
+// funcStr builds a string representation of a funcType.
+func funcStr(ft *funcType) string {
+	repr := make([]byte, 0, 64)
+	repr = append(repr, "func("...)
+	for i, t := range ft.in {
+		if i > 0 {
+			repr = append(repr, ", "...)
+		}
+		if ft.dotdotdot && i == len(ft.in)-1 {
+			repr = append(repr, "..."...)
+			repr = append(repr, *(*sliceType)(unsafe.Pointer(t)).elem.string...)
+		} else {
+			repr = append(repr, *t.string...)
+		}
+	}
+	repr = append(repr, ')')
+	if l := len(ft.out); l == 1 {
+		repr = append(repr, ' ')
+	} else if l > 1 {
+		repr = append(repr, " ("...)
+	}
+	for i, t := range ft.out {
+		if i > 0 {
+			repr = append(repr, ", "...)
+		}
+		repr = append(repr, *t.string...)
+	}
+	if len(ft.out) > 1 {
+		repr = append(repr, ')')
+	}
+	return string(repr)
 }
 
 // isReflexive reports whether the == operation on the type is reflexive.
@@ -1684,12 +1826,14 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 	}
 	// overflow
 	gc.append(bitsPointer)
+	ptrdata := gc.size
 	if runtime.GOARCH == "amd64p32" {
 		gc.append(bitsScalar)
 	}
 
 	b := new(rtype)
 	b.size = gc.size
+	b.ptrdata = ptrdata
 	b.kind = kind
 	b.gc[0], _ = gc.finalize()
 	s := "bucket(" + *ktyp.string + "," + *etyp.string + ")"
@@ -1737,26 +1881,24 @@ func SliceOf(t Type) Type {
 //
 // If the resulting type would be larger than the available address space,
 // ArrayOf panics.
-//
-// TODO(rsc): Unexported for now. Export once the alg field is set correctly
-// for the type. This may require significant work.
-//
-// TODO(rsc): TestArrayOf is also disabled. Re-enable.
-func arrayOf(count int, elem Type) Type {
+func ArrayOf(count int, elem Type) Type {
 	typ := elem.(*rtype)
+	// call SliceOf here as it calls cacheGet/cachePut.
+	// ArrayOf also calls cacheGet/cachePut and thus may modify the state of
+	// the lookupCache mutex.
 	slice := SliceOf(elem)
 
 	// Look in cache.
 	ckey := cacheKey{Array, typ, nil, uintptr(count)}
-	if slice := cacheGet(ckey); slice != nil {
-		return slice
+	if array := cacheGet(ckey); array != nil {
+		return array
 	}
 
 	// Look in known types.
 	s := "[" + strconv.Itoa(count) + "]" + *typ.string
 	for _, tt := range typesByString(s) {
-		slice := (*sliceType)(unsafe.Pointer(tt))
-		if slice.elem == typ {
+		array := (*arrayType)(unsafe.Pointer(tt))
+		if array.elem == typ {
 			return cachePut(ckey, tt)
 		}
 	}
@@ -1766,7 +1908,6 @@ func arrayOf(count int, elem Type) Type {
 	prototype := *(**arrayType)(unsafe.Pointer(&iarray))
 	array := new(arrayType)
 	*array = *prototype
-	// TODO: Set extra kind bits correctly.
 	array.string = &s
 	array.hash = fnv1(typ.hash, '[')
 	for n := uint32(count); n > 0; n >>= 8 {
@@ -1779,16 +1920,72 @@ func arrayOf(count int, elem Type) Type {
 		panic("reflect.ArrayOf: array size would exceed virtual address space")
 	}
 	array.size = typ.size * uintptr(count)
+	if count > 0 && typ.ptrdata != 0 {
+		array.ptrdata = typ.size*uintptr(count-1) + typ.ptrdata
+	}
 	array.align = typ.align
 	array.fieldAlign = typ.fieldAlign
-	// TODO: array.alg
-	// TODO: array.gc
-	// TODO:
 	array.uncommonType = nil
 	array.ptrToThis = nil
-	array.zero = unsafe.Pointer(&make([]byte, array.size)[0])
+	if array.size > 0 {
+		zero := make([]byte, array.size)
+		array.zero = unsafe.Pointer(&zero[0])
+	}
 	array.len = uintptr(count)
 	array.slice = slice.(*rtype)
+
+	var gc gcProg
+	// TODO(sbinet): count could be possibly very large.
+	// use insArray directives from ../runtime/mbitmap.go.
+	for i := 0; i < count; i++ {
+		gc.appendProg(typ)
+	}
+
+	var hasPtr bool
+	array.gc[0], hasPtr = gc.finalize()
+	if !hasPtr {
+		array.kind |= kindNoPointers
+	} else {
+		array.kind &^= kindNoPointers
+	}
+
+	etyp := typ.common()
+	esize := etyp.Size()
+	ealg := etyp.alg
+
+	array.alg = new(typeAlg)
+	if ealg.equal != nil {
+		eequal := ealg.equal
+		array.alg.equal = func(p, q unsafe.Pointer) bool {
+			for i := 0; i < count; i++ {
+				pi := arrayAt(p, i, esize)
+				qi := arrayAt(q, i, esize)
+				if !eequal(pi, qi) {
+					return false
+				}
+
+			}
+			return true
+		}
+	}
+	if ealg.hash != nil {
+		ehash := ealg.hash
+		array.alg.hash = func(ptr unsafe.Pointer, seed uintptr) uintptr {
+			o := seed
+			for i := 0; i < count; i++ {
+				o = ehash(arrayAt(ptr, i, esize), o)
+			}
+			return o
+		}
+	}
+
+	switch {
+	case count == 1 && !ifaceIndir(typ):
+		// array of 1 direct iface type can be direct
+		array.kind |= kindDirectIface
+	default:
+		array.kind &^= kindDirectIface
+	}
 
 	return cachePut(ckey, &array.rtype)
 }
@@ -1893,6 +2090,7 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
 	// build dummy rtype holding gc program
 	x := new(rtype)
 	x.size = gc.size
+	x.ptrdata = gc.size // over-approximation
 	var hasPtr bool
 	x.gc[0], hasPtr = gc.finalize()
 	if !hasPtr {

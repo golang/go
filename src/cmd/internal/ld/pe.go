@@ -5,6 +5,7 @@
 package ld
 
 import (
+	"cmd/internal/obj"
 	"encoding/binary"
 	"fmt"
 	"sort"
@@ -389,7 +390,7 @@ var ncoffsym int
 func addpesection(name string, sectsize int, filesize int) *IMAGE_SECTION_HEADER {
 	if pensect == 16 {
 		Diag("too many sections")
-		Errorexit()
+		errorexit()
 	}
 
 	h := &sh[pensect]
@@ -410,19 +411,19 @@ func addpesection(name string, sectsize int, filesize int) *IMAGE_SECTION_HEADER
 func chksectoff(h *IMAGE_SECTION_HEADER, off int64) {
 	if off != int64(h.PointerToRawData) {
 		Diag("%s.PointerToRawData = %#x, want %#x", cstring(h.Name[:]), uint64(int64(h.PointerToRawData)), uint64(off))
-		Errorexit()
+		errorexit()
 	}
 }
 
 func chksectseg(h *IMAGE_SECTION_HEADER, s *Segment) {
 	if s.Vaddr-PEBASE != uint64(h.VirtualAddress) {
 		Diag("%s.VirtualAddress = %#x, want %#x", cstring(h.Name[:]), uint64(int64(h.VirtualAddress)), uint64(int64(s.Vaddr-PEBASE)))
-		Errorexit()
+		errorexit()
 	}
 
 	if s.Fileoff != uint64(h.PointerToRawData) {
 		Diag("%s.PointerToRawData = %#x, want %#x", cstring(h.Name[:]), uint64(int64(h.PointerToRawData)), uint64(int64(s.Fileoff)))
-		Errorexit()
+		errorexit()
 	}
 }
 
@@ -450,9 +451,9 @@ func Peinit() {
 	nextfileoff = int(PEFILEHEADR)
 
 	// some mingw libs depend on this symbol, for example, FindPESectionByName
-	xdefine("__image_base__", SDATA, PEBASE)
+	xdefine("__image_base__", obj.SDATA, PEBASE)
 
-	xdefine("_image_base__", SDATA, PEBASE)
+	xdefine("_image_base__", obj.SDATA, PEBASE)
 }
 
 func pewrite() {
@@ -473,7 +474,7 @@ func pewrite() {
 }
 
 func strput(s string) {
-	coutbuf.w.WriteString(s)
+	coutbuf.WriteString(s)
 	Cput(0)
 	// string must be padded to even size
 	if (len(s)+1)%2 != 0 {
@@ -487,7 +488,7 @@ func initdynimport() *Dll {
 	dr = nil
 	var m *Imp
 	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
-		if !s.Reachable || s.Type != SDYNIMPORT {
+		if !s.Reachable || s.Type != obj.SDYNIMPORT {
 			continue
 		}
 		for d = dr; d != nil; d = d.next {
@@ -529,7 +530,7 @@ func initdynimport() *Dll {
 		// Add real symbol name
 		for d := dr; d != nil; d = d.next {
 			for m = d.ms; m != nil; m = m.next {
-				m.s.Type = SDATA
+				m.s.Type = obj.SDATA
 				Symgrow(Ctxt, m.s, int64(Thearch.Ptrsize))
 				dynName := m.s.Extname
 				// only windows/386 requires stdcall decoration
@@ -538,12 +539,12 @@ func initdynimport() *Dll {
 				}
 				dynSym := Linklookup(Ctxt, dynName, 0)
 				dynSym.Reachable = true
-				dynSym.Type = SHOSTOBJ
+				dynSym.Type = obj.SHOSTOBJ
 				r := Addrel(m.s)
 				r.Sym = dynSym
 				r.Off = 0
 				r.Siz = uint8(Thearch.Ptrsize)
-				r.Type = R_ADDR
+				r.Type = obj.R_ADDR
 
 				// pre-allocate symtab entries for those symbols
 				dynSym.Dynid = int32(ncoffsym)
@@ -553,10 +554,10 @@ func initdynimport() *Dll {
 	} else {
 		dynamic := Linklookup(Ctxt, ".windynamic", 0)
 		dynamic.Reachable = true
-		dynamic.Type = SWINDOWS
+		dynamic.Type = obj.SWINDOWS
 		for d := dr; d != nil; d = d.next {
 			for m = d.ms; m != nil; m = m.next {
-				m.s.Type = SWINDOWS | SSUB
+				m.s.Type = obj.SWINDOWS | obj.SSUB
 				m.s.Sub = dynamic.Sub
 				dynamic.Sub = m.s
 				m.s.Value = dynamic.Size
@@ -711,7 +712,7 @@ func initdynexport() {
 		}
 		if nexport+1 > len(dexport) {
 			Diag("pe dynexport table is full")
-			Errorexit()
+			errorexit()
 		}
 
 		dexport[nexport] = s
@@ -902,7 +903,7 @@ func dope() {
 	rel := Linklookup(Ctxt, ".rel", 0)
 
 	rel.Reachable = true
-	rel.Type = SELFROSECT
+	rel.Type = obj.SELFROSECT
 
 	initdynimport()
 	initdynexport()
@@ -954,7 +955,7 @@ func addpesym(s *LSym, name string, type_ int, addr int64, size int64, ver int, 
 
 	if coffsym != nil {
 		// only windows/386 requires underscore prefix on external symbols
-		if Thearch.Thechar == '8' && Linkmode == LinkExternal && (s.Type == SHOSTOBJ || s.Cgoexport != 0) && s.Name == s.Extname {
+		if Thearch.Thechar == '8' && Linkmode == LinkExternal && (s.Type == obj.SHOSTOBJ || s.Cgoexport != 0) && s.Name == s.Extname {
 			s.Name = "_" + s.Name
 		}
 		cs := &coffsym[ncoffsym]
@@ -964,7 +965,7 @@ func addpesym(s *LSym, name string, type_ int, addr int64, size int64, ver int, 
 		}
 		// Note: although address of runtime.edata (type SDATA) is at the start of .bss section
 		// it still belongs to the .data section, not the .bss section.
-		if uint64(s.Value) >= Segdata.Vaddr+Segdata.Filelen && s.Type != SDATA && Linkmode == LinkExternal {
+		if uint64(s.Value) >= Segdata.Vaddr+Segdata.Filelen && s.Type != obj.SDATA && Linkmode == LinkExternal {
 			cs.value = int64(uint64(s.Value) - Segdata.Vaddr - Segdata.Filelen)
 			cs.sect = bsssect
 		} else if uint64(s.Value) >= Segdata.Vaddr {
@@ -1096,13 +1097,9 @@ func addpersrc() {
 func Asmbpe() {
 	switch Thearch.Thechar {
 	default:
-		Diag("unknown PE architecture")
-		Errorexit()
-		fallthrough
-
+		Exitf("unknown PE architecture: %v", Thearch.Thechar)
 	case '6':
 		fh.Machine = IMAGE_FILE_MACHINE_AMD64
-
 	case '8':
 		fh.Machine = IMAGE_FILE_MACHINE_I386
 	}
@@ -1228,12 +1225,13 @@ func Asmbpe() {
 	// for other threads we specify stack size in runtime explicitly
 	// (runtime knows whether cgo is enabled or not).
 	// If you change stack reserve sizes here,
-	// change STACKSIZE in runtime/cgo/gcc_windows_{386,amd64}.c as well.
+	// change STACKSIZE in runtime/cgo/gcc_windows_{386,amd64}.c and correspondent
+	// CreateThread parameter in runtime.newosproc as well.
 	if !iscgo {
-		oh64.SizeOfStackReserve = 0x00010000
-		oh.SizeOfStackReserve = 0x00010000
-		oh64.SizeOfStackCommit = 0x0000ffff
-		oh.SizeOfStackCommit = 0x0000ffff
+		oh64.SizeOfStackReserve = 0x00020000
+		oh.SizeOfStackReserve = 0x00020000
+		oh64.SizeOfStackCommit = 0x00001000
+		oh.SizeOfStackCommit = 0x00001000
 	} else {
 		oh64.SizeOfStackReserve = 0x00200000
 		oh.SizeOfStackReserve = 0x00100000

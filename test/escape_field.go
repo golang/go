@@ -23,7 +23,7 @@ type Y struct {
 func field0() {
 	i := 0 // ERROR "moved to heap: i$"
 	var x X
-	x.p1 = &i // ERROR "&i escapes to heap$"
+	x.p1 = &i   // ERROR "&i escapes to heap$"
 	sink = x.p1 // ERROR "x\.p1 escapes to heap"
 }
 
@@ -31,7 +31,7 @@ func field1() {
 	i := 0 // ERROR "moved to heap: i$"
 	var x X
 	// BAD: &i should not escape
-	x.p1 = &i // ERROR "&i escapes to heap$"
+	x.p1 = &i   // ERROR "&i escapes to heap$"
 	sink = x.p2 // ERROR "x\.p2 escapes to heap"
 }
 
@@ -39,7 +39,7 @@ func field3() {
 	i := 0 // ERROR "moved to heap: i$"
 	var x X
 	x.p1 = &i // ERROR "&i escapes to heap$"
-	sink = x // ERROR "x escapes to heap"
+	sink = x  // ERROR "x escapes to heap"
 }
 
 func field4() {
@@ -54,22 +54,21 @@ func field5() {
 	i := 0 // ERROR "moved to heap: i$"
 	var x X
 	// BAD: &i should not escape here
-	x.a[0] = &i // ERROR "&i escapes to heap$"
+	x.a[0] = &i   // ERROR "&i escapes to heap$"
 	sink = x.a[1] // ERROR "x\.a\[1\] escapes to heap"
 }
 
 // BAD: we are not leaking param x, only x.p2
-func field6(x *X) { // ERROR "leaking param: x$"
+func field6(x *X) { // ERROR "leaking param content: x$"
 	sink = x.p2 // ERROR "x\.p2 escapes to heap"
 }
 
 func field6a() {
-	i := 0  // ERROR "moved to heap: i$"
-	var x X // ERROR "moved to heap: x$"
+	i := 0 // ERROR "moved to heap: i$"
+	var x X
 	// BAD: &i should not escape
-	x.p1 = &i // ERROR "&i escapes to heap$"
-	// BAD: &x should not escape
-	field6(&x) // ERROR "&x escapes to heap$"
+	x.p1 = &i  // ERROR "&i escapes to heap$"
+	field6(&x) // ERROR "field6a &x does not escape"
 }
 
 func field7() {
@@ -116,40 +115,40 @@ func field10() {
 func field11() {
 	i := 0         // ERROR "moved to heap: i$"
 	x := X{p1: &i} // ERROR "&i escapes to heap$"
-	sink = x.p1 // ERROR "x\.p1 escapes to heap"
+	sink = x.p1    // ERROR "x\.p1 escapes to heap"
 }
 
 func field12() {
 	i := 0 // ERROR "moved to heap: i$"
 	// BAD: &i should not escape
 	x := X{p1: &i} // ERROR "&i escapes to heap$"
-	sink = x.p2 // ERROR "x\.p2 escapes to heap"
+	sink = x.p2    // ERROR "x\.p2 escapes to heap"
 }
 
 func field13() {
 	i := 0          // ERROR "moved to heap: i$"
 	x := &X{p1: &i} // ERROR "&i escapes to heap$" "field13 &X literal does not escape$"
-	sink = x.p1 // ERROR "x\.p1 escapes to heap"
+	sink = x.p1     // ERROR "x\.p1 escapes to heap"
 }
 
 func field14() {
 	i := 0 // ERROR "moved to heap: i$"
 	// BAD: &i should not escape
 	x := &X{p1: &i} // ERROR "&i escapes to heap$" "field14 &X literal does not escape$"
-	sink = x.p2 // ERROR "x\.p2 escapes to heap"
+	sink = x.p2     // ERROR "x\.p2 escapes to heap"
 }
 
 func field15() {
 	i := 0          // ERROR "moved to heap: i$"
 	x := &X{p1: &i} // ERROR "&X literal escapes to heap$" "&i escapes to heap$"
-	sink = x // ERROR "x escapes to heap"
+	sink = x        // ERROR "x escapes to heap"
 }
 
 func field16() {
 	i := 0 // ERROR "moved to heap: i$"
 	var x X
 	// BAD: &i should not escape
-	x.p1 = &i // ERROR "&i escapes to heap$"
+	x.p1 = &i                 // ERROR "&i escapes to heap$"
 	var iface interface{} = x // ERROR "x escapes to heap"
 	x1 := iface.(X)
 	sink = x1.p2 // ERROR "x1\.p2 escapes to heap"
@@ -158,7 +157,7 @@ func field16() {
 func field17() {
 	i := 0 // ERROR "moved to heap: i$"
 	var x X
-	x.p1 = &i // ERROR "&i escapes to heap$"
+	x.p1 = &i                 // ERROR "&i escapes to heap$"
 	var iface interface{} = x // ERROR "x escapes to heap"
 	x1 := iface.(X)
 	sink = x1.p1 // ERROR "x1\.p1 escapes to heap"
@@ -168,8 +167,8 @@ func field18() {
 	i := 0 // ERROR "moved to heap: i$"
 	var x X
 	// BAD: &i should not escape
-	x.p1 = &i // ERROR "&i escapes to heap$"
+	x.p1 = &i                 // ERROR "&i escapes to heap$"
 	var iface interface{} = x // ERROR "x escapes to heap"
-	y, _ := iface.(Y) // Put X, but extracted Y. The cast will fail, so y is zero initialized.
-	sink = y // ERROR "y escapes to heap"
+	y, _ := iface.(Y)         // Put X, but extracted Y. The cast will fail, so y is zero initialized.
+	sink = y                  // ERROR "y escapes to heap"
 }

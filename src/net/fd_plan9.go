@@ -11,13 +11,13 @@ import (
 	"time"
 )
 
-// Network file descritor.
+// Network file descriptor.
 type netFD struct {
 	// locking/lifetime of sysfd + serialize access to Read and Write methods
 	fdmu fdMutex
 
 	// immutable until Close
-	proto        string
+	net          string
 	n            string
 	dir          string
 	ctl, data    *os.File
@@ -38,8 +38,8 @@ func dial(net string, ra Addr, dialer func(time.Time) (Conn, error), deadline ti
 	return dialChannel(net, ra, dialer, deadline)
 }
 
-func newFD(proto, name string, ctl, data *os.File, laddr, raddr Addr) (*netFD, error) {
-	return &netFD{proto: proto, n: name, dir: netdir + "/" + proto + "/" + name, ctl: ctl, data: data, laddr: laddr, raddr: raddr}, nil
+func newFD(net, name string, ctl, data *os.File, laddr, raddr Addr) (*netFD, error) {
+	return &netFD{net: net, n: name, dir: netdir + "/" + net + "/" + name, ctl: ctl, data: data, laddr: laddr, raddr: raddr}, nil
 }
 
 func (fd *netFD) init() error {
@@ -55,7 +55,7 @@ func (fd *netFD) name() string {
 	if fd.raddr != nil {
 		rs = fd.raddr.String()
 	}
-	return fd.proto + ":" + ls + "->" + rs
+	return fd.net + ":" + ls + "->" + rs
 }
 
 func (fd *netFD) ok() bool { return fd != nil && fd.ctl != nil }
@@ -132,7 +132,7 @@ func (fd *netFD) Read(b []byte) (n int, err error) {
 	}
 	defer fd.readUnlock()
 	n, err = fd.data.Read(b)
-	if fd.proto == "udp" && err == io.EOF {
+	if fd.net == "udp" && err == io.EOF {
 		n = 0
 		err = nil
 	}
@@ -202,7 +202,7 @@ func (fd *netFD) file(f *os.File, s string) (*os.File, error) {
 	dfd, err := syscall.Dup(int(f.Fd()), -1)
 	syscall.ForkLock.RUnlock()
 	if err != nil {
-		return nil, &OpError{"dup", s, fd.laddr, err}
+		return nil, os.NewSyscallError("dup", err)
 	}
 	return os.NewFile(uintptr(dfd), s), nil
 }

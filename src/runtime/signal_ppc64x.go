@@ -113,7 +113,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	}
 
 	_g_.m.throwing = 1
-	setGNoWriteBarrier(&_g_.m.caughtsig, gp)
+	_g_.m.caughtsig.set(gp)
 	startpanic()
 
 	if sig < uint32(len(sigtable)) {

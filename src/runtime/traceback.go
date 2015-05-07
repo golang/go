@@ -44,6 +44,7 @@ var (
 	bgsweepPC            uintptr
 	forcegchelperPC      uintptr
 	timerprocPC          uintptr
+	gcBgMarkWorkerPC     uintptr
 	systemstack_switchPC uintptr
 
 	externalthreadhandlerp uintptr // initialized elsewhere
@@ -66,6 +67,7 @@ func tracebackinit() {
 	bgsweepPC = funcPC(bgsweep)
 	forcegchelperPC = funcPC(forcegchelper)
 	timerprocPC = funcPC(timerproc)
+	gcBgMarkWorkerPC = funcPC(gcBgMarkWorker)
 	systemstack_switchPC = funcPC(systemstack_switch)
 }
 
@@ -528,7 +530,7 @@ func gcallers(gp *g, skip int, pcbuf []uintptr) int {
 
 func showframe(f *_func, gp *g) bool {
 	g := getg()
-	if g.m.throwing > 0 && gp != nil && (gp == g.m.curg || gp == g.m.caughtsig) {
+	if g.m.throwing > 0 && gp != nil && (gp == g.m.curg || gp == g.m.caughtsig.ptr()) {
 		return true
 	}
 	traceback := gotraceback(nil)
@@ -625,7 +627,11 @@ func tracebackothers(me *g) {
 		}
 		print("\n")
 		goroutineheader(gp)
-		if readgstatus(gp)&^_Gscan == _Grunning {
+		// Note: gp.m == g.m occurs when tracebackothers is
+		// called from a signal handler initiated during a
+		// systemstack call.  The original G is still in the
+		// running state, and we want to print its stack.
+		if gp.m != g.m && readgstatus(gp)&^_Gscan == _Grunning {
 			print("\tgoroutine running on other thread; stack unavailable\n")
 			printcreatedby(gp)
 		} else {
@@ -654,5 +660,6 @@ func isSystemGoroutine(gp *g) bool {
 		pc == backgroundgcPC ||
 		pc == bgsweepPC ||
 		pc == forcegchelperPC ||
-		pc == timerprocPC
+		pc == timerprocPC ||
+		pc == gcBgMarkWorkerPC
 }

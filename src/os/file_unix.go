@@ -12,6 +12,14 @@ import (
 	"syscall"
 )
 
+func rename(oldname, newname string) error {
+	e := syscall.Rename(oldname, newname)
+	if e != nil {
+		return &LinkError{"rename", oldname, newname, e}
+	}
+	return nil
+}
+
 // File represents an open file descriptor.
 type File struct {
 	*file

@@ -509,7 +509,13 @@ func TestUnknownCriticalExtension(t *testing.T) {
 				CommonName: "foo",
 			},
 			NotBefore: time.Unix(1000, 0),
-			NotAfter:  time.Unix(100000, 0),
+			NotAfter:  time.Now().AddDate(1, 0, 0),
+
+			BasicConstraintsValid: true,
+			IsCA: true,
+
+			KeyUsage:    KeyUsageCertSign,
+			ExtKeyUsage: []ExtKeyUsage{ExtKeyUsageServerAuth},
 
 			ExtraExtensions: []pkix.Extension{
 				{
@@ -525,12 +531,28 @@ func TestUnknownCriticalExtension(t *testing.T) {
 			t.Fatalf("failed to create certificate: %s", err)
 		}
 
-		_, err = ParseCertificate(derBytes)
+		cert, err := ParseCertificate(derBytes)
+		if err != nil {
+			t.Fatalf("Certificate with unknown critical extension was not parsed: %s", err)
+		}
+
+		roots := NewCertPool()
+		roots.AddCert(cert)
+
+		// Setting Roots ensures that Verify won't delegate to the OS
+		// library and thus the correct error should always be
+		// returned.
+		_, err = cert.Verify(VerifyOptions{Roots: roots})
 		if err == nil {
-			t.Fatalf("Certificate with critical extension was parsed without error.")
+			t.Fatal("Certificate with unknown critical extension was verified without error")
 		}
 		if _, ok := err.(UnhandledCriticalExtension); !ok {
 			t.Fatalf("Error was %#v, but wanted one of type UnhandledCriticalExtension", err)
+		}
+
+		cert.UnhandledCriticalExtensions = nil
+		if _, err = cert.Verify(VerifyOptions{Roots: roots}); err != nil {
+			t.Errorf("Certificate failed to verify after unhandled critical extensions were cleared: %s", err)
 		}
 	}
 }
@@ -830,8 +852,9 @@ func TestImports(t *testing.T) {
 	case "android", "nacl":
 		t.Skipf("skipping on %s", runtime.GOOS)
 	case "darwin":
-		if runtime.GOARCH == "arm" {
-			t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+		switch runtime.GOARCH {
+		case "arm", "arm64":
+			t.Skipf("skipping on %s/%s, cannot fork", runtime.GOOS, runtime.GOARCH)
 		}
 	}
 
@@ -900,6 +923,12 @@ func TestCreateCertificateRequest(t *testing.T) {
 		out, err := ParseCertificateRequest(derBytes)
 		if err != nil {
 			t.Errorf("%s: failed to create certificate request: %s", test.name, err)
+			continue
+		}
+
+		err = out.CheckSignature()
+		if err != nil {
+			t.Errorf("%s: failed to check certificate request signature: %s", test.name, err)
 			continue
 		}
 
@@ -1014,33 +1043,35 @@ func TestCertificateRequestOverrides(t *testing.T) {
 }
 
 func TestParseCertificateRequest(t *testing.T) {
-	csrBytes := fromBase64(csrBase64)
-	csr, err := ParseCertificateRequest(csrBytes)
-	if err != nil {
-		t.Fatalf("failed to parse CSR: %s", err)
-	}
-
-	if len(csr.EmailAddresses) != 1 || csr.EmailAddresses[0] != "gopher@golang.org" {
-		t.Errorf("incorrect email addresses found: %v", csr.EmailAddresses)
-	}
-
-	if len(csr.DNSNames) != 1 || csr.DNSNames[0] != "test.example.com" {
-		t.Errorf("incorrect DNS names found: %v", csr.DNSNames)
-	}
-
-	if len(csr.Subject.Country) != 1 || csr.Subject.Country[0] != "AU" {
-		t.Errorf("incorrect Subject name: %v", csr.Subject)
-	}
-
-	found := false
-	for _, e := range csr.Extensions {
-		if e.Id.Equal(oidExtensionBasicConstraints) {
-			found = true
-			break
+	for _, csrBase64 := range csrBase64Array {
+		csrBytes := fromBase64(csrBase64)
+		csr, err := ParseCertificateRequest(csrBytes)
+		if err != nil {
+			t.Fatalf("failed to parse CSR: %s", err)
 		}
-	}
-	if !found {
-		t.Errorf("basic constraints extension not found in CSR")
+
+		if len(csr.EmailAddresses) != 1 || csr.EmailAddresses[0] != "gopher@golang.org" {
+			t.Errorf("incorrect email addresses found: %v", csr.EmailAddresses)
+		}
+
+		if len(csr.DNSNames) != 1 || csr.DNSNames[0] != "test.example.com" {
+			t.Errorf("incorrect DNS names found: %v", csr.DNSNames)
+		}
+
+		if len(csr.Subject.Country) != 1 || csr.Subject.Country[0] != "AU" {
+			t.Errorf("incorrect Subject name: %v", csr.Subject)
+		}
+
+		found := false
+		for _, e := range csr.Extensions {
+			if e.Id.Equal(oidExtensionBasicConstraints) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("basic constraints extension not found in CSR")
+		}
 	}
 }
 
@@ -1129,12 +1160,20 @@ func TestASN1BitLength(t *testing.T) {
 	}
 }
 
-// This CSR was generated with OpenSSL:
-//  openssl req -out CSR.csr -new -newkey rsa:2048 -nodes -keyout privateKey.key -config openssl.cnf
+// These CSR was generated with OpenSSL:
+//  openssl req -out CSR.csr -new -sha256 -nodes -keyout privateKey.key -config openssl.cnf
 //
-// The openssl.cnf needs to include this section:
+// With openssl.cnf containing the following sections:
 //   [ v3_req ]
 //   basicConstraints = CA:FALSE
 //   keyUsage = nonRepudiation, digitalSignature, keyEncipherment
 //   subjectAltName = email:gopher@golang.org,DNS:test.example.com
-const csrBase64 = "MIIC4zCCAcsCAQAwRTELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoMGEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAOY+MVedRg2JEnyeLcSzcsMv2VcsTfkB5+Etd6hihAh6MrGezNyASMMKuQN6YhCX1icQDiQtGsDLTtheNnSXK06tAhHjAP/hGlszRJp+5+rP2M58fDBAkUBEhskbCUWwpY14jFtVuGNJ8vF8h8IeczdolvQhX9lVai9G0EUXJMliMKdjA899H0mRs9PzHyidyrXFNiZlQXfD8Kg7gETn2Ny965iyI6ujAIYSCvam6TnxRHYH2MBKyVGvsYGbPYUQJCsgdgyajEg6ekihvQY3SzO1HSAlZAd7d1QYO4VeWJ2mY6Wu3Jpmh+AmG19S9CcHqGjd0bhuAX9cpPOKgnEmqn0CAwEAAaBZMFcGCSqGSIb3DQEJDjFKMEgwCQYDVR0TBAIwADALBgNVHQ8EBAMCBeAwLgYDVR0RBCcwJYERZ29waGVyQGdvbGFuZy5vcmeCEHRlc3QuZXhhbXBsZS5jb20wDQYJKoZIhvcNAQEFBQADggEBAC9+QpKfdabxwCWwf4IEe1cKjdXLS1ScSuw27a3kZzQiPV78WJMa6dB8dqhdH5BRwGZ/qsgLrO6ZHlNeIv2Ib41Ccq71ecHW/nXc94A1BzJ/bVdI9LZcmTUvR1/m1jCpN7UqQ0ml1u9VihK7Pe762hEYxuWDQzYEU0l15S/bXmqeq3eF1A59XT/2jwe5+NV0Wwf4UQlkTXsAQMsJ+KzrQafd8Qv2A49o048uRvmjeJDrXLawGVianZ7D5A6Fpd1rZh6XcjqBpmgLw41DRQWENOdzhy+HyphKRv1MlY8OLkNqpGMhu8DdgJVGoT16DGiickoEa7Z3UCPVNgdTkT9jq7U="
+//   [ req_attributes ]
+//   challengePassword = ignored challenge
+//   unstructuredName  = ignored unstructured name
+var csrBase64Array = [...]string{
+	// Just [ v3_req ]
+	"MIIDHDCCAgQCAQAwfjELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoMGEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDEUMBIGA1UEAwwLQ29tbW9uIE5hbWUxITAfBgkqhkiG9w0BCQEWEnRlc3RAZW1haWwuYWRkcmVzczCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAK1GY4YFx2ujlZEOJxQVYmsjUnLsd5nFVnNpLE4cV+77sgv9NPNlB8uhn3MXt5leD34rm/2BisCHOifPucYlSrszo2beuKhvwn4+2FxDmWtBEMu/QA16L5IvoOfYZm/gJTsPwKDqvaR0tTU67a9OtxwNTBMI56YKtmwd/o8d3hYv9cg+9ZGAZ/gKONcg/OWYx/XRh6bd0g8DMbCikpWgXKDsvvK1Nk+VtkDO1JxuBaj4Lz/p/MifTfnHoqHxWOWl4EaTs4Ychxsv34/rSj1KD1tJqorIv5Xv2aqv4sjxfbrYzX4kvS5SC1goIovLnhj5UjmQ3Qy8u65eow/LLWw+YFcCAwEAAaBZMFcGCSqGSIb3DQEJDjFKMEgwCQYDVR0TBAIwADALBgNVHQ8EBAMCBeAwLgYDVR0RBCcwJYERZ29waGVyQGdvbGFuZy5vcmeCEHRlc3QuZXhhbXBsZS5jb20wDQYJKoZIhvcNAQELBQADggEBAB6VPMRrchvNW61Tokyq3ZvO6/NoGIbuwUn54q6l5VZW0Ep5Nq8juhegSSnaJ0jrovmUgKDN9vEo2KxuAtwG6udS6Ami3zP+hRd4k9Q8djJPb78nrjzWiindLK5Fps9U5mMoi1ER8ViveyAOTfnZt/jsKUaRsscY2FzE9t9/o5moE6LTcHUS4Ap1eheR+J72WOnQYn3cifYaemsA9MJuLko+kQ6xseqttbh9zjqd9fiCSh/LNkzos9c+mg2yMADitaZinAh+HZi50ooEbjaT3erNq9O6RqwJlgD00g6MQdoz9bTAryCUhCQfkIaepmQ7BxS0pqWNW3MMwfDwx/Snz6g=",
+	// Both [ v3_req ] and [ req_attributes ]
+	"MIIDaTCCAlECAQAwfjELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoMGEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDEUMBIGA1UEAwwLQ29tbW9uIE5hbWUxITAfBgkqhkiG9w0BCQEWEnRlc3RAZW1haWwuYWRkcmVzczCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAK1GY4YFx2ujlZEOJxQVYmsjUnLsd5nFVnNpLE4cV+77sgv9NPNlB8uhn3MXt5leD34rm/2BisCHOifPucYlSrszo2beuKhvwn4+2FxDmWtBEMu/QA16L5IvoOfYZm/gJTsPwKDqvaR0tTU67a9OtxwNTBMI56YKtmwd/o8d3hYv9cg+9ZGAZ/gKONcg/OWYx/XRh6bd0g8DMbCikpWgXKDsvvK1Nk+VtkDO1JxuBaj4Lz/p/MifTfnHoqHxWOWl4EaTs4Ychxsv34/rSj1KD1tJqorIv5Xv2aqv4sjxfbrYzX4kvS5SC1goIovLnhj5UjmQ3Qy8u65eow/LLWw+YFcCAwEAAaCBpTAgBgkqhkiG9w0BCQcxEwwRaWdub3JlZCBjaGFsbGVuZ2UwKAYJKoZIhvcNAQkCMRsMGWlnbm9yZWQgdW5zdHJ1Y3R1cmVkIG5hbWUwVwYJKoZIhvcNAQkOMUowSDAJBgNVHRMEAjAAMAsGA1UdDwQEAwIF4DAuBgNVHREEJzAlgRFnb3BoZXJAZ29sYW5nLm9yZ4IQdGVzdC5leGFtcGxlLmNvbTANBgkqhkiG9w0BAQsFAAOCAQEAgxe2N5O48EMsYE7o0rZBB0wi3Ov5/yYfnmmVI22Y3sP6VXbLDW0+UWIeSccOhzUCcZ/G4qcrfhhx6gTZTeA01nP7TdTJURvWAH5iFqj9sQ0qnLq6nEcVHij3sG6M5+BxAIVClQBk6lTCzgphc835Fjj6qSLuJ20XHdL5UfUbiJxx299CHgyBRL+hBUIPfz8p+ZgamyAuDLfnj54zzcRVyLlrmMLNPZNll1Q70RxoU6uWvLH8wB8vQe3Q/guSGubLyLRTUQVPh+dw1L4t8MKFWfX/48jwRM4gIRHFHPeAAE9D9YAoqdIvj/iFm/eQ++7DP8MDwOZWsXeB6jjwHuLmkQ==",
+}

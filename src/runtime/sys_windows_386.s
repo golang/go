@@ -213,9 +213,11 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 	MOVL	CX, g_stackguard1(SP)
 	MOVL	DX, (g_stack+stack_hi)(SP)
 
+	PUSHL	AX			// room for return value
 	PUSHL	16(BP)			// arg for handler
 	CALL	8(BP)
 	POPL	CX
+	POPL	AX			// pass return value to Windows in AX
 
 	get_tls(CX)
 	MOVL	g(CX), CX

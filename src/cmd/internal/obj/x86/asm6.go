@@ -2028,6 +2028,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 	case obj.TYPE_ADDR:
 		switch a.Name {
 		case obj.NAME_EXTERN,
+			obj.NAME_GOTREF,
 			obj.NAME_STATIC:
 			if a.Sym != nil && isextern(a.Sym) || p.Mode == 32 {
 				return Yi32
@@ -2437,6 +2438,7 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
 
 	switch a.Name {
 	case obj.NAME_STATIC,
+		obj.NAME_GOTREF,
 		obj.NAME_EXTERN:
 		s := a.Sym
 		if r == nil {
@@ -2444,7 +2446,10 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
 			log.Fatalf("reloc")
 		}
 
-		if isextern(s) || p.Mode != 64 {
+		if a.Name == obj.NAME_GOTREF {
+			r.Siz = 4
+			r.Type = obj.R_GOTPCREL
+		} else if isextern(s) || p.Mode != 64 {
 			r.Siz = 4
 			r.Type = obj.R_ADDR
 		} else {
@@ -2455,11 +2460,6 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
 		r.Off = -1 // caller must fill in
 		r.Sym = s
 		r.Add = a.Offset
-		if s.Type == obj.STLSBSS {
-			r.Xadd = r.Add - int64(r.Siz)
-			r.Type = obj.R_TLS
-			r.Xsym = s
-		}
 
 		return 0
 	}
@@ -2519,6 +2519,7 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 		base := int(a.Reg)
 		switch a.Name {
 		case obj.NAME_EXTERN,
+			obj.NAME_GOTREF,
 			obj.NAME_STATIC:
 			if !isextern(a.Sym) && p.Mode == 64 {
 				goto bad
@@ -2564,6 +2565,7 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 	base = int(a.Reg)
 	switch a.Name {
 	case obj.NAME_STATIC,
+		obj.NAME_GOTREF,
 		obj.NAME_EXTERN:
 		if a.Sym == nil {
 			ctxt.Diag("bad addr: %v", p)
@@ -2582,7 +2584,10 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 
 	ctxt.Rexflag |= regrex[base]&Rxb | rex
 	if base == REG_NONE || (REG_CS <= base && base <= REG_GS) || base == REG_TLS {
-		if (a.Sym == nil || !isextern(a.Sym)) && base == REG_NONE && (a.Name == obj.NAME_STATIC || a.Name == obj.NAME_EXTERN) || p.Mode != 64 {
+		if (a.Sym == nil || !isextern(a.Sym)) && base == REG_NONE && (a.Name == obj.NAME_STATIC || a.Name == obj.NAME_EXTERN || a.Name == obj.NAME_GOTREF) || p.Mode != 64 {
+			if a.Name == obj.NAME_GOTREF && (a.Offset != 0 || a.Index != 0 || a.Scale != 0) {
+				ctxt.Diag("%v has offset against gotref", p)
+			}
 			ctxt.Andptr[0] = byte(0<<6 | 5<<0 | r<<3)
 			ctxt.Andptr = ctxt.Andptr[1:]
 			goto putrelv
@@ -2622,7 +2627,7 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 	if REG_AX <= base && base <= REG_R15 {
 		if a.Index == REG_TLS && ctxt.Flag_shared == 0 {
 			rel = obj.Reloc{}
-			rel.Type = obj.R_TLS_IE
+			rel.Type = obj.R_TLS_LE
 			rel.Siz = 4
 			rel.Sym = nil
 			rel.Add = int64(v)
@@ -2911,7 +2916,6 @@ var bpduff1 = []byte{
 }
 
 var bpduff2 = []byte{
-	0x90,
 	0x48, 0x8b, 0x6d, 0x00, // MOVQ 0(BP), BP
 }
 
@@ -2981,7 +2985,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 	f3t := int(p.F3t) * Ymax
 	tt := int(p.Tt) * Ymax
 
-	xo := bool2int(o.op[0] == 0x0f)
+	xo := obj.Bool2int(o.op[0] == 0x0f)
 	z := 0
 	var a *obj.Addr
 	var l int
@@ -3439,6 +3443,10 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				if p.To.Sym == nil {
 					ctxt.Diag("call without target")
 					log.Fatalf("bad code")
+				}
+
+				if yt.zcase == Zcallduff && ctxt.Flag_dynlink {
+					ctxt.Diag("directly calling duff when dynamically linking Go")
 				}
 
 				if obj.Framepointer_enabled != 0 && yt.zcase == Zcallduff && p.Mode == 64 {

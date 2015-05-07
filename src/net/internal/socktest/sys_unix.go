@@ -27,13 +27,14 @@ func (sw *Switch) Socket(family, sotype, proto int) (s int, err error) {
 		return -1, err
 	}
 
+	sw.smu.Lock()
+	defer sw.smu.Unlock()
 	if so.Err != nil {
+		sw.stats.getLocked(so.Cookie).OpenFailed++
 		return -1, so.Err
 	}
-	sw.smu.Lock()
 	nso := sw.addLocked(s, family, sotype, proto)
 	sw.stats.getLocked(nso.Cookie).Opened++
-	sw.smu.Unlock()
 	return s, nil
 }
 
@@ -56,13 +57,14 @@ func (sw *Switch) Close(s int) (err error) {
 		return err
 	}
 
+	sw.smu.Lock()
+	defer sw.smu.Unlock()
 	if so.Err != nil {
+		sw.stats.getLocked(so.Cookie).CloseFailed++
 		return so.Err
 	}
-	sw.smu.Lock()
 	delete(sw.sotab, s)
 	sw.stats.getLocked(so.Cookie).Closed++
-	sw.smu.Unlock()
 	return nil
 }
 
@@ -85,12 +87,42 @@ func (sw *Switch) Connect(s int, sa syscall.Sockaddr) (err error) {
 		return err
 	}
 
+	sw.smu.Lock()
+	defer sw.smu.Unlock()
 	if so.Err != nil {
+		sw.stats.getLocked(so.Cookie).ConnectFailed++
 		return so.Err
 	}
-	sw.smu.Lock()
 	sw.stats.getLocked(so.Cookie).Connected++
-	sw.smu.Unlock()
+	return nil
+}
+
+// Listen wraps syscall.Listen.
+func (sw *Switch) Listen(s, backlog int) (err error) {
+	so := sw.sockso(s)
+	if so == nil {
+		return syscall.Listen(s, backlog)
+	}
+	sw.fmu.RLock()
+	f, _ := sw.fltab[FilterListen]
+	sw.fmu.RUnlock()
+
+	af, err := f.apply(so)
+	if err != nil {
+		return err
+	}
+	so.Err = syscall.Listen(s, backlog)
+	if err = af.apply(so); err != nil {
+		return err
+	}
+
+	sw.smu.Lock()
+	defer sw.smu.Unlock()
+	if so.Err != nil {
+		sw.stats.getLocked(so.Cookie).ListenFailed++
+		return so.Err
+	}
+	sw.stats.getLocked(so.Cookie).Listened++
 	return nil
 }
 
@@ -116,13 +148,14 @@ func (sw *Switch) Accept(s int) (ns int, sa syscall.Sockaddr, err error) {
 		return -1, nil, err
 	}
 
+	sw.smu.Lock()
+	defer sw.smu.Unlock()
 	if so.Err != nil {
+		sw.stats.getLocked(so.Cookie).AcceptFailed++
 		return -1, nil, so.Err
 	}
-	sw.smu.Lock()
 	nso := sw.addLocked(ns, so.Cookie.Family(), so.Cookie.Type(), so.Cookie.Protocol())
 	sw.stats.getLocked(nso.Cookie).Accepted++
-	sw.smu.Unlock()
 	return ns, sa, nil
 }
 
@@ -140,7 +173,8 @@ func (sw *Switch) GetsockoptInt(s, level, opt int) (soerr int, err error) {
 	if err != nil {
 		return -1, err
 	}
-	so.SocketErr, so.Err = syscall.GetsockoptInt(s, level, opt)
+	soerr, so.Err = syscall.GetsockoptInt(s, level, opt)
+	so.SocketErr = syscall.Errno(soerr)
 	if err = af.apply(so); err != nil {
 		return -1, err
 	}
@@ -148,10 +182,10 @@ func (sw *Switch) GetsockoptInt(s, level, opt int) (soerr int, err error) {
 	if so.Err != nil {
 		return -1, so.Err
 	}
-	if opt == syscall.SO_ERROR && (so.SocketErr == 0 || syscall.Errno(so.SocketErr) == syscall.EISCONN) {
+	if opt == syscall.SO_ERROR && (so.SocketErr == syscall.Errno(0) || so.SocketErr == syscall.EISCONN) {
 		sw.smu.Lock()
 		sw.stats.getLocked(so.Cookie).Connected++
 		sw.smu.Unlock()
 	}
-	return so.SocketErr, nil
+	return soerr, nil
 }

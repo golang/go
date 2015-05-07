@@ -33,7 +33,7 @@ func testEndToEnd(t *testing.T, goarch string) {
 	var ok bool
 	testOut = new(bytes.Buffer) // The assembler writes -S output to this buffer.
 	ctxt.Bso = obj.Binitw(os.Stdout)
-	defer obj.Bflush(ctxt.Bso)
+	defer ctxt.Bso.Flush()
 	ctxt.Diag = log.Fatalf
 	obj.Binitw(ioutil.Discard)
 	pList.Firstpc, ok = parser.Parse()
@@ -76,6 +76,10 @@ func TestPPC64EndToEnd(t *testing.T) {
 
 func TestARMEndToEnd(t *testing.T) {
 	testEndToEnd(t, "arm")
+}
+
+func TestARM64EndToEnd(t *testing.T) {
+	testEndToEnd(t, "arm64")
 }
 
 func TestAMD64EndToEnd(t *testing.T) {

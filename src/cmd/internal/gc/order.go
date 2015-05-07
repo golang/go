@@ -50,7 +50,7 @@ type Order struct {
 // described in the comment at the top of the file.
 func order(fn *Node) {
 	if Debug['W'] > 1 {
-		s := fmt.Sprintf("\nbefore order %v", Sconv(fn.Nname.Sym, 0))
+		s := fmt.Sprintf("\nbefore order %v", fn.Nname.Sym)
 		dumplist(s, fn.Nbody)
 	}
 
@@ -323,7 +323,7 @@ func ismulticall(l *NodeList) bool {
 // and then returns the list t1, t2, ....
 func copyret(n *Node, order *Order) *NodeList {
 	if n.Type.Etype != TSTRUCT || n.Type.Funarg == 0 {
-		Fatal("copyret %v %d", Tconv(n.Type, 0), n.Left.Type.Outtuple)
+		Fatal("copyret %v %d", n.Type, n.Left.Type.Outtuple)
 	}
 
 	var l1 *NodeList
@@ -680,7 +680,7 @@ func orderstmt(n *Node, order *Order) {
 		orderexpr(&n.Right, order)
 		switch n.Type.Etype {
 		default:
-			Fatal("orderstmt range %v", Tconv(n.Type, 0))
+			Fatal("orderstmt range %v", n.Type)
 
 			// Mark []byte(str) range expression to reuse string backing storage.
 		// It is safe because the storage cannot be mutated.
@@ -770,7 +770,7 @@ func orderstmt(n *Node, order *Order) {
 				// declaration (and possible allocation) until inside the case body.
 				// Delete the ODCL nodes here and recreate them inside the body below.
 				case OSELRECV, OSELRECV2:
-					if r.Colas != 0 {
+					if r.Colas {
 						t = r.Ninit
 						if t != nil && t.N.Op == ODCL && t.N.Left == r.Left {
 							t = t.Next
@@ -814,7 +814,7 @@ func orderstmt(n *Node, order *Order) {
 						// the conversion happens in the OAS instead.
 						tmp1 = r.Left
 
-						if r.Colas != 0 {
+						if r.Colas {
 							tmp2 = Nod(ODCL, tmp1, nil)
 							typecheck(&tmp2, Etop)
 							l.N.Ninit = list(l.N.Ninit, tmp2)
@@ -831,7 +831,7 @@ func orderstmt(n *Node, order *Order) {
 					}
 					if r.Ntest != nil {
 						tmp1 = r.Ntest
-						if r.Colas != 0 {
+						if r.Colas {
 							tmp2 = Nod(ODCL, tmp1, nil)
 							typecheck(&tmp2, Etop)
 							l.N.Ninit = list(l.N.Ninit, tmp2)

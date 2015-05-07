@@ -1,7 +1,7 @@
 // errorcheck -0 -d=nil
-// Fails on ppc64x and arm64 because of incomplete optimization.
-// See issues 9058 and 10105.
-// +build !ppc64,!ppc64le,!arm64
+// Fails on ppc64x because of incomplete optimization.
+// See issues 9058.
+// +build !ppc64,!ppc64le
 
 // Copyright 2013 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style

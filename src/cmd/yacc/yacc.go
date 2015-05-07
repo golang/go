@@ -507,29 +507,6 @@ outer:
 		errorf("unexpected EOF before %%")
 	}
 
-	// put out non-literal terminals
-	for i := TOKSTART; i <= ntokens; i++ {
-		// non-literals
-		if !tokset[i].noconst {
-			fmt.Fprintf(ftable, "const %v = %v\n", tokset[i].name, tokset[i].value)
-		}
-	}
-
-	// put out names of token names
-	ftable.WriteRune('\n')
-	fmt.Fprintf(ftable, "var %sToknames = []string{\n", prefix)
-	for i := TOKSTART; i <= ntokens; i++ {
-		fmt.Fprintf(ftable, "\t\"%v\",\n", tokset[i].name)
-	}
-	fmt.Fprintf(ftable, "}\n")
-
-	// put out names of state names
-	fmt.Fprintf(ftable, "var %sStatenames = []string{", prefix)
-	//	for i:=TOKSTART; i<=ntokens; i++ {
-	//		fmt.Fprintf(ftable, "\t\"%v\",\n", tokset[i].name);
-	//	}
-	fmt.Fprintf(ftable, "}\n")
-
 	fmt.Fprintf(fcode, "switch %snt {\n", prefix)
 
 	moreprod()
@@ -660,9 +637,6 @@ outer:
 			if tempty != nontrst[curprod[0]-NTBASE].value {
 				lerrorf(ruleline, "default action causes potential type clash")
 			}
-			fmt.Fprintf(fcode, "\n\tcase %v:", nprod)
-			fmt.Fprintf(fcode, "\n\t\t%sVAL.%v = %sS[%spt-0].%v",
-				prefix, typeset[tempty], prefix, prefix, typeset[tempty])
 		}
 		moreprod()
 		prdptr[nprod] = make([]int, mem)
@@ -678,6 +652,29 @@ outer:
 	//
 
 	fmt.Fprintf(fcode, "\n\t}")
+
+	// put out non-literal terminals
+	for i := TOKSTART; i <= ntokens; i++ {
+		// non-literals
+		if !tokset[i].noconst {
+			fmt.Fprintf(ftable, "const %v = %v\n", tokset[i].name, tokset[i].value)
+		}
+	}
+
+	// put out names of token names
+	ftable.WriteRune('\n')
+	fmt.Fprintf(ftable, "var %sToknames = [...]string{\n", prefix)
+	for i := 1; i <= ntokens; i++ {
+		fmt.Fprintf(ftable, "\t\"%v\",\n", tokset[i].name)
+	}
+	fmt.Fprintf(ftable, "}\n")
+
+	// put out names of state names
+	fmt.Fprintf(ftable, "var %sStatenames = [...]string{", prefix)
+	//	for i:=TOKSTART; i<=ntokens; i++ {
+	//		fmt.Fprintf(ftable, "\t\"%v\",\n", tokset[i].name);
+	//	}
+	fmt.Fprintf(ftable, "}\n")
 
 	ftable.WriteRune('\n')
 	fmt.Fprintf(ftable, "const %sEofCode = 1\n", prefix)
@@ -2156,7 +2153,7 @@ func output() {
 	if !lflag {
 		fmt.Fprintf(ftable, "\n//line yacctab:1")
 	}
-	fmt.Fprintf(ftable, "\nvar %sExca = []int{\n", prefix)
+	fmt.Fprintf(ftable, "\nvar %sExca = [...]int{\n", prefix)
 
 	noset := mkset()
 
@@ -2892,7 +2889,7 @@ func others() {
 	arout("Tok2", temp1, c+1)
 
 	// table 3 has everything else
-	fmt.Fprintf(ftable, "var %sTok3 = []int{\n\t", prefix)
+	fmt.Fprintf(ftable, "var %sTok3 = [...]int{\n\t", prefix)
 	c = 0
 	for i = 1; i <= ntokens; i++ {
 		j = tokset[i].value
@@ -2937,7 +2934,7 @@ func others() {
 
 func arout(s string, v []int, n int) {
 	s = prefix + s
-	fmt.Fprintf(ftable, "var %v = []int{\n", s)
+	fmt.Fprintf(ftable, "var %v = [...]int{\n", s)
 	for i := 0; i < n; i++ {
 		if i%10 == 0 {
 			fmt.Fprintf(ftable, "\n\t")
@@ -3198,7 +3195,10 @@ var yaccpar string // will be processed version of yaccpartext: s/$$/prefix/g
 var yaccpartext = `
 /*	parser for yacc output	*/
 
-var $$Debug = 0
+var (
+	$$Debug        = 0
+	$$ErrorVerbose = false
+)
 
 type $$Lexer interface {
 	Lex(lval *$$SymType) int
@@ -3212,6 +3212,7 @@ type $$Parser interface {
 
 type $$ParserImpl struct {
 	lookahead func() int
+	state     func() int
 }
 
 func (p *$$ParserImpl) Lookahead() int {
@@ -3221,6 +3222,7 @@ func (p *$$ParserImpl) Lookahead() int {
 func $$NewParser() $$Parser {
 	p := &$$ParserImpl{
 		lookahead: func() int { return -1 },
+		state:     func() int { return -1 },
 	}
 	return p
 }
@@ -3228,10 +3230,9 @@ func $$NewParser() $$Parser {
 const $$Flag = -1000
 
 func $$Tokname(c int) string {
-	// 4 is TOKSTART above
-	if c >= 4 && c-4 < len($$Toknames) {
-		if $$Toknames[c-4] != "" {
-			return $$Toknames[c-4]
+	if c >= 1 && c-1 < len($$Toknames) {
+		if $$Toknames[c-1] != "" {
+			return $$Toknames[c-1]
 		}
 	}
 	return __yyfmt__.Sprintf("tok-%v", c)
@@ -3244,6 +3245,63 @@ func $$Statname(s int) string {
 		}
 	}
 	return __yyfmt__.Sprintf("state-%v", s)
+}
+
+func $$ErrorMessage(state, lookAhead int) string {
+	const TOKSTART = 4
+
+	if !$$ErrorVerbose {
+		return "syntax error"
+	}
+	res := "syntax error: unexpected " + $$Tokname(lookAhead)
+
+	// To match Bison, suggest at most four expected tokens.
+	expected := make([]int, 0, 4)
+
+	// Look for shiftable tokens.
+	base := $$Pact[state]
+	for tok := TOKSTART; tok-1 < len($$Toknames); tok++ {
+		if n := base + tok; n >= 0 && n < $$Last && $$Chk[$$Act[n]] == tok {
+			if len(expected) == cap(expected) {
+				return res
+			}
+			expected = append(expected, tok)
+		}
+	}
+
+	if $$Def[state] == -2 {
+		i := 0
+		for $$Exca[i] != -1 || $$Exca[i+1] != state {
+			i += 2
+		}
+
+		// Look for tokens that we accept or reduce.
+		for i += 2; $$Exca[i] >= 0; i += 2 {
+			tok := $$Exca[i]
+			if tok < TOKSTART || $$Exca[i+1] == 0 {
+				continue
+			}
+			if len(expected) == cap(expected) {
+				return res
+			}
+			expected = append(expected, tok)
+		}
+
+		// If the default action is to accept or reduce, give up.
+		if $$Exca[i+1] != 0 {
+			return res
+		}
+	}
+
+	for i, tok := range expected {
+		if i == 0 {
+			res += ", expecting "
+		} else {
+			res += " or "
+		}
+		res += $$Tokname(tok)
+	}
+	return res
 }
 
 func $$lex1(lex $$Lexer, lval *$$SymType) (char, token int) {
@@ -3297,9 +3355,11 @@ func ($$rcvr *$$ParserImpl) Parse($$lex $$Lexer) int {
 	$$state := 0
 	$$char := -1
 	$$token := -1 // $$char translated into internal numbering
+	$$rcvr.state = func() int { return $$state }
 	$$rcvr.lookahead = func() int { return $$char }
 	defer func() {
 		// Make sure we report no lookahead when not parsing.
+		$$state = -1
 		$$char = -1
 		$$token = -1
 	}()
@@ -3382,7 +3442,7 @@ $$default:
 		/* error ... attempt to resume parsing */
 		switch Errflag {
 		case 0: /* brand new error */
-			$$lex.Error("syntax error")
+			$$lex.Error($$ErrorMessage($$state, $$token))
 			Nerrs++
 			if $$Debug >= 1 {
 				__yyfmt__.Printf("%s", $$Statname($$state))

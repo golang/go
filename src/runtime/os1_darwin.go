@@ -51,7 +51,7 @@ var urandom_dev = []byte("/dev/urandom\x00")
 func getRandomData(r []byte) {
 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
-	close(fd)
+	closefd(fd)
 	extendRandom(r, int(n))
 }
 
@@ -81,7 +81,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 
 	var oset uint32
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	errno := bsdthread_create(stk, mp, mp.g0, funcPC(mstart))
+	errno := bsdthread_create(stk, unsafe.Pointer(mp), funcPC(mstart))
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 
 	if errno < 0 {
@@ -89,6 +89,35 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 		throw("runtime.newosproc")
 	}
 }
+
+// newosproc0 is a version of newosproc that can be called before the runtime
+// is initialized.
+//
+// As Go uses bsdthread_register when running without cgo, this function is
+// not safe to use after initialization as it does not pass an M as fnarg.
+//
+//go:nosplit
+func newosproc0(stacksize uintptr, fn unsafe.Pointer, fnarg uintptr) {
+	stack := sysAlloc(stacksize, &memstats.stacks_sys)
+	if stack == nil {
+		write(2, unsafe.Pointer(&failallocatestack[0]), int32(len(failallocatestack)))
+		exit(1)
+	}
+	stk := unsafe.Pointer(uintptr(stack) + stacksize)
+
+	var oset uint32
+	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+	errno := bsdthread_create(stk, fn, fnarg)
+	sigprocmask(_SIG_SETMASK, &oset, nil)
+
+	if errno < 0 {
+		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+		exit(1)
+	}
+}
+
+var failallocatestack = []byte("runtime: failed to allocate stack for the new OS thread\n")
+var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
 
 // Called to initialize a new m (including the bootstrap m).
 // Called on the parent thread (main thread in case of bootstrap), can allocate memory.

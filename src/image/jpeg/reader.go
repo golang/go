@@ -170,7 +170,7 @@ func (d *decoder) fill() error {
 // can happen when expecting to read a 0xff 0x00 byte-stuffed byte.
 func (d *decoder) unreadByteStuffedByte() {
 	if d.bytes.nUnreadable == 0 {
-		panic("jpeg: unreadByteStuffedByte call cannot be fulfilled")
+		return
 	}
 	d.bytes.i -= d.bytes.nUnreadable
 	d.bytes.nUnreadable = 0
@@ -217,18 +217,19 @@ func (d *decoder) readByteStuffedByte() (x byte, err error) {
 		return 0xff, nil
 	}
 
+	d.bytes.nUnreadable = 0
+
 	x, err = d.readByte()
 	if err != nil {
 		return 0, err
 	}
+	d.bytes.nUnreadable = 1
 	if x != 0xff {
-		d.bytes.nUnreadable = 1
 		return x, nil
 	}
 
 	x, err = d.readByte()
 	if err != nil {
-		d.bytes.nUnreadable = 1
 		return 0, err
 	}
 	d.bytes.nUnreadable = 2
@@ -242,12 +243,7 @@ func (d *decoder) readByteStuffedByte() (x byte, err error) {
 // stuffing.
 func (d *decoder) readFull(p []byte) error {
 	// Unread the overshot bytes, if any.
-	if d.bytes.nUnreadable != 0 {
-		if d.bits.n >= 8 {
-			d.unreadByteStuffedByte()
-		}
-		d.bytes.nUnreadable = 0
-	}
+	d.unreadByteStuffedByte()
 
 	for {
 		n := copy(p, d.bytes.buf[d.bytes.i:d.bytes.j])
@@ -269,12 +265,7 @@ func (d *decoder) readFull(p []byte) error {
 // ignore ignores the next n bytes.
 func (d *decoder) ignore(n int) error {
 	// Unread the overshot bytes, if any.
-	if d.bytes.nUnreadable != 0 {
-		if d.bits.n >= 8 {
-			d.unreadByteStuffedByte()
-		}
-		d.bytes.nUnreadable = 0
-	}
+	d.unreadByteStuffedByte()
 
 	for {
 		m := d.bytes.j - d.bytes.i
@@ -298,6 +289,9 @@ func (d *decoder) ignore(n int) error {
 
 // Specified in section B.2.2.
 func (d *decoder) processSOF(n int) error {
+	if d.nComp != 0 {
+		return FormatError("multiple SOF markers")
+	}
 	switch n {
 	case 6 + 3*1: // Grayscale image.
 		d.nComp = 1

@@ -7,6 +7,7 @@ package runtime
 import _ "unsafe" // for go:linkname
 
 //go:generate go run wincallback.go
+//go:generate go run mkduff.go
 
 var ticks struct {
 	lock mutex

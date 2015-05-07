@@ -5,94 +5,258 @@ package syscall
 
 import "unsafe"
 
-var (
-	modlibc      = newLazySO("libc.so")
-	modlibsocket = newLazySO("libsocket.so")
+//go:cgo_import_dynamic libc_getgroups getgroups "libc.so"
+//go:cgo_import_dynamic libc_setgroups setgroups "libc.so"
+//go:cgo_import_dynamic libc_fcntl fcntl "libc.so"
+//go:cgo_import_dynamic libc_accept accept "libsocket.so"
+//go:cgo_import_dynamic libc_sendmsg sendmsg "libsocket.so"
+//go:cgo_import_dynamic libc_Access access "libc.so"
+//go:cgo_import_dynamic libc_Adjtime adjtime "libc.so"
+//go:cgo_import_dynamic libc_Chdir chdir "libc.so"
+//go:cgo_import_dynamic libc_Chmod chmod "libc.so"
+//go:cgo_import_dynamic libc_Chown chown "libc.so"
+//go:cgo_import_dynamic libc_Chroot chroot "libc.so"
+//go:cgo_import_dynamic libc_Close close "libc.so"
+//go:cgo_import_dynamic libc_Dup dup "libc.so"
+//go:cgo_import_dynamic libc_Exit exit "libc.so"
+//go:cgo_import_dynamic libc_Fchdir fchdir "libc.so"
+//go:cgo_import_dynamic libc_Fchmod fchmod "libc.so"
+//go:cgo_import_dynamic libc_Fchown fchown "libc.so"
+//go:cgo_import_dynamic libc_Fpathconf fpathconf "libc.so"
+//go:cgo_import_dynamic libc_Fstat fstat "libc.so"
+//go:cgo_import_dynamic libc_Getdents getdents "libc.so"
+//go:cgo_import_dynamic libc_Getgid getgid "libc.so"
+//go:cgo_import_dynamic libc_Getpid getpid "libc.so"
+//go:cgo_import_dynamic libc_Geteuid geteuid "libc.so"
+//go:cgo_import_dynamic libc_Getegid getegid "libc.so"
+//go:cgo_import_dynamic libc_Getppid getppid "libc.so"
+//go:cgo_import_dynamic libc_Getpriority getpriority "libc.so"
+//go:cgo_import_dynamic libc_Getrlimit getrlimit "libc.so"
+//go:cgo_import_dynamic libc_Gettimeofday gettimeofday "libc.so"
+//go:cgo_import_dynamic libc_Getuid getuid "libc.so"
+//go:cgo_import_dynamic libc_Kill kill "libc.so"
+//go:cgo_import_dynamic libc_Lchown lchown "libc.so"
+//go:cgo_import_dynamic libc_Link link "libc.so"
+//go:cgo_import_dynamic libc_listen listen "libsocket.so"
+//go:cgo_import_dynamic libc_Lstat lstat "libc.so"
+//go:cgo_import_dynamic libc_Mkdir mkdir "libc.so"
+//go:cgo_import_dynamic libc_Mknod mknod "libc.so"
+//go:cgo_import_dynamic libc_Nanosleep nanosleep "libc.so"
+//go:cgo_import_dynamic libc_Open open "libc.so"
+//go:cgo_import_dynamic libc_Pathconf pathconf "libc.so"
+//go:cgo_import_dynamic libc_Pread pread "libc.so"
+//go:cgo_import_dynamic libc_Pwrite pwrite "libc.so"
+//go:cgo_import_dynamic libc_read read "libc.so"
+//go:cgo_import_dynamic libc_Readlink readlink "libc.so"
+//go:cgo_import_dynamic libc_Rename rename "libc.so"
+//go:cgo_import_dynamic libc_Rmdir rmdir "libc.so"
+//go:cgo_import_dynamic libc_lseek lseek "libc.so"
+//go:cgo_import_dynamic libc_sendfile sendfile "libsendfile.so"
+//go:cgo_import_dynamic libc_Setegid setegid "libc.so"
+//go:cgo_import_dynamic libc_Seteuid seteuid "libc.so"
+//go:cgo_import_dynamic libc_Setgid setgid "libc.so"
+//go:cgo_import_dynamic libc_Setpgid setpgid "libc.so"
+//go:cgo_import_dynamic libc_Setpriority setpriority "libc.so"
+//go:cgo_import_dynamic libc_Setregid setregid "libc.so"
+//go:cgo_import_dynamic libc_Setreuid setreuid "libc.so"
+//go:cgo_import_dynamic libc_Setrlimit setrlimit "libc.so"
+//go:cgo_import_dynamic libc_Setsid setsid "libc.so"
+//go:cgo_import_dynamic libc_Setuid setuid "libc.so"
+//go:cgo_import_dynamic libc_shutdown shutdown "libsocket.so"
+//go:cgo_import_dynamic libc_Stat stat "libc.so"
+//go:cgo_import_dynamic libc_Symlink symlink "libc.so"
+//go:cgo_import_dynamic libc_Sync sync "libc.so"
+//go:cgo_import_dynamic libc_Truncate truncate "libc.so"
+//go:cgo_import_dynamic libc_Fsync fsync "libc.so"
+//go:cgo_import_dynamic libc_Ftruncate ftruncate "libc.so"
+//go:cgo_import_dynamic libc_Umask umask "libc.so"
+//go:cgo_import_dynamic libc_Unlink unlink "libc.so"
+//go:cgo_import_dynamic libc_Utimes utimes "libc.so"
+//go:cgo_import_dynamic libc_bind bind "libsocket.so"
+//go:cgo_import_dynamic libc_connect connect "libsocket.so"
+//go:cgo_import_dynamic libc_mmap mmap "libc.so"
+//go:cgo_import_dynamic libc_munmap munmap "libc.so"
+//go:cgo_import_dynamic libc_sendto sendto "libsocket.so"
+//go:cgo_import_dynamic libc_socket socket "libsocket.so"
+//go:cgo_import_dynamic libc_socketpair socketpair "libsocket.so"
+//go:cgo_import_dynamic libc_write write "libc.so"
+//go:cgo_import_dynamic libc_getsockopt getsockopt "libsocket.so"
+//go:cgo_import_dynamic libc_getpeername getpeername "libsocket.so"
+//go:cgo_import_dynamic libc_getsockname getsockname "libsocket.so"
+//go:cgo_import_dynamic libc_setsockopt setsockopt "libsocket.so"
+//go:cgo_import_dynamic libc_recvfrom recvfrom "libsocket.so"
+//go:cgo_import_dynamic libc_recvmsg recvmsg "libsocket.so"
 
-	procgetgroups    = modlibc.NewProc("getgroups")
-	procsetgroups    = modlibc.NewProc("setgroups")
-	procfcntl        = modlibc.NewProc("fcntl")
-	procaccept       = modlibsocket.NewProc("accept")
-	procsendmsg      = modlibsocket.NewProc("sendmsg")
-	procAccess       = modlibc.NewProc("access")
-	procAdjtime      = modlibc.NewProc("adjtime")
-	procChdir        = modlibc.NewProc("chdir")
-	procChmod        = modlibc.NewProc("chmod")
-	procChown        = modlibc.NewProc("chown")
-	procChroot       = modlibc.NewProc("chroot")
-	procClose        = modlibc.NewProc("close")
-	procDup          = modlibc.NewProc("dup")
-	procExit         = modlibc.NewProc("exit")
-	procFchdir       = modlibc.NewProc("fchdir")
-	procFchmod       = modlibc.NewProc("fchmod")
-	procFchown       = modlibc.NewProc("fchown")
-	procFpathconf    = modlibc.NewProc("fpathconf")
-	procFstat        = modlibc.NewProc("fstat")
-	procGetdents     = modlibc.NewProc("getdents")
-	procGetgid       = modlibc.NewProc("getgid")
-	procGetpid       = modlibc.NewProc("getpid")
-	procGeteuid      = modlibc.NewProc("geteuid")
-	procGetegid      = modlibc.NewProc("getegid")
-	procGetppid      = modlibc.NewProc("getppid")
-	procGetpriority  = modlibc.NewProc("getpriority")
-	procGetrlimit    = modlibc.NewProc("getrlimit")
-	procGettimeofday = modlibc.NewProc("gettimeofday")
-	procGetuid       = modlibc.NewProc("getuid")
-	procKill         = modlibc.NewProc("kill")
-	procLchown       = modlibc.NewProc("lchown")
-	procLink         = modlibc.NewProc("link")
-	proclisten       = modlibsocket.NewProc("listen")
-	procLstat        = modlibc.NewProc("lstat")
-	procMkdir        = modlibc.NewProc("mkdir")
-	procMknod        = modlibc.NewProc("mknod")
-	procNanosleep    = modlibc.NewProc("nanosleep")
-	procOpen         = modlibc.NewProc("open")
-	procPathconf     = modlibc.NewProc("pathconf")
-	procPread        = modlibc.NewProc("pread")
-	procPwrite       = modlibc.NewProc("pwrite")
-	procread         = modlibc.NewProc("read")
-	procReadlink     = modlibc.NewProc("readlink")
-	procRename       = modlibc.NewProc("rename")
-	procRmdir        = modlibc.NewProc("rmdir")
-	proclseek        = modlibc.NewProc("lseek")
-	procSetegid      = modlibc.NewProc("setegid")
-	procSeteuid      = modlibc.NewProc("seteuid")
-	procSetgid       = modlibc.NewProc("setgid")
-	procSetpgid      = modlibc.NewProc("setpgid")
-	procSetpriority  = modlibc.NewProc("setpriority")
-	procSetregid     = modlibc.NewProc("setregid")
-	procSetreuid     = modlibc.NewProc("setreuid")
-	procSetrlimit    = modlibc.NewProc("setrlimit")
-	procSetsid       = modlibc.NewProc("setsid")
-	procSetuid       = modlibc.NewProc("setuid")
-	procshutdown     = modlibsocket.NewProc("shutdown")
-	procStat         = modlibc.NewProc("stat")
-	procSymlink      = modlibc.NewProc("symlink")
-	procSync         = modlibc.NewProc("sync")
-	procTruncate     = modlibc.NewProc("truncate")
-	procFsync        = modlibc.NewProc("fsync")
-	procFtruncate    = modlibc.NewProc("ftruncate")
-	procUmask        = modlibc.NewProc("umask")
-	procUnlink       = modlibc.NewProc("unlink")
-	procUtimes       = modlibc.NewProc("utimes")
-	procbind         = modlibsocket.NewProc("bind")
-	procconnect      = modlibsocket.NewProc("connect")
-	procmmap         = modlibc.NewProc("mmap")
-	procmunmap       = modlibc.NewProc("munmap")
-	procsendto       = modlibsocket.NewProc("sendto")
-	procsocket       = modlibsocket.NewProc("socket")
-	procsocketpair   = modlibsocket.NewProc("socketpair")
-	procwrite        = modlibc.NewProc("write")
-	procgetsockopt   = modlibsocket.NewProc("getsockopt")
-	procgetpeername  = modlibsocket.NewProc("getpeername")
-	procgetsockname  = modlibsocket.NewProc("getsockname")
-	procsetsockopt   = modlibsocket.NewProc("setsockopt")
-	procrecvfrom     = modlibsocket.NewProc("recvfrom")
-	procrecvmsg      = modlibsocket.NewProc("recvmsg")
+//go:linkname libc_getgroups libc_getgroups
+//go:linkname libc_setgroups libc_setgroups
+//go:linkname libc_fcntl libc_fcntl
+//go:linkname libc_accept libc_accept
+//go:linkname libc_sendmsg libc_sendmsg
+//go:linkname libc_Access libc_Access
+//go:linkname libc_Adjtime libc_Adjtime
+//go:linkname libc_Chdir libc_Chdir
+//go:linkname libc_Chmod libc_Chmod
+//go:linkname libc_Chown libc_Chown
+//go:linkname libc_Chroot libc_Chroot
+//go:linkname libc_Close libc_Close
+//go:linkname libc_Dup libc_Dup
+//go:linkname libc_Exit libc_Exit
+//go:linkname libc_Fchdir libc_Fchdir
+//go:linkname libc_Fchmod libc_Fchmod
+//go:linkname libc_Fchown libc_Fchown
+//go:linkname libc_Fpathconf libc_Fpathconf
+//go:linkname libc_Fstat libc_Fstat
+//go:linkname libc_Getdents libc_Getdents
+//go:linkname libc_Getgid libc_Getgid
+//go:linkname libc_Getpid libc_Getpid
+//go:linkname libc_Geteuid libc_Geteuid
+//go:linkname libc_Getegid libc_Getegid
+//go:linkname libc_Getppid libc_Getppid
+//go:linkname libc_Getpriority libc_Getpriority
+//go:linkname libc_Getrlimit libc_Getrlimit
+//go:linkname libc_Gettimeofday libc_Gettimeofday
+//go:linkname libc_Getuid libc_Getuid
+//go:linkname libc_Kill libc_Kill
+//go:linkname libc_Lchown libc_Lchown
+//go:linkname libc_Link libc_Link
+//go:linkname libc_listen libc_listen
+//go:linkname libc_Lstat libc_Lstat
+//go:linkname libc_Mkdir libc_Mkdir
+//go:linkname libc_Mknod libc_Mknod
+//go:linkname libc_Nanosleep libc_Nanosleep
+//go:linkname libc_Open libc_Open
+//go:linkname libc_Pathconf libc_Pathconf
+//go:linkname libc_Pread libc_Pread
+//go:linkname libc_Pwrite libc_Pwrite
+//go:linkname libc_read libc_read
+//go:linkname libc_Readlink libc_Readlink
+//go:linkname libc_Rename libc_Rename
+//go:linkname libc_Rmdir libc_Rmdir
+//go:linkname libc_lseek libc_lseek
+//go:linkname libc_sendfile libc_sendfile
+//go:linkname libc_Setegid libc_Setegid
+//go:linkname libc_Seteuid libc_Seteuid
+//go:linkname libc_Setgid libc_Setgid
+//go:linkname libc_Setpgid libc_Setpgid
+//go:linkname libc_Setpriority libc_Setpriority
+//go:linkname libc_Setregid libc_Setregid
+//go:linkname libc_Setreuid libc_Setreuid
+//go:linkname libc_Setrlimit libc_Setrlimit
+//go:linkname libc_Setsid libc_Setsid
+//go:linkname libc_Setuid libc_Setuid
+//go:linkname libc_shutdown libc_shutdown
+//go:linkname libc_Stat libc_Stat
+//go:linkname libc_Symlink libc_Symlink
+//go:linkname libc_Sync libc_Sync
+//go:linkname libc_Truncate libc_Truncate
+//go:linkname libc_Fsync libc_Fsync
+//go:linkname libc_Ftruncate libc_Ftruncate
+//go:linkname libc_Umask libc_Umask
+//go:linkname libc_Unlink libc_Unlink
+//go:linkname libc_Utimes libc_Utimes
+//go:linkname libc_bind libc_bind
+//go:linkname libc_connect libc_connect
+//go:linkname libc_mmap libc_mmap
+//go:linkname libc_munmap libc_munmap
+//go:linkname libc_sendto libc_sendto
+//go:linkname libc_socket libc_socket
+//go:linkname libc_socketpair libc_socketpair
+//go:linkname libc_write libc_write
+//go:linkname libc_getsockopt libc_getsockopt
+//go:linkname libc_getpeername libc_getpeername
+//go:linkname libc_getsockname libc_getsockname
+//go:linkname libc_setsockopt libc_setsockopt
+//go:linkname libc_recvfrom libc_recvfrom
+//go:linkname libc_recvmsg libc_recvmsg
+
+type libcFunc uintptr
+
+var (
+	libc_getgroups,
+	libc_setgroups,
+	libc_fcntl,
+	libc_accept,
+	libc_sendmsg,
+	libc_Access,
+	libc_Adjtime,
+	libc_Chdir,
+	libc_Chmod,
+	libc_Chown,
+	libc_Chroot,
+	libc_Close,
+	libc_Dup,
+	libc_Exit,
+	libc_Fchdir,
+	libc_Fchmod,
+	libc_Fchown,
+	libc_Fpathconf,
+	libc_Fstat,
+	libc_Getdents,
+	libc_Getgid,
+	libc_Getpid,
+	libc_Geteuid,
+	libc_Getegid,
+	libc_Getppid,
+	libc_Getpriority,
+	libc_Getrlimit,
+	libc_Gettimeofday,
+	libc_Getuid,
+	libc_Kill,
+	libc_Lchown,
+	libc_Link,
+	libc_listen,
+	libc_Lstat,
+	libc_Mkdir,
+	libc_Mknod,
+	libc_Nanosleep,
+	libc_Open,
+	libc_Pathconf,
+	libc_Pread,
+	libc_Pwrite,
+	libc_read,
+	libc_Readlink,
+	libc_Rename,
+	libc_Rmdir,
+	libc_lseek,
+	libc_sendfile,
+	libc_Setegid,
+	libc_Seteuid,
+	libc_Setgid,
+	libc_Setpgid,
+	libc_Setpriority,
+	libc_Setregid,
+	libc_Setreuid,
+	libc_Setrlimit,
+	libc_Setsid,
+	libc_Setuid,
+	libc_shutdown,
+	libc_Stat,
+	libc_Symlink,
+	libc_Sync,
+	libc_Truncate,
+	libc_Fsync,
+	libc_Ftruncate,
+	libc_Umask,
+	libc_Unlink,
+	libc_Utimes,
+	libc_bind,
+	libc_connect,
+	libc_mmap,
+	libc_munmap,
+	libc_sendto,
+	libc_socket,
+	libc_socketpair,
+	libc_write,
+	libc_getsockopt,
+	libc_getpeername,
+	libc_getsockname,
+	libc_setsockopt,
+	libc_recvfrom,
+	libc_recvmsg libcFunc
 )
 
 func getgroups(ngid int, gid *_Gid_t) (n int, err error) {
-	r0, _, e1 := rawSysvicall6(procgetgroups.Addr(), 2, uintptr(ngid), uintptr(unsafe.Pointer(gid)), 0, 0, 0, 0)
+	r0, _, e1 := rawSysvicall6(uintptr(unsafe.Pointer(&libc_getgroups)), 2, uintptr(ngid), uintptr(unsafe.Pointer(gid)), 0, 0, 0, 0)
 	n = int(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -101,7 +265,7 @@ func getgroups(ngid int, gid *_Gid_t) (n int, err error) {
 }
 
 func setgroups(ngid int, gid *_Gid_t) (err error) {
-	_, _, e1 := rawSysvicall6(procsetgroups.Addr(), 2, uintptr(ngid), uintptr(unsafe.Pointer(gid)), 0, 0, 0, 0)
+	_, _, e1 := rawSysvicall6(uintptr(unsafe.Pointer(&libc_setgroups)), 2, uintptr(ngid), uintptr(unsafe.Pointer(gid)), 0, 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -109,7 +273,7 @@ func setgroups(ngid int, gid *_Gid_t) (err error) {
 }
 
 func fcntl(fd int, cmd int, arg int) (val int, err error) {
-	r0, _, e1 := sysvicall6(procfcntl.Addr(), 3, uintptr(fd), uintptr(cmd), uintptr(arg), 0, 0, 0)
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_fcntl)), 3, uintptr(fd), uintptr(cmd), uintptr(arg), 0, 0, 0)
 	val = int(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -118,7 +282,7 @@ func fcntl(fd int, cmd int, arg int) (val int, err error) {
 }
 
 func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
-	r0, _, e1 := sysvicall6(procaccept.Addr(), 3, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0)
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_accept)), 3, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0)
 	fd = int(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -127,7 +291,7 @@ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
 }
 
 func sendmsg(s int, msg *Msghdr, flags int) (n int, err error) {
-	r0, _, e1 := sysvicall6(procsendmsg.Addr(), 3, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags), 0, 0, 0)
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_sendmsg)), 3, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags), 0, 0, 0)
 	n = int(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -141,7 +305,7 @@ func Access(path string, mode uint32) (err error) {
 	if err != nil {
 		return
 	}
-	_, _, e1 := sysvicall6(procAccess.Addr(), 2, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0, 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Access)), 2, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0, 0, 0, 0)
 	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -150,7 +314,7 @@ func Access(path string, mode uint32) (err error) {
 }
 
 func Adjtime(delta *Timeval, olddelta *Timeval) (err error) {
-	_, _, e1 := sysvicall6(procAdjtime.Addr(), 2, uintptr(unsafe.Pointer(delta)), uintptr(unsafe.Pointer(olddelta)), 0, 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Adjtime)), 2, uintptr(unsafe.Pointer(delta)), uintptr(unsafe.Pointer(olddelta)), 0, 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -163,7 +327,7 @@ func Chdir(path string) (err error) {
 	if err != nil {
 		return
 	}
-	_, _, e1 := sysvicall6(procChdir.Addr(), 1, uintptr(unsafe.Pointer(_p0)), 0, 0, 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Chdir)), 1, uintptr(unsafe.Pointer(_p0)), 0, 0, 0, 0, 0)
 	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -177,7 +341,7 @@ func Chmod(path string, mode uint32) (err error) {
 	if err != nil {
 		return
 	}
-	_, _, e1 := sysvicall6(procChmod.Addr(), 2, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0, 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Chmod)), 2, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0, 0, 0, 0)
 	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -191,7 +355,7 @@ func Chown(path string, uid int, gid int) (err error) {
 	if err != nil {
 		return
 	}
-	_, _, e1 := sysvicall6(procChown.Addr(), 3, uintptr(unsafe.Pointer(_p0)), uintptr(uid), uintptr(gid), 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Chown)), 3, uintptr(unsafe.Pointer(_p0)), uintptr(uid), uintptr(gid), 0, 0, 0)
 	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -205,7 +369,7 @@ func Chroot(path string) (err error) {
 	if err != nil {
 		return
 	}
-	_, _, e1 := sysvicall6(procChroot.Addr(), 1, uintptr(unsafe.Pointer(_p0)), 0, 0, 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Chroot)), 1, uintptr(unsafe.Pointer(_p0)), 0, 0, 0, 0, 0)
 	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -214,7 +378,7 @@ func Chroot(path string) (err error) {
 }
 
 func Close(fd int) (err error) {
-	_, _, e1 := sysvicall6(procClose.Addr(), 1, uintptr(fd), 0, 0, 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Close)), 1, uintptr(fd), 0, 0, 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -222,7 +386,7 @@ func Close(fd int) (err error) {
 }
 
 func Dup(fd int) (nfd int, err error) {
-	r0, _, e1 := sysvicall6(procDup.Addr(), 1, uintptr(fd), 0, 0, 0, 0, 0)
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Dup)), 1, uintptr(fd), 0, 0, 0, 0, 0)
 	nfd = int(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -231,12 +395,12 @@ func Dup(fd int) (nfd int, err error) {
 }
 
 func Exit(code int) {
-	sysvicall6(procExit.Addr(), 1, uintptr(code), 0, 0, 0, 0, 0)
+	sysvicall6(uintptr(unsafe.Pointer(&libc_Exit)), 1, uintptr(code), 0, 0, 0, 0, 0)
 	return
 }
 
 func Fchdir(fd int) (err error) {
-	_, _, e1 := sysvicall6(procFchdir.Addr(), 1, uintptr(fd), 0, 0, 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Fchdir)), 1, uintptr(fd), 0, 0, 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -244,7 +408,7 @@ func Fchdir(fd int) (err error) {
 }
 
 func Fchmod(fd int, mode uint32) (err error) {
-	_, _, e1 := sysvicall6(procFchmod.Addr(), 2, uintptr(fd), uintptr(mode), 0, 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Fchmod)), 2, uintptr(fd), uintptr(mode), 0, 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -252,7 +416,7 @@ func Fchmod(fd int, mode uint32) (err error) {
 }
 
 func Fchown(fd int, uid int, gid int) (err error) {
-	_, _, e1 := sysvicall6(procFchown.Addr(), 3, uintptr(fd), uintptr(uid), uintptr(gid), 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Fchown)), 3, uintptr(fd), uintptr(uid), uintptr(gid), 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -260,7 +424,7 @@ func Fchown(fd int, uid int, gid int) (err error) {
 }
 
 func Fpathconf(fd int, name int) (val int, err error) {
-	r0, _, e1 := sysvicall6(procFpathconf.Addr(), 2, uintptr(fd), uintptr(name), 0, 0, 0, 0)
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Fpathconf)), 2, uintptr(fd), uintptr(name), 0, 0, 0, 0)
 	val = int(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -269,7 +433,7 @@ func Fpathconf(fd int, name int) (val int, err error) {
 }
 
 func Fstat(fd int, stat *Stat_t) (err error) {
-	_, _, e1 := sysvicall6(procFstat.Addr(), 2, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0, 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Fstat)), 2, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0, 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -281,7 +445,7 @@ func Getdents(fd int, buf []byte, basep *uintptr) (n int, err error) {
 	if len(buf) > 0 {
 		_p0 = &buf[0]
 	}
-	r0, _, e1 := sysvicall6(procGetdents.Addr(), 4, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(unsafe.Pointer(basep)), 0, 0)
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Getdents)), 4, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(unsafe.Pointer(basep)), 0, 0)
 	n = int(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -290,37 +454,37 @@ func Getdents(fd int, buf []byte, basep *uintptr) (n int, err error) {
 }
 
 func Getgid() (gid int) {
-	r0, _, _ := rawSysvicall6(procGetgid.Addr(), 0, 0, 0, 0, 0, 0, 0)
+	r0, _, _ := rawSysvicall6(uintptr(unsafe.Pointer(&libc_Getgid)), 0, 0, 0, 0, 0, 0, 0)
 	gid = int(r0)
 	return
 }
 
 func Getpid() (pid int) {
-	r0, _, _ := rawSysvicall6(procGetpid.Addr(), 0, 0, 0, 0, 0, 0, 0)
+	r0, _, _ := rawSysvicall6(uintptr(unsafe.Pointer(&libc_Getpid)), 0, 0, 0, 0, 0, 0, 0)
 	pid = int(r0)
 	return
 }
 
 func Geteuid() (euid int) {
-	r0, _, _ := sysvicall6(procGeteuid.Addr(), 0, 0, 0, 0, 0, 0, 0)
+	r0, _, _ := sysvicall6(uintptr(unsafe.Pointer(&libc_Geteuid)), 0, 0, 0, 0, 0, 0, 0)
 	euid = int(r0)
 	return
 }
 
 func Getegid() (egid int) {
-	r0, _, _ := sysvicall6(procGetegid.Addr(), 0, 0, 0, 0, 0, 0, 0)
+	r0, _, _ := sysvicall6(uintptr(unsafe.Pointer(&libc_Getegid)), 0, 0, 0, 0, 0, 0, 0)
 	egid = int(r0)
 	return
 }
 
 func Getppid() (ppid int) {
-	r0, _, _ := sysvicall6(procGetppid.Addr(), 0, 0, 0, 0, 0, 0, 0)
+	r0, _, _ := sysvicall6(uintptr(unsafe.Pointer(&libc_Getppid)), 0, 0, 0, 0, 0, 0, 0)
 	ppid = int(r0)
 	return
 }
 
 func Getpriority(which int, who int) (n int, err error) {
-	r0, _, e1 := sysvicall6(procGetpriority.Addr(), 2, uintptr(which), uintptr(who), 0, 0, 0, 0)
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Getpriority)), 2, uintptr(which), uintptr(who), 0, 0, 0, 0)
 	n = int(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -329,7 +493,7 @@ func Getpriority(which int, who int) (n int, err error) {
 }
 
 func Getrlimit(which int, lim *Rlimit) (err error) {
-	_, _, e1 := rawSysvicall6(procGetrlimit.Addr(), 2, uintptr(which), uintptr(unsafe.Pointer(lim)), 0, 0, 0, 0)
+	_, _, e1 := rawSysvicall6(uintptr(unsafe.Pointer(&libc_Getrlimit)), 2, uintptr(which), uintptr(unsafe.Pointer(lim)), 0, 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -337,7 +501,7 @@ func Getrlimit(which int, lim *Rlimit) (err error) {
 }
 
 func Gettimeofday(tv *Timeval) (err error) {
-	_, _, e1 := rawSysvicall6(procGettimeofday.Addr(), 1, uintptr(unsafe.Pointer(tv)), 0, 0, 0, 0, 0)
+	_, _, e1 := rawSysvicall6(uintptr(unsafe.Pointer(&libc_Gettimeofday)), 1, uintptr(unsafe.Pointer(tv)), 0, 0, 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -345,13 +509,13 @@ func Gettimeofday(tv *Timeval) (err error) {
 }
 
 func Getuid() (uid int) {
-	r0, _, _ := rawSysvicall6(procGetuid.Addr(), 0, 0, 0, 0, 0, 0, 0)
+	r0, _, _ := rawSysvicall6(uintptr(unsafe.Pointer(&libc_Getuid)), 0, 0, 0, 0, 0, 0, 0)
 	uid = int(r0)
 	return
 }
 
 func Kill(pid int, signum Signal) (err error) {
-	_, _, e1 := sysvicall6(procKill.Addr(), 2, uintptr(pid), uintptr(signum), 0, 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Kill)), 2, uintptr(pid), uintptr(signum), 0, 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -364,7 +528,7 @@ func Lchown(path string, uid int, gid int) (err error) {
 	if err != nil {
 		return
 	}
-	_, _, e1 := sysvicall6(procLchown.Addr(), 3, uintptr(unsafe.Pointer(_p0)), uintptr(uid), uintptr(gid), 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Lchown)), 3, uintptr(unsafe.Pointer(_p0)), uintptr(uid), uintptr(gid), 0, 0, 0)
 	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -383,7 +547,7 @@ func Link(path string, link string) (err error) {
 	if err != nil {
 		return
 	}
-	_, _, e1 := sysvicall6(procLink.Addr(), 2, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), 0, 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Link)), 2, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), 0, 0, 0, 0)
 	use(unsafe.Pointer(_p0))
 	use(unsafe.Pointer(_p1))
 	if e1 != 0 {
@@ -393,7 +557,7 @@ func Link(path string, link string) (err error) {
 }
 
 func Listen(s int, backlog int) (err error) {
-	_, _, e1 := sysvicall6(proclisten.Addr(), 2, uintptr(s), uintptr(backlog), 0, 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_listen)), 2, uintptr(s), uintptr(backlog), 0, 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -406,7 +570,7 @@ func Lstat(path string, stat *Stat_t) (err error) {
 	if err != nil {
 		return
 	}
-	_, _, e1 := sysvicall6(procLstat.Addr(), 2, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), 0, 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Lstat)), 2, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), 0, 0, 0, 0)
 	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -420,7 +584,7 @@ func Mkdir(path string, mode uint32) (err error) {
 	if err != nil {
 		return
 	}
-	_, _, e1 := sysvicall6(procMkdir.Addr(), 2, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0, 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Mkdir)), 2, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0, 0, 0, 0)
 	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -434,7 +598,7 @@ func Mknod(path string, mode uint32, dev int) (err error) {
 	if err != nil {
 		return
 	}
-	_, _, e1 := sysvicall6(procMknod.Addr(), 3, uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(dev), 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Mknod)), 3, uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(dev), 0, 0, 0)
 	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -443,7 +607,7 @@ func Mknod(path string, mode uint32, dev int) (err error) {
 }
 
 func Nanosleep(time *Timespec, leftover *Timespec) (err error) {
-	_, _, e1 := sysvicall6(procNanosleep.Addr(), 2, uintptr(unsafe.Pointer(time)), uintptr(unsafe.Pointer(leftover)), 0, 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Nanosleep)), 2, uintptr(unsafe.Pointer(time)), uintptr(unsafe.Pointer(leftover)), 0, 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -456,7 +620,7 @@ func Open(path string, mode int, perm uint32) (fd int, err error) {
 	if err != nil {
 		return
 	}
-	r0, _, e1 := sysvicall6(procOpen.Addr(), 3, uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(perm), 0, 0, 0)
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Open)), 3, uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(perm), 0, 0, 0)
 	use(unsafe.Pointer(_p0))
 	fd = int(r0)
 	if e1 != 0 {
@@ -471,7 +635,7 @@ func Pathconf(path string, name int) (val int, err error) {
 	if err != nil {
 		return
 	}
-	r0, _, e1 := sysvicall6(procPathconf.Addr(), 2, uintptr(unsafe.Pointer(_p0)), uintptr(name), 0, 0, 0, 0)
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Pathconf)), 2, uintptr(unsafe.Pointer(_p0)), uintptr(name), 0, 0, 0, 0)
 	use(unsafe.Pointer(_p0))
 	val = int(r0)
 	if e1 != 0 {
@@ -485,7 +649,7 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
 	if len(p) > 0 {
 		_p0 = &p[0]
 	}
-	r0, _, e1 := sysvicall6(procPread.Addr(), 4, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), 0, 0)
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Pread)), 4, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), 0, 0)
 	n = int(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -498,7 +662,7 @@ func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
 	if len(p) > 0 {
 		_p0 = &p[0]
 	}
-	r0, _, e1 := sysvicall6(procPwrite.Addr(), 4, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), 0, 0)
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Pwrite)), 4, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), 0, 0)
 	n = int(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -511,7 +675,7 @@ func read(fd int, p []byte) (n int, err error) {
 	if len(p) > 0 {
 		_p0 = &p[0]
 	}
-	r0, _, e1 := sysvicall6(procread.Addr(), 3, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), 0, 0, 0)
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_read)), 3, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), 0, 0, 0)
 	n = int(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -529,7 +693,7 @@ func Readlink(path string, buf []byte) (n int, err error) {
 	if len(buf) > 0 {
 		_p1 = &buf[0]
 	}
-	r0, _, e1 := sysvicall6(procReadlink.Addr(), 3, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), uintptr(len(buf)), 0, 0, 0)
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Readlink)), 3, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), uintptr(len(buf)), 0, 0, 0)
 	use(unsafe.Pointer(_p0))
 	n = int(r0)
 	if e1 != 0 {
@@ -549,7 +713,7 @@ func Rename(from string, to string) (err error) {
 	if err != nil {
 		return
 	}
-	_, _, e1 := sysvicall6(procRename.Addr(), 2, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), 0, 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Rename)), 2, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), 0, 0, 0, 0)
 	use(unsafe.Pointer(_p0))
 	use(unsafe.Pointer(_p1))
 	if e1 != 0 {
@@ -564,7 +728,7 @@ func Rmdir(path string) (err error) {
 	if err != nil {
 		return
 	}
-	_, _, e1 := sysvicall6(procRmdir.Addr(), 1, uintptr(unsafe.Pointer(_p0)), 0, 0, 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Rmdir)), 1, uintptr(unsafe.Pointer(_p0)), 0, 0, 0, 0, 0)
 	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -573,7 +737,7 @@ func Rmdir(path string) (err error) {
 }
 
 func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
-	r0, _, e1 := sysvicall6(proclseek.Addr(), 3, uintptr(fd), uintptr(offset), uintptr(whence), 0, 0, 0)
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_lseek)), 3, uintptr(fd), uintptr(offset), uintptr(whence), 0, 0, 0)
 	newoffset = int64(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -581,8 +745,17 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 	return
 }
 
+func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_sendfile)), 4, uintptr(outfd), uintptr(infd), uintptr(unsafe.Pointer(offset)), uintptr(count), 0, 0)
+	written = int(r0)
+	if e1 != 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
 func Setegid(egid int) (err error) {
-	_, _, e1 := rawSysvicall6(procSetegid.Addr(), 1, uintptr(egid), 0, 0, 0, 0, 0)
+	_, _, e1 := rawSysvicall6(uintptr(unsafe.Pointer(&libc_Setegid)), 1, uintptr(egid), 0, 0, 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -590,7 +763,7 @@ func Setegid(egid int) (err error) {
 }
 
 func Seteuid(euid int) (err error) {
-	_, _, e1 := rawSysvicall6(procSeteuid.Addr(), 1, uintptr(euid), 0, 0, 0, 0, 0)
+	_, _, e1 := rawSysvicall6(uintptr(unsafe.Pointer(&libc_Seteuid)), 1, uintptr(euid), 0, 0, 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -598,7 +771,7 @@ func Seteuid(euid int) (err error) {
 }
 
 func Setgid(gid int) (err error) {
-	_, _, e1 := rawSysvicall6(procSetgid.Addr(), 1, uintptr(gid), 0, 0, 0, 0, 0)
+	_, _, e1 := rawSysvicall6(uintptr(unsafe.Pointer(&libc_Setgid)), 1, uintptr(gid), 0, 0, 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -606,7 +779,7 @@ func Setgid(gid int) (err error) {
 }
 
 func Setpgid(pid int, pgid int) (err error) {
-	_, _, e1 := rawSysvicall6(procSetpgid.Addr(), 2, uintptr(pid), uintptr(pgid), 0, 0, 0, 0)
+	_, _, e1 := rawSysvicall6(uintptr(unsafe.Pointer(&libc_Setpgid)), 2, uintptr(pid), uintptr(pgid), 0, 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -614,7 +787,7 @@ func Setpgid(pid int, pgid int) (err error) {
 }
 
 func Setpriority(which int, who int, prio int) (err error) {
-	_, _, e1 := sysvicall6(procSetpriority.Addr(), 3, uintptr(which), uintptr(who), uintptr(prio), 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Setpriority)), 3, uintptr(which), uintptr(who), uintptr(prio), 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -622,7 +795,7 @@ func Setpriority(which int, who int, prio int) (err error) {
 }
 
 func Setregid(rgid int, egid int) (err error) {
-	_, _, e1 := rawSysvicall6(procSetregid.Addr(), 2, uintptr(rgid), uintptr(egid), 0, 0, 0, 0)
+	_, _, e1 := rawSysvicall6(uintptr(unsafe.Pointer(&libc_Setregid)), 2, uintptr(rgid), uintptr(egid), 0, 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -630,7 +803,7 @@ func Setregid(rgid int, egid int) (err error) {
 }
 
 func Setreuid(ruid int, euid int) (err error) {
-	_, _, e1 := rawSysvicall6(procSetreuid.Addr(), 2, uintptr(ruid), uintptr(euid), 0, 0, 0, 0)
+	_, _, e1 := rawSysvicall6(uintptr(unsafe.Pointer(&libc_Setreuid)), 2, uintptr(ruid), uintptr(euid), 0, 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -638,7 +811,7 @@ func Setreuid(ruid int, euid int) (err error) {
 }
 
 func Setrlimit(which int, lim *Rlimit) (err error) {
-	_, _, e1 := rawSysvicall6(procSetrlimit.Addr(), 2, uintptr(which), uintptr(unsafe.Pointer(lim)), 0, 0, 0, 0)
+	_, _, e1 := rawSysvicall6(uintptr(unsafe.Pointer(&libc_Setrlimit)), 2, uintptr(which), uintptr(unsafe.Pointer(lim)), 0, 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -646,7 +819,7 @@ func Setrlimit(which int, lim *Rlimit) (err error) {
 }
 
 func Setsid() (pid int, err error) {
-	r0, _, e1 := rawSysvicall6(procSetsid.Addr(), 0, 0, 0, 0, 0, 0, 0)
+	r0, _, e1 := rawSysvicall6(uintptr(unsafe.Pointer(&libc_Setsid)), 0, 0, 0, 0, 0, 0, 0)
 	pid = int(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -655,7 +828,7 @@ func Setsid() (pid int, err error) {
 }
 
 func Setuid(uid int) (err error) {
-	_, _, e1 := rawSysvicall6(procSetuid.Addr(), 1, uintptr(uid), 0, 0, 0, 0, 0)
+	_, _, e1 := rawSysvicall6(uintptr(unsafe.Pointer(&libc_Setuid)), 1, uintptr(uid), 0, 0, 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -663,7 +836,7 @@ func Setuid(uid int) (err error) {
 }
 
 func Shutdown(s int, how int) (err error) {
-	_, _, e1 := sysvicall6(procshutdown.Addr(), 2, uintptr(s), uintptr(how), 0, 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_shutdown)), 2, uintptr(s), uintptr(how), 0, 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -676,7 +849,7 @@ func Stat(path string, stat *Stat_t) (err error) {
 	if err != nil {
 		return
 	}
-	_, _, e1 := sysvicall6(procStat.Addr(), 2, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), 0, 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Stat)), 2, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), 0, 0, 0, 0)
 	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -695,7 +868,7 @@ func Symlink(path string, link string) (err error) {
 	if err != nil {
 		return
 	}
-	_, _, e1 := sysvicall6(procSymlink.Addr(), 2, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), 0, 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Symlink)), 2, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), 0, 0, 0, 0)
 	use(unsafe.Pointer(_p0))
 	use(unsafe.Pointer(_p1))
 	if e1 != 0 {
@@ -705,7 +878,7 @@ func Symlink(path string, link string) (err error) {
 }
 
 func Sync() (err error) {
-	_, _, e1 := sysvicall6(procSync.Addr(), 0, 0, 0, 0, 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Sync)), 0, 0, 0, 0, 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -718,7 +891,7 @@ func Truncate(path string, length int64) (err error) {
 	if err != nil {
 		return
 	}
-	_, _, e1 := sysvicall6(procTruncate.Addr(), 2, uintptr(unsafe.Pointer(_p0)), uintptr(length), 0, 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Truncate)), 2, uintptr(unsafe.Pointer(_p0)), uintptr(length), 0, 0, 0, 0)
 	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -727,7 +900,7 @@ func Truncate(path string, length int64) (err error) {
 }
 
 func Fsync(fd int) (err error) {
-	_, _, e1 := sysvicall6(procFsync.Addr(), 1, uintptr(fd), 0, 0, 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Fsync)), 1, uintptr(fd), 0, 0, 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -735,7 +908,7 @@ func Fsync(fd int) (err error) {
 }
 
 func Ftruncate(fd int, length int64) (err error) {
-	_, _, e1 := sysvicall6(procFtruncate.Addr(), 2, uintptr(fd), uintptr(length), 0, 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Ftruncate)), 2, uintptr(fd), uintptr(length), 0, 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -743,7 +916,7 @@ func Ftruncate(fd int, length int64) (err error) {
 }
 
 func Umask(newmask int) (oldmask int) {
-	r0, _, _ := sysvicall6(procUmask.Addr(), 1, uintptr(newmask), 0, 0, 0, 0, 0)
+	r0, _, _ := sysvicall6(uintptr(unsafe.Pointer(&libc_Umask)), 1, uintptr(newmask), 0, 0, 0, 0, 0)
 	oldmask = int(r0)
 	return
 }
@@ -754,7 +927,7 @@ func Unlink(path string) (err error) {
 	if err != nil {
 		return
 	}
-	_, _, e1 := sysvicall6(procUnlink.Addr(), 1, uintptr(unsafe.Pointer(_p0)), 0, 0, 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Unlink)), 1, uintptr(unsafe.Pointer(_p0)), 0, 0, 0, 0, 0)
 	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -768,7 +941,7 @@ func Utimes(path string, times *[2]Timeval) (err error) {
 	if err != nil {
 		return
 	}
-	_, _, e1 := sysvicall6(procUtimes.Addr(), 2, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), 0, 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Utimes)), 2, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), 0, 0, 0, 0)
 	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -777,7 +950,7 @@ func Utimes(path string, times *[2]Timeval) (err error) {
 }
 
 func bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
-	_, _, e1 := sysvicall6(procbind.Addr(), 3, uintptr(s), uintptr(addr), uintptr(addrlen), 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_bind)), 3, uintptr(s), uintptr(addr), uintptr(addrlen), 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -785,7 +958,7 @@ func bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
 }
 
 func connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
-	_, _, e1 := sysvicall6(procconnect.Addr(), 3, uintptr(s), uintptr(addr), uintptr(addrlen), 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_connect)), 3, uintptr(s), uintptr(addr), uintptr(addrlen), 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -793,7 +966,7 @@ func connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
 }
 
 func mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error) {
-	r0, _, e1 := sysvicall6(procmmap.Addr(), 6, uintptr(addr), uintptr(length), uintptr(prot), uintptr(flag), uintptr(fd), uintptr(pos))
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_mmap)), 6, uintptr(addr), uintptr(length), uintptr(prot), uintptr(flag), uintptr(fd), uintptr(pos))
 	ret = uintptr(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -802,7 +975,7 @@ func mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (
 }
 
 func munmap(addr uintptr, length uintptr) (err error) {
-	_, _, e1 := sysvicall6(procmunmap.Addr(), 2, uintptr(addr), uintptr(length), 0, 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_munmap)), 2, uintptr(addr), uintptr(length), 0, 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -814,7 +987,7 @@ func sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (
 	if len(buf) > 0 {
 		_p0 = &buf[0]
 	}
-	_, _, e1 := sysvicall6(procsendto.Addr(), 6, uintptr(s), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(flags), uintptr(to), uintptr(addrlen))
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_sendto)), 6, uintptr(s), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(flags), uintptr(to), uintptr(addrlen))
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -822,7 +995,7 @@ func sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (
 }
 
 func socket(domain int, typ int, proto int) (fd int, err error) {
-	r0, _, e1 := sysvicall6(procsocket.Addr(), 3, uintptr(domain), uintptr(typ), uintptr(proto), 0, 0, 0)
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_socket)), 3, uintptr(domain), uintptr(typ), uintptr(proto), 0, 0, 0)
 	fd = int(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -831,7 +1004,7 @@ func socket(domain int, typ int, proto int) (fd int, err error) {
 }
 
 func socketpair(domain int, typ int, proto int, fd *[2]int32) (err error) {
-	_, _, e1 := rawSysvicall6(procsocketpair.Addr(), 4, uintptr(domain), uintptr(typ), uintptr(proto), uintptr(unsafe.Pointer(fd)), 0, 0)
+	_, _, e1 := rawSysvicall6(uintptr(unsafe.Pointer(&libc_socketpair)), 4, uintptr(domain), uintptr(typ), uintptr(proto), uintptr(unsafe.Pointer(fd)), 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -843,7 +1016,7 @@ func write(fd int, p []byte) (n int, err error) {
 	if len(p) > 0 {
 		_p0 = &p[0]
 	}
-	r0, _, e1 := sysvicall6(procwrite.Addr(), 3, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), 0, 0, 0)
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_write)), 3, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), 0, 0, 0)
 	n = int(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -852,7 +1025,7 @@ func write(fd int, p []byte) (n int, err error) {
 }
 
 func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error) {
-	_, _, e1 := sysvicall6(procgetsockopt.Addr(), 5, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_getsockopt)), 5, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -860,7 +1033,7 @@ func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen
 }
 
 func getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (err error) {
-	_, _, e1 := rawSysvicall6(procgetpeername.Addr(), 3, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0)
+	_, _, e1 := rawSysvicall6(uintptr(unsafe.Pointer(&libc_getpeername)), 3, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -868,7 +1041,7 @@ func getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (err error) {
 }
 
 func getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (err error) {
-	_, _, e1 := sysvicall6(procgetsockname.Addr(), 3, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_getsockname)), 3, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -876,7 +1049,7 @@ func getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (err error) {
 }
 
 func setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error) {
-	_, _, e1 := sysvicall6(procsetsockopt.Addr(), 5, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_setsockopt)), 5, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -888,7 +1061,7 @@ func recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Sockl
 	if len(p) > 0 {
 		_p0 = &p[0]
 	}
-	r0, _, e1 := sysvicall6(procrecvfrom.Addr(), 6, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)))
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_recvfrom)), 6, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)))
 	n = int(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -897,7 +1070,7 @@ func recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Sockl
 }
 
 func recvmsg(s int, msg *Msghdr, flags int) (n int, err error) {
-	r0, _, e1 := sysvicall6(procrecvmsg.Addr(), 3, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags), 0, 0, 0)
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_recvmsg)), 3, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags), 0, 0, 0)
 	n = int(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)

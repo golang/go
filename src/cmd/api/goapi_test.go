@@ -1,5 +1,3 @@
-// +build api_tool
-
 // Copyright 2011 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -38,9 +36,11 @@ func TestGolden(t *testing.T) {
 			continue
 		}
 
-		goldenFile := filepath.Join("testdata", "src", fi.Name(), "golden.txt")
+		// TODO(gri) remove extra pkg directory eventually
+		goldenFile := filepath.Join("testdata", "src", "pkg", fi.Name(), "golden.txt")
 		w := NewWalker(nil, "testdata/src/pkg")
-		w.export(w.Import(fi.Name()))
+		pkg, _ := w.Import(fi.Name())
+		w.export(pkg)
 
 		if *updateGolden {
 			os.Remove(goldenFile)
@@ -132,7 +132,7 @@ func TestCompareAPI(t *testing.T) {
 	}
 	for _, tt := range tests {
 		buf := new(bytes.Buffer)
-		gotok := compareAPI(buf, tt.features, tt.required, tt.optional, tt.exception)
+		gotok := compareAPI(buf, tt.features, tt.required, tt.optional, tt.exception, true)
 		if gotok != tt.ok {
 			t.Errorf("%s: ok = %v; want %v", tt.name, gotok, tt.ok)
 		}
@@ -179,7 +179,8 @@ func BenchmarkAll(b *testing.B) {
 			w := NewWalker(context, filepath.Join(build.Default.GOROOT, "src"))
 			for _, name := range pkgNames {
 				if name != "unsafe" && !strings.HasPrefix(name, "cmd/") {
-					w.export(w.Import(name))
+					pkg, _ := w.Import(name)
+					w.export(pkg)
 				}
 			}
 			w.Features()

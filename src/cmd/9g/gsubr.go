@@ -37,11 +37,6 @@ import (
 	"fmt"
 )
 
-// TODO(rsc): Can make this bigger if we move
-// the text segment up higher in 6l for all GOOS.
-// At the same time, can raise StackBig in ../../runtime/stack.h.
-var unmappedzero int64 = 4096
-
 var resvd = []int{
 	ppc64.REGZERO,
 	ppc64.REGSP, // reserved for SP
@@ -531,7 +526,7 @@ func intLiteral(n *gc.Node) (x int64, ok bool) {
 	case gc.CTINT, gc.CTRUNE:
 		return gc.Mpgetfix(n.Val.U.Xval), true
 	case gc.CTBOOL:
-		return int64(n.Val.U.Bval), true
+		return int64(obj.Bool2int(n.Val.U.Bval)), true
 	}
 	return
 }
@@ -643,31 +638,6 @@ func rawgins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 	return p
 }
 
-func fixlargeoffset(n *gc.Node) {
-	if n == nil {
-		return
-	}
-	if n.Op != gc.OINDREG {
-		return
-	}
-	if n.Val.U.Reg == ppc64.REGSP { // stack offset cannot be large
-		return
-	}
-	if n.Xoffset != int64(int32(n.Xoffset)) {
-		// TODO(minux): offset too large, move into R31 and add to R31 instead.
-		// this is used only in test/fixedbugs/issue6036.go.
-		gc.Fatal("offset too large: %v", gc.Nconv(n, 0))
-
-		a := gc.Node(*n)
-		a.Op = gc.OREGISTER
-		a.Type = gc.Types[gc.Tptr]
-		a.Xoffset = 0
-		gc.Cgen_checknil(&a)
-		ginscon(optoas(gc.OADD, gc.Types[gc.Tptr]), n.Xoffset, &a)
-		n.Xoffset = 0
-	}
-}
-
 /*
  * return Axxx for Oxxx on type t.
  */
@@ -679,7 +649,7 @@ func optoas(op int, t *gc.Type) int {
 	a := int(obj.AXXX)
 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
 	default:
-		gc.Fatal("optoas: no entry for op=%v type=%v", gc.Oconv(int(op), 0), gc.Tconv(t, 0))
+		gc.Fatal("optoas: no entry for op=%v type=%v", gc.Oconv(int(op), 0), t)
 
 	case gc.OEQ<<16 | gc.TBOOL,
 		gc.OEQ<<16 | gc.TINT8,
@@ -966,11 +936,10 @@ func optoas(op int, t *gc.Type) int {
 		gc.OMUL<<16 | gc.TUINT32,
 		gc.OMUL<<16 | gc.TPTR32,
 		// don't use word multiply, the high 32-bit are undefined.
-		// fallthrough
 		gc.OMUL<<16 | gc.TUINT64,
 		gc.OMUL<<16 | gc.TPTR64:
-		a = ppc64.AMULLD
 		// for 64-bit multiplies, signedness doesn't matter.
+		a = ppc64.AMULLD
 
 	case gc.OMUL<<16 | gc.TFLOAT32:
 		a = ppc64.AFMULS

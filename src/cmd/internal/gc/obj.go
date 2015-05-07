@@ -35,7 +35,7 @@ func dumpobj() {
 	if writearchive != 0 {
 		obj.Bwritestring(bout, "!<arch>\n")
 		arhdr = [ArhdrSize]byte{}
-		obj.Bwrite(bout, arhdr[:])
+		bout.Write(arhdr[:])
 		startobj = obj.Boffset(bout)
 	}
 
@@ -43,19 +43,19 @@ func dumpobj() {
 	dumpexport()
 
 	if writearchive != 0 {
-		obj.Bflush(bout)
+		bout.Flush()
 		size := obj.Boffset(bout) - startobj
 		if size&1 != 0 {
 			obj.Bputc(bout, 0)
 		}
 		obj.Bseek(bout, startobj-ArhdrSize, 0)
 		formathdr(arhdr[:], "__.PKGDEF", size)
-		obj.Bwrite(bout, arhdr[:])
-		obj.Bflush(bout)
+		bout.Write(arhdr[:])
+		bout.Flush()
 
 		obj.Bseek(bout, startobj+size+(size&1), 0)
 		arhdr = [ArhdrSize]byte{}
-		obj.Bwrite(bout, arhdr[:])
+		bout.Write(arhdr[:])
 		startobj = obj.Boffset(bout)
 		fmt.Fprintf(bout, "go object %s %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion(), obj.Expstring())
 	}
@@ -96,7 +96,7 @@ func dumpobj() {
 	obj.Writeobjdirect(Ctxt, bout)
 
 	if writearchive != 0 {
-		obj.Bflush(bout)
+		bout.Flush()
 		size := obj.Boffset(bout) - startobj
 		if size&1 != 0 {
 			obj.Bputc(bout, 0)
@@ -104,7 +104,7 @@ func dumpobj() {
 		obj.Bseek(bout, startobj-ArhdrSize, 0)
 		name := fmt.Sprintf("_go_.%c", Thearch.Thechar)
 		formathdr(arhdr[:], name, size)
-		obj.Bwrite(bout, arhdr[:])
+		bout.Write(arhdr[:])
 	}
 
 	obj.Bterm(bout)
@@ -121,7 +121,7 @@ func dumpglobls() {
 		}
 
 		if n.Type == nil {
-			Fatal("external %v nil type\n", Nconv(n, 0))
+			Fatal("external %v nil type\n", n)
 		}
 		if n.Class == PFUNC {
 			continue
@@ -245,7 +245,7 @@ func stringsym(s string) *Sym {
 
 	off = duint8(sym, off, 0)                    // terminating NUL for runtime
 	off = (off + Widthptr - 1) &^ (Widthptr - 1) // round to pointer alignment
-	ggloblsym(sym, int32(off), obj.DUPOK|obj.RODATA)
+	ggloblsym(sym, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
 
 	return sym
 }
@@ -269,10 +269,10 @@ func slicebytes(nam *Node, s string, len int) {
 		off = dsname(sym, off, s[n:n+m])
 	}
 
-	ggloblsym(sym, int32(off), obj.NOPTR)
+	ggloblsym(sym, int32(off), obj.NOPTR|obj.LOCAL)
 
 	if nam.Op != ONAME {
-		Fatal("slicebytes %v", Nconv(nam, 0))
+		Fatal("slicebytes %v", nam)
 	}
 	off = int(nam.Xoffset)
 	off = dsymptr(nam.Sym, off, sym, 0)

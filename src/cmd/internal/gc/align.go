@@ -127,7 +127,7 @@ func dowidth(t *Type) {
 		lineno = int32(t.Lineno)
 		if t.Broke == 0 {
 			t.Broke = 1
-			Yyerror("invalid recursive type %v", Tconv(t, 0))
+			Yyerror("invalid recursive type %v", t)
 		}
 
 		t.Width = 0
@@ -164,7 +164,7 @@ func dowidth(t *Type) {
 	w := int64(0)
 	switch et {
 	default:
-		Fatal("dowidth: unknown type: %v", Tconv(t, 0))
+		Fatal("dowidth: unknown type: %v", t)
 
 		/* compiler-specific stuff */
 	case TINT8, TUINT8, TBOOL:
@@ -230,7 +230,7 @@ func dowidth(t *Type) {
 
 	case TFORW: // should have been filled in
 		if t.Broke == 0 {
-			Yyerror("invalid recursive type %v", Tconv(t, 0))
+			Yyerror("invalid recursive type %v", t)
 		}
 		w = 1 // anything will do
 
@@ -273,12 +273,12 @@ func dowidth(t *Type) {
 				t.Broke = 1
 			}
 		} else {
-			Fatal("dowidth %v", Tconv(t, 0)) // probably [...]T
+			Fatal("dowidth %v", t) // probably [...]T
 		}
 
 	case TSTRUCT:
 		if t.Funarg != 0 {
-			Fatal("dowidth fn struct %v", Tconv(t, 0))
+			Fatal("dowidth fn struct %v", t)
 		}
 		w = widstruct(t, t, 0, 1)
 
@@ -303,19 +303,19 @@ func dowidth(t *Type) {
 		w = widstruct(t.Type, *Getoutarg(t1), w, Widthreg)
 		t1.Argwid = w
 		if w%int64(Widthreg) != 0 {
-			Warn("bad type %v %d\n", Tconv(t1, 0), w)
+			Warn("bad type %v %d\n", t1, w)
 		}
 		t.Align = 1
 	}
 
 	if Widthptr == 4 && w != int64(int32(w)) {
-		Yyerror("type %v too large", Tconv(t, 0))
+		Yyerror("type %v too large", t)
 	}
 
 	t.Width = w
 	if t.Align == 0 {
 		if w > 8 || w&(w-1) != 0 {
-			Fatal("invalid alignment for %v", Tconv(t, 0))
+			Fatal("invalid alignment for %v", t)
 		}
 		t.Align = uint8(w)
 	}
@@ -363,7 +363,7 @@ func checkwidth(t *Type) {
 	// function arg structs should not be checked
 	// outside of the enclosing function.
 	if t.Funarg != 0 {
-		Fatal("checkwidth %v", Tconv(t, 0))
+		Fatal("checkwidth %v", t)
 	}
 
 	if defercalc == 0 {
@@ -410,6 +410,8 @@ func resumecheckwidth() {
 
 	defercalc = 0
 }
+
+var itable *Type // distinguished *byte
 
 func typeinit() {
 	if Widthptr == 0 {
@@ -485,8 +487,8 @@ func typeinit() {
 			okforarith[i] = true
 			okforconst[i] = true
 			issimple[i] = true
-			minfltval[i] = new(Mpflt)
-			maxfltval[i] = new(Mpflt)
+			minfltval[i] = newMpflt()
+			maxfltval[i] = newMpflt()
 		}
 
 		if Iscomplex[i] {
@@ -664,6 +666,9 @@ func typeinit() {
 
 	dowidth(Types[TSTRING])
 	dowidth(idealstring)
+
+	itable = typ(Tptr)
+	itable.Type = Types[TUINT8]
 }
 
 /*

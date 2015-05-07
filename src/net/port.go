@@ -18,7 +18,7 @@ func parsePort(net, port string) (int, error) {
 		}
 	}
 	if p < 0 || p > 0xFFFF {
-		return 0, &AddrError{"invalid port", port}
+		return 0, &AddrError{Err: "invalid port", Addr: port}
 	}
 	return p, nil
 }

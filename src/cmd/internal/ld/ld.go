@@ -34,6 +34,7 @@ package ld
 import (
 	"cmd/internal/obj"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"strconv"
@@ -57,11 +58,19 @@ func addlib(ctxt *Link, src string, obj string, pathname string) {
 	}
 
 	var pname string
+	isshlib := false
 	if (ctxt.Windows == 0 && strings.HasPrefix(name, "/")) || (ctxt.Windows != 0 && len(name) >= 2 && name[1] == ':') {
 		pname = name
 	} else {
 		// try dot, -L "libdir", and then goroot.
 		for _, dir := range ctxt.Libdir {
+			if Linkshared {
+				pname = dir + "/" + pkg + ".shlibname"
+				if _, err := os.Stat(pname); err == nil {
+					isshlib = true
+					break
+				}
+			}
 			pname = dir + "/" + name
 			if _, err := os.Stat(pname); err == nil {
 				break
@@ -72,10 +81,14 @@ func addlib(ctxt *Link, src string, obj string, pathname string) {
 	pname = path.Clean(pname)
 
 	if ctxt.Debugvlog > 1 && ctxt.Bso != nil {
-		fmt.Fprintf(ctxt.Bso, "%5.2f addlib: %s %s pulls in %s\n", elapsed(), obj, src, pname)
+		fmt.Fprintf(ctxt.Bso, "%5.2f addlib: %s %s pulls in %s isshlib %v\n", elapsed(), obj, src, pname, isshlib)
 	}
 
-	addlibpath(ctxt, src, obj, pname, pkg)
+	if isshlib {
+		addlibpath(ctxt, src, obj, "", pkg, pname)
+	} else {
+		addlibpath(ctxt, src, obj, pname, pkg, "")
+	}
 }
 
 /*
@@ -85,15 +98,15 @@ func addlib(ctxt *Link, src string, obj string, pathname string) {
  *	file: object file, e.g., /home/rsc/go/pkg/container/vector.a
  *	pkg: package import path, e.g. container/vector
  */
-func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg string) {
+func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg string, shlibnamefile string) {
 	for i := 0; i < len(ctxt.Library); i++ {
-		if file == ctxt.Library[i].File {
+		if pkg == ctxt.Library[i].Pkg {
 			return
 		}
 	}
 
 	if ctxt.Debugvlog > 1 && ctxt.Bso != nil {
-		fmt.Fprintf(ctxt.Bso, "%5.2f addlibpath: srcref: %s objref: %s file: %s pkg: %s\n", obj.Cputime(), srcref, objref, file, pkg)
+		fmt.Fprintf(ctxt.Bso, "%5.2f addlibpath: srcref: %s objref: %s file: %s pkg: %s shlibnamefile: %s\n", obj.Cputime(), srcref, objref, file, pkg, shlibnamefile)
 	}
 
 	ctxt.Library = append(ctxt.Library, Library{})
@@ -102,6 +115,13 @@ func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg strin
 	l.Srcref = srcref
 	l.File = file
 	l.Pkg = pkg
+	if shlibnamefile != "" {
+		shlibbytes, err := ioutil.ReadFile(shlibnamefile)
+		if err != nil {
+			Diag("cannot read %s: %v", shlibnamefile, err)
+		}
+		l.Shlib = strings.TrimSpace(string(shlibbytes))
+	}
 }
 
 func atolwhex(s string) int64 {

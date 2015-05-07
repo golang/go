@@ -39,6 +39,8 @@ const (
 	NREGVAR = 64 /* 32 general + 32 floating */
 )
 
+var reg [arm64.NREG + arm64.NFREG]uint8
+
 var regname = []string{
 	".R0",
 	".R1",
@@ -114,6 +116,11 @@ func regnames(n *int) []string {
 func excludedregs() uint64 {
 	// Exclude registers with fixed functions
 	regbits := uint64(RtoB(arm64.REGRT1) | RtoB(arm64.REGRT2) | RtoB(arm64.REGPR))
+
+	// Exclude R26 - R31.
+	for r := arm64.REGMAX + 1; r <= arm64.REGZERO; r++ {
+		regbits |= RtoB(r)
+	}
 
 	// Also exclude floating point registers with fixed constants
 	regbits |= RtoB(arm64.REG_F27) | RtoB(arm64.REG_F28) | RtoB(arm64.REG_F29) | RtoB(arm64.REG_F30) | RtoB(arm64.REG_F31)

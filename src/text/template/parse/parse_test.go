@@ -69,6 +69,7 @@ var numberTests = []numberTest{
 	{text: "1+2."},
 	{text: "'x"},
 	{text: "'xx'"},
+	{text: "'433937734937734969526500969526500'"}, // Integer too large - issue 10634.
 	// Issue 8622 - 0xe parsed as floating point. Very embarrassing.
 	{"0xef", true, true, true, false, 0xef, 0xef, 0xef, 0},
 }
@@ -230,6 +231,9 @@ var parseTests = []parseTest{
 	// Errors.
 	{"unclosed action", "hello{{range", hasError, ""},
 	{"unmatched end", "{{end}}", hasError, ""},
+	{"unmatched else", "{{else}}", hasError, ""},
+	{"unmatched else after if", "{{if .X}}hello{{end}}{{else}}", hasError, ""},
+	{"multiple else", "{{if .X}}1{{else}}2{{else}}3{{end}}", hasError, ""},
 	{"missing end", "hello{{range .x}}", hasError, ""},
 	{"missing end after else", "hello{{range .x}}{{else}}", hasError, ""},
 	{"undefined function", "hello{{undefined}}", hasError, ""},
@@ -257,6 +261,22 @@ var parseTests = []parseTest{
 	{"bug1a", "{{$x:=.}}{{$x!2}}", hasError, ""},                     // ! is just illegal here.
 	{"bug1b", "{{$x:=.}}{{$x+2}}", hasError, ""},                     // $x+2 should not parse as ($x) (+2).
 	{"bug1c", "{{$x:=.}}{{$x +2}}", noError, "{{$x := .}}{{$x +2}}"}, // It's OK with a space.
+	// dot following a literal value
+	{"dot after integer", "{{1.E}}", hasError, ""},
+	{"dot after float", "{{0.1.E}}", hasError, ""},
+	{"dot after boolean", "{{true.E}}", hasError, ""},
+	{"dot after char", "{{'a'.any}}", hasError, ""},
+	{"dot after string", `{{"hello".guys}}`, hasError, ""},
+	{"dot after dot", "{{..E}}", hasError, ""},
+	{"dot after nil", "{{nil.E}}", hasError, ""},
+	// Wrong pipeline
+	{"wrong pipeline dot", "{{12|.}}", hasError, ""},
+	{"wrong pipeline number", "{{.|12|printf}}", hasError, ""},
+	{"wrong pipeline string", "{{.|print|\"error\"}}", hasError, ""},
+	{"wrong pipeline char", "{{12|print|html|'e'}}", hasError, ""},
+	{"wrong pipeline boolean", "{{.|true}}", hasError, ""},
+	{"wrong pipeline nil", "{{'c'|nil}}", hasError, ""},
+	{"empty pipeline", `{{printf "%d" ( ) }}`, hasError, ""},
 }
 
 var builtins = map[string]interface{}{
@@ -375,7 +395,7 @@ var errorTests = []parseTest{
 		hasError, `unexpected ")"`},
 	{"space",
 		"{{`x`3}}",
-		hasError, `missing space?`},
+		hasError, `in operand`},
 	{"idchar",
 		"{{a#}}",
 		hasError, `'#'`},
@@ -407,6 +427,15 @@ var errorTests = []parseTest{
 	{"undefvar",
 		"{{$a}}",
 		hasError, `undefined variable`},
+	{"wrongdot",
+		"{{true.any}}",
+		hasError, `unexpected . after term`},
+	{"wrongpipeline",
+		"{{12|false}}",
+		hasError, `non executable command in pipeline`},
+	{"emptypipeline",
+		`{{ ( ) }}`,
+		hasError, `missing value for parenthesized pipeline`},
 }
 
 func TestErrors(t *testing.T) {

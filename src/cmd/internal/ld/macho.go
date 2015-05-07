@@ -5,6 +5,7 @@
 package ld
 
 import (
+	"cmd/internal/obj"
 	"sort"
 	"strings"
 )
@@ -63,6 +64,8 @@ const (
 	MACHO_CPU_ARM                 = 12
 	MACHO_SUBCPU_ARM              = 0
 	MACHO_SUBCPU_ARMV7            = 9
+	MACHO_CPU_ARM64               = 1<<24 | 12
+	MACHO_SUBCPU_ARM64_ALL        = 0
 	MACHO32SYMSIZE                = 12
 	MACHO64SYMSIZE                = 16
 	MACHO_X86_64_RELOC_UNSIGNED   = 0
@@ -76,6 +79,11 @@ const (
 	MACHO_X86_64_RELOC_SIGNED_4   = 8
 	MACHO_ARM_RELOC_VANILLA       = 0
 	MACHO_ARM_RELOC_BR24          = 5
+	MACHO_ARM64_RELOC_UNSIGNED    = 0
+	MACHO_ARM64_RELOC_BRANCH26    = 2
+	MACHO_ARM64_RELOC_PAGE21      = 3
+	MACHO_ARM64_RELOC_PAGEOFF12   = 4
+	MACHO_ARM64_RELOC_ADDEND      = 10
 	MACHO_GENERIC_RELOC_VANILLA   = 0
 	MACHO_FAKE_GOTPCREL           = 100
 )
@@ -125,7 +133,7 @@ var load_budget int = INITIAL_MACHO_HEADR - 2*1024
 func Machoinit() {
 	switch Thearch.Thechar {
 	// 64-bit architectures
-	case '6', '9':
+	case '6', '7', '9':
 		macho64 = true
 
 		// 32-bit architectures
@@ -152,8 +160,7 @@ func newMachoLoad(type_ uint32, ndata uint32) *MachoLoad {
 
 func newMachoSeg(name string, msect int) *MachoSeg {
 	if nseg >= len(seg) {
-		Diag("too many segs")
-		Errorexit()
+		Exitf("too many segs")
 	}
 
 	s := &seg[nseg]
@@ -166,8 +173,7 @@ func newMachoSeg(name string, msect int) *MachoSeg {
 
 func newMachoSect(seg *MachoSeg, name string, segname string) *MachoSect {
 	if seg.nsect >= seg.msect {
-		Diag("too many sects in segment %s", seg.name)
-		Errorexit()
+		Exitf("too many sects in segment %s", seg.name)
 	}
 
 	s := &seg.sect[seg.nsect]
@@ -301,31 +307,31 @@ func domacho() {
 	// empirically, string table must begin with " \x00".
 	s := Linklookup(Ctxt, ".machosymstr", 0)
 
-	s.Type = SMACHOSYMSTR
+	s.Type = obj.SMACHOSYMSTR
 	s.Reachable = true
 	Adduint8(Ctxt, s, ' ')
 	Adduint8(Ctxt, s, '\x00')
 
 	s = Linklookup(Ctxt, ".machosymtab", 0)
-	s.Type = SMACHOSYMTAB
+	s.Type = obj.SMACHOSYMTAB
 	s.Reachable = true
 
 	if Linkmode != LinkExternal {
 		s := Linklookup(Ctxt, ".plt", 0) // will be __symbol_stub
-		s.Type = SMACHOPLT
+		s.Type = obj.SMACHOPLT
 		s.Reachable = true
 
 		s = Linklookup(Ctxt, ".got", 0) // will be __nl_symbol_ptr
-		s.Type = SMACHOGOT
+		s.Type = obj.SMACHOGOT
 		s.Reachable = true
 		s.Align = 4
 
 		s = Linklookup(Ctxt, ".linkedit.plt", 0) // indirect table for .plt
-		s.Type = SMACHOINDIRECTPLT
+		s.Type = obj.SMACHOINDIRECTPLT
 		s.Reachable = true
 
 		s = Linklookup(Ctxt, ".linkedit.got", 0) // indirect table for .got
-		s.Type = SMACHOINDIRECTGOT
+		s.Type = obj.SMACHOINDIRECTGOT
 		s.Reachable = true
 	}
 }
@@ -349,7 +355,15 @@ func Machoadddynlib(lib string) {
 func machoshbits(mseg *MachoSeg, sect *Section, segname string) {
 	buf := "__" + strings.Replace(sect.Name[1:], ".", "_", -1)
 
-	msect := newMachoSect(mseg, buf, segname)
+	var msect *MachoSect
+	if Thearch.Thechar == '7' && sect.Rwx&1 == 0 {
+		// darwin/arm64 forbids absolute relocs in __TEXT, so if
+		// the section is not executable, put it in __DATA segment.
+		msect = newMachoSect(mseg, buf, "__DATA")
+	} else {
+		msect = newMachoSect(mseg, buf, segname)
+	}
+
 	if sect.Rellen > 0 {
 		msect.reloc = uint32(sect.Reloff)
 		msect.nreloc = uint32(sect.Rellen / 8)
@@ -390,6 +404,11 @@ func machoshbits(mseg *MachoSeg, sect *Section, segname string) {
 		msect.flag = 6                                                     /* section with nonlazy symbol pointers */
 		msect.res1 = uint32(Linklookup(Ctxt, ".linkedit.plt", 0).Size / 4) /* offset into indirect symbol table */
 	}
+
+	if sect.Name == ".init_array" {
+		msect.name = "__mod_init_func"
+		msect.flag = 9 // S_MOD_INIT_FUNC_POINTERS
+	}
 }
 
 func Asmbmacho() {
@@ -399,9 +418,7 @@ func Asmbmacho() {
 	mh := getMachoHdr()
 	switch Thearch.Thechar {
 	default:
-		Diag("unknown mach architecture")
-		Errorexit()
-		fallthrough
+		Exitf("unknown macho architecture: %v", Thearch.Thechar)
 
 	case '5':
 		mh.cpu = MACHO_CPU_ARM
@@ -410,6 +427,10 @@ func Asmbmacho() {
 	case '6':
 		mh.cpu = MACHO_CPU_AMD64
 		mh.subcpu = MACHO_SUBCPU_X86
+
+	case '7':
+		mh.cpu = MACHO_CPU_ARM64
+		mh.subcpu = MACHO_SUBCPU_ARM64_ALL
 
 	case '8':
 		mh.cpu = MACHO_CPU_386
@@ -467,9 +488,7 @@ func Asmbmacho() {
 	if Linkmode != LinkExternal {
 		switch Thearch.Thechar {
 		default:
-			Diag("unknown macho architecture")
-			Errorexit()
-			fallthrough
+			Exitf("unknown macho architecture: %v", Thearch.Thechar)
 
 		case '5':
 			ml := newMachoLoad(5, 17+2)          /* unix thread */
@@ -478,11 +497,18 @@ func Asmbmacho() {
 			ml.data[2+15] = uint32(Entryvalue()) /* start pc */
 
 		case '6':
-			ml := newMachoLoad(5, 42+2)                        /* unix thread */
-			ml.data[0] = 4                                     /* thread type */
-			ml.data[1] = 42                                    /* word count */
-			ml.data[2+32] = uint32(Entryvalue())               /* start pc */
-			ml.data[2+32+1] = uint32(Entryvalue() >> 16 >> 16) // hide >>32 for 8l
+			ml := newMachoLoad(5, 42+2)          /* unix thread */
+			ml.data[0] = 4                       /* thread type */
+			ml.data[1] = 42                      /* word count */
+			ml.data[2+32] = uint32(Entryvalue()) /* start pc */
+			ml.data[2+32+1] = uint32(Entryvalue() >> 32)
+
+		case '7':
+			ml := newMachoLoad(5, 68+2)          /* unix thread */
+			ml.data[0] = 6                       /* thread type */
+			ml.data[1] = 68                      /* word count */
+			ml.data[2+64] = uint32(Entryvalue()) /* start pc */
+			ml.data[2+64+1] = uint32(Entryvalue() >> 32)
 
 		case '8':
 			ml := newMachoLoad(5, 16+2)          /* unix thread */
@@ -541,12 +567,12 @@ func Asmbmacho() {
 
 	a := machowrite()
 	if int32(a) > HEADR {
-		Diag("HEADR too small: %d > %d", a, HEADR)
+		Exitf("HEADR too small: %d > %d", a, HEADR)
 	}
 }
 
 func symkind(s *LSym) int {
-	if s.Type == SDYNIMPORT {
+	if s.Type == obj.SDYNIMPORT {
 		return SymKindUndef
 	}
 	if s.Cgoexport != 0 {
@@ -602,7 +628,7 @@ func (x machoscmp) Less(i, j int) bool {
 func machogenasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 	genasmsym(put)
 	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
-		if s.Type == SDYNIMPORT || s.Type == SHOSTOBJ {
+		if s.Type == obj.SDYNIMPORT || s.Type == obj.SHOSTOBJ {
 			if s.Reachable {
 				put(s, "", 'D', 0, 0, 0, nil)
 			}
@@ -660,7 +686,7 @@ func machosymtab() {
 			Adduint8(Ctxt, symstr, '\x00')
 		}
 
-		if s.Type == SDYNIMPORT || s.Type == SHOSTOBJ {
+		if s.Type == obj.SDYNIMPORT || s.Type == obj.SHOSTOBJ {
 			Adduint8(Ctxt, symtab, 0x01)                // type N_EXT, external symbol
 			Adduint8(Ctxt, symtab, 0)                   // no section
 			Adduint16(Ctxt, symtab, 0)                  // desc

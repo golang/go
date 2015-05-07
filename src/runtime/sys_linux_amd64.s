@@ -34,7 +34,7 @@ TEXT runtime·open(SB),NOSPLIT,$0-20
 	MOVL	AX, ret+16(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$0-12
+TEXT runtime·closefd(SB),NOSPLIT,$0-12
 	MOVL	fd+0(FP), DI
 	MOVL	$3, AX			// syscall entry
 	SYSCALL
@@ -212,37 +212,20 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT,$0-36
 	MOVL	AX, ret+32(FP)
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$64
-	get_tls(BX)
-
-	// check that g exists
-	MOVQ	g(BX), R10
-	CMPQ	R10, $0
-	JNE	5(PC)
-	MOVQ	DI, 0(SP)
-	MOVQ	$runtime·badsignal(SB), AX
+TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+	MOVQ	sig+8(FP), DI
+	MOVQ	info+16(FP), SI
+	MOVQ	ctx+24(FP), DX
+	MOVQ	fn+0(FP), AX
 	CALL	AX
 	RET
 
-	// save g
-	MOVQ	R10, 40(SP)
-
-	// g = m->gsignal
-	MOVQ	g_m(R10), AX
-	MOVQ	m_gsignal(AX), AX
-	MOVQ	AX, g(BX)
-
-	MOVQ	DI, 0(SP)
-	MOVQ	SI, 8(SP)
-	MOVQ	DX, 16(SP)
-	MOVQ	R10, 24(SP)
-
-	CALL	runtime·sighandler(SB)
-
-	// restore g
-	get_tls(BX)
-	MOVQ	40(SP), R10
-	MOVQ	R10, g(BX)
+TEXT runtime·sigtramp(SB),NOSPLIT,$24
+	MOVQ	DI, 0(SP)   // signum
+	MOVQ	SI, 8(SP)   // info
+	MOVQ	DX, 16(SP)  // ctx
+	MOVQ	$runtime·sigtrampgo(SB), AX
+	CALL AX
 	RET
 
 TEXT runtime·sigreturn(SB),NOSPLIT,$0
@@ -302,14 +285,16 @@ TEXT runtime·futex(SB),NOSPLIT,$0
 
 // int32 clone(int32 flags, void *stack, M *mp, G *gp, void (*fn)(void));
 TEXT runtime·clone(SB),NOSPLIT,$0
-	MOVL	flags+8(SP), DI
-	MOVQ	stack+16(SP), SI
+	MOVL	flags+0(FP), DI
+	MOVQ	stack+8(FP), SI
+	MOVQ	$0, DX
+	MOVQ	$0, R10
 
 	// Copy mp, gp, fn off parent stack for use by child.
 	// Careful: Linux system call clobbers CX and R11.
-	MOVQ	mm+24(SP), R8
-	MOVQ	gg+32(SP), R9
-	MOVQ	fn+40(SP), R12
+	MOVQ	mp+16(FP), R8
+	MOVQ	gp+24(FP), R9
+	MOVQ	fn+32(FP), R12
 
 	MOVL	$56, AX
 	SYSCALL
@@ -322,6 +307,12 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 
 	// In child, on new stack.
 	MOVQ	SI, SP
+
+	// If g or m are nil, skip Go-related setup.
+	CMPQ	R8, $0    // m
+	JEQ	nog
+	CMPQ	R9, $0    // g
+	JEQ	nog
 
 	// Initialize m->procid to Linux tid
 	MOVL	$186, AX	// gettid
@@ -338,10 +329,11 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	MOVQ	R9, g(CX)
 	CALL	runtime·stackcheck(SB)
 
+nog:
 	// Call fn
 	CALL	R12
 
-	// It shouldn't return.  If it does, exit
+	// It shouldn't return.  If it does, exit that thread.
 	MOVL	$111, DI
 	MOVL	$60, AX
 	SYSCALL

@@ -590,7 +590,7 @@ func evalArgs(args []interface{}) string {
 			a, ok := printableValue(reflect.ValueOf(arg))
 			if ok {
 				args[i] = a
-			} // else left fmt do its thing
+			} // else let fmt do its thing
 		}
 		s = fmt.Sprint(args...)
 	}

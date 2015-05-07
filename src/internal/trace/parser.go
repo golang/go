@@ -235,6 +235,12 @@ func parseEvents(rawEvents []rawEvent) (events []*Event, err error) {
 				EvGoBlockSelect, EvGoBlockSync, EvGoBlockCond, EvGoBlockNet,
 				EvGoSysBlock:
 				lastG = 0
+			case EvGoSysExit:
+				if e.Args[1] != 0 {
+					// EvGoSysExit emission is delayed until the thread has a P.
+					// Give it the real timestamp.
+					e.Ts = int64(e.Args[1])
+				}
 			}
 			events = append(events, e)
 		}
@@ -344,7 +350,6 @@ func postProcessTrace(events []*Event) error {
 	type pdesc struct {
 		running bool
 		g       uint64
-		evGC    *Event
 		evScan  *Event
 		evSweep *Event
 	}
@@ -352,6 +357,7 @@ func postProcessTrace(events []*Event) error {
 	gs := make(map[uint64]gdesc)
 	ps := make(map[int]pdesc)
 	gs[0] = gdesc{state: gRunning}
+	var evGC *Event
 
 	checkRunning := func(p pdesc, g gdesc, ev *Event) error {
 		name := EventDescriptions[ev.Type].Name
@@ -383,16 +389,16 @@ func postProcessTrace(events []*Event) error {
 			}
 			p.running = false
 		case EvGCStart:
-			if p.evGC != nil {
+			if evGC != nil {
 				return fmt.Errorf("previous GC is not ended before a new one (offset %v, time %v)", ev.Off, ev.Ts)
 			}
-			p.evGC = ev
+			evGC = ev
 		case EvGCDone:
-			if p.evGC == nil {
+			if evGC == nil {
 				return fmt.Errorf("bogus GC end (offset %v, time %v)", ev.Off, ev.Ts)
 			}
-			p.evGC.Link = ev
-			p.evGC = nil
+			evGC.Link = ev
+			evGC = nil
 		case EvGCScanStart:
 			if p.evScan != nil {
 				return fmt.Errorf("previous scanning is not ended before a new one (offset %v, time %v)", ev.Off, ev.Ts)
@@ -423,7 +429,12 @@ func postProcessTrace(events []*Event) error {
 			g1.state = gWaiting
 			gs[ev.Args[0]] = g1
 		case EvGoInSyscall:
-			// this case is intentionally left blank
+			g1 := gs[ev.Args[0]]
+			if g1.state != gRunnable {
+				return fmt.Errorf("g %v is not runnable before EvGoInSyscall (offset %v, time %v)", ev.Args[0], ev.Off, ev.Ts)
+			}
+			g1.state = gWaiting
+			gs[ev.Args[0]] = g1
 		case EvGoCreate:
 			if err := checkRunning(p, g, ev); err != nil {
 				return err
@@ -498,17 +509,18 @@ func postProcessTrace(events []*Event) error {
 			if err := checkRunning(p, g, ev); err != nil {
 				return err
 			}
-			g.state = gRunnable
+			g.state = gWaiting
 			g.evStart.Link = ev
 			g.evStart = nil
 			p.g = 0
 		case EvGoSysExit:
-			if g.state != gRunnable {
-				return fmt.Errorf("g %v is not runnable during syscall exit (offset %v, time %v)", ev.G, ev.Off, ev.Ts)
+			if g.state != gWaiting {
+				return fmt.Errorf("g %v is not waiting during syscall exit (offset %v, time %v)", ev.G, ev.Off, ev.Ts)
 			}
 			if g.ev != nil && g.ev.Type == EvGoSysCall {
 				g.ev.Link = ev
 			}
+			g.state = gRunnable
 			g.ev = ev
 		case EvGoSleep, EvGoBlock, EvGoBlockSend, EvGoBlockRecv,
 			EvGoBlockSelect, EvGoBlockSync, EvGoBlockCond, EvGoBlockNet:
@@ -638,6 +650,18 @@ func (l eventList) Swap(i, j int) {
 	l[i], l[j] = l[j], l[i]
 }
 
+// Print dumps events to stdout. For debugging.
+func Print(events []*Event) {
+	for _, ev := range events {
+		desc := EventDescriptions[ev.Type]
+		fmt.Printf("%v %v p=%v g=%v off=%v", ev.Ts, desc.Name, ev.P, ev.G, ev.Off)
+		for i, a := range desc.Args {
+			fmt.Printf(" %v=%v", a, ev.Args[i])
+		}
+		fmt.Printf("\n")
+	}
+}
+
 // Event types in the trace.
 // Verbatim copy from src/runtime/trace.go.
 const (
@@ -670,7 +694,7 @@ const (
 	EvGoBlockCond    = 26 // goroutine blocks on Cond [timestamp, stack]
 	EvGoBlockNet     = 27 // goroutine blocks on network [timestamp, stack]
 	EvGoSysCall      = 28 // syscall enter [timestamp, stack]
-	EvGoSysExit      = 29 // syscall exit [timestamp, goroutine id]
+	EvGoSysExit      = 29 // syscall exit [timestamp, goroutine id, real timestamp]
 	EvGoSysBlock     = 30 // syscall blocks [timestamp]
 	EvGoWaiting      = 31 // denotes that goroutine is blocked when tracing starts [goroutine id]
 	EvGoInSyscall    = 32 // denotes that goroutine is in syscall when tracing starts [goroutine id]
@@ -715,7 +739,7 @@ var EventDescriptions = [EvCount]struct {
 	EvGoBlockCond:    {"GoBlockCond", true, []string{}},
 	EvGoBlockNet:     {"GoBlockNet", true, []string{}},
 	EvGoSysCall:      {"GoSysCall", true, []string{}},
-	EvGoSysExit:      {"GoSysExit", false, []string{"g"}},
+	EvGoSysExit:      {"GoSysExit", false, []string{"g", "ts"}},
 	EvGoSysBlock:     {"GoSysBlock", false, []string{}},
 	EvGoWaiting:      {"GoWaiting", false, []string{"g"}},
 	EvGoInSyscall:    {"GoInSyscall", false, []string{"g"}},

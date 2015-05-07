@@ -528,7 +528,7 @@ func TestMultiConsumer(t *testing.T) {
 func TestShrinkStackDuringBlockedSend(t *testing.T) {
 	// make sure that channel operations still work when we are
 	// blocked on a channel send and we shrink the stack.
-	// NOTE: this test probably won't fail unless stack1.go:StackDebug
+	// NOTE: this test probably won't fail unless stack1.go:stackDebug
 	// is set to >= 1.
 	const n = 10
 	c := make(chan int)

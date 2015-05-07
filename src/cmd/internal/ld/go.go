@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// go-specific code shared across loaders (5l, 6l, 8l).
+
 package ld
 
 import (
@@ -19,12 +21,6 @@ import (
 func expandpkg(t0 string, pkg string) string {
 	return strings.Replace(t0, `"".`, pkg+".", -1)
 }
-
-// Copyright 2009 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
-// go-specific code shared across loaders (5l, 6l, 8l).
 
 // accumulate all type information from .6 files.
 // check for inconsistencies.
@@ -57,7 +53,7 @@ func lookupImport(name string) *Import {
 	return x
 }
 
-func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
+func ldpkg(f *obj.Biobuf, pkg string, length int64, filename string, whence int) {
 	var p0, p1 int
 
 	if Debug['g'] != 0 {
@@ -67,16 +63,16 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 	if int64(int(length)) != length {
 		fmt.Fprintf(os.Stderr, "%s: too much pkg data in %s\n", os.Args[0], filename)
 		if Debug['u'] != 0 {
-			Errorexit()
+			errorexit()
 		}
 		return
 	}
 
 	bdata := make([]byte, length)
-	if int64(Bread(f, bdata)) != length {
+	if int64(obj.Bread(f, bdata)) != length {
 		fmt.Fprintf(os.Stderr, "%s: short pkg read %s\n", os.Args[0], filename)
 		if Debug['u'] != 0 {
-			Errorexit()
+			errorexit()
 		}
 		return
 	}
@@ -86,8 +82,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 	p0 = strings.Index(data, "\n$$")
 	if p0 < 0 {
 		if Debug['u'] != 0 && whence != ArchiveObj {
-			fmt.Fprintf(os.Stderr, "%s: cannot find export data in %s\n", os.Args[0], filename)
-			Errorexit()
+			Exitf("cannot find export data in %s", filename)
 		}
 		return
 	}
@@ -102,7 +97,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 	if p1 < 0 {
 		fmt.Fprintf(os.Stderr, "%s: cannot find end of exports in %s\n", os.Args[0], filename)
 		if Debug['u'] != 0 {
-			Errorexit()
+			errorexit()
 		}
 		return
 	}
@@ -115,7 +110,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 		if !strings.HasPrefix(data[p0:], "package ") {
 			fmt.Fprintf(os.Stderr, "%s: bad package section in %s - %.20s\n", os.Args[0], filename, data[p0:])
 			if Debug['u'] != 0 {
-				Errorexit()
+				errorexit()
 			}
 			return
 		}
@@ -129,9 +124,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 			p0++
 		}
 		if Debug['u'] != 0 && whence != ArchiveObj && (p0+6 > p1 || !strings.HasPrefix(data[p0:], " safe\n")) {
-			fmt.Fprintf(os.Stderr, "%s: load of unsafe package %s\n", os.Args[0], filename)
-			nerrors++
-			Errorexit()
+			Exitf("load of unsafe package %s", filename)
 		}
 
 		name := data[pname:p0]
@@ -143,9 +136,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 		}
 
 		if pkg == "main" && name != "main" {
-			fmt.Fprintf(os.Stderr, "%s: %s: not package main (package %s)\n", os.Args[0], filename, name)
-			nerrors++
-			Errorexit()
+			Exitf("%s: not package main (package %s)", filename, name)
 		}
 
 		loadpkgdata(filename, pkg, data[p0:p1])
@@ -164,7 +155,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 		if i < 0 {
 			fmt.Fprintf(os.Stderr, "%s: found $$ // cgo but no newline in %s\n", os.Args[0], filename)
 			if Debug['u'] != 0 {
-				Errorexit()
+				errorexit()
 			}
 			return
 		}
@@ -177,7 +168,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
 		if p1 < 0 {
 			fmt.Fprintf(os.Stderr, "%s: cannot find end of // cgo section in %s\n", os.Args[0], filename)
 			if Debug['u'] != 0 {
-				Errorexit()
+				errorexit()
 			}
 			return
 		}
@@ -437,12 +428,12 @@ func loadcgo(file string, pkg string, p string) {
 			s = Linklookup(Ctxt, local, 0)
 			if local != f[1] {
 			}
-			if s.Type == 0 || s.Type == SXREF || s.Type == SHOSTOBJ {
+			if s.Type == 0 || s.Type == obj.SXREF || s.Type == obj.SHOSTOBJ {
 				s.Dynimplib = lib
 				s.Extname = remote
 				s.Dynimpvers = q
-				if s.Type != SHOSTOBJ {
-					s.Type = SDYNIMPORT
+				if s.Type != obj.SHOSTOBJ {
+					s.Type = obj.SDYNIMPORT
 				}
 				havedynamic = 1
 			}
@@ -456,7 +447,7 @@ func loadcgo(file string, pkg string, p string) {
 			}
 			local = f[1]
 			s = Linklookup(Ctxt, local, 0)
-			s.Type = SHOSTOBJ
+			s.Type = obj.SHOSTOBJ
 			s.Size = 0
 			continue
 		}
@@ -474,8 +465,11 @@ func loadcgo(file string, pkg string, p string) {
 			local = expandpkg(local, pkg)
 			s = Linklookup(Ctxt, local, 0)
 
-			if Flag_shared != 0 && s == Linklookup(Ctxt, "main", 0) {
-				continue
+			switch Buildmode {
+			case BuildmodeCShared, BuildmodeCArchive:
+				if s == Linklookup(Ctxt, "main", 0) {
+					continue
+				}
 			}
 
 			// export overrides import, for openbsd/cgo.
@@ -570,7 +564,7 @@ func markflood() {
 	var i int
 
 	for s := markq; s != nil; s = s.Queue {
-		if s.Type == STEXT {
+		if s.Type == obj.STEXT {
 			if Debug['v'] > 1 {
 				fmt.Fprintf(&Bso, "marktext %s\n", s.Name)
 			}
@@ -619,45 +613,62 @@ func deadcode() {
 		fmt.Fprintf(&Bso, "%5.2f deadcode\n", obj.Cputime())
 	}
 
-	mark(Linklookup(Ctxt, INITENTRY, 0))
-	for i := 0; i < len(markextra); i++ {
-		mark(Linklookup(Ctxt, markextra[i], 0))
-	}
-
-	for i := 0; i < len(dynexp); i++ {
-		mark(dynexp[i])
-	}
-
-	markflood()
-
-	// keep each beginning with 'typelink.' if the symbol it points at is being kept.
-	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
-		if strings.HasPrefix(s.Name, "go.typelink.") {
-			s.Reachable = len(s.R) == 1 && s.R[0].Sym.Reachable
+	if Buildmode == BuildmodeShared {
+		// Mark all symbols as reachable when building a
+		// shared library.
+		for s := Ctxt.Allsym; s != nil; s = s.Allsym {
+			if s.Type != 0 {
+				mark(s)
+			}
 		}
-	}
-
-	// remove dead text but keep file information (z symbols).
-	var last *LSym
-
-	for s := Ctxt.Textp; s != nil; s = s.Next {
-		if !s.Reachable {
-			continue
-		}
-
-		// NOTE: Removing s from old textp and adding to new, shorter textp.
-		if last == nil {
-			Ctxt.Textp = s
-		} else {
-			last.Next = s
-		}
-		last = s
-	}
-
-	if last == nil {
-		Ctxt.Textp = nil
+		mark(Linkrlookup(Ctxt, "main.main", 0))
+		mark(Linkrlookup(Ctxt, "main.init", 0))
 	} else {
-		last.Next = nil
+		mark(Linklookup(Ctxt, INITENTRY, 0))
+		if Linkshared && Buildmode == BuildmodeExe {
+			mark(Linkrlookup(Ctxt, "main.main", 0))
+			mark(Linkrlookup(Ctxt, "main.init", 0))
+		}
+		for i := 0; i < len(markextra); i++ {
+			mark(Linklookup(Ctxt, markextra[i], 0))
+		}
+
+		for i := 0; i < len(dynexp); i++ {
+			mark(dynexp[i])
+		}
+		markflood()
+
+		// keep each beginning with 'typelink.' if the symbol it points at is being kept.
+		for s := Ctxt.Allsym; s != nil; s = s.Allsym {
+			if strings.HasPrefix(s.Name, "go.typelink.") {
+				s.Reachable = len(s.R) == 1 && s.R[0].Sym.Reachable
+			}
+		}
+
+		// remove dead text but keep file information (z symbols).
+		var last *LSym
+
+		for s := Ctxt.Textp; s != nil; s = s.Next {
+			if !s.Reachable {
+				continue
+			}
+
+			// NOTE: Removing s from old textp and adding to new, shorter textp.
+			if last == nil {
+				Ctxt.Textp = s
+			} else {
+				last.Next = s
+			}
+			last = s
+		}
+
+		if last == nil {
+			Ctxt.Textp = nil
+			Ctxt.Etextp = nil
+		} else {
+			last.Next = nil
+			Ctxt.Etextp = last
+		}
 	}
 
 	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
@@ -684,7 +695,7 @@ func deadcode() {
 				buf.WriteString("\n")
 			}
 
-			s.Type = SCONST
+			s.Type = obj.SCONST
 			s.Value = 0
 		}
 	}
@@ -712,7 +723,7 @@ func doweak() {
 				s.Type = t.Type
 				s.Outer = t
 			} else {
-				s.Type = SCONST
+				s.Type = obj.SCONST
 				s.Value = 0
 			}
 
@@ -722,7 +733,7 @@ func doweak() {
 }
 
 func addexport() {
-	if HEADTYPE == Hdarwin {
+	if HEADTYPE == obj.Hdarwin {
 		return
 	}
 
@@ -812,7 +823,6 @@ func setlinkmode(arg string) {
 	} else if arg == "auto" {
 		Linkmode = LinkAuto
 	} else {
-		fmt.Fprintf(os.Stderr, "unknown link mode -linkmode %s\n", arg)
-		Errorexit()
+		Exitf("unknown link mode -linkmode %s", arg)
 	}
 }

@@ -18,9 +18,11 @@ const (
 	_PAGE_NOACCESS  = 0x0001
 )
 
+// Don't split the stack as this function may be invoked without a valid G,
+// which prevents us from allocating more stack.
 //go:nosplit
-func sysAlloc(n uintptr, stat *uint64) unsafe.Pointer {
-	xadd64(stat, int64(n))
+func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
+	mSysStatInc(sysStat, n)
 	return unsafe.Pointer(stdcall4(_VirtualAlloc, 0, n, _MEM_COMMIT|_MEM_RESERVE, _PAGE_READWRITE))
 }
 
@@ -74,8 +76,11 @@ func sysUsed(v unsafe.Pointer, n uintptr) {
 	}
 }
 
-func sysFree(v unsafe.Pointer, n uintptr, stat *uint64) {
-	xadd64(stat, -int64(n))
+// Don't split the stack as this function may be invoked without a valid G,
+// which prevents us from allocating more stack.
+//go:nosplit
+func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+	mSysStatDec(sysStat, n)
 	r := stdcall3(_VirtualFree, uintptr(v), 0, _MEM_RELEASE)
 	if r == 0 {
 		throw("runtime: failed to release pages")
@@ -100,8 +105,8 @@ func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
 	return unsafe.Pointer(stdcall4(_VirtualAlloc, 0, n, _MEM_RESERVE, _PAGE_READWRITE))
 }
 
-func sysMap(v unsafe.Pointer, n uintptr, reserved bool, stat *uint64) {
-	xadd64(stat, int64(n))
+func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
+	mSysStatInc(sysStat, n)
 	p := stdcall4(_VirtualAlloc, uintptr(v), n, _MEM_COMMIT, _PAGE_READWRITE)
 	if p != uintptr(v) {
 		throw("runtime: cannot map pages in arena address space")

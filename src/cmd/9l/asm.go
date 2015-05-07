@@ -118,7 +118,7 @@ func gentext() {
 	for s = *pprevtextp; s != nil; pprevtextp, s = &s.Next, s.Next {
 		for i = range s.R {
 			r = &s.R[i]
-			if r.Type != 256+ld.R_PPC64_REL24 || r.Sym.Type != ld.SDYNIMPORT {
+			if r.Type != 256+ld.R_PPC64_REL24 || r.Sym.Type != obj.SDYNIMPORT {
 				continue
 			}
 
@@ -168,7 +168,7 @@ func gencallstub(abicase int, stub *ld.LSym, targ *ld.LSym) {
 
 	plt := ld.Linklookup(ld.Ctxt, ".plt", 0)
 
-	stub.Type = ld.STEXT
+	stub.Type = obj.STEXT
 
 	// Save TOC pointer in TOC save slot
 	ld.Adduint32(ld.Ctxt, stub, 0xf8410018) // std r2,24(r1)
@@ -183,7 +183,7 @@ func gencallstub(abicase int, stub *ld.LSym, targ *ld.LSym) {
 	if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
 		r.Off += int32(r.Siz)
 	}
-	r.Type = ld.R_POWER_TOC
+	r.Type = obj.R_POWER_TOC
 	r.Variant = ld.RV_POWER_HA
 	ld.Adduint32(ld.Ctxt, stub, 0x3d820000) // addis r12,r2,targ@plt@toc@ha
 	r = ld.Addrel(stub)
@@ -194,7 +194,7 @@ func gencallstub(abicase int, stub *ld.LSym, targ *ld.LSym) {
 	if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
 		r.Off += int32(r.Siz)
 	}
-	r.Type = ld.R_POWER_TOC
+	r.Type = obj.R_POWER_TOC
 	r.Variant = ld.RV_POWER_LO
 	ld.Adduint32(ld.Ctxt, stub, 0xe98c0000) // ld r12,targ@plt@toc@l(r12)
 
@@ -220,7 +220,7 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 
 		// Handle relocations found in ELF object files.
 	case 256 + ld.R_PPC64_REL24:
-		r.Type = ld.R_CALLPOWER
+		r.Type = obj.R_CALLPOWER
 
 		// This is a local call, so the caller isn't setting
 		// up r12 and r2 is the same for the caller and
@@ -229,7 +229,7 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 		// to use r12 to compute r2.)
 		r.Add += int64(r.Sym.Localentry) * 4
 
-		if targ.Type == ld.SDYNIMPORT {
+		if targ.Type == obj.SDYNIMPORT {
 			// Should have been handled in elfsetupplt
 			ld.Diag("unexpected R_PPC64_REL24 for dyn import")
 		}
@@ -237,8 +237,8 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 		return
 
 	case 256 + ld.R_PPC64_ADDR64:
-		r.Type = ld.R_ADDR
-		if targ.Type == ld.SDYNIMPORT {
+		r.Type = obj.R_ADDR
+		if targ.Type == obj.SDYNIMPORT {
 			// These happen in .toc sections
 			adddynsym(ld.Ctxt, targ)
 
@@ -252,56 +252,56 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 		return
 
 	case 256 + ld.R_PPC64_TOC16:
-		r.Type = ld.R_POWER_TOC
+		r.Type = obj.R_POWER_TOC
 		r.Variant = ld.RV_POWER_LO | ld.RV_CHECK_OVERFLOW
 		return
 
 	case 256 + ld.R_PPC64_TOC16_LO:
-		r.Type = ld.R_POWER_TOC
+		r.Type = obj.R_POWER_TOC
 		r.Variant = ld.RV_POWER_LO
 		return
 
 	case 256 + ld.R_PPC64_TOC16_HA:
-		r.Type = ld.R_POWER_TOC
+		r.Type = obj.R_POWER_TOC
 		r.Variant = ld.RV_POWER_HA | ld.RV_CHECK_OVERFLOW
 		return
 
 	case 256 + ld.R_PPC64_TOC16_HI:
-		r.Type = ld.R_POWER_TOC
+		r.Type = obj.R_POWER_TOC
 		r.Variant = ld.RV_POWER_HI | ld.RV_CHECK_OVERFLOW
 		return
 
 	case 256 + ld.R_PPC64_TOC16_DS:
-		r.Type = ld.R_POWER_TOC
+		r.Type = obj.R_POWER_TOC
 		r.Variant = ld.RV_POWER_DS | ld.RV_CHECK_OVERFLOW
 		return
 
 	case 256 + ld.R_PPC64_TOC16_LO_DS:
-		r.Type = ld.R_POWER_TOC
+		r.Type = obj.R_POWER_TOC
 		r.Variant = ld.RV_POWER_DS
 		return
 
 	case 256 + ld.R_PPC64_REL16_LO:
-		r.Type = ld.R_PCREL
+		r.Type = obj.R_PCREL
 		r.Variant = ld.RV_POWER_LO
 		r.Add += 2 // Compensate for relocation size of 2
 		return
 
 	case 256 + ld.R_PPC64_REL16_HI:
-		r.Type = ld.R_PCREL
+		r.Type = obj.R_PCREL
 		r.Variant = ld.RV_POWER_HI | ld.RV_CHECK_OVERFLOW
 		r.Add += 2
 		return
 
 	case 256 + ld.R_PPC64_REL16_HA:
-		r.Type = ld.R_PCREL
+		r.Type = obj.R_PCREL
 		r.Variant = ld.RV_POWER_HA | ld.RV_CHECK_OVERFLOW
 		r.Add += 2
 		return
 	}
 
 	// Handle references to ELF symbols from our own object files.
-	if targ.Type != ld.SDYNIMPORT {
+	if targ.Type != obj.SDYNIMPORT {
 		return
 	}
 
@@ -357,15 +357,15 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 	}
 
 	switch r.Type {
-	case ld.R_CONST:
+	case obj.R_CONST:
 		*val = r.Add
 		return 0
 
-	case ld.R_GOTOFF:
+	case obj.R_GOTOFF:
 		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ld.Ctxt, ".got", 0))
 		return 0
 
-	case ld.R_ADDRPOWER:
+	case obj.R_ADDRPOWER:
 		// r->add is two ppc64 instructions holding an immediate 32-bit constant.
 		// We want to add r->sym's address to that constant.
 		// The encoding of the immediate x<<16 + y,
@@ -393,7 +393,7 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 		}
 		return 0
 
-	case ld.R_CALLPOWER:
+	case obj.R_CALLPOWER:
 		// Bits 6 through 29 = (S + A - P) >> 2
 		var o1 uint32
 		if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
@@ -415,7 +415,7 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 		*val = int64(o1&0xfc000003 | uint32(t)&^0xfc000003)
 		return 0
 
-	case ld.R_POWER_TOC: // S + A - .TOC.
+	case obj.R_POWER_TOC: // S + A - .TOC.
 		*val = ld.Symaddr(r.Sym) + r.Add - symtoc(s)
 
 		return 0
@@ -539,7 +539,7 @@ func addpltsym(ctxt *ld.Link, s *ld.LSym) {
 		r.Sym = glink
 		r.Off = int32(glink.Size)
 		r.Siz = 4
-		r.Type = ld.R_CALLPOWER
+		r.Type = obj.R_CALLPOWER
 		ld.Adduint32(ctxt, glink, 0x48000000) // b .glink
 
 		// In the ppc64 ABI, the dynamic linker is responsible
@@ -594,7 +594,7 @@ func ensureglinkresolver() *ld.LSym {
 	r.Off = int32(glink.Size)
 	r.Sym = ld.Linklookup(ld.Ctxt, ".plt", 0)
 	r.Siz = 8
-	r.Type = ld.R_ADDRPOWER
+	r.Type = obj.R_ADDRPOWER
 
 	// addis r11,0,.plt@ha; addi r11,r11,.plt@l
 	r.Add = 0x3d600000<<32 | 0x396b0000
@@ -639,7 +639,7 @@ func adddynsym(ctxt *ld.Link, s *ld.LSym) {
 		/* type */
 		t := ld.STB_GLOBAL << 4
 
-		if s.Cgoexport != 0 && s.Type&ld.SMASK == ld.STEXT {
+		if s.Cgoexport != 0 && s.Type&obj.SMASK == obj.STEXT {
 			t |= ld.STT_FUNC
 		} else {
 			t |= ld.STT_OBJECT
@@ -650,14 +650,14 @@ func adddynsym(ctxt *ld.Link, s *ld.LSym) {
 		ld.Adduint8(ctxt, d, 0)
 
 		/* section where symbol is defined */
-		if s.Type == ld.SDYNIMPORT {
+		if s.Type == obj.SDYNIMPORT {
 			ld.Adduint16(ctxt, d, ld.SHN_UNDEF)
 		} else {
 			ld.Adduint16(ctxt, d, 1)
 		}
 
 		/* value */
-		if s.Type == ld.SDYNIMPORT {
+		if s.Type == obj.SDYNIMPORT {
 			ld.Adduint64(ctxt, d, 0)
 		} else {
 			ld.Addaddr(ctxt, d, s)
@@ -690,7 +690,7 @@ func asmb() {
 	if ld.Debug['v'] != 0 {
 		fmt.Fprintf(&ld.Bso, "%5.2f asmb\n", obj.Cputime())
 	}
-	ld.Bflush(&ld.Bso)
+	ld.Bso.Flush()
 
 	if ld.Iself {
 		ld.Asmbelfsetup()
@@ -708,7 +708,7 @@ func asmb() {
 		if ld.Debug['v'] != 0 {
 			fmt.Fprintf(&ld.Bso, "%5.2f rodatblk\n", obj.Cputime())
 		}
-		ld.Bflush(&ld.Bso)
+		ld.Bso.Flush()
 
 		ld.Cseek(int64(ld.Segrodata.Fileoff))
 		ld.Datblk(int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
@@ -717,7 +717,7 @@ func asmb() {
 	if ld.Debug['v'] != 0 {
 		fmt.Fprintf(&ld.Bso, "%5.2f datblk\n", obj.Cputime())
 	}
-	ld.Bflush(&ld.Bso)
+	ld.Bso.Flush()
 
 	ld.Cseek(int64(ld.Segdata.Fileoff))
 	ld.Datblk(int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
@@ -732,7 +732,7 @@ func asmb() {
 		if ld.Debug['v'] != 0 {
 			fmt.Fprintf(&ld.Bso, "%5.2f sym\n", obj.Cputime())
 		}
-		ld.Bflush(&ld.Bso)
+		ld.Bso.Flush()
 		switch ld.HEADTYPE {
 		default:
 			if ld.Iself {
@@ -740,7 +740,7 @@ func asmb() {
 				symo = uint32(ld.Rnd(int64(symo), int64(ld.INITRND)))
 			}
 
-		case ld.Hplan9:
+		case obj.Hplan9:
 			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
 		}
 
@@ -765,7 +765,7 @@ func asmb() {
 				}
 			}
 
-		case ld.Hplan9:
+		case obj.Hplan9:
 			ld.Asmplan9sym()
 			ld.Cflush()
 
@@ -785,11 +785,11 @@ func asmb() {
 	if ld.Debug['v'] != 0 {
 		fmt.Fprintf(&ld.Bso, "%5.2f header\n", obj.Cputime())
 	}
-	ld.Bflush(&ld.Bso)
+	ld.Bso.Flush()
 	ld.Cseek(0)
 	switch ld.HEADTYPE {
 	default:
-	case ld.Hplan9: /* plan 9 */
+	case obj.Hplan9: /* plan 9 */
 		ld.Thearch.Lput(0x647)                      /* magic */
 		ld.Thearch.Lput(uint32(ld.Segtext.Filelen)) /* sizes */
 		ld.Thearch.Lput(uint32(ld.Segdata.Filelen))
@@ -799,11 +799,11 @@ func asmb() {
 		ld.Thearch.Lput(0)
 		ld.Thearch.Lput(uint32(ld.Lcsize))
 
-	case ld.Hlinux,
-		ld.Hfreebsd,
-		ld.Hnetbsd,
-		ld.Hopenbsd,
-		ld.Hnacl:
+	case obj.Hlinux,
+		obj.Hfreebsd,
+		obj.Hnetbsd,
+		obj.Hopenbsd,
+		obj.Hnacl:
 		ld.Asmbelf(int64(symo))
 	}
 

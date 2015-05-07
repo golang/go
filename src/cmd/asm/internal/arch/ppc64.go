@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file encapsulates some of the odd characteristics of the ARM
-// instruction set, to minimize its interaction with the core of the
-// assembler.
+// This file encapsulates some of the odd characteristics of the
+// 64-bit PowerPC (PPC64) instruction set, to minimize its interaction
+// with the core of the assembler.
 
 package arch
 

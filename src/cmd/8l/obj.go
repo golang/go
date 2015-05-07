@@ -96,22 +96,20 @@ func archinit() {
 			log.Fatalf("cannot use -linkmode=external with -H %s", ld.Headstr(int(ld.HEADTYPE)))
 		}
 
-	case ld.Hdarwin,
-		ld.Hfreebsd,
-		ld.Hlinux,
-		ld.Hnetbsd,
-		ld.Hopenbsd,
-		ld.Hwindows:
+	case obj.Hdarwin,
+		obj.Hfreebsd,
+		obj.Hlinux,
+		obj.Hnetbsd,
+		obj.Hopenbsd,
+		obj.Hwindows:
 		break
 	}
 
 	switch ld.HEADTYPE {
 	default:
-		ld.Diag("unknown -H option")
-		ld.Errorexit()
-		fallthrough
+		ld.Exitf("unknown -H option: %v", ld.HEADTYPE)
 
-	case ld.Hplan9: /* plan 9 */
+	case obj.Hplan9: /* plan 9 */
 		ld.HEADR = 32
 
 		if ld.INITTEXT == -1 {
@@ -124,7 +122,7 @@ func archinit() {
 			ld.INITRND = 4096
 		}
 
-	case ld.Hdarwin: /* apple MACH */
+	case obj.Hdarwin: /* apple MACH */
 		ld.Machoinit()
 
 		ld.HEADR = ld.INITIAL_MACHO_HEADR
@@ -138,10 +136,10 @@ func archinit() {
 			ld.INITRND = 4096
 		}
 
-	case ld.Hlinux, /* elf32 executable */
-		ld.Hfreebsd,
-		ld.Hnetbsd,
-		ld.Hopenbsd:
+	case obj.Hlinux, /* elf32 executable */
+		obj.Hfreebsd,
+		obj.Hnetbsd,
+		obj.Hopenbsd:
 		ld.Elfinit()
 
 		ld.HEADR = ld.ELFRESERVE
@@ -155,7 +153,7 @@ func archinit() {
 			ld.INITRND = 4096
 		}
 
-	case ld.Hnacl:
+	case obj.Hnacl:
 		ld.Elfinit()
 		ld.HEADR = 0x10000
 		ld.Funcalign = 32
@@ -169,7 +167,7 @@ func archinit() {
 			ld.INITRND = 0x10000
 		}
 
-	case ld.Hwindows: /* PE executable */
+	case obj.Hwindows: /* PE executable */
 		ld.Peinit()
 
 		ld.HEADR = ld.PEFILEHEADR

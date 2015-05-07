@@ -10,7 +10,7 @@ import (
 	"cmd/internal/obj/ppc64"
 )
 
-func stackcopy(n, res *gc.Node, osrc, odst, w int64) {
+func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
 	// determine alignment.
 	// want to avoid unaligned access, so have to use
 	// smaller operations for less aligned types.
@@ -20,7 +20,7 @@ func stackcopy(n, res *gc.Node, osrc, odst, w int64) {
 	var op int
 	switch align {
 	default:
-		gc.Fatal("sgen: invalid alignment %d for %v", align, gc.Tconv(n.Type, 0))
+		gc.Fatal("sgen: invalid alignment %d for %v", align, n.Type)
 
 	case 1:
 		op = ppc64.AMOVBU
@@ -36,7 +36,7 @@ func stackcopy(n, res *gc.Node, osrc, odst, w int64) {
 	}
 
 	if w%int64(align) != 0 {
-		gc.Fatal("sgen: unaligned size %d (align=%d) for %v", w, align, gc.Tconv(n.Type, 0))
+		gc.Fatal("sgen: unaligned size %d (align=%d) for %v", w, align, n.Type)
 	}
 	c := int32(w / int64(align))
 

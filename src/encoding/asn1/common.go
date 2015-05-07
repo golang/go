@@ -74,6 +74,7 @@ type fieldParameters struct {
 	defaultValue *int64 // a default value for INTEGER typed fields (maybe nil).
 	tag          *int   // the EXPLICIT or IMPLICIT tag (maybe nil).
 	stringType   int    // the string tag to use when marshaling.
+	timeType     int    // the time tag to use when marshaling.
 	set          bool   // true iff this should be encoded as a SET
 	omitEmpty    bool   // true iff this should be omitted if empty when marshaling.
 
@@ -94,6 +95,10 @@ func parseFieldParameters(str string) (ret fieldParameters) {
 			if ret.tag == nil {
 				ret.tag = new(int)
 			}
+		case part == "generalized":
+			ret.timeType = tagGeneralizedTime
+		case part == "utc":
+			ret.timeType = tagUTCTime
 		case part == "ia5":
 			ret.stringType = tagIA5String
 		case part == "printable":

@@ -21,6 +21,11 @@ func skipTraceTestsIfNeeded(t *testing.T) {
 	switch runtime.GOOS {
 	case "solaris":
 		t.Skip("skipping: solaris timer can go backwards (http://golang.org/issue/8976)")
+	case "darwin":
+		switch runtime.GOARCH {
+		case "arm", "arm64":
+			t.Skipf("skipping on %s/%s, cannot fork", runtime.GOOS, runtime.GOARCH)
+		}
 	}
 
 	switch runtime.GOARCH {
@@ -224,6 +229,7 @@ func TestTraceStress(t *testing.T) {
 // And concurrently with all that start/stop trace 3 times.
 func TestTraceStressStartStop(t *testing.T) {
 	skipTraceTestsIfNeeded(t)
+	t.Skip("test is unreliable; issue #10476")
 
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(8))
 	outerDone := make(chan bool)
@@ -365,6 +371,10 @@ func TestTraceFutileWakeup(t *testing.T) {
 	// The test generates a full-load of futile wakeups on channels,
 	// and ensures that the trace is consistent after their removal.
 	skipTraceTestsIfNeeded(t)
+	if runtime.GOOS == "linux" && runtime.GOARCH == "ppc64le" {
+		t.Skip("test is unreliable; issue #10512")
+	}
+
 	buf := new(bytes.Buffer)
 	if err := StartTrace(buf); err != nil {
 		t.Fatalf("failed to start tracing: %v", err)

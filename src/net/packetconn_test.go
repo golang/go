@@ -54,7 +54,7 @@ func TestPacketConn(t *testing.T) {
 
 		c1, err := ListenPacket(tt.net, tt.addr1)
 		if err != nil {
-			t.Fatalf("ListenPacket failed: %v", err)
+			t.Fatal(err)
 		}
 		defer closer(c1, tt.net, tt.addr1, tt.addr2)
 		c1.LocalAddr()
@@ -64,7 +64,7 @@ func TestPacketConn(t *testing.T) {
 
 		c2, err := ListenPacket(tt.net, tt.addr2)
 		if err != nil {
-			t.Fatalf("ListenPacket failed: %v", err)
+			t.Fatal(err)
 		}
 		defer closer(c2, tt.net, tt.addr1, tt.addr2)
 		c2.LocalAddr()
@@ -74,17 +74,17 @@ func TestPacketConn(t *testing.T) {
 		rb2 := make([]byte, 128)
 
 		if _, err := c1.WriteTo(wb, c2.LocalAddr()); err != nil {
-			t.Fatalf("PacketConn.WriteTo failed: %v", err)
+			t.Fatal(err)
 		}
 		if _, _, err := c2.ReadFrom(rb2); err != nil {
-			t.Fatalf("PacketConn.ReadFrom failed: %v", err)
+			t.Fatal(err)
 		}
 		if _, err := c2.WriteTo(wb, c1.LocalAddr()); err != nil {
-			t.Fatalf("PacketConn.WriteTo failed: %v", err)
+			t.Fatal(err)
 		}
 		rb1 := make([]byte, 128)
 		if _, _, err := c1.ReadFrom(rb1); err != nil {
-			t.Fatalf("PacketConn.ReadFrom failed: %v", err)
+			t.Fatal(err)
 		}
 	}
 }
@@ -109,7 +109,7 @@ func TestConnAndPacketConn(t *testing.T) {
 
 		c1, err := ListenPacket(tt.net, tt.addr1)
 		if err != nil {
-			t.Fatalf("ListenPacket failed: %v", err)
+			t.Fatal(err)
 		}
 		defer closer(c1, tt.net, tt.addr1, tt.addr2)
 		c1.LocalAddr()
@@ -119,7 +119,7 @@ func TestConnAndPacketConn(t *testing.T) {
 
 		c2, err := Dial(tt.net, c1.LocalAddr().String())
 		if err != nil {
-			t.Fatalf("Dial failed: %v", err)
+			t.Fatal(err)
 		}
 		defer c2.Close()
 		c2.LocalAddr()
@@ -129,11 +129,11 @@ func TestConnAndPacketConn(t *testing.T) {
 		c2.SetWriteDeadline(time.Now().Add(500 * time.Millisecond))
 
 		if _, err := c2.Write(wb); err != nil {
-			t.Fatalf("Conn.Write failed: %v", err)
+			t.Fatal(err)
 		}
 		rb1 := make([]byte, 128)
 		if _, _, err := c1.ReadFrom(rb1); err != nil {
-			t.Fatalf("PacketConn.ReadFrom failed: %v", err)
+			t.Fatal(err)
 		}
 		var dst Addr
 		switch tt.net {
@@ -143,11 +143,11 @@ func TestConnAndPacketConn(t *testing.T) {
 			dst = c2.LocalAddr()
 		}
 		if _, err := c1.WriteTo(wb, dst); err != nil {
-			t.Fatalf("PacketConn.WriteTo failed: %v", err)
+			t.Fatal(err)
 		}
 		rb2 := make([]byte, 128)
 		if _, err := c2.Read(rb2); err != nil {
-			t.Fatalf("Conn.Read failed: %v", err)
+			t.Fatal(err)
 		}
 	}
 }

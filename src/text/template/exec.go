@@ -519,7 +519,18 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 			if hasArgs {
 				s.errorf("%s is not a method but has arguments", fieldName)
 			}
-			return receiver.MapIndex(nameVal)
+			result := receiver.MapIndex(nameVal)
+			if !result.IsValid() {
+				switch s.tmpl.option.missingKey {
+				case mapInvalid:
+					// Just use the invalid value.
+				case mapZeroValue:
+					result = reflect.Zero(receiver.Type().Elem())
+				case mapError:
+					s.errorf("map has no entry for key %q", fieldName)
+				}
+			}
+			return result
 		}
 	}
 	s.errorf("can't evaluate field %s in type %s", fieldName, typ)

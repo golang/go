@@ -81,6 +81,15 @@ func Getenv(key string) string {
 	return v
 }
 
+// LookupEnv retrieves the value of the environment variable named
+// by the key. If the variable is present in the environment the
+// value (which may be empty) is returned and the boolean is true.
+// Otherwise the returned value will be empty and the boolean will
+// be false.
+func LookupEnv(key string) (string, bool) {
+	return syscall.Getenv(key)
+}
+
 // Setenv sets the value of the environment variable named by the key.
 // It returns an error, if any.
 func Setenv(key, value string) error {

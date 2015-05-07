@@ -94,6 +94,12 @@ var (
 	_GetQueuedCompletionStatusEx stdFunction
 )
 
+// Call a Windows function with stdcall conventions,
+// and switch to os stack during the call.
+func asmstdcall(fn unsafe.Pointer)
+
+var asmstdcallAddr unsafe.Pointer
+
 func loadOptionalSyscalls() {
 	var buf [50]byte // large enough for longest string
 	strtoptr := func(s string) uintptr {
@@ -110,12 +116,6 @@ func loadOptionalSyscalls() {
 		_GetQueuedCompletionStatusEx = findfunc("GetQueuedCompletionStatusEx")
 	}
 }
-
-// in sys_windows_386.s and sys_windows_amd64.s
-func externalthreadhandler()
-func exceptiontramp()
-func firstcontinuetramp()
-func lastcontinuetramp()
 
 //go:nosplit
 func getLoadLibrary() uintptr {
@@ -138,25 +138,18 @@ const (
 	currentThread  = ^uintptr(1) // -2 = current thread
 )
 
-func disableWER() {
-	// do not display Windows Error Reporting dialogue
-	const (
-		SEM_FAILCRITICALERRORS     = 0x0001
-		SEM_NOGPFAULTERRORBOX      = 0x0002
-		SEM_NOALIGNMENTFAULTEXCEPT = 0x0004
-		SEM_NOOPENFILEERRORBOX     = 0x8000
-	)
-	errormode := uint32(stdcall1(_SetErrorMode, SEM_NOGPFAULTERRORBOX))
-	stdcall1(_SetErrorMode, uintptr(errormode)|SEM_FAILCRITICALERRORS|SEM_NOGPFAULTERRORBOX|SEM_NOOPENFILEERRORBOX)
-}
-
 func getVersion() (major, minor byte) {
 	v := uint32(stdcall0(_GetVersion))
 	low := uint16(v)
 	return byte(low), byte(low >> 8)
 }
 
+// in sys_windows_386.s and sys_windows_amd64.s
+func externalthreadhandler()
+
 func osinit() {
+	asmstdcallAddr = unsafe.Pointer(funcPC(asmstdcall))
+
 	setBadSignalMsg()
 
 	loadOptionalSyscalls()
@@ -165,21 +158,7 @@ func osinit() {
 
 	externalthreadhandlerp = funcPC(externalthreadhandler)
 
-	major, _ := getVersion()
-
-	stdcall2(_AddVectoredExceptionHandler, 1, funcPC(exceptiontramp))
-	if _AddVectoredContinueHandler == nil || unsafe.Sizeof(&_AddVectoredContinueHandler) == 4 || major < 6 {
-		// use SetUnhandledExceptionFilter for windows-386 or
-		// if VectoredContinueHandler is unavailable or
-		// if running windows-amd64 v5. V5 appears to fail to
-		// call the continue handlers if windows error reporting dialog
-		// is disabled.
-		// note: SetUnhandledExceptionFilter handler won't be called, if debugging.
-		stdcall1(_SetUnhandledExceptionFilter, funcPC(lastcontinuetramp))
-	} else {
-		stdcall2(_AddVectoredContinueHandler, 1, funcPC(firstcontinuetramp))
-		stdcall2(_AddVectoredContinueHandler, 0, funcPC(lastcontinuetramp))
-	}
+	initExceptionHandler()
 
 	stdcall2(_SetConsoleCtrlHandler, funcPC(ctrlhandler), 1)
 
@@ -303,7 +282,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 		funcPC(tstart_stdcall), uintptr(unsafe.Pointer(mp)),
 		_STACK_SIZE_PARAM_IS_A_RESERVATION, 0)
 	if thandle == 0 {
-		println("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", getlasterror(), ")")
+		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", getlasterror(), ")\n")
 		throw("runtime.newosproc")
 	}
 }
@@ -384,14 +363,13 @@ func stdcall(fn stdFunction) uintptr {
 
 	if mp.profilehz != 0 {
 		// leave pc/sp for cpu profiler
-		// gp is on allg, so this WB can be eliminated.
-		setGNoWriteBarrier(&mp.libcallg, gp)
+		mp.libcallg.set(gp)
 		mp.libcallpc = getcallerpc(unsafe.Pointer(&fn))
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
 		mp.libcallsp = getcallersp(unsafe.Pointer(&fn))
 	}
-	asmcgocall(unsafe.Pointer(funcPC(asmstdcall)), unsafe.Pointer(&mp.libcall))
+	asmcgocall(asmstdcallAddr, unsafe.Pointer(&mp.libcall))
 	mp.libcallsp = 0
 	return mp.libcall.r1
 }
@@ -474,37 +452,6 @@ func usleep(us uint32) {
 	usleep1(10 * us)
 }
 
-func issigpanic(code uint32) uint32 {
-	switch code {
-	default:
-		return 0
-	case _EXCEPTION_ACCESS_VIOLATION:
-	case _EXCEPTION_INT_DIVIDE_BY_ZERO:
-	case _EXCEPTION_INT_OVERFLOW:
-	case _EXCEPTION_FLT_DENORMAL_OPERAND:
-	case _EXCEPTION_FLT_DIVIDE_BY_ZERO:
-	case _EXCEPTION_FLT_INEXACT_RESULT:
-	case _EXCEPTION_FLT_OVERFLOW:
-	case _EXCEPTION_FLT_UNDERFLOW:
-	case _EXCEPTION_BREAKPOINT:
-	}
-	return 1
-}
-
-func initsig() {
-	/*
-		// TODO(brainman): I don't think we need that bit of code
-		// following line keeps these functions alive at link stage
-		// if there's a better way please write it here
-		void *e = runtime·exceptiontramp;
-		void *f = runtime·firstcontinuetramp;
-		void *l = runtime·lastcontinuetramp;
-		USED(e);
-		USED(f);
-		USED(l);
-	*/
-}
-
 func ctrlhandler1(_type uint32) uint32 {
 	var s uint32
 
@@ -544,7 +491,7 @@ func profilem(mp *m) {
 	sigprof(r.ip(), r.sp(), 0, gp, mp)
 }
 
-func profileloop1() {
+func profileloop1(param uintptr) uint32 {
 	stdcall2(_SetThreadPriority, currentThread, _THREAD_PRIORITY_HIGHEST)
 
 	for {
@@ -595,36 +542,4 @@ func resetcpuprofiler(hz int32) {
 
 func memlimit() uintptr {
 	return 0
-}
-
-var (
-	badsignalmsg [100]byte
-	badsignallen int32
-)
-
-func setBadSignalMsg() {
-	const msg = "runtime: signal received on thread not created by Go.\n"
-	for i, c := range msg {
-		badsignalmsg[i] = byte(c)
-		badsignallen++
-	}
-}
-
-const (
-	_SIGPROF = 0 // dummy value for badsignal
-	_SIGQUIT = 0 // dummy value for sighandler
-)
-
-func raiseproc(sig int32) {
-}
-
-func crash() {
-	// TODO: This routine should do whatever is needed
-	// to make the Windows program abort/crash as it
-	// would if Go was not intercepting signals.
-	// On Unix the routine would remove the custom signal
-	// handler and then raise a signal (like SIGABRT).
-	// Something like that should happen here.
-	// It's okay to leave this empty for now: if crash returns
-	// the ordinary exit-after-panic happens.
 }

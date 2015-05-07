@@ -291,6 +291,11 @@ func parsenum(s string, start, end int) (num int, isnum bool, newi int) {
 		return 0, false, end
 	}
 	for newi = start; newi < end && '0' <= s[newi] && s[newi] <= '9'; newi++ {
+		const maxInt32 = 1<<31 - 1 // 31 bits is plenty for a width.
+		max := maxInt32/10 - 1
+		if num > max {
+			return 0, false, end // Overflow; crazy long number most likely.
+		}
 		num = num*10 + int(s[newi]-'0')
 		isnum = true
 	}
@@ -789,6 +794,8 @@ func (p *pp) printArg(arg interface{}, verb rune, depth int) (wasString bool) {
 	case []byte:
 		p.fmtBytes(f, verb, nil, depth)
 		wasString = verb == 's'
+	case reflect.Value:
+		return p.printReflectValue(f, verb, depth)
 	default:
 		// If the type is not simple, it might have methods.
 		if handled := p.handleMethods(verb, depth); handled {
@@ -845,6 +852,8 @@ func (p *pp) printReflectValue(value reflect.Value, verb rune, depth int) (wasSt
 	p.value = value
 BigSwitch:
 	switch f := value; f.Kind() {
+	case reflect.Invalid:
+		p.buf.WriteString("<invalid reflect.Value>")
 	case reflect.Bool:
 		p.fmtBool(f.Bool(), verb)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -1027,6 +1036,11 @@ func intFromArg(a []interface{}, argNum int) (num int, isInt bool, newArgNum int
 // up to the closing paren, if present, and whether the number parsed
 // ok. The bytes to consume will be 1 if no closing paren is present.
 func parseArgNumber(format string) (index int, wid int, ok bool) {
+	// There must be at least 3 bytes: [n].
+	if len(format) < 3 {
+		return 0, 1, false
+	}
+
 	// Find closing bracket.
 	for i := 1; i < len(format); i++ {
 		if format[i] == ']' {
@@ -1053,7 +1067,7 @@ func (p *pp) argNumber(argNum int, format string, i int, numArgs int) (newArgNum
 		return index, i + wid, true
 	}
 	p.goodArgNum = false
-	return argNum, i + wid, true
+	return argNum, i + wid, ok
 }
 
 func (p *pp) doPrintf(format string, a []interface{}) {
@@ -1123,7 +1137,7 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 				p.goodArgNum = false
 			}
 			argNum, i, afterIndex = p.argNumber(argNum, format, i, len(a))
-			if format[i] == '*' {
+			if i < end && format[i] == '*' {
 				i++
 				p.fmt.prec, p.fmt.precPresent, argNum = intFromArg(a, argNum)
 				if !p.fmt.precPresent {

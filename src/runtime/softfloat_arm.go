@@ -437,8 +437,7 @@ stage3: // regd, regm are 4bit variables
 		break
 
 	case 0xeeb10bc0: // D[regd] = sqrt D[regm]
-		uval = float64bits(sqrt(float64frombits(fgetd(regm))))
-		fputd(regd, uval)
+		fputd(regd, sqrt(fgetd(regm)))
 
 		if fptrace > 0 {
 			print("*** D[", regd, "] = sqrt D[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")

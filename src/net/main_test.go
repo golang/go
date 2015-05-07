@@ -5,30 +5,91 @@
 package net
 
 import (
+	"flag"
 	"fmt"
 	"net/internal/socktest"
 	"os"
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 )
 
-var sw socktest.Switch
+var (
+	sw socktest.Switch
+
+	// uninstallTestHooks runs just before a run of benchmarks.
+	testHookUninstaller sync.Once
+)
+
+var (
+	testDNSFlood = flag.Bool("dnsflood", false, "whether to test DNS query flooding")
+
+	testExternal = flag.Bool("external", true, "allow use of external networks during long test")
+
+	// If external IPv4 connectivity exists, we can try dialing
+	// non-node/interface local scope IPv4 addresses.
+	testIPv4 = flag.Bool("ipv4", true, "assume external IPv4 connectivity exists")
+
+	// If external IPv6 connectivity exists, we can try dialing
+	// non-node/interface local scope IPv6 addresses.
+	testIPv6 = flag.Bool("ipv6", false, "assume external IPv6 connectivity exists")
+)
 
 func TestMain(m *testing.M) {
+	setupTestData()
 	installTestHooks()
 
 	st := m.Run()
 
+	testHookUninstaller.Do(func() { uninstallTestHooks() })
 	if !testing.Short() {
 		printLeakedGoroutines()
 		printLeakedSockets()
 		printSocketStats()
 	}
 	forceCloseSockets()
-	uninstallTestHooks()
 	os.Exit(st)
+}
+
+func setupTestData() {
+	if supportsIPv4 {
+		resolveTCPAddrTests = append(resolveTCPAddrTests, []resolveTCPAddrTest{
+			{"tcp", "localhost:1", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 1}, nil},
+			{"tcp4", "localhost:2", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 2}, nil},
+		}...)
+		resolveUDPAddrTests = append(resolveUDPAddrTests, []resolveUDPAddrTest{
+			{"udp", "localhost:1", &UDPAddr{IP: IPv4(127, 0, 0, 1), Port: 1}, nil},
+			{"udp4", "localhost:2", &UDPAddr{IP: IPv4(127, 0, 0, 1), Port: 2}, nil},
+		}...)
+		resolveIPAddrTests = append(resolveIPAddrTests, []resolveIPAddrTest{
+			{"ip", "localhost", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil},
+			{"ip4", "localhost", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil},
+		}...)
+	}
+
+	if supportsIPv6 {
+		resolveTCPAddrTests = append(resolveTCPAddrTests, resolveTCPAddrTest{"tcp6", "localhost:3", &TCPAddr{IP: IPv6loopback, Port: 3}, nil})
+		resolveUDPAddrTests = append(resolveUDPAddrTests, resolveUDPAddrTest{"udp6", "localhost:3", &UDPAddr{IP: IPv6loopback, Port: 3}, nil})
+		resolveIPAddrTests = append(resolveIPAddrTests, resolveIPAddrTest{"ip6", "localhost", &IPAddr{IP: IPv6loopback}, nil})
+	}
+
+	if ifi := loopbackInterface(); ifi != nil {
+		index := fmt.Sprintf("%v", ifi.Index)
+		resolveTCPAddrTests = append(resolveTCPAddrTests, []resolveTCPAddrTest{
+			{"tcp6", "[fe80::1%" + ifi.Name + "]:1", &TCPAddr{IP: ParseIP("fe80::1"), Port: 1, Zone: zoneToString(ifi.Index)}, nil},
+			{"tcp6", "[fe80::1%" + index + "]:2", &TCPAddr{IP: ParseIP("fe80::1"), Port: 2, Zone: index}, nil},
+		}...)
+		resolveUDPAddrTests = append(resolveUDPAddrTests, []resolveUDPAddrTest{
+			{"udp6", "[fe80::1%" + ifi.Name + "]:1", &UDPAddr{IP: ParseIP("fe80::1"), Port: 1, Zone: zoneToString(ifi.Index)}, nil},
+			{"udp6", "[fe80::1%" + index + "]:2", &UDPAddr{IP: ParseIP("fe80::1"), Port: 2, Zone: index}, nil},
+		}...)
+		resolveIPAddrTests = append(resolveIPAddrTests, []resolveIPAddrTest{
+			{"ip6", "fe80::1%" + ifi.Name, &IPAddr{IP: ParseIP("fe80::1"), Zone: zoneToString(ifi.Index)}, nil},
+			{"ip6", "fe80::1%" + index, &IPAddr{IP: ParseIP("fe80::1"), Zone: index}, nil},
+		}...)
+	}
 }
 
 func printLeakedGoroutines() {
@@ -43,8 +104,8 @@ func printLeakedGoroutines() {
 	fmt.Fprintf(os.Stderr, "\n")
 }
 
-// leakedGoroutines returns a list of remaining goroutins used in test
-// cases.
+// leakedGoroutines returns a list of remaining goroutines used in
+// test cases.
 func leakedGoroutines() []string {
 	var gss []string
 	b := make([]byte, 2<<20)
@@ -71,7 +132,7 @@ func printLeakedSockets() {
 	}
 	fmt.Fprintf(os.Stderr, "Leaked sockets:\n")
 	for s, so := range sos {
-		fmt.Fprintf(os.Stderr, "%v: %+v\n", s, so)
+		fmt.Fprintf(os.Stderr, "%v: %v\n", s, so)
 	}
 	fmt.Fprintf(os.Stderr, "\n")
 }
@@ -83,7 +144,7 @@ func printSocketStats() {
 	}
 	fmt.Fprintf(os.Stderr, "Socket statistical information:\n")
 	for _, st := range sts {
-		fmt.Fprintf(os.Stderr, "%+v\n", st)
+		fmt.Fprintf(os.Stderr, "%v\n", st)
 	}
 	fmt.Fprintf(os.Stderr, "\n")
 }

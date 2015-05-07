@@ -14,11 +14,11 @@ import (
 func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
 	tab, err := syscall.RouteRIB(syscall.NET_RT_IFLIST2, ifi.Index)
 	if err != nil {
-		return nil, os.NewSyscallError("route rib", err)
+		return nil, os.NewSyscallError("routerib", err)
 	}
 	msgs, err := syscall.ParseRoutingMessage(tab)
 	if err != nil {
-		return nil, os.NewSyscallError("route message", err)
+		return nil, os.NewSyscallError("parseroutingmessage", err)
 	}
 	var ifmat []Addr
 	for _, m := range msgs {
@@ -41,7 +41,7 @@ func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
 func newMulticastAddr(ifi *Interface, m *syscall.InterfaceMulticastAddrMessage) (*IPAddr, error) {
 	sas, err := syscall.ParseRoutingSockaddr(m)
 	if err != nil {
-		return nil, os.NewSyscallError("route sockaddr", err)
+		return nil, os.NewSyscallError("parseroutingsockaddr", err)
 	}
 	switch sa := sas[syscall.RTAX_IFA].(type) {
 	case *syscall.SockaddrInet4:

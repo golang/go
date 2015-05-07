@@ -8,6 +8,7 @@ package main
 
 import (
 	"cmd/internal/goobj"
+	"cmd/internal/obj"
 	"encoding/binary"
 	"os"
 	"sort"
@@ -371,7 +372,7 @@ func (b *SymBuffer) Addr(off int, sym goobj.SymID, symoff int64) int {
 		Size:   b.ptrsize,
 		Sym:    sym,
 		Add:    int(symoff),
-		Type:   R_ADDR,
+		Type:   obj.R_ADDR,
 	})
 	return off + b.ptrsize
 }
