@@ -673,7 +673,7 @@ func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork
 
 			throw("checkmark found unmarked object")
 		}
-		if !hbits.isCheckmarked() {
+		if hbits.isCheckmarked() {
 			return
 		}
 		hbits.setCheckmarked()
