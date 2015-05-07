@@ -166,10 +166,33 @@ func (p *Package) writeDefs() {
 		}
 	}
 
+	fgcc := creat(*objDir + "_cgo_export.c")
+	fgcch := creat(*objDir + "_cgo_export.h")
 	if *gccgo {
-		p.writeGccgoExports(fgo2, fm)
+		p.writeGccgoExports(fgo2, fm, fgcc, fgcch)
 	} else {
-		p.writeExports(fgo2, fm)
+		p.writeExports(fgo2, fm, fgcc, fgcch)
+	}
+	if err := fgcc.Close(); err != nil {
+		fatalf("%s", err)
+	}
+	if err := fgcch.Close(); err != nil {
+		fatalf("%s", err)
+	}
+
+	if *exportHeader != "" && len(p.ExpFunc) > 0 {
+		fexp := creat(*exportHeader)
+		fgcch, err := os.Open(*objDir + "_cgo_export.h")
+		if err != nil {
+			fatalf("%s", err)
+		}
+		_, err = io.Copy(fexp, fgcch)
+		if err != nil {
+			fatalf("%s", err)
+		}
+		if err = fexp.Close(); err != nil {
+			fatalf("%s", err)
+		}
 	}
 
 	init := gccgoInit.String()
@@ -634,10 +657,7 @@ func (p *Package) packedAttribute() string {
 
 // Write out the various stubs we need to support functions exported
 // from Go so that they are callable from C.
-func (p *Package) writeExports(fgo2, fm io.Writer) {
-	fgcc := creat(*objDir + "_cgo_export.c")
-	fgcch := creat(*objDir + "_cgo_export.h")
-
+func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 	p.writeExportHeader(fgcch)
 
 	fmt.Fprintf(fgcc, "/* Created by cgo - DO NOT EDIT. */\n")
@@ -829,10 +849,7 @@ func (p *Package) writeExports(fgo2, fm io.Writer) {
 }
 
 // Write out the C header allowing C code to call exported gccgo functions.
-func (p *Package) writeGccgoExports(fgo2, fm io.Writer) {
-	fgcc := creat(*objDir + "_cgo_export.c")
-	fgcch := creat(*objDir + "_cgo_export.h")
-
+func (p *Package) writeGccgoExports(fgo2, fm, fgcc, fgcch io.Writer) {
 	gccgoSymbolPrefix := p.gccgoSymbolPrefix()
 
 	p.writeExportHeader(fgcch)

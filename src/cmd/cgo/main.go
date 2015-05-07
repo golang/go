@@ -169,6 +169,7 @@ var godefs = flag.Bool("godefs", false, "for bootstrap: write Go definitions for
 
 var objDir = flag.String("objdir", "", "object directory")
 var importPath = flag.String("importpath", "", "import path of package being built (for comments in generated files)")
+var exportHeader = flag.String("exportheader", "", "where to write export header if any exported functions")
 
 var gccgo = flag.Bool("gccgo", false, "generate files for use with gccgo")
 var gccgoprefix = flag.String("gccgoprefix", "", "-fgo-prefix option used with gccgo")
