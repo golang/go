@@ -40,7 +40,8 @@ const (
 	MINLC     = 1
 )
 
-/* Used by ../ld/dwarf.c */
+/* Used by ../internal/ld/dwarf.go */
 const (
 	DWARFREGSP = 4
+	DWARFREGLR = 8
 )
