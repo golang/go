@@ -163,11 +163,19 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
 	}
 
 	var buf []byte = f.intbuf[0:]
-	if f.widPresent {
-		width := f.wid
+	if f.widPresent || f.precPresent {
+		width := f.wid + f.prec // Only one will be set, both are positive; this provides the maximum.
 		if base == 16 && f.sharp {
 			// Also adds "0x".
 			width += 2
+		}
+		if f.unicode {
+			// Also adds "U+".
+			width += 2
+			if f.uniQuote {
+				// Also adds " 'x'".
+				width += 1 + 1 + utf8.UTFMax + 1
+			}
 		}
 		if width > nByte {
 			// We're going to need a bigger boat.
