@@ -90,6 +90,10 @@ func Gbranch(as int, t *Type, likely int) *obj.Prog {
 		p.From.Offset = int64(obj.Bool2int(likely > 0))
 	}
 
+	if Debug['g'] != 0 {
+		fmt.Printf("%v\n", p)
+	}
+
 	return p
 }
 
