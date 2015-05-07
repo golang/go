@@ -1420,7 +1420,7 @@ top:
 		xadd(&sched.nmspinning, 1)
 	}
 	// random steal from other P's
-	for i := 0; i < int(2*gomaxprocs); i++ {
+	for i := 0; i < int(4*gomaxprocs); i++ {
 		if sched.gcwaiting != 0 {
 			goto top
 		}
@@ -1429,15 +1429,17 @@ top:
 		if _p_ == _g_.m.p.ptr() {
 			gp, _ = runqget(_p_)
 		} else {
-			gp = runqsteal(_g_.m.p.ptr(), _p_)
+			stealRunNextG := i > 2*int(gomaxprocs) // first look for ready queues with more than 1 g
+			gp = runqsteal(_g_.m.p.ptr(), _p_, stealRunNextG)
 		}
 		if gp != nil {
 			return gp, false
 		}
 	}
+
 stop:
 
-	// We have nothing to do. If we're in the GC mark phaseand can
+	// We have nothing to do. If we're in the GC mark phase and can
 	// safely scan and blacken objects, run idle-time marking
 	// rather than give up the P.
 	if _p_ := _g_.m.p.ptr(); gcBlackenEnabled != 0 && _p_.gcBgMarkWorker != nil {
@@ -3461,20 +3463,30 @@ func runqget(_p_ *p) (gp *g, inheritTime bool) {
 // Grabs a batch of goroutines from local runnable queue.
 // batch array must be of size len(p->runq)/2. Returns number of grabbed goroutines.
 // Can be executed by any P.
-func runqgrab(_p_ *p, batch []*g) uint32 {
+func runqgrab(_p_ *p, batch []*g, stealRunNextG bool) uint32 {
 	for {
 		h := atomicload(&_p_.runqhead) // load-acquire, synchronize with other consumers
 		t := atomicload(&_p_.runqtail) // load-acquire, synchronize with the producer
 		n := t - h
 		n = n - n/2
 		if n == 0 {
-			// Try to steal from _p_.runnext.
-			if next := _p_.runnext; next != 0 {
-				if !_p_.runnext.cas(next, 0) {
-					continue
+			if stealRunNextG {
+				// Try to steal from _p_.runnext.
+				if next := _p_.runnext; next != 0 {
+					// Sleep to ensure that _p_ isn't about to run the g we
+					// are about to steal.
+					// The important use case here is when the g running on _p_
+					// ready()s another g and then almost immediately blocks.
+					// Instead of stealing runnext in this window, back off
+					// to give _p_ a chance to schedule runnext. This will avoid
+					// thrashing gs between different Ps.
+					usleep(100)
+					if !_p_.runnext.cas(next, 0) {
+						continue
+					}
+					batch[0] = next.ptr()
+					return 1
 				}
-				batch[0] = next.ptr()
-				return 1
 			}
 			return 0
 		}
@@ -3493,15 +3505,13 @@ func runqgrab(_p_ *p, batch []*g) uint32 {
 // Steal half of elements from local runnable queue of p2
 // and put onto local runnable queue of p.
 // Returns one of the stolen elements (or nil if failed).
-func runqsteal(_p_, p2 *p) *g {
-	var batch [len(_p_.runq) / 2]*g
-
-	n := runqgrab(p2, batch[:])
+func runqsteal(_p_, p2 *p, stealRunNextG bool) *g {
+	n := runqgrab(p2, _p_.runqvictims[:], stealRunNextG)
 	if n == 0 {
 		return nil
 	}
 	n--
-	gp := batch[n]
+	gp := _p_.runqvictims[n]
 	if n == 0 {
 		return gp
 	}
@@ -3511,7 +3521,7 @@ func runqsteal(_p_, p2 *p) *g {
 		throw("runqsteal: runq overflow")
 	}
 	for i := uint32(0); i < n; i++ {
-		_p_.runq[(t+i)%uint32(len(_p_.runq))] = batch[i]
+		_p_.runq[(t+i)%uint32(len(_p_.runq))] = _p_.runqvictims[i]
 	}
 	atomicstore(&_p_.runqtail, t+n) // store-release, makes the item available for consumption
 	return gp
@@ -3548,7 +3558,7 @@ func testSchedLocalQueueSteal() {
 			gs[j].sig = 0
 			runqput(p1, &gs[j], false)
 		}
-		gp := runqsteal(p2, p1)
+		gp := runqsteal(p2, p1, true)
 		s := 0
 		if gp != nil {
 			s++
