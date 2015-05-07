@@ -433,6 +433,11 @@ func runBuild(cmd *Command, args []string) {
 		p.target = "" // must build - not up to date
 		a := b.action(modeInstall, depMode, p)
 		a.target = *buildO
+		if p.local {
+			// If p.local, then b.action did not really install,
+			// so install the header file now if necessary.
+			a = b.maybeAddHeaderAction(a, false)
+		}
 		b.do(a)
 		return
 	}
@@ -855,6 +860,8 @@ func (b *builder) action1(mode buildMode, depMode buildMode, p *Package, looksha
 		a.f = (*builder).install
 		a.deps = []*action{b.action1(modeBuild, depMode, p, lookshared)}
 		a.target = a.p.target
+		a = b.maybeAddHeaderAction(a, true)
+
 	case modeBuild:
 		a.f = (*builder).build
 		a.target = a.objpkg
@@ -963,6 +970,49 @@ func (b *builder) libaction(libname string, pkgs []*Package, mode, depMode build
 		fatalf("unregonized mode %v", mode)
 	}
 	return a
+}
+
+// In c-archive/c-shared mode, if the package for the action uses cgo,
+// add a dependency to install the generated export header file, if
+// there is one.
+// The isInstall parameter is whether a is an install action.
+func (b *builder) maybeAddHeaderAction(a *action, isInstall bool) *action {
+	switch buildBuildmode {
+	case "c-archive", "c-shared":
+	default:
+		return a
+	}
+	if !a.p.usesCgo() {
+		return a
+	}
+
+	if isInstall {
+		// For an install action, change the action function.
+		// We can't add an action after the install action,
+		// because it deletes the working directory.
+		// Adding an action before the install action is painful,
+		// because it uses deps[0] to find the source.
+		a.f = (*builder).installWithHeader
+		return a
+	}
+
+	return &action{
+		p:      a.p,
+		deps:   []*action{a},
+		f:      (*builder).installHeader,
+		pkgdir: a.pkgdir,
+		objdir: a.objdir,
+		target: a.target[:len(a.target)-len(filepath.Ext(a.target))] + ".h",
+	}
+}
+
+// Install the library and the cgo export header if there is one.
+func (b *builder) installWithHeader(a *action) error {
+	target := a.target[:len(a.target)-len(filepath.Ext(a.target))] + ".h"
+	if err := b.doInstallHeader(a, a.objdir, target); err != nil {
+		return err
+	}
+	return b.install(a)
 }
 
 // actionList returns the list of actions in the dag rooted at root
@@ -1495,7 +1545,11 @@ func (b *builder) install(a *action) (err error) {
 	a1 := a.deps[0]
 	perm := os.FileMode(0644)
 	if a1.link {
-		perm = 0755
+		switch buildBuildmode {
+		case "c-archive", "c-shared":
+		default:
+			perm = 0755
+		}
 	}
 
 	// make target directory
@@ -1637,6 +1691,29 @@ func (b *builder) copyFile(a *action, dst, src string, perm os.FileMode) error {
 		return fmt.Errorf("copying %s to %s: %v", src, dst, err)
 	}
 	return nil
+}
+
+// Install the cgo export header file, if there is one.
+func (b *builder) installHeader(a *action) error {
+	return b.doInstallHeader(a, a.objdir, a.target)
+}
+
+func (b *builder) doInstallHeader(a *action, objdir, target string) error {
+	src := objdir + "_cgo_install.h"
+	if _, err := os.Stat(src); os.IsNotExist(err) {
+		// If the file does not exist, there are no exported
+		// functions, and we do not install anything.
+		return nil
+	}
+
+	dir, _ := filepath.Split(target)
+	if dir != "" {
+		if err := b.mkdir(dir); err != nil {
+			return err
+		}
+	}
+
+	return b.moveOrCopyFile(a, target, src, 0644)
 }
 
 // cover runs, in effect,
@@ -2742,7 +2819,16 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
 			cgoflags = append(cgoflags, "-gccgopkgpath="+pkgpath)
 		}
 	}
-	if err := b.run(p.Dir, p.ImportPath, cgoenv, buildToolExec, cgoExe, "-objdir", obj, cgoflags, "--", cgoCPPFLAGS, cgoexeCFLAGS, cgofiles); err != nil {
+
+	switch buildBuildmode {
+	case "c-archive", "c-shared":
+		// Tell cgo that if there are any exported functions
+		// it should generate a header file that C code can
+		// #include.
+		cgoflags = append(cgoflags, "-exportheader="+obj+"_cgo_install.h")
+	}
+
+	if err := b.run(p.Dir, p.ImportPath, cgoenv, buildToolExec, cgoExe, "-objdir", obj, "-importpath", p.ImportPath, cgoflags, "--", cgoCPPFLAGS, cgoexeCFLAGS, cgofiles); err != nil {
 		return nil, nil, err
 	}
 	outGo = append(outGo, gofiles...)

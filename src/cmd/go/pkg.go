@@ -487,7 +487,15 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		return p
 	}
 
-	if p.Name == "main" {
+	useBindir := p.Name == "main"
+	if !p.Standard {
+		switch buildBuildmode {
+		case "c-archive", "c-shared":
+			useBindir = false
+		}
+	}
+
+	if useBindir {
 		// Report an error when the old code.google.com/p/go.tools paths are used.
 		if goTools[p.ImportPath] == stalePath {
 			newPath := strings.Replace(p.ImportPath, "code.google.com/p/go.", "golang.org/x/", 1)
