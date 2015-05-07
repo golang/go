@@ -20,7 +20,9 @@ goos=$(go env GOOS)
 androidpath=/data/local/tmp/testcshared-$$
 
 function cleanup() {
-	rm -f libgo.so libgo2.so testp testp2 testp3
+	rm -rf libgo.so libgo2.so libgo.h testp testp2 testp3 pkg
+
+	rm -rf $(go env GOROOT)/pkg/$(go env GOOS)_$(go env GOARCH)_testcshared_shared
 
 	if [ "$(go env GOOS)" == "android" ]; then
 		adb shell rm -rf $androidpath
@@ -59,11 +61,19 @@ function binpush() {
 	fi
 }
 
-GOPATH=$(pwd) go build -buildmode=c-shared -o libgo.so src/libgo/libgo.go
+rm -rf pkg
+
+suffix="-installsuffix testcshared"
+
+# Create the header files.
+GOPATH=$(pwd) go install -buildmode=c-shared $suffix libgo
+
+GOPATH=$(pwd) go build -buildmode=c-shared $suffix -o libgo.so src/libgo/libgo.go
 binpush libgo.so
 
 # test0: exported symbols in shared lib are accessible.
-$(go env CC) $(go env GOGCCFLAGS) -o testp main0.c libgo.so
+# TODO(iant): using _shared here shouldn't really be necessary.
+$(go env CC) $(go env GOGCCFLAGS) -I pkg/$(go env GOOS)_$(go env GOARCH)_testcshared_shared -o testp main0.c libgo.so
 binpush testp
 output=$(run LD_LIBRARY_PATH=. ./testp)
 if [ "$output" != "PASS" ]; then
@@ -81,7 +91,7 @@ if [ "$output" != "PASS" ]; then
 fi
 
 # test2: tests libgo2.so which does not export any functions.
-GOPATH=$(pwd) go build -buildmode=c-shared -o libgo2.so src/libgo2/libgo2.go
+GOPATH=$(pwd) go build -buildmode=c-shared $suffix -o libgo2.so src/libgo2/libgo2.go
 binpush libgo2.so
 $(go env CC) $(go env GOGCCFLAGS) -o testp2 main2.c -Wl,--no-as-needed libgo2.so
 binpush testp2

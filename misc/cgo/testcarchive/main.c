@@ -5,10 +5,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
-extern signed char DidInitRun();
-extern signed char DidMainRun();
-extern int32_t FromPkg();
-extern void CheckArgs();
+#include "p.h"
+#include "libgo.h"
 
 int main(void) {
 	int32_t res;
