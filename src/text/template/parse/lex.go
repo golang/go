@@ -177,9 +177,6 @@ func (l *lexer) nextItem() item {
 // drain drains the output so the lexing goroutine will exit.
 // Called by the parser, not in the lexing goroutine.
 func (l *lexer) drain() {
-	if l == nil {
-		return
-	}
 	for range l.items {
 	}
 }
