@@ -106,7 +106,10 @@ func writebarrierptr(dst *uintptr, src uintptr) {
 		return
 	}
 	if src != 0 && (src < _PhysPageSize || src == poisonStack) {
-		systemstack(func() { throw("bad pointer in write barrier") })
+		systemstack(func() {
+			print("runtime: writebarrierptr *", dst, " = ", hex(src), "\n")
+			throw("bad pointer in write barrier")
+		})
 	}
 	writebarrierptr_nostore1(dst, src)
 }
@@ -152,33 +155,11 @@ func writebarrieriface(dst *[2]uintptr, src [2]uintptr) {
 // typedmemmove copies a value of type t to dst from src.
 //go:nosplit
 func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
-	if !writeBarrierEnabled || (typ.kind&kindNoPointers) != 0 {
-		memmove(dst, src, typ.size)
+	memmove(dst, src, typ.size)
+	if typ.kind&kindNoPointers != 0 {
 		return
 	}
-
-	systemstack(func() {
-		dst := dst // make local copies
-		src := src
-		nptr := typ.size / ptrSize
-		i := uintptr(0)
-	Copy:
-		for _, bits := range ptrBitmapForType(typ) {
-			for j := 0; j < 8; j++ {
-				if bits&1 != 0 {
-					writebarrierptr((*uintptr)(dst), *(*uintptr)(src))
-				} else {
-					*(*uintptr)(dst) = *(*uintptr)(src)
-				}
-				if i++; i >= nptr {
-					break Copy
-				}
-				dst = add(dst, ptrSize)
-				src = add(src, ptrSize)
-				bits >>= 1
-			}
-		}
-	})
+	heapBitsBulkBarrier(uintptr(dst), typ.size)
 }
 
 //go:linkname reflect_typedmemmove reflect.typedmemmove
@@ -190,45 +171,16 @@ func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 // dst and src point off bytes into the value and only copies size bytes.
 //go:linkname reflect_typedmemmovepartial reflect.typedmemmovepartial
 func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
-	if !writeBarrierEnabled || (typ.kind&kindNoPointers) != 0 || size < ptrSize {
-		memmove(dst, src, size)
+	memmove(dst, src, size)
+	if !writeBarrierEnabled || typ.kind&kindNoPointers != 0 || size < ptrSize || !inheap(uintptr(dst)) {
 		return
 	}
 
-	if off&(ptrSize-1) != 0 {
-		frag := -off & (ptrSize - 1)
-		// frag < size, because size >= ptrSize, checked above.
-		memmove(dst, src, frag)
+	if frag := -off & (ptrSize - 1); frag != 0 {
+		dst = add(dst, frag)
 		size -= frag
-		dst = add(noescape(dst), frag)
-		src = add(noescape(src), frag)
-		off += frag
 	}
-
-	mask := ptrBitmapForType(typ)
-	nptr := (off + size) / ptrSize
-	i := uintptr(off / ptrSize)
-Copy:
-	for {
-		bits := mask[i/8] >> (i % 8)
-		for j := i % 8; j < 8; j++ {
-			if bits&1 != 0 {
-				writebarrierptr((*uintptr)(dst), *(*uintptr)(src))
-			} else {
-				*(*uintptr)(dst) = *(*uintptr)(src)
-			}
-			if i++; i >= nptr {
-				break Copy
-			}
-			dst = add(dst, ptrSize)
-			src = add(src, ptrSize)
-			bits >>= 1
-		}
-	}
-	size &= ptrSize - 1
-	if size > 0 {
-		memmove(dst, src, size)
-	}
+	heapBitsBulkBarrier(uintptr(dst), size&^(ptrSize-1))
 }
 
 // callwritebarrier is invoked at the end of reflectcall, to execute
@@ -240,32 +192,10 @@ Copy:
 // not to be preempted before the write barriers have been run.
 //go:nosplit
 func callwritebarrier(typ *_type, frame unsafe.Pointer, framesize, retoffset uintptr) {
-	if !writeBarrierEnabled || typ == nil || (typ.kind&kindNoPointers) != 0 || framesize-retoffset < ptrSize {
+	if !writeBarrierEnabled || typ == nil || typ.kind&kindNoPointers != 0 || framesize-retoffset < ptrSize || !inheap(uintptr(frame)) {
 		return
 	}
-
-	systemstack(func() {
-		mask := ptrBitmapForType(typ)
-		// retoffset is known to be pointer-aligned (at least).
-		// TODO(rsc): The noescape call should be unnecessary.
-		dst := add(noescape(frame), retoffset)
-		nptr := framesize / ptrSize
-		i := uintptr(retoffset / ptrSize)
-	Copy:
-		for {
-			bits := mask[i/8] >> (i % 8)
-			for j := i % 8; j < 8; j++ {
-				if bits&1 != 0 {
-					writebarrierptr_nostore((*uintptr)(dst), *(*uintptr)(dst))
-				}
-				if i++; i >= nptr {
-					break Copy
-				}
-				dst = add(dst, ptrSize)
-				bits >>= 1
-			}
-		}
-	})
+	heapBitsBulkBarrier(uintptr(add(frame, retoffset)), framesize)
 }
 
 //go:nosplit

@@ -124,6 +124,9 @@ type heapBits struct {
 
 // heapBitsForAddr returns the heapBits for the address addr.
 // The caller must have already checked that addr is in the range [mheap_.arena_start, mheap_.arena_used).
+//
+// nosplit because it is used during write barriers and must not be preempted.
+//go:nosplit
 func heapBitsForAddr(addr uintptr) heapBits {
 	// 2 bits per work, 4 pairs per byte, and a mask is hard coded.
 	off := (addr - mheap_.arena_start) / ptrSize
@@ -316,6 +319,34 @@ func (h heapBits) setCheckmarked(size uintptr) {
 		return
 	}
 	atomicor8(h.bitp, bitMarked<<(heapBitsShift+h.shift))
+}
+
+// heapBitsBulkBarrier executes writebarrierptr_nostore
+// for every pointer slot in the memory range [p, p+size),
+// using the heap bitmap to locate those pointer slots.
+// This executes the write barriers necessary after a memmove.
+// Both p and size must be pointer-aligned.
+// The range [p, p+size) must lie within a single allocation.
+//
+// Callers should call heapBitsBulkBarrier immediately after
+// calling memmove(p, src, size). This function is marked nosplit
+// to avoid being preempted; the GC must not stop the goroutine
+// betwen the memmove and the execution of the barriers.
+//go:nosplit
+func heapBitsBulkBarrier(p, size uintptr) {
+	if (p|size)&(ptrSize-1) != 0 {
+		throw("heapBitsBulkBarrier: unaligned arguments")
+	}
+	if !writeBarrierEnabled || !inheap(p) {
+		return
+	}
+
+	for i := uintptr(0); i < size; i += ptrSize {
+		if heapBitsForAddr(p + i).isPointer() {
+			x := (*uintptr)(unsafe.Pointer(p + i))
+			writebarrierptr_nostore(x, *x)
+		}
+	}
 }
 
 // The methods operating on spans all require that h has been returned
@@ -916,36 +947,6 @@ Phase3:
 			h = h.next()
 		}
 	}
-}
-
-// ptrBitmapForType returns a bitmap indicating where pointers are
-// in the memory representation of the type typ.
-// The bit x[i/8]&(1<<(i%8)) is 1 if the i'th word in a value of type typ
-// is a pointer.
-func ptrBitmapForType(typ *_type) []uint8 {
-	var ptrmask *uint8
-	nptr := (uintptr(typ.size) + ptrSize - 1) / ptrSize
-	if typ.kind&kindGCProg != 0 {
-		masksize := (nptr + 7) / 8
-		masksize++ // unroll flag in the beginning
-		if masksize > maxGCMask && typ.gc[1] != 0 {
-			// write barriers have not been updated to deal with this case yet.
-			throw("maxGCMask too small for now")
-		}
-		ptrmask = (*uint8)(unsafe.Pointer(uintptr(typ.gc[0])))
-		// Check whether the program is already unrolled
-		// by checking if the unroll flag byte is set
-		maskword := uintptr(atomicloadp(unsafe.Pointer(ptrmask)))
-		if *(*uint8)(unsafe.Pointer(&maskword)) == 0 {
-			systemstack(func() {
-				unrollgcprog_m(typ)
-			})
-		}
-		ptrmask = (*uint8)(add(unsafe.Pointer(ptrmask), 1)) // skip the unroll flag byte
-	} else {
-		ptrmask = (*uint8)(unsafe.Pointer(typ.gc[0])) // pointer to unrolled mask
-	}
-	return (*[1 << 30]byte)(unsafe.Pointer(ptrmask))[:(nptr+7)/8]
 }
 
 // GC type info programs
