@@ -4,6 +4,8 @@
 
 package reflect
 
+import "unsafe"
+
 // MakeRO returns a copy of v with the read-only flag set.
 func MakeRO(v Value) Value {
 	v.flag |= flagRO
@@ -28,14 +30,14 @@ func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr, 
 		ft, argSize, retOffset, s, _ = funcLayout(t.(*rtype), nil)
 	}
 	frametype = ft
-	for i := uint32(0); i < s.n; i += 2 {
-		stack = append(stack, s.data[i/8]>>(i%8)&3)
+	for i := uint32(0); i < s.n; i++ {
+		stack = append(stack, s.data[i/8]>>(i%8)&1)
 	}
 	if ft.kind&kindGCProg != 0 {
 		panic("can't handle gc programs")
 	}
-	gcdata := (*[1000]byte)(ft.gc[0])
-	for i := uintptr(0); i < ft.size/ptrSize; i++ {
+	gcdata := (*[1000]byte)(unsafe.Pointer(ft.gcdata))
+	for i := uintptr(0); i < ft.ptrdata/ptrSize; i++ {
 		gc = append(gc, gcdata[i/8]>>(i%8)&1)
 	}
 	ptrs = ft.kind&kindNoPointers == 0
@@ -50,4 +52,12 @@ func TypeLinks() []string {
 		}
 	}
 	return r
+}
+
+var GCBits = gcbits
+
+func gcbits(interface{}) []byte // provided by runtime
+
+func MapBucketOf(x, y Type) Type {
+	return bucketOf(x.(*rtype), y.(*rtype))
 }

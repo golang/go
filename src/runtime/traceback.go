@@ -469,7 +469,7 @@ func setArgInfo(frame *stkframe, f *_func, needArgMap bool) {
 				throw("reflect mismatch")
 			}
 			bv := (*bitvector)(unsafe.Pointer(fn[1]))
-			frame.arglen = uintptr(bv.n / 2 * ptrSize)
+			frame.arglen = uintptr(bv.n * ptrSize)
 			frame.argmap = bv
 		}
 	}

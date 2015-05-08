@@ -944,7 +944,7 @@ func onebitwalktype1(t *Type, xoffset *int64, bv Bvec) {
 		*xoffset += t.Width
 
 	case TARRAY:
-		// The value of t->bound is -1 for slices types and >0 for
+		// The value of t->bound is -1 for slices types and >=0 for
 		// for fixed array types.  All other values are invalid.
 		if t.Bound < -1 {
 			Fatal("onebitwalktype1: invalid bound, %v", t)

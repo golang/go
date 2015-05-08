@@ -146,8 +146,8 @@ func gcinit() {
 	work.markfor = parforalloc(_MaxGcproc)
 	_ = setGCPercent(readgogc())
 	for datap := &firstmoduledata; datap != nil; datap = datap.next {
-		datap.gcdatamask = unrollglobgcprog((*byte)(unsafe.Pointer(datap.gcdata)), datap.edata-datap.data)
-		datap.gcbssmask = unrollglobgcprog((*byte)(unsafe.Pointer(datap.gcbss)), datap.ebss-datap.bss)
+		datap.gcdatamask = progToPointerMask((*byte)(unsafe.Pointer(datap.gcdata)), datap.edata-datap.data)
+		datap.gcbssmask = progToPointerMask((*byte)(unsafe.Pointer(datap.gcbss)), datap.ebss-datap.bss)
 	}
 	memstats.next_gc = heapminimum
 }

@@ -34,6 +34,7 @@ import (
 	"cmd/internal/obj"
 	"debug/elf"
 	"encoding/binary"
+	"fmt"
 )
 
 type LSym struct {
@@ -84,6 +85,13 @@ type LSym struct {
 	R           []Reloc
 	Local       bool
 	gcmask      []byte
+}
+
+func (s *LSym) String() string {
+	if s.Version == 0 {
+		return s.Name
+	}
+	return fmt.Sprintf("%s<%d>", s.Name, s.Version)
 }
 
 type Reloc struct {

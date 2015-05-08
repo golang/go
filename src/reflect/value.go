@@ -10,7 +10,7 @@ import (
 	"unsafe"
 )
 
-const ptrSize = unsafe.Sizeof((*byte)(nil))
+const ptrSize = 4 << (^uintptr(0) >> 63) // unsafe.Sizeof(uintptr(0)) but an ideal const
 const cannotSet = "cannot set value obtained from unexported struct field"
 
 // Value is the reflection interface to a Go value.

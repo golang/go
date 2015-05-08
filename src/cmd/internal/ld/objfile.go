@@ -347,7 +347,7 @@ func rdsym(ctxt *Link, f *obj.Biobuf, pkg string) *LSym {
 			s.Reachable = false
 		}
 	}
-	if v == 0 && strings.HasPrefix(s.Name, "runtime.gcbits.0x") {
+	if v == 0 && strings.HasPrefix(s.Name, "runtime.gcbits.") {
 		s.Local = true
 	}
 	return s

@@ -39,6 +39,7 @@ var bootstrapDirs = []string{
 	"asm/internal/flags",
 	"asm/internal/lex",
 	"internal/asm",
+	"internal/gcprog",
 	"internal/gc/big",
 	"internal/gc",
 	"internal/ld",

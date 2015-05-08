@@ -32,9 +32,11 @@
 package ld
 
 import (
+	"cmd/internal/gcprog"
 	"cmd/internal/obj"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 )
 
@@ -1044,141 +1046,65 @@ func maxalign(s *LSym, type_ int) int32 {
 	return max
 }
 
-// Helper object for building GC type programs.
-type ProgGen struct {
-	s        *LSym
-	datasize int32
-	data     [256 / 8]uint8
-	pos      int64
+const debugGCProg = false
+
+type GCProg struct {
+	sym *LSym
+	w   gcprog.Writer
 }
 
-func proggeninit(g *ProgGen, s *LSym) {
-	g.s = s
-	g.datasize = 0
-	g.pos = 0
-	g.data = [256 / 8]uint8{}
-}
-
-func proggenemit(g *ProgGen, v uint8) {
-	Adduint8(Ctxt, g.s, v)
-}
-
-// Writes insData block from g->data.
-func proggendataflush(g *ProgGen) {
-	if g.datasize == 0 {
-		return
-	}
-	proggenemit(g, obj.InsData)
-	proggenemit(g, uint8(g.datasize))
-	s := (g.datasize + 7) / 8
-	for i := int32(0); i < s; i++ {
-		proggenemit(g, g.data[i])
-	}
-	g.datasize = 0
-	g.data = [256 / 8]uint8{}
-}
-
-func proggendata(g *ProgGen, d uint8) {
-	g.data[g.datasize/8] |= d << uint(g.datasize%8)
-	g.datasize++
-	if g.datasize == 255 {
-		proggendataflush(g)
+func (p *GCProg) Init(name string) {
+	p.sym = Linklookup(Ctxt, name, 0)
+	p.w.Init(p.writeByte)
+	if debugGCProg {
+		fmt.Fprintf(os.Stderr, "ld: start GCProg %s\n", name)
+		p.w.Debug(os.Stderr)
 	}
 }
 
-// Skip v bytes due to alignment, etc.
-func proggenskip(g *ProgGen, off int64, v int64) {
-	for i := off; i < off+v; i++ {
-		if (i % int64(Thearch.Ptrsize)) == 0 {
-			proggendata(g, 0)
-		}
+func (p *GCProg) writeByte(x byte) {
+	Adduint8(Ctxt, p.sym, x)
+}
+
+func (p *GCProg) End(size int64) {
+	p.w.ZeroUntil(size / int64(Thearch.Ptrsize))
+	p.w.End()
+	if debugGCProg {
+		fmt.Fprintf(os.Stderr, "ld: end GCProg\n")
 	}
 }
 
-// Emit insArray instruction.
-func proggenarray(g *ProgGen, length int64) {
-	var i int32
-
-	proggendataflush(g)
-	proggenemit(g, obj.InsArray)
-	for i = 0; i < int32(Thearch.Ptrsize); i, length = i+1, length>>8 {
-		proggenemit(g, uint8(length))
-	}
-}
-
-func proggenarrayend(g *ProgGen) {
-	proggendataflush(g)
-	proggenemit(g, obj.InsArrayEnd)
-}
-
-func proggenfini(g *ProgGen, size int64) {
-	proggenskip(g, g.pos, size-g.pos)
-	proggendataflush(g)
-	proggenemit(g, obj.InsEnd)
-}
-
-// This function generates GC pointer info for global variables.
-func proggenaddsym(g *ProgGen, s *LSym) {
-	if s.Size == 0 {
-		return
-	}
-
-	// Skip alignment hole from the previous symbol.
-	proggenskip(g, g.pos, s.Value-g.pos)
-	g.pos = s.Value
-
-	if s.Gotype == nil && s.Size >= int64(Thearch.Ptrsize) {
+func (p *GCProg) AddSym(s *LSym) {
+	typ := s.Gotype
+	// Things without pointers should be in SNOPTRDATA or SNOPTRBSS;
+	// everything we see should have pointers and should therefore have a type.
+	if typ == nil {
 		Diag("missing Go type information for global symbol: %s size %d", s.Name, int(s.Size))
 		return
 	}
 
-	if s.Gotype == nil || decodetype_noptr(s.Gotype) != 0 || s.Size < int64(Thearch.Ptrsize) || s.Name[0] == '.' {
-		// no scan
-		if s.Size < int64(32*Thearch.Ptrsize) {
-			// Emit small symbols as data.
-			// This case also handles unaligned and tiny symbols, so tread carefully.
-			for i := s.Value; i < s.Value+s.Size; i++ {
-				if (i % int64(Thearch.Ptrsize)) == 0 {
-					proggendata(g, 0)
-				}
-			}
-		} else {
-			// Emit large symbols as array.
-			if (s.Size%int64(Thearch.Ptrsize) != 0) || (g.pos%int64(Thearch.Ptrsize) != 0) {
-				Diag("proggenaddsym: unaligned noscan symbol %s: size=%d pos=%d", s.Name, s.Size, g.pos)
-			}
-			proggenarray(g, s.Size/int64(Thearch.Ptrsize))
-			proggendata(g, 0)
-			proggenarrayend(g)
-		}
-		g.pos = s.Value + s.Size
-	} else if decodetype_usegcprog(s.Gotype) != 0 {
-		// gc program, copy directly
-		// TODO(rsc): Maybe someday the gc program will only describe
-		// the first decodetype_ptrdata(s.Gotype) bytes instead of the full size.
-		proggendataflush(g)
-		gcprog := decodetype_gcprog(s.Gotype)
-		size := decodetype_size(s.Gotype)
-		if (size%int64(Thearch.Ptrsize) != 0) || (g.pos%int64(Thearch.Ptrsize) != 0) {
-			Diag("proggenaddsym: unaligned gcprog symbol %s: size=%d pos=%d", s.Name, size, g.pos)
-		}
-		for i := int64(0); i < int64(len(gcprog.P)-1); i++ {
-			proggenemit(g, uint8(gcprog.P[i]))
-		}
-		g.pos = s.Value + size
-	} else {
-		// gc mask, it's small so emit as data
-		mask := decodetype_gcmask(s.Gotype)
-		ptrdata := decodetype_ptrdata(s.Gotype)
-		if (ptrdata%int64(Thearch.Ptrsize) != 0) || (g.pos%int64(Thearch.Ptrsize) != 0) {
-			Diag("proggenaddsym: unaligned gcmask symbol %s: size=%d pos=%d", s.Name, ptrdata, g.pos)
-		}
-		for i := int64(0); i < ptrdata; i += int64(Thearch.Ptrsize) {
-			word := uint(i / int64(Thearch.Ptrsize))
-			proggendata(g, (mask[word/8]>>(word%8))&1)
-		}
-		g.pos = s.Value + ptrdata
+	ptrsize := int64(Thearch.Ptrsize)
+	nptr := decodetype_ptrdata(typ) / ptrsize
+
+	if debugGCProg {
+		fmt.Fprintf(os.Stderr, "gcprog sym: %s at %d (ptr=%d+%d)\n", s.Name, s.Value, s.Value/ptrsize, nptr)
 	}
+
+	if decodetype_usegcprog(typ) == 0 {
+		// Copy pointers from mask into program.
+		mask := decodetype_gcmask(typ)
+		for i := int64(0); i < nptr; i++ {
+			if (mask[i/8]>>uint(i%8))&1 != 0 {
+				p.w.Ptr(s.Value/ptrsize + i)
+			}
+		}
+		return
+	}
+
+	// Copy program.
+	prog := decodetype_gcprog(typ)
+	p.w.ZeroUntil(s.Value / ptrsize)
+	p.w.Append(prog.P[4:prog.Size], nptr)
 }
 
 func growdatsize(datsizep *int64, s *LSym) {
@@ -1386,15 +1312,13 @@ func dodata() {
 
 	/* data */
 	sect = addsection(&Segdata, ".data", 06)
-
 	sect.Align = maxalign(s, obj.SBSS-1)
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
 	Linklookup(Ctxt, "runtime.data", 0).Sect = sect
 	Linklookup(Ctxt, "runtime.edata", 0).Sect = sect
-	gcdata := Linklookup(Ctxt, "runtime.gcdata", 0)
-	var gen ProgGen
-	proggeninit(&gen, gcdata)
+	var gc GCProg
+	gc.Init("runtime.gcdata")
 	for ; s != nil && s.Type < obj.SBSS; s = s.Next {
 		if s.Type == obj.SINITARR {
 			Ctxt.Cursym = s
@@ -1405,33 +1329,30 @@ func dodata() {
 		s.Type = obj.SDATA
 		datsize = aligndatsize(datsize, s)
 		s.Value = int64(uint64(datsize) - sect.Vaddr)
-		proggenaddsym(&gen, s) // gc
+		gc.AddSym(s)
 		growdatsize(&datsize, s)
 	}
-
 	sect.Length = uint64(datsize) - sect.Vaddr
-	proggenfini(&gen, int64(sect.Length)) // gc
+	gc.End(int64(sect.Length))
 
 	/* bss */
 	sect = addsection(&Segdata, ".bss", 06)
-
 	sect.Align = maxalign(s, obj.SNOPTRBSS-1)
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
 	Linklookup(Ctxt, "runtime.bss", 0).Sect = sect
 	Linklookup(Ctxt, "runtime.ebss", 0).Sect = sect
-	gcbss := Linklookup(Ctxt, "runtime.gcbss", 0)
-	proggeninit(&gen, gcbss)
+	gc = GCProg{}
+	gc.Init("runtime.gcbss")
 	for ; s != nil && s.Type < obj.SNOPTRBSS; s = s.Next {
 		s.Sect = sect
 		datsize = aligndatsize(datsize, s)
 		s.Value = int64(uint64(datsize) - sect.Vaddr)
-		proggenaddsym(&gen, s) // gc
+		gc.AddSym(s)
 		growdatsize(&datsize, s)
 	}
-
 	sect.Length = uint64(datsize) - sect.Vaddr
-	proggenfini(&gen, int64(sect.Length)) // gc
+	gc.End(int64(sect.Length))
 
 	/* pointer-free bss */
 	sect = addsection(&Segdata, ".noptrbss", 06)

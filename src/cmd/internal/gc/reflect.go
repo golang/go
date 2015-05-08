@@ -5,8 +5,10 @@
 package gc
 
 import (
+	"cmd/internal/gcprog"
 	"cmd/internal/obj"
 	"fmt"
+	"os"
 )
 
 /*
@@ -771,6 +773,8 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	// The linker magically takes the max of all the sizes.
 	zero := Pkglookup("zerovalue", Runtimepkg)
 
+	gcsym, useGCProg, ptrdata := dgcsym(t)
+
 	// We use size 0 here so we get the pointer to the zero value,
 	// but don't allocate space for the zero value unless we need it.
 	// TODO: how do we get this symbol into bss?  We really want
@@ -787,14 +791,14 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	//		fieldAlign    uint8
 	//		kind          uint8
 	//		alg           unsafe.Pointer
-	//		gc            unsafe.Pointer
+	//		gcdata        unsafe.Pointer
 	//		string        *string
 	//		*extraType
 	//		ptrToThis     *Type
 	//		zero          unsafe.Pointer
 	//	}
 	ot = duintptr(s, ot, uint64(t.Width))
-	ot = duintptr(s, ot, uint64(typeptrdata(t)))
+	ot = duintptr(s, ot, uint64(ptrdata))
 
 	ot = duint32(s, ot, typehash(t))
 	ot = duint8(s, ot, 0) // unused
@@ -811,8 +815,6 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	ot = duint8(s, ot, t.Align) // align
 	ot = duint8(s, ot, t.Align) // fieldAlign
 
-	gcprog := usegcprog(t)
-
 	i = kinds[t.Etype]
 	if t.Etype == TARRAY && t.Bound < 0 {
 		i = obj.KindSlice
@@ -823,7 +825,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	if isdirectiface(t) {
 		i |= obj.KindDirectIface
 	}
-	if gcprog {
+	if useGCProg {
 		i |= obj.KindGCProg
 	}
 	ot = duint8(s, ot, uint8(i)) // kind
@@ -832,48 +834,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	} else {
 		ot = dsymptr(s, ot, algsym, 0)
 	}
-
-	// gc
-	if gcprog {
-		var gcprog1 *Sym
-		var gcprog0 *Sym
-		gengcprog(t, &gcprog0, &gcprog1)
-		if gcprog0 != nil {
-			ot = dsymptr(s, ot, gcprog0, 0)
-		} else {
-			ot = duintptr(s, ot, 0)
-		}
-		ot = dsymptr(s, ot, gcprog1, 0)
-	} else {
-		var gcmask [16]uint8
-		gengcmask(t, gcmask[:])
-		x1 := uint64(0)
-		for i := 0; i < 8; i++ {
-			x1 = x1<<8 | uint64(gcmask[i])
-		}
-		var p string
-		if Widthptr == 4 {
-			p = fmt.Sprintf("gcbits.0x%016x", x1)
-		} else {
-			x2 := uint64(0)
-			for i := 0; i < 8; i++ {
-				x2 = x2<<8 | uint64(gcmask[i+8])
-			}
-			p = fmt.Sprintf("gcbits.0x%016x%016x", x1, x2)
-		}
-
-		sbits := Pkglookup(p, Runtimepkg)
-		if sbits.Flags&SymUniq == 0 {
-			sbits.Flags |= SymUniq
-			for i := 0; i < 2*Widthptr; i++ {
-				duint8(sbits, i, gcmask[i])
-			}
-			ggloblsym(sbits, 2*int32(Widthptr), obj.DUPOK|obj.RODATA|obj.LOCAL)
-		}
-
-		ot = dsymptr(s, ot, sbits, 0)
-		ot = duintptr(s, ot, 0)
-	}
+	ot = dsymptr(s, ot, gcsym, 0)
 
 	p := Tconv(t, obj.FmtLeft|obj.FmtUnsigned)
 
@@ -1419,228 +1380,193 @@ func dalgsym(t *Type) *Sym {
 	return s
 }
 
-func usegcprog(t *Type) bool {
-	if !haspointers(t) {
-		return false
-	}
-	if t.Width == BADWIDTH {
-		dowidth(t)
+// maxPtrmaskBytes is the maximum length of a GC ptrmask bitmap,
+// which holds 1-bit entries describing where pointers are in a given type.
+// 16 bytes is enough to describe 128 pointer-sized words, 512 or 1024 bytes
+// depending on the system. Above this length, the GC information is
+// recorded as a GC program, which can express repetition compactly.
+// In either form, the information is used by the runtime to initialize the
+// heap bitmap, and for large types (like 128 or more words), they are
+// roughly the same speed. GC programs are never much larger and often
+// more compact. (If large arrays are involved, they can be arbitrarily more
+// compact.)
+//
+// The cutoff must be large enough that any allocation large enough to
+// use a GC program is large enough that it does not share heap bitmap
+// bytes with any other objects, allowing the GC program execution to
+// assume an aligned start and not use atomic operations. In the current
+// runtime, this means all malloc size classes larger than the cutoff must
+// be multiples of four words. On 32-bit systems that's 16 bytes, and
+// all size classes >= 16 bytes are 16-byte aligned, so no real constraint.
+// On 64-bit systems, that's 32 bytes, and 32-byte alignment is guaranteed
+// for size classes >= 256 bytes. On a 64-bit sytem, 256 bytes allocated
+// is 32 pointers, the bits for which fit in 4 bytes. So maxPtrmaskBytes
+// must be >= 4.
+//
+// We use 16 because the GC programs do have some constant overhead
+// to get started, and processing 128 pointers seems to be enough to
+// amortize that overhead well.
+const maxPtrmaskBytes = 16
+
+// dgcsym emits and returns a data symbol containing GC information for type t,
+// along with a boolean reporting whether the UseGCProg bit should be set in
+// the type kind, and the ptrdata field to record in the reflect type information.
+func dgcsym(t *Type) (sym *Sym, useGCProg bool, ptrdata int64) {
+	ptrdata = typeptrdata(t)
+	if ptrdata/int64(Widthptr) <= maxPtrmaskBytes*8 {
+		sym = dgcptrmask(t)
+		return
 	}
 
-	// Calculate size of the unrolled GC mask.
-	nptr := typeptrdata(t) / int64(Widthptr)
-
-	// Decide whether to use unrolled GC mask or GC program.
-	// We could use a more elaborate condition, but this seems to work well in practice.
-	// For small objects, the GC program can't give significant reduction.
-	return nptr > int64(2*Widthptr*8)
+	useGCProg = true
+	sym, ptrdata = dgcprog(t)
+	return
 }
 
-// Generates GC bitmask (1 bit per word).
-func gengcmask(t *Type, gcmask []byte) {
-	for i := int64(0); i < 16; i++ {
-		gcmask[i] = 0
+// dgcptrmask emits and returns the symbol containing a pointer mask for type t.
+func dgcptrmask(t *Type) *Sym {
+	ptrmask := make([]byte, (typeptrdata(t)/int64(Widthptr)+7)/8)
+	fillptrmask(t, ptrmask)
+	p := fmt.Sprintf("gcbits.%x", ptrmask)
+
+	sym := Pkglookup(p, Runtimepkg)
+	if sym.Flags&SymUniq == 0 {
+		sym.Flags |= SymUniq
+		for i, x := range ptrmask {
+			duint8(sym, i, x)
+		}
+		ggloblsym(sym, int32(len(ptrmask)), obj.DUPOK|obj.RODATA|obj.LOCAL)
+	}
+	return sym
+}
+
+// fillptrmask fills in ptrmask with 1s corresponding to the
+// word offsets in t that hold pointers.
+// ptrmask is assumed to fit at least typeptrdata(t)/Widthptr bits.
+func fillptrmask(t *Type, ptrmask []byte) {
+	for i := range ptrmask {
+		ptrmask[i] = 0
 	}
 	if !haspointers(t) {
 		return
 	}
 
-	vec := bvalloc(int32(2 * Widthptr * 8))
+	vec := bvalloc(8 * int32(len(ptrmask)))
 	xoffset := int64(0)
 	onebitwalktype1(t, &xoffset, vec)
 
 	nptr := typeptrdata(t) / int64(Widthptr)
 	for i := int64(0); i < nptr; i++ {
 		if bvget(vec, int32(i)) == 1 {
-			gcmask[i/8] |= 1 << (uint(i) % 8)
+			ptrmask[i/8] |= 1 << (uint(i) % 8)
 		}
 	}
 }
 
-// Helper object for generation of GC programs.
-type ProgGen struct {
-	s        *Sym
-	datasize int32
-	data     [256 / 8]uint8
-	ot       int64
+// dgcprog emits and returns the symbol containing a GC program for type t
+// along with the size of the data described by the program (in the range [typeptrdata(t), t.Width]).
+// In practice, the size is typeptrdata(t) except for non-trivial arrays.
+// For non-trivial arrays, the program describes the full t.Width size.
+func dgcprog(t *Type) (*Sym, int64) {
+	dowidth(t)
+	if t.Width == BADWIDTH {
+		Fatal("dgcprog: %v badwidth", t)
+	}
+	sym := typesymprefix(".gcprog", t)
+	var p GCProg
+	p.init(sym)
+	p.emit(t, 0)
+	offset := p.w.BitIndex() * int64(Widthptr)
+	p.end()
+	if ptrdata := typeptrdata(t); offset < ptrdata || offset > t.Width {
+		Fatal("dgcprog: %v: offset=%d but ptrdata=%d size=%d", t, offset, ptrdata, t.Width)
+	}
+	return sym, offset
 }
 
-func proggeninit(g *ProgGen, s *Sym) {
-	g.s = s
-	g.datasize = 0
-	g.ot = 0
-	g.data = [256 / 8]uint8{}
+type GCProg struct {
+	sym    *Sym
+	symoff int
+	w      gcprog.Writer
 }
 
-func proggenemit(g *ProgGen, v uint8) {
-	g.ot = int64(duint8(g.s, int(g.ot), v))
+var Debug_gcprog int // set by -d gcprog
+
+func (p *GCProg) init(sym *Sym) {
+	p.sym = sym
+	p.symoff = 4 // first 4 bytes hold program length
+	p.w.Init(p.writeByte)
+	if Debug_gcprog > 0 {
+		fmt.Fprintf(os.Stderr, "compile: start GCProg for %v\n", sym)
+		p.w.Debug(os.Stderr)
+	}
 }
 
-// Emits insData block from g->data.
-func proggendataflush(g *ProgGen) {
-	if g.datasize == 0 {
+func (p *GCProg) writeByte(x byte) {
+	p.symoff = duint8(p.sym, p.symoff, x)
+}
+
+func (p *GCProg) end() {
+	p.w.End()
+	duint32(p.sym, 0, uint32(p.symoff-4))
+	ggloblsym(p.sym, int32(p.symoff), obj.DUPOK|obj.RODATA|obj.LOCAL)
+	if Debug_gcprog > 0 {
+		fmt.Fprintf(os.Stderr, "compile: end GCProg for %v\n", p.sym)
+	}
+}
+
+func (p *GCProg) emit(t *Type, offset int64) {
+	dowidth(t)
+	if !haspointers(t) {
 		return
 	}
-	proggenemit(g, obj.InsData)
-	proggenemit(g, uint8(g.datasize))
-	s := (g.datasize + 7) / 8
-	for i := int32(0); i < s; i++ {
-		proggenemit(g, g.data[i])
+	if t.Width == int64(Widthptr) {
+		p.w.Ptr(offset / int64(Widthptr))
+		return
 	}
-	g.datasize = 0
-	g.data = [256 / 8]uint8{}
-}
-
-func proggendata(g *ProgGen, d uint8) {
-	g.data[g.datasize/8] |= d << uint(g.datasize%8)
-	g.datasize++
-	if g.datasize == 255 {
-		proggendataflush(g)
-	}
-}
-
-// Skip v bytes due to alignment, etc.
-func proggenskip(g *ProgGen, off int64, v int64) {
-	for i := off; i < off+v; i++ {
-		if (i % int64(Widthptr)) == 0 {
-			proggendata(g, 0)
-		}
-	}
-}
-
-// Emit insArray instruction.
-func proggenarray(g *ProgGen, len int64) {
-	proggendataflush(g)
-	proggenemit(g, obj.InsArray)
-	for i := int32(0); i < int32(Widthptr); i, len = i+1, len>>8 {
-		proggenemit(g, uint8(len))
-	}
-}
-
-func proggenarrayend(g *ProgGen) {
-	proggendataflush(g)
-	proggenemit(g, obj.InsArrayEnd)
-}
-
-func proggenfini(g *ProgGen) int64 {
-	proggendataflush(g)
-	proggenemit(g, obj.InsEnd)
-	return g.ot
-}
-
-// Generates GC program for large types.
-func gengcprog(t *Type, pgc0 **Sym, pgc1 **Sym) {
-	nptr := (t.Width + int64(Widthptr) - 1) / int64(Widthptr)
-	size := nptr + 1 // unroll flag in the beginning, used by runtime (see runtime.markallocated)
-
-	// emity space in BSS for unrolled program
-	*pgc0 = nil
-
-	// Don't generate it if it's too large, runtime will unroll directly into GC bitmap.
-	if size <= obj.MaxGCMask {
-		gc0 := typesymprefix(".gc", t)
-		ggloblsym(gc0, int32(size), obj.DUPOK|obj.NOPTR)
-		*pgc0 = gc0
-	}
-
-	// program in RODATA
-	gc1 := typesymprefix(".gcprog", t)
-
-	var g ProgGen
-	proggeninit(&g, gc1)
-	xoffset := int64(0)
-	gengcprog1(&g, t, &xoffset)
-	ot := proggenfini(&g)
-	ggloblsym(gc1, int32(ot), obj.DUPOK|obj.RODATA)
-	*pgc1 = gc1
-}
-
-// Recursively walks type t and writes GC program into g.
-func gengcprog1(g *ProgGen, t *Type, xoffset *int64) {
 	switch t.Etype {
-	case TINT8,
-		TUINT8,
-		TINT16,
-		TUINT16,
-		TINT32,
-		TUINT32,
-		TINT64,
-		TUINT64,
-		TINT,
-		TUINT,
-		TUINTPTR,
-		TBOOL,
-		TFLOAT32,
-		TFLOAT64,
-		TCOMPLEX64,
-		TCOMPLEX128:
-		proggenskip(g, *xoffset, t.Width)
-		*xoffset += t.Width
-
-	case TPTR32,
-		TPTR64,
-		TUNSAFEPTR,
-		TFUNC,
-		TCHAN,
-		TMAP:
-		proggendata(g, 1)
-		*xoffset += t.Width
+	default:
+		Fatal("GCProg.emit: unexpected type %v", t)
 
 	case TSTRING:
-		proggendata(g, 1)
-		proggendata(g, 0)
-		*xoffset += t.Width
+		p.w.Ptr(offset / int64(Widthptr))
 
-		// Assuming IfacePointerOnly=1.
 	case TINTER:
-		proggendata(g, 1)
-		proggendata(g, 1)
-		*xoffset += t.Width
+		p.w.Ptr(offset / int64(Widthptr))
+		p.w.Ptr(offset/int64(Widthptr) + 1)
 
 	case TARRAY:
 		if Isslice(t) {
-			proggendata(g, 1)
-			proggendata(g, 0)
-			proggendata(g, 0)
-		} else {
-			t1 := t.Type
-			if t1.Width == 0 {
-			}
-			// ignore
-			if t.Bound <= 1 || t.Bound*t1.Width < int64(32*Widthptr) {
-				for i := int64(0); i < t.Bound; i++ {
-					gengcprog1(g, t1, xoffset)
-				}
-			} else if !haspointers(t1) {
-				n := t.Width
-				n -= -*xoffset & (int64(Widthptr) - 1) // skip to next ptr boundary
-				proggenarray(g, (n+int64(Widthptr)-1)/int64(Widthptr))
-				proggendata(g, 0)
-				proggenarrayend(g)
-				*xoffset -= (n+int64(Widthptr)-1)/int64(Widthptr)*int64(Widthptr) - t.Width
-			} else {
-				proggenarray(g, t.Bound)
-				gengcprog1(g, t1, xoffset)
-				*xoffset += (t.Bound - 1) * t1.Width
-				proggenarrayend(g)
-			}
+			p.w.Ptr(offset / int64(Widthptr))
+			return
 		}
+		if t.Bound == 0 {
+			// should have been handled by haspointers check above
+			Fatal("GCProg.emit: empty array")
+		}
+
+		// Flatten array-of-array-of-array to just a big array by multiplying counts.
+		count := t.Bound
+		elem := t.Type
+		for Isfixedarray(elem) {
+			count *= elem.Bound
+			elem = elem.Type
+		}
+
+		if !p.w.ShouldRepeat(elem.Width/int64(Widthptr), count) {
+			// Cheaper to just emit the bits.
+			for i := int64(0); i < count; i++ {
+				p.emit(elem, offset+i*elem.Width)
+			}
+			return
+		}
+		p.emit(elem, offset)
+		p.w.ZeroUntil((offset + elem.Width) / int64(Widthptr))
+		p.w.Repeat(elem.Width/int64(Widthptr), count-1)
 
 	case TSTRUCT:
-		o := int64(0)
-		var fieldoffset int64
 		for t1 := t.Type; t1 != nil; t1 = t1.Down {
-			fieldoffset = t1.Width
-			proggenskip(g, *xoffset, fieldoffset-o)
-			*xoffset += fieldoffset - o
-			gengcprog1(g, t1.Type, xoffset)
-			o = fieldoffset + t1.Type.Width
+			p.emit(t1.Type, offset+t1.Width)
 		}
-
-		proggenskip(g, *xoffset, t.Width-o)
-		*xoffset += t.Width - o
-
-	default:
-		Fatal("gengcprog1: unexpected type, %v", t)
 	}
 }
