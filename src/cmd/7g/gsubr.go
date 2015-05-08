@@ -161,13 +161,13 @@ func gmove(f *gc.Node, t *gc.Node) {
 		var con gc.Node
 		switch tt {
 		default:
-			gc.Convconst(&con, t.Type, &f.Val)
+			f.Convconst(&con, t.Type)
 
 		case gc.TINT32,
 			gc.TINT16,
 			gc.TINT8:
 			var con gc.Node
-			gc.Convconst(&con, gc.Types[gc.TINT64], &f.Val)
+			f.Convconst(&con, gc.Types[gc.TINT64])
 			var r1 gc.Node
 			gc.Regalloc(&r1, con.Type, t)
 			gins(arm64.AMOVD, &con, &r1)
@@ -179,7 +179,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 			gc.TUINT16,
 			gc.TUINT8:
 			var con gc.Node
-			gc.Convconst(&con, gc.Types[gc.TUINT64], &f.Val)
+			f.Convconst(&con, gc.Types[gc.TUINT64])
 			var r1 gc.Node
 			gc.Regalloc(&r1, con.Type, t)
 			gins(arm64.AMOVD, &con, &r1)
@@ -468,14 +468,13 @@ hard:
 }
 
 func intLiteral(n *gc.Node) (x int64, ok bool) {
-	if n == nil || n.Op != gc.OLITERAL {
+	switch {
+	case n == nil:
 		return
-	}
-	switch n.Val.Ctype {
-	case gc.CTINT, gc.CTRUNE:
+	case gc.Isconst(n, gc.CTINT):
 		return n.Int(), true
-	case gc.CTBOOL:
-		return int64(obj.Bool2int(n.Val.U.Bval)), true
+	case gc.Isconst(n, gc.CTBOOL):
+		return int64(obj.Bool2int(n.Bool())), true
 	}
 	return
 }
