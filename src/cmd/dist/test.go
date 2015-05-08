@@ -244,9 +244,7 @@ func (t *tester) registerTests() {
 		},
 	})
 
-	iOS := t.goos == "darwin" && (t.goarch == "arm" || t.goarch == "arm64")
-
-	if t.cgoEnabled && t.goos != "android" && !iOS {
+	if t.cgoEnabled && t.goos != "android" && !t.iOS() {
 		// Disabled on android and iOS. golang.org/issue/8345
 		t.tests = append(t.tests, distTest{
 			name:    "cgo_stdio",
@@ -265,7 +263,7 @@ func (t *tester) registerTests() {
 			},
 		})
 	}
-	if t.cgoEnabled && t.goos != "android" && !iOS {
+	if t.cgoEnabled && t.goos != "android" && !t.iOS() {
 		// TODO(crawshaw): reenable on android and iOS
 		// golang.org/issue/8345
 		//
@@ -295,7 +293,7 @@ func (t *tester) registerTests() {
 				heading: "../misc/cgo/testso",
 				fn:      t.cgoTestSOWindows,
 			})
-		} else if t.hasBash() && t.goos != "android" && !iOS {
+		} else if t.hasBash() && t.goos != "android" && !t.iOS() {
 			t.registerTest("testso", "../misc/cgo/testso", "./test.bash")
 		}
 		if t.supportedBuildmode("c-archive") {
@@ -310,23 +308,23 @@ func (t *tester) registerTests() {
 		if t.gohostos == "linux" && t.goarch == "amd64" {
 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
 		}
-		if t.hasBash() && t.goos != "android" && !iOS && t.gohostos != "windows" {
+		if t.hasBash() && t.goos != "android" && !t.iOS() && t.gohostos != "windows" {
 			t.registerTest("cgo_errors", "../misc/cgo/errors", "./test.bash")
 		}
 		if t.gohostos == "linux" && t.extLink() {
 			t.registerTest("testsigfwd", "../misc/cgo/testsigfwd", "go", "run", "main.go")
 		}
 	}
-	if t.hasBash() && t.goos != "nacl" && t.goos != "android" && !iOS {
+	if t.hasBash() && t.goos != "nacl" && t.goos != "android" && !t.iOS() {
 		t.registerTest("doc_progs", "../doc/progs", "time", "go", "run", "run.go")
 		t.registerTest("wiki", "../doc/articles/wiki", "./test.bash")
 		t.registerTest("codewalk", "../doc/codewalk", "time", "./run")
 		t.registerTest("shootout", "../test/bench/shootout", "time", "./timing.sh", "-test")
 	}
-	if t.goos != "android" && !iOS {
+	if t.goos != "android" && !t.iOS() {
 		t.registerTest("bench_go1", "../test/bench/go1", "go", "test")
 	}
-	if t.goos != "android" && !iOS {
+	if t.goos != "android" && !t.iOS() {
 		// TODO(bradfitz): shard down into these tests, as
 		// this is one of the slowest (and most shardable)
 		// tests.
@@ -336,7 +334,7 @@ func (t *tester) registerTests() {
 			fn:      t.testDirTest,
 		})
 	}
-	if t.goos != "nacl" && t.goos != "android" && !iOS {
+	if t.goos != "nacl" && t.goos != "android" && !t.iOS() {
 		t.tests = append(t.tests, distTest{
 			name:    "api",
 			heading: "API check",
