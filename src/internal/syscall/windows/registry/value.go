@@ -130,7 +130,7 @@ func ExpandString(value string) (string, error) {
 			return "", err
 		}
 		if n <= uint32(len(r)) {
-			u := (*[1 << 10]uint16)(unsafe.Pointer(&r[0]))[:]
+			u := (*[1 << 15]uint16)(unsafe.Pointer(&r[0]))[:]
 			return syscall.UTF16ToString(u), nil
 		}
 		r = make([]uint16, n)
