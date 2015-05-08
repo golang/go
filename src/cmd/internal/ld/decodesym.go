@@ -44,7 +44,7 @@ func decode_inuxi(p []byte, sz int) uint64 {
 // commonsize returns the size of the common prefix for all type
 // structures (runtime._type).
 func commonsize() int {
-	return 9*Thearch.Ptrsize + 8
+	return 8*Thearch.Ptrsize + 8
 }
 
 // Type.commonType.kind
@@ -79,7 +79,7 @@ func decodetype_gcprog(s *LSym) *LSym {
 		x := "type..gcprog." + s.Name[5:]
 		return Linklookup(Ctxt, x, 0)
 	}
-	return decode_reloc_sym(s, 2*int32(Thearch.Ptrsize)+8+2*int32(Thearch.Ptrsize))
+	return decode_reloc_sym(s, 2*int32(Thearch.Ptrsize)+8+1*int32(Thearch.Ptrsize))
 }
 
 func decodetype_gcprog_shlib(s *LSym) uint64 {

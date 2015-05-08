@@ -1200,7 +1200,7 @@ func ldshlibsyms(shlib string) {
 		if strings.HasPrefix(s.Name, "_") {
 			continue
 		}
-		if strings.HasPrefix(s.Name, "runtime.gcbits.0x") {
+		if strings.HasPrefix(s.Name, "runtime.gcbits.") {
 			gcmasks[s.Value] = readelfsymboldata(f, &s)
 		}
 		if s.Name == "go.link.abihashbytes" {

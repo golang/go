@@ -48,12 +48,13 @@ var debugtab = []struct {
 	name string
 	val  *int
 }{
-	{"nil", &Debug_checknil},          // print information about nil checks
-	{"typeassert", &Debug_typeassert}, // print information about type assertion inlining
-	{"disablenil", &Disable_checknil}, // disable nil checks
-	{"wb", &Debug_wb},                 // print information about write barriers
 	{"append", &Debug_append},         // print information about append compilation
+	{"disablenil", &Disable_checknil}, // disable nil checks
+	{"gcprog", &Debug_gcprog},         // print dump of GC programs
+	{"nil", &Debug_checknil},          // print information about nil checks
 	{"slice", &Debug_slice},           // print information about slice compilation
+	{"typeassert", &Debug_typeassert}, // print information about type assertion inlining
+	{"wb", &Debug_wb},                 // print information about write barriers
 }
 
 // Our own isdigit, isspace, isalpha, isalnum that take care
