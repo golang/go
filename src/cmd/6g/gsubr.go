@@ -160,7 +160,7 @@ func bignodes() {
 	gc.Nodconst(&bigi, gc.Types[gc.TUINT64], 0)
 	bigi.SetBigInt(&i)
 
-	gc.Convconst(&bigf, gc.Types[gc.TFLOAT64], &bigi.Val)
+	bigi.Convconst(&bigf, gc.Types[gc.TFLOAT64])
 }
 
 /*
@@ -191,7 +191,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 	// convert constant to desired type
 	if f.Op == gc.OLITERAL {
 		var con gc.Node
-		gc.Convconst(&con, t.Type, &f.Val)
+		f.Convconst(&con, t.Type)
 		f = &con
 		ft = tt // so big switch will choose a simple mov
 

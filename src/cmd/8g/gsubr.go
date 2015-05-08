@@ -700,7 +700,7 @@ func split64(n *gc.Node, lo *gc.Node, hi *gc.Node) {
 
 	case gc.OLITERAL:
 		var n1 gc.Node
-		gc.Convconst(&n1, n.Type, &n.Val)
+		n.Convconst(&n1, n.Type)
 		i := n1.Int()
 		gc.Nodconst(lo, gc.Types[gc.TUINT32], int64(uint32(i)))
 		i >>= 32
@@ -737,7 +737,7 @@ func bignodes() {
 	bignodes_did = true
 
 	gc.Nodconst(&zerof, gc.Types[gc.TINT64], 0)
-	gc.Convconst(&zerof, gc.Types[gc.TFLOAT64], &zerof.Val)
+	zerof.Convconst(&zerof, gc.Types[gc.TFLOAT64])
 
 	var i big.Int
 	i.SetInt64(1)
@@ -746,12 +746,12 @@ func bignodes() {
 
 	gc.Nodconst(&bigi, gc.Types[gc.TUINT64], 0)
 	bigi.SetBigInt(&i)
-	gc.Convconst(&two63f, gc.Types[gc.TFLOAT64], &bigi.Val)
+	bigi.Convconst(&two63f, gc.Types[gc.TFLOAT64])
 
 	gc.Nodconst(&bigi, gc.Types[gc.TUINT64], 0)
 	i.Lsh(&i, 1)
 	bigi.SetBigInt(&i)
-	gc.Convconst(&two64f, gc.Types[gc.TFLOAT64], &bigi.Val)
+	bigi.Convconst(&two64f, gc.Types[gc.TFLOAT64])
 }
 
 func memname(n *gc.Node, t *gc.Type) {
@@ -790,7 +790,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 	// convert constant to desired type
 	if f.Op == gc.OLITERAL {
 		var con gc.Node
-		gc.Convconst(&con, t.Type, &f.Val)
+		f.Convconst(&con, t.Type)
 		f = &con
 		ft = gc.Simsimtype(con.Type)
 	}
@@ -1061,7 +1061,7 @@ func floatmove(f *gc.Node, t *gc.Node) {
 	// convert constant to desired type
 	if f.Op == gc.OLITERAL {
 		var con gc.Node
-		gc.Convconst(&con, t.Type, &f.Val)
+		f.Convconst(&con, t.Type)
 		f = &con
 		ft = gc.Simsimtype(con.Type)
 

@@ -111,7 +111,7 @@ func split64(n *gc.Node, lo *gc.Node, hi *gc.Node) {
 
 	case gc.OLITERAL:
 		var n1 gc.Node
-		gc.Convconst(&n1, n.Type, &n.Val)
+		n.Convconst(&n1, n.Type)
 		i := n1.Int()
 		gc.Nodconst(lo, gc.Types[gc.TUINT32], int64(uint32(i)))
 		i >>= 32
@@ -160,12 +160,12 @@ func gmove(f *gc.Node, t *gc.Node) {
 		var con gc.Node
 		switch tt {
 		default:
-			gc.Convconst(&con, t.Type, &f.Val)
+			f.Convconst(&con, t.Type)
 
 		case gc.TINT16,
 			gc.TINT8:
 			var con gc.Node
-			gc.Convconst(&con, gc.Types[gc.TINT32], &f.Val)
+			f.Convconst(&con, gc.Types[gc.TINT32])
 			var r1 gc.Node
 			gc.Regalloc(&r1, con.Type, t)
 			gins(arm.AMOVW, &con, &r1)
@@ -176,7 +176,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 		case gc.TUINT16,
 			gc.TUINT8:
 			var con gc.Node
-			gc.Convconst(&con, gc.Types[gc.TUINT32], &f.Val)
+			f.Convconst(&con, gc.Types[gc.TUINT32])
 			var r1 gc.Node
 			gc.Regalloc(&r1, con.Type, t)
 			gins(arm.AMOVW, &con, &r1)

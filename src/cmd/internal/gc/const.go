@@ -37,6 +37,15 @@ func (n *Node) SetBigInt(x *big.Int) {
 	n.Val.U.Xval.Val.Set(x)
 }
 
+// Bool returns n as an bool.
+// n must be an boolean constant.
+func (n *Node) Bool() bool {
+	if !Isconst(n, CTBOOL) {
+		Fatal("Int(%v)", n)
+	}
+	return n.Val.U.Bval
+}
+
 /*
  * truncate float literal fv to 32-bit or 64-bit precision
  * according to type; return truncated value.
@@ -1426,32 +1435,30 @@ func iconv(x int64, et int) int64 {
 	return x
 }
 
-/*
- * convert constant val to type t; leave in con.
- * for back end.
- */
-func Convconst(con *Node, t *Type, val *Val) {
+// Convconst converts constant node n to type t and
+// places the result in con.
+func (n *Node) Convconst(con *Node, t *Type) {
 	tt := Simsimtype(t)
 
 	// copy the constant for conversion
 	Nodconst(con, Types[TINT8], 0)
 
 	con.Type = t
-	con.Val = *val
+	con.Val = n.Val
 
 	if Isint[tt] {
 		con.Val.Ctype = CTINT
 		con.Val.U.Xval = new(Mpint)
 		var i int64
-		switch val.Ctype {
+		switch n.Val.Ctype {
 		default:
-			Fatal("convconst ctype=%d %v", val.Ctype, Tconv(t, obj.FmtLong))
+			Fatal("convconst ctype=%d %v", n.Val.Ctype, Tconv(t, obj.FmtLong))
 
 		case CTINT, CTRUNE:
-			i = Mpgetfix(val.U.Xval)
+			i = Mpgetfix(n.Val.U.Xval)
 
 		case CTBOOL:
-			i = int64(obj.Bool2int(val.U.Bval))
+			i = int64(obj.Bool2int(n.Val.U.Bval))
 
 		case CTNIL:
 			i = 0
@@ -1479,7 +1486,6 @@ func Convconst(con *Node, t *Type, val *Val) {
 			con.Val.U.Cval.Real = *truncfltlit(&con.Val.U.Cval.Real, Types[TFLOAT32])
 			con.Val.U.Cval.Imag = *truncfltlit(&con.Val.U.Cval.Imag, Types[TFLOAT32])
 		}
-
 		return
 	}
 
