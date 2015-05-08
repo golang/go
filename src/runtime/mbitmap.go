@@ -682,13 +682,14 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	}
 
 	var w uintptr  // words processed
-	var nw uintptr // total number of words to process
+	var nw uintptr // number of words to process
 	if typ.size == dataSize {
 		// Single entry: can stop once we reach the non-pointer data.
 		nw = typ.ptrdata / ptrSize
 	} else {
 		// Repeated instances of typ in an array.
-		// Have to process the
+		// Have to process first N-1 entries in full, but can stop
+		// once we reach the non-pointer data in the final entry.
 		nw = ((dataSize/typ.size-1)*typ.size + typ.ptrdata) / ptrSize
 	}
 	if nw == 0 {
@@ -753,8 +754,9 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 			// We know that there is more data, because we handled 2-word objects above.
 			// This must be at least a 6-word object. If we're out of pointer words,
 			// mark no scan in next bitmap byte and finish.
-			*hbitp = 0
-			goto Phase4
+			hb = 0
+			w += 4
+			goto Phase3
 		}
 	}
 
@@ -822,47 +824,59 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	}
 
 Phase3:
-	// Phase 3: Special case for final byte or half-byte describing final fragment of data.
-	// If there are not four data words for this final fragment, we must clear the mark bits
-	// in the 2-bit entries for the missing words. Clearing them creates a ``dead'' entry
-	// to tell the GC scan to stop scanning this object early.
-	// If there are four words in the final fragment but there is more data,
-	// then we must write a ``dead'' entry to the next bitmap byte.
-	if frag := (nw - w) % 4; frag != 0 {
-		// Data ends at least one word early.
-		mask := uintptr(1)<<frag - 1
+	// Phase 3: Write last byte or partial byte and zero the rest of the bitmap entries.
+	if w > nw {
+		// Counting the 4 entries in hb not yet written to memory,
+		// there are more entries than possible pointer slots.
+		// Discard the excess entries (can't be more than 3).
+		mask := uintptr(1)<<(4-(w-nw)) - 1
 		hb &= mask | mask<<4 // apply mask to both pointer bits and mark bits
-		if w*ptrSize <= size {
-			// We own the whole byte and get the dead marker for free.
-			*hbitp = uint8(hb)
-		} else {
-			// We only own the bottom two entries in the byte, bits 00110011.
-			// If frag == 1, we get a dead marker for free.
-			// If frag == 2, no dead marker needed (we've reached the end of the object).
-			atomicand8(hbitp, ^uint8(bitPointer|bitMarked|(bitPointer|bitMarked)<<heapBitsShift))
-			atomicor8(hbitp, uint8(hb))
-		}
-	} else {
-		// Data ends with a full bitmap byte.
+	}
+
+	// Change nw from counting possibly-pointer words to total words in allocation.
+	nw = size / ptrSize
+
+	// Write whole bitmap bytes.
+	// The first is hb, the rest are zero.
+	if w <= nw {
 		*hbitp = uint8(hb)
-		if w*ptrSize < size {
-			// There's more data in the allocated object.
-			// Write a dead marker in the next byte.
+		hbitp = subtractb(hbitp, 1)
+		hb = 0 // for possible final half-byte below
+		for w += 4; w <= nw; w += 4 {
+			*hbitp = 0
 			hbitp = subtractb(hbitp, 1)
-			if (w+4)*ptrSize <= size {
-				// We own the whole byte.
-				*hbitp = 0
-			} else {
-				// We only own the bottom two entries in the byte, bits 00110011.
-				atomicand8(hbitp, ^uint8(bitPointer|bitMarked|(bitPointer|bitMarked)<<heapBitsShift))
-			}
 		}
 	}
 
-Phase4:
-	// Phase 4: all done (goto target).
+	// Write final partial bitmap byte if any.
+	// We know w > nw, or else we'd still be in the loop above.
+	// It can be bigger only due to the 4 entries in hb that it counts.
+	// If w == nw+4 then there's nothing left to do: we wrote all nw entries
+	// and can discard the 4 sitting in hb.
+	// But if w == nw+2, we need to write first two in hb.
+	// The byte is shared with the next object so we may need an atomic.
+	if w == nw+2 {
+		if gcphase == _GCoff {
+			*hbitp = *hbitp&^(bitPointer|bitMarked|(bitPointer|bitMarked)<<heapBitsShift) | uint8(hb)
+		} else {
+			atomicand8(hbitp, ^uint8(bitPointer|bitMarked|(bitPointer|bitMarked)<<heapBitsShift))
+			atomicor8(hbitp, uint8(hb))
+		}
+	}
 
+	// Phase 4: all done, but perhaps double check.
 	if doubleCheck {
+		end := heapBitsForAddr(x + size)
+		if hbitp != end.bitp || (w == nw+2) != (end.shift == 2) {
+			println("ended at wrong bitmap byte for", *typ._string, "x", dataSize/typ.size)
+			print("typ.size=", typ.size, " typ.ptrdata=", typ.ptrdata, " dataSize=", dataSize, " size=", size, "\n")
+			print("w=", w, " nw=", nw, " b=", hex(b), " nb=", nb, " hb=", hex(hb), "\n")
+			h0 := heapBitsForAddr(x)
+			print("initial bits h0.bitp=", h0.bitp, " h0.shift=", h0.shift, "\n")
+			print("ended at hbitp=", hbitp, " but next starts at bitp=", end.bitp, " shift=", end.shift, "\n")
+			throw("bad heapBitsSetType")
+		}
+
 		// Double-check that bits to be written were written correctly.
 		// Does not check that other bits were not written, unfortunately.
 		h := heapBitsForAddr(x)
@@ -898,10 +912,6 @@ Phase4:
 				print("ptrmask=", ptrmask, " p=", p, " endp=", endp, " endnb=", endnb, " pbits=", hex(pbits), " b=", hex(b), " nb=", nb, "\n")
 				println("at word", i, "offset", i*ptrSize, "have", have, "want", want)
 				throw("bad heapBitsSetType")
-			}
-			if i >= 2 && want == 0 {
-				// found dead marker; the rest is uninitialized
-				break
 			}
 			h = h.next()
 		}
