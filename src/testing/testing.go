@@ -557,7 +557,7 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
 			}
 			t.self = t
 			if *chatty {
-				fmt.Printf("=== RUN %s\n", t.name)
+				fmt.Printf("=== RUN   %s\n", t.name)
 			}
 			go tRunner(t, &tests[i])
 			out := (<-t.signal).(*T)
