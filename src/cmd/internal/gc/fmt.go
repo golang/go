@@ -1127,7 +1127,7 @@ func exprfmt(n *Node, prec int) string {
 		// Special case: name used as local variable in export.
 	// _ becomes ~b%d internally; print as _ for export
 	case ONAME:
-		if fmtmode == FExp && n.Sym != nil && n.Sym.Name[0] == '~' && n.Sym.Name[1] == 'b' {
+		if (fmtmode == FExp || fmtmode == FErr) && n.Sym != nil && n.Sym.Name[0] == '~' && n.Sym.Name[1] == 'b' {
 			return "_"
 		}
 		if fmtmode == FExp && n.Sym != nil && !isblank(n) && n.Vargen > 0 {
