@@ -118,8 +118,10 @@ func TestUnescapeEscape(t *testing.T) {
 }
 
 var (
-	benchEscapeData = strings.Repeat("AAAAA < BBBBB > CCCCC & DDDDD ' EEEEE \" ", 100)
-	benchEscapeNone = strings.Repeat("AAAAA x BBBBB x CCCCC x DDDDD x EEEEE x ", 100)
+	benchEscapeData     = strings.Repeat("AAAAA < BBBBB > CCCCC & DDDDD ' EEEEE \" ", 100)
+	benchEscapeNone     = strings.Repeat("AAAAA x BBBBB x CCCCC x DDDDD x EEEEE x ", 100)
+	benchUnescapeSparse = strings.Repeat(strings.Repeat("AAAAA x BBBBB x CCCCC x DDDDD x EEEEE x ", 10)+"&amp;", 10)
+	benchUnescapeDense  = strings.Repeat("&amp;&lt; &amp; &lt;", 100)
 )
 
 func BenchmarkEscape(b *testing.B) {
@@ -149,5 +151,19 @@ func BenchmarkUnescapeNone(b *testing.B) {
 	n := 0
 	for i := 0; i < b.N; i++ {
 		n += len(UnescapeString(s))
+	}
+}
+
+func BenchmarkUnescapeSparse(b *testing.B) {
+	n := 0
+	for i := 0; i < b.N; i++ {
+		n += len(UnescapeString(benchUnescapeSparse))
+	}
+}
+
+func BenchmarkUnescapeDense(b *testing.B) {
+	n := 0
+	for i := 0; i < b.N; i++ {
+		n += len(UnescapeString(benchUnescapeDense))
 	}
 }
