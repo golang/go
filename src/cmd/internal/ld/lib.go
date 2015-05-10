@@ -1573,12 +1573,11 @@ func Cflush() {
 }
 
 func Cpos() int64 {
-	Cflush()
 	off, err := coutbuf.f.Seek(0, 1)
 	if err != nil {
 		Exitf("seeking in output [0, 1]: %v", err)
 	}
-	return off
+	return off + int64(coutbuf.Buffered())
 }
 
 func Cseek(p int64) {
