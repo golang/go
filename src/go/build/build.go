@@ -1328,7 +1328,7 @@ func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
 	// build tag "linux" in that file. For Go 1.4 and beyond, we require this
 	// auto-tagging to apply only to files with a non-empty prefix, so
 	// "foo_linux.go" is tagged but "linux.go" is not. This allows new operating
-	// sytems, such as android, to arrive without breaking existing code with
+	// systems, such as android, to arrive without breaking existing code with
 	// innocuous source code in "android.go". The easiest fix: cut everything
 	// in the name before the initial _.
 	i := strings.Index(name, "_")
