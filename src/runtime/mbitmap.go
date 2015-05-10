@@ -387,6 +387,18 @@ func (h heapBits) initSpan(size, n, total uintptr) {
 		throw("initSpan: unaligned length")
 	}
 	nbyte := total / heapBitmapScale
+	if ptrSize == 8 && size == ptrSize {
+		end := h.bitp
+		bitp := subtractb(end, nbyte-1)
+		for {
+			*bitp = bitPointerAll
+			if bitp == end {
+				break
+			}
+			bitp = add1(bitp)
+		}
+		return
+	}
 	memclr(unsafe.Pointer(subtractb(h.bitp, nbyte-1)), nbyte)
 }
 
@@ -443,33 +455,34 @@ func heapBitsSweepSpan(base, size, n uintptr, f func(uintptr)) {
 	switch {
 	default:
 		throw("heapBitsSweepSpan")
-	case size == ptrSize:
+	case ptrSize == 8 && size == ptrSize:
 		// Consider mark bits in all four 2-bit entries of each bitmap byte.
 		bitp := h.bitp
 		for i := uintptr(0); i < n; i += 4 {
 			x := uint32(*bitp)
+			// Note that unlike the other size cases, we leave the pointer bits set here.
+			// These are initialized during initSpan when the span is created and left
+			// in place the whole time the span is used for pointer-sized objects.
+			// That lets heapBitsSetType avoid an atomic update to set the pointer bit
+			// during allocation.
 			if x&bitMarked != 0 {
 				x &^= bitMarked
 			} else {
-				x &^= bitPointer
 				f(base + i*ptrSize)
 			}
 			if x&(bitMarked<<heapBitsShift) != 0 {
 				x &^= bitMarked << heapBitsShift
 			} else {
-				x &^= bitPointer << heapBitsShift
 				f(base + (i+1)*ptrSize)
 			}
 			if x&(bitMarked<<(2*heapBitsShift)) != 0 {
 				x &^= bitMarked << (2 * heapBitsShift)
 			} else {
-				x &^= bitPointer << (2 * heapBitsShift)
 				f(base + (i+2)*ptrSize)
 			}
 			if x&(bitMarked<<(3*heapBitsShift)) != 0 {
 				x &^= bitMarked << (3 * heapBitsShift)
 			} else {
-				x &^= bitPointer << (3 * heapBitsShift)
 				f(base + (i+3)*ptrSize)
 			}
 			*bitp = uint8(x)
@@ -570,21 +583,17 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 
 	if size == ptrSize {
 		// It's one word and it has pointers, it must be a pointer.
-		// The bitmap byte is shared with the one-word object
-		// next to it, and concurrent GC might be marking that
-		// object, so we must use an atomic update.
-		// We can skip this if the GC is completely off.
-		// Note that there is some marking that happens during
-		// gcphase == _GCscan, for completely scalar objects,
-		// so it is not safe to check just for the marking phases.
-		// TODO(rsc): It may make sense to set all the pointer bits
-		// when initializing the span, and then the atomicor8 here
-		// goes away - heapBitsSetType would be a no-op
-		// in that case.
-		if gcphase == _GCoff {
-			*h.bitp |= bitPointer << h.shift
-		} else {
-			atomicor8(h.bitp, bitPointer<<h.shift)
+		// In general we'd need an atomic update here if the
+		// concurrent GC were marking objects in this span,
+		// because each bitmap byte describes 3 other objects
+		// in addition to the one being allocated.
+		// However, since all allocated one-word objects are pointers
+		// (non-pointers are aggregated into tinySize allocations),
+		// initSpan sets the pointer bits for us. Nothing to do here.
+		if doubleCheck {
+			if !h.isPointer() {
+				throw("heapBitsSetType: pointer bit missing")
+			}
 		}
 		return
 	}
