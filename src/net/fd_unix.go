@@ -225,7 +225,7 @@ func (fd *netFD) Read(p []byte) (n int, err error) {
 		return 0, err
 	}
 	for {
-		n, err = syscall.Read(int(fd.sysfd), p)
+		n, err = syscall.Read(fd.sysfd, p)
 		if err != nil {
 			n = 0
 			if err == syscall.EAGAIN {
@@ -307,7 +307,7 @@ func (fd *netFD) Write(p []byte) (nn int, err error) {
 	}
 	for {
 		var n int
-		n, err = syscall.Write(int(fd.sysfd), p[nn:])
+		n, err = syscall.Write(fd.sysfd, p[nn:])
 		if n > 0 {
 			nn += n
 		}
