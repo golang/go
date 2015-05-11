@@ -530,7 +530,12 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 			shlib, err := ioutil.ReadFile(shlibnamefile)
 			if err == nil {
 				libname := strings.TrimSpace(string(shlib))
-				p.Shlib = filepath.Join(p.build.PkgTargetRoot, libname)
+				if buildContext.Compiler == "gccgo" {
+					p.Shlib = filepath.Join(p.build.PkgTargetRoot, "shlibs", libname)
+				} else {
+					p.Shlib = filepath.Join(p.build.PkgTargetRoot, libname)
+
+				}
 			} else if !os.IsNotExist(err) {
 				fatalf("unexpected error reading %s: %v", shlibnamefile, err)
 			}
