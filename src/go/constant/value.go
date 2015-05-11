@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package constants implements Values representing untyped
+// Package constant implements Values representing untyped
 // Go constants and the corresponding operations. Values
 // and operations may have arbitrary or unlimited precision.
 //
@@ -11,7 +11,7 @@
 // values produce unknown values unless specified
 // otherwise.
 //
-package constants // import "go/constants"
+package constant // import "go/constant"
 
 import (
 	"fmt"
