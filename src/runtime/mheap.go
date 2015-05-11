@@ -28,6 +28,15 @@ type mheap struct {
 	spans        **mspan
 	spans_mapped uintptr
 
+	// Proportional sweep
+	pagesSwept        uint64  // pages swept this cycle; updated atomically
+	sweepPagesPerByte float64 // proportional sweep ratio; written with lock, read without
+
+	// Malloc stats.
+	largefree  uint64                  // bytes freed for large objects (>maxsmallsize)
+	nlargefree uint64                  // number of frees for large objects (>maxsmallsize)
+	nsmallfree [_NumSizeClasses]uint64 // number of frees for small objects (<=maxsmallsize)
+
 	// range of addresses we might see in the heap
 	bitmap         uintptr
 	bitmap_mapped  uintptr
@@ -50,15 +59,6 @@ type mheap struct {
 	specialfinalizeralloc fixalloc // allocator for specialfinalizer*
 	specialprofilealloc   fixalloc // allocator for specialprofile*
 	speciallock           mutex    // lock for sepcial record allocators.
-
-	// Proportional sweep
-	pagesSwept        uint64  // pages swept this cycle; updated atomically
-	sweepPagesPerByte float64 // proportional sweep ratio; written with lock, read without
-
-	// Malloc stats.
-	largefree  uint64                  // bytes freed for large objects (>maxsmallsize)
-	nlargefree uint64                  // number of frees for large objects (>maxsmallsize)
-	nsmallfree [_NumSizeClasses]uint64 // number of frees for small objects (<=maxsmallsize)
 }
 
 var mheap_ mheap
