@@ -9,8 +9,10 @@
 
 package main
 
-func f() (_, _ []int) { return }
+func f() (_, _ []int)         { return }
+func g() (x []int, y float64) { return }
 
 func main() {
-	_ = append(f()) // ERROR "cannot use _"
+	_ = append(f()) // ERROR "cannot append \[\]int value to \[\]int"
+	_ = append(g()) // ERROR "cannot append float64 value to \[\]int"
 }
