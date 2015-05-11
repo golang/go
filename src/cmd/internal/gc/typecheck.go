@@ -1636,11 +1636,10 @@ OpSwitch:
 		}
 
 		// Unpack multiple-return result before type-checking.
+		var funarg *Type
 		if Istype(t, TSTRUCT) && t.Funarg != 0 {
-			t = t.Type
-			if Istype(t, TFIELD) {
-				t = t.Type
-			}
+			funarg = t
+			t = t.Type.Type
 		}
 
 		n.Type = t
@@ -1678,11 +1677,19 @@ OpSwitch:
 			break OpSwitch
 		}
 
-		for args = args.Next; args != nil; args = args.Next {
-			if args.N.Type == nil {
-				continue
+		if funarg != nil {
+			for t := funarg.Type.Down; t != nil; t = t.Down {
+				if assignop(t.Type, n.Type.Type, nil) == 0 {
+					Yyerror("cannot append %v value to []%v", t.Type, n.Type.Type)
+				}
 			}
-			args.N = assignconv(args.N, t.Type, "append")
+		} else {
+			for args = args.Next; args != nil; args = args.Next {
+				if args.N.Type == nil {
+					continue
+				}
+				args.N = assignconv(args.N, t.Type, "append")
+			}
 		}
 
 		break OpSwitch
