@@ -3539,13 +3539,9 @@ func testSchedLocalQueue() {
 	}
 }
 
-var pSink *p
-
 func testSchedLocalQueueSteal() {
 	p1 := new(p)
 	p2 := new(p)
-	pSink = p1 // Force to heap, too large to allocate on system stack ("G0 stack")
-	pSink = p2 // Force to heap, too large to allocate on system stack ("G0 stack")
 	gs := make([]g, len(p1.runq))
 	for i := 0; i < len(p1.runq); i++ {
 		for j := 0; j < i; j++ {

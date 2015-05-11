@@ -83,10 +83,10 @@ func GCMask(x interface{}) (ret []byte) {
 }
 
 func RunSchedLocalQueueTest() {
-	systemstack(testSchedLocalQueue)
+	testSchedLocalQueue()
 }
 func RunSchedLocalQueueStealTest() {
-	systemstack(testSchedLocalQueueSteal)
+	testSchedLocalQueueSteal()
 }
 
 var StringHash = stringHash
