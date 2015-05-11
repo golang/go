@@ -18,7 +18,7 @@ import (
 	"strings"
 	"text/scanner"
 
-	exact "go/constants"
+	exact "go/constant"
 	"go/types"
 )
 
