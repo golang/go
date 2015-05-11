@@ -949,11 +949,13 @@ var mallocTest = []struct {
 var _ bytes.Buffer
 
 func TestCountMallocs(t *testing.T) {
-	if testing.Short() {
+	switch {
+	case testing.Short():
 		t.Skip("skipping malloc count in short mode")
-	}
-	if runtime.GOMAXPROCS(0) > 1 {
+	case runtime.GOMAXPROCS(0) > 1:
 		t.Skip("skipping; GOMAXPROCS>1")
+	case raceenabled:
+		t.Skip("skipping malloc count under race detector")
 	}
 	for _, mt := range mallocTest {
 		mallocs := testing.AllocsPerRun(100, mt.fn)
