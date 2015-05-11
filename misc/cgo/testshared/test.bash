@@ -78,6 +78,7 @@ ensure_ldd $rootdir/libdep.so $std_install_dir/$soname
 
 # And exe that links against both
 go install -installsuffix="$mysuffix" -linkshared exe
+./bin/exe || die "./bin/exe failed with code $?"
 ensure_ldd ./bin/exe $rootdir/libdep.so
 ensure_ldd ./bin/exe $std_install_dir/$soname
 
