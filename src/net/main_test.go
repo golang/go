@@ -97,7 +97,7 @@ func printLeakedGoroutines() {
 	if len(gss) == 0 {
 		return
 	}
-	fmt.Fprintf(os.Stderr, "Leaked goroutines:\n")
+	fmt.Fprintf(os.Stderr, "Running goroutines:\n")
 	for _, gs := range gss {
 		fmt.Fprintf(os.Stderr, "%v\n", gs)
 	}
@@ -130,7 +130,7 @@ func printLeakedSockets() {
 	if len(sos) == 0 {
 		return
 	}
-	fmt.Fprintf(os.Stderr, "Leaked sockets:\n")
+	fmt.Fprintf(os.Stderr, "Inflight sockets:\n")
 	for s, so := range sos {
 		fmt.Fprintf(os.Stderr, "%v: %v\n", s, so)
 	}
