@@ -20,27 +20,27 @@ type register uint
 var numRegs register = 32
 
 var registers = [...]Register{
-	Register{"AX"},
-	Register{"CX"},
-	Register{"DX"},
-	Register{"BX"},
-	Register{"SP"},
-	Register{"BP"},
-	Register{"SI"},
-	Register{"DI"},
-	Register{"R8"},
-	Register{"R9"},
-	Register{"R10"},
-	Register{"R11"},
-	Register{"R12"},
-	Register{"R13"},
-	Register{"R14"},
-	Register{"R15"},
+	Register{0, "AX"},
+	Register{1, "CX"},
+	Register{2, "DX"},
+	Register{3, "BX"},
+	Register{4, "SP"},
+	Register{5, "BP"},
+	Register{6, "SI"},
+	Register{7, "DI"},
+	Register{8, "R8"},
+	Register{9, "R9"},
+	Register{10, "R10"},
+	Register{11, "R11"},
+	Register{12, "R12"},
+	Register{13, "R13"},
+	Register{14, "R14"},
+	Register{15, "R15"},
 
 	// TODO X0, ...
 	// TODO: make arch-dependent
-	Register{"FLAGS"},
-	Register{"OVERWRITE"},
+	Register{16, "FLAGS"},
+	Register{17, "OVERWRITE"},
 }
 
 // countRegs returns the number of set bits in the register mask.

@@ -35,6 +35,12 @@ func stackalloc(f *Func) {
 			if v.Type.IsMemory() { // TODO: only "regallocable" types
 				continue
 			}
+			if v.Op == OpConst {
+				// don't allocate space for OpConsts.  They should
+				// have been rematerialized everywhere.
+				// TODO: is this the right thing to do?
+				continue
+			}
 			// a := v.Type.Align()
 			// n = (n + a - 1) / a * a  TODO
 			n += v.Type.Size()
