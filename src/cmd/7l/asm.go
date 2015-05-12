@@ -275,10 +275,6 @@ func archrelocvariant(r *ld.Reloc, s *ld.LSym, t int64) int64 {
 	return -1
 }
 
-func adddynsym(ctxt *ld.Link, s *ld.LSym) {
-	// TODO(minux): implement when needed.
-}
-
 func asmb() {
 	if ld.Debug['v'] != 0 {
 		fmt.Fprintf(&ld.Bso, "%5.2f asmb\n", obj.Cputime())
