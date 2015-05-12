@@ -37,7 +37,7 @@ const (
 	OpConst
 
 	OpArg    // address of a function parameter/result.  Memory input is an arg called ".mem".
-	OpGlobal // address of a global variable
+	OpGlobal // address of a global variable (aux is a *gc.Sym)
 	OpFunc   // entry address of a function
 	OpCopy   // output = input
 	OpPhi    // select an input based on which predecessor we came from
@@ -121,6 +121,10 @@ const (
 	OpMOVQload8  // (ptr,idx,mem): loads from ptr+idx*8+aux.(int64)
 	OpMOVQstore8 // (ptr,idx,val,mem): stores to ptr+idx*8+aux.(int64), returns mem
 
+	// load/store from global.  aux = GlobalOffset
+	OpMOVQloadglobal  // (mem) -> value
+	OpMOVQstoreglobal // (val, mem) -> mem
+
 	// load/store 8-byte integer register from stack slot.
 	OpMOVQloadFP
 	OpMOVQloadSP
@@ -132,6 +136,12 @@ const (
 
 	OpMax // sentinel
 )
+
+// GlobalOffset represents a fixed offset within a global variable
+type GlobalOffset struct {
+	Global interface{} // holds a *cmd/internal/gc.Sym
+	Offset int64
+}
 
 //go:generate stringer -type=Op
 
@@ -203,6 +213,8 @@ var gpload = [2][]regMask{{gp, 0}, {gp}}
 var gploadX = [2][]regMask{{gp, gp, 0}, {gp}} // indexed loads
 var gpstore = [2][]regMask{{gp, gp, 0}, {0}}
 var gpstoreX = [2][]regMask{{gp, gp, gp, 0}, {0}} // indexed stores
+var gploadglobal = [2][]regMask{{0}, {gp}}
+var gpstoreglobal = [2][]regMask{{gp, 0}, {0}}
 
 var gpload_stack = [2][]regMask{{0}, {gp}}
 var gpstore_stack = [2][]regMask{{gp, 0}, {0}}
@@ -291,6 +303,9 @@ var amd64Table = [...]OpInfo{
 	OpMOVQstore:  {asm: "MOVQ\t%I1,%A(%I0)", reg: gpstore},
 	OpMOVQload8:  {asm: "MOVQ\t%A(%I0)(%I1*8),%O0", reg: gploadX},
 	OpMOVQstore8: {asm: "MOVQ\t%I2,%A(%I0)(%I1*8)", reg: gpstoreX},
+
+	OpMOVQloadglobal:  {reg: gploadglobal},
+	OpMOVQstoreglobal: {reg: gpstoreglobal},
 
 	OpMOVQconst: {asm: "MOVQ\t$%A,%O0", reg: gp01},
 

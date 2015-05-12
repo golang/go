@@ -334,6 +334,26 @@ func lowerAmd64(v *Value) bool {
 		goto end3d8628a6536350a123be81240b8a1376
 	end3d8628a6536350a123be81240b8a1376:
 		;
+		// match: (MOVQload [off] (Global [sym]) mem)
+		// cond:
+		// result: (MOVQloadglobal [GlobalOffset{sym,off.(int64)}] mem)
+		{
+			off := v.Aux
+			if v.Args[0].Op != OpGlobal {
+				goto end20693899317f3f8d1b47fefa64087654
+			}
+			sym := v.Args[0].Aux
+			mem := v.Args[1]
+			v.Op = OpMOVQloadglobal
+			v.Aux = nil
+			v.resetArgs()
+			v.Aux = GlobalOffset{sym, off.(int64)}
+			v.AddArg(mem)
+			return true
+		}
+		goto end20693899317f3f8d1b47fefa64087654
+	end20693899317f3f8d1b47fefa64087654:
+		;
 		// match: (MOVQload [off1] (ADDCQ [off2] ptr) mem)
 		// cond:
 		// result: (MOVQload [off1.(int64)+off2.(int64)] ptr mem)
@@ -424,6 +444,28 @@ func lowerAmd64(v *Value) bool {
 		}
 		goto end1cb5b7e766f018270fa434c6f46f607f
 	end1cb5b7e766f018270fa434c6f46f607f:
+		;
+		// match: (MOVQstore [off] (Global [sym]) val mem)
+		// cond:
+		// result: (MOVQstoreglobal [GlobalOffset{sym,off.(int64)}] val mem)
+		{
+			off := v.Aux
+			if v.Args[0].Op != OpGlobal {
+				goto end657d07e37c720a8fbb108a31bb48090d
+			}
+			sym := v.Args[0].Aux
+			val := v.Args[1]
+			mem := v.Args[2]
+			v.Op = OpMOVQstoreglobal
+			v.Aux = nil
+			v.resetArgs()
+			v.Aux = GlobalOffset{sym, off.(int64)}
+			v.AddArg(val)
+			v.AddArg(mem)
+			return true
+		}
+		goto end657d07e37c720a8fbb108a31bb48090d
+	end657d07e37c720a8fbb108a31bb48090d:
 		;
 		// match: (MOVQstore [off1] (ADDCQ [off2] ptr) val mem)
 		// cond:

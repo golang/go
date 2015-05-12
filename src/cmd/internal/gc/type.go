@@ -56,7 +56,3 @@ func (t *Type) PtrTo() ssa.Type {
 
 func (t *Type) IsMemory() bool { return false }
 func (t *Type) IsFlags() bool  { return false }
-
-func (t *Type) String() string {
-	return typefmt(t, 0)
-}
