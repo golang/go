@@ -176,7 +176,7 @@ func main() {
 	}
 
 	if err := oracle.Run(&query); err != nil {
-		fmt.Fprintf(os.Stderr, "oracle: %s.\n", err)
+		fmt.Fprintf(os.Stderr, "oracle: %s\n", err)
 		os.Exit(1)
 	}
 
@@ -185,7 +185,7 @@ func main() {
 	case "json":
 		b, err := json.MarshalIndent(query.Serial(), "", "\t")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "oracle: JSON error: %s.\n", err)
+			fmt.Fprintf(os.Stderr, "oracle: JSON error: %s\n", err)
 			os.Exit(1)
 		}
 		os.Stdout.Write(b)
@@ -193,7 +193,7 @@ func main() {
 	case "xml":
 		b, err := xml.MarshalIndent(query.Serial(), "", "\t")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "oracle: XML error: %s.\n", err)
+			fmt.Fprintf(os.Stderr, "oracle: XML error: %s\n", err)
 			os.Exit(1)
 		}
 		os.Stdout.Write(b)

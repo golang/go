@@ -152,7 +152,7 @@ func guessImportPath(filename string, buildContext *build.Context) (srcdir, impo
 		}
 	}
 	if srcdir == "" {
-		err = fmt.Errorf("directory %s is not beneath GOROOT or GOPATH: %s",
+		err = fmt.Errorf("directory %s is not beneath any of these GOROOT/GOPATH directories: %s",
 			filepath.Dir(absFile), strings.Join(buildContext.SrcDirs(), ", "))
 	}
 	return

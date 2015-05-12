@@ -219,7 +219,7 @@ this channel receive/send operation."
   "Enumerate all references to the object denoted by the selected
 identifier."
   (interactive)
-  (go-oracle--run "referrers" t))
+  (go-oracle--run "referrers"))
 
 (defun go-oracle-whicherrs ()
   "Show globals, constants and types to which the selected
