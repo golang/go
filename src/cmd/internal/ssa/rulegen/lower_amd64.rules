@@ -46,6 +46,10 @@
 (MOVQstore [off1] (FPAddr [off2]) val mem) -> (MOVQstoreFP [off1.(int64)+off2.(int64)] val mem)
 (MOVQstore [off1] (SPAddr [off2]) val mem) -> (MOVQstoreSP [off1.(int64)+off2.(int64)] val mem)
 
+// global loads/stores
+(MOVQload [off] (Global [sym]) mem) -> (MOVQloadglobal [GlobalOffset{sym,off.(int64)}] mem)
+(MOVQstore [off] (Global [sym]) val mem) -> (MOVQstoreglobal [GlobalOffset{sym,off.(int64)}] val mem)
+
 // fold constants into instructions
 (ADDQ x (Const [c])) -> (ADDCQ [c] x) // TODO: restrict c to int32 range?
 (ADDQ (Const [c]) x) -> (ADDCQ [c] x)

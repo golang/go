@@ -153,12 +153,16 @@ func (s *ssaState) stmt(n *Node) {
 
 			// TODO(khr): nil check
 			s.vars[".mem"] = s.curBlock.NewValue3(ssa.OpStore, n.Right.Type, nil, addr, val, s.mem())
-		} else if n.Left.Addable == 0 {
+		} else if !n.Left.Addable {
 			// TODO
 			log.Fatalf("assignment to non-addable value")
 		} else if n.Left.Class&PHEAP != 0 {
 			// TODO
 			log.Fatalf("assignment to heap value")
+		} else if n.Left.Class == PEXTERN {
+			// assign to global variable
+			addr := s.f.Entry.NewValue(ssa.OpGlobal, Ptrto(n.Left.Type), n.Left.Sym)
+			s.vars[".mem"] = s.curBlock.NewValue3(ssa.OpStore, ssa.TypeMem, nil, addr, val, s.mem())
 		} else if n.Left.Class == PPARAMOUT {
 			// store to parameter slot
 			addr := s.f.Entry.NewValue(ssa.OpFPAddr, Ptrto(n.Right.Type), n.Left.Xoffset)
@@ -254,7 +258,12 @@ func (s *ssaState) expr(n *Node) *ssa.Value {
 	}
 	switch n.Op {
 	case ONAME:
-		// remember offsets for PPARAM names
+		// TODO: remember offsets for PPARAM names
+		if n.Class == PEXTERN {
+			// global variable
+			addr := s.f.Entry.NewValue(ssa.OpGlobal, Ptrto(n.Type), n.Sym)
+			return s.curBlock.NewValue2(ssa.OpLoad, n.Type, nil, addr, s.mem())
+		}
 		s.argOffsets[n.Sym.Name] = n.Xoffset
 		return s.variable(n.Sym.Name, n.Type)
 		// binary ops
