@@ -416,7 +416,7 @@ func loadcgo(file string, pkg string, p string) {
 				// to force a link of foo.so.
 				havedynamic = 1
 
-				Thearch.Adddynlib(lib)
+				adddynlib(lib)
 				continue
 			}
 
@@ -532,6 +532,27 @@ func loadcgo(file string, pkg string, p string) {
 err:
 	fmt.Fprintf(os.Stderr, "%s: %s: invalid dynimport line: %s\n", os.Args[0], file, p0)
 	nerrors++
+}
+
+var Seenlib = make(map[string]bool)
+
+func adddynlib(lib string) {
+	if Seenlib[lib] {
+		return
+	}
+	Seenlib[lib] = true
+
+	if Iself {
+		s := Linklookup(Ctxt, ".dynstr", 0)
+		if s.Size == 0 {
+			Addstring(s, "")
+		}
+		Elfwritedynent(Linklookup(Ctxt, ".dynamic", 0), DT_NEEDED, uint64(Addstring(s, lib)))
+	} else if HEADTYPE == obj.Hdarwin {
+		Machoadddynlib(lib)
+	} else {
+		Diag("adddynlib: unsupported binary format")
+	}
 }
 
 var markq *LSym

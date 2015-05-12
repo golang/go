@@ -38,24 +38,6 @@ import (
 	"log"
 )
 
-func needlib(name string) int {
-	if name[0] == '\x00' {
-		return 0
-	}
-
-	/* reuse hash code in symbol table */
-	p := fmt.Sprintf(".dynlib.%s", name)
-
-	s := ld.Linklookup(ld.Ctxt, p, 0)
-
-	if s.Type == 0 {
-		s.Type = 100 // avoid SDATA, etc.
-		return 1
-	}
-
-	return 0
-}
-
 func gentext() {
 	var s *ld.LSym
 	var stub *ld.LSym
@@ -667,22 +649,6 @@ func adddynsym(ctxt *ld.Link, s *ld.LSym) {
 		ld.Adduint64(ctxt, d, uint64(s.Size))
 	} else {
 		ld.Diag("adddynsym: unsupported binary format")
-	}
-}
-
-func adddynlib(lib string) {
-	if needlib(lib) == 0 {
-		return
-	}
-
-	if ld.Iself {
-		s := ld.Linklookup(ld.Ctxt, ".dynstr", 0)
-		if s.Size == 0 {
-			ld.Addstring(s, "")
-		}
-		ld.Elfwritedynent(ld.Linklookup(ld.Ctxt, ".dynamic", 0), ld.DT_NEEDED, uint64(ld.Addstring(s, lib)))
-	} else {
-		ld.Diag("adddynlib: unsupported binary format")
 	}
 }
 
