@@ -1045,6 +1045,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 						n1.Op = OINDREG
 						n1.Type = Types[Tptr]
 						n1.Xoffset = int64(Array_nel)
+						Nodconst(&n2, Types[TUINT32], int64(v))
 						p1 := Thearch.Ginscmp(OGT, Types[TUINT32], &n1, &n2, +1)
 						Ginscall(Panicindex, -1)
 						Patch(p1, Pc)

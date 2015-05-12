@@ -480,20 +480,28 @@ func ginscon(as int, c int64, n *gc.Node) {
 }
 
 func ginscmp(op int, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+	if gc.Isint[t.Etype] && n1.Op == gc.OLITERAL && gc.Mpgetfix(n1.Val.U.Xval) == 0 && n2.Op != gc.OLITERAL {
+		op = gc.Brrev(op)
+		n1, n2 = n2, n1
+	}
 	var r1, r2, g1, g2 gc.Node
 	gc.Regalloc(&r1, t, n1)
 	gc.Regalloc(&g1, n1.Type, &r1)
 	gc.Cgen(n1, &g1)
 	gmove(&g1, &r1)
-	gc.Regalloc(&r2, t, n2)
-	gc.Regalloc(&g2, n1.Type, &r2)
-	gc.Cgen(n2, &g2)
-	gmove(&g2, &r2)
-	gins(optoas(gc.OCMP, t), &r1, &r2)
+	if gc.Isint[t.Etype] && n2.Op == gc.OLITERAL && gc.Mpgetfix(n2.Val.U.Xval) == 0 {
+		gins(arm.ACMP, &r1, n2)
+	} else {
+		gc.Regalloc(&r2, t, n2)
+		gc.Regalloc(&g2, n1.Type, &r2)
+		gc.Cgen(n2, &g2)
+		gmove(&g2, &r2)
+		gins(optoas(gc.OCMP, t), &r1, &r2)
+		gc.Regfree(&g2)
+		gc.Regfree(&r2)
+	}
 	gc.Regfree(&g1)
 	gc.Regfree(&r1)
-	gc.Regfree(&g2)
-	gc.Regfree(&r2)
 	return gc.Gbranch(optoas(op, t), nil, likely)
 }
 
