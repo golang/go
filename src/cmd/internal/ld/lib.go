@@ -178,6 +178,7 @@ var (
 	Thelinkarch        *LinkArch
 	outfile            string
 	dynexp             []*LSym
+	dynlib             []string
 	ldflag             []string
 	havedynamic        int
 	Funcalign          int

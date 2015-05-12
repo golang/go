@@ -416,7 +416,11 @@ func loadcgo(file string, pkg string, p string) {
 				// to force a link of foo.so.
 				havedynamic = 1
 
-				adddynlib(lib)
+				if HEADTYPE == obj.Hdarwin {
+					Machoadddynlib(lib)
+				} else {
+					dynlib = append(dynlib, lib)
+				}
 				continue
 			}
 
@@ -537,7 +541,7 @@ err:
 var seenlib = make(map[string]bool)
 
 func adddynlib(lib string) {
-	if seenlib[lib] {
+	if seenlib[lib] || Linkmode == LinkExternal {
 		return
 	}
 	seenlib[lib] = true
@@ -548,15 +552,13 @@ func adddynlib(lib string) {
 			Addstring(s, "")
 		}
 		Elfwritedynent(Linklookup(Ctxt, ".dynamic", 0), DT_NEEDED, uint64(Addstring(s, lib)))
-	} else if HEADTYPE == obj.Hdarwin {
-		Machoadddynlib(lib)
 	} else {
 		Diag("adddynlib: unsupported binary format")
 	}
 }
 
 func Adddynsym(ctxt *Link, s *LSym) {
-	if s.Dynid >= 0 {
+	if s.Dynid >= 0 || Linkmode == LinkExternal {
 		return
 	}
 
@@ -774,8 +776,11 @@ func addexport() {
 		return
 	}
 
-	for i := 0; i < len(dynexp); i++ {
-		Adddynsym(Ctxt, dynexp[i])
+	for _, exp := range dynexp {
+		Adddynsym(Ctxt, exp)
+	}
+	for _, lib := range dynlib {
+		adddynlib(lib)
 	}
 }
 
