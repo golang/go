@@ -1127,13 +1127,7 @@ func proggenaddsym(g *ProgGen, s *LSym) {
 	proggenskip(g, g.pos, s.Value-g.pos)
 	g.pos = s.Value
 
-	// The test for names beginning with . here is meant
-	// to keep .dynamic and .dynsym from turning up as
-	// conservative symbols. They should be marked SELFSECT
-	// and not SDATA, but sometimes that doesn't happen.
-	// Leave debugging the SDATA issue for the Go rewrite.
-
-	if s.Gotype == nil && s.Size >= int64(Thearch.Ptrsize) && s.Name[0] != '.' {
+	if s.Gotype == nil && s.Size >= int64(Thearch.Ptrsize) {
 		Diag("missing Go type information for global symbol: %s size %d", s.Name, int(s.Size))
 		return
 	}
