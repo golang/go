@@ -94,7 +94,6 @@ type Arch struct {
 	Openbsddynld     string
 	Dragonflydynld   string
 	Solarisdynld     string
-	Adddynlib        func(string)
 	Adddynrel        func(*LSym, *Reloc)
 	Adddynsym        func(*Link, *LSym)
 	Archinit         func()
