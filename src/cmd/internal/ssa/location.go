@@ -14,7 +14,9 @@ type Location interface {
 }
 
 // A Register is a machine register, like %rax.
+// They are numbered densely from 0 (for each architecture).
 type Register struct {
+	Num  int32
 	name string
 }
 
@@ -24,11 +26,11 @@ func (r *Register) Name() string {
 
 // A LocalSlot is a location in the stack frame.
 type LocalSlot struct {
-	idx int64 // offset in locals area (distance down from FP == caller's SP)
+	Idx int64 // offset in locals area (distance down from FP == caller's SP)
 }
 
 func (s *LocalSlot) Name() string {
-	return fmt.Sprintf("-%d(FP)", s.idx)
+	return fmt.Sprintf("-%d(FP)", s.Idx)
 }
 
 // An ArgSlot is a location in the parents' stack frame where it passed us an argument.

@@ -6,6 +6,7 @@ package gc
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/ssa"
 	"crypto/md5"
 	"fmt"
 	"strings"
@@ -367,6 +368,7 @@ func compile(fn *Node) {
 	var nam *Node
 	var gcargs *Sym
 	var gclocals *Sym
+	var ssafn *ssa.Func
 	if fn.Nbody == nil {
 		if pure_go != 0 || strings.HasPrefix(fn.Nname.Sym.Name, "init.") {
 			Yyerror("missing function body for %q", fn.Nname.Sym.Name)
@@ -422,8 +424,7 @@ func compile(fn *Node) {
 	{
 		name := Curfn.Nname.Sym.Name
 		if len(name) > 4 && name[len(name)-4:] == "_ssa" {
-			buildssa(Curfn)
-			// TODO(khr): use result of buildssa
+			ssafn = buildssa(Curfn)
 		}
 	}
 
@@ -488,6 +489,10 @@ func compile(fn *Node) {
 	}
 
 	Genlist(Curfn.Func.Enter)
+	if ssafn != nil {
+		genssa(ssafn, ptxt, gcargs, gclocals)
+		return
+	}
 	Genlist(Curfn.Nbody)
 	gclean()
 	checklabels()

@@ -7,10 +7,12 @@ package gc
 import (
 	"log"
 
+	"cmd/internal/obj"
+	"cmd/internal/obj/x86" // TODO: remove
 	"cmd/internal/ssa"
 )
 
-func buildssa(fn *Node) {
+func buildssa(fn *Node) *ssa.Func {
 	dumplist("buildssa", Curfn.Nbody)
 
 	var s ssaState
@@ -50,9 +52,10 @@ func buildssa(fn *Node) {
 	// Link up variable uses to variable definitions
 	s.linkForwardReferences()
 
+	// Main call to ssa package to compile function
 	ssa.Compile(s.f)
 
-	// TODO(khr): Use the resulting s.f to generate code
+	return s.f
 }
 
 type ssaState struct {
@@ -456,4 +459,255 @@ func (s *ssaState) lookupVarOutgoing(b *ssa.Block, t ssa.Type, name string) *ssa
 func addEdge(b, c *ssa.Block) {
 	b.Succs = append(b.Succs, c)
 	c.Preds = append(c.Preds, b)
+}
+
+// an unresolved branch
+type branch struct {
+	p *obj.Prog  // branch instruction
+	b *ssa.Block // target
+}
+
+// genssa appends entries to ptxt for each instruction in f.
+// gcargs and gclocals are filled in with pointer maps for the frame.
+func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+	// TODO: line numbers
+	// TODO: layout frame
+	stkSize := int64(64)
+
+	if Hasdefer != 0 {
+		// deferreturn pretends to have one uintptr argument.
+		// Reserve space for it so stack scanner is happy.
+		if Maxarg < int64(Widthptr) {
+			Maxarg = int64(Widthptr)
+		}
+	}
+	if stkSize+Maxarg > 1<<31 {
+		Yyerror("stack frame too large (>2GB)")
+		return
+	}
+	frameSize := stkSize + Maxarg
+
+	ptxt.To.Type = obj.TYPE_TEXTSIZE
+	ptxt.To.Val = int32(Rnd(Curfn.Type.Argwid, int64(Widthptr))) // arg size
+	ptxt.To.Offset = frameSize - 8                               // TODO: arch-dependent
+
+	// Remember where each block starts.
+	bstart := make([]*obj.Prog, f.NumBlocks())
+
+	// Remember all the branch instructions we've seen
+	// and where they would like to go
+	var branches []branch
+
+	// Emit basic blocks
+	for i, b := range f.Blocks {
+		bstart[b.ID] = Pc
+		// Emit values in block
+		for _, v := range b.Values {
+			genValue(v, frameSize)
+		}
+		// Emit control flow instructions for block
+		var next *ssa.Block
+		if i < len(f.Blocks)-1 {
+			next = f.Blocks[i+1]
+		}
+		branches = genBlock(b, next, branches)
+	}
+
+	// Resolve branches
+	for _, br := range branches {
+		br.p.To.Val = bstart[br.b.ID]
+	}
+
+	Pc.As = obj.ARET // overwrite AEND
+
+	// TODO: liveness
+	// TODO: gcargs
+	// TODO: gclocals
+
+	// TODO: dump frame if -f
+
+	// Emit garbage collection symbols.  TODO: put something in them
+	liveness(Curfn, ptxt, gcargs, gclocals)
+}
+
+func genValue(v *ssa.Value, frameSize int64) {
+	switch v.Op {
+	case ssa.OpADDQ:
+		// TODO: use addq instead of leaq if target is in the right register.
+		p := Prog(x86.ALEAQ)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = regnum(v.Args[0])
+		p.From.Scale = 1
+		p.From.Index = regnum(v.Args[1])
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = regnum(v)
+	case ssa.OpADDCQ:
+		// TODO: use addq instead of leaq if target is in the right register.
+		p := Prog(x86.ALEAQ)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = regnum(v.Args[0])
+		p.From.Offset = v.Aux.(int64)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = regnum(v)
+	case ssa.OpSUBCQ:
+		// This code compensates for the fact that the register allocator
+		// doesn't understand 2-address instructions yet.  TODO: fix that.
+		x := regnum(v.Args[0])
+		r := regnum(v)
+		if x != r {
+			p := Prog(x86.AMOVQ)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = x
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = r
+			x = r
+		}
+		p := Prog(x86.ASUBQ)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.Aux.(int64)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+	case ssa.OpCMPQ:
+		x := regnum(v.Args[0])
+		y := regnum(v.Args[1])
+		p := Prog(x86.ACMPQ)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = x
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = y
+	case ssa.OpMOVQconst:
+		x := regnum(v)
+		p := Prog(x86.AMOVQ)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.Aux.(int64)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = x
+	case ssa.OpMOVQloadFP:
+		x := regnum(v)
+		p := Prog(x86.AMOVQ)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = x86.REG_SP
+		p.From.Offset = v.Aux.(int64) + frameSize
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = x
+	case ssa.OpMOVQstoreFP:
+		x := regnum(v.Args[0])
+		p := Prog(x86.AMOVQ)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = x
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = x86.REG_SP
+		p.To.Offset = v.Aux.(int64) + frameSize
+	case ssa.OpCopy:
+		x := regnum(v.Args[0])
+		y := regnum(v)
+		if x != y {
+			p := Prog(x86.AMOVQ)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = x
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = y
+		}
+	case ssa.OpLoadReg8:
+		p := Prog(x86.AMOVQ)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = x86.REG_SP
+		p.From.Offset = frameSize - localOffset(v.Args[0])
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = regnum(v)
+	case ssa.OpStoreReg8:
+		p := Prog(x86.AMOVQ)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = regnum(v.Args[0])
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = x86.REG_SP
+		p.To.Offset = frameSize - localOffset(v)
+	case ssa.OpPhi:
+		// just check to make sure regalloc did it right
+		f := v.Block.Func
+		loc := f.RegAlloc[v.ID]
+		for _, a := range v.Args {
+			if f.RegAlloc[a.ID] != loc { // TODO: .Equal() instead?
+				log.Fatalf("phi arg at different location than phi %v %v %v %v", v, loc, a, f.RegAlloc[a.ID])
+			}
+		}
+	case ssa.OpConst:
+		if v.Block.Func.RegAlloc[v.ID] != nil {
+			log.Fatalf("const value %v shouldn't have a location", v)
+		}
+	case ssa.OpArg:
+		// memory arg needs no code
+		// TODO: only mem arg goes here.
+	default:
+		log.Fatalf("value %v not implemented yet", v)
+	}
+}
+
+func genBlock(b, next *ssa.Block, branches []branch) []branch {
+	switch b.Kind {
+	case ssa.BlockPlain:
+		if b.Succs[0] != next {
+			p := Prog(obj.AJMP)
+			p.To.Type = obj.TYPE_BRANCH
+			branches = append(branches, branch{p, b.Succs[0]})
+		}
+	case ssa.BlockExit:
+		Prog(obj.ARET)
+	case ssa.BlockLT:
+		if b.Succs[0] == next {
+			p := Prog(x86.AJGE)
+			p.To.Type = obj.TYPE_BRANCH
+			branches = append(branches, branch{p, b.Succs[1]})
+		} else if b.Succs[1] == next {
+			p := Prog(x86.AJLT)
+			p.To.Type = obj.TYPE_BRANCH
+			branches = append(branches, branch{p, b.Succs[0]})
+		} else {
+			p := Prog(x86.AJLT)
+			p.To.Type = obj.TYPE_BRANCH
+			branches = append(branches, branch{p, b.Succs[0]})
+			q := Prog(obj.AJMP)
+			q.To.Type = obj.TYPE_BRANCH
+			branches = append(branches, branch{q, b.Succs[1]})
+		}
+	default:
+		log.Fatalf("branch at %v not implemented yet", b)
+	}
+	return branches
+}
+
+// ssaRegToReg maps ssa register numbers to obj register numbers.
+var ssaRegToReg = [...]int16{
+	x86.REG_AX,
+	x86.REG_CX,
+	x86.REG_DX,
+	x86.REG_BX,
+	x86.REG_SP,
+	x86.REG_BP,
+	x86.REG_SI,
+	x86.REG_DI,
+	x86.REG_R8,
+	x86.REG_R9,
+	x86.REG_R10,
+	x86.REG_R11,
+	x86.REG_R12,
+	x86.REG_R13,
+	x86.REG_R14,
+	x86.REG_R15,
+	// TODO: more
+	// TODO: arch-dependent
+}
+
+// regnum returns the register (in cmd/internal/obj numbering) to
+// which v has been allocated.  Panics if v is not assigned to a
+// register.
+func regnum(v *ssa.Value) int16 {
+	return ssaRegToReg[v.Block.Func.RegAlloc[v.ID].(*ssa.Register).Num]
+}
+
+// localOffset returns the offset below the frame pointer where
+// a stack-allocated local has been allocated.  Panics if v
+// is not assigned to a local slot.
+func localOffset(v *ssa.Value) int64 {
+	return v.Block.Func.RegAlloc[v.ID].(*ssa.LocalSlot).Idx
 }
