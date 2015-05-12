@@ -509,6 +509,9 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 	if mp.mallocing != 0 {
 		throw("malloc deadlock")
 	}
+	if mp.gsignal == getg() {
+		throw("malloc during signal")
+	}
 	mp.mallocing = 1
 
 	shouldhelpgc := false
