@@ -5,6 +5,7 @@
 package time_test
 
 import (
+	"internal/syscall/windows/registry"
 	"testing"
 	. "time"
 )
@@ -32,4 +33,28 @@ func TestAusZoneAbbr(t *testing.T) {
 	ForceAusForTesting()
 	defer ForceUSPacificForTesting()
 	testZoneAbbr(t)
+}
+
+func TestToEnglishName(t *testing.T) {
+	const want = "Central Europe Standard Time"
+	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows NT\CurrentVersion\Time Zones\`+want, registry.READ)
+	if err != nil {
+		t.Fatalf("cannot open CEST time zone information from registry: %s", err)
+	}
+	defer k.Close()
+	std, _, err := k.GetStringValue("Std")
+	if err != nil {
+		t.Fatalf("cannot read CEST Std registry key: %s", err)
+	}
+	dlt, _, err := k.GetStringValue("Dlt")
+	if err != nil {
+		t.Fatalf("cannot read CEST Dlt registry key: %s", err)
+	}
+	name, err := ToEnglishName(std, dlt)
+	if err != nil {
+		t.Fatalf("toEnglishName failed: %s", err)
+	}
+	if name != want {
+		t.Fatalf("english name: %q, want: %q", name, want)
+	}
 }
