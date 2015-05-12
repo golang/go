@@ -95,7 +95,6 @@ type Arch struct {
 	Dragonflydynld   string
 	Solarisdynld     string
 	Adddynrel        func(*LSym, *Reloc)
-	Adddynsym        func(*Link, *LSym)
 	Archinit         func()
 	Archreloc        func(*Reloc, *LSym, *int64) int
 	Archrelocvariant func(*Reloc, *LSym, int64) int64

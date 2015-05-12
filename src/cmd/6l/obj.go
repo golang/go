@@ -62,7 +62,6 @@ func linkarchinit() {
 	ld.Thearch.Dwarfreglr = DWARFREGLR
 
 	ld.Thearch.Adddynrel = adddynrel
-	ld.Thearch.Adddynsym = adddynsym
 	ld.Thearch.Archinit = archinit
 	ld.Thearch.Archreloc = archreloc
 	ld.Thearch.Archrelocvariant = archrelocvariant

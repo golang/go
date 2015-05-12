@@ -2349,6 +2349,93 @@ elfobj:
 	}
 }
 
+func Elfadddynsym(ctxt *Link, s *LSym) {
+	if elf64 {
+		s.Dynid = int32(Nelfsym)
+		Nelfsym++
+
+		d := Linklookup(ctxt, ".dynsym", 0)
+
+		name := s.Extname
+		Adduint32(ctxt, d, uint32(Addstring(Linklookup(ctxt, ".dynstr", 0), name)))
+
+		/* type */
+		t := STB_GLOBAL << 4
+
+		if s.Cgoexport != 0 && s.Type&obj.SMASK == obj.STEXT {
+			t |= STT_FUNC
+		} else {
+			t |= STT_OBJECT
+		}
+		Adduint8(ctxt, d, uint8(t))
+
+		/* reserved */
+		Adduint8(ctxt, d, 0)
+
+		/* section where symbol is defined */
+		if s.Type == obj.SDYNIMPORT {
+			Adduint16(ctxt, d, SHN_UNDEF)
+		} else {
+			Adduint16(ctxt, d, 1)
+		}
+
+		/* value */
+		if s.Type == obj.SDYNIMPORT {
+			Adduint64(ctxt, d, 0)
+		} else {
+			Addaddr(ctxt, d, s)
+		}
+
+		/* size of object */
+		Adduint64(ctxt, d, uint64(s.Size))
+
+		if Thearch.Thechar == '6' && s.Cgoexport&CgoExportDynamic == 0 && s.Dynimplib != "" && !seenlib[s.Dynimplib] {
+			Elfwritedynent(Linklookup(ctxt, ".dynamic", 0), DT_NEEDED, uint64(Addstring(Linklookup(ctxt, ".dynstr", 0), s.Dynimplib)))
+		}
+	} else {
+		s.Dynid = int32(Nelfsym)
+		Nelfsym++
+
+		d := Linklookup(ctxt, ".dynsym", 0)
+
+		/* name */
+		name := s.Extname
+
+		Adduint32(ctxt, d, uint32(Addstring(Linklookup(ctxt, ".dynstr", 0), name)))
+
+		/* value */
+		if s.Type == obj.SDYNIMPORT {
+			Adduint32(ctxt, d, 0)
+		} else {
+			Addaddr(ctxt, d, s)
+		}
+
+		/* size */
+		Adduint32(ctxt, d, 0)
+
+		/* type */
+		t := STB_GLOBAL << 4
+
+		// TODO(mwhudson): presumably the behaviour should actually be the same on both arm and 386.
+		if Thearch.Thechar == '8' && s.Cgoexport != 0 && s.Type&obj.SMASK == obj.STEXT {
+			t |= STT_FUNC
+		} else if Thearch.Thechar == '5' && s.Cgoexport&CgoExportDynamic != 0 && s.Type&obj.SMASK == obj.STEXT {
+			t |= STT_FUNC
+		} else {
+			t |= STT_OBJECT
+		}
+		Adduint8(ctxt, d, uint8(t))
+		Adduint8(ctxt, d, 0)
+
+		/* shndx */
+		if s.Type == obj.SDYNIMPORT {
+			Adduint16(ctxt, d, SHN_UNDEF)
+		} else {
+			Adduint16(ctxt, d, 1)
+		}
+	}
+}
+
 func ELF32_R_SYM(info uint32) uint32 {
 	return info >> 8
 }

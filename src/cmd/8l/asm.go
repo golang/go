@@ -184,7 +184,7 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 			break
 		}
 		if ld.Iself {
-			adddynsym(ld.Ctxt, targ)
+			ld.Adddynsym(ld.Ctxt, targ)
 			rel := ld.Linklookup(ld.Ctxt, ".rel", 0)
 			ld.Addaddrplus(ld.Ctxt, rel, s, int64(r.Off))
 			ld.Adduint32(ld.Ctxt, rel, ld.ELF32_R_INFO(uint32(targ.Dynid), ld.R_386_32))
@@ -204,7 +204,7 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 			// just in case the C code assigns to the variable,
 			// and of course it only works for single pointers,
 			// but we only need to support cgo and that's all it needs.
-			adddynsym(ld.Ctxt, targ)
+			ld.Adddynsym(ld.Ctxt, targ)
 
 			got := ld.Linklookup(ld.Ctxt, ".got", 0)
 			s.Type = got.Type | obj.SSUB
@@ -402,7 +402,7 @@ func addpltsym(ctxt *ld.Link, s *ld.LSym) {
 		return
 	}
 
-	adddynsym(ctxt, s)
+	ld.Adddynsym(ctxt, s)
 
 	if ld.Iself {
 		plt := ld.Linklookup(ctxt, ".plt", 0)
@@ -462,7 +462,7 @@ func addgotsym(ctxt *ld.Link, s *ld.LSym) {
 		return
 	}
 
-	adddynsym(ctxt, s)
+	ld.Adddynsym(ctxt, s)
 	got := ld.Linklookup(ctxt, ".got", 0)
 	s.Got = int32(got.Size)
 	ld.Adduint32(ctxt, got, 0)
@@ -475,58 +475,6 @@ func addgotsym(ctxt *ld.Link, s *ld.LSym) {
 		ld.Adduint32(ctxt, ld.Linklookup(ctxt, ".linkedit.got", 0), uint32(s.Dynid))
 	} else {
 		ld.Diag("addgotsym: unsupported binary format")
-	}
-}
-
-func adddynsym(ctxt *ld.Link, s *ld.LSym) {
-	if s.Dynid >= 0 {
-		return
-	}
-
-	if ld.Iself {
-		s.Dynid = int32(ld.Nelfsym)
-		ld.Nelfsym++
-
-		d := ld.Linklookup(ctxt, ".dynsym", 0)
-
-		/* name */
-		name := s.Extname
-
-		ld.Adduint32(ctxt, d, uint32(ld.Addstring(ld.Linklookup(ctxt, ".dynstr", 0), name)))
-
-		/* value */
-		if s.Type == obj.SDYNIMPORT {
-			ld.Adduint32(ctxt, d, 0)
-		} else {
-			ld.Addaddr(ctxt, d, s)
-		}
-
-		/* size */
-		ld.Adduint32(ctxt, d, 0)
-
-		/* type */
-		t := ld.STB_GLOBAL << 4
-
-		if s.Cgoexport != 0 && s.Type&obj.SMASK == obj.STEXT {
-			t |= ld.STT_FUNC
-		} else {
-			t |= ld.STT_OBJECT
-		}
-		ld.Adduint8(ctxt, d, uint8(t))
-		ld.Adduint8(ctxt, d, 0)
-
-		/* shndx */
-		if s.Type == obj.SDYNIMPORT {
-			ld.Adduint16(ctxt, d, ld.SHN_UNDEF)
-		} else {
-			ld.Adduint16(ctxt, d, 1)
-		}
-	} else if ld.HEADTYPE == obj.Hdarwin {
-		ld.Diag("adddynsym: missed symbol %s (%s)", s.Name, s.Extname)
-	} else if ld.HEADTYPE == obj.Hwindows {
-	} else // already taken care of
-	{
-		ld.Diag("adddynsym: unsupported binary format")
 	}
 }
 

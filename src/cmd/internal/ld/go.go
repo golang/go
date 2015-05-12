@@ -534,13 +534,13 @@ err:
 	nerrors++
 }
 
-var Seenlib = make(map[string]bool)
+var seenlib = make(map[string]bool)
 
 func adddynlib(lib string) {
-	if Seenlib[lib] {
+	if seenlib[lib] {
 		return
 	}
-	Seenlib[lib] = true
+	seenlib[lib] = true
 
 	if Iself {
 		s := Linklookup(Ctxt, ".dynstr", 0)
@@ -552,6 +552,22 @@ func adddynlib(lib string) {
 		Machoadddynlib(lib)
 	} else {
 		Diag("adddynlib: unsupported binary format")
+	}
+}
+
+func Adddynsym(ctxt *Link, s *LSym) {
+	if s.Dynid >= 0 {
+		return
+	}
+
+	if Iself {
+		Elfadddynsym(ctxt, s)
+	} else if HEADTYPE == obj.Hdarwin {
+		Diag("adddynsym: missed symbol %s (%s)", s.Name, s.Extname)
+	} else if HEADTYPE == obj.Hwindows {
+		// already taken care of
+	} else {
+		Diag("adddynsym: unsupported binary format")
 	}
 }
 
@@ -759,7 +775,7 @@ func addexport() {
 	}
 
 	for i := 0; i < len(dynexp); i++ {
-		Thearch.Adddynsym(Ctxt, dynexp[i])
+		Adddynsym(Ctxt, dynexp[i])
 	}
 }
 
