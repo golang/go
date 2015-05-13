@@ -46,7 +46,7 @@ function run() {
 	case "$goos" in
 	"android")
 		local args=$@
-		output=$(adb shell "cd ${androidpath}; env $@")
+		output=$(adb shell "cd ${androidpath}; $@")
 		output=$(echo $output|tr -d '\r')
 		case $output in
 			*PASS) echo "PASS";; 
