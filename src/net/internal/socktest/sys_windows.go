@@ -8,6 +8,8 @@ import "syscall"
 
 // Socket wraps syscall.Socket.
 func (sw *Switch) Socket(family, sotype, proto int) (s syscall.Handle, err error) {
+	sw.once.Do(sw.init)
+
 	so := &Status{Cookie: cookie(family, sotype, proto)}
 	sw.fmu.RLock()
 	f, _ := sw.fltab[FilterSocket]
