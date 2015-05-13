@@ -3460,10 +3460,11 @@ func runqget(_p_ *p) (gp *g, inheritTime bool) {
 	}
 }
 
-// Grabs a batch of goroutines from local runnable queue.
-// batch array must be of size len(p->runq)/2. Returns number of grabbed goroutines.
+// Grabs a batch of goroutines from _p_'s runnable queue into batch.
+// Batch is a ring buffer starting at batchHead.
+// Returns number of grabbed goroutines.
 // Can be executed by any P.
-func runqgrab(_p_ *p, batch []*g, stealRunNextG bool) uint32 {
+func runqgrab(_p_ *p, batch *[256]*g, batchHead uint32, stealRunNextG bool) uint32 {
 	for {
 		h := atomicload(&_p_.runqhead) // load-acquire, synchronize with other consumers
 		t := atomicload(&_p_.runqtail) // load-acquire, synchronize with the producer
@@ -3484,7 +3485,7 @@ func runqgrab(_p_ *p, batch []*g, stealRunNextG bool) uint32 {
 					if !_p_.runnext.cas(next, 0) {
 						continue
 					}
-					batch[0] = next.ptr()
+					batch[batchHead%uint32(len(batch))] = next.ptr()
 					return 1
 				}
 			}
@@ -3494,7 +3495,8 @@ func runqgrab(_p_ *p, batch []*g, stealRunNextG bool) uint32 {
 			continue
 		}
 		for i := uint32(0); i < n; i++ {
-			batch[i] = _p_.runq[(h+i)%uint32(len(_p_.runq))]
+			g := _p_.runq[(h+i)%uint32(len(_p_.runq))]
+			batch[(batchHead+i)%uint32(len(batch))] = g
 		}
 		if cas(&_p_.runqhead, h, h+n) { // cas-release, commits consume
 			return n
@@ -3506,22 +3508,19 @@ func runqgrab(_p_ *p, batch []*g, stealRunNextG bool) uint32 {
 // and put onto local runnable queue of p.
 // Returns one of the stolen elements (or nil if failed).
 func runqsteal(_p_, p2 *p, stealRunNextG bool) *g {
-	n := runqgrab(p2, _p_.runqvictims[:], stealRunNextG)
+	t := _p_.runqtail
+	n := runqgrab(p2, &_p_.runq, t, stealRunNextG)
 	if n == 0 {
 		return nil
 	}
 	n--
-	gp := _p_.runqvictims[n]
+	gp := _p_.runq[(t+n)%uint32(len(_p_.runq))]
 	if n == 0 {
 		return gp
 	}
 	h := atomicload(&_p_.runqhead) // load-acquire, synchronize with consumers
-	t := _p_.runqtail
 	if t-h+n >= uint32(len(_p_.runq)) {
 		throw("runqsteal: runq overflow")
-	}
-	for i := uint32(0); i < n; i++ {
-		_p_.runq[(t+i)%uint32(len(_p_.runq))] = _p_.runqvictims[i]
 	}
 	atomicstore(&_p_.runqtail, t+n) // store-release, makes the item available for consumption
 	return gp
