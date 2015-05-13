@@ -9,6 +9,7 @@ package socktest_test
 import (
 	"net/internal/socktest"
 	"os"
+	"sync"
 	"syscall"
 	"testing"
 )
@@ -25,6 +26,21 @@ func TestMain(m *testing.M) {
 	}
 	uninstallTestHooks()
 	os.Exit(st)
+}
+
+func TestSwitch(t *testing.T) {
+	const N = 10
+	var wg sync.WaitGroup
+	wg.Add(N)
+	for i := 0; i < N; i++ {
+		go func() {
+			defer wg.Done()
+			for _, family := range []int{syscall.AF_INET, syscall.AF_INET6} {
+				socketFunc(family, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+			}
+		}()
+	}
+	wg.Wait()
 }
 
 func TestSocket(t *testing.T) {
