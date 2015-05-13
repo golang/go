@@ -214,95 +214,106 @@ func convertRR_AAAA(records []dnsRR) []IP {
 	return addrs
 }
 
+// cfg is used for the storage and reparsing of /etc/resolv.conf
 var cfg struct {
-	ch        chan struct{}
+	// ch is used as a semaphore that only allows one lookup at a time to
+	// recheck resolv.conf.  It acts as guard for lastChecked and modTime.
+	ch          chan struct{}
+	lastChecked time.Time // last time resolv.conf was checked
+	modTime     time.Time // time of resolv.conf modification
+
 	mu        sync.RWMutex // protects dnsConfig
-	dnsConfig *dnsConfig
+	dnsConfig *dnsConfig   // parsed resolv.conf structure used in lookups
 }
 
 var onceLoadConfig sync.Once
 
-// Assume dns config file is /etc/resolv.conf here
-func loadDefaultConfig() {
-	loadConfig("/etc/resolv.conf", 5*time.Second, nil)
-}
-
-func loadConfig(resolvConfPath string, reloadTime time.Duration, quit <-chan chan struct{}) {
-	var mtime time.Time
-	cfg.ch = make(chan struct{}, 1)
-	if fi, err := os.Stat(resolvConfPath); err == nil {
-		mtime = fi.ModTime()
+func initCfg() {
+	// Set dnsConfig, modTime, and lastChecked so we don't parse
+	// resolv.conf twice the first time.
+	cfg.dnsConfig = systemConf().resolv
+	if cfg.dnsConfig == nil {
+		cfg.dnsConfig = dnsReadConfig("/etc/resolv.conf")
 	}
 
-	cfg.dnsConfig = dnsReadConfig(resolvConfPath)
+	if fi, err := os.Stat("/etc/resolv.conf"); err == nil {
+		cfg.modTime = fi.ModTime()
+	}
+	cfg.lastChecked = time.Now()
 
-	go func() {
-		for {
-			time.Sleep(reloadTime)
-			select {
-			case qresp := <-quit:
-				qresp <- struct{}{}
-				return
-			case <-cfg.ch:
-			}
+	// Prepare ch so that only one loadConfig may run at once
+	cfg.ch = make(chan struct{}, 1)
+	cfg.ch <- struct{}{}
+}
 
-			// In case of error, we keep the previous config
-			fi, err := os.Stat(resolvConfPath)
-			if err != nil {
-				continue
-			}
-			// If the resolv.conf mtime didn't change, do not reload
-			m := fi.ModTime()
-			if m.Equal(mtime) {
-				continue
-			}
-			mtime = m
-			// In case of error, we keep the previous config
-			if ncfg := dnsReadConfig(resolvConfPath); ncfg.err == nil {
-				cfg.mu.Lock()
-				cfg.dnsConfig = ncfg
-				cfg.mu.Unlock()
-			}
+func loadConfig(resolvConfPath string) {
+	onceLoadConfig.Do(initCfg)
+
+	// ensure only one loadConfig at a time checks /etc/resolv.conf
+	select {
+	case <-cfg.ch:
+		defer func() { cfg.ch <- struct{}{} }()
+	default:
+		return
+	}
+
+	now := time.Now()
+	if cfg.lastChecked.After(now.Add(-5 * time.Second)) {
+		return
+	}
+	cfg.lastChecked = now
+
+	if fi, err := os.Stat(resolvConfPath); err == nil {
+		if fi.ModTime().Equal(cfg.modTime) {
+			return
 		}
-	}()
+		cfg.modTime = fi.ModTime()
+	} else {
+		// If modTime wasn't set prior, assume nothing has changed.
+		if cfg.modTime.IsZero() {
+			return
+		}
+		cfg.modTime = time.Time{}
+	}
+
+	ncfg := dnsReadConfig(resolvConfPath)
+	cfg.mu.Lock()
+	cfg.dnsConfig = ncfg
+	cfg.mu.Unlock()
 }
 
 func lookup(name string, qtype uint16) (cname string, rrs []dnsRR, err error) {
 	if !isDomainName(name) {
 		return name, nil, &DNSError{Err: "invalid domain name", Name: name}
 	}
-	onceLoadConfig.Do(loadDefaultConfig)
 
-	select {
-	case cfg.ch <- struct{}{}:
-	default:
-	}
-
+	loadConfig("/etc/resolv.conf")
 	cfg.mu.RLock()
-	defer cfg.mu.RUnlock()
+	resolv := cfg.dnsConfig
+	cfg.mu.RUnlock()
 
 	// If name is rooted (trailing dot) or has enough dots,
 	// try it by itself first.
 	rooted := len(name) > 0 && name[len(name)-1] == '.'
-	if rooted || count(name, '.') >= cfg.dnsConfig.ndots {
+	if rooted || count(name, '.') >= resolv.ndots {
 		rname := name
 		if !rooted {
 			rname += "."
 		}
 		// Can try as ordinary name.
-		cname, rrs, err = tryOneName(cfg.dnsConfig, rname, qtype)
+		cname, rrs, err = tryOneName(resolv, rname, qtype)
 		if rooted || err == nil {
 			return
 		}
 	}
 
 	// Otherwise, try suffixes.
-	for i := 0; i < len(cfg.dnsConfig.search); i++ {
-		rname := name + "." + cfg.dnsConfig.search[i]
+	for _, suffix := range resolv.search {
+		rname := name + "." + suffix
 		if rname[len(rname)-1] != '.' {
 			rname += "."
 		}
-		cname, rrs, err = tryOneName(cfg.dnsConfig, rname, qtype)
+		cname, rrs, err = tryOneName(resolv, rname, qtype)
 		if err == nil {
 			return
 		}
@@ -310,8 +321,8 @@ func lookup(name string, qtype uint16) (cname string, rrs []dnsRR, err error) {
 
 	// Last ditch effort: try unsuffixed only if we haven't already,
 	// that is, name is not rooted and has less than ndots dots.
-	if count(name, '.') < cfg.dnsConfig.ndots {
-		cname, rrs, err = tryOneName(cfg.dnsConfig, name+".", qtype)
+	if count(name, '.') < resolv.ndots {
+		cname, rrs, err = tryOneName(resolv, name+".", qtype)
 		if err == nil {
 			return
 		}
