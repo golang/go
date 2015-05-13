@@ -15,33 +15,23 @@ func TestResolveGoogle(t *testing.T) {
 	if testing.Short() || !*testExternal {
 		t.Skip("avoid external network")
 	}
-	if !supportsIPv4 && !supportsIPv6 {
-		t.Skip("ipv4 and ipv6 are not supported")
+	if !supportsIPv4 || !supportsIPv6 || !*testIPv4 || !*testIPv6 {
+		t.Skip("both IPv4 and IPv6 are required")
 	}
 
 	for _, network := range []string{"tcp", "tcp4", "tcp6"} {
 		addr, err := ResolveTCPAddr(network, "www.google.com:http")
 		if err != nil {
-			switch {
-			case network == "tcp" && !supportsIPv4:
-				fallthrough
-			case network == "tcp4" && !supportsIPv4:
-				t.Logf("skipping test; ipv4 is not supported: %v", err)
-			case network == "tcp6" && !supportsIPv6:
-				t.Logf("skipping test; ipv6 is not supported: %v", err)
-			default:
-				t.Error(err)
-			}
+			t.Error(err)
 			continue
 		}
-
 		switch {
 		case network == "tcp" && addr.IP.To4() == nil:
 			fallthrough
 		case network == "tcp4" && addr.IP.To4() == nil:
-			t.Errorf("got %v; want an ipv4 address on %s", addr, network)
+			t.Errorf("got %v; want an IPv4 address on %s", addr, network)
 		case network == "tcp6" && (addr.IP.To16() == nil || addr.IP.To4() != nil):
-			t.Errorf("got %v; want an ipv6 address on %s", addr, network)
+			t.Errorf("got %v; want an IPv6 address on %s", addr, network)
 		}
 	}
 }
@@ -73,8 +63,8 @@ func TestDialGoogle(t *testing.T) {
 	if testing.Short() || !*testExternal {
 		t.Skip("avoid external network")
 	}
-	if !supportsIPv4 && !supportsIPv6 {
-		t.Skip("ipv4 and ipv6 are not supported")
+	if !supportsIPv4 || !supportsIPv6 || !*testIPv4 || !*testIPv6 {
+		t.Skip("both IPv4 and IPv6 are required")
 	}
 
 	var err error
@@ -84,25 +74,6 @@ func TestDialGoogle(t *testing.T) {
 	}
 	for _, tt := range dialGoogleTests {
 		for _, network := range tt.networks {
-			switch {
-			case network == "tcp4" && !supportsIPv4:
-				t.Log("skipping test; ipv4 is not supported")
-				continue
-			case network == "tcp4" && !*testIPv4:
-				fallthrough
-			case tt.unreachableNetwork == "tcp6" && !*testIPv4:
-				t.Log("disabled; use -ipv4 to enable")
-				continue
-			case network == "tcp6" && !supportsIPv6:
-				t.Log("skipping test; ipv6 is not supported")
-				continue
-			case network == "tcp6" && !*testIPv6:
-				fallthrough
-			case tt.unreachableNetwork == "tcp4" && !*testIPv6:
-				t.Log("disabled; use -ipv6 to enable")
-				continue
-			}
-
 			disableSocketConnect(tt.unreachableNetwork)
 			for _, addr := range tt.addrs {
 				if err := fetchGoogle(tt.dial, network, addr); err != nil {

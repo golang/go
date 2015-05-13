@@ -30,10 +30,16 @@ var (
 
 	// If external IPv4 connectivity exists, we can try dialing
 	// non-node/interface local scope IPv4 addresses.
+	// On Windows, Lookup APIs may not return IPv4-related
+	// resource records when a node has no external IPv4
+	// connectivity.
 	testIPv4 = flag.Bool("ipv4", true, "assume external IPv4 connectivity exists")
 
 	// If external IPv6 connectivity exists, we can try dialing
 	// non-node/interface local scope IPv6 addresses.
+	// On Windows, Lookup APIs may not return IPv6-related
+	// resource records when a node has no external IPv6
+	// connectivity.
 	testIPv6 = flag.Bool("ipv6", false, "assume external IPv6 connectivity exists")
 )
 
