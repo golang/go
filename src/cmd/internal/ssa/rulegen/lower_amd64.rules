@@ -34,8 +34,8 @@
 (Store ptr val mem) && (is64BitInt(val.Type) || isPtr(val.Type)) -> (MOVQstore [int64(0)] ptr val mem)
 
 // checks
-(CheckNil p) -> (SETNE (TESTQ <TypeFlags> p p))
-(CheckBound idx len) -> (SETB (CMPQ <TypeFlags> idx len))
+(IsNonNil p) -> (SETNE (TESTQ <TypeFlags> p p))
+(IsInBounds idx len) -> (SETB (CMPQ <TypeFlags> idx len))
 
 // Rules below here apply some simple optimizations after lowering.
 // TODO: Should this be a separate pass?
@@ -80,8 +80,8 @@
 (MOVQstore [off1] (ADDCQ [off2] ptr) val mem) -> (MOVQstore [off1.(int64)+off2.(int64)] ptr val mem)
 
 // indexed loads and stores
-(MOVQload [off1] (LEAQ8 [off2] ptr idx) mem) -> (MOVQload8 [off1.(int64)+off2.(int64)] ptr idx mem)
-(MOVQstore [off1] (LEAQ8 [off2] ptr idx) val mem) -> (MOVQstore8 [off1.(int64)+off2.(int64)] ptr idx val mem)
+(MOVQload [off1] (LEAQ8 [off2] ptr idx) mem) -> (MOVQloadidx8 [off1.(int64)+off2.(int64)] ptr idx mem)
+(MOVQstore [off1] (LEAQ8 [off2] ptr idx) val mem) -> (MOVQstoreidx8 [off1.(int64)+off2.(int64)] ptr idx val mem)
 
 // Combine the offset of a stack object with the offset within a stack object
 (ADDCQ [off1] (FPAddr [off2])) -> (FPAddr [off1.(int64)+off2.(int64)])

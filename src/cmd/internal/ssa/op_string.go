@@ -4,13 +4,37 @@ package ssa
 
 import "fmt"
 
-const _Op_name = "OpUnknownOpNopOpFwdRefOpAddOpSubOpMulOpLessOpConstOpArgOpGlobalOpFuncOpCopyOpPhiOpSliceMakeOpSlicePtrOpSliceLenOpSliceCapOpStringMakeOpStringPtrOpStringLenOpSliceIndexOpSliceIndexAddrOpLoadOpStoreOpCheckNilOpCheckBoundOpCallOpStaticCallOpConvertOpConvNopOpFPAddrOpSPAddrOpStoreReg8OpLoadReg8OpADDQOpSUBQOpADDCQOpSUBCQOpMULQOpMULCQOpSHLQOpSHLCQOpNEGQOpCMPQOpCMPCQOpADDLOpTESTQOpSETEQOpSETNEOpSETLOpSETGEOpSETBOpInvertFlagsOpLEAQOpLEAQ2OpLEAQ4OpLEAQ8OpMOVQloadOpMOVQstoreOpMOVQload8OpMOVQstore8OpMOVQloadglobalOpMOVQstoreglobalOpMOVQloadFPOpMOVQloadSPOpMOVQstoreFPOpMOVQstoreSPOpMOVQconstOpMax"
+const (
+	_Op_name_0 = "opInvalid"
+	_Op_name_1 = "opGenericBaseOpAddOpSubOpMulOpLessOpConstOpArgOpGlobalOpFuncOpCopyOpPhiOpSliceMakeOpSlicePtrOpSliceLenOpSliceCapOpStringMakeOpStringPtrOpStringLenOpLoadOpStoreOpSliceIndexOpIsNonNilOpIsInBoundsOpCallOpStaticCallOpConvertOpConvNopOpFPAddrOpSPAddrOpStoreReg8OpLoadReg8OpFwdRef"
+	_Op_name_2 = "opAMD64BaseOpADDQOpSUBQOpADDCQOpSUBCQOpMULQOpMULCQOpSHLQOpSHLCQOpNEGQOpADDLOpCMPQOpCMPCQOpTESTQOpSETEQOpSETNEOpSETLOpSETGEOpSETBOpInvertFlagsOpLEAQOpLEAQ2OpLEAQ4OpLEAQ8OpMOVQloadOpMOVQstoreOpMOVQloadidx8OpMOVQstoreidx8OpMOVQloadglobalOpMOVQstoreglobalOpMOVQloadFPOpMOVQloadSPOpMOVQstoreFPOpMOVQstoreSPOpMOVQconst"
+	_Op_name_3 = "op386Base"
+	_Op_name_4 = "opMax"
+)
 
-var _Op_index = [...]uint16{0, 9, 14, 22, 27, 32, 37, 43, 50, 55, 63, 69, 75, 80, 91, 101, 111, 121, 133, 144, 155, 167, 183, 189, 196, 206, 218, 224, 236, 245, 254, 262, 270, 281, 291, 297, 303, 310, 317, 323, 330, 336, 343, 349, 355, 362, 368, 375, 382, 389, 395, 402, 408, 421, 427, 434, 441, 448, 458, 469, 480, 492, 508, 525, 537, 549, 562, 575, 586, 591}
+var (
+	_Op_index_0 = [...]uint8{0, 9}
+	_Op_index_1 = [...]uint16{0, 13, 18, 23, 28, 34, 41, 46, 54, 60, 66, 71, 82, 92, 102, 112, 124, 135, 146, 152, 159, 171, 181, 193, 199, 211, 220, 229, 237, 245, 256, 266, 274}
+	_Op_index_2 = [...]uint16{0, 11, 17, 23, 30, 37, 43, 50, 56, 63, 69, 75, 81, 88, 95, 102, 109, 115, 122, 128, 141, 147, 154, 161, 168, 178, 189, 203, 218, 234, 251, 263, 275, 288, 301, 312}
+	_Op_index_3 = [...]uint8{0, 9}
+	_Op_index_4 = [...]uint8{0, 5}
+)
 
 func (i Op) String() string {
-	if i < 0 || i+1 >= Op(len(_Op_index)) {
+	switch {
+	case i == 0:
+		return _Op_name_0
+	case 1001 <= i && i <= 1032:
+		i -= 1001
+		return _Op_name_1[_Op_index_1[i]:_Op_index_1[i+1]]
+	case 2001 <= i && i <= 2035:
+		i -= 2001
+		return _Op_name_2[_Op_index_2[i]:_Op_index_2[i+1]]
+	case i == 3001:
+		return _Op_name_3
+	case i == 4001:
+		return _Op_name_4
+	default:
 		return fmt.Sprintf("Op(%d)", i)
 	}
-	return _Op_name[_Op_index[i]:_Op_index[i+1]]
 }
