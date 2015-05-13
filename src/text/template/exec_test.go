@@ -531,6 +531,8 @@ var execTests = []execTest{
 	{"bug14a", "{{(nil).True}}", "", tVal, false},
 	{"bug14b", "{{$x := nil}}{{$x.anything}}", "", tVal, false},
 	{"bug14c", `{{$x := (1.0)}}{{$y := ("hello")}}{{$x.anything}}{{$y.true}}`, "", tVal, false},
+	// Didn't call validateType on function results. Issue 10800.
+	{"bug15", "{{valueString returnInt}}", "", tVal, false},
 }
 
 func zeroArgs() string {
@@ -568,6 +570,11 @@ func vfunc(V, *V) string {
 // valueString takes a string, not a pointer.
 func valueString(v string) string {
 	return "value is ignored"
+}
+
+// returnInt returns an int
+func returnInt() int {
+	return 7
 }
 
 func add(args ...int) int {
@@ -611,6 +618,7 @@ func testExecute(execTests []execTest, template *Template, t *testing.T) {
 		"makemap":     makemap,
 		"mapOfThree":  mapOfThree,
 		"oneArg":      oneArg,
+		"returnInt":   returnInt,
 		"stringer":    stringer,
 		"typeOf":      typeOf,
 		"valueString": valueString,
