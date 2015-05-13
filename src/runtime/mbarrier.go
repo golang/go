@@ -200,6 +200,8 @@ func callwritebarrier(typ *_type, frame unsafe.Pointer, framesize, retoffset uin
 
 //go:nosplit
 func typedslicecopy(typ *_type, dst, src slice) int {
+	// TODO(rsc): If typedslicecopy becomes faster than calling
+	// typedmemmove repeatedly, consider using during func growslice.
 	n := dst.len
 	if n > src.len {
 		n = src.len
@@ -217,6 +219,10 @@ func typedslicecopy(typ *_type, dst, src slice) int {
 		racereadrangepc(srcp, uintptr(n)*typ.size, callerpc, pc)
 	}
 
+	// Note: No point in checking typ.kind&kindNoPointers here:
+	// compiler only emits calls to typedslicecopy for types with pointers,
+	// and growslice and reflect_typedslicecopy check for pointers
+	// before calling typedslicecopy.
 	if !writeBarrierEnabled {
 		memmove(dstp, srcp, uintptr(n)*typ.size)
 		return n
@@ -257,5 +263,13 @@ func typedslicecopy(typ *_type, dst, src slice) int {
 
 //go:linkname reflect_typedslicecopy reflect.typedslicecopy
 func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
+	if elemType.kind&kindNoPointers != 0 {
+		n := dst.len
+		if n > src.len {
+			n = src.len
+		}
+		memmove(dst.array, src.array, uintptr(n)*elemType.size)
+		return n
+	}
 	return typedslicecopy(elemType, dst, src)
 }
