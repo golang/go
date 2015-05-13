@@ -183,7 +183,7 @@ func declare(n *Node, ctxt uint8) {
 	}
 
 	if ctxt == PEXTERN && s.Name == "init" {
-		Yyerror("cannot declare init - must be func", s)
+		Yyerror("cannot declare init - must be func")
 	}
 
 	gen := 0

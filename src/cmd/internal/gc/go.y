@@ -21,6 +21,7 @@
 package gc
 
 import (
+	"fmt"
 	"strings"
 )
 %}
@@ -1975,9 +1976,9 @@ hidden_import:
 		importlist = list(importlist, $2);
 
 		if Debug['E'] > 0 {
-			print("import [%q] func %lN \n", importpkg.Path, $2);
+			fmt.Printf("import [%q] func %v \n", importpkg.Path, $2)
 			if Debug['m'] > 2 && $2.Func.Inl != nil {
-				print("inl body:%+H\n", $2.Func.Inl);
+				fmt.Printf("inl body:%v\n", $2.Func.Inl)
 			}
 		}
 	}
