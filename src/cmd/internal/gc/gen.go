@@ -965,7 +965,7 @@ func cgen_callmeth(n *Node, proc int) {
 	l := n.Left
 
 	if l.Op != ODOTMETH {
-		Fatal("cgen_callmeth: not dotmethod: %v")
+		Fatal("cgen_callmeth: not dotmethod: %v", l)
 	}
 
 	n2 := *n

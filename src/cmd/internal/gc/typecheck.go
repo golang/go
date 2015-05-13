@@ -1303,7 +1303,7 @@ OpSwitch:
 		if l.Op == OTYPE {
 			if n.Isddd || l.Type.Bound == -100 {
 				if l.Type.Broke == 0 {
-					Yyerror("invalid use of ... in type conversion", l)
+					Yyerror("invalid use of ... in type conversion to %v", l.Type)
 				}
 				n.Diag = 1
 			}
@@ -1528,7 +1528,7 @@ OpSwitch:
 		var t *Type
 		switch l.Type.Etype {
 		default:
-			Yyerror("invalid operation: %v (arguments have type %v, expected floating-point)", n, l.Type, r.Type)
+			Yyerror("invalid operation: %v (arguments have type %v, expected floating-point)", n, l.Type)
 			n.Type = nil
 			return
 
@@ -1645,7 +1645,7 @@ OpSwitch:
 		n.Type = t
 		if !Isslice(t) {
 			if Isconst(args.N, CTNIL) {
-				Yyerror("first argument to append must be typed slice; have untyped nil", t)
+				Yyerror("first argument to append must be typed slice; have untyped nil")
 				n.Type = nil
 				return
 			}
@@ -3526,7 +3526,7 @@ func typecheckfunc(n *Node) {
 func stringtoarraylit(np **Node) {
 	n := *np
 	if n.Left.Op != OLITERAL || n.Left.Val.Ctype != CTSTR {
-		Fatal("stringtoarraylit %N", n)
+		Fatal("stringtoarraylit %v", n)
 	}
 
 	s := n.Left.Val.U.Sval
