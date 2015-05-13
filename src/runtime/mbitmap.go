@@ -365,11 +365,13 @@ func heapBitsBulkBarrier(p, size uintptr) {
 		return
 	}
 
+	h := heapBitsForAddr(p)
 	for i := uintptr(0); i < size; i += ptrSize {
-		if heapBitsForAddr(p + i).isPointer() {
+		if h.isPointer() {
 			x := (*uintptr)(unsafe.Pointer(p + i))
 			writebarrierptr_nostore(x, *x)
 		}
+		h = h.next()
 	}
 }
 
