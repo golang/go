@@ -28,8 +28,16 @@ var registers = [...]Register{
 	Register{"BP"},
 	Register{"SI"},
 	Register{"DI"},
+	Register{"R8"},
+	Register{"R9"},
+	Register{"R10"},
+	Register{"R11"},
+	Register{"R12"},
+	Register{"R13"},
+	Register{"R14"},
+	Register{"R15"},
 
-	// TODO R8, X0, ...
+	// TODO X0, ...
 	// TODO: make arch-dependent
 	Register{"FLAGS"},
 	Register{"OVERWRITE"},

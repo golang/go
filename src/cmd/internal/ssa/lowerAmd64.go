@@ -209,8 +209,8 @@ func lowerAmd64(v *Value) bool {
 		goto enda4e64c7eaeda16c1c0db9dac409cd126
 	enda4e64c7eaeda16c1c0db9dac409cd126:
 		;
-	case OpCheckBound:
-		// match: (CheckBound idx len)
+	case OpIsInBounds:
+		// match: (IsInBounds idx len)
 		// cond:
 		// result: (SETB (CMPQ <TypeFlags> idx len))
 		{
@@ -226,11 +226,11 @@ func lowerAmd64(v *Value) bool {
 			v.AddArg(v0)
 			return true
 		}
-		goto end249426f6f996d45a62f89a591311a954
-	end249426f6f996d45a62f89a591311a954:
+		goto endb51d371171154c0f1613b687757e0576
+	endb51d371171154c0f1613b687757e0576:
 		;
-	case OpCheckNil:
-		// match: (CheckNil p)
+	case OpIsNonNil:
+		// match: (IsNonNil p)
 		// cond:
 		// result: (SETNE (TESTQ <TypeFlags> p p))
 		{
@@ -245,8 +245,8 @@ func lowerAmd64(v *Value) bool {
 			v.AddArg(v0)
 			return true
 		}
-		goto end90d3057824f74ef953074e473aa0b282
-	end90d3057824f74ef953074e473aa0b282:
+		goto endff508c3726edfb573abc6128c177e76c
+	endff508c3726edfb573abc6128c177e76c:
 		;
 	case OpLess:
 		// match: (Less x y)
@@ -378,17 +378,17 @@ func lowerAmd64(v *Value) bool {
 		;
 		// match: (MOVQload [off1] (LEAQ8 [off2] ptr idx) mem)
 		// cond:
-		// result: (MOVQload8 [off1.(int64)+off2.(int64)] ptr idx mem)
+		// result: (MOVQloadidx8 [off1.(int64)+off2.(int64)] ptr idx mem)
 		{
 			off1 := v.Aux
 			if v.Args[0].Op != OpLEAQ8 {
-				goto end35060118a284c93323ab3fb827156638
+				goto endba0e5cee85021614041016b1a2709ab8
 			}
 			off2 := v.Args[0].Aux
 			ptr := v.Args[0].Args[0]
 			idx := v.Args[0].Args[1]
 			mem := v.Args[1]
-			v.Op = OpMOVQload8
+			v.Op = OpMOVQloadidx8
 			v.Aux = nil
 			v.resetArgs()
 			v.Aux = off1.(int64) + off2.(int64)
@@ -397,8 +397,8 @@ func lowerAmd64(v *Value) bool {
 			v.AddArg(mem)
 			return true
 		}
-		goto end35060118a284c93323ab3fb827156638
-	end35060118a284c93323ab3fb827156638:
+		goto endba0e5cee85021614041016b1a2709ab8
+	endba0e5cee85021614041016b1a2709ab8:
 		;
 	case OpMOVQstore:
 		// match: (MOVQstore [off1] (FPAddr [off2]) val mem)
@@ -493,18 +493,18 @@ func lowerAmd64(v *Value) bool {
 		;
 		// match: (MOVQstore [off1] (LEAQ8 [off2] ptr idx) val mem)
 		// cond:
-		// result: (MOVQstore8 [off1.(int64)+off2.(int64)] ptr idx val mem)
+		// result: (MOVQstoreidx8 [off1.(int64)+off2.(int64)] ptr idx val mem)
 		{
 			off1 := v.Aux
 			if v.Args[0].Op != OpLEAQ8 {
-				goto endb5cba0ee3ba21d2bd8e5aa163d2b984e
+				goto end4ad469f534c7369f6ac36bdace3462ad
 			}
 			off2 := v.Args[0].Aux
 			ptr := v.Args[0].Args[0]
 			idx := v.Args[0].Args[1]
 			val := v.Args[1]
 			mem := v.Args[2]
-			v.Op = OpMOVQstore8
+			v.Op = OpMOVQstoreidx8
 			v.Aux = nil
 			v.resetArgs()
 			v.Aux = off1.(int64) + off2.(int64)
@@ -514,8 +514,8 @@ func lowerAmd64(v *Value) bool {
 			v.AddArg(mem)
 			return true
 		}
-		goto endb5cba0ee3ba21d2bd8e5aa163d2b984e
-	endb5cba0ee3ba21d2bd8e5aa163d2b984e:
+		goto end4ad469f534c7369f6ac36bdace3462ad
+	end4ad469f534c7369f6ac36bdace3462ad:
 		;
 	case OpMULCQ:
 		// match: (MULCQ [c] x)

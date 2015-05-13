@@ -292,7 +292,7 @@ func (s *ssaState) expr(n *Node) *ssa.Value {
 
 	case OIND:
 		p := s.expr(n.Left)
-		c := s.curBlock.NewValue1(ssa.OpCheckNil, ssa.TypeBool, nil, p)
+		c := s.curBlock.NewValue1(ssa.OpIsNonNil, ssa.TypeBool, nil, p)
 		b := s.endBlock()
 		b.Kind = ssa.BlockIf
 		b.Control = c
@@ -322,7 +322,7 @@ func (s *ssaState) expr(n *Node) *ssa.Value {
 
 		// bounds check
 		len := s.curBlock.NewValue1(ssa.OpSliceLen, s.config.UIntPtr, nil, a)
-		cmp := s.curBlock.NewValue2(ssa.OpCheckBound, ssa.TypeBool, nil, i, len)
+		cmp := s.curBlock.NewValue2(ssa.OpIsInBounds, ssa.TypeBool, nil, i, len)
 		b := s.endBlock()
 		b.Kind = ssa.BlockIf
 		b.Control = cmp
@@ -345,7 +345,7 @@ func (s *ssaState) expr(n *Node) *ssa.Value {
 			log.Fatalf("can't handle CALLFUNC with non-ONAME fn %s", opnames[n.Left.Op])
 		}
 		bNext := s.f.NewBlock(ssa.BlockPlain)
-		call := s.curBlock.NewValue1(ssa.OpStaticCall, ssa.TypeMem, n.Left.Sym.Name, s.mem())
+		call := s.curBlock.NewValue1(ssa.OpStaticCall, ssa.TypeMem, n.Left.Sym, s.mem())
 		b := s.endBlock()
 		b.Kind = ssa.BlockCall
 		b.Control = call

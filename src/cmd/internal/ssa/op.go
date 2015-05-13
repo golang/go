@@ -8,25 +8,33 @@ package ssa
 // Opcodes' semantics can be modified by the type and aux fields of the Value.
 // For instance, OpAdd can be 32 or 64 bit, signed or unsigned, float or complex, depending on Value.Type.
 // Semantics of each op are described below.
+//
 // Ops come in two flavors, architecture-independent and architecture-dependent.
+// Architecture-independent opcodes appear in this file.
+// Architecture-dependent opcodes appear in op{arch}.go files.
 type Op int32
 
-// All the opcodes
+// Opcode ranges, a generic one and one for each architecture.
 const (
-	OpUnknown Op = iota
+	opInvalid     Op = 0
+	opGenericBase Op = 1 + 1000*iota
+	opAMD64Base
+	op386Base
 
-	// machine-independent opcodes
+	opMax // sentinel
+)
 
-	OpNop    // should never be used, appears only briefly during construction,  Has type Void.
-	OpFwdRef // used during ssa construction.  Like OpCopy, but the arg has not been specified yet.
+// Generic opcodes
+const (
+	opGenericStart Op = opGenericBase + iota
 
 	// 2-input arithmetic
-	OpAdd
-	OpSub
-	OpMul
+	OpAdd // arg0 + arg1
+	OpSub // arg0 - arg1
+	OpMul // arg0 * arg1
 
 	// 2-input comparisons
-	OpLess
+	OpLess // arg0 < arg1
 
 	// constants.  Constant values are stored in the aux field.
 	// booleans have a bool aux field, strings have a string aux
@@ -36,44 +44,40 @@ const (
 	// as it may be different widths on the host and target.
 	OpConst
 
-	OpArg    // address of a function parameter/result.  Memory input is an arg called ".mem".
-	OpGlobal // address of a global variable (aux is a *gc.Sym)
+	OpArg    // address of a function parameter/result.  Memory input is an arg called ".mem".  aux is a string (TODO: make it something other than a string?)
+	OpGlobal // the address of a global variable aux.(*gc.Sym)
 	OpFunc   // entry address of a function
-	OpCopy   // output = input
-	OpPhi    // select an input based on which predecessor we came from
 
-	OpSliceMake // args are ptr/len/cap
-	OpSlicePtr
-	OpSliceLen
-	OpSliceCap
+	OpCopy // output = arg0
+	OpPhi  // select an argument based on which predecessor block we came from
 
-	OpStringMake // args are ptr/len
-	OpStringPtr
-	OpStringLen
+	OpSliceMake // arg0=ptr, arg1=len, arg2=cap
+	OpSlicePtr  // ptr(arg0)
+	OpSliceLen  // len(arg0)
+	OpSliceCap  // cap(arg0)
 
-	OpSliceIndex
-	OpSliceIndexAddr
+	OpStringMake // arg0=ptr, arg1=len
+	OpStringPtr  // ptr(arg0)
+	OpStringLen  // len(arg0)
 
-	OpLoad  // args are ptr, memory.  Loads from ptr+aux.(int64)
-	OpStore // args are ptr, value, memory, returns memory.  Stores to ptr+aux.(int64)
-
-	OpCheckNil   // arg[0] != nil
-	OpCheckBound // 0 <= arg[0] < arg[1]
+	OpLoad       // Load from arg0+aux.(int64).  arg1=memory
+	OpStore      // Store arg1 to arg0+aux.(int64).  arg2=memory.  Returns memory.
+	OpSliceIndex // arg0=slice, arg1=index, arg2=memory
+	OpIsNonNil   // arg0 != nil
+	OpIsInBounds // 0 <= arg0 < arg1
 
 	// function calls.  Arguments to the call have already been written to the stack.
 	// Return values appear on the stack.  The method receiver, if any, is treated
 	// as a phantom first argument.
-	// TODO: closure pointer must be in a register.
-	OpCall       // args are function ptr, memory
-	OpStaticCall // aux is function, arg is memory
+	OpCall       // arg0=code pointer, arg1=context ptr, arg2=memory.  Returns memory.
+	OpStaticCall // call function aux.(*gc.Sym), arg0=memory.  Returns memory.
 
-	OpConvert
-	OpConvNop
+	OpConvert // convert arg0 to another type
+	OpConvNop // interpret arg0 as another type
 
-	// These ops return a pointer to a location on the stack.  Aux contains an int64
-	// indicating an offset from the base pointer.
-	OpFPAddr // offset from FP (+ == args from caller, - == locals)
-	OpSPAddr // offset from SP
+	// These ops return a pointer to a location on the stack.
+	OpFPAddr // FP + aux.(int64) (+ == args from caller, - == locals)
+	OpSPAddr // SP + aux.(int64)
 
 	// spill&restore ops for the register allocator.  These are
 	// semantically identical to OpCopy; they do not take/return
@@ -82,70 +86,19 @@ const (
 	OpStoreReg8
 	OpLoadReg8
 
-	// machine-dependent opcodes go here
-
-	// amd64
-	OpADDQ
-	OpSUBQ
-	OpADDCQ // 1 input arg.  output = input + aux.(int64)
-	OpSUBCQ // 1 input arg.  output = input - aux.(int64)
-	OpMULQ
-	OpMULCQ // output = input * aux.(int64)
-	OpSHLQ  // output = input0 << input1
-	OpSHLCQ // output = input << aux.(int64)
-	OpNEGQ
-	OpCMPQ
-	OpCMPCQ // 1 input arg.  Compares input with aux.(int64)
-	OpADDL
-	OpTESTQ // compute flags of arg[0] & arg[1]
-	OpSETEQ
-	OpSETNE
-
-	// generate boolean based on the flags setting
-	OpSETL  // less than
-	OpSETGE // >=
-	OpSETB  // "below" = unsigned less than
-
-	// InvertFlags reverses direction of flags register interpretation:
-	// (InvertFlags (OpCMPQ a b)) == (OpCMPQ b a)
-	// This is a pseudo-op which can't appear in assembly output.
-	OpInvertFlags
-
-	OpLEAQ  // x+y
-	OpLEAQ2 // x+2*y
-	OpLEAQ4 // x+4*y
-	OpLEAQ8 // x+8*y
-
-	OpMOVQload   // (ptr, mem): loads from ptr+aux.(int64)
-	OpMOVQstore  // (ptr, val, mem): stores val to ptr+aux.(int64), returns mem
-	OpMOVQload8  // (ptr,idx,mem): loads from ptr+idx*8+aux.(int64)
-	OpMOVQstore8 // (ptr,idx,val,mem): stores to ptr+idx*8+aux.(int64), returns mem
-
-	// load/store from global.  aux = GlobalOffset
-	OpMOVQloadglobal  // (mem) -> value
-	OpMOVQstoreglobal // (val, mem) -> mem
-
-	// load/store 8-byte integer register from stack slot.
-	OpMOVQloadFP
-	OpMOVQloadSP
-	OpMOVQstoreFP
-	OpMOVQstoreSP
-
-	// materialize a constant into a register
-	OpMOVQconst
-
-	OpMax // sentinel
+	// used during ssa construction.  Like OpCopy, but the arg has not been specified yet.
+	OpFwdRef
 )
 
 // GlobalOffset represents a fixed offset within a global variable
 type GlobalOffset struct {
-	Global interface{} // holds a *cmd/internal/gc.Sym
+	Global interface{} // holds a *gc.Sym
 	Offset int64
 }
 
 //go:generate stringer -type=Op
 
-type OpInfo struct {
+type opInfo struct {
 	flags int32
 
 	// assembly template
@@ -160,67 +113,13 @@ type OpInfo struct {
 	reg [2][]regMask
 }
 
-type regMask uint64
-
-var regs386 = [...]string{
-	"AX",
-	"CX",
-	"DX",
-	"BX",
-	"SP",
-	"BP",
-	"SI",
-	"DI",
-
-	// pseudo registers
-	"FLAGS",
-	"OVERWRITE0", // the same register as the first input
-}
-
-// TODO: match up these with regs386 above
-var gp regMask = 0xef
-var cx regMask = 0x2
-var flags regMask = 1 << 8
-var overwrite0 regMask = 1 << 9
-
 const (
 	// possible properties of opcodes
 	OpFlagCommutative int32 = 1 << iota
-
-	// architecture constants
-	Arch386
-	ArchAMD64
-	ArchARM
 )
 
-// general purpose registers, 2 input, 1 output
-var gp21 = [2][]regMask{{gp, gp}, {gp}}
-var gp21_overwrite = [2][]regMask{{gp, gp}, {gp}}
-
-// general purpose registers, 1 input, 1 output
-var gp11 = [2][]regMask{{gp}, {gp}}
-var gp11_overwrite = [2][]regMask{{gp}, {gp}}
-
-// general purpose registers, 0 input, 1 output
-var gp01 = [2][]regMask{{}, {gp}}
-
-// shift operations
-var shift = [2][]regMask{{gp, cx}, {gp}}
-
-var gp2_flags = [2][]regMask{{gp, gp}, {flags}}
-var gp1_flags = [2][]regMask{{gp}, {flags}}
-var gpload = [2][]regMask{{gp, 0}, {gp}}
-var gploadX = [2][]regMask{{gp, gp, 0}, {gp}} // indexed loads
-var gpstore = [2][]regMask{{gp, gp, 0}, {0}}
-var gpstoreX = [2][]regMask{{gp, gp, gp, 0}, {0}} // indexed stores
-var gploadglobal = [2][]regMask{{0}, {gp}}
-var gpstoreglobal = [2][]regMask{{gp, 0}, {0}}
-
-var gpload_stack = [2][]regMask{{0}, {gp}}
-var gpstore_stack = [2][]regMask{{gp, 0}, {0}}
-
 // Opcodes that represent the input Go program
-var genericTable = [...]OpInfo{
+var genericTable = map[Op]opInfo{
 	// the unknown op is used only during building and should not appear in a
 	// fully formed ssa representation.
 
@@ -278,87 +177,11 @@ var genericTable = [...]OpInfo{
 	*/
 }
 
-// Opcodes that appear in an output amd64 program
-var amd64Table = [...]OpInfo{
-	OpADDQ:  {flags: OpFlagCommutative, asm: "ADDQ\t%I0,%I1,%O0", reg: gp21}, // TODO: overwrite
-	OpADDCQ: {asm: "ADDQ\t$%A,%I0,%O0", reg: gp11_overwrite},                 // aux = int64 constant to add
-	OpSUBQ:  {asm: "SUBQ\t%I0,%I1,%O0", reg: gp21},
-	OpSUBCQ: {asm: "SUBQ\t$%A,%I0,%O0", reg: gp11_overwrite},
-	OpMULQ:  {asm: "MULQ\t%I0,%I1,%O0", reg: gp21},
-	OpMULCQ: {asm: "MULQ\t$%A,%I0,%O0", reg: gp11_overwrite},
-	OpSHLQ:  {asm: "SHLQ\t%I0,%I1,%O0", reg: gp21},
-	OpSHLCQ: {asm: "SHLQ\t$%A,%I0,%O0", reg: gp11_overwrite},
-
-	OpCMPQ:  {asm: "CMPQ\t%I0,%I1", reg: gp2_flags}, // compute arg[0]-arg[1] and produce flags
-	OpCMPCQ: {asm: "CMPQ\t$%A,%I0", reg: gp1_flags},
-	OpTESTQ: {asm: "TESTQ\t%I0,%I1", reg: gp2_flags},
-
-	OpLEAQ:  {flags: OpFlagCommutative, asm: "LEAQ\t%A(%I0)(%I1*1),%O0", reg: gp21}, // aux = int64 constant to add
-	OpLEAQ2: {asm: "LEAQ\t%A(%I0)(%I1*2),%O0"},
-	OpLEAQ4: {asm: "LEAQ\t%A(%I0)(%I1*4),%O0"},
-	OpLEAQ8: {asm: "LEAQ\t%A(%I0)(%I1*8),%O0"},
-
-	// loads and stores
-	OpMOVQload:   {asm: "MOVQ\t%A(%I0),%O0", reg: gpload},
-	OpMOVQstore:  {asm: "MOVQ\t%I1,%A(%I0)", reg: gpstore},
-	OpMOVQload8:  {asm: "MOVQ\t%A(%I0)(%I1*8),%O0", reg: gploadX},
-	OpMOVQstore8: {asm: "MOVQ\t%I2,%A(%I0)(%I1*8)", reg: gpstoreX},
-
-	OpMOVQloadglobal:  {reg: gploadglobal},
-	OpMOVQstoreglobal: {reg: gpstoreglobal},
-
-	OpMOVQconst: {asm: "MOVQ\t$%A,%O0", reg: gp01},
-
-	OpStaticCall: {asm: "CALL\t%A(SB)"},
-
-	OpCopy: {asm: "MOVQ\t%I0,%O0", reg: gp11},
-
-	// convert from flags back to boolean
-	OpSETL: {},
-
-	// ops for load/store to stack
-	OpMOVQloadFP:  {asm: "MOVQ\t%A(FP),%O0", reg: gpload_stack},  // mem -> value
-	OpMOVQloadSP:  {asm: "MOVQ\t%A(SP),%O0", reg: gpload_stack},  // mem -> value
-	OpMOVQstoreFP: {asm: "MOVQ\t%I0,%A(FP)", reg: gpstore_stack}, // mem, value -> mem
-	OpMOVQstoreSP: {asm: "MOVQ\t%I0,%A(SP)", reg: gpstore_stack}, // mem, value -> mem
-
-	// ops for spilling of registers
-	// unlike regular loads & stores, these take no memory argument.
-	// They are just like OpCopy but we use them during register allocation.
-	// TODO: different widths, float
-	OpLoadReg8:  {asm: "MOVQ\t%I0,%O0"},
-	OpStoreReg8: {asm: "MOVQ\t%I0,%O0"},
-}
-
-// A Table is a list of opcodes with a common set of flags.
-type Table struct {
-	t     []OpInfo
-	flags int32
-}
-
-var tables = []Table{
-	{genericTable[:], 0},
-	{amd64Table[:], ArchAMD64}, // TODO: pick this dynamically
-}
-
 // table of opcodes, indexed by opcode ID
-var opcodeTable [OpMax]OpInfo
-
-// map from opcode names to opcode IDs
-var nameToOp map[string]Op
+var opcodeTable [opMax]opInfo
 
 func init() {
-	// build full opcode table
-	// Note that the arch-specific table overwrites the generic table
-	for _, t := range tables {
-		for op, entry := range t.t {
-			entry.flags |= t.flags
-			opcodeTable[op] = entry
-		}
-	}
-	// build name to opcode mapping
-	nameToOp = make(map[string]Op)
-	for op := range opcodeTable {
-		nameToOp[Op(op).String()] = Op(op)
+	for op, info := range genericTable {
+		opcodeTable[op] = info
 	}
 }
