@@ -96,6 +96,30 @@ func TestRepoRootForImportPath(t *testing.T) {
 			"hub.jazz.net/git/USER/pkgname",
 			nil,
 		},
+		// Spaces are not valid in package name
+		{
+			"git.apache.org/package name/path/to/lib",
+			nil,
+		},
+		// Should have ".git" suffix
+		{
+			"git.apache.org/package-name/path/to/lib",
+			nil,
+		},
+		{
+			"git.apache.org/package-name.git",
+			&repoRoot{
+				vcs:  vcsGit,
+				repo: "https://git.apache.org/package-name.git",
+			},
+		},
+		{
+			"git.apache.org/package-name_2.x.git/path/to/lib",
+			&repoRoot{
+				vcs:  vcsGit,
+				repo: "https://git.apache.org/package-name_2.x.git",
+			},
+		},
 	}
 
 	for _, test := range tests {
