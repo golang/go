@@ -882,6 +882,14 @@ var vcsPaths = []*vcsPath{
 		check:  noVCSSuffix,
 	},
 
+	// Git at Apache
+	{
+		prefix: "git.apache.org",
+		re:     `^(?P<root>git.apache.org/[a-z0-9_.\-]+\.git)(/[A-Za-z0-9_.\-]+)*$`,
+		vcs:    "git",
+		repo:   "https://{root}",
+	},
+
 	// General syntax for any server.
 	{
 		re:   `^(?P<root>(?P<repo>([a-z0-9.\-]+\.)+[a-z0-9.\-]+(:[0-9]+)?/[A-Za-z0-9_.\-/]*?)\.(?P<vcs>bzr|git|hg|svn))(/[A-Za-z0-9_.\-]+)*$`,
