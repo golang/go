@@ -790,6 +790,94 @@ func TestTransportGzip(t *testing.T) {
 	}
 }
 
+// If a request has Expect:100-continue header, the request blocks sending body until the first response.
+// Premature consumption of the request body should not be occurred.
+func TestTransportExpect100Continue(t *testing.T) {
+	defer afterTest(t)
+
+	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
+		switch req.URL.Path {
+		case "/100":
+			// This endpoint implicitly responds 100 Continue and reads body.
+			if _, err := io.Copy(ioutil.Discard, req.Body); err != nil {
+				t.Error("Failed to read Body", err)
+			}
+			rw.WriteHeader(StatusOK)
+		case "/200":
+			// Go 1.5 adds Connection: close header if the client expect
+			// continue but not entire request body is consumed.
+			rw.WriteHeader(StatusOK)
+		case "/500":
+			rw.WriteHeader(StatusInternalServerError)
+		case "/keepalive":
+			// This hijacked endpoint responds error without Connection:close.
+			_, bufrw, err := rw.(Hijacker).Hijack()
+			if err != nil {
+				log.Fatal(err)
+			}
+			bufrw.WriteString("HTTP/1.1 500 Internal Server Error\r\n")
+			bufrw.WriteString("Content-Length: 0\r\n\r\n")
+			bufrw.Flush()
+		case "/timeout":
+			// This endpoint tries to read body without 100 (Continue) response.
+			// After ExpectContinueTimeout, the reading will be started.
+			conn, bufrw, err := rw.(Hijacker).Hijack()
+			if err != nil {
+				log.Fatal(err)
+			}
+			if _, err := io.CopyN(ioutil.Discard, bufrw, req.ContentLength); err != nil {
+				t.Error("Failed to read Body", err)
+			}
+			bufrw.WriteString("HTTP/1.1 200 OK\r\n\r\n")
+			bufrw.Flush()
+			conn.Close()
+		}
+
+	}))
+	defer ts.Close()
+
+	tests := []struct {
+		path   string
+		body   []byte
+		sent   int
+		status int
+	}{
+		{path: "/100", body: []byte("hello"), sent: 5, status: 200},       // Got 100 followed by 200, entire body is sent.
+		{path: "/200", body: []byte("hello"), sent: 0, status: 200},       // Got 200 without 100. body isn't sent.
+		{path: "/500", body: []byte("hello"), sent: 0, status: 500},       // Got 500 without 100. body isn't sent.
+		{path: "/keepalive", body: []byte("hello"), sent: 0, status: 500}, // Althogh without Connection:close, body isn't sent.
+		{path: "/timeout", body: []byte("hello"), sent: 5, status: 200},   // Timeout exceeded and entire body is sent.
+	}
+
+	for i, v := range tests {
+		tr := &Transport{ExpectContinueTimeout: 2 * time.Second}
+		defer tr.CloseIdleConnections()
+		c := &Client{Transport: tr}
+
+		body := bytes.NewReader(v.body)
+		req, err := NewRequest("PUT", ts.URL+v.path, body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Expect", "100-continue")
+		req.ContentLength = int64(len(v.body))
+
+		resp, err := c.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+
+		sent := len(v.body) - body.Len()
+		if v.status != resp.StatusCode {
+			t.Errorf("test %d: status code should be %d but got %d. (%s)", i, v.status, resp.StatusCode, v.path)
+		}
+		if v.sent != sent {
+			t.Errorf("test %d: sent body should be %d but sent %d. (%s)", i, v.sent, sent, v.path)
+		}
+	}
+}
+
 func TestTransportProxy(t *testing.T) {
 	defer afterTest(t)
 	ch := make(chan string, 1)
