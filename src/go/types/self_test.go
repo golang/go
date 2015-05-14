@@ -15,7 +15,6 @@ import (
 	"testing"
 	"time"
 
-	_ "go/internal/gcimporter"
 	. "go/types"
 )
 
