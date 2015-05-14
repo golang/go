@@ -9,9 +9,17 @@
 package net
 
 import (
+	"runtime"
 	"syscall"
 	"time"
 )
+
+// BUG(rsc,mikio): On DragonFly BSD and OpenBSD, listening on the
+// "tcp" and "udp" networks does not listen for both IPv4 and IPv6
+// connections. This is due to the fact that IPv4 traffic will not be
+// routed to an IPv6 socket - two separate sockets are required if
+// both address families are to be supported.
+// See inet6(4) for details.
 
 func probeIPv4Stack() bool {
 	s, err := socketFunc(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
@@ -41,12 +49,27 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
 	var probes = []struct {
 		laddr TCPAddr
 		value int
-		ok    bool
 	}{
 		// IPv6 communication capability
 		{laddr: TCPAddr{IP: ParseIP("::1")}, value: 1},
 		// IPv6 IPv4-mapped address communication capability
 		{laddr: TCPAddr{IP: IPv4(127, 0, 0, 1)}, value: 0},
+	}
+	var supps [2]bool
+	switch runtime.GOOS {
+	case "dragonfly", "openbsd":
+		// Some released versions of DragonFly BSD pretend to
+		// accept IPV6_V6ONLY=0 successfully, but the state
+		// still stays IPV6_V6ONLY=1. Eventually DragonFly BSD
+		// stops preteding, but the transition period would
+		// cause unpredictable behavior and we need to avoid
+		// it.
+		//
+		// OpenBSD also doesn't support IPV6_V6ONLY=0 but it
+		// never pretends to accept IPV6_V6OLY=0. It always
+		// returns an error and we don't need to probe the
+		// capability.
+		probes = probes[:1]
 	}
 
 	for i := range probes {
@@ -63,10 +86,10 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
 		if err := syscall.Bind(s, sa); err != nil {
 			continue
 		}
-		probes[i].ok = true
+		supps[i] = true
 	}
 
-	return probes[0].ok, probes[1].ok
+	return supps[0], supps[1]
 }
 
 // favoriteAddrFamily returns the appropriate address family to

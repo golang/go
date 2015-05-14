@@ -59,6 +59,16 @@ func TestMain(m *testing.M) {
 	os.Exit(st)
 }
 
+type ipv6LinkLocalUnicastTest struct {
+	network, address string
+	nameLookup       bool
+}
+
+var (
+	ipv6LinkLocalUnicastTCPTests []ipv6LinkLocalUnicastTest
+	ipv6LinkLocalUnicastUDPTests []ipv6LinkLocalUnicastTest
+)
+
 func setupTestData() {
 	if supportsIPv4 {
 		resolveTCPAddrTests = append(resolveTCPAddrTests, []resolveTCPAddrTest{
@@ -81,7 +91,8 @@ func setupTestData() {
 		resolveIPAddrTests = append(resolveIPAddrTests, resolveIPAddrTest{"ip6", "localhost", &IPAddr{IP: IPv6loopback}, nil})
 	}
 
-	if ifi := loopbackInterface(); ifi != nil {
+	ifi := loopbackInterface()
+	if ifi != nil {
 		index := fmt.Sprintf("%v", ifi.Index)
 		resolveTCPAddrTests = append(resolveTCPAddrTests, []resolveTCPAddrTest{
 			{"tcp6", "[fe80::1%" + ifi.Name + "]:1", &TCPAddr{IP: ParseIP("fe80::1"), Port: 1, Zone: zoneToString(ifi.Index)}, nil},
@@ -95,6 +106,44 @@ func setupTestData() {
 			{"ip6", "fe80::1%" + ifi.Name, &IPAddr{IP: ParseIP("fe80::1"), Zone: zoneToString(ifi.Index)}, nil},
 			{"ip6", "fe80::1%" + index, &IPAddr{IP: ParseIP("fe80::1"), Zone: index}, nil},
 		}...)
+	}
+
+	addr := ipv6LinkLocalUnicastAddr(ifi)
+	if addr != "" {
+		if runtime.GOOS != "dragonfly" {
+			ipv6LinkLocalUnicastTCPTests = append(ipv6LinkLocalUnicastTCPTests, []ipv6LinkLocalUnicastTest{
+				{"tcp", "[" + addr + "%" + ifi.Name + "]:0", false},
+			}...)
+			ipv6LinkLocalUnicastUDPTests = append(ipv6LinkLocalUnicastUDPTests, []ipv6LinkLocalUnicastTest{
+				{"udp", "[" + addr + "%" + ifi.Name + "]:0", false},
+			}...)
+		}
+		ipv6LinkLocalUnicastTCPTests = append(ipv6LinkLocalUnicastTCPTests, []ipv6LinkLocalUnicastTest{
+			{"tcp6", "[" + addr + "%" + ifi.Name + "]:0", false},
+		}...)
+		ipv6LinkLocalUnicastUDPTests = append(ipv6LinkLocalUnicastUDPTests, []ipv6LinkLocalUnicastTest{
+			{"udp6", "[" + addr + "%" + ifi.Name + "]:0", false},
+		}...)
+		switch runtime.GOOS {
+		case "darwin", "dragonfly", "freebsd", "openbsd", "netbsd":
+			ipv6LinkLocalUnicastTCPTests = append(ipv6LinkLocalUnicastTCPTests, []ipv6LinkLocalUnicastTest{
+				{"tcp", "[localhost%" + ifi.Name + "]:0", true},
+				{"tcp6", "[localhost%" + ifi.Name + "]:0", true},
+			}...)
+			ipv6LinkLocalUnicastUDPTests = append(ipv6LinkLocalUnicastUDPTests, []ipv6LinkLocalUnicastTest{
+				{"udp", "[localhost%" + ifi.Name + "]:0", true},
+				{"udp6", "[localhost%" + ifi.Name + "]:0", true},
+			}...)
+		case "linux":
+			ipv6LinkLocalUnicastTCPTests = append(ipv6LinkLocalUnicastTCPTests, []ipv6LinkLocalUnicastTest{
+				{"tcp", "[ip6-localhost%" + ifi.Name + "]:0", true},
+				{"tcp6", "[ip6-localhost%" + ifi.Name + "]:0", true},
+			}...)
+			ipv6LinkLocalUnicastUDPTests = append(ipv6LinkLocalUnicastUDPTests, []ipv6LinkLocalUnicastTest{
+				{"udp", "[ip6-localhost%" + ifi.Name + "]:0", true},
+				{"udp6", "[ip6-localhost%" + ifi.Name + "]:0", true},
+			}...)
+		}
 	}
 }
 
