@@ -1656,7 +1656,7 @@ func TestFloatCmpSpecialValues(t *testing.T) {
 					want = +1
 				}
 				if got != want {
-					t.Errorf("(%g).Cmp(%g) = %s; want %s", x, y, got, want)
+					t.Errorf("(%g).Cmp(%g) = %v; want %v", x, y, got, want)
 				}
 			}
 		}
