@@ -238,55 +238,32 @@ func TestIPv6LinkLocalUnicastUDP(t *testing.T) {
 		t.Skip("avoid external network")
 	}
 	if !supportsIPv6 {
-		t.Skip("ipv6 is not supported")
-	}
-	ifi := loopbackInterface()
-	if ifi == nil {
-		t.Skip("loopback interface not found")
-	}
-	laddr := ipv6LinkLocalUnicastAddr(ifi)
-	if laddr == "" {
-		t.Skip("ipv6 unicast address on loopback not found")
+		t.Skip("IPv6 is not supported")
 	}
 
-	type test struct {
-		net, addr  string
-		nameLookup bool
-	}
-	var tests = []test{
-		{"udp", "[" + laddr + "%" + ifi.Name + "]:0", false},
-		{"udp6", "[" + laddr + "%" + ifi.Name + "]:0", false},
-	}
-	// The first udp test fails on DragonFly - see issue 7473.
-	if runtime.GOOS == "dragonfly" {
-		tests = tests[1:]
-	}
-	switch runtime.GOOS {
-	case "darwin", "dragonfly", "freebsd", "openbsd", "netbsd":
-		tests = append(tests, []test{
-			{"udp", "[localhost%" + ifi.Name + "]:0", true},
-			{"udp6", "[localhost%" + ifi.Name + "]:0", true},
-		}...)
-	case "linux":
-		tests = append(tests, []test{
-			{"udp", "[ip6-localhost%" + ifi.Name + "]:0", true},
-			{"udp6", "[ip6-localhost%" + ifi.Name + "]:0", true},
-		}...)
-	}
-	for _, tt := range tests {
-		c1, err := ListenPacket(tt.net, tt.addr)
+	for i, tt := range ipv6LinkLocalUnicastUDPTests {
+		c1, err := ListenPacket(tt.network, tt.address)
 		if err != nil {
 			// It might return "LookupHost returned no
 			// suitable address" error on some platforms.
 			t.Log(err)
 			continue
 		}
-		defer c1.Close()
+		ls, err := (&packetListener{PacketConn: c1}).newLocalServer()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer ls.teardown()
+		ch := make(chan error, 1)
+		handler := func(ls *localPacketServer, c PacketConn) { packetTransponder(c, ch) }
+		if err := ls.buildup(handler); err != nil {
+			t.Fatal(err)
+		}
 		if la, ok := c1.LocalAddr().(*UDPAddr); !ok || !tt.nameLookup && la.Zone == "" {
 			t.Fatalf("got %v; expected a proper address with zone identifier", la)
 		}
 
-		c2, err := Dial(tt.net, c1.LocalAddr().String())
+		c2, err := Dial(tt.network, ls.PacketConn.LocalAddr().String())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -302,12 +279,12 @@ func TestIPv6LinkLocalUnicastUDP(t *testing.T) {
 			t.Fatal(err)
 		}
 		b := make([]byte, 32)
-		if _, from, err := c1.ReadFrom(b); err != nil {
+		if _, err := c2.Read(b); err != nil {
 			t.Fatal(err)
-		} else {
-			if ra, ok := from.(*UDPAddr); !ok || !tt.nameLookup && ra.Zone == "" {
-				t.Fatalf("got %v; expected a proper address with zone identifier", ra)
-			}
+		}
+
+		for err := range ch {
+			t.Errorf("#%d: %v", i, err)
 		}
 	}
 }
