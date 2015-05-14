@@ -43,7 +43,7 @@ func TestMain(m *testing.M) {
 
 	st := m.Run()
 
-	testHookUninstaller.Do(func() { uninstallTestHooks() })
+	testHookUninstaller.Do(uninstallTestHooks)
 	if !testing.Short() {
 		printLeakedGoroutines()
 		printLeakedSockets()
