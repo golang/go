@@ -549,7 +549,7 @@ type Sysinfo_t struct {
 	Totalhigh uint64
 	Freehigh  uint64
 	Unit      uint32
-	X_f       [0]byte
+	X_f       [0]uint8
 	Pad_cgo_1 [4]byte
 }
 
