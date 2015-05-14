@@ -58,7 +58,7 @@ func BenchmarkTCP6PersistentTimeout(b *testing.B) {
 }
 
 func benchmarkTCP(b *testing.B, persistent, timeout bool, laddr string) {
-	testHookUninstaller.Do(func() { uninstallTestHooks() })
+	testHookUninstaller.Do(uninstallTestHooks)
 
 	const msgLen = 512
 	conns := b.N
@@ -168,7 +168,7 @@ func BenchmarkTCP6ConcurrentReadWrite(b *testing.B) {
 }
 
 func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
-	testHookUninstaller.Do(func() { uninstallTestHooks() })
+	testHookUninstaller.Do(uninstallTestHooks)
 
 	// The benchmark creates GOMAXPROCS client/server pairs.
 	// Each pair creates 4 goroutines: client reader/writer and server reader/writer.
