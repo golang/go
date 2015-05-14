@@ -7,18 +7,20 @@ package template
 import (
 	"fmt"
 	"reflect"
+	"sync"
 	"text/template/parse"
 )
 
 // common holds the information shared by related templates.
 type common struct {
-	tmpl map[string]*Template
+	tmpl   map[string]*Template
+	option option
 	// We use two maps, one for parsing and one for execution.
 	// This separation makes the API cleaner since it doesn't
 	// expose reflection to the client.
+	muFuncs    sync.RWMutex // protects parseFuncs and execFuncs
 	parseFuncs FuncMap
 	execFuncs  map[string]reflect.Value
-	option     option
 }
 
 // Template is the representation of a parsed template. The *parse.Tree
@@ -84,6 +86,8 @@ func (t *Template) Clone() (*Template, error) {
 		tmpl := v.copy(nt.common)
 		nt.tmpl[k] = tmpl
 	}
+	t.muFuncs.RLock()
+	defer t.muFuncs.RUnlock()
 	for k, v := range t.parseFuncs {
 		nt.parseFuncs[k] = v
 	}
@@ -146,6 +150,8 @@ func (t *Template) Delims(left, right string) *Template {
 // value is the template, so calls can be chained.
 func (t *Template) Funcs(funcMap FuncMap) *Template {
 	t.init()
+	t.muFuncs.Lock()
+	defer t.muFuncs.Unlock()
 	addValueFuncs(t.execFuncs, funcMap)
 	addFuncs(t.parseFuncs, funcMap)
 	return t
@@ -169,7 +175,9 @@ func (t *Template) Lookup(name string) *Template {
 // can contain text other than space, comments, and template definitions.)
 func (t *Template) Parse(text string) (*Template, error) {
 	t.init()
+	t.muFuncs.RLock()
 	trees, err := parse.Parse(t.name, text, t.leftDelim, t.rightDelim, t.parseFuncs, builtins)
+	t.muFuncs.RUnlock()
 	if err != nil {
 		return nil, err
 	}
