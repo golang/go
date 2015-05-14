@@ -706,13 +706,14 @@ scanAgain:
 					s.insertSemi = false // newline consumed
 					return pos, token.SEMICOLON, "\n"
 				}
-				lit = s.scanComment()
+				comment := s.scanComment()
 				if s.mode&ScanComments == 0 {
 					// skip comment
 					s.insertSemi = false // newline consumed
 					goto scanAgain
 				}
 				tok = token.COMMENT
+				lit = comment
 			} else {
 				tok = s.switch2(token.QUO, token.QUO_ASSIGN)
 			}
