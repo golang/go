@@ -412,14 +412,17 @@ func (p *parser) expectSemi() {
 	}
 }
 
-func (p *parser) atComma(context string) bool {
+func (p *parser) atComma(context string, follow token.Token) bool {
 	if p.tok == token.COMMA {
 		return true
 	}
-	if p.tok == token.SEMICOLON && p.lit == "\n" {
-		p.error(p.pos, "missing ',' before newline in "+context)
-		return true // "insert" the comma and continue
-
+	if p.tok != follow {
+		msg := "missing ','"
+		if p.tok == token.SEMICOLON && p.lit == "\n" {
+			msg += " before newline"
+		}
+		p.error(p.pos, msg+" in "+context)
+		return true // "insert" comma and continue
 	}
 	return false
 }
@@ -825,7 +828,7 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params [
 		// parameter or result variable is the function body.
 		p.declare(field, nil, scope, ast.Var, idents...)
 		p.resolve(typ)
-		if !p.atComma("parameter list") {
+		if !p.atComma("parameter list", token.RPAREN) {
 			return
 		}
 		p.next()
@@ -838,7 +841,7 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params [
 			// parameter or result variable is the function body.
 			p.declare(field, nil, scope, ast.Var, idents...)
 			p.resolve(typ)
-			if !p.atComma("parameter list") {
+			if !p.atComma("parameter list", token.RPAREN) {
 				break
 			}
 			p.next()
@@ -1248,7 +1251,7 @@ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
 			ellipsis = p.pos
 			p.next()
 		}
-		if !p.atComma("argument list") {
+		if !p.atComma("argument list", token.RPAREN) {
 			break
 		}
 		p.next()
@@ -1323,7 +1326,7 @@ func (p *parser) parseElementList() (list []ast.Expr) {
 
 	for p.tok != token.RBRACE && p.tok != token.EOF {
 		list = append(list, p.parseElement())
-		if !p.atComma("composite literal") {
+		if !p.atComma("composite literal", token.RBRACE) {
 			break
 		}
 		p.next()
