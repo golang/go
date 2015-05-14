@@ -1087,7 +1087,6 @@ func (t *rtype) ptrTo() *rtype {
 
 	p.uncommonType = nil
 	p.ptrToThis = nil
-	p.zero = unsafe.Pointer(&make([]byte, p.size)[0])
 	p.elem = t
 
 	ptrMap.m[t] = p
@@ -1467,7 +1466,6 @@ func ChanOf(dir ChanDir, t Type) Type {
 	ch.elem = typ
 	ch.uncommonType = nil
 	ch.ptrToThis = nil
-	ch.zero = unsafe.Pointer(&make([]byte, ch.size)[0])
 
 	return cachePut(ckey, &ch.rtype)
 }
@@ -1530,7 +1528,6 @@ func MapOf(key, elem Type) Type {
 	mt.reflexivekey = isReflexive(ktyp)
 	mt.uncommonType = nil
 	mt.ptrToThis = nil
-	mt.zero = unsafe.Pointer(&make([]byte, mt.size)[0])
 
 	return cachePut(ckey, &mt.rtype)
 }
@@ -1610,7 +1607,6 @@ func FuncOf(in, out []Type, variadic bool) Type {
 	ft.string = &str
 	ft.uncommonType = nil
 	ft.ptrToThis = nil
-	ft.zero = unsafe.Pointer(&make([]byte, ft.size)[0])
 	funcLookupCache.m[hash] = append(funcLookupCache.m[hash], &ft.rtype)
 
 	return ft
@@ -1857,7 +1853,6 @@ func SliceOf(t Type) Type {
 	slice.elem = typ
 	slice.uncommonType = nil
 	slice.ptrToThis = nil
-	slice.zero = unsafe.Pointer(&make([]byte, slice.size)[0])
 
 	return cachePut(ckey, &slice.rtype)
 }
@@ -1913,10 +1908,6 @@ func ArrayOf(count int, elem Type) Type {
 	array.fieldAlign = typ.fieldAlign
 	array.uncommonType = nil
 	array.ptrToThis = nil
-	if array.size > 0 {
-		zero := make([]byte, array.size)
-		array.zero = unsafe.Pointer(&zero[0])
-	}
 	array.len = uintptr(count)
 	array.slice = slice.(*rtype)
 
