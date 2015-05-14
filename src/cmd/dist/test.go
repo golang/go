@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -24,7 +25,9 @@ func cmdtest() {
 	flag.BoolVar(&t.listMode, "list", false, "list available tests")
 	flag.BoolVar(&t.noRebuild, "no-rebuild", false, "don't rebuild std and cmd packages")
 	flag.StringVar(&t.banner, "banner", "##### ", "banner prefix; blank means no section banners")
-	flag.StringVar(&t.runRxStr, "run", "", "run only those tests matching the regular expression; empty means to run all")
+	flag.StringVar(&t.runRxStr, "run", os.Getenv("GOTESTONLY"),
+		"run only those tests matching the regular expression; empty means to run all. "+
+			"Special exception: if the string begins with '!', the match is inverted.")
 	xflagparse(0)
 	t.run()
 }
@@ -35,6 +38,7 @@ type tester struct {
 	noRebuild bool
 	runRxStr  string
 	runRx     *regexp.Regexp
+	runRxWant bool
 	banner    string // prefix, or "" for none
 
 	goroot     string
@@ -129,6 +133,19 @@ func (t *tester) run() {
 	}
 
 	if t.runRxStr != "" {
+		// Temporary (2015-05-14) special case for "std",
+		// which the plan9 builder was using for ages. Delete
+		// this once we update dashboard/builders.go to use a
+		// regexp instead.
+		if runtime.GOOS == "plan9" && t.runRxStr == "std" {
+			t.runRxStr = "^go_test:"
+		}
+		if t.runRxStr[0] == '!' {
+			t.runRxWant = false
+			t.runRxStr = t.runRxStr[1:]
+		} else {
+			t.runRxWant = true
+		}
 		t.runRx = regexp.MustCompile(t.runRxStr)
 	}
 
@@ -147,7 +164,7 @@ func (t *tester) run() {
 
 	var lastHeading string
 	for _, dt := range t.tests {
-		if t.runRx != nil && !t.runRx.MatchString(dt.name) {
+		if t.runRx != nil && (t.runRx.MatchString(dt.name) != t.runRxWant) {
 			t.partial = true
 			continue
 		}
@@ -212,13 +229,6 @@ func (t *tester) registerTests() {
 				return cmd.Run()
 			},
 		})
-	}
-
-	// Old hack for when Plan 9 on GCE was too slow.
-	// We're keeping this until test sharding (Issue 10029) is finished, though.
-	if os.Getenv("GOTESTONLY") == "std" {
-		t.partial = true
-		return
 	}
 
 	// Runtime CPU tests.
