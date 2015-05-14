@@ -157,56 +157,20 @@ func isCSSSpace(b byte) bool {
 func cssEscaper(args ...interface{}) string {
 	s, _ := stringify(args...)
 	var b bytes.Buffer
-	written := 0
-	for i, r := range s {
+	r, w, written := rune(0), 0, 0
+	for i := 0; i < len(s); i += w {
+		// See comment in htmlEscaper.
+		r, w = utf8.DecodeRuneInString(s[i:])
 		var repl string
-		switch r {
-		case 0:
-			repl = `\0`
-		case '\t':
-			repl = `\9`
-		case '\n':
-			repl = `\a`
-		case '\f':
-			repl = `\c`
-		case '\r':
-			repl = `\d`
-		// Encode HTML specials as hex so the output can be embedded
-		// in HTML attributes without further encoding.
-		case '"':
-			repl = `\22`
-		case '&':
-			repl = `\26`
-		case '\'':
-			repl = `\27`
-		case '(':
-			repl = `\28`
-		case ')':
-			repl = `\29`
-		case '+':
-			repl = `\2b`
-		case '/':
-			repl = `\2f`
-		case ':':
-			repl = `\3a`
-		case ';':
-			repl = `\3b`
-		case '<':
-			repl = `\3c`
-		case '>':
-			repl = `\3e`
-		case '\\':
-			repl = `\\`
-		case '{':
-			repl = `\7b`
-		case '}':
-			repl = `\7d`
+		switch {
+		case int(r) < len(cssReplacementTable) && cssReplacementTable[r] != "":
+			repl = cssReplacementTable[r]
 		default:
 			continue
 		}
 		b.WriteString(s[written:i])
 		b.WriteString(repl)
-		written = i + utf8.RuneLen(r)
+		written = i + w
 		if repl != `\\` && (written == len(s) || isHex(s[written]) || isCSSSpace(s[written])) {
 			b.WriteByte(' ')
 		}
@@ -216,6 +180,30 @@ func cssEscaper(args ...interface{}) string {
 	}
 	b.WriteString(s[written:])
 	return b.String()
+}
+
+var cssReplacementTable = []string{
+	0:    `\0`,
+	'\t': `\9`,
+	'\n': `\a`,
+	'\f': `\c`,
+	'\r': `\d`,
+	// Encode HTML specials as hex so the output can be embedded
+	// in HTML attributes without further encoding.
+	'"':  `\22`,
+	'&':  `\26`,
+	'\'': `\27`,
+	'(':  `\28`,
+	')':  `\29`,
+	'+':  `\2b`,
+	'/':  `\2f`,
+	':':  `\3a`,
+	';':  `\3b`,
+	'<':  `\3c`,
+	'>':  `\3e`,
+	'\\': `\\`,
+	'{':  `\7b`,
+	'}':  `\7d`,
 }
 
 var expressionBytes = []byte("expression")
