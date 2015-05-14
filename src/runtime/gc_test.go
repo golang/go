@@ -308,6 +308,32 @@ func BenchmarkSetTypeNode126Slice(b *testing.B) {
 	benchSetType(b, make([]Node126, 32))
 }
 
+type Node128 struct {
+	Value       [128]uintptr
+	Left, Right *byte
+}
+
+func BenchmarkSetTypeNode128(b *testing.B) {
+	benchSetType(b, new(Node128))
+}
+
+func BenchmarkSetTypeNode128Slice(b *testing.B) {
+	benchSetType(b, make([]Node128, 32))
+}
+
+type Node130 struct {
+	Value       [130]uintptr
+	Left, Right *byte
+}
+
+func BenchmarkSetTypeNode130(b *testing.B) {
+	benchSetType(b, new(Node130))
+}
+
+func BenchmarkSetTypeNode130Slice(b *testing.B) {
+	benchSetType(b, make([]Node130, 32))
+}
+
 type Node1024 struct {
 	Value       [1024]uintptr
 	Left, Right *byte
