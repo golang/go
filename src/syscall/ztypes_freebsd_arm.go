@@ -1,6 +1,8 @@
 // Created by cgo -godefs - DO NOT EDIT
 // cgo -godefs -- -fsigned-char types_freebsd.go
 
+// +build arm,freebsd
+
 package syscall
 
 const (
