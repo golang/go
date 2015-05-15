@@ -387,6 +387,19 @@ type EscState struct {
 	recursive bool      // recursive function or group of mutually recursive functions.
 }
 
+// funcSym returns n.Nname.Sym if no nils are encountered along the way.
+func funcSym(n *Node) *Sym {
+	if n == nil || n.Nname == nil {
+		return nil
+	}
+	return n.Nname.Sym
+}
+
+// curfnSym returns n.Curfn.Nname.Sym if no nils are encountered along the way.
+func curfnSym(n *Node) *Sym {
+	return funcSym(n.Curfn)
+}
+
 func escAnalyze(all *NodeList, recursive bool) {
 	var es EscState
 	e := &es
@@ -428,13 +441,7 @@ func escAnalyze(all *NodeList, recursive bool) {
 	if Debug['m'] != 0 {
 		for l := e.noesc; l != nil; l = l.Next {
 			if l.N.Esc == EscNone {
-				var tmp *Sym
-				if l.N.Curfn != nil && l.N.Curfn.Nname != nil {
-					tmp = l.N.Curfn.Nname.Sym
-				} else {
-					tmp = nil
-				}
-				Warnl(int(l.N.Lineno), "%v %v does not escape", tmp, Nconv(l.N, obj.FmtShort))
+				Warnl(int(l.N.Lineno), "%v %v does not escape", curfnSym(l.N), Nconv(l.N, obj.FmtShort))
 			}
 		}
 	}
@@ -593,13 +600,7 @@ func esc(e *EscState, n *Node, up *Node) {
 	}
 
 	if Debug['m'] > 1 {
-		var tmp *Sym
-		if Curfn != nil && Curfn.Nname != nil {
-			tmp = Curfn.Nname.Sym
-		} else {
-			tmp = nil
-		}
-		fmt.Printf("%v:[%d] %v esc: %v\n", Ctxt.Line(int(lineno)), e.loopdepth, tmp, n)
+		fmt.Printf("%v:[%d] %v esc: %v\n", Ctxt.Line(int(lineno)), e.loopdepth, funcSym(Curfn), n)
 	}
 
 	switch n.Op {
@@ -629,8 +630,12 @@ func esc(e *EscState, n *Node, up *Node) {
 
 		// Everything but fixed array is a dereference.
 	case ORANGE:
-		if Isfixedarray(n.Type) && n.List != nil && n.List.Next != nil {
-			escassign(e, n.List.Next.N, n.Right)
+		if n.List != nil && n.List.Next != nil {
+			if Isfixedarray(n.Type) {
+				escassign(e, n.List.Next.N, n.Right)
+			} else {
+				escassign(e, n.List.Next.N, addDereference(n.Right))
+			}
 		}
 
 	case OSWITCH:
@@ -670,13 +675,7 @@ func esc(e *EscState, n *Node, up *Node) {
 			// b escapes as well. If we ignore such OSLICEARR, we will conclude
 			// that b does not escape when b contents do.
 			if Debug['m'] != 0 {
-				var tmp *Sym
-				if n.Curfn != nil && n.Curfn.Nname != nil {
-					tmp = n.Curfn.Nname.Sym
-				} else {
-					tmp = nil
-				}
-				Warnl(int(n.Lineno), "%v ignoring self-assignment to %v", tmp, Nconv(n.Left, obj.FmtShort))
+				Warnl(int(n.Lineno), "%v ignoring self-assignment to %v", curfnSym(n), Nconv(n.Left, obj.FmtShort))
 			}
 
 			break
@@ -763,7 +762,15 @@ func esc(e *EscState, n *Node, up *Node) {
 			for ll := n.List.Next; ll != nil; ll = ll.Next {
 				escassign(e, &e.theSink, ll.N) // lose track of assign to dereference
 			}
+		} else {
+			// append(slice1, slice2...) -- slice2 itself does not escape, but contents do.
+			slice2 := n.List.Next.N
+			escassign(e, &e.theSink, addDereference(slice2)) // lose track of assign of dereference
+			if Debug['m'] > 2 {
+				Warnl(int(n.Lineno), "%v special treatment of append(slice1, slice2...) %v", curfnSym(n), Nconv(n, obj.FmtShort))
+			}
 		}
+		escassign(e, &e.theSink, addDereference(n.List.N)) // The original elements are now leaked, too
 
 	case OCONV, OCONVNOP:
 		escassign(e, n, n.Left)
@@ -776,19 +783,15 @@ func esc(e *EscState, n *Node, up *Node) {
 
 	case OARRAYLIT:
 		if Isslice(n.Type) {
-			n.Esc = EscNone // until proven otherwise
+			// Slice itself is not leaked until proven otherwise
+			n.Esc = EscNone
 			e.noesc = list(e.noesc, n)
 			n.Escloopdepth = e.loopdepth
+		}
 
-			// Values make it to memory, lose track.
-			for ll := n.List; ll != nil; ll = ll.Next {
-				escassign(e, &e.theSink, ll.N.Right)
-			}
-		} else {
-			// Link values to array.
-			for ll := n.List; ll != nil; ll = ll.Next {
-				escassign(e, n, ll.N.Right)
-			}
+		// Link values to array/slice
+		for ll := n.List; ll != nil; ll = ll.Next {
+			escassign(e, n, ll.N.Right)
 		}
 
 		// Link values to struct.
@@ -909,14 +912,8 @@ func escassign(e *EscState, dst *Node, src *Node) {
 	}
 
 	if Debug['m'] > 1 {
-		var tmp *Sym
-		if Curfn != nil && Curfn.Nname != nil {
-			tmp = Curfn.Nname.Sym
-		} else {
-			tmp = nil
-		}
 		fmt.Printf("%v:[%d] %v escassign: %v(%v)[%v] = %v(%v)[%v]\n",
-			Ctxt.Line(int(lineno)), e.loopdepth, tmp,
+			Ctxt.Line(int(lineno)), e.loopdepth, funcSym(Curfn),
 			Nconv(dst, obj.FmtShort), Jconv(dst, obj.FmtShort), Oconv(int(dst.Op), 0),
 			Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort), Oconv(int(src.Op), 0))
 	}
@@ -1038,12 +1035,15 @@ func escassign(e *EscState, dst *Node, src *Node) {
 
 	case OAPPEND:
 		// Append returns first argument.
+		// Subsequent arguments are already leaked because they are operands to append.
 		escassign(e, dst, src.List.N)
 
 	case OINDEX:
 		// Index of array preserves input value.
 		if Isfixedarray(src.Left.Type) {
 			escassign(e, dst, src.Left)
+		} else {
+			escflows(e, dst, src)
 		}
 
 		// Might be pointer arithmetic, in which case
@@ -1510,13 +1510,7 @@ func escflood(e *EscState, dst *Node) {
 	}
 
 	if Debug['m'] > 1 {
-		var tmp *Sym
-		if dst.Curfn != nil && dst.Curfn.Nname != nil {
-			tmp = dst.Curfn.Nname.Sym
-		} else {
-			tmp = nil
-		}
-		fmt.Printf("\nescflood:%d: dst %v scope:%v[%d]\n", walkgen, Nconv(dst, obj.FmtShort), tmp, dst.Escloopdepth)
+		fmt.Printf("\nescflood:%d: dst %v scope:%v[%d]\n", walkgen, Nconv(dst, obj.FmtShort), curfnSym(dst), dst.Escloopdepth)
 	}
 
 	for l := dst.Escflowsrc; l != nil; l = l.Next {
@@ -1548,14 +1542,8 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
 	src.Esclevel = level
 
 	if Debug['m'] > 1 {
-		var tmp *Sym
-		if src.Curfn != nil && src.Curfn.Nname != nil {
-			tmp = src.Curfn.Nname.Sym
-		} else {
-			tmp = nil
-		}
 		fmt.Printf("escwalk: level:%d depth:%d %.*s op=%v %v(%v) scope:%v[%d]\n",
-			level, e.pdepth, e.pdepth, "\t\t\t\t\t\t\t\t\t\t", Oconv(int(src.Op), 0), Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort), tmp, src.Escloopdepth)
+			level, e.pdepth, e.pdepth, "\t\t\t\t\t\t\t\t\t\t", Oconv(int(src.Op), 0), Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort), curfnSym(src), src.Escloopdepth)
 	}
 
 	e.pdepth++
@@ -1657,6 +1645,10 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
 		if Isfixedarray(src.Type) {
 			break
 		}
+		for ll := src.List; ll != nil; ll = ll.Next {
+			escwalk(e, level.dec(), dst, ll.N.Right)
+		}
+
 		fallthrough
 
 	case ODDDARG,

@@ -787,7 +787,7 @@ func foo93(c chan *int) *int { // ERROR "foo93 c does not escape$"
 }
 
 // does not leak m
-func foo94(m map[*int]*int, b bool) *int { // ERROR "foo94 m does not escape$"
+func foo94(m map[*int]*int, b bool) *int { // ERROR "leaking param: m to result ~r2 level=1"
 	for k, v := range m {
 		if b {
 			return k
@@ -802,8 +802,8 @@ func foo95(m map[*int]*int, x *int) { // ERROR "foo95 m does not escape$" "leaki
 	m[x] = x
 }
 
-// does not leak m
-func foo96(m []*int) *int { // ERROR "foo96 m does not escape$"
+// does not leak m but does leak content
+func foo96(m []*int) *int { // ERROR "leaking param: m to result ~r1 level=1"
 	return m[0]
 }
 
@@ -823,7 +823,7 @@ func foo99(m *[1]*int) []*int { // ERROR "leaking param: m to result ~r1 level=0
 }
 
 // does not leak m
-func foo100(m []*int) *int { // ERROR "foo100 m does not escape$"
+func foo100(m []*int) *int { // ERROR "leaking param: m to result ~r1 level=1"
 	for _, v := range m {
 		return v
 	}
@@ -863,8 +863,8 @@ func foo104(x []*int) { // ERROR "foo104 x does not escape$"
 	copy(y, x)
 }
 
-// does not leak x
-func foo105(x []*int) { // ERROR "foo105 x does not escape$"
+// does not leak x but does leak content
+func foo105(x []*int) { // ERROR "leaking param content: x"
 	_ = append(y, x...)
 }
 
@@ -894,7 +894,7 @@ func foo110(x *int) *int { // ERROR "leaking param: x$"
 	return m[nil]
 }
 
-func foo111(x *int) *int { // ERROR "leaking param: x$"
+func foo111(x *int) *int { // ERROR "leaking param: x to result ~r1 level=0"
 	m := []*int{x} // ERROR "foo111 \[\]\*int literal does not escape$"
 	return m[0]
 }
