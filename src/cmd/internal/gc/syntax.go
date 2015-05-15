@@ -90,7 +90,7 @@ type Node struct {
 	// Escape analysis.
 	Escflowsrc   *NodeList // flow(this, src)
 	Escretval    *NodeList // on OCALLxxx, list of dummy return values
-	Escloopdepth int       // -1: global, 0: return variables, 1:function top level, increased inside function for every loop or label to mark scopes
+	Escloopdepth int32     // -1: global, 0: return variables, 1:function top level, increased inside function for every loop or label to mark scopes
 
 	Sym      *Sym  // various
 	Vargen   int32 // unique name for OTYPE/ONAME within a function.  Function outputs are numbered starting at one.
@@ -108,7 +108,7 @@ type Node struct {
 type Name struct {
 	Heapaddr  *Node // temp holding heap address of param
 	Inlvar    *Node // ONAME substitute while inlining
-	Decldepth int   // declaration loop depth, increased for every loop or label
+	Decldepth int32 // declaration loop depth, increased for every loop or label
 	Method    bool  // OCALLMETH name
 	Readonly  bool
 	Captured  bool // is the variable captured by a closure
