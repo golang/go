@@ -970,8 +970,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 
 	case obj.TYPE_MEM:
 		switch a.Name {
-		case obj.NAME_EXTERN,
-			obj.NAME_STATIC:
+		case obj.NAME_EXTERN, obj.NAME_STATIC:
 			if a.Sym == nil {
 				break
 			}
@@ -999,7 +998,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 			ctxt.Instoffset = int64(ctxt.Autosize) + a.Offset + 8
 			return autoclass(ctxt.Instoffset)
 
-		case obj.TYPE_NONE:
+		case obj.NAME_NONE:
 			ctxt.Instoffset = a.Offset
 			return oregclass(ctxt.Instoffset)
 		}
@@ -1011,10 +1010,9 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 	case obj.TYPE_TEXTSIZE:
 		return C_TEXTSIZE
 
-	case obj.TYPE_CONST,
-		obj.TYPE_ADDR:
+	case obj.TYPE_CONST, obj.TYPE_ADDR:
 		switch a.Name {
-		case obj.TYPE_NONE:
+		case obj.NAME_NONE:
 			ctxt.Instoffset = a.Offset
 			if a.Reg != 0 && a.Reg != REGZERO {
 				goto aconsize
@@ -1058,8 +1056,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 			}
 			return C_VCON
 
-		case obj.NAME_EXTERN,
-			obj.NAME_STATIC:
+		case obj.NAME_EXTERN, obj.NAME_STATIC:
 			if a.Sym == nil {
 				break
 			}
