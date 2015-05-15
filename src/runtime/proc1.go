@@ -550,12 +550,15 @@ func stopTheWorld(reason string) {
 
 // startTheWorld undoes the effects of stopTheWorld.
 func startTheWorld() {
-	semrelease(&worldsema)
 	systemstack(startTheWorldWithSema)
+	// worldsema must be held over startTheWorldWithSema to ensure
+	// gomaxprocs cannot change while worldsema is held.
+	semrelease(&worldsema)
 	getg().m.preemptoff = ""
 }
 
-// Holding worldsema grants an M the right to try to stop the world.
+// Holding worldsema grants an M the right to try to stop the world
+// and prevents gomaxprocs from changing concurrently.
 var worldsema uint32 = 1
 
 // stopTheWorldWithSema is the core implementation of stopTheWorld.
@@ -571,8 +574,8 @@ var worldsema uint32 = 1
 // these three operations separately:
 //
 //	m.preemptoff = ""
-//	semrelease(&worldsema)
 //	systemstack(startTheWorldWithSema)
+//	semrelease(&worldsema)
 //
 // It is allowed to acquire worldsema once and then execute multiple
 // startTheWorldWithSema/stopTheWorldWithSema pairs.
