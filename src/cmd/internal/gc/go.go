@@ -448,7 +448,7 @@ var nsavederrors int
 
 var nsyntaxerrors int
 
-var decldepth int
+var decldepth int32
 
 var safemode int
 

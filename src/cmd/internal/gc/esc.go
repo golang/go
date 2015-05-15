@@ -379,7 +379,7 @@ type EscState struct {
 	theSink Node
 
 	dsts      *NodeList // all dst nodes
-	loopdepth int       // for detecting nested loop scopes
+	loopdepth int32     // for detecting nested loop scopes
 	pdepth    int       // for debug printing in recursions.
 	dstcount  int       // diagnostic
 	edgecount int       // diagnostic
