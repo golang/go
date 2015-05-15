@@ -21,9 +21,7 @@ func runtime_debug_WriteHeapDump(fd uintptr) {
 		writeheapdump_m(fd)
 	})
 
-	getg().m.locks++ // TODO: Is this necessary?
 	startTheWorld()
-	getg().m.locks--
 }
 
 const (
