@@ -64,7 +64,7 @@ type Node struct {
 	Reg int16
 
 	// ONAME
-	*Name
+	Name     *Name
 	Ntype    *Node
 	Defn     *Node // ONAME: initializing assignment; OLABEL: labeled statement
 	Pack     *Node // real package for import . names

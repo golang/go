@@ -84,15 +84,15 @@ func typecheckclosure(func_ *Node, top int) {
 
 	for l := func_.Func.Cvars; l != nil; l = l.Next {
 		n = l.N.Closure
-		if !n.Captured {
-			n.Captured = true
-			if n.Decldepth == 0 {
+		if !n.Name.Captured {
+			n.Name.Captured = true
+			if n.Name.Decldepth == 0 {
 				Fatal("typecheckclosure: var %v does not have decldepth assigned", Nconv(n, obj.FmtShort))
 			}
 
 			// Ignore assignments to the variable in straightline code
 			// preceding the first capturing by a closure.
-			if n.Decldepth == decldepth {
+			if n.Name.Decldepth == decldepth {
 				n.Assigned = false
 			}
 		}
@@ -100,7 +100,7 @@ func typecheckclosure(func_ *Node, top int) {
 
 	for l := func_.Func.Dcl; l != nil; l = l.Next {
 		if l.N.Op == ONAME && (l.N.Class == PPARAM || l.N.Class == PPARAMOUT) {
-			l.N.Decldepth = 1
+			l.N.Name.Decldepth = 1
 		}
 	}
 
@@ -254,7 +254,7 @@ func capturevars(xfunc *Node) {
 
 		// out parameters will be assigned to implicitly upon return.
 		if outer.Class != PPARAMOUT && !v.Closure.Addrtaken && !v.Closure.Assigned && v.Type.Width <= 128 {
-			v.Byval = true
+			v.Name.Byval = true
 		} else {
 			v.Closure.Addrtaken = true
 			outer = Nod(OADDR, outer, nil)
@@ -266,7 +266,7 @@ func capturevars(xfunc *Node) {
 				name = v.Curfn.Nname.Sym
 			}
 			how := "ref"
-			if v.Byval {
+			if v.Name.Byval {
 				how = "value"
 			}
 			Warnl(int(v.Lineno), "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym, v.Closure.Addrtaken, v.Closure.Assigned, int32(v.Type.Width))
@@ -321,7 +321,7 @@ func transformclosure(xfunc *Node) {
 			}
 			fld = typ(TFIELD)
 			fld.Funarg = 1
-			if v.Byval {
+			if v.Name.Byval {
 				// If v is captured by value, we merely downgrade it to PPARAM.
 				v.Class = PPARAM
 
@@ -335,7 +335,7 @@ func transformclosure(xfunc *Node) {
 				addr = newname(Lookupf("&%s", v.Sym.Name))
 				addr.Type = Ptrto(v.Type)
 				addr.Class = PPARAM
-				v.Heapaddr = addr
+				v.Name.Heapaddr = addr
 				fld.Nname = addr
 			}
 
@@ -375,14 +375,14 @@ func transformclosure(xfunc *Node) {
 			cv = Nod(OCLOSUREVAR, nil, nil)
 
 			cv.Type = v.Type
-			if !v.Byval {
+			if !v.Name.Byval {
 				cv.Type = Ptrto(v.Type)
 			}
 			offset = Rnd(offset, int64(cv.Type.Align))
 			cv.Xoffset = offset
 			offset += cv.Type.Width
 
-			if v.Byval && v.Type.Width <= int64(2*Widthptr) && Thearch.Thechar == '6' {
+			if v.Name.Byval && v.Type.Width <= int64(2*Widthptr) && Thearch.Thechar == '6' {
 				//  If it is a small variable captured by value, downgrade it to PAUTO.
 				// This optimization is currently enabled only for amd64, see:
 				// https://github.com/golang/go/issues/9865
@@ -400,8 +400,8 @@ func transformclosure(xfunc *Node) {
 				addr.Used = true
 				addr.Curfn = xfunc
 				xfunc.Func.Dcl = list(xfunc.Func.Dcl, addr)
-				v.Heapaddr = addr
-				if v.Byval {
+				v.Name.Heapaddr = addr
+				if v.Name.Byval {
 					cv = Nod(OADDR, cv, nil)
 				}
 				body = list(body, Nod(OAS, addr, cv))
@@ -448,7 +448,7 @@ func walkclosure(func_ *Node, init **NodeList) *Node {
 			continue
 		}
 		typ1 = typenod(v.Type)
-		if !v.Byval {
+		if !v.Name.Byval {
 			typ1 = Nod(OIND, typ1, nil)
 		}
 		typ.List = list(typ.List, Nod(ODCLFIELD, newname(v.Sym), typ1))

@@ -30,7 +30,7 @@ func defframe(ptxt *obj.Prog) {
 	ax := uint32(0)
 	for l := gc.Curfn.Func.Dcl; l != nil; l = l.Next {
 		n = l.N
-		if !n.Needzero {
+		if !n.Name.Needzero {
 			continue
 		}
 		if n.Class != gc.PAUTO {
