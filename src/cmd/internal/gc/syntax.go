@@ -27,7 +27,7 @@ type Node struct {
 	Nointerface bool
 	Ullman      uint8 // sethi/ullman number
 	Addable     bool  // addressable
-	Etype       uint8 // op for OASOP, etype for OTYPE, exclam for export
+	Etype       uint8 // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg
 	Bounded     bool  // bounds check unnecessary
 	Class       uint8 // PPARAM, PAUTO, PEXTERN, etc
 	Embedded    uint8 // ODCLFIELD embedded type
@@ -97,7 +97,6 @@ type Node struct {
 	Lineno   int32
 	Xoffset  int64
 	Stkdelta int64 // offset added by stack frame compaction phase.
-	Ostk     int32 // 6g only
 	Iota     int32
 	Walkgen  uint32
 	Esclevel Level
