@@ -348,6 +348,7 @@ func Clearslim(n *Node) {
 
 	case TBOOL:
 		z.Val.Ctype = CTBOOL
+		z.Val.U.Bval = false
 
 	case TINT8,
 		TINT16,
