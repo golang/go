@@ -678,7 +678,7 @@ func split64(n *gc.Node, lo *gc.Node, hi *gc.Node) {
 		case gc.ONAME:
 			if n.Class == gc.PPARAMREF {
 				var n1 gc.Node
-				gc.Cgen(n.Heapaddr, &n1)
+				gc.Cgen(n.Name.Heapaddr, &n1)
 				sclean[nsclean-1] = n1
 				n = &n1
 			}

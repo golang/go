@@ -511,10 +511,10 @@ func mkinlcall(np **Node, fn *Node, isddd bool) {
 
 func tinlvar(t *Type) *Node {
 	if t.Nname != nil && !isblank(t.Nname) {
-		if t.Nname.Inlvar == nil {
+		if t.Nname.Name.Inlvar == nil {
 			Fatal("missing inlvar for %v\n", t.Nname)
 		}
-		return t.Nname.Inlvar
+		return t.Nname.Name.Inlvar
 	}
 
 	typecheck(&nblank, Erv|Easgn)
@@ -577,13 +577,13 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 			continue
 		}
 		if ll.N.Op == ONAME {
-			ll.N.Inlvar = inlvar(ll.N)
+			ll.N.Name.Inlvar = inlvar(ll.N)
 
 			// Typecheck because inlvar is not necessarily a function parameter.
-			typecheck(&ll.N.Inlvar, Erv)
+			typecheck(&ll.N.Name.Inlvar, Erv)
 
 			if ll.N.Class&^PHEAP != PAUTO {
-				ninit = list(ninit, Nod(ODCL, ll.N.Inlvar, nil)) // otherwise gen won't emit the allocations for heapallocs
+				ninit = list(ninit, Nod(ODCL, ll.N.Name.Inlvar, nil)) // otherwise gen won't emit the allocations for heapallocs
 			}
 		}
 	}
@@ -594,7 +594,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 		if t != nil && t.Nname != nil && !isblank(t.Nname) {
 			m = inlvar(t.Nname)
 			typecheck(&m, Erv)
-			t.Nname.Inlvar = m
+			t.Nname.Name.Inlvar = m
 		} else {
 			// anonymous return values, synthesize names for use in assignment that replaces return
 			m = retvar(t, i)
@@ -611,7 +611,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 		// method call with a receiver.
 		t := getthisx(fn.Type).Type
 
-		if t != nil && t.Nname != nil && !isblank(t.Nname) && t.Nname.Inlvar == nil {
+		if t != nil && t.Nname != nil && !isblank(t.Nname) && t.Nname.Name.Inlvar == nil {
 			Fatal("missing inlvar for %v\n", t.Nname)
 		}
 		if n.Left.Left == nil {
@@ -680,7 +680,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 		// append receiver inlvar to LHS.
 		t := getthisx(fn.Type).Type
 
-		if t != nil && t.Nname != nil && !isblank(t.Nname) && t.Nname.Inlvar == nil {
+		if t != nil && t.Nname != nil && !isblank(t.Nname) && t.Nname.Name.Inlvar == nil {
 			Fatal("missing inlvar for %v\n", t.Nname)
 		}
 		if t == nil {
@@ -907,11 +907,11 @@ func inlsubst(n *Node) *Node {
 
 	switch n.Op {
 	case ONAME:
-		if n.Inlvar != nil { // These will be set during inlnode
+		if n.Name.Inlvar != nil { // These will be set during inlnode
 			if Debug['m'] > 2 {
-				fmt.Printf("substituting name %v  ->  %v\n", Nconv(n, obj.FmtSign), Nconv(n.Inlvar, obj.FmtSign))
+				fmt.Printf("substituting name %v  ->  %v\n", Nconv(n, obj.FmtSign), Nconv(n.Name.Inlvar, obj.FmtSign))
 			}
-			return n.Inlvar
+			return n.Name.Inlvar
 		}
 
 		if Debug['m'] > 2 {

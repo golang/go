@@ -1281,8 +1281,8 @@ func livenessepilogue(lv *Liveness) {
 						}
 						bvset(all, pos) // silence future warnings in this block
 						n = lv.vars[pos]
-						if !n.Needzero {
-							n.Needzero = true
+						if !n.Name.Needzero {
+							n.Name.Needzero = true
 							if debuglive >= 1 {
 								Warnl(int(p.Lineno), "%v: %v is ambiguously live", Curfn.Nname, Nconv(n, obj.FmtLong))
 							}

@@ -510,7 +510,7 @@ func staticname(t *Type, ctxt int) *Node {
 	n := newname(Lookupf("statictmp_%.4d", statuniqgen))
 	statuniqgen++
 	if ctxt == 0 {
-		n.Readonly = true
+		n.Name.Readonly = true
 	}
 	addvar(n, t, PEXTERN)
 	return n

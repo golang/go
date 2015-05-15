@@ -2719,7 +2719,7 @@ func paramstoheap(argin **Type, out int) *NodeList {
 		if v.Alloc == nil {
 			v.Alloc = callnew(v.Type)
 		}
-		nn = list(nn, Nod(OAS, v.Heapaddr, v.Alloc))
+		nn = list(nn, Nod(OAS, v.Name.Heapaddr, v.Alloc))
 		if v.Class&^PHEAP != PPARAMOUT {
 			as = Nod(OAS, v, v.Stackparam)
 			v.Stackparam.Typecheck = 1

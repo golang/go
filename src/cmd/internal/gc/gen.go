@@ -78,10 +78,10 @@ func addrescapes(n *Node) {
 			oldfn := Curfn
 
 			Curfn = n.Curfn
-			n.Heapaddr = temp(Ptrto(n.Type))
+			n.Name.Heapaddr = temp(Ptrto(n.Type))
 			buf := fmt.Sprintf("&%v", n.Sym)
-			n.Heapaddr.Sym = Lookup(buf)
-			n.Heapaddr.Orig.Sym = n.Heapaddr.Sym
+			n.Name.Heapaddr.Sym = Lookup(buf)
+			n.Name.Heapaddr.Orig.Sym = n.Name.Heapaddr.Sym
 			n.Esc = EscHeap
 			if Debug['m'] != 0 {
 				fmt.Printf("%v: moved to heap: %v\n", n.Line(), n)
@@ -262,7 +262,7 @@ func cgen_dcl(n *Node) {
 	if n.Alloc == nil {
 		n.Alloc = callnew(n.Type)
 	}
-	Cgen_as(n.Heapaddr, n.Alloc)
+	Cgen_as(n.Name.Heapaddr, n.Alloc)
 }
 
 /*

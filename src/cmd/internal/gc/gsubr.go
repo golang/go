@@ -214,7 +214,7 @@ func ggloblnod(nam *Node) {
 	p.To.Sym = nil
 	p.To.Type = obj.TYPE_CONST
 	p.To.Offset = nam.Type.Width
-	if nam.Readonly {
+	if nam.Name.Readonly {
 		p.From3.Offset = obj.RODATA
 	}
 	if nam.Type != nil && !haspointers(nam.Type) {
@@ -369,7 +369,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		if s == nil {
 			s = Lookup(".noname")
 		}
-		if n.Method {
+		if n.Name.Method {
 			if n.Type != nil {
 				if n.Type.Sym != nil {
 					if n.Type.Sym.Pkg != nil {

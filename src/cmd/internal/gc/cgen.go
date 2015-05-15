@@ -1579,7 +1579,7 @@ func Agen(n *Node, res *Node) {
 			Fatal("agen: bad ONAME class %#x", n.Class)
 		}
 
-		Cgen(n.Heapaddr, res)
+		Cgen(n.Name.Heapaddr, res)
 		if n.Xoffset != 0 {
 			addOffset(res, n.Xoffset)
 		}
@@ -2517,7 +2517,7 @@ func cgen_call(n *Node, proc int) {
 	}
 
 	// call direct
-	n.Left.Method = true
+	n.Left.Name.Method = true
 
 	Ginscall(n.Left, proc)
 }

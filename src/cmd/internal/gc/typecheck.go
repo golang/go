@@ -311,8 +311,8 @@ OpSwitch:
 		break OpSwitch
 
 	case ONAME:
-		if n.Decldepth == 0 {
-			n.Decldepth = decldepth
+		if n.Name.Decldepth == 0 {
+			n.Name.Decldepth = decldepth
 		}
 		if n.Etype != 0 {
 			ok |= Ecall
@@ -3521,7 +3521,7 @@ func typecheckfunc(n *Node) {
 
 	for l := n.Func.Dcl; l != nil; l = l.Next {
 		if l.N.Op == ONAME && (l.N.Class == PPARAM || l.N.Class == PPARAMOUT) {
-			l.N.Decldepth = 1
+			l.N.Name.Decldepth = 1
 		}
 	}
 }
