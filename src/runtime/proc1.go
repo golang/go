@@ -790,10 +790,10 @@ func forEachP(fn func(*p)) {
 	_p_ := getg().m.p.ptr()
 
 	lock(&sched.lock)
-	if sched.stopwait != 0 {
-		throw("forEachP: sched.stopwait != 0")
+	if sched.safePointWait != 0 {
+		throw("forEachP: sched.safePointWait != 0")
 	}
-	sched.stopwait = gomaxprocs - 1
+	sched.safePointWait = gomaxprocs - 1
 	sched.safePointFn = fn
 
 	// Ask all Ps to run the safe point function.
@@ -813,11 +813,11 @@ func forEachP(fn func(*p)) {
 	for p := sched.pidle.ptr(); p != nil; p = p.link.ptr() {
 		if cas(&p.runSafePointFn, 1, 0) {
 			fn(p)
-			sched.stopwait--
+			sched.safePointWait--
 		}
 	}
 
-	wait := sched.stopwait > 0
+	wait := sched.safePointWait > 0
 	unlock(&sched.lock)
 
 	// Run fn for the current P.
@@ -843,15 +843,15 @@ func forEachP(fn func(*p)) {
 		for {
 			// Wait for 100us, then try to re-preempt in
 			// case of any races.
-			if notetsleep(&sched.stopnote, 100*1000) {
-				noteclear(&sched.stopnote)
+			if notetsleep(&sched.safePointNote, 100*1000) {
+				noteclear(&sched.safePointNote)
 				break
 			}
 			preemptall()
 		}
 	}
-	if sched.stopwait != 0 {
-		throw("forEachP: not stopped")
+	if sched.safePointWait != 0 {
+		throw("forEachP: not done")
 	}
 	for i := 0; i < int(gomaxprocs); i++ {
 		p := allp[i]
@@ -887,9 +887,9 @@ func runSafePointFn() {
 	}
 	sched.safePointFn(p)
 	lock(&sched.lock)
-	sched.stopwait--
-	if sched.stopwait == 0 {
-		notewakeup(&sched.stopnote)
+	sched.safePointWait--
+	if sched.safePointWait == 0 {
+		notewakeup(&sched.safePointNote)
 	}
 	unlock(&sched.lock)
 }
@@ -1262,9 +1262,9 @@ func handoffp(_p_ *p) {
 	}
 	if _p_.runSafePointFn != 0 && cas(&_p_.runSafePointFn, 1, 0) {
 		sched.safePointFn(_p_)
-		sched.stopwait--
-		if sched.stopwait == 0 {
-			notewakeup(&sched.stopnote)
+		sched.safePointWait--
+		if sched.safePointWait == 0 {
+			notewakeup(&sched.safePointNote)
 		}
 	}
 	if sched.runqsize != 0 {

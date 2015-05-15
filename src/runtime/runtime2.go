@@ -441,7 +441,9 @@ type schedt struct {
 
 	// safepointFn should be called on each P at the next GC
 	// safepoint if p.runSafePointFn is set.
-	safePointFn func(*p)
+	safePointFn   func(*p)
+	safePointWait int32
+	safePointNote note
 
 	profilehz int32 // cpu profiling rate
 
