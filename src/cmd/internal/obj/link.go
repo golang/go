@@ -144,10 +144,10 @@ import "encoding/binary"
 //			scale = 1
 //
 type Addr struct {
-	Type   int16
 	Reg    int16
 	Index  int16
 	Scale  int16 // Sometimes holds a register.
+	Type   AddrType
 	Name   int8
 	Class  int8
 	Etype  uint8
@@ -166,6 +166,8 @@ type Addr struct {
 	Node interface{} // for use by compiler
 }
 
+type AddrType uint8
+
 const (
 	NAME_NONE = 0 + iota
 	NAME_EXTERN
@@ -178,11 +180,9 @@ const (
 )
 
 const (
-	TYPE_NONE = 0
-)
+	TYPE_NONE AddrType = 0
 
-const (
-	TYPE_BRANCH = 5 + iota
+	TYPE_BRANCH AddrType = 5 + iota
 	TYPE_TEXTSIZE
 	TYPE_MEM
 	TYPE_CONST
@@ -228,7 +228,7 @@ type Prog struct {
 }
 
 // From3Type returns From3.Type, or TYPE_NONE when From3 is nil.
-func (p *Prog) From3Type() int16 {
+func (p *Prog) From3Type() AddrType {
 	if p.From3 == nil {
 		return TYPE_NONE
 	}

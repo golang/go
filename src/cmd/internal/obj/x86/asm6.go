@@ -4621,10 +4621,10 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
 		}
 
 		if p.As != ALEAQ && p.As != ALEAL {
-			if p.From.Index != obj.TYPE_NONE && p.From.Scale > 0 {
+			if p.From.Index != REG_NONE && p.From.Scale > 0 {
 				nacltrunc(ctxt, int(p.From.Index))
 			}
-			if p.To.Index != obj.TYPE_NONE && p.To.Scale > 0 {
+			if p.To.Index != REG_NONE && p.To.Scale > 0 {
 				nacltrunc(ctxt, int(p.To.Index))
 			}
 		}

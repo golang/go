@@ -636,7 +636,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 	case obj.TYPE_CONST,
 		obj.TYPE_ADDR:
 		switch a.Name {
-		case obj.TYPE_NONE:
+		case obj.NAME_NONE:
 			ctxt.Instoffset = a.Offset
 			if a.Reg != 0 {
 				if -BIG <= ctxt.Instoffset && ctxt.Instoffset <= BIG {

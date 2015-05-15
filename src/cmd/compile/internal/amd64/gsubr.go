@@ -1408,7 +1408,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
 		}
 
 		a.Type = obj.TYPE_NONE
-		a.Index = obj.TYPE_NONE
+		a.Index = x86.REG_NONE
 		gc.Fixlargeoffset(&n1)
 		gc.Naddr(a, &n1)
 		return true
