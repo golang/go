@@ -583,7 +583,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	// The checks for size == ptrSize and size == 2*ptrSize can therefore
 	// assume that dataSize == size without checking it explicitly.
 
-	if size == ptrSize {
+	if ptrSize == 8 && size == ptrSize {
 		// It's one word and it has pointers, it must be a pointer.
 		// In general we'd need an atomic update here if the
 		// concurrent GC were marking objects in this span,
@@ -635,11 +635,28 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	// are 4-word aligned (because they're all 16-byte aligned).
 	if size == 2*ptrSize {
 		if typ.size == ptrSize {
-			// 2-element slice of pointer.
-			if gcphase == _GCoff {
-				*h.bitp |= (bitPointer | bitPointer<<heapBitsShift) << h.shift
+			// We're allocating a block big enough to hold two pointers.
+			// On 64-bit, that means the actual object must be two pointers,
+			// or else we'd have used the one-pointer-sized block.
+			// On 32-bit, however, this is the 8-byte block, the smallest one.
+			// So it could be that we're allocating one pointer and this was
+			// just the smallest block available. Distinguish by checking dataSize.
+			// (In general the number of instances of typ being allocated is
+			// dataSize/typ.size.)
+			if ptrSize == 4 && dataSize == ptrSize {
+				// 1 pointer.
+				if gcphase == _GCoff {
+					*h.bitp |= bitPointer << h.shift
+				} else {
+					atomicor8(h.bitp, bitPointer<<h.shift)
+				}
 			} else {
-				atomicor8(h.bitp, (bitPointer|bitPointer<<heapBitsShift)<<h.shift)
+				// 2-element slice of pointer.
+				if gcphase == _GCoff {
+					*h.bitp |= (bitPointer | bitPointer<<heapBitsShift) << h.shift
+				} else {
+					atomicor8(h.bitp, (bitPointer|bitPointer<<heapBitsShift)<<h.shift)
+				}
 			}
 			return
 		}

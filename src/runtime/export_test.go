@@ -150,3 +150,5 @@ func BenchSetType(n int, x interface{}) {
 		}
 	})
 }
+
+const PtrSize = ptrSize
