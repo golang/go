@@ -50,9 +50,9 @@ func TestMain(m *testing.M) {
 	st := m.Run()
 
 	testHookUninstaller.Do(uninstallTestHooks)
-	if !testing.Short() {
-		printLeakedGoroutines()
-		printLeakedSockets()
+	if testing.Verbose() {
+		printRunningGoroutines()
+		printInflightSockets()
 		printSocketStats()
 	}
 	forceCloseSockets()
@@ -98,8 +98,8 @@ func setupTestData() {
 	}
 }
 
-func printLeakedGoroutines() {
-	gss := leakedGoroutines()
+func printRunningGoroutines() {
+	gss := runningGoroutines()
 	if len(gss) == 0 {
 		return
 	}
@@ -110,9 +110,8 @@ func printLeakedGoroutines() {
 	fmt.Fprintf(os.Stderr, "\n")
 }
 
-// leakedGoroutines returns a list of remaining goroutines used in
-// test cases.
-func leakedGoroutines() []string {
+// runningGoroutines returns a list of remaining goroutines.
+func runningGoroutines() []string {
 	var gss []string
 	b := make([]byte, 2<<20)
 	b = b[:runtime.Stack(b, true)]
@@ -131,7 +130,7 @@ func leakedGoroutines() []string {
 	return gss
 }
 
-func printLeakedSockets() {
+func printInflightSockets() {
 	sos := sw.Sockets()
 	if len(sos) == 0 {
 		return
