@@ -4618,7 +4618,7 @@ func TestGCBits(t *testing.T) {
 	verifyGCBits(t, ChanOf(BothDir, ArrayOf(100, Tscalar)), lit(1))
 
 	verifyGCBits(t, TypeOf((func([100]Xscalarptr))(nil)), lit(1))
-	//verifyGCBits(t, FuncOf([]Type{ArrayOf(100, Tscalarptr)}, nil, false), lit(1))
+	verifyGCBits(t, FuncOf([]Type{ArrayOf(100, Tscalarptr)}, nil, false), lit(1))
 
 	verifyGCBits(t, TypeOf((map[[100]Xscalarptr]Xscalar)(nil)), lit(1))
 	verifyGCBits(t, MapOf(ArrayOf(100, Tscalarptr), Tscalar), lit(1))
@@ -4643,3 +4643,24 @@ func TestGCBits(t *testing.T) {
 func rep(n int, b []byte) []byte { return bytes.Repeat(b, n) }
 func join(b ...[]byte) []byte    { return bytes.Join(b, nil) }
 func lit(x ...byte) []byte       { return x }
+
+func TestTypeOfTypeOf(t *testing.T) {
+	// Check that all the type constructors return concrete *rtype implementations.
+	// It's difficult to test directly because the reflect package is only at arm's length.
+	// The easiest thing to do is just call a function that crashes if it doesn't get an *rtype.
+	check := func(name string, typ Type) {
+		if underlying := TypeOf(typ).String(); underlying != "*reflect.rtype" {
+			t.Errorf("%v returned %v, not *reflect.rtype", name, underlying)
+		}
+	}
+
+	type T struct{ int }
+	check("TypeOf", TypeOf(T{}))
+
+	check("ArrayOf", ArrayOf(10, TypeOf(T{})))
+	check("ChanOf", ChanOf(BothDir, TypeOf(T{})))
+	check("FuncOf", FuncOf([]Type{TypeOf(T{})}, nil, false))
+	check("MapOf", MapOf(TypeOf(T{}), TypeOf(T{})))
+	check("PtrTo", PtrTo(TypeOf(T{})))
+	check("SliceOf", SliceOf(TypeOf(T{})))
+}

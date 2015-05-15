@@ -1609,7 +1609,7 @@ func FuncOf(in, out []Type, variadic bool) Type {
 	ft.ptrToThis = nil
 	funcLookupCache.m[hash] = append(funcLookupCache.m[hash], &ft.rtype)
 
-	return ft
+	return &ft.rtype
 }
 
 // funcStr builds a string representation of a funcType.
