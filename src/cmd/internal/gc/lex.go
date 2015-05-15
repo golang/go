@@ -647,13 +647,13 @@ func importfile(f *Val, line int) {
 		return
 	}
 
-	if len(f.U.Sval) == 0 {
+	if len(f.U.(string)) == 0 {
 		Yyerror("import path is empty")
 		fakeimport()
 		return
 	}
 
-	if isbadimport(f.U.Sval) {
+	if isbadimport(f.U.(string)) {
 		fakeimport()
 		return
 	}
@@ -662,29 +662,29 @@ func importfile(f *Val, line int) {
 	// but we reserve the import path "main" to identify
 	// the main package, just as we reserve the import
 	// path "math" to identify the standard math package.
-	if f.U.Sval == "main" {
+	if f.U.(string) == "main" {
 		Yyerror("cannot import \"main\"")
 		errorexit()
 	}
 
-	if myimportpath != "" && f.U.Sval == myimportpath {
-		Yyerror("import %q while compiling that package (import cycle)", f.U.Sval)
+	if myimportpath != "" && f.U.(string) == myimportpath {
+		Yyerror("import %q while compiling that package (import cycle)", f.U.(string))
 		errorexit()
 	}
 
-	if f.U.Sval == "unsafe" {
+	if f.U.(string) == "unsafe" {
 		if safemode != 0 {
 			Yyerror("cannot import package unsafe")
 			errorexit()
 		}
 
-		importpkg = mkpkg(f.U.Sval)
+		importpkg = mkpkg(f.U.(string))
 		cannedimports("unsafe.6", unsafeimport)
 		imported_unsafe = 1
 		return
 	}
 
-	path_ := f.U.Sval
+	path_ := f.U.(string)
 	if islocalname(path_) {
 		if path_[0] == '/' {
 			Yyerror("import path cannot be absolute path")
@@ -710,7 +710,7 @@ func importfile(f *Val, line int) {
 
 	file, found := findpkg(path_)
 	if !found {
-		Yyerror("can't find import: %q", f.U.Sval)
+		Yyerror("can't find import: %q", f.U.(string))
 		errorexit()
 	}
 
@@ -735,7 +735,7 @@ func importfile(f *Val, line int) {
 	var imp *obj.Biobuf
 	imp, err = obj.Bopenr(file)
 	if err != nil {
-		Yyerror("can't open import: %q: %v", f.U.Sval, err)
+		Yyerror("can't open import: %q: %v", f.U.(string), err)
 		errorexit()
 	}
 
@@ -798,7 +798,7 @@ func importfile(f *Val, line int) {
 		return
 	}
 
-	Yyerror("no import in %q", f.U.Sval)
+	Yyerror("no import in %q", f.U.(string))
 	unimportfile()
 }
 
@@ -1066,8 +1066,8 @@ l0:
 			ungetc(int(v))
 		}
 
-		yylval.val.U.Xval = new(Mpint)
-		Mpmovecfix(yylval.val.U.Xval, v)
+		yylval.val.U = new(Mpint)
+		Mpmovecfix(yylval.val.U.(*Mpint), v)
 		yylval.val.Ctype = CTRUNE
 		if Debug['x'] != 0 {
 			fmt.Printf("lex: codepoint literal\n")
@@ -1405,11 +1405,11 @@ ncu:
 	ungetc(c)
 
 	str = lexbuf.String()
-	yylval.val.U.Xval = new(Mpint)
-	mpatofix(yylval.val.U.Xval, str)
-	if yylval.val.U.Xval.Ovf {
+	yylval.val.U = new(Mpint)
+	mpatofix(yylval.val.U.(*Mpint), str)
+	if yylval.val.U.(*Mpint).Ovf {
 		Yyerror("overflow in constant")
-		Mpmovecfix(yylval.val.U.Xval, 0)
+		Mpmovecfix(yylval.val.U.(*Mpint), 0)
 	}
 
 	yylval.val.Ctype = CTINT
@@ -1461,12 +1461,12 @@ casei:
 	cp = nil
 
 	str = lexbuf.String()
-	yylval.val.U.Cval = new(Mpcplx)
-	Mpmovecflt(&yylval.val.U.Cval.Real, 0.0)
-	mpatoflt(&yylval.val.U.Cval.Imag, str)
-	if yylval.val.U.Cval.Imag.Val.IsInf() {
+	yylval.val.U = new(Mpcplx)
+	Mpmovecflt(&yylval.val.U.(*Mpcplx).Real, 0.0)
+	mpatoflt(&yylval.val.U.(*Mpcplx).Imag, str)
+	if yylval.val.U.(*Mpcplx).Imag.Val.IsInf() {
 		Yyerror("overflow in imaginary constant")
-		Mpmovecflt(&yylval.val.U.Cval.Real, 0.0)
+		Mpmovecflt(&yylval.val.U.(*Mpcplx).Real, 0.0)
 	}
 
 	yylval.val.Ctype = CTCPLX
@@ -1481,11 +1481,11 @@ caseout:
 	ungetc(c)
 
 	str = lexbuf.String()
-	yylval.val.U.Fval = newMpflt()
-	mpatoflt(yylval.val.U.Fval, str)
-	if yylval.val.U.Fval.Val.IsInf() {
+	yylval.val.U = newMpflt()
+	mpatoflt(yylval.val.U.(*Mpflt), str)
+	if yylval.val.U.(*Mpflt).Val.IsInf() {
 		Yyerror("overflow in float constant")
-		Mpmovecflt(yylval.val.U.Fval, 0.0)
+		Mpmovecflt(yylval.val.U.(*Mpflt), 0.0)
 	}
 
 	yylval.val.Ctype = CTFLT
@@ -1496,7 +1496,7 @@ caseout:
 	return LLITERAL
 
 strlit:
-	yylval.val.U.Sval = internString(cp.Bytes())
+	yylval.val.U = internString(cp.Bytes())
 	yylval.val.Ctype = CTSTR
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: string literal\n")

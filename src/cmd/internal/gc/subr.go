@@ -666,8 +666,8 @@ func sortinter(t *Type) *Type {
 func Nodintconst(v int64) *Node {
 	c := Nod(OLITERAL, nil, nil)
 	c.Addable = true
-	c.Val.U.Xval = new(Mpint)
-	Mpmovecfix(c.Val.U.Xval, v)
+	c.Val.U = new(Mpint)
+	Mpmovecfix(c.Val.U.(*Mpint), v)
 	c.Val.Ctype = CTINT
 	c.Type = Types[TIDEAL]
 	ullmancalc(c)
@@ -677,8 +677,8 @@ func Nodintconst(v int64) *Node {
 func nodfltconst(v *Mpflt) *Node {
 	c := Nod(OLITERAL, nil, nil)
 	c.Addable = true
-	c.Val.U.Fval = newMpflt()
-	mpmovefltflt(c.Val.U.Fval, v)
+	c.Val.U = newMpflt()
+	mpmovefltflt(c.Val.U.(*Mpflt), v)
 	c.Val.Ctype = CTFLT
 	c.Type = Types[TIDEAL]
 	ullmancalc(c)
@@ -690,8 +690,8 @@ func Nodconst(n *Node, t *Type, v int64) {
 	n.Op = OLITERAL
 	n.Addable = true
 	ullmancalc(n)
-	n.Val.U.Xval = new(Mpint)
-	Mpmovecfix(n.Val.U.Xval, v)
+	n.Val.U = new(Mpint)
+	Mpmovecfix(n.Val.U.(*Mpint), v)
 	n.Val.Ctype = CTINT
 	n.Type = t
 
@@ -710,7 +710,7 @@ func nodnil() *Node {
 func Nodbool(b bool) *Node {
 	c := Nodintconst(0)
 	c.Val.Ctype = CTBOOL
-	c.Val.U.Bval = b
+	c.Val.U = b
 	c.Type = idealbool
 	return c
 }
@@ -724,7 +724,7 @@ func aindex(b *Node, t *Type) *Type {
 			Yyerror("array bound must be an integer expression")
 
 		case CTINT, CTRUNE:
-			bound = Mpgetfix(b.Val.U.Xval)
+			bound = Mpgetfix(b.Val.U.(*Mpint))
 			if bound < 0 {
 				Yyerror("array bound must be non negative")
 			}
@@ -2422,11 +2422,11 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 
 		var v Val
 		v.Ctype = CTSTR
-		v.U.Sval = rcvr.Type.Sym.Pkg.Name // package name
+		v.U = rcvr.Type.Sym.Pkg.Name // package name
 		l = list(l, nodlit(v))
-		v.U.Sval = rcvr.Type.Sym.Name // type name
+		v.U = rcvr.Type.Sym.Name // type name
 		l = list(l, nodlit(v))
-		v.U.Sval = method.Sym.Name
+		v.U = method.Sym.Name
 		l = list(l, nodlit(v)) // method name
 		call := Nod(OCALL, syslook("panicwrap", 0), nil)
 		call.List = l
@@ -3139,7 +3139,7 @@ func powtwo(n *Node) int {
 		return -1
 	}
 
-	v := uint64(Mpgetfix(n.Val.U.Xval))
+	v := uint64(Mpgetfix(n.Val.U.(*Mpint)))
 	b := uint64(1)
 	for i := 0; i < 64; i++ {
 		if b == v {

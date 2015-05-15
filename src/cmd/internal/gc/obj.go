@@ -382,11 +382,11 @@ func gdata(nam *Node, nr *Node, wid int) {
 	if nr.Op == OLITERAL {
 		switch nr.Val.Ctype {
 		case CTCPLX:
-			gdatacomplex(nam, nr.Val.U.Cval)
+			gdatacomplex(nam, nr.Val.U.(*Mpcplx))
 			return
 
 		case CTSTR:
-			gdatastring(nam, nr.Val.U.Sval)
+			gdatastring(nam, nr.Val.U.(string))
 			return
 		}
 	}

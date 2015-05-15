@@ -437,7 +437,7 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
 
 	case OSTRARRAYBYTE:
 		if l.Class == PEXTERN && r.Left.Op == OLITERAL {
-			sval := r.Left.Val.U.Sval
+			sval := r.Left.Val.U.(string)
 			slicebytes(l, sval, len(sval))
 			return true
 		}
@@ -449,7 +449,7 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
 			ta := typ(TARRAY)
 
 			ta.Type = r.Type.Type
-			ta.Bound = Mpgetfix(r.Right.Val.U.Xval)
+			ta.Bound = Mpgetfix(r.Right.Val.U.(*Mpint))
 			a := staticname(ta, 1)
 			r.Nname = a
 			n1 = *l
@@ -722,7 +722,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 	// make an array type
 	t := shallow(n.Type)
 
-	t.Bound = Mpgetfix(n.Right.Val.U.Xval)
+	t.Bound = Mpgetfix(n.Right.Val.U.(*Mpint))
 	t.Width = 0
 	t.Sym = nil
 	t.Haspointers = 0
@@ -1226,7 +1226,7 @@ func oaslit(n *Node, init **NodeList) bool {
 
 func getlit(lit *Node) int {
 	if Smallintconst(lit) {
-		return int(Mpgetfix(lit.Val.U.Xval))
+		return int(Mpgetfix(lit.Val.U.(*Mpint)))
 	}
 	return -1
 }
@@ -1290,7 +1290,7 @@ func initplan(n *Node) {
 			if a.Op != OKEY || !Smallintconst(a.Left) {
 				Fatal("initplan arraylit")
 			}
-			addvalue(p, n.Type.Type.Width*Mpgetfix(a.Left.Val.U.Xval), nil, a.Right)
+			addvalue(p, n.Type.Type.Width*Mpgetfix(a.Left.Val.U.(*Mpint)), nil, a.Right)
 		}
 
 	case OSTRUCTLIT:
@@ -1360,19 +1360,19 @@ func iszero(n *Node) bool {
 			return true
 
 		case CTSTR:
-			return n.Val.U.Sval == ""
+			return n.Val.U.(string) == ""
 
 		case CTBOOL:
-			return !n.Val.U.Bval
+			return !n.Val.U.(bool)
 
 		case CTINT, CTRUNE:
-			return mpcmpfixc(n.Val.U.Xval, 0) == 0
+			return mpcmpfixc(n.Val.U.(*Mpint), 0) == 0
 
 		case CTFLT:
-			return mpcmpfltc(n.Val.U.Fval, 0) == 0
+			return mpcmpfltc(n.Val.U.(*Mpflt), 0) == 0
 
 		case CTCPLX:
-			return mpcmpfltc(&n.Val.U.Cval.Real, 0) == 0 && mpcmpfltc(&n.Val.U.Cval.Imag, 0) == 0
+			return mpcmpfltc(&n.Val.U.(*Mpcplx).Real, 0) == 0 && mpcmpfltc(&n.Val.U.(*Mpcplx).Imag, 0) == 0
 		}
 
 	case OARRAYLIT:
@@ -1510,10 +1510,10 @@ func gen_as_init(n *Node) bool {
 		gdata(&nam, nr, int(nr.Type.Width))
 
 	case TCOMPLEX64, TCOMPLEX128:
-		gdatacomplex(&nam, nr.Val.U.Cval)
+		gdatacomplex(&nam, nr.Val.U.(*Mpcplx))
 
 	case TSTRING:
-		gdatastring(&nam, nr.Val.U.Sval)
+		gdatastring(&nam, nr.Val.U.(string))
 	}
 
 	return true

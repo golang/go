@@ -2327,13 +2327,13 @@ yydefault:
 		{
 			var p *Pkg
 
-			if yyDollar[2].val.U.Sval == "" {
+			if yyDollar[2].val.U.(string) == "" {
 				p = importpkg
 			} else {
-				if isbadimport(yyDollar[2].val.U.Sval) {
+				if isbadimport(yyDollar[2].val.U.(string)) {
 					errorexit()
 				}
-				p = mkpkg(yyDollar[2].val.U.Sval)
+				p = mkpkg(yyDollar[2].val.U.(string))
 			}
 			yyVAL.sym = Pkglookup(yyDollar[4].sym.Name, p)
 		}
@@ -2343,13 +2343,13 @@ yydefault:
 		{
 			var p *Pkg
 
-			if yyDollar[2].val.U.Sval == "" {
+			if yyDollar[2].val.U.(string) == "" {
 				p = importpkg
 			} else {
-				if isbadimport(yyDollar[2].val.U.Sval) {
+				if isbadimport(yyDollar[2].val.U.(string)) {
 					errorexit()
 				}
-				p = mkpkg(yyDollar[2].val.U.Sval)
+				p = mkpkg(yyDollar[2].val.U.(string))
 			}
 			yyVAL.sym = Pkglookup("?", p)
 		}
@@ -3156,7 +3156,7 @@ yydefault:
 		yyDollar = yyS[yypt-4 : yypt+1]
 		//line go.y:1947
 		{
-			importimport(yyDollar[2].sym, yyDollar[3].val.U.Sval)
+			importimport(yyDollar[2].sym, yyDollar[3].val.U.(string))
 		}
 	case 305:
 		yyDollar = yyS[yypt-4 : yypt+1]
@@ -3404,14 +3404,14 @@ yydefault:
 			yyVAL.node = nodlit(yyDollar[2].val)
 			switch yyVAL.node.Val.Ctype {
 			case CTINT, CTRUNE:
-				mpnegfix(yyVAL.node.Val.U.Xval)
+				mpnegfix(yyVAL.node.Val.U.(*Mpint))
 				break
 			case CTFLT:
-				mpnegflt(yyVAL.node.Val.U.Fval)
+				mpnegflt(yyVAL.node.Val.U.(*Mpflt))
 				break
 			case CTCPLX:
-				mpnegflt(&yyVAL.node.Val.U.Cval.Real)
-				mpnegflt(&yyVAL.node.Val.U.Cval.Imag)
+				mpnegflt(&yyVAL.node.Val.U.(*Mpcplx).Real)
+				mpnegflt(&yyVAL.node.Val.U.(*Mpcplx).Imag)
 				break
 			default:
 				Yyerror("bad negated constant")
@@ -3432,11 +3432,11 @@ yydefault:
 		{
 			if yyDollar[2].node.Val.Ctype == CTRUNE && yyDollar[4].node.Val.Ctype == CTINT {
 				yyVAL.node = yyDollar[2].node
-				mpaddfixfix(yyDollar[2].node.Val.U.Xval, yyDollar[4].node.Val.U.Xval, 0)
+				mpaddfixfix(yyDollar[2].node.Val.U.(*Mpint), yyDollar[4].node.Val.U.(*Mpint), 0)
 				break
 			}
-			yyDollar[4].node.Val.U.Cval.Real = yyDollar[4].node.Val.U.Cval.Imag
-			Mpmovecflt(&yyDollar[4].node.Val.U.Cval.Imag, 0.0)
+			yyDollar[4].node.Val.U.(*Mpcplx).Real = yyDollar[4].node.Val.U.(*Mpcplx).Imag
+			Mpmovecflt(&yyDollar[4].node.Val.U.(*Mpcplx).Imag, 0.0)
 			yyVAL.node = nodcplxlit(yyDollar[2].node.Val, yyDollar[4].node.Val)
 		}
 	case 346:

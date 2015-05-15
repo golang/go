@@ -412,20 +412,20 @@ func Naddr(a *obj.Addr, n *Node) {
 
 		case CTFLT:
 			a.Type = obj.TYPE_FCONST
-			a.Val = mpgetflt(n.Val.U.Fval)
+			a.Val = mpgetflt(n.Val.U.(*Mpflt))
 
 		case CTINT, CTRUNE:
 			a.Sym = nil
 			a.Type = obj.TYPE_CONST
-			a.Offset = Mpgetfix(n.Val.U.Xval)
+			a.Offset = Mpgetfix(n.Val.U.(*Mpint))
 
 		case CTSTR:
-			datagostring(n.Val.U.Sval, a)
+			datagostring(n.Val.U.(string), a)
 
 		case CTBOOL:
 			a.Sym = nil
 			a.Type = obj.TYPE_CONST
-			a.Offset = int64(obj.Bool2int(n.Val.U.Bval))
+			a.Offset = int64(obj.Bool2int(n.Val.U.(bool)))
 
 		case CTNIL:
 			a.Sym = nil

@@ -542,7 +542,7 @@ func cgen_wb(n, res *Node, wb bool) {
 			var n1 Node
 			Regalloc(&n1, Types[Tptr], res)
 			p1 := Thearch.Gins(Thearch.Optoas(OAS, n1.Type), nil, &n1)
-			Datastring(nl.Val.U.Sval, &p1.From)
+			Datastring(nl.Val.U.(string), &p1.From)
 			p1.From.Type = obj.TYPE_ADDR
 			Thearch.Gmove(&n1, res)
 			Regfree(&n1)
@@ -1030,7 +1030,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 				if Isconst(nl, CTSTR) {
 					Fatal("constant string constant index")
 				}
-				v := uint64(Mpgetfix(nr.Val.U.Xval))
+				v := uint64(Mpgetfix(nr.Val.U.(*Mpint)))
 				var n2 Node
 				if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
 					if Debug['B'] == 0 && !n.Bounded {
@@ -1066,7 +1066,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 			if Debug['B'] == 0 && !n.Bounded {
 				// check bounds
 				if Isconst(nl, CTSTR) {
-					Nodconst(&n4, Types[TUINT32], int64(len(nl.Val.U.Sval)))
+					Nodconst(&n4, Types[TUINT32], int64(len(nl.Val.U.(string))))
 				} else if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
 					n1 = n3
 					n1.Op = OINDREG
@@ -1091,7 +1091,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 			if Isconst(nl, CTSTR) {
 				Regalloc(&n3, Types[Tptr], res)
 				p1 := Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), nil, &n3)
-				Datastring(nl.Val.U.Sval, &p1.From)
+				Datastring(nl.Val.U.(string), &p1.From)
 				p1.From.Type = obj.TYPE_ADDR
 			} else if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
 				n1 = n3
@@ -1182,7 +1182,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 				if Isconst(nl, CTSTR) {
 					Fatal("constant string constant index") // front end should handle
 				}
-				v := uint64(Mpgetfix(nr.Val.U.Xval))
+				v := uint64(Mpgetfix(nr.Val.U.(*Mpint)))
 				if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
 					if Debug['B'] == 0 && !n.Bounded {
 						nlen := n3
@@ -1227,7 +1227,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 
 				var nlen Node
 				if Isconst(nl, CTSTR) {
-					Nodconst(&nlen, t, int64(len(nl.Val.U.Sval)))
+					Nodconst(&nlen, t, int64(len(nl.Val.U.(string))))
 				} else if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
 					nlen = n3
 					nlen.Type = t
@@ -1247,7 +1247,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 			if Isconst(nl, CTSTR) {
 				Regalloc(&n3, Types[Tptr], res)
 				p1 := Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), nil, &n3)
-				Datastring(nl.Val.U.Sval, &p1.From)
+				Datastring(nl.Val.U.(string), &p1.From)
 				p1.From.Type = obj.TYPE_ADDR
 				Thearch.Gins(Thearch.Optoas(OADD, n3.Type), &n2, &n3)
 				goto indexdone1
@@ -1372,7 +1372,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 			if Isconst(nl, CTSTR) {
 				Fatal("constant string constant index") // front end should handle
 			}
-			v := uint64(Mpgetfix(nr.Val.U.Xval))
+			v := uint64(Mpgetfix(nr.Val.U.(*Mpint)))
 			if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
 				if Debug['B'] == 0 && !n.Bounded {
 					p1 := Thearch.Ginscmp(OGT, Types[Simtype[TUINT]], &nlen, Nodintconst(int64(v)), +1)
@@ -1410,7 +1410,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 				t = Types[TUINT64]
 			}
 			if Isconst(nl, CTSTR) {
-				Nodconst(&nlen, t, int64(len(nl.Val.U.Sval)))
+				Nodconst(&nlen, t, int64(len(nl.Val.U.(string))))
 			} else if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
 				// nlen already initialized
 			} else {
@@ -1425,7 +1425,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 		if Isconst(nl, CTSTR) {
 			Regalloc(&n3, Types[Tptr], res)
 			p1 := Thearch.Gins(Thearch.Optoas(OAS, n3.Type), nil, &n3) // XXX was LEAQ!
-			Datastring(nl.Val.U.Sval, &p1.From)
+			Datastring(nl.Val.U.(string), &p1.From)
 			p1.From.Type = obj.TYPE_ADDR
 			Thearch.Gins(Thearch.Optoas(OADD, n3.Type), &n2, &n3)
 			goto indexdone
@@ -1712,7 +1712,7 @@ func Igen(n *Node, a *Node, res *Node) {
 				// Compute &a[i] as &a + i*width.
 				a.Type = n.Type
 
-				a.Xoffset += Mpgetfix(n.Right.Val.U.Xval) * n.Type.Width
+				a.Xoffset += Mpgetfix(n.Right.Val.U.(*Mpint)) * n.Type.Width
 				Fixlargeoffset(a)
 				return
 			}
@@ -1862,11 +1862,11 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 			Fatal("bgen: non-bool const %v\n", Nconv(n, obj.FmtLong))
 		}
 		if genval {
-			Cgen(Nodbool(wantTrue == n.Val.U.Bval), res)
+			Cgen(Nodbool(wantTrue == n.Val.U.(bool)), res)
 			return
 		}
 		// If n == wantTrue, jump; otherwise do nothing.
-		if wantTrue == n.Val.U.Bval {
+		if wantTrue == n.Val.U.(bool) {
 			Patch(Gbranch(obj.AJMP, nil, likely), to)
 		}
 		return
@@ -2187,7 +2187,7 @@ func stkof(n *Node) int64 {
 			return off
 		}
 		if Isconst(n.Right, CTINT) {
-			return off + t.Type.Width*Mpgetfix(n.Right.Val.U.Xval)
+			return off + t.Type.Width*Mpgetfix(n.Right.Val.U.(*Mpint))
 		}
 		return 1000
 
@@ -2642,7 +2642,7 @@ func cgen_div(op int, nl *Node, nr *Node, res *Node) {
 	case TUINT64:
 		var m Magic
 		m.W = w
-		m.Ud = uint64(Mpgetfix(nr.Val.U.Xval))
+		m.Ud = uint64(Mpgetfix(nr.Val.U.(*Mpint)))
 		Umagic(&m)
 		if m.Bad != 0 {
 			break
@@ -2680,7 +2680,7 @@ func cgen_div(op int, nl *Node, nr *Node, res *Node) {
 	case TINT64:
 		var m Magic
 		m.W = w
-		m.Sd = Mpgetfix(nr.Val.U.Xval)
+		m.Sd = Mpgetfix(nr.Val.U.(*Mpint))
 		Smagic(&m)
 		if m.Bad != 0 {
 			break
@@ -3024,7 +3024,7 @@ func cgen_slice(n, res *Node, wb bool) {
 			return
 		}
 		if n.Op == OSLICESTR && Isconst(n.Left, CTSTR) {
-			Nodconst(&xlen, indexRegType, int64(len(n.Left.Val.U.Sval)))
+			Nodconst(&xlen, indexRegType, int64(len(n.Left.Val.U.(string))))
 			return
 		}
 		regalloc(&xlen, indexRegType, nil)
@@ -3180,20 +3180,20 @@ func cgen_slice(n, res *Node, wb bool) {
 	if n.Op == OSLICEARR || n.Op == OSLICE3ARR {
 		bound = n.Left.Type.Type.Bound
 	} else if n.Op == OSLICESTR && Isconst(n.Left, CTSTR) {
-		bound = int64(len(n.Left.Val.U.Sval))
+		bound = int64(len(n.Left.Val.U.(string)))
 	}
 	if Isconst(&i, CTINT) {
-		if mpcmpfixc(i.Val.U.Xval, 0) < 0 || bound >= 0 && mpcmpfixc(i.Val.U.Xval, bound) > 0 {
+		if mpcmpfixc(i.Val.U.(*Mpint), 0) < 0 || bound >= 0 && mpcmpfixc(i.Val.U.(*Mpint), bound) > 0 {
 			Yyerror("slice index out of bounds")
 		}
 	}
 	if Isconst(&j, CTINT) {
-		if mpcmpfixc(j.Val.U.Xval, 0) < 0 || bound >= 0 && mpcmpfixc(j.Val.U.Xval, bound) > 0 {
+		if mpcmpfixc(j.Val.U.(*Mpint), 0) < 0 || bound >= 0 && mpcmpfixc(j.Val.U.(*Mpint), bound) > 0 {
 			Yyerror("slice index out of bounds")
 		}
 	}
 	if Isconst(&k, CTINT) {
-		if mpcmpfixc(k.Val.U.Xval, 0) < 0 || bound >= 0 && mpcmpfixc(k.Val.U.Xval, bound) > 0 {
+		if mpcmpfixc(k.Val.U.(*Mpint), 0) < 0 || bound >= 0 && mpcmpfixc(k.Val.U.(*Mpint), bound) > 0 {
 			Yyerror("slice index out of bounds")
 		}
 	}
@@ -3202,7 +3202,7 @@ func cgen_slice(n, res *Node, wb bool) {
 	same := func(n1, n2 *Node) bool {
 		return n1.Op == OREGISTER && n2.Op == OREGISTER && n1.Reg == n2.Reg ||
 			n1.Op == ONAME && n2.Op == ONAME && n1.Orig == n2.Orig && n1.Type == n2.Type && n1.Xoffset == n2.Xoffset ||
-			n1.Op == OLITERAL && n2.Op == OLITERAL && Mpcmpfixfix(n1.Val.U.Xval, n2.Val.U.Xval) == 0
+			n1.Op == OLITERAL && n2.Op == OLITERAL && Mpcmpfixfix(n1.Val.U.(*Mpint), n2.Val.U.(*Mpint)) == 0
 	}
 
 	// obvious reports whether n1 <= n2 is obviously true,
@@ -3221,7 +3221,7 @@ func cgen_slice(n, res *Node, wb bool) {
 			return true // len(x) <= cap(x) always true
 		}
 		if Isconst(n1, CTINT) && Isconst(n2, CTINT) {
-			if Mpcmpfixfix(n1.Val.U.Xval, n2.Val.U.Xval) <= 0 {
+			if Mpcmpfixfix(n1.Val.U.(*Mpint), n2.Val.U.(*Mpint)) <= 0 {
 				return true // n1, n2 constants such that n1 <= n2
 			}
 			Yyerror("slice index out of bounds")
@@ -3312,9 +3312,9 @@ func cgen_slice(n, res *Node, wb bool) {
 			switch j.Op {
 			case OLITERAL:
 				if Isconst(&i, CTINT) {
-					Nodconst(&j, indexRegType, Mpgetfix(j.Val.U.Xval)-Mpgetfix(i.Val.U.Xval))
+					Nodconst(&j, indexRegType, Mpgetfix(j.Val.U.(*Mpint))-Mpgetfix(i.Val.U.(*Mpint)))
 					if Debug_slice > 0 {
-						Warn("slice: result len == %d", Mpgetfix(j.Val.U.Xval))
+						Warn("slice: result len == %d", Mpgetfix(j.Val.U.(*Mpint)))
 					}
 					break
 				}
@@ -3329,7 +3329,7 @@ func cgen_slice(n, res *Node, wb bool) {
 				fallthrough
 			case OREGISTER:
 				if i.Op == OLITERAL {
-					v := Mpgetfix(i.Val.U.Xval)
+					v := Mpgetfix(i.Val.U.(*Mpint))
 					if v != 0 {
 						ginscon(Thearch.Optoas(OSUB, indexRegType), v, &j)
 					}
@@ -3372,9 +3372,9 @@ func cgen_slice(n, res *Node, wb bool) {
 			switch k.Op {
 			case OLITERAL:
 				if Isconst(&i, CTINT) {
-					Nodconst(&k, indexRegType, Mpgetfix(k.Val.U.Xval)-Mpgetfix(i.Val.U.Xval))
+					Nodconst(&k, indexRegType, Mpgetfix(k.Val.U.(*Mpint))-Mpgetfix(i.Val.U.(*Mpint)))
 					if Debug_slice > 0 {
-						Warn("slice: result cap == %d", Mpgetfix(k.Val.U.Xval))
+						Warn("slice: result cap == %d", Mpgetfix(k.Val.U.(*Mpint)))
 					}
 					break
 				}
@@ -3395,7 +3395,7 @@ func cgen_slice(n, res *Node, wb bool) {
 						Warn("slice: result cap == 0")
 					}
 				} else if i.Op == OLITERAL {
-					v := Mpgetfix(i.Val.U.Xval)
+					v := Mpgetfix(i.Val.U.(*Mpint))
 					if v != 0 {
 						ginscon(Thearch.Optoas(OSUB, indexRegType), v, &k)
 					}
@@ -3478,7 +3478,7 @@ func cgen_slice(n, res *Node, wb bool) {
 				w = res.Type.Type.Width // res is []T, elem size is T.width
 			}
 			if Isconst(&i, CTINT) {
-				ginscon(Thearch.Optoas(OADD, xbase.Type), Mpgetfix(i.Val.U.Xval)*w, &xbase)
+				ginscon(Thearch.Optoas(OADD, xbase.Type), Mpgetfix(i.Val.U.(*Mpint))*w, &xbase)
 			} else if Thearch.AddIndex != nil && Thearch.AddIndex(&i, w, &xbase) {
 				// done by back end
 			} else if w == 1 {
