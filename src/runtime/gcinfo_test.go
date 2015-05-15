@@ -13,11 +13,11 @@ import (
 const (
 	typeScalar  = 0
 	typePointer = 1
-	typeDead    = 255
 )
 
 // TestGCInfo tests that various objects in heap, data and bss receive correct GC pointer type info.
 func TestGCInfo(t *testing.T) {
+	verifyGCInfo(t, "bss Ptr", &bssPtr, infoPtr)
 	verifyGCInfo(t, "bss ScalarPtr", &bssScalarPtr, infoScalarPtr)
 	verifyGCInfo(t, "bss PtrScalar", &bssPtrScalar, infoPtrScalar)
 	verifyGCInfo(t, "bss BigStruct", &bssBigStruct, infoBigStruct())
@@ -26,6 +26,7 @@ func TestGCInfo(t *testing.T) {
 	verifyGCInfo(t, "bss eface", &bssEface, infoEface)
 	verifyGCInfo(t, "bss iface", &bssIface, infoIface)
 
+	verifyGCInfo(t, "data Ptr", &dataPtr, infoPtr)
 	verifyGCInfo(t, "data ScalarPtr", &dataScalarPtr, infoScalarPtr)
 	verifyGCInfo(t, "data PtrScalar", &dataPtrScalar, infoPtrScalar)
 	verifyGCInfo(t, "data BigStruct", &dataBigStruct, infoBigStruct())
@@ -34,6 +35,7 @@ func TestGCInfo(t *testing.T) {
 	verifyGCInfo(t, "data eface", &dataEface, infoEface)
 	verifyGCInfo(t, "data iface", &dataIface, infoIface)
 
+	verifyGCInfo(t, "stack Ptr", new(Ptr), infoPtr)
 	verifyGCInfo(t, "stack ScalarPtr", new(ScalarPtr), infoScalarPtr)
 	verifyGCInfo(t, "stack PtrScalar", new(PtrScalar), infoPtrScalar)
 	verifyGCInfo(t, "stack BigStruct", new(BigStruct), infoBigStruct())
@@ -43,6 +45,7 @@ func TestGCInfo(t *testing.T) {
 	verifyGCInfo(t, "stack iface", new(Iface), infoIface)
 
 	for i := 0; i < 10; i++ {
+		verifyGCInfo(t, "heap Ptr", escape(new(Ptr)), trimDead(padDead(infoPtr)))
 		verifyGCInfo(t, "heap PtrSlice", escape(&make([]*byte, 10)[0]), trimDead(infoPtr10))
 		verifyGCInfo(t, "heap ScalarPtr", escape(new(ScalarPtr)), trimDead(infoScalarPtr))
 		verifyGCInfo(t, "heap ScalarPtrSlice", escape(&make([]ScalarPtr, 4)[0]), trimDead(infoScalarPtr4))
@@ -52,19 +55,26 @@ func TestGCInfo(t *testing.T) {
 		verifyGCInfo(t, "heap eface", escape(new(interface{})), trimDead(infoEface))
 		verifyGCInfo(t, "heap iface", escape(new(Iface)), trimDead(infoIface))
 	}
-
 }
 
 func verifyGCInfo(t *testing.T, name string, p interface{}, mask0 []byte) {
 	mask := runtime.GCMask(p)
-	if len(mask) > len(mask0) {
-		mask0 = append(mask0, typeDead)
-		mask = mask[:len(mask0)]
-	}
 	if bytes.Compare(mask, mask0) != 0 {
 		t.Errorf("bad GC program for %v:\nwant %+v\ngot  %+v", name, mask0, mask)
 		return
 	}
+}
+
+func padDead(mask []byte) []byte {
+	// Because the dead bit isn't encoded until the third word,
+	// and because on 32-bit systems a one-word allocation
+	// uses a two-word block, the pointer info for a one-word
+	// object needs to be expanded to include an extra scalar
+	// on 32-bit systems to match the heap bitmap.
+	if runtime.PtrSize == 4 && len(mask) == 1 {
+		return []byte{mask[0], 0}
+	}
+	return mask
 }
 
 func trimDead(mask []byte) []byte {
@@ -79,6 +89,12 @@ var gcinfoSink interface{}
 func escape(p interface{}) interface{} {
 	gcinfoSink = p
 	return p
+}
+
+var infoPtr = []byte{typePointer}
+
+type Ptr struct {
+	*byte
 }
 
 var infoPtr10 = []byte{typePointer, typePointer, typePointer, typePointer, typePointer, typePointer, typePointer, typePointer, typePointer, typePointer}
@@ -160,6 +176,7 @@ func (IfaceImpl) f() {
 
 var (
 	// BSS
+	bssPtr       Ptr
 	bssScalarPtr ScalarPtr
 	bssPtrScalar PtrScalar
 	bssBigStruct BigStruct
@@ -169,6 +186,7 @@ var (
 	bssIface     Iface
 
 	// DATA
+	dataPtr                   = Ptr{new(byte)}
 	dataScalarPtr             = ScalarPtr{q: 1}
 	dataPtrScalar             = PtrScalar{w: 1}
 	dataBigStruct             = BigStruct{w: 1}
