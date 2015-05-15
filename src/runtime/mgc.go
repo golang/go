@@ -703,7 +703,7 @@ func startGC(mode int) {
 	// trying to run gc while holding a lock. The next mallocgc without a lock
 	// will do the gc instead.
 	mp := acquirem()
-	if gp := getg(); gp == mp.g0 || mp.locks > 1 || !memstats.enablegc || panicking != 0 || gcpercent < 0 {
+	if gp := getg(); gp == mp.g0 || mp.locks > 1 || mp.preemptoff != "" || !memstats.enablegc || panicking != 0 || gcpercent < 0 {
 		releasem(mp)
 		return
 	}
