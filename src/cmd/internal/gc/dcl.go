@@ -65,9 +65,6 @@ func popdcl() {
 		}
 		s = Pkglookup(d.Name, d.Pkg)
 		lno = int(s.Lastlineno)
-		if s.Def != nil {
-			d.whyPushed = s.Def.Op
-		}
 		dcopy(s, d)
 		d.Lastlineno = int32(lno)
 		if dflag() {
