@@ -550,9 +550,9 @@ func stopTheWorld(reason string) {
 
 // startTheWorld undoes the effects of stopTheWorld.
 func startTheWorld() {
-	getg().m.preemptoff = ""
 	semrelease(&worldsema)
 	systemstack(startTheWorldWithSema)
+	getg().m.preemptoff = ""
 }
 
 // Holding worldsema grants an M the right to try to stop the world.

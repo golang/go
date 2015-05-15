@@ -159,9 +159,7 @@ func ReadMemStats(m *MemStats) {
 		readmemstats_m(m)
 	})
 
-	getg().m.locks++ // TODO: Is this necessary?
 	startTheWorld()
-	getg().m.locks--
 }
 
 func readmemstats_m(stats *MemStats) {
