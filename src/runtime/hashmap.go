@@ -1008,6 +1008,18 @@ var zerotiny [1024]byte
 // Types allocated by package reflect are in writable memory and
 // start out with zero set to nil; we initialize those on demand.
 func mapzero(t *_type) {
+	// On ARM, atomicloadp is implemented as xadd(p, 0),
+	// so we cannot use atomicloadp on read-only memory.
+	// Check whether the pointer is in the heap; if not, it's not writable
+	// so the zero value must already be set.
+	if GOARCH == "arm" && !inheap(uintptr(unsafe.Pointer(t))) {
+		if t.zero == nil {
+			print("runtime: map element ", *t._string, " missing zero value\n")
+			throw("mapzero")
+		}
+		return
+	}
+
 	// Already done?
 	// Check without lock, so must use atomicload to sync with atomicstore in allocation case below.
 	if atomicloadp(unsafe.Pointer(&t.zero)) != nil {
