@@ -89,8 +89,8 @@ func subnode(nr *Node, ni *Node, nc *Node) {
 	t := Types[tc]
 
 	if nc.Op == OLITERAL {
-		nodfconst(nr, t, &nc.Val.U.Cval.Real)
-		nodfconst(ni, t, &nc.Val.U.Cval.Imag)
+		nodfconst(nr, t, &nc.Val.U.(*Mpcplx).Real)
+		nodfconst(ni, t, &nc.Val.U.(*Mpcplx).Imag)
 		return
 	}
 
@@ -226,7 +226,7 @@ func nodfconst(n *Node, t *Type, fval *Mpflt) {
 	n.Op = OLITERAL
 	n.Addable = true
 	ullmancalc(n)
-	n.Val.U.Fval = fval
+	n.Val.U = fval
 	n.Val.Ctype = CTFLT
 	n.Type = t
 

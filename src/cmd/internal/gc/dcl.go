@@ -830,7 +830,7 @@ func structfield(n *Node) *Type {
 	switch n.Val.Ctype {
 	case CTSTR:
 		f.Note = new(string)
-		*f.Note = n.Val.U.Sval
+		*f.Note = n.Val.U.(string)
 
 	default:
 		Yyerror("field annotation must be string")

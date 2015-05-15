@@ -140,8 +140,8 @@ ret:
 	var val Val
 	val.Ctype = CTINT
 
-	val.U.Xval = new(Mpint)
-	Mpmovecfix(val.U.Xval, v)
+	val.U = new(Mpint)
+	Mpmovecfix(val.U.(*Mpint), v)
 	n := Nod(OLITERAL, nil, nil)
 	n.Orig = nn
 	n.Val = val

@@ -302,12 +302,12 @@ func Vconv(v *Val, flag int) string {
 	switch v.Ctype {
 	case CTINT:
 		if (flag&obj.FmtSharp != 0) || fmtmode == FExp {
-			return Bconv(v.U.Xval, obj.FmtSharp)
+			return Bconv(v.U.(*Mpint), obj.FmtSharp)
 		}
-		return Bconv(v.U.Xval, 0)
+		return Bconv(v.U.(*Mpint), 0)
 
 	case CTRUNE:
-		x := Mpgetfix(v.U.Xval)
+		x := Mpgetfix(v.U.(*Mpint))
 		if ' ' <= x && x < 0x80 && x != '\\' && x != '\'' {
 			return fmt.Sprintf("'%c'", int(x))
 		}
@@ -317,34 +317,34 @@ func Vconv(v *Val, flag int) string {
 		if 0 <= x && x <= utf8.MaxRune {
 			return fmt.Sprintf("'\\U%08x'", uint64(x))
 		}
-		return fmt.Sprintf("('\\x00' + %v)", v.U.Xval)
+		return fmt.Sprintf("('\\x00' + %v)", v.U.(*Mpint))
 
 	case CTFLT:
 		if (flag&obj.FmtSharp != 0) || fmtmode == FExp {
-			return Fconv(v.U.Fval, 0)
+			return Fconv(v.U.(*Mpflt), 0)
 		}
-		return Fconv(v.U.Fval, obj.FmtSharp)
+		return Fconv(v.U.(*Mpflt), obj.FmtSharp)
 
 	case CTCPLX:
 		if (flag&obj.FmtSharp != 0) || fmtmode == FExp {
-			return fmt.Sprintf("(%v+%vi)", &v.U.Cval.Real, &v.U.Cval.Imag)
+			return fmt.Sprintf("(%v+%vi)", &v.U.(*Mpcplx).Real, &v.U.(*Mpcplx).Imag)
 		}
-		if mpcmpfltc(&v.U.Cval.Real, 0) == 0 {
-			return fmt.Sprintf("%vi", Fconv(&v.U.Cval.Imag, obj.FmtSharp))
+		if mpcmpfltc(&v.U.(*Mpcplx).Real, 0) == 0 {
+			return fmt.Sprintf("%vi", Fconv(&v.U.(*Mpcplx).Imag, obj.FmtSharp))
 		}
-		if mpcmpfltc(&v.U.Cval.Imag, 0) == 0 {
-			return Fconv(&v.U.Cval.Real, obj.FmtSharp)
+		if mpcmpfltc(&v.U.(*Mpcplx).Imag, 0) == 0 {
+			return Fconv(&v.U.(*Mpcplx).Real, obj.FmtSharp)
 		}
-		if mpcmpfltc(&v.U.Cval.Imag, 0) < 0 {
-			return fmt.Sprintf("(%v%vi)", Fconv(&v.U.Cval.Real, obj.FmtSharp), Fconv(&v.U.Cval.Imag, obj.FmtSharp))
+		if mpcmpfltc(&v.U.(*Mpcplx).Imag, 0) < 0 {
+			return fmt.Sprintf("(%v%vi)", Fconv(&v.U.(*Mpcplx).Real, obj.FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, obj.FmtSharp))
 		}
-		return fmt.Sprintf("(%v+%vi)", Fconv(&v.U.Cval.Real, obj.FmtSharp), Fconv(&v.U.Cval.Imag, obj.FmtSharp))
+		return fmt.Sprintf("(%v+%vi)", Fconv(&v.U.(*Mpcplx).Real, obj.FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, obj.FmtSharp))
 
 	case CTSTR:
-		return strconv.Quote(v.U.Sval)
+		return strconv.Quote(v.U.(string))
 
 	case CTBOOL:
-		if v.U.Bval {
+		if v.U.(bool) {
 			return "true"
 		}
 		return "false"

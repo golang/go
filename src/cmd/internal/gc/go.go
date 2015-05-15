@@ -83,13 +83,13 @@ type Mpcplx struct {
 
 type Val struct {
 	Ctype int16
-	U     struct {
-		Bval bool    // bool value CTBOOL
-		Xval *Mpint  // int CTINT, rune CTRUNE
-		Fval *Mpflt  // float CTFLT
-		Cval *Mpcplx // float CTCPLX
-		Sval string  // string CTSTR
-	}
+	// U contains one of:
+	// bool     bool when Ctype == CTBOOL
+	// *Mpint   int when Ctype == CTINT, rune when Ctype == CTRUNE
+	// *Mpflt   float when Ctype == CTFLT
+	// *Mpcplx  pair of floats when Ctype == CTCPLX
+	// string   string when Ctype == CTSTR
+	U interface{}
 }
 
 type Pkg struct {
