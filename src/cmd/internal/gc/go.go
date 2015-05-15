@@ -786,8 +786,9 @@ type Arch struct {
 	//
 	// Ginscmp must be able to handle all kinds of arguments for n1 and n2,
 	// not just simple registers, although it can assume that there are no
-	// function calls needed during the evaluation, so no in-memory temporaries
-	// are necessary.
+	// function calls needed during the evaluation, and on 32-bit systems
+	// the values are guaranteed not to be 64-bit values, so no in-memory
+	// temporaries are necessary.
 	Ginscmp func(op int, t *Type, n1, n2 *Node, likely int) *obj.Prog
 
 	// Ginsboolval inserts instructions to convert the result
