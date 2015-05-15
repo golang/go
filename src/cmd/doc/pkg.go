@@ -370,7 +370,7 @@ func (pkg *Package) symbolDoc(symbol string) {
 // structs and methods from interfaces (unless the unexported flag is set).
 func trimUnexportedElems(spec *ast.TypeSpec) {
 	if *unexported {
-		return fields
+		return
 	}
 	switch typ := spec.Type.(type) {
 	case *ast.StructType:
