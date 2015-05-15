@@ -159,21 +159,6 @@ func checkgoto(from *Node, to *Node) {
 		fs = fs.Link
 	}
 	if fs != to.Sym {
-		// more declarations at label than at goto.
-		// figure out if they are all types.
-		ts := to.Sym
-		ntt := nt
-		for ; ntt > nf; ntt-- {
-			if ts.whyPushed != OTYPE {
-				break
-			}
-			ts = ts.Link
-		}
-		// all types, nothing to see here.
-		if ntt == nf {
-			return
-		}
-
 		lno := int(lineno)
 		setlineno(from)
 
@@ -183,11 +168,11 @@ func checkgoto(from *Node, to *Node) {
 		var block *Sym
 
 		var dcl *Sym
-		ts = to.Sym
+		ts := to.Sym
 		for ; nt > nf; nt-- {
 			if ts.Pkg == nil {
 				block = ts
-			} else if ts.whyPushed != OTYPE {
+			} else {
 				dcl = ts
 			}
 			ts = ts.Link
@@ -196,7 +181,7 @@ func checkgoto(from *Node, to *Node) {
 		for ts != fs {
 			if ts.Pkg == nil {
 				block = ts
-			} else if ts.whyPushed != OTYPE {
+			} else {
 				dcl = ts
 			}
 			ts = ts.Link

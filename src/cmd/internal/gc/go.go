@@ -111,7 +111,6 @@ type Sym struct {
 	Uniqgen   uint32
 	Importdef *Pkg   // where imported definition was found
 	Linkname  string // link name
-	whyPushed uint8  // why this symbol pushed onto dclstack. Same as Node.Op. Used by goto validation
 
 	// saved and restored by dcopy
 	Pkg        *Pkg
