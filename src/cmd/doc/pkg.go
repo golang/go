@@ -115,7 +115,7 @@ func (pkg *Package) emit(comment string, node ast.Node) {
 			log.Fatal(err)
 		}
 		if comment != "" {
-			pkg.newlines(1)
+			pkg.newlines(2) // Guarantee blank line before comment.
 			doc.ToText(&pkg.buf, comment, "    ", "\t", 80)
 		}
 		pkg.newlines(1)
@@ -352,6 +352,9 @@ func (pkg *Package) symbolDoc(symbol string) {
 		}
 		pkg.emit(typ.Doc, decl)
 		// Show associated methods, constants, etc.
+		if len(typ.Consts) > 0 || len(typ.Vars) > 0 || len(typ.Funcs) > 0 || len(typ.Methods) > 0 {
+			pkg.Printf("\n")
+		}
 		pkg.valueSummary(typ.Consts)
 		pkg.valueSummary(typ.Vars)
 		pkg.funcSummary(typ.Funcs)
