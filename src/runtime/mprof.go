@@ -521,9 +521,7 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
 	n = NumGoroutine()
 	if n <= len(p) {
 		gp := getg()
-		semacquire(&worldsema, false)
-		gp.m.preemptoff = "profile"
-		systemstack(stoptheworld)
+		stopTheWorld("profile")
 
 		n = NumGoroutine()
 		if n <= len(p) {
@@ -544,9 +542,7 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
 			}
 		}
 
-		gp.m.preemptoff = ""
-		semrelease(&worldsema)
-		systemstack(starttheworld)
+		startTheWorld()
 	}
 
 	return n, ok
@@ -565,10 +561,7 @@ func saveg(pc, sp uintptr, gp *g, r *StackRecord) {
 // into buf after the trace for the current goroutine.
 func Stack(buf []byte, all bool) int {
 	if all {
-		semacquire(&worldsema, false)
-		gp := getg()
-		gp.m.preemptoff = "stack trace"
-		systemstack(stoptheworld)
+		stopTheWorld("stack trace")
 	}
 
 	n := 0
@@ -590,10 +583,7 @@ func Stack(buf []byte, all bool) int {
 	}
 
 	if all {
-		gp := getg()
-		gp.m.preemptoff = ""
-		semrelease(&worldsema)
-		systemstack(starttheworld)
+		startTheWorld()
 	}
 	return n
 }

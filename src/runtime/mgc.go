@@ -699,7 +699,7 @@ const (
 func startGC(mode int) {
 	// The gc is turned off (via enablegc) until the bootstrap has completed.
 	// Also, malloc gets called in the guts of a number of libraries that might be
-	// holding locks. To avoid deadlocks during stoptheworld, don't bother
+	// holding locks. To avoid deadlocks during stop-the-world, don't bother
 	// trying to run gc while holding a lock. The next mallocgc without a lock
 	// will do the gc instead.
 	mp := acquirem()
@@ -797,7 +797,7 @@ func gc(mode int) {
 		traceGCStart()
 	}
 
-	systemstack(stoptheworld)
+	systemstack(stopTheWorldWithSema)
 	systemstack(finishsweep_m) // finish sweep before we start concurrent scan.
 	// clearpools before we start the GC. If we wait they memory will not be
 	// reclaimed until the next GC cycle.
@@ -814,7 +814,7 @@ func gc(mode int) {
 			setGCPhase(_GCscan)
 
 			// Concurrent scan.
-			starttheworld()
+			startTheWorldWithSema()
 			if debug.gctrace > 0 {
 				tScan = nanotime()
 			}
@@ -858,7 +858,7 @@ func gc(mode int) {
 		if debug.gctrace > 0 {
 			tMarkTerm = nanotime()
 		}
-		systemstack(stoptheworld)
+		systemstack(stopTheWorldWithSema)
 		// The gcphase is _GCmark, it will transition to _GCmarktermination
 		// below. The important thing is that the wb remains active until
 		// all marking is complete. This includes writes made by the GC.
@@ -958,7 +958,7 @@ func gc(mode int) {
 		throw("gc done but gcphase != _GCoff")
 	}
 
-	systemstack(starttheworld)
+	systemstack(startTheWorldWithSema)
 
 	releasem(mp)
 	mp = nil
