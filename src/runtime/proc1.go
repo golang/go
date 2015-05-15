@@ -211,7 +211,7 @@ func helpgc(nproc int32) {
 // sched.stopwait to in order to request that all Gs permanently stop.
 const freezeStopWait = 0x7fffffff
 
-// Similar to stoptheworld but best-effort and can be called several times.
+// Similar to stopTheWorld but best-effort and can be called several times.
 // There is no reverse operation, used during crashing.
 // This function must not lock any mutexes.
 func freezetheworld() {
@@ -528,31 +528,65 @@ func quiesce(mastergp *g) {
 	mcall(mquiesce)
 }
 
+// stopTheWorld stops all P's from executing goroutines, interrupting
+// all goroutines at GC safe points and records reason as the reason
+// for the stop. On return, only the current goroutine's P is running.
+// stopTheWorld must not be called from a system stack and the caller
+// must not hold worldsema. The caller must call startTheWorld when
+// other P's should resume execution.
+//
+// stopTheWorld is safe for multiple goroutines to call at the
+// same time. Each will execute its own stop, and the stops will
+// be serialized.
+//
+// This is also used by routines that do stack dumps. If the system is
+// in panic or being exited, this may not reliably stop all
+// goroutines.
+func stopTheWorld(reason string) {
+	semacquire(&worldsema, false)
+	getg().m.preemptoff = reason
+	systemstack(stopTheWorldWithSema)
+}
+
+// startTheWorld undoes the effects of stopTheWorld.
+func startTheWorld() {
+	getg().m.preemptoff = ""
+	semrelease(&worldsema)
+	systemstack(startTheWorldWithSema)
+}
+
 // Holding worldsema grants an M the right to try to stop the world.
-// The procedure is:
-//
-//	semacquire(&worldsema);
-//	m.preemptoff = "reason";
-//	stoptheworld();
-//
-//	... do stuff ...
-//
-//	m.preemptoff = "";
-//	semrelease(&worldsema);
-//	starttheworld();
-//
 var worldsema uint32 = 1
 
-// This is used by the GC as well as the routines that do stack dumps. In the case
-// of GC all the routines can be reliably stopped. This is not always the case
-// when the system is in panic or being exited.
-func stoptheworld() {
+// stopTheWorldWithSema is the core implementation of stopTheWorld.
+// The caller is responsible for acquiring worldsema and disabling
+// preemption first and then should stopTheWorldWithSema on the system
+// stack:
+//
+//	semacquire(&worldsema, false)
+//	m.preemptoff = "reason"
+//	systemstack(stopTheWorldWithSema)
+//
+// When finished, the caller must either call startTheWorld or undo
+// these three operations separately:
+//
+//	m.preemptoff = ""
+//	semrelease(&worldsema)
+//	systemstack(startTheWorldWithSema)
+//
+// It is allowed to acquire worldsema once and then execute multiple
+// startTheWorldWithSema/stopTheWorldWithSema pairs.
+// Other P's are able to execute between successive calls to
+// startTheWorldWithSema and stopTheWorldWithSema.
+// Holding worldsema causes any other goroutines invoking
+// stopTheWorld to block.
+func stopTheWorldWithSema() {
 	_g_ := getg()
 
 	// If we hold a lock, then we won't be able to stop another M
 	// that is blocked trying to acquire the lock.
 	if _g_.m.locks > 0 {
-		throw("stoptheworld: holding locks")
+		throw("stopTheWorld: holding locks")
 	}
 
 	lock(&sched.lock)
@@ -599,12 +633,12 @@ func stoptheworld() {
 		}
 	}
 	if sched.stopwait != 0 {
-		throw("stoptheworld: not stopped")
+		throw("stopTheWorld: not stopped")
 	}
 	for i := 0; i < int(gomaxprocs); i++ {
 		p := allp[i]
 		if p.status != _Pgcstop {
-			throw("stoptheworld: not stopped")
+			throw("stopTheWorld: not stopped")
 		}
 	}
 }
@@ -614,7 +648,7 @@ func mhelpgc() {
 	_g_.m.helpgc = -1
 }
 
-func starttheworld() {
+func startTheWorldWithSema() {
 	_g_ := getg()
 
 	_g_.m.locks++        // disable preemption because it can be holding p in a local var
@@ -643,7 +677,7 @@ func starttheworld() {
 			mp := p.m.ptr()
 			p.m = 0
 			if mp.nextp != 0 {
-				throw("starttheworld: inconsistent mp->nextp")
+				throw("startTheWorld: inconsistent mp->nextp")
 			}
 			mp.nextp.set(p)
 			notewakeup(&mp.park)
@@ -1304,7 +1338,7 @@ func startlockedm(gp *g) {
 	stopm()
 }
 
-// Stops the current m for stoptheworld.
+// Stops the current m for stopTheWorld.
 // Returns when the world is restarted.
 func gcstopm() {
 	_g_ := getg()
