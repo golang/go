@@ -503,6 +503,7 @@ syntax of package template.  The default output is equivalent to -f
         Name          string // package name
         Doc           string // package documentation string
         Target        string // install path
+        Shlib         string // the shared library that contains this package (only set when -linkshared)
         Goroot        bool   // is this package in the Go root?
         Standard      bool   // is this package part of the standard Go library?
         Stale         bool   // would 'go install' do anything for this package?
@@ -1053,7 +1054,7 @@ environment variable (see 'go help gopath').
 If no import paths are given, the action applies to the
 package in the current directory.
 
-There are three reserved names for paths that should not be used
+There are four reserved names for paths that should not be used
 for packages to be built with the go tool:
 
 - "main" denotes the top-level package in a stand-alone executable.
