@@ -306,7 +306,7 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
  * known to be dead.
  */
 func savex(dr int, x *gc.Node, oldx *gc.Node, res *gc.Node, t *gc.Type) {
-	r := int(reg[dr])
+	r := reg[dr]
 
 	// save current ax and dx if they are live
 	// and not the destination
@@ -318,7 +318,7 @@ func savex(dr int, x *gc.Node, oldx *gc.Node, res *gc.Node, t *gc.Type) {
 		x.Type = gc.Types[gc.TINT64]
 		gmove(x, oldx)
 		x.Type = t
-		oldx.Ostk = int32(r) // squirrel away old r value
+		oldx.Etype = r // squirrel away old r value
 		reg[dr] = 1
 	}
 }
@@ -326,7 +326,7 @@ func savex(dr int, x *gc.Node, oldx *gc.Node, res *gc.Node, t *gc.Type) {
 func restx(x *gc.Node, oldx *gc.Node) {
 	if oldx.Op != 0 {
 		x.Type = gc.Types[gc.TINT64]
-		reg[x.Reg] = uint8(oldx.Ostk)
+		reg[x.Reg] = oldx.Etype
 		gmove(oldx, x)
 		gc.Regfree(oldx)
 	}
