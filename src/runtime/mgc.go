@@ -127,13 +127,22 @@ const (
 	_RootCount       = 5
 )
 
-// heapminimum is the minimum number of bytes in the heap.
-// This cleans up the corner case of where we have a very small live set but a lot
-// of allocations and collecting every GOGC * live set is expensive.
-// heapminimum is adjust by multiplying it by GOGC/100. In
-// the special case of GOGC==0 this will set heapminimum to 0 resulting
-// collecting at every allocation even when the heap size is small.
-var heapminimum = uint64(4 << 20)
+// heapminimum is the minimum heap size at which to trigger GC.
+// For small heaps, this overrides the usual GOGC*live set rule.
+//
+// When there is a very small live set but a lot of allocation, simply
+// collecting when the heap reaches GOGC*live results in many GC
+// cycles and high total per-GC overhead. This minimum amortizes this
+// per-GC overhead while keeping the heap reasonably small.
+//
+// During initialization this is set to 4MB*GOGC/100. In the case of
+// GOGC==0, this will set heapminimum to 0, resulting in constant
+// collection even when the heap size is small, which is useful for
+// debugging.
+var heapminimum uint64 = defaultHeapMinimum
+
+// defaultHeapMinimum is the value of heapminimum for GOGC==100.
+const defaultHeapMinimum = 4 << 20
 
 // Initialized from $GOGC.  GOGC=off means no GC.
 var gcpercent int32
@@ -180,7 +189,7 @@ func setGCPercent(in int32) (out int32) {
 		in = -1
 	}
 	gcpercent = in
-	heapminimum = heapminimum * uint64(gcpercent) / 100
+	heapminimum = defaultHeapMinimum * uint64(gcpercent) / 100
 	unlock(&mheap_.lock)
 	return out
 }
