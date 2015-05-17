@@ -36,7 +36,7 @@ fi
 targets="$((ls runtime | sed -n 's/^rt0_\(.*\)_\(.*\)\.s/\1-\2/p'; echo linux-386-387 linux-arm-arm5) | sort | egrep -v android-arm | egrep "$pattern" | egrep 'linux|nacl')
 $(ls runtime | sed -n 's/^rt0_\(.*\)_\(.*\)\.s/\1-\2/p' | egrep -v 'android-arm|darwin-arm' | egrep "$pattern" | egrep -v 'linux|nacl')"
 
-./make.bash
+./make.bash || exit 1
 GOROOT="$(cd .. && pwd)"
 
 failed=false
