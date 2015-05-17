@@ -276,7 +276,7 @@ func pathFor(root, pkg string) (result string) {
 			return filepath.SkipDir
 		}
 		// Is the tail of the path correct?
-		if strings.HasSuffix(pathName, pkgString) {
+		if strings.HasSuffix(pathName, pkgString) && hasGoFiles(pathName) {
 			result = pathName
 			panic(nil)
 		}
@@ -285,6 +285,31 @@ func pathFor(root, pkg string) (result string) {
 
 	filepath.Walk(root, visit)
 	return "" // Call to panic above sets the real value.
+}
+
+// hasGoFiles tests whether the directory contains at least one file with ".go"
+// extension
+func hasGoFiles(path string) bool {
+	dir, err := os.Open(path)
+	if err != nil {
+		// ignore unreadable directories
+		return false
+	}
+	defer dir.Close()
+
+	names, err := dir.Readdirnames(0)
+	if err != nil {
+		// ignore unreadable directories
+		return false
+	}
+
+	for _, name := range names {
+		if strings.HasSuffix(name, ".go") {
+			return true
+		}
+	}
+
+	return false
 }
 
 // pwd returns the current directory.
