@@ -1393,3 +1393,27 @@ func TestInvalidUnmarshal(t *testing.T) {
 		}
 	}
 }
+
+// Test that string option is ignored for invalid types.
+// Issue 9812.
+func TestInvalidStringOption(t *testing.T) {
+	num := 0
+	item := struct {
+		T time.Time         `json:",string"`
+		M map[string]string `json:",string"`
+		S []string          `json:",string"`
+		A [1]string         `json:",string"`
+		I interface{}       `json:",string"`
+		P *int              `json:",string"`
+	}{M: make(map[string]string), S: make([]string, 0), I: num, P: &num}
+
+	data, err := Marshal(item)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+
+	err = Unmarshal(data, &item)
+	if err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+}
