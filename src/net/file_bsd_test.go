@@ -49,8 +49,11 @@ func TestSocketConn(t *testing.T) {
 	defer c.Close()
 
 	const N = 3
+	var wg sync.WaitGroup
+	wg.Add(2 * N)
 	for i := 0; i < N; i++ {
 		go func(i int) {
+			defer wg.Done()
 			l := syscall.SizeofRtMsghdr + syscall.SizeofSockaddrInet4
 			if freebsd32o64 {
 				l += syscall.SizeofRtMetrics // see syscall/route_freebsd_32bit.go
@@ -73,8 +76,6 @@ func TestSocketConn(t *testing.T) {
 			}
 		}(i + 1)
 	}
-	var wg sync.WaitGroup
-	wg.Add(N)
 	for i := 0; i < N; i++ {
 		go func() {
 			defer wg.Done()
