@@ -82,7 +82,7 @@ func main() {
 			}
 		}()
 	}
-	runs := 0
+	runs, fails := 0, 0
 	ticker := time.NewTicker(5 * time.Second).C
 	for {
 		select {
@@ -91,6 +91,7 @@ func main() {
 			if len(out) == 0 {
 				continue
 			}
+			fails++
 			f, err := ioutil.TempFile("", "go-stress")
 			if err != nil {
 				fmt.Printf("failed to create temp file: %v\n", err)
@@ -103,7 +104,7 @@ func main() {
 			}
 			fmt.Printf("\n%s\n%s\n", f.Name(), out)
 		case <-ticker:
-			fmt.Printf("%v runs so far\n", runs)
+			fmt.Printf("%v runs so far, %v failures\n", runs, fails)
 		}
 	}
 }
