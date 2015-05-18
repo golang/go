@@ -61,9 +61,11 @@ import (
 
 var ForkLock sync.RWMutex
 
-// StringSlicePtr is deprecated. Use SlicePtrFromStrings instead.
-// If any string contains a NUL byte this function panics instead
-// of returning an error.
+// StringSlicePtr converts a slice of strings to a slice of pointers
+// to NUL-terminated byte arrays. If any string contains a NUL byte
+// this function panics instead of returning an error.
+//
+// Deprecated: Use SlicePtrFromStrings instead.
 func StringSlicePtr(ss []string) []*byte {
 	bb := make([]*byte, len(ss)+1)
 	for i := 0; i < len(ss); i++ {
@@ -74,7 +76,7 @@ func StringSlicePtr(ss []string) []*byte {
 }
 
 // SlicePtrFromStrings converts a slice of strings to a slice of
-// pointers to NUL-terminated byte slices. If any string contains
+// pointers to NUL-terminated byte arrays. If any string contains
 // a NUL byte, it returns (nil, EINVAL).
 func SlicePtrFromStrings(ss []string) ([]*byte, error) {
 	var err error

@@ -89,7 +89,7 @@ var unzig = [blockSize]int{
 	53, 60, 61, 54, 47, 55, 62, 63,
 }
 
-// Reader is deprecated.
+// Deprecated: Reader is deprecated.
 type Reader interface {
 	io.ByteReader
 	io.Reader
