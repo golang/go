@@ -59,9 +59,12 @@ func TestSocketPacketConn(t *testing.T) {
 	defer c.Close()
 
 	const N = 3
+	var wg sync.WaitGroup
+	wg.Add(2 * N)
 	dst := &netlinkAddr{PID: 0}
 	for i := 0; i < N; i++ {
 		go func() {
+			defer wg.Done()
 			l := syscall.NLMSG_HDRLEN + syscall.SizeofRtGenmsg
 			b := make([]byte, l)
 			*(*uint32)(unsafe.Pointer(&b[0:4][0])) = uint32(l)
@@ -76,8 +79,6 @@ func TestSocketPacketConn(t *testing.T) {
 			}
 		}()
 	}
-	var wg sync.WaitGroup
-	wg.Add(N)
 	for i := 0; i < N; i++ {
 		go func() {
 			defer wg.Done()
