@@ -81,8 +81,8 @@ type FileHeader struct {
 	ModifiedTime       uint16 // MS-DOS time
 	ModifiedDate       uint16 // MS-DOS date
 	CRC32              uint32
-	CompressedSize     uint32 // deprecated; use CompressedSize64
-	UncompressedSize   uint32 // deprecated; use UncompressedSize64
+	CompressedSize     uint32 // Deprecated: Use CompressedSize64 instead.
+	UncompressedSize   uint32 // Deprecated: Use UncompressedSize64 instead.
 	CompressedSize64   uint64
 	UncompressedSize64 uint64
 	Extra              []byte
