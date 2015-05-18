@@ -19,6 +19,19 @@ const (
 // Signal forwarding is currently available only on Linux.
 var fwdSig [_NSIG]uintptr
 
+// sigmask represents a general signal mask compatible with the GOOS
+// specific sigset types: the signal numbered x is represented by bit x-1
+// to match the representation expected by sigprocmask.
+type sigmask [(_NSIG + 31) / 32]uint32
+
+// channels for synchronizing signal mask updates with the signal mask
+// thread
+var (
+	disableSigChan  chan uint32
+	enableSigChan   chan uint32
+	maskUpdatedChan chan struct{}
+)
+
 func initsig() {
 	// _NSIG is the number of signals on this operating system.
 	// sigtable should describe what to do for all the possible signals.
@@ -61,12 +74,17 @@ func sigenable(sig uint32) {
 	}
 
 	t := &sigtable[sig]
-	if t.flags&_SigNotify != 0 && t.flags&_SigHandling == 0 {
-		t.flags |= _SigHandling
-		if getsig(int32(sig)) == _SIG_IGN {
-			t.flags |= _SigIgnored
+	if t.flags&_SigNotify != 0 {
+		ensureSigM()
+		enableSigChan <- sig
+		<-maskUpdatedChan
+		if t.flags&_SigHandling == 0 {
+			t.flags |= _SigHandling
+			if getsig(int32(sig)) == _SIG_IGN {
+				t.flags |= _SigIgnored
+			}
+			setsig(int32(sig), funcPC(sighandler), true)
 		}
-		setsig(int32(sig), funcPC(sighandler), true)
 	}
 }
 
@@ -76,12 +94,17 @@ func sigdisable(sig uint32) {
 	}
 
 	t := &sigtable[sig]
-	if t.flags&_SigNotify != 0 && t.flags&_SigHandling != 0 {
-		t.flags &^= _SigHandling
-		if t.flags&_SigIgnored != 0 {
-			setsig(int32(sig), _SIG_IGN, true)
-		} else {
-			setsig(int32(sig), _SIG_DFL, true)
+	if t.flags&_SigNotify != 0 {
+		ensureSigM()
+		disableSigChan <- sig
+		<-maskUpdatedChan
+		if t.flags&_SigHandling != 0 {
+			t.flags &^= _SigHandling
+			if t.flags&_SigIgnored != 0 {
+				setsig(int32(sig), _SIG_IGN, true)
+			} else {
+				setsig(int32(sig), _SIG_DFL, true)
+			}
 		}
 	}
 }
@@ -130,7 +153,52 @@ func crash() {
 		}
 	}
 
-	unblocksignals()
+	updatesigmask(sigmask{})
 	setsig(_SIGABRT, _SIG_DFL, false)
 	raise(_SIGABRT)
+}
+
+// createSigM starts one global, sleeping thread to make sure at least one thread
+// is available to catch signals enabled for os/signal.
+func ensureSigM() {
+	if maskUpdatedChan != nil {
+		return
+	}
+	maskUpdatedChan = make(chan struct{})
+	disableSigChan = make(chan uint32)
+	enableSigChan = make(chan uint32)
+	go func() {
+		// Signal masks are per-thread, so make sure this goroutine stays on one
+		// thread.
+		LockOSThread()
+		defer UnlockOSThread()
+		// The sigBlocked mask contains the signals not active for os/signal,
+		// initially all signals except the essential. When signal.Notify()/Stop is called,
+		// sigenable/sigdisable in turn notify this thread to update its signal
+		// mask accordingly.
+		var sigBlocked sigmask
+		for i := range sigBlocked {
+			sigBlocked[i] = ^uint32(0)
+		}
+		for i := range sigtable {
+			if sigtable[i].flags&_SigUnblock != 0 {
+				sigBlocked[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
+			}
+		}
+		updatesigmask(sigBlocked)
+		for {
+			select {
+			case sig := <-enableSigChan:
+				if b := sig - 1; b >= 0 {
+					sigBlocked[b/32] &^= (1 << (b & 31))
+				}
+			case sig := <-disableSigChan:
+				if b := sig - 1; b >= 0 {
+					sigBlocked[b/32] |= (1 << (b & 31))
+				}
+			}
+			updatesigmask(sigBlocked)
+			maskUpdatedChan <- struct{}{}
+		}
+	}()
 }

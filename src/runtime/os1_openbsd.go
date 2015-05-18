@@ -148,6 +148,9 @@ func mpreinit(mp *m) {
 	mp.gsignal.m = mp
 }
 
+func msigsave(mp *m) {
+}
+
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, can not allocate memory.
 func minit() {
@@ -217,6 +220,6 @@ func signalstack(p *byte, n int32) {
 	sigaltstack(&st, nil)
 }
 
-func unblocksignals() {
-	sigprocmask(_SIG_SETMASK, sigset_none)
+func updatesigmask(m sigmask) {
+	sigprocmask(_SIG_SETMASK, m[0])
 }

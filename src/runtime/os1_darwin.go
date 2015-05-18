@@ -8,7 +8,6 @@ import "unsafe"
 
 //extern SigTabTT runtime·sigtab[];
 
-var sigset_none = uint32(0)
 var sigset_all = ^uint32(0)
 
 func unimplemented(name string) {
@@ -126,17 +125,36 @@ func mpreinit(mp *m) {
 	mp.gsignal.m = mp
 }
 
+func msigsave(mp *m) {
+	smask := (*uint32)(unsafe.Pointer(&mp.sigmask))
+	if unsafe.Sizeof(*smask) > unsafe.Sizeof(mp.sigmask) {
+		throw("insufficient storage for signal mask")
+	}
+	sigprocmask(_SIG_SETMASK, nil, smask)
+}
+
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, can not allocate memory.
 func minit() {
 	// Initialize signal handling.
 	_g_ := getg()
 	signalstack((*byte)(unsafe.Pointer(_g_.m.gsignal.stack.lo)), 32*1024)
-	sigprocmask(_SIG_SETMASK, &sigset_none, nil)
+
+	// restore signal mask from m.sigmask and unblock essential signals
+	nmask := *(*uint32)(unsafe.Pointer(&_g_.m.sigmask))
+	for i := range sigtable {
+		if sigtable[i].flags&_SigUnblock != 0 {
+			nmask &^= 1 << (uint32(i) - 1)
+		}
+	}
+	sigprocmask(_SIG_SETMASK, &nmask, nil)
 }
 
 // Called from dropm to undo the effect of an minit.
 func unminit() {
+	_g_ := getg()
+	smask := (*uint32)(unsafe.Pointer(&_g_.m.sigmask))
+	sigprocmask(_SIG_SETMASK, smask, nil)
 	signalstack(nil, 0)
 }
 
@@ -447,6 +465,6 @@ func signalstack(p *byte, n int32) {
 	sigaltstack(&st, nil)
 }
 
-func unblocksignals() {
-	sigprocmask(_SIG_SETMASK, &sigset_none, nil)
+func updatesigmask(m sigmask) {
+	sigprocmask(_SIG_SETMASK, &m[0], nil)
 }
