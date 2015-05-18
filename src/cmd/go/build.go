@@ -782,8 +782,8 @@ func (b *builder) action1(mode buildMode, depMode buildMode, p *Package, looksha
 			b.actionCache[key] = a
 			return a
 		}
-		pkgs := readpkglist(filepath.Join(p.build.PkgTargetRoot, shlib))
-		a = b.libaction(shlib, pkgs, modeInstall, depMode)
+		pkgs := readpkglist(shlib)
+		a = b.libaction(filepath.Base(shlib), pkgs, modeInstall, depMode)
 		b.actionCache[key2] = a
 		b.actionCache[key] = a
 		return a

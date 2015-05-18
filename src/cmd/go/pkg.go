@@ -536,7 +536,8 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 			shlibnamefile := p.target[:len(p.target)-2] + ".shlibname"
 			shlib, err := ioutil.ReadFile(shlibnamefile)
 			if err == nil {
-				p.Shlib = strings.TrimSpace(string(shlib))
+				libname := strings.TrimSpace(string(shlib))
+				p.Shlib = filepath.Join(p.build.PkgTargetRoot, libname)
 			} else if !os.IsNotExist(err) {
 				fatalf("unexpected error reading %s: %v", shlibnamefile, err)
 			}
