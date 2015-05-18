@@ -39,8 +39,9 @@ var registers = [...]Register{
 
 	// TODO X0, ...
 	// TODO: make arch-dependent
-	Register{16, "FLAGS"},
-	Register{17, "OVERWRITE"},
+	Register{16, "FP"}, // pseudo-register, actually a constant offset from SP
+	Register{17, "FLAGS"},
+	Register{18, "OVERWRITE"},
 }
 
 // countRegs returns the number of set bits in the register mask.
@@ -84,6 +85,19 @@ func regalloc(f *Func) {
 
 	var oldSched []*Value
 
+	// Hack to find fp, sp Values and assign them a register. (TODO: make not so hacky)
+	var fp, sp *Value
+	for _, v := range f.Entry.Values {
+		switch v.Op {
+		case OpSP:
+			sp = v
+			home = setloc(home, v, &registers[4]) // TODO: arch-dependent
+		case OpFP:
+			fp = v
+			home = setloc(home, v, &registers[16]) // TODO: arch-dependent
+		}
+	}
+
 	// Register allocate each block separately.  All live values will live
 	// in home locations (stack slots) between blocks.
 	for _, b := range f.Blocks {
@@ -115,6 +129,10 @@ func regalloc(f *Func) {
 		}
 		regs := make([]regInfo, numRegs)
 
+		// TODO: hack: initialize fixed registers
+		regs[4] = regInfo{sp, sp, false}
+		regs[16] = regInfo{fp, fp, false}
+
 		var used regMask  // has a 1 for each non-nil entry in regs
 		var dirty regMask // has a 1 for each dirty entry in regs
 
@@ -133,9 +151,6 @@ func regalloc(f *Func) {
 			//   - definition of v.  c will be identical to v but will live in
 			//     a register.  v will be modified into a spill of c.
 			regspec := opcodeTable[v.Op].reg
-			if v.Op == OpConvNop {
-				regspec = opcodeTable[v.Args[0].Op].reg
-			}
 			inputs := regspec[0]
 			outputs := regspec[1]
 			if len(inputs) == 0 && len(outputs) == 0 {
@@ -154,6 +169,7 @@ func regalloc(f *Func) {
 			// nospill contains registers that we can't spill because
 			// we already set them up for use by the current instruction.
 			var nospill regMask
+			nospill |= 0x10010 // SP and FP can't be spilled (TODO: arch-specific)
 
 			// Move inputs into registers
 			for _, o := range order {
@@ -215,10 +231,16 @@ func regalloc(f *Func) {
 
 					// Load w into this register
 					var c *Value
-					if w.Op == OpConst {
+					if len(w.Args) == 0 {
 						// Materialize w
-						// TODO: arch-specific MOV op
-						c = b.NewValue(OpMOVQconst, w.Type, w.Aux)
+						if w.Op == OpFP || w.Op == OpSP || w.Op == OpGlobal {
+							c = b.NewValue1(OpCopy, w.Type, nil, w)
+						} else {
+							c = b.NewValue(w.Op, w.Type, w.Aux)
+						}
+					} else if len(w.Args) == 1 && (w.Args[0].Op == OpFP || w.Args[0].Op == OpSP || w.Args[0].Op == OpGlobal) {
+						// Materialize offsets from SP/FP/Global
+						c = b.NewValue1(w.Op, w.Type, w.Aux, w.Args[0])
 					} else if wreg != 0 {
 						// Copy from another register.
 						// Typically just an optimization, but this is
@@ -317,6 +339,10 @@ func regalloc(f *Func) {
 			v := regs[r].v
 			c := regs[r].c
 			if lastUse[v.ID] <= len(oldSched) {
+				if v == v.Block.Control {
+					// link control value to register version
+					v.Block.Control = c
+				}
 				continue // not live after block
 			}
 
@@ -334,6 +360,7 @@ func regalloc(f *Func) {
 		}
 	}
 	f.RegAlloc = home
+	deadcode(f) // remove values that had all of their uses rematerialized.  TODO: separate pass?
 }
 
 // addPhiCopies adds copies of phi inputs in the blocks

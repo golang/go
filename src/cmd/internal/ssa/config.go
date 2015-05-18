@@ -9,7 +9,7 @@ import "log"
 type Config struct {
 	arch    string            // "amd64", etc.
 	ptrSize int64             // 4 or 8
-	UIntPtr Type              // pointer arithmetic type
+	Uintptr Type              // pointer arithmetic type
 	lower   func(*Value) bool // lowering function
 
 	// TODO: more stuff.  Compiler flags of interest, ...
@@ -30,9 +30,9 @@ func NewConfig(arch string) *Config {
 	}
 
 	// cache the intptr type in the config
-	c.UIntPtr = TypeUInt32
+	c.Uintptr = TypeUInt32
 	if c.ptrSize == 8 {
-		c.UIntPtr = TypeUInt64
+		c.Uintptr = TypeUInt64
 	}
 
 	return c

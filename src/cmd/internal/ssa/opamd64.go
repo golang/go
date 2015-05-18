@@ -30,6 +30,7 @@ const (
 	OpCMPQ  // arg0 compare to arg1
 	OpCMPCQ // arg0 compare to aux.(int64)
 	OpTESTQ // (arg0 & arg1) compare to 0
+	OpTESTB // (arg0 & arg1) compare to 0
 
 	// These opcodes extract a particular boolean condition from a flags value.
 	OpSETEQ // extract == condition from arg0
@@ -43,29 +44,30 @@ const (
 	// This is a pseudo-op which can't appear in assembly output.
 	OpInvertFlags // reverse direction of arg0
 
-	OpLEAQ  // arg0 + arg1 + aux.(int64)
-	OpLEAQ2 // arg0 + 2*arg1 + aux.(int64)
-	OpLEAQ4 // arg0 + 4*arg1 + aux.(int64)
-	OpLEAQ8 // arg0 + 8*arg1 + aux.(int64)
+	OpLEAQ       // arg0 + arg1 + aux.(int64)
+	OpLEAQ2      // arg0 + 2*arg1 + aux.(int64)
+	OpLEAQ4      // arg0 + 4*arg1 + aux.(int64)
+	OpLEAQ8      // arg0 + 8*arg1 + aux.(int64)
+	OpLEAQglobal // no args.  address of aux.(GlobalOffset)
 
 	// Load/store from general address
-	OpMOVQload      // Load from arg0+aux.(int64).  arg1=memory
+	OpMOVBload // Load from arg0+aux.(int64).  arg1=memory
+	OpMOVBQZXload
+	OpMOVBQSXload
+	OpMOVQload
 	OpMOVQstore     // Store arg1 to arg0+aux.(int64).  arg2=memory, returns memory.
 	OpMOVQloadidx8  // Load from arg0+arg1*8+aux.(int64).  arg2=memory
 	OpMOVQstoreidx8 // Store arg2 to arg0+arg1*8+aux.(int64).  arg3=memory, returns memory.
 
-	// Load/store from global.  aux.(GlobalOffset) encodes the global location.
+	// Load/store from global.  Same as the above loads, but arg0 is missing and aux is a GlobalOffset instead of an int64.
 	OpMOVQloadglobal  // arg0 = memory
 	OpMOVQstoreglobal // store arg0.  arg1=memory, returns memory.
 
-	// Load/store from stack slot.
-	OpMOVQloadFP  // load from FP+aux.(int64).  arg0=memory
-	OpMOVQloadSP  // load from SP+aux.(int64).  arg0=memory
-	OpMOVQstoreFP // store arg0 to FP+aux.(int64).  arg1=memory, returns memory.
-	OpMOVQstoreSP // store arg0 to SP+aux.(int64).  arg1=memory, returns memory.
-
 	// materialize a constant into a register
 	OpMOVQconst // (takes no arguments)
+
+	// move memory
+	OpREPMOVSB // arg0=destptr, arg1=srcptr, arg2=len, arg3=mem
 )
 
 type regMask uint64
@@ -89,13 +91,16 @@ var regsAMD64 = [...]string{
 	"R15",
 
 	// pseudo registers
+	"FP",
 	"FLAGS",
 	"OVERWRITE0", // the same register as the first input
 }
 
-var gp regMask = 0xef // all integer registers except SP
-var cx regMask = 0x2
-var flags regMask = 1 << 16
+var gp regMask = 0x1ffff // all integer registers (including SP&FP)
+var cx regMask = 1 << 1
+var si regMask = 1 << 6
+var di regMask = 1 << 7
+var flags regMask = 1 << 17
 
 var (
 	// gp = general purpose (integer) registers
@@ -129,13 +134,16 @@ var amd64Table = map[Op]opInfo{
 	OpCMPQ:  {asm: "CMPQ\t%I0,%I1", reg: gp2_flags}, // compute arg[0]-arg[1] and produce flags
 	OpCMPCQ: {asm: "CMPQ\t$%A,%I0", reg: gp1_flags},
 	OpTESTQ: {asm: "TESTQ\t%I0,%I1", reg: gp2_flags},
+	OpTESTB: {asm: "TESTB\t%I0,%I1", reg: gp2_flags},
 
-	OpLEAQ:  {flags: OpFlagCommutative, asm: "LEAQ\t%A(%I0)(%I1*1),%O0", reg: gp21}, // aux = int64 constant to add
-	OpLEAQ2: {asm: "LEAQ\t%A(%I0)(%I1*2),%O0"},
-	OpLEAQ4: {asm: "LEAQ\t%A(%I0)(%I1*4),%O0"},
-	OpLEAQ8: {asm: "LEAQ\t%A(%I0)(%I1*8),%O0"},
+	OpLEAQ:       {flags: OpFlagCommutative, asm: "LEAQ\t%A(%I0)(%I1*1),%O0", reg: gp21}, // aux = int64 constant to add
+	OpLEAQ2:      {asm: "LEAQ\t%A(%I0)(%I1*2),%O0"},
+	OpLEAQ4:      {asm: "LEAQ\t%A(%I0)(%I1*4),%O0"},
+	OpLEAQ8:      {asm: "LEAQ\t%A(%I0)(%I1*8),%O0"},
+	OpLEAQglobal: {asm: "LEAQ\t%A(SB),%O0", reg: gp01},
 
 	// loads and stores
+	OpMOVBload:      {asm: "MOVB\t%A(%I0),%O0", reg: gpload},
 	OpMOVQload:      {asm: "MOVQ\t%A(%I0),%O0", reg: gpload},
 	OpMOVQstore:     {asm: "MOVQ\t%I1,%A(%I0)", reg: gpstore},
 	OpMOVQloadidx8:  {asm: "MOVQ\t%A(%I0)(%I1*8),%O0", reg: gploadidx},
@@ -145,16 +153,11 @@ var amd64Table = map[Op]opInfo{
 
 	OpStaticCall: {asm: "CALL\t%A(SB)"},
 
-	OpCopy: {asm: "MOVQ\t%I0,%O0", reg: gp11},
+	OpCopy:    {asm: "MOVQ\t%I0,%O0", reg: gp11}, // TODO: make arch-specific
+	OpConvNop: {asm: "MOVQ\t%I0,%O0", reg: gp11}, // TODO: make arch-specific.  Or get rid of this altogether.
 
 	// convert from flags back to boolean
 	OpSETL: {},
-
-	// ops for load/store to stack
-	OpMOVQloadFP:  {asm: "MOVQ\t%A(FP),%O0", reg: gpload_stack},  // mem -> value
-	OpMOVQloadSP:  {asm: "MOVQ\t%A(SP),%O0", reg: gpload_stack},  // mem -> value
-	OpMOVQstoreFP: {asm: "MOVQ\t%I0,%A(FP)", reg: gpstore_stack}, // mem, value -> mem
-	OpMOVQstoreSP: {asm: "MOVQ\t%I0,%A(SP)", reg: gpstore_stack}, // mem, value -> mem
 
 	// ops for spilling of registers
 	// unlike regular loads & stores, these take no memory argument.
@@ -162,6 +165,8 @@ var amd64Table = map[Op]opInfo{
 	// TODO: different widths, float
 	OpLoadReg8:  {asm: "MOVQ\t%I0,%O0"},
 	OpStoreReg8: {asm: "MOVQ\t%I0,%O0"},
+
+	OpREPMOVSB: {asm: "REP MOVSB", reg: [2][]regMask{{di, si, cx, 0}, {0}}}, // TODO: record that si/di/cx are clobbered
 }
 
 func init() {

@@ -245,6 +245,12 @@ func genResult(w io.Writer, result string) {
 func genResult0(w io.Writer, result string, alloc *int, top bool) string {
 	if result[0] != '(' {
 		// variable
+		if top {
+			fmt.Fprintf(w, "v.Op = %s.Op\n", result)
+			fmt.Fprintf(w, "v.Aux = %s.Aux\n", result)
+			fmt.Fprintf(w, "v.resetArgs()\n")
+			fmt.Fprintf(w, "v.AddArgs(%s.Args...)\n", result)
+		}
 		return result
 	}
 
@@ -297,20 +303,33 @@ func split(s string) []string {
 
 outer:
 	for s != "" {
-		d := 0         // depth of ({[<
-		nonsp := false // found a non-space char so far
+		d := 0               // depth of ({[<
+		var open, close byte // opening and closing markers ({[< or )}]>
+		nonsp := false       // found a non-space char so far
 		for i := 0; i < len(s); i++ {
-			switch s[i] {
-			case '(', '{', '[', '<':
+			switch {
+			case d == 0 && s[i] == '(':
+				open, close = '(', ')'
 				d++
-			case ')', '}', ']', '>':
-				d--
-			case ' ', '\t':
-				if d == 0 && nonsp {
+			case d == 0 && s[i] == '<':
+				open, close = '<', '>'
+				d++
+			case d == 0 && s[i] == '[':
+				open, close = '[', ']'
+				d++
+			case d == 0 && s[i] == '{':
+				open, close = '{', '}'
+				d++
+			case d == 0 && (s[i] == ' ' || s[i] == '\t'):
+				if nonsp {
 					r = append(r, strings.TrimSpace(s[:i]))
 					s = s[i:]
 					continue outer
 				}
+			case d > 0 && s[i] == open:
+				d++
+			case d > 0 && s[i] == close:
+				d--
 			default:
 				nonsp = true
 			}
