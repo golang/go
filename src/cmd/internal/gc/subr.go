@@ -371,8 +371,12 @@ func Nod(op int, nleft *Node, nright *Node) *Node {
 	switch op {
 	case OCLOSURE, ODCLFUNC:
 		n.Func = new(Func)
+		n.Param = new(Param)
 	case ONAME:
 		n.Name = new(Name)
+		n.Param = new(Param)
+	case ODCLFIELD:
+		n.Param = new(Param)
 	}
 	return n
 }

@@ -813,7 +813,7 @@ OpSwitch:
 		var l *Node
 		for l = n.Left; l != r; l = l.Left {
 			l.Addrtaken = true
-			if l.Closure != nil {
+			if l.Param != nil && l.Closure != nil {
 				l.Closure.Addrtaken = true
 			}
 		}
@@ -822,7 +822,7 @@ OpSwitch:
 			Fatal("found non-orig name node %v", l)
 		}
 		l.Addrtaken = true
-		if l.Closure != nil {
+		if l.Param != nil && l.Closure != nil {
 			l.Closure.Addrtaken = true
 		}
 		defaultlit(&n.Left, nil)
@@ -3273,13 +3273,13 @@ func checkassign(stmt *Node, n *Node) {
 		var l *Node
 		for l = n; l != r; l = l.Left {
 			l.Assigned = true
-			if l.Closure != nil {
+			if l.Param != nil && l.Closure != nil {
 				l.Closure.Assigned = true
 			}
 		}
 
 		l.Assigned = true
-		if l.Closure != nil {
+		if l.Param != nil && l.Closure != nil {
 			l.Closure.Assigned = true
 		}
 	}
