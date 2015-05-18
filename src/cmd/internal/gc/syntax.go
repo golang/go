@@ -23,6 +23,60 @@ type Node struct {
 	List  *NodeList
 	Rlist *NodeList
 
+	// most nodes
+	Type  *Type
+	Orig  *Node // original form, for printing, and tracking copies of ONAMEs
+	Nname *Node
+
+	// func
+	Func *Func
+
+	// ONAME
+	Name     *Name
+	Defn     *Node // ONAME: initializing assignment; OLABEL: labeled statement
+	Pack     *Node // real package for import . names
+	Curfn    *Node // function for local variables
+	Paramfld *Type // TFIELD for this PPARAM; also for ODOT, curfn
+	Alloc    *Node // allocation call
+	*Param
+
+	// OPACK
+	Pkg *Pkg
+
+	// OARRAYLIT, OMAPLIT, OSTRUCTLIT.
+	Initplan *InitPlan
+
+	// Escape analysis.
+	Escflowsrc *NodeList // flow(this, src)
+	Escretval  *NodeList // on OCALLxxx, list of dummy return values
+
+	Sym *Sym // various
+
+	Opt interface{} // for optimization passes
+
+	// OLITERAL
+	Val Val
+
+	Xoffset  int64
+	Stkdelta int64 // offset added by stack frame compaction phase.
+
+	// Escape analysis.
+	Escloopdepth int32 // -1: global, 0: return variables, 1:function top level, increased inside function for every loop or label to mark scopes
+
+	Vargen  int32 // unique name for OTYPE/ONAME within a function.  Function outputs are numbered starting at one.
+	Lineno  int32
+	Iota    int32
+	Walkgen uint32
+
+	Funcdepth int32
+
+	// OREGISTER, OINDREG
+	Reg int16
+
+	// most nodes - smaller fields
+	Esclevel Level
+	Esc      uint16 // EscXXX
+
 	Op          uint8
 	Nointerface bool
 	Ullman      uint8 // sethi/ullman number
@@ -42,56 +96,10 @@ type Node struct {
 	Used        bool
 	Isddd       bool // is the argument variadic
 	Implicit    bool
-	Addrtaken   bool   // address taken, even if not moved to heap
-	Assigned    bool   // is the variable ever assigned to
-	Likely      int8   // likeliness of if statement
-	Hasbreak    bool   // has break statement
-	Esc         uint16 // EscXXX
-	Funcdepth   int32
-
-	// most nodes
-	Type  *Type
-	Orig  *Node // original form, for printing, and tracking copies of ONAMEs
-	Nname *Node
-
-	// func
-	Func *Func
-
-	// OLITERAL
-	Val Val
-
-	// OREGISTER, OINDREG
-	Reg int16
-
-	// ONAME
-	Name     *Name
-	Defn     *Node // ONAME: initializing assignment; OLABEL: labeled statement
-	Pack     *Node // real package for import . names
-	Curfn    *Node // function for local variables
-	Paramfld *Type // TFIELD for this PPARAM; also for ODOT, curfn
-	Alloc    *Node // allocation call
-	*Param
-
-	// OPACK
-	Pkg *Pkg
-
-	// OARRAYLIT, OMAPLIT, OSTRUCTLIT.
-	Initplan *InitPlan
-
-	// Escape analysis.
-	Escflowsrc   *NodeList // flow(this, src)
-	Escretval    *NodeList // on OCALLxxx, list of dummy return values
-	Escloopdepth int32     // -1: global, 0: return variables, 1:function top level, increased inside function for every loop or label to mark scopes
-
-	Sym      *Sym  // various
-	Vargen   int32 // unique name for OTYPE/ONAME within a function.  Function outputs are numbered starting at one.
-	Lineno   int32
-	Xoffset  int64
-	Stkdelta int64 // offset added by stack frame compaction phase.
-	Iota     int32
-	Walkgen  uint32
-	Esclevel Level
-	Opt      interface{} // for optimization passes
+	Addrtaken   bool // address taken, even if not moved to heap
+	Assigned    bool // is the variable ever assigned to
+	Likely      int8 // likeliness of if statement
+	Hasbreak    bool // has break statement
 }
 
 // Name holds Node fields used only by ONAME nodes.
