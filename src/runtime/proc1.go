@@ -944,6 +944,7 @@ func needm(x byte) {
 	_g_.stack.lo = uintptr(noescape(unsafe.Pointer(&x))) - 32*1024
 	_g_.stackguard0 = _g_.stack.lo + _StackGuard
 
+	msigsave(mp)
 	// Initialize this thread to use the m.
 	asminit()
 	minit()
@@ -1071,6 +1072,7 @@ func unlockextra(mp *m) {
 func newm(fn func(), _p_ *p) {
 	mp := allocm(_p_, fn)
 	mp.nextp.set(_p_)
+	msigsave(mp)
 	if iscgo {
 		var ts cgothreadstart
 		if _cgo_thread_start == nil {
