@@ -611,8 +611,8 @@ func scanobject(b uintptr, gcw *gcWork) {
 		obj := *(*uintptr)(unsafe.Pointer(b + i))
 
 		// At this point we have extracted the next potential pointer.
-		// Check if it points into heap.
-		if obj != 0 && arena_start <= obj && obj < arena_used {
+		// Check if it points into heap and not back at the current object.
+		if obj != 0 && arena_start <= obj && obj < arena_used && obj-b >= n {
 			// Mark the object.
 			if obj, hbits, span := heapBitsForObject(obj); obj != 0 {
 				greyobject(obj, b, i, hbits, span, gcw)
