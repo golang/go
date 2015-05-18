@@ -2156,14 +2156,27 @@ func bins(typ *Type, res *Node, a, likely int, to *obj.Prog) {
 	}
 }
 
-/*
- * n is on stack, either local variable
- * or return value from function call.
- * return n's offset from SP.
- */
+// stkof returns n's offset from SP if n is on the stack
+// (either a local variable or the return value from a function call
+// or the arguments to a function call).
+// If n is not on the stack, stkof returns -1000.
+// If n is on the stack but in an unknown location
+// (due to array index arithmetic), stkof returns +1000.
+//
+// NOTE(rsc): It is possible that the ODOT and OINDEX cases
+// are not relevant here, since it shouldn't be possible for them
+// to be involved in an overlapping copy. Only function results
+// from one call and the arguments to the next can overlap in
+// any non-trivial way. If they can be dropped, then this function
+// becomes much simpler and also more trustworthy.
+// The fact that it works at all today is probably due to the fact
+// that ODOT and OINDEX are irrelevant.
 func stkof(n *Node) int64 {
 	switch n.Op {
 	case OINDREG:
+		if n.Reg != int16(Thearch.REGSP) {
+			return -1000 // not on stack
+		}
 		return n.Xoffset
 
 	case ODOT:
@@ -2172,7 +2185,7 @@ func stkof(n *Node) int64 {
 			break
 		}
 		off := stkof(n.Left)
-		if off == -1000 || off == 1000 {
+		if off == -1000 || off == +1000 {
 			return off
 		}
 		return off + n.Xoffset
@@ -2183,13 +2196,13 @@ func stkof(n *Node) int64 {
 			break
 		}
 		off := stkof(n.Left)
-		if off == -1000 || off == 1000 {
+		if off == -1000 || off == +1000 {
 			return off
 		}
 		if Isconst(n.Right, CTINT) {
 			return off + t.Type.Width*Mpgetfix(n.Right.Val.U.(*Mpint))
 		}
-		return 1000
+		return +1000 // on stack but not sure exactly where
 
 	case OCALLMETH, OCALLINTER, OCALLFUNC:
 		t := n.Left.Type
@@ -2210,7 +2223,7 @@ func stkof(n *Node) int64 {
 
 	// botch - probably failing to recognize address
 	// arithmetic on the above. eg INDEX and DOT
-	return -1000
+	return -1000 // not on stack
 }
 
 /*
