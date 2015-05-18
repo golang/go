@@ -1168,6 +1168,18 @@ func gcBgMarkDone() {
 	}
 }
 
+// gcMarkWorkAvailable determines if mark work is readily available.
+// It is used by the scheduler to decide if this p run a mark work.
+func gcMarkWorkAvailable(p *p) bool {
+	if !p.gcw.empty() {
+		return true
+	}
+	if atomicload64(&work.full) != 0 || atomicload64(&work.partial) != 0 {
+		return true // global work available
+	}
+	return false
+}
+
 // gcFlushGCWork disposes the gcWork caches of all Ps. The world must
 // be stopped.
 //go:nowritebarrier
