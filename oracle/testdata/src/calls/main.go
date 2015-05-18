@@ -1,5 +1,9 @@
 package main
 
+import (
+	"fmt"
+)
+
 // Tests of call-graph queries.
 // See go.tools/oracle/oracle_test.go for explanation.
 // See calls.golden for expected query results.
@@ -11,6 +15,9 @@ func A(x *int) { // @pointsto pointsto-A-x "x"
 
 func B(x *int) { // @pointsto pointsto-B-x "x"
 	// @callers callers-B "^"
+}
+
+func foo() {
 }
 
 // apply is not (yet) treated context-sensitively.
@@ -70,12 +77,23 @@ func main() {
 
 	i = new(myint)
 	i.f() // @callees callees-not-a-wrapper "f"
+
+	// statically dispatched calls. Handled specially by callees, so test that they work.
+	foo()         // @callees callees-static-call "foo"
+	fmt.Println() // @callees callees-qualified-call "Println"
+	m := new(method)
+	m.f() // @callees callees-static-method-call "f"
 }
 
 type myint int
 
 func (myint) f() {
 	// @callers callers-not-a-wrapper "^"
+}
+
+type method int
+
+func (method) f() {
 }
 
 var dynamic = func() {}

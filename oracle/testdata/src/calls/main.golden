@@ -84,6 +84,18 @@ dynamic method call on nil value
 this dynamic method call dispatches to:
 	(main.myint).f
 
+-------- @callees callees-static-call --------
+this static function call dispatches to:
+	main.foo
+
+-------- @callees callees-qualified-call --------
+this static function call dispatches to:
+	fmt.Println
+
+-------- @callees callees-static-method-call --------
+this static function call dispatches to:
+	(main.method).f
+
 -------- @callers callers-not-a-wrapper --------
 (main.myint).f is called from these 1 sites:
 	dynamic method call from main.main
