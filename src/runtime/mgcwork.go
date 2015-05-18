@@ -182,6 +182,13 @@ func (w *gcWork) balance() {
 	}
 }
 
+// empty returns true if w has no mark work available.
+//go:nowritebarrier
+func (w *gcWork) empty() bool {
+	wbuf := w.wbuf
+	return wbuf == 0 || wbuf.ptr().nobj == 0
+}
+
 // Internally, the GC work pool is kept in arrays in work buffers.
 // The gcWork interface caches a work buffer until full (or empty) to
 // avoid contending on the global work buffer lists.
