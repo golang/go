@@ -128,3 +128,19 @@ func f13(x []int, y *[]int) {
 func f14(y *[]int) {
 	*y = append(*y, 1) // ERROR "write barrier"
 }
+
+type T1 struct {
+	X *int
+}
+
+func f15(x []T1, y T1) []T1 {
+	return append(x, y) // ERROR "write barrier"
+}
+
+type T8 struct {
+	X [8]*int
+}
+
+func f16(x []T8, y T8) []T8 {
+	return append(x, y) // ERROR "write barrier"
+}
