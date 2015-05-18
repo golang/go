@@ -4,6 +4,8 @@
 
 package ssa
 
+import "fmt"
+
 // An Op encodes the specific operation that a Value performs.
 // Opcodes' semantics can be modified by the type and aux fields of the Value.
 // For instance, OpAdd can be 32 or 64 bit, signed or unsigned, float or complex, depending on Value.Type.
@@ -47,8 +49,11 @@ const (
 	OpArg    // address of a function parameter/result.  Memory input is an arg called ".mem".  aux is a string (TODO: make it something other than a string?)
 	OpGlobal // the address of a global variable aux.(*gc.Sym)
 	OpFunc   // entry address of a function
+	OpFP     // frame pointer
+	OpSP     // stack pointer
 
 	OpCopy // output = arg0
+	OpMove // arg0=destptr, arg1=srcptr, arg2=mem, aux.(int64)=size.  Returns memory.
 	OpPhi  // select an argument based on which predecessor block we came from
 
 	OpSliceMake // arg0=ptr, arg1=len, arg2=cap
@@ -62,7 +67,8 @@ const (
 
 	OpLoad       // Load from arg0+aux.(int64).  arg1=memory
 	OpStore      // Store arg1 to arg0+aux.(int64).  arg2=memory.  Returns memory.
-	OpSliceIndex // arg0=slice, arg1=index, arg2=memory
+	OpArrayIndex // arg0=array, arg1=index.  Returns a[i]
+	OpPtrIndex   // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type
 	OpIsNonNil   // arg0 != nil
 	OpIsInBounds // 0 <= arg0 < arg1
 
@@ -74,6 +80,8 @@ const (
 
 	OpConvert // convert arg0 to another type
 	OpConvNop // interpret arg0 as another type
+
+	OpOffPtr // arg0 + aux.(int64) (arg0 and result are pointers)
 
 	// These ops return a pointer to a location on the stack.
 	OpFPAddr // FP + aux.(int64) (+ == args from caller, - == locals)
@@ -94,6 +102,15 @@ const (
 type GlobalOffset struct {
 	Global interface{} // holds a *gc.Sym
 	Offset int64
+}
+
+// offset adds x to the location specified by g and returns it.
+func (g GlobalOffset) offset(x int64) GlobalOffset {
+	return GlobalOffset{g.Global, g.Offset + x}
+}
+
+func (g GlobalOffset) String() string {
+	return fmt.Sprintf("%v+%d", g.Global, g.Offset)
 }
 
 //go:generate stringer -type=Op

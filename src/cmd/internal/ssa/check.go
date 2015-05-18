@@ -58,7 +58,7 @@ func checkFunc(f *Func) {
 			if b.Control == nil {
 				log.Panicf("exit block %s has no control value", b)
 			}
-			if b.Control.Type != TypeMem {
+			if !b.Control.Type.IsMemory() {
 				log.Panicf("exit block %s has non-memory control value %s", b, b.Control.LongString())
 			}
 		case BlockPlain:
@@ -75,7 +75,7 @@ func checkFunc(f *Func) {
 			if b.Control == nil {
 				log.Panicf("if block %s has no control value", b)
 			}
-			if b.Control.Type != TypeBool {
+			if !b.Control.Type.IsBoolean() {
 				log.Panicf("if block %s has non-bool control value %s", b, b.Control.LongString())
 			}
 		case BlockCall:
@@ -85,7 +85,7 @@ func checkFunc(f *Func) {
 			if b.Control == nil {
 				log.Panicf("call block %s has no control value", b)
 			}
-			if b.Control.Type != TypeMem {
+			if !b.Control.Type.IsMemory() {
 				log.Panicf("call block %s has non-memory control value %s", b, b.Control.LongString())
 			}
 			if b.Succs[1].Kind != BlockExit {

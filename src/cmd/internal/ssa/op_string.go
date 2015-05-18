@@ -6,16 +6,16 @@ import "fmt"
 
 const (
 	_Op_name_0 = "opInvalid"
-	_Op_name_1 = "opGenericBaseOpAddOpSubOpMulOpLessOpConstOpArgOpGlobalOpFuncOpCopyOpPhiOpSliceMakeOpSlicePtrOpSliceLenOpSliceCapOpStringMakeOpStringPtrOpStringLenOpLoadOpStoreOpSliceIndexOpIsNonNilOpIsInBoundsOpCallOpStaticCallOpConvertOpConvNopOpFPAddrOpSPAddrOpStoreReg8OpLoadReg8OpFwdRef"
-	_Op_name_2 = "opAMD64BaseOpADDQOpSUBQOpADDCQOpSUBCQOpMULQOpMULCQOpSHLQOpSHLCQOpNEGQOpADDLOpCMPQOpCMPCQOpTESTQOpSETEQOpSETNEOpSETLOpSETGEOpSETBOpInvertFlagsOpLEAQOpLEAQ2OpLEAQ4OpLEAQ8OpMOVQloadOpMOVQstoreOpMOVQloadidx8OpMOVQstoreidx8OpMOVQloadglobalOpMOVQstoreglobalOpMOVQloadFPOpMOVQloadSPOpMOVQstoreFPOpMOVQstoreSPOpMOVQconst"
+	_Op_name_1 = "opGenericBaseOpAddOpSubOpMulOpLessOpConstOpArgOpGlobalOpFuncOpFPOpSPOpCopyOpMoveOpPhiOpSliceMakeOpSlicePtrOpSliceLenOpSliceCapOpStringMakeOpStringPtrOpStringLenOpLoadOpStoreOpArrayIndexOpPtrIndexOpIsNonNilOpIsInBoundsOpCallOpStaticCallOpConvertOpConvNopOpOffPtrOpFPAddrOpSPAddrOpStoreReg8OpLoadReg8OpFwdRef"
+	_Op_name_2 = "opAMD64BaseOpADDQOpSUBQOpADDCQOpSUBCQOpMULQOpMULCQOpSHLQOpSHLCQOpNEGQOpADDLOpCMPQOpCMPCQOpTESTQOpTESTBOpSETEQOpSETNEOpSETLOpSETGEOpSETBOpInvertFlagsOpLEAQOpLEAQ2OpLEAQ4OpLEAQ8OpLEAQglobalOpMOVBloadOpMOVBQZXloadOpMOVBQSXloadOpMOVQloadOpMOVQstoreOpMOVQloadidx8OpMOVQstoreidx8OpMOVQloadglobalOpMOVQstoreglobalOpMOVQconstOpREPMOVSB"
 	_Op_name_3 = "op386Base"
 	_Op_name_4 = "opMax"
 )
 
 var (
 	_Op_index_0 = [...]uint8{0, 9}
-	_Op_index_1 = [...]uint16{0, 13, 18, 23, 28, 34, 41, 46, 54, 60, 66, 71, 82, 92, 102, 112, 124, 135, 146, 152, 159, 171, 181, 193, 199, 211, 220, 229, 237, 245, 256, 266, 274}
-	_Op_index_2 = [...]uint16{0, 11, 17, 23, 30, 37, 43, 50, 56, 63, 69, 75, 81, 88, 95, 102, 109, 115, 122, 128, 141, 147, 154, 161, 168, 178, 189, 203, 218, 234, 251, 263, 275, 288, 301, 312}
+	_Op_index_1 = [...]uint16{0, 13, 18, 23, 28, 34, 41, 46, 54, 60, 64, 68, 74, 80, 85, 96, 106, 116, 126, 138, 149, 160, 166, 173, 185, 195, 205, 217, 223, 235, 244, 253, 261, 269, 277, 288, 298, 306}
+	_Op_index_2 = [...]uint16{0, 11, 17, 23, 30, 37, 43, 50, 56, 63, 69, 75, 81, 88, 95, 102, 109, 116, 122, 129, 135, 148, 154, 161, 168, 175, 187, 197, 210, 223, 233, 244, 258, 273, 289, 306, 317, 327}
 	_Op_index_3 = [...]uint8{0, 9}
 	_Op_index_4 = [...]uint8{0, 5}
 )
@@ -24,10 +24,10 @@ func (i Op) String() string {
 	switch {
 	case i == 0:
 		return _Op_name_0
-	case 1001 <= i && i <= 1032:
+	case 1001 <= i && i <= 1037:
 		i -= 1001
 		return _Op_name_1[_Op_index_1[i]:_Op_index_1[i+1]]
-	case 2001 <= i && i <= 2035:
+	case 2001 <= i && i <= 2037:
 		i -= 2001
 		return _Op_name_2[_Op_index_2[i]:_Op_index_2[i+1]]
 	case i == 3001:
