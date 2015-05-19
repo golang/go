@@ -2217,6 +2217,9 @@ func applywritebarrier(n *Node, init **NodeList) *Node {
 			return n
 		}
 		// Use slow path always for race detector.
+		if Curfn != nil && Curfn.Func.Nowritebarrier {
+			Yyerror("write barrier prohibited")
+		}
 		if Debug_wb > 0 {
 			Warnl(int(n.Lineno), "write barrier")
 		}
