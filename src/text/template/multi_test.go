@@ -290,3 +290,9 @@ func TestRedefinition(t *testing.T) {
 		t.Fatalf("expected redefinition error; got %v", err)
 	}
 }
+
+// Issue 10879
+func TestEmptyTemplateCloneCrash(t *testing.T) {
+	t1 := New("base")
+	t1.Clone() // used to panic
+}
