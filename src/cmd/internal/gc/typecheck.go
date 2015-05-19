@@ -1027,7 +1027,7 @@ OpSwitch:
 		case TSTRING, TARRAY:
 			indexlit(&n.Right)
 			if t.Etype == TSTRING {
-				n.Type = Types[TUINT8]
+				n.Type = bytetype
 			} else {
 				n.Type = t.Type
 			}
