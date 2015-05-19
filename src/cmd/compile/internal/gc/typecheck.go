@@ -3056,9 +3056,11 @@ func typecheckcomplit(np **Node) {
 				continue
 			}
 
-			typecheck(&l.Left, Erv)
-			defaultlit(&l.Left, t.Down)
-			l.Left = assignconv(l.Left, t.Down, "map key")
+			r = l.Left
+			pushtype(r, t.Down)
+			typecheck(&r, Erv)
+			defaultlit(&r, t.Down)
+			l.Left = assignconv(r, t.Down, "map key")
 			if l.Left.Op != OCONV {
 				keydup(l.Left, hash)
 			}
