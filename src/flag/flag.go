@@ -31,7 +31,7 @@
 		fmt.Println("ip has value ", *ip)
 		fmt.Println("flagvar has value ", flagvar)
 
-	After parsing, the arguments after the flag are available as the
+	After parsing, the arguments following the flags are available as the
 	slice flag.Args() or individually as flag.Arg(i).
 	The arguments are indexed from 0 through flag.NArg()-1.
 
