@@ -2206,9 +2206,6 @@ var applywritebarrier_bv Bvec
 
 func applywritebarrier(n *Node, init **NodeList) *Node {
 	if n.Left != nil && n.Right != nil && needwritebarrier(n.Left, n.Right) {
-		if Curfn != nil && Curfn.Func.Nowritebarrier {
-			Yyerror("write barrier prohibited")
-		}
 		if flag_race == 0 {
 			if Debug_wb > 1 {
 				Warnl(int(n.Lineno), "marking %v for barrier", Nconv(n.Left, 0))
