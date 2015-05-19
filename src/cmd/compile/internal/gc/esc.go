@@ -154,7 +154,7 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
 	}
 
 	if n.Op == OCLOSURE {
-		m := v.visit(n.Closure)
+		m := v.visit(n.Param.Closure)
 		if m < min {
 			min = m
 		}
@@ -849,7 +849,7 @@ func esc(e *EscState, n *Node, up *Node) {
 			if v.Op == OXXX { // unnamed out argument; see dcl.c:/^funcargs
 				continue
 			}
-			a = v.Closure
+			a = v.Param.Closure
 			if !v.Name.Byval {
 				a = Nod(OADDR, a, nil)
 				a.Lineno = v.Lineno
@@ -1363,7 +1363,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 	}
 
 	if fn != nil && fn.Op == ONAME && fn.Class == PFUNC &&
-		fn.Defn != nil && fn.Defn.Nbody != nil && fn.Ntype != nil && fn.Defn.Esc < EscFuncTagged {
+		fn.Defn != nil && fn.Defn.Nbody != nil && fn.Param.Ntype != nil && fn.Defn.Esc < EscFuncTagged {
 		if Debug['m'] > 2 {
 			fmt.Printf("%v::esccall:: %v in recursive group\n", Ctxt.Line(int(lineno)), Nconv(n, obj.FmtShort))
 		}
@@ -1375,17 +1375,17 @@ func esccall(e *EscState, n *Node, up *Node) {
 		}
 
 		// set up out list on this call node
-		for lr := fn.Ntype.Rlist; lr != nil; lr = lr.Next {
+		for lr := fn.Param.Ntype.Rlist; lr != nil; lr = lr.Next {
 			n.Escretval = list(n.Escretval, lr.N.Left) // type.rlist ->  dclfield -> ONAME (PPARAMOUT)
 		}
 
 		// Receiver.
 		if n.Op != OCALLFUNC {
-			escassign(e, fn.Ntype.Left.Left, n.Left.Left)
+			escassign(e, fn.Param.Ntype.Left.Left, n.Left.Left)
 		}
 
 		var src *Node
-		for lr := fn.Ntype.List; ll != nil && lr != nil; ll, lr = ll.Next, lr.Next {
+		for lr := fn.Param.Ntype.List; ll != nil && lr != nil; ll, lr = ll.Next, lr.Next {
 			src = ll.N
 			if lr.N.Isddd && !n.Isddd {
 				// Introduce ODDDARG node to represent ... allocation.
@@ -1653,7 +1653,7 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
 			if leaks && Debug['m'] != 0 {
 				Warnl(int(src.Lineno), "leaking closure reference %v", Nconv(src, obj.FmtShort))
 			}
-			escwalk(e, level, dst, src.Closure)
+			escwalk(e, level, dst, src.Param.Closure)
 		}
 
 	case OPTRLIT, OADDR:

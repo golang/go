@@ -57,14 +57,14 @@ func addrescapes(n *Node) {
 
 		// expression to refer to stack copy
 		case PPARAM, PPARAMOUT:
-			n.Stackparam = Nod(OPARAM, n, nil)
+			n.Param.Stackparam = Nod(OPARAM, n, nil)
 
-			n.Stackparam.Type = n.Type
-			n.Stackparam.Addable = true
+			n.Param.Stackparam.Type = n.Type
+			n.Param.Stackparam.Addable = true
 			if n.Xoffset == BADWIDTH {
 				Fatal("addrescapes before param assignment")
 			}
-			n.Stackparam.Xoffset = n.Xoffset
+			n.Param.Stackparam.Xoffset = n.Xoffset
 			fallthrough
 
 		case PAUTO:

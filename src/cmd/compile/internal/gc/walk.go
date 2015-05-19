@@ -615,7 +615,7 @@ func walkexpr(np **Node, init **NodeList) {
 			n.Left.Func.Enter = nil
 
 			// Replace OCLOSURE with ONAME/PFUNC.
-			n.Left = n.Left.Closure.Nname
+			n.Left = n.Left.Param.Closure.Nname
 
 			// Update type of OCALLFUNC node.
 			// Output arguments had not changed, but their offsets could.
@@ -2687,8 +2687,8 @@ func paramstoheap(argin **Type, out int) *NodeList {
 		}
 		nn = list(nn, Nod(OAS, v.Name.Heapaddr, v.Alloc))
 		if v.Class&^PHEAP != PPARAMOUT {
-			as = Nod(OAS, v, v.Stackparam)
-			v.Stackparam.Typecheck = 1
+			as = Nod(OAS, v, v.Param.Stackparam)
+			v.Param.Stackparam.Typecheck = 1
 			typecheck(&as, Etop)
 			as = applywritebarrier(as, &nn)
 			nn = list(nn, as)
@@ -2711,7 +2711,7 @@ func returnsfromheap(argin **Type) *NodeList {
 		if v == nil || v.Class != PHEAP|PPARAMOUT {
 			continue
 		}
-		nn = list(nn, Nod(OAS, v.Stackparam, v))
+		nn = list(nn, Nod(OAS, v.Param.Stackparam, v))
 	}
 
 	return nn
@@ -4026,7 +4026,7 @@ func walkprintfunc(np **Node, init **NodeList) {
 	buf = fmt.Sprintf("print·%d", walkprintfunc_prgen)
 	fn.Nname = newname(Lookup(buf))
 	fn.Nname.Defn = fn
-	fn.Nname.Ntype = t
+	fn.Nname.Param.Ntype = t
 	declare(fn.Nname, PFUNC)
 
 	oldfn := Curfn
