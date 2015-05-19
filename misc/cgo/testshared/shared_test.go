@@ -192,10 +192,12 @@ func AssertIsLinkedTo(t *testing.T, path, lib string) {
 }
 
 func AssertHasRPath(t *testing.T, path, dir string) {
-	for _, dynstring := range dynStrings(path, elf.DT_RPATH) {
-		for _, rpath := range strings.Split(dynstring, ":") {
-			if filepath.Clean(rpath) == filepath.Clean(dir) {
-				return
+	for _, tag := range []elf.DynTag{elf.DT_RPATH, elf.DT_RUNPATH} {
+		for _, dynstring := range dynStrings(path, tag) {
+			for _, rpath := range strings.Split(dynstring, ":") {
+				if filepath.Clean(rpath) == filepath.Clean(dir) {
+					return
+				}
 			}
 		}
 	}
