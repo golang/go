@@ -17,7 +17,6 @@ package ld
 import (
 	"cmd/internal/obj"
 	"fmt"
-	"os"
 	"strings"
 )
 
@@ -241,7 +240,6 @@ var abbrevs = [DW_NABRV]DWAbbrev{
 			{DW_AT_low_pc, DW_FORM_addr},
 			{DW_AT_high_pc, DW_FORM_addr},
 			{DW_AT_stmt_list, DW_FORM_data4},
-			{DW_AT_comp_dir, DW_FORM_string},
 		},
 	},
 
@@ -695,9 +693,6 @@ func adddwarfrel(sec *LSym, sym *LSym, offsetbase int64, siz int, addend int64) 
 	r.Xadd = addend
 	if Iself && Thearch.Thechar == '6' {
 		addend = 0
-	}
-	if HEADTYPE == obj.Hdarwin {
-		addend += sym.Value
 	}
 	switch siz {
 	case 4:
@@ -1552,13 +1547,6 @@ func flushunit(dwinfo *DWDie, pc int64, pcsym *LSym, unitstart int64, header_len
 	}
 }
 
-func getCompilationDir() string {
-	if dir, err := os.Getwd(); err == nil {
-		return dir
-	}
-	return "/"
-}
-
 func writelines() {
 	if linesec == nil {
 		linesec = Linklookup(Ctxt, ".dwarfline", 0)
@@ -1583,9 +1571,6 @@ func writelines() {
 	newattr(dwinfo, DW_AT_language, DW_CLS_CONSTANT, int64(lang), 0)
 	newattr(dwinfo, DW_AT_stmt_list, DW_CLS_PTR, unitstart-lineo, 0)
 	newattr(dwinfo, DW_AT_low_pc, DW_CLS_ADDRESS, s.Value, s)
-	// OS X linker requires compilation dir or absolute path in comp unit name to output debug info.
-	compDir := getCompilationDir()
-	newattr(dwinfo, DW_AT_comp_dir, DW_CLS_STRING, int64(len(compDir)), compDir)
 
 	// Write .debug_line Line Number Program Header (sec 6.2.4)
 	// Fields marked with (*) must be changed for 64-bit dwarf
@@ -2098,14 +2083,6 @@ func writedwarfreloc(s *LSym) int64 {
 	return start
 }
 
-func addmachodwarfsect(prev *Section, name string) *Section {
-	sect := addsection(&Segdwarf, name, 04)
-	sect.Extnum = prev.Extnum + 1
-	sym := Linklookup(Ctxt, name, 0)
-	sym.Sect = sect
-	return sect
-}
-
 /*
  * This is the main entry point for generating dwarf.  After emitting
  * the mandatory debug_abbrev section, it calls writelines() to set up
@@ -2120,32 +2097,8 @@ func Dwarfemitdebugsections() {
 		return
 	}
 
-	if Linkmode == LinkExternal {
-		if !Iself && HEADTYPE != obj.Hdarwin {
-			return
-		}
-		if HEADTYPE == obj.Hdarwin {
-			sect := Segdata.Sect
-			// find the last section.
-			for sect.Next != nil {
-				sect = sect.Next
-			}
-			sect = addmachodwarfsect(sect, ".debug_abbrev")
-			sect = addmachodwarfsect(sect, ".debug_line")
-			sect = addmachodwarfsect(sect, ".debug_frame")
-			sect = addmachodwarfsect(sect, ".debug_info")
-		}
-		infosym = Linklookup(Ctxt, ".debug_info", 0)
-		infosym.Hide = 1
-
-		abbrevsym = Linklookup(Ctxt, ".debug_abbrev", 0)
-		abbrevsym.Hide = 1
-
-		linesym = Linklookup(Ctxt, ".debug_line", 0)
-		linesym.Hide = 1
-
-		framesym = Linklookup(Ctxt, ".debug_frame", 0)
-		framesym.Hide = 1
+	if Linkmode == LinkExternal && !Iself {
+		return
 	}
 
 	// For diagnostic messages.
@@ -2238,15 +2191,6 @@ func Dwarfemitdebugsections() {
 	for Cpos()&7 != 0 {
 		Cput(0)
 	}
-	if HEADTYPE != obj.Hdarwin {
-		dwarfemitreloc()
-	}
-}
-
-func dwarfemitreloc() {
-	if Debug['w'] != 0 { // disable dwarf
-		return
-	}
 	inforeloco = writedwarfreloc(infosec)
 	inforelocsize = Cpos() - inforeloco
 	align(inforelocsize)
@@ -2319,6 +2263,18 @@ func dwarfaddshstrings(shstrtab *LSym) {
 			elfstrdbg[ElfStrRelDebugLine] = Addstring(shstrtab, ".rel.debug_line")
 			elfstrdbg[ElfStrRelDebugFrame] = Addstring(shstrtab, ".rel.debug_frame")
 		}
+
+		infosym = Linklookup(Ctxt, ".debug_info", 0)
+		infosym.Hide = 1
+
+		abbrevsym = Linklookup(Ctxt, ".debug_abbrev", 0)
+		abbrevsym.Hide = 1
+
+		linesym = Linklookup(Ctxt, ".debug_line", 0)
+		linesym.Hide = 1
+
+		framesym = Linklookup(Ctxt, ".debug_frame", 0)
+		framesym.Hide = 1
 	}
 }
 
@@ -2464,15 +2420,14 @@ func dwarfaddelfheaders() {
 /*
  * Macho
  */
-func dwarfaddmachoheaders(ms *MachoSeg) {
+func dwarfaddmachoheaders() {
 	if Debug['w'] != 0 { // disable dwarf
 		return
 	}
 
 	// Zero vsize segments won't be loaded in memory, even so they
 	// have to be page aligned in the file.
-	fakestart := Rnd(int64(Segdwarf.Fileoff), 0x1000)
-	addr := Segdata.Vaddr + Segdata.Length
+	fakestart := abbrevo &^ 0xfff
 
 	nsect := 4
 	if pubnamessize > 0 {
@@ -2488,94 +2443,57 @@ func dwarfaddmachoheaders(ms *MachoSeg) {
 		nsect++
 	}
 
-	if Linkmode != LinkExternal {
-		ms = newMachoSeg("__DWARF", nsect)
-		ms.fileoffset = uint64(fakestart)
-		ms.filesize = Segdwarf.Filelen
-		ms.vaddr = addr
-	}
+	ms := newMachoSeg("__DWARF", nsect)
+	ms.fileoffset = uint64(fakestart)
+	ms.filesize = uint64(abbrevo) - uint64(fakestart)
+	ms.vaddr = ms.fileoffset + Segdata.Vaddr - Segdata.Fileoff
 
 	msect := newMachoSect(ms, "__debug_abbrev", "__DWARF")
 	msect.off = uint32(abbrevo)
 	msect.size = uint64(abbrevsize)
-	msect.addr = addr
-	addr += msect.size
-	msect.flag = 0x02000000
-	if abbrevsym != nil {
-		abbrevsym.Value = int64(msect.addr)
-	}
+	msect.addr = uint64(msect.off) + Segdata.Vaddr - Segdata.Fileoff
+	ms.filesize += msect.size
 
 	msect = newMachoSect(ms, "__debug_line", "__DWARF")
 	msect.off = uint32(lineo)
 	msect.size = uint64(linesize)
-	msect.addr = addr
-	addr += msect.size
-	msect.flag = 0x02000000
-	if linesym != nil {
-		linesym.Value = int64(msect.addr)
-	}
-	if linerelocsize > 0 {
-		msect.nreloc = uint32(len(linesec.R))
-		msect.reloc = uint32(linereloco)
-	}
+	msect.addr = uint64(msect.off) + Segdata.Vaddr - Segdata.Fileoff
+	ms.filesize += msect.size
 
 	msect = newMachoSect(ms, "__debug_frame", "__DWARF")
 	msect.off = uint32(frameo)
 	msect.size = uint64(framesize)
-	msect.addr = addr
-	addr += msect.size
-	msect.flag = 0x02000000
-	if framesym != nil {
-		framesym.Value = int64(msect.addr)
-	}
-	if framerelocsize > 0 {
-		msect.nreloc = uint32(len(framesec.R))
-		msect.reloc = uint32(framereloco)
-	}
+	msect.addr = uint64(msect.off) + Segdata.Vaddr - Segdata.Fileoff
+	ms.filesize += msect.size
 
 	msect = newMachoSect(ms, "__debug_info", "__DWARF")
 	msect.off = uint32(infoo)
 	msect.size = uint64(infosize)
-	msect.addr = addr
-	addr += msect.size
-	msect.flag = 0x02000000
-	if infosym != nil {
-		infosym.Value = int64(msect.addr)
-	}
-	if inforelocsize > 0 {
-		msect.nreloc = uint32(len(infosec.R))
-		msect.reloc = uint32(inforeloco)
-	}
+	msect.addr = uint64(msect.off) + Segdata.Vaddr - Segdata.Fileoff
+	ms.filesize += msect.size
 
 	if pubnamessize > 0 {
 		msect := newMachoSect(ms, "__debug_pubnames", "__DWARF")
 		msect.off = uint32(pubnameso)
 		msect.size = uint64(pubnamessize)
-		msect.addr = addr
-		addr += msect.size
-		msect.flag = 0x02000000
+		msect.addr = uint64(msect.off) + Segdata.Vaddr - Segdata.Fileoff
+		ms.filesize += msect.size
 	}
 
 	if pubtypessize > 0 {
 		msect := newMachoSect(ms, "__debug_pubtypes", "__DWARF")
 		msect.off = uint32(pubtypeso)
 		msect.size = uint64(pubtypessize)
-		msect.addr = addr
-		addr += msect.size
-		msect.flag = 0x02000000
+		msect.addr = uint64(msect.off) + Segdata.Vaddr - Segdata.Fileoff
+		ms.filesize += msect.size
 	}
 
 	if arangessize > 0 {
 		msect := newMachoSect(ms, "__debug_aranges", "__DWARF")
 		msect.off = uint32(arangeso)
 		msect.size = uint64(arangessize)
-		msect.addr = addr
-		addr += msect.size
-		msect.flag = 0x02000000
-		if arangesrelocsize > 0 {
-			msect.nreloc = uint32(len(arangessec.R))
-			msect.reloc = uint32(arangesreloco)
-		}
+		msect.addr = uint64(msect.off) + Segdata.Vaddr - Segdata.Fileoff
+		ms.filesize += msect.size
 	}
 
 	// TODO(lvd) fix gdb/python to load MachO (16 char section name limit)
@@ -2583,9 +2501,8 @@ func dwarfaddmachoheaders(ms *MachoSeg) {
 		msect := newMachoSect(ms, "__debug_gdb_scripts", "__DWARF")
 		msect.off = uint32(gdbscripto)
 		msect.size = uint64(gdbscriptsize)
-		msect.addr = addr
-		addr += msect.size
-		msect.flag = 0x02000000
+		msect.addr = uint64(msect.off) + Segdata.Vaddr - Segdata.Fileoff
+		ms.filesize += msect.size
 	}
 }
 
