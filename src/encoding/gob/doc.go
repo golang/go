@@ -6,7 +6,7 @@
 Package gob manages streams of gobs - binary values exchanged between an
 Encoder (transmitter) and a Decoder (receiver).  A typical use is transporting
 arguments and results of remote procedure calls (RPCs) such as those provided by
-package "rpc".
+package "net/rpc".
 
 The implementation compiles a custom codec for each data type in the stream and
 is most efficient when a single Encoder is used to transmit a stream of values,
@@ -83,7 +83,7 @@ allocated. Regardless, the length of the resulting slice reports the number of
 elements decoded.
 
 Functions and channels will not be sent in a gob. Attempting to encode such a value
-at top the level will fail. A struct field of chan or func type is treated exactly
+at the top level will fail. A struct field of chan or func type is treated exactly
 like an unexported field and is ignored.
 
 Gob can encode a value of any type implementing the GobEncoder or
@@ -111,11 +111,11 @@ A signed integer, i, is encoded within an unsigned integer, u.  Within u, bits 1
 upward contain the value; bit 0 says whether they should be complemented upon
 receipt.  The encode algorithm looks like this:
 
-	uint u;
+	var u uint
 	if i < 0 {
-		u = (^i << 1) | 1	// complement i, bit 0 is 1
+		u = (^uint(i) << 1) | 1 // complement i, bit 0 is 1
 	} else {
-		u = (i << 1)	// do not complement i, bit 0 is 0
+		u = (uint(i) << 1) // do not complement i, bit 0 is 0
 	}
 	encodeUnsigned(u)
 
@@ -137,9 +137,9 @@ All other slices and arrays are sent as an unsigned count followed by that many
 elements using the standard gob encoding for their type, recursively.
 
 Maps are sent as an unsigned count followed by that many key, element
-pairs. Empty but non-nil maps are sent, so if the sender has allocated
-a map, the receiver will allocate a map even if no elements are
-transmitted.
+pairs. Empty but non-nil maps are sent, so if the receiver has not allocated
+one already, one will always be allocated on receipt unless the transmitted map
+is nil and not at the top level.
 
 Structs are sent as a sequence of (field number, field value) pairs.  The field
 value is sent using the standard gob encoding for its type, recursively.  If a
@@ -246,7 +246,7 @@ where * signifies zero or more repetitions and the type id of a value must
 be predefined or be defined before the value in the stream.
 
 See "Gobs of data" for a design discussion of the gob wire format:
-http://golang.org/doc/articles/gobs_of_data.html
+http://blog.golang.org/gobs-of-data
 */
 package gob
 
