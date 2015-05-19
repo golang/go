@@ -121,6 +121,9 @@ func AddNamedImport(fset *token.FileSet, f *ast.File, name, ipath string) (added
 		// so that the sorter sees it as being in the same block.
 		pos = impDecl.Specs[insertAt-1].Pos()
 	}
+	if newImport.Name != nil {
+		newImport.Name.NamePos = pos
+	}
 	newImport.Path.ValuePos = pos
 	newImport.EndPos = pos
 

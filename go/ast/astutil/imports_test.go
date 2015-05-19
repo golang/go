@@ -378,6 +378,22 @@ import (
 	}
 }
 
+func TestDoubleAddNamedImport(t *testing.T) {
+	file := parse(t, "doublenamedimport", "package main\n")
+	AddNamedImport(fset, file, "o", "os")
+	AddNamedImport(fset, file, "i", "io")
+	want := `package main
+
+import (
+	i "io"
+	o "os"
+)
+`
+	if got := print(t, "doublenamedimport", file); got != want {
+		t.Errorf("got: %s\nwant: %s", got, want)
+	}
+}
+
 // Part of issue 8729.
 func TestDoubleAddImportWithDeclComment(t *testing.T) {
 	file := parse(t, "doubleimport", `package main
