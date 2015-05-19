@@ -1080,7 +1080,7 @@ start_complit:
 	}
 
 keyval:
-	expr ':' complitexpr
+	complitexpr ':' complitexpr
 	{
 		$$ = Nod(OKEY, $1, $3);
 	}
