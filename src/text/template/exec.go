@@ -134,7 +134,6 @@ func (t *Template) Execute(wr io.Writer, data interface{}) (err error) {
 		wr:   wr,
 		vars: []variable{{"$", value}},
 	}
-	t.init()
 	if t.Tree == nil || t.Root == nil {
 		state.errorf("%q is an incomplete or empty template%s", t.Name(), t.DefinedTemplates())
 	}
@@ -147,9 +146,6 @@ func (t *Template) Execute(wr io.Writer, data interface{}) (err error) {
 // it returns the empty string. For generating an error message here
 // and in html/template.
 func (t *Template) DefinedTemplates() string {
-	if t.common == nil {
-		return ""
-	}
 	var b bytes.Buffer
 	for name, tmpl := range t.tmpl {
 		if tmpl.Tree == nil || tmpl.Root == nil {
