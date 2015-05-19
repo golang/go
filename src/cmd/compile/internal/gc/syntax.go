@@ -38,7 +38,7 @@ type Node struct {
 	Curfn    *Node // function for local variables
 	Paramfld *Type // TFIELD for this PPARAM; also for ODOT, curfn
 	Alloc    *Node // allocation call
-	*Param
+	Param    *Param
 
 	// OPACK
 	Pkg *Pkg

@@ -1422,7 +1422,7 @@ fndcl:
 		$$ = Nod(ODCLFUNC, nil, nil);
 		$$.Nname = newfuncname($1);
 		$$.Nname.Defn = $$;
-		$$.Nname.Ntype = t;		// TODO: check if nname already has an ntype
+		$$.Nname.Param.Ntype = t;		// TODO: check if nname already has an ntype
 		declare($$.Nname, PFUNC);
 
 		funchdr($$);
@@ -1457,7 +1457,7 @@ fndcl:
 		$$.Func.Shortname = newfuncname($4);
 		$$.Nname = methodname1($$.Func.Shortname, rcvr.Right);
 		$$.Nname.Defn = $$;
-		$$.Nname.Ntype = t;
+		$$.Nname.Param.Ntype = t;
 		$$.Nname.Nointerface = nointerface;
 		declare($$.Nname, PFUNC);
 

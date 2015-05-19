@@ -813,8 +813,8 @@ OpSwitch:
 		var l *Node
 		for l = n.Left; l != r; l = l.Left {
 			l.Addrtaken = true
-			if l.Param != nil && l.Closure != nil {
-				l.Closure.Addrtaken = true
+			if l.Param != nil && l.Param.Closure != nil {
+				l.Param.Closure.Addrtaken = true
 			}
 		}
 
@@ -822,8 +822,8 @@ OpSwitch:
 			Fatal("found non-orig name node %v", l)
 		}
 		l.Addrtaken = true
-		if l.Param != nil && l.Closure != nil {
-			l.Closure.Addrtaken = true
+		if l.Param != nil && l.Param.Closure != nil {
+			l.Param.Closure.Addrtaken = true
 		}
 		defaultlit(&n.Left, nil)
 		l = n.Left
@@ -3273,14 +3273,14 @@ func checkassign(stmt *Node, n *Node) {
 		var l *Node
 		for l = n; l != r; l = l.Left {
 			l.Assigned = true
-			if l.Param != nil && l.Closure != nil {
-				l.Closure.Assigned = true
+			if l.Param != nil && l.Param.Closure != nil {
+				l.Param.Closure.Assigned = true
 			}
 		}
 
 		l.Assigned = true
-		if l.Param != nil && l.Closure != nil {
-			l.Closure.Assigned = true
+		if l.Param != nil && l.Param.Closure != nil {
+			l.Param.Closure.Assigned = true
 		}
 	}
 
@@ -3345,7 +3345,7 @@ func typecheckas(n *Node) {
 	// so that the conversion below happens).
 	n.Left = resolve(n.Left)
 
-	if n.Left.Defn != n || n.Left.Ntype != nil {
+	if n.Left.Defn != n || n.Left.Param.Ntype != nil {
 		typecheck(&n.Left, Erv|Easgn)
 	}
 
@@ -3357,7 +3357,7 @@ func typecheckas(n *Node) {
 		}
 	}
 
-	if n.Left.Defn == n && n.Left.Ntype == nil {
+	if n.Left.Defn == n && n.Left.Param.Ntype == nil {
 		defaultlit(&n.Right, nil)
 		n.Left.Type = n.Right.Type
 	}
@@ -3386,7 +3386,7 @@ func typecheckas2(n *Node) {
 		// delicate little dance.
 		ll.N = resolve(ll.N)
 
-		if ll.N.Defn != n || ll.N.Ntype != nil {
+		if ll.N.Defn != n || ll.N.Param.Ntype != nil {
 			typecheck(&ll.N, Erv|Easgn)
 		}
 	}
@@ -3410,7 +3410,7 @@ func typecheckas2(n *Node) {
 			if ll.N.Type != nil && lr.N.Type != nil {
 				lr.N = assignconv(lr.N, ll.N.Type, "assignment")
 			}
-			if ll.N.Defn == n && ll.N.Ntype == nil {
+			if ll.N.Defn == n && ll.N.Param.Ntype == nil {
 				defaultlit(&lr.N, nil)
 				ll.N.Type = lr.N.Type
 			}
@@ -3443,7 +3443,7 @@ func typecheckas2(n *Node) {
 				if t.Type != nil && ll.N.Type != nil {
 					checkassignto(t.Type, ll.N)
 				}
-				if ll.N.Defn == n && ll.N.Ntype == nil {
+				if ll.N.Defn == n && ll.N.Param.Ntype == nil {
 					ll.N.Type = t.Type
 				}
 				t = structnext(&s)
@@ -3482,7 +3482,7 @@ func typecheckas2(n *Node) {
 			if l.Type != nil && l.Type.Etype != TBOOL {
 				checkassignto(Types[TBOOL], l)
 			}
-			if l.Defn == n && l.Ntype == nil {
+			if l.Defn == n && l.Param.Ntype == nil {
 				l.Type = Types[TBOOL]
 			}
 			goto out
@@ -3646,8 +3646,8 @@ func typecheckdeftype(n *Node) {
 	setlineno(n)
 	n.Type.Sym = n.Sym
 	n.Typecheck = 1
-	typecheck(&n.Ntype, Etype)
-	t := n.Ntype.Type
+	typecheck(&n.Param.Ntype, Etype)
+	t := n.Param.Ntype.Type
 	if t == nil {
 		n.Diag = 1
 		n.Type = nil
@@ -3757,10 +3757,10 @@ func typecheckdef(n *Node) *Node {
 		break
 
 	case OLITERAL:
-		if n.Ntype != nil {
-			typecheck(&n.Ntype, Etype)
-			n.Type = n.Ntype.Type
-			n.Ntype = nil
+		if n.Param.Ntype != nil {
+			typecheck(&n.Param.Ntype, Etype)
+			n.Type = n.Param.Ntype.Type
+			n.Param.Ntype = nil
 			if n.Type == nil {
 				n.Diag = 1
 				goto ret
@@ -3809,9 +3809,9 @@ func typecheckdef(n *Node) *Node {
 		n.Type = e.Type
 
 	case ONAME:
-		if n.Ntype != nil {
-			typecheck(&n.Ntype, Etype)
-			n.Type = n.Ntype.Type
+		if n.Param.Ntype != nil {
+			typecheck(&n.Param.Ntype, Etype)
+			n.Type = n.Param.Ntype.Type
 
 			if n.Type == nil {
 				n.Diag = 1

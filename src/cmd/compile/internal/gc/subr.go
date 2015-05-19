@@ -2375,7 +2375,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 	markdcl()
 
 	this := Nod(ODCLFIELD, newname(Lookup(".this")), typenod(rcvr))
-	this.Left.Ntype = this.Right
+	this.Left.Param.Ntype = this.Right
 	in := structargs(getinarg(method.Type), 1)
 	out := structargs(Getoutarg(method.Type), 0)
 
@@ -2401,7 +2401,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 	fn := Nod(ODCLFUNC, nil, nil)
 	fn.Nname = newname(newnam)
 	fn.Nname.Defn = fn
-	fn.Nname.Ntype = t
+	fn.Nname.Param.Ntype = t
 	declare(fn.Nname, PFUNC)
 	funchdr(fn)
 
@@ -2575,7 +2575,7 @@ func genhash(sym *Sym, t *Type) {
 	fn.Nname = newname(sym)
 	fn.Nname.Class = PFUNC
 	tfn := Nod(OTFUNC, nil, nil)
-	fn.Nname.Ntype = tfn
+	fn.Nname.Param.Ntype = tfn
 
 	n := Nod(ODCLFIELD, newname(Lookup("p")), typenod(Ptrto(t)))
 	tfn.List = list(tfn.List, n)
@@ -2587,7 +2587,7 @@ func genhash(sym *Sym, t *Type) {
 	tfn.Rlist = list(tfn.Rlist, n)
 
 	funchdr(fn)
-	typecheck(&fn.Nname.Ntype, Etype)
+	typecheck(&fn.Nname.Param.Ntype, Etype)
 
 	// genhash is only called for types that have equality but
 	// cannot be handled by the standard algorithms,
@@ -2827,7 +2827,7 @@ func geneq(sym *Sym, t *Type) {
 	fn.Nname = newname(sym)
 	fn.Nname.Class = PFUNC
 	tfn := Nod(OTFUNC, nil, nil)
-	fn.Nname.Ntype = tfn
+	fn.Nname.Param.Ntype = tfn
 
 	n := Nod(ODCLFIELD, newname(Lookup("p")), typenod(Ptrto(t)))
 	tfn.List = list(tfn.List, n)

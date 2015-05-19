@@ -260,7 +260,7 @@ func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
 			v = vl.N
 			v.Op = ONAME
 			declare(v, dclcontext)
-			v.Ntype = t
+			v.Param.Ntype = t
 			v.Defn = as2
 			if Funcdepth > 0 {
 				init = list(init, Nod(ODCL, v, nil))
@@ -288,7 +288,7 @@ func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
 		v = vl.N
 		v.Op = ONAME
 		declare(v, dclcontext)
-		v.Ntype = t
+		v.Param.Ntype = t
 
 		if e != nil || Funcdepth > 0 || isblank(v) {
 			if Funcdepth > 0 {
@@ -343,7 +343,7 @@ func constiter(vl *NodeList, t *Node, cl *NodeList) *NodeList {
 		v.Op = OLITERAL
 		declare(v, dclcontext)
 
-		v.Ntype = t
+		v.Param.Ntype = t
 		v.Defn = c
 
 		vv = list(vv, Nod(ODCLCONST, v, nil))
@@ -431,7 +431,7 @@ func oldname(s *Sym) *Node {
 		// are parsing x := 5 inside the closure, until we get to
 		// the := it looks like a reference to the outer x so we'll
 		// make x a closure variable unnecessarily.
-		if n.Closure == nil || n.Closure.Funcdepth != Funcdepth {
+		if n.Param.Closure == nil || n.Param.Closure.Funcdepth != Funcdepth {
 			// create new closure var.
 			c := Nod(ONAME, nil, nil)
 
@@ -442,15 +442,15 @@ func oldname(s *Sym) *Node {
 			c.Addable = false
 			c.Ullman = 2
 			c.Funcdepth = Funcdepth
-			c.Outer = n.Closure
-			n.Closure = c
-			c.Closure = n
+			c.Param.Outer = n.Param.Closure
+			n.Param.Closure = c
+			c.Param.Closure = n
 			c.Xoffset = 0
 			Curfn.Func.Cvars = list(Curfn.Func.Cvars, c)
 		}
 
 		// return ref to closure var, not original
-		return n.Closure
+		return n.Param.Closure
 	}
 
 	return n
@@ -555,7 +555,7 @@ func ifacedcl(n *Node) {
 	dclcontext = PPARAM
 	markdcl()
 	Funcdepth++
-	n.Outer = Curfn
+	n.Param.Outer = Curfn
 	Curfn = n
 	funcargs(n.Right)
 
@@ -584,13 +584,13 @@ func funchdr(n *Node) {
 	markdcl()
 	Funcdepth++
 
-	n.Outer = Curfn
+	n.Param.Outer = Curfn
 	Curfn = n
 
 	if n.Nname != nil {
-		funcargs(n.Nname.Ntype)
-	} else if n.Ntype != nil {
-		funcargs(n.Ntype)
+		funcargs(n.Nname.Param.Ntype)
+	} else if n.Param.Ntype != nil {
+		funcargs(n.Param.Ntype)
 	} else {
 		funcargs2(n.Type)
 	}
@@ -616,7 +616,7 @@ func funcargs(nt *Node) {
 		}
 		if n.Left != nil {
 			n.Left.Op = ONAME
-			n.Left.Ntype = n.Right
+			n.Left.Param.Ntype = n.Right
 			declare(n.Left, PPARAM)
 			if dclcontext == PAUTO {
 				vargen++
@@ -633,7 +633,7 @@ func funcargs(nt *Node) {
 		}
 		if n.Left != nil {
 			n.Left.Op = ONAME
-			n.Left.Ntype = n.Right
+			n.Left.Param.Ntype = n.Right
 			declare(n.Left, PPARAM)
 			if dclcontext == PAUTO {
 				vargen++
@@ -680,7 +680,7 @@ func funcargs(nt *Node) {
 			n.Left = nn
 		}
 
-		n.Left.Ntype = n.Right
+		n.Left.Param.Ntype = n.Right
 		declare(n.Left, PPARAMOUT)
 		if dclcontext == PAUTO {
 			i++
@@ -748,8 +748,8 @@ func funcbody(n *Node) {
 	}
 	popdcl()
 	Funcdepth--
-	Curfn = n.Outer
-	n.Outer = nil
+	Curfn = n.Param.Outer
+	n.Param.Outer = nil
 	if Funcdepth == 0 {
 		dclcontext = PEXTERN
 	}
@@ -771,7 +771,7 @@ func typedcl0(s *Sym) *Node {
  * return the ODCLTYPE node to use.
  */
 func typedcl1(n *Node, t *Node, local bool) *Node {
-	n.Ntype = t
+	n.Param.Ntype = t
 	n.Local = local
 	return Nod(ODCLTYPE, n, nil)
 }
