@@ -551,7 +551,7 @@ func asmb() {
 			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
 
 		case obj.Hdarwin:
-			symo = uint32(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(ld.INITRND))) + uint64(machlink))
+			symo = uint32(ld.Segdata.Fileoff + uint64(ld.Rnd(int64(ld.Segdata.Filelen), int64(ld.INITRND))) + uint64(machlink))
 
 		case obj.Hwindows:
 			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)

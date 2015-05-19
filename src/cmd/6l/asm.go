@@ -710,7 +710,7 @@ func asmb() {
 			symo = int64(ld.Segdata.Fileoff + ld.Segdata.Filelen)
 
 		case obj.Hdarwin:
-			symo = int64(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(ld.INITRND))) + uint64(machlink))
+			symo = int64(ld.Segdata.Fileoff + uint64(ld.Rnd(int64(ld.Segdata.Filelen), int64(ld.INITRND))) + uint64(machlink))
 
 		case obj.Hlinux,
 			obj.Hfreebsd,

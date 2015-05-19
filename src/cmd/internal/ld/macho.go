@@ -443,8 +443,7 @@ func Asmbmacho() {
 		ms = newMachoSeg("", 40)
 
 		ms.fileoffset = Segtext.Fileoff
-		ms.filesize = Segdwarf.Fileoff + Segdwarf.Filelen - Segtext.Fileoff
-		ms.vsize = ms.filesize
+		ms.filesize = Segdata.Fileoff + Segdata.Filelen - Segtext.Fileoff
 	}
 
 	/* segment for zero page */
@@ -562,8 +561,8 @@ func Asmbmacho() {
 	}
 
 	// TODO: dwarf headers go in ms too
-	if Debug['s'] == 0 {
-		dwarfaddmachoheaders(ms)
+	if Debug['s'] == 0 && Linkmode != LinkExternal {
+		dwarfaddmachoheaders()
 	}
 
 	a := machowrite()
@@ -851,5 +850,4 @@ func Machoemitreloc() {
 	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
 		machorelocsect(sect, datap)
 	}
-	dwarfemitreloc()
 }
