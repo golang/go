@@ -2987,6 +2987,11 @@ func cgen_append(n, res *Node) {
 // If wb is true, need write barrier updating res's base pointer.
 // On systems with 32-bit ints, i, j, k are guaranteed to be 32-bit values.
 func cgen_slice(n, res *Node, wb bool) {
+	if Debug['g'] != 0 {
+		Dump("cgen_slice-n", n)
+		Dump("cgen_slice-res", res)
+	}
+
 	needFullUpdate := !samesafeexpr(n.Left, res)
 
 	// orderexpr has made sure that x is safe (but possibly expensive)
@@ -3250,6 +3255,16 @@ func cgen_slice(n, res *Node, wb bool) {
 	}
 
 	compare := func(n1, n2 *Node) {
+		// n1 might be a 64-bit constant, even on 32-bit architectures,
+		// but it will be represented in 32 bits.
+		if Ctxt.Arch.Regsize == 4 && Is64(n1.Type) {
+			if mpcmpfixc(n1.Val.U.(*Mpint), 1<<31) >= 0 {
+				Fatal("missed slice out of bounds check")
+			}
+			var tmp Node
+			Nodconst(&tmp, indexRegType, Mpgetfix(n1.Val.U.(*Mpint)))
+			n1 = &tmp
+		}
 		p := Thearch.Ginscmp(OGT, indexRegType, n1, n2, -1)
 		panics = append(panics, p)
 	}
