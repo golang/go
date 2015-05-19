@@ -7,7 +7,6 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 )
 
 func init() {
