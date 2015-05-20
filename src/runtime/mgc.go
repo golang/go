@@ -125,6 +125,19 @@ const (
 	_RootSpans       = 3
 	_RootFlushCaches = 4
 	_RootCount       = 5
+
+	// firstStackBarrierOffset is the approximate byte offset at
+	// which to place the first stack barrier from the current SP.
+	// This is a lower bound on how much stack will have to be
+	// re-scanned during mark termination. Subsequent barriers are
+	// placed at firstStackBarrierOffset * 2^n offsets.
+	//
+	// For debugging, this can be set to 0, which will install a
+	// stack barrier at every frame. If you do this, you may also
+	// have to raise _StackMin, since the stack barrier
+	// bookkeeping will use a large amount of each stack.
+	firstStackBarrierOffset = 1024
+	debugStackBarrier       = false
 )
 
 // heapminimum is the minimum heap size at which to trigger GC.

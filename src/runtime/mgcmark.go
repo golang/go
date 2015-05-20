@@ -399,6 +399,27 @@ func scanframeworker(frame *stkframe, unused unsafe.Pointer, gcw *gcWork) {
 	}
 }
 
+// gcMaxStackBarriers returns the maximum number of stack barriers
+// that can be installed in a stack of stackSize bytes.
+func gcMaxStackBarriers(stackSize int) (n int) {
+	if firstStackBarrierOffset == 0 {
+		// Special debugging case for inserting stack barriers
+		// at every frame. Steal half of the stack for the
+		// []stkbar. Technically, if the stack were to consist
+		// solely of return PCs we would need two thirds of
+		// the stack, but stealing that much breaks things and
+		// this doesn't happen in practice.
+		return stackSize / 2 / int(unsafe.Sizeof(stkbar{}))
+	}
+
+	offset := firstStackBarrierOffset
+	for offset < stackSize {
+		n++
+		offset *= 2
+	}
+	return n + 1
+}
+
 // TODO(austin): Can we consolidate the gcDrain* functions?
 
 // gcDrain scans objects in work buffers, blackening grey

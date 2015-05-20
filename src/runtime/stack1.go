@@ -175,7 +175,7 @@ func stackcache_clear(c *mcache) {
 	unlock(&stackpoolmu)
 }
 
-func stackalloc(n uint32) stack {
+func stackalloc(n uint32) (stack, []stkbar) {
 	// Stackalloc must be called on scheduler stack, so that we
 	// never try to grow the stack during the code that stackalloc runs.
 	// Doing so would cause a deadlock (issue 1547).
@@ -190,12 +190,18 @@ func stackalloc(n uint32) stack {
 		print("stackalloc ", n, "\n")
 	}
 
+	// Compute the size of stack barrier array.
+	maxstkbar := gcMaxStackBarriers(int(n))
+	nstkbar := unsafe.Sizeof(stkbar{}) * uintptr(maxstkbar)
+
 	if debug.efence != 0 || stackFromSystem != 0 {
 		v := sysAlloc(round(uintptr(n), _PageSize), &memstats.stacks_sys)
 		if v == nil {
 			throw("out of memory (stackalloc)")
 		}
-		return stack{uintptr(v), uintptr(v) + uintptr(n)}
+		top := uintptr(n) - nstkbar
+		stkbarSlice := slice{add(v, top), 0, maxstkbar}
+		return stack{uintptr(v), uintptr(v) + top}, *(*[]stkbar)(unsafe.Pointer(&stkbarSlice))
 	}
 
 	// Small stacks are allocated with a fixed-size free-list allocator.
@@ -243,7 +249,9 @@ func stackalloc(n uint32) stack {
 	if stackDebug >= 1 {
 		print("  allocated ", v, "\n")
 	}
-	return stack{uintptr(v), uintptr(v) + uintptr(n)}
+	top := uintptr(n) - nstkbar
+	stkbarSlice := slice{add(v, top), 0, maxstkbar}
+	return stack{uintptr(v), uintptr(v) + top}, *(*[]stkbar)(unsafe.Pointer(&stkbarSlice))
 }
 
 func stackfree(stk stack, n uintptr) {
@@ -556,7 +564,7 @@ func copystack(gp *g, newsize uintptr) {
 	used := old.hi - gp.sched.sp
 
 	// allocate new stack
-	new := stackalloc(uint32(newsize))
+	new, newstkbar := stackalloc(uint32(newsize))
 	if stackPoisonCopy != 0 {
 		fillstack(new, 0xfd)
 	}
@@ -582,12 +590,17 @@ func copystack(gp *g, newsize uintptr) {
 	}
 	memmove(unsafe.Pointer(new.hi-used), unsafe.Pointer(old.hi-used), used)
 
+	// copy old stack barriers to new stack barrier array
+	newstkbar = newstkbar[:len(gp.stkbar)]
+	copy(newstkbar, gp.stkbar)
+
 	// Swap out old stack for new one
 	gp.stack = new
 	gp.stackguard0 = new.lo + _StackGuard // NOTE: might clobber a preempt request
 	gp.sched.sp = new.hi - used
 	oldsize := gp.stackAlloc
 	gp.stackAlloc = newsize
+	gp.stkbar = newstkbar
 
 	// free old stack
 	if stackPoisonCopy != 0 {
@@ -794,6 +807,8 @@ func shrinkstack(gp *g) {
 			stackfree(gp.stack, gp.stackAlloc)
 			gp.stack.lo = 0
 			gp.stack.hi = 0
+			gp.stkbar = nil
+			gp.stkbarPos = 0
 		}
 		return
 	}
