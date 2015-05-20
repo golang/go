@@ -465,69 +465,6 @@ func stopscanstart(gp *g) {
 	}
 }
 
-// Runs on g0 and does the actual work after putting the g back on the run queue.
-func mquiesce(gpmaster *g) {
-	// enqueue the calling goroutine.
-	restartg(gpmaster)
-
-	activeglen := len(allgs)
-	for i := 0; i < activeglen; i++ {
-		gp := allgs[i]
-		if readgstatus(gp) == _Gdead {
-			gp.gcworkdone = true // noop scan.
-		} else {
-			gp.gcworkdone = false
-		}
-		stopscanstart(gp)
-	}
-
-	// Check that the G's gcwork (such as scanning) has been done. If not do it now.
-	// You can end up doing work here if the page trap on a Grunning Goroutine has
-	// not been sprung or in some race situations. For example a runnable goes dead
-	// and is started up again with a gp->gcworkdone set to false.
-	for i := 0; i < activeglen; i++ {
-		gp := allgs[i]
-		for !gp.gcworkdone {
-			status := readgstatus(gp)
-			if status == _Gdead {
-				//do nothing, scan not needed.
-				gp.gcworkdone = true // scan is a noop
-				break
-			}
-			if status == _Grunning && gp.stackguard0 == uintptr(stackPreempt) && notetsleep(&sched.stopnote, 100*1000) { // nanosecond arg
-				noteclear(&sched.stopnote)
-			} else {
-				stopscanstart(gp)
-			}
-		}
-	}
-
-	for i := 0; i < activeglen; i++ {
-		gp := allgs[i]
-		status := readgstatus(gp)
-		if isscanstatus(status) {
-			print("mstopandscang:bottom: post scan bad status gp=", gp, " has status ", hex(status), "\n")
-			dumpgstatus(gp)
-		}
-		if !gp.gcworkdone && status != _Gdead {
-			print("mstopandscang:bottom: post scan gp=", gp, "->gcworkdone still false\n")
-			dumpgstatus(gp)
-		}
-	}
-
-	schedule() // Never returns.
-}
-
-// quiesce moves all the goroutines to a GC safepoint which for now is a at preemption point.
-// If the global gcphase is GCmark quiesce will ensure that all of the goroutine's stacks
-// have been scanned before it returns.
-func quiesce(mastergp *g) {
-	castogscanstatus(mastergp, _Grunning, _Gscanenqueue)
-	// Now move this to the g0 (aka m) stack.
-	// g0 will potentially scan this thread and put mastergp on the runqueue
-	mcall(mquiesce)
-}
-
 // stopTheWorld stops all P's from executing goroutines, interrupting
 // all goroutines at GC safe points and records reason as the reason
 // for the stop. On return, only the current goroutine's P is running.
