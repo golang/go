@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/build"
+	"go/parser"
 	"go/token"
 	"io"
 	"path/filepath"
@@ -282,6 +283,9 @@ func allowErrors(lconf *loader.Config) {
 	ctxt.CgoEnabled = false
 	lconf.Build = &ctxt
 	lconf.AllowErrors = true
+	// AllErrors makes the parser always return an AST instead of
+	// bailing out after 10 errors and returning an empty ast.File.
+	lconf.ParserMode = parser.AllErrors
 	lconf.TypeChecker.Error = func(err error) {}
 }
 
