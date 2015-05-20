@@ -117,7 +117,6 @@ func leakrecursive2(p, q *int) (*int, *int) { // ERROR "leaking param: p" "leaki
 	return p, q
 }
 
-
 var global interface{}
 
 type T1 struct {
@@ -141,12 +140,12 @@ func f8(p *T1) (k T2) { // ERROR "leaking param: p to result k" "leaking param: 
 
 func f9() {
 	var j T1 // ERROR "moved to heap: j"
-	f8(&j) // ERROR "&j escapes to heap"
+	f8(&j)   // ERROR "&j escapes to heap"
 }
 
 func f10() {
 	// These don't escape but are too big for the stack
-	var x [1<<30]byte // ERROR "moved to heap: x"
-	var y = make([]byte, 1<<30) // ERROR "does not escape"
+	var x [1 << 30]byte         // ERROR "moved to heap: x"
+	var y = make([]byte, 1<<30) // ERROR "make\(\[\]byte, 1 << 30\) escapes to heap"
 	_ = x[0] + y[0]
 }
