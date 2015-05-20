@@ -60,7 +60,7 @@ func gcmarkwb_m(slot *uintptr, ptr uintptr) {
 	default:
 		throw("gcphasework in bad gcphase")
 
-	case _GCoff, _GCquiesce, _GCstw, _GCsweep, _GCscan:
+	case _GCoff, _GCstw, _GCsweep, _GCscan:
 		// ok
 
 	case _GCmark, _GCmarktermination:

@@ -206,7 +206,6 @@ var gcBlackenEnabled uint32
 
 const (
 	_GCoff             = iota // GC not running, write barrier disabled
-	_GCquiesce                // unused state
 	_GCstw                    // unused state
 	_GCscan                   // GC collecting roots into workbufs, write barrier disabled
 	_GCmark                   // GC marking from workbufs, write barrier ENABLED
