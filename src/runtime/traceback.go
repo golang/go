@@ -531,9 +531,10 @@ func traceback1(pc, sp, lr uintptr, gp *g, flags uint) {
 func callers(skip int, pcbuf []uintptr) int {
 	sp := getcallersp(unsafe.Pointer(&skip))
 	pc := uintptr(getcallerpc(unsafe.Pointer(&skip)))
+	gp := getg()
 	var n int
 	systemstack(func() {
-		n = gentraceback(pc, sp, 0, getg(), skip, &pcbuf[0], len(pcbuf), nil, nil, 0)
+		n = gentraceback(pc, sp, 0, gp, skip, &pcbuf[0], len(pcbuf), nil, nil, 0)
 	})
 	return n
 }
