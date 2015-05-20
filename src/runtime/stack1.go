@@ -545,6 +545,12 @@ func adjustsudogs(gp *g, adjinfo *adjustinfo) {
 	}
 }
 
+func adjuststkbar(gp *g, adjinfo *adjustinfo) {
+	for i := int(gp.stkbarPos); i < len(gp.stkbar); i++ {
+		adjustpointer(adjinfo, (unsafe.Pointer)(&gp.stkbar[i].savedLRPtr))
+	}
+}
+
 func fillstack(stk stack, b byte) {
 	for p := stk.lo; p < stk.hi; p++ {
 		*(*byte)(unsafe.Pointer(p)) = b
@@ -583,6 +589,7 @@ func copystack(gp *g, newsize uintptr) {
 	adjustdefers(gp, &adjinfo)
 	adjustpanics(gp, &adjinfo)
 	adjustsudogs(gp, &adjinfo)
+	adjuststkbar(gp, &adjinfo)
 
 	// copy the stack to the new location
 	if stackPoisonCopy != 0 {

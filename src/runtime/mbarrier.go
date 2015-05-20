@@ -27,6 +27,9 @@ import "unsafe"
 // slot is the destination (dst) in go code
 // ptr is the value that goes into the slot (src) in the go code
 //
+//
+// Dealing with memory ordering:
+//
 // Dijkstra pointed out that maintaining the no black to white
 // pointers means that white to white pointers not need
 // to be noted by the write barrier. Furthermore if either
@@ -54,7 +57,20 @@ import "unsafe"
 // Peterson/Dekker algorithms for mutual exclusion). Rather than require memory
 // barriers, which will slow down both the mutator and the GC, we always grey
 // the ptr object regardless of the slot's color.
-//go:nowritebarrier
+//
+//
+// Stack writes:
+//
+// The compiler omits write barriers for writes to the current frame,
+// but if a stack pointer has been passed down the call stack, the
+// compiler will generate a write barrier for writes through that
+// pointer (because it doesn't know it's not a heap pointer).
+//
+// One might be tempted to ignore the write barrier if slot points
+// into to the stack. Don't do it! Mark termination only re-scans
+// frames that have potentially been active since the concurrent scan,
+// so it depends on write barriers to track changes to pointers in
+// stack frames that have not been active. go:nowritebarrier
 func gcmarkwb_m(slot *uintptr, ptr uintptr) {
 	switch gcphase {
 	default:
