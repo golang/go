@@ -492,3 +492,42 @@ func TestIssue9979(t *testing.T) {
 		})
 	}
 }
+
+// TestIncompleteSelection ensures that an incomplete selector
+// expression is parsed as a (blank) *ast.SelectorExpr, not a
+// *ast.BadExpr.
+func TestIncompleteSelection(t *testing.T) {
+	for _, src := range []string{
+		"package p; var _ = fmt.",             // at EOF
+		"package p; var _ = fmt.\ntype X int", // not at EOF
+	} {
+		fset := token.NewFileSet()
+		f, err := ParseFile(fset, "", src, 0)
+		if err == nil {
+			t.Errorf("ParseFile(%s) succeeded unexpectedly", src)
+			continue
+		}
+
+		const wantErr = "expected selector or type assertion"
+		if !strings.Contains(err.Error(), wantErr) {
+			t.Errorf("ParseFile returned wrong error %q, want %q", err, wantErr)
+		}
+
+		var sel *ast.SelectorExpr
+		ast.Inspect(f, func(n ast.Node) bool {
+			if n, ok := n.(*ast.SelectorExpr); ok {
+				sel = n
+			}
+			return true
+		})
+		if sel == nil {
+			t.Error("found no *ast.SelectorExpr")
+			continue
+		}
+		const wantSel = "&{fmt _}"
+		if fmt.Sprint(sel) != wantSel {
+			t.Errorf("found selector %s, want %s", sel, wantSel)
+			continue
+		}
+	}
+}
