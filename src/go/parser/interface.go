@@ -91,7 +91,10 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode Mode)
 	var p parser
 	defer func() {
 		if e := recover(); e != nil {
-			_ = e.(bailout) // re-panics if it's not a bailout
+			// resume same panic if it's not a bailout
+			if _, ok := e.(bailout); !ok {
+				panic(e)
+			}
 		}
 
 		// set result values
