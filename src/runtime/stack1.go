@@ -387,20 +387,20 @@ func adjustpointers(scanp unsafe.Pointer, cbv *bitvector, adjinfo *adjustinfo, f
 			print("        ", add(scanp, i*ptrSize), ":", ptrnames[ptrbit(&bv, i)], ":", hex(*(*uintptr)(add(scanp, i*ptrSize))), " # ", i, " ", bv.bytedata[i/4], "\n")
 		}
 		if ptrbit(&bv, i) == 1 {
-			p := *(*unsafe.Pointer)(add(scanp, i*ptrSize))
-			up := uintptr(p)
-			if f != nil && 0 < up && up < _PageSize && debug.invalidptr != 0 || up == poisonStack {
+			pp := (*uintptr)(add(scanp, i*ptrSize))
+			p := *pp
+			if f != nil && 0 < p && p < _PageSize && debug.invalidptr != 0 || p == poisonStack {
 				// Looks like a junk value in a pointer slot.
 				// Live analysis wrong?
 				getg().m.traceback = 2
-				print("runtime: bad pointer in frame ", funcname(f), " at ", add(scanp, i*ptrSize), ": ", p, "\n")
+				print("runtime: bad pointer in frame ", funcname(f), " at ", pp, ": ", hex(p), "\n")
 				throw("invalid stack pointer")
 			}
-			if minp <= up && up < maxp {
+			if minp <= p && p < maxp {
 				if stackDebug >= 3 {
 					print("adjust ptr ", p, " ", funcname(f), "\n")
 				}
-				*(*unsafe.Pointer)(add(scanp, i*ptrSize)) = unsafe.Pointer(up + delta)
+				*pp = p + delta
 			}
 		}
 	}
