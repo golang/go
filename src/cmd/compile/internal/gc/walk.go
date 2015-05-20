@@ -352,6 +352,20 @@ func walkstmt(np **Node) {
 	*np = n
 }
 
+func isSmallMakeSlice(n *Node) bool {
+	if n.Op != OMAKESLICE {
+		return false
+	}
+	l := n.Left
+	r := n.Right
+	if r == nil {
+		r = l
+	}
+	t := n.Type
+
+	return Smallintconst(l) && Smallintconst(r) && (t.Type.Width == 0 || Mpgetfix(r.Val.U.(*Mpint)) < (1<<16)/t.Type.Width)
+}
+
 /*
  * walk the whole tree of the body of an
  * expression or simple statement.
@@ -1320,7 +1334,10 @@ func walkexpr(np **Node, init **NodeList) {
 		goto ret
 
 	case ONEW:
-		if n.Esc == EscNone && n.Type.Type.Width < 1<<16 {
+		if n.Esc == EscNone {
+			if n.Type.Type.Width >= 1<<16 {
+				Fatal("Large ONEW with EscNone, %v", n)
+			}
 			r := temp(n.Type.Type)
 			r = Nod(OAS, r, nil) // zero temp
 			typecheck(&r, Etop)
@@ -1458,7 +1475,10 @@ func walkexpr(np **Node, init **NodeList) {
 			l = r
 		}
 		t := n.Type
-		if n.Esc == EscNone && Smallintconst(l) && Smallintconst(r) && (t.Type.Width == 0 || Mpgetfix(r.Val.U.(*Mpint)) < (1<<16)/t.Type.Width) {
+		if n.Esc == EscNone {
+			if !isSmallMakeSlice(n) {
+				Fatal("Non-small OMAKESLICE with EscNone, %v", n)
+			}
 			// var arr [r]T
 			// n = arr[:l]
 			t = aindex(r, t.Type) // [r]T

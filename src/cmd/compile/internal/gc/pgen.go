@@ -301,25 +301,6 @@ func allocauto(ptxt *obj.Prog) {
 	}
 }
 
-func movelarge(l *NodeList) {
-	for ; l != nil; l = l.Next {
-		if l.N.Op == ODCLFUNC {
-			movelargefn(l.N)
-		}
-	}
-}
-
-func movelargefn(fn *Node) {
-	var n *Node
-
-	for l := fn.Func.Dcl; l != nil; l = l.Next {
-		n = l.N
-		if n.Class == PAUTO && n.Type != nil && n.Type.Width > MaxStackVarSize {
-			addrescapes(n)
-		}
-	}
-}
-
 func Cgen_checknil(n *Node) {
 	if Disable_checknil != 0 {
 		return

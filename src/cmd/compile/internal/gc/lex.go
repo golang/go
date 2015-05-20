@@ -446,11 +446,9 @@ func Main() {
 	// which stores the addresses of stack variables into the closure.
 	// If the closure does not escape, it needs to be on the stack
 	// or else the stack copier will not update it.
+	// Large values are also moved off stack in escape analysis;
+	// because large values may contain pointers, it must happen early.
 	escapes(xtop)
-
-	// Escape analysis moved escaped values off stack.
-	// Move large values off stack too.
-	movelarge(xtop)
 
 	// Phase 7: Transform closure bodies to properly reference captured variables.
 	// This needs to happen before walk, because closures must be transformed
