@@ -168,7 +168,9 @@ func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
 
 // inheap reports whether b is a pointer into a (potentially dead) heap object.
 // It returns false for pointers into stack spans.
+// Non-preemptible because it is used by write barriers.
 //go:nowritebarrier
+//go:nosplit
 func inheap(b uintptr) bool {
 	if b == 0 || b < mheap_.arena_start || b >= mheap_.arena_used {
 		return false
