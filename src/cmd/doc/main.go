@@ -132,11 +132,12 @@ func parseArgs() (*build.Package, string, string) {
 	// slash+1: if there's no slash, the value is -1 and start is 0; otherwise
 	// start is the byte after the slash.
 	for start := slash + 1; start < len(arg); start = period + 1 {
-		period = start + strings.Index(arg[start:], ".")
+		period = strings.Index(arg[start:], ".")
 		symbol := ""
 		if period < 0 {
 			period = len(arg)
 		} else {
+			period += start
 			symbol = arg[period+1:]
 		}
 		// Have we identified a package already?
