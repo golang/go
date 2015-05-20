@@ -2161,6 +2161,7 @@ func malg(stacksize int32) *g {
 		})
 		newg.stackguard0 = newg.stack.lo + _StackGuard
 		newg.stackguard1 = ^uintptr(0)
+		newg.stackAlloc = uintptr(stacksize)
 	}
 	return newg
 }
@@ -2276,11 +2277,11 @@ func gfput(_p_ *p, gp *g) {
 		throw("gfput: bad status (not Gdead)")
 	}
 
-	stksize := gp.stack.hi - gp.stack.lo
+	stksize := gp.stackAlloc
 
 	if stksize != _FixedStack {
 		// non-standard stack size - free it.
-		stackfree(gp.stack)
+		stackfree(gp.stack, gp.stackAlloc)
 		gp.stack.lo = 0
 		gp.stack.hi = 0
 		gp.stackguard0 = 0
@@ -2330,9 +2331,10 @@ retry:
 				gp.stack = stackalloc(_FixedStack)
 			})
 			gp.stackguard0 = gp.stack.lo + _StackGuard
+			gp.stackAlloc = _FixedStack
 		} else {
 			if raceenabled {
-				racemalloc(unsafe.Pointer(gp.stack.lo), gp.stack.hi-gp.stack.lo)
+				racemalloc(unsafe.Pointer(gp.stack.lo), gp.stackAlloc)
 			}
 		}
 	}

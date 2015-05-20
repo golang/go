@@ -246,12 +246,14 @@ func stackalloc(n uint32) stack {
 	return stack{uintptr(v), uintptr(v) + uintptr(n)}
 }
 
-func stackfree(stk stack) {
+func stackfree(stk stack, n uintptr) {
 	gp := getg()
-	n := stk.hi - stk.lo
 	v := (unsafe.Pointer)(stk.lo)
 	if n&(n-1) != 0 {
 		throw("stack not a power of 2")
+	}
+	if stk.lo+n < stk.hi {
+		throw("bad stack size")
 	}
 	if stackDebug >= 1 {
 		println("stackfree", v, n)
@@ -584,14 +586,16 @@ func copystack(gp *g, newsize uintptr) {
 	gp.stack = new
 	gp.stackguard0 = new.lo + _StackGuard // NOTE: might clobber a preempt request
 	gp.sched.sp = new.hi - used
+	oldsize := gp.stackAlloc
+	gp.stackAlloc = newsize
 
 	// free old stack
 	if stackPoisonCopy != 0 {
 		fillstack(old, 0xfc)
 	}
-	if newsize > old.hi-old.lo {
+	if newsize > oldsize {
 		// growing, free stack immediately
-		stackfree(old)
+		stackfree(old, oldsize)
 	} else {
 		// shrinking, queue up free operation.  We can't actually free the stack
 		// just yet because we might run into the following situation:
@@ -604,6 +608,7 @@ func copystack(gp *g, newsize uintptr) {
 		// By not freeing, we prevent step #4 until GC is done.
 		lock(&stackpoolmu)
 		*(*stack)(unsafe.Pointer(old.lo)) = stackfreequeue
+		*(*uintptr)(unsafe.Pointer(old.lo + ptrSize)) = oldsize
 		stackfreequeue = old
 		unlock(&stackpoolmu)
 	}
@@ -743,7 +748,7 @@ func newstack() {
 	}
 
 	// Allocate a bigger segment and move the stack.
-	oldsize := int(gp.stack.hi - gp.stack.lo)
+	oldsize := int(gp.stackAlloc)
 	newsize := oldsize * 2
 	if uintptr(newsize) > maxstacksize {
 		print("runtime: goroutine stack exceeds ", maxstacksize, "-byte limit\n")
@@ -786,7 +791,7 @@ func shrinkstack(gp *g) {
 		if gp.stack.lo != 0 {
 			// Free whole stack - it will get reallocated
 			// if G is used again.
-			stackfree(gp.stack)
+			stackfree(gp.stack, gp.stackAlloc)
 			gp.stack.lo = 0
 			gp.stack.hi = 0
 		}
@@ -796,7 +801,7 @@ func shrinkstack(gp *g) {
 		throw("missing stack in shrinkstack")
 	}
 
-	oldsize := gp.stack.hi - gp.stack.lo
+	oldsize := gp.stackAlloc
 	newsize := oldsize / 2
 	if newsize < _FixedStack {
 		return // don't shrink below the minimum-sized stack
@@ -832,7 +837,8 @@ func shrinkfinish() {
 	unlock(&stackpoolmu)
 	for s.lo != 0 {
 		t := *(*stack)(unsafe.Pointer(s.lo))
-		stackfree(s)
+		n := *(*uintptr)(unsafe.Pointer(s.lo + ptrSize))
+		stackfree(s, n)
 		s = t
 	}
 }
