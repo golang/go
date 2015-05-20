@@ -356,6 +356,12 @@ func (h heapBits) setCheckmarked(size uintptr) {
 // calling memmove(p, src, size). This function is marked nosplit
 // to avoid being preempted; the GC must not stop the goroutine
 // betwen the memmove and the execution of the barriers.
+//
+// The heap bitmap is not maintained for allocations containing
+// no pointers at all; any caller of heapBitsBulkBarrier must first
+// make sure the underlying allocation contains pointers, usually
+// by checking typ.kind&kindNoPointers.
+//
 //go:nosplit
 func heapBitsBulkBarrier(p, size uintptr) {
 	if (p|size)&(ptrSize-1) != 0 {

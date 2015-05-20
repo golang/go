@@ -195,7 +195,7 @@ func callwritebarrier(typ *_type, frame unsafe.Pointer, framesize, retoffset uin
 	if !writeBarrierEnabled || typ == nil || typ.kind&kindNoPointers != 0 || framesize-retoffset < ptrSize || !inheap(uintptr(frame)) {
 		return
 	}
-	heapBitsBulkBarrier(uintptr(add(frame, retoffset)), framesize)
+	heapBitsBulkBarrier(uintptr(add(frame, retoffset)), framesize-retoffset)
 }
 
 //go:nosplit
