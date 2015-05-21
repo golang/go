@@ -2974,15 +2974,12 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 	if p.Ft == 0 {
 		p.Ft = uint8(oclass(ctxt, p, &p.From))
 	}
-	if p.F3t == 0 {
-		p.F3t = uint8(oclass(ctxt, p, &p.From3))
-	}
 	if p.Tt == 0 {
 		p.Tt = uint8(oclass(ctxt, p, &p.To))
 	}
 
 	ft := int(p.Ft) * Ymax
-	f3t := int(p.F3t) * Ymax
+	f3t := oclass(ctxt, p, &p.From3) * Ymax
 	tt := int(p.Tt) * Ymax
 
 	xo := obj.Bool2int(o.op[0] == 0x0f)
