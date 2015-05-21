@@ -24,7 +24,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	cmd := exec.Command("go", "tool", letter+"g", "-S", "sinit.go")
+	cmd := exec.Command("go", "tool", "compile", "-S", "sinit.go")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Println(string(out))

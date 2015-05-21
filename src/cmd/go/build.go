@@ -1532,7 +1532,7 @@ func (b *builder) linkShared(a *action) (err error) {
 		}
 		ldflags = append(ldflags, d.p.ImportPath+"="+d.target)
 	}
-	return b.run(".", a.target, nil, buildToolExec, tool(archChar()+"l"), "-o", a.target, importArgs, ldflags)
+	return b.run(".", a.target, nil, buildToolExec, tool("link"), "-o", a.target, importArgs, ldflags)
 }
 
 // install is the action for installing a single package or executable.
@@ -2109,11 +2109,11 @@ func (noToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error
 type gcToolchain struct{}
 
 func (gcToolchain) compiler() string {
-	return tool(archChar() + "g")
+	return tool("compile")
 }
 
 func (gcToolchain) linker() string {
-	return tool(archChar() + "l")
+	return tool("link")
 }
 
 func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool, importArgs []string, gofiles []string) (ofile string, output []byte, err error) {
@@ -2152,7 +2152,7 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool, 
 		gcargs = append(gcargs, "-installsuffix", buildContext.InstallSuffix)
 	}
 
-	args := []interface{}{buildToolExec, tool(archChar() + "g"), "-o", ofile, "-trimpath", b.work, buildGcflags, gcargs, "-D", p.localPrefix, importArgs}
+	args := []interface{}{buildToolExec, tool("compile"), "-o", ofile, "-trimpath", b.work, buildGcflags, gcargs, "-D", p.localPrefix, importArgs}
 	if ofile == archive {
 		args = append(args, "-pack")
 	}
@@ -2333,7 +2333,7 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action, 
 	ldflags = setextld(ldflags, compiler)
 	ldflags = append(ldflags, "-buildmode="+ldBuildmode)
 	ldflags = append(ldflags, buildLdflags...)
-	return b.run(".", p.ImportPath, nil, buildToolExec, tool(archChar()+"l"), "-o", out, importArgs, ldflags, mainpkg)
+	return b.run(".", p.ImportPath, nil, buildToolExec, tool("link"), "-o", out, importArgs, ldflags, mainpkg)
 }
 
 func (gcToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {

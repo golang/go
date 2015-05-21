@@ -7,8 +7,8 @@ set -e
 
 eval $(go tool dist env)
 O=$GOCHAR
-GC="go tool ${O}g"
-LD="go tool ${O}l"
+GC="go tool compile"
+LD="go tool link"
 
 gccm=""
 case "$O" in

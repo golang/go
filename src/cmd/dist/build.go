@@ -540,7 +540,7 @@ func install(dir string) {
 		if elem == "go" {
 			elem = "go_bootstrap"
 		}
-		link = []string{fmt.Sprintf("%s/%sl", tooldir, gochar), "-o", pathf("%s/%s%s", tooldir, elem, exe)}
+		link = []string{pathf("%s/link", tooldir), "-o", pathf("%s/%s%s", tooldir, elem, exe)}
 		targ = len(link) - 1
 	}
 	ttarg := mtime(link[targ])
@@ -675,7 +675,7 @@ func install(dir string) {
 	} else {
 		archive = b
 	}
-	compile := []string{pathf("%s/%sg", tooldir, gochar), "-pack", "-o", b, "-p", pkg}
+	compile := []string{pathf("%s/compile", tooldir), "-pack", "-o", b, "-p", pkg}
 	if dir == "runtime" {
 		compile = append(compile, "-+", "-asmhdr", pathf("%s/go_asm.h", workdir))
 	}
@@ -897,17 +897,9 @@ var buildorder = []string{
 // compilers but build only the $GOARCH ones.
 var cleantab = []string{
 	// Commands and C libraries.
-	"cmd/5g",
-	"cmd/5l",
-	"cmd/6g",
-	"cmd/6l",
-	"cmd/7g",
-	"cmd/7l",
-	"cmd/8g",
-	"cmd/8l",
-	"cmd/9g",
-	"cmd/9l",
+	"cmd/compile",
 	"cmd/go",
+	"cmd/link",
 	"cmd/old5a",
 	"cmd/old6a",
 	"cmd/old8a",

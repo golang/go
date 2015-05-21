@@ -230,9 +230,9 @@ func TestHello(t *testing.T) {
 	}
 
 	run("go", "build", "cmd/pack") // writes pack binary to dir
-	run("go", "tool", char+"g", "hello.go")
+	run("go", "tool", "compile", "hello.go")
 	run("./pack", "grc", "hello.a", "hello."+char)
-	run("go", "tool", char+"l", "-o", "a.out", "hello.a")
+	run("go", "tool", "link", "-o", "a.out", "hello.a")
 	out := run("./a.out")
 	if out != "hello world\n" {
 		t.Fatalf("incorrect output: %q, want %q", out, "hello world\n")
@@ -304,10 +304,10 @@ func TestLargeDefs(t *testing.T) {
 	}
 
 	run("go", "build", "cmd/pack") // writes pack binary to dir
-	run("go", "tool", char+"g", "large.go")
+	run("go", "tool", "compile", "large.go")
 	run("./pack", "grc", "large.a", "large."+char)
-	run("go", "tool", char+"g", "-I", ".", "main.go")
-	run("go", "tool", char+"l", "-L", ".", "-o", "a.out", "main."+char)
+	run("go", "tool", "compile", "-I", ".", "main.go")
+	run("go", "tool", "link", "-L", ".", "-o", "a.out", "main."+char)
 	out := run("./a.out")
 	if out != "ok\n" {
 		t.Fatalf("incorrect output: %q, want %q", out, "ok\n")
