@@ -26,8 +26,8 @@ func main() {
 	err = os.Chdir(filepath.Join(".", "fixedbugs", "bug345.dir"))
 	check(err)
 
-	run("go", "tool", a+"g", "io.go")
-	run(errchk, "go", "tool", a+"g", "-e", "main.go")
+	run("go", "tool", "compile", "io.go")
+	run(errchk, "go", "tool", "compile", "-e", "main.go")
 	os.Remove("io." + a)
 }
 

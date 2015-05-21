@@ -193,7 +193,7 @@ func main() {
 		thechar = strings.TrimSpace(string(gochar))
 	}
 
-	version, err := exec.Command("go", "tool", thechar+"g", "-V").Output()
+	version, err := exec.Command("go", "tool", "compile", "-V").Output()
 	if err != nil {
 		bug()
 		fmt.Printf("running go tool %sg -V: %v\n", thechar, err)

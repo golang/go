@@ -24,10 +24,10 @@ func main() {
 	err = os.Chdir(filepath.Join(".", "fixedbugs", "bug369.dir"))
 	check(err)
 
-	run("go", "tool", a+"g", "-N", "-o", "slow."+a, "pkg.go")
-	run("go", "tool", a+"g", "-o", "fast."+a, "pkg.go")
-	run("go", "tool", a+"g", "-o", "main."+a, "main.go")
-	run("go", "tool", a+"l", "-o", "a.exe", "main."+a)
+	run("go", "tool", "compile", "-N", "-o", "slow."+a, "pkg.go")
+	run("go", "tool", "compile", "-o", "fast."+a, "pkg.go")
+	run("go", "tool", "compile", "-o", "main."+a, "main.go")
+	run("go", "tool", "link", "-o", "a.exe", "main."+a)
 	run("." + string(filepath.Separator) + "a.exe")
 
 	os.Remove("slow." + a)
