@@ -2612,6 +2612,10 @@ func mkpackage(pkgname string) {
 		if i := strings.LastIndex(p, "."); i >= 0 {
 			p = p[:i]
 		}
-		outfile = fmt.Sprintf("%s.o", p)
+		suffix := ".o"
+		if writearchive > 0 {
+			suffix = ".a"
+		}
+		outfile = p + suffix
 	}
 }
