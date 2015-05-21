@@ -7,7 +7,7 @@ package runtime
 import "unsafe"
 
 const (
-	_Debugwbufs  = true    // if true check wbufs consistency
+	_Debugwbufs  = false   // if true check wbufs consistency
 	_WorkbufSize = 1 * 256 // in bytes - if small wbufs are passed to GC in a timely fashion.
 )
 
