@@ -412,7 +412,7 @@ var goTools = map[string]targetDir{
 	"cmd/dist":                             toTool,
 	"cmd/doc":                              toTool,
 	"cmd/fix":                              toTool,
-	"cmd/link":                             toTool,
+	"cmd/newlink":                          toTool,
 	"cmd/nm":                               toTool,
 	"cmd/objdump":                          toTool,
 	"cmd/old5a":                            toTool,

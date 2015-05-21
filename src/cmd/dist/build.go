@@ -374,7 +374,7 @@ var oldtool = []string{
 // Unreleased directories (relative to $GOROOT) that should
 // not be in release branches.
 var unreleased = []string{
-	"src/cmd/link",
+	"src/cmd/newlink",
 	"src/cmd/objwriter",
 	"src/debug/goobj",
 	"src/old",
