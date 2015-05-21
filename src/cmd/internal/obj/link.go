@@ -334,6 +334,7 @@ const (
 	Sxxx = iota
 	STEXT
 	SELFRXSECT
+
 	STYPE
 	SSTRING
 	SGOSTRING
@@ -341,6 +342,25 @@ const (
 	SGCBITS
 	SRODATA
 	SFUNCTAB
+
+	// Types STYPE-SFUNCTAB above are written to the .rodata section by default.
+	// When linking a shared object, some conceptually "read only" types need to
+	// be written to by relocations and putting them in a section called
+	// ".rodata" interacts poorly with the system linkers. The GNU linkers
+	// support this situation by arranging for sections of the name
+	// ".data.rel.ro.XXX" to be mprotected read only by the dynamic linker after
+	// relocations have applied, so when the Go linker is creating a shared
+	// object it checks all objects of the above types and bumps any object that
+	// has a relocation to it to the corresponding type below, which are then
+	// written to sections with appropriate magic names.
+	STYPERELRO
+	SSTRINGRELRO
+	SGOSTRINGRELRO
+	SGOFUNCRELRO
+	SGCBITSRELRO
+	SRODATARELRO
+	SFUNCTABRELRO
+
 	STYPELINK
 	SSYMTAB
 	SPCLNTAB

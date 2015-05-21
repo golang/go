@@ -1690,9 +1690,18 @@ func doelf() {
 	}
 	Addstring(shstrtab, ".elfdata")
 	Addstring(shstrtab, ".rodata")
-	Addstring(shstrtab, ".typelink")
-	Addstring(shstrtab, ".gosymtab")
-	Addstring(shstrtab, ".gopclntab")
+	if Buildmode == BuildmodeShared || Buildmode == BuildmodeCShared {
+		Addstring(shstrtab, ".data.rel.ro")
+	}
+	// See the comment about data.rel.ro.FOO section names in data.go.
+	relro_prefix := ""
+
+	if UseRelro() {
+		relro_prefix = ".data.rel.ro"
+	}
+	Addstring(shstrtab, relro_prefix+".typelink")
+	Addstring(shstrtab, relro_prefix+".gosymtab")
+	Addstring(shstrtab, relro_prefix+".gopclntab")
 
 	if Linkmode == LinkExternal {
 		Debug['d'] = 1
@@ -1701,20 +1710,26 @@ func doelf() {
 		case '6', '7', '9':
 			Addstring(shstrtab, ".rela.text")
 			Addstring(shstrtab, ".rela.rodata")
-			Addstring(shstrtab, ".rela.typelink")
-			Addstring(shstrtab, ".rela.gosymtab")
-			Addstring(shstrtab, ".rela.gopclntab")
+			Addstring(shstrtab, ".rela"+relro_prefix+".typelink")
+			Addstring(shstrtab, ".rela"+relro_prefix+".gosymtab")
+			Addstring(shstrtab, ".rela"+relro_prefix+".gopclntab")
 			Addstring(shstrtab, ".rela.noptrdata")
 			Addstring(shstrtab, ".rela.data")
+			if UseRelro() {
+				Addstring(shstrtab, ".rela.data.rel.ro")
+			}
 
 		default:
 			Addstring(shstrtab, ".rel.text")
 			Addstring(shstrtab, ".rel.rodata")
-			Addstring(shstrtab, ".rel.typelink")
-			Addstring(shstrtab, ".rel.gosymtab")
-			Addstring(shstrtab, ".rel.gopclntab")
+			Addstring(shstrtab, ".rel"+relro_prefix+".typelink")
+			Addstring(shstrtab, ".rel"+relro_prefix+".gosymtab")
+			Addstring(shstrtab, ".rel"+relro_prefix+".gopclntab")
 			Addstring(shstrtab, ".rel.noptrdata")
 			Addstring(shstrtab, ".rel.data")
+			if UseRelro() {
+				Addstring(shstrtab, ".rel.data.rel.ro")
+			}
 		}
 
 		// add a .note.GNU-stack section to mark the stack as non-executable
