@@ -15,7 +15,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"go/build"
 	"io/ioutil"
 	"log"
 	"os"
@@ -41,9 +40,6 @@ var (
 )
 
 var (
-	// letter is the build.ArchChar
-	letter string
-
 	goos, goarch string
 
 	// dirs are the directories to look for *.go files in.
@@ -81,9 +77,6 @@ func main() {
 
 	ratec = make(chan bool, *numParallel)
 	rungatec = make(chan bool, *runoutputLimit)
-	var err error
-	letter, err = build.ArchChar(build.Default.GOARCH)
-	check(err)
 
 	var tests []*test
 	if flag.NArg() > 0 {
@@ -199,7 +192,7 @@ func compileInDir(runcmd runCmd, dir string, names ...string) (out []byte, err e
 }
 
 func linkFile(runcmd runCmd, goname string) (err error) {
-	pfile := strings.Replace(goname, ".go", "."+letter, -1)
+	pfile := strings.Replace(goname, ".go", ".o", -1)
 	_, err = runcmd("go", "tool", "link", "-w", "-o", "a.exe", "-L", ".", pfile)
 	return
 }
@@ -501,7 +494,7 @@ func (t *test) run() {
 		t.err = fmt.Errorf("unimplemented action %q", action)
 
 	case "errorcheck":
-		cmdline := []string{"go", "tool", "compile", "-e", "-o", "a." + letter}
+		cmdline := []string{"go", "tool", "compile", "-e", "-o", "a.o"}
 		cmdline = append(cmdline, flags...)
 		cmdline = append(cmdline, long)
 		out, err := runcmd(cmdline...)
@@ -664,7 +657,7 @@ func (t *test) run() {
 			t.err = fmt.Errorf("write tempfile:%s", err)
 			return
 		}
-		cmdline := []string{"go", "tool", "compile", "-e", "-o", "a." + letter}
+		cmdline := []string{"go", "tool", "compile", "-e", "-o", "a.o"}
 		cmdline = append(cmdline, flags...)
 		cmdline = append(cmdline, tfile)
 		out, err = runcmd(cmdline...)

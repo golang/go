@@ -51,7 +51,7 @@ func Usage() {
 	os.Exit(2)
 }
 
-func Parse(theChar int) {
+func Parse() {
 	flag.Usage = Usage
 	flag.Parse()
 	if flag.NArg() != 1 {
@@ -64,6 +64,6 @@ func Parse(theChar int) {
 		if strings.HasSuffix(input, ".s") {
 			input = input[:len(input)-2]
 		}
-		*OutputFile = fmt.Sprintf("%s.%c", input, theChar)
+		*OutputFile = fmt.Sprintf("%s.o", input)
 	}
 }

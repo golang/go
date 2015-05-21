@@ -583,7 +583,7 @@ func findpkg(name string) (file string, ok bool) {
 		if obj.Access(file, 0) >= 0 {
 			return file, true
 		}
-		file = fmt.Sprintf("%s.%c", name, Thearch.Thechar)
+		file = fmt.Sprintf("%s.o", name)
 		if obj.Access(file, 0) >= 0 {
 			return file, true
 		}
@@ -605,7 +605,7 @@ func findpkg(name string) (file string, ok bool) {
 		if obj.Access(file, 0) >= 0 {
 			return file, true
 		}
-		file = fmt.Sprintf("%s/%s.%c", p.dir, name, Thearch.Thechar)
+		file = fmt.Sprintf("%s/%s.o", p.dir, name)
 		if obj.Access(file, 0) >= 0 {
 			return file, true
 		}
@@ -626,7 +626,7 @@ func findpkg(name string) (file string, ok bool) {
 		if obj.Access(file, 0) >= 0 {
 			return file, true
 		}
-		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.%c", goroot, goos, goarch, suffixsep, suffix, name, Thearch.Thechar)
+		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.o", goroot, goos, goarch, suffixsep, suffix, name)
 		if obj.Access(file, 0) >= 0 {
 			return file, true
 		}
@@ -637,7 +637,7 @@ func findpkg(name string) (file string, ok bool) {
 
 func fakeimport() {
 	importpkg = mkpkg("fake")
-	cannedimports("fake.6", "$$\n")
+	cannedimports("fake.o", "$$\n")
 }
 
 func importfile(f *Val, line int) {
@@ -679,7 +679,7 @@ func importfile(f *Val, line int) {
 		}
 
 		importpkg = mkpkg(f.U.(string))
-		cannedimports("unsafe.6", unsafeimport)
+		cannedimports("unsafe.o", unsafeimport)
 		imported_unsafe = 1
 		return
 	}
@@ -2596,6 +2596,6 @@ func mkpackage(pkgname string) {
 		if i := strings.LastIndex(p, "."); i >= 0 {
 			p = p[:i]
 		}
-		outfile = fmt.Sprintf("%s.%c", p, Thearch.Thechar)
+		outfile = fmt.Sprintf("%s.o", p)
 	}
 }

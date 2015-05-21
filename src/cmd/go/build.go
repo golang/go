@@ -547,9 +547,6 @@ var (
 	goarch    string
 	goos      string
 	exeSuffix string
-
-	archCharVal string
-	archCharErr error
 )
 
 func init() {
@@ -558,16 +555,6 @@ func init() {
 	if goos == "windows" {
 		exeSuffix = ".exe"
 	}
-	archCharVal, archCharErr = build.ArchChar(goarch)
-}
-
-// archChar returns the architecture character.  This is only needed
-// for the gc toolchain, so only fail if we actually need it.
-func archChar() string {
-	if archCharErr != nil {
-		fatalf("%s", archCharErr)
-	}
-	return archCharVal
 }
 
 // A builder holds global state about a build.
@@ -1208,7 +1195,7 @@ func (b *builder) build(a *action) (err error) {
 		fmt.Fprintf(os.Stderr, "%s\n", a.p.ImportPath)
 	}
 
-	if a.p.Standard && a.p.ImportPath == "runtime" && buildContext.Compiler == "gc" && archChar() != "" &&
+	if a.p.Standard && a.p.ImportPath == "runtime" && buildContext.Compiler == "gc" &&
 		(!hasString(a.p.GoFiles, "zgoos_"+buildContext.GOOS+".go") ||
 			!hasString(a.p.GoFiles, "zgoarch_"+buildContext.GOARCH+".go")) {
 		return fmt.Errorf("%s/%s must be bootstrapped using make%v", buildContext.GOOS, buildContext.GOARCH, defaultSuffix())
@@ -1371,15 +1358,8 @@ func (b *builder) build(a *action) (err error) {
 		}
 	}
 
-	var objExt string
-	if _, ok := buildToolchain.(gccgoToolchain); ok {
-		objExt = "o"
-	} else {
-		objExt = archChar()
-	}
-
 	for _, file := range cfiles {
-		out := file[:len(file)-len(".c")] + "." + objExt
+		out := file[:len(file)-len(".c")] + ".o"
 		if err := buildToolchain.cc(b, a.p, obj, obj+out, file); err != nil {
 			return err
 		}
@@ -1388,7 +1368,7 @@ func (b *builder) build(a *action) (err error) {
 
 	// Assemble .s files.
 	for _, file := range sfiles {
-		out := file[:len(file)-len(".s")] + "." + objExt
+		out := file[:len(file)-len(".s")] + ".o"
 		if err := buildToolchain.asm(b, a.p, obj, obj+out, file); err != nil {
 			return err
 		}
@@ -2120,7 +2100,7 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool, 
 	if archive != "" {
 		ofile = archive
 	} else {
-		out := "_go_." + archChar()
+		out := "_go_.o"
 		ofile = obj + out
 	}
 
@@ -2182,9 +2162,22 @@ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 	}
 	// Disable checks when additional flags are passed, as the old assemblers
 	// don't implement some of them (e.g., -shared).
-	if verifyAsm && goarch != "arm64" && len(buildAsmflags) == 0 {
-		if err := toolVerify(b, p, "old"+archChar()+"a", ofile, args); err != nil {
-			return err
+	if verifyAsm && len(buildAsmflags) == 0 {
+		old := ""
+		switch goarch {
+		case "arm":
+			old = "old5a"
+		case "amd64", "amd64p32":
+			old = "old6a"
+		case "386":
+			old = "old8a"
+		case "ppc64", "ppc64le":
+			old = "old9a"
+		}
+		if old != "" {
+			if err := toolVerify(b, p, old, ofile, args); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -2785,13 +2778,6 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
 	cgoflags := []string{}
 	// TODO: make cgo not depend on $GOARCH?
 
-	var objExt string
-	if _, ok := buildToolchain.(gccgoToolchain); ok {
-		objExt = "o"
-	} else {
-		objExt = archChar()
-	}
-
 	if p.Standard && p.ImportPath == "runtime/cgo" {
 		cgoflags = append(cgoflags, "-import_runtime_cgo=false")
 	}
@@ -2836,7 +2822,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
 	// cc _cgo_defun.c
 	_, gccgo := buildToolchain.(gccgoToolchain)
 	if gccgo {
-		defunObj := obj + "_cgo_defun." + objExt
+		defunObj := obj + "_cgo_defun.o"
 		if err := buildToolchain.cc(b, p, obj, defunObj, defunC); err != nil {
 			return nil, nil, err
 		}

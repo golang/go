@@ -9,16 +9,12 @@ package main
 
 import (
 	"fmt"
-	"go/build"
 	"os"
 	"os/exec"
 	"path/filepath"
 )
 
 func main() {
-	a, err := build.ArchChar(build.Default.GOARCH)
-	check(err)
-
 	// TODO: If we get rid of errchk, re-enable this test on Plan 9 and Windows.
 	errchk, err := filepath.Abs("errchk")
 	check(err)
@@ -28,7 +24,7 @@ func main() {
 
 	run("go", "tool", "compile", "io.go")
 	run(errchk, "go", "tool", "compile", "-e", "main.go")
-	os.Remove("io." + a)
+	os.Remove("io.o")
 }
 
 func run(name string, args ...string) {

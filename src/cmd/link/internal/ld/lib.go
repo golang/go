@@ -1627,7 +1627,7 @@ func Cput(c uint8) {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: %cl [options] obj.%c\n", Thearch.Thechar, Thearch.Thechar)
+	fmt.Fprintf(os.Stderr, "usage: link [options] main.o\n")
 	obj.Flagprint(2)
 	Exit(2)
 }

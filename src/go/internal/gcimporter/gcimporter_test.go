@@ -50,9 +50,8 @@ func compile(t *testing.T, dirname, filename string) string {
 		t.Logf("%s", out)
 		t.Fatalf("%s %s failed: %s", gcPath, filename, err)
 	}
-	archCh, _ := build.ArchChar(runtime.GOARCH)
 	// filename should end with ".go"
-	return filepath.Join(dirname, filename[:len(filename)-2]+archCh)
+	return filepath.Join(dirname, filename[:len(filename)-2]+"o")
 }
 
 // Use the same global imports map for all tests. The effect is

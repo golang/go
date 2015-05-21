@@ -102,8 +102,7 @@ func dumpobj() {
 			obj.Bputc(bout, 0)
 		}
 		obj.Bseek(bout, startobj-ArhdrSize, 0)
-		name := fmt.Sprintf("_go_.%c", Thearch.Thechar)
-		formathdr(arhdr[:], name, size)
+		formathdr(arhdr[:], "_go_.o", size)
 		bout.Write(arhdr[:])
 	}
 
