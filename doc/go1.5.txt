@@ -1,6 +1,8 @@
 Overall:
 - toolchain in Go
 - new GC
+- go tool asm, go tool compile, go tool link
+- default output files changed: now file.o and a.out
 
 Language:
 - permit omission of key type in map composite literals where key is a composite literal (https://golang.org/cl/2591)

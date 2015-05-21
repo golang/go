@@ -160,10 +160,9 @@ func Ldmain() {
 	}
 
 	if outfile == "" {
+		outfile = "a.out"
 		if HEADTYPE == obj.Hwindows {
-			outfile = fmt.Sprintf("%c.out.exe", Thearch.Thechar)
-		} else {
-			outfile = fmt.Sprintf("%c.out", Thearch.Thechar)
+			outfile += ".exe"
 		}
 	}
 

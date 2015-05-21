@@ -25,7 +25,7 @@ import (
 // debugging/development support
 const debug = false
 
-var pkgExts = [...]string{".a", ".5", ".6", ".7", ".8", ".9"}
+var pkgExts = [...]string{".a", ".o"}
 
 // FindPkg returns the filename and unique package id for an import
 // path based on package information provided by build.Import (using

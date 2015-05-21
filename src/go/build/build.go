@@ -1391,20 +1391,11 @@ func IsLocalImport(path string) bool {
 		strings.HasPrefix(path, "./") || strings.HasPrefix(path, "../")
 }
 
-// ArchChar returns the architecture character for the given goarch.
-// For example, ArchChar("amd64") returns "6".
+// ArchChar returns "?" and an error.
+// In earlier versions of Go, the returned string was used to derive
+// the compiler and linker tool names, the default object file suffix,
+// and the default linker output name. As of Go 1.5, those strings
+// no longer vary by architecture; they are compile, link, .o, and a.out, respectively.
 func ArchChar(goarch string) (string, error) {
-	switch goarch {
-	case "386":
-		return "8", nil
-	case "amd64", "amd64p32":
-		return "6", nil
-	case "arm":
-		return "5", nil
-	case "arm64":
-		return "7", nil
-	case "ppc64", "ppc64le":
-		return "9", nil
-	}
-	return "", errors.New("unsupported GOARCH " + goarch)
+	return "", errors.New("architecture letter no longer used")
 }

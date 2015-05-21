@@ -13,21 +13,14 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"go/build"
 	"io"
 	"log"
 	"os"
 	"os/exec"
-	"runtime"
 	"strings"
 )
 
 func main() {
-	gochar, err := build.ArchChar(runtime.GOARCH)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	f, err := os.Create("builtin.go")
 	if err != nil {
 		log.Fatal(err)
@@ -40,7 +33,7 @@ func main() {
 	fmt.Fprintln(w, "package gc")
 
 	for _, name := range os.Args[1:] {
-		mkbuiltin(w, gochar, name)
+		mkbuiltin(w, name)
 	}
 
 	if err := w.Flush(); err != nil {
@@ -49,11 +42,11 @@ func main() {
 }
 
 // Compile .go file, import data from .6 file, and write Go string version.
-func mkbuiltin(w io.Writer, gochar string, name string) {
-	if err := exec.Command("go", "tool", gochar+"g", "-A", "builtin/"+name+".go").Run(); err != nil {
+func mkbuiltin(w io.Writer, name string) {
+	if err := exec.Command("go", "tool", "compile", "-A", "builtin/"+name+".go").Run(); err != nil {
 		log.Fatal(err)
 	}
-	obj := fmt.Sprintf("%s.%s", name, gochar)
+	obj := "name.o"
 	defer os.Remove(obj)
 
 	r, err := os.Open(obj)
@@ -77,7 +70,7 @@ Begin:
 	fmt.Fprintf(w, "\nconst %simport = \"\" +\n", name)
 
 	// sys.go claims to be in package PACKAGE to avoid
-	// conflicts during "6g sys.go".  Rename PACKAGE to $2.
+	// conflicts during "go tool compile sys.go".  Rename PACKAGE to $2.
 	replacer := strings.NewReplacer("PACKAGE", name)
 
 	// Process imports, stopping at $$ that closes them.
