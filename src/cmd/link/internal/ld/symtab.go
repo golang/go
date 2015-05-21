@@ -350,13 +350,29 @@ func symtab() {
 
 	// pseudo-symbols to mark locations of type, string, and go string data.
 	var symtype *LSym
-	if !DynlinkingGo() {
+	var symtyperel *LSym
+	if UseRelro() && Buildmode == BuildmodeCShared {
 		s = Linklookup(Ctxt, "type.*", 0)
 
 		s.Type = obj.STYPE
 		s.Size = 0
 		s.Reachable = true
 		symtype = s
+
+		s = Linklookup(Ctxt, "typerel.*", 0)
+
+		s.Type = obj.STYPERELRO
+		s.Size = 0
+		s.Reachable = true
+		symtyperel = s
+	} else if !DynlinkingGo() {
+		s = Linklookup(Ctxt, "type.*", 0)
+
+		s.Type = obj.STYPE
+		s.Size = 0
+		s.Reachable = true
+		symtype = s
+		symtyperel = s
 	}
 
 	s = Linklookup(Ctxt, "go.string.*", 0)
@@ -381,6 +397,7 @@ func symtab() {
 	symgcbits := s
 
 	symtypelink := Linklookup(Ctxt, "runtime.typelink", 0)
+	symtypelink.Type = obj.STYPELINK
 
 	symt = Linklookup(Ctxt, "runtime.symtab", 0)
 	symt.Local = true
@@ -400,9 +417,14 @@ func symtab() {
 		}
 
 		if strings.HasPrefix(s.Name, "type.") && !DynlinkingGo() {
-			s.Type = obj.STYPE
 			s.Hide = 1
-			s.Outer = symtype
+			if UseRelro() && len(s.R) > 0 {
+				s.Type = obj.STYPERELRO
+				s.Outer = symtyperel
+			} else {
+				s.Type = obj.STYPE
+				s.Outer = symtype
+			}
 		}
 
 		if strings.HasPrefix(s.Name, "go.typelink.") {
