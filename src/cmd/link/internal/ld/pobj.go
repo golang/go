@@ -70,40 +70,21 @@ func Ldmain() {
 		}
 	}
 
-	if Thearch.Thechar == '5' && Ctxt.Goarm == 5 {
-		Debug['F'] = 1
-	}
-
-	obj.Flagcount("1", "use alternate profiling code", &Debug['1'])
-	if Thearch.Thechar == '6' {
-		obj.Flagcount("8", "assume 64-bit addresses", &Debug['8'])
+	if Thearch.Thechar == '6' && obj.Getgoos() == "plan9" {
+		obj.Flagcount("8", "use 64-bit addresses in symbol table", &Debug['8'])
 	}
 	obj.Flagfn1("B", "add an ELF NT_GNU_BUILD_ID `note` when using ELF", addbuildinfo)
 	obj.Flagcount("C", "check Go calls to C code", &Debug['C'])
 	obj.Flagint64("D", "set data segment `address`", &INITDAT)
 	obj.Flagstr("E", "set `entry` symbol name", &INITENTRY)
-	if Thearch.Thechar == '5' {
-		obj.Flagcount("G", "debug pseudo-ops", &Debug['G'])
-	}
 	obj.Flagfn1("I", "use `linker` as ELF dynamic linker", setinterp)
 	obj.Flagfn1("L", "add specified `directory` to library path", Lflag)
 	obj.Flagfn1("H", "set header `type`", setheadtype)
-	obj.Flagcount("K", "add stack underflow checks", &Debug['K'])
-	if Thearch.Thechar == '5' {
-		obj.Flagcount("M", "disable software div/mod", &Debug['M'])
-	}
-	obj.Flagcount("O", "print pc-line tables", &Debug['O'])
-	obj.Flagcount("Q", "debug byte-register code gen", &Debug['Q'])
-	if Thearch.Thechar == '5' {
-		obj.Flagcount("P", "debug code generation", &Debug['P'])
-	}
 	obj.Flagint32("R", "set address rounding `quantum`", &INITRND)
-	obj.Flagcount("nil", "check type signatures", &Debug['S'])
 	obj.Flagint64("T", "set text segment `address`", &INITTEXT)
 	obj.Flagfn0("V", "print version and exit", doversion)
 	obj.Flagcount("W", "disassemble input", &Debug['W'])
 	obj.Flagfn1("X", "add string value `definition` of the form importpath.name=value", addstrdata1)
-	obj.Flagcount("Z", "clear stack frame on entry", &Debug['Z'])
 	obj.Flagcount("a", "disassemble output", &Debug['a'])
 	obj.Flagstr("buildid", "record `id` as Go toolchain build id", &buildid)
 	flag.Var(&Buildmode, "buildmode", "set build `mode`")
@@ -169,11 +150,14 @@ func Ldmain() {
 	Ctxt.Bso = &Bso
 	Ctxt.Debugvlog = int32(Debug['v'])
 	if flagShared != 0 {
-		if Buildmode == BuildmodeExe {
+		if Buildmode == BuildmodeUnset {
 			Buildmode = BuildmodeCShared
 		} else if Buildmode != BuildmodeCShared {
 			Exitf("-shared and -buildmode=%s are incompatible", Buildmode.String())
 		}
+	}
+	if Buildmode == BuildmodeUnset {
+		Buildmode = BuildmodeExe
 	}
 
 	if Buildmode != BuildmodeShared && flag.NArg() != 1 {
@@ -229,7 +213,7 @@ func Ldmain() {
 
 	if Thearch.Thechar == '5' {
 		// mark some functions that are only referenced after linker code editing
-		if Debug['F'] != 0 {
+		if Ctxt.Goarm == 5 {
 			mark(Linkrlookup(Ctxt, "_sfloat", 0))
 		}
 		mark(Linklookup(Ctxt, "runtime.read_tls_fallback", 0))

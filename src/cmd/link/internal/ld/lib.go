@@ -276,7 +276,8 @@ func Lflag(arg string) {
 type BuildMode uint8
 
 const (
-	BuildmodeExe BuildMode = iota
+	BuildmodeUnset BuildMode = iota
+	BuildmodeExe
 	BuildmodeCArchive
 	BuildmodeCShared
 	BuildmodeShared
@@ -316,6 +317,8 @@ func (mode *BuildMode) Set(s string) error {
 
 func (mode *BuildMode) String() string {
 	switch *mode {
+	case BuildmodeUnset:
+		return "" // avoid showing a default in usage message
 	case BuildmodeExe:
 		return "exe"
 	case BuildmodeCArchive:
