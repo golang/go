@@ -186,31 +186,6 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 	// as we do not instrument runtime code.
 	// typedslicecopy is instrumented in runtime.
 	case OCALLFUNC:
-		if n.Left.Sym != nil && n.Left.Sym.Pkg == Runtimepkg && (strings.HasPrefix(n.Left.Sym.Name, "writebarrier") || n.Left.Sym.Name == "typedmemmove") {
-			// Find the dst argument.
-			// The list can be reordered, so it's not necessary just the first or the second element.
-			var l *NodeList
-			for l = n.List; l != nil; l = l.Next {
-				if n.Left.Sym.Name == "typedmemmove" {
-					if l.N.Left.Xoffset == int64(Widthptr) {
-						break
-					}
-				} else {
-					if l.N.Left.Xoffset == 0 {
-						break
-					}
-				}
-			}
-
-			if l == nil {
-				Fatal("racewalk: writebarrier no arg")
-			}
-			if l.N.Right.Op != OADDR {
-				Fatal("racewalk: writebarrier bad arg")
-			}
-			callinstr(&l.N.Right.Left, init, 1, 0)
-		}
-
 		racewalknode(&n.Left, init, 0, 0)
 		goto ret
 
