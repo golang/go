@@ -2226,65 +2226,11 @@ var applywritebarrier_bv Bvec
 
 func applywritebarrier(n *Node, init **NodeList) *Node {
 	if n.Left != nil && n.Right != nil && needwritebarrier(n.Left, n.Right) {
-		if flag_race == 0 {
-			if Debug_wb > 1 {
-				Warnl(int(n.Lineno), "marking %v for barrier", Nconv(n.Left, 0))
-			}
-			n.Op = OASWB
-			return n
+		if Debug_wb > 1 {
+			Warnl(int(n.Lineno), "marking %v for barrier", Nconv(n.Left, 0))
 		}
-		// Use slow path always for race detector.
-		if Curfn != nil && Curfn.Func.Nowritebarrier {
-			Yyerror("write barrier prohibited")
-		}
-		if Debug_wb > 0 {
-			Warnl(int(n.Lineno), "write barrier")
-		}
-		t := n.Left.Type
-		l := Nod(OADDR, n.Left, nil)
-		l.Etype = 1 // addr does not escape
-		if t.Width == int64(Widthptr) {
-			n = mkcall1(writebarrierfn("writebarrierptr", t, n.Right.Type), nil, init, l, n.Right)
-		} else if t.Etype == TSTRING {
-			n = mkcall1(writebarrierfn("writebarrierstring", t, n.Right.Type), nil, init, l, n.Right)
-		} else if Isslice(t) {
-			n = mkcall1(writebarrierfn("writebarrierslice", t, n.Right.Type), nil, init, l, n.Right)
-		} else if Isinter(t) {
-			n = mkcall1(writebarrierfn("writebarrieriface", t, n.Right.Type), nil, init, l, n.Right)
-		} else if t.Width <= int64(4*Widthptr) {
-			x := int64(0)
-			if applywritebarrier_bv.b == nil {
-				applywritebarrier_bv = bvalloc(4)
-			}
-			bvresetall(applywritebarrier_bv)
-			onebitwalktype1(t, &x, applywritebarrier_bv)
-			var name string
-			switch t.Width / int64(Widthptr) {
-			default:
-				Fatal("found writebarrierfat for %d-byte object of type %v", int(t.Width), t)
-
-			case 2:
-				name = fmt.Sprintf("writebarrierfat%d%d", bvget(applywritebarrier_bv, 0), bvget(applywritebarrier_bv, 1))
-
-			case 3:
-				name = fmt.Sprintf("writebarrierfat%d%d%d", bvget(applywritebarrier_bv, 0), bvget(applywritebarrier_bv, 1), bvget(applywritebarrier_bv, 2))
-
-			case 4:
-				name = fmt.Sprintf("writebarrierfat%d%d%d%d", bvget(applywritebarrier_bv, 0), bvget(applywritebarrier_bv, 1), bvget(applywritebarrier_bv, 2), bvget(applywritebarrier_bv, 3))
-			}
-
-			n = mkcall1(writebarrierfn(name, t, n.Right.Type), nil, init, l, Nodintconst(0), n.Right)
-		} else {
-			r := n.Right
-			for r.Op == OCONVNOP {
-				r = r.Left
-			}
-			r = Nod(OADDR, r, nil)
-			r.Etype = 1 // addr does not escape
-
-			//warnl(n->lineno, "typedmemmove %T %N", t, r);
-			n = mkcall1(writebarrierfn("typedmemmove", t, r.Left.Type), nil, init, typename(t), l, r)
-		}
+		n.Op = OASWB
+		return n
 	}
 	return n
 }
