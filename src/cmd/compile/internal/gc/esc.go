@@ -1269,6 +1269,24 @@ func escNoteOutputParamFlow(e uint16, vargen int32, level Level) uint16 {
 	return (e &^ (bitsMaskForTag << shift)) | encodedFlow
 }
 
+func initEscretval(e *EscState, n *Node, fntype *Type) {
+	i := 0
+	n.Escretval = nil // Suspect this is not nil for indirect calls.
+	for t := getoutargx(fntype).Type; t != nil; t = t.Down {
+		src := Nod(ONAME, nil, nil)
+		buf := fmt.Sprintf(".out%d", i)
+		i++
+		src.Sym = Lookup(buf)
+		src.Type = t.Type
+		src.Class = PAUTO
+		src.Curfn = Curfn
+		src.Escloopdepth = e.loopdepth
+		src.Used = true
+		src.Lineno = n.Lineno
+		n.Escretval = list(n.Escretval, src)
+	}
+}
+
 // This is a bit messier than fortunate, pulled out of esc's big
 // switch for clarity.	We either have the paramnodes, which may be
 // connected to other things through flows or we have the parameter type
@@ -1277,7 +1295,7 @@ func escNoteOutputParamFlow(e uint16, vargen int32, level Level) uint16 {
 // this-package
 func esccall(e *EscState, n *Node, up *Node) {
 	var fntype *Type
-
+	var indirect bool
 	var fn *Node
 	switch n.Op {
 	default:
@@ -1286,6 +1304,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 	case OCALLFUNC:
 		fn = n.Left
 		fntype = fn.Type
+		indirect = fn.Op != ONAME || fn.Class != PFUNC
 
 	case OCALLMETH:
 		fn = n.Left.Right.Sym.Def
@@ -1297,6 +1316,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 
 	case OCALLINTER:
 		fntype = n.Left.Type
+		indirect = true
 	}
 
 	ll := n.List
@@ -1305,6 +1325,28 @@ func esccall(e *EscState, n *Node, up *Node) {
 		if a.Type.Etype == TSTRUCT && a.Type.Funarg != 0 { // f(g()).
 			ll = a.Escretval
 		}
+	}
+
+	if indirect {
+		// We know nothing!
+		// Leak all the parameters
+		for ; ll != nil; ll = ll.Next {
+			escassign(e, &e.theSink, ll.N)
+			if Debug['m'] > 2 {
+				fmt.Printf("%v::esccall:: indirect call <- %v, untracked\n", Ctxt.Line(int(lineno)), Nconv(ll.N, obj.FmtShort))
+			}
+		}
+		// Set up bogus outputs
+		initEscretval(e, n, fntype)
+		// If there is a receiver, it also leaks to heap.
+		if n.Op != OCALLFUNC {
+			t := getthisx(fntype).Type
+			src := n.Left.Left
+			if haspointers(t.Type) {
+				escassign(e, &e.theSink, src)
+			}
+		}
+		return
 	}
 
 	if fn != nil && fn.Op == ONAME && fn.Class == PFUNC &&
@@ -1376,23 +1418,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 	}
 
 	// set up out list on this call node with dummy auto ONAMES in the current (calling) function.
-	i := 0
-
-	var src *Node
-	var buf string
-	for t := getoutargx(fntype).Type; t != nil; t = t.Down {
-		src = Nod(ONAME, nil, nil)
-		buf = fmt.Sprintf(".out%d", i)
-		i++
-		src.Sym = Lookup(buf)
-		src.Type = t.Type
-		src.Class = PAUTO
-		src.Curfn = Curfn
-		src.Escloopdepth = e.loopdepth
-		src.Used = true
-		src.Lineno = n.Lineno
-		n.Escretval = list(n.Escretval, src)
-	}
+	initEscretval(e, n, fntype)
 
 	//	print("esc analyzed fn: %#N (%+T) returning (%+H)\n", fn, fntype, n->escretval);
 
@@ -1405,9 +1431,8 @@ func esccall(e *EscState, n *Node, up *Node) {
 		}
 	}
 
-	var a *Node
 	for t := getinargx(fntype).Type; ll != nil; ll = ll.Next {
-		src = ll.N
+		src := ll.N
 		if t.Isddd && !n.Isddd {
 			// Introduce ODDDARG node to represent ... allocation.
 			src = Nod(ODDDARG, nil, nil)
@@ -1425,7 +1450,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 
 		if haspointers(t.Type) {
 			if escassignfromtag(e, t.Note, n.Escretval, src) == EscNone && up.Op != ODEFER && up.Op != OPROC {
-				a = src
+				a := src
 				for a.Op == OCONVNOP {
 					a = a.Left
 				}
