@@ -206,7 +206,6 @@ type Prog struct {
 	From     Addr
 	From3    Addr
 	To       Addr
-	To2      Addr
 	Opt      interface{}
 	Forwd    *Prog
 	Pcond    *Prog
@@ -217,6 +216,7 @@ type Prog struct {
 	Spadj    int32
 	As       int16
 	Reg      int16
+	RegTo2   int16 // 2nd register output operand
 	Mark     uint16
 	Optab    uint16
 	Scond    uint8
