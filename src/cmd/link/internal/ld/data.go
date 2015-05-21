@@ -917,14 +917,12 @@ func strnput(s string, n int) {
 	}
 }
 
-var addstrdata_name string
-
 func addstrdata1(arg string) {
-	if strings.HasPrefix(arg, "VALUE:") {
-		addstrdata(addstrdata_name, arg[6:])
-	} else {
-		addstrdata_name = arg
+	i := strings.Index(arg, "=")
+	if i < 0 {
+		Exitf("-X flag requires argument of the form importpath.name=value")
 	}
+	addstrdata(arg[:i], arg[i+1:])
 }
 
 func addstrdata(name string, value string) {
