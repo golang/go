@@ -222,7 +222,6 @@ type Prog struct {
 	Scond    uint8
 	Back     uint8
 	Ft       uint8
-	F3t      uint8
 	Tt       uint8
 	Isize    uint8
 	Printed  uint8
