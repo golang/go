@@ -2677,8 +2677,8 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 	case 59: /* stxr/stlxr */
 		o1 = opstore(ctxt, int(p.As))
 
-		if p.To2.Type != obj.TYPE_NONE {
-			o1 |= uint32(p.To2.Reg&31) << 16
+		if p.RegTo2 != obj.REG_NONE {
+			o1 |= uint32(p.RegTo2&31) << 16
 		} else {
 			o1 |= 0x1F << 16
 		}

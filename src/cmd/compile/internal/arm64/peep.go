@@ -422,9 +422,9 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		// 7g never generates a from3
 		fmt.Printf("copyu: from3 (%v) not implemented\n", gc.Ctxt.Dconv(&p.From3))
 	}
-	if p.To2.Type != obj.TYPE_NONE {
+	if p.RegTo2 != obj.REG_NONE {
 		// 7g never generates a to2
-		fmt.Printf("copyu: to2 (%v) not implemented\n", gc.Ctxt.Dconv(&p.To2))
+		fmt.Printf("copyu: RegTo2 (%v) not implemented\n", obj.Rconv(int(p.RegTo2)))
 	}
 
 	switch p.As {
