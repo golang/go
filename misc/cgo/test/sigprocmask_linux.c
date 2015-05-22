@@ -22,6 +22,7 @@ static void* sigthreadfunc(void* unused) {
 	sigaddset(&mask, SIGIO);
 	sigprocmask(SIG_BLOCK, &mask, NULL);
 	IntoGoAndBack();
+	return NULL;
 }
 
 int RunSigThread() {
