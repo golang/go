@@ -111,15 +111,8 @@ func mpgetfltN(a *Mpflt, prec int, bias int) float64 {
 	case 53:
 		x, _ = a.Val.Float64()
 	case 24:
-		// We should be using a.Val.Float32() here but that seems incorrect
-		// for certain denormal values (all.bash fails). The current code
-		// appears to work for all existing test cases, though there ought
-		// to be issues with denormal numbers that are incorrectly rounded.
-		// TODO(gri) replace with a.Val.Float32() once correctly working
-		// See also: https://github.com/golang/go/issues/10321
-		var t Mpflt
-		t.Val.SetPrec(24).Set(&a.Val)
-		x, _ = t.Val.Float64()
+		x32, _ := a.Val.Float32()
+		x = float64(x32)
 	default:
 		panic("unreachable")
 	}
