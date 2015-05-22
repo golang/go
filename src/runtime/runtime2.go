@@ -332,6 +332,7 @@ type m struct {
 	libcallpc uintptr // for cpu profiler
 	libcallsp uintptr
 	libcallg  guintptr
+	syscall   libcall // stores syscall parameters on windows
 	//#endif
 	//#ifdef GOOS_solaris
 	perrno *int32 // pointer to tls errno
