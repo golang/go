@@ -333,9 +333,9 @@ func TestTrailingZeroBits(t *testing.T) {
 }
 
 var montgomeryTests = []struct {
-	x, y, m string
-	k0      uint64
-	out32, out64     string
+	x, y, m      string
+	k0           uint64
+	out32, out64 string
 }{
 	{
 		"0xffffffffffffffffffffffffffffffffffffffffffffffffe",
@@ -384,7 +384,7 @@ func TestMontgomery(t *testing.T) {
 			out = natFromString(test.out64)
 		}
 
-		k0 := Word(test.k0 & _M)  // mask k0 to ensure that it fits for 32-bit systems.
+		k0 := Word(test.k0 & _M) // mask k0 to ensure that it fits for 32-bit systems.
 		z := nat(nil).montgomery(x, y, m, k0, len(m))
 		z = z.norm()
 		if z.cmp(out) != 0 {
