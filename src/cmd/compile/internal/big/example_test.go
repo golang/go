@@ -5,9 +5,9 @@
 package big_test
 
 import (
+	"cmd/compile/internal/big"
 	"fmt"
 	"log"
-	"math/big"
 )
 
 func ExampleRat_SetString() {

@@ -15,8 +15,14 @@ rm *.go
 cp $BIGDIR/*.go .
 
 # Use pure Go arith ops w/o build tag.
-sed 's/^\/\/ \+build math_big_pure_go$//' arith_decl_pure.go > arith_decl.go
+sed 's|^// \+build math_big_pure_go$||' arith_decl_pure.go > arith_decl.go
 rm arith_decl_pure.go
+
+# Import vendored math/big in external tests (e.g., floatexample_test.go).
+for f in *_test.go; do
+	sed 's|"math/big"|"cmd/compile/internal/big"|' $f > foo.go
+	mv foo.go $f
+done
 
 # gofmt to clean up after sed
 gofmt -w .
