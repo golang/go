@@ -1397,5 +1397,5 @@ func IsLocalImport(path string) bool {
 // and the default linker output name. As of Go 1.5, those strings
 // no longer vary by architecture; they are compile, link, .o, and a.out, respectively.
 func ArchChar(goarch string) (string, error) {
-	return "", errors.New("architecture letter no longer used")
+	return "?", errors.New("architecture letter no longer used")
 }
