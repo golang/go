@@ -209,6 +209,12 @@ func alike32(x, y float32) bool {
 
 }
 
+func alike64(x, y float64) bool {
+	// we can ignore NaNs
+	return x == y && math.Signbit(x) == math.Signbit(y)
+
+}
+
 func TestFloatMantExp(t *testing.T) {
 	for _, test := range []struct {
 		x    string
@@ -908,35 +914,37 @@ func TestFloatFloat64(t *testing.T) {
 		out float64
 		acc Accuracy
 	}{
-		{"-Inf", math.Inf(-1), Exact},
-		{"-0x1.fffffffffffff8p2147483646", -math.Inf(+1), Below}, // overflow in rounding
-		{"-1e10000", math.Inf(-1), Below},                        // overflow
-		{"-0x1p1024", math.Inf(-1), Below},                       // overflow
-		{"-0x1.fffffffffffff8p1023", -math.Inf(+1), Below},       // overflow
-		{"-0x1.fffffffffffff4p1023", -math.MaxFloat64, Above},
-		{"-0x1.fffffffffffff0p1023", -math.MaxFloat64, Exact},
-		{"-12345.000000000000000000001", -12345, Above},
-		{"-12345.0", -12345, Exact},
-		{"-1.000000000000000000001", -1, Above},
-		{"-1", -1, Exact},
-		{"-0x0.0000000000001p-1022", -math.SmallestNonzeroFloat64, Exact},
-		{"-0x0.0000000000001p-1023", -0, Above}, // underflow
-		{"-1e-1000", -0, Above},                 // underflow
 		{"0", 0, Exact},
-		{"1e-1000", 0, Below},                 // underflow
-		{"0x0.0000000000001p-1023", 0, Below}, // underflow
-		{"0x0.0000000000001p-1022", math.SmallestNonzeroFloat64, Exact},
+
+		// underflow
+		{"1e-1000", 0, Below},
+		{"0x0.0000000000001p-1023", 0, Below},
+		{"0x0.00000000000008p-1022", 0, Below},
+
+		// denormals
+		// TODO(gri) enable once Float64 is fixed
+		// {"0x0.0000000000000cp-1022", math.SmallestNonzeroFloat64, Above}, // rounded up to smallest denormal
+		{"0x0.0000000000001p-1022", math.SmallestNonzeroFloat64, Exact}, // smallest denormal
+		{"0x.8p-1073", math.SmallestNonzeroFloat64, Exact},
+		{"1p-1074", math.SmallestNonzeroFloat64, Exact},
+		{"0x.fffffffffffffp-1022", math.Float64frombits(0x000fffffffffffff), Exact}, // largest denormal
+
+		// normals
+		{"0x.fffffffffffff8p-1022", math.Float64frombits(0x0010000000000000), Above}, // rounded up to smallest normal
+		{"1p-1022", math.Float64frombits(0x0010000000000000), Exact},                 // smallest normal
 		{"1", 1, Exact},
 		{"1.000000000000000000001", 1, Below},
 		{"12345.0", 12345, Exact},
 		{"12345.000000000000000000001", 12345, Below},
 		{"0x1.fffffffffffff0p1023", math.MaxFloat64, Exact},
 		{"0x1.fffffffffffff4p1023", math.MaxFloat64, Below},
-		{"0x1.fffffffffffff8p1023", math.Inf(+1), Above},       // overflow
-		{"0x1p1024", math.Inf(+1), Above},                      // overflow
-		{"1e10000", math.Inf(+1), Above},                       // overflow
+
+		// overflow
+		{"0x1.fffffffffffff8p1023", math.Inf(+1), Above},
+		{"0x1p1024", math.Inf(+1), Above},
+		{"1e10000", math.Inf(+1), Above},
 		{"0x1.fffffffffffff8p2147483646", math.Inf(+1), Above}, // overflow in rounding
-		{"+Inf", math.Inf(+1), Exact},
+		{"Inf", math.Inf(+1), Exact},
 
 		// selected denormalized values that were handled incorrectly in the past
 		{"0x.fffffffffffffp-1022", smallestNormalFloat64 - math.SmallestNonzeroFloat64, Exact},
@@ -947,22 +955,32 @@ func TestFloatFloat64(t *testing.T) {
 		// http://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
 		{"2.2250738585072012e-308", 2.2250738585072014e-308, Above},
 	} {
-		// conversion should match strconv where syntax is agreeable
-		if f, err := strconv.ParseFloat(test.x, 64); err == nil && f != test.out {
-			t.Errorf("%s: got %g; want %g (incorrect test data)", test.x, f, test.out)
-		}
+		for i := 0; i < 2; i++ {
+			// test both signs
+			tx, tout, tacc := test.x, test.out, test.acc
+			if i != 0 {
+				tx = "-" + tx
+				tout = -tout
+				tacc = -tacc
+			}
 
-		x := makeFloat(test.x)
-		out, acc := x.Float64()
-		if out != test.out || acc != test.acc {
-			t.Errorf("%s: got %g (%#x, %s); want %g (%#x, %s)", test.x, out, math.Float64bits(out), acc, test.out, math.Float64bits(test.out), test.acc)
-		}
+			// conversion should match strconv where syntax is agreeable
+			if f, err := strconv.ParseFloat(tx, 64); err == nil && !alike64(f, tout) {
+				t.Errorf("%s: got %g; want %g (incorrect test data)", tx, f, tout)
+			}
 
-		// test that x.SetFloat64(f).Float64() == f
-		var x2 Float
-		out2, acc2 := x2.SetFloat64(out).Float64()
-		if out2 != out || acc2 != Exact {
-			t.Errorf("idempotency test: got %g (%s); want %g (Exact)", out2, acc2, out)
+			x := makeFloat(tx)
+			out, acc := x.Float64()
+			if !alike64(out, tout) || acc != tacc {
+				t.Errorf("%s: got %g (%#x, %s); want %g (%#x, %s)", tx, out, math.Float64bits(out), acc, test.out, math.Float64bits(test.out), tacc)
+			}
+
+			// test that x.SetFloat64(f).Float64() == f
+			var x2 Float
+			out2, acc2 := x2.SetFloat64(out).Float64()
+			if !alike64(out2, out) || acc2 != Exact {
+				t.Errorf("idempotency test: got %g (%s); want %g (Exact)", out2, acc2, out)
+			}
 		}
 	}
 }
