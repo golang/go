@@ -105,17 +105,8 @@ func mpcmpfltc(b *Mpflt, c float64) int {
 	return mpcmpfltflt(b, &a)
 }
 
-func mpgetfltN(a *Mpflt, prec int, bias int) float64 {
-	var x float64
-	switch prec {
-	case 53:
-		x, _ = a.Val.Float64()
-	case 24:
-		x32, _ := a.Val.Float32()
-		x = float64(x32)
-	default:
-		panic("unreachable")
-	}
+func mpgetflt(a *Mpflt) float64 {
+	x, _ := a.Val.Float64()
 
 	// check for overflow
 	if math.IsInf(x, 0) && nsavederrors+nerrors == 0 {
@@ -125,12 +116,16 @@ func mpgetfltN(a *Mpflt, prec int, bias int) float64 {
 	return x
 }
 
-func mpgetflt(a *Mpflt) float64 {
-	return mpgetfltN(a, 53, -1023)
-}
-
 func mpgetflt32(a *Mpflt) float64 {
-	return mpgetfltN(a, 24, -127)
+	x32, _ := a.Val.Float32()
+	x := float64(x32)
+
+	// check for overflow
+	if math.IsInf(x, 0) && nsavederrors+nerrors == 0 {
+		Yyerror("mpgetflt32 ovf")
+	}
+
+	return x
 }
 
 func Mpmovecflt(a *Mpflt, c float64) {
