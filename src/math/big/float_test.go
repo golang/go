@@ -922,9 +922,8 @@ func TestFloatFloat64(t *testing.T) {
 		{"0x0.00000000000008p-1022", 0, Below},
 
 		// denormals
-		// TODO(gri) enable once Float64 is fixed
-		// {"0x0.0000000000000cp-1022", math.SmallestNonzeroFloat64, Above}, // rounded up to smallest denormal
-		{"0x0.0000000000001p-1022", math.SmallestNonzeroFloat64, Exact}, // smallest denormal
+		{"0x0.0000000000000cp-1022", math.SmallestNonzeroFloat64, Above}, // rounded up to smallest denormal
+		{"0x0.0000000000001p-1022", math.SmallestNonzeroFloat64, Exact},  // smallest denormal
 		{"0x.8p-1073", math.SmallestNonzeroFloat64, Exact},
 		{"1p-1074", math.SmallestNonzeroFloat64, Exact},
 		{"0x.fffffffffffffp-1022", math.Float64frombits(0x000fffffffffffff), Exact}, // largest denormal
