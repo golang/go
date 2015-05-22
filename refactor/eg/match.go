@@ -185,7 +185,17 @@ func (tr *Transformer) matchWildcard(xobj *types.Var, y ast.Expr) bool {
 	}
 
 	// Check that y is assignable to the declared type of the param.
-	if yt := tr.info.TypeOf(y); !types.AssignableTo(yt, xobj.Type()) {
+	yt := tr.info.TypeOf(y)
+	if yt == nil {
+		// y has no type.
+		// Perhaps it is an *ast.Ellipsis in [...]T{}, or
+		// an *ast.KeyValueExpr in T{k: v}.
+		// Clearly these pseudo-expressions cannot match a
+		// wildcard, but it would nice if we had a way to ignore
+		// the difference between T{v} and T{k:v} for structs.
+		return false
+	}
+	if !types.AssignableTo(yt, xobj.Type()) {
 		if tr.verbose {
 			fmt.Fprintf(os.Stderr, "%s not assignable to %s\n", yt, xobj.Type())
 		}

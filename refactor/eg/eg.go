@@ -84,6 +84,9 @@ a wildcard may have any integer type, for example.
 It is not possible to replace an expression by one of a different
 type, even in contexts where this is legal, such as x in fmt.Print(x).
 
+The struct literals T{x} and T{K: x} cannot both be matched by a single
+template.
+
 
 SAFETY
 

@@ -1,0 +1,9 @@
+package templates
+
+import (
+	"go/ast" // defines many unencapsulated structs
+	"go/token"
+)
+
+func before(from, to token.Pos) ast.BadExpr { return ast.BadExpr{from, to} }
+func after(from, to token.Pos) ast.BadExpr  { return ast.BadExpr{From: from, To: to} }

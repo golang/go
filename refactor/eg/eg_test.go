@@ -64,6 +64,12 @@ func Test(t *testing.T) {
 		"testdata/F.template",
 		"testdata/F1.go",
 
+		"testdata/G.template",
+		"testdata/G1.go",
+
+		"testdata/H.template",
+		"testdata/H1.go",
+
 		"testdata/bad_type.template",
 		"testdata/no_before.template",
 		"testdata/no_after_return.template",
