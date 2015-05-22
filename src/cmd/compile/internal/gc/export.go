@@ -203,9 +203,7 @@ func reexportdep(n *Node) {
 	reexportdeplist(n.Rlist)
 	reexportdeplist(n.Ninit)
 	reexportdep(n.Ntest)
-	reexportdep(n.Nincr)
 	reexportdeplist(n.Nbody)
-	reexportdeplist(n.Nelse)
 }
 
 func dumpexportconst(s *Sym) {

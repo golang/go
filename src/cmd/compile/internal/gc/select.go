@@ -247,7 +247,7 @@ func walkselect(sel *Node) {
 
 		typecheck(&r.Ntest, Erv)
 		r.Nbody = cas.Nbody
-		r.Nelse = concat(dflt.Ninit, dflt.Nbody)
+		r.Rlist = concat(dflt.Ninit, dflt.Nbody)
 		sel.Nbody = list1(r)
 		goto out
 	}

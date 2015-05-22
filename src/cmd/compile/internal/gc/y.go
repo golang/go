@@ -1789,7 +1789,7 @@ yydefault:
 				yyVAL.node.Ninit = list1(yyDollar[1].node)
 			}
 			yyVAL.node.Ntest = yyDollar[3].node
-			yyVAL.node.Nincr = yyDollar[5].node
+			yyVAL.node.Right = yyDollar[5].node
 		}
 	case 71:
 		yyDollar = yyS[yypt-1 : yypt+1]
@@ -1872,7 +1872,7 @@ yydefault:
 				if nn.N.Op == OIF {
 					popdcl()
 				}
-				n.Nelse = list1(nn.N)
+				n.Rlist = list1(nn.N)
 				n = nn.N
 			}
 		}

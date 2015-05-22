@@ -867,8 +867,8 @@ func stmtfmt(n *Node) string {
 		} else {
 			f += fmt.Sprintf("if %v { %v }", n.Ntest, n.Nbody)
 		}
-		if n.Nelse != nil {
-			f += fmt.Sprintf(" else { %v }", n.Nelse)
+		if n.Rlist != nil {
+			f += fmt.Sprintf(" else { %v }", n.Rlist)
 		}
 
 	case OFOR:
@@ -880,7 +880,7 @@ func stmtfmt(n *Node) string {
 		f += "for"
 		if simpleinit {
 			f += fmt.Sprintf(" %v;", n.Ninit.N)
-		} else if n.Nincr != nil {
+		} else if n.Right != nil {
 			f += " ;"
 		}
 
@@ -888,8 +888,8 @@ func stmtfmt(n *Node) string {
 			f += fmt.Sprintf(" %v", n.Ntest)
 		}
 
-		if n.Nincr != nil {
-			f += fmt.Sprintf("; %v", n.Nincr)
+		if n.Right != nil {
+			f += fmt.Sprintf("; %v", n.Right)
 		} else if simpleinit {
 			f += ";"
 		}
@@ -1570,16 +1570,6 @@ func nodedump(n *Node, flag int) string {
 		if n.Nbody != nil {
 			indent(&buf)
 			fmt.Fprintf(&buf, "%v-body%v", Oconv(int(n.Op), 0), n.Nbody)
-		}
-
-		if n.Nelse != nil {
-			indent(&buf)
-			fmt.Fprintf(&buf, "%v-else%v", Oconv(int(n.Op), 0), n.Nelse)
-		}
-
-		if n.Nincr != nil {
-			indent(&buf)
-			fmt.Fprintf(&buf, "%v-incr%v", Oconv(int(n.Op), 0), n.Nincr)
 		}
 	}
 

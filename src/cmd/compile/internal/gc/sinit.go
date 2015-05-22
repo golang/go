@@ -19,6 +19,7 @@ const (
 )
 
 var initlist *NodeList
+var initplans = make(map[*Node]*InitPlan)
 
 // init1 walks the AST starting at n, and accumulates in out
 // the list of definitions needing init code in dependency order.
@@ -218,7 +219,6 @@ func init2(n *Node, out **NodeList) {
 	init2list(n.List, out)
 	init2list(n.Rlist, out)
 	init2list(n.Nbody, out)
-	init2list(n.Nelse, out)
 
 	if n.Op == OCLOSURE {
 		init2list(n.Param.Closure.Nbody, out)
@@ -351,7 +351,7 @@ func staticcopy(l *Node, r *Node, out **NodeList) bool {
 
 		// fall through
 	case OSTRUCTLIT:
-		p := r.Initplan
+		p := initplans[r]
 
 		n1 := *l
 		var e *InitEntry
@@ -469,7 +469,7 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
 	case OSTRUCTLIT:
 		initplan(r)
 
-		p := r.Initplan
+		p := initplans[r]
 		n1 = *l
 		var e *InitEntry
 		var a *Node
@@ -997,7 +997,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 
 		a.Ninit = list1(Nod(OAS, index, Nodintconst(0)))
 		a.Ntest = Nod(OLT, index, Nodintconst(t.Bound))
-		a.Nincr = Nod(OAS, index, Nod(OADD, index, Nodintconst(1)))
+		a.Right = Nod(OAS, index, Nod(OADD, index, Nodintconst(1)))
 
 		typecheck(&a, Etop)
 		walkstmt(&a)
@@ -1274,11 +1274,11 @@ func stataddr(nam *Node, n *Node) bool {
 }
 
 func initplan(n *Node) {
-	if n.Initplan != nil {
+	if initplans[n] != nil {
 		return
 	}
 	p := new(InitPlan)
-	n.Initplan = p
+	initplans[n] = p
 	switch n.Op {
 	default:
 		Fatal("initplan")
@@ -1325,7 +1325,7 @@ func addvalue(p *InitPlan, xoffset int64, key *Node, n *Node) {
 	// special case: inline struct and array (not slice) literals
 	if isvaluelit(n) {
 		initplan(n)
-		q := n.Initplan
+		q := initplans[n]
 		var e *InitEntry
 		for i := 0; i < len(q.E); i++ {
 			e = entry(p)

@@ -237,7 +237,7 @@ func callrecv(n *Node) bool {
 		return true
 	}
 
-	return callrecv(n.Left) || callrecv(n.Right) || callrecv(n.Ntest) || callrecv(n.Nincr) || callrecvlist(n.Ninit) || callrecvlist(n.Nbody) || callrecvlist(n.Nelse) || callrecvlist(n.List) || callrecvlist(n.Rlist)
+	return callrecv(n.Left) || callrecv(n.Right) || callrecv(n.Ntest) || callrecvlist(n.Ninit) || callrecvlist(n.Nbody) || callrecvlist(n.List) || callrecvlist(n.Rlist)
 }
 
 func callrecvlist(l *NodeList) bool {
@@ -2104,7 +2104,7 @@ OpSwitch:
 				Yyerror("non-bool %v used as for condition", Nconv(n.Ntest, obj.FmtLong))
 			}
 		}
-		typecheck(&n.Nincr, Etop)
+		typecheck(&n.Right, Etop)
 		typechecklist(n.Nbody, Etop)
 		decldepth--
 		break OpSwitch
@@ -2120,7 +2120,7 @@ OpSwitch:
 			}
 		}
 		typechecklist(n.Nbody, Etop)
-		typechecklist(n.Nelse, Etop)
+		typechecklist(n.Rlist, Etop)
 		break OpSwitch
 
 	case ORETURN:
@@ -3953,10 +3953,8 @@ func markbreak(n *Node, implicit *Node) {
 
 		markbreak(n.Right, implicit)
 		markbreak(n.Ntest, implicit)
-		markbreak(n.Nincr, implicit)
 		markbreaklist(n.Ninit, implicit)
 		markbreaklist(n.Nbody, implicit)
-		markbreaklist(n.Nelse, implicit)
 		markbreaklist(n.List, implicit)
 		markbreaklist(n.Rlist, implicit)
 	}
@@ -4035,7 +4033,7 @@ func isterminating(l *NodeList, top int) bool {
 		return true
 
 	case OIF:
-		return isterminating(n.Nbody, 0) && isterminating(n.Nelse, 0)
+		return isterminating(n.Nbody, 0) && isterminating(n.Rlist, 0)
 
 	case OSWITCH, OTYPESW, OSELECT:
 		if n.Hasbreak {

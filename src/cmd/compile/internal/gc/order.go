@@ -651,7 +651,7 @@ func orderstmt(n *Node, order *Order) {
 		cleantempnopop(t, order, &l)
 		n.Nbody = concat(l, n.Nbody)
 		orderblock(&n.Nbody)
-		orderstmtinplace(&n.Nincr)
+		orderstmtinplace(&n.Right)
 		order.out = list(order.out, n)
 		cleantemp(t, order)
 
@@ -666,10 +666,10 @@ func orderstmt(n *Node, order *Order) {
 		n.Nbody = concat(l, n.Nbody)
 		l = nil
 		cleantempnopop(t, order, &l)
-		n.Nelse = concat(l, n.Nelse)
+		n.Rlist = concat(l, n.Rlist)
 		poptemp(t, order)
 		orderblock(&n.Nbody)
-		orderblock(&n.Nelse)
+		orderblock(&n.Rlist)
 		order.out = list(order.out, n)
 
 		// Special: argument will be converted to interface using convT2E
