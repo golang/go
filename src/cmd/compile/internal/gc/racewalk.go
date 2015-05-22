@@ -372,8 +372,13 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 		goto ret
 
 		// just do generic traversal
-	case OFOR,
-		OIF,
+	case OFOR:
+		if n.Right != nil {
+			racewalknode(&n.Right, &n.Right.Ninit, 0, 0)
+		}
+		goto ret
+
+	case OIF,
 		OCALLMETH,
 		ORETURN,
 		ORETJMP,
@@ -413,11 +418,7 @@ ret:
 	if n.Ntest != nil {
 		racewalknode(&n.Ntest, &n.Ntest.Ninit, 0, 0)
 	}
-	if n.Nincr != nil {
-		racewalknode(&n.Nincr, &n.Nincr.Ninit, 0, 0)
-	}
 	racewalklist(n.Nbody, nil)
-	racewalklist(n.Nelse, nil)
 	racewalklist(n.Rlist, nil)
 	*np = n
 }
@@ -577,9 +578,7 @@ func foreach(n *Node, f func(*Node, interface{}), c interface{}) {
 	foreachnode(n.Right, f, c)
 	foreachlist(n.List, f, c)
 	foreachnode(n.Ntest, f, c)
-	foreachnode(n.Nincr, f, c)
 	foreachlist(n.Nbody, f, c)
-	foreachlist(n.Nelse, f, c)
 	foreachlist(n.Rlist, f, c)
 }
 

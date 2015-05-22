@@ -146,6 +146,7 @@ func walkrange(n *Node) {
 
 	a := n.Right
 	lno := int(setlineno(a))
+	n.Right = nil
 
 	var v1 *Node
 	if n.List != nil {
@@ -201,7 +202,6 @@ func walkrange(n *Node) {
 
 															n.Nbody = nil
 															n.Ntest = Nod(ONE, Nod(OLEN, a, nil), Nodintconst(0))
-															n.Nincr = nil
 
 															// hp = &a[0]
 															hp := temp(Ptrto(Types[TUINT8]))
@@ -267,7 +267,7 @@ func walkrange(n *Node) {
 		}
 
 		n.Ntest = Nod(OLT, hv1, hn)
-		n.Nincr = Nod(OAS, hv1, Nod(OADD, hv1, Nodintconst(1)))
+		n.Right = Nod(OAS, hv1, Nod(OADD, hv1, Nodintconst(1)))
 		if v1 == nil {
 			body = nil
 		} else if v2 == nil {
@@ -294,7 +294,7 @@ func walkrange(n *Node) {
 			tmp.Right.Typecheck = 1
 			a = Nod(OAS, hp, tmp)
 			typecheck(&a, Etop)
-			n.Nincr.Ninit = list1(a)
+			n.Right.Ninit = list1(a)
 		}
 
 		// orderstmt allocated the iterator for us.
@@ -317,7 +317,7 @@ func walkrange(n *Node) {
 
 		fn = syslook("mapiternext", 1)
 		substArgTypes(fn, th)
-		n.Nincr = mkcall1(fn, nil, nil, Nod(OADDR, hit, nil))
+		n.Right = mkcall1(fn, nil, nil, Nod(OADDR, hit, nil))
 
 		key := Nod(ODOT, hit, keyname)
 		key = Nod(OIND, key, nil)
@@ -397,7 +397,7 @@ func walkrange(n *Node) {
 	n.Ninit = concat(n.Ninit, init)
 	typechecklist(n.Ntest.Ninit, Etop)
 	typecheck(&n.Ntest, Erv)
-	typecheck(&n.Nincr, Etop)
+	typecheck(&n.Right, Etop)
 	typechecklist(body, Etop)
 	n.Nbody = concat(body, n.Nbody)
 	walkstmt(&n)

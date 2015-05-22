@@ -788,7 +788,7 @@ func gen(n *Node) {
 			lab.Continpc = continpc
 		}
 
-		gen(n.Nincr)                      // contin:	incr
+		gen(n.Right)                      // contin:	incr
 		Patch(p1, Pc)                     // test:
 		Bgen(n.Ntest, false, -1, breakpc) //		if(!test) goto break
 		Genlist(n.Nbody)                  //		body
@@ -809,7 +809,7 @@ func gen(n *Node) {
 		Genlist(n.Nbody)                         //		then
 		p3 := gjmp(nil)                          //		goto done
 		Patch(p2, Pc)                            // else:
-		Genlist(n.Nelse)                         //		else
+		Genlist(n.Rlist)                         //		else
 		Patch(p3, Pc)                            // done:
 
 	case OSWITCH:

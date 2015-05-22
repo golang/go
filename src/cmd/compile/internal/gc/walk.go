@@ -255,13 +255,13 @@ func walkstmt(np **Node) {
 			addinit(&n.Ntest, init)
 		}
 
-		walkstmt(&n.Nincr)
+		walkstmt(&n.Right)
 		walkstmtlist(n.Nbody)
 
 	case OIF:
 		walkexpr(&n.Ntest, &n.Ninit)
 		walkstmtlist(n.Nbody)
-		walkstmtlist(n.Nelse)
+		walkstmtlist(n.Rlist)
 
 	case OPROC:
 		switch n.Left.Op {
@@ -3982,7 +3982,7 @@ func candiscard(n *Node) bool {
 		return false
 	}
 
-	if !candiscard(n.Left) || !candiscard(n.Right) || !candiscard(n.Ntest) || !candiscard(n.Nincr) || !candiscardlist(n.Ninit) || !candiscardlist(n.Nbody) || !candiscardlist(n.Nelse) || !candiscardlist(n.List) || !candiscardlist(n.Rlist) {
+	if !candiscard(n.Left) || !candiscard(n.Right) || !candiscard(n.Ntest) || !candiscardlist(n.Ninit) || !candiscardlist(n.Nbody) || !candiscardlist(n.List) || !candiscardlist(n.Rlist) {
 		return false
 	}
 

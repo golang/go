@@ -135,9 +135,7 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
 	min = v.visitcode(n.Right, min)
 	min = v.visitcodelist(n.List, min)
 	min = v.visitcode(n.Ntest, min)
-	min = v.visitcode(n.Nincr, min)
 	min = v.visitcodelist(n.Nbody, min)
-	min = v.visitcodelist(n.Nelse, min)
 	min = v.visitcodelist(n.Rlist, min)
 
 	if n.Op == OCALLFUNC || n.Op == OCALLMETH {
@@ -546,9 +544,7 @@ func escloopdepth(e *EscState, n *Node) {
 	escloopdepth(e, n.Right)
 	escloopdepthlist(e, n.List)
 	escloopdepth(e, n.Ntest)
-	escloopdepth(e, n.Nincr)
 	escloopdepthlist(e, n.Nbody)
-	escloopdepthlist(e, n.Nelse)
 	escloopdepthlist(e, n.Rlist)
 }
 
@@ -602,9 +598,7 @@ func esc(e *EscState, n *Node, up *Node) {
 	esc(e, n.Left, n)
 	esc(e, n.Right, n)
 	esc(e, n.Ntest, n)
-	esc(e, n.Nincr, n)
 	esclist(e, n.Nbody, n)
-	esclist(e, n.Nelse, n)
 	esclist(e, n.List, n)
 	esclist(e, n.Rlist, n)
 

@@ -701,7 +701,7 @@ for_header:
 			$$.Ninit = list1($1);
 		}
 		$$.Ntest = $3;
-		$$.Nincr = $5;
+		$$.Right = $5;
 	}
 |	osimple_stmt
 	{
@@ -774,7 +774,7 @@ if_stmt:
 			if nn.N.Op == OIF {
 				popdcl();
 			}
-			n.Nelse = list1(nn.N);
+			n.Rlist = list1(nn.N);
 			n = nn.N;
 		}
 	}

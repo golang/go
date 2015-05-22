@@ -16,10 +16,8 @@ type Node struct {
 	Left  *Node
 	Right *Node
 	Ntest *Node
-	Nincr *Node
 	Ninit *NodeList
 	Nbody *NodeList
-	Nelse *NodeList
 	List  *NodeList
 	Rlist *NodeList
 
@@ -44,7 +42,6 @@ type Node struct {
 	Pkg *Pkg
 
 	// OARRAYLIT, OMAPLIT, OSTRUCTLIT.
-	Initplan *InitPlan
 
 	// Escape analysis.
 	Escflowsrc *NodeList // flow(this, src)

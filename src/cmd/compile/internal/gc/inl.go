@@ -231,7 +231,7 @@ func ishairy(n *Node, budget *int) bool {
 
 	(*budget)--
 
-	return *budget < 0 || ishairy(n.Left, budget) || ishairy(n.Right, budget) || ishairylist(n.List, budget) || ishairylist(n.Rlist, budget) || ishairylist(n.Ninit, budget) || ishairy(n.Ntest, budget) || ishairy(n.Nincr, budget) || ishairylist(n.Nbody, budget) || ishairylist(n.Nelse, budget)
+	return *budget < 0 || ishairy(n.Left, budget) || ishairy(n.Right, budget) || ishairylist(n.List, budget) || ishairylist(n.Rlist, budget) || ishairylist(n.Ninit, budget) || ishairy(n.Ntest, budget) || ishairylist(n.Nbody, budget)
 }
 
 // Inlcopy and inlcopylist recursively copy the body of a function.
@@ -266,9 +266,7 @@ func inlcopy(n *Node) *Node {
 	m.Rlist = inlcopylist(n.Rlist)
 	m.Ninit = inlcopylist(n.Ninit)
 	m.Ntest = inlcopy(n.Ntest)
-	m.Nincr = inlcopy(n.Nincr)
 	m.Nbody = inlcopylist(n.Nbody)
-	m.Nelse = inlcopylist(n.Nelse)
 
 	return m
 }
@@ -374,7 +372,11 @@ func inlnode(np **Node) {
 
 	inlnode(&n.Right)
 	if n.Right != nil && n.Right.Op == OINLCALL {
-		inlconv2expr(&n.Right)
+		if n.Op == OFOR {
+			inlconv2stmt(n.Right)
+		} else {
+			inlconv2expr(&n.Right)
+		}
 	}
 
 	inlnodelist(n.List)
@@ -423,7 +425,11 @@ func inlnode(np **Node) {
 	default:
 		for l := n.Rlist; l != nil; l = l.Next {
 			if l.N.Op == OINLCALL {
-				inlconv2expr(&l.N)
+				if n.Op == OIF {
+					inlconv2stmt(l.N)
+				} else {
+					inlconv2expr(&l.N)
+				}
 			}
 		}
 	}
@@ -433,20 +439,8 @@ func inlnode(np **Node) {
 		inlconv2expr(&n.Ntest)
 	}
 
-	inlnode(&n.Nincr)
-	if n.Nincr != nil && n.Nincr.Op == OINLCALL {
-		inlconv2stmt(n.Nincr)
-	}
-
 	inlnodelist(n.Nbody)
 	for l := n.Nbody; l != nil; l = l.Next {
-		if l.N.Op == OINLCALL {
-			inlconv2stmt(l.N)
-		}
-	}
-
-	inlnodelist(n.Nelse)
-	for l := n.Nelse; l != nil; l = l.Next {
 		if l.N.Op == OINLCALL {
 			inlconv2stmt(l.N)
 		}
@@ -972,9 +966,7 @@ func inlsubst(n *Node) *Node {
 	m.Rlist = inlsubstlist(n.Rlist)
 	m.Ninit = concat(m.Ninit, inlsubstlist(n.Ninit))
 	m.Ntest = inlsubst(n.Ntest)
-	m.Nincr = inlsubst(n.Nincr)
 	m.Nbody = inlsubstlist(n.Nbody)
-	m.Nelse = inlsubstlist(n.Nelse)
 
 	return m
 }
@@ -1002,7 +994,5 @@ func setlno(n *Node, lno int) {
 	setlnolist(n.Rlist, lno)
 	setlnolist(n.Ninit, lno)
 	setlno(n.Ntest, lno)
-	setlno(n.Nincr, lno)
 	setlnolist(n.Nbody, lno)
-	setlnolist(n.Nelse, lno)
 }

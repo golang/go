@@ -326,7 +326,7 @@ func (s *exprSwitch) walkCases(cc []*caseClause) *Node {
 	}
 	typecheck(&a.Ntest, Erv)
 	a.Nbody = list1(s.walkCases(cc[:half]))
-	a.Nelse = list1(s.walkCases(cc[half:]))
+	a.Rlist = list1(s.walkCases(cc[half:]))
 	return a
 }
 
@@ -688,7 +688,7 @@ func (s *typeSwitch) walkCases(cc []*caseClause) *Node {
 	a.Ntest = Nod(OLE, s.hashname, Nodintconst(int64(cc[half-1].hash)))
 	typecheck(&a.Ntest, Erv)
 	a.Nbody = list1(s.walkCases(cc[:half]))
-	a.Nelse = list1(s.walkCases(cc[half:]))
+	a.Rlist = list1(s.walkCases(cc[half:]))
 	return a
 }
 
