@@ -913,6 +913,7 @@ func (x *Float) Float32() (float32, Accuracy) {
 			}
 			return float32(math.Inf(+1)), Above
 		}
+		// e <= emax
 
 		// Determine sign, biased exponent, and mantissa.
 		var sign, bexp, mant uint32
@@ -1019,6 +1020,7 @@ func (x *Float) Float64() (float64, Accuracy) {
 			}
 			return math.Inf(+1), Above
 		}
+		// e <= emax
 
 		// Determine sign, biased exponent, and mantissa.
 		var sign, bexp, mant uint64
