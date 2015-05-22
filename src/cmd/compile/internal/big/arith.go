@@ -196,7 +196,6 @@ func subVV_g(z, x, y []Word) (c Word) {
 	return
 }
 
-// Argument y must be either 0 or 1.
 // The resulting carry c is either 0 or 1.
 func addVW_g(z, x []Word, y Word) (c Word) {
 	if use_addWW_g {
