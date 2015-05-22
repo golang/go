@@ -67,6 +67,7 @@ func (z *Float) SetString(s string) (*Float, bool) {
 // defined if an error is reported.
 //
 // BUG(gri) The Float.Scan signature conflicts with Scan(s fmt.ScanState, ch rune) error.
+//          (https://github.com/golang/go/issues/10938)
 func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 	prec := z.prec
 	if prec == 0 {
@@ -268,6 +269,8 @@ func ParseFloat(s string, base int, prec uint, mode RoundingMode) (f *Float, b i
 // The prec value is ignored for the 'b' or 'p' format.
 //
 // BUG(gri) Float.Format does not accept negative precisions.
+// BUG(gri) The Float.Format signature conflicts with Format(f fmt.State, c rune).
+//          (https://github.com/golang/go/issues/10938)
 func (x *Float) Format(format byte, prec int) string {
 	const extra = 10 // TODO(gri) determine a good/better value here
 	return string(x.Append(make([]byte, 0, prec+extra), format, prec))
@@ -369,5 +372,8 @@ func (x *Float) pstring(buf []byte) []byte {
 	buf = append(buf, "0x."...)
 	buf = append(buf, strings.TrimRight(x.mant.hexString(), "0")...)
 	buf = append(buf, 'p')
+	if x.exp >= 0 {
+		buf = append(buf, '+')
+	}
 	return strconv.AppendInt(buf, int64(x.exp), 10)
 }
