@@ -498,7 +498,7 @@ func orderstmt(n *Node, order *Order) {
 
 		orderexpr(&n.Left, order, nil)
 		n.Left = ordersafeexpr(n.Left, order)
-		tmp1 := treecopy(n.Left)
+		tmp1 := treecopy(n.Left, 0)
 		if tmp1.Op == OINDEXMAP {
 			tmp1.Etype = 0 // now an rvalue not an lvalue
 		}

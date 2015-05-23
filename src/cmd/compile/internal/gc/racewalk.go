@@ -483,7 +483,7 @@ func callinstr(np **Node, init **NodeList, wr int, skip int) bool {
 			*np = n
 		}
 
-		n = treecopy(n)
+		n = treecopy(n, 0)
 		makeaddable(n)
 		var f *Node
 		if t.Etype == TSTRUCT || Isfixedarray(t) {

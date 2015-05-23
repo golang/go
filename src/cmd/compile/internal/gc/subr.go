@@ -736,7 +736,12 @@ func aindex(b *Node, t *Type) *Type {
 	return r
 }
 
-func treecopy(n *Node) *Node {
+// treecopy recursively copies n, with the exception of
+// ONAME, OLITERAL, OTYPE, and non-iota ONONAME leaves.
+// Copies of iota ONONAME nodes are assigned the current
+// value of iota_. If lineno != 0, it sets the line number
+// of newly allocated nodes to lineno.
+func treecopy(n *Node, lineno int32) *Node {
 	if n == nil {
 		return nil
 	}
@@ -747,9 +752,12 @@ func treecopy(n *Node) *Node {
 		m = Nod(OXXX, nil, nil)
 		*m = *n
 		m.Orig = m
-		m.Left = treecopy(n.Left)
-		m.Right = treecopy(n.Right)
-		m.List = listtreecopy(n.List)
+		m.Left = treecopy(n.Left, lineno)
+		m.Right = treecopy(n.Right, lineno)
+		m.List = listtreecopy(n.List, lineno)
+		if lineno != -1 {
+			m.Lineno = lineno
+		}
 		if m.Defn != nil {
 			panic("abort")
 		}
@@ -764,6 +772,9 @@ func treecopy(n *Node) *Node {
 
 			*m = *n
 			m.Iota = iota_
+			if lineno != 0 {
+				m.Lineno = lineno
+			}
 			break
 		}
 		fallthrough
@@ -3092,10 +3103,10 @@ func Simsimtype(t *Type) int {
 	return et
 }
 
-func listtreecopy(l *NodeList) *NodeList {
+func listtreecopy(l *NodeList, lineno int32) *NodeList {
 	var out *NodeList
 	for ; l != nil; l = l.Next {
-		out = list(out, treecopy(l.N))
+		out = list(out, treecopy(l.N, lineno))
 	}
 	return out
 }
