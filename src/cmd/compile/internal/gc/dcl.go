@@ -313,18 +313,19 @@ func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
  * new_name_list [[type] = expr_list]
  */
 func constiter(vl *NodeList, t *Node, cl *NodeList) *NodeList {
+	lno := int32(0) // default is to leave line number alone in listtreecopy
 	if cl == nil {
 		if t != nil {
 			Yyerror("const declaration cannot have type without expression")
 		}
 		cl = lastconst
 		t = lasttype
+		lno = vl.N.Lineno
 	} else {
 		lastconst = cl
 		lasttype = t
 	}
-
-	cl = listtreecopy(cl)
+	cl = listtreecopy(cl, lno)
 
 	var v *Node
 	var c *Node
