@@ -1028,6 +1028,9 @@ func hostlink() {
 
 	if out, err := exec.Command(argv[0], argv[1:]...).CombinedOutput(); err != nil {
 		Exitf("running %s failed: %v\n%s", argv[0], err, out)
+	} else if Debug['v'] != 0 && len(out) > 0 {
+		fmt.Fprintf(&Bso, "%s", out)
+		Bso.Flush()
 	}
 
 	if Debug['s'] == 0 && debug_s == 0 && HEADTYPE == obj.Hdarwin {
