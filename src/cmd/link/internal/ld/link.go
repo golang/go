@@ -84,7 +84,6 @@ type LSym struct {
 	P           []byte
 	R           []Reloc
 	Local       bool
-	gcmask      []byte
 }
 
 func (s *LSym) String() string {
@@ -118,6 +117,7 @@ type Shlib struct {
 	Path string
 	Hash []byte
 	Deps []string
+	File *elf.File
 }
 
 type Link struct {

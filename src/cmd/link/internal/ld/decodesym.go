@@ -4,7 +4,10 @@
 
 package ld
 
-import "cmd/internal/obj"
+import (
+	"cmd/internal/obj"
+	"debug/elf"
+)
 
 // Decoding the type.* symbols.	 This has to be in sync with
 // ../../runtime/type.go, or more specifically, with what
@@ -72,14 +75,38 @@ func decodetype_ptrdata(s *LSym) int64 {
 	return int64(decode_inuxi(s.P[Thearch.Ptrsize:], Thearch.Ptrsize)) // 0x8 / 0x10
 }
 
-// Type.commonType.gc
-func decodetype_gcprog(s *LSym) *LSym {
-	if s.Type == obj.SDYNIMPORT {
-		// The gcprog for "type.$name" is calle "type..gcprog.$name".
-		x := "type..gcprog." + s.Name[5:]
-		return Linklookup(Ctxt, x, 0)
+// Find the elf.Section of a given shared library that contains a given address.
+func findShlibSection(path string, addr uint64) *elf.Section {
+	for _, shlib := range Ctxt.Shlibs {
+		if shlib.Path == path {
+			for _, sect := range shlib.File.Sections {
+				if sect.Addr <= addr && addr <= sect.Addr+sect.Size {
+					return sect
+				}
+			}
+		}
 	}
-	return decode_reloc_sym(s, 2*int32(Thearch.Ptrsize)+8+1*int32(Thearch.Ptrsize))
+	return nil
+}
+
+// Type.commonType.gc
+func decodetype_gcprog(s *LSym) []byte {
+	if s.Type == obj.SDYNIMPORT {
+		addr := decodetype_gcprog_shlib(s)
+		sect := findShlibSection(s.File, addr)
+		if sect != nil {
+			// A gcprog is a 4-byte uint32 indicating length, followed by
+			// the actual program.
+			progsize := make([]byte, 4)
+			sect.ReadAt(progsize, int64(addr-sect.Addr))
+			progbytes := make([]byte, Ctxt.Arch.ByteOrder.Uint32(progsize))
+			sect.ReadAt(progbytes, int64(addr-sect.Addr+4))
+			return append(progsize, progbytes...)
+		}
+		Exitf("cannot find gcprog for %s", s.Name)
+		return nil
+	}
+	return decode_reloc_sym(s, 2*int32(Thearch.Ptrsize)+8+1*int32(Thearch.Ptrsize)).P
 }
 
 func decodetype_gcprog_shlib(s *LSym) uint64 {
@@ -88,9 +115,16 @@ func decodetype_gcprog_shlib(s *LSym) uint64 {
 
 func decodetype_gcmask(s *LSym) []byte {
 	if s.Type == obj.SDYNIMPORT {
-		// ldshlibsyms makes special efforts to read the value
-		// of gcmask for types defined in that shared library.
-		return s.gcmask
+		addr := decodetype_gcprog_shlib(s)
+		ptrdata := decodetype_ptrdata(s)
+		sect := findShlibSection(s.File, addr)
+		if sect != nil {
+			r := make([]byte, ptrdata/int64(Thearch.Ptrsize))
+			sect.ReadAt(r, int64(addr-sect.Addr))
+			return r
+		}
+		Exitf("cannot find gcmask for %s", s.Name)
+		return nil
 	}
 	mask := decode_reloc_sym(s, 2*int32(Thearch.Ptrsize)+8+1*int32(Thearch.Ptrsize))
 	return mask.P
