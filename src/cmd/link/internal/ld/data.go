@@ -1104,7 +1104,7 @@ func (p *GCProg) AddSym(s *LSym) {
 	// Copy program.
 	prog := decodetype_gcprog(typ)
 	p.w.ZeroUntil(s.Value / ptrsize)
-	p.w.Append(prog.P[4:prog.Size], nptr)
+	p.w.Append(prog[4:], nptr)
 }
 
 func growdatsize(datsizep *int64, s *LSym) {

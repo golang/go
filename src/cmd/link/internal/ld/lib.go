@@ -1178,7 +1178,7 @@ func readelfsymboldata(f *elf.File, sym *elf.Symbol) []byte {
 	if sect.Type != elf.SHT_PROGBITS && sect.Type != elf.SHT_NOTE {
 		Diag("reading %s from non-data section", sym.Name)
 	}
-	n, err := sect.ReadAt(data, int64(sym.Value-sect.Offset))
+	n, err := sect.ReadAt(data, int64(sym.Value-sect.Addr))
 	if uint64(n) != sym.Size {
 		Diag("reading contents of %s: %v", sym.Name, err)
 	}
@@ -1265,7 +1265,6 @@ func ldshlibsyms(shlib string) {
 		Diag("cannot open shared library: %s", libpath)
 		return
 	}
-	defer f.Close()
 
 	hash, err := readnote(f, ELF_NOTE_GO_NAME, ELF_NOTE_GOABIHASH_TAG)
 	if err != nil {
@@ -1280,31 +1279,13 @@ func ldshlibsyms(shlib string) {
 	}
 	deps := strings.Split(string(depsbytes), "\n")
 
-	syms, err := f.Symbols()
+	syms, err := f.DynamicSymbols()
 	if err != nil {
 		Diag("cannot read symbols from shared library: %s", libpath)
 		return
 	}
-	// If a package has a global variable of a type defined in another shared
-	// library, we need to know the gcmask used by the type, if any.  To support
-	// this, we read all the runtime.gcbits.* symbols, keep a map of address to
-	// gcmask, and after we're read all the symbols, read the addresses of the
-	// gcmasks symbols out of the type data to look up the gcmask for each type.
-	// This depends on the fact that the runtime.gcbits.* symbols are local (so
-	// the address is actually present in the type data and we don't have to
-	// search all relocations to find the ones which correspond to gcmasks) and
-	// also that the shared library we are linking against has not had the symbol
-	// table removed.
-	gcmasks := make(map[uint64][]byte)
-	types := []*LSym{}
 	for _, s := range syms {
 		if elf.ST_TYPE(s.Info) == elf.STT_NOTYPE || elf.ST_TYPE(s.Info) == elf.STT_SECTION {
-			continue
-		}
-		if strings.HasPrefix(s.Name, "runtime.gcbits.") {
-			gcmasks[s.Value] = readelfsymboldata(f, &s)
-		}
-		if elf.ST_BIND(s.Info) != elf.STB_GLOBAL {
 			continue
 		}
 		lsym := Linklookup(Ctxt, s.Name, 0)
@@ -1315,27 +1296,15 @@ func ldshlibsyms(shlib string) {
 		}
 		lsym.Type = obj.SDYNIMPORT
 		lsym.ElfType = elf.ST_TYPE(s.Info)
-		lsym.File = libpath
-		if strings.HasPrefix(lsym.Name, "type.") {
-			if f.Sections[s.Section].Type == elf.SHT_PROGBITS {
+		if s.Section != elf.SHN_UNDEF {
+			// Set .File for the library that actually defines the symbol.
+			lsym.File = libpath
+			// The decodetype_* functions in decodetype.go need access to
+			// the type data.
+			if strings.HasPrefix(lsym.Name, "type.") && !strings.HasPrefix(lsym.Name, "type..") {
 				lsym.P = readelfsymboldata(f, &s)
 			}
-			if !strings.HasPrefix(lsym.Name, "type..") {
-				types = append(types, lsym)
-			}
 		}
-	}
-
-	for _, t := range types {
-		if decodetype_noptr(t) != 0 || decodetype_usegcprog(t) != 0 {
-			continue
-		}
-		addr := decodetype_gcprog_shlib(t)
-		tgcmask, ok := gcmasks[addr]
-		if !ok {
-			Diag("bits not found for %s at %d", t.Name, addr)
-		}
-		t.gcmask = tgcmask
 	}
 
 	// We might have overwritten some functions above (this tends to happen for the
@@ -1365,7 +1334,7 @@ func ldshlibsyms(shlib string) {
 		Ctxt.Etextp = last
 	}
 
-	Ctxt.Shlibs = append(Ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps})
+	Ctxt.Shlibs = append(Ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f})
 }
 
 func mywhatsys() {
