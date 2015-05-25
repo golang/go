@@ -368,6 +368,21 @@ func testABIHashNote(t *testing.T, f *elf.File, note *note) {
 	}
 }
 
+// A Go shared library contains a note indicating which other Go shared libraries it
+// was linked against in an unmapped section.
+func testDepsNote(t *testing.T, f *elf.File, note *note) {
+	if note.section.Flags != 0 {
+		t.Errorf("package list section has flags %v", note.section.Flags)
+	}
+	if isOffsetLoaded(f, note.section.Offset) {
+		t.Errorf("package list section contained in PT_LOAD segment")
+	}
+	// libdep.so just links against the lib containing the runtime.
+	if note.desc != soname {
+		t.Errorf("incorrect dependency list %q", note.desc)
+	}
+}
+
 // The shared library contains notes with defined contents; see above.
 func TestNotes(t *testing.T) {
 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "dep")
@@ -382,6 +397,7 @@ func TestNotes(t *testing.T) {
 	}
 	pkgListNoteFound := false
 	abiHashNoteFound := false
+	depsNoteFound := false
 	for _, note := range notes {
 		if note.name != "GO\x00\x00" {
 			continue
@@ -399,6 +415,12 @@ func TestNotes(t *testing.T) {
 			}
 			testABIHashNote(t, f, note)
 			abiHashNoteFound = true
+		case 3: // ELF_NOTE_GODEPS_TAG
+			if depsNoteFound {
+				t.Error("multiple abi hash notes")
+			}
+			testDepsNote(t, f, note)
+			depsNoteFound = true
 		}
 	}
 	if !pkgListNoteFound {
@@ -407,6 +429,19 @@ func TestNotes(t *testing.T) {
 	if !abiHashNoteFound {
 		t.Error("abi hash note not found")
 	}
+	if !depsNoteFound {
+		t.Error("deps note not found")
+	}
+}
+
+// Build a GOPATH package (dep) into a shared library that links against the goroot
+// runtime, another package (dep2) that links against the first, and and an
+// executable that links against dep2.
+func TestTwoGOPathShlibs(t *testing.T) {
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "dep")
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "dep2")
+	goCmd(t, "install", "-linkshared", "exe2")
+	run(t, "executable linked to GOPATH library", "./bin/exe2")
 }
 
 // Testing rebuilding of shared libraries when they are stale is a bit more

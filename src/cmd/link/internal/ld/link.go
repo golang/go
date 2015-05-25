@@ -117,6 +117,7 @@ type Auto struct {
 type Shlib struct {
 	Path string
 	Hash []byte
+	Deps []string
 }
 
 type Link struct {
