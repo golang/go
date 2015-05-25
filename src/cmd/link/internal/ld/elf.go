@@ -6,8 +6,10 @@ package ld
 
 import (
 	"cmd/internal/obj"
+	"crypto/sha1"
 	"encoding/binary"
 	"fmt"
+	"sort"
 )
 
 /*
@@ -1199,31 +1201,13 @@ func elfwritebuildinfo() int {
 	return int(sh.size)
 }
 
-// Go package list note
+// Go specific notes
 const (
 	ELF_NOTE_GOPKGLIST_TAG = 1
+	ELF_NOTE_GOABIHASH_TAG = 2
 )
 
 var ELF_NOTE_GO_NAME = []byte("GO\x00\x00")
-
-func elfgopkgnote(sh *ElfShdr, startva uint64, resoff uint64) int {
-	n := len(ELF_NOTE_GO_NAME) + int(Rnd(int64(len(pkglistfornote)), 4))
-	return elfnote(sh, startva, resoff, n, false)
-}
-
-func elfwritegopkgnote() int {
-	sh := elfwritenotehdr(".note.go.pkg-list", uint32(len(ELF_NOTE_GO_NAME)), uint32(len(pkglistfornote)), ELF_NOTE_GOPKGLIST_TAG)
-	if sh == nil {
-		return 0
-	}
-
-	Cwrite(ELF_NOTE_GO_NAME)
-	Cwrite(pkglistfornote)
-	var zero = make([]byte, 4)
-	Cwrite(zero[:int(Rnd(int64(len(pkglistfornote)), 4)-int64(len(pkglistfornote)))])
-
-	return int(sh.size)
-}
 
 var elfverneed int
 
@@ -1455,6 +1439,24 @@ func elfshalloc(sect *Section) *ElfShdr {
 
 func elfshbits(sect *Section) *ElfShdr {
 	sh := elfshalloc(sect)
+	// If this section has already been set up as a note, we assume type_ and
+	// flags are already correct, but the other fields still need filling in.
+	if sh.type_ == SHT_NOTE {
+		if Linkmode != LinkExternal {
+			// TODO(mwhudson): the approach here will work OK when
+			// linking internally for notes that we want to be included
+			// in a loadable segment (e.g. the abihash note) but not for
+			// notes that we do not want to be mapped (e.g. the package
+			// list note). The real fix is probably to define new values
+			// for LSym.Type corresponding to mapped and unmapped notes
+			// and handle them in dodata().
+			Diag("sh.type_ == SHT_NOTE in elfshbits when linking internally")
+		}
+		sh.addralign = uint64(sect.Align)
+		sh.size = sect.Length
+		sh.off = sect.Seg.Fileoff + sect.Vaddr - sect.Seg.Vaddr
+		return sh
+	}
 	if sh.type_ > 0 {
 		return sh
 	}
@@ -1490,11 +1492,14 @@ func elfshbits(sect *Section) *ElfShdr {
 
 func elfshreloc(sect *Section) *ElfShdr {
 	// If main section is SHT_NOBITS, nothing to relocate.
-	// Also nothing to relocate in .shstrtab.
+	// Also nothing to relocate in .shstrtab or notes.
 	if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
 		return nil
 	}
 	if sect.Name == ".shstrtab" || sect.Name == ".tbss" {
+		return nil
+	}
+	if sect.Elfsect.type_ == SHT_NOTE {
 		return nil
 	}
 
@@ -1596,6 +1601,29 @@ func Elfemitreloc() {
 	}
 }
 
+func addgonote(sectionName string, tag uint32, desc []byte) {
+	s := Linklookup(Ctxt, sectionName, 0)
+	s.Reachable = true
+	s.Type = obj.SELFROSECT
+	// namesz
+	Adduint32(Ctxt, s, uint32(len(ELF_NOTE_GO_NAME)))
+	// descsz
+	Adduint32(Ctxt, s, uint32(len(desc)))
+	// tag
+	Adduint32(Ctxt, s, tag)
+	// name + padding
+	s.P = append(s.P, ELF_NOTE_GO_NAME...)
+	for len(s.P)%4 != 0 {
+		s.P = append(s.P, 0)
+	}
+	// desc + padding
+	s.P = append(s.P, desc...)
+	for len(s.P)%4 != 0 {
+		s.P = append(s.P, 0)
+	}
+	s.Size = int64(len(s.P))
+}
+
 func doelf() {
 	if !Iself {
 		return
@@ -1632,9 +1660,6 @@ func doelf() {
 	if len(buildinfo) > 0 {
 		Addstring(shstrtab, ".note.gnu.build-id")
 	}
-	if Buildmode == BuildmodeShared {
-		Addstring(shstrtab, ".note.go.pkg-list")
-	}
 	Addstring(shstrtab, ".elfdata")
 	Addstring(shstrtab, ".rodata")
 	Addstring(shstrtab, ".typelink")
@@ -1668,6 +1693,11 @@ func doelf() {
 
 		// add a .note.GNU-stack section to mark the stack as non-executable
 		Addstring(shstrtab, ".note.GNU-stack")
+
+		if Buildmode == BuildmodeShared {
+			Addstring(shstrtab, ".note.go.abihash")
+			Addstring(shstrtab, ".note.go.pkg-list")
+		}
 	}
 
 	hasinitarr := Linkshared
@@ -1856,6 +1886,25 @@ func doelf() {
 		// size of .rel(a).plt section.
 		Elfwritedynent(s, DT_DEBUG, 0)
 	}
+
+	if Buildmode == BuildmodeShared {
+		// The go.link.abihashbytes symbol will be pointed at the appropriate
+		// part of the .note.go.abihash section in data.go:func address().
+		s := Linklookup(Ctxt, "go.link.abihashbytes", 0)
+		s.Local = true
+		s.Type = obj.SRODATA
+		s.Special = 1
+		s.Reachable = true
+		s.Size = int64(sha1.Size)
+
+		sort.Sort(byPkg(Ctxt.Library))
+		h := sha1.New()
+		for _, l := range Ctxt.Library {
+			h.Write(l.hash)
+		}
+		addgonote(".note.go.abihash", ELF_NOTE_GOABIHASH_TAG, h.Sum([]byte{}))
+		addgonote(".note.go.pkg-list", ELF_NOTE_GOPKGLIST_TAG, []byte(pkglistfornote))
+	}
 }
 
 // Do not write DT_NULL.  elfdynhash will finish it.
@@ -1922,15 +1971,11 @@ func Asmbelf(symo int64) {
 		eh.phentsize = 0
 
 		if Buildmode == BuildmodeShared {
-			// The package list note we make space for here can get quite
-			// large. The external linker will re-layout all the sections
-			// anyway, so making this larger just wastes a little space
-			// in the intermediate object file, not the final shared
-			// library.
-			elfreserve *= 3
-			resoff = elfreserve
 			sh := elfshname(".note.go.pkg-list")
-			resoff -= int64(elfgopkgnote(sh, uint64(startva), uint64(resoff)))
+			sh.type_ = SHT_NOTE
+			sh = elfshname(".note.go.abihash")
+			sh.type_ = SHT_NOTE
+			sh.flags = SHF_ALLOC
 		}
 		goto elfobj
 	}
@@ -2339,9 +2384,6 @@ elfobj:
 		if len(buildinfo) > 0 {
 			a += int64(elfwritebuildinfo())
 		}
-	}
-	if Buildmode == BuildmodeShared {
-		a += int64(elfwritegopkgnote())
 	}
 
 	if a > elfreserve {
