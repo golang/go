@@ -9,7 +9,9 @@ import (
 	"crypto/sha1"
 	"encoding/binary"
 	"fmt"
+	"path/filepath"
 	"sort"
+	"strings"
 )
 
 /*
@@ -1205,6 +1207,7 @@ func elfwritebuildinfo() int {
 const (
 	ELF_NOTE_GOPKGLIST_TAG = 1
 	ELF_NOTE_GOABIHASH_TAG = 2
+	ELF_NOTE_GODEPS_TAG    = 3
 )
 
 var ELF_NOTE_GO_NAME = []byte("GO\x00\x00")
@@ -1697,6 +1700,7 @@ func doelf() {
 		if Buildmode == BuildmodeShared {
 			Addstring(shstrtab, ".note.go.abihash")
 			Addstring(shstrtab, ".note.go.pkg-list")
+			Addstring(shstrtab, ".note.go.deps")
 		}
 	}
 
@@ -1904,6 +1908,11 @@ func doelf() {
 		}
 		addgonote(".note.go.abihash", ELF_NOTE_GOABIHASH_TAG, h.Sum([]byte{}))
 		addgonote(".note.go.pkg-list", ELF_NOTE_GOPKGLIST_TAG, []byte(pkglistfornote))
+		var deplist []string
+		for _, shlib := range Ctxt.Shlibs {
+			deplist = append(deplist, filepath.Base(shlib.Path))
+		}
+		addgonote(".note.go.deps", ELF_NOTE_GODEPS_TAG, []byte(strings.Join(deplist, "\n")))
 	}
 }
 
@@ -1976,6 +1985,8 @@ func Asmbelf(symo int64) {
 			sh = elfshname(".note.go.abihash")
 			sh.type_ = SHT_NOTE
 			sh.flags = SHF_ALLOC
+			sh = elfshname(".note.go.deps")
+			sh.type_ = SHT_NOTE
 		}
 		goto elfobj
 	}

@@ -653,15 +653,14 @@ func deadcode() {
 	}
 
 	if Buildmode == BuildmodeShared {
-		// Mark all symbols as reachable when building a
-		// shared library.
+		// Mark all symbols defined in this library as reachable when
+		// building a shared library.
 		for s := Ctxt.Allsym; s != nil; s = s.Allsym {
-			if s.Type != 0 {
+			if s.Type != 0 && s.Type != obj.SDYNIMPORT {
 				mark(s)
 			}
 		}
-		mark(Linkrlookup(Ctxt, "main.main", 0))
-		mark(Linkrlookup(Ctxt, "main.init", 0))
+		markflood()
 	} else {
 		mark(Linklookup(Ctxt, INITENTRY, 0))
 		if Linkshared && Buildmode == BuildmodeExe {
