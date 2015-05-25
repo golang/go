@@ -36,6 +36,7 @@ import (
 	"cmd/internal/obj"
 	"crypto/sha1"
 	"debug/elf"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -1154,14 +1155,63 @@ func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, when
 func readelfsymboldata(f *elf.File, sym *elf.Symbol) []byte {
 	data := make([]byte, sym.Size)
 	sect := f.Sections[sym.Section]
-	if sect.Type != elf.SHT_PROGBITS {
-		Diag("reading %s from non-PROGBITS section", sym.Name)
+	if sect.Type != elf.SHT_PROGBITS && sect.Type != elf.SHT_NOTE {
+		Diag("reading %s from non-data section", sym.Name)
 	}
 	n, err := sect.ReadAt(data, int64(sym.Value-sect.Offset))
 	if uint64(n) != sym.Size {
 		Diag("reading contents of %s: %v", sym.Name, err)
 	}
 	return data
+}
+
+func readwithpad(r io.Reader, sz int32) ([]byte, error) {
+	data := make([]byte, Rnd(int64(sz), 4))
+	_, err := io.ReadFull(r, data)
+	if err != nil {
+		return nil, err
+	}
+	data = data[:sz]
+	return data, nil
+}
+
+func readnote(f *elf.File, name []byte, typ int32) ([]byte, error) {
+	for _, sect := range f.Sections {
+		if sect.Type != elf.SHT_NOTE {
+			continue
+		}
+		r := sect.Open()
+		for {
+			var namesize, descsize, noteType int32
+			err := binary.Read(r, f.ByteOrder, &namesize)
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				return nil, fmt.Errorf("read namesize failed:", err)
+			}
+			err = binary.Read(r, f.ByteOrder, &descsize)
+			if err != nil {
+				return nil, fmt.Errorf("read descsize failed:", err)
+			}
+			err = binary.Read(r, f.ByteOrder, &noteType)
+			if err != nil {
+				return nil, fmt.Errorf("read type failed:", err)
+			}
+			noteName, err := readwithpad(r, namesize)
+			if err != nil {
+				return nil, fmt.Errorf("read name failed:", err)
+			}
+			desc, err := readwithpad(r, descsize)
+			if err != nil {
+				return nil, fmt.Errorf("read desc failed:", err)
+			}
+			if string(name) == string(noteName) && typ == noteType {
+				return desc, nil
+			}
+		}
+	}
+	return nil, nil
 }
 
 func ldshlibsyms(shlib string) {
@@ -1194,6 +1244,13 @@ func ldshlibsyms(shlib string) {
 		return
 	}
 	defer f.Close()
+
+	hash, err := readnote(f, ELF_NOTE_GO_NAME, ELF_NOTE_GOABIHASH_TAG)
+	if err != nil {
+		Diag("cannot read ABI hash from shared library %s: %v", libpath, err)
+		return
+	}
+
 	syms, err := f.Symbols()
 	if err != nil {
 		Diag("cannot read symbols from shared library: %s", libpath)
@@ -1211,7 +1268,6 @@ func ldshlibsyms(shlib string) {
 	// table removed.
 	gcmasks := make(map[uint64][]byte)
 	types := []*LSym{}
-	var hash []byte
 	for _, s := range syms {
 		if elf.ST_TYPE(s.Info) == elf.STT_NOTYPE || elf.ST_TYPE(s.Info) == elf.STT_SECTION {
 			continue
@@ -1224,9 +1280,6 @@ func ldshlibsyms(shlib string) {
 		}
 		if strings.HasPrefix(s.Name, "runtime.gcbits.") {
 			gcmasks[s.Value] = readelfsymboldata(f, &s)
-		}
-		if s.Name == "go.link.abihashbytes" {
-			hash = readelfsymboldata(f, &s)
 		}
 		if elf.ST_BIND(s.Info) != elf.STB_GLOBAL {
 			continue

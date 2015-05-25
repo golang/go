@@ -1688,6 +1688,13 @@ func address() {
 		}
 	}
 
+	if Buildmode == BuildmodeShared {
+		s := Linklookup(Ctxt, "go.link.abihashbytes", 0)
+		sectSym := Linklookup(Ctxt, ".note.go.abihash", 0)
+		s.Sect = sectSym.Sect
+		s.Value = int64(sectSym.Sect.Vaddr + 16)
+	}
+
 	xdefine("runtime.text", obj.STEXT, int64(text.Vaddr))
 	xdefine("runtime.etext", obj.STEXT, int64(text.Vaddr+text.Length))
 	xdefine("runtime.rodata", obj.SRODATA, int64(rodata.Vaddr))

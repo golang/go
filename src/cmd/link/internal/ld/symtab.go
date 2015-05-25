@@ -32,10 +32,8 @@ package ld
 
 import (
 	"cmd/internal/obj"
-	"crypto/sha1"
 	"fmt"
 	"path/filepath"
-	"sort"
 	"strings"
 )
 
@@ -429,16 +427,12 @@ func symtab() {
 	}
 
 	if Buildmode == BuildmodeShared {
-		sort.Sort(byPkg(Ctxt.Library))
-		h := sha1.New()
-		for _, l := range Ctxt.Library {
-			h.Write(l.hash)
-		}
 		abihashgostr := Linklookup(Ctxt, "go.link.abihash."+filepath.Base(outfile), 0)
 		abihashgostr.Reachable = true
 		abihashgostr.Type = obj.SRODATA
-		var hashbytes []byte
-		addgostring(abihashgostr, "go.link.abihashbytes", string(h.Sum(hashbytes)))
+		hashsym := Linklookup(Ctxt, "go.link.abihashbytes", 0)
+		Addaddr(Ctxt, abihashgostr, hashsym)
+		adduint(Ctxt, abihashgostr, uint64(hashsym.Size))
 	}
 
 	// Information about the layout of the executable image for the
