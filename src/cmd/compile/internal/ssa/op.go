@@ -70,8 +70,8 @@ const (
 	OpStringPtr  // ptr(arg0)
 	OpStringLen  // len(arg0)
 
-	OpLoad       // Load from arg0+aux.(int64).  arg1=memory
-	OpStore      // Store arg1 to arg0+aux.(int64).  arg2=memory.  Returns memory.
+	OpLoad       // Load from arg0.  arg1=memory
+	OpStore      // Store arg1 to arg0.  arg2=memory.  Returns memory.
 	OpArrayIndex // arg0=array, arg1=index.  Returns a[i]
 	OpPtrIndex   // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type
 	OpIsNonNil   // arg0 != nil
