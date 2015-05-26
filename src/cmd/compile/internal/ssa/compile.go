@@ -56,6 +56,7 @@ var passes = [...]pass{
 	{"opt", opt},
 	{"generic cse", cse},
 	{"generic deadcode", deadcode},
+	{"dse", dse},
 	{"fuse", fuse},
 	{"lower", lower},
 	{"lowered cse", cse},
@@ -76,6 +77,9 @@ type constraint struct {
 }
 
 var passOrder = [...]constraint{
+	// common-subexpression before dead-store elim, so that we recognize
+	// when two address expressions are the same.
+	{"generic cse", "dse"},
 	// don't layout blocks until critical edges have been removed
 	{"critical", "layout"},
 	// regalloc requires the removal of all critical edges
