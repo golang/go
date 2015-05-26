@@ -47,10 +47,17 @@ func goCmd(t *testing.T, args ...string) {
 	}
 	newargs = append(newargs, args[1:]...)
 	c := exec.Command("go", newargs...)
+	var output []byte
+	var err error
 	if testing.Verbose() {
 		fmt.Printf("+ go %s\n", strings.Join(newargs, " "))
+		c.Stdout = os.Stdout
+		c.Stderr = os.Stderr
+		err = c.Run()
+	} else {
+		output, err = c.CombinedOutput()
 	}
-	if output, err := c.CombinedOutput(); err != nil {
+	if err != nil {
 		if t != nil {
 			t.Errorf("executing %s failed %v:\n%s", strings.Join(c.Args, " "), err, output)
 		} else {
