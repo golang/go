@@ -366,6 +366,7 @@ func TestFloatFormat(t *testing.T) {
 
 		// unsupported format
 		{"3.14", 64, 'x', 0, "%x"},
+		{"-3.14", 64, 'x', 0, "%x"},
 	} {
 		f, _, err := ParseFloat(test.x, 0, test.prec, ToNearestEven)
 		if err != nil {
