@@ -59,7 +59,7 @@ func TestGdbPython(t *testing.T) {
 
 	cmd := exec.Command("go", "build", "-o", "a.exe")
 	cmd.Dir = dir
-	out, err := cmd.CombinedOutput()
+	out, err := testEnv(cmd).CombinedOutput()
 	if err != nil {
 		t.Fatalf("building source %v\n%s", err, out)
 	}
