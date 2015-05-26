@@ -531,3 +531,45 @@ func TestIssue8186(t *testing.T) {
 		}
 	}
 }
+
+// Verify we return ErrUnexpectedEOF when length is short.
+func TestIssue10957(t *testing.T) {
+	data := []byte("PK\x03\x040000000PK\x01\x0200000" +
+		"0000000000000000000\x00" +
+		"\x00\x00\x00\x00\x00000000000000PK\x01" +
+		"\x020000000000000000000" +
+		"00000\v\x00\x00\x00\x00\x00000000000" +
+		"00000000000000PK\x01\x0200" +
+		"00000000000000000000" +
+		"00\v\x00\x00\x00\x00\x00000000000000" +
+		"00000000000PK\x01\x020000<" +
+		"0\x00\x0000000000000000\v\x00\v" +
+		"\x00\x00\x00\x00\x0000000000\x00\x00\x00\x00000" +
+		"00000000PK\x01\x0200000000" +
+		"0000000000000000\v\x00\x00\x00" +
+		"\x00\x0000PK\x05\x06000000\x05\x000000" +
+		"\v\x00\x00\x00\x00\x00")
+	z, err := NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		if z != nil {
+			panic("non nil z")
+		}
+		return
+	}
+	for i, f := range z.File {
+		r, err := f.Open()
+		if err != nil {
+			continue
+		}
+		if f.UncompressedSize64 < 1e6 {
+			n, err := io.Copy(ioutil.Discard, r)
+			if i == 3 && err != io.ErrUnexpectedEOF {
+				t.Errorf("File[3] error = %v; want io.ErrUnexpectedEOF", err)
+			}
+			if err == nil && uint64(n) != f.UncompressedSize64 {
+				t.Errorf("file %d: bad size: copied=%d; want=%d", i, n, f.UncompressedSize64)
+			}
+		}
+		r.Close()
+	}
+}
