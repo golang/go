@@ -233,7 +233,7 @@ func getvariables(fn *Node) []*Node {
 			// Later, when we want to find the index of a node in the variables list,
 			// we will check that n->curfn == curfn and n->opt > 0. Then n->opt - 1
 			// is the index in the variables list.
-			ll.N.Opt = nil
+			ll.N.SetOpt(nil)
 
 			// The compiler doesn't emit initializations for zero-width parameters or results.
 			if ll.N.Type.Width == 0 {
@@ -244,12 +244,12 @@ func getvariables(fn *Node) []*Node {
 			switch ll.N.Class {
 			case PAUTO:
 				if haspointers(ll.N.Type) {
-					ll.N.Opt = int32(len(result))
+					ll.N.SetOpt(int32(len(result)))
 					result = append(result, ll.N)
 				}
 
 			case PPARAM, PPARAMOUT:
-				ll.N.Opt = int32(len(result))
+				ll.N.SetOpt(int32(len(result)))
 				result = append(result, ll.N)
 			}
 		}
@@ -621,7 +621,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar Bvec, varkill Bvec, avarini
 		if from.Node != nil && from.Sym != nil && ((from.Node).(*Node)).Name.Curfn == Curfn {
 			switch ((from.Node).(*Node)).Class &^ PHEAP {
 			case PAUTO, PPARAM, PPARAMOUT:
-				pos, ok := from.Node.(*Node).Opt.(int32) // index in vars
+				pos, ok := from.Node.(*Node).Opt().(int32) // index in vars
 				if !ok {
 					goto Next
 				}
@@ -650,7 +650,7 @@ Next:
 		if to.Node != nil && to.Sym != nil && ((to.Node).(*Node)).Name.Curfn == Curfn {
 			switch ((to.Node).(*Node)).Class &^ PHEAP {
 			case PAUTO, PPARAM, PPARAMOUT:
-				pos, ok := to.Node.(*Node).Opt.(int32) // index in vars
+				pos, ok := to.Node.(*Node).Opt().(int32) // index in vars
 				if !ok {
 					return
 				}
@@ -1819,7 +1819,7 @@ func liveness(fn *Node, firstp *obj.Prog, argssym *Sym, livesym *Sym) {
 	// Free everything.
 	for l := fn.Func.Dcl; l != nil; l = l.Next {
 		if l.N != nil {
-			l.N.Opt = nil
+			l.N.SetOpt(nil)
 		}
 	}
 	freeliveness(lv)

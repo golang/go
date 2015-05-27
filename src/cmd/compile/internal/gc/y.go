@@ -2797,28 +2797,28 @@ yydefault:
 				}
 				n = embedded(n.Sym, importpkg)
 				n.Right = yyDollar[2].node
-				n.Val = yyDollar[3].val
+				n.SetVal(yyDollar[3].val)
 				yyVAL.list = list1(n)
 				break
 			}
 
 			for l = yyDollar[1].list; l != nil; l = l.Next {
 				l.N = Nod(ODCLFIELD, l.N, yyDollar[2].node)
-				l.N.Val = yyDollar[3].val
+				l.N.SetVal(yyDollar[3].val)
 			}
 		}
 	case 231:
 		yyDollar = yyS[yypt-2 : yypt+1]
 		//line go.y:1652
 		{
-			yyDollar[1].node.Val = yyDollar[2].val
+			yyDollar[1].node.SetVal(yyDollar[2].val)
 			yyVAL.list = list1(yyDollar[1].node)
 		}
 	case 232:
 		yyDollar = yyS[yypt-4 : yypt+1]
 		//line go.y:1657
 		{
-			yyDollar[2].node.Val = yyDollar[4].val
+			yyDollar[2].node.SetVal(yyDollar[4].val)
 			yyVAL.list = list1(yyDollar[2].node)
 			Yyerror("cannot parenthesize embedded type")
 		}
@@ -2827,7 +2827,7 @@ yydefault:
 		//line go.y:1663
 		{
 			yyDollar[2].node.Right = Nod(OIND, yyDollar[2].node.Right, nil)
-			yyDollar[2].node.Val = yyDollar[3].val
+			yyDollar[2].node.SetVal(yyDollar[3].val)
 			yyVAL.list = list1(yyDollar[2].node)
 		}
 	case 234:
@@ -2835,7 +2835,7 @@ yydefault:
 		//line go.y:1669
 		{
 			yyDollar[3].node.Right = Nod(OIND, yyDollar[3].node.Right, nil)
-			yyDollar[3].node.Val = yyDollar[5].val
+			yyDollar[3].node.SetVal(yyDollar[5].val)
 			yyVAL.list = list1(yyDollar[3].node)
 			Yyerror("cannot parenthesize embedded type")
 		}
@@ -2844,7 +2844,7 @@ yydefault:
 		//line go.y:1676
 		{
 			yyDollar[3].node.Right = Nod(OIND, yyDollar[3].node.Right, nil)
-			yyDollar[3].node.Val = yyDollar[5].val
+			yyDollar[3].node.SetVal(yyDollar[5].val)
 			yyVAL.list = list1(yyDollar[3].node)
 			Yyerror("cannot parenthesize embedded type")
 		}
@@ -3360,7 +3360,7 @@ yydefault:
 			if yyDollar[1].sym != nil {
 				yyVAL.node.Left = newname(yyDollar[1].sym)
 			}
-			yyVAL.node.Val = yyDollar[3].val
+			yyVAL.node.SetVal(yyDollar[3].val)
 		}
 	case 331:
 		yyDollar = yyS[yypt-4 : yypt+1]
@@ -3377,7 +3377,7 @@ yydefault:
 				yyVAL.node.Left = newname(yyDollar[1].sym)
 			}
 			yyVAL.node.Isddd = true
-			yyVAL.node.Val = yyDollar[4].val
+			yyVAL.node.SetVal(yyDollar[4].val)
 		}
 	case 332:
 		yyDollar = yyS[yypt-3 : yypt+1]
@@ -3388,7 +3388,7 @@ yydefault:
 
 			if yyDollar[1].sym != nil && yyDollar[1].sym.Name != "?" {
 				yyVAL.node = Nod(ODCLFIELD, newname(yyDollar[1].sym), typenod(yyDollar[2].typ))
-				yyVAL.node.Val = yyDollar[3].val
+				yyVAL.node.SetVal(yyDollar[3].val)
 			} else {
 				s = yyDollar[2].typ.Sym
 				if s == nil && Isptr[yyDollar[2].typ.Etype] {
@@ -3400,7 +3400,7 @@ yydefault:
 				}
 				yyVAL.node = embedded(s, p)
 				yyVAL.node.Right = typenod(yyDollar[2].typ)
-				yyVAL.node.Val = yyDollar[3].val
+				yyVAL.node.SetVal(yyDollar[3].val)
 			}
 		}
 	case 333:
@@ -3444,16 +3444,16 @@ yydefault:
 		//line go.y:2232
 		{
 			yyVAL.node = nodlit(yyDollar[2].val)
-			switch yyVAL.node.Val.Ctype() {
+			switch yyVAL.node.Val().Ctype() {
 			case CTINT, CTRUNE:
-				mpnegfix(yyVAL.node.Val.U.(*Mpint))
+				mpnegfix(yyVAL.node.Val().U.(*Mpint))
 				break
 			case CTFLT:
-				mpnegflt(yyVAL.node.Val.U.(*Mpflt))
+				mpnegflt(yyVAL.node.Val().U.(*Mpflt))
 				break
 			case CTCPLX:
-				mpnegflt(&yyVAL.node.Val.U.(*Mpcplx).Real)
-				mpnegflt(&yyVAL.node.Val.U.(*Mpcplx).Imag)
+				mpnegflt(&yyVAL.node.Val().U.(*Mpcplx).Real)
+				mpnegflt(&yyVAL.node.Val().U.(*Mpcplx).Imag)
 				break
 			default:
 				Yyerror("bad negated constant")
@@ -3472,14 +3472,14 @@ yydefault:
 		yyDollar = yyS[yypt-5 : yypt+1]
 		//line go.y:2260
 		{
-			if yyDollar[2].node.Val.Ctype() == CTRUNE && yyDollar[4].node.Val.Ctype() == CTINT {
+			if yyDollar[2].node.Val().Ctype() == CTRUNE && yyDollar[4].node.Val().Ctype() == CTINT {
 				yyVAL.node = yyDollar[2].node
-				mpaddfixfix(yyDollar[2].node.Val.U.(*Mpint), yyDollar[4].node.Val.U.(*Mpint), 0)
+				mpaddfixfix(yyDollar[2].node.Val().U.(*Mpint), yyDollar[4].node.Val().U.(*Mpint), 0)
 				break
 			}
-			yyDollar[4].node.Val.U.(*Mpcplx).Real = yyDollar[4].node.Val.U.(*Mpcplx).Imag
-			Mpmovecflt(&yyDollar[4].node.Val.U.(*Mpcplx).Imag, 0.0)
-			yyVAL.node = nodcplxlit(yyDollar[2].node.Val, yyDollar[4].node.Val)
+			yyDollar[4].node.Val().U.(*Mpcplx).Real = yyDollar[4].node.Val().U.(*Mpcplx).Imag
+			Mpmovecflt(&yyDollar[4].node.Val().U.(*Mpcplx).Imag, 0.0)
+			yyVAL.node = nodcplxlit(yyDollar[2].node.Val(), yyDollar[4].node.Val())
 		}
 	case 346:
 		yyDollar = yyS[yypt-1 : yypt+1]

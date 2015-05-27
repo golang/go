@@ -319,15 +319,15 @@ type NodeEscState struct {
 }
 
 func (e *EscState) nodeEscState(n *Node) *NodeEscState {
-	if nE, ok := n.Opt.(*NodeEscState); ok {
+	if nE, ok := n.Opt().(*NodeEscState); ok {
 		return nE
 	}
-	if n.Opt != nil {
-		Fatal("nodeEscState: opt in use (%T)", n.Opt)
+	if n.Opt() != nil {
+		Fatal("nodeEscState: opt in use (%T)", n.Opt())
 	}
 	nE := new(NodeEscState)
 	nE.Curfn = Curfn
-	n.Opt = nE
+	n.SetOpt(nE)
 	e.opts = append(e.opts, n)
 	return nE
 }
@@ -471,7 +471,7 @@ func escAnalyze(all *NodeList, recursive bool) {
 		}
 	}
 	for _, x := range e.opts {
-		x.Opt = nil
+		x.SetOpt(nil)
 	}
 }
 
@@ -669,7 +669,7 @@ func esc(e *EscState, n *Node, up *Node) {
 			if Isfixedarray(n.Type) {
 				escassign(e, n.List.Next.N, n.Right)
 			} else {
-				escassign(e, n.List.Next.N, e.addDereference(n.Right))
+				escassignDereference(e, n.List.Next.N, n.Right)
 			}
 		}
 
@@ -802,12 +802,12 @@ func esc(e *EscState, n *Node, up *Node) {
 		} else {
 			// append(slice1, slice2...) -- slice2 itself does not escape, but contents do.
 			slice2 := n.List.Next.N
-			escassign(e, &e.theSink, e.addDereference(slice2)) // lose track of assign of dereference
+			escassignDereference(e, &e.theSink, slice2) // lose track of assign of dereference
 			if Debug['m'] > 2 {
 				Warnl(int(n.Lineno), "%v special treatment of append(slice1, slice2...) %v", e.curfnSym(n), Nconv(n, obj.FmtShort))
 			}
 		}
-		escassign(e, &e.theSink, e.addDereference(n.List.N)) // The original elements are now leaked, too
+		escassignDereference(e, &e.theSink, n.List.N) // The original elements are now leaked, too
 
 	case OCONV, OCONVNOP:
 		escassign(e, n, n.Left)
@@ -1191,6 +1191,9 @@ func describeEscape(em uint16) string {
 // calls arguments, where the flow is encoded in "note".
 func escassignfromtag(e *EscState, note *string, dsts *NodeList, src *Node) uint16 {
 	em := parsetag(note)
+	if src.Op == OLITERAL {
+		return em
+	}
 
 	if Debug['m'] > 2 {
 		fmt.Printf("%v::assignfromtag:: src=%v, em=%s\n",
@@ -1578,6 +1581,9 @@ func funcOutputAndInput(dst, src *Node) bool {
 }
 
 func escwalk(e *EscState, level Level, dst *Node, src *Node) {
+	if src.Op == OLITERAL {
+		return
+	}
 	srcE := e.nodeEscState(src)
 	if srcE.Walkgen == e.walkgen {
 		// Esclevels are vectors, do not compare as integers,

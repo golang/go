@@ -201,7 +201,7 @@ func walkvardef(n *Node, f *Flow, active int) {
 		if f1.Prog.As == obj.AVARKILL && f1.Prog.To.Node == n {
 			break
 		}
-		for v, _ = n.Opt.(*Var); v != nil; v = v.nextinnode {
+		for v, _ = n.Opt().(*Var); v != nil; v = v.nextinnode {
 			bn = v.id
 			biset(&(f1.Data.(*Reg)).act, uint(bn))
 		}
@@ -432,9 +432,9 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 	// of Vars within the given Node, so that
 	// we can start at a Var and find all the other
 	// Vars in the same Go variable.
-	v.nextinnode, _ = node.Opt.(*Var)
+	v.nextinnode, _ = node.Opt().(*Var)
 
-	node.Opt = v
+	node.SetOpt(v)
 
 	bit := blsh(uint(i))
 	if n == obj.NAME_EXTERN || n == obj.NAME_STATIC {
@@ -563,7 +563,7 @@ func prop(f *Flow, ref Bits, cal Bits) {
 						continue
 					}
 					v = &vars[z*64+i]
-					if v.node.Opt == nil { // v represents fixed register, not Go variable
+					if v.node.Opt() == nil { // v represents fixed register, not Go variable
 						continue
 					}
 
@@ -577,7 +577,7 @@ func prop(f *Flow, ref Bits, cal Bits) {
 					// To avoid the quadratic behavior, we only turn on the bits if
 					// v is the head of the list or if the head's bit is not yet turned on.
 					// This will set the bits at most twice, keeping the overall loop linear.
-					v1, _ = v.node.Opt.(*Var)
+					v1, _ = v.node.Opt().(*Var)
 
 					if v == v1 || !btest(&cal, uint(v1.id)) {
 						for ; v1 != nil; v1 = v1.nextinnode {
@@ -1072,7 +1072,7 @@ func regopt(firstp *obj.Prog) {
 	g := Flowstart(firstp, func() interface{} { return new(Reg) })
 	if g == nil {
 		for i := 0; i < nvar; i++ {
-			vars[i].node.Opt = nil
+			vars[i].node.SetOpt(nil)
 		}
 		return
 	}
@@ -1186,7 +1186,7 @@ func regopt(firstp *obj.Prog) {
 
 	for f := firstf; f != nil; f = f.Link {
 		p := f.Prog
-		if p.As == obj.AVARDEF && Isfat(((p.To.Node).(*Node)).Type) && ((p.To.Node).(*Node)).Opt != nil {
+		if p.As == obj.AVARDEF && Isfat(((p.To.Node).(*Node)).Type) && ((p.To.Node).(*Node)).Opt() != nil {
 			active++
 			walkvardef(p.To.Node.(*Node), f, active)
 		}
@@ -1390,7 +1390,7 @@ loop2:
 	 * free aux structures. peep allocates new ones.
 	 */
 	for i := 0; i < nvar; i++ {
-		vars[i].node.Opt = nil
+		vars[i].node.SetOpt(nil)
 	}
 	Flowend(g)
 	firstf = nil

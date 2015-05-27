@@ -301,7 +301,7 @@ OpSwitch:
 	case OLITERAL:
 		ok |= Erv
 
-		if n.Type == nil && n.Val.Ctype() == CTSTR {
+		if n.Type == nil && n.Val().Ctype() == CTSTR {
 			n.Type = idealstring
 		}
 		break OpSwitch
@@ -377,10 +377,10 @@ OpSwitch:
 			var v Val
 			switch consttype(l) {
 			case CTINT, CTRUNE:
-				v = l.Val
+				v = l.Val()
 
 			case CTFLT:
-				v = toint(l.Val)
+				v = toint(l.Val())
 
 			default:
 				if l.Type != nil && Isint[l.Type.Etype] && l.Op != OLITERAL {
@@ -756,12 +756,12 @@ OpSwitch:
 		}
 
 		if et == TINTER {
-			if l.Op == OLITERAL && l.Val.Ctype() == CTNIL {
+			if l.Op == OLITERAL && l.Val().Ctype() == CTNIL {
 				// swap for back end
 				n.Left = r
 
 				n.Right = l
-			} else if r.Op == OLITERAL && r.Val.Ctype() == CTNIL {
+			} else if r.Op == OLITERAL && r.Val().Ctype() == CTNIL {
 			} else // leave alone for back end
 			if Isinter(r.Type) == Isinter(l.Type) {
 				n.Etype = n.Op
@@ -770,7 +770,7 @@ OpSwitch:
 		}
 
 		if (op == ODIV || op == OMOD) && Isconst(r, CTINT) {
-			if mpcmpfixc(r.Val.U.(*Mpint), 0) == 0 {
+			if mpcmpfixc(r.Val().U.(*Mpint), 0) == 0 {
 				Yyerror("division by zero")
 				n.Type = nil
 				return
@@ -1046,14 +1046,14 @@ OpSwitch:
 			}
 
 			if Isconst(n.Right, CTINT) {
-				x := Mpgetfix(n.Right.Val.U.(*Mpint))
+				x := Mpgetfix(n.Right.Val().U.(*Mpint))
 				if x < 0 {
 					Yyerror("invalid %s index %v (index must be non-negative)", why, n.Right)
 				} else if Isfixedarray(t) && t.Bound > 0 && x >= t.Bound {
 					Yyerror("invalid array index %v (out of bounds for %d-element array)", n.Right, t.Bound)
-				} else if Isconst(n.Left, CTSTR) && x >= int64(len(n.Left.Val.U.(string))) {
-					Yyerror("invalid string index %v (out of bounds for %d-byte string)", n.Right, len(n.Left.Val.U.(string)))
-				} else if Mpcmpfixfix(n.Right.Val.U.(*Mpint), Maxintval[TINT]) > 0 {
+				} else if Isconst(n.Left, CTSTR) && x >= int64(len(n.Left.Val().U.(string))) {
+					Yyerror("invalid string index %v (out of bounds for %d-byte string)", n.Right, len(n.Left.Val().U.(string)))
+				} else if Mpcmpfixfix(n.Right.Val().U.(*Mpint), Maxintval[TINT]) > 0 {
 					Yyerror("invalid %s index %v (index too large)", why, n.Right)
 				}
 			}
@@ -1438,9 +1438,9 @@ OpSwitch:
 			if Isconst(l, CTCPLX) {
 				r := n
 				if n.Op == OREAL {
-					n = nodfltconst(&l.Val.U.(*Mpcplx).Real)
+					n = nodfltconst(&l.Val().U.(*Mpcplx).Real)
 				} else {
-					n = nodfltconst(&l.Val.U.(*Mpcplx).Imag)
+					n = nodfltconst(&l.Val().U.(*Mpcplx).Imag)
 				}
 				n.Orig = r
 			}
@@ -1454,7 +1454,7 @@ OpSwitch:
 		case TSTRING:
 			if Isconst(l, CTSTR) {
 				r := Nod(OXXX, nil, nil)
-				Nodconst(r, Types[TINT], int64(len(l.Val.U.(string))))
+				Nodconst(r, Types[TINT], int64(len(l.Val().U.(string))))
 				r.Orig = n
 				n = r
 			}
@@ -1547,7 +1547,7 @@ OpSwitch:
 
 		if l.Op == OLITERAL && r.Op == OLITERAL {
 			// make it a complex literal
-			r = nodcplxlit(l.Val, r.Val)
+			r = nodcplxlit(l.Val(), r.Val())
 
 			r.Orig = n
 			n = r
@@ -1788,7 +1788,7 @@ OpSwitch:
 				n.Orig = r
 				*r = *n
 				n.Op = OLITERAL
-				n.Val = n.Left.Val
+				n.SetVal(n.Left.Val())
 			}
 
 			// do not use stringtoarraylit.
@@ -1862,7 +1862,7 @@ OpSwitch:
 				n.Type = nil
 				return
 			}
-			if Isconst(l, CTINT) && r != nil && Isconst(r, CTINT) && Mpcmpfixfix(l.Val.U.(*Mpint), r.Val.U.(*Mpint)) > 0 {
+			if Isconst(l, CTINT) && r != nil && Isconst(r, CTINT) && Mpcmpfixfix(l.Val().U.(*Mpint), r.Val().U.(*Mpint)) > 0 {
 				Yyerror("len larger than cap in make(%v)", t)
 				n.Type = nil
 				return
@@ -2258,16 +2258,16 @@ func checksliceindex(l *Node, r *Node, tp *Type) int {
 	}
 
 	if r.Op == OLITERAL {
-		if Mpgetfix(r.Val.U.(*Mpint)) < 0 {
+		if Mpgetfix(r.Val().U.(*Mpint)) < 0 {
 			Yyerror("invalid slice index %v (index must be non-negative)", r)
 			return -1
-		} else if tp != nil && tp.Bound > 0 && Mpgetfix(r.Val.U.(*Mpint)) > tp.Bound {
+		} else if tp != nil && tp.Bound > 0 && Mpgetfix(r.Val().U.(*Mpint)) > tp.Bound {
 			Yyerror("invalid slice index %v (out of bounds for %d-element array)", r, tp.Bound)
 			return -1
-		} else if Isconst(l, CTSTR) && Mpgetfix(r.Val.U.(*Mpint)) > int64(len(l.Val.U.(string))) {
-			Yyerror("invalid slice index %v (out of bounds for %d-byte string)", r, len(l.Val.U.(string)))
+		} else if Isconst(l, CTSTR) && Mpgetfix(r.Val().U.(*Mpint)) > int64(len(l.Val().U.(string))) {
+			Yyerror("invalid slice index %v (out of bounds for %d-byte string)", r, len(l.Val().U.(string)))
 			return -1
-		} else if Mpcmpfixfix(r.Val.U.(*Mpint), Maxintval[TINT]) > 0 {
+		} else if Mpcmpfixfix(r.Val().U.(*Mpint), Maxintval[TINT]) > 0 {
 			Yyerror("invalid slice index %v (index too large)", r)
 			return -1
 		}
@@ -2277,7 +2277,7 @@ func checksliceindex(l *Node, r *Node, tp *Type) int {
 }
 
 func checksliceconst(lo *Node, hi *Node) int {
-	if lo != nil && hi != nil && lo.Op == OLITERAL && hi.Op == OLITERAL && Mpcmpfixfix(lo.Val.U.(*Mpint), hi.Val.U.(*Mpint)) > 0 {
+	if lo != nil && hi != nil && lo.Op == OLITERAL && hi.Op == OLITERAL && Mpcmpfixfix(lo.Val().U.(*Mpint), hi.Val().U.(*Mpint)) > 0 {
 		Yyerror("invalid slice index: %v > %v", lo, hi)
 		return -1
 	}
@@ -2833,15 +2833,15 @@ func keydup(n *Node, hash map[uint32][]*Node) {
 	}
 
 	var h uint32
-	switch n.Val.Ctype() {
+	switch n.Val().Ctype() {
 	default: // unknown, bool, nil
 		h = 23
 
 	case CTINT, CTRUNE:
-		h = uint32(Mpgetfix(n.Val.U.(*Mpint)))
+		h = uint32(Mpgetfix(n.Val().U.(*Mpint)))
 
 	case CTFLT:
-		d := mpgetflt(n.Val.U.(*Mpflt))
+		d := mpgetflt(n.Val().U.(*Mpflt))
 		x := math.Float64bits(d)
 		for i := 0; i < 8; i++ {
 			h = h*PRIME1 + uint32(x&0xFF)
@@ -2850,8 +2850,8 @@ func keydup(n *Node, hash map[uint32][]*Node) {
 
 	case CTSTR:
 		h = 0
-		s := n.Val.U.(string)
-		for i := len(n.Val.U.(string)); i > 0; i-- {
+		s := n.Val().U.(string)
+		for i := len(n.Val().U.(string)); i > 0; i-- {
 			h = h*PRIME1 + uint32(s[0])
 			s = s[1:]
 		}
@@ -2866,12 +2866,12 @@ func keydup(n *Node, hash map[uint32][]*Node) {
 			if Eqtype(a.Left.Type, n.Type) {
 				cmp.Right = a.Left
 				evconst(&cmp)
-				b = uint32(obj.Bool2int(cmp.Val.U.(bool)))
+				b = uint32(obj.Bool2int(cmp.Val().U.(bool)))
 			}
 		} else if Eqtype(a.Type, n.Type) {
 			cmp.Right = a
 			evconst(&cmp)
-			b = uint32(obj.Bool2int(cmp.Val.U.(bool)))
+			b = uint32(obj.Bool2int(cmp.Val().U.(bool)))
 		}
 
 		if b != 0 {
@@ -2888,7 +2888,7 @@ func indexdup(n *Node, hash map[int64]*Node) {
 		Fatal("indexdup: not OLITERAL")
 	}
 
-	v := Mpgetfix(n.Val.U.(*Mpint))
+	v := Mpgetfix(n.Val().U.(*Mpint))
 	if hash[v] != nil {
 		Yyerror("duplicate index in array literal: %d", v)
 		return
@@ -3488,11 +3488,11 @@ func typecheckfunc(n *Node) {
 
 func stringtoarraylit(np **Node) {
 	n := *np
-	if n.Left.Op != OLITERAL || n.Left.Val.Ctype() != CTSTR {
+	if n.Left.Op != OLITERAL || n.Left.Val().Ctype() != CTSTR {
 		Fatal("stringtoarraylit %v", n)
 	}
 
-	s := n.Left.Val.U.(string)
+	s := n.Left.Val().U.(string)
 	var l *NodeList
 	if n.Type.Type.Etype == TUINT8 {
 		// []byte
@@ -3767,7 +3767,7 @@ func typecheckdef(n *Node) *Node {
 			Convlit(&e, t)
 		}
 
-		n.Val = e.Val
+		n.SetVal(e.Val())
 		n.Type = e.Type
 
 	case ONAME:
@@ -3847,15 +3847,15 @@ ret:
 
 func checkmake(t *Type, arg string, n *Node) int {
 	if n.Op == OLITERAL {
-		switch n.Val.Ctype() {
+		switch n.Val().Ctype() {
 		case CTINT, CTRUNE, CTFLT, CTCPLX:
-			n.Val = toint(n.Val)
-			if mpcmpfixc(n.Val.U.(*Mpint), 0) < 0 {
+			n.SetVal(toint(n.Val()))
+			if mpcmpfixc(n.Val().U.(*Mpint), 0) < 0 {
 				Yyerror("negative %s argument in make(%v)", arg, t)
 				return -1
 			}
 
-			if Mpcmpfixfix(n.Val.U.(*Mpint), Maxintval[TINT]) > 0 {
+			if Mpcmpfixfix(n.Val().U.(*Mpint), Maxintval[TINT]) > 0 {
 				Yyerror("%s argument too large in make(%v)", arg, t)
 				return -1
 			}
