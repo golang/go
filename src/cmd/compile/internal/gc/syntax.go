@@ -21,9 +21,8 @@ type Node struct {
 	Rlist *NodeList
 
 	// most nodes
-	Type  *Type
-	Orig  *Node // original form, for printing, and tracking copies of ONAMEs
-	Nname *Node
+	Type *Type
+	Orig *Node // original form, for printing, and tracking copies of ONAMEs
 
 	// func
 	Func *Func
