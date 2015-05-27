@@ -233,8 +233,8 @@ func Jconv(n *Node, flag int) string {
 		fmt.Fprintf(&buf, " colas(%v)", n.Colas)
 	}
 
-	if n.Funcdepth != 0 {
-		fmt.Fprintf(&buf, " f(%d)", n.Funcdepth)
+	if n.Name != nil && n.Name.Funcdepth != 0 {
+		fmt.Fprintf(&buf, " f(%d)", n.Name.Funcdepth)
 	}
 
 	switch n.Esc {
@@ -1199,7 +1199,7 @@ func exprfmt(n *Node, prec int) string {
 		if n.Nbody != nil {
 			return fmt.Sprintf("%v { %v }", n.Type, n.Nbody)
 		}
-		return fmt.Sprintf("%v { %v }", n.Type, n.Param.Closure.Nbody)
+		return fmt.Sprintf("%v { %v }", n.Type, n.Name.Param.Closure.Nbody)
 
 	case OCOMPLIT:
 		ptrlit := n.Right != nil && n.Right.Implicit && n.Right.Type != nil && Isptr[n.Right.Type.Etype]
@@ -1521,9 +1521,9 @@ func nodedump(n *Node, flag int) string {
 		} else {
 			fmt.Fprintf(&buf, "%v%v", Oconv(int(n.Op), 0), Jconv(n, 0))
 		}
-		if recur && n.Type == nil && n.Param.Ntype != nil {
+		if recur && n.Type == nil && n.Name.Param.Ntype != nil {
 			indent(&buf)
-			fmt.Fprintf(&buf, "%v-ntype%v", Oconv(int(n.Op), 0), n.Param.Ntype)
+			fmt.Fprintf(&buf, "%v-ntype%v", Oconv(int(n.Op), 0), n.Name.Param.Ntype)
 		}
 
 	case OASOP:
@@ -1531,9 +1531,9 @@ func nodedump(n *Node, flag int) string {
 
 	case OTYPE:
 		fmt.Fprintf(&buf, "%v %v%v type=%v", Oconv(int(n.Op), 0), n.Sym, Jconv(n, 0), n.Type)
-		if recur && n.Type == nil && n.Param.Ntype != nil {
+		if recur && n.Type == nil && n.Name.Param.Ntype != nil {
 			indent(&buf)
-			fmt.Fprintf(&buf, "%v-ntype%v", Oconv(int(n.Op), 0), n.Param.Ntype)
+			fmt.Fprintf(&buf, "%v-ntype%v", Oconv(int(n.Op), 0), n.Name.Param.Ntype)
 		}
 	}
 

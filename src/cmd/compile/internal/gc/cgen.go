@@ -1574,9 +1574,9 @@ func Agen(n *Node, res *Node) {
 
 	case ONAME:
 		// should only get here with names in this func.
-		if n.Funcdepth > 0 && n.Funcdepth != Funcdepth {
+		if n.Name.Funcdepth > 0 && n.Name.Funcdepth != Funcdepth {
 			Dump("bad agen", n)
-			Fatal("agen: bad ONAME funcdepth %d != %d", n.Funcdepth, Funcdepth)
+			Fatal("agen: bad ONAME funcdepth %d != %d", n.Name.Funcdepth, Funcdepth)
 		}
 
 		// should only get here for heap vars or paramref

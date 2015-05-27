@@ -33,12 +33,10 @@ import (
 // more precise when analyzing a single non-recursive function than
 // when analyzing a set of mutually recursive functions.
 
-// TODO(rsc): Look into using a map[*Node]bool instead of walkgen,
-// to allow analysis passes to use walkgen themselves.
-
 type bottomUpVisitor struct {
 	analyze  func(*NodeList, bool)
 	visitgen uint32
+	nodeID   map[*Node]uint32
 	stack    *NodeList
 }
 
@@ -56,31 +54,25 @@ type bottomUpVisitor struct {
 // If recursive is true, the list may still contain only a single function,
 // if that function is itself recursive.
 func visitBottomUp(list *NodeList, analyze func(list *NodeList, recursive bool)) {
-	for l := list; l != nil; l = l.Next {
-		l.N.Walkgen = 0
-	}
-
 	var v bottomUpVisitor
 	v.analyze = analyze
+	v.nodeID = make(map[*Node]uint32)
 	for l := list; l != nil; l = l.Next {
 		if l.N.Op == ODCLFUNC && l.N.Curfn == nil {
 			v.visit(l.N)
 		}
 	}
-
-	for l := list; l != nil; l = l.Next {
-		l.N.Walkgen = 0
-	}
 }
 
 func (v *bottomUpVisitor) visit(n *Node) uint32 {
-	if n.Walkgen > 0 {
+	if id := v.nodeID[n]; id > 0 {
 		// already visited
-		return n.Walkgen
+		return id
 	}
 
 	v.visitgen++
-	n.Walkgen = v.visitgen
+	id := v.visitgen
+	v.nodeID[n] = id
 	v.visitgen++
 	min := v.visitgen
 
@@ -89,14 +81,14 @@ func (v *bottomUpVisitor) visit(n *Node) uint32 {
 	l.N = n
 	v.stack = l
 	min = v.visitcodelist(n.Nbody, min)
-	if (min == n.Walkgen || min == n.Walkgen+1) && n.Curfn == nil {
+	if (min == id || min == id+1) && n.Curfn == nil {
 		// This node is the root of a strongly connected component.
 
 		// The original min passed to visitcodelist was n->walkgen+1.
 		// If visitcodelist found its way back to n->walkgen, then this
 		// block is a set of mutually recursive functions.
 		// Otherwise it's just a lone function that does not recurse.
-		recursive := min == n.Walkgen
+		recursive := min == id
 
 		// Remove connected component from stack.
 		// Mark walkgen so that future visits return a large number
@@ -105,9 +97,9 @@ func (v *bottomUpVisitor) visit(n *Node) uint32 {
 
 		var l *NodeList
 		for l = v.stack; l.N != n; l = l.Next {
-			l.N.Walkgen = ^uint32(0)
+			v.nodeID[l.N] = ^uint32(0)
 		}
-		n.Walkgen = ^uint32(0)
+		v.nodeID[n] = ^uint32(0)
 		v.stack = l.Next
 		l.Next = nil
 
@@ -151,7 +143,7 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
 	}
 
 	if n.Op == OCLOSURE {
-		m := v.visit(n.Param.Closure)
+		m := v.visit(n.Func.Closure)
 		if m < min {
 			min = m
 		}
@@ -322,6 +314,7 @@ type NodeEscState struct {
 	Escretval    *NodeList // on OCALLxxx, list of dummy return values
 	Escloopdepth int32     // -1: global, 0: return variables, 1:function top level, increased inside function for every loop or label to mark scopes
 	Esclevel     Level
+	Walkgen      uint32
 }
 
 func (e *EscState) nodeEscState(n *Node) *NodeEscState {
@@ -403,6 +396,7 @@ type EscState struct {
 	noesc     *NodeList // list of possible non-escaping nodes, for printing
 	recursive bool      // recursive function or group of mutually recursive functions.
 	opts      []*Node   // nodes with .Opt initialized
+	walkgen   uint32
 }
 
 // funcSym returns n.Nname.Sym if no nils are encountered along the way.
@@ -865,7 +859,7 @@ func esc(e *EscState, n *Node, up *Node) {
 			if v.Op == OXXX { // unnamed out argument; see dcl.c:/^funcargs
 				continue
 			}
-			a = v.Param.Closure
+			a = v.Name.Param.Closure
 			if !v.Name.Byval {
 				a = Nod(OADDR, a, nil)
 				a.Lineno = v.Lineno
@@ -1382,7 +1376,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 
 	nE := e.nodeEscState(n)
 	if fn != nil && fn.Op == ONAME && fn.Class == PFUNC &&
-		fn.Name.Defn != nil && fn.Name.Defn.Nbody != nil && fn.Param.Ntype != nil && fn.Name.Defn.Esc < EscFuncTagged {
+		fn.Name.Defn != nil && fn.Name.Defn.Nbody != nil && fn.Name.Param.Ntype != nil && fn.Name.Defn.Esc < EscFuncTagged {
 		if Debug['m'] > 2 {
 			fmt.Printf("%v::esccall:: %v in recursive group\n", Ctxt.Line(int(lineno)), Nconv(n, obj.FmtShort))
 		}
@@ -1394,17 +1388,17 @@ func esccall(e *EscState, n *Node, up *Node) {
 		}
 
 		// set up out list on this call node
-		for lr := fn.Param.Ntype.Rlist; lr != nil; lr = lr.Next {
+		for lr := fn.Name.Param.Ntype.Rlist; lr != nil; lr = lr.Next {
 			nE.Escretval = list(nE.Escretval, lr.N.Left) // type.rlist ->  dclfield -> ONAME (PPARAMOUT)
 		}
 
 		// Receiver.
 		if n.Op != OCALLFUNC {
-			escassign(e, fn.Param.Ntype.Left.Left, n.Left.Left)
+			escassign(e, fn.Name.Param.Ntype.Left.Left, n.Left.Left)
 		}
 
 		var src *Node
-		for lr := fn.Param.Ntype.List; ll != nil && lr != nil; ll, lr = ll.Next, lr.Next {
+		for lr := fn.Name.Param.Ntype.List; ll != nil && lr != nil; ll, lr = ll.Next, lr.Next {
 			src = ll.N
 			if lr.N.Isddd && !n.Isddd {
 				// Introduce ODDDARG node to represent ... allocation.
@@ -1570,11 +1564,11 @@ func escflood(e *EscState, dst *Node) {
 
 	dstE := e.nodeEscState(dst)
 	if Debug['m'] > 1 {
-		fmt.Printf("\nescflood:%d: dst %v scope:%v[%d]\n", walkgen, Nconv(dst, obj.FmtShort), curfnSym(dst), dstE.Escloopdepth)
+		fmt.Printf("\nescflood:%d: dst %v scope:%v[%d]\n", e.walkgen, Nconv(dst, obj.FmtShort), curfnSym(dst), dstE.Escloopdepth)
 	}
 
 	for l := dstE.Escflowsrc; l != nil; l = l.Next {
-		walkgen++
+		e.walkgen++
 		escwalk(e, levelFrom(0), dst, l.N)
 	}
 }
@@ -1588,7 +1582,7 @@ func funcOutputAndInput(dst, src *Node) bool {
 
 func escwalk(e *EscState, level Level, dst *Node, src *Node) {
 	srcE := e.nodeEscState(src)
-	if src.Walkgen == walkgen {
+	if srcE.Walkgen == e.walkgen {
 		// Esclevels are vectors, do not compare as integers,
 		// and must use "min" of old and new to guarantee
 		// convergence.
@@ -1598,7 +1592,7 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
 		}
 	}
 
-	src.Walkgen = walkgen
+	srcE.Walkgen = e.walkgen
 	srcE.Esclevel = level
 
 	if Debug['m'] > 1 {
@@ -1676,7 +1670,7 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
 			if leaks && Debug['m'] != 0 {
 				Warnl(int(src.Lineno), "leaking closure reference %v", Nconv(src, obj.FmtShort))
 			}
-			escwalk(e, level, dst, src.Param.Closure)
+			escwalk(e, level, dst, src.Name.Param.Closure)
 		}
 
 	case OPTRLIT, OADDR:
@@ -1807,7 +1801,7 @@ func esctag(e *EscState, func_ *Node) {
 		case EscNone, // not touched by escflood
 			EscReturn:
 			if haspointers(ll.N.Type) { // don't bother tagging for scalars
-				ll.N.Param.Field.Note = mktag(int(ll.N.Esc))
+				ll.N.Name.Param.Field.Note = mktag(int(ll.N.Esc))
 			}
 
 		case EscHeap, // touched by escflood, moved to heap

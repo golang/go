@@ -400,7 +400,7 @@ func Main() {
 	// This needs to run before escape analysis,
 	// because variables captured by value do not escape.
 	for l := xtop; l != nil; l = l.Next {
-		if l.N.Op == ODCLFUNC && l.N.Param.Closure != nil {
+		if l.N.Op == ODCLFUNC && l.N.Func.Closure != nil {
 			Curfn = l.N
 			capturevars(l.N)
 		}
@@ -454,7 +454,7 @@ func Main() {
 	// This needs to happen before walk, because closures must be transformed
 	// before walk reaches a call of a closure.
 	for l := xtop; l != nil; l = l.Next {
-		if l.N.Op == ODCLFUNC && l.N.Param.Closure != nil {
+		if l.N.Op == ODCLFUNC && l.N.Func.Closure != nil {
 			Curfn = l.N
 			transformclosure(l.N)
 		}

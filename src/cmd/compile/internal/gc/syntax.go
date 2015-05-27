@@ -31,7 +31,6 @@ type Node struct {
 	// ONAME
 	Name  *Name
 	Curfn *Node // function for local variables
-	Param *Param
 
 	Sym *Sym // various
 
@@ -42,10 +41,7 @@ type Node struct {
 
 	Xoffset int64
 
-	Lineno  int32
-	Walkgen uint32
-
-	Funcdepth int32
+	Lineno int32
 
 	// OREGISTER, OINDREG
 	Reg int16
@@ -79,15 +75,17 @@ type Node struct {
 
 // Name holds Node fields used only by named nodes (ONAME, OPACK, some OLITERAL).
 type Name struct {
-	Pack      *Node // real package for import . names
-	Pkg       *Pkg  // pkg for OPACK nodes
-	Heapaddr  *Node // temp holding heap address of param
-	Inlvar    *Node // ONAME substitute while inlining
-	Defn      *Node // initializing assignment
+	Pack     *Node // real package for import . names
+	Pkg      *Pkg  // pkg for OPACK nodes
+	Heapaddr *Node // temp holding heap address of param
+	Inlvar   *Node // ONAME substitute while inlining
+	Defn     *Node // initializing assignment
+	*Param
 	Decldepth int32 // declaration loop depth, increased for every loop or label
 	Vargen    int32 // unique name for OTYPE/ONAME within a function.  Function outputs are numbered starting at one.
 	Iota      int32 // value if this name is iota
-	Method    bool  // OCALLMETH name
+	Funcdepth int32
+	Method    bool // OCALLMETH name
 	Readonly  bool
 	Captured  bool // is the variable captured by a closure
 	Byval     bool // is the variable captured by value or by reference
@@ -107,7 +105,6 @@ type Param struct {
 	// ONAME closure param with PPARAMREF
 	Outer   *Node // outer PPARAMREF in nested closure
 	Closure *Node // ONAME/PHEAP <-> ONAME/PPARAMREF
-	Top     int   // top context (Ecall, Eproc, etc)
 }
 
 // Func holds Node fields used only with function-like nodes.
@@ -121,9 +118,14 @@ type Func struct {
 	Closgen    int
 	Outerfunc  *Node
 	Fieldtrack []*Type
+	Outer      *Node // outer func for closure
+	Ntype      *Node // signature
+	Top        int   // top context (Ecall, Eproc, etc)
+	Closure    *Node // OCLOSURE <-> ODCLFUNC
 
 	Inl     *NodeList // copy of the body for use in inlining
 	InlCost int32
+	Depth   int32
 
 	Endlineno int32
 
@@ -310,22 +312,6 @@ const (
 
 	OEND
 )
-
-/*
- * Every node has a walkgen field.
- * If you want to do a traversal of a node graph that
- * might contain duplicates and want to avoid
- * visiting the same nodes twice, increment walkgen
- * before starting.  Then before processing a node, do
- *
- *	if(n->walkgen == walkgen)
- *		return;
- *	n->walkgen = walkgen;
- *
- * Such a walk cannot call another such walk recursively,
- * because of the use of the global walkgen.
- */
-var walkgen uint32
 
 // A NodeList is a linked list of nodes.
 // TODO(rsc): Some uses of NodeList should be made into slices.

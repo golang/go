@@ -169,10 +169,10 @@ func typecheckswitch(n *Node) {
 			if nvar != nil {
 				if ll != nil && ll.Next == nil && ll.N.Type != nil && !Istype(ll.N.Type, TNIL) {
 					// single entry type switch
-					nvar.Param.Ntype = typenod(ll.N.Type)
+					nvar.Name.Param.Ntype = typenod(ll.N.Type)
 				} else {
 					// multiple entry type switch or default
-					nvar.Param.Ntype = typenod(n.Type)
+					nvar.Name.Param.Ntype = typenod(n.Type)
 				}
 
 				typecheck(&nvar, Erv|Easgn)
