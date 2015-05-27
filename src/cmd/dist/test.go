@@ -201,45 +201,71 @@ func (t *tester) timeout(sec int) string {
 	return "-timeout=" + fmt.Sprint(time.Duration(sec)*time.Second*time.Duration(t.timeoutScale))
 }
 
-func (t *tester) registerTests() {
-	// Register a separate logical test for each package in the standard library
-	// but actually group them together at execution time to share the cost of
-	// building packages shared between them.
-	all, err := exec.Command("go", "list", "std", "cmd").Output()
-	if err != nil {
-		log.Fatalf("Error running go list std cmd: %v", err)
+// ranGoTest and stdMatches are state closed over by the stdlib
+// testing func in registerStdTest below. The tests are run
+// sequentially, so there's no need for locks.
+var (
+	ranGoTest  bool
+	stdMatches []string
+)
+
+func (t *tester) registerStdTest(pkg string) {
+	testName := "go_test:" + pkg
+	if t.runRx == nil || t.runRx.MatchString(testName) {
+		stdMatches = append(stdMatches, pkg)
 	}
-	// ranGoTest and stdMatches are state closed over by the
-	// stdlib testing func below. The tests are run sequentially,
-	// so there's no need for locks.
-	var (
-		ranGoTest  bool
-		stdMatches []string
-	)
-	for _, pkg := range strings.Fields(string(all)) {
-		testName := "go_test:" + pkg
-		if t.runRx == nil || t.runRx.MatchString(testName) {
-			stdMatches = append(stdMatches, pkg)
+	t.tests = append(t.tests, distTest{
+		name:    testName,
+		heading: "Testing packages.",
+		fn: func() error {
+			if ranGoTest {
+				return nil
+			}
+			ranGoTest = true
+			cmd := exec.Command("go", append([]string{
+				"test",
+				"-short",
+				t.timeout(120),
+				"-gcflags=" + os.Getenv("GO_GCFLAGS"),
+			}, stdMatches...)...)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			return cmd.Run()
+		},
+	})
+}
+
+// validStdPkg reports whether pkg looks like a standard library package name.
+// Notably, it's not blank and doesn't contain regexp characters.
+func validStdPkg(pkg string) bool {
+	if pkg == "" {
+		return false
+	}
+	for _, r := range pkg {
+		switch {
+		case 'a' <= r && r <= 'z':
+		case 'A' <= r && r <= 'Z':
+		case '0' <= r && r <= '9':
+		case r == '_':
+		case r == '/':
+		default:
+			return false
 		}
-		t.tests = append(t.tests, distTest{
-			name:    testName,
-			heading: "Testing packages.",
-			fn: func() error {
-				if ranGoTest {
-					return nil
-				}
-				ranGoTest = true
-				cmd := exec.Command("go", append([]string{
-					"test",
-					"-short",
-					t.timeout(120),
-					"-gcflags=" + os.Getenv("GO_GCFLAGS"),
-				}, stdMatches...)...)
-				cmd.Stdout = os.Stdout
-				cmd.Stderr = os.Stderr
-				return cmd.Run()
-			},
-		})
+	}
+	return true
+}
+
+func (t *tester) registerTests() {
+	// Fast path to avoid the ~1 second of `go list std cmd` when
+	// the caller passed -run=^go_test:foo/bar$ (as the continuous
+	// build coordinator does).
+	if strings.HasPrefix(t.runRxStr, "^go_test:") && strings.HasSuffix(t.runRxStr, "$") {
+		pkg := strings.TrimPrefix(t.runRxStr, "^go_test:")
+		pkg = strings.TrimSuffix(pkg, "$")
+		if validStdPkg(pkg) {
+			t.registerStdTest(pkg)
+			return
+		}
 	}
 
 	// Runtime CPU tests.
@@ -365,6 +391,44 @@ func (t *tester) registerTests() {
 		})
 	}
 
+	// Register the standard library tests lasts, to avoid the ~1 second latency
+	// of running `go list std cmd` if we're running a specific test.
+	// Now we know the names of all the other tests registered so far.
+	if !t.wantSpecificRegisteredTest() {
+		all, err := exec.Command("go", "list", "std", "cmd").Output()
+		if err != nil {
+			log.Fatalf("Error running go list std cmd: %v", err)
+		}
+		// Put the standard library tests first.
+		orig := t.tests
+		t.tests = nil
+		for _, pkg := range strings.Fields(string(all)) {
+			t.registerStdTest(pkg)
+		}
+		t.tests = append(t.tests, orig...)
+	}
+}
+
+// wantSpecificRegisteredTest reports whether the caller is requesting a
+// run of a specific test via the flag -run=^TESTNAME$ (as is done by the
+// continuous build coordinator).
+func (t *tester) wantSpecificRegisteredTest() bool {
+	if !strings.HasPrefix(t.runRxStr, "^") || !strings.HasSuffix(t.runRxStr, "$") {
+		return false
+	}
+	test := t.runRxStr[1 : len(t.runRxStr)-1]
+	return t.isRegisteredTestName(test)
+}
+
+// isRegisteredTestName reports whether a test named testName has already
+// been registered.
+func (t *tester) isRegisteredTestName(testName string) bool {
+	for _, tt := range t.tests {
+		if tt.name == testName {
+			return true
+		}
+	}
+	return false
 }
 
 func (t *tester) registerTest(name, dirBanner, bin string, args ...string) {
