@@ -604,9 +604,9 @@ func esc(e *EscState, n *Node, up *Node) {
 	if n.Op == OSWITCH && n.Left != nil && n.Left.Op == OTYPESW {
 		for ll := n.List; ll != nil; ll = ll.Next { // cases
 
-			// ll->n->nname is the variable per case
-			if ll.N.Nname != nil {
-				e.nodeEscState(ll.N.Nname).Escloopdepth = e.loopdepth
+			// ll.N.Rlist is the variable per case
+			if ll.N.Rlist != nil {
+				e.nodeEscState(ll.N.Rlist.N).Escloopdepth = e.loopdepth
 			}
 		}
 	}
@@ -677,9 +677,11 @@ func esc(e *EscState, n *Node, up *Node) {
 		if n.Left != nil && n.Left.Op == OTYPESW {
 			for ll := n.List; ll != nil; ll = ll.Next {
 				// cases
-				// ntest->right is the argument of the .(type),
-				// ll->n->nname is the variable per case
-				escassign(e, ll.N.Nname, n.Left.Right)
+				// n.Left.Right is the argument of the .(type),
+				// ll.N.Rlist is the variable per case
+				if ll.N.Rlist != nil {
+					escassign(e, ll.N.Rlist.N, n.Left.Right)
+				}
 			}
 		}
 

@@ -1618,7 +1618,7 @@ yydefault:
 					// type switch - declare variable
 					nn = newname(n.Sym)
 					declare(nn, dclcontext)
-					yyVAL.node.Nname = nn
+					yyVAL.node.Rlist = list1(nn)
 
 					// keep track of the instances for reporting unused
 					nn.Name.Defn = typesw.Right
@@ -1670,7 +1670,7 @@ yydefault:
 					// type switch - declare variable
 					nn = newname(n.Sym)
 					declare(nn, dclcontext)
-					yyVAL.node.Nname = nn
+					yyVAL.node.Rlist = list1(nn)
 
 					// keep track of the instances for reporting unused
 					nn.Name.Defn = typesw.Right

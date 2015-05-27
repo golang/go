@@ -165,8 +165,8 @@ func typecheckswitch(n *Node) {
 
 		if top == Etype && n.Type != nil {
 			ll = ncase.List
-			nvar := ncase.Nname
-			if nvar != nil {
+			if ncase.Rlist != nil {
+				nvar := ncase.Rlist.N
 				if ll != nil && ll.Next == nil && ll.N.Type != nil && !Istype(ll.N.Type, TNIL) {
 					// single entry type switch
 					nvar.Name.Param.Ntype = typenod(ll.N.Type)
@@ -176,7 +176,7 @@ func typecheckswitch(n *Node) {
 				}
 
 				typecheck(&nvar, Erv|Easgn)
-				ncase.Nname = nvar
+				ncase.Rlist.N = nvar
 			}
 		}
 
@@ -378,9 +378,9 @@ func casebody(sw *Node, typeswvar *Node) {
 		}
 
 		stat = list(stat, Nod(OLABEL, jmp.Left, nil))
-		if typeswvar != nil && needvar && n.Nname != nil {
-			l := list1(Nod(ODCL, n.Nname, nil))
-			l = list(l, Nod(OAS, n.Nname, typeswvar))
+		if typeswvar != nil && needvar && n.Rlist != nil {
+			l := list1(Nod(ODCL, n.Rlist.N, nil))
+			l = list(l, Nod(OAS, n.Rlist.N, typeswvar))
 			typechecklist(l, Etop)
 			stat = concat(stat, l)
 		}
@@ -645,12 +645,13 @@ func (s *typeSwitch) walk(sw *Node) {
 // typeone generates an AST that jumps to the
 // case body if the variable is of type t.
 func (s *typeSwitch) typeone(t *Node) *Node {
-	name := t.Nname
+	var name *Node
 	var init *NodeList
-	if name == nil {
-		typecheck(&nblank, Erv|Easgn)
+	if t.Rlist == nil {
 		name = nblank
+		typecheck(&nblank, Erv|Easgn)
 	} else {
+		name = t.Rlist.N
 		init = list1(Nod(ODCL, name, nil))
 	}
 

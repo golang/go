@@ -549,7 +549,7 @@ case:
 				// type switch - declare variable
 				nn = newname(n.Sym);
 				declare(nn, dclcontext);
-				$$.Nname = nn;
+				$$.Rlist = list1(nn);
 	
 				// keep track of the instances for reporting unused
 				nn.Name.Defn = typesw.Right;
@@ -595,7 +595,7 @@ case:
 				// type switch - declare variable
 				nn = newname(n.Sym);
 				declare(nn, dclcontext);
-				$$.Nname = nn;
+				$$.Rlist = list1(nn);
 	
 				// keep track of the instances for reporting unused
 				nn.Name.Defn = typesw.Right;
