@@ -29,8 +29,7 @@ type Node struct {
 	Func *Func
 
 	// ONAME
-	Name  *Name
-	Curfn *Node // function for local variables
+	Name *Name
 
 	Sym *Sym // various
 
@@ -80,6 +79,7 @@ type Name struct {
 	Heapaddr *Node // temp holding heap address of param
 	Inlvar   *Node // ONAME substitute while inlining
 	Defn     *Node // initializing assignment
+	Curfn    *Node // function for local variables
 	*Param
 	Decldepth int32 // declaration loop depth, increased for every loop or label
 	Vargen    int32 // unique name for OTYPE/ONAME within a function.  Function outputs are numbered starting at one.
@@ -122,6 +122,7 @@ type Func struct {
 	Ntype      *Node // signature
 	Top        int   // top context (Ecall, Eproc, etc)
 	Closure    *Node // OCLOSURE <-> ODCLFUNC
+	FCurfn     *Node
 
 	Inl     *NodeList // copy of the body for use in inlining
 	InlCost int32

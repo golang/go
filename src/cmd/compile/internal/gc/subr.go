@@ -370,10 +370,10 @@ func Nod(op int, nleft *Node, nright *Node) *Node {
 	n.Lineno = int32(parserline())
 	n.Xoffset = BADWIDTH
 	n.Orig = n
-	n.Curfn = Curfn
 	switch op {
 	case OCLOSURE, ODCLFUNC:
 		n.Func = new(Func)
+		n.Func.FCurfn = Curfn
 	case ONAME:
 		n.Name = new(Name)
 		n.Name.Param = new(Param)
@@ -386,6 +386,9 @@ func Nod(op int, nleft *Node, nright *Node) *Node {
 			n.Name = new(Name)
 			n.Name.Param = new(Param)
 		}
+	}
+	if n.Name != nil {
+		n.Name.Curfn = Curfn
 	}
 	return n
 }

@@ -58,7 +58,7 @@ func visitBottomUp(list *NodeList, analyze func(list *NodeList, recursive bool))
 	v.analyze = analyze
 	v.nodeID = make(map[*Node]uint32)
 	for l := list; l != nil; l = l.Next {
-		if l.N.Op == ODCLFUNC && l.N.Curfn == nil {
+		if l.N.Op == ODCLFUNC && l.N.Func.FCurfn == nil {
 			v.visit(l.N)
 		}
 	}
@@ -81,7 +81,7 @@ func (v *bottomUpVisitor) visit(n *Node) uint32 {
 	l.N = n
 	v.stack = l
 	min = v.visitcodelist(n.Nbody, min)
-	if (min == id || min == id+1) && n.Curfn == nil {
+	if (min == id || min == id+1) && n.Func.FCurfn == nil {
 		// This node is the root of a strongly connected component.
 
 		// The original min passed to visitcodelist was n->walkgen+1.
@@ -310,6 +310,7 @@ func (l Level) guaranteedDereference() int {
 }
 
 type NodeEscState struct {
+	Curfn        *Node
 	Escflowsrc   *NodeList // flow(this, src)
 	Escretval    *NodeList // on OCALLxxx, list of dummy return values
 	Escloopdepth int32     // -1: global, 0: return variables, 1:function top level, increased inside function for every loop or label to mark scopes
@@ -325,9 +326,20 @@ func (e *EscState) nodeEscState(n *Node) *NodeEscState {
 		Fatal("nodeEscState: opt in use (%T)", n.Opt)
 	}
 	nE := new(NodeEscState)
+	nE.Curfn = Curfn
 	n.Opt = nE
 	e.opts = append(e.opts, n)
 	return nE
+}
+
+func (e *EscState) track(n *Node) {
+	if Curfn == nil {
+		Fatal("EscState.track: Curfn nil")
+	}
+	n.Esc = EscNone // until proven otherwise
+	nE := e.nodeEscState(n)
+	nE.Escloopdepth = e.loopdepth
+	e.noesc = list(e.noesc, n)
 }
 
 // Escape constants are numbered in order of increasing "escapiness"
@@ -408,8 +420,9 @@ func funcSym(n *Node) *Sym {
 }
 
 // curfnSym returns n.Curfn.Nname.Sym if no nils are encountered along the way.
-func curfnSym(n *Node) *Sym {
-	return funcSym(n.Curfn)
+func (e *EscState) curfnSym(n *Node) *Sym {
+	nE := e.nodeEscState(n)
+	return funcSym(nE.Curfn)
 }
 
 func escAnalyze(all *NodeList, recursive bool) {
@@ -453,7 +466,7 @@ func escAnalyze(all *NodeList, recursive bool) {
 	if Debug['m'] != 0 {
 		for l := e.noesc; l != nil; l = l.Next {
 			if l.N.Esc == EscNone {
-				Warnl(int(l.N.Lineno), "%v %v does not escape", curfnSym(l.N), Nconv(l.N, obj.FmtShort))
+				Warnl(int(l.N.Lineno), "%v %v does not escape", e.curfnSym(l.N), Nconv(l.N, obj.FmtShort))
 			}
 		}
 	}
@@ -600,7 +613,6 @@ func esc(e *EscState, n *Node, up *Node) {
 
 	// Big stuff escapes unconditionally
 	// "Big" conditions that were scattered around in walk have been gathered here
-	nE := e.nodeEscState(n)
 	if n.Esc != EscHeap && n.Type != nil && (n.Type.Width > MaxStackVarSize ||
 		n.Op == ONEW && n.Type.Type.Width >= 1<<16 ||
 		n.Op == OMAKESLICE && !isSmallMakeSlice(n)) {
@@ -698,7 +710,7 @@ func esc(e *EscState, n *Node, up *Node) {
 			// b escapes as well. If we ignore such OSLICEARR, we will conclude
 			// that b does not escape when b contents do.
 			if Debug['m'] != 0 {
-				Warnl(int(n.Lineno), "%v ignoring self-assignment to %v", curfnSym(n), Nconv(n.Left, obj.FmtShort))
+				Warnl(int(n.Lineno), "%v ignoring self-assignment to %v", e.curfnSym(n), Nconv(n.Left, obj.FmtShort))
 			}
 
 			break
@@ -790,7 +802,7 @@ func esc(e *EscState, n *Node, up *Node) {
 			slice2 := n.List.Next.N
 			escassign(e, &e.theSink, e.addDereference(slice2)) // lose track of assign of dereference
 			if Debug['m'] > 2 {
-				Warnl(int(n.Lineno), "%v special treatment of append(slice1, slice2...) %v", curfnSym(n), Nconv(n, obj.FmtShort))
+				Warnl(int(n.Lineno), "%v special treatment of append(slice1, slice2...) %v", e.curfnSym(n), Nconv(n, obj.FmtShort))
 			}
 		}
 		escassign(e, &e.theSink, e.addDereference(n.List.N)) // The original elements are now leaked, too
@@ -799,17 +811,13 @@ func esc(e *EscState, n *Node, up *Node) {
 		escassign(e, n, n.Left)
 
 	case OCONVIFACE:
-		n.Esc = EscNone // until proven otherwise
-		e.noesc = list(e.noesc, n)
-		nE.Escloopdepth = e.loopdepth
+		e.track(n)
 		escassign(e, n, n.Left)
 
 	case OARRAYLIT:
 		if Isslice(n.Type) {
 			// Slice itself is not leaked until proven otherwise
-			n.Esc = EscNone
-			e.noesc = list(e.noesc, n)
-			nE.Escloopdepth = e.loopdepth
+			e.track(n)
 		}
 
 		// Link values to array/slice
@@ -824,25 +832,19 @@ func esc(e *EscState, n *Node, up *Node) {
 		}
 
 	case OPTRLIT:
-		n.Esc = EscNone // until proven otherwise
-		e.noesc = list(e.noesc, n)
-		nE.Escloopdepth = e.loopdepth
+		e.track(n)
 
 		// Link OSTRUCTLIT to OPTRLIT; if OPTRLIT escapes, OSTRUCTLIT elements do too.
 		escassign(e, n, n.Left)
 
 	case OCALLPART:
-		n.Esc = EscNone // until proven otherwise
-		e.noesc = list(e.noesc, n)
-		nE.Escloopdepth = e.loopdepth
+		e.track(n)
 
 		// Contents make it to memory, lose track.
 		escassign(e, &e.theSink, n.Left)
 
 	case OMAPLIT:
-		n.Esc = EscNone // until proven otherwise
-		e.noesc = list(e.noesc, n)
-		nE.Escloopdepth = e.loopdepth
+		e.track(n)
 
 		// Keys and values make it to memory, lose track.
 		for ll := n.List; ll != nil; ll = ll.Next {
@@ -880,25 +882,16 @@ func esc(e *EscState, n *Node, up *Node) {
 		OSTRARRAYRUNE,
 		OSTRARRAYBYTE,
 		ORUNESTR:
-		nE.Escloopdepth = e.loopdepth
-
-		n.Esc = EscNone // until proven otherwise
-		e.noesc = list(e.noesc, n)
+		e.track(n)
 
 	case OADDSTR:
-		nE.Escloopdepth = e.loopdepth
-		n.Esc = EscNone // until proven otherwise
-		e.noesc = list(e.noesc, n)
-
-	// Arguments of OADDSTR do not escape.
+		e.track(n)
+		// Arguments of OADDSTR do not escape.
 
 	case OADDR:
-		n.Esc = EscNone // until proven otherwise
-		e.noesc = list(e.noesc, n)
-
 		// current loop depth is an upper bound on actual loop depth
 		// of addressed value.
-		nE.Escloopdepth = e.loopdepth
+		e.track(n)
 
 		// for &x, use loop depth of x if known.
 		// it should always be known, but if not, be conservative
@@ -906,6 +899,7 @@ func esc(e *EscState, n *Node, up *Node) {
 		if n.Left.Op == ONAME {
 			switch n.Left.Class {
 			case PAUTO:
+				nE := e.nodeEscState(n)
 				leftE := e.nodeEscState(n.Left)
 				if leftE.Escloopdepth != 0 {
 					nE.Escloopdepth = leftE.Escloopdepth
@@ -918,6 +912,7 @@ func esc(e *EscState, n *Node, up *Node) {
 			// to another (or the same) result makes the
 			// first result move to the heap.
 			case PPARAM, PPARAMOUT:
+				nE := e.nodeEscState(n)
 				nE.Escloopdepth = 1
 			}
 		}
@@ -1304,7 +1299,7 @@ func initEscretval(e *EscState, n *Node, fntype *Type) {
 		src.Sym = Lookup(buf)
 		src.Type = t.Type
 		src.Class = PAUTO
-		src.Curfn = Curfn
+		src.Name.Curfn = Curfn
 		e.nodeEscState(src).Escloopdepth = e.loopdepth
 		src.Used = true
 		src.Lineno = n.Lineno
@@ -1403,16 +1398,12 @@ func esccall(e *EscState, n *Node, up *Node) {
 			if lr.N.Isddd && !n.Isddd {
 				// Introduce ODDDARG node to represent ... allocation.
 				src = Nod(ODDDARG, nil, nil)
-
 				src.Type = typ(TARRAY)
 				src.Type.Type = lr.N.Type.Type
 				src.Type.Bound = int64(count(ll))
 				src.Type = Ptrto(src.Type) // make pointer so it will be tracked
-				srcE := e.nodeEscState(src)
-				srcE.Escloopdepth = e.loopdepth
 				src.Lineno = n.Lineno
-				src.Esc = EscNone // until we find otherwise
-				e.noesc = list(e.noesc, src)
+				e.track(src)
 				n.Right = src
 			}
 
@@ -1463,15 +1454,12 @@ func esccall(e *EscState, n *Node, up *Node) {
 		if t.Isddd && !n.Isddd {
 			// Introduce ODDDARG node to represent ... allocation.
 			src = Nod(ODDDARG, nil, nil)
-			srcE := e.nodeEscState(src)
-			srcE.Escloopdepth = e.loopdepth
 			src.Lineno = n.Lineno
 			src.Type = typ(TARRAY)
 			src.Type.Type = t.Type.Type
 			src.Type.Bound = int64(count(ll))
 			src.Type = Ptrto(src.Type) // make pointer so it will be tracked
-			src.Esc = EscNone          // until we find otherwise
-			e.noesc = list(e.noesc, src)
+			e.track(src)
 			n.Right = src
 		}
 
@@ -1564,7 +1552,7 @@ func escflood(e *EscState, dst *Node) {
 
 	dstE := e.nodeEscState(dst)
 	if Debug['m'] > 1 {
-		fmt.Printf("\nescflood:%d: dst %v scope:%v[%d]\n", e.walkgen, Nconv(dst, obj.FmtShort), curfnSym(dst), dstE.Escloopdepth)
+		fmt.Printf("\nescflood:%d: dst %v scope:%v[%d]\n", e.walkgen, Nconv(dst, obj.FmtShort), e.curfnSym(dst), dstE.Escloopdepth)
 	}
 
 	for l := dstE.Escflowsrc; l != nil; l = l.Next {
@@ -1577,7 +1565,7 @@ func escflood(e *EscState, dst *Node) {
 func funcOutputAndInput(dst, src *Node) bool {
 	// Note if dst is marked as escaping, then "returned" is too weak.
 	return dst.Op == ONAME && dst.Class == PPARAMOUT &&
-		src.Op == ONAME && src.Class == PPARAM && src.Curfn == dst.Curfn
+		src.Op == ONAME && src.Class == PPARAM && src.Name.Curfn == dst.Name.Curfn
 }
 
 func escwalk(e *EscState, level Level, dst *Node, src *Node) {
@@ -1597,7 +1585,7 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
 
 	if Debug['m'] > 1 {
 		fmt.Printf("escwalk: level:%d depth:%d %.*s op=%v %v(%v) scope:%v[%d]\n",
-			level, e.pdepth, e.pdepth, "\t\t\t\t\t\t\t\t\t\t", Oconv(int(src.Op), 0), Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort), curfnSym(src), srcE.Escloopdepth)
+			level, e.pdepth, e.pdepth, "\t\t\t\t\t\t\t\t\t\t", Oconv(int(src.Op), 0), Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort), e.curfnSym(src), srcE.Escloopdepth)
 	}
 
 	e.pdepth++

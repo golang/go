@@ -77,7 +77,7 @@ func addrescapes(n *Node) {
 			// create stack variable to hold pointer to heap
 			oldfn := Curfn
 
-			Curfn = n.Curfn
+			Curfn = n.Name.Curfn
 			n.Name.Heapaddr = temp(Ptrto(n.Type))
 			buf := fmt.Sprintf("&%v", n.Sym)
 			n.Name.Heapaddr.Sym = Lookup(buf)
@@ -627,7 +627,7 @@ func Tempname(nn *Node, t *Type) {
 	n.Addable = true
 	n.Ullman = 1
 	n.Esc = EscNever
-	n.Curfn = Curfn
+	n.Name.Curfn = Curfn
 	Curfn.Func.Dcl = list(Curfn.Func.Dcl, n)
 
 	dowidth(t)

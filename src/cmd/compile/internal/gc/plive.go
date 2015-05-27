@@ -240,7 +240,7 @@ func getvariables(fn *Node) []*Node {
 				continue
 			}
 
-			ll.N.Curfn = Curfn
+			ll.N.Name.Curfn = Curfn
 			switch ll.N.Class {
 			case PAUTO:
 				if haspointers(ll.N.Type) {
@@ -618,7 +618,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar Bvec, varkill Bvec, avarini
 
 	if prog.Info.Flags&(LeftRead|LeftWrite|LeftAddr) != 0 {
 		from := &prog.From
-		if from.Node != nil && from.Sym != nil && ((from.Node).(*Node)).Curfn == Curfn {
+		if from.Node != nil && from.Sym != nil && ((from.Node).(*Node)).Name.Curfn == Curfn {
 			switch ((from.Node).(*Node)).Class &^ PHEAP {
 			case PAUTO, PPARAM, PPARAMOUT:
 				pos, ok := from.Node.(*Node).Opt.(int32) // index in vars
@@ -647,7 +647,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar Bvec, varkill Bvec, avarini
 Next:
 	if prog.Info.Flags&(RightRead|RightWrite|RightAddr) != 0 {
 		to := &prog.To
-		if to.Node != nil && to.Sym != nil && ((to.Node).(*Node)).Curfn == Curfn {
+		if to.Node != nil && to.Sym != nil && ((to.Node).(*Node)).Name.Curfn == Curfn {
 			switch ((to.Node).(*Node)).Class &^ PHEAP {
 			case PAUTO, PPARAM, PPARAMOUT:
 				pos, ok := to.Node.(*Node).Opt.(int32) // index in vars
