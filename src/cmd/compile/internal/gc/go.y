@@ -700,14 +700,14 @@ for_header:
 		if $1 != nil {
 			$$.Ninit = list1($1);
 		}
-		$$.Ntest = $3;
+		$$.Left = $3;
 		$$.Right = $5;
 	}
 |	osimple_stmt
 	{
 		// normal test
 		$$ = Nod(OFOR, nil, nil);
-		$$.Ntest = $1;
+		$$.Left = $1;
 	}
 |	range_stmt
 
@@ -734,7 +734,7 @@ if_header:
 	{
 		// test
 		$$ = Nod(OIF, nil, nil);
-		$$.Ntest = $1;
+		$$.Left = $1;
 	}
 |	osimple_stmt ';' osimple_stmt
 	{
@@ -743,7 +743,7 @@ if_header:
 		if $1 != nil {
 			$$.Ninit = list1($1);
 		}
-		$$.Ntest = $3;
+		$$.Left = $3;
 	}
 
 /* IF cond body (ELSE IF cond body)* (ELSE block)? */
@@ -754,7 +754,7 @@ if_stmt:
 	}
 	if_header
 	{
-		if $3.Ntest == nil {
+		if $3.Left == nil {
 			Yyerror("missing condition in if statement");
 		}
 	}
@@ -786,7 +786,7 @@ elseif:
 	}
 	if_header loop_body
 	{
-		if $4.Ntest == nil {
+		if $4.Left == nil {
 			Yyerror("missing condition in if statement");
 		}
 		$4.Nbody = $5;
@@ -821,7 +821,7 @@ switch_stmt:
 	if_header
 	{
 		var n *Node
-		n = $3.Ntest;
+		n = $3.Left;
 		if n != nil && n.Op != OTYPESW {
 			n = nil;
 		}

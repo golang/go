@@ -646,7 +646,7 @@ func orderstmt(n *Node, order *Order) {
 	case OFOR:
 		t := marktemp(order)
 
-		orderexprinplace(&n.Ntest, order)
+		orderexprinplace(&n.Left, order)
 		var l *NodeList
 		cleantempnopop(t, order, &l)
 		n.Nbody = concat(l, n.Nbody)
@@ -660,7 +660,7 @@ func orderstmt(n *Node, order *Order) {
 	case OIF:
 		t := marktemp(order)
 
-		orderexprinplace(&n.Ntest, order)
+		orderexprinplace(&n.Left, order)
 		var l *NodeList
 		cleantempnopop(t, order, &l)
 		n.Nbody = concat(l, n.Nbody)
@@ -793,7 +793,7 @@ func orderstmt(n *Node, order *Order) {
 						if t != nil && t.N.Op == ODCL && t.N.Left == r.Left {
 							t = t.Next
 						}
-						if t != nil && t.N.Op == ODCL && t.N.Left == r.Ntest {
+						if t != nil && t.N.Op == ODCL && r.List != nil && t.N.Left == r.List.N {
 							t = t.Next
 						}
 						if t == nil {
@@ -844,19 +844,19 @@ func orderstmt(n *Node, order *Order) {
 						l.N.Ninit = list(l.N.Ninit, tmp2)
 					}
 
-					if r.Ntest != nil && isblank(r.Ntest) {
-						r.Ntest = nil
+					if r.List != nil && isblank(r.List.N) {
+						r.List = nil
 					}
-					if r.Ntest != nil {
-						tmp1 = r.Ntest
+					if r.List != nil {
+						tmp1 = r.List.N
 						if r.Colas {
 							tmp2 = Nod(ODCL, tmp1, nil)
 							typecheck(&tmp2, Etop)
 							l.N.Ninit = list(l.N.Ninit, tmp2)
 						}
 
-						r.Ntest = ordertemp(tmp1.Type, order, false)
-						tmp2 = Nod(OAS, tmp1, r.Ntest)
+						r.List = list1(ordertemp(tmp1.Type, order, false))
+						tmp2 = Nod(OAS, tmp1, r.List.N)
 						typecheck(&tmp2, Etop)
 						l.N.Ninit = list(l.N.Ninit, tmp2)
 					}
@@ -918,7 +918,7 @@ func orderstmt(n *Node, order *Order) {
 	case OSWITCH:
 		t := marktemp(order)
 
-		orderexpr(&n.Ntest, order, nil)
+		orderexpr(&n.Left, order, nil)
 		for l := n.List; l != nil; l = l.Next {
 			if l.N.Op != OXCASE {
 				Fatal("order switch case %v", Oconv(int(l.N.Op), 0))

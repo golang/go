@@ -202,7 +202,6 @@ func reexportdep(n *Node) {
 	reexportdeplist(n.List)
 	reexportdeplist(n.Rlist)
 	reexportdeplist(n.Ninit)
-	reexportdep(n.Ntest)
 	reexportdeplist(n.Nbody)
 }
 

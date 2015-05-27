@@ -134,7 +134,6 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
 	min = v.visitcode(n.Left, min)
 	min = v.visitcode(n.Right, min)
 	min = v.visitcodelist(n.List, min)
-	min = v.visitcode(n.Ntest, min)
 	min = v.visitcodelist(n.Nbody, min)
 	min = v.visitcodelist(n.Rlist, min)
 
@@ -543,7 +542,6 @@ func escloopdepth(e *EscState, n *Node) {
 	escloopdepth(e, n.Left)
 	escloopdepth(e, n.Right)
 	escloopdepthlist(e, n.List)
-	escloopdepth(e, n.Ntest)
 	escloopdepthlist(e, n.Nbody)
 	escloopdepthlist(e, n.Rlist)
 }
@@ -572,7 +570,7 @@ func esc(e *EscState, n *Node, up *Node) {
 	// process type switch as declaration.
 	// must happen before processing of switch body,
 	// so before recursion.
-	if n.Op == OSWITCH && n.Ntest != nil && n.Ntest.Op == OTYPESW {
+	if n.Op == OSWITCH && n.Left != nil && n.Left.Op == OTYPESW {
 		for ll := n.List; ll != nil; ll = ll.Next { // cases
 
 			// ll->n->nname is the variable per case
@@ -597,7 +595,6 @@ func esc(e *EscState, n *Node, up *Node) {
 
 	esc(e, n.Left, n)
 	esc(e, n.Right, n)
-	esc(e, n.Ntest, n)
 	esclist(e, n.Nbody, n)
 	esclist(e, n.List, n)
 	esclist(e, n.Rlist, n)
@@ -646,12 +643,12 @@ func esc(e *EscState, n *Node, up *Node) {
 		}
 
 	case OSWITCH:
-		if n.Ntest != nil && n.Ntest.Op == OTYPESW {
-			for ll := n.List; ll != nil; ll = ll.Next { // cases
-
+		if n.Left != nil && n.Left.Op == OTYPESW {
+			for ll := n.List; ll != nil; ll = ll.Next {
+				// cases
 				// ntest->right is the argument of the .(type),
 				// ll->n->nname is the variable per case
-				escassign(e, ll.N.Nname, n.Ntest.Right)
+				escassign(e, ll.N.Nname, n.Left.Right)
 			}
 		}
 

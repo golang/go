@@ -788,10 +788,10 @@ func gen(n *Node) {
 			lab.Continpc = continpc
 		}
 
-		gen(n.Right)                      // contin:	incr
-		Patch(p1, Pc)                     // test:
-		Bgen(n.Ntest, false, -1, breakpc) //		if(!test) goto break
-		Genlist(n.Nbody)                  //		body
+		gen(n.Right)                     // contin:	incr
+		Patch(p1, Pc)                    // test:
+		Bgen(n.Left, false, -1, breakpc) //		if(!test) goto break
+		Genlist(n.Nbody)                 //		body
 		gjmp(continpc)
 		Patch(breakpc, Pc) // done:
 		continpc = scontin
@@ -802,15 +802,15 @@ func gen(n *Node) {
 		}
 
 	case OIF:
-		p1 := gjmp(nil)                          //		goto test
-		p2 := gjmp(nil)                          // p2:		goto else
-		Patch(p1, Pc)                            // test:
-		Bgen(n.Ntest, false, int(-n.Likely), p2) //		if(!test) goto p2
-		Genlist(n.Nbody)                         //		then
-		p3 := gjmp(nil)                          //		goto done
-		Patch(p2, Pc)                            // else:
-		Genlist(n.Rlist)                         //		else
-		Patch(p3, Pc)                            // done:
+		p1 := gjmp(nil)                         //		goto test
+		p2 := gjmp(nil)                         // p2:		goto else
+		Patch(p1, Pc)                           // test:
+		Bgen(n.Left, false, int(-n.Likely), p2) //		if(!test) goto p2
+		Genlist(n.Nbody)                        //		then
+		p3 := gjmp(nil)                         //		goto done
+		Patch(p2, Pc)                           // else:
+		Genlist(n.Rlist)                        //		else
+		Patch(p3, Pc)                           // done:
 
 	case OSWITCH:
 		sbreak := breakpc

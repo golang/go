@@ -1788,7 +1788,7 @@ yydefault:
 			if yyDollar[1].node != nil {
 				yyVAL.node.Ninit = list1(yyDollar[1].node)
 			}
-			yyVAL.node.Ntest = yyDollar[3].node
+			yyVAL.node.Left = yyDollar[3].node
 			yyVAL.node.Right = yyDollar[5].node
 		}
 	case 71:
@@ -1797,7 +1797,7 @@ yydefault:
 		{
 			// normal test
 			yyVAL.node = Nod(OFOR, nil, nil)
-			yyVAL.node.Ntest = yyDollar[1].node
+			yyVAL.node.Left = yyDollar[1].node
 		}
 	case 73:
 		yyDollar = yyS[yypt-2 : yypt+1]
@@ -1825,7 +1825,7 @@ yydefault:
 		{
 			// test
 			yyVAL.node = Nod(OIF, nil, nil)
-			yyVAL.node.Ntest = yyDollar[1].node
+			yyVAL.node.Left = yyDollar[1].node
 		}
 	case 77:
 		yyDollar = yyS[yypt-3 : yypt+1]
@@ -1836,7 +1836,7 @@ yydefault:
 			if yyDollar[1].node != nil {
 				yyVAL.node.Ninit = list1(yyDollar[1].node)
 			}
-			yyVAL.node.Ntest = yyDollar[3].node
+			yyVAL.node.Left = yyDollar[3].node
 		}
 	case 78:
 		yyDollar = yyS[yypt-1 : yypt+1]
@@ -1848,7 +1848,7 @@ yydefault:
 		yyDollar = yyS[yypt-3 : yypt+1]
 		//line go.y:756
 		{
-			if yyDollar[3].node.Ntest == nil {
+			if yyDollar[3].node.Left == nil {
 				Yyerror("missing condition in if statement")
 			}
 		}
@@ -1886,7 +1886,7 @@ yydefault:
 		yyDollar = yyS[yypt-5 : yypt+1]
 		//line go.y:788
 		{
-			if yyDollar[4].node.Ntest == nil {
+			if yyDollar[4].node.Left == nil {
 				Yyerror("missing condition in if statement")
 			}
 			yyDollar[4].node.Nbody = yyDollar[5].list
@@ -1929,7 +1929,7 @@ yydefault:
 		//line go.y:822
 		{
 			var n *Node
-			n = yyDollar[3].node.Ntest
+			n = yyDollar[3].node.Left
 			if n != nil && n.Op != OTYPESW {
 				n = nil
 			}

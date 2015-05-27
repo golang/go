@@ -231,7 +231,7 @@ func ishairy(n *Node, budget *int) bool {
 
 	(*budget)--
 
-	return *budget < 0 || ishairy(n.Left, budget) || ishairy(n.Right, budget) || ishairylist(n.List, budget) || ishairylist(n.Rlist, budget) || ishairylist(n.Ninit, budget) || ishairy(n.Ntest, budget) || ishairylist(n.Nbody, budget)
+	return *budget < 0 || ishairy(n.Left, budget) || ishairy(n.Right, budget) || ishairylist(n.List, budget) || ishairylist(n.Rlist, budget) || ishairylist(n.Ninit, budget) || ishairylist(n.Nbody, budget)
 }
 
 // Inlcopy and inlcopylist recursively copy the body of a function.
@@ -265,7 +265,6 @@ func inlcopy(n *Node) *Node {
 	m.List = inlcopylist(n.List)
 	m.Rlist = inlcopylist(n.Rlist)
 	m.Ninit = inlcopylist(n.Ninit)
-	m.Ntest = inlcopy(n.Ntest)
 	m.Nbody = inlcopylist(n.Nbody)
 
 	return m
@@ -432,11 +431,6 @@ func inlnode(np **Node) {
 				}
 			}
 		}
-	}
-
-	inlnode(&n.Ntest)
-	if n.Ntest != nil && n.Ntest.Op == OINLCALL {
-		inlconv2expr(&n.Ntest)
 	}
 
 	inlnodelist(n.Nbody)
@@ -965,7 +959,6 @@ func inlsubst(n *Node) *Node {
 	m.List = inlsubstlist(n.List)
 	m.Rlist = inlsubstlist(n.Rlist)
 	m.Ninit = concat(m.Ninit, inlsubstlist(n.Ninit))
-	m.Ntest = inlsubst(n.Ntest)
 	m.Nbody = inlsubstlist(n.Nbody)
 
 	return m
@@ -993,6 +986,5 @@ func setlno(n *Node, lno int) {
 	setlnolist(n.List, lno)
 	setlnolist(n.Rlist, lno)
 	setlnolist(n.Ninit, lno)
-	setlno(n.Ntest, lno)
 	setlnolist(n.Nbody, lno)
 }

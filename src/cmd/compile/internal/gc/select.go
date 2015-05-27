@@ -65,8 +65,7 @@ func typecheckselect(sel *Node) {
 
 				n.Op = OSELRECV2
 				n.Left = n.List.N
-				n.Ntest = n.List.Next.N
-				n.List = nil
+				n.List = list1(n.List.Next.N)
 				n.Right = n.Rlist.N
 				n.Rlist = nil
 
@@ -131,7 +130,7 @@ func walkselect(sel *Node) {
 
 			case OSELRECV, OSELRECV2:
 				ch = n.Right.Left
-				if n.Op == OSELRECV || n.Ntest == nil {
+				if n.Op == OSELRECV || n.List == nil {
 					if n.Left == nil {
 						n = n.Right
 					} else {
@@ -146,11 +145,10 @@ func walkselect(sel *Node) {
 				}
 
 				n.Op = OAS2
-				n.List = list(list1(n.Left), n.Ntest)
+				n.List = concat(list1(n.Left), n.List)
 				n.Rlist = list1(n.Right)
 				n.Right = nil
 				n.Left = nil
-				n.Ntest = nil
 				n.Typecheck = 0
 				typecheck(&n, Etop)
 			}
@@ -158,7 +156,7 @@ func walkselect(sel *Node) {
 			// if ch == nil { block() }; n;
 			a := Nod(OIF, nil, nil)
 
-			a.Ntest = Nod(OEQ, ch, nodnil())
+			a.Left = Nod(OEQ, ch, nodnil())
 			a.Nbody = list1(mkcall("block", nil, &l))
 			typecheck(&a, Etop)
 			l = list(l, a)
@@ -185,12 +183,12 @@ func walkselect(sel *Node) {
 			typecheck(&n.Right, Erv)
 
 		case OSELRECV, OSELRECV2:
-			if n.Op == OSELRECV2 && n.Ntest == nil {
+			if n.Op == OSELRECV2 && n.List == nil {
 				n.Op = OSELRECV
 			}
 			if n.Op == OSELRECV2 {
-				n.Ntest = Nod(OADDR, n.Ntest, nil)
-				typecheck(&n.Ntest, Erv)
+				n.List.N = Nod(OADDR, n.List.N, nil)
+				typecheck(&n.List.N, Erv)
 			}
 
 			if n.Left == nil {
@@ -226,7 +224,7 @@ func walkselect(sel *Node) {
 		case OSEND:
 			ch := n.Left
 
-			r.Ntest = mkcall1(chanfn("selectnbsend", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), ch, n.Right)
+			r.Left = mkcall1(chanfn("selectnbsend", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), ch, n.Right)
 
 			// if c != nil && selectnbrecv(&v, c) { body } else { default body }
 		case OSELRECV:
@@ -234,7 +232,7 @@ func walkselect(sel *Node) {
 
 			r.Ninit = cas.Ninit
 			ch := n.Right.Left
-			r.Ntest = mkcall1(chanfn("selectnbrecv", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), n.Left, ch)
+			r.Left = mkcall1(chanfn("selectnbrecv", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), n.Left, ch)
 
 			// if c != nil && selectnbrecv2(&v, c) { body } else { default body }
 		case OSELRECV2:
@@ -242,10 +240,10 @@ func walkselect(sel *Node) {
 
 			r.Ninit = cas.Ninit
 			ch := n.Right.Left
-			r.Ntest = mkcall1(chanfn("selectnbrecv2", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), n.Left, n.Ntest, ch)
+			r.Left = mkcall1(chanfn("selectnbrecv2", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), n.Left, n.List.N, ch)
 		}
 
-		typecheck(&r.Ntest, Erv)
+		typecheck(&r.Left, Erv)
 		r.Nbody = cas.Nbody
 		r.Rlist = concat(dflt.Ninit, dflt.Nbody)
 		sel.Nbody = list1(r)
@@ -282,7 +280,7 @@ func walkselect(sel *Node) {
 
 		if n == nil {
 			// selectdefault(sel *byte);
-			r.Ntest = mkcall("selectdefault", Types[TBOOL], &r.Ninit, var_)
+			r.Left = mkcall("selectdefault", Types[TBOOL], &r.Ninit, var_)
 		} else {
 			switch n.Op {
 			default:
@@ -290,15 +288,15 @@ func walkselect(sel *Node) {
 
 				// selectsend(sel *byte, hchan *chan any, elem *any) (selected bool);
 			case OSEND:
-				r.Ntest = mkcall1(chanfn("selectsend", 2, n.Left.Type), Types[TBOOL], &r.Ninit, var_, n.Left, n.Right)
+				r.Left = mkcall1(chanfn("selectsend", 2, n.Left.Type), Types[TBOOL], &r.Ninit, var_, n.Left, n.Right)
 
 				// selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
 			case OSELRECV:
-				r.Ntest = mkcall1(chanfn("selectrecv", 2, n.Right.Left.Type), Types[TBOOL], &r.Ninit, var_, n.Right.Left, n.Left)
+				r.Left = mkcall1(chanfn("selectrecv", 2, n.Right.Left.Type), Types[TBOOL], &r.Ninit, var_, n.Right.Left, n.Left)
 
 				// selectrecv2(sel *byte, hchan *chan any, elem *any, received *bool) (selected bool);
 			case OSELRECV2:
-				r.Ntest = mkcall1(chanfn("selectrecv2", 2, n.Right.Left.Type), Types[TBOOL], &r.Ninit, var_, n.Right.Left, n.Left, n.Ntest)
+				r.Left = mkcall1(chanfn("selectrecv2", 2, n.Right.Left.Type), Types[TBOOL], &r.Ninit, var_, n.Right.Left, n.Left, n.List.N)
 			}
 		}
 

@@ -371,18 +371,25 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 		Yyerror("racewalk: OGETG can happen only in runtime which we don't instrument")
 		goto ret
 
-		// just do generic traversal
 	case OFOR:
+		if n.Left != nil {
+			racewalknode(&n.Left, &n.Left.Ninit, 0, 0)
+		}
 		if n.Right != nil {
 			racewalknode(&n.Right, &n.Right.Ninit, 0, 0)
 		}
 		goto ret
 
-	case OIF,
-		OCALLMETH,
+	case OIF, OSWITCH:
+		if n.Left != nil {
+			racewalknode(&n.Left, &n.Left.Ninit, 0, 0)
+		}
+		goto ret
+
+		// just do generic traversal
+	case OCALLMETH,
 		ORETURN,
 		ORETJMP,
-		OSWITCH,
 		OSELECT,
 		OEMPTY,
 		OBREAK,
@@ -414,9 +421,6 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 ret:
 	if n.Op != OBLOCK { // OBLOCK is handled above in a special way.
 		racewalklist(n.List, init)
-	}
-	if n.Ntest != nil {
-		racewalknode(&n.Ntest, &n.Ntest.Ninit, 0, 0)
 	}
 	racewalklist(n.Nbody, nil)
 	racewalklist(n.Rlist, nil)
@@ -577,7 +581,6 @@ func foreach(n *Node, f func(*Node, interface{}), c interface{}) {
 	foreachnode(n.Left, f, c)
 	foreachnode(n.Right, f, c)
 	foreachlist(n.List, f, c)
-	foreachnode(n.Ntest, f, c)
 	foreachlist(n.Nbody, f, c)
 	foreachlist(n.Rlist, f, c)
 }
