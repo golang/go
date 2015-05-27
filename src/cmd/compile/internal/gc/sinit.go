@@ -214,7 +214,6 @@ func init2(n *Node, out **NodeList) {
 	init1(n, out)
 	init2(n.Left, out)
 	init2(n.Right, out)
-	init2(n.Ntest, out)
 	init2list(n.Ninit, out)
 	init2list(n.List, out)
 	init2list(n.Rlist, out)
@@ -996,7 +995,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 		a.Nbody = list1(r)
 
 		a.Ninit = list1(Nod(OAS, index, Nodintconst(0)))
-		a.Ntest = Nod(OLT, index, Nodintconst(t.Bound))
+		a.Left = Nod(OLT, index, Nodintconst(t.Bound))
 		a.Right = Nod(OAS, index, Nod(OADD, index, Nodintconst(1)))
 
 		typecheck(&a, Etop)
@@ -1221,6 +1220,7 @@ func oaslit(n *Node, init **NodeList) bool {
 	}
 
 	n.Op = OEMPTY
+	n.Right = nil
 	return true
 }
 

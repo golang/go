@@ -123,13 +123,13 @@ func fninit(n *NodeList) {
 	// (3)
 	a := Nod(OIF, nil, nil)
 
-	a.Ntest = Nod(ONE, gatevar, Nodintconst(0))
+	a.Left = Nod(ONE, gatevar, Nodintconst(0))
 	r = list(r, a)
 
 	// (4)
 	b := Nod(OIF, nil, nil)
 
-	b.Ntest = Nod(OEQ, gatevar, Nodintconst(2))
+	b.Left = Nod(OEQ, gatevar, Nodintconst(2))
 	b.Nbody = list1(Nod(ORETURN, nil, nil))
 	a.Nbody = list1(b)
 

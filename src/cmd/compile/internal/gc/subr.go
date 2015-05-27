@@ -2421,7 +2421,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 		// generating wrapper from *T to T.
 		n := Nod(OIF, nil, nil)
 
-		n.Ntest = Nod(OEQ, this.Left, nodnil())
+		n.Left = Nod(OEQ, this.Left, nodnil())
 
 		// these strings are already in the reflect tables,
 		// so no space cost to use them here.
@@ -2757,7 +2757,7 @@ func eqfield(p *Node, q *Node, field *Node) *Node {
 	nx := Nod(OXDOT, p, field)
 	ny := Nod(OXDOT, q, field)
 	nif := Nod(OIF, nil, nil)
-	nif.Ntest = Nod(ONE, nx, ny)
+	nif.Left = Nod(ONE, nx, ny)
 	r := Nod(ORETURN, nil, nil)
 	r.List = list(r.List, Nodbool(false))
 	nif.Nbody = list(nif.Nbody, r)
@@ -2802,7 +2802,7 @@ func eqmem(p *Node, q *Node, field *Node, size int64) *Node {
 	}
 
 	nif := Nod(OIF, nil, nil)
-	nif.Ntest = Nod(ONOT, call, nil)
+	nif.Left = Nod(ONOT, call, nil)
 	r := Nod(ORETURN, nil, nil)
 	r.List = list(r.List, Nodbool(false))
 	nif.Nbody = list(nif.Nbody, r)
@@ -2874,7 +2874,7 @@ func geneq(sym *Sym, t *Type) {
 		ny.Bounded = true
 
 		nif := Nod(OIF, nil, nil)
-		nif.Ntest = Nod(ONE, nx, ny)
+		nif.Left = Nod(ONE, nx, ny)
 		r := Nod(ORETURN, nil, nil)
 		r.List = list(r.List, Nodbool(false))
 		nif.Nbody = list(nif.Nbody, r)

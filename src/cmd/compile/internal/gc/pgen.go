@@ -216,6 +216,11 @@ func cmpstackvar(a *Node, b *Node) int {
 	return stringsCompare(a.Sym.Name, b.Sym.Name)
 }
 
+// stkdelta records the stack offset delta for a node
+// during the compaction of the stack frame to remove
+// unused stack slots.
+var stkdelta = map[*Node]int64{}
+
 // TODO(lvd) find out where the PAUTO/OLITERAL nodes come from.
 func allocauto(ptxt *obj.Prog) {
 	Stksize = 0
@@ -283,7 +288,7 @@ func allocauto(ptxt *obj.Prog) {
 			Yyerror("stack frame too large (>2GB)")
 		}
 
-		n.Stkdelta = -Stksize - n.Xoffset
+		stkdelta[n] = -Stksize - n.Xoffset
 	}
 
 	Stksize = Rnd(Stksize, int64(Widthreg))
@@ -296,8 +301,8 @@ func allocauto(ptxt *obj.Prog) {
 		if ll.N.Class != PAUTO || ll.N.Op != ONAME {
 			continue
 		}
-		ll.N.Xoffset += ll.N.Stkdelta
-		ll.N.Stkdelta = 0
+		ll.N.Xoffset += stkdelta[ll.N]
+		delete(stkdelta, ll.N)
 	}
 }
 

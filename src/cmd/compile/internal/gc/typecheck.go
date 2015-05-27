@@ -237,7 +237,7 @@ func callrecv(n *Node) bool {
 		return true
 	}
 
-	return callrecv(n.Left) || callrecv(n.Right) || callrecv(n.Ntest) || callrecvlist(n.Ninit) || callrecvlist(n.Nbody) || callrecvlist(n.List) || callrecvlist(n.Rlist)
+	return callrecv(n.Left) || callrecv(n.Right) || callrecvlist(n.Ninit) || callrecvlist(n.Nbody) || callrecvlist(n.List) || callrecvlist(n.Rlist)
 }
 
 func callrecvlist(l *NodeList) bool {
@@ -2097,11 +2097,11 @@ OpSwitch:
 		ok |= Etop
 		typechecklist(n.Ninit, Etop)
 		decldepth++
-		typecheck(&n.Ntest, Erv)
-		if n.Ntest != nil {
-			t := n.Ntest.Type
+		typecheck(&n.Left, Erv)
+		if n.Left != nil {
+			t := n.Left.Type
 			if t != nil && t.Etype != TBOOL {
-				Yyerror("non-bool %v used as for condition", Nconv(n.Ntest, obj.FmtLong))
+				Yyerror("non-bool %v used as for condition", Nconv(n.Left, obj.FmtLong))
 			}
 		}
 		typecheck(&n.Right, Etop)
@@ -2112,11 +2112,11 @@ OpSwitch:
 	case OIF:
 		ok |= Etop
 		typechecklist(n.Ninit, Etop)
-		typecheck(&n.Ntest, Erv)
-		if n.Ntest != nil {
-			t := n.Ntest.Type
+		typecheck(&n.Left, Erv)
+		if n.Left != nil {
+			t := n.Left.Type
 			if t != nil && t.Etype != TBOOL {
-				Yyerror("non-bool %v used as if condition", Nconv(n.Ntest, obj.FmtLong))
+				Yyerror("non-bool %v used as if condition", Nconv(n.Left, obj.FmtLong))
 			}
 		}
 		typechecklist(n.Nbody, Etop)
@@ -2811,7 +2811,7 @@ func fielddup(n *Node, hash map[string]bool) {
 	hash[name] = true
 }
 
-func keydup(n *Node, hash []*Node) {
+func keydup(n *Node, hash map[uint32][]*Node) {
 	orign := n
 	if n.Op == OCONVIFACE {
 		n = n.Left
@@ -2846,9 +2846,8 @@ func keydup(n *Node, hash []*Node) {
 		}
 	}
 
-	h := uint(b % uint32(len(hash)))
 	var cmp Node
-	for a := hash[h]; a != nil; a = a.Ntest {
+	for _, a := range hash[b] {
 		cmp.Op = OEQ
 		cmp.Left = n
 		b = 0
@@ -2870,75 +2869,20 @@ func keydup(n *Node, hash []*Node) {
 		}
 	}
 
-	orign.Ntest = hash[h]
-	hash[h] = orign
+	hash[b] = append(hash[b], orign)
 }
 
-func indexdup(n *Node, hash []*Node) {
+func indexdup(n *Node, hash map[int64]*Node) {
 	if n.Op != OLITERAL {
 		Fatal("indexdup: not OLITERAL")
 	}
 
-	b := uint32(Mpgetfix(n.Val.U.(*Mpint)))
-	h := uint(b % uint32(len(hash)))
-	var c uint32
-	for a := hash[h]; a != nil; a = a.Ntest {
-		c = uint32(Mpgetfix(a.Val.U.(*Mpint)))
-		if b == c {
-			Yyerror("duplicate index in array literal: %d", b)
-			return
-		}
+	v := Mpgetfix(n.Val.U.(*Mpint))
+	if hash[v] != nil {
+		Yyerror("duplicate index in array literal: %d", v)
+		return
 	}
-
-	n.Ntest = hash[h]
-	hash[h] = n
-}
-
-func prime(h uint32, sr uint32) bool {
-	for n := uint32(3); n <= sr; n += 2 {
-		if h%n == 0 {
-			return false
-		}
-	}
-	return true
-}
-
-func inithash(n *Node, autohash []*Node) []*Node {
-	// count the number of entries
-	h := uint32(0)
-
-	for ll := n.List; ll != nil; ll = ll.Next {
-		h++
-	}
-
-	// if the auto hash table is
-	// large enough use it.
-	if h <= uint32(len(autohash)) {
-		for i := range autohash {
-			autohash[i] = nil
-		}
-		return autohash
-	}
-
-	// make hash size odd and 12% larger than entries
-	h += h / 8
-
-	h |= 1
-
-	// calculate sqrt of h
-	sr := h / 2
-
-	for i := 0; i < 5; i++ {
-		sr = (sr + h/sr) / 2
-	}
-
-	// check for primeality
-	for !prime(h, sr) {
-		h += 2
-	}
-
-	// build and return a throw-away hash table
-	return make([]*Node, h)
+	hash[v] = n
 }
 
 func iscomptype(t *Type) bool {
@@ -3031,9 +2975,14 @@ func typecheckcomplit(np **Node) {
 		n.Type = nil
 
 	case TARRAY:
-		var autohash [101]*Node
-		hash := inithash(n, autohash[:])
-
+		// Only allocate hash if there are some key/value pairs.
+		var hash map[int64]*Node
+		for ll := n.List; ll != nil; ll = ll.Next {
+			if ll.N.Op == OKEY {
+				hash = make(map[int64]*Node)
+				break
+			}
+		}
 		length := int64(0)
 		i := 0
 		var l *Node
@@ -3056,7 +3005,7 @@ func typecheckcomplit(np **Node) {
 				i = -(1 << 30) // stay negative for a while
 			}
 
-			if i >= 0 {
+			if i >= 0 && hash != nil {
 				indexdup(l.Left, hash)
 			}
 			i++
@@ -3085,9 +3034,7 @@ func typecheckcomplit(np **Node) {
 		n.Op = OARRAYLIT
 
 	case TMAP:
-		var autohash [101]*Node
-		hash := inithash(n, autohash[:])
-
+		hash := make(map[uint32][]*Node)
 		var l *Node
 		for ll := n.List; ll != nil; ll = ll.Next {
 			l = ll.N
@@ -3952,7 +3899,6 @@ func markbreak(n *Node, implicit *Node) {
 		markbreak(n.Left, implicit)
 
 		markbreak(n.Right, implicit)
-		markbreak(n.Ntest, implicit)
 		markbreaklist(n.Ninit, implicit)
 		markbreaklist(n.Nbody, implicit)
 		markbreaklist(n.List, implicit)
@@ -4024,7 +3970,7 @@ func isterminating(l *NodeList, top int) bool {
 		return true
 
 	case OFOR:
-		if n.Ntest != nil {
+		if n.Left != nil {
 			return false
 		}
 		if n.Hasbreak {

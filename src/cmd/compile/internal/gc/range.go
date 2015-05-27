@@ -201,7 +201,7 @@ func walkrange(n *Node) {
 															n.Op = OIF
 
 															n.Nbody = nil
-															n.Ntest = Nod(ONE, Nod(OLEN, a, nil), Nodintconst(0))
+															n.Left = Nod(ONE, Nod(OLEN, a, nil), Nodintconst(0))
 
 															// hp = &a[0]
 															hp := temp(Ptrto(Types[TUINT8]))
@@ -231,7 +231,7 @@ func walkrange(n *Node) {
 
 															n.Nbody = list(n.Nbody, v1)
 
-															typecheck(&n.Ntest, Erv)
+															typecheck(&n.Left, Erv)
 															typechecklist(n.Nbody, Etop)
 															walkstmt(&n)
 															lineno = int32(lno)
@@ -266,7 +266,7 @@ func walkrange(n *Node) {
 			init = list(init, Nod(OAS, hp, Nod(OADDR, tmp, nil)))
 		}
 
-		n.Ntest = Nod(OLT, hv1, hn)
+		n.Left = Nod(OLT, hv1, hn)
 		n.Right = Nod(OAS, hv1, Nod(OADD, hv1, Nodintconst(1)))
 		if v1 == nil {
 			body = nil
@@ -313,7 +313,7 @@ func walkrange(n *Node) {
 
 		substArgTypes(fn, t.Down, t.Type, th)
 		init = list(init, mkcall1(fn, nil, nil, typename(t), ha, Nod(OADDR, hit, nil)))
-		n.Ntest = Nod(ONE, Nod(ODOT, hit, keyname), nodnil())
+		n.Left = Nod(ONE, Nod(ODOT, hit, keyname), nodnil())
 
 		fn = syslook("mapiternext", 1)
 		substArgTypes(fn, th)
@@ -338,7 +338,7 @@ func walkrange(n *Node) {
 	case TCHAN:
 		ha := a
 
-		n.Ntest = nil
+		n.Left = nil
 
 		hv1 := temp(t.Type)
 		hv1.Typecheck = 1
@@ -347,12 +347,12 @@ func walkrange(n *Node) {
 		}
 		hb := temp(Types[TBOOL])
 
-		n.Ntest = Nod(ONE, hb, Nodbool(false))
+		n.Left = Nod(ONE, hb, Nodbool(false))
 		a := Nod(OAS2RECV, nil, nil)
 		a.Typecheck = 1
 		a.List = list(list1(hv1), hb)
 		a.Rlist = list1(Nod(ORECV, ha, nil))
-		n.Ntest.Ninit = list1(a)
+		n.Left.Ninit = list1(a)
 		if v1 == nil {
 			body = nil
 		} else {
@@ -380,8 +380,8 @@ func walkrange(n *Node) {
 			a.Rlist = list1(mkcall1(fn, getoutargx(fn.Type), nil, ha, hv1))
 		}
 
-		n.Ntest = Nod(ONE, hv1, Nodintconst(0))
-		n.Ntest.Ninit = list(list1(Nod(OAS, ohv1, hv1)), a)
+		n.Left = Nod(ONE, hv1, Nodintconst(0))
+		n.Left.Ninit = list(list1(Nod(OAS, ohv1, hv1)), a)
 
 		body = nil
 		if v1 != nil {
@@ -395,8 +395,8 @@ func walkrange(n *Node) {
 	n.Op = OFOR
 	typechecklist(init, Etop)
 	n.Ninit = concat(n.Ninit, init)
-	typechecklist(n.Ntest.Ninit, Etop)
-	typecheck(&n.Ntest, Erv)
+	typechecklist(n.Left.Ninit, Etop)
+	typecheck(&n.Left, Erv)
 	typecheck(&n.Right, Etop)
 	typechecklist(body, Etop)
 	n.Nbody = concat(body, n.Nbody)

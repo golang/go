@@ -214,7 +214,7 @@ func Jconv(n *Node, flag int) string {
 	}
 
 	if c == 0 && n.Xoffset != BADWIDTH {
-		fmt.Fprintf(&buf, " x(%d%+d)", n.Xoffset, n.Stkdelta)
+		fmt.Fprintf(&buf, " x(%d%+d)", n.Xoffset, stkdelta[n])
 	}
 
 	if n.Class != 0 {
@@ -863,9 +863,9 @@ func stmtfmt(n *Node) string {
 
 	case OIF:
 		if simpleinit {
-			f += fmt.Sprintf("if %v; %v { %v }", n.Ninit.N, n.Ntest, n.Nbody)
+			f += fmt.Sprintf("if %v; %v { %v }", n.Ninit.N, n.Left, n.Nbody)
 		} else {
-			f += fmt.Sprintf("if %v { %v }", n.Ntest, n.Nbody)
+			f += fmt.Sprintf("if %v { %v }", n.Left, n.Nbody)
 		}
 		if n.Rlist != nil {
 			f += fmt.Sprintf(" else { %v }", n.Rlist)
@@ -884,8 +884,8 @@ func stmtfmt(n *Node) string {
 			f += " ;"
 		}
 
-		if n.Ntest != nil {
-			f += fmt.Sprintf(" %v", n.Ntest)
+		if n.Left != nil {
+			f += fmt.Sprintf(" %v", n.Left)
 		}
 
 		if n.Right != nil {
@@ -919,8 +919,8 @@ func stmtfmt(n *Node) string {
 		if simpleinit {
 			f += fmt.Sprintf(" %v;", n.Ninit.N)
 		}
-		if n.Ntest != nil {
-			f += Nconv(n.Ntest, 0)
+		if n.Left != nil {
+			f += Nconv(n.Left, 0)
 		}
 
 		f += fmt.Sprintf(" { %v }", n.List)
@@ -1560,11 +1560,6 @@ func nodedump(n *Node, flag int) string {
 		if n.Rlist != nil {
 			indent(&buf)
 			fmt.Fprintf(&buf, "%v-rlist%v", Oconv(int(n.Op), 0), n.Rlist)
-		}
-
-		if n.Ntest != nil {
-			indent(&buf)
-			fmt.Fprintf(&buf, "%v-test%v", Oconv(int(n.Op), 0), n.Ntest)
 		}
 
 		if n.Nbody != nil {

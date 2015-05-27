@@ -15,7 +15,6 @@ type Node struct {
 	// Generic recursive walks should follow these fields.
 	Left  *Node
 	Right *Node
-	Ntest *Node
 	Ninit *NodeList
 	Nbody *NodeList
 	List  *NodeList
@@ -54,8 +53,7 @@ type Node struct {
 	// OLITERAL
 	Val Val
 
-	Xoffset  int64
-	Stkdelta int64 // offset added by stack frame compaction phase.
+	Xoffset int64
 
 	// Escape analysis.
 	Escloopdepth int32 // -1: global, 0: return variables, 1:function top level, increased inside function for every loop or label to mark scopes

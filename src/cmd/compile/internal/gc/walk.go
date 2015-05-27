@@ -247,19 +247,19 @@ func walkstmt(np **Node) {
 		adjustargs(n, 2*Widthptr)
 
 	case OFOR:
-		if n.Ntest != nil {
-			walkstmtlist(n.Ntest.Ninit)
-			init := n.Ntest.Ninit
-			n.Ntest.Ninit = nil
-			walkexpr(&n.Ntest, &init)
-			addinit(&n.Ntest, init)
+		if n.Left != nil {
+			walkstmtlist(n.Left.Ninit)
+			init := n.Left.Ninit
+			n.Left.Ninit = nil
+			walkexpr(&n.Left, &init)
+			addinit(&n.Left, init)
 		}
 
 		walkstmt(&n.Right)
 		walkstmtlist(n.Nbody)
 
 	case OIF:
-		walkexpr(&n.Ntest, &n.Ninit)
+		walkexpr(&n.Left, &n.Ninit)
 		walkstmtlist(n.Nbody)
 		walkstmtlist(n.Rlist)
 
@@ -1043,7 +1043,7 @@ func walkexpr(np **Node, init **NodeList) {
 				walkexpr(&n1, init)
 
 				n2 := Nod(OIF, nil, nil)
-				n2.Ntest = Nod(OEQ, l, nodnil())
+				n2.Left = Nod(OEQ, l, nodnil())
 				n2.Nbody = list1(Nod(OAS, l, n1))
 				n2.Likely = -1
 				typecheck(&n2, Etop)
@@ -2914,7 +2914,7 @@ func appendslice(n *Node, init **NodeList) *Node {
 	// n := len(s) + len(l2) - cap(s)
 	nif.Ninit = list1(Nod(OAS, nt, Nod(OSUB, Nod(OADD, Nod(OLEN, s, nil), Nod(OLEN, l2, nil)), Nod(OCAP, s, nil))))
 
-	nif.Ntest = Nod(OGT, nt, Nodintconst(0))
+	nif.Left = Nod(OGT, nt, Nodintconst(0))
 
 	// instantiate growslice(Type*, []any, int) []any
 	fn := syslook("growslice", 1) //   growslice(<type>, old []T, n int64) (ret []T)
@@ -3046,7 +3046,7 @@ func walkappend(n *Node, init **NodeList, dst *Node) *Node {
 
 	na := Nodintconst(int64(argc)) // const argc
 	nx := Nod(OIF, nil, nil)       // if cap(s) - len(s) < argc
-	nx.Ntest = Nod(OLT, Nod(OSUB, Nod(OCAP, ns, nil), Nod(OLEN, ns, nil)), na)
+	nx.Left = Nod(OLT, Nod(OSUB, Nod(OCAP, ns, nil), Nod(OLEN, ns, nil)), na)
 
 	fn := syslook("growslice", 1) //   growslice(<type>, old []T, n int) (ret []T)
 	substArgTypes(fn, ns.Type.Type, ns.Type.Type)
@@ -3124,7 +3124,7 @@ func copyany(n *Node, init **NodeList, runtimecall int) *Node {
 	// if n > len(frm) { n = len(frm) }
 	nif := Nod(OIF, nil, nil)
 
-	nif.Ntest = Nod(OGT, nlen, Nod(OLEN, nr, nil))
+	nif.Left = Nod(OGT, nlen, Nod(OLEN, nr, nil))
 	nif.Nbody = list(nif.Nbody, Nod(OAS, nlen, Nod(OLEN, nr, nil)))
 	l = list(l, nif)
 
@@ -3982,7 +3982,7 @@ func candiscard(n *Node) bool {
 		return false
 	}
 
-	if !candiscard(n.Left) || !candiscard(n.Right) || !candiscard(n.Ntest) || !candiscardlist(n.Ninit) || !candiscardlist(n.Nbody) || !candiscardlist(n.List) || !candiscardlist(n.Rlist) {
+	if !candiscard(n.Left) || !candiscard(n.Right) || !candiscardlist(n.Ninit) || !candiscardlist(n.Nbody) || !candiscardlist(n.List) || !candiscardlist(n.Rlist) {
 		return false
 	}
 
