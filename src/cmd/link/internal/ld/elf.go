@@ -1517,7 +1517,7 @@ func elfshreloc(sect *Section) *ElfShdr {
 		sh.entsize += uint64(Thearch.Regsize)
 	}
 	sh.link = uint32(elfshname(".symtab").shnum)
-	sh.info = uint32((sect.Elfsect.(*ElfShdr)).shnum)
+	sh.info = uint32(sect.Elfsect.shnum)
 	sh.off = sect.Reloff
 	sh.size = sect.Rellen
 	sh.addralign = uint64(Thearch.Regsize)

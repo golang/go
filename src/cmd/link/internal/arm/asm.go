@@ -279,9 +279,9 @@ func machoreloc1(r *ld.Reloc, sectoff int64) int {
 		v = uint32(rs.Dynid)
 		v |= 1 << 27 // external relocation
 	} else {
-		v = uint32((rs.Sect.(*ld.Section)).Extnum)
+		v = uint32(rs.Sect.Extnum)
 		if v == 0 {
-			ld.Diag("reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, (rs.Sect.(*ld.Section)).Name, rs.Type)
+			ld.Diag("reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, rs.Sect.Name, rs.Type)
 			return -1
 		}
 	}

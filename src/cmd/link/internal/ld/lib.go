@@ -162,7 +162,7 @@ type Section struct {
 	Length  uint64
 	Next    *Section
 	Seg     *Segment
-	Elfsect interface{}
+	Elfsect *ElfShdr
 	Reloff  uint64
 	Rellen  uint64
 }
