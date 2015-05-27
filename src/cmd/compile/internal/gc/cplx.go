@@ -227,7 +227,6 @@ func nodfconst(n *Node, t *Type, fval *Mpflt) {
 	n.Addable = true
 	ullmancalc(n)
 	n.Val.U = fval
-	n.Val.Ctype = CTFLT
 	n.Type = t
 
 	if !Isfloat[t.Etype] {

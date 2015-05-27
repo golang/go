@@ -639,7 +639,7 @@ func fakeimport() {
 }
 
 func importfile(f *Val, line int) {
-	if f.Ctype != CTSTR {
+	if _, ok := f.U.(string); !ok {
 		Yyerror("import statement not a string")
 		fakeimport()
 		return
@@ -1064,9 +1064,10 @@ l0:
 			ungetc(int(v))
 		}
 
-		yylval.val.U = new(Mpint)
-		Mpmovecfix(yylval.val.U.(*Mpint), v)
-		yylval.val.Ctype = CTRUNE
+		x := new(Mpint)
+		yylval.val.U = x
+		Mpmovecfix(x, v)
+		x.Rune = true
 		if Debug['x'] != 0 {
 			fmt.Printf("lex: codepoint literal\n")
 		}
@@ -1410,7 +1411,6 @@ ncu:
 		Mpmovecfix(yylval.val.U.(*Mpint), 0)
 	}
 
-	yylval.val.Ctype = CTINT
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: integer literal\n")
 	}
@@ -1472,7 +1472,6 @@ casei:
 		Mpmovecflt(&yylval.val.U.(*Mpcplx).Real, 0.0)
 	}
 
-	yylval.val.Ctype = CTCPLX
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: imaginary literal\n")
 	}
@@ -1491,7 +1490,6 @@ caseout:
 		Mpmovecflt(yylval.val.U.(*Mpflt), 0.0)
 	}
 
-	yylval.val.Ctype = CTFLT
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: floating literal\n")
 	}
@@ -1500,7 +1498,6 @@ caseout:
 
 strlit:
 	yylval.val.U = internString(cp.Bytes())
-	yylval.val.Ctype = CTSTR
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: string literal\n")
 	}
@@ -2235,7 +2232,7 @@ func lexinit() {
 	Types[TNIL] = typ(TNIL)
 	s = Pkglookup("nil", builtinpkg)
 	var v Val
-	v.Ctype = CTNIL
+	v.U = new(NilVal)
 	s.Def = nodlit(v)
 	s.Def.Sym = s
 }
@@ -2359,7 +2356,7 @@ func lexfini() {
 	s = Lookup("nil")
 	if s.Def == nil {
 		var v Val
-		v.Ctype = CTNIL
+		v.U = new(NilVal)
 		s.Def = nodlit(v)
 		s.Def.Sym = s
 		s.Origpkg = builtinpkg

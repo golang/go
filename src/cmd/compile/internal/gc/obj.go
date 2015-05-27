@@ -383,7 +383,7 @@ func dsymptr(s *Sym, off int, x *Sym, xoff int) int {
 
 func gdata(nam *Node, nr *Node, wid int) {
 	if nr.Op == OLITERAL {
-		switch nr.Val.Ctype {
+		switch nr.Val.Ctype() {
 		case CTCPLX:
 			gdatacomplex(nam, nr.Val.U.(*Mpcplx))
 			return

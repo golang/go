@@ -2027,7 +2027,7 @@ func walkprint(nn *Node, init **NodeList) *Node {
 
 		n = l.N
 		if n.Op == OLITERAL {
-			switch n.Val.Ctype {
+			switch n.Val.Ctype() {
 			case CTRUNE:
 				defaultlit(&n, runetype)
 

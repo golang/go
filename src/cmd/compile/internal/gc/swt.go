@@ -579,7 +579,7 @@ func (s *typeSwitch) walk(sw *Node) {
 		switch c.typ {
 		case caseKindTypeNil:
 			var v Val
-			v.Ctype = CTNIL
+			v.U = new(NilVal)
 			a = Nod(OIF, nil, nil)
 			a.Left = Nod(OEQ, s.facename, nodlit(v))
 			typecheck(&a.Left, Erv)
@@ -742,11 +742,11 @@ func exprcmp(c1, c2 *caseClause) int {
 	n2 := c2.node.Left
 
 	// sort by type (for switches on interface)
-	ct := int(n1.Val.Ctype)
-	if ct > int(n2.Val.Ctype) {
+	ct := int(n1.Val.Ctype())
+	if ct > int(n2.Val.Ctype()) {
 		return +1
 	}
-	if ct < int(n2.Val.Ctype) {
+	if ct < int(n2.Val.Ctype()) {
 		return -1
 	}
 	if !Eqtype(n1.Type, n2.Type) {

@@ -667,7 +667,6 @@ func Nodintconst(v int64) *Node {
 	c.Addable = true
 	c.Val.U = new(Mpint)
 	Mpmovecfix(c.Val.U.(*Mpint), v)
-	c.Val.Ctype = CTINT
 	c.Type = Types[TIDEAL]
 	ullmancalc(c)
 	return c
@@ -678,7 +677,6 @@ func nodfltconst(v *Mpflt) *Node {
 	c.Addable = true
 	c.Val.U = newMpflt()
 	mpmovefltflt(c.Val.U.(*Mpflt), v)
-	c.Val.Ctype = CTFLT
 	c.Type = Types[TIDEAL]
 	ullmancalc(c)
 	return c
@@ -691,7 +689,6 @@ func Nodconst(n *Node, t *Type, v int64) {
 	ullmancalc(n)
 	n.Val.U = new(Mpint)
 	Mpmovecfix(n.Val.U.(*Mpint), v)
-	n.Val.Ctype = CTINT
 	n.Type = t
 
 	if Isfloat[t.Etype] {
@@ -701,14 +698,13 @@ func Nodconst(n *Node, t *Type, v int64) {
 
 func nodnil() *Node {
 	c := Nodintconst(0)
-	c.Val.Ctype = CTNIL
+	c.Val.U = new(NilVal)
 	c.Type = Types[TNIL]
 	return c
 }
 
 func Nodbool(b bool) *Node {
 	c := Nodintconst(0)
-	c.Val.Ctype = CTBOOL
 	c.Val.U = b
 	c.Type = idealbool
 	return c
@@ -796,7 +792,7 @@ func isnil(n *Node) bool {
 	if n.Op != OLITERAL {
 		return false
 	}
-	if n.Val.Ctype != CTNIL {
+	if n.Val.Ctype() != CTNIL {
 		return false
 	}
 	return true
@@ -2431,7 +2427,6 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 		var l *NodeList
 
 		var v Val
-		v.Ctype = CTSTR
 		v.U = rcvr.Type.Sym.Pkg.Name // package name
 		l = list(l, nodlit(v))
 		v.U = rcvr.Type.Sym.Name // type name

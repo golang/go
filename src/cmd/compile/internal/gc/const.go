@@ -56,7 +56,6 @@ func truncfltlit(oldv *Mpflt, t *Type) *Mpflt {
 	}
 
 	var v Val
-	v.Ctype = CTFLT
 	v.U = oldv
 	overflow(v, t)
 
@@ -136,7 +135,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
 	case OLSH, ORSH:
 		convlit1(&n.Left, t, explicit && isideal(n.Left.Type))
 		t = n.Left.Type
-		if t != nil && t.Etype == TIDEAL && n.Val.Ctype != CTINT {
+		if t != nil && t.Etype == TIDEAL && n.Val.Ctype() != CTINT {
 			n.Val = toint(n.Val)
 		}
 		if t != nil && !Isint[t.Etype] {
@@ -229,7 +228,6 @@ func convlit1(np **Node, t *Type, explicit bool) {
 			if n.Type.Etype == TUNSAFEPTR {
 				n.Val.U = new(Mpint)
 				Mpmovecfix(n.Val.U.(*Mpint), 0)
-				n.Val.Ctype = CTINT
 			} else {
 				goto bad
 			}
@@ -244,7 +242,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
 		if n.Type.Etype == TUNSAFEPTR && t.Etype != TUINTPTR {
 			goto bad
 		}
-		ct := int(n.Val.Ctype)
+		ct := int(n.Val.Ctype())
 		if Isint[et] {
 			switch ct {
 			default:
@@ -307,10 +305,11 @@ bad:
 }
 
 func copyval(v Val) Val {
-	switch v.Ctype {
+	switch v.Ctype() {
 	case CTINT, CTRUNE:
 		i := new(Mpint)
 		mpmovefixfix(i, v.U.(*Mpint))
+		i.Rune = v.U.(*Mpint).Rune
 		v.U = i
 
 	case CTFLT:
@@ -329,19 +328,17 @@ func copyval(v Val) Val {
 }
 
 func tocplx(v Val) Val {
-	switch v.Ctype {
+	switch v.Ctype() {
 	case CTINT, CTRUNE:
 		c := new(Mpcplx)
 		Mpmovefixflt(&c.Real, v.U.(*Mpint))
 		Mpmovecflt(&c.Imag, 0.0)
-		v.Ctype = CTCPLX
 		v.U = c
 
 	case CTFLT:
 		c := new(Mpcplx)
 		mpmovefltflt(&c.Real, v.U.(*Mpflt))
 		Mpmovecflt(&c.Imag, 0.0)
-		v.Ctype = CTCPLX
 		v.U = c
 	}
 
@@ -349,11 +346,10 @@ func tocplx(v Val) Val {
 }
 
 func toflt(v Val) Val {
-	switch v.Ctype {
+	switch v.Ctype() {
 	case CTINT, CTRUNE:
 		f := newMpflt()
 		Mpmovefixflt(f, v.U.(*Mpint))
-		v.Ctype = CTFLT
 		v.U = f
 
 	case CTCPLX:
@@ -362,7 +358,6 @@ func toflt(v Val) Val {
 		if mpcmpfltc(&v.U.(*Mpcplx).Imag, 0) != 0 {
 			Yyerror("constant %v%vi truncated to real", Fconv(&v.U.(*Mpcplx).Real, obj.FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, obj.FmtSharp|obj.FmtSign))
 		}
-		v.Ctype = CTFLT
 		v.U = f
 	}
 
@@ -370,16 +365,17 @@ func toflt(v Val) Val {
 }
 
 func toint(v Val) Val {
-	switch v.Ctype {
+	switch v.Ctype() {
 	case CTRUNE:
-		v.Ctype = CTINT
+		i := new(Mpint)
+		mpmovefixfix(i, v.U.(*Mpint))
+		v.U = i
 
 	case CTFLT:
 		i := new(Mpint)
 		if mpmovefltfix(i, v.U.(*Mpflt)) < 0 {
 			Yyerror("constant %v truncated to integer", Fconv(v.U.(*Mpflt), obj.FmtSharp))
 		}
-		v.Ctype = CTINT
 		v.U = i
 
 	case CTCPLX:
@@ -390,7 +386,6 @@ func toint(v Val) Val {
 		if mpcmpfltc(&v.U.(*Mpcplx).Imag, 0) != 0 {
 			Yyerror("constant %v%vi truncated to real", Fconv(&v.U.(*Mpcplx).Real, obj.FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, obj.FmtSharp|obj.FmtSign))
 		}
-		v.Ctype = CTINT
 		v.U = i
 	}
 
@@ -398,7 +393,7 @@ func toint(v Val) Val {
 }
 
 func doesoverflow(v Val, t *Type) bool {
-	switch v.Ctype {
+	switch v.Ctype() {
 	case CTINT, CTRUNE:
 		if !Isint[t.Etype] {
 			Fatal("overflow: %v integer constant", t)
@@ -443,7 +438,7 @@ func overflow(v Val, t *Type) {
 		return
 	}
 
-	switch v.Ctype {
+	switch v.Ctype() {
 	case CTINT, CTRUNE:
 		Yyerror("constant %v overflows %v", v.U.(*Mpint), t)
 
@@ -456,14 +451,13 @@ func overflow(v Val, t *Type) {
 }
 
 func tostr(v Val) Val {
-	switch v.Ctype {
+	switch v.Ctype() {
 	case CTINT, CTRUNE:
 		if Mpcmpfixfix(v.U.(*Mpint), Minintval[TINT]) < 0 || Mpcmpfixfix(v.U.(*Mpint), Maxintval[TINT]) > 0 {
 			Yyerror("overflow in int -> string")
 		}
 		r := uint(Mpgetfix(v.U.(*Mpint)))
 		v = Val{}
-		v.Ctype = CTSTR
 		v.U = string(r)
 
 	case CTFLT:
@@ -472,7 +466,6 @@ func tostr(v Val) Val {
 
 	case CTNIL:
 		v = Val{}
-		v.Ctype = CTSTR
 		v.U = ""
 	}
 
@@ -483,7 +476,7 @@ func consttype(n *Node) int {
 	if n == nil || n.Op != OLITERAL {
 		return -1
 	}
-	return int(n.Val.Ctype)
+	return int(n.Val.Ctype())
 }
 
 func Isconst(n *Node, ct int) bool {
@@ -569,7 +562,6 @@ func evconst(n *Node) {
 				nl = Nod(OXXX, nil, nil)
 				*nl = *l1.N
 				nl.Orig = nl
-				nl.Val.Ctype = CTSTR
 				nl.Val.U = strings.Join(strs, "")
 				l1.N = nl
 				l1.Next = l2
@@ -617,7 +609,7 @@ func evconst(n *Node) {
 			v = copyval(v)
 		}
 
-		switch uint32(n.Op)<<16 | uint32(v.Ctype) {
+		switch uint32(n.Op)<<16 | uint32(v.Ctype()) {
 		default:
 			if n.Diag == 0 {
 				Yyerror("illegal constant expression %v %v", Oconv(int(n.Op), 0), nl.Type)
@@ -743,7 +735,7 @@ func evconst(n *Node) {
 		if nr.Type != nil && (Issigned[nr.Type.Etype] || !Isint[nr.Type.Etype]) {
 			goto illegal
 		}
-		if nl.Val.Ctype != CTRUNE {
+		if nl.Val.Ctype() != CTRUNE {
 			nl.Val = toint(nl.Val)
 		}
 		nr.Val = toint(nr.Val)
@@ -760,38 +752,46 @@ func evconst(n *Node) {
 	rv = nr.Val
 
 	// convert to common ideal
-	if v.Ctype == CTCPLX || rv.Ctype == CTCPLX {
+	if v.Ctype() == CTCPLX || rv.Ctype() == CTCPLX {
 		v = tocplx(v)
 		rv = tocplx(rv)
 	}
 
-	if v.Ctype == CTFLT || rv.Ctype == CTFLT {
+	if v.Ctype() == CTFLT || rv.Ctype() == CTFLT {
 		v = toflt(v)
 		rv = toflt(rv)
 	}
 
 	// Rune and int turns into rune.
-	if v.Ctype == CTRUNE && rv.Ctype == CTINT {
-		rv.Ctype = CTRUNE
+	if v.Ctype() == CTRUNE && rv.Ctype() == CTINT {
+		i := new(Mpint)
+		mpmovefixfix(i, rv.U.(*Mpint))
+		i.Rune = true
+		rv.U = i
 	}
-	if v.Ctype == CTINT && rv.Ctype == CTRUNE {
+	if v.Ctype() == CTINT && rv.Ctype() == CTRUNE {
 		if n.Op == OLSH || n.Op == ORSH {
-			rv.Ctype = CTINT
+			i := new(Mpint)
+			mpmovefixfix(i, rv.U.(*Mpint))
+			rv.U = i
 		} else {
-			v.Ctype = CTRUNE
+			i := new(Mpint)
+			mpmovefixfix(i, v.U.(*Mpint))
+			i.Rune = true
+			v.U = i
 		}
 	}
 
-	if v.Ctype != rv.Ctype {
+	if v.Ctype() != rv.Ctype() {
 		// Use of undefined name as constant?
-		if (v.Ctype == 0 || rv.Ctype == 0) && nerrors > 0 {
+		if (v.Ctype() == 0 || rv.Ctype() == 0) && nerrors > 0 {
 			return
 		}
-		Fatal("constant type mismatch %v(%d) %v(%d)", nl.Type, v.Ctype, nr.Type, rv.Ctype)
+		Fatal("constant type mismatch %v(%d) %v(%d)", nl.Type, v.Ctype(), nr.Type, rv.Ctype())
 	}
 
 	// run op
-	switch uint32(n.Op)<<16 | uint32(v.Ctype) {
+	switch uint32(n.Op)<<16 | uint32(v.Ctype()) {
 	default:
 		goto illegal
 
@@ -1075,7 +1075,7 @@ ret:
 	lineno = int32(lno)
 
 	// truncate precision for non-ideal float.
-	if v.Ctype == CTFLT && n.Type.Etype != TIDEAL {
+	if v.Ctype() == CTFLT && n.Type.Etype != TIDEAL {
 		n.Val.U = truncfltlit(v.U.(*Mpflt), n.Type)
 	}
 	return
@@ -1104,9 +1104,9 @@ illegal:
 func nodlit(v Val) *Node {
 	n := Nod(OLITERAL, nil, nil)
 	n.Val = v
-	switch v.Ctype {
+	switch v.Ctype() {
 	default:
-		Fatal("nodlit ctype %d", v.Ctype)
+		Fatal("nodlit ctype %d", v.Ctype())
 
 	case CTSTR:
 		n.Type = idealstring
@@ -1132,10 +1132,9 @@ func nodcplxlit(r Val, i Val) *Node {
 	n := Nod(OLITERAL, nil, nil)
 	n.Type = Types[TIDEAL]
 	n.Val.U = c
-	n.Val.Ctype = CTCPLX
 
-	if r.Ctype != CTFLT || i.Ctype != CTFLT {
-		Fatal("nodcplxlit ctype %d/%d", r.Ctype, i.Ctype)
+	if r.Ctype() != CTFLT || i.Ctype() != CTFLT {
+		Fatal("nodcplxlit ctype %d/%d", r.Ctype(), i.Ctype())
 	}
 
 	mpmovefltflt(&c.Real, r.U.(*Mpflt))
@@ -1155,7 +1154,7 @@ func idealkind(n *Node) int {
 		return CTxxx
 
 	case OLITERAL:
-		return int(n.Val.Ctype)
+		return int(n.Val.Ctype())
 
 		// numeric kinds.
 	case OADD,
@@ -1230,7 +1229,7 @@ func defaultlit(np **Node, t *Type) {
 			return
 		}
 
-		if n.Val.Ctype == CTNIL {
+		if n.Val.Ctype() == CTNIL {
 			lineno = int32(lno)
 			if n.Diag == 0 {
 				Yyerror("use of untyped nil")
@@ -1241,7 +1240,7 @@ func defaultlit(np **Node, t *Type) {
 			break
 		}
 
-		if n.Val.Ctype == CTSTR {
+		if n.Val.Ctype() == CTSTR {
 			t1 := Types[TSTRING]
 			Convlit(np, t1)
 			break
@@ -1447,12 +1446,11 @@ func (n *Node) Convconst(con *Node, t *Type) {
 	con.Val = n.Val
 
 	if Isint[tt] {
-		con.Val.Ctype = CTINT
 		con.Val.U = new(Mpint)
 		var i int64
-		switch n.Val.Ctype {
+		switch n.Val.Ctype() {
 		default:
-			Fatal("convconst ctype=%d %v", n.Val.Ctype, Tconv(t, obj.FmtLong))
+			Fatal("convconst ctype=%d %v", n.Val.Ctype(), Tconv(t, obj.FmtLong))
 
 		case CTINT, CTRUNE:
 			i = Mpgetfix(n.Val.U.(*Mpint))
@@ -1471,8 +1469,8 @@ func (n *Node) Convconst(con *Node, t *Type) {
 
 	if Isfloat[tt] {
 		con.Val = toflt(con.Val)
-		if con.Val.Ctype != CTFLT {
-			Fatal("convconst ctype=%d %v", con.Val.Ctype, t)
+		if con.Val.Ctype() != CTFLT {
+			Fatal("convconst ctype=%d %v", con.Val.Ctype(), t)
 		}
 		if tt == TFLOAT32 {
 			con.Val.U = truncfltlit(con.Val.U.(*Mpflt), t)
@@ -1636,13 +1634,13 @@ func isgoconst(n *Node) bool {
 		}
 
 	case OLITERAL:
-		if n.Val.Ctype != CTNIL {
+		if n.Val.Ctype() != CTNIL {
 			return true
 		}
 
 	case ONAME:
 		l := n.Sym.Def
-		if l != nil && l.Op == OLITERAL && n.Val.Ctype != CTNIL {
+		if l != nil && l.Op == OLITERAL && n.Val.Ctype() != CTNIL {
 			return true
 		}
 
