@@ -828,7 +828,7 @@ func inlvar(var_ *Node) *Node {
 	n.Type = var_.Type
 	n.Class = PAUTO
 	n.Used = true
-	n.Curfn = Curfn // the calling function, not the called one
+	n.Name.Curfn = Curfn // the calling function, not the called one
 	n.Addrtaken = var_.Addrtaken
 
 	// Esc pass wont run if we're inlining into a iface wrapper.
@@ -850,7 +850,7 @@ func retvar(t *Type, i int) *Node {
 	n.Type = t.Type
 	n.Class = PAUTO
 	n.Used = true
-	n.Curfn = Curfn // the calling function, not the called one
+	n.Name.Curfn = Curfn // the calling function, not the called one
 	Curfn.Func.Dcl = list(Curfn.Func.Dcl, n)
 	return n
 }
@@ -862,7 +862,7 @@ func argvar(t *Type, i int) *Node {
 	n.Type = t.Type
 	n.Class = PAUTO
 	n.Used = true
-	n.Curfn = Curfn // the calling function, not the called one
+	n.Name.Curfn = Curfn // the calling function, not the called one
 	Curfn.Func.Dcl = list(Curfn.Func.Dcl, n)
 	return n
 }

@@ -262,8 +262,8 @@ func capturevars(xfunc *Node) {
 
 		if Debug['m'] > 1 {
 			var name *Sym
-			if v.Curfn != nil && v.Curfn.Nname != nil {
-				name = v.Curfn.Nname.Sym
+			if v.Name.Curfn != nil && v.Name.Curfn.Nname != nil {
+				name = v.Name.Curfn.Nname.Sym
 			}
 			how := "ref"
 			if v.Name.Byval {
@@ -398,7 +398,7 @@ func transformclosure(xfunc *Node) {
 				addr.Name.Param.Ntype = Nod(OIND, typenod(v.Type), nil)
 				addr.Class = PAUTO
 				addr.Used = true
-				addr.Curfn = xfunc
+				addr.Name.Curfn = xfunc
 				xfunc.Func.Dcl = list(xfunc.Func.Dcl, addr)
 				v.Name.Heapaddr = addr
 				if v.Name.Byval {
@@ -602,7 +602,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	ptr.Addable = true
 	ptr.Ullman = 1
 	ptr.Used = true
-	ptr.Curfn = xfunc
+	ptr.Name.Curfn = xfunc
 	xfunc.Func.Dcl = list(xfunc.Func.Dcl, ptr)
 	var body *NodeList
 	if Isptr[rcvrtype.Etype] || Isinter(rcvrtype) {

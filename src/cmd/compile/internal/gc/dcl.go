@@ -211,7 +211,7 @@ func declare(n *Node, ctxt uint8) {
 			gen = vargen
 		}
 		pushdcl(s)
-		n.Curfn = Curfn
+		n.Name.Curfn = Curfn
 	}
 
 	if ctxt == PAUTO {
@@ -383,6 +383,7 @@ func newname(s *Sym) *Node {
 func newfuncname(s *Sym) *Node {
 	n := newname(s)
 	n.Func = new(Func)
+	n.Func.FCurfn = Curfn
 	return n
 }
 
@@ -555,6 +556,7 @@ func ifacedcl(n *Node) {
 	}
 
 	n.Func = new(Func)
+	n.Func.FCurfn = Curfn
 	dclcontext = PPARAM
 	markdcl()
 	Funcdepth++

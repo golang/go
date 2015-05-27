@@ -47,7 +47,7 @@ func init1(n *Node, out **NodeList) {
 		break
 
 	default:
-		if isblank(n) && n.Curfn == nil && n.Name.Defn != nil && n.Name.Defn.Initorder == InitNotStarted {
+		if isblank(n) && n.Name.Curfn == nil && n.Name.Defn != nil && n.Name.Defn.Initorder == InitNotStarted {
 			// blank names initialization is part of init() but not
 			// when they are inside a function.
 			break
