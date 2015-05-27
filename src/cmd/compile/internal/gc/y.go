@@ -1272,7 +1272,7 @@ yydefault:
 
 			pack := Nod(OPACK, nil, nil)
 			pack.Sym = my
-			pack.Pkg = ipkg
+			pack.Name.Pkg = ipkg
 			pack.Lineno = int32(yyDollar[1].i)
 
 			if strings.HasPrefix(my.Name, ".") {
@@ -2169,7 +2169,7 @@ yydefault:
 		{
 			if yyDollar[1].node.Op == OPACK {
 				var s *Sym
-				s = restrictlookup(yyDollar[3].sym.Name, yyDollar[1].node.Pkg)
+				s = restrictlookup(yyDollar[3].sym.Name, yyDollar[1].node.Name.Pkg)
 				yyDollar[1].node.Used = true
 				yyVAL.node = oldname(s)
 				break
@@ -2431,7 +2431,7 @@ yydefault:
 		{
 			if yyDollar[1].node.Op == OPACK {
 				var s *Sym
-				s = restrictlookup(yyDollar[3].sym.Name, yyDollar[1].node.Pkg)
+				s = restrictlookup(yyDollar[3].sym.Name, yyDollar[1].node.Name.Pkg)
 				yyDollar[1].node.Used = true
 				yyVAL.node = oldname(s)
 				break
@@ -2861,7 +2861,7 @@ yydefault:
 				pkg = localpkg
 			} else {
 				yyDollar[1].sym.Def.Used = true
-				pkg = yyDollar[1].sym.Def.Pkg
+				pkg = yyDollar[1].sym.Def.Name.Pkg
 			}
 			yyVAL.sym = restrictlookup(yyDollar[3].sym.Name, pkg)
 		}

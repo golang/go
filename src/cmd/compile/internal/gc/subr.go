@@ -378,7 +378,7 @@ func Nod(op int, nleft *Node, nright *Node) *Node {
 	case ONAME:
 		n.Name = new(Name)
 		n.Param = new(Param)
-	case OLABEL:
+	case OLABEL, OPACK:
 		n.Name = new(Name)
 	case ODCLFIELD:
 		n.Param = new(Param)

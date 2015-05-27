@@ -246,7 +246,7 @@ import_stmt:
 
 		pack := Nod(OPACK, nil, nil);
 		pack.Sym = my;
-		pack.Pkg = ipkg;
+		pack.Name.Pkg = ipkg;
 		pack.Lineno = int32($1);
 
 		if strings.HasPrefix(my.Name, ".") {
@@ -1010,7 +1010,7 @@ pexpr_no_paren:
 	{
 		if $1.Op == OPACK {
 			var s *Sym
-			s = restrictlookup($3.Name, $1.Pkg);
+			s = restrictlookup($3.Name, $1.Name.Pkg);
 			$1.Used = true;
 			$$ = oldname(s);
 			break;
@@ -1299,7 +1299,7 @@ dotname:
 	{
 		if $1.Op == OPACK {
 			var s *Sym
-			s = restrictlookup($3.Name, $1.Pkg);
+			s = restrictlookup($3.Name, $1.Name.Pkg);
 			$1.Used = true;
 			$$ = oldname(s);
 			break;
@@ -1700,7 +1700,7 @@ packname:
 			pkg = localpkg;
 		} else {
 			$1.Def.Used = true;
-			pkg = $1.Def.Pkg;
+			pkg = $1.Def.Name.Pkg;
 		}
 		$$ = restrictlookup($3.Name, pkg);
 	}

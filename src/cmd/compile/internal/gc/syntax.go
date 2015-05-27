@@ -33,9 +33,6 @@ type Node struct {
 	Curfn *Node // function for local variables
 	Param *Param
 
-	// OPACK
-	Pkg *Pkg
-
 	// Escape analysis.
 	Escflowsrc *NodeList // flow(this, src)
 	Escretval  *NodeList // on OCALLxxx, list of dummy return values
@@ -91,9 +88,10 @@ type Node struct {
 	Hasbreak    bool // has break statement
 }
 
-// Name holds Node fields used only by ONAME nodes.
+// Name holds Node fields used only by named nodes (ONAME, OPACK, some OLITERAL).
 type Name struct {
 	Pack      *Node // real package for import . names
+	Pkg       *Pkg  // pkg for OPACK nodes
 	Heapaddr  *Node // temp holding heap address of param
 	Inlvar    *Node // ONAME substitute while inlining
 	Defn      *Node // initializing assignment
