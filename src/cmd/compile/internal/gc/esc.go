@@ -412,11 +412,11 @@ type EscState struct {
 }
 
 // funcSym returns n.Nname.Sym if no nils are encountered along the way.
-func funcSym(n *Node) *Sym {
-	if n == nil || n.Nname == nil {
+func funcSym(fn *Node) *Sym {
+	if fn == nil || fn.Func.Nname == nil {
 		return nil
 	}
-	return n.Nname.Sym
+	return fn.Func.Nname.Sym
 }
 
 // curfnSym returns n.Curfn.Nname.Sym if no nils are encountered along the way.
@@ -478,7 +478,7 @@ func escAnalyze(all *NodeList, recursive bool) {
 func escfunc(e *EscState, func_ *Node) {
 	//	print("escfunc %N %s\n", func->nname, e->recursive?"(recursive)":"");
 	if func_.Esc != 1 {
-		Fatal("repeat escfunc %v", func_.Nname)
+		Fatal("repeat escfunc %v", func_.Func.Nname)
 	}
 	func_.Esc = EscFuncStarted
 

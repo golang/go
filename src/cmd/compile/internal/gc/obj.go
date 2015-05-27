@@ -430,7 +430,7 @@ func gdatastring(nam *Node, sval string) {
 	p.From3.Offset = Types[Tptr].Width
 	p.To.Type = obj.TYPE_ADDR
 
-	//print("%P\n", p);
+	//print("%v\n", p);
 
 	Nodconst(&nod1, Types[TINT], int64(len(sval)))
 

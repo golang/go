@@ -48,7 +48,7 @@ func isforkfunc(fn *Node) bool {
 	// they might have been locked at the time of the fork.  This means
 	// no rescheduling, no malloc calls, and no new stack segments.
 	// Race instrumentation does all of the above.
-	return myimportpath != "" && myimportpath == "syscall" && fn.Nname.Sym.Name == "forkAndExecInChild"
+	return myimportpath != "" && myimportpath == "syscall" && fn.Func.Nname.Sym.Name == "forkAndExecInChild"
 }
 
 func racewalk(fn *Node) {
@@ -77,11 +77,11 @@ func racewalk(fn *Node) {
 	fn.Func.Exit = list(fn.Func.Exit, nd)
 
 	if Debug['W'] != 0 {
-		s := fmt.Sprintf("after racewalk %v", fn.Nname.Sym)
+		s := fmt.Sprintf("after racewalk %v", fn.Func.Nname.Sym)
 		dumplist(s, fn.Nbody)
-		s = fmt.Sprintf("enter %v", fn.Nname.Sym)
+		s = fmt.Sprintf("enter %v", fn.Func.Nname.Sym)
 		dumplist(s, fn.Func.Enter)
-		s = fmt.Sprintf("exit %v", fn.Nname.Sym)
+		s = fmt.Sprintf("exit %v", fn.Func.Nname.Sym)
 		dumplist(s, fn.Func.Exit)
 	}
 }

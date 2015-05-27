@@ -150,14 +150,14 @@ func closurename(n *Node) *Sym {
 		gen = closurename_closgen
 	} else if n.Func.Outerfunc.Op == ODCLFUNC {
 		// The outermost closure inside of a named function.
-		outer = n.Func.Outerfunc.Nname.Sym.Name
+		outer = n.Func.Outerfunc.Func.Nname.Sym.Name
 
 		prefix = "func"
 
 		// Yes, functions can be named _.
 		// Can't use function closgen in such case,
 		// because it would lead to name clashes.
-		if !isblank(n.Func.Outerfunc.Nname) {
+		if !isblank(n.Func.Outerfunc.Func.Nname) {
 			n.Func.Outerfunc.Func.Closgen++
 			gen = n.Func.Outerfunc.Func.Closgen
 		} else {
@@ -191,12 +191,12 @@ func makeclosure(func_ *Node) *Node {
 	// create the function
 	xfunc := Nod(ODCLFUNC, nil, nil)
 
-	xfunc.Nname = newfuncname(closurename(func_))
-	xfunc.Nname.Sym.Flags |= SymExported // disable export
-	xfunc.Nname.Name.Param.Ntype = xtype
-	xfunc.Nname.Name.Defn = xfunc
-	declare(xfunc.Nname, PFUNC)
-	xfunc.Nname.Name.Funcdepth = func_.Func.Depth
+	xfunc.Func.Nname = newfuncname(closurename(func_))
+	xfunc.Func.Nname.Sym.Flags |= SymExported // disable export
+	xfunc.Func.Nname.Name.Param.Ntype = xtype
+	xfunc.Func.Nname.Name.Defn = xfunc
+	declare(xfunc.Func.Nname, PFUNC)
+	xfunc.Func.Nname.Name.Funcdepth = func_.Func.Depth
 	xfunc.Func.Depth = func_.Func.Depth
 	xfunc.Func.Endlineno = func_.Func.Endlineno
 
@@ -262,8 +262,8 @@ func capturevars(xfunc *Node) {
 
 		if Debug['m'] > 1 {
 			var name *Sym
-			if v.Name.Curfn != nil && v.Name.Curfn.Nname != nil {
-				name = v.Name.Curfn.Nname.Sym
+			if v.Name.Curfn != nil && v.Name.Curfn.Func.Nname != nil {
+				name = v.Name.Curfn.Func.Nname.Sym
 			}
 			how := "ref"
 			if v.Name.Byval {
@@ -303,7 +303,7 @@ func transformclosure(xfunc *Node) {
 		//	}(42, byval, &byref)
 
 		// f is ONAME of the actual function.
-		f := xfunc.Nname
+		f := xfunc.Func.Nname
 
 		// Get pointer to input arguments and rewind to the end.
 		// We are going to append captured variables to input args.
@@ -420,7 +420,7 @@ func transformclosure(xfunc *Node) {
 func walkclosure(func_ *Node, init **NodeList) *Node {
 	// If no closure vars, don't bother wrapping.
 	if func_.Func.Cvars == nil {
-		return func_.Func.Closure.Nname
+		return func_.Func.Closure.Func.Nname
 	}
 
 	// Create closure in the form of a composite literal.
@@ -457,7 +457,7 @@ func walkclosure(func_ *Node, init **NodeList) *Node {
 	clos := Nod(OCOMPLIT, nil, Nod(OIND, typ, nil))
 	clos.Esc = func_.Esc
 	clos.Right.Implicit = true
-	clos.List = concat(list1(Nod(OCFUNC, func_.Func.Closure.Nname, nil)), func_.Func.Enter)
+	clos.List = concat(list1(Nod(OCFUNC, func_.Func.Closure.Func.Nname, nil)), func_.Func.Enter)
 
 	// Force type conversion from *struct to the func type.
 	clos = Nod(OCONVNOP, clos, nil)
@@ -494,11 +494,11 @@ func typecheckpartialcall(fn *Node, sym *Node) {
 	}
 
 	// Create top-level function.
-	fn.Nname = makepartialcall(fn, fn.Type, sym)
-
+	xfunc := makepartialcall(fn, fn.Type, sym)
+	fn.Func = xfunc.Func
 	fn.Right = sym
 	fn.Op = OCALLPART
-	fn.Type = fn.Nname.Type
+	fn.Type = xfunc.Type
 }
 
 var makepartialcall_gopkg *Pkg
@@ -581,11 +581,11 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	xtype.Rlist = l
 
 	xfunc.Func.Dupok = true
-	xfunc.Nname = newfuncname(sym)
-	xfunc.Nname.Sym.Flags |= SymExported // disable export
-	xfunc.Nname.Name.Param.Ntype = xtype
-	xfunc.Nname.Name.Defn = xfunc
-	declare(xfunc.Nname, PFUNC)
+	xfunc.Func.Nname = newfuncname(sym)
+	xfunc.Func.Nname.Sym.Flags |= SymExported // disable export
+	xfunc.Func.Nname.Name.Param.Ntype = xtype
+	xfunc.Func.Nname.Name.Defn = xfunc
+	declare(xfunc.Func.Nname, PFUNC)
 
 	// Declare and initialize variable holding receiver.
 
@@ -660,7 +660,7 @@ func walkpartialcall(n *Node, init **NodeList) *Node {
 	clos := Nod(OCOMPLIT, nil, Nod(OIND, typ, nil))
 	clos.Esc = n.Esc
 	clos.Right.Implicit = true
-	clos.List = list1(Nod(OCFUNC, n.Nname.Nname, nil))
+	clos.List = list1(Nod(OCFUNC, n.Func.Nname, nil))
 	clos.List = list(clos.List, n.Left)
 
 	// Force type conversion from *struct to the func type.

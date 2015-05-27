@@ -1284,7 +1284,7 @@ func livenessepilogue(lv *Liveness) {
 						if !n.Name.Needzero {
 							n.Name.Needzero = true
 							if debuglive >= 1 {
-								Warnl(int(p.Lineno), "%v: %v is ambiguously live", Curfn.Nname, Nconv(n, obj.FmtLong))
+								Warnl(int(p.Lineno), "%v: %v is ambiguously live", Curfn.Func.Nname, Nconv(n, obj.FmtLong))
 							}
 
 							// Record in 'ambiguous' bitmap.
@@ -1331,7 +1331,7 @@ func livenessepilogue(lv *Liveness) {
 	var numlive int32
 	var msg []string
 	for _, bb := range lv.cfg {
-		if debuglive >= 1 && Curfn.Nname.Sym.Name != "init" && Curfn.Nname.Sym.Name[0] != '.' {
+		if debuglive >= 1 && Curfn.Func.Nname.Sym.Name != "init" && Curfn.Func.Nname.Sym.Name[0] != '.' {
 			nmsg = int32(len(lv.livepointers))
 			startmsg = nmsg
 			msg = make([]string, nmsg)
@@ -1381,7 +1381,7 @@ func livenessepilogue(lv *Liveness) {
 						}
 						n = lv.vars[j]
 						if n.Class != PPARAM {
-							yyerrorl(int(p.Lineno), "internal error: %v %v recorded as live on entry", Curfn.Nname, Nconv(n, obj.FmtLong))
+							yyerrorl(int(p.Lineno), "internal error: %v %v recorded as live on entry", Curfn.Func.Nname, Nconv(n, obj.FmtLong))
 						}
 					}
 				}
@@ -1622,7 +1622,7 @@ func livenessprintdebug(lv *Liveness) {
 	var locals Bvec
 	var n *Node
 
-	fmt.Printf("liveness: %s\n", Curfn.Nname.Sym.Name)
+	fmt.Printf("liveness: %s\n", Curfn.Func.Nname.Sym.Name)
 
 	uevar := bvalloc(int32(len(lv.vars)))
 	varkill := bvalloc(int32(len(lv.vars)))
@@ -1770,13 +1770,13 @@ func liveness(fn *Node, firstp *obj.Prog, argssym *Sym, livesym *Sym) {
 	// Change name to dump debugging information only for a specific function.
 	debugdelta := 0
 
-	if Curfn.Nname.Sym.Name == "!" {
+	if Curfn.Func.Nname.Sym.Name == "!" {
 		debugdelta = 2
 	}
 
 	debuglive += debugdelta
 	if debuglive >= 3 {
-		fmt.Printf("liveness: %s\n", Curfn.Nname.Sym.Name)
+		fmt.Printf("liveness: %s\n", Curfn.Func.Nname.Sym.Name)
 		printprog(firstp)
 	}
 

@@ -123,6 +123,7 @@ type Func struct {
 	Top        int   // top context (Ecall, Eproc, etc)
 	Closure    *Node // OCLOSURE <-> ODCLFUNC
 	FCurfn     *Node
+	Nname      *Node
 
 	Inl     *NodeList // copy of the body for use in inlining
 	InlCost int32

@@ -1622,7 +1622,7 @@ func frame(context int) {
 		fmt.Printf("--- external frame ---\n")
 		l = externdcl
 	} else if Curfn != nil {
-		fmt.Printf("--- %v frame ---\n", Curfn.Nname.Sym)
+		fmt.Printf("--- %v frame ---\n", Curfn.Func.Nname.Sym)
 		l = Curfn.Func.Dcl
 	} else {
 		return
@@ -2409,10 +2409,10 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 	t.Rlist = out
 
 	fn := Nod(ODCLFUNC, nil, nil)
-	fn.Nname = newname(newnam)
-	fn.Nname.Name.Defn = fn
-	fn.Nname.Name.Param.Ntype = t
-	declare(fn.Nname, PFUNC)
+	fn.Func.Nname = newname(newnam)
+	fn.Func.Nname.Name.Defn = fn
+	fn.Func.Nname.Name.Param.Ntype = t
+	declare(fn.Func.Nname, PFUNC)
 	funchdr(fn)
 
 	// arg list
@@ -2581,10 +2581,10 @@ func genhash(sym *Sym, t *Type) {
 	// func sym(p *T, h uintptr) uintptr
 	fn := Nod(ODCLFUNC, nil, nil)
 
-	fn.Nname = newname(sym)
-	fn.Nname.Class = PFUNC
+	fn.Func.Nname = newname(sym)
+	fn.Func.Nname.Class = PFUNC
 	tfn := Nod(OTFUNC, nil, nil)
-	fn.Nname.Name.Param.Ntype = tfn
+	fn.Func.Nname.Name.Param.Ntype = tfn
 
 	n := Nod(ODCLFIELD, newname(Lookup("p")), typenod(Ptrto(t)))
 	tfn.List = list(tfn.List, n)
@@ -2596,7 +2596,7 @@ func genhash(sym *Sym, t *Type) {
 	tfn.Rlist = list(tfn.Rlist, n)
 
 	funchdr(fn)
-	typecheck(&fn.Nname.Name.Param.Ntype, Etype)
+	typecheck(&fn.Func.Nname.Name.Param.Ntype, Etype)
 
 	// genhash is only called for types that have equality but
 	// cannot be handled by the standard algorithms,
@@ -2833,10 +2833,10 @@ func geneq(sym *Sym, t *Type) {
 	// func sym(p, q *T) bool
 	fn := Nod(ODCLFUNC, nil, nil)
 
-	fn.Nname = newname(sym)
-	fn.Nname.Class = PFUNC
+	fn.Func.Nname = newname(sym)
+	fn.Func.Nname.Class = PFUNC
 	tfn := Nod(OTFUNC, nil, nil)
-	fn.Nname.Name.Param.Ntype = tfn
+	fn.Func.Nname.Name.Param.Ntype = tfn
 
 	n := Nod(ODCLFIELD, newname(Lookup("p")), typenod(Ptrto(t)))
 	tfn.List = list(tfn.List, n)

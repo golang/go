@@ -1420,10 +1420,10 @@ fndcl:
 		t.Rlist = $5;
 
 		$$ = Nod(ODCLFUNC, nil, nil);
-		$$.Nname = newfuncname($1);
-		$$.Nname.Name.Defn = $$;
-		$$.Nname.Param.Ntype = t;		// TODO: check if nname already has an ntype
-		declare($$.Nname, PFUNC);
+		$$.Func.Nname = newfuncname($1);
+		$$.Func.Nname.Name.Defn = $$;
+		$$.Func.Nname.Name.Param.Ntype = t;		// TODO: check if nname already has an ntype
+		declare($$.Func.Nname, PFUNC);
 
 		funchdr($$);
 	}
@@ -1455,11 +1455,11 @@ fndcl:
 
 		$$ = Nod(ODCLFUNC, nil, nil);
 		$$.Func.Shortname = newfuncname($4);
-		$$.Nname = methodname1($$.Func.Shortname, rcvr.Right);
-		$$.Nname.Name.Defn = $$;
-		$$.Nname.Param.Ntype = t;
-		$$.Nname.Nointerface = nointerface;
-		declare($$.Nname, PFUNC);
+		$$.Func.Nname = methodname1($$.Func.Shortname, rcvr.Right);
+		$$.Func.Nname.Name.Defn = $$;
+		$$.Func.Nname.Name.Param.Ntype = t;
+		$$.Func.Nname.Nointerface = nointerface;
+		declare($$.Func.Nname, PFUNC);
 
 		funchdr($$);
 	}

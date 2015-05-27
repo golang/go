@@ -592,8 +592,8 @@ func funchdr(n *Node) {
 	n.Func.Outer = Curfn
 	Curfn = n
 
-	if n.Nname != nil {
-		funcargs(n.Nname.Name.Param.Ntype)
+	if n.Func.Nname != nil {
+		funcargs(n.Func.Nname.Name.Param.Ntype)
 	} else if n.Func.Ntype != nil {
 		funcargs(n.Func.Ntype)
 	} else {
@@ -1471,7 +1471,7 @@ func funccompile(n *Node) {
 	checkwidth(n.Type)
 
 	if Curfn != nil {
-		Fatal("funccompile %v inside %v", n.Nname.Sym, Curfn.Nname.Sym)
+		Fatal("funccompile %v inside %v", n.Func.Nname.Sym, Curfn.Func.Nname.Sym)
 	}
 
 	Stksize = 0

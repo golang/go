@@ -102,7 +102,7 @@ func caninl(fn *Node) {
 	if fn.Op != ODCLFUNC {
 		Fatal("caninl %v", fn)
 	}
-	if fn.Nname == nil {
+	if fn.Func.Nname == nil {
 		Fatal("caninl no nname %v", Nconv(fn, obj.FmtSign))
 	}
 
@@ -143,19 +143,19 @@ func caninl(fn *Node) {
 	savefn := Curfn
 	Curfn = fn
 
-	fn.Nname.Func.Inl = fn.Nbody
-	fn.Nbody = inlcopylist(fn.Nname.Func.Inl)
-	fn.Nname.Func.Inldcl = inlcopylist(fn.Nname.Name.Defn.Func.Dcl)
-	fn.Nname.Func.InlCost = int32(maxBudget - budget)
+	fn.Func.Nname.Func.Inl = fn.Nbody
+	fn.Nbody = inlcopylist(fn.Func.Nname.Func.Inl)
+	fn.Func.Nname.Func.Inldcl = inlcopylist(fn.Func.Nname.Name.Defn.Func.Dcl)
+	fn.Func.Nname.Func.InlCost = int32(maxBudget - budget)
 
 	// hack, TODO, check for better way to link method nodes back to the thing with the ->inl
 	// this is so export can find the body of a method
-	fn.Type.Nname = fn.Nname
+	fn.Type.Nname = fn.Func.Nname
 
 	if Debug['m'] > 1 {
-		fmt.Printf("%v: can inline %v as: %v { %v }\n", fn.Line(), Nconv(fn.Nname, obj.FmtSharp), Tconv(fn.Type, obj.FmtSharp), Hconv(fn.Nname.Func.Inl, obj.FmtSharp))
+		fmt.Printf("%v: can inline %v as: %v { %v }\n", fn.Line(), Nconv(fn.Func.Nname, obj.FmtSharp), Tconv(fn.Type, obj.FmtSharp), Hconv(fn.Func.Nname.Func.Inl, obj.FmtSharp))
 	} else if Debug['m'] != 0 {
-		fmt.Printf("%v: can inline %v\n", fn.Line(), fn.Nname)
+		fmt.Printf("%v: can inline %v\n", fn.Line(), fn.Func.Nname)
 	}
 
 	Curfn = savefn

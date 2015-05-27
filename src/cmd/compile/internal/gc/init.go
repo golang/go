@@ -114,10 +114,10 @@ func fninit(n *NodeList) {
 
 	fn := Nod(ODCLFUNC, nil, nil)
 	initsym := Lookup("init")
-	fn.Nname = newname(initsym)
-	fn.Nname.Name.Defn = fn
-	fn.Nname.Name.Param.Ntype = Nod(OTFUNC, nil, nil)
-	declare(fn.Nname, PFUNC)
+	fn.Func.Nname = newname(initsym)
+	fn.Func.Nname.Name.Defn = fn
+	fn.Func.Nname.Name.Param.Ntype = Nod(OTFUNC, nil, nil)
+	declare(fn.Func.Nname, PFUNC)
 	funchdr(fn)
 
 	// (3)
@@ -176,7 +176,7 @@ func fninit(n *NodeList) {
 	a = Nod(ORETURN, nil, nil)
 
 	r = list(r, a)
-	exportsym(fn.Nname)
+	exportsym(fn.Func.Nname)
 
 	fn.Nbody = r
 	funcbody(fn)
