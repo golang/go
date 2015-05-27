@@ -630,12 +630,16 @@ inst:
 	{
 		asm.Settext($2.Sym);
 		outcode(int($1), &$2, 0, &$5);
+		if asm.Pass > 1 {
+			lastpc.From3 = new(obj.Addr)
+		}
 	}
 |	LTEXT name ',' con ',' '$' textsize
 	{
 		asm.Settext($2.Sym);
 		outcode(int($1), &$2, int($4), &$7);
 		if asm.Pass > 1 {
+			lastpc.From3 = new(obj.Addr)
 			lastpc.From3.Type = obj.TYPE_CONST
 			lastpc.From3.Offset = $4
 		}
@@ -647,12 +651,16 @@ inst:
 	{
 		asm.Settext($2.Sym)
 		outcode(int($1), &$2, 0, &$4)
+		if asm.Pass > 1 {
+			lastpc.From3 = new(obj.Addr)
+		}
 	}
 |	LGLOBL name ',' con ',' imm
 	{
 		asm.Settext($2.Sym)
 		outcode(int($1), &$2, 0, &$6)
 		if asm.Pass > 1 {
+			lastpc.From3 = new(obj.Addr)
 			lastpc.From3.Type = obj.TYPE_CONST
 			lastpc.From3.Offset = $4
 		}
@@ -665,6 +673,7 @@ inst:
 	{
 		outcode(int($1), &$2, 0, &$6);
 		if asm.Pass > 1 {
+			lastpc.From3 = new(obj.Addr)
 			lastpc.From3.Type = obj.TYPE_CONST
 			lastpc.From3.Offset = $4
 		}
@@ -673,6 +682,7 @@ inst:
 	{
 		outcode(int($1), &$2, 0, &$6);
 		if asm.Pass > 1 {
+			lastpc.From3 = new(obj.Addr)
 			lastpc.From3.Type = obj.TYPE_CONST
 			lastpc.From3.Offset = $4
 		}
@@ -681,6 +691,7 @@ inst:
 	{
 		outcode(int($1), &$2, 0, &$6);
 		if asm.Pass > 1 {
+			lastpc.From3 = new(obj.Addr)
 			lastpc.From3.Type = obj.TYPE_CONST
 			lastpc.From3.Offset = $4
 		}

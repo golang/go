@@ -1119,7 +1119,7 @@ func regopt(firstp *obj.Prog) {
 
 		// Currently we never generate three register forms.
 		// If we do, this will need to change.
-		if p.From3.Type != obj.TYPE_NONE {
+		if p.From3Type() != obj.TYPE_NONE {
 			Fatal("regopt not implemented for from3")
 		}
 

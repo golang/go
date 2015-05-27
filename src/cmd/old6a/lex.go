@@ -960,7 +960,10 @@ func outcode(a int, g2 *Addr2) {
 	p.As = int16(a)
 	p.Lineno = stmtline
 	p.From = g2.from
-	p.From3 = g2.from3
+	if g2.from3.Type != 0 {
+		p.From3 = new(obj.Addr)
+		*p.From3 = g2.from3
+	}
 	p.To = g2.to
 	p.Pc = int64(asm.PC)
 

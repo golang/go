@@ -204,7 +204,7 @@ type Prog struct {
 	Ctxt     *Link
 	Link     *Prog
 	From     Addr
-	From3    Addr
+	From3    *Addr // optional
 	To       Addr
 	Opt      interface{}
 	Forwd    *Prog
@@ -229,6 +229,14 @@ type Prog struct {
 	Mode     int8
 
 	Info ProgInfo
+}
+
+// From3Type returns From3.Type, or TYPE_NONE when From3 is nil.
+func (p *Prog) From3Type() int16 {
+	if p.From3 == nil {
+		return TYPE_NONE
+	}
+	return p.From3.Type
 }
 
 // ProgInfo holds information about the instruction for use

@@ -221,12 +221,16 @@ inst:
 	{
 		asm.Settext($2.Sym);
 		outcode($1, Always, &$2, 0, &$5);
+		if asm.Pass > 1 {
+			lastpc.From3 = new(obj.Addr)
+		}
 	}
 |	LTYPEB name ',' con ',' '$' textsize
 	{
 		asm.Settext($2.Sym);
 		outcode($1, Always, &$2, 0, &$7);
 		if asm.Pass > 1 {
+			lastpc.From3 = new(obj.Addr)
 			lastpc.From3.Type = obj.TYPE_CONST;
 			lastpc.From3.Offset = int64($4)
 		}
@@ -238,12 +242,16 @@ inst:
 	{
 		asm.Settext($2.Sym)
 		outcode($1, Always, &$2, 0, &$4)
+		if asm.Pass > 1 {
+			lastpc.From3 = new(obj.Addr)
+		}
 	}
 |	LGLOBL name ',' con ',' imm
 	{
 		asm.Settext($2.Sym)
 		outcode($1, Always, &$2, 0, &$6)
 		if asm.Pass > 1 {
+			lastpc.From3 = new(obj.Addr)
 			lastpc.From3.Type = obj.TYPE_CONST
 			lastpc.From3.Offset = int64($4)
 		}
@@ -256,6 +264,7 @@ inst:
 	{
 		outcode($1, Always, &$2, 0, &$6)
 		if asm.Pass > 1 {
+			lastpc.From3 = new(obj.Addr)
 			lastpc.From3.Type = obj.TYPE_CONST
 			lastpc.From3.Offset = int64($4)
 		}

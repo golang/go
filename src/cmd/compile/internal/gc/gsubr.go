@@ -214,6 +214,7 @@ func ggloblnod(nam *Node) {
 	p.To.Sym = nil
 	p.To.Type = obj.TYPE_CONST
 	p.To.Offset = nam.Type.Width
+	p.From3 = new(obj.Addr)
 	if nam.Name.Readonly {
 		p.From3.Offset = obj.RODATA
 	}
@@ -233,6 +234,7 @@ func ggloblsym(s *Sym, width int32, flags int16) {
 	}
 	p.To.Type = obj.TYPE_CONST
 	p.To.Offset = int64(width)
+	p.From3 = new(obj.Addr)
 	p.From3.Offset = int64(flags)
 }
 
