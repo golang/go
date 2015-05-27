@@ -32,7 +32,6 @@ type Node struct {
 	Name  *Name
 	Pack  *Node // real package for import . names
 	Curfn *Node // function for local variables
-	Alloc *Node // allocation call
 	Param *Param
 
 	// OPACK

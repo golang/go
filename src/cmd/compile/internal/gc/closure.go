@@ -472,11 +472,11 @@ func walkclosure(func_ *Node, init **NodeList) *Node {
 
 	// non-escaping temp to use, if any.
 	// orderexpr did not compute the type; fill it in now.
-	if func_.Alloc != nil {
-		func_.Alloc.Type = clos.Left.Left.Type
-		func_.Alloc.Orig.Type = func_.Alloc.Type
-		clos.Left.Right = func_.Alloc
-		func_.Alloc = nil
+	if x := prealloc[func_]; x != nil {
+		x.Type = clos.Left.Left.Type
+		x.Orig.Type = x.Type
+		clos.Left.Right = x
+		delete(prealloc, func_)
 	}
 
 	walkexpr(&clos, init)
@@ -676,11 +676,11 @@ func walkpartialcall(n *Node, init **NodeList) *Node {
 
 	// non-escaping temp to use, if any.
 	// orderexpr did not compute the type; fill it in now.
-	if n.Alloc != nil {
-		n.Alloc.Type = clos.Left.Left.Type
-		n.Alloc.Orig.Type = n.Alloc.Type
-		clos.Left.Right = n.Alloc
-		n.Alloc = nil
+	if x := prealloc[n]; x != nil {
+		x.Type = clos.Left.Left.Type
+		x.Orig.Type = x.Type
+		clos.Left.Right = x
+		delete(prealloc, n)
 	}
 
 	walkexpr(&clos, init)

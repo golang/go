@@ -778,17 +778,17 @@ func slicelit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 
 	// set auto to point at new temp or heap (3 assign)
 	var a *Node
-	if n.Alloc != nil {
+	if x := prealloc[n]; x != nil {
 		// temp allocated during order.c for dddarg
-		n.Alloc.Type = t
+		x.Type = t
 
 		if vstat == nil {
-			a = Nod(OAS, n.Alloc, nil)
+			a = Nod(OAS, x, nil)
 			typecheck(&a, Etop)
 			*init = list(*init, a) // zero new temp
 		}
 
-		a = Nod(OADDR, n.Alloc, nil)
+		a = Nod(OADDR, x, nil)
 	} else if n.Esc == EscNone {
 		a = temp(t)
 		if vstat == nil {
