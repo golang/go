@@ -21,7 +21,7 @@ func walk(fn *Node) {
 	Curfn = fn
 
 	if Debug['W'] != 0 {
-		s := fmt.Sprintf("\nbefore %v", Curfn.Nname.Sym)
+		s := fmt.Sprintf("\nbefore %v", Curfn.Func.Nname.Sym)
 		dumplist(s, Curfn.Nbody)
 	}
 
@@ -65,13 +65,13 @@ func walk(fn *Node) {
 	}
 	walkstmtlist(Curfn.Nbody)
 	if Debug['W'] != 0 {
-		s := fmt.Sprintf("after walk %v", Curfn.Nname.Sym)
+		s := fmt.Sprintf("after walk %v", Curfn.Func.Nname.Sym)
 		dumplist(s, Curfn.Nbody)
 	}
 
 	heapmoves()
 	if Debug['W'] != 0 && Curfn.Func.Enter != nil {
-		s := fmt.Sprintf("enter %v", Curfn.Nname.Sym)
+		s := fmt.Sprintf("enter %v", Curfn.Func.Nname.Sym)
 		dumplist(s, Curfn.Func.Enter)
 	}
 }
@@ -615,7 +615,7 @@ func walkexpr(np **Node, init **NodeList) {
 			n.Left.Func.Enter = nil
 
 			// Replace OCLOSURE with ONAME/PFUNC.
-			n.Left = n.Left.Func.Closure.Nname
+			n.Left = n.Left.Func.Closure.Func.Nname
 
 			// Update type of OCALLFUNC node.
 			// Output arguments had not changed, but their offsets could.
@@ -1719,7 +1719,7 @@ func ascompatee(op int, nl *NodeList, nr *NodeList, init **NodeList) *NodeList {
 
 	// cannot happen: caller checked that lists had same length
 	if ll != nil || lr != nil {
-		Yyerror("error in shape across %v %v %v / %d %d [%s]", Hconv(nl, obj.FmtSign), Oconv(int(op), 0), Hconv(nr, obj.FmtSign), count(nl), count(nr), Curfn.Nname.Sym.Name)
+		Yyerror("error in shape across %v %v %v / %d %d [%s]", Hconv(nl, obj.FmtSign), Oconv(int(op), 0), Hconv(nr, obj.FmtSign), count(nl), count(nr), Curfn.Func.Nname.Sym.Name)
 	}
 	return nn
 }
@@ -2687,7 +2687,7 @@ func paramstoheap(argin **Type, out int) *NodeList {
 		}
 		nn = list(nn, Nod(OAS, v.Name.Heapaddr, prealloc[v]))
 		if v.Class&^PHEAP != PPARAMOUT {
-			as = Nod(OAS, v, v.Name.Stackparam)
+			as = Nod(OAS, v, v.Name.Param.Stackparam)
 			v.Name.Param.Stackparam.Typecheck = 1
 			typecheck(&as, Etop)
 			as = applywritebarrier(as, &nn)
@@ -4027,10 +4027,10 @@ func walkprintfunc(np **Node, init **NodeList) {
 	fn := Nod(ODCLFUNC, nil, nil)
 	walkprintfunc_prgen++
 	buf = fmt.Sprintf("print·%d", walkprintfunc_prgen)
-	fn.Nname = newname(Lookup(buf))
-	fn.Nname.Name.Defn = fn
-	fn.Nname.Name.Param.Ntype = t
-	declare(fn.Nname, PFUNC)
+	fn.Func.Nname = newname(Lookup(buf))
+	fn.Func.Nname.Name.Defn = fn
+	fn.Func.Nname.Name.Param.Ntype = t
+	declare(fn.Func.Nname, PFUNC)
 
 	oldfn := Curfn
 	Curfn = nil
@@ -4051,7 +4051,7 @@ func walkprintfunc(np **Node, init **NodeList) {
 	Curfn = oldfn
 
 	a = Nod(OCALL, nil, nil)
-	a.Left = fn.Nname
+	a.Left = fn.Func.Nname
 	a.List = n.List
 	typecheck(&a, Etop)
 	walkexpr(&a, init)

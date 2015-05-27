@@ -2558,10 +2558,10 @@ yydefault:
 			t.Rlist = yyDollar[5].list
 
 			yyVAL.node = Nod(ODCLFUNC, nil, nil)
-			yyVAL.node.Nname = newfuncname(yyDollar[1].sym)
-			yyVAL.node.Nname.Name.Defn = yyVAL.node
-			yyVAL.node.Nname.Name.Param.Ntype = t // TODO: check if nname already has an ntype
-			declare(yyVAL.node.Nname, PFUNC)
+			yyVAL.node.Func.Nname = newfuncname(yyDollar[1].sym)
+			yyVAL.node.Func.Nname.Name.Defn = yyVAL.node
+			yyVAL.node.Func.Nname.Name.Param.Ntype = t // TODO: check if nname already has an ntype
+			declare(yyVAL.node.Func.Nname, PFUNC)
 
 			funchdr(yyVAL.node)
 		}
@@ -2595,11 +2595,11 @@ yydefault:
 
 			yyVAL.node = Nod(ODCLFUNC, nil, nil)
 			yyVAL.node.Func.Shortname = newfuncname(yyDollar[4].sym)
-			yyVAL.node.Nname = methodname1(yyVAL.node.Func.Shortname, rcvr.Right)
-			yyVAL.node.Nname.Name.Defn = yyVAL.node
-			yyVAL.node.Nname.Name.Param.Ntype = t
-			yyVAL.node.Nname.Nointerface = nointerface
-			declare(yyVAL.node.Nname, PFUNC)
+			yyVAL.node.Func.Nname = methodname1(yyVAL.node.Func.Shortname, rcvr.Right)
+			yyVAL.node.Func.Nname.Name.Defn = yyVAL.node
+			yyVAL.node.Func.Nname.Name.Param.Ntype = t
+			yyVAL.node.Func.Nname.Nointerface = nointerface
+			declare(yyVAL.node.Func.Nname, PFUNC)
 
 			funchdr(yyVAL.node)
 		}

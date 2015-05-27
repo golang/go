@@ -263,7 +263,7 @@ func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
 
 	if nf >= MaxFlowProg {
 		if Debug['v'] != 0 {
-			Warn("%v is too big (%d instructions)", Curfn.Nname.Sym, nf)
+			Warn("%v is too big (%d instructions)", Curfn.Func.Nname.Sym, nf)
 		}
 		return nil
 	}
@@ -786,7 +786,7 @@ func mergetemp(firstp *obj.Prog) {
 	}
 
 	if debugmerge > 0 && Debug['v'] != 0 {
-		fmt.Printf("%v [%d - %d]\n", Curfn.Nname.Sym, len(var_), nkill)
+		fmt.Printf("%v [%d - %d]\n", Curfn.Func.Nname.Sym, len(var_), nkill)
 		var v *TempVar
 		for i := 0; i < len(var_); i++ {
 			v = &var_[i]
@@ -980,7 +980,7 @@ func nilopt(firstp *obj.Prog) {
 	Flowend(g)
 
 	if Debug_checknil > 1 {
-		fmt.Printf("%v: removed %d of %d nil checks\n", Curfn.Nname.Sym, nkill, ncheck)
+		fmt.Printf("%v: removed %d of %d nil checks\n", Curfn.Func.Nname.Sym, nkill, ncheck)
 	}
 }
 

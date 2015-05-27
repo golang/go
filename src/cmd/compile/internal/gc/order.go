@@ -50,7 +50,7 @@ type Order struct {
 // described in the comment at the top of the file.
 func order(fn *Node) {
 	if Debug['W'] > 1 {
-		s := fmt.Sprintf("\nbefore order %v", fn.Nname.Sym)
+		s := fmt.Sprintf("\nbefore order %v", fn.Func.Nname.Sym)
 		dumplist(s, fn.Nbody)
 	}
 

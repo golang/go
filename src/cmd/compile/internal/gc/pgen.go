@@ -129,7 +129,7 @@ func gcsymdup(s *Sym) {
 }
 
 func emitptrargsmap() {
-	sym := Lookup(fmt.Sprintf("%s.args_stackmap", Curfn.Nname.Sym.Name))
+	sym := Lookup(fmt.Sprintf("%s.args_stackmap", Curfn.Func.Nname.Sym.Name))
 
 	nptr := int(Curfn.Type.Argwid / int64(Widthptr))
 	bv := bvalloc(int32(nptr) * 2)
@@ -354,8 +354,8 @@ func compile(fn *Node) {
 	var gcargs *Sym
 	var gclocals *Sym
 	if fn.Nbody == nil {
-		if pure_go != 0 || strings.HasPrefix(fn.Nname.Sym.Name, "init.") {
-			Yyerror("missing function body for %q", fn.Nname.Sym.Name)
+		if pure_go != 0 || strings.HasPrefix(fn.Func.Nname.Sym.Name, "init.") {
+			Yyerror("missing function body for %q", fn.Func.Nname.Sym.Name)
 			goto ret
 		}
 
@@ -408,12 +408,12 @@ func compile(fn *Node) {
 	breakpc = nil
 
 	pl = newplist()
-	pl.Name = Linksym(Curfn.Nname.Sym)
+	pl.Name = Linksym(Curfn.Func.Nname.Sym)
 
 	setlineno(Curfn)
 
 	Nodconst(&nod1, Types[TINT32], 0)
-	nam = Curfn.Nname
+	nam = Curfn.Func.Nname
 	if isblank(nam) {
 		nam = nil
 	}
@@ -436,12 +436,12 @@ func compile(fn *Node) {
 	// See test/recover.go for test cases and src/reflect/value.go
 	// for the actual functions being considered.
 	if myimportpath != "" && myimportpath == "reflect" {
-		if Curfn.Nname.Sym.Name == "callReflect" || Curfn.Nname.Sym.Name == "callMethod" {
+		if Curfn.Func.Nname.Sym.Name == "callReflect" || Curfn.Func.Nname.Sym.Name == "callMethod" {
 			ptxt.From3.Offset |= obj.WRAPPER
 		}
 	}
 
-	Afunclit(&ptxt.From, Curfn.Nname)
+	Afunclit(&ptxt.From, Curfn.Func.Nname)
 
 	ginit()
 

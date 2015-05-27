@@ -3465,16 +3465,16 @@ out:
  * type check function definition
  */
 func typecheckfunc(n *Node) {
-	typecheck(&n.Nname, Erv|Easgn)
-	t := n.Nname.Type
+	typecheck(&n.Func.Nname, Erv|Easgn)
+	t := n.Func.Nname.Type
 	if t == nil {
 		return
 	}
 	n.Type = t
-	t.Nname = n.Nname
+	t.Nname = n.Func.Nname
 	rcvr := getthisx(t).Type
 	if rcvr != nil && n.Func.Shortname != nil && !isblank(n.Func.Shortname) {
-		addmethod(n.Func.Shortname.Sym, t, true, n.Nname.Nointerface)
+		addmethod(n.Func.Shortname.Sym, t, true, n.Func.Nname.Nointerface)
 	}
 
 	for l := n.Func.Dcl; l != nil; l = l.Next {
