@@ -205,8 +205,8 @@ func Jconv(n *Node, flag int) string {
 		fmt.Fprintf(&buf, " a(%v)", n.Addable)
 	}
 
-	if c == 0 && n.Vargen != 0 {
-		fmt.Fprintf(&buf, " g(%d)", n.Vargen)
+	if c == 0 && n.Name != nil && n.Name.Vargen != 0 {
+		fmt.Fprintf(&buf, " g(%d)", n.Name.Vargen)
 	}
 
 	if n.Lineno != 0 {
@@ -1130,8 +1130,8 @@ func exprfmt(n *Node, prec int) string {
 		if (fmtmode == FExp || fmtmode == FErr) && n.Sym != nil && n.Sym.Name[0] == '~' && n.Sym.Name[1] == 'b' {
 			return "_"
 		}
-		if fmtmode == FExp && n.Sym != nil && !isblank(n) && n.Vargen > 0 {
-			return fmt.Sprintf("%v·%d", n.Sym, n.Vargen)
+		if fmtmode == FExp && n.Sym != nil && !isblank(n) && n.Name.Vargen > 0 {
+			return fmt.Sprintf("%v·%d", n.Sym, n.Name.Vargen)
 		}
 
 		// Special case: explicit name of func (*T) method(...) is turned into pkg.(*T).method,
@@ -1538,7 +1538,7 @@ func nodedump(n *Node, flag int) string {
 	}
 
 	if n.Sym != nil && n.Op != ONAME {
-		fmt.Fprintf(&buf, " %v G%d", n.Sym, n.Vargen)
+		fmt.Fprintf(&buf, " %v G%d", n.Sym, n.Name.Vargen)
 	}
 
 	if n.Type != nil {

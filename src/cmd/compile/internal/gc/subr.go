@@ -771,12 +771,13 @@ func treecopy(n *Node, lineno int32) *Node {
 			// so that all the copies of this const definition
 			// don't have the same iota value.
 			m = Nod(OXXX, nil, nil)
-
 			*m = *n
-			m.Iota = iota_
 			if lineno != 0 {
 				m.Lineno = lineno
 			}
+			m.Name = new(Name)
+			*m.Name = *n.Name
+			m.Name.Iota = iota_
 			break
 		}
 		fallthrough
@@ -1630,7 +1631,7 @@ func frame(context int) {
 		}
 		switch n.Op {
 		case ONAME:
-			fmt.Printf("%v %v G%d %v width=%d\n", Oconv(int(n.Op), 0), n.Sym, n.Vargen, n.Type, w)
+			fmt.Printf("%v %v G%d %v width=%d\n", Oconv(int(n.Op), 0), n.Sym, n.Name.Vargen, n.Type, w)
 
 		case OTYPE:
 			fmt.Printf("%v %v width=%d\n", Oconv(int(n.Op), 0), n.Type, w)

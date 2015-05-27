@@ -229,7 +229,7 @@ func declare(n *Node, ctxt uint8) {
 	s.Block = block
 	s.Lastlineno = int32(parserline())
 	s.Def = n
-	n.Vargen = int32(gen)
+	n.Name.Vargen = int32(gen)
 	n.Funcdepth = Funcdepth
 	n.Class = uint8(ctxt)
 
@@ -423,9 +423,8 @@ func oldname(s *Sym) *Node {
 		// walkdef will check s->def again once
 		// all the input source has been processed.
 		n = newname(s)
-
 		n.Op = ONONAME
-		n.Iota = iota_ // save current iota value in const declarations
+		n.Name.Iota = iota_ // save current iota value in const declarations
 	}
 
 	if Curfn != nil && n.Funcdepth > 0 && n.Funcdepth != Funcdepth && n.Op == ONAME {
@@ -624,7 +623,7 @@ func funcargs(nt *Node) {
 			declare(n.Left, PPARAM)
 			if dclcontext == PAUTO {
 				vargen++
-				n.Left.Vargen = int32(vargen)
+				n.Left.Name.Vargen = int32(vargen)
 			}
 		}
 	}
@@ -641,7 +640,7 @@ func funcargs(nt *Node) {
 			declare(n.Left, PPARAM)
 			if dclcontext == PAUTO {
 				vargen++
-				n.Left.Vargen = int32(vargen)
+				n.Left.Name.Vargen = int32(vargen)
 			}
 		}
 	}
@@ -688,7 +687,7 @@ func funcargs(nt *Node) {
 		declare(n.Left, PPARAMOUT)
 		if dclcontext == PAUTO {
 			i++
-			n.Left.Vargen = int32(i)
+			n.Left.Name.Vargen = int32(i)
 		}
 	}
 }

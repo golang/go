@@ -1627,7 +1627,7 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
 		if src.Esc&EscMask != EscReturn {
 			src.Esc = EscReturn | src.Esc&EscContentEscapes
 		}
-		src.Esc = escNoteOutputParamFlow(src.Esc, dst.Vargen, level)
+		src.Esc = escNoteOutputParamFlow(src.Esc, dst.Name.Vargen, level)
 		goto recurse
 	}
 

@@ -42,9 +42,7 @@ type Node struct {
 
 	Xoffset int64
 
-	Vargen  int32 // unique name for OTYPE/ONAME within a function.  Function outputs are numbered starting at one.
 	Lineno  int32
-	Iota    int32
 	Walkgen uint32
 
 	Funcdepth int32
@@ -87,6 +85,8 @@ type Name struct {
 	Inlvar    *Node // ONAME substitute while inlining
 	Defn      *Node // initializing assignment
 	Decldepth int32 // declaration loop depth, increased for every loop or label
+	Vargen    int32 // unique name for OTYPE/ONAME within a function.  Function outputs are numbered starting at one.
+	Iota      int32 // value if this name is iota
 	Method    bool  // OCALLMETH name
 	Readonly  bool
 	Captured  bool // is the variable captured by a closure
