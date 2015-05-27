@@ -1638,44 +1638,44 @@ structdcl:
 			}
 			n = embedded(n.Sym, importpkg);
 			n.Right = $2;
-			n.Val = $3;
+			n.SetVal($3)
 			$$ = list1(n);
 			break;
 		}
 
 		for l=$1; l != nil; l=l.Next {
 			l.N = Nod(ODCLFIELD, l.N, $2);
-			l.N.Val = $3;
+			l.N.SetVal($3)
 		}
 	}
 |	embed oliteral
 	{
-		$1.Val = $2;
+		$1.SetVal($2)
 		$$ = list1($1);
 	}
 |	'(' embed ')' oliteral
 	{
-		$2.Val = $4;
+		$2.SetVal($4)
 		$$ = list1($2);
 		Yyerror("cannot parenthesize embedded type");
 	}
 |	'*' embed oliteral
 	{
 		$2.Right = Nod(OIND, $2.Right, nil);
-		$2.Val = $3;
+		$2.SetVal($3)
 		$$ = list1($2);
 	}
 |	'(' '*' embed ')' oliteral
 	{
 		$3.Right = Nod(OIND, $3.Right, nil);
-		$3.Val = $5;
+		$3.SetVal($5)
 		$$ = list1($3);
 		Yyerror("cannot parenthesize embedded type");
 	}
 |	'*' '(' embed ')' oliteral
 	{
 		$3.Right = Nod(OIND, $3.Right, nil);
-		$3.Val = $5;
+		$3.SetVal($5)
 		$$ = list1($3);
 		Yyerror("cannot parenthesize embedded type");
 	}
@@ -2151,7 +2151,7 @@ hidden_funarg:
 		if $1 != nil {
 			$$.Left = newname($1);
 		}
-		$$.Val = $3;
+		$$.SetVal($3)
 	}
 |	sym LDDD hidden_type oliteral
 	{
@@ -2166,7 +2166,7 @@ hidden_funarg:
 			$$.Left = newname($1);
 		}
 		$$.Isddd = true;
-		$$.Val = $4;
+		$$.SetVal($4)
 	}
 
 hidden_structdcl:
@@ -2177,7 +2177,7 @@ hidden_structdcl:
 
 		if $1 != nil && $1.Name != "?" {
 			$$ = Nod(ODCLFIELD, newname($1), typenod($2));
-			$$.Val = $3;
+			$$.SetVal($3)
 		} else {
 			s = $2.Sym;
 			if s == nil && Isptr[$2.Etype] {
@@ -2189,7 +2189,7 @@ hidden_structdcl:
 			}
 			$$ = embedded(s, p);
 			$$.Right = typenod($2);
-			$$.Val = $3;
+			$$.SetVal($3)
 		}
 	}
 
@@ -2231,16 +2231,16 @@ hidden_literal:
 |	'-' LLITERAL
 	{
 		$$ = nodlit($2);
-		switch($$.Val.Ctype()){
+		switch($$.Val().Ctype()){
 		case CTINT, CTRUNE:
-			mpnegfix($$.Val.U.(*Mpint));
+			mpnegfix($$.Val().U.(*Mpint));
 			break;
 		case CTFLT:
-			mpnegflt($$.Val.U.(*Mpflt));
+			mpnegflt($$.Val().U.(*Mpflt));
 			break;
 		case CTCPLX:
-			mpnegflt(&$$.Val.U.(*Mpcplx).Real);
-			mpnegflt(&$$.Val.U.(*Mpcplx).Imag);
+			mpnegflt(&$$.Val().U.(*Mpcplx).Real);
+			mpnegflt(&$$.Val().U.(*Mpcplx).Imag);
 			break;
 		default:
 			Yyerror("bad negated constant");
@@ -2258,14 +2258,14 @@ hidden_constant:
 	hidden_literal
 |	'(' hidden_literal '+' hidden_literal ')'
 	{
-		if $2.Val.Ctype() == CTRUNE && $4.Val.Ctype() == CTINT {
+		if $2.Val().Ctype() == CTRUNE && $4.Val().Ctype() == CTINT {
 			$$ = $2;
-			mpaddfixfix($2.Val.U.(*Mpint), $4.Val.U.(*Mpint), 0);
+			mpaddfixfix($2.Val().U.(*Mpint), $4.Val().U.(*Mpint), 0);
 			break;
 		}
-		$4.Val.U.(*Mpcplx).Real = $4.Val.U.(*Mpcplx).Imag;
-		Mpmovecflt(&$4.Val.U.(*Mpcplx).Imag, 0.0);
-		$$ = nodcplxlit($2.Val, $4.Val);
+		$4.Val().U.(*Mpcplx).Real = $4.Val().U.(*Mpcplx).Imag;
+		Mpmovecflt(&$4.Val().U.(*Mpcplx).Imag, 0.0);
+		$$ = nodcplxlit($2.Val(), $4.Val());
 	}
 
 hidden_import_list:

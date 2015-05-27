@@ -593,7 +593,7 @@ func mergetemp(firstp *obj.Prog) {
 		if canmerge(n) {
 			v = &var_[nvar]
 			nvar++
-			n.Opt = v
+			n.SetOpt(v)
 			v.node = n
 		}
 	}
@@ -604,18 +604,18 @@ func mergetemp(firstp *obj.Prog) {
 	// single-use (that's why we have so many!).
 	for f := g.Start; f != nil; f = f.Link {
 		p := f.Prog
-		if p.From.Node != nil && ((p.From.Node).(*Node)).Opt != nil && p.To.Node != nil && ((p.To.Node).(*Node)).Opt != nil {
+		if p.From.Node != nil && ((p.From.Node).(*Node)).Opt() != nil && p.To.Node != nil && ((p.To.Node).(*Node)).Opt() != nil {
 			Fatal("double node %v", p)
 		}
 		v = nil
 		n, _ = p.From.Node.(*Node)
 		if n != nil {
-			v, _ = n.Opt.(*TempVar)
+			v, _ = n.Opt().(*TempVar)
 		}
 		if v == nil {
 			n, _ = p.To.Node.(*Node)
 			if n != nil {
-				v, _ = n.Opt.(*TempVar)
+				v, _ = n.Opt().(*TempVar)
 			}
 		}
 		if v != nil {
@@ -816,14 +816,14 @@ func mergetemp(firstp *obj.Prog) {
 		p := f.Prog
 		n, _ = p.From.Node.(*Node)
 		if n != nil {
-			v, _ = n.Opt.(*TempVar)
+			v, _ = n.Opt().(*TempVar)
 			if v != nil && v.merge != nil {
 				p.From.Node = v.merge.node
 			}
 		}
 		n, _ = p.To.Node.(*Node)
 		if n != nil {
-			v, _ = n.Opt.(*TempVar)
+			v, _ = n.Opt().(*TempVar)
 			if v != nil && v.merge != nil {
 				p.To.Node = v.merge.node
 			}
@@ -840,7 +840,7 @@ func mergetemp(firstp *obj.Prog) {
 
 		Curfn.Func.Dcl.End = l
 		n = l.N
-		v, _ = n.Opt.(*TempVar)
+		v, _ = n.Opt().(*TempVar)
 		if v != nil && (v.merge != nil || v.removed != 0) {
 			*lp = l.Next
 			continue
@@ -851,7 +851,7 @@ func mergetemp(firstp *obj.Prog) {
 
 	// Clear aux structures.
 	for i := 0; i < len(var_); i++ {
-		var_[i].node.Opt = nil
+		var_[i].node.SetOpt(nil)
 	}
 
 	Flowend(g)

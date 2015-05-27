@@ -998,7 +998,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
 		haslit := false
 		for l := n.List; l != nil; l = l.Next {
 			hasbyte = hasbyte || l.N.Op == OARRAYBYTESTR
-			haslit = haslit || l.N.Op == OLITERAL && len(l.N.Val.U.(string)) != 0
+			haslit = haslit || l.N.Op == OLITERAL && len(l.N.Val().U.(string)) != 0
 		}
 
 		if haslit && hasbyte {

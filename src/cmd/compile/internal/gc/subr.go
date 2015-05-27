@@ -676,8 +676,8 @@ func sortinter(t *Type) *Type {
 func Nodintconst(v int64) *Node {
 	c := Nod(OLITERAL, nil, nil)
 	c.Addable = true
-	c.Val.U = new(Mpint)
-	Mpmovecfix(c.Val.U.(*Mpint), v)
+	c.SetVal(Val{new(Mpint)})
+	Mpmovecfix(c.Val().U.(*Mpint), v)
 	c.Type = Types[TIDEAL]
 	ullmancalc(c)
 	return c
@@ -686,8 +686,8 @@ func Nodintconst(v int64) *Node {
 func nodfltconst(v *Mpflt) *Node {
 	c := Nod(OLITERAL, nil, nil)
 	c.Addable = true
-	c.Val.U = newMpflt()
-	mpmovefltflt(c.Val.U.(*Mpflt), v)
+	c.SetVal(Val{newMpflt()})
+	mpmovefltflt(c.Val().U.(*Mpflt), v)
 	c.Type = Types[TIDEAL]
 	ullmancalc(c)
 	return c
@@ -698,8 +698,8 @@ func Nodconst(n *Node, t *Type, v int64) {
 	n.Op = OLITERAL
 	n.Addable = true
 	ullmancalc(n)
-	n.Val.U = new(Mpint)
-	Mpmovecfix(n.Val.U.(*Mpint), v)
+	n.SetVal(Val{new(Mpint)})
+	Mpmovecfix(n.Val().U.(*Mpint), v)
 	n.Type = t
 
 	if Isfloat[t.Etype] {
@@ -709,14 +709,14 @@ func Nodconst(n *Node, t *Type, v int64) {
 
 func nodnil() *Node {
 	c := Nodintconst(0)
-	c.Val.U = new(NilVal)
+	c.SetVal(Val{new(NilVal)})
 	c.Type = Types[TNIL]
 	return c
 }
 
 func Nodbool(b bool) *Node {
 	c := Nodintconst(0)
-	c.Val.U = b
+	c.SetVal(Val{b})
 	c.Type = idealbool
 	return c
 }
@@ -730,7 +730,7 @@ func aindex(b *Node, t *Type) *Type {
 			Yyerror("array bound must be an integer expression")
 
 		case CTINT, CTRUNE:
-			bound = Mpgetfix(b.Val.U.(*Mpint))
+			bound = Mpgetfix(b.Val().U.(*Mpint))
 			if bound < 0 {
 				Yyerror("array bound must be non negative")
 			}
@@ -804,7 +804,7 @@ func isnil(n *Node) bool {
 	if n.Op != OLITERAL {
 		return false
 	}
-	if n.Val.Ctype() != CTNIL {
+	if n.Val().Ctype() != CTNIL {
 		return false
 	}
 	return true
@@ -3156,7 +3156,7 @@ func powtwo(n *Node) int {
 		return -1
 	}
 
-	v := uint64(Mpgetfix(n.Val.U.(*Mpint)))
+	v := uint64(Mpgetfix(n.Val().U.(*Mpint)))
 	b := uint64(1)
 	for i := 0; i < 64; i++ {
 		if b == v {

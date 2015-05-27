@@ -217,7 +217,7 @@ func (s *exprSwitch) walk(sw *Node) {
 	s.kind = switchKindExpr
 	if Isconst(cond, CTBOOL) {
 		s.kind = switchKindTrue
-		if !cond.Val.U.(bool) {
+		if !cond.Val().U.(bool) {
 			s.kind = switchKindFalse
 		}
 	}
@@ -742,11 +742,11 @@ func exprcmp(c1, c2 *caseClause) int {
 	n2 := c2.node.Left
 
 	// sort by type (for switches on interface)
-	ct := int(n1.Val.Ctype())
-	if ct > int(n2.Val.Ctype()) {
+	ct := int(n1.Val().Ctype())
+	if ct > int(n2.Val().Ctype()) {
 		return +1
 	}
-	if ct < int(n2.Val.Ctype()) {
+	if ct < int(n2.Val().Ctype()) {
 		return -1
 	}
 	if !Eqtype(n1.Type, n2.Type) {
@@ -760,16 +760,16 @@ func exprcmp(c1, c2 *caseClause) int {
 	// sort by constant value to enable binary search
 	switch ct {
 	case CTFLT:
-		return mpcmpfltflt(n1.Val.U.(*Mpflt), n2.Val.U.(*Mpflt))
+		return mpcmpfltflt(n1.Val().U.(*Mpflt), n2.Val().U.(*Mpflt))
 	case CTINT, CTRUNE:
-		return Mpcmpfixfix(n1.Val.U.(*Mpint), n2.Val.U.(*Mpint))
+		return Mpcmpfixfix(n1.Val().U.(*Mpint), n2.Val().U.(*Mpint))
 	case CTSTR:
 		// Sort strings by length and then by value.
 		// It is much cheaper to compare lengths than values,
 		// and all we need here is consistency.
 		// We respect this sorting in exprSwitch.walkCases.
-		a := n1.Val.U.(string)
-		b := n2.Val.U.(string)
+		a := n1.Val().U.(string)
+		b := n2.Val().U.(string)
 		if len(a) < len(b) {
 			return -1
 		}

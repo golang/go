@@ -408,26 +408,26 @@ func Naddr(a *obj.Addr, n *Node) {
 		if Thearch.Thechar == '8' {
 			a.Width = 0
 		}
-		switch n.Val.Ctype() {
+		switch n.Val().Ctype() {
 		default:
 			Fatal("naddr: const %v", Tconv(n.Type, obj.FmtLong))
 
 		case CTFLT:
 			a.Type = obj.TYPE_FCONST
-			a.Val = mpgetflt(n.Val.U.(*Mpflt))
+			a.Val = mpgetflt(n.Val().U.(*Mpflt))
 
 		case CTINT, CTRUNE:
 			a.Sym = nil
 			a.Type = obj.TYPE_CONST
-			a.Offset = Mpgetfix(n.Val.U.(*Mpint))
+			a.Offset = Mpgetfix(n.Val().U.(*Mpint))
 
 		case CTSTR:
-			datagostring(n.Val.U.(string), a)
+			datagostring(n.Val().U.(string), a)
 
 		case CTBOOL:
 			a.Sym = nil
 			a.Type = obj.TYPE_CONST
-			a.Offset = int64(obj.Bool2int(n.Val.U.(bool)))
+			a.Offset = int64(obj.Bool2int(n.Val().U.(bool)))
 
 		case CTNIL:
 			a.Sym = nil

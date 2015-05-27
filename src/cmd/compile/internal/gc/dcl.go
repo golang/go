@@ -833,10 +833,10 @@ func structfield(n *Node) *Type {
 		f.Broke = 1
 	}
 
-	switch n.Val.Ctype() {
+	switch n.Val().Ctype() {
 	case CTSTR:
 		f.Note = new(string)
-		*f.Note = n.Val.U.(string)
+		*f.Note = n.Val().U.(string)
 
 	default:
 		Yyerror("field annotation must be string")
@@ -942,7 +942,7 @@ func interfacefield(n *Node) *Type {
 		Fatal("interfacefield: oops %v\n", n)
 	}
 
-	if n.Val.Ctype() != CTxxx {
+	if n.Val().Ctype() != CTxxx {
 		Yyerror("interface method cannot have annotation")
 	}
 

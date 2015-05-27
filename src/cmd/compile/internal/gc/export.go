@@ -216,9 +216,9 @@ func dumpexportconst(s *Sym) {
 	dumpexporttype(t)
 
 	if t != nil && !isideal(t) {
-		fmt.Fprintf(bout, "\tconst %v %v = %v\n", Sconv(s, obj.FmtSharp), Tconv(t, obj.FmtSharp), Vconv(&n.Val, obj.FmtSharp))
+		fmt.Fprintf(bout, "\tconst %v %v = %v\n", Sconv(s, obj.FmtSharp), Tconv(t, obj.FmtSharp), Vconv(n.Val(), obj.FmtSharp))
 	} else {
-		fmt.Fprintf(bout, "\tconst %v = %v\n", Sconv(s, obj.FmtSharp), Vconv(&n.Val, obj.FmtSharp))
+		fmt.Fprintf(bout, "\tconst %v = %v\n", Sconv(s, obj.FmtSharp), Vconv(n.Val(), obj.FmtSharp))
 	}
 }
 
@@ -541,7 +541,7 @@ func dumpasmhdr() {
 		}
 		switch n.Op {
 		case OLITERAL:
-			fmt.Fprintf(b, "#define const_%s %v\n", n.Sym.Name, Vconv(&n.Val, obj.FmtSharp))
+			fmt.Fprintf(b, "#define const_%s %v\n", n.Sym.Name, Vconv(n.Val(), obj.FmtSharp))
 
 		case OTYPE:
 			t = n.Type

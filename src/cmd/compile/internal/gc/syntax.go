@@ -30,12 +30,8 @@ type Node struct {
 	// ONAME
 	Name *Name
 
-	Sym *Sym // various
-
-	Opt interface{} // for optimization passes
-
-	// OLITERAL
-	Val Val
+	Sym *Sym        // various
+	E   interface{} // Opt or Val, see methods below
 
 	Xoffset int64
 
@@ -69,6 +65,49 @@ type Node struct {
 	Assigned    bool // is the variable ever assigned to
 	Likely      int8 // likeliness of if statement
 	Hasbreak    bool // has break statement
+	hasVal      int8 // +1 for Val, -1 for Opt, 0 for not yet set
+}
+
+// Val returns the Val for the node.
+func (n *Node) Val() Val {
+	if n.hasVal != +1 {
+		return Val{}
+	}
+	return Val{n.E}
+}
+
+// SetVal sets the Val for the node, which must not have been used with SetOpt.
+func (n *Node) SetVal(v Val) {
+	if n.hasVal == -1 {
+		Debug['h'] = 1
+		Dump("have Opt", n)
+		Fatal("have Opt")
+	}
+	n.hasVal = +1
+	n.E = v.U
+}
+
+// Opt returns the optimizer data for the node.
+func (n *Node) Opt() interface{} {
+	if n.hasVal != -1 {
+		return nil
+	}
+	return n.E
+}
+
+// SetOpt sets the optimizer data for the node, which must not have been used with SetVal.
+// SetOpt(nil) is ignored for Vals to simplify call sites that are clearing Opts.
+func (n *Node) SetOpt(x interface{}) {
+	if x == nil && n.hasVal >= 0 {
+		return
+	}
+	if n.hasVal == +1 {
+		Debug['h'] = 1
+		Dump("have Val", n)
+		Fatal("have Val")
+	}
+	n.hasVal = -1
+	n.E = x
 }
 
 // Name holds Node fields used only by named nodes (ONAME, OPACK, some OLITERAL).

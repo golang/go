@@ -262,7 +262,7 @@ func Jconv(n *Node, flag int) string {
 		fmt.Fprintf(&buf, " esc(%d)", n.Esc)
 	}
 
-	if e, ok := n.Opt.(*NodeEscState); ok && e.Escloopdepth != 0 {
+	if e, ok := n.Opt().(*NodeEscState); ok && e.Escloopdepth != 0 {
 		fmt.Fprintf(&buf, " ld(%d)", e.Escloopdepth)
 	}
 
@@ -301,7 +301,7 @@ func Jconv(n *Node, flag int) string {
 }
 
 // Fmt "%V": Values
-func Vconv(v *Val, flag int) string {
+func Vconv(v Val, flag int) string {
 	switch v.Ctype() {
 	case CTINT:
 		if (flag&obj.FmtSharp != 0) || fmtmode == FExp {
@@ -1112,20 +1112,20 @@ func exprfmt(n *Node, prec int) string {
 				return Sconv(n.Sym, 0)
 			}
 		}
-		if n.Val.Ctype() == CTNIL && n.Orig != nil && n.Orig != n {
+		if n.Val().Ctype() == CTNIL && n.Orig != nil && n.Orig != n {
 			return exprfmt(n.Orig, prec)
 		}
 		if n.Type != nil && n.Type != Types[n.Type.Etype] && n.Type != idealbool && n.Type != idealstring {
 			// Need parens when type begins with what might
 			// be misinterpreted as a unary operator: * or <-.
 			if Isptr[n.Type.Etype] || (n.Type.Etype == TCHAN && n.Type.Chan == Crecv) {
-				return fmt.Sprintf("(%v)(%v)", n.Type, Vconv(&n.Val, 0))
+				return fmt.Sprintf("(%v)(%v)", n.Type, Vconv(n.Val(), 0))
 			} else {
-				return fmt.Sprintf("%v(%v)", n.Type, Vconv(&n.Val, 0))
+				return fmt.Sprintf("%v(%v)", n.Type, Vconv(n.Val(), 0))
 			}
 		}
 
-		return Vconv(&n.Val, 0)
+		return Vconv(n.Val(), 0)
 
 		// Special case: name used as local variable in export.
 	// _ becomes ~b%d internally; print as _ for export
@@ -1516,7 +1516,7 @@ func nodedump(n *Node, flag int) string {
 		fmt.Fprintf(&buf, "%v-%v%v", Oconv(int(n.Op), 0), obj.Rconv(int(n.Reg)), Jconv(n, 0))
 
 	case OLITERAL:
-		fmt.Fprintf(&buf, "%v-%v%v", Oconv(int(n.Op), 0), Vconv(&n.Val, 0), Jconv(n, 0))
+		fmt.Fprintf(&buf, "%v-%v%v", Oconv(int(n.Op), 0), Vconv(n.Val(), 0), Jconv(n, 0))
 
 	case ONAME, ONONAME:
 		if n.Sym != nil {
@@ -1541,7 +1541,7 @@ func nodedump(n *Node, flag int) string {
 	}
 
 	if n.Sym != nil && n.Op != ONAME {
-		fmt.Fprintf(&buf, " %v G%d", n.Sym, n.Name.Vargen)
+		fmt.Fprintf(&buf, " %v", n.Sym)
 	}
 
 	if n.Type != nil {
