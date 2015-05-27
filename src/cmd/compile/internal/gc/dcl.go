@@ -230,7 +230,7 @@ func declare(n *Node, ctxt uint8) {
 	s.Lastlineno = int32(parserline())
 	s.Def = n
 	n.Name.Vargen = int32(gen)
-	n.Funcdepth = Funcdepth
+	n.Name.Funcdepth = Funcdepth
 	n.Class = uint8(ctxt)
 
 	autoexport(n, ctxt)
@@ -264,7 +264,7 @@ func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
 			v = vl.N
 			v.Op = ONAME
 			declare(v, dclcontext)
-			v.Param.Ntype = t
+			v.Name.Param.Ntype = t
 			v.Name.Defn = as2
 			if Funcdepth > 0 {
 				init = list(init, Nod(ODCL, v, nil))
@@ -292,7 +292,7 @@ func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
 		v = vl.N
 		v.Op = ONAME
 		declare(v, dclcontext)
-		v.Param.Ntype = t
+		v.Name.Param.Ntype = t
 
 		if e != nil || Funcdepth > 0 || isblank(v) {
 			if Funcdepth > 0 {
@@ -347,7 +347,7 @@ func constiter(vl *NodeList, t *Node, cl *NodeList) *NodeList {
 		v.Op = OLITERAL
 		declare(v, dclcontext)
 
-		v.Param.Ntype = t
+		v.Name.Param.Ntype = t
 		v.Name.Defn = c
 
 		vv = list(vv, Nod(ODCLCONST, v, nil))
@@ -427,14 +427,14 @@ func oldname(s *Sym) *Node {
 		n.Name.Iota = iota_ // save current iota value in const declarations
 	}
 
-	if Curfn != nil && n.Funcdepth > 0 && n.Funcdepth != Funcdepth && n.Op == ONAME {
+	if Curfn != nil && n.Op == ONAME && n.Name.Funcdepth > 0 && n.Name.Funcdepth != Funcdepth {
 		// inner func is referring to var in outer func.
 		//
 		// TODO(rsc): If there is an outer variable x and we
 		// are parsing x := 5 inside the closure, until we get to
 		// the := it looks like a reference to the outer x so we'll
 		// make x a closure variable unnecessarily.
-		if n.Param.Closure == nil || n.Param.Closure.Funcdepth != Funcdepth {
+		if n.Name.Param.Closure == nil || n.Name.Param.Closure.Name.Funcdepth != Funcdepth {
 			// create new closure var.
 			c := Nod(ONAME, nil, nil)
 
@@ -444,16 +444,16 @@ func oldname(s *Sym) *Node {
 			c.Name.Defn = n
 			c.Addable = false
 			c.Ullman = 2
-			c.Funcdepth = Funcdepth
-			c.Param.Outer = n.Param.Closure
-			n.Param.Closure = c
-			c.Param.Closure = n
+			c.Name.Funcdepth = Funcdepth
+			c.Name.Param.Outer = n.Name.Param.Closure
+			n.Name.Param.Closure = c
+			c.Name.Param.Closure = n
 			c.Xoffset = 0
 			Curfn.Func.Cvars = list(Curfn.Func.Cvars, c)
 		}
 
 		// return ref to closure var, not original
-		return n.Param.Closure
+		return n.Name.Param.Closure
 	}
 
 	return n
@@ -558,7 +558,7 @@ func ifacedcl(n *Node) {
 	dclcontext = PPARAM
 	markdcl()
 	Funcdepth++
-	n.Param.Outer = Curfn
+	n.Func.Outer = Curfn
 	Curfn = n
 	funcargs(n.Right)
 
@@ -587,13 +587,13 @@ func funchdr(n *Node) {
 	markdcl()
 	Funcdepth++
 
-	n.Param.Outer = Curfn
+	n.Func.Outer = Curfn
 	Curfn = n
 
 	if n.Nname != nil {
-		funcargs(n.Nname.Param.Ntype)
-	} else if n.Param.Ntype != nil {
-		funcargs(n.Param.Ntype)
+		funcargs(n.Nname.Name.Param.Ntype)
+	} else if n.Func.Ntype != nil {
+		funcargs(n.Func.Ntype)
 	} else {
 		funcargs2(n.Type)
 	}
@@ -619,7 +619,7 @@ func funcargs(nt *Node) {
 		}
 		if n.Left != nil {
 			n.Left.Op = ONAME
-			n.Left.Param.Ntype = n.Right
+			n.Left.Name.Param.Ntype = n.Right
 			declare(n.Left, PPARAM)
 			if dclcontext == PAUTO {
 				vargen++
@@ -636,7 +636,7 @@ func funcargs(nt *Node) {
 		}
 		if n.Left != nil {
 			n.Left.Op = ONAME
-			n.Left.Param.Ntype = n.Right
+			n.Left.Name.Param.Ntype = n.Right
 			declare(n.Left, PPARAM)
 			if dclcontext == PAUTO {
 				vargen++
@@ -683,7 +683,7 @@ func funcargs(nt *Node) {
 			n.Left = nn
 		}
 
-		n.Left.Param.Ntype = n.Right
+		n.Left.Name.Param.Ntype = n.Right
 		declare(n.Left, PPARAMOUT)
 		if dclcontext == PAUTO {
 			i++
@@ -751,8 +751,8 @@ func funcbody(n *Node) {
 	}
 	popdcl()
 	Funcdepth--
-	Curfn = n.Param.Outer
-	n.Param.Outer = nil
+	Curfn = n.Func.Outer
+	n.Func.Outer = nil
 	if Funcdepth == 0 {
 		dclcontext = PEXTERN
 	}
@@ -774,7 +774,7 @@ func typedcl0(s *Sym) *Node {
  * return the ODCLTYPE node to use.
  */
 func typedcl1(n *Node, t *Node, local bool) *Node {
-	n.Param.Ntype = t
+	n.Name.Param.Ntype = t
 	n.Local = local
 	return Nod(ODCLTYPE, n, nil)
 }
@@ -916,7 +916,7 @@ func tofunargs(l *NodeList) *Type {
 
 		// esc.c needs to find f given a PPARAM to add the tag.
 		if l.N.Left != nil && l.N.Left.Class == PPARAM {
-			l.N.Left.Param.Field = f
+			l.N.Left.Name.Param.Field = f
 		}
 
 		*tp = f
@@ -1474,7 +1474,7 @@ func funccompile(n *Node) {
 
 	Stksize = 0
 	dclcontext = PAUTO
-	Funcdepth = n.Funcdepth + 1
+	Funcdepth = n.Func.Depth + 1
 	compile(n)
 	Curfn = nil
 	Funcdepth = 0

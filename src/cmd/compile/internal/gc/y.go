@@ -2560,7 +2560,7 @@ yydefault:
 			yyVAL.node = Nod(ODCLFUNC, nil, nil)
 			yyVAL.node.Nname = newfuncname(yyDollar[1].sym)
 			yyVAL.node.Nname.Name.Defn = yyVAL.node
-			yyVAL.node.Nname.Param.Ntype = t // TODO: check if nname already has an ntype
+			yyVAL.node.Nname.Name.Param.Ntype = t // TODO: check if nname already has an ntype
 			declare(yyVAL.node.Nname, PFUNC)
 
 			funchdr(yyVAL.node)
@@ -2597,7 +2597,7 @@ yydefault:
 			yyVAL.node.Func.Shortname = newfuncname(yyDollar[4].sym)
 			yyVAL.node.Nname = methodname1(yyVAL.node.Func.Shortname, rcvr.Right)
 			yyVAL.node.Nname.Name.Defn = yyVAL.node
-			yyVAL.node.Nname.Param.Ntype = t
+			yyVAL.node.Nname.Name.Param.Ntype = t
 			yyVAL.node.Nname.Nointerface = nointerface
 			declare(yyVAL.node.Nname, PFUNC)
 

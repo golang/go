@@ -71,8 +71,8 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
 			// in typecheck.c.  usually addrescapes runs after
 			// widstruct, in which case we could drop this,
 			// but function closure functions are the exception.
-			if f.Nname.Param.Stackparam != nil {
-				f.Nname.Param.Stackparam.Xoffset = o
+			if f.Nname.Name.Param.Stackparam != nil {
+				f.Nname.Name.Param.Stackparam.Xoffset = o
 				f.Nname.Xoffset = 0
 			} else {
 				f.Nname.Xoffset = o

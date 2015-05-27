@@ -17,8 +17,8 @@ func closurehdr(ntype *Node) {
 	var a *Node
 
 	n := Nod(OCLOSURE, nil, nil)
-	n.Param.Ntype = ntype
-	n.Funcdepth = Funcdepth
+	n.Func.Ntype = ntype
+	n.Func.Depth = Funcdepth
 	n.Func.Outerfunc = Curfn
 
 	funchdr(n)
@@ -72,8 +72,8 @@ func closurebody(body *NodeList) *Node {
 	var v *Node
 	for l := func_.Func.Cvars; l != nil; l = l.Next {
 		v = l.N
-		v.Param.Closure.Param.Closure = v.Param.Outer
-		v.Param.Outerexpr = oldname(v.Sym)
+		v.Name.Param.Closure.Name.Closure = v.Name.Outer
+		v.Name.Param.Outerexpr = oldname(v.Sym)
 	}
 
 	return func_
@@ -83,7 +83,7 @@ func typecheckclosure(func_ *Node, top int) {
 	var n *Node
 
 	for l := func_.Func.Cvars; l != nil; l = l.Next {
-		n = l.N.Param.Closure
+		n = l.N.Name.Param.Closure
 		if !n.Name.Captured {
 			n.Name.Captured = true
 			if n.Name.Decldepth == 0 {
@@ -105,9 +105,9 @@ func typecheckclosure(func_ *Node, top int) {
 	}
 
 	oldfn := Curfn
-	typecheck(&func_.Param.Ntype, Etype)
-	func_.Type = func_.Param.Ntype.Type
-	func_.Param.Top = top
+	typecheck(&func_.Func.Ntype, Etype)
+	func_.Type = func_.Func.Ntype.Type
+	func_.Func.Top = top
 
 	// Type check the body now, but only if we're inside a function.
 	// At top level (in a variable initialization: curfn==nil) we're not
@@ -193,11 +193,11 @@ func makeclosure(func_ *Node) *Node {
 
 	xfunc.Nname = newfuncname(closurename(func_))
 	xfunc.Nname.Sym.Flags |= SymExported // disable export
-	xfunc.Nname.Param.Ntype = xtype
+	xfunc.Nname.Name.Param.Ntype = xtype
 	xfunc.Nname.Name.Defn = xfunc
 	declare(xfunc.Nname, PFUNC)
-	xfunc.Nname.Funcdepth = func_.Funcdepth
-	xfunc.Funcdepth = func_.Funcdepth
+	xfunc.Nname.Name.Funcdepth = func_.Func.Depth
+	xfunc.Func.Depth = func_.Func.Depth
 	xfunc.Func.Endlineno = func_.Func.Endlineno
 
 	xfunc.Nbody = func_.Nbody
@@ -207,8 +207,8 @@ func makeclosure(func_ *Node) *Node {
 	}
 	typecheck(&xfunc, Etop)
 
-	xfunc.Param.Closure = func_
-	func_.Param.Closure = xfunc
+	xfunc.Func.Closure = func_
+	func_.Func.Closure = xfunc
 
 	func_.Nbody = nil
 	func_.List = nil
@@ -229,7 +229,7 @@ func capturevars(xfunc *Node) {
 	lno := int(lineno)
 	lineno = xfunc.Lineno
 
-	func_ := xfunc.Param.Closure
+	func_ := xfunc.Func.Closure
 	func_.Func.Enter = nil
 	for l := func_.Func.Cvars; l != nil; l = l.Next {
 		v = l.N
@@ -249,14 +249,14 @@ func capturevars(xfunc *Node) {
 		// so that the outer frame also grabs them and knows they escape.
 		dowidth(v.Type)
 
-		outer = v.Param.Outerexpr
-		v.Param.Outerexpr = nil
+		outer = v.Name.Param.Outerexpr
+		v.Name.Param.Outerexpr = nil
 
 		// out parameters will be assigned to implicitly upon return.
-		if outer.Class != PPARAMOUT && !v.Param.Closure.Addrtaken && !v.Param.Closure.Assigned && v.Type.Width <= 128 {
+		if outer.Class != PPARAMOUT && !v.Name.Param.Closure.Addrtaken && !v.Name.Param.Closure.Assigned && v.Type.Width <= 128 {
 			v.Name.Byval = true
 		} else {
-			v.Param.Closure.Addrtaken = true
+			v.Name.Param.Closure.Addrtaken = true
 			outer = Nod(OADDR, outer, nil)
 		}
 
@@ -269,7 +269,7 @@ func capturevars(xfunc *Node) {
 			if v.Name.Byval {
 				how = "value"
 			}
-			Warnl(int(v.Lineno), "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym, v.Param.Closure.Addrtaken, v.Param.Closure.Assigned, int32(v.Type.Width))
+			Warnl(int(v.Lineno), "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym, v.Name.Param.Closure.Addrtaken, v.Name.Param.Closure.Assigned, int32(v.Type.Width))
 		}
 
 		typecheck(&outer, Erv)
@@ -284,9 +284,9 @@ func capturevars(xfunc *Node) {
 func transformclosure(xfunc *Node) {
 	lno := int(lineno)
 	lineno = xfunc.Lineno
-	func_ := xfunc.Param.Closure
+	func_ := xfunc.Func.Closure
 
-	if func_.Param.Top&Ecall != 0 {
+	if func_.Func.Top&Ecall != 0 {
 		// If the closure is directly called, we transform it to a plain function call
 		// with variables passed as args. This avoids allocation of a closure object.
 		// Here we do only a part of the transformation. Walk of OCALLFUNC(OCLOSURE)
@@ -395,7 +395,7 @@ func transformclosure(xfunc *Node) {
 				// Declare variable holding addresses taken from closure
 				// and initialize in entry prologue.
 				addr = newname(Lookupf("&%s", v.Sym.Name))
-				addr.Param.Ntype = Nod(OIND, typenod(v.Type), nil)
+				addr.Name.Param.Ntype = Nod(OIND, typenod(v.Type), nil)
 				addr.Class = PAUTO
 				addr.Used = true
 				addr.Curfn = xfunc
@@ -420,7 +420,7 @@ func transformclosure(xfunc *Node) {
 func walkclosure(func_ *Node, init **NodeList) *Node {
 	// If no closure vars, don't bother wrapping.
 	if func_.Func.Cvars == nil {
-		return func_.Param.Closure.Nname
+		return func_.Func.Closure.Nname
 	}
 
 	// Create closure in the form of a composite literal.
@@ -457,7 +457,7 @@ func walkclosure(func_ *Node, init **NodeList) *Node {
 	clos := Nod(OCOMPLIT, nil, Nod(OIND, typ, nil))
 	clos.Esc = func_.Esc
 	clos.Right.Implicit = true
-	clos.List = concat(list1(Nod(OCFUNC, func_.Param.Closure.Nname, nil)), func_.Func.Enter)
+	clos.List = concat(list1(Nod(OCFUNC, func_.Func.Closure.Nname, nil)), func_.Func.Enter)
 
 	// Force type conversion from *struct to the func type.
 	clos = Nod(OCONVNOP, clos, nil)
@@ -583,7 +583,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	xfunc.Func.Dupok = true
 	xfunc.Nname = newfuncname(sym)
 	xfunc.Nname.Sym.Flags |= SymExported // disable export
-	xfunc.Nname.Param.Ntype = xtype
+	xfunc.Nname.Name.Param.Ntype = xtype
 	xfunc.Nname.Name.Defn = xfunc
 	declare(xfunc.Nname, PFUNC)
 
@@ -606,10 +606,10 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	xfunc.Func.Dcl = list(xfunc.Func.Dcl, ptr)
 	var body *NodeList
 	if Isptr[rcvrtype.Etype] || Isinter(rcvrtype) {
-		ptr.Param.Ntype = typenod(rcvrtype)
+		ptr.Name.Param.Ntype = typenod(rcvrtype)
 		body = list(body, Nod(OAS, ptr, cv))
 	} else {
-		ptr.Param.Ntype = typenod(Ptrto(rcvrtype))
+		ptr.Name.Param.Ntype = typenod(Ptrto(rcvrtype))
 		body = list(body, Nod(OAS, ptr, Nod(OADDR, cv, nil)))
 	}
 

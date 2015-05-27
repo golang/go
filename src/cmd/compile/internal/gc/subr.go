@@ -374,14 +374,18 @@ func Nod(op int, nleft *Node, nright *Node) *Node {
 	switch op {
 	case OCLOSURE, ODCLFUNC:
 		n.Func = new(Func)
-		n.Param = new(Param)
 	case ONAME:
 		n.Name = new(Name)
-		n.Param = new(Param)
+		n.Name.Param = new(Param)
 	case OLABEL, OPACK:
 		n.Name = new(Name)
 	case ODCLFIELD:
-		n.Param = new(Param)
+		if nleft != nil {
+			n.Name = nleft.Name
+		} else {
+			n.Name = new(Name)
+			n.Name.Param = new(Param)
+		}
 	}
 	return n
 }
@@ -759,7 +763,7 @@ func treecopy(n *Node, lineno int32) *Node {
 		if lineno != -1 {
 			m.Lineno = lineno
 		}
-		if m.Name != nil {
+		if m.Name != nil && n.Op != ODCLFIELD {
 			Dump("treecopy", n)
 			Fatal("treecopy Name")
 		}
@@ -2378,7 +2382,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 	markdcl()
 
 	this := Nod(ODCLFIELD, newname(Lookup(".this")), typenod(rcvr))
-	this.Left.Param.Ntype = this.Right
+	this.Left.Name.Param.Ntype = this.Right
 	in := structargs(getinarg(method.Type), 1)
 	out := structargs(Getoutarg(method.Type), 0)
 
@@ -2404,7 +2408,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 	fn := Nod(ODCLFUNC, nil, nil)
 	fn.Nname = newname(newnam)
 	fn.Nname.Name.Defn = fn
-	fn.Nname.Param.Ntype = t
+	fn.Nname.Name.Param.Ntype = t
 	declare(fn.Nname, PFUNC)
 	funchdr(fn)
 
@@ -2577,7 +2581,7 @@ func genhash(sym *Sym, t *Type) {
 	fn.Nname = newname(sym)
 	fn.Nname.Class = PFUNC
 	tfn := Nod(OTFUNC, nil, nil)
-	fn.Nname.Param.Ntype = tfn
+	fn.Nname.Name.Param.Ntype = tfn
 
 	n := Nod(ODCLFIELD, newname(Lookup("p")), typenod(Ptrto(t)))
 	tfn.List = list(tfn.List, n)
@@ -2589,7 +2593,7 @@ func genhash(sym *Sym, t *Type) {
 	tfn.Rlist = list(tfn.Rlist, n)
 
 	funchdr(fn)
-	typecheck(&fn.Nname.Param.Ntype, Etype)
+	typecheck(&fn.Nname.Name.Param.Ntype, Etype)
 
 	// genhash is only called for types that have equality but
 	// cannot be handled by the standard algorithms,
@@ -2829,7 +2833,7 @@ func geneq(sym *Sym, t *Type) {
 	fn.Nname = newname(sym)
 	fn.Nname.Class = PFUNC
 	tfn := Nod(OTFUNC, nil, nil)
-	fn.Nname.Param.Ntype = tfn
+	fn.Nname.Name.Param.Ntype = tfn
 
 	n := Nod(ODCLFIELD, newname(Lookup("p")), typenod(Ptrto(t)))
 	tfn.List = list(tfn.List, n)

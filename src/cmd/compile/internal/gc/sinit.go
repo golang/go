@@ -220,7 +220,7 @@ func init2(n *Node, out **NodeList) {
 	init2list(n.Nbody, out)
 
 	if n.Op == OCLOSURE {
-		init2list(n.Param.Closure.Nbody, out)
+		init2list(n.Func.Closure.Nbody, out)
 	}
 	if n.Op == ODOTMETH || n.Op == OCALLPART {
 		init2(n.Type.Nname, out)
