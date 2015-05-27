@@ -259,10 +259,10 @@ func cgen_dcl(n *Node) {
 	if compiling_runtime != 0 {
 		Yyerror("%v escapes to heap, not allowed in runtime.", n)
 	}
-	if n.Alloc == nil {
-		n.Alloc = callnew(n.Type)
+	if prealloc[n] == nil {
+		prealloc[n] = callnew(n.Type)
 	}
-	Cgen_as(n.Name.Heapaddr, n.Alloc)
+	Cgen_as(n.Name.Heapaddr, prealloc[n])
 }
 
 /*

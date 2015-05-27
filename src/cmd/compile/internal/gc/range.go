@@ -303,7 +303,7 @@ func walkrange(n *Node) {
 		ha := a
 
 		th := hiter(t)
-		hit := n.Alloc
+		hit := prealloc[n]
 		hit.Type = th
 		n.Left = nil
 		keyname := newname(th.Type.Sym)      // depends on layout of iterator struct.  See reflect.go:hiter

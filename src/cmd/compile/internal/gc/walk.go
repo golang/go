@@ -1824,8 +1824,8 @@ func mkdotargslice(lr0 *NodeList, nn *NodeList, l *Type, fp int, init **NodeList
 		n.Type = tslice
 	} else {
 		n = Nod(OCOMPLIT, nil, typenod(tslice))
-		if ddd != nil {
-			n.Alloc = ddd.Alloc // temporary to use
+		if ddd != nil && prealloc[ddd] != nil {
+			prealloc[n] = prealloc[ddd] // temporary to use
 		}
 		n.List = lr0
 		n.Esc = esc
@@ -2682,10 +2682,10 @@ func paramstoheap(argin **Type, out int) *NodeList {
 		if compiling_runtime != 0 {
 			Yyerror("%v escapes to heap, not allowed in runtime.", v)
 		}
-		if v.Alloc == nil {
-			v.Alloc = callnew(v.Type)
+		if prealloc[v] == nil {
+			prealloc[v] = callnew(v.Type)
 		}
-		nn = list(nn, Nod(OAS, v.Name.Heapaddr, v.Alloc))
+		nn = list(nn, Nod(OAS, v.Name.Heapaddr, prealloc[v]))
 		if v.Class&^PHEAP != PPARAMOUT {
 			as = Nod(OAS, v, v.Param.Stackparam)
 			v.Param.Stackparam.Typecheck = 1
@@ -2861,7 +2861,9 @@ func addstr(n *Node, init **NodeList) *Node {
 		t.Type = Types[TSTRING]
 		t.Bound = -1
 		slice := Nod(OCOMPLIT, nil, typenod(t))
-		slice.Alloc = n.Alloc
+		if prealloc[n] != nil {
+			prealloc[slice] = prealloc[n]
+		}
 		slice.List = args.Next // skip buf arg
 		args = list1(buf)
 		args = list(args, slice)

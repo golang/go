@@ -736,7 +736,7 @@ func orderstmt(n *Node, order *Order) {
 			n.Right = ordercopyexpr(r, r.Type, order, 0)
 
 			// n->alloc is the temp for the iterator.
-			n.Alloc = ordertemp(Types[TUINT8], order, true)
+			prealloc[n] = ordertemp(Types[TUINT8], order, true)
 		}
 
 		for l := n.List; l != nil; l = l.Next {
@@ -949,6 +949,9 @@ func orderexprlistinplace(l *NodeList, order *Order) {
 	}
 }
 
+// prealloc[x] records the allocation to use for x.
+var prealloc = map[*Node]*Node{}
+
 // Orderexpr orders a single expression, appending side
 // effects to order->out as needed.
 // If this is part of an assignment lhs = *np, lhs is given.
@@ -980,7 +983,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
 			t := typ(TARRAY)
 			t.Bound = int64(count(n.List))
 			t.Type = Types[TSTRING]
-			n.Alloc = ordertemp(t, order, false)
+			prealloc[n] = ordertemp(t, order, false)
 		}
 
 		// Mark string(byteSlice) arguments to reuse byteSlice backing
@@ -1118,7 +1121,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
 
 	case OCLOSURE:
 		if n.Noescape && n.Func.Cvars != nil {
-			n.Alloc = ordertemp(Types[TUINT8], order, false) // walk will fill in correct type
+			prealloc[n] = ordertemp(Types[TUINT8], order, false) // walk will fill in correct type
 		}
 
 	case OARRAYLIT, OCALLPART:
@@ -1127,7 +1130,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
 		orderexprlist(n.List, order)
 		orderexprlist(n.Rlist, order)
 		if n.Noescape {
-			n.Alloc = ordertemp(Types[TUINT8], order, false) // walk will fill in correct type
+			prealloc[n] = ordertemp(Types[TUINT8], order, false) // walk will fill in correct type
 		}
 
 	case ODDDARG:
@@ -1136,7 +1139,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
 			// Allocate a temporary that will be cleaned up when this statement
 			// completes. We could be more aggressive and try to arrange for it
 			// to be cleaned up when the call completes.
-			n.Alloc = ordertemp(n.Type.Type, order, false)
+			prealloc[n] = ordertemp(n.Type.Type, order, false)
 		}
 
 	case ODOTTYPE, ODOTTYPE2:
