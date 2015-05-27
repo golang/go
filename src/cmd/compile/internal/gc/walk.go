@@ -3857,7 +3857,11 @@ func usefield(n *Node) {
 		break
 	}
 
-	field := n.Paramfld
+	t := n.Left.Type
+	if Isptr[t.Etype] {
+		t = t.Type
+	}
+	field := dotField[typeSym{t, n.Right.Sym}]
 	if field == nil {
 		Fatal("usefield %v %v without paramfld", n.Left.Type, n.Right.Sym)
 	}
@@ -3881,10 +3885,7 @@ func usefield(n *Node) {
 		Yyerror("tracked field must be exported (upper case)")
 	}
 
-	l := typ(0)
-	l.Type = field
-	l.Down = Curfn.Paramfld
-	Curfn.Paramfld = l
+	Curfn.Func.Fieldtrack = append(Curfn.Func.Fieldtrack, field)
 }
 
 func candiscardlist(l *NodeList) bool {

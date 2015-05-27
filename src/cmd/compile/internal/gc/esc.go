@@ -1774,7 +1774,7 @@ func esctag(e *EscState, func_ *Node) {
 		case EscNone, // not touched by escflood
 			EscReturn:
 			if haspointers(ll.N.Type) { // don't bother tagging for scalars
-				ll.N.Paramfld.Note = mktag(int(ll.N.Esc))
+				ll.N.Param.Field.Note = mktag(int(ll.N.Esc))
 			}
 
 		case EscHeap, // touched by escflood, moved to heap

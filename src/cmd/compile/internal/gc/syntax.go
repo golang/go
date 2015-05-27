@@ -29,18 +29,15 @@ type Node struct {
 	Func *Func
 
 	// ONAME
-	Name     *Name
-	Defn     *Node // ONAME: initializing assignment; OLABEL: labeled statement
-	Pack     *Node // real package for import . names
-	Curfn    *Node // function for local variables
-	Paramfld *Type // TFIELD for this PPARAM; also for ODOT, curfn
-	Alloc    *Node // allocation call
-	Param    *Param
+	Name  *Name
+	Defn  *Node // ONAME: initializing assignment; OLABEL: labeled statement
+	Pack  *Node // real package for import . names
+	Curfn *Node // function for local variables
+	Alloc *Node // allocation call
+	Param *Param
 
 	// OPACK
 	Pkg *Pkg
-
-	// OARRAYLIT, OMAPLIT, OSTRUCTLIT.
 
 	// Escape analysis.
 	Escflowsrc *NodeList // flow(this, src)
@@ -116,6 +113,9 @@ type Param struct {
 	Outerexpr  *Node // expression copied into closure for variable
 	Stackparam *Node // OPARAM node referring to stack copy of param
 
+	// ONAME PPARAM
+	Field *Type // TFIELD in arg struct
+
 	// ONAME closure param with PPARAMREF
 	Outer   *Node // outer PPARAMREF in nested closure
 	Closure *Node // ONAME/PHEAP <-> ONAME/PPARAMREF
@@ -124,14 +124,15 @@ type Param struct {
 
 // Func holds Node fields used only with function-like nodes.
 type Func struct {
-	Shortname *Node
-	Enter     *NodeList
-	Exit      *NodeList
-	Cvars     *NodeList // closure params
-	Dcl       *NodeList // autodcl for this func/closure
-	Inldcl    *NodeList // copy of dcl for use in inlining
-	Closgen   int
-	Outerfunc *Node
+	Shortname  *Node
+	Enter      *NodeList
+	Exit       *NodeList
+	Cvars      *NodeList // closure params
+	Dcl        *NodeList // autodcl for this func/closure
+	Inldcl     *NodeList // copy of dcl for use in inlining
+	Closgen    int
+	Outerfunc  *Node
+	Fieldtrack []*Type
 
 	Inl     *NodeList // copy of the body for use in inlining
 	InlCost int32
