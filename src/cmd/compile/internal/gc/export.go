@@ -416,6 +416,7 @@ func pkgtype(s *Sym) *Type {
 		t := typ(TFORW)
 		t.Sym = s
 		s.Def = typenod(t)
+		s.Def.Name = new(Name)
 	}
 
 	if s.Def.Type == nil {

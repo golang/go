@@ -331,7 +331,10 @@ func importdot(opkg *Pkg, pack *Node) {
 
 		s1.Def = s.Def
 		s1.Block = s.Block
-		s1.Def.Pack = pack
+		if s1.Def.Name == nil {
+			Dump("s1def", s1.Def)
+		}
+		s1.Def.Name.Pack = pack
 		s1.Origpkg = opkg
 		n++
 	}
