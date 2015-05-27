@@ -581,7 +581,15 @@ func (s *state) evalCall(dot, fun reflect.Value, node parse.Node, name string, a
 	if final.IsValid() {
 		t := typ.In(typ.NumIn() - 1)
 		if typ.IsVariadic() {
-			t = t.Elem()
+			if numIn-1 < numFixed {
+				// The added final argument corresponds to a fixed parameter of the function.
+				// Validate against the type of the actual parameter.
+				t = typ.In(numIn - 1)
+			} else {
+				// The added final argument corresponds to the variadic part.
+				// Validate against the type of the elements of the variadic slice.
+				t = t.Elem()
+			}
 		}
 		argv[i] = s.validateType(final, t)
 	}
