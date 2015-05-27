@@ -1434,6 +1434,11 @@ casedot:
 	}
 
 caseep:
+	if importpkg == nil && (c == 'p' || c == 'P') {
+		// <mantissa>p<base-2-exponent> is allowed in .a/.o imports,
+		// but not in .go sources.  See #9036.
+		Yyerror("malformed floating point constant")
+	}
 	cp.WriteByte(byte(c))
 	c = getc()
 	if c == '+' || c == '-' {
@@ -1442,7 +1447,7 @@ caseep:
 	}
 
 	if !yy_isdigit(c) {
-		Yyerror("malformed fp constant exponent")
+		Yyerror("malformed floating point constant exponent")
 	}
 	for yy_isdigit(c) {
 		cp.WriteByte(byte(c))
