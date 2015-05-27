@@ -58,7 +58,7 @@ func (x *Float) Append(buf []byte, fmt byte, prec int) []byte {
 	}
 
 	// Inf
-	if x.IsInf() {
+	if x.form == inf {
 		if !x.neg {
 			buf = append(buf, '+')
 		}
@@ -79,12 +79,10 @@ func (x *Float) Append(buf []byte, fmt byte, prec int) []byte {
 	//   3) read digits out and format
 
 	// 1) convert Float to multiprecision decimal
-	var mant nat
+	var d decimal // == 0.0
 	if x.form == finite {
-		mant = x.mant
+		d.init(x.mant, int(x.exp)-x.mant.bitLen())
 	}
-	var d decimal
-	d.init(mant, int(x.exp)-x.mant.bitLen())
 
 	// 2) round to desired precision
 	shortest := false
