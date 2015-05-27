@@ -7,18 +7,26 @@ package ssa
 import "log"
 
 type Config struct {
-	arch       string            // "amd64", etc.
-	ptrSize    int64             // 4 or 8
-	Uintptr    Type              // pointer arithmetic type
-	lowerBlock func(*Block) bool // lowering function
-	lowerValue func(*Value) bool // lowering function
+	arch       string                     // "amd64", etc.
+	ptrSize    int64                      // 4 or 8
+	Uintptr    Type                       // pointer arithmetic type
+	lowerBlock func(*Block) bool          // lowering function
+	lowerValue func(*Value, *Config) bool // lowering function
+	fe         Frontend                   // callbacks into compiler frontend
 
 	// TODO: more stuff.  Compiler flags of interest, ...
 }
 
+type Frontend interface {
+	// StringSym returns a symbol pointing to the given string.
+	// Strings are laid out in read-only memory with one word of pointer,
+	// one word of length, then the contents of the string.
+	StringSym(string) interface{} // returns *gc.Sym
+}
+
 // NewConfig returns a new configuration object for the given architecture.
-func NewConfig(arch string) *Config {
-	c := &Config{arch: arch}
+func NewConfig(arch string, fe Frontend) *Config {
+	c := &Config{arch: arch, fe: fe}
 	switch arch {
 	case "amd64":
 		c.ptrSize = 8

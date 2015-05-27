@@ -2,7 +2,7 @@
 // generated with: go run rulegen/rulegen.go rulegen/lower_amd64.rules lowerBlockAMD64 lowerValueAMD64 lowerAmd64.go
 package ssa
 
-func lowerValueAMD64(v *Value) bool {
+func lowerValueAMD64(v *Value, config *Config) bool {
 	switch v.Op {
 	case OpADDQ:
 		// match: (ADDQ x (MOVQconst [c]))

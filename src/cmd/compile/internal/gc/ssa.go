@@ -13,12 +13,13 @@ import (
 )
 
 func buildssa(fn *Node) *ssa.Func {
-	dumplist("buildssa", Curfn.Nbody)
+	dumplist("buildssa-enter", fn.Func.Enter)
+	dumplist("buildssa-body", fn.Nbody)
 
 	var s state
 
 	// TODO(khr): build config just once at the start of the compiler binary
-	s.config = ssa.NewConfig(Thearch.Thestring)
+	s.config = ssa.NewConfig(Thearch.Thestring, ssaExport{})
 	s.f = s.config.NewFunc()
 	s.f.Name = fn.Nname.Sym.Name
 
@@ -44,6 +45,7 @@ func buildssa(fn *Node) *ssa.Func {
 
 	// Convert the AST-based IR to the SSA-based IR
 	s.startBlock(s.f.Entry)
+	s.stmtList(fn.Func.Enter)
 	s.stmtList(fn.Nbody)
 
 	// fallthrough to exit
@@ -159,7 +161,23 @@ func (s *state) stmt(n *Node) {
 
 	case OAS:
 		// TODO(khr): colas?
-		val := s.expr(n.Right)
+		var val *ssa.Value
+		if n.Right == nil {
+			// n.Right == nil means use the zero value of the assigned type.
+			t := n.Left.Type
+			switch {
+			case t.IsString():
+				val = s.f.Entry.NewValue(ssa.OpConst, n.Left.Type, "")
+			case t.IsInteger():
+				val = s.f.Entry.NewValue(ssa.OpConst, n.Left.Type, int64(0))
+			case t.IsBoolean():
+				val = s.f.Entry.NewValue(ssa.OpConst, n.Left.Type, false)
+			default:
+				log.Fatalf("zero for type %v not implemented", t)
+			}
+		} else {
+			val = s.expr(n.Right)
+		}
 		if n.Left.Op == ONAME && !n.Left.Addrtaken && n.Left.Class&PHEAP == 0 && n.Left.Class != PEXTERN && n.Left.Class != PPARAMOUT {
 			// ssa-able variable.
 			s.vars[n.Left.Sym.Name] = val
@@ -250,10 +268,6 @@ func (s *state) stmt(n *Node) {
 
 // expr converts the expression n to ssa, adds it to s and returns the ssa result.
 func (s *state) expr(n *Node) *ssa.Value {
-	if n == nil {
-		// TODO(khr): is this nil???
-		return s.f.Entry.NewValue(ssa.OpConst, n.Type, nil)
-	}
 	switch n.Op {
 	case ONAME:
 		// TODO: remember offsets for PPARAM names
@@ -268,6 +282,8 @@ func (s *state) expr(n *Node) *ssa.Value {
 		switch n.Val.Ctype {
 		case CTINT:
 			return s.f.ConstInt(n.Type, Mpgetfix(n.Val.U.(*Mpint)))
+		case CTSTR:
+			return s.f.Entry.NewValue(ssa.OpConst, n.Type, n.Val.U)
 		default:
 			log.Fatalf("unhandled OLITERAL %v", n.Val.Ctype)
 			return nil
@@ -573,7 +589,11 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	// TODO: dump frame if -f
 
 	// Emit garbage collection symbols.  TODO: put something in them
-	liveness(Curfn, ptxt, gcargs, gclocals)
+	//liveness(Curfn, ptxt, gcargs, gclocals)
+	duint32(gcargs, 0, 0)
+	ggloblsym(gcargs, 4, obj.RODATA|obj.DUPOK)
+	duint32(gclocals, 0, 0)
+	ggloblsym(gclocals, 4, obj.RODATA|obj.DUPOK)
 }
 
 func genValue(v *ssa.Value) {
@@ -703,7 +723,10 @@ func genValue(v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = regnum(v.Args[0])
 		p.To.Offset = v.Aux.(int64)
-	case ssa.OpCopy:
+	case ssa.OpCopy: // TODO: lower to MOVQ earlier?
+		if v.Type.IsMemory() {
+			return
+		}
 		x := regnum(v.Args[0])
 		y := regnum(v)
 		if x != y {
@@ -906,4 +929,13 @@ func regnum(v *ssa.Value) int16 {
 // is not assigned to a local slot.
 func localOffset(v *ssa.Value) int64 {
 	return v.Block.Func.RegAlloc[v.ID].(*ssa.LocalSlot).Idx
+}
+
+// ssaExport exports a bunch of compiler services for the ssa backend.
+type ssaExport struct{}
+
+// StringSym returns a symbol (a *Sym wrapped in an interface) which
+// is a global string constant containing s.
+func (serv ssaExport) StringSym(s string) interface{} {
+	return stringsym(s)
 }

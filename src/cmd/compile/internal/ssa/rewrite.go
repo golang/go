@@ -6,7 +6,7 @@ package ssa
 
 import "log"
 
-func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value) bool) {
+func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool) {
 	// repeat rewrites until we find no more rewrites
 	var curb *Block
 	var curv *Value
@@ -16,9 +16,11 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value) bool) {
 		}
 		if curv != nil {
 			log.Printf("panic during rewrite of %s\n", curv.LongString())
+			panic("rewrite failed")
 			// TODO(khr): print source location also
 		}
 	}()
+	config := f.Config
 	for {
 		change := false
 		for _, b := range f.Blocks {
@@ -46,7 +48,7 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value) bool) {
 
 				// apply rewrite function
 				curv = v
-				if rv(v) {
+				if rv(v, config) {
 					change = true
 				}
 				curv = nil

@@ -158,6 +158,10 @@ func regalloc(f *Func) {
 				b.Values = append(b.Values, v)
 				continue
 			}
+			if v.Op == OpCopy && v.Type.IsMemory() {
+				b.Values = append(b.Values, v)
+				continue
+			}
 
 			// Compute a good input ordering.  Start with the most constrained input.
 			order := make([]intPair, len(inputs))

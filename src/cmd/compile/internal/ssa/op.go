@@ -4,7 +4,10 @@
 
 package ssa
 
-import "fmt"
+import (
+	"fmt"
+	"log"
+)
 
 // An Op encodes the specific operation that a Value performs.
 // Opcodes' semantics can be modified by the type and aux fields of the Value.
@@ -106,7 +109,12 @@ type GlobalOffset struct {
 
 // offset adds x to the location specified by g and returns it.
 func (g GlobalOffset) offset(x int64) GlobalOffset {
-	return GlobalOffset{g.Global, g.Offset + x}
+	y := g.Offset
+	z := x + y
+	if x^y >= 0 && x^z < 0 {
+		log.Panicf("offset overflow %d %d\n", x, y)
+	}
+	return GlobalOffset{g.Global, z}
 }
 
 func (g GlobalOffset) String() string {
