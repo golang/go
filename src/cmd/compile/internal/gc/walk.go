@@ -37,8 +37,8 @@ func walk(fn *Node) {
 
 	// Propagate the used flag for typeswitch variables up to the NONAME in it's definition.
 	for l := fn.Func.Dcl; l != nil; l = l.Next {
-		if l.N.Op == ONAME && l.N.Class&^PHEAP == PAUTO && l.N.Defn != nil && l.N.Defn.Op == OTYPESW && l.N.Used {
-			l.N.Defn.Left.Used = true
+		if l.N.Op == ONAME && l.N.Class&^PHEAP == PAUTO && l.N.Name.Defn != nil && l.N.Name.Defn.Op == OTYPESW && l.N.Used {
+			l.N.Name.Defn.Left.Used = true
 		}
 	}
 
@@ -46,13 +46,13 @@ func walk(fn *Node) {
 		if l.N.Op != ONAME || l.N.Class&^PHEAP != PAUTO || l.N.Sym.Name[0] == '&' || l.N.Used {
 			continue
 		}
-		if l.N.Defn != nil && l.N.Defn.Op == OTYPESW {
-			if l.N.Defn.Left.Used {
+		if defn := l.N.Name.Defn; defn != nil && defn.Op == OTYPESW {
+			if defn.Left.Used {
 				continue
 			}
-			lineno = l.N.Defn.Left.Lineno
+			lineno = defn.Left.Lineno
 			Yyerror("%v declared and not used", l.N.Sym)
-			l.N.Defn.Left.Used = true // suppress repeats
+			defn.Left.Used = true // suppress repeats
 		} else {
 			lineno = l.N.Lineno
 			Yyerror("%v declared and not used", l.N.Sym)
@@ -2133,7 +2133,7 @@ func isstack(n *Node) bool {
 	// If n is *autotmp and autotmp = &foo, replace n with foo.
 	// We introduce such temps when initializing struct literals.
 	if n.Op == OIND && n.Left.Op == ONAME && strings.HasPrefix(n.Left.Sym.Name, "autotmp_") {
-		defn := n.Left.Defn
+		defn := n.Left.Name.Defn
 		if defn != nil && defn.Op == OAS && defn.Right.Op == OADDR {
 			n = defn.Right.Left
 		}
@@ -4026,7 +4026,7 @@ func walkprintfunc(np **Node, init **NodeList) {
 	walkprintfunc_prgen++
 	buf = fmt.Sprintf("print·%d", walkprintfunc_prgen)
 	fn.Nname = newname(Lookup(buf))
-	fn.Nname.Defn = fn
+	fn.Nname.Name.Defn = fn
 	fn.Nname.Param.Ntype = t
 	declare(fn.Nname, PFUNC)
 

@@ -145,7 +145,7 @@ func caninl(fn *Node) {
 
 	fn.Nname.Func.Inl = fn.Nbody
 	fn.Nbody = inlcopylist(fn.Nname.Func.Inl)
-	fn.Nname.Func.Inldcl = inlcopylist(fn.Nname.Defn.Func.Dcl)
+	fn.Nname.Func.Inldcl = inlcopylist(fn.Nname.Name.Defn.Func.Dcl)
 	fn.Nname.Func.InlCost = int32(maxBudget - budget)
 
 	// hack, TODO, check for better way to link method nodes back to the thing with the ->inl
@@ -521,7 +521,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 		return
 	}
 
-	if fn == Curfn || fn.Defn == Curfn {
+	if fn == Curfn || fn.Name.Defn == Curfn {
 		return
 	}
 
@@ -550,7 +550,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 	//dumplist("ninit pre", ninit);
 
 	var dcl *NodeList
-	if fn.Defn != nil { // local function
+	if fn.Name.Defn != nil { // local function
 		dcl = fn.Func.Inldcl // imported function
 	} else {
 		dcl = fn.Func.Dcl

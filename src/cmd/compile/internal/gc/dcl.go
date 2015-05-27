@@ -261,7 +261,7 @@ func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
 			v.Op = ONAME
 			declare(v, dclcontext)
 			v.Param.Ntype = t
-			v.Defn = as2
+			v.Name.Defn = as2
 			if Funcdepth > 0 {
 				init = list(init, Nod(ODCL, v, nil))
 			}
@@ -297,7 +297,7 @@ func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
 			e = Nod(OAS, v, e)
 			init = list(init, e)
 			if e.Right != nil {
-				v.Defn = e
+				v.Name.Defn = e
 			}
 		}
 	}
@@ -344,7 +344,7 @@ func constiter(vl *NodeList, t *Node, cl *NodeList) *NodeList {
 		declare(v, dclcontext)
 
 		v.Param.Ntype = t
-		v.Defn = c
+		v.Name.Defn = c
 
 		vv = list(vv, Nod(ODCLCONST, v, nil))
 	}
@@ -438,7 +438,7 @@ func oldname(s *Sym) *Node {
 			c.Sym = s
 			c.Class = PPARAMREF
 			c.Isddd = n.Isddd
-			c.Defn = n
+			c.Name.Defn = n
 			c.Addable = false
 			c.Ullman = 2
 			c.Funcdepth = Funcdepth
@@ -508,7 +508,7 @@ func colasdefn(left *NodeList, defn *Node) {
 		nnew++
 		n = newname(n.Sym)
 		declare(n, dclcontext)
-		n.Defn = defn
+		n.Name.Defn = defn
 		defn.Ninit = list(defn.Ninit, Nod(ODCL, n, nil))
 		l.N = n
 	}

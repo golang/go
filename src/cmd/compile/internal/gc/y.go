@@ -1621,7 +1621,7 @@ yydefault:
 					yyVAL.node.Nname = nn
 
 					// keep track of the instances for reporting unused
-					nn.Defn = typesw.Right
+					nn.Name.Defn = typesw.Right
 				}
 			}
 		}
@@ -1673,7 +1673,7 @@ yydefault:
 					yyVAL.node.Nname = nn
 
 					// keep track of the instances for reporting unused
-					nn.Defn = typesw.Right
+					nn.Name.Defn = typesw.Right
 				}
 			}
 		}
@@ -2559,7 +2559,7 @@ yydefault:
 
 			yyVAL.node = Nod(ODCLFUNC, nil, nil)
 			yyVAL.node.Nname = newfuncname(yyDollar[1].sym)
-			yyVAL.node.Nname.Defn = yyVAL.node
+			yyVAL.node.Nname.Name.Defn = yyVAL.node
 			yyVAL.node.Nname.Param.Ntype = t // TODO: check if nname already has an ntype
 			declare(yyVAL.node.Nname, PFUNC)
 
@@ -2596,7 +2596,7 @@ yydefault:
 			yyVAL.node = Nod(ODCLFUNC, nil, nil)
 			yyVAL.node.Func.Shortname = newfuncname(yyDollar[4].sym)
 			yyVAL.node.Nname = methodname1(yyVAL.node.Func.Shortname, rcvr.Right)
-			yyVAL.node.Nname.Defn = yyVAL.node
+			yyVAL.node.Nname.Name.Defn = yyVAL.node
 			yyVAL.node.Nname.Param.Ntype = t
 			yyVAL.node.Nname.Nointerface = nointerface
 			declare(yyVAL.node.Nname, PFUNC)
@@ -2972,7 +2972,7 @@ yydefault:
 		{
 			var l *NodeList
 
-			yyDollar[1].node.Defn = yyDollar[4].node
+			yyDollar[1].node.Name.Defn = yyDollar[4].node
 			l = list1(yyDollar[1].node)
 			if yyDollar[4].node != nil {
 				l = list(l, yyDollar[4].node)

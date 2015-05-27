@@ -2055,7 +2055,7 @@ OpSwitch:
 
 		// Code that creates temps does not bother to set defn, so do it here.
 		if n.Left.Op == ONAME && strings.HasPrefix(n.Left.Sym.Name, "autotmp_") {
-			n.Left.Defn = n
+			n.Left.Name.Defn = n
 		}
 		break OpSwitch
 
@@ -3226,7 +3226,7 @@ func checklvalue(n *Node, verb string) {
 
 func checkassign(stmt *Node, n *Node) {
 	// Variables declared in ORANGE are assigned on every iteration.
-	if n.Defn != stmt || stmt.Op == ORANGE {
+	if n.Name == nil || n.Name.Defn != stmt || stmt.Op == ORANGE {
 		r := outervalue(n)
 		var l *Node
 		for l = n; l != r; l = l.Left {
@@ -3303,7 +3303,7 @@ func typecheckas(n *Node) {
 	// so that the conversion below happens).
 	n.Left = resolve(n.Left)
 
-	if n.Left.Defn != n || n.Left.Param.Ntype != nil {
+	if n.Left.Name == nil || n.Left.Name.Defn != n || n.Left.Param.Ntype != nil {
 		typecheck(&n.Left, Erv|Easgn)
 	}
 
@@ -3315,7 +3315,7 @@ func typecheckas(n *Node) {
 		}
 	}
 
-	if n.Left.Defn == n && n.Left.Param.Ntype == nil {
+	if n.Left.Name != nil && n.Left.Name.Defn == n && n.Left.Param.Ntype == nil {
 		defaultlit(&n.Right, nil)
 		n.Left.Type = n.Right.Type
 	}
@@ -3344,7 +3344,7 @@ func typecheckas2(n *Node) {
 		// delicate little dance.
 		ll.N = resolve(ll.N)
 
-		if ll.N.Defn != n || ll.N.Param.Ntype != nil {
+		if ll.N.Name == nil || ll.N.Name.Defn != n || ll.N.Param.Ntype != nil {
 			typecheck(&ll.N, Erv|Easgn)
 		}
 	}
@@ -3368,7 +3368,7 @@ func typecheckas2(n *Node) {
 			if ll.N.Type != nil && lr.N.Type != nil {
 				lr.N = assignconv(lr.N, ll.N.Type, "assignment")
 			}
-			if ll.N.Defn == n && ll.N.Param.Ntype == nil {
+			if ll.N.Name != nil && ll.N.Name.Defn == n && ll.N.Param.Ntype == nil {
 				defaultlit(&lr.N, nil)
 				ll.N.Type = lr.N.Type
 			}
@@ -3401,7 +3401,7 @@ func typecheckas2(n *Node) {
 				if t.Type != nil && ll.N.Type != nil {
 					checkassignto(t.Type, ll.N)
 				}
-				if ll.N.Defn == n && ll.N.Param.Ntype == nil {
+				if ll.N.Name != nil && ll.N.Name.Defn == n && ll.N.Param.Ntype == nil {
 					ll.N.Type = t.Type
 				}
 				t = structnext(&s)
@@ -3433,14 +3433,14 @@ func typecheckas2(n *Node) {
 			if l.Type != nil {
 				checkassignto(r.Type, l)
 			}
-			if l.Defn == n {
+			if l.Name != nil && l.Name.Defn == n {
 				l.Type = r.Type
 			}
 			l := n.List.Next.N
 			if l.Type != nil && l.Type.Etype != TBOOL {
 				checkassignto(Types[TBOOL], l)
 			}
-			if l.Defn == n && l.Param.Ntype == nil {
+			if l.Name != nil && l.Name.Defn == n && l.Param.Ntype == nil {
 				l.Type = Types[TBOOL]
 			}
 			goto out
@@ -3725,8 +3725,8 @@ func typecheckdef(n *Node) *Node {
 			}
 		}
 
-		e := n.Defn
-		n.Defn = nil
+		e := n.Name.Defn
+		n.Name.Defn = nil
 		if e == nil {
 			lineno = n.Lineno
 			Dump("typecheckdef nil defn", n)
@@ -3780,7 +3780,7 @@ func typecheckdef(n *Node) *Node {
 		if n.Type != nil {
 			break
 		}
-		if n.Defn == nil {
+		if n.Name.Defn == nil {
 			if n.Etype != 0 { // like OPRINTN
 				break
 			}
@@ -3795,13 +3795,13 @@ func typecheckdef(n *Node) *Node {
 			Fatal("var without type, init: %v", n.Sym)
 		}
 
-		if n.Defn.Op == ONAME {
-			typecheck(&n.Defn, Erv)
-			n.Type = n.Defn.Type
+		if n.Name.Defn.Op == ONAME {
+			typecheck(&n.Name.Defn, Erv)
+			n.Type = n.Name.Defn.Type
 			break
 		}
 
-		typecheck(&n.Defn, Etop) // fills in n->type
+		typecheck(&n.Name.Defn, Etop) // fills in n->type
 
 	case OTYPE:
 		if Curfn != nil {
@@ -3923,17 +3923,17 @@ func markbreaklist(l *NodeList, implicit *Node) {
 
 	for ; l != nil; l = l.Next {
 		n = l.N
-		if n.Op == OLABEL && l.Next != nil && n.Defn == l.Next.N {
-			switch n.Defn.Op {
+		if n.Op == OLABEL && l.Next != nil && n.Name.Defn == l.Next.N {
+			switch n.Name.Defn.Op {
 			case OFOR,
 				OSWITCH,
 				OTYPESW,
 				OSELECT,
 				ORANGE:
 				lab = new(Label)
-				lab.Def = n.Defn
+				lab.Def = n.Name.Defn
 				n.Left.Sym.Label = lab
-				markbreak(n.Defn, n.Defn)
+				markbreak(n.Name.Defn, n.Name.Defn) // XXX
 				n.Left.Sym.Label = nil
 				l = l.Next
 				continue

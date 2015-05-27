@@ -194,7 +194,7 @@ func makeclosure(func_ *Node) *Node {
 	xfunc.Nname = newfuncname(closurename(func_))
 	xfunc.Nname.Sym.Flags |= SymExported // disable export
 	xfunc.Nname.Param.Ntype = xtype
-	xfunc.Nname.Defn = xfunc
+	xfunc.Nname.Name.Defn = xfunc
 	declare(xfunc.Nname, PFUNC)
 	xfunc.Nname.Funcdepth = func_.Funcdepth
 	xfunc.Funcdepth = func_.Funcdepth
@@ -584,7 +584,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	xfunc.Nname = newfuncname(sym)
 	xfunc.Nname.Sym.Flags |= SymExported // disable export
 	xfunc.Nname.Param.Ntype = xtype
-	xfunc.Nname.Defn = xfunc
+	xfunc.Nname.Name.Defn = xfunc
 	declare(xfunc.Nname, PFUNC)
 
 	// Declare and initialize variable holding receiver.

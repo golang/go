@@ -375,6 +375,8 @@ func Nod(op int, nleft *Node, nright *Node) *Node {
 	case ONAME:
 		n.Name = new(Name)
 		n.Param = new(Param)
+	case OLABEL:
+		n.Name = new(Name)
 	case ODCLFIELD:
 		n.Param = new(Param)
 	}
@@ -758,8 +760,9 @@ func treecopy(n *Node, lineno int32) *Node {
 		if lineno != -1 {
 			m.Lineno = lineno
 		}
-		if m.Defn != nil {
-			panic("abort")
+		if m.Name != nil {
+			Dump("treecopy", n)
+			Fatal("treecopy Name")
 		}
 
 	case ONONAME:
@@ -2400,7 +2403,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 
 	fn := Nod(ODCLFUNC, nil, nil)
 	fn.Nname = newname(newnam)
-	fn.Nname.Defn = fn
+	fn.Nname.Name.Defn = fn
 	fn.Nname.Param.Ntype = t
 	declare(fn.Nname, PFUNC)
 	funchdr(fn)
