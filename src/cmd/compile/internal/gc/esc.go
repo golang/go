@@ -142,8 +142,8 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
 		if n.Op == OCALLMETH {
 			fn = n.Left.Right.Sym.Def
 		}
-		if fn != nil && fn.Op == ONAME && fn.Class == PFUNC && fn.Defn != nil {
-			m := v.visit(fn.Defn)
+		if fn != nil && fn.Op == ONAME && fn.Class == PFUNC && fn.Name.Defn != nil {
+			m := v.visit(fn.Name.Defn)
 			if m < min {
 				min = m
 			}
@@ -1354,14 +1354,14 @@ func esccall(e *EscState, n *Node, up *Node) {
 	}
 
 	if fn != nil && fn.Op == ONAME && fn.Class == PFUNC &&
-		fn.Defn != nil && fn.Defn.Nbody != nil && fn.Param.Ntype != nil && fn.Defn.Esc < EscFuncTagged {
+		fn.Name.Defn != nil && fn.Name.Defn.Nbody != nil && fn.Param.Ntype != nil && fn.Name.Defn.Esc < EscFuncTagged {
 		if Debug['m'] > 2 {
 			fmt.Printf("%v::esccall:: %v in recursive group\n", Ctxt.Line(int(lineno)), Nconv(n, obj.FmtShort))
 		}
 
 		// function in same mutually recursive group.  Incorporate into flow graph.
 		//		print("esc local fn: %N\n", fn->ntype);
-		if fn.Defn.Esc == EscFuncUnknown || n.Escretval != nil {
+		if fn.Name.Defn.Esc == EscFuncUnknown || n.Escretval != nil {
 			Fatal("graph inconsistency")
 		}
 

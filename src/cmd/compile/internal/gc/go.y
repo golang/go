@@ -552,7 +552,7 @@ case:
 				$$.Nname = nn;
 	
 				// keep track of the instances for reporting unused
-				nn.Defn = typesw.Right;
+				nn.Name.Defn = typesw.Right;
 			}
 		}
 	}
@@ -598,7 +598,7 @@ case:
 				$$.Nname = nn;
 	
 				// keep track of the instances for reporting unused
-				nn.Defn = typesw.Right;
+				nn.Name.Defn = typesw.Right;
 			}
 		}
 	}
@@ -1421,7 +1421,7 @@ fndcl:
 
 		$$ = Nod(ODCLFUNC, nil, nil);
 		$$.Nname = newfuncname($1);
-		$$.Nname.Defn = $$;
+		$$.Nname.Name.Defn = $$;
 		$$.Nname.Param.Ntype = t;		// TODO: check if nname already has an ntype
 		declare($$.Nname, PFUNC);
 
@@ -1456,7 +1456,7 @@ fndcl:
 		$$ = Nod(ODCLFUNC, nil, nil);
 		$$.Func.Shortname = newfuncname($4);
 		$$.Nname = methodname1($$.Func.Shortname, rcvr.Right);
-		$$.Nname.Defn = $$;
+		$$.Nname.Name.Defn = $$;
 		$$.Nname.Param.Ntype = t;
 		$$.Nname.Nointerface = nointerface;
 		declare($$.Nname, PFUNC);
@@ -1808,7 +1808,7 @@ non_dcl_stmt:
 	{
 		var l *NodeList
 
-		$1.Defn = $4;
+		$1.Name.Defn = $4;
 		l = list1($1);
 		if $4 != nil {
 			l = list(l, $4);

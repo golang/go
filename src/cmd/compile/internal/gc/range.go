@@ -36,7 +36,7 @@ func typecheckrange(n *Node) {
 
 	// delicate little dance.  see typecheckas2
 	for ll := n.List; ll != nil; ll = ll.Next {
-		if ll.N.Defn != n {
+		if ll.N.Name == nil || ll.N.Name.Defn != n {
 			typecheck(&ll.N, Erv|Easgn)
 		}
 	}
@@ -102,7 +102,7 @@ func typecheckrange(n *Node) {
 	}
 
 	if v1 != nil {
-		if v1.Defn == n {
+		if v1.Name != nil && v1.Name.Defn == n {
 			v1.Type = t1
 		} else if v1.Type != nil && assignop(t1, v1.Type, &why) == 0 {
 			Yyerror("cannot assign type %v to %v in range%s", t1, Nconv(v1, obj.FmtLong), why)
@@ -111,7 +111,7 @@ func typecheckrange(n *Node) {
 	}
 
 	if v2 != nil {
-		if v2.Defn == n {
+		if v2.Name != nil && v2.Name.Defn == n {
 			v2.Type = t2
 		} else if v2.Type != nil && assignop(t2, v2.Type, &why) == 0 {
 			Yyerror("cannot assign type %v to %v in range%s", t2, Nconv(v2, obj.FmtLong), why)

@@ -30,7 +30,6 @@ type Node struct {
 
 	// ONAME
 	Name  *Name
-	Defn  *Node // ONAME: initializing assignment; OLABEL: labeled statement
 	Pack  *Node // real package for import . names
 	Curfn *Node // function for local variables
 	Alloc *Node // allocation call
@@ -98,6 +97,7 @@ type Node struct {
 type Name struct {
 	Heapaddr  *Node // temp holding heap address of param
 	Inlvar    *Node // ONAME substitute while inlining
+	Defn      *Node // initializing assignment
 	Decldepth int32 // declaration loop depth, increased for every loop or label
 	Method    bool  // OCALLMETH name
 	Readonly  bool

@@ -47,7 +47,7 @@ func addrescapes(n *Node) {
 
 		switch n.Class {
 		case PPARAMREF:
-			addrescapes(n.Defn)
+			addrescapes(n.Name.Defn)
 
 		// if func param, need separate temporary
 		// to hold heap pointer.
@@ -202,7 +202,7 @@ func stmtlabel(n *Node) *Label {
 		lab := n.Sym.Label
 		if lab != nil {
 			if lab.Def != nil {
-				if lab.Def.Defn == n {
+				if lab.Def.Name.Defn == n {
 					return lab
 				}
 			}
@@ -700,11 +700,11 @@ func gen(n *Node) {
 			lab.Labelpc = Pc
 		}
 
-		if n.Defn != nil {
-			switch n.Defn.Op {
+		if n.Name.Defn != nil {
+			switch n.Name.Defn.Op {
 			// so stmtlabel can find the label
 			case OFOR, OSWITCH, OSELECT:
-				n.Defn.Sym = lab.Sym
+				n.Name.Defn.Sym = lab.Sym
 			}
 		}
 

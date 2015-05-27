@@ -47,7 +47,7 @@ func init1(n *Node, out **NodeList) {
 		break
 
 	default:
-		if isblank(n) && n.Curfn == nil && n.Defn != nil && n.Defn.Initorder == InitNotStarted {
+		if isblank(n) && n.Curfn == nil && n.Name.Defn != nil && n.Name.Defn.Initorder == InitNotStarted {
 			// blank names initialization is part of init() but not
 			// when they are inside a function.
 			break
@@ -142,48 +142,48 @@ func init1(n *Node, out **NodeList) {
 
 	// make sure that everything n depends on is initialized.
 	// n->defn is an assignment to n
-	if n.Defn != nil {
-		switch n.Defn.Op {
+	if defn := n.Name.Defn; defn != nil {
+		switch defn.Op {
 		default:
 			goto bad
 
 		case ODCLFUNC:
-			init2list(n.Defn.Nbody, out)
+			init2list(defn.Nbody, out)
 
 		case OAS:
-			if n.Defn.Left != n {
+			if defn.Left != n {
 				goto bad
 			}
-			if isblank(n.Defn.Left) && candiscard(n.Defn.Right) {
-				n.Defn.Op = OEMPTY
-				n.Defn.Left = nil
-				n.Defn.Right = nil
+			if isblank(defn.Left) && candiscard(defn.Right) {
+				defn.Op = OEMPTY
+				defn.Left = nil
+				defn.Right = nil
 				break
 			}
 
-			init2(n.Defn.Right, out)
+			init2(defn.Right, out)
 			if Debug['j'] != 0 {
 				fmt.Printf("%v\n", n.Sym)
 			}
 			if isblank(n) || !staticinit(n, out) {
 				if Debug['%'] != 0 {
-					Dump("nonstatic", n.Defn)
+					Dump("nonstatic", defn)
 				}
-				*out = list(*out, n.Defn)
+				*out = list(*out, defn)
 			}
 
 		case OAS2FUNC, OAS2MAPR, OAS2DOTTYPE, OAS2RECV:
-			if n.Defn.Initorder != InitNotStarted {
+			if defn.Initorder != InitNotStarted {
 				break
 			}
-			n.Defn.Initorder = InitDone
-			for l := n.Defn.Rlist; l != nil; l = l.Next {
+			defn.Initorder = InitDone
+			for l := defn.Rlist; l != nil; l = l.Next {
 				init1(l.N, out)
 			}
 			if Debug['%'] != 0 {
-				Dump("nonstatic", n.Defn)
+				Dump("nonstatic", defn)
 			}
-			*out = list(*out, n.Defn)
+			*out = list(*out, defn)
 		}
 	}
 
@@ -197,7 +197,7 @@ func init1(n *Node, out **NodeList) {
 	return
 
 bad:
-	Dump("defn", n.Defn)
+	Dump("defn", n.Name.Defn)
 	Fatal("init1: bad defn")
 }
 
@@ -265,13 +265,13 @@ func initfix(l *NodeList) *NodeList {
  * into DATA statements if at all possible.
  */
 func staticinit(n *Node, out **NodeList) bool {
-	if n.Op != ONAME || n.Class != PEXTERN || n.Defn == nil || n.Defn.Op != OAS {
+	if n.Op != ONAME || n.Class != PEXTERN || n.Name.Defn == nil || n.Name.Defn.Op != OAS {
 		Fatal("staticinit")
 	}
 
 	lineno = n.Lineno
-	l := n.Defn.Left
-	r := n.Defn.Right
+	l := n.Name.Defn.Left
+	r := n.Name.Defn.Right
 	return staticassign(l, r, out)
 }
 
@@ -288,14 +288,14 @@ func staticcopy(l *Node, r *Node, out **NodeList) bool {
 	if r.Class != PEXTERN || r.Sym.Pkg != localpkg {
 		return false
 	}
-	if r.Defn == nil { // probably zeroed but perhaps supplied externally and of unknown value
+	if r.Name.Defn == nil { // probably zeroed but perhaps supplied externally and of unknown value
 		return false
 	}
-	if r.Defn.Op != OAS {
+	if r.Name.Defn.Op != OAS {
 		return false
 	}
 	orig := r
-	r = r.Defn.Right
+	r = r.Name.Defn.Right
 
 	switch r.Op {
 	case ONAME:

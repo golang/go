@@ -115,7 +115,7 @@ func fninit(n *NodeList) {
 	fn := Nod(ODCLFUNC, nil, nil)
 	initsym := Lookup("init")
 	fn.Nname = newname(initsym)
-	fn.Nname.Defn = fn
+	fn.Nname.Name.Defn = fn
 	fn.Nname.Param.Ntype = Nod(OTFUNC, nil, nil)
 	declare(fn.Nname, PFUNC)
 	funchdr(fn)
