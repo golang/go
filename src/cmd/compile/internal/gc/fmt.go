@@ -299,7 +299,7 @@ func Jconv(n *Node, flag int) string {
 
 // Fmt "%V": Values
 func Vconv(v *Val, flag int) string {
-	switch v.Ctype {
+	switch v.Ctype() {
 	case CTINT:
 		if (flag&obj.FmtSharp != 0) || fmtmode == FExp {
 			return Bconv(v.U.(*Mpint), obj.FmtSharp)
@@ -1109,7 +1109,7 @@ func exprfmt(n *Node, prec int) string {
 				return Sconv(n.Sym, 0)
 			}
 		}
-		if n.Val.Ctype == CTNIL && n.Orig != nil && n.Orig != n {
+		if n.Val.Ctype() == CTNIL && n.Orig != nil && n.Orig != n {
 			return exprfmt(n.Orig, prec)
 		}
 		if n.Type != nil && n.Type != Types[n.Type.Etype] && n.Type != idealbool && n.Type != idealstring {

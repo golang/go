@@ -408,7 +408,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		if Thearch.Thechar == '8' {
 			a.Width = 0
 		}
-		switch n.Val.Ctype {
+		switch n.Val.Ctype() {
 		default:
 			Fatal("naddr: const %v", Tconv(n.Type, obj.FmtLong))
 

@@ -1996,7 +1996,7 @@ ohidden_interfacedcl_list:
 
 oliteral:
 	{
-		$$.Ctype = CTxxx;
+		$$.U = nil
 	}
 |	LLITERAL
 
@@ -2231,7 +2231,7 @@ hidden_literal:
 |	'-' LLITERAL
 	{
 		$$ = nodlit($2);
-		switch($$.Val.Ctype){
+		switch($$.Val.Ctype()){
 		case CTINT, CTRUNE:
 			mpnegfix($$.Val.U.(*Mpint));
 			break;
@@ -2258,7 +2258,7 @@ hidden_constant:
 	hidden_literal
 |	'(' hidden_literal '+' hidden_literal ')'
 	{
-		if $2.Val.Ctype == CTRUNE && $4.Val.Ctype == CTINT {
+		if $2.Val.Ctype() == CTRUNE && $4.Val.Ctype() == CTINT {
 			$$ = $2;
 			mpaddfixfix($2.Val.U.(*Mpint), $4.Val.U.(*Mpint), 0);
 			break;

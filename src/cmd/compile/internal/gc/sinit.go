@@ -517,7 +517,7 @@ func staticname(t *Type, ctxt int) *Node {
 
 func isliteral(n *Node) bool {
 	if n.Op == OLITERAL {
-		if n.Val.Ctype != CTNIL {
+		if n.Val.Ctype() != CTNIL {
 			return true
 		}
 	}
@@ -1351,7 +1351,7 @@ func addvalue(p *InitPlan, xoffset int64, key *Node, n *Node) {
 func iszero(n *Node) bool {
 	switch n.Op {
 	case OLITERAL:
-		switch n.Val.Ctype {
+		switch n.Val.Ctype() {
 		default:
 			Dump("unexpected literal", n)
 			Fatal("iszero")

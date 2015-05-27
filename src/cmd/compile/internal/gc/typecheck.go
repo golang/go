@@ -301,7 +301,7 @@ OpSwitch:
 	case OLITERAL:
 		ok |= Erv
 
-		if n.Type == nil && n.Val.Ctype == CTSTR {
+		if n.Type == nil && n.Val.Ctype() == CTSTR {
 			n.Type = idealstring
 		}
 		break OpSwitch
@@ -756,12 +756,12 @@ OpSwitch:
 		}
 
 		if et == TINTER {
-			if l.Op == OLITERAL && l.Val.Ctype == CTNIL {
+			if l.Op == OLITERAL && l.Val.Ctype() == CTNIL {
 				// swap for back end
 				n.Left = r
 
 				n.Right = l
-			} else if r.Op == OLITERAL && r.Val.Ctype == CTNIL {
+			} else if r.Op == OLITERAL && r.Val.Ctype() == CTNIL {
 			} else // leave alone for back end
 			if Isinter(r.Type) == Isinter(l.Type) {
 				n.Etype = n.Op
@@ -2833,7 +2833,7 @@ func keydup(n *Node, hash map[uint32][]*Node) {
 	}
 
 	var b uint32
-	switch n.Val.Ctype {
+	switch n.Val.Ctype() {
 	default: // unknown, bool, nil
 		b = 23
 
@@ -3486,7 +3486,7 @@ func typecheckfunc(n *Node) {
 
 func stringtoarraylit(np **Node) {
 	n := *np
-	if n.Left.Op != OLITERAL || n.Left.Val.Ctype != CTSTR {
+	if n.Left.Op != OLITERAL || n.Left.Val.Ctype() != CTSTR {
 		Fatal("stringtoarraylit %v", n)
 	}
 
@@ -3844,7 +3844,7 @@ ret:
 
 func checkmake(t *Type, arg string, n *Node) int {
 	if n.Op == OLITERAL {
-		switch n.Val.Ctype {
+		switch n.Val.Ctype() {
 		case CTINT, CTRUNE, CTFLT, CTCPLX:
 			n.Val = toint(n.Val)
 			if mpcmpfixc(n.Val.U.(*Mpint), 0) < 0 {

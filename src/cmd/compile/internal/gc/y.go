@@ -3182,7 +3182,7 @@ yydefault:
 		yyDollar = yyS[yypt-0 : yypt+1]
 		//line go.y:1998
 		{
-			yyVAL.val.Ctype = CTxxx
+			yyVAL.val.U = nil
 		}
 	case 304:
 		yyDollar = yyS[yypt-4 : yypt+1]
@@ -3434,7 +3434,7 @@ yydefault:
 		//line go.y:2232
 		{
 			yyVAL.node = nodlit(yyDollar[2].val)
-			switch yyVAL.node.Val.Ctype {
+			switch yyVAL.node.Val.Ctype() {
 			case CTINT, CTRUNE:
 				mpnegfix(yyVAL.node.Val.U.(*Mpint))
 				break
@@ -3462,7 +3462,7 @@ yydefault:
 		yyDollar = yyS[yypt-5 : yypt+1]
 		//line go.y:2260
 		{
-			if yyDollar[2].node.Val.Ctype == CTRUNE && yyDollar[4].node.Val.Ctype == CTINT {
+			if yyDollar[2].node.Val.Ctype() == CTRUNE && yyDollar[4].node.Val.Ctype() == CTINT {
 				yyVAL.node = yyDollar[2].node
 				mpaddfixfix(yyDollar[2].node.Val.U.(*Mpint), yyDollar[4].node.Val.U.(*Mpint), 0)
 				break

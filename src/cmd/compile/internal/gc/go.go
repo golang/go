@@ -66,8 +66,9 @@ const (
 
 // Mpint represents an integer constant.
 type Mpint struct {
-	Val big.Int
-	Ovf bool // set if Val overflowed compiler limit (sticky)
+	Val  big.Int
+	Ovf  bool // set if Val overflowed compiler limit (sticky)
+	Rune bool // set if syntax indicates default type rune
 }
 
 // Mpflt represents a floating-point constant.
@@ -82,14 +83,38 @@ type Mpcplx struct {
 }
 
 type Val struct {
-	Ctype int16
 	// U contains one of:
-	// bool     bool when Ctype == CTBOOL
-	// *Mpint   int when Ctype == CTINT, rune when Ctype == CTRUNE
-	// *Mpflt   float when Ctype == CTFLT
-	// *Mpcplx  pair of floats when Ctype == CTCPLX
-	// string   string when Ctype == CTSTR
+	// bool     bool when n.ValCtype() == CTBOOL
+	// *Mpint   int when n.ValCtype() == CTINT, rune when n.ValCtype() == CTRUNE
+	// *Mpflt   float when n.ValCtype() == CTFLT
+	// *Mpcplx  pair of floats when n.ValCtype() == CTCPLX
+	// string   string when n.ValCtype() == CTSTR
+	// *Nilval  when n.ValCtype() == CTNIL
 	U interface{}
+}
+
+type NilVal struct{}
+
+func (v Val) Ctype() int {
+	switch x := v.U.(type) {
+	default:
+		return 0
+	case *NilVal:
+		return CTNIL
+	case bool:
+		return CTBOOL
+	case *Mpint:
+		if x.Rune {
+			return CTRUNE
+		}
+		return CTINT
+	case *Mpflt:
+		return CTFLT
+	case *Mpcplx:
+		return CTCPLX
+	case string:
+		return CTSTR
+	}
 }
 
 type Pkg struct {

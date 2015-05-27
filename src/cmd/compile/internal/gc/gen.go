@@ -340,14 +340,12 @@ func Clearslim(n *Node) {
 	case TFLOAT32, TFLOAT64:
 		var zero Mpflt
 		Mpmovecflt(&zero, 0.0)
-		z.Val.Ctype = CTFLT
 		z.Val.U = &zero
 
 	case TPTR32, TPTR64, TCHAN, TMAP:
-		z.Val.Ctype = CTNIL
+		z.Val.U = new(NilVal)
 
 	case TBOOL:
-		z.Val.Ctype = CTBOOL
 		z.Val.U = false
 
 	case TINT8,
@@ -358,7 +356,6 @@ func Clearslim(n *Node) {
 		TUINT16,
 		TUINT32,
 		TUINT64:
-		z.Val.Ctype = CTINT
 		z.Val.U = new(Mpint)
 		Mpmovecfix(z.Val.U.(*Mpint), 0)
 
