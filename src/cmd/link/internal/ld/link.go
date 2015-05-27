@@ -78,7 +78,7 @@ type LSym struct {
 	File        string
 	Dynimplib   string
 	Dynimpvers  string
-	Sect        interface{}
+	Sect        *Section
 	Autom       *Auto
 	Pcln        *Pcln
 	P           []byte

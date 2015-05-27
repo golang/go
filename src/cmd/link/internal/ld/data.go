@@ -522,7 +522,7 @@ func relocsym(s *LSym) {
 				} else if HEADTYPE == obj.Hdarwin {
 					if r.Type == obj.R_CALL {
 						if rs.Type != obj.SHOSTOBJ {
-							o += int64(uint64(Symaddr(rs)) - (rs.Sect.(*Section)).Vaddr)
+							o += int64(uint64(Symaddr(rs)) - rs.Sect.Vaddr)
 						}
 						o -= int64(r.Off) // relative to section offset, not symbol
 					} else {
@@ -534,7 +534,7 @@ func relocsym(s *LSym) {
 					o += int64(r.Siz)
 					// GNU ld always add VirtualAddress of the .text section to the
 					// relocated address, compensate that.
-					o -= int64(s.Sect.(*Section).Vaddr - PEBASE)
+					o -= int64(s.Sect.Vaddr - PEBASE)
 				} else {
 					Diag("unhandled pcrel relocation for %s", headstring)
 				}
@@ -1681,7 +1681,7 @@ func address() {
 	for sym := datap; sym != nil; sym = sym.Next {
 		Ctxt.Cursym = sym
 		if sym.Sect != nil {
-			sym.Value += int64((sym.Sect.(*Section)).Vaddr)
+			sym.Value += int64(sym.Sect.Vaddr)
 		}
 		for sub = sym.Sub; sub != nil; sub = sub.Sub {
 			sub.Value += sym.Value

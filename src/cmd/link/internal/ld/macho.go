@@ -706,7 +706,7 @@ func machosymtab() {
 				Diag("missing section for %s", s.Name)
 				Adduint8(Ctxt, symtab, 0)
 			} else {
-				Adduint8(Ctxt, symtab, uint8((o.Sect.(*Section)).Extnum))
+				Adduint8(Ctxt, symtab, uint8(o.Sect.Extnum))
 			}
 			Adduint16(Ctxt, symtab, 0) // desc
 			adduintxx(Ctxt, symtab, uint64(Symaddr(s)), Thearch.Ptrsize)
