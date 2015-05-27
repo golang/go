@@ -2182,6 +2182,7 @@ func lexinit() {
 
 			s1.Lexical = LNAME
 			s1.Def = typenod(t)
+			s1.Def.Name = new(Name)
 			continue
 		}
 
@@ -2207,11 +2208,13 @@ func lexinit() {
 	s = Pkglookup("true", builtinpkg)
 	s.Def = Nodbool(true)
 	s.Def.Sym = Lookup("true")
+	s.Def.Name = new(Name)
 	s.Def.Type = idealbool
 
 	s = Pkglookup("false", builtinpkg)
 	s.Def = Nodbool(false)
 	s.Def.Sym = Lookup("false")
+	s.Def.Name = new(Name)
 	s.Def.Type = idealbool
 
 	s = Lookup("_")
@@ -2235,6 +2238,7 @@ func lexinit() {
 	v.U = new(NilVal)
 	s.Def = nodlit(v)
 	s.Def.Sym = s
+	s.Def.Name = new(Name)
 }
 
 func lexinit1() {
@@ -2282,6 +2286,7 @@ func lexinit1() {
 	bytetype.Sym = s1
 	s1.Lexical = LNAME
 	s1.Def = typenod(bytetype)
+	s1.Def.Name = new(Name)
 
 	// rune alias
 	s = Lookup("rune")
@@ -2292,6 +2297,7 @@ func lexinit1() {
 	runetype.Sym = s1
 	s1.Lexical = LNAME
 	s1.Def = typenod(runetype)
+	s1.Def.Name = new(Name)
 }
 
 func lexfini() {
@@ -2311,6 +2317,7 @@ func lexfini() {
 		etype = syms[i].etype
 		if etype != Txxx && (etype != TANY || Debug['A'] != 0) && s.Def == nil {
 			s.Def = typenod(Types[etype])
+			s.Def.Name = new(Name)
 			s.Origpkg = builtinpkg
 		}
 
@@ -2328,6 +2335,7 @@ func lexfini() {
 		s = Lookup(Thearch.Typedefs[i].Name)
 		if s.Def == nil {
 			s.Def = typenod(Types[Thearch.Typedefs[i].Etype])
+			s.Def.Name = new(Name)
 			s.Origpkg = builtinpkg
 		}
 	}
@@ -2338,18 +2346,21 @@ func lexfini() {
 
 	if s.Def == nil {
 		s.Def = typenod(bytetype)
+		s.Def.Name = new(Name)
 		s.Origpkg = builtinpkg
 	}
 
 	s = Lookup("error")
 	if s.Def == nil {
 		s.Def = typenod(errortype)
+		s.Def.Name = new(Name)
 		s.Origpkg = builtinpkg
 	}
 
 	s = Lookup("rune")
 	if s.Def == nil {
 		s.Def = typenod(runetype)
+		s.Def.Name = new(Name)
 		s.Origpkg = builtinpkg
 	}
 
@@ -2359,6 +2370,7 @@ func lexfini() {
 		v.U = new(NilVal)
 		s.Def = nodlit(v)
 		s.Def.Sym = s
+		s.Def.Name = new(Name)
 		s.Origpkg = builtinpkg
 	}
 
@@ -2373,6 +2385,7 @@ func lexfini() {
 	if s.Def == nil {
 		s.Def = Nodbool(true)
 		s.Def.Sym = s
+		s.Def.Name = new(Name)
 		s.Origpkg = builtinpkg
 	}
 
@@ -2380,6 +2393,7 @@ func lexfini() {
 	if s.Def == nil {
 		s.Def = Nodbool(false)
 		s.Def.Sym = s
+		s.Def.Name = new(Name)
 		s.Origpkg = builtinpkg
 	}
 
@@ -2572,9 +2586,9 @@ func mkpackage(pkgname string) {
 			if s.Def.Sym != s {
 				// throw away top-level name left over
 				// from previous import . "x"
-				if s.Def.Pack != nil && !s.Def.Pack.Used && nsyntaxerrors == 0 {
-					pkgnotused(int(s.Def.Pack.Lineno), s.Def.Pack.Pkg.Path, "")
-					s.Def.Pack.Used = true
+				if s.Def.Name != nil && s.Def.Name.Pack != nil && !s.Def.Name.Pack.Used && nsyntaxerrors == 0 {
+					pkgnotused(int(s.Def.Name.Pack.Lineno), s.Def.Name.Pack.Pkg.Path, "")
+					s.Def.Name.Pack.Used = true
 				}
 
 				s.Def = nil

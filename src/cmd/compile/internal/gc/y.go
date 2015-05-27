@@ -2390,8 +2390,8 @@ yydefault:
 		//line go.y:1222
 		{
 			yyVAL.node = oldname(yyDollar[1].sym)
-			if yyVAL.node.Pack != nil {
-				yyVAL.node.Pack.Used = true
+			if yyVAL.node.Name != nil && yyVAL.node.Name.Pack != nil {
+				yyVAL.node.Name.Pack.Used = true
 			}
 		}
 	case 164:
@@ -2846,8 +2846,8 @@ yydefault:
 
 			yyVAL.sym = yyDollar[1].sym
 			n = oldname(yyDollar[1].sym)
-			if n.Pack != nil {
-				n.Pack.Used = true
+			if n.Name != nil && n.Name.Pack != nil {
+				n.Name.Pack.Used = true
 			}
 		}
 	case 237:

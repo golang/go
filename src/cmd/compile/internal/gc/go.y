@@ -1221,8 +1221,8 @@ name:
 	sym	%prec NotParen
 	{
 		$$ = oldname($1);
-		if $$.Pack != nil {
-			$$.Pack.Used = true;
+		if $$.Name != nil && $$.Name.Pack != nil {
+			$$.Name.Pack.Used = true;
 		}
 	}
 
@@ -1687,8 +1687,8 @@ packname:
 
 		$$ = $1;
 		n = oldname($1);
-		if n.Pack != nil {
-			n.Pack.Used = true;
+		if n.Name != nil && n.Name.Pack != nil {
+			n.Name.Pack.Used = true;
 		}
 	}
 |	LNAME '.' sym

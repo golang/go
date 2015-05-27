@@ -30,7 +30,6 @@ type Node struct {
 
 	// ONAME
 	Name  *Name
-	Pack  *Node // real package for import . names
 	Curfn *Node // function for local variables
 	Param *Param
 
@@ -94,6 +93,7 @@ type Node struct {
 
 // Name holds Node fields used only by ONAME nodes.
 type Name struct {
+	Pack      *Node // real package for import . names
 	Heapaddr  *Node // temp holding heap address of param
 	Inlvar    *Node // ONAME substitute while inlining
 	Defn      *Node // initializing assignment

@@ -174,6 +174,10 @@ func declare(n *Node, ctxt uint8) {
 		return
 	}
 
+	if n.Name == nil {
+		// named OLITERAL needs Name; most OLITERALs don't.
+		n.Name = new(Name)
+	}
 	n.Lineno = int32(parserline())
 	s := n.Sym
 

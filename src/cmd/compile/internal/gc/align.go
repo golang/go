@@ -432,6 +432,7 @@ func typeinit() {
 	Types[TUNSAFEPTR] = t
 	t.Sym = Pkglookup("Pointer", unsafepkg)
 	t.Sym.Def = typenod(t)
+	t.Sym.Def.Name = new(Name)
 
 	dowidth(Types[TUNSAFEPTR])
 
@@ -654,6 +655,7 @@ func typeinit() {
 		dowidth(t)
 		Types[etype] = t
 		s1.Def = typenod(t)
+		s1.Def.Name = new(Name)
 	}
 
 	Array_array = int(Rnd(0, int64(Widthptr)))
