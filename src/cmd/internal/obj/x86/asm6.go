@@ -3301,7 +3301,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				l = int(v >> 32)
 				if l == 0 && rel.Siz != 8 {
 					//p->mark |= 0100;
-					//print("zero: %llux %P\n", v, p);
+					//print("zero: %llux %v\n", v, p);
 					ctxt.Rexflag &^= (0x40 | Rxw)
 
 					ctxt.Rexflag |= regrex[p.To.Reg] & Rxb
@@ -3317,14 +3317,14 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				} else if l == -1 && uint64(v)&(uint64(1)<<31) != 0 { /* sign extend */
 
 					//p->mark |= 0100;
-					//print("sign: %llux %P\n", v, p);
+					//print("sign: %llux %v\n", v, p);
 					ctxt.Andptr[0] = 0xc7
 					ctxt.Andptr = ctxt.Andptr[1:]
 
 					asmando(ctxt, p, &p.To, 0)
 					put4(ctxt, int32(v)) /* need all 8 */
 				} else {
-					//print("all: %llux %P\n", v, p);
+					//print("all: %llux %v\n", v, p);
 					ctxt.Rexflag |= regrex[p.To.Reg] & Rxb
 
 					ctxt.Andptr[0] = byte(op + reg[p.To.Reg])

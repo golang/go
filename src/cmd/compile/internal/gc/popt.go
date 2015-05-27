@@ -313,7 +313,7 @@ func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
 				Fatal("fnil %v / %v", p, p.To.Val.(*obj.Prog))
 			}
 			if f1 == f {
-				//fatal("self loop %P", p);
+				//fatal("self loop %v", p);
 				continue
 			}
 
@@ -1026,10 +1026,10 @@ for(f1 = f0; f1 != nil; f1 = f1->p1) {
 	}
 
 	if(f1->p1 == nil && f1->p2 == nil) {
-		print("lost pred for %P\n", fcheck->prog);
+		print("lost pred for %v\n", fcheck->prog);
 		for(f1=f0; f1!=nil; f1=f1->p1) {
 			thearch.proginfo(&info, f1->prog);
-			print("\t%P %d %d %D %D\n", r1->prog, info.flags&RightWrite, thearch.sameaddr(&f1->prog->to, &fcheck->prog->from), &f1->prog->to, &fcheck->prog->from);
+			print("\t%v %d %d %D %D\n", r1->prog, info.flags&RightWrite, thearch.sameaddr(&f1->prog->to, &fcheck->prog->from), &f1->prog->to, &fcheck->prog->from);
 		}
 		fatal("lost pred trail");
 	}

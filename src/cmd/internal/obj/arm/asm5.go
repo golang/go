@@ -720,7 +720,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
 				bflag = 1
 			}
 
-			//print("%P pc changed %d to %d in iter. %d\n", p, opc, (int32)p->pc, times);
+			//print("%v pc changed %d to %d in iter. %d\n", p, opc, (int32)p->pc, times);
 			c = int32(p.Pc + int64(m))
 
 			if m%4 != 0 || p.Pc%4 != 0 {
