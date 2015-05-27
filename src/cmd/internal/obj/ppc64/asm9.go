@@ -746,7 +746,7 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
 		a2 = C_REG
 	}
 
-	//print("oplook %P %d %d %d %d\n", p, a1, a2, a3, a4);
+	//print("oplook %v %d %d %d %d\n", p, a1, a2, a3, a4);
 	r0 := p.As & obj.AMask
 
 	o := oprange[r0].start
@@ -1488,7 +1488,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 	o4 := uint32(0)
 	o5 := uint32(0)
 
-	//print("%P => case %d\n", p, o->type);
+	//print("%v => case %d\n", p, o->type);
 	switch o.type_ {
 	default:
 		ctxt.Diag("unknown type %d", o.type_)
@@ -2190,7 +2190,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			 * qc has already complained.
 			 *
 			if(v < 0 || v > 31)
-				ctxt->diag("illegal shift %ld\n%P", v, p);
+				ctxt->diag("illegal shift %ld\n%v", v, p);
 		*/
 		if v < 0 {
 			v = 0

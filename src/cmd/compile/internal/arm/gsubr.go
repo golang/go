@@ -402,7 +402,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 		p1.From.Offset = 2<<5 | 31<<7 | int64(r1.Reg)&15 // r1->31
 		p1.From.Reg = 0
 
-		//print("gmove: %P\n", p1);
+		//print("gmove: %v\n", p1);
 		gins(arm.AMOVW, &r1, &tlo)
 
 		gins(arm.AMOVW, &r2, &thi)

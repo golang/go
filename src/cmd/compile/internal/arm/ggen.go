@@ -395,7 +395,7 @@ func clearfat(nl *gc.Node) {
 			p.To.Offset = 4
 			p.Scond |= arm.C_PBIT
 
-			//print("1. %P\n", p);
+			//print("1. %v\n", p);
 			q--
 		}
 	}
@@ -407,7 +407,7 @@ func clearfat(nl *gc.Node) {
 		p.To.Offset = 1
 		p.Scond |= arm.C_PBIT
 
-		//print("2. %P\n", p);
+		//print("2. %v\n", p);
 		c--
 	}
 
