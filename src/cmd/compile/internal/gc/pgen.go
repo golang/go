@@ -448,8 +448,8 @@ func compile(fn *Node) {
 	gcargs = makefuncdatasym("gcargs·%d", obj.FUNCDATA_ArgsPointerMaps)
 	gclocals = makefuncdatasym("gclocals·%d", obj.FUNCDATA_LocalsPointerMaps)
 
-	for t := Curfn.Paramfld; t != nil; t = t.Down {
-		gtrack(tracksym(t.Type))
+	for _, t := range Curfn.Func.Fieldtrack {
+		gtrack(tracksym(t))
 	}
 
 	for l := fn.Func.Dcl; l != nil; l = l.Next {

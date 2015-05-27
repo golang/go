@@ -913,7 +913,7 @@ func tofunargs(l *NodeList) *Type {
 
 		// esc.c needs to find f given a PPARAM to add the tag.
 		if l.N.Left != nil && l.N.Left.Class == PPARAM {
-			l.N.Left.Paramfld = f
+			l.N.Left.Param.Field = f
 		}
 
 		*tp = f

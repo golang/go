@@ -2489,6 +2489,15 @@ func derefall(t *Type) *Type {
 	return t
 }
 
+type typeSym struct {
+	t *Type
+	s *Sym
+}
+
+// dotField maps (*Type, *Sym) pairs to the corresponding struct field (*Type with Etype==TFIELD).
+// It is a cache for use during usefield in walk.go, only enabled when field tracking.
+var dotField = map[typeSym]*Type{}
+
 func lookdot(n *Node, t *Type, dostrcmp int) *Type {
 	s := n.Right.Sym
 
@@ -2521,7 +2530,9 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Type {
 		}
 		n.Xoffset = f1.Width
 		n.Type = f1.Type
-		n.Paramfld = f1
+		if obj.Fieldtrack_enabled > 0 {
+			dotField[typeSym{t, s}] = f1
+		}
 		if t.Etype == TINTER {
 			if Isptr[n.Left.Type.Etype] {
 				n.Left = Nod(OIND, n.Left, nil) // implicitstar
