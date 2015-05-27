@@ -469,11 +469,11 @@ func compile(fn *Node) {
 		}
 	}
 
-	Genlist(Curfn.Func.Enter)
 	if ssafn != nil {
 		genssa(ssafn, ptxt, gcargs, gclocals)
 		return
 	}
+	Genlist(Curfn.Func.Enter)
 	Genlist(Curfn.Nbody)
 	gclean()
 	checklabels()

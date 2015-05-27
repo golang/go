@@ -47,6 +47,10 @@ func (t *Type) IsPtr() bool {
 		t.Etype == TMAP || t.Etype == TCHAN || t.Etype == TFUNC
 }
 
+func (t *Type) IsString() bool {
+	return t.Etype == TSTRING
+}
+
 func (t *Type) Elem() ssa.Type {
 	return t.Type
 }

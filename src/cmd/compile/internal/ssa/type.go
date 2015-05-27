@@ -16,6 +16,7 @@ type Type interface {
 	IsSigned() bool
 	IsFloat() bool
 	IsPtr() bool
+	IsString() bool
 
 	IsMemory() bool // special ssa-package-only types
 	IsFlags() bool
@@ -34,6 +35,7 @@ type TypeImpl struct {
 	Signed  bool
 	Float   bool
 	Ptr     bool
+	string  bool
 
 	Memory bool
 	Flags  bool
@@ -47,6 +49,7 @@ func (t *TypeImpl) IsInteger() bool { return t.Integer }
 func (t *TypeImpl) IsSigned() bool  { return t.Signed }
 func (t *TypeImpl) IsFloat() bool   { return t.Float }
 func (t *TypeImpl) IsPtr() bool     { return t.Ptr }
+func (t *TypeImpl) IsString() bool  { return t.string }
 func (t *TypeImpl) IsMemory() bool  { return t.Memory }
 func (t *TypeImpl) IsFlags() bool   { return t.Flags }
 func (t *TypeImpl) String() string  { return t.Name }
@@ -65,6 +68,7 @@ var (
 	TypeUInt64 = &TypeImpl{Size_: 8, Integer: true, Name: "uint64"}
 	TypeBool   = &TypeImpl{Size_: 1, Boolean: true, Name: "bool"}
 	//TypeString = types.Typ[types.String]
+	TypeBytePtr = &TypeImpl{Size_: 8, Ptr: true, Name: "*byte"}
 
 	TypeInvalid = &TypeImpl{Name: "invalid"}
 

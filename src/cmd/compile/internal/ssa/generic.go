@@ -2,7 +2,7 @@
 // generated with: go run rulegen/rulegen.go rulegen/generic.rules genericBlockRules genericValueRules generic.go
 package ssa
 
-func genericValueRules(v *Value) bool {
+func genericValueRules(v *Value, config *Config) bool {
 	switch v.Op {
 	case OpAdd:
 		// match: (Add <t> (Const [c]) (Const [d]))
@@ -55,6 +55,36 @@ func genericValueRules(v *Value) bool {
 		goto end3809f4c52270a76313e4ea26e6f0b753
 	end3809f4c52270a76313e4ea26e6f0b753:
 		;
+	case OpConst:
+		// match: (Const <t> [s])
+		// cond: t.IsString()
+		// result: (StringMake (OffPtr <TypeBytePtr> [2*config.ptrSize] (Global <TypeBytePtr> [config.fe.StringSym(s.(string))])) (Const <config.Uintptr> [int64(len(s.(string)))]))
+		{
+			t := v.Type
+			s := v.Aux
+			if !(t.IsString()) {
+				goto end8442aa5b3f4e5b840055475883110372
+			}
+			v.Op = OpStringMake
+			v.Aux = nil
+			v.resetArgs()
+			v0 := v.Block.NewValue(OpOffPtr, TypeInvalid, nil)
+			v0.Type = TypeBytePtr
+			v0.Aux = 2 * config.ptrSize
+			v1 := v.Block.NewValue(OpGlobal, TypeInvalid, nil)
+			v1.Type = TypeBytePtr
+			v1.Aux = config.fe.StringSym(s.(string))
+			v0.AddArg(v1)
+			v.AddArg(v0)
+			v2 := v.Block.NewValue(OpConst, TypeInvalid, nil)
+			v2.Type = config.Uintptr
+			v2.Aux = int64(len(s.(string)))
+			v.AddArg(v2)
+			return true
+		}
+		goto end8442aa5b3f4e5b840055475883110372
+	end8442aa5b3f4e5b840055475883110372:
+		;
 	case OpIsInBounds:
 		// match: (IsInBounds (Const [c]) (Const [d]))
 		// cond:
@@ -76,6 +106,39 @@ func genericValueRules(v *Value) bool {
 		}
 		goto enddbd1a394d9b71ee64335361b8384865c
 	enddbd1a394d9b71ee64335361b8384865c:
+		;
+	case OpLoad:
+		// match: (Load <t> ptr mem)
+		// cond: t.IsString()
+		// result: (StringMake (Load <TypeBytePtr> ptr mem) (Load <config.Uintptr> (OffPtr <TypeBytePtr> [config.ptrSize] ptr) mem))
+		{
+			t := v.Type
+			ptr := v.Args[0]
+			mem := v.Args[1]
+			if !(t.IsString()) {
+				goto endd0afd003b70d726a1c5bbaf51fe06182
+			}
+			v.Op = OpStringMake
+			v.Aux = nil
+			v.resetArgs()
+			v0 := v.Block.NewValue(OpLoad, TypeInvalid, nil)
+			v0.Type = TypeBytePtr
+			v0.AddArg(ptr)
+			v0.AddArg(mem)
+			v.AddArg(v0)
+			v1 := v.Block.NewValue(OpLoad, TypeInvalid, nil)
+			v1.Type = config.Uintptr
+			v2 := v.Block.NewValue(OpOffPtr, TypeInvalid, nil)
+			v2.Type = TypeBytePtr
+			v2.Aux = config.ptrSize
+			v2.AddArg(ptr)
+			v1.AddArg(v2)
+			v1.AddArg(mem)
+			v.AddArg(v1)
+			return true
+		}
+		goto endd0afd003b70d726a1c5bbaf51fe06182
+	endd0afd003b70d726a1c5bbaf51fe06182:
 		;
 	case OpMul:
 		// match: (Mul <t> (Const [c]) (Const [d]))
@@ -106,7 +169,7 @@ func genericValueRules(v *Value) bool {
 	case OpPtrIndex:
 		// match: (PtrIndex <t> ptr idx)
 		// cond:
-		// result: (Add ptr (Mul <v.Block.Func.Config.Uintptr> idx (Const <v.Block.Func.Config.Uintptr> [t.Elem().Size()])))
+		// result: (Add ptr (Mul <config.Uintptr> idx (Const <config.Uintptr> [t.Elem().Size()])))
 		{
 			t := v.Type
 			ptr := v.Args[0]
@@ -116,25 +179,25 @@ func genericValueRules(v *Value) bool {
 			v.resetArgs()
 			v.AddArg(ptr)
 			v0 := v.Block.NewValue(OpMul, TypeInvalid, nil)
-			v0.Type = v.Block.Func.Config.Uintptr
+			v0.Type = config.Uintptr
 			v0.AddArg(idx)
 			v1 := v.Block.NewValue(OpConst, TypeInvalid, nil)
-			v1.Type = v.Block.Func.Config.Uintptr
+			v1.Type = config.Uintptr
 			v1.Aux = t.Elem().Size()
 			v0.AddArg(v1)
 			v.AddArg(v0)
 			return true
 		}
-		goto end383c68c41e72d22ef00c4b7b0fddcbb8
-	end383c68c41e72d22ef00c4b7b0fddcbb8:
+		goto end88c7c383675420d1581daeb899039fa8
+	end88c7c383675420d1581daeb899039fa8:
 		;
 	case OpSliceCap:
 		// match: (SliceCap (Load ptr mem))
 		// cond:
-		// result: (Load (Add <ptr.Type> ptr (Const <v.Block.Func.Config.Uintptr> [int64(v.Block.Func.Config.ptrSize*2)])) mem)
+		// result: (Load (Add <ptr.Type> ptr (Const <config.Uintptr> [int64(config.ptrSize*2)])) mem)
 		{
 			if v.Args[0].Op != OpLoad {
-				goto endbf1d4db93c4664ed43be3f73afb4dfa3
+				goto endc871dcd9a720b4290c9cae78fe147c8a
 			}
 			ptr := v.Args[0].Args[0]
 			mem := v.Args[0].Args[1]
@@ -145,23 +208,23 @@ func genericValueRules(v *Value) bool {
 			v0.Type = ptr.Type
 			v0.AddArg(ptr)
 			v1 := v.Block.NewValue(OpConst, TypeInvalid, nil)
-			v1.Type = v.Block.Func.Config.Uintptr
-			v1.Aux = int64(v.Block.Func.Config.ptrSize * 2)
+			v1.Type = config.Uintptr
+			v1.Aux = int64(config.ptrSize * 2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
 			v.AddArg(mem)
 			return true
 		}
-		goto endbf1d4db93c4664ed43be3f73afb4dfa3
-	endbf1d4db93c4664ed43be3f73afb4dfa3:
+		goto endc871dcd9a720b4290c9cae78fe147c8a
+	endc871dcd9a720b4290c9cae78fe147c8a:
 		;
 	case OpSliceLen:
 		// match: (SliceLen (Load ptr mem))
 		// cond:
-		// result: (Load (Add <ptr.Type> ptr (Const <v.Block.Func.Config.Uintptr> [int64(v.Block.Func.Config.ptrSize)])) mem)
+		// result: (Load (Add <ptr.Type> ptr (Const <config.Uintptr> [int64(config.ptrSize)])) mem)
 		{
 			if v.Args[0].Op != OpLoad {
-				goto end9190b1ecbda4c5dd6d3e05d2495fb297
+				goto end1eec05e44f5fc8944e7c176f98a74d92
 			}
 			ptr := v.Args[0].Args[0]
 			mem := v.Args[0].Args[1]
@@ -172,15 +235,15 @@ func genericValueRules(v *Value) bool {
 			v0.Type = ptr.Type
 			v0.AddArg(ptr)
 			v1 := v.Block.NewValue(OpConst, TypeInvalid, nil)
-			v1.Type = v.Block.Func.Config.Uintptr
-			v1.Aux = int64(v.Block.Func.Config.ptrSize)
+			v1.Type = config.Uintptr
+			v1.Aux = int64(config.ptrSize)
 			v0.AddArg(v1)
 			v.AddArg(v0)
 			v.AddArg(mem)
 			return true
 		}
-		goto end9190b1ecbda4c5dd6d3e05d2495fb297
-	end9190b1ecbda4c5dd6d3e05d2495fb297:
+		goto end1eec05e44f5fc8944e7c176f98a74d92
+	end1eec05e44f5fc8944e7c176f98a74d92:
 		;
 	case OpSlicePtr:
 		// match: (SlicePtr (Load ptr mem))
@@ -231,6 +294,78 @@ func genericValueRules(v *Value) bool {
 		}
 		goto end324ffb6d2771808da4267f62c854e9c8
 	end324ffb6d2771808da4267f62c854e9c8:
+		;
+		// match: (Store dst str mem)
+		// cond: str.Type.IsString()
+		// result: (Store (OffPtr <TypeBytePtr> [config.ptrSize] dst) (StringLen <config.Uintptr> str) (Store <TypeMem> dst (StringPtr <TypeBytePtr> str) mem))
+		{
+			dst := v.Args[0]
+			str := v.Args[1]
+			mem := v.Args[2]
+			if !(str.Type.IsString()) {
+				goto end410559d97aed8018f820cd88723de442
+			}
+			v.Op = OpStore
+			v.Aux = nil
+			v.resetArgs()
+			v0 := v.Block.NewValue(OpOffPtr, TypeInvalid, nil)
+			v0.Type = TypeBytePtr
+			v0.Aux = config.ptrSize
+			v0.AddArg(dst)
+			v.AddArg(v0)
+			v1 := v.Block.NewValue(OpStringLen, TypeInvalid, nil)
+			v1.Type = config.Uintptr
+			v1.AddArg(str)
+			v.AddArg(v1)
+			v2 := v.Block.NewValue(OpStore, TypeInvalid, nil)
+			v2.Type = TypeMem
+			v2.AddArg(dst)
+			v3 := v.Block.NewValue(OpStringPtr, TypeInvalid, nil)
+			v3.Type = TypeBytePtr
+			v3.AddArg(str)
+			v2.AddArg(v3)
+			v2.AddArg(mem)
+			v.AddArg(v2)
+			return true
+		}
+		goto end410559d97aed8018f820cd88723de442
+	end410559d97aed8018f820cd88723de442:
+		;
+	case OpStringLen:
+		// match: (StringLen (StringMake _ len))
+		// cond:
+		// result: len
+		{
+			if v.Args[0].Op != OpStringMake {
+				goto end0d922460b7e5ca88324034f4bd6c027c
+			}
+			len := v.Args[0].Args[1]
+			v.Op = len.Op
+			v.Aux = len.Aux
+			v.resetArgs()
+			v.AddArgs(len.Args...)
+			return true
+		}
+		goto end0d922460b7e5ca88324034f4bd6c027c
+	end0d922460b7e5ca88324034f4bd6c027c:
+		;
+	case OpStringPtr:
+		// match: (StringPtr (StringMake ptr _))
+		// cond:
+		// result: ptr
+		{
+			if v.Args[0].Op != OpStringMake {
+				goto end061edc5d85c73ad909089af2556d9380
+			}
+			ptr := v.Args[0].Args[0]
+			v.Op = ptr.Op
+			v.Aux = ptr.Aux
+			v.resetArgs()
+			v.AddArgs(ptr.Args...)
+			return true
+		}
+		goto end061edc5d85c73ad909089af2556d9380
+	end061edc5d85c73ad909089af2556d9380:
 	}
 	return false
 }
