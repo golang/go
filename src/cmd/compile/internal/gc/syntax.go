@@ -33,10 +33,6 @@ type Node struct {
 	Curfn *Node // function for local variables
 	Param *Param
 
-	// Escape analysis.
-	Escflowsrc *NodeList // flow(this, src)
-	Escretval  *NodeList // on OCALLxxx, list of dummy return values
-
 	Sym *Sym // various
 
 	Opt interface{} // for optimization passes
@@ -45,9 +41,6 @@ type Node struct {
 	Val Val
 
 	Xoffset int64
-
-	// Escape analysis.
-	Escloopdepth int32 // -1: global, 0: return variables, 1:function top level, increased inside function for every loop or label to mark scopes
 
 	Vargen  int32 // unique name for OTYPE/ONAME within a function.  Function outputs are numbered starting at one.
 	Lineno  int32
@@ -59,9 +52,7 @@ type Node struct {
 	// OREGISTER, OINDREG
 	Reg int16
 
-	// most nodes - smaller fields
-	Esclevel Level
-	Esc      uint16 // EscXXX
+	Esc uint16 // EscXXX
 
 	Op          uint8
 	Nointerface bool

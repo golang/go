@@ -259,8 +259,8 @@ func Jconv(n *Node, flag int) string {
 		fmt.Fprintf(&buf, " esc(%d)", n.Esc)
 	}
 
-	if n.Escloopdepth != 0 {
-		fmt.Fprintf(&buf, " ld(%d)", n.Escloopdepth)
+	if e, ok := n.Opt.(*NodeEscState); ok && e.Escloopdepth != 0 {
+		fmt.Fprintf(&buf, " ld(%d)", e.Escloopdepth)
 	}
 
 	if c == 0 && n.Typecheck != 0 {
