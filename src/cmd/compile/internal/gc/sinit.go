@@ -20,6 +20,7 @@ const (
 
 var initlist *NodeList
 var initplans = make(map[*Node]*InitPlan)
+var inittemps = make(map[*Node]*Node)
 
 // init1 walks the AST starting at n, and accumulates in out
 // the list of definitions needing init code in dependency order.
@@ -327,7 +328,7 @@ func staticcopy(l *Node, r *Node, out **NodeList) bool {
 
 			// copy pointer
 		case OARRAYLIT, OSTRUCTLIT, OMAPLIT:
-			gdata(l, Nod(OADDR, r.Nname, nil), int(l.Type.Width))
+			gdata(l, Nod(OADDR, inittemps[r], nil), int(l.Type.Width))
 
 			return true
 		}
@@ -335,7 +336,7 @@ func staticcopy(l *Node, r *Node, out **NodeList) bool {
 	case OARRAYLIT:
 		if Isslice(r.Type) {
 			// copy slice
-			a := r.Nname
+			a := inittemps[r]
 
 			n1 := *l
 			n1.Xoffset = l.Xoffset + int64(Array_array)
@@ -424,7 +425,7 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
 		case OARRAYLIT, OMAPLIT, OSTRUCTLIT:
 			a := staticname(r.Left.Type, 1)
 
-			r.Nname = a
+			inittemps[r] = a
 			gdata(l, Nod(OADDR, a, nil), int(l.Type.Width))
 
 			// Init underlying literal.
@@ -450,7 +451,7 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
 			ta.Type = r.Type.Type
 			ta.Bound = Mpgetfix(r.Right.Val.U.(*Mpint))
 			a := staticname(ta, 1)
-			r.Nname = a
+			inittemps[r] = a
 			n1 = *l
 			n1.Xoffset = l.Xoffset + int64(Array_array)
 			gdata(&n1, Nod(OADDR, a, nil), Widthptr)
