@@ -29,8 +29,8 @@ func resolve(n *Node) *Node {
 		if r != nil {
 			if r.Op != OIOTA {
 				n = r
-			} else if n.Iota >= 0 {
-				n = Nodintconst(int64(n.Iota))
+			} else if n.Name.Iota >= 0 {
+				n = Nodintconst(int64(n.Name.Iota))
 			}
 		}
 	}
@@ -3565,7 +3565,9 @@ func copytype(n *Node, t *Type) {
 	t = n.Type
 	t.Sym = n.Sym
 	t.Local = n.Local
-	t.Vargen = n.Vargen
+	if n.Name != nil {
+		t.Vargen = n.Name.Vargen
+	}
 	t.Siggen = 0
 	t.Method = nil
 	t.Xmethod = nil
