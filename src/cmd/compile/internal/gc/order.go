@@ -1090,7 +1090,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
 
 	case OAPPEND:
 		ordercallargs(&n.List, order)
-		if lhs == nil || flag_race != 0 || lhs.Op != ONAME && !samesafeexpr(lhs, n.List.N) {
+		if lhs == nil || lhs.Op != ONAME && !samesafeexpr(lhs, n.List.N) {
 			n = ordercopyexpr(n, n.Type, order, 0)
 		}
 
@@ -1100,7 +1100,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
 		n.Right.Left = ordercheapexpr(n.Right.Left, order)
 		orderexpr(&n.Right.Right, order, nil)
 		n.Right.Right = ordercheapexpr(n.Right.Right, order)
-		if lhs == nil || flag_race != 0 || lhs.Op != ONAME && !samesafeexpr(lhs, n.Left) {
+		if lhs == nil || lhs.Op != ONAME && !samesafeexpr(lhs, n.Left) {
 			n = ordercopyexpr(n, n.Type, order, 0)
 		}
 
@@ -1112,7 +1112,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
 		n.Right.Right.Left = ordercheapexpr(n.Right.Right.Left, order)
 		orderexpr(&n.Right.Right.Right, order, nil)
 		n.Right.Right.Right = ordercheapexpr(n.Right.Right.Right, order)
-		if lhs == nil || flag_race != 0 || lhs.Op != ONAME && !samesafeexpr(lhs, n.Left) {
+		if lhs == nil || lhs.Op != ONAME && !samesafeexpr(lhs, n.Left) {
 			n = ordercopyexpr(n, n.Type, order, 0)
 		}
 
