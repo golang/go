@@ -209,7 +209,9 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 	}
 
 	if ctxt.Headtype == obj.Hnacl && p.Mode == 64 {
-		nacladdr(ctxt, p, &p.From3)
+		if p.From3 != nil {
+			nacladdr(ctxt, p, p.From3)
+		}
 		nacladdr(ctxt, p, &p.From)
 		nacladdr(ctxt, p, &p.To)
 	}
@@ -347,7 +349,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 				p.From.Offset = 0
 			}
 		}
-		if p.From3.Name == obj.NAME_EXTERN {
+		if p.From3 != nil && p.From3.Name == obj.NAME_EXTERN {
 			ctxt.Diag("don't know how to handle %v with -dynlink", p)
 		}
 		var source *obj.Addr
@@ -715,12 +717,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		if a == obj.NAME_PARAM {
 			p.From.Offset += int64(deltasp) + int64(pcsize)
 		}
-		a = int(p.From3.Name)
-		if a == obj.NAME_AUTO {
-			p.From3.Offset += int64(deltasp) - int64(bpsize)
-		}
-		if a == obj.NAME_PARAM {
-			p.From3.Offset += int64(deltasp) + int64(pcsize)
+		if p.From3 != nil {
+			a = int(p.From3.Name)
+			if a == obj.NAME_AUTO {
+				p.From3.Offset += int64(deltasp) - int64(bpsize)
+			}
+			if a == obj.NAME_PARAM {
+				p.From3.Offset += int64(deltasp) + int64(pcsize)
+			}
 		}
 		a = int(p.To.Name)
 		if a == obj.NAME_AUTO {

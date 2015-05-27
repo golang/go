@@ -606,9 +606,9 @@ func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) bool {
 // 	  can be rewritten independently)
 //	0 otherwise (not touched)
 func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
-	if p.From3.Type != obj.TYPE_NONE {
+	if p.From3Type() != obj.TYPE_NONE {
 		// 9g never generates a from3
-		fmt.Printf("copyu: from3 (%v) not implemented\n", gc.Ctxt.Dconv(&p.From3))
+		fmt.Printf("copyu: from3 (%v) not implemented\n", gc.Ctxt.Dconv(p.From3))
 	}
 
 	switch p.As {

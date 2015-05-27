@@ -2040,7 +2040,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		rt := int(p.To.Reg)
 		var r int
 		var ra int
-		if p.From3.Type == obj.TYPE_REG {
+		if p.From3Type() == obj.TYPE_REG {
 			r = int(p.From3.Reg)
 			ra = int(p.Reg)
 			if ra == 0 {
@@ -2091,7 +2091,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		r := int(p.Reg)
 		var rf int
 		if r != 0 {
-			if p.From3.Type == obj.TYPE_NONE {
+			if p.From3Type() == obj.TYPE_NONE {
 				/* CINC/CINV/CNEG */
 				rf = r
 
@@ -2348,7 +2348,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			ctxt.Diag("requires uimm16\n%v", p)
 		}
 		s := 0
-		if p.From3.Type != obj.TYPE_NONE {
+		if p.From3Type() != obj.TYPE_NONE {
 			if p.From3.Type != obj.TYPE_CONST {
 				ctxt.Diag("missing bit position\n%v", p)
 			}
@@ -2656,8 +2656,9 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			ctxt.Diag("implausible condition\n%v", p)
 		}
 		rf := int(p.Reg)
-		if p.From3.Reg < REG_F0 || p.From3.Reg > REG_F31 {
+		if p.From3 == nil || p.From3.Reg < REG_F0 || p.From3.Reg > REG_F31 {
 			ctxt.Diag("illegal FCCMP\n%v", p)
+			break
 		}
 		rt := int(p.From3.Reg)
 		o1 |= uint32(rf&31)<<16 | uint32(cond)<<12 | uint32(rt&31)<<5 | uint32(nzcv)

@@ -413,6 +413,7 @@ func compile(fn *Node) {
 		nam = nil
 	}
 	ptxt = Thearch.Gins(obj.ATEXT, nam, &nod1)
+	ptxt.From3 = new(obj.Addr)
 	if fn.Func.Dupok {
 		ptxt.From3.Offset |= obj.DUPOK
 	}
