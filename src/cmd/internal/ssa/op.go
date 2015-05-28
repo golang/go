@@ -34,6 +34,8 @@ const (
 	OpAdd // arg0 + arg1
 	OpSub // arg0 - arg1
 	OpMul // arg0 * arg1
+	OpLsh // arg0 << arg1
+	OpRsh // arg0 >> arg1 (signed/unsigned depending on signedness of type)
 
 	// 2-input comparisons
 	OpLess // arg0 < arg1
@@ -83,10 +85,6 @@ const (
 
 	OpOffPtr // arg0 + aux.(int64) (arg0 and result are pointers)
 
-	// These ops return a pointer to a location on the stack.
-	OpFPAddr // FP + aux.(int64) (+ == args from caller, - == locals)
-	OpSPAddr // SP + aux.(int64)
-
 	// spill&restore ops for the register allocator.  These are
 	// semantically identical to OpCopy; they do not take/return
 	// stores like regular memory ops do.  We can get away without memory
@@ -96,6 +94,8 @@ const (
 
 	// used during ssa construction.  Like OpCopy, but the arg has not been specified yet.
 	OpFwdRef
+
+	OpGenericEnd
 )
 
 // GlobalOffset represents a fixed offset within a global variable

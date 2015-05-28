@@ -4,14 +4,77 @@ package ssa
 
 func lowerAmd64(v *Value) bool {
 	switch v.Op {
-	case OpADDCQ:
-		// match: (ADDCQ [c] (LEAQ8 [d] x y))
+	case OpADDQ:
+		// match: (ADDQ x (MOVQconst [c]))
+		// cond:
+		// result: (ADDQconst [c] x)
+		{
+			x := v.Args[0]
+			if v.Args[1].Op != OpMOVQconst {
+				goto endacffd55e74ee0ff59ad58a18ddfc9973
+			}
+			c := v.Args[1].Aux
+			v.Op = OpADDQconst
+			v.Aux = nil
+			v.resetArgs()
+			v.Aux = c
+			v.AddArg(x)
+			return true
+		}
+		goto endacffd55e74ee0ff59ad58a18ddfc9973
+	endacffd55e74ee0ff59ad58a18ddfc9973:
+		;
+		// match: (ADDQ (MOVQconst [c]) x)
+		// cond:
+		// result: (ADDQconst [c] x)
+		{
+			if v.Args[0].Op != OpMOVQconst {
+				goto end7166f476d744ab7a51125959d3d3c7e2
+			}
+			c := v.Args[0].Aux
+			x := v.Args[1]
+			v.Op = OpADDQconst
+			v.Aux = nil
+			v.resetArgs()
+			v.Aux = c
+			v.AddArg(x)
+			return true
+		}
+		goto end7166f476d744ab7a51125959d3d3c7e2
+	end7166f476d744ab7a51125959d3d3c7e2:
+		;
+		// match: (ADDQ x (SHLQconst [shift] y))
+		// cond: shift.(int64) == 3
+		// result: (LEAQ8 [int64(0)] x y)
+		{
+			x := v.Args[0]
+			if v.Args[1].Op != OpSHLQconst {
+				goto endaf4f724e1e17f2b116d336c07da0165d
+			}
+			shift := v.Args[1].Aux
+			y := v.Args[1].Args[0]
+			if !(shift.(int64) == 3) {
+				goto endaf4f724e1e17f2b116d336c07da0165d
+			}
+			v.Op = OpLEAQ8
+			v.Aux = nil
+			v.resetArgs()
+			v.Aux = int64(0)
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto endaf4f724e1e17f2b116d336c07da0165d
+	endaf4f724e1e17f2b116d336c07da0165d:
+		;
+	case OpADDQconst:
+		// match: (ADDQconst [c] (LEAQ8 [d] x y))
 		// cond:
 		// result: (LEAQ8 [addOff(c, d)] x y)
 		{
 			c := v.Aux
 			if v.Args[0].Op != OpLEAQ8 {
-				goto end3bc1457811adc0cb81ad6b88a7461c60
+				goto ende2cc681c9abf9913288803fb1b39e639
 			}
 			d := v.Args[0].Aux
 			x := v.Args[0].Args[0]
@@ -24,17 +87,17 @@ func lowerAmd64(v *Value) bool {
 			v.AddArg(y)
 			return true
 		}
-		goto end3bc1457811adc0cb81ad6b88a7461c60
-	end3bc1457811adc0cb81ad6b88a7461c60:
+		goto ende2cc681c9abf9913288803fb1b39e639
+	ende2cc681c9abf9913288803fb1b39e639:
 		;
-		// match: (ADDCQ [off] x)
+		// match: (ADDQconst [off] x)
 		// cond: off.(int64) == 0
 		// result: (Copy x)
 		{
 			off := v.Aux
 			x := v.Args[0]
 			if !(off.(int64) == 0) {
-				goto end6710a6679c47b70577ecea7ad00dae87
+				goto endfa1c7cc5ac4716697e891376787f86ce
 			}
 			v.Op = OpCopy
 			v.Aux = nil
@@ -42,71 +105,8 @@ func lowerAmd64(v *Value) bool {
 			v.AddArg(x)
 			return true
 		}
-		goto end6710a6679c47b70577ecea7ad00dae87
-	end6710a6679c47b70577ecea7ad00dae87:
-		;
-	case OpADDQ:
-		// match: (ADDQ x (MOVQconst [c]))
-		// cond:
-		// result: (ADDCQ [c] x)
-		{
-			x := v.Args[0]
-			if v.Args[1].Op != OpMOVQconst {
-				goto end39b79e84f20a6d44b5c4136aae220ac2
-			}
-			c := v.Args[1].Aux
-			v.Op = OpADDCQ
-			v.Aux = nil
-			v.resetArgs()
-			v.Aux = c
-			v.AddArg(x)
-			return true
-		}
-		goto end39b79e84f20a6d44b5c4136aae220ac2
-	end39b79e84f20a6d44b5c4136aae220ac2:
-		;
-		// match: (ADDQ (MOVQconst [c]) x)
-		// cond:
-		// result: (ADDCQ [c] x)
-		{
-			if v.Args[0].Op != OpMOVQconst {
-				goto endc05ff5a2a132241b69d00c852001d820
-			}
-			c := v.Args[0].Aux
-			x := v.Args[1]
-			v.Op = OpADDCQ
-			v.Aux = nil
-			v.resetArgs()
-			v.Aux = c
-			v.AddArg(x)
-			return true
-		}
-		goto endc05ff5a2a132241b69d00c852001d820
-	endc05ff5a2a132241b69d00c852001d820:
-		;
-		// match: (ADDQ x (SHLCQ [shift] y))
-		// cond: shift.(int64) == 3
-		// result: (LEAQ8 [int64(0)] x y)
-		{
-			x := v.Args[0]
-			if v.Args[1].Op != OpSHLCQ {
-				goto end7fa0d837edd248748cef516853fd9475
-			}
-			shift := v.Args[1].Aux
-			y := v.Args[1].Args[0]
-			if !(shift.(int64) == 3) {
-				goto end7fa0d837edd248748cef516853fd9475
-			}
-			v.Op = OpLEAQ8
-			v.Aux = nil
-			v.resetArgs()
-			v.Aux = int64(0)
-			v.AddArg(x)
-			v.AddArg(y)
-			return true
-		}
-		goto end7fa0d837edd248748cef516853fd9475
-	end7fa0d837edd248748cef516853fd9475:
+		goto endfa1c7cc5ac4716697e891376787f86ce
+	endfa1c7cc5ac4716697e891376787f86ce:
 		;
 	case OpAdd:
 		// match: (Add <t> x y)
@@ -152,44 +152,44 @@ func lowerAmd64(v *Value) bool {
 	case OpCMPQ:
 		// match: (CMPQ x (MOVQconst [c]))
 		// cond:
-		// result: (CMPCQ x [c])
+		// result: (CMPQconst x [c])
 		{
 			x := v.Args[0]
 			if v.Args[1].Op != OpMOVQconst {
-				goto endf180bae15b3d24c0213520d7f7aa98b4
+				goto end32ef1328af280ac18fa8045a3502dae9
 			}
 			c := v.Args[1].Aux
-			v.Op = OpCMPCQ
+			v.Op = OpCMPQconst
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
 			v.Aux = c
 			return true
 		}
-		goto endf180bae15b3d24c0213520d7f7aa98b4
-	endf180bae15b3d24c0213520d7f7aa98b4:
+		goto end32ef1328af280ac18fa8045a3502dae9
+	end32ef1328af280ac18fa8045a3502dae9:
 		;
 		// match: (CMPQ (MOVQconst [c]) x)
 		// cond:
-		// result: (InvertFlags (CMPCQ <TypeFlags> x [c]))
+		// result: (InvertFlags (CMPQconst <TypeFlags> x [c]))
 		{
 			if v.Args[0].Op != OpMOVQconst {
-				goto end8fc58bffa73b3df80b3de72c91844884
+				goto endf8ca12fe79290bc82b11cfa463bc9413
 			}
 			c := v.Args[0].Aux
 			x := v.Args[1]
 			v.Op = OpInvertFlags
 			v.Aux = nil
 			v.resetArgs()
-			v0 := v.Block.NewValue(OpCMPCQ, TypeInvalid, nil)
+			v0 := v.Block.NewValue(OpCMPQconst, TypeInvalid, nil)
 			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.Aux = c
 			v.AddArg(v0)
 			return true
 		}
-		goto end8fc58bffa73b3df80b3de72c91844884
-	end8fc58bffa73b3df80b3de72c91844884:
+		goto endf8ca12fe79290bc82b11cfa463bc9413
+	endf8ca12fe79290bc82b11cfa463bc9413:
 		;
 	case OpConst:
 		// match: (Const <t> [val])
@@ -330,14 +330,35 @@ func lowerAmd64(v *Value) bool {
 		goto end581ce5a20901df1b8143448ba031685b
 	end581ce5a20901df1b8143448ba031685b:
 		;
+	case OpLsh:
+		// match: (Lsh <t> x y)
+		// cond: is64BitInt(t)
+		// result: (SHLQ x y)
+		{
+			t := v.Type
+			x := v.Args[0]
+			y := v.Args[1]
+			if !(is64BitInt(t)) {
+				goto end9f05c9539e51db6ad557989e0c822e9b
+			}
+			v.Op = OpSHLQ
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto end9f05c9539e51db6ad557989e0c822e9b
+	end9f05c9539e51db6ad557989e0c822e9b:
+		;
 	case OpMOVQload:
-		// match: (MOVQload [off1] (ADDCQ [off2] ptr) mem)
+		// match: (MOVQload [off1] (ADDQconst [off2] ptr) mem)
 		// cond:
 		// result: (MOVQload [addOff(off1, off2)] ptr mem)
 		{
 			off1 := v.Aux
-			if v.Args[0].Op != OpADDCQ {
-				goto end218ceec16b8299d573d3c9ccaa69b086
+			if v.Args[0].Op != OpADDQconst {
+				goto end843d29b538c4483b432b632e5666d6e3
 			}
 			off2 := v.Args[0].Aux
 			ptr := v.Args[0].Args[0]
@@ -350,8 +371,8 @@ func lowerAmd64(v *Value) bool {
 			v.AddArg(mem)
 			return true
 		}
-		goto end218ceec16b8299d573d3c9ccaa69b086
-	end218ceec16b8299d573d3c9ccaa69b086:
+		goto end843d29b538c4483b432b632e5666d6e3
+	end843d29b538c4483b432b632e5666d6e3:
 		;
 		// match: (MOVQload [off1] (LEAQ8 [off2] ptr idx) mem)
 		// cond:
@@ -378,13 +399,13 @@ func lowerAmd64(v *Value) bool {
 	end02f5ad148292c46463e7c20d3b821735:
 		;
 	case OpMOVQloadidx8:
-		// match: (MOVQloadidx8 [off1] (ADDCQ [off2] ptr) idx mem)
+		// match: (MOVQloadidx8 [off1] (ADDQconst [off2] ptr) idx mem)
 		// cond:
 		// result: (MOVQloadidx8 [addOff(off1, off2)] ptr idx mem)
 		{
 			off1 := v.Aux
-			if v.Args[0].Op != OpADDCQ {
-				goto ende47e8d742e2615f39fb6509a5749e414
+			if v.Args[0].Op != OpADDQconst {
+				goto ende81e44bcfb11f90916ccb440c590121f
 			}
 			off2 := v.Args[0].Aux
 			ptr := v.Args[0].Args[0]
@@ -399,17 +420,17 @@ func lowerAmd64(v *Value) bool {
 			v.AddArg(mem)
 			return true
 		}
-		goto ende47e8d742e2615f39fb6509a5749e414
-	ende47e8d742e2615f39fb6509a5749e414:
+		goto ende81e44bcfb11f90916ccb440c590121f
+	ende81e44bcfb11f90916ccb440c590121f:
 		;
 	case OpMOVQstore:
-		// match: (MOVQstore [off1] (ADDCQ [off2] ptr) val mem)
+		// match: (MOVQstore [off1] (ADDQconst [off2] ptr) val mem)
 		// cond:
 		// result: (MOVQstore [addOff(off1, off2)] ptr val mem)
 		{
 			off1 := v.Aux
-			if v.Args[0].Op != OpADDCQ {
-				goto enddfd4c7a20fd3b84eb9dcf84b98c661fc
+			if v.Args[0].Op != OpADDQconst {
+				goto end2108c693a43c79aed10b9246c39c80aa
 			}
 			off2 := v.Args[0].Aux
 			ptr := v.Args[0].Args[0]
@@ -424,8 +445,8 @@ func lowerAmd64(v *Value) bool {
 			v.AddArg(mem)
 			return true
 		}
-		goto enddfd4c7a20fd3b84eb9dcf84b98c661fc
-	enddfd4c7a20fd3b84eb9dcf84b98c661fc:
+		goto end2108c693a43c79aed10b9246c39c80aa
+	end2108c693a43c79aed10b9246c39c80aa:
 		;
 		// match: (MOVQstore [off1] (LEAQ8 [off2] ptr idx) val mem)
 		// cond:
@@ -454,13 +475,13 @@ func lowerAmd64(v *Value) bool {
 	endce1db8c8d37c8397c500a2068a65c215:
 		;
 	case OpMOVQstoreidx8:
-		// match: (MOVQstoreidx8 [off1] (ADDCQ [off2] ptr) idx val mem)
+		// match: (MOVQstoreidx8 [off1] (ADDQconst [off2] ptr) idx val mem)
 		// cond:
 		// result: (MOVQstoreidx8 [addOff(off1, off2)] ptr idx val mem)
 		{
 			off1 := v.Aux
-			if v.Args[0].Op != OpADDCQ {
-				goto endcdb222707a568ad468f7fff2fc42fc39
+			if v.Args[0].Op != OpADDQconst {
+				goto end01c970657b0fdefeab82458c15022163
 			}
 			off2 := v.Args[0].Aux
 			ptr := v.Args[0].Args[0]
@@ -477,67 +498,89 @@ func lowerAmd64(v *Value) bool {
 			v.AddArg(mem)
 			return true
 		}
-		goto endcdb222707a568ad468f7fff2fc42fc39
-	endcdb222707a568ad468f7fff2fc42fc39:
+		goto end01c970657b0fdefeab82458c15022163
+	end01c970657b0fdefeab82458c15022163:
 		;
-	case OpMULCQ:
-		// match: (MULCQ [c] x)
+	case OpMULQ:
+		// match: (MULQ x (MOVQconst [c]))
+		// cond: c.(int64) == int64(int32(c.(int64)))
+		// result: (MULQconst [c] x)
+		{
+			x := v.Args[0]
+			if v.Args[1].Op != OpMOVQconst {
+				goto ende8c09b194fcde7d9cdc69f2deff86304
+			}
+			c := v.Args[1].Aux
+			if !(c.(int64) == int64(int32(c.(int64)))) {
+				goto ende8c09b194fcde7d9cdc69f2deff86304
+			}
+			v.Op = OpMULQconst
+			v.Aux = nil
+			v.resetArgs()
+			v.Aux = c
+			v.AddArg(x)
+			return true
+		}
+		goto ende8c09b194fcde7d9cdc69f2deff86304
+	ende8c09b194fcde7d9cdc69f2deff86304:
+		;
+		// match: (MULQ (MOVQconst [c]) x)
+		// cond:
+		// result: (MULQconst [c] x)
+		{
+			if v.Args[0].Op != OpMOVQconst {
+				goto endc6e18d6968175d6e58eafa6dcf40c1b8
+			}
+			c := v.Args[0].Aux
+			x := v.Args[1]
+			v.Op = OpMULQconst
+			v.Aux = nil
+			v.resetArgs()
+			v.Aux = c
+			v.AddArg(x)
+			return true
+		}
+		goto endc6e18d6968175d6e58eafa6dcf40c1b8
+	endc6e18d6968175d6e58eafa6dcf40c1b8:
+		;
+	case OpMULQconst:
+		// match: (MULQconst [c] x)
 		// cond: c.(int64) == 8
-		// result: (SHLCQ [int64(3)] x)
+		// result: (SHLQconst [int64(3)] x)
 		{
 			c := v.Aux
 			x := v.Args[0]
 			if !(c.(int64) == 8) {
-				goto end90a1c055d9658aecacce5e101c1848b4
+				goto end7e16978c56138324ff2abf91fd6d94d4
 			}
-			v.Op = OpSHLCQ
+			v.Op = OpSHLQconst
 			v.Aux = nil
 			v.resetArgs()
 			v.Aux = int64(3)
 			v.AddArg(x)
 			return true
 		}
-		goto end90a1c055d9658aecacce5e101c1848b4
-	end90a1c055d9658aecacce5e101c1848b4:
+		goto end7e16978c56138324ff2abf91fd6d94d4
+	end7e16978c56138324ff2abf91fd6d94d4:
 		;
-	case OpMULQ:
-		// match: (MULQ x (MOVQconst [c]))
-		// cond:
-		// result: (MULCQ [c] x)
+		// match: (MULQconst [c] x)
+		// cond: c.(int64) == 64
+		// result: (SHLQconst [int64(5)] x)
 		{
+			c := v.Aux
 			x := v.Args[0]
-			if v.Args[1].Op != OpMOVQconst {
-				goto endce35d001482ea209e62e9394bd07c7cb
+			if !(c.(int64) == 64) {
+				goto end2c7a02f230e4b311ac3a4e22f70a4f08
 			}
-			c := v.Args[1].Aux
-			v.Op = OpMULCQ
+			v.Op = OpSHLQconst
 			v.Aux = nil
 			v.resetArgs()
-			v.Aux = c
+			v.Aux = int64(5)
 			v.AddArg(x)
 			return true
 		}
-		goto endce35d001482ea209e62e9394bd07c7cb
-	endce35d001482ea209e62e9394bd07c7cb:
-		;
-		// match: (MULQ (MOVQconst [c]) x)
-		// cond:
-		// result: (MULCQ [c] x)
-		{
-			if v.Args[0].Op != OpMOVQconst {
-				goto end804f58b1f6a7cce19d48379999ec03f1
-			}
-			c := v.Args[0].Aux
-			x := v.Args[1]
-			v.Op = OpMULCQ
-			v.Aux = nil
-			v.resetArgs()
-			v.Aux = c
-			v.AddArg(x)
-			return true
-		}
-		goto end804f58b1f6a7cce19d48379999ec03f1
-	end804f58b1f6a7cce19d48379999ec03f1:
+		goto end2c7a02f230e4b311ac3a4e22f70a4f08
+	end2c7a02f230e4b311ac3a4e22f70a4f08:
 		;
 	case OpMove:
 		// match: (Move [size] dst src mem)
@@ -587,19 +630,19 @@ func lowerAmd64(v *Value) bool {
 	case OpOffPtr:
 		// match: (OffPtr [off] ptr)
 		// cond:
-		// result: (ADDCQ [off] ptr)
+		// result: (ADDQconst [off] ptr)
 		{
 			off := v.Aux
 			ptr := v.Args[0]
-			v.Op = OpADDCQ
+			v.Op = OpADDQconst
 			v.Aux = nil
 			v.resetArgs()
 			v.Aux = off
 			v.AddArg(ptr)
 			return true
 		}
-		goto endfe8f713b1d237a23311fb721ee46bedb
-	endfe8f713b1d237a23311fb721ee46bedb:
+		goto end0429f947ee7ac49ff45a243e461a5290
+	end0429f947ee7ac49ff45a243e461a5290:
 		;
 	case OpSETL:
 		// match: (SETL (InvertFlags x))
@@ -619,48 +662,68 @@ func lowerAmd64(v *Value) bool {
 		goto end456c7681d48305698c1ef462d244bdc6
 	end456c7681d48305698c1ef462d244bdc6:
 		;
-	case OpSUBQ:
-		// match: (SUBQ x (MOVQconst [c]))
+	case OpSHLQ:
+		// match: (SHLQ x (MOVQconst [c]))
 		// cond:
-		// result: (SUBCQ x [c])
+		// result: (SHLQconst [c] x)
 		{
 			x := v.Args[0]
 			if v.Args[1].Op != OpMOVQconst {
-				goto endc96cd1cb2dd98427c34fb9543feca4fe
+				goto endcca412bead06dc3d56ef034a82d184d6
 			}
 			c := v.Args[1].Aux
-			v.Op = OpSUBCQ
+			v.Op = OpSHLQconst
+			v.Aux = nil
+			v.resetArgs()
+			v.Aux = c
+			v.AddArg(x)
+			return true
+		}
+		goto endcca412bead06dc3d56ef034a82d184d6
+	endcca412bead06dc3d56ef034a82d184d6:
+		;
+	case OpSUBQ:
+		// match: (SUBQ x (MOVQconst [c]))
+		// cond:
+		// result: (SUBQconst x [c])
+		{
+			x := v.Args[0]
+			if v.Args[1].Op != OpMOVQconst {
+				goto end5a74a63bd9ad15437717c6df3b25eebb
+			}
+			c := v.Args[1].Aux
+			v.Op = OpSUBQconst
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
 			v.Aux = c
 			return true
 		}
-		goto endc96cd1cb2dd98427c34fb9543feca4fe
-	endc96cd1cb2dd98427c34fb9543feca4fe:
+		goto end5a74a63bd9ad15437717c6df3b25eebb
+	end5a74a63bd9ad15437717c6df3b25eebb:
 		;
 		// match: (SUBQ <t> (MOVQconst [c]) x)
 		// cond:
-		// result: (NEGQ (SUBCQ <t> x [c]))
+		// result: (NEGQ (SUBQconst <t> x [c]))
 		{
 			t := v.Type
 			if v.Args[0].Op != OpMOVQconst {
-				goto end900aaaf28cefac6bb62e76b5151611cf
+				goto end78e66b6fc298684ff4ac8aec5ce873c9
 			}
 			c := v.Args[0].Aux
 			x := v.Args[1]
 			v.Op = OpNEGQ
 			v.Aux = nil
 			v.resetArgs()
-			v0 := v.Block.NewValue(OpSUBCQ, TypeInvalid, nil)
+			v0 := v.Block.NewValue(OpSUBQconst, TypeInvalid, nil)
 			v0.Type = t
 			v0.AddArg(x)
 			v0.Aux = c
 			v.AddArg(v0)
 			return true
 		}
-		goto end900aaaf28cefac6bb62e76b5151611cf
-	end900aaaf28cefac6bb62e76b5151611cf:
+		goto end78e66b6fc298684ff4ac8aec5ce873c9
+	end78e66b6fc298684ff4ac8aec5ce873c9:
 		;
 	case OpStore:
 		// match: (Store ptr val mem)
