@@ -2698,6 +2698,7 @@ function PlaygroundOutput(el) {
 	margin: 0;
 	font-family: Helvetica, Arial, sans-serif;
 	font-size: 16px;
+	background-color: #fff;
 }
 pre,
 code {
