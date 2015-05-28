@@ -217,7 +217,7 @@ func TestFromBits(t *testing.T) {
 		{append(Bits{2, 1, 0} /* 7 */, Bits{3, 1} /* 10 */ ...), "0x.88p+5" /* 17 */},
 	} {
 		f := test.bits.Float()
-		if got := f.Format('p', 0); got != test.want {
+		if got := f.Text('p', 0); got != test.want {
 			t.Errorf("setBits(%v) = %s; want %s", test.bits, got, test.want)
 		}
 	}
