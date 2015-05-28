@@ -65,12 +65,12 @@ the `gorename' tool. With FORCE, call `gorename' with the
 
       ;; On success, print the one-line result in the message bar,
       ;; and hide the *go-rename* buffer.
-      (let ((w (display-buffer (current-buffer))))
-        (if success
-            (progn
-              (message "%s" (go--buffer-string-no-trailing-space))
-              (delete-window w))
-          ;; failure
+      (if success
+          (progn
+            (message "%s" (go--buffer-string-no-trailing-space))
+            (gofmt--kill-error-buffer (current-buffer)))
+        ;; failure
+        (let ((w (display-buffer (current-buffer))))
           (message "gorename exited")
           (shrink-window-if-larger-than-buffer w)
           (set-window-point w (point-min)))))))
