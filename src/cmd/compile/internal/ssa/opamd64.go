@@ -7,6 +7,21 @@ package ssa
 // amd64-specific opcodes
 
 const (
+	blockAMD64Start BlockKind = blockAMD64Base + iota
+
+	BlockEQ
+	BlockNE
+	BlockLT
+	BlockLE
+	BlockGT
+	BlockGE
+	BlockULT
+	BlockULE
+	BlockUGT
+	BlockUGE
+)
+
+const (
 	opAMD64start Op = opAMD64Base + iota
 
 	// Suffixes encode the bit width of various instructions.
@@ -36,12 +51,16 @@ const (
 	OpSETEQ // extract == condition from arg0
 	OpSETNE // extract != condition from arg0
 	OpSETL  // extract signed < condition from arg0
+	OpSETG  // extract signed > condition from arg0
 	OpSETGE // extract signed >= condition from arg0
 	OpSETB  // extract unsigned < condition from arg0
 
 	// InvertFlags reverses the direction of a flags type interpretation:
-	// (InvertFlags (OpCMPQ a b)) == (OpCMPQ b a)
-	// This is a pseudo-op which can't appear in assembly output.
+	// (InvertFlags (CMPQ a b)) == (CMPQ b a)
+	// So if we want (SETL (CMPQ a b)) but we can't do that because a is a constant,
+	// then we do (SETL (InvertFlags (CMPQ b a))) instead.
+	// Rewrites will convert this to (SETG (CMPQ b a)).
+	// InvertFlags is a pseudo-op which can't appear in assembly output.
 	OpInvertFlags // reverse direction of arg0
 
 	OpLEAQ       // arg0 + arg1 + aux.(int64)

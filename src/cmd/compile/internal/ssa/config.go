@@ -7,10 +7,11 @@ package ssa
 import "log"
 
 type Config struct {
-	arch    string            // "amd64", etc.
-	ptrSize int64             // 4 or 8
-	Uintptr Type              // pointer arithmetic type
-	lower   func(*Value) bool // lowering function
+	arch       string            // "amd64", etc.
+	ptrSize    int64             // 4 or 8
+	Uintptr    Type              // pointer arithmetic type
+	lowerBlock func(*Block) bool // lowering function
+	lowerValue func(*Value) bool // lowering function
 
 	// TODO: more stuff.  Compiler flags of interest, ...
 }
@@ -21,10 +22,12 @@ func NewConfig(arch string) *Config {
 	switch arch {
 	case "amd64":
 		c.ptrSize = 8
-		c.lower = lowerAmd64
+		c.lowerBlock = lowerBlockAMD64
+		c.lowerValue = lowerValueAMD64
 	case "386":
 		c.ptrSize = 4
-		c.lower = lowerAmd64 // TODO(khr): full 32-bit support
+		c.lowerBlock = lowerBlockAMD64
+		c.lowerValue = lowerValueAMD64 // TODO(khr): full 32-bit support
 	default:
 		log.Fatalf("arch %s not implemented", arch)
 	}

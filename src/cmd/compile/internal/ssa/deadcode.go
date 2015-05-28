@@ -14,30 +14,10 @@ func deadcode(f *Func) {
 	reachable[f.Entry.ID] = true
 	p := []*Block{f.Entry} // stack-like worklist
 	for len(p) > 0 {
-		// pop a reachable block
+		// Pop a reachable block
 		b := p[len(p)-1]
 		p = p[:len(p)-1]
-
-		// constant-fold conditionals
-		// TODO: rewrite rules instead?
-		if b.Kind == BlockIf && b.Control.Op == OpConst {
-			cond := b.Control.Aux.(bool)
-			var c *Block
-			if cond {
-				// then branch is always taken
-				c = b.Succs[1]
-			} else {
-				// else branch is always taken
-				c = b.Succs[0]
-				b.Succs[0] = b.Succs[1]
-			}
-			b.Succs[1] = nil // aid GC
-			b.Succs = b.Succs[:1]
-			removePredecessor(b, c)
-			b.Kind = BlockPlain
-			b.Control = nil
-		}
-
+		// Mark successors as reachable
 		for _, c := range b.Succs {
 			if !reachable[c.ID] {
 				reachable[c.ID] = true

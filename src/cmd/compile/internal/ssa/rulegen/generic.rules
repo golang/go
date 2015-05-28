@@ -2,6 +2,22 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// values are specified using the following format:
+// (op <type> [aux] arg0 arg1 ...)
+// the type and aux fields are optional
+// on the matching side
+//  - the types and aux fields must match if they are specified.
+// on the generated side
+//  - the type of the top-level expression is the same as the one on the left-hand side.
+//  - the type of any subexpressions must be specified explicitly.
+//  - aux will be nil if not specified.
+
+// blocks are specified using the following format:
+// (kind controlvalue succ0 succ1 ...)
+// controlvalue must be "nil" or a value expression
+// succ* fields must be variables
+// For now, the generated successors must be a permutation of the matched successors.
+
 // constant folding
 (Add <t> (Const [c]) (Const [d])) && is64BitInt(t) -> (Const [{c.(int64)+d.(int64)}])
 (Mul <t> (Const [c]) (Const [d])) && is64BitInt(t) -> (Const [{c.(int64)*d.(int64)}])
@@ -22,3 +38,6 @@
 // big-object moves
 // TODO: fix size
 (Store dst (Load <t> src mem) mem) && t.Size() > 8 -> (Move [t.Size()] dst src mem)
+
+(BlockIf (Const [c]) yes no) && c.(bool) -> (BlockPlain nil yes)
+(BlockIf (Const [c]) yes no) && !c.(bool) -> (BlockPlain nil no)
