@@ -27,7 +27,7 @@
 (Sub <t> x y) && is64BitInt(t) -> (SUBQ x y)
 
 (Mul <t> x y) && is64BitInt(t) -> (MULQ x y)
-
+(Lsh <t> x y) && is64BitInt(t) -> (SHLQ x y) // TODO: check y>63
 (Less x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETL (CMPQ <TypeFlags> x y))
 
 (Load <t> ptr mem) && t.IsBoolean() -> (MOVBload [int64(0)] ptr mem)
@@ -40,7 +40,7 @@
 
 (Move [size] dst src mem) -> (REPMOVSB dst src (Const <TypeUInt64> [size.(int64)]) mem)
 
-(OffPtr [off] ptr) -> (ADDCQ [off] ptr)
+(OffPtr [off] ptr) -> (ADDQconst [off] ptr)
 
 (Const <t> [val]) && is64BitInt(t) -> (MOVQconst [val])
 
@@ -51,39 +51,41 @@
 (Global [sym]) -> (LEAQglobal [GlobalOffset{sym,0}])
 
 // fold constants into instructions
-(ADDQ x (MOVQconst [c])) -> (ADDCQ [c] x) // TODO: restrict c to int32 range?
-(ADDQ (MOVQconst [c]) x) -> (ADDCQ [c] x)
-(SUBQ x (MOVQconst [c])) -> (SUBCQ x [c])
-(SUBQ <t> (MOVQconst [c]) x) -> (NEGQ (SUBCQ <t> x [c]))
-(MULQ x (MOVQconst [c])) -> (MULCQ [c] x)
-(MULQ (MOVQconst [c]) x) -> (MULCQ [c] x)
-(CMPQ x (MOVQconst [c])) -> (CMPCQ x [c])
-(CMPQ (MOVQconst [c]) x) -> (InvertFlags (CMPCQ <TypeFlags> x [c]))
+(ADDQ x (MOVQconst [c])) -> (ADDQconst [c] x) // TODO: restrict c to int32 range?
+(ADDQ (MOVQconst [c]) x) -> (ADDQconst [c] x)
+(SUBQ x (MOVQconst [c])) -> (SUBQconst x [c])
+(SUBQ <t> (MOVQconst [c]) x) -> (NEGQ (SUBQconst <t> x [c]))
+(MULQ x (MOVQconst [c])) && c.(int64) == int64(int32(c.(int64))) -> (MULQconst [c] x)
+(MULQ (MOVQconst [c]) x) -> (MULQconst [c] x)
+(SHLQ x (MOVQconst [c])) -> (SHLQconst [c] x)
+(CMPQ x (MOVQconst [c])) -> (CMPQconst x [c])
+(CMPQ (MOVQconst [c]) x) -> (InvertFlags (CMPQconst <TypeFlags> x [c]))
 
 // strength reduction
 // TODO: do this a lot more generically
-(MULCQ [c] x) && c.(int64) == 8 -> (SHLCQ [int64(3)] x)
+(MULQconst [c] x) && c.(int64) == 8 -> (SHLQconst [int64(3)] x)
+(MULQconst [c] x) && c.(int64) == 64 -> (SHLQconst [int64(5)] x)
 
 // fold add/shift into leaq
-(ADDQ x (SHLCQ [shift] y)) && shift.(int64) == 3 -> (LEAQ8 [int64(0)] x y)
-(ADDCQ [c] (LEAQ8 [d] x y)) -> (LEAQ8 [addOff(c, d)] x y)
+(ADDQ x (SHLQconst [shift] y)) && shift.(int64) == 3 -> (LEAQ8 [int64(0)] x y)
+(ADDQconst [c] (LEAQ8 [d] x y)) -> (LEAQ8 [addOff(c, d)] x y)
 
 // reverse ordering of compare instruction
 (SETL (InvertFlags x)) -> (SETGE x)
 
 // fold constants into memory operations
 // Note that this is not always a good idea because if not all the uses of
-// the ADDCQ get eliminated, we still have to compute the ADDCQ and we now
-// have potentially two live values (ptr and (ADDCQ [off] ptr)) instead of one.
+// the ADDQconst get eliminated, we still have to compute the ADDQconst and we now
+// have potentially two live values (ptr and (ADDQconst [off] ptr)) instead of one.
 // Nevertheless, let's do it!
-(MOVQload [off1] (ADDCQ [off2] ptr) mem) -> (MOVQload [addOff(off1, off2)] ptr mem)
-(MOVQstore [off1] (ADDCQ [off2] ptr) val mem) -> (MOVQstore [addOff(off1, off2)] ptr val mem)
+(MOVQload [off1] (ADDQconst [off2] ptr) mem) -> (MOVQload [addOff(off1, off2)] ptr mem)
+(MOVQstore [off1] (ADDQconst [off2] ptr) val mem) -> (MOVQstore [addOff(off1, off2)] ptr val mem)
 
 // indexed loads and stores
 (MOVQload [off1] (LEAQ8 [off2] ptr idx) mem) -> (MOVQloadidx8 [addOff(off1, off2)] ptr idx mem)
 (MOVQstore [off1] (LEAQ8 [off2] ptr idx) val mem) -> (MOVQstoreidx8 [addOff(off1, off2)] ptr idx val mem)
 
-(MOVQloadidx8 [off1] (ADDCQ [off2] ptr) idx mem) -> (MOVQloadidx8 [addOff(off1, off2)] ptr idx mem)
-(MOVQstoreidx8 [off1] (ADDCQ [off2] ptr) idx val mem) -> (MOVQstoreidx8 [addOff(off1, off2)] ptr idx val mem)
+(MOVQloadidx8 [off1] (ADDQconst [off2] ptr) idx mem) -> (MOVQloadidx8 [addOff(off1, off2)] ptr idx mem)
+(MOVQstoreidx8 [off1] (ADDQconst [off2] ptr) idx val mem) -> (MOVQstoreidx8 [addOff(off1, off2)] ptr idx val mem)
 
-(ADDCQ [off] x) && off.(int64) == 0 -> (Copy x)
+(ADDQconst [off] x) && off.(int64) == 0 -> (Copy x)

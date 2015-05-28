@@ -287,6 +287,14 @@ func (s *state) expr(n *Node) *ssa.Value {
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
 		return s.curBlock.NewValue2(ssa.OpSub, a.Type, nil, a, b)
+	case OLSH:
+		a := s.expr(n.Left)
+		b := s.expr(n.Right)
+		return s.curBlock.NewValue2(ssa.OpLsh, a.Type, nil, a, b)
+	case ORSH:
+		a := s.expr(n.Left)
+		b := s.expr(n.Right)
+		return s.curBlock.NewValue2(ssa.OpRsh, a.Type, nil, a, b)
 
 	case OADDR:
 		return s.addr(n.Left)
@@ -519,25 +527,15 @@ type branch struct {
 // gcargs and gclocals are filled in with pointer maps for the frame.
 func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	// TODO: line numbers
-	// TODO: layout frame
-	stkSize := int64(64)
 
-	if Hasdefer != 0 {
-		// deferreturn pretends to have one uintptr argument.
-		// Reserve space for it so stack scanner is happy.
-		if Maxarg < int64(Widthptr) {
-			Maxarg = int64(Widthptr)
-		}
-	}
-	if stkSize+Maxarg > 1<<31 {
+	if f.FrameSize > 1<<31 {
 		Yyerror("stack frame too large (>2GB)")
 		return
 	}
-	frameSize := stkSize + Maxarg
 
 	ptxt.To.Type = obj.TYPE_TEXTSIZE
 	ptxt.To.Val = int32(Rnd(Curfn.Type.Argwid, int64(Widthptr))) // arg size
-	ptxt.To.Offset = frameSize - 8                               // TODO: arch-dependent
+	ptxt.To.Offset = f.FrameSize - 8                             // TODO: arch-dependent
 
 	// Remember where each block starts.
 	bstart := make([]*obj.Prog, f.NumBlocks())
@@ -551,7 +549,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 		bstart[b.ID] = Pc
 		// Emit values in block
 		for _, v := range b.Values {
-			genValue(v, frameSize)
+			genValue(v)
 		}
 		// Emit control flow instructions for block
 		var next *ssa.Block
@@ -578,7 +576,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	liveness(Curfn, ptxt, gcargs, gclocals)
 }
 
-func genValue(v *ssa.Value, frameSize int64) {
+func genValue(v *ssa.Value) {
 	switch v.Op {
 	case ssa.OpADDQ:
 		// TODO: use addq instead of leaq if target is in the right register.
@@ -589,7 +587,7 @@ func genValue(v *ssa.Value, frameSize int64) {
 		p.From.Index = regnum(v.Args[1])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
-	case ssa.OpADDCQ:
+	case ssa.OpADDQconst:
 		// TODO: use addq instead of leaq if target is in the right register.
 		p := Prog(x86.ALEAQ)
 		p.From.Type = obj.TYPE_MEM
@@ -597,7 +595,17 @@ func genValue(v *ssa.Value, frameSize int64) {
 		p.From.Offset = v.Aux.(int64)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
-	case ssa.OpSUBCQ:
+	case ssa.OpMULQconst:
+		// TODO: this isn't right.  doasm fails on it.  I don't think obj
+		// has ever been taught to compile imul $c, r1, r2.
+		p := Prog(x86.AIMULQ)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.Aux.(int64)
+		p.From3.Type = obj.TYPE_REG
+		p.From3.Reg = regnum(v.Args[0])
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = regnum(v)
+	case ssa.OpSUBQconst:
 		// This code compensates for the fact that the register allocator
 		// doesn't understand 2-address instructions yet.  TODO: fix that.
 		x := regnum(v.Args[0])
@@ -615,13 +623,38 @@ func genValue(v *ssa.Value, frameSize int64) {
 		p.From.Offset = v.Aux.(int64)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
+	case ssa.OpSHLQconst:
+		x := regnum(v.Args[0])
+		r := regnum(v)
+		if x != r {
+			p := Prog(x86.AMOVQ)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = x
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = r
+			x = r
+		}
+		p := Prog(x86.ASHLQ)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.Aux.(int64)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+	case ssa.OpLEAQ:
+		p := Prog(x86.ALEAQ)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = regnum(v.Args[0])
+		p.From.Scale = 1
+		p.From.Index = regnum(v.Args[1])
+		p.From.Offset = v.Aux.(int64)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = regnum(v)
 	case ssa.OpCMPQ:
 		p := Prog(x86.ACMPQ)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = regnum(v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v.Args[1])
-	case ssa.OpCMPCQ:
+	case ssa.OpCMPQconst:
 		p := Prog(x86.ACMPQ)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = regnum(v.Args[0])
@@ -643,38 +676,22 @@ func genValue(v *ssa.Value, frameSize int64) {
 	case ssa.OpMOVQload:
 		p := Prog(x86.AMOVQ)
 		p.From.Type = obj.TYPE_MEM
-		if v.Block.Func.RegAlloc[v.Args[0].ID].Name() == "FP" {
-			// TODO: do the fp/sp adjustment somewhere else?
-			p.From.Reg = x86.REG_SP
-			p.From.Offset = v.Aux.(int64) + frameSize
-		} else {
-			p.From.Reg = regnum(v.Args[0])
-			p.From.Offset = v.Aux.(int64)
-		}
+		p.From.Reg = regnum(v.Args[0])
+		p.From.Offset = v.Aux.(int64)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
 	case ssa.OpMOVBload:
 		p := Prog(x86.AMOVB)
 		p.From.Type = obj.TYPE_MEM
-		if v.Block.Func.RegAlloc[v.Args[0].ID].Name() == "FP" {
-			p.From.Reg = x86.REG_SP
-			p.From.Offset = v.Aux.(int64) + frameSize
-		} else {
-			p.From.Reg = regnum(v.Args[0])
-			p.From.Offset = v.Aux.(int64)
-		}
+		p.From.Reg = regnum(v.Args[0])
+		p.From.Offset = v.Aux.(int64)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
 	case ssa.OpMOVQloadidx8:
 		p := Prog(x86.AMOVQ)
 		p.From.Type = obj.TYPE_MEM
-		if v.Block.Func.RegAlloc[v.Args[0].ID].Name() == "FP" {
-			p.From.Reg = x86.REG_SP
-			p.From.Offset = v.Aux.(int64) + frameSize
-		} else {
-			p.From.Reg = regnum(v.Args[0])
-			p.From.Offset = v.Aux.(int64)
-		}
+		p.From.Reg = regnum(v.Args[0])
+		p.From.Offset = v.Aux.(int64)
 		p.From.Scale = 8
 		p.From.Index = regnum(v.Args[1])
 		p.To.Type = obj.TYPE_REG
@@ -684,13 +701,8 @@ func genValue(v *ssa.Value, frameSize int64) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = regnum(v.Args[1])
 		p.To.Type = obj.TYPE_MEM
-		if v.Block.Func.RegAlloc[v.Args[0].ID].Name() == "FP" {
-			p.To.Reg = x86.REG_SP
-			p.To.Offset = v.Aux.(int64) + frameSize
-		} else {
-			p.To.Reg = regnum(v.Args[0])
-			p.To.Offset = v.Aux.(int64)
-		}
+		p.To.Reg = regnum(v.Args[0])
+		p.To.Offset = v.Aux.(int64)
 	case ssa.OpCopy:
 		x := regnum(v.Args[0])
 		y := regnum(v)
@@ -705,7 +717,7 @@ func genValue(v *ssa.Value, frameSize int64) {
 		p := Prog(x86.AMOVQ)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = x86.REG_SP
-		p.From.Offset = frameSize - localOffset(v.Args[0])
+		p.From.Offset = localOffset(v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
 	case ssa.OpStoreReg8:
@@ -714,7 +726,7 @@ func genValue(v *ssa.Value, frameSize int64) {
 		p.From.Reg = regnum(v.Args[0])
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = x86.REG_SP
-		p.To.Offset = frameSize - localOffset(v)
+		p.To.Offset = localOffset(v)
 	case ssa.OpPhi:
 		// just check to make sure regalloc did it right
 		f := v.Block.Func
@@ -740,10 +752,15 @@ func genValue(v *ssa.Value, frameSize int64) {
 		p.From.Offset = g.Offset
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
+	case ssa.OpStaticCall:
+		p := Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = Linksym(v.Aux.(*Sym))
 	case ssa.OpFP, ssa.OpSP:
 		// nothing to do
 	default:
-		log.Fatalf("value %s not implemented yet", v.LongString())
+		log.Fatalf("value %s not implemented", v.LongString())
 	}
 }
 
@@ -757,6 +774,12 @@ func genBlock(b, next *ssa.Block, branches []branch) []branch {
 		}
 	case ssa.BlockExit:
 		Prog(obj.ARET)
+	case ssa.BlockCall:
+		if b.Succs[0] != next {
+			p := Prog(obj.AJMP)
+			p.To.Type = obj.TYPE_BRANCH
+			branches = append(branches, branch{p, b.Succs[0]})
+		}
 	case ssa.BlockEQ:
 		if b.Succs[0] == next {
 			p := Prog(x86.AJNE)
@@ -844,7 +867,7 @@ func genBlock(b, next *ssa.Block, branches []branch) []branch {
 		}
 
 	default:
-		log.Fatalf("branch %s not implemented yet", b.LongString())
+		log.Fatalf("branch %s not implemented", b.LongString())
 	}
 	return branches
 }

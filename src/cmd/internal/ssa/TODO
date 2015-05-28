@@ -1,0 +1,47 @@
+This is a list of things that need to be worked on.  It is by no means complete.
+
+Allocation
+- Allocation of decls in stackalloc.  Decls survive if they are
+  addrtaken or are too large for registerization.
+
+Scheduling
+ - Make sure loads are scheduled correctly with respect to stores.
+   Same for flag type values.  We can't have more than one value of
+   mem or flag types live at once.
+ - Reduce register pressure.  Schedule instructions which kill
+   variables first.
+
+Values
+ - Add a line number field.  Figure out how to populate it and
+   maintain it during rewrites.
+ - Store *Type instead of Type?  Keep an array of used Types in Func
+   and reference by id?  Unify with the type ../gc so we just use a
+   pointer instead of an interface?
+ - Recycle dead values instead of using GC to do that.
+ - A lot of Aux fields are just int64.  Add a separate AuxInt field?
+   If not that, then cache the interfaces that wrap int64s.
+ - OpStore uses 3 args.  Increase the size of argstorage to 3?
+
+Opcodes
+ - Rename ops to prevent cross-arch conflicts.  MOVQ -> MOVQamd64 (or
+   MOVQ6?).  Other option: build opcode table in Config instead of globally.
+ - Remove asm string from opinfo, no longer needed.
+ - It's annoying to list the opcode both in the opcode list and an
+   opInfo map entry.  Specify it one place and use go:generate to
+   produce both?
+
+Regalloc
+ - Make less arch-dependent
+ - Don't spill everything at every basic block boundary.
+ - Allow args and return values to be ssa-able.
+ - Handle 2-address instructions.
+
+Rewrites
+ - Strength reduction (both arch-indep and arch-dependent?)
+ - Code sequence for shifts >= wordsize
+ - Start another architecture (arm?)
+
+Common-Subexpression Elimination
+ - Make better decision about which value in an equivalence class we should
+   choose to replace other values in that class.
+ - Can we move control values out of their basic block?

@@ -13,24 +13,24 @@ const (
 	// Q = 64 bit, L = 32 bit, W = 16 bit, B = 8 bit
 
 	// arithmetic
-	OpADDQ  // arg0 + arg1
-	OpSUBQ  // arg0 - arg1
-	OpADDCQ // arg + aux.(int64)
-	OpSUBCQ // arg - aux.(int64)
-	OpMULQ  // arg0 * arg1
-	OpMULCQ // arg * aux.(int64)
-	OpSHLQ  // arg0 << arg1
-	OpSHLCQ // arg << aux.(int64)
-	OpNEGQ  // -arg
-	OpADDL  // arg0 + arg1
+	OpADDQ      // arg0 + arg1
+	OpADDQconst // arg + aux.(int64)
+	OpSUBQ      // arg0 - arg1
+	OpSUBQconst // arg - aux.(int64)
+	OpMULQ      // arg0 * arg1
+	OpMULQconst // arg * aux.(int64)
+	OpSHLQ      // arg0 << arg1
+	OpSHLQconst // arg << aux.(int64)
+	OpNEGQ      // -arg
+	OpADDL      // arg0 + arg1
 
 	// Flags value generation.
 	// We pretend the flags type is an opaque thing that comparisons generate
 	// and from which we can extract boolean conditions like <, ==, etc.
-	OpCMPQ  // arg0 compare to arg1
-	OpCMPCQ // arg0 compare to aux.(int64)
-	OpTESTQ // (arg0 & arg1) compare to 0
-	OpTESTB // (arg0 & arg1) compare to 0
+	OpCMPQ      // arg0 compare to arg1
+	OpCMPQconst // arg0 compare to aux.(int64)
+	OpTESTQ     // (arg0 & arg1) compare to 0
+	OpTESTB     // (arg0 & arg1) compare to 0
 
 	// These opcodes extract a particular boolean condition from a flags value.
 	OpSETEQ // extract == condition from arg0
@@ -96,7 +96,8 @@ var regsAMD64 = [...]string{
 	"OVERWRITE0", // the same register as the first input
 }
 
-var gp regMask = 0x1ffff // all integer registers (including SP&FP)
+var gp regMask = 0x1ffff   // all integer registers including SP&FP
+var gpout regMask = 0xffef // integer registers not including SP&FP
 var cx regMask = 1 << 1
 var si regMask = 1 << 6
 var di regMask = 1 << 7
@@ -104,37 +105,37 @@ var flags regMask = 1 << 17
 
 var (
 	// gp = general purpose (integer) registers
-	gp21      = [2][]regMask{{gp, gp}, {gp}}    // 2 input, 1 output
-	gp11      = [2][]regMask{{gp}, {gp}}        // 1 input, 1 output
-	gp01      = [2][]regMask{{}, {gp}}          // 0 input, 1 output
-	shift     = [2][]regMask{{gp, cx}, {gp}}    // shift operations
+	gp21      = [2][]regMask{{gp, gp}, {gpout}} // 2 input, 1 output
+	gp11      = [2][]regMask{{gp}, {gpout}}     // 1 input, 1 output
+	gp01      = [2][]regMask{{}, {gpout}}       // 0 input, 1 output
+	shift     = [2][]regMask{{gp, cx}, {gpout}} // shift operations
 	gp2_flags = [2][]regMask{{gp, gp}, {flags}} // generate flags from 2 gp regs
 	gp1_flags = [2][]regMask{{gp}, {flags}}     // generate flags from 1 gp reg
 
-	gpload     = [2][]regMask{{gp, 0}, {gp}}
-	gploadidx  = [2][]regMask{{gp, gp, 0}, {gp}}
+	gpload     = [2][]regMask{{gp, 0}, {gpout}}
+	gploadidx  = [2][]regMask{{gp, gp, 0}, {gpout}}
 	gpstore    = [2][]regMask{{gp, gp, 0}, {0}}
 	gpstoreidx = [2][]regMask{{gp, gp, gp, 0}, {0}}
 
-	gpload_stack  = [2][]regMask{{0}, {gp}}
+	gpload_stack  = [2][]regMask{{0}, {gpout}}
 	gpstore_stack = [2][]regMask{{gp, 0}, {0}}
 )
 
 // Opcodes that appear in an output amd64 program
 var amd64Table = map[Op]opInfo{
-	OpADDQ:  {flags: OpFlagCommutative, asm: "ADDQ\t%I0,%I1,%O0", reg: gp21}, // TODO: overwrite
-	OpADDCQ: {asm: "ADDQ\t$%A,%I0,%O0", reg: gp11},                           // aux = int64 constant to add
-	OpSUBQ:  {asm: "SUBQ\t%I0,%I1,%O0", reg: gp21},
-	OpSUBCQ: {asm: "SUBQ\t$%A,%I0,%O0", reg: gp11},
-	OpMULQ:  {asm: "MULQ\t%I0,%I1,%O0", reg: gp21},
-	OpMULCQ: {asm: "MULQ\t$%A,%I0,%O0", reg: gp11},
-	OpSHLQ:  {asm: "SHLQ\t%I0,%I1,%O0", reg: gp21},
-	OpSHLCQ: {asm: "SHLQ\t$%A,%I0,%O0", reg: gp11},
+	OpADDQ:      {flags: OpFlagCommutative, asm: "ADDQ\t%I0,%I1,%O0", reg: gp21}, // TODO: overwrite
+	OpADDQconst: {asm: "ADDQ\t$%A,%I0,%O0", reg: gp11},                           // aux = int64 constant to add
+	OpSUBQ:      {asm: "SUBQ\t%I0,%I1,%O0", reg: gp21},
+	OpSUBQconst: {asm: "SUBQ\t$%A,%I0,%O0", reg: gp11},
+	OpMULQ:      {asm: "MULQ\t%I0,%I1,%O0", reg: gp21},
+	OpMULQconst: {asm: "IMULQ\t$%A,%I0,%O0", reg: gp11},
+	OpSHLQ:      {asm: "SHLQ\t%I0,%I1,%O0", reg: gp21},
+	OpSHLQconst: {asm: "SHLQ\t$%A,%I0,%O0", reg: gp11},
 
-	OpCMPQ:  {asm: "CMPQ\t%I0,%I1", reg: gp2_flags}, // compute arg[0]-arg[1] and produce flags
-	OpCMPCQ: {asm: "CMPQ\t$%A,%I0", reg: gp1_flags},
-	OpTESTQ: {asm: "TESTQ\t%I0,%I1", reg: gp2_flags},
-	OpTESTB: {asm: "TESTB\t%I0,%I1", reg: gp2_flags},
+	OpCMPQ:      {asm: "CMPQ\t%I0,%I1", reg: gp2_flags}, // compute arg[0]-arg[1] and produce flags
+	OpCMPQconst: {asm: "CMPQ\t$%A,%I0", reg: gp1_flags},
+	OpTESTQ:     {asm: "TESTQ\t%I0,%I1", reg: gp2_flags},
+	OpTESTB:     {asm: "TESTB\t%I0,%I1", reg: gp2_flags},
 
 	OpLEAQ:       {flags: OpFlagCommutative, asm: "LEAQ\t%A(%I0)(%I1*1),%O0", reg: gp21}, // aux = int64 constant to add
 	OpLEAQ2:      {asm: "LEAQ\t%A(%I0)(%I1*2),%O0"},

@@ -26,19 +26,9 @@ func (r *Register) Name() string {
 
 // A LocalSlot is a location in the stack frame.
 type LocalSlot struct {
-	Idx int64 // offset in locals area (distance down from FP == caller's SP)
+	Idx int64 // offset in locals area (distance up from SP)
 }
 
 func (s *LocalSlot) Name() string {
-	return fmt.Sprintf("-%d(FP)", s.Idx)
-}
-
-// An ArgSlot is a location in the parents' stack frame where it passed us an argument.
-type ArgSlot struct {
-	idx int64 // offset in argument area
-}
-
-// A CalleeSlot is a location in the stack frame where we pass an argument to a callee.
-type CalleeSlot struct {
-	idx int64 // offset in callee area
+	return fmt.Sprintf("%d(SP)", s.Idx)
 }

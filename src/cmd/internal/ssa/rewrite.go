@@ -68,8 +68,9 @@ func typeSize(t Type) int64 {
 
 // addOff adds two offset aux values.  Each should be an int64.  Fails if wraparound happens.
 func addOff(a, b interface{}) interface{} {
-	x := a.(int64)
-	y := b.(int64)
+	return addOffset(a.(int64), b.(int64))
+}
+func addOffset(x, y int64) int64 {
 	z := x + y
 	// x and y have same sign and z has a different sign => overflow
 	if x^y >= 0 && x^z < 0 {
