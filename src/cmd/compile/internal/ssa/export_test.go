@@ -6,4 +6,5 @@ package ssa
 
 var CheckFunc = checkFunc
 var PrintFunc = printFunc
+var Opt = opt
 var Deadcode = deadcode

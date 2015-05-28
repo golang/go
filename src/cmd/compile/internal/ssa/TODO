@@ -34,13 +34,22 @@ Regalloc
  - Don't spill everything at every basic block boundary.
  - Allow args and return values to be ssa-able.
  - Handle 2-address instructions.
+ - Floating point registers
 
 Rewrites
  - Strength reduction (both arch-indep and arch-dependent?)
  - Code sequence for shifts >= wordsize
  - Start another architecture (arm?)
+ - 64-bit ops on 32-bit machines
+ - <regwidth ops.  For example, x+y on int32s on amd64 needs (MOVLQSX (ADDL x y)).
+   Then add rewrites like (MOVLstore (MOVLQSX x) m) -> (MOVLstore x m)
+   to get rid of most of the MOVLQSX.
 
 Common-Subexpression Elimination
  - Make better decision about which value in an equivalence class we should
    choose to replace other values in that class.
  - Can we move control values out of their basic block?
+
+Other
+ - Make go:generate less painful.  Have a subpackage that just has the
+   generate commands in it?

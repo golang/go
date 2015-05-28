@@ -19,7 +19,7 @@ type Op int32
 // Opcode ranges, a generic one and one for each architecture.
 const (
 	opInvalid     Op = 0
-	opGenericBase Op = 1 + 1000*iota
+	opGenericBase    = 1 + 1000*iota
 	opAMD64Base
 	op386Base
 

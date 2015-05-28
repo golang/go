@@ -6,10 +6,14 @@ package ssa
 
 import "log"
 
-func applyRewrite(f *Func, r func(*Value) bool) {
+func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value) bool) {
 	// repeat rewrites until we find no more rewrites
+	var curb *Block
 	var curv *Value
 	defer func() {
+		if curb != nil {
+			log.Printf("panic during rewrite of %s\n", curb.LongString())
+		}
 		if curv != nil {
 			log.Printf("panic during rewrite of %s\n", curv.LongString())
 			// TODO(khr): print source location also
@@ -18,6 +22,16 @@ func applyRewrite(f *Func, r func(*Value) bool) {
 	for {
 		change := false
 		for _, b := range f.Blocks {
+			if b.Control != nil && b.Control.Op == OpCopy {
+				for b.Control.Op == OpCopy {
+					b.Control = b.Control.Args[0]
+				}
+			}
+			curb = b
+			if rb(b) {
+				change = true
+			}
+			curb = nil
 			for _, v := range b.Values {
 				// elide any copies generated during rewriting
 				for i, a := range v.Args {
@@ -32,13 +46,13 @@ func applyRewrite(f *Func, r func(*Value) bool) {
 
 				// apply rewrite function
 				curv = v
-				if r(v) {
+				if rv(v) {
 					change = true
 				}
+				curv = nil
 			}
 		}
 		if !change {
-			curv = nil
 			return
 		}
 	}

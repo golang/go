@@ -48,27 +48,27 @@ type Block struct {
 //    Plain               nil            [next]
 //       If   a boolean Value      [then, else]
 //     Call               mem  [nopanic, panic]  (control opcode should be OpCall or OpStaticCall)
-type BlockKind int8
+type BlockKind int32
 
+// block kind ranges
 const (
-	BlockExit  BlockKind = iota // no successors.  There should only be 1 of these.
-	BlockPlain                  // a single successor
-	BlockIf                     // 2 successors, if control goto Succs[0] else goto Succs[1]
-	BlockCall                   // 2 successors, normal return and panic
-	// TODO(khr): BlockPanic for the built-in panic call, has 1 edge to the exit block
-	BlockUnknown
+	blockInvalid     BlockKind = 0
+	blockGenericBase           = 1 + 100*iota
+	blockAMD64Base
+	block386Base
 
-	// 386/amd64 variants of BlockIf that take the flags register as an arg
-	BlockEQ
-	BlockNE
-	BlockLT
-	BlockLE
-	BlockGT
-	BlockGE
-	BlockULT
-	BlockULE
-	BlockUGT
-	BlockUGE
+	blockMax // sentinel
+)
+
+// generic block kinds
+const (
+	blockGenericStart BlockKind = blockGenericBase + iota
+
+	BlockExit  // no successors.  There should only be 1 of these.
+	BlockPlain // a single successor
+	BlockIf    // 2 successors, if control goto Succs[0] else goto Succs[1]
+	BlockCall  // 2 successors, normal return and panic
+	// TODO(khr): BlockPanic for the built-in panic call, has 1 edge to the exit block
 )
 
 //go:generate stringer -type=BlockKind

@@ -4,9 +4,7 @@
 
 package ssa
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestDeadLoop(t *testing.T) {
 	c := NewConfig("amd64")
@@ -76,6 +74,7 @@ func TestNeverTaken(t *testing.T) {
 			Exit("mem")))
 
 	CheckFunc(fun.f)
+	Opt(fun.f)
 	Deadcode(fun.f)
 	CheckFunc(fun.f)
 

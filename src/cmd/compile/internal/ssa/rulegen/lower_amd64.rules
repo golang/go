@@ -2,16 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// values are specified using the following format:
-// (op <type> [aux] arg0 arg1 ...)
-// the type and aux fields are optional
-// on the matching side
-//  - the types and aux fields must match if they are specified.
-// on the generated side
-//  - the type of the top-level expression is the same as the one on the left-hand side.
-//  - the type of any subexpressions must be specified explicitly.
-//  - aux will be nil if not specified.
-
 // x86 register conventions:
 //  - Integer types live in the low portion of registers.
 //    Upper portions are correctly extended.
@@ -44,6 +34,12 @@
 
 (Const <t> [val]) && is64BitInt(t) -> (MOVQconst [val])
 
+// block rewrites
+(BlockIf (SETL cmp) yes no) -> (BlockLT cmp yes no)
+(BlockIf (SETNE cmp) yes no) -> (BlockNE cmp yes no)
+(BlockIf (SETB cmp) yes no) -> (BlockULT cmp yes no)
+(BlockIf cond yes no) && cond.Op == OpMOVBload -> (BlockNE (TESTB <TypeFlags> cond cond) yes no)
+
 // Rules below here apply some simple optimizations after lowering.
 // TODO: Should this be a separate pass?
 
@@ -71,7 +67,8 @@
 (ADDQconst [c] (LEAQ8 [d] x y)) -> (LEAQ8 [addOff(c, d)] x y)
 
 // reverse ordering of compare instruction
-(SETL (InvertFlags x)) -> (SETGE x)
+(SETL (InvertFlags x)) -> (SETG x)
+(SETG (InvertFlags x)) -> (SETL x)
 
 // fold constants into memory operations
 // Note that this is not always a good idea because if not all the uses of
@@ -89,3 +86,15 @@
 (MOVQstoreidx8 [off1] (ADDQconst [off2] ptr) idx val mem) -> (MOVQstoreidx8 [addOff(off1, off2)] ptr idx val mem)
 
 (ADDQconst [off] x) && off.(int64) == 0 -> (Copy x)
+
+// Absorb InvertFlags into branches.
+(BlockLT (InvertFlags cmp) yes no) -> (BlockGT cmp yes no)
+(BlockGT (InvertFlags cmp) yes no) -> (BlockLT cmp yes no)
+(BlockLE (InvertFlags cmp) yes no) -> (BlockGE cmp yes no)
+(BlockGE (InvertFlags cmp) yes no) -> (BlockLE cmp yes no)
+(BlockULT (InvertFlags cmp) yes no) -> (BlockUGT cmp yes no)
+(BlockUGT (InvertFlags cmp) yes no) -> (BlockULT cmp yes no)
+(BlockULE (InvertFlags cmp) yes no) -> (BlockUGE cmp yes no)
+(BlockUGE (InvertFlags cmp) yes no) -> (BlockULE cmp yes no)
+(BlockEQ (InvertFlags cmp) yes no) -> (BlockEQ cmp yes no)
+(BlockNE (InvertFlags cmp) yes no) -> (BlockNE cmp yes no)

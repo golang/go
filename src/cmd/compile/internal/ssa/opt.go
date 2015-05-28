@@ -6,8 +6,8 @@ package ssa
 
 // machine-independent optimization
 
-//go:generate go run rulegen/rulegen.go rulegen/generic.rules genericRules generic.go
+//go:generate go run rulegen/rulegen.go rulegen/generic.rules genericBlockRules genericValueRules generic.go
 
 func opt(f *Func) {
-	applyRewrite(f, genericRules)
+	applyRewrite(f, genericBlockRules, genericValueRules)
 }
