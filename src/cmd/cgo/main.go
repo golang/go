@@ -84,6 +84,7 @@ type Name struct {
 	Type     *Type  // the type of xxx
 	FuncType *FuncType
 	AddError bool
+	Direct   bool
 	Const    string // constant definition
 }
 
