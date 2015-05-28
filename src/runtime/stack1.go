@@ -743,8 +743,11 @@ func newstack() {
 		}
 		if gp.preemptscan {
 			for !castogscanstatus(gp, _Gwaiting, _Gscanwaiting) {
-				// Likely to be racing with the GC as it sees a _Gwaiting and does the stack scan.
-				// If so this stack will be scanned twice which does not change correctness.
+				// Likely to be racing with the GC as
+				// it sees a _Gwaiting and does the
+				// stack scan. If so, gcworkdone will
+				// be set and gcphasework will simply
+				// return.
 			}
 			gcphasework(gp)
 			casfrom_Gscanstatus(gp, _Gscanwaiting, _Gwaiting)

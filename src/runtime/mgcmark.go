@@ -258,6 +258,9 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 // work is done here.
 //go:nowritebarrier
 func gcphasework(gp *g) {
+	if gp.gcworkdone {
+		return
+	}
 	switch gcphase {
 	default:
 		throw("gcphasework in bad gcphase")
