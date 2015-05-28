@@ -38,9 +38,14 @@ func NewCipher(key []byte) (cipher.Block, error) {
 	}
 
 	n := k + 28
-	c := &aesCipher{make([]uint32, n), make([]uint32, n)}
+	c := aesCipher{make([]uint32, n), make([]uint32, n)}
 	expandKey(key, c.enc, c.dec)
-	return c, nil
+
+	if hasGCMAsm() {
+		return &aesCipherGCM{c}, nil
+	}
+
+	return &c, nil
 }
 
 func (c *aesCipher) BlockSize() int { return BlockSize }
