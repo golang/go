@@ -1,25 +1,29 @@
 Overall:
-toolchain in Go
-new GC
+- toolchain in Go
+- new GC
+- go tool asm, go tool compile, go tool link
+- default output files changed: now file.o and a.out
 
 Language:
-permit omission of key type in map composite literals where key is a composite literal (https://golang.org/cl/2591)
+- permit omission of key type in map composite literals where key is a composite literal (https://golang.org/cl/2591)
 
 Build:
-Go 1.4 required to build (https://golang.org/cl/2470, https://golang.org/cl/2993)
+- Go 1.4 required to build (https://golang.org/cl/2470, https://golang.org/cl/2993)
 
 New Ports:
-darwin/arm, a.k.a iOS. (https://golang.org/cl/2118, 2119, 3273, 2121, 2122, ..., 2127)
-darwin/arm64
-linux/arm64 (cgo is supported, but only with external linking)
-openbsd/arm (no cgo or external linking)
-The port to Snow Leopard (OS X 10.6) is no longer actively maintained.
-
-Runtime:
-goroutine scheduling order changed; never guaranteed by language, but can break tests that implicitly assume a specific execution order
+- darwin/arm, a.k.a iOS. (https://golang.org/cl/2118, 2119, 3273, 2121, 2122, ..., 2127)
+- darwin/arm64
+- linux/arm64 (cgo is supported, but only with external linking)
+- openbsd/arm (no cgo or external linking)
 
 Removed Ports:
-dragonfly/386 (https://golang.org/cl/7543)
+- dragonfly/386 (https://golang.org/cl/7543)
+- The port to Snow Leopard (OS X 10.6) is no longer actively maintained.
+
+Runtime:
+- goroutine scheduling order changed; never guaranteed by language,
+  but can break tests that implicitly assume a specific execution
+  order
 
 API additions and behavior changes:
 
@@ -53,9 +57,12 @@ mime: add ExtensionByType (https://golang.org/cl/7444)
 mime/quotedprintable: new package (https://golang.org/cl/5940 + others)
 net: add Source field to OpError (https://go-review.googlesource.com/9231)
 net: fix inconsistent errors (https://golang.org/cl/9236)
+net: add SocketConn, SocketPacketConn (https://golang.org/cl/9275)
+net: use Go's DNS resolver when system configuration permits (https://golang.org/cl/8945)
 net/http: support for setting trailers from a server Handler (https://golang.org/cl/2157)
 net/http: ignore the Unix epoch time in ServeContent (https://golang.org/cl/7915)
 net/http/cgi: fix REMOTE_ADDR, REMOTE_HOST, add REMOTE_PORT (https://golang.org/cl/4933)
+net/mail: adds AddressParser type (https://golang.org/cl/10392)
 net/smtp: add TLSConnectionState accessor (https://golang.org/cl/2151)
 os: add LookupEnv (https://golang.org/cl/9791)
 os/signal: add Ignore and Reset (https://golang.org/cl/3580)
@@ -63,6 +70,7 @@ reflect: add ArrayOf (https://golang.org/cl/4111)
 reflect: add FuncOf (https://golang.org/cl/1996)
 runtime, syscall: use SYSCALL instruction on FreeBSD (Go 1.5 now requires FreeBSD 8-STABLE+) (https://golang.org/cl/3020)
 runtime, syscall: use get_random_bytes syscall for NaCl (Go 1.5 now requires NaCl SDK pepper-39 or above) (https://golang.org/cl/1755)
+runtime/pprof: memory profiles include overall memory statistics by default (https://golang.org/cl/9491)
 strings: add Compare(x, y string) int, for symmetry with bytes.Compare (https://golang.org/cl/2828)
 syscall: Add Foreground and Pgid to SysProcAttr (https://golang.org/cl/5130)
 syscall: add missing Syscall9 for darwin/amd64 (https://golang.org/cl/6555)
@@ -106,6 +114,8 @@ cmd/gc: allocate backing storage for non-escaping interfaces on stack (https://g
 encoding/xml: avoid an allocation for tags without attributes (https://golang.org/cl/4160)
 image: many optimizations
 runtime: add ARM runtime.cmpstring and bytes.Compare (https://golang.org/cl/8010)
+runtime: do not scan maps when k/v do not contain pointers (https://golang.org/cl/3288)
+runtime: reduce thrashing of gs between ps (https://golang.org/cl/9872)
 sort: number of Sort performance optimizations (https://golang.org/cl/2100, https://golang.org/cl/2614, ...)
 strconv: optimize decimal to string conversion (https://golang.org/cl/2105)
 strconv: optimize float to string conversion (https://golang.org/cl/5600)

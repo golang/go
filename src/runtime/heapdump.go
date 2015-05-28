@@ -15,20 +15,13 @@ import "unsafe"
 
 //go:linkname runtime_debug_WriteHeapDump runtime/debug.WriteHeapDump
 func runtime_debug_WriteHeapDump(fd uintptr) {
-	semacquire(&worldsema, false)
-	gp := getg()
-	gp.m.preemptoff = "write heap dump"
-	systemstack(stoptheworld)
+	stopTheWorld("write heap dump")
 
 	systemstack(func() {
 		writeheapdump_m(fd)
 	})
 
-	gp.m.preemptoff = ""
-	gp.m.locks++
-	semrelease(&worldsema)
-	systemstack(starttheworld)
-	gp.m.locks--
+	startTheWorld()
 }
 
 const (
@@ -730,14 +723,13 @@ func makeheapobjbv(p uintptr, size uintptr) bitvector {
 	i := uintptr(0)
 	hbits := heapBitsForAddr(p)
 	for ; i < nptr; i++ {
-		bits := hbits.typeBits()
-		if bits == typeDead {
+		if i >= 2 && !hbits.isMarked() {
 			break // end of object
 		}
-		hbits = hbits.next()
-		if bits == typePointer {
+		if hbits.isPointer() {
 			tmpbuf[i/8] |= 1 << (i % 8)
 		}
+		hbits = hbits.next()
 	}
 	return bitvector{int32(i), &tmpbuf[0]}
 }

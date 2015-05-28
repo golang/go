@@ -94,10 +94,8 @@ func TestSpecialDomainName(t *testing.T) {
 
 type resolvConfTest struct {
 	*testing.T
-	dir     string
-	path    string
-	started bool
-	quitc   chan chan struct{}
+	dir  string
+	path string
 }
 
 func newResolvConfTest(t *testing.T) *resolvConfTest {
@@ -106,22 +104,13 @@ func newResolvConfTest(t *testing.T) *resolvConfTest {
 		t.Fatal(err)
 	}
 
-	// Disable the default loadConfig
-	onceLoadConfig.Do(func() {})
-
 	r := &resolvConfTest{
-		T:     t,
-		dir:   dir,
-		path:  path.Join(dir, "resolv.conf"),
-		quitc: make(chan chan struct{}),
+		T:    t,
+		dir:  dir,
+		path: path.Join(dir, "resolv.conf"),
 	}
 
 	return r
-}
-
-func (r *resolvConfTest) Start() {
-	loadConfig(r.path, 100*time.Millisecond, r.quitc)
-	r.started = true
 }
 
 func (r *resolvConfTest) SetConf(s string) {
@@ -138,12 +127,8 @@ func (r *resolvConfTest) SetConf(s string) {
 		r.Fatalf("failed to write temp file: %v", err)
 	}
 	f.Close()
-
-	if r.started {
-		cfg.ch <- struct{}{} // fill buffer
-		cfg.ch <- struct{}{} // wait for reload to begin
-		cfg.ch <- struct{}{} // wait for reload to complete
-	}
+	cfg.lastChecked = time.Time{}
+	loadConfig(r.path)
 }
 
 func (r *resolvConfTest) WantServers(want []string) {
@@ -155,9 +140,6 @@ func (r *resolvConfTest) WantServers(want []string) {
 }
 
 func (r *resolvConfTest) Close() {
-	resp := make(chan struct{})
-	r.quitc <- resp
-	<-resp
 	if err := os.RemoveAll(r.dir); err != nil {
 		r.Logf("failed to remove temp dir %s: %v", r.dir, err)
 	}
@@ -171,7 +153,6 @@ func TestReloadResolvConfFail(t *testing.T) {
 	r := newResolvConfTest(t)
 	defer r.Close()
 
-	r.Start()
 	r.SetConf("nameserver 8.8.8.8")
 
 	if _, err := goLookupIP("golang.org"); err != nil {
@@ -200,7 +181,6 @@ func TestReloadResolvConfChange(t *testing.T) {
 	r := newResolvConfTest(t)
 	defer r.Close()
 
-	r.Start()
 	r.SetConf("nameserver 8.8.8.8")
 
 	if _, err := goLookupIP("golang.org"); err != nil {
@@ -227,7 +207,7 @@ func TestReloadResolvConfChange(t *testing.T) {
 }
 
 func BenchmarkGoLookupIP(b *testing.B) {
-	testHookUninstaller.Do(func() { uninstallTestHooks() })
+	testHookUninstaller.Do(uninstallTestHooks)
 
 	for i := 0; i < b.N; i++ {
 		goLookupIP("www.example.com")
@@ -235,7 +215,7 @@ func BenchmarkGoLookupIP(b *testing.B) {
 }
 
 func BenchmarkGoLookupIPNoSuchHost(b *testing.B) {
-	testHookUninstaller.Do(func() { uninstallTestHooks() })
+	testHookUninstaller.Do(uninstallTestHooks)
 
 	for i := 0; i < b.N; i++ {
 		goLookupIP("some.nonexistent")
@@ -243,16 +223,16 @@ func BenchmarkGoLookupIPNoSuchHost(b *testing.B) {
 }
 
 func BenchmarkGoLookupIPWithBrokenNameServer(b *testing.B) {
-	testHookUninstaller.Do(func() { uninstallTestHooks() })
-
-	onceLoadConfig.Do(loadDefaultConfig)
+	testHookUninstaller.Do(uninstallTestHooks)
 
 	// This looks ugly but it's safe as long as benchmarks are run
 	// sequentially in package testing.
+	<-cfg.ch // keep config from being reloaded upon lookup
 	orig := cfg.dnsConfig
 	cfg.dnsConfig.servers = append([]string{"203.0.113.254"}, cfg.dnsConfig.servers...) // use TEST-NET-3 block, see RFC 5737
 	for i := 0; i < b.N; i++ {
 		goLookupIP("www.example.com")
 	}
 	cfg.dnsConfig = orig
+	cfg.ch <- struct{}{}
 }

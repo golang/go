@@ -521,7 +521,7 @@ third:
 func TestFileError(t *testing.T) {
 	switch runtime.GOOS {
 	case "windows":
-		t.Skip("not supported on %s", runtime.GOOS)
+		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
 	f, err := ioutil.TempFile("", "go-nettest")

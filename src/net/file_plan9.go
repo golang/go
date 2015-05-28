@@ -135,3 +135,11 @@ func fileListener(f *os.File) (Listener, error) {
 func filePacketConn(f *os.File) (PacketConn, error) {
 	return nil, syscall.EPLAN9
 }
+
+func socketConn(f *os.File, sa SocketAddr) (Conn, error) {
+	return nil, syscall.EPLAN9
+}
+
+func socketPacketConn(f *os.File, sa SocketAddr) (PacketConn, error) {
+	return nil, syscall.EPLAN9
+}

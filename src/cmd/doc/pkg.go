@@ -115,7 +115,7 @@ func (pkg *Package) emit(comment string, node ast.Node) {
 			log.Fatal(err)
 		}
 		if comment != "" {
-			pkg.newlines(1)
+			pkg.newlines(2) // Guarantee blank line before comment.
 			doc.ToText(&pkg.buf, comment, "    ", "\t", 80)
 		}
 		pkg.newlines(1)
@@ -190,6 +190,7 @@ func (pkg *Package) packageDoc() {
 	pkg.valueSummary(pkg.doc.Vars)
 	pkg.funcSummary(pkg.doc.Funcs)
 	pkg.typeSummary()
+	pkg.bugs()
 }
 
 // packageClause prints the package clause.
@@ -250,6 +251,18 @@ func (pkg *Package) typeSummary() {
 				pkg.oneLineTypeDecl(typeSpec)
 			}
 		}
+	}
+}
+
+// bugs prints the BUGS information for the package.
+// TODO: Provide access to TODOs and NOTEs as well (very noisy so off by default)?
+func (pkg *Package) bugs() {
+	if pkg.doc.Notes["BUG"] == nil {
+		return
+	}
+	pkg.Printf("\n")
+	for _, note := range pkg.doc.Notes["BUG"] {
+		pkg.Printf("%s: %v\n", "BUG", note.Body)
 	}
 }
 
@@ -332,13 +345,16 @@ func (pkg *Package) symbolDoc(symbol string) {
 		}
 		decl := typ.Decl
 		spec := pkg.findTypeSpec(decl, typ.Name)
-		trimUnexportedFields(spec)
+		trimUnexportedElems(spec)
 		// If there are multiple types defined, reduce to just this one.
 		if len(decl.Specs) > 1 {
 			decl.Specs = []ast.Spec{spec}
 		}
 		pkg.emit(typ.Doc, decl)
 		// Show associated methods, constants, etc.
+		if len(typ.Consts) > 0 || len(typ.Vars) > 0 || len(typ.Funcs) > 0 || len(typ.Methods) > 0 {
+			pkg.Printf("\n")
+		}
 		pkg.valueSummary(typ.Consts)
 		pkg.valueSummary(typ.Vars)
 		pkg.funcSummary(typ.Funcs)
@@ -353,22 +369,26 @@ func (pkg *Package) symbolDoc(symbol string) {
 	}
 }
 
-// trimUnexportedFields modifies spec in place to elide unexported fields (unless
-// the unexported flag is set). If spec is not a structure declartion, nothing happens.
-func trimUnexportedFields(spec *ast.TypeSpec) {
+// trimUnexportedElems modifies spec in place to elide unexported fields from
+// structs and methods from interfaces (unless the unexported flag is set).
+func trimUnexportedElems(spec *ast.TypeSpec) {
 	if *unexported {
-		// We're printing all fields.
 		return
 	}
-	// It must be a struct for us to care. (We show unexported methods in interfaces.)
-	structType, ok := spec.Type.(*ast.StructType)
-	if !ok {
-		return
+	switch typ := spec.Type.(type) {
+	case *ast.StructType:
+		typ.Fields = trimUnexportedFields(typ.Fields, "fields")
+	case *ast.InterfaceType:
+		typ.Methods = trimUnexportedFields(typ.Methods, "methods")
 	}
+}
+
+// trimUnexportedFields returns the field list trimmed of unexported fields.
+func trimUnexportedFields(fields *ast.FieldList, what string) *ast.FieldList {
 	trimmed := false
-	list := make([]*ast.Field, 0, len(structType.Fields.List))
-	for _, field := range structType.Fields.List {
-		// Trims if any is unexported. Fine in practice.
+	list := make([]*ast.Field, 0, len(fields.List))
+	for _, field := range fields.List {
+		// Trims if any is unexported. Good enough in practice.
 		ok := true
 		for _, name := range field.Names {
 			if !isExported(name.Name) {
@@ -381,19 +401,23 @@ func trimUnexportedFields(spec *ast.TypeSpec) {
 			list = append(list, field)
 		}
 	}
-	if trimmed {
-		unexportedField := &ast.Field{
-			Type: ast.NewIdent(""), // Hack: printer will treat this as a field with a named type.
-			Comment: &ast.CommentGroup{
-				List: []*ast.Comment{
-					&ast.Comment{
-						Text: "// Has unexported fields.\n",
-					},
+	if !trimmed {
+		return fields
+	}
+	unexportedField := &ast.Field{
+		Type: ast.NewIdent(""), // Hack: printer will treat this as a field with a named type.
+		Comment: &ast.CommentGroup{
+			List: []*ast.Comment{
+				&ast.Comment{
+					Text: fmt.Sprintf("// Has unexported %s.\n", what),
 				},
 			},
-		}
-		list = append(list, unexportedField)
-		structType.Fields.List = list
+		},
+	}
+	return &ast.FieldList{
+		Opening: fields.Opening,
+		List:    append(list, unexportedField),
+		Closing: fields.Closing,
 	}
 }
 

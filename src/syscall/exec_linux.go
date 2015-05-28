@@ -132,26 +132,6 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		}
 	}
 
-	// Parent death signal
-	if sys.Pdeathsig != 0 {
-		_, _, err1 = RawSyscall6(SYS_PRCTL, PR_SET_PDEATHSIG, uintptr(sys.Pdeathsig), 0, 0, 0, 0)
-		if err1 != 0 {
-			goto childerror
-		}
-
-		// Signal self if parent is already dead. This might cause a
-		// duplicate signal in rare cases, but it won't matter when
-		// using SIGKILL.
-		r1, _, _ = RawSyscall(SYS_GETPPID, 0, 0, 0)
-		if r1 != ppid {
-			pid, _, _ := RawSyscall(SYS_GETPID, 0, 0, 0)
-			_, _, err1 := RawSyscall(SYS_KILL, pid, uintptr(sys.Pdeathsig), 0)
-			if err1 != 0 {
-				goto childerror
-			}
-		}
-	}
-
 	// Enable tracing if requested.
 	if sys.Ptrace {
 		_, _, err1 = RawSyscall(SYS_PTRACE, uintptr(PTRACE_TRACEME), 0, 0)
@@ -229,6 +209,26 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		_, _, err1 = RawSyscall(SYS_CHDIR, uintptr(unsafe.Pointer(dir)), 0, 0)
 		if err1 != 0 {
 			goto childerror
+		}
+	}
+
+	// Parent death signal
+	if sys.Pdeathsig != 0 {
+		_, _, err1 = RawSyscall6(SYS_PRCTL, PR_SET_PDEATHSIG, uintptr(sys.Pdeathsig), 0, 0, 0, 0)
+		if err1 != 0 {
+			goto childerror
+		}
+
+		// Signal self if parent is already dead. This might cause a
+		// duplicate signal in rare cases, but it won't matter when
+		// using SIGKILL.
+		r1, _, _ = RawSyscall(SYS_GETPPID, 0, 0, 0)
+		if r1 != ppid {
+			pid, _, _ := RawSyscall(SYS_GETPID, 0, 0, 0)
+			_, _, err1 := RawSyscall(SYS_KILL, pid, uintptr(sys.Pdeathsig), 0)
+			if err1 != 0 {
+				goto childerror
+			}
 		}
 	}
 

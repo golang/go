@@ -24,8 +24,12 @@ func toMyNode(node *LFNode) *MyNode {
 	return (*MyNode)(unsafe.Pointer(node))
 }
 
+var global interface{}
+
 func TestLFStack(t *testing.T) {
 	stack := new(uint64)
+	global = stack // force heap allocation
+
 	// Need to keep additional referenfces to nodes, the stack is not all that type-safe.
 	var nodes []*MyNode
 

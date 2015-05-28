@@ -350,9 +350,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		if p.From3.Name == obj.NAME_EXTERN {
 			ctxt.Diag("don't know how to handle %v with -dynlink", p)
 		}
-		if p.To2.Name == obj.NAME_EXTERN {
-			ctxt.Diag("don't know how to handle %v with -dynlink", p)
-		}
 		var source *obj.Addr
 		if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
 			if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {

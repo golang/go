@@ -14,7 +14,6 @@ import (
 	"strings"
 	"testing"
 
-	_ "go/internal/gcimporter"
 	. "go/types"
 )
 

@@ -28,7 +28,8 @@ sub fmt {
 }
 
 my $prev;
-while(<>){
+open(GCC, "gcc -E -dD $ARGV[0] |") || die "can't run gcc";
+while(<GCC>){
 	if(/^#define __NR_syscalls\s+/) {
 		# ignore redefinitions of __NR_syscalls
 	}

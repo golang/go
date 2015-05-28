@@ -59,7 +59,7 @@ func TestGdbPython(t *testing.T) {
 
 	cmd := exec.Command("go", "build", "-o", "a.exe")
 	cmd.Dir = dir
-	out, err := cmd.CombinedOutput()
+	out, err := testEnv(cmd).CombinedOutput()
 	if err != nil {
 		t.Fatalf("building source %v\n%s", err, out)
 	}
@@ -85,7 +85,7 @@ func TestGdbPython(t *testing.T) {
 	// stack frames on RISC architectures.
 	canBackTrace := false
 	switch runtime.GOARCH {
-	case "amd64", "386":
+	case "amd64", "386", "ppc64", "ppc64le", "arm", "arm64":
 		canBackTrace = true
 		args = append(args,
 			"-ex", "echo BEGIN goroutine 2 bt\n",

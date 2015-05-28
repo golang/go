@@ -10,12 +10,6 @@ import (
 	"sync"
 )
 
-func switchInit(sw *Switch) {
-	sw.fltab = make(map[FilterType]Filter)
-	sw.sotab = make(Sockets)
-	sw.stats = make(stats)
-}
-
 // A Switch represents a callpath point switch for socket system
 // calls.
 type Switch struct {
@@ -27,6 +21,12 @@ type Switch struct {
 	smu   sync.RWMutex
 	sotab Sockets
 	stats stats
+}
+
+func (sw *Switch) init() {
+	sw.fltab = make(map[FilterType]Filter)
+	sw.sotab = make(Sockets)
+	sw.stats = make(stats)
 }
 
 // Stats returns a list of per-cookie socket statistics.
@@ -162,7 +162,7 @@ func (f AfterFilter) apply(st *Status) error {
 
 // Set deploys the socket system call filter f for the filter type t.
 func (sw *Switch) Set(t FilterType, f Filter) {
-	sw.once.Do(func() { switchInit(sw) })
+	sw.once.Do(sw.init)
 	sw.fmu.Lock()
 	sw.fltab[t] = f
 	sw.fmu.Unlock()

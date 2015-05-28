@@ -292,6 +292,9 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 func mpreinit(mp *m) {
 }
 
+func msigsave(mp *m) {
+}
+
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, can not allocate memory.
 func minit() {

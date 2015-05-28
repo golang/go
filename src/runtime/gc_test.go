@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"os"
+	"reflect"
 	"runtime"
 	"runtime/debug"
 	"testing"
@@ -197,45 +198,166 @@ func TestHugeGCInfo(t *testing.T) {
 	}
 }
 
-func BenchmarkSetTypeNoPtr1(b *testing.B) {
-	type NoPtr1 struct {
-		p uintptr
-	}
-	var p *NoPtr1
-	for i := 0; i < b.N; i++ {
-		p = &NoPtr1{}
-	}
-	_ = p
+func BenchmarkSetTypePtr(b *testing.B) {
+	benchSetType(b, new(*byte))
 }
-func BenchmarkSetTypeNoPtr2(b *testing.B) {
-	type NoPtr2 struct {
-		p, q uintptr
-	}
-	var p *NoPtr2
-	for i := 0; i < b.N; i++ {
-		p = &NoPtr2{}
-	}
-	_ = p
+
+func BenchmarkSetTypePtr8(b *testing.B) {
+	benchSetType(b, new([8]*byte))
 }
-func BenchmarkSetTypePtr1(b *testing.B) {
-	type Ptr1 struct {
-		p *byte
-	}
-	var p *Ptr1
-	for i := 0; i < b.N; i++ {
-		p = &Ptr1{}
-	}
-	_ = p
+
+func BenchmarkSetTypePtr16(b *testing.B) {
+	benchSetType(b, new([16]*byte))
 }
-func BenchmarkSetTypePtr2(b *testing.B) {
-	type Ptr2 struct {
-		p, q *byte
+
+func BenchmarkSetTypePtr32(b *testing.B) {
+	benchSetType(b, new([32]*byte))
+}
+
+func BenchmarkSetTypePtr64(b *testing.B) {
+	benchSetType(b, new([64]*byte))
+}
+
+func BenchmarkSetTypePtr126(b *testing.B) {
+	benchSetType(b, new([126]*byte))
+}
+
+func BenchmarkSetTypePtr128(b *testing.B) {
+	benchSetType(b, new([128]*byte))
+}
+
+func BenchmarkSetTypePtrSlice(b *testing.B) {
+	benchSetType(b, make([]*byte, 1<<10))
+}
+
+type Node1 struct {
+	Value       [1]uintptr
+	Left, Right *byte
+}
+
+func BenchmarkSetTypeNode1(b *testing.B) {
+	benchSetType(b, new(Node1))
+}
+
+func BenchmarkSetTypeNode1Slice(b *testing.B) {
+	benchSetType(b, make([]Node1, 32))
+}
+
+type Node8 struct {
+	Value       [8]uintptr
+	Left, Right *byte
+}
+
+func BenchmarkSetTypeNode8(b *testing.B) {
+	benchSetType(b, new(Node8))
+}
+
+func BenchmarkSetTypeNode8Slice(b *testing.B) {
+	benchSetType(b, make([]Node8, 32))
+}
+
+type Node64 struct {
+	Value       [64]uintptr
+	Left, Right *byte
+}
+
+func BenchmarkSetTypeNode64(b *testing.B) {
+	benchSetType(b, new(Node64))
+}
+
+func BenchmarkSetTypeNode64Slice(b *testing.B) {
+	benchSetType(b, make([]Node64, 32))
+}
+
+type Node64Dead struct {
+	Left, Right *byte
+	Value       [64]uintptr
+}
+
+func BenchmarkSetTypeNode64Dead(b *testing.B) {
+	benchSetType(b, new(Node64Dead))
+}
+
+func BenchmarkSetTypeNode64DeadSlice(b *testing.B) {
+	benchSetType(b, make([]Node64Dead, 32))
+}
+
+type Node124 struct {
+	Value       [124]uintptr
+	Left, Right *byte
+}
+
+func BenchmarkSetTypeNode124(b *testing.B) {
+	benchSetType(b, new(Node124))
+}
+
+func BenchmarkSetTypeNode124Slice(b *testing.B) {
+	benchSetType(b, make([]Node124, 32))
+}
+
+type Node126 struct {
+	Value       [126]uintptr
+	Left, Right *byte
+}
+
+func BenchmarkSetTypeNode126(b *testing.B) {
+	benchSetType(b, new(Node126))
+}
+
+func BenchmarkSetTypeNode126Slice(b *testing.B) {
+	benchSetType(b, make([]Node126, 32))
+}
+
+type Node128 struct {
+	Value       [128]uintptr
+	Left, Right *byte
+}
+
+func BenchmarkSetTypeNode128(b *testing.B) {
+	benchSetType(b, new(Node128))
+}
+
+func BenchmarkSetTypeNode128Slice(b *testing.B) {
+	benchSetType(b, make([]Node128, 32))
+}
+
+type Node130 struct {
+	Value       [130]uintptr
+	Left, Right *byte
+}
+
+func BenchmarkSetTypeNode130(b *testing.B) {
+	benchSetType(b, new(Node130))
+}
+
+func BenchmarkSetTypeNode130Slice(b *testing.B) {
+	benchSetType(b, make([]Node130, 32))
+}
+
+type Node1024 struct {
+	Value       [1024]uintptr
+	Left, Right *byte
+}
+
+func BenchmarkSetTypeNode1024(b *testing.B) {
+	benchSetType(b, new(Node1024))
+}
+
+func BenchmarkSetTypeNode1024Slice(b *testing.B) {
+	benchSetType(b, make([]Node1024, 32))
+}
+
+func benchSetType(b *testing.B, x interface{}) {
+	v := reflect.ValueOf(x)
+	t := v.Type()
+	switch t.Kind() {
+	case reflect.Ptr:
+		b.SetBytes(int64(t.Elem().Size()))
+	case reflect.Slice:
+		b.SetBytes(int64(t.Elem().Size()) * int64(v.Len()))
 	}
-	var p *Ptr2
-	for i := 0; i < b.N; i++ {
-		p = &Ptr2{}
-	}
-	_ = p
+	b.ResetTimer()
+	runtime.BenchSetType(b.N, x)
 }
 
 func BenchmarkAllocation(b *testing.B) {

@@ -1,23 +1,8 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of March 20, 2015",
+	"Subtitle": "Version of May 26, 2015",
 	"Path": "/ref/spec"
 }-->
-
-<!--
-TODO
-[ ] need language about function/method calls and parameter passing rules
-[ ] last paragraph of #Assignments (constant promotion) should be elsewhere
-    and mention assignment to empty interface.
-[ ] need to say something about "scope" of selectors?
-[ ] clarify what a field name is in struct declarations
-    (struct{T} vs struct {T T} vs struct {t T})
-[ ] need explicit language about the result type of operations
-[ ] should probably write something about evaluation order of statements even
-	though obvious
-[ ] in Selectors section, clarify what receiver value is passed in method invocations
--->
-
 
 <h2 id="Introduction">Introduction</h2>
 
@@ -2605,7 +2590,7 @@ one may write:
 <pre>
 t.z          // t.z
 t.y          // t.T1.y
-t.x          // (*t.TO).x
+t.x          // (*t.T0).x
 
 p.z          // (*p).z
 p.y          // (*p).T1.y
@@ -3305,7 +3290,7 @@ Operators combine operands into expressions.
 </p>
 
 <pre class="ebnf">
-Expression = UnaryExpr | Expression binary_op UnaryExpr .
+Expression = UnaryExpr | Expression binary_op Expression .
 UnaryExpr  = PrimaryExpr | unary_op UnaryExpr .
 
 binary_op  = "||" | "&amp;&amp;" | rel_op | add_op | mul_op .

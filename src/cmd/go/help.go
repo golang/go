@@ -47,7 +47,7 @@ environment variable (see 'go help gopath').
 If no import paths are given, the action applies to the
 package in the current directory.
 
-There are three reserved names for paths that should not be used
+There are four reserved names for paths that should not be used
 for packages to be built with the go tool:
 
 - "main" denotes the top-level package in a stand-alone executable.

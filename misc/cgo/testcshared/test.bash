@@ -15,6 +15,14 @@ if [ ! -f src/libgo/libgo.go ]; then
 fi
 
 goos=$(go env GOOS)
+goarch=$(go env GOARCH)
+
+# Directory where cgo headers and outputs will be installed.
+# The installation directory format varies depending on the platform.
+installdir=pkg/${goos}_${goarch}_testcshared_shared
+if [ "${goos}/${goarch}" == "android/arm" ]; then
+	installdir=pkg/${goos}_${goarch}_testcshared
+fi
 
 # Temporary directory on the android device.
 androidpath=/data/local/tmp/testcshared-$$
@@ -22,9 +30,9 @@ androidpath=/data/local/tmp/testcshared-$$
 function cleanup() {
 	rm -rf libgo.so libgo2.so libgo.h testp testp2 testp3 pkg
 
-	rm -rf $(go env GOROOT)/pkg/$(go env GOOS)_$(go env GOARCH)_testcshared_shared
+	rm -rf $(go env GOROOT)/${installdir}
 
-	if [ "$(go env GOOS)" == "android" ]; then
+	if [ "$goos" == "android" ]; then
 		adb shell rm -rf $androidpath
 	fi
 }
@@ -38,11 +46,8 @@ function run() {
 	case "$goos" in
 	"android")
 		local args=$@
-		for ((i=0; i < ${#args}; i++)); do
-			args[$i]=${args[$i]//.\//${androidpath}\/}
-			args[$i]=${args[$i]//=./=${androidpath}}
-		done
-		output=$(adb shell ${args} | tr -d '\r')
+		output=$(adb shell "cd ${androidpath}; $@")
+		output=$(echo $output|tr -d '\r')
 		case $output in
 			*PASS) echo "PASS";; 
 			*) echo "$output";;
@@ -73,8 +78,9 @@ binpush libgo.so
 
 # test0: exported symbols in shared lib are accessible.
 # TODO(iant): using _shared here shouldn't really be necessary.
-$(go env CC) $(go env GOGCCFLAGS) -I pkg/$(go env GOOS)_$(go env GOARCH)_testcshared_shared -o testp main0.c libgo.so
+$(go env CC) $(go env GOGCCFLAGS) -I ${installdir} -o testp main0.c libgo.so
 binpush testp
+
 output=$(run LD_LIBRARY_PATH=. ./testp)
 if [ "$output" != "PASS" ]; then
 	echo "FAIL test0 got ${output}"

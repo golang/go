@@ -6,9 +6,8 @@
 set -e
 
 eval $(go tool dist env)
-O=$GOCHAR
-GC="go tool ${O}g"
-LD="go tool ${O}l"
+GC="go tool compile"
+LD="go tool link"
 
 gccm=""
 case "$O" in
@@ -61,11 +60,11 @@ X-test)
 esac
 
 gc() {
-	$GC $1.go; $LD -o $O.$EXE $1.$O
+	$GC $1.go; $LD -o a.$EXE $1.o
 }
 
 gc_B() {
-	$GC -B $1.go; $LD -o $O.$EXE $1.$O
+	$GC -B $1.go; $LD -o a.$EXE $1.o
 }
 
 runonly() {
@@ -115,8 +114,8 @@ fasta() {
 	runonly echo 'fasta -n 25000000'
 	run "gcc $gccm -O2 fasta.c" a.$EXE 25000000
 	run 'gccgo -O2 fasta.go' a.$EXE -n 25000000	#commented out until WriteString is in bufio
-	run 'gc fasta' $O.$EXE -n 25000000
-	run 'gc_B fasta' $O.$EXE -n 25000000
+	run 'gc fasta' a.$EXE -n 25000000
+	run 'gc_B fasta' a.$EXE -n 25000000
 }
 
 revcomp() {
@@ -125,8 +124,8 @@ revcomp() {
 	runonly echo 'reverse-complement < output-of-fasta-25000000'
 	run "gcc $gccm -O2 reverse-complement.c" a.$EXE < x
 	run 'gccgo -O2 reverse-complement.go' a.$EXE < x
-	run 'gc reverse-complement' $O.$EXE < x
-	run 'gc_B reverse-complement' $O.$EXE < x
+	run 'gc reverse-complement' a.$EXE < x
+	run 'gc_B reverse-complement' a.$EXE < x
 	rm x
 }
 
@@ -134,8 +133,8 @@ nbody() {
 	runonly echo 'nbody -n 50000000'
 	run "gcc $gccm -O2 nbody.c -lm" a.$EXE 50000000
 	run 'gccgo -O2 nbody.go' a.$EXE -n 50000000
-	run 'gc nbody' $O.$EXE -n 50000000
-	run 'gc_B nbody' $O.$EXE -n 50000000
+	run 'gc nbody' a.$EXE -n 50000000
+	run 'gc_B nbody' a.$EXE -n 50000000
 }
 
 binarytree() {
@@ -143,8 +142,8 @@ binarytree() {
 	run "gcc $gccm -O2 binary-tree.c -lm" a.$EXE 15
 	run 'gccgo -O2 binary-tree.go' a.$EXE -n 15
 	run 'gccgo -O2 binary-tree-freelist.go' a.$EXE -n 15
-	run 'gc binary-tree' $O.$EXE -n 15
-	run 'gc binary-tree-freelist' $O.$EXE -n 15
+	run 'gc binary-tree' a.$EXE -n 15
+	run 'gc binary-tree-freelist' a.$EXE -n 15
 }
 
 fannkuch() {
@@ -152,9 +151,9 @@ fannkuch() {
 	run "gcc $gccm -O2 fannkuch.c" a.$EXE 12
 	run 'gccgo -O2 fannkuch.go' a.$EXE -n 12
 	run 'gccgo -O2 fannkuch-parallel.go' a.$EXE -n 12
-	run 'gc fannkuch' $O.$EXE -n 12
-	run 'gc fannkuch-parallel' $O.$EXE -n 12
-	run 'gc_B fannkuch' $O.$EXE -n 12
+	run 'gc fannkuch' a.$EXE -n 12
+	run 'gc fannkuch-parallel' a.$EXE -n 12
+	run 'gc_B fannkuch' a.$EXE -n 12
 }
 
 regexdna() {
@@ -166,9 +165,9 @@ regexdna() {
 	fi
 	run 'gccgo -O2 regex-dna.go' a.$EXE <x
 	run 'gccgo -O2 regex-dna-parallel.go' a.$EXE <x
-	run 'gc regex-dna' $O.$EXE <x
-	run 'gc regex-dna-parallel' $O.$EXE <x
-	run 'gc_B regex-dna' $O.$EXE <x
+	run 'gc regex-dna' a.$EXE <x
+	run 'gc regex-dna-parallel' a.$EXE <x
+	run 'gc_B regex-dna' a.$EXE <x
 	rm x
 }
 
@@ -176,8 +175,8 @@ spectralnorm() {
 	runonly echo 'spectral-norm 5500'
 	run "gcc $gccm -O2 spectral-norm.c -lm" a.$EXE 5500
 	run 'gccgo -O2 spectral-norm.go' a.$EXE -n 5500
-	run 'gc spectral-norm' $O.$EXE -n 5500
-	run 'gc_B spectral-norm' $O.$EXE -n 5500
+	run 'gc spectral-norm' a.$EXE -n 5500
+	run 'gc_B spectral-norm' a.$EXE -n 5500
 }
 
 knucleotide() {
@@ -189,9 +188,9 @@ knucleotide() {
 	fi
 	run 'gccgo -O2 k-nucleotide.go' a.$EXE <x
 	run 'gccgo -O2 k-nucleotide-parallel.go' a.$EXE <x
-	run 'gc k-nucleotide' $O.$EXE <x
-	run 'gc k-nucleotide-parallel' $O.$EXE <x
-	run 'gc_B k-nucleotide' $O.$EXE <x
+	run 'gc k-nucleotide' a.$EXE <x
+	run 'gc k-nucleotide-parallel' a.$EXE <x
+	run 'gc_B k-nucleotide' a.$EXE <x
 	rm x
 }
 
@@ -199,16 +198,16 @@ mandelbrot() {
 	runonly echo 'mandelbrot 16000'
 	run "gcc $gccm -O2 mandelbrot.c" a.$EXE 16000
 	run 'gccgo -O2 mandelbrot.go' a.$EXE -n 16000
-	run 'gc mandelbrot' $O.$EXE -n 16000
-	run 'gc_B mandelbrot' $O.$EXE -n 16000
+	run 'gc mandelbrot' a.$EXE -n 16000
+	run 'gc_B mandelbrot' a.$EXE -n 16000
 }
 
 meteor() {
 	runonly echo 'meteor 2098'
 	run "gcc $gccm -O2 meteor-contest.c" a.$EXE 2098
 	run 'gccgo -O2 meteor-contest.go' a.$EXE -n 2098
-	run 'gc meteor-contest' $O.$EXE -n 2098
-	run 'gc_B  meteor-contest' $O.$EXE -n 2098
+	run 'gc meteor-contest' a.$EXE -n 2098
+	run 'gc_B  meteor-contest' a.$EXE -n 2098
 }
 
 pidigits() {
@@ -217,22 +216,22 @@ pidigits() {
 		run "gcc $gccm -O2 pidigits.c -lgmp" a.$EXE 10000
 	fi
 	run 'gccgo -O2 pidigits.go' a.$EXE -n 10000
-	run 'gc pidigits' $O.$EXE -n 10000
-	run 'gc_B  pidigits' $O.$EXE -n 10000
+	run 'gc pidigits' a.$EXE -n 10000
+	run 'gc_B  pidigits' a.$EXE -n 10000
 }
 
 threadring() {
 	runonly echo 'threadring 50000000'
 	run "gcc $gccm -O2 threadring.c -lpthread" a.$EXE 50000000
 	run 'gccgo -O2 threadring.go' a.$EXE -n 50000000
-	run 'gc threadring' $O.$EXE -n 50000000
+	run 'gc threadring' a.$EXE -n 50000000
 }
 
 chameneos() {
 	runonly echo 'chameneos 6000000'
 	run "gcc $gccm -O2 chameneosredux.c -lpthread" a.$EXE 6000000
 	run 'gccgo -O2 chameneosredux.go' a.$EXE 6000000
-	run 'gc chameneosredux' $O.$EXE 6000000
+	run 'gc chameneosredux' a.$EXE 6000000
 }
 
 case $# in

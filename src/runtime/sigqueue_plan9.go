@@ -17,21 +17,29 @@ var sig struct {
 	sleeping bool
 }
 
+type noteData struct {
+	s [_ERRMAX]byte
+	n int // n bytes of s are valid
+}
+
 type noteQueue struct {
 	lock mutex
-	data [qsize]*byte
+	data [qsize]noteData
 	ri   int
 	wi   int
 	full bool
 }
 
+// It is not allowed to allocate memory in the signal handler.
 func (q *noteQueue) push(item *byte) bool {
 	lock(&q.lock)
 	if q.full {
 		unlock(&q.lock)
 		return false
 	}
-	q.data[q.wi] = item
+	s := gostringnocopy(item)
+	copy(q.data[q.wi].s[:], s)
+	q.data[q.wi].n = len(s)
 	q.wi++
 	if q.wi == qsize {
 		q.wi = 0
@@ -43,14 +51,15 @@ func (q *noteQueue) push(item *byte) bool {
 	return true
 }
 
-func (q *noteQueue) pop() *byte {
+func (q *noteQueue) pop() string {
 	lock(&q.lock)
 	q.full = false
 	if q.ri == q.wi {
 		unlock(&q.lock)
-		return nil
+		return ""
 	}
-	item := q.data[q.ri]
+	note := &q.data[q.ri]
+	item := string(note.s[:note.n])
 	q.ri++
 	if q.ri == qsize {
 		q.ri = 0
@@ -86,8 +95,8 @@ func sendNote(s *byte) bool {
 func signal_recv() string {
 	for {
 		note := sig.q.pop()
-		if note != nil {
-			return gostring(note)
+		if note != "" {
+			return note
 		}
 
 		lock(&sig.lock)

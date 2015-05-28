@@ -20,18 +20,12 @@ import "unsafe"
 func atomicstorep(ptr unsafe.Pointer, new unsafe.Pointer) {
 	atomicstorep1(noescape(ptr), new)
 	writebarrierptr_nostore((*uintptr)(ptr), uintptr(new))
-	if mheap_.shadow_enabled {
-		writebarrierptr_noshadow((*uintptr)(noescape(ptr)))
-	}
 }
 
 //go:nosplit
 func xchgp(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer {
 	old := xchgp1(noescape(ptr), new)
 	writebarrierptr_nostore((*uintptr)(ptr), uintptr(new))
-	if mheap_.shadow_enabled {
-		writebarrierptr_noshadow((*uintptr)(noescape(ptr)))
-	}
 	return old
 }
 
@@ -41,9 +35,6 @@ func casp(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool {
 		return false
 	}
 	writebarrierptr_nostore((*uintptr)(unsafe.Pointer(ptr)), uintptr(new))
-	if mheap_.shadow_enabled {
-		writebarrierptr_noshadow((*uintptr)(noescape(unsafe.Pointer(ptr))))
-	}
 	return true
 }
 
@@ -60,9 +51,6 @@ func sync_atomic_StorePointer(ptr *unsafe.Pointer, new unsafe.Pointer) {
 	sync_atomic_StoreUintptr((*uintptr)(unsafe.Pointer(ptr)), uintptr(new))
 	atomicstorep1(noescape(unsafe.Pointer(ptr)), new)
 	writebarrierptr_nostore((*uintptr)(unsafe.Pointer(ptr)), uintptr(new))
-	if mheap_.shadow_enabled {
-		writebarrierptr_noshadow((*uintptr)(noescape(unsafe.Pointer(ptr))))
-	}
 }
 
 //go:linkname sync_atomic_SwapUintptr sync/atomic.SwapUintptr
@@ -73,9 +61,6 @@ func sync_atomic_SwapUintptr(ptr *uintptr, new uintptr) uintptr
 func sync_atomic_SwapPointer(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer {
 	old := unsafe.Pointer(sync_atomic_SwapUintptr((*uintptr)(noescape(ptr)), uintptr(new)))
 	writebarrierptr_nostore((*uintptr)(ptr), uintptr(new))
-	if mheap_.shadow_enabled {
-		writebarrierptr_noshadow((*uintptr)(noescape(ptr)))
-	}
 	return old
 }
 
@@ -89,8 +74,5 @@ func sync_atomic_CompareAndSwapPointer(ptr *unsafe.Pointer, old, new unsafe.Poin
 		return false
 	}
 	writebarrierptr_nostore((*uintptr)(unsafe.Pointer(ptr)), uintptr(new))
-	if mheap_.shadow_enabled {
-		writebarrierptr_noshadow((*uintptr)(noescape(unsafe.Pointer(ptr))))
-	}
 	return true
 }

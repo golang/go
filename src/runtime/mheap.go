@@ -28,6 +28,15 @@ type mheap struct {
 	spans        **mspan
 	spans_mapped uintptr
 
+	// Proportional sweep
+	pagesSwept        uint64  // pages swept this cycle; updated atomically
+	sweepPagesPerByte float64 // proportional sweep ratio; written with lock, read without
+
+	// Malloc stats.
+	largefree  uint64                  // bytes freed for large objects (>maxsmallsize)
+	nlargefree uint64                  // number of frees for large objects (>maxsmallsize)
+	nsmallfree [_NumSizeClasses]uint64 // number of frees for small objects (<=maxsmallsize)
+
 	// range of addresses we might see in the heap
 	bitmap         uintptr
 	bitmap_mapped  uintptr
@@ -35,14 +44,6 @@ type mheap struct {
 	arena_used     uintptr
 	arena_end      uintptr
 	arena_reserved bool
-
-	// write barrier shadow heap.
-	// 64-bit systems only, enabled by GODEBUG=wbshadow=1.
-	// See also shadow_data, data_start, data_end fields on moduledata in
-	// symtab.go.
-	shadow_enabled  bool    // shadow should be updated and checked
-	shadow_reserved bool    // shadow memory is reserved
-	shadow_heap     uintptr // heap-addr + shadow_heap = shadow heap addr
 
 	// central free lists for small size classes.
 	// the padding makes sure that the MCentrals are
@@ -58,15 +59,6 @@ type mheap struct {
 	specialfinalizeralloc fixalloc // allocator for specialfinalizer*
 	specialprofilealloc   fixalloc // allocator for specialprofile*
 	speciallock           mutex    // lock for sepcial record allocators.
-
-	// Proportional sweep
-	pagesSwept        uint64  // pages swept this cycle; updated atomically
-	sweepPagesPerByte float64 // proportional sweep ratio; written with lock, read without
-
-	// Malloc stats.
-	largefree  uint64                  // bytes freed for large objects (>maxsmallsize)
-	nlargefree uint64                  // number of frees for large objects (>maxsmallsize)
-	nsmallfree [_NumSizeClasses]uint64 // number of frees for small objects (<=maxsmallsize)
 }
 
 var mheap_ mheap
@@ -176,7 +168,9 @@ func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
 
 // inheap reports whether b is a pointer into a (potentially dead) heap object.
 // It returns false for pointers into stack spans.
+// Non-preemptible because it is used by write barriers.
 //go:nowritebarrier
+//go:nosplit
 func inheap(b uintptr) bool {
 	if b == 0 || b < mheap_.arena_start || b >= mheap_.arena_used {
 		return false

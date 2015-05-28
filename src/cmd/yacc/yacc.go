@@ -128,6 +128,7 @@ const (
 	TYPEDEF
 	TYPENAME
 	UNION
+	ERROR
 )
 
 const ENDFILE = 0
@@ -325,7 +326,23 @@ var resrv = []Resrv{
 	{"type", TYPEDEF},
 	{"union", UNION},
 	{"struct", UNION},
+	{"error", ERROR},
 }
+
+type Error struct {
+	lineno int
+	tokens []string
+	msg    string
+}
+
+var errors []Error
+
+type Row struct {
+	actions       []int
+	defaultAction int
+}
+
+var stateTable []Row
 
 var zznewstate = 0
 
@@ -401,6 +418,27 @@ outer:
 				errorf("bad %%start construction")
 			}
 			start = chfind(1, tokname)
+
+		case ERROR:
+			lno := lineno
+			var tokens []string
+			for {
+				t := gettok()
+				if t == ':' {
+					break
+				}
+				if t != IDENTIFIER && t != IDENTCOLON {
+					errorf("bad syntax in %%error")
+				}
+				tokens = append(tokens, tokname)
+				if t == IDENTCOLON {
+					break
+				}
+			}
+			if gettok() != IDENTIFIER {
+				errorf("bad syntax in %%error")
+			}
+			errors = append(errors, Error{lno, tokens, tokname})
 
 		case TYPEDEF:
 			t = gettok()
@@ -2155,6 +2193,10 @@ func output() {
 	}
 	fmt.Fprintf(ftable, "\nvar %sExca = [...]int{\n", prefix)
 
+	if len(errors) > 0 {
+		stateTable = make([]Row, nstate)
+	}
+
 	noset := mkset()
 
 	// output the stuff for state i
@@ -2367,6 +2409,15 @@ func wract(i int) {
 func wrstate(i int) {
 	var j0, j1, u int
 	var pp, qq int
+
+	if len(errors) > 0 {
+		actions := append([]int(nil), temp1...)
+		defaultAction := ERRCODE
+		if lastred != 0 {
+			defaultAction = -lastred
+		}
+		stateTable[i] = Row{actions, defaultAction}
+	}
 
 	if foutput == nil {
 		return
@@ -2914,6 +2965,20 @@ func others() {
 	}
 	fmt.Fprintf(ftable, "%d,\n}\n", 0)
 
+	// Custom error messages.
+	fmt.Fprintf(ftable, "\n")
+	fmt.Fprintf(ftable, "var %sErrorMessages = [...]struct {\n", prefix)
+	fmt.Fprintf(ftable, "\tstate int\n")
+	fmt.Fprintf(ftable, "\ttoken int\n")
+	fmt.Fprintf(ftable, "\tmsg   string\n")
+	fmt.Fprintf(ftable, "}{\n")
+	for _, error := range errors {
+		lineno = error.lineno
+		state, token := runMachine(error.tokens)
+		fmt.Fprintf(ftable, "\t{%v, %v, %s},\n", state, token, error.msg)
+	}
+	fmt.Fprintf(ftable, "}\n")
+
 	// copy parser text
 	ch := getrune(finput)
 	for ch != EOF {
@@ -2930,6 +2995,59 @@ func others() {
 	fmt.Fprintf(ftable, "%v", parts[0])
 	ftable.Write(fcode.Bytes())
 	fmt.Fprintf(ftable, "%v", parts[1])
+}
+
+func runMachine(tokens []string) (state, token int) {
+	var stack []int
+	i := 0
+	token = -1
+
+Loop:
+	if token < 0 {
+		token = chfind(2, tokens[i])
+		i++
+	}
+
+	row := stateTable[state]
+
+	c := token
+	if token >= NTBASE {
+		c = token - NTBASE + ntokens
+	}
+	action := row.actions[c]
+	if action == 0 {
+		action = row.defaultAction
+	}
+
+	switch {
+	case action == ACCEPTCODE:
+		errorf("tokens are accepted")
+		return
+	case action == ERRCODE:
+		if token >= NTBASE {
+			errorf("error at non-terminal token %s", symnam(token))
+		}
+		return
+	case action > 0:
+		// Shift to state action.
+		stack = append(stack, state)
+		state = action
+		token = -1
+		goto Loop
+	default:
+		// Reduce by production -action.
+		prod := prdptr[-action]
+		if rhsLen := len(prod) - 2; rhsLen > 0 {
+			n := len(stack) - rhsLen
+			state = stack[n]
+			stack = stack[:n]
+		}
+		if token >= 0 {
+			i--
+		}
+		token = prod[0]
+		goto Loop
+	}
 }
 
 func arout(s string, v []int, n int) {
@@ -3212,7 +3330,6 @@ type $$Parser interface {
 
 type $$ParserImpl struct {
 	lookahead func() int
-	state     func() int
 }
 
 func (p *$$ParserImpl) Lookahead() int {
@@ -3222,7 +3339,6 @@ func (p *$$ParserImpl) Lookahead() int {
 func $$NewParser() $$Parser {
 	p := &$$ParserImpl{
 		lookahead: func() int { return -1 },
-		state:     func() int { return -1 },
 	}
 	return p
 }
@@ -3253,6 +3369,13 @@ func $$ErrorMessage(state, lookAhead int) string {
 	if !$$ErrorVerbose {
 		return "syntax error"
 	}
+
+	for _, e := range $$ErrorMessages {
+		if e.state == state && e.token == lookAhead {
+			return "syntax error: " + e.msg
+		}
+	}
+
 	res := "syntax error: unexpected " + $$Tokname(lookAhead)
 
 	// To match Bison, suggest at most four expected tokens.
@@ -3355,7 +3478,6 @@ func ($$rcvr *$$ParserImpl) Parse($$lex $$Lexer) int {
 	$$state := 0
 	$$char := -1
 	$$token := -1 // $$char translated into internal numbering
-	$$rcvr.state = func() int { return $$state }
 	$$rcvr.lookahead = func() int { return $$char }
 	defer func() {
 		// Make sure we report no lookahead when not parsing.

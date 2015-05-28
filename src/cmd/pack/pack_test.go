@@ -13,7 +13,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"testing"
 	"time"
@@ -223,16 +222,14 @@ func TestHello(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	char := findChar(t, dir)
-
 	run := func(args ...string) string {
 		return doRun(t, dir, args...)
 	}
 
 	run("go", "build", "cmd/pack") // writes pack binary to dir
-	run("go", "tool", char+"g", "hello.go")
-	run("./pack", "grc", "hello.a", "hello."+char)
-	run("go", "tool", char+"l", "-o", "a.out", "hello.a")
+	run("go", "tool", "compile", "hello.go")
+	run("./pack", "grc", "hello.a", "hello.o")
+	run("go", "tool", "link", "-o", "a.out", "hello.a")
 	out := run("./a.out")
 	if out != "hello world\n" {
 		t.Fatalf("incorrect output: %q, want %q", out, "hello world\n")
@@ -297,17 +294,15 @@ func TestLargeDefs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	char := findChar(t, dir)
-
 	run := func(args ...string) string {
 		return doRun(t, dir, args...)
 	}
 
 	run("go", "build", "cmd/pack") // writes pack binary to dir
-	run("go", "tool", char+"g", "large.go")
-	run("./pack", "grc", "large.a", "large."+char)
-	run("go", "tool", char+"g", "-I", ".", "main.go")
-	run("go", "tool", char+"l", "-L", ".", "-o", "a.out", "main."+char)
+	run("go", "tool", "compile", "large.go")
+	run("./pack", "grc", "large.a", "large.o")
+	run("go", "tool", "compile", "-I", ".", "main.go")
+	run("go", "tool", "link", "-L", ".", "-o", "a.out", "main.o")
 	out := run("./a.out")
 	if out != "ok\n" {
 		t.Fatalf("incorrect output: %q, want %q", out, "ok\n")
@@ -323,20 +318,6 @@ func doRun(t *testing.T, dir string, args ...string) string {
 		t.Fatalf("%v: %v\n%s", args, err, string(out))
 	}
 	return string(out)
-}
-
-// findChar returns the architecture character for the go command.
-func findChar(t *testing.T, dir string) string {
-	out := doRun(t, dir, "go", "env")
-	re, err := regexp.Compile(`\s*GOCHAR=['"]?(\w)['"]?`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	fields := re.FindStringSubmatch(out)
-	if fields == nil {
-		t.Fatal("cannot find GOCHAR in 'go env' output:\n", out)
-	}
-	return fields[1]
 }
 
 // Fake implementation of files.

@@ -1,6 +1,7 @@
 pkg archive/zip, method (*Writer) SetOffset(int64)
 pkg bufio, method (*Reader) Discard(int) (int, error)
 pkg bufio, method (ReadWriter) Discard(int) (int, error)
+pkg bytes, func LastIndexByte([]uint8, uint8) int
 pkg bytes, method (*Buffer) Cap() int
 pkg bytes, method (*Reader) Size() int64
 pkg crypto, type Decrypter interface { Decrypt, Public }
@@ -18,16 +19,56 @@ pkg crypto/tls, const TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 = 49196
 pkg crypto/tls, const TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 uint16
 pkg crypto/tls, const TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 = 49200
 pkg crypto/tls, const TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 uint16
+pkg crypto/tls, method (*Config) SetSessionTicketKeys([][32]uint8)
+pkg crypto/tls, type Certificate struct, SignedCertificateTimestamps [][]uint8
+pkg crypto/tls, type ConnectionState struct, OCSPResponse []uint8
+pkg crypto/tls, type ConnectionState struct, SignedCertificateTimestamps [][]uint8
+pkg crypto/x509, method (*CertificateRequest) CheckSignature() error
+pkg crypto/x509, type Certificate struct, UnhandledCriticalExtensions []asn1.ObjectIdentifier
 pkg crypto/x509/pkix, type Name struct, ExtraNames []AttributeTypeAndValue
 pkg database/sql, method (*DB) Stats() DBStats
 pkg database/sql, type DBStats struct
 pkg database/sql, type DBStats struct, OpenConnections int
+pkg debug/dwarf, const ClassAddress = 1
+pkg debug/dwarf, const ClassAddress Class
+pkg debug/dwarf, const ClassBlock = 2
+pkg debug/dwarf, const ClassBlock Class
+pkg debug/dwarf, const ClassConstant = 3
+pkg debug/dwarf, const ClassConstant Class
+pkg debug/dwarf, const ClassExprLoc = 4
+pkg debug/dwarf, const ClassExprLoc Class
+pkg debug/dwarf, const ClassFlag = 5
+pkg debug/dwarf, const ClassFlag Class
+pkg debug/dwarf, const ClassLinePtr = 6
+pkg debug/dwarf, const ClassLinePtr Class
+pkg debug/dwarf, const ClassLocListPtr = 7
+pkg debug/dwarf, const ClassLocListPtr Class
+pkg debug/dwarf, const ClassMacPtr = 8
+pkg debug/dwarf, const ClassMacPtr Class
+pkg debug/dwarf, const ClassRangeListPtr = 9
+pkg debug/dwarf, const ClassRangeListPtr Class
+pkg debug/dwarf, const ClassReference = 10
+pkg debug/dwarf, const ClassReference Class
+pkg debug/dwarf, const ClassReferenceAlt = 13
+pkg debug/dwarf, const ClassReferenceAlt Class
+pkg debug/dwarf, const ClassReferenceSig = 11
+pkg debug/dwarf, const ClassReferenceSig Class
+pkg debug/dwarf, const ClassString = 12
+pkg debug/dwarf, const ClassString Class
+pkg debug/dwarf, const ClassStringAlt = 14
+pkg debug/dwarf, const ClassStringAlt Class
 pkg debug/dwarf, method (*Data) LineReader(*Entry) (*LineReader, error)
+pkg debug/dwarf, method (*Entry) AttrField(Attr) *Field
 pkg debug/dwarf, method (*LineReader) Next(*LineEntry) error
 pkg debug/dwarf, method (*LineReader) Reset()
 pkg debug/dwarf, method (*LineReader) Seek(LineReaderPos)
 pkg debug/dwarf, method (*LineReader) SeekPC(uint64, *LineEntry) error
 pkg debug/dwarf, method (*LineReader) Tell() LineReaderPos
+pkg debug/dwarf, method (*Reader) AddressSize() int
+pkg debug/dwarf, method (Class) GoString() string
+pkg debug/dwarf, method (Class) String() string
+pkg debug/dwarf, type Class int
+pkg debug/dwarf, type Field struct, Class Class
 pkg debug/dwarf, type LineEntry struct
 pkg debug/dwarf, type LineEntry struct, Address uint64
 pkg debug/dwarf, type LineEntry struct, BasicBlock bool
@@ -227,48 +268,52 @@ pkg encoding/base64, var RawURLEncoding *Encoding
 pkg encoding/json, type UnmarshalTypeError struct, Offset int64
 pkg flag, func UnquoteUsage(*Flag) (string, string)
 pkg go/ast, type EmptyStmt struct, Implicit bool
-pkg go/exact, const Bool = 1
-pkg go/exact, const Bool Kind
-pkg go/exact, const Complex = 5
-pkg go/exact, const Complex Kind
-pkg go/exact, const Float = 4
-pkg go/exact, const Float Kind
-pkg go/exact, const Int = 3
-pkg go/exact, const Int Kind
-pkg go/exact, const String = 2
-pkg go/exact, const String Kind
-pkg go/exact, const Unknown = 0
-pkg go/exact, const Unknown Kind
-pkg go/exact, func BinaryOp(Value, token.Token, Value) Value
-pkg go/exact, func BitLen(Value) int
-pkg go/exact, func BoolVal(Value) bool
-pkg go/exact, func Bytes(Value) []uint8
-pkg go/exact, func Compare(Value, token.Token, Value) bool
-pkg go/exact, func Denom(Value) Value
-pkg go/exact, func Float32Val(Value) (float32, bool)
-pkg go/exact, func Float64Val(Value) (float64, bool)
-pkg go/exact, func Imag(Value) Value
-pkg go/exact, func Int64Val(Value) (int64, bool)
-pkg go/exact, func MakeBool(bool) Value
-pkg go/exact, func MakeFloat64(float64) Value
-pkg go/exact, func MakeFromBytes([]uint8) Value
-pkg go/exact, func MakeFromLiteral(string, token.Token) Value
-pkg go/exact, func MakeImag(Value) Value
-pkg go/exact, func MakeInt64(int64) Value
-pkg go/exact, func MakeString(string) Value
-pkg go/exact, func MakeUint64(uint64) Value
-pkg go/exact, func MakeUnknown() Value
-pkg go/exact, func Num(Value) Value
-pkg go/exact, func Real(Value) Value
-pkg go/exact, func Shift(Value, token.Token, uint) Value
-pkg go/exact, func Sign(Value) int
-pkg go/exact, func StringVal(Value) string
-pkg go/exact, func Uint64Val(Value) (uint64, bool)
-pkg go/exact, func UnaryOp(token.Token, Value, int) Value
-pkg go/exact, type Kind int
-pkg go/exact, type Value interface, Kind() Kind
-pkg go/exact, type Value interface, String() string
-pkg go/exact, type Value interface, unexported methods
+pkg go/build, type Package struct, PkgTargetRoot string
+pkg go/constant, const Bool = 1
+pkg go/constant, const Bool Kind
+pkg go/constant, const Complex = 5
+pkg go/constant, const Complex Kind
+pkg go/constant, const Float = 4
+pkg go/constant, const Float Kind
+pkg go/constant, const Int = 3
+pkg go/constant, const Int Kind
+pkg go/constant, const String = 2
+pkg go/constant, const String Kind
+pkg go/constant, const Unknown = 0
+pkg go/constant, const Unknown Kind
+pkg go/constant, func BinaryOp(Value, token.Token, Value) Value
+pkg go/constant, func BitLen(Value) int
+pkg go/constant, func BoolVal(Value) bool
+pkg go/constant, func Bytes(Value) []uint8
+pkg go/constant, func Compare(Value, token.Token, Value) bool
+pkg go/constant, func Denom(Value) Value
+pkg go/constant, func Float32Val(Value) (float32, bool)
+pkg go/constant, func Float64Val(Value) (float64, bool)
+pkg go/constant, func Imag(Value) Value
+pkg go/constant, func Int64Val(Value) (int64, bool)
+pkg go/constant, func MakeBool(bool) Value
+pkg go/constant, func MakeFloat64(float64) Value
+pkg go/constant, func MakeFromBytes([]uint8) Value
+pkg go/constant, func MakeFromLiteral(string, token.Token, uint) Value
+pkg go/constant, func MakeImag(Value) Value
+pkg go/constant, func MakeInt64(int64) Value
+pkg go/constant, func MakeString(string) Value
+pkg go/constant, func MakeUint64(uint64) Value
+pkg go/constant, func MakeUnknown() Value
+pkg go/constant, func Num(Value) Value
+pkg go/constant, func Real(Value) Value
+pkg go/constant, func Shift(Value, token.Token, uint) Value
+pkg go/constant, func Sign(Value) int
+pkg go/constant, func StringVal(Value) string
+pkg go/constant, func Uint64Val(Value) (uint64, bool)
+pkg go/constant, func UnaryOp(token.Token, Value, uint) Value
+pkg go/constant, type Kind int
+pkg go/constant, type Value interface, Kind() Kind
+pkg go/constant, type Value interface, String() string
+pkg go/constant, type Value interface, unexported methods
+pkg go/importer, func Default() types.Importer
+pkg go/importer, func For(string, Lookup) types.Importer
+pkg go/importer, type Lookup func(string) (io.ReadCloser, error)
 pkg go/types, const Bool = 1
 pkg go/types, const Bool BasicKind
 pkg go/types, const Byte = 8
@@ -376,6 +421,7 @@ pkg go/types, func New(string) Type
 pkg go/types, func NewArray(Type, int64) *Array
 pkg go/types, func NewChan(ChanDir, Type) *Chan
 pkg go/types, func NewChecker(*Config, *token.FileSet, *Package, *Info) *Checker
+pkg go/types, func NewConst(token.Pos, *Package, string, Type, constant.Value) *Const
 pkg go/types, func NewConst(token.Pos, *Package, string, Type, exact.Value) *Const
 pkg go/types, func NewField(token.Pos, *Package, string, Type, bool) *Var
 pkg go/types, func NewFunc(token.Pos, *Package, string, *Signature) *Func
@@ -432,6 +478,7 @@ pkg go/types, method (*Const) Pkg() *Package
 pkg go/types, method (*Const) Pos() token.Pos
 pkg go/types, method (*Const) String() string
 pkg go/types, method (*Const) Type() Type
+pkg go/types, method (*Const) Val() constant.Value
 pkg go/types, method (*Const) Val() exact.Value
 pkg go/types, method (*Func) Exported() bool
 pkg go/types, method (*Func) FullName() string
@@ -590,6 +637,7 @@ pkg go/types, type Config struct, Error func(error)
 pkg go/types, type Config struct, FakeImportC bool
 pkg go/types, type Config struct, IgnoreFuncBodies bool
 pkg go/types, type Config struct, Import Importer
+pkg go/types, type Config struct, Importer Importer
 pkg go/types, type Config struct, Packages map[string]*Package
 pkg go/types, type Config struct, Sizes Sizes
 pkg go/types, type Const struct
@@ -600,6 +648,8 @@ pkg go/types, type Error struct, Pos token.Pos
 pkg go/types, type Error struct, Soft bool
 pkg go/types, type Func struct
 pkg go/types, type Importer func(map[string]*Package, string) (*Package, error)
+pkg go/types, type Importer interface { Import }
+pkg go/types, type Importer interface, Import(string) (*Package, error)
 pkg go/types, type Info struct
 pkg go/types, type Info struct, Defs map[*ast.Ident]Object
 pkg go/types, type Info struct, Implicits map[ast.Node]Object
@@ -649,6 +699,7 @@ pkg go/types, type Type interface, String() string
 pkg go/types, type Type interface, Underlying() Type
 pkg go/types, type TypeAndValue struct
 pkg go/types, type TypeAndValue struct, Type Type
+pkg go/types, type TypeAndValue struct, Value constant.Value
 pkg go/types, type TypeAndValue struct, Value exact.Value
 pkg go/types, type TypeName struct
 pkg go/types, type Var struct
@@ -690,6 +741,18 @@ pkg image/color, type CMYK struct, K uint8
 pkg image/color, type CMYK struct, M uint8
 pkg image/color, type CMYK struct, Y uint8
 pkg image/color, var CMYKModel Model
+pkg image/gif, const DisposalBackground = 2
+pkg image/gif, const DisposalBackground ideal-int
+pkg image/gif, const DisposalNone = 1
+pkg image/gif, const DisposalNone ideal-int
+pkg image/gif, const DisposalPrevious = 3
+pkg image/gif, const DisposalPrevious ideal-int
+pkg image/gif, type GIF struct, BackgroundIndex uint8
+pkg image/gif, type GIF struct, Config image.Config
+pkg image/gif, type GIF struct, Disposal []uint8
+pkg io, func CopyBuffer(Writer, Reader, []uint8) (int64, error)
+pkg log, const LUTC = 32
+pkg log, const LUTC ideal-int
 pkg log, func Output(int, string) error
 pkg log, method (*Logger) SetOutput(io.Writer)
 pkg math/big, const Above = 1
@@ -716,6 +779,7 @@ pkg math/big, const ToPositiveInf = 5
 pkg math/big, const ToPositiveInf RoundingMode
 pkg math/big, const ToZero = 2
 pkg math/big, const ToZero RoundingMode
+pkg math/big, func Jacobi(*Int, *Int) int
 pkg math/big, func NewFloat(float64) *Float
 pkg math/big, func ParseFloat(string, int, uint, RoundingMode) (*Float, int, error)
 pkg math/big, func ScanFloat(io.ByteScanner, int, uint, RoundingMode) (*Float, int, error)
@@ -758,6 +822,7 @@ pkg math/big, method (*Float) Signbit() bool
 pkg math/big, method (*Float) String() string
 pkg math/big, method (*Float) Sub(*Float, *Float) *Float
 pkg math/big, method (*Float) Uint64() (uint64, Accuracy)
+pkg math/big, method (*Int) ModSqrt(*Int, *Int) *Int
 pkg math/big, method (Accuracy) String() string
 pkg math/big, method (ErrNaN) Error() string
 pkg math/big, method (RoundingMode) String() string
@@ -765,25 +830,48 @@ pkg math/big, type Accuracy int8
 pkg math/big, type ErrNaN struct
 pkg math/big, type Float struct
 pkg math/big, type RoundingMode uint8
+pkg mime, const BEncoding = 98
+pkg mime, const BEncoding WordEncoder
+pkg mime, const QEncoding = 113
+pkg mime, const QEncoding WordEncoder
 pkg mime, func ExtensionsByType(string) ([]string, error)
+pkg mime, method (*WordDecoder) Decode(string) (string, error)
+pkg mime, method (*WordDecoder) DecodeHeader(string) (string, error)
+pkg mime, method (WordEncoder) Encode(string, string) string
+pkg mime, type WordDecoder struct
+pkg mime, type WordDecoder struct, CharsetReader func(string, io.Reader) (io.Reader, error)
+pkg mime, type WordEncoder uint8
+pkg mime/quotedprintable, func NewReader(io.Reader) *Reader
 pkg mime/quotedprintable, func NewReader(io.Reader) io.Reader
 pkg mime/quotedprintable, func NewWriter(io.Writer) *Writer
+pkg mime/quotedprintable, method (*Reader) Read([]uint8) (int, error)
 pkg mime/quotedprintable, method (*Writer) Close() error
 pkg mime/quotedprintable, method (*Writer) Write([]uint8) (int, error)
+pkg mime/quotedprintable, type Reader struct
 pkg mime/quotedprintable, type Writer struct
 pkg mime/quotedprintable, type Writer struct, Binary bool
+pkg net, func SocketConn(*os.File, SocketAddr) (Conn, error)
+pkg net, func SocketPacketConn(*os.File, SocketAddr) (PacketConn, error)
+pkg net, type OpError struct, Source Addr
+pkg net, type SocketAddr interface { Addr, Raw }
+pkg net, type SocketAddr interface, Addr([]uint8) Addr
+pkg net, type SocketAddr interface, Raw(Addr) []uint8
 pkg net/http/fcgi, var ErrConnClosed error
 pkg net/http/fcgi, var ErrRequestAborted error
 pkg net/http/pprof, func Trace(http.ResponseWriter, *http.Request)
 pkg net/smtp, method (*Client) TLSConnectionState() (tls.ConnectionState, bool)
+pkg os, func LookupEnv(string) (string, bool)
 pkg os/signal, func Ignore(...os.Signal)
 pkg os/signal, func Reset(...os.Signal)
+pkg reflect, func ArrayOf(int, Type) Type
+pkg reflect, func FuncOf([]Type, []Type, bool) Type
 pkg runtime, func ReadTrace() []uint8
 pkg runtime, func StartTrace() error
 pkg runtime, func StopTrace()
 pkg runtime/pprof, func StartTrace(io.Writer) error
 pkg runtime/pprof, func StopTrace()
 pkg strings, func Compare(string, string) int
+pkg strings, func LastIndexByte(string, uint8) int
 pkg strings, method (*Reader) Size() int64
 pkg syscall (darwin-386), type SysProcAttr struct, Ctty int
 pkg syscall (darwin-386), type SysProcAttr struct, Foreground bool

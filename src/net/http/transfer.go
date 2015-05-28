@@ -43,6 +43,7 @@ type transferWriter struct {
 	Close            bool
 	TransferEncoding []string
 	Trailer          Header
+	IsResponse       bool
 }
 
 func newTransferWriter(r interface{}) (t *transferWriter, err error) {
@@ -89,6 +90,7 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
 			}
 		}
 	case *Response:
+		t.IsResponse = true
 		if rr.Request != nil {
 			t.Method = rr.Request.Method
 		}
@@ -206,6 +208,9 @@ func (t *transferWriter) WriteBody(w io.Writer) error {
 	// Write body
 	if t.Body != nil {
 		if chunked(t.TransferEncoding) {
+			if bw, ok := w.(*bufio.Writer); ok && !t.IsResponse {
+				w = &internal.FlushAfterChunkWriter{bw}
+			}
 			cw := internal.NewChunkedWriter(w)
 			_, err = io.Copy(cw, t.Body)
 			if err == nil {

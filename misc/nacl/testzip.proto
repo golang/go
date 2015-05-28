@@ -35,7 +35,7 @@ go	src=..
 				gofmt_test.go
 				testdata
 					+
-			link
+			newlink
 				testdata
 					+
 		archive

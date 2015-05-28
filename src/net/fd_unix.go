@@ -7,6 +7,7 @@
 package net
 
 import (
+	"internal/syscall/unix"
 	"io"
 	"os"
 	"runtime"
@@ -225,7 +226,7 @@ func (fd *netFD) Read(p []byte) (n int, err error) {
 		return 0, err
 	}
 	for {
-		n, err = syscall.Read(int(fd.sysfd), p)
+		n, err = syscall.Read(fd.sysfd, p)
 		if err != nil {
 			n = 0
 			if err == syscall.EAGAIN {
@@ -253,6 +254,33 @@ func (fd *netFD) readFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
 	}
 	for {
 		n, sa, err = syscall.Recvfrom(fd.sysfd, p, 0)
+		if err != nil {
+			n = 0
+			if err == syscall.EAGAIN {
+				if err = fd.pd.WaitRead(); err == nil {
+					continue
+				}
+			}
+		}
+		err = fd.eofError(n, err)
+		break
+	}
+	if _, ok := err.(syscall.Errno); ok {
+		err = os.NewSyscallError("recvfrom", err)
+	}
+	return
+}
+
+func (fd *netFD) recvFrom(b []byte, flags int, from []byte) (n int, err error) {
+	if err := fd.readLock(); err != nil {
+		return 0, err
+	}
+	defer fd.readUnlock()
+	if err := fd.pd.PrepareRead(); err != nil {
+		return 0, err
+	}
+	for {
+		n, err = unix.Recvfrom(fd.sysfd, b, flags, from)
 		if err != nil {
 			n = 0
 			if err == syscall.EAGAIN {
@@ -307,7 +335,7 @@ func (fd *netFD) Write(p []byte) (nn int, err error) {
 	}
 	for {
 		var n int
-		n, err = syscall.Write(int(fd.sysfd), p[nn:])
+		n, err = syscall.Write(fd.sysfd, p[nn:])
 		if n > 0 {
 			nn += n
 		}
@@ -352,6 +380,29 @@ func (fd *netFD) writeTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
 	}
 	if err == nil {
 		n = len(p)
+	}
+	if _, ok := err.(syscall.Errno); ok {
+		err = os.NewSyscallError("sendto", err)
+	}
+	return
+}
+
+func (fd *netFD) sendTo(b []byte, flags int, to []byte) (n int, err error) {
+	if err := fd.writeLock(); err != nil {
+		return 0, err
+	}
+	defer fd.writeUnlock()
+	if err := fd.pd.PrepareWrite(); err != nil {
+		return 0, err
+	}
+	for {
+		n, err = unix.Sendto(fd.sysfd, b, flags, to)
+		if err == syscall.EAGAIN {
+			if err = fd.pd.WaitWrite(); err == nil {
+				continue
+			}
+		}
+		break
 	}
 	if _, ok := err.(syscall.Errno); ok {
 		err = os.NewSyscallError("sendto", err)

@@ -8,7 +8,7 @@ package types
 
 import (
 	"go/ast"
-	exact "go/constants" // Renamed to reduce diffs from x/tools.  TODO: remove
+	exact "go/constant" // Renamed to reduce diffs from x/tools.  TODO: remove
 	"go/token"
 	"sort"
 	"strconv"
@@ -525,20 +525,14 @@ func (check *Checker) interfaceType(iface *Interface, ityp *ast.InterfaceType, d
 	for _, e := range embedded {
 		pos := e.Pos()
 		typ := check.typExpr(e, nil, path)
+		// Determine underlying embedded (possibly incomplete) type
+		// by following its forward chain.
 		named, _ := typ.(*Named)
-		if named == nil {
-			if typ != Typ[Invalid] {
-				check.invalidAST(pos, "%s is not named type", typ)
-			}
-			continue
-		}
-		// determine underlying (possibly incomplete) type
-		// by following its forward chain
-		u := underlying(named)
-		embed, _ := u.(*Interface)
+		under := underlying(named)
+		embed, _ := under.(*Interface)
 		if embed == nil {
-			if u != Typ[Invalid] {
-				check.errorf(pos, "%s is not an interface", named)
+			if typ != Typ[Invalid] {
+				check.errorf(pos, "%s is not an interface", typ)
 			}
 			continue
 		}

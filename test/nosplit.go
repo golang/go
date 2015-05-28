@@ -184,19 +184,10 @@ func main() {
 		goarch = runtime.GOARCH
 	}
 
-	thechar := ""
-	if gochar, err := exec.Command("go", "env", "GOCHAR").Output(); err != nil {
-		bug()
-		fmt.Printf("running go env GOCHAR: %v\n", err)
-		return
-	} else {
-		thechar = strings.TrimSpace(string(gochar))
-	}
-
-	version, err := exec.Command("go", "tool", thechar+"g", "-V").Output()
+	version, err := exec.Command("go", "tool", "compile", "-V").Output()
 	if err != nil {
 		bug()
-		fmt.Printf("running go tool %sg -V: %v\n", thechar, err)
+		fmt.Printf("running go tool compile -V: %v\n", err)
 		return
 	}
 	if strings.Contains(string(version), "framepointer") {

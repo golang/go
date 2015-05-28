@@ -296,11 +296,7 @@ func defaultContext() Context {
 	// in all releases >= Go 1.x. Code that requires Go 1.x or later should
 	// say "+build go1.x", and code that should only be built before Go 1.x
 	// (perhaps it is the stub to use in that case) should say "+build !go1.x".
-	//
-	// When we reach Go 1.5 the line will read
-	//	c.ReleaseTags = []string{"go1.1", "go1.2", "go1.3", "go1.4", "go1.5"}
-	// and so on.
-	c.ReleaseTags = []string{"go1.1", "go1.2", "go1.3", "go1.4"}
+	c.ReleaseTags = []string{"go1.1", "go1.2", "go1.3", "go1.4", "go1.5"}
 
 	switch os.Getenv("CGO_ENABLED") {
 	case "1":
@@ -1328,7 +1324,7 @@ func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
 	// build tag "linux" in that file. For Go 1.4 and beyond, we require this
 	// auto-tagging to apply only to files with a non-empty prefix, so
 	// "foo_linux.go" is tagged but "linux.go" is not. This allows new operating
-	// sytems, such as android, to arrive without breaking existing code with
+	// systems, such as android, to arrive without breaking existing code with
 	// innocuous source code in "android.go". The easiest fix: cut everything
 	// in the name before the initial _.
 	i := strings.Index(name, "_")
@@ -1395,20 +1391,11 @@ func IsLocalImport(path string) bool {
 		strings.HasPrefix(path, "./") || strings.HasPrefix(path, "../")
 }
 
-// ArchChar returns the architecture character for the given goarch.
-// For example, ArchChar("amd64") returns "6".
+// ArchChar returns "?" and an error.
+// In earlier versions of Go, the returned string was used to derive
+// the compiler and linker tool names, the default object file suffix,
+// and the default linker output name. As of Go 1.5, those strings
+// no longer vary by architecture; they are compile, link, .o, and a.out, respectively.
 func ArchChar(goarch string) (string, error) {
-	switch goarch {
-	case "386":
-		return "8", nil
-	case "amd64", "amd64p32":
-		return "6", nil
-	case "arm":
-		return "5", nil
-	case "arm64":
-		return "7", nil
-	case "ppc64", "ppc64le":
-		return "9", nil
-	}
-	return "", errors.New("unsupported GOARCH " + goarch)
+	return "?", errors.New("architecture letter no longer used")
 }

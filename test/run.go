@@ -15,7 +15,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"go/build"
 	"io/ioutil"
 	"log"
 	"os"
@@ -41,12 +40,6 @@ var (
 )
 
 var (
-	// gc and ld are [568][gl].
-	gc, ld string
-
-	// letter is the build.ArchChar
-	letter string
-
 	goos, goarch string
 
 	// dirs are the directories to look for *.go files in.
@@ -84,11 +77,6 @@ func main() {
 
 	ratec = make(chan bool, *numParallel)
 	rungatec = make(chan bool, *runoutputLimit)
-	var err error
-	letter, err = build.ArchChar(build.Default.GOARCH)
-	check(err)
-	gc = letter + "g"
-	ld = letter + "l"
 
 	var tests []*test
 	if flag.NArg() > 0 {
@@ -192,11 +180,11 @@ func goFiles(dir string) []string {
 type runCmd func(...string) ([]byte, error)
 
 func compileFile(runcmd runCmd, longname string) (out []byte, err error) {
-	return runcmd("go", "tool", gc, "-e", longname)
+	return runcmd("go", "tool", "compile", "-e", longname)
 }
 
 func compileInDir(runcmd runCmd, dir string, names ...string) (out []byte, err error) {
-	cmd := []string{"go", "tool", gc, "-e", "-D", ".", "-I", "."}
+	cmd := []string{"go", "tool", "compile", "-e", "-D", ".", "-I", "."}
 	for _, name := range names {
 		cmd = append(cmd, filepath.Join(dir, name))
 	}
@@ -204,8 +192,8 @@ func compileInDir(runcmd runCmd, dir string, names ...string) (out []byte, err e
 }
 
 func linkFile(runcmd runCmd, goname string) (err error) {
-	pfile := strings.Replace(goname, ".go", "."+letter, -1)
-	_, err = runcmd("go", "tool", ld, "-w", "-o", "a.exe", "-L", ".", pfile)
+	pfile := strings.Replace(goname, ".go", ".o", -1)
+	_, err = runcmd("go", "tool", "link", "-w", "-o", "a.exe", "-L", ".", pfile)
 	return
 }
 
@@ -506,7 +494,7 @@ func (t *test) run() {
 		t.err = fmt.Errorf("unimplemented action %q", action)
 
 	case "errorcheck":
-		cmdline := []string{"go", "tool", gc, "-e", "-o", "a." + letter}
+		cmdline := []string{"go", "tool", "compile", "-e", "-o", "a.o"}
 		cmdline = append(cmdline, flags...)
 		cmdline = append(cmdline, long)
 		out, err := runcmd(cmdline...)
@@ -669,7 +657,7 @@ func (t *test) run() {
 			t.err = fmt.Errorf("write tempfile:%s", err)
 			return
 		}
-		cmdline := []string{"go", "tool", gc, "-e", "-o", "a." + letter}
+		cmdline := []string{"go", "tool", "compile", "-e", "-o", "a.o"}
 		cmdline = append(cmdline, flags...)
 		cmdline = append(cmdline, tfile)
 		out, err = runcmd(cmdline...)

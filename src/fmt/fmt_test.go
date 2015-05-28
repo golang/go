@@ -557,10 +557,13 @@ var fmtTests = []struct {
 	{"%0.100f", 1.0, zeroFill("1.", 100, "")},
 	{"%0.100f", -1.0, zeroFill("-1.", 100, "")},
 
-	// Used to panic: integer function didn't look at f.prec or f.unicode.
+	// Used to panic: integer function didn't look at f.prec or f.unicode or f.width.
 	{"%#.80x", 42, "0x0000000000000000000000000000000000000000000000000000000000000000000000000000002a"},
 	{"%.80U", 42, "U+0000000000000000000000000000000000000000000000000000000000000000000000000000002A"},
 	{"%#.80U", '日', "U+000000000000000000000000000000000000000000000000000000000000000000000000000065E5 '日'"},
+	{"%+.65d", 44, "+00000000000000000000000000000000000000000000000000000000000000044"},
+	{"% .65d", 44, " 00000000000000000000000000000000000000000000000000000000000000044"},
+	{"%  +.65d", 44, "+00000000000000000000000000000000000000000000000000000000000000044"},
 
 	// Comparison of padding rules with C printf.
 	/*
@@ -949,11 +952,13 @@ var mallocTest = []struct {
 var _ bytes.Buffer
 
 func TestCountMallocs(t *testing.T) {
-	if testing.Short() {
+	switch {
+	case testing.Short():
 		t.Skip("skipping malloc count in short mode")
-	}
-	if runtime.GOMAXPROCS(0) > 1 {
+	case runtime.GOMAXPROCS(0) > 1:
 		t.Skip("skipping; GOMAXPROCS>1")
+	case raceenabled:
+		t.Skip("skipping malloc count under race detector")
 	}
 	for _, mt := range mallocTest {
 		mallocs := testing.AllocsPerRun(100, mt.fn)
