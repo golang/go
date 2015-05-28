@@ -45,21 +45,6 @@ unset GOBIN
 unset GOPATH
 unset GOROOT
 
-TEST 'file:line in error messages'
-# Test that error messages have file:line information at beginning of
-# the line. Also test issue 4917: that the error is on stderr.
-d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
-fn=$d/err.go
-echo "package main" > $fn
-echo 'import "bar"' >> $fn
-./testgo run $fn 2>$d/err.out || true
-if ! grep -q "^$fn:" $d/err.out; then
-	echo "missing file:line in error message"
-	cat $d/err.out
-	ok=false
-fi
-rm -r $d
-
 TEST 'program name in crash messages'
 linker=$(./testgo env GOCHAR)l
 d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
