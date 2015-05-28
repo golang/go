@@ -113,7 +113,7 @@ const (
 	above1e23 = 100000000000000008388608
 )
 
-func TestFloat64Format(t *testing.T) {
+func TestFloat64Text(t *testing.T) {
 	for _, test := range []struct {
 		x      float64
 		format byte
@@ -257,7 +257,7 @@ func TestFloat64Format(t *testing.T) {
 		// {383260575764816448, 'g', -1, "3.8326057576481645e+17"},
 	} {
 		f := new(Float).SetFloat64(test.x)
-		got := f.Format(test.format, test.prec)
+		got := f.Text(test.format, test.prec)
 		if got != test.want {
 			t.Errorf("%v: got %s; want %s", test, got, test.want)
 		}
@@ -277,7 +277,7 @@ func TestFloat64Format(t *testing.T) {
 	}
 }
 
-func TestFloatFormat(t *testing.T) {
+func TestFloatText(t *testing.T) {
 	for _, test := range []struct {
 		x      string
 		prec   uint
@@ -378,7 +378,7 @@ func TestFloatFormat(t *testing.T) {
 			continue
 		}
 
-		got := f.Format(test.format, test.digits)
+		got := f.Text(test.format, test.digits)
 		if got != test.want {
 			t.Errorf("%v: got %s; want %s", test, got, test.want)
 		}

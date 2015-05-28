@@ -18,7 +18,7 @@ var _ error = ErrNaN{}
 func (x *Float) uint64() uint64 {
 	u, acc := x.Uint64()
 	if acc != Exact {
-		panic(fmt.Sprintf("%s is not a uint64", x.Format('g', 10)))
+		panic(fmt.Sprintf("%s is not a uint64", x.Text('g', 10)))
 	}
 	return u
 }
@@ -26,7 +26,7 @@ func (x *Float) uint64() uint64 {
 func (x *Float) int64() int64 {
 	i, acc := x.Int64()
 	if acc != Exact {
-		panic(fmt.Sprintf("%s is not an int64", x.Format('g', 10)))
+		panic(fmt.Sprintf("%s is not an int64", x.Text('g', 10)))
 	}
 	return i
 }
@@ -34,7 +34,7 @@ func (x *Float) int64() int64 {
 func TestFloatZeroValue(t *testing.T) {
 	// zero (uninitialized) value is a ready-to-use 0.0
 	var x Float
-	if s := x.Format('f', 1); s != "0.0" {
+	if s := x.Text('f', 1); s != "0.0" {
 		t.Errorf("zero value = %s; want 0.0", s)
 	}
 
@@ -236,7 +236,7 @@ func TestFloatMantExp(t *testing.T) {
 		m := new(Float)
 		e := x.MantExp(m)
 		if !alike(m, mant) || e != test.exp {
-			t.Errorf("%s.MantExp() = %s, %d; want %s, %d", test.x, m.Format('g', 10), e, test.mant, test.exp)
+			t.Errorf("%s.MantExp() = %s, %d; want %s, %d", test.x, m.Text('g', 10), e, test.mant, test.exp)
 		}
 	}
 }
@@ -247,7 +247,7 @@ func TestFloatMantExpAliasing(t *testing.T) {
 		t.Fatalf("Float.MantExp aliasing error: got %d; want 10", e)
 	}
 	if want := makeFloat("0.5"); !alike(x, want) {
-		t.Fatalf("Float.MantExp aliasing error: got %s; want %s", x.Format('g', 10), want.Format('g', 10))
+		t.Fatalf("Float.MantExp aliasing error: got %s; want %s", x.Text('g', 10), want.Text('g', 10))
 	}
 }
 
@@ -279,12 +279,12 @@ func TestFloatSetMantExp(t *testing.T) {
 		var z Float
 		z.SetMantExp(frac, test.exp)
 		if !alike(&z, want) {
-			t.Errorf("SetMantExp(%s, %d) = %s; want %s", test.frac, test.exp, z.Format('g', 10), test.z)
+			t.Errorf("SetMantExp(%s, %d) = %s; want %s", test.frac, test.exp, z.Text('g', 10), test.z)
 		}
 		// test inverse property
 		mant := new(Float)
 		if z.SetMantExp(mant, want.MantExp(mant)).Cmp(want) != 0 {
-			t.Errorf("Inverse property not satisfied: got %s; want %s", z.Format('g', 10), test.z)
+			t.Errorf("Inverse property not satisfied: got %s; want %s", z.Text('g', 10), test.z)
 		}
 	}
 }
@@ -562,7 +562,7 @@ func TestFloatSetUint64(t *testing.T) {
 		var f Float
 		f.SetUint64(want)
 		if got := f.uint64(); got != want {
-			t.Errorf("got %#x (%s); want %#x", got, f.Format('p', 0), want)
+			t.Errorf("got %#x (%s); want %#x", got, f.Text('p', 0), want)
 		}
 	}
 
@@ -573,7 +573,7 @@ func TestFloatSetUint64(t *testing.T) {
 		got := f.uint64()
 		want := x &^ (1<<(64-prec) - 1) // cut off (round to zero) low 64-prec bits
 		if got != want {
-			t.Errorf("got %#x (%s); want %#x", got, f.Format('p', 0), want)
+			t.Errorf("got %#x (%s); want %#x", got, f.Text('p', 0), want)
 		}
 	}
 }
@@ -596,7 +596,7 @@ func TestFloatSetInt64(t *testing.T) {
 			var f Float
 			f.SetInt64(want)
 			if got := f.int64(); got != want {
-				t.Errorf("got %#x (%s); want %#x", got, f.Format('p', 0), want)
+				t.Errorf("got %#x (%s); want %#x", got, f.Text('p', 0), want)
 			}
 		}
 	}
@@ -608,7 +608,7 @@ func TestFloatSetInt64(t *testing.T) {
 		got := f.int64()
 		want := x &^ (1<<(63-prec) - 1) // cut off (round to zero) low 63-prec bits
 		if got != want {
-			t.Errorf("got %#x (%s); want %#x", got, f.Format('p', 0), want)
+			t.Errorf("got %#x (%s); want %#x", got, f.Text('p', 0), want)
 		}
 	}
 }
@@ -639,7 +639,7 @@ func TestFloatSetFloat64(t *testing.T) {
 			var f Float
 			f.SetFloat64(want)
 			if got, acc := f.Float64(); got != want || acc != Exact {
-				t.Errorf("got %g (%s, %s); want %g (Exact)", got, f.Format('p', 0), acc, want)
+				t.Errorf("got %g (%s, %s); want %g (Exact)", got, f.Text('p', 0), acc, want)
 			}
 		}
 	}
@@ -651,7 +651,7 @@ func TestFloatSetFloat64(t *testing.T) {
 		got, _ := f.Float64()
 		want := float64(x &^ (1<<(52-prec) - 1)) // cut off (round to zero) low 53-prec bits
 		if got != want {
-			t.Errorf("got %g (%s); want %g", got, f.Format('p', 0), want)
+			t.Errorf("got %g (%s); want %g", got, f.Text('p', 0), want)
 		}
 	}
 
@@ -664,7 +664,7 @@ func TestFloatSetFloat64(t *testing.T) {
 	var f Float
 	f.SetFloat64(math.NaN())
 	// should not reach here
-	t.Errorf("got %s; want ErrNaN panic", f.Format('p', 0))
+	t.Errorf("got %s; want ErrNaN panic", f.Text('p', 0))
 }
 
 func TestFloatSetInt(t *testing.T) {
@@ -696,9 +696,9 @@ func TestFloatSetInt(t *testing.T) {
 		}
 
 		// check value
-		got := f.Format('g', 100)
+		got := f.Text('g', 100)
 		if got != want {
-			t.Errorf("got %s (%s); want %s", got, f.Format('p', 0), want)
+			t.Errorf("got %s (%s); want %s", got, f.Text('p', 0), want)
 		}
 	}
 
@@ -738,9 +738,9 @@ func TestFloatSetRat(t *testing.T) {
 			t.Errorf("got prec = %d; want %d", prec, n)
 		}
 
-		got := f2.Format('g', 100)
+		got := f2.Text('g', 100)
 		if got != want {
-			t.Errorf("got %s (%s); want %s", got, f2.Format('p', 0), want)
+			t.Errorf("got %s (%s); want %s", got, f2.Text('p', 0), want)
 		}
 	}
 }
@@ -1096,13 +1096,13 @@ func TestFloatAbs(t *testing.T) {
 		p := makeFloat(test)
 		a := new(Float).Abs(p)
 		if !alike(a, p) {
-			t.Errorf("%s: got %s; want %s", test, a.Format('g', 10), test)
+			t.Errorf("%s: got %s; want %s", test, a.Text('g', 10), test)
 		}
 
 		n := makeFloat("-" + test)
 		a.Abs(n)
 		if !alike(a, p) {
-			t.Errorf("-%s: got %s; want %s", test, a.Format('g', 10), test)
+			t.Errorf("-%s: got %s; want %s", test, a.Text('g', 10), test)
 		}
 	}
 }
@@ -1122,10 +1122,10 @@ func TestFloatNeg(t *testing.T) {
 		n2 := new(Float).Neg(p1)
 		p2 := new(Float).Neg(n2)
 		if !alike(n2, n1) {
-			t.Errorf("%s: got %s; want %s", test, n2.Format('g', 10), n1.Format('g', 10))
+			t.Errorf("%s: got %s; want %s", test, n2.Text('g', 10), n1.Text('g', 10))
 		}
 		if !alike(p2, p1) {
-			t.Errorf("%s: got %s; want %s", test, p2.Format('g', 10), p1.Format('g', 10))
+			t.Errorf("%s: got %s; want %s", test, p2.Text('g', 10), p1.Text('g', 10))
 		}
 	}
 }
@@ -1467,7 +1467,7 @@ func TestFloatQuoSmoke(t *testing.T) {
 
 					cc, acc := C.Float64()
 					if cc != c {
-						t.Errorf("%g/%g = %s; want %.5g\n", a, b, C.Format('g', 5), c)
+						t.Errorf("%g/%g = %s; want %.5g\n", a, b, C.Text('g', 5), c)
 						continue
 					}
 					if acc != Exact {
@@ -1608,10 +1608,10 @@ func TestFloatArithmeticOverflow(t *testing.T) {
 		default:
 			panic("unreachable")
 		}
-		if got := z.Format('p', 0); got != test.want || z.Acc() != test.acc {
+		if got := z.Text('p', 0); got != test.want || z.Acc() != test.acc {
 			t.Errorf(
 				"prec = %d (%s): %s %c %s = %s (%s); want %s (%s)",
-				test.prec, test.mode, x.Format('p', 0), test.op, y.Format('p', 0), got, z.Acc(), test.want, test.acc,
+				test.prec, test.mode, x.Text('p', 0), test.op, y.Text('p', 0), got, z.Acc(), test.want, test.acc,
 			)
 		}
 	}
