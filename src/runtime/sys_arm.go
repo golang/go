@@ -24,7 +24,7 @@ func rewindmorestack(buf *gobuf) {
 	var inst uint32
 	if buf.pc&3 == 0 && buf.pc != 0 {
 		inst = *(*uint32)(unsafe.Pointer(buf.pc))
-		if inst>>24 == 0x9a {
+		if inst>>24 == 0x9a || inst>>24 == 0xea {
 			buf.pc += uintptr(int32(inst<<8)>>6) + 8
 			return
 		}

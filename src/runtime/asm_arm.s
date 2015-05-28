@@ -259,7 +259,6 @@ noswitch:
 
 // Called during function prolog when more stack is needed.
 // R1 frame size
-// R2 arg size
 // R3 prolog's LR
 // NB. we do not save R0 because we've forced 5c to pass all arguments
 // on the stack.
