@@ -18,6 +18,9 @@ func mpreinit(mp *m) {
 	mp.errstr = (*byte)(mallocgc(_ERRMAX, nil, _FlagNoScan))
 }
 
+func msigsave(mp *m) {
+}
+
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, can not allocate memory.
 func minit() {
@@ -177,7 +180,7 @@ func exit(e int) {
 	} else {
 		// build error string
 		var tmp [32]byte
-		status = []byte(gostringnocopy(&itoa(tmp[:len(tmp)-1], uint64(e))[0]))
+		status = append(itoa(tmp[:len(tmp)-1], uint64(e)), 0)
 	}
 	goexitsall(&status[0])
 	exits(&status[0])

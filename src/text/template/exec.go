@@ -660,7 +660,7 @@ func (s *state) evalArg(dot reflect.Value, typ reflect.Type, n parse.Node) refle
 	case *parse.PipeNode:
 		return s.validateType(s.evalPipeline(dot, arg), typ)
 	case *parse.IdentifierNode:
-		return s.evalFunction(dot, arg, arg, nil, zero)
+		return s.validateType(s.evalFunction(dot, arg, arg, nil, zero), typ)
 	case *parse.ChainNode:
 		return s.validateType(s.evalChainNode(dot, arg, nil, zero), typ)
 	}

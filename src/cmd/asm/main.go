@@ -29,7 +29,7 @@ func main() {
 		log.Fatalf("asm: unrecognized architecture %s", GOARCH)
 	}
 
-	flags.Parse(architecture.Thechar)
+	flags.Parse()
 
 	// Create object file, write header.
 	fd, err := os.Create(*flags.OutputFile)

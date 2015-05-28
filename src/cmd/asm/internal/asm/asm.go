@@ -493,7 +493,10 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 			if arch.IsARM64STLXR(op) {
 				prog.From = a[0]
 				prog.To = a[1]
-				prog.To2 = a[2]
+				if a[2].Type != obj.TYPE_REG {
+					p.errorf("invalid addressing modes for third operand to %s instruction, must be register", obj.Aconv(op))
+				}
+				prog.RegTo2 = a[2].Reg
 				break
 			}
 			prog.From = a[0]

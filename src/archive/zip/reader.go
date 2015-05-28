@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"hash"
 	"hash/crc32"
 	"io"
@@ -76,6 +77,9 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 	end, err := readDirectoryEnd(r, size)
 	if err != nil {
 		return err
+	}
+	if end.directoryRecords > uint64(size)/fileHeaderLen {
+		return fmt.Errorf("archive/zip: TOC declares impossible %d files in %d byte zip", end.directoryRecords, size)
 	}
 	z.r = r
 	z.File = make([]*File, 0, end.directoryRecords)
@@ -146,16 +150,22 @@ func (f *File) Open() (rc io.ReadCloser, err error) {
 	if f.hasDataDescriptor() {
 		desr = io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset+size, dataDescriptorLen)
 	}
-	rc = &checksumReader{rc, crc32.NewIEEE(), f, desr, nil}
+	rc = &checksumReader{
+		rc:   rc,
+		hash: crc32.NewIEEE(),
+		f:    f,
+		desr: desr,
+	}
 	return
 }
 
 type checksumReader struct {
-	rc   io.ReadCloser
-	hash hash.Hash32
-	f    *File
-	desr io.Reader // if non-nil, where to read the data descriptor
-	err  error     // sticky error
+	rc    io.ReadCloser
+	hash  hash.Hash32
+	nread uint64 // number of bytes read so far
+	f     *File
+	desr  io.Reader // if non-nil, where to read the data descriptor
+	err   error     // sticky error
 }
 
 func (r *checksumReader) Read(b []byte) (n int, err error) {
@@ -164,10 +174,14 @@ func (r *checksumReader) Read(b []byte) (n int, err error) {
 	}
 	n, err = r.rc.Read(b)
 	r.hash.Write(b[:n])
+	r.nread += uint64(n)
 	if err == nil {
 		return
 	}
 	if err == io.EOF {
+		if r.nread != r.f.UncompressedSize64 {
+			return 0, io.ErrUnexpectedEOF
+		}
 		if r.desr != nil {
 			if err1 := readDataDescriptor(r.desr, r.f); err1 != nil {
 				err = err1

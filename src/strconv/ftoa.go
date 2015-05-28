@@ -223,9 +223,8 @@ func formatDigits(dst []byte, shortest bool, neg bool, digs decimalSlice, prec i
 	return append(dst, '%', fmt)
 }
 
-// Round d (= mant * 2^exp) to the shortest number of digits
-// that will let the original floating point value be precisely
-// reconstructed.  Size is original floating point size (64 or 32).
+// roundShortest rounds d (= mant * 2^exp) to the shortest number of digits
+// that will let the original floating point value be precisely reconstructed.
 func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
 	// If mantissa is zero, the number is zero; stop now.
 	if mant == 0 {

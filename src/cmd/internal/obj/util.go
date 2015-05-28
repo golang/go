@@ -213,10 +213,17 @@ func Getgoos() string {
 }
 
 func Getgoarm() string {
-	return envOr("GOARM", defaultGOARM)
+	switch v := envOr("GOARM", defaultGOARM); v {
+	case "5", "6", "7":
+		return v
+	}
+	// Fail here, rather than validate at multiple call sites.
+	log.Fatalf("Invalid GOARM value. Must be 5, 6, or 7.")
+	panic("unreachable")
 }
 
 func Getgo386() string {
+	// Validated by cmd/8g.
 	return envOr("GO386", defaultGO386)
 }
 
@@ -234,7 +241,7 @@ func Atoi(s string) int {
 }
 
 func (p *Prog) Line() string {
-	return Linklinefmt(p.Ctxt, int(p.Lineno), false, false)
+	return p.Ctxt.LineHist.LineString(int(p.Lineno))
 }
 
 var armCondCode = []string{
@@ -320,8 +327,8 @@ func (p *Prog) String() string {
 	if p.To.Type != TYPE_NONE {
 		fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, &p.To))
 	}
-	if p.To2.Type != TYPE_NONE {
-		fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, &p.To2))
+	if p.RegTo2 != REG_NONE {
+		fmt.Fprintf(&buf, "%s%v", sep, Rconv(int(p.RegTo2)))
 	}
 	return buf.String()
 }
@@ -333,7 +340,7 @@ func (ctxt *Link) NewProg() *Prog {
 }
 
 func (ctxt *Link) Line(n int) string {
-	return Linklinefmt(ctxt, n, false, false)
+	return ctxt.LineHist.LineString(n)
 }
 
 func Getcallerpc(interface{}) uintptr {

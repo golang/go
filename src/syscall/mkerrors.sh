@@ -87,7 +87,9 @@ includes_FreeBSD='
 includes_Linux='
 #define _LARGEFILE_SOURCE
 #define _LARGEFILE64_SOURCE
+#ifndef __LP64__
 #define _FILE_OFFSET_BITS 64
+#endif
 #define _GNU_SOURCE
 
 #include <bits/sockaddr.h>

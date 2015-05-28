@@ -734,6 +734,41 @@ func TestScanErrors(t *testing.T) {
 	}
 }
 
+// Verify that no comments show up as literal values when skipping comments.
+func TestIssue10213(t *testing.T) {
+	var src = `
+		var (
+			A = 1 // foo
+		)
+
+		var (
+			B = 2
+			// foo
+		)
+
+		var C = 3 // foo
+
+		var D = 4
+		// foo
+
+		func anycode() {
+		// foo
+		}
+	`
+	var s Scanner
+	s.Init(fset.AddFile("", fset.Base(), len(src)), []byte(src), nil, 0)
+	for {
+		pos, tok, lit := s.Scan()
+		class := tokenclass(tok)
+		if lit != "" && class != keyword && class != literal && tok != token.SEMICOLON {
+			t.Errorf("%s: tok = %s, lit = %q", fset.Position(pos), tok, lit)
+		}
+		if tok <= token.EOF {
+			break
+		}
+	}
+}
+
 func BenchmarkScan(b *testing.B) {
 	b.StopTimer()
 	fset := token.NewFileSet()

@@ -127,13 +127,22 @@ const (
 	_RootCount       = 5
 )
 
-// heapminimum is the minimum number of bytes in the heap.
-// This cleans up the corner case of where we have a very small live set but a lot
-// of allocations and collecting every GOGC * live set is expensive.
-// heapminimum is adjust by multiplying it by GOGC/100. In
-// the special case of GOGC==0 this will set heapminimum to 0 resulting
-// collecting at every allocation even when the heap size is small.
-var heapminimum = uint64(4 << 20)
+// heapminimum is the minimum heap size at which to trigger GC.
+// For small heaps, this overrides the usual GOGC*live set rule.
+//
+// When there is a very small live set but a lot of allocation, simply
+// collecting when the heap reaches GOGC*live results in many GC
+// cycles and high total per-GC overhead. This minimum amortizes this
+// per-GC overhead while keeping the heap reasonably small.
+//
+// During initialization this is set to 4MB*GOGC/100. In the case of
+// GOGC==0, this will set heapminimum to 0, resulting in constant
+// collection even when the heap size is small, which is useful for
+// debugging.
+var heapminimum uint64 = defaultHeapMinimum
+
+// defaultHeapMinimum is the value of heapminimum for GOGC==100.
+const defaultHeapMinimum = 4 << 20
 
 // Initialized from $GOGC.  GOGC=off means no GC.
 var gcpercent int32
@@ -146,8 +155,8 @@ func gcinit() {
 	work.markfor = parforalloc(_MaxGcproc)
 	_ = setGCPercent(readgogc())
 	for datap := &firstmoduledata; datap != nil; datap = datap.next {
-		datap.gcdatamask = unrollglobgcprog((*byte)(unsafe.Pointer(datap.gcdata)), datap.edata-datap.data)
-		datap.gcbssmask = unrollglobgcprog((*byte)(unsafe.Pointer(datap.gcbss)), datap.ebss-datap.bss)
+		datap.gcdatamask = progToPointerMask((*byte)(unsafe.Pointer(datap.gcdata)), datap.edata-datap.data)
+		datap.gcbssmask = progToPointerMask((*byte)(unsafe.Pointer(datap.gcbss)), datap.ebss-datap.bss)
 	}
 	memstats.next_gc = heapminimum
 }
@@ -180,7 +189,7 @@ func setGCPercent(in int32) (out int32) {
 		in = -1
 	}
 	gcpercent = in
-	heapminimum = heapminimum * uint64(gcpercent) / 100
+	heapminimum = defaultHeapMinimum * uint64(gcpercent) / 100
 	unlock(&mheap_.lock)
 	return out
 }
@@ -197,7 +206,6 @@ var gcBlackenEnabled uint32
 
 const (
 	_GCoff             = iota // GC not running, write barrier disabled
-	_GCquiesce                // unused state
 	_GCstw                    // unused state
 	_GCscan                   // GC collecting roots into workbufs, write barrier disabled
 	_GCmark                   // GC marking from workbufs, write barrier ENABLED
@@ -208,7 +216,7 @@ const (
 //go:nosplit
 func setGCPhase(x uint32) {
 	atomicstore(&gcphase, x)
-	writeBarrierEnabled = gcphase == _GCmark || gcphase == _GCmarktermination || mheap_.shadow_enabled
+	writeBarrierEnabled = gcphase == _GCmark || gcphase == _GCmarktermination
 }
 
 // gcMarkWorkerMode represents the mode that a concurrent mark worker
@@ -699,11 +707,11 @@ const (
 func startGC(mode int) {
 	// The gc is turned off (via enablegc) until the bootstrap has completed.
 	// Also, malloc gets called in the guts of a number of libraries that might be
-	// holding locks. To avoid deadlocks during stoptheworld, don't bother
+	// holding locks. To avoid deadlocks during stop-the-world, don't bother
 	// trying to run gc while holding a lock. The next mallocgc without a lock
 	// will do the gc instead.
 	mp := acquirem()
-	if gp := getg(); gp == mp.g0 || mp.locks > 1 || !memstats.enablegc || panicking != 0 || gcpercent < 0 {
+	if gp := getg(); gp == mp.g0 || mp.locks > 1 || mp.preemptoff != "" || !memstats.enablegc || panicking != 0 || gcpercent < 0 {
 		releasem(mp)
 		return
 	}
@@ -797,7 +805,7 @@ func gc(mode int) {
 		traceGCStart()
 	}
 
-	systemstack(stoptheworld)
+	systemstack(stopTheWorldWithSema)
 	systemstack(finishsweep_m) // finish sweep before we start concurrent scan.
 	// clearpools before we start the GC. If we wait they memory will not be
 	// reclaimed until the next GC cycle.
@@ -814,7 +822,7 @@ func gc(mode int) {
 			setGCPhase(_GCscan)
 
 			// Concurrent scan.
-			starttheworld()
+			startTheWorldWithSema()
 			if debug.gctrace > 0 {
 				tScan = nanotime()
 			}
@@ -858,7 +866,7 @@ func gc(mode int) {
 		if debug.gctrace > 0 {
 			tMarkTerm = nanotime()
 		}
-		systemstack(stoptheworld)
+		systemstack(stopTheWorldWithSema)
 		// The gcphase is _GCmark, it will transition to _GCmarktermination
 		// below. The important thing is that the wb remains active until
 		// all marking is complete. This includes writes made by the GC.
@@ -952,13 +960,12 @@ func gc(mode int) {
 	// all done
 	mp.preemptoff = ""
 
-	semrelease(&worldsema)
-
 	if gcphase != _GCoff {
 		throw("gc done but gcphase != _GCoff")
 	}
 
-	systemstack(starttheworld)
+	systemstack(startTheWorldWithSema)
+	semrelease(&worldsema)
 
 	releasem(mp)
 	mp = nil
@@ -1158,6 +1165,18 @@ func gcBgMarkDone() {
 		}
 		unlock(&work.bgMarkWake.lock)
 	}
+}
+
+// gcMarkWorkAvailable determines if mark work is readily available.
+// It is used by the scheduler to decide if this p run a mark work.
+func gcMarkWorkAvailable(p *p) bool {
+	if !p.gcw.empty() {
+		return true
+	}
+	if atomicload64(&work.full) != 0 || atomicload64(&work.partial) != 0 {
+		return true // global work available
+	}
+	return false
 }
 
 // gcFlushGCWork disposes the gcWork caches of all Ps. The world must

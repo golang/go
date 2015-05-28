@@ -49,10 +49,6 @@ func mkEnv() []envVar {
 		{"TERM", "dumb"},
 	}
 
-	if archCharErr == nil {
-		env = append(env, envVar{"GOCHAR", archChar()})
-	}
-
 	if goos != "plan9" {
 		cmd := b.gccCmd(".")
 		env = append(env, envVar{"CC", cmd[0]})

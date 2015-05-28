@@ -60,20 +60,58 @@ func _() {
 
 // TestFcntlFlock tests whether the file locking structure matches
 // the calling convention of each kernel.
+// On some Linux systems, glibc uses another set of values for the
+// commands and translates them to the correct value that the kernel
+// expects just before the actual fcntl syscall. As Go uses raw
+// syscalls directly, it must use the real value, not the glibc value.
+// Thus this test also verifies that the Flock_t structure can be
+// roundtripped with F_SETLK and F_GETLK.
 func TestFcntlFlock(t *testing.T) {
-	name := filepath.Join(os.TempDir(), "TestFcntlFlock")
-	fd, err := syscall.Open(name, syscall.O_CREAT|syscall.O_RDWR|syscall.O_CLOEXEC, 0)
-	if err != nil {
-		t.Fatalf("Open failed: %v", err)
+	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+		t.Skip("skipping; no child processes allowed on iOS")
 	}
-	defer syscall.Unlink(name)
-	defer syscall.Close(fd)
 	flock := syscall.Flock_t{
-		Type:  syscall.F_RDLCK,
-		Start: 0, Len: 0, Whence: 1,
+		Type:  syscall.F_WRLCK,
+		Start: 31415, Len: 271828, Whence: 1,
 	}
-	if err := syscall.FcntlFlock(uintptr(fd), syscall.F_GETLK, &flock); err != nil {
-		t.Fatalf("FcntlFlock failed: %v", err)
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "" {
+		// parent
+		name := filepath.Join(os.TempDir(), "TestFcntlFlock")
+		fd, err := syscall.Open(name, syscall.O_CREAT|syscall.O_RDWR|syscall.O_CLOEXEC, 0)
+		if err != nil {
+			t.Fatalf("Open failed: %v", err)
+		}
+		defer syscall.Unlink(name)
+		defer syscall.Close(fd)
+		if err := syscall.Ftruncate(fd, 1<<20); err != nil {
+			t.Fatalf("Ftruncate(1<<20) failed: %v", err)
+		}
+		if err := syscall.FcntlFlock(uintptr(fd), syscall.F_SETLK, &flock); err != nil {
+			t.Fatalf("FcntlFlock(F_SETLK) failed: %v", err)
+		}
+		cmd := exec.Command(os.Args[0], "-test.run=^TestFcntlFlock$")
+		cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+		cmd.ExtraFiles = []*os.File{os.NewFile(uintptr(fd), name)}
+		out, err := cmd.CombinedOutput()
+		if len(out) > 0 || err != nil {
+			t.Fatalf("child process: %q, %v", out, err)
+		}
+	} else {
+		// child
+		got := flock
+		// make sure the child lock is conflicting with the parent lock
+		got.Start--
+		got.Len++
+		if err := syscall.FcntlFlock(3, syscall.F_GETLK, &got); err != nil {
+			t.Fatalf("FcntlFlock(F_GETLK) failed: %v", err)
+		}
+		flock.Pid = int32(syscall.Getppid())
+		// Linux kernel always set Whence to 0
+		flock.Whence = 0
+		if got.Type == flock.Type && got.Start == flock.Start && got.Len == flock.Len && got.Pid == flock.Pid && got.Whence == flock.Whence {
+			os.Exit(0)
+		}
+		t.Fatalf("FcntlFlock got %v, want %v", got, flock)
 	}
 }
 
@@ -121,7 +159,7 @@ func TestPassFD(t *testing.T) {
 	defer readFile.Close()
 
 	cmd := exec.Command(os.Args[0], "-test.run=^TestPassFD$", "--", tempDir)
-	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	cmd.ExtraFiles = []*os.File{writeFile}
 
 	out, err := cmd.CombinedOutput()

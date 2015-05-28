@@ -130,7 +130,7 @@ func ExpandString(value string) (string, error) {
 			return "", err
 		}
 		if n <= uint32(len(r)) {
-			u := (*[1 << 10]uint16)(unsafe.Pointer(&r[0]))[:]
+			u := (*[1 << 15]uint16)(unsafe.Pointer(&r[0]))[:]
 			return syscall.UTF16ToString(u), nil
 		}
 		r = make([]uint16, n)
@@ -150,9 +150,17 @@ func (k Key) GetStringsValue(name string) (val []string, valtype uint32, err err
 	if typ != MULTI_SZ {
 		return nil, typ, ErrUnexpectedType
 	}
-	val = make([]string, 0, 5)
+	if len(data) == 0 {
+		return nil, typ, nil
+	}
 	p := (*[1 << 24]uint16)(unsafe.Pointer(&data[0]))[:len(data)/2]
-	p = p[:len(p)-1] // remove terminating nil
+	if len(p) == 0 {
+		return nil, typ, nil
+	}
+	if p[len(p)-1] == 0 {
+		p = p[:len(p)-1] // remove terminating null
+	}
+	val = make([]string, 0, 5)
 	from := 0
 	for i, c := range p {
 		if c == 0 {
@@ -175,8 +183,14 @@ func (k Key) GetIntegerValue(name string) (val uint64, valtype uint32, err error
 	}
 	switch typ {
 	case DWORD:
+		if len(data) != 4 {
+			return 0, typ, errors.New("DWORD value is not 4 bytes long")
+		}
 		return uint64(*(*uint32)(unsafe.Pointer(&data[0]))), DWORD, nil
 	case QWORD:
+		if len(data) != 8 {
+			return 0, typ, errors.New("QWORD value is not 8 bytes long")
+		}
 		return uint64(*(*uint64)(unsafe.Pointer(&data[0]))), QWORD, nil
 	default:
 		return 0, typ, ErrUnexpectedType

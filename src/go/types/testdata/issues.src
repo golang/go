@@ -71,3 +71,27 @@ func issue9473(a []int, b ...int) {
 	append_(f0(), f1()... /* ERROR cannot use */ )
 	append_(f0(), f2()... /* ERROR cannot use */ )
 }
+
+// Check that embedding a non-interface type in an interface results in a good error message.
+func issue10979() {
+	type _ interface {
+		int /* ERROR int is not an interface */
+	}
+	type T struct{}
+	type _ interface {
+		T /* ERROR T is not an interface */
+	}
+	type _ interface {
+		nosuchtype /* ERROR undeclared name: nosuchtype */
+	}
+	type _ interface {
+		fmt /* ERROR Nosuchtype not declared by package fmt */ .Nosuchtype
+	}
+	type _ interface {
+		nosuchpkg /* ERROR undeclared name: nosuchpkg */ .Nosuchtype
+	}
+	type I interface {
+		I /* ERROR I\.m \(value of type func\(I\)\) is not a type */ .m
+		m()
+	}
+}

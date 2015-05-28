@@ -124,11 +124,14 @@ func (cmsg *Cmsghdr) SetLen(length int) {
 	cmsg.Len = uint64(length)
 }
 
+func InotifyInit() (fd int, err error) {
+	return InotifyInit1(0)
+}
+
 // TODO(dfc): constants that should be in zsysnum_linux_arm64.go, remove
 // these when the deprecated syscalls that the syscall package relies on
 // are removed.
 const (
-	SYS_INOTIFY_INIT = 1043
 	SYS_GETPGRP      = 1060
 	SYS_UTIMES       = 1037
 	SYS_FUTIMESAT    = 1066

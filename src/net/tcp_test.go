@@ -58,7 +58,7 @@ func BenchmarkTCP6PersistentTimeout(b *testing.B) {
 }
 
 func benchmarkTCP(b *testing.B, persistent, timeout bool, laddr string) {
-	testHookUninstaller.Do(func() { uninstallTestHooks() })
+	testHookUninstaller.Do(uninstallTestHooks)
 
 	const msgLen = 512
 	conns := b.N
@@ -168,7 +168,7 @@ func BenchmarkTCP6ConcurrentReadWrite(b *testing.B) {
 }
 
 func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
-	testHookUninstaller.Do(func() { uninstallTestHooks() })
+	testHookUninstaller.Do(uninstallTestHooks)
 
 	// The benchmark creates GOMAXPROCS client/server pairs.
 	// Each pair creates 4 goroutines: client reader/writer and server reader/writer.
@@ -367,39 +367,11 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
 		t.Skip("avoid external network")
 	}
 	if !supportsIPv6 {
-		t.Skip("ipv6 is not supported")
-	}
-	ifi := loopbackInterface()
-	if ifi == nil {
-		t.Skip("loopback interface not found")
-	}
-	laddr := ipv6LinkLocalUnicastAddr(ifi)
-	if laddr == "" {
-		t.Skip("ipv6 unicast address on loopback not found")
+		t.Skip("IPv6 is not supported")
 	}
 
-	type test struct {
-		net, addr  string
-		nameLookup bool
-	}
-	var tests = []test{
-		{"tcp", "[" + laddr + "%" + ifi.Name + "]:0", false},
-		{"tcp6", "[" + laddr + "%" + ifi.Name + "]:0", false},
-	}
-	switch runtime.GOOS {
-	case "darwin", "freebsd", "openbsd", "netbsd":
-		tests = append(tests, []test{
-			{"tcp", "[localhost%" + ifi.Name + "]:0", true},
-			{"tcp6", "[localhost%" + ifi.Name + "]:0", true},
-		}...)
-	case "linux":
-		tests = append(tests, []test{
-			{"tcp", "[ip6-localhost%" + ifi.Name + "]:0", true},
-			{"tcp6", "[ip6-localhost%" + ifi.Name + "]:0", true},
-		}...)
-	}
-	for i, tt := range tests {
-		ln, err := Listen(tt.net, tt.addr)
+	for i, tt := range ipv6LinkLocalUnicastTCPTests {
+		ln, err := Listen(tt.network, tt.address)
 		if err != nil {
 			// It might return "LookupHost returned no
 			// suitable address" error on some platforms.
@@ -420,7 +392,7 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
 			t.Fatalf("got %v; expected a proper address with zone identifier", la)
 		}
 
-		c, err := Dial(tt.net, ls.Listener.Addr().String())
+		c, err := Dial(tt.network, ls.Listener.Addr().String())
 		if err != nil {
 			t.Fatal(err)
 		}

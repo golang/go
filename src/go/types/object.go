@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
-	exact "go/constants" // Renamed to reduce diffs from x/tools.  TODO: remove
+	exact "go/constant" // Renamed to reduce diffs from x/tools.  TODO: remove
 	"go/token"
 )
 

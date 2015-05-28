@@ -6,7 +6,6 @@
 package html
 
 import (
-	"bytes"
 	"strings"
 	"unicode/utf8"
 )
@@ -187,52 +186,20 @@ func unescape(b []byte) []byte {
 	return b
 }
 
-const escapedChars = `&'<>"`
-
-func escape(w writer, s string) error {
-	i := strings.IndexAny(s, escapedChars)
-	for i != -1 {
-		if _, err := w.WriteString(s[:i]); err != nil {
-			return err
-		}
-		var esc string
-		switch s[i] {
-		case '&':
-			esc = "&amp;"
-		case '\'':
-			// "&#39;" is shorter than "&apos;" and apos was not in HTML until HTML5.
-			esc = "&#39;"
-		case '<':
-			esc = "&lt;"
-		case '>':
-			esc = "&gt;"
-		case '"':
-			// "&#34;" is shorter than "&quot;".
-			esc = "&#34;"
-		default:
-			panic("unrecognized escape character")
-		}
-		s = s[i+1:]
-		if _, err := w.WriteString(esc); err != nil {
-			return err
-		}
-		i = strings.IndexAny(s, escapedChars)
-	}
-	_, err := w.WriteString(s)
-	return err
-}
+var htmlEscaper = strings.NewReplacer(
+	`&`, "&amp;",
+	`'`, "&#39;", // "&#39;" is shorter than "&apos;" and apos was not in HTML until HTML5.
+	`<`, "&lt;",
+	`>`, "&gt;",
+	`"`, "&#34;", // "&#34;" is shorter than "&quot;".
+)
 
 // EscapeString escapes special characters like "<" to become "&lt;". It
 // escapes only five such characters: <, >, &, ' and ".
 // UnescapeString(EscapeString(s)) == s always holds, but the converse isn't
 // always true.
 func EscapeString(s string) string {
-	if strings.IndexAny(s, escapedChars) == -1 {
-		return s
-	}
-	var buf bytes.Buffer
-	escape(&buf, s)
-	return buf.String()
+	return htmlEscaper.Replace(s)
 }
 
 // UnescapeString unescapes entities like "&lt;" to become "<". It unescapes a
@@ -241,10 +208,8 @@ func EscapeString(s string) string {
 // UnescapeString(EscapeString(s)) == s always holds, but the converse isn't
 // always true.
 func UnescapeString(s string) string {
-	for _, c := range s {
-		if c == '&' {
-			return string(unescape([]byte(s)))
-		}
+	if !strings.Contains(s, "&") {
+		return s
 	}
-	return s
+	return string(unescape([]byte(s)))
 }

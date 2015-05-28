@@ -21,9 +21,9 @@ func ExampleFloat_Add() {
 	fmt.Printf("y = %s (%s, prec = %d, acc = %s)\n", &y, y.Format('p', 0), y.Prec(), y.Acc())
 	fmt.Printf("z = %s (%s, prec = %d, acc = %s)\n", &z, z.Format('p', 0), z.Prec(), z.Acc())
 	// Output:
-	// x = 1000 (0x.fap10, prec = 64, acc = Exact)
-	// y = 2.718281828 (0x.adf85458248cd8p2, prec = 53, acc = Exact)
-	// z = 1002.718282 (0x.faadf854p10, prec = 32, acc = Below)
+	// x = 1000 (0x.fap+10, prec = 64, acc = Exact)
+	// y = 2.718281828 (0x.adf85458248cd8p+2, prec = 53, acc = Exact)
+	// z = 1002.718282 (0x.faadf854p+10, prec = 32, acc = Below)
 }
 
 func Example_Shift() {

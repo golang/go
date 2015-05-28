@@ -23,23 +23,43 @@ func lookupLocalhost(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, 
 	}
 }
 
+// The Lookup APIs use various sources such as local database, DNS or
+// mDNS, and may use platform-dependent DNS stub resolver if possible.
+// The APIs accept any of forms for a query; host name in various
+// encodings, UTF-8 encoded net name, domain name, FQDN or absolute
+// FQDN, but the result would be one of the forms and it depends on
+// the circumstances.
+
 var lookupGoogleSRVTests = []struct {
 	service, proto, name string
 	cname, target        string
 }{
 	{
 		"xmpp-server", "tcp", "google.com",
-		".google.com", ".google.com",
+		"google.com", "google.com",
 	},
 	{
-		"", "", "_xmpp-server._tcp.google.com", // non-standard back door
-		".google.com", ".google.com",
+		"xmpp-server", "tcp", "google.com.",
+		"google.com", "google.com",
+	},
+
+	// non-standard back door
+	{
+		"", "", "_xmpp-server._tcp.google.com",
+		"google.com", "google.com",
+	},
+	{
+		"", "", "_xmpp-server._tcp.google.com.",
+		"google.com", "google.com",
 	},
 }
 
 func TestLookupGoogleSRV(t *testing.T) {
 	if testing.Short() || !*testExternal {
 		t.Skip("avoid external network")
+	}
+	if !supportsIPv4 || !*testIPv4 {
+		t.Skip("IPv4 is required")
 	}
 
 	for _, tt := range lookupGoogleSRVTests {
@@ -50,87 +70,125 @@ func TestLookupGoogleSRV(t *testing.T) {
 		if len(srvs) == 0 {
 			t.Error("got no record")
 		}
-		if !strings.Contains(cname, tt.cname) {
-			t.Errorf("got %q; want %q", cname, tt.cname)
+		if !strings.HasSuffix(cname, tt.cname) && !strings.HasSuffix(cname, tt.cname+".") {
+			t.Errorf("got %s; want %s", cname, tt.cname)
 		}
 		for _, srv := range srvs {
-			if !strings.Contains(srv.Target, tt.target) {
-				t.Errorf("got %v; want a record containing %q", srv, tt.target)
+			if !strings.HasSuffix(srv.Target, tt.target) && !strings.HasSuffix(srv.Target, tt.target+".") {
+				t.Errorf("got %v; want a record containing %s", srv, tt.target)
 			}
 		}
 	}
+}
+
+var lookupGmailMXTests = []struct {
+	name, host string
+}{
+	{"gmail.com", "google.com"},
+	{"gmail.com.", "google.com"},
 }
 
 func TestLookupGmailMX(t *testing.T) {
 	if testing.Short() || !*testExternal {
 		t.Skip("avoid external network")
 	}
+	if !supportsIPv4 || !*testIPv4 {
+		t.Skip("IPv4 is required")
+	}
 
-	mxs, err := LookupMX("gmail.com")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(mxs) == 0 {
-		t.Error("got no record")
-	}
-	for _, mx := range mxs {
-		if !strings.Contains(mx.Host, ".google.com") {
-			t.Errorf("got %v; want a record containing .google.com.", mx)
+	for _, tt := range lookupGmailMXTests {
+		mxs, err := LookupMX(tt.name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(mxs) == 0 {
+			t.Error("got no record")
+		}
+		for _, mx := range mxs {
+			if !strings.HasSuffix(mx.Host, tt.host) && !strings.HasSuffix(mx.Host, tt.host+".") {
+				t.Errorf("got %v; want a record containing %s", mx, tt.host)
+			}
 		}
 	}
+}
+
+var lookupGmailNSTests = []struct {
+	name, host string
+}{
+	{"gmail.com", "google.com"},
+	{"gmail.com.", "google.com"},
 }
 
 func TestLookupGmailNS(t *testing.T) {
 	if testing.Short() || !*testExternal {
 		t.Skip("avoid external network")
 	}
+	if !supportsIPv4 || !*testIPv4 {
+		t.Skip("IPv4 is required")
+	}
 
-	nss, err := LookupNS("gmail.com")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(nss) == 0 {
-		t.Error("got no record")
-	}
-	for _, ns := range nss {
-		if !strings.Contains(ns.Host, ".google.com") {
-			t.Errorf("got %v; want a record containing .google.com.", ns)
+	for _, tt := range lookupGmailNSTests {
+		nss, err := LookupNS(tt.name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(nss) == 0 {
+			t.Error("got no record")
+		}
+		for _, ns := range nss {
+			if !strings.HasSuffix(ns.Host, tt.host) && !strings.HasSuffix(ns.Host, tt.host+".") {
+				t.Errorf("got %v; want a record containing %s", ns, tt.host)
+			}
 		}
 	}
+}
+
+var lookupGmailTXTTests = []struct {
+	name, txt, host string
+}{
+	{"gmail.com", "spf", "google.com"},
+	{"gmail.com.", "spf", "google.com"},
 }
 
 func TestLookupGmailTXT(t *testing.T) {
 	if testing.Short() || !*testExternal {
 		t.Skip("avoid external network")
 	}
+	if !supportsIPv4 || !*testIPv4 {
+		t.Skip("IPv4 is required")
+	}
 
-	txts, err := LookupTXT("gmail.com")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(txts) == 0 {
-		t.Error("got no record")
-	}
-	for _, txt := range txts {
-		if !strings.Contains(txt, "spf") {
-			t.Errorf("got %q; want a spf record", txt)
+	for _, tt := range lookupGmailTXTTests {
+		txts, err := LookupTXT(tt.name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(txts) == 0 {
+			t.Error("got no record")
+		}
+		for _, txt := range txts {
+			if !strings.Contains(txt, tt.txt) || (!strings.HasSuffix(txt, tt.host) && !strings.HasSuffix(txt, tt.host+".")) {
+				t.Errorf("got %s; want a record containing %s, %s", txt, tt.txt, tt.host)
+			}
 		}
 	}
 }
 
 var lookupGooglePublicDNSAddrs = []struct {
-	addr string
-	name string
+	addr, name string
 }{
-	{"8.8.8.8", ".google.com."},
-	{"8.8.4.4", ".google.com."},
-	{"2001:4860:4860::8888", ".google.com."},
-	{"2001:4860:4860::8844", ".google.com."},
+	{"8.8.8.8", ".google.com"},
+	{"8.8.4.4", ".google.com"},
+	{"2001:4860:4860::8888", ".google.com"},
+	{"2001:4860:4860::8844", ".google.com"},
 }
 
 func TestLookupGooglePublicDNSAddr(t *testing.T) {
 	if testing.Short() || !*testExternal {
 		t.Skip("avoid external network")
+	}
+	if !supportsIPv4 || !supportsIPv6 || !*testIPv4 || !*testIPv6 {
+		t.Skip("both IPv4 and IPv6 are required")
 	}
 
 	for _, tt := range lookupGooglePublicDNSAddrs {
@@ -142,61 +200,97 @@ func TestLookupGooglePublicDNSAddr(t *testing.T) {
 			t.Error("got no record")
 		}
 		for _, name := range names {
-			if !strings.HasSuffix(name, tt.name) {
-				t.Errorf("got %q; want a record containing %q", name, tt.name)
+			if !strings.HasSuffix(name, tt.name) && !strings.HasSuffix(name, tt.name+".") {
+				t.Errorf("got %s; want a record containing %s", name, tt.name)
 			}
 		}
 	}
+}
+
+var lookupIANACNAMETests = []struct {
+	name, cname string
+}{
+	{"www.iana.org", "icann.org"},
+	{"www.iana.org.", "icann.org"},
 }
 
 func TestLookupIANACNAME(t *testing.T) {
 	if testing.Short() || !*testExternal {
 		t.Skip("avoid external network")
 	}
+	if !supportsIPv4 || !*testIPv4 {
+		t.Skip("IPv4 is required")
+	}
 
-	cname, err := LookupCNAME("www.iana.org")
-	if err != nil {
-		t.Fatal(err)
+	for _, tt := range lookupIANACNAMETests {
+		cname, err := LookupCNAME(tt.name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.HasSuffix(cname, tt.cname) && !strings.HasSuffix(cname, tt.cname+".") {
+			t.Errorf("got %s; want a record containing %s", cname, tt.cname)
+		}
 	}
-	if !strings.HasSuffix(cname, ".icann.org.") {
-		t.Errorf("got %q; want a record containing .icann.org.", cname)
-	}
+}
+
+var lookupGoogleHostTests = []struct {
+	name string
+}{
+	{"google.com"},
+	{"google.com."},
 }
 
 func TestLookupGoogleHost(t *testing.T) {
 	if testing.Short() || !*testExternal {
 		t.Skip("avoid external network")
 	}
+	if !supportsIPv4 || !*testIPv4 {
+		t.Skip("IPv4 is required")
+	}
 
-	addrs, err := LookupHost("google.com")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(addrs) == 0 {
-		t.Error("got no record")
-	}
-	for _, addr := range addrs {
-		if ParseIP(addr) == nil {
-			t.Errorf("got %q; want a literal ip address", addr)
+	for _, tt := range lookupGoogleHostTests {
+		addrs, err := LookupHost(tt.name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(addrs) == 0 {
+			t.Error("got no record")
+		}
+		for _, addr := range addrs {
+			if ParseIP(addr) == nil {
+				t.Errorf("got %q; want a literal IP address", addr)
+			}
 		}
 	}
+}
+
+var lookupGoogleIPTests = []struct {
+	name string
+}{
+	{"google.com"},
+	{"google.com."},
 }
 
 func TestLookupGoogleIP(t *testing.T) {
 	if testing.Short() || !*testExternal {
 		t.Skip("avoid external network")
 	}
+	if !supportsIPv4 || !*testIPv4 {
+		t.Skip("IPv4 is required")
+	}
 
-	ips, err := LookupIP("google.com")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(ips) == 0 {
-		t.Error("got no record")
-	}
-	for _, ip := range ips {
-		if ip.To4() == nil && ip.To16() == nil {
-			t.Errorf("got %v; want an ip address", ip)
+	for _, tt := range lookupGoogleIPTests {
+		ips, err := LookupIP(tt.name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(ips) == 0 {
+			t.Error("got no record")
+		}
+		for _, ip := range ips {
+			if ip.To4() == nil && ip.To16() == nil {
+				t.Errorf("got %v; want an IP address", ip)
+			}
 		}
 	}
 }

@@ -32,6 +32,8 @@ const (
 // moduledata records information about the layout of the executable
 // image. It is written by the linker. Any changes here must be
 // matched changes to the code in cmd/internal/ld/symtab.go:symtab.
+// moduledata is stored in read-only memory; none of the pointers here
+// are visible to the garbage collector.
 type moduledata struct {
 	pclntable    []byte
 	ftab         []functab
@@ -48,16 +50,22 @@ type moduledata struct {
 
 	typelinks []*_type
 
+	modulename   string
+	modulehashes []modulehash
+
 	gcdatamask, gcbssmask bitvector
 
-	// write barrier shadow data
-	// 64-bit systems only, enabled by GODEBUG=wbshadow=1.
-	// See also the shadow_* fields on mheap in mheap.go.
-	shadow_data uintptr // data-addr + shadow_data = shadow data addr
-	data_start  uintptr // start of shadowed data addresses
-	data_end    uintptr // end of shadowed data addresses
-
 	next *moduledata
+}
+
+// For each shared library a module links against, the linker creates an entry in the
+// moduledata.modulehashes slice containing the name of the module, the abi hash seen
+// at link time and a pointer to the runtime abi hash. These are checked in
+// moduledataverify1 below.
+type modulehash struct {
+	modulename   string
+	linktimehash string
+	runtimehash  *string
 }
 
 var firstmoduledata moduledata  // linker symbol
@@ -123,6 +131,13 @@ func moduledataverify1(datap *moduledata) {
 	if datap.minpc != datap.ftab[0].entry ||
 		datap.maxpc != datap.ftab[nftab].entry {
 		throw("minpc or maxpc invalid")
+	}
+
+	for _, modulehash := range datap.modulehashes {
+		if modulehash.linktimehash != *modulehash.runtimehash {
+			println("abi mismatch detected between", datap.modulename, "and", modulehash.modulename)
+			throw("abi mismatch")
+		}
 	}
 }
 

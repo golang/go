@@ -846,6 +846,8 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 			fmt.Fprint(fgo2, "}\n")
 		}
 	}
+
+	fmt.Fprintf(fgcch, "%s", gccExportHeaderEpilog)
 }
 
 // Write out the C header allowing C code to call exported gccgo functions.
@@ -1009,6 +1011,8 @@ func (p *Package) writeGccgoExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		fmt.Fprint(fgo2, ")\n")
 		fmt.Fprint(fgo2, "}\n")
 	}
+
+	fmt.Fprintf(fgcch, "%s", gccExportHeaderEpilog)
 }
 
 // writeExportHeader writes out the start of the _cgo_export.h file.
@@ -1374,6 +1378,17 @@ typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
 #endif
 
 /* End of boilerplate cgo prologue.  */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+`
+
+// gccExportHeaderEpilog goes at the end of the generated header file.
+const gccExportHeaderEpilog = `
+#ifdef __cplusplus
+}
+#endif
 `
 
 // gccgoExportFileProlog is written to the _cgo_export.c file when

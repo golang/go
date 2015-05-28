@@ -233,6 +233,9 @@ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
 		throw("need padding in bucket (value)")
 	}
 
+	// make sure zero of element type is available.
+	mapzero(t.elem)
+
 	// find size parameter which will hold the requested # of elements
 	B := uint8(0)
 	for ; hint > bucketCnt && float32(hint) > loadFactor*float32(uintptr(1)<<B); B++ {
@@ -989,4 +992,61 @@ func reflect_maplen(h *hmap) int {
 //go:linkname reflect_ismapkey reflect.ismapkey
 func reflect_ismapkey(t *_type) bool {
 	return ismapkey(t)
+}
+
+var zerobuf struct {
+	lock mutex
+	p    *byte
+	size uintptr
+}
+
+var zerotiny [1024]byte
+
+// mapzero ensures that t.zero points at a zero value for type t.
+// Types known to the compiler are in read-only memory and all point
+// to a single zero in the bss of a large enough size.
+// Types allocated by package reflect are in writable memory and
+// start out with zero set to nil; we initialize those on demand.
+func mapzero(t *_type) {
+	// On ARM, atomicloadp is implemented as xadd(p, 0),
+	// so we cannot use atomicloadp on read-only memory.
+	// Check whether the pointer is in the heap; if not, it's not writable
+	// so the zero value must already be set.
+	if GOARCH == "arm" && !inheap(uintptr(unsafe.Pointer(t))) {
+		if t.zero == nil {
+			print("runtime: map element ", *t._string, " missing zero value\n")
+			throw("mapzero")
+		}
+		return
+	}
+
+	// Already done?
+	// Check without lock, so must use atomicload to sync with atomicstore in allocation case below.
+	if atomicloadp(unsafe.Pointer(&t.zero)) != nil {
+		return
+	}
+
+	// Small enough for static buffer?
+	if t.size <= uintptr(len(zerotiny)) {
+		atomicstorep(unsafe.Pointer(&t.zero), unsafe.Pointer(&zerotiny[0]))
+		return
+	}
+
+	// Use allocated buffer.
+	lock(&zerobuf.lock)
+	if zerobuf.size < t.size {
+		if zerobuf.size == 0 {
+			zerobuf.size = 4 * 1024
+		}
+		for zerobuf.size < t.size {
+			zerobuf.size *= 2
+			if zerobuf.size == 0 {
+				// need >2GB zero on 32-bit machine
+				throw("map element too large")
+			}
+		}
+		zerobuf.p = (*byte)(persistentalloc(zerobuf.size, 64, &memstats.other_sys))
+	}
+	atomicstorep(unsafe.Pointer(&t.zero), unsafe.Pointer(zerobuf.p))
+	unlock(&zerobuf.lock)
 }

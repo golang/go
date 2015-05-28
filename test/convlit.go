@@ -9,6 +9,8 @@
 
 package main
 
+import "unsafe"
+
 // explicit conversion of constants
 var x1 = string(1)
 var x2 string = string(1)
@@ -17,6 +19,11 @@ var x4 int = int(1.5) // ERROR "convert|truncate"
 var x5 = "a" + string(1)
 var x6 = int(1e100)      // ERROR "overflow"
 var x7 = float32(1e1000) // ERROR "overflow"
+
+// unsafe.Pointer can only convert to/from uintptr
+var _ = string(unsafe.Pointer(uintptr(65)))  // ERROR "convert"
+var _ = float64(unsafe.Pointer(uintptr(65))) // ERROR "convert"
+var _ = int(unsafe.Pointer(uintptr(65)))     // ERROR "convert"
 
 // implicit conversions merit scrutiny
 var s string

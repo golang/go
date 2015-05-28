@@ -351,6 +351,34 @@ TEXT ·addMulVVW(SB),NOSPLIT,$0
 	MOVQ z_len+8(FP), R11
 	MOVQ $0, BX		// i = 0
 	MOVQ $0, CX		// c = 0
+	MOVQ R11, R12
+	ANDQ $-2, R12
+	CMPQ R11, $2
+	JAE A6
+	JMP E6
+
+A6:
+	MOVQ (R8)(BX*8), AX
+	MULQ R9
+	ADDQ (R10)(BX*8), AX
+	ADCQ $0, DX
+	ADDQ CX, AX
+	ADCQ $0, DX
+	MOVQ DX, CX
+	MOVQ AX, (R10)(BX*8)
+
+	MOVQ (8)(R8)(BX*8), AX
+	MULQ R9
+	ADDQ (8)(R10)(BX*8), AX
+	ADCQ $0, DX
+	ADDQ CX, AX
+	ADCQ $0, DX
+	MOVQ DX, CX
+	MOVQ AX, (8)(R10)(BX*8)
+
+	ADDQ $2, BX
+	CMPQ BX, R12
+	JL A6
 	JMP E6
 
 L6:	MOVQ (R8)(BX*8), AX

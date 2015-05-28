@@ -76,24 +76,17 @@ func ParForIters(desc *ParFor, tid uint32) (uint32, uint32) {
 }
 
 func GCMask(x interface{}) (ret []byte) {
-	e := (*eface)(unsafe.Pointer(&x))
-	s := (*slice)(unsafe.Pointer(&ret))
 	systemstack(func() {
-		var len uintptr
-		var a *byte
-		getgcmask(e.data, e._type, &a, &len)
-		s.array = unsafe.Pointer(a)
-		s.len = int(len)
-		s.cap = s.len
+		ret = getgcmask(x)
 	})
 	return
 }
 
 func RunSchedLocalQueueTest() {
-	systemstack(testSchedLocalQueue)
+	testSchedLocalQueue()
 }
 func RunSchedLocalQueueStealTest() {
-	systemstack(testSchedLocalQueueSteal)
+	testSchedLocalQueueSteal()
 }
 
 var StringHash = stringHash
@@ -105,11 +98,6 @@ var IfaceHash = ifaceHash
 var MemclrBytes = memclrBytes
 
 var HashLoad = &hashLoad
-
-// For testing.
-func GogoBytes() int32 {
-	return _RuntimeGogoBytes
-}
 
 // entry point for testing
 func GostringW(w []uint16) (s string) {
@@ -133,3 +121,34 @@ func Envs() []string     { return envs }
 func SetEnvs(e []string) { envs = e }
 
 var BigEndian = _BigEndian
+
+// For benchmarking.
+
+func BenchSetType(n int, x interface{}) {
+	e := *(*eface)(unsafe.Pointer(&x))
+	t := e._type
+	var size uintptr
+	var p unsafe.Pointer
+	switch t.kind & kindMask {
+	case _KindPtr:
+		t = (*ptrtype)(unsafe.Pointer(t)).elem
+		size = t.size
+		p = e.data
+	case _KindSlice:
+		slice := *(*struct {
+			ptr      unsafe.Pointer
+			len, cap uintptr
+		})(e.data)
+		t = (*slicetype)(unsafe.Pointer(t)).elem
+		size = t.size * slice.len
+		p = slice.ptr
+	}
+	allocSize := roundupsize(size)
+	systemstack(func() {
+		for i := 0; i < n; i++ {
+			heapBitsSetType(uintptr(p), allocSize, size, t)
+		}
+	})
+}
+
+const PtrSize = ptrSize

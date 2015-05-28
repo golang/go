@@ -6,7 +6,9 @@ package mail
 
 import (
 	"bytes"
+	"io"
 	"io/ioutil"
+	"mime"
 	"reflect"
 	"strings"
 	"testing"
@@ -268,6 +270,175 @@ func TestAddressParsing(t *testing.T) {
 		}
 
 		addrs, err := ParseAddressList(test.addrsStr)
+		if err != nil {
+			t.Errorf("Failed parsing (list) %q: %v", test.addrsStr, err)
+			continue
+		}
+		if !reflect.DeepEqual(addrs, test.exp) {
+			t.Errorf("Parse (list) of %q: got %+v, want %+v", test.addrsStr, addrs, test.exp)
+		}
+	}
+}
+
+func TestAddressParser(t *testing.T) {
+	tests := []struct {
+		addrsStr string
+		exp      []*Address
+	}{
+		// Bare address
+		{
+			`jdoe@machine.example`,
+			[]*Address{{
+				Address: "jdoe@machine.example",
+			}},
+		},
+		// RFC 5322, Appendix A.1.1
+		{
+			`John Doe <jdoe@machine.example>`,
+			[]*Address{{
+				Name:    "John Doe",
+				Address: "jdoe@machine.example",
+			}},
+		},
+		// RFC 5322, Appendix A.1.2
+		{
+			`"Joe Q. Public" <john.q.public@example.com>`,
+			[]*Address{{
+				Name:    "Joe Q. Public",
+				Address: "john.q.public@example.com",
+			}},
+		},
+		{
+			`Mary Smith <mary@x.test>, jdoe@example.org, Who? <one@y.test>`,
+			[]*Address{
+				{
+					Name:    "Mary Smith",
+					Address: "mary@x.test",
+				},
+				{
+					Address: "jdoe@example.org",
+				},
+				{
+					Name:    "Who?",
+					Address: "one@y.test",
+				},
+			},
+		},
+		{
+			`<boss@nil.test>, "Giant; \"Big\" Box" <sysservices@example.net>`,
+			[]*Address{
+				{
+					Address: "boss@nil.test",
+				},
+				{
+					Name:    `Giant; "Big" Box`,
+					Address: "sysservices@example.net",
+				},
+			},
+		},
+		// RFC 2047 "Q"-encoded ISO-8859-1 address.
+		{
+			`=?iso-8859-1?q?J=F6rg_Doe?= <joerg@example.com>`,
+			[]*Address{
+				{
+					Name:    `Jörg Doe`,
+					Address: "joerg@example.com",
+				},
+			},
+		},
+		// RFC 2047 "Q"-encoded US-ASCII address. Dumb but legal.
+		{
+			`=?us-ascii?q?J=6Frg_Doe?= <joerg@example.com>`,
+			[]*Address{
+				{
+					Name:    `Jorg Doe`,
+					Address: "joerg@example.com",
+				},
+			},
+		},
+		// RFC 2047 "Q"-encoded ISO-8859-15 address.
+		{
+			`=?ISO-8859-15?Q?J=F6rg_Doe?= <joerg@example.com>`,
+			[]*Address{
+				{
+					Name:    `Jörg Doe`,
+					Address: "joerg@example.com",
+				},
+			},
+		},
+		// RFC 2047 "B"-encoded windows-1252 address.
+		{
+			`=?windows-1252?q?Andr=E9?= Pirard <PIRARD@vm1.ulg.ac.be>`,
+			[]*Address{
+				{
+					Name:    `André Pirard`,
+					Address: "PIRARD@vm1.ulg.ac.be",
+				},
+			},
+		},
+		// Custom example of RFC 2047 "B"-encoded ISO-8859-15 address.
+		{
+			`=?ISO-8859-15?B?SvZyZw==?= <joerg@example.com>`,
+			[]*Address{
+				{
+					Name:    `Jörg`,
+					Address: "joerg@example.com",
+				},
+			},
+		},
+		// Custom example of RFC 2047 "B"-encoded UTF-8 address.
+		{
+			`=?UTF-8?B?SsO2cmc=?= <joerg@example.com>`,
+			[]*Address{
+				{
+					Name:    `Jörg`,
+					Address: "joerg@example.com",
+				},
+			},
+		},
+		// Custom example with "." in name. For issue 4938
+		{
+			`Asem H. <noreply@example.com>`,
+			[]*Address{
+				{
+					Name:    `Asem H.`,
+					Address: "noreply@example.com",
+				},
+			},
+		},
+	}
+
+	ap := AddressParser{WordDecoder: &mime.WordDecoder{
+		CharsetReader: func(charset string, input io.Reader) (io.Reader, error) {
+			in, err := ioutil.ReadAll(input)
+			if err != nil {
+				return nil, err
+			}
+
+			switch charset {
+			case "iso-8859-15":
+				in = bytes.Replace(in, []byte("\xf6"), []byte("ö"), -1)
+			case "windows-1252":
+				in = bytes.Replace(in, []byte("\xe9"), []byte("é"), -1)
+			}
+
+			return bytes.NewReader(in), nil
+		},
+	}}
+
+	for _, test := range tests {
+		if len(test.exp) == 1 {
+			addr, err := ap.Parse(test.addrsStr)
+			if err != nil {
+				t.Errorf("Failed parsing (single) %q: %v", test.addrsStr, err)
+				continue
+			}
+			if !reflect.DeepEqual([]*Address{addr}, test.exp) {
+				t.Errorf("Parse (single) of %q: got %+v, want %+v", test.addrsStr, addr, test.exp)
+			}
+		}
+
+		addrs, err := ap.ParseList(test.addrsStr)
 		if err != nil {
 			t.Errorf("Failed parsing (list) %q: %v", test.addrsStr, err)
 			continue

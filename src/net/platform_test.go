@@ -14,7 +14,8 @@ import (
 // testableNetwork reports whether network is testable on the current
 // platform configuration.
 func testableNetwork(network string) bool {
-	switch ss := strings.Split(network, ":"); ss[0] {
+	ss := strings.Split(network, ":")
+	switch ss[0] {
 	case "ip+nopriv":
 		switch runtime.GOOS {
 		case "nacl":
@@ -43,6 +44,16 @@ func testableNetwork(network string) bool {
 		case "android", "darwin", "nacl", "plan9", "windows":
 			fallthrough
 		case "freebsd": // FreeBSD 8 and below don't support unixpacket
+			return false
+		}
+	}
+	switch ss[0] {
+	case "tcp4", "udp4", "ip4":
+		if !supportsIPv4 {
+			return false
+		}
+	case "tcp6", "udp6", "ip6":
+		if !supportsIPv6 {
 			return false
 		}
 	}

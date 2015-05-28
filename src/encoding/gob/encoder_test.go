@@ -976,3 +976,21 @@ func TestBadData(t *testing.T) {
 		}
 	}
 }
+
+// TestHugeWriteFails tests that enormous messages trigger an error.
+func TestHugeWriteFails(t *testing.T) {
+	if testing.Short() {
+		// Requires allocating a monster, so don't do this from all.bash.
+		t.Skip("skipping huge allocation in short mode")
+	}
+	huge := make([]byte, tooBig)
+	huge[0] = 7 // Make sure it's not all zeros.
+	buf := new(bytes.Buffer)
+	err := NewEncoder(buf).Encode(huge)
+	if err == nil {
+		t.Fatalf("expected error for huge slice")
+	}
+	if !strings.Contains(err.Error(), "message too big") {
+		t.Fatalf("expected 'too big' error; got %s\n", err.Error())
+	}
+}

@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -23,8 +24,11 @@ func cmdtest() {
 	var t tester
 	flag.BoolVar(&t.listMode, "list", false, "list available tests")
 	flag.BoolVar(&t.noRebuild, "no-rebuild", false, "don't rebuild std and cmd packages")
+	flag.BoolVar(&t.keepGoing, "k", false, "keep going even when error occurred")
 	flag.StringVar(&t.banner, "banner", "##### ", "banner prefix; blank means no section banners")
-	flag.StringVar(&t.runRxStr, "run", "", "run only those tests matching the regular expression; empty means to run all")
+	flag.StringVar(&t.runRxStr, "run", os.Getenv("GOTESTONLY"),
+		"run only those tests matching the regular expression; empty means to run all. "+
+			"Special exception: if the string begins with '!', the match is inverted.")
 	xflagparse(0)
 	t.run()
 }
@@ -33,8 +37,10 @@ func cmdtest() {
 type tester struct {
 	listMode  bool
 	noRebuild bool
+	keepGoing bool
 	runRxStr  string
 	runRx     *regexp.Regexp
+	runRxWant bool
 	banner    string // prefix, or "" for none
 
 	goroot     string
@@ -129,6 +135,19 @@ func (t *tester) run() {
 	}
 
 	if t.runRxStr != "" {
+		// Temporary (2015-05-14) special case for "std",
+		// which the plan9 builder was using for ages. Delete
+		// this once we update dashboard/builders.go to use a
+		// regexp instead.
+		if runtime.GOOS == "plan9" && t.runRxStr == "std" {
+			t.runRxStr = "^go_test:"
+		}
+		if t.runRxStr[0] == '!' {
+			t.runRxWant = false
+			t.runRxStr = t.runRxStr[1:]
+		} else {
+			t.runRxWant = true
+		}
 		t.runRx = regexp.MustCompile(t.runRxStr)
 	}
 
@@ -146,8 +165,9 @@ func (t *tester) run() {
 	os.Unsetenv("GOROOT_FINAL")
 
 	var lastHeading string
+	ok := true
 	for _, dt := range t.tests {
-		if t.runRx != nil && !t.runRx.MatchString(dt.name) {
+		if t.runRx != nil && (t.runRx.MatchString(dt.name) != t.runRxWant) {
 			t.partial = true
 			continue
 		}
@@ -159,10 +179,18 @@ func (t *tester) run() {
 			fmt.Printf("# go tool dist test -run=^%s$\n", dt.name)
 		}
 		if err := dt.fn(); err != nil {
-			log.Fatalf("Failed: %v", err)
+			ok = false
+			if t.keepGoing {
+				log.Printf("Failed: %v", err)
+			} else {
+				log.Fatalf("Failed: %v", err)
+			}
 		}
 	}
-	if t.partial {
+	if !ok {
+		fmt.Println("\nFAILED")
+		os.Exit(1)
+	} else if t.partial {
 		fmt.Println("\nALL TESTS PASSED (some were excluded)")
 	} else {
 		fmt.Println("\nALL TESTS PASSED")
@@ -173,52 +201,71 @@ func (t *tester) timeout(sec int) string {
 	return "-timeout=" + fmt.Sprint(time.Duration(sec)*time.Second*time.Duration(t.timeoutScale))
 }
 
-func (t *tester) registerTests() {
-	// Register a separate logical test for each package in the standard library
-	// but actually group them together at execution time to share the cost of
-	// building packages shared between them.
-	all, err := exec.Command("go", "list", "std", "cmd").Output()
-	if err != nil {
-		log.Fatalf("Error running go list std cmd: %v", err)
-	}
-	// ranGoTest and stdMatches are state closed over by the
-	// stdlib testing func below. The tests are run sequentially,
-	// so there's no need for locks.
-	var (
-		ranGoTest  bool
-		stdMatches []string
-	)
-	for _, pkg := range strings.Fields(string(all)) {
-		testName := "go_test:" + pkg
-		if t.runRx == nil || t.runRx.MatchString(testName) {
-			stdMatches = append(stdMatches, pkg)
-		}
-		t.tests = append(t.tests, distTest{
-			name:    testName,
-			heading: "Testing packages.",
-			fn: func() error {
-				if ranGoTest {
-					return nil
-				}
-				ranGoTest = true
-				cmd := exec.Command("go", append([]string{
-					"test",
-					"-short",
-					t.timeout(120),
-					"-gcflags=" + os.Getenv("GO_GCFLAGS"),
-				}, stdMatches...)...)
-				cmd.Stdout = os.Stdout
-				cmd.Stderr = os.Stderr
-				return cmd.Run()
-			},
-		})
-	}
+// ranGoTest and stdMatches are state closed over by the stdlib
+// testing func in registerStdTest below. The tests are run
+// sequentially, so there's no need for locks.
+var (
+	ranGoTest  bool
+	stdMatches []string
+)
 
-	// Old hack for when Plan 9 on GCE was too slow.
-	// We're keeping this until test sharding (Issue 10029) is finished, though.
-	if os.Getenv("GOTESTONLY") == "std" {
-		t.partial = true
-		return
+func (t *tester) registerStdTest(pkg string) {
+	testName := "go_test:" + pkg
+	if t.runRx == nil || t.runRx.MatchString(testName) {
+		stdMatches = append(stdMatches, pkg)
+	}
+	t.tests = append(t.tests, distTest{
+		name:    testName,
+		heading: "Testing packages.",
+		fn: func() error {
+			if ranGoTest {
+				return nil
+			}
+			ranGoTest = true
+			cmd := exec.Command("go", append([]string{
+				"test",
+				"-short",
+				t.timeout(120),
+				"-gcflags=" + os.Getenv("GO_GCFLAGS"),
+			}, stdMatches...)...)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			return cmd.Run()
+		},
+	})
+}
+
+// validStdPkg reports whether pkg looks like a standard library package name.
+// Notably, it's not blank and doesn't contain regexp characters.
+func validStdPkg(pkg string) bool {
+	if pkg == "" {
+		return false
+	}
+	for _, r := range pkg {
+		switch {
+		case 'a' <= r && r <= 'z':
+		case 'A' <= r && r <= 'Z':
+		case '0' <= r && r <= '9':
+		case r == '_':
+		case r == '/':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func (t *tester) registerTests() {
+	// Fast path to avoid the ~1 second of `go list std cmd` when
+	// the caller passed -run=^go_test:foo/bar$ (as the continuous
+	// build coordinator does).
+	if strings.HasPrefix(t.runRxStr, "^go_test:") && strings.HasSuffix(t.runRxStr, "$") {
+		pkg := strings.TrimPrefix(t.runRxStr, "^go_test:")
+		pkg = strings.TrimSuffix(pkg, "$")
+		if validStdPkg(pkg) {
+			t.registerStdTest(pkg)
+			return
+		}
 	}
 
 	// Runtime CPU tests.
@@ -244,9 +291,7 @@ func (t *tester) registerTests() {
 		},
 	})
 
-	iOS := t.goos == "darwin" && (t.goarch == "arm" || t.goarch == "arm64")
-
-	if t.cgoEnabled && t.goos != "android" && !iOS {
+	if t.cgoEnabled && t.goos != "android" && !t.iOS() {
 		// Disabled on android and iOS. golang.org/issue/8345
 		t.tests = append(t.tests, distTest{
 			name:    "cgo_stdio",
@@ -265,7 +310,7 @@ func (t *tester) registerTests() {
 			},
 		})
 	}
-	if t.cgoEnabled && t.goos != "android" && !iOS {
+	if t.cgoEnabled && t.goos != "android" && !t.iOS() {
 		// TODO(crawshaw): reenable on android and iOS
 		// golang.org/issue/8345
 		//
@@ -295,7 +340,7 @@ func (t *tester) registerTests() {
 				heading: "../misc/cgo/testso",
 				fn:      t.cgoTestSOWindows,
 			})
-		} else if t.hasBash() && t.goos != "android" && !iOS {
+		} else if t.hasBash() && t.goos != "android" && !t.iOS() {
 			t.registerTest("testso", "../misc/cgo/testso", "./test.bash")
 		}
 		if t.supportedBuildmode("c-archive") {
@@ -305,28 +350,28 @@ func (t *tester) registerTests() {
 			t.registerTest("testcshared", "../misc/cgo/testcshared", "./test.bash")
 		}
 		if t.supportedBuildmode("shared") {
-			t.registerTest("testshared", "../misc/cgo/testshared", "./test.bash")
+			t.registerTest("testshared", "../misc/cgo/testshared", "go", "test")
 		}
 		if t.gohostos == "linux" && t.goarch == "amd64" {
 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
 		}
-		if t.hasBash() && t.goos != "android" && !iOS && t.gohostos != "windows" {
+		if t.hasBash() && t.goos != "android" && !t.iOS() && t.gohostos != "windows" {
 			t.registerTest("cgo_errors", "../misc/cgo/errors", "./test.bash")
 		}
 		if t.gohostos == "linux" && t.extLink() {
 			t.registerTest("testsigfwd", "../misc/cgo/testsigfwd", "go", "run", "main.go")
 		}
 	}
-	if t.hasBash() && t.goos != "nacl" && t.goos != "android" && !iOS {
+	if t.hasBash() && t.goos != "nacl" && t.goos != "android" && !t.iOS() {
 		t.registerTest("doc_progs", "../doc/progs", "time", "go", "run", "run.go")
 		t.registerTest("wiki", "../doc/articles/wiki", "./test.bash")
 		t.registerTest("codewalk", "../doc/codewalk", "time", "./run")
 		t.registerTest("shootout", "../test/bench/shootout", "time", "./timing.sh", "-test")
 	}
-	if t.goos != "android" && !iOS {
+	if t.goos != "android" && !t.iOS() {
 		t.registerTest("bench_go1", "../test/bench/go1", "go", "test")
 	}
-	if t.goos != "android" && !iOS {
+	if t.goos != "android" && !t.iOS() {
 		// TODO(bradfitz): shard down into these tests, as
 		// this is one of the slowest (and most shardable)
 		// tests.
@@ -336,7 +381,7 @@ func (t *tester) registerTests() {
 			fn:      t.testDirTest,
 		})
 	}
-	if t.goos != "nacl" && t.goos != "android" && !iOS {
+	if t.goos != "nacl" && t.goos != "android" && !t.iOS() {
 		t.tests = append(t.tests, distTest{
 			name:    "api",
 			heading: "API check",
@@ -346,6 +391,44 @@ func (t *tester) registerTests() {
 		})
 	}
 
+	// Register the standard library tests lasts, to avoid the ~1 second latency
+	// of running `go list std cmd` if we're running a specific test.
+	// Now we know the names of all the other tests registered so far.
+	if !t.wantSpecificRegisteredTest() {
+		all, err := exec.Command("go", "list", "std", "cmd").Output()
+		if err != nil {
+			log.Fatalf("Error running go list std cmd: %v", err)
+		}
+		// Put the standard library tests first.
+		orig := t.tests
+		t.tests = nil
+		for _, pkg := range strings.Fields(string(all)) {
+			t.registerStdTest(pkg)
+		}
+		t.tests = append(t.tests, orig...)
+	}
+}
+
+// wantSpecificRegisteredTest reports whether the caller is requesting a
+// run of a specific test via the flag -run=^TESTNAME$ (as is done by the
+// continuous build coordinator).
+func (t *tester) wantSpecificRegisteredTest() bool {
+	if !strings.HasPrefix(t.runRxStr, "^") || !strings.HasSuffix(t.runRxStr, "$") {
+		return false
+	}
+	test := t.runRxStr[1 : len(t.runRxStr)-1]
+	return t.isRegisteredTestName(test)
+}
+
+// isRegisteredTestName reports whether a test named testName has already
+// been registered.
+func (t *tester) isRegisteredTestName(testName string) bool {
+	for _, tt := range t.tests {
+		if tt.name == testName {
+			return true
+		}
+	}
+	return false
 }
 
 func (t *tester) registerTest(name, dirBanner, bin string, args ...string) {

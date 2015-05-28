@@ -5,12 +5,11 @@
 package runtime
 
 const (
-	thechar           = '6'
-	_BigEndian        = 0
-	_CacheLineSize    = 64
-	_RuntimeGogoBytes = 80 + (goos_solaris)*16
-	_PhysPageSize     = 4096
-	_PCQuantum        = 1
-	_Int64Align       = 8
-	hugePageSize      = 1 << 21
+	thechar        = '6'
+	_BigEndian     = 0
+	_CacheLineSize = 64
+	_PhysPageSize  = 4096
+	_PCQuantum     = 1
+	_Int64Align    = 8
+	hugePageSize   = 1 << 21
 )

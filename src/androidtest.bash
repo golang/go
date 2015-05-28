@@ -24,10 +24,11 @@ if [ "$GOOS" != "android" ]; then
 fi
 
 export CGO_ENABLED=1
+unset GOBIN
 
-# Run the build for the host bootstrap, so we can build go_android_exec.
+# Do the build first, so we can build go_android_exec and cleaner.
 # Also lets us fail early before the (slow) adb push if the build is broken.
-./make.bash
+. ./make.bash --no-banner
 export GOROOT=$(dirname $(pwd))
 export PATH=$GOROOT/bin:$PATH
 GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go build \
@@ -50,9 +51,21 @@ cp -a "${GOROOT}/test" "${FAKE_GOROOT}/"
 cp -a "${GOROOT}/lib" "${FAKE_GOROOT}/"
 cp -a "${GOROOT}/pkg/android_$GOARCH" "${FAKE_GOROOT}/pkg/"
 echo '# Syncing test files to android device'
+adb shell mkdir -p /data/local/tmp/goroot
 time adb sync data &> /dev/null
-echo ''
-rm -rf "$ANDROID_PRODUCT_OUT"
 
-# Run standard build and tests.
-./all.bash --no-clean
+export CLEANER=/tmp/androidcleaner-$$
+cp ../misc/android/cleaner.go $CLEANER.go
+echo 'var files = `' >> $CLEANER.go
+(cd $ANDROID_PRODUCT_OUT/data/local/tmp/goroot; find . >> $CLEANER.go)
+echo '`' >> $CLEANER.go
+go build -o $CLEANER $CLEANER.go
+adb push $CLEANER /data/local/tmp/cleaner
+rm $CLEANER $CLEANER.go
+adb shell /data/local/tmp/cleaner
+
+rm -rf "$ANDROID_PRODUCT_OUT"
+echo ''
+
+# Run standard tests.
+bash run.bash --no-rebuild

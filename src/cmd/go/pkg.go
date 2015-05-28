@@ -394,25 +394,17 @@ const (
 
 // goTools is a map of Go program import path to install target directory.
 var goTools = map[string]targetDir{
-	"cmd/5g":                               toTool,
-	"cmd/5l":                               toTool,
-	"cmd/6g":                               toTool,
-	"cmd/6l":                               toTool,
-	"cmd/7g":                               toTool,
-	"cmd/7l":                               toTool,
-	"cmd/8g":                               toTool,
-	"cmd/8l":                               toTool,
-	"cmd/9g":                               toTool,
-	"cmd/9l":                               toTool,
 	"cmd/addr2line":                        toTool,
 	"cmd/api":                              toTool,
 	"cmd/asm":                              toTool,
+	"cmd/compile":                          toTool,
 	"cmd/cgo":                              toTool,
 	"cmd/cover":                            toTool,
 	"cmd/dist":                             toTool,
 	"cmd/doc":                              toTool,
 	"cmd/fix":                              toTool,
 	"cmd/link":                             toTool,
+	"cmd/newlink":                          toTool,
 	"cmd/nm":                               toTool,
 	"cmd/objdump":                          toTool,
 	"cmd/old5a":                            toTool,
@@ -536,7 +528,8 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 			shlibnamefile := p.target[:len(p.target)-2] + ".shlibname"
 			shlib, err := ioutil.ReadFile(shlibnamefile)
 			if err == nil {
-				p.Shlib = strings.TrimSpace(string(shlib))
+				libname := strings.TrimSpace(string(shlib))
+				p.Shlib = filepath.Join(p.build.PkgTargetRoot, libname)
 			} else if !os.IsNotExist(err) {
 				fatalf("unexpected error reading %s: %v", shlibnamefile, err)
 			}
@@ -680,10 +673,10 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 	p.Target = p.target
 
 	// The gc toolchain only permits C source files with cgo.
-	if len(p.CFiles) > 0 && !p.usesCgo() && buildContext.Compiler == "gc" {
+	if len(p.CFiles) > 0 && !p.usesCgo() && !p.usesSwig() && buildContext.Compiler == "gc" {
 		p.Error = &PackageError{
 			ImportStack: stk.copy(),
-			Err:         fmt.Sprintf("C source files not allowed when not using cgo: %s", strings.Join(p.CFiles, " ")),
+			Err:         fmt.Sprintf("C source files not allowed when not using cgo or SWIG: %s", strings.Join(p.CFiles, " ")),
 		}
 		return p
 	}

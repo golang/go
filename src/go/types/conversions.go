@@ -6,7 +6,7 @@
 
 package types
 
-import exact "go/constants" // Renamed to reduce diffs from x/tools.  TODO: remove
+import exact "go/constant" // Renamed to reduce diffs from x/tools.  TODO: remove
 
 // Conversion type-checks the conversion T(x).
 // The result is in x.

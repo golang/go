@@ -314,7 +314,9 @@ func (s *Scanner) Next() rune {
 	s.tokPos = -1 // don't collect token text
 	s.Line = 0    // invalidate token position
 	ch := s.Peek()
-	s.ch = s.next()
+	if ch != EOF {
+		s.ch = s.next()
+	}
 	return ch
 }
 
@@ -597,6 +599,8 @@ redo:
 		}
 	default:
 		switch ch {
+		case EOF:
+			break
 		case '"':
 			if s.Mode&ScanStrings != 0 {
 				s.scanString('"')

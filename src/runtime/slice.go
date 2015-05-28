@@ -84,10 +84,13 @@ func growslice(t *slicetype, old slice, n int) slice {
 		memclr(add(p, lenmem), capmem-lenmem)
 	} else {
 		// Note: can't use rawmem (which avoids zeroing of memory), because then GC can scan unitialized memory.
-		// TODO(rsc): Use memmove when !writeBarrierEnabled.
 		p = newarray(et, uintptr(newcap))
-		for i := 0; i < old.len; i++ {
-			typedmemmove(et, add(p, uintptr(i)*et.size), add(old.array, uintptr(i)*et.size))
+		if !writeBarrierEnabled {
+			memmove(p, old.array, lenmem)
+		} else {
+			for i := uintptr(0); i < lenmem; i += et.size {
+				typedmemmove(et, add(p, i), add(old.array, i))
+			}
 		}
 	}
 

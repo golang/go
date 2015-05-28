@@ -30,10 +30,16 @@ var (
 
 	// If external IPv4 connectivity exists, we can try dialing
 	// non-node/interface local scope IPv4 addresses.
+	// On Windows, Lookup APIs may not return IPv4-related
+	// resource records when a node has no external IPv4
+	// connectivity.
 	testIPv4 = flag.Bool("ipv4", true, "assume external IPv4 connectivity exists")
 
 	// If external IPv6 connectivity exists, we can try dialing
 	// non-node/interface local scope IPv6 addresses.
+	// On Windows, Lookup APIs may not return IPv6-related
+	// resource records when a node has no external IPv6
+	// connectivity.
 	testIPv6 = flag.Bool("ipv6", false, "assume external IPv6 connectivity exists")
 )
 
@@ -43,15 +49,25 @@ func TestMain(m *testing.M) {
 
 	st := m.Run()
 
-	testHookUninstaller.Do(func() { uninstallTestHooks() })
-	if !testing.Short() {
-		printLeakedGoroutines()
-		printLeakedSockets()
+	testHookUninstaller.Do(uninstallTestHooks)
+	if testing.Verbose() {
+		printRunningGoroutines()
+		printInflightSockets()
 		printSocketStats()
 	}
 	forceCloseSockets()
 	os.Exit(st)
 }
+
+type ipv6LinkLocalUnicastTest struct {
+	network, address string
+	nameLookup       bool
+}
+
+var (
+	ipv6LinkLocalUnicastTCPTests []ipv6LinkLocalUnicastTest
+	ipv6LinkLocalUnicastUDPTests []ipv6LinkLocalUnicastTest
+)
 
 func setupTestData() {
 	if supportsIPv4 {
@@ -75,7 +91,8 @@ func setupTestData() {
 		resolveIPAddrTests = append(resolveIPAddrTests, resolveIPAddrTest{"ip6", "localhost", &IPAddr{IP: IPv6loopback}, nil})
 	}
 
-	if ifi := loopbackInterface(); ifi != nil {
+	ifi := loopbackInterface()
+	if ifi != nil {
 		index := fmt.Sprintf("%v", ifi.Index)
 		resolveTCPAddrTests = append(resolveTCPAddrTests, []resolveTCPAddrTest{
 			{"tcp6", "[fe80::1%" + ifi.Name + "]:1", &TCPAddr{IP: ParseIP("fe80::1"), Port: 1, Zone: zoneToString(ifi.Index)}, nil},
@@ -90,23 +107,60 @@ func setupTestData() {
 			{"ip6", "fe80::1%" + index, &IPAddr{IP: ParseIP("fe80::1"), Zone: index}, nil},
 		}...)
 	}
+
+	addr := ipv6LinkLocalUnicastAddr(ifi)
+	if addr != "" {
+		if runtime.GOOS != "dragonfly" {
+			ipv6LinkLocalUnicastTCPTests = append(ipv6LinkLocalUnicastTCPTests, []ipv6LinkLocalUnicastTest{
+				{"tcp", "[" + addr + "%" + ifi.Name + "]:0", false},
+			}...)
+			ipv6LinkLocalUnicastUDPTests = append(ipv6LinkLocalUnicastUDPTests, []ipv6LinkLocalUnicastTest{
+				{"udp", "[" + addr + "%" + ifi.Name + "]:0", false},
+			}...)
+		}
+		ipv6LinkLocalUnicastTCPTests = append(ipv6LinkLocalUnicastTCPTests, []ipv6LinkLocalUnicastTest{
+			{"tcp6", "[" + addr + "%" + ifi.Name + "]:0", false},
+		}...)
+		ipv6LinkLocalUnicastUDPTests = append(ipv6LinkLocalUnicastUDPTests, []ipv6LinkLocalUnicastTest{
+			{"udp6", "[" + addr + "%" + ifi.Name + "]:0", false},
+		}...)
+		switch runtime.GOOS {
+		case "darwin", "dragonfly", "freebsd", "openbsd", "netbsd":
+			ipv6LinkLocalUnicastTCPTests = append(ipv6LinkLocalUnicastTCPTests, []ipv6LinkLocalUnicastTest{
+				{"tcp", "[localhost%" + ifi.Name + "]:0", true},
+				{"tcp6", "[localhost%" + ifi.Name + "]:0", true},
+			}...)
+			ipv6LinkLocalUnicastUDPTests = append(ipv6LinkLocalUnicastUDPTests, []ipv6LinkLocalUnicastTest{
+				{"udp", "[localhost%" + ifi.Name + "]:0", true},
+				{"udp6", "[localhost%" + ifi.Name + "]:0", true},
+			}...)
+		case "linux":
+			ipv6LinkLocalUnicastTCPTests = append(ipv6LinkLocalUnicastTCPTests, []ipv6LinkLocalUnicastTest{
+				{"tcp", "[ip6-localhost%" + ifi.Name + "]:0", true},
+				{"tcp6", "[ip6-localhost%" + ifi.Name + "]:0", true},
+			}...)
+			ipv6LinkLocalUnicastUDPTests = append(ipv6LinkLocalUnicastUDPTests, []ipv6LinkLocalUnicastTest{
+				{"udp", "[ip6-localhost%" + ifi.Name + "]:0", true},
+				{"udp6", "[ip6-localhost%" + ifi.Name + "]:0", true},
+			}...)
+		}
+	}
 }
 
-func printLeakedGoroutines() {
-	gss := leakedGoroutines()
+func printRunningGoroutines() {
+	gss := runningGoroutines()
 	if len(gss) == 0 {
 		return
 	}
-	fmt.Fprintf(os.Stderr, "Leaked goroutines:\n")
+	fmt.Fprintf(os.Stderr, "Running goroutines:\n")
 	for _, gs := range gss {
 		fmt.Fprintf(os.Stderr, "%v\n", gs)
 	}
 	fmt.Fprintf(os.Stderr, "\n")
 }
 
-// leakedGoroutines returns a list of remaining goroutines used in
-// test cases.
-func leakedGoroutines() []string {
+// runningGoroutines returns a list of remaining goroutines.
+func runningGoroutines() []string {
 	var gss []string
 	b := make([]byte, 2<<20)
 	b = b[:runtime.Stack(b, true)]
@@ -125,12 +179,12 @@ func leakedGoroutines() []string {
 	return gss
 }
 
-func printLeakedSockets() {
+func printInflightSockets() {
 	sos := sw.Sockets()
 	if len(sos) == 0 {
 		return
 	}
-	fmt.Fprintf(os.Stderr, "Leaked sockets:\n")
+	fmt.Fprintf(os.Stderr, "Inflight sockets:\n")
 	for s, so := range sos {
 		fmt.Fprintf(os.Stderr, "%v: %v\n", s, so)
 	}

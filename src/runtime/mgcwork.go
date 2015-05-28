@@ -7,7 +7,7 @@ package runtime
 import "unsafe"
 
 const (
-	_Debugwbufs  = true    // if true check wbufs consistency
+	_Debugwbufs  = false   // if true check wbufs consistency
 	_WorkbufSize = 1 * 256 // in bytes - if small wbufs are passed to GC in a timely fashion.
 )
 
@@ -180,6 +180,13 @@ func (w *gcWork) balance() {
 	if wbuf := w.wbuf; wbuf != 0 && wbuf.ptr().nobj > 4 {
 		w.wbuf = wbufptrOf(handoff(wbuf.ptr()))
 	}
+}
+
+// empty returns true if w has no mark work available.
+//go:nowritebarrier
+func (w *gcWork) empty() bool {
+	wbuf := w.wbuf
+	return wbuf == 0 || wbuf.ptr().nobj == 0
 }
 
 // Internally, the GC work pool is kept in arrays in work buffers.

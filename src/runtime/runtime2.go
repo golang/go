@@ -266,6 +266,7 @@ type m struct {
 	// Fields not known to debuggers.
 	procid        uint64     // for debuggers, but offset not hard-coded
 	gsignal       *g         // signal-handling g
+	sigmask       [4]uintptr // storage for saved signal mask
 	tls           [4]uintptr // thread-local storage (for x86 extern register)
 	mstartfn      func()
 	curg          *g       // current running goroutine
@@ -441,7 +442,9 @@ type schedt struct {
 
 	// safepointFn should be called on each P at the next GC
 	// safepoint if p.runSafePointFn is set.
-	safePointFn func(*p)
+	safePointFn   func(*p)
+	safePointWait int32
+	safePointNote note
 
 	profilehz int32 // cpu profiling rate
 
@@ -467,15 +470,16 @@ type sigtabtt struct {
 }
 
 const (
-	_SigNotify   = 1 << 0 // let signal.Notify have signal, even if from kernel
-	_SigKill     = 1 << 1 // if signal.Notify doesn't take it, exit quietly
-	_SigThrow    = 1 << 2 // if signal.Notify doesn't take it, exit loudly
-	_SigPanic    = 1 << 3 // if the signal is from the kernel, panic
-	_SigDefault  = 1 << 4 // if the signal isn't explicitly requested, don't monitor it
-	_SigHandling = 1 << 5 // our signal handler is registered
-	_SigIgnored  = 1 << 6 // the signal was ignored before we registered for it
-	_SigGoExit   = 1 << 7 // cause all runtime procs to exit (only used on Plan 9).
-	_SigSetStack = 1 << 8 // add SA_ONSTACK to libc handler
+	_SigNotify   = 1 << iota // let signal.Notify have signal, even if from kernel
+	_SigKill                 // if signal.Notify doesn't take it, exit quietly
+	_SigThrow                // if signal.Notify doesn't take it, exit loudly
+	_SigPanic                // if the signal is from the kernel, panic
+	_SigDefault              // if the signal isn't explicitly requested, don't monitor it
+	_SigHandling             // our signal handler is registered
+	_SigIgnored              // the signal was ignored before we registered for it
+	_SigGoExit               // cause all runtime procs to exit (only used on Plan 9).
+	_SigSetStack             // add SA_ONSTACK to libc handler
+	_SigUnblock              // unblocked in minit
 )
 
 // Layout of in-memory per-function information prepared by linker
@@ -594,8 +598,9 @@ type stkframe struct {
 }
 
 const (
-	_TraceRuntimeFrames = 1 << 0 // include frames for internal runtime functions.
-	_TraceTrap          = 1 << 1 // the initial PC, SP are from a trap, not a return PC from a call
+	_TraceRuntimeFrames = 1 << iota // include frames for internal runtime functions.
+	_TraceTrap                      // the initial PC, SP are from a trap, not a return PC from a call
+	_TraceJumpStack                 // if traceback is on a systemstack, resume trace at g that called into it
 )
 
 const (

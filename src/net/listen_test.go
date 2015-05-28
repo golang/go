@@ -218,8 +218,6 @@ var dualStackTCPListenerTests = []struct {
 // listening address and same port.
 func TestDualStackTCPListener(t *testing.T) {
 	switch runtime.GOOS {
-	case "dragonfly":
-		t.Skip("not supported on DragonFly, see golang.org/issue/10729")
 	case "nacl", "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
@@ -233,7 +231,7 @@ func TestDualStackTCPListener(t *testing.T) {
 			continue
 		}
 
-		if runtime.GOOS == "openbsd" && differentWildcardAddr(tt.address1, tt.address2) {
+		if !supportsIPv4map && differentWildcardAddr(tt.address1, tt.address2) {
 			tt.xerr = nil
 		}
 		var firstErr, secondErr error
@@ -320,7 +318,7 @@ func TestDualStackUDPListener(t *testing.T) {
 			continue
 		}
 
-		if runtime.GOOS == "openbsd" && differentWildcardAddr(tt.address1, tt.address2) {
+		if !supportsIPv4map && differentWildcardAddr(tt.address1, tt.address2) {
 			tt.xerr = nil
 		}
 		var firstErr, secondErr error

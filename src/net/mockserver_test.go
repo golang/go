@@ -186,7 +186,7 @@ func newDualStackServer(lns []streamListener) (*dualStackServer, error) {
 	for i := range dss.lns {
 		ln, err := Listen(dss.lns[i].network, JoinHostPort(dss.lns[i].address, dss.port))
 		if err != nil {
-			for _, ln := range dss.lns {
+			for _, ln := range dss.lns[:i] {
 				ln.Listener.Close()
 			}
 			return nil, err
