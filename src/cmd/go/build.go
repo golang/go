@@ -86,7 +86,7 @@ and test commands:
 	-gccgoflags 'arg list'
 		arguments to pass on each gccgo compiler/linker invocation.
 	-gcflags 'arg list'
-		arguments to pass on each 5g, 6g, 8g, or 9g compiler invocation.
+		arguments to pass on each go tool compile invocation.
 	-installsuffix suffix
 		a suffix to use in the name of the package installation directory,
 		in order to keep output separate from default builds.
@@ -94,9 +94,9 @@ and test commands:
 		or, if set explicitly, has _race appended to it.  Using a -buildmode
 		option that requires non-default compile flags has a similar effect.
 	-ldflags 'flag list'
-		arguments to pass on each 5l, 6l, 8l, or 9l linker invocation.
+		arguments to pass on each go tool link invocation.
 	-asmflags 'flag list'
-		arguments to pass on each asm assembler invocation.
+		arguments to pass on each go tool asm invocation.
 	-tags 'tag list'
 		a list of build tags to consider satisfied during the build.
 		For more information about build tags, see the description of
