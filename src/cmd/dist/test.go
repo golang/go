@@ -395,7 +395,9 @@ func (t *tester) registerTests() {
 	// of running `go list std cmd` if we're running a specific test.
 	// Now we know the names of all the other tests registered so far.
 	if !t.wantSpecificRegisteredTest() {
-		all, err := exec.Command("go", "list", "std", "cmd").Output()
+		// Use a format string to only list packages and commands that have tests.
+		const format = "{{if (or .TestGoFiles .XTestGoFiles)}}{{.ImportPath}}{{end}}"
+		all, err := exec.Command("go", "list", "-f", format, "std", "cmd").Output()
 		if err != nil {
 			log.Fatalf("Error running go list std cmd: %v", err)
 		}
