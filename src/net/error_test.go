@@ -23,12 +23,38 @@ func (e *OpError) isValid() error {
 		return fmt.Errorf("OpError.Net is empty: %v", e)
 	}
 	for _, addr := range []Addr{e.Source, e.Addr} {
-		if addr != nil {
-			switch addr.(type) {
-			case *TCPAddr, *UDPAddr, *IPAddr, *IPNet, *UnixAddr, *pipeAddr, fileAddr:
-			default:
-				return fmt.Errorf("OpError.Source or Addr is unknown type: %T, %v", addr, e)
+		switch addr := addr.(type) {
+		case nil:
+		case *TCPAddr:
+			if addr == nil {
+				return fmt.Errorf("OpError.Source or Addr is non-nil interface: %#v, %v", addr, e)
 			}
+		case *UDPAddr:
+			if addr == nil {
+				return fmt.Errorf("OpError.Source or Addr is non-nil interface: %#v, %v", addr, e)
+			}
+		case *IPAddr:
+			if addr == nil {
+				return fmt.Errorf("OpError.Source or Addr is non-nil interface: %#v, %v", addr, e)
+			}
+		case *IPNet:
+			if addr == nil {
+				return fmt.Errorf("OpError.Source or Addr is non-nil interface: %#v, %v", addr, e)
+			}
+		case *UnixAddr:
+			if addr == nil {
+				return fmt.Errorf("OpError.Source or Addr is non-nil interface: %#v, %v", addr, e)
+			}
+		case *pipeAddr:
+			if addr == nil {
+				return fmt.Errorf("OpError.Source or Addr is non-nil interface: %#v, %v", addr, e)
+			}
+		case fileAddr:
+			if addr == "" {
+				return fmt.Errorf("OpError.Source or Addr is empty: %#v, %v", addr, e)
+			}
+		default:
+			return fmt.Errorf("OpError.Source or Addr is unknown type: %T, %v", addr, e)
 		}
 	}
 	if e.Err == nil {
@@ -133,6 +159,35 @@ func TestDialError(t *testing.T) {
 	}
 }
 
+func TestProtocolDialError(t *testing.T) {
+	switch runtime.GOOS {
+	case "nacl":
+		t.Skipf("not supported on %s", runtime.GOOS)
+	}
+
+	for _, network := range []string{"tcp", "udp", "ip:4294967296", "unix", "unixpacket", "unixgram"} {
+		var err error
+		switch network {
+		case "tcp":
+			_, err = DialTCP(network, nil, &TCPAddr{Port: 1 << 16})
+		case "udp":
+			_, err = DialUDP(network, nil, &UDPAddr{Port: 1 << 16})
+		case "ip:4294967296":
+			_, err = DialIP(network, nil, nil)
+		case "unix", "unixpacket", "unixgram":
+			_, err = DialUnix(network, nil, &UnixAddr{Name: "//"})
+		}
+		if err == nil {
+			t.Errorf("%s: should fail", network)
+			continue
+		}
+		if err = parseDialError(err); err != nil {
+			t.Errorf("%s: %v", network, err)
+			continue
+		}
+	}
+}
+
 var listenErrorTests = []struct {
 	network, address string
 }{
@@ -217,6 +272,37 @@ func TestListenPacketError(t *testing.T) {
 		}
 		if err = parseDialError(err); err != nil {
 			t.Errorf("#%d: %v", i, err)
+			continue
+		}
+	}
+}
+
+func TestProtocolListenError(t *testing.T) {
+	switch runtime.GOOS {
+	case "nacl", "plan9":
+		t.Skipf("not supported on %s", runtime.GOOS)
+	}
+
+	for _, network := range []string{"tcp", "udp", "ip:4294967296", "unix", "unixpacket", "unixgram"} {
+		var err error
+		switch network {
+		case "tcp":
+			_, err = ListenTCP(network, &TCPAddr{Port: 1 << 16})
+		case "udp":
+			_, err = ListenUDP(network, &UDPAddr{Port: 1 << 16})
+		case "ip:4294967296":
+			_, err = ListenIP(network, nil)
+		case "unix", "unixpacket":
+			_, err = ListenUnix(network, &UnixAddr{Name: "//"})
+		case "unixgram":
+			_, err = ListenUnixgram(network, &UnixAddr{Name: "//"})
+		}
+		if err == nil {
+			t.Errorf("%s: should fail", network)
+			continue
+		}
+		if err = parseDialError(err); err != nil {
+			t.Errorf("%s: %v", network, err)
 			continue
 		}
 	}
