@@ -224,8 +224,6 @@ type Prog struct {
 	Ft       uint8
 	Tt       uint8
 	Isize    uint8
-	Printed  uint8
-	Width    int8
 	Mode     int8
 
 	Info ProgInfo
