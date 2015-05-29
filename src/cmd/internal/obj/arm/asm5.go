@@ -900,7 +900,7 @@ func addpool(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 		t.To.Name = a.Name
 
 		if ctxt.Flag_shared != 0 && t.To.Sym != nil {
-			t.Pcrel = p
+			t.Rel = p
 		}
 
 	case C_SROREG,
@@ -917,9 +917,9 @@ func addpool(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 		t.To.Offset = ctxt.Instoffset
 	}
 
-	if t.Pcrel == nil {
+	if t.Rel == nil {
 		for q := ctxt.Blitrl; q != nil; q = q.Link { /* could hash on t.t0.offset */
-			if q.Pcrel == nil && q.To == t.To {
+			if q.Rel == nil && q.To == t.To {
 				p.Pcond = q
 				return
 			}
@@ -1671,11 +1671,11 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			if rel.Sym == ctxt.Tlsg && ctxt.Tlsg.Type == 0 {
 				rel.Type = obj.R_TLS
 				if ctxt.Flag_shared != 0 {
-					rel.Add += ctxt.Pc - p.Pcrel.Pc - 8 - int64(rel.Siz)
+					rel.Add += ctxt.Pc - p.Rel.Pc - 8 - int64(rel.Siz)
 				}
 			} else if ctxt.Flag_shared != 0 {
 				rel.Type = obj.R_PCREL
-				rel.Add += ctxt.Pc - p.Pcrel.Pc - 8
+				rel.Add += ctxt.Pc - p.Rel.Pc - 8
 			} else {
 				rel.Type = obj.R_ADDR
 			}
@@ -2062,7 +2062,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 
 			if o.flag&LPCREL != 0 {
 				rel.Type = obj.R_PCREL
-				rel.Add += ctxt.Pc - p.Pcrel.Pc - 16 + int64(rel.Siz)
+				rel.Add += ctxt.Pc - p.Rel.Pc - 16 + int64(rel.Siz)
 			} else {
 				rel.Type = obj.R_ADDR
 			}
