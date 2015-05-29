@@ -497,9 +497,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		p = load_g_cx(ctxt, p) // load g into CX
 	}
 
-	var q *obj.Prog
 	if cursym.Text.From3Offset()&obj.NOSPLIT == 0 {
-		p = stacksplit(ctxt, p, autoffset, int32(textarg), &q) // emit split check
+		p = stacksplit(ctxt, p, autoffset, int32(textarg)) // emit split check
 	}
 
 	if autoffset != 0 {
@@ -524,9 +523,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		p.Spadj = int32(ctxt.Arch.Ptrsize)
 	}
 
-	if q != nil {
-		q.Pcond = p
-	}
 	deltasp := autoffset
 
 	if bpsize > 0 {
@@ -856,9 +852,7 @@ func load_g_cx(ctxt *obj.Link, p *obj.Prog) *obj.Prog {
 // Appends to (does not overwrite) p.
 // Assumes g is in CX.
 // Returns last new instruction.
-// On return, *jmpok is the instruction that should jump
-// to the stack frame allocation if no split is needed.
-func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32, jmpok **obj.Prog) *obj.Prog {
+func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *obj.Prog {
 	cmp := ACMPQ
 	lea := ALEAQ
 	mov := AMOVQ
@@ -973,37 +967,39 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32, jmp
 	}
 
 	// common
-	p = obj.Appendp(ctxt, p)
+	jls := obj.Appendp(ctxt, p)
+	jls.As = AJLS
+	jls.To.Type = obj.TYPE_BRANCH
 
-	p.As = AJHI
-	p.To.Type = obj.TYPE_BRANCH
-	q := p
-
-	p = obj.Appendp(ctxt, p)
-	p.As = obj.ACALL
-	p.To.Type = obj.TYPE_BRANCH
-	if ctxt.Cursym.Cfunc != 0 {
-		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
-	} else if ctxt.Cursym.Text.From3Offset()&obj.NEEDCTXT == 0 {
-		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
-	} else {
-		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack", 0)
+	var last *obj.Prog
+	for last = ctxt.Cursym.Text; last.Link != nil; last = last.Link {
 	}
 
-	p = obj.Appendp(ctxt, p)
-	p.As = obj.AJMP
-	p.To.Type = obj.TYPE_BRANCH
-	p.Pcond = ctxt.Cursym.Text.Link
-
-	if q != nil {
-		q.Pcond = p.Link
+	call := obj.Appendp(ctxt, last)
+	call.Lineno = ctxt.Cursym.Text.Lineno
+	call.Mode = ctxt.Cursym.Text.Mode
+	call.As = obj.ACALL
+	call.To.Type = obj.TYPE_BRANCH
+	morestack := "runtime.morestack"
+	switch {
+	case ctxt.Cursym.Cfunc != 0:
+		morestack = "runtime.morestackc"
+	case ctxt.Cursym.Text.From3Offset()&obj.NEEDCTXT == 0:
+		morestack = "runtime.morestack_noctxt"
 	}
+	call.To.Sym = obj.Linklookup(ctxt, morestack, 0)
+
+	jmp := obj.Appendp(ctxt, call)
+	jmp.As = obj.AJMP
+	jmp.To.Type = obj.TYPE_BRANCH
+	jmp.Pcond = ctxt.Cursym.Text.Link
+
+	jls.Pcond = call
 	if q1 != nil {
-		q1.Pcond = q.Link
+		q1.Pcond = call
 	}
 
-	*jmpok = q
-	return p
+	return jls
 }
 
 func follow(ctxt *obj.Link, s *obj.LSym) {
