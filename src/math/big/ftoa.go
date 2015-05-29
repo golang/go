@@ -9,12 +9,13 @@
 package big
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 )
 
 // Text converts the floating-point number x to a string according
-// to the given format and precision prec. The format must be one of:
+// to the given format and precision prec. The format is one of:
 //
 //	'e'	-d.dddde±dd, decimal exponent, at least two (possibly 0) exponent digits
 //	'E'	-d.ddddE±dd, decimal exponent, at least two (possibly 0) exponent digits
@@ -29,14 +30,17 @@ import (
 //	'b'	decimal integer mantissa using x.Prec() bits, or -0
 //	'p'	hexadecimal fraction with 0.5 <= 0.mantissa < 1.0, or -0
 //
+// If format is a different character, Text returns a "%" followed by the
+// unrecognized format character.
+//
 // The precision prec controls the number of digits (excluding the exponent)
 // printed by the 'e', 'E', 'f', 'g', and 'G' formats. For 'e', 'E', and 'f'
 // it is the number of digits after the decimal point. For 'g' and 'G' it is
 // the total number of digits. A negative precision selects the smallest
-// number of digits necessary such that ParseFloat will return f exactly.
+// number of digits necessary to identify the value x uniquely.
 // The prec value is ignored for the 'b' or 'p' format.
 //
-// BUG(gri) Float.Format does not accept negative precisions.
+// BUG(gri) Float.Text does not accept negative precisions (issue #10991).
 func (x *Float) Text(format byte, prec int) string {
 	const extra = 10 // TODO(gri) determine a good/better value here
 	return string(x.Append(make([]byte, 0, prec+extra), format, prec))
@@ -298,4 +302,92 @@ func min(x, y int) int {
 		return x
 	}
 	return y
+}
+
+// Format implements fmt.Formatter. It accepts all the regular
+// formats for floating-point numbers ('e', 'E', 'f', 'F', 'g',
+// 'G') as well as 'b', 'p', and 'v'. See (*Float).Text for the
+// interpretation of 'b' and 'p'. The 'v' format is handled like
+// 'g'.
+// Format also supports specification of the minimum precision
+// in digits, the output field width, as well as the format verbs
+// '+' and ' ' for sign control, '0' for space or zero padding,
+// and '-' for left or right justification. See the fmt package
+// for details.
+//
+// BUG(gri) A missing precision for the 'g' format, or a negative
+//          (via '*') precision is not yet supported. Instead the
+//          default precision (6) is used in that case (issue #10991).
+func (x *Float) Format(s fmt.State, format rune) {
+	prec, hasPrec := s.Precision()
+	if !hasPrec {
+		prec = 6 // default precision for 'e', 'f'
+	}
+
+	switch format {
+	case 'e', 'E', 'f', 'b', 'p':
+		// nothing to do
+	case 'F':
+		// (*Float).Text doesn't support 'F'; handle like 'f'
+		format = 'f'
+	case 'v':
+		// handle like 'g'
+		format = 'g'
+		fallthrough
+	case 'g', 'G':
+		if !hasPrec {
+			// TODO(gri) uncomment once (*Float).Text handles prec < 0
+			// prec = -1 // default precision for 'g', 'G'
+		}
+	default:
+		fmt.Fprintf(s, "%%!%c(*big.Float=%s)", format, x.String())
+		return
+	}
+	var buf []byte
+	buf = x.Append(buf, byte(format), prec)
+	if len(buf) == 0 {
+		buf = []byte("?") // should never happen, but don't crash
+	}
+	// len(buf) > 0
+
+	var sign string
+	switch {
+	case buf[0] == '-':
+		sign = "-"
+		buf = buf[1:]
+	case buf[0] == '+':
+		// +Inf
+		sign = "+"
+		if s.Flag(' ') {
+			sign = " "
+		}
+		buf = buf[1:]
+	case s.Flag('+'):
+		sign = "+"
+	case s.Flag(' '):
+		sign = " "
+	}
+
+	var padding int
+	if width, hasWidth := s.Width(); hasWidth && width > len(sign)+len(buf) {
+		padding = width - len(sign) - len(buf)
+	}
+
+	switch {
+	case s.Flag('0') && !x.IsInf():
+		// 0-padding on left
+		writeMultiple(s, sign, 1)
+		writeMultiple(s, "0", padding)
+		s.Write(buf)
+	case s.Flag('-'):
+		// padding on right
+		writeMultiple(s, sign, 1)
+		s.Write(buf)
+		writeMultiple(s, " ", padding)
+	default:
+		// padding on left
+		writeMultiple(s, " ", padding)
+		writeMultiple(s, sign, 1)
+		s.Write(buf)
+	}
 }
