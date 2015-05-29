@@ -147,8 +147,14 @@ var vcsGit = &vcsCmd{
 func gitRemoteRepo(vcsGit *vcsCmd, rootDir string) (remoteRepo string, err error) {
 	cmd := "config remote.origin.url"
 	errParse := errors.New("unable to parse output of git " + cmd)
-	outb, err := vcsGit.runOutput(rootDir, cmd)
+	errRemoteOriginNotFound := errors.New("remote origin not found")
+	outb, err := vcsGit.run1(rootDir, cmd, nil, false)
 	if err != nil {
+		// if it doesn't output any message, it means the config argument is correct,
+		// but the config value itself doesn't exist
+		if outb != nil && len(outb) == 0 {
+			return "", errRemoteOriginNotFound
+		}
 		return "", err
 	}
 	repoURL, err := url.Parse(strings.TrimSpace(string(outb)))
@@ -333,7 +339,7 @@ func (v *vcsCmd) run1(dir string, cmdline string, keyval []string, verbose bool)
 			fmt.Fprintf(os.Stderr, "# cd %s; %s %s\n", dir, v.cmd, strings.Join(args, " "))
 			os.Stderr.Write(out)
 		}
-		return nil, err
+		return out, err
 	}
 	return out, nil
 }

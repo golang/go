@@ -300,21 +300,22 @@ func downloadPackage(p *Package) error {
 		// Double-check where it came from.
 		if *getU && vcs.remoteRepo != nil {
 			dir := filepath.Join(p.build.SrcRoot, rootPath)
-			if remote, err := vcs.remoteRepo(vcs, dir); err == nil {
-				repo = remote
-
-				if !*getF {
-					if rr, err := repoRootForImportPath(p.ImportPath, security); err == nil {
-						repo := rr.repo
-						if rr.vcs.resolveRepo != nil {
-							resolved, err := rr.vcs.resolveRepo(rr.vcs, dir, repo)
-							if err == nil {
-								repo = resolved
-							}
+			remote, err := vcs.remoteRepo(vcs, dir)
+			if err != nil {
+				return err
+			}
+			repo = remote
+			if !*getF {
+				if rr, err := repoRootForImportPath(p.ImportPath, security); err == nil {
+					repo := rr.repo
+					if rr.vcs.resolveRepo != nil {
+						resolved, err := rr.vcs.resolveRepo(rr.vcs, dir, repo)
+						if err == nil {
+							repo = resolved
 						}
-						if remote != repo {
-							return fmt.Errorf("%s is a custom import path for %s, but %s is checked out from %s", rr.root, repo, dir, remote)
-						}
+					}
+					if remote != repo {
+						return fmt.Errorf("%s is a custom import path for %s, but %s is checked out from %s", rr.root, repo, dir, remote)
 					}
 				}
 			}
