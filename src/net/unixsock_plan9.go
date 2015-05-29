@@ -47,7 +47,7 @@ func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAdd
 // SetWriteDeadline.  On packet-oriented connections, write timeouts
 // are rare.
 func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (int, error) {
-	return 0, &OpError{Op: "write", Net: c.fd.dir, Source: c.fd.laddr, Addr: addr, Err: syscall.EPLAN9}
+	return 0, &OpError{Op: "write", Net: c.fd.dir, Source: c.fd.laddr, Addr: addr.opAddr(), Err: syscall.EPLAN9}
 }
 
 // WriteTo implements the PacketConn WriteTo method.
@@ -59,7 +59,7 @@ func (c *UnixConn) WriteTo(b []byte, addr Addr) (int, error) {
 // from b and the associated out-of-band data from oob.  It returns
 // the number of payload and out-of-band bytes written.
 func (c *UnixConn) WriteMsgUnix(b, oob []byte, addr *UnixAddr) (n, oobn int, err error) {
-	return 0, 0, &OpError{Op: "write", Net: c.fd.dir, Source: c.fd.laddr, Addr: addr, Err: syscall.EPLAN9}
+	return 0, 0, &OpError{Op: "write", Net: c.fd.dir, Source: c.fd.laddr, Addr: addr.opAddr(), Err: syscall.EPLAN9}
 }
 
 // CloseRead shuts down the reading side of the Unix domain connection.
@@ -82,7 +82,7 @@ func DialUnix(net string, laddr, raddr *UnixAddr) (*UnixConn, error) {
 }
 
 func dialUnix(net string, laddr, raddr *UnixAddr, deadline time.Time) (*UnixConn, error) {
-	return nil, &OpError{Op: "dial", Net: net, Source: laddr, Addr: raddr, Err: syscall.EPLAN9}
+	return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: syscall.EPLAN9}
 }
 
 // UnixListener is a Unix domain socket listener.  Clients should
@@ -95,7 +95,7 @@ type UnixListener struct {
 // ListenUnix announces on the Unix domain socket laddr and returns a
 // Unix listener.  The network net must be "unix" or "unixpacket".
 func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
-	return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr, Err: syscall.EPLAN9}
+	return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: syscall.EPLAN9}
 }
 
 // AcceptUnix accepts the next incoming call and returns the new
@@ -143,5 +143,5 @@ func (l *UnixListener) File() (*os.File, error) {
 // The returned connection's ReadFrom and WriteTo methods can be used
 // to receive and send packets with per-packet addressing.
 func ListenUnixgram(net string, laddr *UnixAddr) (*UnixConn, error) {
-	return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr, Err: syscall.EPLAN9}
+	return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: syscall.EPLAN9}
 }

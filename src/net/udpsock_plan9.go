@@ -74,7 +74,7 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
 		return 0, syscall.EINVAL
 	}
 	if addr == nil {
-		return 0, &OpError{Op: "write", Net: c.fd.dir, Source: c.fd.laddr, Addr: addr, Err: errMissingAddress}
+		return 0, &OpError{Op: "write", Net: c.fd.dir, Source: c.fd.laddr, Addr: nil, Err: errMissingAddress}
 	}
 	h := new(udpHeader)
 	h.raddr = addr.IP.To16()
@@ -87,7 +87,7 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
 	i := copy(buf, h.Bytes())
 	copy(buf[i:], b)
 	if _, err := c.fd.data.Write(buf); err != nil {
-		return 0, &OpError{Op: "write", Net: c.fd.dir, Source: c.fd.laddr, Addr: addr, Err: err}
+		return 0, &OpError{Op: "write", Net: c.fd.dir, Source: c.fd.laddr, Addr: addr.opAddr(), Err: err}
 	}
 	return len(b), nil
 }
@@ -110,7 +110,7 @@ func (c *UDPConn) WriteTo(b []byte, addr Addr) (int, error) {
 // out-of-band data is copied from oob.  It returns the number of
 // payload and out-of-band bytes written.
 func (c *UDPConn) WriteMsgUDP(b, oob []byte, addr *UDPAddr) (n, oobn int, err error) {
-	return 0, 0, &OpError{Op: "write", Net: c.fd.dir, Source: c.fd.laddr, Addr: addr, Err: syscall.EPLAN9}
+	return 0, 0, &OpError{Op: "write", Net: c.fd.dir, Source: c.fd.laddr, Addr: addr.opAddr(), Err: syscall.EPLAN9}
 }
 
 // DialUDP connects to the remote address raddr on the network net,
@@ -127,10 +127,10 @@ func dialUDP(net string, laddr, raddr *UDPAddr, deadline time.Time) (*UDPConn, e
 	switch net {
 	case "udp", "udp4", "udp6":
 	default:
-		return nil, &OpError{Op: "dial", Net: net, Source: laddr, Addr: raddr, Err: UnknownNetworkError(net)}
+		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: UnknownNetworkError(net)}
 	}
 	if raddr == nil {
-		return nil, &OpError{Op: "dial", Net: net, Source: laddr, Addr: raddr, Err: errMissingAddress}
+		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: nil, Err: errMissingAddress}
 	}
 	fd, err := dialPlan9(net, laddr, raddr)
 	if err != nil {
@@ -178,7 +178,7 @@ func ListenUDP(net string, laddr *UDPAddr) (*UDPConn, error) {
 	switch net {
 	case "udp", "udp4", "udp6":
 	default:
-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr, Err: UnknownNetworkError(net)}
+		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: UnknownNetworkError(net)}
 	}
 	if laddr == nil {
 		laddr = &UDPAddr{}
@@ -211,5 +211,5 @@ func ListenUDP(net string, laddr *UDPAddr) (*UDPConn, error) {
 // applications. There are golang.org/x/net/ipv4 and
 // golang.org/x/net/ipv6 packages for general purpose uses.
 func ListenMulticastUDP(network string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
-	return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: gaddr, Err: syscall.EPLAN9}
+	return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: gaddr.opAddr(), Err: syscall.EPLAN9}
 }
