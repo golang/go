@@ -311,10 +311,8 @@ func (p *Parser) operand(a *obj.Addr) bool {
 			a.Reg = r1
 			if r2 != 0 {
 				// Form is R1:R2. It is on RHS and the second register
-				// needs to go into the LHS. This is a horrible hack. TODO.
-				// TODO: If we never see this again, can delete Addr.Reg2.
-				panic("cannot happen")
-				a.Reg2 = r2
+				// needs to go into the LHS.
+				panic("cannot happen (Addr.Reg2)")
 			}
 		}
 		// fmt.Printf("REG %s\n", obj.Dconv(&emptyProg, 0, a))
