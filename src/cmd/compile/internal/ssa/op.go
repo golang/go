@@ -118,12 +118,6 @@ func (g GlobalOffset) String() string {
 type opInfo struct {
 	flags int32
 
-	// assembly template
-	// %In: location of input n
-	// %On: location of output n
-	// %A: print aux with fmt.Print
-	asm string
-
 	// returns a reg constraint for the instruction. [0] gives a reg constraint
 	// for each input, [1] gives a reg constraint for each output. (Values have
 	// exactly one output for now)
