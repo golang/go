@@ -1690,7 +1690,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 			p.Pc = int64(c)
 
 			// process forward jumps to p
-			for q = p.Comefrom; q != nil; q = q.Forwd {
+			for q = p.Rel; q != nil; q = q.Forwd {
 				v = int32(p.Pc - (q.Pc + int64(q.Mark)))
 				if q.Back&2 != 0 { // short
 					if v > 127 {
@@ -1715,7 +1715,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 				}
 			}
 
-			p.Comefrom = nil
+			p.Rel = nil
 
 			p.Pc = int64(c)
 			asmins(ctxt, p)
@@ -3547,9 +3547,9 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				}
 
 				// Annotate target; will fill in later.
-				p.Forwd = q.Comefrom
+				p.Forwd = q.Rel
 
-				q.Comefrom = p
+				q.Rel = p
 				if p.Back&2 != 0 { // short
 					if p.As == AJCXZL {
 						ctxt.Andptr[0] = 0x67

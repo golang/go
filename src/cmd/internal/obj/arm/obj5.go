@@ -160,7 +160,7 @@ func linkcase(casep *obj.Prog) {
 	for p := casep; p != nil; p = p.Link {
 		if p.As == ABCASE {
 			for ; p != nil && p.As == ABCASE; p = p.Link {
-				p.Pcrel = casep
+				p.Rel = casep
 			}
 			break
 		}

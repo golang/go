@@ -200,30 +200,29 @@ const (
 // TODO(rsc): Describe prog.
 // TODO(rsc): Describe TEXT/GLOBL flag in from3, DATA width in from3.
 type Prog struct {
-	Ctxt     *Link
-	Link     *Prog
-	From     Addr
-	From3    *Addr // optional
-	To       Addr
-	Opt      interface{}
-	Forwd    *Prog
-	Pcond    *Prog
-	Comefrom *Prog
-	Pcrel    *Prog
-	Pc       int64
-	Lineno   int32
-	Spadj    int32
-	As       int16
-	Reg      int16
-	RegTo2   int16 // 2nd register output operand
-	Mark     uint16
-	Optab    uint16
-	Scond    uint8
-	Back     uint8
-	Ft       uint8
-	Tt       uint8
-	Isize    uint8
-	Mode     int8
+	Ctxt   *Link
+	Link   *Prog
+	From   Addr
+	From3  *Addr // optional
+	To     Addr
+	Opt    interface{}
+	Forwd  *Prog
+	Pcond  *Prog
+	Rel    *Prog // Source of forward jumps on x86; pcrel on arm
+	Pc     int64
+	Lineno int32
+	Spadj  int32
+	As     int16
+	Reg    int16
+	RegTo2 int16 // 2nd register output operand
+	Mark   uint16
+	Optab  uint16
+	Scond  uint8
+	Back   uint8
+	Ft     uint8
+	Tt     uint8
+	Isize  uint8
+	Mode   int8
 
 	Info ProgInfo
 }
