@@ -134,8 +134,9 @@ type fun struct {
 // returns a fun containing the composed Func. entry must be a name
 // supplied to one of the Bloc functions. Each of the bloc names and
 // valu names should be unique across the Fun.
-func Fun(entry string, blocs ...bloc) fun {
+func Fun(c *Config, entry string, blocs ...bloc) fun {
 	f := new(Func)
+	f.Config = c
 	blocks := make(map[string]*Block)
 	values := make(map[string]*Value)
 	// Create all the blocks and values.
@@ -256,7 +257,8 @@ func addEdge(b, c *Block) {
 }
 
 func TestArgs(t *testing.T) {
-	fun := Fun("entry",
+	c := NewConfig("amd64")
+	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("a", OpConst, TypeInt64, 14),
 			Valu("b", OpConst, TypeInt64, 26),
@@ -275,10 +277,11 @@ func TestArgs(t *testing.T) {
 }
 
 func TestEquiv(t *testing.T) {
+	c := NewConfig("amd64")
 	equivalentCases := []struct{ f, g fun }{
 		// simple case
 		{
-			Fun("entry",
+			Fun(c, "entry",
 				Bloc("entry",
 					Valu("a", OpConst, TypeInt64, 14),
 					Valu("b", OpConst, TypeInt64, 26),
@@ -287,7 +290,7 @@ func TestEquiv(t *testing.T) {
 					Goto("exit")),
 				Bloc("exit",
 					Exit("mem"))),
-			Fun("entry",
+			Fun(c, "entry",
 				Bloc("entry",
 					Valu("a", OpConst, TypeInt64, 14),
 					Valu("b", OpConst, TypeInt64, 26),
@@ -299,7 +302,7 @@ func TestEquiv(t *testing.T) {
 		},
 		// block order changed
 		{
-			Fun("entry",
+			Fun(c, "entry",
 				Bloc("entry",
 					Valu("a", OpConst, TypeInt64, 14),
 					Valu("b", OpConst, TypeInt64, 26),
@@ -308,7 +311,7 @@ func TestEquiv(t *testing.T) {
 					Goto("exit")),
 				Bloc("exit",
 					Exit("mem"))),
-			Fun("entry",
+			Fun(c, "entry",
 				Bloc("exit",
 					Exit("mem")),
 				Bloc("entry",
@@ -332,26 +335,26 @@ func TestEquiv(t *testing.T) {
 	differentCases := []struct{ f, g fun }{
 		// different shape
 		{
-			Fun("entry",
+			Fun(c, "entry",
 				Bloc("entry",
 					Valu("mem", OpArg, TypeMem, ".mem"),
 					Goto("exit")),
 				Bloc("exit",
 					Exit("mem"))),
-			Fun("entry",
+			Fun(c, "entry",
 				Bloc("entry",
 					Valu("mem", OpArg, TypeMem, ".mem"),
 					Exit("mem"))),
 		},
 		// value order changed
 		{
-			Fun("entry",
+			Fun(c, "entry",
 				Bloc("entry",
 					Valu("mem", OpArg, TypeMem, ".mem"),
 					Valu("b", OpConst, TypeInt64, 26),
 					Valu("a", OpConst, TypeInt64, 14),
 					Exit("mem"))),
-			Fun("entry",
+			Fun(c, "entry",
 				Bloc("entry",
 					Valu("mem", OpArg, TypeMem, ".mem"),
 					Valu("a", OpConst, TypeInt64, 14),
@@ -360,12 +363,12 @@ func TestEquiv(t *testing.T) {
 		},
 		// value aux different
 		{
-			Fun("entry",
+			Fun(c, "entry",
 				Bloc("entry",
 					Valu("mem", OpArg, TypeMem, ".mem"),
 					Valu("a", OpConst, TypeInt64, 14),
 					Exit("mem"))),
-			Fun("entry",
+			Fun(c, "entry",
 				Bloc("entry",
 					Valu("mem", OpArg, TypeMem, ".mem"),
 					Valu("a", OpConst, TypeInt64, 26),
@@ -373,14 +376,14 @@ func TestEquiv(t *testing.T) {
 		},
 		// value args different
 		{
-			Fun("entry",
+			Fun(c, "entry",
 				Bloc("entry",
 					Valu("mem", OpArg, TypeMem, ".mem"),
 					Valu("a", OpConst, TypeInt64, 14),
 					Valu("b", OpConst, TypeInt64, 26),
 					Valu("sum", OpAdd, TypeInt64, nil, "a", "b"),
 					Exit("mem"))),
-			Fun("entry",
+			Fun(c, "entry",
 				Bloc("entry",
 					Valu("mem", OpArg, TypeMem, ".mem"),
 					Valu("a", OpConst, TypeInt64, 0),
@@ -396,6 +399,29 @@ func TestEquiv(t *testing.T) {
 			// so the functions can be written to the error log.
 			PrintFunc(c.f.f)
 			PrintFunc(c.g.f)
+		}
+	}
+}
+
+// opcodeMap returns a map from opcode to the number of times that opcode
+// appears in the function.
+func opcodeMap(f *Func) map[Op]int {
+	m := map[Op]int{}
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			m[v.Op]++
+		}
+	}
+	return m
+}
+
+// opcodeCounts checks that the number of opcodes listed in m agree with the
+// number of opcodes that appear in the function.
+func checkOpcodeCounts(t *testing.T, f *Func, m map[Op]int) {
+	n := opcodeMap(f)
+	for op, cnt := range m {
+		if n[op] != cnt {
+			t.Errorf("%s appears %d times, want %d times", op, n[op], cnt)
 		}
 	}
 }
