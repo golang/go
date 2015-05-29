@@ -11,9 +11,12 @@ import (
 )
 
 func TestFloatSetFloat64String(t *testing.T) {
+	inf := math.Inf(0)
+	nan := math.NaN()
+
 	for _, test := range []struct {
 		s string
-		x float64
+		x float64 // NaNs represent invalid inputs
 	}{
 		// basics
 		{"0", 0},
@@ -44,6 +47,25 @@ func TestFloatSetFloat64String(t *testing.T) {
 		{"1E10", 1e10},
 		{"1.E+10", 1e10},
 		{"+1E-10", 1e-10},
+
+		// infinities
+		{"Inf", inf},
+		{"+Inf", inf},
+		{"-Inf", -inf},
+		{"inf", inf},
+		{"+inf", inf},
+		{"-inf", -inf},
+
+		// invalid numbers
+		{"", nan},
+		{"-", nan},
+		{"0x", nan},
+		{"0e", nan},
+		{"1.2ef", nan},
+		{"2..3", nan},
+		{"123..", nan},
+		{"infinity", nan},
+		{"foobar", nan},
 
 		// misc decimal values
 		{"3.14159265", 3.14159265},
@@ -96,8 +118,16 @@ func TestFloatSetFloat64String(t *testing.T) {
 		var x Float
 		x.SetPrec(53)
 		_, ok := x.SetString(test.s)
+		if math.IsNaN(test.x) {
+			// test.s is invalid
+			if ok {
+				t.Errorf("%s: want parse error", test.s)
+			}
+			continue
+		}
+		// test.s is valid
 		if !ok {
-			t.Errorf("%s: parse error", test.s)
+			t.Errorf("%s: got parse error", test.s)
 			continue
 		}
 		f, _ := x.Float64()

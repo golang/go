@@ -92,24 +92,11 @@ func TestFloatZeroValue(t *testing.T) {
 }
 
 func makeFloat(s string) *Float {
-	var x Float
-
-	switch s {
-	case "0":
-		return &x
-	case "-0":
-		return x.Neg(&x)
-	case "Inf", "+Inf":
-		return x.SetInf(false)
-	case "-Inf":
-		return x.SetInf(true)
+	x, _, err := ParseFloat(s, 0, 1000, ToNearestEven)
+	if err != nil {
+		panic(err)
 	}
-
-	x.SetPrec(1000)
-	if _, ok := x.SetString(s); !ok {
-		panic(fmt.Sprintf("%q is not a valid float", s))
-	}
-	return &x
+	return x
 }
 
 func TestFloatSetPrec(t *testing.T) {
