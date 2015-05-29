@@ -724,7 +724,7 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
 	}
 
 	a1--
-	a3 := C_NONE
+	a3 := C_NONE + 1
 	if p.From3 != nil {
 		a3 = int(p.From3.Class)
 		if a3 == 0 {

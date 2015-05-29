@@ -239,6 +239,14 @@ func (p *Prog) From3Type() int16 {
 	return p.From3.Type
 }
 
+// From3Offset returns From3.Offset, or 0 when From3 is nil.
+func (p *Prog) From3Offset() int64 {
+	if p.From3 == nil {
+		return 0
+	}
+	return p.From3.Offset
+}
+
 // ProgInfo holds information about the instruction for use
 // by clients such as the compiler. The exact meaning of this
 // data is up to the client and is not interpreted by the cmd/internal/obj/... packages.

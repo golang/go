@@ -2101,7 +2101,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			}
 		} else {
 			/* CSET */
-			if p.From3.Type != obj.TYPE_NONE {
+			if p.From3Type() != obj.TYPE_NONE {
 				ctxt.Diag("invalid combination\n%v", p)
 			}
 			rf = REGZERO

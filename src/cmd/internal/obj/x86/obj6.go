@@ -478,7 +478,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	}
 
 	// TODO(rsc): Remove 'p.Mode == 64 &&'.
-	if p.Mode == 64 && autoffset < obj.StackSmall && p.From3.Offset&obj.NOSPLIT == 0 {
+	if p.Mode == 64 && autoffset < obj.StackSmall && p.From3Offset()&obj.NOSPLIT == 0 {
 		for q := p; q != nil; q = q.Link {
 			if q.As == obj.ACALL {
 				goto noleaf
@@ -492,13 +492,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	noleaf:
 	}
 
-	if p.From3.Offset&obj.NOSPLIT == 0 || (p.From3.Offset&obj.WRAPPER != 0) {
+	if p.From3Offset()&obj.NOSPLIT == 0 || p.From3Offset()&obj.WRAPPER != 0 {
 		p = obj.Appendp(ctxt, p)
 		p = load_g_cx(ctxt, p) // load g into CX
 	}
 
 	var q *obj.Prog
-	if cursym.Text.From3.Offset&obj.NOSPLIT == 0 {
+	if cursym.Text.From3Offset()&obj.NOSPLIT == 0 {
 		p = stacksplit(ctxt, p, autoffset, int32(textarg), &q) // emit split check
 	}
 
@@ -553,7 +553,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		p.To.Reg = REG_BP
 	}
 
-	if cursym.Text.From3.Offset&obj.WRAPPER != 0 {
+	if cursym.Text.From3Offset()&obj.WRAPPER != 0 {
 		// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
 		//
 		//	MOVQ g_panic(CX), BX
@@ -984,7 +984,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32, jmp
 	p.To.Type = obj.TYPE_BRANCH
 	if ctxt.Cursym.Cfunc != 0 {
 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
-	} else if ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
+	} else if ctxt.Cursym.Text.From3Offset()&obj.NEEDCTXT == 0 {
 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
 	} else {
 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack", 0)
