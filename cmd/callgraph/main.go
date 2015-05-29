@@ -42,7 +42,7 @@ import (
 )
 
 var algoFlag = flag.String("algo", "rta",
-	`Call graph construction algorithm, one of "rta" or "pta"`)
+	`Call graph construction algorithm (static, cha, rta, pta)`)
 
 var testFlag = flag.Bool("test", false,
 	"Loads test code (*_test.go) for imported packages")
