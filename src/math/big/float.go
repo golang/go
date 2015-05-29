@@ -381,14 +381,11 @@ func (x *Float) validate() {
 func (z *Float) round(sbit uint) {
 	if debugFloat {
 		z.validate()
-		if z.form > finite {
-			panic(fmt.Sprintf("round called for non-finite value %s", z))
-		}
 	}
-	// z.form <= finite
 
 	z.acc = Exact
-	if z.form == zero {
+	if z.form != finite {
+		// ±0 or ±Inf => nothing left to do
 		return
 	}
 	// z.form == finite && len(z.mant) > 0
