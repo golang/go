@@ -273,8 +273,8 @@ type stringWriter interface {
 	WriteString(s string) (n int, err error)
 }
 
-// WriteString writes the contents of the string s to w, which accepts an array of bytes.
-// If w already implements a WriteString method, it is invoked directly.
+// WriteString writes the contents of the string s to w, which accepts a slice of bytes.
+// If w implements a WriteString method, it is invoked directly.
 func WriteString(w Writer, s string) (n int, err error) {
 	if sw, ok := w.(stringWriter); ok {
 		return sw.WriteString(s)
