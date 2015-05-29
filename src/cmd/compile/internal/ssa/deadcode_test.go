@@ -9,7 +9,8 @@ import (
 )
 
 func TestDeadLoop(t *testing.T) {
-	fun := Fun("entry",
+	c := NewConfig("amd64")
+	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("mem", OpArg, TypeMem, ".mem"),
 			Goto("exit")),
@@ -38,7 +39,8 @@ func TestDeadLoop(t *testing.T) {
 }
 
 func TestDeadValue(t *testing.T) {
-	fun := Fun("entry",
+	c := NewConfig("amd64")
+	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("mem", OpArg, TypeMem, ".mem"),
 			Valu("deadval", OpConst, TypeInt64, int64(37)),
@@ -60,7 +62,8 @@ func TestDeadValue(t *testing.T) {
 }
 
 func TestNeverTaken(t *testing.T) {
-	fun := Fun("entry",
+	c := NewConfig("amd64")
+	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("cond", OpConst, TypeBool, false),
 			Valu("mem", OpArg, TypeMem, ".mem"),
