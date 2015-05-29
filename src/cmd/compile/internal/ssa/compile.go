@@ -65,7 +65,6 @@ var passes = [...]pass{
 	{"schedule", schedule}, // schedule values
 	{"regalloc", regalloc},
 	{"stackalloc", stackalloc},
-	{"cgen", cgen},
 }
 
 // Double-check phase ordering constraints.
@@ -85,8 +84,6 @@ var passOrder = [...]constraint{
 	{"schedule", "regalloc"},
 	// stack allocation requires register allocation
 	{"regalloc", "stackalloc"},
-	// code generation requires stack allocation
-	{"stackalloc", "cgen"},
 }
 
 func init() {

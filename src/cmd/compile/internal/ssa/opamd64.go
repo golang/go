@@ -123,39 +123,39 @@ var (
 
 // Opcodes that appear in an output amd64 program
 var amd64Table = map[Op]opInfo{
-	OpADDQ:      {flags: OpFlagCommutative, asm: "ADDQ\t%I0,%I1,%O0", reg: gp21}, // TODO: overwrite
-	OpADDQconst: {asm: "ADDQ\t$%A,%I0,%O0", reg: gp11},                           // aux = int64 constant to add
-	OpSUBQ:      {asm: "SUBQ\t%I0,%I1,%O0", reg: gp21},
-	OpSUBQconst: {asm: "SUBQ\t$%A,%I0,%O0", reg: gp11},
-	OpMULQ:      {asm: "MULQ\t%I0,%I1,%O0", reg: gp21},
-	OpMULQconst: {asm: "IMULQ\t$%A,%I0,%O0", reg: gp11},
-	OpSHLQ:      {asm: "SHLQ\t%I0,%I1,%O0", reg: gp21},
-	OpSHLQconst: {asm: "SHLQ\t$%A,%I0,%O0", reg: gp11},
+	OpADDQ:      {flags: OpFlagCommutative, reg: gp21}, // TODO: overwrite
+	OpADDQconst: {reg: gp11},                           // aux = int64 constant to add
+	OpSUBQ:      {reg: gp21},
+	OpSUBQconst: {reg: gp11},
+	OpMULQ:      {reg: gp21},
+	OpMULQconst: {reg: gp11},
+	OpSHLQ:      {reg: gp21},
+	OpSHLQconst: {reg: gp11},
 
-	OpCMPQ:      {asm: "CMPQ\t%I0,%I1", reg: gp2_flags}, // compute arg[0]-arg[1] and produce flags
-	OpCMPQconst: {asm: "CMPQ\t$%A,%I0", reg: gp1_flags},
-	OpTESTQ:     {asm: "TESTQ\t%I0,%I1", reg: gp2_flags},
-	OpTESTB:     {asm: "TESTB\t%I0,%I1", reg: gp2_flags},
+	OpCMPQ:      {reg: gp2_flags}, // compute arg[0]-arg[1] and produce flags
+	OpCMPQconst: {reg: gp1_flags},
+	OpTESTQ:     {reg: gp2_flags},
+	OpTESTB:     {reg: gp2_flags},
 
-	OpLEAQ:       {flags: OpFlagCommutative, asm: "LEAQ\t%A(%I0)(%I1*1),%O0", reg: gp21}, // aux = int64 constant to add
-	OpLEAQ2:      {asm: "LEAQ\t%A(%I0)(%I1*2),%O0"},
-	OpLEAQ4:      {asm: "LEAQ\t%A(%I0)(%I1*4),%O0"},
-	OpLEAQ8:      {asm: "LEAQ\t%A(%I0)(%I1*8),%O0"},
-	OpLEAQglobal: {asm: "LEAQ\t%A(SB),%O0", reg: gp01},
+	OpLEAQ:       {flags: OpFlagCommutative, reg: gp21}, // aux = int64 constant to add
+	OpLEAQ2:      {},
+	OpLEAQ4:      {},
+	OpLEAQ8:      {},
+	OpLEAQglobal: {reg: gp01},
 
 	// loads and stores
-	OpMOVBload:      {asm: "MOVB\t%A(%I0),%O0", reg: gpload},
-	OpMOVQload:      {asm: "MOVQ\t%A(%I0),%O0", reg: gpload},
-	OpMOVQstore:     {asm: "MOVQ\t%I1,%A(%I0)", reg: gpstore},
-	OpMOVQloadidx8:  {asm: "MOVQ\t%A(%I0)(%I1*8),%O0", reg: gploadidx},
-	OpMOVQstoreidx8: {asm: "MOVQ\t%I2,%A(%I0)(%I1*8)", reg: gpstoreidx},
+	OpMOVBload:      {reg: gpload},
+	OpMOVQload:      {reg: gpload},
+	OpMOVQstore:     {reg: gpstore},
+	OpMOVQloadidx8:  {reg: gploadidx},
+	OpMOVQstoreidx8: {reg: gpstoreidx},
 
-	OpMOVQconst: {asm: "MOVQ\t$%A,%O0", reg: gp01},
+	OpMOVQconst: {reg: gp01},
 
-	OpStaticCall: {asm: "CALL\t%A(SB)"},
+	OpStaticCall: {},
 
-	OpCopy:    {asm: "MOVQ\t%I0,%O0", reg: gp11}, // TODO: make arch-specific
-	OpConvNop: {asm: "MOVQ\t%I0,%O0", reg: gp11}, // TODO: make arch-specific.  Or get rid of this altogether.
+	OpCopy:    {reg: gp11}, // TODO: make arch-specific
+	OpConvNop: {reg: gp11}, // TODO: make arch-specific.  Or get rid of this altogether.
 
 	// convert from flags back to boolean
 	OpSETL: {},
@@ -164,10 +164,10 @@ var amd64Table = map[Op]opInfo{
 	// unlike regular loads & stores, these take no memory argument.
 	// They are just like OpCopy but we use them during register allocation.
 	// TODO: different widths, float
-	OpLoadReg8:  {asm: "MOVQ\t%I0,%O0"},
-	OpStoreReg8: {asm: "MOVQ\t%I0,%O0"},
+	OpLoadReg8:  {},
+	OpStoreReg8: {},
 
-	OpREPMOVSB: {asm: "REP MOVSB", reg: [2][]regMask{{di, si, cx, 0}, {0}}}, // TODO: record that si/di/cx are clobbered
+	OpREPMOVSB: {reg: [2][]regMask{{di, si, cx, 0}, {0}}}, // TODO: record that si/di/cx are clobbered
 }
 
 func init() {

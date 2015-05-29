@@ -25,7 +25,6 @@ Values
 Opcodes
  - Rename ops to prevent cross-arch conflicts.  MOVQ -> MOVQamd64 (or
    MOVQ6?).  Other option: build opcode table in Config instead of globally.
- - Remove asm string from opinfo, no longer needed.
  - It's annoying to list the opcode both in the opcode list and an
    opInfo map entry.  Specify it one place and use go:generate to
    produce both?
