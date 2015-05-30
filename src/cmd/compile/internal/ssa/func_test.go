@@ -324,11 +324,9 @@ func TestEquiv(t *testing.T) {
 	}
 	for _, c := range equivalentCases {
 		if !Equiv(c.f.f, c.g.f) {
-			t.Errorf("expected equivalence. Func definitions:")
-			// TODO(matloob): Rewrite PrintFunc to output to a string or writer,
-			// so the functions can be written to the error log.
-			PrintFunc(c.f.f)
-			PrintFunc(c.g.f)
+			t.Error("expected equivalence. Func definitions:")
+			t.Error(c.f.f)
+			t.Error(c.g.f)
 		}
 	}
 
@@ -394,11 +392,9 @@ func TestEquiv(t *testing.T) {
 	}
 	for _, c := range differentCases {
 		if Equiv(c.f.f, c.g.f) {
-			t.Errorf("expected difference. Func definitions:")
-			// TODO(matloob): Rewrite PrintFunc to output to a string or writer,
-			// so the functions can be written to the error log.
-			PrintFunc(c.f.f)
-			PrintFunc(c.g.f)
+			t.Error("expected difference. Func definitions:")
+			t.Error(c.f.f)
+			t.Error(c.g.f)
 		}
 	}
 }

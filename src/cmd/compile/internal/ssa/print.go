@@ -4,15 +4,30 @@
 
 package ssa
 
-import "fmt"
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"os"
+)
 
 func printFunc(f *Func) {
-	fmt.Print(f.Name)
-	fmt.Print(" ")
-	fmt.Println(f.Type)
+	fprintFunc(os.Stdout, f)
+}
+
+func (f *Func) String() string {
+	var buf bytes.Buffer
+	fprintFunc(&buf, f)
+	return buf.String()
+}
+
+func fprintFunc(w io.Writer, f *Func) {
+	fmt.Fprint(w, f.Name)
+	fmt.Fprint(w, " ")
+	fmt.Fprintln(w, f.Type)
 	printed := make([]bool, f.NumValues())
 	for _, b := range f.Blocks {
-		fmt.Printf("  b%d:\n", b.ID)
+		fmt.Fprintf(w, "  b%d:\n", b.ID)
 		n := 0
 
 		// print phis first since all value cycles contain a phi
@@ -20,8 +35,8 @@ func printFunc(f *Func) {
 			if v.Op != OpPhi {
 				continue
 			}
-			fmt.Print("    ")
-			fmt.Println(v.LongString())
+			fmt.Fprint(w, "    ")
+			fmt.Fprintln(w, v.LongString())
 			printed[v.ID] = true
 			n++
 		}
@@ -39,25 +54,25 @@ func printFunc(f *Func) {
 						continue outer
 					}
 				}
-				fmt.Print("    ")
-				fmt.Println(v.LongString())
+				fmt.Fprint(w, "    ")
+				fmt.Fprintln(w, v.LongString())
 				printed[v.ID] = true
 				n++
 			}
 			if m == n {
-				fmt.Println("dependency cycle!")
+				fmt.Fprintln(w, "dependency cycle!")
 				for _, v := range b.Values {
 					if printed[v.ID] {
 						continue
 					}
-					fmt.Print("    ")
-					fmt.Println(v.LongString())
+					fmt.Fprint(w, "    ")
+					fmt.Fprintln(w, v.LongString())
 					printed[v.ID] = true
 					n++
 				}
 			}
 		}
 
-		fmt.Println("    " + b.LongString())
+		fmt.Fprintln(w, "    "+b.LongString())
 	}
 }
