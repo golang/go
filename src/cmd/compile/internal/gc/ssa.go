@@ -18,6 +18,9 @@ func buildssa(fn *Node) *ssa.Func {
 
 	var s state
 
+	s.pushLine(fn.Lineno)
+	defer s.popLine()
+
 	// TODO(khr): build config just once at the start of the compiler binary
 	s.config = ssa.NewConfig(Thearch.Thestring, ssaExport{})
 	s.f = s.config.NewFunc()
@@ -35,9 +38,9 @@ func buildssa(fn *Node) *ssa.Func {
 	s.exit = s.f.NewBlock(ssa.BlockExit)
 
 	// Allocate starting values
-	s.startmem = s.f.Entry.NewValue(ssa.OpArg, ssa.TypeMem, ".mem")
-	s.fp = s.f.Entry.NewValue(ssa.OpFP, s.config.Uintptr, nil) // TODO: use generic pointer type (unsafe.Pointer?) instead
-	s.sp = s.f.Entry.NewValue(ssa.OpSP, s.config.Uintptr, nil)
+	s.startmem = s.entryNewValue(ssa.OpArg, ssa.TypeMem, ".mem")
+	s.fp = s.entryNewValue(ssa.OpFP, s.config.Uintptr, nil) // TODO: use generic pointer type (unsafe.Pointer?) instead
+	s.sp = s.entryNewValue(ssa.OpSP, s.config.Uintptr, nil)
 
 	s.vars = map[string]*ssa.Value{}
 	s.labels = map[string]*ssa.Block{}
@@ -97,6 +100,9 @@ type state struct {
 	startmem *ssa.Value
 	fp       *ssa.Value
 	sp       *ssa.Value
+
+	// line number stack.  The current line number is top of stack
+	line []int32
 }
 
 // startBlock sets the current block we're generating code in to b.
@@ -122,7 +128,63 @@ func (s *state) endBlock() *ssa.Block {
 	s.defvars[b.ID] = s.vars
 	s.curBlock = nil
 	s.vars = nil
+	b.Line = s.peekLine()
 	return b
+}
+
+// pushLine pushes a line number on the line number stack.
+func (s *state) pushLine(line int32) {
+	s.line = append(s.line, line)
+}
+
+// popLine pops the top of the line number stack.
+func (s *state) popLine() {
+	s.line = s.line[:len(s.line)-1]
+}
+
+// peekLine peek the top of the line number stack.
+func (s *state) peekLine() int32 {
+	return s.line[len(s.line)-1]
+}
+
+// newValue adds a new value with no argueents to the current block.
+func (s *state) newValue(op ssa.Op, t ssa.Type, aux interface{}) *ssa.Value {
+	return s.curBlock.NewValue(s.peekLine(), op, t, aux)
+}
+
+// newValue1 adds a new value with one argument to the current block.
+func (s *state) newValue1(op ssa.Op, t ssa.Type, aux interface{}, arg *ssa.Value) *ssa.Value {
+	return s.curBlock.NewValue1(s.peekLine(), op, t, aux, arg)
+}
+
+// newValue2 adds a new value with two arguments to the current block.
+func (s *state) newValue2(op ssa.Op, t ssa.Type, aux interface{}, arg0, arg1 *ssa.Value) *ssa.Value {
+	return s.curBlock.NewValue2(s.peekLine(), op, t, aux, arg0, arg1)
+}
+
+// newValue3 adds a new value with three arguments to the current block.
+func (s *state) newValue3(op ssa.Op, t ssa.Type, aux interface{}, arg0, arg1, arg2 *ssa.Value) *ssa.Value {
+	return s.curBlock.NewValue3(s.peekLine(), op, t, aux, arg0, arg1, arg2)
+}
+
+// entryNewValue adds a new value with no arguments to the entry block.
+func (s *state) entryNewValue(op ssa.Op, t ssa.Type, aux interface{}) *ssa.Value {
+	return s.f.Entry.NewValue(s.peekLine(), op, t, aux)
+}
+
+// entryNewValue1 adds a new value with one argument to the entry block.
+func (s *state) entryNewValue1(op ssa.Op, t ssa.Type, aux interface{}, arg *ssa.Value) *ssa.Value {
+	return s.f.Entry.NewValue1(s.peekLine(), op, t, aux, arg)
+}
+
+// entryNewValue2 adds a new value with two arguments to the entry block.
+func (s *state) entryNewValue2(op ssa.Op, t ssa.Type, aux interface{}, arg0, arg1 *ssa.Value) *ssa.Value {
+	return s.f.Entry.NewValue2(s.peekLine(), op, t, aux, arg0, arg1)
+}
+
+// constInt adds a new const int value to the entry block.
+func (s *state) constInt(t ssa.Type, c int64) *ssa.Value {
+	return s.f.ConstInt(s.peekLine(), t, c)
 }
 
 // ssaStmtList converts the statement n to SSA and adds it to s.
@@ -134,6 +196,9 @@ func (s *state) stmtList(l *NodeList) {
 
 // ssaStmt converts the statement n to SSA and adds it to s.
 func (s *state) stmt(n *Node) {
+	s.pushLine(n.Lineno)
+	defer s.popLine()
+
 	s.stmtList(n.Ninit)
 	switch n.Op {
 
@@ -167,11 +232,11 @@ func (s *state) stmt(n *Node) {
 			t := n.Left.Type
 			switch {
 			case t.IsString():
-				val = s.f.Entry.NewValue(ssa.OpConst, n.Left.Type, "")
+				val = s.entryNewValue(ssa.OpConst, n.Left.Type, "")
 			case t.IsInteger():
-				val = s.f.Entry.NewValue(ssa.OpConst, n.Left.Type, int64(0))
+				val = s.entryNewValue(ssa.OpConst, n.Left.Type, int64(0))
 			case t.IsBoolean():
-				val = s.f.Entry.NewValue(ssa.OpConst, n.Left.Type, false)
+				val = s.entryNewValue(ssa.OpConst, n.Left.Type, false)
 			default:
 				log.Fatalf("zero for type %v not implemented", t)
 			}
@@ -185,7 +250,7 @@ func (s *state) stmt(n *Node) {
 		}
 		// not ssa-able.  Treat as a store.
 		addr := s.addr(n.Left)
-		s.vars[".mem"] = s.curBlock.NewValue3(ssa.OpStore, ssa.TypeMem, nil, addr, val, s.mem())
+		s.vars[".mem"] = s.newValue3(ssa.OpStore, ssa.TypeMem, nil, addr, val, s.mem())
 		// TODO: try to make more variables registerizeable.
 	case OIF:
 		cond := s.expr(n.Ntest)
@@ -268,22 +333,25 @@ func (s *state) stmt(n *Node) {
 
 // expr converts the expression n to ssa, adds it to s and returns the ssa result.
 func (s *state) expr(n *Node) *ssa.Value {
+	s.pushLine(n.Lineno)
+	defer s.popLine()
+
 	switch n.Op {
 	case ONAME:
 		// TODO: remember offsets for PPARAM names
 		if n.Class == PEXTERN {
 			// global variable
-			addr := s.f.Entry.NewValue(ssa.OpGlobal, Ptrto(n.Type), n.Sym)
-			return s.curBlock.NewValue2(ssa.OpLoad, n.Type, nil, addr, s.mem())
+			addr := s.entryNewValue(ssa.OpGlobal, Ptrto(n.Type), n.Sym)
+			return s.newValue2(ssa.OpLoad, n.Type, nil, addr, s.mem())
 		}
 		s.argOffsets[n.Sym.Name] = n.Xoffset
 		return s.variable(n.Sym.Name, n.Type)
 	case OLITERAL:
 		switch n.Val.Ctype {
 		case CTINT:
-			return s.f.ConstInt(n.Type, Mpgetfix(n.Val.U.(*Mpint)))
+			return s.constInt(n.Type, Mpgetfix(n.Val.U.(*Mpint)))
 		case CTSTR:
-			return s.f.Entry.NewValue(ssa.OpConst, n.Type, n.Val.U)
+			return s.entryNewValue(ssa.OpConst, n.Type, n.Val.U)
 		default:
 			log.Fatalf("unhandled OLITERAL %v", n.Val.Ctype)
 			return nil
@@ -293,24 +361,24 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OLT:
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
-		return s.curBlock.NewValue2(ssa.OpLess, ssa.TypeBool, nil, a, b)
+		return s.newValue2(ssa.OpLess, ssa.TypeBool, nil, a, b)
 	case OADD:
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
-		return s.curBlock.NewValue2(ssa.OpAdd, a.Type, nil, a, b)
+		return s.newValue2(ssa.OpAdd, a.Type, nil, a, b)
 	case OSUB:
 		// TODO:(khr) fold code for all binary ops together somehow
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
-		return s.curBlock.NewValue2(ssa.OpSub, a.Type, nil, a, b)
+		return s.newValue2(ssa.OpSub, a.Type, nil, a, b)
 	case OLSH:
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
-		return s.curBlock.NewValue2(ssa.OpLsh, a.Type, nil, a, b)
+		return s.newValue2(ssa.OpLsh, a.Type, nil, a, b)
 	case ORSH:
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
-		return s.curBlock.NewValue2(ssa.OpRsh, a.Type, nil, a, b)
+		return s.newValue2(ssa.OpRsh, a.Type, nil, a, b)
 
 	case OADDR:
 		return s.addr(n.Left)
@@ -318,13 +386,13 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OIND:
 		p := s.expr(n.Left)
 		s.nilCheck(p)
-		return s.curBlock.NewValue2(ssa.OpLoad, n.Type, nil, p, s.mem())
+		return s.newValue2(ssa.OpLoad, n.Type, nil, p, s.mem())
 
 	case ODOTPTR:
 		p := s.expr(n.Left)
 		s.nilCheck(p)
-		p = s.curBlock.NewValue2(ssa.OpAdd, p.Type, nil, p, s.f.ConstInt(s.config.Uintptr, n.Xoffset))
-		return s.curBlock.NewValue2(ssa.OpLoad, n.Type, nil, p, s.mem())
+		p = s.newValue2(ssa.OpAdd, p.Type, nil, p, s.constInt(s.config.Uintptr, n.Xoffset))
+		return s.newValue2(ssa.OpLoad, n.Type, nil, p, s.mem())
 
 	case OINDEX:
 		if n.Left.Type.Bound >= 0 { // array or string
@@ -333,17 +401,17 @@ func (s *state) expr(n *Node) *ssa.Value {
 			var elemtype *Type
 			var len *ssa.Value
 			if n.Left.Type.IsString() {
-				len = s.curBlock.NewValue1(ssa.OpStringLen, s.config.Uintptr, nil, a)
+				len = s.newValue1(ssa.OpStringLen, s.config.Uintptr, nil, a)
 				elemtype = Types[TUINT8]
 			} else {
-				len = s.f.ConstInt(s.config.Uintptr, n.Left.Type.Bound)
+				len = s.constInt(s.config.Uintptr, n.Left.Type.Bound)
 				elemtype = n.Left.Type.Type
 			}
 			s.boundsCheck(i, len)
-			return s.curBlock.NewValue2(ssa.OpArrayIndex, elemtype, nil, a, i)
+			return s.newValue2(ssa.OpArrayIndex, elemtype, nil, a, i)
 		} else { // slice
 			p := s.addr(n)
-			return s.curBlock.NewValue2(ssa.OpLoad, n.Left.Type.Type, nil, p, s.mem())
+			return s.newValue2(ssa.OpLoad, n.Left.Type.Type, nil, p, s.mem())
 		}
 
 	case OCALLFUNC:
@@ -357,7 +425,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			log.Fatalf("can't handle CALLFUNC with non-ONAME fn %s", opnames[n.Left.Op])
 		}
 		bNext := s.f.NewBlock(ssa.BlockPlain)
-		call := s.curBlock.NewValue1(ssa.OpStaticCall, ssa.TypeMem, n.Left.Sym, s.mem())
+		call := s.newValue1(ssa.OpStaticCall, ssa.TypeMem, n.Left.Sym, s.mem())
 		b := s.endBlock()
 		b.Kind = ssa.BlockCall
 		b.Control = call
@@ -368,8 +436,8 @@ func (s *state) expr(n *Node) *ssa.Value {
 		s.startBlock(bNext)
 		var titer Iter
 		fp := Structfirst(&titer, Getoutarg(n.Left.Type))
-		a := s.f.Entry.NewValue1(ssa.OpOffPtr, Ptrto(fp.Type), fp.Width, s.sp)
-		return s.curBlock.NewValue2(ssa.OpLoad, fp.Type, nil, a, call)
+		a := s.entryNewValue1(ssa.OpOffPtr, Ptrto(fp.Type), fp.Width, s.sp)
+		return s.newValue2(ssa.OpLoad, fp.Type, nil, a, call)
 	default:
 		log.Fatalf("unhandled expr %s", opnames[n.Op])
 		return nil
@@ -382,11 +450,11 @@ func (s *state) addr(n *Node) *ssa.Value {
 	case ONAME:
 		if n.Class == PEXTERN {
 			// global variable
-			return s.f.Entry.NewValue(ssa.OpGlobal, Ptrto(n.Type), n.Sym)
+			return s.entryNewValue(ssa.OpGlobal, Ptrto(n.Type), n.Sym)
 		}
 		if n.Class == PPARAMOUT {
 			// store to parameter slot
-			return s.f.Entry.NewValue1(ssa.OpOffPtr, Ptrto(n.Type), n.Xoffset, s.fp)
+			return s.entryNewValue1(ssa.OpOffPtr, Ptrto(n.Type), n.Xoffset, s.fp)
 		}
 		// TODO: address of locals
 		log.Fatalf("variable address of %v not implemented", n)
@@ -394,21 +462,21 @@ func (s *state) addr(n *Node) *ssa.Value {
 	case OINDREG:
 		// indirect off a register (TODO: always SP?)
 		// used for storing/loading arguments/returns to/from callees
-		return s.f.Entry.NewValue1(ssa.OpOffPtr, Ptrto(n.Type), n.Xoffset, s.sp)
+		return s.entryNewValue1(ssa.OpOffPtr, Ptrto(n.Type), n.Xoffset, s.sp)
 	case OINDEX:
 		if n.Left.Type.Bound >= 0 { // array
 			a := s.addr(n.Left)
 			i := s.expr(n.Right)
-			len := s.f.ConstInt(s.config.Uintptr, n.Left.Type.Bound)
+			len := s.constInt(s.config.Uintptr, n.Left.Type.Bound)
 			s.boundsCheck(i, len)
-			return s.curBlock.NewValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), nil, a, i)
+			return s.newValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), nil, a, i)
 		} else { // slice
 			a := s.expr(n.Left)
 			i := s.expr(n.Right)
-			len := s.curBlock.NewValue1(ssa.OpSliceLen, s.config.Uintptr, nil, a)
+			len := s.newValue1(ssa.OpSliceLen, s.config.Uintptr, nil, a)
 			s.boundsCheck(i, len)
-			p := s.curBlock.NewValue1(ssa.OpSlicePtr, Ptrto(n.Left.Type.Type), nil, a)
-			return s.curBlock.NewValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), nil, p, i)
+			p := s.newValue1(ssa.OpSlicePtr, Ptrto(n.Left.Type.Type), nil, a)
+			return s.newValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), nil, p, i)
 		}
 	default:
 		log.Fatalf("addr: bad op %v", Oconv(int(n.Op), 0))
@@ -419,7 +487,7 @@ func (s *state) addr(n *Node) *ssa.Value {
 // nilCheck generates nil pointer checking code.
 // Starts a new block on return.
 func (s *state) nilCheck(ptr *ssa.Value) {
-	c := s.curBlock.NewValue1(ssa.OpIsNonNil, ssa.TypeBool, nil, ptr)
+	c := s.newValue1(ssa.OpIsNonNil, ssa.TypeBool, nil, ptr)
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
 	b.Control = c
@@ -438,7 +506,7 @@ func (s *state) boundsCheck(idx, len *ssa.Value) {
 	// TODO: if index is 64-bit and we're compiling to 32-bit, check that high 32 bits are zero.
 
 	// bounds check
-	cmp := s.curBlock.NewValue2(ssa.OpIsInBounds, ssa.TypeBool, nil, idx, len)
+	cmp := s.newValue2(ssa.OpIsInBounds, ssa.TypeBool, nil, idx, len)
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
 	b.Control = cmp
@@ -457,7 +525,7 @@ func (s *state) variable(name string, t ssa.Type) *ssa.Value {
 	v := s.vars[name]
 	if v == nil {
 		// TODO: get type?  Take Sym as arg?
-		v = s.curBlock.NewValue(ssa.OpFwdRef, t, name)
+		v = s.newValue(ssa.OpFwdRef, t, name)
 		s.vars[name] = v
 	}
 	return v
@@ -496,8 +564,9 @@ func (s *state) lookupVarIncoming(b *ssa.Block, t ssa.Type, name string) *ssa.Va
 			return s.startmem
 		}
 		// variable is live at the entry block.  Load it.
-		addr := s.f.Entry.NewValue1(ssa.OpOffPtr, Ptrto(t.(*Type)), s.argOffsets[name], s.fp)
-		return b.NewValue2(ssa.OpLoad, t, nil, addr, s.startmem)
+		addr := s.entryNewValue1(ssa.OpOffPtr, Ptrto(t.(*Type)), s.argOffsets[name], s.fp)
+		return s.entryNewValue2(ssa.OpLoad, t, nil, addr, s.startmem)
+
 	}
 	var vals []*ssa.Value
 	for _, p := range b.Preds {
@@ -507,7 +576,7 @@ func (s *state) lookupVarIncoming(b *ssa.Block, t ssa.Type, name string) *ssa.Va
 	for i := 1; i < len(vals); i++ {
 		if vals[i] != v0 {
 			// need a phi value
-			v := b.NewValue(ssa.OpPhi, t, nil)
+			v := b.NewValue(s.peekLine(), ssa.OpPhi, t, nil)
 			v.AddArgs(vals...)
 			return v
 		}
@@ -528,7 +597,7 @@ func (s *state) lookupVarOutgoing(b *ssa.Block, t ssa.Type, name string) *ssa.Va
 	// Make v = copy(w).  We need the extra copy to
 	// prevent infinite recursion when looking up the
 	// incoming value of the variable.
-	v := b.NewValue(ssa.OpCopy, t, nil)
+	v := b.NewValue(s.peekLine(), ssa.OpCopy, t, nil)
 	m[name] = v
 	v.AddArg(s.lookupVarIncoming(b, t, name))
 	return v
@@ -606,6 +675,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 }
 
 func genValue(v *ssa.Value) {
+	lineno = v.Line
 	switch v.Op {
 	case ssa.OpAMD64ADDQ:
 		// TODO: use addq instead of leaq if target is in the right register.
@@ -797,6 +867,7 @@ func genValue(v *ssa.Value) {
 }
 
 func genBlock(b, next *ssa.Block, branches []branch) []branch {
+	lineno = b.Line
 	switch b.Kind {
 	case ssa.BlockPlain:
 		if b.Succs[0] != next {

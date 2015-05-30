@@ -37,6 +37,9 @@ type Block struct {
 
 	// The containing function
 	Func *Func
+
+	// Line number for block's control operation
+	Line int32
 }
 
 //     kind           control    successors
