@@ -12,8 +12,6 @@ Scheduling
    variables first.
 
 Values
- - Add a line number field.  Figure out how to populate it and
-   maintain it during rewrites.
  - Store *Type instead of Type?  Keep an array of used Types in Func
    and reference by id?  Unify with the type ../gc so we just use a
    pointer instead of an interface?

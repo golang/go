@@ -43,7 +43,7 @@ func (f *Func) NewBlock(kind BlockKind) *Block {
 }
 
 // NewValue returns a new value in the block with no arguments.
-func (b *Block) NewValue(op Op, t Type, aux interface{}) *Value {
+func (b *Block) NewValue(line int32, op Op, t Type, aux interface{}) *Value {
 	v := &Value{
 		ID:    b.Func.vid.get(),
 		Op:    op,
@@ -57,7 +57,7 @@ func (b *Block) NewValue(op Op, t Type, aux interface{}) *Value {
 }
 
 // NewValue1 returns a new value in the block with one argument.
-func (b *Block) NewValue1(op Op, t Type, aux interface{}, arg *Value) *Value {
+func (b *Block) NewValue1(line int32, op Op, t Type, aux interface{}, arg *Value) *Value {
 	v := &Value{
 		ID:    b.Func.vid.get(),
 		Op:    op,
@@ -72,7 +72,7 @@ func (b *Block) NewValue1(op Op, t Type, aux interface{}, arg *Value) *Value {
 }
 
 // NewValue2 returns a new value in the block with two arguments.
-func (b *Block) NewValue2(op Op, t Type, aux interface{}, arg0, arg1 *Value) *Value {
+func (b *Block) NewValue2(line int32, op Op, t Type, aux interface{}, arg0, arg1 *Value) *Value {
 	v := &Value{
 		ID:    b.Func.vid.get(),
 		Op:    op,
@@ -88,7 +88,7 @@ func (b *Block) NewValue2(op Op, t Type, aux interface{}, arg0, arg1 *Value) *Va
 }
 
 // NewValue3 returns a new value in the block with three arguments.
-func (b *Block) NewValue3(op Op, t Type, aux interface{}, arg0, arg1, arg2 *Value) *Value {
+func (b *Block) NewValue3(line int32, op Op, t Type, aux interface{}, arg0, arg1, arg2 *Value) *Value {
 	v := &Value{
 		ID:    b.Func.vid.get(),
 		Op:    op,
@@ -102,7 +102,7 @@ func (b *Block) NewValue3(op Op, t Type, aux interface{}, arg0, arg1, arg2 *Valu
 }
 
 // ConstInt returns an int constant representing its argument.
-func (f *Func) ConstInt(t Type, c int64) *Value {
+func (f *Func) ConstInt(line int32, t Type, c int64) *Value {
 	// TODO: cache?
-	return f.Entry.NewValue(OpConst, t, c)
+	return f.Entry.NewValue(line, OpConst, t, c)
 }

@@ -30,6 +30,9 @@ type Value struct {
 	// Containing basic block
 	Block *Block
 
+	// Source line number
+	Line int32
+
 	// Storage for the first two args
 	argstorage [2]*Value
 }

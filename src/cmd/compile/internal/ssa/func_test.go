@@ -149,7 +149,7 @@ func Fun(c *Config, entry string, blocs ...bloc) fun {
 		blocks[bloc.name] = b
 		for _, valu := range bloc.valus {
 			// args are filled in the second pass.
-			values[valu.name] = b.NewValue(valu.op, valu.t, valu.aux)
+			values[valu.name] = b.NewValue(0, valu.op, valu.t, valu.aux)
 		}
 	}
 	// Connect the blocks together and specify control values.
