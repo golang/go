@@ -20,7 +20,40 @@ func schedule(f *Func) {
 	var queue []*Value //stack-like worklist.  Contains found and expanded nodes.
 	var order []*Value
 
+	nextMem := make([]*Value, f.NumValues()) // maps mem values to the next live value
+	additionalEdges := make([][]*Value, f.NumValues())
 	for _, b := range f.Blocks {
+		// Set the nextMem values for this block.  If the previous
+		// write is from a different block, then its nextMem entry
+		// might have already been set during processing of an earlier
+		// block.  This loop resets the nextMem entries to be correct
+		// for this block.
+		for _, v := range b.Values {
+			if v.Type.IsMemory() {
+				for _, w := range v.Args {
+					if w.Type.IsMemory() {
+						nextMem[w.ID] = v
+					}
+				}
+			}
+		}
+		// Add a anti-dependency between each load v and the memory value n
+		// following the memory value that v loads from.
+		// This will enforce the single-live-mem restriction.
+		for _, v := range b.Values {
+			if v.Type.IsMemory() {
+				continue
+			}
+			for _, w := range v.Args {
+				if w.Type.IsMemory() && nextMem[w.ID] != nil {
+					// Filter for intra-block edges.
+					if n := nextMem[w.ID]; n.Block == b {
+						additionalEdges[n.ID] = append(additionalEdges[n.ID], v)
+					}
+				}
+			}
+		}
+
 		// Topologically sort the values in b.
 		order = order[:0]
 		for _, v := range b.Values {
@@ -51,6 +84,12 @@ func schedule(f *Func) {
 							queue = append(queue, w)
 						}
 					}
+					for _, w := range additionalEdges[v.ID] {
+						if w.Block == b && w.Op != OpPhi && state[w.ID] == unmarked {
+							state[w.ID] = found
+							queue = append(queue, w)
+						}
+					}
 				case expanded:
 					queue = queue[:len(queue)-1]
 					state[v.ID] = done
@@ -62,8 +101,8 @@ func schedule(f *Func) {
 		}
 		copy(b.Values, order)
 	}
-	// TODO: only allow one live mem type and one live flags type (x86)
-	// This restriction will force any loads (and any flag uses) to appear
-	// before the next store (flag update).  This "anti-dependence" is not
-	// recorded explicitly in ssa form.
+	// TODO: only allow one live flags type (x86)
+	// This restriction will force and any flag uses to appear before
+	// the next flag update.  This "anti-dependence" is not recorded
+	// explicitly in ssa form.
 }
