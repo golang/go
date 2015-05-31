@@ -134,7 +134,7 @@ func Clean(path string) string {
 	return out.string()
 }
 
-// Split splits path immediately following the final slash.
+// Split splits path immediately following the final slash,
 // separating it into a directory and file name component.
 // If there is no slash path, Split returns an empty dir and
 // file set to path.
