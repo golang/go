@@ -994,19 +994,26 @@ func gc(mode int) {
 		printlock()
 		print("gc #", memstats.numgc,
 			" @", string(itoaDiv(sbuf[:], uint64(tEnd-runtimeInitTime)/1e6, 3)), "s ",
-			util, "%: ",
-			(tScan-tSweepTerm)/1e6,
-			"+", (tInstallWB-tScan)/1e6,
-			"+", (tMark-tInstallWB)/1e6,
-			"+", (tMarkTerm-tMark)/1e6,
-			"+", (tEnd-tMarkTerm)/1e6, " ms clock, ",
-			sweepTermCpu/1e6,
-			"+", scanCpu/1e6,
-			"+", installWBCpu/1e6,
-			"+", gcController.assistTime/1e6,
-			"/", (gcController.dedicatedMarkTime+gcController.fractionalMarkTime)/1e6,
-			"/", gcController.idleMarkTime/1e6,
-			"+", markTermCpu/1e6, " ms cpu, ",
+			util, "%: ")
+		prev := tSweepTerm
+		for i, ns := range []int64{tScan, tInstallWB, tMark, tMarkTerm, tEnd} {
+			if i != 0 {
+				print("+")
+			}
+			print(string(fmtNSAsMS(sbuf[:], uint64(ns-prev))))
+			prev = ns
+		}
+		print(" ms clock, ")
+		for i, ns := range []int64{sweepTermCpu, scanCpu, installWBCpu, gcController.assistTime, gcController.dedicatedMarkTime + gcController.fractionalMarkTime, gcController.idleMarkTime, markTermCpu} {
+			if i == 4 || i == 5 {
+				// Separate mark time components with /.
+				print("/")
+			} else if i != 0 {
+				print("+")
+			}
+			print(string(fmtNSAsMS(sbuf[:], uint64(ns))))
+		}
+		print(" ms cpu, ",
 			heap0>>20, "->", heap1>>20, "->", heap2>>20, " MB, ",
 			heapGoal>>20, " MB goal, ",
 			maxprocs, " P")
@@ -1513,4 +1520,24 @@ func itoaDiv(buf []byte, val uint64, dec int) []byte {
 	}
 	buf[i] = byte(val + '0')
 	return buf[i:]
+}
+
+// fmtNSAsMS nicely formats ns nanoseconds as milliseconds.
+func fmtNSAsMS(buf []byte, ns uint64) []byte {
+	if ns >= 10e6 {
+		// Format as whole milliseconds.
+		return itoaDiv(buf, ns/1e6, 0)
+	}
+	// Format two digits of precision, with at most three decimal places.
+	x := ns / 1e3
+	if x == 0 {
+		buf[0] = '0'
+		return buf[:1]
+	}
+	dec := 3
+	for x >= 100 {
+		x /= 10
+		dec--
+	}
+	return itoaDiv(buf, x, dec)
 }
