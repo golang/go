@@ -42,9 +42,11 @@ func (root osFS) Open(path string) (ReadSeekCloser, error) {
 	}
 	fi, err := f.Stat()
 	if err != nil {
+		f.Close()
 		return nil, err
 	}
 	if fi.IsDir() {
+		f.Close()
 		return nil, fmt.Errorf("Open: %s is a directory", path)
 	}
 	return f, nil
