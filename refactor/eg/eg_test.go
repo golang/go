@@ -100,7 +100,7 @@ func Test(t *testing.T) {
 		if strings.HasSuffix(filename, "template") {
 			// a new template
 			shouldFail, _ := info.Pkg.Scope().Lookup("shouldFail").(*types.Const)
-			xform, err = eg.NewTransformer(iprog.Fset, info, *verboseFlag)
+			xform, err = eg.NewTransformer(iprog.Fset, info.Pkg, file, &info.Info, *verboseFlag)
 			if err != nil {
 				if shouldFail == nil {
 					t.Errorf("NewTransformer(%s): %s", filename, err)

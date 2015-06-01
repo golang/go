@@ -90,7 +90,7 @@ func doMain() error {
 
 	// Analyze the template.
 	template := iprog.Created[0]
-	xform, err := eg.NewTransformer(iprog.Fset, template, *verboseFlag)
+	xform, err := eg.NewTransformer(iprog.Fset, template.Pkg, template.Files[0], &template.Info, *verboseFlag)
 	if err != nil {
 		return err
 	}

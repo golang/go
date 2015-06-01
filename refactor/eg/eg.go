@@ -11,7 +11,6 @@ import (
 	"go/token"
 	"os"
 
-	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/types"
 )
 
@@ -131,19 +130,13 @@ changing the arguments as needed; (3) change the declaration of f to
 match f'; (4) use eg to rename f' to f in all calls; (5) delete f'.
 `
 
-// TODO(adonovan): allow the tool to be invoked using relative package
-// directory names (./foo).  Requires changes to go/loader.
-
 // TODO(adonovan): expand upon the above documentation as an HTML page.
-
-// TODO(adonovan): eliminate dependency on loader.PackageInfo.
-// Move its TypeOf method into go/types.
 
 // A Transformer represents a single example-based transformation.
 type Transformer struct {
 	fset           *token.FileSet
 	verbose        bool
-	info           loader.PackageInfo // combined type info for template/input/output ASTs
+	info           *types.Info // combined type info for template/input/output ASTs
 	seenInfos      map[*types.Info]bool
 	wildcards      map[*types.Var]bool                // set of parameters in func before()
 	env            map[string]ast.Expr                // maps parameter name to wildcard binding
@@ -157,16 +150,17 @@ type Transformer struct {
 }
 
 // NewTransformer returns a transformer based on the specified template,
-// a package containing "before" and "after" functions as described
-// in the package documentation.
+// a single-file package containing "before" and "after" functions as
+// described in the package documentation.
+// tmplInfo is the type information for tmplFile.
 //
-func NewTransformer(fset *token.FileSet, template *loader.PackageInfo, verbose bool) (*Transformer, error) {
+func NewTransformer(fset *token.FileSet, tmplPkg *types.Package, tmplFile *ast.File, tmplInfo *types.Info, verbose bool) (*Transformer, error) {
 	// Check the template.
-	beforeSig := funcSig(template.Pkg, "before")
+	beforeSig := funcSig(tmplPkg, "before")
 	if beforeSig == nil {
 		return nil, fmt.Errorf("no 'before' func found in template")
 	}
-	afterSig := funcSig(template.Pkg, "after")
+	afterSig := funcSig(tmplPkg, "after")
 	if afterSig == nil {
 		return nil, fmt.Errorf("no 'after' func found in template")
 	}
@@ -177,18 +171,17 @@ func NewTransformer(fset *token.FileSet, template *loader.PackageInfo, verbose b
 			beforeSig, afterSig)
 	}
 
-	templateFile := template.Files[0]
-	for _, imp := range templateFile.Imports {
+	for _, imp := range tmplFile.Imports {
 		if imp.Name != nil && imp.Name.Name == "." {
 			// Dot imports are currently forbidden.  We
 			// make the simplifying assumption that all
 			// imports are regular, without local renames.
-			//TODO document
+			// TODO(adonovan): document
 			return nil, fmt.Errorf("dot-import (of %s) in template", imp.Path.Value)
 		}
 	}
 	var beforeDecl, afterDecl *ast.FuncDecl
-	for _, decl := range templateFile.Decls {
+	for _, decl := range tmplFile.Decls {
 		if decl, ok := decl.(*ast.FuncDecl); ok {
 			switch decl.Name.Name {
 			case "before":
@@ -228,8 +221,8 @@ func NewTransformer(fset *token.FileSet, template *loader.PackageInfo, verbose b
 	// of the replacement.  (Consider the rule that array literal keys
 	// must be unique.)  So we cannot hope to prove the safety of a
 	// transformation in general.
-	Tb := template.TypeOf(before)
-	Ta := template.TypeOf(after)
+	Tb := tmplInfo.TypeOf(before)
+	Ta := tmplInfo.TypeOf(after)
 	if types.AssignableTo(Tb, Ta) {
 		// safe: replacement is assignable to pattern.
 	} else if tuple, ok := Tb.(*types.Tuple); ok && tuple.Len() == 0 {
@@ -253,19 +246,16 @@ func NewTransformer(fset *token.FileSet, template *loader.PackageInfo, verbose b
 	// type info for the synthesized ASTs too.  This saves us
 	// having to book-keep where each ast.Node originated as we
 	// construct the resulting hybrid AST.
-	//
-	// TODO(adonovan): move type utility methods of PackageInfo to
-	// types.Info, or at least into go/types.typeutil.
-	tr.info.Info = types.Info{
+	tr.info = &types.Info{
 		Types:      make(map[ast.Expr]types.TypeAndValue),
 		Defs:       make(map[*ast.Ident]types.Object),
 		Uses:       make(map[*ast.Ident]types.Object),
 		Selections: make(map[*ast.SelectorExpr]*types.Selection),
 	}
-	mergeTypeInfo(&tr.info.Info, &template.Info)
+	mergeTypeInfo(tr.info, tmplInfo)
 
 	// Compute set of imported objects required by after().
-	// TODO reject dot-imports in pattern
+	// TODO(adonovan): reject dot-imports in pattern
 	ast.Inspect(after, func(n ast.Node) bool {
 		if n, ok := n.(*ast.SelectorExpr); ok {
 			if _, ok := tr.info.Selections[n]; !ok {
