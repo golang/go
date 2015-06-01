@@ -240,7 +240,7 @@ func (b *workbuf) logput(entry int) {
 		return
 	}
 	if !b.inuse {
-		println("runtime:logput fails log entry=", entry,
+		println("runtime: logput fails log entry=", entry,
 			"b.log[0]=", b.log[0], "b.log[1]=", b.log[1],
 			"b.log[2]=", b.log[2], "b.log[3]=", b.log[3])
 		throw("logput: put not legal")
@@ -388,10 +388,18 @@ func getfull(entry int) *workbuf {
 		return b
 	}
 
-	xadd(&work.nwait, +1)
+	incnwait := xadd(&work.nwait, +1)
+	if incnwait > work.nproc {
+		println("runtime: work.nwait=", incnwait, "work.nproc=", work.nproc)
+		throw("work.nwait > work.nproc")
+	}
 	for i := 0; ; i++ {
 		if work.full != 0 || work.partial != 0 {
-			xadd(&work.nwait, -1)
+			decnwait := xadd(&work.nwait, -1)
+			if decnwait == work.nproc {
+				println("runtime: work.nwait=", decnwait, "work.nproc=", work.nproc)
+				throw("work.nwait > work.nproc")
+			}
 			b = (*workbuf)(lfstackpop(&work.full))
 			if b == nil {
 				b = (*workbuf)(lfstackpop(&work.partial))
@@ -401,7 +409,11 @@ func getfull(entry int) *workbuf {
 				b.checknonempty()
 				return b
 			}
-			xadd(&work.nwait, +1)
+			incnwait := xadd(&work.nwait, +1)
+			if incnwait > work.nproc {
+				println("runtime: work.nwait=", incnwait, "work.nproc=", work.nproc)
+				throw("work.nwait > work.nproc")
+			}
 		}
 		if work.nwait == work.nproc {
 			return nil
