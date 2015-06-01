@@ -31,9 +31,10 @@ func gcscan_m() {
 
 	work.nwait = 0
 	work.ndone = 0
-	work.nproc = 1 // For now do not do this in parallel.
+	work.nproc = 1
+	useOneP := uint32(1) // For now do not do this in parallel.
 	//	ackgcphase is not needed since we are not scanning running goroutines.
-	parforsetup(work.markfor, work.nproc, uint32(_RootCount+local_allglen), false, markroot)
+	parforsetup(work.markfor, useOneP, uint32(_RootCount+local_allglen), false, markroot)
 	parfordo(work.markfor)
 
 	lock(&allglock)
@@ -193,12 +194,24 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 
 	// Perform assist work
 	systemstack(func() {
+		if atomicload(&gcBlackenEnabled) == 0 {
+			// The gcBlackenEnabled check in malloc races with the
+			// store that clears it but an atomic check in every malloc
+			// would be a performance hit.
+			// Instead we recheck it here on the non-preemptable system
+			// stack to determine if we should preform an assist.
+			return
+		}
 		// Track time spent in this assist. Since we're on the
 		// system stack, this is non-preemptible, so we can
 		// just measure start and end time.
 		startTime := nanotime()
 
-		xadd(&work.nwait, -1)
+		decnwait := xadd(&work.nwait, -1)
+		if decnwait == work.nproc {
+			println("runtime: work.nwait =", decnwait, "work.nproc=", work.nproc)
+			throw("nwait > work.nprocs")
+		}
 
 		// drain own cached work first in the hopes that it
 		// will be more cache friendly.
@@ -207,16 +220,33 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 		gcDrainN(gcw, scanWork)
 		// Record that we did this much scan work.
 		gp.gcscanwork += gcw.scanWork - startScanWork
-		// No need to dispose since we're not in mark termination.
-
+		// If we are near the end of the mark phase
+		// dispose of the gcw.
+		if gcBlackenPromptly {
+			gcw.dispose()
+		}
 		// If this is the last worker and we ran out of work,
 		// signal a completion point.
-		if xadd(&work.nwait, +1) == work.nproc && work.full == 0 && work.partial == 0 {
-			// This has reached a background completion
-			// point.
-			gcBgMarkDone()
+		incnwait := xadd(&work.nwait, +1)
+		if incnwait > work.nproc {
+			println("runtime: work.nwait=", incnwait,
+				"work.nproc=", work.nproc,
+				"gcBlackenPromptly=", gcBlackenPromptly)
+			throw("work.nwait > work.nproc")
 		}
 
+		if incnwait == work.nproc && work.full == 0 && work.partial == 0 {
+			// This has reached a background completion
+			// point.
+			if gcBlackenPromptly {
+				if work.bgMark1.done == 0 {
+					throw("completing mark 2, but bgMark1.done == 0")
+				}
+				work.bgMark2.complete()
+			} else {
+				work.bgMark1.complete()
+			}
+		}
 		duration := nanotime() - startTime
 		_p_ := gp.m.p.ptr()
 		_p_.gcAssistTime += duration
@@ -795,7 +825,7 @@ func shade(b uintptr) {
 	if obj, hbits, span := heapBitsForObject(b); obj != 0 {
 		gcw := &getg().m.p.ptr().gcw
 		greyobject(obj, 0, 0, hbits, span, gcw)
-		if gcphase == _GCmarktermination {
+		if gcphase == _GCmarktermination || gcBlackenPromptly {
 			// Ps aren't allowed to cache work during mark
 			// termination.
 			gcw.dispose()
@@ -885,16 +915,12 @@ func gcDumpObject(label string, obj, off uintptr) {
 	}
 }
 
-// When in GCmarkterminate phase we allocate black.
+// If gcBlackenPromptly is true we are in the second mark phase phase so we allocate black.
 //go:nowritebarrier
 func gcmarknewobject_m(obj, size uintptr) {
-	if gcphase != _GCmarktermination {
-		throw("marking new object while not in mark termination phase")
-	}
-	if useCheckmark { // The world should be stopped so this should not happen.
+	if useCheckmark && !gcBlackenPromptly { // The world should be stopped so this should not happen.
 		throw("gcmarknewobject called while doing checkmark")
 	}
-
 	heapBitsForAddr(obj).setMarked()
 	xadd64(&work.bytesMarked, int64(size))
 }
