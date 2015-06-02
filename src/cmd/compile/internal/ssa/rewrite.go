@@ -12,10 +12,10 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool) 
 	var curv *Value
 	defer func() {
 		if curb != nil {
-			log.Printf("panic during rewrite of %s\n", curb.LongString())
+			log.Printf("panic during rewrite of block %s\n", curb.LongString())
 		}
 		if curv != nil {
-			log.Printf("panic during rewrite of %s\n", curv.LongString())
+			log.Printf("panic during rewrite of value %s\n", curv.LongString())
 			panic("rewrite failed")
 			// TODO(khr): print source location also
 		}
