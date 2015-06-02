@@ -50,6 +50,9 @@ func TestCover(t *testing.T) {
 		lines[i] = bytes.Replace(line, []byte("LINE"), []byte(fmt.Sprint(i+1)), -1)
 	}
 	err = ioutil.WriteFile(coverInput, bytes.Join(lines, []byte("\n")), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// defer removal of test_line.go
 	if !debug {
