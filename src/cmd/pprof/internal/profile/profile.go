@@ -125,11 +125,11 @@ func Parse(r io.Reader) (*Profile, error) {
 
 	var p *Profile
 	if len(orig) >= 2 && orig[0] == 0x1f && orig[1] == 0x8b {
-		var data []byte
-
-		if gz, err := gzip.NewReader(bytes.NewBuffer(orig)); err == nil {
-			data, err = ioutil.ReadAll(gz)
+		gz, err := gzip.NewReader(bytes.NewBuffer(orig))
+		if err != nil {
+			return nil, fmt.Errorf("decompressing profile: %v", err)
 		}
+		data, err := ioutil.ReadAll(gz)
 		if err != nil {
 			return nil, fmt.Errorf("decompressing profile: %v", err)
 		}
