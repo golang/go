@@ -6,7 +6,6 @@ package gosym
 
 import (
 	"debug/elf"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -30,10 +29,6 @@ func dotest(self bool) bool {
 	if self && runtime.GOOS != "linux" {
 		return false
 	}
-	// Command below expects "sh", so Unix.
-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
-		return false
-	}
 	if pclinetestBinary != "" {
 		return true
 	}
@@ -49,9 +44,14 @@ func dotest(self bool) bool {
 	// the resulting binary looks like it was built from pclinetest.s,
 	// but we have renamed it to keep it away from the go tool.
 	pclinetestBinary = filepath.Join(pclineTempDir, "pclinetest")
-	command := fmt.Sprintf("go tool asm -o %s.o pclinetest.asm && go tool link -H linux -E main -o %s %s.o",
-		pclinetestBinary, pclinetestBinary, pclinetestBinary)
-	cmd := exec.Command("sh", "-c", command)
+	cmd := exec.Command("go", "tool", "asm", "-o", pclinetestBinary+".o", "pclinetest.asm")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		panic(err)
+	}
+	cmd = exec.Command("go", "tool", "link", "-H", "linux", "-E", "main",
+		"-o", pclinetestBinary, pclinetestBinary+".o")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
