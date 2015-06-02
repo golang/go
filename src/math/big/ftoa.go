@@ -289,7 +289,7 @@ func (x *Float) fmtP(buf []byte) []byte {
 	m = m[i:]
 
 	buf = append(buf, "0x."...)
-	buf = append(buf, strings.TrimRight(x.mant.hexString(), "0")...)
+	buf = append(buf, strings.TrimRight(m.hexString(), "0")...)
 	buf = append(buf, 'p')
 	if x.exp >= 0 {
 		buf = append(buf, '+')
