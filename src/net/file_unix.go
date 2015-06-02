@@ -45,7 +45,8 @@ func newFileFD(f *os.File, sa SocketAddr) (*netFD, error) {
 		fd, err = newFD(s, -1, -1, laddr.Network())
 	} else {
 		family := syscall.AF_UNSPEC
-		sotype, err := syscall.GetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_TYPE)
+		var sotype int
+		sotype, err = syscall.GetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_TYPE)
 		if err != nil {
 			closeFunc(s)
 			return nil, os.NewSyscallError("getsockopt", err)
