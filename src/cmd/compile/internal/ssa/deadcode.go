@@ -82,7 +82,7 @@ func deadcode(f *Func) {
 			i++
 		} else {
 			if len(b.Values) > 0 {
-				panic("live value in unreachable block")
+				log.Panicf("live values in unreachable block %v: %v", b, b.Values)
 			}
 			f.bid.put(b.ID)
 		}
