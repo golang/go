@@ -13,7 +13,7 @@ import (
 
 // common holds the information shared by related templates.
 type common struct {
-	tmpl   map[string]*Template
+	tmpl   map[string]*Template // Map from name to defined templates.
 	option option
 	// We use two maps, one for parsing and one for execution.
 	// This separation makes the API cleaner since it doesn't
@@ -34,7 +34,7 @@ type Template struct {
 	rightDelim string
 }
 
-// New allocates a new template with the given name.
+// New allocates a new, undefined template with the given name.
 func New(name string) *Template {
 	t := &Template{
 		name: name,
@@ -48,7 +48,7 @@ func (t *Template) Name() string {
 	return t.name
 }
 
-// New allocates a new template associated with the given one and with the same
+// New allocates a new, undefined template associated with the given one and with the same
 // delimiters. The association, which is transitive, allows one template to
 // invoke another with a {{template}} action.
 func (t *Template) New(name string) *Template {
@@ -58,16 +58,17 @@ func (t *Template) New(name string) *Template {
 		leftDelim:  t.leftDelim,
 		rightDelim: t.rightDelim,
 	}
-	nt.init()
 	return nt
 }
 
+// init guarantees that t has a valid common structure.
 func (t *Template) init() {
 	if t.common == nil {
-		t.common = new(common)
-		t.tmpl = make(map[string]*Template)
-		t.parseFuncs = make(FuncMap)
-		t.execFuncs = make(map[string]reflect.Value)
+		c := new(common)
+		c.tmpl = make(map[string]*Template)
+		c.parseFuncs = make(FuncMap)
+		c.execFuncs = make(map[string]reflect.Value)
+		t.common = c
 	}
 }
 
@@ -156,13 +157,13 @@ func (t *Template) Funcs(funcMap FuncMap) *Template {
 	return t
 }
 
-// Lookup returns the template with the given name that is associated with t,
-// or nil if there is no such template.
+// Lookup returns the template with the given name that is associated with t.
+// It returns nil if there is no such template or the template has no definition.
 func (t *Template) Lookup(name string) *Template {
 	return t.tmpl[name]
 }
 
-// Parse parses a string into a template. Nested template definitions will be
+// Parse defines the template by parsing the text. Nested template definitions will be
 // associated with the top-level template t. Parse may be called multiple times
 // to parse definitions of templates to associate with t. It is an error if a
 // resulting template is non-empty (contains content other than template
