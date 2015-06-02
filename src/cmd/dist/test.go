@@ -410,14 +410,12 @@ func (t *tester) registerTests() {
 		t.registerTest("testgodefs", "../misc/cgo/testgodefs", "./test.bash")
 	}
 	if t.cgoEnabled {
-		if t.gohostos == "windows" {
+		if t.cgoTestSOSupported() {
 			t.tests = append(t.tests, distTest{
 				name:    "testso",
 				heading: "../misc/cgo/testso",
-				fn:      t.cgoTestSOWindows,
+				fn:      t.cgoTestSO,
 			})
-		} else if t.hasBash() && t.goos != "android" && !t.iOS() {
-			t.registerTest("testso", "../misc/cgo/testso", "./test.bash")
 		}
 		if t.supportedBuildmode("c-archive") {
 			t.registerTest("testcarchive", "../misc/cgo/testcarchive", "./test.bash")
@@ -714,21 +712,67 @@ func (t *tester) cgoTest() error {
 	return nil
 }
 
-func (t *tester) cgoTestSOWindows() error {
-	cmd := t.dirCmd("misc/cgo/testso", `.\test`)
-	var buf bytes.Buffer
-	cmd.Stdout = &buf
-	cmd.Stderr = &buf
-	err := cmd.Run()
-	s := buf.String()
-	fmt.Println(s)
+func (t *tester) cgoTestSOSupported() bool {
+	if t.goos == "android" || t.iOS() {
+		// No exec facility on Android or iOS.
+		return false
+	}
+	if t.goos == "ppc64le" || t.goos == "ppc64" {
+		// External linking not implemented on ppc64 (issue #8912).
+		return false
+	}
+	return true
+}
+
+func (t *tester) cgoTestSO() error {
+	dir := filepath.Join(t.goroot, "misc/cgo/testso")
+
+	// build shared object
+	output, err := exec.Command("go", "env", "CC").Output()
 	if err != nil {
+		return fmt.Errorf("Error running go env CC: %v", err)
+	}
+	cc := strings.TrimSuffix(string(output), "\n")
+	if cc == "" {
+		return errors.New("CC environment variable (go env CC) cannot be empty")
+	}
+	output, err = exec.Command("go", "env", "GOGCCFLAGS").Output()
+	if err != nil {
+		return fmt.Errorf("Error running go env GOGCCFLAGS: %v", err)
+	}
+	gogccflags := strings.Split(strings.TrimSuffix(string(output), "\n"), " ")
+
+	ext := "so"
+	args := append(gogccflags, "-shared")
+	switch t.goos {
+	case "darwin":
+		ext = "dylib"
+		args = append(args, "-undefined", "suppress", "-flat_namespace")
+	case "windows":
+		ext = "dll"
+	}
+	sofname := "libcgosotest." + ext
+	args = append(args, "-o", sofname, "cgoso_c.c")
+
+	if err := t.dirCmd(dir, cc, args...).Run(); err != nil {
 		return err
 	}
-	if strings.Contains(s, "FAIL") {
-		return errors.New("test failed")
+	defer os.Remove(filepath.Join(dir, sofname))
+
+	if err := t.dirCmd(dir, "go", "build", "-o", "main.exe", "main.go").Run(); err != nil {
+		return err
 	}
-	return nil
+	defer os.Remove(filepath.Join(dir, "main.exe"))
+
+	cmd := t.dirCmd(dir, "./main.exe")
+	if t.goos != "windows" {
+		s := "LD_LIBRARY_PATH"
+		if t.goos == "darwin" {
+			s = "DYLD_LIBRARY_PATH"
+		}
+		cmd.Env = mergeEnvLists([]string{s + "=."}, os.Environ())
+	}
+	return cmd.Run()
 }
 
 func (t *tester) hasBash() bool {
