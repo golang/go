@@ -1006,7 +1006,7 @@ func gc(mode int) {
 		var sbuf [24]byte
 		printlock()
 		print("gc #", memstats.numgc,
-			" @", string(itoaDiv(sbuf[:], uint64(tEnd-runtimeInitTime)/1e6, 3)), "s ",
+			" @", string(itoaDiv(sbuf[:], uint64(tSweepTerm-runtimeInitTime)/1e6, 3)), "s ",
 			util, "%: ")
 		prev := tSweepTerm
 		for i, ns := range []int64{tScan, tInstallWB, tMark, tMarkTerm, tEnd} {
