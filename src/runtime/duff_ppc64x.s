@@ -135,6 +135,6 @@ TEXT runtime·duffzero(SB), NOSPLIT, $-8-0
 	MOVDU	R0, 8(R3)
 	MOVDU	R0, 8(R3)
 	MOVDU	R0, 8(R3)
-	RETURN
+	RET
 
 // TODO: Implement runtime·duffcopy.
