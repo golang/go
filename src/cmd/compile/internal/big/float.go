@@ -16,7 +16,7 @@ import (
 	"math"
 )
 
-const debugFloat = true // enable for debugging
+const debugFloat = false // enable for debugging
 
 // A nonzero finite Float represents a multi-precision floating point number
 //
@@ -363,7 +363,7 @@ func (x *Float) validate() {
 	}
 	const msb = 1 << (_W - 1)
 	if x.mant[m-1]&msb == 0 {
-		panic(fmt.Sprintf("msb not set in last word %#x of %s", x.mant[m-1], x.Format('p', 0)))
+		panic(fmt.Sprintf("msb not set in last word %#x of %s", x.mant[m-1], x.Text('p', 0)))
 	}
 	if x.prec == 0 {
 		panic("zero precision finite number")
@@ -381,14 +381,11 @@ func (x *Float) validate() {
 func (z *Float) round(sbit uint) {
 	if debugFloat {
 		z.validate()
-		if z.form > finite {
-			panic(fmt.Sprintf("round called for non-finite value %s", z))
-		}
 	}
-	// z.form <= finite
 
 	z.acc = Exact
-	if z.form == zero {
+	if z.form != finite {
+		// ±0 or ±Inf => nothing left to do
 		return
 	}
 	// z.form == finite && len(z.mant) > 0
@@ -523,25 +520,6 @@ func (z *Float) round(sbit uint) {
 	}
 
 	return
-}
-
-// nlz returns the number of leading zero bits in x.
-func nlz(x Word) uint {
-	return _W - uint(bitLen(x))
-}
-
-func nlz64(x uint64) uint {
-	// TODO(gri) this can be done more nicely
-	if _W == 32 {
-		if x>>32 == 0 {
-			return 32 + nlz(Word(x))
-		}
-		return nlz(Word(x >> 32))
-	}
-	if _W == 64 {
-		return nlz(Word(x))
-	}
-	panic("unreachable")
 }
 
 func (z *Float) setBits64(neg bool, x uint64) *Float {
@@ -732,25 +710,44 @@ func (z *Float) Copy(x *Float) *Float {
 	return z
 }
 
-func high32(x nat) uint32 {
-	// TODO(gri) This can be done more efficiently on 32bit platforms.
-	return uint32(high64(x) >> 32)
-}
-
-func high64(x nat) uint64 {
-	i := len(x)
-	if i == 0 {
+// msb32 returns the 32 most significant bits of x.
+func msb32(x nat) uint32 {
+	i := len(x) - 1
+	if i < 0 {
 		return 0
 	}
-	// i > 0
-	v := uint64(x[i-1])
-	if _W == 32 {
-		v <<= 32
-		if i > 1 {
-			v |= uint64(x[i-2])
-		}
+	if debugFloat && x[i]&(1<<(_W-1)) == 0 {
+		panic("x not normalized")
 	}
-	return v
+	switch _W {
+	case 32:
+		return uint32(x[i])
+	case 64:
+		return uint32(x[i] >> 32)
+	}
+	panic("unreachable")
+}
+
+// msb64 returns the 64 most significant bits of x.
+func msb64(x nat) uint64 {
+	i := len(x) - 1
+	if i < 0 {
+		return 0
+	}
+	if debugFloat && x[i]&(1<<(_W-1)) == 0 {
+		panic("x not normalized")
+	}
+	switch _W {
+	case 32:
+		v := uint64(x[i]) << 32
+		if i > 0 {
+			v |= uint64(x[i-1])
+		}
+		return v
+	case 64:
+		return uint64(x[i])
+	}
+	panic("unreachable")
 }
 
 // Uint64 returns the unsigned integer resulting from truncating x
@@ -776,7 +773,7 @@ func (x *Float) Uint64() (uint64, Accuracy) {
 		// 1 <= x < Inf
 		if x.exp <= 64 {
 			// u = trunc(x) fits into a uint64
-			u := high64(x.mant) >> (64 - uint32(x.exp))
+			u := msb64(x.mant) >> (64 - uint32(x.exp))
 			if x.MinPrec() <= 64 {
 				return u, Exact
 			}
@@ -821,7 +818,7 @@ func (x *Float) Int64() (int64, Accuracy) {
 		// 1 <= |x| < +Inf
 		if x.exp <= 63 {
 			// i = trunc(x) fits into an int64 (excluding math.MinInt64)
-			i := int64(high64(x.mant) >> (64 - uint32(x.exp)))
+			i := int64(msb64(x.mant) >> (64 - uint32(x.exp)))
 			if x.neg {
 				i = -i
 			}
@@ -913,6 +910,7 @@ func (x *Float) Float32() (float32, Accuracy) {
 			}
 			return float32(math.Inf(+1)), Above
 		}
+		// e <= emax
 
 		// Determine sign, biased exponent, and mantissa.
 		var sign, bexp, mant uint32
@@ -933,11 +931,11 @@ func (x *Float) Float32() (float32, Accuracy) {
 				return 0.0, Below
 			}
 			// bexp = 0
-			mant = high32(r.mant) >> (fbits - r.prec)
+			mant = msb32(r.mant) >> (fbits - r.prec)
 		} else {
 			// normal number: emin <= e <= emax
 			bexp = uint32(e+bias) << mbits
-			mant = high32(r.mant) >> ebits & (1<<mbits - 1) // cut off msb (implicit 1 bit)
+			mant = msb32(r.mant) >> ebits & (1<<mbits - 1) // cut off msb (implicit 1 bit)
 		}
 
 		return math.Float32frombits(sign | bexp | mant), r.acc
@@ -1019,6 +1017,7 @@ func (x *Float) Float64() (float64, Accuracy) {
 			}
 			return math.Inf(+1), Above
 		}
+		// e <= emax
 
 		// Determine sign, biased exponent, and mantissa.
 		var sign, bexp, mant uint64
@@ -1039,11 +1038,11 @@ func (x *Float) Float64() (float64, Accuracy) {
 				return 0.0, Below
 			}
 			// bexp = 0
-			mant = high64(r.mant) >> (fbits - r.prec)
+			mant = msb64(r.mant) >> (fbits - r.prec)
 		} else {
 			// normal number: emin <= e <= emax
 			bexp = uint64(e+bias) << mbits
-			mant = high64(r.mant) >> ebits & (1<<mbits - 1) // cut off msb (implicit 1 bit)
+			mant = msb64(r.mant) >> ebits & (1<<mbits - 1) // cut off msb (implicit 1 bit)
 		}
 
 		return math.Float64frombits(sign | bexp | mant), r.acc

@@ -178,7 +178,7 @@ func (f *Mpflt) String() string {
 
 func Fconv(fvp *Mpflt, flag int) string {
 	if flag&obj.FmtSharp == 0 {
-		return fvp.Val.Format('b', 0)
+		return fvp.Val.Text('b', 0)
 	}
 
 	// use decimal format for error messages
