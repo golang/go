@@ -476,7 +476,7 @@ func (t *tester) extLink() bool {
 		"darwin-arm", "darwin-arm64",
 		"dragonfly-386", "dragonfly-amd64",
 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
-		"linux-386", "linux-amd64", "linux-arm",
+		"linux-386", "linux-amd64", "linux-arm", "linux-arm64",
 		"netbsd-386", "netbsd-amd64",
 		"openbsd-386", "openbsd-amd64",
 		"windows-386", "windows-amd64":
