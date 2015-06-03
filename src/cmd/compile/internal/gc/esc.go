@@ -411,7 +411,7 @@ type EscState struct {
 	walkgen   uint32
 }
 
-// funcSym returns n.Nname.Sym if no nils are encountered along the way.
+// funcSym returns fn.Func.Nname.Sym if no nils are encountered along the way.
 func funcSym(fn *Node) *Sym {
 	if fn == nil || fn.Func.Nname == nil {
 		return nil
@@ -1238,7 +1238,14 @@ func escassignfromtag(e *EscState, note *string, dsts *NodeList, src *Node) uint
 	return em0
 }
 
-// e.addDereference constructs a suitable OIND note applied to src.
+func escassignDereference(e *EscState, dst *Node, src *Node) {
+	if src.Op == OLITERAL {
+		return
+	}
+	escassign(e, dst, e.addDereference(src))
+}
+
+// addDereference constructs a suitable OIND note applied to src.
 // Because this is for purposes of escape accounting, not execution,
 // some semantically dubious node combinations are (currently) possible.
 func (e *EscState) addDereference(n *Node) *Node {

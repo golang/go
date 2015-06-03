@@ -236,6 +236,9 @@ func Jconv(n *Node, flag int) string {
 	if n.Name != nil && n.Name.Funcdepth != 0 {
 		fmt.Fprintf(&buf, " f(%d)", n.Name.Funcdepth)
 	}
+	if n.Func != nil && n.Func.Depth != 0 {
+		fmt.Fprintf(&buf, " ff(%d)", n.Func.Depth)
+	}
 
 	switch n.Esc {
 	case EscUnknown:

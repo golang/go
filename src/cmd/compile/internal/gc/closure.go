@@ -72,7 +72,7 @@ func closurebody(body *NodeList) *Node {
 	var v *Node
 	for l := func_.Func.Cvars; l != nil; l = l.Next {
 		v = l.N
-		v.Name.Param.Closure.Name.Closure = v.Name.Outer
+		v.Name.Param.Closure.Name.Param.Closure = v.Name.Param.Outer
 		v.Name.Param.Outerexpr = oldname(v.Sym)
 	}
 

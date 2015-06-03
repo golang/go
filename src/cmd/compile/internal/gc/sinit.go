@@ -18,9 +18,11 @@ const (
 	InitPending    = 2
 )
 
-var initlist *NodeList
-var initplans = make(map[*Node]*InitPlan)
-var inittemps = make(map[*Node]*Node)
+var (
+	initlist  *NodeList
+	initplans map[*Node]*InitPlan
+	inittemps = make(map[*Node]*Node)
+)
 
 // init1 walks the AST starting at n, and accumulates in out
 // the list of definitions needing init code in dependency order.
@@ -255,9 +257,11 @@ func initreorder(l *NodeList, out **NodeList) {
 // to include in the init() function body.
 func initfix(l *NodeList) *NodeList {
 	var lout *NodeList
+	initplans = make(map[*Node]*InitPlan)
 	lno := int(lineno)
 	initreorder(l, &lout)
 	lineno = int32(lno)
+	initplans = nil
 	return lout
 }
 

@@ -98,6 +98,9 @@ type NilVal struct{}
 func (v Val) Ctype() int {
 	switch x := v.U.(type) {
 	default:
+		Fatal("unexpected Ctype for %T", v.U)
+		panic("not reached")
+	case nil:
 		return 0
 	case *NilVal:
 		return CTNIL
