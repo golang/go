@@ -692,13 +692,13 @@ label1:
 //	}
 	NOP	$4
 
-// RETURN
+// RET
 //
 //	LRETRN	comma // asm doesn't support the trailing comma.
 //	{
 //		outcode(int($1), &nullgen, 0, &nullgen);
 //	}
-	RETURN
+	RET
 
 // END
 //
