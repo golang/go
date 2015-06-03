@@ -81,9 +81,9 @@ func (t *Template) init() {
 func (t *Template) Clone() (*Template, error) {
 	nt := t.copy(nil)
 	nt.init()
-	nt.tmpl[t.name] = nt
 	for k, v := range t.tmpl {
-		if k == t.name { // Already installed.
+		if k == t.name {
+			nt.tmpl[t.name] = nt
 			continue
 		}
 		// The associated templates share nt's common structure.
@@ -111,20 +111,26 @@ func (t *Template) copy(c *common) *Template {
 	return nt
 }
 
-// AddParseTree creates a new template with the name and parse tree
-// and associates it with t.
+// AddParseTree adds parse tree for template with given name and associates it with t.
+// If the template does not already exist, it will create a new one.
+// It is an error to reuse a name except to overwrite an empty template.
 func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error) {
-	if t.tmpl[name] != nil {
-		return nil, fmt.Errorf("template: redefinition of template %q", name)
+	// If the name is the name of this template, overwrite this template.
+	// The associate method checks it's not a redefinition.
+	nt := t
+	if name != t.name {
+		nt = t.New(name)
 	}
-	nt := t.New(name)
-	nt.Tree = tree
-	t.tmpl[name] = nt
+	// Even if nt == t, we need to install it in the common.tmpl map.
+	if replace, err := t.associate(nt, tree); err != nil {
+		return nil, err
+	} else if replace {
+		nt.Tree = tree
+	}
 	return nt, nil
 }
 
-// Templates returns a slice of the templates associated with t, including t
-// itself.
+// Templates returns a slice of defined templates associated with t.
 func (t *Template) Templates() []*Template {
 	// Return a slice so we don't expose the map.
 	m := make([]*Template, 0, len(t.tmpl))
@@ -179,20 +185,9 @@ func (t *Template) Parse(text string) (*Template, error) {
 	}
 	// Add the newly parsed trees, including the one for t, into our common structure.
 	for name, tree := range trees {
-		// If the name we parsed is the name of this template, overwrite this template.
-		// The associate method checks it's not a redefinition.
-		tmpl := t
-		if name != t.name {
-			tmpl = t.New(name)
-		}
-		// Even if t == tmpl, we need to install it in the common.tmpl map.
-		if replace, err := t.associate(tmpl, tree); err != nil {
+		if _, err := t.AddParseTree(name, tree); err != nil {
 			return nil, err
-		} else if replace {
-			tmpl.Tree = tree
 		}
-		tmpl.leftDelim = t.leftDelim
-		tmpl.rightDelim = t.rightDelim
 	}
 	return t, nil
 }
