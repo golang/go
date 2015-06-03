@@ -35,11 +35,16 @@ Rewrites
  - <regwidth ops.  For example, x+y on int32s on amd64 needs (MOVLQSX (ADDL x y)).
    Then add rewrites like (MOVLstore (MOVLQSX x) m) -> (MOVLstore x m)
    to get rid of most of the MOVLQSX.
+ - Determine which nil checks can be done implicitly (by faulting)
+   and which need code generated, and do the code generation.
 
 Common-Subexpression Elimination
+ - Canonicalize types.
  - Make better decision about which value in an equivalence class we should
    choose to replace other values in that class.
  - Can we move control values out of their basic block?
+   This would break nilcheckelim as currently implemented,
+   but it could be replaced by a similar CFG simplication pass.
 
 Other
  - Write barriers

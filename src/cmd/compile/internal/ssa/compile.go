@@ -52,6 +52,7 @@ var passes = [...]pass{
 	{"copyelim", copyelim},
 	{"opt", opt},
 	{"generic cse", cse},
+	{"nilcheckelim", nilcheckelim},
 	{"generic deadcode", deadcode},
 	{"dse", dse},
 	{"fuse", fuse},
@@ -77,6 +78,12 @@ var passOrder = [...]constraint{
 	// common-subexpression before dead-store elim, so that we recognize
 	// when two address expressions are the same.
 	{"generic cse", "dse"},
+	// cse substantially improves nilcheckelim efficacy
+	{"generic cse", "nilcheckelim"},
+	// allow deadcode to clean up after nilcheckelim
+	{"nilcheckelim", "generic deadcode"},
+	// nilcheckelim generates sequences of plain basic blocks
+	{"nilcheckelim", "fuse"},
 	// don't layout blocks until critical edges have been removed
 	{"critical", "layout"},
 	// regalloc requires the removal of all critical edges
