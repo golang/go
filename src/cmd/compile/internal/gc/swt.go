@@ -280,7 +280,6 @@ func (s *exprSwitch) walk(sw *Node) {
 		sw.Nbody = concat(cas, sw.Nbody)
 		walkstmtlist(sw.Nbody)
 	}
-
 }
 
 // walkCases generates an AST implementing the cases in cc.

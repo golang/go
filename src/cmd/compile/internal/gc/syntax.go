@@ -73,15 +73,15 @@ type Node struct {
 
 // Name holds Node fields used only by named nodes (ONAME, OPACK, some OLITERAL).
 type Name struct {
-	Pack     *Node // real package for import . names
-	Pkg      *Pkg  // pkg for OPACK nodes
-	Heapaddr *Node // temp holding heap address of param
-	Inlvar   *Node // ONAME substitute while inlining
-	Defn     *Node // initializing assignment
-	Curfn    *Node // function for local variables
-	*Param
+	Pack      *Node // real package for import . names
+	Pkg       *Pkg  // pkg for OPACK nodes
+	Heapaddr  *Node // temp holding heap address of param
+	Inlvar    *Node // ONAME substitute while inlining
+	Defn      *Node // initializing assignment
+	Curfn     *Node // function for local variables
+	Param     *Param
 	Decldepth int32 // declaration loop depth, increased for every loop or label
-	Vargen    int32 // unique name for OTYPE/ONAME within a function.  Function outputs are numbered starting at one.
+	Vargen    int32 // unique name for ONAME within a function.  Function outputs are numbered starting at one.
 	Iota      int32 // value if this name is iota
 	Funcdepth int32
 	Method    bool // OCALLMETH name

@@ -333,6 +333,7 @@ func importdot(opkg *Pkg, pack *Node) {
 		s1.Block = s.Block
 		if s1.Def.Name == nil {
 			Dump("s1def", s1.Def)
+			Fatal("missing Name")
 		}
 		s1.Def.Name.Pack = pack
 		s1.Origpkg = opkg

@@ -823,7 +823,7 @@ OpSwitch:
 		}
 		l.Addrtaken = true
 		if l.Name != nil && l.Name.Param != nil && l.Name.Param.Closure != nil {
-			l.Name.Closure.Addrtaken = true
+			l.Name.Param.Closure.Addrtaken = true
 		}
 		defaultlit(&n.Left, nil)
 		l = n.Left
@@ -2832,36 +2832,36 @@ func keydup(n *Node, hash map[uint32][]*Node) {
 		return // we dont check variables
 	}
 
-	var b uint32
+	var h uint32
 	switch n.Val.Ctype() {
 	default: // unknown, bool, nil
-		b = 23
+		h = 23
 
 	case CTINT, CTRUNE:
-		b = uint32(Mpgetfix(n.Val.U.(*Mpint)))
+		h = uint32(Mpgetfix(n.Val.U.(*Mpint)))
 
 	case CTFLT:
 		d := mpgetflt(n.Val.U.(*Mpflt))
 		x := math.Float64bits(d)
 		for i := 0; i < 8; i++ {
-			b = b*PRIME1 + uint32(x&0xFF)
+			h = h*PRIME1 + uint32(x&0xFF)
 			x >>= 8
 		}
 
 	case CTSTR:
-		b = 0
+		h = 0
 		s := n.Val.U.(string)
 		for i := len(n.Val.U.(string)); i > 0; i-- {
-			b = b*PRIME1 + uint32(s[0])
+			h = h*PRIME1 + uint32(s[0])
 			s = s[1:]
 		}
 	}
 
 	var cmp Node
-	for _, a := range hash[b] {
+	for _, a := range hash[h] {
 		cmp.Op = OEQ
 		cmp.Left = n
-		b = 0
+		b := uint32(0)
 		if a.Op == OCONVIFACE && orign.Op == OCONVIFACE {
 			if Eqtype(a.Left.Type, n.Type) {
 				cmp.Right = a.Left
@@ -2880,7 +2880,7 @@ func keydup(n *Node, hash map[uint32][]*Node) {
 		}
 	}
 
-	hash[b] = append(hash[b], orign)
+	hash[h] = append(hash[h], orign)
 }
 
 func indexdup(n *Node, hash map[int64]*Node) {
@@ -3936,7 +3936,7 @@ func markbreaklist(l *NodeList, implicit *Node) {
 				lab = new(Label)
 				lab.Def = n.Name.Defn
 				n.Left.Sym.Label = lab
-				markbreak(n.Name.Defn, n.Name.Defn) // XXX
+				markbreak(n.Name.Defn, n.Name.Defn)
 				n.Left.Sym.Label = nil
 				l = l.Next
 				continue
