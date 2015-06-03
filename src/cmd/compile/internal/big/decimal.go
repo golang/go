@@ -19,12 +19,14 @@
 
 package big
 
-// A decimal represents a floating-point number in decimal representation.
-// The value of a decimal x is x.mant * 10 ** x.exp with 0.5 <= x.mant < 1,
-// with the most-significant mantissa digit at index 0.
+// A decimal represents an unsigned floating-point number in decimal representation.
+// The value of a non-zero decimal x is x.mant * 10 ** x.exp with 0.5 <= x.mant < 1,
+// with the most-significant mantissa digit at index 0. For the zero decimal, the
+// mantissa length and exponent are 0.
+// The zero value for decimal represents a ready-to-use 0.0.
 type decimal struct {
 	mant []byte // mantissa ASCII digits, big-endian
-	exp  int    // exponent, valid if len(mant) > 0
+	exp  int    // exponent
 }
 
 // Maximum shift amount that can be done in one pass without overflow.
@@ -46,6 +48,7 @@ func (x *decimal) init(m nat, shift int) {
 	// special case 0
 	if len(m) == 0 {
 		x.mant = x.mant[:0]
+		x.exp = 0
 		return
 	}
 
@@ -255,4 +258,7 @@ func trim(x *decimal) {
 		i--
 	}
 	x.mant = x.mant[:i]
+	if i == 0 {
+		x.exp = 0
+	}
 }

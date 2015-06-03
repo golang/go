@@ -107,9 +107,24 @@ func log2(x Word) int {
 	return bitLen(x) - 1
 }
 
-// Number of leading zeros in x.
-func leadingZeros(x Word) uint {
+// nlz returns the number of leading zeros in x.
+func nlz(x Word) uint {
 	return uint(_W - bitLen(x))
+}
+
+// nlz64 returns the number of leading zeros in x.
+func nlz64(x uint64) uint {
+	switch _W {
+	case 32:
+		w := x >> 32
+		if w == 0 {
+			return 32 + nlz(Word(x))
+		}
+		return nlz(Word(w))
+	case 64:
+		return nlz(Word(x))
+	}
+	panic("unreachable")
 }
 
 // q = (u1<<_W + u0 - r)/y
@@ -119,7 +134,7 @@ func divWW_g(u1, u0, v Word) (q, r Word) {
 		return 1<<_W - 1, 1<<_W - 1
 	}
 
-	s := leadingZeros(v)
+	s := nlz(v)
 	v <<= s
 
 	vn1 := v >> _W2
