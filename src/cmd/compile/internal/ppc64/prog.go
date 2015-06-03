@@ -99,7 +99,7 @@ var progtable = [ppc64.ALAST]obj.ProgInfo{
 	ppc64.ABLT:    {gc.Cjmp, 0, 0, 0},
 	ppc64.ABGT:    {gc.Cjmp, 0, 0, 0},
 	ppc64.ABLE:    {gc.Cjmp, 0, 0, 0},
-	ppc64.ARETURN: {gc.Break, 0, 0, 0},
+	obj.ARET:      {gc.Break, 0, 0, 0},
 	obj.ADUFFZERO: {gc.Call, 0, 0, 0},
 	obj.ADUFFCOPY: {gc.Call, 0, 0, 0},
 }

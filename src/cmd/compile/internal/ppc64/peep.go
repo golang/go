@@ -870,7 +870,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		}
 		return 0
 
-	case ppc64.ARETURN: /* funny */
+	case obj.ARET: /* funny */
 		if s != nil {
 			return 0
 		}

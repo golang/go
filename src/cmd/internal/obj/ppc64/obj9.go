@@ -44,7 +44,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 	switch p.As {
 	case ABR,
 		ABL,
-		ARETURN,
+		obj.ARET,
 		obj.ADUFFZERO,
 		obj.ADUFFCOPY:
 		if p.To.Sym != nil {
@@ -283,7 +283,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			p.Mark |= FCMP | FLOAT
 			continue
 
-		case ARETURN:
+		case obj.ARET:
 			q = p
 			if p.Link != nil {
 				p.Link.Mark |= LABEL
@@ -467,7 +467,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				p2.Pcond = q
 			}
 
-		case ARETURN:
+		case obj.ARET:
 			if p.From.Type == obj.TYPE_CONST {
 				ctxt.Diag("using BECOME (%v) is not supported!", p)
 				break
@@ -860,7 +860,7 @@ loop:
 				continue
 			}
 
-			if a == ABR || a == ARETURN || a == ARFI || a == ARFCI || a == ARFID || a == AHRFID {
+			if a == ABR || a == obj.ARET || a == ARFI || a == ARFCI || a == ARFID || a == AHRFID {
 				goto copy
 			}
 			if q.Pcond == nil || (q.Pcond.Mark&FOLL != 0) {
@@ -888,7 +888,7 @@ loop:
 
 				(*last).Link = r
 				*last = r
-				if a == ABR || a == ARETURN || a == ARFI || a == ARFCI || a == ARFID || a == AHRFID {
+				if a == ABR || a == obj.ARET || a == ARFI || a == ARFCI || a == ARFID || a == AHRFID {
 					return
 				}
 				r.As = int16(b)
@@ -917,7 +917,7 @@ loop:
 	p.Mark |= FOLL
 	(*last).Link = p
 	*last = p
-	if a == ABR || a == ARETURN || a == ARFI || a == ARFCI || a == ARFID || a == AHRFID {
+	if a == ABR || a == obj.ARET || a == ARFI || a == ARFCI || a == ARFID || a == AHRFID {
 		if p.Mark&NOSCHED != 0 {
 			p = p.Link
 			goto loop
