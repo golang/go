@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package strings implements simple functions to manipulate strings.
+// Package strings implements simple functions to manipulate UTF-8 encoded strings.
+//
+// For information about UTF-8 strings in Go, see http://blog.golang.org/strings.
 package strings
 
 import (
