@@ -80,17 +80,17 @@ nocgo:
 	BL	runtime·mstart(SB)
 
 	MOVD	R0, 1(R0)
-	RETURN
+	RET
 
 DATA	runtime·mainPC+0(SB)/8,$runtime·main(SB)
 GLOBL	runtime·mainPC(SB),RODATA,$8
 
 TEXT runtime·breakpoint(SB),NOSPLIT,$-8-0
 	MOVD	R0, 2(R0) // TODO: TD
-	RETURN
+	RET
 
 TEXT runtime·asminit(SB),NOSPLIT,$-8-0
-	RETURN
+	RET
 
 TEXT _cgo_reginit(SB),NOSPLIT,$-8-0
 	// crosscall_ppc64 and crosscall2 need to reginit, but can't
@@ -106,7 +106,7 @@ TEXT runtime·reginit(SB),NOSPLIT,$-8-0
 	FSUB	F29, F29, F28
 	FADD	F29, F29, F30
 	FADD	F30, F30, F31
-	RETURN
+	RET
 
 /*
  *  go-routine
@@ -123,7 +123,7 @@ TEXT runtime·gosave(SB), NOSPLIT, $-8-8
 	MOVD	R0, gobuf_lr(R3)
 	MOVD	R0, gobuf_ret(R3)
 	MOVD	R0, gobuf_ctxt(R3)
-	RETURN
+	RET
 
 // void gogo(Gobuf*)
 // restore state from Gobuf; longjmp
@@ -184,7 +184,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $-8-8
 TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
 	UNDEF
 	BL	(LR)	// make sure this function is not leaf
-	RETURN
+	RET
 
 // func systemstack(fn func())
 TEXT runtime·systemstack(SB), NOSPLIT, $0-8
@@ -241,14 +241,14 @@ switch:
 	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R1
 	MOVD	R0, (g_sched+gobuf_sp)(g)
-	RETURN
+	RET
 
 noswitch:
 	// already on m stack, just call directly
 	MOVD	0(R11), R3	// code pointer
 	MOVD	R3, CTR
 	BL	(CTR)
-	RETURN
+	RET
 
 /*
  * support for morestack
@@ -423,7 +423,7 @@ end:						\
 	MOVD	R4, 24(R1);			\
 	MOVD	R6, 32(R1);			\
 	BL	runtime·callwritebarrier(SB);	\
-	RETURN
+	RET
 
 CALLFN(·call16, 16)
 CALLFN(·call32, 32)
@@ -475,7 +475,7 @@ cas_again:
 	SYNC
 	ISYNC
 	MOVB	R3, ret+16(FP)
-	RETURN
+	RET
 cas_fail:
 	MOVD	$0, R3
 	BR	-5(PC)
@@ -503,7 +503,7 @@ cas64_again:
 	SYNC
 	ISYNC
 	MOVB	R3, ret+24(FP)
-	RETURN
+	RET
 cas64_fail:
 	MOVD	$0, R3
 	BR	-5(PC)
@@ -545,7 +545,7 @@ TEXT runtime·xadd(SB), NOSPLIT, $0-20
 	SYNC
 	ISYNC
 	MOVW	R3, ret+16(FP)
-	RETURN
+	RET
 
 TEXT runtime·xadd64(SB), NOSPLIT, $0-24
 	MOVD	ptr+0(FP), R4
@@ -558,7 +558,7 @@ TEXT runtime·xadd64(SB), NOSPLIT, $0-24
 	SYNC
 	ISYNC
 	MOVD	R3, ret+16(FP)
-	RETURN
+	RET
 
 TEXT runtime·xchg(SB), NOSPLIT, $0-20
 	MOVD	ptr+0(FP), R4
@@ -570,7 +570,7 @@ TEXT runtime·xchg(SB), NOSPLIT, $0-20
 	SYNC
 	ISYNC
 	MOVW	R3, ret+16(FP)
-	RETURN
+	RET
 
 TEXT runtime·xchg64(SB), NOSPLIT, $0-24
 	MOVD	ptr+0(FP), R4
@@ -582,7 +582,7 @@ TEXT runtime·xchg64(SB), NOSPLIT, $0-24
 	SYNC
 	ISYNC
 	MOVD	R3, ret+16(FP)
-	RETURN
+	RET
 
 TEXT runtime·xchgp1(SB), NOSPLIT, $0-24
 	BR	runtime·xchg64(SB)
@@ -591,7 +591,7 @@ TEXT runtime·xchguintptr(SB), NOSPLIT, $0-24
 	BR	runtime·xchg64(SB)
 
 TEXT runtime·procyield(SB),NOSPLIT,$0-0
-	RETURN
+	RET
 
 TEXT runtime·atomicstorep1(SB), NOSPLIT, $0-16
 	BR	runtime·atomicstore64(SB)
@@ -601,14 +601,14 @@ TEXT runtime·atomicstore(SB), NOSPLIT, $0-12
 	MOVW	val+8(FP), R4
 	SYNC
 	MOVW	R4, 0(R3)
-	RETURN
+	RET
 
 TEXT runtime·atomicstore64(SB), NOSPLIT, $0-16
 	MOVD	ptr+0(FP), R3
 	MOVD	val+8(FP), R4
 	SYNC
 	MOVD	R4, 0(R3)
-	RETURN
+	RET
 
 // void	runtime·atomicor8(byte volatile*, byte);
 TEXT runtime·atomicor8(SB), NOSPLIT, $0-9
@@ -635,7 +635,7 @@ again:
 	BNE	again
 	SYNC
 	ISYNC
-	RETURN
+	RET
 
 // void	runtime·atomicand8(byte volatile*, byte);
 TEXT runtime·atomicand8(SB), NOSPLIT, $0-9
@@ -665,7 +665,7 @@ again:
 	BNE	again
 	SYNC
 	ISYNC
-	RETURN
+	RET
 
 // void jmpdefer(fv, sp);
 // called from deferreturn.
@@ -692,7 +692,7 @@ TEXT gosave<>(SB),NOSPLIT,$-8
 	MOVD	R0, (g_sched+gobuf_lr)(g)
 	MOVD	R0, (g_sched+gobuf_ret)(g)
 	MOVD	R0, (g_sched+gobuf_ctxt)(g)
-	RETURN
+	RET
 
 // asmcgocall(void(*fn)(void*), void *arg)
 // Call fn(arg) on the scheduler stack,
@@ -911,7 +911,7 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$8-16
 	MOVD	8(R1), R3
 nobar:
 	MOVD	R3, ret+8(FP)
-	RETURN
+	RET
 
 TEXT runtime·setcallerpc(SB),NOSPLIT,$8-16
 	MOVD	pc+8(FP), R3
@@ -920,7 +920,7 @@ TEXT runtime·setcallerpc(SB),NOSPLIT,$8-16
 	CMP	R4, R5
 	BEQ	setbar
 	MOVD	R3, 16(R1)		// set LR in caller
-	RETURN
+	RET
 setbar:
 	// Set the stack barrier return PC.
 	MOVD	R3, 8(R1)
@@ -931,7 +931,7 @@ TEXT runtime·getcallersp(SB),NOSPLIT,$0-16
 	MOVD	argp+0(FP), R3
 	SUB	$8, R3
 	MOVD	R3, ret+8(FP)
-	RETURN
+	RET
 
 TEXT runtime·abort(SB),NOSPLIT,$-8-0
 	MOVW	(R0), R0
@@ -950,7 +950,7 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
 	SLD	$32, R5
 	OR	R5, R3
 	MOVD	R3, ret+0(FP)
-	RETURN
+	RET
 
 // memhash_varlen(p unsafe.Pointer, h seed) uintptr
 // redirects to memhash(p, h, size) using the size
@@ -967,7 +967,7 @@ TEXT runtime·memhash_varlen(SB),NOSPLIT,$40-24
 	BL	runtime·memhash(SB)
 	MOVD	32(R1), R3
 	MOVD	R3, ret+16(FP)
-	RETURN
+	RET
 
 // AES hashing not implemented for ppc64
 TEXT runtime·aeshash(SB),NOSPLIT,$-8-0
@@ -991,7 +991,7 @@ loop:
 	BNE	test
 	MOVD	$1, R3
 	MOVB	R3, ret+24(FP)
-	RETURN
+	RET
 test:
 	MOVBZU	1(R3), R6
 	MOVBZU	1(R4), R7
@@ -999,7 +999,7 @@ test:
 	BEQ	loop
 
 	MOVB	R0, ret+24(FP)
-	RETURN
+	RET
 
 // memequal_varlen(a, b unsafe.Pointer) bool
 TEXT runtime·memequal_varlen(SB),NOSPLIT,$40-17
@@ -1014,11 +1014,11 @@ TEXT runtime·memequal_varlen(SB),NOSPLIT,$40-17
 	BL	runtime·memeq(SB)
 	MOVBZ	32(R1), R3
 	MOVB	R3, ret+16(FP)
-	RETURN
+	RET
 eq:
 	MOVD	$1, R3
 	MOVB	R3, ret+16(FP)
-	RETURN
+	RET
 
 // eqstring tests whether two strings are equal.
 // The compiler guarantees that strings passed
@@ -1032,7 +1032,7 @@ TEXT runtime·eqstring(SB),NOSPLIT,$0-33
 	MOVB	R5, ret+32(FP)
 	CMP	R3, R4
 	BNE	2(PC)
-	RETURN
+	RET
 	MOVD	s1len+8(FP), R5
 	SUB	$1, R3
 	SUB	$1, R4
@@ -1040,13 +1040,13 @@ TEXT runtime·eqstring(SB),NOSPLIT,$0-33
 loop:
 	CMP	R3, R8
 	BNE	2(PC)
-	RETURN
+	RET
 	MOVBZU	1(R3), R6
 	MOVBZU	1(R4), R7
 	CMP	R6, R7
 	BEQ	loop
 	MOVB	R0, ret+32(FP)
-	RETURN
+	RET
 
 // TODO: share code with memeq?
 TEXT bytes·Equal(SB),NOSPLIT,$0-49
@@ -1072,12 +1072,12 @@ loop:
 
 noteq:
 	MOVBZ	R0, ret+48(FP)
-	RETURN
+	RET
 
 equal:
 	MOVD	$1, R3
 	MOVBZ	R3, ret+48(FP)
-	RETURN
+	RET
 
 TEXT bytes·IndexByte(SB),NOSPLIT,$0-40
 	MOVD	s+0(FP), R3
@@ -1096,12 +1096,12 @@ loop:
 
 	SUB	R6, R3		// remove base
 	MOVD	R3, ret+32(FP)
-	RETURN
+	RET
 
 notfound:
 	MOVD	$-1, R3
 	MOVD	R3, ret+32(FP)
-	RETURN
+	RET
 
 TEXT strings·IndexByte(SB),NOSPLIT,$0-32
 	MOVD	p+0(FP), R3
@@ -1120,12 +1120,12 @@ loop:
 
 	SUB	R6, R3		// remove base
 	MOVD	R3, ret+24(FP)
-	RETURN
+	RET
 
 notfound:
 	MOVD	$-1, R3
 	MOVD	R3, ret+24(FP)
-	RETURN
+	RET
 
 TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
 	MOVD	g_m(g), R4
@@ -1136,11 +1136,11 @@ TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
 	XOR	$0x88888eef, R3
 	MOVW	R3, m_fastrand(R4)
 	MOVW	R3, ret+0(FP)
-	RETURN
+	RET
 
 TEXT runtime·return0(SB), NOSPLIT, $0
 	MOVW	$0, R3
-	RETURN
+	RET
 
 // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
 // Must obey the gcc calling convention.
@@ -1169,13 +1169,13 @@ TEXT runtime·goexit(SB),NOSPLIT,$-8-0
 	MOVD	R0, R0	// NOP
 
 TEXT runtime·prefetcht0(SB),NOSPLIT,$0-8
-	RETURN
+	RET
 
 TEXT runtime·prefetcht1(SB),NOSPLIT,$0-8
-	RETURN
+	RET
 
 TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
-	RETURN
+	RET
 
 TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
-	RETURN
+	RET
