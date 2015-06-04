@@ -141,6 +141,11 @@ control the execution of any test:
 	    if -test.blockprofile is set without this flag, all blocking events
 	    are recorded, equivalent to -test.blockprofilerate=1.
 
+	-count n
+	    Run each test and benchmark n times (default 1).
+	    If -cpu is set, run n times for each GOMAXPROCS value.
+	    Examples are always run once.
+
 	-cover
 	    Enable coverage analysis.
 
