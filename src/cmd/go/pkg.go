@@ -1163,43 +1163,46 @@ func readBuildID(p *Package) (id string, err error) {
 }
 
 var (
-	goBinary          = []byte("\x00\n\ngo binary\n")
-	endGoBinary       = []byte("\nend go binary\n")
-	newlineAndBuildid = []byte("\nbuild id ")
+	goBuildPrefix = []byte("\xff Go build ID: \"")
+	goBuildEnd    = []byte("\"\n \xff")
 
 	elfPrefix = []byte("ELF\x7F")
 )
 
 // readBuildIDFromBinary reads the build ID from a binary.
 //
-// The location of the build ID differs by object file type.
-// ELF uses a proper PT_NOTE section.
+// ELF binaries store the build ID in a proper PT_NOTE section.
 //
-// Instead of trying to be good citizens and store the build ID in a
-// custom section of the binary, which would be different for each
-// of the four binary types we support (ELF, Mach-O, Plan 9, PE),
-// we write a few lines to the end of the binary.
-//
-// At the very end of the binary we expect to find:
-//
-//	<NUL>
-//
-//	go binary
-//	build id "XXX"
-//	end go binary
-//
+// Other binary formats are not so flexible. For those, the linker
+// stores the build ID as non-instruction bytes at the very beginning
+// of the text segment, which should appear near the beginning
+// of the file. This is clumsy but fairly portable. Custom locations
+// can be added for other binary types as needed, like we did for ELF.
 func readBuildIDFromBinary(filename string) (id string, err error) {
 	if filename == "" {
 		return "", &os.PathError{Op: "parse", Path: filename, Err: errBuildIDUnknown}
 	}
 
+	// Read the first 8 kB of the binary file.
+	// That should be enough to find the build ID.
+	// In ELF files, the build ID is in the leading headers,
+	// which are typically less than 4 kB, not to mention 8 kB.
+	// On other systems, we're trying to read enough that
+	// we get the beginning of the text segment in the read.
+	// The offset where the text segment begins in a hello
+	// world compiled for each different object format today:
+	//
+	//	Plan 9: 0x20
+	//	Windows: 0x600
+	//	Mach-O: 0x1000
+	//
 	f, err := os.Open(filename)
 	if err != nil {
 		return "", err
 	}
 	defer f.Close()
 
-	data := make([]byte, 4096)
+	data := make([]byte, 8192)
 	_, err = io.ReadFull(f, data)
 	if err == io.ErrUnexpectedEOF {
 		err = nil
@@ -1212,43 +1215,22 @@ func readBuildIDFromBinary(filename string) (id string, err error) {
 		return readELFGoBuildID(filename, f, data)
 	}
 
-	off, err := f.Seek(0, 2)
-	if err != nil {
-		return "", err
-	}
-	n := 1024
-	if off < int64(n) {
-		n = int(off)
-	}
-	if _, err := f.Seek(off-int64(n), 0); err != nil {
-		return "", err
-	}
-	data = make([]byte, n)
-	if _, err := io.ReadFull(f, data); err != nil {
-		return "", err
-	}
-	if !bytes.HasSuffix(data, endGoBinary) {
-		// Trailer missing. Treat as successful but build ID empty.
-		return "", nil
-	}
-	i := bytes.LastIndex(data, goBinary)
+	i := bytes.Index(data, goBuildPrefix)
 	if i < 0 {
-		// Trailer missing. Treat as successful but build ID empty.
+		// Missing. Treat as successful but build ID empty.
 		return "", nil
 	}
 
-	// Have trailer. Find build id line.
-	data = data[i:]
-	i = bytes.Index(data, newlineAndBuildid)
-	if i < 0 {
-		// Trailer present; build ID missing. Treat as successful but empty.
-		return "", nil
+	j := bytes.Index(data[i+len(goBuildPrefix):], goBuildEnd)
+	if j < 0 {
+		return "", &os.PathError{Op: "parse", Path: filename, Err: errBuildIDMalformed}
 	}
-	line := data[i+len(newlineAndBuildid):]
-	j := bytes.IndexByte(line, '\n') // must succeed - endGoBinary is at end and has newlines
-	id, err = strconv.Unquote(string(line[:j]))
+
+	quoted := data[i+len(goBuildPrefix)-1 : i+len(goBuildPrefix)+j+1]
+	id, err = strconv.Unquote(string(quoted))
 	if err != nil {
 		return "", &os.PathError{Op: "parse", Path: filename, Err: errBuildIDMalformed}
 	}
+
 	return id, nil
 }
