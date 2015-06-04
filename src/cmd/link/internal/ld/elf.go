@@ -1210,7 +1210,7 @@ const (
 	ELF_NOTE_GODEPS_TAG    = 3
 )
 
-var ELF_NOTE_GO_NAME = []byte("GO\x00\x00")
+var ELF_NOTE_GO_NAME = []byte("Go\x00\x00")
 
 var elfverneed int
 
