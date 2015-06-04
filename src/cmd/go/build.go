@@ -751,9 +751,9 @@ func goFilesPackage(gofiles []string) *Package {
 }
 
 func readpkglist(shlibpath string) []*Package {
-	pkglistbytes, err := readnote(shlibpath, "GO\x00\x00", 1)
+	pkglistbytes, err := readELFNote(shlibpath, "GO\x00\x00", 1)
 	if err != nil {
-		fatalf("readnote failed: %v", err)
+		fatalf("readELFNote failed: %v", err)
 	}
 	scanner := bufio.NewScanner(bytes.NewBuffer(pkglistbytes))
 	var pkgs []*Package
