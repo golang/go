@@ -142,7 +142,7 @@ func main() {
 				fmt.Fprintf(os.Stderr, "go: GOPATH entry cannot start with shell metacharacter '~': %q\n", p)
 				os.Exit(2)
 			}
-			if build.IsLocalImport(p) {
+			if !filepath.IsAbs(p) {
 				fmt.Fprintf(os.Stderr, "go: GOPATH entry is relative; must be absolute path: %q.\nRun 'go help gopath' for usage.\n", p)
 				os.Exit(2)
 			}

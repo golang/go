@@ -1036,11 +1036,12 @@ func TestInstalls(t *testing.T) {
 	tg.wantExecutable(tg.path("bin/progname")+exeSuffix, "did not install progname to $GOPATH/bin/progname")
 }
 
-func TestRejectRelativePathsInGOPATHCommandLinePackage(t *testing.T) {
+func TestRejectRelativeDotPathInGOPATHCommandLinePackage(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.setenv("GOPATH", ".")
 	tg.runFail("build", "testdata/src/go-cmd-test/helloworld.go")
+	tg.grepStderr("GOPATH entry is relative", "expected an error message rejecting relative GOPATH entries")
 }
 
 func TestRejectRelativePathsInGOPATH(t *testing.T) {
@@ -1049,6 +1050,15 @@ func TestRejectRelativePathsInGOPATH(t *testing.T) {
 	sep := string(filepath.ListSeparator)
 	tg.setenv("GOPATH", sep+filepath.Join(tg.pwd(), "testdata")+sep+".")
 	tg.runFail("build", "go-cmd-test")
+	tg.grepStderr("GOPATH entry is relative", "expected an error message rejecting relative GOPATH entries")
+}
+
+func TestRejectRelativePathsInGOPATHCommandLinePackage(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.setenv("GOPATH", "testdata")
+	tg.runFail("build", "testdata/src/go-cmd-test/helloworld.go")
+	tg.grepStderr("GOPATH entry is relative", "expected an error message rejecting relative GOPATH entries")
 }
 
 // Issue 4104.
