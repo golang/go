@@ -724,6 +724,27 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 	for _, file := range inputFiles {
 		fmt.Fprintf(h, "%s\n", file)
 	}
+
+	// Include the content of runtime/zversion.go in the hash
+	// for package runtime. This will give package runtime a
+	// different build ID in each Go release.
+	if p.Standard && p.ImportPath == "runtime" {
+		data, _ := ioutil.ReadFile(filepath.Join(p.Dir, "zversion.go"))
+		fmt.Fprintf(h, "zversion %q\n", string(data))
+	}
+
+	// Include the build IDs of any dependencies in the hash.
+	// This, combined with the runtime/zversion content,
+	// will cause packages to have different build IDs when
+	// compiled with different Go releases.
+	// This helps the go command know to recompile when
+	// people use the same GOPATH but switch between
+	// different Go releases. See golang.org/issue/10702.
+	for _, dep := range p.Deps {
+		p1 := deps[dep]
+		fmt.Fprintf(h, "dep %s %s\n", p1.ImportPath, p1.buildID)
+	}
+
 	p.buildID = fmt.Sprintf("%x", h.Sum(nil))
 
 	return p
