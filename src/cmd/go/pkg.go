@@ -1091,7 +1091,7 @@ func readBuildID(p *Package) (id string, err error) {
 
 	// For commands, read build ID directly from binary.
 	if p.Name == "main" {
-		return readBuildIDFromBinary(p)
+		return readBuildIDFromBinary(p.Target)
 	}
 
 	// Otherwise, we expect to have an archive (.a) file,
@@ -1166,9 +1166,15 @@ var (
 	goBinary          = []byte("\x00\n\ngo binary\n")
 	endGoBinary       = []byte("\nend go binary\n")
 	newlineAndBuildid = []byte("\nbuild id ")
+
+	elfPrefix = []byte("ELF\x7F")
 )
 
 // readBuildIDFromBinary reads the build ID from a binary.
+//
+// The location of the build ID differs by object file type.
+// ELF uses a proper PT_NOTE section.
+//
 // Instead of trying to be good citizens and store the build ID in a
 // custom section of the binary, which would be different for each
 // of the four binary types we support (ELF, Mach-O, Plan 9, PE),
@@ -1182,16 +1188,29 @@ var (
 //	build id "XXX"
 //	end go binary
 //
-func readBuildIDFromBinary(p *Package) (id string, err error) {
-	if p.Target == "" {
-		return "", &os.PathError{Op: "parse", Path: p.Target, Err: errBuildIDUnknown}
+func readBuildIDFromBinary(filename string) (id string, err error) {
+	if filename == "" {
+		return "", &os.PathError{Op: "parse", Path: filename, Err: errBuildIDUnknown}
 	}
 
-	f, err := os.Open(p.Target)
+	f, err := os.Open(filename)
 	if err != nil {
 		return "", err
 	}
 	defer f.Close()
+
+	data := make([]byte, 4096)
+	_, err = io.ReadFull(f, data)
+	if err == io.ErrUnexpectedEOF {
+		err = nil
+	}
+	if err != nil {
+		return "", err
+	}
+
+	if bytes.HasPrefix(data, elfPrefix) {
+		return readELFGoBuildID(filename, f, data)
+	}
 
 	off, err := f.Seek(0, 2)
 	if err != nil {
@@ -1204,7 +1223,7 @@ func readBuildIDFromBinary(p *Package) (id string, err error) {
 	if _, err := f.Seek(off-int64(n), 0); err != nil {
 		return "", err
 	}
-	data := make([]byte, n)
+	data = make([]byte, n)
 	if _, err := io.ReadFull(f, data); err != nil {
 		return "", err
 	}
@@ -1229,7 +1248,7 @@ func readBuildIDFromBinary(p *Package) (id string, err error) {
 	j := bytes.IndexByte(line, '\n') // must succeed - endGoBinary is at end and has newlines
 	id, err = strconv.Unquote(string(line[:j]))
 	if err != nil {
-		return "", &os.PathError{Op: "parse", Path: p.Target, Err: errBuildIDMalformed}
+		return "", &os.PathError{Op: "parse", Path: filename, Err: errBuildIDMalformed}
 	}
 	return id, nil
 }

@@ -2372,6 +2372,9 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action, 
 	}
 	ldflags = setextld(ldflags, compiler)
 	ldflags = append(ldflags, "-buildmode="+ldBuildmode)
+	if p.buildID != "" {
+		ldflags = append(ldflags, "-buildid="+p.buildID)
+	}
 	ldflags = append(ldflags, buildLdflags...)
 	return b.run(".", p.ImportPath, nil, buildToolExec, tool("link"), "-o", out, importArgs, ldflags, mainpkg)
 }
