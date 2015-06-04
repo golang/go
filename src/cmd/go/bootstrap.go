@@ -36,7 +36,3 @@ func httpsOrHTTP(importPath string) (string, io.ReadCloser, error) {
 func parseMetaGoImports(r io.Reader) ([]metaImport, error) {
 	panic("unreachable")
 }
-
-func readnote(a, b string, t int32) ([]byte, error) {
-	return nil, nil
-}

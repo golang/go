@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !cmd_go_bootstrap
-
-// This is not built when bootstrapping to avoid having go_bootstrap depend on
-// debug/elf.
-
 package main
 
 import (
@@ -16,21 +11,8 @@ import (
 	"io"
 )
 
-func rnd(v int32, r int32) int32 {
-	if r <= 0 {
-		return v
-	}
-	v += r - 1
-	c := v % r
-	if c < 0 {
-		c += r
-	}
-	v -= c
-	return v
-}
-
-func readwithpad(r io.Reader, sz int32) ([]byte, error) {
-	full := rnd(sz, 4)
+func readAligned4(r io.Reader, sz int32) ([]byte, error) {
+	full := (sz + 3) &^ 3
 	data := make([]byte, full)
 	_, err := io.ReadFull(r, data)
 	if err != nil {
@@ -40,7 +22,7 @@ func readwithpad(r io.Reader, sz int32) ([]byte, error) {
 	return data, nil
 }
 
-func readnote(filename, name string, typ int32) ([]byte, error) {
+func readELFNote(filename, name string, typ int32) ([]byte, error) {
 	f, err := elf.Open(filename)
 	if err != nil {
 		return nil, err
@@ -67,11 +49,11 @@ func readnote(filename, name string, typ int32) ([]byte, error) {
 			if err != nil {
 				return nil, fmt.Errorf("read type failed: %v", err)
 			}
-			noteName, err := readwithpad(r, namesize)
+			noteName, err := readAligned4(r, namesize)
 			if err != nil {
 				return nil, fmt.Errorf("read name failed: %v", err)
 			}
-			desc, err := readwithpad(r, descsize)
+			desc, err := readAligned4(r, descsize)
 			if err != nil {
 				return nil, fmt.Errorf("read desc failed: %v", err)
 			}

@@ -891,6 +891,8 @@ var buildorder = []string{
 	"hash",
 	"crypto",
 	"crypto/sha1",
+	"debug/dwarf",
+	"debug/elf",
 	"cmd/go",
 }
 
