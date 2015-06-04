@@ -6,16 +6,17 @@ package main
 
 import (
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"runtime"
 	"testing"
 )
 
 func TestNoteReading(t *testing.T) {
-	// TODO: Enable on non-ELF systems.
-	switch runtime.GOOS {
-	case "darwin", "windows", "plan9", "nacl":
-		t.Skipf("skipping on %q", runtime.GOOS)
+	// No file system access on these systems.
+	switch sys := runtime.GOOS + "/" + runtime.GOARCH; sys {
+	case "darwin/arm", "darwin/arm64", "nacl/386", "nacl/amd64p32", "nacl/arm":
+		t.Skipf("skipping on %s/%s - no file system", runtime.GOOS, runtime.GOARCH)
 	}
 
 	// TODO: Replace with new test scaffolding by iant.
@@ -23,6 +24,8 @@ func TestNoteReading(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.RemoveAll(d)
+
 	out, err := exec.Command("go", "build", "-o", d+"/go.exe", "cmd/go").CombinedOutput()
 	if err != nil {
 		t.Fatalf("go build cmd/go: %v\n%s", err, out)
