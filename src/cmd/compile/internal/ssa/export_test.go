@@ -8,3 +8,9 @@ var CheckFunc = checkFunc
 var PrintFunc = printFunc
 var Opt = opt
 var Deadcode = deadcode
+
+type DummyFrontend struct{}
+
+func (d DummyFrontend) StringSym(s string) interface{} {
+	return nil
+}
