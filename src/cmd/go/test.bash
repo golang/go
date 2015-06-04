@@ -1290,6 +1290,22 @@ fi
 unset GOPATH
 rm -rf $d
 
+TEST go vet with -tags
+d=$(mktemp -d -t testgoXXX)
+export GOPATH=$d
+./testgo get golang.org/x/tools/cmd/vet
+export GOPATH=$(pwd)/testdata
+if ./testgo vet -tags tagtest vetpkg >$d/err 2>&1; then
+	echo "go vet vetpkg passes incorrectly"
+	ok=false
+elif ! grep -q 'c\.go.*wrong number of args for format' $d/err; then
+	echo "go vet vetpkg did not scan tagged file"
+	cat $d/err
+	ok=false
+fi
+unset GOPATH
+rm -rf $d
+
 TEST go get ./rsc.io/toolstash '(golang.org/issue/9767)'
 d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
 export GOPATH=$d

@@ -699,7 +699,7 @@ Run go tool vet on packages
 
 Usage:
 
-	go vet [-n] [-x] [packages]
+	go vet [-n] [-x] [build flags] [packages]
 
 Vet runs the Go vet command on the packages named by the import paths.
 
@@ -710,6 +710,8 @@ To run the vet tool with specific options, run 'go tool vet'.
 
 The -n flag prints commands that would be executed.
 The -x flag prints commands as they are executed.
+
+For more about build flags, see 'go help build'.
 
 See also: go fmt, go fix.
 
