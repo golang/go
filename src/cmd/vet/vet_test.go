@@ -87,7 +87,7 @@ func TestTags(t *testing.T) {
 		"-v", // We're going to look at the files it examines.
 		"testdata/tagtest",
 	}
-	cmd = exec.Command(filepath.Join(".", binary), args...)
+	cmd = exec.Command("./"+binary, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatal(err)

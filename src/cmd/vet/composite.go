@@ -7,11 +7,10 @@
 package main
 
 import (
+	"cmd/vet/whitelist"
 	"flag"
 	"go/ast"
 	"strings"
-
-	"golang.org/x/tools/cmd/vet/whitelist"
 )
 
 var compositeWhiteList = flag.Bool("compositewhitelist", true, "use composite white list; for testing only")
