@@ -231,6 +231,7 @@ func Ldmain() {
 	}
 	addexport()
 	Thearch.Gentext() // trampolines, call stubs, etc.
+	textbuildid()
 	textaddress()
 	pclntab()
 	findfunctab()

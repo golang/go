@@ -37,6 +37,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -1544,6 +1545,29 @@ func dodata() {
 		sect.Extnum = int16(n)
 		n++
 	}
+}
+
+// Add buildid to beginning of text segment, on non-ELF systems.
+// Non-ELF binary formats are not always flexible enough to
+// give us a place to put the Go build ID. On those systems, we put it
+// at the very beginning of the text segment.
+// This ``header'' is read by cmd/go.
+func textbuildid() {
+	if Iself || buildid == "" {
+		return
+	}
+
+	sym := Linklookup(Ctxt, "go.buildid", 0)
+	sym.Reachable = true
+	// The \xff is invalid UTF-8, meant to make it less likely
+	// to find one of these accidentally.
+	data := "\xff Go build ID: " + strconv.Quote(buildid) + "\n \xff"
+	sym.Type = obj.STEXT
+	sym.P = []byte(data)
+	sym.Size = int64(len(sym.P))
+
+	sym.Next = Ctxt.Textp
+	Ctxt.Textp = sym
 }
 
 // assign addresses to text
