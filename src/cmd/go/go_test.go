@@ -278,6 +278,30 @@ func (tg *testgoData) runFail(args ...string) {
 	}
 }
 
+// runGit runs a git command, and expects it to succeed.
+func (tg *testgoData) runGit(dir string, args ...string) {
+	cmd := exec.Command("git", args...)
+	tg.stdout.Reset()
+	tg.stderr.Reset()
+	cmd.Stdout = &tg.stdout
+	cmd.Stderr = &tg.stderr
+	cmd.Dir = dir
+	cmd.Env = tg.env
+	status := cmd.Run()
+	if tg.stdout.Len() > 0 {
+		tg.t.Log("git standard output:")
+		tg.t.Log(tg.stdout.String())
+	}
+	if tg.stderr.Len() > 0 {
+		tg.t.Log("git standard error:")
+		tg.t.Log(tg.stderr.String())
+	}
+	if status != nil {
+		tg.t.Logf("git %v failed unexpectedly: %v", args, status)
+		tg.t.FailNow()
+	}
+}
+
 // getStdout returns standard output of the testgo run as a string.
 func (tg *testgoData) getStdout() string {
 	if !tg.ran {
@@ -930,6 +954,24 @@ func TestImportCommentConflict(t *testing.T) {
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata/importcom"))
 	tg.runFail("build", "./testdata/importcom/conflict.go")
 	tg.grepStderr("found import comments", "go build did not mention comment conflict")
+}
+
+// cmd/go: custom import path checking should not apply to github.com/xxx/yyy.
+func TestIssue10952(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("skipping because git binary not found")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempDir("src")
+	tg.setenv("GOPATH", tg.path("."))
+	const importPath = "github.com/zombiezen/go-get-issue-10952"
+	tg.run("get", "-d", "-u", importPath)
+	repoDir := tg.path("src/" + importPath)
+	tg.runGit(repoDir, "remote", "set-url", "origin", "https://"+importPath+".git")
+	tg.run("get", "-d", "-u", importPath)
 }
 
 func TestDisallowedCSourceFiles(t *testing.T) {
