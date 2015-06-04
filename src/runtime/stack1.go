@@ -575,7 +575,7 @@ func copystack(gp *g, newsize uintptr) {
 		fillstack(new, 0xfd)
 	}
 	if stackDebug >= 1 {
-		print("copystack gp=", gp, " [", hex(old.lo), " ", hex(old.hi-used), " ", hex(old.hi), "]/", old.hi-old.lo, " -> [", hex(new.lo), " ", hex(new.hi-used), " ", hex(new.hi), "]/", newsize, "\n")
+		print("copystack gp=", gp, " [", hex(old.lo), " ", hex(old.hi-used), " ", hex(old.hi), "]/", gp.stackAlloc, " -> [", hex(new.lo), " ", hex(new.hi-used), " ", hex(new.hi), "]/", newsize, "\n")
 	}
 
 	// adjust pointers in the to-be-copied frames
@@ -832,12 +832,19 @@ func shrinkstack(gp *g) {
 
 	oldsize := gp.stackAlloc
 	newsize := oldsize / 2
+	// Don't shrink the allocation below the minimum-sized stack
+	// allocation.
 	if newsize < _FixedStack {
-		return // don't shrink below the minimum-sized stack
+		return
 	}
-	used := gp.stack.hi - gp.sched.sp
-	if used >= oldsize/4 {
-		return // still using at least 1/4 of the segment.
+	// Compute how much of the stack is currently in use and only
+	// shrink the stack if gp is using less than a quarter of its
+	// current stack. The currently used stack includes everything
+	// down to the SP plus the stack guard space that ensures
+	// there's room for nosplit functions.
+	avail := gp.stack.hi - gp.stack.lo
+	if used := gp.stack.hi - gp.sched.sp + _StackLimit; used >= avail/4 {
+		return
 	}
 
 	// We can't copy the stack if we're in a syscall.
