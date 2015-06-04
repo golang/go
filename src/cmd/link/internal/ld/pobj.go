@@ -38,9 +38,10 @@ import (
 	"strings"
 )
 
-var pkglistfornote []byte
-
-// Reading object files.
+var (
+	pkglistfornote []byte
+	buildid        string
+)
 
 func Ldmain() {
 	Ctxt = linknew(Thelinkarch)
@@ -104,6 +105,7 @@ func Ldmain() {
 	obj.Flagfn1("X", "set the value of a string variable; the next two arguments are its name and value", addstrdata1)
 	obj.Flagcount("Z", "clear stack frame on entry", &Debug['Z'])
 	obj.Flagcount("a", "disassemble output", &Debug['a'])
+	obj.Flagstr("buildid", "record `id` as Go toolchain build id", &buildid)
 	flag.Var(&Buildmode, "buildmode", "set build `mode`")
 	obj.Flagcount("c", "dump call graph", &Debug['c'])
 	obj.Flagcount("d", "disable dynamic executable", &Debug['d'])

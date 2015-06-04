@@ -1189,6 +1189,11 @@ func elfbuildinfo(sh *ElfShdr, startva uint64, resoff uint64) int {
 	return elfnote(sh, startva, resoff, n, true)
 }
 
+func elfgobuildid(sh *ElfShdr, startva uint64, resoff uint64) int {
+	n := len(ELF_NOTE_GO_NAME) + int(Rnd(int64(len(buildid)), 4))
+	return elfnote(sh, startva, resoff, n, true)
+}
+
 func elfwritebuildinfo() int {
 	sh := elfwritenotehdr(".note.gnu.build-id", ELF_NOTE_BUILDINFO_NAMESZ, uint32(len(buildinfo)), ELF_NOTE_BUILDINFO_TAG)
 	if sh == nil {
@@ -1203,11 +1208,26 @@ func elfwritebuildinfo() int {
 	return int(sh.size)
 }
 
+func elfwritegobuildid() int {
+	sh := elfwritenotehdr(".note.go.buildid", uint32(len(ELF_NOTE_GO_NAME)), uint32(len(buildid)), ELF_NOTE_GOBUILDID_TAG)
+	if sh == nil {
+		return 0
+	}
+
+	Cwrite(ELF_NOTE_GO_NAME)
+	Cwrite([]byte(buildid))
+	var zero = make([]byte, 4)
+	Cwrite(zero[:int(Rnd(int64(len(buildid)), 4)-int64(len(buildid)))])
+
+	return int(sh.size)
+}
+
 // Go specific notes
 const (
 	ELF_NOTE_GOPKGLIST_TAG = 1
 	ELF_NOTE_GOABIHASH_TAG = 2
 	ELF_NOTE_GODEPS_TAG    = 3
+	ELF_NOTE_GOBUILDID_TAG = 4
 )
 
 var ELF_NOTE_GO_NAME = []byte("Go\x00\x00")
@@ -1663,6 +1683,9 @@ func doelf() {
 	if len(buildinfo) > 0 {
 		Addstring(shstrtab, ".note.gnu.build-id")
 	}
+	if buildid != "" {
+		Addstring(shstrtab, ".note.go.buildid")
+	}
 	Addstring(shstrtab, ".elfdata")
 	Addstring(shstrtab, ".rodata")
 	Addstring(shstrtab, ".typelink")
@@ -1701,6 +1724,10 @@ func doelf() {
 			Addstring(shstrtab, ".note.go.abihash")
 			Addstring(shstrtab, ".note.go.pkg-list")
 			Addstring(shstrtab, ".note.go.deps")
+		}
+
+		if buildid != "" {
+			Addstring(shstrtab, ".note.go.buildid")
 		}
 	}
 
@@ -1914,6 +1941,10 @@ func doelf() {
 		}
 		addgonote(".note.go.deps", ELF_NOTE_GODEPS_TAG, []byte(strings.Join(deplist, "\n")))
 	}
+
+	if Linkmode == LinkExternal && buildid != "" {
+		addgonote(".note.go.buildid", ELF_NOTE_GOBUILDID_TAG, []byte(buildid))
+	}
 }
 
 // Do not write DT_NULL.  elfdynhash will finish it.
@@ -1988,6 +2019,13 @@ func Asmbelf(symo int64) {
 			sh = elfshname(".note.go.deps")
 			sh.type_ = SHT_NOTE
 		}
+
+		if buildid != "" {
+			sh := elfshname(".note.go.buildid")
+			sh.type_ = SHT_NOTE
+			sh.flags = SHF_ALLOC
+		}
+
 		goto elfobj
 	}
 
@@ -2081,6 +2119,16 @@ func Asmbelf(symo int64) {
 			pnote.flags = PF_R
 		}
 
+		phsh(pnote, sh)
+	}
+
+	if buildid != "" {
+		sh := elfshname(".note.go.buildid")
+		resoff -= int64(elfgobuildid(sh, uint64(startva), uint64(resoff)))
+
+		pnote := newElfPhdr()
+		pnote.type_ = PT_NOTE
+		pnote.flags = PF_R
 		phsh(pnote, sh)
 	}
 
@@ -2394,6 +2442,9 @@ elfobj:
 		}
 		if len(buildinfo) > 0 {
 			a += int64(elfwritebuildinfo())
+		}
+		if buildid != "" {
+			a += int64(elfwritegobuildid())
 		}
 	}
 
