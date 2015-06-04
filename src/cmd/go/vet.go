@@ -17,7 +17,7 @@ var cmdVet = &Command{
 	Long: `
 Vet runs the Go vet command on the packages named by the import paths.
 
-For more about vet, see 'godoc golang.org/x/tools/cmd/vet'.
+For more about vet, see 'go doc cmd/vet'.
 For more about specifying packages, see 'go help packages'.
 
 To run the vet tool with specific options, run 'go tool vet'.
