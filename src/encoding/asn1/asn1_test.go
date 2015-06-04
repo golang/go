@@ -867,3 +867,22 @@ func TestImplicitTaggedTime(t *testing.T) {
 		t.Errorf("Wrong result. Got %v, want %v", result.Time, expected)
 	}
 }
+
+type truncatedExplicitTagTest struct {
+	Test int `asn1:"explicit,tag:0"`
+}
+
+func TestTruncatedExplicitTag(t *testing.T) {
+	// This crashed Unmarshal in the past. See #11154.
+	der := []byte{
+		0x30, // SEQUENCE
+		0x02, // two bytes long
+		0xa0, // context-specific, tag 0
+		0x30, // 48 bytes long
+	}
+
+	var result truncatedExplicitTagTest
+	if _, err := Unmarshal(der, &result); err == nil {
+		t.Error("Unmarshal returned without error")
+	}
+}

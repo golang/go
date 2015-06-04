@@ -20,6 +20,7 @@ package asn1
 // everything by any means.
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"reflect"
@@ -389,6 +390,12 @@ type RawContent []byte
 // don't distinguish between ordered and unordered objects in this code.
 func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset int, err error) {
 	offset = initOffset
+	// parseTagAndLength should not be called without at least a single
+	// byte to read. Thus this check is for robustness:
+	if offset >= len(bytes) {
+		err = errors.New("asn1: internal error in parseTagAndLength")
+		return
+	}
 	b := bytes[offset]
 	offset++
 	ret.class = int(b >> 6)
@@ -610,6 +617,10 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		expectedClass := classContextSpecific
 		if params.application {
 			expectedClass = classApplication
+		}
+		if offset == len(bytes) {
+			err = StructuralError{"explicit tag has no child"}
+			return
 		}
 		if t.class == expectedClass && t.tag == *params.tag && (t.length == 0 || t.isCompound) {
 			if t.length > 0 {
