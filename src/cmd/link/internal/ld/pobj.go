@@ -111,6 +111,7 @@ func Ldmain() {
 	obj.Flagstr("extldflags", "pass `flags` to external linker", &extldflags)
 	obj.Flagcount("f", "ignore version mismatch", &Debug['f'])
 	obj.Flagcount("g", "disable go package data checks", &Debug['g'])
+	obj.Flagcount("h", "halt on error", &Debug['h'])
 	obj.Flagstr("installsuffix", "set package directory `suffix`", &flag_installsuffix)
 	obj.Flagstr("k", "set field tracking `symbol`", &tracksym)
 	obj.Flagfn1("linkmode", "set link `mode` (internal, external, auto)", setlinkmode)

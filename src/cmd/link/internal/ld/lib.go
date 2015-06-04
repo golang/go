@@ -1949,8 +1949,10 @@ func Diag(format string, args ...interface{}) {
 		sep = ": "
 	}
 	fmt.Printf("%s%s%s\n", tn, sep, fmt.Sprintf(format, args...))
-
 	nerrors++
+	if Debug['h'] != 0 {
+		panic("error")
+	}
 	if nerrors > 20 {
 		Exitf("too many errors")
 	}
