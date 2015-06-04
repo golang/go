@@ -215,6 +215,13 @@ func (t *tester) shouldRunTest(name string) bool {
 	return false
 }
 
+func (t *tester) tags() string {
+	if t.iOS() {
+		return "-tags=lldb"
+	}
+	return "-tags="
+}
+
 func (t *tester) timeout(sec int) string {
 	return "-timeout=" + fmt.Sprint(time.Duration(sec)*time.Second*time.Duration(t.timeoutScale))
 }
@@ -243,6 +250,7 @@ func (t *tester) registerStdTest(pkg string) {
 			cmd := exec.Command("go", append([]string{
 				"test",
 				"-short",
+				t.tags(),
 				t.timeout(120),
 				"-gcflags=" + os.Getenv("GO_GCFLAGS"),
 			}, stdMatches...)...)
@@ -281,7 +289,7 @@ func (t *tester) registerTests() {
 		name:    testName,
 		heading: "GOMAXPROCS=2 runtime -cpu=1,2,4",
 		fn: func() error {
-			cmd := t.dirCmd("src", "go", "test", "-short", t.timeout(300), "runtime", "-cpu=1,2,4")
+			cmd := t.dirCmd("src", "go", "test", "-short", t.timeout(300), t.tags(), "runtime", "-cpu=1,2,4")
 			// We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
 			// creation of first goroutines and first garbage collections in the parallel setting.
 			cmd.Env = mergeEnvLists([]string{"GOMAXPROCS=2"}, os.Environ())
@@ -294,7 +302,7 @@ func (t *tester) registerTests() {
 		name:    "sync_cpu",
 		heading: "sync -cpu=10",
 		fn: func() error {
-			return t.dirCmd("src", "go", "test", "sync", "-short", t.timeout(120), "-cpu=10").Run()
+			return t.dirCmd("src", "go", "test", "sync", "-short", t.timeout(120), t.tags(), "-cpu=10").Run()
 		},
 	})
 
@@ -511,12 +519,12 @@ func (t *tester) cgoTest() error {
 	env := mergeEnvLists([]string{"GOTRACEBACK=2"}, os.Environ())
 
 	if t.goos == "android" || t.iOS() {
-		cmd := t.dirCmd("misc/cgo/test", "go", "test")
+		cmd := t.dirCmd("misc/cgo/test", "go", "test", t.tags())
 		cmd.Env = env
 		return cmd.Run()
 	}
 
-	cmd := t.dirCmd("misc/cgo/test", "go", "test", "-ldflags", "-linkmode=auto")
+	cmd := t.dirCmd("misc/cgo/test", "go", "test", t.tags(), "-ldflags", "-linkmode=auto")
 	cmd.Env = env
 	if err := cmd.Run(); err != nil {
 		return err
