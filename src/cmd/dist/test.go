@@ -14,7 +14,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -29,7 +28,7 @@ func cmdtest() {
 	flag.StringVar(&t.runRxStr, "run", os.Getenv("GOTESTONLY"),
 		"run only those tests matching the regular expression; empty means to run all. "+
 			"Special exception: if the string begins with '!', the match is inverted.")
-	xflagparse(0)
+	xflagparse(-1) // any number of args
 	t.run()
 }
 
@@ -40,8 +39,9 @@ type tester struct {
 	keepGoing bool
 	runRxStr  string
 	runRx     *regexp.Regexp
-	runRxWant bool
-	banner    string // prefix, or "" for none
+	runRxWant bool     // want runRx to match (true) or not match (false)
+	runNames  []string // tests to run, exclusive with runRx; empty means all
+	banner    string   // prefix, or "" for none
 
 	goroot     string
 	goarch     string
@@ -83,6 +83,10 @@ func (t *tester) run() {
 		log.Fatalf("Error running go env CGO_ENABLED: %v", err)
 	}
 	t.cgoEnabled, _ = strconv.ParseBool(strings.TrimSpace(string(slurp)))
+	if flag.NArg() > 0 && t.runRxStr != "" {
+		log.Fatalf("the -run regular expression flag is mutually exclusive with test name arguments")
+	}
+	t.runNames = flag.Args()
 
 	if t.hasBash() {
 		if _, err := exec.LookPath("time"); err == nil {
@@ -135,13 +139,6 @@ func (t *tester) run() {
 	}
 
 	if t.runRxStr != "" {
-		// Temporary (2015-05-14) special case for "std",
-		// which the plan9 builder was using for ages. Delete
-		// this once we update dashboard/builders.go to use a
-		// regexp instead.
-		if runtime.GOOS == "plan9" && t.runRxStr == "std" {
-			t.runRxStr = "^go_test:"
-		}
 		if t.runRxStr[0] == '!' {
 			t.runRxWant = false
 			t.runRxStr = t.runRxStr[1:]
@@ -164,10 +161,16 @@ func (t *tester) run() {
 	// at least runtime/debug test will fail.
 	os.Unsetenv("GOROOT_FINAL")
 
+	for _, name := range t.runNames {
+		if !t.isRegisteredTestName(name) {
+			log.Fatalf("unknown test %q", name)
+		}
+	}
+
 	var lastHeading string
 	ok := true
 	for _, dt := range t.tests {
-		if t.runRx != nil && (t.runRx.MatchString(dt.name) != t.runRxWant) {
+		if !t.shouldRunTest(dt.name) {
 			t.partial = true
 			continue
 		}
@@ -195,6 +198,21 @@ func (t *tester) run() {
 	} else {
 		fmt.Println("\nALL TESTS PASSED")
 	}
+}
+
+func (t *tester) shouldRunTest(name string) bool {
+	if t.runRx != nil {
+		return t.runRx.MatchString(name) == t.runRxWant
+	}
+	if len(t.runNames) == 0 {
+		return true
+	}
+	for _, runName := range t.runNames {
+		if runName == name {
+			return true
+		}
+	}
+	return false
 }
 
 func (t *tester) timeout(sec int) string {
@@ -235,36 +253,25 @@ func (t *tester) registerStdTest(pkg string) {
 	})
 }
 
-// validStdPkg reports whether pkg looks like a standard library package name.
-// Notably, it's not blank and doesn't contain regexp characters.
-func validStdPkg(pkg string) bool {
-	if pkg == "" {
-		return false
-	}
-	for _, r := range pkg {
-		switch {
-		case 'a' <= r && r <= 'z':
-		case 'A' <= r && r <= 'Z':
-		case '0' <= r && r <= '9':
-		case r == '_':
-		case r == '/':
-		default:
-			return false
-		}
-	}
-	return true
-}
-
 func (t *tester) registerTests() {
 	// Fast path to avoid the ~1 second of `go list std cmd` when
-	// the caller passed -run=^go_test:foo/bar$ (as the continuous
+	// the caller lists specific tests to run. (as the continuous
 	// build coordinator does).
-	if strings.HasPrefix(t.runRxStr, "^go_test:") && strings.HasSuffix(t.runRxStr, "$") {
-		pkg := strings.TrimPrefix(t.runRxStr, "^go_test:")
-		pkg = strings.TrimSuffix(pkg, "$")
-		if validStdPkg(pkg) {
+	if len(t.runNames) > 0 {
+		for _, name := range t.runNames {
+			if strings.HasPrefix(name, "go_test:") {
+				t.registerStdTest(strings.TrimPrefix(name, "go_test:"))
+			}
+		}
+	} else {
+		// Use a format string to only list packages and commands that have tests.
+		const format = "{{if (or .TestGoFiles .XTestGoFiles)}}{{.ImportPath}}{{end}}"
+		all, err := exec.Command("go", "list", "-f", format, "std", "cmd").Output()
+		if err != nil {
+			log.Fatalf("Error running go list std cmd: %v", err)
+		}
+		for _, pkg := range strings.Fields(string(all)) {
 			t.registerStdTest(pkg)
-			return
 		}
 	}
 
@@ -372,14 +379,15 @@ func (t *tester) registerTests() {
 		t.registerTest("bench_go1", "../test/bench/go1", "go", "test")
 	}
 	if t.goos != "android" && !t.iOS() {
-		// TODO(bradfitz): shard down into these tests, as
-		// this is one of the slowest (and most shardable)
-		// tests.
-		t.tests = append(t.tests, distTest{
-			name:    "test",
-			heading: "../test",
-			fn:      t.testDirTest,
-		})
+		const nShards = 5
+		for shard := 0; shard < nShards; shard++ {
+			shard := shard
+			t.tests = append(t.tests, distTest{
+				name:    fmt.Sprintf("test:%d_%d", shard, nShards),
+				heading: "../test",
+				fn:      func() error { return t.testDirTest(shard, nShards) },
+			})
+		}
 	}
 	if t.goos != "nacl" && t.goos != "android" && !t.iOS() {
 		t.tests = append(t.tests, distTest{
@@ -390,36 +398,6 @@ func (t *tester) registerTests() {
 			},
 		})
 	}
-
-	// Register the standard library tests lasts, to avoid the ~1 second latency
-	// of running `go list std cmd` if we're running a specific test.
-	// Now we know the names of all the other tests registered so far.
-	if !t.wantSpecificRegisteredTest() {
-		// Use a format string to only list packages and commands that have tests.
-		const format = "{{if (or .TestGoFiles .XTestGoFiles)}}{{.ImportPath}}{{end}}"
-		all, err := exec.Command("go", "list", "-f", format, "std", "cmd").Output()
-		if err != nil {
-			log.Fatalf("Error running go list std cmd: %v", err)
-		}
-		// Put the standard library tests first.
-		orig := t.tests
-		t.tests = nil
-		for _, pkg := range strings.Fields(string(all)) {
-			t.registerStdTest(pkg)
-		}
-		t.tests = append(t.tests, orig...)
-	}
-}
-
-// wantSpecificRegisteredTest reports whether the caller is requesting a
-// run of a specific test via the flag -run=^TESTNAME$ (as is done by the
-// continuous build coordinator).
-func (t *tester) wantSpecificRegisteredTest() bool {
-	if !strings.HasPrefix(t.runRxStr, "^") || !strings.HasSuffix(t.runRxStr, "$") {
-		return false
-	}
-	test := t.runRxStr[1 : len(t.runRxStr)-1]
-	return t.isRegisteredTestName(test)
 }
 
 // isRegisteredTestName reports whether a test named testName has already
@@ -436,6 +414,9 @@ func (t *tester) isRegisteredTestName(testName string) bool {
 func (t *tester) registerTest(name, dirBanner, bin string, args ...string) {
 	if bin == "time" && !t.haveTime {
 		bin, args = args[0], args[1:]
+	}
+	if t.isRegisteredTestName(name) {
+		panic("duplicate registered test name " + name)
 	}
 	t.tests = append(t.tests, distTest{
 		name:    name,
@@ -716,7 +697,7 @@ func (t *tester) raceTest() error {
 	return nil
 }
 
-func (t *tester) testDirTest() error {
+func (t *tester) testDirTest(shard, shards int) error {
 	const runExe = "runtest.exe" // named exe for Windows, but harmless elsewhere
 	cmd := t.dirCmd("test", "go", "build", "-o", runExe, "run.go")
 	cmd.Env = mergeEnvLists([]string{"GOOS=" + t.gohostos, "GOARCH=" + t.gohostarch, "GOMAXPROCS="}, os.Environ())
@@ -725,10 +706,10 @@ func (t *tester) testDirTest() error {
 	}
 	absExe := filepath.Join(cmd.Dir, runExe)
 	defer os.Remove(absExe)
-	if t.haveTime {
-		return t.dirCmd("test", "time", absExe).Run()
-	}
-	return t.dirCmd("test", absExe).Run()
+	return t.dirCmd("test", absExe,
+		fmt.Sprintf("--shard=%d", shard),
+		fmt.Sprintf("--shards=%d", shards),
+	).Run()
 }
 
 // mergeEnvLists merges the two environment lists such that
