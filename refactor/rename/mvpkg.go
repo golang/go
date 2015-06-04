@@ -61,11 +61,12 @@ func Move(ctxt *build.Context, from, to, moveTmpl string) error {
 	// Build the import graph and figure out which packages to update.
 	fwd, rev, errors := importgraph.Build(ctxt)
 	if len(errors) > 0 {
+		// With a large GOPATH tree, errors are inevitable.
+		// Report them but proceed.
 		fmt.Fprintf(os.Stderr, "While scanning Go workspace:\n")
 		for path, err := range errors {
 			fmt.Fprintf(os.Stderr, "Package %q: %s.\n", path, err)
 		}
-		return fmt.Errorf("failed to construct import graph")
 	}
 
 	// Determine the affected packages---the set of packages whose import

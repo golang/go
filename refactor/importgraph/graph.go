@@ -54,7 +54,8 @@ func (g Graph) Search(roots ...string) map[string]bool {
 // Build scans the specified Go workspace and builds the forward and
 // reverse import dependency graphs for all its packages.
 // It also returns a mapping from import paths to errors for packages
-// that could not be loaded.
+// whose loading was not entirely successful.
+// A package may appear in the graph and in the errors mapping.
 func Build(ctxt *build.Context) (forward, reverse Graph, errors map[string]error) {
 	type importEdge struct {
 		from, to string
@@ -75,22 +76,26 @@ func Build(ctxt *build.Context) (forward, reverse Graph, errors map[string]error
 				ch <- pathError{path, err}
 				return
 			}
+
 			bp, err := ctxt.Import(path, "", 0)
-			if _, ok := err.(*build.NoGoError); ok {
-				return // empty directory is not an error
-			}
 			if err != nil {
-				ch <- pathError{path, err}
-				return
+				if _, ok := err.(*build.NoGoError); ok {
+					// empty directory is not an error
+				} else {
+					ch <- pathError{path, err}
+				}
+				// Even in error cases, Import usually returns a package.
 			}
-			for _, imp := range bp.Imports {
-				ch <- importEdge{path, imp}
-			}
-			for _, imp := range bp.TestImports {
-				ch <- importEdge{path, imp}
-			}
-			for _, imp := range bp.XTestImports {
-				ch <- importEdge{path, imp}
+			if bp != nil {
+				for _, imp := range bp.Imports {
+					ch <- importEdge{path, imp}
+				}
+				for _, imp := range bp.TestImports {
+					ch <- importEdge{path, imp}
+				}
+				for _, imp := range bp.XTestImports {
+					ch <- importEdge{path, imp}
+				}
 			}
 		}()
 	})
