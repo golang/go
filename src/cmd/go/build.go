@@ -751,7 +751,7 @@ func goFilesPackage(gofiles []string) *Package {
 }
 
 func readpkglist(shlibpath string) []*Package {
-	pkglistbytes, err := readELFNote(shlibpath, "GO\x00\x00", 1)
+	pkglistbytes, err := readELFNote(shlibpath, "Go\x00\x00", 1)
 	if err != nil {
 		fatalf("readELFNote failed: %v", err)
 	}
