@@ -314,7 +314,7 @@ func downloadPackage(p *Package) error {
 							repo = resolved
 						}
 					}
-					if remote != repo {
+					if remote != repo && p.ImportComment != "" {
 						return fmt.Errorf("%s is a custom import path for %s, but %s is checked out from %s", rr.root, repo, dir, remote)
 					}
 				}
