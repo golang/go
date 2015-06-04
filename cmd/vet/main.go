@@ -25,10 +25,13 @@ import (
 	"golang.org/x/tools/go/types"
 )
 
-// TODO: Need a flag to set build tags when parsing the package.
+var (
+	verbose  = flag.Bool("v", false, "verbose")
+	testFlag = flag.Bool("test", false, "for testing only: sets -all and -shadow")
+	tags     = flag.String("tags", "", "comma-separated list of build tags to apply when parsing")
+	tagList  = []string{} // exploded version of tags flag; set in main
+)
 
-var verbose = flag.Bool("v", false, "verbose")
-var testFlag = flag.Bool("test", false, "for testing only: sets -all and -shadow")
 var exitCode = 0
 
 // "all" is here only for the appearance of backwards compatibility.
@@ -198,6 +201,8 @@ func main() {
 		}
 	}
 
+	tagList = strings.Split(*tags, ",")
+
 	initPrintFlags()
 	initUnusedFlags()
 
@@ -246,7 +251,13 @@ func prefixDirectory(directory string, names []string) {
 // doPackageDir analyzes the single package found in the directory, if there is one,
 // plus a test package, if there is one.
 func doPackageDir(directory string) {
-	pkg, err := build.Default.ImportDir(directory, 0)
+	context := build.Default
+	if len(context.BuildTags) != 0 {
+		warnf("build tags %s previously set", context.BuildTags)
+	}
+	context.BuildTags = append(tagList, context.BuildTags...)
+
+	pkg, err := context.ImportDir(directory, 0)
 	if err != nil {
 		// If it's just that there are no go source files, that's fine.
 		if _, nogo := err.(*build.NoGoError); nogo {

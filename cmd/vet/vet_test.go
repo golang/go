@@ -72,3 +72,31 @@ func run(c *exec.Cmd, t *testing.T) bool {
 	}
 	return !bytes.Contains(output, []byte("BUG"))
 }
+
+// TestTags verifies that the -tags argument controls which files to check.
+func TestTags(t *testing.T) {
+	// go build
+	cmd := exec.Command("go", "build", "-o", binary)
+	run(cmd, t)
+
+	// defer removal of vet
+	defer os.Remove(binary)
+
+	args := []string{
+		"-tags=testtag",
+		"-v", // We're going to look at the files it examines.
+		"testdata/tagtest",
+	}
+	cmd = exec.Command(filepath.Join(".", binary), args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// file1 has testtag and file2 has !testtag.
+	if !bytes.Contains(output, []byte("tagtest/file1.go")) {
+		t.Error("file1 was excluded, should be included")
+	}
+	if bytes.Contains(output, []byte("tagtest/file2.go")) {
+		t.Error("file2 was included, should be excluded")
+	}
+}
