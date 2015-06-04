@@ -8,14 +8,15 @@ package main
 
 import (
 	"go/ast"
+	"go/importer"
 	"go/token"
-
-	"golang.org/x/tools/go/types"
+	"go/types"
 )
 
-// imports is the canonical map of imported packages we need for typechecking.
-// It is created during initialization.
-var imports = make(map[string]*types.Package)
+// stdImporter is the importer we use to import packages.
+// It is created during initialization so that all packages
+// are imported by the same importer.
+var stdImporter = importer.Default()
 
 var (
 	stringerMethodType = types.New("func() string")
@@ -35,7 +36,7 @@ func init() {
 // path.name, and adds the respective package to the imports map
 // as a side effect.
 func importType(path, name string) types.Type {
-	pkg, err := types.DefaultImport(imports, path)
+	pkg, err := stdImporter.Import(path)
 	if err != nil {
 		// This can happen if fmt hasn't been compiled yet.
 		// Since nothing uses formatterType anyway, don't complain.
@@ -56,9 +57,9 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
 	pkg.spans = make(map[types.Object]Span)
 	pkg.types = make(map[ast.Expr]types.TypeAndValue)
 	config := types.Config{
-		// We provide the same packages map for all imports to ensure
-		// that everybody sees identical packages for the given paths.
-		Packages: imports,
+		// We use the same importer for all imports to ensure that
+		// everybody sees identical packages for the given paths.
+		Importer: stdImporter,
 		// By providing a Config with our own error function, it will continue
 		// past the first error. There is no need for that function to do anything.
 		Error: func(error) {},

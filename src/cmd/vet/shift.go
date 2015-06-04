@@ -10,10 +10,9 @@ package main
 
 import (
 	"go/ast"
+	"go/constant"
 	"go/token"
-
-	"golang.org/x/tools/go/exact"
-	"golang.org/x/tools/go/types"
+	"go/types"
 )
 
 func init() {
@@ -46,7 +45,7 @@ func checkLongShift(f *File, node ast.Node, x, y ast.Expr) {
 	if v == nil {
 		return
 	}
-	amt, ok := exact.Int64Val(v)
+	amt, ok := constant.Int64Val(v)
 	if !ok {
 		return
 	}

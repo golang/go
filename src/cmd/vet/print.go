@@ -10,13 +10,12 @@ import (
 	"bytes"
 	"flag"
 	"go/ast"
+	"go/constant"
 	"go/token"
+	"go/types"
 	"strconv"
 	"strings"
 	"unicode/utf8"
-
-	"golang.org/x/tools/go/exact"
-	"golang.org/x/tools/go/types"
 )
 
 var printfuncs = flag.String("printfuncs", "", "comma-separated list of print function names to check")
@@ -160,11 +159,11 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string, formatIndex int) {
 		}
 		return
 	}
-	if lit.Kind() != exact.String {
+	if lit.Kind() != constant.String {
 		f.Badf(call.Pos(), "constant %v not a string in call to %s", lit, name)
 		return
 	}
-	format := exact.StringVal(lit)
+	format := constant.StringVal(lit)
 	firstArg := formatIndex + 1 // Arguments are immediately after format string.
 	if !strings.Contains(format, "%") {
 		if len(call.Args) > firstArg {
