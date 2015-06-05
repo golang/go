@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -24,10 +25,16 @@ const (
 // 	rm testvet
 //
 func TestVet(t *testing.T) {
-	// Plan 9 and Windows systems can't be guaranteed to have Perl and so can't run errchk.
 	switch runtime.GOOS {
 	case "plan9", "windows":
+		// Plan 9 and Windows systems can't be guaranteed to have Perl and so can't run errchk.
 		t.Skip("skipping test; no Perl on %q", runtime.GOOS)
+	case "nacl":
+		t.Skip("skipping test; no command execution on nacl")
+	case "darwin":
+		if strings.HasPrefix(runtime.GOARCH, "arm") {
+			t.Skip("skipping test; no command execution on darwin/%s", runtime.GOARCH)
+		}
 	}
 
 	// go build
@@ -75,6 +82,15 @@ func run(c *exec.Cmd, t *testing.T) bool {
 
 // TestTags verifies that the -tags argument controls which files to check.
 func TestTags(t *testing.T) {
+	switch runtime.GOOS {
+	case "nacl":
+		t.Skip("skipping test; no command execution on nacl")
+	case "darwin":
+		if strings.HasPrefix(runtime.GOARCH, "arm") {
+			t.Skip("skipping test; no command execution on darwin/%s", runtime.GOARCH)
+		}
+	}
+
 	// go build
 	cmd := exec.Command("go", "build", "-o", binary)
 	run(cmd, t)
