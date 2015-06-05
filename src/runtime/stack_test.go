@@ -329,6 +329,7 @@ func TestPanicFar(t *testing.T) {
 		time.Sleep(time.Millisecond)
 		panic(1)
 	})
+	_ = xtree
 }
 
 type xtreeNode struct {
