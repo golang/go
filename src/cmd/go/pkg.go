@@ -1166,7 +1166,7 @@ var (
 	goBuildPrefix = []byte("\xff Go build ID: \"")
 	goBuildEnd    = []byte("\"\n \xff")
 
-	elfPrefix = []byte("ELF\x7F")
+	elfPrefix = []byte("\x7fELF")
 )
 
 // readBuildIDFromBinary reads the build ID from a binary.
