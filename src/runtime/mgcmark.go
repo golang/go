@@ -315,12 +315,17 @@ func scanstack(gp *g) {
 		throw("can't scan gchelper stack")
 	}
 
-	var barrierOffset, nextBarrier uintptr
+	var sp, barrierOffset, nextBarrier uintptr
+	if gp.syscallsp != 0 {
+		sp = gp.syscallsp
+	} else {
+		sp = gp.sched.sp
+	}
 	switch gcphase {
 	case _GCscan:
 		// Install stack barriers during stack scan.
 		barrierOffset = firstStackBarrierOffset
-		nextBarrier = gp.sched.sp + barrierOffset
+		nextBarrier = sp + barrierOffset
 
 		if gp.stkbarPos != 0 || len(gp.stkbar) != 0 {
 			// If this happens, it's probably because we
@@ -342,7 +347,7 @@ func scanstack(gp *g) {
 			// this barrier had write barriers.
 			nextBarrier = gp.stkbar[gp.stkbarPos].savedLRPtr
 			if debugStackBarrier {
-				print("rescan below ", hex(nextBarrier), " in [", hex(gp.sched.sp), ",", hex(gp.stack.hi), ") goid=", gp.goid, "\n")
+				print("rescan below ", hex(nextBarrier), " in [", hex(sp), ",", hex(gp.stack.hi), ") goid=", gp.goid, "\n")
 			}
 		}
 
@@ -364,7 +369,7 @@ func scanstack(gp *g) {
 			if gcphase == _GCscan && n != 0 {
 				gcInstallStackBarrier(gp, frame)
 				barrierOffset *= 2
-				nextBarrier = gp.sched.sp + barrierOffset
+				nextBarrier = sp + barrierOffset
 			} else if gcphase == _GCmarktermination {
 				// We just scanned a frame containing
 				// a return to a stack barrier. Since
