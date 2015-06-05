@@ -18,15 +18,19 @@ import (
 var imports = make(map[string]*types.Package)
 
 var (
-	stringerMethodType = types.New("func() string")
-	errorType          = types.New("error").Underlying().(*types.Interface)
-	stringerType       = types.New("interface{ String() string }").(*types.Interface)
-	formatterType      *types.Interface
+	errorType     *types.Interface
+	stringerType  *types.Interface
+	formatterType *types.Interface
 )
 
 func init() {
-	typ := importType("fmt", "Formatter")
-	if typ != nil {
+	errorType = types.Universe.Lookup("error").Type().Underlying().(*types.Interface)
+
+	if typ := importType("fmt", "Stringer"); typ != nil {
+		stringerType = typ.Underlying().(*types.Interface)
+	}
+
+	if typ := importType("fmt", "Formatter"); typ != nil {
 		formatterType = typ.Underlying().(*types.Interface)
 	}
 }
@@ -313,8 +317,9 @@ func (f *File) numArgsInSignature(call *ast.CallExpr) int {
 func (f *File) isErrorMethodCall(call *ast.CallExpr) bool {
 	typ := f.pkg.types[call].Type
 	if typ != nil {
-		// We know it's called "Error", so just check the function signature.
-		return types.Identical(f.pkg.types[call.Fun].Type, stringerMethodType)
+		// We know it's called "Error", so just check the function signature
+		// (stringerType has exactly one method, String).
+		return types.Identical(f.pkg.types[call.Fun].Type, stringerType.Method(0).Type())
 	}
 	// Without types, we can still check by hand.
 	// Is it a selector expression? Otherwise it's a function call, not a method call.
