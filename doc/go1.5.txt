@@ -102,6 +102,7 @@ cmd/go: add -buildmode build option
 cmd/gc: add -dynlink option (for amd64 only)
 cmd/ld: add -buildmode option
 cmd/trace: new command to view traces (https://golang.org/cl/3601)
+cmd/go, testing: add go test -count (https://golang.org/cl/10669)
 
 Performance:
 
