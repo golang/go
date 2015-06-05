@@ -16,7 +16,7 @@ import (
 
 const (
 	dataDir = "testdata"
-	binary  = "testvet"
+	binary  = "testvet.exe"
 )
 
 // Run this shell script, but do it in Go so it can be run by "go test".
@@ -28,12 +28,12 @@ func TestVet(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9", "windows":
 		// Plan 9 and Windows systems can't be guaranteed to have Perl and so can't run errchk.
-		t.Skip("skipping test; no Perl on %q", runtime.GOOS)
+		t.Skipf("skipping test; no Perl on %q", runtime.GOOS)
 	case "nacl":
 		t.Skip("skipping test; no command execution on nacl")
 	case "darwin":
 		if strings.HasPrefix(runtime.GOARCH, "arm") {
-			t.Skip("skipping test; no command execution on darwin/%s", runtime.GOARCH)
+			t.Skipf("skipping test; no command execution on darwin/%s", runtime.GOARCH)
 		}
 	}
 
@@ -109,10 +109,10 @@ func TestTags(t *testing.T) {
 		t.Fatal(err)
 	}
 	// file1 has testtag and file2 has !testtag.
-	if !bytes.Contains(output, []byte("tagtest/file1.go")) {
+	if !bytes.Contains(output, []byte(filepath.Join("tagtest", "file1.go"))) {
 		t.Error("file1 was excluded, should be included")
 	}
-	if bytes.Contains(output, []byte("tagtest/file2.go")) {
+	if bytes.Contains(output, []byte(filepath.Join("tagtest", "file2.go"))) {
 		t.Error("file2 was included, should be excluded")
 	}
 }
