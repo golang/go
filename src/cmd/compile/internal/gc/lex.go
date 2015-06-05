@@ -370,7 +370,7 @@ func Main() {
 	defercheckwidth()
 
 	for l := xtop; l != nil; l = l.Next {
-		if l.N.Op != ODCL && l.N.Op != OAS {
+		if l.N.Op != ODCL && l.N.Op != OAS && l.N.Op != OAS2 {
 			typecheck(&l.N, Etop)
 		}
 	}
@@ -378,7 +378,7 @@ func Main() {
 	// Phase 2: Variable assignments.
 	//   To check interface assignments, depends on phase 1.
 	for l := xtop; l != nil; l = l.Next {
-		if l.N.Op == ODCL || l.N.Op == OAS {
+		if l.N.Op == ODCL || l.N.Op == OAS || l.N.Op == OAS2 {
 			typecheck(&l.N, Etop)
 		}
 	}
