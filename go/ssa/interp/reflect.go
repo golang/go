@@ -106,6 +106,12 @@ func ext۰reflect۰rtype۰Field(fr *frame, args []value) value {
 	}
 }
 
+func ext۰reflect۰rtype۰In(fr *frame, args []value) value {
+	// Signature: func (t reflect.rtype, i int) int
+	i := args[1].(int)
+	return makeReflectType(rtype{args[0].(rtype).t.(*types.Signature).Params().At(i).Type()})
+}
+
 func ext۰reflect۰rtype۰Kind(fr *frame, args []value) value {
 	// Signature: func (t reflect.rtype) uint
 	return uint(reflectKind(args[0].(rtype).t))
@@ -114,6 +120,11 @@ func ext۰reflect۰rtype۰Kind(fr *frame, args []value) value {
 func ext۰reflect۰rtype۰NumField(fr *frame, args []value) value {
 	// Signature: func (t reflect.rtype) int
 	return args[0].(rtype).t.Underlying().(*types.Struct).NumFields()
+}
+
+func ext۰reflect۰rtype۰NumIn(fr *frame, args []value) value {
+	// Signature: func (t reflect.rtype) int
+	return args[0].(rtype).t.(*types.Signature).Params().Len()
 }
 
 func ext۰reflect۰rtype۰NumMethod(fr *frame, args []value) value {
@@ -163,6 +174,12 @@ func ext۰reflect۰ValueOf(fr *frame, args []value) value {
 	// Signature: func (interface{}) reflect.Value
 	itf := args[0].(iface)
 	return makeReflectValue(itf.t, itf.v)
+}
+
+func ext۰reflect۰Zero(fr *frame, args []value) value {
+	// Signature: func (t reflect.Type) reflect.Value
+	t := args[0].(iface).v.(rtype).t
+	return makeReflectValue(t, zero(t))
 }
 
 func reflectKind(t types.Type) reflect.Kind {
@@ -523,6 +540,13 @@ func initReflect(i *interpreter) {
 	// information leaks into other packages.
 	if r := i.prog.ImportedPackage("reflect"); r != nil {
 		rV := r.Object.Scope().Lookup("Value").Type().(*types.Named)
+
+		// delete bodies of the old methods
+		mset := i.prog.MethodSets.MethodSet(rV)
+		for j := 0; j < mset.Len(); j++ {
+			i.prog.Method(mset.At(j)).Blocks = nil
+		}
+
 		tEface := types.NewInterface(nil, nil).Complete()
 		rV.SetUnderlying(types.NewStruct([]*types.Var{
 			types.NewField(token.NoPos, r.Object, "t", tEface, false), // a lie
@@ -534,8 +558,10 @@ func initReflect(i *interpreter) {
 		"Bits":      newMethod(i.reflectPackage, rtypeType, "Bits"),
 		"Elem":      newMethod(i.reflectPackage, rtypeType, "Elem"),
 		"Field":     newMethod(i.reflectPackage, rtypeType, "Field"),
+		"In":        newMethod(i.reflectPackage, rtypeType, "In"),
 		"Kind":      newMethod(i.reflectPackage, rtypeType, "Kind"),
 		"NumField":  newMethod(i.reflectPackage, rtypeType, "NumField"),
+		"NumIn":     newMethod(i.reflectPackage, rtypeType, "NumIn"),
 		"NumMethod": newMethod(i.reflectPackage, rtypeType, "NumMethod"),
 		"NumOut":    newMethod(i.reflectPackage, rtypeType, "NumOut"),
 		"Out":       newMethod(i.reflectPackage, rtypeType, "Out"),
