@@ -25,6 +25,7 @@ import (
 
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/types"
+	"golang.org/x/tools/go/types/typeutil"
 	"golang.org/x/tools/refactor/importgraph"
 	"golang.org/x/tools/refactor/satisfy"
 )
@@ -154,7 +155,7 @@ type renamer struct {
 	to                 string
 	satisfyConstraints map[satisfy.Constraint]bool
 	packages           map[*types.Package]*loader.PackageInfo // subset of iprog.AllPackages to inspect
-	msets              types.MethodSetCache
+	msets              typeutil.MethodSetCache
 	changeMethods      bool
 }
 

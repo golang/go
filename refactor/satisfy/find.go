@@ -51,6 +51,7 @@ import (
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/types"
+	"golang.org/x/tools/go/types/typeutil"
 )
 
 // A Constraint records the fact that the RHS type does and must
@@ -71,7 +72,7 @@ type Constraint struct {
 //
 type Finder struct {
 	Result    map[Constraint]bool
-	msetcache types.MethodSetCache
+	msetcache typeutil.MethodSetCache
 
 	// per-Find state
 	info *types.Info

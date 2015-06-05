@@ -4,38 +4,42 @@
 
 // This file implements a cache of method sets.
 
-package types
+package typeutil
 
-import "sync"
+import (
+	"sync"
+
+	"golang.org/x/tools/go/types"
+)
 
 // A MethodSetCache records the method set of each type T for which
 // MethodSet(T) is called so that repeat queries are fast.
 // The zero value is a ready-to-use cache instance.
 type MethodSetCache struct {
 	mu     sync.Mutex
-	named  map[*Named]struct{ value, pointer *MethodSet } // method sets for named N and *N
-	others map[Type]*MethodSet                            // all other types
+	named  map[*types.Named]struct{ value, pointer *types.MethodSet } // method sets for named N and *N
+	others map[types.Type]*types.MethodSet                            // all other types
 }
 
 // MethodSet returns the method set of type T.  It is thread-safe.
 //
-// If cache is nil, this function is equivalent to NewMethodSet(T).
+// If cache is nil, this function is equivalent to types.NewMethodSet(T).
 // Utility functions can thus expose an optional *MethodSetCache
 // parameter to clients that care about performance.
 //
-func (cache *MethodSetCache) MethodSet(T Type) *MethodSet {
+func (cache *MethodSetCache) MethodSet(T types.Type) *types.MethodSet {
 	if cache == nil {
-		return NewMethodSet(T)
+		return types.NewMethodSet(T)
 	}
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 
 	switch T := T.(type) {
-	case *Named:
+	case *types.Named:
 		return cache.lookupNamed(T).value
 
-	case *Pointer:
-		if N, ok := T.Elem().(*Named); ok {
+	case *types.Pointer:
+		if N, ok := T.Elem().(*types.Named); ok {
 			return cache.lookupNamed(N).pointer
 		}
 	}
@@ -44,25 +48,25 @@ func (cache *MethodSetCache) MethodSet(T Type) *MethodSet {
 	// (The map uses pointer equivalence, not type identity.)
 	mset := cache.others[T]
 	if mset == nil {
-		mset = NewMethodSet(T)
+		mset = types.NewMethodSet(T)
 		if cache.others == nil {
-			cache.others = make(map[Type]*MethodSet)
+			cache.others = make(map[types.Type]*types.MethodSet)
 		}
 		cache.others[T] = mset
 	}
 	return mset
 }
 
-func (cache *MethodSetCache) lookupNamed(named *Named) struct{ value, pointer *MethodSet } {
+func (cache *MethodSetCache) lookupNamed(named *types.Named) struct{ value, pointer *types.MethodSet } {
 	if cache.named == nil {
-		cache.named = make(map[*Named]struct{ value, pointer *MethodSet })
+		cache.named = make(map[*types.Named]struct{ value, pointer *types.MethodSet })
 	}
 	// Avoid recomputing mset(*T) for each distinct Pointer
 	// instance whose underlying type is a named type.
 	msets, ok := cache.named[named]
 	if !ok {
-		msets.value = NewMethodSet(named)
-		msets.pointer = NewMethodSet(NewPointer(named))
+		msets.value = types.NewMethodSet(named)
+		msets.pointer = types.NewMethodSet(types.NewPointer(named))
 		cache.named[named] = msets
 	}
 	return msets

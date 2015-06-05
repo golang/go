@@ -24,7 +24,7 @@ type Program struct {
 	imported   map[string]*Package         // all importable Packages, keyed by import path
 	packages   map[*types.Package]*Package // all loaded Packages, keyed by object
 	mode       BuilderMode                 // set of mode bits for SSA construction
-	MethodSets types.MethodSetCache        // cache of type-checker's method-sets
+	MethodSets typeutil.MethodSetCache     // cache of type-checker's method-sets
 
 	methodsMu    sync.Mutex                 // guards the following maps:
 	methodSets   typeutil.Map               // maps type to its concrete methodSet

@@ -14,6 +14,7 @@ import (
 
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/types"
+	"golang.org/x/tools/go/types/typeutil"
 	"golang.org/x/tools/oracle/serial"
 )
 
@@ -85,7 +86,7 @@ func implements(q *Query) error {
 	}
 	allNamed = append(allNamed, types.Universe.Lookup("error").Type())
 
-	var msets types.MethodSetCache
+	var msets typeutil.MethodSetCache
 
 	// Test each named type.
 	var to, from, fromPtr []types.Type
