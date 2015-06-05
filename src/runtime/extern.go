@@ -21,8 +21,8 @@ is GOGC=100. Setting GOGC=off disables the garbage collector entirely.
 The runtime/debug package's SetGCPercent function allows changing this
 percentage at run time. See http://golang.org/pkg/runtime/debug/#SetGCPercent.
 
-The GODEBUG variable controls debug output from the runtime. GODEBUG value is
-a comma-separated list of name=val pairs. Supported names are:
+The GODEBUG variable controls debugging variables within the runtime.
+It is a comma-separated list of name=val pairs setting these named variables:
 
 	allocfreetrace: setting allocfreetrace=1 causes every allocation to be
 	profiled and a stack trace printed on each object's allocation and free.
@@ -31,13 +31,34 @@ a comma-separated list of name=val pairs. Supported names are:
 	where each object is allocated on a unique page and addresses are
 	never recycled.
 
+	gccheckmark: setting gccheckmark=1 enables verification of the
+	garbage collector's concurrent mark phase by performing a
+	second mark pass while the world is stopped.  If the second
+	pass finds a reachable object that was not found by concurrent
+	mark, the garbage collector will panic.
+
+	gcpacertrace: setting gcpacertrace=1 causes the garbage collector to
+	print information about the internal state of the concurrent pacer.
+
+	gcshrinkstackoff: setting gcshrinkstackoff=1 disables moving goroutines
+	onto smaller stacks. In this mode, a goroutine's stack can only grow.
+
+	gcstackbarrieroff: setting gcstackbarrieroff=1 disables the use of stack barriers
+	that allow the garbage collector to avoid repeating a stack scan during the
+	mark termination phase.
+
+	gcstoptheworld: setting gcstoptheworld=1 disables concurrent garbage collection,
+	making every garbage collection a stop-the-world event. Setting gcstoptheworld=2
+	also disables concurrent sweeping after the garbage collection finishes.
+
 	gctrace: setting gctrace=1 causes the garbage collector to emit a single line to standard
 	error at each collection, summarizing the amount of memory collected and the
 	length of the pause. Setting gctrace=2 emits the same summary but also
 	repeats each collection.
 
-	gcdead: setting gcdead=1 causes the garbage collector to clobber all stack slots
-	that it thinks are dead.
+	memprofilerate: setting memprofilerate=X will update the value of runtime.MemProfileRate.
+	When set to 0 memory profiling is disabled.  Refer to the description of
+	MemProfileRate for the default value.
 
 	invalidptr: defaults to invalidptr=1, causing the garbage collector and stack
 	copier to crash the program if an invalid pointer value (for example, 1)
@@ -45,9 +66,11 @@ a comma-separated list of name=val pairs. Supported names are:
 	This should only be used as a temporary workaround to diagnose buggy code.
 	The real fix is to not store integers in pointer-typed locations.
 
-	memprofilerate: setting memprofilerate=X will update the value of runtime.MemProfileRate.
-	When set to 0 memory profiling is disabled.  Refer to the description of
-	MemProfileRate for the default value.
+	sbrk: setting sbrk=1 replaces the memory allocator and garbage collector
+	with a trivial allocator that obtains memory from the operating system and
+	never reclaims any memory.
+
+	scavenge: scavenge=1 enables debugging mode of heap scavenger.
 
 	scheddetail: setting schedtrace=X and scheddetail=1 causes the scheduler to emit
 	detailed multiline info every X milliseconds, describing state of the scheduler,
@@ -55,14 +78,6 @@ a comma-separated list of name=val pairs. Supported names are:
 
 	schedtrace: setting schedtrace=X causes the scheduler to emit a single line to standard
 	error every X milliseconds, summarizing the scheduler state.
-
-	scavenge: scavenge=1 enables debugging mode of heap scavenger.
-
-	gccheckmark: setting gccheckmark=1 enables verification of the
-	garbage collector's concurrent mark phase by performing a
-	second mark pass while the world is stopped.  If the second
-	pass finds a reachable object that was not found by concurrent
-	mark, the garbage collector will panic.
 
 The GOMAXPROCS variable limits the number of operating system threads that
 can execute user-level Go code simultaneously. There is no limit to the number of threads

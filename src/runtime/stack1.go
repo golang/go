@@ -826,6 +826,10 @@ func shrinkstack(gp *g) {
 		throw("missing stack in shrinkstack")
 	}
 
+	if debug.gcshrinkstackoff > 0 {
+		return
+	}
+
 	oldsize := gp.stackAlloc
 	newsize := oldsize / 2
 	if newsize < _FixedStack {

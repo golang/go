@@ -327,6 +327,10 @@ func scanstack(gp *g) {
 		barrierOffset = firstStackBarrierOffset
 		nextBarrier = sp + barrierOffset
 
+		if debug.gcstackbarrieroff > 0 {
+			nextBarrier = ^uintptr(0)
+		}
+
 		if gp.stkbarPos != 0 || len(gp.stkbar) != 0 {
 			// If this happens, it's probably because we
 			// scanned a stack twice in the same phase.

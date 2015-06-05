@@ -740,6 +740,12 @@ func startGC(mode int) {
 	releasem(mp)
 	mp = nil
 
+	if debug.gcstoptheworld == 1 {
+		mode = gcForceMode
+	} else if debug.gcstoptheworld == 2 {
+		mode = gcForceBlockMode
+	}
+
 	if mode != gcBackgroundMode {
 		// special synchronous cases
 		gc(mode)
