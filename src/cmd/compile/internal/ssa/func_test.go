@@ -1,3 +1,7 @@
+// Copyright 2015 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // This file contains some utility functions to help define Funcs for testing.
 // As an example, the following func
 //
