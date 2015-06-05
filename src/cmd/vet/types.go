@@ -19,28 +19,31 @@ import (
 var stdImporter = importer.Default()
 
 var (
-	stringerMethodType = types.New("func() string")
-	errorType          = types.New("error").Underlying().(*types.Interface)
-	stringerType       = types.New("interface{ String() string }").(*types.Interface)
-	formatterType      *types.Interface
+	errorType     *types.Interface
+	stringerType  *types.Interface // possibly nil
+	formatterType *types.Interface // possibly nil
 )
 
 func init() {
-	typ := importType("fmt", "Formatter")
-	if typ != nil {
+	errorType = types.Universe.Lookup("error").Type().Underlying().(*types.Interface)
+
+	if typ := importType("fmt", "Stringer"); typ != nil {
+		stringerType = typ.Underlying().(*types.Interface)
+	}
+
+	if typ := importType("fmt", "Formatter"); typ != nil {
 		formatterType = typ.Underlying().(*types.Interface)
 	}
 }
 
 // importType returns the type denoted by the qualified identifier
 // path.name, and adds the respective package to the imports map
-// as a side effect.
+// as a side effect. In case of an error, importType returns nil.
 func importType(path, name string) types.Type {
 	pkg, err := stdImporter.Import(path)
 	if err != nil {
-		// This can happen if fmt hasn't been compiled yet.
-		// Since nothing uses formatterType anyway, don't complain.
-		//warnf("import failed: %v", err)
+		// This can happen if the package at path hasn't been compiled yet.
+		warnf("import failed: %v", err)
 		return nil
 	}
 	if obj, ok := pkg.Scope().Lookup(name).(*types.TypeName); ok {
@@ -133,16 +136,13 @@ func (f *File) matchArgTypeInternal(t printfArgType, typ types.Type, arg ast.Exp
 		}
 	}
 	// If the type implements fmt.Formatter, we have nothing to check.
-	// But (see issue 6259) that's not easy to verify, so instead we see
-	// if its method set contains a Format function. We could do better,
-	// even now, but we don't need to be 100% accurate. Wait for 6259 to
-	// be fixed instead. TODO.
-	if f.hasMethod(typ, "Format") {
+	// formatterTyp may be nil - be conservative and check for Format method in that case.
+	if formatterType != nil && types.Implements(typ, formatterType) || f.hasMethod(typ, "Format") {
 		return true
 	}
 	// If we can use a string, might arg (dynamically) implement the Stringer or Error interface?
 	if t&argString != 0 {
-		if types.AssertableTo(errorType, typ) || types.AssertableTo(stringerType, typ) {
+		if types.AssertableTo(errorType, typ) || stringerType != nil && types.AssertableTo(stringerType, typ) {
 			return true
 		}
 	}
@@ -314,8 +314,11 @@ func (f *File) numArgsInSignature(call *ast.CallExpr) int {
 func (f *File) isErrorMethodCall(call *ast.CallExpr) bool {
 	typ := f.pkg.types[call].Type
 	if typ != nil {
-		// We know it's called "Error", so just check the function signature.
-		return types.Identical(f.pkg.types[call.Fun].Type, stringerMethodType)
+		// We know it's called "Error", so just check the function signature
+		// (stringerType has exactly one method, String).
+		if stringerType != nil && stringerType.NumMethods() == 1 {
+			return types.Identical(f.pkg.types[call.Fun].Type, stringerType.Method(0).Type())
+		}
 	}
 	// Without types, we can still check by hand.
 	// Is it a selector expression? Otherwise it's a function call, not a method call.
