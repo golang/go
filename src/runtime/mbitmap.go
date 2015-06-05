@@ -367,7 +367,34 @@ func heapBitsBulkBarrier(p, size uintptr) {
 	if (p|size)&(ptrSize-1) != 0 {
 		throw("heapBitsBulkBarrier: unaligned arguments")
 	}
-	if !writeBarrierEnabled || !inheap(p) {
+	if !writeBarrierEnabled {
+		return
+	}
+	if !inheap(p) {
+		// If p is on the stack and in a higher frame than the
+		// caller, we either need to execute write barriers on
+		// it (which is what happens for normal stack writes
+		// through pointers to higher frames), or we need to
+		// force the mark termination stack scan to scan the
+		// frame containing p.
+		//
+		// Executing write barriers on p is complicated in the
+		// general case because we either need to unwind the
+		// stack to get the stack map, or we need the type's
+		// bitmap, which may be a GC program.
+		//
+		// Hence, we opt for forcing the re-scan to scan the
+		// frame containing p, which we can do by simply
+		// unwinding the stack barriers between the current SP
+		// and p's frame.
+		gp := getg().m.curg
+		if gp.stack.lo <= p && p < gp.stack.hi {
+			// Run on the system stack to give it more
+			// stack space.
+			systemstack(func() {
+				gcUnwindBarriers(gp, p)
+			})
+		}
 		return
 	}
 

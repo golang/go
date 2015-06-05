@@ -29,7 +29,7 @@ func recovery(gp *g) {
 	// Make the deferproc for this d return again,
 	// this time returning 1.  The calling function will
 	// jump to the standard return epilogue.
-	gcSkipBarriers(gp, sp)
+	gcUnwindBarriers(gp, sp)
 	gp.sched.sp = sp
 	gp.sched.pc = pc
 	gp.sched.lr = 0
