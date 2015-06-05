@@ -4,6 +4,7 @@ Overall:
 - go tool asm, go tool compile, go tool link
 - default output files changed: now file.o and a.out
 - internal enforced even outside standard library (golang.org/s/go14internal; https://golang.org/cl/9156)
+- gomaxprocs=numcpu (golang.org/s/go15gomaxprocs)
 
 Language:
 - permit omission of key type in map composite literals where key is a composite literal (https://golang.org/cl/2591)
