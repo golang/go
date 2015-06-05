@@ -13,14 +13,7 @@ import (
 )
 
 func TestNoteReading(t *testing.T) {
-	// No file system access on these systems.
-	switch sys := runtime.GOOS + "/" + runtime.GOARCH; sys {
-	case "darwin/arm", "darwin/arm64", "nacl/386", "nacl/amd64p32", "nacl/arm":
-		t.Skipf("skipping on %s/%s - no file system", runtime.GOOS, runtime.GOARCH)
-	}
-	if runtime.GOOS == "android" {
-		t.Skipf("skipping; requires go tool")
-	}
+	testenv.MustHaveGoBuild(t)
 
 	// TODO: Replace with new test scaffolding by iant.
 	d, err := ioutil.TempDir("", "go-test-")

@@ -24,6 +24,8 @@ func skipTraceTestsIfNeeded(t *testing.T) {
 	case "darwin":
 		switch runtime.GOARCH {
 		case "arm", "arm64":
+			// TODO(rsc): What does this have to do with the trace tests?
+			// There is no forking here.
 			t.Skipf("skipping on %s/%s, cannot fork", runtime.GOOS, runtime.GOARCH)
 		}
 	}

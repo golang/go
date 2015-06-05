@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -129,19 +130,7 @@ type testgoData struct {
 
 // testgo sets up for a test that runs testgo.
 func testgo(t *testing.T) *testgoData {
-	if !canRun {
-		switch runtime.GOOS {
-		case "android", "nacl":
-			t.Skipf("skipping on %s", runtime.GOOS)
-		case "darwin":
-			switch runtime.GOARCH {
-			case "arm", "arm64":
-				t.Skipf("skipping on %s/%s, no fork", runtime.GOOS, runtime.GOARCH)
-			}
-		default:
-			t.Skip("skipping for unknown reason")
-		}
-	}
+	testenv.MustHaveGoBuild(t)
 
 	return &testgoData{t: t}
 }
@@ -835,9 +824,8 @@ func TestInternalPackagesOutsideGOROOTAreRespected(t *testing.T) {
 }
 
 func testMove(t *testing.T, vcs, url, base, config string) {
-	if testing.Short() {
-		t.Skip("skipping test that uses network in short mode")
-	}
+	testenv.MustHaveExternalNetwork(t)
+
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -1053,9 +1041,7 @@ func TestInstallToGOBINCommandLinePackage(t *testing.T) {
 }
 
 func TestGodocInstalls(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test that uses network in short mode")
-	}
+	testenv.MustHaveExternalNetwork(t)
 
 	// godoc installs into GOBIN
 	tg := testgo(t)
@@ -1248,9 +1234,7 @@ func TestMissingGOPATHIsReported(t *testing.T) {
 // Issue 4186.  go get cannot be used to download packages to $GOROOT.
 // Test that without GOPATH set, go get should fail.
 func TestWithoutGOPATHGoGetFails(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test that uses network in short mode")
-	}
+	testenv.MustHaveExternalNetwork(t)
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -1263,9 +1247,7 @@ func TestWithoutGOPATHGoGetFails(t *testing.T) {
 
 // Test that with GOPATH=$GOROOT, go get should fail.
 func TestWithGOPATHEqualsGOROOTGoGetFails(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test that uses network in short mode")
-	}
+	testenv.MustHaveExternalNetwork(t)
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -1799,9 +1781,7 @@ func TestGoGenerateRunFlag(t *testing.T) {
 }
 
 func TestGoGetWorksWithVanityWildcards(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test that uses network in short mode")
-	}
+	testenv.MustHaveExternalNetwork(t)
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -1812,9 +1792,7 @@ func TestGoGetWorksWithVanityWildcards(t *testing.T) {
 }
 
 func TestGoVetWithExternalTests(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test that uses network in short mode")
-	}
+	testenv.MustHaveExternalNetwork(t)
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -1827,9 +1805,7 @@ func TestGoVetWithExternalTests(t *testing.T) {
 }
 
 func TestGoVetWithTags(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test that uses network in short mode")
-	}
+	testenv.MustHaveExternalNetwork(t)
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -1843,9 +1819,7 @@ func TestGoVetWithTags(t *testing.T) {
 
 // Issue 9767.
 func TestGoGetRscIoToolstash(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test that uses network in short mode")
-	}
+	testenv.MustHaveExternalNetwork(t)
 
 	tg := testgo(t)
 	defer tg.cleanup()

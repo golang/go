@@ -9,6 +9,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"io/ioutil"
 	. "os"
@@ -794,15 +795,7 @@ func exec(t *testing.T, dir, cmd string, args []string, expect string) {
 }
 
 func TestStartProcess(t *testing.T) {
-	switch runtime.GOOS {
-	case "android", "nacl":
-		t.Skipf("skipping on %s", runtime.GOOS)
-	case "darwin":
-		switch runtime.GOARCH {
-		case "arm", "arm64":
-			t.Skipf("skipping on %s/%s, cannot fork", runtime.GOOS, runtime.GOARCH)
-		}
-	}
+	testenv.MustHaveExec(t)
 
 	var dir, cmd string
 	var args []string
@@ -1258,18 +1251,12 @@ func testWindowsHostname(t *testing.T) {
 func TestHostname(t *testing.T) {
 	// There is no other way to fetch hostname on windows, but via winapi.
 	// On Plan 9 it can be taken from #c/sysname as Hostname() does.
-	switch runtime.GOOS {
-	case "android", "nacl", "plan9":
-		t.Skipf("skipping on %s", runtime.GOOS)
-	case "darwin":
-		switch runtime.GOARCH {
-		case "arm", "arm64":
-			t.Skipf("skipping on %s/%s, cannot fork", runtime.GOOS, runtime.GOARCH)
-		}
-	case "windows":
+	if runtime.GOOS == "windows" {
 		testWindowsHostname(t)
 		return
 	}
+
+	testenv.MustHaveExec(t)
 
 	// Check internal Hostname() against the output of /bin/hostname.
 	// Allow that the internal Hostname returns a Fully Qualified Domain Name
@@ -1529,15 +1516,7 @@ func TestReadAtEOF(t *testing.T) {
 }
 
 func testKillProcess(t *testing.T, processKiller func(p *Process)) {
-	switch runtime.GOOS {
-	case "android", "nacl":
-		t.Skipf("skipping on %s", runtime.GOOS)
-	case "darwin":
-		switch runtime.GOARCH {
-		case "arm", "arm64":
-			t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
-		}
-	}
+	testenv.MustHaveExec(t)
 
 	// Re-exec the test binary itself to emulate "sleep 1".
 	cmd := osexec.Command(Args[0], "-test.run", "TestSleep")
@@ -1574,18 +1553,12 @@ func TestKillStartProcess(t *testing.T) {
 }
 
 func TestGetppid(t *testing.T) {
-	switch runtime.GOOS {
-	case "nacl":
-		t.Skip("skipping on nacl")
-	case "plan9":
+	if runtime.GOOS == "plan9" {
 		// TODO: golang.org/issue/8206
 		t.Skipf("skipping test on plan9; see issue 8206")
-	case "darwin":
-		switch runtime.GOARCH {
-		case "arm", "arm64":
-			t.Skipf("skipping test on %s/%s, no fork", runtime.GOOS, runtime.GOARCH)
-		}
 	}
+
+	testenv.MustHaveExec(t)
 
 	if Getenv("GO_WANT_HELPER_PROCESS") == "1" {
 		fmt.Print(Getppid())
