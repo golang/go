@@ -64,10 +64,18 @@
 //     Once all the P's are aware of the new phase they will scan gs on preemption.
 //     This means that the scanning of preempted gs can't start until all the Ps
 //     have acknowledged.
+//     When a stack is scanned, this phase also installs stack barriers to
+//     track how much of the stack has been active.
+//     This transition enables write barriers because stack barriers
+//     assume that writes to higher frames will be tracked by write
+//     barriers. Technically this only needs write barriers for writes
+//     to stack slots, but we enable write barriers in general.
 // GCscan to GCmark
-//     GCMark turns on the write barrier which also only greys objects. No scanning
-//     of objects (making them black) can happen until all the Ps have acknowledged
-//     the phase change.
+//     In GCmark, work buffers are drained until there are no more
+//     pointers to scan.
+//     No scanning of objects (making them black) can happen until all
+//     Ps have enabled the write barrier, but that already happened in
+//     the transition to GCscan.
 // GCmark to GCmarktermination
 //     The only change here is that we start allocating black so the Ps must acknowledge
 //     the change before we begin the termination algorithm
@@ -220,7 +228,7 @@ var gcBlackenEnabled uint32
 const (
 	_GCoff             = iota // GC not running, write barrier disabled
 	_GCstw                    // unused state
-	_GCscan                   // GC collecting roots into workbufs, write barrier disabled
+	_GCscan                   // GC collecting roots into workbufs, write barrier ENABLED
 	_GCmark                   // GC marking from workbufs, write barrier ENABLED
 	_GCmarktermination        // GC mark termination: allocate black, P's help GC, write barrier ENABLED
 	_GCsweep                  // GC mark completed; sweeping in background, write barrier disabled
@@ -229,7 +237,7 @@ const (
 //go:nosplit
 func setGCPhase(x uint32) {
 	atomicstore(&gcphase, x)
-	writeBarrierEnabled = gcphase == _GCmark || gcphase == _GCmarktermination
+	writeBarrierEnabled = gcphase == _GCmark || gcphase == _GCmarktermination || gcphase == _GCscan
 }
 
 // gcMarkWorkerMode represents the mode that a concurrent mark worker
@@ -833,6 +841,31 @@ func gc(mode int) {
 		heapGoal = gcController.heapGoal
 
 		systemstack(func() {
+			// Enter scan phase. This enables write
+			// barriers to track changes to stack frames
+			// above the stack barrier.
+			//
+			// TODO: This has evolved to the point where
+			// we carefully ensure invariants we no longer
+			// depend on. Either:
+			//
+			// 1) Enable full write barriers for the scan,
+			// but eliminate the ragged barrier below
+			// (since the start the world ensures all Ps
+			// have observed the write barrier enable) and
+			// consider draining during the scan.
+			//
+			// 2) Only enable write barriers for writes to
+			// the stack at this point, and then enable
+			// write barriers for heap writes when we
+			// enter the mark phase. This means we cannot
+			// drain in the scan phase and must perform a
+			// ragged barrier to ensure all Ps have
+			// enabled heap write barriers before we drain
+			// or enable assists.
+			//
+			// 3) Don't install stack barriers over frame
+			// boundaries where there are up-pointers.
 			setGCPhase(_GCscan)
 
 			// Concurrent scan.
@@ -842,8 +875,7 @@ func gc(mode int) {
 			}
 			gcscan_m()
 
-			// Enter mark phase. This enables write
-			// barriers.
+			// Enter mark phase.
 			if debug.gctrace > 0 {
 				tInstallWB = nanotime()
 			}
