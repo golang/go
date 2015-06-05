@@ -539,7 +539,11 @@ func gcRemoveStackBarriers(gp *g) {
 
 // gcRemoveStackBarrier removes a single stack barrier. It is the
 // inverse operation of gcInstallStackBarrier.
+//
+// This is nosplit to ensure gp's stack does not move.
+//
 //go:nowritebarrier
+//go:nosplit
 func gcRemoveStackBarrier(gp *g, stkbar stkbar) {
 	if debugStackBarrier {
 		print("remove stack barrier at ", hex(stkbar.savedLRPtr), " with ", hex(stkbar.savedLRVal), ", goid=", gp.goid, "\n")
@@ -568,15 +572,21 @@ func gcPrintStkbars(stkbar []stkbar) {
 	print("]")
 }
 
-// gcSkipBarriers marks all stack barriers up to sp as hit. This is
-// used during stack unwinding for panic/recover. This must run on the
-// system stack to ensure gp's stack does not get copied.
-func gcSkipBarriers(gp *g, sp uintptr) {
+// gcUnwindBarriers marks all stack barriers up the frame containing
+// sp as hit and removes them. This is used during stack unwinding for
+// panic/recover and by heapBitsBulkBarrier to force stack re-scanning
+// when its destination is on the stack.
+//
+// This is nosplit to ensure gp's stack does not move.
+//
+//go:nosplit
+func gcUnwindBarriers(gp *g, sp uintptr) {
 	// On LR machines, if there is a stack barrier on the return
 	// from the frame containing sp, this will mark it as hit even
 	// though it isn't, but it's okay to be conservative.
 	before := gp.stkbarPos
 	for int(gp.stkbarPos) < len(gp.stkbar) && gp.stkbar[gp.stkbarPos].savedLRPtr < sp {
+		gcRemoveStackBarrier(gp, gp.stkbar[gp.stkbarPos])
 		gp.stkbarPos++
 	}
 	if debugStackBarrier && gp.stkbarPos != before {
