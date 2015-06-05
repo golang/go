@@ -7,11 +7,11 @@
 package syscall_test
 
 import (
+	"internal/testenv"
 	"io"
 	"os"
 	"os/exec"
 	"os/signal"
-	"runtime"
 	"syscall"
 	"testing"
 	"unsafe"
@@ -48,9 +48,8 @@ func (c *command) Stop() {
 }
 
 func create(t *testing.T) *command {
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
-		t.Skipf("skipping on %s/%s, cannot fork", runtime.GOOS, runtime.GOARCH)
-	}
+	testenv.MustHaveExec(t)
+
 	proc := exec.Command("cat")
 	stdin, err := proc.StdinPipe()
 	if err != nil {

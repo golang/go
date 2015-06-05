@@ -352,6 +352,7 @@ var pkgDeps = map[string][]string{
 	"internal/syscall/unix":             {"runtime", "sync/atomic", "syscall", "unsafe"},
 	"internal/syscall/windows":          {"syscall", "unsafe"},
 	"internal/syscall/windows/registry": {"errors", "io", "syscall", "unicode/utf16", "unsafe"},
+	"internal/testenv":                  {"runtime", "strings", "testing"},
 	"internal/trace":                    {"bufio", "bytes", "fmt", "io", "os", "os/exec", "sort", "strconv", "strings"},
 	"net/http/cookiejar":                {"errors", "fmt", "net", "net/http", "net/url", "sort", "strings", "sync", "time", "unicode/utf8"},
 	"net/http/internal":                 {"bufio", "bytes", "errors", "fmt", "io"},

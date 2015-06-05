@@ -7,6 +7,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -85,22 +86,14 @@ func testAddr2Line(t *testing.T, exepath, addr string) {
 	if !os.SameFile(fi1, fi2) {
 		t.Fatalf("addr2line_test.go and %s are not same file", srcPath)
 	}
-	if srcLineNo != "94" {
-		t.Fatalf("line number = %v; want 94", srcLineNo)
+	if srcLineNo != "95" {
+		t.Fatalf("line number = %v; want 95", srcLineNo)
 	}
 }
 
-// This is line 93. The test depends on that.
+// This is line 94. The test depends on that.
 func TestAddr2Line(t *testing.T) {
-	switch runtime.GOOS {
-	case "nacl", "android":
-		t.Skipf("skipping on %s", runtime.GOOS)
-	case "darwin":
-		switch runtime.GOARCH {
-		case "arm", "arm64":
-			t.Skipf("skipping on %s/%s, cannot fork", runtime.GOOS, runtime.GOARCH)
-		}
-	}
+	testenv.MustHaveGoBuild(t)
 
 	syms := loadSyms(t)
 
