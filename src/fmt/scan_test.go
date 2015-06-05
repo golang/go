@@ -1044,3 +1044,85 @@ func TestHexBytes(t *testing.T) {
 		t.Errorf("odd count: got count, err = %d, %v; expected 0, error", n, err)
 	}
 }
+
+func TestScanNewlinesAreSpaces(t *testing.T) {
+	var a, b int
+	var tests = []struct {
+		name  string
+		text  string
+		count int
+	}{
+		{"newlines", "1\n2\n", 2},
+		{"no final newline", "1\n2", 2},
+		{"newlines with spaces ", "1  \n  2  \n", 2},
+		{"no final newline with spaces", "1  \n  2", 2},
+	}
+	for _, test := range tests {
+		n, err := Sscan(test.text, &a, &b)
+		if n != test.count {
+			t.Errorf("%s: expected to scan %d item(s), scanned %d", test.name, test.count, n)
+		}
+		if err != nil {
+			t.Errorf("%s: unexpected error: %s", test.name, err)
+		}
+	}
+}
+
+func TestScanlnNewlinesTerminate(t *testing.T) {
+	var a, b int
+	var tests = []struct {
+		name  string
+		text  string
+		count int
+		ok    bool
+	}{
+		{"one line one item", "1\n", 1, false},
+		{"one line two items with spaces ", "   1 2    \n", 2, true},
+		{"one line two items no newline", "   1 2", 2, true},
+		{"two lines two items", "1\n2\n", 1, false},
+	}
+	for _, test := range tests {
+		n, err := Sscanln(test.text, &a, &b)
+		if n != test.count {
+			t.Errorf("%s: expected to scan %d item(s), scanned %d", test.name, test.count, n)
+		}
+		if test.ok && err != nil {
+			t.Errorf("%s: unexpected error: %s", test.name, err)
+		}
+		if !test.ok && err == nil {
+			t.Errorf("%s: expected error; got none", test.name)
+		}
+	}
+}
+
+func TestScanfNewlineMatchFormat(t *testing.T) {
+	var a, b int
+	var tests = []struct {
+		name   string
+		text   string
+		format string
+		count  int
+		ok     bool
+	}{
+		{"newline in both", "1\n2", "%d\n%d\n", 2, true},
+		{"newline in input", "1\n2", "%d %d", 1, false},
+		{"space-newline in input", "1 \n2", "%d %d", 1, false},
+		{"newline in format", "1 2", "%d\n%d", 1, false},
+		{"space-newline in format", "1 2", "%d \n%d", 1, false},
+		{"space-newline in both", "1 \n2", "%d \n%d", 2, true},
+		{"extra space in format", "1\n2", "%d\n %d", 2, true},
+		{"two extra spaces in format", "1\n2", "%d \n %d", 2, true},
+	}
+	for _, test := range tests {
+		n, err := Sscanf(test.text, test.format, &a, &b)
+		if n != test.count {
+			t.Errorf("%s: expected to scan %d item(s), scanned %d", test.name, test.count, n)
+		}
+		if test.ok && err != nil {
+			t.Errorf("%s: unexpected error: %s", test.name, err)
+		}
+		if !test.ok && err == nil {
+			t.Errorf("%s: expected error; got none", test.name)
+		}
+	}
+}
