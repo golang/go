@@ -937,6 +937,7 @@ func gc(mode int) {
 			// Run a full stop-the-world mark using checkmark bits,
 			// to check that we didn't forget to mark anything during
 			// the concurrent mark process.
+			gcResetGState() // Rescan stacks
 			initCheckmarks()
 			gcMark(startTime)
 			clearCheckmarks()
