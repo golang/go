@@ -135,7 +135,7 @@ control the execution of any test:
 	-blockprofilerate n
 	    Control the detail provided in goroutine blocking profiles by
 	    calling runtime.SetBlockProfileRate with n.
-	    See 'godoc runtime SetBlockProfileRate'.
+	    See 'go doc runtime.SetBlockProfileRate'.
 	    The profiler aims to sample, on average, one blocking event every
 	    n nanoseconds the program spends blocked.  By default,
 	    if -test.blockprofile is set without this flag, all blocking events
@@ -185,7 +185,7 @@ control the execution of any test:
 
 	-memprofilerate n
 	    Enable more precise (and expensive) memory profiles by setting
-	    runtime.MemProfileRate.  See 'godoc runtime MemProfileRate'.
+	    runtime.MemProfileRate.  See 'go doc runtime.MemProfileRate'.
 	    To profile all memory allocations, use -test.memprofilerate=1
 	    and pass --alloc_space flag to the pprof tool.
 

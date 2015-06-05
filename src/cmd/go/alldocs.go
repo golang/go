@@ -287,7 +287,7 @@ Usage:
 
 Fix runs the Go fix command on the packages named by the import paths.
 
-For more about fix, see 'godoc fix'.
+For more about fix, see 'go doc cmd/fix'.
 For more about specifying packages, see 'go help packages'.
 
 To run fix with specific options, run 'go tool fix'.
@@ -304,7 +304,7 @@ Usage:
 Fmt runs the command 'gofmt -l -w' on the packages named
 by the import paths.  It prints the names of the files that are modified.
 
-For more about gofmt, see 'godoc gofmt'.
+For more about gofmt, see 'go doc cmd/gofmt'.
 For more about specifying packages, see 'go help packages'.
 
 The -n flag prints commands that would be executed.
@@ -703,7 +703,7 @@ Usage:
 
 Vet runs the Go vet command on the packages named by the import paths.
 
-For more about vet, see 'godoc golang.org/x/tools/cmd/vet'.
+For more about vet, see 'go doc cmd/vet'.
 For more about specifying packages, see 'go help packages'.
 
 To run the vet tool with specific options, run 'go tool vet'.
@@ -721,7 +721,7 @@ Calling between Go and C
 There are two different ways to call between Go and C/C++ code.
 
 The first is the cgo tool, which is part of the Go distribution.  For
-information on how to use it see the cgo documentation (godoc cmd/cgo).
+information on how to use it see the cgo documentation (go doc cmd/cgo).
 
 The second is the SWIG program, which is a general tool for
 interfacing between languages.  For information on SWIG see
@@ -1131,7 +1131,7 @@ control the execution of any test:
 	-blockprofilerate n
 	    Control the detail provided in goroutine blocking profiles by
 	    calling runtime.SetBlockProfileRate with n.
-	    See 'godoc runtime SetBlockProfileRate'.
+	    See 'go doc runtime.SetBlockProfileRate'.
 	    The profiler aims to sample, on average, one blocking event every
 	    n nanoseconds the program spends blocked.  By default,
 	    if -test.blockprofile is set without this flag, all blocking events
@@ -1181,7 +1181,7 @@ control the execution of any test:
 
 	-memprofilerate n
 	    Enable more precise (and expensive) memory profiles by setting
-	    runtime.MemProfileRate.  See 'godoc runtime MemProfileRate'.
+	    runtime.MemProfileRate.  See 'go doc runtime.MemProfileRate'.
 	    To profile all memory allocations, use -test.memprofilerate=1
 	    and pass --alloc_space flag to the pprof tool.
 
