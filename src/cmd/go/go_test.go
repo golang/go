@@ -585,7 +585,7 @@ func TestGoBuilDashAInReleaseBranch(t *testing.T) {
 	tg.run("install", "math") // should be up to date already but just in case
 	tg.setenv("TESTGO_IS_GO_RELEASE", "1")
 	tg.run("build", "-v", "-a", "math")
-	tg.grepStderrNot("runtime", "testgo build -a math in dev branch DID build runtime, but should NOT have")
+	tg.grepStderr("runtime", "testgo build -a math in dev branch did not build runtime, but should have")
 }
 
 func TestGoInstallCleansUpAfterGoBuild(t *testing.T) {
