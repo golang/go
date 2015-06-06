@@ -91,12 +91,12 @@ func stackalloc(f *Func) {
 				}
 				// TODO: do this with arch-specific rewrite rules somehow?
 				switch v.Op {
-				case OpADDQ:
+				case OpAMD64ADDQ:
 					// (ADDQ (FP) x) -> (LEAQ [n] (SP) x)
-					v.Op = OpLEAQ
+					v.Op = OpAMD64LEAQ
 					v.Aux = n
-				case OpLEAQ, OpMOVQload, OpMOVQstore, OpMOVBload, OpMOVQloadidx8:
-					if v.Op == OpMOVQloadidx8 && i == 1 {
+				case OpAMD64LEAQ, OpAMD64MOVQload, OpAMD64MOVQstore, OpAMD64MOVBload, OpAMD64MOVQloadidx8:
+					if v.Op == OpAMD64MOVQloadidx8 && i == 1 {
 						// Note: we could do it, but it is probably an error
 						log.Panicf("can't do FP->SP adjust on index slot of load %s", v.Op)
 					}
@@ -104,6 +104,7 @@ func stackalloc(f *Func) {
 					v.Aux = addOffset(v.Aux.(int64), n)
 				default:
 					log.Panicf("can't do FP->SP adjust on %s", v.Op)
+					// TODO: OpCopy -> ADDQ
 				}
 			}
 		}

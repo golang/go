@@ -4,10 +4,7 @@
 
 package ssa
 
-import (
-	"fmt"
-	"strings"
-)
+import "fmt"
 
 // A Value represents a value in the SSA representation of the program.
 // The ID and Type fields must not be modified.  The remainder may be modified
@@ -51,7 +48,7 @@ func (v *Value) String() string {
 
 // long form print.  v# = opcode <type> [aux] args [: reg]
 func (v *Value) LongString() string {
-	s := fmt.Sprintf("v%d = %s", v.ID, strings.TrimPrefix(v.Op.String(), "Op"))
+	s := fmt.Sprintf("v%d = %s", v.ID, v.Op.String())
 	s += " <" + v.Type.String() + ">"
 	if v.Aux != nil {
 		s += fmt.Sprintf(" [%v]", v.Aux)
