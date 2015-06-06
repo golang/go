@@ -607,7 +607,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 
 func genValue(v *ssa.Value) {
 	switch v.Op {
-	case ssa.OpADDQ:
+	case ssa.OpAMD64ADDQ:
 		// TODO: use addq instead of leaq if target is in the right register.
 		p := Prog(x86.ALEAQ)
 		p.From.Type = obj.TYPE_MEM
@@ -616,7 +616,7 @@ func genValue(v *ssa.Value) {
 		p.From.Index = regnum(v.Args[1])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
-	case ssa.OpADDQconst:
+	case ssa.OpAMD64ADDQconst:
 		// TODO: use addq instead of leaq if target is in the right register.
 		p := Prog(x86.ALEAQ)
 		p.From.Type = obj.TYPE_MEM
@@ -624,7 +624,7 @@ func genValue(v *ssa.Value) {
 		p.From.Offset = v.Aux.(int64)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
-	case ssa.OpMULQconst:
+	case ssa.OpAMD64MULQconst:
 		// TODO: this isn't right.  doasm fails on it.  I don't think obj
 		// has ever been taught to compile imul $c, r1, r2.
 		p := Prog(x86.AIMULQ)
@@ -634,7 +634,7 @@ func genValue(v *ssa.Value) {
 		p.From3.Reg = regnum(v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
-	case ssa.OpSUBQconst:
+	case ssa.OpAMD64SUBQconst:
 		// This code compensates for the fact that the register allocator
 		// doesn't understand 2-address instructions yet.  TODO: fix that.
 		x := regnum(v.Args[0])
@@ -652,7 +652,7 @@ func genValue(v *ssa.Value) {
 		p.From.Offset = v.Aux.(int64)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-	case ssa.OpSHLQconst:
+	case ssa.OpAMD64SHLQconst:
 		x := regnum(v.Args[0])
 		r := regnum(v)
 		if x != r {
@@ -668,7 +668,7 @@ func genValue(v *ssa.Value) {
 		p.From.Offset = v.Aux.(int64)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-	case ssa.OpLEAQ:
+	case ssa.OpAMD64LEAQ:
 		p := Prog(x86.ALEAQ)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = regnum(v.Args[0])
@@ -677,46 +677,46 @@ func genValue(v *ssa.Value) {
 		p.From.Offset = v.Aux.(int64)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
-	case ssa.OpCMPQ:
+	case ssa.OpAMD64CMPQ:
 		p := Prog(x86.ACMPQ)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = regnum(v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v.Args[1])
-	case ssa.OpCMPQconst:
+	case ssa.OpAMD64CMPQconst:
 		p := Prog(x86.ACMPQ)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = regnum(v.Args[0])
 		p.To.Type = obj.TYPE_CONST
 		p.To.Offset = v.Aux.(int64)
-	case ssa.OpTESTB:
+	case ssa.OpAMD64TESTB:
 		p := Prog(x86.ATESTB)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = regnum(v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v.Args[1])
-	case ssa.OpMOVQconst:
+	case ssa.OpAMD64MOVQconst:
 		x := regnum(v)
 		p := Prog(x86.AMOVQ)
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.Aux.(int64)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x
-	case ssa.OpMOVQload:
+	case ssa.OpAMD64MOVQload:
 		p := Prog(x86.AMOVQ)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = regnum(v.Args[0])
 		p.From.Offset = v.Aux.(int64)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
-	case ssa.OpMOVBload:
+	case ssa.OpAMD64MOVBload:
 		p := Prog(x86.AMOVB)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = regnum(v.Args[0])
 		p.From.Offset = v.Aux.(int64)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
-	case ssa.OpMOVQloadidx8:
+	case ssa.OpAMD64MOVQloadidx8:
 		p := Prog(x86.AMOVQ)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = regnum(v.Args[0])
@@ -725,7 +725,7 @@ func genValue(v *ssa.Value) {
 		p.From.Index = regnum(v.Args[1])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
-	case ssa.OpMOVQstore:
+	case ssa.OpAMD64MOVQstore:
 		p := Prog(x86.AMOVQ)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = regnum(v.Args[1])
@@ -775,7 +775,7 @@ func genValue(v *ssa.Value) {
 	case ssa.OpArg:
 		// memory arg needs no code
 		// TODO: only mem arg goes here.
-	case ssa.OpLEAQglobal:
+	case ssa.OpAMD64LEAQglobal:
 		g := v.Aux.(ssa.GlobalOffset)
 		p := Prog(x86.ALEAQ)
 		p.From.Type = obj.TYPE_MEM
@@ -812,7 +812,7 @@ func genBlock(b, next *ssa.Block, branches []branch) []branch {
 			p.To.Type = obj.TYPE_BRANCH
 			branches = append(branches, branch{p, b.Succs[0]})
 		}
-	case ssa.BlockEQ:
+	case ssa.BlockAMD64EQ:
 		if b.Succs[0] == next {
 			p := Prog(x86.AJNE)
 			p.To.Type = obj.TYPE_BRANCH
@@ -829,7 +829,7 @@ func genBlock(b, next *ssa.Block, branches []branch) []branch {
 			q.To.Type = obj.TYPE_BRANCH
 			branches = append(branches, branch{q, b.Succs[1]})
 		}
-	case ssa.BlockNE:
+	case ssa.BlockAMD64NE:
 		if b.Succs[0] == next {
 			p := Prog(x86.AJEQ)
 			p.To.Type = obj.TYPE_BRANCH
@@ -846,7 +846,7 @@ func genBlock(b, next *ssa.Block, branches []branch) []branch {
 			q.To.Type = obj.TYPE_BRANCH
 			branches = append(branches, branch{q, b.Succs[1]})
 		}
-	case ssa.BlockLT:
+	case ssa.BlockAMD64LT:
 		if b.Succs[0] == next {
 			p := Prog(x86.AJGE)
 			p.To.Type = obj.TYPE_BRANCH
@@ -863,7 +863,7 @@ func genBlock(b, next *ssa.Block, branches []branch) []branch {
 			q.To.Type = obj.TYPE_BRANCH
 			branches = append(branches, branch{q, b.Succs[1]})
 		}
-	case ssa.BlockULT:
+	case ssa.BlockAMD64ULT:
 		if b.Succs[0] == next {
 			p := Prog(x86.AJCC)
 			p.To.Type = obj.TYPE_BRANCH
@@ -880,7 +880,7 @@ func genBlock(b, next *ssa.Block, branches []branch) []branch {
 			q.To.Type = obj.TYPE_BRANCH
 			branches = append(branches, branch{q, b.Succs[1]})
 		}
-	case ssa.BlockUGT:
+	case ssa.BlockAMD64UGT:
 		if b.Succs[0] == next {
 			p := Prog(x86.AJLS)
 			p.To.Type = obj.TYPE_BRANCH

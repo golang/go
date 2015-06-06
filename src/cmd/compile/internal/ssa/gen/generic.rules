@@ -38,12 +38,12 @@
 // TODO: fix size
 (Store dst (Load <t> src mem) mem) && t.Size() > 8 -> (Move [t.Size()] dst src mem)
 
-(BlockIf (Const [c]) yes no) && c.(bool) -> (BlockPlain nil yes)
-(BlockIf (Const [c]) yes no) && !c.(bool) -> (BlockPlain nil no)
-
 // string ops
 (Const <t> [s]) && t.IsString() -> (StringMake (OffPtr <TypeBytePtr> [2*config.ptrSize] (Global <TypeBytePtr> [config.fe.StringSym(s.(string))])) (Const <config.Uintptr> [int64(len(s.(string)))])) // TODO: ptr
 (Load <t> ptr mem) && t.IsString() -> (StringMake (Load <TypeBytePtr> ptr mem) (Load <config.Uintptr> (OffPtr <TypeBytePtr> [config.ptrSize] ptr) mem))
 (StringPtr (StringMake ptr _)) -> ptr
 (StringLen (StringMake _ len)) -> len
 (Store dst str mem) && str.Type.IsString() -> (Store (OffPtr <TypeBytePtr> [config.ptrSize] dst) (StringLen <config.Uintptr> str) (Store <TypeMem> dst (StringPtr <TypeBytePtr> str) mem))
+
+(If (Const [c]) yes no) && c.(bool) -> (Plain nil yes)
+(If (Const [c]) yes no) && !c.(bool) -> (Plain nil no)

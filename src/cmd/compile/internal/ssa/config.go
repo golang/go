@@ -30,12 +30,12 @@ func NewConfig(arch string, fe Frontend) *Config {
 	switch arch {
 	case "amd64":
 		c.ptrSize = 8
-		c.lowerBlock = lowerBlockAMD64
-		c.lowerValue = lowerValueAMD64
+		c.lowerBlock = rewriteBlockAMD64
+		c.lowerValue = rewriteValueAMD64
 	case "386":
 		c.ptrSize = 4
-		c.lowerBlock = lowerBlockAMD64
-		c.lowerValue = lowerValueAMD64 // TODO(khr): full 32-bit support
+		c.lowerBlock = rewriteBlockAMD64
+		c.lowerValue = rewriteValueAMD64 // TODO(khr): full 32-bit support
 	default:
 		log.Fatalf("arch %s not implemented", arch)
 	}

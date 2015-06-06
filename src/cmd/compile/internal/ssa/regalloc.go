@@ -20,8 +20,10 @@ func setloc(home []Location, v *Value, loc Location) []Location {
 
 type register uint
 
+type regMask uint64
+
 // TODO: make arch-dependent
-var numRegs register = 32
+var numRegs register = 64
 
 var registers = [...]Register{
 	Register{0, "AX"},
@@ -40,12 +42,26 @@ var registers = [...]Register{
 	Register{13, "R13"},
 	Register{14, "R14"},
 	Register{15, "R15"},
+	Register{16, "X0"},
+	Register{17, "X1"},
+	Register{18, "X2"},
+	Register{19, "X3"},
+	Register{20, "X4"},
+	Register{21, "X5"},
+	Register{22, "X6"},
+	Register{23, "X7"},
+	Register{24, "X8"},
+	Register{25, "X9"},
+	Register{26, "X10"},
+	Register{27, "X11"},
+	Register{28, "X12"},
+	Register{29, "X13"},
+	Register{30, "X14"},
+	Register{31, "X15"},
+	Register{32, "FP"}, // pseudo-register, actually a constant offset from SP
+	Register{33, "FLAGS"},
 
-	// TODO X0, ...
 	// TODO: make arch-dependent
-	Register{16, "FP"}, // pseudo-register, actually a constant offset from SP
-	Register{17, "FLAGS"},
-	Register{18, "OVERWRITE"},
 }
 
 // countRegs returns the number of set bits in the register mask.
@@ -98,7 +114,7 @@ func regalloc(f *Func) {
 			home = setloc(home, v, &registers[4]) // TODO: arch-dependent
 		case OpFP:
 			fp = v
-			home = setloc(home, v, &registers[16]) // TODO: arch-dependent
+			home = setloc(home, v, &registers[32]) // TODO: arch-dependent
 		}
 	}
 
@@ -135,7 +151,7 @@ func regalloc(f *Func) {
 
 		// TODO: hack: initialize fixed registers
 		regs[4] = regInfo{sp, sp, false}
-		regs[16] = regInfo{fp, fp, false}
+		regs[32] = regInfo{fp, fp, false}
 
 		var used regMask  // has a 1 for each non-nil entry in regs
 		var dirty regMask // has a 1 for each dirty entry in regs
@@ -155,8 +171,12 @@ func regalloc(f *Func) {
 			//   - definition of v.  c will be identical to v but will live in
 			//     a register.  v will be modified into a spill of c.
 			regspec := opcodeTable[v.Op].reg
-			inputs := regspec[0]
-			outputs := regspec[1]
+			if v.Op == OpCopy || v.Op == OpConvNop {
+				// TODO: make this less of a hack
+				regspec = opcodeTable[OpAMD64ADDQconst].reg
+			}
+			inputs := regspec.inputs
+			outputs := regspec.outputs
 			if len(inputs) == 0 && len(outputs) == 0 {
 				// No register allocation required (or none specified yet)
 				b.Values = append(b.Values, v)
@@ -177,7 +197,7 @@ func regalloc(f *Func) {
 			// nospill contains registers that we can't spill because
 			// we already set them up for use by the current instruction.
 			var nospill regMask
-			nospill |= 0x10010 // SP and FP can't be spilled (TODO: arch-specific)
+			nospill |= 0x100000010 // SP and FP can't be spilled (TODO: arch-specific)
 
 			// Move inputs into registers
 			for _, o := range order {
@@ -277,6 +297,8 @@ func regalloc(f *Func) {
 				// the instruction is issued.
 				nospill |= regMask(1) << r
 			}
+
+			// TODO: do any clobbering
 
 			// pick a register for v itself.
 			if len(outputs) > 1 {

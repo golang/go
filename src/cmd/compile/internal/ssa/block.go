@@ -4,10 +4,7 @@
 
 package ssa
 
-import (
-	"fmt"
-	"strings"
-)
+import "fmt"
 
 // Block represents a basic block in the control flow graph of a function.
 type Block struct {
@@ -50,29 +47,6 @@ type Block struct {
 //     Call               mem  [nopanic, panic]  (control opcode should be OpCall or OpStaticCall)
 type BlockKind int32
 
-// block kind ranges
-const (
-	blockInvalid     BlockKind = 0
-	blockGenericBase           = 1 + 100*iota
-	blockAMD64Base
-	block386Base
-
-	blockMax // sentinel
-)
-
-// generic block kinds
-const (
-	blockGenericStart BlockKind = blockGenericBase + iota
-
-	BlockExit  // no successors.  There should only be 1 of these.
-	BlockPlain // a single successor
-	BlockIf    // 2 successors, if control goto Succs[0] else goto Succs[1]
-	BlockCall  // 2 successors, normal return and panic
-	// TODO(khr): BlockPanic for the built-in panic call, has 1 edge to the exit block
-)
-
-//go:generate stringer -type=BlockKind
-
 // short form print
 func (b *Block) String() string {
 	return fmt.Sprintf("b%d", b.ID)
@@ -80,7 +54,7 @@ func (b *Block) String() string {
 
 // long form print
 func (b *Block) LongString() string {
-	s := strings.TrimPrefix(b.Kind.String(), "Block")
+	s := b.Kind.String()
 	if b.Control != nil {
 		s += fmt.Sprintf(" %s", b.Control)
 	}

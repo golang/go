@@ -35,10 +35,10 @@
 (Const <t> [val]) && is64BitInt(t) -> (MOVQconst [val])
 
 // block rewrites
-(BlockIf (SETL cmp) yes no) -> (BlockLT cmp yes no)
-(BlockIf (SETNE cmp) yes no) -> (BlockNE cmp yes no)
-(BlockIf (SETB cmp) yes no) -> (BlockULT cmp yes no)
-(BlockIf cond yes no) && cond.Op == OpMOVBload -> (BlockNE (TESTB <TypeFlags> cond cond) yes no)
+(If (SETL cmp) yes no) -> (LT cmp yes no)
+(If (SETNE cmp) yes no) -> (NE cmp yes no)
+(If (SETB cmp) yes no) -> (ULT cmp yes no)
+(If cond yes no) && cond.Op == OpAMD64MOVBload -> (NE (TESTB <TypeFlags> cond cond) yes no)
 
 // Rules below here apply some simple optimizations after lowering.
 // TODO: Should this be a separate pass?
@@ -88,13 +88,13 @@
 (ADDQconst [off] x) && off.(int64) == 0 -> (Copy x)
 
 // Absorb InvertFlags into branches.
-(BlockLT (InvertFlags cmp) yes no) -> (BlockGT cmp yes no)
-(BlockGT (InvertFlags cmp) yes no) -> (BlockLT cmp yes no)
-(BlockLE (InvertFlags cmp) yes no) -> (BlockGE cmp yes no)
-(BlockGE (InvertFlags cmp) yes no) -> (BlockLE cmp yes no)
-(BlockULT (InvertFlags cmp) yes no) -> (BlockUGT cmp yes no)
-(BlockUGT (InvertFlags cmp) yes no) -> (BlockULT cmp yes no)
-(BlockULE (InvertFlags cmp) yes no) -> (BlockUGE cmp yes no)
-(BlockUGE (InvertFlags cmp) yes no) -> (BlockULE cmp yes no)
-(BlockEQ (InvertFlags cmp) yes no) -> (BlockEQ cmp yes no)
-(BlockNE (InvertFlags cmp) yes no) -> (BlockNE cmp yes no)
+(LT (InvertFlags cmp) yes no) -> (GT cmp yes no)
+(GT (InvertFlags cmp) yes no) -> (LT cmp yes no)
+(LE (InvertFlags cmp) yes no) -> (GE cmp yes no)
+(GE (InvertFlags cmp) yes no) -> (LE cmp yes no)
+(ULT (InvertFlags cmp) yes no) -> (UGT cmp yes no)
+(UGT (InvertFlags cmp) yes no) -> (ULT cmp yes no)
+(ULE (InvertFlags cmp) yes no) -> (UGE cmp yes no)
+(UGE (InvertFlags cmp) yes no) -> (ULE cmp yes no)
+(EQ (InvertFlags cmp) yes no) -> (EQ cmp yes no)
+(NE (InvertFlags cmp) yes no) -> (NE cmp yes no)
