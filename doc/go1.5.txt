@@ -66,7 +66,7 @@ net/http: ignore the Unix epoch time in ServeContent (https://golang.org/cl/7915
 net/http/cgi: fix REMOTE_ADDR, REMOTE_HOST, add REMOTE_PORT (https://golang.org/cl/4933)
 net/mail: adds AddressParser type (https://golang.org/cl/10392)
 net/smtp: add TLSConnectionState accessor (https://golang.org/cl/2151)
-os: add LookupEnv (https://golang.org/cl/9791)
+os: add LookupEnv (https://golang.org/cl/9741)
 os/signal: add Ignore and Reset (https://golang.org/cl/3580)
 reflect: add ArrayOf (https://golang.org/cl/4111)
 reflect: add FuncOf (https://golang.org/cl/1996)
