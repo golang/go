@@ -83,6 +83,9 @@ type TestMapAlias map[int]int
 func fMapAlias(a TestMapAlias) TestMapAlias { return a }
 
 func fPtr(a *int) *int {
+	if a == nil {
+		return nil
+	}
 	b := *a
 	return &b
 }
@@ -254,4 +257,18 @@ func TestFailure(t *testing.T) {
 	if _, ok := err.(SetupError); !ok {
 		t.Errorf("#3 Error was not a SetupError: %s", err)
 	}
+}
+
+// The following test didn't terminate because nil pointers were not
+// generated.
+// Issue 8818.
+func TestNilPointers(t *testing.T) {
+	type Recursive struct {
+		Next *Recursive
+	}
+
+	f := func(rec Recursive) bool {
+		return true
+	}
+	Check(f, nil)
 }
