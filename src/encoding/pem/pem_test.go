@@ -146,7 +146,7 @@ func TestLineBreaker(t *testing.T) {
 }
 
 func TestFuzz(t *testing.T) {
-	testRoundtrip := func(block *Block) bool {
+	testRoundtrip := func(block Block) bool {
 		for key := range block.Headers {
 			if strings.Contains(key, ":") {
 				// Keys with colons cannot be encoded.
@@ -155,14 +155,14 @@ func TestFuzz(t *testing.T) {
 		}
 
 		var buf bytes.Buffer
-		err := Encode(&buf, block)
+		err := Encode(&buf, &block)
 		decoded, rest := Decode(buf.Bytes())
 
 		switch {
 		case err != nil:
-			t.Errorf("Encode of %#v resulted in error: %s", block, err)
-		case !reflect.DeepEqual(block, decoded):
-			t.Errorf("Encode of %#v decoded as %#v", block, decoded)
+			t.Errorf("Encode of %#v resulted in error: %s", &block, err)
+		case !reflect.DeepEqual(&block, decoded):
+			t.Errorf("Encode of %#v decoded as %#v", &block, decoded)
 		case len(rest) != 0:
 			t.Errorf("Encode of %#v decoded correctly, but with %x left over", block, rest)
 		default:
@@ -172,7 +172,7 @@ func TestFuzz(t *testing.T) {
 	}
 
 	// Explicitly test the empty block.
-	if !testRoundtrip(&Block{
+	if !testRoundtrip(Block{
 		Type:    "EMPTY",
 		Headers: make(map[string]string),
 		Bytes:   []byte{},
