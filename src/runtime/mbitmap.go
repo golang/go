@@ -413,6 +413,51 @@ func heapBitsBulkBarrier(p, size uintptr) {
 	}
 }
 
+// typeBitsBulkBarrier executes writebarrierptr_nostore
+// for every pointer slot in the memory range [p, p+size),
+// using the type bitmap to locate those pointer slots.
+// The type typ must correspond exactly to [p, p+size).
+// This executes the write barriers necessary after a copy.
+// Both p and size must be pointer-aligned.
+// The type typ must have a plain bitmap, not a GC program.
+// The only use of this function is in channel sends, and the
+// 64 kB channel element limit takes care of this for us.
+//
+// Must not be preempted because it typically runs right after memmove,
+// and the GC must not complete between those two.
+//
+//go:nosplit
+func typeBitsBulkBarrier(typ *_type, p, size uintptr) {
+	if typ == nil {
+		throw("runtime: typeBitsBulkBarrier without type")
+	}
+	if typ.size != size {
+		println("runtime: typeBitsBulkBarrier with type ", *typ._string, " of size ", typ.size, " but memory size", size)
+		throw("runtime: invalid typeBitsBulkBarrier")
+	}
+	if typ.kind&kindGCProg != 0 {
+		println("runtime: typeBitsBulkBarrier with type ", *typ._string, " with GC prog")
+		throw("runtime: invalid typeBitsBulkBarrier")
+	}
+	if !writeBarrierEnabled {
+		return
+	}
+	ptrmask := typ.gcdata
+	var bits uint32
+	for i := uintptr(0); i < typ.ptrdata; i += ptrSize {
+		if i&(ptrSize*8-1) == 0 {
+			bits = uint32(*ptrmask)
+			ptrmask = addb(ptrmask, 1)
+		} else {
+			bits = bits >> 1
+		}
+		if bits&1 != 0 {
+			x := (*uintptr)(unsafe.Pointer(p + i))
+			writebarrierptr_nostore(x, *x)
+		}
+	}
+}
+
 // The methods operating on spans all require that h has been returned
 // by heapBitsForSpan and that size, n, total are the span layout description
 // returned by the mspan's layout method.

@@ -1797,6 +1797,9 @@ func SliceOf(t Type) Type {
 	return cachePut(ckey, &slice.rtype)
 }
 
+// See cmd/compile/internal/gc/reflect.go for derivation of constant.
+const maxPtrmaskBytes = 2048
+
 // ArrayOf returns the array type with the given count and element type.
 // For example, if t represents int, ArrayOf(5, t) represents [5]int.
 //
@@ -1865,7 +1868,7 @@ func ArrayOf(count int, elem Type) Type {
 		array.gcdata = typ.gcdata
 		array.ptrdata = typ.ptrdata
 
-	case typ.kind&kindGCProg == 0 && array.size <= 16*8*ptrSize:
+	case typ.kind&kindGCProg == 0 && array.size <= maxPtrmaskBytes*8*ptrSize:
 		// Element is small with pointer mask; array is still small.
 		// Create direct pointer mask by turning each 1 bit in elem
 		// into count 1 bits in larger mask.

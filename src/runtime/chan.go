@@ -165,7 +165,16 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 
 			recvg := sg.g
 			if sg.elem != nil {
-				typedmemmove(c.elemtype, unsafe.Pointer(sg.elem), ep)
+				// This is the only place in the entire runtime where one goroutine
+				// writes to the stack of another goroutine. The GC assumes that
+				// stack writes only happen when the goroutine is running and are
+				// only done by that goroutine. Using a write barrier is sufficient to
+				// make up for violating that assumption, but the write barrier has to work.
+				// typedmemmove will call heapBitsBulkBarrier, but the target bytes
+				// are not in the heap, so that will not help. We arrange to call
+				// memmove and typeBitsBulkBarrier instead.
+				memmove(sg.elem, ep, c.elemtype.size)
+				typeBitsBulkBarrier(c.elemtype, uintptr(sg.elem), c.elemtype.size)
 				sg.elem = nil
 			}
 			recvg.param = unsafe.Pointer(sg)
