@@ -388,7 +388,7 @@ func heapBitsBulkBarrier(p, size uintptr) {
 		// unwinding the stack barriers between the current SP
 		// and p's frame.
 		gp := getg().m.curg
-		if gp.stack.lo <= p && p < gp.stack.hi {
+		if gp != nil && gp.stack.lo <= p && p < gp.stack.hi {
 			// Run on the system stack to give it more
 			// stack space.
 			systemstack(func() {
