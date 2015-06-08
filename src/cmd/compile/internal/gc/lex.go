@@ -1569,10 +1569,8 @@ func more(pp *string) bool {
 // as a discontinuity in sequential line numbers.
 // the next line of input comes from parse.y:15
 func (l *lexer) getlinepragma() rune {
-	var cmd, verb, name string
-
 	c := l.getr()
-	if c == 'g' {
+	if c == 'g' { // check for //go: directive
 		cp := &lexbuf
 		cp.Reset()
 		cp.WriteByte('g') // already read
@@ -1594,77 +1592,55 @@ func (l *lexer) getlinepragma() rune {
 			pragcgo(text)
 		}
 
-		cmd = text
-		verb = cmd
-		if i := strings.Index(verb, " "); i >= 0 {
+		verb := text
+		if i := strings.Index(text, " "); i >= 0 {
 			verb = verb[:i]
 		}
 
-		if verb == "go:linkname" {
+		switch verb {
+		case "go:linkname":
 			if !imported_unsafe {
 				Yyerror("//go:linkname only allowed in Go files that import \"unsafe\"")
 			}
-			f := strings.Fields(cmd)
+			f := strings.Fields(text)
 			if len(f) != 3 {
 				Yyerror("usage: //go:linkname localname linkname")
-				return c
+				break
 			}
-
 			Lookup(f[1]).Linkname = f[2]
-			return c
-		}
-
-		if verb == "go:nointerface" && obj.Fieldtrack_enabled != 0 {
-			nointerface = true
-			return c
-		}
-
-		if verb == "go:noescape" {
+		case "go:nointerface":
+			if obj.Fieldtrack_enabled != 0 {
+				nointerface = true
+			}
+		case "go:noescape":
 			noescape = true
-			return c
-		}
-
-		if verb == "go:norace" {
+		case "go:norace":
 			norace = true
-			return c
-		}
-
-		if verb == "go:nosplit" {
+		case "go:nosplit":
 			nosplit = true
-			return c
-		}
-
-		if verb == "go:noinline" {
+		case "go:noinline":
 			noinline = true
-			return c
-		}
-
-		if verb == "go:systemstack" {
+		case "go:systemstack":
 			if compiling_runtime == 0 {
 				Yyerror("//go:systemstack only allowed in runtime")
 			}
 			systemstack = true
-			return c
-		}
-
-		if verb == "go:nowritebarrier" {
+		case "go:nowritebarrier":
 			if compiling_runtime == 0 {
 				Yyerror("//go:nowritebarrier only allowed in runtime")
 			}
 			nowritebarrier = true
-			return c
-		}
-
-		if verb == "go:nowritebarrierrec" {
+		case "go:nowritebarrierrec":
 			if compiling_runtime == 0 {
 				Yyerror("//go:nowritebarrierrec only allowed in runtime")
 			}
 			nowritebarrierrec = true
 			nowritebarrier = true // Implies nowritebarrier
-			return c
 		}
 		return c
 	}
+
+	// check for //line directive
 	if c != 'l' {
 		return c
 	}
@@ -1694,34 +1670,25 @@ func (l *lexer) getlinepragma() rune {
 		}
 		cp.WriteByte(byte(c))
 	}
-
 	cp = nil
 
 	if linep == 0 {
 		return c
 	}
 	text := strings.TrimSuffix(lexbuf.String(), "\r")
-	n := 0
-	for _, c := range text[linep:] {
-		if c < '0' || c > '9' {
-			goto out
-		}
-		n = n*10 + int(c) - '0'
-		if n > 1e8 {
-			Yyerror("line number out of range")
-			errorexit()
-		}
+	n, err := strconv.Atoi(text[linep:])
+	if err != nil {
+		return c // todo: make this an error instead? it is almost certainly a bug.
 	}
-
+	if n > 1e8 {
+		Yyerror("line number out of range")
+		errorexit()
+	}
 	if n <= 0 {
 		return c
 	}
 
-	name = text[:linep-1]
-	linehistupdate(name, n)
-	return c
-
-out:
+	linehistupdate(text[:linep-1], n)
 	return c
 }
 
