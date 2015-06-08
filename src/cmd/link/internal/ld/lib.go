@@ -877,7 +877,7 @@ func archive() {
 	}
 
 	os.Remove(outfile)
-	argv := []string{"ar", "-q", "-c", outfile}
+	argv := []string{"ar", "-q", "-c", "-s", outfile}
 	argv = append(argv, hostobjCopy()...)
 	argv = append(argv, fmt.Sprintf("%s/go.o", tmpdir))
 
