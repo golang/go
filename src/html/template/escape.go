@@ -215,7 +215,7 @@ func allIdents(node parse.Node) []string {
 	case *parse.ChainNode:
 		return node.Field
 	}
-	panic("unidentified node type in allIdents")
+	return nil
 }
 
 // ensurePipelineContains ensures that the pipeline has commands with
