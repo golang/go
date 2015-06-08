@@ -460,7 +460,9 @@ again:
 				continue
 			}
 			// already have a mapping for key.  Update it.
-			typedmemmove(t.key, k2, key)
+			if t.needkeyupdate {
+				typedmemmove(t.key, k2, key)
+			}
 			v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
 			v2 := v
 			if t.indirectvalue {

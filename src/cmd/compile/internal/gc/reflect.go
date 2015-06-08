@@ -943,10 +943,8 @@ func weaktypesym(t *Type) *Sym {
 	return s
 }
 
-/*
- * Returns 1 if t has a reflexive equality operator.
- * That is, if x==x for all x of type t.
- */
+// isreflexive reports whether t has a reflexive equality operator.
+// That is, if x==x for all x of type t.
 func isreflexive(t *Type) bool {
 	switch t.Etype {
 	case TBOOL,
@@ -987,12 +985,61 @@ func isreflexive(t *Type) bool {
 				return false
 			}
 		}
-
 		return true
 
 	default:
 		Fatalf("bad type for map key: %v", t)
 		return false
+	}
+}
+
+// needkeyupdate reports whether map updates with t as a key
+// need the key to be updated.
+func needkeyupdate(t *Type) bool {
+	switch t.Etype {
+	case TBOOL,
+		TINT,
+		TUINT,
+		TINT8,
+		TUINT8,
+		TINT16,
+		TUINT16,
+		TINT32,
+		TUINT32,
+		TINT64,
+		TUINT64,
+		TUINTPTR,
+		TPTR32,
+		TPTR64,
+		TUNSAFEPTR,
+		TCHAN:
+		return false
+
+	case TFLOAT32, // floats can be +0/-0
+		TFLOAT64,
+		TCOMPLEX64,
+		TCOMPLEX128,
+		TINTER,
+		TSTRING: // strings might have smaller backing stores
+		return true
+
+	case TARRAY:
+		if Isslice(t) {
+			Fatalf("slice can't be a map key: %v", t)
+		}
+		return needkeyupdate(t.Type)
+
+	case TSTRUCT:
+		for t1 := t.Type; t1 != nil; t1 = t1.Down {
+			if needkeyupdate(t1.Type) {
+				return true
+			}
+		}
+		return false
+
+	default:
+		Fatalf("bad type for map key: %v", t)
+		return true
 	}
 }
 
@@ -1176,6 +1223,7 @@ ok:
 
 		ot = duint16(s, ot, uint16(mapbucket(t).Width))
 		ot = duint8(s, ot, uint8(obj.Bool2int(isreflexive(t.Down))))
+		ot = duint8(s, ot, uint8(obj.Bool2int(needkeyupdate(t.Down))))
 
 	case TPTR32, TPTR64:
 		if t.Type.Etype == TANY {
