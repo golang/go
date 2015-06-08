@@ -72,14 +72,7 @@ import "unsafe"
 // so it depends on write barriers to track changes to pointers in
 // stack frames that have not been active. go:nowritebarrier
 func gcmarkwb_m(slot *uintptr, ptr uintptr) {
-	switch gcphase {
-	default:
-		throw("gcphasework in bad gcphase")
-
-	case _GCoff, _GCstw, _GCsweep, _GCscan:
-		// ok
-
-	case _GCmark, _GCmarktermination:
+	if writeBarrierEnabled {
 		if ptr != 0 && inheap(ptr) {
 			shade(ptr)
 		}
