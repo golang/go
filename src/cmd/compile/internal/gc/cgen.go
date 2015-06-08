@@ -2007,6 +2007,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 		var n1 Node
 		Regalloc(&n1, nl.Type, nil)
 		Cgen(nl, &n1)
+		nl = &n1
 
 		var tmp Node
 		Tempname(&tmp, nl.Type)
@@ -2016,6 +2017,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 		var n2 Node
 		Regalloc(&n2, nr.Type, nil)
 		Cgen(nr, &n2)
+		nr = &n2
 		Regfree(&n2)
 
 		Regalloc(&n1, nl.Type, nil)
