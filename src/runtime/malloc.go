@@ -797,6 +797,17 @@ var globalAlloc struct {
 // Intended for things like function/type/debug-related persistent data.
 // If align is 0, uses default align (currently 8).
 func persistentalloc(size, align uintptr, sysStat *uint64) unsafe.Pointer {
+	var p unsafe.Pointer
+	systemstack(func() {
+		p = persistentalloc1(size, align, sysStat)
+	})
+	return p
+}
+
+// Must run on system stack because stack growth can (re)invoke it.
+// See issue 9174.
+//go:systemstack
+func persistentalloc1(size, align uintptr, sysStat *uint64) unsafe.Pointer {
 	const (
 		chunk    = 256 << 10
 		maxBlock = 64 << 10 // VM reservation granularity is 64K on windows

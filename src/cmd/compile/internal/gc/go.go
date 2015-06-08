@@ -654,11 +654,13 @@ var flag_race int
 
 var flag_largemodel int
 
-var noescape bool
-
-var nosplit bool
-
-var nowritebarrier bool
+// Pending annotations for next func declaration.
+var (
+	noescape       bool
+	nosplit        bool
+	nowritebarrier bool
+	systemstack    bool
+)
 
 var debuglive int
 

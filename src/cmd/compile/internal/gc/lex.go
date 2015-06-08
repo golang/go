@@ -1597,6 +1597,11 @@ func getlinepragma() int {
 			return c
 		}
 
+		if verb == "go:systemstack" {
+			systemstack = true
+			return c
+		}
+
 		if verb == "go:nowritebarrier" {
 			if compiling_runtime == 0 {
 				Yyerror("//go:nowritebarrier only allowed in runtime")
