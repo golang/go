@@ -1586,6 +1586,28 @@ func TestEnsurePipelineContains(t *testing.T) {
 	}
 }
 
+func TestEscapeMalformedPipelines(t *testing.T) {
+	tests := []string{
+		"{{ 0 | $ }}",
+		"{{ 0 | $ | urlquery }}",
+		"{{ 0 | $ | urlquery | html }}",
+		"{{ 0 | (nil) }}",
+		"{{ 0 | (nil) | html }}",
+		"{{ 0 | (nil) | html | urlquery }}",
+	}
+	for _, test := range tests {
+		var b bytes.Buffer
+		tmpl, err := New("test").Parse(test)
+		if err != nil {
+			t.Errorf("failed to parse set: %q", err)
+		}
+		err = tmpl.Execute(&b, nil)
+		if err == nil {
+			t.Errorf("Expected error for %q", test)
+		}
+	}
+}
+
 func TestEscapeErrorsNotIgnorable(t *testing.T) {
 	var b bytes.Buffer
 	tmpl, _ := New("dangerous").Parse("<a")
