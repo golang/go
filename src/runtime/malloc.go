@@ -153,12 +153,12 @@ const (
 	// Windows counts memory used by page table into committed memory
 	// of the process, so we can't reserve too much memory.
 	// See http://golang.org/issue/5402 and http://golang.org/issue/5236.
-	// On other 64-bit platforms, we limit the arena to 128GB, or 37 bits.
+	// On other 64-bit platforms, we limit the arena to 512GB, or 39 bits.
 	// On 32-bit, we don't bother limiting anything, so we use the full 32-bit address.
 	// On Darwin/arm64, we cannot reserve more than ~5GB of virtual memory,
 	// but as most devices have less than 4GB of physical memory anyway, we
 	// try to be conservative here, and only ask for a 2GB heap.
-	_MHeapMap_TotalBits = (_64bit*goos_windows)*35 + (_64bit*(1-goos_windows)*(1-goos_darwin*goarch_arm64))*37 + goos_darwin*goarch_arm64*31 + (1-_64bit)*32
+	_MHeapMap_TotalBits = (_64bit*goos_windows)*35 + (_64bit*(1-goos_windows)*(1-goos_darwin*goarch_arm64))*39 + goos_darwin*goarch_arm64*31 + (1-_64bit)*32
 	_MHeapMap_Bits      = _MHeapMap_TotalBits - _PageShift
 
 	_MaxMem = uintptr(1<<_MHeapMap_TotalBits - 1)
@@ -233,12 +233,12 @@ func mallocinit() {
 	// enough to hold 4 bits per allocated word.
 	if ptrSize == 8 && (limit == 0 || limit > 1<<30) {
 		// On a 64-bit machine, allocate from a single contiguous reservation.
-		// 128 GB (MaxMem) should be big enough for now.
+		// 512 GB (MaxMem) should be big enough for now.
 		//
 		// The code will work with the reservation at any address, but ask
 		// SysReserve to use 0x0000XXc000000000 if possible (XX=00...7f).
-		// Allocating a 128 GB region takes away 37 bits, and the amd64
-		// doesn't let us choose the top 17 bits, so that leaves the 11 bits
+		// Allocating a 512 GB region takes away 39 bits, and the amd64
+		// doesn't let us choose the top 17 bits, so that leaves the 9 bits
 		// in the middle of 0x00c0 for us to choose.  Choosing 0x00c0 means
 		// that the valid memory addresses will begin 0x00c0, 0x00c1, ..., 0x00df.
 		// In little-endian, that's c0 00, c1 00, ..., df 00. None of those are valid
@@ -248,11 +248,11 @@ func mallocinit() {
 		// on OS X during thread allocations.  0x00c0 causes conflicts with
 		// AddressSanitizer which reserves all memory up to 0x0100.
 		// These choices are both for debuggability and to reduce the
-		// odds of the conservative garbage collector not collecting memory
-		// because some non-pointer block of memory had a bit pattern
-		// that matched a memory address.
+		// odds of a conservative garbage collector (as is still used in gccgo)
+		// not collecting memory because some non-pointer block of memory
+		// had a bit pattern that matched a memory address.
 		//
-		// Actually we reserve 136 GB (because the bitmap ends up being 8 GB)
+		// Actually we reserve 544 GB (because the bitmap ends up being 32 GB)
 		// but it hardly matters: e0 00 is not valid UTF-8 either.
 		//
 		// If this fails we fall back to the 32 bit memory mechanism
