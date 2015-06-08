@@ -118,15 +118,20 @@ func subtract1(p *byte) *byte {
 
 // mHeap_MapBits is called each time arena_used is extended.
 // It maps any additional bitmap memory needed for the new arena memory.
+// It must be called with the expected new value of arena_used,
+// *before* h.arena_used has been updated.
+// Waiting to update arena_used until after the memory has been mapped
+// avoids faults when other threads try access the bitmap immediately
+// after observing the change to arena_used.
 //
 //go:nowritebarrier
-func mHeap_MapBits(h *mheap) {
+func mHeap_MapBits(h *mheap, arena_used uintptr) {
 	// Caller has added extra mappings to the arena.
 	// Add extra mappings of bitmap words as needed.
 	// We allocate extra bitmap pieces in chunks of bitmapChunk.
 	const bitmapChunk = 8192
 
-	n := (mheap_.arena_used - mheap_.arena_start) / heapBitmapScale
+	n := (arena_used - mheap_.arena_start) / heapBitmapScale
 	n = round(n, bitmapChunk)
 	n = round(n, _PhysPageSize)
 	if h.bitmap_mapped >= n {

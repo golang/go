@@ -418,9 +418,9 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
 		// Keep taking from our reservation.
 		p := h.arena_used
 		sysMap((unsafe.Pointer)(p), n, h.arena_reserved, &memstats.heap_sys)
-		h.arena_used += n
-		mHeap_MapBits(h)
-		mHeap_MapSpans(h)
+		mHeap_MapBits(h, p+n)
+		mHeap_MapSpans(h, p+n)
+		h.arena_used = p+n
 		if raceenabled {
 			racemapshadow((unsafe.Pointer)(p), n)
 		}
@@ -454,12 +454,12 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
 	p_end := p + p_size
 	p += -p & (_PageSize - 1)
 	if uintptr(p)+n > uintptr(h.arena_used) {
-		h.arena_used = p + n
+		mHeap_MapBits(h, p+n)
+		mHeap_MapSpans(h, p+n)
+		h.arena_used = p+n
 		if p_end > h.arena_end {
 			h.arena_end = p_end
 		}
-		mHeap_MapBits(h)
-		mHeap_MapSpans(h)
 		if raceenabled {
 			racemapshadow((unsafe.Pointer)(p), n)
 		}

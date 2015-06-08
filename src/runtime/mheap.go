@@ -279,10 +279,18 @@ func mHeap_Init(h *mheap, spans_size uintptr) {
 	sp.cap = int(spans_size / ptrSize)
 }
 
-func mHeap_MapSpans(h *mheap) {
+// mHeap_MapSpans makes sure that the spans are mapped
+// up to the new value of arena_used.
+//
+// It must be called with the expected new value of arena_used,
+// *before* h.arena_used has been updated.
+// Waiting to update arena_used until after the memory has been mapped
+// avoids faults when other threads try access the bitmap immediately
+// after observing the change to arena_used.
+func mHeap_MapSpans(h *mheap, arena_used uintptr) {
 	// Map spans array, PageSize at a time.
-	n := uintptr(unsafe.Pointer(h.arena_used))
-	n -= uintptr(unsafe.Pointer(h.arena_start))
+	n := arena_used
+	n -= h.arena_start
 	n = n / _PageSize * ptrSize
 	n = round(n, _PhysPageSize)
 	if h.spans_mapped >= n {
