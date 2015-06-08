@@ -418,6 +418,7 @@ func compile(fn *Node) {
 		nam = nil
 	}
 	ptxt = Thearch.Gins(obj.ATEXT, nam, &nod1)
+	Afunclit(&ptxt.From, Curfn.Func.Nname)
 	ptxt.From3 = new(obj.Addr)
 	if fn.Func.Dupok {
 		ptxt.From3.Offset |= obj.DUPOK
@@ -431,6 +432,9 @@ func compile(fn *Node) {
 	if fn.Func.Nosplit {
 		ptxt.From3.Offset |= obj.NOSPLIT
 	}
+	if fn.Func.Systemstack {
+		ptxt.From.Sym.Cfunc = 1
+	}
 
 	// Clumsy but important.
 	// See test/recover.go for test cases and src/reflect/value.go
@@ -440,8 +444,6 @@ func compile(fn *Node) {
 			ptxt.From3.Offset |= obj.WRAPPER
 		}
 	}
-
-	Afunclit(&ptxt.From, Curfn.Func.Nname)
 
 	ginit()
 
