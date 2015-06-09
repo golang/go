@@ -185,9 +185,9 @@ func tryOneName(cfg *dnsConfig, name string, qtype uint16) (string, []dnsRR, err
 				}
 				continue
 			}
-			cname, addrs, err := answer(name, server, msg, qtype)
-			if err == nil || err.(*DNSError).Err == errNoSuchHost.Error() {
-				return cname, addrs, err
+			cname, rrs, err := answer(name, server, msg, qtype)
+			if err == nil || msg.rcode == dnsRcodeSuccess || msg.rcode == dnsRcodeNameError && msg.recursion_available {
+				return cname, rrs, err
 			}
 			lastErr = err
 		}
@@ -299,57 +299,53 @@ func (conf *resolverConfig) releaseSema() {
 
 func lookup(name string, qtype uint16) (cname string, rrs []dnsRR, err error) {
 	if !isDomainName(name) {
-		return name, nil, &DNSError{Err: "invalid domain name", Name: name}
+		return "", nil, &DNSError{Err: "invalid domain name", Name: name}
 	}
-
 	resolvConf.tryUpdate("/etc/resolv.conf")
 	resolvConf.mu.RLock()
-	resolv := resolvConf.dnsConfig
+	conf := resolvConf.dnsConfig
 	resolvConf.mu.RUnlock()
-
-	// If name is rooted (trailing dot) or has enough dots,
-	// try it by itself first.
-	rooted := len(name) > 0 && name[len(name)-1] == '.'
-	if rooted || count(name, '.') >= resolv.ndots {
-		rname := name
-		if !rooted {
-			rname += "."
-		}
-		// Can try as ordinary name.
-		cname, rrs, err = tryOneName(resolv, rname, qtype)
-		if rooted || err == nil {
-			return
-		}
-	}
-
-	// Otherwise, try suffixes.
-	for _, suffix := range resolv.search {
-		rname := name + "." + suffix
-		if rname[len(rname)-1] != '.' {
-			rname += "."
-		}
-		cname, rrs, err = tryOneName(resolv, rname, qtype)
+	for _, fqdn := range conf.nameList(name) {
+		cname, rrs, err = tryOneName(conf, fqdn, qtype)
 		if err == nil {
-			return
+			break
 		}
 	}
-
-	// Last ditch effort: try unsuffixed only if we haven't already,
-	// that is, name is not rooted and has less than ndots dots.
-	if count(name, '.') < resolv.ndots {
-		cname, rrs, err = tryOneName(resolv, name+".", qtype)
-		if err == nil {
-			return
-		}
-	}
-
-	if e, ok := err.(*DNSError); ok {
+	if err, ok := err.(*DNSError); ok {
 		// Show original name passed to lookup, not suffixed one.
 		// In general we might have tried many suffixes; showing
 		// just one is misleading. See also golang.org/issue/6324.
-		e.Name = name
+		err.Name = name
 	}
 	return
+}
+
+// nameList returns a list of names for sequential DNS queries.
+func (conf *dnsConfig) nameList(name string) []string {
+	// If name is rooted (trailing dot), try only that name.
+	rooted := len(name) > 0 && name[len(name)-1] == '.'
+	if rooted {
+		return []string{name}
+	}
+	// Build list of search choices.
+	names := make([]string, 0, 1+len(conf.search))
+	// If name has enough dots, try unsuffixed first.
+	if count(name, '.') >= conf.ndots {
+		names = append(names, name+".")
+	}
+	// Try suffixes.
+	for _, suffix := range conf.search {
+		suffixed := name + "." + suffix
+		if suffixed[len(suffixed)-1] != '.' {
+			suffixed += "."
+		}
+		names = append(names, suffixed)
+	}
+	// Try unsuffixed, if not tried first above.
+	if count(name, '.') < conf.ndots {
+		names = append(names, name+".")
+	}
+	return names
 }
 
 // hostLookupOrder specifies the order of LookupHost lookup strategies.
@@ -436,27 +432,44 @@ func goLookupIPOrder(name string, order hostLookupOrder) (addrs []IPAddr, err er
 			return addrs, nil
 		}
 	}
+	if !isDomainName(name) {
+		return nil, &DNSError{Err: "invalid domain name", Name: name}
+	}
+	resolvConf.tryUpdate("/etc/resolv.conf")
+	resolvConf.mu.RLock()
+	conf := resolvConf.dnsConfig
+	resolvConf.mu.RUnlock()
 	type racer struct {
-		qtype uint16
-		rrs   []dnsRR
+		rrs []dnsRR
 		error
 	}
 	lane := make(chan racer, 1)
 	qtypes := [...]uint16{dnsTypeA, dnsTypeAAAA}
-	for _, qtype := range qtypes {
-		go func(qtype uint16) {
-			_, rrs, err := lookup(name, qtype)
-			lane <- racer{qtype, rrs, err}
-		}(qtype)
-	}
 	var lastErr error
-	for range qtypes {
-		racer := <-lane
-		if racer.error != nil {
-			lastErr = racer.error
-			continue
+	for _, fqdn := range conf.nameList(name) {
+		for _, qtype := range qtypes {
+			go func(qtype uint16) {
+				_, rrs, err := tryOneName(conf, fqdn, qtype)
+				lane <- racer{rrs, err}
+			}(qtype)
 		}
-		addrs = append(addrs, addrRecordList(racer.rrs)...)
+		for range qtypes {
+			racer := <-lane
+			if racer.error != nil {
+				lastErr = racer.error
+				continue
+			}
+			addrs = append(addrs, addrRecordList(racer.rrs)...)
+		}
+		if len(addrs) > 0 {
+			break
+		}
+	}
+	if lastErr, ok := lastErr.(*DNSError); ok {
+		// Show original name passed to lookup, not suffixed one.
+		// In general we might have tried many suffixes; showing
+		// just one is misleading. See also golang.org/issue/6324.
+		lastErr.Name = name
 	}
 	sortByRFC6724(addrs)
 	if len(addrs) == 0 {
