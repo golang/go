@@ -2135,6 +2135,14 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool, 
 		gcargs = append(gcargs, "-buildid", p.buildID)
 	}
 
+	for _, path := range p.Imports {
+		if i := strings.LastIndex(path, "/vendor/"); i >= 0 {
+			gcargs = append(gcargs, "-importmap", path[i+len("/vendor/"):]+"="+path)
+		} else if strings.HasPrefix(path, "vendor/") {
+			gcargs = append(gcargs, "-importmap", path[len("vendor/"):]+"="+path)
+		}
+	}
+
 	args := []interface{}{buildToolExec, tool("compile"), "-o", ofile, "-trimpath", b.work, buildGcflags, gcargs, "-D", p.localPrefix, importArgs}
 	if ofile == archive {
 		args = append(args, "-pack")
