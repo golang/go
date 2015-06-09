@@ -214,6 +214,7 @@ func Main() {
 	obj.Flagcount("g", "debug code generation", &Debug['g'])
 	obj.Flagcount("h", "halt on error", &Debug['h'])
 	obj.Flagcount("i", "debug line number stack", &Debug['i'])
+	obj.Flagfn1("importmap", "add `definition` of the form source=actual to import map", addImportMap)
 	obj.Flagstr("installsuffix", "set pkg directory `suffix`", &flag_installsuffix)
 	obj.Flagcount("j", "debug runtime-initialized variables", &Debug['j'])
 	obj.Flagcount("l", "disable inlining", &Debug['l'])
@@ -501,6 +502,20 @@ func Main() {
 	Flusherrors()
 }
 
+var importMap = map[string]string{}
+
+func addImportMap(s string) {
+	if strings.Count(s, "=") != 1 {
+		log.Fatal("-importmap argument must be of the form source=actual")
+	}
+	i := strings.Index(s, "=")
+	source, actual := s[:i], s[i+1:]
+	if source == "" || actual == "" {
+		log.Fatal("-importmap argument must be of the form source=actual; source and actual must be non-empty")
+	}
+	importMap[source] = actual
+}
+
 func saveerrors() {
 	nsavederrors += nerrors
 	nerrors = 0
@@ -687,6 +702,11 @@ func importfile(f *Val, line int) {
 	}
 
 	path_ := f.U.(string)
+
+	if mapped, ok := importMap[path_]; ok {
+		path_ = mapped
+	}
+
 	if islocalname(path_) {
 		if path_[0] == '/' {
 			Yyerror("import path cannot be absolute path")
