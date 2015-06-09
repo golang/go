@@ -224,6 +224,160 @@ func TestUpdateResolvConf(t *testing.T) {
 	}
 }
 
+var goLookupIPWithResolverConfigTests = []struct {
+	name  string
+	lines []string // resolver configuration lines
+	error
+	a, aaaa bool // whether response contains A, AAAA-record
+}{
+	// no records, transport timeout
+	{
+		"jgahvsekduiv9bw4b3qhn4ykdfgj0493iohkrjfhdvhjiu4j",
+		[]string{
+			"options timeout:1 attempts:1",
+			"nameserver 255.255.255.255", // please forgive us for abuse of limited broadcast address
+		},
+		&DNSError{Name: "jgahvsekduiv9bw4b3qhn4ykdfgj0493iohkrjfhdvhjiu4j", Server: "255.255.255.255:53", IsTimeout: true},
+		false, false,
+	},
+
+	// no records, non-existent domain
+	{
+		"jgahvsekduiv9bw4b3qhn4ykdfgj0493iohkrjfhdvhjiu4j",
+		[]string{
+			"options timeout:3 attempts:1",
+			"nameserver 8.8.8.8",
+		},
+		&DNSError{Name: "jgahvsekduiv9bw4b3qhn4ykdfgj0493iohkrjfhdvhjiu4j", Server: "8.8.8.8:53", IsTimeout: false},
+		false, false,
+	},
+
+	// a few A records, no AAAA records
+	{
+		"ipv4.google.com.",
+		[]string{
+			"nameserver 8.8.8.8",
+			"nameserver 2001:4860:4860::8888",
+		},
+		nil,
+		true, false,
+	},
+	{
+		"ipv4.google.com",
+		[]string{
+			"domain golang.org",
+			"nameserver 2001:4860:4860::8888",
+			"nameserver 8.8.8.8",
+		},
+		nil,
+		true, false,
+	},
+	{
+		"ipv4.google.com",
+		[]string{
+			"search x.golang.org y.golang.org",
+			"nameserver 2001:4860:4860::8888",
+			"nameserver 8.8.8.8",
+		},
+		nil,
+		true, false,
+	},
+
+	// no A records, a few AAAA records
+	{
+		"ipv6.google.com.",
+		[]string{
+			"nameserver 2001:4860:4860::8888",
+			"nameserver 8.8.8.8",
+		},
+		nil,
+		false, true,
+	},
+	{
+		"ipv6.google.com",
+		[]string{
+			"domain golang.org",
+			"nameserver 8.8.8.8",
+			"nameserver 2001:4860:4860::8888",
+		},
+		nil,
+		false, true,
+	},
+	{
+		"ipv6.google.com",
+		[]string{
+			"search x.golang.org y.golang.org",
+			"nameserver 8.8.8.8",
+			"nameserver 2001:4860:4860::8888",
+		},
+		nil,
+		false, true,
+	},
+
+	// both A and AAAA records
+	{
+		"hostname.as112.net", // see RFC 7534
+		[]string{
+			"domain golang.org",
+			"nameserver 2001:4860:4860::8888",
+			"nameserver 8.8.8.8",
+		},
+		nil,
+		true, true,
+	},
+	{
+		"hostname.as112.net", // see RFC 7534
+		[]string{
+			"search x.golang.org y.golang.org",
+			"nameserver 2001:4860:4860::8888",
+			"nameserver 8.8.8.8",
+		},
+		nil,
+		true, true,
+	},
+}
+
+func TestGoLookupIPWithResolverConfig(t *testing.T) {
+	if testing.Short() || !*testExternal {
+		t.Skip("avoid external network")
+	}
+
+	conf, err := newResolvConfTest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conf.teardown()
+
+	for _, tt := range goLookupIPWithResolverConfigTests {
+		if err := conf.writeAndUpdate(tt.lines); err != nil {
+			t.Error(err)
+			continue
+		}
+		conf.tryUpdate(conf.path)
+		addrs, err := goLookupIP(tt.name)
+		if err != nil {
+			if err, ok := err.(*DNSError); !ok || (err.Name != tt.error.(*DNSError).Name || err.Server != tt.error.(*DNSError).Server || err.IsTimeout != tt.error.(*DNSError).IsTimeout) {
+				t.Errorf("got %v; want %v", err, tt.error)
+			}
+			continue
+		}
+		if len(addrs) == 0 {
+			t.Errorf("no records for %s", tt.name)
+		}
+		if !tt.a && !tt.aaaa && len(addrs) > 0 {
+			t.Errorf("unexpected %v for %s", addrs, tt.name)
+		}
+		for _, addr := range addrs {
+			if !tt.a && addr.IP.To4() != nil {
+				t.Errorf("got %v; must not be IPv4 address", addr)
+			}
+			if !tt.aaaa && addr.IP.To16() != nil && addr.IP.To4() == nil {
+				t.Errorf("got %v; must not be IPv6 address", addr)
+			}
+		}
+	}
+}
+
 func BenchmarkGoLookupIP(b *testing.B) {
 	testHookUninstaller.Do(uninstallTestHooks)
 
