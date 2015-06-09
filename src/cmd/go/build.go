@@ -1368,17 +1368,17 @@ func (b *builder) build(a *action) (err error) {
 		switch {
 		case strings.HasSuffix(name, _goos_goarch):
 			targ := file[:len(name)-len(_goos_goarch)] + "_GOOS_GOARCH." + ext
-			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0644); err != nil {
+			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0644, true); err != nil {
 				return err
 			}
 		case strings.HasSuffix(name, _goarch):
 			targ := file[:len(name)-len(_goarch)] + "_GOARCH." + ext
-			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0644); err != nil {
+			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0644, true); err != nil {
 				return err
 			}
 		case strings.HasSuffix(name, _goos):
 			targ := file[:len(name)-len(_goos)] + "_GOOS." + ext
-			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0644); err != nil {
+			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0644, true); err != nil {
 				return err
 			}
 		}
@@ -1575,7 +1575,7 @@ func (b *builder) install(a *action) (err error) {
 		defer os.Remove(a1.target)
 	}
 
-	return b.moveOrCopyFile(a, a.target, a1.target, perm)
+	return b.moveOrCopyFile(a, a.target, a1.target, perm, false)
 }
 
 // includeArgs returns the -I or -L directory list for access
@@ -1620,7 +1620,7 @@ func (b *builder) includeArgs(flag string, all []*action) []string {
 }
 
 // moveOrCopyFile is like 'mv src dst' or 'cp src dst'.
-func (b *builder) moveOrCopyFile(a *action, dst, src string, perm os.FileMode) error {
+func (b *builder) moveOrCopyFile(a *action, dst, src string, perm os.FileMode, force bool) error {
 	if buildN {
 		b.showcmd("", "mv %s %s", src, dst)
 		return nil
@@ -1637,11 +1637,11 @@ func (b *builder) moveOrCopyFile(a *action, dst, src string, perm os.FileMode) e
 		}
 	}
 
-	return b.copyFile(a, dst, src, perm)
+	return b.copyFile(a, dst, src, perm, force)
 }
 
 // copyFile is like 'cp src dst'.
-func (b *builder) copyFile(a *action, dst, src string, perm os.FileMode) error {
+func (b *builder) copyFile(a *action, dst, src string, perm os.FileMode, force bool) error {
 	if buildN || buildX {
 		b.showcmd("", "cp %s %s", src, dst)
 		if buildN {
@@ -1662,7 +1662,7 @@ func (b *builder) copyFile(a *action, dst, src string, perm os.FileMode) error {
 		if fi.IsDir() {
 			return fmt.Errorf("build output %q already exists and is a directory", dst)
 		}
-		if !isObject(dst) {
+		if !force && !isObject(dst) {
 			return fmt.Errorf("build output %q already exists and is not an object file", dst)
 		}
 	}
@@ -1719,7 +1719,7 @@ func (b *builder) doInstallHeader(a *action, objdir, target string) error {
 		}
 	}
 
-	return b.moveOrCopyFile(a, target, src, 0644)
+	return b.moveOrCopyFile(a, target, src, 0644, true)
 }
 
 // cover runs, in effect,
