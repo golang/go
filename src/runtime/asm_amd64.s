@@ -65,15 +65,18 @@ nocpuinfo:
 	MOVQ	AX, g_stackguard0(CX)
 	MOVQ	AX, g_stackguard1(CX)
 
-	CMPL	runtime·iswindows(SB), $0
-	JEQ ok
+#ifndef GOOS_windows
+	JMP ok
+#endif
 needtls:
+#ifdef GOOS_plan9
 	// skip TLS setup on Plan 9
-	CMPL	runtime·isplan9(SB), $1
-	JEQ ok
+	JMP ok
+#endif
+#ifdef GOOS_solaris
 	// skip TLS setup on Solaris
-	CMPL	runtime·issolaris(SB), $1
-	JEQ ok
+	JMP ok
+#endif
 
 	LEAQ	runtime·tls0(SB), DI
 	CALL	runtime·settls(SB)

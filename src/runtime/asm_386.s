@@ -67,13 +67,15 @@ nocpuinfo:
 	MOVL	AX, g_stackguard0(CX)
 	MOVL	AX, g_stackguard1(CX)
 
+#ifndef GOOS_windows
 	// skip runtime·ldt0setup(SB) and tls test after _cgo_init for non-windows
-	CMPL runtime·iswindows(SB), $0
-	JEQ ok
+	JMP ok
+#endif
 needtls:
+#ifdef GOOS_plan9
 	// skip runtime·ldt0setup(SB) and tls test on Plan 9 in all cases
-	CMPL	runtime·isplan9(SB), $1
-	JEQ	ok
+	JMP	ok
+#endif
 
 	// set up %gs
 	CALL	runtime·ldt0setup(SB)

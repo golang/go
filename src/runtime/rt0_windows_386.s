@@ -14,7 +14,3 @@ TEXT _rt0_386_windows(SB),NOSPLIT,$12
 
 TEXT _main(SB),NOSPLIT,$0
 	JMP	runtime·rt0_go(SB)
-
-
-DATA  runtime·iswindows(SB)/4, $1
-GLOBL runtime·iswindows(SB), NOPTR, $4
