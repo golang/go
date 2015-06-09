@@ -46,7 +46,7 @@ func mkbuiltin(w io.Writer, name string) {
 	if err := exec.Command("go", "tool", "compile", "-A", "builtin/"+name+".go").Run(); err != nil {
 		log.Fatal(err)
 	}
-	obj := "name.o"
+	obj := name + ".o"
 	defer os.Remove(obj)
 
 	r, err := os.Open(obj)
