@@ -24,6 +24,7 @@ func cmdtest() {
 	flag.BoolVar(&t.listMode, "list", false, "list available tests")
 	flag.BoolVar(&t.noRebuild, "no-rebuild", false, "don't rebuild std and cmd packages")
 	flag.BoolVar(&t.keepGoing, "k", false, "keep going even when error occurred")
+	flag.BoolVar(&t.race, "race", false, "run in race builder mode (different set of tests)")
 	flag.StringVar(&t.banner, "banner", "##### ", "banner prefix; blank means no section banners")
 	flag.StringVar(&t.runRxStr, "run", os.Getenv("GOTESTONLY"),
 		"run only those tests matching the regular expression; empty means to run all. "+
@@ -34,6 +35,7 @@ func cmdtest() {
 
 // tester executes cmdtest.
 type tester struct {
+	race      bool
 	listMode  bool
 	noRebuild bool
 	keepGoing bool
@@ -229,9 +231,15 @@ func (t *tester) timeout(sec int) string {
 // ranGoTest and stdMatches are state closed over by the stdlib
 // testing func in registerStdTest below. The tests are run
 // sequentially, so there's no need for locks.
+//
+// ranGoBench and benchMatches are the same, but are only used
+// in -race mode.
 var (
 	ranGoTest  bool
 	stdMatches []string
+
+	ranGoBench   bool
+	benchMatches []string
 )
 
 func (t *tester) registerStdTest(pkg string) {
@@ -247,13 +255,49 @@ func (t *tester) registerStdTest(pkg string) {
 				return nil
 			}
 			ranGoTest = true
-			cmd := exec.Command("go", append([]string{
+			args := []string{
 				"test",
 				"-short",
 				t.tags(),
 				t.timeout(120),
 				"-gcflags=" + os.Getenv("GO_GCFLAGS"),
-			}, stdMatches...)...)
+			}
+			if t.race {
+				args = append(args, "-race")
+			}
+			args = append(args, stdMatches...)
+			cmd := exec.Command("go", args...)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			return cmd.Run()
+		},
+	})
+}
+
+func (t *tester) registerRaceBenchTest(pkg string) {
+	testName := "go_test_bench:" + pkg
+	if t.runRx == nil || t.runRx.MatchString(testName) {
+		benchMatches = append(benchMatches, pkg)
+	}
+	t.tests = append(t.tests, distTest{
+		name:    testName,
+		heading: "Running benchmarks briefly.",
+		fn: func() error {
+			if ranGoBench {
+				return nil
+			}
+			ranGoBench = true
+			args := []string{
+				"test",
+				"-short",
+				"-race",
+				"-run=^$", // nothing. only benchmarks.
+				"-bench=.*",
+				"-benchtime=.1s",
+				"-cpu=4",
+			}
+			args = append(args, benchMatches...)
+			cmd := exec.Command("go", args...)
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			return cmd.Run()
@@ -270,17 +314,34 @@ func (t *tester) registerTests() {
 			if strings.HasPrefix(name, "go_test:") {
 				t.registerStdTest(strings.TrimPrefix(name, "go_test:"))
 			}
+			if strings.HasPrefix(name, "go_test_bench:") {
+				t.registerRaceBenchTest(strings.TrimPrefix(name, "go_test_bench:"))
+			}
 		}
 	} else {
 		// Use a format string to only list packages and commands that have tests.
 		const format = "{{if (or .TestGoFiles .XTestGoFiles)}}{{.ImportPath}}{{end}}"
-		all, err := exec.Command("go", "list", "-f", format, "std", "cmd").CombinedOutput()
+		cmd := exec.Command("go", "list", "-f", format, "std")
+		if !t.race {
+			cmd.Args = append(cmd.Args, "cmd")
+		}
+		all, err := cmd.CombinedOutput()
 		if err != nil {
 			log.Fatalf("Error running go list std cmd: %v, %s", err, all)
 		}
-		for _, pkg := range strings.Fields(string(all)) {
+		pkgs := strings.Fields(string(all))
+		for _, pkg := range pkgs {
 			t.registerStdTest(pkg)
 		}
+		if t.race {
+			for _, pkg := range pkgs {
+				t.registerRaceBenchTest(pkg)
+			}
+		}
+	}
+
+	if t.race {
+		return
 	}
 
 	// Runtime CPU tests.
