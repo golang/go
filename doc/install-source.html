@@ -110,6 +110,39 @@ Download the zip or tarball of Go 1.4 for your platform and extract it to
 location).
 </p>
 
+<p>
+If you want to install Go 1.5 on a system that is not supported by Go 1.4 (such
+as <code>linux/ppc64</code>) you can either use
+<a href="/src/bootstrap.bash">bootstrap.bash</a> on a system that can bootstrap Go
+1.5 normally, or bootstrap with gccgo 5.
+</p>
+
+<p>
+When run as (for example)
+</p>
+
+<pre>
+$ GOOS=linux GOARCH=ppc64 ./bootstrap.bash
+</pre>
+
+<p>
+<code>bootstrap.bash</code> cross-compiles a toolchain for that <code>GOOS/GOARCH</code>
+combination, leaving the resulting tree in <code>../../go-${GOOS}-${GOARCH}-bootstrap</code>.
+That tree can be copied to a machine of the given target type
+and used as <code>GOROOT_BOOTSTRAP</code> to bootstrap a local build.
+</p>
+
+<p>
+To use gccgo, you need to arrange for <code>$GOROOT_BOOSTRAP/bin/go</code> to be
+the go tool that comes as part of gccgo 5. For example on Ubuntu Vivid:
+</p>
+
+<pre>
+$ sudo apt-get install gccgo-5
+$ sudo update-alternatives --set go /usr/bin/go-5
+$ GOROOT_BOOTSTRAP=/usr ./make.bash
+</pre>
+
 <h2 id="git">Install Git, if needed</h2>
 
 <p>
