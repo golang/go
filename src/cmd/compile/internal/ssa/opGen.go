@@ -82,6 +82,8 @@ const (
 	OpAMD64MOVQstoreidx8
 	OpAMD64MOVQloadglobal
 	OpAMD64MOVQstoreglobal
+	OpAMD64CALLstatic
+	OpAMD64CALLclosure
 	OpAMD64REPMOVSB
 	OpAMD64ADDL
 	OpAMD64InvertFlags
@@ -103,7 +105,7 @@ const (
 	OpLoad
 	OpStore
 	OpMove
-	OpCall
+	OpClosureCall
 	OpStaticCall
 	OpConvert
 	OpConvNop
@@ -554,6 +556,26 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name: "CALLstatic",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+	},
+	{
+		name: "CALLclosure",
+		reg: regInfo{
+			inputs: []regMask{
+				4295032831,
+				4,
+				0,
+			},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+	},
+	{
 		name: "REPMOVSB",
 		reg: regInfo{
 			inputs: []regMask{
@@ -741,7 +763,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name: "Call",
+		name: "ClosureCall",
 		reg: regInfo{
 			inputs:   []regMask{},
 			clobbers: 0,

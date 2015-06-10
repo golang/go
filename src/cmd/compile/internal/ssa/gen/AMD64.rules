@@ -40,6 +40,9 @@
 (If (SETB cmp) yes no) -> (ULT cmp yes no)
 (If cond yes no) && cond.Op == OpAMD64MOVBload -> (NE (TESTB <TypeFlags> cond cond) yes no)
 
+(StaticCall [target] mem) -> (CALLstatic [target] mem)
+(ClosureCall entry closure mem) -> (CALLclosure entry closure mem)
+
 // Rules below here apply some simple optimizations after lowering.
 // TODO: Should this be a separate pass?
 

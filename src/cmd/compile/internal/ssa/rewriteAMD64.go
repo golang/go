@@ -191,6 +191,25 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto endf8ca12fe79290bc82b11cfa463bc9413
 	endf8ca12fe79290bc82b11cfa463bc9413:
 		;
+	case OpClosureCall:
+		// match: (ClosureCall entry closure mem)
+		// cond:
+		// result: (CALLclosure entry closure mem)
+		{
+			entry := v.Args[0]
+			closure := v.Args[1]
+			mem := v.Args[2]
+			v.Op = OpAMD64CALLclosure
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(entry)
+			v.AddArg(closure)
+			v.AddArg(mem)
+			return true
+		}
+		goto endee26da781e813a3c602ccb4f7ade98c7
+	endee26da781e813a3c602ccb4f7ade98c7:
+		;
 	case OpConst:
 		// match: (Const <t> [val])
 		// cond: is64BitInt(t)
@@ -742,6 +761,23 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		}
 		goto end78e66b6fc298684ff4ac8aec5ce873c9
 	end78e66b6fc298684ff4ac8aec5ce873c9:
+		;
+	case OpStaticCall:
+		// match: (StaticCall [target] mem)
+		// cond:
+		// result: (CALLstatic [target] mem)
+		{
+			target := v.Aux
+			mem := v.Args[0]
+			v.Op = OpAMD64CALLstatic
+			v.Aux = nil
+			v.resetArgs()
+			v.Aux = target
+			v.AddArg(mem)
+			return true
+		}
+		goto endcf02eb60d90086f6c42bfdc5842b145d
+	endcf02eb60d90086f6c42bfdc5842b145d:
 		;
 	case OpStore:
 		// match: (Store ptr val mem)
