@@ -33,14 +33,14 @@ compiler using the GCC back end, see
 </p>
 
 <p>
-The Go compilers support three instruction sets.
+The Go compilers support five instruction sets.
 There are important differences in the quality of the compilers for the different
 architectures.
 </p>
 
 <dl>
 <dt>
-	<code>amd64</code> (a.k.a. <code>x86-64</code>); <code>6g,6l,6c,6a</code>
+	<code>amd64</code> (also known as <code>x86-64</code>)
 </dt>
 <dd>
 	A mature implementation. The compiler has an effective
@@ -48,16 +48,28 @@ architectures.
 	<code>gccgo</code> can do noticeably better sometimes).
 </dd>
 <dt>
-	<code>386</code> (a.k.a. <code>x86</code> or <code>x86-32</code>); <code>8g,8l,8c,8a</code>
+	<code>386</code> (<code>x86</code> or <code>x86-32</code>)
 </dt>
 <dd>
 	Comparable to the <code>amd64</code> port.
 </dd>
 <dt>
-	<code>arm</code> (a.k.a. <code>ARM</code>); <code>5g,5l,5c,5a</code>
+	<code>arm</code> (<code>ARM</code>)
 </dt>
 <dd>
-	Supports Linux, FreeBSD and NetBSD binaries. Less widely used than the other ports.
+	Supports Linux, FreeBSD, NetBSD and Darwin binaries. Less widely used than the other ports.
+</dd>
+<dt>
+	<code>arm64</code> (<code>AArch64</code>)
+</dt>
+<dd>
+	Supports Linux and Darwin binaries. New in 1.5 and not as well excercised as other ports.
+</dd>
+<dt>
+	<code>ppc64, ppc64le</code> (64-bit PowerPC big- and little-endian)
+</dt>
+<dd>
+	Supports Linux binaries. New in 1.5 and not as well excercised as other ports.
 </dd>
 </dl>
 
@@ -354,12 +366,13 @@ These default to the values of <code>$GOHOSTOS</code> and
 
 <p>
 Choices for <code>$GOOS</code> are
-<code>darwin</code> (Mac OS X 10.6 and above), <code>dragonfly</code>, <code>freebsd</code>,
-<code>linux</code>, <code>netbsd</code>, <code>openbsd</code>, 
+<code>darwin</code> (Mac OS X 10.6 and above and iOS), <code>dragonfly</code>, <code>freebsd</code>,
+<code>linux</code>, <code>netbsd</code>, <code>openbsd</code>,
 <code>plan9</code>, <code>solaris</code> and <code>windows</code>.
 Choices for <code>$GOARCH</code> are
 <code>amd64</code> (64-bit x86, the most mature port),
-<code>386</code> (32-bit x86), and <code>arm</code> (32-bit ARM).
+<code>386</code> (32-bit x86), <code>arm</code> (32-bit ARM), <code>arm64</code> (64-bit ARM),
+<code>ppc64le</code> (PowerPC 64-bit, little-endian), and <code>ppc64</code> (PowerPC 64-bit, big-endian).
 The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
 <table cellpadding="0">
 <tr>
@@ -372,7 +385,10 @@ The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
 <td></td><td><code>darwin</code></td> <td><code>amd64</code></td>
 </tr>
 <tr>
-<td></td><td><code>dragonfly</code></td> <td><code>386</code></td>
+<td></td><td><code>darwin</code></td> <td><code>arm</code></td>
+</tr>
+<tr>
+<td></td><td><code>darwin</code></td> <td><code>arm64</code></td>
 </tr>
 <tr>
 <td></td><td><code>dragonfly</code></td> <td><code>amd64</code></td>
@@ -396,6 +412,15 @@ The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
 <td></td><td><code>linux</code></td> <td><code>arm</code></td>
 </tr>
 <tr>
+<td></td><td><code>linux</code></td> <td><code>arm64</code></td>
+</tr>
+<tr>
+<td></td><td><code>linux</code></td> <td><code>ppc64</code></td>
+</tr>
+<tr>
+<td></td><td><code>linux</code></td> <td><code>ppc64le</code></td>
+</tr>
+<tr>
 <td></td><td><code>netbsd</code></td> <td><code>386</code></td>
 </tr>
 <tr>
@@ -409,6 +434,9 @@ The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
 </tr>
 <tr>
 <td></td><td><code>openbsd</code></td> <td><code>amd64</code></td>
+</tr>
+<tr>
+<td></td><td><code>openbsd</code></td> <td><code>arm</code></td>
 </tr>
 <tr>
 <td></td><td><code>plan9</code></td> <td><code>386</code></td>
