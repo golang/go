@@ -132,6 +132,10 @@ func init() {
 		{name: "MOVQloadglobal"},  // Load from aux.(GlobalOffset).  arg0 = memory
 		{name: "MOVQstoreglobal"}, // store arg0 to aux.(GlobalOffset).  arg1=memory, returns memory.
 
+		//TODO: set register clobber to everything?
+		{name: "CALLstatic"},                                                            // call static function.  arg0=mem, returns mem
+		{name: "CALLclosure", reg: regInfo{[]regMask{gpsp, buildReg("DX"), 0}, 0, nil}}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem returns mem
+
 		{name: "REPMOVSB", reg: regInfo{[]regMask{buildReg("DI"), buildReg("SI"), buildReg("CX")}, buildReg("DI SI CX"), nil}}, // move arg2 bytes from arg1 to arg0.  arg3=mem, returns memory
 
 		{name: "ADDL", reg: gp21}, // arg0+arg1

@@ -224,8 +224,9 @@ func (s *state) stmt(n *Node) {
 			s.startBlock(t)
 		}
 
-	case OAS:
+	case OAS, OASWB:
 		// TODO(khr): colas?
+		// TODO: do write barrier
 		var val *ssa.Value
 		if n.Right == nil {
 			// n.Right == nil means use the zero value of the assigned type.
@@ -243,15 +244,14 @@ func (s *state) stmt(n *Node) {
 		} else {
 			val = s.expr(n.Right)
 		}
-		if n.Left.Op == ONAME && !n.Left.Addrtaken && n.Left.Class&PHEAP == 0 && n.Left.Class != PEXTERN && n.Left.Class != PPARAMOUT {
-			// ssa-able variable.
+		if n.Left.Op == ONAME && canSSA(n.Left) {
+			// Update variable assignment.
 			s.vars[n.Left.Sym.Name] = val
 			return
 		}
 		// not ssa-able.  Treat as a store.
 		addr := s.addr(n.Left)
 		s.vars[".mem"] = s.newValue3(ssa.OpStore, ssa.TypeMem, nil, addr, val, s.mem())
-		// TODO: try to make more variables registerizeable.
 	case OIF:
 		cond := s.expr(n.Ntest)
 		b := s.endBlock()
@@ -338,14 +338,16 @@ func (s *state) expr(n *Node) *ssa.Value {
 
 	switch n.Op {
 	case ONAME:
-		// TODO: remember offsets for PPARAM names
-		if n.Class == PEXTERN {
-			// global variable
-			addr := s.entryNewValue(ssa.OpGlobal, Ptrto(n.Type), n.Sym)
-			return s.newValue2(ssa.OpLoad, n.Type, nil, addr, s.mem())
+		if n.Class == PFUNC {
+			// "value" of a function is the address of the function's closure
+			return s.entryNewValue(ssa.OpGlobal, Ptrto(n.Type), funcsym(n.Sym))
 		}
-		s.argOffsets[n.Sym.Name] = n.Xoffset
-		return s.variable(n.Sym.Name, n.Type)
+		s.argOffsets[n.Sym.Name] = n.Xoffset // TODO: remember this another way?
+		if canSSA(n) {
+			return s.variable(n.Sym.Name, n.Type)
+		}
+		addr := s.addr(n)
+		return s.newValue2(ssa.OpLoad, n.Type, nil, addr, s.mem())
 	case OLITERAL:
 		switch n.Val.Ctype {
 		case CTINT:
@@ -415,17 +417,25 @@ func (s *state) expr(n *Node) *ssa.Value {
 		}
 
 	case OCALLFUNC:
+		static := n.Left.Op == ONAME && n.Left.Class == PFUNC
+
+		// evaluate closure
+		var closure *ssa.Value
+		if !static {
+			closure = s.expr(n.Left)
+		}
+
 		// run all argument assignments
-		// TODO(khr): do we need to evaluate function first?
-		// Or is it already side-effect-free and does not require a call?
 		s.stmtList(n.List)
 
-		if n.Left.Op != ONAME {
-			// TODO(khr): closure calls?
-			log.Fatalf("can't handle CALLFUNC with non-ONAME fn %s", opnames[n.Left.Op])
-		}
 		bNext := s.f.NewBlock(ssa.BlockPlain)
-		call := s.newValue1(ssa.OpStaticCall, ssa.TypeMem, n.Left.Sym, s.mem())
+		var call *ssa.Value
+		if static {
+			call = s.newValue1(ssa.OpStaticCall, ssa.TypeMem, n.Left.Sym, s.mem())
+		} else {
+			entry := s.newValue2(ssa.OpLoad, s.config.Uintptr, nil, closure, s.mem())
+			call = s.newValue3(ssa.OpClosureCall, ssa.TypeMem, nil, entry, closure, s.mem())
+		}
 		b := s.endBlock()
 		b.Kind = ssa.BlockCall
 		b.Control = call
@@ -448,17 +458,18 @@ func (s *state) expr(n *Node) *ssa.Value {
 func (s *state) addr(n *Node) *ssa.Value {
 	switch n.Op {
 	case ONAME:
-		if n.Class == PEXTERN {
+		switch n.Class {
+		case PEXTERN:
 			// global variable
 			return s.entryNewValue(ssa.OpGlobal, Ptrto(n.Type), n.Sym)
-		}
-		if n.Class == PPARAMOUT {
+		case PPARAMOUT:
 			// store to parameter slot
 			return s.entryNewValue1(ssa.OpOffPtr, Ptrto(n.Type), n.Xoffset, s.fp)
+		default:
+			// TODO: address of locals
+			log.Fatalf("variable address of %v not implemented", n)
+			return nil
 		}
-		// TODO: address of locals
-		log.Fatalf("variable address of %v not implemented", n)
-		return nil
 	case OINDREG:
 		// indirect off a register (TODO: always SP?)
 		// used for storing/loading arguments/returns to/from callees
@@ -482,6 +493,28 @@ func (s *state) addr(n *Node) *ssa.Value {
 		log.Fatalf("addr: bad op %v", Oconv(int(n.Op), 0))
 		return nil
 	}
+}
+
+// canSSA reports whether n is SSA-able.
+// n must be an ONAME.
+func canSSA(n *Node) bool {
+	if n.Op != ONAME {
+		log.Fatalf("canSSA passed a non-ONAME %s %v", Oconv(int(n.Op), 0), n)
+	}
+	if n.Addrtaken {
+		return false
+	}
+	if n.Class&PHEAP != 0 {
+		return false
+	}
+	if n.Class == PEXTERN {
+		return false
+	}
+	if n.Class == PPARAMOUT {
+		return false
+	}
+	return true
+	// TODO: try to make more variables SSAable.
 }
 
 // nilCheck generates nil pointer checking code.
@@ -854,11 +887,15 @@ func genValue(v *ssa.Value) {
 		p.From.Offset = g.Offset
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
-	case ssa.OpStaticCall:
+	case ssa.OpAMD64CALLstatic:
 		p := Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = Linksym(v.Aux.(*Sym))
+	case ssa.OpAMD64CALLclosure:
+		p := Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = regnum(v.Args[0])
 	case ssa.OpFP, ssa.OpSP:
 		// nothing to do
 	default:

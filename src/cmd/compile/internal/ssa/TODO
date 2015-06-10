@@ -26,6 +26,7 @@ Opcodes
  - It's annoying to list the opcode both in the opcode list and an
    opInfo map entry.  Specify it one place and use go:generate to
    produce both?
+ - Write barriers
 
 Regalloc
  - Make less arch-dependent
@@ -33,6 +34,7 @@ Regalloc
  - Allow args and return values to be ssa-able.
  - Handle 2-address instructions.
  - Floating point registers
+ - Make calls clobber all registers
 
 Rewrites
  - Strength reduction (both arch-indep and arch-dependent?)
@@ -51,3 +53,4 @@ Common-Subexpression Elimination
 Other
  - Make go:generate less painful.  Have a subpackage that just has the
    generate commands in it?
+ - Use gc.Fatal for errors.  Add a callback to Frontend?

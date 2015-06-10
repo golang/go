@@ -44,8 +44,8 @@ var genericOps = []opData{
 	// Function calls.  Arguments to the call have already been written to the stack.
 	// Return values appear on the stack.  The method receiver, if any, is treated
 	// as a phantom first argument.
-	{name: "Call"},       // arg0=code pointer, arg1=context ptr, arg2=memory.  Returns memory.
-	{name: "StaticCall"}, // call function aux.(*gc.Sym), arg0=memory.  Returns memory.
+	{name: "ClosureCall"}, // arg0=code pointer, arg1=context ptr, arg2=memory.  Returns memory.
+	{name: "StaticCall"},  // call function aux.(*gc.Sym), arg0=memory.  Returns memory.
 
 	// Conversions
 	{name: "Convert"}, // convert arg0 to another type
