@@ -755,6 +755,63 @@ func genValue(v *ssa.Value) {
 		p.From.Offset = v.Aux.(int64)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
+	case ssa.OpAMD64SHLQ:
+		x := regnum(v.Args[0])
+		r := regnum(v)
+		if x != r {
+			if r == x86.REG_CX {
+				log.Fatalf("can't implement %s, target and shift both in CX", v.LongString())
+			}
+			p := Prog(x86.AMOVQ)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = x
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = r
+			x = r
+		}
+		p := Prog(x86.ASHLQ)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = regnum(v.Args[1]) // should be CX
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+	case ssa.OpAMD64SHRQ:
+		x := regnum(v.Args[0])
+		r := regnum(v)
+		if x != r {
+			if r == x86.REG_CX {
+				log.Fatalf("can't implement %s, target and shift both in CX", v.LongString())
+			}
+			p := Prog(x86.AMOVQ)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = x
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = r
+			x = r
+		}
+		p := Prog(x86.ASHRQ)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = regnum(v.Args[1]) // should be CX
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+	case ssa.OpAMD64SARQ:
+		x := regnum(v.Args[0])
+		r := regnum(v)
+		if x != r {
+			if r == x86.REG_CX {
+				log.Fatalf("can't implement %s, target and shift both in CX", v.LongString())
+			}
+			p := Prog(x86.AMOVQ)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = x
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = r
+			x = r
+		}
+		p := Prog(x86.ASARQ)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = regnum(v.Args[1]) // should be CX
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
 	case ssa.OpAMD64SHLQconst:
 		x := regnum(v.Args[0])
 		r := regnum(v)
@@ -771,6 +828,89 @@ func genValue(v *ssa.Value) {
 		p.From.Offset = v.Aux.(int64)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
+	case ssa.OpAMD64SHRQconst:
+		x := regnum(v.Args[0])
+		r := regnum(v)
+		if x != r {
+			p := Prog(x86.AMOVQ)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = x
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = r
+			x = r
+		}
+		p := Prog(x86.ASHRQ)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.Aux.(int64)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+	case ssa.OpAMD64SARQconst:
+		x := regnum(v.Args[0])
+		r := regnum(v)
+		if x != r {
+			p := Prog(x86.AMOVQ)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = x
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = r
+			x = r
+		}
+		p := Prog(x86.ASARQ)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.Aux.(int64)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+	case ssa.OpAMD64SBBQcarrymask:
+		r := regnum(v)
+		p := Prog(x86.ASBBQ)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = r
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+	case ssa.OpAMD64CMOVQCC:
+		r := regnum(v)
+		x := regnum(v.Args[1])
+		y := regnum(v.Args[2])
+		if x != r && y != r {
+			p := Prog(x86.AMOVQ)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = x
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = r
+			x = r
+		}
+		var p *obj.Prog
+		if x == r {
+			p = Prog(x86.ACMOVQCS)
+			p.From.Reg = y
+		} else {
+			p = Prog(x86.ACMOVQCC)
+			p.From.Reg = x
+		}
+		p.From.Type = obj.TYPE_REG
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+	case ssa.OpAMD64ANDQ:
+		r := regnum(v)
+		x := regnum(v.Args[0])
+		y := regnum(v.Args[1])
+		if x != r && y != r {
+			p := Prog(x86.AMOVQ)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = x
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = r
+			x = r
+		}
+		p := Prog(x86.AANDQ)
+		p.From.Type = obj.TYPE_REG
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+		if x == r {
+			p.From.Reg = y
+		} else {
+			p.From.Reg = x
+		}
 	case ssa.OpAMD64LEAQ:
 		p := Prog(x86.ALEAQ)
 		p.From.Type = obj.TYPE_MEM

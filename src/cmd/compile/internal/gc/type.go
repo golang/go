@@ -18,6 +18,11 @@ func (t *Type) Size() int64 {
 	return t.Width
 }
 
+func (t *Type) Alignment() int64 {
+	dowidth(t)
+	return int64(t.Align)
+}
+
 func (t *Type) IsBoolean() bool {
 	return t.Etype == TBOOL
 }

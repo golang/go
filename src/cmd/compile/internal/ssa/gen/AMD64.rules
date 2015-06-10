@@ -5,19 +5,37 @@
 // x86 register conventions:
 //  - Integer types live in the low portion of registers.
 //    Upper portions are correctly extended.
+//    TODO: reconsider?  The current choice means we need no extension for indexing,
+//    but we do need extension for e.g. 32-bit signed adds.
 //  - Boolean types use the low-order byte of a register.  Upper bytes are junk.
 //  - We do not use AH,BH,CH,DH registers.
 //  - Floating-point types will live in the low natural slot of an sse2 register.
 //    Unused portions are junk.
 
-// These are the lowerings themselves
+// Lowering arithmetic
 (Add <t> x y) && (is64BitInt(t) || isPtr(t)) -> (ADDQ x y)
 (Add <t> x y) && is32BitInt(t) -> (ADDL x y)
-
 (Sub <t> x y) && is64BitInt(t) -> (SUBQ x y)
-
 (Mul <t> x y) && is64BitInt(t) -> (MULQ x y)
-(Lsh <t> x y) && is64BitInt(t) -> (SHLQ x y) // TODO: check y>63
+
+// Lowering shifts
+// Note: unsigned shifts need to return 0 if shift amount is >= 64.
+//   mask = shift >= 64 ? 0 : 0xffffffffffffffff
+//   result = mask & arg << shift
+(Lsh <t> x y) && is64BitInt(t) ->
+	(ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [int64(64)] y)))
+(Rsh <t> x y) && is64BitInt(t) && !t.IsSigned() ->
+	(ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [int64(64)] y)))
+
+// Note: signed right shift needs to return 0/-1 if shift amount is >= 64.
+//   if shift > 63 { shift = 63 }
+//   result = arg >> shift
+(Rsh <t> x y) && is64BitInt(t) && t.IsSigned() ->
+	(SARQ <t> x (CMOVQCC <t>
+			(CMPQconst <TypeFlags> [int64(64)] y)
+			(Const <t> [int64(63)])
+			y))
+
 (Less x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETL (CMPQ <TypeFlags> x y))
 
 (Load <t> ptr mem) && t.IsBoolean() -> (MOVBload [int64(0)] ptr mem)
@@ -56,7 +74,11 @@
 (SUBQ <t> (MOVQconst [c]) x) -> (NEGQ (SUBQconst <t> x [c]))
 (MULQ x (MOVQconst [c])) && c.(int64) == int64(int32(c.(int64))) -> (MULQconst [c] x)
 (MULQ (MOVQconst [c]) x) -> (MULQconst [c] x)
+(ANDQ x (MOVQconst [c])) -> (ANDQconst [c] x)
+(ANDQ (MOVQconst [c]) x) -> (ANDQconst [c] x)
 (SHLQ x (MOVQconst [c])) -> (SHLQconst [c] x)
+(SHRQ x (MOVQconst [c])) -> (SHRQconst [c] x)
+(SARQ x (MOVQconst [c])) -> (SARQconst [c] x)
 (CMPQ x (MOVQconst [c])) -> (CMPQconst x [c])
 (CMPQ (MOVQconst [c]) x) -> (InvertFlags (CMPQconst <TypeFlags> x [c]))
 
@@ -101,3 +123,11 @@
 (UGE (InvertFlags cmp) yes no) -> (ULE cmp yes no)
 (EQ (InvertFlags cmp) yes no) -> (EQ cmp yes no)
 (NE (InvertFlags cmp) yes no) -> (NE cmp yes no)
+
+// get rid of >=64 code for constant shifts
+(SBBQcarrymask (CMPQconst [c] (MOVQconst [d]))) && inBounds(d.(int64), c.(int64)) -> (Const [int64(-1)])
+(SBBQcarrymask (CMPQconst [c] (MOVQconst [d]))) && !inBounds(d.(int64), c.(int64)) -> (Const [int64(0)])
+(ANDQconst [c] _) && c.(int64) == 0 -> (MOVQconst [int64(0)])
+(ANDQconst [c] x) && c.(int64) == -1 -> (Copy x)
+(CMOVQCC (CMPQconst [c] (MOVQconst [d])) _ x) && inBounds(d.(int64), c.(int64)) -> (Copy x)
+(CMOVQCC (CMPQconst [c] (MOVQconst [d])) x _) && !inBounds(d.(int64), c.(int64)) -> (Copy x)

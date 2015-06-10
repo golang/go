@@ -72,17 +72,20 @@ func init() {
 
 	gp := buildReg("AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15")
 	gpsp := gp | buildReg("SP FP")
+	flags := buildReg("FLAGS")
 	gp01 := regInfo{[]regMask{}, 0, []regMask{gp}}
 	gp11 := regInfo{[]regMask{gpsp}, 0, []regMask{gp}}
 	gp21 := regInfo{[]regMask{gpsp, gpsp}, 0, []regMask{gp}}
 	gp21shift := regInfo{[]regMask{gpsp, buildReg("CX")}, 0, []regMask{gp}}
-	gp2flags := regInfo{[]regMask{gpsp, gpsp}, 0, []regMask{buildReg("FLAGS")}}
-	gp1flags := regInfo{[]regMask{gpsp}, 0, []regMask{buildReg("FLAGS")}}
+	gp2flags := regInfo{[]regMask{gpsp, gpsp}, 0, []regMask{flags}}
+	gp1flags := regInfo{[]regMask{gpsp}, 0, []regMask{flags}}
+	flagsgp1 := regInfo{[]regMask{flags}, 0, []regMask{gp}}
 	gpload := regInfo{[]regMask{gpsp, 0}, 0, []regMask{gp}}
 	gploadidx := regInfo{[]regMask{gpsp, gpsp, 0}, 0, []regMask{gp}}
 	gpstore := regInfo{[]regMask{gpsp, gpsp, 0}, 0, nil}
 	gpstoreidx := regInfo{[]regMask{gpsp, gpsp, gpsp, 0}, 0, nil}
-	flagsgp := regInfo{[]regMask{buildReg("FLAGS")}, 0, []regMask{gp}}
+	flagsgp := regInfo{[]regMask{flags}, 0, []regMask{gp}}
+	cmov := regInfo{[]regMask{flags, gp, gp}, 0, []regMask{gp}}
 
 	// Suffixes encode the bit width of various instructions.
 	// Q = 64 bit, L = 32 bit, W = 16 bit, B = 8 bit
@@ -95,14 +98,23 @@ func init() {
 		{name: "SUBQconst", reg: gp11}, // arg0 - aux.(int64)
 		{name: "MULQ", reg: gp21},      // arg0 * arg1
 		{name: "MULQconst", reg: gp11}, // arg0 * aux.(int64)
+		{name: "ANDQ", reg: gp21},      // arg0 & arg1
+		{name: "ANDQconst", reg: gp11}, // arg0 & aux.(int64)
 		{name: "SHLQ", reg: gp21shift}, // arg0 << arg1, shift amount is mod 64
 		{name: "SHLQconst", reg: gp11}, // arg0 << aux.(int64), shift amount 0-63
-		{name: "NEGQ", reg: gp11},      // -arg0
+		{name: "SHRQ", reg: gp21shift}, // unsigned arg0 >> arg1, shift amount is mod 64
+		{name: "SHRQconst", reg: gp11}, // unsigned arg0 >> aux.(int64), shift amount 0-63
+		{name: "SARQ", reg: gp21shift}, // signed arg0 >> arg1, shift amount is mod 64
+		{name: "SARQconst", reg: gp11}, // signed arg0 >> aux.(int64), shift amount 0-63
+
+		{name: "NEGQ", reg: gp11}, // -arg0
 
 		{name: "CMPQ", reg: gp2flags},      // arg0 compare to arg1
 		{name: "CMPQconst", reg: gp1flags}, // arg0 compare to aux.(int64)
 		{name: "TESTQ", reg: gp2flags},     // (arg0 & arg1) compare to 0
 		{name: "TESTB", reg: gp2flags},     // (arg0 & arg1) compare to 0
+
+		{name: "SBBQcarrymask", reg: flagsgp1}, // (int64)(-1) if carry is set, 0 if carry is clear.
 
 		{name: "SETEQ", reg: flagsgp}, // extract == condition from arg0
 		{name: "SETNE", reg: flagsgp}, // extract != condition from arg0
@@ -110,6 +122,8 @@ func init() {
 		{name: "SETG", reg: flagsgp},  // extract signed > condition from arg0
 		{name: "SETGE", reg: flagsgp}, // extract signed >= condition from arg0
 		{name: "SETB", reg: flagsgp},  // extract unsigned < condition from arg0
+
+		{name: "CMOVQCC", reg: cmov}, // carry clear
 
 		{name: "MOVQconst", reg: gp01},  // aux.(int64)
 		{name: "LEAQ", reg: gp21},       // arg0 + arg1 + aux.(int64)

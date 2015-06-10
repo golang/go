@@ -53,19 +53,27 @@ const (
 	OpAMD64SUBQconst
 	OpAMD64MULQ
 	OpAMD64MULQconst
+	OpAMD64ANDQ
+	OpAMD64ANDQconst
 	OpAMD64SHLQ
 	OpAMD64SHLQconst
+	OpAMD64SHRQ
+	OpAMD64SHRQconst
+	OpAMD64SARQ
+	OpAMD64SARQconst
 	OpAMD64NEGQ
 	OpAMD64CMPQ
 	OpAMD64CMPQconst
 	OpAMD64TESTQ
 	OpAMD64TESTB
+	OpAMD64SBBQcarrymask
 	OpAMD64SETEQ
 	OpAMD64SETNE
 	OpAMD64SETL
 	OpAMD64SETG
 	OpAMD64SETGE
 	OpAMD64SETB
+	OpAMD64CMOVQCC
 	OpAMD64MOVQconst
 	OpAMD64LEAQ
 	OpAMD64LEAQ2
@@ -205,6 +213,31 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name: "ANDQ",
+		reg: regInfo{
+			inputs: []regMask{
+				4295032831,
+				4295032831,
+			},
+			clobbers: 0,
+			outputs: []regMask{
+				65519,
+			},
+		},
+	},
+	{
+		name: "ANDQconst",
+		reg: regInfo{
+			inputs: []regMask{
+				4295032831,
+			},
+			clobbers: 0,
+			outputs: []regMask{
+				65519,
+			},
+		},
+	},
+	{
 		name: "SHLQ",
 		reg: regInfo{
 			inputs: []regMask{
@@ -219,6 +252,56 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "SHLQconst",
+		reg: regInfo{
+			inputs: []regMask{
+				4295032831,
+			},
+			clobbers: 0,
+			outputs: []regMask{
+				65519,
+			},
+		},
+	},
+	{
+		name: "SHRQ",
+		reg: regInfo{
+			inputs: []regMask{
+				4295032831,
+				2,
+			},
+			clobbers: 0,
+			outputs: []regMask{
+				65519,
+			},
+		},
+	},
+	{
+		name: "SHRQconst",
+		reg: regInfo{
+			inputs: []regMask{
+				4295032831,
+			},
+			clobbers: 0,
+			outputs: []regMask{
+				65519,
+			},
+		},
+	},
+	{
+		name: "SARQ",
+		reg: regInfo{
+			inputs: []regMask{
+				4295032831,
+				2,
+			},
+			clobbers: 0,
+			outputs: []regMask{
+				65519,
+			},
+		},
+	},
+	{
+		name: "SARQconst",
 		reg: regInfo{
 			inputs: []regMask{
 				4295032831,
@@ -293,6 +376,18 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name: "SBBQcarrymask",
+		reg: regInfo{
+			inputs: []regMask{
+				8589934592,
+			},
+			clobbers: 0,
+			outputs: []regMask{
+				65519,
+			},
+		},
+	},
+	{
 		name: "SETEQ",
 		reg: regInfo{
 			inputs: []regMask{
@@ -357,6 +452,20 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []regMask{
 				8589934592,
+			},
+			clobbers: 0,
+			outputs: []regMask{
+				65519,
+			},
+		},
+	},
+	{
+		name: "CMOVQCC",
+		reg: regInfo{
+			inputs: []regMask{
+				8589934592,
+				65519,
+				65519,
 			},
 			clobbers: 0,
 			outputs: []regMask{

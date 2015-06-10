@@ -57,6 +57,8 @@ var progtable = [x86.ALAST]obj.ProgInfo{
 	x86.ACWD:       {gc.OK, AX, AX | DX, 0},
 	x86.ACLD:       {gc.OK, 0, 0, 0},
 	x86.ASTD:       {gc.OK, 0, 0, 0},
+	x86.ACMOVQCC:   {gc.SizeQ | gc.LeftRead | gc.RightRead | gc.RightWrite | gc.UseCarry, 0, 0, 0},
+	x86.ACMOVQCS:   {gc.SizeQ | gc.LeftRead | gc.RightRead | gc.RightWrite | gc.UseCarry, 0, 0, 0},
 	x86.ACMPB:      {gc.SizeB | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
 	x86.ACMPL:      {gc.SizeL | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
 	x86.ACMPQ:      {gc.SizeQ | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
