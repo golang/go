@@ -464,7 +464,7 @@ type schedt struct {
 // The m->locked word holds two pieces of state counting active calls to LockOSThread/lockOSThread.
 // The low bit (LockExternal) is a boolean reporting whether any LockOSThread call is active.
 // External locks are not recursive; a second lock is silently ignored.
-// The upper bits of m->lockedcount record the nesting depth of calls to lockOSThread
+// The upper bits of m->locked record the nesting depth of calls to lockOSThread
 // (counting up by LockInternal), popped by unlockOSThread (counting down by LockInternal).
 // Internal locks can be recursive. For instance, a lock for cgo can occur while the main
 // goroutine is holding the lock during the initialization phase.
