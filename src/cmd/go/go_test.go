@@ -123,6 +123,7 @@ type testgoData struct {
 	env            []string
 	tempdir        string
 	ran            bool
+	inParallel     bool
 	stdout, stderr bytes.Buffer
 }
 
@@ -159,6 +160,26 @@ func (tg *testgoData) check(err error) {
 	}
 }
 
+// parallel runs the test in parallel by calling t.Parallel.
+func (tg *testgoData) parallel() {
+	if tg.ran {
+		tg.t.Fatal("internal testsuite error: call to parallel after run")
+	}
+	if tg.wd != "" {
+		tg.t.Fatal("internal testsuite error: call to parallel after cd")
+	}
+	for _, e := range tg.env {
+		if strings.HasPrefix(e, "GOROOT=") || strings.HasPrefix(e, "GOPATH=") || strings.HasPrefix(e, "GOBIN=") {
+			val := e[strings.Index(e, "=")+1:]
+			if strings.HasPrefix(val, "testdata") || strings.HasPrefix(val, "./testdata") {
+				tg.t.Fatalf("internal testsuite error: call to parallel with testdata in environment (%s)", e)
+			}
+		}
+	}
+	tg.inParallel = true
+	tg.t.Parallel()
+}
+
 // pwd returns the current directory.
 func (tg *testgoData) pwd() string {
 	wd, err := os.Getwd()
@@ -172,6 +193,9 @@ func (tg *testgoData) pwd() string {
 // using this means that the test must not be run in parallel with any
 // other tests.
 func (tg *testgoData) cd(dir string) {
+	if tg.inParallel {
+		tg.t.Fatal("internal testsuite error: changing directory when running in parallel")
+	}
 	if tg.wd == "" {
 		tg.wd = tg.pwd()
 	}
@@ -188,6 +212,9 @@ func (tg *testgoData) sleep() {
 // setenv sets an environment variable to use when running the test go
 // command.
 func (tg *testgoData) setenv(name, val string) {
+	if tg.inParallel && (name == "GOROOT" || name == "GOPATH" || name == "GOBIN") && (strings.HasPrefix(val, "testdata") || strings.HasPrefix(val, "./testdata")) {
+		tg.t.Fatalf("internal testsuite error: call to setenv with testdata (%s=%s) after parallel", name, val)
+	}
 	tg.unsetenv(name)
 	tg.env = append(tg.env, name+"="+val)
 }
@@ -210,6 +237,13 @@ func (tg *testgoData) unsetenv(name string) {
 func (tg *testgoData) doRun(args []string) error {
 	if !canRun {
 		panic("testgoData.doRun called but canRun false")
+	}
+	if tg.inParallel {
+		for _, arg := range args {
+			if strings.HasPrefix(arg, "testdata") || strings.HasPrefix(arg, "./testdata") {
+				tg.t.Fatal("internal testsuite error: parallel run using testdata")
+			}
+		}
 	}
 	tg.t.Logf("running testgo %v", args)
 	var prog string
@@ -502,6 +536,7 @@ func (tg *testgoData) cleanup() {
 func TestFileLineInErrorMessages(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.tempFile("err.go", `package main; import "bar"`)
 	path := tg.path("err.go")
 	tg.runFail("run", path)
@@ -511,6 +546,7 @@ func TestFileLineInErrorMessages(t *testing.T) {
 func TestProgramNameInCrashMessages(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.tempFile("triv.go", `package main; func main() {}`)
 	tg.runFail("build", "-ldflags", "-crash_for_testing", tg.path("triv.go"))
 	tg.grepStderr(`[/\\]tool[/\\].*[/\\]link`, "missing linker name in error message")
@@ -527,6 +563,10 @@ func TestBrokenTestsWithoutTestFunctionsAllFail(t *testing.T) {
 }
 
 func TestGoBuildDashAInDevBranch(t *testing.T) {
+	if testing.Short() {
+		t.Skip("don't rebuild the standard library in short mode")
+	}
+
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.run("install", "math") // should be up to date already but just in case
@@ -537,7 +577,7 @@ func TestGoBuildDashAInDevBranch(t *testing.T) {
 
 func TestGoBuilDashAInReleaseBranch(t *testing.T) {
 	if testing.Short() {
-		t.Skip("don't rebuild the standard libary in short mode")
+		t.Skip("don't rebuild the standard library in short mode")
 	}
 
 	tg := testgo(t)
@@ -596,6 +636,7 @@ func TestGoInstallCleansUpAfterGoBuild(t *testing.T) {
 func TestGoInstallRebuildsStalePackagesInOtherGOPATH(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.tempFile("d1/src/p1/p1.go", `package p1
 
 import "p2"
@@ -630,6 +671,7 @@ func F() {}
 func TestGoInstallDetectsRemovedFiles(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.tempFile("src/mypkg/x.go", `package mypkg`)
 	tg.tempFile("src/mypkg/y.go", `package mypkg`)
 	tg.tempFile("src/mypkg/z.go", `// +build missingtag
@@ -649,6 +691,7 @@ package mypkg`)
 func TestGoInstsallDetectsRemovedFilesInPackageMain(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.tempFile("src/mycmd/x.go", `package main
 
 func main() {}
@@ -801,6 +844,7 @@ func testMove(t *testing.T, vcs, url, base, config string) {
 	}
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.tempDir("src")
 	tg.setenv("GOPATH", tg.path("."))
 	tg.run("get", "-d", url)
@@ -1014,6 +1058,7 @@ func TestGodocInstalls(t *testing.T) {
 	// godoc installs into GOBIN
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.tempDir("gobin")
 	tg.setenv("GOPATH", tg.path("."))
 	tg.setenv("GOBIN", tg.path("gobin"))
@@ -1032,6 +1077,7 @@ func TestGodocInstalls(t *testing.T) {
 func TestInstalls(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.tempDir("gobin")
 	tg.setenv("GOPATH", tg.path("."))
 	goroot := runtime.GOROOT()
@@ -1206,6 +1252,7 @@ func TestWithoutGOPATHGoGetFails(t *testing.T) {
 
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.tempDir("src")
 	tg.setenv("GOPATH", "")
 	tg.setenv("GOROOT", tg.path("."))
@@ -1220,6 +1267,7 @@ func TestWithGOPATHEqualsGOROOTGoGetFails(t *testing.T) {
 
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.tempDir("src")
 	tg.setenv("GOPATH", tg.path("."))
 	tg.setenv("GOROOT", tg.path("."))
@@ -1229,6 +1277,7 @@ func TestWithGOPATHEqualsGOROOTGoGetFails(t *testing.T) {
 func TestLdflagsArgumentsWithSpacesIssue3941(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.tempFile("main.go", `package main
 var extern string
 func main() {
@@ -1296,6 +1345,7 @@ func TestSymlinksDoNotConfuseGoList(t *testing.T) {
 func TestInstallWithTags(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.tempDir("bin")
 	tg.tempFile("src/example/a/main.go", `package main
 func main() {}`)
@@ -1322,6 +1372,7 @@ func main() {}`)
 func TestCaseCollisions(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.tempDir("src/example/a/pkg")
 	tg.tempDir("src/example/a/Pkg")
 	tg.tempDir("src/example/b")
@@ -1362,6 +1413,7 @@ func TestGoGetDashTIssue8181(t *testing.T) {
 
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.makeTempdir()
 	tg.setenv("GOPATH", tg.path("."))
 	tg.run("get", "-t", "code.google.com/p/go-get-issue-8181/a", "code.google.com/p/go-get-issue-8181/b")
@@ -1551,6 +1603,7 @@ func TestCgoShowsFullPathNames(t *testing.T) {
 
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.tempFile("src/x/y/dirname/foo.go", `
 package foo
 import "C"
@@ -1567,6 +1620,7 @@ func TestCgoHandlesWlORIGIN(t *testing.T) {
 
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.tempFile("src/origin/origin.go", `package origin
 // #cgo !darwin LDFLAGS: -Wl,-rpath -Wl,$ORIGIN
 // void f(void) {}
@@ -1593,6 +1647,7 @@ func TestIssue7573(t *testing.T) {
 
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.tempFile("src/cgoref/cgoref.go", `
 package main
 // #cgo LDFLAGS: -L alibpath -lalib
@@ -1635,6 +1690,7 @@ func TestIssue6844(t *testing.T) {
 func TestBuildDashIInstallsDependencies(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.tempFile("src/x/y/foo/foo.go", `package foo
 func F() {}`)
 	tg.tempFile("src/x/y/bar/bar.go", `package bar
