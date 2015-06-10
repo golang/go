@@ -2336,7 +2336,7 @@ func reorder3(all *NodeList) *NodeList {
 	var early *NodeList
 
 	var mapinit *NodeList
-	for list := all; list != nil; list = list.Next {
+	for list, i := all, 0; list != nil; list, i = list.Next, i+1 {
 		l = list.N.Left
 
 		// Save subexpressions needed on left side.
@@ -2348,7 +2348,7 @@ func reorder3(all *NodeList) *NodeList {
 			}
 
 			if l.Op == OINDEX && Isfixedarray(l.Left.Type) {
-				reorder3save(&l.Right, all, list, &early)
+				reorder3save(&l.Right, all, i, &early)
 				l = l.Left
 				continue
 			}
@@ -2364,18 +2364,18 @@ func reorder3(all *NodeList) *NodeList {
 			break
 
 		case OINDEX, OINDEXMAP:
-			reorder3save(&l.Left, all, list, &early)
-			reorder3save(&l.Right, all, list, &early)
+			reorder3save(&l.Left, all, i, &early)
+			reorder3save(&l.Right, all, i, &early)
 			if l.Op == OINDEXMAP {
 				list.N = convas(list.N, &mapinit)
 			}
 
 		case OIND, ODOTPTR:
-			reorder3save(&l.Left, all, list, &early)
+			reorder3save(&l.Left, all, i, &early)
 		}
 
 		// Save expression on right side.
-		reorder3save(&list.N.Right, all, list, &early)
+		reorder3save(&list.N.Right, all, i, &early)
 	}
 
 	early = concat(mapinit, early)
@@ -2383,12 +2383,12 @@ func reorder3(all *NodeList) *NodeList {
 }
 
 // if the evaluation of *np would be affected by the
-// assignments in all up to but not including stop,
+// assignments in all up to but not including the ith assignment,
 // copy into a temporary during *early and
 // replace *np with that temp.
-func reorder3save(np **Node, all *NodeList, stop *NodeList, early **NodeList) {
+func reorder3save(np **Node, all *NodeList, i int, early **NodeList) {
 	n := *np
-	if !aliased(n, all, stop) {
+	if !aliased(n, all, i) {
 		return
 	}
 
@@ -2423,8 +2423,8 @@ func outervalue(n *Node) *Node {
 }
 
 // Is it possible that the computation of n might be
-// affected by writes in as up to but not including stop?
-func aliased(n *Node, all *NodeList, stop *NodeList) bool {
+// affected by writes in as up to but not including the ith element?
+func aliased(n *Node, all *NodeList, i int) bool {
 	if n == nil {
 		return false
 	}
@@ -2438,7 +2438,7 @@ func aliased(n *Node, all *NodeList, stop *NodeList) bool {
 
 	varwrite := 0
 	var a *Node
-	for l := all; l != stop; l = l.Next {
+	for l := all; i > 0; l, i = l.Next, i-1 {
 		a = outervalue(l.N.Left)
 		if a.Op != ONAME {
 			memwrite = 1
