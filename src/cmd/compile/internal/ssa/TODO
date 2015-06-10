@@ -20,14 +20,6 @@ Values
    If not that, then cache the interfaces that wrap int64s.
  - OpStore uses 3 args.  Increase the size of argstorage to 3?
 
-Opcodes
- - Rename ops to prevent cross-arch conflicts.  MOVQ -> MOVQamd64 (or
-   MOVQ6?).  Other option: build opcode table in Config instead of globally.
- - It's annoying to list the opcode both in the opcode list and an
-   opInfo map entry.  Specify it one place and use go:generate to
-   produce both?
- - Write barriers
-
 Regalloc
  - Make less arch-dependent
  - Don't spill everything at every basic block boundary.
@@ -38,7 +30,6 @@ Regalloc
 
 Rewrites
  - Strength reduction (both arch-indep and arch-dependent?)
- - Code sequence for shifts >= wordsize
  - Start another architecture (arm?)
  - 64-bit ops on 32-bit machines
  - <regwidth ops.  For example, x+y on int32s on amd64 needs (MOVLQSX (ADDL x y)).
@@ -51,6 +42,9 @@ Common-Subexpression Elimination
  - Can we move control values out of their basic block?
 
 Other
- - Make go:generate less painful.  Have a subpackage that just has the
-   generate commands in it?
  - Use gc.Fatal for errors.  Add a callback to Frontend?
+ - Write barriers
+ - For testing, do something more sophisticated than
+   checkOpcodeCounts.  Michael Matloob suggests using a similar
+   pattern matcher to the rewrite engine to check for certain
+   expression subtrees in the output.

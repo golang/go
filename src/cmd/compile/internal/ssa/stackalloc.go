@@ -33,10 +33,9 @@ func stackalloc(f *Func) {
 			if v.Type.IsMemory() { // TODO: only "regallocable" types
 				continue
 			}
-			n += v.Type.Size()
-			// a := v.Type.Align()
-			// n = (n + a - 1) / a * a  TODO
+			n = align(n, v.Type.Alignment())
 			loc := &LocalSlot{n}
+			n += v.Type.Size()
 			home = setloc(home, v, loc)
 			for _, w := range v.Args {
 				home = setloc(home, w, loc)
@@ -60,15 +59,14 @@ func stackalloc(f *Func) {
 			if len(v.Args) == 1 && (v.Args[0].Op == OpFP || v.Args[0].Op == OpSP || v.Args[0].Op == OpGlobal) {
 				continue
 			}
-			// a := v.Type.Align()
-			// n = (n + a - 1) / a * a  TODO
-			n += v.Type.Size()
+			n = align(n, v.Type.Alignment())
 			loc := &LocalSlot{n}
+			n += v.Type.Size()
 			home = setloc(home, v, loc)
 		}
 	}
 
-	// TODO: align n
+	n = align(n, f.Config.ptrSize)
 	n += f.Config.ptrSize // space for return address.  TODO: arch-dependent
 	f.RegAlloc = home
 	f.FrameSize = n
@@ -113,4 +111,9 @@ func stackalloc(f *Func) {
 		fp.Op = OpSP
 		home[fp.ID] = &registers[4] // TODO: arch-dependent
 	}
+}
+
+// align increases n to the next multiple of a.  a must be a power of 2.
+func align(n int64, a int64) int64 {
+	return (n + a - 1) &^ (a - 1)
 }

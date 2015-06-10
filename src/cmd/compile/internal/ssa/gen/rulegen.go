@@ -57,6 +57,7 @@ func genRules(arch arch) {
 
 	// read rule file
 	scanner := bufio.NewScanner(text)
+	rule := ""
 	for scanner.Scan() {
 		line := scanner.Text()
 		if i := strings.Index(line, "//"); i >= 0 {
@@ -64,16 +65,27 @@ func genRules(arch arch) {
 			// it will truncate lines with // inside strings.  Oh well.
 			line = line[:i]
 		}
-		line = strings.TrimSpace(line)
-		if line == "" {
+		rule += " " + line
+		rule = strings.TrimSpace(rule)
+		if rule == "" {
 			continue
 		}
-		op := strings.Split(line, " ")[0][1:]
-		if isBlock(op, arch) {
-			blockrules[op] = append(blockrules[op], line)
-		} else {
-			oprules[op] = append(oprules[op], line)
+		if !strings.Contains(rule, "->") {
+			continue
 		}
+		if strings.HasSuffix(rule, "->") {
+			continue
+		}
+		if unbalanced(rule) {
+			continue
+		}
+		op := strings.Split(rule, " ")[0][1:]
+		if isBlock(op, arch) {
+			blockrules[op] = append(blockrules[op], rule)
+		} else {
+			oprules[op] = append(oprules[op], rule)
+		}
+		rule = ""
 	}
 	if err := scanner.Err(); err != nil {
 		log.Fatalf("scanner failed: %v\n", err)
@@ -105,7 +117,7 @@ func genRules(arch arch) {
 			// split at ->
 			s := strings.Split(rule, "->")
 			if len(s) != 2 {
-				log.Fatalf("no arrow in rule %s", rule)
+				log.Fatalf("rule must contain exactly one arrow: %s", rule)
 			}
 			lhs := strings.TrimSpace(s[0])
 			result := strings.TrimSpace(s[1])
@@ -477,4 +489,18 @@ func blockName(name string, arch arch) string {
 		}
 	}
 	return "Block" + arch.name + name
+}
+
+// unbalanced returns true if there aren't the same number of ( and ) in the string.
+func unbalanced(s string) bool {
+	var left, right int
+	for _, c := range s {
+		if c == '(' {
+			left++
+		}
+		if c == ')' {
+			right++
+		}
+	}
+	return left != right
 }
