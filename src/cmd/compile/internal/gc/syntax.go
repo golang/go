@@ -15,67 +15,32 @@ type Node struct {
 	// Generic recursive walks should follow these fields.
 	Left  *Node
 	Right *Node
-	Ntest *Node
-	Nincr *Node
 	Ninit *NodeList
 	Nbody *NodeList
-	Nelse *NodeList
 	List  *NodeList
 	Rlist *NodeList
 
 	// most nodes
-	Type  *Type
-	Orig  *Node // original form, for printing, and tracking copies of ONAMEs
-	Nname *Node
+	Type *Type
+	Orig *Node // original form, for printing, and tracking copies of ONAMEs
 
 	// func
 	Func *Func
 
 	// ONAME
-	Name     *Name
-	Defn     *Node // ONAME: initializing assignment; OLABEL: labeled statement
-	Pack     *Node // real package for import . names
-	Curfn    *Node // function for local variables
-	Paramfld *Type // TFIELD for this PPARAM; also for ODOT, curfn
-	Alloc    *Node // allocation call
-	Param    *Param
+	Name *Name
 
-	// OPACK
-	Pkg *Pkg
+	Sym *Sym        // various
+	E   interface{} // Opt or Val, see methods below
 
-	// OARRAYLIT, OMAPLIT, OSTRUCTLIT.
-	Initplan *InitPlan
+	Xoffset int64
 
-	// Escape analysis.
-	Escflowsrc *NodeList // flow(this, src)
-	Escretval  *NodeList // on OCALLxxx, list of dummy return values
-
-	Sym *Sym // various
-
-	Opt interface{} // for optimization passes
-
-	// OLITERAL
-	Val Val
-
-	Xoffset  int64
-	Stkdelta int64 // offset added by stack frame compaction phase.
-
-	// Escape analysis.
-	Escloopdepth int32 // -1: global, 0: return variables, 1:function top level, increased inside function for every loop or label to mark scopes
-
-	Vargen  int32 // unique name for OTYPE/ONAME within a function.  Function outputs are numbered starting at one.
-	Lineno  int32
-	Iota    int32
-	Walkgen uint32
-
-	Funcdepth int32
+	Lineno int32
 
 	// OREGISTER, OINDREG
 	Reg int16
 
-	// most nodes - smaller fields
-	Esclevel Level
-	Esc      uint16 // EscXXX
+	Esc uint16 // EscXXX
 
 	Op          uint8
 	Nointerface bool
@@ -100,14 +65,65 @@ type Node struct {
 	Assigned    bool // is the variable ever assigned to
 	Likely      int8 // likeliness of if statement
 	Hasbreak    bool // has break statement
+	hasVal      int8 // +1 for Val, -1 for Opt, 0 for not yet set
 }
 
-// Name holds Node fields used only by ONAME nodes.
+// Val returns the Val for the node.
+func (n *Node) Val() Val {
+	if n.hasVal != +1 {
+		return Val{}
+	}
+	return Val{n.E}
+}
+
+// SetVal sets the Val for the node, which must not have been used with SetOpt.
+func (n *Node) SetVal(v Val) {
+	if n.hasVal == -1 {
+		Debug['h'] = 1
+		Dump("have Opt", n)
+		Fatal("have Opt")
+	}
+	n.hasVal = +1
+	n.E = v.U
+}
+
+// Opt returns the optimizer data for the node.
+func (n *Node) Opt() interface{} {
+	if n.hasVal != -1 {
+		return nil
+	}
+	return n.E
+}
+
+// SetOpt sets the optimizer data for the node, which must not have been used with SetVal.
+// SetOpt(nil) is ignored for Vals to simplify call sites that are clearing Opts.
+func (n *Node) SetOpt(x interface{}) {
+	if x == nil && n.hasVal >= 0 {
+		return
+	}
+	if n.hasVal == +1 {
+		Debug['h'] = 1
+		Dump("have Val", n)
+		Fatal("have Val")
+	}
+	n.hasVal = -1
+	n.E = x
+}
+
+// Name holds Node fields used only by named nodes (ONAME, OPACK, some OLITERAL).
 type Name struct {
+	Pack      *Node // real package for import . names
+	Pkg       *Pkg  // pkg for OPACK nodes
 	Heapaddr  *Node // temp holding heap address of param
 	Inlvar    *Node // ONAME substitute while inlining
+	Defn      *Node // initializing assignment
+	Curfn     *Node // function for local variables
+	Param     *Param
 	Decldepth int32 // declaration loop depth, increased for every loop or label
-	Method    bool  // OCALLMETH name
+	Vargen    int32 // unique name for ONAME within a function.  Function outputs are numbered starting at one.
+	Iota      int32 // value if this name is iota
+	Funcdepth int32
+	Method    bool // OCALLMETH name
 	Readonly  bool
 	Captured  bool // is the variable captured by a closure
 	Byval     bool // is the variable captured by value or by reference
@@ -121,25 +137,35 @@ type Param struct {
 	Outerexpr  *Node // expression copied into closure for variable
 	Stackparam *Node // OPARAM node referring to stack copy of param
 
+	// ONAME PPARAM
+	Field *Type // TFIELD in arg struct
+
 	// ONAME closure param with PPARAMREF
 	Outer   *Node // outer PPARAMREF in nested closure
 	Closure *Node // ONAME/PHEAP <-> ONAME/PPARAMREF
-	Top     int   // top context (Ecall, Eproc, etc)
 }
 
 // Func holds Node fields used only with function-like nodes.
 type Func struct {
-	Shortname *Node
-	Enter     *NodeList
-	Exit      *NodeList
-	Cvars     *NodeList // closure params
-	Dcl       *NodeList // autodcl for this func/closure
-	Inldcl    *NodeList // copy of dcl for use in inlining
-	Closgen   int
-	Outerfunc *Node
+	Shortname  *Node
+	Enter      *NodeList
+	Exit       *NodeList
+	Cvars      *NodeList // closure params
+	Dcl        *NodeList // autodcl for this func/closure
+	Inldcl     *NodeList // copy of dcl for use in inlining
+	Closgen    int
+	Outerfunc  *Node
+	Fieldtrack []*Type
+	Outer      *Node // outer func for closure
+	Ntype      *Node // signature
+	Top        int   // top context (Ecall, Eproc, etc)
+	Closure    *Node // OCLOSURE <-> ODCLFUNC
+	FCurfn     *Node
+	Nname      *Node
 
 	Inl     *NodeList // copy of the body for use in inlining
 	InlCost int32
+	Depth   int32
 
 	Endlineno int32
 
@@ -162,129 +188,132 @@ const (
 	OLITERAL // literal
 
 	// expressions
-	OADD             // x + y
-	OSUB             // x - y
-	OOR              // x | y
-	OXOR             // x ^ y
-	OADDSTR          // s + "foo"
-	OADDR            // &x
-	OANDAND          // b0 && b1
-	OAPPEND          // append
-	OARRAYBYTESTR    // string(bytes)
-	OARRAYBYTESTRTMP // string(bytes) ephemeral
-	OARRAYRUNESTR    // string(runes)
-	OSTRARRAYBYTE    // []byte(s)
-	OSTRARRAYBYTETMP // []byte(s) ephemeral
-	OSTRARRAYRUNE    // []rune(s)
-	OAS              // x = y or x := y
-	OAS2             // x, y, z = xx, yy, zz
-	OAS2FUNC         // x, y = f()
-	OAS2RECV         // x, ok = <-c
-	OAS2MAPR         // x, ok = m["foo"]
-	OAS2DOTTYPE      // x, ok = I.(int)
-	OASOP            // x += y
-	OASWB            // OAS but with write barrier
-	OCALL            // function call, method call or type conversion, possibly preceded by defer or go.
-	OCALLFUNC        // f()
-	OCALLMETH        // t.Method()
-	OCALLINTER       // err.Error()
-	OCALLPART        // t.Method (without ())
-	OCAP             // cap
-	OCLOSE           // close
-	OCLOSURE         // f = func() { etc }
-	OCMPIFACE        // err1 == err2
-	OCMPSTR          // s1 == s2
-	OCOMPLIT         // composite literal, typechecking may convert to a more specific OXXXLIT.
-	OMAPLIT          // M{"foo":3, "bar":4}
-	OSTRUCTLIT       // T{x:3, y:4}
-	OARRAYLIT        // [2]int{3, 4}
-	OPTRLIT          // &T{x:3, y:4}
-	OCONV            // var i int; var u uint; i = int(u)
-	OCONVIFACE       // I(t)
-	OCONVNOP         // type Int int; var i int; var j Int; i = int(j)
-	OCOPY            // copy
-	ODCL             // var x int
-	ODCLFUNC         // func f() or func (r) f()
-	ODCLFIELD        // struct field, interface field, or func/method argument/return value.
-	ODCLCONST        // const pi = 3.14
-	ODCLTYPE         // type Int int
-	ODELETE          // delete
-	ODOT             // t.x
-	ODOTPTR          // p.x that is implicitly (*p).x
-	ODOTMETH         // t.Method
-	ODOTINTER        // err.Error
-	OXDOT            // t.x, typechecking may convert to a more specific ODOTXXX.
-	ODOTTYPE         // e = err.(MyErr)
-	ODOTTYPE2        // e, ok = err.(MyErr)
-	OEQ              // x == y
-	ONE              // x != y
-	OLT              // x < y
-	OLE              // x <= y
-	OGE              // x >= y
-	OGT              // x > y
-	OIND             // *p
-	OINDEX           // a[i]
-	OINDEXMAP        // m[s]
-	OKEY             // The x:3 in t{x:3, y:4}, the 1:2 in a[1:2], the 2:20 in [3]int{2:20}, etc.
-	OPARAM           // The on-stack copy of a parameter or return value that escapes.
-	OLEN             // len
-	OMAKE            // make, typechecking may convert to a more specific OMAKEXXX.
-	OMAKECHAN        // make(chan int)
-	OMAKEMAP         // make(map[string]int)
-	OMAKESLICE       // make([]int, 0)
-	OMUL             // *
-	ODIV             // x / y
-	OMOD             // x % y
-	OLSH             // x << u
-	ORSH             // x >> u
-	OAND             // x & y
-	OANDNOT          // x &^ y
-	ONEW             // new
-	ONOT             // !b
-	OCOM             // ^x
-	OPLUS            // +x
-	OMINUS           // -y
-	OOROR            // b1 || b2
-	OPANIC           // panic
-	OPRINT           // print
-	OPRINTN          // println
-	OPAREN           // (x)
-	OSEND            // c <- x
-	OSLICE           // v[1:2], typechecking may convert to a more specific OSLICEXXX.
-	OSLICEARR        // a[1:2]
-	OSLICESTR        // s[1:2]
-	OSLICE3          // v[1:2:3], typechecking may convert to OSLICE3ARR.
-	OSLICE3ARR       // a[1:2:3]
-	ORECOVER         // recover
-	ORECV            // <-c
-	ORUNESTR         // string(i)
-	OSELRECV         // case x = <-c:
-	OSELRECV2        // case x, ok = <-c:
-	OIOTA            // iota
-	OREAL            // real
-	OIMAG            // imag
-	OCOMPLEX         // complex
+	OADD             // Left + Right
+	OSUB             // Left - Right
+	OOR              // Left | Right
+	OXOR             // Left ^ Right
+	OADDSTR          // Left + Right (string addition)
+	OADDR            // &Left
+	OANDAND          // Left && Right
+	OAPPEND          // append(List)
+	OARRAYBYTESTR    // Type(Left) (Type is string, Left is a []byte)
+	OARRAYBYTESTRTMP // Type(Left) (Type is string, Left is a []byte, ephemeral)
+	OARRAYRUNESTR    // Type(Left) (Type is string, Left is a []rune)
+	OSTRARRAYBYTE    // Type(Left) (Type is []byte, Left is a string)
+	OSTRARRAYBYTETMP // Type(Left) (Type is []byte, Left is a string, ephemeral)
+	OSTRARRAYRUNE    // Type(Left) (Type is []rune, Left is a string)
+	OAS              // Left = Right or (if Colas=true) Left := Right
+	OAS2             // List = Rlist (x, y, z = a, b, c)
+	OAS2FUNC         // List = Rlist (x, y = f())
+	OAS2RECV         // List = Rlist (x, ok = <-c)
+	OAS2MAPR         // List = Rlist (x, ok = m["foo"])
+	OAS2DOTTYPE      // List = Rlist (x, ok = I.(int))
+	OASOP            // Left Etype= Right (x += y)
+	OASWB            // Left = Right (with write barrier)
+	OCALL            // Left(List) (function call, method call or type conversion)
+	OCALLFUNC        // Left(List) (function call f(args))
+	OCALLMETH        // Left(List) (direct method call x.Method(args))
+	OCALLINTER       // Left(List) (interface method call x.Method(args))
+	OCALLPART        // Left.Right (method expression x.Method, not called)
+	OCAP             // cap(Left)
+	OCLOSE           // close(Left)
+	OCLOSURE         // func Type { Body } (func literal)
+	OCMPIFACE        // Left Etype Right (interface comparison, x == y or x != y)
+	OCMPSTR          // Left Etype Right (string comparison, x == y, x < y, etc)
+	OCOMPLIT         // Right{List} (composite literal, not yet lowered to specific form)
+	OMAPLIT          // Type{List} (composite literal, Type is map)
+	OSTRUCTLIT       // Type{List} (composite literal, Type is struct)
+	OARRAYLIT        // Type{List} (composite literal, Type is array or slice)
+	OPTRLIT          // &Left (left is composite literal)
+	OCONV            // Type(Left) (type conversion)
+	OCONVIFACE       // Type(Left) (type conversion, to interface)
+	OCONVNOP         // Type(Left) (type conversion, no effect)
+	OCOPY            // copy(Left, Right)
+	ODCL             // var Left (declares Left of type Left.Type)
+
+	// Used during parsing but don't last.
+	ODCLFUNC  // func f() or func (r) f()
+	ODCLFIELD // struct field, interface field, or func/method argument/return value.
+	ODCLCONST // const pi = 3.14
+	ODCLTYPE  // type Int int
+
+	ODELETE    // delete(Left, Right)
+	ODOT       // Left.Right (Left is of struct type)
+	ODOTPTR    // Left.Right (Left is of pointer to struct type)
+	ODOTMETH   // Left.Right (Left is non-interface, Right is method name)
+	ODOTINTER  // Left.Right (Left is interface, Right is method name)
+	OXDOT      // Left.Right (before rewrite to one of the preceding)
+	ODOTTYPE   // Left.Right or Left.Type (.Right during parsing, .Type once resolved)
+	ODOTTYPE2  // Left.Right or Left.Type (.Right during parsing, .Type once resolved; on rhs of OAS2DOTTYPE)
+	OEQ        // Left == Right
+	ONE        // Left != Right
+	OLT        // Left < Right
+	OLE        // Left <= Right
+	OGE        // Left >= Right
+	OGT        // Left > Right
+	OIND       // *Left
+	OINDEX     // Left[Right] (index of array or slice)
+	OINDEXMAP  // Left[Right] (index of map)
+	OKEY       // Left:Right (key:value in struct/array/map literal, or slice index pair)
+	OPARAM     // variant of ONAME for on-stack copy of a parameter or return value that escapes.
+	OLEN       // len(Left)
+	OMAKE      // make(List) (before type checking converts to one of the following)
+	OMAKECHAN  // make(Type, Left) (type is chan)
+	OMAKEMAP   // make(Type, Left) (type is map)
+	OMAKESLICE // make(Type, Left, Right) (type is slice)
+	OMUL       // Left * Right
+	ODIV       // Left / Right
+	OMOD       // Left % Right
+	OLSH       // Left << Right
+	ORSH       // Left >> Right
+	OAND       // Left & Right
+	OANDNOT    // Left &^ Right
+	ONEW       // new(Left)
+	ONOT       // !Left
+	OCOM       // ^Left
+	OPLUS      // +Left
+	OMINUS     // -Left
+	OOROR      // Left || Right
+	OPANIC     // panic(Left)
+	OPRINT     // print(List)
+	OPRINTN    // println(List)
+	OPAREN     // (Left)
+	OSEND      // Left <- Right
+	OSLICE     // Left[Right.Left : Right.Right] (Left is untypechecked or slice; Right.Op==OKEY)
+	OSLICEARR  // Left[Right.Left : Right.Right] (Left is array)
+	OSLICESTR  // Left[Right.Left : Right.Right] (Left is string)
+	OSLICE3    // Left[R.Left : R.R.Left : R.R.R] (R=Right; Left is untypedchecked or slice; R.Op and R.R.Op==OKEY)
+	OSLICE3ARR // Left[R.Left : R.R.Left : R.R.R] (R=Right; Left is array; R.Op and R.R.Op==OKEY)
+	ORECOVER   // recover()
+	ORECV      // <-Left
+	ORUNESTR   // Type(Left) (Type is string, Left is rune)
+	OSELRECV   // Left = <-Right.Left: (appears as .Left of OCASE; Right.Op == ORECV)
+	OSELRECV2  // List = <-Right.Left: (apperas as .Left of OCASE; count(List) == 2, Right.Op == ORECV)
+	OIOTA      // iota
+	OREAL      // real(Left)
+	OIMAG      // imag(Left)
+	OCOMPLEX   // complex(Left, Right)
 
 	// statements
-	OBLOCK    // block of code
+	OBLOCK    // { List } (block of code)
 	OBREAK    // break
-	OCASE     // case, after being verified by swt.c's casebody.
-	OXCASE    // case, before verification.
+	OCASE     // case List: Nbody (select case after processing; List==nil means default)
+	OXCASE    // case List: Nbody (select case before processing; List==nil means default)
 	OCONTINUE // continue
-	ODEFER    // defer
-	OEMPTY    // no-op
-	OFALL     // fallthrough, after being verified by swt.c's casebody.
-	OXFALL    // fallthrough, before verification.
-	OFOR      // for
-	OGOTO     // goto
-	OIF       // if
-	OLABEL    // label:
-	OPROC     // go
-	ORANGE    // range
-	ORETURN   // return
-	OSELECT   // select
-	OSWITCH   // switch x
-	OTYPESW   // switch err.(type)
+	ODEFER    // defer Left (Left must be call)
+	OEMPTY    // no-op (empty statement)
+	OFALL     // fallthrough (after processing)
+	OXFALL    // fallthrough (before processing)
+	OFOR      // for Ninit; Left; Right { Nbody }
+	OGOTO     // goto Left
+	OIF       // if Ninit; Left { Nbody } else { Rlist }
+	OLABEL    // Left:
+	OPROC     // go Left (Left must be call)
+	ORANGE    // for List = range Right { Nbody }
+	ORETURN   // return List
+	OSELECT   // select { List } (List is list of OXCASE or OCASE)
+	OSWITCH   // switch Ninit; Left { List } (List is a list of OXCASE or OCASE)
+	OTYPESW   // List = Left.(type) (appears as .Left of OSWITCH)
 
 	// types
 	OTCHAN   // chan int
@@ -326,22 +355,6 @@ const (
 
 	OEND
 )
-
-/*
- * Every node has a walkgen field.
- * If you want to do a traversal of a node graph that
- * might contain duplicates and want to avoid
- * visiting the same nodes twice, increment walkgen
- * before starting.  Then before processing a node, do
- *
- *	if(n->walkgen == walkgen)
- *		return;
- *	n->walkgen = walkgen;
- *
- * Such a walk cannot call another such walk recursively,
- * because of the use of the global walkgen.
- */
-var walkgen uint32
 
 // A NodeList is a linked list of nodes.
 // TODO(rsc): Some uses of NodeList should be made into slices.

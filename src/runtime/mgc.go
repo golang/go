@@ -64,10 +64,18 @@
 //     Once all the P's are aware of the new phase they will scan gs on preemption.
 //     This means that the scanning of preempted gs can't start until all the Ps
 //     have acknowledged.
+//     When a stack is scanned, this phase also installs stack barriers to
+//     track how much of the stack has been active.
+//     This transition enables write barriers because stack barriers
+//     assume that writes to higher frames will be tracked by write
+//     barriers. Technically this only needs write barriers for writes
+//     to stack slots, but we enable write barriers in general.
 // GCscan to GCmark
-//     GCMark turns on the write barrier which also only greys objects. No scanning
-//     of objects (making them black) can happen until all the Ps have acknowledged
-//     the phase change.
+//     In GCmark, work buffers are drained until there are no more
+//     pointers to scan.
+//     No scanning of objects (making them black) can happen until all
+//     Ps have enabled the write barrier, but that already happened in
+//     the transition to GCscan.
 // GCmark to GCmarktermination
 //     The only change here is that we start allocating black so the Ps must acknowledge
 //     the change before we begin the termination algorithm
@@ -125,6 +133,19 @@ const (
 	_RootSpans       = 3
 	_RootFlushCaches = 4
 	_RootCount       = 5
+
+	// firstStackBarrierOffset is the approximate byte offset at
+	// which to place the first stack barrier from the current SP.
+	// This is a lower bound on how much stack will have to be
+	// re-scanned during mark termination. Subsequent barriers are
+	// placed at firstStackBarrierOffset * 2^n offsets.
+	//
+	// For debugging, this can be set to 0, which will install a
+	// stack barrier at every frame. If you do this, you may also
+	// have to raise _StackMin, since the stack barrier
+	// bookkeeping will use a large amount of each stack.
+	firstStackBarrierOffset = 1024
+	debugStackBarrier       = false
 )
 
 // heapminimum is the minimum heap size at which to trigger GC.
@@ -207,7 +228,7 @@ var gcBlackenEnabled uint32
 const (
 	_GCoff             = iota // GC not running, write barrier disabled
 	_GCstw                    // unused state
-	_GCscan                   // GC collecting roots into workbufs, write barrier disabled
+	_GCscan                   // GC collecting roots into workbufs, write barrier ENABLED
 	_GCmark                   // GC marking from workbufs, write barrier ENABLED
 	_GCmarktermination        // GC mark termination: allocate black, P's help GC, write barrier ENABLED
 	_GCsweep                  // GC mark completed; sweeping in background, write barrier disabled
@@ -216,7 +237,7 @@ const (
 //go:nosplit
 func setGCPhase(x uint32) {
 	atomicstore(&gcphase, x)
-	writeBarrierEnabled = gcphase == _GCmark || gcphase == _GCmarktermination
+	writeBarrierEnabled = gcphase == _GCmark || gcphase == _GCmarktermination || gcphase == _GCscan
 }
 
 // gcMarkWorkerMode represents the mode that a concurrent mark worker
@@ -301,7 +322,7 @@ type gcControllerState struct {
 	fractionalMarkTime int64
 
 	// idleMarkTime is the nanoseconds spent in idle marking
-	// during this cycle. This is udpated atomically throughout
+	// during this cycle. This is updated atomically throughout
 	// the cycle.
 	idleMarkTime int64
 
@@ -693,7 +714,8 @@ var work struct {
 	initialHeapLive uint64
 }
 
-// GC runs a garbage collection.
+// GC runs a garbage collection and blocks until the garbage
+// collection is complete.
 func GC() {
 	startGC(gcForceBlockMode)
 }
@@ -819,6 +841,31 @@ func gc(mode int) {
 		heapGoal = gcController.heapGoal
 
 		systemstack(func() {
+			// Enter scan phase. This enables write
+			// barriers to track changes to stack frames
+			// above the stack barrier.
+			//
+			// TODO: This has evolved to the point where
+			// we carefully ensure invariants we no longer
+			// depend on. Either:
+			//
+			// 1) Enable full write barriers for the scan,
+			// but eliminate the ragged barrier below
+			// (since the start the world ensures all Ps
+			// have observed the write barrier enable) and
+			// consider draining during the scan.
+			//
+			// 2) Only enable write barriers for writes to
+			// the stack at this point, and then enable
+			// write barriers for heap writes when we
+			// enter the mark phase. This means we cannot
+			// drain in the scan phase and must perform a
+			// ragged barrier to ensure all Ps have
+			// enabled heap write barriers before we drain
+			// or enable assists.
+			//
+			// 3) Don't install stack barriers over frame
+			// boundaries where there are up-pointers.
 			setGCPhase(_GCscan)
 
 			// Concurrent scan.
@@ -828,8 +875,7 @@ func gc(mode int) {
 			}
 			gcscan_m()
 
-			// Enter mark phase. This enables write
-			// barriers.
+			// Enter mark phase.
 			if debug.gctrace > 0 {
 				tInstallWB = nanotime()
 			}
@@ -923,6 +969,7 @@ func gc(mode int) {
 			// Run a full stop-the-world mark using checkmark bits,
 			// to check that we didn't forget to mark anything during
 			// the concurrent mark process.
+			gcResetGState() // Rescan stacks
 			initCheckmarks()
 			gcMark(startTime)
 			clearCheckmarks()
@@ -992,20 +1039,27 @@ func gc(mode int) {
 		var sbuf [24]byte
 		printlock()
 		print("gc #", memstats.numgc,
-			" @", string(itoaDiv(sbuf[:], uint64(tEnd-runtimeInitTime)/1e6, 3)), "s ",
-			util, "%: ",
-			(tScan-tSweepTerm)/1e6,
-			"+", (tInstallWB-tScan)/1e6,
-			"+", (tMark-tInstallWB)/1e6,
-			"+", (tMarkTerm-tMark)/1e6,
-			"+", (tEnd-tMarkTerm)/1e6, " ms clock, ",
-			sweepTermCpu/1e6,
-			"+", scanCpu/1e6,
-			"+", installWBCpu/1e6,
-			"+", gcController.assistTime/1e6,
-			"/", (gcController.dedicatedMarkTime+gcController.fractionalMarkTime)/1e6,
-			"/", gcController.idleMarkTime/1e6,
-			"+", markTermCpu/1e6, " ms cpu, ",
+			" @", string(itoaDiv(sbuf[:], uint64(tSweepTerm-runtimeInitTime)/1e6, 3)), "s ",
+			util, "%: ")
+		prev := tSweepTerm
+		for i, ns := range []int64{tScan, tInstallWB, tMark, tMarkTerm, tEnd} {
+			if i != 0 {
+				print("+")
+			}
+			print(string(fmtNSAsMS(sbuf[:], uint64(ns-prev))))
+			prev = ns
+		}
+		print(" ms clock, ")
+		for i, ns := range []int64{sweepTermCpu, scanCpu, installWBCpu, gcController.assistTime, gcController.dedicatedMarkTime + gcController.fractionalMarkTime, gcController.idleMarkTime, markTermCpu} {
+			if i == 4 || i == 5 {
+				// Separate mark time components with /.
+				print("/")
+			} else if i != 0 {
+				print("+")
+			}
+			print(string(fmtNSAsMS(sbuf[:], uint64(ns))))
+		}
+		print(" ms cpu, ",
 			heap0>>20, "->", heap1>>20, "->", heap2>>20, " MB, ",
 			heapGoal>>20, " MB goal, ",
 			maxprocs, " P")
@@ -1512,4 +1566,24 @@ func itoaDiv(buf []byte, val uint64, dec int) []byte {
 	}
 	buf[i] = byte(val + '0')
 	return buf[i:]
+}
+
+// fmtNSAsMS nicely formats ns nanoseconds as milliseconds.
+func fmtNSAsMS(buf []byte, ns uint64) []byte {
+	if ns >= 10e6 {
+		// Format as whole milliseconds.
+		return itoaDiv(buf, ns/1e6, 0)
+	}
+	// Format two digits of precision, with at most three decimal places.
+	x := ns / 1e3
+	if x == 0 {
+		buf[0] = '0'
+		return buf[:1]
+	}
+	dec := 3
+	for x >= 100 {
+		x /= 10
+		dec--
+	}
+	return itoaDiv(buf, x, dec)
 }

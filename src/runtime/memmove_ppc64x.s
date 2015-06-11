@@ -13,7 +13,7 @@ TEXT runtime·memmove(SB), NOSPLIT, $-8-24
 	MOVD	n+16(FP), R5
 	CMP	R5, $0
 	BNE	check
-	RETURN
+	RET
 
 check:
 	CMP	R3, R4
@@ -27,7 +27,7 @@ loop:
 	MOVBU	R6, 1(R3)
 	CMP	R3, R5
 	BNE	loop
-	RETURN
+	RET
 
 backward:
 	ADD	R5, R4
@@ -37,4 +37,4 @@ loop1:
 	MOVBU	R6, -1(R5)
 	CMP	R3, R5
 	BNE	loop1
-	RETURN
+	RET

@@ -29,8 +29,8 @@ func resolve(n *Node) *Node {
 		if r != nil {
 			if r.Op != OIOTA {
 				n = r
-			} else if n.Iota >= 0 {
-				n = Nodintconst(int64(n.Iota))
+			} else if n.Name.Iota >= 0 {
+				n = Nodintconst(int64(n.Name.Iota))
 			}
 		}
 	}
@@ -237,7 +237,7 @@ func callrecv(n *Node) bool {
 		return true
 	}
 
-	return callrecv(n.Left) || callrecv(n.Right) || callrecv(n.Ntest) || callrecv(n.Nincr) || callrecvlist(n.Ninit) || callrecvlist(n.Nbody) || callrecvlist(n.Nelse) || callrecvlist(n.List) || callrecvlist(n.Rlist)
+	return callrecv(n.Left) || callrecv(n.Right) || callrecvlist(n.Ninit) || callrecvlist(n.Nbody) || callrecvlist(n.List) || callrecvlist(n.Rlist)
 }
 
 func callrecvlist(l *NodeList) bool {
@@ -301,7 +301,7 @@ OpSwitch:
 	case OLITERAL:
 		ok |= Erv
 
-		if n.Type == nil && n.Val.Ctype == CTSTR {
+		if n.Type == nil && n.Val().Ctype() == CTSTR {
 			n.Type = idealstring
 		}
 		break OpSwitch
@@ -377,10 +377,10 @@ OpSwitch:
 			var v Val
 			switch consttype(l) {
 			case CTINT, CTRUNE:
-				v = l.Val
+				v = l.Val()
 
 			case CTFLT:
-				v = toint(l.Val)
+				v = toint(l.Val())
 
 			default:
 				if l.Type != nil && Isint[l.Type.Etype] && l.Op != OLITERAL {
@@ -756,12 +756,12 @@ OpSwitch:
 		}
 
 		if et == TINTER {
-			if l.Op == OLITERAL && l.Val.Ctype == CTNIL {
+			if l.Op == OLITERAL && l.Val().Ctype() == CTNIL {
 				// swap for back end
 				n.Left = r
 
 				n.Right = l
-			} else if r.Op == OLITERAL && r.Val.Ctype == CTNIL {
+			} else if r.Op == OLITERAL && r.Val().Ctype() == CTNIL {
 			} else // leave alone for back end
 			if Isinter(r.Type) == Isinter(l.Type) {
 				n.Etype = n.Op
@@ -770,7 +770,7 @@ OpSwitch:
 		}
 
 		if (op == ODIV || op == OMOD) && Isconst(r, CTINT) {
-			if mpcmpfixc(r.Val.U.(*Mpint), 0) == 0 {
+			if mpcmpfixc(r.Val().U.(*Mpint), 0) == 0 {
 				Yyerror("division by zero")
 				n.Type = nil
 				return
@@ -813,8 +813,8 @@ OpSwitch:
 		var l *Node
 		for l = n.Left; l != r; l = l.Left {
 			l.Addrtaken = true
-			if l.Param != nil && l.Param.Closure != nil {
-				l.Param.Closure.Addrtaken = true
+			if l.Name != nil && l.Name.Param != nil && l.Name.Param.Closure != nil {
+				l.Name.Param.Closure.Addrtaken = true
 			}
 		}
 
@@ -822,8 +822,8 @@ OpSwitch:
 			Fatal("found non-orig name node %v", l)
 		}
 		l.Addrtaken = true
-		if l.Param != nil && l.Param.Closure != nil {
-			l.Param.Closure.Addrtaken = true
+		if l.Name != nil && l.Name.Param != nil && l.Name.Param.Closure != nil {
+			l.Name.Param.Closure.Addrtaken = true
 		}
 		defaultlit(&n.Left, nil)
 		l = n.Left
@@ -1046,14 +1046,14 @@ OpSwitch:
 			}
 
 			if Isconst(n.Right, CTINT) {
-				x := Mpgetfix(n.Right.Val.U.(*Mpint))
+				x := Mpgetfix(n.Right.Val().U.(*Mpint))
 				if x < 0 {
 					Yyerror("invalid %s index %v (index must be non-negative)", why, n.Right)
 				} else if Isfixedarray(t) && t.Bound > 0 && x >= t.Bound {
 					Yyerror("invalid array index %v (out of bounds for %d-element array)", n.Right, t.Bound)
-				} else if Isconst(n.Left, CTSTR) && x >= int64(len(n.Left.Val.U.(string))) {
-					Yyerror("invalid string index %v (out of bounds for %d-byte string)", n.Right, len(n.Left.Val.U.(string)))
-				} else if Mpcmpfixfix(n.Right.Val.U.(*Mpint), Maxintval[TINT]) > 0 {
+				} else if Isconst(n.Left, CTSTR) && x >= int64(len(n.Left.Val().U.(string))) {
+					Yyerror("invalid string index %v (out of bounds for %d-byte string)", n.Right, len(n.Left.Val().U.(string)))
+				} else if Mpcmpfixfix(n.Right.Val().U.(*Mpint), Maxintval[TINT]) > 0 {
 					Yyerror("invalid %s index %v (index too large)", why, n.Right)
 				}
 			}
@@ -1438,9 +1438,9 @@ OpSwitch:
 			if Isconst(l, CTCPLX) {
 				r := n
 				if n.Op == OREAL {
-					n = nodfltconst(&l.Val.U.(*Mpcplx).Real)
+					n = nodfltconst(&l.Val().U.(*Mpcplx).Real)
 				} else {
-					n = nodfltconst(&l.Val.U.(*Mpcplx).Imag)
+					n = nodfltconst(&l.Val().U.(*Mpcplx).Imag)
 				}
 				n.Orig = r
 			}
@@ -1454,7 +1454,7 @@ OpSwitch:
 		case TSTRING:
 			if Isconst(l, CTSTR) {
 				r := Nod(OXXX, nil, nil)
-				Nodconst(r, Types[TINT], int64(len(l.Val.U.(string))))
+				Nodconst(r, Types[TINT], int64(len(l.Val().U.(string))))
 				r.Orig = n
 				n = r
 			}
@@ -1547,7 +1547,7 @@ OpSwitch:
 
 		if l.Op == OLITERAL && r.Op == OLITERAL {
 			// make it a complex literal
-			r = nodcplxlit(l.Val, r.Val)
+			r = nodcplxlit(l.Val(), r.Val())
 
 			r.Orig = n
 			n = r
@@ -1788,7 +1788,7 @@ OpSwitch:
 				n.Orig = r
 				*r = *n
 				n.Op = OLITERAL
-				n.Val = n.Left.Val
+				n.SetVal(n.Left.Val())
 			}
 
 			// do not use stringtoarraylit.
@@ -1862,7 +1862,7 @@ OpSwitch:
 				n.Type = nil
 				return
 			}
-			if Isconst(l, CTINT) && r != nil && Isconst(r, CTINT) && Mpcmpfixfix(l.Val.U.(*Mpint), r.Val.U.(*Mpint)) > 0 {
+			if Isconst(l, CTINT) && r != nil && Isconst(r, CTINT) && Mpcmpfixfix(l.Val().U.(*Mpint), r.Val().U.(*Mpint)) > 0 {
 				Yyerror("len larger than cap in make(%v)", t)
 				n.Type = nil
 				return
@@ -2055,7 +2055,7 @@ OpSwitch:
 
 		// Code that creates temps does not bother to set defn, so do it here.
 		if n.Left.Op == ONAME && strings.HasPrefix(n.Left.Sym.Name, "autotmp_") {
-			n.Left.Defn = n
+			n.Left.Name.Defn = n
 		}
 		break OpSwitch
 
@@ -2097,14 +2097,14 @@ OpSwitch:
 		ok |= Etop
 		typechecklist(n.Ninit, Etop)
 		decldepth++
-		typecheck(&n.Ntest, Erv)
-		if n.Ntest != nil {
-			t := n.Ntest.Type
+		typecheck(&n.Left, Erv)
+		if n.Left != nil {
+			t := n.Left.Type
 			if t != nil && t.Etype != TBOOL {
-				Yyerror("non-bool %v used as for condition", Nconv(n.Ntest, obj.FmtLong))
+				Yyerror("non-bool %v used as for condition", Nconv(n.Left, obj.FmtLong))
 			}
 		}
-		typecheck(&n.Nincr, Etop)
+		typecheck(&n.Right, Etop)
 		typechecklist(n.Nbody, Etop)
 		decldepth--
 		break OpSwitch
@@ -2112,15 +2112,15 @@ OpSwitch:
 	case OIF:
 		ok |= Etop
 		typechecklist(n.Ninit, Etop)
-		typecheck(&n.Ntest, Erv)
-		if n.Ntest != nil {
-			t := n.Ntest.Type
+		typecheck(&n.Left, Erv)
+		if n.Left != nil {
+			t := n.Left.Type
 			if t != nil && t.Etype != TBOOL {
-				Yyerror("non-bool %v used as if condition", Nconv(n.Ntest, obj.FmtLong))
+				Yyerror("non-bool %v used as if condition", Nconv(n.Left, obj.FmtLong))
 			}
 		}
 		typechecklist(n.Nbody, Etop)
-		typechecklist(n.Nelse, Etop)
+		typechecklist(n.Rlist, Etop)
 		break OpSwitch
 
 	case ORETURN:
@@ -2258,16 +2258,16 @@ func checksliceindex(l *Node, r *Node, tp *Type) int {
 	}
 
 	if r.Op == OLITERAL {
-		if Mpgetfix(r.Val.U.(*Mpint)) < 0 {
+		if Mpgetfix(r.Val().U.(*Mpint)) < 0 {
 			Yyerror("invalid slice index %v (index must be non-negative)", r)
 			return -1
-		} else if tp != nil && tp.Bound > 0 && Mpgetfix(r.Val.U.(*Mpint)) > tp.Bound {
+		} else if tp != nil && tp.Bound > 0 && Mpgetfix(r.Val().U.(*Mpint)) > tp.Bound {
 			Yyerror("invalid slice index %v (out of bounds for %d-element array)", r, tp.Bound)
 			return -1
-		} else if Isconst(l, CTSTR) && Mpgetfix(r.Val.U.(*Mpint)) > int64(len(l.Val.U.(string))) {
-			Yyerror("invalid slice index %v (out of bounds for %d-byte string)", r, len(l.Val.U.(string)))
+		} else if Isconst(l, CTSTR) && Mpgetfix(r.Val().U.(*Mpint)) > int64(len(l.Val().U.(string))) {
+			Yyerror("invalid slice index %v (out of bounds for %d-byte string)", r, len(l.Val().U.(string)))
 			return -1
-		} else if Mpcmpfixfix(r.Val.U.(*Mpint), Maxintval[TINT]) > 0 {
+		} else if Mpcmpfixfix(r.Val().U.(*Mpint), Maxintval[TINT]) > 0 {
 			Yyerror("invalid slice index %v (index too large)", r)
 			return -1
 		}
@@ -2277,7 +2277,7 @@ func checksliceindex(l *Node, r *Node, tp *Type) int {
 }
 
 func checksliceconst(lo *Node, hi *Node) int {
-	if lo != nil && hi != nil && lo.Op == OLITERAL && hi.Op == OLITERAL && Mpcmpfixfix(lo.Val.U.(*Mpint), hi.Val.U.(*Mpint)) > 0 {
+	if lo != nil && hi != nil && lo.Op == OLITERAL && hi.Op == OLITERAL && Mpcmpfixfix(lo.Val().U.(*Mpint), hi.Val().U.(*Mpint)) > 0 {
 		Yyerror("invalid slice index: %v > %v", lo, hi)
 		return -1
 	}
@@ -2489,6 +2489,15 @@ func derefall(t *Type) *Type {
 	return t
 }
 
+type typeSym struct {
+	t *Type
+	s *Sym
+}
+
+// dotField maps (*Type, *Sym) pairs to the corresponding struct field (*Type with Etype==TFIELD).
+// It is a cache for use during usefield in walk.go, only enabled when field tracking.
+var dotField = map[typeSym]*Type{}
+
 func lookdot(n *Node, t *Type, dostrcmp int) *Type {
 	s := n.Right.Sym
 
@@ -2521,7 +2530,9 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Type {
 		}
 		n.Xoffset = f1.Width
 		n.Type = f1.Type
-		n.Paramfld = f1
+		if obj.Fieldtrack_enabled > 0 {
+			dotField[typeSym{t, s}] = f1
+		}
 		if t.Etype == TINTER {
 			if Isptr[n.Left.Type.Etype] {
 				n.Left = Nod(OIND, n.Left, nil) // implicitstar
@@ -2811,57 +2822,56 @@ func fielddup(n *Node, hash map[string]bool) {
 	hash[name] = true
 }
 
-func keydup(n *Node, hash []*Node) {
+func keydup(n *Node, hash map[uint32][]*Node) {
 	orign := n
 	if n.Op == OCONVIFACE {
 		n = n.Left
 	}
 	evconst(n)
 	if n.Op != OLITERAL {
-		return // we dont check variables
+		return // we don't check variables
 	}
 
-	var b uint32
-	switch n.Val.Ctype {
+	var h uint32
+	switch n.Val().Ctype() {
 	default: // unknown, bool, nil
-		b = 23
+		h = 23
 
 	case CTINT, CTRUNE:
-		b = uint32(Mpgetfix(n.Val.U.(*Mpint)))
+		h = uint32(Mpgetfix(n.Val().U.(*Mpint)))
 
 	case CTFLT:
-		d := mpgetflt(n.Val.U.(*Mpflt))
+		d := mpgetflt(n.Val().U.(*Mpflt))
 		x := math.Float64bits(d)
 		for i := 0; i < 8; i++ {
-			b = b*PRIME1 + uint32(x&0xFF)
+			h = h*PRIME1 + uint32(x&0xFF)
 			x >>= 8
 		}
 
 	case CTSTR:
-		b = 0
-		s := n.Val.U.(string)
-		for i := len(n.Val.U.(string)); i > 0; i-- {
-			b = b*PRIME1 + uint32(s[0])
+		h = 0
+		s := n.Val().U.(string)
+		for i := len(n.Val().U.(string)); i > 0; i-- {
+			h = h*PRIME1 + uint32(s[0])
 			s = s[1:]
 		}
 	}
 
-	h := uint(b % uint32(len(hash)))
 	var cmp Node
-	for a := hash[h]; a != nil; a = a.Ntest {
+	for _, a := range hash[h] {
 		cmp.Op = OEQ
 		cmp.Left = n
-		b = 0
+		b := uint32(0)
 		if a.Op == OCONVIFACE && orign.Op == OCONVIFACE {
 			if Eqtype(a.Left.Type, n.Type) {
 				cmp.Right = a.Left
 				evconst(&cmp)
-				b = uint32(obj.Bool2int(cmp.Val.U.(bool)))
+				b = uint32(obj.Bool2int(cmp.Val().U.(bool)))
 			}
 		} else if Eqtype(a.Type, n.Type) {
 			cmp.Right = a
 			evconst(&cmp)
-			b = uint32(obj.Bool2int(cmp.Val.U.(bool)))
+			b = uint32(obj.Bool2int(cmp.Val().U.(bool)))
 		}
 
 		if b != 0 {
@@ -2870,75 +2880,20 @@ func keydup(n *Node, hash []*Node) {
 		}
 	}
 
-	orign.Ntest = hash[h]
-	hash[h] = orign
+	hash[h] = append(hash[h], orign)
 }
 
-func indexdup(n *Node, hash []*Node) {
+func indexdup(n *Node, hash map[int64]*Node) {
 	if n.Op != OLITERAL {
 		Fatal("indexdup: not OLITERAL")
 	}
 
-	b := uint32(Mpgetfix(n.Val.U.(*Mpint)))
-	h := uint(b % uint32(len(hash)))
-	var c uint32
-	for a := hash[h]; a != nil; a = a.Ntest {
-		c = uint32(Mpgetfix(a.Val.U.(*Mpint)))
-		if b == c {
-			Yyerror("duplicate index in array literal: %d", b)
-			return
-		}
+	v := Mpgetfix(n.Val().U.(*Mpint))
+	if hash[v] != nil {
+		Yyerror("duplicate index in array literal: %d", v)
+		return
 	}
-
-	n.Ntest = hash[h]
-	hash[h] = n
-}
-
-func prime(h uint32, sr uint32) bool {
-	for n := uint32(3); n <= sr; n += 2 {
-		if h%n == 0 {
-			return false
-		}
-	}
-	return true
-}
-
-func inithash(n *Node, autohash []*Node) []*Node {
-	// count the number of entries
-	h := uint32(0)
-
-	for ll := n.List; ll != nil; ll = ll.Next {
-		h++
-	}
-
-	// if the auto hash table is
-	// large enough use it.
-	if h <= uint32(len(autohash)) {
-		for i := range autohash {
-			autohash[i] = nil
-		}
-		return autohash
-	}
-
-	// make hash size odd and 12% larger than entries
-	h += h / 8
-
-	h |= 1
-
-	// calculate sqrt of h
-	sr := h / 2
-
-	for i := 0; i < 5; i++ {
-		sr = (sr + h/sr) / 2
-	}
-
-	// check for primeality
-	for !prime(h, sr) {
-		h += 2
-	}
-
-	// build and return a throw-away hash table
-	return make([]*Node, h)
+	hash[v] = n
 }
 
 func iscomptype(t *Type) bool {
@@ -3031,9 +2986,14 @@ func typecheckcomplit(np **Node) {
 		n.Type = nil
 
 	case TARRAY:
-		var autohash [101]*Node
-		hash := inithash(n, autohash[:])
-
+		// Only allocate hash if there are some key/value pairs.
+		var hash map[int64]*Node
+		for ll := n.List; ll != nil; ll = ll.Next {
+			if ll.N.Op == OKEY {
+				hash = make(map[int64]*Node)
+				break
+			}
+		}
 		length := int64(0)
 		i := 0
 		var l *Node
@@ -3056,7 +3016,7 @@ func typecheckcomplit(np **Node) {
 				i = -(1 << 30) // stay negative for a while
 			}
 
-			if i >= 0 {
+			if i >= 0 && hash != nil {
 				indexdup(l.Left, hash)
 			}
 			i++
@@ -3085,9 +3045,7 @@ func typecheckcomplit(np **Node) {
 		n.Op = OARRAYLIT
 
 	case TMAP:
-		var autohash [101]*Node
-		hash := inithash(n, autohash[:])
-
+		hash := make(map[uint32][]*Node)
 		var l *Node
 		for ll := n.List; ll != nil; ll = ll.Next {
 			l = ll.N
@@ -3098,9 +3056,11 @@ func typecheckcomplit(np **Node) {
 				continue
 			}
 
-			typecheck(&l.Left, Erv)
-			defaultlit(&l.Left, t.Down)
-			l.Left = assignconv(l.Left, t.Down, "map key")
+			r = l.Left
+			pushtype(r, t.Down)
+			typecheck(&r, Erv)
+			defaultlit(&r, t.Down)
+			l.Left = assignconv(r, t.Down, "map key")
 			if l.Left.Op != OCONV {
 				keydup(l.Left, hash)
 			}
@@ -3268,19 +3228,19 @@ func checklvalue(n *Node, verb string) {
 
 func checkassign(stmt *Node, n *Node) {
 	// Variables declared in ORANGE are assigned on every iteration.
-	if n.Defn != stmt || stmt.Op == ORANGE {
+	if n.Name == nil || n.Name.Defn != stmt || stmt.Op == ORANGE {
 		r := outervalue(n)
 		var l *Node
 		for l = n; l != r; l = l.Left {
 			l.Assigned = true
-			if l.Param != nil && l.Param.Closure != nil {
-				l.Param.Closure.Assigned = true
+			if l.Name != nil && l.Name.Param != nil && l.Name.Param.Closure != nil {
+				l.Name.Param.Closure.Assigned = true
 			}
 		}
 
 		l.Assigned = true
-		if l.Param != nil && l.Param.Closure != nil {
-			l.Param.Closure.Assigned = true
+		if l.Name != nil && l.Name.Param != nil && l.Name.Param.Closure != nil {
+			l.Name.Param.Closure.Assigned = true
 		}
 	}
 
@@ -3345,7 +3305,7 @@ func typecheckas(n *Node) {
 	// so that the conversion below happens).
 	n.Left = resolve(n.Left)
 
-	if n.Left.Defn != n || n.Left.Param.Ntype != nil {
+	if n.Left.Name == nil || n.Left.Name.Defn != n || n.Left.Name.Param.Ntype != nil {
 		typecheck(&n.Left, Erv|Easgn)
 	}
 
@@ -3357,7 +3317,7 @@ func typecheckas(n *Node) {
 		}
 	}
 
-	if n.Left.Defn == n && n.Left.Param.Ntype == nil {
+	if n.Left.Name != nil && n.Left.Name.Defn == n && n.Left.Name.Param.Ntype == nil {
 		defaultlit(&n.Right, nil)
 		n.Left.Type = n.Right.Type
 	}
@@ -3386,7 +3346,7 @@ func typecheckas2(n *Node) {
 		// delicate little dance.
 		ll.N = resolve(ll.N)
 
-		if ll.N.Defn != n || ll.N.Param.Ntype != nil {
+		if ll.N.Name == nil || ll.N.Name.Defn != n || ll.N.Name.Param.Ntype != nil {
 			typecheck(&ll.N, Erv|Easgn)
 		}
 	}
@@ -3410,7 +3370,7 @@ func typecheckas2(n *Node) {
 			if ll.N.Type != nil && lr.N.Type != nil {
 				lr.N = assignconv(lr.N, ll.N.Type, "assignment")
 			}
-			if ll.N.Defn == n && ll.N.Param.Ntype == nil {
+			if ll.N.Name != nil && ll.N.Name.Defn == n && ll.N.Name.Param.Ntype == nil {
 				defaultlit(&lr.N, nil)
 				ll.N.Type = lr.N.Type
 			}
@@ -3443,7 +3403,7 @@ func typecheckas2(n *Node) {
 				if t.Type != nil && ll.N.Type != nil {
 					checkassignto(t.Type, ll.N)
 				}
-				if ll.N.Defn == n && ll.N.Param.Ntype == nil {
+				if ll.N.Name != nil && ll.N.Name.Defn == n && ll.N.Name.Param.Ntype == nil {
 					ll.N.Type = t.Type
 				}
 				t = structnext(&s)
@@ -3475,14 +3435,14 @@ func typecheckas2(n *Node) {
 			if l.Type != nil {
 				checkassignto(r.Type, l)
 			}
-			if l.Defn == n {
+			if l.Name != nil && l.Name.Defn == n {
 				l.Type = r.Type
 			}
 			l := n.List.Next.N
 			if l.Type != nil && l.Type.Etype != TBOOL {
 				checkassignto(Types[TBOOL], l)
 			}
-			if l.Defn == n && l.Param.Ntype == nil {
+			if l.Name != nil && l.Name.Defn == n && l.Name.Param.Ntype == nil {
 				l.Type = Types[TBOOL]
 			}
 			goto out
@@ -3507,16 +3467,16 @@ out:
  * type check function definition
  */
 func typecheckfunc(n *Node) {
-	typecheck(&n.Nname, Erv|Easgn)
-	t := n.Nname.Type
+	typecheck(&n.Func.Nname, Erv|Easgn)
+	t := n.Func.Nname.Type
 	if t == nil {
 		return
 	}
 	n.Type = t
-	t.Nname = n.Nname
+	t.Nname = n.Func.Nname
 	rcvr := getthisx(t).Type
 	if rcvr != nil && n.Func.Shortname != nil && !isblank(n.Func.Shortname) {
-		addmethod(n.Func.Shortname.Sym, t, true, n.Nname.Nointerface)
+		addmethod(n.Func.Shortname.Sym, t, true, n.Func.Nname.Nointerface)
 	}
 
 	for l := n.Func.Dcl; l != nil; l = l.Next {
@@ -3528,11 +3488,11 @@ func typecheckfunc(n *Node) {
 
 func stringtoarraylit(np **Node) {
 	n := *np
-	if n.Left.Op != OLITERAL || n.Left.Val.Ctype != CTSTR {
+	if n.Left.Op != OLITERAL || n.Left.Val().Ctype() != CTSTR {
 		Fatal("stringtoarraylit %v", n)
 	}
 
-	s := n.Left.Val.U.(string)
+	s := n.Left.Val().U.(string)
 	var l *NodeList
 	if n.Type.Type.Etype == TUINT8 {
 		// []byte
@@ -3607,7 +3567,9 @@ func copytype(n *Node, t *Type) {
 	t = n.Type
 	t.Sym = n.Sym
 	t.Local = n.Local
-	t.Vargen = n.Vargen
+	if n.Name != nil {
+		t.Vargen = n.Name.Vargen
+	}
 	t.Siggen = 0
 	t.Method = nil
 	t.Xmethod = nil
@@ -3646,8 +3608,8 @@ func typecheckdeftype(n *Node) {
 	setlineno(n)
 	n.Type.Sym = n.Sym
 	n.Typecheck = 1
-	typecheck(&n.Param.Ntype, Etype)
-	t := n.Param.Ntype.Type
+	typecheck(&n.Name.Param.Ntype, Etype)
+	t := n.Name.Param.Ntype.Type
 	if t == nil {
 		n.Diag = 1
 		n.Type = nil
@@ -3757,18 +3719,18 @@ func typecheckdef(n *Node) *Node {
 		break
 
 	case OLITERAL:
-		if n.Param.Ntype != nil {
-			typecheck(&n.Param.Ntype, Etype)
-			n.Type = n.Param.Ntype.Type
-			n.Param.Ntype = nil
+		if n.Name.Param.Ntype != nil {
+			typecheck(&n.Name.Param.Ntype, Etype)
+			n.Type = n.Name.Param.Ntype.Type
+			n.Name.Param.Ntype = nil
 			if n.Type == nil {
 				n.Diag = 1
 				goto ret
 			}
 		}
 
-		e := n.Defn
-		n.Defn = nil
+		e := n.Name.Defn
+		n.Name.Defn = nil
 		if e == nil {
 			lineno = n.Lineno
 			Dump("typecheckdef nil defn", n)
@@ -3805,14 +3767,13 @@ func typecheckdef(n *Node) *Node {
 			Convlit(&e, t)
 		}
 
-		n.Val = e.Val
+		n.SetVal(e.Val())
 		n.Type = e.Type
 
 	case ONAME:
-		if n.Param.Ntype != nil {
-			typecheck(&n.Param.Ntype, Etype)
-			n.Type = n.Param.Ntype.Type
-
+		if n.Name.Param.Ntype != nil {
+			typecheck(&n.Name.Param.Ntype, Etype)
+			n.Type = n.Name.Param.Ntype.Type
 			if n.Type == nil {
 				n.Diag = 1
 				goto ret
@@ -3822,7 +3783,7 @@ func typecheckdef(n *Node) *Node {
 		if n.Type != nil {
 			break
 		}
-		if n.Defn == nil {
+		if n.Name.Defn == nil {
 			if n.Etype != 0 { // like OPRINTN
 				break
 			}
@@ -3837,13 +3798,13 @@ func typecheckdef(n *Node) *Node {
 			Fatal("var without type, init: %v", n.Sym)
 		}
 
-		if n.Defn.Op == ONAME {
-			typecheck(&n.Defn, Erv)
-			n.Type = n.Defn.Type
+		if n.Name.Defn.Op == ONAME {
+			typecheck(&n.Name.Defn, Erv)
+			n.Type = n.Name.Defn.Type
 			break
 		}
 
-		typecheck(&n.Defn, Etop) // fills in n->type
+		typecheck(&n.Name.Defn, Etop) // fills in n->type
 
 	case OTYPE:
 		if Curfn != nil {
@@ -3886,15 +3847,15 @@ ret:
 
 func checkmake(t *Type, arg string, n *Node) int {
 	if n.Op == OLITERAL {
-		switch n.Val.Ctype {
+		switch n.Val().Ctype() {
 		case CTINT, CTRUNE, CTFLT, CTCPLX:
-			n.Val = toint(n.Val)
-			if mpcmpfixc(n.Val.U.(*Mpint), 0) < 0 {
+			n.SetVal(toint(n.Val()))
+			if mpcmpfixc(n.Val().U.(*Mpint), 0) < 0 {
 				Yyerror("negative %s argument in make(%v)", arg, t)
 				return -1
 			}
 
-			if Mpcmpfixfix(n.Val.U.(*Mpint), Maxintval[TINT]) > 0 {
+			if Mpcmpfixfix(n.Val().U.(*Mpint), Maxintval[TINT]) > 0 {
 				Yyerror("%s argument too large in make(%v)", arg, t)
 				return -1
 			}
@@ -3952,11 +3913,8 @@ func markbreak(n *Node, implicit *Node) {
 		markbreak(n.Left, implicit)
 
 		markbreak(n.Right, implicit)
-		markbreak(n.Ntest, implicit)
-		markbreak(n.Nincr, implicit)
 		markbreaklist(n.Ninit, implicit)
 		markbreaklist(n.Nbody, implicit)
-		markbreaklist(n.Nelse, implicit)
 		markbreaklist(n.List, implicit)
 		markbreaklist(n.Rlist, implicit)
 	}
@@ -3968,17 +3926,17 @@ func markbreaklist(l *NodeList, implicit *Node) {
 
 	for ; l != nil; l = l.Next {
 		n = l.N
-		if n.Op == OLABEL && l.Next != nil && n.Defn == l.Next.N {
-			switch n.Defn.Op {
+		if n.Op == OLABEL && l.Next != nil && n.Name.Defn == l.Next.N {
+			switch n.Name.Defn.Op {
 			case OFOR,
 				OSWITCH,
 				OTYPESW,
 				OSELECT,
 				ORANGE:
 				lab = new(Label)
-				lab.Def = n.Defn
+				lab.Def = n.Name.Defn
 				n.Left.Sym.Label = lab
-				markbreak(n.Defn, n.Defn)
+				markbreak(n.Name.Defn, n.Name.Defn)
 				n.Left.Sym.Label = nil
 				l = l.Next
 				continue
@@ -4026,7 +3984,7 @@ func isterminating(l *NodeList, top int) bool {
 		return true
 
 	case OFOR:
-		if n.Ntest != nil {
+		if n.Left != nil {
 			return false
 		}
 		if n.Hasbreak {
@@ -4035,7 +3993,7 @@ func isterminating(l *NodeList, top int) bool {
 		return true
 
 	case OIF:
-		return isterminating(n.Nbody, 0) && isterminating(n.Nelse, 0)
+		return isterminating(n.Nbody, 0) && isterminating(n.Rlist, 0)
 
 	case OSWITCH, OTYPESW, OSELECT:
 		if n.Hasbreak {

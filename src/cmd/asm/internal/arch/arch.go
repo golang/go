@@ -351,7 +351,6 @@ func archPPC64() *Arch {
 	// Annoying aliases.
 	instructions["BR"] = ppc64.ABR
 	instructions["BL"] = ppc64.ABL
-	instructions["RETURN"] = ppc64.ARETURN
 
 	return &Arch{
 		LinkArch:       &ppc64.Linkppc64,

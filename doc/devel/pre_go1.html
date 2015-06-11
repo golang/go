@@ -1,0 +1,455 @@
+<!--{
+	"Title": "Pre-Go 1 Release History"
+}-->
+
+<p>
+This page summarizes the changes between stable releases of Go prior to Go 1.
+See the <a href="release.html">Release History</a> page for notes on recent releases.
+</p>
+
+<h2 id="r60">r60 (released 2011/09/07)</h2>
+
+<p>
+The r60 release corresponds to 
+<code><a href="weekly.html#2011-08-17">weekly.2011-08-17</a></code>.
+This section highlights the most significant changes in this release.
+For a more detailed summary, see the
+<a href="weekly.html#2011-08-17">weekly release notes</a>.
+For complete information, see the
+<a href="//code.google.com/p/go/source/list?r=release-branch.r60">Mercurial change list</a>.
+</p>
+
+<h3 id="r60.lang">Language</h3>
+
+<p>
+An "else" block is now required to have braces except if the body of the "else"
+is another "if". Since gofmt always puts those braces in anyway,
+gofmt-formatted programs will not be affected.
+To fix other programs, run gofmt.
+</p>
+
+<h3 id="r60.pkg">Packages</h3>
+
+<p>
+<a href="/pkg/http/">Package http</a>'s URL parsing and query escaping code
+(such as <code>ParseURL</code> and <code>URLEscape</code>) has been moved to
+the new <a href="/pkg/url/">url package</a>, with several simplifications to
+the names. Client code can be updated automatically with gofix.
+</p>
+
+<p>
+<a href="/pkg/image/">Package image</a> has had significant changes made to the
+<code>Pix</code> field of struct types such as
+<a href="/pkg/image/#RGBA">image.RGBA</a> and
+<a href="/pkg/image/#NRGBA">image.NRGBA</a>.
+The <a href="/pkg/image/#Image">image.Image</a> interface type has not changed,
+though, and you should not need to change your code if you don't explicitly
+refer to <code>Pix</code> fields. For example, if you decode a number of images
+using the <a href="/pkg/image/jpeg/">image/jpeg</a> package, compose them using
+<a href="/pkg/image/draw/">image/draw</a>, and then encode the result using
+<a href="/pkg/img/png">image/png</a>, then your code should still work as
+before.
+If your code <i>does</i> refer to <code>Pix</code> fields see the 
+<a href="/doc/devel/weekly.html#2011-07-19">weekly.2011-07-19</a>
+snapshot notes for how to update your code.
+</p>
+
+<p>
+<a href="/pkg/template/">Package template</a> has been replaced with a new
+templating package (formerly <code>exp/template</code>). The original template
+package is still available as <a href="/pkg/old/template/">old/template</a>.
+The <code>old/template</code> package is deprecated and will be removed.
+The Go tree has been updated to use the new template package. We encourage
+users of the old template package to switch to the new one. Code that uses
+<code>template</code> or <code>exp/template</code> will need to change its
+import lines to <code>"old/template"</code> or <code>"template"</code>,
+respectively.
+</p>
+
+<h3 id="r60.cmd">Tools</h3>
+
+<p>
+<a href="/cmd/goinstall/">Goinstall</a> now uses a new tag selection scheme.
+When downloading or updating, goinstall looks for a tag or branch with the
+<code>"go."</code> prefix that corresponds to the local Go version. For Go
+<code>release.r58</code> it looks for <code>go.r58</code>. For
+<code>weekly.2011-06-03</code> it looks for <code>go.weekly.2011-06-03</code>.
+If the specific <code>go.X</code> tag or branch is not found, it chooses the
+closest earlier version. If an appropriate tag or branch is found, goinstall
+uses that version of the code. Otherwise it uses the default version selected
+by the version control system. Library authors are encouraged to use the
+appropriate tag or branch names in their repositories to make their libraries
+more accessible.
+</p>
+
+<h3 id="r60.minor">Minor revisions</h3>
+
+<p>
+r60.1 includes a 
+<a href="//golang.org/change/1824581bf62d">linker
+fix</a>, a pair of
+<a href="//golang.org/change/9ef4429c2c64">goplay</a>
+<a href="//golang.org/change/d42ed8c3098e">fixes</a>,
+and a <code>json</code> package
+<a href="//golang.org/change/d5e97874fe84">fix</a> and
+a new
+<a href="//golang.org/change/4f0e6269213f">struct tag
+option</a>.
+</p>
+
+<p>
+r60.2
+<a href="//golang.org/change/ff19536042ac">fixes</a>
+a memory leak involving maps.
+</p>
+
+<p>
+r60.3 fixes a
+<a href="//golang.org/change/01fa62f5e4e5">reflect bug</a>.
+</p>
+
+<h2 id="r59">r59 (released 2011/08/01)</h2>
+
+<p>
+The r59 release corresponds to 
+<code><a href="weekly.html#2011-07-07">weekly.2011-07-07</a></code>.
+This section highlights the most significant changes in this release.
+For a more detailed summary, see the
+<a href="weekly.html#2011-07-07">weekly release notes</a>.
+For complete information, see the
+<a href="//code.google.com/p/go/source/list?r=release-branch.r59">Mercurial change list</a>.
+</p>
+
+<h3 id="r59.lang">Language</h3>
+
+<p>
+This release includes a language change that restricts the use of
+<code>goto</code>.  In essence, a <code>goto</code> statement outside a block
+cannot jump to a label inside that block. Your code may require changes if it
+uses <code>goto</code>.
+See <a href="//golang.org/change/dc6d3cf9279d">this
+changeset</a> for how the new rule affected the Go tree.
+</p>
+
+<h3 id="r59.pkg">Packages</h3>
+
+<p>
+As usual, <a href="/cmd/gofix/">gofix</a> will handle the bulk of the rewrites
+necessary for these changes to package APIs.
+</p>
+
+<p>
+<a href="/pkg/http">Package http</a> has a new
+<a href="/pkg/http/#FileSystem">FileSystem</a> interface that provides access
+to files. The <a href="/pkg/http/#FileServer">FileServer</a> helper now takes a
+<code>FileSystem</code> argument instead of an explicit file system root. By
+implementing your own <code>FileSystem</code> you can use the
+<code>FileServer</code> to serve arbitrary data.
+</p>
+
+<p>
+<a href="/pkg/os/">Package os</a>'s <code>ErrorString</code> type has been
+hidden. Most uses of <code>os.ErrorString</code> can be replaced with
+<a href="/pkg/os/#NewError">os.NewError</a>.
+</p>
+
+<p>
+<a href="/pkg/reflect/">Package reflect</a> supports a new struct tag scheme
+that enables sharing of struct tags between multiple packages.
+In this scheme, the tags must be of the form:
+</p>
+<pre>
+	`key:"value" key2:"value2"`
+</pre>
+<p>
+The <a href="/pkg/reflect/#StructField">StructField</a> type's Tag field now
+has type <a href="/pkg/reflect/#StructTag">StructTag</a>, which has a
+<code>Get</code> method. Clients of <a href="/pkg/json">json</a> and
+<a href="/pkg/xml">xml</a> will need to be updated. Code that says
+</p>
+<pre>
+	type T struct {
+		X int "name"
+	}
+</pre>
+<p>
+should become
+</p>
+<pre>
+	type T struct {
+		X int `json:"name"`  // or `xml:"name"`
+	}
+</pre>
+<p>
+Use <a href="/cmd/govet/">govet</a> to identify struct tags that need to be
+changed to use the new syntax.
+</p>
+
+<p>
+<a href="/pkg/sort/">Package sort</a>'s <code>IntArray</code> type has been
+renamed to <a href="/pkg/sort/#IntSlice">IntSlice</a>, and similarly for
+<a href="/pkg/sort/#Float64Slice">Float64Slice</a> and
+<a href="/pkg/sort/#StringSlice">StringSlice</a>.
+</p>
+
+<p>
+<a href="/pkg/strings/">Package strings</a>'s <code>Split</code> function has
+itself been split into <a href="/pkg/strings/#Split">Split</a> and
+<a href="/pkg/strings/#SplitN">SplitN</a>.
+<code>SplitN</code> is the same as the old <code>Split</code>.
+The new <code>Split</code> is equivalent to <code>SplitN</code> with a final
+argument of -1.
+</p>
+
+<a href="/pkg/image/draw/">Package image/draw</a>'s
+<a href="/pkg/image/draw/#Draw">Draw</a> function now takes an additional
+argument, a compositing operator.
+If in doubt, use <a href="/pkg/image/draw/#Op">draw.Over</a>.
+</p>
+
+<h3 id="r59.cmd">Tools</h3>
+
+<p>
+<a href="/cmd/goinstall/">Goinstall</a> now installs packages and commands from
+arbitrary remote repositories (not just Google Code, Github, and so on).
+See the <a href="/cmd/goinstall/">goinstall documentation</a> for details.
+</p>
+
+<h2 id="r58">r58 (released 2011/06/29)</h2>
+
+<p>
+The r58 release corresponds to 
+<code><a href="weekly.html#2011-06-09">weekly.2011-06-09</a></code>
+with additional bug fixes.
+This section highlights the most significant changes in this release.
+For a more detailed summary, see the
+<a href="weekly.html#2011-06-09">weekly release notes</a>.
+For complete information, see the
+<a href="//code.google.com/p/go/source/list?r=release-branch.r58">Mercurial change list</a>.
+</p>
+
+<h3 id="r58.lang">Language</h3>
+
+<p>
+This release fixes a <a href="//golang.org/change/b720749486e1">use of uninitialized memory in programs that misuse <code>goto</code></a>.
+</p>
+
+<h3 id="r58.pkg">Packages</h3>
+
+<p>
+As usual, <a href="/cmd/gofix/">gofix</a> will handle the bulk of the rewrites
+necessary for these changes to package APIs.
+</p>
+
+<p>
+<a href="/pkg/http/">Package http</a> drops the <code>finalURL</code> return
+value from the <a href="/pkg/http/#Client.Get">Client.Get</a> method. The value
+is now available via the new <code>Request</code> field on <a
+href="/pkg/http/#Response">http.Response</a>.
+Most instances of the type map[string][]string in have been
+replaced with the new <a href="/pkg/http/#Values">Values</a> type.
+</p>
+
+<p>
+<a href="/pkg/exec/">Package exec</a> has been redesigned with a more
+convenient and succinct API.
+</p>
+
+<p>
+<a href="/pkg/strconv/">Package strconv</a>'s <a href="/pkg/strconv/#Quote">Quote</a>
+function now escapes only those Unicode code points not classified as printable
+by <a href="/pkg/unicode/#IsPrint">unicode.IsPrint</a>.
+Previously Quote would escape all non-ASCII characters.
+This also affects the <a href="/pkg/fmt/">fmt</a> package's <code>"%q"</code>
+formatting directive. The previous quoting behavior is still available via
+strconv's new <a href="/pkg/strconv/#QuoteToASCII">QuoteToASCII</a> function.   
+</p>
+
+<p>
+<a href="/pkg/os/signal/">Package os/signal</a>'s
+<a href="/pkg/os/#Signal">Signal</a> and 
+<a href="/pkg/os/#UnixSignal">UnixSignal</a> types have been moved to the
+<a href="/pkg/os/">os</a> package.
+</p>
+
+<p>
+<a href="/pkg/image/draw/">Package image/draw</a> is the new name for
+<code>exp/draw</code>. The GUI-related code from <code>exp/draw</code> is now
+located in the <a href="/pkg/exp/gui/">exp/gui</a> package.
+</p>
+
+<h3 id="r58.cmd">Tools</h3>
+
+<p>
+<a href="/cmd/goinstall/">Goinstall</a> now observes the GOPATH environment
+variable to build and install your own code and external libraries outside of
+the Go tree (and avoid writing Makefiles).
+</p>
+
+
+<h3 id="r58.minor">Minor revisions</h3>
+
+<p>r58.1 adds 
+<a href="//golang.org/change/293c25943586">build</a> and
+<a href="//golang.org/change/bf17e96b6582">runtime</a>
+changes to make Go run on OS X 10.7 Lion.
+</p>
+
+<h2 id="r57">r57 (released 2011/05/03)</h2>
+
+<p>
+The r57 release corresponds to 
+<code><a href="weekly.html#2011-04-27">weekly.2011-04-27</a></code>
+with additional bug fixes.
+This section highlights the most significant changes in this release.
+For a more detailed summary, see the
+<a href="weekly.html#2011-04-27">weekly release notes</a>.
+For complete information, see the
+<a href="//code.google.com/p/go/source/list?r=release-branch.r57">Mercurial change list</a>.
+</p>
+
+<p>The new <a href="/cmd/gofix">gofix</a> tool finds Go programs that use old APIs and rewrites them to use
+newer ones.  After you update to a new Go release, gofix helps make the
+necessary changes to your programs. Gofix will handle the http, os, and syscall
+package changes described below, and we will update the program to keep up with
+future changes to the libraries. 
+Gofix can’t
+handle all situations perfectly, so read and test the changes it makes before
+committing them.
+See <a href="//blog.golang.org/2011/04/introducing-gofix.html">the gofix blog post</a> for more
+information.</p>
+
+<h3 id="r57.lang">Language</h3>
+
+<p>
+<a href="/doc/go_spec.html#Receive_operator">Multiple assignment syntax</a> replaces the <code>closed</code> function.
+The syntax for channel
+receives allows an optional second assigned value, a boolean value
+indicating whether the channel is closed. This code:
+</p>
+
+<pre>
+	v := &lt;-ch
+	if closed(ch) {
+		// channel is closed
+	}
+</pre>
+
+<p>should now be written as:</p>
+
+<pre>
+	v, ok := &lt;-ch
+	if !ok {
+		// channel is closed
+	}
+</pre>
+
+<p><a href="/doc/go_spec.html#Label_scopes">Unused labels are now illegal</a>, just as unused local variables are.</p>
+
+<h3 id="r57.pkg">Packages</h3>
+
+<p>
+<a href="/pkg/gob/">Package gob</a> will now encode and decode values of types that implement the
+<a href="/pkg/gob/#GobEncoder">GobEncoder</a> and
+<a href="/pkg/gob/#GobDecoder">GobDecoder</a> interfaces. This allows types with unexported
+fields to transmit self-consistent descriptions; examples include 
+<a href="/pkg/big/#Int.GobDecode">big.Int</a> and <a href="/pkg/big/#Rat.GobDecode">big.Rat</a>.
+</p>
+
+<p>
+<a href="/pkg/http/">Package http</a> has been redesigned.
+For clients, there are new
+<a href="/pkg/http/#Client">Client</a> and <a href="/pkg/http/#Transport">Transport</a>
+abstractions that give more control over HTTP details such as headers sent
+and redirections followed.  These abstractions make it easy to implement
+custom clients that add functionality such as <a href="//code.google.com/p/goauth2/source/browse/oauth/oauth.go">OAuth2</a>.
+For servers, <a href="/pkg/http/#ResponseWriter">ResponseWriter</a>
+has dropped its non-essential methods.
+The Hijack and Flush methods are no longer required;
+code can test for them by checking whether a specific value implements
+<a href="/pkg/http/#Hijacker">Hijacker</a> or <a href="/pkg/http/#Flusher">Flusher</a>.
+The RemoteAddr and UsingTLS methods are replaced by <a href="/pkg/http/#Request">Request</a>'s
+RemoteAddr and TLS fields.
+The SetHeader method is replaced by a Header method;
+its result, of type <a href="/pkg/http/#Header">Header</a>,
+implements Set and other methods.
+</p>
+
+<p>
+<a href="/pkg/net/">Package net</a>
+drops the <code>laddr</code> argument from <a href="/pkg/net/#Conn.Dial">Dial</a>
+and drops the <code>cname</code> return value
+from <a href="/pkg/net/#LookupHost">LookupHost</a>.
+The implementation now uses <a href="/cmd/cgo/">cgo</a> to implement
+network name lookups using the C library getaddrinfo(3)
+function when possible.  This ensures that Go and C programs
+resolve names the same way and also avoids the OS X 
+application-level firewall.
+</p>
+
+<p>
+<a href="/pkg/os/">Package os</a>
+introduces simplified <a href="/pkg/os/#File.Open">Open</a>
+and <a href="/pkg/os/#File.Create">Create</a> functions.
+The original Open is now available as <a href="/pkg/os/#File.OpenFile">OpenFile</a>.
+The final three arguments to <a href="/pkg/os/#Process.StartProcess">StartProcess</a>
+have been replaced by a pointer to a <a href="/pkg/os/#ProcAttr">ProcAttr</a>.
+</p>
+
+<p>
+<a href="/pkg/reflect/">Package reflect</a> has been redesigned.
+<a href="/pkg/reflect/#Type">Type</a> is now an interface that implements
+all the possible type methods.
+Instead of a type switch on a Type <code>t</code>, switch on <code>t.Kind()</code>.
+<a href="/pkg/reflect/#Value">Value</a> is now a struct value that
+implements all the possible value methods.
+Instead of a type switch on a Value <code>v</code>, switch on <code>v.Kind()</code>.
+Typeof and NewValue are now called <a href="/pkg/reflect/#Type.TypeOf">TypeOf</a> and <a href="/pkg/reflect/#Value.ValueOf">ValueOf</a>
+To create a writable Value, use <code>New(t).Elem()</code> instead of <code>Zero(t)</code>.
+See <a href="//golang.org/change/843855f3c026">the change description</a>
+for the full details.
+The new API allows a more efficient implementation of Value
+that avoids many of the allocations required by the previous API.
+</p>
+
+<p>
+Remember that gofix will handle the bulk of the rewrites
+necessary for these changes to package APIs.
+</p>
+
+<h3 id="r57.cmd">Tools</h3>
+
+<p><a href="/cmd/gofix/">Gofix</a>, a new command, is described above.</p>
+
+<p>
+<a href="/cmd/gotest/">Gotest</a> is now a Go program instead of a shell script.
+The new <code>-test.short</code> flag in combination with package testing's Short function
+allows you to write tests that can be run in normal or &ldquo;short&rdquo; mode;
+all.bash runs tests in short mode to reduce installation time.
+The Makefiles know about the flag: use <code>make testshort</code>.
+</p>
+
+<p>
+The run-time support now implements CPU and memory profiling.
+Gotest's new 
+<a href="/cmd/gotest/"><code>-test.cpuprofile</code> and
+<code>-test.memprofile</code> flags</a> make it easy to
+profile tests.
+To add profiling to your web server, see the <a href="/pkg/http/pprof/">http/pprof</a>
+documentation.
+For other uses, see the <a href="/pkg/runtime/pprof/">runtime/pprof</a> documentation.
+</p>
+
+<h3 id="r57.minor">Minor revisions</h3>
+
+<p>r57.1 fixes a <a href="//golang.org/change/ff2bc62726e7145eb2ecc1e0f076998e4a8f86f0">nil pointer dereference in http.FormFile</a>.</p>
+<p>r57.2 fixes a <a href="//golang.org/change/063b0ff67d8277df03c956208abc068076818dae">use of uninitialized memory in programs that misuse <code>goto</code></a>.</p>
+
+<h2 id="r56">r56 (released 2011/03/16)</h2>
+
+<p>
+The r56 release was the first stable release and corresponds to
+<code><a href="weekly.html#2011-03-07">weekly.2011-03-07.1</a></code>.
+The numbering starts at 56 because before this release,
+what we now consider weekly snapshots were called releases.
+</p>

@@ -11,4 +11,4 @@ TEXT ·Abs(SB),NOSPLIT,$0-16
 	MOVD 	$((1<<63)-1), R4
 	AND	R4, R3
 	MOVD	R3, ret+8(FP)
-	RETURN
+	RET

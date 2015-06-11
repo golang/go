@@ -4,12 +4,5 @@
 
 #include "textflag.h"
 
-#ifdef GOARCH_ppc64
-#define RET RETURN
-#endif
-#ifdef GOARCH_ppc64le
-#define RET RETURN
-#endif
-
 TEXT ·use(SB),NOSPLIT,$0
 	RET

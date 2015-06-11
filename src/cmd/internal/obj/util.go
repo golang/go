@@ -315,12 +315,12 @@ func (p *Prog) String() string {
 		fmt.Fprintf(&buf, "%s%v", sep, Rconv(int(p.Reg)))
 		sep = ", "
 	}
-	if p.From3.Type != TYPE_NONE {
+	if p.From3Type() != TYPE_NONE {
 		if p.From3.Type == TYPE_CONST && (p.As == ADATA || p.As == ATEXT || p.As == AGLOBL) {
 			// Special case - omit $.
 			fmt.Fprintf(&buf, "%s%d", sep, p.From3.Offset)
 		} else {
-			fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, &p.From3))
+			fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, p.From3))
 		}
 		sep = ", "
 	}

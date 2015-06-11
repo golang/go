@@ -290,3 +290,76 @@ func TestRedefinition(t *testing.T) {
 		t.Fatalf("expected redefinition error; got %v", err)
 	}
 }
+
+// Issue 10879
+func TestEmptyTemplateCloneCrash(t *testing.T) {
+	t1 := New("base")
+	t1.Clone() // used to panic
+}
+
+// Issue 10910, 10926
+func TestTemplateLookUp(t *testing.T) {
+	t1 := New("foo")
+	if t1.Lookup("foo") != nil {
+		t.Error("Lookup returned non-nil value for undefined template foo")
+	}
+	t1.New("bar")
+	if t1.Lookup("bar") != nil {
+		t.Error("Lookup returned non-nil value for undefined template bar")
+	}
+	t1.Parse(`{{define "foo"}}test{{end}}`)
+	if t1.Lookup("foo") == nil {
+		t.Error("Lookup returned nil value for defined template")
+	}
+}
+
+func TestNew(t *testing.T) {
+	// template with same name already exists
+	t1, _ := New("test").Parse(`{{define "test"}}foo{{end}}`)
+	t2 := t1.New("test")
+
+	if t1.common != t2.common {
+		t.Errorf("t1 & t2 didn't share common struct; got %v != %v", t1.common, t2.common)
+	}
+	if t1.Tree == nil {
+		t.Error("defined template got nil Tree")
+	}
+	if t2.Tree != nil {
+		t.Error("undefined template got non-nil Tree")
+	}
+
+	containsT1 := false
+	for _, tmpl := range t1.Templates() {
+		if tmpl == t2 {
+			t.Error("Templates included undefined template")
+		}
+		if tmpl == t1 {
+			containsT1 = true
+		}
+	}
+	if !containsT1 {
+		t.Error("Templates didn't include defined template")
+	}
+}
+
+func TestParse(t *testing.T) {
+	// In multiple calls to Parse with the same receiver template, only one call
+	// can contain text other than space, comments, and template definitions
+	var err error
+	t1 := New("test")
+	if _, err := t1.Parse(`{{define "test"}}{{end}}`); err != nil {
+		t.Fatalf("parsing test: %s", err)
+	}
+	if _, err := t1.Parse(`{{define "test"}}{{/* this is a comment */}}{{end}}`); err != nil {
+		t.Fatalf("parsing test: %s", err)
+	}
+	if _, err := t1.Parse(`{{define "test"}}foo{{end}}`); err != nil {
+		t.Fatalf("parsing test: %s", err)
+	}
+	if _, err = t1.Parse(`{{define "test"}}foo{{end}}`); err == nil {
+		t.Fatal("no error from redefining a template")
+	}
+	if !strings.Contains(err.Error(), "redefinition") {
+		t.Fatalf("expected redefinition error; got %v", err)
+	}
+}

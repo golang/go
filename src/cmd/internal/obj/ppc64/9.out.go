@@ -533,7 +533,6 @@ const (
 	ALAST
 
 	// aliases
-	ABR     = obj.AJMP
-	ABL     = obj.ACALL
-	ARETURN = obj.ARET
+	ABR = obj.AJMP
+	ABL = obj.ACALL
 )

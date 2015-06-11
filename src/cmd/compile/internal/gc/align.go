@@ -71,8 +71,8 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
 			// in typecheck.c.  usually addrescapes runs after
 			// widstruct, in which case we could drop this,
 			// but function closure functions are the exception.
-			if f.Nname.Param.Stackparam != nil {
-				f.Nname.Param.Stackparam.Xoffset = o
+			if f.Nname.Name.Param.Stackparam != nil {
+				f.Nname.Name.Param.Stackparam.Xoffset = o
 				f.Nname.Xoffset = 0
 			} else {
 				f.Nname.Xoffset = o
@@ -432,6 +432,7 @@ func typeinit() {
 	Types[TUNSAFEPTR] = t
 	t.Sym = Pkglookup("Pointer", unsafepkg)
 	t.Sym.Def = typenod(t)
+	t.Sym.Def.Name = new(Name)
 
 	dowidth(Types[TUNSAFEPTR])
 
@@ -654,6 +655,7 @@ func typeinit() {
 		dowidth(t)
 		Types[etype] = t
 		s1.Def = typenod(t)
+		s1.Def.Name = new(Name)
 	}
 
 	Array_array = int(Rnd(0, int64(Widthptr)))

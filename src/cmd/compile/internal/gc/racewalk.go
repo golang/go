@@ -48,7 +48,7 @@ func isforkfunc(fn *Node) bool {
 	// they might have been locked at the time of the fork.  This means
 	// no rescheduling, no malloc calls, and no new stack segments.
 	// Race instrumentation does all of the above.
-	return myimportpath != "" && myimportpath == "syscall" && fn.Nname.Sym.Name == "forkAndExecInChild"
+	return myimportpath != "" && myimportpath == "syscall" && fn.Func.Nname.Sym.Name == "forkAndExecInChild"
 }
 
 func racewalk(fn *Node) {
@@ -77,11 +77,11 @@ func racewalk(fn *Node) {
 	fn.Func.Exit = list(fn.Func.Exit, nd)
 
 	if Debug['W'] != 0 {
-		s := fmt.Sprintf("after racewalk %v", fn.Nname.Sym)
+		s := fmt.Sprintf("after racewalk %v", fn.Func.Nname.Sym)
 		dumplist(s, fn.Nbody)
-		s = fmt.Sprintf("enter %v", fn.Nname.Sym)
+		s = fmt.Sprintf("enter %v", fn.Func.Nname.Sym)
 		dumplist(s, fn.Func.Enter)
-		s = fmt.Sprintf("exit %v", fn.Nname.Sym)
+		s = fmt.Sprintf("exit %v", fn.Func.Nname.Sym)
 		dumplist(s, fn.Func.Exit)
 	}
 }
@@ -371,13 +371,25 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 		Yyerror("racewalk: OGETG can happen only in runtime which we don't instrument")
 		goto ret
 
+	case OFOR:
+		if n.Left != nil {
+			racewalknode(&n.Left, &n.Left.Ninit, 0, 0)
+		}
+		if n.Right != nil {
+			racewalknode(&n.Right, &n.Right.Ninit, 0, 0)
+		}
+		goto ret
+
+	case OIF, OSWITCH:
+		if n.Left != nil {
+			racewalknode(&n.Left, &n.Left.Ninit, 0, 0)
+		}
+		goto ret
+
 		// just do generic traversal
-	case OFOR,
-		OIF,
-		OCALLMETH,
+	case OCALLMETH,
 		ORETURN,
 		ORETJMP,
-		OSWITCH,
 		OSELECT,
 		OEMPTY,
 		OBREAK,
@@ -410,14 +422,7 @@ ret:
 	if n.Op != OBLOCK { // OBLOCK is handled above in a special way.
 		racewalklist(n.List, init)
 	}
-	if n.Ntest != nil {
-		racewalknode(&n.Ntest, &n.Ntest.Ninit, 0, 0)
-	}
-	if n.Nincr != nil {
-		racewalknode(&n.Nincr, &n.Nincr.Ninit, 0, 0)
-	}
 	racewalklist(n.Nbody, nil)
-	racewalklist(n.Nelse, nil)
 	racewalklist(n.Rlist, nil)
 	*np = n
 }
@@ -576,10 +581,7 @@ func foreach(n *Node, f func(*Node, interface{}), c interface{}) {
 	foreachnode(n.Left, f, c)
 	foreachnode(n.Right, f, c)
 	foreachlist(n.List, f, c)
-	foreachnode(n.Ntest, f, c)
-	foreachnode(n.Nincr, f, c)
 	foreachlist(n.Nbody, f, c)
-	foreachlist(n.Nelse, f, c)
 	foreachlist(n.Rlist, f, c)
 }
 

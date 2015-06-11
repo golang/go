@@ -714,15 +714,29 @@ func install(dir string) {
 	run("", CheckExit|ShowOutput, link...)
 }
 
-// matchfield reports whether the field matches this build.
+// matchfield reports whether the field (x,y,z) matches this build.
+// all the elements in the field must be satisfied.
 func matchfield(f string) bool {
 	for _, tag := range strings.Split(f, ",") {
-		if tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" || (goos == "android" && tag == "linux") {
-			continue
+		if !matchtag(tag) {
+			return false
 		}
-		return false
 	}
 	return true
+}
+
+// matchtag reports whether the tag (x or !x) matches this build.
+func matchtag(tag string) bool {
+	if tag == "" {
+		return false
+	}
+	if tag[0] == '!' {
+		if len(tag) == 1 || tag[1] == '!' {
+			return false
+		}
+		return !matchtag(tag[1:])
+	}
+	return tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" || (goos == "android" && tag == "linux")
 }
 
 // shouldbuild reports whether we should build this file.
@@ -783,7 +797,7 @@ func shouldbuild(file, dir string) bool {
 			continue
 		}
 		for _, p := range fields[2:] {
-			if (p[0] == '!' && !matchfield(p[1:])) || matchfield(p) {
+			if matchfield(p) {
 				goto fieldmatch
 			}
 		}
@@ -795,11 +809,11 @@ func shouldbuild(file, dir string) bool {
 }
 
 // copy copies the file src to dst, via memory (so only good for small files).
-func copyfile(dst, src string, exec int) {
+func copyfile(dst, src string, flag int) {
 	if vflag > 1 {
 		errprintf("cp %s %s\n", src, dst)
 	}
-	writefile(readfile(src), dst, exec)
+	writefile(readfile(src), dst, flag)
 }
 
 // dopack copies the package src to dst,
@@ -874,63 +888,12 @@ var buildorder = []string{
 	"text/template",
 	"go/doc",
 	"go/build",
+	"hash",
+	"crypto",
+	"crypto/sha1",
+	"debug/dwarf",
+	"debug/elf",
 	"cmd/go",
-}
-
-// cleantab records the directories to clean in 'go clean'.
-// It is bigger than the buildorder because we clean all the
-// compilers but build only the $GOARCH ones.
-var cleantab = []string{
-	// Commands and C libraries.
-	"cmd/compile",
-	"cmd/go",
-	"cmd/link",
-	"cmd/old5a",
-	"cmd/old6a",
-	"cmd/old8a",
-	"cmd/old9a",
-
-	// Go packages.
-	"bufio",
-	"bytes",
-	"container/heap",
-	"encoding",
-	"encoding/base64",
-	"encoding/json",
-	"errors",
-	"flag",
-	"fmt",
-	"go/ast",
-	"go/build",
-	"go/doc",
-	"go/parser",
-	"go/scanner",
-	"go/token",
-	"io",
-	"io/ioutil",
-	"log",
-	"math",
-	"net/url",
-	"os",
-	"os/exec",
-	"path",
-	"path/filepath",
-	"reflect",
-	"regexp",
-	"regexp/syntax",
-	"runtime",
-	"sort",
-	"strconv",
-	"strings",
-	"sync",
-	"sync/atomic",
-	"syscall",
-	"text/template",
-	"text/template/parse",
-	"time",
-	"unicode",
-	"unicode/utf16",
-	"unicode/utf8",
 }
 
 var runtimegen = []string{
@@ -939,7 +902,7 @@ var runtimegen = []string{
 }
 
 func clean() {
-	for _, name := range cleantab {
+	for _, name := range buildorder {
 		path := pathf("%s/src/%s", goroot, name)
 		// Remove generated files.
 		for _, elem := range xreaddir(path) {

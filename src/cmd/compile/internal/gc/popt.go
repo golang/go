@@ -263,7 +263,7 @@ func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
 
 	if nf >= MaxFlowProg {
 		if Debug['v'] != 0 {
-			Warn("%v is too big (%d instructions)", Curfn.Nname.Sym, nf)
+			Warn("%v is too big (%d instructions)", Curfn.Func.Nname.Sym, nf)
 		}
 		return nil
 	}
@@ -313,7 +313,7 @@ func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
 				Fatal("fnil %v / %v", p, p.To.Val.(*obj.Prog))
 			}
 			if f1 == f {
-				//fatal("self loop %P", p);
+				//fatal("self loop %v", p);
 				continue
 			}
 
@@ -593,7 +593,7 @@ func mergetemp(firstp *obj.Prog) {
 		if canmerge(n) {
 			v = &var_[nvar]
 			nvar++
-			n.Opt = v
+			n.SetOpt(v)
 			v.node = n
 		}
 	}
@@ -604,18 +604,18 @@ func mergetemp(firstp *obj.Prog) {
 	// single-use (that's why we have so many!).
 	for f := g.Start; f != nil; f = f.Link {
 		p := f.Prog
-		if p.From.Node != nil && ((p.From.Node).(*Node)).Opt != nil && p.To.Node != nil && ((p.To.Node).(*Node)).Opt != nil {
+		if p.From.Node != nil && ((p.From.Node).(*Node)).Opt() != nil && p.To.Node != nil && ((p.To.Node).(*Node)).Opt() != nil {
 			Fatal("double node %v", p)
 		}
 		v = nil
 		n, _ = p.From.Node.(*Node)
 		if n != nil {
-			v, _ = n.Opt.(*TempVar)
+			v, _ = n.Opt().(*TempVar)
 		}
 		if v == nil {
 			n, _ = p.To.Node.(*Node)
 			if n != nil {
-				v, _ = n.Opt.(*TempVar)
+				v, _ = n.Opt().(*TempVar)
 			}
 		}
 		if v != nil {
@@ -786,7 +786,7 @@ func mergetemp(firstp *obj.Prog) {
 	}
 
 	if debugmerge > 0 && Debug['v'] != 0 {
-		fmt.Printf("%v [%d - %d]\n", Curfn.Nname.Sym, len(var_), nkill)
+		fmt.Printf("%v [%d - %d]\n", Curfn.Func.Nname.Sym, len(var_), nkill)
 		var v *TempVar
 		for i := 0; i < len(var_); i++ {
 			v = &var_[i]
@@ -816,14 +816,14 @@ func mergetemp(firstp *obj.Prog) {
 		p := f.Prog
 		n, _ = p.From.Node.(*Node)
 		if n != nil {
-			v, _ = n.Opt.(*TempVar)
+			v, _ = n.Opt().(*TempVar)
 			if v != nil && v.merge != nil {
 				p.From.Node = v.merge.node
 			}
 		}
 		n, _ = p.To.Node.(*Node)
 		if n != nil {
-			v, _ = n.Opt.(*TempVar)
+			v, _ = n.Opt().(*TempVar)
 			if v != nil && v.merge != nil {
 				p.To.Node = v.merge.node
 			}
@@ -840,7 +840,7 @@ func mergetemp(firstp *obj.Prog) {
 
 		Curfn.Func.Dcl.End = l
 		n = l.N
-		v, _ = n.Opt.(*TempVar)
+		v, _ = n.Opt().(*TempVar)
 		if v != nil && (v.merge != nil || v.removed != 0) {
 			*lp = l.Next
 			continue
@@ -851,7 +851,7 @@ func mergetemp(firstp *obj.Prog) {
 
 	// Clear aux structures.
 	for i := 0; i < len(var_); i++ {
-		var_[i].node.Opt = nil
+		var_[i].node.SetOpt(nil)
 	}
 
 	Flowend(g)
@@ -980,7 +980,7 @@ func nilopt(firstp *obj.Prog) {
 	Flowend(g)
 
 	if Debug_checknil > 1 {
-		fmt.Printf("%v: removed %d of %d nil checks\n", Curfn.Nname.Sym, nkill, ncheck)
+		fmt.Printf("%v: removed %d of %d nil checks\n", Curfn.Func.Nname.Sym, nkill, ncheck)
 	}
 }
 
@@ -1026,10 +1026,10 @@ for(f1 = f0; f1 != nil; f1 = f1->p1) {
 	}
 
 	if(f1->p1 == nil && f1->p2 == nil) {
-		print("lost pred for %P\n", fcheck->prog);
+		print("lost pred for %v\n", fcheck->prog);
 		for(f1=f0; f1!=nil; f1=f1->p1) {
 			thearch.proginfo(&info, f1->prog);
-			print("\t%P %d %d %D %D\n", r1->prog, info.flags&RightWrite, thearch.sameaddr(&f1->prog->to, &fcheck->prog->from), &f1->prog->to, &fcheck->prog->from);
+			print("\t%v %d %d %D %D\n", r1->prog, info.flags&RightWrite, thearch.sameaddr(&f1->prog->to, &fcheck->prog->from), &f1->prog->to, &fcheck->prog->from);
 		}
 		fatal("lost pred trail");
 	}

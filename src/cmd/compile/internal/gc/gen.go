@@ -47,7 +47,7 @@ func addrescapes(n *Node) {
 
 		switch n.Class {
 		case PPARAMREF:
-			addrescapes(n.Defn)
+			addrescapes(n.Name.Defn)
 
 		// if func param, need separate temporary
 		// to hold heap pointer.
@@ -57,14 +57,14 @@ func addrescapes(n *Node) {
 
 		// expression to refer to stack copy
 		case PPARAM, PPARAMOUT:
-			n.Param.Stackparam = Nod(OPARAM, n, nil)
+			n.Name.Param.Stackparam = Nod(OPARAM, n, nil)
 
-			n.Param.Stackparam.Type = n.Type
-			n.Param.Stackparam.Addable = true
+			n.Name.Param.Stackparam.Type = n.Type
+			n.Name.Param.Stackparam.Addable = true
 			if n.Xoffset == BADWIDTH {
 				Fatal("addrescapes before param assignment")
 			}
-			n.Param.Stackparam.Xoffset = n.Xoffset
+			n.Name.Param.Stackparam.Xoffset = n.Xoffset
 			fallthrough
 
 		case PAUTO:
@@ -77,7 +77,7 @@ func addrescapes(n *Node) {
 			// create stack variable to hold pointer to heap
 			oldfn := Curfn
 
-			Curfn = n.Curfn
+			Curfn = n.Name.Curfn
 			n.Name.Heapaddr = temp(Ptrto(n.Type))
 			buf := fmt.Sprintf("&%v", n.Sym)
 			n.Name.Heapaddr.Sym = Lookup(buf)
@@ -202,7 +202,7 @@ func stmtlabel(n *Node) *Label {
 		lab := n.Sym.Label
 		if lab != nil {
 			if lab.Def != nil {
-				if lab.Def.Defn == n {
+				if lab.Def.Name.Defn == n {
 					return lab
 				}
 			}
@@ -259,10 +259,10 @@ func cgen_dcl(n *Node) {
 	if compiling_runtime != 0 {
 		Yyerror("%v escapes to heap, not allowed in runtime.", n)
 	}
-	if n.Alloc == nil {
-		n.Alloc = callnew(n.Type)
+	if prealloc[n] == nil {
+		prealloc[n] = callnew(n.Type)
 	}
-	Cgen_as(n.Name.Heapaddr, n.Alloc)
+	Cgen_as(n.Name.Heapaddr, prealloc[n])
 }
 
 /*
@@ -333,22 +333,20 @@ func Clearslim(n *Node) {
 
 	switch Simtype[n.Type.Etype] {
 	case TCOMPLEX64, TCOMPLEX128:
-		z.Val.U = new(Mpcplx)
-		Mpmovecflt(&z.Val.U.(*Mpcplx).Real, 0.0)
-		Mpmovecflt(&z.Val.U.(*Mpcplx).Imag, 0.0)
+		z.SetVal(Val{new(Mpcplx)})
+		Mpmovecflt(&z.Val().U.(*Mpcplx).Real, 0.0)
+		Mpmovecflt(&z.Val().U.(*Mpcplx).Imag, 0.0)
 
 	case TFLOAT32, TFLOAT64:
 		var zero Mpflt
 		Mpmovecflt(&zero, 0.0)
-		z.Val.Ctype = CTFLT
-		z.Val.U = &zero
+		z.SetVal(Val{&zero})
 
 	case TPTR32, TPTR64, TCHAN, TMAP:
-		z.Val.Ctype = CTNIL
+		z.SetVal(Val{new(NilVal)})
 
 	case TBOOL:
-		z.Val.Ctype = CTBOOL
-		z.Val.U = false
+		z.SetVal(Val{false})
 
 	case TINT8,
 		TINT16,
@@ -358,9 +356,8 @@ func Clearslim(n *Node) {
 		TUINT16,
 		TUINT32,
 		TUINT64:
-		z.Val.Ctype = CTINT
-		z.Val.U = new(Mpint)
-		Mpmovecfix(z.Val.U.(*Mpint), 0)
+		z.SetVal(Val{new(Mpint)})
+		Mpmovecfix(z.Val().U.(*Mpint), 0)
 
 	default:
 		Fatal("clearslim called on type %v", n.Type)
@@ -630,7 +627,7 @@ func Tempname(nn *Node, t *Type) {
 	n.Addable = true
 	n.Ullman = 1
 	n.Esc = EscNever
-	n.Curfn = Curfn
+	n.Name.Curfn = Curfn
 	Curfn.Func.Dcl = list(Curfn.Func.Dcl, n)
 
 	dowidth(t)
@@ -700,11 +697,11 @@ func gen(n *Node) {
 			lab.Labelpc = Pc
 		}
 
-		if n.Defn != nil {
-			switch n.Defn.Op {
+		if n.Name.Defn != nil {
+			switch n.Name.Defn.Op {
 			// so stmtlabel can find the label
 			case OFOR, OSWITCH, OSELECT:
-				n.Defn.Sym = lab.Sym
+				n.Name.Defn.Sym = lab.Sym
 			}
 		}
 
@@ -788,10 +785,10 @@ func gen(n *Node) {
 			lab.Continpc = continpc
 		}
 
-		gen(n.Nincr)                      // contin:	incr
-		Patch(p1, Pc)                     // test:
-		Bgen(n.Ntest, false, -1, breakpc) //		if(!test) goto break
-		Genlist(n.Nbody)                  //		body
+		gen(n.Right)                     // contin:	incr
+		Patch(p1, Pc)                    // test:
+		Bgen(n.Left, false, -1, breakpc) //		if(!test) goto break
+		Genlist(n.Nbody)                 //		body
 		gjmp(continpc)
 		Patch(breakpc, Pc) // done:
 		continpc = scontin
@@ -802,15 +799,15 @@ func gen(n *Node) {
 		}
 
 	case OIF:
-		p1 := gjmp(nil)                          //		goto test
-		p2 := gjmp(nil)                          // p2:		goto else
-		Patch(p1, Pc)                            // test:
-		Bgen(n.Ntest, false, int(-n.Likely), p2) //		if(!test) goto p2
-		Genlist(n.Nbody)                         //		then
-		p3 := gjmp(nil)                          //		goto done
-		Patch(p2, Pc)                            // else:
-		Genlist(n.Nelse)                         //		else
-		Patch(p3, Pc)                            // done:
+		p1 := gjmp(nil)                         //		goto test
+		p2 := gjmp(nil)                         // p2:		goto else
+		Patch(p1, Pc)                           // test:
+		Bgen(n.Left, false, int(-n.Likely), p2) //		if(!test) goto p2
+		Genlist(n.Nbody)                        //		then
+		p3 := gjmp(nil)                         //		goto done
+		Patch(p2, Pc)                           // else:
+		Genlist(n.Rlist)                        //		else
+		Patch(p3, Pc)                           // done:
 
 	case OSWITCH:
 		sbreak := breakpc
@@ -1122,7 +1119,7 @@ func componentgen_wb(nr, nl *Node, wb bool) bool {
 		nodl.Type = Ptrto(Types[TUINT8])
 		Regalloc(&nodr, Types[Tptr], nil)
 		p := Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), nil, &nodr)
-		Datastring(nr.Val.U.(string), &p.From)
+		Datastring(nr.Val().U.(string), &p.From)
 		p.From.Type = obj.TYPE_ADDR
 		Thearch.Gmove(&nodr, &nodl)
 		Regfree(&nodr)
@@ -1130,7 +1127,7 @@ func componentgen_wb(nr, nl *Node, wb bool) bool {
 		// length
 		nodl.Type = Types[Simtype[TUINT]]
 		nodl.Xoffset += int64(Array_nel) - int64(Array_array)
-		Nodconst(&nodr, nodl.Type, int64(len(nr.Val.U.(string))))
+		Nodconst(&nodr, nodl.Type, int64(len(nr.Val().U.(string))))
 		Thearch.Gmove(&nodr, &nodl)
 		return true
 	}

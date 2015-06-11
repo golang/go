@@ -309,6 +309,40 @@ func TestPanicUseStack(t *testing.T) {
 	panic(1)
 }
 
+func TestPanicFar(t *testing.T) {
+	var xtree *xtreeNode
+	pc := make([]uintptr, 10000)
+	defer func() {
+		// At this point we created a large stack and unwound
+		// it via recovery. Force a stack walk, which will
+		// check the consistency of stack barriers.
+		Callers(0, pc)
+	}()
+	defer func() {
+		recover()
+	}()
+	useStackAndCall(100, func() {
+		// Kick off the GC and make it do something nontrivial
+		// to keep stack barriers installed for a while.
+		xtree = makeTree(18)
+		// Give the GC time to install stack barriers.
+		time.Sleep(time.Millisecond)
+		panic(1)
+	})
+	_ = xtree
+}
+
+type xtreeNode struct {
+	l, r *xtreeNode
+}
+
+func makeTree(d int) *xtreeNode {
+	if d == 0 {
+		return new(xtreeNode)
+	}
+	return &xtreeNode{makeTree(d - 1), makeTree(d - 1)}
+}
+
 // use about n KB of stack and call f
 func useStackAndCall(n int, f func()) {
 	if n == 0 {

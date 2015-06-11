@@ -205,11 +205,11 @@ func BenchmarkMul(b *testing.B) {
 	}
 }
 
-func TestLeadingZeros(t *testing.T) {
+func TestNLZ(t *testing.T) {
 	var x Word = _B >> 1
 	for i := 0; i <= _W; i++ {
-		if int(leadingZeros(x)) != i {
-			t.Errorf("failed at %x: got %d want %d", x, leadingZeros(x), i)
+		if int(nlz(x)) != i {
+			t.Errorf("failed at %x: got %d want %d", x, nlz(x), i)
 		}
 		x >>= 1
 	}

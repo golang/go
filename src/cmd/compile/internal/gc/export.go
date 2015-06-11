@@ -64,7 +64,7 @@ func autoexport(n *Node, ctxt uint8) {
 	if (ctxt != PEXTERN && ctxt != PFUNC) || dclcontext != PEXTERN {
 		return
 	}
-	if n.Param != nil && n.Param.Ntype != nil && n.Param.Ntype.Op == OTFUNC && n.Param.Ntype.Left != nil { // method
+	if n.Name.Param != nil && n.Name.Param.Ntype != nil && n.Name.Param.Ntype.Op == OTFUNC && n.Name.Param.Ntype.Left != nil { // method
 		return
 	}
 
@@ -202,10 +202,7 @@ func reexportdep(n *Node) {
 	reexportdeplist(n.List)
 	reexportdeplist(n.Rlist)
 	reexportdeplist(n.Ninit)
-	reexportdep(n.Ntest)
-	reexportdep(n.Nincr)
 	reexportdeplist(n.Nbody)
-	reexportdeplist(n.Nelse)
 }
 
 func dumpexportconst(s *Sym) {
@@ -219,9 +216,9 @@ func dumpexportconst(s *Sym) {
 	dumpexporttype(t)
 
 	if t != nil && !isideal(t) {
-		fmt.Fprintf(bout, "\tconst %v %v = %v\n", Sconv(s, obj.FmtSharp), Tconv(t, obj.FmtSharp), Vconv(&n.Val, obj.FmtSharp))
+		fmt.Fprintf(bout, "\tconst %v %v = %v\n", Sconv(s, obj.FmtSharp), Tconv(t, obj.FmtSharp), Vconv(n.Val(), obj.FmtSharp))
 	} else {
-		fmt.Fprintf(bout, "\tconst %v = %v\n", Sconv(s, obj.FmtSharp), Vconv(&n.Val, obj.FmtSharp))
+		fmt.Fprintf(bout, "\tconst %v = %v\n", Sconv(s, obj.FmtSharp), Vconv(n.Val(), obj.FmtSharp))
 	}
 }
 
@@ -364,6 +361,9 @@ func dumpsym(s *Sym) {
 func dumpexport() {
 	lno := lineno
 
+	if buildid != "" {
+		fmt.Fprintf(bout, "build id %q\n", buildid)
+	}
 	fmt.Fprintf(bout, "\n$$\npackage %s", localpkg.Name)
 	if safemode != 0 {
 		fmt.Fprintf(bout, " safe")
@@ -419,6 +419,7 @@ func pkgtype(s *Sym) *Type {
 		t := typ(TFORW)
 		t.Sym = s
 		s.Def = typenod(t)
+		s.Def.Name = new(Name)
 	}
 
 	if s.Def.Type == nil {
@@ -540,7 +541,7 @@ func dumpasmhdr() {
 		}
 		switch n.Op {
 		case OLITERAL:
-			fmt.Fprintf(b, "#define const_%s %v\n", n.Sym.Name, Vconv(&n.Val, obj.FmtSharp))
+			fmt.Fprintf(b, "#define const_%s %v\n", n.Sym.Name, Vconv(n.Val(), obj.FmtSharp))
 
 		case OTYPE:
 			t = n.Type

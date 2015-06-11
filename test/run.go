@@ -15,6 +15,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"hash/fnv"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -37,6 +39,9 @@ var (
 	showSkips      = flag.Bool("show_skips", false, "show skipped tests")
 	updateErrors   = flag.Bool("update_errors", false, "update error messages in test file based on compiler output")
 	runoutputLimit = flag.Int("l", defaultRunOutputLimit(), "number of parallel runoutput tests to run")
+
+	shard  = flag.Int("shard", 0, "shard index to run. Only applicable if -shards is non-zero.")
+	shards = flag.Int("shards", 0, "number of shards. If 0, all tests are run. This is used by the continuous build.")
 )
 
 var (
@@ -162,6 +167,15 @@ func toolPath(name string) string {
 	return p
 }
 
+func shardMatch(name string) bool {
+	if *shards == 0 {
+		return true
+	}
+	h := fnv.New32()
+	io.WriteString(h, name)
+	return int(h.Sum32()%uint32(*shards)) == *shard
+}
+
 func goFiles(dir string) []string {
 	f, err := os.Open(dir)
 	check(err)
@@ -169,7 +183,7 @@ func goFiles(dir string) []string {
 	check(err)
 	names := []string{}
 	for _, name := range dirnames {
-		if !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go") {
+		if !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go") && shardMatch(name) {
 			names = append(names, name)
 		}
 	}

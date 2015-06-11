@@ -6,17 +6,20 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"errors"
 	"fmt"
 	"go/build"
 	"go/scanner"
 	"go/token"
+	"io"
 	"io/ioutil"
 	"os"
 	pathpkg "path"
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -95,6 +98,7 @@ type Package struct {
 	coverMode    string               // preprocess Go source files with the coverage tool in this mode
 	coverVars    map[string]*CoverVar // variables created by coverage analysis
 	omitDWARF    bool                 // tell linker not to write DWARF information
+	buildID      string               // expected build ID for generated package
 }
 
 // CoverVar holds the name of the generated coverage variables targeting the named file.
@@ -322,13 +326,6 @@ func disallowInternal(srcDir string, p *Package, stk *importStack) *Package {
 	// An import of a path containing the element “internal”
 	// is disallowed if the importing code is outside the tree
 	// rooted at the parent of the “internal” directory.
-	//
-	// ... For Go 1.4, we will implement the rule first for $GOROOT, but not $GOPATH.
-
-	// Only applies to $GOROOT.
-	if !p.Standard {
-		return p
-	}
 
 	// The stack includes p.ImportPath.
 	// If that's the only thing on the stack, we started
@@ -414,9 +411,9 @@ var goTools = map[string]targetDir{
 	"cmd/pack":                             toTool,
 	"cmd/pprof":                            toTool,
 	"cmd/trace":                            toTool,
+	"cmd/vet":                              toTool,
 	"cmd/yacc":                             toTool,
 	"golang.org/x/tools/cmd/godoc":         toBin,
-	"golang.org/x/tools/cmd/vet":           toTool,
 	"code.google.com/p/go.tools/cmd/cover": stalePath,
 	"code.google.com/p/go.tools/cmd/godoc": stalePath,
 	"code.google.com/p/go.tools/cmd/vet":   stalePath,
@@ -694,6 +691,36 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		}
 	}
 
+	// Compute build ID for this package.
+	// Build ID is hash of information we want to detect changes in.
+	// The mtime-based checks in computeStale take care of most
+	// of that information, but they cannot detect the removal of a
+	// source file from a directory (with no changes to files that remain
+	// and no new files in that directory). We hash the list of source
+	// files (without full path, to allow moving the entire tree)
+	// so that if one is removed, we detect it via the build IDs.
+	// In the future we might include other relevant information,
+	// like build tags or whether we're using the race detector or
+	// (if it becomes cheap enough) file contents.
+	h := sha1.New()
+	inputFiles := stringList(
+		p.GoFiles,
+		p.CgoFiles,
+		p.CFiles,
+		p.CXXFiles,
+		p.MFiles,
+		p.HFiles,
+		p.SFiles,
+		p.SysoFiles,
+		p.SwigFiles,
+		p.SwigCXXFiles,
+	)
+	fmt.Fprintf(h, "%d files\n", len(inputFiles))
+	for _, file := range inputFiles {
+		fmt.Fprintf(h, "%s\n", file)
+	}
+	p.buildID = fmt.Sprintf("%x", h.Sum(nil))
+
 	return p
 }
 
@@ -732,13 +759,8 @@ func packageList(roots []*Package) []*Package {
 // computeStale computes the Stale flag in the package dag that starts
 // at the named pkgs (command-line arguments).
 func computeStale(pkgs ...*Package) {
-	topRoot := map[string]bool{}
-	for _, p := range pkgs {
-		topRoot[p.Root] = true
-	}
-
 	for _, p := range packageList(pkgs) {
-		p.Stale = isStale(p, topRoot)
+		p.Stale = isStale(p)
 	}
 }
 
@@ -749,7 +771,7 @@ func computeStale(pkgs ...*Package) {
 var isGoRelease = strings.HasPrefix(runtime.Version(), "go1")
 
 // isStale reports whether package p needs to be rebuilt.
-func isStale(p *Package, topRoot map[string]bool) bool {
+func isStale(p *Package) bool {
 	if p.Standard && (p.ImportPath == "unsafe" || buildContext.Compiler == "gccgo") {
 		// fake, builtin package
 		return false
@@ -768,16 +790,8 @@ func isStale(p *Package, topRoot map[string]bool) bool {
 		return false
 	}
 
-	// If we are running a release copy of Go, do not rebuild the standard packages.
-	// They may not be writable anyway, but they are certainly not changing.
-	// This makes 'go build -a' skip the standard packages when using an official release.
-	// See issue 4106 and issue 8290.
-	pkgBuildA := buildA
-	if p.Standard && isGoRelease {
-		pkgBuildA = false
-	}
-
-	if pkgBuildA || p.target == "" || p.Stale {
+	// If there's no install target or it's already marked stale, we have to rebuild.
+	if p.target == "" || p.Stale {
 		return true
 	}
 
@@ -787,6 +801,22 @@ func isStale(p *Package, topRoot map[string]bool) bool {
 		built = fi.ModTime()
 	}
 	if built.IsZero() {
+		return true
+	}
+
+	// If we are running a release copy of Go, do not rebuild the standard packages.
+	// They may not be writable anyway, but they are certainly not changing.
+	// This makes 'go build' and 'go build -a' skip the standard packages when
+	// using an official release. See issue 3036, issue 3149, issue 4106, issue 8290.
+	// (If a change to a release tree must be made by hand, the way to force the
+	// install is to run make.bash, which will remove the old package archives
+	// before rebuilding.)
+	if p.Standard && isGoRelease {
+		return false
+	}
+
+	// If the -a flag is given, rebuild everything (except standard packages; see above).
+	if buildA {
 		return true
 	}
 
@@ -802,6 +832,14 @@ func isStale(p *Package, topRoot map[string]bool) bool {
 		}
 	}
 
+	// Package is stale if the expected build ID differs from the
+	// recorded build ID. This catches changes like a source file
+	// being removed from a package directory. See issue 3895.
+	targetBuildID, err := readBuildID(p)
+	if err == nil && targetBuildID != p.buildID {
+		return true
+	}
+
 	// As a courtesy to developers installing new versions of the compiler
 	// frequently, define that packages are stale if they are
 	// older than the compiler, and commands if they are older than
@@ -809,8 +847,12 @@ func isStale(p *Package, topRoot map[string]bool) bool {
 	// back-dated, as some binary distributions may do, but it does handle
 	// a very common case.
 	// See issue 3036.
-	// Assume code in $GOROOT is up to date, since it may not be writeable.
-	// See issue 4106.
+	// Exclude $GOROOT, under the assumption that people working on
+	// the compiler may want to control when everything gets rebuilt,
+	// and people updating the Go repository will run make.bash or all.bash
+	// and get a full rebuild anyway.
+	// Excluding $GOROOT used to also fix issue 4106, but that's now
+	// taken care of above (at least when the installed Go is a released version).
 	if p.Root != goroot {
 		if olderThan(buildToolchain.compiler()) {
 			return true
@@ -820,19 +862,43 @@ func isStale(p *Package, topRoot map[string]bool) bool {
 		}
 	}
 
-	// Have installed copy, probably built using current compilers,
-	// and built after its imported packages.  The only reason now
-	// that we'd have to rebuild it is if the sources were newer than
-	// the package.   If a package p is not in the same tree as any
-	// package named on the command-line, assume it is up-to-date
-	// no matter what the modification times on the source files indicate.
-	// This avoids rebuilding $GOROOT packages when people are
-	// working outside the Go root, and it effectively makes each tree
-	// listed in $GOPATH a separate compilation world.
-	// See issue 3149.
-	if p.Root != "" && !topRoot[p.Root] {
-		return false
-	}
+	// Note: Until Go 1.5, we had an additional shortcut here.
+	// We built a list of the workspace roots ($GOROOT, each $GOPATH)
+	// containing targets directly named on the command line,
+	// and if p were not in any of those, it would be treated as up-to-date
+	// as long as it is built. The goal was to avoid rebuilding a system-installed
+	// $GOROOT, unless something from $GOROOT were explicitly named
+	// on the command line (like go install math).
+	// That's now handled by the isGoRelease clause above.
+	// The other effect of the shortcut was to isolate different entries in
+	// $GOPATH from each other. This had the unfortunate effect that
+	// if you had (say), GOPATH listing two entries, one for commands
+	// and one for libraries, and you did a 'git pull' in the library one
+	// and then tried 'go install commands/...', it would build the new libraries
+	// during the first build (because they wouldn't have been installed at all)
+	// but then subsequent builds would not rebuild the libraries, even if the
+	// mtimes indicate they are stale, because the different GOPATH entries
+	// were treated differently. This behavior was confusing when using
+	// non-trivial GOPATHs, which were particularly common with some
+	// code management conventions, like the original godep.
+	// Since the $GOROOT case (the original motivation) is handled separately,
+	// we no longer put a barrier between the different $GOPATH entries.
+	//
+	// One implication of this is that if there is a system directory for
+	// non-standard Go packages that is included in $GOPATH, the mtimes
+	// on those compiled packages must be no earlier than the mtimes
+	// on the source files. Since most distributions use the same mtime
+	// for all files in a tree, they will be unaffected. People using plain
+	// tar x to extract system-installed packages will need to adjust mtimes,
+	// but it's better to force them to get the mtimes right than to ignore
+	// the mtimes and thereby do the wrong thing in common use cases.
+	//
+	// So there is no GOPATH vs GOPATH shortcut here anymore.
+	//
+	// If something needs to come back here, we could try writing a dummy
+	// file with a random name to the $GOPATH/pkg directory (and removing it)
+	// to test for write access, and then skip GOPATH roots we don't have write
+	// access to. But hopefully we can just use the mtimes always.
 
 	srcs := stringList(p.GoFiles, p.CFiles, p.CXXFiles, p.MFiles, p.HFiles, p.SFiles, p.CgoFiles, p.SysoFiles, p.SwigFiles, p.SwigCXXFiles)
 	for _, src := range srcs {
@@ -1000,4 +1066,171 @@ func hasSubdir(root, dir string) (rel string, ok bool) {
 		return "", false
 	}
 	return filepath.ToSlash(dir[len(root):]), true
+}
+
+var (
+	errBuildIDToolchain = fmt.Errorf("build ID only supported in gc toolchain")
+	errBuildIDMalformed = fmt.Errorf("malformed object file")
+	errBuildIDUnknown   = fmt.Errorf("lost build ID")
+)
+
+var (
+	bangArch = []byte("!<arch>")
+	pkgdef   = []byte("__.PKGDEF")
+	goobject = []byte("go object ")
+	buildid  = []byte("build id ")
+)
+
+// readBuildID reads the build ID from an archive or binary.
+// It only supports the gc toolchain.
+// Other toolchain maintainers should adjust this function.
+func readBuildID(p *Package) (id string, err error) {
+	if buildToolchain != (gcToolchain{}) {
+		return "", errBuildIDToolchain
+	}
+
+	// For commands, read build ID directly from binary.
+	if p.Name == "main" {
+		return readBuildIDFromBinary(p.Target)
+	}
+
+	// Otherwise, we expect to have an archive (.a) file,
+	// and we can read the build ID from the Go export data.
+	if !strings.HasSuffix(p.Target, ".a") {
+		return "", &os.PathError{Op: "parse", Path: p.Target, Err: errBuildIDUnknown}
+	}
+
+	// Read just enough of the target to fetch the build ID.
+	// The archive is expected to look like:
+	//
+	//	!<arch>
+	//	__.PKGDEF       0           0     0     644     7955      `
+	//	go object darwin amd64 devel X:none
+	//	build id "b41e5c45250e25c9fd5e9f9a1de7857ea0d41224"
+	//
+	// The variable-sized strings are GOOS, GOARCH, and the experiment list (X:none).
+	// Reading the first 1024 bytes should be plenty.
+	f, err := os.Open(p.Target)
+	if err != nil {
+		return "", err
+	}
+	data := make([]byte, 1024)
+	n, err := io.ReadFull(f, data)
+	f.Close()
+
+	if err != nil && n == 0 {
+		return "", err
+	}
+
+	bad := func() (string, error) {
+		return "", &os.PathError{Op: "parse", Path: p.Target, Err: errBuildIDMalformed}
+	}
+
+	// Archive header.
+	for i := 0; ; i++ { // returns during i==3
+		j := bytes.IndexByte(data, '\n')
+		if j < 0 {
+			return bad()
+		}
+		line := data[:j]
+		data = data[j+1:]
+		switch i {
+		case 0:
+			if !bytes.Equal(line, bangArch) {
+				return bad()
+			}
+		case 1:
+			if !bytes.HasPrefix(line, pkgdef) {
+				return bad()
+			}
+		case 2:
+			if !bytes.HasPrefix(line, goobject) {
+				return bad()
+			}
+		case 3:
+			if !bytes.HasPrefix(line, buildid) {
+				// Found the object header, just doesn't have a build id line.
+				// Treat as successful, with empty build id.
+				return "", nil
+			}
+			id, err := strconv.Unquote(string(line[len(buildid):]))
+			if err != nil {
+				return bad()
+			}
+			return id, nil
+		}
+	}
+}
+
+var (
+	goBuildPrefix = []byte("\xff Go build ID: \"")
+	goBuildEnd    = []byte("\"\n \xff")
+
+	elfPrefix = []byte("\x7fELF")
+)
+
+// readBuildIDFromBinary reads the build ID from a binary.
+//
+// ELF binaries store the build ID in a proper PT_NOTE section.
+//
+// Other binary formats are not so flexible. For those, the linker
+// stores the build ID as non-instruction bytes at the very beginning
+// of the text segment, which should appear near the beginning
+// of the file. This is clumsy but fairly portable. Custom locations
+// can be added for other binary types as needed, like we did for ELF.
+func readBuildIDFromBinary(filename string) (id string, err error) {
+	if filename == "" {
+		return "", &os.PathError{Op: "parse", Path: filename, Err: errBuildIDUnknown}
+	}
+
+	// Read the first 8 kB of the binary file.
+	// That should be enough to find the build ID.
+	// In ELF files, the build ID is in the leading headers,
+	// which are typically less than 4 kB, not to mention 8 kB.
+	// On other systems, we're trying to read enough that
+	// we get the beginning of the text segment in the read.
+	// The offset where the text segment begins in a hello
+	// world compiled for each different object format today:
+	//
+	//	Plan 9: 0x20
+	//	Windows: 0x600
+	//	Mach-O: 0x1000
+	//
+	f, err := os.Open(filename)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	data := make([]byte, 8192)
+	_, err = io.ReadFull(f, data)
+	if err == io.ErrUnexpectedEOF {
+		err = nil
+	}
+	if err != nil {
+		return "", err
+	}
+
+	if bytes.HasPrefix(data, elfPrefix) {
+		return readELFGoBuildID(filename, f, data)
+	}
+
+	i := bytes.Index(data, goBuildPrefix)
+	if i < 0 {
+		// Missing. Treat as successful but build ID empty.
+		return "", nil
+	}
+
+	j := bytes.Index(data[i+len(goBuildPrefix):], goBuildEnd)
+	if j < 0 {
+		return "", &os.PathError{Op: "parse", Path: filename, Err: errBuildIDMalformed}
+	}
+
+	quoted := data[i+len(goBuildPrefix)-1 : i+len(goBuildPrefix)+j+1]
+	id, err = strconv.Unquote(string(quoted))
+	if err != nil {
+		return "", &os.PathError{Op: "parse", Path: filename, Err: errBuildIDMalformed}
+	}
+
+	return id, nil
 }

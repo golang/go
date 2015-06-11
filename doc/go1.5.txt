@@ -3,6 +3,8 @@ Overall:
 - new GC
 - go tool asm, go tool compile, go tool link
 - default output files changed: now file.o and a.out
+- internal enforced even outside standard library (golang.org/s/go14internal; https://golang.org/cl/9156)
+- gomaxprocs=numcpu (golang.org/s/go15gomaxprocs)
 
 Language:
 - permit omission of key type in map composite literals where key is a composite literal (https://golang.org/cl/2591)
@@ -33,6 +35,7 @@ bytes: add Buffer.Cap (https://golang.org/cl/8342)
 bytes, strings: add Reader.Size (https://golang.org/cl/3199)
 bytes, strings: add LastIndexByte (https://golang.org/cl/9500)
 crypto/cipher: clarify what will happen if len(src) != len(dst) for the Stream interface. (https://golang.org/cl/1754)
+crypto/cipher: support non-standard nonce lengths for GCM. (https://golang.org/cl/8946)
 crypto/elliptic: add Name field to CurveParams struct (https://golang.org/cl/2133)
 crypto/elliptic: Unmarshaling points now automatically checks that the point is on the curve (https://golang.org/cl/2421)
 crypto/tls: change default minimum version to TLS 1.0. (https://golang.org/cl/1791)
@@ -64,7 +67,7 @@ net/http: ignore the Unix epoch time in ServeContent (https://golang.org/cl/7915
 net/http/cgi: fix REMOTE_ADDR, REMOTE_HOST, add REMOTE_PORT (https://golang.org/cl/4933)
 net/mail: adds AddressParser type (https://golang.org/cl/10392)
 net/smtp: add TLSConnectionState accessor (https://golang.org/cl/2151)
-os: add LookupEnv (https://golang.org/cl/9791)
+os: add LookupEnv (https://golang.org/cl/9741)
 os/signal: add Ignore and Reset (https://golang.org/cl/3580)
 reflect: add ArrayOf (https://golang.org/cl/4111)
 reflect: add FuncOf (https://golang.org/cl/1996)
@@ -75,6 +78,7 @@ strings: add Compare(x, y string) int, for symmetry with bytes.Compare (https://
 syscall: Add Foreground and Pgid to SysProcAttr (https://golang.org/cl/5130)
 syscall: add missing Syscall9 for darwin/amd64 (https://golang.org/cl/6555)
 testing/quick: support generation of arrays (https://golang.org/cl/3865)
+testing/quick: generated pointers can now be nil (https://golang.org/cl/10821)
 text/template: add Options method (https://golang.org/cl/8462)
 text/template: huge integers are now parse errors (https://golang.org/cl/9651)
 time: add time.AppendFormat(https://golang.org/cl/1760)
@@ -100,6 +104,7 @@ cmd/go: add -buildmode build option
 cmd/gc: add -dynlink option (for amd64 only)
 cmd/ld: add -buildmode option
 cmd/trace: new command to view traces (https://golang.org/cl/3601)
+cmd/go, testing: add go test -count (https://golang.org/cl/10669)
 
 Performance:
 
@@ -146,3 +151,9 @@ ARM assembly syntax has had some features removed.
 	
 Also expression evaluation now uses uint64s instead of signed integers and the
 precedence of operators is now Go-like rather than C-like.
+
+Standard library hardening
+35 bugs found by randomized testing with go-fuzz (https://github.com/dvyukov/go-fuzz)
+were fixed in fmt, archive/zip, archive/tar, encoding/gob, image/jpeg, image/png,
+image/gif, compress/flate, text/template, html/template. The fixes harden implementation
+against incorrect and malicious inputs.

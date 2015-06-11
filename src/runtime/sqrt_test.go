@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // A copy of Sqrt tests from the math package to test the
-// purely integer arithmetic implementaiton in sqrt.go.
+// purely integer arithmetic implementation in sqrt.go.
 
 package runtime_test
 

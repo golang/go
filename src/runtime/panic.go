@@ -411,7 +411,7 @@ func gopanic(e interface{}) {
 
 		// Mark defer as started, but keep on list, so that traceback
 		// can find and update the defer's argument frame if stack growth
-		// or a garbage collection hapens before reflectcall starts executing d.fn.
+		// or a garbage collection happens before reflectcall starts executing d.fn.
 		d.started = true
 
 		// Record the panic that is running the defer.

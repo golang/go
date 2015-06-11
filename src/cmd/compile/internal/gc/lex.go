@@ -28,11 +28,12 @@ var yylast int
 
 var imported_unsafe int
 
-var goos string
-
-var goarch string
-
-var goroot string
+var (
+	goos    string
+	goarch  string
+	goroot  string
+	buildid string
+)
 
 var (
 	Debug_wb     int
@@ -203,6 +204,7 @@ func Main() {
 	obj.Flagfn0("V", "print compiler version", doversion)
 	obj.Flagcount("W", "debug parse tree after type checking", &Debug['W'])
 	obj.Flagstr("asmhdr", "write assembly header to `file`", &asmhdr)
+	obj.Flagstr("buildid", "record `id` as the build id in the export metadata", &buildid)
 	obj.Flagcount("complete", "compiling complete package (no C or assembly)", &pure_go)
 	obj.Flagstr("d", "print debug information about items in `list`", &debugstr)
 	obj.Flagcount("e", "no limit on number of errors reported", &Debug['e'])
@@ -368,7 +370,7 @@ func Main() {
 	defercheckwidth()
 
 	for l := xtop; l != nil; l = l.Next {
-		if l.N.Op != ODCL && l.N.Op != OAS {
+		if l.N.Op != ODCL && l.N.Op != OAS && l.N.Op != OAS2 {
 			typecheck(&l.N, Etop)
 		}
 	}
@@ -376,7 +378,7 @@ func Main() {
 	// Phase 2: Variable assignments.
 	//   To check interface assignments, depends on phase 1.
 	for l := xtop; l != nil; l = l.Next {
-		if l.N.Op == ODCL || l.N.Op == OAS {
+		if l.N.Op == ODCL || l.N.Op == OAS || l.N.Op == OAS2 {
 			typecheck(&l.N, Etop)
 		}
 	}
@@ -400,7 +402,7 @@ func Main() {
 	// This needs to run before escape analysis,
 	// because variables captured by value do not escape.
 	for l := xtop; l != nil; l = l.Next {
-		if l.N.Op == ODCLFUNC && l.N.Param.Closure != nil {
+		if l.N.Op == ODCLFUNC && l.N.Func.Closure != nil {
 			Curfn = l.N
 			capturevars(l.N)
 		}
@@ -454,7 +456,7 @@ func Main() {
 	// This needs to happen before walk, because closures must be transformed
 	// before walk reaches a call of a closure.
 	for l := xtop; l != nil; l = l.Next {
-		if l.N.Op == ODCLFUNC && l.N.Param.Closure != nil {
+		if l.N.Op == ODCLFUNC && l.N.Func.Closure != nil {
 			Curfn = l.N
 			transformclosure(l.N)
 		}
@@ -639,7 +641,7 @@ func fakeimport() {
 }
 
 func importfile(f *Val, line int) {
-	if f.Ctype != CTSTR {
+	if _, ok := f.U.(string); !ok {
 		Yyerror("import statement not a string")
 		fakeimport()
 		return
@@ -1064,9 +1066,10 @@ l0:
 			ungetc(int(v))
 		}
 
-		yylval.val.U = new(Mpint)
-		Mpmovecfix(yylval.val.U.(*Mpint), v)
-		yylval.val.Ctype = CTRUNE
+		x := new(Mpint)
+		yylval.val.U = x
+		Mpmovecfix(x, v)
+		x.Rune = true
 		if Debug['x'] != 0 {
 			fmt.Printf("lex: codepoint literal\n")
 		}
@@ -1410,7 +1413,6 @@ ncu:
 		Mpmovecfix(yylval.val.U.(*Mpint), 0)
 	}
 
-	yylval.val.Ctype = CTINT
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: integer literal\n")
 	}
@@ -1472,7 +1474,6 @@ casei:
 		Mpmovecflt(&yylval.val.U.(*Mpcplx).Real, 0.0)
 	}
 
-	yylval.val.Ctype = CTCPLX
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: imaginary literal\n")
 	}
@@ -1491,7 +1492,6 @@ caseout:
 		Mpmovecflt(yylval.val.U.(*Mpflt), 0.0)
 	}
 
-	yylval.val.Ctype = CTFLT
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: floating literal\n")
 	}
@@ -1500,7 +1500,6 @@ caseout:
 
 strlit:
 	yylval.val.U = internString(cp.Bytes())
-	yylval.val.Ctype = CTSTR
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: string literal\n")
 	}
@@ -2185,6 +2184,7 @@ func lexinit() {
 
 			s1.Lexical = LNAME
 			s1.Def = typenod(t)
+			s1.Def.Name = new(Name)
 			continue
 		}
 
@@ -2210,11 +2210,13 @@ func lexinit() {
 	s = Pkglookup("true", builtinpkg)
 	s.Def = Nodbool(true)
 	s.Def.Sym = Lookup("true")
+	s.Def.Name = new(Name)
 	s.Def.Type = idealbool
 
 	s = Pkglookup("false", builtinpkg)
 	s.Def = Nodbool(false)
 	s.Def.Sym = Lookup("false")
+	s.Def.Name = new(Name)
 	s.Def.Type = idealbool
 
 	s = Lookup("_")
@@ -2235,9 +2237,10 @@ func lexinit() {
 	Types[TNIL] = typ(TNIL)
 	s = Pkglookup("nil", builtinpkg)
 	var v Val
-	v.Ctype = CTNIL
+	v.U = new(NilVal)
 	s.Def = nodlit(v)
 	s.Def.Sym = s
+	s.Def.Name = new(Name)
 }
 
 func lexinit1() {
@@ -2285,6 +2288,7 @@ func lexinit1() {
 	bytetype.Sym = s1
 	s1.Lexical = LNAME
 	s1.Def = typenod(bytetype)
+	s1.Def.Name = new(Name)
 
 	// rune alias
 	s = Lookup("rune")
@@ -2295,6 +2299,7 @@ func lexinit1() {
 	runetype.Sym = s1
 	s1.Lexical = LNAME
 	s1.Def = typenod(runetype)
+	s1.Def.Name = new(Name)
 }
 
 func lexfini() {
@@ -2314,6 +2319,7 @@ func lexfini() {
 		etype = syms[i].etype
 		if etype != Txxx && (etype != TANY || Debug['A'] != 0) && s.Def == nil {
 			s.Def = typenod(Types[etype])
+			s.Def.Name = new(Name)
 			s.Origpkg = builtinpkg
 		}
 
@@ -2331,6 +2337,7 @@ func lexfini() {
 		s = Lookup(Thearch.Typedefs[i].Name)
 		if s.Def == nil {
 			s.Def = typenod(Types[Thearch.Typedefs[i].Etype])
+			s.Def.Name = new(Name)
 			s.Origpkg = builtinpkg
 		}
 	}
@@ -2341,27 +2348,31 @@ func lexfini() {
 
 	if s.Def == nil {
 		s.Def = typenod(bytetype)
+		s.Def.Name = new(Name)
 		s.Origpkg = builtinpkg
 	}
 
 	s = Lookup("error")
 	if s.Def == nil {
 		s.Def = typenod(errortype)
+		s.Def.Name = new(Name)
 		s.Origpkg = builtinpkg
 	}
 
 	s = Lookup("rune")
 	if s.Def == nil {
 		s.Def = typenod(runetype)
+		s.Def.Name = new(Name)
 		s.Origpkg = builtinpkg
 	}
 
 	s = Lookup("nil")
 	if s.Def == nil {
 		var v Val
-		v.Ctype = CTNIL
+		v.U = new(NilVal)
 		s.Def = nodlit(v)
 		s.Def.Sym = s
+		s.Def.Name = new(Name)
 		s.Origpkg = builtinpkg
 	}
 
@@ -2376,6 +2387,7 @@ func lexfini() {
 	if s.Def == nil {
 		s.Def = Nodbool(true)
 		s.Def.Sym = s
+		s.Def.Name = new(Name)
 		s.Origpkg = builtinpkg
 	}
 
@@ -2383,6 +2395,7 @@ func lexfini() {
 	if s.Def == nil {
 		s.Def = Nodbool(false)
 		s.Def.Sym = s
+		s.Def.Name = new(Name)
 		s.Origpkg = builtinpkg
 	}
 
@@ -2566,7 +2579,7 @@ func mkpackage(pkgname string) {
 				// errors if a conflicting top-level name is
 				// introduced by a different file.
 				if !s.Def.Used && nsyntaxerrors == 0 {
-					pkgnotused(int(s.Def.Lineno), s.Def.Pkg.Path, s.Name)
+					pkgnotused(int(s.Def.Lineno), s.Def.Name.Pkg.Path, s.Name)
 				}
 				s.Def = nil
 				continue
@@ -2575,9 +2588,9 @@ func mkpackage(pkgname string) {
 			if s.Def.Sym != s {
 				// throw away top-level name left over
 				// from previous import . "x"
-				if s.Def.Pack != nil && !s.Def.Pack.Used && nsyntaxerrors == 0 {
-					pkgnotused(int(s.Def.Pack.Lineno), s.Def.Pack.Pkg.Path, "")
-					s.Def.Pack.Used = true
+				if s.Def.Name != nil && s.Def.Name.Pack != nil && !s.Def.Name.Pack.Used && nsyntaxerrors == 0 {
+					pkgnotused(int(s.Def.Name.Pack.Lineno), s.Def.Name.Pack.Name.Pkg.Path, "")
+					s.Def.Name.Pack.Used = true
 				}
 
 				s.Def = nil
@@ -2599,6 +2612,10 @@ func mkpackage(pkgname string) {
 		if i := strings.LastIndex(p, "."); i >= 0 {
 			p = p[:i]
 		}
-		outfile = fmt.Sprintf("%s.o", p)
+		suffix := ".o"
+		if writearchive > 0 {
+			suffix = ".a"
+		}
+		outfile = p + suffix
 	}
 }

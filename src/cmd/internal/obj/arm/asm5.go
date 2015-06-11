@@ -503,7 +503,7 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 				break
 			} else {
 				// if a load/store instruction takes more than 1 word to implement, then
-				// we need to seperate the instruction into two:
+				// we need to separate the instruction into two:
 				// 1. explicitly load the address into R11.
 				// 2. load/store from R11.
 				// This won't handle .W/.P, so we should reject such code.
@@ -720,7 +720,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
 				bflag = 1
 			}
 
-			//print("%P pc changed %d to %d in iter. %d\n", p, opc, (int32)p->pc, times);
+			//print("%v pc changed %d to %d in iter. %d\n", p, opc, (int32)p->pc, times);
 			c = int32(p.Pc + int64(m))
 
 			if m%4 != 0 || p.Pc%4 != 0 {
@@ -900,7 +900,7 @@ func addpool(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 		t.To.Name = a.Name
 
 		if ctxt.Flag_shared != 0 && t.To.Sym != nil {
-			t.Pcrel = p
+			t.Rel = p
 		}
 
 	case C_SROREG,
@@ -917,9 +917,9 @@ func addpool(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 		t.To.Offset = ctxt.Instoffset
 	}
 
-	if t.Pcrel == nil {
+	if t.Rel == nil {
 		for q := ctxt.Blitrl; q != nil; q = q.Link { /* could hash on t.t0.offset */
-			if q.Pcrel == nil && q.To == t.To {
+			if q.Rel == nil && q.To == t.To {
 				p.Pcond = q
 				return
 			}
@@ -1671,11 +1671,11 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			if rel.Sym == ctxt.Tlsg && ctxt.Tlsg.Type == 0 {
 				rel.Type = obj.R_TLS
 				if ctxt.Flag_shared != 0 {
-					rel.Add += ctxt.Pc - p.Pcrel.Pc - 8 - int64(rel.Siz)
+					rel.Add += ctxt.Pc - p.Rel.Pc - 8 - int64(rel.Siz)
 				}
 			} else if ctxt.Flag_shared != 0 {
 				rel.Type = obj.R_PCREL
-				rel.Add += ctxt.Pc - p.Pcrel.Pc - 8
+				rel.Add += ctxt.Pc - p.Rel.Pc - 8
 			} else {
 				rel.Type = obj.R_ADDR
 			}
@@ -2062,7 +2062,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 
 			if o.flag&LPCREL != 0 {
 				rel.Type = obj.R_PCREL
-				rel.Add += ctxt.Pc - p.Pcrel.Pc - 16 + int64(rel.Siz)
+				rel.Add += ctxt.Pc - p.Rel.Pc - 16 + int64(rel.Siz)
 			} else {
 				rel.Type = obj.R_ADDR
 			}

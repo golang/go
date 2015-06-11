@@ -52,7 +52,7 @@ func socket(net string, family, sotype, proto int, ipv6only bool, laddr, raddr s
 	// following applications:
 	//
 	// - An endpoint holder that opens a passive stream
-	//   connenction, known as a stream listener
+	//   connection, known as a stream listener
 	//
 	// - An endpoint holder that opens a destination-unspecific
 	//   datagram connection, known as a datagram listener

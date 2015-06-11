@@ -157,7 +157,9 @@ func linkpatch(ctxt *Link, sym *LSym) {
 
 	for p := sym.Text; p != nil; p = p.Link {
 		checkaddr(ctxt, p, &p.From)
-		checkaddr(ctxt, p, &p.From3)
+		if p.From3 != nil {
+			checkaddr(ctxt, p, p.From3)
+		}
 		checkaddr(ctxt, p, &p.To)
 
 		if ctxt.Arch.Progedit != nil {

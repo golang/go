@@ -151,7 +151,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
 		As:     obj.ATEXT,
 		Lineno: p.histLineNum,
 		From:   nameAddr,
-		From3: obj.Addr{
+		From3: &obj.Addr{
 			Type:   obj.TYPE_CONST,
 			Offset: flag,
 		},
@@ -205,7 +205,7 @@ func (p *Parser) asmData(word string, operands [][]lex.Token) {
 		As:     obj.ADATA,
 		Lineno: p.histLineNum,
 		From:   nameAddr,
-		From3: obj.Addr{
+		From3: &obj.Addr{
 			Offset: int64(scale),
 		},
 		To: valueAddr,
@@ -244,7 +244,7 @@ func (p *Parser) asmGlobl(word string, operands [][]lex.Token) {
 		As:     obj.AGLOBL,
 		Lineno: p.histLineNum,
 		From:   nameAddr,
-		From3: obj.Addr{
+		From3: &obj.Addr{
 			Offset: flag,
 		},
 		To: addr,
@@ -504,7 +504,7 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 			prog.To = a[2]
 		case '6', '8':
 			prog.From = a[0]
-			prog.From3 = a[1]
+			prog.From3 = newAddr(a[1])
 			prog.To = a[2]
 		case '9':
 			if arch.IsPPC64CMP(op) {
@@ -526,7 +526,7 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 				prog.To = a[2]
 			case obj.TYPE_CONST:
 				prog.From = a[0]
-				prog.From3 = a[1]
+				prog.From3 = newAddr(a[1])
 				prog.To = a[2]
 			default:
 				p.errorf("invalid addressing modes for %s instruction", obj.Aconv(op))
@@ -551,7 +551,7 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 		if p.arch.Thechar == '7' {
 			prog.From = a[0]
 			prog.Reg = p.getRegister(prog, op, &a[1])
-			prog.From3 = a[2]
+			prog.From3 = newAddr(a[2])
 			prog.To = a[3]
 			break
 		}
@@ -561,7 +561,7 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 			// That is, are there 4-operand instructions without this property?
 			prog.From = a[0]
 			prog.Reg = p.getRegister(prog, op, &a[1])
-			prog.From3 = a[2]
+			prog.From3 = newAddr(a[2])
 			prog.To = a[3]
 			break
 		}
@@ -579,7 +579,7 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 			} else {
 				mask = (^uint32(0) >> uint(mask2+1)) & (^uint32(0) << uint(31-(mask1-1)))
 			}
-			prog.From3 = obj.Addr{
+			prog.From3 = &obj.Addr{
 				Type:   obj.TYPE_CONST,
 				Offset: int64(mask),
 			}
@@ -613,6 +613,13 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 	}
 
 	p.append(prog, cond, true)
+}
+
+// newAddr returns a new(Addr) initialized to x.
+func newAddr(x obj.Addr) *obj.Addr {
+	p := new(obj.Addr)
+	*p = x
+	return p
 }
 
 var emptyProg obj.Prog

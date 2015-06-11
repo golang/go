@@ -898,6 +898,8 @@ func BenchmarkChanPopular(b *testing.B) {
 	const n = 1000
 	c := make(chan bool)
 	var a []chan bool
+	var wg sync.WaitGroup
+	wg.Add(n)
 	for j := 0; j < n; j++ {
 		d := make(chan bool)
 		a = append(a, d)
@@ -908,6 +910,7 @@ func BenchmarkChanPopular(b *testing.B) {
 				case <-d:
 				}
 			}
+			wg.Done()
 		}()
 	}
 	for i := 0; i < b.N; i++ {
@@ -915,4 +918,5 @@ func BenchmarkChanPopular(b *testing.B) {
 			d <- true
 		}
 	}
+	wg.Wait()
 }

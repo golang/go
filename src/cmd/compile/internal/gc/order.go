@@ -50,7 +50,7 @@ type Order struct {
 // described in the comment at the top of the file.
 func order(fn *Node) {
 	if Debug['W'] > 1 {
-		s := fmt.Sprintf("\nbefore order %v", fn.Nname.Sym)
+		s := fmt.Sprintf("\nbefore order %v", fn.Func.Nname.Sym)
 		dumplist(s, fn.Nbody)
 	}
 
@@ -490,7 +490,7 @@ func orderstmt(n *Node, order *Order) {
 
 	case OASOP:
 		// Special: rewrite l op= r into l = l op r.
-		// This simplies quite a few operations;
+		// This simplifies quite a few operations;
 		// most important is that it lets us separate
 		// out map read from map write when l is
 		// a map index expression.
@@ -646,12 +646,12 @@ func orderstmt(n *Node, order *Order) {
 	case OFOR:
 		t := marktemp(order)
 
-		orderexprinplace(&n.Ntest, order)
+		orderexprinplace(&n.Left, order)
 		var l *NodeList
 		cleantempnopop(t, order, &l)
 		n.Nbody = concat(l, n.Nbody)
 		orderblock(&n.Nbody)
-		orderstmtinplace(&n.Nincr)
+		orderstmtinplace(&n.Right)
 		order.out = list(order.out, n)
 		cleantemp(t, order)
 
@@ -660,16 +660,16 @@ func orderstmt(n *Node, order *Order) {
 	case OIF:
 		t := marktemp(order)
 
-		orderexprinplace(&n.Ntest, order)
+		orderexprinplace(&n.Left, order)
 		var l *NodeList
 		cleantempnopop(t, order, &l)
 		n.Nbody = concat(l, n.Nbody)
 		l = nil
 		cleantempnopop(t, order, &l)
-		n.Nelse = concat(l, n.Nelse)
+		n.Rlist = concat(l, n.Rlist)
 		poptemp(t, order)
 		orderblock(&n.Nbody)
-		orderblock(&n.Nelse)
+		orderblock(&n.Rlist)
 		order.out = list(order.out, n)
 
 		// Special: argument will be converted to interface using convT2E
@@ -736,7 +736,7 @@ func orderstmt(n *Node, order *Order) {
 			n.Right = ordercopyexpr(r, r.Type, order, 0)
 
 			// n->alloc is the temp for the iterator.
-			n.Alloc = ordertemp(Types[TUINT8], order, true)
+			prealloc[n] = ordertemp(Types[TUINT8], order, true)
 		}
 
 		for l := n.List; l != nil; l = l.Next {
@@ -793,7 +793,7 @@ func orderstmt(n *Node, order *Order) {
 						if t != nil && t.N.Op == ODCL && t.N.Left == r.Left {
 							t = t.Next
 						}
-						if t != nil && t.N.Op == ODCL && t.N.Left == r.Ntest {
+						if t != nil && t.N.Op == ODCL && r.List != nil && t.N.Left == r.List.N {
 							t = t.Next
 						}
 						if t == nil {
@@ -844,19 +844,19 @@ func orderstmt(n *Node, order *Order) {
 						l.N.Ninit = list(l.N.Ninit, tmp2)
 					}
 
-					if r.Ntest != nil && isblank(r.Ntest) {
-						r.Ntest = nil
+					if r.List != nil && isblank(r.List.N) {
+						r.List = nil
 					}
-					if r.Ntest != nil {
-						tmp1 = r.Ntest
+					if r.List != nil {
+						tmp1 = r.List.N
 						if r.Colas {
 							tmp2 = Nod(ODCL, tmp1, nil)
 							typecheck(&tmp2, Etop)
 							l.N.Ninit = list(l.N.Ninit, tmp2)
 						}
 
-						r.Ntest = ordertemp(tmp1.Type, order, false)
-						tmp2 = Nod(OAS, tmp1, r.Ntest)
+						r.List = list1(ordertemp(tmp1.Type, order, false))
+						tmp2 = Nod(OAS, tmp1, r.List.N)
 						typecheck(&tmp2, Etop)
 						l.N.Ninit = list(l.N.Ninit, tmp2)
 					}
@@ -918,7 +918,7 @@ func orderstmt(n *Node, order *Order) {
 	case OSWITCH:
 		t := marktemp(order)
 
-		orderexpr(&n.Ntest, order, nil)
+		orderexpr(&n.Left, order, nil)
 		for l := n.List; l != nil; l = l.Next {
 			if l.N.Op != OXCASE {
 				Fatal("order switch case %v", Oconv(int(l.N.Op), 0))
@@ -948,6 +948,9 @@ func orderexprlistinplace(l *NodeList, order *Order) {
 		orderexprinplace(&l.N, order)
 	}
 }
+
+// prealloc[x] records the allocation to use for x.
+var prealloc = map[*Node]*Node{}
 
 // Orderexpr orders a single expression, appending side
 // effects to order->out as needed.
@@ -980,7 +983,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
 			t := typ(TARRAY)
 			t.Bound = int64(count(n.List))
 			t.Type = Types[TSTRING]
-			n.Alloc = ordertemp(t, order, false)
+			prealloc[n] = ordertemp(t, order, false)
 		}
 
 		// Mark string(byteSlice) arguments to reuse byteSlice backing
@@ -995,7 +998,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
 		haslit := false
 		for l := n.List; l != nil; l = l.Next {
 			hasbyte = hasbyte || l.N.Op == OARRAYBYTESTR
-			haslit = haslit || l.N.Op == OLITERAL && len(l.N.Val.U.(string)) != 0
+			haslit = haslit || l.N.Op == OLITERAL && len(l.N.Val().U.(string)) != 0
 		}
 
 		if haslit && hasbyte {
@@ -1118,7 +1121,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
 
 	case OCLOSURE:
 		if n.Noescape && n.Func.Cvars != nil {
-			n.Alloc = ordertemp(Types[TUINT8], order, false) // walk will fill in correct type
+			prealloc[n] = ordertemp(Types[TUINT8], order, false) // walk will fill in correct type
 		}
 
 	case OARRAYLIT, OCALLPART:
@@ -1127,7 +1130,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
 		orderexprlist(n.List, order)
 		orderexprlist(n.Rlist, order)
 		if n.Noescape {
-			n.Alloc = ordertemp(Types[TUINT8], order, false) // walk will fill in correct type
+			prealloc[n] = ordertemp(Types[TUINT8], order, false) // walk will fill in correct type
 		}
 
 	case ODDDARG:
@@ -1136,7 +1139,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
 			// Allocate a temporary that will be cleaned up when this statement
 			// completes. We could be more aggressive and try to arrange for it
 			// to be cleaned up when the call completes.
-			n.Alloc = ordertemp(n.Type.Type, order, false)
+			prealloc[n] = ordertemp(n.Type.Type, order, false)
 		}
 
 	case ODOTTYPE, ODOTTYPE2:

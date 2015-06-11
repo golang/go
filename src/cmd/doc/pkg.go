@@ -332,6 +332,25 @@ func (pkg *Package) symbolDoc(symbol string) {
 	values := pkg.findValues(symbol, pkg.doc.Consts)
 	values = append(values, pkg.findValues(symbol, pkg.doc.Vars)...)
 	for _, value := range values {
+		// Print each spec only if there is at least one exported symbol in it.
+		// (See issue 11008.)
+		// TODO: Should we elide unexported symbols from a single spec?
+		// It's an unlikely scenario, probably not worth the trouble.
+		// TODO: Would be nice if go/doc did this for us.
+		specs := make([]ast.Spec, 0, len(value.Decl.Specs))
+		for _, spec := range value.Decl.Specs {
+			vspec := spec.(*ast.ValueSpec)
+			for _, ident := range vspec.Names {
+				if isExported(ident.Name) {
+					specs = append(specs, vspec)
+					break
+				}
+			}
+		}
+		if len(specs) == 0 {
+			continue
+		}
+		value.Decl.Specs = specs
 		if !found {
 			pkg.packageClause(true)
 		}

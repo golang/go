@@ -1458,7 +1458,7 @@ func TestManyErrBadConn(t *testing.T) {
 	}
 }
 
-// golang.org/issue/5781
+// golang.org/issue/5718
 func TestErrBadConnReconnect(t *testing.T) {
 	db := newTestDB(t, "foo")
 	defer closeDB(t, db)

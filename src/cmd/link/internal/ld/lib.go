@@ -276,7 +276,8 @@ func Lflag(arg string) {
 type BuildMode uint8
 
 const (
-	BuildmodeExe BuildMode = iota
+	BuildmodeUnset BuildMode = iota
+	BuildmodeExe
 	BuildmodeCArchive
 	BuildmodeCShared
 	BuildmodeShared
@@ -316,6 +317,8 @@ func (mode *BuildMode) Set(s string) error {
 
 func (mode *BuildMode) String() string {
 	switch *mode {
+	case BuildmodeUnset:
+		return "" // avoid showing a default in usage message
 	case BuildmodeExe:
 		return "exe"
 	case BuildmodeCArchive:
@@ -874,7 +877,7 @@ func archive() {
 	}
 
 	os.Remove(outfile)
-	argv := []string{"ar", "-q", "-c", outfile}
+	argv := []string{"ar", "-q", "-c", "-s", outfile}
 	argv = append(argv, hostobjCopy()...)
 	argv = append(argv, fmt.Sprintf("%s/go.o", tmpdir))
 
@@ -1529,6 +1532,41 @@ func stkcheck(up *Chain, depth int) int {
 	var ch Chain
 	ch.up = up
 
+	// Check for a call to morestack anywhere and treat it
+	// as occurring at function entry.
+	// The decision about whether to call morestack occurs
+	// in the prolog, but the call site is near the end
+	// of the function on some architectures.
+	// This is needed because the stack check is flow-insensitive,
+	// so it incorrectly thinks the call to morestack happens wherever it shows up.
+	// This check will be wrong if there are any hand-inserted calls to morestack.
+	// There are not any now, nor should there ever be.
+	for _, r := range s.R {
+		if r.Sym == nil || !strings.HasPrefix(r.Sym.Name, "runtime.morestack") {
+			continue
+		}
+		// Ignore non-calls to morestack, such as the jump to morestack
+		// found in the implementation of morestack_noctxt.
+		switch r.Type {
+		default:
+			continue
+		case obj.R_CALL, obj.R_CALLARM, obj.R_CALLARM64, obj.R_CALLPOWER:
+		}
+
+		// Ensure we have enough stack to call morestack.
+		ch.limit = limit - callsize()
+		ch.sym = r.Sym
+		if stkcheck(&ch, depth+1) < 0 {
+			return -1
+		}
+		// Bump up the limit.
+		limit = int(obj.StackLimit + s.Locals)
+		if haslinkregister() {
+			limit += Thearch.Regsize
+		}
+		break // there can be only one
+	}
+
 	// Walk through sp adjustments in function, consuming relocs.
 	ri := 0
 
@@ -1551,23 +1589,18 @@ func stkcheck(up *Chain, depth int) int {
 			switch r.Type {
 			// Direct call.
 			case obj.R_CALL, obj.R_CALLARM, obj.R_CALLARM64, obj.R_CALLPOWER:
-				ch.limit = int(int32(limit) - pcsp.value - int32(callsize()))
+				// We handled calls to morestack already.
+				if strings.HasPrefix(r.Sym.Name, "runtime.morestack") {
+					continue
+				}
 
+				ch.limit = int(int32(limit) - pcsp.value - int32(callsize()))
 				ch.sym = r.Sym
 				if stkcheck(&ch, depth+1) < 0 {
 					return -1
 				}
 
-				// If this is a call to morestack, we've just raised our limit back
-				// to StackLimit beyond the frame size.
-				if strings.HasPrefix(r.Sym.Name, "runtime.morestack") {
-					limit = int(obj.StackLimit + s.Locals)
-					if haslinkregister() {
-						limit += Thearch.Regsize
-					}
-				}
-
-				// Indirect call.  Assume it is a call to a splitting function,
+			// Indirect call.  Assume it is a call to a splitting function,
 			// so we have to make sure it can call morestack.
 			// Arrange the data structures to report both calls, so that
 			// if there is an error, stkprint shows all the steps involved.
@@ -1919,8 +1952,10 @@ func Diag(format string, args ...interface{}) {
 		sep = ": "
 	}
 	fmt.Printf("%s%s%s\n", tn, sep, fmt.Sprintf(format, args...))
-
 	nerrors++
+	if Debug['h'] != 0 {
+		panic("error")
+	}
 	if nerrors > 20 {
 		Exitf("too many errors")
 	}

@@ -236,7 +236,7 @@ func TestRaceSelect4(t *testing.T) {
 // there are two variables, access to one
 // of them is synchronized, access to the other
 // is not.
-// Select must (unconditionaly) choose the non-synchronized variable
+// Select must (unconditionally) choose the non-synchronized variable
 // thus causing exactly one race.
 // Currently this test doesn't look like it accomplishes
 // this goal.

@@ -125,7 +125,7 @@ func (w *Writer) WriteAll(records [][]string) (err error) {
 // CSV with quoted empty strings strictly less useful.
 // Not quoting the empty string also makes this package match the behavior
 // of Microsoft Excel and Google Drive.
-// For Postgres, quote the data termating string `\.`.
+// For Postgres, quote the data terminating string `\.`.
 func (w *Writer) fieldNeedsQuotes(field string) bool {
 	if field == "" {
 		return false

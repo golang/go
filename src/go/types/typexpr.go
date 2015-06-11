@@ -140,8 +140,8 @@ func (check *Checker) typ(e ast.Expr) Type {
 	return check.typExpr(e, nil, nil)
 }
 
-// funcType type-checks a function or method type and returns its signature.
-func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast.FuncType) *Signature {
+// funcType type-checks a function or method type.
+func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast.FuncType) {
 	scope := NewScope(check.scope, "function")
 	check.recordScope(ftyp, scope)
 
@@ -202,8 +202,6 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 	sig.params = NewTuple(params...)
 	sig.results = NewTuple(results...)
 	sig.variadic = variadic
-
-	return sig
 }
 
 // typExprInternal drives type checking of types.

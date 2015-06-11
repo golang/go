@@ -27,7 +27,7 @@ const (
 	// the following encode that the GC is scanning the stack and what to do when it is done
 	_Gscan = 0x1000 // atomicstatus&~Gscan = the non-scan state,
 	// _Gscanidle =     _Gscan + _Gidle,      // Not used. Gidle only used with newly malloced gs
-	_Gscanrunnable = _Gscan + _Grunnable //  0x1001 When scanning complets make Grunnable (it is already on run queue)
+	_Gscanrunnable = _Gscan + _Grunnable //  0x1001 When scanning completes make Grunnable (it is already on run queue)
 	_Gscanrunning  = _Gscan + _Grunning  //  0x1002 Used to tell preemption newstack routine to scan preempted stack.
 	_Gscansyscall  = _Gscan + _Gsyscall  //  0x1003 When scanning completes make it Gsyscall
 	_Gscanwaiting  = _Gscan + _Gwaiting  //  0x1004 When scanning completes make it Gwaiting
@@ -202,6 +202,12 @@ type stack struct {
 	hi uintptr
 }
 
+// stkbar records the state of a G's stack barrier.
+type stkbar struct {
+	savedLRPtr uintptr // location overwritten by stack barrier PC
+	savedLRVal uintptr // value overwritten at savedLRPtr
+}
+
 type g struct {
 	// Stack parameters.
 	// stack describes the actual stack memory: [stack.lo, stack.hi).
@@ -216,9 +222,12 @@ type g struct {
 
 	_panic       *_panic // innermost panic - offset known to liblink
 	_defer       *_defer // innermost defer
+	stackAlloc   uintptr // stack allocation is [stack.lo,stack.lo+stackAlloc)
 	sched        gobuf
 	syscallsp    uintptr        // if status==Gsyscall, syscallsp = sched.sp to use during gc
 	syscallpc    uintptr        // if status==Gsyscall, syscallpc = sched.pc to use during gc
+	stkbar       []stkbar       // stack barriers, from low to high
+	stkbarPos    uintptr        // index of lowest stack barrier not hit
 	param        unsafe.Pointer // passed parameter on wakeup
 	atomicstatus uint32
 	goid         int64
@@ -228,7 +237,7 @@ type g struct {
 	preempt      bool // preemption signal, duplicates stackguard0 = stackpreempt
 	paniconfault bool // panic (instead of crash) on unexpected fault address
 	preemptscan  bool // preempted g does scan for gc
-	gcworkdone   bool // debug: cleared at begining of gc work phase cycle, set by gcphasework, tested at end of cycle
+	gcworkdone   bool // debug: cleared at beginning of gc work phase cycle, set by gcphasework, tested at end of cycle
 	gcscanvalid  bool // false at start of gc cycle, true if G has not run since last scan
 	throwsplit   bool // must not split stack
 	raceignore   int8 // ignore race detection events
@@ -455,7 +464,7 @@ type schedt struct {
 // The m->locked word holds two pieces of state counting active calls to LockOSThread/lockOSThread.
 // The low bit (LockExternal) is a boolean reporting whether any LockOSThread call is active.
 // External locks are not recursive; a second lock is silently ignored.
-// The upper bits of m->lockedcount record the nesting depth of calls to lockOSThread
+// The upper bits of m->locked record the nesting depth of calls to lockOSThread
 // (counting up by LockInternal), popped by unlockOSThread (counting down by LockInternal).
 // Internal locks can be recursive. For instance, a lock for cgo can occur while the main
 // goroutine is holding the lock during the initialization phase.

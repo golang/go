@@ -55,7 +55,7 @@ func Nopout(p *Prog) {
 	p.As = ANOP
 	p.Scond = 0
 	p.From = Addr{}
-	p.From3 = Addr{}
+	p.From3 = nil
 	p.Reg = 0
 	p.To = Addr{}
 }
@@ -63,7 +63,9 @@ func Nopout(p *Prog) {
 func Nocache(p *Prog) {
 	p.Optab = 0
 	p.From.Class = 0
-	p.From3.Class = 0
+	if p.From3 != nil {
+		p.From3.Class = 0
+	}
 	p.To.Class = 0
 }
 

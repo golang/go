@@ -21,7 +21,7 @@ var cmdFmt = &Command{
 Fmt runs the command 'gofmt -l -w' on the packages named
 by the import paths.  It prints the names of the files that are modified.
 
-For more about gofmt, see 'godoc gofmt'.
+For more about gofmt, see 'go doc cmd/gofmt'.
 For more about specifying packages, see 'go help packages'.
 
 The -n flag prints commands that would be executed.

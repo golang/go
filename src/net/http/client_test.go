@@ -427,7 +427,7 @@ func TestJarCalls(t *testing.T) {
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		pathSuffix := r.RequestURI[1:]
 		if r.RequestURI == "/nosetcookie" {
-			return // dont set cookies for this path
+			return // don't set cookies for this path
 		}
 		SetCookie(w, &Cookie{Name: "name" + pathSuffix, Value: "val" + pathSuffix})
 		if r.RequestURI == "/" {
