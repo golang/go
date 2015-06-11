@@ -16,9 +16,10 @@ import (
 )
 
 type arch struct {
-	name   string
-	ops    []opData
-	blocks []blockData
+	name     string
+	ops      []opData
+	blocks   []blockData
+	regnames []string
 }
 
 type opData struct {
@@ -37,6 +38,21 @@ type regInfo struct {
 }
 
 type regMask uint64
+
+func (a arch) regMaskComment(r regMask) string {
+	var buf bytes.Buffer
+	for i := uint64(0); r != 0; i++ {
+		if r&1 != 0 {
+			if buf.Len() == 0 {
+				buf.WriteString(" //")
+			}
+			buf.WriteString(" ")
+			buf.WriteString(a.regnames[i])
+		}
+		r >>= 1
+	}
+	return buf.String()
+}
 
 var archs []arch
 
@@ -95,13 +111,13 @@ func genOp() {
 			fmt.Fprintln(w, "reg:regInfo{")
 			fmt.Fprintln(w, "inputs: []regMask{")
 			for _, r := range v.reg.inputs {
-				fmt.Fprintf(w, "%d,\n", r)
+				fmt.Fprintf(w, "%d,%s\n", r, a.regMaskComment(r))
 			}
 			fmt.Fprintln(w, "},")
-			fmt.Fprintf(w, "clobbers: %d,\n", v.reg.clobbers)
+			fmt.Fprintf(w, "clobbers: %d,%s\n", v.reg.clobbers, a.regMaskComment(v.reg.clobbers))
 			fmt.Fprintln(w, "outputs: []regMask{")
 			for _, r := range v.reg.outputs {
-				fmt.Fprintf(w, "%d,\n", r)
+				fmt.Fprintf(w, "%d,%s\n", r, a.regMaskComment(r))
 			}
 			fmt.Fprintln(w, "},")
 			fmt.Fprintln(w, "},")

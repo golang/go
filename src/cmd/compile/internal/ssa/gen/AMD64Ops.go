@@ -175,5 +175,5 @@ func init() {
 		{name: "UGE"},
 	}
 
-	archs = append(archs, arch{"AMD64", AMD64ops, AMD64blocks})
+	archs = append(archs, arch{"AMD64", AMD64ops, AMD64blocks, regNamesAMD64})
 }
