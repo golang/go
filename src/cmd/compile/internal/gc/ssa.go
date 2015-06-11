@@ -206,7 +206,8 @@ func (s *state) stmt(n *Node) {
 		s.stmtList(n.List)
 
 	case ODCL:
-		// TODO: ???  Assign 0?
+		// TODO: old gen pass uses dcl node as the point where
+		// escaping variables' new functions are called. Do that here
 
 	case OLABEL, OGOTO:
 		// get block at label, or make one
@@ -225,7 +226,6 @@ func (s *state) stmt(n *Node) {
 		}
 
 	case OAS, OASWB:
-		// TODO(khr): colas?
 		// TODO: do write barrier
 		var val *ssa.Value
 		if n.Right == nil {
