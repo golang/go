@@ -631,6 +631,16 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 			continue
 		}
 		p1 := loadImport(path, p.Dir, stk, p.build.ImportPos[path])
+		if p1.Name == "main" {
+			p.Error = &PackageError{
+				ImportStack: stk.copy(),
+				Err:         fmt.Sprintf("import %q is a program, not an importable package", path),
+			}
+			pos := p.build.ImportPos[path]
+			if len(pos) > 0 {
+				p.Error.Pos = pos[0].String()
+			}
+		}
 		if p1.local {
 			if !p.local && p.Error == nil {
 				p.Error = &PackageError{

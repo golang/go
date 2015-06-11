@@ -1830,3 +1830,21 @@ func TestGoGetRscIoToolstash(t *testing.T) {
 	tg.cd(tg.path("src/rsc.io"))
 	tg.run("get", "./toolstash")
 }
+
+// Test that you can not import a main package.
+func TestIssue4210(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.tempFile("src/x/main.go", `package main
+		var X int
+		func main() {}`)
+	tg.tempFile("src/y/main.go", `package main
+		import "fmt"
+		import xmain "x"
+		func main() {
+			fmt.Println(xmain.X)
+		}`)
+	tg.setenv("GOPATH", tg.path("."))
+	tg.runFail("build", "y")
+	tg.grepBoth("is a program", `did not find expected error message ("is a program")`)
+}
