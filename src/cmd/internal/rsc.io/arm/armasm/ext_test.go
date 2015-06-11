@@ -216,7 +216,7 @@ func writeInst(generate func(func([]byte))) (file string, f *os.File, size int, 
 
 var zeros = []byte{0, 0, 0, 0}
 
-// pad pads the code sequenc with pops.
+// pad pads the code sequence with pops.
 func pad(enc []byte) []byte {
 	if len(enc) < 4 {
 		enc = append(enc[:len(enc):len(enc)], zeros[:4-len(enc)]...)

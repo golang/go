@@ -772,7 +772,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 	inlgen++
 	body := inlsubstlist(fn.Func.Inl)
 
-	body = list(body, Nod(OGOTO, inlretlabel, nil)) // avoid 'not used' when function doesnt have return
+	body = list(body, Nod(OGOTO, inlretlabel, nil)) // avoid 'not used' when function doesn't have return
 	body = list(body, Nod(OLABEL, inlretlabel, nil))
 
 	typechecklist(body, Etop)

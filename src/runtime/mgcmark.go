@@ -954,7 +954,7 @@ func gcmarknewobject_m(obj, size uintptr) {
 // stopped ensuring that any object encountered has their normal
 // mark bit set. To do this we use an orthogonal bit
 // pattern to indicate the object is marked. The following pattern
-// uses the upper two bits in the object's bounday nibble.
+// uses the upper two bits in the object's boundary nibble.
 // 01: scalar  not marked
 // 10: pointer not marked
 // 11: pointer     marked

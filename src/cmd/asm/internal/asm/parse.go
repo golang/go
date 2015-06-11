@@ -736,7 +736,7 @@ func (p *Parser) registerNumber(name string) uint16 {
 }
 
 // Note: There are two changes in the expression handling here
-// compared to the old yacc/C implemenatations. Neither has
+// compared to the old yacc/C implementations. Neither has
 // much practical consequence because the expressions we
 // see in assembly code are simple, but for the record:
 //

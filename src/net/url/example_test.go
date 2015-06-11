@@ -47,7 +47,7 @@ func ExampleURL_opaque() {
 	// Sending a literal '%' in an HTTP request's Path
 	req := &http.Request{
 		Method: "GET",
-		Host:   "example.com", // takes precendence over URL.Host
+		Host:   "example.com", // takes precedence over URL.Host
 		URL: &url.URL{
 			Host:   "ignored",
 			Scheme: "https",

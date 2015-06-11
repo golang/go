@@ -17,7 +17,7 @@ var (
 	svgClose = regexp.MustCompile(`</svg>`)
 )
 
-// Massage enhances the SVG output from DOT to provide bettern
+// Massage enhances the SVG output from DOT to provide better
 // panning inside a web browser. It uses the SVGPan library, which is
 // included directly.
 func Massage(in bytes.Buffer) string {

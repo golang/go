@@ -2829,7 +2829,7 @@ func keydup(n *Node, hash map[uint32][]*Node) {
 	}
 	evconst(n)
 	if n.Op != OLITERAL {
-		return // we dont check variables
+		return // we don't check variables
 	}
 
 	var h uint32

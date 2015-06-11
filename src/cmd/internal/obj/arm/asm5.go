@@ -503,7 +503,7 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 				break
 			} else {
 				// if a load/store instruction takes more than 1 word to implement, then
-				// we need to seperate the instruction into two:
+				// we need to separate the instruction into two:
 				// 1. explicitly load the address into R11.
 				// 2. load/store from R11.
 				// This won't handle .W/.P, so we should reject such code.

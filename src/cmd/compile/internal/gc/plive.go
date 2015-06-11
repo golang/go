@@ -585,7 +585,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar Bvec, varkill Bvec, avarini
 				// If the result had its address taken, it is being tracked
 			// by the avarinit code, which does not use uevar.
 			// If we added it to uevar too, we'd not see any kill
-			// and decide that the varible was live entry, which it is not.
+			// and decide that the variable was live entry, which it is not.
 			// So only use uevar in the non-addrtaken case.
 			// The p->to.type == thearch.D_NONE limits the bvset to
 			// non-tail-call return instructions; see note above

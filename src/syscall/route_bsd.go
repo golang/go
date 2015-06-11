@@ -58,7 +58,7 @@ func parseSockaddrLink(b []byte) (*SockaddrDatalink, error) {
 // parseLinkLayerAddr parses b as a datalink socket address in
 // conventional BSD kernel form.
 func parseLinkLayerAddr(b []byte) (*SockaddrDatalink, int, error) {
-	// The encoding looks like the follwoing:
+	// The encoding looks like the following:
 	// +----------------------------+
 	// | Type             (1 octet) |
 	// +----------------------------+

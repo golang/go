@@ -490,7 +490,7 @@ func orderstmt(n *Node, order *Order) {
 
 	case OASOP:
 		// Special: rewrite l op= r into l = l op r.
-		// This simplies quite a few operations;
+		// This simplifies quite a few operations;
 		// most important is that it lets us separate
 		// out map read from map write when l is
 		// a map index expression.
