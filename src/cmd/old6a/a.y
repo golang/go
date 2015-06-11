@@ -196,6 +196,7 @@ spec1:	/* DATA */
 		a.to = $6
 		outcode(obj.ADATA, &a)
 		if asm.Pass > 1 {
+			lastpc.From3 = new(obj.Addr)
 			lastpc.From3.Type = obj.TYPE_CONST
 			lastpc.From3.Offset = $4
 		}
@@ -206,12 +207,16 @@ spec2:	/* TEXT */
 	{
 		asm.Settext($2.Sym);
 		outcode(obj.ATEXT, &Addr2{from: $2, to: $5})
+		if asm.Pass > 1 {
+			lastpc.From3 = new(obj.Addr)
+		}	
 	}
 |	LTYPET mem ',' con ',' '$' textsize
 	{
 		asm.Settext($2.Sym);
 		outcode(obj.ATEXT, &Addr2{from: $2, to: $7})
 		if asm.Pass > 1 {
+			lastpc.From3 = new(obj.Addr)
 			lastpc.From3.Type = obj.TYPE_CONST
 			lastpc.From3.Offset = $4
 		}
@@ -222,12 +227,16 @@ spec11:	/* GLOBL */
 	{
 		asm.Settext($2.Sym)
 		outcode(obj.AGLOBL, &Addr2{from: $2, to: $4})
+		if asm.Pass > 1 {
+			lastpc.From3 = new(obj.Addr)
+		}	
 	}
 |	LTYPEG mem ',' con ',' imm
 	{
 		asm.Settext($2.Sym)
 		outcode(obj.AGLOBL, &Addr2{from: $2, to: $6})
 		if asm.Pass > 1 {
+			lastpc.From3 = new(obj.Addr)
 			lastpc.From3.Type = obj.TYPE_CONST
 			lastpc.From3.Offset = $4
 		}

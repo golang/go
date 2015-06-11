@@ -791,6 +791,9 @@ func (sfr *sparseFileReader) Read(b []byte) (n int, err error) {
 		// Otherwise, we're at the end of the file
 		return 0, io.EOF
 	}
+	if sfr.tot < sfr.sp[0].offset {
+		return 0, io.ErrUnexpectedEOF
+	}
 	if sfr.pos < sfr.sp[0].offset {
 		// We're in a hole
 		n = sfr.readHole(b, sfr.sp[0].offset)

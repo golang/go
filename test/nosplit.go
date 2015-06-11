@@ -249,7 +249,7 @@ TestCases:
 		switch goarch {
 		case "ppc64", "ppc64le":
 			ptrSize = 8
-			fmt.Fprintf(&buf, "#define CALL BL\n#define REGISTER (CTR)\n#define RET RETURN\n")
+			fmt.Fprintf(&buf, "#define CALL BL\n#define REGISTER (CTR)\n")
 		case "arm":
 			fmt.Fprintf(&buf, "#define CALL BL\n#define REGISTER (R0)\n")
 		case "arm64":

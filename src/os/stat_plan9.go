@@ -63,7 +63,7 @@ func dirstat(arg interface{}) (*syscall.Dir, error) {
 		}
 
 		if n < _BIT16SZ {
-			return nil, &PathError{"stat", name, syscall.ErrShortStat}
+			return nil, &PathError{"stat", name, err}
 		}
 
 		// Pull the real size out of the stat message.

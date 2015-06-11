@@ -57,7 +57,10 @@ const LNAME = 57378
 const LLAB = 57379
 const LVAR = 57380
 
-var yyToknames = []string{
+var yyToknames = [...]string{
+	"$end",
+	"error",
+	"$unk",
 	"'|'",
 	"'^'",
 	"'&'",
@@ -103,15 +106,23 @@ var yyToknames = []string{
 	"LNAME",
 	"LLAB",
 	"LVAR",
+	"':'",
+	"';'",
+	"'='",
+	"','",
+	"'$'",
+	"'('",
+	"')'",
+	"'~'",
 }
-var yyStatenames = []string{}
+var yyStatenames = [...]string{}
 
 const yyEofCode = 1
 const yyErrCode = 2
 const yyMaxDepth = 200
 
 //line yacctab:1
-var yyExca = []int{
+var yyExca = [...]int{
 	-1, 1,
 	1, -1,
 	-2, 2,
@@ -125,7 +136,7 @@ var yyStates []string
 
 const yyLast = 593
 
-var yyAct = []int{
+var yyAct = [...]int{
 
 	52, 227, 41, 3, 80, 208, 269, 64, 123, 50,
 	51, 79, 54, 170, 268, 74, 267, 118, 85, 72,
@@ -188,7 +199,7 @@ var yyAct = []int{
 	162, 156, 157, 158, 159, 160, 161, 162, 156, 157,
 	158, 159, 160,
 }
-var yyPact = []int{
+var yyPact = [...]int{
 
 	-1000, -1000, 250, -1000, 72, -1000, 74, 67, 65, 61,
 	374, 294, 294, 394, 159, -1000, -1000, 274, 354, 294,
@@ -218,14 +229,14 @@ var yyPact = []int{
 	-1000, 215, 199, -1000, 502, -1000, -34, -1000, 155, -1000,
 	502, 502, -39, -1000, -1000, -41, -49, -1000, -1000, -1000,
 }
-var yyPgo = []int{
+var yyPgo = [...]int{
 
 	0, 0, 17, 324, 8, 202, 7, 1, 2, 12,
 	4, 96, 43, 11, 9, 10, 208, 323, 198, 321,
 	318, 317, 310, 309, 308, 306, 305, 302, 301, 299,
 	297, 263, 254, 253, 3, 250, 249, 248, 247, 245,
 }
-var yyR1 = []int{
+var yyR1 = [...]int{
 
 	0, 32, 33, 32, 35, 34, 34, 34, 34, 36,
 	36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
@@ -242,7 +253,7 @@ var yyR1 = []int{
 	7, 7, 2, 2, 2, 2, 2, 2, 2, 2,
 	2, 2, 2,
 }
-var yyR2 = []int{
+var yyR2 = [...]int{
 
 	0, 0, 0, 3, 0, 4, 1, 2, 2, 3,
 	3, 2, 2, 2, 2, 2, 2, 1, 1, 2,
@@ -259,7 +270,7 @@ var yyR2 = []int{
 	3, 4, 1, 3, 3, 3, 3, 3, 4, 4,
 	3, 3, 3,
 }
-var yyChk = []int{
+var yyChk = [...]int{
 
 	-1000, -32, -33, -34, 46, 50, -36, 2, 48, 14,
 	15, 16, 17, 18, 22, -37, -38, 19, 21, 26,
@@ -289,7 +300,7 @@ var yyChk = []int{
 	-6, 38, 39, 55, 11, 55, 36, 33, 10, -7,
 	11, 11, -1, 55, 33, -1, -1, 55, 55, 55,
 }
-var yyDef = []int{
+var yyDef = [...]int{
 
 	1, -2, 0, 3, 0, 6, 0, 0, 0, 30,
 	0, 0, 0, 0, 0, 17, 18, 0, 30, 0,
@@ -319,7 +330,7 @@ var yyDef = []int{
 	45, 0, 0, 95, 0, 103, 0, 120, 0, 43,
 	0, 0, 0, 105, 121, 0, 0, 101, 96, 97,
 }
-var yyTok1 = []int{
+var yyTok1 = [...]int{
 
 	1, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
@@ -335,22 +346,31 @@ var yyTok1 = []int{
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 4, 3, 56,
 }
-var yyTok2 = []int{
+var yyTok2 = [...]int{
 
 	2, 3, 14, 15, 16, 17, 18, 19, 20, 21,
 	22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
 	32, 33, 34, 35, 36, 37, 38, 39, 40, 41,
 	42, 43, 44, 45, 46, 47, 48,
 }
-var yyTok3 = []int{
+var yyTok3 = [...]int{
 	0,
 }
+
+var yyErrorMessages = [...]struct {
+	state int
+	token int
+	msg   string
+}{}
 
 //line yaccpar:1
 
 /*	parser for yacc output	*/
 
-var yyDebug = 0
+var (
+	yyDebug        = 0
+	yyErrorVerbose = false
+)
 
 type yyLexer interface {
 	Lex(lval *yySymType) int
@@ -380,10 +400,9 @@ func yyNewParser() yyParser {
 const yyFlag = -1000
 
 func yyTokname(c int) string {
-	// 4 is TOKSTART above
-	if c >= 4 && c-4 < len(yyToknames) {
-		if yyToknames[c-4] != "" {
-			return yyToknames[c-4]
+	if c >= 1 && c-1 < len(yyToknames) {
+		if yyToknames[c-1] != "" {
+			return yyToknames[c-1]
 		}
 	}
 	return __yyfmt__.Sprintf("tok-%v", c)
@@ -396,6 +415,70 @@ func yyStatname(s int) string {
 		}
 	}
 	return __yyfmt__.Sprintf("state-%v", s)
+}
+
+func yyErrorMessage(state, lookAhead int) string {
+	const TOKSTART = 4
+
+	if !yyErrorVerbose {
+		return "syntax error"
+	}
+
+	for _, e := range yyErrorMessages {
+		if e.state == state && e.token == lookAhead {
+			return "syntax error: " + e.msg
+		}
+	}
+
+	res := "syntax error: unexpected " + yyTokname(lookAhead)
+
+	// To match Bison, suggest at most four expected tokens.
+	expected := make([]int, 0, 4)
+
+	// Look for shiftable tokens.
+	base := yyPact[state]
+	for tok := TOKSTART; tok-1 < len(yyToknames); tok++ {
+		if n := base + tok; n >= 0 && n < yyLast && yyChk[yyAct[n]] == tok {
+			if len(expected) == cap(expected) {
+				return res
+			}
+			expected = append(expected, tok)
+		}
+	}
+
+	if yyDef[state] == -2 {
+		i := 0
+		for yyExca[i] != -1 || yyExca[i+1] != state {
+			i += 2
+		}
+
+		// Look for tokens that we accept or reduce.
+		for i += 2; yyExca[i] >= 0; i += 2 {
+			tok := yyExca[i]
+			if tok < TOKSTART || yyExca[i+1] == 0 {
+				continue
+			}
+			if len(expected) == cap(expected) {
+				return res
+			}
+			expected = append(expected, tok)
+		}
+
+		// If the default action is to accept or reduce, give up.
+		if yyExca[i+1] != 0 {
+			return res
+		}
+	}
+
+	for i, tok := range expected {
+		if i == 0 {
+			res += ", expecting "
+		} else {
+			res += " or "
+		}
+		res += yyTokname(tok)
+	}
+	return res
 }
 
 func yylex1(lex yyLexer, lval *yySymType) (char, token int) {
@@ -452,6 +535,7 @@ func (yyrcvr *yyParserImpl) Parse(yylex yyLexer) int {
 	yyrcvr.lookahead = func() int { return yychar }
 	defer func() {
 		// Make sure we report no lookahead when not parsing.
+		yystate = -1
 		yychar = -1
 		yytoken = -1
 	}()
@@ -534,7 +618,7 @@ yydefault:
 		/* error ... attempt to resume parsing */
 		switch Errflag {
 		case 0: /* brand new error */
-			yylex.Error("syntax error")
+			yylex.Error(yyErrorMessage(yystate, yytoken))
 			Nerrs++
 			if yyDebug >= 1 {
 				__yyfmt__.Printf("%s", yyStatname(yystate))
@@ -827,74 +911,79 @@ yydefault:
 			a.to = yyDollar[6].addr
 			outcode(obj.ADATA, &a)
 			if asm.Pass > 1 {
+				lastpc.From3 = new(obj.Addr)
 				lastpc.From3.Type = obj.TYPE_CONST
 				lastpc.From3.Offset = yyDollar[4].lval
 			}
 		}
 	case 42:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line a.y:206
+		//line a.y:207
 		{
 			asm.Settext(yyDollar[2].addr.Sym)
 			outcode(obj.ATEXT, &Addr2{from: yyDollar[2].addr, to: yyDollar[5].addr})
+			if asm.Pass > 1 {
+				lastpc.From3 = new(obj.Addr)
+			}
 		}
 	case 43:
 		yyDollar = yyS[yypt-7 : yypt+1]
-		//line a.y:211
+		//line a.y:215
 		{
 			asm.Settext(yyDollar[2].addr.Sym)
 			outcode(obj.ATEXT, &Addr2{from: yyDollar[2].addr, to: yyDollar[7].addr})
 			if asm.Pass > 1 {
+				lastpc.From3 = new(obj.Addr)
 				lastpc.From3.Type = obj.TYPE_CONST
 				lastpc.From3.Offset = yyDollar[4].lval
 			}
 		}
 	case 44:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line a.y:222
+		//line a.y:227
 		{
 			asm.Settext(yyDollar[2].addr.Sym)
 			outcode(obj.AGLOBL, &Addr2{from: yyDollar[2].addr, to: yyDollar[4].addr})
+			if asm.Pass > 1 {
+				lastpc.From3 = new(obj.Addr)
+			}
 		}
 	case 45:
 		yyDollar = yyS[yypt-6 : yypt+1]
-		//line a.y:227
+		//line a.y:235
 		{
 			asm.Settext(yyDollar[2].addr.Sym)
 			outcode(obj.AGLOBL, &Addr2{from: yyDollar[2].addr, to: yyDollar[6].addr})
 			if asm.Pass > 1 {
+				lastpc.From3 = new(obj.Addr)
 				lastpc.From3.Type = obj.TYPE_CONST
 				lastpc.From3.Offset = yyDollar[4].lval
 			}
 		}
 	case 46:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line a.y:238
+		//line a.y:247
 		{
 			yyVAL.addr2.from = nullgen
 			yyVAL.addr2.to = yyDollar[2].addr
 		}
 	case 47:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line a.y:243
+		//line a.y:252
 		{
 			yyVAL.addr2.from = nullgen
 			yyVAL.addr2.to = yyDollar[1].addr
 		}
-	case 48:
-		yyVAL.addr2 = yyS[yypt-0].addr2
-	case 49:
-		yyVAL.addr2 = yyS[yypt-0].addr2
 	case 50:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line a.y:254
+		//line a.y:263
 		{
 			yyVAL.addr2.from = yyDollar[1].addr
 			yyVAL.addr2.to = yyDollar[3].addr
 		}
 	case 51:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line a.y:259
+		//line a.y:268
 		{
 			yyVAL.addr2.from = yyDollar[1].addr
 			yyVAL.addr2.to = yyDollar[3].addr
@@ -905,14 +994,14 @@ yydefault:
 		}
 	case 52:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line a.y:270
+		//line a.y:279
 		{
 			yyVAL.addr2.from = yyDollar[1].addr
 			yyVAL.addr2.to = yyDollar[3].addr
 		}
 	case 53:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line a.y:275
+		//line a.y:284
 		{
 			yyVAL.addr2.from = yyDollar[1].addr
 			yyVAL.addr2.to = yyDollar[3].addr
@@ -923,28 +1012,28 @@ yydefault:
 		}
 	case 54:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line a.y:286
+		//line a.y:295
 		{
 			yyVAL.addr2.from = yyDollar[1].addr
 			yyVAL.addr2.to = nullgen
 		}
 	case 55:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line a.y:291
+		//line a.y:300
 		{
 			yyVAL.addr2.from = yyDollar[1].addr
 			yyVAL.addr2.to = nullgen
 		}
 	case 56:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line a.y:296
+		//line a.y:305
 		{
 			yyVAL.addr2.from = yyDollar[1].addr
 			yyVAL.addr2.to = yyDollar[3].addr
 		}
 	case 57:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line a.y:303
+		//line a.y:312
 		{
 			yyVAL.addr2.from = yyDollar[1].addr
 			yyVAL.addr2.from3 = yyDollar[3].addr
@@ -953,7 +1042,7 @@ yydefault:
 		}
 	case 58:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line a.y:312
+		//line a.y:321
 		{
 			yyVAL.addr2.from = yyDollar[1].addr
 			yyVAL.addr2.from3 = yyDollar[3].addr
@@ -961,21 +1050,21 @@ yydefault:
 		}
 	case 59:
 		yyDollar = yyS[yypt-0 : yypt+1]
-		//line a.y:319
+		//line a.y:328
 		{
 			yyVAL.addr2.from = nullgen
 			yyVAL.addr2.to = nullgen
 		}
 	case 60:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line a.y:324
+		//line a.y:333
 		{
 			yyVAL.addr2.from = yyDollar[1].addr
 			yyVAL.addr2.to = nullgen
 		}
 	case 61:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line a.y:331
+		//line a.y:340
 		{
 			if yyDollar[1].addr.Type != obj.TYPE_CONST || yyDollar[3].addr.Type != obj.TYPE_CONST {
 				yyerror("arguments to asm.PCDATA must be integer constants")
@@ -985,7 +1074,7 @@ yydefault:
 		}
 	case 62:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line a.y:341
+		//line a.y:350
 		{
 			if yyDollar[1].addr.Type != obj.TYPE_CONST {
 				yyerror("index for FUNCDATA must be integer constant")
@@ -996,37 +1085,21 @@ yydefault:
 			yyVAL.addr2.from = yyDollar[1].addr
 			yyVAL.addr2.to = yyDollar[3].addr
 		}
-	case 63:
-		yyVAL.addr = yyS[yypt-0].addr
-	case 64:
-		yyVAL.addr = yyS[yypt-0].addr
-	case 65:
-		yyVAL.addr = yyS[yypt-0].addr
-	case 66:
-		yyVAL.addr = yyS[yypt-0].addr
 	case 67:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line a.y:360
+		//line a.y:369
 		{
 			yyVAL.addr = yyDollar[2].addr
 		}
 	case 68:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line a.y:364
+		//line a.y:373
 		{
 			yyVAL.addr = yyDollar[2].addr
 		}
-	case 69:
-		yyVAL.addr = yyS[yypt-0].addr
-	case 70:
-		yyVAL.addr = yyS[yypt-0].addr
-	case 71:
-		yyVAL.addr = yyS[yypt-0].addr
-	case 72:
-		yyVAL.addr = yyS[yypt-0].addr
 	case 73:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line a.y:376
+		//line a.y:385
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_BRANCH
@@ -1034,7 +1107,7 @@ yydefault:
 		}
 	case 74:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line a.y:382
+		//line a.y:391
 		{
 			yyDollar[1].sym = asm.LabelLookup(yyDollar[1].sym)
 			yyVAL.addr = nullgen
@@ -1046,7 +1119,7 @@ yydefault:
 		}
 	case 75:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line a.y:394
+		//line a.y:403
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_REG
@@ -1054,7 +1127,7 @@ yydefault:
 		}
 	case 76:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line a.y:400
+		//line a.y:409
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_REG
@@ -1062,7 +1135,7 @@ yydefault:
 		}
 	case 77:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line a.y:406
+		//line a.y:415
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_REG
@@ -1070,7 +1143,7 @@ yydefault:
 		}
 	case 78:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line a.y:412
+		//line a.y:421
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_REG
@@ -1078,7 +1151,7 @@ yydefault:
 		}
 	case 79:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line a.y:418
+		//line a.y:427
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_REG
@@ -1086,7 +1159,7 @@ yydefault:
 		}
 	case 80:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line a.y:424
+		//line a.y:433
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_REG
@@ -1094,7 +1167,7 @@ yydefault:
 		}
 	case 81:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line a.y:430
+		//line a.y:439
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_REG
@@ -1102,7 +1175,7 @@ yydefault:
 		}
 	case 82:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line a.y:438
+		//line a.y:447
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_CONST
@@ -1110,7 +1183,7 @@ yydefault:
 		}
 	case 83:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line a.y:444
+		//line a.y:453
 		{
 			yyVAL.addr = yyDollar[2].addr
 			yyVAL.addr.Type = obj.TYPE_ADDR
@@ -1122,7 +1195,7 @@ yydefault:
 		}
 	case 84:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line a.y:453
+		//line a.y:462
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_SCONST
@@ -1130,7 +1203,7 @@ yydefault:
 		}
 	case 85:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line a.y:459
+		//line a.y:468
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_FCONST
@@ -1138,7 +1211,7 @@ yydefault:
 		}
 	case 86:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line a.y:465
+		//line a.y:474
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_FCONST
@@ -1146,7 +1219,7 @@ yydefault:
 		}
 	case 87:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line a.y:471
+		//line a.y:480
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_FCONST
@@ -1154,19 +1227,15 @@ yydefault:
 		}
 	case 88:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line a.y:477
+		//line a.y:486
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_FCONST
 			yyVAL.addr.Val = -yyDollar[3].dval
 		}
-	case 89:
-		yyVAL.addr = yyS[yypt-0].addr
-	case 90:
-		yyVAL.addr = yyS[yypt-0].addr
 	case 91:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line a.y:489
+		//line a.y:498
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_MEM
@@ -1174,7 +1243,7 @@ yydefault:
 		}
 	case 92:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line a.y:495
+		//line a.y:504
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_MEM
@@ -1183,7 +1252,7 @@ yydefault:
 		}
 	case 93:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line a.y:502
+		//line a.y:511
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_MEM
@@ -1192,7 +1261,7 @@ yydefault:
 		}
 	case 94:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line a.y:509
+		//line a.y:518
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_MEM
@@ -1201,7 +1270,7 @@ yydefault:
 		}
 	case 95:
 		yyDollar = yyS[yypt-6 : yypt+1]
-		//line a.y:516
+		//line a.y:525
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_MEM
@@ -1212,7 +1281,7 @@ yydefault:
 		}
 	case 96:
 		yyDollar = yyS[yypt-9 : yypt+1]
-		//line a.y:525
+		//line a.y:534
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_MEM
@@ -1224,7 +1293,7 @@ yydefault:
 		}
 	case 97:
 		yyDollar = yyS[yypt-9 : yypt+1]
-		//line a.y:535
+		//line a.y:544
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_MEM
@@ -1236,7 +1305,7 @@ yydefault:
 		}
 	case 98:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line a.y:545
+		//line a.y:554
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_MEM
@@ -1244,7 +1313,7 @@ yydefault:
 		}
 	case 99:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line a.y:551
+		//line a.y:560
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_MEM
@@ -1252,7 +1321,7 @@ yydefault:
 		}
 	case 100:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line a.y:557
+		//line a.y:566
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_MEM
@@ -1262,7 +1331,7 @@ yydefault:
 		}
 	case 101:
 		yyDollar = yyS[yypt-8 : yypt+1]
-		//line a.y:565
+		//line a.y:574
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_MEM
@@ -1273,13 +1342,13 @@ yydefault:
 		}
 	case 102:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line a.y:576
+		//line a.y:585
 		{
 			yyVAL.addr = yyDollar[1].addr
 		}
 	case 103:
 		yyDollar = yyS[yypt-6 : yypt+1]
-		//line a.y:580
+		//line a.y:589
 		{
 			yyVAL.addr = yyDollar[1].addr
 			yyVAL.addr.Index = int16(yyDollar[3].lval)
@@ -1288,7 +1357,7 @@ yydefault:
 		}
 	case 104:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line a.y:589
+		//line a.y:598
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_MEM
@@ -1298,7 +1367,7 @@ yydefault:
 		}
 	case 105:
 		yyDollar = yyS[yypt-7 : yypt+1]
-		//line a.y:597
+		//line a.y:606
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_MEM
@@ -1308,67 +1377,61 @@ yydefault:
 		}
 	case 106:
 		yyDollar = yyS[yypt-0 : yypt+1]
-		//line a.y:606
+		//line a.y:615
 		{
 			yyVAL.lval = 0
 		}
 	case 107:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line a.y:610
+		//line a.y:619
 		{
 			yyVAL.lval = yyDollar[2].lval
 		}
 	case 108:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line a.y:614
+		//line a.y:623
 		{
 			yyVAL.lval = -yyDollar[2].lval
 		}
-	case 109:
-		yyVAL.lval = yyS[yypt-0].lval
 	case 110:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line a.y:621
+		//line a.y:630
 		{
 			yyVAL.lval = obj.NAME_AUTO
 		}
-	case 111:
-		yyVAL.lval = yyS[yypt-0].lval
-	case 112:
-		yyVAL.lval = yyS[yypt-0].lval
 	case 113:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line a.y:629
+		//line a.y:638
 		{
 			yyVAL.lval = yyDollar[1].sym.Value
 		}
 	case 114:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line a.y:633
+		//line a.y:642
 		{
 			yyVAL.lval = -yyDollar[2].lval
 		}
 	case 115:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line a.y:637
+		//line a.y:646
 		{
 			yyVAL.lval = yyDollar[2].lval
 		}
 	case 116:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line a.y:641
+		//line a.y:650
 		{
 			yyVAL.lval = ^yyDollar[2].lval
 		}
 	case 117:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line a.y:645
+		//line a.y:654
 		{
 			yyVAL.lval = yyDollar[2].lval
 		}
 	case 118:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line a.y:651
+		//line a.y:660
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
@@ -1377,7 +1440,7 @@ yydefault:
 		}
 	case 119:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line a.y:658
+		//line a.y:667
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
@@ -1386,7 +1449,7 @@ yydefault:
 		}
 	case 120:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line a.y:665
+		//line a.y:674
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
@@ -1395,72 +1458,70 @@ yydefault:
 		}
 	case 121:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line a.y:672
+		//line a.y:681
 		{
 			yyVAL.addr = nullgen
 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
 			yyVAL.addr.Offset = -yyDollar[2].lval
 			yyVAL.addr.Val = int32(yyDollar[4].lval)
 		}
-	case 122:
-		yyVAL.lval = yyS[yypt-0].lval
 	case 123:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line a.y:682
+		//line a.y:691
 		{
 			yyVAL.lval = yyDollar[1].lval + yyDollar[3].lval
 		}
 	case 124:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line a.y:686
+		//line a.y:695
 		{
 			yyVAL.lval = yyDollar[1].lval - yyDollar[3].lval
 		}
 	case 125:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line a.y:690
+		//line a.y:699
 		{
 			yyVAL.lval = yyDollar[1].lval * yyDollar[3].lval
 		}
 	case 126:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line a.y:694
+		//line a.y:703
 		{
 			yyVAL.lval = yyDollar[1].lval / yyDollar[3].lval
 		}
 	case 127:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line a.y:698
+		//line a.y:707
 		{
 			yyVAL.lval = yyDollar[1].lval % yyDollar[3].lval
 		}
 	case 128:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line a.y:702
+		//line a.y:711
 		{
 			yyVAL.lval = yyDollar[1].lval << uint(yyDollar[4].lval)
 		}
 	case 129:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line a.y:706
+		//line a.y:715
 		{
 			yyVAL.lval = yyDollar[1].lval >> uint(yyDollar[4].lval)
 		}
 	case 130:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line a.y:710
+		//line a.y:719
 		{
 			yyVAL.lval = yyDollar[1].lval & yyDollar[3].lval
 		}
 	case 131:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line a.y:714
+		//line a.y:723
 		{
 			yyVAL.lval = yyDollar[1].lval ^ yyDollar[3].lval
 		}
 	case 132:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line a.y:718
+		//line a.y:727
 		{
 			yyVAL.lval = yyDollar[1].lval | yyDollar[3].lval
 		}

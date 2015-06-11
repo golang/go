@@ -545,10 +545,6 @@ func initdynimport() *Dll {
 				r.Off = 0
 				r.Siz = uint8(Thearch.Ptrsize)
 				r.Type = obj.R_ADDR
-
-				// pre-allocate symtab entries for those symbols
-				dynSym.Dynid = int32(ncoffsym)
-				ncoffsym++
 			}
 		}
 	} else {
@@ -988,20 +984,25 @@ func addpesym(s *LSym, name string, type_ int, addr int64, size int64, ver int, 
 	ncoffsym++
 }
 
-func addpesymtable() {
-	if Debug['s'] == 0 {
-		genasmsym(addpesym)
-		coffsym = make([]COFFSym, ncoffsym)
-		ncoffsym = 0
-		if Linkmode == LinkExternal {
-			for d := dr; d != nil; d = d.next {
-				for m := d.ms; m != nil; m = m.next {
-					s := m.s.R[0].Xsym
-					addpesym(s, s.Name, 'U', 0, int64(Thearch.Ptrsize), 0, nil)
-				}
+func pegenasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
+	if Linkmode == LinkExternal {
+		for d := dr; d != nil; d = d.next {
+			for m := d.ms; m != nil; m = m.next {
+				s := m.s.R[0].Xsym
+				put(s, s.Name, 'U', 0, int64(Thearch.Ptrsize), 0, nil)
 			}
 		}
-		genasmsym(addpesym)
+	}
+	genasmsym(put)
+}
+
+func addpesymtable() {
+	if Debug['s'] == 0 || Linkmode == LinkExternal {
+		ncoffsym = 0
+		pegenasmsym(addpesym)
+		coffsym = make([]COFFSym, ncoffsym)
+		ncoffsym = 0
+		pegenasmsym(addpesym)
 	}
 	size := len(strtbl) + 4 + 18*ncoffsym
 

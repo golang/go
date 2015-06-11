@@ -58,7 +58,7 @@ type mheap struct {
 	cachealloc            fixalloc // allocator for mcache*
 	specialfinalizeralloc fixalloc // allocator for specialfinalizer*
 	specialprofilealloc   fixalloc // allocator for specialprofile*
-	speciallock           mutex    // lock for sepcial record allocators.
+	speciallock           mutex    // lock for special record allocators.
 }
 
 var mheap_ mheap

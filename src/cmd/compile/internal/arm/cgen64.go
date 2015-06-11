@@ -194,7 +194,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		p1.To.Reg = ah.Reg
 		p1.To.Offset = int64(al.Reg)
 
-		//print("%P\n", p1);
+		//print("%v\n", p1);
 
 		// bl * ch + ah -> ah
 		p1 = gins(arm.AMULA, nil, nil)
@@ -206,7 +206,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		p1.To.Reg = ah.Reg
 		p1.To.Offset = int64(ah.Reg)
 
-		//print("%P\n", p1);
+		//print("%v\n", p1);
 
 		// bh * cl + ah -> ah
 		p1 = gins(arm.AMULA, nil, nil)
@@ -218,7 +218,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		p1.To.Reg = ah.Reg
 		p1.To.Offset = int64(ah.Reg)
 
-		//print("%P\n", p1);
+		//print("%v\n", p1);
 
 		gc.Regfree(&bh)
 

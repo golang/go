@@ -510,7 +510,7 @@ func TestStressSurpriseServerCloses(t *testing.T) {
 
 	// Do a bunch of traffic from different goroutines. Send to activityc
 	// after each request completes, regardless of whether it failed.
-	// If these are too high, OS X exhausts its emphemeral ports
+	// If these are too high, OS X exhausts its ephemeral ports
 	// and hangs waiting for them to transition TCP states. That's
 	// not what we want to test.  TODO(bradfitz): use an io.Pipe
 	// dialer for this test instead?

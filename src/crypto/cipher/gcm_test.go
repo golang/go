@@ -101,6 +101,35 @@ var aesGCMTests = []struct {
 		"",
 		"b2051c80014f42f08735a7b0cd38e6bcd29962e5f2c13626b85a877101",
 	},
+	// These cases test non-standard nonce sizes.
+	{
+		"1672c3537afa82004c6b8a46f6f0d026",
+		"05",
+		"",
+		"",
+		"8e2ad721f9455f74d8b53d3141f27e8e",
+	},
+	{
+		"9a4fea86a621a91ab371e492457796c0",
+		"75",
+		"ca6131faf0ff210e4e693d6c31c109fc5b6f54224eb120f37de31dc59ec669b6",
+		"4f6e2585c161f05a9ae1f2f894e9f0ab52b45d0f",
+		"5698c0a384241d30004290aac56bb3ece6fe8eacc5c4be98954deb9c3ff6aebf5d50e1af100509e1fba2a5e8a0af9670",
+	},
+	{
+		"d0f1f4defa1e8c08b4b26d576392027c",
+		"42b4f01eb9f5a1ea5b1eb73b0fb0baed54f387ecaa0393c7d7dffc6af50146ecc021abf7eb9038d4303d91f8d741a11743166c0860208bcc02c6258fd9511a2fa626f96d60b72fcff773af4e88e7a923506e4916ecbd814651e9f445adef4ad6a6b6c7290cc13b956130eef5b837c939fcac0cbbcc9656cd75b13823ee5acdac",
+		"",
+		"",
+		"7ab49b57ddf5f62c427950111c5c4f0d",
+	},
+	{
+		"4a0c00a3d284dea9d4bf8b8dde86685e",
+		"f8cbe82588e784bcacbe092cd9089b51e01527297f635bf294b3aa787d91057ef23869789698ac960707857f163ecb242135a228ad93964f5dc4a4d7f88fd7b3b07dd0a5b37f9768fb05a523639f108c34c661498a56879e501a2321c8a4a94d7e1b89db255ac1f685e185263368e99735ebe62a7f2931b47282be8eb165e4d7",
+		"6d4bf87640a6a48a50d28797b7",
+		"8d8c7ffc55086d539b5a8f0d1232654c",
+		"0d803ec309482f35b8e6226f2b56303239298e06b281c2d51aaba3c125",
+	},
 }
 
 func TestAESGCM(t *testing.T) {
@@ -114,7 +143,7 @@ func TestAESGCM(t *testing.T) {
 		nonce, _ := hex.DecodeString(test.nonce)
 		plaintext, _ := hex.DecodeString(test.plaintext)
 		ad, _ := hex.DecodeString(test.ad)
-		aesgcm, err := cipher.NewGCM(aes)
+		aesgcm, err := cipher.NewGCMWithNonceSize(aes, len(nonce))
 		if err != nil {
 			t.Fatal(err)
 		}

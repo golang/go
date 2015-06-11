@@ -172,6 +172,7 @@ var (
 
 	// Report as tests are run; default is silent for success.
 	chatty           = flag.Bool("test.v", false, "verbose: print additional output")
+	count            = flag.Uint("test.count", 1, "run tests and benchmarks `n` times")
 	coverProfile     = flag.String("test.coverprofile", "", "write a coverage profile to the named file after execution")
 	match            = flag.String("test.run", "", "regular expression to select tests and examples to run")
 	memProfile       = flag.String("test.memprofile", "", "write a memory profile to the named file after execution")
@@ -724,9 +725,13 @@ func parseCpuList() {
 			fmt.Fprintf(os.Stderr, "testing: invalid value %q for -test.cpu\n", val)
 			os.Exit(1)
 		}
-		cpuList = append(cpuList, cpu)
+		for i := uint(0); i < *count; i++ {
+			cpuList = append(cpuList, cpu)
+		}
 	}
 	if cpuList == nil {
-		cpuList = append(cpuList, runtime.GOMAXPROCS(-1))
+		for i := uint(0); i < *count; i++ {
+			cpuList = append(cpuList, runtime.GOMAXPROCS(-1))
+		}
 	}
 }

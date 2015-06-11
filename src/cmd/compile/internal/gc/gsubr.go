@@ -196,11 +196,11 @@ func fixautoused(p *obj.Prog) {
 		}
 
 		if p.From.Name == obj.NAME_AUTO && p.From.Node != nil {
-			p.From.Offset += ((p.From.Node).(*Node)).Stkdelta
+			p.From.Offset += stkdelta[p.From.Node.(*Node)]
 		}
 
 		if p.To.Name == obj.NAME_AUTO && p.To.Node != nil {
-			p.To.Offset += ((p.To.Node).(*Node)).Stkdelta
+			p.To.Offset += stkdelta[p.To.Node.(*Node)]
 		}
 
 		lp = &p.Link
@@ -214,6 +214,7 @@ func ggloblnod(nam *Node) {
 	p.To.Sym = nil
 	p.To.Type = obj.TYPE_CONST
 	p.To.Offset = nam.Type.Width
+	p.From3 = new(obj.Addr)
 	if nam.Name.Readonly {
 		p.From3.Offset = obj.RODATA
 	}
@@ -233,6 +234,7 @@ func ggloblsym(s *Sym, width int32, flags int16) {
 	}
 	p.To.Type = obj.TYPE_CONST
 	p.To.Offset = int64(width)
+	p.From3 = new(obj.Addr)
 	p.From3.Offset = int64(flags)
 }
 
@@ -406,26 +408,26 @@ func Naddr(a *obj.Addr, n *Node) {
 		if Thearch.Thechar == '8' {
 			a.Width = 0
 		}
-		switch n.Val.Ctype {
+		switch n.Val().Ctype() {
 		default:
 			Fatal("naddr: const %v", Tconv(n.Type, obj.FmtLong))
 
 		case CTFLT:
 			a.Type = obj.TYPE_FCONST
-			a.Val = mpgetflt(n.Val.U.(*Mpflt))
+			a.Val = mpgetflt(n.Val().U.(*Mpflt))
 
 		case CTINT, CTRUNE:
 			a.Sym = nil
 			a.Type = obj.TYPE_CONST
-			a.Offset = Mpgetfix(n.Val.U.(*Mpint))
+			a.Offset = Mpgetfix(n.Val().U.(*Mpint))
 
 		case CTSTR:
-			datagostring(n.Val.U.(string), a)
+			datagostring(n.Val().U.(string), a)
 
 		case CTBOOL:
 			a.Sym = nil
 			a.Type = obj.TYPE_CONST
-			a.Offset = int64(obj.Bool2int(n.Val.U.(bool)))
+			a.Offset = int64(obj.Bool2int(n.Val().U.(bool)))
 
 		case CTNIL:
 			a.Sym = nil

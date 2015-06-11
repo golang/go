@@ -399,7 +399,7 @@ func TestNotes(t *testing.T) {
 	abiHashNoteFound := false
 	depsNoteFound := false
 	for _, note := range notes {
-		if note.name != "GO\x00\x00" {
+		if note.name != "Go\x00\x00" {
 			continue
 		}
 		switch note.tag {

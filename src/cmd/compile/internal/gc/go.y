@@ -246,7 +246,7 @@ import_stmt:
 
 		pack := Nod(OPACK, nil, nil);
 		pack.Sym = my;
-		pack.Pkg = ipkg;
+		pack.Name.Pkg = ipkg;
 		pack.Lineno = int32($1);
 
 		if strings.HasPrefix(my.Name, ".") {
@@ -549,10 +549,10 @@ case:
 				// type switch - declare variable
 				nn = newname(n.Sym);
 				declare(nn, dclcontext);
-				$$.Nname = nn;
+				$$.Rlist = list1(nn);
 	
 				// keep track of the instances for reporting unused
-				nn.Defn = typesw.Right;
+				nn.Name.Defn = typesw.Right;
 			}
 		}
 	}
@@ -595,10 +595,10 @@ case:
 				// type switch - declare variable
 				nn = newname(n.Sym);
 				declare(nn, dclcontext);
-				$$.Nname = nn;
+				$$.Rlist = list1(nn);
 	
 				// keep track of the instances for reporting unused
-				nn.Defn = typesw.Right;
+				nn.Name.Defn = typesw.Right;
 			}
 		}
 	}
@@ -700,14 +700,14 @@ for_header:
 		if $1 != nil {
 			$$.Ninit = list1($1);
 		}
-		$$.Ntest = $3;
-		$$.Nincr = $5;
+		$$.Left = $3;
+		$$.Right = $5;
 	}
 |	osimple_stmt
 	{
 		// normal test
 		$$ = Nod(OFOR, nil, nil);
-		$$.Ntest = $1;
+		$$.Left = $1;
 	}
 |	range_stmt
 
@@ -734,7 +734,7 @@ if_header:
 	{
 		// test
 		$$ = Nod(OIF, nil, nil);
-		$$.Ntest = $1;
+		$$.Left = $1;
 	}
 |	osimple_stmt ';' osimple_stmt
 	{
@@ -743,7 +743,7 @@ if_header:
 		if $1 != nil {
 			$$.Ninit = list1($1);
 		}
-		$$.Ntest = $3;
+		$$.Left = $3;
 	}
 
 /* IF cond body (ELSE IF cond body)* (ELSE block)? */
@@ -754,7 +754,7 @@ if_stmt:
 	}
 	if_header
 	{
-		if $3.Ntest == nil {
+		if $3.Left == nil {
 			Yyerror("missing condition in if statement");
 		}
 	}
@@ -774,7 +774,7 @@ if_stmt:
 			if nn.N.Op == OIF {
 				popdcl();
 			}
-			n.Nelse = list1(nn.N);
+			n.Rlist = list1(nn.N);
 			n = nn.N;
 		}
 	}
@@ -786,7 +786,7 @@ elseif:
 	}
 	if_header loop_body
 	{
-		if $4.Ntest == nil {
+		if $4.Left == nil {
 			Yyerror("missing condition in if statement");
 		}
 		$4.Nbody = $5;
@@ -821,7 +821,7 @@ switch_stmt:
 	if_header
 	{
 		var n *Node
-		n = $3.Ntest;
+		n = $3.Left;
 		if n != nil && n.Op != OTYPESW {
 			n = nil;
 		}
@@ -1010,7 +1010,7 @@ pexpr_no_paren:
 	{
 		if $1.Op == OPACK {
 			var s *Sym
-			s = restrictlookup($3.Name, $1.Pkg);
+			s = restrictlookup($3.Name, $1.Name.Pkg);
 			$1.Used = true;
 			$$ = oldname(s);
 			break;
@@ -1080,7 +1080,7 @@ start_complit:
 	}
 
 keyval:
-	expr ':' complitexpr
+	complitexpr ':' complitexpr
 	{
 		$$ = Nod(OKEY, $1, $3);
 	}
@@ -1221,8 +1221,8 @@ name:
 	sym	%prec NotParen
 	{
 		$$ = oldname($1);
-		if $$.Pack != nil {
-			$$.Pack.Used = true;
+		if $$.Name != nil && $$.Name.Pack != nil {
+			$$.Name.Pack.Used = true;
 		}
 	}
 
@@ -1299,7 +1299,7 @@ dotname:
 	{
 		if $1.Op == OPACK {
 			var s *Sym
-			s = restrictlookup($3.Name, $1.Pkg);
+			s = restrictlookup($3.Name, $1.Name.Pkg);
 			$1.Used = true;
 			$$ = oldname(s);
 			break;
@@ -1420,10 +1420,10 @@ fndcl:
 		t.Rlist = $5;
 
 		$$ = Nod(ODCLFUNC, nil, nil);
-		$$.Nname = newfuncname($1);
-		$$.Nname.Defn = $$;
-		$$.Nname.Param.Ntype = t;		// TODO: check if nname already has an ntype
-		declare($$.Nname, PFUNC);
+		$$.Func.Nname = newfuncname($1);
+		$$.Func.Nname.Name.Defn = $$;
+		$$.Func.Nname.Name.Param.Ntype = t;		// TODO: check if nname already has an ntype
+		declare($$.Func.Nname, PFUNC);
 
 		funchdr($$);
 	}
@@ -1455,11 +1455,11 @@ fndcl:
 
 		$$ = Nod(ODCLFUNC, nil, nil);
 		$$.Func.Shortname = newfuncname($4);
-		$$.Nname = methodname1($$.Func.Shortname, rcvr.Right);
-		$$.Nname.Defn = $$;
-		$$.Nname.Param.Ntype = t;
-		$$.Nname.Nointerface = nointerface;
-		declare($$.Nname, PFUNC);
+		$$.Func.Nname = methodname1($$.Func.Shortname, rcvr.Right);
+		$$.Func.Nname.Name.Defn = $$;
+		$$.Func.Nname.Name.Param.Ntype = t;
+		$$.Func.Nname.Nointerface = nointerface;
+		declare($$.Func.Nname, PFUNC);
 
 		funchdr($$);
 	}
@@ -1638,44 +1638,44 @@ structdcl:
 			}
 			n = embedded(n.Sym, importpkg);
 			n.Right = $2;
-			n.Val = $3;
+			n.SetVal($3)
 			$$ = list1(n);
 			break;
 		}
 
 		for l=$1; l != nil; l=l.Next {
 			l.N = Nod(ODCLFIELD, l.N, $2);
-			l.N.Val = $3;
+			l.N.SetVal($3)
 		}
 	}
 |	embed oliteral
 	{
-		$1.Val = $2;
+		$1.SetVal($2)
 		$$ = list1($1);
 	}
 |	'(' embed ')' oliteral
 	{
-		$2.Val = $4;
+		$2.SetVal($4)
 		$$ = list1($2);
 		Yyerror("cannot parenthesize embedded type");
 	}
 |	'*' embed oliteral
 	{
 		$2.Right = Nod(OIND, $2.Right, nil);
-		$2.Val = $3;
+		$2.SetVal($3)
 		$$ = list1($2);
 	}
 |	'(' '*' embed ')' oliteral
 	{
 		$3.Right = Nod(OIND, $3.Right, nil);
-		$3.Val = $5;
+		$3.SetVal($5)
 		$$ = list1($3);
 		Yyerror("cannot parenthesize embedded type");
 	}
 |	'*' '(' embed ')' oliteral
 	{
 		$3.Right = Nod(OIND, $3.Right, nil);
-		$3.Val = $5;
+		$3.SetVal($5)
 		$$ = list1($3);
 		Yyerror("cannot parenthesize embedded type");
 	}
@@ -1687,8 +1687,8 @@ packname:
 
 		$$ = $1;
 		n = oldname($1);
-		if n.Pack != nil {
-			n.Pack.Used = true;
+		if n.Name != nil && n.Name.Pack != nil {
+			n.Name.Pack.Used = true;
 		}
 	}
 |	LNAME '.' sym
@@ -1700,7 +1700,7 @@ packname:
 			pkg = localpkg;
 		} else {
 			$1.Def.Used = true;
-			pkg = $1.Def.Pkg;
+			pkg = $1.Def.Name.Pkg;
 		}
 		$$ = restrictlookup($3.Name, pkg);
 	}
@@ -1808,7 +1808,7 @@ non_dcl_stmt:
 	{
 		var l *NodeList
 
-		$1.Defn = $4;
+		$1.Name.Defn = $4;
 		l = list1($1);
 		if $4 != nil {
 			l = list(l, $4);
@@ -1996,7 +1996,7 @@ ohidden_interfacedcl_list:
 
 oliteral:
 	{
-		$$.Ctype = CTxxx;
+		$$.U = nil
 	}
 |	LLITERAL
 
@@ -2151,7 +2151,7 @@ hidden_funarg:
 		if $1 != nil {
 			$$.Left = newname($1);
 		}
-		$$.Val = $3;
+		$$.SetVal($3)
 	}
 |	sym LDDD hidden_type oliteral
 	{
@@ -2166,7 +2166,7 @@ hidden_funarg:
 			$$.Left = newname($1);
 		}
 		$$.Isddd = true;
-		$$.Val = $4;
+		$$.SetVal($4)
 	}
 
 hidden_structdcl:
@@ -2177,7 +2177,7 @@ hidden_structdcl:
 
 		if $1 != nil && $1.Name != "?" {
 			$$ = Nod(ODCLFIELD, newname($1), typenod($2));
-			$$.Val = $3;
+			$$.SetVal($3)
 		} else {
 			s = $2.Sym;
 			if s == nil && Isptr[$2.Etype] {
@@ -2189,7 +2189,7 @@ hidden_structdcl:
 			}
 			$$ = embedded(s, p);
 			$$.Right = typenod($2);
-			$$.Val = $3;
+			$$.SetVal($3)
 		}
 	}
 
@@ -2231,16 +2231,16 @@ hidden_literal:
 |	'-' LLITERAL
 	{
 		$$ = nodlit($2);
-		switch($$.Val.Ctype){
+		switch($$.Val().Ctype()){
 		case CTINT, CTRUNE:
-			mpnegfix($$.Val.U.(*Mpint));
+			mpnegfix($$.Val().U.(*Mpint));
 			break;
 		case CTFLT:
-			mpnegflt($$.Val.U.(*Mpflt));
+			mpnegflt($$.Val().U.(*Mpflt));
 			break;
 		case CTCPLX:
-			mpnegflt(&$$.Val.U.(*Mpcplx).Real);
-			mpnegflt(&$$.Val.U.(*Mpcplx).Imag);
+			mpnegflt(&$$.Val().U.(*Mpcplx).Real);
+			mpnegflt(&$$.Val().U.(*Mpcplx).Imag);
 			break;
 		default:
 			Yyerror("bad negated constant");
@@ -2258,14 +2258,14 @@ hidden_constant:
 	hidden_literal
 |	'(' hidden_literal '+' hidden_literal ')'
 	{
-		if $2.Val.Ctype == CTRUNE && $4.Val.Ctype == CTINT {
+		if $2.Val().Ctype() == CTRUNE && $4.Val().Ctype() == CTINT {
 			$$ = $2;
-			mpaddfixfix($2.Val.U.(*Mpint), $4.Val.U.(*Mpint), 0);
+			mpaddfixfix($2.Val().U.(*Mpint), $4.Val().U.(*Mpint), 0);
 			break;
 		}
-		$4.Val.U.(*Mpcplx).Real = $4.Val.U.(*Mpcplx).Imag;
-		Mpmovecflt(&$4.Val.U.(*Mpcplx).Imag, 0.0);
-		$$ = nodcplxlit($2.Val, $4.Val);
+		$4.Val().U.(*Mpcplx).Real = $4.Val().U.(*Mpcplx).Imag;
+		Mpmovecflt(&$4.Val().U.(*Mpcplx).Imag, 0.0);
+		$$ = nodcplxlit($2.Val(), $4.Val());
 	}
 
 hidden_import_list:

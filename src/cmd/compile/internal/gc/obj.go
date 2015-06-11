@@ -286,6 +286,7 @@ func dstringptr(s *Sym, off int, str string) int {
 	p.From.Name = obj.NAME_EXTERN
 	p.From.Sym = Linksym(s)
 	p.From.Offset = int64(off)
+	p.From3 = new(obj.Addr)
 	p.From3.Type = obj.TYPE_CONST
 	p.From3.Offset = int64(Widthptr)
 
@@ -334,6 +335,7 @@ func dgostrlitptr(s *Sym, off int, lit *string) int {
 	p.From.Name = obj.NAME_EXTERN
 	p.From.Sym = Linksym(s)
 	p.From.Offset = int64(off)
+	p.From3 = new(obj.Addr)
 	p.From3.Type = obj.TYPE_CONST
 	p.From3.Offset = int64(Widthptr)
 	datagostring(*lit, &p.To)
@@ -350,6 +352,7 @@ func dsname(s *Sym, off int, t string) int {
 	p.From.Name = obj.NAME_EXTERN
 	p.From.Offset = int64(off)
 	p.From.Sym = Linksym(s)
+	p.From3 = new(obj.Addr)
 	p.From3.Type = obj.TYPE_CONST
 	p.From3.Offset = int64(len(t))
 
@@ -366,6 +369,7 @@ func dsymptr(s *Sym, off int, x *Sym, xoff int) int {
 	p.From.Name = obj.NAME_EXTERN
 	p.From.Sym = Linksym(s)
 	p.From.Offset = int64(off)
+	p.From3 = new(obj.Addr)
 	p.From3.Type = obj.TYPE_CONST
 	p.From3.Offset = int64(Widthptr)
 	p.To.Type = obj.TYPE_ADDR
@@ -379,18 +383,19 @@ func dsymptr(s *Sym, off int, x *Sym, xoff int) int {
 
 func gdata(nam *Node, nr *Node, wid int) {
 	if nr.Op == OLITERAL {
-		switch nr.Val.Ctype {
+		switch nr.Val().Ctype() {
 		case CTCPLX:
-			gdatacomplex(nam, nr.Val.U.(*Mpcplx))
+			gdatacomplex(nam, nr.Val().U.(*Mpcplx))
 			return
 
 		case CTSTR:
-			gdatastring(nam, nr.Val.U.(string))
+			gdatastring(nam, nr.Val().U.(string))
 			return
 		}
 	}
 
 	p := Thearch.Gins(obj.ADATA, nam, nr)
+	p.From3 = new(obj.Addr)
 	p.From3.Type = obj.TYPE_CONST
 	p.From3.Offset = int64(wid)
 }
@@ -400,12 +405,14 @@ func gdatacomplex(nam *Node, cval *Mpcplx) {
 	w = int(Types[w].Width)
 
 	p := Thearch.Gins(obj.ADATA, nam, nil)
+	p.From3 = new(obj.Addr)
 	p.From3.Type = obj.TYPE_CONST
 	p.From3.Offset = int64(w)
 	p.To.Type = obj.TYPE_FCONST
 	p.To.Val = mpgetflt(&cval.Real)
 
 	p = Thearch.Gins(obj.ADATA, nam, nil)
+	p.From3 = new(obj.Addr)
 	p.From3.Type = obj.TYPE_CONST
 	p.From3.Offset = int64(w)
 	p.From.Offset += int64(w)
@@ -418,15 +425,17 @@ func gdatastring(nam *Node, sval string) {
 
 	p := Thearch.Gins(obj.ADATA, nam, nil)
 	Datastring(sval, &p.To)
+	p.From3 = new(obj.Addr)
 	p.From3.Type = obj.TYPE_CONST
 	p.From3.Offset = Types[Tptr].Width
 	p.To.Type = obj.TYPE_ADDR
 
-	//print("%P\n", p);
+	//print("%v\n", p);
 
 	Nodconst(&nod1, Types[TINT], int64(len(sval)))
 
 	p = Thearch.Gins(obj.ADATA, nam, &nod1)
+	p.From3 = new(obj.Addr)
 	p.From3.Type = obj.TYPE_CONST
 	p.From3.Offset = int64(Widthint)
 	p.From.Offset += int64(Widthptr)

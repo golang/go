@@ -156,7 +156,7 @@ func (c *Cookie) String() string {
 		}
 	}
 	if c.Expires.Unix() > 0 {
-		fmt.Fprintf(&b, "; Expires=%s", c.Expires.UTC().Format(time.RFC1123))
+		fmt.Fprintf(&b, "; Expires=%s", c.Expires.UTC().Format(TimeFormat))
 	}
 	if c.MaxAge > 0 {
 		fmt.Fprintf(&b, "; Max-Age=%d", c.MaxAge)

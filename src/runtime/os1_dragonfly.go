@@ -136,7 +136,7 @@ func minit() {
 	_g_.m.procid = uint64(*(*int32)(unsafe.Pointer(&_g_.m.procid)))
 
 	// Initialize signal handling
-	signalstack((*byte)(unsafe.Pointer(_g_.m.gsignal.stack.lo)), 32*1024)
+	signalstack(&_g_.m.gsignal.stack)
 
 	// restore signal mask from m.sigmask and unblock essential signals
 	nmask := *(*sigset)(unsafe.Pointer(&_g_.m.sigmask))
@@ -153,7 +153,7 @@ func unminit() {
 	_g_ := getg()
 	smask := (*sigset)(unsafe.Pointer(&_g_.m.sigmask))
 	sigprocmask(smask, nil)
-	signalstack(nil, 0)
+	signalstack(nil)
 }
 
 func memlimit() uintptr {
@@ -222,13 +222,14 @@ func getsig(i int32) uintptr {
 	return sa.sa_sigaction
 }
 
-func signalstack(p *byte, n int32) {
+func signalstack(s *stack) {
 	var st sigaltstackt
-	st.ss_sp = uintptr(unsafe.Pointer(p))
-	st.ss_size = uintptr(n)
-	st.ss_flags = 0
-	if p == nil {
+	if s == nil {
 		st.ss_flags = _SS_DISABLE
+	} else {
+		st.ss_sp = s.lo
+		st.ss_size = s.hi - s.lo
+		st.ss_flags = 0
 	}
 	sigaltstack(&st, nil)
 }

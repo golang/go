@@ -160,7 +160,7 @@ func linkcase(casep *obj.Prog) {
 	for p := casep; p != nil; p = p.Link {
 		if p.As == ABCASE {
 			for ; p != nil && p.As == ABCASE; p = p.Link {
-				p.Pcrel = casep
+				p.Rel = casep
 			}
 			break
 		}
@@ -795,38 +795,45 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 		p.Scond = C_SCOND_NE
 	}
 
-	// MOVW.LS	R14, R3
-	p = obj.Appendp(ctxt, p)
+	// BLS call-to-morestack
+	bls := obj.Appendp(ctxt, p)
+	bls.As = ABLS
+	bls.To.Type = obj.TYPE_BRANCH
 
-	p.As = AMOVW
-	p.Scond = C_SCOND_LS
-	p.From.Type = obj.TYPE_REG
-	p.From.Reg = REGLINK
-	p.To.Type = obj.TYPE_REG
-	p.To.Reg = REG_R3
-
-	// BL.LS		runtime.morestack(SB) // modifies LR, returns with LO still asserted
-	p = obj.Appendp(ctxt, p)
-
-	p.As = ABL
-	p.Scond = C_SCOND_LS
-	p.To.Type = obj.TYPE_BRANCH
-	if ctxt.Cursym.Cfunc != 0 {
-		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
-	} else if ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
-		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
-	} else {
-		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack", 0)
+	var last *obj.Prog
+	for last = ctxt.Cursym.Text; last.Link != nil; last = last.Link {
 	}
 
-	// BLS	start
-	p = obj.Appendp(ctxt, p)
+	// MOVW	LR, R3
+	movw := obj.Appendp(ctxt, last)
+	movw.As = AMOVW
+	movw.From.Type = obj.TYPE_REG
+	movw.From.Reg = REGLINK
+	movw.To.Type = obj.TYPE_REG
+	movw.To.Reg = REG_R3
 
-	p.As = ABLS
-	p.To.Type = obj.TYPE_BRANCH
-	p.Pcond = ctxt.Cursym.Text.Link
+	bls.Pcond = movw
 
-	return p
+	// BL runtime.morestack
+	call := obj.Appendp(ctxt, movw)
+	call.As = obj.ACALL
+	call.To.Type = obj.TYPE_BRANCH
+	morestack := "runtime.morestack"
+	switch {
+	case ctxt.Cursym.Cfunc != 0:
+		morestack = "runtime.morestackc"
+	case ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0:
+		morestack = "runtime.morestack_noctxt"
+	}
+	call.To.Sym = obj.Linklookup(ctxt, morestack, 0)
+
+	// B start
+	b := obj.Appendp(ctxt, call)
+	b.As = obj.AJMP
+	b.To.Type = obj.TYPE_BRANCH
+	b.Pcond = ctxt.Cursym.Text.Link
+
+	return bls
 }
 
 func initdiv(ctxt *obj.Link) {

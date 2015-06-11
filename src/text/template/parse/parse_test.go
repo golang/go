@@ -272,8 +272,8 @@ var parseTests = []parseTest{
 	// Wrong pipeline
 	{"wrong pipeline dot", "{{12|.}}", hasError, ""},
 	{"wrong pipeline number", "{{.|12|printf}}", hasError, ""},
-	{"wrong pipeline string", "{{.|print|\"error\"}}", hasError, ""},
-	{"wrong pipeline char", "{{12|print|html|'e'}}", hasError, ""},
+	{"wrong pipeline string", "{{.|printf|\"error\"}}", hasError, ""},
+	{"wrong pipeline char", "{{12|printf|'e'}}", hasError, ""},
 	{"wrong pipeline boolean", "{{.|true}}", hasError, ""},
 	{"wrong pipeline nil", "{{'c'|nil}}", hasError, ""},
 	{"empty pipeline", `{{printf "%d" ( ) }}`, hasError, ""},

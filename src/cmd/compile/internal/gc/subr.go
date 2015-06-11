@@ -331,7 +331,11 @@ func importdot(opkg *Pkg, pack *Node) {
 
 		s1.Def = s.Def
 		s1.Block = s.Block
-		s1.Def.Pack = pack
+		if s1.Def.Name == nil {
+			Dump("s1def", s1.Def)
+			Fatal("missing Name")
+		}
+		s1.Def.Name.Pack = pack
 		s1.Origpkg = opkg
 		n++
 	}
@@ -367,16 +371,25 @@ func Nod(op int, nleft *Node, nright *Node) *Node {
 	n.Lineno = int32(parserline())
 	n.Xoffset = BADWIDTH
 	n.Orig = n
-	n.Curfn = Curfn
 	switch op {
 	case OCLOSURE, ODCLFUNC:
 		n.Func = new(Func)
-		n.Param = new(Param)
+		n.Func.FCurfn = Curfn
 	case ONAME:
 		n.Name = new(Name)
-		n.Param = new(Param)
+		n.Name.Param = new(Param)
+	case OLABEL, OPACK:
+		n.Name = new(Name)
 	case ODCLFIELD:
-		n.Param = new(Param)
+		if nleft != nil {
+			n.Name = nleft.Name
+		} else {
+			n.Name = new(Name)
+			n.Name.Param = new(Param)
+		}
+	}
+	if n.Name != nil {
+		n.Name.Curfn = Curfn
 	}
 	return n
 }
@@ -663,9 +676,8 @@ func sortinter(t *Type) *Type {
 func Nodintconst(v int64) *Node {
 	c := Nod(OLITERAL, nil, nil)
 	c.Addable = true
-	c.Val.U = new(Mpint)
-	Mpmovecfix(c.Val.U.(*Mpint), v)
-	c.Val.Ctype = CTINT
+	c.SetVal(Val{new(Mpint)})
+	Mpmovecfix(c.Val().U.(*Mpint), v)
 	c.Type = Types[TIDEAL]
 	ullmancalc(c)
 	return c
@@ -674,9 +686,8 @@ func Nodintconst(v int64) *Node {
 func nodfltconst(v *Mpflt) *Node {
 	c := Nod(OLITERAL, nil, nil)
 	c.Addable = true
-	c.Val.U = newMpflt()
-	mpmovefltflt(c.Val.U.(*Mpflt), v)
-	c.Val.Ctype = CTFLT
+	c.SetVal(Val{newMpflt()})
+	mpmovefltflt(c.Val().U.(*Mpflt), v)
 	c.Type = Types[TIDEAL]
 	ullmancalc(c)
 	return c
@@ -687,9 +698,8 @@ func Nodconst(n *Node, t *Type, v int64) {
 	n.Op = OLITERAL
 	n.Addable = true
 	ullmancalc(n)
-	n.Val.U = new(Mpint)
-	Mpmovecfix(n.Val.U.(*Mpint), v)
-	n.Val.Ctype = CTINT
+	n.SetVal(Val{new(Mpint)})
+	Mpmovecfix(n.Val().U.(*Mpint), v)
 	n.Type = t
 
 	if Isfloat[t.Etype] {
@@ -699,15 +709,14 @@ func Nodconst(n *Node, t *Type, v int64) {
 
 func nodnil() *Node {
 	c := Nodintconst(0)
-	c.Val.Ctype = CTNIL
+	c.SetVal(Val{new(NilVal)})
 	c.Type = Types[TNIL]
 	return c
 }
 
 func Nodbool(b bool) *Node {
 	c := Nodintconst(0)
-	c.Val.Ctype = CTBOOL
-	c.Val.U = b
+	c.SetVal(Val{b})
 	c.Type = idealbool
 	return c
 }
@@ -721,7 +730,7 @@ func aindex(b *Node, t *Type) *Type {
 			Yyerror("array bound must be an integer expression")
 
 		case CTINT, CTRUNE:
-			bound = Mpgetfix(b.Val.U.(*Mpint))
+			bound = Mpgetfix(b.Val().U.(*Mpint))
 			if bound < 0 {
 				Yyerror("array bound must be non negative")
 			}
@@ -758,8 +767,9 @@ func treecopy(n *Node, lineno int32) *Node {
 		if lineno != -1 {
 			m.Lineno = lineno
 		}
-		if m.Defn != nil {
-			panic("abort")
+		if m.Name != nil && n.Op != ODCLFIELD {
+			Dump("treecopy", n)
+			Fatal("treecopy Name")
 		}
 
 	case ONONAME:
@@ -769,12 +779,13 @@ func treecopy(n *Node, lineno int32) *Node {
 			// so that all the copies of this const definition
 			// don't have the same iota value.
 			m = Nod(OXXX, nil, nil)
-
 			*m = *n
-			m.Iota = iota_
 			if lineno != 0 {
 				m.Lineno = lineno
 			}
+			m.Name = new(Name)
+			*m.Name = *n.Name
+			m.Name.Iota = iota_
 			break
 		}
 		fallthrough
@@ -793,7 +804,7 @@ func isnil(n *Node) bool {
 	if n.Op != OLITERAL {
 		return false
 	}
-	if n.Val.Ctype != CTNIL {
+	if n.Val().Ctype() != CTNIL {
 		return false
 	}
 	return true
@@ -1612,7 +1623,7 @@ func frame(context int) {
 		fmt.Printf("--- external frame ---\n")
 		l = externdcl
 	} else if Curfn != nil {
-		fmt.Printf("--- %v frame ---\n", Curfn.Nname.Sym)
+		fmt.Printf("--- %v frame ---\n", Curfn.Func.Nname.Sym)
 		l = Curfn.Func.Dcl
 	} else {
 		return
@@ -1628,7 +1639,7 @@ func frame(context int) {
 		}
 		switch n.Op {
 		case ONAME:
-			fmt.Printf("%v %v G%d %v width=%d\n", Oconv(int(n.Op), 0), n.Sym, n.Vargen, n.Type, w)
+			fmt.Printf("%v %v G%d %v width=%d\n", Oconv(int(n.Op), 0), n.Sym, n.Name.Vargen, n.Type, w)
 
 		case OTYPE:
 			fmt.Printf("%v %v width=%d\n", Oconv(int(n.Op), 0), n.Type, w)
@@ -2375,7 +2386,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 	markdcl()
 
 	this := Nod(ODCLFIELD, newname(Lookup(".this")), typenod(rcvr))
-	this.Left.Param.Ntype = this.Right
+	this.Left.Name.Param.Ntype = this.Right
 	in := structargs(getinarg(method.Type), 1)
 	out := structargs(Getoutarg(method.Type), 0)
 
@@ -2399,10 +2410,10 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 	t.Rlist = out
 
 	fn := Nod(ODCLFUNC, nil, nil)
-	fn.Nname = newname(newnam)
-	fn.Nname.Defn = fn
-	fn.Nname.Param.Ntype = t
-	declare(fn.Nname, PFUNC)
+	fn.Func.Nname = newname(newnam)
+	fn.Func.Nname.Name.Defn = fn
+	fn.Func.Nname.Name.Param.Ntype = t
+	declare(fn.Func.Nname, PFUNC)
 	funchdr(fn)
 
 	// arg list
@@ -2421,14 +2432,13 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 		// generating wrapper from *T to T.
 		n := Nod(OIF, nil, nil)
 
-		n.Ntest = Nod(OEQ, this.Left, nodnil())
+		n.Left = Nod(OEQ, this.Left, nodnil())
 
 		// these strings are already in the reflect tables,
 		// so no space cost to use them here.
 		var l *NodeList
 
 		var v Val
-		v.Ctype = CTSTR
 		v.U = rcvr.Type.Sym.Pkg.Name // package name
 		l = list(l, nodlit(v))
 		v.U = rcvr.Type.Sym.Name // type name
@@ -2572,10 +2582,10 @@ func genhash(sym *Sym, t *Type) {
 	// func sym(p *T, h uintptr) uintptr
 	fn := Nod(ODCLFUNC, nil, nil)
 
-	fn.Nname = newname(sym)
-	fn.Nname.Class = PFUNC
+	fn.Func.Nname = newname(sym)
+	fn.Func.Nname.Class = PFUNC
 	tfn := Nod(OTFUNC, nil, nil)
-	fn.Nname.Param.Ntype = tfn
+	fn.Func.Nname.Name.Param.Ntype = tfn
 
 	n := Nod(ODCLFIELD, newname(Lookup("p")), typenod(Ptrto(t)))
 	tfn.List = list(tfn.List, n)
@@ -2587,7 +2597,7 @@ func genhash(sym *Sym, t *Type) {
 	tfn.Rlist = list(tfn.Rlist, n)
 
 	funchdr(fn)
-	typecheck(&fn.Nname.Param.Ntype, Etype)
+	typecheck(&fn.Func.Nname.Name.Param.Ntype, Etype)
 
 	// genhash is only called for types that have equality but
 	// cannot be handled by the standard algorithms,
@@ -2757,7 +2767,7 @@ func eqfield(p *Node, q *Node, field *Node) *Node {
 	nx := Nod(OXDOT, p, field)
 	ny := Nod(OXDOT, q, field)
 	nif := Nod(OIF, nil, nil)
-	nif.Ntest = Nod(ONE, nx, ny)
+	nif.Left = Nod(ONE, nx, ny)
 	r := Nod(ORETURN, nil, nil)
 	r.List = list(r.List, Nodbool(false))
 	nif.Nbody = list(nif.Nbody, r)
@@ -2802,7 +2812,7 @@ func eqmem(p *Node, q *Node, field *Node, size int64) *Node {
 	}
 
 	nif := Nod(OIF, nil, nil)
-	nif.Ntest = Nod(ONOT, call, nil)
+	nif.Left = Nod(ONOT, call, nil)
 	r := Nod(ORETURN, nil, nil)
 	r.List = list(r.List, Nodbool(false))
 	nif.Nbody = list(nif.Nbody, r)
@@ -2824,10 +2834,10 @@ func geneq(sym *Sym, t *Type) {
 	// func sym(p, q *T) bool
 	fn := Nod(ODCLFUNC, nil, nil)
 
-	fn.Nname = newname(sym)
-	fn.Nname.Class = PFUNC
+	fn.Func.Nname = newname(sym)
+	fn.Func.Nname.Class = PFUNC
 	tfn := Nod(OTFUNC, nil, nil)
-	fn.Nname.Param.Ntype = tfn
+	fn.Func.Nname.Name.Param.Ntype = tfn
 
 	n := Nod(ODCLFIELD, newname(Lookup("p")), typenod(Ptrto(t)))
 	tfn.List = list(tfn.List, n)
@@ -2874,7 +2884,7 @@ func geneq(sym *Sym, t *Type) {
 		ny.Bounded = true
 
 		nif := Nod(OIF, nil, nil)
-		nif.Ntest = Nod(ONE, nx, ny)
+		nif.Left = Nod(ONE, nx, ny)
 		r := Nod(ORETURN, nil, nil)
 		r.List = list(r.List, Nodbool(false))
 		nif.Nbody = list(nif.Nbody, r)
@@ -3146,7 +3156,7 @@ func powtwo(n *Node) int {
 		return -1
 	}
 
-	v := uint64(Mpgetfix(n.Val.U.(*Mpint)))
+	v := uint64(Mpgetfix(n.Val().U.(*Mpint)))
 	b := uint64(1)
 	for i := 0; i < 64; i++ {
 		if b == v {

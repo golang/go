@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -245,14 +246,28 @@ func readfile(file string) string {
 	return string(data)
 }
 
-// writefile writes b to the named file, creating it if needed.  if
-// exec is non-zero, marks the file as executable.
-func writefile(b, file string, exec int) {
+const (
+	writeExec = 1 << iota
+	writeSkipSame
+)
+
+// writefile writes b to the named file, creating it if needed.
+// if exec is non-zero, marks the file as executable.
+// If the file already exists and has the expected content,
+// it is not rewritten, to avoid changing the time stamp.
+func writefile(b, file string, flag int) {
+	new := []byte(b)
+	if flag&writeSkipSame != 0 {
+		old, err := ioutil.ReadFile(file)
+		if err == nil && bytes.Equal(old, new) {
+			return
+		}
+	}
 	mode := os.FileMode(0666)
-	if exec != 0 {
+	if flag&writeExec != 0 {
 		mode = 0777
 	}
-	err := ioutil.WriteFile(file, []byte(b), mode)
+	err := ioutil.WriteFile(file, new, mode)
 	if err != nil {
 		fatal("%v", err)
 	}

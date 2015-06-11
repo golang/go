@@ -226,7 +226,7 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 					etext.Next = s
 				}
 				etext = s
-				flag = int(p.From3.Offset)
+				flag = int(p.From3Offset())
 				if flag&DUPOK != 0 {
 					s.Dupok = 1
 				}

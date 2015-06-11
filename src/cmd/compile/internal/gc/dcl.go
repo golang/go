@@ -174,6 +174,10 @@ func declare(n *Node, ctxt uint8) {
 		return
 	}
 
+	if n.Name == nil {
+		// named OLITERAL needs Name; most OLITERALs don't.
+		n.Name = new(Name)
+	}
 	n.Lineno = int32(parserline())
 	s := n.Sym
 
@@ -207,7 +211,7 @@ func declare(n *Node, ctxt uint8) {
 			gen = vargen
 		}
 		pushdcl(s)
-		n.Curfn = Curfn
+		n.Name.Curfn = Curfn
 	}
 
 	if ctxt == PAUTO {
@@ -225,8 +229,8 @@ func declare(n *Node, ctxt uint8) {
 	s.Block = block
 	s.Lastlineno = int32(parserline())
 	s.Def = n
-	n.Vargen = int32(gen)
-	n.Funcdepth = Funcdepth
+	n.Name.Vargen = int32(gen)
+	n.Name.Funcdepth = Funcdepth
 	n.Class = uint8(ctxt)
 
 	autoexport(n, ctxt)
@@ -260,8 +264,8 @@ func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
 			v = vl.N
 			v.Op = ONAME
 			declare(v, dclcontext)
-			v.Param.Ntype = t
-			v.Defn = as2
+			v.Name.Param.Ntype = t
+			v.Name.Defn = as2
 			if Funcdepth > 0 {
 				init = list(init, Nod(ODCL, v, nil))
 			}
@@ -288,7 +292,7 @@ func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
 		v = vl.N
 		v.Op = ONAME
 		declare(v, dclcontext)
-		v.Param.Ntype = t
+		v.Name.Param.Ntype = t
 
 		if e != nil || Funcdepth > 0 || isblank(v) {
 			if Funcdepth > 0 {
@@ -297,7 +301,7 @@ func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
 			e = Nod(OAS, v, e)
 			init = list(init, e)
 			if e.Right != nil {
-				v.Defn = e
+				v.Name.Defn = e
 			}
 		}
 	}
@@ -343,8 +347,8 @@ func constiter(vl *NodeList, t *Node, cl *NodeList) *NodeList {
 		v.Op = OLITERAL
 		declare(v, dclcontext)
 
-		v.Param.Ntype = t
-		v.Defn = c
+		v.Name.Param.Ntype = t
+		v.Name.Defn = c
 
 		vv = list(vv, Nod(ODCLCONST, v, nil))
 	}
@@ -379,6 +383,7 @@ func newname(s *Sym) *Node {
 func newfuncname(s *Sym) *Node {
 	n := newname(s)
 	n.Func = new(Func)
+	n.Func.FCurfn = Curfn
 	return n
 }
 
@@ -419,38 +424,37 @@ func oldname(s *Sym) *Node {
 		// walkdef will check s->def again once
 		// all the input source has been processed.
 		n = newname(s)
-
 		n.Op = ONONAME
-		n.Iota = iota_ // save current iota value in const declarations
+		n.Name.Iota = iota_ // save current iota value in const declarations
 	}
 
-	if Curfn != nil && n.Funcdepth > 0 && n.Funcdepth != Funcdepth && n.Op == ONAME {
+	if Curfn != nil && n.Op == ONAME && n.Name.Funcdepth > 0 && n.Name.Funcdepth != Funcdepth {
 		// inner func is referring to var in outer func.
 		//
 		// TODO(rsc): If there is an outer variable x and we
 		// are parsing x := 5 inside the closure, until we get to
 		// the := it looks like a reference to the outer x so we'll
 		// make x a closure variable unnecessarily.
-		if n.Param.Closure == nil || n.Param.Closure.Funcdepth != Funcdepth {
+		if n.Name.Param.Closure == nil || n.Name.Param.Closure.Name.Funcdepth != Funcdepth {
 			// create new closure var.
 			c := Nod(ONAME, nil, nil)
 
 			c.Sym = s
 			c.Class = PPARAMREF
 			c.Isddd = n.Isddd
-			c.Defn = n
+			c.Name.Defn = n
 			c.Addable = false
 			c.Ullman = 2
-			c.Funcdepth = Funcdepth
-			c.Param.Outer = n.Param.Closure
-			n.Param.Closure = c
-			c.Param.Closure = n
+			c.Name.Funcdepth = Funcdepth
+			c.Name.Param.Outer = n.Name.Param.Closure
+			n.Name.Param.Closure = c
+			c.Name.Param.Closure = n
 			c.Xoffset = 0
 			Curfn.Func.Cvars = list(Curfn.Func.Cvars, c)
 		}
 
 		// return ref to closure var, not original
-		return n.Param.Closure
+		return n.Name.Param.Closure
 	}
 
 	return n
@@ -508,7 +512,7 @@ func colasdefn(left *NodeList, defn *Node) {
 		nnew++
 		n = newname(n.Sym)
 		declare(n, dclcontext)
-		n.Defn = defn
+		n.Name.Defn = defn
 		defn.Ninit = list(defn.Ninit, Nod(ODCL, n, nil))
 		l.N = n
 	}
@@ -552,10 +556,11 @@ func ifacedcl(n *Node) {
 	}
 
 	n.Func = new(Func)
+	n.Func.FCurfn = Curfn
 	dclcontext = PPARAM
 	markdcl()
 	Funcdepth++
-	n.Param.Outer = Curfn
+	n.Func.Outer = Curfn
 	Curfn = n
 	funcargs(n.Right)
 
@@ -584,13 +589,13 @@ func funchdr(n *Node) {
 	markdcl()
 	Funcdepth++
 
-	n.Param.Outer = Curfn
+	n.Func.Outer = Curfn
 	Curfn = n
 
-	if n.Nname != nil {
-		funcargs(n.Nname.Param.Ntype)
-	} else if n.Param.Ntype != nil {
-		funcargs(n.Param.Ntype)
+	if n.Func.Nname != nil {
+		funcargs(n.Func.Nname.Name.Param.Ntype)
+	} else if n.Func.Ntype != nil {
+		funcargs(n.Func.Ntype)
 	} else {
 		funcargs2(n.Type)
 	}
@@ -616,11 +621,11 @@ func funcargs(nt *Node) {
 		}
 		if n.Left != nil {
 			n.Left.Op = ONAME
-			n.Left.Param.Ntype = n.Right
+			n.Left.Name.Param.Ntype = n.Right
 			declare(n.Left, PPARAM)
 			if dclcontext == PAUTO {
 				vargen++
-				n.Left.Vargen = int32(vargen)
+				n.Left.Name.Vargen = int32(vargen)
 			}
 		}
 	}
@@ -633,11 +638,11 @@ func funcargs(nt *Node) {
 		}
 		if n.Left != nil {
 			n.Left.Op = ONAME
-			n.Left.Param.Ntype = n.Right
+			n.Left.Name.Param.Ntype = n.Right
 			declare(n.Left, PPARAM)
 			if dclcontext == PAUTO {
 				vargen++
-				n.Left.Vargen = int32(vargen)
+				n.Left.Name.Vargen = int32(vargen)
 			}
 		}
 	}
@@ -680,11 +685,11 @@ func funcargs(nt *Node) {
 			n.Left = nn
 		}
 
-		n.Left.Param.Ntype = n.Right
+		n.Left.Name.Param.Ntype = n.Right
 		declare(n.Left, PPARAMOUT)
 		if dclcontext == PAUTO {
 			i++
-			n.Left.Vargen = int32(i)
+			n.Left.Name.Vargen = int32(i)
 		}
 	}
 }
@@ -748,8 +753,8 @@ func funcbody(n *Node) {
 	}
 	popdcl()
 	Funcdepth--
-	Curfn = n.Param.Outer
-	n.Param.Outer = nil
+	Curfn = n.Func.Outer
+	n.Func.Outer = nil
 	if Funcdepth == 0 {
 		dclcontext = PEXTERN
 	}
@@ -771,7 +776,7 @@ func typedcl0(s *Sym) *Node {
  * return the ODCLTYPE node to use.
  */
 func typedcl1(n *Node, t *Node, local bool) *Node {
-	n.Param.Ntype = t
+	n.Name.Param.Ntype = t
 	n.Local = local
 	return Nod(ODCLTYPE, n, nil)
 }
@@ -828,10 +833,10 @@ func structfield(n *Node) *Type {
 		f.Broke = 1
 	}
 
-	switch n.Val.Ctype {
+	switch n.Val().Ctype() {
 	case CTSTR:
 		f.Note = new(string)
-		*f.Note = n.Val.U.(string)
+		*f.Note = n.Val().U.(string)
 
 	default:
 		Yyerror("field annotation must be string")
@@ -913,7 +918,7 @@ func tofunargs(l *NodeList) *Type {
 
 		// esc.c needs to find f given a PPARAM to add the tag.
 		if l.N.Left != nil && l.N.Left.Class == PPARAM {
-			l.N.Left.Paramfld = f
+			l.N.Left.Name.Param.Field = f
 		}
 
 		*tp = f
@@ -937,7 +942,7 @@ func interfacefield(n *Node) *Type {
 		Fatal("interfacefield: oops %v\n", n)
 	}
 
-	if n.Val.Ctype != CTxxx {
+	if n.Val().Ctype() != CTxxx {
 		Yyerror("interface method cannot have annotation")
 	}
 
@@ -1466,12 +1471,12 @@ func funccompile(n *Node) {
 	checkwidth(n.Type)
 
 	if Curfn != nil {
-		Fatal("funccompile %v inside %v", n.Nname.Sym, Curfn.Nname.Sym)
+		Fatal("funccompile %v inside %v", n.Func.Nname.Sym, Curfn.Func.Nname.Sym)
 	}
 
 	Stksize = 0
 	dclcontext = PAUTO
-	Funcdepth = n.Funcdepth + 1
+	Funcdepth = n.Func.Depth + 1
 	compile(n)
 	Curfn = nil
 	Funcdepth = 0

@@ -233,23 +233,23 @@ func getvariables(fn *Node) []*Node {
 			// Later, when we want to find the index of a node in the variables list,
 			// we will check that n->curfn == curfn and n->opt > 0. Then n->opt - 1
 			// is the index in the variables list.
-			ll.N.Opt = nil
+			ll.N.SetOpt(nil)
 
 			// The compiler doesn't emit initializations for zero-width parameters or results.
 			if ll.N.Type.Width == 0 {
 				continue
 			}
 
-			ll.N.Curfn = Curfn
+			ll.N.Name.Curfn = Curfn
 			switch ll.N.Class {
 			case PAUTO:
 				if haspointers(ll.N.Type) {
-					ll.N.Opt = int32(len(result))
+					ll.N.SetOpt(int32(len(result)))
 					result = append(result, ll.N)
 				}
 
 			case PPARAM, PPARAMOUT:
-				ll.N.Opt = int32(len(result))
+				ll.N.SetOpt(int32(len(result)))
 				result = append(result, ll.N)
 			}
 		}
@@ -585,7 +585,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar Bvec, varkill Bvec, avarini
 				// If the result had its address taken, it is being tracked
 			// by the avarinit code, which does not use uevar.
 			// If we added it to uevar too, we'd not see any kill
-			// and decide that the varible was live entry, which it is not.
+			// and decide that the variable was live entry, which it is not.
 			// So only use uevar in the non-addrtaken case.
 			// The p->to.type == thearch.D_NONE limits the bvset to
 			// non-tail-call return instructions; see note above
@@ -618,10 +618,10 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar Bvec, varkill Bvec, avarini
 
 	if prog.Info.Flags&(LeftRead|LeftWrite|LeftAddr) != 0 {
 		from := &prog.From
-		if from.Node != nil && from.Sym != nil && ((from.Node).(*Node)).Curfn == Curfn {
+		if from.Node != nil && from.Sym != nil && ((from.Node).(*Node)).Name.Curfn == Curfn {
 			switch ((from.Node).(*Node)).Class &^ PHEAP {
 			case PAUTO, PPARAM, PPARAMOUT:
-				pos, ok := from.Node.(*Node).Opt.(int32) // index in vars
+				pos, ok := from.Node.(*Node).Opt().(int32) // index in vars
 				if !ok {
 					goto Next
 				}
@@ -647,10 +647,10 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar Bvec, varkill Bvec, avarini
 Next:
 	if prog.Info.Flags&(RightRead|RightWrite|RightAddr) != 0 {
 		to := &prog.To
-		if to.Node != nil && to.Sym != nil && ((to.Node).(*Node)).Curfn == Curfn {
+		if to.Node != nil && to.Sym != nil && ((to.Node).(*Node)).Name.Curfn == Curfn {
 			switch ((to.Node).(*Node)).Class &^ PHEAP {
 			case PAUTO, PPARAM, PPARAMOUT:
-				pos, ok := to.Node.(*Node).Opt.(int32) // index in vars
+				pos, ok := to.Node.(*Node).Opt().(int32) // index in vars
 				if !ok {
 					return
 				}
@@ -1284,7 +1284,7 @@ func livenessepilogue(lv *Liveness) {
 						if !n.Name.Needzero {
 							n.Name.Needzero = true
 							if debuglive >= 1 {
-								Warnl(int(p.Lineno), "%v: %v is ambiguously live", Curfn.Nname, Nconv(n, obj.FmtLong))
+								Warnl(int(p.Lineno), "%v: %v is ambiguously live", Curfn.Func.Nname, Nconv(n, obj.FmtLong))
 							}
 
 							// Record in 'ambiguous' bitmap.
@@ -1331,7 +1331,7 @@ func livenessepilogue(lv *Liveness) {
 	var numlive int32
 	var msg []string
 	for _, bb := range lv.cfg {
-		if debuglive >= 1 && Curfn.Nname.Sym.Name != "init" && Curfn.Nname.Sym.Name[0] != '.' {
+		if debuglive >= 1 && Curfn.Func.Nname.Sym.Name != "init" && Curfn.Func.Nname.Sym.Name[0] != '.' {
 			nmsg = int32(len(lv.livepointers))
 			startmsg = nmsg
 			msg = make([]string, nmsg)
@@ -1381,7 +1381,7 @@ func livenessepilogue(lv *Liveness) {
 						}
 						n = lv.vars[j]
 						if n.Class != PPARAM {
-							yyerrorl(int(p.Lineno), "internal error: %v %v recorded as live on entry", Curfn.Nname, Nconv(n, obj.FmtLong))
+							yyerrorl(int(p.Lineno), "internal error: %v %v recorded as live on entry", Curfn.Func.Nname, Nconv(n, obj.FmtLong))
 						}
 					}
 				}
@@ -1622,7 +1622,7 @@ func livenessprintdebug(lv *Liveness) {
 	var locals Bvec
 	var n *Node
 
-	fmt.Printf("liveness: %s\n", Curfn.Nname.Sym.Name)
+	fmt.Printf("liveness: %s\n", Curfn.Func.Nname.Sym.Name)
 
 	uevar := bvalloc(int32(len(lv.vars)))
 	varkill := bvalloc(int32(len(lv.vars)))
@@ -1770,13 +1770,13 @@ func liveness(fn *Node, firstp *obj.Prog, argssym *Sym, livesym *Sym) {
 	// Change name to dump debugging information only for a specific function.
 	debugdelta := 0
 
-	if Curfn.Nname.Sym.Name == "!" {
+	if Curfn.Func.Nname.Sym.Name == "!" {
 		debugdelta = 2
 	}
 
 	debuglive += debugdelta
 	if debuglive >= 3 {
-		fmt.Printf("liveness: %s\n", Curfn.Nname.Sym.Name)
+		fmt.Printf("liveness: %s\n", Curfn.Func.Nname.Sym.Name)
 		printprog(firstp)
 	}
 
@@ -1819,7 +1819,7 @@ func liveness(fn *Node, firstp *obj.Prog, argssym *Sym, livesym *Sym) {
 	// Free everything.
 	for l := fn.Func.Dcl; l != nil; l = l.Next {
 		if l.N != nil {
-			l.N.Opt = nil
+			l.N.SetOpt(nil)
 		}
 	}
 	freeliveness(lv)

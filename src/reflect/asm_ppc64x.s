@@ -17,7 +17,7 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$16
 	MOVD	$argframe+0(FP), R3
 	MOVD	R3, 16(R1)
 	BL	·callReflect(SB)
-	RETURN
+	RET
 
 // methodValueCall is the code half of the function returned by makeMethodValue.
 // See the comment on the declaration of methodValueCall in makefunc.go
@@ -29,4 +29,4 @@ TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$16
 	MOVD	$argframe+0(FP), R3
 	MOVD	R3, 16(R1)
 	BL	·callMethod(SB)
-	RETURN
+	RET

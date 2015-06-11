@@ -216,6 +216,13 @@ const _NoArgs = ^uintptr(0)
 func morestack()
 func rt0_go()
 
+// stackBarrier records that the stack has been unwound past a certain
+// point. It is installed over a return PC on the stack. It must
+// retrieve the original return PC from g.stkbuf, increment
+// g.stkbufPos to record that the barrier was hit, and jump to the
+// original return PC.
+func stackBarrier()
+
 // return0 is a stub used to return 0 from deferproc.
 // It is called at the very end of deferproc to signal
 // the calling Go function that it should not jump

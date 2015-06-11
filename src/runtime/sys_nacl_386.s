@@ -322,7 +322,7 @@ ret:
 	// Enable exceptions again.
 	NACL_SYSCALL(SYS_exception_clear_flag)
 
-	// NaCl has abidcated its traditional operating system responsibility
+	// NaCl has abdicated its traditional operating system responsibility
 	// and declined to implement 'sigreturn'. Instead the only way to return
 	// to the execution of our program is to restore the registers ourselves.
 	// Unfortunately, that is impossible to do with strict fidelity, because

@@ -282,7 +282,7 @@ const (
 	// into the "line" section.
 	ClassLinePtr
 
-	// ClassLocListPtr repersents values that are an int64 offset
+	// ClassLocListPtr represents values that are an int64 offset
 	// into the "loclist" section.
 	ClassLocListPtr
 

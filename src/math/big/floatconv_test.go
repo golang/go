@@ -5,15 +5,19 @@
 package big
 
 import (
+	"fmt"
 	"math"
 	"strconv"
 	"testing"
 )
 
 func TestFloatSetFloat64String(t *testing.T) {
+	inf := math.Inf(0)
+	nan := math.NaN()
+
 	for _, test := range []struct {
 		s string
-		x float64
+		x float64 // NaNs represent invalid inputs
 	}{
 		// basics
 		{"0", 0},
@@ -44,6 +48,25 @@ func TestFloatSetFloat64String(t *testing.T) {
 		{"1E10", 1e10},
 		{"1.E+10", 1e10},
 		{"+1E-10", 1e-10},
+
+		// infinities
+		{"Inf", inf},
+		{"+Inf", inf},
+		{"-Inf", -inf},
+		{"inf", inf},
+		{"+inf", inf},
+		{"-inf", -inf},
+
+		// invalid numbers
+		{"", nan},
+		{"-", nan},
+		{"0x", nan},
+		{"0e", nan},
+		{"1.2ef", nan},
+		{"2..3", nan},
+		{"123..", nan},
+		{"infinity", nan},
+		{"foobar", nan},
 
 		// misc decimal values
 		{"3.14159265", 3.14159265},
@@ -96,8 +119,16 @@ func TestFloatSetFloat64String(t *testing.T) {
 		var x Float
 		x.SetPrec(53)
 		_, ok := x.SetString(test.s)
+		if math.IsNaN(test.x) {
+			// test.s is invalid
+			if ok {
+				t.Errorf("%s: want parse error", test.s)
+			}
+			continue
+		}
+		// test.s is valid
 		if !ok {
-			t.Errorf("%s: parse error", test.s)
+			t.Errorf("%s: got parse error", test.s)
 			continue
 		}
 		f, _ := x.Float64()
@@ -113,7 +144,7 @@ const (
 	above1e23 = 100000000000000008388608
 )
 
-func TestFloat64Format(t *testing.T) {
+func TestFloat64Text(t *testing.T) {
 	for _, test := range []struct {
 		x      float64
 		format byte
@@ -257,7 +288,7 @@ func TestFloat64Format(t *testing.T) {
 		// {383260575764816448, 'g', -1, "3.8326057576481645e+17"},
 	} {
 		f := new(Float).SetFloat64(test.x)
-		got := f.Format(test.format, test.prec)
+		got := f.Text(test.format, test.prec)
 		if got != test.want {
 			t.Errorf("%v: got %s; want %s", test, got, test.want)
 		}
@@ -277,7 +308,7 @@ func TestFloat64Format(t *testing.T) {
 	}
 }
 
-func TestFloatFormat(t *testing.T) {
+func TestFloatText(t *testing.T) {
 	for _, test := range []struct {
 		x      string
 		prec   uint
@@ -378,7 +409,7 @@ func TestFloatFormat(t *testing.T) {
 			continue
 		}
 
-		got := f.Format(test.format, test.digits)
+		got := f.Text(test.format, test.digits)
 		if got != test.want {
 			t.Errorf("%v: got %s; want %s", test, got, test.want)
 		}
@@ -397,6 +428,146 @@ func TestFloatFormat(t *testing.T) {
 			if got != test.want {
 				t.Errorf("%v: got %s; want %s", test, got, test.want)
 			}
+		}
+	}
+}
+
+func TestFloatFormat(t *testing.T) {
+	for _, test := range []struct {
+		format string
+		value  interface{} // float32, float64, or string (== 512bit *Float)
+		want   string
+	}{
+		// TODO(gri) uncomment the disabled 'g'/'G' formats
+		// 	     below once (*Float).Text supports prec < 0
+
+		// from fmt/fmt_test.go
+		{"%+.3e", 0.0, "+0.000e+00"},
+		{"%+.3e", 1.0, "+1.000e+00"},
+		{"%+.3f", -1.0, "-1.000"},
+		{"%+.3F", -1.0, "-1.000"},
+		{"%+.3F", float32(-1.0), "-1.000"},
+		{"%+07.2f", 1.0, "+001.00"},
+		{"%+07.2f", -1.0, "-001.00"},
+		{"%+10.2f", +1.0, "     +1.00"},
+		{"%+10.2f", -1.0, "     -1.00"},
+		{"% .3E", -1.0, "-1.000E+00"},
+		{"% .3e", 1.0, " 1.000e+00"},
+		{"%+.3g", 0.0, "+0"},
+		{"%+.3g", 1.0, "+1"},
+		{"%+.3g", -1.0, "-1"},
+		{"% .3g", -1.0, "-1"},
+		{"% .3g", 1.0, " 1"},
+		{"%b", float32(1.0), "8388608p-23"},
+		{"%b", 1.0, "4503599627370496p-52"},
+
+		// from fmt/fmt_test.go: old test/fmt_test.go
+		{"%e", 1.0, "1.000000e+00"},
+		{"%e", 1234.5678e3, "1.234568e+06"},
+		{"%e", 1234.5678e-8, "1.234568e-05"},
+		{"%e", -7.0, "-7.000000e+00"},
+		{"%e", -1e-9, "-1.000000e-09"},
+		{"%f", 1234.5678e3, "1234567.800000"},
+		{"%f", 1234.5678e-8, "0.000012"},
+		{"%f", -7.0, "-7.000000"},
+		{"%f", -1e-9, "-0.000000"},
+		// {"%g", 1234.5678e3, "1.2345678e+06"},
+		// {"%g", float32(1234.5678e3), "1.2345678e+06"},
+		// {"%g", 1234.5678e-8, "1.2345678e-05"},
+		{"%g", -7.0, "-7"},
+		{"%g", -1e-9, "-1e-09"},
+		{"%g", float32(-1e-9), "-1e-09"},
+		{"%E", 1.0, "1.000000E+00"},
+		{"%E", 1234.5678e3, "1.234568E+06"},
+		{"%E", 1234.5678e-8, "1.234568E-05"},
+		{"%E", -7.0, "-7.000000E+00"},
+		{"%E", -1e-9, "-1.000000E-09"},
+		// {"%G", 1234.5678e3, "1.2345678E+06"},
+		// {"%G", float32(1234.5678e3), "1.2345678E+06"},
+		// {"%G", 1234.5678e-8, "1.2345678E-05"},
+		{"%G", -7.0, "-7"},
+		{"%G", -1e-9, "-1E-09"},
+		{"%G", float32(-1e-9), "-1E-09"},
+
+		{"%20.6e", 1.2345e3, "        1.234500e+03"},
+		{"%20.6e", 1.2345e-3, "        1.234500e-03"},
+		{"%20e", 1.2345e3, "        1.234500e+03"},
+		{"%20e", 1.2345e-3, "        1.234500e-03"},
+		{"%20.8e", 1.2345e3, "      1.23450000e+03"},
+		{"%20f", 1.23456789e3, "         1234.567890"},
+		{"%20f", 1.23456789e-3, "            0.001235"},
+		{"%20f", 12345678901.23456789, "  12345678901.234568"},
+		{"%-20f", 1.23456789e3, "1234.567890         "},
+		{"%20.8f", 1.23456789e3, "       1234.56789000"},
+		{"%20.8f", 1.23456789e-3, "          0.00123457"},
+		// {"%g", 1.23456789e3, "1234.56789"},
+		// {"%g", 1.23456789e-3, "0.00123456789"},
+		// {"%g", 1.23456789e20, "1.23456789e+20"},
+		{"%20e", math.Inf(1), "                +Inf"},
+		{"%-20f", math.Inf(-1), "-Inf                "},
+
+		// from fmt/fmt_test.go: comparison of padding rules with C printf
+		{"%.2f", 1.0, "1.00"},
+		{"%.2f", -1.0, "-1.00"},
+		{"% .2f", 1.0, " 1.00"},
+		{"% .2f", -1.0, "-1.00"},
+		{"%+.2f", 1.0, "+1.00"},
+		{"%+.2f", -1.0, "-1.00"},
+		{"%7.2f", 1.0, "   1.00"},
+		{"%7.2f", -1.0, "  -1.00"},
+		{"% 7.2f", 1.0, "   1.00"},
+		{"% 7.2f", -1.0, "  -1.00"},
+		{"%+7.2f", 1.0, "  +1.00"},
+		{"%+7.2f", -1.0, "  -1.00"},
+		{"%07.2f", 1.0, "0001.00"},
+		{"%07.2f", -1.0, "-001.00"},
+		{"% 07.2f", 1.0, " 001.00"},
+		{"% 07.2f", -1.0, "-001.00"},
+		{"%+07.2f", 1.0, "+001.00"},
+		{"%+07.2f", -1.0, "-001.00"},
+
+		// from fmt/fmt_test.go: zero padding does not apply to infinities
+		{"%020f", math.Inf(-1), "                -Inf"},
+		{"%020f", math.Inf(+1), "                +Inf"},
+		{"% 020f", math.Inf(-1), "                -Inf"},
+		{"% 020f", math.Inf(+1), "                 Inf"},
+		{"%+020f", math.Inf(-1), "                -Inf"},
+		{"%+020f", math.Inf(+1), "                +Inf"},
+		{"%20f", -1.0, "           -1.000000"},
+
+		// handle %v like %g
+		{"%v", 0.0, "0"},
+		{"%v", -7.0, "-7"},
+		{"%v", -1e-9, "-1e-09"},
+		{"%v", float32(-1e-9), "-1e-09"},
+		{"%010v", 0.0, "0000000000"},
+		{"%010v", 0.0, "0000000000"},
+
+		// *Float cases
+		{"%.20f", "1e-20", "0.00000000000000000001"},
+		{"%.20f", "-1e-20", "-0.00000000000000000001"},
+		{"%30.20f", "-1e-20", "       -0.00000000000000000001"},
+		{"%030.20f", "-1e-20", "-00000000.00000000000000000001"},
+		{"%030.20f", "+1e-20", "000000000.00000000000000000001"},
+		{"% 030.20f", "+1e-20", " 00000000.00000000000000000001"},
+
+		// erroneous formats
+		{"%s", 1.0, "%!s(*big.Float=1)"},
+	} {
+		value := new(Float)
+		switch v := test.value.(type) {
+		case float32:
+			value.SetPrec(24).SetFloat64(float64(v))
+		case float64:
+			value.SetPrec(53).SetFloat64(v)
+		case string:
+			value.SetPrec(512).Parse(v, 0)
+		default:
+			t.Fatalf("unsupported test value: %v (%T)", v, v)
+		}
+
+		if got := fmt.Sprintf(test.format, value); got != test.want {
+			t.Errorf("%v: got %q; want %q", test, got, test.want)
 		}
 	}
 }

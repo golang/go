@@ -863,16 +863,22 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
 }
 
 // decIgnoreOpFor returns the decoding op for a field that has no destination.
-func (dec *Decoder) decIgnoreOpFor(wireId typeId) decOp {
+func (dec *Decoder) decIgnoreOpFor(wireId typeId, inProgress map[typeId]*decOp) *decOp {
+	// If this type is already in progress, it's a recursive type (e.g. map[string]*T).
+	// Return the pointer to the op we're already building.
+	if opPtr := inProgress[wireId]; opPtr != nil {
+		return opPtr
+	}
 	op, ok := decIgnoreOpMap[wireId]
 	if !ok {
+		inProgress[wireId] = &op
 		if wireId == tInterface {
 			// Special case because it's a method: the ignored item might
 			// define types and we need to record their state in the decoder.
 			op = func(i *decInstr, state *decoderState, value reflect.Value) {
 				state.dec.ignoreInterface(state)
 			}
-			return op
+			return &op
 		}
 		// Special cases
 		wire := dec.wireType[wireId]
@@ -881,25 +887,25 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId) decOp {
 			errorf("bad data: undefined type %s", wireId.string())
 		case wire.ArrayT != nil:
 			elemId := wire.ArrayT.Elem
-			elemOp := dec.decIgnoreOpFor(elemId)
+			elemOp := dec.decIgnoreOpFor(elemId, inProgress)
 			op = func(i *decInstr, state *decoderState, value reflect.Value) {
-				state.dec.ignoreArray(state, elemOp, wire.ArrayT.Len)
+				state.dec.ignoreArray(state, *elemOp, wire.ArrayT.Len)
 			}
 
 		case wire.MapT != nil:
 			keyId := dec.wireType[wireId].MapT.Key
 			elemId := dec.wireType[wireId].MapT.Elem
-			keyOp := dec.decIgnoreOpFor(keyId)
-			elemOp := dec.decIgnoreOpFor(elemId)
+			keyOp := dec.decIgnoreOpFor(keyId, inProgress)
+			elemOp := dec.decIgnoreOpFor(elemId, inProgress)
 			op = func(i *decInstr, state *decoderState, value reflect.Value) {
-				state.dec.ignoreMap(state, keyOp, elemOp)
+				state.dec.ignoreMap(state, *keyOp, *elemOp)
 			}
 
 		case wire.SliceT != nil:
 			elemId := wire.SliceT.Elem
-			elemOp := dec.decIgnoreOpFor(elemId)
+			elemOp := dec.decIgnoreOpFor(elemId, inProgress)
 			op = func(i *decInstr, state *decoderState, value reflect.Value) {
-				state.dec.ignoreSlice(state, elemOp)
+				state.dec.ignoreSlice(state, *elemOp)
 			}
 
 		case wire.StructT != nil:
@@ -922,7 +928,7 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId) decOp {
 	if op == nil {
 		errorf("bad data: ignore can't handle type %s", wireId.string())
 	}
-	return op
+	return &op
 }
 
 // gobDecodeOpFor returns the op for a type that is known to implement
@@ -1056,9 +1062,9 @@ func (dec *Decoder) compileSingle(remoteId typeId, ut *userTypeInfo) (engine *de
 func (dec *Decoder) compileIgnoreSingle(remoteId typeId) (engine *decEngine, err error) {
 	engine = new(decEngine)
 	engine.instr = make([]decInstr, 1) // one item
-	op := dec.decIgnoreOpFor(remoteId)
+	op := dec.decIgnoreOpFor(remoteId, make(map[typeId]*decOp))
 	ovfl := overflow(dec.typeString(remoteId))
-	engine.instr[0] = decInstr{op, 0, nil, ovfl}
+	engine.instr[0] = decInstr{*op, 0, nil, ovfl}
 	engine.numInstr = 1
 	return
 }
@@ -1101,8 +1107,8 @@ func (dec *Decoder) compileDec(remoteId typeId, ut *userTypeInfo) (engine *decEn
 		localField, present := srt.FieldByName(wireField.Name)
 		// TODO(r): anonymous names
 		if !present || !isExported(wireField.Name) {
-			op := dec.decIgnoreOpFor(wireField.Id)
-			engine.instr[fieldnum] = decInstr{op, fieldnum, nil, ovfl}
+			op := dec.decIgnoreOpFor(wireField.Id, make(map[typeId]*decOp))
+			engine.instr[fieldnum] = decInstr{*op, fieldnum, nil, ovfl}
 			continue
 		}
 		if !dec.compatibleType(localField.Type, wireField.Id, make(map[reflect.Type]typeId)) {

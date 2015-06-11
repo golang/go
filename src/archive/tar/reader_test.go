@@ -757,3 +757,22 @@ func TestNegativeHdrSize(t *testing.T) {
 	}
 	io.Copy(ioutil.Discard, r)
 }
+
+// This used to hang in (*sparseFileReader).readHole due to missing
+// verification of sparse offsets against file size.
+func TestIssue10968(t *testing.T) {
+	f, err := os.Open("testdata/issue10968.tar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	r := NewReader(f)
+	_, err = r.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = io.Copy(ioutil.Discard, r)
+	if err != io.ErrUnexpectedEOF {
+		t.Fatalf("expected %q, got %q", io.ErrUnexpectedEOF, err)
+	}
+}

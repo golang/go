@@ -540,6 +540,30 @@ func runInstall(cmd *Command, args []string) {
 		}
 	}
 	b.do(a)
+	exitIfErrors()
+
+	// Success. If this command is 'go install' with no arguments
+	// and the current directory (the implicit argument) is a command,
+	// remove any leftover command binary from a previous 'go build'.
+	// The binary is installed; it's not needed here anymore.
+	// And worse it might be a stale copy, which you don't want to find
+	// instead of the installed one if $PATH contains dot.
+	// One way to view this behavior is that it is as if 'go install' first
+	// runs 'go build' and the moves the generated file to the install dir.
+	// See issue 9645.
+	if len(args) == 0 && len(pkgs) == 1 && pkgs[0].Name == "main" {
+		// Compute file 'go build' would have created.
+		// If it exists and is an executable file, remove it.
+		_, targ := filepath.Split(pkgs[0].ImportPath)
+		targ += exeSuffix
+		fi, err := os.Stat(targ)
+		if err == nil {
+			m := fi.Mode()
+			if m.IsRegular() && m&0111 != 0 {
+				os.Remove(targ)
+			}
+		}
+	}
 }
 
 // Global build parameters (used during package load)
@@ -727,9 +751,9 @@ func goFilesPackage(gofiles []string) *Package {
 }
 
 func readpkglist(shlibpath string) []*Package {
-	pkglistbytes, err := readnote(shlibpath, "GO\x00\x00", 1)
+	pkglistbytes, err := readELFNote(shlibpath, "Go\x00\x00", 1)
 	if err != nil {
-		fatalf("readnote failed: %v", err)
+		fatalf("readELFNote failed: %v", err)
 	}
 	scanner := bufio.NewScanner(bytes.NewBuffer(pkglistbytes))
 	var pkgs []*Package
@@ -2131,6 +2155,9 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool, 
 	if buildContext.InstallSuffix != "" {
 		gcargs = append(gcargs, "-installsuffix", buildContext.InstallSuffix)
 	}
+	if p.buildID != "" {
+		gcargs = append(gcargs, "-buildid", p.buildID)
+	}
 
 	args := []interface{}{buildToolExec, tool("compile"), "-o", ofile, "-trimpath", b.work, buildGcflags, gcargs, "-D", p.localPrefix, importArgs}
 	if ofile == archive {
@@ -2325,6 +2352,9 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action, 
 	}
 	ldflags = setextld(ldflags, compiler)
 	ldflags = append(ldflags, "-buildmode="+ldBuildmode)
+	if p.buildID != "" {
+		ldflags = append(ldflags, "-buildid="+p.buildID)
+	}
 	ldflags = append(ldflags, buildLdflags...)
 	return b.run(".", p.ImportPath, nil, buildToolExec, tool("link"), "-o", out, importArgs, ldflags, mainpkg)
 }
@@ -2423,7 +2453,7 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
 				apackagesSeen[a.p] = true
 				if a.p.fake && a.p.external {
 					// external _tests, if present must come before
-					// internal _tests. Store these on a seperate list
+					// internal _tests. Store these on a separate list
 					// and place them at the head after this loop.
 					xfiles = append(xfiles, a.target)
 				} else if a.p.fake {

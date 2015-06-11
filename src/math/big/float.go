@@ -16,7 +16,7 @@ import (
 	"math"
 )
 
-const debugFloat = true // enable for debugging
+const debugFloat = false // enable for debugging
 
 // A nonzero finite Float represents a multi-precision floating point number
 //
@@ -363,7 +363,7 @@ func (x *Float) validate() {
 	}
 	const msb = 1 << (_W - 1)
 	if x.mant[m-1]&msb == 0 {
-		panic(fmt.Sprintf("msb not set in last word %#x of %s", x.mant[m-1], x.Format('p', 0)))
+		panic(fmt.Sprintf("msb not set in last word %#x of %s", x.mant[m-1], x.Text('p', 0)))
 	}
 	if x.prec == 0 {
 		panic("zero precision finite number")
@@ -381,14 +381,11 @@ func (x *Float) validate() {
 func (z *Float) round(sbit uint) {
 	if debugFloat {
 		z.validate()
-		if z.form > finite {
-			panic(fmt.Sprintf("round called for non-finite value %s", z))
-		}
 	}
-	// z.form <= finite
 
 	z.acc = Exact
-	if z.form == zero {
+	if z.form != finite {
+		// ±0 or ±Inf => nothing left to do
 		return
 	}
 	// z.form == finite && len(z.mant) > 0

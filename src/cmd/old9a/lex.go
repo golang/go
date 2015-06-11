@@ -536,7 +536,10 @@ func outgcode(a int, g1 *obj.Addr, reg int, g2, g3 *obj.Addr) {
 	}
 	p.From = *g1
 	p.Reg = int16(reg)
-	p.From3 = *g2
+	if g2.Type != 0 {
+		p.From3 = new(obj.Addr)
+		*p.From3 = *g2
+	}
 	p.To = *g3
 	p.Pc = int64(asm.PC)
 

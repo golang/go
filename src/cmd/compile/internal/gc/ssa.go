@@ -24,7 +24,7 @@ func buildssa(fn *Node) *ssa.Func {
 	// TODO(khr): build config just once at the start of the compiler binary
 	s.config = ssa.NewConfig(Thearch.Thestring, ssaExport{})
 	s.f = s.config.NewFunc()
-	s.f.Name = fn.Nname.Sym.Name
+	s.f.Name = fn.Func.Nname.Sym.Name
 
 	// We construct SSA using an algorithm similar to
 	// Brau, Buchwald, Hack, Leißa, Mallon, and Zwinkau
@@ -253,7 +253,7 @@ func (s *state) stmt(n *Node) {
 		addr := s.addr(n.Left)
 		s.vars[".mem"] = s.newValue3(ssa.OpStore, ssa.TypeMem, nil, addr, val, s.mem())
 	case OIF:
-		cond := s.expr(n.Ntest)
+		cond := s.expr(n.Left)
 		b := s.endBlock()
 		b.Kind = ssa.BlockIf
 		b.Control = cond
@@ -263,7 +263,7 @@ func (s *state) stmt(n *Node) {
 		bEnd := s.f.NewBlock(ssa.BlockPlain)
 		var bElse *ssa.Block
 
-		if n.Nelse == nil {
+		if n.Rlist == nil {
 			addEdge(b, bThen)
 			addEdge(b, bEnd)
 		} else {
@@ -279,9 +279,9 @@ func (s *state) stmt(n *Node) {
 			addEdge(b, bEnd)
 		}
 
-		if n.Nelse != nil {
+		if n.Rlist != nil {
 			s.startBlock(bElse)
-			s.stmtList(n.Nelse)
+			s.stmtList(n.Rlist)
 			b = s.endBlock()
 			if b != nil {
 				addEdge(b, bEnd)
@@ -304,9 +304,9 @@ func (s *state) stmt(n *Node) {
 		addEdge(b, bCond)
 
 		// generate code to test condition
-		// TODO(khr): Ntest == nil exception
+		// TODO(khr): Left == nil exception
 		s.startBlock(bCond)
-		cond := s.expr(n.Ntest)
+		cond := s.expr(n.Left)
 		b = s.endBlock()
 		b.Kind = ssa.BlockIf
 		b.Control = cond
@@ -317,7 +317,7 @@ func (s *state) stmt(n *Node) {
 		// generate body
 		s.startBlock(bBody)
 		s.stmtList(n.Nbody)
-		s.stmt(n.Nincr)
+		s.stmt(n.Right)
 		b = s.endBlock()
 		addEdge(b, bCond)
 
@@ -349,13 +349,13 @@ func (s *state) expr(n *Node) *ssa.Value {
 		addr := s.addr(n)
 		return s.newValue2(ssa.OpLoad, n.Type, nil, addr, s.mem())
 	case OLITERAL:
-		switch n.Val.Ctype {
+		switch n.Val().Ctype() {
 		case CTINT:
-			return s.constInt(n.Type, Mpgetfix(n.Val.U.(*Mpint)))
+			return s.constInt(n.Type, Mpgetfix(n.Val().U.(*Mpint)))
 		case CTSTR:
-			return s.entryNewValue(ssa.OpConst, n.Type, n.Val.U)
+			return s.entryNewValue(ssa.OpConst, n.Type, n.Val().U)
 		default:
-			log.Fatalf("unhandled OLITERAL %v", n.Val.Ctype)
+			log.Fatalf("unhandled OLITERAL %v", n.Val().Ctype())
 			return nil
 		}
 

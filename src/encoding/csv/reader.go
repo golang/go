@@ -215,7 +215,7 @@ func (r *Reader) parseRecord() (fields []string, err error) {
 	r.column = -1
 
 	// Peek at the first rune.  If it is an error we are done.
-	// If we are support comments and it is the comment character
+	// If we support comments and it is the comment character
 	// then skip to the end of line.
 
 	r1, _, err := r.r.ReadRune()

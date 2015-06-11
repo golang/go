@@ -11,7 +11,7 @@ var helpC = &Command{
 There are two different ways to call between Go and C/C++ code.
 
 The first is the cgo tool, which is part of the Go distribution.  For
-information on how to use it see the cgo documentation (godoc cmd/cgo).
+information on how to use it see the cgo documentation (go doc cmd/cgo).
 
 The second is the SWIG program, which is a general tool for
 interfacing between languages.  For information on SWIG see

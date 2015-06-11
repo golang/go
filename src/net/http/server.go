@@ -1326,6 +1326,7 @@ func (f HandlerFunc) ServeHTTP(w ResponseWriter, r *Request) {
 // The error message should be plain text.
 func Error(w ResponseWriter, error string, code int) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(code)
 	fmt.Fprintln(w, error)
 }

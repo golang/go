@@ -572,7 +572,7 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 	u.clear() // TODO(gri) no need to clear if we allocated a new u
 
 	// D1.
-	shift := leadingZeros(v[n-1])
+	shift := nlz(v[n-1])
 	if shift > 0 {
 		// do not modify v, it may be used by another goroutine simultaneously
 		v1 := make(nat, n)
@@ -942,7 +942,7 @@ func (z nat) expNN(x, y, m nat) nat {
 	}
 
 	v := y[len(y)-1] // v > 0 because y is normalized and y > 0
-	shift := leadingZeros(v) + 1
+	shift := nlz(v) + 1
 	v <<= shift
 	var q nat
 

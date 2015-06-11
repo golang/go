@@ -687,18 +687,6 @@ func (hs *serverHandshakeState) processCertsFromClient(certificates [][]byte) (c
 			return nil, errors.New("tls: failed to verify client's certificate: " + err.Error())
 		}
 
-		ok := false
-		for _, ku := range certs[0].ExtKeyUsage {
-			if ku == x509.ExtKeyUsageClientAuth {
-				ok = true
-				break
-			}
-		}
-		if !ok {
-			c.sendAlert(alertHandshakeFailure)
-			return nil, errors.New("tls: client's certificate's extended key usage doesn't permit it to be used for client authentication")
-		}
-
 		c.verifiedChains = chains
 	}
 

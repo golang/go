@@ -17,4 +17,4 @@ TEXT runtime·memclr(SB),NOSPLIT,$0-16
 	MOVBU	R0, 1(R3)
 	BC	25, 0, -1(PC) // bdnz+ $-4
 done:
-	RETURN
+	RET

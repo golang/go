@@ -32,7 +32,7 @@ import "unsafe"
 // Beside calling runtime·netpollopen, the networking code paths
 // will call runtime·netpollarm each time goroutines are interested
 // in doing network I/O. Because now we know what kind of I/O we
-// are interested in (reading/writting), we can call port_associate
+// are interested in (reading/writing), we can call port_associate
 // passing the correct type of event set (POLLIN/POLLOUT). As we made
 // sure to have already associated the file descriptor with the port,
 // when we now call port_associate, we will unblock the main poller

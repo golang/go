@@ -138,13 +138,11 @@ yes:
 	// any side effects disappear; ignore init
 ret:
 	var val Val
-	val.Ctype = CTINT
-
 	val.U = new(Mpint)
 	Mpmovecfix(val.U.(*Mpint), v)
 	n := Nod(OLITERAL, nil, nil)
 	n.Orig = nn
-	n.Val = val
+	n.SetVal(val)
 	n.Type = Types[TUINTPTR]
 	nn.Type = Types[TUINTPTR]
 	return n

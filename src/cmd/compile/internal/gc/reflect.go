@@ -105,7 +105,7 @@ func lsort(l *Sig, f func(*Sig, *Sig) int) *Sig {
 	return l
 }
 
-// Builds a type respresenting a Bucket structure for
+// Builds a type representing a Bucket structure for
 // the given map type.  This type is not visible to users -
 // we include only enough information to generate a correct GC
 // program for it.
@@ -1234,7 +1234,7 @@ ok:
 			// a package that imports the first one and does use *T pointers.
 			// The second module will end up defining type data for *T and a
 			// type.*T symbol pointing at it. It's important that calling
-			// .PtrTo() on the refect.Type for T returns this type data and
+			// .PtrTo() on the reflect.Type for T returns this type data and
 			// not some synthesized object, so we need reflect to be able to
 			// find it!
 			if !Ctxt.Flag_dynlink {

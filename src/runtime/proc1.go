@@ -62,7 +62,7 @@ func schedinit() {
 	gcinit()
 
 	sched.lastpoll = uint64(nanotime())
-	procs := 1
+	procs := int(ncpu)
 	if n := atoi(gogetenv("GOMAXPROCS")); n > 0 {
 		if n > _MaxGomaxprocs {
 			n = _MaxGomaxprocs
@@ -1960,7 +1960,7 @@ func exitsyscall(dummy int32) {
 
 	var exitTicks int64
 	if trace.enabled {
-		// Wait till traceGoSysBlock event is emited.
+		// Wait till traceGoSysBlock event is emitted.
 		// This ensures consistency of the trace (the goroutine is started after it is blocked).
 		for oldp != nil && oldp.syscalltick == _g_.m.syscalltick {
 			osyield()
@@ -2047,7 +2047,7 @@ func exitsyscallfast() bool {
 			ok = exitsyscallfast_pidle()
 			if ok && trace.enabled {
 				if oldp != nil {
-					// Wait till traceGoSysBlock event is emited.
+					// Wait till traceGoSysBlock event is emitted.
 					// This ensures consistency of the trace (the goroutine is started after it is blocked).
 					for oldp.syscalltick == _g_.m.syscalltick {
 						osyield()
@@ -2157,10 +2157,11 @@ func malg(stacksize int32) *g {
 	if stacksize >= 0 {
 		stacksize = round2(_StackSystem + stacksize)
 		systemstack(func() {
-			newg.stack = stackalloc(uint32(stacksize))
+			newg.stack, newg.stkbar = stackalloc(uint32(stacksize))
 		})
 		newg.stackguard0 = newg.stack.lo + _StackGuard
 		newg.stackguard1 = ^uintptr(0)
+		newg.stackAlloc = uintptr(stacksize)
 	}
 	return newg
 }
@@ -2276,14 +2277,16 @@ func gfput(_p_ *p, gp *g) {
 		throw("gfput: bad status (not Gdead)")
 	}
 
-	stksize := gp.stack.hi - gp.stack.lo
+	stksize := gp.stackAlloc
 
 	if stksize != _FixedStack {
 		// non-standard stack size - free it.
-		stackfree(gp.stack)
+		stackfree(gp.stack, gp.stackAlloc)
 		gp.stack.lo = 0
 		gp.stack.hi = 0
 		gp.stackguard0 = 0
+		gp.stkbar = nil
+		gp.stkbarPos = 0
 	}
 
 	gp.schedlink.set(_p_.gfree)
@@ -2327,12 +2330,13 @@ retry:
 		if gp.stack.lo == 0 {
 			// Stack was deallocated in gfput.  Allocate a new one.
 			systemstack(func() {
-				gp.stack = stackalloc(_FixedStack)
+				gp.stack, gp.stkbar = stackalloc(_FixedStack)
 			})
 			gp.stackguard0 = gp.stack.lo + _StackGuard
+			gp.stackAlloc = _FixedStack
 		} else {
 			if raceenabled {
-				racemalloc(unsafe.Pointer(gp.stack.lo), gp.stack.hi-gp.stack.lo)
+				racemalloc(unsafe.Pointer(gp.stack.lo), gp.stackAlloc)
 			}
 		}
 	}
@@ -2691,7 +2695,7 @@ func procresize(nprocs int32) *p {
 				traceProcStop(p)
 			}
 		}
-		// move all runable goroutines to the global queue
+		// move all runnable goroutines to the global queue
 		for p.runqhead != p.runqtail {
 			// pop from tail of local queue
 			p.runqtail--
