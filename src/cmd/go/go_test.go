@@ -532,10 +532,6 @@ func TestGoInstallCleansUpAfterGoBuild(t *testing.T) {
 		if _, err := os.Stat(file); err == nil {
 			t.Fatal(msg)
 		} else if !os.IsNotExist(err) {
-			// See http://golang.org/issue/11132.
-			if runtime.GOOS == "plan9" && strings.Contains(err.Error(), "stat buffer too short") {
-				return
-			}
 			t.Fatal(msg, "error:", err)
 		}
 	}
