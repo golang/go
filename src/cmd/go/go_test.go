@@ -75,6 +75,8 @@ func TestMain(m *testing.M) {
 		case "linux", "darwin", "freebsd", "windows":
 			canRace = canCgo && runtime.GOARCH == "amd64"
 		}
+
+		measureTick("./testgo" + exeSuffix)
 	}
 
 	// Don't let these environment variables confuse the test.
@@ -89,6 +91,28 @@ func TestMain(m *testing.M) {
 	}
 
 	os.Exit(r)
+}
+
+// The length of an mtime tick on this system.  This is an estimate of
+// how long we need to sleep to ensure that the mtime of two files is
+// different.
+var mtimeTick time.Duration
+
+// measureTick sets mtimeTick by looking at the rounding of the mtime
+// of a file.
+func measureTick(path string) {
+	st, err := os.Stat(path)
+	if err != nil {
+		// Default to one second, the most conservative value.
+		mtimeTick = time.Second
+		return
+	}
+	mtime := st.ModTime()
+	t := time.Microsecond
+	for mtime.Round(t).Equal(mtime) && t < time.Second {
+		t *= 10
+	}
+	mtimeTick = t
 }
 
 // Manage a single run of the testgo binary.
@@ -152,6 +176,13 @@ func (tg *testgoData) cd(dir string) {
 		tg.wd = tg.pwd()
 	}
 	tg.must(os.Chdir(dir))
+}
+
+// sleep sleeps for one tick, where a tick is a conservative estimate
+// of how long it takes for a file modification to get a different
+// mtime.
+func (tg *testgoData) sleep() {
+	time.Sleep(mtimeTick)
 }
 
 // setenv sets an environment variable to use when running the test go
@@ -580,9 +611,7 @@ func F() {}
 	tg.run("install", "p1")
 	tg.wantNotStale("p1", "./testgo list mypkg claims p1 is stale, incorrectly")
 	tg.wantNotStale("p2", "./testgo list mypkg claims p2 is stale, incorrectly")
-	// TODO(iant): Sleep for one "tick", where a tick is the
-	// granularity of mtime on the file system.
-	time.Sleep(time.Second)
+	tg.sleep()
 	if f, err := os.OpenFile(tg.path("d2/src/p2/p2.go"), os.O_WRONLY|os.O_APPEND, 0); err != nil {
 		t.Fatal(err)
 	} else if _, err = f.WriteString(`func G() {}`); err != nil {
@@ -938,6 +967,7 @@ func TestPackageMainTestImportsArchiveNotBinary(t *testing.T) {
 	tg.setenv("GOBIN", gobin)
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 	tg.must(os.Chtimes("./testdata/src/main_test/m.go", time.Now(), time.Now()))
+	tg.sleep()
 	tg.run("test", "main_test")
 	tg.run("install", "main_test")
 	tg.wantNotStale("main_test", "after go install, main listed as stale")
@@ -1613,11 +1643,9 @@ func F() { foo.F() }`)
 	tg.setenv("GOPATH", tg.path("."))
 
 	checkbar := func(desc string) {
-		// TODO(iant): Sleep for one "tick", where a tick is
-		// the granularity of mtime on the file system.
-		time.Sleep(time.Second)
+		tg.sleep()
 		tg.must(os.Chtimes(tg.path("src/x/y/foo/foo.go"), time.Now(), time.Now()))
-		time.Sleep(time.Second)
+		tg.sleep()
 		tg.run("build", "-v", "-i", "x/y/bar")
 		tg.grepBoth("x/y/foo", "first build -i "+desc+" did not build x/y/foo")
 		tg.run("build", "-v", "-i", "x/y/bar")
