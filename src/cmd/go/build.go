@@ -559,8 +559,10 @@ func runInstall(cmd *Command, args []string) {
 		fi, err := os.Stat(targ)
 		if err == nil {
 			m := fi.Mode()
-			if m.IsRegular() && m&0111 != 0 {
-				os.Remove(targ)
+			if m.IsRegular() {
+				if m&0111 != 0 || goos == "windows" { // windows never sets executable bit
+					os.Remove(targ)
+				}
 			}
 		}
 	}

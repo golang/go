@@ -589,10 +589,6 @@ func TestGoBuilDashAInReleaseBranch(t *testing.T) {
 }
 
 func TestGoInstallCleansUpAfterGoBuild(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("skipping on Windows because of http://golang.org/issue/9645")
-	}
-
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.tempFile("src/mycmd/main.go", `package main; func main(){}`)
@@ -621,10 +617,10 @@ func TestGoInstallCleansUpAfterGoBuild(t *testing.T) {
 	tg.wantExecutable("mycmd"+exeSuffix, "testgo build did not write command binary (third time)")
 	// And especially not outside the directory.
 	tg.cd(tg.path("."))
-	if data, err := ioutil.ReadFile("src/mycmd/mycmd"); err != nil {
+	if data, err := ioutil.ReadFile("src/mycmd/mycmd" + exeSuffix); err != nil {
 		t.Fatal("could not read file:", err)
 	} else {
-		if err := ioutil.WriteFile("mycmd", data, 0555); err != nil {
+		if err := ioutil.WriteFile("mycmd"+exeSuffix, data, 0555); err != nil {
 			t.Fatal("could not write file:", err)
 		}
 	}
