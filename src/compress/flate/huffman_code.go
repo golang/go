@@ -47,11 +47,11 @@ func newHuffmanEncoder(size int) *huffmanEncoder {
 
 // Generates a HuffmanCode corresponding to the fixed literal table
 func generateFixedLiteralEncoding() *huffmanEncoder {
-	h := newHuffmanEncoder(maxLit)
+	h := newHuffmanEncoder(maxNumLit)
 	codeBits := h.codeBits
 	code := h.code
 	var ch uint16
-	for ch = 0; ch < maxLit; ch++ {
+	for ch = 0; ch < maxNumLit; ch++ {
 		var bits uint16
 		var size uint8
 		switch {
