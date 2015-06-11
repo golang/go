@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"go/format"
 	"internal/testenv"
 	"io/ioutil"
 	"os"
@@ -440,7 +441,14 @@ func (tg *testgoData) makeTempdir() {
 func (tg *testgoData) tempFile(path, contents string) {
 	tg.makeTempdir()
 	tg.must(os.MkdirAll(filepath.Join(tg.tempdir, filepath.Dir(path)), 0755))
-	tg.must(ioutil.WriteFile(filepath.Join(tg.tempdir, path), []byte(contents), 0644))
+	bytes := []byte(contents)
+	if strings.HasSuffix(path, ".go") {
+		formatted, err := format.Source(bytes)
+		if err == nil {
+			bytes = formatted
+		}
+	}
+	tg.must(ioutil.WriteFile(filepath.Join(tg.tempdir, path), bytes, 0644))
 }
 
 // tempDir adds a temporary directory for a run of testgo.
@@ -623,15 +631,10 @@ func TestGoInstallRebuildsStalePackagesInOtherGOPATH(t *testing.T) {
 	defer tg.cleanup()
 	tg.parallel()
 	tg.tempFile("d1/src/p1/p1.go", `package p1
-
-import "p2"
-
-func F() { p2.F() }
-`)
+		import "p2"
+		func F() { p2.F() }`)
 	tg.tempFile("d2/src/p2/p2.go", `package p2
-
-func F() {}
-`)
+		func F() {}`)
 	sep := string(filepath.ListSeparator)
 	tg.setenv("GOPATH", tg.path("d1")+sep+tg.path("d2"))
 	tg.run("install", "p1")
@@ -661,7 +664,7 @@ func TestGoInstallDetectsRemovedFiles(t *testing.T) {
 	tg.tempFile("src/mypkg/y.go", `package mypkg`)
 	tg.tempFile("src/mypkg/z.go", `// +build missingtag
 
-package mypkg`)
+		package mypkg`)
 	tg.setenv("GOPATH", tg.path("."))
 	tg.run("install", "mypkg")
 	tg.wantNotStale("mypkg", "./testgo list mypkg claims mypkg is stale, incorrectly")
@@ -678,14 +681,11 @@ func TestGoInstsallDetectsRemovedFilesInPackageMain(t *testing.T) {
 	defer tg.cleanup()
 	tg.parallel()
 	tg.tempFile("src/mycmd/x.go", `package main
-
-func main() {}
-`)
+		func main() {}`)
 	tg.tempFile("src/mycmd/y.go", `package main`)
 	tg.tempFile("src/mycmd/z.go", `// +build missingtag
 
-package main
-`)
+		package main`)
 	tg.setenv("GOPATH", tg.path("."))
 	tg.run("install", "mycmd")
 	tg.wantNotStale("mycmd", "./testgo list mypkg claims mycmd is stale, incorrectly")
@@ -1266,10 +1266,10 @@ func TestLdflagsArgumentsWithSpacesIssue3941(t *testing.T) {
 	defer tg.cleanup()
 	tg.parallel()
 	tg.tempFile("main.go", `package main
-var extern string
-func main() {
-	println(extern)
-}`)
+		var extern string
+		func main() {
+			println(extern)
+		}`)
 	tg.run("run", "-ldflags", `-X main.extern "hello world"`, tg.path("main.go"))
 	tg.grepStderr("^hello world", `ldflags -X main.extern 'hello world' failed`)
 }
@@ -1335,11 +1335,11 @@ func TestInstallWithTags(t *testing.T) {
 	tg.parallel()
 	tg.tempDir("bin")
 	tg.tempFile("src/example/a/main.go", `package main
-func main() {}`)
+		func main() {}`)
 	tg.tempFile("src/example/b/main.go", `// +build mytag
 
-package main
-func main() {}`)
+		package main
+		func main() {}`)
 	tg.setenv("GOPATH", tg.path("."))
 	tg.run("install", "-tags", "mytag", "example/a", "example/b")
 	tg.wantExecutable(tg.path("bin/a"+exeSuffix), "go install example/a example/b did not install binaries")
@@ -1365,10 +1365,10 @@ func TestCaseCollisions(t *testing.T) {
 	tg.tempDir("src/example/b")
 	tg.setenv("GOPATH", tg.path("."))
 	tg.tempFile("src/example/a/a.go", `package p
-import (
-	_ "example/a/pkg"
-	_ "example/a/Pkg"
-)`)
+		import (
+			_ "example/a/pkg"
+			_ "example/a/Pkg"
+		)`)
 	tg.tempFile("src/example/a/pkg/pkg.go", `package pkg`)
 	tg.tempFile("src/example/a/Pkg/pkg.go", `package pkg`)
 	tg.runFail("list", "example/a")
@@ -1576,9 +1576,9 @@ func TestCgoDependsOnSyscall(t *testing.T) {
 		tg.check(os.RemoveAll(file))
 	}
 	tg.tempFile("src/foo/foo.go", `
-package foo
-//#include <stdio.h>
-import "C"`)
+		package foo
+		//#include <stdio.h>
+		import "C"`)
 	tg.setenv("GOPATH", tg.path("."))
 	tg.run("build", "-race", "foo")
 }
@@ -1592,9 +1592,9 @@ func TestCgoShowsFullPathNames(t *testing.T) {
 	defer tg.cleanup()
 	tg.parallel()
 	tg.tempFile("src/x/y/dirname/foo.go", `
-package foo
-import "C"
-func f() {`)
+		package foo
+		import "C"
+		func f() {`)
 	tg.setenv("GOPATH", tg.path("."))
 	tg.runFail("build", "x/y/dirname")
 	tg.grepBoth("x/y/dirname", "error did not use full path")
@@ -1609,11 +1609,10 @@ func TestCgoHandlesWlORIGIN(t *testing.T) {
 	defer tg.cleanup()
 	tg.parallel()
 	tg.tempFile("src/origin/origin.go", `package origin
-// #cgo !darwin LDFLAGS: -Wl,-rpath -Wl,$ORIGIN
-// void f(void) {}
-import "C"
-
-func f() { C.f() }`)
+		// #cgo !darwin LDFLAGS: -Wl,-rpath -Wl,$ORIGIN
+		// void f(void) {}
+		import "C"
+		func f() { C.f() }`)
 	tg.setenv("GOPATH", tg.path("."))
 	tg.run("build", "origin")
 }
@@ -1679,10 +1678,10 @@ func TestBuildDashIInstallsDependencies(t *testing.T) {
 	defer tg.cleanup()
 	tg.parallel()
 	tg.tempFile("src/x/y/foo/foo.go", `package foo
-func F() {}`)
+		func F() {}`)
 	tg.tempFile("src/x/y/bar/bar.go", `package bar
-import "x/y/foo"
-func F() { foo.F() }`)
+		import "x/y/foo"
+		func F() { foo.F() }`)
 	tg.setenv("GOPATH", tg.path("."))
 
 	checkbar := func(desc string) {
@@ -1697,8 +1696,8 @@ func F() { foo.F() }`)
 	checkbar("pkg")
 	tg.creatingTemp("bar" + exeSuffix)
 	tg.tempFile("src/x/y/bar/bar.go", `package main
-import "x/y/foo"
-func main() { foo.F() }`)
+		import "x/y/foo"
+		func main() { foo.F() }`)
 	checkbar("cmd")
 }
 
