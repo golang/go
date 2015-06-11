@@ -45,6 +45,10 @@ type huffmanDecoder struct {
 }
 
 // Initialize Huffman decoding tables from array of code lengths.
+// Following this function, h is guaranteed to be initialized into a complete
+// tree (i.e., neither over-subscribed nor under-subscribed). The exception is a
+// degenerate case where the tree has only a single symbol with length 1. Empty
+// trees are permitted.
 func (h *huffmanDecoder) init(bits []int) bool {
 	// Sanity enables additional runtime tests during Huffman
 	// table construction.  It's intended to be used during
@@ -71,8 +75,16 @@ func (h *huffmanDecoder) init(bits []int) bool {
 		}
 		count[n]++
 	}
+
+	// Empty tree. The decompressor.huffSym function will fail later if the tree
+	// is used. Technically, an empty tree is only valid for the HDIST tree and
+	// not the HCLEN and HLIT tree. However, a stream with an empty HCLEN tree
+	// is guaranteed to fail since it will attempt to use the tree to decode the
+	// codes for the HLIT and HDIST trees. Similarly, an empty HLIT tree is
+	// guaranteed to fail later since the compressed data section must be
+	// composed of at least one symbol (the end-of-block marker).
 	if max == 0 {
-		return false
+		return true
 	}
 
 	code := 0
