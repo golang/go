@@ -179,7 +179,7 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 			ld.Adddynsym(ld.Ctxt, targ)
 			rel := ld.Linklookup(ld.Ctxt, ".rel", 0)
 			ld.Addaddrplus(ld.Ctxt, rel, s, int64(r.Off))
-			ld.Adduint32(ld.Ctxt, rel, ld.ELF32_R_INFO(uint32(targ.Dynid), ld.R_ARM_GLOB_DAT)) // we need a nil + A dynmic reloc
+			ld.Adduint32(ld.Ctxt, rel, ld.ELF32_R_INFO(uint32(targ.Dynid), ld.R_ARM_GLOB_DAT)) // we need a nil + A dynamic reloc
 			r.Type = obj.R_CONST                                                               // write r->add during relocsym
 			r.Sym = nil
 			return

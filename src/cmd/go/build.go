@@ -2453,7 +2453,7 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
 				apackagesSeen[a.p] = true
 				if a.p.fake && a.p.external {
 					// external _tests, if present must come before
-					// internal _tests. Store these on a seperate list
+					// internal _tests. Store these on a separate list
 					// and place them at the head after this loop.
 					xfiles = append(xfiles, a.target)
 				} else if a.p.fake {

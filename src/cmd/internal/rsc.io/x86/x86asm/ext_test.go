@@ -225,7 +225,7 @@ var pops = []byte{
 	0x5f, 0x5f, 0x5f, 0x5f, 0x5f, 0x5f, 0x5f, 0x5f,
 }
 
-// pad pads the code sequenc with pops.
+// pad pads the code sequence with pops.
 func pad(enc []byte) []byte {
 	return append(enc[:len(enc):len(enc)], pops...)
 }

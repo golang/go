@@ -322,7 +322,7 @@ type gcControllerState struct {
 	fractionalMarkTime int64
 
 	// idleMarkTime is the nanoseconds spent in idle marking
-	// during this cycle. This is udpated atomically throughout
+	// during this cycle. This is updated atomically throughout
 	// the cycle.
 	idleMarkTime int64
 

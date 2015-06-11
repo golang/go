@@ -454,7 +454,7 @@ func postProcessTrace(events []*Event) error {
 			g.evStart = ev
 			p.g = ev.G
 			if g.evCreate != nil {
-				// +1 because symblizer expects return pc.
+				// +1 because symbolizer expects return pc.
 				ev.Stk = []*Frame{&Frame{PC: g.evCreate.Args[1] + 1}}
 				g.evCreate = nil
 			}
@@ -701,7 +701,7 @@ const (
 	EvHeapAlloc      = 33 // memstats.heap_alloc change [timestamp, heap_alloc]
 	EvNextGC         = 34 // memstats.next_gc change [timestamp, next_gc]
 	EvTimerGoroutine = 35 // denotes timer goroutine [timer goroutine id]
-	EvFutileWakeup   = 36 // denotes that the revious wakeup of this goroutine was futile [timestamp]
+	EvFutileWakeup   = 36 // denotes that the previous wakeup of this goroutine was futile [timestamp]
 	EvCount          = 37
 )
 

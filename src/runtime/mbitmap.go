@@ -355,7 +355,7 @@ func (h heapBits) setCheckmarked(size uintptr) {
 // Callers should call heapBitsBulkBarrier immediately after
 // calling memmove(p, src, size). This function is marked nosplit
 // to avoid being preempted; the GC must not stop the goroutine
-// betwen the memmove and the execution of the barriers.
+// between the memmove and the execution of the barriers.
 //
 // The heap bitmap is not maintained for allocations containing
 // no pointers at all; any caller of heapBitsBulkBarrier must first

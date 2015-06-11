@@ -46,7 +46,7 @@ type pollDesc struct {
 	// in a lock-free way by all operations.
 	// NOTE(dvyukov): the following code uses uintptr to store *g (rg/wg),
 	// that will blow up when GC starts moving objects.
-	lock    mutex // protectes the following fields
+	lock    mutex // protects the following fields
 	fd      uintptr
 	closing bool
 	seq     uintptr // protects from stale timers and ready notifications

@@ -308,7 +308,7 @@ func putfull(b *workbuf, entry int) {
 
 // getpartialorempty tries to return a partially empty
 // and if none are available returns an empty one.
-// entry is used to provide a brief histoy of ownership
+// entry is used to provide a brief history of ownership
 // using entry + xxx00000 to
 // indicating that two line numbers in the call chain.
 //go:nowritebarrier
@@ -328,7 +328,7 @@ func getpartialorempty(entry int) *workbuf {
 // putpartial puts empty buffers on the work.empty queue,
 // full buffers on the work.full queue and
 // others on the work.partial queue.
-// entry is used to provide a brief histoy of ownership
+// entry is used to provide a brief history of ownership
 // using entry + xxx00000 to
 // indicating that two call chain line numbers.
 //go:nowritebarrier

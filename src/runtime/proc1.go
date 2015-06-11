@@ -1960,7 +1960,7 @@ func exitsyscall(dummy int32) {
 
 	var exitTicks int64
 	if trace.enabled {
-		// Wait till traceGoSysBlock event is emited.
+		// Wait till traceGoSysBlock event is emitted.
 		// This ensures consistency of the trace (the goroutine is started after it is blocked).
 		for oldp != nil && oldp.syscalltick == _g_.m.syscalltick {
 			osyield()
@@ -2047,7 +2047,7 @@ func exitsyscallfast() bool {
 			ok = exitsyscallfast_pidle()
 			if ok && trace.enabled {
 				if oldp != nil {
-					// Wait till traceGoSysBlock event is emited.
+					// Wait till traceGoSysBlock event is emitted.
 					// This ensures consistency of the trace (the goroutine is started after it is blocked).
 					for oldp.syscalltick == _g_.m.syscalltick {
 						osyield()
@@ -2695,7 +2695,7 @@ func procresize(nprocs int32) *p {
 				traceProcStop(p)
 			}
 		}
-		// move all runable goroutines to the global queue
+		// move all runnable goroutines to the global queue
 		for p.runqhead != p.runqtail {
 			// pop from tail of local queue
 			p.runqtail--

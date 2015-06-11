@@ -627,7 +627,7 @@ func (src *Source) DLLs() []string {
 	return r
 }
 
-// ParseFile adds adition file path to a source set src.
+// ParseFile adds additional file path to a source set src.
 func (src *Source) ParseFile(path string) error {
 	file, err := os.Open(path)
 	if err != nil {
