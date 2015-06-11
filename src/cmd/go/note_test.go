@@ -18,6 +18,9 @@ func TestNoteReading(t *testing.T) {
 	case "darwin/arm", "darwin/arm64", "nacl/386", "nacl/amd64p32", "nacl/arm":
 		t.Skipf("skipping on %s/%s - no file system", runtime.GOOS, runtime.GOARCH)
 	}
+	if runtime.GOOS == "android" {
+		t.Skipf("skipping; requires go tool")
+	}
 
 	// TODO: Replace with new test scaffolding by iant.
 	d, err := ioutil.TempDir("", "go-test-")

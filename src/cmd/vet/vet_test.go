@@ -35,6 +35,8 @@ func TestVet(t *testing.T) {
 		if strings.HasPrefix(runtime.GOARCH, "arm") {
 			t.Skipf("skipping test; no command execution on darwin/%s", runtime.GOARCH)
 		}
+	case "android":
+		t.Skip("skipping test; no go toolchain available")
 	}
 
 	// go build
