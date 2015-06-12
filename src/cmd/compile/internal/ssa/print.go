@@ -8,11 +8,10 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"os"
 )
 
 func printFunc(f *Func) {
-	fprintFunc(os.Stdout, f)
+	f.Log("%s", f.String())
 }
 
 func (f *Func) String() string {

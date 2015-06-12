@@ -4,8 +4,6 @@
 
 package ssa
 
-import "log"
-
 // dse does dead-store elimination on the Function.
 // Dead stores are those which are unconditionally followed by
 // another store to the same location, with no intervening load.
@@ -58,12 +56,12 @@ func dse(f *Func) {
 				continue
 			}
 			if last != nil {
-				log.Fatalf("two final stores - simultaneous live stores", last, v)
+				b.Fatal("two final stores - simultaneous live stores", last, v)
 			}
 			last = v
 		}
 		if last == nil {
-			log.Fatalf("no last store found - cycle?")
+			b.Fatal("no last store found - cycle?")
 		}
 
 		// Walk backwards looking for dead stores.  Keep track of shadowed addresses.

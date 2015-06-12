@@ -69,3 +69,7 @@ func (b *Block) LongString() string {
 	}
 	return s
 }
+
+func (b *Block) Log(msg string, args ...interface{})           { b.Func.Log(msg, args...) }
+func (b *Block) Fatal(msg string, args ...interface{})         { b.Func.Fatal(msg, args...) }
+func (b *Block) Unimplemented(msg string, args ...interface{}) { b.Func.Unimplemented(msg, args...) }

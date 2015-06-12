@@ -4,8 +4,6 @@
 
 package ssa
 
-import "log"
-
 type Config struct {
 	arch       string                     // "amd64", etc.
 	ptrSize    int64                      // 4 or 8
@@ -22,6 +20,16 @@ type Frontend interface {
 	// Strings are laid out in read-only memory with one word of pointer,
 	// one word of length, then the contents of the string.
 	StringSym(string) interface{} // returns *gc.Sym
+
+	// Log logs a message from the compiler.
+	Log(string, ...interface{})
+
+	// Fatal reports a compiler error and exits.
+	Fatal(string, ...interface{})
+
+	// Unimplemented reports that the function cannot be compiled.
+	// It will be removed once SSA work is complete.
+	Unimplemented(msg string, args ...interface{})
 }
 
 // NewConfig returns a new configuration object for the given architecture.
@@ -37,7 +45,7 @@ func NewConfig(arch string, fe Frontend) *Config {
 		c.lowerBlock = rewriteBlockAMD64
 		c.lowerValue = rewriteValueAMD64 // TODO(khr): full 32-bit support
 	default:
-		log.Fatalf("arch %s not implemented", arch)
+		fe.Unimplemented("arch %s not implemented", arch)
 	}
 
 	// cache the intptr type in the config
@@ -54,6 +62,10 @@ func (c *Config) NewFunc() *Func {
 	// TODO(khr): should this function take name, type, etc. as arguments?
 	return &Func{Config: c}
 }
+
+func (c *Config) Log(msg string, args ...interface{})           { c.fe.Log(msg, args...) }
+func (c *Config) Fatal(msg string, args ...interface{})         { c.fe.Fatal(msg, args...) }
+func (c *Config) Unimplemented(msg string, args ...interface{}) { c.fe.Unimplemented(msg, args...) }
 
 // TODO(khr): do we really need a separate Config, or can we just
 // store all its fields inside a Func?

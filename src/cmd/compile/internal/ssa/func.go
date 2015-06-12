@@ -4,8 +4,6 @@
 
 package ssa
 
-import "log"
-
 // A Func represents a Go func declaration (or function literal) and
 // its body.  This package compiles each Func independently.
 type Func struct {
@@ -79,7 +77,7 @@ func (b *Block) NewValue0A(line int32, op Op, t Type, aux interface{}) *Value {
 		// Disallow int64 aux values.  They should be in the auxint field instead.
 		// Maybe we want to allow this at some point, but for now we disallow it
 		// to prevent errors like using NewValue1A instead of NewValue1I.
-		log.Fatalf("aux field has int64 type op=%s type=%s aux=%v", op, t, aux)
+		b.Fatal("aux field has int64 type op=%s type=%s aux=%v", op, t, aux)
 	}
 	v := &Value{
 		ID:    b.Func.vid.get(),
@@ -209,3 +207,7 @@ func (f *Func) ConstInt(line int32, t Type, c int64) *Value {
 	// TODO: cache?
 	return f.Entry.NewValue0I(line, OpConst, t, c)
 }
+
+func (f *Func) Log(msg string, args ...interface{})           { f.Config.Log(msg, args...) }
+func (f *Func) Fatal(msg string, args ...interface{})         { f.Config.Fatal(msg, args...) }
+func (f *Func) Unimplemented(msg string, args ...interface{}) { f.Config.Unimplemented(msg, args...) }

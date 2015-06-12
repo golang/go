@@ -4,8 +4,6 @@
 
 package ssa
 
-import "log"
-
 // layout orders basic blocks in f with the goal of minimizing control flow instructions.
 // After this phase returns, the order of f.Blocks matters and is the order
 // in which those blocks will appear in the assembly output.
@@ -82,7 +80,7 @@ blockloop:
 				continue blockloop
 			}
 		}
-		log.Panicf("no block available for layout")
+		b.Fatal("no block available for layout")
 	}
 	f.Blocks = order
 }

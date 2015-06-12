@@ -37,7 +37,7 @@ package ssa
 //                the parser can be used instead of Fun.
 
 import (
-	"log"
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -161,7 +161,7 @@ func Fun(c *Config, entry string, blocs ...bloc) fun {
 		if c.control != "" {
 			cval, ok := values[c.control]
 			if !ok {
-				log.Panicf("control value for block %s missing", bloc.name)
+				f.Fatal("control value for block %s missing", bloc.name)
 			}
 			b.Control = cval
 		}
@@ -171,7 +171,7 @@ func Fun(c *Config, entry string, blocs ...bloc) fun {
 			for _, arg := range valu.args {
 				a, ok := values[arg]
 				if !ok {
-					log.Panicf("arg %s missing for value %s in block %s",
+					b.Fatal("arg %s missing for value %s in block %s",
 						arg, valu.name, bloc.name)
 				}
 				v.AddArg(a)
@@ -197,7 +197,7 @@ func Bloc(name string, entries ...interface{}) bloc {
 		case ctrl:
 			// there should be exactly one Ctrl entry.
 			if seenCtrl {
-				log.Panicf("already seen control for block %s", name)
+				panic(fmt.Sprintf("already seen control for block %s", name))
 			}
 			b.control = v
 			seenCtrl = true
@@ -206,7 +206,7 @@ func Bloc(name string, entries ...interface{}) bloc {
 		}
 	}
 	if !seenCtrl {
-		log.Panicf("block %s doesn't have control", b.name)
+		panic(fmt.Sprintf("block %s doesn't have control", b.name))
 	}
 	return b
 }
@@ -262,7 +262,7 @@ func addEdge(b, c *Block) {
 }
 
 func TestArgs(t *testing.T) {
-	c := NewConfig("amd64", DummyFrontend{})
+	c := NewConfig("amd64", DummyFrontend{t})
 	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("a", OpConst, TypeInt64, 14, nil),
@@ -282,7 +282,7 @@ func TestArgs(t *testing.T) {
 }
 
 func TestEquiv(t *testing.T) {
-	c := NewConfig("amd64", DummyFrontend{})
+	c := NewConfig("amd64", DummyFrontend{t})
 	equivalentCases := []struct{ f, g fun }{
 		// simple case
 		{

@@ -34,10 +34,10 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 	case OpArrayIndex:
 		// match: (ArrayIndex (Load ptr mem) idx)
 		// cond:
-		// result: (Load (PtrIndex <ptr.Type.Elem().Elem().PtrTo()> ptr idx) mem)
+		// result: (Load (PtrIndex <v.Type.PtrTo()> ptr idx) mem)
 		{
 			if v.Args[0].Op != OpLoad {
-				goto end3809f4c52270a76313e4ea26e6f0b753
+				goto end4894dd7b58383fee5f8a92be08437c33
 			}
 			ptr := v.Args[0].Args[0]
 			mem := v.Args[0].Args[1]
@@ -47,15 +47,15 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := v.Block.NewValue0(v.Line, OpPtrIndex, TypeInvalid)
-			v0.Type = ptr.Type.Elem().Elem().PtrTo()
+			v0.Type = v.Type.PtrTo()
 			v0.AddArg(ptr)
 			v0.AddArg(idx)
 			v.AddArg(v0)
 			v.AddArg(mem)
 			return true
 		}
-		goto end3809f4c52270a76313e4ea26e6f0b753
-	end3809f4c52270a76313e4ea26e6f0b753:
+		goto end4894dd7b58383fee5f8a92be08437c33
+	end4894dd7b58383fee5f8a92be08437c33:
 		;
 	case OpConst:
 		// match: (Const <t> {s})

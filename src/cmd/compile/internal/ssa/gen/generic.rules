@@ -32,7 +32,7 @@
 
 // indexing operations
 // Note: bounds check has already been done
-(ArrayIndex (Load ptr mem) idx) -> (Load (PtrIndex <ptr.Type.Elem().Elem().PtrTo()> ptr idx) mem)
+(ArrayIndex (Load ptr mem) idx) -> (Load (PtrIndex <v.Type.PtrTo()> ptr idx) mem)
 (PtrIndex <t> ptr idx) -> (Add ptr (Mul <config.Uintptr> idx (Const <config.Uintptr> [t.Elem().Size()])))
 
 // big-object moves
