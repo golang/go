@@ -93,24 +93,24 @@ func init() {
 	// TODO: 2-address instructions.  Mark ops as needing matching input/output regs.
 	var AMD64ops = []opData{
 		{name: "ADDQ", reg: gp21},      // arg0 + arg1
-		{name: "ADDQconst", reg: gp11}, // arg0 + aux.(int64)
+		{name: "ADDQconst", reg: gp11}, // arg0 + auxint
 		{name: "SUBQ", reg: gp21},      // arg0 - arg1
-		{name: "SUBQconst", reg: gp11}, // arg0 - aux.(int64)
+		{name: "SUBQconst", reg: gp11}, // arg0 - auxint
 		{name: "MULQ", reg: gp21},      // arg0 * arg1
-		{name: "MULQconst", reg: gp11}, // arg0 * aux.(int64)
+		{name: "MULQconst", reg: gp11}, // arg0 * auxint
 		{name: "ANDQ", reg: gp21},      // arg0 & arg1
-		{name: "ANDQconst", reg: gp11}, // arg0 & aux.(int64)
+		{name: "ANDQconst", reg: gp11}, // arg0 & auxint
 		{name: "SHLQ", reg: gp21shift}, // arg0 << arg1, shift amount is mod 64
-		{name: "SHLQconst", reg: gp11}, // arg0 << aux.(int64), shift amount 0-63
+		{name: "SHLQconst", reg: gp11}, // arg0 << auxint, shift amount 0-63
 		{name: "SHRQ", reg: gp21shift}, // unsigned arg0 >> arg1, shift amount is mod 64
-		{name: "SHRQconst", reg: gp11}, // unsigned arg0 >> aux.(int64), shift amount 0-63
+		{name: "SHRQconst", reg: gp11}, // unsigned arg0 >> auxint, shift amount 0-63
 		{name: "SARQ", reg: gp21shift}, // signed arg0 >> arg1, shift amount is mod 64
-		{name: "SARQconst", reg: gp11}, // signed arg0 >> aux.(int64), shift amount 0-63
+		{name: "SARQconst", reg: gp11}, // signed arg0 >> auxint, shift amount 0-63
 
 		{name: "NEGQ", reg: gp11}, // -arg0
 
 		{name: "CMPQ", reg: gp2flags},      // arg0 compare to arg1
-		{name: "CMPQconst", reg: gp1flags}, // arg0 compare to aux.(int64)
+		{name: "CMPQconst", reg: gp1flags}, // arg0 compare to auxint
 		{name: "TESTQ", reg: gp2flags},     // (arg0 & arg1) compare to 0
 		{name: "TESTB", reg: gp2flags},     // (arg0 & arg1) compare to 0
 
@@ -125,21 +125,21 @@ func init() {
 
 		{name: "CMOVQCC", reg: cmov}, // carry clear
 
-		{name: "MOVQconst", reg: gp01},  // aux.(int64)
-		{name: "LEAQ", reg: gp21},       // arg0 + arg1 + aux.(int64)
-		{name: "LEAQ2", reg: gp21},      // arg0 + 2*arg1 + aux.(int64)
-		{name: "LEAQ4", reg: gp21},      // arg0 + 4*arg1 + aux.(int64)
-		{name: "LEAQ8", reg: gp21},      // arg0 + 8*arg1 + aux.(int64)
-		{name: "LEAQglobal", reg: gp01}, // no args.  address of aux.(GlobalOffset)
+		{name: "MOVQconst", reg: gp01},  // auxint
+		{name: "LEAQ", reg: gp21},       // arg0 + arg1 + auxint
+		{name: "LEAQ2", reg: gp21},      // arg0 + 2*arg1 + auxint
+		{name: "LEAQ4", reg: gp21},      // arg0 + 4*arg1 + auxint
+		{name: "LEAQ8", reg: gp21},      // arg0 + 8*arg1 + auxint
+		{name: "LEAQglobal", reg: gp01}, // no args.  address of aux.(*gc.Sym)
 
-		{name: "MOVBload", reg: gpload},          // load byte from arg0+aux.(int64). arg1=mem
+		{name: "MOVBload", reg: gpload},          // load byte from arg0+auxint. arg1=mem
 		{name: "MOVBQZXload", reg: gpload},       // ditto, extend to uint64
 		{name: "MOVBQSXload", reg: gpload},       // ditto, extend to int64
-		{name: "MOVQload", reg: gpload},          // load 8 bytes from arg0+aux.(int64). arg1=mem
-		{name: "MOVQloadidx8", reg: gploadidx},   // load 8 bytes from arg0+8*arg1+aux.(int64). arg2=mem
-		{name: "MOVBstore", reg: gpstore},        // store byte in arg1 to arg0+aux.(int64). arg2=mem
-		{name: "MOVQstore", reg: gpstore},        // store 8 bytes in arg1 to arg0+aux.(int64). arg2=mem
-		{name: "MOVQstoreidx8", reg: gpstoreidx}, // store 8 bytes in arg2 to arg0+8*arg1+aux.(int64). arg3=mem
+		{name: "MOVQload", reg: gpload},          // load 8 bytes from arg0+auxint. arg1=mem
+		{name: "MOVQloadidx8", reg: gploadidx},   // load 8 bytes from arg0+8*arg1+auxint. arg2=mem
+		{name: "MOVBstore", reg: gpstore},        // store byte in arg1 to arg0+auxint. arg2=mem
+		{name: "MOVQstore", reg: gpstore},        // store 8 bytes in arg1 to arg0+auxint. arg2=mem
+		{name: "MOVQstoreidx8", reg: gpstoreidx}, // store 8 bytes in arg2 to arg0+8*arg1+auxint. arg3=mem
 
 		// Load/store from global. Same as the above loads, but arg0 is missing and
 		// aux is a GlobalOffset instead of an int64.
@@ -147,7 +147,7 @@ func init() {
 		{name: "MOVQstoreglobal"}, // store arg0 to aux.(GlobalOffset).  arg1=memory, returns memory.
 
 		//TODO: set register clobber to everything?
-		{name: "CALLstatic"},                                                            // call static function.  arg0=mem, returns mem
+		{name: "CALLstatic"},                                                            // call static function aux.(*gc.Sym).  arg0=mem, returns mem
 		{name: "CALLclosure", reg: regInfo{[]regMask{gpsp, buildReg("DX"), 0}, 0, nil}}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem returns mem
 
 		{name: "REPMOVSB", reg: regInfo{[]regMask{buildReg("DI"), buildReg("SI"), buildReg("CX")}, buildReg("DI SI CX"), nil}}, // move arg2 bytes from arg1 to arg0.  arg3=mem, returns memory

@@ -10,14 +10,14 @@ func TestDeadLoop(t *testing.T) {
 	c := NewConfig("amd64", DummyFrontend{})
 	fun := Fun(c, "entry",
 		Bloc("entry",
-			Valu("mem", OpArg, TypeMem, ".mem"),
+			Valu("mem", OpArg, TypeMem, 0, ".mem"),
 			Goto("exit")),
 		Bloc("exit",
 			Exit("mem")),
 		// dead loop
 		Bloc("deadblock",
 			// dead value in dead block
-			Valu("deadval", OpConst, TypeBool, true),
+			Valu("deadval", OpConst, TypeBool, 0, true),
 			If("deadval", "deadblock", "exit")))
 
 	CheckFunc(fun.f)
@@ -40,8 +40,8 @@ func TestDeadValue(t *testing.T) {
 	c := NewConfig("amd64", DummyFrontend{})
 	fun := Fun(c, "entry",
 		Bloc("entry",
-			Valu("mem", OpArg, TypeMem, ".mem"),
-			Valu("deadval", OpConst, TypeInt64, int64(37)),
+			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+			Valu("deadval", OpConst, TypeInt64, 37, nil),
 			Goto("exit")),
 		Bloc("exit",
 			Exit("mem")))
@@ -63,8 +63,8 @@ func TestNeverTaken(t *testing.T) {
 	c := NewConfig("amd64", DummyFrontend{})
 	fun := Fun(c, "entry",
 		Bloc("entry",
-			Valu("cond", OpConst, TypeBool, false),
-			Valu("mem", OpArg, TypeMem, ".mem"),
+			Valu("cond", OpConst, TypeBool, 0, false),
+			Valu("mem", OpArg, TypeMem, 0, ".mem"),
 			If("cond", "then", "else")),
 		Bloc("then",
 			Goto("exit")),

@@ -18,12 +18,12 @@
 //
 //   fun := Fun("entry",
 //       Bloc("entry",
-//           Valu("mem", OpArg, TypeMem, ".mem"),
+//           Valu("mem", OpArg, TypeMem, 0, ".mem"),
 //           Goto("exit")),
 //       Bloc("exit",
 //           Exit("mem")),
 //       Bloc("deadblock",
-//          Valu("deadval", OpConst, TypeBool, true),
+//          Valu("deadval", OpConst, TypeBool, 0, true),
 //          If("deadval", "deadblock", "exit")))
 //
 // and the Blocks or Values used in the Func can be accessed
@@ -61,7 +61,7 @@ func Equiv(f, g *Func) bool {
 			// Ignore ids. Ops and Types are compared for equality.
 			// TODO(matloob): Make sure types are canonical and can
 			// be compared for equality.
-			if fv.Op != gv.Op || fv.Type != gv.Type {
+			if fv.Op != gv.Op || fv.Type != gv.Type || fv.AuxInt != gv.AuxInt {
 				return false
 			}
 			if !reflect.DeepEqual(fv.Aux, gv.Aux) {
@@ -149,7 +149,7 @@ func Fun(c *Config, entry string, blocs ...bloc) fun {
 		blocks[bloc.name] = b
 		for _, valu := range bloc.valus {
 			// args are filled in the second pass.
-			values[valu.name] = b.NewValue(0, valu.op, valu.t, valu.aux)
+			values[valu.name] = b.NewValue0IA(0, valu.op, valu.t, valu.auxint, valu.aux)
 		}
 	}
 	// Connect the blocks together and specify control values.
@@ -212,8 +212,8 @@ func Bloc(name string, entries ...interface{}) bloc {
 }
 
 // Valu defines a value in a block.
-func Valu(name string, op Op, t Type, aux interface{}, args ...string) valu {
-	return valu{name, op, t, aux, args}
+func Valu(name string, op Op, t Type, auxint int64, aux interface{}, args ...string) valu {
+	return valu{name, op, t, auxint, aux, args}
 }
 
 // Goto specifies that this is a BlockPlain and names the single successor.
@@ -248,11 +248,12 @@ type ctrl struct {
 }
 
 type valu struct {
-	name string
-	op   Op
-	t    Type
-	aux  interface{}
-	args []string
+	name   string
+	op     Op
+	t      Type
+	auxint int64
+	aux    interface{}
+	args   []string
 }
 
 func addEdge(b, c *Block) {
@@ -264,10 +265,10 @@ func TestArgs(t *testing.T) {
 	c := NewConfig("amd64", DummyFrontend{})
 	fun := Fun(c, "entry",
 		Bloc("entry",
-			Valu("a", OpConst, TypeInt64, 14),
-			Valu("b", OpConst, TypeInt64, 26),
-			Valu("sum", OpAdd, TypeInt64, nil, "a", "b"),
-			Valu("mem", OpArg, TypeMem, ".mem"),
+			Valu("a", OpConst, TypeInt64, 14, nil),
+			Valu("b", OpConst, TypeInt64, 26, nil),
+			Valu("sum", OpAdd, TypeInt64, 0, nil, "a", "b"),
+			Valu("mem", OpArg, TypeMem, 0, ".mem"),
 			Goto("exit")),
 		Bloc("exit",
 			Exit("mem")))
@@ -287,19 +288,19 @@ func TestEquiv(t *testing.T) {
 		{
 			Fun(c, "entry",
 				Bloc("entry",
-					Valu("a", OpConst, TypeInt64, 14),
-					Valu("b", OpConst, TypeInt64, 26),
-					Valu("sum", OpAdd, TypeInt64, nil, "a", "b"),
-					Valu("mem", OpArg, TypeMem, ".mem"),
+					Valu("a", OpConst, TypeInt64, 14, nil),
+					Valu("b", OpConst, TypeInt64, 26, nil),
+					Valu("sum", OpAdd, TypeInt64, 0, nil, "a", "b"),
+					Valu("mem", OpArg, TypeMem, 0, ".mem"),
 					Goto("exit")),
 				Bloc("exit",
 					Exit("mem"))),
 			Fun(c, "entry",
 				Bloc("entry",
-					Valu("a", OpConst, TypeInt64, 14),
-					Valu("b", OpConst, TypeInt64, 26),
-					Valu("sum", OpAdd, TypeInt64, nil, "a", "b"),
-					Valu("mem", OpArg, TypeMem, ".mem"),
+					Valu("a", OpConst, TypeInt64, 14, nil),
+					Valu("b", OpConst, TypeInt64, 26, nil),
+					Valu("sum", OpAdd, TypeInt64, 0, nil, "a", "b"),
+					Valu("mem", OpArg, TypeMem, 0, ".mem"),
 					Goto("exit")),
 				Bloc("exit",
 					Exit("mem"))),
@@ -308,10 +309,10 @@ func TestEquiv(t *testing.T) {
 		{
 			Fun(c, "entry",
 				Bloc("entry",
-					Valu("a", OpConst, TypeInt64, 14),
-					Valu("b", OpConst, TypeInt64, 26),
-					Valu("sum", OpAdd, TypeInt64, nil, "a", "b"),
-					Valu("mem", OpArg, TypeMem, ".mem"),
+					Valu("a", OpConst, TypeInt64, 14, nil),
+					Valu("b", OpConst, TypeInt64, 26, nil),
+					Valu("sum", OpAdd, TypeInt64, 0, nil, "a", "b"),
+					Valu("mem", OpArg, TypeMem, 0, ".mem"),
 					Goto("exit")),
 				Bloc("exit",
 					Exit("mem"))),
@@ -319,10 +320,10 @@ func TestEquiv(t *testing.T) {
 				Bloc("exit",
 					Exit("mem")),
 				Bloc("entry",
-					Valu("a", OpConst, TypeInt64, 14),
-					Valu("b", OpConst, TypeInt64, 26),
-					Valu("sum", OpAdd, TypeInt64, nil, "a", "b"),
-					Valu("mem", OpArg, TypeMem, ".mem"),
+					Valu("a", OpConst, TypeInt64, 14, nil),
+					Valu("b", OpConst, TypeInt64, 26, nil),
+					Valu("sum", OpAdd, TypeInt64, 0, nil, "a", "b"),
+					Valu("mem", OpArg, TypeMem, 0, ".mem"),
 					Goto("exit"))),
 		},
 	}
@@ -339,58 +340,71 @@ func TestEquiv(t *testing.T) {
 		{
 			Fun(c, "entry",
 				Bloc("entry",
-					Valu("mem", OpArg, TypeMem, ".mem"),
+					Valu("mem", OpArg, TypeMem, 0, ".mem"),
 					Goto("exit")),
 				Bloc("exit",
 					Exit("mem"))),
 			Fun(c, "entry",
 				Bloc("entry",
-					Valu("mem", OpArg, TypeMem, ".mem"),
+					Valu("mem", OpArg, TypeMem, 0, ".mem"),
 					Exit("mem"))),
 		},
 		// value order changed
 		{
 			Fun(c, "entry",
 				Bloc("entry",
-					Valu("mem", OpArg, TypeMem, ".mem"),
-					Valu("b", OpConst, TypeInt64, 26),
-					Valu("a", OpConst, TypeInt64, 14),
+					Valu("mem", OpArg, TypeMem, 0, ".mem"),
+					Valu("b", OpConst, TypeInt64, 26, nil),
+					Valu("a", OpConst, TypeInt64, 14, nil),
 					Exit("mem"))),
 			Fun(c, "entry",
 				Bloc("entry",
-					Valu("mem", OpArg, TypeMem, ".mem"),
-					Valu("a", OpConst, TypeInt64, 14),
-					Valu("b", OpConst, TypeInt64, 26),
+					Valu("mem", OpArg, TypeMem, 0, ".mem"),
+					Valu("a", OpConst, TypeInt64, 14, nil),
+					Valu("b", OpConst, TypeInt64, 26, nil),
+					Exit("mem"))),
+		},
+		// value auxint different
+		{
+			Fun(c, "entry",
+				Bloc("entry",
+					Valu("mem", OpArg, TypeMem, 0, ".mem"),
+					Valu("a", OpConst, TypeInt64, 14, nil),
+					Exit("mem"))),
+			Fun(c, "entry",
+				Bloc("entry",
+					Valu("mem", OpArg, TypeMem, 0, ".mem"),
+					Valu("a", OpConst, TypeInt64, 26, nil),
 					Exit("mem"))),
 		},
 		// value aux different
 		{
 			Fun(c, "entry",
 				Bloc("entry",
-					Valu("mem", OpArg, TypeMem, ".mem"),
-					Valu("a", OpConst, TypeInt64, 14),
+					Valu("mem", OpArg, TypeMem, 0, ".mem"),
+					Valu("a", OpConst, TypeInt64, 0, 14),
 					Exit("mem"))),
 			Fun(c, "entry",
 				Bloc("entry",
-					Valu("mem", OpArg, TypeMem, ".mem"),
-					Valu("a", OpConst, TypeInt64, 26),
+					Valu("mem", OpArg, TypeMem, 0, ".mem"),
+					Valu("a", OpConst, TypeInt64, 0, 26),
 					Exit("mem"))),
 		},
 		// value args different
 		{
 			Fun(c, "entry",
 				Bloc("entry",
-					Valu("mem", OpArg, TypeMem, ".mem"),
-					Valu("a", OpConst, TypeInt64, 14),
-					Valu("b", OpConst, TypeInt64, 26),
-					Valu("sum", OpAdd, TypeInt64, nil, "a", "b"),
+					Valu("mem", OpArg, TypeMem, 0, ".mem"),
+					Valu("a", OpConst, TypeInt64, 14, nil),
+					Valu("b", OpConst, TypeInt64, 26, nil),
+					Valu("sum", OpAdd, TypeInt64, 0, nil, "a", "b"),
 					Exit("mem"))),
 			Fun(c, "entry",
 				Bloc("entry",
-					Valu("mem", OpArg, TypeMem, ".mem"),
-					Valu("a", OpConst, TypeInt64, 0),
-					Valu("b", OpConst, TypeInt64, 14),
-					Valu("sum", OpAdd, TypeInt64, nil, "b", "a"),
+					Valu("mem", OpArg, TypeMem, 0, ".mem"),
+					Valu("a", OpConst, TypeInt64, 0, nil),
+					Valu("b", OpConst, TypeInt64, 14, nil),
+					Valu("sum", OpAdd, TypeInt64, 0, nil, "b", "a"),
 					Exit("mem"))),
 		},
 	}

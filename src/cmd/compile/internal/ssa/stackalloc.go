@@ -92,14 +92,14 @@ func stackalloc(f *Func) {
 				case OpAMD64ADDQ:
 					// (ADDQ (FP) x) -> (LEAQ [n] (SP) x)
 					v.Op = OpAMD64LEAQ
-					v.Aux = n
+					v.AuxInt = n
 				case OpAMD64LEAQ, OpAMD64MOVQload, OpAMD64MOVQstore, OpAMD64MOVBload, OpAMD64MOVQloadidx8:
 					if v.Op == OpAMD64MOVQloadidx8 && i == 1 {
 						// Note: we could do it, but it is probably an error
 						log.Panicf("can't do FP->SP adjust on index slot of load %s", v.Op)
 					}
 					// eg: (MOVQload [c] (FP) mem) -> (MOVQload [c+n] (SP) mem)
-					v.Aux = addOffset(v.Aux.(int64), n)
+					v.AuxInt = addOff(v.AuxInt, n)
 				default:
 					log.Panicf("can't do FP->SP adjust on %s", v.Op)
 					// TODO: OpCopy -> ADDQ

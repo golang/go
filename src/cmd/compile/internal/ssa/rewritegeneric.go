@@ -7,28 +7,29 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 	case OpAdd:
 		// match: (Add <t> (Const [c]) (Const [d]))
 		// cond: is64BitInt(t)
-		// result: (Const [{c.(int64)+d.(int64)}])
+		// result: (Const [c+d])
 		{
 			t := v.Type
 			if v.Args[0].Op != OpConst {
-				goto end8d047ed0ae9537b840adc79ea82c6e05
+				goto end279f4ea85ed10e5ffc5b53f9e060529b
 			}
-			c := v.Args[0].Aux
+			c := v.Args[0].AuxInt
 			if v.Args[1].Op != OpConst {
-				goto end8d047ed0ae9537b840adc79ea82c6e05
+				goto end279f4ea85ed10e5ffc5b53f9e060529b
 			}
-			d := v.Args[1].Aux
+			d := v.Args[1].AuxInt
 			if !(is64BitInt(t)) {
-				goto end8d047ed0ae9537b840adc79ea82c6e05
+				goto end279f4ea85ed10e5ffc5b53f9e060529b
 			}
 			v.Op = OpConst
+			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v.Aux = c.(int64) + d.(int64)
+			v.AuxInt = c + d
 			return true
 		}
-		goto end8d047ed0ae9537b840adc79ea82c6e05
-	end8d047ed0ae9537b840adc79ea82c6e05:
+		goto end279f4ea85ed10e5ffc5b53f9e060529b
+	end279f4ea85ed10e5ffc5b53f9e060529b:
 		;
 	case OpArrayIndex:
 		// match: (ArrayIndex (Load ptr mem) idx)
@@ -42,9 +43,10 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			mem := v.Args[0].Args[1]
 			idx := v.Args[1]
 			v.Op = OpLoad
+			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v0 := v.Block.NewValue(v.Line, OpPtrIndex, TypeInvalid, nil)
+			v0 := v.Block.NewValue0(v.Line, OpPtrIndex, TypeInvalid)
 			v0.Type = ptr.Type.Elem().Elem().PtrTo()
 			v0.AddArg(ptr)
 			v0.AddArg(idx)
@@ -56,56 +58,58 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 	end3809f4c52270a76313e4ea26e6f0b753:
 		;
 	case OpConst:
-		// match: (Const <t> [s])
+		// match: (Const <t> {s})
 		// cond: t.IsString()
-		// result: (StringMake (OffPtr <TypeBytePtr> [2*config.ptrSize] (Global <TypeBytePtr> [config.fe.StringSym(s.(string))])) (Const <config.Uintptr> [int64(len(s.(string)))]))
+		// result: (StringMake (OffPtr <TypeBytePtr> [2*config.ptrSize] (Global <TypeBytePtr> {config.fe.StringSym(s.(string))})) (Const <config.Uintptr> [int64(len(s.(string)))]))
 		{
 			t := v.Type
 			s := v.Aux
 			if !(t.IsString()) {
-				goto end8442aa5b3f4e5b840055475883110372
+				goto end6d6321106a054a5984b2ed0acec52a5b
 			}
 			v.Op = OpStringMake
+			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v0 := v.Block.NewValue(v.Line, OpOffPtr, TypeInvalid, nil)
+			v0 := v.Block.NewValue0(v.Line, OpOffPtr, TypeInvalid)
 			v0.Type = TypeBytePtr
-			v0.Aux = 2 * config.ptrSize
-			v1 := v.Block.NewValue(v.Line, OpGlobal, TypeInvalid, nil)
+			v0.AuxInt = 2 * config.ptrSize
+			v1 := v.Block.NewValue0(v.Line, OpGlobal, TypeInvalid)
 			v1.Type = TypeBytePtr
 			v1.Aux = config.fe.StringSym(s.(string))
 			v0.AddArg(v1)
 			v.AddArg(v0)
-			v2 := v.Block.NewValue(v.Line, OpConst, TypeInvalid, nil)
+			v2 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
 			v2.Type = config.Uintptr
-			v2.Aux = int64(len(s.(string)))
+			v2.AuxInt = int64(len(s.(string)))
 			v.AddArg(v2)
 			return true
 		}
-		goto end8442aa5b3f4e5b840055475883110372
-	end8442aa5b3f4e5b840055475883110372:
+		goto end6d6321106a054a5984b2ed0acec52a5b
+	end6d6321106a054a5984b2ed0acec52a5b:
 		;
 	case OpIsInBounds:
 		// match: (IsInBounds (Const [c]) (Const [d]))
 		// cond:
-		// result: (Const [inBounds(c.(int64),d.(int64))])
+		// result: (Const {inBounds(c,d)})
 		{
 			if v.Args[0].Op != OpConst {
-				goto enddbd1a394d9b71ee64335361b8384865c
+				goto enda96ccac78df2d17ae96c8baf2af2e189
 			}
-			c := v.Args[0].Aux
+			c := v.Args[0].AuxInt
 			if v.Args[1].Op != OpConst {
-				goto enddbd1a394d9b71ee64335361b8384865c
+				goto enda96ccac78df2d17ae96c8baf2af2e189
 			}
-			d := v.Args[1].Aux
+			d := v.Args[1].AuxInt
 			v.Op = OpConst
+			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v.Aux = inBounds(c.(int64), d.(int64))
+			v.Aux = inBounds(c, d)
 			return true
 		}
-		goto enddbd1a394d9b71ee64335361b8384865c
-	enddbd1a394d9b71ee64335361b8384865c:
+		goto enda96ccac78df2d17ae96c8baf2af2e189
+	enda96ccac78df2d17ae96c8baf2af2e189:
 		;
 	case OpLoad:
 		// match: (Load <t> ptr mem)
@@ -119,18 +123,19 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 				goto endd0afd003b70d726a1c5bbaf51fe06182
 			}
 			v.Op = OpStringMake
+			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v0 := v.Block.NewValue(v.Line, OpLoad, TypeInvalid, nil)
+			v0 := v.Block.NewValue0(v.Line, OpLoad, TypeInvalid)
 			v0.Type = TypeBytePtr
 			v0.AddArg(ptr)
 			v0.AddArg(mem)
 			v.AddArg(v0)
-			v1 := v.Block.NewValue(v.Line, OpLoad, TypeInvalid, nil)
+			v1 := v.Block.NewValue0(v.Line, OpLoad, TypeInvalid)
 			v1.Type = config.Uintptr
-			v2 := v.Block.NewValue(v.Line, OpOffPtr, TypeInvalid, nil)
+			v2 := v.Block.NewValue0(v.Line, OpOffPtr, TypeInvalid)
 			v2.Type = TypeBytePtr
-			v2.Aux = config.ptrSize
+			v2.AuxInt = config.ptrSize
 			v2.AddArg(ptr)
 			v1.AddArg(v2)
 			v1.AddArg(mem)
@@ -143,28 +148,29 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 	case OpMul:
 		// match: (Mul <t> (Const [c]) (Const [d]))
 		// cond: is64BitInt(t)
-		// result: (Const [{c.(int64)*d.(int64)}])
+		// result: (Const [c*d])
 		{
 			t := v.Type
 			if v.Args[0].Op != OpConst {
-				goto end776610f88cf04f438242d76ed2b14f1c
+				goto endd82095c6a872974522d33aaff1ee07be
 			}
-			c := v.Args[0].Aux
+			c := v.Args[0].AuxInt
 			if v.Args[1].Op != OpConst {
-				goto end776610f88cf04f438242d76ed2b14f1c
+				goto endd82095c6a872974522d33aaff1ee07be
 			}
-			d := v.Args[1].Aux
+			d := v.Args[1].AuxInt
 			if !(is64BitInt(t)) {
-				goto end776610f88cf04f438242d76ed2b14f1c
+				goto endd82095c6a872974522d33aaff1ee07be
 			}
 			v.Op = OpConst
+			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v.Aux = c.(int64) * d.(int64)
+			v.AuxInt = c * d
 			return true
 		}
-		goto end776610f88cf04f438242d76ed2b14f1c
-	end776610f88cf04f438242d76ed2b14f1c:
+		goto endd82095c6a872974522d33aaff1ee07be
+	endd82095c6a872974522d33aaff1ee07be:
 		;
 	case OpPtrIndex:
 		// match: (PtrIndex <t> ptr idx)
@@ -175,15 +181,16 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			ptr := v.Args[0]
 			idx := v.Args[1]
 			v.Op = OpAdd
+			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(ptr)
-			v0 := v.Block.NewValue(v.Line, OpMul, TypeInvalid, nil)
+			v0 := v.Block.NewValue0(v.Line, OpMul, TypeInvalid)
 			v0.Type = config.Uintptr
 			v0.AddArg(idx)
-			v1 := v.Block.NewValue(v.Line, OpConst, TypeInvalid, nil)
+			v1 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
 			v1.Type = config.Uintptr
-			v1.Aux = t.Elem().Size()
+			v1.AuxInt = t.Elem().Size()
 			v0.AddArg(v1)
 			v.AddArg(v0)
 			return true
@@ -194,56 +201,58 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 	case OpSliceCap:
 		// match: (SliceCap (Load ptr mem))
 		// cond:
-		// result: (Load (Add <ptr.Type> ptr (Const <config.Uintptr> [int64(config.ptrSize*2)])) mem)
+		// result: (Load (Add <ptr.Type> ptr (Const <config.Uintptr> [config.ptrSize*2])) mem)
 		{
 			if v.Args[0].Op != OpLoad {
-				goto endc871dcd9a720b4290c9cae78fe147c8a
+				goto end919cfa3d3539eb2e06a435d5f89654b9
 			}
 			ptr := v.Args[0].Args[0]
 			mem := v.Args[0].Args[1]
 			v.Op = OpLoad
+			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v0 := v.Block.NewValue(v.Line, OpAdd, TypeInvalid, nil)
+			v0 := v.Block.NewValue0(v.Line, OpAdd, TypeInvalid)
 			v0.Type = ptr.Type
 			v0.AddArg(ptr)
-			v1 := v.Block.NewValue(v.Line, OpConst, TypeInvalid, nil)
+			v1 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
 			v1.Type = config.Uintptr
-			v1.Aux = int64(config.ptrSize * 2)
+			v1.AuxInt = config.ptrSize * 2
 			v0.AddArg(v1)
 			v.AddArg(v0)
 			v.AddArg(mem)
 			return true
 		}
-		goto endc871dcd9a720b4290c9cae78fe147c8a
-	endc871dcd9a720b4290c9cae78fe147c8a:
+		goto end919cfa3d3539eb2e06a435d5f89654b9
+	end919cfa3d3539eb2e06a435d5f89654b9:
 		;
 	case OpSliceLen:
 		// match: (SliceLen (Load ptr mem))
 		// cond:
-		// result: (Load (Add <ptr.Type> ptr (Const <config.Uintptr> [int64(config.ptrSize)])) mem)
+		// result: (Load (Add <ptr.Type> ptr (Const <config.Uintptr> [config.ptrSize])) mem)
 		{
 			if v.Args[0].Op != OpLoad {
-				goto end1eec05e44f5fc8944e7c176f98a74d92
+				goto end3d74a5ef07180a709a91052da88bcd01
 			}
 			ptr := v.Args[0].Args[0]
 			mem := v.Args[0].Args[1]
 			v.Op = OpLoad
+			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v0 := v.Block.NewValue(v.Line, OpAdd, TypeInvalid, nil)
+			v0 := v.Block.NewValue0(v.Line, OpAdd, TypeInvalid)
 			v0.Type = ptr.Type
 			v0.AddArg(ptr)
-			v1 := v.Block.NewValue(v.Line, OpConst, TypeInvalid, nil)
+			v1 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
 			v1.Type = config.Uintptr
-			v1.Aux = int64(config.ptrSize)
+			v1.AuxInt = config.ptrSize
 			v0.AddArg(v1)
 			v.AddArg(v0)
 			v.AddArg(mem)
 			return true
 		}
-		goto end1eec05e44f5fc8944e7c176f98a74d92
-	end1eec05e44f5fc8944e7c176f98a74d92:
+		goto end3d74a5ef07180a709a91052da88bcd01
+	end3d74a5ef07180a709a91052da88bcd01:
 		;
 	case OpSlicePtr:
 		// match: (SlicePtr (Load ptr mem))
@@ -256,6 +265,7 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			ptr := v.Args[0].Args[0]
 			mem := v.Args[0].Args[1]
 			v.Op = OpLoad
+			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(ptr)
@@ -284,9 +294,10 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 				goto end324ffb6d2771808da4267f62c854e9c8
 			}
 			v.Op = OpMove
+			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v.Aux = t.Size()
+			v.AuxInt = t.Size()
 			v.AddArg(dst)
 			v.AddArg(src)
 			v.AddArg(mem)
@@ -306,21 +317,22 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 				goto end410559d97aed8018f820cd88723de442
 			}
 			v.Op = OpStore
+			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v0 := v.Block.NewValue(v.Line, OpOffPtr, TypeInvalid, nil)
+			v0 := v.Block.NewValue0(v.Line, OpOffPtr, TypeInvalid)
 			v0.Type = TypeBytePtr
-			v0.Aux = config.ptrSize
+			v0.AuxInt = config.ptrSize
 			v0.AddArg(dst)
 			v.AddArg(v0)
-			v1 := v.Block.NewValue(v.Line, OpStringLen, TypeInvalid, nil)
+			v1 := v.Block.NewValue0(v.Line, OpStringLen, TypeInvalid)
 			v1.Type = config.Uintptr
 			v1.AddArg(str)
 			v.AddArg(v1)
-			v2 := v.Block.NewValue(v.Line, OpStore, TypeInvalid, nil)
+			v2 := v.Block.NewValue0(v.Line, OpStore, TypeInvalid)
 			v2.Type = TypeMem
 			v2.AddArg(dst)
-			v3 := v.Block.NewValue(v.Line, OpStringPtr, TypeInvalid, nil)
+			v3 := v.Block.NewValue0(v.Line, OpStringPtr, TypeInvalid)
 			v3.Type = TypeBytePtr
 			v3.AddArg(str)
 			v2.AddArg(v3)
@@ -341,6 +353,7 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			}
 			len := v.Args[0].Args[1]
 			v.Op = len.Op
+			v.AuxInt = len.AuxInt
 			v.Aux = len.Aux
 			v.resetArgs()
 			v.AddArgs(len.Args...)
@@ -359,6 +372,7 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			}
 			ptr := v.Args[0].Args[0]
 			v.Op = ptr.Op
+			v.AuxInt = ptr.AuxInt
 			v.Aux = ptr.Aux
 			v.resetArgs()
 			v.AddArgs(ptr.Args...)
@@ -372,19 +386,19 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 func rewriteBlockgeneric(b *Block) bool {
 	switch b.Kind {
 	case BlockIf:
-		// match: (If (Const [c]) yes no)
+		// match: (If (Const {c}) yes no)
 		// cond: c.(bool)
 		// result: (Plain nil yes)
 		{
 			v := b.Control
 			if v.Op != OpConst {
-				goto end60cde11c1be8092f493d9cda982445ca
+				goto end915e334b6388fed7d63e09aa69ecb05c
 			}
 			c := v.Aux
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			if !(c.(bool)) {
-				goto end60cde11c1be8092f493d9cda982445ca
+				goto end915e334b6388fed7d63e09aa69ecb05c
 			}
 			removePredecessor(b, no)
 			b.Kind = BlockPlain
@@ -393,22 +407,22 @@ func rewriteBlockgeneric(b *Block) bool {
 			b.Succs[0] = yes
 			return true
 		}
-		goto end60cde11c1be8092f493d9cda982445ca
-	end60cde11c1be8092f493d9cda982445ca:
+		goto end915e334b6388fed7d63e09aa69ecb05c
+	end915e334b6388fed7d63e09aa69ecb05c:
 		;
-		// match: (If (Const [c]) yes no)
+		// match: (If (Const {c}) yes no)
 		// cond: !c.(bool)
 		// result: (Plain nil no)
 		{
 			v := b.Control
 			if v.Op != OpConst {
-				goto endf2a5efbfd2d40dead087c33685c8f30b
+				goto end6452ee3a5bb02c708bddc3181c3ea3cb
 			}
 			c := v.Aux
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			if !(!c.(bool)) {
-				goto endf2a5efbfd2d40dead087c33685c8f30b
+				goto end6452ee3a5bb02c708bddc3181c3ea3cb
 			}
 			removePredecessor(b, yes)
 			b.Kind = BlockPlain
@@ -417,8 +431,8 @@ func rewriteBlockgeneric(b *Block) bool {
 			b.Succs[0] = no
 			return true
 		}
-		goto endf2a5efbfd2d40dead087c33685c8f30b
-	endf2a5efbfd2d40dead087c33685c8f30b:
+		goto end6452ee3a5bb02c708bddc3181c3ea3cb
+	end6452ee3a5bb02c708bddc3181c3ea3cb:
 	}
 	return false
 }

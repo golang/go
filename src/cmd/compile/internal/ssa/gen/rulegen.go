@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -29,9 +30,9 @@ import (
 // sexpr are s-expressions (lisp-like parenthesized groupings)
 // sexpr ::= (opcode sexpr*)
 //         | variable
-//         | [aux]
 //         | <type>
-//         | {code}
+//         | [auxint]
+//         | {aux}
 //
 // aux      ::= variable | {code}
 // type     ::= variable | {code}
@@ -310,9 +311,9 @@ func genMatch0(w io.Writer, arch arch, match, v, fail string, m map[string]strin
 		if a[0] == '<' {
 			// type restriction
 			t := a[1 : len(a)-1] // remove <>
-			if t[0] == '{' {
+			if !isVariable(t) {
 				// code.  We must match the results of this code.
-				fmt.Fprintf(w, "if %s.Type != %s %s", v, t[1:len(t)-1], fail)
+				fmt.Fprintf(w, "if %s.Type != %s %s", v, t, fail)
 			} else {
 				// variable
 				if u, ok := m[t]; ok {
@@ -324,11 +325,26 @@ func genMatch0(w io.Writer, arch arch, match, v, fail string, m map[string]strin
 				}
 			}
 		} else if a[0] == '[' {
-			// aux restriction
+			// auxint restriction
 			x := a[1 : len(a)-1] // remove []
-			if x[0] == '{' {
+			if !isVariable(x) {
 				// code
-				fmt.Fprintf(w, "if %s.Aux != %s %s", v, x[1:len(x)-1], fail)
+				fmt.Fprintf(w, "if %s.AuxInt != %s %s", v, x, fail)
+			} else {
+				// variable
+				if y, ok := m[x]; ok {
+					fmt.Fprintf(w, "if %s.AuxInt != %s %s", v, y, fail)
+				} else {
+					m[x] = v + ".AuxInt"
+					fmt.Fprintf(w, "%s := %s.AuxInt\n", x, v)
+				}
+			}
+		} else if a[0] == '{' {
+			// auxint restriction
+			x := a[1 : len(a)-1] // remove {}
+			if !isVariable(x) {
+				// code
+				fmt.Fprintf(w, "if %s.Aux != %s %s", v, x, fail)
 			} else {
 				// variable
 				if y, ok := m[x]; ok {
@@ -338,9 +354,6 @@ func genMatch0(w io.Writer, arch arch, match, v, fail string, m map[string]strin
 					fmt.Fprintf(w, "%s := %s.Aux\n", x, v)
 				}
 			}
-		} else if a[0] == '{' {
-			fmt.Fprintf(w, "if %s.Args[%d] != %s %s", v, argnum, a[1:len(a)-1], fail)
-			argnum++
 		} else {
 			// variable or sexpr
 			genMatch0(w, arch, a, fmt.Sprintf("%s.Args[%d]", v, argnum), fail, m, false)
@@ -357,6 +370,7 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool) str
 		// variable
 		if top {
 			fmt.Fprintf(w, "v.Op = %s.Op\n", result)
+			fmt.Fprintf(w, "v.AuxInt = %s.AuxInt\n", result)
 			fmt.Fprintf(w, "v.Aux = %s.Aux\n", result)
 			fmt.Fprintf(w, "v.resetArgs()\n")
 			fmt.Fprintf(w, "v.AddArgs(%s.Args...)\n", result)
@@ -370,32 +384,29 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool) str
 	if top {
 		v = "v"
 		fmt.Fprintf(w, "v.Op = %s\n", opName(s[0], arch))
+		fmt.Fprintf(w, "v.AuxInt = 0\n")
 		fmt.Fprintf(w, "v.Aux = nil\n")
 		fmt.Fprintf(w, "v.resetArgs()\n")
 		hasType = true
 	} else {
 		v = fmt.Sprintf("v%d", *alloc)
 		*alloc++
-		fmt.Fprintf(w, "%s := v.Block.NewValue(v.Line, %s, TypeInvalid, nil)\n", v, opName(s[0], arch))
+		fmt.Fprintf(w, "%s := v.Block.NewValue0(v.Line, %s, TypeInvalid)\n", v, opName(s[0], arch))
 	}
 	for _, a := range s[1:] {
 		if a[0] == '<' {
 			// type restriction
 			t := a[1 : len(a)-1] // remove <>
-			if t[0] == '{' {
-				t = t[1 : len(t)-1] // remove {}
-			}
 			fmt.Fprintf(w, "%s.Type = %s\n", v, t)
 			hasType = true
 		} else if a[0] == '[' {
-			// aux restriction
+			// auxint restriction
 			x := a[1 : len(a)-1] // remove []
-			if x[0] == '{' {
-				x = x[1 : len(x)-1] // remove {}
-			}
-			fmt.Fprintf(w, "%s.Aux = %s\n", v, x)
+			fmt.Fprintf(w, "%s.AuxInt = %s\n", v, x)
 		} else if a[0] == '{' {
-			fmt.Fprintf(w, "%s.AddArg(%s)\n", v, a[1:len(a)-1])
+			// aux restriction
+			x := a[1 : len(a)-1] // remove {}
+			fmt.Fprintf(w, "%s.Aux = %s\n", v, x)
 		} else {
 			// regular argument (sexpr or variable)
 			x := genResult0(w, arch, a, alloc, false)
@@ -503,4 +514,13 @@ func unbalanced(s string) bool {
 		}
 	}
 	return left != right
+}
+
+// isVariable reports whether s is a single Go alphanumeric identifier.
+func isVariable(s string) bool {
+	b, err := regexp.MatchString("[A-Za-z_][A-Za-z_0-9]*", s)
+	if err != nil {
+		panic("bad variable regexp")
+	}
+	return b
 }
