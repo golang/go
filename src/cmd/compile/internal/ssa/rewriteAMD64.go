@@ -1093,22 +1093,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 	end78e66b6fc298684ff4ac8aec5ce873c9:
 		;
 	case OpStaticCall:
-		// match: (StaticCall [target] mem)
+		// match: (StaticCall {target} mem)
 		// cond:
-		// result: (CALLstatic [target] mem)
+		// result: (CALLstatic {target} mem)
 		{
-			target := v.AuxInt
+			target := v.Aux
 			mem := v.Args[0]
 			v.Op = OpAMD64CALLstatic
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v.AuxInt = target
+			v.Aux = target
 			v.AddArg(mem)
 			return true
 		}
-		goto endcf02eb60d90086f6c42bfdc5842b145d
-	endcf02eb60d90086f6c42bfdc5842b145d:
+		goto end1948857a7cfc2a4f905045e58d3b9ec1
+	end1948857a7cfc2a4f905045e58d3b9ec1:
 		;
 	case OpStore:
 		// match: (Store ptr val mem)
