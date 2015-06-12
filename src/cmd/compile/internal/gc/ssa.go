@@ -217,8 +217,9 @@ func (s *state) stmt(n *Node) {
 			s.labels[n.Left.Sym.Name] = t
 		}
 		// go to that label (we pretend "label:" is preceded by "goto label")
-		b := s.endBlock()
-		addEdge(b, t)
+		if b := s.endBlock(); b != nil {
+			addEdge(b, t)
+		}
 
 		if n.Op == OLABEL {
 			// next we work on the label's target block
@@ -358,6 +359,9 @@ func (s *state) expr(n *Node) *ssa.Value {
 			log.Fatalf("unhandled OLITERAL %v", n.Val().Ctype())
 			return nil
 		}
+	case OCONVNOP:
+		x := s.expr(n.Left)
+		return s.newValue1(ssa.OpConvNop, n.Type, nil, x)
 
 		// binary ops
 	case OLT:
