@@ -153,7 +153,10 @@ func (check *Checker) collectObjects() {
 		// but there is no corresponding package object.
 		check.recordDef(file.Name, nil)
 
-		fileScope := NewScope(check.pkg.scope, file.Pos(), file.End(), check.filename(fileNo))
+		// Use the actual source file extent rather than *ast.File extent since the
+		// latter doesn't include comments which appear at the end of the file.
+		f := check.fset.File(file.Pos())
+		fileScope := NewScope(check.pkg.scope, token.Pos(f.Base()), token.Pos(f.Base()+f.Size()), check.filename(fileNo))
 		check.recordScope(file, fileScope)
 
 		for _, decl := range file.Decls {

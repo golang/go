@@ -144,6 +144,10 @@ func TestEvalPos(t *testing.T) {
 			type FT /* FT => , p.FT */ interface{}
 		}
 		`,
+		`
+		package p
+		/* T => , p.T */
+		`,
 	}
 
 	fset := token.NewFileSet()
