@@ -4,10 +4,7 @@
 
 package ssa
 
-import (
-	"fmt"
-	"log"
-)
+import "log"
 
 // Compile is the main entry point for this package.
 // Compile modifies f so that on return:
@@ -18,13 +15,13 @@ import (
 func Compile(f *Func) {
 	// TODO: debugging - set flags to control verbosity of compiler,
 	// which phases to dump IR before/after, etc.
-	fmt.Printf("compiling %s\n", f.Name)
+	f.Log("compiling %s\n", f.Name)
 
 	// hook to print function & phase if panic happens
 	phaseName := "init"
 	defer func() {
 		if phaseName != "" {
-			fmt.Printf("panic during %s while compiling %s\n", phaseName, f.Name)
+			f.Fatal("panic during %s while compiling %s\n", phaseName, f.Name)
 		}
 	}()
 
@@ -33,9 +30,9 @@ func Compile(f *Func) {
 	checkFunc(f)
 	for _, p := range passes {
 		phaseName = p.name
-		fmt.Printf("  pass %s begin\n", p.name)
+		f.Log("  pass %s begin\n", p.name)
 		p.fn(f)
-		fmt.Printf("  pass %s end\n", p.name)
+		f.Log("  pass %s end\n", p.name)
 		printFunc(f)
 		checkFunc(f)
 	}

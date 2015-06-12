@@ -7,8 +7,6 @@ package ssa
 // This file contains code to compute the dominator tree
 // of a control-flow graph.
 
-import "log"
-
 // postorder computes a postorder traversal ordering for the
 // basic blocks in f.  Unreachable blocks will not appear.
 func postorder(f *Func) []*Block {
@@ -47,7 +45,7 @@ func postorder(f *Func) []*Block {
 				}
 			}
 		default:
-			log.Fatalf("bad stack state %v %d", b, mark[b.ID])
+			b.Fatal("bad stack state %v %d", b, mark[b.ID])
 		}
 	}
 	return order
@@ -73,7 +71,7 @@ func dominators(f *Func) []*Block {
 	// Make the entry block a self-loop
 	idom[f.Entry.ID] = f.Entry
 	if postnum[f.Entry.ID] != len(post)-1 {
-		log.Fatalf("entry block %v not last in postorder", f.Entry)
+		f.Fatal("entry block %v not last in postorder", f.Entry)
 	}
 
 	// Compute relaxation of idom entries

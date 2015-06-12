@@ -355,6 +355,7 @@ func compile(fn *Node) {
 	var gcargs *Sym
 	var gclocals *Sym
 	var ssafn *ssa.Func
+	var usessa bool
 	if fn.Nbody == nil {
 		if pure_go != 0 || strings.HasPrefix(fn.Func.Nname.Sym.Name, "init.") {
 			Yyerror("missing function body for %q", fn.Func.Nname.Sym.Name)
@@ -406,13 +407,9 @@ func compile(fn *Node) {
 		goto ret
 	}
 
-	// Build an SSA backend function
-	{
-		name := Curfn.Func.Nname.Sym.Name
-		if len(name) > 4 && name[len(name)-4:] == "_ssa" {
-			ssafn = buildssa(Curfn)
-		}
-	}
+	// Build an SSA backend function.
+	// TODO: get rid of usessa.
+	ssafn, usessa = buildssa(Curfn)
 
 	continpc = nil
 	breakpc = nil
@@ -475,7 +472,7 @@ func compile(fn *Node) {
 		}
 	}
 
-	if ssafn != nil {
+	if ssafn != nil && usessa {
 		genssa(ssafn, ptxt, gcargs, gclocals)
 		return
 	}

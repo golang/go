@@ -4,8 +4,6 @@
 
 package ssa
 
-import "log"
-
 // stackalloc allocates storage in the stack frame for
 // all Values that did not get a register.
 func stackalloc(f *Func) {
@@ -79,7 +77,7 @@ func stackalloc(f *Func) {
 		for _, v := range b.Values {
 			if v.Op == OpFP {
 				if fp != nil {
-					log.Panicf("multiple FP ops: %s %s", fp, v)
+					b.Fatal("multiple FP ops: %s %s", fp, v)
 				}
 				fp = v
 			}
@@ -99,12 +97,12 @@ func stackalloc(f *Func) {
 				case OpAMD64LEAQ, OpAMD64MOVQload, OpAMD64MOVQstore, OpAMD64MOVLload, OpAMD64MOVLstore, OpAMD64MOVWload, OpAMD64MOVWstore, OpAMD64MOVBload, OpAMD64MOVBstore, OpAMD64MOVQloadidx8:
 					if v.Op == OpAMD64MOVQloadidx8 && i == 1 {
 						// Note: we could do it, but it is probably an error
-						log.Panicf("can't do FP->SP adjust on index slot of load %s", v.Op)
+						f.Fatal("can't do FP->SP adjust on index slot of load %s", v.Op)
 					}
 					// eg: (MOVQload [c] (FP) mem) -> (MOVQload [c+n] (SP) mem)
 					v.AuxInt = addOff(v.AuxInt, n)
 				default:
-					log.Panicf("can't do FP->SP adjust on %s", v.Op)
+					f.Unimplemented("can't do FP->SP adjust on %s", v.Op)
 					// TODO: OpCopy -> ADDQ
 				}
 			}

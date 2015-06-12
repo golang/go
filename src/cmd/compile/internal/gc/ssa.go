@@ -5,26 +5,48 @@
 package gc
 
 import (
-	"log"
+	"fmt"
 
 	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
 	"cmd/internal/obj/x86" // TODO: remove
 )
 
-func buildssa(fn *Node) *ssa.Func {
-	dumplist("buildssa-enter", fn.Func.Enter)
-	dumplist("buildssa-body", fn.Nbody)
+// buildssa builds an SSA function
+// and reports whether it should be used.
+// Once the SSA implementation is complete,
+// it will never return nil, and the bool can be removed.
+func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+	name := fn.Func.Nname.Sym.Name
+	usessa = len(name) > 4 && name[len(name)-4:] == "_ssa"
+
+	if usessa {
+		dumplist("buildssa-enter", fn.Func.Enter)
+		dumplist("buildssa-body", fn.Nbody)
+	}
 
 	var s state
-
 	s.pushLine(fn.Lineno)
 	defer s.popLine()
 
 	// TODO(khr): build config just once at the start of the compiler binary
-	s.config = ssa.NewConfig(Thearch.Thestring, ssaExport{})
+
+	var e ssaExport
+	e.log = usessa
+	s.config = ssa.NewConfig(Thearch.Thestring, &e)
 	s.f = s.config.NewFunc()
-	s.f.Name = fn.Func.Nname.Sym.Name
+	s.f.Name = name
+
+	// If SSA support for the function is incomplete,
+	// assume that any panics are due to violated
+	// invariants. Swallow them silently.
+	defer func() {
+		if err := recover(); err != nil {
+			if !e.unimplemented {
+				panic(err)
+			}
+		}
+	}()
 
 	// We construct SSA using an algorithm similar to
 	// Brau, Buchwald, Hack, Leißa, Mallon, and Zwinkau
@@ -67,7 +89,15 @@ func buildssa(fn *Node) *ssa.Func {
 	// Main call to ssa package to compile function
 	ssa.Compile(s.f)
 
-	return s.f
+	// Calculate stats about what percentage of functions SSA handles.
+	if false {
+		fmt.Printf("SSA implemented: %t\n", !e.unimplemented)
+	}
+
+	if e.unimplemented {
+		return nil, false
+	}
+	return s.f, usessa // TODO: return s.f, true once runtime support is in (gc maps, write barriers, etc.)
 }
 
 type state struct {
@@ -105,10 +135,13 @@ type state struct {
 	line []int32
 }
 
+func (s *state) Fatal(msg string, args ...interface{})         { s.config.Fatal(msg, args...) }
+func (s *state) Unimplemented(msg string, args ...interface{}) { s.config.Unimplemented(msg, args...) }
+
 // startBlock sets the current block we're generating code in to b.
 func (s *state) startBlock(b *ssa.Block) {
 	if s.curBlock != nil {
-		log.Fatalf("starting block %v when block %v has not ended", b, s.curBlock)
+		s.Fatal("starting block %v when block %v has not ended", b, s.curBlock)
 	}
 	s.curBlock = b
 	s.vars = map[string]*ssa.Value{}
@@ -230,7 +263,7 @@ func (s *state) stmt(n *Node) {
 			return
 		}
 		if compiling_runtime != 0 {
-			log.Fatalf("%v escapes to heap, not allowed in runtime.", n)
+			Fatal("%v escapes to heap, not allowed in runtime.", n)
 		}
 
 		// TODO: the old pass hides the details of PHEAP
@@ -259,6 +292,9 @@ func (s *state) stmt(n *Node) {
 		if n.Op == OLABEL {
 			// next we work on the label's target block
 			s.startBlock(t)
+		}
+		if n.Op == OGOTO && s.curBlock == nil {
+			s.Unimplemented("goto at start of function; see test/goto.go")
 		}
 
 	case OAS, OASWB:
@@ -317,6 +353,9 @@ func (s *state) stmt(n *Node) {
 
 		// generate code to test condition
 		// TODO(khr): Left == nil exception
+		if n.Left == nil {
+			s.Unimplemented("cond n.Left == nil: %v", n)
+		}
 		s.startBlock(bCond)
 		cond := s.expr(n.Left)
 		b = s.endBlock()
@@ -342,7 +381,7 @@ func (s *state) stmt(n *Node) {
 		// TODO(khr): ??? anything to do here?  Only for addrtaken variables?
 		// Maybe just link it in the store chain?
 	default:
-		log.Fatalf("unhandled stmt %s", opnames[n.Op])
+		s.Unimplemented("unhandled stmt %s", opnames[n.Op])
 	}
 }
 
@@ -370,7 +409,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		case CTSTR:
 			return s.entryNewValue0A(ssa.OpConst, n.Type, n.Val().U)
 		default:
-			log.Fatalf("unhandled OLITERAL %v", n.Val().Ctype())
+			s.Unimplemented("unhandled OLITERAL %v", n.Val().Ctype())
 			return nil
 		}
 	case OCONVNOP:
@@ -474,7 +513,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		a := s.entryNewValue1I(ssa.OpOffPtr, Ptrto(fp.Type), fp.Width, s.sp)
 		return s.newValue2(ssa.OpLoad, fp.Type, a, call)
 	default:
-		log.Fatalf("unhandled expr %s", opnames[n.Op])
+		s.Unimplemented("unhandled expr %s", opnames[n.Op])
 		return nil
 	}
 }
@@ -494,7 +533,7 @@ func (s *state) assign(op uint8, left *Node, right *Node) {
 		case t.IsBoolean():
 			val = s.entryNewValue0A(ssa.OpConst, left.Type, false) // TODO: store bools as 0/1 in AuxInt?
 		default:
-			log.Fatalf("zero for type %v not implemented", t)
+			s.Unimplemented("zero for type %v not implemented", t)
 		}
 	} else {
 		val = s.expr(right)
@@ -524,7 +563,7 @@ func (s *state) addr(n *Node) *ssa.Value {
 			return s.expr(n.Name.Heapaddr)
 		default:
 			// TODO: address of locals
-			log.Fatalf("variable address of %v not implemented", n)
+			s.Unimplemented("variable address of %v not implemented", n)
 			return nil
 		}
 	case OINDREG:
@@ -547,7 +586,7 @@ func (s *state) addr(n *Node) *ssa.Value {
 			return s.newValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), p, i)
 		}
 	default:
-		log.Fatalf("addr: bad op %v", Oconv(int(n.Op), 0))
+		s.Unimplemented("addr: bad op %v", Oconv(int(n.Op), 0))
 		return nil
 	}
 }
@@ -556,7 +595,7 @@ func (s *state) addr(n *Node) *ssa.Value {
 // n must be an ONAME.
 func canSSA(n *Node) bool {
 	if n.Op != ONAME {
-		log.Fatalf("canSSA passed a non-ONAME %s %v", Oconv(int(n.Op), 0), n)
+		Fatal("canSSA passed a non-ONAME %s %v", Oconv(int(n.Op), 0), n)
 	}
 	if n.Addrtaken {
 		return false
@@ -610,7 +649,7 @@ func (s *state) boundsCheck(idx, len *ssa.Value) {
 // variable returns the value of a variable at the current location.
 func (s *state) variable(name string, t ssa.Type) *ssa.Value {
 	if s.curBlock == nil {
-		log.Fatalf("nil curblock!")
+		s.Fatal("nil curblock!")
 	}
 	v := s.vars[name]
 	if v == nil {
@@ -661,6 +700,10 @@ func (s *state) lookupVarIncoming(b *ssa.Block, t ssa.Type, name string) *ssa.Va
 	var vals []*ssa.Value
 	for _, p := range b.Preds {
 		vals = append(vals, s.lookupVarOutgoing(p, t, name))
+	}
+	if len(vals) == 0 {
+		s.Unimplemented("TODO: Handle fixedbugs/bug076.go")
+		return nil
 	}
 	v0 := vals[0]
 	for i := 1; i < len(vals); i++ {
@@ -822,11 +865,14 @@ func genValue(v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
 	case ssa.OpAMD64MULQconst:
+		v.Unimplemented("IMULQ doasm")
+		return
 		// TODO: this isn't right.  doasm fails on it.  I don't think obj
 		// has ever been taught to compile imul $c, r1, r2.
 		p := Prog(x86.AIMULQ)
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
+		p.From3 = new(obj.Addr)
 		p.From3.Type = obj.TYPE_REG
 		p.From3.Reg = regnum(v.Args[0])
 		p.To.Type = obj.TYPE_REG
@@ -854,7 +900,7 @@ func genValue(v *ssa.Value) {
 		r := regnum(v)
 		if x != r {
 			if r == x86.REG_CX {
-				log.Fatalf("can't implement %s, target and shift both in CX", v.LongString())
+				v.Fatal("can't implement %s, target and shift both in CX", v.LongString())
 			}
 			p := Prog(x86.AMOVQ)
 			p.From.Type = obj.TYPE_REG
@@ -1003,12 +1049,12 @@ func genValue(v *ssa.Value) {
 		loc := f.RegAlloc[v.ID]
 		for _, a := range v.Args {
 			if f.RegAlloc[a.ID] != loc { // TODO: .Equal() instead?
-				log.Fatalf("phi arg at different location than phi %v %v %v %v", v, loc, a, f.RegAlloc[a.ID])
+				v.Fatal("phi arg at different location than phi %v %v %v %v", v, loc, a, f.RegAlloc[a.ID])
 			}
 		}
 	case ssa.OpConst:
 		if v.Block.Func.RegAlloc[v.ID] != nil {
-			log.Fatalf("const value %v shouldn't have a location", v)
+			v.Fatal("const value %v shouldn't have a location", v)
 		}
 	case ssa.OpArg:
 		// memory arg needs no code
@@ -1033,7 +1079,7 @@ func genValue(v *ssa.Value) {
 	case ssa.OpFP, ssa.OpSP:
 		// nothing to do
 	default:
-		log.Fatalf("value %s not implemented", v.LongString())
+		v.Unimplemented("value %s not implemented", v.LongString())
 	}
 }
 
@@ -1141,7 +1187,7 @@ func genBlock(b, next *ssa.Block, branches []branch) []branch {
 		}
 
 	default:
-		log.Fatalf("branch %s not implemented", b.LongString())
+		b.Unimplemented("branch %s not implemented", b.LongString())
 	}
 	return branches
 }
@@ -1183,10 +1229,40 @@ func localOffset(v *ssa.Value) int64 {
 }
 
 // ssaExport exports a bunch of compiler services for the ssa backend.
-type ssaExport struct{}
+type ssaExport struct {
+	log           bool
+	unimplemented bool
+}
 
 // StringSym returns a symbol (a *Sym wrapped in an interface) which
 // is a global string constant containing s.
-func (serv ssaExport) StringSym(s string) interface{} {
+func (*ssaExport) StringSym(s string) interface{} {
 	return stringsym(s)
+}
+
+// Log logs a message from the compiler.
+func (e *ssaExport) Log(msg string, args ...interface{}) {
+	// If e was marked as unimplemented, anything could happen. Ignore.
+	if e.log && !e.unimplemented {
+		fmt.Printf(msg, args...)
+	}
+}
+
+// Fatal reports a compiler error and exits.
+func (e *ssaExport) Fatal(msg string, args ...interface{}) {
+	// If e was marked as unimplemented, anything could happen. Ignore.
+	if !e.unimplemented {
+		Fatal(msg, args...)
+	}
+}
+
+// Unimplemented reports that the function cannot be compiled.
+// It will be removed once SSA work is complete.
+func (e *ssaExport) Unimplemented(msg string, args ...interface{}) {
+	const alwaysLog = false // enable to calculate top unimplemented features
+	if !e.unimplemented && (e.log || alwaysLog) {
+		// first implementation failure, print explanation
+		fmt.Printf("SSA unimplemented: "+msg+"\n", args...)
+	}
+	e.unimplemented = true
 }

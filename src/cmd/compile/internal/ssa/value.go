@@ -106,3 +106,7 @@ func (v *Value) resetArgs() {
 	v.argstorage[1] = nil
 	v.Args = v.argstorage[:0]
 }
+
+func (v *Value) Log(msg string, args ...interface{})           { v.Block.Log(msg, args...) }
+func (v *Value) Fatal(msg string, args ...interface{})         { v.Block.Fatal(msg, args...) }
+func (v *Value) Unimplemented(msg string, args ...interface{}) { v.Block.Unimplemented(msg, args...) }

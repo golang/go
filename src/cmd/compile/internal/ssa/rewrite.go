@@ -4,7 +4,7 @@
 
 package ssa
 
-import "log"
+import "fmt"
 
 func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool) {
 	// repeat rewrites until we find no more rewrites
@@ -12,11 +12,10 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool) 
 	var curv *Value
 	defer func() {
 		if curb != nil {
-			log.Printf("panic during rewrite of block %s\n", curb.LongString())
+			curb.Fatal("panic during rewrite of block %s\n", curb.LongString())
 		}
 		if curv != nil {
-			log.Printf("panic during rewrite of value %s\n", curv.LongString())
-			panic("rewrite failed")
+			curv.Fatal("panic during rewrite of value %s\n", curv.LongString())
 			// TODO(khr): print source location also
 		}
 	}()
@@ -90,12 +89,12 @@ func typeSize(t Type) int64 {
 	return t.Size()
 }
 
-// addOff adds two int64 offsets.  Fails if wraparound happens.
+// addOff adds two int64 offsets. Fails if wraparound happens.
 func addOff(x, y int64) int64 {
 	z := x + y
 	// x and y have same sign and z has a different sign => overflow
 	if x^y >= 0 && x^z < 0 {
-		log.Panicf("offset overflow %d %d\n", x, y)
+		panic(fmt.Sprintf("offset overflow %d %d", x, y))
 	}
 	return z
 }

@@ -4,8 +4,6 @@
 
 package ssa
 
-import "log"
-
 // convert to machine-dependent ops
 func lower(f *Func) {
 	// repeat rewrites until we find no more rewrites
@@ -15,7 +13,7 @@ func lower(f *Func) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if opcodeTable[v.Op].generic && v.Op != OpFP && v.Op != OpSP && v.Op != OpArg && v.Op != OpCopy && v.Op != OpPhi {
-				log.Panicf("%s not lowered", v.LongString())
+				f.Unimplemented("%s not lowered", v.LongString())
 			}
 		}
 	}

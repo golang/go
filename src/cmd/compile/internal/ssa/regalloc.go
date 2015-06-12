@@ -4,11 +4,7 @@
 
 package ssa
 
-import (
-	"fmt"
-	"log"
-	"sort"
-)
+import "sort"
 
 func setloc(home []Location, v *Value, loc Location) []Location {
 	for v.ID >= ID(len(home)) {
@@ -353,7 +349,7 @@ func regalloc(f *Func) {
 		if b.Kind == BlockCall {
 			call = b.Control
 			if call != b.Values[len(b.Values)-1] {
-				log.Fatalf("call not at end of block %b %v", b, call)
+				b.Fatal("call not at end of block %b %v", b, call)
 			}
 			b.Values = b.Values[:len(b.Values)-1]
 			// TODO: do this for all control types?
@@ -423,7 +419,7 @@ func live(f *Func) [][]ID {
 	t := newSparseSet(f.NumValues())
 	for {
 		for _, b := range f.Blocks {
-			fmt.Printf("live %s %v\n", b, live[b.ID])
+			f.Log("live %s %v\n", b, live[b.ID])
 		}
 		changed := false
 

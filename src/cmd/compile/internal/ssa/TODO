@@ -42,7 +42,6 @@ Common-Subexpression Elimination
  - Can we move control values out of their basic block?
 
 Other
- - Use gc.Fatal for errors.  Add a callback to Frontend?
  - Write barriers
  - For testing, do something more sophisticated than
    checkOpcodeCounts.  Michael Matloob suggests using a similar

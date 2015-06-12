@@ -4,8 +4,6 @@
 
 package ssa
 
-import "log"
-
 // deadcode removes dead code from f.
 func deadcode(f *Func) {
 
@@ -82,7 +80,7 @@ func deadcode(f *Func) {
 			i++
 		} else {
 			if len(b.Values) > 0 {
-				log.Panicf("live values in unreachable block %v: %v", b, b.Values)
+				b.Fatal("live values in unreachable block %v: %v", b, b.Values)
 			}
 			f.bid.put(b.ID)
 		}
@@ -105,7 +103,7 @@ func removePredecessor(b, c *Block) {
 	if n == 0 {
 		// c is now dead - don't bother working on it
 		if c.Preds[0] != b {
-			log.Panicf("%s.Preds[0]==%s, want %s", c, c.Preds[0], b)
+			b.Fatal("%s.Preds[0]==%s, want %s", c, c.Preds[0], b)
 		}
 		return
 	}
