@@ -333,7 +333,7 @@ func parsePAX(r io.Reader) (map[string]string, error) {
 		}
 		// Parse the first token as a decimal integer.
 		n, err := strconv.ParseInt(string(buf[:sp]), 10, 0)
-		if err != nil {
+		if err != nil || n < 5 || int64(len(buf)) < n {
 			return nil, ErrHeader
 		}
 		// Extract everything between the decimal and the n -1 on the

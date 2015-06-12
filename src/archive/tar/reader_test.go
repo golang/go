@@ -462,9 +462,14 @@ func TestParsePAXHeader(t *testing.T) {
 			t.Error("Buffer wasn't consumed")
 		}
 	}
-	badHeader := bytes.NewReader([]byte("3 somelongkey="))
-	if _, err := parsePAX(badHeader); err != ErrHeader {
-		t.Fatal("Unexpected success when parsing bad header")
+	badHeaderTests := [][]byte{
+		[]byte("3 somelongkey=\n"),
+		[]byte("50 tooshort=\n"),
+	}
+	for _, test := range badHeaderTests {
+		if _, err := parsePAX(bytes.NewReader(test)); err != ErrHeader {
+			t.Fatal("Unexpected success when parsing bad header")
+		}
 	}
 }
 
