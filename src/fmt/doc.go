@@ -271,13 +271,18 @@
 		Flags # and + are not implemented.
 
 	The familiar base-setting prefixes 0 (octal) and 0x
-	(hexadecimal) are accepted when scanning integers without a
-	format or with the %v verb.
+	(hexadecimal) are accepted when scanning integers without
+	a format or with the %v verb.
 
-	Width is interpreted in the input text (%5s means at most
-	five runes of input will be read to scan a string) but there
-	is no syntax for scanning with a precision (no %5.2f, just
-	%5f).
+	Width is interpreted in the input text but there is no
+	syntax for scanning with a precision (no %5.2f, just %5f).
+	If width is provided, it applies after leading spaces are
+	trimmed and specifies the maximum number of runes to read
+	to satisfy the verb. For example,
+	   Sscanf(" 1234567 ", "%5s%d", &s, &i)
+	will set s to "12345" and i to 67 while
+	   Sscanf(" 12 34 567 ", "%5s%d", &s, &i)
+	will set s to "12" and i to 34.
 
 	In all the scanning functions, a carriage return followed
 	immediately by a newline is treated as a plain newline

@@ -340,6 +340,8 @@ var multiTests = []ScanfMultiTest{
 	{"%6vX=%3fY", "3+2iX=2.5Y", args(&c, &f), args((3 + 2i), 2.5), ""},
 	{"%d%s", "123abc", args(&i, &s), args(123, "abc"), ""},
 	{"%c%c%c", "2\u50c2X", args(&r1, &r2, &r3), args('2', '\u50c2', 'X'), ""},
+	{"%5s%d", " 1234567 ", args(&s, &i), args("12345", 67), ""},
+	{"%5s%d", " 12 34 567 ", args(&s, &i), args("12", 34), ""},
 
 	// Custom scanners.
 	{"%e%f", "eefffff", args(&x, &y), args(Xs("ee"), Xs("fffff")), ""},
