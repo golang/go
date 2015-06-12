@@ -226,8 +226,23 @@ func (s *state) stmt(n *Node) {
 		s.stmtList(n.List)
 
 	case ODCL:
-		// TODO: old gen pass uses dcl node as the point where
-		// escaping variables' new functions are called. Do that here
+		if n.Left.Class&PHEAP == 0 {
+			return
+		}
+		if compiling_runtime != 0 {
+			log.Fatalf("%v escapes to heap, not allowed in runtime.", n)
+		}
+
+		// TODO: the old pass hides the details of PHEAP
+		// variables behind ONAME nodes. Figure out if it's better
+		// to rewrite the tree and make the heapaddr construct explicit
+		// or to keep this detail hidden behind the scenes.
+		palloc := prealloc[n.Left]
+		if palloc == nil {
+			palloc = callnew(n.Left.Type)
+			prealloc[n.Left] = palloc
+		}
+		s.assign(OAS, n.Left.Name.Heapaddr, palloc)
 
 	case OLABEL, OGOTO:
 		// get block at label, or make one
@@ -247,32 +262,8 @@ func (s *state) stmt(n *Node) {
 		}
 
 	case OAS, OASWB:
-		// TODO: do write barrier
-		var val *ssa.Value
-		if n.Right == nil {
-			// n.Right == nil means use the zero value of the assigned type.
-			t := n.Left.Type
-			switch {
-			case t.IsString():
-				val = s.entryNewValue0(ssa.OpConst, n.Left.Type)
-			case t.IsInteger():
-				val = s.entryNewValue0(ssa.OpConst, n.Left.Type)
-			case t.IsBoolean():
-				val = s.entryNewValue0A(ssa.OpConst, n.Left.Type, false) // TODO: store bools as 0/1 in AuxInt?
-			default:
-				log.Fatalf("zero for type %v not implemented", t)
-			}
-		} else {
-			val = s.expr(n.Right)
-		}
-		if n.Left.Op == ONAME && canSSA(n.Left) {
-			// Update variable assignment.
-			s.vars[n.Left.Sym.Name] = val
-			return
-		}
-		// not ssa-able.  Treat as a store.
-		addr := s.addr(n.Left)
-		s.vars[".mem"] = s.newValue3(ssa.OpStore, ssa.TypeMem, addr, val, s.mem())
+		s.assign(n.Op, n.Left, n.Right)
+
 	case OIF:
 		cond := s.expr(n.Left)
 		b := s.endBlock()
@@ -478,6 +469,36 @@ func (s *state) expr(n *Node) *ssa.Value {
 	}
 }
 
+func (s *state) assign(op uint8, left *Node, right *Node) {
+	// TODO: do write barrier
+	// if op == OASWB
+	var val *ssa.Value
+	if right == nil {
+		// right == nil means use the zero value of the assigned type.
+		t := left.Type
+		switch {
+		case t.IsString():
+			val = s.entryNewValue0(ssa.OpConst, left.Type)
+		case t.IsInteger():
+			val = s.entryNewValue0(ssa.OpConst, left.Type)
+		case t.IsBoolean():
+			val = s.entryNewValue0A(ssa.OpConst, left.Type, false) // TODO: store bools as 0/1 in AuxInt?
+		default:
+			log.Fatalf("zero for type %v not implemented", t)
+		}
+	} else {
+		val = s.expr(right)
+	}
+	if left.Op == ONAME && canSSA(left) {
+		// Update variable assignment.
+		s.vars[left.Sym.Name] = val
+		return
+	}
+	// not ssa-able.  Treat as a store.
+	addr := s.addr(left)
+	s.vars[".mem"] = s.newValue3(ssa.OpStore, ssa.TypeMem, addr, val, s.mem())
+}
+
 // addr converts the address of the expression n to SSA, adds it to s and returns the SSA result.
 func (s *state) addr(n *Node) *ssa.Value {
 	switch n.Op {
@@ -489,6 +510,8 @@ func (s *state) addr(n *Node) *ssa.Value {
 		case PPARAMOUT:
 			// store to parameter slot
 			return s.entryNewValue1I(ssa.OpOffPtr, Ptrto(n.Type), n.Xoffset, s.fp)
+		case PAUTO | PHEAP:
+			return s.expr(n.Name.Heapaddr)
 		default:
 			// TODO: address of locals
 			log.Fatalf("variable address of %v not implemented", n)
