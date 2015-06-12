@@ -107,7 +107,7 @@ The 'go test' command takes both flags that apply to 'go test' itself
 and flags that apply to the resulting test binary.
 
 Several of the flags control profiling and write an execution profile
-suitable for "go tool pprof"; run "go tool pprof help" for more
+suitable for "go tool pprof"; run "go tool pprof -h" for more
 information.  The --alloc_space, --alloc_objects, and --show_bytes
 options of pprof control how the information is presented.
 
