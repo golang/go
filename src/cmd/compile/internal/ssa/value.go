@@ -22,7 +22,9 @@ type Value struct {
 	Type Type
 
 	// Auxiliary info for this value.  The type of this information depends on the opcode and type.
-	Aux interface{}
+	// AuxInt is used for integer values, Aux is used for other values.
+	AuxInt int64
+	Aux    interface{}
 
 	// Arguments of this value
 	Args []*Value
@@ -53,8 +55,11 @@ func (v *Value) String() string {
 func (v *Value) LongString() string {
 	s := fmt.Sprintf("v%d = %s", v.ID, v.Op.String())
 	s += " <" + v.Type.String() + ">"
+	if v.AuxInt != 0 {
+		s += fmt.Sprintf(" [%d]", v.AuxInt)
+	}
 	if v.Aux != nil {
-		s += fmt.Sprintf(" [%v]", v.Aux)
+		s += fmt.Sprintf(" {%v}", v.Aux)
 	}
 	for _, a := range v.Args {
 		s += fmt.Sprintf(" %v", a)

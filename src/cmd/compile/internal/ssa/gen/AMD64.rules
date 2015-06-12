@@ -23,30 +23,30 @@
 //   mask = shift >= 64 ? 0 : 0xffffffffffffffff
 //   result = mask & arg << shift
 (Lsh <t> x y) && is64BitInt(t) ->
-	(ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [int64(64)] y)))
+	(ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [64] y)))
 (Rsh <t> x y) && is64BitInt(t) && !t.IsSigned() ->
-	(ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [int64(64)] y)))
+	(ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [64] y)))
 
 // Note: signed right shift needs to return 0/-1 if shift amount is >= 64.
 //   if shift > 63 { shift = 63 }
 //   result = arg >> shift
 (Rsh <t> x y) && is64BitInt(t) && t.IsSigned() ->
 	(SARQ <t> x (CMOVQCC <t>
-			(CMPQconst <TypeFlags> [int64(64)] y)
-			(Const <t> [int64(63)])
+			(CMPQconst <TypeFlags> [64] y)
+			(Const <t> [63])
 			y))
 
 (Less x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETL (CMPQ <TypeFlags> x y))
 
-(Load <t> ptr mem) && t.IsBoolean() -> (MOVBload [int64(0)] ptr mem)
-(Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) -> (MOVQload [int64(0)] ptr mem)
-(Store ptr val mem) && (is64BitInt(val.Type) || isPtr(val.Type)) -> (MOVQstore [int64(0)] ptr val mem)
+(Load <t> ptr mem) && t.IsBoolean() -> (MOVBload ptr mem)
+(Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) -> (MOVQload ptr mem)
+(Store ptr val mem) && (is64BitInt(val.Type) || isPtr(val.Type)) -> (MOVQstore ptr val mem)
 
 // checks
 (IsNonNil p) -> (SETNE (TESTQ <TypeFlags> p p))
 (IsInBounds idx len) -> (SETB (CMPQ <TypeFlags> idx len))
 
-(Move [size] dst src mem) -> (REPMOVSB dst src (Const <TypeUInt64> [size.(int64)]) mem)
+(Move [size] dst src mem) -> (REPMOVSB dst src (Const <TypeUInt64> [size]) mem)
 
 (OffPtr [off] ptr) -> (ADDQconst [off] ptr)
 
@@ -65,14 +65,14 @@
 // TODO: Should this be a separate pass?
 
 // global loads/stores
-(Global [sym]) -> (LEAQglobal [GlobalOffset{sym,0}])
+(Global {sym}) -> (LEAQglobal {sym})
 
 // fold constants into instructions
 (ADDQ x (MOVQconst [c])) -> (ADDQconst [c] x) // TODO: restrict c to int32 range?
 (ADDQ (MOVQconst [c]) x) -> (ADDQconst [c] x)
 (SUBQ x (MOVQconst [c])) -> (SUBQconst x [c])
 (SUBQ <t> (MOVQconst [c]) x) -> (NEGQ (SUBQconst <t> x [c]))
-(MULQ x (MOVQconst [c])) && c.(int64) == int64(int32(c.(int64))) -> (MULQconst [c] x)
+(MULQ x (MOVQconst [c])) && c == int64(int32(c)) -> (MULQconst [c] x)
 (MULQ (MOVQconst [c]) x) -> (MULQconst [c] x)
 (ANDQ x (MOVQconst [c])) -> (ANDQconst [c] x)
 (ANDQ (MOVQconst [c]) x) -> (ANDQconst [c] x)
@@ -84,11 +84,11 @@
 
 // strength reduction
 // TODO: do this a lot more generically
-(MULQconst [c] x) && c.(int64) == 8 -> (SHLQconst [int64(3)] x)
-(MULQconst [c] x) && c.(int64) == 64 -> (SHLQconst [int64(5)] x)
+(MULQconst [8] x) -> (SHLQconst [3] x)
+(MULQconst [64] x) -> (SHLQconst [5] x)
 
 // fold add/shift into leaq
-(ADDQ x (SHLQconst [shift] y)) && shift.(int64) == 3 -> (LEAQ8 [int64(0)] x y)
+(ADDQ x (SHLQconst [3] y)) -> (LEAQ8 x y)
 (ADDQconst [c] (LEAQ8 [d] x y)) -> (LEAQ8 [addOff(c, d)] x y)
 
 // reverse ordering of compare instruction
@@ -110,7 +110,7 @@
 (MOVQloadidx8 [off1] (ADDQconst [off2] ptr) idx mem) -> (MOVQloadidx8 [addOff(off1, off2)] ptr idx mem)
 (MOVQstoreidx8 [off1] (ADDQconst [off2] ptr) idx val mem) -> (MOVQstoreidx8 [addOff(off1, off2)] ptr idx val mem)
 
-(ADDQconst [off] x) && off.(int64) == 0 -> (Copy x)
+(ADDQconst [0] x) -> (Copy x)
 
 // Absorb InvertFlags into branches.
 (LT (InvertFlags cmp) yes no) -> (GT cmp yes no)
@@ -125,9 +125,9 @@
 (NE (InvertFlags cmp) yes no) -> (NE cmp yes no)
 
 // get rid of >=64 code for constant shifts
-(SBBQcarrymask (CMPQconst [c] (MOVQconst [d]))) && inBounds(d.(int64), c.(int64)) -> (Const [int64(-1)])
-(SBBQcarrymask (CMPQconst [c] (MOVQconst [d]))) && !inBounds(d.(int64), c.(int64)) -> (Const [int64(0)])
-(ANDQconst [c] _) && c.(int64) == 0 -> (MOVQconst [int64(0)])
-(ANDQconst [c] x) && c.(int64) == -1 -> (Copy x)
-(CMOVQCC (CMPQconst [c] (MOVQconst [d])) _ x) && inBounds(d.(int64), c.(int64)) -> (Copy x)
-(CMOVQCC (CMPQconst [c] (MOVQconst [d])) x _) && !inBounds(d.(int64), c.(int64)) -> (Copy x)
+(SBBQcarrymask (CMPQconst [c] (MOVQconst [d]))) && inBounds(d, c) -> (Const [-1])
+(SBBQcarrymask (CMPQconst [c] (MOVQconst [d]))) && !inBounds(d, c) -> (Const [0])
+(ANDQconst [0] _) -> (MOVQconst [0])
+(ANDQconst [-1] x) -> (Copy x)
+(CMOVQCC (CMPQconst [c] (MOVQconst [d])) _ x) && inBounds(d, c) -> (Copy x)
+(CMOVQCC (CMPQconst [c] (MOVQconst [d])) x _) && !inBounds(d, c) -> (Copy x)

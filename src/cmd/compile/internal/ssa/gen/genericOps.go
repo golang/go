@@ -37,9 +37,9 @@ var genericOps = []opData{
 	{name: "Func"},   // entry address of a function
 
 	// Memory operations
-	{name: "Load"},  // Load from arg0+aux.(int64).  arg1=memory
-	{name: "Store"}, // Store arg1 to arg0+aux.(int64).  arg2=memory.  Returns memory.
-	{name: "Move"},  // arg0=destptr, arg1=srcptr, arg2=mem, aux.(int64)=size.  Returns memory.
+	{name: "Load"},  // Load from arg0.  arg1=memory
+	{name: "Store"}, // Store arg1 to arg0.  arg2=memory.  Returns memory.
+	{name: "Move"},  // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size.  Returns memory.
 
 	// Function calls.  Arguments to the call have already been written to the stack.
 	// Return values appear on the stack.  The method receiver, if any, is treated
@@ -58,7 +58,7 @@ var genericOps = []opData{
 	// Indexing operations
 	{name: "ArrayIndex"}, // arg0=array, arg1=index.  Returns a[i]
 	{name: "PtrIndex"},   // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type
-	{name: "OffPtr"},     // arg0 + aux.(int64) (arg0 and result are pointers)
+	{name: "OffPtr"},     // arg0 + auxint (arg0 and result are pointers)
 
 	// Slices
 	{name: "SliceMake"}, // arg0=ptr, arg1=len, arg2=cap

@@ -262,25 +262,23 @@ func regalloc(f *Func) {
 					if len(w.Args) == 0 {
 						// Materialize w
 						if w.Op == OpFP || w.Op == OpSP || w.Op == OpGlobal {
-							c = b.NewValue1(w.Line, OpCopy, w.Type, nil, w)
+							c = b.NewValue1(w.Line, OpCopy, w.Type, w)
 						} else {
-							c = b.NewValue(w.Line, w.Op, w.Type, w.Aux)
+							c = b.NewValue0IA(w.Line, w.Op, w.Type, w.AuxInt, w.Aux)
 						}
 					} else if len(w.Args) == 1 && (w.Args[0].Op == OpFP || w.Args[0].Op == OpSP || w.Args[0].Op == OpGlobal) {
 						// Materialize offsets from SP/FP/Global
-						c = b.NewValue1(w.Line, w.Op, w.Type, w.Aux, w.Args[0])
+						c = b.NewValue1IA(w.Line, w.Op, w.Type, w.AuxInt, w.Aux, w.Args[0])
 					} else if wreg != 0 {
 						// Copy from another register.
 						// Typically just an optimization, but this is
 						// required if w is dirty.
 						s := pickReg(wreg)
 						// inv: s != r
-						c = b.NewValue(w.Line, OpCopy, w.Type, nil)
-						c.AddArg(regs[s].c)
+						c = b.NewValue1(w.Line, OpCopy, w.Type, regs[s].c)
 					} else {
 						// Load from home location
-						c = b.NewValue(w.Line, OpLoadReg8, w.Type, nil)
-						c.AddArg(w)
+						c = b.NewValue1(w.Line, OpLoadReg8, w.Type, w)
 					}
 					home = setloc(home, c, &registers[r])
 					// Remember what we did
@@ -337,7 +335,7 @@ func regalloc(f *Func) {
 				}
 
 				// Reissue v with new op, with r as its home.
-				c := b.NewValue(v.Line, v.Op, v.Type, v.Aux)
+				c := b.NewValue0IA(v.Line, v.Op, v.Type, v.AuxInt, v.Aux)
 				c.AddArgs(v.Args...)
 				home = setloc(home, c, &registers[r])
 
@@ -406,7 +404,7 @@ func addPhiCopies(f *Func) {
 			}
 			for i, w := range v.Args {
 				c := b.Preds[i]
-				cpy := c.NewValue1(w.Line, OpCopy, v.Type, nil, w)
+				cpy := c.NewValue1(w.Line, OpCopy, v.Type, w)
 				v.Args[i] = cpy
 			}
 		}
