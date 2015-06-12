@@ -406,7 +406,7 @@ func (p *parser) parseNamedType(n int) types.Type {
 		results := p.parseResultList(pkg)
 		p.expect(';')
 
-		sig := types.NewSignature(pkg.Scope(), receiver, params, results, isVariadic)
+		sig := types.NewSignature(nil, receiver, params, results, isVariadic)
 		nt.AddMethod(types.NewFunc(token.NoPos, pkg, name, sig))
 	}
 
