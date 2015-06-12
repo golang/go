@@ -77,6 +77,7 @@ runtime/pprof: memory profiles include overall memory statistics by default (htt
 strings: add Compare(x, y string) int, for symmetry with bytes.Compare (https://golang.org/cl/2828)
 syscall: Add Foreground and Pgid to SysProcAttr (https://golang.org/cl/5130)
 syscall: add missing Syscall9 for darwin/amd64 (https://golang.org/cl/6555)
+syscall: Add GidMappingsEnableSetgroups to linux SysProcAttr (http://golang.org/cl/10670)
 testing/quick: support generation of arrays (https://golang.org/cl/3865)
 testing/quick: generated pointers can now be nil (https://golang.org/cl/10821)
 text/template: add Options method (https://golang.org/cl/8462)
