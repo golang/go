@@ -382,7 +382,7 @@ func (p *importer) signature() *types.Signature {
 	if p.int() != 0 {
 		recv = p.param()
 	}
-	return types.NewSignature(nil, recv, p.tuple(), p.tuple(), p.int() != 0)
+	return types.NewSignature(recv, p.tuple(), p.tuple(), p.int() != 0)
 }
 
 func (p *importer) param() *types.Var {

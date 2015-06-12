@@ -589,7 +589,7 @@ func (p *parser) parseSignature(recv *types.Var) *types.Signature {
 		}
 	}
 
-	return types.NewSignature(nil, recv, types.NewTuple(params...), types.NewTuple(results...), isVariadic)
+	return types.NewSignature(recv, types.NewTuple(params...), types.NewTuple(results...), isVariadic)
 }
 
 // InterfaceType = "interface" "{" [ MethodList ] "}" .

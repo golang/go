@@ -406,7 +406,7 @@ func (p *parser) parseNamedType(n int) types.Type {
 		results := p.parseResultList(pkg)
 		p.expect(';')
 
-		sig := types.NewSignature(nil, receiver, params, results, isVariadic)
+		sig := types.NewSignature(receiver, params, results, isVariadic)
 		nt.AddMethod(types.NewFunc(token.NoPos, pkg, name, sig))
 	}
 
@@ -529,7 +529,7 @@ func (p *parser) parseResultList(pkg *types.Package) *types.Tuple {
 func (p *parser) parseFunctionType(pkg *types.Package) *types.Signature {
 	params, isVariadic := p.parseParamList(pkg)
 	results := p.parseResultList(pkg)
-	return types.NewSignature(pkg.Scope(), nil, params, results, isVariadic)
+	return types.NewSignature(nil, params, results, isVariadic)
 }
 
 // Func = Name FunctionType .
