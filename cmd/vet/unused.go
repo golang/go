@@ -32,7 +32,7 @@ func init() {
 }
 
 // func() string
-var sigNoArgsStringResult = types.NewSignature(nil, nil, nil,
+var sigNoArgsStringResult = types.NewSignature(nil, nil,
 	types.NewTuple(types.NewVar(token.NoPos, nil, "", types.Typ[types.String])),
 	false)
 

@@ -213,7 +213,7 @@ func checkShadowing(f *File, ident *ast.Ident) {
 	}
 	// obj.Parent.Parent is the surrounding scope. If we can find another declaration
 	// starting from there, we have a shadowed identifier.
-	_, shadowed := obj.Parent().Parent().LookupParent(obj.Name())
+	_, shadowed := obj.Parent().Parent().LookupParent(obj.Name(), obj.Pos())
 	if shadowed == nil {
 		return
 	}
