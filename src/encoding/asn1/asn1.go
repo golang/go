@@ -26,6 +26,7 @@ import (
 	"reflect"
 	"strconv"
 	"time"
+	"unicode/utf8"
 )
 
 // A StructuralError suggests that the ASN.1 data is valid, but the Go type
@@ -389,6 +390,9 @@ func parseT61String(bytes []byte) (ret string, err error) {
 // parseUTF8String parses a ASN.1 UTF8String (raw UTF-8) from the given byte
 // array and returns it.
 func parseUTF8String(bytes []byte) (ret string, err error) {
+	if !utf8.Valid(bytes) {
+		return "", errors.New("asn1: invalid UTF-8 string")
+	}
 	return string(bytes), nil
 }
 

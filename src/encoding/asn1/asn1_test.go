@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -920,5 +921,22 @@ func TestTruncatedExplicitTag(t *testing.T) {
 	var result truncatedExplicitTagTest
 	if _, err := Unmarshal(der, &result); err == nil {
 		t.Error("Unmarshal returned without error")
+	}
+}
+
+type invalidUTF8Test struct {
+	Str string `asn1:"utf8"`
+}
+
+func TestUnmarshalInvalidUTF8(t *testing.T) {
+	data := []byte("0\x05\f\x03a\xc9c")
+	var result invalidUTF8Test
+	_, err := Unmarshal(data, &result)
+
+	const expectedSubstring = "UTF"
+	if err == nil {
+		t.Fatal("Successfully unmarshaled invalid UTF-8 data")
+	} else if !strings.Contains(err.Error(), expectedSubstring) {
+		t.Fatalf("Expected error to mention %q but error was %q", expectedSubstring, err.Error())
 	}
 }
