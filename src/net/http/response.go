@@ -93,6 +93,8 @@ func (r *Response) Cookies() []*Cookie {
 	return readSetCookies(r.Header)
 }
 
+// ErrNoLocation is returned by Response's Location method
+// when no Location header is present.
 var ErrNoLocation = errors.New("http: no Location header in response")
 
 // Location returns the URL of the response's "Location" header,
