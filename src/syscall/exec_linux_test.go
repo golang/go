@@ -7,8 +7,11 @@
 package syscall_test
 
 import (
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -62,10 +65,33 @@ func TestCloneNEWUSERAndRemapRootEnableSetgroups(t *testing.T) {
 	testNEWUSERRemap(t, 0, false)
 }
 
+// kernelVersion returns the major and minor versions of the Linux
+// kernel version.  It calls t.Skip if it can't figure it out.
+func kernelVersion(t *testing.T) (int, int) {
+	bytes, err := ioutil.ReadFile("/proc/version")
+	if err != nil {
+		t.Skipf("can't get kernel version: %v", err)
+	}
+	matches := regexp.MustCompile("([0-9]+).([0-9]+)").FindSubmatch(bytes)
+	if len(matches) < 3 {
+		t.Skipf("can't get kernel version from %s", bytes)
+	}
+	major, _ := strconv.Atoi(string(matches[1]))
+	minor, _ := strconv.Atoi(string(matches[2]))
+	return major, minor
+}
+
 func TestCloneNEWUSERAndRemapNoRootDisableSetgroups(t *testing.T) {
 	if os.Getuid() == 0 {
 		t.Skip("skipping unprivileged user only test")
 	}
+
+	// This test fails for some reason on Ubuntu Trusty.
+	major, minor := kernelVersion(t)
+	if major < 3 || (major == 3 && minor < 19) {
+		t.Skipf("skipping on kernel version before 3.19 (%d.%d)", major, minor)
+	}
+
 	testNEWUSERRemap(t, os.Getuid(), false)
 }
 
