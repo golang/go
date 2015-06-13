@@ -18,7 +18,7 @@ func init() {
 	register("copylocks",
 		"check that locks are not passed by value",
 		checkCopyLocks,
-		funcDecl, rangeStmt)
+		funcDecl, rangeStmt, funcLit)
 }
 
 // checkCopyLocks checks whether node might
@@ -28,7 +28,9 @@ func checkCopyLocks(f *File, node ast.Node) {
 	case *ast.RangeStmt:
 		checkCopyLocksRange(f, node)
 	case *ast.FuncDecl:
-		checkCopyLocksFunc(f, node)
+		checkCopyLocksFunc(f, node.Name.Name, node.Recv, node.Type)
+	case *ast.FuncLit:
+		checkCopyLocksFunc(f, "func", nil, node.Type)
 	}
 }
 
@@ -36,28 +38,28 @@ func checkCopyLocks(f *File, node ast.Node) {
 // inadvertently copy a lock, by checking whether
 // its receiver, parameters, or return values
 // are locks.
-func checkCopyLocksFunc(f *File, d *ast.FuncDecl) {
-	if d.Recv != nil && len(d.Recv.List) > 0 {
-		expr := d.Recv.List[0].Type
+func checkCopyLocksFunc(f *File, name string, recv *ast.FieldList, typ *ast.FuncType) {
+	if recv != nil && len(recv.List) > 0 {
+		expr := recv.List[0].Type
 		if path := lockPath(f.pkg.typesPkg, f.pkg.types[expr].Type); path != nil {
-			f.Badf(expr.Pos(), "%s passes Lock by value: %v", d.Name.Name, path)
+			f.Badf(expr.Pos(), "%s passes Lock by value: %v", name, path)
 		}
 	}
 
-	if d.Type.Params != nil {
-		for _, field := range d.Type.Params.List {
+	if typ.Params != nil {
+		for _, field := range typ.Params.List {
 			expr := field.Type
 			if path := lockPath(f.pkg.typesPkg, f.pkg.types[expr].Type); path != nil {
-				f.Badf(expr.Pos(), "%s passes Lock by value: %v", d.Name.Name, path)
+				f.Badf(expr.Pos(), "%s passes Lock by value: %v", name, path)
 			}
 		}
 	}
 
-	if d.Type.Results != nil {
-		for _, field := range d.Type.Results.List {
+	if typ.Results != nil {
+		for _, field := range typ.Results.List {
 			expr := field.Type
 			if path := lockPath(f.pkg.typesPkg, f.pkg.types[expr].Type); path != nil {
-				f.Badf(expr.Pos(), "%s returns Lock by value: %v", d.Name.Name, path)
+				f.Badf(expr.Pos(), "%s returns Lock by value: %v", name, path)
 			}
 		}
 	}
