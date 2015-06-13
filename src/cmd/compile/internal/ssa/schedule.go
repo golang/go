@@ -57,6 +57,9 @@ func schedule(f *Func) {
 		// Topologically sort the values in b.
 		order = order[:0]
 		for _, v := range b.Values {
+			if v == b.Control {
+				continue
+			}
 			if v.Op == OpPhi {
 				// Phis all go first.  We handle phis specially
 				// because they may have self edges "a = phi(a, b, c)"
@@ -79,13 +82,13 @@ func schedule(f *Func) {
 					// Note that v is not popped.  We leave it in place
 					// until all its children have been explored.
 					for _, w := range v.Args {
-						if w.Block == b && w.Op != OpPhi && state[w.ID] == unmarked {
+						if w.Block == b && w.Op != OpPhi && w != b.Control && state[w.ID] == unmarked {
 							state[w.ID] = found
 							queue = append(queue, w)
 						}
 					}
 					for _, w := range additionalEdges[v.ID] {
-						if w.Block == b && w.Op != OpPhi && state[w.ID] == unmarked {
+						if w.Block == b && w.Op != OpPhi && w != b.Control && state[w.ID] == unmarked {
 							state[w.ID] = found
 							queue = append(queue, w)
 						}
@@ -98,6 +101,9 @@ func schedule(f *Func) {
 					panic("bad state")
 				}
 			}
+		}
+		if b.Control != nil {
+			order = append(order, b.Control)
 		}
 		copy(b.Values, order)
 	}
