@@ -184,7 +184,11 @@ func (r *checksumReader) Read(b []byte) (n int, err error) {
 		}
 		if r.desr != nil {
 			if err1 := readDataDescriptor(r.desr, r.f); err1 != nil {
-				err = err1
+				if err1 == io.EOF {
+					err = io.ErrUnexpectedEOF
+				} else {
+					err = err1
+				}
 			} else if r.hash.Sum32() != r.f.CRC32 {
 				err = ErrChecksum
 			}
