@@ -1849,7 +1849,7 @@ func changeRecv(sig *types.Signature) *types.Signature {
 	for i := 0; i < n; i++ {
 		p2[i+1] = params.At(i)
 	}
-	return types.NewSignature(nil, nil, types.NewTuple(p2...), sig.Results(), sig.Variadic())
+	return types.NewSignature(nil, types.NewTuple(p2...), sig.Results(), sig.Variadic())
 }
 
 func (c *rtypeMethodByNameConstraint) solve(a *analysis, delta *nodeset) {

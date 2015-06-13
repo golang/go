@@ -12,7 +12,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"go/parser"
 	"go/token"
 	"io/ioutil"
 	"os"
@@ -240,15 +239,7 @@ func doOneInput(input, filename string) bool {
 				for _, typstr := range split(rest, "|") {
 					var t types.Type = types.Typ[types.Invalid] // means "..."
 					if typstr != "..." {
-						texpr, err := parser.ParseExpr(typstr)
-						if err != nil {
-							ok = false
-							// Don't print err since its location is bad.
-							e.errorf("'%s' is not a valid type", typstr)
-							continue
-						}
-						mainFileScope := mainpkg.Object.Scope().Child(0)
-						tv, err := types.EvalNode(prog.Fset, texpr, mainpkg.Object, mainFileScope)
+						tv, err := types.Eval(prog.Fset, mainpkg.Object, f.Pos(), typstr)
 						if err != nil {
 							ok = false
 							// Don't print err since its location is bad.
