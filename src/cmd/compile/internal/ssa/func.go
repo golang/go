@@ -85,6 +85,7 @@ func (b *Block) NewValue0A(line int32, op Op, t Type, aux interface{}) *Value {
 		Type:  t,
 		Aux:   aux,
 		Block: b,
+		Line:  line,
 	}
 	v.Args = v.argstorage[:0]
 	b.Values = append(b.Values, v)
@@ -143,6 +144,7 @@ func (b *Block) NewValue1A(line int32, op Op, t Type, aux interface{}, arg *Valu
 		Type:  t,
 		Aux:   aux,
 		Block: b,
+		Line:  line,
 	}
 	v.Args = v.argstorage[:1]
 	v.Args[0] = arg
@@ -173,6 +175,7 @@ func (b *Block) NewValue2(line int32, op Op, t Type, arg0, arg1 *Value) *Value {
 		Op:    op,
 		Type:  t,
 		Block: b,
+		Line:  line,
 	}
 	v.Args = v.argstorage[:2]
 	v.Args[0] = arg0
@@ -188,6 +191,7 @@ func (b *Block) NewValue3(line int32, op Op, t Type, arg0, arg1, arg2 *Value) *V
 		Op:    op,
 		Type:  t,
 		Block: b,
+		Line:  line,
 	}
 	v.Args = []*Value{arg0, arg1, arg2}
 	b.Values = append(b.Values, v)
