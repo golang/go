@@ -962,6 +962,12 @@ func genValue(v *ssa.Value) {
 		p.From.Reg = regnum(v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v.Args[1])
+	case ssa.OpAMD64TESTQ:
+		p := Prog(x86.ATESTQ)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = regnum(v.Args[0])
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = regnum(v.Args[1])
 	case ssa.OpAMD64MOVQconst:
 		x := regnum(v)
 		p := Prog(x86.AMOVQ)
