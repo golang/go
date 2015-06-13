@@ -89,7 +89,7 @@ func makeWrapper(prog *Program, sel *types.Selection) *Function {
 			var c Call
 			c.Call.Value = &Builtin{
 				name: "ssa:wrapnilchk",
-				sig: types.NewSignature(nil, nil,
+				sig: types.NewSignature(nil,
 					types.NewTuple(anonVar(sel.Recv()), anonVar(tString), anonVar(tString)),
 					types.NewTuple(anonVar(sel.Recv())), false),
 			}
@@ -281,7 +281,7 @@ func makeThunk(prog *Program, sel *types.Selection) *Function {
 }
 
 func changeRecv(s *types.Signature, recv *types.Var) *types.Signature {
-	return types.NewSignature(nil, recv, s.Params(), s.Results(), s.Variadic())
+	return types.NewSignature(recv, s.Params(), s.Results(), s.Variadic())
 }
 
 // selectionKey is like types.Selection but a usable map key.

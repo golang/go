@@ -31,9 +31,9 @@ func FindTests(pkgs []*Package) (testpkgs []*Package, tests, benchmarks, example
 
 	// The first two of these may be nil: if the program doesn't import "testing",
 	// it can't contain any tests, but it may yet contain Examples.
-	var testSig *types.Signature                                   // func(*testing.T)
-	var benchmarkSig *types.Signature                              // func(*testing.B)
-	var exampleSig = types.NewSignature(nil, nil, nil, nil, false) // func()
+	var testSig *types.Signature                              // func(*testing.T)
+	var benchmarkSig *types.Signature                         // func(*testing.B)
+	var exampleSig = types.NewSignature(nil, nil, nil, false) // func()
 
 	// Obtain the types from the parameters of testing.Main().
 	if testingPkg := prog.ImportedPackage("testing"); testingPkg != nil {
