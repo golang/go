@@ -155,8 +155,12 @@ func (check *Checker) collectObjects() {
 
 		// Use the actual source file extent rather than *ast.File extent since the
 		// latter doesn't include comments which appear at the start or end of the file.
-		f := check.fset.File(file.Pos())
-		fileScope := NewScope(check.pkg.scope, token.Pos(f.Base()), token.Pos(f.Base()+f.Size()), check.filename(fileNo))
+		// Be conservative and use the *ast.File extent if we don't have a *token.File.
+		pos, end := file.Pos(), file.End()
+		if f := check.fset.File(file.Pos()); f != nil {
+			pos, end = token.Pos(f.Base()), token.Pos(f.Base()+f.Size())
+		}
+		fileScope := NewScope(check.pkg.scope, pos, end, check.filename(fileNo))
 		check.recordScope(file, fileScope)
 
 		for _, decl := range file.Decls {
