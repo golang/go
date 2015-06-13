@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Only run where builders (build.golang.org) have
+// access to compiled packages for import.
+//
+// +build !arm64,!nacl
+
 package types_test
 
 // This file shows examples of basic usage of the go/types API.
