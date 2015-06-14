@@ -258,6 +258,24 @@ var utcTestData = []timeTest{
 	{"91050633444aZ", false, time.Time{}},
 	{"910506334461Z", false, time.Time{}},
 	{"910506334400Za", false, time.Time{}},
+	/* These are invalid times. However, the time package normalises times
+	 * and they were accepted in some versions. See #11134. */
+	{"000100000000Z", false, time.Time{}},
+	{"101302030405Z", false, time.Time{}},
+	{"100002030405Z", false, time.Time{}},
+	{"100100030405Z", false, time.Time{}},
+	{"100132030405Z", false, time.Time{}},
+	{"100231030405Z", false, time.Time{}},
+	{"100102240405Z", false, time.Time{}},
+	{"100102036005Z", false, time.Time{}},
+	{"100102030460Z", false, time.Time{}},
+	{"-100102030410Z", false, time.Time{}},
+	{"10-0102030410Z", false, time.Time{}},
+	{"10-0002030410Z", false, time.Time{}},
+	{"1001-02030410Z", false, time.Time{}},
+	{"100102-030410Z", false, time.Time{}},
+	{"10010203-0410Z", false, time.Time{}},
+	{"1001020304-10Z", false, time.Time{}},
 }
 
 func TestUTCTime(t *testing.T) {
@@ -287,6 +305,24 @@ var generalizedTimeTestData = []timeTest{
 	{"20100102030405", false, time.Time{}},
 	{"20100102030405+0607", true, time.Date(2010, 01, 02, 03, 04, 05, 0, time.FixedZone("", 6*60*60+7*60))},
 	{"20100102030405-0607", true, time.Date(2010, 01, 02, 03, 04, 05, 0, time.FixedZone("", -6*60*60-7*60))},
+	/* These are invalid times. However, the time package normalises times
+	 * and they were accepted in some versions. See #11134. */
+	{"00000100000000Z", false, time.Time{}},
+	{"20101302030405Z", false, time.Time{}},
+	{"20100002030405Z", false, time.Time{}},
+	{"20100100030405Z", false, time.Time{}},
+	{"20100132030405Z", false, time.Time{}},
+	{"20100231030405Z", false, time.Time{}},
+	{"20100102240405Z", false, time.Time{}},
+	{"20100102036005Z", false, time.Time{}},
+	{"20100102030460Z", false, time.Time{}},
+	{"-20100102030410Z", false, time.Time{}},
+	{"2010-0102030410Z", false, time.Time{}},
+	{"2010-0002030410Z", false, time.Time{}},
+	{"201001-02030410Z", false, time.Time{}},
+	{"20100102-030410Z", false, time.Time{}},
+	{"2010010203-0410Z", false, time.Time{}},
+	{"201001020304-10Z", false, time.Time{}},
 }
 
 func TestGeneralizedTime(t *testing.T) {
@@ -297,7 +333,7 @@ func TestGeneralizedTime(t *testing.T) {
 		}
 		if err == nil {
 			if !reflect.DeepEqual(test.out, ret) {
-				t.Errorf("#%d: Bad result: %v (expected %v)", i, ret, test.out)
+				t.Errorf("#%d: Bad result: %q → %v (expected %v)", i, test.in, ret, test.out)
 			}
 		}
 	}
