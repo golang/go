@@ -93,7 +93,10 @@ func stackalloc(f *Func) {
 					// (ADDQ (FP) x) -> (LEAQ [n] (SP) x)
 					v.Op = OpAMD64LEAQ
 					v.AuxInt = n
-				case OpAMD64LEAQ, OpAMD64MOVQload, OpAMD64MOVQstore, OpAMD64MOVBload, OpAMD64MOVQloadidx8:
+				case OpAMD64ADDQconst:
+					// TODO(matloob): Add LEAQconst op
+					v.AuxInt = addOff(v.AuxInt, n)
+				case OpAMD64LEAQ, OpAMD64MOVQload, OpAMD64MOVQstore, OpAMD64MOVLload, OpAMD64MOVLstore, OpAMD64MOVWload, OpAMD64MOVWstore, OpAMD64MOVBload, OpAMD64MOVBstore, OpAMD64MOVQloadidx8:
 					if v.Op == OpAMD64MOVQloadidx8 && i == 1 {
 						// Note: we could do it, but it is probably an error
 						log.Panicf("can't do FP->SP adjust on index slot of load %s", v.Op)

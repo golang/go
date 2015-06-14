@@ -14,9 +14,20 @@
 
 // Lowering arithmetic
 (Add <t> x y) && (is64BitInt(t) || isPtr(t)) -> (ADDQ x y)
-(Add <t> x y) && is32BitInt(t) -> (ADDL x y)
+(Add <t> x y) && is32BitInt(t) && !isSigned(t) -> (ADDL x y)
+(Add <t> x y) && is32BitInt(t) && isSigned(t) -> (MOVLQSX (ADDL <t> x y))
+(Add <t> x y) && is16BitInt(t) && !isSigned(t) -> (ADDW x y)
+(Add <t> x y) && is16BitInt(t) && isSigned(t) -> (MOVWQSX (ADDW <t> x y))
+(Add <t> x y) && is8BitInt(t) && !isSigned(t) -> (ADDB x y)
+(Add <t> x y) && is8BitInt(t) && isSigned(t) -> (MOVBQSX (ADDB <t> x y))
 (Sub <t> x y) && is64BitInt(t) -> (SUBQ x y)
 (Mul <t> x y) && is64BitInt(t) -> (MULQ x y)
+
+(MOVLstore ptr (MOVLQSX x) mem) -> (MOVLstore ptr x mem)
+(MOVWstore ptr (MOVWQSX x) mem) -> (MOVWstore ptr x mem)
+(MOVBstore ptr (MOVBQSX x) mem) -> (MOVBstore ptr x mem)
+
+(Convert <t> x) && t.IsInteger() && x.Type.IsInteger() -> (Copy x)
 
 // Lowering shifts
 // Note: unsigned shifts need to return 0 if shift amount is >= 64.
@@ -38,9 +49,14 @@
 
 (Less x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETL (CMPQ <TypeFlags> x y))
 
-(Load <t> ptr mem) && t.IsBoolean() -> (MOVBload ptr mem)
 (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) -> (MOVQload ptr mem)
+(Load <t> ptr mem) && is32BitInt(t) -> (MOVLload ptr mem)
+(Load <t> ptr mem) && is16BitInt(t) -> (MOVWload ptr mem)
+(Load <t> ptr mem) && (t.IsBoolean() || is8BitInt(t)) -> (MOVBload ptr mem)
 (Store ptr val mem) && (is64BitInt(val.Type) || isPtr(val.Type)) -> (MOVQstore ptr val mem)
+(Store ptr val mem) && is32BitInt(val.Type) -> (MOVLstore ptr val mem)
+(Store ptr val mem) && is16BitInt(val.Type) -> (MOVWstore ptr val mem)
+(Store ptr val mem) && is8BitInt(val.Type) -> (MOVBstore ptr val mem)
 
 // checks
 (IsNonNil p) -> (SETNE (TESTQ <TypeFlags> p p))
@@ -50,7 +66,7 @@
 
 (OffPtr [off] ptr) -> (ADDQconst [off] ptr)
 
-(Const <t> [val]) && is64BitInt(t) -> (MOVQconst [val])
+(Const <t> [val]) && t.IsInteger() -> (MOVQconst [val])
 
 // block rewrites
 (If (SETL cmp) yes no) -> (LT cmp yes no)

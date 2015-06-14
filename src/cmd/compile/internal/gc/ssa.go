@@ -373,6 +373,9 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OCONVNOP:
 		x := s.expr(n.Left)
 		return s.newValue1(ssa.OpConvNop, n.Type, x)
+	case OCONV:
+		x := s.expr(n.Left)
+		return s.newValue1(ssa.OpConvert, n.Type, x)
 
 		// binary ops
 	case OLT:
@@ -766,6 +769,43 @@ func genValue(v *ssa.Value) {
 		p.From.Index = regnum(v.Args[1])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
+	case ssa.OpAMD64ADDL:
+		p := Prog(x86.ALEAL)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = regnum(v.Args[0])
+		p.From.Scale = 1
+		p.From.Index = regnum(v.Args[1])
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = regnum(v)
+	case ssa.OpAMD64ADDW:
+		p := Prog(x86.ALEAW)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = regnum(v.Args[0])
+		p.From.Scale = 1
+		p.From.Index = regnum(v.Args[1])
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = regnum(v)
+	case ssa.OpAMD64ADDB, ssa.OpAMD64ANDQ:
+		r := regnum(v)
+		x := regnum(v.Args[0])
+		y := regnum(v.Args[1])
+		if x != r && y != r {
+			p := Prog(x86.AMOVQ)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = x
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = r
+			x = r
+		}
+		p := Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+		if x == r {
+			p.From.Reg = y
+		} else {
+			p.From.Reg = x
+		}
 	case ssa.OpAMD64ADDQconst:
 		// TODO: use addq instead of leaq if target is in the right register.
 		p := Prog(x86.ALEAQ)
@@ -866,27 +906,6 @@ func genValue(v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-	case ssa.OpAMD64ANDQ:
-		r := regnum(v)
-		x := regnum(v.Args[0])
-		y := regnum(v.Args[1])
-		if x != r && y != r {
-			p := Prog(x86.AMOVQ)
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = x
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
-			x = r
-		}
-		p := Prog(x86.AANDQ)
-		p.From.Type = obj.TYPE_REG
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
-		if x == r {
-			p.From.Reg = y
-		} else {
-			p.From.Reg = x
-		}
 	case ssa.OpAMD64LEAQ:
 		p := Prog(x86.ALEAQ)
 		p.From.Type = obj.TYPE_MEM
@@ -915,7 +934,7 @@ func genValue(v *ssa.Value) {
 		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x
-	case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVBload:
+	case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVLload, ssa.OpAMD64MOVWload, ssa.OpAMD64MOVBload:
 		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = regnum(v.Args[0])
@@ -931,13 +950,19 @@ func genValue(v *ssa.Value) {
 		p.From.Index = regnum(v.Args[1])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
-	case ssa.OpAMD64MOVQstore:
-		p := Prog(x86.AMOVQ)
+	case ssa.OpAMD64MOVQstore, ssa.OpAMD64MOVLstore, ssa.OpAMD64MOVWstore, ssa.OpAMD64MOVBstore:
+		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = regnum(v.Args[1])
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = regnum(v.Args[0])
 		p.To.Offset = v.AuxInt
+	case ssa.OpAMD64MOVLQSX, ssa.OpAMD64MOVWQSX, ssa.OpAMD64MOVBQSX:
+		p := Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = regnum(v.Args[0])
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = regnum(v)
 	case ssa.OpCopy: // TODO: lower to MOVQ earlier?
 		if v.Type.IsMemory() {
 			return
