@@ -4,9 +4,7 @@
 
 package main
 
-import (
-	"strings"
-)
+import "strings"
 
 // copied from ../../amd64/reg.go
 var regNamesAMD64 = []string{
@@ -127,6 +125,10 @@ func init() {
 
 		{name: "CMOVQCC", reg: cmov}, // carry clear
 
+		{name: "MOVLQSX", reg: gp11, asm: "MOVLQSX"}, // extend arg0 from int32 to int64
+		{name: "MOVWQSX", reg: gp11, asm: "MOVWQSX"}, // extend arg0 from int16 to int64
+		{name: "MOVBQSX", reg: gp11, asm: "MOVBQSX"}, // extend arg0 from int8 to int64
+
 		{name: "MOVQconst", reg: gp01},  // auxint
 		{name: "LEAQ", reg: gp21},       // arg0 + arg1 + auxint
 		{name: "LEAQ2", reg: gp21},      // arg0 + 2*arg1 + auxint
@@ -134,14 +136,18 @@ func init() {
 		{name: "LEAQ8", reg: gp21},      // arg0 + 8*arg1 + auxint
 		{name: "LEAQglobal", reg: gp01}, // no args.  address of aux.(*gc.Sym)
 
-		{name: "MOVBload", reg: gpload, asm: "MOVB"},   // load byte from arg0+auxint. arg1=mem
-		{name: "MOVBQZXload", reg: gpload},             // ditto, extend to uint64
-		{name: "MOVBQSXload", reg: gpload},             // ditto, extend to int64
-		{name: "MOVQload", reg: gpload, asm: "MOVQ"},   // load 8 bytes from arg0+auxint. arg1=mem
-		{name: "MOVQloadidx8", reg: gploadidx},         // load 8 bytes from arg0+8*arg1+auxint. arg2=mem
-		{name: "MOVBstore", reg: gpstore, asm: "MOVB"}, // store byte in arg1 to arg0+auxint. arg2=mem
-		{name: "MOVQstore", reg: gpstore, asm: "MOVQ"}, // store 8 bytes in arg1 to arg0+auxint. arg2=mem
-		{name: "MOVQstoreidx8", reg: gpstoreidx},       // store 8 bytes in arg2 to arg0+8*arg1+auxint. arg3=mem
+		{name: "MOVBload", reg: gpload, asm: "MOVB"},        // load byte from arg0+auxint. arg1=mem
+		{name: "MOVBQZXload", reg: gpload},                  // ditto, extend to uint64
+		{name: "MOVBQSXload", reg: gpload},                  // ditto, extend to int64
+		{name: "MOVWload", reg: gpload, asm: "MOVW"},        // load 2 bytes from arg0+auxint. arg1=mem
+		{name: "MOVLload", reg: gpload, asm: "MOVL"},        // load 4 bytes from arg0+auxint. arg1=mem
+		{name: "MOVQload", reg: gpload, asm: "MOVQ"},        // load 8 bytes from arg0+auxint. arg1=mem
+		{name: "MOVQloadidx8", reg: gploadidx, asm: "MOVQ"}, // load 8 bytes from arg0+8*arg1+auxint. arg2=mem
+		{name: "MOVBstore", reg: gpstore, asm: "MOVB"},      // store byte in arg1 to arg0+auxint. arg2=mem
+		{name: "MOVWstore", reg: gpstore, asm: "MOVW"},      // store 2 bytes in arg1 to arg0+auxint. arg2=mem
+		{name: "MOVLstore", reg: gpstore, asm: "MOVL"},      // store 4 bytes in arg1 to arg0+auxint. arg2=mem
+		{name: "MOVQstore", reg: gpstore, asm: "MOVQ"},      // store 8 bytes in arg1 to arg0+auxint. arg2=mem
+		{name: "MOVQstoreidx8", reg: gpstoreidx},            // store 8 bytes in arg2 to arg0+8*arg1+auxint. arg3=mem
 
 		// Load/store from global. Same as the above loads, but arg0 is missing and
 		// aux is a GlobalOffset instead of an int64.
@@ -155,6 +161,8 @@ func init() {
 		{name: "REPMOVSB", reg: regInfo{[]regMask{buildReg("DI"), buildReg("SI"), buildReg("CX")}, buildReg("DI SI CX"), nil}}, // move arg2 bytes from arg1 to arg0.  arg3=mem, returns memory
 
 		{name: "ADDL", reg: gp21, asm: "ADDL"}, // arg0+arg1
+		{name: "ADDW", reg: gp21, asm: "ADDW"}, // arg0+arg1
+		{name: "ADDB", reg: gp21, asm: "ADDB"}, // arg0+arg1
 
 		// (InvertFlags (CMPQ a b)) == (CMPQ b a)
 		// So if we want (SETL (CMPQ a b)) but we can't do that because a is a constant,

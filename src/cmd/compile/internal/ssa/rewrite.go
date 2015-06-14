@@ -70,6 +70,14 @@ func is32BitInt(t Type) bool {
 	return t.Size() == 4 && t.IsInteger()
 }
 
+func is16BitInt(t Type) bool {
+	return t.Size() == 2 && t.IsInteger()
+}
+
+func is8BitInt(t Type) bool {
+	return t.Size() == 1 && t.IsInteger()
+}
+
 func isPtr(t Type) bool {
 	return t.IsPtr()
 }
