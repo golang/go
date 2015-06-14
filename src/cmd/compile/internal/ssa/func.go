@@ -51,6 +51,7 @@ func (b *Block) NewValue0(line int32, op Op, t Type) *Value {
 		Op:    op,
 		Type:  t,
 		Block: b,
+		Line:  line,
 	}
 	v.Args = v.argstorage[:0]
 	b.Values = append(b.Values, v)
@@ -65,6 +66,7 @@ func (b *Block) NewValue0I(line int32, op Op, t Type, auxint int64) *Value {
 		Type:   t,
 		AuxInt: auxint,
 		Block:  b,
+		Line:   line,
 	}
 	v.Args = v.argstorage[:0]
 	b.Values = append(b.Values, v)
@@ -101,6 +103,7 @@ func (b *Block) NewValue0IA(line int32, op Op, t Type, auxint int64, aux interfa
 		AuxInt: auxint,
 		Aux:    aux,
 		Block:  b,
+		Line:   line,
 	}
 	v.Args = v.argstorage[:0]
 	b.Values = append(b.Values, v)
@@ -114,6 +117,7 @@ func (b *Block) NewValue1(line int32, op Op, t Type, arg *Value) *Value {
 		Op:    op,
 		Type:  t,
 		Block: b,
+		Line:  line,
 	}
 	v.Args = v.argstorage[:1]
 	v.Args[0] = arg
@@ -129,6 +133,7 @@ func (b *Block) NewValue1I(line int32, op Op, t Type, auxint int64, arg *Value) 
 		Type:   t,
 		AuxInt: auxint,
 		Block:  b,
+		Line:   line,
 	}
 	v.Args = v.argstorage[:1]
 	v.Args[0] = arg
@@ -161,6 +166,7 @@ func (b *Block) NewValue1IA(line int32, op Op, t Type, auxint int64, aux interfa
 		AuxInt: auxint,
 		Aux:    aux,
 		Block:  b,
+		Line:   line,
 	}
 	v.Args = v.argstorage[:1]
 	v.Args[0] = arg
