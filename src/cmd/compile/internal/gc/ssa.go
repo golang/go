@@ -381,7 +381,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		}
 	case OCONVNOP:
 		x := s.expr(n.Left)
-		return s.newValue1(ssa.OpConvNop, n.Type, nil, x)
+		return s.newValue1(ssa.OpConvNop, n.Type, x)
 
 		// binary ops
 	case OLT:
