@@ -49,7 +49,7 @@ var templTrace = `
 		<link href="/trace_viewer_html" rel="import">
 		<script>
 			document.addEventListener("DOMContentLoaded", function(event) {
-				var viewer = new tv.TraceViewer('/jsontrace{{PARAMS}}');
+				var viewer = new tr.TraceViewer('/jsontrace{{PARAMS}}');
 				document.body.appendChild(viewer);
 			});
 		</script>
