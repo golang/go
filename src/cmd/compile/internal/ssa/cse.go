@@ -26,15 +26,16 @@ func cse(f *Func) {
 	// Make initial partition based on opcode/type/aux/nargs
 	// TODO(khr): types are not canonical, so we may split unnecessarily.  Fix that.
 	type key struct {
-		op    Op
-		typ   Type
-		aux   interface{}
-		nargs int
+		op     Op
+		typ    Type
+		aux    interface{}
+		auxint int64
+		nargs  int
 	}
 	m := map[key]eqclass{}
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			k := key{v.Op, v.Type, v.Aux, len(v.Args)}
+			k := key{v.Op, v.Type, v.Aux, v.AuxInt, len(v.Args)}
 			m[k] = append(m[k], v)
 		}
 	}
