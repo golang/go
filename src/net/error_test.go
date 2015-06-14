@@ -161,7 +161,7 @@ func TestDialError(t *testing.T) {
 
 func TestProtocolDialError(t *testing.T) {
 	switch runtime.GOOS {
-	case "nacl":
+	case "nacl", "solaris":
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
