@@ -144,6 +144,10 @@ func DecryptPEMBlock(b *pem.Block, password []byte) ([]byte, error) {
 		return nil, err
 	}
 
+	if len(b.Bytes)%block.BlockSize() != 0 {
+		return nil, errors.New("x509: encrypted PEM data is not a multiple of the block size")
+	}
+
 	data := make([]byte, len(b.Bytes))
 	dec := cipher.NewCBCDecrypter(block, iv)
 	dec.CryptBlocks(data, b.Bytes)
