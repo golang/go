@@ -4,6 +4,12 @@
 # license that can be found in the LICENSE file.
 
 set -e
+
+if ! which patch > /dev/null; then
+	echo "Skipping test; patch command not found."
+	exit 0
+fi
+
 wiki_pid=
 cleanup() {
 	kill $wiki_pid
