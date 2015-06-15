@@ -16,78 +16,6 @@ import (
 	. "go/types"
 )
 
-var sources = []string{
-	`
-	package p
-	import "fmt"
-	import "math"
-	const pi = math.Pi
-	func sin(x float64) float64 {
-		return math.Sin(x)
-	}
-	var Println = fmt.Println
-	`,
-	`
-	package p
-	import "fmt"
-	type errorStringer struct { fmt.Stringer; error }
-	func f() string {
-		_ = "foo"
-		return fmt.Sprintf("%d", g())
-	}
-	func g() (x int) { return }
-	`,
-	`
-	package p
-	import . "go/parser"
-	import "sync"
-	func h() Mode { return ImportsOnly }
-	var _, x int = 1, 2
-	func init() {}
-	type T struct{ *sync.Mutex; a, b, c int}
-	type I interface{ m() }
-	var _ = T{a: 1, b: 2, c: 3}
-	func (_ T) m() {}
-	func (T) _() {}
-	var i I
-	var _ = i.m
-	func _(s []int) { for i, x := range s { _, _ = i, x } }
-	func _(x interface{}) {
-		switch x := x.(type) {
-		case int:
-			_ = x
-		}
-		switch {} // implicit 'true' tag
-	}
-	`,
-	`
-	package p
-	type S struct{}
-	func (T) _() {}
-	func (T) _() {}
-	`,
-	`
-	package p
-	func _() {
-	L0:
-	L1:
-		goto L0
-		for {
-			goto L1
-		}
-		if true {
-			goto L2
-		}
-	L2:
-	}
-	`,
-}
-
-var pkgnames = []string{
-	"fmt",
-	"math",
-}
-
 type resolveTestImporter struct {
 	importer Importer
 	imported map[string]bool
@@ -108,6 +36,78 @@ func (imp *resolveTestImporter) Import(path string) (*Package, error) {
 
 func TestResolveIdents(t *testing.T) {
 	skipSpecialPlatforms(t)
+
+	sources := []string{
+		`
+		package p
+		import "fmt"
+		import "math"
+		const pi = math.Pi
+		func sin(x float64) float64 {
+			return math.Sin(x)
+		}
+		var Println = fmt.Println
+		`,
+		`
+		package p
+		import "fmt"
+		type errorStringer struct { fmt.Stringer; error }
+		func f() string {
+			_ = "foo"
+			return fmt.Sprintf("%d", g())
+		}
+		func g() (x int) { return }
+		`,
+		`
+		package p
+		import . "go/parser"
+		import "sync"
+		func h() Mode { return ImportsOnly }
+		var _, x int = 1, 2
+		func init() {}
+		type T struct{ *sync.Mutex; a, b, c int}
+		type I interface{ m() }
+		var _ = T{a: 1, b: 2, c: 3}
+		func (_ T) m() {}
+		func (T) _() {}
+		var i I
+		var _ = i.m
+		func _(s []int) { for i, x := range s { _, _ = i, x } }
+		func _(x interface{}) {
+			switch x := x.(type) {
+			case int:
+				_ = x
+			}
+			switch {} // implicit 'true' tag
+		}
+		`,
+		`
+		package p
+		type S struct{}
+		func (T) _() {}
+		func (T) _() {}
+		`,
+		`
+		package p
+		func _() {
+		L0:
+		L1:
+			goto L0
+			for {
+				goto L1
+			}
+			if true {
+				goto L2
+			}
+		L2:
+		}
+		`,
+	}
+
+	pkgnames := []string{
+		"fmt",
+		"math",
+	}
 
 	// parse package files
 	fset := token.NewFileSet()

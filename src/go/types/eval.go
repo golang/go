@@ -2,44 +2,30 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file implements New, Eval and EvalNode.
-
 package types
 
 import (
 	"fmt"
-	"go/ast"
 	"go/parser"
 	"go/token"
 )
 
-// New is a convenience function to create a new type from a given
-// expression or type literal string evaluated in Universe scope.
-// New(str) is shorthand for Eval(str, nil, nil), but only returns
-// the type result, and panics in case of an error.
-// Position info for objects in the result type is undefined.
-//
-func New(str string) Type {
-	tv, err := Eval(str, nil, nil)
-	if err != nil {
-		panic(err)
-	}
-	return tv.Type
-}
-
 // Eval returns the type and, if constant, the value for the
-// expression or type literal string str evaluated in scope.
-// If the expression contains function literals, the function
-// bodies are ignored (though they must be syntactically correct).
+// expression expr, evaluated at position pos of package pkg,
+// which must have been derived from type-checking an AST with
+// complete position information relative to the provided file
+// set.
+//
+// If the expression contains function literals, their bodies
+// are ignored (i.e., the bodies are not type-checked).
 //
 // If pkg == nil, the Universe scope is used and the provided
-// scope is ignored. Otherwise, the scope must belong to the
-// package (either the package scope, or nested within the
-// package scope).
+// position pos is ignored. If pkg != nil, and pos is invalid,
+// the package scope is used. Otherwise, pos must belong to the
+// package.
 //
-// An error is returned if the scope is incorrect, the string
-// has syntax errors, or if it cannot be evaluated in the scope.
-// Position info for objects in the result type is undefined.
+// An error is returned if pos is not within the package or
+// if the node cannot be evaluated.
 //
 // Note: Eval should not be used instead of running Check to compute
 // types and values, but in addition to Check. Eval will re-evaluate
@@ -48,48 +34,54 @@ func New(str string) Type {
 // level untyped constants will return an untyped type rather then the
 // respective context-specific type.
 //
-func Eval(str string, pkg *Package, scope *Scope) (TypeAndValue, error) {
-	node, err := parser.ParseExpr(str)
-	if err != nil {
-		return TypeAndValue{}, err
-	}
-
-	// Create a file set that looks structurally identical to the
-	// one created by parser.ParseExpr for correct error positions.
-	fset := token.NewFileSet()
-	fset.AddFile("", len(str), fset.Base()).SetLinesForContent([]byte(str))
-
-	return EvalNode(fset, node, pkg, scope)
-}
-
-// EvalNode is like Eval but instead of string it accepts
-// an expression node and respective file set.
-//
-// An error is returned if the scope is incorrect
-// if the node cannot be evaluated in the scope.
-//
-func EvalNode(fset *token.FileSet, node ast.Expr, pkg *Package, scope *Scope) (tv TypeAndValue, err error) {
-	// verify package/scope relationship
+func Eval(fset *token.FileSet, pkg *Package, pos token.Pos, expr string) (tv TypeAndValue, err error) {
+	// determine scope
+	var scope *Scope
 	if pkg == nil {
 		scope = Universe
+		pos = token.NoPos
+	} else if !pos.IsValid() {
+		scope = pkg.scope
 	} else {
-		s := scope
-		for s != nil && s != pkg.scope {
-			s = s.parent
+		// The package scope extent (position information) may be
+		// incorrect (files spread accross a wide range of fset
+		// positions) - ignore it and just consider its children
+		// (file scopes).
+		for _, fscope := range pkg.scope.children {
+			if scope = fscope.Innermost(pos); scope != nil {
+				break
+			}
 		}
-		// s == nil || s == pkg.scope
-		if s == nil {
-			return TypeAndValue{}, fmt.Errorf("scope does not belong to package %s", pkg.name)
+		if scope == nil || debug {
+			s := scope
+			for s != nil && s != pkg.scope {
+				s = s.parent
+			}
+			// s == nil || s == pkg.scope
+			if s == nil {
+				return TypeAndValue{}, fmt.Errorf("no position %s found in package %s", fset.Position(pos), pkg.name)
+			}
 		}
+	}
+
+	// parse expressions
+	// BUG(gri) In case of type-checking errors below, the type checker
+	//          doesn't have the correct file set for expr. The correct
+	//          solution requires a ParseExpr that uses the incoming
+	//          file set fset.
+	node, err := parser.ParseExpr(expr)
+	if err != nil {
+		return TypeAndValue{}, err
 	}
 
 	// initialize checker
 	check := NewChecker(nil, fset, pkg, nil)
 	check.scope = scope
+	check.pos = pos
 	defer check.handleBailout(&err)
 
 	// evaluate node
 	var x operand
 	check.rawExpr(&x, node, nil)
-	return TypeAndValue{x.mode, x.typ, x.val}, nil
+	return TypeAndValue{x.mode, x.typ, x.val}, err
 }

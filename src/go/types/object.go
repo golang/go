@@ -44,6 +44,12 @@ type Object interface {
 
 	// sameId reports whether obj.Id() and Id(pkg, name) are the same.
 	sameId(pkg *Package, name string) bool
+
+	// scopePos returns the start position of the scope of this Object
+	scopePos() token.Pos
+
+	// setScopePos sets the start position of the scope for this Object.
+	setScopePos(pos token.Pos)
 }
 
 // Id returns name if it is exported, otherwise it
@@ -73,26 +79,29 @@ func Id(pkg *Package, name string) string {
 
 // An object implements the common parts of an Object.
 type object struct {
-	parent *Scope
-	pos    token.Pos
-	pkg    *Package
-	name   string
-	typ    Type
-	order_ uint32
+	parent    *Scope
+	pos       token.Pos
+	pkg       *Package
+	name      string
+	typ       Type
+	order_    uint32
+	scopePos_ token.Pos
 }
 
-func (obj *object) Parent() *Scope { return obj.parent }
-func (obj *object) Pos() token.Pos { return obj.pos }
-func (obj *object) Pkg() *Package  { return obj.pkg }
-func (obj *object) Name() string   { return obj.name }
-func (obj *object) Type() Type     { return obj.typ }
-func (obj *object) Exported() bool { return ast.IsExported(obj.name) }
-func (obj *object) Id() string     { return Id(obj.pkg, obj.name) }
-func (obj *object) String() string { panic("abstract") }
-func (obj *object) order() uint32  { return obj.order_ }
+func (obj *object) Parent() *Scope      { return obj.parent }
+func (obj *object) Pos() token.Pos      { return obj.pos }
+func (obj *object) Pkg() *Package       { return obj.pkg }
+func (obj *object) Name() string        { return obj.name }
+func (obj *object) Type() Type          { return obj.typ }
+func (obj *object) Exported() bool      { return ast.IsExported(obj.name) }
+func (obj *object) Id() string          { return Id(obj.pkg, obj.name) }
+func (obj *object) String() string      { panic("abstract") }
+func (obj *object) order() uint32       { return obj.order_ }
+func (obj *object) scopePos() token.Pos { return obj.scopePos_ }
 
-func (obj *object) setOrder(order uint32)   { assert(order > 0); obj.order_ = order }
-func (obj *object) setParent(parent *Scope) { obj.parent = parent }
+func (obj *object) setParent(parent *Scope)   { obj.parent = parent }
+func (obj *object) setOrder(order uint32)     { assert(order > 0); obj.order_ = order }
+func (obj *object) setScopePos(pos token.Pos) { obj.scopePos_ = pos }
 
 func (obj *object) sameId(pkg *Package, name string) bool {
 	// spec:
@@ -124,7 +133,7 @@ type PkgName struct {
 }
 
 func NewPkgName(pos token.Pos, pkg *Package, name string, imported *Package) *PkgName {
-	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], 0}, imported, false}
+	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], 0, token.NoPos}, imported, false}
 }
 
 // Imported returns the package that was imported.
@@ -139,7 +148,7 @@ type Const struct {
 }
 
 func NewConst(pos token.Pos, pkg *Package, name string, typ Type, val exact.Value) *Const {
-	return &Const{object{nil, pos, pkg, name, typ, 0}, val, false}
+	return &Const{object{nil, pos, pkg, name, typ, 0, token.NoPos}, val, false}
 }
 
 func (obj *Const) Val() exact.Value { return obj.val }
@@ -150,7 +159,7 @@ type TypeName struct {
 }
 
 func NewTypeName(pos token.Pos, pkg *Package, name string, typ Type) *TypeName {
-	return &TypeName{object{nil, pos, pkg, name, typ, 0}}
+	return &TypeName{object{nil, pos, pkg, name, typ, 0, token.NoPos}}
 }
 
 // A Variable represents a declared variable (including function parameters and results, and struct fields).
@@ -163,15 +172,15 @@ type Var struct {
 }
 
 func NewVar(pos token.Pos, pkg *Package, name string, typ Type) *Var {
-	return &Var{object: object{nil, pos, pkg, name, typ, 0}}
+	return &Var{object: object{nil, pos, pkg, name, typ, 0, token.NoPos}}
 }
 
 func NewParam(pos token.Pos, pkg *Package, name string, typ Type) *Var {
-	return &Var{object: object{nil, pos, pkg, name, typ, 0}, used: true} // parameters are always 'used'
+	return &Var{object: object{nil, pos, pkg, name, typ, 0, token.NoPos}, used: true} // parameters are always 'used'
 }
 
 func NewField(pos token.Pos, pkg *Package, name string, typ Type, anonymous bool) *Var {
-	return &Var{object: object{nil, pos, pkg, name, typ, 0}, anonymous: anonymous, isField: true}
+	return &Var{object: object{nil, pos, pkg, name, typ, 0, token.NoPos}, anonymous: anonymous, isField: true}
 }
 
 func (obj *Var) Anonymous() bool { return obj.anonymous }
@@ -191,7 +200,7 @@ func NewFunc(pos token.Pos, pkg *Package, name string, sig *Signature) *Func {
 	if sig != nil {
 		typ = sig
 	}
-	return &Func{object{nil, pos, pkg, name, typ, 0}}
+	return &Func{object{nil, pos, pkg, name, typ, 0, token.NoPos}}
 }
 
 // FullName returns the package- or receiver-type-qualified name of

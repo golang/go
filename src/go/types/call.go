@@ -280,7 +280,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 	// can only appear in qualified identifiers which are mapped to
 	// selector expressions.
 	if ident, ok := e.X.(*ast.Ident); ok {
-		_, obj := check.scope.LookupParent(ident.Name)
+		_, obj := check.scope.LookupParent(ident.Name, check.pos)
 		if pkg, _ := obj.(*PkgName); pkg != nil {
 			assert(pkg.pkg == check.pkg)
 			check.recordUse(ident, pkg)
