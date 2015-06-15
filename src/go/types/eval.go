@@ -65,11 +65,7 @@ func Eval(fset *token.FileSet, pkg *Package, pos token.Pos, expr string) (tv Typ
 	}
 
 	// parse expressions
-	// BUG(gri) In case of type-checking errors below, the type checker
-	//          doesn't have the correct file set for expr. The correct
-	//          solution requires a ParseExpr that uses the incoming
-	//          file set fset.
-	node, err := parser.ParseExpr(expr)
+	node, err := parser.ParseExprFrom(fset, "eval", expr, 0)
 	if err != nil {
 		return TypeAndValue{}, err
 	}
