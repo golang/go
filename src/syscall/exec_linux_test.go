@@ -17,7 +17,7 @@ import (
 	"testing"
 )
 
-func whoamiCmd(t *testing.T, uid int, setgroups bool) *exec.Cmd {
+func whoamiCmd(t *testing.T, uid, gid int, setgroups bool) *exec.Cmd {
 	if _, err := os.Stat("/proc/self/ns/user"); err != nil {
 		if os.IsNotExist(err) {
 			t.Skip("kernel doesn't support user namespaces")
@@ -31,15 +31,15 @@ func whoamiCmd(t *testing.T, uid int, setgroups bool) *exec.Cmd {
 			{ContainerID: 0, HostID: uid, Size: 1},
 		},
 		GidMappings: []syscall.SysProcIDMap{
-			{ContainerID: 0, HostID: uid, Size: 1},
+			{ContainerID: 0, HostID: gid, Size: 1},
 		},
 		GidMappingsEnableSetgroups: setgroups,
 	}
 	return cmd
 }
 
-func testNEWUSERRemap(t *testing.T, uid int, setgroups bool) {
-	cmd := whoamiCmd(t, uid, setgroups)
+func testNEWUSERRemap(t *testing.T, uid, gid int, setgroups bool) {
+	cmd := whoamiCmd(t, uid, gid, setgroups)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
@@ -55,14 +55,14 @@ func TestCloneNEWUSERAndRemapRootDisableSetgroups(t *testing.T) {
 	if os.Getuid() != 0 {
 		t.Skip("skipping root only test")
 	}
-	testNEWUSERRemap(t, 0, false)
+	testNEWUSERRemap(t, 0, 0, false)
 }
 
 func TestCloneNEWUSERAndRemapRootEnableSetgroups(t *testing.T) {
 	if os.Getuid() != 0 {
 		t.Skip("skipping root only test")
 	}
-	testNEWUSERRemap(t, 0, false)
+	testNEWUSERRemap(t, 0, 0, false)
 }
 
 // kernelVersion returns the major and minor versions of the Linux
@@ -85,21 +85,14 @@ func TestCloneNEWUSERAndRemapNoRootDisableSetgroups(t *testing.T) {
 	if os.Getuid() == 0 {
 		t.Skip("skipping unprivileged user only test")
 	}
-
-	// This test fails for some reason on Ubuntu Trusty.
-	major, minor := kernelVersion(t)
-	if major < 3 || (major == 3 && minor < 19) {
-		t.Skipf("skipping on kernel version before 3.19 (%d.%d)", major, minor)
-	}
-
-	testNEWUSERRemap(t, os.Getuid(), false)
+	testNEWUSERRemap(t, os.Getuid(), os.Getgid(), false)
 }
 
 func TestCloneNEWUSERAndRemapNoRootSetgroupsEnableSetgroups(t *testing.T) {
 	if os.Getuid() == 0 {
 		t.Skip("skipping unprivileged user only test")
 	}
-	cmd := whoamiCmd(t, os.Getuid(), true)
+	cmd := whoamiCmd(t, os.Getuid(), os.Getgid(), true)
 	err := cmd.Run()
 	if err == nil {
 		t.Skip("probably old kernel without security fix")
