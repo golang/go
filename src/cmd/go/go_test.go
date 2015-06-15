@@ -875,6 +875,12 @@ func testMove(t *testing.T, vcs, url, base, config string) {
 	tg.grepStderr("validating server certificate|not found", "go get -d -f -u "+url+" failed for wrong reason")
 }
 
+func TestInternalPackageErrorsAreHandled(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.run("list", "./testdata/testinternal3")
+}
+
 func TestMoveGit(t *testing.T) {
 	testMove(t, "git", "rsc.io/pdf", "pdf", "rsc.io/pdf/.git/config")
 }
