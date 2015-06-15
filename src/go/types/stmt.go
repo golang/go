@@ -22,6 +22,10 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 		defer fmt.Println("--- <end>")
 	}
 
+	// set function scope extent
+	sig.scope.pos = body.Pos()
+	sig.scope.end = body.End()
+
 	// save/restore current context and setup function context
 	// (and use 0 indentation at function start)
 	defer func(ctxt context, indent int) {
@@ -118,7 +122,7 @@ func (check *Checker) multipleDefaults(list []ast.Stmt) {
 }
 
 func (check *Checker) openScope(s ast.Stmt, comment string) {
-	scope := NewScope(check.scope, comment)
+	scope := NewScope(check.scope, s.Pos(), s.End(), comment)
 	check.recordScope(s, scope)
 	check.scope = scope
 }
@@ -328,7 +332,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 				// list in a "return" statement if a different entity (constant, type, or variable)
 				// with the same name as a result parameter is in scope at the place of the return."
 				for _, obj := range res.vars {
-					if _, alt := check.scope.LookupParent(obj.name); alt != nil && alt != obj {
+					if _, alt := check.scope.LookupParent(obj.name, check.pos); alt != nil && alt != obj {
 						check.errorf(s.Pos(), "result parameter %s not in scope at return", obj.name)
 						check.errorf(alt.Pos(), "\tinner declaration of %s", obj)
 						// ok to continue
@@ -512,7 +516,11 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 					T = x.typ
 				}
 				obj := NewVar(lhs.Pos(), check.pkg, lhs.Name, T)
-				check.declare(check.scope, nil, obj)
+				scopePos := clause.End()
+				if len(clause.Body) > 0 {
+					scopePos = clause.Body[0].Pos()
+				}
+				check.declare(check.scope, nil, obj, scopePos)
 				check.recordImplicit(clause, obj)
 				// For the "declared but not used" error, all lhs variables act as
 				// one; i.e., if any one of them is 'used', all of them are 'used'.
@@ -703,7 +711,12 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			// declare variables
 			if len(vars) > 0 {
 				for _, obj := range vars {
-					check.declare(check.scope, nil /* recordDef already called */, obj)
+					// spec: "The scope of a constant or variable identifier declared inside
+					// a function begins at the end of the ConstSpec or VarSpec (ShortVarDecl
+					// for short variable declarations) and ends at the end of the innermost
+					// containing block."
+					scopePos := s.End()
+					check.declare(check.scope, nil /* recordDef already called */, obj, scopePos)
 				}
 			} else {
 				check.error(s.TokPos, "no new variables on left side of :=")
