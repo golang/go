@@ -327,6 +327,11 @@ func disallowInternal(srcDir string, p *Package, stk *importStack) *Package {
 	// is disallowed if the importing code is outside the tree
 	// rooted at the parent of the “internal” directory.
 
+	// There was an error loading the package; stop here.
+	if p.Error != nil {
+		return p
+	}
+
 	// The stack includes p.ImportPath.
 	// If that's the only thing on the stack, we started
 	// with a name given on the command line, not an
