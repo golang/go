@@ -374,6 +374,9 @@ TEXT runtime·casp1(SB),NOSPLIT,$0
 TEXT runtime·cas(SB),NOSPLIT,$0
 	B	runtime·armcas(SB)
 
+TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
+	B	runtime·armPublicationBarrier(SB)
+
 // TODO(jsing): Implement.
 TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4
 	MOVW	$5, R0

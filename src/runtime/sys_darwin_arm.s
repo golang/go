@@ -301,6 +301,9 @@ TEXT runtime·cas(SB),NOSPLIT,$0
 TEXT runtime·casp1(SB),NOSPLIT,$0
 	B	runtime·cas(SB)
 
+TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
+	B	runtime·armPublicationBarrier(SB)
+
 TEXT runtime·sysctl(SB),NOSPLIT,$0
 	MOVW	mib+0(FP), R0
 	MOVW	miblen+4(FP), R1
