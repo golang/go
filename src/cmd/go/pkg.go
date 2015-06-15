@@ -816,7 +816,7 @@ var isGoRelease = strings.HasPrefix(runtime.Version(), "go1")
 //
 // Another problem is that binary distributions often set the mtime on
 // all files to the same time. If the distribution includes both inputs
-// and cached build outputs, tthe conservative solution to the previous
+// and cached build outputs, the conservative solution to the previous
 // problem will cause unnecessary rebuilds. Worse, in such a binary
 // distribution, those rebuilds might not even have permission to update
 // the cached build output. To avoid these write errors, if an input and
