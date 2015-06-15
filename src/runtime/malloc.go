@@ -657,6 +657,14 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 		} else {
 			c.local_scan += typ.ptrdata
 		}
+
+		// Ensure that the stores above that initialize x to
+		// type-safe memory and set the heap bits occur before
+		// the caller can make x observable to the garbage
+		// collector. Otherwise, on weakly ordered machines,
+		// the garbage collector could follow a pointer to x,
+		// but see uninitialized memory or stale heap bits.
+		publicationBarrier()
 	}
 
 	// GCmarkterminate allocates black

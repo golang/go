@@ -416,6 +416,22 @@ check:
 TEXT runtime·casp1(SB),NOSPLIT,$0
 	B	runtime·cas(SB)
 
+// As for cas, memory barriers are complicated on ARM, but the kernel
+// provides a user helper. ARMv5 does not support SMP and has no
+// memory barrier instruction at all. ARMv6 added SMP support and has
+// a memory barrier, but it requires writing to a coprocessor
+// register. ARMv7 introduced the DMB instruction, but it's expensive
+// even on single-core devices. The kernel helper takes care of all of
+// this for us.
+
+TEXT publicationBarrier<>(SB),NOSPLIT,$0
+	// void __kuser_memory_barrier(void);
+	MOVW	$0xffff0fa0, R15 // R15 is hardware PC.
+
+TEXT ·publicationBarrier(SB),NOSPLIT,$0
+	BL	publicationBarrier<>(SB)
+	RET
+
 TEXT runtime·osyield(SB),NOSPLIT,$0
 	MOVW	$SYS_sched_yield, R7
 	SWI	$0

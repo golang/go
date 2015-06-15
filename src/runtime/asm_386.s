@@ -632,6 +632,11 @@ TEXT runtime·atomicand8(SB), NOSPLIT, $0-5
 	ANDB	BX, (AX)
 	RET
 
+TEXT ·publicationBarrier(SB),NOSPLIT,$0-0
+	// Stores are already ordered on x86, so this is just a
+	// compile barrier.
+	RET
+
 // void jmpdefer(fn, sp);
 // called from deferreturn.
 // 1. pop the caller

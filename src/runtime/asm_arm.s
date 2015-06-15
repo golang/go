@@ -736,6 +736,17 @@ TEXT runtime·atomicloaduint(SB),NOSPLIT,$0-8
 TEXT runtime·atomicstoreuintptr(SB),NOSPLIT,$0-8
 	B	runtime·atomicstore(SB)
 
+// armPublicationBarrier is a native store/store barrier for ARMv7+.
+// To implement publiationBarrier in sys_$GOOS_arm.s using the native
+// instructions, use:
+//
+//	TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
+//		B	runtime·armPublicationBarrier(SB)
+//
+TEXT runtime·armPublicationBarrier(SB),NOSPLIT,$-4-0
+	WORD $0xf57ff05e	// DMB ST
+	RET
+
 // AES hashing not implemented for ARM
 TEXT runtime·aeshash(SB),NOSPLIT,$-4-0
 	MOVW	$0, R0

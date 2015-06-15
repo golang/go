@@ -111,3 +111,7 @@ again:
 
 TEXT runtime·xchguintptr(SB), NOSPLIT, $0-24
 	B	runtime·xchg64(SB)
+
+TEXT ·publicationBarrier(SB),NOSPLIT,$-8-0
+	DMB	$0xe	// DMB ST
+	RET
