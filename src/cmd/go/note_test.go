@@ -5,10 +5,10 @@
 package main
 
 import (
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"runtime"
 	"testing"
 )
 
