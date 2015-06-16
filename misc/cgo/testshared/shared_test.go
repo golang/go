@@ -309,6 +309,13 @@ func TestTrivialExecutable(t *testing.T) {
 	AssertHasRPath(t, "./bin/trivial", gorootInstallDir)
 }
 
+// Build an executable that uses cgo linked against the shared runtime and check it
+// runs.
+func TestCgoExecutable(t *testing.T) {
+	goCmd(t, "install", "-linkshared", "execgo")
+	run(t, "cgo executable", "./bin/execgo")
+}
+
 // Build a GOPATH package into a shared library that links against the goroot runtime
 // and an executable that links against both.
 func TestGopathShlib(t *testing.T) {
