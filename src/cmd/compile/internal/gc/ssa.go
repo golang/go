@@ -478,7 +478,7 @@ func (s *state) assign(op uint8, left *Node, right *Node) {
 		t := left.Type
 		switch {
 		case t.IsString():
-			val = s.entryNewValue0(ssa.OpConst, left.Type)
+			val = s.entryNewValue0A(ssa.OpConst, left.Type, "")
 		case t.IsInteger():
 			val = s.entryNewValue0(ssa.OpConst, left.Type)
 		case t.IsBoolean():
