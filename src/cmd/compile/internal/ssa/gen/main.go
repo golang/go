@@ -9,8 +9,6 @@ package main
 
 import (
 	"bytes"
-	"cmd/internal/obj"
-	"cmd/internal/obj/x86"
 	"fmt"
 	"go/format"
 	"io/ioutil"
@@ -27,7 +25,7 @@ type arch struct {
 type opData struct {
 	name string
 	reg  regInfo
-	asm  int16
+	asm  string
 }
 
 type blockData struct {
@@ -114,8 +112,8 @@ func genOp() {
 		for _, v := range a.ops {
 			fmt.Fprintln(w, "{")
 			fmt.Fprintf(w, "name:\"%s\",\n", v.name)
-			if v.asm != 0 {
-				fmt.Fprintf(w, "asm: x86.A%s,\n", x86.Anames[v.asm-obj.ABaseAMD64])
+			if v.asm != "" {
+				fmt.Fprintf(w, "asm: x86.A%s,\n", v.asm)
 			}
 			fmt.Fprintln(w, "reg:regInfo{")
 			fmt.Fprintln(w, "inputs: []regMask{")
