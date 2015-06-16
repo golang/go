@@ -11,7 +11,7 @@ import (
 	"fmt"
 )
 
-// If GcCompatibilityMode is set, printing of types is modified
+// If gcCompatibilityMode is set, printing of types is modified
 // to match the representation of some types in the gc compiler:
 //
 //	- byte and rune lose their alias name and simply stand for
@@ -24,8 +24,12 @@ import (
 //
 // Caution: This flag affects all uses of WriteType, globally.
 // It is only provided for testing in conjunction with
-// gc-generated data. It may be removed at any time.
-var GcCompatibilityMode bool
+// gc-generated data.
+//
+// This flag is exported in the x/tools/go/types package. We don't
+// need it at the moment in the std repo and so we don't export it
+// anymore. We should eventually try to remove it altogether.
+var gcCompatibilityMode bool
 
 // TypeString returns the string representation of typ.
 // Named types are printed package-qualified if they
@@ -64,7 +68,7 @@ func writeType(buf *bytes.Buffer, this *Package, typ Type, visited []Type) {
 		if t.kind == UnsafePointer {
 			buf.WriteString("unsafe.")
 		}
-		if GcCompatibilityMode {
+		if gcCompatibilityMode {
 			// forget the alias names
 			switch t.kind {
 			case Byte:
@@ -124,7 +128,7 @@ func writeType(buf *bytes.Buffer, this *Package, typ Type, visited []Type) {
 		//     }
 		//
 		buf.WriteString("interface{")
-		if GcCompatibilityMode {
+		if gcCompatibilityMode {
 			// print flattened interface
 			// (useful to compare against gc-generated interfaces)
 			for i, m := range t.allMethods {
