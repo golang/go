@@ -633,6 +633,7 @@ func TestABIChecking(t *testing.T) {
 	// This assumes adding an exported function breaks ABI, which is not true in
 	// some senses but suffices for the narrow definition of ABI compatiblity the
 	// toolchain uses today.
+	resetFileStamps()
 	appendFile("src/dep/dep.go", "func ABIBreak() {}\n")
 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "dep")
 	c := exec.Command("./bin/exe")
@@ -662,6 +663,7 @@ func TestABIChecking(t *testing.T) {
 
 	// If we make a change which does not break ABI (such as adding an unexported
 	// function) and rebuild libdep.so, exe still works.
+	resetFileStamps()
 	appendFile("src/dep/dep.go", "func noABIBreak() {}\n")
 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "dep")
 	run(t, "after non-ABI breaking change", "./bin/exe")
