@@ -3,21 +3,18 @@
 // license that can be found in the LICENSE file.
 
 // Package gccgoimporter implements Import for gccgo-generated object files.
-package gccgoimporter // import "golang.org/x/tools/go/gccgoimporter"
+package gccgoimporter // import "go/internal/gccgoimporter"
 
 import (
 	"bytes"
 	"debug/elf"
 	"fmt"
+	"go/types"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"golang.org/x/tools/go/importer"
-	"golang.org/x/tools/go/types"
 )
 
 // A PackageInit describes an imported package that needs initialization.
@@ -132,7 +129,16 @@ func openExportFile(fpath string) (reader io.ReadSeeker, closer io.Closer, err e
 	return
 }
 
-func GetImporter(searchpaths []string, initmap map[*types.Package]InitData) types.Importer {
+// An Importer resolves import paths to Packages. The imports map records
+// packages already known, indexed by package path.
+// An importer must determine the canonical package path and check imports
+// to see if it is already present in the map. If so, the Importer can return
+// the map entry. Otherwise, the importer must load the package data for the
+// given path into a new *Package, record it in imports map, and return the
+// package.
+type Importer func(imports map[string]*types.Package, path string) (*types.Package, error)
+
+func GetImporter(searchpaths []string, initmap map[*types.Package]InitData) Importer {
 	return func(imports map[string]*types.Package, pkgpath string) (pkg *types.Package, err error) {
 		if pkgpath == "unsafe" {
 			return types.Unsafe, nil
@@ -170,25 +176,26 @@ func GetImporter(searchpaths []string, initmap map[*types.Package]InitData) type
 				initmap[pkg] = p.initdata
 			}
 
-		case goimporterMagic:
-			var data []byte
-			data, err = ioutil.ReadAll(reader)
-			if err != nil {
-				return
-			}
-			var n int
-			n, pkg, err = importer.ImportData(imports, data)
-			if err != nil {
-				return
-			}
+		// Excluded for now: Standard gccgo doesn't support this import format currently.
+		// case goimporterMagic:
+		// 	var data []byte
+		// 	data, err = ioutil.ReadAll(reader)
+		// 	if err != nil {
+		// 		return
+		// 	}
+		// 	var n int
+		// 	n, pkg, err = importer.ImportData(imports, data)
+		// 	if err != nil {
+		// 		return
+		// 	}
 
-			if initmap != nil {
-				suffixreader := bytes.NewReader(data[n:])
-				var p parser
-				p.init(fpath, suffixreader, nil)
-				p.parseInitData()
-				initmap[pkg] = p.initdata
-			}
+		// 	if initmap != nil {
+		// 		suffixreader := bytes.NewReader(data[n:])
+		// 		var p parser
+		// 		p.init(fpath, suffixreader, nil)
+		// 		p.parseInitData()
+		// 		initmap[pkg] = p.initdata
+		// 	}
 
 		default:
 			err = fmt.Errorf("unrecognized magic string: %q", string(magic[:]))

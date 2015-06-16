@@ -8,14 +8,13 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"go/constant"
 	"go/token"
+	"go/types"
 	"io"
 	"strconv"
 	"strings"
 	"text/scanner"
-
-	"golang.org/x/tools/go/exact"
-	"golang.org/x/tools/go/types"
 )
 
 type parser struct {
@@ -248,11 +247,11 @@ func (p *parser) parseVar(pkg *types.Package) *types.Var {
 
 // ConstValue     = string | "false" | "true" | ["-"] (int ["'"] | FloatOrComplex) .
 // FloatOrComplex = float ["i" | ("+"|"-") float "i"] .
-func (p *parser) parseConstValue() (val exact.Value, typ types.Type) {
+func (p *parser) parseConstValue() (val constant.Value, typ types.Type) {
 	switch p.tok {
 	case scanner.String:
 		str := p.parseString()
-		val = exact.MakeString(str)
+		val = constant.MakeString(str)
 		typ = types.Typ[types.UntypedString]
 		return
 
@@ -268,7 +267,7 @@ func (p *parser) parseConstValue() (val exact.Value, typ types.Type) {
 		}
 
 		p.next()
-		val = exact.MakeBool(b)
+		val = constant.MakeBool(b)
 		typ = types.Typ[types.UntypedBool]
 		return
 	}
@@ -281,7 +280,7 @@ func (p *parser) parseConstValue() (val exact.Value, typ types.Type) {
 
 	switch p.tok {
 	case scanner.Int:
-		val = exact.MakeFromLiteral(sign+p.lit, token.INT)
+		val = constant.MakeFromLiteral(sign+p.lit, token.INT, 0)
 		if val == nil {
 			p.error("could not parse integer literal")
 		}
@@ -314,7 +313,7 @@ func (p *parser) parseConstValue() (val exact.Value, typ types.Type) {
 			re = "0"
 
 		default:
-			val = exact.MakeFromLiteral(re, token.FLOAT)
+			val = constant.MakeFromLiteral(re, token.FLOAT, 0)
 			if val == nil {
 				p.error("could not parse float literal")
 			}
@@ -323,15 +322,15 @@ func (p *parser) parseConstValue() (val exact.Value, typ types.Type) {
 		}
 
 		p.expectKeyword("i")
-		reval := exact.MakeFromLiteral(re, token.FLOAT)
+		reval := constant.MakeFromLiteral(re, token.FLOAT, 0)
 		if reval == nil {
 			p.error("could not parse real component of complex literal")
 		}
-		imval := exact.MakeFromLiteral(im+"i", token.IMAG)
+		imval := constant.MakeFromLiteral(im+"i", token.IMAG, 0)
 		if imval == nil {
 			p.error("could not parse imag component of complex literal")
 		}
-		val = exact.BinaryOp(reval, token.ADD, imval)
+		val = constant.BinaryOp(reval, token.ADD, imval)
 		typ = types.Typ[types.UntypedComplex]
 
 	default:
