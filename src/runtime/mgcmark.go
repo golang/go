@@ -40,7 +40,7 @@ func gcscan_m() {
 	// Check that gc work is done.
 	for i := 0; i < local_allglen; i++ {
 		gp := allgs[i]
-		if !gp.gcworkdone {
+		if !gp.gcscandone {
 			throw("scan missed a g")
 		}
 	}
@@ -130,35 +130,8 @@ func markroot(desc *parfor, i uint32) {
 			// non-STW phases.
 			shrinkstack(gp)
 		}
-		if readgstatus(gp) == _Gdead {
-			gp.gcworkdone = true
-		} else {
-			gp.gcworkdone = false
-		}
-		restart := stopg(gp)
 
-		// goroutine will scan its own stack when it stops running.
-		// Wait until it has.
-		for readgstatus(gp) == _Grunning && !gp.gcworkdone {
-		}
-
-		// scanstack(gp) is done as part of gcphasework
-		// But to make sure we finished we need to make sure that
-		// the stack traps have all responded so drop into
-		// this while loop until they respond.
-		for !gp.gcworkdone {
-			status = readgstatus(gp)
-			if status == _Gdead {
-				gp.gcworkdone = true // scan is a noop
-				break
-			}
-			if status == _Gwaiting || status == _Grunnable {
-				restart = stopg(gp)
-			}
-		}
-		if restart {
-			restartg(gp)
-		}
+		scang(gp)
 	}
 
 	gcw.dispose()
@@ -252,32 +225,6 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 			_p_.gcAssistTime = 0
 		}
 	})
-}
-
-// The gp has been moved to a GC safepoint. GC phase specific
-// work is done here.
-//go:nowritebarrier
-func gcphasework(gp *g) {
-	if gp.gcworkdone {
-		return
-	}
-	switch gcphase {
-	default:
-		throw("gcphasework in bad gcphase")
-	case _GCoff, _GCstw, _GCsweep:
-		// No work.
-	case _GCscan:
-		// scan the stack, mark the objects, put pointers in work buffers
-		// hanging off the P where this is being run.
-		// Indicate that the scan is valid until the goroutine runs again
-		scanstack(gp)
-	case _GCmark:
-		// No work.
-	case _GCmarktermination:
-		scanstack(gp)
-		// All available mark work will be emptied before returning.
-	}
-	gp.gcworkdone = true
 }
 
 //go:nowritebarrier

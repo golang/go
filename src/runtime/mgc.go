@@ -1450,7 +1450,7 @@ func gcResetGState() (numgs int) {
 	// allgs doesn't change.
 	lock(&allglock)
 	for _, gp := range allgs {
-		gp.gcworkdone = false  // set to true in gcphasework
+		gp.gcscandone = false  // set to true in gcphasework
 		gp.gcscanvalid = false // stack has not been scanned
 		gp.gcalloc = 0
 		gp.gcscanwork = 0

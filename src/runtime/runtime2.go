@@ -237,7 +237,7 @@ type g struct {
 	preempt      bool // preemption signal, duplicates stackguard0 = stackpreempt
 	paniconfault bool // panic (instead of crash) on unexpected fault address
 	preemptscan  bool // preempted g does scan for gc
-	gcworkdone   bool // debug: cleared at beginning of gc work phase cycle, set by gcphasework, tested at end of cycle
+	gcscandone   bool // g has scanned stack; protected by _Gscan bit in status
 	gcscanvalid  bool // false at start of gc cycle, true if G has not run since last scan
 	throwsplit   bool // must not split stack
 	raceignore   int8 // ignore race detection events
