@@ -414,8 +414,21 @@ func (t *tester) registerTests() {
 			t.tests = append(t.tests, distTest{
 				name:    "testso",
 				heading: "../misc/cgo/testso",
-				fn:      t.cgoTestSO,
+				fn: func() error {
+					return t.cgoTestSO("misc/cgo/testso")
+				},
 			})
+			if t.goos == "darwin" {
+				fmt.Println("Skipping misc/cgo/testsovar test. See issue 10360 for details.")
+			} else {
+				t.tests = append(t.tests, distTest{
+					name:    "testsovar",
+					heading: "../misc/cgo/testsovar",
+					fn: func() error {
+						return t.cgoTestSO("misc/cgo/testsovar")
+					},
+				})
+			}
 		}
 		if t.supportedBuildmode("c-archive") {
 			t.registerTest("testcarchive", "../misc/cgo/testcarchive", "./test.bash")
@@ -724,8 +737,8 @@ func (t *tester) cgoTestSOSupported() bool {
 	return true
 }
 
-func (t *tester) cgoTestSO() error {
-	dir := filepath.Join(t.goroot, "misc/cgo/testso")
+func (t *tester) cgoTestSO(testpath string) error {
+	dir := filepath.Join(t.goroot, testpath)
 
 	// build shared object
 	output, err := exec.Command("go", "env", "CC").Output()
@@ -750,6 +763,7 @@ func (t *tester) cgoTestSO() error {
 		args = append(args, "-undefined", "suppress", "-flat_namespace")
 	case "windows":
 		ext = "dll"
+		args = append(args, "-DEXPORT_DLL")
 	}
 	sofname := "libcgosotest." + ext
 	args = append(args, "-o", sofname, "cgoso_c.c")
