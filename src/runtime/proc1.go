@@ -359,67 +359,76 @@ func casgcopystack(gp *g) uint32 {
 	}
 }
 
-// stopg ensures that gp is stopped at a GC safe point where its stack can be scanned
-// or in the context of a moving collector the pointers can be flipped from pointing
-// to old object to pointing to new objects.
-// If stopg returns true, the caller knows gp is at a GC safe point and will remain there until
-// the caller calls restartg.
-// If stopg returns false, the caller is not responsible for calling restartg. This can happen
-// if another thread, either the gp itself or another GC thread is taking the responsibility
-// to do the GC work related to this thread.
-func stopg(gp *g) bool {
-	for {
-		if gp.gcworkdone {
-			return false
-		}
+// scang blocks until gp's stack has been scanned.
+// It might be scanned by scang or it might be scanned by the goroutine itself.
+// Either way, the stack scan has completed when scang returns.
+func scang(gp *g) {
+	// Invariant; we (the caller, markroot for a specific goroutine) own gp.gcscandone.
+	// Nothing is racing with us now, but gcscandone might be set to true left over
+	// from an earlier round of stack scanning (we scan twice per GC).
+	// We use gcscandone to record whether the scan has been done during this round.
+	// It is important that the scan happens exactly once: if called twice,
+	// the installation of stack barriers will detect the double scan and die.
 
+	gp.gcscandone = false
+
+	// Endeavor to get gcscandone set to true,
+	// either by doing the stack scan ourselves or by coercing gp to scan itself.
+	// gp.gcscandone can transition from false to true when we're not looking
+	// (if we asked for preemption), so any time we lock the status using
+	// castogscanstatus we have to double-check that the scan is still not done.
+	for !gp.gcscandone {
 		switch s := readgstatus(gp); s {
 		default:
 			dumpgstatus(gp)
-			throw("stopg: gp->atomicstatus is not valid")
+			throw("stopg: invalid status")
 
 		case _Gdead:
-			return false
+			// No stack.
+			gp.gcscandone = true
 
 		case _Gcopystack:
-			// Loop until a new stack is in place.
+			// Stack being switched. Go around again.
 
-		case _Grunnable,
-			_Gsyscall,
-			_Gwaiting:
+		case _Grunnable, _Gsyscall, _Gwaiting:
 			// Claim goroutine by setting scan bit.
-			if !castogscanstatus(gp, s, s|_Gscan) {
-				break
+			// Racing with execution or readying of gp.
+			// The scan bit keeps them from running
+			// the goroutine until we're done.
+			if castogscanstatus(gp, s, s|_Gscan) {
+				if !gp.gcscandone {
+					scanstack(gp)
+					gp.gcscandone = true
+				}
+				restartg(gp)
 			}
-			// In scan state, do work.
-			gcphasework(gp)
-			return true
 
-		case _Gscanrunnable,
-			_Gscanwaiting,
-			_Gscansyscall:
-			// Goroutine already claimed by another GC helper.
-			return false
+		case _Gscanwaiting:
+			// newstack is doing a scan for us right now. Wait.
 
 		case _Grunning:
-			// Claim goroutine, so we aren't racing with a status
-			// transition away from Grunning.
-			if !castogscanstatus(gp, _Grunning, _Gscanrunning) {
+			// Goroutine running. Try to preempt execution so it can scan itself.
+			// The preemption handler (in newstack) does the actual scan.
+
+			// Optimization: if there is already a pending preemption request
+			// (from the previous loop iteration), don't bother with the atomics.
+			if gp.preemptscan && gp.preempt && gp.stackguard0 == stackPreempt {
 				break
 			}
 
-			// Mark gp for preemption.
-			if !gp.gcworkdone {
-				gp.preemptscan = true
-				gp.preempt = true
-				gp.stackguard0 = stackPreempt
+			// Ask for preemption and self scan.
+			if castogscanstatus(gp, _Grunning, _Gscanrunning) {
+				if !gp.gcscandone {
+					gp.preemptscan = true
+					gp.preempt = true
+					gp.stackguard0 = stackPreempt
+				}
+				casfrom_Gscanstatus(gp, _Gscanrunning, _Grunning)
 			}
-
-			// Unclaim.
-			casfrom_Gscanstatus(gp, _Gscanrunning, _Grunning)
-			return false
 		}
 	}
+
+	gp.preemptscan = false // cancel scan request if no longer needed
 }
 
 // The GC requests that this routine be moved from a scanmumble state to a mumble state.
@@ -448,20 +457,6 @@ func restartg(gp *g) {
 		}
 		dropg()
 		ready(gp, 0)
-	}
-}
-
-func stopscanstart(gp *g) {
-	_g_ := getg()
-	if _g_ == gp {
-		throw("GC not moved to G0")
-	}
-	if stopg(gp) {
-		if !isscanstatus(readgstatus(gp)) {
-			dumpgstatus(gp)
-			throw("GC not in scan state")
-		}
-		restartg(gp)
 	}
 }
 

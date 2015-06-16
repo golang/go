@@ -756,13 +756,16 @@ func newstack() {
 				// be set and gcphasework will simply
 				// return.
 			}
-			gcphasework(gp)
+			if !gp.gcscandone {
+				scanstack(gp)
+				gp.gcscandone = true
+			}
+			gp.preemptscan = false
+			gp.preempt = false
 			casfrom_Gscanstatus(gp, _Gscanwaiting, _Gwaiting)
 			casgstatus(gp, _Gwaiting, _Grunning)
 			gp.stackguard0 = gp.stack.lo + _StackGuard
-			gp.preempt = false
-			gp.preemptscan = false // Tells the GC premption was successful.
-			gogo(&gp.sched)        // never return
+			gogo(&gp.sched) // never return
 		}
 
 		// Act like goroutine called runtime.Gosched.
