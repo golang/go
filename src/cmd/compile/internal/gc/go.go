@@ -644,8 +644,6 @@ var compiling_runtime int
 
 var compiling_wrappers int
 
-var inl_nonlocal int
-
 var use_writebarrier int
 
 var pure_go int
