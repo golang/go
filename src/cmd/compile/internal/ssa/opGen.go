@@ -2,6 +2,8 @@
 // generated from gen/*Ops.go
 package ssa
 
+import "cmd/internal/obj/x86"
+
 const (
 	blockInvalid BlockKind = iota
 
@@ -164,6 +166,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "SUBQ",
+		asm:  x86.ASUBQ,
 		reg: regInfo{
 			inputs: []regMask{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
@@ -177,6 +180,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "SUBQconst",
+		asm:  x86.ASUBQ,
 		reg: regInfo{
 			inputs: []regMask{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
@@ -189,6 +193,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "MULQ",
+		asm:  x86.AIMULQ,
 		reg: regInfo{
 			inputs: []regMask{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
@@ -202,6 +207,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "MULQconst",
+		asm:  x86.AIMULQ,
 		reg: regInfo{
 			inputs: []regMask{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
@@ -214,6 +220,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "ANDQ",
+		asm:  x86.AANDQ,
 		reg: regInfo{
 			inputs: []regMask{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
@@ -227,6 +234,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "ANDQconst",
+		asm:  x86.AANDQ,
 		reg: regInfo{
 			inputs: []regMask{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
@@ -239,6 +247,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "SHLQ",
+		asm:  x86.ASHLQ,
 		reg: regInfo{
 			inputs: []regMask{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
@@ -252,6 +261,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "SHLQconst",
+		asm:  x86.ASHLQ,
 		reg: regInfo{
 			inputs: []regMask{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
@@ -264,6 +274,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "SHRQ",
+		asm:  x86.ASHRQ,
 		reg: regInfo{
 			inputs: []regMask{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
@@ -277,6 +288,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "SHRQconst",
+		asm:  x86.ASHRQ,
 		reg: regInfo{
 			inputs: []regMask{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
@@ -289,6 +301,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "SARQ",
+		asm:  x86.ASARQ,
 		reg: regInfo{
 			inputs: []regMask{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
@@ -302,6 +315,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "SARQconst",
+		asm:  x86.ASARQ,
 		reg: regInfo{
 			inputs: []regMask{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
@@ -326,6 +340,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "CMPQ",
+		asm:  x86.ACMPQ,
 		reg: regInfo{
 			inputs: []regMask{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
@@ -339,6 +354,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "CMPQconst",
+		asm:  x86.ACMPQ,
 		reg: regInfo{
 			inputs: []regMask{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
@@ -351,6 +367,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "TESTQ",
+		asm:  x86.ATESTQ,
 		reg: regInfo{
 			inputs: []regMask{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
@@ -364,6 +381,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "TESTB",
+		asm:  x86.ATESTB,
 		reg: regInfo{
 			inputs: []regMask{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
@@ -377,6 +395,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "SBBQcarrymask",
+		asm:  x86.ASBBQ,
 		reg: regInfo{
 			inputs: []regMask{
 				8589934592, // .FLAGS
@@ -613,6 +632,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "MOVBstore",
+		asm:  x86.AMOVB,
 		reg: regInfo{
 			inputs: []regMask{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
@@ -625,6 +645,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "MOVQstore",
+		asm:  x86.AMOVQ,
 		reg: regInfo{
 			inputs: []regMask{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
@@ -698,6 +719,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "ADDL",
+		asm:  x86.AADDL,
 		reg: regInfo{
 			inputs: []regMask{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
@@ -1044,4 +1066,5 @@ var opcodeTable = [...]opInfo{
 	},
 }
 
+func (o Op) Asm() int       { return opcodeTable[o].asm }
 func (o Op) String() string { return opcodeTable[o].name }

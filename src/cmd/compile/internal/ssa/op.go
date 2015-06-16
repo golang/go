@@ -14,6 +14,7 @@ type Op int32
 
 type opInfo struct {
 	name    string
+	asm     int
 	reg     regInfo
 	generic bool // this is a generic (arch-independent) opcode
 }
