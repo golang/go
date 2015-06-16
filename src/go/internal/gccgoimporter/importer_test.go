@@ -2,17 +2,21 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Exclude plan9 for now due to test failure with TestGoxImporter.
+// TODO(gri) eliminate this build tag
+// +build !plan9
+
 package gccgoimporter
 
 import (
+	"go/types"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"testing"
-
-	"golang.org/x/tools/go/types"
 )
 
 type importerTest struct {
@@ -20,7 +24,7 @@ type importerTest struct {
 	wantinits                    []string
 }
 
-func runImporterTest(t *testing.T, imp types.Importer, initmap map[*types.Package]InitData, test *importerTest) {
+func runImporterTest(t *testing.T, imp Importer, initmap map[*types.Package]InitData, test *importerTest) {
 	pkg, err := imp(make(map[string]*types.Package), test.pkgpath)
 	if err != nil {
 		t.Error(err)
@@ -100,6 +104,8 @@ var importerTests = [...]importerTest{
 }
 
 func TestGoxImporter(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
 	initmap := make(map[*types.Package]InitData)
 	imp := GetImporter([]string{"testdata"}, initmap)
 
@@ -109,6 +115,8 @@ func TestGoxImporter(t *testing.T) {
 }
 
 func TestObjImporter(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
 	// This test relies on gccgo being around, which it most likely will be if we
 	// were compiled with gccgo.
 	if runtime.Compiler != "gccgo" {

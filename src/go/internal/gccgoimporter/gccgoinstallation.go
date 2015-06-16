@@ -6,12 +6,11 @@ package gccgoimporter
 
 import (
 	"bufio"
+	"go/types"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"golang.org/x/tools/go/types"
 )
 
 // Information about a specific installation of gccgo.
@@ -90,6 +89,6 @@ func (inst *GccgoInstallation) SearchPaths() (paths []string) {
 
 // Return an importer that searches incpaths followed by the gcc installation's
 // built-in search paths and the current directory.
-func (inst *GccgoInstallation) GetImporter(incpaths []string, initmap map[*types.Package]InitData) types.Importer {
+func (inst *GccgoInstallation) GetImporter(incpaths []string, initmap map[*types.Package]InitData) Importer {
 	return GetImporter(append(append(incpaths, inst.SearchPaths()...), "."), initmap)
 }
