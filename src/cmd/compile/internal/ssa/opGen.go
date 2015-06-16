@@ -566,6 +566,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "MOVBload",
+		asm:  x86.AMOVB,
 		reg: regInfo{
 			inputs: []regMask{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
@@ -605,6 +606,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "MOVQload",
+		asm:  x86.AMOVQ,
 		reg: regInfo{
 			inputs: []regMask{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
