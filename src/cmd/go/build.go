@@ -334,6 +334,7 @@ func buildModeInit() {
 				codegenArg = "-shared"
 			case "linux/arm":
 				buildAsmflags = append(buildAsmflags, "-shared")
+			case "darwin/amd64":
 			case "android/arm":
 			default:
 				fatalf("-buildmode=c-shared not supported on %s\n", platform)
