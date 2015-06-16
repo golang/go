@@ -22,6 +22,7 @@ var machHeader *macho.FileHeader
 var mappedHeader []byte
 
 const (
+	LC_ID_DYLIB             = 0xd
 	LC_LOAD_DYLINKER        = 0xe
 	LC_PREBOUND_DYLIB       = 0x10
 	LC_LOAD_WEAK_DYLIB      = 0x18
@@ -246,7 +247,7 @@ func machoCombineDwarf(inexe, dsym, outexe string) error {
 			err = machoUpdateLoadCommand(reader, &linkEditDataCmd{}, "DataOff")
 		case LC_ENCRYPTION_INFO, LC_ENCRYPTION_INFO_64:
 			err = machoUpdateLoadCommand(reader, &encryptionInfoCmd{}, "CryptOff")
-		case macho.LoadCmdDylib, macho.LoadCmdThread, macho.LoadCmdUnixThread, LC_PREBOUND_DYLIB, LC_UUID, LC_VERSION_MIN_MACOSX, LC_VERSION_MIN_IPHONEOS, LC_SOURCE_VERSION, LC_MAIN, LC_LOAD_DYLINKER, LC_LOAD_WEAK_DYLIB, LC_REEXPORT_DYLIB, LC_RPATH:
+		case macho.LoadCmdDylib, macho.LoadCmdThread, macho.LoadCmdUnixThread, LC_PREBOUND_DYLIB, LC_UUID, LC_VERSION_MIN_MACOSX, LC_VERSION_MIN_IPHONEOS, LC_SOURCE_VERSION, LC_MAIN, LC_LOAD_DYLINKER, LC_LOAD_WEAK_DYLIB, LC_REEXPORT_DYLIB, LC_RPATH, LC_ID_DYLIB:
 			// Nothing to update
 		default:
 			err = fmt.Errorf("Unknown load command 0x%x (%s)\n", int(cmd.Cmd), cmd.Cmd)

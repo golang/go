@@ -926,7 +926,7 @@ func hostlink() {
 	}
 
 	if HEADTYPE == obj.Hdarwin {
-		argv = append(argv, "-Wl,-no_pie,-pagezero_size,4000000,-headerpad,1144")
+		argv = append(argv, "-Wl,-no_pie,-headerpad,1144")
 	}
 	if HEADTYPE == obj.Hopenbsd {
 		argv = append(argv, "-Wl,-nopie")
@@ -944,9 +944,17 @@ func hostlink() {
 	}
 
 	switch Buildmode {
+	case BuildmodeExe:
+		if HEADTYPE == obj.Hdarwin {
+			argv = append(argv, "-Wl,-pagezero_size,4000000")
+		}
 	case BuildmodeCShared:
-		argv = append(argv, "-Wl,-Bsymbolic")
-		argv = append(argv, "-shared")
+		if HEADTYPE == obj.Hdarwin {
+			argv = append(argv, "-dynamiclib")
+		} else {
+			argv = append(argv, "-Wl,-Bsymbolic")
+			argv = append(argv, "-shared")
+		}
 	case BuildmodeShared:
 		// TODO(mwhudson): unless you do this, dynamic relocations fill
 		// out the findfunctab table and for some reason shared libraries
