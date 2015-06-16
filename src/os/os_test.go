@@ -1251,7 +1251,10 @@ func testWindowsHostname(t *testing.T) {
 func TestHostname(t *testing.T) {
 	// There is no other way to fetch hostname on windows, but via winapi.
 	// On Plan 9 it can be taken from #c/sysname as Hostname() does.
-	if runtime.GOOS == "windows" {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("skipping on %s", runtime.GOOS)
+	case "windows":
 		testWindowsHostname(t)
 		return
 	}
