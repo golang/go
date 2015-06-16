@@ -4,7 +4,10 @@
 
 package main
 
-import "strings"
+import (
+	"cmd/internal/obj/x86"
+	"strings"
+)
 
 // copied from ../../amd64/reg.go
 var regNamesAMD64 = []string{
@@ -92,29 +95,29 @@ func init() {
 
 	// TODO: 2-address instructions.  Mark ops as needing matching input/output regs.
 	var AMD64ops = []opData{
-		{name: "ADDQ", reg: gp21},      // arg0 + arg1
-		{name: "ADDQconst", reg: gp11}, // arg0 + auxint
-		{name: "SUBQ", reg: gp21},      // arg0 - arg1
-		{name: "SUBQconst", reg: gp11}, // arg0 - auxint
-		{name: "MULQ", reg: gp21},      // arg0 * arg1
-		{name: "MULQconst", reg: gp11}, // arg0 * auxint
-		{name: "ANDQ", reg: gp21},      // arg0 & arg1
-		{name: "ANDQconst", reg: gp11}, // arg0 & auxint
-		{name: "SHLQ", reg: gp21shift}, // arg0 << arg1, shift amount is mod 64
-		{name: "SHLQconst", reg: gp11}, // arg0 << auxint, shift amount 0-63
-		{name: "SHRQ", reg: gp21shift}, // unsigned arg0 >> arg1, shift amount is mod 64
-		{name: "SHRQconst", reg: gp11}, // unsigned arg0 >> auxint, shift amount 0-63
-		{name: "SARQ", reg: gp21shift}, // signed arg0 >> arg1, shift amount is mod 64
-		{name: "SARQconst", reg: gp11}, // signed arg0 >> auxint, shift amount 0-63
+		{name: "ADDQ", reg: gp21},                       // arg0 + arg1
+		{name: "ADDQconst", reg: gp11},                  // arg0 + auxint
+		{name: "SUBQ", reg: gp21, asm: x86.ASUBQ},       // arg0 - arg1
+		{name: "SUBQconst", reg: gp11, asm: x86.ASUBQ},  // arg0 - auxint
+		{name: "MULQ", reg: gp21, asm: x86.AIMULQ},      // arg0 * arg1
+		{name: "MULQconst", reg: gp11, asm: x86.AIMULQ}, // arg0 * auxint
+		{name: "ANDQ", reg: gp21, asm: x86.AANDQ},       // arg0 & arg1
+		{name: "ANDQconst", reg: gp11, asm: x86.AANDQ},  // arg0 & auxint
+		{name: "SHLQ", reg: gp21shift, asm: x86.ASHLQ},  // arg0 << arg1, shift amount is mod 64
+		{name: "SHLQconst", reg: gp11, asm: x86.ASHLQ},  // arg0 << auxint, shift amount 0-63
+		{name: "SHRQ", reg: gp21shift, asm: x86.ASHRQ},  // unsigned arg0 >> arg1, shift amount is mod 64
+		{name: "SHRQconst", reg: gp11, asm: x86.ASHRQ},  // unsigned arg0 >> auxint, shift amount 0-63
+		{name: "SARQ", reg: gp21shift, asm: x86.ASARQ},  // signed arg0 >> arg1, shift amount is mod 64
+		{name: "SARQconst", reg: gp11, asm: x86.ASARQ},  // signed arg0 >> auxint, shift amount 0-63
 
 		{name: "NEGQ", reg: gp11}, // -arg0
 
-		{name: "CMPQ", reg: gp2flags},      // arg0 compare to arg1
-		{name: "CMPQconst", reg: gp1flags}, // arg0 compare to auxint
-		{name: "TESTQ", reg: gp2flags},     // (arg0 & arg1) compare to 0
-		{name: "TESTB", reg: gp2flags},     // (arg0 & arg1) compare to 0
+		{name: "CMPQ", reg: gp2flags, asm: x86.ACMPQ},      // arg0 compare to arg1
+		{name: "CMPQconst", reg: gp1flags, asm: x86.ACMPQ}, // arg0 compare to auxint
+		{name: "TESTQ", reg: gp2flags, asm: x86.ATESTQ},    // (arg0 & arg1) compare to 0
+		{name: "TESTB", reg: gp2flags, asm: x86.ATESTB},    // (arg0 & arg1) compare to 0
 
-		{name: "SBBQcarrymask", reg: flagsgp1}, // (int64)(-1) if carry is set, 0 if carry is clear.
+		{name: "SBBQcarrymask", reg: flagsgp1, asm: x86.ASBBQ}, // (int64)(-1) if carry is set, 0 if carry is clear.
 
 		{name: "SETEQ", reg: flagsgp}, // extract == condition from arg0
 		{name: "SETNE", reg: flagsgp}, // extract != condition from arg0
@@ -132,14 +135,14 @@ func init() {
 		{name: "LEAQ8", reg: gp21},      // arg0 + 8*arg1 + auxint
 		{name: "LEAQglobal", reg: gp01}, // no args.  address of aux.(*gc.Sym)
 
-		{name: "MOVBload", reg: gpload},          // load byte from arg0+auxint. arg1=mem
-		{name: "MOVBQZXload", reg: gpload},       // ditto, extend to uint64
-		{name: "MOVBQSXload", reg: gpload},       // ditto, extend to int64
-		{name: "MOVQload", reg: gpload},          // load 8 bytes from arg0+auxint. arg1=mem
-		{name: "MOVQloadidx8", reg: gploadidx},   // load 8 bytes from arg0+8*arg1+auxint. arg2=mem
-		{name: "MOVBstore", reg: gpstore},        // store byte in arg1 to arg0+auxint. arg2=mem
-		{name: "MOVQstore", reg: gpstore},        // store 8 bytes in arg1 to arg0+auxint. arg2=mem
-		{name: "MOVQstoreidx8", reg: gpstoreidx}, // store 8 bytes in arg2 to arg0+8*arg1+auxint. arg3=mem
+		{name: "MOVBload", reg: gpload},                   // load byte from arg0+auxint. arg1=mem
+		{name: "MOVBQZXload", reg: gpload},                // ditto, extend to uint64
+		{name: "MOVBQSXload", reg: gpload},                // ditto, extend to int64
+		{name: "MOVQload", reg: gpload},                   // load 8 bytes from arg0+auxint. arg1=mem
+		{name: "MOVQloadidx8", reg: gploadidx},            // load 8 bytes from arg0+8*arg1+auxint. arg2=mem
+		{name: "MOVBstore", reg: gpstore, asm: x86.AMOVB}, // store byte in arg1 to arg0+auxint. arg2=mem
+		{name: "MOVQstore", reg: gpstore, asm: x86.AMOVQ}, // store 8 bytes in arg1 to arg0+auxint. arg2=mem
+		{name: "MOVQstoreidx8", reg: gpstoreidx},          // store 8 bytes in arg2 to arg0+8*arg1+auxint. arg3=mem
 
 		// Load/store from global. Same as the above loads, but arg0 is missing and
 		// aux is a GlobalOffset instead of an int64.
@@ -152,7 +155,7 @@ func init() {
 
 		{name: "REPMOVSB", reg: regInfo{[]regMask{buildReg("DI"), buildReg("SI"), buildReg("CX")}, buildReg("DI SI CX"), nil}}, // move arg2 bytes from arg1 to arg0.  arg3=mem, returns memory
 
-		{name: "ADDL", reg: gp21}, // arg0+arg1
+		{name: "ADDL", reg: gp21, asm: x86.AADDL}, // arg0+arg1
 
 		// (InvertFlags (CMPQ a b)) == (CMPQ b a)
 		// So if we want (SETL (CMPQ a b)) but we can't do that because a is a constant,

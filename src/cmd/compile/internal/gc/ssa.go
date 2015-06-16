@@ -802,7 +802,7 @@ func genValue(v *ssa.Value) {
 		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-	case ssa.OpAMD64SHLQ:
+	case ssa.OpAMD64SHLQ, ssa.OpAMD64SHRQ, ssa.OpAMD64SARQ:
 		x := regnum(v.Args[0])
 		r := regnum(v)
 		if x != r {
@@ -816,50 +816,12 @@ func genValue(v *ssa.Value) {
 			p.To.Reg = r
 			x = r
 		}
-		p := Prog(x86.ASHLQ)
+		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = regnum(v.Args[1]) // should be CX
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-	case ssa.OpAMD64SHRQ:
-		x := regnum(v.Args[0])
-		r := regnum(v)
-		if x != r {
-			if r == x86.REG_CX {
-				log.Fatalf("can't implement %s, target and shift both in CX", v.LongString())
-			}
-			p := Prog(x86.AMOVQ)
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = x
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
-			x = r
-		}
-		p := Prog(x86.ASHRQ)
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = regnum(v.Args[1]) // should be CX
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
-	case ssa.OpAMD64SARQ:
-		x := regnum(v.Args[0])
-		r := regnum(v)
-		if x != r {
-			if r == x86.REG_CX {
-				log.Fatalf("can't implement %s, target and shift both in CX", v.LongString())
-			}
-			p := Prog(x86.AMOVQ)
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = x
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
-			x = r
-		}
-		p := Prog(x86.ASARQ)
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = regnum(v.Args[1]) // should be CX
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
-	case ssa.OpAMD64SHLQconst:
+	case ssa.OpAMD64SHLQconst, ssa.OpAMD64SHRQconst, ssa.OpAMD64SARQconst:
 		x := regnum(v.Args[0])
 		r := regnum(v)
 		if x != r {
@@ -870,43 +832,10 @@ func genValue(v *ssa.Value) {
 			p.To.Reg = r
 			x = r
 		}
-		p := Prog(x86.ASHLQ)
+		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
-	case ssa.OpAMD64SHRQconst:
-		x := regnum(v.Args[0])
-		r := regnum(v)
-		if x != r {
-			p := Prog(x86.AMOVQ)
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = x
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
-			x = r
-		}
-		p := Prog(x86.ASHRQ)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = v.AuxInt
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
-	case ssa.OpAMD64SARQconst:
-		x := regnum(v.Args[0])
-		r := regnum(v)
-		if x != r {
-			p := Prog(x86.AMOVQ)
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = x
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
-			x = r
-		}
-		p := Prog(x86.ASARQ)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = v.AuxInt
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
 	case ssa.OpAMD64SBBQcarrymask:
 		r := regnum(v)
 		p := Prog(x86.ASBBQ)
@@ -967,8 +896,8 @@ func genValue(v *ssa.Value) {
 		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
-	case ssa.OpAMD64CMPQ:
-		p := Prog(x86.ACMPQ)
+	case ssa.OpAMD64CMPQ, ssa.OpAMD64TESTB, ssa.OpAMD64TESTQ:
+		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = regnum(v.Args[0])
 		p.To.Type = obj.TYPE_REG
@@ -979,18 +908,6 @@ func genValue(v *ssa.Value) {
 		p.From.Reg = regnum(v.Args[0])
 		p.To.Type = obj.TYPE_CONST
 		p.To.Offset = v.AuxInt
-	case ssa.OpAMD64TESTB:
-		p := Prog(x86.ATESTB)
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = regnum(v.Args[0])
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v.Args[1])
-	case ssa.OpAMD64TESTQ:
-		p := Prog(x86.ATESTQ)
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = regnum(v.Args[0])
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v.Args[1])
 	case ssa.OpAMD64MOVQconst:
 		x := regnum(v)
 		p := Prog(x86.AMOVQ)
@@ -998,15 +915,8 @@ func genValue(v *ssa.Value) {
 		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x
-	case ssa.OpAMD64MOVQload:
-		p := Prog(x86.AMOVQ)
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = regnum(v.Args[0])
-		p.From.Offset = v.AuxInt
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v)
-	case ssa.OpAMD64MOVBload:
-		p := Prog(x86.AMOVB)
+	case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVBload:
+		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = regnum(v.Args[0])
 		p.From.Offset = v.AuxInt
