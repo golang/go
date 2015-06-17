@@ -10,6 +10,7 @@ import (
 	"go/importer"
 	"go/parser"
 	"go/token"
+	"internal/testenv"
 	"sort"
 	"testing"
 
@@ -35,7 +36,7 @@ func (imp *resolveTestImporter) Import(path string) (*Package, error) {
 }
 
 func TestResolveIdents(t *testing.T) {
-	skipSpecialPlatforms(t)
+	testenv.MustHaveGoBuild(t)
 
 	sources := []string{
 		`
