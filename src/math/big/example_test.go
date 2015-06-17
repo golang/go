@@ -63,15 +63,21 @@ func Example_fibonacci() {
 
 	// loop while fib1 is smaller than 1e100
 	for fib1.Cmp(&limit) < 0 {
+		// Compute the next Fibonacci number:
+		//    t1 := fib2
+		//    t2 := fib1.Add(fib1, fib2) // Note that Add "assigns" to fib1!
+		//    fib1 = t1
+		//    fib2 = t2
+		// Using Go's multi-value ("parallel") assignment, we can simply write:
 		fib1, fib2 = fib2, fib1.Add(fib1, fib2)
 	}
 
-	fmt.Println(fib1) // 100-digits fibonacci number
+	fmt.Println(fib1) // 100-digit Fibonacci number
 
 	// Test fib1 for primality. The ProbablyPrimes parameter sets the number
 	// of Miller-Rabin rounds to be performed. 20 is a good value.
 	isPrime := fib1.ProbablyPrime(20)
-	fmt.Println(isPrime) // false
+	fmt.Println(isPrime)
 
 	// Output:
 	// 1344719667586153181419716641724567886890850696275767987106294472017884974410332069524504824747437757
