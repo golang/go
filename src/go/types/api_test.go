@@ -11,26 +11,12 @@ import (
 	"go/importer"
 	"go/parser"
 	"go/token"
-	"runtime"
+	"internal/testenv"
 	"strings"
 	"testing"
 
 	. "go/types"
 )
-
-// skipSpecialPlatforms causes the test to be skipped for platforms where
-// builders (build.golang.org) don't have access to compiled packages for
-// import.
-func skipSpecialPlatforms(t *testing.T) {
-	switch platform := runtime.GOOS + "-" + runtime.GOARCH; platform {
-	case "nacl-amd64p32",
-		"nacl-386",
-		"nacl-arm",
-		"darwin-arm",
-		"darwin-arm64":
-		t.Skipf("no compiled packages available for import on %s", platform)
-	}
-}
 
 func pkgFor(path, source string, info *Info) (*Package, error) {
 	fset := token.NewFileSet()
@@ -299,7 +285,7 @@ func predString(tv TypeAndValue) string {
 }
 
 func TestPredicatesInfo(t *testing.T) {
-	skipSpecialPlatforms(t)
+	testenv.MustHaveGoBuild(t)
 
 	var tests = []struct {
 		src  string
@@ -385,7 +371,7 @@ func TestPredicatesInfo(t *testing.T) {
 }
 
 func TestScopesInfo(t *testing.T) {
-	skipSpecialPlatforms(t)
+	testenv.MustHaveGoBuild(t)
 
 	var tests = []struct {
 		src    string

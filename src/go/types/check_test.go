@@ -32,6 +32,7 @@ import (
 	"go/parser"
 	"go/scanner"
 	"go/token"
+	"internal/testenv"
 	"io/ioutil"
 	"regexp"
 	"strings"
@@ -279,7 +280,7 @@ func checkFiles(t *testing.T, testfiles []string) {
 }
 
 func TestCheck(t *testing.T) {
-	skipSpecialPlatforms(t)
+	testenv.MustHaveGoBuild(t)
 
 	// Declare builtins for testing.
 	DefPredeclaredTestFuncs()

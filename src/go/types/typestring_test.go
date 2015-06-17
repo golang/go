@@ -9,6 +9,7 @@ import (
 	"go/importer"
 	"go/parser"
 	"go/token"
+	"internal/testenv"
 	"testing"
 
 	. "go/types"
@@ -117,7 +118,7 @@ var dependentTestTypes = []testEntry{
 }
 
 func TestTypeString(t *testing.T) {
-	skipSpecialPlatforms(t)
+	testenv.MustHaveGoBuild(t)
 
 	var tests []testEntry
 	tests = append(tests, independentTestTypes...)

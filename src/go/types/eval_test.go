@@ -11,6 +11,7 @@ import (
 	"go/importer"
 	"go/parser"
 	"go/token"
+	"internal/testenv"
 	"strings"
 	"testing"
 
@@ -86,7 +87,7 @@ func TestEvalArith(t *testing.T) {
 }
 
 func TestEvalPos(t *testing.T) {
-	skipSpecialPlatforms(t)
+	testenv.MustHaveGoBuild(t)
 
 	// The contents of /*-style comments are of the form
 	//	expr => value, type
