@@ -13,7 +13,7 @@ fi
 wiki_pid=
 cleanup() {
 	kill $wiki_pid
-	rm -f test_*.out Test.txt final-test.bin final-test-port.txt a.out get.bin
+	rm -f test_*.out Test.txt final-test.go final-test.bin final-test-port.txt a.out get.bin
 }
 trap cleanup 0 INT
 
