@@ -697,10 +697,10 @@ package main
 	tg.wantStale("mycmd", "./testgo list mycmd claims mycmd is NOT stale after removing y.go; should be stale")
 }
 
-func testLocalRun(tg *testgoData, local, match string) {
-	out, err := exec.Command("./hello" + exeSuffix).Output()
+func testLocalRun(tg *testgoData, exepath, local, match string) {
+	out, err := exec.Command(exepath).Output()
 	if err != nil {
-		tg.t.Fatal("error running hello:", err)
+		tg.t.Fatalf("error running %v: %v", exepath, err)
 	}
 	if !regexp.MustCompile(match).Match(out) {
 		tg.t.Log(string(out))
@@ -709,21 +709,24 @@ func testLocalRun(tg *testgoData, local, match string) {
 }
 
 func testLocalEasy(tg *testgoData, local string) {
-	tg.creatingTemp("./hello" + exeSuffix)
-	tg.run("build", "-o", "hello"+exeSuffix, filepath.Join("testdata", local, "easy.go"))
-	testLocalRun(tg, local, `(?m)^easysub\.Hello`)
+	exepath := "./easy" + exeSuffix
+	tg.creatingTemp(exepath)
+	tg.run("build", "-o", exepath, filepath.Join("testdata", local, "easy.go"))
+	testLocalRun(tg, exepath, local, `(?m)^easysub\.Hello`)
 }
 
 func testLocalEasySub(tg *testgoData, local string) {
-	tg.creatingTemp("./hello" + exeSuffix)
-	tg.run("build", "-o", "hello"+exeSuffix, filepath.Join("testdata", local, "easysub", "main.go"))
-	testLocalRun(tg, local, `(?m)^easysub\.Hello`)
+	exepath := "./easysub" + exeSuffix
+	tg.creatingTemp(exepath)
+	tg.run("build", "-o", exepath, filepath.Join("testdata", local, "easysub", "main.go"))
+	testLocalRun(tg, exepath, local, `(?m)^easysub\.Hello`)
 }
 
 func testLocalHard(tg *testgoData, local string) {
-	tg.creatingTemp("./hello" + exeSuffix)
-	tg.run("build", "-o", "hello"+exeSuffix, filepath.Join("testdata", local, "hard.go"))
-	testLocalRun(tg, local, `(?m)^sub\.Hello`)
+	exepath := "./hard" + exeSuffix
+	tg.creatingTemp(exepath)
+	tg.run("build", "-o", exepath, filepath.Join("testdata", local, "hard.go"))
+	testLocalRun(tg, exepath, local, `(?m)^sub\.Hello`)
 }
 
 func testLocalInstall(tg *testgoData, local string) {
