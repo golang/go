@@ -217,7 +217,7 @@ func TestNoPalette(t *testing.T) {
 
 	b.WriteString(trailerStr)
 
-	try(t, b.Bytes(), "gif: invalid pixel value")
+	try(t, b.Bytes(), "gif: no color table")
 }
 
 func TestPixelOutsidePaletteRange(t *testing.T) {
