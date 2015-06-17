@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // +build cgo,!netgo
-// +build freebsd dragonfly netbsd openbsd
+// +build freebsd dragonfly openbsd
 
 package net
 
