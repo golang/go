@@ -335,6 +335,9 @@ func (s *state) stmt(n *Node) {
 
 		s.startBlock(bEnd)
 
+	case OCALLFUNC:
+		s.expr(n)
+
 	case OVARKILL:
 		// TODO(khr): ??? anything to do here?  Only for addrtaken variables?
 		// Maybe just link it in the store chain?
@@ -464,6 +467,10 @@ func (s *state) expr(n *Node) *ssa.Value {
 		s.startBlock(bNext)
 		var titer Iter
 		fp := Structfirst(&titer, Getoutarg(n.Left.Type))
+		if fp == nil {
+			// CALLFUNC has no return value. Continue with the next statement.
+			return nil
+		}
 		a := s.entryNewValue1I(ssa.OpOffPtr, Ptrto(fp.Type), fp.Width, s.sp)
 		return s.newValue2(ssa.OpLoad, fp.Type, a, call)
 	default:
