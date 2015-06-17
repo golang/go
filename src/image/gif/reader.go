@@ -173,6 +173,9 @@ func (d *decoder) decode(r io.Reader, configOnly bool) error {
 					return err
 				}
 			} else {
+				if d.globalColorTable == nil {
+					return errors.New("gif: no color table")
+				}
 				m.Palette = d.globalColorTable
 			}
 			if d.hasTransparentIndex && int(d.transparentIndex) < len(m.Palette) {
