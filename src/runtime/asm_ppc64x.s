@@ -698,12 +698,6 @@ TEXT gosave<>(SB),NOSPLIT,$-8
 // Call fn(arg) on the scheduler stack,
 // aligned appropriately for the gcc ABI.
 // See cgocall.c for more details.
-TEXT ·asmcgocall(SB),NOSPLIT,$0-16
-	MOVD	fn+0(FP), R3
-	MOVD	arg+8(FP), R4
-	BL	asmcgocall<>(SB)
-	RET
-
 TEXT ·asmcgocall_errno(SB),NOSPLIT,$0-20
 	MOVD	fn+0(FP), R3
 	MOVD	arg+8(FP), R4
