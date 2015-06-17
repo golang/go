@@ -599,11 +599,22 @@ func TestTransportHeadChunkedResponse(t *testing.T) {
 	tr := &Transport{DisableKeepAlives: false}
 	c := &Client{Transport: tr}
 
+	// Ensure that we wait for the readLoop to complete before
+	// calling Head again
+	didRead := make(chan bool)
+	SetReadLoopBeforeNextReadHook(func() { didRead <- true })
+	defer SetReadLoopBeforeNextReadHook(nil)
+
 	res1, err := c.Head(ts.URL)
+	<-didRead
+
 	if err != nil {
 		t.Fatalf("request 1 error: %v", err)
 	}
+
 	res2, err := c.Head(ts.URL)
+	<-didRead
+
 	if err != nil {
 		t.Fatalf("request 2 error: %v", err)
 	}
