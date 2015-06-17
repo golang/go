@@ -248,6 +248,18 @@ func readgstatus(gp *g) uint32 {
 	return atomicload(&gp.atomicstatus)
 }
 
+// Ownership of gscanvalid:
+//
+// If gp is running (meaning status == _Grunning or _Grunning|_Gscan),
+// then gp owns gp.gscanvalid, and other goroutines must not modify it.
+//
+// Otherwise, a second goroutine can lock the scan state by setting _Gscan
+// in the status bit and then modify gscanvalid, and then unlock the scan state.
+//
+// Note that the first condition implies an exception to the second:
+// if a second goroutine changes gp's status to _Grunning|_Gscan,
+// that second goroutine still does not have the right to modify gscanvalid.
+
 // The Gscanstatuses are acting like locks and this releases them.
 // If it proves to be a performance hit we should be able to make these
 // simple atomic stores but for now we are going to throw if
@@ -294,10 +306,6 @@ func castogscanstatus(gp *g, oldval, newval uint32) bool {
 			return cas(&gp.atomicstatus, oldval, newval)
 		}
 	case _Grunning:
-		if gp.gcscanvalid {
-			print("runtime: castogscanstatus _Grunning and gp.gcscanvalid is true, newval=", hex(newval), "\n")
-			throw("castogscanstatus")
-		}
 		if newval == _Gscanrunning || newval == _Gscanenqueue {
 			return cas(&gp.atomicstatus, oldval, newval)
 		}
@@ -318,6 +326,15 @@ func casgstatus(gp *g, oldval, newval uint32) {
 			print("runtime: casgstatus: oldval=", hex(oldval), " newval=", hex(newval), "\n")
 			throw("casgstatus: bad incoming values")
 		})
+	}
+
+	if oldval == _Grunning && gp.gcscanvalid {
+		// If oldvall == _Grunning, then the actual status must be
+		// _Grunning or _Grunning|_Gscan; either way,
+		// we own gp.gcscanvalid, so it's safe to read.
+		// gp.gcscanvalid must not be true when we are running.
+		print("runtime: casgstatus ", hex(oldval), "->", hex(newval), " gp.status=", hex(gp.atomicstatus), " gp.gcscanvalid=true\n")
+		throw("casgstatus")
 	}
 
 	// loop if gp->atomicstatus is in a scan state giving
