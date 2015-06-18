@@ -104,6 +104,16 @@ func TestWriterReturnValues(t *testing.T) {
 	}
 }
 
+func TestSmallLitWidth(t *testing.T) {
+	w := NewWriter(ioutil.Discard, LSB, 2)
+	if _, err := w.Write([]byte{0x03}); err != nil {
+		t.Fatalf("write a byte < 1<<2: %v", err)
+	}
+	if _, err := w.Write([]byte{0x04}); err == nil {
+		t.Fatal("write a byte >= 1<<2: got nil error, want non-nil")
+	}
+}
+
 func benchmarkEncoder(b *testing.B, n int) {
 	b.StopTimer()
 	b.SetBytes(int64(n))
