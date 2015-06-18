@@ -124,6 +124,10 @@ func httpSched(w http.ResponseWriter, r *http.Request) {
 
 // generateSVGProfile generates pprof-like profile stored in prof and writes in to w.
 func serveSVGProfile(w http.ResponseWriter, r *http.Request, prof map[uint64]Record) {
+	if len(prof) == 0 {
+		http.Error(w, "The profile is empty", http.StatusNotFound)
+		return
+	}
 	blockf, err := ioutil.TempFile("", "block")
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to create temp file: %v", err), http.StatusInternalServerError)
