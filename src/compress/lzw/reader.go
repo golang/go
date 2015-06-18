@@ -213,7 +213,7 @@ func (d *decoder) flush() {
 	d.o = 0
 }
 
-var errClosed = errors.New("compress/lzw: reader/writer is closed")
+var errClosed = errors.New("lzw: reader/writer is closed")
 
 func (d *decoder) Close() error {
 	d.err = errClosed // in case any Reads come along
