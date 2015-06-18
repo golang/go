@@ -653,7 +653,7 @@ func (f *File) applyRelocationsARM(dst []byte, rels []byte) error {
 		sym := &symbols[symNo-1]
 
 		switch t {
-		case R_ARM_REL32:
+		case R_ARM_ABS32:
 			if rel.Off+4 >= uint32(len(dst)) {
 				continue
 			}
