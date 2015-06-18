@@ -207,8 +207,10 @@ Not all Go types can be mapped to C types in a useful way.
 
 Using //export in a file places a restriction on the preamble:
 since it is copied into two different C output files, it must not
-contain any definitions, only declarations. Definitions must be
-placed in preambles in other files, or in C source files.
+contain any definitions, only declarations. If a file contains both
+definitions and declarations, then the two output files will produce
+duplicate symbols and the linker will fail. To avoid this, definitions
+must be placed in preambles in other files, or in C source files.
 
 Using cgo directly
 
