@@ -12,17 +12,6 @@
 // literals as defined by the Go language specification.  It may be
 // customized to recognize only a subset of those literals and to recognize
 // different identifier and white space characters.
-//
-// Basic usage pattern:
-//
-//	var s scanner.Scanner
-//	s.Init(src)
-//	tok := s.Scan()
-//	for tok != scanner.EOF {
-//		// do something with tok
-//		tok = s.Scan()
-//	}
-//
 package scanner
 
 import (
