@@ -523,6 +523,11 @@ func (t *Transport) getConn(req *Request, cm connectMethod) (*persistConn, error
 	}
 	dialc := make(chan dialRes)
 
+	// Copy these hooks so we don't race on the postPendingDial in
+	// the goroutine we launch. Issue 11136.
+	prePendingDial := prePendingDial
+	postPendingDial := postPendingDial
+
 	handlePendingDial := func() {
 		if prePendingDial != nil {
 			prePendingDial()
