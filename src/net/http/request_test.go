@@ -513,6 +513,24 @@ func TestRequestWriteBufferedWriter(t *testing.T) {
 	}
 }
 
+func TestRequestBadHost(t *testing.T) {
+	got := []string{}
+	req, err := NewRequest("GET", "http://foo.com with spaces/after", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Write(logWrites{t, &got})
+	want := []string{
+		"GET /after HTTP/1.1\r\n",
+		"Host: foo.com\r\n",
+		"User-Agent: " + DefaultUserAgent + "\r\n",
+		"\r\n",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Writes = %q\n  Want = %q", got, want)
+	}
+}
+
 func TestStarRequest(t *testing.T) {
 	req, err := ReadRequest(bufio.NewReader(strings.NewReader("M-SEARCH * HTTP/1.1\r\n\r\n")))
 	if err != nil {
