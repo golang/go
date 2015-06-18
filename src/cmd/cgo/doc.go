@@ -20,6 +20,13 @@ the C parts of the package.  For example:
 	// #include <errno.h>
 	import "C"
 
+The preamble may contain any C code, including function and variable
+declarations and definitions.  These may then be referred to from Go
+code as though they were defined in the package "C".  All names
+declared in the preamble may be used, even if they start with a
+lower-case letter.  Exception: static variables in the preamble may
+not be referenced from Go code; static functions are permitted.
+
 See $GOROOT/misc/cgo/stdio and $GOROOT/misc/cgo/gmp for examples.  See
 "C? Go? Cgo!" for an introduction to using cgo:
 http://golang.org/doc/articles/c_go_cgo.html.
