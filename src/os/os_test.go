@@ -799,11 +799,14 @@ func TestStartProcess(t *testing.T) {
 
 	var dir, cmd string
 	var args []string
-	if runtime.GOOS == "windows" {
+	switch runtime.GOOS {
+	case "android":
+		t.Skip("android doesn't have /bin/pwd")
+	case "windows":
 		cmd = Getenv("COMSPEC")
 		dir = Getenv("SystemRoot")
 		args = []string{"/c", "cd"}
-	} else {
+	default:
 		cmd = "/bin/pwd"
 		dir = "/"
 		args = []string{}
@@ -1252,8 +1255,8 @@ func TestHostname(t *testing.T) {
 	// There is no other way to fetch hostname on windows, but via winapi.
 	// On Plan 9 it can be taken from #c/sysname as Hostname() does.
 	switch runtime.GOOS {
-	case "plan9":
-		t.Skipf("skipping on %s", runtime.GOOS)
+	case "android", "plan9":
+		t.Skipf("%s doesn't have /bin/hostname", runtime.GOOS)
 	case "windows":
 		testWindowsHostname(t)
 		return
