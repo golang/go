@@ -51,34 +51,30 @@ func ExampleInt_Scan() {
 	// Output: 18446744073709551617
 }
 
-// Example_fibonacci demonstrates how to use big.Int to compute the smallest
-// Fibonacci number with 100 decimal digits, and find out whether it is prime.
+// This example demonstrates how to use big.Int to compute the smallest
+// Fibonacci number with 100 decimal digits and to test whether it is prime.
 func Example_fibonacci() {
-	// create and initialize big.Ints from int64s
-	fib1 := big.NewInt(0)
-	fib2 := big.NewInt(1)
+	// Initialize two big ints with the first two numbers in the sequence.
+	a := big.NewInt(0)
+	b := big.NewInt(1)
 
-	// initialize limit as 10^99 (the smallest integer with 100 digits)
+	// Initialize limit as 10^99, the smallest integer with 100 digits.
 	var limit big.Int
 	limit.Exp(big.NewInt(10), big.NewInt(99), nil)
 
-	// loop while fib1 is smaller than 1e100
-	for fib1.Cmp(&limit) < 0 {
-		// Compute the next Fibonacci number:
-		//    t1 := fib2
-		//    t2 := fib1.Add(fib1, fib2) // Note that Add "assigns" to fib1!
-		//    fib1 = t1
-		//    fib2 = t2
-		// Using Go's multi-value ("parallel") assignment, we can simply write:
-		fib1, fib2 = fib2, fib1.Add(fib1, fib2)
+	// Loop while a is smaller than 1e100.
+	for a.Cmp(&limit) < 0 {
+		// Compute the next Fibonacci number, storing it in a.
+		a.Add(a, b)
+		// Swap a and b so that b is the next number in the sequence.
+		a, b = b, a
 	}
+	fmt.Println(a) // 100-digit Fibonacci number
 
-	fmt.Println(fib1) // 100-digit Fibonacci number
-
-	// Test fib1 for primality. The ProbablyPrimes parameter sets the number
-	// of Miller-Rabin rounds to be performed. 20 is a good value.
-	isPrime := fib1.ProbablyPrime(20)
-	fmt.Println(isPrime)
+	// Test a for primality.
+	// (ProbablyPrimes' argument sets the number of Miller-Rabin
+	// rounds to be performed. 20 is a good value.)
+	fmt.Println(a.ProbablyPrime(20))
 
 	// Output:
 	// 1344719667586153181419716641724567886890850696275767987106294472017884974410332069524504824747437757
