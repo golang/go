@@ -369,16 +369,22 @@ func (r *Request) WriteProxy(w io.Writer) error {
 
 // extraHeaders may be nil
 func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) error {
-	// According to RFC 6874, an HTTP client, proxy, or other
-	// intermediary must remove any IPv6 zone identifier attached
-	// to an outgoing URI.
-	host := removeZone(req.Host)
+	// Find the target host. Prefer the Host: header, but if that
+	// is not given, use the host from the request URL.
+	//
+	// Clean the host, in case it arrives with unexpected stuff in it.
+	host := cleanHost(req.Host)
 	if host == "" {
 		if req.URL == nil {
 			return errors.New("http: Request.Write on Request with no Host or URL set")
 		}
-		host = removeZone(req.URL.Host)
+		host = cleanHost(req.URL.Host)
 	}
+
+	// According to RFC 6874, an HTTP client, proxy, or other
+	// intermediary must remove any IPv6 zone identifier attached
+	// to an outgoing URI.
+	host = removeZone(host)
 
 	ruri := req.URL.RequestURI()
 	if usingProxy && req.URL.Scheme != "" && req.URL.Opaque == "" {
@@ -462,6 +468,22 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) err
 		return bw.Flush()
 	}
 	return nil
+}
+
+// cleanHost strips anything after '/' or ' '.
+// Ideally we'd clean the Host header according to the spec:
+//   https://tools.ietf.org/html/rfc7230#section-5.4 (Host = uri-host [ ":" port ]")
+//   https://tools.ietf.org/html/rfc7230#section-2.7 (uri-host -> rfc3986's host)
+//   https://tools.ietf.org/html/rfc3986#section-3.2.2 (definition of host)
+// But practically, what we are trying to avoid is the situation in
+// issue 11206, where a malformed Host header used in the proxy context
+// would create a bad request. So it is enough to just truncate at the
+// first offending character.
+func cleanHost(in string) string {
+	if i := strings.IndexAny(in, " /"); i != -1 {
+		return in[:i]
+	}
+	return in
 }
 
 // removeZone removes IPv6 zone identifer from host.
