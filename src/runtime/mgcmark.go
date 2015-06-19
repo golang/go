@@ -768,6 +768,15 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
 // object (it ignores n).
 //go:nowritebarrier
 func scanobject(b uintptr, gcw *gcWork) {
+	// Note that arena_used may change concurrently during
+	// scanobject and hence scanobject may encounter a pointer to
+	// a newly allocated heap object that is *not* in
+	// [start,used). It will not mark this object; however, we
+	// know that it was just installed by a mutator, which means
+	// that mutator will execute a write barrier and take care of
+	// marking it. This is even more pronounced on relaxed memory
+	// architectures since we access arena_used without barriers
+	// or synchronization, but the same logic applies.
 	arena_start := mheap_.arena_start
 	arena_used := mheap_.arena_used
 
