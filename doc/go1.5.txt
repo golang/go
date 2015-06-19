@@ -97,6 +97,8 @@ cmd/go: .swig/.swigcxx files now require SWIG 3.0.6 or later
 cmd/go: add -run flag to go generate (https://golang.org/cl/9005)
 cmd/go: add $GOLINE to generate's variables (https://golang.org/cl/9007)
 cmd/go: add go doc (https://golang.org/cl/9227)
+cmd/go, testing: add go test -count (https://golang.org/cl/10669)
+cmd/go: add preliminary support for vendor directories (https://golang.org/cl/10923)
 cmd/vet: better validation of struct tags (https://golang.org/cl/2685)
 cmd/ld: no longer record build timestamp in Windows PE file header (https://golang.org/cl/3740)
 cmd/go: add -toolexec build option
@@ -106,8 +108,6 @@ cmd/go: add -buildmode build option
 cmd/gc: add -dynlink option (for amd64 only)
 cmd/ld: add -buildmode option
 cmd/trace: new command to view traces (https://golang.org/cl/3601)
-cmd/go, testing: add go test -count (https://golang.org/cl/10669)
-
 Performance:
 
 cmd/gc: evaluate concrete == interface without allocating (https://golang.org/cl/2096)
