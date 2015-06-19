@@ -239,16 +239,24 @@ func escape(s string, mode encoding) string {
 // Note that the Path field is stored in decoded form: /%47%6f%2f becomes /Go/.
 // A consequence is that it is impossible to tell which slashes in the Path were
 // slashes in the raw URL and which were %2f. This distinction is rarely important,
-// but when it is a client must use other routines to parse the raw URL or construct
-// the parsed URL. For example, an HTTP server can consult req.RequestURI, and
-// an HTTP client can use URL{Host: "example.com", Opaque: "//example.com/Go%2f"}
-// instead of URL{Host: "example.com", Path: "/Go/"}.
+// but when it is, code must not use Path directly.
+//
+// Go 1.5 introduced the RawPath field to hold the encoded form of Path.
+// The Parse function sets both Path and RawPath in the URL it returns,
+// and URL's String method uses RawPath if it is a valid encoding of Path,
+// by calling the EncodedPath method.
+//
+// In earlier versions of Go, the more indirect workarounds were that an
+// HTTP server could consult req.RequestURI and an HTTP client could
+// construct a URL struct directly and set the Opaque field instead of Path.
+// These still work as well.
 type URL struct {
 	Scheme   string
 	Opaque   string    // encoded opaque data
 	User     *Userinfo // username and password information
 	Host     string    // host or host:port
 	Path     string
+	RawPath  string // encoded path hint (Go 1.5 and later only; see EscapedPath method)
 	RawQuery string // encoded query values, without '?'
 	Fragment string // fragment for references, without '#'
 }
@@ -417,6 +425,7 @@ func parse(rawurl string, viaRequest bool) (url *URL, err error) {
 			goto Error
 		}
 	}
+	url.RawPath = rest
 	if url.Path, err = unescape(rest, encodePath); err != nil {
 		goto Error
 	}
@@ -501,6 +510,36 @@ func parseHost(host string) (string, error) {
 	return host, nil
 }
 
+// EscapedPath returns the escaped form of u.Path.
+// In general there are multiple possible escaped forms of any path.
+// EscapedPath returns u.RawPath when it is a valid escaping of u.Path.
+// Otherwise EscapedPath ignores u.RawPath and computes an escaped
+// form on its own.
+// The String and RequestURI methods use EscapedPath to construct
+// their results.
+// In general, code should call EscapedPath instead of
+// reading u.RawPath directly.
+func (u *URL) EscapedPath() string {
+	if u.RawPath != "" && validEncodedPath(u.RawPath) {
+		p, err := unescape(u.RawPath, encodePath)
+		if err == nil && p == u.Path {
+			return u.RawPath
+		}
+	}
+	return escape(u.Path, encodePath)
+}
+
+// validEncodedPath reports whether s is a valid encoded path.
+// It must contain any bytes that require escaping during path encoding.
+func validEncodedPath(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] != '%' && shouldEscape(s[i], encodePath) {
+			return false
+		}
+	}
+	return true
+}
+
 // String reassembles the URL into a valid URL string.
 // The general form of the result is one of:
 //
@@ -509,6 +548,7 @@ func parseHost(host string) (string, error) {
 //
 // If u.Opaque is non-empty, String uses the first form;
 // otherwise it uses the second form.
+// To obtain the path, String uses u.EncodedPath().
 //
 // In the second form, the following rules apply:
 //	- if u.Scheme is empty, scheme: is omitted.
@@ -539,10 +579,11 @@ func (u *URL) String() string {
 				buf.WriteString(escape(h, encodeHost))
 			}
 		}
-		if u.Path != "" && u.Path[0] != '/' && u.Host != "" {
+		path := u.EscapedPath()
+		if path != "" && path[0] != '/' && u.Host != "" {
 			buf.WriteByte('/')
 		}
-		buf.WriteString(escape(u.Path, encodePath))
+		buf.WriteString(path)
 	}
 	if u.RawQuery != "" {
 		buf.WriteByte('?')
@@ -764,7 +805,7 @@ func (u *URL) Query() Values {
 func (u *URL) RequestURI() string {
 	result := u.Opaque
 	if result == "" {
-		result = escape(u.Path, encodePath)
+		result = u.EscapedPath()
 		if result == "" {
 			result = "/"
 		}

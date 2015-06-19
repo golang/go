@@ -43,6 +43,21 @@ func ExampleURL() {
 	// Output: https://google.com/search?q=golang
 }
 
+func ExampleURL_roundtrip() {
+	// Parse + String preserve the original encoding.
+	u, err := url.Parse("https://example.com/foo%2fbar")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(u.Path)
+	fmt.Println(u.RawPath)
+	fmt.Println(u.String())
+	// Output:
+	// /foo/bar
+	// /foo%2fbar
+	// https://example.com/foo%2fbar
+}
+
 func ExampleURL_opaque() {
 	// Sending a literal '%' in an HTTP request's Path
 	req := &http.Request{
