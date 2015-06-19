@@ -13,7 +13,7 @@ import (
 
 type URLTest struct {
 	in        string
-	out       *URL
+	out       *URL   // expected parse; RawPath="" means same as Path
 	roundtrip string // expected result of reserializing the URL; empty means same as "in".
 }
 
@@ -41,11 +41,12 @@ var urltests = []URLTest{
 	{
 		"http://www.google.com/file%20one%26two",
 		&URL{
-			Scheme: "http",
-			Host:   "www.google.com",
-			Path:   "/file one&two",
+			Scheme:  "http",
+			Host:    "www.google.com",
+			Path:    "/file one&two",
+			RawPath: "/file%20one%26two",
 		},
-		"http://www.google.com/file%20one&two",
+		"",
 	},
 	// user
 	{
@@ -98,6 +99,7 @@ var urltests = []URLTest{
 			Scheme:   "http",
 			Host:     "www.google.com",
 			Path:     "/a b",
+			RawPath:  "/a%20b",
 			RawQuery: "q=c+d",
 		},
 		"",
@@ -369,6 +371,18 @@ var urltests = []URLTest{
 		},
 		"http://[fe80::1%25en01-._~]:8080/",
 	},
+	// alternate escapings of path survive round trip
+	{
+		"http://rest.rsc.io/foo%2fbar/baz%2Fquux?alt=media",
+		&URL{
+			Scheme:   "http",
+			Host:     "rest.rsc.io",
+			Path:     "/foo/bar/baz/quux",
+			RawPath:  "/foo%2fbar/baz%2Fquux",
+			RawQuery: "alt=media",
+		},
+		"",
+	},
 }
 
 // more useful string for debugging than fmt's struct printer
@@ -390,6 +404,9 @@ func DoTest(t *testing.T, parse func(string) (*URL, error), name string, tests [
 		if err != nil {
 			t.Errorf("%s(%q) returned error %s", name, tt.in, err)
 			continue
+		}
+		if tt.out.RawPath == "" {
+			tt.out.RawPath = tt.out.Path
 		}
 		if !reflect.DeepEqual(u, tt.out) {
 			t.Errorf("%s(%q):\n\thave %v\n\twant %v\n",
@@ -973,6 +990,25 @@ var requritests = []RequestURITest{
 		},
 		"http://other.example.com/%2F/%2F/",
 	},
+	// better fix for issue 4860
+	{
+		&URL{
+			Scheme:  "http",
+			Host:    "example.com",
+			Path:    "/////",
+			RawPath: "/%2F/%2F/",
+		},
+		"/%2F/%2F/",
+	},
+	{
+		&URL{
+			Scheme:  "http",
+			Host:    "example.com",
+			Path:    "/////",
+			RawPath: "/WRONG/", // ignored because doesn't match Path
+		},
+		"/////",
+	},
 	{
 		&URL{
 			Scheme:   "http",
@@ -981,6 +1017,26 @@ var requritests = []RequestURITest{
 			RawQuery: "q=go+language",
 		},
 		"/a%20b?q=go+language",
+	},
+	{
+		&URL{
+			Scheme:   "http",
+			Host:     "example.com",
+			Path:     "/a b",
+			RawPath:  "/a b", // ignored because invalid
+			RawQuery: "q=go+language",
+		},
+		"/a%20b?q=go+language",
+	},
+	{
+		&URL{
+			Scheme:   "http",
+			Host:     "example.com",
+			Path:     "/a?b",
+			RawPath:  "/a?b", // ignored because invalid
+			RawQuery: "q=go+language",
+		},
+		"/a%3Fb?q=go+language",
 	},
 	{
 		&URL{
