@@ -101,31 +101,31 @@ func (x *Int) Format(s fmt.State, ch rune) {
 	digits := x.abs.string(cs)
 
 	// number of characters for the three classes of number padding
-	var left int   // space characters to left of digits for right justification ("%8d")
-	var zeroes int // zero characters (actually cs[0]) as left-most digits ("%.8d")
-	var right int  // space characters to right of digits for left justification ("%-8d")
+	var left int  // space characters to left of digits for right justification ("%8d")
+	var zeros int // zero characters (actually cs[0]) as left-most digits ("%.8d")
+	var right int // space characters to right of digits for left justification ("%-8d")
 
 	// determine number padding from precision: the least number of digits to output
 	precision, precisionSet := s.Precision()
 	if precisionSet {
 		switch {
 		case len(digits) < precision:
-			zeroes = precision - len(digits) // count of zero padding
+			zeros = precision - len(digits) // count of zero padding
 		case digits == "0" && precision == 0:
 			return // print nothing if zero value (x == 0) and zero precision ("." or ".0")
 		}
 	}
 
 	// determine field pad from width: the least number of characters to output
-	length := len(sign) + len(prefix) + zeroes + len(digits)
+	length := len(sign) + len(prefix) + zeros + len(digits)
 	if width, widthSet := s.Width(); widthSet && length < width { // pad as specified
 		switch d := width - length; {
 		case s.Flag('-'):
 			// pad on the right with spaces; supersedes '0' when both specified
 			right = d
 		case s.Flag('0') && !precisionSet:
-			// pad with zeroes unless precision also specified
-			zeroes = d
+			// pad with zeros unless precision also specified
+			zeros = d
 		default:
 			// pad on the left with spaces
 			left = d
@@ -136,7 +136,7 @@ func (x *Int) Format(s fmt.State, ch rune) {
 	writeMultiple(s, " ", left)
 	writeMultiple(s, sign, 1)
 	writeMultiple(s, prefix, 1)
-	writeMultiple(s, "0", zeroes)
+	writeMultiple(s, "0", zeros)
 	writeMultiple(s, digits, 1)
 	writeMultiple(s, " ", right)
 }
