@@ -1064,26 +1064,26 @@ func TestProgWideChdir(t *testing.T) {
 	}
 	oldwd, err := Getwd()
 	if err != nil {
-		t.Fatal("Getwd: %v", err)
+		t.Fatalf("Getwd: %v", err)
 	}
 	d, err := ioutil.TempDir("", "test")
 	if err != nil {
-		t.Fatal("TempDir: %v", err)
+		t.Fatalf("TempDir: %v", err)
 	}
 	defer func() {
 		if err := Chdir(oldwd); err != nil {
-			t.Fatal("Chdir: %v", err)
+			t.Fatalf("Chdir: %v", err)
 		}
 		RemoveAll(d)
 	}()
 	if err := Chdir(d); err != nil {
-		t.Fatal("Chdir: %v", err)
+		t.Fatalf("Chdir: %v", err)
 	}
 	// OS X sets TMPDIR to a symbolic link.
 	// So we resolve our working directory again before the test.
 	d, err = Getwd()
 	if err != nil {
-		t.Fatal("Getwd: %v", err)
+		t.Fatalf("Getwd: %v", err)
 	}
 	close(c)
 	for i := 0; i < N; i++ {
