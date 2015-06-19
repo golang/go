@@ -189,12 +189,6 @@ func TestBounds(t *testing.T) {
 }
 
 func TestNoPalette(t *testing.T) {
-	// https://go-review.googlesource.com/#/c/11227/
-	// changed the lzw encoder to reject input bytes that are too large,
-	// so that this test code no longer generates the right invalid GIF.
-	// TODO(nigeltao): re-enable this test somehow.
-	return
-
 	b := &bytes.Buffer{}
 
 	// Manufacture a GIF with no palette, so any pixel at all
@@ -206,11 +200,15 @@ func TestNoPalette(t *testing.T) {
 	b.WriteString("\x2c\x00\x00\x00\x00\x02\x00\x01\x00\x00\x02")
 
 	// Encode the pixels: neither is in range, because there is no palette.
-	pix := []byte{0, 128}
+	pix := []byte{0, 3}
 	enc := &bytes.Buffer{}
 	w := lzw.NewWriter(enc, lzw.LSB, 2)
-	w.Write(pix)
-	w.Close()
+	if _, err := w.Write(pix); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
 	b.WriteByte(byte(len(enc.Bytes())))
 	b.Write(enc.Bytes())
 	b.WriteByte(0x00) // An empty block signifies the end of the image data.
@@ -221,13 +219,7 @@ func TestNoPalette(t *testing.T) {
 }
 
 func TestPixelOutsidePaletteRange(t *testing.T) {
-	// https://go-review.googlesource.com/#/c/11227/
-	// changed the lzw encoder to reject input bytes that are too large,
-	// so that this test code no longer generates the right invalid GIF.
-	// TODO(nigeltao): re-enable this test somehow.
-	return
-
-	for _, pval := range []byte{0, 1, 2, 3, 255} {
+	for _, pval := range []byte{0, 1, 2, 3} {
 		b := &bytes.Buffer{}
 
 		// Manufacture a GIF with a 2 color palette.
@@ -241,8 +233,12 @@ func TestPixelOutsidePaletteRange(t *testing.T) {
 		pix := []byte{pval, pval}
 		enc := &bytes.Buffer{}
 		w := lzw.NewWriter(enc, lzw.LSB, 2)
-		w.Write(pix)
-		w.Close()
+		if _, err := w.Write(pix); err != nil {
+			t.Fatalf("Write: %v", err)
+		}
+		if err := w.Close(); err != nil {
+			t.Fatalf("Close: %v", err)
+		}
 		b.WriteByte(byte(len(enc.Bytes())))
 		b.Write(enc.Bytes())
 		b.WriteByte(0x00) // An empty block signifies the end of the image data.
