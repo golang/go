@@ -30,9 +30,9 @@ const p = "cmd/doc/testdata"
 var tests = []test{
 	// Sanity check.
 	{
-		"fmt",
-		[]string{`fmt`},
-		[]string{`type Formatter interface`},
+		"sanity check",
+		[]string{p},
+		[]string{`type ExportedType struct`},
 		nil,
 	},
 
