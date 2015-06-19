@@ -42,6 +42,14 @@ func testNEWUSERRemap(t *testing.T, uid, gid int, setgroups bool) {
 	cmd := whoamiCmd(t, uid, gid, setgroups)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
+		// On some systems, there is a sysctl setting.
+		if os.IsPermission(err) && os.Getuid() != 0 {
+			data, errRead := ioutil.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
+			if errRead == nil && data[0] == '0' {
+				t.Skip("kernel prohibits user namespace in unprivileged process")
+			}
+		}
+
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
 	}
 	sout := strings.TrimSpace(string(out))
@@ -97,7 +105,7 @@ func TestCloneNEWUSERAndRemapNoRootSetgroupsEnableSetgroups(t *testing.T) {
 	if err == nil {
 		t.Skip("probably old kernel without security fix")
 	}
-	if !strings.Contains(err.Error(), "operation not permitted") {
+	if !os.IsPermission(err) {
 		t.Fatalf("Unprivileged gid_map rewriting with GidMappingsEnableSetgroups must fail")
 	}
 }
