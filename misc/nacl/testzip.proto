@@ -18,6 +18,12 @@ go	src=..
 					asm
 						testdata
 							+
+			doc
+				main.go
+				pkg.go
+				doc_test.go
+				testdata
+					+
 			internal
 				objfile
 					objfile.go

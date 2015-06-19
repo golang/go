@@ -30,6 +30,7 @@ import (
 	"flag"
 	"fmt"
 	"go/build"
+	"io"
 	"log"
 	"os"
 	"path"
@@ -40,8 +41,8 @@ import (
 )
 
 var (
-	unexported = flag.Bool("u", false, "show unexported symbols as well as exported")
-	matchCase  = flag.Bool("c", false, "symbol matching honors case (paths not affected)")
+	unexported bool // -u flag
+	matchCase  bool // -c flag
 )
 
 // usage is a replacement usage function for the flags package.
@@ -62,11 +63,36 @@ func usage() {
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("doc: ")
-	flag.Usage = usage
-	flag.Parse()
-	buildPackage, userPath, symbol := parseArgs()
+	err := do(os.Stdout, flag.CommandLine, os.Args[1:])
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+// do is the workhorse, broken out of main to make testing easier.
+func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
+	flagSet.Usage = usage
+	unexported = false
+	matchCase = false
+	flagSet.BoolVar(&unexported, "u", false, "show unexported symbols as well as exported")
+	flagSet.BoolVar(&matchCase, "c", false, "symbol matching honors case (paths not affected)")
+	flagSet.Parse(args)
+	buildPackage, userPath, symbol := parseArgs(flagSet.Args())
 	symbol, method := parseSymbol(symbol)
-	pkg := parsePackage(buildPackage, userPath)
+	pkg := parsePackage(writer, buildPackage, userPath)
+	defer func() {
+		pkg.flush()
+		e := recover()
+		if e == nil {
+			return
+		}
+		pkgError, ok := e.(PackageError)
+		if ok {
+			err = pkgError
+			return
+		}
+		panic(e)
+	}()
 	switch {
 	case symbol == "":
 		pkg.packageDoc()
@@ -76,6 +102,7 @@ func main() {
 	default:
 		pkg.methodDoc(symbol, method)
 	}
+	return nil
 }
 
 // parseArgs analyzes the arguments (if any) and returns the package
@@ -83,8 +110,8 @@ func main() {
 // the path (or "" if it's the current package) and the symbol
 // (possibly with a .method) within that package.
 // parseSymbol is used to analyze the symbol itself.
-func parseArgs() (*build.Package, string, string) {
-	switch flag.NArg() {
+func parseArgs(args []string) (*build.Package, string, string) {
+	switch len(args) {
 	default:
 		usage()
 	case 0:
@@ -94,14 +121,14 @@ func parseArgs() (*build.Package, string, string) {
 		// Done below.
 	case 2:
 		// Package must be importable.
-		pkg, err := build.Import(flag.Arg(0), "", build.ImportComment)
+		pkg, err := build.Import(args[0], "", build.ImportComment)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("%s", err)
 		}
-		return pkg, flag.Arg(0), flag.Arg(1)
+		return pkg, args[0], args[1]
 	}
 	// Usual case: one argument.
-	arg := flag.Arg(0)
+	arg := args[0]
 	// If it contains slashes, it begins with a package path.
 	// First, is it a complete package path as it is? If so, we are done.
 	// This avoids confusion over package paths that have other
@@ -209,7 +236,7 @@ func isIdentifier(name string) {
 // If the unexported flag (-u) is true, isExported returns true because
 // it means that we treat the name as if it is exported.
 func isExported(name string) bool {
-	return *unexported || isUpper(name)
+	return unexported || isUpper(name)
 }
 
 // isUpper reports whether the name starts with an upper case letter.
