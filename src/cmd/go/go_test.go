@@ -1403,9 +1403,9 @@ func TestGoGetDashTIssue8181(t *testing.T) {
 	tg.parallel()
 	tg.makeTempdir()
 	tg.setenv("GOPATH", tg.path("."))
-	tg.run("get", "-t", "code.google.com/p/go-get-issue-8181/a", "code.google.com/p/go-get-issue-8181/b")
-	tg.runFail("list", "...")
-	tg.grepStdout("go.tools/godoc", "missing expected go.tools/godoc")
+	tg.run("get", "-v", "-t", "github.com/rsc/go-get-issue-8181/a", "github.com/rsc/go-get-issue-8181/b")
+	tg.run("list", "...")
+	tg.grepStdout("x/build/cmd/cl", "missing expected x/build/cmd/cl")
 }
 
 func TestShadowingLogic(t *testing.T) {
