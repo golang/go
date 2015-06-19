@@ -271,7 +271,6 @@ func (d *decoder) readHeaderAndScreenDescriptor() error {
 		}
 	}
 	// d.tmp[12] is the Pixel Aspect Ratio, which is ignored.
-	d.loopCount = -1
 	return nil
 }
 

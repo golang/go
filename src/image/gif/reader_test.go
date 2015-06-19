@@ -253,3 +253,24 @@ func TestPixelOutsidePaletteRange(t *testing.T) {
 		try(t, b.Bytes(), want)
 	}
 }
+
+func TestLoopCount(t *testing.T) {
+	data := []byte("GIF89a000\x00000,0\x00\x00\x00\n\x00" +
+		"\n\x00\x80000000\x02\b\xf01u\xb9\xfdal\x05\x00;")
+	img, err := DecodeAll(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal("DecodeAll:", err)
+	}
+	w := new(bytes.Buffer)
+	err = EncodeAll(w, img)
+	if err != nil {
+		t.Fatal("EncodeAll:", err)
+	}
+	img1, err := DecodeAll(w)
+	if err != nil {
+		t.Fatal("DecodeAll:", err)
+	}
+	if img.LoopCount != img1.LoopCount {
+		t.Errorf("loop count mismatch: %d vs %d", img.LoopCount, img1.LoopCount)
+	}
+}
