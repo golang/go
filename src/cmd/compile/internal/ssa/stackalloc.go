@@ -54,7 +54,7 @@ func stackalloc(f *Func) {
 				// v will have been materialized wherever it is needed.
 				continue
 			}
-			if len(v.Args) == 1 && (v.Args[0].Op == OpFP || v.Args[0].Op == OpSP || v.Args[0].Op == OpGlobal) {
+			if len(v.Args) == 1 && (v.Args[0].Op == OpSP || v.Args[0].Op == OpSB) {
 				continue
 			}
 			n = align(n, v.Type.Alignment())
@@ -64,54 +64,26 @@ func stackalloc(f *Func) {
 		}
 	}
 
+	// Finally, allocate space for all autos that we used
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			s, ok := v.Aux.(*AutoSymbol)
+			if !ok || s.Offset >= 0 {
+				continue
+			}
+			t := s.Typ
+			n = align(n, t.Alignment())
+			s.Offset = n
+			n += t.Size()
+		}
+	}
+
 	n = align(n, f.Config.ptrSize)
 	n += f.Config.ptrSize // space for return address.  TODO: arch-dependent
 	f.RegAlloc = home
 	f.FrameSize = n
 
 	// TODO: share stack slots among noninterfering (& gc type compatible) values
-
-	// adjust all uses of FP to SP now that we have the frame size.
-	var fp *Value
-	for _, b := range f.Blocks {
-		for _, v := range b.Values {
-			if v.Op == OpFP {
-				if fp != nil {
-					b.Fatalf("multiple FP ops: %s %s", fp, v)
-				}
-				fp = v
-			}
-			for i, a := range v.Args {
-				if a.Op != OpFP {
-					continue
-				}
-				// TODO: do this with arch-specific rewrite rules somehow?
-				switch v.Op {
-				case OpAMD64ADDQ:
-					// (ADDQ (FP) x) -> (LEAQ [n] (SP) x)
-					v.Op = OpAMD64LEAQ
-					v.AuxInt = n
-				case OpAMD64ADDQconst:
-					// TODO(matloob): Add LEAQconst op
-					v.AuxInt = addOff(v.AuxInt, n)
-				case OpAMD64LEAQ, OpAMD64MOVQload, OpAMD64MOVQstore, OpAMD64MOVLload, OpAMD64MOVLstore, OpAMD64MOVWload, OpAMD64MOVWstore, OpAMD64MOVBload, OpAMD64MOVBstore, OpAMD64MOVQloadidx8:
-					if v.Op == OpAMD64MOVQloadidx8 && i == 1 {
-						// Note: we could do it, but it is probably an error
-						f.Fatalf("can't do FP->SP adjust on index slot of load %s", v.Op)
-					}
-					// eg: (MOVQload [c] (FP) mem) -> (MOVQload [c+n] (SP) mem)
-					v.AuxInt = addOff(v.AuxInt, n)
-				default:
-					f.Unimplementedf("can't do FP->SP adjust on %s", v.Op)
-					// TODO: OpCopy -> ADDQ
-				}
-			}
-		}
-	}
-	if fp != nil {
-		fp.Op = OpSP
-		home[fp.ID] = &registers[4] // TODO: arch-dependent
-	}
 }
 
 // align increases n to the next multiple of a.  a must be a power of 2.

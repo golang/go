@@ -81,10 +81,10 @@ const (
 	OpAMD64MOVBQSX
 	OpAMD64MOVQconst
 	OpAMD64LEAQ
+	OpAMD64LEAQ1
 	OpAMD64LEAQ2
 	OpAMD64LEAQ4
 	OpAMD64LEAQ8
-	OpAMD64LEAQglobal
 	OpAMD64MOVBload
 	OpAMD64MOVBQZXload
 	OpAMD64MOVBQSXload
@@ -117,9 +117,9 @@ const (
 	OpCopy
 	OpConst
 	OpArg
-	OpGlobal
+	OpAddr
 	OpSP
-	OpFP
+	OpSB
 	OpFunc
 	OpLoad
 	OpStore
@@ -152,8 +152,8 @@ var opcodeTable = [...]opInfo{
 		name: "ADDQ",
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			clobbers: 0,
 			outputs: []regMask{
@@ -165,7 +165,7 @@ var opcodeTable = [...]opInfo{
 		name: "ADDQconst",
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			clobbers: 0,
 			outputs: []regMask{
@@ -178,8 +178,8 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.ASUBQ,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			clobbers: 0,
 			outputs: []regMask{
@@ -192,7 +192,7 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.ASUBQ,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			clobbers: 0,
 			outputs: []regMask{
@@ -205,8 +205,8 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.AIMULQ,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			clobbers: 0,
 			outputs: []regMask{
@@ -219,7 +219,7 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.AIMULQ,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			clobbers: 0,
 			outputs: []regMask{
@@ -232,8 +232,8 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.AANDQ,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			clobbers: 0,
 			outputs: []regMask{
@@ -246,7 +246,7 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.AANDQ,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			clobbers: 0,
 			outputs: []regMask{
@@ -259,8 +259,8 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.ASHLQ,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
-				2,          // .CX
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				2,     // .CX
 			},
 			clobbers: 0,
 			outputs: []regMask{
@@ -273,7 +273,7 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.ASHLQ,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			clobbers: 0,
 			outputs: []regMask{
@@ -286,8 +286,8 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.ASHRQ,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
-				2,          // .CX
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				2,     // .CX
 			},
 			clobbers: 0,
 			outputs: []regMask{
@@ -300,7 +300,7 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.ASHRQ,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			clobbers: 0,
 			outputs: []regMask{
@@ -313,8 +313,8 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.ASARQ,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
-				2,          // .CX
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				2,     // .CX
 			},
 			clobbers: 0,
 			outputs: []regMask{
@@ -327,7 +327,7 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.ASARQ,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			clobbers: 0,
 			outputs: []regMask{
@@ -339,7 +339,7 @@ var opcodeTable = [...]opInfo{
 		name: "NEGQ",
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			clobbers: 0,
 			outputs: []regMask{
@@ -352,8 +352,8 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.ACMPQ,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			clobbers: 0,
 			outputs: []regMask{
@@ -366,7 +366,7 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.ACMPQ,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			clobbers: 0,
 			outputs: []regMask{
@@ -379,8 +379,8 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.ATESTQ,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			clobbers: 0,
 			outputs: []regMask{
@@ -393,8 +393,8 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.ATESTB,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			clobbers: 0,
 			outputs: []regMask{
@@ -506,7 +506,7 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.AMOVLQSX,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			clobbers: 0,
 			outputs: []regMask{
@@ -519,7 +519,7 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.AMOVWQSX,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			clobbers: 0,
 			outputs: []regMask{
@@ -532,7 +532,7 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.AMOVBQSX,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			clobbers: 0,
 			outputs: []regMask{
@@ -554,8 +554,20 @@ var opcodeTable = [...]opInfo{
 		name: "LEAQ",
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+			},
+			clobbers: 0,
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "LEAQ1",
+		reg: regInfo{
+			inputs: []regMask{
+				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			clobbers: 0,
 			outputs: []regMask{
@@ -567,8 +579,8 @@ var opcodeTable = [...]opInfo{
 		name: "LEAQ2",
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			clobbers: 0,
 			outputs: []regMask{
@@ -580,8 +592,8 @@ var opcodeTable = [...]opInfo{
 		name: "LEAQ4",
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			clobbers: 0,
 			outputs: []regMask{
@@ -593,19 +605,9 @@ var opcodeTable = [...]opInfo{
 		name: "LEAQ8",
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "LEAQglobal",
-		reg: regInfo{
-			inputs:   []regMask{},
 			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -617,7 +619,7 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.AMOVB,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
 				0,
 			},
 			clobbers: 0,
@@ -630,7 +632,7 @@ var opcodeTable = [...]opInfo{
 		name: "MOVBQZXload",
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
 				0,
 			},
 			clobbers: 0,
@@ -643,7 +645,7 @@ var opcodeTable = [...]opInfo{
 		name: "MOVBQSXload",
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
 				0,
 			},
 			clobbers: 0,
@@ -657,7 +659,7 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.AMOVW,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
 				0,
 			},
 			clobbers: 0,
@@ -671,7 +673,7 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.AMOVL,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
 				0,
 			},
 			clobbers: 0,
@@ -685,7 +687,7 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.AMOVQ,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
 				0,
 			},
 			clobbers: 0,
@@ -699,8 +701,8 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.AMOVQ,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				0,
 			},
 			clobbers: 0,
@@ -714,8 +716,8 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.AMOVB,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				0,
 			},
 			clobbers: 0,
@@ -727,8 +729,8 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.AMOVW,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				0,
 			},
 			clobbers: 0,
@@ -740,8 +742,8 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.AMOVL,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				0,
 			},
 			clobbers: 0,
@@ -753,8 +755,8 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.AMOVQ,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				0,
 			},
 			clobbers: 0,
@@ -765,9 +767,9 @@ var opcodeTable = [...]opInfo{
 		name: "MOVQstoreidx8",
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				0,
 			},
 			clobbers: 0,
@@ -802,8 +804,8 @@ var opcodeTable = [...]opInfo{
 		name: "CALLclosure",
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
-				4,          // .DX
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				4,     // .DX
 				0,
 			},
 			clobbers: 0,
@@ -827,8 +829,8 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.AADDL,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			clobbers: 0,
 			outputs: []regMask{
@@ -841,8 +843,8 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.AADDW,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			clobbers: 0,
 			outputs: []regMask{
@@ -855,8 +857,8 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.AADDB,
 		reg: regInfo{
 			inputs: []regMask{
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			clobbers: 0,
 			outputs: []regMask{
@@ -964,7 +966,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name: "Global",
+		name: "Addr",
 		reg: regInfo{
 			inputs:   []regMask{},
 			clobbers: 0,
@@ -982,7 +984,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name: "FP",
+		name: "SB",
 		reg: regInfo{
 			inputs:   []regMask{},
 			clobbers: 0,

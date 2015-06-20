@@ -12,7 +12,7 @@ func lower(f *Func) {
 	// Check for unlowered opcodes, fail if we find one.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			if opcodeTable[v.Op].generic && v.Op != OpFP && v.Op != OpSP && v.Op != OpArg && v.Op != OpCopy && v.Op != OpPhi {
+			if opcodeTable[v.Op].generic && v.Op != OpSP && v.Op != OpSB && v.Op != OpArg && v.Op != OpCopy && v.Op != OpPhi {
 				f.Unimplementedf("%s not lowered", v.LongString())
 			}
 		}

@@ -68,6 +68,8 @@
 
 (Const <t> [val]) && t.IsInteger() -> (MOVQconst [val])
 
+(Addr {sym} base) -> (LEAQ {sym} base)
+
 // block rewrites
 (If (SETL cmp) yes no) -> (LT cmp yes no)
 (If (SETNE cmp) yes no) -> (NE cmp yes no)
@@ -79,9 +81,6 @@
 
 // Rules below here apply some simple optimizations after lowering.
 // TODO: Should this be a separate pass?
-
-// global loads/stores
-(Global {sym}) -> (LEAQglobal {sym})
 
 // fold constants into instructions
 (ADDQ x (MOVQconst [c])) -> (ADDQconst [c] x) // TODO: restrict c to int32 range?
@@ -118,6 +117,11 @@
 // Nevertheless, let's do it!
 (MOVQload [off1] (ADDQconst [off2] ptr) mem) -> (MOVQload [addOff(off1, off2)] ptr mem)
 (MOVQstore [off1] (ADDQconst [off2] ptr) val mem) -> (MOVQstore [addOff(off1, off2)] ptr val mem)
+
+(MOVQload [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && (sym1 == nil || sym2 == nil) ->
+	  (MOVQload [addOff(off1,off2)] {mergeSym(sym1,sym2)} base mem)
+(MOVQstore [off1] {sym1} (LEAQ [off2] {sym2} base) val mem) && (sym1 == nil || sym2 == nil) ->
+	   (MOVQstore [addOff(off1,off2)] {mergeSym(sym1,sym2)} base val mem)
 
 // indexed loads and stores
 (MOVQload [off1] (LEAQ8 [off2] ptr idx) mem) -> (MOVQloadidx8 [addOff(off1, off2)] ptr idx mem)

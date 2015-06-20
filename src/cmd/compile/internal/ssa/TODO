@@ -28,6 +28,14 @@ Regalloc
  - Floating point registers
  - Make calls clobber all registers
 
+StackAlloc:
+ - Compute size of outargs section correctly
+ - Sort variables so all ptr-containing ones are first (so stack
+   maps are smaller)
+ - Reuse stack slots for noninterfering and type-compatible variables
+   (both AUTOs and spilled Values).  But see issue 8740 for what
+   "type-compatible variables" mean and what DWARF information provides.
+
 Rewrites
  - Strength reduction (both arch-indep and arch-dependent?)
  - Start another architecture (arm?)
