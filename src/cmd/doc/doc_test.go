@@ -53,9 +53,9 @@ var tests = []test{
 		[]string{
 			`Package comment`,
 			`const ExportedConstant = 1`,                            // Simple constant.
-			`ConstOne = 1`,                                          // First entry in constant block.
-			`const ExportedVariable = 1`,                            // Simple variable.
-			`VarOne = 1`,                                            // First entry in variable block.
+			`const ConstOne = 1`,                                    // First entry in constant block.
+			`var ExportedVariable = 1`,                              // Simple variable.
+			`var VarOne = 1`,                                        // First entry in variable block.
 			`func ExportedFunc\(a int\) bool`,                       // Function.
 			`type ExportedType struct { ... }`,                      // Exported type.
 			`const ExportedTypedConstant ExportedType = iota`,       // Typed constant.
@@ -63,7 +63,7 @@ var tests = []test{
 		},
 		[]string{
 			`const internalConstant = 2`,        // No internal constants.
-			`const internalVariable = 2`,        // No internal variables.
+			`var internalVariable = 2`,          // No internal variables.
 			`func internalFunc(a int) bool`,     // No internal functions.
 			`Comment about exported constant`,   // No comment for single constant.
 			`Comment about exported variable`,   // No comment for single variable.
@@ -144,7 +144,7 @@ var tests = []test{
 		[]string{p, `ExportedVariable`},
 		[]string{
 			`ExportedVariable`, // Include comment.
-			`const ExportedVariable = 1`,
+			`var ExportedVariable = 1`,
 		},
 		nil,
 	},
@@ -154,7 +154,7 @@ var tests = []test{
 		[]string{`-u`, p, `internalVariable`},
 		[]string{
 			`Comment about internal variable`, // Include comment.
-			`const internalVariable = 2`,
+			`var internalVariable = 2`,
 		},
 		nil,
 	},
