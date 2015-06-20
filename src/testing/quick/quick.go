@@ -249,7 +249,7 @@ func Check(f interface{}, config *Config) (err error) {
 	}
 
 	if fType.NumOut() != 1 {
-		err = SetupError("function returns more than one value.")
+		err = SetupError("function does not return one value")
 		return
 	}
 	if fType.Out(0).Kind() != reflect.Bool {
