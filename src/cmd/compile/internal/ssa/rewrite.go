@@ -99,6 +99,17 @@ func addOff(x, y int64) int64 {
 	return z
 }
 
+func mergeSym(x, y interface{}) interface{} {
+	if x == nil {
+		return y
+	}
+	if y == nil {
+		return x
+	}
+	panic(fmt.Sprintf("mergeSym with two non-nil syms %s %s", x, y))
+	return nil
+}
+
 func inBounds(idx, len int64) bool {
 	return idx >= 0 && idx < len
 }

@@ -9,7 +9,7 @@ import (
 
 	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
-	"cmd/internal/obj/x86" // TODO: remove
+	"cmd/internal/obj/x86"
 )
 
 // buildssa builds an SSA function
@@ -60,13 +60,28 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 	s.exit = s.f.NewBlock(ssa.BlockExit)
 
 	// Allocate starting values
-	s.startmem = s.entryNewValue0(ssa.OpArg, ssa.TypeMem)
-	s.fp = s.entryNewValue0(ssa.OpFP, s.config.Uintptr) // TODO: use generic pointer type (unsafe.Pointer?) instead
-	s.sp = s.entryNewValue0(ssa.OpSP, s.config.Uintptr)
-
-	s.vars = map[string]*ssa.Value{}
+	s.vars = map[*Node]*ssa.Value{}
 	s.labels = map[string]*ssa.Block{}
-	s.argOffsets = map[string]int64{}
+	s.startmem = s.entryNewValue0(ssa.OpArg, ssa.TypeMem)
+	s.sp = s.entryNewValue0(ssa.OpSP, s.config.Uintptr) // TODO: use generic pointer type (unsafe.Pointer?) instead
+	s.sb = s.entryNewValue0(ssa.OpSB, s.config.Uintptr)
+
+	// Generate addresses of local declarations
+	s.decladdrs = map[*Node]*ssa.Value{}
+	for d := fn.Func.Dcl; d != nil; d = d.Next {
+		n := d.N
+		switch n.Class {
+		case PPARAM, PPARAMOUT:
+			aux := &ssa.ArgSymbol{Typ: n.Type, Offset: n.Xoffset, Sym: n.Sym}
+			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
+		case PAUTO:
+			aux := &ssa.AutoSymbol{Typ: n.Type, Offset: -1, Sym: n.Sym} // offset TBD by SSA pass
+			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
+		}
+	}
+	// nodfp is a special argument which is the function's FP.
+	aux := &ssa.ArgSymbol{Typ: s.config.Uintptr, Offset: 0, Sym: nodfp.Sym}
+	s.decladdrs[nodfp] = s.entryNewValue1A(ssa.OpAddr, s.config.Uintptr, aux, s.sp)
 
 	// Convert the AST-based IR to the SSA-based IR
 	s.startBlock(s.f.Entry)
@@ -116,20 +131,20 @@ type state struct {
 	// current location where we're interpreting the AST
 	curBlock *ssa.Block
 
-	// variable assignments in the current block (map from variable name to ssa value)
-	vars map[string]*ssa.Value
+	// variable assignments in the current block (map from variable symbol to ssa value)
+	// *Node is the unique identifier (an ONAME Node) for the variable.
+	vars map[*Node]*ssa.Value
 
 	// all defined variables at the end of each block.  Indexed by block ID.
-	defvars []map[string]*ssa.Value
+	defvars []map[*Node]*ssa.Value
 
-	// offsets of argument slots
-	// unnamed and unused args are not listed.
-	argOffsets map[string]int64
+	// addresses of PPARAM, PPARAMOUT, and PAUTO variables.
+	decladdrs map[*Node]*ssa.Value
 
 	// starting values.  Memory, frame pointer, and stack pointer
 	startmem *ssa.Value
-	fp       *ssa.Value
 	sp       *ssa.Value
+	sb       *ssa.Value
 
 	// line number stack.  The current line number is top of stack
 	line []int32
@@ -138,13 +153,16 @@ type state struct {
 func (s *state) Fatalf(msg string, args ...interface{})         { s.config.Fatalf(msg, args...) }
 func (s *state) Unimplementedf(msg string, args ...interface{}) { s.config.Unimplementedf(msg, args...) }
 
+// dummy node for the memory variable
+var memvar = Node{Op: ONAME, Sym: &Sym{Name: "mem"}}
+
 // startBlock sets the current block we're generating code in to b.
 func (s *state) startBlock(b *ssa.Block) {
 	if s.curBlock != nil {
 		s.Fatalf("starting block %v when block %v has not ended", b, s.curBlock)
 	}
 	s.curBlock = b
-	s.vars = map[string]*ssa.Value{}
+	s.vars = map[*Node]*ssa.Value{}
 }
 
 // endBlock marks the end of generating code for the current block.
@@ -228,6 +246,11 @@ func (s *state) entryNewValue1(op ssa.Op, t ssa.Type, arg *ssa.Value) *ssa.Value
 // entryNewValue1 adds a new value with one argument and an auxint value to the entry block.
 func (s *state) entryNewValue1I(op ssa.Op, t ssa.Type, auxint int64, arg *ssa.Value) *ssa.Value {
 	return s.f.Entry.NewValue1I(s.peekLine(), op, t, auxint, arg)
+}
+
+// entryNewValue1A adds a new value with one argument and an aux value to the entry block.
+func (s *state) entryNewValue1A(op ssa.Op, t ssa.Type, aux interface{}, arg *ssa.Value) *ssa.Value {
+	return s.f.Entry.NewValue1A(s.peekLine(), op, t, aux, arg)
 }
 
 // entryNewValue2 adds a new value with two arguments to the entry block.
@@ -394,11 +417,12 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case ONAME:
 		if n.Class == PFUNC {
 			// "value" of a function is the address of the function's closure
-			return s.entryNewValue0A(ssa.OpGlobal, Ptrto(n.Type), funcsym(n.Sym))
+			sym := funcsym(n.Sym)
+			aux := &ssa.ExternSymbol{n.Type, sym}
+			return s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sb)
 		}
-		s.argOffsets[n.Sym.Name] = n.Xoffset // TODO: remember this another way?
 		if canSSA(n) {
-			return s.variable(n.Sym.Name, n.Type)
+			return s.variable(n, n.Type)
 		}
 		addr := s.addr(n)
 		return s.newValue2(ssa.OpLoad, n.Type, addr, s.mem())
@@ -540,12 +564,12 @@ func (s *state) assign(op uint8, left *Node, right *Node) {
 	}
 	if left.Op == ONAME && canSSA(left) {
 		// Update variable assignment.
-		s.vars[left.Sym.Name] = val
+		s.vars[left] = val
 		return
 	}
 	// not ssa-able.  Treat as a store.
 	addr := s.addr(left)
-	s.vars[".mem"] = s.newValue3(ssa.OpStore, ssa.TypeMem, addr, val, s.mem())
+	s.vars[&memvar] = s.newValue3(ssa.OpStore, ssa.TypeMem, addr, val, s.mem())
 }
 
 // addr converts the address of the expression n to SSA, adds it to s and returns the SSA result.
@@ -555,14 +579,14 @@ func (s *state) addr(n *Node) *ssa.Value {
 		switch n.Class {
 		case PEXTERN:
 			// global variable
-			return s.entryNewValue0A(ssa.OpGlobal, Ptrto(n.Type), n.Sym)
-		case PPARAMOUT:
-			// store to parameter slot
-			return s.entryNewValue1I(ssa.OpOffPtr, Ptrto(n.Type), n.Xoffset, s.fp)
+			aux := &ssa.ExternSymbol{n.Type, n.Sym}
+			return s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sb)
+		case PPARAM, PPARAMOUT, PAUTO:
+			// parameter/result slot or local variable
+			return s.decladdrs[n]
 		case PAUTO | PHEAP:
 			return s.expr(n.Name.Heapaddr)
 		default:
-			// TODO: address of locals
 			s.Unimplementedf("variable address of %v not implemented", n)
 			return nil
 		}
@@ -647,7 +671,7 @@ func (s *state) boundsCheck(idx, len *ssa.Value) {
 }
 
 // variable returns the value of a variable at the current location.
-func (s *state) variable(name string, t ssa.Type) *ssa.Value {
+func (s *state) variable(name *Node, t ssa.Type) *ssa.Value {
 	if s.curBlock == nil {
 		// Unimplemented instead of Fatal because fixedbugs/bug303.go
 		// demonstrates a case in which this appears to happen legitimately.
@@ -664,7 +688,7 @@ func (s *state) variable(name string, t ssa.Type) *ssa.Value {
 }
 
 func (s *state) mem() *ssa.Value {
-	return s.variable(".mem", ssa.TypeMem)
+	return s.variable(&memvar, ssa.TypeMem)
 }
 
 func (s *state) linkForwardReferences() {
@@ -679,7 +703,7 @@ func (s *state) linkForwardReferences() {
 			if v.Op != ssa.OpFwdRef {
 				continue
 			}
-			name := v.Aux.(string)
+			name := v.Aux.(*Node)
 			v.Op = ssa.OpCopy
 			v.Aux = nil
 			v.SetArgs1(s.lookupVarIncoming(b, v.Type, name))
@@ -688,17 +712,23 @@ func (s *state) linkForwardReferences() {
 }
 
 // lookupVarIncoming finds the variable's value at the start of block b.
-func (s *state) lookupVarIncoming(b *ssa.Block, t ssa.Type, name string) *ssa.Value {
+func (s *state) lookupVarIncoming(b *ssa.Block, t ssa.Type, name *Node) *ssa.Value {
 	// TODO(khr): have lookupVarIncoming overwrite the fwdRef or copy it
 	// will be used in, instead of having the result used in a copy value.
 	if b == s.f.Entry {
-		if name == ".mem" {
+		if name == &memvar {
 			return s.startmem
 		}
 		// variable is live at the entry block.  Load it.
-		addr := s.entryNewValue1I(ssa.OpOffPtr, Ptrto(t.(*Type)), s.argOffsets[name], s.fp)
+		addr := s.decladdrs[name]
+		if addr == nil {
+			// TODO: closure args reach here.
+			s.Unimplementedf("variable %s not found", name)
+		}
+		if _, ok := addr.Aux.(*ssa.ArgSymbol); !ok {
+			s.Fatalf("variable live at start of function %s is not an argument %s", b.Func.Name, name)
+		}
 		return s.entryNewValue2(ssa.OpLoad, t, addr, s.startmem)
-
 	}
 	var vals []*ssa.Value
 	for _, p := range b.Preds {
@@ -721,7 +751,7 @@ func (s *state) lookupVarIncoming(b *ssa.Block, t ssa.Type, name string) *ssa.Va
 }
 
 // lookupVarOutgoing finds the variable's value at the end of block b.
-func (s *state) lookupVarOutgoing(b *ssa.Block, t ssa.Type, name string) *ssa.Value {
+func (s *state) lookupVarOutgoing(b *ssa.Block, t ssa.Type, name *Node) *ssa.Value {
 	m := s.defvars[b.ID]
 	if v, ok := m[name]; ok {
 		return v
@@ -962,13 +992,20 @@ func genValue(v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-	case ssa.OpAMD64LEAQ:
+	case ssa.OpAMD64LEAQ1:
 		p := Prog(x86.ALEAQ)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = regnum(v.Args[0])
 		p.From.Scale = 1
 		p.From.Index = regnum(v.Args[1])
-		p.From.Offset = v.AuxInt
+		addAux(&p.From, v)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = regnum(v)
+	case ssa.OpAMD64LEAQ:
+		p := Prog(x86.ALEAQ)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = regnum(v.Args[0])
+		addAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
 	case ssa.OpAMD64CMPQ, ssa.OpAMD64TESTB, ssa.OpAMD64TESTQ:
@@ -994,14 +1031,14 @@ func genValue(v *ssa.Value) {
 		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = regnum(v.Args[0])
-		p.From.Offset = v.AuxInt
+		addAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
 	case ssa.OpAMD64MOVQloadidx8:
 		p := Prog(x86.AMOVQ)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = regnum(v.Args[0])
-		p.From.Offset = v.AuxInt
+		addAux(&p.From, v)
 		p.From.Scale = 8
 		p.From.Index = regnum(v.Args[1])
 		p.To.Type = obj.TYPE_REG
@@ -1012,7 +1049,7 @@ func genValue(v *ssa.Value) {
 		p.From.Reg = regnum(v.Args[1])
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = regnum(v.Args[0])
-		p.To.Offset = v.AuxInt
+		addAux(&p.To, v)
 	case ssa.OpAMD64MOVLQSX, ssa.OpAMD64MOVWQSX, ssa.OpAMD64MOVBQSX:
 		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
@@ -1062,14 +1099,6 @@ func genValue(v *ssa.Value) {
 	case ssa.OpArg:
 		// memory arg needs no code
 		// TODO: check that only mem arg goes here.
-	case ssa.OpAMD64LEAQglobal:
-		p := Prog(x86.ALEAQ)
-		p.From.Type = obj.TYPE_MEM
-		p.From.Name = obj.NAME_EXTERN
-		p.From.Sym = Linksym(v.Aux.(*Sym))
-		p.From.Offset = v.AuxInt
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v)
 	case ssa.OpAMD64CALLstatic:
 		p := Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
@@ -1079,7 +1108,7 @@ func genValue(v *ssa.Value) {
 		p := Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v.Args[0])
-	case ssa.OpFP, ssa.OpSP:
+	case ssa.OpSP, ssa.OpSB:
 		// nothing to do
 	default:
 		v.Unimplementedf("value %s not implemented", v.LongString())
@@ -1195,6 +1224,35 @@ func genBlock(b, next *ssa.Block, branches []branch) []branch {
 	return branches
 }
 
+// addAux adds the offset in the aux fields (AuxInt and Aux) of v to a.
+func addAux(a *obj.Addr, v *ssa.Value) {
+	if a.Type != obj.TYPE_MEM {
+		v.Fatalf("bad addAux addr %s", a)
+	}
+	// add integer offset
+	a.Offset += v.AuxInt
+
+	// If no additional symbol offset, we're done.
+	if v.Aux == nil {
+		return
+	}
+	// Add symbol's offset from its base register.
+	switch sym := v.Aux.(type) {
+	case *ssa.ExternSymbol:
+		a.Name = obj.NAME_EXTERN
+		a.Sym = Linksym(sym.Sym.(*Sym))
+	case *ssa.ArgSymbol:
+		a.Offset += v.Block.Func.FrameSize + sym.Offset
+	case *ssa.AutoSymbol:
+		if sym.Offset == -1 {
+			v.Fatalf("auto symbol %s offset not calculated", sym.Sym)
+		}
+		a.Offset += sym.Offset
+	default:
+		v.Fatalf("aux in %s not implemented %#v", v, v.Aux)
+	}
+}
+
 // ssaRegToReg maps ssa register numbers to obj register numbers.
 var ssaRegToReg = [...]int16{
 	x86.REG_AX,
@@ -1213,7 +1271,23 @@ var ssaRegToReg = [...]int16{
 	x86.REG_R13,
 	x86.REG_R14,
 	x86.REG_R15,
-	// TODO: more
+	x86.REG_X0,
+	x86.REG_X1,
+	x86.REG_X2,
+	x86.REG_X3,
+	x86.REG_X4,
+	x86.REG_X5,
+	x86.REG_X6,
+	x86.REG_X7,
+	x86.REG_X8,
+	x86.REG_X9,
+	x86.REG_X10,
+	x86.REG_X11,
+	x86.REG_X12,
+	x86.REG_X13,
+	x86.REG_X14,
+	x86.REG_X15,
+	0, // SB isn't a real register.  We fill an Addr.Reg field with 0 in this case.
 	// TODO: arch-dependent
 }
 
@@ -1240,7 +1314,8 @@ type ssaExport struct {
 // StringSym returns a symbol (a *Sym wrapped in an interface) which
 // is a global string constant containing s.
 func (*ssaExport) StringSym(s string) interface{} {
-	return stringsym(s)
+	// TODO: is idealstring correct?  It might not matter...
+	return &ssa.ExternSymbol{Typ: idealstring, Sym: stringsym(s)}
 }
 
 // Log logs a message from the compiler.

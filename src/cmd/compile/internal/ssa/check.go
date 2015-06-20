@@ -104,6 +104,12 @@ func checkFunc(f *Func) {
 				f.Fatalf("phi length %s does not match pred length %d for block %s", v.LongString(), len(b.Preds), b)
 			}
 
+			if v.Op == OpAddr {
+				if v.Args[0].Op != OpSP && v.Args[0].Op != OpSB {
+					f.Fatalf("bad arg to OpAddr %v", v)
+				}
+			}
+
 			// TODO: check for cycles in values
 			// TODO: check type
 		}

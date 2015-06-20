@@ -114,3 +114,40 @@ func (v *Value) resetArgs() {
 func (v *Value) Logf(msg string, args ...interface{})           { v.Block.Logf(msg, args...) }
 func (v *Value) Fatalf(msg string, args ...interface{})         { v.Block.Fatalf(msg, args...) }
 func (v *Value) Unimplementedf(msg string, args ...interface{}) { v.Block.Unimplementedf(msg, args...) }
+
+// ExternSymbol is an aux value that encodes a variable's
+// constant offset from the static base pointer.
+type ExternSymbol struct {
+	Typ Type         // Go type
+	Sym fmt.Stringer // A *gc.Sym referring to a global variable
+	// Note: the offset for an external symbol is not
+	// calculated until link time.
+}
+
+// ArgSymbol is an aux value that encodes an argument or result
+// variable's constant offset from FP (FP = SP + framesize).
+type ArgSymbol struct {
+	Typ    Type         // Go type
+	Offset int64        // Distance above frame pointer
+	Sym    fmt.Stringer // A *gc.Sym referring to the argument/result variable.
+}
+
+// AutoSymbol is an aux value that encodes a local variable's
+// constant offset from SP.
+type AutoSymbol struct {
+	Typ    Type         // Go type
+	Offset int64        // Distance above stack pointer.  Set by stackalloc in SSA.
+	Sym    fmt.Stringer // A *gc.Sym referring to a local (auto) variable.
+}
+
+func (s *ExternSymbol) String() string {
+	return s.Sym.String()
+}
+
+func (s *ArgSymbol) String() string {
+	return s.Sym.String()
+}
+
+func (s *AutoSymbol) String() string {
+	return s.Sym.String()
+}

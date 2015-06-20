@@ -60,12 +60,12 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 	case OpConst:
 		// match: (Const <t> {s})
 		// cond: t.IsString()
-		// result: (StringMake (OffPtr <TypeBytePtr> [2*config.ptrSize] (Global <TypeBytePtr> {config.fe.StringSym(s.(string))})) (Const <config.Uintptr> [int64(len(s.(string)))]))
+		// result: (StringMake (OffPtr <TypeBytePtr> [2*config.ptrSize] (Addr <TypeBytePtr> {config.fe.StringSym(s.(string))} (SB <config.Uintptr>))) (Const <config.Uintptr> [int64(len(s.(string)))]))
 		{
 			t := v.Type
 			s := v.Aux
 			if !(t.IsString()) {
-				goto end6d6321106a054a5984b2ed0acec52a5b
+				goto end55cd8fd3b98a2459d0ee9d6cbb456b01
 			}
 			v.Op = OpStringMake
 			v.AuxInt = 0
@@ -74,19 +74,22 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v0 := v.Block.NewValue0(v.Line, OpOffPtr, TypeInvalid)
 			v0.Type = TypeBytePtr
 			v0.AuxInt = 2 * config.ptrSize
-			v1 := v.Block.NewValue0(v.Line, OpGlobal, TypeInvalid)
+			v1 := v.Block.NewValue0(v.Line, OpAddr, TypeInvalid)
 			v1.Type = TypeBytePtr
 			v1.Aux = config.fe.StringSym(s.(string))
+			v2 := v.Block.NewValue0(v.Line, OpSB, TypeInvalid)
+			v2.Type = config.Uintptr
+			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
-			v2 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
-			v2.Type = config.Uintptr
-			v2.AuxInt = int64(len(s.(string)))
-			v.AddArg(v2)
+			v3 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
+			v3.Type = config.Uintptr
+			v3.AuxInt = int64(len(s.(string)))
+			v.AddArg(v3)
 			return true
 		}
-		goto end6d6321106a054a5984b2ed0acec52a5b
-	end6d6321106a054a5984b2ed0acec52a5b:
+		goto end55cd8fd3b98a2459d0ee9d6cbb456b01
+	end55cd8fd3b98a2459d0ee9d6cbb456b01:
 		;
 	case OpIsInBounds:
 		// match: (IsInBounds (Const [c]) (Const [d]))

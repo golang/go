@@ -30,11 +30,17 @@ var genericOps = []opData{
 	{name: "Const"},
 
 	// Constant-like things
-	{name: "Arg"},    // address of a function parameter/result.  Memory input is an arg called ".mem".  aux is a string (TODO: make it something other than a string?)
-	{name: "Global"}, // the address of a global variable aux.(*gc.Sym)
-	{name: "SP"},     // stack pointer
-	{name: "FP"},     // frame pointer
-	{name: "Func"},   // entry address of a function
+	{name: "Arg"}, // memory input to the function.
+
+	// The address of a variable.  arg0 is the base pointer (SB or SP, depending
+	// on whether it is a global or stack variable).  The Aux field identifies the
+	// variable.  It will be either an *ExternSymbol (with arg0=SB), *ArgSymbol (arg0=SP),
+	// or *AutoSymbol (arg0=SP).
+	{name: "Addr"}, // Address of a variable.  Arg0=SP or SB.  Aux identifies the variable.
+
+	{name: "SP"},   // stack pointer
+	{name: "SB"},   // static base pointer (a.k.a. globals pointer)
+	{name: "Func"}, // entry address of a function
 
 	// Memory operations
 	{name: "Load"},  // Load from arg0.  arg1=memory

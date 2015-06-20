@@ -42,7 +42,7 @@ var regNamesAMD64 = []string{
 	".X15",
 
 	// pseudo-registers
-	".FP",
+	".SB",
 	".FLAGS",
 }
 
@@ -71,19 +71,22 @@ func init() {
 	}
 
 	gp := buildReg("AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15")
-	gpsp := gp | buildReg("SP FP")
+	gpsp := gp | buildReg("SP")
+	gpspsb := gpsp | buildReg("SB")
 	flags := buildReg("FLAGS")
 	gp01 := regInfo{[]regMask{}, 0, []regMask{gp}}
 	gp11 := regInfo{[]regMask{gpsp}, 0, []regMask{gp}}
+	gp11sb := regInfo{[]regMask{gpspsb}, 0, []regMask{gp}}
 	gp21 := regInfo{[]regMask{gpsp, gpsp}, 0, []regMask{gp}}
+	gp21sb := regInfo{[]regMask{gpspsb, gpsp}, 0, []regMask{gp}}
 	gp21shift := regInfo{[]regMask{gpsp, buildReg("CX")}, 0, []regMask{gp}}
 	gp2flags := regInfo{[]regMask{gpsp, gpsp}, 0, []regMask{flags}}
 	gp1flags := regInfo{[]regMask{gpsp}, 0, []regMask{flags}}
 	flagsgp1 := regInfo{[]regMask{flags}, 0, []regMask{gp}}
-	gpload := regInfo{[]regMask{gpsp, 0}, 0, []regMask{gp}}
-	gploadidx := regInfo{[]regMask{gpsp, gpsp, 0}, 0, []regMask{gp}}
-	gpstore := regInfo{[]regMask{gpsp, gpsp, 0}, 0, nil}
-	gpstoreidx := regInfo{[]regMask{gpsp, gpsp, gpsp, 0}, 0, nil}
+	gpload := regInfo{[]regMask{gpspsb, 0}, 0, []regMask{gp}}
+	gploadidx := regInfo{[]regMask{gpspsb, gpsp, 0}, 0, []regMask{gp}}
+	gpstore := regInfo{[]regMask{gpspsb, gpsp, 0}, 0, nil}
+	gpstoreidx := regInfo{[]regMask{gpspsb, gpsp, gpsp, 0}, 0, nil}
 	flagsgp := regInfo{[]regMask{flags}, 0, []regMask{gp}}
 	cmov := regInfo{[]regMask{flags, gp, gp}, 0, []regMask{gp}}
 
@@ -129,12 +132,12 @@ func init() {
 		{name: "MOVWQSX", reg: gp11, asm: "MOVWQSX"}, // extend arg0 from int16 to int64
 		{name: "MOVBQSX", reg: gp11, asm: "MOVBQSX"}, // extend arg0 from int8 to int64
 
-		{name: "MOVQconst", reg: gp01},  // auxint
-		{name: "LEAQ", reg: gp21},       // arg0 + arg1 + auxint
-		{name: "LEAQ2", reg: gp21},      // arg0 + 2*arg1 + auxint
-		{name: "LEAQ4", reg: gp21},      // arg0 + 4*arg1 + auxint
-		{name: "LEAQ8", reg: gp21},      // arg0 + 8*arg1 + auxint
-		{name: "LEAQglobal", reg: gp01}, // no args.  address of aux.(*gc.Sym)
+		{name: "MOVQconst", reg: gp01}, // auxint
+		{name: "LEAQ", reg: gp11sb},    // arg0 + auxint + offset encoded in aux
+		{name: "LEAQ1", reg: gp21sb},   // arg0 + arg1 + auxint
+		{name: "LEAQ2", reg: gp21sb},   // arg0 + 2*arg1 + auxint
+		{name: "LEAQ4", reg: gp21sb},   // arg0 + 4*arg1 + auxint
+		{name: "LEAQ8", reg: gp21sb},   // arg0 + 8*arg1 + auxint
 
 		{name: "MOVBload", reg: gpload, asm: "MOVB"},        // load byte from arg0+auxint. arg1=mem
 		{name: "MOVBQZXload", reg: gpload},                  // ditto, extend to uint64

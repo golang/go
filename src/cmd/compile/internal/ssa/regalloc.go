@@ -54,7 +54,7 @@ var registers = [...]Register{
 	Register{29, "X13"},
 	Register{30, "X14"},
 	Register{31, "X15"},
-	Register{32, "FP"}, // pseudo-register, actually a constant offset from SP
+	Register{32, "SB"}, // pseudo-register for global base pointer (aka %rip)
 	Register{33, "FLAGS"},
 
 	// TODO: make arch-dependent
@@ -101,15 +101,15 @@ func regalloc(f *Func) {
 
 	var oldSched []*Value
 
-	// Hack to find fp, sp Values and assign them a register. (TODO: make not so hacky)
-	var fp, sp *Value
+	// Hack to find sp and sb Values and assign them a register. (TODO: make not so hacky)
+	var sp, sb *Value
 	for _, v := range f.Entry.Values {
 		switch v.Op {
 		case OpSP:
 			sp = v
 			home = setloc(home, v, &registers[4]) // TODO: arch-dependent
-		case OpFP:
-			fp = v
+		case OpSB:
+			sb = v
 			home = setloc(home, v, &registers[32]) // TODO: arch-dependent
 		}
 	}
@@ -147,7 +147,7 @@ func regalloc(f *Func) {
 
 		// TODO: hack: initialize fixed registers
 		regs[4] = regInfo{sp, sp, false}
-		regs[32] = regInfo{fp, fp, false}
+		regs[32] = regInfo{sb, sb, false}
 
 		var used regMask  // has a 1 for each non-nil entry in regs
 		var dirty regMask // has a 1 for each dirty entry in regs
@@ -193,7 +193,7 @@ func regalloc(f *Func) {
 			// nospill contains registers that we can't spill because
 			// we already set them up for use by the current instruction.
 			var nospill regMask
-			nospill |= 0x100000010 // SP and FP can't be spilled (TODO: arch-specific)
+			nospill |= 0x100000010 // SP & SB can't be spilled (TODO: arch-specific)
 
 			// Move inputs into registers
 			for _, o := range order {
@@ -257,13 +257,15 @@ func regalloc(f *Func) {
 					var c *Value
 					if len(w.Args) == 0 {
 						// Materialize w
-						if w.Op == OpFP || w.Op == OpSP || w.Op == OpGlobal {
+						if w.Op == OpSB {
+							c = w
+						} else if w.Op == OpSP {
 							c = b.NewValue1(w.Line, OpCopy, w.Type, w)
 						} else {
 							c = b.NewValue0IA(w.Line, w.Op, w.Type, w.AuxInt, w.Aux)
 						}
-					} else if len(w.Args) == 1 && (w.Args[0].Op == OpFP || w.Args[0].Op == OpSP || w.Args[0].Op == OpGlobal) {
-						// Materialize offsets from SP/FP/Global
+					} else if len(w.Args) == 1 && (w.Args[0].Op == OpSP || w.Args[0].Op == OpSB) {
+						// Materialize offsets from SP/SB
 						c = b.NewValue1IA(w.Line, w.Op, w.Type, w.AuxInt, w.Aux, w.Args[0])
 					} else if wreg != 0 {
 						// Copy from another register.
