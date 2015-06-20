@@ -24,13 +24,13 @@ const (
 // Variables
 
 // Comment about exported variable.
-const ExportedVariable = 1
+var ExportedVariable = 1
 
 // Comment about internal variable.
-const internalVariable = 2
+var internalVariable = 2
 
 // Comment about block of variables.
-const (
+var (
 	// Comment before VarOne.
 	VarOne   = 1
 	VarTwo   = 2 // Comment on line with VarTwo.
