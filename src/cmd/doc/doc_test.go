@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"testing"
 )
 
@@ -212,6 +213,7 @@ var tests = []test{
 			`Has unexported fields`,
 			`func \(ExportedType\) ExportedMethod\(a int\) bool`,
 			`const ExportedTypedConstant ExportedType = iota`, // Must include associated constant.
+			`func ExportedTypeConstructor\(\) \*ExportedType`, // Must include constructor.
 		},
 		[]string{
 			`unexportedField`,                // No unexported field.
@@ -297,6 +299,9 @@ var tests = []test{
 }
 
 func TestDoc(t *testing.T) {
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+		t.Skip("TODO: on darwin/arm, test fails: no such package cmd/doc/testdata")
+	}
 	for _, test := range tests {
 		var b bytes.Buffer
 		var flagSet flag.FlagSet

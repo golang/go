@@ -66,6 +66,11 @@ const (
 	ExportedTypedConstant ExportedType = iota
 )
 
+// Comment about constructor for exported type.
+func ExportedTypeConstructor() *ExportedType {
+	return nil
+}
+
 const unexportedTypedConstant ExportedType = 1 // In a separate section to test -u.
 
 // Comment about unexported type.
