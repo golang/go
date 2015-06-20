@@ -807,9 +807,7 @@ func (p *Parser) term() uint64 {
 		case lex.LSH:
 			p.next()
 			shift := p.factor()
-			if int64(shift) < 0 {
-				p.errorf("negative left shift %d", shift)
-			}
+			// shift is a uint, so can never be negative.
 			return value << shift
 		case lex.RSH:
 			p.next()
