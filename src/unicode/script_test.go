@@ -14,9 +14,11 @@ type T struct {
 	script string
 }
 
-// Hand-chosen tests from Unicode 5.1.0, 6.0.0, 6.2.0, 6.3.0 and 7.0.0 mostly to
-// discover when new scripts and categories arise.
+// Hand-chosen tests from Unicode 5.1.0, 6.0.0, 6.2.0, 6.3.0, 7.0.0 and 8.0.0
+// mostly to discover when new scripts and categories arise.
 var inTest = []T{
+	{0x11711, "Ahom"},
+	{0x14646, "Anatolian_Hieroglyphs"},
 	{0x06e2, "Arabic"},
 	{0x0567, "Armenian"},
 	{0x10b20, "Avestan"},
@@ -58,6 +60,7 @@ var inTest = []T{
 	{0x3028, "Han"},
 	{0x11b8, "Hangul"},
 	{0x1727, "Hanunoo"},
+	{0x108FF, "Hatran"},
 	{0x05a0, "Hebrew"},
 	{0x3058, "Hiragana"},
 	{0x10841, "Imperial_Aramaic"},
@@ -94,12 +97,14 @@ var inTest = []T{
 	{0x11611, "Modi"},
 	{0x1822, "Mongolian"},
 	{0x16a60, "Mro"},
+	{0x11293, "Multani"},
 	{0x104c, "Myanmar"},
 	{0x10880, "Nabataean"},
 	{0x19c3, "New_Tai_Lue"},
 	{0x07f8, "Nko"},
 	{0x169b, "Ogham"},
 	{0x1c6a, "Ol_Chiki"},
+	{0x10C80, "Old_Hungarian"},
 	{0x10310, "Old_Italic"},
 	{0x10a80, "Old_North_Arabian"},
 	{0x10350, "Old_Permic"},
@@ -121,6 +126,7 @@ var inTest = []T{
 	{0x111a0, "Sharada"},
 	{0x10463, "Shavian"},
 	{0x115c1, "Siddham"},
+	{0x1D920, "SignWriting"},
 	{0x0dbd, "Sinhala"},
 	{0x110d0, "Sora_Sompeng"},
 	{0x1ba3, "Sundanese"},
