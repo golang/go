@@ -807,16 +807,17 @@ func (p *Parser) term() uint64 {
 		case lex.LSH:
 			p.next()
 			shift := p.factor()
-			// shift is a uint, so can never be negative.
+			if int64(shift) < 0 {
+				p.errorf("left shift with high bit set")
+			}
 			return value << shift
 		case lex.RSH:
 			p.next()
 			shift := p.term()
-			// shift is a uint, so can never be negative.
-			if value&(1<<63) != 0 {
+			if int64(shift) < 0 {
 				p.errorf("right shift with high bit set")
 			}
-			value >>= uint(shift)
+			value >>= shift
 		case '&':
 			p.next()
 			value &= p.factor()
