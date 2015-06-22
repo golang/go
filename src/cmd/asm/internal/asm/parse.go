@@ -797,8 +797,8 @@ func (p *Parser) term() uint64 {
 			value *= p.factor()
 		case '/':
 			p.next()
-			if value&(1<<63) != 0 {
-				p.errorf("divide with high bit set")
+			if int64(value) < 0 {
+				p.errorf("divide of value with high bit set")
 			}
 			value /= p.factor()
 		case '%':
@@ -808,14 +808,17 @@ func (p *Parser) term() uint64 {
 			p.next()
 			shift := p.factor()
 			if int64(shift) < 0 {
-				p.errorf("left shift with high bit set")
+				p.errorf("negative left shift count")
 			}
 			return value << shift
 		case lex.RSH:
 			p.next()
 			shift := p.term()
 			if int64(shift) < 0 {
-				p.errorf("right shift with high bit set")
+				p.errorf("negative right shift count")
+			}
+			if int64(value) < 0 {
+				p.errorf("right shift of value with high bit set")
 			}
 			value >>= shift
 		case '&':
