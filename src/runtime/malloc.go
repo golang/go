@@ -405,7 +405,10 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
 				// Keep everything page-aligned.
 				// Our pages are bigger than hardware pages.
 				h.arena_end = p + p_size
-				h.arena_used = p + (-uintptr(p) & (_PageSize - 1))
+				used := p + (-uintptr(p) & (_PageSize - 1))
+				mHeap_MapBits(h, used)
+				mHeap_MapSpans(h, used)
+				h.arena_used = used
 				h.arena_reserved = reserved
 			} else {
 				var stat uint64
