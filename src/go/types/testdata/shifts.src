@@ -319,3 +319,15 @@ func issue5895() {
 	var x = 'a' << 1 // type of x must be rune
 	var _ rune = x
 }
+
+func issue11325() {
+	var _ = 0 >> 1.1 /* ERROR "must be unsigned integer" */ // example from issue 11325
+	_ = 0 >> 1.1 /* ERROR "must be unsigned integer" */
+	_ = 0 << 1.1 /* ERROR "must be unsigned integer" */
+	_ = 0 >> 1.
+	_ = 1 >> 1.1 /* ERROR "must be unsigned integer" */
+	_ = 1 >> 1.
+	_ = 1. >> 1
+	_ = 1. >> 1.
+	_ = 1.1 /* ERROR "must be integer" */ >> 1
+}
