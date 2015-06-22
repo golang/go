@@ -444,8 +444,12 @@ func Asmbmacho() {
 		ms = newMachoSeg("", 40)
 
 		ms.fileoffset = Segtext.Fileoff
-		ms.filesize = Segdwarf.Fileoff + Segdwarf.Filelen - Segtext.Fileoff
-		ms.vsize = ms.filesize
+		if Thearch.Thechar == '5' {
+			ms.filesize = Segdata.Fileoff + Segdata.Filelen - Segtext.Fileoff
+		} else {
+			ms.filesize = Segdwarf.Fileoff + Segdwarf.Filelen - Segtext.Fileoff
+			ms.vsize = ms.filesize
+		}
 	}
 
 	/* segment for zero page */
