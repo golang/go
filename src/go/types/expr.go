@@ -619,7 +619,7 @@ func (check *Checker) shift(x, y *operand, op token.Token) {
 
 	// The lhs must be of integer type or be representable
 	// as an integer; otherwise the shift has no chance.
-	if !isInteger(x.typ) && (!untypedx || !representableConst(x.val, nil, UntypedInt, nil)) {
+	if !x.isInteger() {
 		check.invalidOp(x.pos(), "shifted operand %s must be integer", x)
 		x.mode = invalid
 		return
@@ -645,6 +645,12 @@ func (check *Checker) shift(x, y *operand, op token.Token) {
 
 	if x.mode == constant {
 		if y.mode == constant {
+			// rhs must be an integer value
+			if !y.isInteger() {
+				check.invalidOp(y.pos(), "shift count %s must be unsigned integer", y)
+				x.mode = invalid
+				return
+			}
 			// rhs must be within reasonable bounds
 			const stupidShift = 1023 - 1 + 52 // so we can express smallestFloat64
 			s, ok := exact.Uint64Val(y.val)
