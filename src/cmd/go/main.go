@@ -474,6 +474,28 @@ func hasPathPrefix(s, prefix string) bool {
 	}
 }
 
+// hasFilePathPrefix reports whether the filesystem path s begins with the
+// elements in prefix.
+func hasFilePathPrefix(s, prefix string) bool {
+	sv := strings.ToUpper(filepath.VolumeName(s))
+	pv := strings.ToUpper(filepath.VolumeName(prefix))
+	s = s[len(sv):]
+	prefix = prefix[len(pv):]
+	switch {
+	default:
+		return false
+	case sv != pv:
+		return false
+	case len(s) == len(prefix):
+		return s == prefix
+	case len(s) > len(prefix):
+		if prefix != "" && prefix[len(prefix)-1] == filepath.Separator {
+			return strings.HasPrefix(s, prefix)
+		}
+		return s[len(prefix)] == filepath.Separator && s[:len(prefix)] == prefix
+	}
+}
+
 // treeCanMatchPattern(pattern)(name) reports whether
 // name or children of name can possibly match pattern.
 // Pattern is the same limited glob accepted by matchPattern.
