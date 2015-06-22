@@ -1386,7 +1386,11 @@ func gcMark(start_time int64) {
 		traceGCScanDone()
 	}
 
-	shrinkfinish()
+	// TODO(austin): This doesn't have to be done during STW, as
+	// long as we block the next GC cycle until this is done. Move
+	// it after we start the world, but before dropping worldsema.
+	// (See issue #11465.)
+	freeStackSpans()
 
 	cachestats()
 
