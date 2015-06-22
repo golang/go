@@ -121,6 +121,12 @@ TEXT runtime·exit1(SB),NOSPLIT,$-4
 	MOVW	$1003, R1
 	MOVW	R0, (R1)	// fail hard
 
+TEXT runtime·gettid(SB),NOSPLIT,$0-4
+	MOVW	$SYS_gettid, R7
+	SWI	$0
+	MOVW	R0, ret+0(FP)
+	RET
+
 TEXT	runtime·raise(SB),NOSPLIT,$-4
 	MOVW	$SYS_gettid, R7
 	SWI	$0

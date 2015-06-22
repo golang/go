@@ -136,6 +136,12 @@ TEXT runtime·usleep(SB),NOSPLIT,$16-4
 	SVC
 	RET
 
+TEXT runtime·gettid(SB),NOSPLIT,$0-4
+	MOVD	$SYS_gettid, R8
+	SVC
+	MOVW	R0, ret+0(FP)
+	RET
+
 TEXT runtime·raise(SB),NOSPLIT,$-8
 	MOVD	$SYS_gettid, R8
 	SVC

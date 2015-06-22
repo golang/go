@@ -197,12 +197,17 @@ func msigsave(mp *m) {
 	rtsigprocmask(_SIG_SETMASK, nil, smask, int32(unsafe.Sizeof(*smask)))
 }
 
+func gettid() uint32
+
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, can not allocate memory.
 func minit() {
 	// Initialize signal handling.
 	_g_ := getg()
 	signalstack(&_g_.m.gsignal.stack)
+
+	// for debuggers, in case cgo created the thread
+	_g_.m.procid = uint64(gettid())
 
 	// restore signal mask from m.sigmask and unblock essential signals
 	nmask := *(*sigset)(unsafe.Pointer(&_g_.m.sigmask))

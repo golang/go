@@ -94,6 +94,12 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 	SYSCALL
 	RET
 
+TEXT runtime·gettid(SB),NOSPLIT,$0-4
+	MOVL	$186, AX	// syscall - gettid
+	SYSCALL
+	MOVL	AX, ret+0(FP)
+	RET
+
 TEXT runtime·raise(SB),NOSPLIT,$0
 	MOVL	$186, AX	// syscall - gettid
 	SYSCALL
