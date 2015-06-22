@@ -75,6 +75,20 @@ var mheap_ mheap
 // either one of the MHeap's free lists or one of the
 // MCentral's span lists.  We use empty MSpan structures as list heads.
 
+// An MSpan representing actual memory has state _MSpanInUse,
+// _MSpanStack, or _MSpanFree. Transitions between these states are
+// constrained as follows:
+//
+// * A span may transition from free to in-use or stack during any GC
+//   phase.
+//
+// * During sweeping (gcphase == _GCoff), a span may transition from
+//   in-use to free (as a result of sweeping) or stack to free (as a
+//   result of stacks being freed).
+//
+// * During GC (gcphase != _GCoff), a span *must not* transition from
+//   stack or in-use to free. Because concurrent GC may read a pointer
+//   and then look up its span, the span state must be monotonic.
 const (
 	_MSpanInUse = iota // allocated for garbage collected heap
 	_MSpanStack        // allocated for use by stack allocator

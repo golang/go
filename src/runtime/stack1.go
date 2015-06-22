@@ -44,7 +44,9 @@ const (
 var stackpool [_NumStackOrders]mspan
 var stackpoolmu mutex
 
-var stackfreequeue stack
+// List of stack spans to be freed at the end of GC. Protected by
+// stackpoolmu.
+var stackFreeQueue mspan
 
 // Cached value of haveexperiment("framepointer")
 var framepointer_enabled bool
@@ -56,6 +58,7 @@ func stackinit() {
 	for i := range stackpool {
 		mSpanList_Init(&stackpool[i])
 	}
+	mSpanList_Init(&stackFreeQueue)
 }
 
 // Allocates a stack from the free pool.  Must be called with
@@ -108,8 +111,22 @@ func stackpoolfree(x gclinkptr, order uint8) {
 	x.ptr().next = s.freelist
 	s.freelist = x
 	s.ref--
-	if s.ref == 0 {
-		// span is completely free - return to heap
+	if gcphase == _GCoff && s.ref == 0 {
+		// Span is completely free. Return it to the heap
+		// immediately if we're sweeping.
+		//
+		// If GC is active, we delay the free until the end of
+		// GC to avoid the following type of situation:
+		//
+		// 1) GC starts, scans a SudoG but does not yet mark the SudoG.elem pointer
+		// 2) The stack that pointer points to is copied
+		// 3) The old stack is freed
+		// 4) The containing span is marked free
+		// 5) GC attempts to mark the SudoG.elem pointer. The
+		//    marking fails because the pointer looks like a
+		//    pointer into a free span.
+		//
+		// By not freeing, we prevent step #4 until GC is done.
 		mSpanList_Remove(s)
 		s.freelist = 0
 		mHeap_FreeStack(&mheap_, s)
@@ -302,7 +319,21 @@ func stackfree(stk stack, n uintptr) {
 			println(hex(s.start<<_PageShift), v)
 			throw("bad span state")
 		}
-		mHeap_FreeStack(&mheap_, s)
+		if gcphase == _GCoff {
+			// Free the stack immediately if we're
+			// sweeping.
+			mHeap_FreeStack(&mheap_, s)
+		} else {
+			// Otherwise, add it to a list of stack spans
+			// to be freed at the end of GC.
+			//
+			// TODO(austin): Make it possible to re-use
+			// these spans as stacks, like we do for small
+			// stack spans. (See issue #11466.)
+			lock(&stackpoolmu)
+			mSpanList_Insert(&stackFreeQueue, s)
+			unlock(&stackpoolmu)
+		}
 	}
 }
 
@@ -613,25 +644,7 @@ func copystack(gp *g, newsize uintptr) {
 	if stackPoisonCopy != 0 {
 		fillstack(old, 0xfc)
 	}
-	if newsize > oldsize {
-		// growing, free stack immediately
-		stackfree(old, oldsize)
-	} else {
-		// shrinking, queue up free operation.  We can't actually free the stack
-		// just yet because we might run into the following situation:
-		// 1) GC starts, scans a SudoG but does not yet mark the SudoG.elem pointer
-		// 2) The stack that pointer points to is shrunk
-		// 3) The old stack is freed
-		// 4) The containing span is marked free
-		// 5) GC attempts to mark the SudoG.elem pointer.  The marking fails because
-		//    the pointer looks like a pointer into a free span.
-		// By not freeing, we prevent step #4 until GC is done.
-		lock(&stackpoolmu)
-		*(*stack)(unsafe.Pointer(old.lo)) = stackfreequeue
-		*(*uintptr)(unsafe.Pointer(old.lo + ptrSize)) = oldsize
-		stackfreequeue = old
-		unlock(&stackpoolmu)
-	}
+	stackfree(old, oldsize)
 }
 
 // round x up to a power of 2.
@@ -868,18 +881,32 @@ func shrinkstack(gp *g) {
 	casgstatus(gp, _Gcopystack, oldstatus)
 }
 
-// Do any delayed stack freeing that was queued up during GC.
-func shrinkfinish() {
+// freeStackSpans frees unused stack spans at the end of GC.
+func freeStackSpans() {
 	lock(&stackpoolmu)
-	s := stackfreequeue
-	stackfreequeue = stack{}
-	unlock(&stackpoolmu)
-	for s.lo != 0 {
-		t := *(*stack)(unsafe.Pointer(s.lo))
-		n := *(*uintptr)(unsafe.Pointer(s.lo + ptrSize))
-		stackfree(s, n)
-		s = t
+
+	// Scan stack pools for empty stack spans.
+	for order := range stackpool {
+		list := &stackpool[order]
+		for s := list.next; s != list; {
+			next := s.next
+			if s.ref == 0 {
+				mSpanList_Remove(s)
+				s.freelist = 0
+				mHeap_FreeStack(&mheap_, s)
+			}
+			s = next
+		}
 	}
+
+	// Free queued stack spans.
+	for stackFreeQueue.next != &stackFreeQueue {
+		s := stackFreeQueue.next
+		mSpanList_Remove(s)
+		mHeap_FreeStack(&mheap_, s)
+	}
+
+	unlock(&stackpoolmu)
 }
 
 //go:nosplit
