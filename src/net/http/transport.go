@@ -858,18 +858,6 @@ func (pc *persistConn) cancelRequest() {
 	pc.closeLocked()
 }
 
-var remoteSideClosedFunc func(error) bool // or nil to use default
-
-func remoteSideClosed(err error) bool {
-	if err == io.EOF {
-		return true
-	}
-	if remoteSideClosedFunc != nil {
-		return remoteSideClosedFunc(err)
-	}
-	return false
-}
-
 func (pc *persistConn) readLoop() {
 	// eofc is used to block http.Handler goroutines reading from Response.Body
 	// at EOF until this goroutines has (potentially) added the connection
