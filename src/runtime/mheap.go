@@ -41,7 +41,7 @@ type mheap struct {
 	bitmap         uintptr
 	bitmap_mapped  uintptr
 	arena_start    uintptr
-	arena_used     uintptr
+	arena_used     uintptr // always mHeap_Map{Bits,Spans} before updating
 	arena_end      uintptr
 	arena_reserved bool
 
