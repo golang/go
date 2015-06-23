@@ -524,6 +524,7 @@ OpSwitch:
 		OEQ,
 		OGE,
 		OGT,
+		OHMUL,
 		OLE,
 		OLT,
 		OLSH,

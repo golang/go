@@ -554,6 +554,7 @@ func typeinit() {
 	okfor[OLE] = okforcmp[:]
 	okfor[OLT] = okforcmp[:]
 	okfor[OMOD] = okforand[:]
+	okfor[OHMUL] = okforarith[:]
 	okfor[OMUL] = okforarith[:]
 	okfor[ONE] = okforeq[:]
 	okfor[OOR] = okforand[:]
