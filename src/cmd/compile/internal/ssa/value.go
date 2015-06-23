@@ -59,7 +59,11 @@ func (v *Value) LongString() string {
 		s += fmt.Sprintf(" [%d]", v.AuxInt)
 	}
 	if v.Aux != nil {
-		s += fmt.Sprintf(" {%v}", v.Aux)
+		if _, ok := v.Aux.(string); ok {
+			s += fmt.Sprintf(" {%q}", v.Aux)
+		} else {
+			s += fmt.Sprintf(" {%v}", v.Aux)
+		}
 	}
 	for _, a := range v.Args {
 		s += fmt.Sprintf(" %v", a)
