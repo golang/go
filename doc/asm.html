@@ -7,7 +7,7 @@
 
 <p>
 This document is a quick outline of the unusual form of assembly language used by the <code>gc</code>
-suite of Go compilers (<code>6g</code>, <code>8g</code>, etc.).
+Go compiler.
 The document is not comprehensive.
 </p>
 
@@ -52,7 +52,7 @@ package main
 func main() {
 	println(3)
 }
-$ go tool 6g -S x.go        # or: go build -gcflags -S x.go
+$ go tool compile -S x.go        # or: go build -gcflags -S x.go
 
 --- prog list "main" ---
 0000 (x.go:3) TEXT    main+0(SB),$8-0

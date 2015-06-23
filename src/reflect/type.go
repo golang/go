@@ -527,7 +527,7 @@ func (t *uncommonType) MethodByName(name string) (m Method, ok bool) {
 	return
 }
 
-// TODO(rsc): 6g supplies these, but they are not
+// TODO(rsc): gc supplies these, but they are not
 // as efficient as they could be: they have commonType
 // as the receiver instead of *rtype.
 func (t *rtype) NumMethod() int {

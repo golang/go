@@ -530,7 +530,7 @@ func TestTwoGopathShlibsGccgo(t *testing.T) {
 
 // Testing rebuilding of shared libraries when they are stale is a bit more
 // complicated that it seems like it should be. First, we make everything "old": but
-// only a few seconds old, or it might be older than 6g (or the runtime source) and
+// only a few seconds old, or it might be older than gc (or the runtime source) and
 // everything will get rebuilt. Then define a timestamp slightly newer than this
 // time, which is what we set the mtime to of a file to cause it to be seen as new,
 // and finally another slightly even newer one that we can compare files against to

@@ -1551,7 +1551,7 @@ func (c *typeConv) pad(fld []*ast.Field, size int64) []*ast.Field {
 	return fld
 }
 
-// Struct conversion: return Go and (6g) C syntax for type.
+// Struct conversion: return Go and (gc) C syntax for type.
 func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.StructType, csyntax string, align int64) {
 	// Minimum alignment for a struct is 1 byte.
 	align = 1
