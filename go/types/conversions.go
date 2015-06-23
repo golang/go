@@ -20,7 +20,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 		switch t := T.Underlying().(*Basic); {
 		case representableConst(x.val, check.conf, t.kind, &x.val):
 			ok = true
-		case x.isInteger() && isString(t):
+		case isInteger(x.typ) && isString(t):
 			codepoint := int64(-1)
 			if i, ok := exact.Int64Val(x.val); ok {
 				codepoint = i
