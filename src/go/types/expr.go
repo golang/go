@@ -78,7 +78,8 @@ func (check *Checker) op(m opPredicates, x *operand, op token.Token) bool {
 	return true
 }
 
-func (check *Checker) unary(x *operand, op token.Token) {
+// The unary expression e may be nil. It's passed in for better error messages only.
+func (check *Checker) unary(x *operand, e *ast.UnaryExpr, op token.Token) {
 	switch op {
 	case token.AND:
 		// spec: "As an exception to the addressability
@@ -125,6 +126,9 @@ func (check *Checker) unary(x *operand, op token.Token) {
 		// Typed constants must be representable in
 		// their type after each constant operation.
 		if isTyped(typ) {
+			if e != nil {
+				x.expr = e // for better error message
+			}
 			check.representable(x, typ)
 		}
 		return
@@ -721,7 +725,8 @@ var binaryOpPredicates = opPredicates{
 	token.LOR:  isBoolean,
 }
 
-func (check *Checker) binary(x *operand, lhs, rhs ast.Expr, op token.Token) {
+// The binary expression e may be nil. It's passed in for better error messages only.
+func (check *Checker) binary(x *operand, e *ast.BinaryExpr, lhs, rhs ast.Expr, op token.Token) {
 	var y operand
 
 	check.expr(x, lhs)
@@ -787,6 +792,9 @@ func (check *Checker) binary(x *operand, lhs, rhs ast.Expr, op token.Token) {
 		// Typed constants must be representable in
 		// their type after each constant operation.
 		if isTyped(typ) {
+			if e != nil {
+				x.expr = e // for better error message
+			}
 			check.representable(x, typ)
 		}
 		return
@@ -1374,7 +1382,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		if x.mode == invalid {
 			goto Error
 		}
-		check.unary(x, e.Op)
+		check.unary(x, e, e.Op)
 		if x.mode == invalid {
 			goto Error
 		}
@@ -1384,7 +1392,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		}
 
 	case *ast.BinaryExpr:
-		check.binary(x, e.X, e.Y, e.Op)
+		check.binary(x, e, e.X, e.Y, e.Op)
 		if x.mode == invalid {
 			goto Error
 		}
