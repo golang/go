@@ -21,8 +21,7 @@ import (
 
 var conf = printer.Config{Mode: printer.SourcePos, Tabwidth: 8}
 
-// writeDefs creates output files to be compiled by 6g and gcc.
-// (The comments here say 6g but the code applies to the 8 and 5 tools too.)
+// writeDefs creates output files to be compiled by gc and gcc.
 func (p *Package) writeDefs() {
 	var fgo2, fc io.Writer
 	f := creat(*objDir + "_cgo_gotypes.go")
@@ -291,10 +290,10 @@ func dynimport(obj string) {
 	fatalf("cannot parse %s as ELF, Mach-O or PE", obj)
 }
 
-// Construct a gcc struct matching the 6g argument frame.
+// Construct a gcc struct matching the gc argument frame.
 // Assumes that in gcc, char is 1 byte, short 2 bytes, int 4 bytes, long long 8 bytes.
 // These assumptions are checked by the gccProlog.
-// Also assumes that 6g convention is to word-align the
+// Also assumes that gc convention is to word-align the
 // input and output parameters.
 func (p *Package) structType(n *Name) (string, int64) {
 	var buf bytes.Buffer
@@ -479,8 +478,7 @@ func (p *Package) writeDefsFunc(fgo2 io.Writer, n *Name) {
 	fmt.Fprintf(fgo2, "}\n")
 }
 
-// writeOutput creates stubs for a specific source file to be compiled by 6g
-// (The comments here say 6g but the code applies to the 8 and 5 tools too.)
+// writeOutput creates stubs for a specific source file to be compiled by gc
 func (p *Package) writeOutput(f *File, srcfile string) {
 	base := srcfile
 	if strings.HasSuffix(base, ".go") {
@@ -559,7 +557,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	if n.AddError {
 		fmt.Fprintf(fgcc, "\terrno = 0;\n")
 	}
-	// We're trying to write a gcc struct that matches 6g's layout.
+	// We're trying to write a gcc struct that matches gc's layout.
 	// Use packed attribute to force no padding in this struct in case
 	// gcc has different packing requirements.
 	fmt.Fprintf(fgcc, "\t%s %v *a = v;\n", ctype, p.packedAttribute())
@@ -655,8 +653,8 @@ func (p *Package) writeGccgoOutputFunc(fgcc *os.File, n *Name) {
 }
 
 // packedAttribute returns host compiler struct attribute that will be
-// used to match 6g's struct layout. For example, on 386 Windows,
-// gcc wants to 8-align int64s, but 8g does not.
+// used to match gc's struct layout. For example, on 386 Windows,
+// gcc wants to 8-align int64s, but gc does not.
 // Use __gcc_struct__ to work around http://gcc.gnu.org/PR52991 on x86,
 // and http://golang.org/issue/5603.
 func (p *Package) packedAttribute() string {
@@ -681,7 +679,7 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 	for _, exp := range p.ExpFunc {
 		fn := exp.Func
 
-		// Construct a gcc struct matching the 6g argument and
+		// Construct a gcc struct matching the gc argument and
 		// result frame.  The gcc struct will be compiled with
 		// __attribute__((packed)) so all padding must be accounted
 		// for explicitly.
@@ -802,7 +800,7 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		}
 		fmt.Fprintf(fgcc, "}\n")
 
-		// Build the wrapper function compiled by 6g.
+		// Build the wrapper function compiled by gc.
 		goname := exp.Func.Name.Name
 		if fn.Recv != nil {
 			goname = "_cgoexpwrap" + cPrefix + "_" + fn.Recv.List[0].Names[0].Name + "_" + goname

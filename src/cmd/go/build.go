@@ -2110,7 +2110,7 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool, 
 		gcargs[1] = "main"
 	}
 	if p.Standard && p.ImportPath == "runtime" {
-		// runtime compiles with a special 6g flag to emit
+		// runtime compiles with a special gc flag to emit
 		// additional reflect type data.
 		gcargs = append(gcargs, "-+")
 	}
