@@ -444,6 +444,16 @@ func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan 
 	if trace.enabled {
 		traceHeapAlloc()
 	}
+
+	// h_spans is accessed concurrently without synchronization
+	// from other threads. Hence, there must be a store/store
+	// barrier here to ensure the writes to h_spans above happen
+	// before the caller can publish a pointer p to an object
+	// allocated from s. As soon as this happens, the garbage
+	// collector running on another processor could read p and
+	// look up s in h_spans. The unlock acts as the barrier to
+	// order these writes. On the read side, the data dependency
+	// between p and the index in h_spans orders the reads.
 	unlock(&h.lock)
 	return s
 }
@@ -479,6 +489,8 @@ func mHeap_AllocStack(h *mheap, npage uintptr) *mspan {
 		s.ref = 0
 		memstats.stacks_inuse += uint64(s.npages << _PageShift)
 	}
+
+	// This unlock acts as a release barrier. See mHeap_Alloc_m.
 	unlock(&h.lock)
 	return s
 }
