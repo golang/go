@@ -3599,9 +3599,8 @@ func walkdiv(np **Node, init **NodeList) {
 			nc := Nod(OXXX, nil, nil)
 
 			Nodconst(nc, nl.Type, int64(m.Um))
-			n1 := Nod(OMUL, nl, nc)
+			n1 := Nod(OHMUL, nl, nc)
 			typecheck(&n1, Erv)
-			n1.Op = OHMUL
 			if m.Ua != 0 {
 				// Select a Go type with (at least) twice the width.
 				var twide *Type
@@ -3644,9 +3643,8 @@ func walkdiv(np **Node, init **NodeList) {
 			nc := Nod(OXXX, nil, nil)
 
 			Nodconst(nc, nl.Type, m.Sm)
-			n1 := Nod(OMUL, nl, nc)
+			n1 := Nod(OHMUL, nl, nc)
 			typecheck(&n1, Erv)
-			n1.Op = OHMUL
 			if m.Sm < 0 {
 				// add the numerator.
 				n1 = Nod(OADD, n1, nl)
