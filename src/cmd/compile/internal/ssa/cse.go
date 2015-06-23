@@ -15,6 +15,7 @@ func cse(f *Func) {
 	//   v.op == w.op
 	//   v.type == w.type
 	//   v.aux == w.aux
+	//   v.auxint == w.auxint
 	//   len(v.args) == len(w.args)
 	//   equivalent(v.args[i], w.args[i]) for i in 0..len(v.args)-1
 
@@ -23,7 +24,7 @@ func cse(f *Func) {
 	// It starts with a coarse partition and iteratively refines it
 	// until it reaches a fixed point.
 
-	// Make initial partition based on opcode/type/aux/nargs
+	// Make initial partition based on opcode/type/aux/auxint/nargs
 	// TODO(khr): types are not canonical, so we split unnecessarily.
 	// For example, all pointer types are distinct. Fix this.
 	// As a data point, using v.Type.String() instead of
