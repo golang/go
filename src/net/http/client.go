@@ -283,7 +283,7 @@ func Get(url string) (resp *Response, err error) {
 
 // Get issues a GET to the specified URL. If the response is one of the
 // following redirect codes, Get follows the redirect after calling the
-// Client's CheckRedirect function.
+// Client's CheckRedirect function:
 //
 //    301 (Moved Permanently)
 //    302 (Found)
@@ -497,9 +497,9 @@ func (c *Client) PostForm(url string, data url.Values) (resp *Response, err erro
 	return c.Post(url, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
 }
 
-// Head issues a HEAD to the specified URL.  If the response is one of the
-// following redirect codes, Head follows the redirect after calling the
-// Client's CheckRedirect function.
+// Head issues a HEAD to the specified URL.  If the response is one of
+// the following redirect codes, Head follows the redirect, up to a
+// maximum of 10 redirects:
 //
 //    301 (Moved Permanently)
 //    302 (Found)
@@ -513,7 +513,7 @@ func Head(url string) (resp *Response, err error) {
 
 // Head issues a HEAD to the specified URL.  If the response is one of the
 // following redirect codes, Head follows the redirect after calling the
-// Client's CheckRedirect function.
+// Client's CheckRedirect function:
 //
 //    301 (Moved Permanently)
 //    302 (Found)
