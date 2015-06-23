@@ -79,7 +79,7 @@ func (check *Checker) op(m opPredicates, x *operand, op token.Token) bool {
 	return true
 }
 
-// The binary expression e may be nil. It's passed in for better error messages only.
+// The unary expression e may be nil. It's passed in for better error messages only.
 func (check *Checker) unary(x *operand, e *ast.UnaryExpr, op token.Token) {
 	switch op {
 	case token.AND:
