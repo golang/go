@@ -54,8 +54,8 @@ func TestPointToPointInterface(t *testing.T) {
 	local, remote := "169.254.0.1", "169.254.0.254"
 	ip := ParseIP(remote)
 	for i := 0; i < 3; i++ {
-		ti := &testInterface{}
-		if err := ti.setPointToPoint(5963+i, local, remote); err != nil {
+		ti := &testInterface{local: local, remote: remote}
+		if err := ti.setPointToPoint(5963 + i); err != nil {
 			t.Skipf("test requries external command: %v", err)
 		}
 		if err := ti.setup(); err != nil {
@@ -69,17 +69,18 @@ func TestPointToPointInterface(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, ifi := range ift {
-			if ti.name == ifi.Name {
-				ifat, err := ifi.Addrs()
-				if err != nil {
+			if ti.name != ifi.Name {
+				continue
+			}
+			ifat, err := ifi.Addrs()
+			if err != nil {
+				ti.teardown()
+				t.Fatal(err)
+			}
+			for _, ifa := range ifat {
+				if ip.Equal(ifa.(*IPNet).IP) {
 					ti.teardown()
-					t.Fatal(err)
-				}
-				for _, ifa := range ifat {
-					if ip.Equal(ifa.(*IPNet).IP) {
-						ti.teardown()
-						t.Fatalf("got %v; want %v", ip, local)
-					}
+					t.Fatalf("got %v", ifa)
 				}
 			}
 		}
@@ -99,12 +100,14 @@ func TestInterfaceArrivalAndDeparture(t *testing.T) {
 		t.Skip("must be root")
 	}
 
+	local, remote := "169.254.0.1", "169.254.0.254"
+	ip := ParseIP(remote)
 	for i := 0; i < 3; i++ {
 		ift1, err := Interfaces()
 		if err != nil {
 			t.Fatal(err)
 		}
-		ti := &testInterface{}
+		ti := &testInterface{local: local, remote: remote}
 		if err := ti.setBroadcast(5682 + i); err != nil {
 			t.Skipf("test requires external command: %v", err)
 		}
@@ -127,6 +130,22 @@ func TestInterfaceArrivalAndDeparture(t *testing.T) {
 			}
 			ti.teardown()
 			t.Fatalf("got %v; want gt %v", len(ift2), len(ift1))
+		}
+		for _, ifi := range ift2 {
+			if ti.name != ifi.Name {
+				continue
+			}
+			ifat, err := ifi.Addrs()
+			if err != nil {
+				ti.teardown()
+				t.Fatal(err)
+			}
+			for _, ifa := range ifat {
+				if ip.Equal(ifa.(*IPNet).IP) {
+					ti.teardown()
+					t.Fatalf("got %v", ifa)
+				}
+			}
 		}
 		if err := ti.teardown(); err != nil {
 			t.Fatal(err)

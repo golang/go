@@ -176,17 +176,15 @@ func newAddr(ifi *Interface, ifam *syscall.IfAddrmsg, attrs []syscall.NetlinkRou
 	var ipPointToPoint bool
 	// Seems like we need to make sure whether the IP interface
 	// stack consists of IP point-to-point numbered or unnumbered
-	// addressing over point-to-point link encapsulation.
-	if ifi.Flags&FlagPointToPoint != 0 {
-		for _, a := range attrs {
-			if a.Attr.Type == syscall.IFA_LOCAL {
-				ipPointToPoint = true
-				break
-			}
+	// addressing.
+	for _, a := range attrs {
+		if a.Attr.Type == syscall.IFA_LOCAL {
+			ipPointToPoint = true
+			break
 		}
 	}
 	for _, a := range attrs {
-		if ipPointToPoint && a.Attr.Type == syscall.IFA_ADDRESS || !ipPointToPoint && a.Attr.Type == syscall.IFA_LOCAL {
+		if ipPointToPoint && a.Attr.Type == syscall.IFA_ADDRESS {
 			continue
 		}
 		switch ifam.Family {

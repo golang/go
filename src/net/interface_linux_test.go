@@ -20,6 +20,14 @@ func (ti *testInterface) setBroadcast(suffix int) error {
 		Path: xname,
 		Args: []string{"ip", "link", "add", ti.name, "type", "dummy"},
 	})
+	ti.setupCmds = append(ti.setupCmds, &exec.Cmd{
+		Path: xname,
+		Args: []string{"ip", "address", "add", ti.local, "peer", ti.remote, "dev", ti.name},
+	})
+	ti.teardownCmds = append(ti.teardownCmds, &exec.Cmd{
+		Path: xname,
+		Args: []string{"ip", "address", "del", ti.local, "peer", ti.remote, "dev", ti.name},
+	})
 	ti.teardownCmds = append(ti.teardownCmds, &exec.Cmd{
 		Path: xname,
 		Args: []string{"ip", "link", "delete", ti.name, "type", "dummy"},
@@ -27,29 +35,27 @@ func (ti *testInterface) setBroadcast(suffix int) error {
 	return nil
 }
 
-func (ti *testInterface) setPointToPoint(suffix int, local, remote string) error {
+func (ti *testInterface) setPointToPoint(suffix int) error {
 	ti.name = fmt.Sprintf("gotest%d", suffix)
-	ti.local = local
-	ti.remote = remote
 	xname, err := exec.LookPath("ip")
 	if err != nil {
 		return err
 	}
 	ti.setupCmds = append(ti.setupCmds, &exec.Cmd{
 		Path: xname,
-		Args: []string{"ip", "tunnel", "add", ti.name, "mode", "gre", "local", local, "remote", remote},
+		Args: []string{"ip", "tunnel", "add", ti.name, "mode", "gre", "local", ti.local, "remote", ti.remote},
+	})
+	ti.setupCmds = append(ti.setupCmds, &exec.Cmd{
+		Path: xname,
+		Args: []string{"ip", "address", "add", ti.local, "peer", ti.remote, "dev", ti.name},
 	})
 	ti.teardownCmds = append(ti.teardownCmds, &exec.Cmd{
 		Path: xname,
-		Args: []string{"ip", "tunnel", "del", ti.name, "mode", "gre", "local", local, "remote", remote},
+		Args: []string{"ip", "address", "del", ti.local, "peer", ti.remote, "dev", ti.name},
 	})
-	xname, err = exec.LookPath("ifconfig")
-	if err != nil {
-		return err
-	}
-	ti.setupCmds = append(ti.setupCmds, &exec.Cmd{
+	ti.teardownCmds = append(ti.teardownCmds, &exec.Cmd{
 		Path: xname,
-		Args: []string{"ifconfig", ti.name, "inet", local, "dstaddr", remote},
+		Args: []string{"ip", "tunnel", "del", ti.name, "mode", "gre", "local", ti.local, "remote", ti.remote},
 	})
 	return nil
 }
