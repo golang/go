@@ -978,8 +978,16 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 			// nb unmodified: we just loaded 8 bits,
 			// and the next iteration will consume 8 bits,
 			// leaving us with the same nb the next time we're here.
-			b |= uintptr(*p) << nb
-			p = add1(p)
+			if nb < 8 {
+				b |= uintptr(*p) << nb
+				p = add1(p)
+			} else {
+				// Reduce the number of bits in b.
+				// This is important if we skipped
+				// over a scalar tail, since nb could
+				// be larger than the bit width of b.
+				nb -= 8
+			}
 		} else if p == nil {
 			// Almost as fast path: track bit count and refill from pbits.
 			// For short repetitions.
