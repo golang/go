@@ -32,6 +32,11 @@ func string_conversions() {
 	const _ = string(true /* ERROR "cannot convert" */ )
 	const _ = string(1.2 /* ERROR "cannot convert" */ )
 	const _ = string(nil /* ERROR "cannot convert" */ )
+
+	// issues 11357, 11353: argument must be of integer type
+	_ = string(0.0 /* ERROR "cannot convert" */ )
+	_ = string(0i /* ERROR "cannot convert" */ )
+	_ = string(1 /* ERROR "cannot convert" */ + 2i)
 }
 
 func interface_conversions() {
