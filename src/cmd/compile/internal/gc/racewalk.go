@@ -299,8 +299,14 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 		}
 		goto ret
 
-	case OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR:
+	case OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR, OSLICESTR:
 		racewalknode(&n.Left, init, 0, 0)
+		racewalknode(&n.Right, init, 0, 0)
+		goto ret
+
+	case OKEY:
+		racewalknode(&n.Left, init, 0, 0)
+		racewalknode(&n.Right, init, 0, 0)
 		goto ret
 
 	case OADDR:
@@ -413,8 +419,7 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 		OTYPE,
 		ONONAME,
 		OLITERAL,
-		OSLICESTR, // always preceded by bounds checking, avoid double instrumentation.
-		OTYPESW:   // ignored by code generation, do not instrument.
+		OTYPESW: // ignored by code generation, do not instrument.
 		goto ret
 	}
 
