@@ -36,7 +36,7 @@ var (
 
 const (
 	visibleLen = 40
-	testPrefix = "=== RUN Test"
+	testPrefix = "=== RUN   Test"
 )
 
 func TestRace(t *testing.T) {
@@ -63,6 +63,9 @@ func TestRace(t *testing.T) {
 		}
 	}
 
+	if totalTests == 0 {
+		t.Fatalf("failed to parse test output")
+	}
 	fmt.Printf("\nPassed %d of %d tests (%.02f%%, %d+, %d-)\n",
 		passedTests, totalTests, 100*float64(passedTests)/float64(totalTests), falsePos, falseNeg)
 	fmt.Printf("%d expected failures (%d has not fail)\n", failingPos+failingNeg, failingNeg)
