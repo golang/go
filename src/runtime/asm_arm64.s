@@ -1030,3 +1030,14 @@ TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
 
 TEXT runtime·sigreturn(SB),NOSPLIT,$0-8
         RET
+
+// This is called from .init_array and follows the platform, not Go, ABI.
+TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
+	SUB	$0x10, RSP
+	MOVD	R27, 8(RSP) // The access to global variables below implicitly uses R27, which is callee-save
+	MOVD	runtime·lastmoduledatap(SB), R1
+	MOVD	R0, moduledata_next(R1)
+	MOVD	R0, runtime·lastmoduledatap(SB)
+	MOVD	8(RSP), R27
+	ADD	$0x10, RSP
+	RET
