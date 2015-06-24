@@ -11,17 +11,17 @@ func checkFunc(f *Func) {
 
 	for _, b := range f.Blocks {
 		if blockMark[b.ID] {
-			f.Fatal("block %s appears twice in %s!", b, f.Name)
+			f.Fatalf("block %s appears twice in %s!", b, f.Name)
 		}
 		blockMark[b.ID] = true
 		if b.Func != f {
-			f.Fatal("%s.Func=%s, want %s", b, b.Func.Name, f.Name)
+			f.Fatalf("%s.Func=%s, want %s", b, b.Func.Name, f.Name)
 		}
 
 		for i, c := range b.Succs {
 			for j, d := range b.Succs {
 				if i != j && c == d {
-					f.Fatal("%s.Succs has duplicate block %s", b, c)
+					f.Fatalf("%s.Succs has duplicate block %s", b, c)
 				}
 			}
 		}
@@ -44,64 +44,64 @@ func checkFunc(f *Func) {
 				}
 			}
 			if !found {
-				f.Fatal("block %s is not a succ of its pred block %s", b, p)
+				f.Fatalf("block %s is not a succ of its pred block %s", b, p)
 			}
 		}
 
 		switch b.Kind {
 		case BlockExit:
 			if len(b.Succs) != 0 {
-				f.Fatal("exit block %s has successors", b)
+				f.Fatalf("exit block %s has successors", b)
 			}
 			if b.Control == nil {
-				f.Fatal("exit block %s has no control value", b)
+				f.Fatalf("exit block %s has no control value", b)
 			}
 			if !b.Control.Type.IsMemory() {
-				f.Fatal("exit block %s has non-memory control value %s", b, b.Control.LongString())
+				f.Fatalf("exit block %s has non-memory control value %s", b, b.Control.LongString())
 			}
 		case BlockPlain:
 			if len(b.Succs) != 1 {
-				f.Fatal("plain block %s len(Succs)==%d, want 1", b, len(b.Succs))
+				f.Fatalf("plain block %s len(Succs)==%d, want 1", b, len(b.Succs))
 			}
 			if b.Control != nil {
-				f.Fatal("plain block %s has non-nil control %s", b, b.Control.LongString())
+				f.Fatalf("plain block %s has non-nil control %s", b, b.Control.LongString())
 			}
 		case BlockIf:
 			if len(b.Succs) != 2 {
-				f.Fatal("if block %s len(Succs)==%d, want 2", b, len(b.Succs))
+				f.Fatalf("if block %s len(Succs)==%d, want 2", b, len(b.Succs))
 			}
 			if b.Control == nil {
-				f.Fatal("if block %s has no control value", b)
+				f.Fatalf("if block %s has no control value", b)
 			}
 			if !b.Control.Type.IsBoolean() {
-				f.Fatal("if block %s has non-bool control value %s", b, b.Control.LongString())
+				f.Fatalf("if block %s has non-bool control value %s", b, b.Control.LongString())
 			}
 		case BlockCall:
 			if len(b.Succs) != 2 {
-				f.Fatal("call block %s len(Succs)==%d, want 2", b, len(b.Succs))
+				f.Fatalf("call block %s len(Succs)==%d, want 2", b, len(b.Succs))
 			}
 			if b.Control == nil {
-				f.Fatal("call block %s has no control value", b)
+				f.Fatalf("call block %s has no control value", b)
 			}
 			if !b.Control.Type.IsMemory() {
-				f.Fatal("call block %s has non-memory control value %s", b, b.Control.LongString())
+				f.Fatalf("call block %s has non-memory control value %s", b, b.Control.LongString())
 			}
 			if b.Succs[1].Kind != BlockExit {
-				f.Fatal("exception edge from call block %s does not go to exit but %s", b, b.Succs[1])
+				f.Fatalf("exception edge from call block %s does not go to exit but %s", b, b.Succs[1])
 			}
 		}
 
 		for _, v := range b.Values {
 			if valueMark[v.ID] {
-				f.Fatal("value %s appears twice!", v.LongString())
+				f.Fatalf("value %s appears twice!", v.LongString())
 			}
 			valueMark[v.ID] = true
 
 			if v.Block != b {
-				f.Fatal("%s.block != %s", v, b)
+				f.Fatalf("%s.block != %s", v, b)
 			}
 			if v.Op == OpPhi && len(v.Args) != len(b.Preds) {
-				f.Fatal("phi length %s does not match pred length %d for block %s", v.LongString(), len(b.Preds), b)
+				f.Fatalf("phi length %s does not match pred length %d for block %s", v.LongString(), len(b.Preds), b)
 			}
 
 			// TODO: check for cycles in values
@@ -111,12 +111,12 @@ func checkFunc(f *Func) {
 
 	for _, id := range f.bid.free {
 		if blockMark[id] {
-			f.Fatal("used block b%d in free list", id)
+			f.Fatalf("used block b%d in free list", id)
 		}
 	}
 	for _, id := range f.vid.free {
 		if valueMark[id] {
-			f.Fatal("used value v%d in free list", id)
+			f.Fatalf("used value v%d in free list", id)
 		}
 	}
 }

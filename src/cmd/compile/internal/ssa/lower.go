@@ -13,7 +13,7 @@ func lower(f *Func) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if opcodeTable[v.Op].generic && v.Op != OpFP && v.Op != OpSP && v.Op != OpArg && v.Op != OpCopy && v.Op != OpPhi {
-				f.Unimplemented("%s not lowered", v.LongString())
+				f.Unimplementedf("%s not lowered", v.LongString())
 			}
 		}
 	}

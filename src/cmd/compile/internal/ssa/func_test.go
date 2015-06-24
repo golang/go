@@ -161,7 +161,7 @@ func Fun(c *Config, entry string, blocs ...bloc) fun {
 		if c.control != "" {
 			cval, ok := values[c.control]
 			if !ok {
-				f.Fatal("control value for block %s missing", bloc.name)
+				f.Fatalf("control value for block %s missing", bloc.name)
 			}
 			b.Control = cval
 		}
@@ -171,7 +171,7 @@ func Fun(c *Config, entry string, blocs ...bloc) fun {
 			for _, arg := range valu.args {
 				a, ok := values[arg]
 				if !ok {
-					b.Fatal("arg %s missing for value %s in block %s",
+					b.Fatalf("arg %s missing for value %s in block %s",
 						arg, valu.name, bloc.name)
 				}
 				v.AddArg(a)

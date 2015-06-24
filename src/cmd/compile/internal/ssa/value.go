@@ -111,6 +111,6 @@ func (v *Value) resetArgs() {
 	v.Args = v.argstorage[:0]
 }
 
-func (v *Value) Log(msg string, args ...interface{})           { v.Block.Log(msg, args...) }
-func (v *Value) Fatal(msg string, args ...interface{})         { v.Block.Fatal(msg, args...) }
-func (v *Value) Unimplemented(msg string, args ...interface{}) { v.Block.Unimplemented(msg, args...) }
+func (v *Value) Logf(msg string, args ...interface{})           { v.Block.Logf(msg, args...) }
+func (v *Value) Fatalf(msg string, args ...interface{})         { v.Block.Fatalf(msg, args...) }
+func (v *Value) Unimplementedf(msg string, args ...interface{}) { v.Block.Unimplementedf(msg, args...) }

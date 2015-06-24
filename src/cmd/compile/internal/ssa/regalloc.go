@@ -349,7 +349,7 @@ func regalloc(f *Func) {
 		if b.Kind == BlockCall {
 			call = b.Control
 			if call != b.Values[len(b.Values)-1] {
-				b.Fatal("call not at end of block %b %v", b, call)
+				b.Fatalf("call not at end of block %b %v", b, call)
 			}
 			b.Values = b.Values[:len(b.Values)-1]
 			// TODO: do this for all control types?
@@ -419,7 +419,7 @@ func live(f *Func) [][]ID {
 	t := newSparseSet(f.NumValues())
 	for {
 		for _, b := range f.Blocks {
-			f.Log("live %s %v\n", b, live[b.ID])
+			f.Logf("live %s %v\n", b, live[b.ID])
 		}
 		changed := false
 

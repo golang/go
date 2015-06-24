@@ -80,7 +80,7 @@ blockloop:
 				continue blockloop
 			}
 		}
-		b.Fatal("no block available for layout")
+		b.Fatalf("no block available for layout")
 	}
 	f.Blocks = order
 }

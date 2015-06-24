@@ -19,6 +19,6 @@ func (DummyFrontend) StringSym(s string) interface{} {
 	return nil
 }
 
-func (d DummyFrontend) Log(msg string, args ...interface{})           { d.t.Logf(msg, args...) }
-func (d DummyFrontend) Fatal(msg string, args ...interface{})         { d.t.Fatalf(msg, args...) }
-func (d DummyFrontend) Unimplemented(msg string, args ...interface{}) { d.t.Fatalf(msg, args...) }
+func (d DummyFrontend) Logf(msg string, args ...interface{})           { d.t.Logf(msg, args...) }
+func (d DummyFrontend) Fatalf(msg string, args ...interface{})         { d.t.Fatalf(msg, args...) }
+func (d DummyFrontend) Unimplementedf(msg string, args ...interface{}) { d.t.Fatalf(msg, args...) }

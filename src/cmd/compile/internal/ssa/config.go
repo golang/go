@@ -22,14 +22,14 @@ type Frontend interface {
 	StringSym(string) interface{} // returns *gc.Sym
 
 	// Log logs a message from the compiler.
-	Log(string, ...interface{})
+	Logf(string, ...interface{})
 
 	// Fatal reports a compiler error and exits.
-	Fatal(string, ...interface{})
+	Fatalf(string, ...interface{})
 
 	// Unimplemented reports that the function cannot be compiled.
 	// It will be removed once SSA work is complete.
-	Unimplemented(msg string, args ...interface{})
+	Unimplementedf(msg string, args ...interface{})
 }
 
 // NewConfig returns a new configuration object for the given architecture.
@@ -45,7 +45,7 @@ func NewConfig(arch string, fe Frontend) *Config {
 		c.lowerBlock = rewriteBlockAMD64
 		c.lowerValue = rewriteValueAMD64 // TODO(khr): full 32-bit support
 	default:
-		fe.Unimplemented("arch %s not implemented", arch)
+		fe.Unimplementedf("arch %s not implemented", arch)
 	}
 
 	// cache the intptr type in the config
@@ -63,9 +63,9 @@ func (c *Config) NewFunc() *Func {
 	return &Func{Config: c}
 }
 
-func (c *Config) Log(msg string, args ...interface{})           { c.fe.Log(msg, args...) }
-func (c *Config) Fatal(msg string, args ...interface{})         { c.fe.Fatal(msg, args...) }
-func (c *Config) Unimplemented(msg string, args ...interface{}) { c.fe.Unimplemented(msg, args...) }
+func (c *Config) Logf(msg string, args ...interface{})           { c.fe.Logf(msg, args...) }
+func (c *Config) Fatalf(msg string, args ...interface{})         { c.fe.Fatalf(msg, args...) }
+func (c *Config) Unimplementedf(msg string, args ...interface{}) { c.fe.Unimplementedf(msg, args...) }
 
 // TODO(khr): do we really need a separate Config, or can we just
 // store all its fields inside a Func?
