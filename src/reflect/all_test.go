@@ -4536,6 +4536,25 @@ func verifyGCBits(t *testing.T, typ Type, bits []byte) {
 	}
 }
 
+func verifyGCBitsSlice(t *testing.T, typ Type, cap int, bits []byte) {
+	// Creating a slice causes the runtime to repeat a bitmap,
+	// which exercises a different path from making the compiler
+	// repeat a bitmap for a small array or executing a repeat in
+	// a GC program.
+	val := MakeSlice(typ, 0, cap)
+	data := NewAt(ArrayOf(cap, typ), unsafe.Pointer(val.Pointer()))
+	heapBits := GCBits(data.Interface())
+	// Repeat the bitmap for the slice size, trimming scalars in
+	// the last element.
+	bits = rep(cap, bits)
+	for len(bits) > 2 && bits[len(bits)-1] == 0 {
+		bits = bits[:len(bits)-1]
+	}
+	if !bytes.Equal(heapBits, bits) {
+		t.Errorf("heapBits incorrect for make(%v, 0, %v)\nhave %v\nwant %v", typ, cap, heapBits, bits)
+	}
+}
+
 func TestGCBits(t *testing.T) {
 	verifyGCBits(t, TypeOf((*byte)(nil)), []byte{1})
 
@@ -4613,6 +4632,31 @@ func TestGCBits(t *testing.T) {
 	verifyGCBits(t, ArrayOf(1, ArrayOf(10000, Tptrscalar)), rep(10000, lit(1, 0)))
 	verifyGCBits(t, TypeOf([2][10000]Xptrscalar{}), rep(2*10000, lit(1, 0)))
 	verifyGCBits(t, ArrayOf(2, ArrayOf(10000, Tptrscalar)), rep(2*10000, lit(1, 0)))
+
+	verifyGCBitsSlice(t, TypeOf([]Xptr{}), 0, empty)
+	verifyGCBitsSlice(t, SliceOf(Tptr), 0, empty)
+	verifyGCBitsSlice(t, TypeOf([]Xptrscalar{}), 1, lit(1))
+	verifyGCBitsSlice(t, SliceOf(Tptrscalar), 1, lit(1))
+	verifyGCBitsSlice(t, TypeOf([]Xscalar{}), 2, lit(0))
+	verifyGCBitsSlice(t, SliceOf(Tscalar), 2, lit(0))
+	verifyGCBitsSlice(t, TypeOf([]Xscalar{}), 10000, lit(0))
+	verifyGCBitsSlice(t, SliceOf(Tscalar), 10000, lit(0))
+	verifyGCBitsSlice(t, TypeOf([]Xptr{}), 2, lit(1))
+	verifyGCBitsSlice(t, SliceOf(Tptr), 2, lit(1))
+	verifyGCBitsSlice(t, TypeOf([]Xptr{}), 10000, lit(1))
+	verifyGCBitsSlice(t, SliceOf(Tptr), 10000, lit(1))
+	verifyGCBitsSlice(t, TypeOf([]Xscalarptr{}), 2, lit(0, 1))
+	verifyGCBitsSlice(t, SliceOf(Tscalarptr), 2, lit(0, 1))
+	verifyGCBitsSlice(t, TypeOf([]Xscalarptr{}), 10000, lit(0, 1))
+	verifyGCBitsSlice(t, SliceOf(Tscalarptr), 10000, lit(0, 1))
+	verifyGCBitsSlice(t, TypeOf([]Xptrscalar{}), 2, lit(1, 0))
+	verifyGCBitsSlice(t, SliceOf(Tptrscalar), 2, lit(1, 0))
+	verifyGCBitsSlice(t, TypeOf([]Xptrscalar{}), 10000, lit(1, 0))
+	verifyGCBitsSlice(t, SliceOf(Tptrscalar), 10000, lit(1, 0))
+	verifyGCBitsSlice(t, TypeOf([][10000]Xptrscalar{}), 1, rep(10000, lit(1, 0)))
+	verifyGCBitsSlice(t, SliceOf(ArrayOf(10000, Tptrscalar)), 1, rep(10000, lit(1, 0)))
+	verifyGCBitsSlice(t, TypeOf([][10000]Xptrscalar{}), 2, rep(10000, lit(1, 0)))
+	verifyGCBitsSlice(t, SliceOf(ArrayOf(10000, Tptrscalar)), 2, rep(10000, lit(1, 0)))
 
 	verifyGCBits(t, TypeOf((chan [100]Xscalar)(nil)), lit(1))
 	verifyGCBits(t, ChanOf(BothDir, ArrayOf(100, Tscalar)), lit(1))
