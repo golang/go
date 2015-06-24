@@ -809,6 +809,9 @@ func esc(e *EscState, n *Node, up *Node) {
 		}
 		escassignDereference(e, &e.theSink, n.List.N) // The original elements are now leaked, too
 
+	case OCOPY:
+		escassignDereference(e, &e.theSink, n.Right) // lose track of assign of dereference
+
 	case OCONV, OCONVNOP:
 		escassign(e, n, n.Left)
 
