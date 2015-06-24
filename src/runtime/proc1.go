@@ -2294,6 +2294,10 @@ func gfput(_p_ *p, gp *g) {
 		gp.stackguard0 = 0
 		gp.stkbar = nil
 		gp.stkbarPos = 0
+	} else {
+		// Reset stack barriers.
+		gp.stkbar = gp.stkbar[:0]
+		gp.stkbarPos = 0
 	}
 
 	gp.schedlink.set(_p_.gfree)
