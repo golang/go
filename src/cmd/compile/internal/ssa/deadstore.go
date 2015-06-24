@@ -56,12 +56,12 @@ func dse(f *Func) {
 				continue
 			}
 			if last != nil {
-				b.Fatal("two final stores - simultaneous live stores", last, v)
+				b.Fatalf("two final stores - simultaneous live stores", last, v)
 			}
 			last = v
 		}
 		if last == nil {
-			b.Fatal("no last store found - cycle?")
+			b.Fatalf("no last store found - cycle?")
 		}
 
 		// Walk backwards looking for dead stores.  Keep track of shadowed addresses.

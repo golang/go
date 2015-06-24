@@ -70,6 +70,6 @@ func (b *Block) LongString() string {
 	return s
 }
 
-func (b *Block) Log(msg string, args ...interface{})           { b.Func.Log(msg, args...) }
-func (b *Block) Fatal(msg string, args ...interface{})         { b.Func.Fatal(msg, args...) }
-func (b *Block) Unimplemented(msg string, args ...interface{}) { b.Func.Unimplemented(msg, args...) }
+func (b *Block) Logf(msg string, args ...interface{})           { b.Func.Logf(msg, args...) }
+func (b *Block) Fatalf(msg string, args ...interface{})         { b.Func.Fatalf(msg, args...) }
+func (b *Block) Unimplementedf(msg string, args ...interface{}) { b.Func.Unimplementedf(msg, args...) }
