@@ -42,6 +42,7 @@ func ParseFiles(filenames ...string) (*Template, error) {
 // contents before calling ParseFiles, t.Execute may fail. In that
 // case use t.ExecuteTemplate to execute a valid template.
 func (t *Template) ParseFiles(filenames ...string) (*Template, error) {
+	t.init()
 	return parseFiles(t, filenames...)
 }
 
@@ -97,6 +98,7 @@ func ParseGlob(pattern string) (*Template, error) {
 // equivalent to calling t.ParseFiles with the list of files matched by the
 // pattern.
 func (t *Template) ParseGlob(pattern string) (*Template, error) {
+	t.init()
 	return parseGlob(t, pattern)
 }
 
