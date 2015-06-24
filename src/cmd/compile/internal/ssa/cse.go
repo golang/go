@@ -24,15 +24,10 @@ func cse(f *Func) {
 	// It starts with a coarse partition and iteratively refines it
 	// until it reaches a fixed point.
 
-	// Make initial partition based on opcode/type/aux/auxint/nargs
-	// TODO(khr): types are not canonical, so we split unnecessarily.
-	// For example, all pointer types are distinct. Fix this.
-	// As a data point, using v.Type.String() instead of
-	// v.Type here (which is unsound) allows removal of
-	// about 50% more nil checks in the nilcheck elim pass.
+	// Make initial partition based on opcode/type-name/aux/auxint/nargs
 	type key struct {
 		op     Op
-		typ    Type
+		typ    string
 		aux    interface{}
 		auxint int64
 		nargs  int
@@ -40,7 +35,7 @@ func cse(f *Func) {
 	m := map[key]eqclass{}
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			k := key{v.Op, v.Type, v.Aux, v.AuxInt, len(v.Args)}
+			k := key{v.Op, v.Type.String(), v.Aux, v.AuxInt, len(v.Args)}
 			m[k] = append(m[k], v)
 		}
 	}
@@ -74,7 +69,7 @@ func cse(f *Func) {
 			for j := 1; j < len(e); {
 				w := e[j]
 				for i := 0; i < len(v.Args); i++ {
-					if valueEqClass[v.Args[i].ID] != valueEqClass[w.Args[i].ID] {
+					if valueEqClass[v.Args[i].ID] != valueEqClass[w.Args[i].ID] || !v.Type.Equal(w.Type) {
 						// w is not equivalent to v.
 						// remove w from e
 						e, e[j] = e[:len(e)-1], e[len(e)-1]
