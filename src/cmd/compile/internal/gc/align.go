@@ -119,6 +119,10 @@ func dowidth(t *Type) {
 	}
 
 	if t.Width > 0 {
+		if t.Align == 0 {
+			// See issue 11354
+			Fatal("zero alignment with nonzero size %v", t)
+		}
 		return
 	}
 
