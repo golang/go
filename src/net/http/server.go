@@ -97,8 +97,14 @@ type Hijacker interface {
 	// Hijack lets the caller take over the connection.
 	// After a call to Hijack(), the HTTP server library
 	// will not do anything else with the connection.
+	//
 	// It becomes the caller's responsibility to manage
 	// and close the connection.
+	//
+	// The returned net.Conn may have read or write deadlines
+	// already set, depending on the configuration of the
+	// Server. It is the caller's responsibility to set
+	// or clear those deadlines as needed.
 	Hijack() (net.Conn, *bufio.ReadWriter, error)
 }
 
