@@ -832,6 +832,10 @@ var reorderTests = []struct {
 	{"%[5]d %[2]d %d", SE{1, 2, 3}, "%!d(BADINDEX) 2 3"},
 	{"%d %[3]d %d", SE{1, 2}, "1 %!d(BADINDEX) 2"}, // Erroneous index does not affect sequence.
 	{"%.[]", SE{}, "%!](BADINDEX)"},                // Issue 10675
+	{"%.-3d", SE{42}, "%!-(int=42)3d"},             // TODO: Should this set return better error messages?
+	{"%2147483648d", SE{42}, "%!(NOVERB)%!(EXTRA int=42)"},
+	{"%-2147483648d", SE{42}, "%!(NOVERB)%!(EXTRA int=42)"},
+	{"%.2147483648d", SE{42}, "%!(NOVERB)%!(EXTRA int=42)"},
 }
 
 func TestReorder(t *testing.T) {
@@ -1158,14 +1162,20 @@ var startests = []struct {
 	out string
 }{
 	{"%*d", args(4, 42), "  42"},
+	{"%-*d", args(4, 42), "42  "},
+	{"%*d", args(-4, 42), "42  "},
+	{"%-*d", args(-4, 42), "42  "},
 	{"%.*d", args(4, 42), "0042"},
 	{"%*.*d", args(8, 4, 42), "    0042"},
 	{"%0*d", args(4, 42), "0042"},
-	{"%-*d", args(4, 42), "42  "},
 
 	// erroneous
 	{"%*d", args(nil, 42), "%!(BADWIDTH)42"},
+	{"%*d", args(int(1e7), 42), "%!(BADWIDTH)42"},
+	{"%*d", args(int(-1e7), 42), "%!(BADWIDTH)42"},
 	{"%.*d", args(nil, 42), "%!(BADPREC)42"},
+	{"%.*d", args(-1, 42), "%!(BADPREC)42"},
+	{"%.*d", args(int(1e7), 42), "%!(BADPREC)42"},
 	{"%*d", args(5, "foo"), "%!d(string=  foo)"},
 	{"%*% %d", args(20, 5), "% 5"},
 	{"%*", args(4), "%!(NOVERB)"},
