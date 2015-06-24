@@ -686,12 +686,13 @@ func ReadRequest(b *bufio.Reader) (req *Request, err error) {
 
 	fixPragmaCacheControl(req.Header)
 
+	req.Close = shouldClose(req.ProtoMajor, req.ProtoMinor, req.Header, false)
+
 	err = readTransfer(req, b)
 	if err != nil {
 		return nil, err
 	}
 
-	req.Close = shouldClose(req.ProtoMajor, req.ProtoMinor, req.Header, false)
 	return req, nil
 }
 

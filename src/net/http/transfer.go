@@ -27,7 +27,7 @@ type errorReader struct {
 	err error
 }
 
-func (r *errorReader) Read(p []byte) (n int, err error) {
+func (r errorReader) Read(p []byte) (n int, err error) {
 	return 0, r.err
 }
 
@@ -71,7 +71,7 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
 				n, rerr := io.ReadFull(t.Body, buf[:])
 				if rerr != nil && rerr != io.EOF {
 					t.ContentLength = -1
-					t.Body = &errorReader{rerr}
+					t.Body = errorReader{rerr}
 				} else if n == 1 {
 					// Oh, guess there is data in this Body Reader after all.
 					// The ContentLength field just wasn't set.
@@ -322,6 +322,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 		// Transfer semantics for Requests are exactly like those for
 		// Responses with status code 200, responding to a GET method
 		t.StatusCode = 200
+		t.Close = rr.Close
 	default:
 		panic("unexpected type")
 	}
@@ -561,13 +562,16 @@ func fixTrailer(header Header, te []string) (Header, error) {
 // Close ensures that the body has been fully read
 // and then reads the trailer if necessary.
 type body struct {
-	src     io.Reader
-	hdr     interface{}   // non-nil (Response or Request) value means read trailer
-	r       *bufio.Reader // underlying wire-format reader for the trailer
-	closing bool          // is the connection to be closed after reading body?
+	src          io.Reader
+	hdr          interface{}   // non-nil (Response or Request) value means read trailer
+	r            *bufio.Reader // underlying wire-format reader for the trailer
+	closing      bool          // is the connection to be closed after reading body?
+	doEarlyClose bool          // whether Close should stop early
 
-	mu     sync.Mutex // guards closed, and calls to Read and Close
-	closed bool
+	mu         sync.Mutex // guards closed, and calls to Read and Close
+	sawEOF     bool
+	closed     bool
+	earlyClose bool // Close called and we didn't read to the end of src
 }
 
 // ErrBodyReadAfterClose is returned when reading a Request or Response
@@ -587,9 +591,13 @@ func (b *body) Read(p []byte) (n int, err error) {
 
 // Must hold b.mu.
 func (b *body) readLocked(p []byte) (n int, err error) {
+	if b.sawEOF {
+		return 0, io.EOF
+	}
 	n, err = b.src.Read(p)
 
 	if err == io.EOF {
+		b.sawEOF = true
 		// Chunked case. Read the trailer.
 		if b.hdr != nil {
 			if e := b.readTrailer(); e != nil {
@@ -613,6 +621,7 @@ func (b *body) readLocked(p []byte) (n int, err error) {
 	if err == nil && n > 0 {
 		if lr, ok := b.src.(*io.LimitedReader); ok && lr.N == 0 {
 			err = io.EOF
+			b.sawEOF = true
 		}
 	}
 
@@ -701,9 +710,30 @@ func (b *body) Close() error {
 	}
 	var err error
 	switch {
+	case b.sawEOF:
+		// Already saw EOF, so no need going to look for it.
 	case b.hdr == nil && b.closing:
 		// no trailer and closing the connection next.
 		// no point in reading to EOF.
+	case b.doEarlyClose:
+		// Read up to maxPostHandlerReadBytes bytes of the body, looking for
+		// for EOF (and trailers), so we can re-use this connection.
+		if lr, ok := b.src.(*io.LimitedReader); ok && lr.N > maxPostHandlerReadBytes {
+			// There was a declared Content-Length, and we have more bytes remaining
+			// than our maxPostHandlerReadBytes tolerance. So, give up.
+			b.earlyClose = true
+		} else {
+			var n int64
+			// Consume the body, or, which will also lead to us reading
+			// the trailer headers after the body, if present.
+			n, err = io.CopyN(ioutil.Discard, bodyLocked{b}, maxPostHandlerReadBytes)
+			if err == io.EOF {
+				err = nil
+			}
+			if n == maxPostHandlerReadBytes {
+				b.earlyClose = true
+			}
+		}
 	default:
 		// Fully consume the body, which will also lead to us reading
 		// the trailer headers after the body, if present.
@@ -711,6 +741,12 @@ func (b *body) Close() error {
 	}
 	b.closed = true
 	return err
+}
+
+func (b *body) didEarlyClose() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.earlyClose
 }
 
 // bodyLocked is a io.Reader reading from a *body when its mutex is
