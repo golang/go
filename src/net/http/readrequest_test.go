@@ -362,3 +362,11 @@ func TestReadRequest(t *testing.T) {
 		}
 	}
 }
+
+func TestReadRequest_BadConnectHost(t *testing.T) {
+	data := []byte("CONNECT []%20%48%54%54%50%2f%31%2e%31%0a%4d%79%48%65%61%64%65%72%3a%20%31%32%33%0a%0a HTTP/1.0\n\n")
+	r, err := ReadRequest(bufio.NewReader(bytes.NewReader(data)))
+	if err == nil {
+		t.Fatal("Got unexpected request = %#v", r)
+	}
+}

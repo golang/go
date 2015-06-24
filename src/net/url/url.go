@@ -9,6 +9,7 @@ package url
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -142,7 +143,7 @@ func unescape(s string, mode encoding) (string, error) {
 			if i+2 >= len(s) || !ishex(s[i+1]) || !ishex(s[i+2]) {
 				s = s[i:]
 				if len(s) > 3 {
-					s = s[0:3]
+					s = s[:3]
 				}
 				return "", EscapeError(s)
 			}
@@ -328,7 +329,7 @@ func getscheme(rawurl string) (scheme, path string, err error) {
 			if i == 0 {
 				return "", "", errors.New("missing protocol scheme")
 			}
-			return rawurl[0:i], rawurl[i+1:], nil
+			return rawurl[:i], rawurl[i+1:], nil
 		default:
 			// we have encountered an invalid character,
 			// so there is no valid scheme
@@ -347,9 +348,9 @@ func split(s string, c string, cutc bool) (string, string) {
 		return s, ""
 	}
 	if cutc {
-		return s[0:i], s[i+len(c):]
+		return s[:i], s[i+len(c):]
 	}
-	return s[0:i], s[i:]
+	return s[:i], s[i:]
 }
 
 // Parse parses rawurl into a URL structure.
@@ -467,9 +468,11 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
 	return user, host, nil
 }
 
-// parseHost parses host as an authority without user information.
+// parseHost parses host as an authority without user
+// information. That is, as host[:port].
 func parseHost(host string) (string, error) {
 	litOrName := host
+	var colonPort string // ":80" or ""
 	if strings.HasPrefix(host, "[") {
 		// Parse an IP-Literal in RFC 3986 and RFC 6874.
 		// E.g., "[fe80::1], "[fe80::1%25en0]"
@@ -477,18 +480,23 @@ func parseHost(host string) (string, error) {
 		// RFC 4007 defines "%" as a delimiter character in
 		// the textual representation of IPv6 addresses.
 		// Per RFC 6874, in URIs that "%" is encoded as "%25".
-		i := strings.LastIndex(host[1:], "]")
+		i := strings.LastIndex(host, "]")
 		if i < 0 {
 			return "", errors.New("missing ']' in host")
 		}
+		colonPort = host[i+1:]
 		// Parse a host subcomponent without a ZoneID in RFC
 		// 6874 because the ZoneID is allowed to use the
 		// percent encoded form.
-		j := strings.Index(host[1:1+i], "%25")
+		j := strings.Index(host[:i], "%25")
 		if j < 0 {
-			litOrName = host[1 : 1+i]
+			litOrName = host[1:i]
 		} else {
-			litOrName = host[1 : 1+j]
+			litOrName = host[1:j]
+		}
+	} else {
+		if i := strings.Index(host, ":"); i != -1 {
+			colonPort = host[i:]
 		}
 	}
 	// A URI containing an IP-Literal without a ZoneID or
@@ -502,6 +510,9 @@ func parseHost(host string) (string, error) {
 	// See golang.org/issue/7991.
 	if strings.Contains(litOrName, "%") {
 		return "", errors.New("percent-encoded characters in host")
+	}
+	if !validOptionalPort(colonPort) {
+		return "", fmt.Errorf("invalid port %q after host", colonPort)
 	}
 	var err error
 	if host, err = unescape(host, encodeHost); err != nil {
@@ -534,6 +545,23 @@ func (u *URL) EscapedPath() string {
 func validEncodedPath(s string) bool {
 	for i := 0; i < len(s); i++ {
 		if s[i] != '%' && shouldEscape(s[i], encodePath) {
+			return false
+		}
+	}
+	return true
+}
+
+// validOptionalPort reports whether port is either an empty string
+// or matches /^:\d+$/
+func validOptionalPort(port string) bool {
+	if port == "" {
+		return true
+	}
+	if port[0] != ':' || len(port) == 1 {
+		return false
+	}
+	for _, b := range port[1:] {
+		if b < '0' || b > '9' {
 			return false
 		}
 	}
