@@ -649,7 +649,10 @@ func (s *state) boundsCheck(idx, len *ssa.Value) {
 // variable returns the value of a variable at the current location.
 func (s *state) variable(name string, t ssa.Type) *ssa.Value {
 	if s.curBlock == nil {
-		s.Fatal("nil curblock!")
+		// Unimplemented instead of Fatal because fixedbugs/bug303.go
+		// demonstrates a case in which this appears to happen legitimately.
+		// TODO: decide on the correct behavior here.
+		s.Unimplemented("nil curblock adding variable %v (%v)", name, t)
 	}
 	v := s.vars[name]
 	if v == nil {
