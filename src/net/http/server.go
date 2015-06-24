@@ -1868,7 +1868,7 @@ func ListenAndServe(addr string, handler Handler) error {
 // expects HTTPS connections. Additionally, files containing a certificate and
 // matching private key for the server must be provided. If the certificate
 // is signed by a certificate authority, the certFile should be the concatenation
-// of the server's certificate followed by the CA's certificate.
+// of the server's certificate, any intermediates, and the CA's certificate.
 //
 // A trivial example server is:
 //
@@ -1900,10 +1900,11 @@ func ListenAndServeTLS(addr string, certFile string, keyFile string, handler Han
 // ListenAndServeTLS listens on the TCP network address srv.Addr and
 // then calls Serve to handle requests on incoming TLS connections.
 //
-// Filenames containing a certificate and matching private key for
-// the server must be provided. If the certificate is signed by a
-// certificate authority, the certFile should be the concatenation
-// of the server's certificate followed by the CA's certificate.
+// Filenames containing a certificate and matching private key for the
+// server must be provided if the Server's TLSConfig.Certificates is
+// not populated. If the certificate is signed by a certificate
+// authority, the certFile should be the concatenation of the server's
+// certificate, any intermediates, and the CA's certificate.
 //
 // If srv.Addr is blank, ":https" is used.
 func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
@@ -1919,11 +1920,13 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
 		config.NextProtos = []string{"http/1.1"}
 	}
 
-	var err error
-	config.Certificates = make([]tls.Certificate, 1)
-	config.Certificates[0], err = tls.LoadX509KeyPair(certFile, keyFile)
-	if err != nil {
-		return err
+	if len(config.Certificates) == 0 || certFile != "" || keyFile != "" {
+		var err error
+		config.Certificates = make([]tls.Certificate, 1)
+		config.Certificates[0], err = tls.LoadX509KeyPair(certFile, keyFile)
+		if err != nil {
+			return err
+		}
 	}
 
 	ln, err := net.Listen("tcp", addr)
