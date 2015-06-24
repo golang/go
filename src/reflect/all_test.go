@@ -4571,8 +4571,12 @@ func TestGCBits(t *testing.T) {
 		uintptr
 		*byte
 	}
+	type Xbigptrscalar struct {
+		_ [100]*byte
+		_ [100]uintptr
+	}
 
-	var Tscalar, Tptr, Tscalarptr, Tptrscalar Type
+	var Tscalar, Tptr, Tscalarptr, Tptrscalar, Tbigptrscalar Type
 	{
 		// Building blocks for types constructed by reflect.
 		// This code is in a separate block so that code below
@@ -4591,10 +4595,15 @@ func TestGCBits(t *testing.T) {
 			uintptr
 			*byte
 		}
+		type Bigptrscalar struct {
+			_ [100]*byte
+			_ [100]uintptr
+		}
 		Tscalar = TypeOf(Scalar{})
 		Tptr = TypeOf(Ptr{})
 		Tscalarptr = TypeOf(Scalarptr{})
 		Tptrscalar = TypeOf(Ptrscalar{})
+		Tbigptrscalar = TypeOf(Bigptrscalar{})
 	}
 
 	empty := []byte{}
@@ -4632,6 +4641,8 @@ func TestGCBits(t *testing.T) {
 	verifyGCBits(t, ArrayOf(1, ArrayOf(10000, Tptrscalar)), rep(10000, lit(1, 0)))
 	verifyGCBits(t, TypeOf([2][10000]Xptrscalar{}), rep(2*10000, lit(1, 0)))
 	verifyGCBits(t, ArrayOf(2, ArrayOf(10000, Tptrscalar)), rep(2*10000, lit(1, 0)))
+	verifyGCBits(t, TypeOf([4]Xbigptrscalar{}), join(rep(3, join(rep(100, lit(1)), rep(100, lit(0)))), rep(100, lit(1))))
+	verifyGCBits(t, ArrayOf(4, Tbigptrscalar), join(rep(3, join(rep(100, lit(1)), rep(100, lit(0)))), rep(100, lit(1))))
 
 	verifyGCBitsSlice(t, TypeOf([]Xptr{}), 0, empty)
 	verifyGCBitsSlice(t, SliceOf(Tptr), 0, empty)
@@ -4657,6 +4668,8 @@ func TestGCBits(t *testing.T) {
 	verifyGCBitsSlice(t, SliceOf(ArrayOf(10000, Tptrscalar)), 1, rep(10000, lit(1, 0)))
 	verifyGCBitsSlice(t, TypeOf([][10000]Xptrscalar{}), 2, rep(10000, lit(1, 0)))
 	verifyGCBitsSlice(t, SliceOf(ArrayOf(10000, Tptrscalar)), 2, rep(10000, lit(1, 0)))
+	verifyGCBitsSlice(t, TypeOf([]Xbigptrscalar{}), 4, join(rep(100, lit(1)), rep(100, lit(0))))
+	verifyGCBitsSlice(t, SliceOf(Tbigptrscalar), 4, join(rep(100, lit(1)), rep(100, lit(0))))
 
 	verifyGCBits(t, TypeOf((chan [100]Xscalar)(nil)), lit(1))
 	verifyGCBits(t, ChanOf(BothDir, ArrayOf(100, Tscalar)), lit(1))
