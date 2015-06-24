@@ -26,6 +26,7 @@ type Type interface {
 	PtrTo() Type // given T, return *T
 
 	String() string
+	Equal(Type) bool
 }
 
 // Stub implementation for now, until we are completely using ../gc:Type
@@ -58,6 +59,14 @@ func (t *TypeImpl) IsFlags() bool    { return t.Flags }
 func (t *TypeImpl) String() string   { return t.Name }
 func (t *TypeImpl) Elem() Type       { panic("not implemented"); return nil }
 func (t *TypeImpl) PtrTo() Type      { panic("not implemented"); return nil }
+
+func (t *TypeImpl) Equal(u Type) bool {
+	x, ok := u.(*TypeImpl)
+	if !ok {
+		return false
+	}
+	return x == t
+}
 
 var (
 	// shortcuts for commonly used basic types

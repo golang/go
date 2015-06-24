@@ -23,6 +23,14 @@ func (t *Type) Alignment() int64 {
 	return int64(t.Align)
 }
 
+func (t *Type) Equal(u ssa.Type) bool {
+	x, ok := u.(*Type)
+	if !ok {
+		return false
+	}
+	return Eqtype(t, x)
+}
+
 func (t *Type) IsBoolean() bool {
 	return t.Etype == TBOOL
 }

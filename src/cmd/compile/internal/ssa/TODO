@@ -47,7 +47,6 @@ Rewrites
    and which need code generated, and do the code generation.
 
 Common-Subexpression Elimination
- - Canonicalize types.
  - Make better decision about which value in an equivalence class we should
    choose to replace other values in that class.
  - Can we move control values out of their basic block?
