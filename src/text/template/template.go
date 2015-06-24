@@ -52,6 +52,7 @@ func (t *Template) Name() string {
 // delimiters. The association, which is transitive, allows one template to
 // invoke another with a {{template}} action.
 func (t *Template) New(name string) *Template {
+	t.init()
 	nt := &Template{
 		name:       name,
 		common:     t.common,
@@ -81,6 +82,9 @@ func (t *Template) init() {
 func (t *Template) Clone() (*Template, error) {
 	nt := t.copy(nil)
 	nt.init()
+	if t.common == nil {
+		return nt, nil
+	}
 	for k, v := range t.tmpl {
 		if k == t.name {
 			nt.tmpl[t.name] = nt
@@ -115,6 +119,7 @@ func (t *Template) copy(c *common) *Template {
 // If the template does not already exist, it will create a new one.
 // It is an error to reuse a name except to overwrite an empty template.
 func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error) {
+	t.init()
 	// If the name is the name of this template, overwrite this template.
 	// The associate method checks it's not a redefinition.
 	nt := t
@@ -132,6 +137,9 @@ func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error
 
 // Templates returns a slice of defined templates associated with t.
 func (t *Template) Templates() []*Template {
+	if t.common == nil {
+		return nil
+	}
 	// Return a slice so we don't expose the map.
 	m := make([]*Template, 0, len(t.tmpl))
 	for _, v := range t.tmpl {
@@ -146,6 +154,7 @@ func (t *Template) Templates() []*Template {
 // corresponding default: {{ or }}.
 // The return value is the template, so calls can be chained.
 func (t *Template) Delims(left, right string) *Template {
+	t.init()
 	t.leftDelim = left
 	t.rightDelim = right
 	return t
@@ -156,6 +165,7 @@ func (t *Template) Delims(left, right string) *Template {
 // type. However, it is legal to overwrite elements of the map. The return
 // value is the template, so calls can be chained.
 func (t *Template) Funcs(funcMap FuncMap) *Template {
+	t.init()
 	t.muFuncs.Lock()
 	defer t.muFuncs.Unlock()
 	addValueFuncs(t.execFuncs, funcMap)
@@ -166,6 +176,9 @@ func (t *Template) Funcs(funcMap FuncMap) *Template {
 // Lookup returns the template with the given name that is associated with t.
 // It returns nil if there is no such template or the template has no definition.
 func (t *Template) Lookup(name string) *Template {
+	if t.common == nil {
+		return nil
+	}
 	return t.tmpl[name]
 }
 
@@ -177,6 +190,7 @@ func (t *Template) Lookup(name string) *Template {
 // (In multiple calls to Parse with the same receiver template, only one call
 // can contain text other than space, comments, and template definitions.)
 func (t *Template) Parse(text string) (*Template, error) {
+	t.init()
 	t.muFuncs.RLock()
 	trees, err := parse.Parse(t.name, text, t.leftDelim, t.rightDelim, t.parseFuncs, builtins)
 	t.muFuncs.RUnlock()
