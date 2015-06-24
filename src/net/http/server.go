@@ -502,6 +502,8 @@ func newBufioReader(r io.Reader) *bufio.Reader {
 		br.Reset(r)
 		return br
 	}
+	// Note: if this reader size is every changed, update
+	// TestHandlerBodyClose's assumptions.
 	return bufio.NewReader(r)
 }
 
@@ -627,6 +629,9 @@ func (c *conn) readRequest() (w *response, err error) {
 
 	req.RemoteAddr = c.remoteAddr
 	req.TLS = c.tlsState
+	if body, ok := req.Body.(*body); ok {
+		body.doEarlyClose = true
+	}
 
 	w = &response{
 		conn:          c,
@@ -1088,17 +1093,34 @@ func (w *response) finishRequest() {
 	if w.req.MultipartForm != nil {
 		w.req.MultipartForm.RemoveAll()
 	}
+}
+
+// shouldReuseConnection reports whether the underlying TCP connection can be reused.
+// It must only be called after the handler is done executing.
+func (w *response) shouldReuseConnection() bool {
+	if w.closeAfterReply {
+		// The request or something set while executing the
+		// handler indicated we shouldn't reuse this
+		// connection.
+		return false
+	}
 
 	if w.req.Method != "HEAD" && w.contentLength != -1 && w.bodyAllowed() && w.contentLength != w.written {
 		// Did not write enough. Avoid getting out of sync.
-		w.closeAfterReply = true
+		return false
 	}
 
 	// There was some error writing to the underlying connection
 	// during the request, so don't re-use this conn.
 	if w.conn.werr != nil {
-		w.closeAfterReply = true
+		return false
 	}
+
+	if body, ok := w.req.Body.(*body); ok && body.didEarlyClose() {
+		return false
+	}
+
+	return true
 }
 
 func (w *response) Flush() {
@@ -1267,7 +1289,7 @@ func (c *conn) serve() {
 			return
 		}
 		w.finishRequest()
-		if w.closeAfterReply {
+		if !w.shouldReuseConnection() {
 			if w.requestBodyLimitHit {
 				c.closeWriteAndWait()
 			}
