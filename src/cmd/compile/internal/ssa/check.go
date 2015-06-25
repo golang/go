@@ -105,6 +105,9 @@ func checkFunc(f *Func) {
 			}
 
 			if v.Op == OpAddr {
+				if len(v.Args) == 0 {
+					f.Fatalf("no args for OpAddr %s", v.LongString())
+				}
 				if v.Args[0].Op != OpSP && v.Args[0].Op != OpSB {
 					f.Fatalf("bad arg to OpAddr %v", v)
 				}
