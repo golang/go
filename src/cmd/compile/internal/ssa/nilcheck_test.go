@@ -22,13 +22,14 @@ func benchmarkNilCheckDeep(b *testing.B, depth int) {
 	blocs = append(blocs,
 		Bloc("entry",
 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+			Valu("sb", OpSB, TypeInvalid, 0, nil),
 			Goto(blockn(0)),
 		),
 	)
 	for i := 0; i < depth; i++ {
 		blocs = append(blocs,
 			Bloc(blockn(i),
-				Valu(ptrn(i), OpGlobal, ptrType, 0, nil),
+				Valu(ptrn(i), OpAddr, ptrType, 0, nil, "sb"),
 				Valu(booln(i), OpIsNonNil, TypeBool, 0, nil, ptrn(i)),
 				If(booln(i), blockn(i+1), "exit"),
 			),

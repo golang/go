@@ -122,6 +122,7 @@ func init() {
 		{name: "SETEQ", reg: flagsgp}, // extract == condition from arg0
 		{name: "SETNE", reg: flagsgp}, // extract != condition from arg0
 		{name: "SETL", reg: flagsgp},  // extract signed < condition from arg0
+		{name: "SETLE", reg: flagsgp}, // extract signed <= condition from arg0
 		{name: "SETG", reg: flagsgp},  // extract signed > condition from arg0
 		{name: "SETGE", reg: flagsgp}, // extract signed >= condition from arg0
 		{name: "SETB", reg: flagsgp},  // extract unsigned < condition from arg0

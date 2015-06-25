@@ -72,6 +72,7 @@ const (
 	OpAMD64SETEQ
 	OpAMD64SETNE
 	OpAMD64SETL
+	OpAMD64SETLE
 	OpAMD64SETG
 	OpAMD64SETGE
 	OpAMD64SETB
@@ -112,7 +113,12 @@ const (
 	OpMul
 	OpLsh
 	OpRsh
+	OpEq
+	OpNeq
 	OpLess
+	OpLeq
+	OpGreater
+	OpGeq
 	OpPhi
 	OpCopy
 	OpConst
@@ -441,6 +447,18 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "SETL",
+		reg: regInfo{
+			inputs: []regMask{
+				8589934592, // .FLAGS
+			},
+			clobbers: 0,
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SETLE",
 		reg: regInfo{
 			inputs: []regMask{
 				8589934592, // .FLAGS
@@ -921,7 +939,52 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name: "Eq",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Neq",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
 		name: "Less",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Leq",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Greater",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Geq",
 		reg: regInfo{
 			inputs:   []regMask{},
 			clobbers: 0,

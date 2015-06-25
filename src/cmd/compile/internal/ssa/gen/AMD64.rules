@@ -48,6 +48,11 @@
 			y))
 
 (Less x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETL (CMPQ <TypeFlags> x y))
+(Leq x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETLE (CMPQ <TypeFlags> x y))
+(Greater x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETG (CMPQ <TypeFlags> x y))
+(Geq x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETGE (CMPQ <TypeFlags> x y))
+(Eq x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETEQ (CMPQ <TypeFlags> x y))
+(Neq x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETNE (CMPQ <TypeFlags> x y))
 
 (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) -> (MOVQload ptr mem)
 (Load <t> ptr mem) && is32BitInt(t) -> (MOVLload ptr mem)
