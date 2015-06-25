@@ -15,7 +15,12 @@ var genericOps = []opData{
 	{name: "Rsh"}, // arg0 >> arg1 (signed/unsigned depending on signedness of type)
 
 	// 2-input comparisons
-	{name: "Less"}, // arg0 < arg1
+	{name: "Eq"},      // arg0 == arg1
+	{name: "Neq"},     // arg0 != arg1
+	{name: "Less"},    // arg0 < arg1
+	{name: "Leq"},     // arg0 <= arg1
+	{name: "Greater"}, // arg0 > arg1
+	{name: "Geq"},     // arg0 <= arg1
 
 	// Data movement
 	{name: "Phi"},  // select an argument based on which predecessor block we came from

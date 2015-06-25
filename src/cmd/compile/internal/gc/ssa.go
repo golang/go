@@ -392,7 +392,9 @@ func (s *state) stmt(n *Node) {
 		// generate body
 		s.startBlock(bBody)
 		s.stmtList(n.Nbody)
-		s.stmt(n.Right)
+		if n.Right != nil {
+			s.stmt(n.Right)
+		}
 		b = s.endBlock()
 		addEdge(b, bCond)
 
@@ -407,6 +409,21 @@ func (s *state) stmt(n *Node) {
 	default:
 		s.Unimplementedf("unhandled stmt %s", opnames[n.Op])
 	}
+}
+
+var binOpToSSA = [...]ssa.Op{
+	// Comparisons
+	OEQ: ssa.OpEq,
+	ONE: ssa.OpNeq,
+	OLT: ssa.OpLess,
+	OLE: ssa.OpLeq,
+	OGT: ssa.OpGreater,
+	OGE: ssa.OpGeq,
+	// Arithmetic
+	OADD: ssa.OpAdd,
+	OSUB: ssa.OpSub,
+	OLSH: ssa.OpLsh,
+	ORSH: ssa.OpRsh,
 }
 
 // expr converts the expression n to ssa, adds it to s and returns the ssa result.
@@ -444,28 +461,15 @@ func (s *state) expr(n *Node) *ssa.Value {
 		x := s.expr(n.Left)
 		return s.newValue1(ssa.OpConvert, n.Type, x)
 
-		// binary ops
-	case OLT:
+	// binary ops
+	case OLT, OEQ, ONE, OLE, OGE, OGT:
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
-		return s.newValue2(ssa.OpLess, ssa.TypeBool, a, b)
-	case OADD:
+		return s.newValue2(binOpToSSA[n.Op], ssa.TypeBool, a, b)
+	case OADD, OSUB, OLSH, ORSH:
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
-		return s.newValue2(ssa.OpAdd, a.Type, a, b)
-	case OSUB:
-		// TODO:(khr) fold code for all binary ops together somehow
-		a := s.expr(n.Left)
-		b := s.expr(n.Right)
-		return s.newValue2(ssa.OpSub, a.Type, a, b)
-	case OLSH:
-		a := s.expr(n.Left)
-		b := s.expr(n.Right)
-		return s.newValue2(ssa.OpLsh, a.Type, a, b)
-	case ORSH:
-		a := s.expr(n.Left)
-		b := s.expr(n.Right)
-		return s.newValue2(ssa.OpRsh, a.Type, a, b)
+		return s.newValue2(binOpToSSA[n.Op], a.Type, a, b)
 
 	case OADDR:
 		return s.addr(n.Left)
