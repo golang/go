@@ -130,6 +130,7 @@ type conn struct {
 	lr         *io.LimitedReader    // io.LimitReader(sr)
 	buf        *bufio.ReadWriter    // buffered(lr,rwc), reading from bufio->limitReader->sr->rwc
 	tlsState   *tls.ConnectionState // or nil when not using TLS
+	lastMethod string               // method of previous request, or ""
 
 	mu           sync.Mutex // guards the following
 	clientGone   bool       // if client has disconnected mid-request
@@ -618,6 +619,11 @@ func (c *conn) readRequest() (w *response, err error) {
 	}
 
 	c.lr.N = c.server.initialLimitedReaderSize()
+	if c.lastMethod == "POST" {
+		// RFC 2616 section 4.1 tolerance for old buggy clients.
+		peek, _ := c.buf.Reader.Peek(4) // ReadRequest will get err below
+		c.buf.Reader.Discard(numLeadingCRorLF(peek))
+	}
 	var req *Request
 	if req, err = ReadRequest(c.buf.Reader); err != nil {
 		if c.lr.N == 0 {
@@ -626,6 +632,7 @@ func (c *conn) readRequest() (w *response, err error) {
 		return nil, err
 	}
 	c.lr.N = noLimit
+	c.lastMethod = req.Method
 
 	req.RemoteAddr = c.remoteAddr
 	req.TLS = c.tlsState
@@ -2180,4 +2187,16 @@ func (w checkConnErrorWriter) Write(p []byte) (n int, err error) {
 		w.c.werr = err
 	}
 	return
+}
+
+func numLeadingCRorLF(v []byte) (n int) {
+	for _, b := range v {
+		if b == '\r' || b == '\n' {
+			n++
+			continue
+		}
+		break
+	}
+	return
+
 }

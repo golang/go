@@ -2963,6 +2963,30 @@ func TestNoContentLengthIfTransferEncoding(t *testing.T) {
 	}
 }
 
+// tolerate extra CRLF(s) before Request-Line on subsequent requests on a conn
+// Issue 10876.
+func TestTolerateCRLFBeforeRequestLine(t *testing.T) {
+	req := []byte("POST / HTTP/1.1\r\nHost: golang.org\r\nContent-Length: 3\r\n\r\nABC" +
+		"\r\n\r\n" + // <-- this stuff is bogus, but we'll ignore it
+		"GET / HTTP/1.1\r\nHost: golang.org\r\n\r\n")
+	var buf bytes.Buffer
+	conn := &rwTestConn{
+		Reader: bytes.NewReader(req),
+		Writer: &buf,
+		closec: make(chan bool, 1),
+	}
+	ln := &oneConnListener{conn: conn}
+	numReq := 0
+	go Serve(ln, HandlerFunc(func(rw ResponseWriter, r *Request) {
+		numReq++
+	}))
+	<-conn.closec
+	if numReq != 2 {
+		t.Errorf("num requests = %d; want 2", numReq)
+		t.Logf("Res: %s", buf.Bytes())
+	}
+}
+
 func BenchmarkClientServer(b *testing.B) {
 	b.ReportAllocs()
 	b.StopTimer()
