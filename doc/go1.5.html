@@ -4,93 +4,217 @@
 	"Template": true
 }-->
 
+
+<h2 id="introduction">Introduction to Go 1.5</h2>
+
+<p>
+The latest Go release, version 1.5,
+is a significant release, including major architectural changes to the implementation.
+Despite that, we expect almost all Go programs to continue to compile and run as before,
+because the release still maintains the Go 1 <a href="/doc/go1compat.html">promise
+of compatibility</a>.
+</p>
+
+<p>
+The biggest developments in the implementation are:
+</p>
+
+<ul>
+
+<li>
+The compiler and runtime are now written entirely in Go (with a little assembler).
+C is no longer involved in the implementation, and so the C compiler that was
+once necessary for building the distribution is gone.
+</li>
+
+<li>
+The garbage collector is now <a href="/s/go14gc">concurrent</a> and provides dramatically lower
+pause times by running, when possible, in parallel with other goroutines.
+</li>
+
+<li>
+By default, Go programs run with <code>GOMAXPROCS</code> set to the
+number of cores available; in prior releases it defaulted to 1.
+</li>
+
+<li>
+Support for <a href="http://golang.org/s/go14internal">internal packages</a>
+is now provided for all repositories, not just the Go core.
+</li>
+
+<li>
+The <code>go</code> command now provides <a href="/s/go15vendor">experimental
+support</a> for "vendoring" external dependencies.
+</li>
+
+</ul>
+
+<p>
+These and a number of other changes to the implementation and tools
+are discussed below.
+</p>
+
+<p>
+The release also contains one small language change involving map literals.
+</p>
+
+<p>
+Finally, the timing of the <a href="/s/releasesched">release</a>
+strays from the usual six-month interval,
+both to provide more time to prepare this major release and to shift the schedule thereafter to
+time the release dates more conveniently.
+</p>
+
+<h2 id="language">Changes to the language</h2>
+
+<h3 id="mapliterals">Map literals</h3>
+
+<p>
+Due to an oversight, the rule that allowed the element type to be elided from slice literals was not
+applied to map keys.
+This has been <a href="/cl/2591">corrected</a> in Go 1.5.
+An example will make this clear: as of Go 1.5, this map literal,
+</p>
+
 <pre>
-Overall:
-- toolchain in Go
-- new GC
-- go tool asm, go tool compile, go tool link
-- default output files changed: now file.o and a.out
-- internal enforced even outside standard library (golang.org/s/go14internal; https://golang.org/cl/9156)
-- gomaxprocs=numcpu (golang.org/s/go15gomaxprocs)
+m := map[Point]string{
+    Point{29.935523, 52.891566}:   "Persepolis",
+    Point{-25.352594, 131.034361}: "Uluru",
+    Point{37.422455, -122.084306}: "Googleplex",
+}
+</pre>
 
-Language:
-- permit omission of key type in map composite literals where key is a composite literal (https://golang.org/cl/2591)
+<p>
+may be written as follows, without the <code>Point</code> type listed explicitly:
+</p>
 
-Build:
-- Go 1.4 required to build (https://golang.org/cl/2470, https://golang.org/cl/2993)
+<pre>
+m := map[Point]string{
+    {29.935523, 52.891566}:   "Persepolis",
+    {-25.352594, 131.034361}: "Uluru",
+    {37.422455, -122.084306}: "Googleplex",
+}
+</pre>
 
-New Ports:
-- darwin/arm, a.k.a iOS. (https://golang.org/cl/2118, 2119, 3273, 2121, 2122, ..., 2127)
-- darwin/arm64
-- linux/arm64 (cgo is supported, but only with external linking)
-- openbsd/arm (no cgo or external linking)
+<h2 id="implementation">The Implementation</h2>
 
-Removed Ports:
-- dragonfly/386 (https://golang.org/cl/7543)
-- The port to Snow Leopard (OS X 10.6) is no longer actively maintained.
+<h3 id="c">No more C</h3>
 
-Runtime:
-- goroutine scheduling order changed; never guaranteed by language,
-  but can break tests that implicitly assume a specific execution
-  order
+<p>
+The compiler and runtime are now implemented in Go and assembler, without C.
+The only C source left in the tree is related to testing or to <code>cgo</code>.
+There was a C compiler in the tree in 1.4 and earlier.
+It was used to build the runtime; a custom compiler was necessary in part to
+guarantee the C code would work with the stack management of goroutines.
+Since the runtime is in Go now, there is no need for this C compiler and it is gone.
+Details of the process to eliminate C are discussed <a href="/s/go13compiler">elsewhere</a>.
+</p>
+
+<p>
+The conversion from C was done with the help of custom tools created for the job.
+Most important, the compiler was actually moved by automatic translation of
+the C code into Go.
+It is in effect the same program in a different language.
+It is not a new implementation
+of the compiler so we expect the process will not have introduced new compiler
+bugs.
+An overview of this process is available in the slides for
+<a href="https://talks.golang.org/2015/gogo.slide">this presentation</a>.
+</p>
+
+<h3 id="compiler">Compiler and tools</h3>
+
+<p>
+Independent of but encouraged by the move to Go, the names of the tools have changed.
+The old names <code>6g</code>, <code>8g</code> and so on are gone; instead there
+is just one binary, accessible as <code>go</code> <code>tool</code> <code>compile</code>,
+that compiles Go source into binaries suitable for the architecture and operating system
+specified by <code>$GOARCH</code> and <code>$GOOS</code>.
+Simlarly, there is now one linker (<code>go</code> <code>tool</code> <code>link</code>)
+and one assembler (<code>go</code> <code>tool</code> <code>asm</code>).
+The linker was translated automatically from the old C implementation,
+but the assembler is a new native Go implementation discussed
+in more detail below.
+</p>
+
+<p>
+Similar to the drop of the names <code>6g</code>, <code>8g</code>, and so on,
+the output of the compiler and assembler are now given a plain <code>.o</code> suffix
+rather than <code>.8</code>, <code>.6</code>, etc.
+</p>
+
+
+<h3 id="gc">Garbage collector</h3>
+
+<p>
+TODO
+</p>
+
+<h3 id="runtime">Runtime</h3>
+
+<p>
+In Go 1.5, the order in which goroutines are scheduled has been changed.
+The properties of the scheduler were never defined by the language,
+but programs that depended on the scheduling order may be broken
+by this change.
+We have seen a few (erroneous) programs affected by this change.
+If you have programs that implicitly depend on the scheduling
+order, you will need to update them.
+</p>
+
+<p>
+Another potentially breaking change is that the runtime now
+sets the default number of threads to run simultaneously,
+defined by <code>GOMAXPROCS</code>, to the number
+of cores available on the CPU.
+In prior releases it defaulted to 1.
+Programs that do not expect to run with multiple cores may
+break inadvertently.
+They can be updated by removing the restriction or by setting
+<code>GOMAXPROCS</code> explicitly. 
+</p>
+
+<h3 id="build">Build</h3>
+
+<p>
+Now that the Go compiler and runtime are implemented in Go, a Go compiler
+must be available to compile the distribution from source.
+Thus, to build the Go core, a working Go distribution must already be in place.
+(Go programmers who do not work on the core are unaffected by this change.)
+Any Go 1.4 or later distribution (including <code>gccgo</code>) will serve.
+For details, see the <a href="/s/go15bootstrap">design document</a>.
+</p>
+
+<h2 id="ports">Ports</h2>
+
+<p>
+Due mostly to the industry's move away the 32-bit x86 architecture,
+the set of binary downloads provided is reduced in 1.5.
+A distribution for the OS X operating system is provided only for the
+<code>amd64</code> architecture, not <code>386</code>.
+Similarly, the ports for Snow Leopard (Apple OS X 10.6) still work but are no
+longer released as a download or maintained since Apple no longer maintains that version
+of the operating system.
+Also, the <code>dragonfly/386</code> port is no longer supported at all
+because DragonflyBSD itself no longer supports the 32-bit 386 architecture.
+</p>
+
+<p>
+There are however several new ports available to be built from source.
+These include <code>darwin/arm</code> and <code>darwin/arm64</code>.
+The new port <code>linux/arm64</code> is mostly in place, but <code>cgo</code>
+is only supported using external linking.
+</p>
+
+<pre>
 
 API additions and behavior changes:
 
-archive/zip: add (*Writer).SetOffset method (https://golang.org/cl/7445)
-bufio: add Reader.Discard (https://golang.org/cl/2260)
-bytes: add Buffer.Cap (https://golang.org/cl/8342)
-bytes, strings: add Reader.Size (https://golang.org/cl/3199)
-bytes, strings: add LastIndexByte (https://golang.org/cl/9500)
-crypto/cipher: clarify what will happen if len(src) != len(dst) for the Stream interface. (https://golang.org/cl/1754)
-crypto/cipher: support non-standard nonce lengths for GCM. (https://golang.org/cl/8946)
-crypto/elliptic: add Name field to CurveParams struct (https://golang.org/cl/2133)
-crypto/elliptic: Unmarshaling points now automatically checks that the point is on the curve (https://golang.org/cl/2421)
-crypto/tls: change default minimum version to TLS 1.0. (https://golang.org/cl/1791)
-crypto/tls: including Certificate Transparency SCTs in the handshake is now supported (https://golang.org/cl/8988)
-crypto/tls: session ticket keys can now be rotated at runtime (https://golang.org/cl/9072)
-crypto/tls: servers will now always call GetCertificate to pick a certificate for a connection when Certificates is empty (https://golang.org/cl/8792)
-crypto/x509: wildcards are now only accepted as the first label (https://golang.org/cl/5691)
-crypto/x509: unknown critical extensions now cause errors in Verify, not when parsing (https://golang.org/cl/9390)
-database/sql: add Stats (https://golang.org/cl/7950)
-encoding/base64: add unpadded encodings (https://golang.org/cl/1511)
 flag: new nicer format for PrintDefaults (https://golang.org/cl/7330)
-fmt: empty slices now print nothing with %x (bug fix) (https://golang.org/cl/8864)
-fmt: reflect.Value now prints what it holds (https://golang.org/cl/8731)
-go/ast: add Implicit field to ast.EmptyStmt; changed meaning of ast.EmptyStmt.Semicolon position (https://golang.org/cl/5720)
-go/build: reserved GOARCHes for common architectures (https://golang.org/cl/9644)
-io: add CopyBuffer, Copy with user-provided buffer (https://golang.org/cl/8730)
-log: add SetOutput functions (https://golang.org/cl/2686, https://golang.org/cl/3023)
-log: add LUTC flag (https://golang.org/cl/8761)
 math/big: add arbitrary precision Floats (many cl's)
-math/big: add Jacobi and Int.ModSqrt (https://golang.org/cl/1886)
-mime: add ExtensionByType (https://golang.org/cl/7444)
 mime/quotedprintable: new package (https://golang.org/cl/5940 + others)
-net: add sequential and RFC 6555-compliant TCP dialing (https://golang.org/cl/8768)
-net: add Source field to OpError (https://go-review.googlesource.com/9231)
-net: fix inconsistent errors (https://golang.org/cl/9236)
-net: add SocketConn, SocketPacketConn (https://golang.org/cl/9275)
-net: use Go's DNS resolver when system configuration permits (https://golang.org/cl/8945)
-net/http: support for setting trailers from a server Handler (https://golang.org/cl/2157)
-net/http: ignore the Unix epoch time in ServeContent (https://golang.org/cl/7915)
-net/http/cgi: fix REMOTE_ADDR, REMOTE_HOST, add REMOTE_PORT (https://golang.org/cl/4933)
-net/mail: adds AddressParser type (https://golang.org/cl/10392)
-net/smtp: add TLSConnectionState accessor (https://golang.org/cl/2151)
-os: add LookupEnv (https://golang.org/cl/9741)
-os/signal: add Ignore and Reset (https://golang.org/cl/3580)
 reflect: add ArrayOf (https://golang.org/cl/4111)
 reflect: add FuncOf (https://golang.org/cl/1996)
-runtime, syscall: use SYSCALL instruction on FreeBSD (Go 1.5 now requires FreeBSD 8-STABLE+) (https://golang.org/cl/3020)
-runtime, syscall: use get_random_bytes syscall for NaCl (Go 1.5 now requires NaCl SDK pepper-39 or above) (https://golang.org/cl/1755)
-runtime/pprof: memory profiles include overall memory statistics by default (https://golang.org/cl/9491)
-strings: add Compare(x, y string) int, for symmetry with bytes.Compare (https://golang.org/cl/2828)
-syscall: Add Foreground and Pgid to SysProcAttr (https://golang.org/cl/5130)
-syscall: add missing Syscall9 for darwin/amd64 (https://golang.org/cl/6555)
-syscall: Add GidMappingsEnableSetgroups to linux SysProcAttr (http://golang.org/cl/10670)
-testing/quick: support generation of arrays (https://golang.org/cl/3865)
-testing/quick: generated pointers can now be nil (https://golang.org/cl/10821)
-text/template: add Options method (https://golang.org/cl/8462)
-text/template: huge integers are now parse errors (https://golang.org/cl/9651)
-time: add time.AppendFormat(https://golang.org/cl/1760)
 
 Tools:
 
@@ -104,6 +228,7 @@ cmd/go: .swig/.swigcxx files now require SWIG 3.0.6 or later
 cmd/go: add -run flag to go generate (https://golang.org/cl/9005)
 cmd/go: add $GOLINE to generate's variables (https://golang.org/cl/9007)
 cmd/go: add go doc (https://golang.org/cl/9227)
+cmd/go: internal enforced even outside standard library (golang.org/s/go14internal; https://golang.org/cl/9156)
 cmd/go, testing: add go test -count (https://golang.org/cl/10669)
 cmd/go: add preliminary support for vendor directories (https://golang.org/cl/10923)
 cmd/vet: better validation of struct tags (https://golang.org/cl/2685)
@@ -115,6 +240,7 @@ cmd/go: add -buildmode build option
 cmd/gc: add -dynlink option (for amd64 only)
 cmd/ld: add -buildmode option
 cmd/trace: new command to view traces (https://golang.org/cl/3601)
+
 Performance:
 
 cmd/gc: evaluate concrete == interface without allocating (https://golang.org/cl/2096)
@@ -167,3 +293,209 @@ were fixed in fmt, archive/zip, archive/tar, encoding/gob, image/jpeg, image/png
 image/gif, compress/flate, text/template, html/template. The fixes harden implementation
 against incorrect and malicious inputs.
 </pre>
+
+<h3 id="minor_library_changes">Minor changes to the library</h3>
+
+<ul>
+
+<li>
+TODO archive/zip: add (*Writer).SetOffset method (https://golang.org/cl/7445)
+</li>
+
+<li>
+TODO bufio: add Reader.Discard (https://golang.org/cl/2260)
+</li>
+
+<li>
+TODO bytes: add Buffer.Cap (https://golang.org/cl/8342)
+</li>
+
+<li>
+TODO bytes, strings: add Reader.Size (https://golang.org/cl/3199)
+</li>
+
+<li>
+TODO bytes, strings: add LastIndexByte (https://golang.org/cl/9500)
+</li>
+
+<li>
+TODO crypto/cipher: clarify what will happen if len(src) != len(dst) for the Stream interface. (https://golang.org/cl/1754)
+</li>
+
+<li>
+TODO crypto/cipher: support non-standard nonce lengths for GCM. (https://golang.org/cl/8946)
+</li>
+
+<li>
+TODO crypto/elliptic: add Name field to CurveParams struct (https://golang.org/cl/2133)
+</li>
+
+<li>
+TODO crypto/elliptic: Unmarshaling points now automatically checks that the point is on the curve (https://golang.org/cl/2421)
+</li>
+
+<li>
+TODO crypto/tls: change default minimum version to TLS 1.0. (https://golang.org/cl/1791)
+</li>
+
+<li>
+TODO crypto/tls: including Certificate Transparency SCTs in the handshake is now supported (https://golang.org/cl/8988)
+</li>
+
+<li>
+TODO crypto/tls: session ticket keys can now be rotated at runtime (https://golang.org/cl/9072)
+</li>
+
+<li>
+TODO crypto/tls: servers will now always call GetCertificate to pick a certificate for a connection when Certificates is empty (https://golang.org/cl/8792)
+</li>
+
+<li>
+TODO crypto/x509: wildcards are now only accepted as the first label (https://golang.org/cl/5691)
+</li>
+
+<li>
+TODO crypto/x509: unknown critical extensions now cause errors in Verify, not when parsing (https://golang.org/cl/9390)
+</li>
+
+<li>
+TODO database/sql: add Stats (https://golang.org/cl/7950)
+</li>
+
+<li>
+TODO encoding/base64: add unpadded encodings (https://golang.org/cl/1511)
+</li>
+
+<li>
+TODO fmt: empty slices now print nothing with %x (bug fix) (https://golang.org/cl/8864)
+</li>
+
+<li>
+TODO fmt: reflect.Value now prints what it holds (https://golang.org/cl/8731)
+</li>
+
+<li>
+TODO go/ast: add Implicit field to ast.EmptyStmt; changed meaning of ast.EmptyStmt.Semicolon position (https://golang.org/cl/5720)
+</li>
+
+<li>
+TODO go/build: reserved GOARCHes for common architectures (https://golang.org/cl/9644)
+</li>
+
+<li>
+TODO io: add CopyBuffer, Copy with user-provided buffer (https://golang.org/cl/8730)
+</li>
+
+<li>
+TODO log: add SetOutput functions (https://golang.org/cl/2686, https://golang.org/cl/3023)
+</li>
+
+<li>
+TODO log: add LUTC flag (https://golang.org/cl/8761)
+</li>
+
+<li>
+TODO math/big: add Jacobi and Int.ModSqrt (https://golang.org/cl/1886)
+</li>
+
+<li>
+TODO mime: add ExtensionByType (https://golang.org/cl/7444)
+</li>
+
+<li>
+TODO net: add sequential and RFC 6555-compliant TCP dialing (https://golang.org/cl/8768)
+</li>
+
+<li>
+TODO net: add Source field to OpError (https://go-review.googlesource.com/9231)
+</li>
+
+<li>
+TODO net: fix inconsistent errors (https://golang.org/cl/9236)
+</li>
+
+<li>
+TODO net: add SocketConn, SocketPacketConn (https://golang.org/cl/9275)
+</li>
+
+<li>
+TODO net: use Go's DNS resolver when system configuration permits (https://golang.org/cl/8945)
+</li>
+
+<li>
+TODO net/http: support for setting trailers from a server Handler (https://golang.org/cl/2157)
+</li>
+
+<li>
+TODO net/http: ignore the Unix epoch time in ServeContent (https://golang.org/cl/7915)
+</li>
+
+<li>
+TODO net/http/cgi: fix REMOTE_ADDR, REMOTE_HOST, add REMOTE_PORT (https://golang.org/cl/4933)
+</li>
+
+<li>
+TODO net/mail: adds AddressParser type (https://golang.org/cl/10392)
+</li>
+
+<li>
+TODO net/smtp: add TLSConnectionState accessor (https://golang.org/cl/2151)
+</li>
+
+<li>
+TODO os: add LookupEnv (https://golang.org/cl/9741)
+</li>
+
+<li>
+TODO os/signal: add Ignore and Reset (https://golang.org/cl/3580)
+</li>
+
+<li>
+TODO runtime, syscall: use SYSCALL instruction on FreeBSD (Go 1.5 now requires FreeBSD 8-STABLE+) (https://golang.org/cl/3020)
+</li>
+
+<li>
+TODO runtime, syscall: use get_random_bytes syscall for NaCl (Go 1.5 now requires NaCl SDK pepper-39 or above) (https://golang.org/cl/1755)
+</li>
+
+<li>
+TODO runtime/pprof: memory profiles include overall memory statistics by default (https://golang.org/cl/9491)
+</li>
+
+<li>
+TODO strings: add Compare(x, y string) int, for symmetry with bytes.Compare (https://golang.org/cl/2828)
+</li>
+
+<li>
+TODO syscall: Add Foreground and Pgid to SysProcAttr (https://golang.org/cl/5130)
+</li>
+
+<li>
+TODO syscall: add missing Syscall9 for darwin/amd64 (https://golang.org/cl/6555)
+</li>
+
+<li>
+TODO syscall: Add GidMappingsEnableSetgroups to linux SysProcAttr (http://golang.org/cl/10670)
+</li>
+
+<li>
+TODO testing/quick: support generation of arrays (https://golang.org/cl/3865)
+</li>
+
+<li>
+TODO testing/quick: generated pointers can now be nil (https://golang.org/cl/10821)
+</li>
+
+<li>
+TODO text/template: add Options method (https://golang.org/cl/8462)
+</li>
+
+<li>
+TODO text/template: huge integers are now parse errors (https://golang.org/cl/9651)
+</li>
+
+<li>
+TODO time: add time.AppendFormat(https://golang.org/cl/1760)
+</li>
+
+</ul>
