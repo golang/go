@@ -2884,7 +2884,7 @@ func addstr(n *Node, init **NodeList) *Node {
 //   init {
 //     s := l1
 //     if n := len(l1) + len(l2) - cap(s); n > 0 {
-//       s = growslice(s, n)
+//       s = growslice_n(s, n)
 //     }
 //     s = s[:len(l1)+len(l2)]
 //     memmove(&s[len(l1)], &l2[0], len(l2)*sizeof(T))
@@ -2918,11 +2918,11 @@ func appendslice(n *Node, init **NodeList) *Node {
 
 	nif.Left = Nod(OGT, nt, Nodintconst(0))
 
-	// instantiate growslice(Type*, []any, int) []any
-	fn := syslook("growslice", 1) //   growslice(<type>, old []T, n int64) (ret []T)
+	// instantiate growslice_n(Type*, []any, int) []any
+	fn := syslook("growslice_n", 1) //   growslice_n(<type>, old []T, n int64) (ret []T)
 	substArgTypes(fn, s.Type.Type, s.Type.Type)
 
-	// s = growslice(T, s, n)
+	// s = growslice_n(T, s, n)
 	nif.Nbody = list1(Nod(OAS, s, mkcall1(fn, s.Type, &nif.Ninit, typename(s.Type), s, nt)))
 
 	l = list(l, nif)
@@ -2997,7 +2997,7 @@ func appendslice(n *Node, init **NodeList) *Node {
 //     s := src
 //     const argc = len(args) - 1
 //     if cap(s) - len(s) < argc {
-//	    s = growslice(s, argc)
+//	    s = growslice(s, len(s)+argc)
 //     }
 //     n := len(s)
 //     s = s[:n+argc]
@@ -3050,10 +3050,10 @@ func walkappend(n *Node, init **NodeList, dst *Node) *Node {
 	nx := Nod(OIF, nil, nil)       // if cap(s) - len(s) < argc
 	nx.Left = Nod(OLT, Nod(OSUB, Nod(OCAP, ns, nil), Nod(OLEN, ns, nil)), na)
 
-	fn := syslook("growslice", 1) //   growslice(<type>, old []T, n int) (ret []T)
+	fn := syslook("growslice", 1) //   growslice(<type>, old []T, mincap int) (ret []T)
 	substArgTypes(fn, ns.Type.Type, ns.Type.Type)
 
-	nx.Nbody = list1(Nod(OAS, ns, mkcall1(fn, ns.Type, &nx.Ninit, typename(ns.Type), ns, na)))
+	nx.Nbody = list1(Nod(OAS, ns, mkcall1(fn, ns.Type, &nx.Ninit, typename(ns.Type), ns, Nod(OADD, Nod(OLEN, ns, nil), na))))
 
 	l = list(l, nx)
 
