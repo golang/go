@@ -1107,6 +1107,17 @@ func TestParseAuthority(t *testing.T) {
 	}
 }
 
+// Issue 11202
+func TestStarRequest(t *testing.T) {
+	u, err := Parse("*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := u.RequestURI(), "*"; got != want {
+		t.Errorf("RequestURI = %q; want %q", got, want)
+	}
+}
+
 type shouldEscapeTest struct {
 	in     byte
 	mode   encoding

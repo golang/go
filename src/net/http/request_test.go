@@ -513,6 +513,32 @@ func TestRequestWriteBufferedWriter(t *testing.T) {
 	}
 }
 
+func TestStarRequest(t *testing.T) {
+	req, err := ReadRequest(bufio.NewReader(strings.NewReader("M-SEARCH * HTTP/1.1\r\n\r\n")))
+	if err != nil {
+		return
+	}
+	var out bytes.Buffer
+	if err := req.Write(&out); err != nil {
+		t.Fatal(err)
+	}
+	back, err := ReadRequest(bufio.NewReader(&out))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Ignore the Headers (the User-Agent breaks the deep equal,
+	// but we don't care about it)
+	req.Header = nil
+	back.Header = nil
+	if !reflect.DeepEqual(req, back) {
+		t.Errorf("Original request doesn't match Request read back.")
+		t.Logf("Original: %#v", req)
+		t.Logf("Original.URL: %#v", req.URL)
+		t.Logf("Wrote: %s", out.Bytes())
+		t.Logf("Read back (doesn't match Original): %#v", back)
+	}
+}
+
 func testMissingFile(t *testing.T, req *Request) {
 	f, fh, err := req.FormFile("missing")
 	if f != nil {
