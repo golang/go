@@ -117,3 +117,35 @@ func TestRepoRootForImportPath(t *testing.T) {
 		}
 	}
 }
+
+func TestIsSecure(t *testing.T) {
+	tests := []struct {
+		vcs    *vcsCmd
+		url    string
+		secure bool
+	}{
+		{vcsGit, "http://example.com/foo.git", false},
+		{vcsGit, "https://example.com/foo.git", true},
+		{vcsBzr, "http://example.com/foo.bzr", false},
+		{vcsBzr, "https://example.com/foo.bzr", true},
+		{vcsSvn, "http://example.com/svn", false},
+		{vcsSvn, "https://example.com/svn", true},
+		{vcsHg, "http://example.com/foo.hg", false},
+		{vcsHg, "https://example.com/foo.hg", true},
+		{vcsGit, "ssh://user@example.com/foo.git", true},
+		{vcsGit, "user@server:path/to/repo.git", false},
+		{vcsGit, "user@server:", false},
+		{vcsGit, "server:repo.git", false},
+		{vcsGit, "server:path/to/repo.git", false},
+		{vcsGit, "example.com:path/to/repo.git", false},
+		{vcsGit, "path/that/contains/a:colon/repo.git", false},
+		{vcsHg, "ssh://user@example.com/path/to/repo.hg", true},
+	}
+
+	for _, test := range tests {
+		secure := test.vcs.isSecure(test.url)
+		if secure != test.secure {
+			t.Errorf("%s isSecure(%q) = %t; want %t", test.vcs, test.url, secure, test.secure)
+		}
+	}
+}
