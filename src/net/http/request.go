@@ -720,23 +720,52 @@ type maxBytesReader struct {
 	r       io.ReadCloser // underlying reader
 	n       int64         // max bytes remaining
 	stopped bool
+	sawEOF  bool
+}
+
+func (l *maxBytesReader) tooLarge() (n int, err error) {
+	if !l.stopped {
+		l.stopped = true
+		if res, ok := l.w.(*response); ok {
+			res.requestTooLarge()
+		}
+	}
+	return 0, errors.New("http: request body too large")
 }
 
 func (l *maxBytesReader) Read(p []byte) (n int, err error) {
-	if l.n <= 0 {
-		if !l.stopped {
-			l.stopped = true
-			if res, ok := l.w.(*response); ok {
-				res.requestTooLarge()
-			}
+	toRead := l.n
+	if l.n == 0 {
+		if l.sawEOF {
+			return l.tooLarge()
 		}
-		return 0, errors.New("http: request body too large")
+		// The underlying io.Reader may not return (0, io.EOF)
+		// at EOF if the requested size is 0, so read 1 byte
+		// instead. The io.Reader docs are a bit ambiguous
+		// about the return value of Read when 0 bytes are
+		// requested, and {bytes,strings}.Reader gets it wrong
+		// too (it returns (0, nil) even at EOF).
+		toRead = 1
 	}
-	if int64(len(p)) > l.n {
-		p = p[:l.n]
+	if int64(len(p)) > toRead {
+		p = p[:toRead]
 	}
 	n, err = l.r.Read(p)
+	if err == io.EOF {
+		l.sawEOF = true
+	}
+	if l.n == 0 {
+		// If we had zero bytes to read remaining (but hadn't seen EOF)
+		// and we get a byte here, that means we went over our limit.
+		if n > 0 {
+			return l.tooLarge()
+		}
+		return 0, err
+	}
 	l.n -= int64(n)
+	if l.n < 0 {
+		l.n = 0
+	}
 	return
 }
 
