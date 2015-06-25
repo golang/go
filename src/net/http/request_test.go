@@ -539,6 +539,38 @@ func TestStarRequest(t *testing.T) {
 	}
 }
 
+type responseWriterJustWriter struct {
+	io.Writer
+}
+
+func (responseWriterJustWriter) Header() Header  { panic("should not be called") }
+func (responseWriterJustWriter) WriteHeader(int) { panic("should not be called") }
+
+// delayedEOFReader never returns (n > 0, io.EOF), instead putting
+// off the io.EOF until a subsequent Read call.
+type delayedEOFReader struct {
+	r io.Reader
+}
+
+func (dr delayedEOFReader) Read(p []byte) (n int, err error) {
+	n, err = dr.r.Read(p)
+	if n > 0 && err == io.EOF {
+		err = nil
+	}
+	return
+}
+
+func TestIssue10884_MaxBytesEOF(t *testing.T) {
+	dst := ioutil.Discard
+	_, err := io.Copy(dst, MaxBytesReader(
+		responseWriterJustWriter{dst},
+		ioutil.NopCloser(delayedEOFReader{strings.NewReader("12345")}),
+		5))
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func testMissingFile(t *testing.T, req *Request) {
 	f, fh, err := req.FormFile("missing")
 	if f != nil {
