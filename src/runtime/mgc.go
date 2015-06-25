@@ -46,13 +46,12 @@
 // 11. GC preempts P's one-by-one taking partial wbufs and marks all unmarked yet
 //        reachable objects.
 // 12. When GC completes a full cycle over P's and discovers no new grey
-//         objects, (which means all reachable objects are marked) set phase = GCsweep.
+//         objects, (which means all reachable objects are marked) set phase = GCoff.
 // 13. Wait for all P's to acknowledge phase change.
 // 14. Now malloc allocates white (but sweeps spans before use).
 //         Write barrier becomes nop.
 // 15. GC does background sweeping, see description below.
-// 16. When sweeping is complete set phase to GCoff.
-// 17. When sufficient allocation has taken place replay the sequence starting at 0 above,
+// 16. When sufficient allocation has taken place replay the sequence starting at 0 above,
 //         see discussion of GC rate below.
 
 // Changing phases.
@@ -241,12 +240,11 @@ var gcBlackenEnabled uint32
 var gcBlackenPromptly bool
 
 const (
-	_GCoff             = iota // GC not running, write barrier disabled
+	_GCoff             = iota // GC not running; sweeping in background, write barrier disabled
 	_GCstw                    // unused state
 	_GCscan                   // GC collecting roots into workbufs, write barrier ENABLED
 	_GCmark                   // GC marking from workbufs, write barrier ENABLED
 	_GCmarktermination        // GC mark termination: allocate black, P's help GC, write barrier ENABLED
-	_GCsweep                  // GC mark completed; sweeping in background, write barrier disabled
 )
 
 //go:nosplit
