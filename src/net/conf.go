@@ -9,6 +9,7 @@ package net
 import (
 	"os"
 	"runtime"
+	"strconv"
 	"sync"
 	"syscall"
 )
@@ -18,10 +19,14 @@ type conf struct {
 	// forceCgoLookupHost forces CGO to always be used, if available.
 	forceCgoLookupHost bool
 
+	netGo  bool // "netgo" build tag in use (or no cgo)
+	netCgo bool // cgo DNS resolution forced
+
 	// machine has an /etc/mdns.allow file
 	hasMDNSAllow bool
 
-	goos string // the runtime.GOOS, to ease testing
+	goos          string // the runtime.GOOS, to ease testing
+	dnsDebugLevel int
 
 	nss    *nssConf
 	resolv *dnsConfig
@@ -39,6 +44,28 @@ func systemConf() *conf {
 }
 
 func initConfVal() {
+	dnsMode, debugLevel := goDebugNetDNS()
+	confVal.dnsDebugLevel = debugLevel
+	confVal.netGo = netGo || dnsMode == "go"
+	confVal.netCgo = netCgo || dnsMode == "cgo"
+
+	if confVal.dnsDebugLevel > 0 {
+		defer func() {
+			switch {
+			case confVal.netGo:
+				if netGo {
+					println("go package net: built with netgo build tag; using Go's DNS resolver")
+				} else {
+					println("go package net: GODEBUG setting forcing use of Go's resolver")
+				}
+			case confVal.forceCgoLookupHost:
+				println("go package net: using cgo DNS resolver")
+			default:
+				println("go package net: dynamic selection of DNS resolver")
+			}
+		}()
+	}
+
 	// Darwin pops up annoying dialog boxes if programs try to do
 	// their own DNS requests. So always use cgo instead, which
 	// avoids that.
@@ -51,7 +78,9 @@ func initConfVal() {
 	// force cgo. Note that LOCALDOMAIN can change behavior merely
 	// by being specified with the empty string.
 	_, localDomainDefined := syscall.Getenv("LOCALDOMAIN")
-	if os.Getenv("RES_OPTIONS") != "" || os.Getenv("HOSTALIASES") != "" ||
+	if os.Getenv("RES_OPTIONS") != "" ||
+		os.Getenv("HOSTALIASES") != "" ||
+		netCgo ||
 		localDomainDefined {
 		confVal.forceCgoLookupHost = true
 		return
@@ -84,7 +113,15 @@ func initConfVal() {
 }
 
 // hostLookupOrder determines which strategy to use to resolve hostname.
-func (c *conf) hostLookupOrder(hostname string) hostLookupOrder {
+func (c *conf) hostLookupOrder(hostname string) (ret hostLookupOrder) {
+	if c.dnsDebugLevel > 1 {
+		defer func() {
+			print("go package net: hostLookupOrder(", hostname, ") = ", ret.String(), "\n")
+		}()
+	}
+	if c.netGo {
+		return hostLookupFilesDNS
+	}
 	if c.forceCgoLookupHost || c.resolv.unknownOpt || c.goos == "android" {
 		return hostLookupCgo
 	}
@@ -231,4 +268,35 @@ func (c *conf) hostLookupOrder(hostname string) hostLookupOrder {
 
 	// Something weird. Let libc deal with it.
 	return hostLookupCgo
+}
+
+// goDebugNetDNS parses the value of the GODEBUG "netdns" value.
+// The netdns value can be of the form:
+//    1       // debug level 1
+//    2       // debug level 2
+//    cgo     // use cgo for DNS lookups
+//    go      // use go for DNS lookups
+//    cgo+1   // use cgo for DNS lookups + debug level 1
+//    1+cgo   // same
+//    cgo+2   // same, but debug level 2
+// etc.
+func goDebugNetDNS() (dnsMode string, debugLevel int) {
+	goDebug := goDebugString("netdns")
+	parsePart := func(s string) {
+		if s == "" {
+			return
+		}
+		if '0' <= s[0] && s[0] <= '9' {
+			debugLevel, _ = strconv.Atoi(s)
+		} else {
+			dnsMode = s
+		}
+	}
+	if i := byteIndex(goDebug, '+'); i != -1 {
+		parsePart(goDebug[:i])
+		parsePart(goDebug[i+1:])
+		return
+	}
+	parsePart(goDebug)
+	return
 }
