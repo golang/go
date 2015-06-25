@@ -33,6 +33,7 @@ func nilcheckelim(f *Func) {
 		var elim bool
 		// Walk up the dominator tree,
 		// looking for identical nil checks.
+		// TODO: This loop is O(n^2). See BenchmarkNilCheckDeep*.
 		for c := idom[b.ID]; c != nil; c = idom[c.ID] {
 			if checkedptr(c) == ptr {
 				elim = true

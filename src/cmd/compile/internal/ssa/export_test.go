@@ -12,7 +12,7 @@ var Opt = opt
 var Deadcode = deadcode
 
 type DummyFrontend struct {
-	t *testing.T
+	t testing.TB
 }
 
 func (DummyFrontend) StringSym(s string) interface{} {
