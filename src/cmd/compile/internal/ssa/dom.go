@@ -55,6 +55,8 @@ func postorder(f *Func) []*Block {
 // which maps block ID to the immediate dominator of that block.
 // Unreachable blocks map to nil.  The entry block maps to nil.
 func dominators(f *Func) []*Block {
+	// TODO: Benchmarks. See BenchmarkNilCheckDeep* for an example.
+
 	// A simple algorithm for now
 	// Cooper, Harvey, Kennedy
 	idom := make([]*Block, f.NumBlocks())
@@ -108,6 +110,7 @@ func dominators(f *Func) []*Block {
 // intersect finds the closest dominator of both b and c.
 // It requires a postorder numbering of all the blocks.
 func intersect(b, c *Block, postnum []int, idom []*Block) *Block {
+	// TODO: This loop is O(n^2). See BenchmarkNilCheckDeep*.
 	for b != c {
 		if postnum[b.ID] < postnum[c.ID] {
 			b = idom[b.ID]
