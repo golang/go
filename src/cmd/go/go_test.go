@@ -439,7 +439,7 @@ func (tg *testgoData) grepCountBoth(match string) int {
 // removed if it exists.
 func (tg *testgoData) creatingTemp(path string) {
 	if filepath.IsAbs(path) && !strings.HasPrefix(path, tg.tempdir) {
-		tg.t.Fatal("internal testsuite error: creatingTemp(%q) with absolute path not in temporary directory")
+		tg.t.Fatal("internal testsuite error: creatingTemp(%q) with absolute path not in temporary directory", path)
 	}
 	// If we have changed the working directory, make sure we have
 	// an absolute path, because we are going to change directory
@@ -1107,6 +1107,19 @@ func TestInstallIntoGOBIN(t *testing.T) {
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 	tg.run("install", "go-cmd-test")
 	tg.wantExecutable("testdata/bin1/go-cmd-test"+exeSuffix, "go install go-cmd-test did not write to testdata/bin1/go-cmd-test")
+}
+
+// Issue 11065
+func TestInstallToCurrentDirectoryCreatesExecutable(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	pkg := filepath.Join(tg.pwd(), "testdata", "src", "go-cmd-test")
+	tg.creatingTemp(filepath.Join(pkg, "go-cmd-test"+exeSuffix))
+	tg.setenv("GOBIN", pkg)
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.cd(pkg)
+	tg.run("install")
+	tg.wantExecutable("go-cmd-test"+exeSuffix, "go install did not write to current directory")
 }
 
 // Without $GOBIN set, installing a program outside $GOPATH should fail

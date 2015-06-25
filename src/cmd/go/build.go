@@ -559,12 +559,14 @@ func runInstall(cmd *Command, args []string) {
 		// If it exists and is an executable file, remove it.
 		_, targ := filepath.Split(pkgs[0].ImportPath)
 		targ += exeSuffix
-		fi, err := os.Stat(targ)
-		if err == nil {
-			m := fi.Mode()
-			if m.IsRegular() {
-				if m&0111 != 0 || goos == "windows" { // windows never sets executable bit
-					os.Remove(targ)
+		if filepath.Join(pkgs[0].Dir, targ) != pkgs[0].Target { // maybe $GOBIN is the current directory
+			fi, err := os.Stat(targ)
+			if err == nil {
+				m := fi.Mode()
+				if m.IsRegular() {
+					if m&0111 != 0 || goos == "windows" { // windows never sets executable bit
+						os.Remove(targ)
+					}
 				}
 			}
 		}
