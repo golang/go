@@ -33,12 +33,22 @@ func makeslice(t *slicetype, len64, cap64 int64) slice {
 	return slice{p, len, cap}
 }
 
-func growslice(t *slicetype, old slice, n int) slice {
+// growslice_n is a variant of growslice that takes the number of new elements
+// instead of the new minimum capacity.
+// TODO(rsc): This is used by append(slice, slice...).
+// The compiler should change that code to use growslice directly (issue #11419).
+func growslice_n(t *slicetype, old slice, n int) slice {
 	if n < 1 {
 		panic(errorString("growslice: invalid n"))
 	}
+	return growslice(t, old, old.cap+n)
+}
 
-	cap := old.cap + n
+// growslice handles slice growth during append.
+// It is passed the slice type, the old slice, and the desired new minimum capacity,
+// and it returns a new slice with at least that capacity, with the old data
+// copied into it.
+func growslice(t *slicetype, old slice, cap int) slice {
 	if cap < old.cap || t.elem.size > 0 && uintptr(cap) > _MaxMem/uintptr(t.elem.size) {
 		panic(errorString("growslice: cap out of range"))
 	}
