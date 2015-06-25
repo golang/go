@@ -548,7 +548,11 @@ func TestFileLineInErrorMessages(t *testing.T) {
 	tg.tempFile("err.go", `package main; import "bar"`)
 	path := tg.path("err.go")
 	tg.runFail("run", path)
-	tg.grepStderr("^"+regexp.QuoteMeta(path)+":", "missing file:line in error message")
+	shortPath := path
+	if rel, err := filepath.Rel(tg.pwd(), path); err == nil && len(rel) < len(path) {
+		shortPath = rel
+	}
+	tg.grepStderr("^"+regexp.QuoteMeta(shortPath)+":", "missing file:line in error message")
 }
 
 func TestProgramNameInCrashMessages(t *testing.T) {
