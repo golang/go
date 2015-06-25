@@ -537,6 +537,9 @@ func (u *URL) EscapedPath() string {
 			return u.RawPath
 		}
 	}
+	if u.Path == "*" {
+		return "*" // don't escape (Issue 11202)
+	}
 	return escape(u.Path, encodePath)
 }
 
