@@ -46,6 +46,7 @@ var isSecureScheme = map[string]bool{
 	"git+ssh": true,
 	"bzr+ssh": true,
 	"svn+ssh": true,
+	"ssh":     true,
 }
 
 func (v *vcsCmd) isSecure(repo string) bool {
