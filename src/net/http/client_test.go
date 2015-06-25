@@ -843,6 +843,47 @@ func TestBasicAuth(t *testing.T) {
 	}
 }
 
+func TestBasicAuthHeadersPreserved(t *testing.T) {
+	defer afterTest(t)
+	tr := &recordingTransport{}
+	client := &Client{Transport: tr}
+
+	// If Authorization header is provided, username in URL should not override it
+	url := "http://My%20User@dummy.faketld/"
+	req, err := NewRequest("GET", url, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.SetBasicAuth("My User", "My Pass")
+	expected := "My User:My Pass"
+	client.Do(req)
+
+	if tr.req.Method != "GET" {
+		t.Errorf("got method %q, want %q", tr.req.Method, "GET")
+	}
+	if tr.req.URL.String() != url {
+		t.Errorf("got URL %q, want %q", tr.req.URL.String(), url)
+	}
+	if tr.req.Header == nil {
+		t.Fatalf("expected non-nil request Header")
+	}
+	auth := tr.req.Header.Get("Authorization")
+	if strings.HasPrefix(auth, "Basic ") {
+		encoded := auth[6:]
+		decoded, err := base64.StdEncoding.DecodeString(encoded)
+		if err != nil {
+			t.Fatal(err)
+		}
+		s := string(decoded)
+		if expected != s {
+			t.Errorf("Invalid Authorization header. Got %q, wanted %q", s, expected)
+		}
+	} else {
+		t.Errorf("Invalid auth %q", auth)
+	}
+
+}
+
 func TestClientTimeout(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")

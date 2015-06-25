@@ -212,7 +212,7 @@ func send(req *Request, t RoundTripper) (resp *Response, err error) {
 		req.Header = make(Header)
 	}
 
-	if u := req.URL.User; u != nil {
+	if u := req.URL.User; u != nil && req.Header.Get("Authorization") == "" {
 		username := u.Username()
 		password, _ := u.Password()
 		req.Header.Set("Authorization", "Basic "+basicAuth(username, password))
