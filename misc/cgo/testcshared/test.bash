@@ -28,7 +28,7 @@ fi
 androidpath=/data/local/tmp/testcshared-$$
 
 function cleanup() {
-	rm -rf libgo.so libgo2.so libgo.h testp testp2 testp3 pkg
+	rm -rf libgo.$libext libgo2.$libext libgo.h testp testp2 testp3 pkg
 
 	rm -rf $(go env GOROOT)/${installdir}
 
