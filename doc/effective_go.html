@@ -1421,7 +1421,7 @@ resulting slice is returned.  The function uses the fact that
 <code>nil</code> slice, and return 0.
 </p>
 <pre>
-func Append(slice, data[]byte) []byte {
+func Append(slice, data []byte) []byte {
     l := len(slice)
     if l + len(data) &gt; cap(slice) {  // reallocate
         // Allocate double what's needed, for future growth.
