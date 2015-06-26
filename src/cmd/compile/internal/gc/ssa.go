@@ -380,6 +380,7 @@ func (s *state) stmt(n *Node) {
 			s.Unimplementedf("cond n.Left == nil: %v", n)
 		}
 		s.startBlock(bCond)
+		s.stmtList(n.Left.Ninit)
 		cond := s.expr(n.Left)
 		b = s.endBlock()
 		b.Kind = ssa.BlockIf
