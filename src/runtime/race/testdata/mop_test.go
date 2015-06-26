@@ -1598,7 +1598,7 @@ func TestRaceSliceSlice(t *testing.T) {
 	<-c
 }
 
-func TestRaceSliceSlice2Failing(t *testing.T) {
+func TestRaceSliceSlice2(t *testing.T) {
 	c := make(chan bool, 1)
 	x := make([]int, 10)
 	i := 2
@@ -1610,7 +1610,7 @@ func TestRaceSliceSlice2Failing(t *testing.T) {
 	<-c
 }
 
-func TestRaceSliceStringFailing(t *testing.T) {
+func TestRaceSliceString(t *testing.T) {
 	c := make(chan bool, 1)
 	x := "hello"
 	go func() {
