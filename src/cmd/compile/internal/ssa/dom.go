@@ -55,7 +55,6 @@ func postorder(f *Func) []*Block {
 // which maps block ID to the immediate dominator of that block.
 // Unreachable blocks map to nil.  The entry block maps to nil.
 func dominators(f *Func) []*Block {
-	// TODO: Benchmarks. See BenchmarkNilCheckDeep* for an example.
 
 	// A simple algorithm for now
 	// Cooper, Harvey, Kennedy
