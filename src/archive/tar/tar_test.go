@@ -136,7 +136,7 @@ type headerRoundTripTest struct {
 }
 
 func TestHeaderRoundTrip(t *testing.T) {
-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" || runtime.GOOS == "nacl" {
 		t.Skipf("skipping on %s; issue 11426", runtime.GOOS)
 	}
 	golden := []headerRoundTripTest{
