@@ -47,6 +47,12 @@ func TestWaitGroup(t *testing.T) {
 	}
 }
 
+func knownRacy(t *testing.T) {
+	if RaceEnabled {
+		t.Skip("skipping known-racy test under the race detector")
+	}
+}
+
 func TestWaitGroupMisuse(t *testing.T) {
 	defer func() {
 		err := recover()
@@ -62,6 +68,7 @@ func TestWaitGroupMisuse(t *testing.T) {
 }
 
 func TestWaitGroupMisuse2(t *testing.T) {
+	knownRacy(t)
 	if runtime.NumCPU() <= 2 {
 		t.Skip("NumCPU<=2, skipping: this test requires parallelism")
 	}
@@ -104,6 +111,7 @@ func TestWaitGroupMisuse2(t *testing.T) {
 }
 
 func TestWaitGroupMisuse3(t *testing.T) {
+	knownRacy(t)
 	if runtime.NumCPU() <= 1 {
 		t.Skip("NumCPU==1, skipping: this test requires parallelism")
 	}
