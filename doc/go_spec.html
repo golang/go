@@ -2600,7 +2600,7 @@ q.x          // (*(*q).T0).x        (*q).x is a valid field selector
 
 p.M2()       // p.M2()              M2 expects *T2 receiver
 p.M1()       // ((*p).T1).M1()      M1 expects T1 receiver
-p.M0()       // ((&(*p).T0)).M0()   M0 expects *T0 receiver, see section on Calls
+p.M0()       // ((&amp;(*p).T0)).M0()   M0 expects *T0 receiver, see section on Calls
 </pre>
 
 <p>
