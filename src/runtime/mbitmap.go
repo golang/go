@@ -1193,7 +1193,7 @@ func heapBitsSetTypeGCProg(h heapBits, progSize, elemSize, dataSize, allocSize u
 		}
 		trailer[i] = byte(n)
 		i++
-		n = count
+		n = count - 1
 		for ; n >= 0x80; n >>= 7 {
 			trailer[i] = byte(n | 0x80)
 			i++
