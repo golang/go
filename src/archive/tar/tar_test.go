@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -135,6 +136,9 @@ type headerRoundTripTest struct {
 }
 
 func TestHeaderRoundTrip(t *testing.T) {
+	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+		t.Skipf("skipping on %s; issue 11426", runtime.GOOS)
+	}
 	golden := []headerRoundTripTest{
 		// regular file.
 		{
