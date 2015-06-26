@@ -130,7 +130,7 @@ The old names <code>6g</code>, <code>8g</code> and so on are gone; instead there
 is just one binary, accessible as <code>go</code> <code>tool</code> <code>compile</code>,
 that compiles Go source into binaries suitable for the architecture and operating system
 specified by <code>$GOARCH</code> and <code>$GOOS</code>.
-Similarly, there is now one linker (<code>go</code> <code>tool</code> <code>link</code>)
+Simlarly, there is now one linker (<code>go</code> <code>tool</code> <code>link</code>)
 and one assembler (<code>go</code> <code>tool</code> <code>asm</code>).
 The linker was translated automatically from the old C implementation,
 but the assembler is a new native Go implementation discussed
@@ -204,6 +204,15 @@ There are however several new ports available to be built from source.
 These include <code>darwin/arm</code> and <code>darwin/arm64</code>.
 The new port <code>linux/arm64</code> is mostly in place, but <code>cgo</code>
 is only supported using external linking.
+</p>
+
+<p>
+On FreeBSD, Go 1.5 requires FreeBSD 8-STABLE+ because of its new use of the <code>SYSCALL</code> instruction.
+</p>
+
+<p>
+On NaCl, Go 1.5 requires SDK version pepper-39 or above because it now uses the
+<code>get_random_bytes</code> system call.
 </p>
 
 <pre>
@@ -367,11 +376,18 @@ TODO encoding/base64: add unpadded encodings (https://golang.org/cl/1511)
 </li>
 
 <li>
-TODO fmt: empty slices now print nothing with %x (bug fix) (https://golang.org/cl/8864)
+In the <a href="/pkg/fmt/"><code>fmt</code></a> package,
+empty slices now produce no output with the <code>%x</code> verb
+even when width is applied. For slices the modifiers apply elementwise but in 1.4 if the
+slice was empty, they applied globally, an inconsistency.
+For instance, in Go 1.4 an empty byte slice prints '0000' with verb "%04x"; in 1.5 it prints nothing.
 </li>
 
 <li>
-TODO fmt: reflect.Value now prints what it holds (https://golang.org/cl/8731)
+Also in the <a href="/pkg/fmt/"><code>fmt</code></a> package,
+a value of type <a href="/pkg/reflect/#Value"><code>Value</code></a> now
+prints what it holds, rather than use the <code>reflect.Value</code>'s <code>Stringer</code>
+method, which produces things like <code>&lt;int Value&gt;</code>.
 </li>
 
 <li>
@@ -379,23 +395,39 @@ TODO go/ast: add Implicit field to ast.EmptyStmt; changed meaning of ast.EmptySt
 </li>
 
 <li>
-TODO go/build: reserved GOARCHes for common architectures (https://golang.org/cl/9644)
+For forward compatibility the <a href="/pkg/go/build/"><code>go/build</code></a> package
+reserves <code>GOARCH</code> values for  a number of architectures that Go might support one day.
+This is not a promise that it will.
 </li>
 
 <li>
-TODO io: add CopyBuffer, Copy with user-provided buffer (https://golang.org/cl/8730)
+The <a href="/pkg/io/"><code>io</code></a> package
+adds a <a href="/pkg/io/#CopyBuffer"><code>CopyBuffer</code></a> function
+that is like <a href="/pkg/io/#Copy"><code>Copy</code></a> but
+uses a caller-provided buffer, permitting control of allocation and buffer size.
 </li>
 
 <li>
-TODO log: add SetOutput functions (https://golang.org/cl/2686, https://golang.org/cl/3023)
+The <a href="/pkg/log/"><code>log</code></a> package
+has a new <a href="/pkg/log/#LUTC"><code>LUTC</code></a> flag
+that causes time stamps to be printed in the UTC time zone.
+It also adds a <a href="/pkg/log/#SetOutput"><code>SetOutput</code></a> function
+to set the output destination for the standard logger
+and a corresponding method for user-created loggers.
 </li>
 
 <li>
-TODO log: add LUTC flag (https://golang.org/cl/8761)
+In Go 1.4, <a href="/pkg/math/#Max"><code>Max</code></a> was not detecting all possible NaN bit patterns.
+This is fixed in Go 1.5, so programs that use <code>math.Max</code> on data including NaNs may behave differently,
+but now correctly according to the IEEE754 definition of NaNs.
 </li>
 
 <li>
-TODO math/big: add Jacobi and Int.ModSqrt (https://golang.org/cl/1886)
+The <a href="/pkg/math/big/"><code>math/big</code></a> package
+adds a new <a href="/pkg/math/big/#Jacobi"><code>Jacobi</code></a>
+function for integers and a new method
+<a href="/pkg/math/big/#Int.ModSqrt"><code>ModSqrt</code></a>
+method for the <a href="/pkg/math/big/#Int"><code>Int</code></a> type.
 </li>
 
 <li>
@@ -443,59 +475,77 @@ TODO net/smtp: add TLSConnectionState accessor (https://golang.org/cl/2151)
 </li>
 
 <li>
-TODO os: add LookupEnv (https://golang.org/cl/9741)
+The <a href="/pkg/os/"><code>os</code></a> package
+has a new <a href="/pkg/os/#LookupEnv"><code>LookupEnv</code></a> function
+that is similar to <a href="/pkg/os/#Getenv"><code>Getenv</code></a>
+but can distinguish between an empty environment variable and a missing one.
 </li>
 
 <li>
-TODO os/signal: add Ignore and Reset (https://golang.org/cl/3580)
+The <a href="/pkg/os/signal/"><code>os/signal</code></a> package
+adds new <a href="/pkg/os/signal/#Ignore"><code>Ignore</code></a> and
+<a href="/pkg/os/signal/#Reset"><code>Reset</code></a> functions.
 </li>
 
 <li>
-TODO runtime, syscall: use SYSCALL instruction on FreeBSD (Go 1.5 now requires FreeBSD 8-STABLE+) (https://golang.org/cl/3020)
+The <a href="/pkg/runtime/pprof/"><code>runtime/pprof</code></a> package
+by default now includes overall memory statistics in all memory profiles.
 </li>
 
 <li>
-TODO runtime, syscall: use get_random_bytes syscall for NaCl (Go 1.5 now requires NaCl SDK pepper-39 or above) (https://golang.org/cl/1755)
+The <a href="/pkg/strings/"><code>strings</code></a> package
+has a new <a href="/pkg/strings/#Compare"><code>Compare</code></a> function.
+This is present to provide symmetry with the <a href="/pkg/bytes/"><code>bytes</code></a> package
+but is otherwise unnecessary as strings support comparison natively.
 </li>
 
 <li>
-TODO runtime/pprof: memory profiles include overall memory statistics by default (https://golang.org/cl/9491)
+In the <a href="/pkg/syscall/"><code>syscall</code></a> package,
+the Linux <code>SysProcAttr</code> struct now has a
+<code>GidMappingsEnableSetgroups</code> field, made necessary
+by security changes in Linux 3.19.
+On all Unix systems, the struct also has new <code>Foreground</code> and <code>Pgid</code> fields
+to provide more control when exec'ing.
+On Darwin, there is now a <code>Syscall9</code> function
+to support calls with too many arguments.
 </li>
 
 <li>
-TODO strings: add Compare(x, y string) int, for symmetry with bytes.Compare (https://golang.org/cl/2828)
+The <a href="/pkg/testing/quick/"><code>testing/quick</code></a> will now
+generate <code>nil</code> values for pointer types,
+making it possible to use with recursive data structures.
+Also, the package now supports generation of array types.
 </li>
 
 <li>
-TODO syscall: Add Foreground and Pgid to SysProcAttr (https://golang.org/cl/5130)
+In the <a href="/pkg/text/template/"><code>text/template</code></a> and
+<a href="/pkg/html/template/"><code>html/template</code></a> packages,
+integer constants too large to be represented as a Go integer now trigger a
+parse error. Before, they were silently converted to floating point, losing
+precision.
 </li>
 
 <li>
-TODO syscall: add missing Syscall9 for darwin/amd64 (https://golang.org/cl/6555)
+Also in the <a href="/pkg/text/template/"><code>text/template</code></a> and
+<a href="/pkg/html/template/"><code>html/template</code></a> packages,
+a new <a href="/pkg/text/template/#Option"><code>Option</code></a> type
+allows customization of the behavior of the template during execution.
+The sole implemented option allows control over how a missing key is
+handled when indexing a map.
+The default, which can now be overridden, is as before: to continue with an invalid value.
 </li>
 
 <li>
-TODO syscall: Add GidMappingsEnableSetgroups to linux SysProcAttr (http://golang.org/cl/10670)
+The <a href="/pkg/time/"><code>time</code></a> package's
+<code>Time</code> type has a new method
+<a href="/pkg/time/#Time.AppendFormat"><code>AppendFormat</code></a>, 
+which can be used to avoid allocation when printing a time value.
 </li>
 
 <li>
-TODO testing/quick: support generation of arrays (https://golang.org/cl/3865)
-</li>
-
-<li>
-TODO testing/quick: generated pointers can now be nil (https://golang.org/cl/10821)
-</li>
-
-<li>
-TODO text/template: add Options method (https://golang.org/cl/8462)
-</li>
-
-<li>
-TODO text/template: huge integers are now parse errors (https://golang.org/cl/9651)
-</li>
-
-<li>
-TODO time: add time.AppendFormat(https://golang.org/cl/1760)
+The <a href="/pkg/unicode/"><code>unicode</code></a> package and associated
+support throughout the system has been upgraded from version 7.0 to
+<a href="http://www.unicode.org/versions/Unicode8.0.0/">Unicode 8.0</a>.
 </li>
 
 </ul>
