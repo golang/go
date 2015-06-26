@@ -590,20 +590,21 @@ func (r *describePackageResult) display(printf printfFunc) {
 	for _, mem := range r.members {
 		printf(mem.obj, "\t%s", formatMember(mem.obj, maxname))
 		for _, meth := range mem.methods {
-			printf(meth.Obj(), "\t\t%s", types.SelectionString(r.pkg, meth))
+			printf(meth.Obj(), "\t\t%s", types.SelectionString(meth, types.RelativeTo(r.pkg)))
 		}
 	}
 }
 
 func formatMember(obj types.Object, maxname int) string {
+	qualifier := types.RelativeTo(obj.Pkg())
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "%-5s %-*s", tokenOf(obj), maxname, obj.Name())
 	switch obj := obj.(type) {
 	case *types.Const:
-		fmt.Fprintf(&buf, " %s = %s", types.TypeString(obj.Pkg(), obj.Type()), obj.Val().String())
+		fmt.Fprintf(&buf, " %s = %s", types.TypeString(obj.Type(), qualifier), obj.Val().String())
 
 	case *types.Func:
-		fmt.Fprintf(&buf, " %s", types.TypeString(obj.Pkg(), obj.Type()))
+		fmt.Fprintf(&buf, " %s", types.TypeString(obj.Type(), qualifier))
 
 	case *types.TypeName:
 		// Abbreviate long aggregate type names.
@@ -619,13 +620,13 @@ func formatMember(obj types.Object, maxname int) string {
 			}
 		}
 		if abbrev == "" {
-			fmt.Fprintf(&buf, " %s", types.TypeString(obj.Pkg(), obj.Type().Underlying()))
+			fmt.Fprintf(&buf, " %s", types.TypeString(obj.Type().Underlying(), qualifier))
 		} else {
 			fmt.Fprintf(&buf, " %s", abbrev)
 		}
 
 	case *types.Var:
-		fmt.Fprintf(&buf, " %s", types.TypeString(obj.Pkg(), obj.Type()))
+		fmt.Fprintf(&buf, " %s", types.TypeString(obj.Type(), qualifier))
 	}
 	return buf.String()
 }
@@ -746,12 +747,13 @@ func isAccessibleFrom(obj types.Object, pkg *types.Package) bool {
 }
 
 func methodsToSerial(this *types.Package, methods []*types.Selection, fset *token.FileSet) []serial.DescribeMethod {
+	qualifier := types.RelativeTo(this)
 	var jmethods []serial.DescribeMethod
 	for _, meth := range methods {
 		var ser serial.DescribeMethod
 		if meth != nil { // may contain nils when called by implements (on a method)
 			ser = serial.DescribeMethod{
-				Name: types.SelectionString(this, meth),
+				Name: types.SelectionString(meth, qualifier),
 				Pos:  fset.Position(meth.Obj().Pos()).String(),
 			}
 		}

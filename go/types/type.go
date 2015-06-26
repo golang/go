@@ -441,14 +441,14 @@ func (t *Map) Underlying() Type       { return t }
 func (t *Chan) Underlying() Type      { return t }
 func (t *Named) Underlying() Type     { return t.underlying }
 
-func (t *Basic) String() string     { return TypeString(nil, t) }
-func (t *Array) String() string     { return TypeString(nil, t) }
-func (t *Slice) String() string     { return TypeString(nil, t) }
-func (t *Struct) String() string    { return TypeString(nil, t) }
-func (t *Pointer) String() string   { return TypeString(nil, t) }
-func (t *Tuple) String() string     { return TypeString(nil, t) }
-func (t *Signature) String() string { return TypeString(nil, t) }
-func (t *Interface) String() string { return TypeString(nil, t) }
-func (t *Map) String() string       { return TypeString(nil, t) }
-func (t *Chan) String() string      { return TypeString(nil, t) }
-func (t *Named) String() string     { return TypeString(nil, t) }
+func (t *Basic) String() string     { return TypeString(t, nil) }
+func (t *Array) String() string     { return TypeString(t, nil) }
+func (t *Slice) String() string     { return TypeString(t, nil) }
+func (t *Struct) String() string    { return TypeString(t, nil) }
+func (t *Pointer) String() string   { return TypeString(t, nil) }
+func (t *Tuple) String() string     { return TypeString(t, nil) }
+func (t *Signature) String() string { return TypeString(t, nil) }
+func (t *Interface) String() string { return TypeString(t, nil) }
+func (t *Map) String() string       { return TypeString(t, nil) }
+func (t *Chan) String() string      { return TypeString(t, nil) }
+func (t *Named) String() string     { return TypeString(t, nil) }

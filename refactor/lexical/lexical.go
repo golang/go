@@ -189,6 +189,13 @@ func (r *resolver) setBlock(kind string, syntax ast.Node) *Block {
 	return b
 }
 
+func (r *resolver) qualifier(pkg *types.Package) string {
+	if pkg == r.pkg {
+		return "" // unqualified intra-package reference
+	}
+	return pkg.Path()
+}
+
 func (r *resolver) use(id *ast.Ident, env Environment) {
 	if id.Name == "_" {
 		return // an error
@@ -199,12 +206,12 @@ func (r *resolver) use(id *ast.Ident, env Environment) {
 	} else if want := r.info.Uses[id]; obj != want {
 		// sanity check against go/types resolver
 		logf("%s: internal error: lookup of %s yielded wrong object: got %v (%s), want %v\n",
-			r.fset.Position(id.Pos()), id.Name, types.ObjectString(r.pkg, obj),
+			r.fset.Position(id.Pos()), id.Name, types.ObjectString(obj, r.qualifier),
 			r.fset.Position(obj.Pos()),
 			want)
 	}
 	if trace {
-		logf("use %s = %v in %s\n", id.Name, types.ObjectString(r.pkg, obj), env)
+		logf("use %s = %v in %s\n", id.Name, types.ObjectString(obj, r.qualifier), env)
 	}
 
 	r.result.Refs[obj] = append(r.result.Refs[obj], Reference{id, env})
@@ -248,7 +255,7 @@ func (r *resolver) defineObject(b *Block, name string, obj types.Object) {
 	b.bindings = append(b.bindings, obj)
 	b.index[name] = i
 	if trace {
-		logf("def %s = %s in %s\n", name, types.ObjectString(r.pkg, obj), b)
+		logf("def %s = %s in %s\n", name, types.ObjectString(obj, r.qualifier), b)
 	}
 	r.result.Defs[obj] = b
 }
@@ -323,7 +330,7 @@ func (r *resolver) expr(n ast.Expr) {
 					//  id := kv.Key.(*ast.Ident)
 					//  obj := r.info.Uses[id]
 					//  logf("use %s = %v (field)\n",
-					// 	id.Name, types.ObjectString(r.pkg, obj))
+					// 	id.Name, types.ObjectString(obj, r.qualifier))
 					// TODO make a fake FieldVal selection?
 				} else {
 					r.expr(elt)
@@ -344,10 +351,10 @@ func (r *resolver) expr(n ast.Expr) {
 		// 	switch sel.Kind() {
 		// 	case types.FieldVal:
 		// 		logf("use %s = %v (field)\n",
-		// 			n.Sel.Name, types.ObjectString(r.pkg, sel.Obj()))
+		// 			n.Sel.Name, types.ObjectString(sel.Obj(), r.qualifier))
 		// 	case types.MethodExpr, types.MethodVal:
 		// 		logf("use %s = %v (method)\n",
-		// 			n.Sel.Name, types.ObjectString(r.pkg, sel.Obj()))
+		// 			n.Sel.Name, types.ObjectString(sel.Obj(), r.qualifier))
 		// 	}
 		// } else { // qualified identifier
 		// 	obj := r.info.Uses[n.Sel]

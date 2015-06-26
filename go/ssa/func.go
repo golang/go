@@ -522,11 +522,11 @@ func writeSignature(buf *bytes.Buffer, from *types.Package, name string, sig *ty
 			buf.WriteString(n)
 			buf.WriteString(" ")
 		}
-		types.WriteType(buf, from, params[0].Type())
+		types.WriteType(buf, params[0].Type(), types.RelativeTo(from))
 		buf.WriteString(") ")
 	}
 	buf.WriteString(name)
-	types.WriteSignature(buf, from, sig)
+	types.WriteSignature(buf, sig, types.RelativeTo(from))
 }
 
 func (f *Function) pkgobj() *types.Package {

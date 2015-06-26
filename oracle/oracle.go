@@ -58,17 +58,17 @@ type queryPos struct {
 
 // TypeString prints type T relative to the query position.
 func (qpos *queryPos) typeString(T types.Type) string {
-	return types.TypeString(qpos.info.Pkg, T)
+	return types.TypeString(T, types.RelativeTo(qpos.info.Pkg))
 }
 
 // ObjectString prints object obj relative to the query position.
 func (qpos *queryPos) objectString(obj types.Object) string {
-	return types.ObjectString(qpos.info.Pkg, obj)
+	return types.ObjectString(obj, types.RelativeTo(qpos.info.Pkg))
 }
 
 // SelectionString prints selection sel relative to the query position.
 func (qpos *queryPos) selectionString(sel *types.Selection) string {
-	return types.SelectionString(qpos.info.Pkg, sel)
+	return types.SelectionString(sel, types.RelativeTo(qpos.info.Pkg))
 }
 
 // A Query specifies a single oracle query.

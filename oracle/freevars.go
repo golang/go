@@ -180,11 +180,12 @@ func (r *freevarsResult) display(printf printfFunc) {
 		printf(r.qpos, "No free identifiers.")
 	} else {
 		printf(r.qpos, "Free identifiers:")
+		qualifier := types.RelativeTo(r.qpos.info.Pkg)
 		for _, ref := range r.refs {
 			// Avoid printing "type T T".
 			var typstr string
 			if ref.kind != "type" {
-				typstr = " " + types.TypeString(r.qpos.info.Pkg, ref.typ)
+				typstr = " " + types.TypeString(ref.typ, qualifier)
 			}
 			printf(ref.obj, "%s %s%s", ref.kind, ref.ref, typstr)
 		}

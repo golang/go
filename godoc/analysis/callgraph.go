@@ -237,7 +237,7 @@ func funcToken(fn *ssa.Function) token.Pos {
 func prettyFunc(this *types.Package, fn *ssa.Function) string {
 	if fn.Parent() != nil {
 		return fmt.Sprintf("%s in %s",
-			types.TypeString(this, fn.Signature),
+			types.TypeString(fn.Signature, types.RelativeTo(this)),
 			prettyFunc(this, fn.Parent()))
 	}
 	if fn.Synthetic != "" && fn.Name() == "init" {

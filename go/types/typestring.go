@@ -11,6 +11,33 @@ import (
 	"fmt"
 )
 
+// A Qualifier controls how named package-level objects are printed in
+// calls to TypeString, ObjectString, and SelectionString.
+//
+// These three formatting routines call the Qualifier for each
+// package-level object O, and if the Qualifier returns a non-empty
+// string p, the object is printed in the form p.O.
+// If it returns an empty string, only the object name O is printed.
+//
+// Using a nil Qualifier is equivalent to using (*Package).Path: the
+// object is qualified by the import path, e.g., "encoding/json.Marshal".
+//
+type Qualifier func(*Package) string
+
+// RelativeTo(pkg) returns a Qualifier that fully qualifies members of
+// all packages other than pkg.
+func RelativeTo(pkg *Package) Qualifier {
+	if pkg == nil {
+		return nil
+	}
+	return func(other *Package) string {
+		if pkg == other {
+			return "" // same package; unqualified
+		}
+		return other.Path()
+	}
+}
+
 // If GcCompatibilityMode is set, printing of types is modified
 // to match the representation of some types in the gc compiler:
 //
@@ -28,22 +55,22 @@ import (
 var GcCompatibilityMode bool
 
 // TypeString returns the string representation of typ.
-// Named types are printed package-qualified if they
-// do not belong to this package.
-func TypeString(this *Package, typ Type) string {
+// The Qualifier controls the printing of
+// package-level objects, and may be nil.
+func TypeString(typ Type, qf Qualifier) string {
 	var buf bytes.Buffer
-	WriteType(&buf, this, typ)
+	WriteType(&buf, typ, qf)
 	return buf.String()
 }
 
 // WriteType writes the string representation of typ to buf.
-// Named types are printed package-qualified if they
-// do not belong to this package.
-func WriteType(buf *bytes.Buffer, this *Package, typ Type) {
-	writeType(buf, this, typ, make([]Type, 8))
+// The Qualifier controls the printing of
+// package-level objects, and may be nil.
+func WriteType(buf *bytes.Buffer, typ Type, qf Qualifier) {
+	writeType(buf, typ, qf, make([]Type, 8))
 }
 
-func writeType(buf *bytes.Buffer, this *Package, typ Type, visited []Type) {
+func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 	// Theoretically, this is a quadratic lookup algorithm, but in
 	// practice deeply nested composite types with unnamed component
 	// types are uncommon. This code is likely more efficient than
@@ -77,11 +104,11 @@ func writeType(buf *bytes.Buffer, this *Package, typ Type, visited []Type) {
 
 	case *Array:
 		fmt.Fprintf(buf, "[%d]", t.len)
-		writeType(buf, this, t.elem, visited)
+		writeType(buf, t.elem, qf, visited)
 
 	case *Slice:
 		buf.WriteString("[]")
-		writeType(buf, this, t.elem, visited)
+		writeType(buf, t.elem, qf, visited)
 
 	case *Struct:
 		buf.WriteString("struct{")
@@ -93,7 +120,7 @@ func writeType(buf *bytes.Buffer, this *Package, typ Type, visited []Type) {
 				buf.WriteString(f.name)
 				buf.WriteByte(' ')
 			}
-			writeType(buf, this, f.typ, visited)
+			writeType(buf, f.typ, qf, visited)
 			if tag := t.Tag(i); tag != "" {
 				fmt.Fprintf(buf, " %q", tag)
 			}
@@ -102,14 +129,14 @@ func writeType(buf *bytes.Buffer, this *Package, typ Type, visited []Type) {
 
 	case *Pointer:
 		buf.WriteByte('*')
-		writeType(buf, this, t.base, visited)
+		writeType(buf, t.base, qf, visited)
 
 	case *Tuple:
-		writeTuple(buf, this, t, false, visited)
+		writeTuple(buf, t, false, qf, visited)
 
 	case *Signature:
 		buf.WriteString("func")
-		writeSignature(buf, this, t, visited)
+		writeSignature(buf, t, qf, visited)
 
 	case *Interface:
 		// We write the source-level methods and embedded types rather
@@ -132,7 +159,7 @@ func writeType(buf *bytes.Buffer, this *Package, typ Type, visited []Type) {
 					buf.WriteString("; ")
 				}
 				buf.WriteString(m.name)
-				writeSignature(buf, this, m.typ.(*Signature), visited)
+				writeSignature(buf, m.typ.(*Signature), qf, visited)
 			}
 		} else {
 			// print explicit interface methods and embedded types
@@ -141,22 +168,22 @@ func writeType(buf *bytes.Buffer, this *Package, typ Type, visited []Type) {
 					buf.WriteString("; ")
 				}
 				buf.WriteString(m.name)
-				writeSignature(buf, this, m.typ.(*Signature), visited)
+				writeSignature(buf, m.typ.(*Signature), qf, visited)
 			}
 			for i, typ := range t.embeddeds {
 				if i > 0 || len(t.methods) > 0 {
 					buf.WriteString("; ")
 				}
-				writeType(buf, this, typ, visited)
+				writeType(buf, typ, qf, visited)
 			}
 		}
 		buf.WriteByte('}')
 
 	case *Map:
 		buf.WriteString("map[")
-		writeType(buf, this, t.key, visited)
+		writeType(buf, t.key, qf, visited)
 		buf.WriteByte(']')
-		writeType(buf, this, t.elem, visited)
+		writeType(buf, t.elem, qf, visited)
 
 	case *Chan:
 		var s string
@@ -179,7 +206,7 @@ func writeType(buf *bytes.Buffer, this *Package, typ Type, visited []Type) {
 		if parens {
 			buf.WriteByte('(')
 		}
-		writeType(buf, this, t.elem, visited)
+		writeType(buf, t.elem, qf, visited)
 		if parens {
 			buf.WriteByte(')')
 		}
@@ -187,9 +214,8 @@ func writeType(buf *bytes.Buffer, this *Package, typ Type, visited []Type) {
 	case *Named:
 		s := "<Named w/o object>"
 		if obj := t.obj; obj != nil {
-			if pkg := obj.pkg; pkg != nil && pkg != this {
-				buf.WriteString(pkg.path)
-				buf.WriteByte('.')
+			if obj.pkg != nil {
+				writePackage(buf, obj.pkg, qf)
 			}
 			// TODO(gri): function-local named types should be displayed
 			// differently from named types at package level to avoid
@@ -204,7 +230,7 @@ func writeType(buf *bytes.Buffer, this *Package, typ Type, visited []Type) {
 	}
 }
 
-func writeTuple(buf *bytes.Buffer, this *Package, tup *Tuple, variadic bool, visited []Type) {
+func writeTuple(buf *bytes.Buffer, tup *Tuple, variadic bool, qf Qualifier, visited []Type) {
 	buf.WriteByte('(')
 	if tup != nil {
 		for i, v := range tup.vars {
@@ -226,12 +252,12 @@ func writeTuple(buf *bytes.Buffer, this *Package, tup *Tuple, variadic bool, vis
 					if t, ok := typ.Underlying().(*Basic); !ok || t.kind != String {
 						panic("internal error: string type expected")
 					}
-					writeType(buf, this, typ, visited)
+					writeType(buf, typ, qf, visited)
 					buf.WriteString("...")
 					continue
 				}
 			}
-			writeType(buf, this, typ, visited)
+			writeType(buf, typ, qf, visited)
 		}
 	}
 	buf.WriteByte(')')
@@ -239,14 +265,14 @@ func writeTuple(buf *bytes.Buffer, this *Package, tup *Tuple, variadic bool, vis
 
 // WriteSignature writes the representation of the signature sig to buf,
 // without a leading "func" keyword.
-// Named types are printed package-qualified if they
-// do not belong to this package.
-func WriteSignature(buf *bytes.Buffer, this *Package, sig *Signature) {
-	writeSignature(buf, this, sig, make([]Type, 8))
+// The Qualifier controls the printing of
+// package-level objects, and may be nil.
+func WriteSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier) {
+	writeSignature(buf, sig, qf, make([]Type, 8))
 }
 
-func writeSignature(buf *bytes.Buffer, this *Package, sig *Signature, visited []Type) {
-	writeTuple(buf, this, sig.params, sig.variadic, visited)
+func writeSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier, visited []Type) {
+	writeTuple(buf, sig.params, sig.variadic, qf, visited)
 
 	n := sig.results.Len()
 	if n == 0 {
@@ -257,10 +283,10 @@ func writeSignature(buf *bytes.Buffer, this *Package, sig *Signature, visited []
 	buf.WriteByte(' ')
 	if n == 1 && sig.results.vars[0].name == "" {
 		// single unnamed result
-		writeType(buf, this, sig.results.vars[0].typ, visited)
+		writeType(buf, sig.results.vars[0].typ, qf, visited)
 		return
 	}
 
 	// multiple or named result(s)
-	writeTuple(buf, this, sig.results, false, visited)
+	writeTuple(buf, sig.results, false, qf, visited)
 }

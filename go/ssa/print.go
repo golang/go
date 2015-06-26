@@ -39,7 +39,7 @@ func relName(v Value, i Instruction) string {
 }
 
 func relType(t types.Type, from *types.Package) string {
-	return types.TypeString(from, t)
+	return types.TypeString(t, types.RelativeTo(from))
 }
 
 func relString(m Member, from *types.Package) string {
@@ -407,7 +407,7 @@ func WritePackage(buf *bytes.Buffer, p *Package) {
 			fmt.Fprintf(buf, "  type  %-*s %s\n",
 				maxname, name, relType(mem.Type().Underlying(), from))
 			for _, meth := range typeutil.IntuitiveMethodSet(mem.Type(), &p.Prog.MethodSets) {
-				fmt.Fprintf(buf, "    %s\n", types.SelectionString(from, meth))
+				fmt.Fprintf(buf, "    %s\n", types.SelectionString(meth, types.RelativeTo(from)))
 			}
 
 		case *Global:

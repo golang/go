@@ -62,9 +62,10 @@ func TestStdlib(t *testing.T) {
 		for pkg := range prog.AllPackages {
 			fmt.Printf("Package %s:\n", pkg.Path())
 			scope := pkg.Scope()
+			qualifier := types.RelativeTo(pkg)
 			for _, name := range scope.Names() {
 				if ast.IsExported(name) {
-					fmt.Printf("\t%s\n", types.ObjectString(pkg, scope.Lookup(name)))
+					fmt.Printf("\t%s\n", types.ObjectString(scope.Lookup(name), qualifier))
 				}
 			}
 			fmt.Println()

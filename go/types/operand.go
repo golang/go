@@ -94,7 +94,7 @@ func (x *operand) pos() token.Pos {
 // commaok    <expr> (<untyped kind> <mode>                    )
 // commaok    <expr> (               <mode>       of type <typ>)
 //
-func operandString(this *Package, x *operand) string {
+func operandString(x *operand, qf Qualifier) string {
 	var buf bytes.Buffer
 
 	var expr string
@@ -105,7 +105,7 @@ func operandString(this *Package, x *operand) string {
 		case builtin:
 			expr = predeclaredFuncs[x.id].name
 		case typexpr:
-			expr = TypeString(this, x.typ)
+			expr = TypeString(x.typ, qf)
 		case constant:
 			expr = x.val.String()
 		}
@@ -147,7 +147,7 @@ func operandString(this *Package, x *operand) string {
 	if hasType {
 		if x.typ != Typ[Invalid] {
 			buf.WriteString(" of type ")
-			WriteType(&buf, this, x.typ)
+			WriteType(&buf, x.typ, qf)
 		} else {
 			buf.WriteString(" with invalid type")
 		}
@@ -162,7 +162,7 @@ func operandString(this *Package, x *operand) string {
 }
 
 func (x *operand) String() string {
-	return operandString(nil, x)
+	return operandString(x, nil)
 }
 
 // setConst sets x to the untyped constant for literal lit.
