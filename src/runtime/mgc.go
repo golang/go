@@ -895,8 +895,7 @@ func gc(mode int) {
 	// reclaimed until the next GC cycle.
 	clearpools()
 
-	work.bytesMarked = 0
-	work.initialHeapLive = memstats.heap_live
+	gcResetMarkState()
 
 	if mode == gcBackgroundMode { // Do as much work concurrently as possible
 		gcController.startCycle()
@@ -1048,6 +1047,7 @@ func gc(mode int) {
 			// to check that we didn't forget to mark anything during
 			// the concurrent mark process.
 			gcResetGState() // Rescan stacks
+			gcResetMarkState()
 			initCheckmarks()
 			gcMark(startTime)
 			clearCheckmarks()
@@ -1063,6 +1063,7 @@ func gc(mode int) {
 			// they have gcscanvalid==true and gcworkdone==true.
 			// Reset these so that all stacks will be rescanned.
 			gcResetGState()
+			gcResetMarkState()
 			finishsweep_m()
 
 			// Still in STW but gcphase is _GCoff, reset to _GCmarktermination
@@ -1535,6 +1536,14 @@ func gcResetGState() (numgs int) {
 	numgs = len(allgs)
 	unlock(&allglock)
 	return
+}
+
+// gcResetMarkState resets state prior to marking (concurrent or STW).
+//
+// TODO(austin): Merge with gcResetGState. See issue #11427.
+func gcResetMarkState() {
+	work.bytesMarked = 0
+	work.initialHeapLive = memstats.heap_live
 }
 
 // Hooks for other packages
