@@ -54,7 +54,14 @@ func NewParser(ctxt *obj.Link, ar *arch.Arch, lexer lex.TokenReader) *Parser {
 	}
 }
 
+// panicOnError is enable when testing to abort execution on the first error
+// and turn it into a recoverable panic.
+var panicOnError bool
+
 func (p *Parser) errorf(format string, args ...interface{}) {
+	if panicOnError {
+		panic(fmt.Errorf(format, args...))
+	}
 	if p.histLineNum == p.errorLine {
 		// Only one error per line.
 		return
@@ -800,10 +807,23 @@ func (p *Parser) term() uint64 {
 			if int64(value) < 0 {
 				p.errorf("divide of value with high bit set")
 			}
-			value /= p.factor()
+			divisor := p.factor()
+			if divisor == 0 {
+				p.errorf("division by zero")
+			} else {
+				value /= divisor
+			}
 		case '%':
 			p.next()
-			value %= p.factor()
+			divisor := p.factor()
+			if int64(value) < 0 {
+				p.errorf("modulo of value with high bit set")
+			}
+			if divisor == 0 {
+				p.errorf("modulo by zero")
+			} else {
+				value %= divisor
+			}
 		case lex.LSH:
 			p.next()
 			shift := p.factor()
