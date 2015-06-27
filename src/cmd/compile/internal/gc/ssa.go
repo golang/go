@@ -223,6 +223,11 @@ func (s *state) newValue2(op ssa.Op, t ssa.Type, arg0, arg1 *ssa.Value) *ssa.Val
 	return s.curBlock.NewValue2(s.peekLine(), op, t, arg0, arg1)
 }
 
+// newValue2I adds a new value with two arguments and an auxint value to the current block.
+func (s *state) newValue2I(op ssa.Op, t ssa.Type, aux int64, arg0, arg1 *ssa.Value) *ssa.Value {
+	return s.curBlock.NewValue2I(s.peekLine(), op, t, aux, arg0, arg1)
+}
+
 // newValue3 adds a new value with three arguments to the current block.
 func (s *state) newValue3(op ssa.Op, t ssa.Type, arg0, arg1, arg2 *ssa.Value) *ssa.Value {
 	return s.curBlock.NewValue3(s.peekLine(), op, t, arg0, arg1, arg2)
@@ -554,6 +559,12 @@ func (s *state) assign(op uint8, left *Node, right *Node) {
 	if right == nil {
 		// right == nil means use the zero value of the assigned type.
 		t := left.Type
+		if !canSSA(left) {
+			// if we can't ssa this memory, treat it as just zeroing out the backing memory
+			addr := s.addr(left)
+			s.vars[&memvar] = s.newValue2I(ssa.OpZero, ssa.TypeMem, t.Size(), addr, s.mem())
+			return
+		}
 		switch {
 		case t.IsString():
 			val = s.entryNewValue0A(ssa.OpConst, left.Type, "")
@@ -624,7 +635,7 @@ func (s *state) addr(n *Node) *ssa.Value {
 // n must be an ONAME.
 func canSSA(n *Node) bool {
 	if n.Op != ONAME {
-		Fatal("canSSA passed a non-ONAME %s %v", Oconv(int(n.Op), 0), n)
+		return false
 	}
 	if n.Addrtaken {
 		return false
@@ -636,6 +647,9 @@ func canSSA(n *Node) bool {
 		return false
 	}
 	if n.Class == PPARAMOUT {
+		return false
+	}
+	if Isfat(n.Type) {
 		return false
 	}
 	return true
@@ -1062,6 +1076,22 @@ func genValue(v *ssa.Value) {
 		p.From.Reg = regnum(v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
+	case ssa.OpAMD64MOVXzero:
+		nb := v.AuxInt
+		offset := int64(0)
+		reg := regnum(v.Args[0])
+		for nb >= 8 {
+			nb, offset = movZero(x86.AMOVQ, 8, nb, offset, reg)
+		}
+		for nb >= 4 {
+			nb, offset = movZero(x86.AMOVL, 4, nb, offset, reg)
+		}
+		for nb >= 2 {
+			nb, offset = movZero(x86.AMOVW, 2, nb, offset, reg)
+		}
+		for nb >= 1 {
+			nb, offset = movZero(x86.AMOVB, 1, nb, offset, reg)
+		}
 	case ssa.OpCopy: // TODO: lower to MOVQ earlier?
 		if v.Type.IsMemory() {
 			return
@@ -1119,6 +1149,20 @@ func genValue(v *ssa.Value) {
 	default:
 		v.Unimplementedf("value %s not implemented", v.LongString())
 	}
+}
+
+// movZero generates a register indirect move with a 0 immediate and keeps track of bytes left and next offset
+func movZero(as int, width int64, nbytes int64, offset int64, regnum int16) (nleft int64, noff int64) {
+	p := Prog(as)
+	// TODO: use zero register on archs that support it.
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = 0
+	p.To.Type = obj.TYPE_MEM
+	p.To.Reg = regnum
+	p.To.Offset = offset
+	offset += width
+	nleft = nbytes - width
+	return nleft, offset
 }
 
 func genBlock(b, next *ssa.Block, branches []branch) []branch {

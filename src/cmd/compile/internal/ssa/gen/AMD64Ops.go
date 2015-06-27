@@ -86,6 +86,7 @@ func init() {
 	gpload := regInfo{[]regMask{gpspsb, 0}, 0, []regMask{gp}}
 	gploadidx := regInfo{[]regMask{gpspsb, gpsp, 0}, 0, []regMask{gp}}
 	gpstore := regInfo{[]regMask{gpspsb, gpsp, 0}, 0, nil}
+	gpstoreconst := regInfo{[]regMask{gpspsb, 0}, 0, nil}
 	gpstoreidx := regInfo{[]regMask{gpspsb, gpsp, gpsp, 0}, 0, nil}
 	flagsgp := regInfo{[]regMask{flags}, 0, []regMask{gp}}
 	cmov := regInfo{[]regMask{flags, gp, gp}, 0, []regMask{gp}}
@@ -152,6 +153,10 @@ func init() {
 		{name: "MOVLstore", reg: gpstore, asm: "MOVL"},      // store 4 bytes in arg1 to arg0+auxint. arg2=mem
 		{name: "MOVQstore", reg: gpstore, asm: "MOVQ"},      // store 8 bytes in arg1 to arg0+auxint. arg2=mem
 		{name: "MOVQstoreidx8", reg: gpstoreidx},            // store 8 bytes in arg2 to arg0+8*arg1+auxint. arg3=mem
+
+		{name: "MOVXzero", reg: gpstoreconst}, // store auxint 0 bytes into arg0 using a series of MOV instructions. arg1=mem.
+		// TODO: implement this when register clobbering works
+		{name: "REPSTOSQ", reg: regInfo{[]regMask{buildReg("DI"), buildReg("CX")}, buildReg("DI AX CX"), nil}}, // store arg1 8-byte words containing zero into arg0 using STOSQ. arg2=mem.
 
 		// Load/store from global. Same as the above loads, but arg0 is missing and
 		// aux is a GlobalOffset instead of an int64.
