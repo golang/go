@@ -40,7 +40,7 @@
 		%F	synonym for %f
 		%g	%e for large exponents, %f otherwise
 		%G	%E for large exponents, %F otherwise
-	String and slice of bytes:
+	String and slice of bytes (treated equivalently with these verbs):
 		%s	the uninterpreted bytes of the string or slice
 		%q	a double-quoted string safely escaped with Go syntax
 		%x	base 16, lower-case, two characters per byte
@@ -163,6 +163,9 @@
 	operand as a whole. Thus %q will quote each element of a slice
 	of strings, and %6.2f will control formatting for each element
 	of a floating-point array.
+
+	However, when printing a byte slice with a string-like verb
+	(%s %q %x %X), it is treated identically to a string, as a single item.
 
 	To avoid recursion in cases such as
 		type X string
