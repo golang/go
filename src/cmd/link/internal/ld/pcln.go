@@ -191,7 +191,7 @@ func renumberfiles(ctxt *Link, files []*LSym, d *Pcdata) {
 func container(s *LSym) int {
 	// We want to generate func table entries only for the "lowest level" symbols,
 	// not containers of subsymbols.
-	if s != nil && s.Sub != nil {
+	if s != nil && s.Type&obj.SCONTAINER != 0 {
 		return 1
 	}
 	return 0
@@ -222,6 +222,13 @@ func pclntab() {
 	//	end PC [thearch.ptrsize bytes]
 	//	offset to file table [4 bytes]
 	nfunc := int32(0)
+
+	// Find container symbols, mark them with SCONTAINER
+	for Ctxt.Cursym = Ctxt.Textp; Ctxt.Cursym != nil; Ctxt.Cursym = Ctxt.Cursym.Next {
+		if Ctxt.Cursym.Outer != nil {
+			Ctxt.Cursym.Outer.Type |= obj.SCONTAINER
+		}
+	}
 
 	for Ctxt.Cursym = Ctxt.Textp; Ctxt.Cursym != nil; Ctxt.Cursym = Ctxt.Cursym.Next {
 		if container(Ctxt.Cursym) == 0 {
