@@ -173,6 +173,7 @@ func (enc *Encoder) EncodeElement(v interface{}, start StartElement) error {
 }
 
 var (
+	begComment   = []byte("<!--")
 	endComment   = []byte("-->")
 	endProcInst  = []byte("?>")
 	endDirective = []byte(">")
@@ -238,14 +239,54 @@ func (enc *Encoder) EncodeToken(t Token) error {
 		}
 		p.WriteString("?>")
 	case Directive:
-		if bytes.Contains(t, endDirective) {
-			return fmt.Errorf("xml: EncodeToken of Directive containing > marker")
+		if !isValidDirective(t) {
+			return fmt.Errorf("xml: EncodeToken of Directive containing wrong < or > markers")
 		}
 		p.WriteString("<!")
 		p.Write(t)
 		p.WriteString(">")
 	}
 	return p.cachedWriteError()
+}
+
+// isValidDirective reports whether dir is a valid directive text,
+// meaning angle brackets are matched, ignoring comments and strings.
+func isValidDirective(dir Directive) bool {
+	var (
+		depth     int
+		inquote   uint8
+		incomment bool
+	)
+	for i, c := range dir {
+		switch {
+		case incomment:
+			if c == '>' {
+				if n := 1 + i - len(endComment); n >= 0 && bytes.Equal(dir[n:i+1], endComment) {
+					incomment = false
+				}
+			}
+			// Just ignore anything in comment
+		case inquote != 0:
+			if c == inquote {
+				inquote = 0
+			}
+			// Just ignore anything within quotes
+		case c == '\'' || c == '"':
+			inquote = c
+		case c == '<':
+			if i+len(begComment) < len(dir) && bytes.Equal(dir[i:i+len(begComment)], begComment) {
+				incomment = true
+			} else {
+				depth++
+			}
+		case c == '>':
+			if depth == 0 {
+				return false
+			}
+			depth--
+		}
+	}
+	return depth == 0 && inquote == 0 && !incomment
 }
 
 // Flush flushes any buffered XML to the underlying writer.
