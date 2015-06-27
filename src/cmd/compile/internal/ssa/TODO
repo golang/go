@@ -59,3 +59,5 @@ Other
    checkOpcodeCounts.  Michael Matloob suggests using a similar
    pattern matcher to the rewrite engine to check for certain
    expression subtrees in the output.
+ - Implement memory zeroing with REPSTOSQ and DuffZero
+ - make deadstore work with zeroing.

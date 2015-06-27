@@ -98,6 +98,8 @@ const (
 	OpAMD64MOVLstore
 	OpAMD64MOVQstore
 	OpAMD64MOVQstoreidx8
+	OpAMD64MOVXzero
+	OpAMD64REPSTOSQ
 	OpAMD64MOVQloadglobal
 	OpAMD64MOVQstoreglobal
 	OpAMD64CALLstatic
@@ -130,6 +132,7 @@ const (
 	OpLoad
 	OpStore
 	OpMove
+	OpZero
 	OpClosureCall
 	OpStaticCall
 	OpConvert
@@ -795,6 +798,28 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name: "MOVXzero",
+		reg: regInfo{
+			inputs: []regMask{
+				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+				0,
+			},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+	},
+	{
+		name: "REPSTOSQ",
+		reg: regInfo{
+			inputs: []regMask{
+				128, // .DI
+				2,   // .CX
+			},
+			clobbers: 131, // .AX .CX .DI
+			outputs:  []regMask{},
+		},
+	},
+	{
 		name: "MOVQloadglobal",
 		reg: regInfo{
 			inputs:   []regMask{},
@@ -1084,6 +1109,15 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "Move",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Zero",
 		reg: regInfo{
 			inputs:   []regMask{},
 			clobbers: 0,
