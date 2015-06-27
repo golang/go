@@ -41,6 +41,13 @@ func TestParsePKCS1PrivateKey(t *testing.T) {
 		priv.Primes[1].Cmp(rsaPrivateKey.Primes[1]) != 0 {
 		t.Errorf("got:%+v want:%+v", priv, rsaPrivateKey)
 	}
+
+	// This private key includes an invalid prime that
+	// rsa.PrivateKey.Validate should reject.
+	data := []byte("0\x16\x02\x00\x02\x02\u007f\x00\x02\x0200\x02\x0200\x02\x02\x00\x01\x02\x02\u007f\x00")
+	if _, err := ParsePKCS1PrivateKey(data); err == nil {
+		t.Errorf("parsing invalid private key did not result in an error")
+	}
 }
 
 func TestParsePKIXPublicKey(t *testing.T) {
