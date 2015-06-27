@@ -1528,11 +1528,17 @@ var encodeTokenTests = []struct {
 	},
 	want: `<!foo>`,
 }, {
+	desc: "more complex directive",
+	toks: []Token{
+		Directive("DOCTYPE doc [ <!ELEMENT doc '>'> <!-- com>ment --> ]"),
+	},
+	want: `<!DOCTYPE doc [ <!ELEMENT doc '>'> <!-- com>ment --> ]>`,
+}, {
 	desc: "directive instruction with bad name",
 	toks: []Token{
 		Directive("foo>"),
 	},
-	err: "xml: EncodeToken of Directive containing > marker",
+	err: "xml: EncodeToken of Directive containing wrong < or > markers",
 }, {
 	desc: "end tag without start tag",
 	toks: []Token{
@@ -1867,4 +1873,36 @@ func TestRace9796(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+}
+
+func TestIsValidDirective(t *testing.T) {
+	testOK := []string{
+		"<>",
+		"< < > >",
+		"<!DOCTYPE '<' '>' '>' <!--nothing-->>",
+		"<!DOCTYPE doc [ <!ELEMENT doc ANY> <!ELEMENT doc ANY> ]>",
+		"<!DOCTYPE doc [ <!ELEMENT doc \"ANY> '<' <!E\" LEMENT '>' doc ANY> ]>",
+		"<!DOCTYPE doc <!-- just>>>> a < comment --> [ <!ITEM anything> ] >",
+	}
+	testKO := []string{
+		"<",
+		">",
+		"<!--",
+		"-->",
+		"< > > < < >",
+		"<!dummy <!-- > -->",
+		"<!DOCTYPE doc '>",
+		"<!DOCTYPE doc '>'",
+		"<!DOCTYPE doc <!--comment>",
+	}
+	for _, s := range testOK {
+		if !isValidDirective(Directive(s)) {
+			t.Errorf("Directive %q is expected to be valid", s)
+		}
+	}
+	for _, s := range testKO {
+		if isValidDirective(Directive(s)) {
+			t.Errorf("Directive %q is expected to be invalid", s)
+		}
+	}
 }
