@@ -2455,17 +2455,13 @@ func TestTransportAndServerSharedBodyRace(t *testing.T) {
 
 	unblockBackend := make(chan bool)
 	backend := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
-		io.CopyN(rw, req.Body, bodySize/2)
+		io.CopyN(rw, req.Body, bodySize)
 		<-unblockBackend
 	}))
 	defer backend.Close()
 
 	backendRespc := make(chan *Response, 1)
 	proxy := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
-		if req.RequestURI == "/foo" {
-			rw.Write([]byte("bar"))
-			return
-		}
 		req2, _ := NewRequest("POST", backend.URL, req.Body)
 		req2.ContentLength = bodySize
 
@@ -2474,7 +2470,7 @@ func TestTransportAndServerSharedBodyRace(t *testing.T) {
 			t.Errorf("Proxy outbound request: %v", err)
 			return
 		}
-		_, err = io.CopyN(ioutil.Discard, bresp.Body, bodySize/4)
+		_, err = io.CopyN(ioutil.Discard, bresp.Body, bodySize/2)
 		if err != nil {
 			t.Errorf("Proxy copy error: %v", err)
 			return
@@ -2488,6 +2484,7 @@ func TestTransportAndServerSharedBodyRace(t *testing.T) {
 	}))
 	defer proxy.Close()
 
+	defer close(unblockBackend)
 	req, _ := NewRequest("POST", proxy.URL, io.LimitReader(neverEnding('a'), bodySize))
 	res, err := DefaultClient.Do(req)
 	if err != nil {
@@ -2496,8 +2493,12 @@ func TestTransportAndServerSharedBodyRace(t *testing.T) {
 
 	// Cleanup, so we don't leak goroutines.
 	res.Body.Close()
-	close(unblockBackend)
-	(<-backendRespc).Body.Close()
+	select {
+	case res := <-backendRespc:
+		res.Body.Close()
+	default:
+		// We failed earlier. (e.g. on DefaultClient.Do(req2))
+	}
 }
 
 // Test that a hanging Request.Body.Read from another goroutine can't
