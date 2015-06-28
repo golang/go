@@ -963,6 +963,7 @@ func genValue(v *ssa.Value) {
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
 	case ssa.OpAMD64SBBQcarrymask:
 		r := regnum(v)
 		p := Prog(x86.ASBBQ)
