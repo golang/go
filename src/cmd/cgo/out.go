@@ -118,11 +118,11 @@ func (p *Package) writeDefs() {
 		}
 
 		if !cVars[n.C] {
-			fmt.Fprintf(fm, "extern char %s[];\n", n.C)
-			fmt.Fprintf(fm, "void *_cgohack_%s = %s;\n\n", n.C, n.C)
 			if *gccgo {
 				fmt.Fprintf(fc, "extern byte *%s;\n", n.C)
 			} else {
+				fmt.Fprintf(fm, "extern char %s[];\n", n.C)
+				fmt.Fprintf(fm, "void *_cgohack_%s = %s;\n\n", n.C, n.C)
 				fmt.Fprintf(fgo2, "//go:linkname __cgo_%s %s\n", n.C, n.C)
 				fmt.Fprintf(fgo2, "//go:cgo_import_static %s\n", n.C)
 				fmt.Fprintf(fgo2, "var __cgo_%s byte\n", n.C)
