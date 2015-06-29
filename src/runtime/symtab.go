@@ -130,10 +130,18 @@ func moduledataverify1(datap *moduledata) {
 		}
 
 		if debugPcln || nftab-i < 5 {
+			// Check a PC near but not at the very end.
+			// The very end might be just padding that is not covered by the tables.
+			// No architecture rounds function entries to more than 16 bytes,
+			// but if one came along we'd need to subtract more here.
+			end := datap.ftab[i+1].entry - 16
+			if end < datap.ftab[i].entry {
+				end = datap.ftab[i].entry
+			}
 			f := (*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[i].funcoff]))
-			pcvalue(f, f.pcfile, datap.ftab[i+1].entry-1, true)
-			pcvalue(f, f.pcln, datap.ftab[i+1].entry-1, true)
-			pcvalue(f, f.pcsp, datap.ftab[i+1].entry-1, true)
+			pcvalue(f, f.pcfile, end, true)
+			pcvalue(f, f.pcln, end, true)
+			pcvalue(f, f.pcsp, end, true)
 		}
 	}
 
