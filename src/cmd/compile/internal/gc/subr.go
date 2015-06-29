@@ -770,7 +770,7 @@ func treecopy(n *Node, lineno int32) *Node {
 		m.Left = treecopy(n.Left, lineno)
 		m.Right = treecopy(n.Right, lineno)
 		m.List = listtreecopy(n.List, lineno)
-		if lineno != -1 {
+		if lineno != 0 {
 			m.Lineno = lineno
 		}
 		if m.Name != nil && n.Op != ODCLFIELD {
