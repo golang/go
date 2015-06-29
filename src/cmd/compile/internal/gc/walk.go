@@ -2127,6 +2127,11 @@ func callnew(t *Type) *Node {
 	return mkcall1(fn, Ptrto(t), nil, typename(t))
 }
 
+func iscallret(n *Node) bool {
+	n = outervalue(n)
+	return n.Op == OINDREG && n.Reg == int16(Thearch.REGSP)
+}
+
 func isstack(n *Node) bool {
 	n = outervalue(n)
 

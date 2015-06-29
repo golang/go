@@ -173,3 +173,12 @@ func TestIssue8102(t *testing.T) {
 		}
 	}
 }
+
+func TestIssue9137(t *testing.T) {
+	a := []string{"a"}
+	i := 0
+	a[i], a[len(a)-1], a = a[len(a)-1], "", a[:len(a)-1]
+	if len(a) != 0 || a[:1][0] != "" {
+		t.Errorf("mangled a: %q %q", a, a[:1])
+	}
+}
