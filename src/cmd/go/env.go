@@ -44,6 +44,7 @@ func mkEnv() []envVar {
 		{"GORACE", os.Getenv("GORACE")},
 		{"GOROOT", goroot},
 		{"GOTOOLDIR", toolDir},
+		{"GO15VENDOREXPERIMENT", os.Getenv("GO15VENDOREXPERIMENT")},
 
 		// disable escape codes in clang errors
 		{"TERM", "dumb"},
