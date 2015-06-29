@@ -155,11 +155,9 @@ var testdataTests = []string{
 // These are files and packages in $GOROOT/src/.
 var gorootSrcTests = []string{
 	"encoding/ascii85",
-	"encoding/csv",
 	"encoding/hex",
 	// "encoding/pem", // TODO(adonovan): implement (reflect.Value).SetString
 	// "testing",      // TODO(adonovan): implement runtime.Goexit correctly
-	"text/scanner",
 	"unicode",
 
 	// Too slow:
@@ -172,6 +170,8 @@ var gorootSrcTests = []string{
 	// "log",
 	// "path",
 	// "flag",
+	// "encoding/csv"
+	// "text/scanner"
 }
 
 type successPredicate func(exitcode int, output string) error
