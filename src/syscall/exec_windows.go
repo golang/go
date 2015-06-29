@@ -244,6 +244,9 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 	if len(attr.Files) > 3 {
 		return 0, 0, EWINDOWS
 	}
+	if len(attr.Files) < 3 {
+		return 0, 0, EINVAL
+	}
 
 	if len(attr.Dir) != 0 {
 		// StartProcess assumes that argv0 is relative to attr.Dir,
