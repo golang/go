@@ -984,6 +984,8 @@ func TestImportCommentConflict(t *testing.T) {
 
 // cmd/go: custom import path checking should not apply to github.com/xxx/yyy.
 func TestIssue10952(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("skipping because git binary not found")
 	}
