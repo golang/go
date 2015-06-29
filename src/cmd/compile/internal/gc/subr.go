@@ -231,8 +231,14 @@ func setlineno(n *Node) int32 {
 	lno := lineno
 	if n != nil {
 		switch n.Op {
-		case ONAME, OTYPE, OPACK, OLITERAL:
+		case ONAME, OTYPE, OPACK:
 			break
+
+		case OLITERAL:
+			if n.Sym != nil {
+				break
+			}
+			fallthrough
 
 		default:
 			lineno = n.Lineno
