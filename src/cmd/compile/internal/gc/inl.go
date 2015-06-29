@@ -787,7 +787,14 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 	call.Type = n.Type
 	call.Typecheck = 1
 
+	// Hide the args from setlno -- the parameters to the inlined
+	// call already have good line numbers that should be preserved.
+	args := as.Rlist
+	as.Rlist = nil
+
 	setlno(call, int(n.Lineno))
+
+	as.Rlist = args
 
 	//dumplist("call body", body);
 

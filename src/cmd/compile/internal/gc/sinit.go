@@ -380,6 +380,7 @@ func staticcopy(l *Node, r *Node, out **NodeList) bool {
 					rr.Orig = rr // completely separate copy
 					rr.Type = ll.Type
 					rr.Xoffset += e.Xoffset
+					setlineno(rr)
 					*out = list(*out, Nod(OAS, ll, rr))
 				}
 			}
@@ -484,6 +485,7 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
 			if e.Expr.Op == OLITERAL {
 				gdata(&n1, e.Expr, int(n1.Type.Width))
 			} else {
+				setlineno(e.Expr)
 				a = Nod(OXXX, nil, nil)
 				*a = n1
 				a.Orig = a // completely separate copy
@@ -636,6 +638,7 @@ func structlit(ctxt int, pass int, n *Node, var_ *Node, init **NodeList) {
 		}
 
 		// build list of var.field = expr
+		setlineno(value)
 		a = Nod(ODOT, var_, newname(index.Sym))
 
 		a = Nod(OAS, a, value)
@@ -703,6 +706,7 @@ func arraylit(ctxt int, pass int, n *Node, var_ *Node, init **NodeList) {
 		}
 
 		// build list of var[index] = value
+		setlineno(value)
 		a = Nod(OINDEX, var_, index)
 
 		a = Nod(OAS, a, value)
@@ -866,6 +870,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 		}
 
 		// build list of var[c] = expr
+		setlineno(value)
 		a = Nod(OAS, a, value)
 
 		typecheck(&a, Etop)
@@ -954,6 +959,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 
 			if isliteral(index) && isliteral(value) {
 				// build vstat[b].a = key;
+				setlineno(index)
 				a = Nodintconst(b)
 
 				a = Nod(OINDEX, vstat, a)
@@ -965,6 +971,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 				*init = list(*init, a)
 
 				// build vstat[b].b = value;
+				setlineno(value)
 				a = Nodintconst(b)
 
 				a = Nod(OINDEX, vstat, a)
@@ -1032,15 +1039,18 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 			val = temp(var_.Type.Type)
 		}
 
+		setlineno(r.Left)
 		a = Nod(OAS, key, r.Left)
 		typecheck(&a, Etop)
 		walkstmt(&a)
 		*init = list(*init, a)
+		setlineno(r.Right)
 		a = Nod(OAS, val, r.Right)
 		typecheck(&a, Etop)
 		walkstmt(&a)
 		*init = list(*init, a)
 
+		setlineno(val)
 		a = Nod(OAS, Nod(OINDEX, var_, key), val)
 		typecheck(&a, Etop)
 		walkstmt(&a)
