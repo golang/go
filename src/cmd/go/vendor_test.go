@@ -29,6 +29,7 @@ func TestVendorImports(t *testing.T) {
 		vend/vendor/q []
 		vend/vendor/strings []
 		vend/x [vend/x/vendor/p vend/vendor/q vend/x/vendor/r]
+		vend/x/invalid [vend/x/invalid/vendor/foo]
 		vend/x/vendor/p []
 		vend/x/vendor/p/p [notfound]
 		vend/x/vendor/r []
@@ -62,6 +63,16 @@ func TestVendorTest(t *testing.T) {
 	tg.run("test", "-v")
 	tg.grepStdout("TestMsgInternal", "missing use in internal test")
 	tg.grepStdout("TestMsgExternal", "missing use in external test")
+}
+
+func TestVendorInvalid(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.setenv("GO15VENDOREXPERIMENT", "1")
+
+	tg.runFail("build", "vend/x/invalid")
+	tg.grepStderr("must be imported as foo", "missing vendor import error")
 }
 
 func TestVendorImportError(t *testing.T) {
