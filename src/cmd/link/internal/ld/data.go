@@ -917,6 +917,8 @@ func strnput(s string, n int) {
 	}
 }
 
+var strdata []*LSym
+
 func addstrdata1(arg string) {
 	i := strings.Index(arg, "=")
 	if i < 0 {
@@ -944,7 +946,19 @@ func addstrdata(name string, value string) {
 	// we know before entering this function.
 	s.Reachable = reachable
 
+	strdata = append(strdata, s)
+
 	sp.Reachable = reachable
+}
+
+func checkstrdata() {
+	for _, s := range strdata {
+		if s.Type == obj.STEXT {
+			Diag("cannot use -X with text symbol %s", s.Name)
+		} else if s.Gotype != nil && s.Gotype.Name != "type.string" {
+			Diag("cannot use -X with non-string symbol %s", s.Name)
+		}
+	}
 }
 
 func Addstring(s *LSym, str string) int64 {
