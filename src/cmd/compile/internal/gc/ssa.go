@@ -599,7 +599,11 @@ func (s *state) addr(n *Node) *ssa.Value {
 			return s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sb)
 		case PPARAM, PPARAMOUT, PAUTO:
 			// parameter/result slot or local variable
-			return s.decladdrs[n]
+			v := s.decladdrs[n]
+			if v == nil {
+				s.Fatalf("addr of undeclared ONAME %v. declared: %v", n, s.decladdrs)
+			}
+			return v
 		case PAUTO | PHEAP:
 			return s.expr(n.Name.Heapaddr)
 		default:
