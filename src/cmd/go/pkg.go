@@ -552,7 +552,11 @@ func disallowVendorVisibility(srcDir string, p *Package, stk *importStack) *Pack
 	if i > 0 {
 		i-- // rewind over slash in ".../vendor"
 	}
-	parent := p.Dir[:i+len(p.Dir)-len(p.ImportPath)]
+	truncateTo := i + len(p.Dir) - len(p.ImportPath)
+	if truncateTo < 0 || len(p.Dir) < truncateTo {
+		return p
+	}
+	parent := p.Dir[:truncateTo]
 	if hasPathPrefix(filepath.ToSlash(srcDir), filepath.ToSlash(parent)) {
 		return p
 	}
