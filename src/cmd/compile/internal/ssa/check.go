@@ -92,6 +92,12 @@ func checkFunc(f *Func) {
 		}
 
 		for _, v := range b.Values {
+			for _, arg := range v.Args {
+				if arg == nil {
+					f.Fatalf("value %v has nil arg", v.LongString())
+				}
+			}
+
 			if valueMark[v.ID] {
 				f.Fatalf("value %s appears twice!", v.LongString())
 			}

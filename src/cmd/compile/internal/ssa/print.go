@@ -49,7 +49,9 @@ func fprintFunc(w io.Writer, f *Func) {
 					continue
 				}
 				for _, w := range v.Args {
-					if w.Block == b && !printed[w.ID] {
+					// w == nil shouldn't happen, but if it does,
+					// don't panic; we'll get a better diagnosis later.
+					if w != nil && w.Block == b && !printed[w.ID] {
 						continue outer
 					}
 				}
