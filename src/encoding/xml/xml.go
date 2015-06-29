@@ -91,6 +91,12 @@ func (e *StartElement) setDefaultNamespace() {
 		// or was just using the default namespace.
 		return
 	}
+	// Don't add a default name space if there's already one set.
+	for _, attr := range e.Attr {
+		if attr.Name.Space == "" && attr.Name.Local == "xmlns" {
+			return
+		}
+	}
 	e.Attr = append(e.Attr, Attr{
 		Name: Name{
 			Local: "xmlns",
