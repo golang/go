@@ -130,7 +130,7 @@ The old names <code>6g</code>, <code>8g</code> and so on are gone; instead there
 is just one binary, accessible as <code>go</code> <code>tool</code> <code>compile</code>,
 that compiles Go source into binaries suitable for the architecture and operating system
 specified by <code>$GOARCH</code> and <code>$GOOS</code>.
-Simlarly, there is now one linker (<code>go</code> <code>tool</code> <code>link</code>)
+Similarly, there is now one linker (<code>go</code> <code>tool</code> <code>link</code>)
 and one assembler (<code>go</code> <code>tool</code> <code>asm</code>).
 The linker was translated automatically from the old C implementation,
 but the assembler is a new native Go implementation discussed
@@ -308,23 +308,36 @@ against incorrect and malicious inputs.
 <ul>
 
 <li>
-TODO archive/zip: add (*Writer).SetOffset method (https://golang.org/cl/7445)
+The <a href="/pkg/archive/zip/"><code>archive/zip</code></a> package's
+<a href="/pkg/archive/zip/#Writer"><code>Writer</code></a> type now has a
+<a href="/pkg/archive/zip/#Writer.SetOffset"><code>SetOffset</code></a>
+method to specify the location within the output stream at which to write the archive.
 </li>
 
 <li>
-TODO bufio: add Reader.Discard (https://golang.org/cl/2260)
+The <a href="/pkg/bufio/#Reader"><code>Reader</code></a> in the
+<a href="/pkg/bufio/"><code>bufio</code></a> package now has a
+<a href="/pkg/bufio/#Reader.Discard"><code>Discard</code></a>
+method to discard data from the input.
 </li>
 
 <li>
-TODO bytes: add Buffer.Cap (https://golang.org/cl/8342)
+Also in the <a href="/pkg/bytes/"><code>bytes</code></a> package,
+the <a href="/pkg/bytes/#Buffer"><code>Buffer</code></a> type
+now has a <a href="/pkg/bytes/#Buffer.Cap"><code>Cap</code></a> method
+that reports the number of bytes allocated within the buffer.
+Similarly, both the <a href="/pkg/bytes/"><code>bytes</code></a>
+and <a href="/pkg/strings/"><code>strings</code></a> packages,
+the <a href="/pkg/bytes/#Reader"><code>Reader</code></a>
+type now has a <a href="/pkg/bytes/#Reader.Size"><code>Size</code></a>
+method that reports the original length of the underlying slice or string.
 </li>
 
 <li>
-TODO bytes, strings: add Reader.Size (https://golang.org/cl/3199)
-</li>
-
-<li>
-TODO bytes, strings: add LastIndexByte (https://golang.org/cl/9500)
+Both the <a href="/pkg/bytes/"><code>bytes</code></a> and
+<a href="/pkg/strings/"><code>strings</code></a> packages
+also now have a <a href="/pkg/bytes/#LastIndexByte"><code>LastIndexByte</code></a>
+function that locates the rightmost byte with that value in the argument.
 </li>
 
 <li>
@@ -368,19 +381,17 @@ TODO crypto/x509: unknown critical extensions now cause errors in Verify, not wh
 </li>
 
 <li>
-TODO database/sql: add Stats (https://golang.org/cl/7950)
+The <a href="/pkg/database/sql/#DB"><code>DB</code></a> type of the
+<a href="/pkg/database/sql/"><code>database/sql</code></a> package
+now has a <a href="/pkg/database/sql/#DB.Stats"><code>Stats</code></a> method
+to retrieve database statistics.
 </li>
 
 <li>
-TODO encoding/base64: add unpadded encodings (https://golang.org/cl/1511)
-</li>
-
-<li>
-In the <a href="/pkg/fmt/"><code>fmt</code></a> package,
-empty slices now produce no output with the <code>%x</code> verb
-even when width is applied. For slices the modifiers apply elementwise but in 1.4 if the
-slice was empty, they applied globally, an inconsistency.
-For instance, in Go 1.4 an empty byte slice prints '0000' with verb "%04x"; in 1.5 it prints nothing.
+The <a href="/pkg/encoding/base64/"><code>encoding/base64</code></a> package
+now supports unpadded encodings through two new encoding variables,
+<a href="/pkg/encoding/base64/#RawStdEncoding"><code>RawStdEncoding</code></a> and
+<a href="/pkg/encoding/base64/#RawURLEncoding"><code>RawURLEncoding</code></a>.
 </li>
 
 <li>
@@ -391,7 +402,10 @@ method, which produces things like <code>&lt;int Value&gt;</code>.
 </li>
 
 <li>
-TODO go/ast: add Implicit field to ast.EmptyStmt; changed meaning of ast.EmptyStmt.Semicolon position (https://golang.org/cl/5720)
+The <a href="/pkg/ast/#EmptyStmt"><code>EmptyStmt</code></a> type
+in the <a href="/pkg/go/ast/"><code>go/ast</code></a> package now
+has a boolean <code>Implicit</code> field that records whether the
+semicolon was implicitly added or was present in the source.
 </li>
 
 <li>
@@ -431,7 +445,9 @@ method for the <a href="/pkg/math/big/#Int"><code>Int</code></a> type.
 </li>
 
 <li>
-TODO mime: add ExtensionByType (https://golang.org/cl/7444)
+The <a href="/pkg/mime/"><code>mime</code></a> package adds an
+<a href="/pkg/mime/#ExtensionsByType"><code>ExtensionsByType</code></a>
+function that returns the MIME extensions know to be associated with a given MIME type.
 </li>
 
 <li>
@@ -497,6 +513,14 @@ The <a href="/pkg/strings/"><code>strings</code></a> package
 has a new <a href="/pkg/strings/#Compare"><code>Compare</code></a> function.
 This is present to provide symmetry with the <a href="/pkg/bytes/"><code>bytes</code></a> package
 but is otherwise unnecessary as strings support comparison natively.
+</li>
+
+<li>
+The <a href="/pkg/sync/#WaitGroup"><code>WaitGroup</code></a> function in
+package <a href="/pkg/sync/"><code>sync</code></a>
+now diagnoses code that races a call to <a href="/pkg/sync/#WaitGroup.Add"><code>Add</code></a>
+against a return from <a href="/pkg/sync/#WaitGroup.Wait"><code>Wait</code></a>.
+If it detects this condition, <code>WaitGroup</code> panics.
 </li>
 
 <li>
