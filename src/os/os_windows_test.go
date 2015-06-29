@@ -117,3 +117,12 @@ func TestStatJunctionLink(t *testing.T) {
 		t.Fatalf("link should point to %v but points to %v instead", expected, got)
 	}
 }
+
+func TestStartProcessAttr(t *testing.T) {
+	p, err := os.StartProcess(os.Getenv("COMSPEC"), []string{"/c", "cd"}, new(os.ProcAttr))
+	if err != nil {
+		return
+	}
+	defer p.Wait()
+	t.Fatalf("StartProcess expected to fail, but succeeded.")
+}
