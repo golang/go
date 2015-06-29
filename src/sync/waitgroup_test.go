@@ -69,6 +69,9 @@ func TestWaitGroupMisuse(t *testing.T) {
 
 func TestWaitGroupMisuse2(t *testing.T) {
 	knownRacy(t)
+	if testing.Short() {
+		t.Skip("skipping flaky test in short mode; see issue 11443")
+	}
 	if runtime.NumCPU() <= 2 {
 		t.Skip("NumCPU<=2, skipping: this test requires parallelism")
 	}
