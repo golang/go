@@ -147,27 +147,27 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
 		goto ret
 
 	case OBLOCK:
-		if n.List == nil {
-			goto ret
+		var out *NodeList
+		for l := n.List; l != nil; l = l.Next {
+			switch l.N.Op {
+			case OCALLFUNC, OCALLMETH, OCALLINTER:
+				racewalknode(&l.N, &out, 0, 0)
+				out = list(out, l.N)
+				// Scan past OAS nodes copying results off stack.
+				// Those must not be instrumented, because the
+				// instrumentation calls will smash the results.
+				// The assignments are to temporaries, so they cannot
+				// be involved in races and need not be instrumented.
+				for l.Next != nil && l.Next.N.Op == OAS && iscallret(l.Next.N.Right) {
+					l = l.Next
+					out = list(out, l.N)
+				}
+			default:
+				racewalknode(&l.N, &out, 0, 0)
+				out = list(out, l.N)
+			}
 		}
-
-		switch n.List.N.Op {
-		// Blocks are used for multiple return function calls.
-		// x, y := f() becomes BLOCK{CALL f, AS x [SP+0], AS y [SP+n]}
-		// We don't want to instrument between the statements because it will
-		// smash the results.
-		case OCALLFUNC, OCALLMETH, OCALLINTER:
-			racewalknode(&n.List.N, &n.List.N.Ninit, 0, 0)
-
-			var fini *NodeList
-			racewalklist(n.List.Next, &fini)
-			n.List = concat(n.List, fini)
-
-			// Ordinary block, for loop initialization or inlined bodies.
-		default:
-			racewalklist(n.List, nil)
-		}
-
+		n.List = out
 		goto ret
 
 	case ODEFER:
