@@ -382,12 +382,9 @@ func transformclosure(xfunc *Node) {
 			cv.Xoffset = offset
 			offset += cv.Type.Width
 
-			if v.Name.Byval && v.Type.Width <= int64(2*Widthptr) && Thearch.Thechar == '6' {
-				//  If it is a small variable captured by value, downgrade it to PAUTO.
-				// This optimization is currently enabled only for amd64, see:
-				// https://github.com/golang/go/issues/9865
+			if v.Name.Byval && v.Type.Width <= int64(2*Widthptr) {
+				// If it is a small variable captured by value, downgrade it to PAUTO.
 				v.Class = PAUTO
-
 				v.Ullman = 1
 				xfunc.Func.Dcl = list(xfunc.Func.Dcl, v)
 				body = list(body, Nod(OAS, v, cv))
