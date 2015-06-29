@@ -613,21 +613,22 @@ func (t *tester) cgoTest() error {
 
 	pair := t.gohostos + "-" + t.goarch
 	switch pair {
-	case "openbsd-386", "openbsd-amd64":
+	case "darwin-386", "darwin-amd64",
+		"openbsd-386", "openbsd-amd64",
+		"windows-386", "windows-amd64":
 		// test linkmode=external, but __thread not supported, so skip testtls.
+		if !t.extLink() {
+			break
+		}
 		cmd := t.dirCmd("misc/cgo/test", "go", "test", "-ldflags", "-linkmode=external")
 		cmd.Env = env
 		if err := cmd.Run(); err != nil {
 			return err
 		}
-	case "darwin-386", "darwin-amd64",
-		"windows-386", "windows-amd64":
-		if t.extLink() {
-			cmd := t.dirCmd("misc/cgo/test", "go", "test", "-ldflags", "-linkmode=external")
-			cmd.Env = env
-			if err := cmd.Run(); err != nil {
-				return err
-			}
+		cmd = t.dirCmd("misc/cgo/test", "go", "test", "-ldflags", "-linkmode=external -s")
+		cmd.Env = env
+		if err := cmd.Run(); err != nil {
+			return err
 		}
 	case "android-arm",
 		"dragonfly-386", "dragonfly-amd64",
