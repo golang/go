@@ -98,6 +98,8 @@ func moduledataverify() {
 	}
 }
 
+const debugPcln = false
+
 func moduledataverify1(datap *moduledata) {
 	// See golang.org/s/go12symtab for header: 0xfffffffb,
 	// two zero bytes, a byte giving the PC quantum,
@@ -125,6 +127,13 @@ func moduledataverify1(datap *moduledata) {
 				print("\t", hex(datap.ftab[j].entry), " ", funcname((*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[j].funcoff]))), "\n")
 			}
 			throw("invalid runtime symbol table")
+		}
+
+		if debugPcln || nftab-i < 5 {
+			f := (*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[i].funcoff]))
+			pcvalue(f, f.pcfile, datap.ftab[i+1].entry-1, true)
+			pcvalue(f, f.pcln, datap.ftab[i+1].entry-1, true)
+			pcvalue(f, f.pcsp, datap.ftab[i+1].entry-1, true)
 		}
 	}
 
@@ -275,7 +284,7 @@ func funcline(f *_func, targetpc uintptr) (file string, line int32) {
 func funcspdelta(f *_func, targetpc uintptr) int32 {
 	x := pcvalue(f, f.pcsp, targetpc, true)
 	if x&(ptrSize-1) != 0 {
-		print("invalid spdelta ", hex(f.entry), " ", hex(targetpc), " ", hex(f.pcsp), " ", x, "\n")
+		print("invalid spdelta ", funcname(f), " ", hex(f.entry), " ", hex(targetpc), " ", hex(f.pcsp), " ", x, "\n")
 	}
 	return x
 }
