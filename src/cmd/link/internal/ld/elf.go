@@ -1693,8 +1693,6 @@ func doelf() {
 	Addstring(shstrtab, ".gopclntab")
 
 	if Linkmode == LinkExternal {
-		debug_s = Debug['s']
-		Debug['s'] = 0
 		Debug['d'] = 1
 
 		switch Thearch.Thechar {

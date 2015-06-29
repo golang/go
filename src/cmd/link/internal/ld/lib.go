@@ -818,6 +818,12 @@ func hostlinksetup() {
 		return
 	}
 
+	// For external link, record that we need to tell the external linker -s,
+	// and turn off -s internally: the external linker needs the symbol
+	// information for its final link.
+	debug_s = Debug['s']
+	Debug['s'] = 0
+
 	// create temporary directory and arrange cleanup
 	if tmpdir == "" {
 		dir, err := ioutil.TempDir("", "go-link-")
