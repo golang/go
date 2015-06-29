@@ -2194,13 +2194,20 @@ func needwritebarrier(l *Node, r *Node) bool {
 		return false
 	}
 
-	// No write barrier for implicit or explicit zeroing.
-	if r == nil || iszero(r) {
+	// No write barrier for implicit zeroing.
+	if r == nil {
 		return false
 	}
 
-	// No write barrier for initialization to constant.
-	if r.Op == OLITERAL {
+	// Ignore no-op conversions when making decision.
+	// Ensures that xp = unsafe.Pointer(&x) is treated
+	// the same as xp = &x.
+	for r.Op == OCONVNOP {
+		r = r.Left
+	}
+
+	// No write barrier for zeroing or initialization to constant.
+	if iszero(r) || r.Op == OLITERAL {
 		return false
 	}
 

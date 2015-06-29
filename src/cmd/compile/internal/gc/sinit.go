@@ -302,6 +302,10 @@ func staticcopy(l *Node, r *Node, out **NodeList) bool {
 	orig := r
 	r = r.Name.Defn.Right
 
+	for r.Op == OCONVNOP {
+		r = r.Left
+	}
+
 	switch r.Op {
 	case ONAME:
 		if staticcopy(l, r, out) {
@@ -394,6 +398,10 @@ func staticcopy(l *Node, r *Node, out **NodeList) bool {
 
 func staticassign(l *Node, r *Node, out **NodeList) bool {
 	var n1 Node
+
+	for r.Op == OCONVNOP {
+		r = r.Left
+	}
 
 	switch r.Op {
 	//dump("not static", r);
