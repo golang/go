@@ -12,6 +12,8 @@ import (
 	"go/parser"
 	"go/token"
 	"internal/testenv"
+	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -852,7 +854,7 @@ func TestIssue8518(t *testing.T) {
 	}
 
 	const libSrc = `
-package a 
+package a
 import "missing"
 const C1 = foo
 const C2 = missing.C
@@ -941,4 +943,102 @@ func sameSlice(a, b []int) bool {
 		}
 	}
 	return true
+}
+
+// TestScopeLookupParent ensures that (*Scope).LookupParent returns
+// the correct result at various positions with the source.
+func TestScopeLookupParent(t *testing.T) {
+	fset := token.NewFileSet()
+	imports := make(testImporter)
+	conf := Config{Importer: imports}
+	mustParse := func(src string) *ast.File {
+		f, err := parser.ParseFile(fset, "dummy.go", src, parser.ParseComments)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return f
+	}
+	var info Info
+	makePkg := func(path string, files ...*ast.File) {
+		imports[path], _ = conf.Check(path, fset, files, &info)
+	}
+
+	makePkg("lib", mustParse("package lib; var X int"))
+	// Each /*name=kind:line*/ comment makes the test look up the
+	// name at that point and checks that it resolves to a decl of
+	// the specified kind and line number.  "undef" means undefined.
+	mainSrc := `
+package main
+import "lib"
+var Y = lib.X
+func f() {
+	print(Y) /*Y=var:4*/
+	z /*z=undef*/ := /*z=undef*/ 1 /*z=var:7*/
+	print(z)
+	/*f=func:5*/ /*lib=pkgname:3*/
+	type /*T=undef*/ T /*T=typename:10*/ *T
+}
+`
+	info.Uses = make(map[*ast.Ident]Object)
+	f := mustParse(mainSrc)
+	makePkg("main", f)
+	mainScope := imports["main"].Scope()
+	rx := regexp.MustCompile(`^/\*(\w*)=([\w:]*)\*/$`)
+	for _, group := range f.Comments {
+		for _, comment := range group.List {
+			// Parse the assertion in the comment.
+			m := rx.FindStringSubmatch(comment.Text)
+			if m == nil {
+				t.Errorf("%s: bad comment: %s",
+					fset.Position(comment.Pos()), comment.Text)
+				continue
+			}
+			name, want := m[1], m[2]
+
+			// Look up the name in the innermost enclosing scope.
+			inner := mainScope.Innermost(comment.Pos())
+			if inner == nil {
+				t.Errorf("%s: at %s: can't find innermost scope",
+					fset.Position(comment.Pos()), comment.Text)
+				continue
+			}
+			got := "undef"
+			if _, obj := inner.LookupParent(name, comment.Pos()); obj != nil {
+				kind := strings.ToLower(strings.TrimPrefix(reflect.TypeOf(obj).String(), "*types."))
+				got = fmt.Sprintf("%s:%d", kind, fset.Position(obj.Pos()).Line)
+			}
+			if got != want {
+				t.Errorf("%s: at %s: %s resolved to %s, want %s",
+					fset.Position(comment.Pos()), comment.Text, name, got, want)
+			}
+		}
+	}
+
+	// Check that for each referring identifier,
+	// a lookup of its name on the innermost
+	// enclosing scope returns the correct object.
+
+	for id, wantObj := range info.Uses {
+		inner := mainScope.Innermost(id.Pos())
+		if inner == nil {
+			t.Errorf("%s: can't find innermost scope enclosing %q",
+				fset.Position(id.Pos()), id.Name)
+			continue
+		}
+
+		// Exclude selectors and qualified identifiers---lexical
+		// refs only.  (Ideally, we'd see if the AST parent is a
+		// SelectorExpr, but that requires PathEnclosingInterval
+		// from golang.org/x/tools/go/ast/astutil.)
+		if id.Name == "X" {
+			continue
+		}
+
+		_, gotObj := inner.LookupParent(id.Name, id.Pos())
+		if gotObj != wantObj {
+			t.Errorf("%s: got %v, want %v",
+				fset.Position(id.Pos()), gotObj, wantObj)
+			continue
+		}
+	}
 }
