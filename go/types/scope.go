@@ -126,9 +126,20 @@ func (s *Scope) Contains(pos token.Pos) bool {
 
 // Innermost returns the innermost (child) scope containing
 // pos. If pos is not within any scope, the result is nil.
+// The result is also nil for the Universe scope.
 // The result is guaranteed to be valid only if the type-checked
 // AST has complete position information.
 func (s *Scope) Innermost(pos token.Pos) *Scope {
+	// Package scopes do not have extents since they may be
+	// discontiguous, so iterate over the package's files.
+	if s.parent == Universe {
+		for _, s := range s.children {
+			if inner := s.Innermost(pos); inner != nil {
+				return inner
+			}
+		}
+	}
+
 	if s.Contains(pos) {
 		for _, s := range s.children {
 			if s.Contains(pos) {
