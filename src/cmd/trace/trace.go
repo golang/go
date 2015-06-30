@@ -300,6 +300,7 @@ func generateTrace(params *traceParams) ViewerData {
 	if !ctx.gtrace {
 		for i := 0; i <= maxProc; i++ {
 			ctx.emit(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: 0, Tid: uint64(i), Arg: &NameArg{fmt.Sprintf("Proc %v", i)}})
+			ctx.emit(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: uint64(i), Arg: &SortIndexArg{i}})
 		}
 	}
 
