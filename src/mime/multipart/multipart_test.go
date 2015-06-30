@@ -565,6 +565,58 @@ foo: bar
 		},
 	},
 
+	// Issue 10616; minimal
+	{
+		name: "issue 10616 minimal",
+		sep:  "sep",
+		in: "--sep \r\nFoo: bar\r\n\r\n" +
+			"a\r\n" +
+			"--sep_alt\r\n" +
+			"b\r\n" +
+			"\r\n--sep--",
+		want: []headerBody{
+			{textproto.MIMEHeader{"Foo": {"bar"}}, "a\r\n--sep_alt\r\nb\r\n"},
+		},
+	},
+
+	// Issue 10616; full example from bug.
+	{
+		name: "nested separator prefix is outer separator",
+		sep:  "----=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9",
+		in: strings.Replace(`------=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9
+Content-Type: multipart/alternative; boundary="----=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9_alt"
+
+------=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9_alt
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+
+This is a multi-part message in MIME format.
+
+------=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9_alt
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+
+html things
+------=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9_alt--
+------=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9--`, "\n", "\r\n", -1),
+		want: []headerBody{
+			{textproto.MIMEHeader{"Content-Type": {`multipart/alternative; boundary="----=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9_alt"`}},
+				strings.Replace(`------=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9_alt
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+
+This is a multi-part message in MIME format.
+
+------=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9_alt
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+
+html things
+------=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9_alt--`, "\n", "\r\n", -1),
+			},
+		},
+	},
+
 	roundTripParseTest(),
 }
 
