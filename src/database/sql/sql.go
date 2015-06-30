@@ -23,12 +23,17 @@ import (
 	"sync/atomic"
 )
 
-var drivers = make(map[string]driver.Driver)
+var (
+	driversMu sync.Mutex
+	drivers   = make(map[string]driver.Driver)
+)
 
 // Register makes a database driver available by the provided name.
 // If Register is called twice with the same name or if driver is nil,
 // it panics.
 func Register(name string, driver driver.Driver) {
+	driversMu.Lock()
+	defer driversMu.Unlock()
 	if driver == nil {
 		panic("sql: Register driver is nil")
 	}
@@ -39,12 +44,16 @@ func Register(name string, driver driver.Driver) {
 }
 
 func unregisterAllDrivers() {
+	driversMu.Lock()
+	defer driversMu.Unlock()
 	// For tests.
 	drivers = make(map[string]driver.Driver)
 }
 
 // Drivers returns a sorted list of the names of the registered drivers.
 func Drivers() []string {
+	driversMu.Lock()
+	defer driversMu.Unlock()
 	var list []string
 	for name := range drivers {
 		list = append(list, name)
@@ -457,7 +466,9 @@ var connectionRequestQueueSize = 1000000
 // function should be called just once. It is rarely necessary to
 // close a DB.
 func Open(driverName, dataSourceName string) (*DB, error) {
+	driversMu.Lock()
 	driveri, ok := drivers[driverName]
+	driversMu.Unlock()
 	if !ok {
 		return nil, fmt.Errorf("sql: unknown driver %q (forgotten import?)", driverName)
 	}
