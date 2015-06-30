@@ -99,7 +99,6 @@ var urltests = []URLTest{
 			Scheme:   "http",
 			Host:     "www.google.com",
 			Path:     "/a b",
-			RawPath:  "/a%20b",
 			RawQuery: "q=c+d",
 		},
 		"",
@@ -394,8 +393,8 @@ func ufmt(u *URL) string {
 			pass = p
 		}
 	}
-	return fmt.Sprintf("opaque=%q, scheme=%q, user=%#v, pass=%#v, host=%q, path=%q, rawq=%q, frag=%q",
-		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawQuery, u.Fragment)
+	return fmt.Sprintf("opaque=%q, scheme=%q, user=%#v, pass=%#v, host=%q, path=%q, rawpath=%q, rawq=%q, frag=%q",
+		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawPath, u.RawQuery, u.Fragment)
 }
 
 func DoTest(t *testing.T, parse func(string) (*URL, error), name string, tests []URLTest) {
@@ -404,9 +403,6 @@ func DoTest(t *testing.T, parse func(string) (*URL, error), name string, tests [
 		if err != nil {
 			t.Errorf("%s(%q) returned error %s", name, tt.in, err)
 			continue
-		}
-		if tt.out.RawPath == "" {
-			tt.out.RawPath = tt.out.Path
 		}
 		if !reflect.DeepEqual(u, tt.out) {
 			t.Errorf("%s(%q):\n\thave %v\n\twant %v\n",

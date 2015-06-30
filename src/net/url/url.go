@@ -426,9 +426,15 @@ func parse(rawurl string, viaRequest bool) (url *URL, err error) {
 			goto Error
 		}
 	}
-	url.RawPath = rest
 	if url.Path, err = unescape(rest, encodePath); err != nil {
 		goto Error
+	}
+	// RawPath is a hint as to the encoding of Path to use
+	// in url.EncodedPath. If that method already gets the
+	// right answer without RawPath, leave it empty.
+	// This will help make sure that people don't rely on it in general.
+	if url.EscapedPath() != rest && validEncodedPath(rest) {
+		url.RawPath = rest
 	}
 	return url, nil
 
@@ -544,7 +550,7 @@ func (u *URL) EscapedPath() string {
 }
 
 // validEncodedPath reports whether s is a valid encoded path.
-// It must contain any bytes that require escaping during path encoding.
+// It must not contain any bytes that require escaping during path encoding.
 func validEncodedPath(s string) bool {
 	for i := 0; i < len(s); i++ {
 		if s[i] != '%' && shouldEscape(s[i], encodePath) {

@@ -45,10 +45,9 @@ var reqTests = []reqTest{
 		&Request{
 			Method: "GET",
 			URL: &url.URL{
-				Scheme:  "http",
-				Host:    "www.techcrunch.com",
-				Path:    "/",
-				RawPath: "/",
+				Scheme: "http",
+				Host:   "www.techcrunch.com",
+				Path:   "/",
 			},
 			Proto:      "HTTP/1.1",
 			ProtoMajor: 1,
@@ -83,8 +82,7 @@ var reqTests = []reqTest{
 		&Request{
 			Method: "GET",
 			URL: &url.URL{
-				Path:    "/",
-				RawPath: "/",
+				Path: "/",
 			},
 			Proto:         "HTTP/1.1",
 			ProtoMajor:    1,
@@ -110,8 +108,7 @@ var reqTests = []reqTest{
 		&Request{
 			Method: "GET",
 			URL: &url.URL{
-				Path:    "//user@host/is/actually/a/path/",
-				RawPath: "//user@host/is/actually/a/path/",
+				Path: "//user@host/is/actually/a/path/",
 			},
 			Proto:         "HTTP/1.1",
 			ProtoMajor:    1,
@@ -161,8 +158,7 @@ var reqTests = []reqTest{
 		&Request{
 			Method: "POST",
 			URL: &url.URL{
-				Path:    "/",
-				RawPath: "/",
+				Path: "/",
 			},
 			TransferEncoding: []string{"chunked"},
 			Proto:            "HTTP/1.1",
@@ -236,8 +232,7 @@ var reqTests = []reqTest{
 		&Request{
 			Method: "CONNECT",
 			URL: &url.URL{
-				Path:    "/_goRPC_",
-				RawPath: "/_goRPC_",
+				Path: "/_goRPC_",
 			},
 			Proto:         "HTTP/1.1",
 			ProtoMajor:    1,
@@ -308,8 +303,7 @@ var reqTests = []reqTest{
 		&Request{
 			Method: "GET",
 			URL: &url.URL{
-				Path:    "/",
-				RawPath: "/",
+				Path: "/",
 			},
 			Header: Header{
 				// This wasn't removed from Go 1.0 to
