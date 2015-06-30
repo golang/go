@@ -216,15 +216,6 @@ On NaCl, Go 1.5 requires SDK version pepper-39 or above because it now uses the
 </p>
 
 <pre>
-
-API additions and behavior changes:
-
-flag: new nicer format for PrintDefaults (https://golang.org/cl/7330)
-math/big: add arbitrary precision Floats (many cl's)
-mime/quotedprintable: new package (https://golang.org/cl/5940 + others)
-reflect: add ArrayOf (https://golang.org/cl/4111)
-reflect: add FuncOf (https://golang.org/cl/1996)
-
 Tools:
 
 build: external linking support for windows (https://golang.org/cl/7163, 7282, 7283, 7284, 7534, 7535)
@@ -292,16 +283,99 @@ ARM assembly syntax has had some features removed.
 	- R(0) to refer to R0.
 		Some macros use this to a great extent. Again, it's easy just to
 		use a #define to rename a register.
-	
+
 Also expression evaluation now uses uint64s instead of signed integers and the
 precedence of operators is now Go-like rather than C-like.
-
-Standard library hardening
-35 bugs found by randomized testing with go-fuzz (https://github.com/dvyukov/go-fuzz)
-were fixed in fmt, archive/zip, archive/tar, encoding/gob, image/jpeg, image/png,
-image/gif, compress/flate, text/template, html/template. The fixes harden implementation
-against incorrect and malicious inputs.
 </pre>
+
+<h3 id="library">Core library</h3>
+
+<h3 id="flag">Flag</h3>
+
+<p>
+The flag package's
+<a href="/pkg/flag/#PrintDefaults"><code>PrintDefaults</code></a> 
+function, and method on <a href="/pkg/flag/#FlagSet"><code>FlagSet</code></a>,
+have been modified to create nicer usage messages.
+The format has been changed to be more human-friendly and in the usage
+messages a word quoted with `backquotes` is taken to be the name of the
+flag's operand to display in the usage message.
+For instance, a flag created with the invocation,
+</p>
+
+<pre>
+cpuFlag = flag.Int("cpu", 1, "run `N` processes in parallel")
+</pre>
+
+<p>
+will show the help message,
+</p>
+
+<pre>
+-cpu N
+    	run N processes in parallel (default 1)
+</pre>
+
+<p>
+Also, the default is now listed only when it is not the zero value for the type.
+</p>
+
+<h3 id="math_big">Floats in math/big</h3>
+
+<p>
+The <a href="/pkg/math/big/"><code>math/big</code></a> package
+has a new, fundamental data type,
+<a href="/pkg/math/big/#Float"><code>Float</code></a>,
+which implements arbitrary-precision floating-point numbers.
+A <code>Float</code> value is represented by a boolean sign,
+a variable-length mantissa, and a 32-bit fixed-size signed exponent.
+The precision of a <code>Float</code> (the mantissa size in bits)
+can be specified explicitly or is otherwise determined by the first
+operation that creates the value.
+Once created, the size of a <code>Float</code>'s mantissa may be modified with the
+<a href="/pkg/math/big/#Float.SetPrec"><code>SetPrec</code></a> method.
+<code>Floats</code> support the concept of infinities, such as are created by
+overflow, but values that would lead to the equivalent of IEEE 754 NaNs
+trigger a panic.
+<code>Float</code> operations support all IEEE-754 rounding modes.
+When the precision is set to 24 (53) bits,
+operations that stay within the range of normalized <code>float32</code>
+(<code>float64</code>)
+values produce the same results as the corresponding IEEE-754
+arithmetic on those values.
+</p>
+
+<h3 id="reflect">Reflect</h3>
+
+<p>
+The <a href="/pkg/reflect/"><code>reflect</code></a> package
+has two new functions: <a href="/pkg/reflect/#ArrayOf"><code>ArrayOf</code></a>
+and <a href="/pkg/reflect/#FuncOf"><code>FuncOf</code></a>.
+These functions, analogous to the extant
+<a href="/pkg/reflect/#SliceOf"><code>SliceOf</code></a>function,
+create new types at runtime to describe arrays and functions.
+</p>
+
+<h3 id="hardening">Hardening</h3>
+
+<p>
+Several dozen bugs were found in the standard library
+through randomized testing with the
+<a href="https://github.com/dvyukov/go-fuzz"><code>go-fuzz</code></a> tool.
+Bugs were fixed in the
+<a href="/pkg/archive/tar/"><code>archive/tar</code></a>,
+<a href="/pkg/archive/zip/"><code>archive/zip</code></a>,
+<a href="/pkg/compress/flate/"><code>compress/flate</code></a>,
+<a href="/pkg/encoding/gob/"><code>encoding/gob</code></a>,
+<a href="/pkg/fmt/"><code>fmt</code></a>,
+<a href="/pkg/html/template/"><code>html/template</code></a>,
+<a href="/pkg/image/gif/"><code>image/gif</code></a>,
+<a href="/pkg/image/jpeg/"><code>image/jpeg</code></a>,
+<a href="/pkg/image/png/"><code>image/png</code></a>, and
+<a href="/pkg/text/template/"><code>text/template</code></a>,
+packages.
+The fixes harden the implementation against incorrect and malicious inputs.
+</p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
@@ -448,6 +522,11 @@ method for the <a href="/pkg/math/big/#Int"><code>Int</code></a> type.
 The <a href="/pkg/mime/"><code>mime</code></a> package adds an
 <a href="/pkg/mime/#ExtensionsByType"><code>ExtensionsByType</code></a>
 function that returns the MIME extensions know to be associated with a given MIME type.
+</li>
+
+<li>
+There is a new <a href="/pkg/mime/quotedprintable/"><code>mime/quotedprintable</code></a>
+package that implements the quoted-printable encoding defined by RFC 2045.
 </li>
 
 <li>
