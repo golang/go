@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/url"
 	"reflect"
 	"strings"
@@ -323,6 +324,32 @@ var reqTests = []reqTest{
 		noTrailer,
 		noError,
 	},
+
+	// HEAD with Content-Length 0. Make sure this is permitted,
+	// since I think we used to send it.
+	{
+		"HEAD / HTTP/1.1\r\nHost: issue8261.com\r\nConnection: close\r\nContent-Length: 0\r\n\r\n",
+		&Request{
+			Method: "HEAD",
+			URL: &url.URL{
+				Path: "/",
+			},
+			Header: Header{
+				"Connection":     []string{"close"},
+				"Content-Length": []string{"0"},
+			},
+			Host:       "issue8261.com",
+			Proto:      "HTTP/1.1",
+			ProtoMajor: 1,
+			ProtoMinor: 1,
+			Close:      true,
+			RequestURI: "/",
+		},
+
+		noBody,
+		noTrailer,
+		noError,
+	},
 }
 
 func TestReadRequest(t *testing.T) {
@@ -357,10 +384,38 @@ func TestReadRequest(t *testing.T) {
 	}
 }
 
-func TestReadRequest_BadConnectHost(t *testing.T) {
-	data := []byte("CONNECT []%20%48%54%54%50%2f%31%2e%31%0a%4d%79%48%65%61%64%65%72%3a%20%31%32%33%0a%0a HTTP/1.0\n\n")
-	r, err := ReadRequest(bufio.NewReader(bytes.NewReader(data)))
-	if err == nil {
-		t.Fatal("Got unexpected request = %#v", r)
+// reqBytes treats req as a request (with \n delimiters) and returns it with \r\n delimiters,
+// ending in \r\n\r\n
+func reqBytes(req string) []byte {
+	return []byte(strings.Replace(strings.TrimSpace(req), "\n", "\r\n", -1) + "\r\n\r\n")
+}
+
+var badRequestTests = []struct {
+	name string
+	req  []byte
+}{
+	{"bad_connect_host", reqBytes("CONNECT []%20%48%54%54%50%2f%31%2e%31%0a%4d%79%48%65%61%64%65%72%3a%20%31%32%33%0a%0a HTTP/1.0")},
+	{"smuggle_two_contentlen", reqBytes(`POST / HTTP/1.1
+Content-Length: 3
+Content-Length: 4
+
+abc`)},
+	{"smuggle_chunked_and_len", reqBytes(`POST / HTTP/1.1
+Transfer-Encoding: chunked
+Content-Length: 3
+
+abc`)},
+	{"smuggle_content_len_head", reqBytes(`HEAD / HTTP/1.1
+Host: foo
+Content-Length: 5`)},
+}
+
+func TestReadRequest_Bad(t *testing.T) {
+	for _, tt := range badRequestTests {
+		got, err := ReadRequest(bufio.NewReader(bytes.NewReader(tt.req)))
+		if err == nil {
+			all, err := ioutil.ReadAll(got.Body)
+			t.Errorf("%s: got unexpected request = %#v\n  Body = %q, %v", tt.name, got, all, err)
+		}
 	}
 }
