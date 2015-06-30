@@ -1436,9 +1436,10 @@ func gcMark(start_time int64) {
 	}
 
 	t4 := nanotime()
-	atomicstore64(&memstats.last_gc, uint64(unixnanotime())) // must be Unix time to make sense to user
+	unixNow := unixnanotime()
+	atomicstore64(&memstats.last_gc, uint64(unixNow)) // must be Unix time to make sense to user
 	memstats.pause_ns[memstats.numgc%uint32(len(memstats.pause_ns))] = uint64(t4 - t0)
-	memstats.pause_end[memstats.numgc%uint32(len(memstats.pause_end))] = uint64(t4)
+	memstats.pause_end[memstats.numgc%uint32(len(memstats.pause_end))] = uint64(unixNow)
 	memstats.pause_total_ns += uint64(t4 - t0)
 }
 

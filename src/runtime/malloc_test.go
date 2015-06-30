@@ -44,6 +44,10 @@ func TestMemStats(t *testing.T) {
 	if st.HeapIdle+st.HeapInuse != st.HeapSys {
 		t.Fatalf("HeapIdle(%d) + HeapInuse(%d) should be equal to HeapSys(%d), but isn't.", st.HeapIdle, st.HeapInuse, st.HeapSys)
 	}
+
+	if lpe := st.PauseEnd[int(st.NumGC+255)%len(st.PauseEnd)]; st.LastGC != lpe {
+		t.Fatalf("LastGC(%d) != last PauseEnd(%d)", st.LastGC, lpe)
+	}
 }
 
 func TestStringConcatenationAllocs(t *testing.T) {
