@@ -199,7 +199,7 @@ func fib(x int) int {
 	for obj, uses := range usesByObj {
 		sort.Strings(uses)
 		item := fmt.Sprintf("%s:\n  defined at %s\n  used at %s",
-			types.ObjectString(pkg, obj),
+			types.ObjectString(obj, types.RelativeTo(pkg)),
 			fset.Position(obj.Pos()),
 			strings.Join(uses, ", "))
 		items = append(items, item)

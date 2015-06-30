@@ -23,6 +23,13 @@ func unreachable() {
 	panic("unreachable")
 }
 
+func (check *Checker) qualifier(pkg *Package) string {
+	if pkg != check.pkg {
+		return pkg.path
+	}
+	return ""
+}
+
 func (check *Checker) sprintf(format string, args ...interface{}) string {
 	for i, arg := range args {
 		switch a := arg.(type) {
@@ -31,15 +38,15 @@ func (check *Checker) sprintf(format string, args ...interface{}) string {
 		case operand:
 			panic("internal error: should always pass *operand")
 		case *operand:
-			arg = operandString(check.pkg, a)
+			arg = operandString(a, check.qualifier)
 		case token.Pos:
 			arg = check.fset.Position(a).String()
 		case ast.Expr:
 			arg = ExprString(a)
 		case Object:
-			arg = ObjectString(check.pkg, a)
+			arg = ObjectString(a, check.qualifier)
 		case Type:
-			arg = TypeString(check.pkg, a)
+			arg = TypeString(a, check.qualifier)
 		}
 		args[i] = arg
 	}

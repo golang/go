@@ -105,18 +105,18 @@ func (s *Selection) Index() []int { return s.index }
 // x to f in x.f.
 func (s *Selection) Indirect() bool { return s.indirect }
 
-func (s *Selection) String() string { return SelectionString(nil, s) }
+func (s *Selection) String() string { return SelectionString(s, nil) }
 
 // SelectionString returns the string form of s.
-// Type names are printed package-qualified
-// only if they do not belong to this package.
+// The Qualifier controls the printing of
+// package-level objects, and may be nil.
 //
 // Examples:
 //	"field (T) f int"
 //	"method (T) f(X) Y"
 //	"method expr (T) f(X) Y"
 //
-func SelectionString(this *Package, s *Selection) string {
+func SelectionString(s *Selection, qf Qualifier) string {
 	var k string
 	switch s.kind {
 	case FieldVal:
@@ -131,13 +131,13 @@ func SelectionString(this *Package, s *Selection) string {
 	var buf bytes.Buffer
 	buf.WriteString(k)
 	buf.WriteByte('(')
-	WriteType(&buf, this, s.Recv())
+	WriteType(&buf, s.Recv(), qf)
 	fmt.Fprintf(&buf, ") %s", s.obj.Name())
 	if T := s.Type(); s.kind == FieldVal {
 		buf.WriteByte(' ')
-		WriteType(&buf, this, T)
+		WriteType(&buf, T, qf)
 	} else {
-		WriteSignature(&buf, this, T.(*Signature))
+		WriteSignature(&buf, T.(*Signature), qf)
 	}
 	return buf.String()
 }
