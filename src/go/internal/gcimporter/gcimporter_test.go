@@ -165,7 +165,7 @@ func TestImportedTypes(t *testing.T) {
 			continue
 		}
 
-		got := types.ObjectString(pkg, obj)
+		got := types.ObjectString(obj, types.RelativeTo(pkg))
 		if got != test.want {
 			t.Errorf("%s: got %q; want %q", test.name, got, test.want)
 		}

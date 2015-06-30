@@ -207,7 +207,7 @@ func NewFunc(pos token.Pos, pkg *Package, name string, sig *Signature) *Func {
 // function or method obj.
 func (obj *Func) FullName() string {
 	var buf bytes.Buffer
-	writeFuncName(&buf, nil, obj)
+	writeFuncName(&buf, obj, nil)
 	return buf.String()
 }
 
@@ -241,7 +241,7 @@ type Nil struct {
 	object
 }
 
-func writeObject(buf *bytes.Buffer, this *Package, obj Object) {
+func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 	typ := obj.Type()
 	switch obj := obj.(type) {
 	case *PkgName:
@@ -267,9 +267,9 @@ func writeObject(buf *bytes.Buffer, this *Package, obj Object) {
 
 	case *Func:
 		buf.WriteString("func ")
-		writeFuncName(buf, this, obj)
+		writeFuncName(buf, obj, qf)
 		if typ != nil {
-			WriteSignature(buf, this, typ.(*Signature))
+			WriteSignature(buf, typ.(*Signature), qf)
 		}
 		return
 
@@ -291,39 +291,52 @@ func writeObject(buf *bytes.Buffer, this *Package, obj Object) {
 
 	buf.WriteByte(' ')
 
-	// For package-level objects, package-qualify the name,
-	// except for intra-package references (this != nil).
-	if pkg := obj.Pkg(); pkg != nil && this != pkg && pkg.scope.Lookup(obj.Name()) == obj {
-		buf.WriteString(pkg.path)
-		buf.WriteByte('.')
+	// For package-level objects, qualify the name.
+	if obj.Pkg() != nil && obj.Pkg().scope.Lookup(obj.Name()) == obj {
+		writePackage(buf, obj.Pkg(), qf)
 	}
 	buf.WriteString(obj.Name())
 	if typ != nil {
 		buf.WriteByte(' ')
-		WriteType(buf, this, typ)
+		WriteType(buf, typ, qf)
+	}
+}
+
+func writePackage(buf *bytes.Buffer, pkg *Package, qf Qualifier) {
+	if pkg == nil {
+		return
+	}
+	var s string
+	if qf != nil {
+		s = qf(pkg)
+	} else {
+		s = pkg.Path()
+	}
+	if s != "" {
+		buf.WriteString(s)
+		buf.WriteByte('.')
 	}
 }
 
 // ObjectString returns the string form of obj.
-// Object and type names are printed package-qualified
-// only if they do not belong to this package.
-//
-func ObjectString(this *Package, obj Object) string {
+// The Qualifier controls the printing of
+// package-level objects, and may be nil.
+func ObjectString(obj Object, qf Qualifier) string {
 	var buf bytes.Buffer
-	writeObject(&buf, this, obj)
+	writeObject(&buf, obj, qf)
 	return buf.String()
 }
 
-func (obj *PkgName) String() string  { return ObjectString(nil, obj) }
-func (obj *Const) String() string    { return ObjectString(nil, obj) }
-func (obj *TypeName) String() string { return ObjectString(nil, obj) }
-func (obj *Var) String() string      { return ObjectString(nil, obj) }
-func (obj *Func) String() string     { return ObjectString(nil, obj) }
-func (obj *Label) String() string    { return ObjectString(nil, obj) }
-func (obj *Builtin) String() string  { return ObjectString(nil, obj) }
-func (obj *Nil) String() string      { return ObjectString(nil, obj) }
+func (obj *PkgName) String() string  { return ObjectString(obj, nil) }
+func (obj *Const) String() string    { return ObjectString(obj, nil) }
+func (obj *TypeName) String() string { return ObjectString(obj, nil) }
+func (obj *Var) String() string      { return ObjectString(obj, nil) }
+func (obj *Func) String() string     { return ObjectString(obj, nil) }
+func (obj *Label) String() string    { return ObjectString(obj, nil) }
+func (obj *Builtin) String() string  { return ObjectString(obj, nil) }
+func (obj *Nil) String() string      { return ObjectString(obj, nil) }
 
-func writeFuncName(buf *bytes.Buffer, this *Package, f *Func) {
+func writeFuncName(buf *bytes.Buffer, f *Func, qf Qualifier) {
 	if f.typ != nil {
 		sig := f.typ.(*Signature)
 		if recv := sig.Recv(); recv != nil {
@@ -335,13 +348,12 @@ func writeFuncName(buf *bytes.Buffer, this *Package, f *Func) {
 				// Don't print it in full.
 				buf.WriteString("interface")
 			} else {
-				WriteType(buf, this, recv.Type())
+				WriteType(buf, recv.Type(), qf)
 			}
 			buf.WriteByte(')')
 			buf.WriteByte('.')
-		} else if f.pkg != nil && f.pkg != this {
-			buf.WriteString(f.pkg.path)
-			buf.WriteByte('.')
+		} else if f.pkg != nil {
+			writePackage(buf, f.pkg, qf)
 		}
 	}
 	buf.WriteString(f.name)
