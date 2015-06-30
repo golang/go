@@ -540,11 +540,16 @@ func (r *Reader) upcomingHeaderNewlines() (n int) {
 // the rest are converted to lowercase.  For example, the
 // canonical key for "accept-encoding" is "Accept-Encoding".
 // MIME header keys are assumed to be ASCII only.
+// If s contains a space or invalid header field bytes, it is
+// returned without modifications.
 func CanonicalMIMEHeaderKey(s string) string {
 	// Quick check for canonical encoding.
 	upper := true
 	for i := 0; i < len(s); i++ {
 		c := s[i]
+		if !validHeaderFieldByte(c) {
+			return s
+		}
 		if upper && 'a' <= c && c <= 'z' {
 			return canonicalMIMEHeaderKey([]byte(s))
 		}
@@ -558,19 +563,44 @@ func CanonicalMIMEHeaderKey(s string) string {
 
 const toLower = 'a' - 'A'
 
+// validHeaderFieldByte reports whether b is a valid byte in a header
+// field key. This is actually stricter than RFC 7230, which says:
+//   tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." /
+//           "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
+//   token = 1*tchar
+// TODO: revisit in Go 1.6+ and possibly expand this. But note that many
+// servers have historically dropped '_' to prevent ambiguities when mapping
+// to CGI environment variables.
+func validHeaderFieldByte(b byte) bool {
+	return ('A' <= b && b <= 'Z') ||
+		('a' <= b && b <= 'z') ||
+		('0' <= b && b <= '9') ||
+		b == '-'
+}
+
 // canonicalMIMEHeaderKey is like CanonicalMIMEHeaderKey but is
 // allowed to mutate the provided byte slice before returning the
 // string.
+//
+// For invalid inputs (if a contains spaces or non-token bytes), a
+// is unchanged and a string copy is returned.
 func canonicalMIMEHeaderKey(a []byte) string {
+	// See if a looks like a header key. If not, return it unchanged.
+	for _, c := range a {
+		if validHeaderFieldByte(c) {
+			continue
+		}
+		// Don't canonicalize.
+		return string(a)
+	}
+
 	upper := true
 	for i, c := range a {
 		// Canonicalize: first letter upper case
 		// and upper case after each dash.
 		// (Host, User-Agent, If-Modified-Since).
 		// MIME headers are ASCII only, so no Unicode issues.
-		if c == ' ' {
-			c = '-'
-		} else if upper && 'a' <= c && c <= 'z' {
+		if upper && 'a' <= c && c <= 'z' {
 			c -= toLower
 		} else if !upper && 'A' <= c && c <= 'Z' {
 			c += toLower

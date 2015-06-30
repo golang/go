@@ -24,11 +24,14 @@ var canonicalHeaderKeyTests = []canonicalHeaderKeyTest{
 	{"uSER-aGENT", "User-Agent"},
 	{"user-agent", "User-Agent"},
 	{"USER-AGENT", "User-Agent"},
-	{"üser-agenT", "üser-Agent"}, // non-ASCII unchanged
+
+	// Non-ASCII or anything with spaces or non-token chars is unchanged:
+	{"üser-agenT", "üser-agenT"},
+	{"a B", "a B"},
 
 	// This caused a panic due to mishandling of a space:
-	{"C Ontent-Transfer-Encoding", "C-Ontent-Transfer-Encoding"},
-	{"foo bar", "Foo-Bar"},
+	{"C Ontent-Transfer-Encoding", "C Ontent-Transfer-Encoding"},
+	{"foo bar", "foo bar"},
 }
 
 func TestCanonicalMIMEHeaderKey(t *testing.T) {
@@ -185,7 +188,7 @@ func TestReadMIMEHeaderNonCompliant(t *testing.T) {
 		"Foo":              {"bar"},
 		"Content-Language": {"en"},
 		"Sid":              {"0"},
-		"Audio-Mode":       {"None"},
+		"Audio Mode":       {"None"},
 		"Privilege":        {"127"},
 	}
 	if !reflect.DeepEqual(m, want) || err != nil {
