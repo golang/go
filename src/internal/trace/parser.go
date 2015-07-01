@@ -254,7 +254,7 @@ func parseEvents(rawEvents []rawEvent) (events []*Event, err error) {
 	}
 
 	// Sort by time and translate cpu ticks to real time.
-	sort.Sort(eventList(events))
+	sort.Stable(eventList(events))
 	if ticksPerSec == 0 {
 		err = fmt.Errorf("no EvFrequency event")
 		return
