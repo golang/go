@@ -145,7 +145,7 @@ type PipeNode struct {
 	NodeType
 	Pos
 	tr   *Tree
-	Line int             // The line number in the input (deprecated; kept for compatibility)
+	Line int             // The line number in the input. Deprecated: Kept for compatibility.
 	Decl []*VariableNode // Variable declarations in lexical order.
 	Cmds []*CommandNode  // The commands in lexical order.
 }
@@ -208,7 +208,7 @@ type ActionNode struct {
 	NodeType
 	Pos
 	tr   *Tree
-	Line int       // The line number in the input (deprecated; kept for compatibility)
+	Line int       // The line number in the input. Deprecated: Kept for compatibility.
 	Pipe *PipeNode // The pipeline in the action.
 }
 
@@ -701,7 +701,7 @@ type elseNode struct {
 	NodeType
 	Pos
 	tr   *Tree
-	Line int // The line number in the input (deprecated; kept for compatibility)
+	Line int // The line number in the input. Deprecated: Kept for compatibility.
 }
 
 func (t *Tree) newElse(pos Pos, line int) *elseNode {
@@ -729,7 +729,7 @@ type BranchNode struct {
 	NodeType
 	Pos
 	tr       *Tree
-	Line     int       // The line number in the input (deprecated; kept for compatibility)
+	Line     int       // The line number in the input. Deprecated: Kept for compatibility.
 	Pipe     *PipeNode // The pipeline to be evaluated.
 	List     *ListNode // What to execute if the value is non-empty.
 	ElseList *ListNode // What to execute if the value is empty (nil if absent).
@@ -814,7 +814,7 @@ type TemplateNode struct {
 	NodeType
 	Pos
 	tr   *Tree
-	Line int       // The line number in the input (deprecated; kept for compatibility)
+	Line int       // The line number in the input. Deprecated: Kept for compatibility.
 	Name string    // The name of the template (unquoted).
 	Pipe *PipeNode // The command to evaluate as dot for the template.
 }

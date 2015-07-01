@@ -32,6 +32,13 @@ func (a *TCPAddr) isWildcard() bool {
 	return a.IP.IsUnspecified()
 }
 
+func (a *TCPAddr) opAddr() Addr {
+	if a == nil {
+		return nil
+	}
+	return a
+}
+
 // ResolveTCPAddr parses addr as a TCP address of the form "host:port"
 // or "[ipv6-host%zone]:port" and resolves a pair of domain name and
 // port name on the network net, which must be "tcp", "tcp4" or

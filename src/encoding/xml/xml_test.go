@@ -657,20 +657,23 @@ type procInstEncodingTest struct {
 }
 
 var procInstTests = []struct {
-	input, expect string
+	input  string
+	expect [2]string
 }{
-	{`version="1.0" encoding="utf-8"`, "utf-8"},
-	{`version="1.0" encoding='utf-8'`, "utf-8"},
-	{`version="1.0" encoding='utf-8' `, "utf-8"},
-	{`version="1.0" encoding=utf-8`, ""},
-	{`encoding="FOO" `, "FOO"},
+	{`version="1.0" encoding="utf-8"`, [2]string{"1.0", "utf-8"}},
+	{`version="1.0" encoding='utf-8'`, [2]string{"1.0", "utf-8"}},
+	{`version="1.0" encoding='utf-8' `, [2]string{"1.0", "utf-8"}},
+	{`version="1.0" encoding=utf-8`, [2]string{"1.0", ""}},
+	{`encoding="FOO" `, [2]string{"", "FOO"}},
 }
 
 func TestProcInstEncoding(t *testing.T) {
 	for _, test := range procInstTests {
-		got := procInstEncoding(test.input)
-		if got != test.expect {
-			t.Errorf("procInstEncoding(%q) = %q; want %q", test.input, got, test.expect)
+		if got := procInst("version", test.input); got != test.expect[0] {
+			t.Errorf("procInst(version, %q) = %q; want %q", test.input, got, test.expect[0])
+		}
+		if got := procInst("encoding", test.input); got != test.expect[1] {
+			t.Errorf("procInst(encoding, %q) = %q; want %q", test.input, got, test.expect[1])
 		}
 	}
 }

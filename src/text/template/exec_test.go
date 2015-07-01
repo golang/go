@@ -882,7 +882,13 @@ func TestTree(t *testing.T) {
 
 func TestExecuteOnNewTemplate(t *testing.T) {
 	// This is issue 3872.
-	_ = New("Name").Templates()
+	New("Name").Templates()
+	// This is issue 11379.
+	new(Template).Templates()
+	new(Template).Parse("")
+	new(Template).New("abc").Parse("")
+	new(Template).Execute(nil, nil)                // returns an error (but does not crash)
+	new(Template).ExecuteTemplate(nil, "XXX", nil) // returns an error (but does not crash)
 }
 
 const testTemplates = `{{define "one"}}one{{end}}{{define "two"}}two{{end}}`

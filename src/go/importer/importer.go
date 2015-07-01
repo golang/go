@@ -6,6 +6,7 @@
 package importer
 
 import (
+	"go/internal/gccgoimporter"
 	"go/internal/gcimporter"
 	"go/types"
 	"io"
@@ -27,8 +28,17 @@ func For(compiler string, lookup Lookup) types.Importer {
 		}
 		panic("gc importer for custom import path lookup not yet implemented")
 	case "gccgo":
-		// TODO(gri) We have the code. Plug it in.
-		panic("gccgo importer unimplemented")
+		if lookup == nil {
+			var inst gccgoimporter.GccgoInstallation
+			if err := inst.InitFromDriver("gccgo"); err != nil {
+				return nil
+			}
+			return &gccgoimports{
+				packages: make(map[string]*types.Package),
+				importer: inst.GetImporter(nil, nil),
+			}
+		}
+		panic("gccgo importer for custom import path lookup not yet implemented")
 	}
 	// compiler not supported
 	return nil
@@ -39,8 +49,21 @@ func Default() types.Importer {
 	return For(runtime.Compiler, nil)
 }
 
+// gc support
+
 type gcimports map[string]*types.Package
 
 func (m gcimports) Import(path string) (*types.Package, error) {
 	return gcimporter.Import(m, path)
+}
+
+// gccgo support
+
+type gccgoimports struct {
+	packages map[string]*types.Package
+	importer gccgoimporter.Importer
+}
+
+func (m *gccgoimports) Import(path string) (*types.Package, error) {
+	return m.importer(m.packages, path)
 }

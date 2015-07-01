@@ -452,10 +452,30 @@ var fmtTests = []struct {
 	{"%q", []string{"a", "b"}, `["a" "b"]`},
 	{"% 02x", []byte{1}, "01"},
 	{"% 02x", []byte{1, 2, 3}, "01 02 03"},
-	// Special care for empty slices.
+	// Padding with byte slices.
 	{"%x", []byte{}, ""},
-	{"%02x", []byte{}, ""},
-	{"% 02x", []byte{}, ""},
+	{"%02x", []byte{}, "00"},
+	{"% 02x", []byte{}, "00"},
+	{"%08x", []byte{0xab}, "000000ab"},
+	{"% 08x", []byte{0xab}, "000000ab"},
+	{"%08x", []byte{0xab, 0xcd}, "0000abcd"},
+	{"% 08x", []byte{0xab, 0xcd}, "000ab cd"},
+	{"%8x", []byte{0xab}, "      ab"},
+	{"% 8x", []byte{0xab}, "      ab"},
+	{"%8x", []byte{0xab, 0xcd}, "    abcd"},
+	{"% 8x", []byte{0xab, 0xcd}, "   ab cd"},
+	// Same for strings
+	{"%x", "", ""},
+	{"%02x", "", "00"},
+	{"% 02x", "", "00"},
+	{"%08x", "\xab", "000000ab"},
+	{"% 08x", "\xab", "000000ab"},
+	{"%08x", "\xab\xcd", "0000abcd"},
+	{"% 08x", "\xab\xcd", "000ab cd"},
+	{"%8x", "\xab", "      ab"},
+	{"% 8x", "\xab", "      ab"},
+	{"%8x", "\xab\xcd", "    abcd"},
+	{"% 8x", "\xab\xcd", "   ab cd"},
 
 	// renamings
 	{"%v", renamedBool(true), "true"},
@@ -832,6 +852,10 @@ var reorderTests = []struct {
 	{"%[5]d %[2]d %d", SE{1, 2, 3}, "%!d(BADINDEX) 2 3"},
 	{"%d %[3]d %d", SE{1, 2}, "1 %!d(BADINDEX) 2"}, // Erroneous index does not affect sequence.
 	{"%.[]", SE{}, "%!](BADINDEX)"},                // Issue 10675
+	{"%.-3d", SE{42}, "%!-(int=42)3d"},             // TODO: Should this set return better error messages?
+	{"%2147483648d", SE{42}, "%!(NOVERB)%!(EXTRA int=42)"},
+	{"%-2147483648d", SE{42}, "%!(NOVERB)%!(EXTRA int=42)"},
+	{"%.2147483648d", SE{42}, "%!(NOVERB)%!(EXTRA int=42)"},
 }
 
 func TestReorder(t *testing.T) {
@@ -1158,14 +1182,20 @@ var startests = []struct {
 	out string
 }{
 	{"%*d", args(4, 42), "  42"},
+	{"%-*d", args(4, 42), "42  "},
+	{"%*d", args(-4, 42), "42  "},
+	{"%-*d", args(-4, 42), "42  "},
 	{"%.*d", args(4, 42), "0042"},
 	{"%*.*d", args(8, 4, 42), "    0042"},
 	{"%0*d", args(4, 42), "0042"},
-	{"%-*d", args(4, 42), "42  "},
 
 	// erroneous
 	{"%*d", args(nil, 42), "%!(BADWIDTH)42"},
+	{"%*d", args(int(1e7), 42), "%!(BADWIDTH)42"},
+	{"%*d", args(int(-1e7), 42), "%!(BADWIDTH)42"},
 	{"%.*d", args(nil, 42), "%!(BADPREC)42"},
+	{"%.*d", args(-1, 42), "%!(BADPREC)42"},
+	{"%.*d", args(int(1e7), 42), "%!(BADPREC)42"},
 	{"%*d", args(5, "foo"), "%!d(string=  foo)"},
 	{"%*% %d", args(20, 5), "% 5"},
 	{"%*", args(4), "%!(NOVERB)"},

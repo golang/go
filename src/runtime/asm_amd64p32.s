@@ -569,6 +569,11 @@ TEXT runtime·atomicand8(SB), NOSPLIT, $0-5
 	ANDB	AX, 0(BX)
 	RET
 
+TEXT ·publicationBarrier(SB),NOSPLIT,$0-0
+	// Stores are already ordered on x86, so this is just a
+	// compile barrier.
+	RET
+
 // void jmpdefer(fn, sp);
 // called from deferreturn.
 // 1. pop the caller
@@ -582,15 +587,9 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-8
 	MOVL	0(DX), BX
 	JMP	BX	// but first run the deferred function
 
-// asmcgocall(void(*fn)(void*), void *arg)
+// func asmcgocall(fn, arg unsafe.Pointer) int32
 // Not implemented.
-TEXT runtime·asmcgocall(SB),NOSPLIT,$0-8
-	MOVL	0, AX
-	RET
-
-// asmcgocall(void(*fn)(void*), void *arg)
-// Not implemented.
-TEXT runtime·asmcgocall_errno(SB),NOSPLIT,$0-12
+TEXT runtime·asmcgocall(SB),NOSPLIT,$0-12
 	MOVL	0, AX
 	RET
 

@@ -818,6 +818,12 @@ func hostlinksetup() {
 		return
 	}
 
+	// For external link, record that we need to tell the external linker -s,
+	// and turn off -s internally: the external linker needs the symbol
+	// information for its final link.
+	debug_s = Debug['s']
+	Debug['s'] = 0
+
 	// create temporary directory and arrange cleanup
 	if tmpdir == "" {
 		dir, err := ioutil.TempDir("", "go-link-")
@@ -926,7 +932,7 @@ func hostlink() {
 	}
 
 	if HEADTYPE == obj.Hdarwin {
-		argv = append(argv, "-Wl,-no_pie,-pagezero_size,4000000,-headerpad,1144")
+		argv = append(argv, "-Wl,-no_pie,-headerpad,1144")
 	}
 	if HEADTYPE == obj.Hopenbsd {
 		argv = append(argv, "-Wl,-nopie")
@@ -944,9 +950,17 @@ func hostlink() {
 	}
 
 	switch Buildmode {
+	case BuildmodeExe:
+		if HEADTYPE == obj.Hdarwin {
+			argv = append(argv, "-Wl,-pagezero_size,4000000")
+		}
 	case BuildmodeCShared:
-		argv = append(argv, "-Wl,-Bsymbolic")
-		argv = append(argv, "-shared")
+		if HEADTYPE == obj.Hdarwin {
+			argv = append(argv, "-dynamiclib")
+		} else {
+			argv = append(argv, "-Wl,-Bsymbolic")
+			argv = append(argv, "-shared")
+		}
 	case BuildmodeShared:
 		// TODO(mwhudson): unless you do this, dynamic relocations fill
 		// out the findfunctab table and for some reason shared libraries
@@ -1290,25 +1304,34 @@ func ldshlibsyms(shlib string) {
 		Diag("cannot read symbols from shared library: %s", libpath)
 		return
 	}
-	for _, s := range syms {
-		if elf.ST_TYPE(s.Info) == elf.STT_NOTYPE || elf.ST_TYPE(s.Info) == elf.STT_SECTION {
+	for _, elfsym := range syms {
+		if elf.ST_TYPE(elfsym.Info) == elf.STT_NOTYPE || elf.ST_TYPE(elfsym.Info) == elf.STT_SECTION {
 			continue
 		}
-		lsym := Linklookup(Ctxt, s.Name, 0)
+		lsym := Linklookup(Ctxt, elfsym.Name, 0)
 		if lsym.Type != 0 && lsym.Type != obj.SDYNIMPORT && lsym.Dupok == 0 {
-			Diag(
-				"Found duplicate symbol %s reading from %s, first found in %s",
-				s.Name, shlib, lsym.File)
+			if (lsym.Type != obj.SBSS && lsym.Type != obj.SNOPTRBSS) || len(lsym.R) != 0 || len(lsym.P) != 0 || f.Sections[elfsym.Section].Type != elf.SHT_NOBITS {
+				Diag("Found duplicate symbol %s reading from %s, first found in %s", elfsym.Name, shlib, lsym.File)
+			}
+			if lsym.Size > int64(elfsym.Size) {
+				// If the existing symbol is a BSS value that is
+				// larger than the one read from the shared library,
+				// keep references to that.  Conversely, if the
+				// version from the shared libray is larger, we want
+				// to make all references be to that.
+				continue
+			}
 		}
 		lsym.Type = obj.SDYNIMPORT
-		lsym.ElfType = elf.ST_TYPE(s.Info)
-		if s.Section != elf.SHN_UNDEF {
+		lsym.ElfType = elf.ST_TYPE(elfsym.Info)
+		lsym.Size = int64(elfsym.Size)
+		if elfsym.Section != elf.SHN_UNDEF {
 			// Set .File for the library that actually defines the symbol.
 			lsym.File = libpath
 			// The decodetype_* functions in decodetype.go need access to
 			// the type data.
 			if strings.HasPrefix(lsym.Name, "type.") && !strings.HasPrefix(lsym.Name, "type..") {
-				lsym.P = readelfsymboldata(f, &s)
+				lsym.P = readelfsymboldata(f, &elfsym)
 			}
 		}
 	}

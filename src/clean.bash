@@ -13,4 +13,5 @@ if [ ! -x $GOTOOLDIR/dist ]; then
 fi
 
 "$GOBIN/go" clean -i std
-$GOTOOLDIR/dist clean
+"$GOBIN/go" tool dist clean
+"$GOBIN/go" clean -i cmd

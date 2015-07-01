@@ -831,12 +831,10 @@ func inlvar(var_ *Node) *Node {
 	n.Name.Curfn = Curfn // the calling function, not the called one
 	n.Addrtaken = var_.Addrtaken
 
-	// Esc pass wont run if we're inlining into a iface wrapper.
-	// Luckily, we can steal the results from the target func.
-	// If inlining a function defined in another package after
-	// escape analysis is done, treat all local vars as escaping.
-	// See issue 9537.
-	if var_.Esc == EscHeap || (inl_nonlocal != 0 && var_.Op == ONAME) {
+	// This may no longer be necessary now that we run escape analysis
+	// after wrapper generation, but for 1.5 this is conservatively left
+	// unchanged.  See bugs 11053 and 9537.
+	if var_.Esc == EscHeap {
 		addrescapes(n)
 	}
 

@@ -140,6 +140,24 @@ func netErr(e error) {
 	if !ok {
 		return
 	}
+	nonNilInterface := func(a Addr) bool {
+		switch a := a.(type) {
+		case *TCPAddr:
+			return a == nil
+		case *UDPAddr:
+			return a == nil
+		case *IPAddr:
+			return a == nil
+		default:
+			return false
+		}
+	}
+	if nonNilInterface(oe.Source) {
+		oe.Source = nil
+	}
+	if nonNilInterface(oe.Addr) {
+		oe.Addr = nil
+	}
 	if pe, ok := oe.Err.(*os.PathError); ok {
 		if _, ok = pe.Err.(syscall.ErrorString); ok {
 			oe.Err = pe.Err

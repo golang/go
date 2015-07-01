@@ -25,12 +25,28 @@ var protocols = map[string]int{
 // LookupHost looks up the given host using the local resolver.
 // It returns an array of that host's addresses.
 func LookupHost(host string) (addrs []string, err error) {
+	// Make sure that no matter what we do later, host=="" is rejected.
+	// ParseIP, for example, does accept empty strings.
+	if host == "" {
+		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host}
+	}
+	if ip := ParseIP(host); ip != nil {
+		return []string{host}, nil
+	}
 	return lookupHost(host)
 }
 
 // LookupIP looks up host using the local resolver.
 // It returns an array of that host's IPv4 and IPv6 addresses.
 func LookupIP(host string) (ips []IP, err error) {
+	// Make sure that no matter what we do later, host=="" is rejected.
+	// ParseIP, for example, does accept empty strings.
+	if host == "" {
+		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host}
+	}
+	if ip := ParseIP(host); ip != nil {
+		return []IP{ip}, nil
+	}
 	addrs, err := lookupIPMerge(host)
 	if err != nil {
 		return

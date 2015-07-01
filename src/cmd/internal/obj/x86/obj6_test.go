@@ -5,12 +5,12 @@ import (
 	"bytes"
 	"fmt"
 	"go/build"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -148,10 +148,8 @@ func parseOutput(t *testing.T, td *ParsedTestData, asmout []byte) {
 }
 
 func TestDynlink(t *testing.T) {
-	iOS := runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64")
-	if runtime.GOOS == "nacl" || runtime.GOOS == "android" || iOS {
-		t.Skipf("skipping on %s/%s, cannot fork", runtime.GOOS, runtime.GOARCH)
-	}
+	testenv.MustHaveGoBuild(t)
+
 	testdata := parseTestData(t)
 	asmout := asmOutput(t, testdata.input)
 	parseOutput(t, testdata, asmout)

@@ -12,24 +12,19 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"runtime"
 	"testing"
 	"time"
 )
 
-// iOS cannot fork, so we skip some tests
-var iOS = runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64")
-
 // This test is a CGI host (testing host.go) that runs its own binary
 // as a child process testing the other half of CGI (child.go).
 func TestHostingOurselves(t *testing.T) {
-	if runtime.GOOS == "nacl" || iOS {
-		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
-	}
+	testenv.MustHaveExec(t)
 
 	h := &Handler{
 		Path: os.Args[0],
@@ -96,9 +91,7 @@ func (w *limitWriter) Write(p []byte) (n int, err error) {
 // If there's an error copying the child's output to the parent, test
 // that we kill the child.
 func TestKillChildAfterCopyError(t *testing.T) {
-	if runtime.GOOS == "nacl" || iOS {
-		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
-	}
+	testenv.MustHaveExec(t)
 
 	defer func() { testHookStartProcess = nil }()
 	proc := make(chan *os.Process, 1)
@@ -143,9 +136,7 @@ func TestKillChildAfterCopyError(t *testing.T) {
 // Test that a child handler writing only headers works.
 // golang.org/issue/7196
 func TestChildOnlyHeaders(t *testing.T) {
-	if runtime.GOOS == "nacl" || iOS {
-		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
-	}
+	testenv.MustHaveExec(t)
 
 	h := &Handler{
 		Path: os.Args[0],

@@ -44,7 +44,9 @@ const (
 var stackpool [_NumStackOrders]mspan
 var stackpoolmu mutex
 
-var stackfreequeue stack
+// List of stack spans to be freed at the end of GC. Protected by
+// stackpoolmu.
+var stackFreeQueue mspan
 
 // Cached value of haveexperiment("framepointer")
 var framepointer_enabled bool
@@ -56,6 +58,7 @@ func stackinit() {
 	for i := range stackpool {
 		mSpanList_Init(&stackpool[i])
 	}
+	mSpanList_Init(&stackFreeQueue)
 }
 
 // Allocates a stack from the free pool.  Must be called with
@@ -108,8 +111,22 @@ func stackpoolfree(x gclinkptr, order uint8) {
 	x.ptr().next = s.freelist
 	s.freelist = x
 	s.ref--
-	if s.ref == 0 {
-		// span is completely free - return to heap
+	if gcphase == _GCoff && s.ref == 0 {
+		// Span is completely free. Return it to the heap
+		// immediately if we're sweeping.
+		//
+		// If GC is active, we delay the free until the end of
+		// GC to avoid the following type of situation:
+		//
+		// 1) GC starts, scans a SudoG but does not yet mark the SudoG.elem pointer
+		// 2) The stack that pointer points to is copied
+		// 3) The old stack is freed
+		// 4) The containing span is marked free
+		// 5) GC attempts to mark the SudoG.elem pointer. The
+		//    marking fails because the pointer looks like a
+		//    pointer into a free span.
+		//
+		// By not freeing, we prevent step #4 until GC is done.
 		mSpanList_Remove(s)
 		s.freelist = 0
 		mHeap_FreeStack(&mheap_, s)
@@ -302,7 +319,21 @@ func stackfree(stk stack, n uintptr) {
 			println(hex(s.start<<_PageShift), v)
 			throw("bad span state")
 		}
-		mHeap_FreeStack(&mheap_, s)
+		if gcphase == _GCoff {
+			// Free the stack immediately if we're
+			// sweeping.
+			mHeap_FreeStack(&mheap_, s)
+		} else {
+			// Otherwise, add it to a list of stack spans
+			// to be freed at the end of GC.
+			//
+			// TODO(austin): Make it possible to re-use
+			// these spans as stacks, like we do for small
+			// stack spans. (See issue #11466.)
+			lock(&stackpoolmu)
+			mSpanList_Insert(&stackFreeQueue, s)
+			unlock(&stackpoolmu)
+		}
 	}
 }
 
@@ -575,7 +606,7 @@ func copystack(gp *g, newsize uintptr) {
 		fillstack(new, 0xfd)
 	}
 	if stackDebug >= 1 {
-		print("copystack gp=", gp, " [", hex(old.lo), " ", hex(old.hi-used), " ", hex(old.hi), "]/", old.hi-old.lo, " -> [", hex(new.lo), " ", hex(new.hi-used), " ", hex(new.hi), "]/", newsize, "\n")
+		print("copystack gp=", gp, " [", hex(old.lo), " ", hex(old.hi-used), " ", hex(old.hi), "]/", gp.stackAlloc, " -> [", hex(new.lo), " ", hex(new.hi-used), " ", hex(new.hi), "]/", newsize, "\n")
 	}
 
 	// adjust pointers in the to-be-copied frames
@@ -613,25 +644,7 @@ func copystack(gp *g, newsize uintptr) {
 	if stackPoisonCopy != 0 {
 		fillstack(old, 0xfc)
 	}
-	if newsize > oldsize {
-		// growing, free stack immediately
-		stackfree(old, oldsize)
-	} else {
-		// shrinking, queue up free operation.  We can't actually free the stack
-		// just yet because we might run into the following situation:
-		// 1) GC starts, scans a SudoG but does not yet mark the SudoG.elem pointer
-		// 2) The stack that pointer points to is shrunk
-		// 3) The old stack is freed
-		// 4) The containing span is marked free
-		// 5) GC attempts to mark the SudoG.elem pointer.  The marking fails because
-		//    the pointer looks like a pointer into a free span.
-		// By not freeing, we prevent step #4 until GC is done.
-		lock(&stackpoolmu)
-		*(*stack)(unsafe.Pointer(old.lo)) = stackfreequeue
-		*(*uintptr)(unsafe.Pointer(old.lo + ptrSize)) = oldsize
-		stackfreequeue = old
-		unlock(&stackpoolmu)
-	}
+	stackfree(old, oldsize)
 }
 
 // round x up to a power of 2.
@@ -756,13 +769,16 @@ func newstack() {
 				// be set and gcphasework will simply
 				// return.
 			}
-			gcphasework(gp)
+			if !gp.gcscandone {
+				scanstack(gp)
+				gp.gcscandone = true
+			}
+			gp.preemptscan = false
+			gp.preempt = false
 			casfrom_Gscanstatus(gp, _Gscanwaiting, _Gwaiting)
 			casgstatus(gp, _Gwaiting, _Grunning)
 			gp.stackguard0 = gp.stack.lo + _StackGuard
-			gp.preempt = false
-			gp.preemptscan = false // Tells the GC premption was successful.
-			gogo(&gp.sched)        // never return
+			gogo(&gp.sched) // never return
 		}
 
 		// Act like goroutine called runtime.Gosched.
@@ -826,14 +842,25 @@ func shrinkstack(gp *g) {
 		throw("missing stack in shrinkstack")
 	}
 
+	if debug.gcshrinkstackoff > 0 {
+		return
+	}
+
 	oldsize := gp.stackAlloc
 	newsize := oldsize / 2
+	// Don't shrink the allocation below the minimum-sized stack
+	// allocation.
 	if newsize < _FixedStack {
-		return // don't shrink below the minimum-sized stack
+		return
 	}
-	used := gp.stack.hi - gp.sched.sp
-	if used >= oldsize/4 {
-		return // still using at least 1/4 of the segment.
+	// Compute how much of the stack is currently in use and only
+	// shrink the stack if gp is using less than a quarter of its
+	// current stack. The currently used stack includes everything
+	// down to the SP plus the stack guard space that ensures
+	// there's room for nosplit functions.
+	avail := gp.stack.hi - gp.stack.lo
+	if used := gp.stack.hi - gp.sched.sp + _StackLimit; used >= avail/4 {
+		return
 	}
 
 	// We can't copy the stack if we're in a syscall.
@@ -854,18 +881,32 @@ func shrinkstack(gp *g) {
 	casgstatus(gp, _Gcopystack, oldstatus)
 }
 
-// Do any delayed stack freeing that was queued up during GC.
-func shrinkfinish() {
+// freeStackSpans frees unused stack spans at the end of GC.
+func freeStackSpans() {
 	lock(&stackpoolmu)
-	s := stackfreequeue
-	stackfreequeue = stack{}
-	unlock(&stackpoolmu)
-	for s.lo != 0 {
-		t := *(*stack)(unsafe.Pointer(s.lo))
-		n := *(*uintptr)(unsafe.Pointer(s.lo + ptrSize))
-		stackfree(s, n)
-		s = t
+
+	// Scan stack pools for empty stack spans.
+	for order := range stackpool {
+		list := &stackpool[order]
+		for s := list.next; s != list; {
+			next := s.next
+			if s.ref == 0 {
+				mSpanList_Remove(s)
+				s.freelist = 0
+				mHeap_FreeStack(&mheap_, s)
+			}
+			s = next
+		}
 	}
+
+	// Free queued stack spans.
+	for stackFreeQueue.next != &stackFreeQueue {
+		s := stackFreeQueue.next
+		mSpanList_Remove(s)
+		mHeap_FreeStack(&mheap_, s)
+	}
+
+	unlock(&stackpoolmu)
 }
 
 //go:nosplit

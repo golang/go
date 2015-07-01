@@ -83,12 +83,7 @@ import "unsafe"
 
 // Call from Go to C.
 //go:nosplit
-func cgocall(fn, arg unsafe.Pointer) {
-	cgocall_errno(fn, arg)
-}
-
-//go:nosplit
-func cgocall_errno(fn, arg unsafe.Pointer) int32 {
+func cgocall(fn, arg unsafe.Pointer) int32 {
 	if !iscgo && GOOS != "solaris" && GOOS != "windows" {
 		throw("cgocall unavailable")
 	}
@@ -123,7 +118,7 @@ func cgocall_errno(fn, arg unsafe.Pointer) int32 {
 	 * the $GOMAXPROCS accounting.
 	 */
 	entersyscall(0)
-	errno := asmcgocall_errno(fn, arg)
+	errno := asmcgocall(fn, arg)
 	exitsyscall(0)
 
 	return errno
@@ -168,6 +163,10 @@ func cgocallbackg() {
 		exit(2)
 	}
 
+	// Save current syscall parameters, so m.syscall can be
+	// used again if callback decide to make syscall.
+	syscall := gp.m.syscall
+
 	// entersyscall saves the caller's SP to allow the GC to trace the Go
 	// stack. However, since we're returning to an earlier stack frame and
 	// need to pair with the entersyscall() call made by cgocall, we must
@@ -178,6 +177,8 @@ func cgocallbackg() {
 	cgocallbackg1()
 	// going back to cgo call
 	reentersyscall(savedpc, uintptr(savedsp))
+
+	gp.m.syscall = syscall
 }
 
 func cgocallbackg1() {

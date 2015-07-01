@@ -9,6 +9,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"io/ioutil"
 	. "os"
@@ -794,23 +795,18 @@ func exec(t *testing.T, dir, cmd string, args []string, expect string) {
 }
 
 func TestStartProcess(t *testing.T) {
-	switch runtime.GOOS {
-	case "android", "nacl":
-		t.Skipf("skipping on %s", runtime.GOOS)
-	case "darwin":
-		switch runtime.GOARCH {
-		case "arm", "arm64":
-			t.Skipf("skipping on %s/%s, cannot fork", runtime.GOOS, runtime.GOARCH)
-		}
-	}
+	testenv.MustHaveExec(t)
 
 	var dir, cmd string
 	var args []string
-	if runtime.GOOS == "windows" {
+	switch runtime.GOOS {
+	case "android":
+		t.Skip("android doesn't have /bin/pwd")
+	case "windows":
 		cmd = Getenv("COMSPEC")
 		dir = Getenv("SystemRoot")
 		args = []string{"/c", "cd"}
-	} else {
+	default:
 		cmd = "/bin/pwd"
 		dir = "/"
 		args = []string{}
@@ -1068,26 +1064,26 @@ func TestProgWideChdir(t *testing.T) {
 	}
 	oldwd, err := Getwd()
 	if err != nil {
-		t.Fatal("Getwd: %v", err)
+		t.Fatalf("Getwd: %v", err)
 	}
 	d, err := ioutil.TempDir("", "test")
 	if err != nil {
-		t.Fatal("TempDir: %v", err)
+		t.Fatalf("TempDir: %v", err)
 	}
 	defer func() {
 		if err := Chdir(oldwd); err != nil {
-			t.Fatal("Chdir: %v", err)
+			t.Fatalf("Chdir: %v", err)
 		}
 		RemoveAll(d)
 	}()
 	if err := Chdir(d); err != nil {
-		t.Fatal("Chdir: %v", err)
+		t.Fatalf("Chdir: %v", err)
 	}
 	// OS X sets TMPDIR to a symbolic link.
 	// So we resolve our working directory again before the test.
 	d, err = Getwd()
 	if err != nil {
-		t.Fatal("Getwd: %v", err)
+		t.Fatalf("Getwd: %v", err)
 	}
 	close(c)
 	for i := 0; i < N; i++ {
@@ -1259,17 +1255,14 @@ func TestHostname(t *testing.T) {
 	// There is no other way to fetch hostname on windows, but via winapi.
 	// On Plan 9 it can be taken from #c/sysname as Hostname() does.
 	switch runtime.GOOS {
-	case "android", "nacl", "plan9":
-		t.Skipf("skipping on %s", runtime.GOOS)
-	case "darwin":
-		switch runtime.GOARCH {
-		case "arm", "arm64":
-			t.Skipf("skipping on %s/%s, cannot fork", runtime.GOOS, runtime.GOARCH)
-		}
+	case "android", "plan9":
+		t.Skipf("%s doesn't have /bin/hostname", runtime.GOOS)
 	case "windows":
 		testWindowsHostname(t)
 		return
 	}
+
+	testenv.MustHaveExec(t)
 
 	// Check internal Hostname() against the output of /bin/hostname.
 	// Allow that the internal Hostname returns a Fully Qualified Domain Name
@@ -1529,15 +1522,7 @@ func TestReadAtEOF(t *testing.T) {
 }
 
 func testKillProcess(t *testing.T, processKiller func(p *Process)) {
-	switch runtime.GOOS {
-	case "android", "nacl":
-		t.Skipf("skipping on %s", runtime.GOOS)
-	case "darwin":
-		switch runtime.GOARCH {
-		case "arm", "arm64":
-			t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
-		}
-	}
+	testenv.MustHaveExec(t)
 
 	// Re-exec the test binary itself to emulate "sleep 1".
 	cmd := osexec.Command(Args[0], "-test.run", "TestSleep")
@@ -1574,18 +1559,12 @@ func TestKillStartProcess(t *testing.T) {
 }
 
 func TestGetppid(t *testing.T) {
-	switch runtime.GOOS {
-	case "nacl":
-		t.Skip("skipping on nacl")
-	case "plan9":
+	if runtime.GOOS == "plan9" {
 		// TODO: golang.org/issue/8206
 		t.Skipf("skipping test on plan9; see issue 8206")
-	case "darwin":
-		switch runtime.GOARCH {
-		case "arm", "arm64":
-			t.Skipf("skipping test on %s/%s, no fork", runtime.GOOS, runtime.GOARCH)
-		}
 	}
+
+	testenv.MustHaveExec(t)
 
 	if Getenv("GO_WANT_HELPER_PROCESS") == "1" {
 		fmt.Print(Getppid())

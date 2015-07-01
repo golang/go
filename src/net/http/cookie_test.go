@@ -94,6 +94,18 @@ var writeSetCookiesTests = []struct {
 		&Cookie{Name: "empty-value", Value: ""},
 		`empty-value=`,
 	},
+	{
+		nil,
+		``,
+	},
+	{
+		&Cookie{Name: ""},
+		``,
+	},
+	{
+		&Cookie{Name: "\t"},
+		``,
+	},
 }
 
 func TestWriteSetCookies(t *testing.T) {

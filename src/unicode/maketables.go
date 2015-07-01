@@ -44,7 +44,7 @@ func main() {
 var dataURL = flag.String("data", "", "full URL for UnicodeData.txt; defaults to --url/UnicodeData.txt")
 var casefoldingURL = flag.String("casefolding", "", "full URL for CaseFolding.txt; defaults to --url/CaseFolding.txt")
 var url = flag.String("url",
-	"http://www.unicode.org/Public/7.0.0/ucd/",
+	"http://www.unicode.org/Public/8.0.0/ucd/",
 	"URL of Unicode database directory")
 var tablelist = flag.String("tables",
 	"all",
@@ -1152,9 +1152,12 @@ func printCasefold() {
 		}
 	}
 
-	// Delete the groups for which assuming [lower, upper] is right.
+	// Delete the groups for which assuming [lower, upper] or [upper, lower] is right.
 	for i, orb := range caseOrbit {
 		if len(orb) == 2 && chars[orb[0]].upperCase == orb[1] && chars[orb[1]].lowerCase == orb[0] {
+			caseOrbit[i] = nil
+		}
+		if len(orb) == 2 && chars[orb[1]].upperCase == orb[0] && chars[orb[0]].lowerCase == orb[1] {
 			caseOrbit[i] = nil
 		}
 	}

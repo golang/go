@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of May 26, 2015",
+	"Subtitle": "Version of June 23, 2015",
 	"Path": "/ref/spec"
 }-->
 
@@ -2600,7 +2600,7 @@ q.x          // (*(*q).T0).x        (*q).x is a valid field selector
 
 p.M2()       // p.M2()              M2 expects *T2 receiver
 p.M1()       // ((*p).T1).M1()      M1 expects T1 receiver
-p.M0()       // ((&(*p).T0)).M0()   M0 expects *T0 receiver, see section on Calls
+p.M0()       // ((&amp;(*p).T0)).M0()   M0 expects *T0 receiver, see section on Calls
 </pre>
 
 <p>
@@ -4083,7 +4083,7 @@ the implementation restriction in the section
 on <a href="#Constants">constants</a>.  This rounding may cause a
 floating-point constant expression to be invalid in an integer
 context, even if it would be integral when calculated using infinite
-precision.
+precision, and vice versa.
 </p>
 
 
@@ -4388,7 +4388,7 @@ a[i] = 23
 An <i>assignment operation</i> <code>x</code> <i>op</i><code>=</code>
 <code>y</code> where <i>op</i> is a binary arithmetic operation is equivalent
 to <code>x</code> <code>=</code> <code>x</code> <i>op</i>
-<code>y</code> but evaluates <code>x</code>
+<code>(y)</code> but evaluates <code>x</code>
 only once.  The <i>op</i><code>=</code> construct is a single token.
 In assignment operations, both the left- and right-hand expression lists
 must contain exactly one single-valued expression, and the left-hand

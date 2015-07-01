@@ -462,9 +462,14 @@ func TestParsePAXHeader(t *testing.T) {
 			t.Error("Buffer wasn't consumed")
 		}
 	}
-	badHeader := bytes.NewReader([]byte("3 somelongkey="))
-	if _, err := parsePAX(badHeader); err != ErrHeader {
-		t.Fatal("Unexpected success when parsing bad header")
+	badHeaderTests := [][]byte{
+		[]byte("3 somelongkey=\n"),
+		[]byte("50 tooshort=\n"),
+	}
+	for _, test := range badHeaderTests {
+		if _, err := parsePAX(bytes.NewReader(test)); err != ErrHeader {
+			t.Fatal("Unexpected success when parsing bad header")
+		}
 	}
 }
 
@@ -774,5 +779,20 @@ func TestIssue10968(t *testing.T) {
 	_, err = io.Copy(ioutil.Discard, r)
 	if err != io.ErrUnexpectedEOF {
 		t.Fatalf("expected %q, got %q", io.ErrUnexpectedEOF, err)
+	}
+}
+
+// Do not panic if there are errors in header blocks after the pax header.
+// Issue 11169
+func TestIssue11169(t *testing.T) {
+	f, err := os.Open("testdata/issue11169.tar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	r := NewReader(f)
+	_, err = r.Next()
+	if err == nil {
+		t.Fatal("Unexpected success")
 	}
 }

@@ -38,3 +38,10 @@ TEXT ·atomicloadp(SB),NOSPLIT,$-8-16
 	ISYNC
 	MOVD	R3, ret+8(FP)
 	RET
+
+TEXT ·publicationBarrier(SB),NOSPLIT,$-8-0
+	// LWSYNC is the "export" barrier recommended by Power ISA
+	// v2.07 book II, appendix B.2.2.2.
+	// LWSYNC is a load/load, load/store, and store/store barrier.
+	WORD $0x7c2004ac	// LWSYNC
+	RET

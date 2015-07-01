@@ -124,7 +124,7 @@ var templMain = []byte(`
 <body>
 <a href="/trace">View trace</a><br>
 <a href="/goroutines">Goroutine analysis</a><br>
-<a href="/io">IO blocking profile</a><br>
+<a href="/io">Network blocking profile</a><br>
 <a href="/block">Synchronization blocking profile</a><br>
 <a href="/syscall">Syscall blocking profile</a><br>
 <a href="/sched">Scheduler latency profile</a><br>

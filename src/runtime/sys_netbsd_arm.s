@@ -349,6 +349,10 @@ TEXT runtime·casp1(SB),NOSPLIT,$0
 TEXT runtime·cas(SB),NOSPLIT,$0
 	B runtime·armcas(SB)
 
+// TODO: this is only valid for ARMv7+
+TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
+	B	runtime·armPublicationBarrier(SB)
+
 TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4
 	MOVM.WP [R1, R2, R3, R12], (R13)
 	SWI $0x00a0013c // _lwp_getprivate

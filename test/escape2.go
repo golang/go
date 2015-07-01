@@ -858,8 +858,8 @@ func foo103(m [1]*int, x *int) { // ERROR "foo103 m does not escape$" "foo103 x 
 
 var y []*int
 
-// does not leak x
-func foo104(x []*int) { // ERROR "foo104 x does not escape$"
+// does not leak x but does leak content
+func foo104(x []*int) { // ERROR "leaking param content: x"
 	copy(y, x)
 }
 
@@ -1819,4 +1819,12 @@ func issue10353b() {
 		}
 	}
 	_ = f
+}
+
+func issue11387(x int) func() int {
+	f := func() int { return x }    // ERROR "func literal escapes to heap"
+	slice1 := []func() int{f}       // ERROR "\[\].* does not escape"
+	slice2 := make([]func() int, 1) // ERROR "make\(.*\) does not escape"
+	copy(slice2, slice1)
+	return slice2[0]
 }

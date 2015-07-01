@@ -81,13 +81,47 @@ func TestGolden(t *testing.T) {
 	}
 }
 
-func BenchmarkCrc32KB(b *testing.B) {
+func BenchmarkIEEECrc1KB(b *testing.B) {
 	b.SetBytes(1024)
 	data := make([]byte, 1024)
 	for i := range data {
 		data[i] = byte(i)
 	}
 	h := NewIEEE()
+	in := make([]byte, 0, h.Size())
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.Reset()
+		h.Write(data)
+		h.Sum(in)
+	}
+}
+
+func BenchmarkIEEECrc4KB(b *testing.B) {
+	b.SetBytes(4096)
+	data := make([]byte, 4096)
+	for i := range data {
+		data[i] = byte(i)
+	}
+	h := NewIEEE()
+	in := make([]byte, 0, h.Size())
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.Reset()
+		h.Write(data)
+		h.Sum(in)
+	}
+}
+
+func BenchmarkCastagnoliCrc1KB(b *testing.B) {
+	b.SetBytes(1024)
+	data := make([]byte, 1024)
+	for i := range data {
+		data[i] = byte(i)
+	}
+	h := New(MakeTable(Castagnoli))
 	in := make([]byte, 0, h.Size())
 
 	b.ResetTimer()

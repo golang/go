@@ -224,6 +224,13 @@ type Request struct {
 	// otherwise it leaves the field nil.
 	// This field is ignored by the HTTP client.
 	TLS *tls.ConnectionState
+
+	// Cancel is an optional channel whose closure indicates that the client
+	// request should be regarded as canceled. Not all implementations of
+	// RoundTripper may support Cancel.
+	//
+	// For server requests, this field is not applicable.
+	Cancel <-chan struct{}
 }
 
 // ProtoAtLeast reports whether the HTTP protocol used
@@ -243,6 +250,7 @@ func (r *Request) Cookies() []*Cookie {
 	return readCookies(r.Header, "")
 }
 
+// ErrNoCookie is returned by Request's Cookie method when a cookie is not found.
 var ErrNoCookie = errors.New("http: named cookie not present")
 
 // Cookie returns the named cookie provided in the request or
@@ -327,11 +335,10 @@ func valueOrDefault(value, def string) string {
 }
 
 // NOTE: This is not intended to reflect the actual Go version being used.
-// It was changed from "Go http package" to "Go 1.1 package http" at the
-// time of the Go 1.1 release because the former User-Agent had ended up
-// on a blacklist for some intrusion detection systems.
+// It was changed at the time of Go 1.1 release because the former User-Agent
+// had ended up on a blacklist for some intrusion detection systems.
 // See https://codereview.appspot.com/7532043.
-const defaultUserAgent = "Go 1.1 package http"
+const defaultUserAgent = "Go-http-client/1.1"
 
 // Write writes an HTTP/1.1 request -- header and body -- in wire format.
 // This method consults the following fields of the request:
@@ -686,12 +693,13 @@ func ReadRequest(b *bufio.Reader) (req *Request, err error) {
 
 	fixPragmaCacheControl(req.Header)
 
+	req.Close = shouldClose(req.ProtoMajor, req.ProtoMinor, req.Header, false)
+
 	err = readTransfer(req, b)
 	if err != nil {
 		return nil, err
 	}
 
-	req.Close = shouldClose(req.ProtoMajor, req.ProtoMinor, req.Header, false)
 	return req, nil
 }
 
@@ -878,6 +886,7 @@ func (r *Request) ParseMultipartForm(maxMemory int64) error {
 // POST and PUT body parameters take precedence over URL query string values.
 // FormValue calls ParseMultipartForm and ParseForm if necessary and ignores
 // any errors returned by these functions.
+// If key is not present, FormValue returns the empty string.
 // To access multiple values of the same key, call ParseForm and
 // then inspect Request.Form directly.
 func (r *Request) FormValue(key string) string {
@@ -894,6 +903,7 @@ func (r *Request) FormValue(key string) string {
 // or PUT request body. URL query parameters are ignored.
 // PostFormValue calls ParseMultipartForm and ParseForm if necessary and ignores
 // any errors returned by these functions.
+// If key is not present, PostFormValue returns the empty string.
 func (r *Request) PostFormValue(key string) string {
 	if r.PostForm == nil {
 		r.ParseMultipartForm(defaultMaxMemory)

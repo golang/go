@@ -248,6 +248,18 @@ func readgstatus(gp *g) uint32 {
 	return atomicload(&gp.atomicstatus)
 }
 
+// Ownership of gscanvalid:
+//
+// If gp is running (meaning status == _Grunning or _Grunning|_Gscan),
+// then gp owns gp.gscanvalid, and other goroutines must not modify it.
+//
+// Otherwise, a second goroutine can lock the scan state by setting _Gscan
+// in the status bit and then modify gscanvalid, and then unlock the scan state.
+//
+// Note that the first condition implies an exception to the second:
+// if a second goroutine changes gp's status to _Grunning|_Gscan,
+// that second goroutine still does not have the right to modify gscanvalid.
+
 // The Gscanstatuses are acting like locks and this releases them.
 // If it proves to be a performance hit we should be able to make these
 // simple atomic stores but for now we are going to throw if
@@ -294,10 +306,6 @@ func castogscanstatus(gp *g, oldval, newval uint32) bool {
 			return cas(&gp.atomicstatus, oldval, newval)
 		}
 	case _Grunning:
-		if gp.gcscanvalid {
-			print("runtime: castogscanstatus _Grunning and gp.gcscanvalid is true, newval=", hex(newval), "\n")
-			throw("castogscanstatus")
-		}
 		if newval == _Gscanrunning || newval == _Gscanenqueue {
 			return cas(&gp.atomicstatus, oldval, newval)
 		}
@@ -318,6 +326,15 @@ func casgstatus(gp *g, oldval, newval uint32) {
 			print("runtime: casgstatus: oldval=", hex(oldval), " newval=", hex(newval), "\n")
 			throw("casgstatus: bad incoming values")
 		})
+	}
+
+	if oldval == _Grunning && gp.gcscanvalid {
+		// If oldvall == _Grunning, then the actual status must be
+		// _Grunning or _Grunning|_Gscan; either way,
+		// we own gp.gcscanvalid, so it's safe to read.
+		// gp.gcscanvalid must not be true when we are running.
+		print("runtime: casgstatus ", hex(oldval), "->", hex(newval), " gp.status=", hex(gp.atomicstatus), " gp.gcscanvalid=true\n")
+		throw("casgstatus")
 	}
 
 	// loop if gp->atomicstatus is in a scan state giving
@@ -359,67 +376,76 @@ func casgcopystack(gp *g) uint32 {
 	}
 }
 
-// stopg ensures that gp is stopped at a GC safe point where its stack can be scanned
-// or in the context of a moving collector the pointers can be flipped from pointing
-// to old object to pointing to new objects.
-// If stopg returns true, the caller knows gp is at a GC safe point and will remain there until
-// the caller calls restartg.
-// If stopg returns false, the caller is not responsible for calling restartg. This can happen
-// if another thread, either the gp itself or another GC thread is taking the responsibility
-// to do the GC work related to this thread.
-func stopg(gp *g) bool {
-	for {
-		if gp.gcworkdone {
-			return false
-		}
+// scang blocks until gp's stack has been scanned.
+// It might be scanned by scang or it might be scanned by the goroutine itself.
+// Either way, the stack scan has completed when scang returns.
+func scang(gp *g) {
+	// Invariant; we (the caller, markroot for a specific goroutine) own gp.gcscandone.
+	// Nothing is racing with us now, but gcscandone might be set to true left over
+	// from an earlier round of stack scanning (we scan twice per GC).
+	// We use gcscandone to record whether the scan has been done during this round.
+	// It is important that the scan happens exactly once: if called twice,
+	// the installation of stack barriers will detect the double scan and die.
 
+	gp.gcscandone = false
+
+	// Endeavor to get gcscandone set to true,
+	// either by doing the stack scan ourselves or by coercing gp to scan itself.
+	// gp.gcscandone can transition from false to true when we're not looking
+	// (if we asked for preemption), so any time we lock the status using
+	// castogscanstatus we have to double-check that the scan is still not done.
+	for !gp.gcscandone {
 		switch s := readgstatus(gp); s {
 		default:
 			dumpgstatus(gp)
-			throw("stopg: gp->atomicstatus is not valid")
+			throw("stopg: invalid status")
 
 		case _Gdead:
-			return false
+			// No stack.
+			gp.gcscandone = true
 
 		case _Gcopystack:
-			// Loop until a new stack is in place.
+			// Stack being switched. Go around again.
 
-		case _Grunnable,
-			_Gsyscall,
-			_Gwaiting:
+		case _Grunnable, _Gsyscall, _Gwaiting:
 			// Claim goroutine by setting scan bit.
-			if !castogscanstatus(gp, s, s|_Gscan) {
-				break
+			// Racing with execution or readying of gp.
+			// The scan bit keeps them from running
+			// the goroutine until we're done.
+			if castogscanstatus(gp, s, s|_Gscan) {
+				if !gp.gcscandone {
+					scanstack(gp)
+					gp.gcscandone = true
+				}
+				restartg(gp)
 			}
-			// In scan state, do work.
-			gcphasework(gp)
-			return true
 
-		case _Gscanrunnable,
-			_Gscanwaiting,
-			_Gscansyscall:
-			// Goroutine already claimed by another GC helper.
-			return false
+		case _Gscanwaiting:
+			// newstack is doing a scan for us right now. Wait.
 
 		case _Grunning:
-			// Claim goroutine, so we aren't racing with a status
-			// transition away from Grunning.
-			if !castogscanstatus(gp, _Grunning, _Gscanrunning) {
+			// Goroutine running. Try to preempt execution so it can scan itself.
+			// The preemption handler (in newstack) does the actual scan.
+
+			// Optimization: if there is already a pending preemption request
+			// (from the previous loop iteration), don't bother with the atomics.
+			if gp.preemptscan && gp.preempt && gp.stackguard0 == stackPreempt {
 				break
 			}
 
-			// Mark gp for preemption.
-			if !gp.gcworkdone {
-				gp.preemptscan = true
-				gp.preempt = true
-				gp.stackguard0 = stackPreempt
+			// Ask for preemption and self scan.
+			if castogscanstatus(gp, _Grunning, _Gscanrunning) {
+				if !gp.gcscandone {
+					gp.preemptscan = true
+					gp.preempt = true
+					gp.stackguard0 = stackPreempt
+				}
+				casfrom_Gscanstatus(gp, _Gscanrunning, _Grunning)
 			}
-
-			// Unclaim.
-			casfrom_Gscanstatus(gp, _Gscanrunning, _Grunning)
-			return false
 		}
 	}
+
+	gp.preemptscan = false // cancel scan request if no longer needed
 }
 
 // The GC requests that this routine be moved from a scanmumble state to a mumble state.
@@ -448,20 +474,6 @@ func restartg(gp *g) {
 		}
 		dropg()
 		ready(gp, 0)
-	}
-}
-
-func stopscanstart(gp *g) {
-	_g_ := getg()
-	if _g_ == gp {
-		throw("GC not moved to G0")
-	}
-	if stopg(gp) {
-		if !isscanstatus(readgstatus(gp)) {
-			dumpgstatus(gp)
-			throw("GC not in scan state")
-		}
-		restartg(gp)
 	}
 }
 
@@ -1327,6 +1339,11 @@ func execute(gp *g, inheritTime bool) {
 	}
 
 	if trace.enabled {
+		// GoSysExit has to happen when we have a P, but before GoStart.
+		// So we emit it here.
+		if gp.syscallsp != 0 && gp.sysblocktraced {
+			traceGoSysExit(gp.sysexitticks)
+		}
 		traceGoStart()
 	}
 
@@ -1812,6 +1829,7 @@ func reentersyscall(pc, sp uintptr) {
 	}
 
 	_g_.m.syscalltick = _g_.m.p.ptr().syscalltick
+	_g_.sysblocktraced = true
 	_g_.m.mcache = nil
 	_g_.m.p.ptr().m = 0
 	atomicstore(&_g_.m.p.ptr().status, _Psyscall)
@@ -1873,6 +1891,7 @@ func entersyscallblock(dummy int32) {
 	_g_.throwsplit = true
 	_g_.stackguard0 = stackPreempt // see comment in entersyscall
 	_g_.m.syscalltick = _g_.m.p.ptr().syscalltick
+	_g_.sysblocktraced = true
 	_g_.m.p.ptr().syscalltick++
 
 	// Leave SP around for GC and traceback.
@@ -1958,7 +1977,7 @@ func exitsyscall(dummy int32) {
 		return
 	}
 
-	var exitTicks int64
+	_g_.sysexitticks = 0
 	if trace.enabled {
 		// Wait till traceGoSysBlock event is emitted.
 		// This ensures consistency of the trace (the goroutine is started after it is blocked).
@@ -1968,19 +1987,14 @@ func exitsyscall(dummy int32) {
 		// We can't trace syscall exit right now because we don't have a P.
 		// Tracing code can invoke write barriers that cannot run without a P.
 		// So instead we remember the syscall exit time and emit the event
-		// below when we have a P.
-		exitTicks = cputicks()
+		// in execute when we have a P.
+		_g_.sysexitticks = cputicks()
 	}
 
 	_g_.m.locks--
 
 	// Call the scheduler.
 	mcall(exitsyscall0)
-
-	// The goroutine must not be re-scheduled up to traceGoSysExit.
-	// Otherwise we can emit GoStart but not GoSysExit, that would lead
-	// no an inconsistent trace.
-	_g_.m.locks++
 
 	if _g_.m.mcache == nil {
 		throw("lost mcache")
@@ -1995,13 +2009,6 @@ func exitsyscall(dummy int32) {
 	_g_.syscallsp = 0
 	_g_.m.p.ptr().syscalltick++
 	_g_.throwsplit = false
-
-	if exitTicks != 0 {
-		systemstack(func() {
-			traceGoSysExit(exitTicks)
-		})
-	}
-	_g_.m.locks--
 }
 
 //go:nosplit
@@ -2286,6 +2293,10 @@ func gfput(_p_ *p, gp *g) {
 		gp.stack.hi = 0
 		gp.stackguard0 = 0
 		gp.stkbar = nil
+		gp.stkbarPos = 0
+	} else {
+		// Reset stack barriers.
+		gp.stkbar = gp.stkbar[:0]
 		gp.stkbarPos = 0
 	}
 

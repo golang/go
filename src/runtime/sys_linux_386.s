@@ -96,6 +96,12 @@ TEXT runtime·usleep(SB),NOSPLIT,$8
 	CALL	*runtime·_vdso(SB)
 	RET
 
+TEXT runtime·gettid(SB),NOSPLIT,$0-4
+	MOVL	$224, AX	// syscall - gettid
+	CALL	*runtime·_vdso(SB)
+	MOVL	AX, ret+0(FP)
+	RET
+
 TEXT runtime·raise(SB),NOSPLIT,$12
 	MOVL	$224, AX	// syscall - gettid
 	CALL	*runtime·_vdso(SB)

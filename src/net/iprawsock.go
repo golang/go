@@ -30,6 +30,13 @@ func (a *IPAddr) isWildcard() bool {
 	return a.IP.IsUnspecified()
 }
 
+func (a *IPAddr) opAddr() Addr {
+	if a == nil {
+		return nil
+	}
+	return a
+}
+
 // ResolveIPAddr parses addr as an IP address of the form "host" or
 // "ipv6-host%zone" and resolves the domain name on the network net,
 // which must be "ip", "ip4" or "ip6".

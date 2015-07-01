@@ -107,7 +107,7 @@ The 'go test' command takes both flags that apply to 'go test' itself
 and flags that apply to the resulting test binary.
 
 Several of the flags control profiling and write an execution profile
-suitable for "go tool pprof"; run "go tool pprof help" for more
+suitable for "go tool pprof"; run "go tool pprof -h" for more
 information.  The --alloc_space, --alloc_objects, and --show_bytes
 options of pprof control how the information is presented.
 
@@ -573,8 +573,8 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	var imports, ximports []*Package
 	var stk importStack
 	stk.push(p.ImportPath + " (test)")
-	for _, path := range p.TestImports {
-		p1 := loadImport(path, p.Dir, &stk, p.build.TestImportPos[path])
+	for i, path := range p.TestImports {
+		p1 := loadImport(path, p.Dir, p, &stk, p.build.TestImportPos[path])
 		if p1.Error != nil {
 			return nil, nil, nil, p1.Error
 		}
@@ -589,21 +589,23 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 			}
 			return nil, nil, nil, err
 		}
+		p.TestImports[i] = p1.ImportPath
 		imports = append(imports, p1)
 	}
 	stk.pop()
 	stk.push(p.ImportPath + "_test")
 	pxtestNeedsPtest := false
-	for _, path := range p.XTestImports {
+	for i, path := range p.XTestImports {
 		if path == p.ImportPath {
 			pxtestNeedsPtest = true
 			continue
 		}
-		p1 := loadImport(path, p.Dir, &stk, p.build.XTestImportPos[path])
+		p1 := loadImport(path, p.Dir, p, &stk, p.build.XTestImportPos[path])
 		if p1.Error != nil {
 			return nil, nil, nil, p1.Error
 		}
 		ximports = append(ximports, p1)
+		p.XTestImports[i] = p1.ImportPath
 	}
 	stk.pop()
 
@@ -728,7 +730,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		if dep == ptest.ImportPath {
 			pmain.imports = append(pmain.imports, ptest)
 		} else {
-			p1 := loadImport(dep, "", &stk, nil)
+			p1 := loadImport(dep, "", nil, &stk, nil)
 			if p1.Error != nil {
 				return nil, nil, nil, p1.Error
 			}

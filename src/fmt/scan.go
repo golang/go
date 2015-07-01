@@ -34,16 +34,16 @@ type ScanState interface {
 	ReadRune() (r rune, size int, err error)
 	// UnreadRune causes the next call to ReadRune to return the same rune.
 	UnreadRune() error
-	// SkipSpace skips space in the input. Newlines are treated as space
-	// unless the scan operation is Scanln, Fscanln or Sscanln, in which case
-	// a newline is treated as EOF.
+	// SkipSpace skips space in the input. Newlines are treated appropriately
+	// for the operation being performed; see the package documentation
+	// for more information.
 	SkipSpace()
 	// Token skips space in the input if skipSpace is true, then returns the
 	// run of Unicode code points c satisfying f(c).  If f is nil,
 	// !unicode.IsSpace(c) is used; that is, the token will hold non-space
-	// characters.  Newlines are treated as space unless the scan operation
-	// is Scanln, Fscanln or Sscanln, in which case a newline is treated as
-	// EOF.  The returned slice points to shared data that may be overwritten
+	// characters.  Newlines are treated appropriately for the operation being
+	// performed; see the package documentation for more information.
+	// The returned slice points to shared data that may be overwritten
 	// by the next call to Token, a call to a Scan function using the ScanState
 	// as input, or when the calling Scan method returns.
 	Token(skipSpace bool, f func(rune) bool) (token []byte, err error)
@@ -82,6 +82,7 @@ func Scanln(a ...interface{}) (n int, err error) {
 // space-separated values into successive arguments as determined by
 // the format.  It returns the number of items successfully scanned.
 // If that is less than the number of arguments, err will report why.
+// Newlines in the input must match newlines in the format.
 func Scanf(format string, a ...interface{}) (n int, err error) {
 	return Fscanf(os.Stdin, format, a...)
 }
@@ -114,6 +115,7 @@ func Sscanln(str string, a ...interface{}) (n int, err error) {
 // Sscanf scans the argument string, storing successive space-separated
 // values into successive arguments as determined by the format.  It
 // returns the number of items successfully parsed.
+// Newlines in the input must match newlines in the format.
 func Sscanf(str string, format string, a ...interface{}) (n int, err error) {
 	return Fscanf((*stringReader)(&str), format, a...)
 }
@@ -141,6 +143,7 @@ func Fscanln(r io.Reader, a ...interface{}) (n int, err error) {
 // Fscanf scans text read from r, storing successive space-separated
 // values into successive arguments as determined by the format.  It
 // returns the number of items successfully parsed.
+// Newlines in the input must match newlines in the format.
 func Fscanf(r io.Reader, format string, a ...interface{}) (n int, err error) {
 	s, old := newScanState(r, false, false)
 	n, err = s.doScanf(format, a)
@@ -388,17 +391,6 @@ var ssFree = sync.Pool{
 
 // newScanState allocates a new ss struct or grab a cached one.
 func newScanState(r io.Reader, nlIsSpace, nlIsEnd bool) (s *ss, old ssave) {
-	// If the reader is a *ss, then we've got a recursive
-	// call to Scan, so re-use the scan state.
-	s, ok := r.(*ss)
-	if ok {
-		old = s.ssave
-		s.limit = s.argLimit
-		s.nlIsEnd = nlIsEnd || s.nlIsEnd
-		s.nlIsSpace = nlIsSpace
-		return
-	}
-
 	s = ssFree.Get().(*ss)
 	if rr, ok := r.(io.RuneReader); ok {
 		s.rr = rr
@@ -1057,8 +1049,8 @@ func (s *ss) doScan(a []interface{}) (numProcessed int, err error) {
 		s.scanOne('v', arg)
 		numProcessed++
 	}
-	// Check for newline if required.
-	if !s.nlIsSpace {
+	// Check for newline (or EOF) if required (Scanln etc.).
+	if s.nlIsEnd {
 		for {
 			r := s.getRune()
 			if r == '\n' || r == eof {
@@ -1074,12 +1066,13 @@ func (s *ss) doScan(a []interface{}) (numProcessed int, err error) {
 }
 
 // advance determines whether the next characters in the input match
-// those of the format.  It returns the number of bytes (sic) consumed
-// in the format. Newlines included, all runs of space characters in
-// either input or format behave as a single space. This routine also
-// handles the %% case.  If the return value is zero, either format
-// starts with a % (with no following %) or the input is empty.
-// If it is negative, the input did not match the string.
+// those of the format. It returns the number of bytes (sic) consumed
+// in the format. All runs of space characters in either input or
+// format behave as a single space. Newlines are special, though:
+// newlines in the format must match those in the input and vice versa.
+// This routine also handles the %% case. If the return value is zero,
+// either format starts with a % (with no following %) or the input
+// is empty. If it is negative, the input did not match the string.
 func (s *ss) advance(format string) (i int) {
 	for i < len(format) {
 		fmtc, w := utf8.DecodeRuneInString(format[i:])
@@ -1092,24 +1085,45 @@ func (s *ss) advance(format string) (i int) {
 			i += w // skip the first %
 		}
 		sawSpace := false
+		wasNewline := false
+		// Skip spaces in format but absorb at most one newline.
 		for isSpace(fmtc) && i < len(format) {
+			if fmtc == '\n' {
+				if wasNewline { // Already saw one; stop here.
+					break
+				}
+				wasNewline = true
+			}
 			sawSpace = true
 			i += w
 			fmtc, w = utf8.DecodeRuneInString(format[i:])
 		}
 		if sawSpace {
-			// There was space in the format, so there should be space (EOF)
+			// There was space in the format, so there should be space
 			// in the input.
 			inputc := s.getRune()
-			if inputc == eof || inputc == '\n' {
-				// If we've reached a newline, stop now; don't read ahead.
+			if inputc == eof {
 				return
 			}
 			if !isSpace(inputc) {
-				// Space in format but not in input: error
+				// Space in format but not in input.
 				s.errorString("expected space in input to match format")
 			}
-			s.skipSpace(true)
+			// Skip spaces but stop at newline.
+			for inputc != '\n' && isSpace(inputc) {
+				inputc = s.getRune()
+			}
+			if inputc == '\n' {
+				if !wasNewline {
+					s.errorString("newline in input does not match format")
+				}
+				// We've reached a newline, stop now; don't read further.
+				return
+			}
+			s.UnreadRune()
+			if wasNewline {
+				s.errorString("newline in format does not match input")
+			}
 			continue
 		}
 		inputc := s.mustReadRune()
@@ -1151,6 +1165,7 @@ func (s *ss) doScanf(format string, a []interface{}) (numProcessed int, err erro
 		if !widPresent {
 			s.maxWid = hugeWid
 		}
+		s.SkipSpace()
 		s.argLimit = s.limit
 		if f := s.count + s.maxWid; f < s.argLimit {
 			s.argLimit = f

@@ -554,3 +554,86 @@ func TestWERDialogue(t *testing.T) {
 	// Child process should not open WER dialogue, but return immediately instead.
 	cmd.CombinedOutput()
 }
+
+var used byte
+
+func use(buf []byte) {
+	for _, c := range buf {
+		used += c
+	}
+}
+
+func forceStackCopy() (r int) {
+	var f func(int) int
+	f = func(i int) int {
+		var buf [256]byte
+		use(buf[:])
+		if i == 0 {
+			return 0
+		}
+		return i + f(i-1)
+	}
+	r = f(128)
+	return
+}
+
+func TestReturnAfterStackGrowInCallback(t *testing.T) {
+
+	const src = `
+#include <stdint.h>
+#include <windows.h>
+
+typedef uintptr_t __stdcall (*callback)(uintptr_t);
+
+uintptr_t cfunc(callback f, uintptr_t n) {
+   uintptr_t r;
+   r = f(n);
+   SetLastError(333);
+   return r;
+}
+`
+	tmpdir, err := ioutil.TempDir("", "TestReturnAfterStackGrowInCallback")
+	if err != nil {
+		t.Fatal("TempDir failed: ", err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	srcname := "mydll.c"
+	err = ioutil.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outname := "mydll.dll"
+	cmd := exec.Command("gcc", "-shared", "-s", "-Werror", "-o", outname, srcname)
+	cmd.Dir = tmpdir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to build dll: %v - %v", err, string(out))
+	}
+	dllpath := filepath.Join(tmpdir, outname)
+
+	dll := syscall.MustLoadDLL(dllpath)
+	defer dll.Release()
+
+	proc := dll.MustFindProc("cfunc")
+
+	cb := syscall.NewCallback(func(n uintptr) uintptr {
+		forceStackCopy()
+		return n
+	})
+
+	// Use a new goroutine so that we get a small stack.
+	type result struct {
+		r   uintptr
+		err syscall.Errno
+	}
+	c := make(chan result)
+	go func() {
+		r, _, err := proc.Call(cb, 100)
+		c <- result{r, err.(syscall.Errno)}
+	}()
+	want := result{r: 100, err: 333}
+	if got := <-c; got != want {
+		t.Errorf("got %d want %d", got, want)
+	}
+}

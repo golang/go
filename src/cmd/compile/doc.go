@@ -54,6 +54,9 @@ Flags:
 		Remove the limit on the number of errors reported (default limit is 10).
 	-h
 		Halt with a stack trace at the first error detected.
+	-importmap old=new
+		Interpret import "old" as import "new" during compilation.
+		The option may be repeated to add multiple mappings.
 	-installsuffix suffix
 		Look for packages in $GOROOT/pkg/$GOOS_$GOARCH_suffix
 		instead of $GOROOT/pkg/$GOOS_$GOARCH.

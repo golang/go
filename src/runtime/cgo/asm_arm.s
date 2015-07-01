@@ -12,7 +12,7 @@ TEXT crosscall2(SB),NOSPLIT,$-4
 	/* 
 	 * We still need to save all callee save register as before, and then
 	 *  push 2 args for fn (R1 and R2).
-	 * Also note that at procedure entry in 5c/5g world, 4(R13) will be the
+	 * Also note that at procedure entry in gc world, 4(R13) will be the
 	 *  first arg, so we must push another dummy reg (R0) for 0(R13).
 	 *  Additionally, runtime·load_g will clobber R0, so we need to save R0
 	 *  nevertheless.

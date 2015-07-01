@@ -136,9 +136,9 @@ func TestUTCFlag(t *testing.T) {
 	}
 	// It's possible we crossed a second boundary between getting now and logging,
 	// so add a second and try again. This should very nearly always work.
-	now.Add(time.Second)
+	now = now.Add(time.Second)
 	want = fmt.Sprintf("Test:%d/%.2d/%.2d %.2d:%.2d:%.2d hello\n",
-		now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute())
+		now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second())
 	if got == want {
 		return
 	}

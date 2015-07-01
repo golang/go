@@ -56,7 +56,7 @@ func mkzversion(dir, file string) {
 // a cross-compiled compiler expects to compile for its own target
 // system. That is, if on a Mac you do:
 //
-//	GOOS=linux GOARCH=ppc64 go build cmd/9g
+//	GOOS=linux GOARCH=ppc64 go build cmd/compile
 //
 // the resulting compiler will default to generating linux/ppc64 object files.
 // This is more useful than having it default to generating objects for the

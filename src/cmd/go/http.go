@@ -18,11 +18,15 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 // httpClient is the default HTTP client, but a variable so it can be
 // changed by tests, without modifying http.DefaultClient.
 var httpClient = http.DefaultClient
+var impatientHTTPClient = &http.Client{
+	Timeout: time.Duration(5 * time.Second),
+}
 
 type httpError struct {
 	status     string
@@ -55,7 +59,7 @@ func httpGET(url string) ([]byte, error) {
 
 // httpsOrHTTP returns the body of either the importPath's
 // https resource or, if unavailable, the http resource.
-func httpsOrHTTP(importPath string) (urlStr string, body io.ReadCloser, err error) {
+func httpsOrHTTP(importPath string, security securityMode) (urlStr string, body io.ReadCloser, err error) {
 	fetch := func(scheme string) (urlStr string, res *http.Response, err error) {
 		u, err := url.Parse(scheme + "://" + importPath)
 		if err != nil {
@@ -66,7 +70,11 @@ func httpsOrHTTP(importPath string) (urlStr string, body io.ReadCloser, err erro
 		if buildV {
 			log.Printf("Fetching %s", urlStr)
 		}
-		res, err = httpClient.Get(urlStr)
+		if security == insecure && scheme == "https" { // fail earlier
+			res, err = impatientHTTPClient.Get(urlStr)
+		} else {
+			res, err = httpClient.Get(urlStr)
+		}
 		return
 	}
 	closeBody := func(res *http.Response) {
@@ -84,7 +92,9 @@ func httpsOrHTTP(importPath string) (urlStr string, body io.ReadCloser, err erro
 			}
 		}
 		closeBody(res)
-		urlStr, res, err = fetch("http")
+		if security == insecure {
+			urlStr, res, err = fetch("http")
+		}
 	}
 	if err != nil {
 		closeBody(res)

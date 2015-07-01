@@ -4,7 +4,10 @@
 
 package types
 
-import "fmt"
+import (
+	"fmt"
+	"go/token"
+)
 
 // A Package describes a Go package.
 type Package struct {
@@ -23,7 +26,7 @@ func NewPackage(path, name string) *Package {
 	if name == "_" {
 		panic("invalid package name _")
 	}
-	scope := NewScope(Universe, fmt.Sprintf("package %q", path))
+	scope := NewScope(Universe, token.NoPos, token.NoPos, fmt.Sprintf("package %q", path))
 	return &Package{path: path, name: name, scope: scope}
 }
 

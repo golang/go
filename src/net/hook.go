@@ -5,6 +5,7 @@
 package net
 
 var (
+	testHookDialTCP      = dialTCP
 	testHookHostsPath    = "/etc/hosts"
 	testHookLookupIP     = func(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, error) { return fn(host) }
 	testHookSetKeepAlive = func() {}

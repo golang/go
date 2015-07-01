@@ -346,7 +346,7 @@ func (f *fmt) fmt_sbx(s string, b []byte, digits string) {
 		}
 		buf = append(buf, digits[c>>4], digits[c&0xF])
 	}
-	f.buf.Write(buf)
+	f.pad(buf)
 }
 
 // fmt_sx formats a string as a hexadecimal encoding of its bytes.

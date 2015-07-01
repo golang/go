@@ -365,9 +365,10 @@ const (
 	SCONST
 	SDYNIMPORT
 	SHOSTOBJ
-	SSUB    = 1 << 8
-	SMASK   = SSUB - 1
-	SHIDDEN = 1 << 9
+	SSUB       = 1 << 8
+	SMASK      = SSUB - 1
+	SHIDDEN    = 1 << 9
+	SCONTAINER = 1 << 10 // has a sub-symbol
 )
 
 type Reloc struct {

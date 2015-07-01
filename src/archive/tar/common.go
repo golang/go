@@ -139,8 +139,8 @@ func (fi headerFileInfo) Mode() (mode os.FileMode) {
 	}
 
 	switch fi.h.Typeflag {
-	case TypeLink, TypeSymlink:
-		// hard link, symbolic link
+	case TypeSymlink:
+		// symbolic link
 		mode |= os.ModeSymlink
 	case TypeChar:
 		// character device node
@@ -248,6 +248,30 @@ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
 	}
 	if fm&os.ModeSticky != 0 {
 		h.Mode |= c_ISVTX
+	}
+	// If possible, populate additional fields from OS-specific
+	// FileInfo fields.
+	if sys, ok := fi.Sys().(*Header); ok {
+		// This FileInfo came from a Header (not the OS). Use the
+		// original Header to populate all remaining fields.
+		h.Uid = sys.Uid
+		h.Gid = sys.Gid
+		h.Uname = sys.Uname
+		h.Gname = sys.Gname
+		h.AccessTime = sys.AccessTime
+		h.ChangeTime = sys.ChangeTime
+		if sys.Xattrs != nil {
+			h.Xattrs = make(map[string]string)
+			for k, v := range sys.Xattrs {
+				h.Xattrs[k] = v
+			}
+		}
+		if sys.Typeflag == TypeLink {
+			// hard link
+			h.Typeflag = TypeLink
+			h.Size = 0
+			h.Linkname = sys.Linkname
+		}
 	}
 	if sysStat != nil {
 		return h, sysStat(fi, h)

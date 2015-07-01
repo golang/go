@@ -178,7 +178,13 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 	sweepgenset := false
 
 	// Mark any free objects in this span so we don't collect them.
+	sstart := uintptr(s.start << _PageShift)
 	for link := s.freelist; link.ptr() != nil; link = link.ptr().next {
+		if uintptr(link) < sstart || s.limit <= uintptr(link) {
+			// Free list is corrupted.
+			dumpFreeList(s)
+			throw("free list corrupted")
+		}
 		heapBitsForAddr(uintptr(link)).setMarkedNonAtomic()
 	}
 
@@ -297,4 +303,28 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 		traceGCSweepDone()
 	}
 	return res
+}
+
+func dumpFreeList(s *mspan) {
+	printlock()
+	print("runtime: free list of span ", s, ":\n")
+	sstart := uintptr(s.start << _PageShift)
+	link := s.freelist
+	for i := 0; i < int(s.npages*_PageSize/s.elemsize); i++ {
+		if i != 0 {
+			print(" -> ")
+		}
+		print(hex(link))
+		if link.ptr() == nil {
+			break
+		}
+		if uintptr(link) < sstart || s.limit <= uintptr(link) {
+			// Bad link. Stop walking before we crash.
+			print(" (BAD)")
+			break
+		}
+		link = link.ptr().next
+	}
+	print("\n")
+	printunlock()
 }

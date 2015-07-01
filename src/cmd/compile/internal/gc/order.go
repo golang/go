@@ -434,6 +434,12 @@ func ordermapassign(n *Node, order *Order) {
 				a = Nod(OAS, m, l.N)
 				typecheck(&a, Etop)
 				post = list(post, a)
+			} else if flag_race != 0 && n.Op == OAS2FUNC && !isblank(l.N) {
+				m = l.N
+				l.N = ordertemp(m.Type, order, false)
+				a = Nod(OAS, m, l.N)
+				typecheck(&a, Etop)
+				post = list(post, a)
 			}
 		}
 

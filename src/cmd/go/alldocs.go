@@ -106,7 +106,7 @@ and test commands:
 	-gccgoflags 'arg list'
 		arguments to pass on each gccgo compiler/linker invocation.
 	-gcflags 'arg list'
-		arguments to pass on each 5g, 6g, 8g, or 9g compiler invocation.
+		arguments to pass on each go tool compile invocation.
 	-installsuffix suffix
 		a suffix to use in the name of the package installation directory,
 		in order to keep output separate from default builds.
@@ -114,9 +114,9 @@ and test commands:
 		or, if set explicitly, has _race appended to it.  Using a -buildmode
 		option that requires non-default compile flags has a similar effect.
 	-ldflags 'flag list'
-		arguments to pass on each 5l, 6l, 8l, or 9l linker invocation.
+		arguments to pass on each go tool link invocation.
 	-asmflags 'flag list'
-		arguments to pass on each asm assembler invocation.
+		arguments to pass on each go tool asm invocation.
 	-tags 'tag list'
 		a list of build tags to consider satisfied during the build.
 		For more information about build tags, see the description of
@@ -424,7 +424,7 @@ Download and install packages and dependencies
 
 Usage:
 
-	go get [-d] [-f] [-fix] [-t] [-u] [build flags] [packages]
+	go get [-d] [-f] [-fix] [-insecure] [-t] [-u] [build flags] [packages]
 
 Get downloads and installs the packages named by the import paths,
 along with their dependencies.
@@ -439,6 +439,9 @@ of the original.
 
 The -fix flag instructs get to run the fix tool on the downloaded packages
 before resolving dependencies or building the code.
+
+The -insecure flag permits fetching from repositories and resolving
+custom domains using insecure schemes such as HTTP. Use with caution.
 
 The -t flag instructs get to also download the packages required to build
 the tests for the specified packages.
@@ -868,6 +871,8 @@ Go searches each directory listed in GOPATH to find source code,
 but new packages are always downloaded into the first directory
 in the list.
 
+See https://golang.org/doc/code.html for an example.
+
 
 Import path syntax
 
@@ -1103,7 +1108,7 @@ The 'go test' command takes both flags that apply to 'go test' itself
 and flags that apply to the resulting test binary.
 
 Several of the flags control profiling and write an execution profile
-suitable for "go tool pprof"; run "go tool pprof help" for more
+suitable for "go tool pprof"; run "go tool pprof -h" for more
 information.  The --alloc_space, --alloc_objects, and --show_bytes
 options of pprof control how the information is presented.
 

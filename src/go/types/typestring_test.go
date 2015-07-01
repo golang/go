@@ -9,6 +9,7 @@ import (
 	"go/importer"
 	"go/parser"
 	"go/token"
+	"internal/testenv"
 	"testing"
 
 	. "go/types"
@@ -117,7 +118,7 @@ var dependentTestTypes = []testEntry{
 }
 
 func TestTypeString(t *testing.T) {
-	skipSpecialPlatforms(t)
+	testenv.MustHaveGoBuild(t)
 
 	var tests []testEntry
 	tests = append(tests, independentTestTypes...)
@@ -153,7 +154,13 @@ func TestQualifiedTypeString(t *testing.T) {
 		{NewPointer(pT), p, "*T"},
 		{NewPointer(pT), q, "*p.T"},
 	} {
-		if got := TypeString(test.this, test.typ); got != test.want {
+		qualifier := func(pkg *Package) string {
+			if pkg != test.this {
+				return pkg.Name()
+			}
+			return ""
+		}
+		if got := TypeString(test.typ, qualifier); got != test.want {
 			t.Errorf("TypeString(%s, %s) = %s, want %s",
 				test.this, test.typ, got, test.want)
 		}

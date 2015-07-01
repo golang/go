@@ -13,7 +13,7 @@
 // The varint functions encode and decode single integer values using
 // a variable-length encoding; smaller values require fewer bytes.
 // For a specification, see
-// http://code.google.com/apis/protocolbuffers/docs/encoding.html.
+// https://developers.google.com/protocol-buffers/docs/encoding.
 //
 // This package favors simplicity over efficiency. Clients that require
 // high-performance serialization, especially for large data structures,

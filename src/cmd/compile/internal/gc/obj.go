@@ -200,7 +200,7 @@ func duintptr(s *Sym, off int, v uint64) int {
 
 var stringsym_gen int
 
-func stringsym(s string) *Sym {
+func stringsym(s string) (hdr, data *Sym) {
 	var symname string
 	var pkg *Pkg
 	if len(s) > 100 {
@@ -217,36 +217,44 @@ func stringsym(s string) *Sym {
 		pkg = gostringpkg
 	}
 
-	sym := Pkglookup(symname, pkg)
+	symhdr := Pkglookup("hdr."+symname, pkg)
+	symdata := Pkglookup(symname, pkg)
 
 	// SymUniq flag indicates that data is generated already
-	if sym.Flags&SymUniq != 0 {
-		return sym
+	if symhdr.Flags&SymUniq != 0 {
+		return symhdr, symdata
 	}
-	sym.Flags |= SymUniq
-	sym.Def = newname(sym)
-
-	off := 0
+	symhdr.Flags |= SymUniq
+	symhdr.Def = newname(symhdr)
 
 	// string header
-	off = dsymptr(sym, off, sym, Widthptr+Widthint)
-	off = duintxx(sym, off, uint64(len(s)), Widthint)
+	off := 0
+	off = dsymptr(symhdr, off, symdata, 0)
+	off = duintxx(symhdr, off, uint64(len(s)), Widthint)
+	ggloblsym(symhdr, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
 
 	// string data
+	if symdata.Flags&SymUniq != 0 {
+		return symhdr, symdata
+	}
+	symdata.Flags |= SymUniq
+	symdata.Def = newname(symdata)
+
+	off = 0
 	var m int
 	for n := 0; n < len(s); n += m {
 		m = 8
 		if m > len(s)-n {
 			m = len(s) - n
 		}
-		off = dsname(sym, off, s[n:n+m])
+		off = dsname(symdata, off, s[n:n+m])
 	}
 
-	off = duint8(sym, off, 0)                    // terminating NUL for runtime
+	off = duint8(symdata, off, 0)                // terminating NUL for runtime
 	off = (off + Widthptr - 1) &^ (Widthptr - 1) // round to pointer alignment
-	ggloblsym(sym, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
+	ggloblsym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
 
-	return sym
+	return symhdr, symdata
 }
 
 var slicebytes_gen int
@@ -299,22 +307,22 @@ func dstringptr(s *Sym, off int, str string) int {
 }
 
 func Datastring(s string, a *obj.Addr) {
-	sym := stringsym(s)
+	_, symdata := stringsym(s)
 	a.Type = obj.TYPE_MEM
 	a.Name = obj.NAME_EXTERN
-	a.Sym = Linksym(sym)
-	a.Node = sym.Def
-	a.Offset = int64(Widthptr) + int64(Widthint) // skip header
+	a.Sym = Linksym(symdata)
+	a.Node = symdata.Def
+	a.Offset = 0
 	a.Etype = Simtype[TINT]
 }
 
 func datagostring(sval string, a *obj.Addr) {
-	sym := stringsym(sval)
+	symhdr, _ := stringsym(sval)
 	a.Type = obj.TYPE_MEM
 	a.Name = obj.NAME_EXTERN
-	a.Sym = Linksym(sym)
-	a.Node = sym.Def
-	a.Offset = 0 // header
+	a.Sym = Linksym(symhdr)
+	a.Node = symhdr.Def
+	a.Offset = 0
 	a.Etype = TSTRING
 }
 

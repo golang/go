@@ -917,6 +917,8 @@ func strnput(s string, n int) {
 	}
 }
 
+var strdata []*LSym
+
 func addstrdata1(arg string) {
 	i := strings.Index(arg, "=")
 	if i < 0 {
@@ -944,7 +946,19 @@ func addstrdata(name string, value string) {
 	// we know before entering this function.
 	s.Reachable = reachable
 
+	strdata = append(strdata, s)
+
 	sp.Reachable = reachable
+}
+
+func checkstrdata() {
+	for _, s := range strdata {
+		if s.Type == obj.STEXT {
+			Diag("cannot use -X with text symbol %s", s.Name)
+		} else if s.Gotype != nil && s.Gotype.Name != "type.string" {
+			Diag("cannot use -X with non-string symbol %s", s.Name)
+		}
+	}
 }
 
 func Addstring(s *LSym, str string) int64 {
@@ -1108,11 +1122,14 @@ func (p *GCProg) AddSym(s *LSym) {
 
 func growdatsize(datsizep *int64, s *LSym) {
 	datsize := *datsizep
-	if s.Size < 0 {
-		Diag("negative size (datsize = %d, s->size = %d)", datsize, s.Size)
-	}
-	if datsize+s.Size < datsize {
-		Diag("symbol too large (datsize = %d, s->size = %d)", datsize, s.Size)
+	const cutoff int64 = 2e9 // 2 GB (or so; looks better in errors than 2^31)
+	switch {
+	case s.Size < 0:
+		Diag("%s: negative size (%d bytes)", s.Name, s.Size)
+	case s.Size > cutoff:
+		Diag("%s: symbol too large (%d bytes)", s.Name, s.Size)
+	case datsize <= cutoff && datsize+s.Size > cutoff:
+		Diag("%s: too much data (over %d bytes)", s.Name, cutoff)
 	}
 	*datsizep = datsize + s.Size
 }

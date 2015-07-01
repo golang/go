@@ -6,7 +6,7 @@
 
 // TODO(rsc):
 //	Emit correct line number annotations.
-//	Make 6g understand the annotations.
+//	Make gc understand the annotations.
 
 package main
 

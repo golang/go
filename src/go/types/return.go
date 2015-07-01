@@ -31,7 +31,7 @@ func (check *Checker) isTerminating(s ast.Stmt, label string) bool {
 		// the predeclared (possibly parenthesized) panic() function is terminating
 		if call, _ := unparen(s.X).(*ast.CallExpr); call != nil {
 			if id, _ := call.Fun.(*ast.Ident); id != nil {
-				if _, obj := check.scope.LookupParent(id.Name); obj != nil {
+				if _, obj := check.scope.LookupParent(id.Name, token.NoPos); obj != nil {
 					if b, _ := obj.(*Builtin); b != nil && b.id == _Panic {
 						return true
 					}

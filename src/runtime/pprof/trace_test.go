@@ -24,6 +24,8 @@ func skipTraceTestsIfNeeded(t *testing.T) {
 	case "darwin":
 		switch runtime.GOARCH {
 		case "arm", "arm64":
+			// TODO(rsc): What does this have to do with the trace tests?
+			// There is no forking here.
 			t.Skipf("skipping on %s/%s, cannot fork", runtime.GOOS, runtime.GOARCH)
 		}
 	}
@@ -229,7 +231,6 @@ func TestTraceStress(t *testing.T) {
 // And concurrently with all that start/stop trace 3 times.
 func TestTraceStressStartStop(t *testing.T) {
 	skipTraceTestsIfNeeded(t)
-	t.Skip("test is unreliable; issue #10476")
 
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(8))
 	outerDone := make(chan bool)

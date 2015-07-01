@@ -223,7 +223,7 @@ func Getgoarm() string {
 }
 
 func Getgo386() string {
-	// Validated by cmd/8g.
+	// Validated by cmd/compile.
 	return envOr("GO386", defaultGO386)
 }
 
