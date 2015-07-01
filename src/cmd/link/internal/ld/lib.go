@@ -1400,6 +1400,7 @@ func ldshlibsyms(shlib string) {
 		Diag("cannot read symbols from shared library: %s", libpath)
 		return
 	}
+	gcdata_locations := make(map[uint64]*LSym)
 	for _, elfsym := range syms {
 		if elf.ST_TYPE(elfsym.Info) == elf.STT_NOTYPE || elf.ST_TYPE(elfsym.Info) == elf.STT_SECTION {
 			continue
@@ -1428,6 +1429,32 @@ func ldshlibsyms(shlib string) {
 			// the type data.
 			if strings.HasPrefix(lsym.Name, "type.") && !strings.HasPrefix(lsym.Name, "type..") {
 				lsym.P = readelfsymboldata(f, &elfsym)
+				gcdata_locations[elfsym.Value+2*uint64(Thearch.Ptrsize)+8+1*uint64(Thearch.Ptrsize)] = lsym
+			}
+		}
+	}
+	gcdata_addresses := make(map[*LSym]uint64)
+	if Thearch.Thechar == '7' {
+		for _, sect := range f.Sections {
+			if sect.Type == elf.SHT_RELA {
+				var rela elf.Rela64
+				rdr := sect.Open()
+				for {
+					err := binary.Read(rdr, f.ByteOrder, &rela)
+					if err == io.EOF {
+						break
+					} else if err != nil {
+						Diag("reading relocation failed %v", err)
+						return
+					}
+					t := elf.R_AARCH64(rela.Info & 0xffff)
+					if t != elf.R_AARCH64_RELATIVE {
+						continue
+					}
+					if lsym, ok := gcdata_locations[rela.Off]; ok {
+						gcdata_addresses[lsym] = uint64(rela.Addend)
+					}
+				}
 			}
 		}
 	}
@@ -1459,7 +1486,7 @@ func ldshlibsyms(shlib string) {
 		Ctxt.Etextp = last
 	}
 
-	Ctxt.Shlibs = append(Ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f})
+	Ctxt.Shlibs = append(Ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f, gcdata_addresses: gcdata_addresses})
 }
 
 func mywhatsys() {
