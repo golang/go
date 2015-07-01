@@ -77,6 +77,12 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 		case PAUTO:
 			aux := &ssa.AutoSymbol{Typ: n.Type, Offset: -1, Sym: n.Sym} // offset TBD by SSA pass
 			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
+		default:
+			str := ""
+			if n.Class&PHEAP != 0 {
+				str = ",heap"
+			}
+			s.Unimplementedf("local variable %v with class %s%s unimplemented", n, classnames[n.Class&^PHEAP], str)
 		}
 	}
 	// nodfp is a special argument which is the function's FP.
