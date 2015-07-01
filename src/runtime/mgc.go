@@ -855,6 +855,9 @@ func gc(mode int) {
 	var tSweepTerm, tScan, tInstallWB, tMark, tMarkTerm int64
 	var heap0, heap1, heap2, heapGoal uint64
 
+	// memstats statistics
+	var now, pauseStart, pauseNS int64
+
 	// Ok, we're doing it!  Stop everybody else
 	semacquire(&worldsema, false)
 
@@ -869,12 +872,17 @@ func gc(mode int) {
 		sweep.nbgsweep++
 	}
 
+	if trace.enabled {
+		traceGCStart()
+	}
+
 	if mode == gcBackgroundMode {
 		gcBgMarkStartWorkers()
 	}
+	now = nanotime()
 	if debug.gctrace > 0 {
 		stwprocs, maxprocs = gcprocs(), gomaxprocs
-		tSweepTerm = nanotime()
+		tSweepTerm = now
 		if mode == gcBackgroundMode {
 			// We started GC when heap_live == next_gc,
 			// but the mutator may have allocated between
@@ -885,10 +893,7 @@ func gc(mode int) {
 		}
 	}
 
-	if trace.enabled {
-		traceGCStart()
-	}
-
+	pauseStart = now
 	systemstack(stopTheWorldWithSema)
 	systemstack(finishsweep_m) // finish sweep before we start concurrent scan.
 	// clearpools before we start the GC. If we wait they memory will not be
@@ -931,8 +936,10 @@ func gc(mode int) {
 
 			// Concurrent scan.
 			startTheWorldWithSema()
+			now = nanotime()
+			pauseNS += now - pauseStart
 			if debug.gctrace > 0 {
-				tScan = nanotime()
+				tScan = now
 			}
 			gcscan_m()
 
@@ -985,9 +992,11 @@ func gc(mode int) {
 		}
 
 		// Begin mark termination.
+		now = nanotime()
 		if debug.gctrace > 0 {
-			tMarkTerm = nanotime()
+			tMarkTerm = now
 		}
+		pauseStart = now
 		systemstack(stopTheWorldWithSema)
 		// The gcphase is _GCmark, it will transition to _GCmarktermination
 		// below. The important thing is that the wb remains active until
@@ -1090,13 +1099,22 @@ func gc(mode int) {
 		throw("gc done but gcphase != _GCoff")
 	}
 
+	// Update timing memstats
+	now, unixNow := nanotime(), unixnanotime()
+	pauseNS += now - pauseStart
+	atomicstore64(&memstats.last_gc, uint64(unixNow)) // must be Unix time to make sense to user
+	memstats.pause_ns[memstats.numgc%uint32(len(memstats.pause_ns))] = uint64(pauseNS)
+	memstats.pause_end[memstats.numgc%uint32(len(memstats.pause_end))] = uint64(unixNow)
+	memstats.pause_total_ns += uint64(pauseNS)
+
+	memstats.numgc++
+
 	systemstack(startTheWorldWithSema)
 	semrelease(&worldsema)
 
 	releasem(mp)
 	mp = nil
 
-	memstats.numgc++
 	if debug.gctrace > 0 {
 		tEnd := nanotime()
 
@@ -1335,7 +1353,6 @@ func gcMark(start_time int64) {
 	if gcphase != _GCmarktermination {
 		throw("in gcMark expecting to see gcphase as _GCmarktermination")
 	}
-	t0 := start_time
 	work.tstart = start_time
 
 	gcCopySpans() // TODO(rlh): should this be hoisted and done only once? Right now it is done for normal marking and also for checkmarking.
@@ -1434,13 +1451,6 @@ func gcMark(start_time int64) {
 		traceHeapAlloc()
 		traceNextGC()
 	}
-
-	t4 := nanotime()
-	unixNow := unixnanotime()
-	atomicstore64(&memstats.last_gc, uint64(unixNow)) // must be Unix time to make sense to user
-	memstats.pause_ns[memstats.numgc%uint32(len(memstats.pause_ns))] = uint64(t4 - t0)
-	memstats.pause_end[memstats.numgc%uint32(len(memstats.pause_end))] = uint64(unixNow)
-	memstats.pause_total_ns += uint64(t4 - t0)
 }
 
 func gcSweep(mode int) {
