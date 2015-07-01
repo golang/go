@@ -3357,12 +3357,27 @@ func runqempty(_p_ *p) bool {
 	return _p_.runqhead == _p_.runqtail && _p_.runnext == 0
 }
 
+// To shake out latent assumptions about scheduling order,
+// we introduce some randomness into scheduling decisions
+// when running with the race detector.
+// The need for this was made obvious by changing the
+// (deterministic) scheduling order in Go 1.5 and breaking
+// many poorly-written tests.
+// With the randomness here, as long as the tests pass
+// consistently with -race, they shouldn't have latent scheduling
+// assumptions.
+const randomizeScheduler = raceenabled
+
 // runqput tries to put g on the local runnable queue.
 // If next if false, runqput adds g to the tail of the runnable queue.
 // If next is true, runqput puts g in the _p_.runnext slot.
 // If the run queue is full, runnext puts g on the global queue.
 // Executed only by the owner P.
 func runqput(_p_ *p, gp *g, next bool) {
+	if randomizeScheduler && next && fastrand1()%2 == 0 {
+		next = false
+	}
+
 	if next {
 	retryNext:
 		oldnext := _p_.runnext
@@ -3409,6 +3424,13 @@ func runqputslow(_p_ *p, gp *g, h, t uint32) bool {
 		return false
 	}
 	batch[n] = gp
+
+	if randomizeScheduler {
+		for i := uint32(1); i <= n; i++ {
+			j := fastrand1() % (i + 1)
+			batch[i], batch[j] = batch[j], batch[i]
+		}
+	}
 
 	// Link the goroutines.
 	for i := uint32(0); i < n; i++ {
