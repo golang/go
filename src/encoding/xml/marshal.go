@@ -578,9 +578,8 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 	// 3. type name
 	var start StartElement
 
-	// explicitNS records whether the element's name
-	// space has been explicitly set (for example an
-	// and XMLName field).
+	// explicitNS records whether the element's name space has been
+	// explicitly set (for example an XMLName field).
 	explicitNS := false
 
 	if startTemplate != nil {
@@ -623,11 +622,11 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 		if finfo.flags&fAttr == 0 {
 			continue
 		}
-		attr, add, err := p.fieldAttr(finfo, val)
+		attr, err := p.fieldAttr(finfo, val)
 		if err != nil {
 			return err
 		}
-		if !add {
+		if attr.Name.Local == "" {
 			continue
 		}
 		start.Attr = append(start.Attr, attr)
@@ -671,62 +670,63 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 	return p.cachedWriteError()
 }
 
-// fieldAttr returns the attribute of the given field and
-// whether it should actually be added as an attribute;
-// val holds the value containing the field.
-func (p *printer) fieldAttr(finfo *fieldInfo, val reflect.Value) (Attr, bool, error) {
+// fieldAttr returns the attribute of the given field.
+// If the returned attribute has an empty Name.Local,
+// it should not be used.
+// The given value holds the value containing the field.
+func (p *printer) fieldAttr(finfo *fieldInfo, val reflect.Value) (Attr, error) {
 	fv := finfo.value(val)
 	name := Name{Space: finfo.xmlns, Local: finfo.name}
 	if finfo.flags&fOmitEmpty != 0 && isEmptyValue(fv) {
-		return Attr{}, false, nil
+		return Attr{}, nil
 	}
 	if fv.Kind() == reflect.Interface && fv.IsNil() {
-		return Attr{}, false, nil
+		return Attr{}, nil
 	}
 	if fv.CanInterface() && fv.Type().Implements(marshalerAttrType) {
 		attr, err := fv.Interface().(MarshalerAttr).MarshalXMLAttr(name)
-		return attr, attr.Name.Local != "", err
+		return attr, err
 	}
 	if fv.CanAddr() {
 		pv := fv.Addr()
 		if pv.CanInterface() && pv.Type().Implements(marshalerAttrType) {
 			attr, err := pv.Interface().(MarshalerAttr).MarshalXMLAttr(name)
-			return attr, attr.Name.Local != "", err
+			return attr, err
 		}
 	}
 	if fv.CanInterface() && fv.Type().Implements(textMarshalerType) {
 		text, err := fv.Interface().(encoding.TextMarshaler).MarshalText()
 		if err != nil {
-			return Attr{}, false, err
+			return Attr{}, err
 		}
-		return Attr{name, string(text)}, true, nil
+		return Attr{name, string(text)}, nil
 	}
 	if fv.CanAddr() {
 		pv := fv.Addr()
 		if pv.CanInterface() && pv.Type().Implements(textMarshalerType) {
 			text, err := pv.Interface().(encoding.TextMarshaler).MarshalText()
 			if err != nil {
-				return Attr{}, false, err
+				return Attr{}, err
 			}
-			return Attr{name, string(text)}, true, nil
+			return Attr{name, string(text)}, nil
 		}
 	}
 	// Dereference or skip nil pointer, interface values.
 	switch fv.Kind() {
 	case reflect.Ptr, reflect.Interface:
 		if fv.IsNil() {
-			return Attr{}, false, nil
+			return Attr{}, nil
 		}
 		fv = fv.Elem()
 	}
 	s, b, err := p.marshalSimple(fv.Type(), fv)
 	if err != nil {
-		return Attr{}, false, err
+		return Attr{}, err
 	}
 	if b != nil {
 		s = string(b)
 	}
-	return Attr{name, s}, true, nil
+	return Attr{name, s}, nil
 }
 
 // defaultStart returns the default start element to use,
