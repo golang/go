@@ -946,15 +946,19 @@ var expSC = []float64{
 
 var vfexpm1SC = []float64{
 	Inf(-1),
+	-710,
 	Copysign(0, -1),
 	0,
+	710,
 	Inf(1),
 	NaN(),
 }
 var expm1SC = []float64{
 	-1,
+	-1,
 	Copysign(0, -1),
 	0,
+	Inf(1),
 	Inf(1),
 	NaN(),
 }
