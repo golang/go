@@ -19,10 +19,10 @@
 #
 # GOOS: The target operating system for installed packages and tools.
 #
-# GO_GCFLAGS: Additional 5g/6g/8g arguments to use when
+# GO_GCFLAGS: Additional go tool compile arguments to use when
 # building the packages and commands.
 #
-# GO_LDFLAGS: Additional 5l/6l/8l arguments to use when
+# GO_LDFLAGS: Additional go tool link arguments to use when
 # building the commands.
 #
 # CGO_ENABLED: Controls cgo usage during the build. Set it to 1

@@ -220,6 +220,7 @@ func Ldmain() {
 	}
 
 	checkgo()
+	checkstrdata()
 	deadcode()
 	callgraph()
 

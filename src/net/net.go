@@ -321,6 +321,7 @@ var (
 
 	// For both read and write operations.
 	errTimeout          error = &timeoutError{}
+	errCanceled               = errors.New("operation was canceled")
 	errClosing                = errors.New("use of closed network connection")
 	ErrWriteToConnected       = errors.New("use of WriteTo with pre-connected connection")
 )

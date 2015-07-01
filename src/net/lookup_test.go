@@ -174,7 +174,7 @@ func TestLookupGmailTXT(t *testing.T) {
 	}
 }
 
-var lookupGooglePublicDNSAddrs = []struct {
+var lookupGooglePublicDNSAddrTests = []struct {
 	addr, name string
 }{
 	{"8.8.8.8", ".google.com"},
@@ -191,7 +191,7 @@ func TestLookupGooglePublicDNSAddr(t *testing.T) {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
 
-	for _, tt := range lookupGooglePublicDNSAddrs {
+	for _, tt := range lookupGooglePublicDNSAddrTests {
 		names, err := LookupAddr(tt.addr)
 		if err != nil {
 			t.Fatal(err)

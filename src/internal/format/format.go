@@ -58,8 +58,9 @@ func Parse(fset *token.FileSet, filename string, src []byte, fragmentOk bool) (
 	// by inserting a package clause and turning the list
 	// into a function body.  This handles expressions too.
 	// Insert using a ;, not a newline, so that the line numbers
-	// in fsrc match the ones in src.
-	fsrc := append(append([]byte("package p; func _() {"), src...), '\n', '}')
+	// in fsrc match the ones in src. Add an extra '\n' before the '}'
+	// to make sure comments are flushed before the '}'.
+	fsrc := append(append([]byte("package p; func _() {"), src...), '\n', '\n', '}')
 	file, err = parser.ParseFile(fset, filename, fsrc, parserMode)
 	if err == nil {
 		sourceAdj = func(src []byte, indent int) []byte {
@@ -71,7 +72,8 @@ func Parse(fset *token.FileSet, filename string, src []byte, fragmentOk bool) (
 			// Gofmt has turned the ; into a \n\n.
 			// There will be two non-blank lines with indent, hence 2*indent.
 			src = src[2*indent+len("package p\n\nfunc _() {"):]
-			src = src[:len(src)-(indent+len("\n}\n"))]
+			// Remove only the "}\n" suffix: remaining whitespaces will be trimmed anyway
+			src = src[:len(src)-len("}\n")]
 			return bytes.TrimSpace(src)
 		}
 		// Gofmt has also indented the function body one level.

@@ -1403,10 +1403,17 @@ func dalgsym(t *Type) *Sym {
 // is 32 pointers, the bits for which fit in 4 bytes. So maxPtrmaskBytes
 // must be >= 4.
 //
-// We use 16 because the GC programs do have some constant overhead
+// We used to use 16 because the GC programs do have some constant overhead
 // to get started, and processing 128 pointers seems to be enough to
 // amortize that overhead well.
-const maxPtrmaskBytes = 16
+//
+// To make sure that the runtime's chansend can call typeBitsBulkBarrier,
+// we raised the limit to 2048, so that even 32-bit systems are guaranteed to
+// use bitmaps for objects up to 64 kB in size.
+//
+// Also known to reflect/type.go.
+//
+const maxPtrmaskBytes = 2048
 
 // dgcsym emits and returns a data symbol containing GC information for type t,
 // along with a boolean reporting whether the UseGCProg bit should be set in

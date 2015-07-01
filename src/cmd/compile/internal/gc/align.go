@@ -119,6 +119,10 @@ func dowidth(t *Type) {
 	}
 
 	if t.Width > 0 {
+		if t.Align == 0 {
+			// See issue 11354
+			Fatal("zero alignment with nonzero size %v", t)
+		}
 		return
 	}
 
@@ -550,6 +554,7 @@ func typeinit() {
 	okfor[OLE] = okforcmp[:]
 	okfor[OLT] = okforcmp[:]
 	okfor[OMOD] = okforand[:]
+	okfor[OHMUL] = okforarith[:]
 	okfor[OMUL] = okforarith[:]
 	okfor[ONE] = okforeq[:]
 	okfor[OOR] = okforand[:]

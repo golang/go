@@ -110,7 +110,13 @@ func (tr *Reader) Next() (*Header, error) {
 		// We actually read the whole file,
 		// but this skips alignment padding
 		tr.skipUnread()
+		if tr.err != nil {
+			return nil, tr.err
+		}
 		hdr = tr.readHeader()
+		if hdr == nil {
+			return nil, tr.err
+		}
 		mergePAX(hdr, headers)
 
 		// Check for a PAX format sparse file
@@ -333,7 +339,7 @@ func parsePAX(r io.Reader) (map[string]string, error) {
 		}
 		// Parse the first token as a decimal integer.
 		n, err := strconv.ParseInt(string(buf[:sp]), 10, 0)
-		if err != nil {
+		if err != nil || n < 5 || int64(len(buf)) < n {
 			return nil, ErrHeader
 		}
 		// Extract everything between the decimal and the n -1 on the

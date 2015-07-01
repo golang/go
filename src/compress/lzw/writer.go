@@ -138,16 +138,23 @@ func (e *encoder) Write(p []byte) (n int, err error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
+	if maxLit := uint8(1<<e.litWidth - 1); maxLit != 0xff {
+		for _, x := range p {
+			if x > maxLit {
+				e.err = errors.New("lzw: input byte too large for the litWidth")
+				return 0, e.err
+			}
+		}
+	}
 	n = len(p)
-	litMask := uint32(1<<e.litWidth - 1)
 	code := e.savedCode
 	if code == invalidCode {
 		// The first code sent is always a literal code.
-		code, p = uint32(p[0])&litMask, p[1:]
+		code, p = uint32(p[0]), p[1:]
 	}
 loop:
 	for _, x := range p {
-		literal := uint32(x) & litMask
+		literal := uint32(x)
 		key := code<<8 | literal
 		// If there is a hash table hit for this key then we continue the loop
 		// and do not emit a code yet.
@@ -230,7 +237,7 @@ func (e *encoder) Close() error {
 // It is the caller's responsibility to call Close on the WriteCloser when
 // finished writing.
 // The number of bits to use for literal codes, litWidth, must be in the
-// range [2,8] and is typically 8.
+// range [2,8] and is typically 8. Input bytes must be less than 1<<litWidth.
 func NewWriter(w io.Writer, order Order, litWidth int) io.WriteCloser {
 	var write func(*encoder, uint32) error
 	switch order {

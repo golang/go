@@ -174,6 +174,7 @@ type Func struct {
 	Dupok          bool // duplicate definitions ok
 	Wrapper        bool // is method wrapper
 	Needctxt       bool // function uses context register (has closure variables)
+	Systemstack    bool // must run on system stack
 }
 
 // Node ops.

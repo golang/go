@@ -28,10 +28,8 @@ func (ti *testInterface) setBroadcast(suffix int) error {
 	return nil
 }
 
-func (ti *testInterface) setPointToPoint(suffix int, local, remote string) error {
+func (ti *testInterface) setPointToPoint(suffix int) error {
 	ti.name = fmt.Sprintf("gif%d", suffix)
-	ti.local = local
-	ti.remote = remote
 	xname, err := exec.LookPath("ifconfig")
 	if err != nil {
 		return err

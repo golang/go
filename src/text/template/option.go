@@ -40,6 +40,7 @@ type option struct {
 //		Execution stops immediately with an error.
 //
 func (t *Template) Option(opt ...string) *Template {
+	t.init()
 	for _, s := range opt {
 		t.setOption(s)
 	}

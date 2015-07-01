@@ -948,3 +948,10 @@ pkg syscall (openbsd-amd64-cgo), type SysProcAttr struct, Pgid int
 pkg text/template, method (*Template) DefinedTemplates() string
 pkg text/template, method (*Template) Option(...string) *Template
 pkg time, method (Time) AppendFormat([]uint8, string) []uint8
+pkg unicode, const Version = "8.0.0"
+pkg unicode, var Ahom *RangeTable
+pkg unicode, var Anatolian_Hieroglyphs *RangeTable
+pkg unicode, var Hatran *RangeTable
+pkg unicode, var Multani *RangeTable
+pkg unicode, var Old_Hungarian *RangeTable
+pkg unicode, var SignWriting *RangeTable

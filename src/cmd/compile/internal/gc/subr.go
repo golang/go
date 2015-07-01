@@ -231,8 +231,14 @@ func setlineno(n *Node) int32 {
 	lno := lineno
 	if n != nil {
 		switch n.Op {
-		case ONAME, OTYPE, OPACK, OLITERAL:
+		case ONAME, OTYPE, OPACK:
 			break
+
+		case OLITERAL:
+			if n.Sym != nil {
+				break
+			}
+			fallthrough
 
 		default:
 			lineno = n.Lineno
@@ -2494,15 +2500,8 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 	typecheck(&fn, Etop)
 	typechecklist(fn.Nbody, Etop)
 
-	// Set inl_nonlocal to whether we are calling a method on a
-	// type defined in a different package.  Checked in inlvar.
-	if !methodrcvr.Local {
-		inl_nonlocal = 1
-	}
-
 	inlcalls(fn)
-
-	inl_nonlocal = 0
+	escAnalyze(list1(fn), false)
 
 	Curfn = nil
 	funccompile(fn)

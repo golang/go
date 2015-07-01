@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -274,13 +275,17 @@ func dynStrings(path string, flag elf.DynTag) []string {
 	return dynstrings
 }
 
-func AssertIsLinkedTo(t *testing.T, path, lib string) {
+func AssertIsLinkedToRegexp(t *testing.T, path string, re *regexp.Regexp) {
 	for _, dynstring := range dynStrings(path, elf.DT_NEEDED) {
-		if dynstring == lib {
+		if re.MatchString(dynstring) {
 			return
 		}
 	}
-	t.Errorf("%s is not linked to %s", path, lib)
+	t.Errorf("%s is not linked to anything matching %v", path, re)
+}
+
+func AssertIsLinkedTo(t *testing.T, path, lib string) {
+	AssertIsLinkedToRegexp(t, path, regexp.MustCompile(regexp.QuoteMeta(lib)))
 }
 
 func AssertHasRPath(t *testing.T, path, dir string) {
@@ -304,9 +309,16 @@ func TestTrivialExecutable(t *testing.T) {
 	AssertHasRPath(t, "./bin/trivial", gorootInstallDir)
 }
 
+// Build an executable that uses cgo linked against the shared runtime and check it
+// runs.
+func TestCgoExecutable(t *testing.T) {
+	goCmd(t, "install", "-linkshared", "execgo")
+	run(t, "cgo executable", "./bin/execgo")
+}
+
 // Build a GOPATH package into a shared library that links against the goroot runtime
 // and an executable that links against both.
-func TestGOPathShlib(t *testing.T) {
+func TestGopathShlib(t *testing.T) {
 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "dep")
 	AssertIsLinkedTo(t, filepath.Join(gopathInstallDir, "libdep.so"), soname)
 	goCmd(t, "install", "-linkshared", "exe")
@@ -437,16 +449,88 @@ func TestNotes(t *testing.T) {
 // Build a GOPATH package (dep) into a shared library that links against the goroot
 // runtime, another package (dep2) that links against the first, and and an
 // executable that links against dep2.
-func TestTwoGOPathShlibs(t *testing.T) {
+func TestTwoGopathShlibs(t *testing.T) {
 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "dep")
 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "dep2")
 	goCmd(t, "install", "-linkshared", "exe2")
 	run(t, "executable linked to GOPATH library", "./bin/exe2")
 }
 
+// Build a GOPATH package into a shared library with gccgo and an executable that
+// links against it.
+func TestGoPathShlibGccgo(t *testing.T) {
+	gccgoName := os.Getenv("GCCGO")
+	if gccgoName == "" {
+		gccgoName = "gccgo"
+	}
+	_, err := exec.LookPath(gccgoName)
+	if err != nil {
+		t.Skip("gccgo not found")
+	}
+
+	libgoRE := regexp.MustCompile("libgo.so.[0-9]+")
+
+	gccgoContext := build.Default
+	gccgoContext.InstallSuffix = suffix + "_fPIC"
+	gccgoContext.Compiler = "gccgo"
+	gccgoContext.GOPATH = os.Getenv("GOPATH")
+	depP, err := gccgoContext.Import("dep", ".", build.ImportComment)
+	if err != nil {
+		t.Fatalf("import failed: %v", err)
+	}
+	gccgoInstallDir := filepath.Join(depP.PkgTargetRoot, "shlibs")
+	goCmd(t, "install", "-compiler=gccgo", "-buildmode=shared", "-linkshared", "dep")
+	AssertIsLinkedToRegexp(t, filepath.Join(gccgoInstallDir, "libdep.so"), libgoRE)
+	goCmd(t, "install", "-compiler=gccgo", "-linkshared", "exe")
+	AssertIsLinkedToRegexp(t, "./bin/exe", libgoRE)
+	AssertIsLinkedTo(t, "./bin/exe", "libdep.so")
+	AssertHasRPath(t, "./bin/exe", gccgoInstallDir)
+	// And check it runs.
+	run(t, "gccgo-built", "./bin/exe")
+}
+
+// The gccgo version of TestTwoGopathShlibs: build a GOPATH package into a shared
+// library with gccgo, another GOPATH package that depends on the first and an
+// executable that links the second library.
+func TestTwoGopathShlibsGccgo(t *testing.T) {
+	gccgoName := os.Getenv("GCCGO")
+	if gccgoName == "" {
+		gccgoName = "gccgo"
+	}
+	_, err := exec.LookPath(gccgoName)
+	if err != nil {
+		t.Skip("gccgo not found")
+	}
+
+	libgoRE := regexp.MustCompile("libgo.so.[0-9]+")
+
+	gccgoContext := build.Default
+	gccgoContext.InstallSuffix = suffix + "_fPIC"
+	gccgoContext.Compiler = "gccgo"
+	gccgoContext.GOPATH = os.Getenv("GOPATH")
+	depP, err := gccgoContext.Import("dep", ".", build.ImportComment)
+	if err != nil {
+		t.Fatalf("import failed: %v", err)
+	}
+	gccgoInstallDir := filepath.Join(depP.PkgTargetRoot, "shlibs")
+	goCmd(t, "install", "-compiler=gccgo", "-buildmode=shared", "-linkshared", "dep")
+	goCmd(t, "install", "-compiler=gccgo", "-buildmode=shared", "-linkshared", "dep2")
+	goCmd(t, "install", "-compiler=gccgo", "-linkshared", "exe2")
+
+	AssertIsLinkedToRegexp(t, filepath.Join(gccgoInstallDir, "libdep.so"), libgoRE)
+	AssertIsLinkedToRegexp(t, filepath.Join(gccgoInstallDir, "libdep2.so"), libgoRE)
+	AssertIsLinkedTo(t, filepath.Join(gccgoInstallDir, "libdep2.so"), "libdep.so")
+	AssertIsLinkedToRegexp(t, "./bin/exe2", libgoRE)
+	AssertIsLinkedTo(t, "./bin/exe2", "libdep2")
+	AssertIsLinkedTo(t, "./bin/exe2", "libdep.so")
+
+	// And check it runs.
+	run(t, "gccgo-built", "./bin/exe2")
+}
+
 // Testing rebuilding of shared libraries when they are stale is a bit more
 // complicated that it seems like it should be. First, we make everything "old": but
-// only a few seconds old, or it might be older than 6g (or the runtime source) and
+// only a few seconds old, or it might be older than gc (or the runtime source) and
 // everything will get rebuilt. Then define a timestamp slightly newer than this
 // time, which is what we set the mtime to of a file to cause it to be seen as new,
 // and finally another slightly even newer one that we can compare files against to
@@ -549,6 +633,7 @@ func TestABIChecking(t *testing.T) {
 	// This assumes adding an exported function breaks ABI, which is not true in
 	// some senses but suffices for the narrow definition of ABI compatiblity the
 	// toolchain uses today.
+	resetFileStamps()
 	appendFile("src/dep/dep.go", "func ABIBreak() {}\n")
 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "dep")
 	c := exec.Command("./bin/exe")
@@ -578,6 +663,7 @@ func TestABIChecking(t *testing.T) {
 
 	// If we make a change which does not break ABI (such as adding an unexported
 	// function) and rebuild libdep.so, exe still works.
+	resetFileStamps()
 	appendFile("src/dep/dep.go", "func noABIBreak() {}\n")
 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "dep")
 	run(t, "after non-ABI breaking change", "./bin/exe")

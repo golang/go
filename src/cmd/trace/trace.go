@@ -49,7 +49,7 @@ var templTrace = `
 		<link href="/trace_viewer_html" rel="import">
 		<script>
 			document.addEventListener("DOMContentLoaded", function(event) {
-				var viewer = new tv.TraceViewer('/jsontrace{{PARAMS}}');
+				var viewer = new tr.TraceViewer('/jsontrace{{PARAMS}}');
 				document.body.appendChild(viewer);
 			});
 		</script>
@@ -300,6 +300,7 @@ func generateTrace(params *traceParams) ViewerData {
 	if !ctx.gtrace {
 		for i := 0; i <= maxProc; i++ {
 			ctx.emit(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: 0, Tid: uint64(i), Arg: &NameArg{fmt.Sprintf("Proc %v", i)}})
+			ctx.emit(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: uint64(i), Arg: &SortIndexArg{i}})
 		}
 	}
 
@@ -322,10 +323,6 @@ func (ctx *traceContext) emit(e *ViewerEvent) {
 }
 
 func (ctx *traceContext) time(ev *trace.Event) int64 {
-	if ev.Ts < ctx.startTime || ev.Ts > ctx.endTime {
-		fmt.Printf("ts=%v startTime=%v endTime=%v\n", ev.Ts, ctx.startTime, ctx.endTime)
-		panic("timestamp is outside of trace range")
-	}
 	// NOTE: trace viewer wants timestamps in microseconds and it does not
 	// handle fractional timestamps (rounds them). We give it timestamps
 	// in nanoseconds to avoid rounding. See:

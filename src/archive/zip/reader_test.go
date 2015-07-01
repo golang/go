@@ -582,3 +582,26 @@ func TestIssue10956(t *testing.T) {
 		t.Errorf("error = %v; want %q", err, want)
 	}
 }
+
+// Verify we return ErrUnexpectedEOF when reading truncated data descriptor.
+func TestIssue11146(t *testing.T) {
+	data := []byte("PK\x03\x040000000000000000" +
+		"000000\x01\x00\x00\x000\x01\x00\x00\xff\xff0000" +
+		"0000000000000000PK\x01\x02" +
+		"0000\b0\b\x00000000000000" +
+		"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x000000PK\x05\x06\x00\x00" +
+		"\x00\x0000\x01\x0000008\x00\x00\x00\x00\x00")
+	z, err := NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := z.File[0].Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = ioutil.ReadAll(r)
+	if err != io.ErrUnexpectedEOF {
+		t.Errorf("File[0] error = %v; want io.ErrUnexpectedEOF", err)
+	}
+	r.Close()
+}

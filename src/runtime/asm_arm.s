@@ -474,25 +474,14 @@ TEXT gosave<>(SB),NOSPLIT,$0
 	MOVW	R11, (g_sched+gobuf_ctxt)(g)
 	RET
 
-// asmcgocall(void(*fn)(void*), void *arg)
+// func asmcgocall(fn, arg unsafe.Pointer) int32
 // Call fn(arg) on the scheduler stack,
 // aligned appropriately for the gcc ABI.
-// See cgocall.c for more details.
-TEXT	·asmcgocall(SB),NOSPLIT,$0-8
+// See cgocall.go for more details.
+TEXT ·asmcgocall(SB),NOSPLIT,$0-12
 	MOVW	fn+0(FP), R1
 	MOVW	arg+4(FP), R0
-	BL	asmcgocall<>(SB)
-	RET
 
-TEXT ·asmcgocall_errno(SB),NOSPLIT,$0-12
-	MOVW	fn+0(FP), R1
-	MOVW	arg+4(FP), R0
-	BL	asmcgocall<>(SB)
-	MOVW	R0, ret+8(FP)
-	RET
-
-TEXT asmcgocall<>(SB),NOSPLIT,$0-0
-	// fn in R1, arg in R0.
 	MOVW	R13, R2
 	MOVW	g, R4
 
@@ -529,6 +518,8 @@ g0:
 	SUB	R2, R1
 	MOVW	R5, R0
 	MOVW	R1, R13
+
+	MOVW	R0, ret+8(FP)
 	RET
 
 // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
@@ -546,7 +537,7 @@ TEXT runtime·cgocallback(SB),NOSPLIT,$12-12
 	RET
 
 // cgocallback_gofunc(void (*fn)(void*), void *frame, uintptr framesize)
-// See cgocall.c for more details.
+// See cgocall.go for more details.
 TEXT	·cgocallback_gofunc(SB),NOSPLIT,$8-12
 	NO_LOCAL_POINTERS
 	
@@ -744,6 +735,17 @@ TEXT runtime·atomicloaduint(SB),NOSPLIT,$0-8
 
 TEXT runtime·atomicstoreuintptr(SB),NOSPLIT,$0-8
 	B	runtime·atomicstore(SB)
+
+// armPublicationBarrier is a native store/store barrier for ARMv7+.
+// To implement publiationBarrier in sys_$GOOS_arm.s using the native
+// instructions, use:
+//
+//	TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
+//		B	runtime·armPublicationBarrier(SB)
+//
+TEXT runtime·armPublicationBarrier(SB),NOSPLIT,$-4-0
+	WORD $0xf57ff05e	// DMB ST
+	RET
 
 // AES hashing not implemented for ARM
 TEXT runtime·aeshash(SB),NOSPLIT,$-4-0

@@ -510,6 +510,35 @@ func touch(t *testing.T, name string) {
 	}
 }
 
+func TestWalkSkipDirOnFile(t *testing.T) {
+	td, err := ioutil.TempDir("", "walktest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(td)
+
+	if err := os.MkdirAll(filepath.Join(td, "dir"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	touch(t, filepath.Join(td, "dir/foo1"))
+	touch(t, filepath.Join(td, "dir/foo2"))
+
+	sawFoo2 := false
+	filepath.Walk(td, func(path string, info os.FileInfo, err error) error {
+		if strings.HasSuffix(path, "foo2") {
+			sawFoo2 = true
+		}
+		if strings.HasSuffix(path, "foo1") {
+			return filepath.SkipDir
+		}
+		return nil
+	})
+
+	if sawFoo2 {
+		t.Errorf("SkipDir on file foo1 did not block processing of foo2")
+	}
+}
+
 func TestWalkFileError(t *testing.T) {
 	td, err := ioutil.TempDir("", "walktest")
 	if err != nil {

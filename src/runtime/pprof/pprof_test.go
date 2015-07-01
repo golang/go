@@ -9,6 +9,7 @@ package pprof_test
 import (
 	"bytes"
 	"fmt"
+	"internal/testenv"
 	"math/big"
 	"os"
 	"os/exec"
@@ -209,12 +210,7 @@ func testCPUProfile(t *testing.T, need []string, f func()) {
 // Fork can hang if preempted with signals frequently enough (see issue 5517).
 // Ensure that we do not do this.
 func TestCPUProfileWithFork(t *testing.T) {
-	if runtime.GOOS == "darwin" {
-		switch runtime.GOARCH {
-		case "arm", "arm64":
-			t.Skipf("skipping on %s/%s, cannot fork", runtime.GOOS, runtime.GOARCH)
-		}
-	}
+	testenv.MustHaveExec(t)
 
 	heap := 1 << 30
 	if runtime.GOOS == "android" {

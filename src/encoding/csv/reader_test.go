@@ -87,6 +87,15 @@ field"`,
 		},
 	},
 	{
+		Name:               "BlankLineFieldCount",
+		Input:              "a,b,c\n\nd,e,f\n\n",
+		UseFieldsPerRecord: true,
+		Output: [][]string{
+			{"a", "b", "c"},
+			{"d", "e", "f"},
+		},
+	},
+	{
 		Name:             "TrimSpace",
 		Input:            " a,  b,   c\n",
 		TrimLeadingSpace: true,

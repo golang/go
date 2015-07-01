@@ -167,6 +167,23 @@ func xaddint64(ptr *int64, delta int64) int64 {
 	return int64(xadd64((*uint64)(unsafe.Pointer(ptr)), delta))
 }
 
+// publicationBarrier performs a store/store barrier (a "publication"
+// or "export" barrier). Some form of synchronization is required
+// between initializing an object and making that object accessible to
+// another processor. Without synchronization, the initialization
+// writes and the "publication" write may be reordered, allowing the
+// other processor to follow the pointer and observe an uninitialized
+// object. In general, higher-level synchronization should be used,
+// such as locking or an atomic pointer write. publicationBarrier is
+// for when those aren't an option, such as in the implementation of
+// the memory manager.
+//
+// There's no corresponding barrier for the read side because the read
+// side naturally has a data dependency order. All architectures that
+// Go supports or seems likely to ever support automatically enforce
+// data dependency ordering.
+func publicationBarrier()
+
 //go:noescape
 func setcallerpc(argp unsafe.Pointer, pc uintptr)
 
@@ -205,10 +222,7 @@ func getcallerpc(argp unsafe.Pointer) uintptr
 func getcallersp(argp unsafe.Pointer) uintptr
 
 //go:noescape
-func asmcgocall(fn, arg unsafe.Pointer)
-
-//go:noescape
-func asmcgocall_errno(fn, arg unsafe.Pointer) int32
+func asmcgocall(fn, arg unsafe.Pointer) int32
 
 // argp used in Defer structs when there is no argp.
 const _NoArgs = ^uintptr(0)

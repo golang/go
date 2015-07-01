@@ -1,0 +1,654 @@
+<!--{
+	"Title": "Go 1.5 Release Notes",
+	"Path":  "/doc/go1.5",
+	"Template": true
+}-->
+
+
+<h2 id="introduction">Introduction to Go 1.5</h2>
+
+<p>
+The latest Go release, version 1.5,
+is a significant release, including major architectural changes to the implementation.
+Despite that, we expect almost all Go programs to continue to compile and run as before,
+because the release still maintains the Go 1 <a href="/doc/go1compat.html">promise
+of compatibility</a>.
+</p>
+
+<p>
+The biggest developments in the implementation are:
+</p>
+
+<ul>
+
+<li>
+The compiler and runtime are now written entirely in Go (with a little assembler).
+C is no longer involved in the implementation, and so the C compiler that was
+once necessary for building the distribution is gone.
+</li>
+
+<li>
+The garbage collector is now <a href="/s/go14gc">concurrent</a> and provides dramatically lower
+pause times by running, when possible, in parallel with other goroutines.
+</li>
+
+<li>
+By default, Go programs run with <code>GOMAXPROCS</code> set to the
+number of cores available; in prior releases it defaulted to 1.
+</li>
+
+<li>
+Support for <a href="http://golang.org/s/go14internal">internal packages</a>
+is now provided for all repositories, not just the Go core.
+</li>
+
+<li>
+The <code>go</code> command now provides <a href="/s/go15vendor">experimental
+support</a> for "vendoring" external dependencies.
+</li>
+
+</ul>
+
+<p>
+These and a number of other changes to the implementation and tools
+are discussed below.
+</p>
+
+<p>
+The release also contains one small language change involving map literals.
+</p>
+
+<p>
+Finally, the timing of the <a href="/s/releasesched">release</a>
+strays from the usual six-month interval,
+both to provide more time to prepare this major release and to shift the schedule thereafter to
+time the release dates more conveniently.
+</p>
+
+<h2 id="language">Changes to the language</h2>
+
+<h3 id="mapliterals">Map literals</h3>
+
+<p>
+Due to an oversight, the rule that allowed the element type to be elided from slice literals was not
+applied to map keys.
+This has been <a href="/cl/2591">corrected</a> in Go 1.5.
+An example will make this clear: as of Go 1.5, this map literal,
+</p>
+
+<pre>
+m := map[Point]string{
+    Point{29.935523, 52.891566}:   "Persepolis",
+    Point{-25.352594, 131.034361}: "Uluru",
+    Point{37.422455, -122.084306}: "Googleplex",
+}
+</pre>
+
+<p>
+may be written as follows, without the <code>Point</code> type listed explicitly:
+</p>
+
+<pre>
+m := map[Point]string{
+    {29.935523, 52.891566}:   "Persepolis",
+    {-25.352594, 131.034361}: "Uluru",
+    {37.422455, -122.084306}: "Googleplex",
+}
+</pre>
+
+<h2 id="implementation">The Implementation</h2>
+
+<h3 id="c">No more C</h3>
+
+<p>
+The compiler and runtime are now implemented in Go and assembler, without C.
+The only C source left in the tree is related to testing or to <code>cgo</code>.
+There was a C compiler in the tree in 1.4 and earlier.
+It was used to build the runtime; a custom compiler was necessary in part to
+guarantee the C code would work with the stack management of goroutines.
+Since the runtime is in Go now, there is no need for this C compiler and it is gone.
+Details of the process to eliminate C are discussed <a href="/s/go13compiler">elsewhere</a>.
+</p>
+
+<p>
+The conversion from C was done with the help of custom tools created for the job.
+Most important, the compiler was actually moved by automatic translation of
+the C code into Go.
+It is in effect the same program in a different language.
+It is not a new implementation
+of the compiler so we expect the process will not have introduced new compiler
+bugs.
+An overview of this process is available in the slides for
+<a href="https://talks.golang.org/2015/gogo.slide">this presentation</a>.
+</p>
+
+<h3 id="compiler">Compiler and tools</h3>
+
+<p>
+Independent of but encouraged by the move to Go, the names of the tools have changed.
+The old names <code>6g</code>, <code>8g</code> and so on are gone; instead there
+is just one binary, accessible as <code>go</code> <code>tool</code> <code>compile</code>,
+that compiles Go source into binaries suitable for the architecture and operating system
+specified by <code>$GOARCH</code> and <code>$GOOS</code>.
+Similarly, there is now one linker (<code>go</code> <code>tool</code> <code>link</code>)
+and one assembler (<code>go</code> <code>tool</code> <code>asm</code>).
+The linker was translated automatically from the old C implementation,
+but the assembler is a new native Go implementation discussed
+in more detail below.
+</p>
+
+<p>
+Similar to the drop of the names <code>6g</code>, <code>8g</code>, and so on,
+the output of the compiler and assembler are now given a plain <code>.o</code> suffix
+rather than <code>.8</code>, <code>.6</code>, etc.
+</p>
+
+
+<h3 id="gc">Garbage collector</h3>
+
+<p>
+TODO
+</p>
+
+<h3 id="runtime">Runtime</h3>
+
+<p>
+In Go 1.5, the order in which goroutines are scheduled has been changed.
+The properties of the scheduler were never defined by the language,
+but programs that depended on the scheduling order may be broken
+by this change.
+We have seen a few (erroneous) programs affected by this change.
+If you have programs that implicitly depend on the scheduling
+order, you will need to update them.
+</p>
+
+<p>
+Another potentially breaking change is that the runtime now
+sets the default number of threads to run simultaneously,
+defined by <code>GOMAXPROCS</code>, to the number
+of cores available on the CPU.
+In prior releases it defaulted to 1.
+Programs that do not expect to run with multiple cores may
+break inadvertently.
+They can be updated by removing the restriction or by setting
+<code>GOMAXPROCS</code> explicitly. 
+</p>
+
+<h3 id="build">Build</h3>
+
+<p>
+Now that the Go compiler and runtime are implemented in Go, a Go compiler
+must be available to compile the distribution from source.
+Thus, to build the Go core, a working Go distribution must already be in place.
+(Go programmers who do not work on the core are unaffected by this change.)
+Any Go 1.4 or later distribution (including <code>gccgo</code>) will serve.
+For details, see the <a href="/s/go15bootstrap">design document</a>.
+</p>
+
+<h2 id="ports">Ports</h2>
+
+<p>
+Due mostly to the industry's move away the 32-bit x86 architecture,
+the set of binary downloads provided is reduced in 1.5.
+A distribution for the OS X operating system is provided only for the
+<code>amd64</code> architecture, not <code>386</code>.
+Similarly, the ports for Snow Leopard (Apple OS X 10.6) still work but are no
+longer released as a download or maintained since Apple no longer maintains that version
+of the operating system.
+Also, the <code>dragonfly/386</code> port is no longer supported at all
+because DragonflyBSD itself no longer supports the 32-bit 386 architecture.
+</p>
+
+<p>
+There are however several new ports available to be built from source.
+These include <code>darwin/arm</code> and <code>darwin/arm64</code>.
+The new port <code>linux/arm64</code> is mostly in place, but <code>cgo</code>
+is only supported using external linking.
+</p>
+
+<p>
+On FreeBSD, Go 1.5 requires FreeBSD 8-STABLE+ because of its new use of the <code>SYSCALL</code> instruction.
+</p>
+
+<p>
+On NaCl, Go 1.5 requires SDK version pepper-39 or above because it now uses the
+<code>get_random_bytes</code> system call.
+</p>
+
+<pre>
+Tools:
+
+build: external linking support for windows (https://golang.org/cl/7163, 7282, 7283, 7284, 7534, 7535)
+cmd/cover: tool now lives in the standard repository (https://golang.org/cl/9560)
+cmd/gc: constant arithmetic is based on math/big (https://golang.org/cl/7830, 7851, 7857, 8426, 7858, 7912, 8171)
+cmd/go, go/build: add ${SRCDIR} variable expansion to cgo lines (https://golang.org/cl/1756)
+cmd/go: add $DOLLAR to generate's variables (https://golang.org/cl/8091)
+cmd/go: std wildcard now excludes commands in main repo (https://golang.org/cl/5550)
+cmd/go: .swig/.swigcxx files now require SWIG 3.0.6 or later
+cmd/go: add -run flag to go generate (https://golang.org/cl/9005)
+cmd/go: add $GOLINE to generate's variables (https://golang.org/cl/9007)
+cmd/go: add go doc (https://golang.org/cl/9227)
+cmd/go: internal enforced even outside standard library (golang.org/s/go14internal; https://golang.org/cl/9156)
+cmd/go, testing: add go test -count (https://golang.org/cl/10669)
+cmd/go: add preliminary support for vendor directories (https://golang.org/cl/10923)
+cmd/vet: better validation of struct tags (https://golang.org/cl/2685)
+cmd/ld: no longer record build timestamp in Windows PE file header (https://golang.org/cl/3740)
+cmd/go: add -toolexec build option
+cmd/go: drop -ccflags build option
+cmd/go: add -asmflags build option
+cmd/go: add -buildmode build option
+cmd/gc: add -dynlink option (for amd64 only)
+cmd/ld: add -buildmode option
+cmd/trace: new command to view traces (https://golang.org/cl/3601)
+
+Performance:
+
+cmd/gc: evaluate concrete == interface without allocating (https://golang.org/cl/2096)
+cmd/gc: optimize memclr of slices and arrays (https://golang.org/cl/2520)
+cmd/gc: transform closure calls to function calls (https://golang.org/cl/4050)
+cmd/gc: transitive inlining (https://golang.org/cl/5952)
+cmd/gc, runtime: speed up some cases of _, ok := i.(T) (https://golang.org/cl/7697)
+cmd/gc: speed up large string switches (https://golang.org/cl/7698)
+cmd/gc: inline x := y.(*T) and x, ok := y.(*T) (https://golang.org/cl/7862)
+cmd/gc: allocate backing storage for non-escaping interfaces on stack (https://golang.org/cl/8201)
+encoding/xml: avoid an allocation for tags without attributes (https://golang.org/cl/4160)
+image: many optimizations
+runtime: add ARM runtime.cmpstring and bytes.Compare (https://golang.org/cl/8010)
+runtime: do not scan maps when k/v do not contain pointers (https://golang.org/cl/3288)
+runtime: reduce thrashing of gs between ps (https://golang.org/cl/9872)
+sort: number of Sort performance optimizations (https://golang.org/cl/2100, https://golang.org/cl/2614, ...)
+strconv: optimize decimal to string conversion (https://golang.org/cl/2105)
+strconv: optimize float to string conversion (https://golang.org/cl/5600)
+sync: add active spinning to Mutex (https://golang.org/cl/5430)
+math/big: faster assembly kernels for amd64 and 386 (https://golang.org/cl/2503, https://golang.org/cl/2560)
+math/big: faster "pure Go" kernels for platforms w/o assembly kernels (https://golang.org/cl/2480)
+regexp: port RE2's bitstate backtracker to the regexp package (https://golang.org/cl/2153)
+
+Assembler:
+
+New cmd/asm tool (now use go tool asm, not go tool 6a)
+
+Assembler now supports -dynlink option.
+
+ARM assembly syntax has had some features removed.
+
+	- mentioning SP or PC as a hardware register
+		These are always pseudo-registers except that in some contexts
+		they're not, and it's confusing because the context should not affect
+		which register you mean. Change the references to the hardware
+		registers to be explicit: R13 for SP, R15 for PC.
+	- constant creation using assignment
+		The files say a=b when they could instead say #define a b.
+		There is no reason to have both mechanisms.
+	- R(0) to refer to R0.
+		Some macros use this to a great extent. Again, it's easy just to
+		use a #define to rename a register.
+
+Also expression evaluation now uses uint64s instead of signed integers and the
+precedence of operators is now Go-like rather than C-like.
+</pre>
+
+<h3 id="library">Core library</h3>
+
+<h3 id="flag">Flag</h3>
+
+<p>
+The flag package's
+<a href="/pkg/flag/#PrintDefaults"><code>PrintDefaults</code></a> 
+function, and method on <a href="/pkg/flag/#FlagSet"><code>FlagSet</code></a>,
+have been modified to create nicer usage messages.
+The format has been changed to be more human-friendly and in the usage
+messages a word quoted with `backquotes` is taken to be the name of the
+flag's operand to display in the usage message.
+For instance, a flag created with the invocation,
+</p>
+
+<pre>
+cpuFlag = flag.Int("cpu", 1, "run `N` processes in parallel")
+</pre>
+
+<p>
+will show the help message,
+</p>
+
+<pre>
+-cpu N
+    	run N processes in parallel (default 1)
+</pre>
+
+<p>
+Also, the default is now listed only when it is not the zero value for the type.
+</p>
+
+<h3 id="math_big">Floats in math/big</h3>
+
+<p>
+The <a href="/pkg/math/big/"><code>math/big</code></a> package
+has a new, fundamental data type,
+<a href="/pkg/math/big/#Float"><code>Float</code></a>,
+which implements arbitrary-precision floating-point numbers.
+A <code>Float</code> value is represented by a boolean sign,
+a variable-length mantissa, and a 32-bit fixed-size signed exponent.
+The precision of a <code>Float</code> (the mantissa size in bits)
+can be specified explicitly or is otherwise determined by the first
+operation that creates the value.
+Once created, the size of a <code>Float</code>'s mantissa may be modified with the
+<a href="/pkg/math/big/#Float.SetPrec"><code>SetPrec</code></a> method.
+<code>Floats</code> support the concept of infinities, such as are created by
+overflow, but values that would lead to the equivalent of IEEE 754 NaNs
+trigger a panic.
+<code>Float</code> operations support all IEEE-754 rounding modes.
+When the precision is set to 24 (53) bits,
+operations that stay within the range of normalized <code>float32</code>
+(<code>float64</code>)
+values produce the same results as the corresponding IEEE-754
+arithmetic on those values.
+</p>
+
+<h3 id="reflect">Reflect</h3>
+
+<p>
+The <a href="/pkg/reflect/"><code>reflect</code></a> package
+has two new functions: <a href="/pkg/reflect/#ArrayOf"><code>ArrayOf</code></a>
+and <a href="/pkg/reflect/#FuncOf"><code>FuncOf</code></a>.
+These functions, analogous to the extant
+<a href="/pkg/reflect/#SliceOf"><code>SliceOf</code></a>function,
+create new types at runtime to describe arrays and functions.
+</p>
+
+<h3 id="hardening">Hardening</h3>
+
+<p>
+Several dozen bugs were found in the standard library
+through randomized testing with the
+<a href="https://github.com/dvyukov/go-fuzz"><code>go-fuzz</code></a> tool.
+Bugs were fixed in the
+<a href="/pkg/archive/tar/"><code>archive/tar</code></a>,
+<a href="/pkg/archive/zip/"><code>archive/zip</code></a>,
+<a href="/pkg/compress/flate/"><code>compress/flate</code></a>,
+<a href="/pkg/encoding/gob/"><code>encoding/gob</code></a>,
+<a href="/pkg/fmt/"><code>fmt</code></a>,
+<a href="/pkg/html/template/"><code>html/template</code></a>,
+<a href="/pkg/image/gif/"><code>image/gif</code></a>,
+<a href="/pkg/image/jpeg/"><code>image/jpeg</code></a>,
+<a href="/pkg/image/png/"><code>image/png</code></a>, and
+<a href="/pkg/text/template/"><code>text/template</code></a>,
+packages.
+The fixes harden the implementation against incorrect and malicious inputs.
+</p>
+
+<h3 id="minor_library_changes">Minor changes to the library</h3>
+
+<ul>
+
+<li>
+The <a href="/pkg/archive/zip/"><code>archive/zip</code></a> package's
+<a href="/pkg/archive/zip/#Writer"><code>Writer</code></a> type now has a
+<a href="/pkg/archive/zip/#Writer.SetOffset"><code>SetOffset</code></a>
+method to specify the location within the output stream at which to write the archive.
+</li>
+
+<li>
+The <a href="/pkg/bufio/#Reader"><code>Reader</code></a> in the
+<a href="/pkg/bufio/"><code>bufio</code></a> package now has a
+<a href="/pkg/bufio/#Reader.Discard"><code>Discard</code></a>
+method to discard data from the input.
+</li>
+
+<li>
+Also in the <a href="/pkg/bytes/"><code>bytes</code></a> package,
+the <a href="/pkg/bytes/#Buffer"><code>Buffer</code></a> type
+now has a <a href="/pkg/bytes/#Buffer.Cap"><code>Cap</code></a> method
+that reports the number of bytes allocated within the buffer.
+Similarly, both the <a href="/pkg/bytes/"><code>bytes</code></a>
+and <a href="/pkg/strings/"><code>strings</code></a> packages,
+the <a href="/pkg/bytes/#Reader"><code>Reader</code></a>
+type now has a <a href="/pkg/bytes/#Reader.Size"><code>Size</code></a>
+method that reports the original length of the underlying slice or string.
+</li>
+
+<li>
+Both the <a href="/pkg/bytes/"><code>bytes</code></a> and
+<a href="/pkg/strings/"><code>strings</code></a> packages
+also now have a <a href="/pkg/bytes/#LastIndexByte"><code>LastIndexByte</code></a>
+function that locates the rightmost byte with that value in the argument.
+</li>
+
+<li>
+TODO crypto/cipher: clarify what will happen if len(src) != len(dst) for the Stream interface. (https://golang.org/cl/1754)
+</li>
+
+<li>
+TODO crypto/cipher: support non-standard nonce lengths for GCM. (https://golang.org/cl/8946)
+</li>
+
+<li>
+TODO crypto/elliptic: add Name field to CurveParams struct (https://golang.org/cl/2133)
+</li>
+
+<li>
+TODO crypto/elliptic: Unmarshaling points now automatically checks that the point is on the curve (https://golang.org/cl/2421)
+</li>
+
+<li>
+TODO crypto/tls: change default minimum version to TLS 1.0. (https://golang.org/cl/1791)
+</li>
+
+<li>
+TODO crypto/tls: including Certificate Transparency SCTs in the handshake is now supported (https://golang.org/cl/8988)
+</li>
+
+<li>
+TODO crypto/tls: session ticket keys can now be rotated at runtime (https://golang.org/cl/9072)
+</li>
+
+<li>
+TODO crypto/tls: servers will now always call GetCertificate to pick a certificate for a connection when Certificates is empty (https://golang.org/cl/8792)
+</li>
+
+<li>
+TODO crypto/x509: wildcards are now only accepted as the first label (https://golang.org/cl/5691)
+</li>
+
+<li>
+TODO crypto/x509: unknown critical extensions now cause errors in Verify, not when parsing (https://golang.org/cl/9390)
+</li>
+
+<li>
+The <a href="/pkg/database/sql/#DB"><code>DB</code></a> type of the
+<a href="/pkg/database/sql/"><code>database/sql</code></a> package
+now has a <a href="/pkg/database/sql/#DB.Stats"><code>Stats</code></a> method
+to retrieve database statistics.
+</li>
+
+<li>
+The <a href="/pkg/encoding/base64/"><code>encoding/base64</code></a> package
+now supports unpadded encodings through two new encoding variables,
+<a href="/pkg/encoding/base64/#RawStdEncoding"><code>RawStdEncoding</code></a> and
+<a href="/pkg/encoding/base64/#RawURLEncoding"><code>RawURLEncoding</code></a>.
+</li>
+
+<li>
+Also in the <a href="/pkg/fmt/"><code>fmt</code></a> package,
+a value of type <a href="/pkg/reflect/#Value"><code>Value</code></a> now
+prints what it holds, rather than use the <code>reflect.Value</code>'s <code>Stringer</code>
+method, which produces things like <code>&lt;int Value&gt;</code>.
+</li>
+
+<li>
+The <a href="/pkg/ast/#EmptyStmt"><code>EmptyStmt</code></a> type
+in the <a href="/pkg/go/ast/"><code>go/ast</code></a> package now
+has a boolean <code>Implicit</code> field that records whether the
+semicolon was implicitly added or was present in the source.
+</li>
+
+<li>
+For forward compatibility the <a href="/pkg/go/build/"><code>go/build</code></a> package
+reserves <code>GOARCH</code> values for  a number of architectures that Go might support one day.
+This is not a promise that it will.
+</li>
+
+<li>
+The <a href="/pkg/io/"><code>io</code></a> package
+adds a <a href="/pkg/io/#CopyBuffer"><code>CopyBuffer</code></a> function
+that is like <a href="/pkg/io/#Copy"><code>Copy</code></a> but
+uses a caller-provided buffer, permitting control of allocation and buffer size.
+</li>
+
+<li>
+The <a href="/pkg/log/"><code>log</code></a> package
+has a new <a href="/pkg/log/#LUTC"><code>LUTC</code></a> flag
+that causes time stamps to be printed in the UTC time zone.
+It also adds a <a href="/pkg/log/#SetOutput"><code>SetOutput</code></a> function
+to set the output destination for the standard logger
+and a corresponding method for user-created loggers.
+</li>
+
+<li>
+In Go 1.4, <a href="/pkg/math/#Max"><code>Max</code></a> was not detecting all possible NaN bit patterns.
+This is fixed in Go 1.5, so programs that use <code>math.Max</code> on data including NaNs may behave differently,
+but now correctly according to the IEEE754 definition of NaNs.
+</li>
+
+<li>
+The <a href="/pkg/math/big/"><code>math/big</code></a> package
+adds a new <a href="/pkg/math/big/#Jacobi"><code>Jacobi</code></a>
+function for integers and a new method
+<a href="/pkg/math/big/#Int.ModSqrt"><code>ModSqrt</code></a>
+method for the <a href="/pkg/math/big/#Int"><code>Int</code></a> type.
+</li>
+
+<li>
+The <a href="/pkg/mime/"><code>mime</code></a> package adds an
+<a href="/pkg/mime/#ExtensionsByType"><code>ExtensionsByType</code></a>
+function that returns the MIME extensions know to be associated with a given MIME type.
+</li>
+
+<li>
+There is a new <a href="/pkg/mime/quotedprintable/"><code>mime/quotedprintable</code></a>
+package that implements the quoted-printable encoding defined by RFC 2045.
+</li>
+
+<li>
+TODO net: add sequential and RFC 6555-compliant TCP dialing (https://golang.org/cl/8768)
+</li>
+
+<li>
+TODO net: add Source field to OpError (https://go-review.googlesource.com/9231)
+</li>
+
+<li>
+TODO net: fix inconsistent errors (https://golang.org/cl/9236)
+</li>
+
+<li>
+TODO net: add SocketConn, SocketPacketConn (https://golang.org/cl/9275)
+</li>
+
+<li>
+TODO net: use Go's DNS resolver when system configuration permits (https://golang.org/cl/8945)
+</li>
+
+<li>
+TODO net/http: support for setting trailers from a server Handler (https://golang.org/cl/2157)
+</li>
+
+<li>
+TODO net/http: ignore the Unix epoch time in ServeContent (https://golang.org/cl/7915)
+</li>
+
+<li>
+TODO net/http/cgi: fix REMOTE_ADDR, REMOTE_HOST, add REMOTE_PORT (https://golang.org/cl/4933)
+</li>
+
+<li>
+TODO net/mail: adds AddressParser type (https://golang.org/cl/10392)
+</li>
+
+<li>
+TODO net/smtp: add TLSConnectionState accessor (https://golang.org/cl/2151)
+</li>
+
+<li>
+The <a href="/pkg/os/"><code>os</code></a> package
+has a new <a href="/pkg/os/#LookupEnv"><code>LookupEnv</code></a> function
+that is similar to <a href="/pkg/os/#Getenv"><code>Getenv</code></a>
+but can distinguish between an empty environment variable and a missing one.
+</li>
+
+<li>
+The <a href="/pkg/os/signal/"><code>os/signal</code></a> package
+adds new <a href="/pkg/os/signal/#Ignore"><code>Ignore</code></a> and
+<a href="/pkg/os/signal/#Reset"><code>Reset</code></a> functions.
+</li>
+
+<li>
+The <a href="/pkg/runtime/pprof/"><code>runtime/pprof</code></a> package
+by default now includes overall memory statistics in all memory profiles.
+</li>
+
+<li>
+The <a href="/pkg/strings/"><code>strings</code></a> package
+has a new <a href="/pkg/strings/#Compare"><code>Compare</code></a> function.
+This is present to provide symmetry with the <a href="/pkg/bytes/"><code>bytes</code></a> package
+but is otherwise unnecessary as strings support comparison natively.
+</li>
+
+<li>
+The <a href="/pkg/sync/#WaitGroup"><code>WaitGroup</code></a> function in
+package <a href="/pkg/sync/"><code>sync</code></a>
+now diagnoses code that races a call to <a href="/pkg/sync/#WaitGroup.Add"><code>Add</code></a>
+against a return from <a href="/pkg/sync/#WaitGroup.Wait"><code>Wait</code></a>.
+If it detects this condition, <code>WaitGroup</code> panics.
+</li>
+
+<li>
+In the <a href="/pkg/syscall/"><code>syscall</code></a> package,
+the Linux <code>SysProcAttr</code> struct now has a
+<code>GidMappingsEnableSetgroups</code> field, made necessary
+by security changes in Linux 3.19.
+On all Unix systems, the struct also has new <code>Foreground</code> and <code>Pgid</code> fields
+to provide more control when exec'ing.
+On Darwin, there is now a <code>Syscall9</code> function
+to support calls with too many arguments.
+</li>
+
+<li>
+The <a href="/pkg/testing/quick/"><code>testing/quick</code></a> will now
+generate <code>nil</code> values for pointer types,
+making it possible to use with recursive data structures.
+Also, the package now supports generation of array types.
+</li>
+
+<li>
+In the <a href="/pkg/text/template/"><code>text/template</code></a> and
+<a href="/pkg/html/template/"><code>html/template</code></a> packages,
+integer constants too large to be represented as a Go integer now trigger a
+parse error. Before, they were silently converted to floating point, losing
+precision.
+</li>
+
+<li>
+Also in the <a href="/pkg/text/template/"><code>text/template</code></a> and
+<a href="/pkg/html/template/"><code>html/template</code></a> packages,
+a new <a href="/pkg/text/template/#Option"><code>Option</code></a> type
+allows customization of the behavior of the template during execution.
+The sole implemented option allows control over how a missing key is
+handled when indexing a map.
+The default, which can now be overridden, is as before: to continue with an invalid value.
+</li>
+
+<li>
+The <a href="/pkg/time/"><code>time</code></a> package's
+<code>Time</code> type has a new method
+<a href="/pkg/time/#Time.AppendFormat"><code>AppendFormat</code></a>, 
+which can be used to avoid allocation when printing a time value.
+</li>
+
+<li>
+The <a href="/pkg/unicode/"><code>unicode</code></a> package and associated
+support throughout the system has been upgraded from version 7.0 to
+<a href="http://www.unicode.org/versions/Unicode8.0.0/">Unicode 8.0</a>.
+</li>
+
+</ul>

@@ -9,7 +9,9 @@
 package obj
 
 const (
-	// Don't profile the marked routine.  This flag is deprecated.
+	// Don't profile the marked routine.
+	//
+	// Deprecated: Not implemented, do not use.
 	NOPROF = 1
 
 	// It is ok for the linker to get multiple of these symbols.  It will

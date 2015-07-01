@@ -31,16 +31,17 @@ func gcscan_m() {
 
 	work.nwait = 0
 	work.ndone = 0
-	work.nproc = 1 // For now do not do this in parallel.
+	work.nproc = 1
+	useOneP := uint32(1) // For now do not do this in parallel.
 	//	ackgcphase is not needed since we are not scanning running goroutines.
-	parforsetup(work.markfor, work.nproc, uint32(_RootCount+local_allglen), false, markroot)
+	parforsetup(work.markfor, useOneP, uint32(_RootCount+local_allglen), false, markroot)
 	parfordo(work.markfor)
 
 	lock(&allglock)
 	// Check that gc work is done.
 	for i := 0; i < local_allglen; i++ {
 		gp := allgs[i]
-		if !gp.gcworkdone {
+		if !gp.gcscandone {
 			throw("scan missed a g")
 		}
 	}
@@ -130,35 +131,8 @@ func markroot(desc *parfor, i uint32) {
 			// non-STW phases.
 			shrinkstack(gp)
 		}
-		if readgstatus(gp) == _Gdead {
-			gp.gcworkdone = true
-		} else {
-			gp.gcworkdone = false
-		}
-		restart := stopg(gp)
 
-		// goroutine will scan its own stack when it stops running.
-		// Wait until it has.
-		for readgstatus(gp) == _Grunning && !gp.gcworkdone {
-		}
-
-		// scanstack(gp) is done as part of gcphasework
-		// But to make sure we finished we need to make sure that
-		// the stack traps have all responded so drop into
-		// this while loop until they respond.
-		for !gp.gcworkdone {
-			status = readgstatus(gp)
-			if status == _Gdead {
-				gp.gcworkdone = true // scan is a noop
-				break
-			}
-			if status == _Gwaiting || status == _Grunnable {
-				restart = stopg(gp)
-			}
-		}
-		if restart {
-			restartg(gp)
-		}
+		scang(gp)
 	}
 
 	gcw.dispose()
@@ -220,12 +194,24 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 
 	// Perform assist work
 	systemstack(func() {
+		if atomicload(&gcBlackenEnabled) == 0 {
+			// The gcBlackenEnabled check in malloc races with the
+			// store that clears it but an atomic check in every malloc
+			// would be a performance hit.
+			// Instead we recheck it here on the non-preemptable system
+			// stack to determine if we should preform an assist.
+			return
+		}
 		// Track time spent in this assist. Since we're on the
 		// system stack, this is non-preemptible, so we can
 		// just measure start and end time.
 		startTime := nanotime()
 
-		xadd(&work.nwait, -1)
+		decnwait := xadd(&work.nwait, -1)
+		if decnwait == work.nproc {
+			println("runtime: work.nwait =", decnwait, "work.nproc=", work.nproc)
+			throw("nwait > work.nprocs")
+		}
 
 		// drain own cached work first in the hopes that it
 		// will be more cache friendly.
@@ -234,16 +220,33 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 		gcDrainN(gcw, scanWork)
 		// Record that we did this much scan work.
 		gp.gcscanwork += gcw.scanWork - startScanWork
-		// No need to dispose since we're not in mark termination.
-
+		// If we are near the end of the mark phase
+		// dispose of the gcw.
+		if gcBlackenPromptly {
+			gcw.dispose()
+		}
 		// If this is the last worker and we ran out of work,
 		// signal a completion point.
-		if xadd(&work.nwait, +1) == work.nproc && work.full == 0 && work.partial == 0 {
-			// This has reached a background completion
-			// point.
-			gcBgMarkDone()
+		incnwait := xadd(&work.nwait, +1)
+		if incnwait > work.nproc {
+			println("runtime: work.nwait=", incnwait,
+				"work.nproc=", work.nproc,
+				"gcBlackenPromptly=", gcBlackenPromptly)
+			throw("work.nwait > work.nproc")
 		}
 
+		if incnwait == work.nproc && work.full == 0 && work.partial == 0 {
+			// This has reached a background completion
+			// point.
+			if gcBlackenPromptly {
+				if work.bgMark1.done == 0 {
+					throw("completing mark 2, but bgMark1.done == 0")
+				}
+				work.bgMark2.complete()
+			} else {
+				work.bgMark1.complete()
+			}
+		}
 		duration := nanotime() - startTime
 		_p_ := gp.m.p.ptr()
 		_p_.gcAssistTime += duration
@@ -252,32 +255,6 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 			_p_.gcAssistTime = 0
 		}
 	})
-}
-
-// The gp has been moved to a GC safepoint. GC phase specific
-// work is done here.
-//go:nowritebarrier
-func gcphasework(gp *g) {
-	if gp.gcworkdone {
-		return
-	}
-	switch gcphase {
-	default:
-		throw("gcphasework in bad gcphase")
-	case _GCoff, _GCstw, _GCsweep:
-		// No work.
-	case _GCscan:
-		// scan the stack, mark the objects, put pointers in work buffers
-		// hanging off the P where this is being run.
-		// Indicate that the scan is valid until the goroutine runs again
-		scanstack(gp)
-	case _GCmark:
-		// No work.
-	case _GCmarktermination:
-		scanstack(gp)
-		// All available mark work will be emptied before returning.
-	}
-	gp.gcworkdone = true
 }
 
 //go:nowritebarrier
@@ -326,6 +303,10 @@ func scanstack(gp *g) {
 		// Install stack barriers during stack scan.
 		barrierOffset = firstStackBarrierOffset
 		nextBarrier = sp + barrierOffset
+
+		if debug.gcstackbarrieroff > 0 {
+			nextBarrier = ^uintptr(0)
+		}
 
 		if gp.stkbarPos != 0 || len(gp.stkbar) != 0 {
 			// If this happens, it's probably because we
@@ -787,6 +768,15 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
 // object (it ignores n).
 //go:nowritebarrier
 func scanobject(b uintptr, gcw *gcWork) {
+	// Note that arena_used may change concurrently during
+	// scanobject and hence scanobject may encounter a pointer to
+	// a newly allocated heap object that is *not* in
+	// [start,used). It will not mark this object; however, we
+	// know that it was just installed by a mutator, which means
+	// that mutator will execute a write barrier and take care of
+	// marking it. This is even more pronounced on relaxed memory
+	// architectures since we access arena_used without barriers
+	// or synchronization, but the same logic applies.
 	arena_start := mheap_.arena_start
 	arena_used := mheap_.arena_used
 
@@ -844,7 +834,7 @@ func shade(b uintptr) {
 	if obj, hbits, span := heapBitsForObject(b); obj != 0 {
 		gcw := &getg().m.p.ptr().gcw
 		greyobject(obj, 0, 0, hbits, span, gcw)
-		if gcphase == _GCmarktermination {
+		if gcphase == _GCmarktermination || gcBlackenPromptly {
 			// Ps aren't allowed to cache work during mark
 			// termination.
 			gcw.dispose()
@@ -934,16 +924,12 @@ func gcDumpObject(label string, obj, off uintptr) {
 	}
 }
 
-// When in GCmarkterminate phase we allocate black.
+// If gcBlackenPromptly is true we are in the second mark phase phase so we allocate black.
 //go:nowritebarrier
 func gcmarknewobject_m(obj, size uintptr) {
-	if gcphase != _GCmarktermination {
-		throw("marking new object while not in mark termination phase")
-	}
-	if useCheckmark { // The world should be stopped so this should not happen.
+	if useCheckmark && !gcBlackenPromptly { // The world should be stopped so this should not happen.
 		throw("gcmarknewobject called while doing checkmark")
 	}
-
 	heapBitsForAddr(obj).setMarked()
 	xadd64(&work.bytesMarked, int64(size))
 }

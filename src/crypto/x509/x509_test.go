@@ -18,11 +18,11 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/pem"
+	"internal/testenv"
 	"math/big"
 	"net"
 	"os/exec"
 	"reflect"
-	"runtime"
 	"testing"
 	"time"
 )
@@ -40,6 +40,13 @@ func TestParsePKCS1PrivateKey(t *testing.T) {
 		priv.Primes[0].Cmp(rsaPrivateKey.Primes[0]) != 0 ||
 		priv.Primes[1].Cmp(rsaPrivateKey.Primes[1]) != 0 {
 		t.Errorf("got:%+v want:%+v", priv, rsaPrivateKey)
+	}
+
+	// This private key includes an invalid prime that
+	// rsa.PrivateKey.Validate should reject.
+	data := []byte("0\x16\x02\x00\x02\x02\u007f\x00\x02\x0200\x02\x0200\x02\x02\x00\x01\x02\x02\u007f\x00")
+	if _, err := ParsePKCS1PrivateKey(data); err == nil {
+		t.Errorf("parsing invalid private key did not result in an error")
 	}
 }
 
@@ -848,15 +855,7 @@ func TestParsePEMCRL(t *testing.T) {
 }
 
 func TestImports(t *testing.T) {
-	switch runtime.GOOS {
-	case "android", "nacl":
-		t.Skipf("skipping on %s", runtime.GOOS)
-	case "darwin":
-		switch runtime.GOARCH {
-		case "arm", "arm64":
-			t.Skipf("skipping on %s/%s, cannot fork", runtime.GOOS, runtime.GOARCH)
-		}
-	}
+	testenv.MustHaveGoRun(t)
 
 	if err := exec.Command("go", "run", "x509_test_import.go").Run(); err != nil {
 		t.Errorf("failed to run x509_test_import.go: %s", err)

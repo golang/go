@@ -118,15 +118,20 @@ func subtract1(p *byte) *byte {
 
 // mHeap_MapBits is called each time arena_used is extended.
 // It maps any additional bitmap memory needed for the new arena memory.
+// It must be called with the expected new value of arena_used,
+// *before* h.arena_used has been updated.
+// Waiting to update arena_used until after the memory has been mapped
+// avoids faults when other threads try access the bitmap immediately
+// after observing the change to arena_used.
 //
 //go:nowritebarrier
-func mHeap_MapBits(h *mheap) {
+func mHeap_MapBits(h *mheap, arena_used uintptr) {
 	// Caller has added extra mappings to the arena.
 	// Add extra mappings of bitmap words as needed.
 	// We allocate extra bitmap pieces in chunks of bitmapChunk.
 	const bitmapChunk = 8192
 
-	n := (mheap_.arena_used - mheap_.arena_start) / heapBitmapScale
+	n := (arena_used - mheap_.arena_start) / heapBitmapScale
 	n = round(n, bitmapChunk)
 	n = round(n, _PhysPageSize)
 	if h.bitmap_mapped >= n {
@@ -159,7 +164,7 @@ func heapBitsForAddr(addr uintptr) heapBits {
 
 // heapBitsForSpan returns the heapBits for the span base address base.
 func heapBitsForSpan(base uintptr) (hbits heapBits) {
-	if base < mheap_.arena_start || base >= mheap_.arena_end {
+	if base < mheap_.arena_start || base >= mheap_.arena_used {
 		throw("heapBitsForSpan: base out of range")
 	}
 	hbits = heapBitsForAddr(base)
@@ -405,6 +410,51 @@ func heapBitsBulkBarrier(p, size uintptr) {
 			writebarrierptr_nostore(x, *x)
 		}
 		h = h.next()
+	}
+}
+
+// typeBitsBulkBarrier executes writebarrierptr_nostore
+// for every pointer slot in the memory range [p, p+size),
+// using the type bitmap to locate those pointer slots.
+// The type typ must correspond exactly to [p, p+size).
+// This executes the write barriers necessary after a copy.
+// Both p and size must be pointer-aligned.
+// The type typ must have a plain bitmap, not a GC program.
+// The only use of this function is in channel sends, and the
+// 64 kB channel element limit takes care of this for us.
+//
+// Must not be preempted because it typically runs right after memmove,
+// and the GC must not complete between those two.
+//
+//go:nosplit
+func typeBitsBulkBarrier(typ *_type, p, size uintptr) {
+	if typ == nil {
+		throw("runtime: typeBitsBulkBarrier without type")
+	}
+	if typ.size != size {
+		println("runtime: typeBitsBulkBarrier with type ", *typ._string, " of size ", typ.size, " but memory size", size)
+		throw("runtime: invalid typeBitsBulkBarrier")
+	}
+	if typ.kind&kindGCProg != 0 {
+		println("runtime: typeBitsBulkBarrier with type ", *typ._string, " with GC prog")
+		throw("runtime: invalid typeBitsBulkBarrier")
+	}
+	if !writeBarrierEnabled {
+		return
+	}
+	ptrmask := typ.gcdata
+	var bits uint32
+	for i := uintptr(0); i < typ.ptrdata; i += ptrSize {
+		if i&(ptrSize*8-1) == 0 {
+			bits = uint32(*ptrmask)
+			ptrmask = addb(ptrmask, 1)
+		} else {
+			bits = bits >> 1
+		}
+		if bits&1 != 0 {
+			x := (*uintptr)(unsafe.Pointer(p + i))
+			writebarrierptr_nostore(x, *x)
+		}
 	}
 }
 
@@ -928,8 +978,16 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 			// nb unmodified: we just loaded 8 bits,
 			// and the next iteration will consume 8 bits,
 			// leaving us with the same nb the next time we're here.
-			b |= uintptr(*p) << nb
-			p = add1(p)
+			if nb < 8 {
+				b |= uintptr(*p) << nb
+				p = add1(p)
+			} else {
+				// Reduce the number of bits in b.
+				// This is important if we skipped
+				// over a scalar tail, since nb could
+				// be larger than the bit width of b.
+				nb -= 8
+			}
 		} else if p == nil {
 			// Almost as fast path: track bit count and refill from pbits.
 			// For short repetitions.
@@ -1135,7 +1193,7 @@ func heapBitsSetTypeGCProg(h heapBits, progSize, elemSize, dataSize, allocSize u
 		}
 		trailer[i] = byte(n)
 		i++
-		n = count
+		n = count - 1
 		for ; n >= 0x80; n >>= 7 {
 			trailer[i] = byte(n | 0x80)
 			i++

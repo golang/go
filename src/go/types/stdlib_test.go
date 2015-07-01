@@ -15,6 +15,7 @@ import (
 	"go/parser"
 	"go/scanner"
 	"go/token"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -36,7 +37,7 @@ var (
 )
 
 func TestStdlib(t *testing.T) {
-	skipSpecialPlatforms(t)
+	testenv.MustHaveGoBuild(t)
 
 	start = time.Now()
 	walkDirs(t, filepath.Join(runtime.GOROOT(), "src"))
@@ -124,7 +125,7 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 }
 
 func TestStdTest(t *testing.T) {
-	skipSpecialPlatforms(t)
+	testenv.MustHaveGoBuild(t)
 
 	// test/recover4.go is only built for Linux and Darwin.
 	// TODO(gri) Remove once tests consider +build tags (issue 10370).
@@ -139,19 +140,21 @@ func TestStdTest(t *testing.T) {
 }
 
 func TestStdFixed(t *testing.T) {
-	skipSpecialPlatforms(t)
+	testenv.MustHaveGoBuild(t)
 
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "fixedbugs"),
 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
-		"bug459.go",    // possibly incorrect test - see issue 6703 (pending spec clarification)
-		"issue3924.go", // possibly incorrect test - see issue 6671 (pending spec clarification)
-		"issue6889.go", // gc-specific test
-		"issue7746.go", // large constants - consumes too much memory
+		"bug459.go",      // possibly incorrect test - see issue 6703 (pending spec clarification)
+		"issue3924.go",   // possibly incorrect test - see issue 6671 (pending spec clarification)
+		"issue6889.go",   // gc-specific test
+		"issue7746.go",   // large constants - consumes too much memory
+		"issue11326.go",  // large constants
+		"issue11326b.go", // large constants
 	)
 }
 
 func TestStdKen(t *testing.T) {
-	skipSpecialPlatforms(t)
+	testenv.MustHaveGoBuild(t)
 
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "ken"))
 }

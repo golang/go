@@ -47,7 +47,7 @@ func (c *IPConn) ReadMsgIP(b, oob []byte) (n, oobn, flags int, addr *IPAddr, err
 // SetWriteDeadline.  On packet-oriented connections, write timeouts
 // are rare.
 func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (int, error) {
-	return 0, &OpError{Op: "write", Net: c.fd.dir, Source: c.fd.laddr, Addr: addr, Err: syscall.EPLAN9}
+	return 0, &OpError{Op: "write", Net: c.fd.dir, Source: c.fd.laddr, Addr: addr.opAddr(), Err: syscall.EPLAN9}
 }
 
 // WriteTo implements the PacketConn WriteTo method.
@@ -59,7 +59,7 @@ func (c *IPConn) WriteTo(b []byte, addr Addr) (int, error) {
 // b and the associated out-of-band data from oob.  It returns the
 // number of payload and out-of-band bytes written.
 func (c *IPConn) WriteMsgIP(b, oob []byte, addr *IPAddr) (n, oobn int, err error) {
-	return 0, 0, &OpError{Op: "write", Net: c.fd.dir, Source: c.fd.laddr, Addr: addr, Err: syscall.EPLAN9}
+	return 0, 0, &OpError{Op: "write", Net: c.fd.dir, Source: c.fd.laddr, Addr: addr.opAddr(), Err: syscall.EPLAN9}
 }
 
 // DialIP connects to the remote address raddr on the network protocol
@@ -70,7 +70,7 @@ func DialIP(netProto string, laddr, raddr *IPAddr) (*IPConn, error) {
 }
 
 func dialIP(netProto string, laddr, raddr *IPAddr, deadline time.Time) (*IPConn, error) {
-	return nil, &OpError{Op: "dial", Net: netProto, Source: laddr, Addr: raddr, Err: syscall.EPLAN9}
+	return nil, &OpError{Op: "dial", Net: netProto, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: syscall.EPLAN9}
 }
 
 // ListenIP listens for incoming IP packets addressed to the local
@@ -78,5 +78,5 @@ func dialIP(netProto string, laddr, raddr *IPAddr, deadline time.Time) (*IPConn,
 // methods can be used to receive and send IP packets with per-packet
 // addressing.
 func ListenIP(netProto string, laddr *IPAddr) (*IPConn, error) {
-	return nil, &OpError{Op: "listen", Net: netProto, Source: nil, Addr: laddr, Err: syscall.EPLAN9}
+	return nil, &OpError{Op: "listen", Net: netProto, Source: nil, Addr: laddr.opAddr(), Err: syscall.EPLAN9}
 }

@@ -323,5 +323,9 @@ TEXT runtime·casp1(SB),NOSPLIT,$0
 TEXT runtime·cas(SB),NOSPLIT,$0
 	B runtime·armcas(SB)
 
+// Likewise, this is only valid for ARMv7+, but that's okay.
+TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
+	B	runtime·armPublicationBarrier(SB)
+
 TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4
 	WORD $0xe7fedef0 // NACL_INSTR_ARM_ABORT_NOW (UDF #0xEDE0)

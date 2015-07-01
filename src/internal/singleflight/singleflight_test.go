@@ -42,11 +42,13 @@ func TestDoErr(t *testing.T) {
 
 func TestDoDupSuppress(t *testing.T) {
 	var g Group
-	c := make(chan string)
+	c := make(chan string, 1)
 	var calls int32
 	fn := func() (interface{}, error) {
 		atomic.AddInt32(&calls, 1)
-		return <-c, nil
+		v := <-c
+		c <- v // pump; make available for any future calls
+		return v, nil
 	}
 
 	const n = 10
@@ -54,20 +56,21 @@ func TestDoDupSuppress(t *testing.T) {
 	for i := 0; i < n; i++ {
 		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			v, err, _ := g.Do("key", fn)
 			if err != nil {
 				t.Errorf("Do error: %v", err)
+				return
 			}
-			if v.(string) != "bar" {
-				t.Errorf("got %q; want %q", v, "bar")
+			if s, _ := v.(string); s != "bar" {
+				t.Errorf("Do = %T %v; want %q", v, v, "bar")
 			}
-			wg.Done()
 		}()
 	}
-	time.Sleep(100 * time.Millisecond) // let goroutines above block
+	time.Sleep(10 * time.Millisecond) // let some goroutines above block in Do
 	c <- "bar"
 	wg.Wait()
-	if got := atomic.LoadInt32(&calls); got != 1 {
-		t.Errorf("number of calls = %d; want 1", got)
+	if got := atomic.LoadInt32(&calls); got <= 0 || got >= n {
+		t.Errorf("number of calls = %d; want over 0 and less than n", got)
 	}
 }

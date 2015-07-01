@@ -25,6 +25,12 @@ var (
 	b12 = <-b0 /* ERROR "cannot receive" */
 	b13 = & & /* ERROR "cannot take address" */ b0
 
+	// byte
+	_ = byte(0)
+	_ = byte(- /* ERROR "cannot convert" */ 1)
+	_ = - /* ERROR "-byte\(1\) \(constant -1 of type byte\) overflows byte" */ byte(1) // test for issue 11367
+	_ = byte /* ERROR "overflows byte" */ (0) - byte(1)
+
 	// int
 	i0 = 1
 	i1 int = i0

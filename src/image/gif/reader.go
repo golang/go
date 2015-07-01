@@ -173,6 +173,9 @@ func (d *decoder) decode(r io.Reader, configOnly bool) error {
 					return err
 				}
 			} else {
+				if d.globalColorTable == nil {
+					return errors.New("gif: no color table")
+				}
 				m.Palette = d.globalColorTable
 			}
 			if d.hasTransparentIndex && int(d.transparentIndex) < len(m.Palette) {
@@ -199,9 +202,18 @@ func (d *decoder) decode(r io.Reader, configOnly bool) error {
 				}
 				return errNotEnough
 			}
-			// Both lzwr and br should be exhausted. Reading from them
-			// should yield (0, io.EOF).
-			if n, err := lzwr.Read(d.tmp[:1]); n != 0 || err != io.EOF {
+			// Both lzwr and br should be exhausted. Reading from them should
+			// yield (0, io.EOF).
+			//
+			// The spec (Appendix F - Compression), says that "An End of
+			// Information code... must be the last code output by the encoder
+			// for an image". In practice, though, giflib (a widely used C
+			// library) does not enforce this, so we also accept lzwr returning
+			// io.ErrUnexpectedEOF (meaning that the encoded stream hit io.EOF
+			// before the LZW decoder saw an explict end code), provided that
+			// the io.ReadFull call above successfully read len(m.Pix) bytes.
+			// See http://golang.org/issue/9856 for an example GIF.
+			if n, err := lzwr.Read(d.tmp[:1]); n != 0 || (err != io.EOF && err != io.ErrUnexpectedEOF) {
 				if err != nil {
 					return err
 				}
@@ -268,7 +280,6 @@ func (d *decoder) readHeaderAndScreenDescriptor() error {
 		}
 	}
 	// d.tmp[12] is the Pixel Aspect Ratio, which is ignored.
-	d.loopCount = -1
 	return nil
 }
 

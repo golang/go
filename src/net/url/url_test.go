@@ -13,7 +13,7 @@ import (
 
 type URLTest struct {
 	in        string
-	out       *URL
+	out       *URL   // expected parse; RawPath="" means same as Path
 	roundtrip string // expected result of reserializing the URL; empty means same as "in".
 }
 
@@ -41,11 +41,12 @@ var urltests = []URLTest{
 	{
 		"http://www.google.com/file%20one%26two",
 		&URL{
-			Scheme: "http",
-			Host:   "www.google.com",
-			Path:   "/file one&two",
+			Scheme:  "http",
+			Host:    "www.google.com",
+			Path:    "/file one&two",
+			RawPath: "/file%20one%26two",
 		},
-		"http://www.google.com/file%20one&two",
+		"",
 	},
 	// user
 	{
@@ -369,6 +370,18 @@ var urltests = []URLTest{
 		},
 		"http://[fe80::1%25en01-._~]:8080/",
 	},
+	// alternate escapings of path survive round trip
+	{
+		"http://rest.rsc.io/foo%2fbar/baz%2Fquux?alt=media",
+		&URL{
+			Scheme:   "http",
+			Host:     "rest.rsc.io",
+			Path:     "/foo/bar/baz/quux",
+			RawPath:  "/foo%2fbar/baz%2Fquux",
+			RawQuery: "alt=media",
+		},
+		"",
+	},
 }
 
 // more useful string for debugging than fmt's struct printer
@@ -380,8 +393,8 @@ func ufmt(u *URL) string {
 			pass = p
 		}
 	}
-	return fmt.Sprintf("opaque=%q, scheme=%q, user=%#v, pass=%#v, host=%q, path=%q, rawq=%q, frag=%q",
-		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawQuery, u.Fragment)
+	return fmt.Sprintf("opaque=%q, scheme=%q, user=%#v, pass=%#v, host=%q, path=%q, rawpath=%q, rawq=%q, frag=%q",
+		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawPath, u.RawQuery, u.Fragment)
 }
 
 func DoTest(t *testing.T, parse func(string) (*URL, error), name string, tests []URLTest) {
@@ -973,6 +986,25 @@ var requritests = []RequestURITest{
 		},
 		"http://other.example.com/%2F/%2F/",
 	},
+	// better fix for issue 4860
+	{
+		&URL{
+			Scheme:  "http",
+			Host:    "example.com",
+			Path:    "/////",
+			RawPath: "/%2F/%2F/",
+		},
+		"/%2F/%2F/",
+	},
+	{
+		&URL{
+			Scheme:  "http",
+			Host:    "example.com",
+			Path:    "/////",
+			RawPath: "/WRONG/", // ignored because doesn't match Path
+		},
+		"/////",
+	},
 	{
 		&URL{
 			Scheme:   "http",
@@ -981,6 +1013,26 @@ var requritests = []RequestURITest{
 			RawQuery: "q=go+language",
 		},
 		"/a%20b?q=go+language",
+	},
+	{
+		&URL{
+			Scheme:   "http",
+			Host:     "example.com",
+			Path:     "/a b",
+			RawPath:  "/a b", // ignored because invalid
+			RawQuery: "q=go+language",
+		},
+		"/a%20b?q=go+language",
+	},
+	{
+		&URL{
+			Scheme:   "http",
+			Host:     "example.com",
+			Path:     "/a?b",
+			RawPath:  "/a?b", // ignored because invalid
+			RawQuery: "q=go+language",
+		},
+		"/a%3Fb?q=go+language",
 	},
 	{
 		&URL{
@@ -1015,6 +1067,50 @@ func TestParseFailure(t *testing.T) {
 	errStr := fmt.Sprint(err)
 	if !strings.Contains(errStr, "%gh") {
 		t.Errorf(`ParseQuery(%q) returned error %q, want something containing %q"`, url, errStr, "%gh")
+	}
+}
+
+func TestParseAuthority(t *testing.T) {
+	tests := []struct {
+		in      string
+		wantErr bool
+	}{
+		{"http://[::1]", false},
+		{"http://[::1]:80", false},
+		{"http://[::1]:namedport", true}, // rfc3986 3.2.3
+		{"http://[::1]/", false},
+		{"http://[::1]a", true},
+		{"http://[::1]%23", true},
+		{"http://[::1%25en0]", false}, // valid zone id
+		{"http://[::1]:", true},       // colon, but no port
+		{"http://[::1]:%38%30", true}, // no hex in port
+		{"http://[::1%25%10]", false}, // TODO: reject the %10 after the valid zone %25 separator?
+		{"http://[%10::1]", true},     // no %xx escapes in IP address
+		{"http://[::1]/%48", false},   // %xx in path is fine
+		{"http://%41:8080/", true},    // TODO: arguably we should accept reg-name with %xx
+	}
+	for _, tt := range tests {
+		u, err := Parse(tt.in)
+		if tt.wantErr {
+			if err == nil {
+				t.Errorf("Parse(%q) = %#v; want an error", tt.in, u)
+			}
+			continue
+		}
+		if err != nil {
+			t.Logf("Parse(%q) = %v; want no error", tt.in, err)
+		}
+	}
+}
+
+// Issue 11202
+func TestStarRequest(t *testing.T) {
+	u, err := Parse("*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := u.RequestURI(), "*"; got != want {
+		t.Errorf("RequestURI = %q; want %q", got, want)
 	}
 }
 

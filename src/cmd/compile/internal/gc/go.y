@@ -1392,6 +1392,7 @@ xfndcl:
 		$$.Noescape = noescape;
 		$$.Func.Nosplit = nosplit;
 		$$.Func.Nowritebarrier = nowritebarrier;
+		$$.Func.Systemstack = systemstack;
 		funcbody($$);
 	}
 
@@ -1580,6 +1581,7 @@ xdcl_list:
 		noescape = false
 		nosplit = false
 		nowritebarrier = false
+		systemstack = false
 	}
 
 vardcl_list:

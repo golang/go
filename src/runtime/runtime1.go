@@ -306,33 +306,37 @@ type dbgVar struct {
 // existing int var for that value, which may
 // already have an initial value.
 var debug struct {
-	allocfreetrace int32
-	efence         int32
-	gcdead         int32
-	gctrace        int32
-	invalidptr     int32
-	scavenge       int32
-	scheddetail    int32
-	schedtrace     int32
-	wbshadow       int32
-	gccheckmark    int32
-	sbrk           int32
-	gcpacertrace   int32
+	allocfreetrace    int32
+	efence            int32
+	gccheckmark       int32
+	gcpacertrace      int32
+	gcshrinkstackoff  int32
+	gcstackbarrieroff int32
+	gcstoptheworld    int32
+	gctrace           int32
+	invalidptr        int32
+	sbrk              int32
+	scavenge          int32
+	scheddetail       int32
+	schedtrace        int32
+	wbshadow          int32
 }
 
 var dbgvars = []dbgVar{
 	{"allocfreetrace", &debug.allocfreetrace},
 	{"efence", &debug.efence},
-	{"gcdead", &debug.gcdead},
+	{"gccheckmark", &debug.gccheckmark},
+	{"gcpacertrace", &debug.gcpacertrace},
+	{"gcshrinkstackoff", &debug.gcshrinkstackoff},
+	{"gcstackbarrieroff", &debug.gcstackbarrieroff},
+	{"gcstoptheworld", &debug.gcstoptheworld},
 	{"gctrace", &debug.gctrace},
 	{"invalidptr", &debug.invalidptr},
+	{"sbrk", &debug.sbrk},
 	{"scavenge", &debug.scavenge},
 	{"scheddetail", &debug.scheddetail},
 	{"schedtrace", &debug.schedtrace},
 	{"wbshadow", &debug.wbshadow},
-	{"gccheckmark", &debug.gccheckmark},
-	{"sbrk", &debug.sbrk},
-	{"gcpacertrace", &debug.gcpacertrace},
 }
 
 func parsedebugvars() {

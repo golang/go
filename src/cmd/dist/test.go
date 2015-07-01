@@ -410,14 +410,25 @@ func (t *tester) registerTests() {
 		t.registerTest("testgodefs", "../misc/cgo/testgodefs", "./test.bash")
 	}
 	if t.cgoEnabled {
-		if t.gohostos == "windows" {
+		if t.cgoTestSOSupported() {
 			t.tests = append(t.tests, distTest{
 				name:    "testso",
 				heading: "../misc/cgo/testso",
-				fn:      t.cgoTestSOWindows,
+				fn: func() error {
+					return t.cgoTestSO("misc/cgo/testso")
+				},
 			})
-		} else if t.hasBash() && t.goos != "android" && !t.iOS() {
-			t.registerTest("testso", "../misc/cgo/testso", "./test.bash")
+			if t.goos == "darwin" {
+				fmt.Println("Skipping misc/cgo/testsovar test. See issue 10360 for details.")
+			} else {
+				t.tests = append(t.tests, distTest{
+					name:    "testsovar",
+					heading: "../misc/cgo/testsovar",
+					fn: func() error {
+						return t.cgoTestSO("misc/cgo/testsovar")
+					},
+				})
+			}
 		}
 		if t.supportedBuildmode("c-archive") {
 			t.registerTest("testcarchive", "../misc/cgo/testcarchive", "./test.bash")
@@ -560,7 +571,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 	case "c-shared":
 		// TODO(hyangah): add linux-386.
 		switch pair {
-		case "linux-amd64", "android-arm":
+		case "linux-amd64", "darwin-amd64", "android-arm":
 			return true
 		}
 		return false
@@ -602,21 +613,22 @@ func (t *tester) cgoTest() error {
 
 	pair := t.gohostos + "-" + t.goarch
 	switch pair {
-	case "openbsd-386", "openbsd-amd64":
+	case "darwin-386", "darwin-amd64",
+		"openbsd-386", "openbsd-amd64",
+		"windows-386", "windows-amd64":
 		// test linkmode=external, but __thread not supported, so skip testtls.
+		if !t.extLink() {
+			break
+		}
 		cmd := t.dirCmd("misc/cgo/test", "go", "test", "-ldflags", "-linkmode=external")
 		cmd.Env = env
 		if err := cmd.Run(); err != nil {
 			return err
 		}
-	case "darwin-386", "darwin-amd64",
-		"windows-386", "windows-amd64":
-		if t.extLink() {
-			cmd := t.dirCmd("misc/cgo/test", "go", "test", "-ldflags", "-linkmode=external")
-			cmd.Env = env
-			if err := cmd.Run(); err != nil {
-				return err
-			}
+		cmd = t.dirCmd("misc/cgo/test", "go", "test", "-ldflags", "-linkmode=external -s")
+		cmd.Env = env
+		if err := cmd.Run(); err != nil {
+			return err
 		}
 	case "android-arm",
 		"dragonfly-386", "dragonfly-amd64",
@@ -714,21 +726,68 @@ func (t *tester) cgoTest() error {
 	return nil
 }
 
-func (t *tester) cgoTestSOWindows() error {
-	cmd := t.dirCmd("misc/cgo/testso", `.\test`)
-	var buf bytes.Buffer
-	cmd.Stdout = &buf
-	cmd.Stderr = &buf
-	err := cmd.Run()
-	s := buf.String()
-	fmt.Println(s)
+func (t *tester) cgoTestSOSupported() bool {
+	if t.goos == "android" || t.iOS() {
+		// No exec facility on Android or iOS.
+		return false
+	}
+	if t.goos == "ppc64le" || t.goos == "ppc64" {
+		// External linking not implemented on ppc64 (issue #8912).
+		return false
+	}
+	return true
+}
+
+func (t *tester) cgoTestSO(testpath string) error {
+	dir := filepath.Join(t.goroot, testpath)
+
+	// build shared object
+	output, err := exec.Command("go", "env", "CC").Output()
 	if err != nil {
+		return fmt.Errorf("Error running go env CC: %v", err)
+	}
+	cc := strings.TrimSuffix(string(output), "\n")
+	if cc == "" {
+		return errors.New("CC environment variable (go env CC) cannot be empty")
+	}
+	output, err = exec.Command("go", "env", "GOGCCFLAGS").Output()
+	if err != nil {
+		return fmt.Errorf("Error running go env GOGCCFLAGS: %v", err)
+	}
+	gogccflags := strings.Split(strings.TrimSuffix(string(output), "\n"), " ")
+
+	ext := "so"
+	args := append(gogccflags, "-shared")
+	switch t.goos {
+	case "darwin":
+		ext = "dylib"
+		args = append(args, "-undefined", "suppress", "-flat_namespace")
+	case "windows":
+		ext = "dll"
+		args = append(args, "-DEXPORT_DLL")
+	}
+	sofname := "libcgosotest." + ext
+	args = append(args, "-o", sofname, "cgoso_c.c")
+
+	if err := t.dirCmd(dir, cc, args...).Run(); err != nil {
 		return err
 	}
-	if strings.Contains(s, "FAIL") {
-		return errors.New("test failed")
+	defer os.Remove(filepath.Join(dir, sofname))
+
+	if err := t.dirCmd(dir, "go", "build", "-o", "main.exe", "main.go").Run(); err != nil {
+		return err
 	}
-	return nil
+	defer os.Remove(filepath.Join(dir, "main.exe"))
+
+	cmd := t.dirCmd(dir, "./main.exe")
+	if t.goos != "windows" {
+		s := "LD_LIBRARY_PATH"
+		if t.goos == "darwin" {
+			s = "DYLD_LIBRARY_PATH"
+		}
+		cmd.Env = mergeEnvLists([]string{s + "=."}, os.Environ())
+	}
+	return cmd.Run()
 }
 
 func (t *tester) hasBash() bool {

@@ -7,6 +7,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -51,15 +52,9 @@ func runAddr2Line(t *testing.T, exepath, addr string) (funcname, path, lineno st
 	funcname = f[0]
 	pathAndLineNo := f[1]
 	f = strings.Split(pathAndLineNo, ":")
-	if runtime.GOOS == "windows" {
-		switch len(f) {
-		case 2:
-			return funcname, f[0], f[1]
-		case 3:
-			return funcname, f[0] + ":" + f[1], f[2]
-		default:
-			t.Fatalf("no line number found in %q", pathAndLineNo)
-		}
+	if runtime.GOOS == "windows" && len(f) == 3 {
+		// Reattach drive letter.
+		f = []string{f[0] + ":" + f[1], f[2]}
 	}
 	if len(f) != 2 {
 		t.Fatalf("no line number found in %q", pathAndLineNo)
@@ -85,22 +80,14 @@ func testAddr2Line(t *testing.T, exepath, addr string) {
 	if !os.SameFile(fi1, fi2) {
 		t.Fatalf("addr2line_test.go and %s are not same file", srcPath)
 	}
-	if srcLineNo != "94" {
-		t.Fatalf("line number = %v; want 94", srcLineNo)
+	if srcLineNo != "89" {
+		t.Fatalf("line number = %v; want 89", srcLineNo)
 	}
 }
 
-// This is line 93. The test depends on that.
+// This is line 88. The test depends on that.
 func TestAddr2Line(t *testing.T) {
-	switch runtime.GOOS {
-	case "nacl", "android":
-		t.Skipf("skipping on %s", runtime.GOOS)
-	case "darwin":
-		switch runtime.GOARCH {
-		case "arm", "arm64":
-			t.Skipf("skipping on %s/%s, cannot fork", runtime.GOOS, runtime.GOARCH)
-		}
-	}
+	testenv.MustHaveGoBuild(t)
 
 	syms := loadSyms(t)
 

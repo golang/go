@@ -106,7 +106,7 @@ func (check *Checker) declarePkgObj(ident *ast.Ident, obj Object, d *declInfo) {
 		return
 	}
 
-	check.declare(check.pkg.scope, ident, obj)
+	check.declare(check.pkg.scope, ident, obj, token.NoPos)
 	check.objMap[obj] = d
 	obj.setOrder(uint32(len(check.objMap)))
 }
@@ -139,7 +139,14 @@ func (check *Checker) collectObjects() {
 		// but there is no corresponding package object.
 		check.recordDef(file.Name, nil)
 
-		fileScope := NewScope(check.pkg.scope, check.filename(fileNo))
+		// Use the actual source file extent rather than *ast.File extent since the
+		// latter doesn't include comments which appear at the start or end of the file.
+		// Be conservative and use the *ast.File extent if we don't have a *token.File.
+		pos, end := file.Pos(), file.End()
+		if f := check.fset.File(file.Pos()); f != nil {
+			pos, end = token.Pos(f.Base()), token.Pos(f.Base()+f.Size())
+		}
+		fileScope := NewScope(check.pkg.scope, pos, end, check.filename(fileNo))
 		check.recordScope(file, fileScope)
 
 		for _, decl := range file.Decls {
@@ -224,7 +231,7 @@ func (check *Checker) collectObjects() {
 									// information because the same package - found
 									// via Config.Packages - may be dot-imported in
 									// another package!)
-									check.declare(fileScope, nil, obj)
+									check.declare(fileScope, nil, obj, token.NoPos)
 									check.recordImplicit(s, obj)
 								}
 							}
@@ -233,7 +240,7 @@ func (check *Checker) collectObjects() {
 							check.addUnusedDotImport(fileScope, imp, s.Pos())
 						} else {
 							// declare imported package object in file scope
-							check.declare(fileScope, nil, obj)
+							check.declare(fileScope, nil, obj, token.NoPos)
 						}
 
 					case *ast.ValueSpec:
@@ -323,7 +330,7 @@ func (check *Checker) collectObjects() {
 							check.softErrorf(obj.pos, "missing function body")
 						}
 					} else {
-						check.declare(pkg.scope, d.Name, obj)
+						check.declare(pkg.scope, d.Name, obj, token.NoPos)
 					}
 				} else {
 					// method

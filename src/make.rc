@@ -19,10 +19,10 @@
 #
 # GOOS: The target operating system for installed packages and tools.
 #
-# GO_GCFLAGS: Additional 5g/6g/8g arguments to use when
+# GO_GCFLAGS: Additional go tool compile arguments to use when
 # building the packages and commands.
 #
-# GO_LDFLAGS: Additional 5l/6l/8l arguments to use when
+# GO_LDFLAGS: Additional go tool link arguments to use when
 # building the commands.
 #
 # CGO_ENABLED: Controls cgo usage during the build. Set it to 1
@@ -41,7 +41,7 @@ rm -f ./runtime/runtime_defs.go
 # Determine the host compiler toolchain.
 eval `{grep '^(CC|LD|O)=' /$objtype/mkfile}
 
-echo '# Building Go bootstrap tool.'
+echo '##### Building Go bootstrap tool.'
 echo cmd/dist
 GOROOT = `{cd .. && pwd}
 if(! ~ $#GOROOT_BOOTSTRAP 1)
@@ -79,13 +79,13 @@ if(~ $sysname vx32)
 	pflag = (-p 1)
 
 if(! ~ $GOHOSTARCH $GOARCH || ! ~ $GOHOSTOS $GOOS){
-	echo '# Building packages and commands for host,' $GOHOSTOS/$GOHOSTARCH^.
+	echo '##### Building packages and commands for host,' $GOHOSTOS/$GOHOSTARCH^.
 	GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH \
 		$GOTOOLDIR/go_bootstrap install -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std cmd
 	echo
 }
 
-echo '# Building packages and commands for' $GOOS/$GOARCH^.
+echo '##### Building packages and commands for' $GOOS/$GOARCH^.
 $GOTOOLDIR/go_bootstrap install -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std cmd
 echo
 

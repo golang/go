@@ -18,7 +18,7 @@
 /*
  * void crosscall1(void (*fn)(void), void (*setg_gcc)(void *g), void *g)
  *
- * Calling into the 7g tool chain, where all registers are caller save.
+ * Calling into the gc tool chain, where all registers are caller save.
  * Called from standard ARM EABI, where x19-x29 are callee-save, so they
  * must be saved explicitly, along with x30 (LR).
  */

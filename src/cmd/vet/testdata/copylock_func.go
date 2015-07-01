@@ -14,6 +14,11 @@ func BadFunc(sync.Mutex) {} // ERROR "BadFunc passes Lock by value: sync.Mutex"
 func OkRet() *sync.Mutex {}
 func BadRet() sync.Mutex {} // ERROR "BadRet returns Lock by value: sync.Mutex"
 
+var (
+	OkClosure  = func(*sync.Mutex) {}
+	BadClosure = func(sync.Mutex) {} // ERROR "func passes Lock by value: sync.Mutex"
+)
+
 type EmbeddedRWMutex struct {
 	sync.RWMutex
 }

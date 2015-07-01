@@ -121,6 +121,11 @@ TEXT runtime·usleep(SB),NOSPLIT,$16-4
 	SYSCALL	$SYS_newselect
 	RET
 
+TEXT runtime·gettid(SB),NOSPLIT,$0-4
+	SYSCALL	$SYS_gettid
+	MOVW	R3, ret+0(FP)
+	RET
+
 TEXT runtime·raise(SB),NOSPLIT,$-8
 	SYSCALL	$SYS_gettid
 	MOVW	R3, R3	// arg 1 tid

@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -38,15 +39,7 @@ func testEnv(cmd *exec.Cmd) *exec.Cmd {
 }
 
 func executeTest(t *testing.T, templ string, data interface{}, extra ...string) string {
-	switch runtime.GOOS {
-	case "android", "nacl":
-		t.Skipf("skipping on %s", runtime.GOOS)
-	case "darwin":
-		switch runtime.GOARCH {
-		case "arm", "arm64":
-			t.Skipf("skipping on %s/%s, no fork", runtime.GOOS, runtime.GOARCH)
-		}
-	}
+	testenv.MustHaveGoBuild(t)
 
 	checkStaleRuntime(t)
 

@@ -347,9 +347,9 @@ func (g *Generator) errorf(format string, args ...interface{}) {
 func (g *Generator) expandVar(word string) string {
 	switch word {
 	case "GOARCH":
-		return runtime.GOARCH
+		return buildContext.GOARCH
 	case "GOOS":
-		return runtime.GOOS
+		return buildContext.GOOS
 	case "GOFILE":
 		return g.file
 	case "GOLINE":
