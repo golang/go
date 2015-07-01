@@ -1321,7 +1321,8 @@ type ssaExport struct {
 // is a global string constant containing s.
 func (*ssaExport) StringSym(s string) interface{} {
 	// TODO: is idealstring correct?  It might not matter...
-	return &ssa.ExternSymbol{Typ: idealstring, Sym: stringsym(s)}
+	hdr, _ := stringsym(s)
+	return &ssa.ExternSymbol{Typ: idealstring, Sym: hdr}
 }
 
 // Log logs a message from the compiler.
