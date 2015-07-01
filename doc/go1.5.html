@@ -215,9 +215,9 @@ On NaCl, Go 1.5 requires SDK version pepper-39 or above because it now uses the
 <code>get_random_bytes</code> system call.
 </p>
 
-<pre>
-Tools:
+<h2 id="tools">Tools</h2>
 
+<pre>
 build: external linking support for windows (https://golang.org/cl/7163, 7282, 7283, 7284, 7534, 7535)
 cmd/cover: tool now lives in the standard repository (https://golang.org/cl/9560)
 cmd/gc: constant arithmetic is based on math/big (https://golang.org/cl/7830, 7851, 7857, 8426, 7858, 7912, 8171)
@@ -241,29 +241,6 @@ cmd/gc: add -dynlink option (for amd64 only)
 cmd/ld: add -buildmode option
 cmd/trace: new command to view traces (https://golang.org/cl/3601)
 
-Performance:
-
-cmd/gc: evaluate concrete == interface without allocating (https://golang.org/cl/2096)
-cmd/gc: optimize memclr of slices and arrays (https://golang.org/cl/2520)
-cmd/gc: transform closure calls to function calls (https://golang.org/cl/4050)
-cmd/gc: transitive inlining (https://golang.org/cl/5952)
-cmd/gc, runtime: speed up some cases of _, ok := i.(T) (https://golang.org/cl/7697)
-cmd/gc: speed up large string switches (https://golang.org/cl/7698)
-cmd/gc: inline x := y.(*T) and x, ok := y.(*T) (https://golang.org/cl/7862)
-cmd/gc: allocate backing storage for non-escaping interfaces on stack (https://golang.org/cl/8201)
-encoding/xml: avoid an allocation for tags without attributes (https://golang.org/cl/4160)
-image: many optimizations
-runtime: add ARM runtime.cmpstring and bytes.Compare (https://golang.org/cl/8010)
-runtime: do not scan maps when k/v do not contain pointers (https://golang.org/cl/3288)
-runtime: reduce thrashing of gs between ps (https://golang.org/cl/9872)
-sort: number of Sort performance optimizations (https://golang.org/cl/2100, https://golang.org/cl/2614, ...)
-strconv: optimize decimal to string conversion (https://golang.org/cl/2105)
-strconv: optimize float to string conversion (https://golang.org/cl/5600)
-sync: add active spinning to Mutex (https://golang.org/cl/5430)
-math/big: faster assembly kernels for amd64 and 386 (https://golang.org/cl/2503, https://golang.org/cl/2560)
-math/big: faster "pure Go" kernels for platforms w/o assembly kernels (https://golang.org/cl/2480)
-regexp: port RE2's bitstate backtracker to the regexp package (https://golang.org/cl/2153)
-
 Assembler:
 
 New cmd/asm tool (now use go tool asm, not go tool 6a)
@@ -286,6 +263,32 @@ ARM assembly syntax has had some features removed.
 
 Also expression evaluation now uses uint64s instead of signed integers and the
 precedence of operators is now Go-like rather than C-like.
+</pre>
+
+<h2 id="performance">Performance</h2>
+
+<pre>
+
+cmd/gc: evaluate concrete == interface without allocating (https://golang.org/cl/2096)
+cmd/gc: optimize memclr of slices and arrays (https://golang.org/cl/2520)
+cmd/gc: transform closure calls to function calls (https://golang.org/cl/4050)
+cmd/gc: transitive inlining (https://golang.org/cl/5952)
+cmd/gc, runtime: speed up some cases of _, ok := i.(T) (https://golang.org/cl/7697)
+cmd/gc: speed up large string switches (https://golang.org/cl/7698)
+cmd/gc: inline x := y.(*T) and x, ok := y.(*T) (https://golang.org/cl/7862)
+cmd/gc: allocate backing storage for non-escaping interfaces on stack (https://golang.org/cl/8201)
+encoding/xml: avoid an allocation for tags without attributes (https://golang.org/cl/4160)
+image: many optimizations
+runtime: add ARM runtime.cmpstring and bytes.Compare (https://golang.org/cl/8010)
+runtime: do not scan maps when k/v do not contain pointers (https://golang.org/cl/3288)
+runtime: reduce thrashing of gs between ps (https://golang.org/cl/9872)
+sort: number of Sort performance optimizations (https://golang.org/cl/2100, https://golang.org/cl/2614, ...)
+strconv: optimize decimal to string conversion (https://golang.org/cl/2105)
+strconv: optimize float to string conversion (https://golang.org/cl/5600)
+sync: add active spinning to Mutex (https://golang.org/cl/5430)
+math/big: faster assembly kernels for amd64 and 386 (https://golang.org/cl/2503, https://golang.org/cl/2560)
+math/big: faster "pure Go" kernels for platforms w/o assembly kernels (https://golang.org/cl/2480)
+regexp: port RE2's bitstate backtracker to the regexp package (https://golang.org/cl/2153)
 </pre>
 
 <h3 id="library">Core library</h3>
@@ -345,6 +348,53 @@ values produce the same results as the corresponding IEEE-754
 arithmetic on those values.
 </p>
 
+<h3 id="go_types">Go types</h3>
+
+<p>
+The <a href="/pkg/go/types/"><code>go/types</code></a> package
+up to now has been maintained in the <code>golang.org/x</code>
+repository; as of Go 1.5 it has been relocated to the main repository.
+The code at the old location is now deprecated.
+There is also a modest API change in the package, discussed below.
+</p>
+
+<p>
+Associated with this move, the
+<a href="/pkg/go/constant/"><code>go/constant</code></a>
+package also moved to the main repository;
+it was <code>golang.org/x/tools/exact</code> before.
+The <a href="/pkg/go/importer/"><code>go/importer</code></a> package
+also moved to the main repository,
+as well as some tools described above.
+</p>
+
+<h3 id="net">Net</h3>
+
+<p>
+The DNS resolver in the net package has almost always used <code>cgo</code> to access
+the system interface.
+A change in Go 1.5 means that on most Unix systems DNS resolution
+will no longer require <code>cgo</code>, which simplifies execution
+on those platforms.
+Now, if the system's networking configuration permits, the native Go resolver
+will suffice.
+The important effect of this change is that each DNS resolution occupies a goroutine
+rather than a thread,
+so a program with multiple outstanding DNS requests will consume fewer operating
+system resources.
+</p>
+
+<p>
+The decision of how to run the resolver applies at run time, not build time.
+The <code>netgo</code> build tag that has been used to enforce the use
+of the Go resolver is no longer necessary, although it still works.
+</p>
+
+<p>
+This change applies to Unix systems only.
+Windows, Mac OS X, and Plan 9 systems behave as before.
+</p>
+
 <h3 id="reflect">Reflect</h3>
 
 <p>
@@ -352,7 +402,7 @@ The <a href="/pkg/reflect/"><code>reflect</code></a> package
 has two new functions: <a href="/pkg/reflect/#ArrayOf"><code>ArrayOf</code></a>
 and <a href="/pkg/reflect/#FuncOf"><code>FuncOf</code></a>.
 These functions, analogous to the extant
-<a href="/pkg/reflect/#SliceOf"><code>SliceOf</code></a>function,
+<a href="/pkg/reflect/#SliceOf"><code>SliceOf</code></a> function,
 create new types at runtime to describe arrays and functions.
 </p>
 
@@ -489,6 +539,16 @@ This is not a promise that it will.
 </li>
 
 <li>
+The (newly migrated) <a href="/pkg/go/types/"><code>go/types</code></a>
+package allows one to control the prefix attached to package-level names using
+the new <a href="/pkg/go/types/#Qualifier"><code>Qualifier</code></a>
+function type as an argument to several functions. This is an API change for
+the package, but since it is new to the core, it is not breaking the Go 1 compatibility
+rules since code that uses the package must explicitly ask for it at its new location.
+TODO: There should be a gofix for this.
+</li>
+
+<li>
 The <a href="/pkg/io/"><code>io</code></a> package
 adds a <a href="/pkg/io/#CopyBuffer"><code>CopyBuffer</code></a> function
 that is like <a href="/pkg/io/#Copy"><code>Copy</code></a> but
@@ -530,15 +590,23 @@ package that implements the quoted-printable encoding defined by RFC 2045.
 </li>
 
 <li>
-TODO net: add sequential and RFC 6555-compliant TCP dialing (https://golang.org/cl/8768)
+Go 1.5's <a href="/pkg/net/"><code>net</code></a> package
+adds RFC-6555-compliant dialing for sites with multiple TCP
+addresses listed in DNS.
+A new <code>DualStack</code> field
+in <a href="/pkg/net/#Dialer"><code>Dialer</code></a> enables the feature. 
 </li>
 
 <li>
-TODO net: add Source field to OpError (https://go-review.googlesource.com/9231)
-</li>
-
-<li>
-TODO net: fix inconsistent errors (https://golang.org/cl/9236)
+A number of inconsistencies in the types returned by errors in the
+<a href="/pkg/net/"><code>net</code></a> package have been
+tidied up.
+Most now return an
+<a href="/pkg/net/#OpError"><code>OpError</code></a> value
+with more information than before.
+Also, the <a href="/pkg/net/#OpError"><code>OpError</code></a>
+type now includes a <code>Source</code> field that holds the local
+network address.
 </li>
 
 <li>
@@ -546,27 +614,39 @@ TODO net: add SocketConn, SocketPacketConn (https://golang.org/cl/9275)
 </li>
 
 <li>
-TODO net: use Go's DNS resolver when system configuration permits (https://golang.org/cl/8945)
+The <a href="/pkg/net/http/"><code>net/http</code></a> package now
+has support for setting trailers from a server <a href="/pkg/net/http/#Handler"><code>Handler</code></a>.
+For details, see the documentation for
+<a href="/pkg/net/http/#ResponseWriter"><code>ResponseWriter</code></a>.
 </li>
 
 <li>
-TODO net/http: support for setting trailers from a server Handler (https://golang.org/cl/2157)
+Also in the <a href="/pkg/net/http/"><code>net/http</code></a> package,
+there is code to ignore the zero <a href="/pkg/time/#Time"><code>Time</code></a> value
+in the <a href="/pkg/net/#ServeContent"><code>ServeContent</code></a> function.
+As of Go 1.5, it now also ignores a time value equal to the Unix epoch.
 </li>
 
 <li>
-TODO net/http: ignore the Unix epoch time in ServeContent (https://golang.org/cl/7915)
+The <a href="/pkg/net/http/cgi/"><code>net/http/cgi</code></a> package
+had a bug that mishandled the values of the environment variables
+<code>REMOTE_ADDR</code> ad <code>REMOTE_HOST</code>.
+This has been fixed.
+Also, starting with Go 1.5 the package sets the <code>REMOTE_PORT</code>
+variable.
 </li>
 
 <li>
-TODO net/http/cgi: fix REMOTE_ADDR, REMOTE_HOST, add REMOTE_PORT (https://golang.org/cl/4933)
+The <a href="/pkg/net/mail/"><code>net/mail</code></a> package
+adds a <a href="/pkg/net/mail/#AddressParser"><code>AddressParser</code></a>
+type that can parse mail addresses.
 </li>
 
 <li>
-TODO net/mail: adds AddressParser type (https://golang.org/cl/10392)
-</li>
-
-<li>
-TODO net/smtp: add TLSConnectionState accessor (https://golang.org/cl/2151)
+The <a href="/pkg/net/smtp/"><code>net/smtp</code></a> package
+now has a <a href="/pkg/net/smtp/#Client.TLSConnectionState"><code>TLSConnectionState</code></a>
+accessor to the <a href="/pkg/net/smtp/#Client"><code>Client</code></a>
+type that returns the client's TLS state.
 </li>
 
 <li>
