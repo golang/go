@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"internal/trace"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -67,9 +68,10 @@ func httpTraceViewerHTML(w http.ResponseWriter, r *http.Request) {
 
 // httpJsonTrace serves json trace, requested from within templTrace HTML.
 func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
+	// This is an AJAX handler, so instead of http.Error we use log.Printf to log errors.
 	events, err := parseEvents()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("failed to parse trace: %v", err)
 		return
 	}
 
@@ -81,7 +83,7 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
 	if goids := r.FormValue("goid"); goids != "" {
 		goid, err := strconv.ParseUint(goids, 10, 64)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to parse goid parameter '%v': %v", goids, err), http.StatusInternalServerError)
+			log.Printf("failed to parse goid parameter '%v': %v", goids, err)
 			return
 		}
 		analyzeGoroutines(events)
@@ -95,7 +97,7 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
 
 	err = json.NewEncoder(w).Encode(generateTrace(params))
 	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to serialize trace: %v", err), http.StatusInternalServerError)
+		log.Printf("failed to serialize trace: %v", err)
 		return
 	}
 }
