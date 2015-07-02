@@ -254,6 +254,8 @@ func parseEvents(rawEvents []rawEvent) (events []*Event, err error) {
 	}
 
 	// Sort by time and translate cpu ticks to real time.
+	// Use stable sort because adjacent events in a batch can have the same timestamp
+	// (this was observed on some VMs).
 	sort.Stable(eventList(events))
 	if ticksPerSec == 0 {
 		err = fmt.Errorf("no EvFrequency event")
