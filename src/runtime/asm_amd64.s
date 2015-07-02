@@ -1445,6 +1445,8 @@ TEXT runtime·cmpbody(SB),NOSPLIT,$0-0
 	CMPQ	R8, $8
 	JB	small
 
+	CMPQ	R8, $63
+	JA	big_loop
 loop:
 	CMPQ	R8, $16
 	JBE	_0through16
@@ -1459,6 +1461,17 @@ loop:
 	SUBQ	$16, R8
 	JMP	loop
 	
+diff64:
+	ADDQ	$48, SI
+	ADDQ	$48, DI
+	JMP	diff16
+diff48:
+	ADDQ	$32, SI
+	ADDQ	$32, DI
+	JMP	diff16
+diff32:
+	ADDQ	$16, SI
+	ADDQ	$16, DI
 	// AX = bit mask of differences
 diff16:
 	BSFQ	AX, BX	// index of first byte that differs
@@ -1544,6 +1557,43 @@ allsame:
 	LEAQ	-1(CX)(AX*2), AX	// 1,0,-1 result
 	MOVQ	AX, (R9)
 	RET
+
+	// this works for >= 64 bytes of data.
+big_loop:
+	MOVOU	(SI), X0
+	MOVOU	(DI), X1
+	PCMPEQB X0, X1
+	PMOVMSKB X1, AX
+	XORQ	$0xffff, AX
+	JNE	diff16
+
+	MOVOU	16(SI), X0
+	MOVOU	16(DI), X1
+	PCMPEQB X0, X1
+	PMOVMSKB X1, AX
+	XORQ	$0xffff, AX
+	JNE	diff32
+
+	MOVOU	32(SI), X0
+	MOVOU	32(DI), X1
+	PCMPEQB X0, X1
+	PMOVMSKB X1, AX
+	XORQ	$0xffff, AX
+	JNE	diff48
+
+	MOVOU	48(SI), X0
+	MOVOU	48(DI), X1
+	PCMPEQB X0, X1
+	PMOVMSKB X1, AX
+	XORQ	$0xffff, AX
+	JNE	diff64
+
+	ADDQ	$64, SI
+	ADDQ	$64, DI
+	SUBQ	$64, R8
+	CMPQ	R8, $64
+	JBE	loop
+	JMP	big_loop
 
 TEXT bytes·IndexByte(SB),NOSPLIT,$0-40
 	MOVQ s+0(FP), SI
