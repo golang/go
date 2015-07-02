@@ -126,8 +126,8 @@ type SignerOpts interface {
 }
 
 // Decrypter is an interface for an opaque private key that can be used for
-// asymmetric decryption operations. For example, an RSA key kept in a hardware
-// module.
+// asymmetric decryption operations. An example would be an RSA key
+// kept in a hardware module.
 type Decrypter interface {
 	// Public returns the public key corresponding to the opaque,
 	// private key.
