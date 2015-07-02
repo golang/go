@@ -241,29 +241,85 @@ cmd/gc: add -dynlink option (for amd64 only)
 cmd/ld: add -buildmode option
 cmd/trace: new command to view traces (https://golang.org/cl/3601)
 
-Assembler:
-
-New cmd/asm tool (now use go tool asm, not go tool 6a)
-
-Assembler now supports -dynlink option.
-
-ARM assembly syntax has had some features removed.
-
-	- mentioning SP or PC as a hardware register
-		These are always pseudo-registers except that in some contexts
-		they're not, and it's confusing because the context should not affect
-		which register you mean. Change the references to the hardware
-		registers to be explicit: R13 for SP, R15 for PC.
-	- constant creation using assignment
-		The files say a=b when they could instead say #define a b.
-		There is no reason to have both mechanisms.
-	- R(0) to refer to R0.
-		Some macros use this to a great extent. Again, it's easy just to
-		use a #define to rename a register.
-
-Also expression evaluation now uses uint64s instead of signed integers and the
-precedence of operators is now Go-like rather than C-like.
 </pre>
+
+<h3 id="assembler">Assembler</h3>
+
+<p>
+The assembler in Go 1.5 is a single new Go program that replaces
+the suite of C-language assemblers (<code>6a</code>,
+<code>8a</code>, etc.) in previous releases.
+The values of the environmetn variables
+<code>GOARCH</code> and <code>GOOS</code>
+choose which architecture and operating system the generated
+code will be for.
+This is practical because the assembly language syntax has always
+been idiosyncratic and nearly uniform across architectures;
+what differs is just the list of instructions available and the
+syntax of some addressing modes.
+With the variation easily configured at startup, a single
+assembler binary can cover all architectures.
+(See the updated <a href="/doc/asm">assembler guide</a>
+for more information about the language and some of
+the changes listed below.)
+</p>
+ 
+ <p>
+The new assembler is very nearly compatible with the previous
+one, but there are a few changes that may affect some
+assembler source files.
+</p>
+
+<p>
+First, the expression evaluation used for constants is a little
+different.
+It now uses unsigned 64-bit arithmetic and the precedence
+of operators (<code>+</code>, <code>-</code>, <code><<</code>, etc.)
+comes from Go, not C.
+Since there are few assembly programs to start with, and few use
+complex arithmetic expressions,
+and of those even fewer will be affected by these changes, we expect
+almost no programs will need to be updated.
+</p>
+
+<p>
+Perhaps more important is that some discrepancies between the
+architectures in how the PC and SP are handled have been
+eliminated.
+Sometimes these registers represented hardware
+registers, and sometimes pseudo-registers.
+As of Go 1.5, the names <code>PC</code> and <code>SP</code>
+are always pseudo-registers.
+To refer to the hardware register, use the alternate representation such
+as <code>R13</code> for the stack pointer and
+<code>R15</code> for the hardware program counter on x86.
+(The names are different on other architectures.)
+To help enforce this change, references to the
+<code>SP</code> and <code>PC</code>
+pseudo-registers now always require an identifier:
+<code>f+4(SP)</code> not <code>4(SP)</code>;
+it is a syntax error to omit the identifier.
+Uses of <code>SP</code> (say) as a hardware register
+tend to omit the name, and they will now be flagged by
+the assembler.
+</p>
+
+<p>
+One minor change is that some of the old assemblers
+permitted the notation
+</p>
+
+<pre>
+constant=value
+</pre>
+
+<p>
+to define a named constant.
+Since this is always possible to do with the traditional
+C-like <code>#define</code> notation, which is still
+supported (the assembler includes an implementation
+of a simplified C preprocessor), the feature was removed.
+</p>
 
 <h2 id="performance">Performance</h2>
 
@@ -465,43 +521,86 @@ function that locates the rightmost byte with that value in the argument.
 </li>
 
 <li>
-TODO crypto/cipher: clarify what will happen if len(src) != len(dst) for the Stream interface. (https://golang.org/cl/1754)
+The <a href="/pkg/crypto/"><code>crypto</code></a> package
+has a new interface, <a href="/pkg/crypto/#Decrypter"><code>Decrypter</code></a>,
+that abstracts the behavior of a private key used in asymmetric decryption.
 </li>
 
 <li>
-TODO crypto/cipher: support non-standard nonce lengths for GCM. (https://golang.org/cl/8946)
+In the <a href="/pkg/crypto/cipher/"><code>crypto/cipher</code></a> package,
+the documentation for the <a href="/pkg/crypto/cipher/#Stream"><code>Stream</code></a>
+interface has been clarified regarding the behavior when the source and destination are
+different lengths.
+If the destination is shorter than the source, the method will panic.
+This is not a change in the implementation, only the documentation.
 </li>
 
 <li>
-TODO crypto/elliptic: add Name field to CurveParams struct (https://golang.org/cl/2133)
+Also in the <a href="/pkg/crypto/cipher/"><code>crypto/cipher</code></a> package,
+there is now support for nonce lengths other than 96 bytes in AES's Galois/Counter mode (GCM),
+which some protocols require.
 </li>
 
 <li>
-TODO crypto/elliptic: Unmarshaling points now automatically checks that the point is on the curve (https://golang.org/cl/2421)
+In the <a href="/pkg/crypto/elliptic/"><code>crypto/elliptic</code></a> package,
+there is now a <code>Name</code> field in the
+<a href="/pkg/crypto/elliptic/#CurveParams"><code>CurveParams</code></a> struct,
+and the curves implemented in the package have been given names.
+These names provide a safer way to select a curve, as opposed to
+selecting its bit size, for cryptographic systems that are curve-dependent.
 </li>
 
 <li>
-TODO crypto/tls: change default minimum version to TLS 1.0. (https://golang.org/cl/1791)
+Also in the <a href="/pkg/crypto/elliptic/"><code>crypto/elliptic</code></a> package,
+the <a href="/pkg/crypto/elliptic/#Unmarshal"><code>Unmarshal</code></a> function
+now verifies that the point is actually on the curve.
+(If it is not, the function returns nils).
+This change guards against certain attacks.
 </li>
 
 <li>
-TODO crypto/tls: including Certificate Transparency SCTs in the handshake is now supported (https://golang.org/cl/8988)
+The <a href="/pkg/crypto/tls/"><code>crypto/tls</code></a> package
+now defaults to TLS 1.0.
+The old default, SSLv3, is still available through <a href="/pkg/crypto/tls/#Config"><code>Config</code></a> if needed.
 </li>
 
 <li>
-TODO crypto/tls: session ticket keys can now be rotated at runtime (https://golang.org/cl/9072)
+Also, the <a href="/pkg/crypto/tls/"><code>crypto/tls</code></a> package
+now supports Signed Certificate Timestamps (SCTs) as specified in RFC 6962.
+The server serves them if they are listed in the
+<a href="/pkg/crypto/tls/#Certificate"><code>Certificate</code></a> struct,
+and the client reqeusts them and exposes them, if present,
+in its <a href="/pkg/crypto/tls/#ConnectionState"><code>ConnectionState</code></a> struct.
+The <a href="/pkg/crytpo/tls/"><code>crytpo/tls</code></a> server implementation
+will also now always call the
+<code>GetCertificate</code> function in
+the <a href="/pkg/crypto/tls/#Config"><code>Config</code></a> struct
+to select a certificate for the connection when none is supplied.
 </li>
 
 <li>
-TODO crypto/tls: servers will now always call GetCertificate to pick a certificate for a connection when Certificates is empty (https://golang.org/cl/8792)
+Finally, the session ticket keys in the
+<a href="/pkg/crypto/tls/"><code>crypto/tls</code></a> package
+can now be rotated (changed periodically during an active connection).
+This is done through the new 
+<a href="/pkg/crypto/tls/#Config.SetSessionTicketKeys"><code>SetSessionTicketKeys</code></a>
+method of the
+<a href="/pkg/crypto/tls/#Config"><code>Config</code></a> type.
 </li>
 
 <li>
-TODO crypto/x509: wildcards are now only accepted as the first label (https://golang.org/cl/5691)
+In the <a href="/pkg/crypto/x509/"><code>crypto/x509</code></a> package,
+wildcards are now accepted only in the leftmost label as defined in
+<a href="https://tools.ietf.org/html/rfc6125#section-6.4.3">the specification</a>.
 </li>
 
 <li>
-TODO crypto/x509: unknown critical extensions now cause errors in Verify, not when parsing (https://golang.org/cl/9390)
+Also in the <a href="/pkg/crypto/x509/"><code>crypto/x509</code></a> package,
+the handling of unknown critical extensions has been changed.
+They used to cause parse errors but now they are parsed and caused errors only
+in <a href="/pkg/crypto/x509/#Certificate.Verify"><code>Verify</code></a>.
+The new field <code>UnhandledCriticalExtensions</code> of
+<a href="/pkg/crypto/x509/#Certificate"><code>Certificate</code></a> records these extensions.
 </li>
 
 <li>
@@ -512,10 +611,36 @@ to retrieve database statistics.
 </li>
 
 <li>
+The <a href="/pkg/debug/dwarf/"><code>debug/dwarf</code></a>
+package has extensive additions to better support DWARF version 4.
+See for example the definition of the new type
+<a href="/pkg/debug/dwarf/#Class"><code>Class</code></a>.
+</li>
+
+<li>
+The <a href="/pkg/debug/elf/"><code>debug/elf</code></a>
+package now has support for the 64-bit Power architecture.
+</li>
+
+<li>
 The <a href="/pkg/encoding/base64/"><code>encoding/base64</code></a> package
 now supports unpadded encodings through two new encoding variables,
 <a href="/pkg/encoding/base64/#RawStdEncoding"><code>RawStdEncoding</code></a> and
 <a href="/pkg/encoding/base64/#RawURLEncoding"><code>RawURLEncoding</code></a>.
+</li>
+
+<li>
+The <a href="/pkg/encoding/json/"><code>encoding/json</code></a> package
+now returns an <a href="/pkg/encoding/json/#UnmarshalTypeError"><code>UnmarshalTypeError</code></a>
+if a JSON value is not appropriate for the target variable or component
+to which it is being unmarshaled.
+</li>
+
+<li>
+The <a href="/pkg/flag/"><code>flag</code></a> package
+has a new function, <a href="/pkg/flag/#UnquoteUsage"><code>UnquoteUsage</code></a>,
+to assist in the creation of usage messages using the new convention
+described above.
 </li>
 
 <li>
@@ -536,6 +661,9 @@ semicolon was implicitly added or was present in the source.
 For forward compatibility the <a href="/pkg/go/build/"><code>go/build</code></a> package
 reserves <code>GOARCH</code> values for  a number of architectures that Go might support one day.
 This is not a promise that it will.
+Also, the <a href="/pkg/go/build/#Package"><code>Package</code></a> struct
+now has a <code>PkgTargetRoot</code> field that stores the
+architecture-dependent root directory in which to install, if known.
 </li>
 
 <li>
@@ -546,6 +674,39 @@ function type as an argument to several functions. This is an API change for
 the package, but since it is new to the core, it is not breaking the Go 1 compatibility
 rules since code that uses the package must explicitly ask for it at its new location.
 TODO: There should be a gofix for this.
+</li>
+
+<li>
+In the <a href="/pkg/image/"><code>image</code></a> package,
+the <a href="/pkg/image/#Rectangle"><code>Rectangle</code></a> type
+now implements the <a href="/pkg/image/#Image"><code>Image</code></a> interface,
+mask image when drawing.
+</li>
+
+<li>
+Also in the <a href="/pkg/image/"><code>image</code></a> package,
+to assist in the handling of some JPEG images,
+there is now support for 4:1:1 and 4:1:0 YCbCr subsampling and basic
+CMYK support, represented by the new image.CMYK struct.
+</li>
+
+<li>
+The <a href="/pkg/image/color/"><code>image/color</code></a> package
+adds basic CMYK support, through the new
+<a href="/pkg/image/color/#CMYK"><code>CMYK</code></a> struct,
+the <a href="/pkg/image/color/#CMYKModel"><code>CMYKModel</code></a> color model, and the
+<a href="/pkg/image/color/#CMYKToRGB"><code>CMYKToRGB</code></a> function, as
+needed by some JPEG images.
+</li>
+
+<li>
+The <a href="/pkg/image/gif/"><code>image/gif</code></a> package
+includes a couple of generalizations.
+A multiple-frame GIF file can now have an overall bounds different
+from all the contained single frames' bounds.
+Also, the <a href="/pkg/image/gif/#GIF"><code>GIF</code></a> struct
+now has a <code>Disposal</code> field
+that specifies the disposal method for each frame.
 </li>
 
 <li>
@@ -579,7 +740,16 @@ method for the <a href="/pkg/math/big/#Int"><code>Int</code></a> type.
 </li>
 
 <li>
-The <a href="/pkg/mime/"><code>mime</code></a> package adds an
+The mime package
+adds a new <a href="/pkg/mime/#WordDecoder"><code>WordDecoder</code></a> type
+to decode MIME headers containing RFC 204-encoded words.
+It also provides <a href="/pkg/mime/#BEncoding"><code>BEncoding</code></a> and
+<a href="/pkg/mime/#QEncoding"><code>QEncoding</code></a>
+as implementations of the encoding schemes of RFC 2045 and RFC 2047.
+</li>
+
+<li>
+The <a href="/pkg/mime/"><code>mime</code></a> package also adds an
 <a href="/pkg/mime/#ExtensionsByType"><code>ExtensionsByType</code></a>
 function that returns the MIME extensions know to be associated with a given MIME type.
 </li>
@@ -610,10 +780,6 @@ network address.
 </li>
 
 <li>
-TODO net: add SocketConn, SocketPacketConn (https://golang.org/cl/9275)
-</li>
-
-<li>
 The <a href="/pkg/net/http/"><code>net/http</code></a> package now
 has support for setting trailers from a server <a href="/pkg/net/http/#Handler"><code>Handler</code></a>.
 For details, see the documentation for
@@ -625,6 +791,14 @@ Also in the <a href="/pkg/net/http/"><code>net/http</code></a> package,
 there is code to ignore the zero <a href="/pkg/time/#Time"><code>Time</code></a> value
 in the <a href="/pkg/net/#ServeContent"><code>ServeContent</code></a> function.
 As of Go 1.5, it now also ignores a time value equal to the Unix epoch.
+</li>
+
+<li>
+The <a href="/pkg/net/http/fcgi/"><code>net/http/fcgi</code></a> package
+exports two new errors,
+<a href="/pkg/net/http/fcgi/#ErrConnClosed"><code>ErrConnClosed</code></a> and
+<a href="/pkg/net/http/fcgi/#ErrRequestAborted"><code>ErrRequestAborted</code></a>,
+to report the corresponding error conditions.
 </li>
 
 <li>
@@ -660,6 +834,20 @@ but can distinguish between an empty environment variable and a missing one.
 The <a href="/pkg/os/signal/"><code>os/signal</code></a> package
 adds new <a href="/pkg/os/signal/#Ignore"><code>Ignore</code></a> and
 <a href="/pkg/os/signal/#Reset"><code>Reset</code></a> functions.
+</li>
+
+<li>
+The <a href="/pkg/runtime/"><code>runtime</code></a>,
+<a href="/pkg/runtime/pprof/"><code>runtime/pprof</code></a>,
+and <a href="/pkg/net/http/pprof/"><code>net/http/pprof</code></a> packages
+each have new functions to support the tracing facilities described above:
+<a href="/pkg/runtime/#ReadTrace"><code>ReadTrace</code></a>,
+<a href="/pkg/runtime/#StartTrace"><code>StartTrace</code></a>,
+<a href="/pkg/runtime/#StopTrace"><code>StopTrace</code></a>,
+<a href="/pkg/runtime/pprof/#StartTrace"><code>StartTrace</code></a>,
+<a href="/pkg/runtime/pprof/#StopTrace"><code>StopTrace</code></a>, and
+<a href="/pkg/net/http/pprof/#Trace"><code>Trace</code></a>.
+See the respective documentation for details.
 </li>
 
 <li>
