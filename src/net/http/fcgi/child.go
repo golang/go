@@ -289,6 +289,8 @@ func (c *child) serveRequest(req *request, body io.ReadCloser) {
 }
 
 func (c *child) cleanUp() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	for _, req := range c.requests {
 		if req.pw != nil {
 			// race with call to Close in c.serveRequest doesn't matter because
