@@ -17,7 +17,7 @@ import (
 type Buffer struct {
 	buf       []byte            // contents are the bytes buf[off : len(buf)]
 	off       int               // read at &buf[off], write at &buf[len(buf)]
-	runeBytes [utf8.UTFMax]byte // avoid allocation of slice on each WriteByte or Rune
+	runeBytes [utf8.UTFMax]byte // avoid allocation of slice on each call to WriteRune
 	bootstrap [64]byte          // memory to hold first slice; helps small buffers (Printf) avoid allocation.
 	lastRead  readOp            // last read operation, so that Unread* can work correctly.
 }
