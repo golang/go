@@ -108,26 +108,23 @@ var (
 
 // IsUnspecified reports whether ip is an unspecified address.
 func (ip IP) IsUnspecified() bool {
-	if ip.Equal(IPv4zero) || ip.Equal(IPv6unspecified) {
-		return true
-	}
-	return false
+	return ip.Equal(IPv4zero) || ip.Equal(IPv6unspecified)
 }
 
 // IsLoopback reports whether ip is a loopback address.
 func (ip IP) IsLoopback() bool {
-	if ip4 := ip.To4(); ip4 != nil && ip4[0] == 127 {
-		return true
+	if ip4 := ip.To4(); ip4 != nil {
+		return ip4[0] == 127
 	}
 	return ip.Equal(IPv6loopback)
 }
 
 // IsMulticast reports whether ip is a multicast address.
 func (ip IP) IsMulticast() bool {
-	if ip4 := ip.To4(); ip4 != nil && ip4[0]&0xf0 == 0xe0 {
-		return true
+	if ip4 := ip.To4(); ip4 != nil {
+		return ip4[0]&0xf0 == 0xe0
 	}
-	return ip[0] == 0xff
+	return len(ip) == IPv6len && ip[0] == 0xff
 }
 
 // IsInterfaceLocalMulticast reports whether ip is
@@ -139,25 +136,27 @@ func (ip IP) IsInterfaceLocalMulticast() bool {
 // IsLinkLocalMulticast reports whether ip is a link-local
 // multicast address.
 func (ip IP) IsLinkLocalMulticast() bool {
-	if ip4 := ip.To4(); ip4 != nil && ip4[0] == 224 && ip4[1] == 0 && ip4[2] == 0 {
-		return true
+	if ip4 := ip.To4(); ip4 != nil {
+		return ip4[0] == 224 && ip4[1] == 0 && ip4[2] == 0
 	}
-	return ip[0] == 0xff && ip[1]&0x0f == 0x02
+	return len(ip) == IPv6len && ip[0] == 0xff && ip[1]&0x0f == 0x02
 }
 
 // IsLinkLocalUnicast reports whether ip is a link-local
 // unicast address.
 func (ip IP) IsLinkLocalUnicast() bool {
-	if ip4 := ip.To4(); ip4 != nil && ip4[0] == 169 && ip4[1] == 254 {
-		return true
+	if ip4 := ip.To4(); ip4 != nil {
+		return ip4[0] == 169 && ip4[1] == 254
 	}
-	return ip[0] == 0xfe && ip[1]&0xc0 == 0x80
+	return len(ip) == IPv6len && ip[0] == 0xfe && ip[1]&0xc0 == 0x80
 }
 
 // IsGlobalUnicast reports whether ip is a global unicast
 // address.
 func (ip IP) IsGlobalUnicast() bool {
-	return !ip.IsUnspecified() &&
+	return (len(ip) == IPv4len || len(ip) == IPv6len) &&
+		!ip.Equal(IPv4bcast) &&
+		!ip.IsUnspecified() &&
 		!ip.IsLoopback() &&
 		!ip.IsMulticast() &&
 		!ip.IsLinkLocalUnicast()
