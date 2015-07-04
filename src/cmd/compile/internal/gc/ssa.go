@@ -608,6 +608,9 @@ func (s *state) addr(n *Node) *ssa.Value {
 			// parameter/result slot or local variable
 			v := s.decladdrs[n]
 			if v == nil {
+				if flag_race != 0 && n.String() == ".fp" {
+					s.Unimplementedf("race detector mishandles nodfp")
+				}
 				s.Fatalf("addr of undeclared ONAME %v. declared: %v", n, s.decladdrs)
 			}
 			return v
