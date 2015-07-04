@@ -156,6 +156,7 @@ type state struct {
 	line []int32
 }
 
+func (s *state) Logf(msg string, args ...interface{})           { s.config.Logf(msg, args...) }
 func (s *state) Fatalf(msg string, args ...interface{})         { s.config.Fatalf(msg, args...) }
 func (s *state) Unimplementedf(msg string, args ...interface{}) { s.config.Unimplementedf(msg, args...) }
 
