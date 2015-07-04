@@ -521,6 +521,16 @@ func (s *state) expr(n *Node) *ssa.Value {
 			return s.newValue2(ssa.OpLoad, n.Left.Type.Type, p, s.mem())
 		}
 
+	case OLEN:
+		switch {
+		case n.Left.Type.Bound < 0: // slice
+			return s.newValue1(ssa.OpSliceLen, s.config.Uintptr, s.expr(n.Left))
+		case n.Left.Type.IsString(): // string
+			return s.newValue1(ssa.OpStringLen, s.config.Uintptr, s.expr(n.Left))
+		default: // array
+			return s.constInt(s.config.Uintptr, n.Left.Type.Bound)
+		}
+
 	case OCALLFUNC:
 		static := n.Left.Op == ONAME && n.Left.Class == PFUNC
 
