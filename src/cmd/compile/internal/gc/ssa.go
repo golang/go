@@ -330,6 +330,7 @@ func (s *state) stmt(n *Node) {
 		}
 		if n.Op == OGOTO && s.curBlock == nil {
 			s.Unimplementedf("goto at start of function; see test/goto.go")
+			panic("stop compiling here, on pain of infinite loops")
 		}
 
 	case OAS, OASWB:
