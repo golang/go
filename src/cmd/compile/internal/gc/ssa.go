@@ -409,8 +409,11 @@ func (s *state) stmt(n *Node) {
 			s.stmt(n.Right)
 		}
 		b = s.endBlock()
-		addEdge(b, bCond)
-
+		// If the body ends in a return statement,
+		// the condition check and loop are unreachable.
+		if b != nil {
+			addEdge(b, bCond)
+		}
 		s.startBlock(bEnd)
 
 	case OCALLFUNC:
