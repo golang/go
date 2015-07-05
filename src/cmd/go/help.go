@@ -338,10 +338,9 @@ the extension of the file name. These extensions are:
 		Go source files.
 	.c, .h
 		C source files.
-		If the package uses cgo, these will be compiled with the
-		OS-native compiler (typically gcc); otherwise they will be
-		compiled with the Go-specific support compiler,
-		5c, 6c, or 8c, etc. as appropriate.
+		If the package uses cgo or SWIG, these will be compiled with the
+		OS-native compiler (typically gcc); otherwise they will
+		trigger an error.
 	.cc, .cpp, .cxx, .hh, .hpp, .hxx
 		C++ source files. Only useful with cgo or SWIG, and always
 		compiled with the OS-native compiler.
@@ -350,10 +349,9 @@ the extension of the file name. These extensions are:
 		compiled with the OS-native compiler.
 	.s, .S
 		Assembler source files.
-		If the package uses cgo, these will be assembled with the
+		If the package uses cgo or SWIG, these will be assembled with the
 		OS-native assembler (typically gcc (sic)); otherwise they
-		will be assembled with the Go-specific support assembler,
-		5a, 6a, or 8a, etc., as appropriate.
+		will be assembled with the Go assembler.
 	.swig, .swigcxx
 		SWIG definition files.
 	.syso
