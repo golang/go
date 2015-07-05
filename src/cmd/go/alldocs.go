@@ -122,9 +122,9 @@ and test commands:
 		For more information about build tags, see the description of
 		build constraints in the documentation for the go/build package.
 	-toolexec 'cmd args'
-		a program to use to invoke toolchain programs like 5a, 5g, and 5l.
-		For example, instead of running 5g, the go command will run
-		'cmd args /path/to/5g <arguments for 5g>'.
+		a program to use to invoke toolchain programs like vet and asm.
+		For example, instead of running asm, the go command will run
+		'cmd args /path/to/asm <arguments for asm>'.
 
 The list flags accept a space-separated list of strings. To embed spaces
 in an element in the list, surround it with either single or double quotes.
@@ -785,10 +785,9 @@ the extension of the file name. These extensions are:
 		Go source files.
 	.c, .h
 		C source files.
-		If the package uses cgo, these will be compiled with the
-		OS-native compiler (typically gcc); otherwise they will be
-		compiled with the Go-specific support compiler,
-		5c, 6c, or 8c, etc. as appropriate.
+		If the package uses cgo or SWIG, these will be compiled with the
+		OS-native compiler (typically gcc); otherwise they will
+		trigger an error.
 	.cc, .cpp, .cxx, .hh, .hpp, .hxx
 		C++ source files. Only useful with cgo or SWIG, and always
 		compiled with the OS-native compiler.
@@ -797,10 +796,9 @@ the extension of the file name. These extensions are:
 		compiled with the OS-native compiler.
 	.s, .S
 		Assembler source files.
-		If the package uses cgo, these will be assembled with the
+		If the package uses cgo or SWIG, these will be assembled with the
 		OS-native assembler (typically gcc (sic)); otherwise they
-		will be assembled with the Go-specific support assembler,
-		5a, 6a, or 8a, etc., as appropriate.
+		will be assembled with the Go assembler.
 	.swig, .swigcxx
 		SWIG definition files.
 	.syso
