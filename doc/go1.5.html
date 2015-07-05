@@ -28,7 +28,7 @@ once necessary for building the distribution is gone.
 </li>
 
 <li>
-The garbage collector is now <a href="/s/go14gc">concurrent</a> and provides dramatically lower
+The garbage collector is now <a href="https://golang.org/s/go14gc">concurrent</a> and provides dramatically lower
 pause times by running, when possible, in parallel with other goroutines.
 </li>
 
@@ -43,8 +43,18 @@ is now provided for all repositories, not just the Go core.
 </li>
 
 <li>
-The <code>go</code> command now provides <a href="/s/go15vendor">experimental
+The <code>go</code> command now provides <a href="https://golang.org/s/go15vendor">experimental
 support</a> for "vendoring" external dependencies.
+</li>
+
+<li>
+A new <code>go tool trace</code> command supports fine-grained
+tracing of program execution.
+</li>
+
+<li>
+A new <code>go doc</code> command (distinct from <code>godoc</code>)
+is customized for command-line use.
 </li>
 
 </ul>
@@ -59,7 +69,7 @@ The release also contains one small language change involving map literals.
 </p>
 
 <p>
-Finally, the timing of the <a href="/s/releasesched">release</a>
+Finally, the timing of the <a href="https://golang.org/s/releasesched">release</a>
 strays from the usual six-month interval,
 both to provide more time to prepare this major release and to shift the schedule thereafter to
 time the release dates more conveniently.
@@ -67,7 +77,7 @@ time the release dates more conveniently.
 
 <h2 id="language">Changes to the language</h2>
 
-<h3 id="mapliterals">Map literals</h3>
+<h3 id="map_literals">Map literals</h3>
 
 <p>
 Due to an oversight, the rule that allowed the element type to be elided from slice literals was not
@@ -107,7 +117,7 @@ There was a C compiler in the tree in 1.4 and earlier.
 It was used to build the runtime; a custom compiler was necessary in part to
 guarantee the C code would work with the stack management of goroutines.
 Since the runtime is in Go now, there is no need for this C compiler and it is gone.
-Details of the process to eliminate C are discussed <a href="/s/go13compiler">elsewhere</a>.
+Details of the process to eliminate C are discussed <a href="https://golang.org/s/go13compiler">elsewhere</a>.
 </p>
 
 <p>
@@ -122,7 +132,7 @@ An overview of this process is available in the slides for
 <a href="https://talks.golang.org/2015/gogo.slide">this presentation</a>.
 </p>
 
-<h3 id="compiler">Compiler and tools</h3>
+<h3 id="compiler_and_tools">Compiler and tools</h3>
 
 <p>
 Independent of but encouraged by the move to Go, the names of the tools have changed.
@@ -147,7 +157,23 @@ rather than <code>.8</code>, <code>.6</code>, etc.
 <h3 id="gc">Garbage collector</h3>
 
 <p>
-TODO
+The garbage collector has been re-engineered for 1.5 as part of the development
+outlined in the <a href="https://golang.org/s/go14gc">design document</a>.
+Expected latencies are much lower than with the collector
+in prior releases, through a combination of advanced algorithms,
+better <a href="https://golang.org/s/go15gcpacing">scheduling</a> of the collector,
+and running more of the collection in parallel with the user program.
+The "stop the world" phase of the collector
+will almost always be under 10 milliseconds and usually much less.
+</p>
+
+<p>
+For systems that benefit from low latency, such as user-responsive web sites,
+the drop in expected latency with the new collector may be important.
+</p>
+
+<p>
+Details of the new collector were presented in TODO: GopherCon talk.
 </p>
 
 <h3 id="runtime">Runtime</h3>
@@ -182,7 +208,7 @@ must be available to compile the distribution from source.
 Thus, to build the Go core, a working Go distribution must already be in place.
 (Go programmers who do not work on the core are unaffected by this change.)
 Any Go 1.4 or later distribution (including <code>gccgo</code>) will serve.
-For details, see the <a href="/s/go15bootstrap">design document</a>.
+For details, see the <a href="https://golang.org/s/go15bootstrap">design document</a>.
 </p>
 
 <h2 id="ports">Ports</h2>
@@ -217,57 +243,105 @@ On NaCl, Go 1.5 requires SDK version pepper-39 or above because it now uses the
 
 <h2 id="tools">Tools</h2>
 
-<pre>
-build: external linking support for windows (https://golang.org/cl/7163, 7282, 7283, 7284, 7534, 7535)
-cmd/cover: tool now lives in the standard repository (https://golang.org/cl/9560)
-cmd/gc: constant arithmetic is based on math/big (https://golang.org/cl/7830, 7851, 7857, 8426, 7858, 7912, 8171)
-cmd/go, go/build: add ${SRCDIR} variable expansion to cgo lines (https://golang.org/cl/1756)
-cmd/go: add $DOLLAR to generate's variables (https://golang.org/cl/8091)
-cmd/go: std wildcard now excludes commands in main repo (https://golang.org/cl/5550)
-cmd/go: .swig/.swigcxx files now require SWIG 3.0.6 or later
-cmd/go: add -run flag to go generate (https://golang.org/cl/9005)
-cmd/go: add $GOLINE to generate's variables (https://golang.org/cl/9007)
-cmd/go: add go doc (https://golang.org/cl/9227)
-cmd/go: internal enforced even outside standard library (golang.org/s/go14internal; https://golang.org/cl/9156)
-cmd/go, testing: add go test -count (https://golang.org/cl/10669)
-cmd/go: add preliminary support for vendor directories (https://golang.org/cl/10923)
-cmd/vet: better validation of struct tags (https://golang.org/cl/2685)
-cmd/ld: no longer record build timestamp in Windows PE file header (https://golang.org/cl/3740)
-cmd/go: add -toolexec build option
-cmd/go: drop -ccflags build option
-cmd/go: add -asmflags build option
-cmd/go: add -buildmode build option
-cmd/gc: add -dynlink option (for amd64 only)
-cmd/ld: add -buildmode option
-cmd/trace: new command to view traces (https://golang.org/cl/3601)
+<h3 id="translate">Translating</h3>
 
+<p>
+As part of the process to eliminate C from the tree, the compiler and
+linker were translated from C to Go.
+It was a genuine (machine assisted) translation, so the new programs are essentially
+the old programs translated rather than new ones with new bugs.
+We are confident the translation process has introduced few if any new bugs,
+and in fact uncovered a number of previously unknown bugs, now fixed.
+</p>
+
+<p>
+The assembler is a new program, however; it is described below.
+</p>
+
+<h3 id="rename">Renaming</h3>
+
+<p>
+The suites of programs that were the compilers (<code>6g</code>, <code>8g</code>, etc.),
+the assemblers (<code>6a</code>, <code>8a</code>, etc.),
+and the linkers (<code>6l</code>, <code>8l</code>, etc.)
+have each been consolidated into a single tool that is configured
+by the environment variables <code>GOOS</code> and <code>GOARCH</code>.
+The old names are gone; the new tools are available through the <code>go</code> <code>tool</code>
+mechanism as <code>go tool compile</code>,
+<code>go tool asm</code>,
+<code>and go tool link</code>.
+Also, the file suffixes <code>.6</code>, <code>.8</code> etc. for the
+intermediate object files are also gone; now they are just plain <code>.o</code> files.
+</p>
+
+<p>
+For example, to build and link a program on amd64 for Darwin
+using the tools directly, rather than through <code>go build</code>,
+one would run:
+</p>
+
+<pre>
+$ export GOOS=darwin GOARCH=amd64
+$ go tool compile program.go
+$ go tool link program.o
 </pre>
+
+<h3 id="moving">Moving</h3>
+
+<p>
+Because the <a href="/pkg/go/types/"><code>go/types</code></a> package
+has now moved into the main repository (see below),
+the <a href="/cmd/vet"><code>vet</code></a> and
+<a href="/cmd/cover"><code>cover</code></a>
+tools have also been moved.
+They are no longer maintained in the external <code>golang.org/x/tools</code> repository,
+although (deprecated) source still resides there for compatibility with old releases.
+</p>
+
+<h3 id="compiler">Compiler</h3>
+
+<p>
+As described above, the compiler in Go 1.5 is a single Go program,
+translated from the old C source, that replaces <code>6g</code>, <code>8g</code>,
+and so on.
+Its target is configured by the environment variables <code>GOOS</code> and <code>GOARCH</code>.
+</p>
+
+<p>
+The 1.5 compiler is mostly equivalent to the old,
+but some internal details have changed.
+One significant change is that evaluation of constants now uses
+the <a href="/pkg/math/big/"><code>math/big</code></a> package
+rather than a custom (and less well tested) implementation of high precision
+arithmetic.
+We do not expect this to affect the results.
+</p>
+
+<p>
+For the amd64 architecture only, the compiler has a new option, <code>-dynlink</code>,
+that assists dynamic linking by supporting references to Go symbols
+defined in external shared libraries.
+</p>
 
 <h3 id="assembler">Assembler</h3>
 
 <p>
-The assembler in Go 1.5 is a single new Go program that replaces
-the suite of C-language assemblers (<code>6a</code>,
-<code>8a</code>, etc.) in previous releases.
-The values of the environment variables
+Like the compiler and linker, the assembler in Go 1.5 is a single program
+that replaces the suite of assemblers (<code>6a</code>,
+<code>8a</code>, etc.) and the environment variables
 <code>GOARCH</code> and <code>GOOS</code>
-choose which architecture and operating system the generated
-code will be for.
-This is practical because the assembly language syntax has always
-been idiosyncratic and nearly uniform across architectures;
-what differs is just the list of instructions available and the
-syntax of some addressing modes.
-With the variation easily configured at startup, a single
-assembler binary can cover all architectures.
-(See the updated <a href="/doc/asm">assembler guide</a>
-for more information about the language and some of
-the changes listed below.)
+configure the architecture and operating system.
+Unlike the other programs, the assembler is a wholly new program
+written in Go.
 </p>
  
  <p>
 The new assembler is very nearly compatible with the previous
-one, but there are a few changes that may affect some
+ones, but there are a few changes that may affect some
 assembler source files.
+See the updated <a href="/doc/asm">assembler guide</a>
+for more specific information about these changes. In summary:
+
 </p>
 
 <p>
@@ -276,10 +350,8 @@ different.
 It now uses unsigned 64-bit arithmetic and the precedence
 of operators (<code>+</code>, <code>-</code>, <code><<</code>, etc.)
 comes from Go, not C.
-Since there are few assembly programs to start with, and few use
-complex arithmetic expressions,
-and of those even fewer will be affected by these changes, we expect
-almost no programs will need to be updated.
+We expect these changes to affect very few programs but
+manual verification may be required.
 </p>
 
 <p>
@@ -321,33 +393,190 @@ supported (the assembler includes an implementation
 of a simplified C preprocessor), the feature was removed.
 </p>
 
-<h2 id="performance">Performance</h2>
+<h3 id="link">Linker</h3>
+
+<p>
+The linker in Go 1.5 is now one Go program,
+that replaces <code>6l</code>, <code>8l</code>, etc.
+Its operating system and instruction set are specified
+by the environment variables <code>GOOS</code> and <code>GOARCH</code>.
+</p>
+
+<p>
+There are a couple of other changes.
+The more significant is the addition of a <code>-buildmode</code> option that
+expands the style of linking; it now supports
+situations such as building shared libraries and allowing other languages
+to call into Go libraries.
+Some of these were outlined in a <a href="https://golang.org/s/execmodes">design document</a>.
+For a list of the available build modes and their use, run
+</p>
 
 <pre>
-
-cmd/gc: evaluate concrete == interface without allocating (https://golang.org/cl/2096)
-cmd/gc: optimize memclr of slices and arrays (https://golang.org/cl/2520)
-cmd/gc: transform closure calls to function calls (https://golang.org/cl/4050)
-cmd/gc: transitive inlining (https://golang.org/cl/5952)
-cmd/gc, runtime: speed up some cases of _, ok := i.(T) (https://golang.org/cl/7697)
-cmd/gc: speed up large string switches (https://golang.org/cl/7698)
-cmd/gc: inline x := y.(*T) and x, ok := y.(*T) (https://golang.org/cl/7862)
-cmd/gc: allocate backing storage for non-escaping interfaces on stack (https://golang.org/cl/8201)
-encoding/xml: avoid an allocation for tags without attributes (https://golang.org/cl/4160)
-image: many optimizations
-runtime: add ARM runtime.cmpstring and bytes.Compare (https://golang.org/cl/8010)
-runtime: do not scan maps when k/v do not contain pointers (https://golang.org/cl/3288)
-runtime: reduce thrashing of gs between ps (https://golang.org/cl/9872)
-sort: number of Sort performance optimizations (https://golang.org/cl/2100, https://golang.org/cl/2614, ...)
-strconv: optimize decimal to string conversion (https://golang.org/cl/2105)
-strconv: optimize float to string conversion (https://golang.org/cl/5600)
-sync: add active spinning to Mutex (https://golang.org/cl/5430)
-math/big: faster assembly kernels for amd64 and 386 (https://golang.org/cl/2503, https://golang.org/cl/2560)
-math/big: faster "pure Go" kernels for platforms w/o assembly kernels (https://golang.org/cl/2480)
-regexp: port RE2's bitstate backtracker to the regexp package (https://golang.org/cl/2153)
+$ go help buildmode
 </pre>
 
-<h3 id="library">Core library</h3>
+<p>
+Another minor change is that the linker no longer records build time stamps in
+the header of Windows executables.
+Also, although this may be fixed, Windows cgo executables are missing some
+DWARF information.
+</p>
+
+<h3 id="go_command">Go command</h3>
+
+<p>
+The <a href="/cmd/go"><code>go</code></a> command's basic operation
+is unchanged, but there are a number of changes worth noting.
+</p>
+
+<p>
+The previous release introduced the idea of a directory internal to a package
+being unimportable through the <code>go</code> command.
+In 1.4, it was tested with the introduction of some internal elements
+in the core repository.
+As suggested in the <a href="https://golang.org/s/go14internal">design document</a>,
+that change is now being made available to all repositories.
+The rules are explained in the design document, but in summary any
+package in or under a directory named <code>internal</code> may
+be imported by packages rooted in the same subtree.
+Existing packages with directory elements named <code>internal</code> may be
+inadvertently broken by this change, which was why it was advertised
+in the last release.
+</p>
+
+<p>
+Another change in how packages are handled is the experimental
+addition of support for "vendoring".
+TODO: This is undocumented in the go command itself.
+TODO: Preliminary design in https://golang.org/s/go15vendor should be updated.
+</p>
+
+<p>
+There have also been several minor changes.
+Read the <a href="/cmd/go">documentation</a> for full details.
+</p>
+
+<ul>
+
+<li>
+SWIG support has been updated such that
+<code>.swig</code> and <code>.swigcxx</code>
+now require SWIG 3.0.6 or later.
+</li>
+
+<li>
+The <code>std</code> (standard library) wildcard package name
+now excludes commands.
+A new <code>cmd</code> wildcard covers the commands.
+</li>
+
+<li>
+A new <code>-toolexec</code> flag for building
+allows substitution of a different command to invoke
+the compiler and so on.
+This acts as a custom replacement for <code>go tool</code>.
+</li>
+
+<li>
+The build subcommand has a <code>-buildmode</code> option tied to the linker,
+as described above.
+</li>
+
+<li>
+An <code>-asmflags</code> build option has been added to provide
+flags to the assembler.
+However, 
+the <code>-ccflags</code> build option has been dropped. TODO: why?
+</li>
+
+<li>
+cmd/go, testing: add go test -count (https://golang.org/cl/10669)
+</li>
+
+<li>
+The <code>generate</code> subcommand has a couple of new features.
+The <code>-run</code> option specifies a regular expression to select which directives
+to execute; this was proposed but never implemented in 1.4.
+The executing pattern now has access to two new environment variables:
+<code>$GOLINE</code> returns the source line number of the directive
+and <code>$DOLLAR</code> expands to a dollar sign.
+</li>
+
+</ul>
+
+<h3 id="vet_command">Go vet command</h3>
+
+<p>
+The <a href="/cmd/vet"><code>go tool vet</code></a> command now does
+more thorough validation of struct tags.
+</p>
+
+<h3 id="trace_command">Trace command</h3>
+
+<pre>
+TODO
+cmd/trace: new command to view traces (https://golang.org/cl/3601)
+</pre>
+
+<h3 id="doc_command">Go doc command</h3>
+
+<p>
+A few releases back, the <code>go doc</code>
+command was deleted as being unnecessary.
+One could always run "<code>godoc .</code>" instead.
+The 1.5 release introduces a new <a href="/cmd/doc"><code>go doc</code></a>
+command with a more convenient command-line interface than
+<code>godoc</code>'s.
+It is designed for command-line usage specifically, and provides a more
+compact and focused presentation of the documentation for a package
+or its elements, according to the invocation.
+It also provides case-insensitive matching and
+support for showing the documentation for unexported symbols.
+For details run "<code>go help doc</code>".
+</p>
+
+<h3 id="cgo">Cgo</h3>
+
+<p>
+When parsing <code>#cgo</code> lines,
+the invocation <code>${SRCDIR}</code> is now
+expanded into the path to the source directory.
+This allows options to be passed to the
+compiler and linker that involve file paths relative to the
+source code directory. Without the expansion the paths would be
+invalid when the current working directory changes.
+</p>
+
+<p>
+On Windows, cgo now uses external linking by default.
+</p>
+
+<h2 id="performance">Performance</h2>
+
+<p>
+As always, the changes are so general and varied that precise statements
+about performance are difficult to make.
+The changes are even broader ranging than usual in this release, which
+includes a new garbage collector and a conversion of the runtime to Go.
+Some programs may run faster, some slower.
+On average the programs in the Go 1 benchmark suite run a few percent faster in Go 1.5
+than they did in Go 1.4,
+while as mentioned above the garbage collector's pauses are
+dramatically shorter, and almost always under 10 milliseconds.
+</p>
+
+<p>
+Builds in Go 1.5 will be slower by a factor of about two.
+The automatic translation of the compiler and linker from C to Go resulted in
+unidiomatic Go code that performs poorly compared to well-written Go.
+Analysis tools and refactoring helped to improve the code, but much remains to be done.
+Further profiling and optimization will continue in Go 1.6 and future releases.
+For more details, see these <a href="https://talks.golang.org/2015/gogo.slide">slides</a>
+and associated <a href="https://www.youtube.com/watch?v=cF1zJYkBW4A">video</a>.
+</p>
+
+<h2 id="library">Core library</h2>
 
 <h3 id="flag">Flag</h3>
 
@@ -569,7 +798,7 @@ Also, the <a href="/pkg/crypto/tls/"><code>crypto/tls</code></a> package
 now supports Signed Certificate Timestamps (SCTs) as specified in RFC 6962.
 The server serves them if they are listed in the
 <a href="/pkg/crypto/tls/#Certificate"><code>Certificate</code></a> struct,
-and the client reqeusts them and exposes them, if present,
+and the client requests them and exposes them, if present,
 in its <a href="/pkg/crypto/tls/#ConnectionState"><code>ConnectionState</code></a> struct.
 The <a href="/pkg/crytpo/tls/"><code>crytpo/tls</code></a> server implementation
 will also now always call the
