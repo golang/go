@@ -2991,6 +2991,49 @@ func TestTolerateCRLFBeforeRequestLine(t *testing.T) {
 	}
 }
 
+func TestIssue11549_Expect100(t *testing.T) {
+	req := reqBytes(`PUT /readbody HTTP/1.1
+User-Agent: PycURL/7.22.0
+Host: 127.0.0.1:9000
+Accept: */*
+Expect: 100-continue
+Content-Length: 10
+
+HelloWorldPUT /noreadbody HTTP/1.1
+User-Agent: PycURL/7.22.0
+Host: 127.0.0.1:9000
+Accept: */*
+Expect: 100-continue
+Content-Length: 10
+
+GET /should-be-ignored HTTP/1.1
+Host: foo
+
+`)
+	var buf bytes.Buffer
+	conn := &rwTestConn{
+		Reader: bytes.NewReader(req),
+		Writer: &buf,
+		closec: make(chan bool, 1),
+	}
+	ln := &oneConnListener{conn: conn}
+	numReq := 0
+	go Serve(ln, HandlerFunc(func(w ResponseWriter, r *Request) {
+		numReq++
+		if r.URL.Path == "/readbody" {
+			ioutil.ReadAll(r.Body)
+		}
+		io.WriteString(w, "Hello world!")
+	}))
+	<-conn.closec
+	if numReq != 2 {
+		t.Errorf("num requests = %d; want 2", numReq)
+	}
+	if !strings.Contains(buf.String(), "Connection: close\r\n") {
+		t.Errorf("expected 'Connection: close' in response; got: %s", buf.String())
+	}
+}
+
 func BenchmarkClientServer(b *testing.B) {
 	b.ReportAllocs()
 	b.StopTimer()
