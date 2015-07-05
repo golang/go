@@ -4,9 +4,7 @@
 
 package ssa
 
-import (
-	"testing"
-)
+import "testing"
 
 func BenchmarkDominatorsLinear(b *testing.B)     { benchmarkDominators(b, 10000, genLinear) }
 func BenchmarkDominatorsFwdBack(b *testing.B)    { benchmarkDominators(b, 10000, genFwdBack) }
@@ -173,20 +171,24 @@ func benchmarkDominators(b *testing.B, size int, bg blockGen) {
 	}
 }
 
-func verifyDominators(t *testing.T, f fun, doms map[string]string) {
+type domFunc func(f *Func) []*Block
+
+// verifyDominators verifies that the dominators of fut (function under test)
+// as determined by domFn, match the map node->dominator
+func verifyDominators(t *testing.T, fut fun, domFn domFunc, doms map[string]string) {
 	blockNames := map[*Block]string{}
-	for n, b := range f.blocks {
+	for n, b := range fut.blocks {
 		blockNames[b] = n
 	}
 
-	calcDom := dominators(f.f)
+	calcDom := domFn(fut.f)
 
 	for n, d := range doms {
-		nblk, ok := f.blocks[n]
+		nblk, ok := fut.blocks[n]
 		if !ok {
 			t.Errorf("invalid block name %s", n)
 		}
-		dblk, ok := f.blocks[d]
+		dblk, ok := fut.blocks[d]
 		if !ok {
 			t.Errorf("invalid block name %s", d)
 		}
@@ -208,12 +210,27 @@ func verifyDominators(t *testing.T, f fun, doms map[string]string) {
 		if d == nil {
 			continue
 		}
-		for _, b := range f.blocks {
+		for _, b := range fut.blocks {
 			if int(b.ID) == id {
 				t.Errorf("unexpected dominator of %s for %s", blockNames[d], blockNames[b])
 			}
 		}
 	}
+
+}
+
+func TestDominatorsSingleBlock(t *testing.T) {
+	c := NewConfig("amd64", DummyFrontend{t})
+	fun := Fun(c, "entry",
+		Bloc("entry",
+			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+			Exit("mem")))
+
+	doms := map[string]string{}
+
+	CheckFunc(fun.f)
+	verifyDominators(t, fun, dominators, doms)
+	verifyDominators(t, fun, dominatorsSimple, doms)
 
 }
 
@@ -239,7 +256,9 @@ func TestDominatorsSimple(t *testing.T) {
 		"exit": "c",
 	}
 
-	verifyDominators(t, fun, doms)
+	CheckFunc(fun.f)
+	verifyDominators(t, fun, dominators, doms)
+	verifyDominators(t, fun, dominatorsSimple, doms)
 
 }
 
@@ -266,8 +285,32 @@ func TestDominatorsMultPredFwd(t *testing.T) {
 		"exit": "c",
 	}
 
-	verifyDominators(t, fun, doms)
+	CheckFunc(fun.f)
+	verifyDominators(t, fun, dominators, doms)
+	verifyDominators(t, fun, dominatorsSimple, doms)
+}
 
+func TestDominatorsDeadCode(t *testing.T) {
+	c := NewConfig("amd64", DummyFrontend{t})
+	fun := Fun(c, "entry",
+		Bloc("entry",
+			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+			Valu("p", OpConst, TypeBool, 0, false),
+			If("p", "b3", "b5")),
+		Bloc("b2", Exit("mem")),
+		Bloc("b3", Goto("b2")),
+		Bloc("b4", Goto("b2")),
+		Bloc("b5", Goto("b2")))
+
+	doms := map[string]string{
+		"b2": "entry",
+		"b3": "entry",
+		"b5": "entry",
+	}
+
+	CheckFunc(fun.f)
+	verifyDominators(t, fun, dominators, doms)
+	verifyDominators(t, fun, dominatorsSimple, doms)
 }
 
 func TestDominatorsMultPredRev(t *testing.T) {
@@ -292,7 +335,10 @@ func TestDominatorsMultPredRev(t *testing.T) {
 		"c":    "b",
 		"exit": "c",
 	}
-	verifyDominators(t, fun, doms)
+
+	CheckFunc(fun.f)
+	verifyDominators(t, fun, dominators, doms)
+	verifyDominators(t, fun, dominatorsSimple, doms)
 }
 
 func TestDominatorsMultPred(t *testing.T) {
@@ -317,5 +363,57 @@ func TestDominatorsMultPred(t *testing.T) {
 		"c":    "entry",
 		"exit": "c",
 	}
-	verifyDominators(t, fun, doms)
+
+	CheckFunc(fun.f)
+	verifyDominators(t, fun, dominators, doms)
+	verifyDominators(t, fun, dominatorsSimple, doms)
+}
+
+func TestPostDominators(t *testing.T) {
+	c := NewConfig("amd64", DummyFrontend{t})
+	fun := Fun(c, "entry",
+		Bloc("entry",
+			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+			Valu("p", OpConst, TypeBool, 0, true),
+			If("p", "a", "c")),
+		Bloc("a",
+			If("p", "b", "c")),
+		Bloc("b",
+			Goto("c")),
+		Bloc("c",
+			If("p", "b", "exit")),
+		Bloc("exit",
+			Exit("mem")))
+
+	doms := map[string]string{"entry": "c",
+		"a": "c",
+		"b": "c",
+		"c": "exit",
+	}
+
+	CheckFunc(fun.f)
+	verifyDominators(t, fun, postDominators, doms)
+}
+
+func TestInfiniteLoop(t *testing.T) {
+	c := NewConfig("amd64", DummyFrontend{t})
+	// note lack of an exit block
+	fun := Fun(c, "entry",
+		Bloc("entry",
+			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+			Valu("p", OpConst, TypeBool, 0, true),
+			Goto("a")),
+		Bloc("a",
+			Goto("b")),
+		Bloc("b",
+			Goto("a")))
+
+	CheckFunc(fun.f)
+	doms := map[string]string{"a": "entry",
+		"b": "a"}
+	verifyDominators(t, fun, dominators, doms)
+
+	// no exit block, so there are no post-dominators
+	postDoms := map[string]string{}
+	verifyDominators(t, fun, postDominators, postDoms)
 }
