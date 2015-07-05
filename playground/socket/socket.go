@@ -316,7 +316,7 @@ func (p *process) end(err error) {
 		m.Body = err.Error()
 	}
 	// Wait for any outstanding reads to finish (potential race here).
-	time.AfterFunc(msgDelay, func() { p.out <- m })
+	time.AfterFunc(4*msgDelay, func() { p.out <- m })
 }
 
 // cmd builds an *exec.Cmd that writes its standard output and error to the
