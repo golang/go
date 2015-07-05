@@ -981,6 +981,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 		return C_NONE
 
 	case obj.TYPE_REG:
+		ctxt.Instoffset = 0
 		if REG_R0 <= a.Reg && a.Reg <= REG_R15 {
 			return C_REG
 		}
@@ -1010,6 +1011,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 	case obj.TYPE_MEM:
 		switch a.Name {
 		case obj.NAME_EXTERN,
+			obj.NAME_GOTREF,
 			obj.NAME_STATIC:
 			if a.Sym == nil || a.Sym.Name == "" {
 				fmt.Printf("null sym external\n")
@@ -1130,6 +1132,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 			return C_LCON
 
 		case obj.NAME_EXTERN,
+			obj.NAME_GOTREF,
 			obj.NAME_STATIC:
 			s := a.Sym
 			if s == nil {
@@ -1589,7 +1592,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		aclass(ctxt, &p.To)
 
 		if ctxt.Instoffset != 0 {
-			ctxt.Diag("%v: doesn't support BL offset(REG) where offset != 0", p)
+			ctxt.Diag("%v: doesn't support BL offset(REG) with non-zero offset %d", p, ctxt.Instoffset)
 		}
 		o1 = oprrr(ctxt, ABL, int(p.Scond))
 		o1 |= (uint32(p.To.Reg) & 15) << 0
@@ -1644,7 +1647,11 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			rel.Add = p.To.Offset
 
 			if ctxt.Flag_shared != 0 {
-				rel.Type = obj.R_PCREL
+				if p.To.Name == obj.NAME_GOTREF {
+					rel.Type = obj.R_GOTPCREL
+				} else {
+					rel.Type = obj.R_PCREL
+				}
 				rel.Add += ctxt.Pc - p.Rel.Pc - 8
 			} else {
 				rel.Type = obj.R_ADDR
