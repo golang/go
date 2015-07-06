@@ -98,38 +98,51 @@ func deadcode(f *Func) {
 
 // There was an edge b->c.  It has been removed from b's successors.
 // Fix up c to handle that fact.
-func removePredecessor(b, c *Block) {
-	n := len(c.Preds) - 1
-	if n == 0 {
-		// c is now dead - don't bother working on it
-		if c.Preds[0] != b {
-			b.Fatalf("%s.Preds[0]==%s, want %s", c, c.Preds[0], b)
-		}
-		return
-	}
+func (f *Func) removePredecessor(b, c *Block) {
+	work := [][2]*Block{{b, c}}
 
-	// find index of b in c's predecessor list
-	var i int
-	for j, p := range c.Preds {
-		if p == b {
-			i = j
-			break
-		}
-	}
+	for len(work) > 0 {
+		b, c := work[0][0], work[0][1]
+		work = work[1:]
 
-	c.Preds[i] = c.Preds[n]
-	c.Preds[n] = nil // aid GC
-	c.Preds = c.Preds[:n]
-	// rewrite phi ops to match the new predecessor list
-	for _, v := range c.Values {
-		if v.Op != OpPhi {
-			continue
+		n := len(c.Preds) - 1
+
+		// find index of b in c's predecessor list
+		var i int
+		for j, p := range c.Preds {
+			if p == b {
+				i = j
+				break
+			}
 		}
-		v.Args[i] = v.Args[n]
-		v.Args[n] = nil // aid GC
-		v.Args = v.Args[:n]
-		if n == 1 {
-			v.Op = OpCopy
+
+		c.Preds[i] = c.Preds[n]
+		c.Preds[n] = nil // aid GC
+		c.Preds = c.Preds[:n]
+
+		// rewrite phi ops to match the new predecessor list
+		for _, v := range c.Values {
+			if v.Op != OpPhi {
+				continue
+			}
+			v.Args[i] = v.Args[n]
+			v.Args[n] = nil // aid GC
+			v.Args = v.Args[:n]
+			if n == 1 {
+				v.Op = OpCopy
+			}
+		}
+
+		if n == 0 {
+			// c is now dead--recycle its values
+			for _, v := range c.Values {
+				f.vid.put(v.ID)
+			}
+			c.Values = nil
+			// Also kill any successors of c now, to spare later processing.
+			for _, succ := range c.Succs {
+				work = append(work, [2]*Block{c, succ})
+			}
 		}
 	}
 }
