@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -43,6 +44,7 @@ func TestReverseProxy(t *testing.T) {
 		if g, e := r.Host, "some-name"; g != e {
 			t.Errorf("backend got Host header %q, want %q", g, e)
 		}
+		w.Header().Set("Trailer", "X-Trailer")
 		w.Header().Set("X-Foo", "bar")
 		w.Header().Set("Upgrade", "foo")
 		w.Header().Set(fakeHopHeader, "foo")
@@ -51,6 +53,7 @@ func TestReverseProxy(t *testing.T) {
 		http.SetCookie(w, &http.Cookie{Name: "flavor", Value: "chocolateChip"})
 		w.WriteHeader(backendStatus)
 		w.Write([]byte(backendResponse))
+		w.Header().Set("X-Trailer", "trailer_value")
 	}))
 	defer backend.Close()
 	backendURL, err := url.Parse(backend.URL)
@@ -85,6 +88,9 @@ func TestReverseProxy(t *testing.T) {
 	if g, e := len(res.Header["Set-Cookie"]), 1; g != e {
 		t.Fatalf("got %d SetCookies, want %d", g, e)
 	}
+	if g, e := res.Trailer, (http.Header{"X-Trailer": nil}); !reflect.DeepEqual(g, e) {
+		t.Errorf("before reading body, Trailer = %#v; want %#v", g, e)
+	}
 	if cookie := res.Cookies()[0]; cookie.Name != "flavor" {
 		t.Errorf("unexpected cookie %q", cookie.Name)
 	}
@@ -92,6 +98,10 @@ func TestReverseProxy(t *testing.T) {
 	if g, e := string(bodyBytes), backendResponse; g != e {
 		t.Errorf("got body %q; expected %q", g, e)
 	}
+	if g, e := res.Trailer.Get("X-Trailer"), "trailer_value"; g != e {
+		t.Errorf("Trailer(X-Trailer) = %q ; want %q", g, e)
+	}
+
 }
 
 func TestXForwardedFor(t *testing.T) {
