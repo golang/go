@@ -379,8 +379,10 @@ func (s *state) stmt(n *Node) {
 		addEdge(b, s.exit)
 
 	case OFOR:
+		// OFOR: for Ninit; Left; Right { Nbody }
 		bCond := s.f.NewBlock(ssa.BlockPlain)
 		bBody := s.f.NewBlock(ssa.BlockPlain)
+		bIncr := s.f.NewBlock(ssa.BlockPlain)
 		bEnd := s.f.NewBlock(ssa.BlockPlain)
 
 		// first, jump to condition test
@@ -388,13 +390,14 @@ func (s *state) stmt(n *Node) {
 		addEdge(b, bCond)
 
 		// generate code to test condition
-		// TODO(khr): Left == nil exception
-		if n.Left == nil {
-			s.Unimplementedf("cond n.Left == nil: %v", n)
-		}
 		s.startBlock(bCond)
-		s.stmtList(n.Left.Ninit)
-		cond := s.expr(n.Left)
+		var cond *ssa.Value
+		if n.Left != nil {
+			s.stmtList(n.Left.Ninit)
+			cond = s.expr(n.Left)
+		} else {
+			cond = s.entryNewValue0A(ssa.OpConst, Types[TBOOL], true)
+		}
 		b = s.endBlock()
 		b.Kind = ssa.BlockIf
 		b.Control = cond
@@ -405,13 +408,16 @@ func (s *state) stmt(n *Node) {
 		// generate body
 		s.startBlock(bBody)
 		s.stmtList(n.Nbody)
+		if b := s.endBlock(); b != nil {
+			addEdge(b, bIncr)
+		}
+
+		// generate incr
+		s.startBlock(bIncr)
 		if n.Right != nil {
 			s.stmt(n.Right)
 		}
-		b = s.endBlock()
-		// If the body ends in a return statement,
-		// the condition check and loop are unreachable.
-		if b != nil {
+		if b := s.endBlock(); b != nil {
 			addEdge(b, bCond)
 		}
 		s.startBlock(bEnd)
