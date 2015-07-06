@@ -46,7 +46,7 @@ func nilcheckelim(f *Func) {
 			// and the fuse pass will join this block with its successor.
 			b.Kind = BlockPlain
 			b.Control = nil
-			removePredecessor(b, b.Succs[1])
+			f.removePredecessor(b, b.Succs[1])
 			b.Succs = b.Succs[:1]
 		}
 	}

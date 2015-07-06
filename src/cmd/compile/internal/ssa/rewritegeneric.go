@@ -403,7 +403,7 @@ func rewriteBlockgeneric(b *Block) bool {
 			if !(c.(bool)) {
 				goto end915e334b6388fed7d63e09aa69ecb05c
 			}
-			removePredecessor(b, no)
+			v.Block.Func.removePredecessor(b, no)
 			b.Kind = BlockPlain
 			b.Control = nil
 			b.Succs = b.Succs[:1]
@@ -427,7 +427,7 @@ func rewriteBlockgeneric(b *Block) bool {
 			if !(!c.(bool)) {
 				goto end6452ee3a5bb02c708bddc3181c3ea3cb
 			}
-			removePredecessor(b, yes)
+			v.Block.Func.removePredecessor(b, yes)
 			b.Kind = BlockPlain
 			b.Control = nil
 			b.Succs = b.Succs[:1]

@@ -232,7 +232,7 @@ func genRules(arch arch) {
 
 			// Modify predecessor lists for no-longer-reachable blocks
 			for succ := range m {
-				fmt.Fprintf(w, "removePredecessor(b, %s)\n", succ)
+				fmt.Fprintf(w, "v.Block.Func.removePredecessor(b, %s)\n", succ)
 			}
 
 			fmt.Fprintf(w, "b.Kind = %s\n", blockName(t[0], arch))
