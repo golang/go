@@ -178,6 +178,36 @@ var reqTests = []reqTest{
 		noError,
 	},
 
+	// Tests chunked body and a bogus Content-Length which should be deleted.
+	{
+		"POST / HTTP/1.1\r\n" +
+			"Host: foo.com\r\n" +
+			"Transfer-Encoding: chunked\r\n" +
+			"Content-Length: 9999\r\n\r\n" + // to be removed.
+			"3\r\nfoo\r\n" +
+			"3\r\nbar\r\n" +
+			"0\r\n" +
+			"\r\n",
+		&Request{
+			Method: "POST",
+			URL: &url.URL{
+				Path: "/",
+			},
+			TransferEncoding: []string{"chunked"},
+			Proto:            "HTTP/1.1",
+			ProtoMajor:       1,
+			ProtoMinor:       1,
+			Header:           Header{},
+			ContentLength:    -1,
+			Host:             "foo.com",
+			RequestURI:       "/",
+		},
+
+		"foobar",
+		noTrailer,
+		noError,
+	},
+
 	// CONNECT request with domain name:
 	{
 		"CONNECT www.google.com:443 HTTP/1.1\r\n\r\n",
@@ -398,11 +428,6 @@ var badRequestTests = []struct {
 	{"smuggle_two_contentlen", reqBytes(`POST / HTTP/1.1
 Content-Length: 3
 Content-Length: 4
-
-abc`)},
-	{"smuggle_chunked_and_len", reqBytes(`POST / HTTP/1.1
-Transfer-Encoding: chunked
-Content-Length: 3
 
 abc`)},
 	{"smuggle_content_len_head", reqBytes(`HEAD / HTTP/1.1
