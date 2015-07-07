@@ -38,6 +38,8 @@ var resolveIPAddrTests = []resolveIPAddrTest{
 	{"", "127.0.0.1", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil}, // Go 1.0 behavior
 	{"", "::1", &IPAddr{IP: ParseIP("::1")}, nil},           // Go 1.0 behavior
 
+	{"ip4:icmp", "", &IPAddr{}, nil},
+
 	{"l2tp", "127.0.0.1", nil, UnknownNetworkError("l2tp")},
 	{"l2tp:gre", "127.0.0.1", nil, UnknownNetworkError("l2tp:gre")},
 	{"tcp", "1.2.3.4:123", nil, UnknownNetworkError("tcp")},
