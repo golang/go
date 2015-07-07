@@ -355,7 +355,7 @@ func isDir(path string) bool {
 // it searched along the way, to help prepare a useful error message should path turn
 // out not to exist.
 func vendoredImportPath(parent *Package, path string) (found string, searched []string) {
-	if parent == nil || !go15VendorExperiment {
+	if parent == nil || parent.Root == "" || !go15VendorExperiment {
 		return path, nil
 	}
 	dir := filepath.Clean(parent.Dir)
