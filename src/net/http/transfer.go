@@ -430,7 +430,6 @@ func fixTransferEncoding(isResponse bool, requestMethod string, header Header) (
 	if !present {
 		return nil, nil
 	}
-	isRequest := !isResponse
 	delete(header, "Transfer-Encoding")
 
 	encodings := strings.Split(raw[0], ",")
@@ -458,12 +457,20 @@ func fixTransferEncoding(isResponse bool, requestMethod string, header Header) (
 		// RFC 7230 3.3.2 says "A sender MUST NOT send a
 		// Content-Length header field in any message that
 		// contains a Transfer-Encoding header field."
-		if len(header["Content-Length"]) > 0 {
-			if isRequest {
-				return nil, errors.New("http: invalid Content-Length with Transfer-Encoding")
-			}
-			delete(header, "Content-Length")
-		}
+		//
+		// but also:
+		// "If a message is received with both a
+		// Transfer-Encoding and a Content-Length header
+		// field, the Transfer-Encoding overrides the
+		// Content-Length. Such a message might indicate an
+		// attempt to perform request smuggling (Section 9.5)
+		// or response splitting (Section 9.4) and ought to be
+		// handled as an error. A sender MUST remove the
+		// received Content-Length field prior to forwarding
+		// such a message downstream."
+		//
+		// Reportedly, these appear in the wild.
+		delete(header, "Content-Length")
 		return te, nil
 	}
 
