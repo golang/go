@@ -6,16 +6,16 @@
 <h2 id="introduction">A Quick Guide to Go's Assembler</h2>
 
 <p>
-This document is a quick outline of the unusual form of assembly language used by the <code>gc</code>
-Go compiler.
+This document is a quick outline of the unusual form of assembly language used by the <code>gc</code> Go compiler.
 The document is not comprehensive.
 </p>
 
 <p>
-The assembler is based on the input to the Plan 9 assemblers, which is documented in detail
-<a href="http://plan9.bell-labs.com/sys/doc/asm.html">on the Plan 9 site</a>.
+The assembler is based on the input style of the Plan 9 assemblers, which is documented in detail
+<a href="http://plan9.bell-labs.com/sys/doc/asm.html">elsewhere</a>.
 If you plan to write assembly language, you should read that document although much of it is Plan 9-specific.
-This document provides a summary of the syntax and
+The current document provides a summary of the syntax and the differences with
+what is explained in that document, and
 describes the peculiarities that apply when writing assembly code to interact with Go.
 </p>
 
@@ -25,10 +25,12 @@ Some of the details map precisely to the machine, but some do not.
 This is because the compiler suite (see
 <a href="http://plan9.bell-labs.com/sys/doc/compiler.html">this description</a>)
 needs no assembler pass in the usual pipeline.
-Instead, the compiler emits a kind of incompletely defined instruction set, in binary form, which the linker
-then completes.
-In particular, the linker does instruction selection, so when you see an instruction like <code>MOV</code>
-what the linker actually generates for that operation might not be a move instruction at all, perhaps a clear or load.
+Instead, the compiler operates on a kind of semi-abstract instruction set,
+and instruction selection occurs partly after code generation.
+The assembler works on the semi-abstract form, so
+when you see an instruction like <code>MOV</code>
+what the tool chain actually generates for that operation might
+not be a move instruction at all, perhaps a clear or load.
 Or it might correspond exactly to the machine instruction with that name.
 In general, machine-specific operations tend to appear as themselves, while more general concepts like
 memory move and subroutine call and return are more abstract.
@@ -36,13 +38,15 @@ The details vary with architecture, and we apologize for the imprecision; the si
 </p>
 
 <p>
-The assembler program is a way to generate that intermediate, incompletely defined instruction sequence
-as input for the linker.
+The assembler program is a way to parse a description of that
+semi-abstract instruction set and turn it into instructions to be
+input to the linker.
 If you want to see what the instructions look like in assembly for a given architecture, say amd64, there
 are many examples in the sources of the standard library, in packages such as
 <a href="/pkg/runtime/"><code>runtime</code></a> and
 <a href="/pkg/math/big/"><code>math/big</code></a>.
-You can also examine what the compiler emits as assembly code:
+You can also examine what the compiler emits as assembly code
+(the actual output may differ from what you see here):
 </p>
 
 <pre>
@@ -52,7 +56,7 @@ package main
 func main() {
 	println(3)
 }
-$ go tool compile -S x.go        # or: go build -gcflags -S x.go
+$ GOOS=linux GOARCH=amd64 go tool compile -S x.go        # or: go build -gcflags -S x.go
 
 --- prog list "main" ---
 0000 (x.go:3) TEXT    main+0(SB),$8-0
@@ -106,20 +110,73 @@ codeblk [0x2000,0x1d059) at offset 0x1000
 
 -->
 
+<h3 id="constants">Constants</h3>
+
+<p>
+Although the assembler takes its guidance from the Plan 9 assemblers,
+it is a distinct program, so there are some differences.
+One is in constant evaluation.
+Constant expressions in the assembler are parsed using Go's operator
+precedence, not the C-like precedence of the original.
+Thus <code>3&amp;1<<2</code> is 4, not 0—it parses as <code>(3&amp;1)<<2</code>
+not <code>3&amp;(1<<2)</code>.
+Also, constants are always evaluated as 64-bit unsigned integers.
+Thus <code>-2</code> is not the integer value minus two,
+but the unsigned 64-bit integer with the same bit pattern.
+The distinction rarely matters but
+to avoid ambiguity, division or right shift where the right operand's
+high bit is set is rejected.
+</p>
+
 <h3 id="symbols">Symbols</h3>
 
 <p>
-Some symbols, such as <code>PC</code>, <code>R0</code> and <code>SP</code>, are predeclared and refer to registers.
-There are two other predeclared symbols, <code>SB</code> (static base) and <code>FP</code> (frame pointer).
-All user-defined symbols other than jump labels are written as offsets to these pseudo-registers.
+Some symbols, such as <code>R1</code> or <code>LR</code>,
+are predefined and refer to registers.
+The exact set depends on the architecture.
+</p>
+
+<p>
+There are four predeclared symbols that refer to pseudo-registers.
+These are not real registers, but rather virtual registers maintained by
+the tool chain, such as a frame pointer.
+The set of pseudo-registers is the same for all architectures:
+</p>
+
+<ul>
+
+<li>
+<code>FP</code>: Frame pointer: arguments and locals.
+</li>
+
+<li>
+<code>PC</code>: Program counter:
+jumps and branches.
+</li>
+
+<li>
+<code>SB</code>: Static base pointer: global symbols.
+</li>
+
+<li>
+<code>SP</code>: Stack pointer: top of stack.
+</li>
+
+</ul>
+
+<p>
+All user-defined symbols are written as offsets to the pseudo-registers
+<code>FP</code> (arguments and locals) and <code>SB</code> (globals).
 </p>
 
 <p>
 The <code>SB</code> pseudo-register can be thought of as the origin of memory, so the symbol <code>foo(SB)</code>
 is the name <code>foo</code> as an address in memory.
 This form is used to name global functions and data.
-Adding <code>&lt;&gt;</code> to the name, as in <code>foo&lt;&gt;(SB)</code>, makes the name
+Adding <code>&lt;&gt;</code> to the name, as in <span style="white-space: nowrap"><code>foo&lt;&gt;(SB)</code></span>, makes the name
 visible only in the current source file, like a top-level <code>static</code> declaration in a C file.
+Adding an offset to the name refers to that offset from the symbol's address, so
+<code>a+4(SB)</code> is four bytes past the start of <code>foo</code>.
 </p>
 
 <p>
@@ -128,9 +185,19 @@ used to refer to function arguments.
 The compilers maintain a virtual frame pointer and refer to the arguments on the stack as offsets from that pseudo-register.
 Thus <code>0(FP)</code> is the first argument to the function,
 <code>8(FP)</code> is the second (on a 64-bit machine), and so on.
-When referring to a function argument this way, it is conventional to place the name
+However, when referring to a function argument this way, it is necessary to place a name
 at the beginning, as in <code>first_arg+0(FP)</code> and <code>second_arg+8(FP)</code>.
-Some of the assemblers enforce this convention, rejecting plain <code>0(FP)</code> and <code>8(FP)</code>.
+(The meaning of the offset—offset from the frame pointer—distinct
+from its use with <code>SB</code>, where it is an offset from the symbol.)
+The assembler enforces this convention, rejecting plain <code>0(FP)</code> and <code>8(FP)</code>.
+The actual name is semantically irrelevant but should be used to document
+the argument's name.
+It is worth stressing that <code>FP</code> is always a
+pseudo-register, not a hardware
+register, even on architectures with a hardware frame pointer.
+</p>
+
+<p>
 For assembly functions with Go prototypes, <code>go</code> <code>vet</code> will check that the argument names
 and offsets match.
 On 32-bit systems, the low and high 32 bits of a 64-bit value are distinguished by adding
@@ -145,11 +212,51 @@ prepared for function calls.
 It points to the top of the local stack frame, so references should use negative offsets
 in the range [−framesize, 0):
 <code>x-8(SP)</code>, <code>y-4(SP)</code>, and so on.
-On architectures with a real register named <code>SP</code>, the name prefix distinguishes
-references to the virtual stack pointer from references to the architectural <code>SP</code> register.
-That is, <code>x-8(SP)</code> and <code>-8(SP)</code> are different memory locations:
-the first refers to the virtual stack pointer pseudo-register, while the second refers to the
+</p>
+
+<p>
+On architectures with a hardware register named <code>SP</code>,
+the name prefix distinguishes
+references to the virtual stack pointer from references to the architectural
+<code>SP</code> register.
+That is, <code>x-8(SP)</code> and <code>-8(SP)</code>
+are different memory locations:
+the first refers to the virtual stack pointer pseudo-register,
+while the second refers to the
 hardware's <code>SP</code> register.
+</p>
+
+<p>
+On machines where <code>SP</code> and <code>PC</code> are
+traditionally aliases for a physical, numbered register,
+in the Go assembler the names <code>SP</code> and <code>PC</code>
+are still treated specially;
+for instance, references to <code>SP</code> require a symbol,
+much like <code>FP</code>.
+To access the actual hardware register use the true <code>R</code> name.
+For example, on the ARM architecture the hardware
+<code>SP</code> and <code>PC</code> are accessible as
+<code>R13</code> and <code>R15</code>.
+</p>
+
+<p>
+Branches and direct jumps are always written as offsets to the PC, or as
+jumps to labels:
+</p>
+
+<pre>
+label:
+	MOVW $0, R1
+	JMP label
+</pre>
+
+<p>
+Each label is visible only within the function in which it is defined.
+It is therefore permitted for multiple functions in a file to define
+and use the same label names.
+Direct jumps and call instructions can target text symbols,
+such as <code>name(SB)</code>, but not offsets from symbols,
+such as <code>name+4(SB)</code>.
 </p>
 
 <p>
@@ -312,10 +419,16 @@ This data contains no pointers and therefore does not need to be
 scanned by the garbage collector.
 </li>
 <li>
-<code>WRAPPER</code>  = 32
+<code>WRAPPER</code> = 32
 <br>
 (For <code>TEXT</code> items.)
 This is a wrapper function and should not count as disabling <code>recover</code>.
+</li>
+<li>
+<code>NEEDCTXT</code> = 64
+<br>
+(For <code>TEXT</code> items.)
+This function is a closure so it uses its incoming context register.
 </li>
 </ul>
 
