@@ -200,16 +200,32 @@ func (pkg *Package) oneLineTypeDecl(spec *ast.TypeSpec) {
 // packageDoc prints the docs for the package (package doc plus one-liners of the rest).
 func (pkg *Package) packageDoc() {
 	defer pkg.flush()
-	pkg.packageClause(false)
+	if pkg.showInternals() {
+		pkg.packageClause(false)
+	}
 
 	doc.ToText(&pkg.buf, pkg.doc.Doc, "", "\t", 80)
-	pkg.newlines(2)
+	pkg.newlines(1)
 
+	if !pkg.showInternals() {
+		// Show only package docs for commands.
+		return
+	}
+
+	pkg.newlines(1)
 	pkg.valueSummary(pkg.doc.Consts)
 	pkg.valueSummary(pkg.doc.Vars)
 	pkg.funcSummary(pkg.doc.Funcs)
 	pkg.typeSummary()
 	pkg.bugs()
+}
+
+// showInternals reports whether we should show the internals
+// of a package as opposed to just the package docs.
+// Used to decide whether to suppress internals for commands.
+// Called only by Package.packageDoc.
+func (pkg *Package) showInternals() bool {
+	return pkg.pkg.Name != "main" || showCmd
 }
 
 // packageClause prints the package clause.

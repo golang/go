@@ -201,7 +201,9 @@ Given no arguments, that is, when run as
 
 	go doc
 
-it prints the package documentation for the package in the current directory.
+it prints the package documentation for the package in the current directory.  If
+the package is a command (package main), the exported symbols of the package are
+elided from the presentation unless the -cmd flag is provided.
 
 When run with one argument, the argument is treated as a Go-syntax-like representation
 of the item to be documented. What the argument selects depends on what is installed
@@ -249,6 +251,10 @@ Examples:
 		Show documentation and method summary for json.Number.
 	go doc json.Number.Int64 (or go doc json.number.int64)
 		Show documentation for json.Number's Int64 method.
+	go doc cmd/doc
+		Show package docs for the doc command.
+	go doc -cmd cmd/doc
+		Show package docs and exported symbols within the doc command.
 	go doc template.new
 		Show documentation for html/template's New function.
 		(html/template is lexically before text/template)
@@ -260,6 +266,10 @@ Examples:
 Flags:
 	-c
 		Respect case when matching symbols.
+	-cmd
+		Treat a command (package main) like a regular package.
+		Otherwise package main's exported symbols are hidden
+		when showing the package's top-level documentation.
 	-u
 		Show documentation for unexported as well as exported
 		symbols and methods.
