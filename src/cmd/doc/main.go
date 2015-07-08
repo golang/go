@@ -23,6 +23,9 @@
 // first argument must be a full package path. This is similar to the
 // command-line usage for the godoc command.
 //
+// For commands, unless the -cmd flag is present "go doc command"
+// shows only the package-level docs for the package.
+//
 // For complete documentation, run "go help doc".
 package main
 
@@ -43,6 +46,7 @@ import (
 var (
 	unexported bool // -u flag
 	matchCase  bool // -c flag
+	showCmd    bool // -cmd flag
 )
 
 // usage is a replacement usage function for the flags package.
@@ -76,6 +80,7 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 	matchCase = false
 	flagSet.BoolVar(&unexported, "u", false, "show unexported symbols as well as exported")
 	flagSet.BoolVar(&matchCase, "c", false, "symbol matching honors case (paths not affected)")
+	flagSet.BoolVar(&showCmd, "cmd", false, "show symbols with package docs even if package is a command")
 	flagSet.Parse(args)
 	buildPackage, userPath, symbol := parseArgs(flagSet.Args())
 	symbol, method := parseSymbol(symbol)
