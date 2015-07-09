@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // licence that can be found in the LICENSE file.
 
-// This file contains the implementation of the 'gomovepkg' command
-// whose main function is in golang.org/x/tools/cmd/gomovepkg.
+// This file contains the implementation of the 'gomvpkg' command
+// whose main function is in golang.org/x/tools/cmd/gomvpkg.
 
 package rename
 
