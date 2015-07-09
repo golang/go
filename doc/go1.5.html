@@ -355,25 +355,18 @@ manual verification may be required.
 </p>
 
 <p>
-Perhaps more important is that some discrepancies between the
-architectures in how the PC and SP are handled have been
-eliminated.
-Sometimes these registers represented hardware
-registers, and sometimes pseudo-registers.
-As of Go 1.5, the names <code>PC</code> and <code>SP</code>
-are always pseudo-registers.
-To refer to the hardware register, use the alternate representation such
-as <code>R13</code> for the stack pointer and
-<code>R15</code> for the hardware program counter on x86.
-(The names are different on other architectures.)
-To help enforce this change, references to the
-<code>SP</code> and <code>PC</code>
-pseudo-registers now always require an identifier:
-<code>f+4(SP)</code> not <code>4(SP)</code>;
-it is a syntax error to omit the identifier.
-Uses of <code>SP</code> (say) as a hardware register
-tend to omit the name, and they will now be flagged by
-the assembler.
+Perhaps more important is that on machines where
+<code>SP</code> or <code>PC</code> is only an alias
+for a numbered register,
+such as <code>R13</code> for the stack pointer and
+<code>R15</code> for the hardware program counter
+on x86,
+a reference to such a register that does not include a symbol
+is now illegal.
+For example, <code>SP</code> and <code>4(SP)</code> are
+illegal but <code>sym+4(SP)</code> is fine.
+On such machines, to refer to the hardware register use its
+true <code>R</code> name.
 </p>
 
 <p>
@@ -487,11 +480,15 @@ as described above.
 An <code>-asmflags</code> build option has been added to provide
 flags to the assembler.
 However, 
-the <code>-ccflags</code> build option has been dropped. TODO: why?
+the <code>-ccflags</code> build option has been dropped;
+it was specific to the old, now deleted C compiler .
 </li>
 
 <li>
-cmd/go, testing: add go test -count (https://golang.org/cl/10669)
+The <code>test</code> subcommand now has a <code>-count</code>
+flag to specify how many times to run each test and benchmark.
+<a href="/pkg/testing/"><code>testing</code></a> package
+does the work here, through by the <code>-test.count</code> flag.
 </li>
 
 <li>
@@ -501,6 +498,12 @@ to execute; this was proposed but never implemented in 1.4.
 The executing pattern now has access to two new environment variables:
 <code>$GOLINE</code> returns the source line number of the directive
 and <code>$DOLLAR</code> expands to a dollar sign.
+</li>
+
+<li>
+The <code>get</code> subcommand now has a <code>-insecure</code>
+flag that must be enabled if fetching from an insecure repository, one that
+does not encrypt the connection.
 </li>
 
 </ul>
@@ -800,7 +803,7 @@ The server serves them if they are listed in the
 <a href="/pkg/crypto/tls/#Certificate"><code>Certificate</code></a> struct,
 and the client requests them and exposes them, if present,
 in its <a href="/pkg/crypto/tls/#ConnectionState"><code>ConnectionState</code></a> struct.
-The <a href="/pkg/crytpo/tls/"><code>crytpo/tls</code></a> server implementation
+The <a href="/pkg/crypto/tls/"><code>crytpo/tls</code></a> server implementation
 will also now always call the
 <code>GetCertificate</code> function in
 the <a href="/pkg/crypto/tls/#Config"><code>Config</code></a> struct
@@ -1037,13 +1040,6 @@ had a bug that mishandled the values of the environment variables
 This has been fixed.
 Also, starting with Go 1.5 the package sets the <code>REMOTE_PORT</code>
 variable.
-</li>
-
-<li>
-The <a href="/pkg/net/http/"><code>net/http</code></a> package's
-<a href="/pkg/net/http#Request"><code>Request</code></a> type adds a
-<code>Cancel</code> field, a channel to signal that the request has been
-canceled.
 </li>
 
 <li>
