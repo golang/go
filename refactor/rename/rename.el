@@ -92,3 +92,5 @@ the `gorename' tool. With FORCE, call `gorename' with the
   (replace-regexp-in-string "[\t\n ]*\\'"
                             ""
                             (buffer-substring (point-min) (point-max))))
+
+(provide 'go-rename)
