@@ -51,6 +51,7 @@ var passes = [...]pass{
 	{"phielim", phielim},
 	{"copyelim", copyelim},
 	{"opt", opt},
+	{"opt deadcode", deadcode}, // remove any blocks orphaned during opt
 	{"generic cse", cse},
 	{"nilcheckelim", nilcheckelim},
 	{"generic deadcode", deadcode},

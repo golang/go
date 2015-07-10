@@ -105,6 +105,7 @@ var genericOps = []opData{
 
 var genericBlocks = []blockData{
 	{name: "Exit"},  // no successors.  There should only be 1 of these.
+	{name: "Dead"},  // no successors; determined to be dead but not yet removed
 	{name: "Plain"}, // a single successor
 	{name: "If"},    // 2 successors, if control goto Succs[0] else goto Succs[1]
 	{name: "Call"},  // 2 successors, normal return and panic

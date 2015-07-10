@@ -19,6 +19,7 @@ const (
 	BlockAMD64UGE
 
 	BlockExit
+	BlockDead
 	BlockPlain
 	BlockIf
 	BlockCall
@@ -39,6 +40,7 @@ var blockString = [...]string{
 	BlockAMD64UGE: "UGE",
 
 	BlockExit:  "Exit",
+	BlockDead:  "Dead",
 	BlockPlain: "Plain",
 	BlockIf:    "If",
 	BlockCall:  "Call",
