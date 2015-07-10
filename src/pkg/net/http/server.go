@@ -172,7 +172,7 @@ func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
 const noLimit int64 = (1 << 63) - 1
 
 // Create new connection from rwc.
-func (srv *Server) newConn(rwc net.Conn) (c *conn, err error) {
+func (srv *Server) NewConn(rwc net.Conn) (c *conn, err error) {
 	c = new(conn)
 	c.remoteAddr = rwc.RemoteAddr().String()
 	c.server = srv
@@ -564,7 +564,7 @@ func (c *conn) close() {
 }
 
 // Serve a new connection.
-func (c *conn) serve() {
+func (c *conn) Serve() {
 	defer func() {
 		err := recover()
 		if err == nil {
@@ -1033,11 +1033,11 @@ func (srv *Server) Serve(l net.Listener) error {
 		if srv.WriteTimeout != 0 {
 			rw.SetWriteDeadline(time.Now().Add(srv.WriteTimeout))
 		}
-		c, err := srv.newConn(rw)
+		c, err := srv.NewConn(rw)
 		if err != nil {
 			continue
 		}
-		go c.serve()
+		go c.Serve()
 	}
 	panic("not reached")
 }
