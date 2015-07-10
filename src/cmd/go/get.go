@@ -80,7 +80,7 @@ func runGet(cmd *Command, args []string) {
 	// Phase 1.  Download/update.
 	var stk importStack
 	for _, arg := range downloadPaths(args) {
-		download(arg, &stk, *getT)
+		download(arg, nil, &stk, *getT)
 	}
 	exitIfErrors()
 
@@ -152,8 +152,15 @@ var downloadRootCache = map[string]bool{}
 
 // download runs the download half of the get command
 // for the package named by the argument.
-func download(arg string, stk *importStack, getTestDeps bool) {
-	p := loadPackage(arg, stk)
+func download(arg string, parent *Package, stk *importStack, getTestDeps bool) {
+	load := func(path string) *Package {
+		if parent == nil {
+			return loadPackage(arg, stk)
+		}
+		return loadImport(arg, parent.Dir, nil, stk, nil)
+	}
+
+	p := load(arg)
 	if p.Error != nil && p.Error.hard {
 		errorf("%s", p.Error)
 		return
@@ -186,14 +193,15 @@ func download(arg string, stk *importStack, getTestDeps bool) {
 	wildcardOkay := len(*stk) == 0
 	isWildcard := false
 
+	stk.push(arg)
+	defer stk.pop()
+
 	// Download if the package is missing, or update if we're using -u.
 	if p.Dir == "" || *getU {
 		// The actual download.
-		stk.push(p.ImportPath)
 		err := downloadPackage(p)
 		if err != nil {
 			errorf("%s", &PackageError{ImportStack: stk.copy(), Err: err.Error()})
-			stk.pop()
 			return
 		}
 
@@ -222,9 +230,7 @@ func download(arg string, stk *importStack, getTestDeps bool) {
 
 		pkgs = pkgs[:0]
 		for _, arg := range args {
-			stk.push(arg)
-			p := loadPackage(arg, stk)
-			stk.pop()
+			p := load(arg)
 			if p.Error != nil {
 				errorf("%s", p.Error)
 				continue
@@ -256,16 +262,16 @@ func download(arg string, stk *importStack, getTestDeps bool) {
 		// Process dependencies, now that we know what they are.
 		for _, dep := range p.deps {
 			// Don't get test dependencies recursively.
-			download(dep.ImportPath, stk, false)
+			download(dep.ImportPath, p, stk, false)
 		}
 		if getTestDeps {
 			// Process test dependencies when -t is specified.
 			// (Don't get test dependencies for test dependencies.)
 			for _, path := range p.TestImports {
-				download(path, stk, false)
+				download(path, p, stk, false)
 			}
 			for _, path := range p.XTestImports {
-				download(path, stk, false)
+				download(path, p, stk, false)
 			}
 		}
 

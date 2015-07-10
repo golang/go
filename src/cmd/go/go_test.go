@@ -1506,6 +1506,21 @@ func TestGoGetDashTIssue8181(t *testing.T) {
 	tg.grepStdout("x/build/cmd/cl", "missing expected x/build/cmd/cl")
 }
 
+func TestIssue11307(t *testing.T) {
+	// go get -u was not working except in checkout directory
+	if testing.Short() {
+		t.Skip("skipping test that uses network in short mode")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.path("."))
+	tg.run("get", "github.com/rsc/go-get-issue-11307")
+	tg.run("get", "-u", "github.com/rsc/go-get-issue-11307") // was failing
+}
+
 func TestShadowingLogic(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
