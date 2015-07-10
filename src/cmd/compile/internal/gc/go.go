@@ -199,7 +199,7 @@ type Type struct {
 	Note  *string // literal string annotation
 
 	// TARRAY
-	Bound int64 // negative is dynamic array
+	Bound int64 // negative is slice
 
 	// TMAP
 	Bucket *Type // internal type representing a hash bucket
