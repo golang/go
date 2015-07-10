@@ -500,6 +500,46 @@ func (s *state) expr(n *Node) *ssa.Value {
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
 		return s.newValue2(binOpToSSA[n.Op], a.Type, a, b)
+	case OANDAND, OOROR:
+		// To implement OANDAND (and OOROR), we introduce a
+		// new temporary variable to hold the result. The
+		// variable is associated with the OANDAND node in the
+		// s.vars table (normally variables are only
+		// associated with ONAME nodes). We convert
+		//     A && B
+		// to
+		//     var = A
+		//     if var {
+		//         var = B
+		//     }
+		// Using var in the subsequent block introduces the
+		// necessary phi variable.
+		el := s.expr(n.Left)
+		s.vars[n] = el
+
+		b := s.endBlock()
+		b.Kind = ssa.BlockIf
+		b.Control = el
+
+		bRight := s.f.NewBlock(ssa.BlockPlain)
+		bResult := s.f.NewBlock(ssa.BlockPlain)
+		if n.Op == OANDAND {
+			addEdge(b, bRight)
+			addEdge(b, bResult)
+		} else if n.Op == OOROR {
+			addEdge(b, bResult)
+			addEdge(b, bRight)
+		}
+
+		s.startBlock(bRight)
+		er := s.expr(n.Right)
+		s.vars[n] = er
+
+		b = s.endBlock()
+		addEdge(b, bResult)
+
+		s.startBlock(bResult)
+		return s.variable(n, n.Type)
 
 	// unary ops
 	case ONOT:

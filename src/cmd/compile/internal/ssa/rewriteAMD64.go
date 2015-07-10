@@ -499,6 +499,26 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto end4c8bfe9df26fc5aa2bd76b211792732a
 	end4c8bfe9df26fc5aa2bd76b211792732a:
 		;
+	case OpConvNop:
+		// match: (ConvNop <t> x)
+		// cond: t == x.Type
+		// result: (Copy x)
+		{
+			t := v.Type
+			x := v.Args[0]
+			if !(t == x.Type) {
+				goto end6c588ed8aedc7dca8c06b4ada77e3ddd
+			}
+			v.Op = OpCopy
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto end6c588ed8aedc7dca8c06b4ada77e3ddd
+	end6c588ed8aedc7dca8c06b4ada77e3ddd:
+		;
 	case OpConvert:
 		// match: (Convert <t> x)
 		// cond: t.IsInteger() && x.Type.IsInteger()

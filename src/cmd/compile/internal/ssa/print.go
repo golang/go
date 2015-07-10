@@ -26,7 +26,14 @@ func fprintFunc(w io.Writer, f *Func) {
 	fmt.Fprintln(w, f.Type)
 	printed := make([]bool, f.NumValues())
 	for _, b := range f.Blocks {
-		fmt.Fprintf(w, "  b%d:\n", b.ID)
+		fmt.Fprintf(w, "  b%d:", b.ID)
+		if len(b.Preds) > 0 {
+			io.WriteString(w, " <-")
+			for _, pred := range b.Preds {
+				fmt.Fprintf(w, " b%d", pred.ID)
+			}
+		}
+		io.WriteString(w, "\n")
 		n := 0
 
 		// print phis first since all value cycles contain a phi
