@@ -1012,7 +1012,7 @@ func cmdbootstrap() {
 			"*** %s still exists. ***\n"+
 			"It probably contains stale files that may confuse the build.\n"+
 			"Please (check what's there and) remove it and try again.\n"+
-			"See http://golang.org/s/go14nopkg\n",
+			"See https://golang.org/s/go14nopkg\n",
 			pathf("%s/src/pkg", goroot))
 	}
 

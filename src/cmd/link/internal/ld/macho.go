@@ -645,7 +645,7 @@ func machogenasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 func machosymorder() {
 	// On Mac OS X Mountain Lion, we must sort exported symbols
 	// So we sort them here and pre-allocate dynid for them
-	// See http://golang.org/issue/4029
+	// See https://golang.org/issue/4029
 	for i := 0; i < len(dynexp); i++ {
 		dynexp[i].Reachable = true
 	}

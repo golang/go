@@ -22,7 +22,7 @@ var zerofunc goobj.Func
 // information during garbage collection. The symbol created is named
 // "pclntab" for historical reasons; the scope of the table has grown to
 // include more than just PC/line number correspondences.
-// The table format is documented at http://golang.org/s/go12symtab.
+// The table format is documented at https://golang.org/s/go12symtab.
 func (p *Prog) pclntab() {
 	// Count number of functions going into the binary,
 	// so that we can size the initial index correctly.

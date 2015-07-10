@@ -6,10 +6,10 @@
 // databases.
 //
 // The sql package must be used in conjunction with a database driver.
-// See http://golang.org/s/sqldrivers for a list of drivers.
+// See https://golang.org/s/sqldrivers for a list of drivers.
 //
 // For more usage examples, see the wiki page at
-// http://golang.org/s/sqlwiki.
+// https://golang.org/s/sqlwiki.
 package sql
 
 import (
@@ -454,7 +454,7 @@ var connectionRequestQueueSize = 1000000
 //
 // Most users will open a database via a driver-specific connection
 // helper function that returns a *DB. No database drivers are included
-// in the Go standard library. See http://golang.org/s/sqldrivers for
+// in the Go standard library. See https://golang.org/s/sqldrivers for
 // a list of third-party drivers.
 //
 // Open may just validate its arguments without creating a connection

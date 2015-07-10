@@ -7,7 +7,7 @@
 // in the documentation for the Marshal and Unmarshal functions.
 //
 // See "JSON and Go" for an introduction to this package:
-// http://golang.org/doc/articles/json_and_go.html
+// https://golang.org/doc/articles/json_and_go.html
 package json
 
 import (

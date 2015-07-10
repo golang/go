@@ -423,7 +423,7 @@ func (c *Client) doFollowingRedirects(ireq *Request, shouldRedirect func(int) bo
 	if redirectFailed {
 		// Special case for Go 1 compatibility: return both the response
 		// and an error if the CheckRedirect function failed.
-		// See http://golang.org/issue/3795
+		// See https://golang.org/issue/3795
 		return resp, urlErr
 	}
 

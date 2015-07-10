@@ -51,7 +51,7 @@ var (
 	uploadURL       = flag.String("upload_url", defaultUploadURL, "Upload URL")
 
 	defaultCacheFile = filepath.Join(os.Getenv("HOME"), ".makerelease-request-token")
-	defaultUploadURL = "http://golang.org/dl/upload"
+	defaultUploadURL = "https://golang.org/dl/upload"
 )
 
 const (

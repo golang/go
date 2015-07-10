@@ -304,7 +304,7 @@ func sanitizeCookieName(n string) string {
 // We loosen this as spaces and commas are common in cookie values
 // but we produce a quoted cookie-value in when value starts or ends
 // with a comma or space.
-// See http://golang.org/issue/7243 for the discussion.
+// See https://golang.org/issue/7243 for the discussion.
 func sanitizeCookieValue(v string) string {
 	v = sanitizeOrWarn("Cookie.Value", validCookieValueByte, v)
 	if len(v) == 0 {

@@ -317,7 +317,7 @@ func (v *vcsCmd) run1(dir string, cmdline string, keyval []string, verbose bool)
 	_, err := exec.LookPath(v.cmd)
 	if err != nil {
 		fmt.Fprintf(os.Stderr,
-			"go: missing %s command. See http://golang.org/s/gogetcmd\n",
+			"go: missing %s command. See https://golang.org/s/gogetcmd\n",
 			v.name)
 		return nil, err
 	}

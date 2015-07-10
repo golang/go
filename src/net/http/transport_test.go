@@ -486,7 +486,7 @@ func TestTransportServerClosingUnexpectedly(t *testing.T) {
 	}
 }
 
-// Test for http://golang.org/issue/2616 (appropriate issue number)
+// Test for https://golang.org/issue/2616 (appropriate issue number)
 // This fails pretty reliably with GOMAXPROCS=100 or something high.
 func TestStressSurpriseServerCloses(t *testing.T) {
 	defer afterTest(t)
@@ -876,7 +876,7 @@ func TestTransportGzipShort(t *testing.T) {
 // tests that persistent goroutine connections shut down when no longer desired.
 func TestTransportPersistConnLeak(t *testing.T) {
 	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test; see http://golang.org/issue/7237")
+		t.Skip("skipping test; see https://golang.org/issue/7237")
 	}
 	defer afterTest(t)
 	gotReqCh := make(chan bool)
@@ -945,7 +945,7 @@ func TestTransportPersistConnLeak(t *testing.T) {
 // request.ContentLength is explicitly short
 func TestTransportPersistConnLeakShortBody(t *testing.T) {
 	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test; see http://golang.org/issue/7237")
+		t.Skip("skipping test; see https://golang.org/issue/7237")
 	}
 	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -984,7 +984,7 @@ func TestTransportPersistConnLeakShortBody(t *testing.T) {
 	}
 }
 
-// This used to crash; http://golang.org/issue/3266
+// This used to crash; https://golang.org/issue/3266
 func TestTransportIdleConnCrash(t *testing.T) {
 	defer afterTest(t)
 	tr := &Transport{}
@@ -1066,7 +1066,7 @@ func TestIssue3595(t *testing.T) {
 	}
 }
 
-// From http://golang.org/issue/4454 ,
+// From https://golang.org/issue/4454 ,
 // "client fails to handle requests with no body and chunked encoding"
 func TestChunkedNoContent(t *testing.T) {
 	defer afterTest(t)
@@ -1153,7 +1153,7 @@ func TestTransportConcurrency(t *testing.T) {
 
 func TestIssue4191_InfiniteGetTimeout(t *testing.T) {
 	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test; see http://golang.org/issue/7237")
+		t.Skip("skipping test; see https://golang.org/issue/7237")
 	}
 	defer afterTest(t)
 	const debug = false
@@ -1217,7 +1217,7 @@ func TestIssue4191_InfiniteGetTimeout(t *testing.T) {
 
 func TestIssue4191_InfiniteGetToPutTimeout(t *testing.T) {
 	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test; see http://golang.org/issue/7237")
+		t.Skip("skipping test; see https://golang.org/issue/7237")
 	}
 	defer afterTest(t)
 	const debug = false
@@ -1533,7 +1533,7 @@ func TestCancelRequestWithChannelBeforeDo(t *testing.T) {
 	defer close(unblockc)
 
 	// Don't interfere with the next test on plan9.
-	// Cf. http://golang.org/issues/11476
+	// Cf. https://golang.org/issues/11476
 	if runtime.GOOS == "plan9" {
 		defer time.Sleep(500 * time.Millisecond)
 	}
@@ -2257,7 +2257,7 @@ func (f closerFunc) Close() error { return f() }
 // Issue 6981
 func TestTransportClosesBodyOnError(t *testing.T) {
 	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test; see http://golang.org/issue/7782")
+		t.Skip("skipping test; see https://golang.org/issue/7782")
 	}
 	defer afterTest(t)
 	readBody := make(chan error, 1)

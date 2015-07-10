@@ -1433,7 +1433,7 @@ func (b *builder) build(a *action) (err error) {
 	// NOTE(rsc): On Windows, it is critically important that the
 	// gcc-compiled objects (cgoObjects) be listed after the ordinary
 	// objects in the archive.  I do not know why this is.
-	// http://golang.org/issue/2601
+	// https://golang.org/issue/2601
 	objects = append(objects, cgoObjects...)
 
 	// Add system object files.
@@ -1937,7 +1937,7 @@ func (b *builder) runOut(dir string, desc string, env []string, cmdargs ...inter
 		// Sleeping when we observe the race seems to be the most reliable
 		// option we have.
 		//
-		// http://golang.org/issue/3001
+		// https://golang.org/issue/3001
 		//
 		if err != nil && nbusy < 3 && strings.Contains(err.Error(), "text file busy") {
 			time.Sleep(100 * time.Millisecond << uint(nbusy))
@@ -2838,7 +2838,7 @@ func (b *builder) ccompilerCmd(envvar, defcmd, objdir string) []string {
 
 	// On OS X, some of the compilers behave as if -fno-common
 	// is always set, and the Mach-O linker in 6l/8l assumes this.
-	// See http://golang.org/issue/3253.
+	// See https://golang.org/issue/3253.
 	if goos == "darwin" {
 		a = append(a, "-fno-common")
 	}
@@ -3111,7 +3111,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
 
 	// NOTE(rsc): The importObj is a 5c/6c/8c object and on Windows
 	// must be processed before the gcc-generated objects.
-	// Put it first.  http://golang.org/issue/2601
+	// Put it first.  https://golang.org/issue/2601
 	outObj = stringList(nonGccObjs, ofile)
 
 	return outGo, outObj, nil

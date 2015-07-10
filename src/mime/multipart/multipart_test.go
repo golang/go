@@ -351,7 +351,7 @@ func TestLineContinuation(t *testing.T) {
 }
 
 func TestQuotedPrintableEncoding(t *testing.T) {
-	// From http://golang.org/issue/4411
+	// From https://golang.org/issue/4411
 	body := "--0016e68ee29c5d515f04cedf6733\r\nContent-Type: text/plain; charset=ISO-8859-1\r\nContent-Disposition: form-data; name=text\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\nwords words words words words words words words words words words words wor=\r\nds words words words words words words words words words words words words =\r\nwords words words words words words words words words words words words wor=\r\nds words words words words words words words words words words words words =\r\nwords words words words words words words words words\r\n--0016e68ee29c5d515f04cedf6733\r\nContent-Type: text/plain; charset=ISO-8859-1\r\nContent-Disposition: form-data; name=submit\r\n\r\nSubmit\r\n--0016e68ee29c5d515f04cedf6733--"
 	r := NewReader(strings.NewReader(body), "0016e68ee29c5d515f04cedf6733")
 	part, err := r.NextPart()

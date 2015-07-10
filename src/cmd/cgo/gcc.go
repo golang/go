@@ -781,7 +781,7 @@ func (p *Package) gccCmd() []string {
 			// incorrectly typed unsigned long. We work around that
 			// by disabling the builtin functions (this is safe as
 			// it won't affect the actual compilation of the C code).
-			// See: http://golang.org/issue/6506.
+			// See: https://golang.org/issue/6506.
 			"-fno-builtin",
 		)
 	}
