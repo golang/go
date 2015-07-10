@@ -84,7 +84,6 @@ func TestMain(m *testing.M) {
 	// Don't let these environment variables confuse the test.
 	os.Unsetenv("GOBIN")
 	os.Unsetenv("GOPATH")
-	os.Unsetenv("GOROOT")
 
 	r := m.Run()
 

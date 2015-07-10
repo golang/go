@@ -98,6 +98,16 @@ func TestGdbPython(t *testing.T) {
 
 	firstLine := bytes.SplitN(got, []byte("\n"), 2)[0]
 	if string(firstLine) != "Loading Go Runtime support." {
+		// This can happen when using all.bash with
+		// GOROOT_FINAL set, because the tests are run before
+		// the final installation of the files.
+		cmd := exec.Command("go", "env", "GOROOT")
+		cmd.Env = []string{}
+		out, err := cmd.CombinedOutput()
+		if err != nil && bytes.Contains(out, []byte("cannot find GOROOT")) {
+			t.Skipf("skipping because GOROOT=%s does not exist", runtime.GOROOT())
+		}
+
 		t.Fatalf("failed to load Go runtime support: %s", firstLine)
 	}
 
