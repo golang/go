@@ -62,12 +62,15 @@
 (Store ptr val mem) && is32BitInt(val.Type) -> (MOVLstore ptr val mem)
 (Store ptr val mem) && is16BitInt(val.Type) -> (MOVWstore ptr val mem)
 (Store ptr val mem) && is8BitInt(val.Type) -> (MOVBstore ptr val mem)
+(Store ptr val mem) && val.Type.IsBoolean() -> (MOVBstore ptr val mem)
 
 // checks
 (IsNonNil p) -> (SETNE (TESTQ <TypeFlags> p p))
 (IsInBounds idx len) -> (SETB (CMPQ <TypeFlags> idx len))
 
 (Move [size] dst src mem) -> (REPMOVSB dst src (Const <TypeUInt64> [size]) mem)
+
+(Not x) -> (XORQconst [1] x)
 
 (OffPtr [off] ptr) -> (ADDQconst [off] ptr)
 

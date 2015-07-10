@@ -496,6 +496,11 @@ func (s *state) expr(n *Node) *ssa.Value {
 		b := s.expr(n.Right)
 		return s.newValue2(binOpToSSA[n.Op], a.Type, a, b)
 
+	// unary ops
+	case ONOT:
+		a := s.expr(n.Left)
+		return s.newValue1(ssa.OpNot, a.Type, a)
+
 	case OADDR:
 		return s.addr(n.Left)
 
@@ -1183,6 +1188,12 @@ func genValue(v *ssa.Value) {
 		p.To.Sym = Linksym(v.Aux.(*Sym))
 	case ssa.OpAMD64CALLclosure:
 		p := Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = regnum(v.Args[0])
+	case ssa.OpAMD64XORQconst:
+		p := Prog(x86.AXORQ)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v.Args[0])
 	case ssa.OpSP, ssa.OpSB:

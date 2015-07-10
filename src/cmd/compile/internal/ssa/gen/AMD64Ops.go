@@ -111,7 +111,8 @@ func init() {
 		{name: "SARQ", reg: gp21shift, asm: "SARQ"},  // signed arg0 >> arg1, shift amount is mod 64
 		{name: "SARQconst", reg: gp11, asm: "SARQ"},  // signed arg0 >> auxint, shift amount 0-63
 
-		{name: "NEGQ", reg: gp11}, // -arg0
+		{name: "NEGQ", reg: gp11},                   // -arg0
+		{name: "XORQconst", reg: gp11, asm: "XORQ"}, // arg0^auxint
 
 		{name: "CMPQ", reg: gp2flags, asm: "CMPQ"},      // arg0 compare to arg1
 		{name: "CMPQconst", reg: gp1flags, asm: "CMPQ"}, // arg0 compare to auxint

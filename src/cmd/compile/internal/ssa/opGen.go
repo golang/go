@@ -66,6 +66,7 @@ const (
 	OpAMD64SARQ
 	OpAMD64SARQconst
 	OpAMD64NEGQ
+	OpAMD64XORQconst
 	OpAMD64CMPQ
 	OpAMD64CMPQconst
 	OpAMD64TESTQ
@@ -123,6 +124,7 @@ const (
 	OpLeq
 	OpGreater
 	OpGeq
+	OpNot
 	OpPhi
 	OpCopy
 	OpConst
@@ -348,6 +350,19 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "NEGQ",
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			clobbers: 0,
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "XORQconst",
+		asm:  x86.AXORQ,
 		reg: regInfo{
 			inputs: []regMask{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1012,6 +1027,15 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "Geq",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Not",
 		reg: regInfo{
 			inputs:   []regMask{},
 			clobbers: 0,
