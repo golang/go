@@ -6,6 +6,7 @@ package gc
 
 import (
 	"fmt"
+	"strings"
 
 	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
@@ -18,7 +19,7 @@ import (
 // it will never return nil, and the bool can be removed.
 func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 	name := fn.Func.Nname.Sym.Name
-	usessa = len(name) > 4 && name[len(name)-4:] == "_ssa"
+	usessa = strings.HasSuffix(name, "_ssa")
 
 	if usessa {
 		dumplist("buildssa-enter", fn.Func.Enter)
@@ -293,6 +294,8 @@ func (s *state) stmt(n *Node) {
 	case OBLOCK:
 		s.stmtList(n.List)
 
+	case OEMPTY:
+
 	case ODCL:
 		if n.Left.Class&PHEAP == 0 {
 			return
@@ -527,14 +530,18 @@ func (s *state) expr(n *Node) *ssa.Value {
 			return s.newValue2(ssa.OpLoad, n.Left.Type.Type, p, s.mem())
 		}
 
-	case OLEN:
+	case OLEN, OCAP:
 		switch {
-		case n.Left.Type.Bound < 0: // slice
-			return s.newValue1(ssa.OpSliceLen, s.config.Uintptr, s.expr(n.Left))
-		case n.Left.Type.IsString(): // string
-			return s.newValue1(ssa.OpStringLen, s.config.Uintptr, s.expr(n.Left))
+		case n.Left.Type.IsSlice():
+			op := ssa.OpSliceLen
+			if n.Op == OCAP {
+				op = ssa.OpSliceCap
+			}
+			return s.newValue1(op, s.config.Int, s.expr(n.Left))
+		case n.Left.Type.IsString(): // string; not reachable for OCAP
+			return s.newValue1(ssa.OpStringLen, s.config.Int, s.expr(n.Left))
 		default: // array
-			return s.constInt(s.config.Uintptr, n.Left.Type.Bound)
+			return s.constInt(s.config.Int, n.Left.Type.Bound)
 		}
 
 	case OCALLFUNC:
@@ -645,19 +652,19 @@ func (s *state) addr(n *Node) *ssa.Value {
 		// used for storing/loading arguments/returns to/from callees
 		return s.entryNewValue1I(ssa.OpOffPtr, Ptrto(n.Type), n.Xoffset, s.sp)
 	case OINDEX:
-		if n.Left.Type.Bound >= 0 { // array
-			a := s.addr(n.Left)
-			i := s.expr(n.Right)
-			len := s.constInt(s.config.Uintptr, n.Left.Type.Bound)
-			s.boundsCheck(i, len)
-			return s.newValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), a, i)
-		} else { // slice
+		if n.Left.Type.IsSlice() {
 			a := s.expr(n.Left)
 			i := s.expr(n.Right)
 			len := s.newValue1(ssa.OpSliceLen, s.config.Uintptr, a)
 			s.boundsCheck(i, len)
 			p := s.newValue1(ssa.OpSlicePtr, Ptrto(n.Left.Type.Type), a)
 			return s.newValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), p, i)
+		} else { // array
+			a := s.addr(n.Left)
+			i := s.expr(n.Right)
+			len := s.constInt(s.config.Uintptr, n.Left.Type.Bound)
+			s.boundsCheck(i, len)
+			return s.newValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), a, i)
 		}
 	default:
 		s.Unimplementedf("addr: bad op %v", Oconv(int(n.Op), 0))

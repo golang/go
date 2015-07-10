@@ -64,6 +64,10 @@ func (t *Type) IsString() bool {
 	return t.Etype == TSTRING
 }
 
+func (t *Type) IsSlice() bool {
+	return t.Etype == TARRAY && t.Bound < 0
+}
+
 func (t *Type) Elem() ssa.Type {
 	return t.Type
 }
