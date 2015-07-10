@@ -96,7 +96,7 @@ func deadcode(f *Func) {
 	// TODO: save dead Values and Blocks for reuse?  Or should we just let GC handle it?
 }
 
-// There was an edge b->c.  It has been removed from b's successors.
+// There was an edge b->c.  c has been removed from b's successors.
 // Fix up c to handle that fact.
 func (f *Func) removePredecessor(b, c *Block) {
 	work := [][2]*Block{{b, c}}
@@ -104,8 +104,6 @@ func (f *Func) removePredecessor(b, c *Block) {
 	for len(work) > 0 {
 		b, c := work[0][0], work[0][1]
 		work = work[1:]
-
-		n := len(c.Preds) - 1
 
 		// find index of b in c's predecessor list
 		var i int
@@ -116,6 +114,7 @@ func (f *Func) removePredecessor(b, c *Block) {
 			}
 		}
 
+		n := len(c.Preds) - 1
 		c.Preds[i] = c.Preds[n]
 		c.Preds[n] = nil // aid GC
 		c.Preds = c.Preds[:n]
@@ -143,6 +142,9 @@ func (f *Func) removePredecessor(b, c *Block) {
 			for _, succ := range c.Succs {
 				work = append(work, [2]*Block{c, succ})
 			}
+			c.Succs = nil
+			c.Kind = BlockDead
+			c.Control = nil
 		}
 	}
 }
