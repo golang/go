@@ -293,7 +293,7 @@ const (
 // This algorithm optimizes for heap growth to match GOGC and for CPU
 // utilization between assist and background marking to be 25% of
 // GOMAXPROCS. The high-level design of this algorithm is documented
-// at http://golang.org/s/go15gcpacing.
+// at https://golang.org/s/go15gcpacing.
 var gcController = gcControllerState{
 	// Initial trigger ratio guess.
 	triggerRatio: 7 / 8.0,

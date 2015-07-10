@@ -656,7 +656,7 @@ func (p *Package) writeGccgoOutputFunc(fgcc *os.File, n *Name) {
 // used to match gc's struct layout. For example, on 386 Windows,
 // gcc wants to 8-align int64s, but gc does not.
 // Use __gcc_struct__ to work around http://gcc.gnu.org/PR52991 on x86,
-// and http://golang.org/issue/5603.
+// and https://golang.org/issue/5603.
 func (p *Package) packedAttribute() string {
 	s := "__attribute__((__packed__"
 	if !p.GccIsClang && (goarch == "amd64" || goarch == "386") {

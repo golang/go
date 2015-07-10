@@ -273,7 +273,7 @@ import (
 func main() {
 	// This test intends to test that sending SIGPROF to foreign threads
 	// before we make any cgo call will not abort the whole process, so
-	// we cannot make any cgo call here. See http://golang.org/issue/9456.
+	// we cannot make any cgo call here. See https://golang.org/issue/9456.
 	atomic.StoreInt32((*int32)(unsafe.Pointer(&C.spinlock)), 1)
 	for atomic.LoadInt32((*int32)(unsafe.Pointer(&C.spinlock))) == 1 {
 		runtime.Gosched()

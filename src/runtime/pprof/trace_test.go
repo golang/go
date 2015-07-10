@@ -20,7 +20,7 @@ import (
 func skipTraceTestsIfNeeded(t *testing.T) {
 	switch runtime.GOOS {
 	case "solaris":
-		t.Skip("skipping: solaris timer can go backwards (http://golang.org/issue/8976)")
+		t.Skip("skipping: solaris timer can go backwards (https://golang.org/issue/8976)")
 	case "darwin":
 		switch runtime.GOARCH {
 		case "arm", "arm64":
@@ -32,7 +32,7 @@ func skipTraceTestsIfNeeded(t *testing.T) {
 
 	switch runtime.GOARCH {
 	case "arm":
-		t.Skip("skipping: arm tests fail with 'failed to parse trace' (http://golang.org/issue/9725)")
+		t.Skip("skipping: arm tests fail with 'failed to parse trace' (https://golang.org/issue/9725)")
 	}
 }
 

@@ -84,7 +84,7 @@ type Cmd struct {
 	// standard error. If non-nil, entry i becomes file descriptor 3+i.
 	//
 	// BUG(rsc): On OS X 10.6, child processes may sometimes inherit unwanted fds.
-	// http://golang.org/issue/2603
+	// https://golang.org/issue/2603
 	ExtraFiles []*os.File
 
 	// SysProcAttr holds optional, operating system-specific attributes.

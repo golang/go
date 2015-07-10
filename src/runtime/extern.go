@@ -19,7 +19,7 @@ A collection is triggered when the ratio of freshly allocated data to live data
 remaining after the previous collection reaches this percentage. The default
 is GOGC=100. Setting GOGC=off disables the garbage collector entirely.
 The runtime/debug package's SetGCPercent function allows changing this
-percentage at run time. See http://golang.org/pkg/runtime/debug/#SetGCPercent.
+percentage at run time. See https://golang.org/pkg/runtime/debug/#SetGCPercent.
 
 The GODEBUG variable controls debugging variables within the runtime.
 It is a comma-separated list of name=val pairs setting these named variables:
@@ -99,7 +99,7 @@ core dump.
 
 The GOARCH, GOOS, GOPATH, and GOROOT environment variables complete
 the set of Go environment variables. They influence the building of Go programs
-(see http://golang.org/cmd/go and http://golang.org/pkg/go/build).
+(see https://golang.org/cmd/go and https://golang.org/pkg/go/build).
 GOARCH, GOOS, and GOROOT are recorded at compile time and made available by
 constants or functions in this package, but they do not influence the execution
 of the run-time system.

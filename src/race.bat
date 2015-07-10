@@ -3,7 +3,7 @@
 :: license that can be found in the LICENSE file.
 
 :: race.bash tests the standard library under the race detector.
-:: http://golang.org/doc/articles/race_detector.html
+:: https://golang.org/doc/articles/race_detector.html
 
 @echo off
 

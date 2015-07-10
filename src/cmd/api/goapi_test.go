@@ -115,7 +115,7 @@ func TestCompareAPI(t *testing.T) {
 			out:       "",
 		},
 		{
-			// http://golang.org/issue/4303
+			// https://golang.org/issue/4303
 			name: "contexts reconverging",
 			required: []string{
 				"A",

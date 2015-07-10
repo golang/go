@@ -830,7 +830,7 @@ var parseDurationTests = []struct {
 	{"39h9m14.425s", true, 39*Hour + 9*Minute + 14*Second + 425*Millisecond},
 	// large value
 	{"52763797000ns", true, 52763797000 * Nanosecond},
-	// more than 9 digits after decimal point, see http://golang.org/issue/6617
+	// more than 9 digits after decimal point, see https://golang.org/issue/6617
 	{"0.3333333333333333333h", true, 20 * Minute},
 	// 9007199254740993 = 1<<53+1 cannot be stored precisely in a float64
 	{"9007199254740993ns", true, (1<<53 + 1) * Nanosecond},

@@ -142,7 +142,7 @@ func TestTemplates(t *testing.T) {
 	}
 }
 
-// This used to crash; http://golang.org/issue/3281
+// This used to crash; https://golang.org/issue/3281
 func TestCloneCrash(t *testing.T) {
 	t1 := New("all")
 	Must(t1.New("t1").Parse(`{{define "foo"}}foo{{end}}`))

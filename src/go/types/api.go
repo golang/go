@@ -259,7 +259,7 @@ func (tv TypeAndValue) IsNil() bool {
 }
 
 // Addressable reports whether the corresponding expression
-// is addressable (http://golang.org/ref/spec#Address_operators).
+// is addressable (https://golang.org/ref/spec#Address_operators).
 func (tv TypeAndValue) Addressable() bool {
 	return tv.mode == variable
 }

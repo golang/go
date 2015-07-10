@@ -407,7 +407,7 @@ func TestWriterDict(t *testing.T) {
 	}
 }
 
-// See http://golang.org/issue/2508
+// See https://golang.org/issue/2508
 func TestRegression2508(t *testing.T) {
 	if testing.Short() {
 		t.Logf("test disabled with -short")

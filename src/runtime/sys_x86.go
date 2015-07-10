@@ -45,7 +45,7 @@ func rewindmorestack(buf *gobuf) {
 		// buf.pc, so that when we return we will execute
 		// the jump instruction and carry on.  This means that
 		// stack unwinding may not work entirely correctly
-		// (http://golang.org/issue/5723) but the user is
+		// (https://golang.org/issue/5723) but the user is
 		// running under gdb anyhow.
 		return
 	}

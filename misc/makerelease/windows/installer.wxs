@@ -22,7 +22,7 @@
     Language="1033"
     Codepage="1252"
     Version="$(var.WixGoVersion)"
-    Manufacturer="http://golang.org"
+    Manufacturer="https://golang.org"
     UpgradeCode="$(var.UpgradeCode)" >
 
 <Package

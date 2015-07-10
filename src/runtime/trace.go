@@ -8,7 +8,7 @@
 // changes of heap size, processor start/stop, etc and writes them to a buffer
 // in a compact form. A precise nanosecond-precision timestamp and a stack
 // trace is captured for most events.
-// See http://golang.org/s/go15trace for more info.
+// See https://golang.org/s/go15trace for more info.
 
 package runtime
 

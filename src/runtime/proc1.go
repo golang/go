@@ -21,7 +21,7 @@ var (
 //     M must have an associated P to execute Go code, however it can be
 //     blocked or in a syscall w/o an associated P.
 //
-// Design doc at http://golang.org/s/go11sched.
+// Design doc at https://golang.org/s/go11sched.
 
 const (
 	// Number of goroutine ids to grab from sched.goidgen to local per-P cache at once.

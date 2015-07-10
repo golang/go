@@ -87,7 +87,7 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
 		// already been accepted and closed by the server.
 		// Treat this as a successful connection--writes to
 		// the socket will see EOF.  For details and a test
-		// case in C see http://golang.org/issue/6828.
+		// case in C see https://golang.org/issue/6828.
 		if runtime.GOOS == "solaris" {
 			return nil
 		}
