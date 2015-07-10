@@ -28,6 +28,7 @@
 (MOVBstore ptr (MOVBQSX x) mem) -> (MOVBstore ptr x mem)
 
 (Convert <t> x) && t.IsInteger() && x.Type.IsInteger() -> (Copy x)
+(ConvNop <t> x) && t == x.Type -> (Copy x)
 
 // Lowering shifts
 // Note: unsigned shifts need to return 0 if shift amount is >= 64.
