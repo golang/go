@@ -11,7 +11,7 @@ import (
 )
 
 func printFunc(f *Func) {
-	f.Logf("%s", f.String())
+	f.Logf("%s", f)
 }
 
 func (f *Func) String() string {
