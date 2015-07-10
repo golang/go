@@ -101,21 +101,31 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 			}
 		}
 
-		// Only push runtime.sigpanic if rip != 0.
-		// If rip == 0, probably panicked because of a
+		pc := uintptr(c.rip())
+		sp := uintptr(c.rsp())
+
+		// If we don't recognize the PC as code
+		// but we do recognize the top pointer on the stack as code,
+		// then assume this was a call to non-code and treat like
+		// pc == 0, to make unwinding show the context.
+		if pc != 0 && findfunc(pc) == nil && findfunc(*(*uintptr)(unsafe.Pointer(sp))) != nil {
+			pc = 0
+		}
+
+		// Only push runtime.sigpanic if pc != 0.
+		// If pc == 0, probably panicked because of a
 		// call to a nil func.  Not pushing that onto sp will
 		// make the trace look like a call to runtime.sigpanic instead.
 		// (Otherwise the trace will end at runtime.sigpanic and we
 		// won't get to see who faulted.)
-		if c.rip() != 0 {
-			sp := c.rsp()
+		if pc != 0 {
 			if regSize > ptrSize {
 				sp -= ptrSize
-				*(*uintptr)(unsafe.Pointer(uintptr(sp))) = 0
+				*(*uintptr)(unsafe.Pointer(sp)) = 0
 			}
 			sp -= ptrSize
-			*(*uintptr)(unsafe.Pointer(uintptr(sp))) = uintptr(c.rip())
-			c.set_rsp(sp)
+			*(*uintptr)(unsafe.Pointer(sp)) = pc
+			c.set_rsp(uint64(sp))
 		}
 		c.set_rip(uint64(funcPC(sigpanic)))
 		return
