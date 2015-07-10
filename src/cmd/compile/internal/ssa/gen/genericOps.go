@@ -22,6 +22,9 @@ var genericOps = []opData{
 	{name: "Greater"}, // arg0 > arg1
 	{name: "Geq"},     // arg0 <= arg1
 
+	// 1-input ops
+	{name: "Not"}, // !arg0
+
 	// Data movement
 	{name: "Phi"},  // select an argument based on which predecessor block we came from
 	{name: "Copy"}, // output = arg0
