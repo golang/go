@@ -98,6 +98,7 @@ type Package struct {
 	coverVars    map[string]*CoverVar // variables created by coverage analysis
 	omitDWARF    bool                 // tell linker not to write DWARF information
 	buildID      string               // expected build ID for generated package
+	gobinSubdir  bool                 // install target would be subdir of GOBIN
 }
 
 // CoverVar holds the name of the generated coverage variables targeting the named file.
@@ -718,6 +719,11 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		} else if p.build.BinDir != "" {
 			// Install to GOBIN or bin of GOPATH entry.
 			p.target = filepath.Join(p.build.BinDir, elem)
+			if !p.Goroot && strings.Contains(elem, "/") {
+				// Do not create bin/goos_goarch/elem.
+				p.target = ""
+				p.gobinSubdir = true
+			}
 		}
 		if goTools[p.ImportPath] == toTool {
 			// This is for 'go tool'.
