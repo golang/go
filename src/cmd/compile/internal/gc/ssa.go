@@ -393,7 +393,6 @@ func (s *state) stmt(n *Node) {
 		s.startBlock(bCond)
 		var cond *ssa.Value
 		if n.Left != nil {
-			s.stmtList(n.Left.Ninit)
 			cond = s.expr(n.Left)
 		} else {
 			cond = s.entryNewValue0A(ssa.OpConst, Types[TBOOL], true)
@@ -453,6 +452,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 	s.pushLine(n.Lineno)
 	defer s.popLine()
 
+	s.stmtList(n.Ninit)
 	switch n.Op {
 	case ONAME:
 		if n.Class == PFUNC {
