@@ -513,7 +513,8 @@ func (f *FlagSet) NFlag() int { return len(f.actual) }
 func NFlag() int { return len(CommandLine.actual) }
 
 // Arg returns the i'th argument.  Arg(0) is the first remaining argument
-// after flags have been processed.
+// after flags have been processed. Arg returns an empty string if the
+// requested element does not exist.
 func (f *FlagSet) Arg(i int) string {
 	if i < 0 || i >= len(f.args) {
 		return ""
@@ -522,7 +523,8 @@ func (f *FlagSet) Arg(i int) string {
 }
 
 // Arg returns the i'th command-line argument.  Arg(0) is the first remaining argument
-// after flags have been processed.
+// after flags have been processed. Arg returns an empty string if the
+// requested element does not exist.
 func Arg(i int) string {
 	return CommandLine.Arg(i)
 }
