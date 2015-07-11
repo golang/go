@@ -8,5 +8,5 @@
 //
 //	go tool pprof binary profile
 //
-// For more information, see http://blog.golang.org/profiling-go-programs.
+// For more information, see https://blog.golang.org/profiling-go-programs.
 package main
