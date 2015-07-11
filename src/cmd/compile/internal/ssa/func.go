@@ -48,7 +48,7 @@ func (bp *blockPool) newBlock() *Block {
 	bp.mu.Lock()
 	defer bp.mu.Unlock()
 
-	if len(bp.blocks) <= 0 {
+	if len(bp.blocks) == 0 {
 		bp.blocks = make([]Block, blockSize, blockSize)
 	}
 
