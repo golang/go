@@ -2019,3 +2019,15 @@ func TestGoGetInsecureCustomDomain(t *testing.T) {
 	tg.runFail("get", "-d", repo)
 	tg.run("get", "-d", "-insecure", repo)
 }
+
+func TestIssue10193(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempDir("src")
+	tg.setenv("GOPATH", tg.path("."))
+	tg.runFail("get", "code.google.com/p/rsc-svn")
+	tg.grepStderr("is shutting down", "missed warning about code.google.com")
+}
