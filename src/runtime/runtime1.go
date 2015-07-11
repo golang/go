@@ -376,6 +376,11 @@ func parsedebugvars() {
 	default:
 		traceback_cache = uint32(atoi(p)) << 1
 	}
+	// when C owns the process, simply exit'ing the process on fatal errors
+	// and panics is surprising. Be louder and abort instead.
+	if islibrary || isarchive {
+		traceback_cache |= 1
+	}
 }
 
 // Poor mans 64-bit division.
