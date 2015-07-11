@@ -418,9 +418,12 @@ func (t *tester) registerTests() {
 					return t.cgoTestSO("misc/cgo/testso")
 				},
 			})
-			if t.goos == "darwin" {
+			switch t.goos {
+			case "darwin":
 				fmt.Println("Skipping misc/cgo/testsovar test. See issue 10360 for details.")
-			} else {
+			case "netbsd":
+				fmt.Println("Skipping misc/cgo/testsovar test. See issue 11654 for details.")
+			default:
 				t.tests = append(t.tests, distTest{
 					name:    "testsovar",
 					heading: "../misc/cgo/testsovar",
