@@ -44,7 +44,10 @@ func deadcode(f *Func) {
 		// pop a reachable value
 		v := q[len(q)-1]
 		q = q[:len(q)-1]
-		for _, x := range v.Args {
+		for i, x := range v.Args {
+			if v.Op == OpPhi && !reachable[v.Block.Preds[i].ID] {
+				continue
+			}
 			if !live[x.ID] {
 				live[x.ID] = true
 				q = append(q, x) // push
