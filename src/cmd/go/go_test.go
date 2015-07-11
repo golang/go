@@ -740,6 +740,27 @@ func TestGoInstallDetectsRemovedFiles(t *testing.T) {
 	tg.wantStale("mypkg", "./testgo list mypkg claims mypkg is NOT stale after removing y.go; should be stale")
 }
 
+func TestGoInstallErrorOnCrossCompileToBin(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.tempFile("src/mycmd/x.go", `package main
+		func main() {}`)
+	tg.setenv("GOPATH", tg.path("."))
+
+	tg.run("build", "mycmd")
+
+	goarch := "386"
+	if runtime.GOARCH == "386" {
+		goarch = "amd64"
+	}
+	tg.setenv("GOOS", "linux")
+	tg.setenv("GOARCH", goarch)
+	tg.runFail("install", "mycmd")
+	tg.setenv("GOBIN", tg.path("."))
+	tg.runFail("install", "mycmd")
+	tg.run("install", "cmd/pack")
+}
+
 func TestGoInstsallDetectsRemovedFilesInPackageMain(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()

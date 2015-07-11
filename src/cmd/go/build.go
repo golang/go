@@ -501,11 +501,14 @@ func runInstall(cmd *Command, args []string) {
 
 	for _, p := range pkgs {
 		if p.Target == "" && (!p.Standard || p.ImportPath != "unsafe") {
-			if p.cmdline {
+			switch {
+			case p.gobinSubdir:
+				errorf("go install: cannot install cross-compiled binaries when GOBIN is set")
+			case p.cmdline:
 				errorf("go install: no install location for .go files listed on command line (GOBIN not set)")
-			} else if p.ConflictDir != "" {
+			case p.ConflictDir != "":
 				errorf("go install: no install location for %s: hidden by %s", p.Dir, p.ConflictDir)
-			} else {
+			default:
 				errorf("go install: no install location for directory %s outside GOPATH\n"+
 					"\tFor more details see: go help gopath", p.Dir)
 			}
