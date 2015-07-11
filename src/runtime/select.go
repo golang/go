@@ -575,7 +575,7 @@ syncsend:
 		print("syncsend: sel=", sel, " c=", c, "\n")
 	}
 	if sg.elem != nil {
-		typedmemmove(c.elemtype, sg.elem, cas.elem)
+		syncsend(c, sg, cas.elem)
 	}
 	sg.elem = nil
 	gp = sg.g
