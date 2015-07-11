@@ -132,9 +132,40 @@ func (f *Func) removePredecessor(b, c *Block) {
 			v.Args = v.Args[:n]
 			if n == 1 {
 				v.Op = OpCopy
+				// Note: this is trickier than it looks.  Replacing
+				// a Phi with a Copy can in general cause problems because
+				// Phi and Copy don't have exactly the same semantics.
+				// Phi arguments always come from a predecessor block,
+				// whereas copies don't.  This matters in loops like:
+				// 1: x = (Phi y)
+				//    y = (Add x 1)
+				//    goto 1
+				// If we replace Phi->Copy, we get
+				// 1: x = (Copy y)
+				//    y = (Add x 1)
+				//    goto 1
+				// (Phi y) refers to the *previous* value of y, whereas
+				// (Copy y) refers to the *current* value of y.
+				// The modified code has a cycle and the scheduler
+				// will barf on it.
+				//
+				// Fortunately, this situation can only happen for dead
+				// code loops.  So although the value graph is transiently
+				// bad, we'll throw away the bad part by the end of
+				// the next deadcode phase.
+				// Proof: If we have a potential bad cycle, we have a
+				// situation like this:
+				//   x = (Phi z)
+				//   y = (op1 x ...)
+				//   z = (op2 y ...)
+				// Where opX are not Phi ops.  But such a situation
+				// implies a cycle in the dominator graph.  In the
+				// example, x.Block dominates y.Block, y.Block dominates
+				// z.Block, and z.Block dominates x.Block (treating
+				// "dominates" as reflexive).  Cycles in the dominator
+				// graph can only happen in an unreachable cycle.
 			}
 		}
-
 		if n == 0 {
 			// c is now dead--recycle its values
 			for _, v := range c.Values {
