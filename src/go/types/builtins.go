@@ -502,7 +502,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		case *Func:
 			// TODO(gri) Using derefStructPtr may result in methods being found
 			// that don't actually exist. An error either way, but the error
-			// message is confusing. See: http://play.golang.org/p/al75v23kUy ,
+			// message is confusing. See: https://play.golang.org/p/al75v23kUy ,
 			// but go/types reports: "invalid argument: x.m is a method value".
 			check.invalidArg(arg0.Pos(), "%s is a method value", arg0)
 			return

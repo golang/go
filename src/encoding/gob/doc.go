@@ -246,7 +246,7 @@ where * signifies zero or more repetitions and the type id of a value must
 be predefined or be defined before the value in the stream.
 
 See "Gobs of data" for a design discussion of the gob wire format:
-http://blog.golang.org/gobs-of-data
+https://blog.golang.org/gobs-of-data
 */
 package gob
 
