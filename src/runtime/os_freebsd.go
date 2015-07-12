@@ -13,9 +13,6 @@ func thr_new(param *thrparam, size int32)
 func sigaltstack(new, old *stackt)
 
 //go:noescape
-func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer)
-
-//go:noescape
 func sigaction(sig int32, new, old *sigactiont)
 
 //go:noescape

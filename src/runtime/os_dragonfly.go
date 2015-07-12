@@ -13,9 +13,6 @@ func lwp_create(param *lwpparams) int32
 func sigaltstack(new, old *sigaltstackt)
 
 //go:noescape
-func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer)
-
-//go:noescape
 func sigaction(sig int32, new, old *sigactiont)
 
 //go:noescape

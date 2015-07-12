@@ -10,9 +10,6 @@ type libcFunc uintptr
 
 var asmsysvicall6 libcFunc
 
-//go:noescape
-func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer)
-
 //go:nosplit
 func sysvicall0(fn *libcFunc) uintptr {
 	libcall := &getg().m.libcall
