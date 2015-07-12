@@ -316,6 +316,11 @@ func (s *state) stmt(n *Node) {
 		s.assign(OAS, n.Left.Name.Heapaddr, palloc)
 
 	case OLABEL, OGOTO:
+		if n.Op == OLABEL && isblanksym(n.Left.Sym) {
+			// Empty identifier is valid but useless.
+			// See issues 11589, 11593.
+			return
+		}
 		// get block at label, or make one
 		t := s.labels[n.Left.Sym.Name]
 		if t == nil {
