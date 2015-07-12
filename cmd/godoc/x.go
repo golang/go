@@ -52,6 +52,10 @@ func xHandler(w http.ResponseWriter, r *http.Request) {
 	if i := strings.Index(head, "/"); i != -1 {
 		head, tail = head[:i], head[i:]
 	}
+	if head == "" {
+		http.Redirect(w, r, "https://godoc.org/-/subrepo", http.StatusTemporaryRedirect)
+		return
+	}
 	repo, ok := xMap[head]
 	if !ok {
 		http.NotFound(w, r)
