@@ -294,7 +294,7 @@ func (s *state) stmt(n *Node) {
 	case OBLOCK:
 		s.stmtList(n.List)
 
-	case OEMPTY:
+	case OEMPTY, ODCLCONST, ODCLTYPE:
 
 	case ODCL:
 		if n.Left.Class&PHEAP == 0 {
