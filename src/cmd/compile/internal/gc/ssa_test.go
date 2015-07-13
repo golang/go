@@ -8,11 +8,18 @@ import (
 	"bytes"
 	"internal/testenv"
 	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 )
 
+// Tests OANDAND and OOROR expressions and short circuiting.
+// TODO: move these tests elsewhere? perhaps teach test/run.go how to run them
+// with a new action verb.
 func TestShortCircuit(t *testing.T) {
+	if runtime.GOARCH != "amd64" {
+		t.Skipf("skipping SSA tests on %s for now", runtime.GOARCH)
+	}
 	testenv.MustHaveGoBuild(t)
 	var stdout, stderr bytes.Buffer
 	cmd := exec.Command("go", "run", "testdata/short_ssa.go")
