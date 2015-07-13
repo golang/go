@@ -480,6 +480,8 @@ func (s *state) expr(n *Node) *ssa.Value {
 			return s.constInt(n.Type, Mpgetfix(n.Val().U.(*Mpint)))
 		case CTSTR, CTBOOL:
 			return s.entryNewValue0A(ssa.OpConst, n.Type, n.Val().U)
+		case CTNIL:
+			return s.entryNewValue0(ssa.OpConst, n.Type)
 		default:
 			s.Unimplementedf("unhandled OLITERAL %v", n.Val().Ctype())
 			return nil
