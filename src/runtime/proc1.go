@@ -1831,6 +1831,7 @@ func reentersyscall(pc, sp uintptr) {
 	if _g_.m.p.ptr().runSafePointFn != 0 {
 		// runSafePointFn may stack split if run on this stack
 		systemstack(runSafePointFn)
+		save(pc, sp)
 	}
 
 	_g_.m.syscalltick = _g_.m.p.ptr().syscalltick
