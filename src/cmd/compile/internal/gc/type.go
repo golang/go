@@ -56,7 +56,7 @@ func (t *Type) IsFloat() bool {
 }
 
 func (t *Type) IsPtr() bool {
-	return t.Etype == TPTR32 || t.Etype == TPTR64 ||
+	return t.Etype == TPTR32 || t.Etype == TPTR64 || t.Etype == TUNSAFEPTR ||
 		t.Etype == TMAP || t.Etype == TCHAN || t.Etype == TFUNC
 }
 
