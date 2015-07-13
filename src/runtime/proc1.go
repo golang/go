@@ -1828,15 +1828,16 @@ func reentersyscall(pc, sp uintptr) {
 		save(pc, sp)
 	}
 
+	if _g_.m.p.ptr().runSafePointFn != 0 {
+		// runSafePointFn may stack split if run on this stack
+		systemstack(runSafePointFn)
+	}
+
 	_g_.m.syscalltick = _g_.m.p.ptr().syscalltick
 	_g_.sysblocktraced = true
 	_g_.m.mcache = nil
 	_g_.m.p.ptr().m = 0
 	atomicstore(&_g_.m.p.ptr().status, _Psyscall)
-	if _g_.m.p.ptr().runSafePointFn != 0 {
-		// runSafePointFn may stack split if run on this stack
-		systemstack(runSafePointFn)
-	}
 	if sched.gcwaiting != 0 {
 		systemstack(entersyscall_gcwait)
 		save(pc, sp)
