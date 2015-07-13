@@ -514,42 +514,61 @@ even pointers to stack data must not be kept in local variables.
 
 <p>
 It is impractical to list all the instructions and other details for each machine.
-To see what instructions are defined for a given machine, say 32-bit Intel x86,
-look in the top-level header file for the corresponding linker, in this case <code>8l</code>.
-That is, the file <code>$GOROOT/src/cmd/8l/8.out.h</code> contains a C enumeration, called <code>as</code>,
-of the instructions and their spellings as known to the assembler and linker for that architecture.
-In that file you'll find a declaration that begins
+To see what instructions are defined for a given machine, say ARM,
+look in the source for the <code>obj</code> support library for
+that architecture, located in the directory <code>src/cmd/internal/obj/arm</code>.
+In that directory is a file <code>a.out.go</code>; it contains
+a long list of constants starting with <code>A</code>, like this:
 </p>
 
 <pre>
-enum	as
-{
-	AXXX,
-	AAAA,
-	AAAD,
-	AAAM,
-	AAAS,
-	AADCB,
+const (
+	AAND = obj.ABaseARM + obj.A_ARCHSPECIFIC + iota
+	AEOR
+	ASUB
+	ARSB
+	AADD
 	...
 </pre>
 
 <p>
-Each instruction begins with a  initial capital <code>A</code> in this list, so <code>AADCB</code>
-represents the <code>ADCB</code> (add carry byte) instruction.
-The enumeration is in alphabetical order, plus some late additions (<code>AXXX</code> occupies
-the zero slot as an invalid instruction).
-The sequence has nothing to do with the actual encoding of the machine instructions.
-Again, the linker takes care of that detail.
+This is the list of instructions and their spellings as known to the assembler and linker for that architecture.
+Each instruction begins with an initial capital <code>A</code> in this list, so <code>AAND</code>
+represents the bitwise and instruction,
+<code>AND</code> (without the leading <code>A</code>),
+and is written in assembly source as <code>AND</code>.
+The enumeration is mostly in alphabetical order.
+(The architecture-independent <code>AXXX</code>, defined in the
+<code>cmd/internal/obj</code> package,
+represents an invalid instruction).
+The sequence of the <code>A</code> names has nothing to do with the actual
+encoding of the machine instructions.
+The <code>cmd/internal/obj</code> package takes care of that detail.
+</p>
+
+<p>
+The instructions for both the 386 and AMD64 architectures are listed in
+<code>cmd/internal/obj/x86/a.out.go</code>.
+</p>
+
+<p>
+The architectures share syntax for common addressing modes such as
+<code>(R1)</code> (register indirect),
+<code>4(R1)</code> (register indirect with offset), and
+<code>$foo(SB)</code> (absolute address).
+The assembler also supports some (not necessarily all) addressing modes
+specific to each architecture.
+The sections below list these.
 </p>
 
 <p>
 One detail evident in the examples from the previous sections is that data in the instructions flows from left to right:
 <code>MOVQ</code> <code>$0,</code> <code>CX</code> clears <code>CX</code>.
-This convention applies even on architectures where the usual mode is the opposite direction.
+This rule applies even on architectures where the conventional notation uses the opposite direction.
 </p>
 
 <p>
-Here follows some descriptions of key Go-specific details for the supported architectures.
+Here follow some descriptions of key Go-specific details for the supported architectures.
 </p>
 
 <h3 id="x86">32-bit Intel 386</h3>
@@ -558,11 +577,11 @@ Here follows some descriptions of key Go-specific details for the supported arch
 The runtime pointer to the <code>g</code> structure is maintained
 through the value of an otherwise unused (as far as Go is concerned) register in the MMU.
 A OS-dependent macro <code>get_tls</code> is defined for the assembler if the source includes
-an architecture-dependent header file, like this:
+a special header, <code>go_asm.h</code>:
 </p>
 
 <pre>
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
 </pre>
 
 <p>
@@ -575,21 +594,39 @@ The sequence to load <code>g</code> and <code>m</code> using <code>CX</code> loo
 <pre>
 get_tls(CX)
 MOVL	g(CX), AX     // Move g into AX.
-MOVL	g_m(AX), BX   // Move g->m into BX.
+MOVL	g_m(AX), BX   // Move g.m into BX.
 </pre>
+
+<p>
+Addressing modes:
+</p>
+
+<ul>
+
+<li>
+<code>(DI)(BX*2)</code>: The location at address <code>DI</code> plus <code>BX*2</code>.
+</li>
+
+<li>
+<code>64(DI)(BX*2)</code>: The location at address <code>DI</code> plus <code>BX*2</code> plus 64.
+These modes accept only 1, 2, 4, and 8 as scale factors.
+</li>
+
+</ul>
 
 <h3 id="amd64">64-bit Intel 386 (a.k.a. amd64)</h3>
 
 <p>
-The assembly code to access the <code>m</code> and <code>g</code>
-pointers is the same as on the 386, except it uses <code>MOVQ</code> rather than
-<code>MOVL</code>:
+The two architectures behave largely the same at the assembler level.
+Assembly code to access the <code>m</code> and <code>g</code>
+pointers on the 64-bit version is the same as on the 32-bit 386,
+except it uses <code>MOVQ</code> rather than <code>MOVL</code>:
 </p>
 
 <pre>
 get_tls(CX)
 MOVQ	g(CX), AX     // Move g into AX.
-MOVQ	g_m(AX), BX   // Move g->m into BX.
+MOVQ	g_m(AX), BX   // Move g.m into BX.
 </pre>
 
 <h3 id="arm">ARM</h3>
@@ -626,6 +663,85 @@ The name <code>SP</code> always refers to the virtual stack pointer described ea
 For the hardware register, use <code>R13</code>.
 </p>
 
+<p>
+Addressing modes:
+</p>
+
+<ul>
+
+<li>
+<code>R0-&gt;16</code>
+<br>
+<code>R0&gt;&gt;16</code>
+<br>
+<code>R0&lt;&lt;16</code>
+<br>
+<code>R0@&gt;16</code>:
+For <code>&lt;&lt;</code>, left shift <code>R0</code> by 16 bits.
+The other codes are <code>-&gt;</code> (arithmetic right shift),
+<code>&gt;&gt;</code> (logical right shift), and
+<code>@&gt;</code> (rotate right).
+</li>
+
+<li>
+<code>R0-&gt;R1</code>
+<br>
+<code>R0&gt;&gt;R1</code>
+<br>
+<code>R0&lt;&lt;R1</code>
+<br>
+<code>R0@&gt;R1</code>:
+For <code>&lt;&lt;</code>, left shift <code>R0</code> by the count in <code>R1</code>.
+The other codes are <code>-&gt;</code> (arithmetic right shift),
+<code>&gt;&gt;</code> (logical right shift), and
+<code>@&gt;</code> (rotate right).
+
+</li>
+
+<li>
+<code>[R0,g,R12-R15]</code>: For multi-register instructions, the set comprising
+<code>R0</code>, <code>g</code>, and <code>R12</code> through <code>R15</code> inclusive.
+</li>
+
+</ul>
+
+<h3 id="arm64">ARM64</h3>
+
+<p>
+TODO
+</p>
+
+<p>
+Addressing modes:
+</p>
+
+<ul>
+
+<li>
+TODO
+</li>
+
+</ul>
+
+<h3 id="ppc64">Power64, a.k.a. ppc64</h3>
+
+<p>
+TODO
+</p>
+
+<p>
+Addressing modes:
+</p>
+
+<ul>
+
+<li>
+<code>(R5)(R6*1)</code>: The location at <code>R5</code> plus <code>R6</code>. It is a scaled
+mode like on the x86, but the only scale allowed is <code>1</code>.
+</li>
+
+</ul>
+
 <h3 id="unsupported_opcodes">Unsupported opcodes</h3>
 
 <p>
@@ -644,11 +760,17 @@ Here's how the 386 runtime defines the 64-bit atomic load function.
 // uint64 atomicload64(uint64 volatile* addr);
 // so actually
 // void atomicload64(uint64 *res, uint64 volatile *addr);
-TEXT runtime·atomicload64(SB), NOSPLIT, $0-8
+TEXT runtime·atomicload64(SB), NOSPLIT, $0-12
 	MOVL	ptr+0(FP), AX
+	TESTL	$7, AX
+	JZ	2(PC)
+	MOVL	0, AX // crash with nil ptr deref
 	LEAL	ret_lo+4(FP), BX
-	BYTE $0x0f; BYTE $0x6f; BYTE $0x00	// MOVQ (%EAX), %MM0
-	BYTE $0x0f; BYTE $0x7f; BYTE $0x03	// MOVQ %MM0, 0(%EBX)
-	BYTE $0x0F; BYTE $0x77			// EMMS
+	// MOVQ (%EAX), %MM0
+	BYTE $0x0f; BYTE $0x6f; BYTE $0x00
+	// MOVQ %MM0, 0(%EBX)
+	BYTE $0x0f; BYTE $0x7f; BYTE $0x03
+	// EMMS
+	BYTE $0x0F; BYTE $0x77
 	RET
 </pre>
