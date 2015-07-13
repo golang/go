@@ -499,6 +499,24 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto end4c8bfe9df26fc5aa2bd76b211792732a
 	end4c8bfe9df26fc5aa2bd76b211792732a:
 		;
+		// match: (Const <t>)
+		// cond: t.IsPtr()
+		// result: (MOVQconst [0])
+		{
+			t := v.Type
+			if !(t.IsPtr()) {
+				goto endd23abe8d7061f11c260b162e24eec060
+			}
+			v.Op = OpAMD64MOVQconst
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AuxInt = 0
+			return true
+		}
+		goto endd23abe8d7061f11c260b162e24eec060
+	endd23abe8d7061f11c260b162e24eec060:
+		;
 	case OpConvNop:
 		// match: (ConvNop <t> x)
 		// cond: t == x.Type
