@@ -673,6 +673,7 @@ func (s *state) assign(op uint8, left *Node, right *Node) {
 }
 
 // addr converts the address of the expression n to SSA, adds it to s and returns the SSA result.
+// The value that the returned Value represents is guaranteed to be non-nil.
 func (s *state) addr(n *Node) *ssa.Value {
 	switch n.Op {
 	case ONAME:
@@ -716,6 +717,13 @@ func (s *state) addr(n *Node) *ssa.Value {
 			s.boundsCheck(i, len)
 			return s.newValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), a, i)
 		}
+	case ODOT:
+		p := s.addr(n.Left)
+		return s.newValue2(ssa.OpAdd, p.Type, p, s.constInt(s.config.Uintptr, n.Xoffset))
+	case ODOTPTR:
+		p := s.expr(n.Left)
+		s.nilCheck(p)
+		return s.newValue2(ssa.OpAdd, p.Type, p, s.constInt(s.config.Uintptr, n.Xoffset))
 	default:
 		s.Unimplementedf("addr: bad op %v", Oconv(int(n.Op), 0))
 		return nil
