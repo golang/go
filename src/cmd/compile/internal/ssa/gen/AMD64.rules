@@ -76,6 +76,7 @@
 (OffPtr [off] ptr) -> (ADDQconst [off] ptr)
 
 (Const <t> [val]) && t.IsInteger() -> (MOVQconst [val])
+(Const <t>) && t.IsPtr() -> (MOVQconst [0]) // nil is the only const pointer
 
 (Addr {sym} base) -> (LEAQ {sym} base)
 

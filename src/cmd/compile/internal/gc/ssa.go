@@ -652,7 +652,7 @@ func (s *state) assign(op uint8, left *Node, right *Node) {
 		switch {
 		case t.IsString():
 			val = s.entryNewValue0A(ssa.OpConst, left.Type, "")
-		case t.IsInteger():
+		case t.IsInteger() || t.IsPtr():
 			val = s.entryNewValue0(ssa.OpConst, left.Type)
 		case t.IsBoolean():
 			val = s.entryNewValue0A(ssa.OpConst, left.Type, false) // TODO: store bools as 0/1 in AuxInt?
