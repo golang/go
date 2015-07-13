@@ -101,10 +101,16 @@ func (e Edge) String() string {
 }
 
 func (e Edge) Description() string {
-	if e.Site == nil {
+	var prefix string
+	switch e.Site.(type) {
+	case nil:
 		return "synthetic call"
+	case *ssa.Go:
+		prefix = "concurrent "
+	case *ssa.Defer:
+		prefix = "deferred "
 	}
-	return e.Site.Common().Description()
+	return prefix + e.Site.Common().Description()
 }
 
 func (e Edge) Pos() token.Pos {

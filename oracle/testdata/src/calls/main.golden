@@ -7,7 +7,7 @@ this *int may point to these objects:
 Found a call path from root to main.A
 main.A
 dynamic function call from main.apply
-static function call from main.main
+concurrent static function call from main.main
 
 -------- @pointsto pointsto-B-x --------
 this *int may point to these objects:
@@ -25,8 +25,8 @@ this dynamic function call dispatches to:
 
 -------- @callers callers-apply --------
 main.apply is called from these 2 sites:
-	static function call from main.main
-	static function call from main.main
+	concurrent static function call from main.main
+	deferred static function call from main.main
 
 -------- @callers callers-store --------
 main.store is called from these 2 sites:

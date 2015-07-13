@@ -45,8 +45,8 @@ func call(f func() *int) {
 
 func main() {
 	var a, b int
-	apply(A, &a) // @callees callees-main-apply1 "app"
-	apply(B, &b)
+	go apply(A, &a) // @callees callees-main-apply1 "app"
+	defer apply(B, &b)
 
 	var c, d int
 	var pc, pd *int // @pointsto pointsto-pc "pc"
