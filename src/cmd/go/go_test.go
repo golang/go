@@ -188,7 +188,11 @@ func (tg *testgoData) cd(dir string) {
 	if tg.wd == "" {
 		tg.wd = tg.pwd()
 	}
+	abs, err := filepath.Abs(dir)
 	tg.must(os.Chdir(dir))
+	if err == nil {
+		tg.setenv("PWD", abs)
+	}
 }
 
 // sleep sleeps for one tick, where a tick is a conservative estimate
