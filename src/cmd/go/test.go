@@ -578,6 +578,11 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		if p1.Error != nil {
 			return nil, nil, nil, p1.Error
 		}
+		if len(p1.DepsErrors) > 0 {
+			err := p1.DepsErrors[0]
+			err.Pos = "" // show full import stack
+			return nil, nil, nil, err
+		}
 		if contains(p1.Deps, p.ImportPath) || p1.ImportPath == p.ImportPath {
 			// Same error that loadPackage returns (via reusePackage) in pkg.go.
 			// Can't change that code, because that code is only for loading the
@@ -603,6 +608,11 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		p1 := loadImport(path, p.Dir, p, &stk, p.build.XTestImportPos[path])
 		if p1.Error != nil {
 			return nil, nil, nil, p1.Error
+		}
+		if len(p1.DepsErrors) > 0 {
+			err := p1.DepsErrors[0]
+			err.Pos = "" // show full import stack
+			return nil, nil, nil, err
 		}
 		ximports = append(ximports, p1)
 		p.XTestImports[i] = p1.ImportPath
