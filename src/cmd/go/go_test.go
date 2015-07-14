@@ -2055,3 +2055,13 @@ func TestIssue10193(t *testing.T) {
 	tg.runFail("get", "code.google.com/p/rsc-svn")
 	tg.grepStderr("is shutting down", "missed warning about code.google.com")
 }
+
+func TestGoRunDirs(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.cd("testdata/rundir")
+	tg.runFail("run", "x.go", "sub/sub.go")
+	tg.grepStderr("named files must all be in one directory; have . and sub/", "wrong output")
+	tg.runFail("run", "sub/sub.go", "x.go")
+	tg.grepStderr("named files must all be in one directory; have sub/ and .", "wrong output")
+}

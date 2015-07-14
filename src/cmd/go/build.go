@@ -712,6 +712,9 @@ func goFilesPackage(gofiles []string) *Package {
 			fatalf("%s is a directory, should be a Go file", file)
 		}
 		dir1, _ := filepath.Split(file)
+		if dir1 == "" {
+			dir1 = "."
+		}
 		if dir == "" {
 			dir = dir1
 		} else if dir != dir1 {
