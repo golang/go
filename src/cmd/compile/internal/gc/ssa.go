@@ -626,6 +626,8 @@ func (s *state) expr(n *Node) *ssa.Value {
 			entry := s.newValue2(ssa.OpLoad, s.config.Uintptr, closure, s.mem())
 			call = s.newValue3(ssa.OpClosureCall, ssa.TypeMem, entry, closure, s.mem())
 		}
+		dowidth(n.Left.Type)
+		call.AuxInt = n.Left.Type.Argwid // call operations carry the argsize of the callee along with them
 		b := s.endBlock()
 		b.Kind = ssa.BlockCall
 		b.Control = call

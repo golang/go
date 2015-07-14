@@ -29,7 +29,6 @@ Regalloc
  - Make calls clobber all registers
 
 StackAlloc:
- - Compute size of outargs section correctly
  - Sort variables so all ptr-containing ones are first (so stack
    maps are smaller)
  - Reuse stack slots for noninterfering and type-compatible variables
