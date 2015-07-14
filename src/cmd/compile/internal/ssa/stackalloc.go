@@ -9,12 +9,16 @@ package ssa
 func stackalloc(f *Func) {
 	home := f.RegAlloc
 
-	// First compute the size of the outargs section.
-	n := int64(16) //TODO: compute max of all callsites
-
-	// Include one slot for deferreturn.
-	if false && n < f.Config.ptrSize { //TODO: check for deferreturn
-		n = f.Config.ptrSize
+	// Start with space for callee arguments/returns.
+	var n int64
+	for _, b := range f.Blocks {
+		if b.Kind != BlockCall {
+			continue
+		}
+		v := b.Control
+		if n < v.AuxInt {
+			n = v.AuxInt
+		}
 	}
 
 	// TODO: group variables by ptr/nonptr, size, etc.  Emit ptr vars last

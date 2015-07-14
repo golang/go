@@ -460,10 +460,11 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 	endf8ca12fe79290bc82b11cfa463bc9413:
 		;
 	case OpClosureCall:
-		// match: (ClosureCall entry closure mem)
+		// match: (ClosureCall [argwid] entry closure mem)
 		// cond:
-		// result: (CALLclosure entry closure mem)
+		// result: (CALLclosure [argwid] entry closure mem)
 		{
+			argwid := v.AuxInt
 			entry := v.Args[0]
 			closure := v.Args[1]
 			mem := v.Args[2]
@@ -471,13 +472,14 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.AuxInt = argwid
 			v.AddArg(entry)
 			v.AddArg(closure)
 			v.AddArg(mem)
 			return true
 		}
-		goto endee26da781e813a3c602ccb4f7ade98c7
-	endee26da781e813a3c602ccb4f7ade98c7:
+		goto endfd75d26316012d86cb71d0dd1214259b
+	endfd75d26316012d86cb71d0dd1214259b:
 		;
 	case OpConst:
 		// match: (Const <t> [val])
@@ -1611,22 +1613,24 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 	end78e66b6fc298684ff4ac8aec5ce873c9:
 		;
 	case OpStaticCall:
-		// match: (StaticCall {target} mem)
+		// match: (StaticCall [argwid] {target} mem)
 		// cond:
-		// result: (CALLstatic {target} mem)
+		// result: (CALLstatic [argwid] {target} mem)
 		{
+			argwid := v.AuxInt
 			target := v.Aux
 			mem := v.Args[0]
 			v.Op = OpAMD64CALLstatic
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.AuxInt = argwid
 			v.Aux = target
 			v.AddArg(mem)
 			return true
 		}
-		goto end1948857a7cfc2a4f905045e58d3b9ec1
-	end1948857a7cfc2a4f905045e58d3b9ec1:
+		goto end32c5cbec813d1c2ae94fc9b1090e4b2a
+	end32c5cbec813d1c2ae94fc9b1090e4b2a:
 		;
 	case OpStore:
 		// match: (Store ptr val mem)
