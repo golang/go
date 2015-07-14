@@ -386,7 +386,7 @@ func runTest(cmd *Command, args []string) {
 		if deps["C"] {
 			delete(deps, "C")
 			deps["runtime/cgo"] = true
-			if buildContext.GOOS == runtime.GOOS && buildContext.GOARCH == runtime.GOARCH {
+			if goos == runtime.GOOS && goarch == runtime.GOARCH && !buildRace {
 				deps["cmd/cgo"] = true
 			}
 		}
