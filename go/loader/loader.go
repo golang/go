@@ -294,7 +294,7 @@ func (conf *Config) ImportWithTests(path string) { conf.addImport(path, true) }
 func (conf *Config) Import(path string) { conf.addImport(path, false) }
 
 func (conf *Config) addImport(path string, tests bool) {
-	if path == "unsafe" {
+	if path == "C" || path == "unsafe" {
 		return // ignore; not a real package
 	}
 	if conf.ImportPkgs == nil {
@@ -707,6 +707,13 @@ func (imp *importer) doImport(from *PackageInfo, to string) (*types.Package, err
 	// TODO(adonovan): move this check into go/types?
 	if to == "unsafe" {
 		return types.Unsafe, nil
+	}
+	if to == "C" {
+		// This should be unreachable, but ad hoc packages are
+		// not currently subject to cgo preprocessing.
+		// See https://github.com/golang/go/issues/11627.
+		return nil, fmt.Errorf(`the loader doesn't cgo-process ad hoc packages like %q; see Go issue 11627`,
+			from.Pkg.Path())
 	}
 
 	imp.importedMu.Lock()
