@@ -2191,3 +2191,23 @@ func TestGoGetDomainRoot(t *testing.T) {
 	tg.must(os.RemoveAll(tg.path("src/go-get-issue-9357.appspot.com")))
 	tg.run("get", "-u", "go-get-issue-9357.appspot.com")
 }
+
+func TestGoInstallShadowedGOPATH(t *testing.T) {
+	// golang.org/issue/3652.
+	// go get foo.io (not foo.io/subdir) was not working consistently.
+
+	testenv.MustHaveExternalNetwork(t)
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.path("gopath1")+string(filepath.ListSeparator)+tg.path("gopath2"))
+
+	tg.tempDir("gopath1/src/test")
+	tg.tempDir("gopath2/src/test")
+	tg.tempFile("gopath2/src/test/main.go", "package main\nfunc main(){}\n")
+
+	tg.cd(tg.path("gopath2/src/test"))
+	tg.runFail("install")
+	tg.grepStderr("no install location for.*gopath2.src.test: hidden by .*gopath1.src.test", "missing error")
+}
