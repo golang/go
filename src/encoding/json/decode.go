@@ -682,6 +682,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 			} else {
 				d.saveError(&UnmarshalTypeError{"string", v.Type(), int64(d.off)})
 			}
+			return
 		}
 		s, ok := unquoteBytes(item)
 		if !ok {

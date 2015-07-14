@@ -9,6 +9,7 @@ import (
 	"encoding"
 	"fmt"
 	"image"
+	"net"
 	"reflect"
 	"strings"
 	"testing"
@@ -1383,6 +1384,30 @@ var invalidUnmarshalTests = []struct {
 func TestInvalidUnmarshal(t *testing.T) {
 	buf := []byte(`{"a":"1"}`)
 	for _, tt := range invalidUnmarshalTests {
+		err := Unmarshal(buf, tt.v)
+		if err == nil {
+			t.Errorf("Unmarshal expecting error, got nil")
+			continue
+		}
+		if got := err.Error(); got != tt.want {
+			t.Errorf("Unmarshal = %q; want %q", got, tt.want)
+		}
+	}
+}
+
+var invalidUnmarshalTextTests = []struct {
+	v    interface{}
+	want string
+}{
+	{nil, "json: Unmarshal(nil)"},
+	{struct{}{}, "json: Unmarshal(non-pointer struct {})"},
+	{(*int)(nil), "json: Unmarshal(nil *int)"},
+	{new(net.IP), "json: cannot unmarshal string into Go value of type *net.IP"},
+}
+
+func TestInvalidUnmarshalText(t *testing.T) {
+	buf := []byte(`123`)
+	for _, tt := range invalidUnmarshalTextTests {
 		err := Unmarshal(buf, tt.v)
 		if err == nil {
 			t.Errorf("Unmarshal expecting error, got nil")
