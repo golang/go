@@ -54,16 +54,28 @@ func schedule(f *Func) {
 			}
 		}
 
-		// Topologically sort the values in b.
 		order = order[:0]
+
+		// Schedule phis first
 		for _, v := range b.Values {
-			if v == b.Control {
+			if v.Op == OpPhi {
+				// TODO: what if a phi is also a control op?  It happens for
+				// mem ops all the time, which shouldn't matter.  But for
+				// regular ops we might be violating invariants about where
+				// control ops live.
+				if v == b.Control && !v.Type.IsMemory() {
+					f.Unimplementedf("phi is a control op %s %s", v, b)
+				}
+				order = append(order, v)
+			}
+		}
+
+		// Topologically sort the non-phi values in b.
+		for _, v := range b.Values {
+			if v.Op == OpPhi {
 				continue
 			}
-			if v.Op == OpPhi {
-				// Phis all go first.  We handle phis specially
-				// because they may have self edges "a = phi(a, b, c)"
-				order = append(order, v)
+			if v == b.Control {
 				continue
 			}
 			if state[v.ID] != unmarked {
