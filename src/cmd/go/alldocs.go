@@ -673,9 +673,8 @@ In addition to the build flags, the flags handled by 'go test' itself are:
 		Compile the test binary to the named file.
 		The test still runs (unless -c or -i is specified).
 
-
 The test binary also accepts flags that control execution of the test; these
-flags are also accessible by 'go test'.  See 'go help testflag' for details.
+flags are also accessible by 'go test'. See 'go help testflag' for details.
 
 If the test binary needs any other flags, they should be presented after the
 package names. The go tool treats as a flag the first argument that begins with
