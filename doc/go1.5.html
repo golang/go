@@ -197,7 +197,7 @@ In prior releases it defaulted to 1.
 Programs that do not expect to run with multiple cores may
 break inadvertently.
 They can be updated by removing the restriction or by setting
-<code>GOMAXPROCS</code> explicitly. 
+<code>GOMAXPROCS</code> explicitly.
 </p>
 
 <h3 id="build">Build</h3>
@@ -334,7 +334,7 @@ configure the architecture and operating system.
 Unlike the other programs, the assembler is a wholly new program
 written in Go.
 </p>
- 
+
  <p>
 The new assembler is very nearly compatible with the previous
 ones, but there are a few changes that may affect some
@@ -479,7 +479,7 @@ as described above.
 <li>
 An <code>-asmflags</code> build option has been added to provide
 flags to the assembler.
-However, 
+However,
 the <code>-ccflags</code> build option has been dropped;
 it was specific to the old, now deleted C compiler .
 </li>
@@ -585,7 +585,7 @@ and associated <a href="https://www.youtube.com/watch?v=cF1zJYkBW4A">video</a>.
 
 <p>
 The flag package's
-<a href="/pkg/flag/#PrintDefaults"><code>PrintDefaults</code></a> 
+<a href="/pkg/flag/#PrintDefaults"><code>PrintDefaults</code></a>
 function, and method on <a href="/pkg/flag/#FlagSet"><code>FlagSet</code></a>,
 have been modified to create nicer usage messages.
 The format has been changed to be more human-friendly and in the usage
@@ -814,7 +814,7 @@ to select a certificate for the connection when none is supplied.
 Finally, the session ticket keys in the
 <a href="/pkg/crypto/tls/"><code>crypto/tls</code></a> package
 can now be rotated (changed periodically during an active connection).
-This is done through the new 
+This is done through the new
 <a href="/pkg/crypto/tls/#Config.SetSessionTicketKeys"><code>SetSessionTicketKeys</code></a>
 method of the
 <a href="/pkg/crypto/tls/#Config"><code>Config</code></a> type.
@@ -932,6 +932,29 @@ needed by some JPEG images.
 </li>
 
 <li>
+Also in the <a href="/pkg/image/color/"><code>image/color</code></a> package,
+the conversion of a <a href="/pkg/image/color/#YCbCr"><code>YCbCr</code></a>
+value to <code>RGBA</code> has become more precise.
+Previously, the low 8 bits were just an echo of the high 8 bits;
+now they contain more accurate information.
+Because of the echo property of the old code, the operation
+<code>uint8(r)</code> to extract an 8-bit red vaue worked, but is incorrect.
+In Go 1.5, that operation may yield a different value.
+The correct code is, and always was, to select the high 8 bits:
+<code>uint8(r&gt;&gt;8)</code>.
+Incidentally, <code>image/draw</code> package
+provides better support for such conversions; see
+<a href="https://blog.golang.org/go-imagedraw-package">this blog post</a>
+for more information.
+</li>
+
+<li>
+Finally, as of Go 1.5 the closest match check in
+<a href="/pkg/image/color/#Palette.Index"><code>Index</code></a>
+now honors the alpha channel.
+</li>
+
+<li>
 The <a href="/pkg/image/gif/"><code>image/gif</code></a> package
 includes a couple of generalizations.
 A multiple-frame GIF file can now have an overall bounds different
@@ -996,7 +1019,7 @@ Go 1.5's <a href="/pkg/net/"><code>net</code></a> package
 adds RFC-6555-compliant dialing for sites with multiple TCP
 addresses listed in DNS.
 A new <code>DualStack</code> field
-in <a href="/pkg/net/#Dialer"><code>Dialer</code></a> enables the feature. 
+in <a href="/pkg/net/#Dialer"><code>Dialer</code></a> enables the feature.
 </li>
 
 <li>
@@ -1141,7 +1164,7 @@ The default, which can now be overridden, is as before: to continue with an inva
 <li>
 The <a href="/pkg/time/"><code>time</code></a> package's
 <code>Time</code> type has a new method
-<a href="/pkg/time/#Time.AppendFormat"><code>AppendFormat</code></a>, 
+<a href="/pkg/time/#Time.AppendFormat"><code>AppendFormat</code></a>,
 which can be used to avoid allocation when printing a time value.
 </li>
 
