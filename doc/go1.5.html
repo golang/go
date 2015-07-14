@@ -938,7 +938,7 @@ value to <code>RGBA</code> has become more precise.
 Previously, the low 8 bits were just an echo of the high 8 bits;
 now they contain more accurate information.
 Because of the echo property of the old code, the operation
-<code>uint8(r)</code> to extract an 8-bit red vaue worked, but is incorrect.
+<code>uint8(r)</code> to extract an 8-bit red value worked, but is incorrect.
 In Go 1.5, that operation may yield a different value.
 The correct code is, and always was, to select the high 8 bits:
 <code>uint8(r&gt;&gt;8)</code>.
