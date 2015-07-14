@@ -664,6 +664,13 @@ For the hardware register, use <code>R13</code>.
 </p>
 
 <p>
+Condition code syntax is to append a period and the one- or two-letter code to the instruction,
+as in <code>MOVW.EQ</code>.
+Multiple codes may be appended: <code>MOVM.IA.W</code>.
+The order of the code modifiers is irrelevant.
+</p>
+
+<p>
 Addressing modes:
 </p>
 
@@ -703,12 +710,23 @@ The other codes are <code>-&gt;</code> (arithmetic right shift),
 <code>R0</code>, <code>g</code>, and <code>R12</code> through <code>R15</code> inclusive.
 </li>
 
+<li>
+<code>(R5, R6)</code>: Destination register pair.
+</li>
+
 </ul>
 
 <h3 id="arm64">ARM64</h3>
 
 <p>
-TODO
+The ARM64 port is in an experimental state.
+</p>
+
+<p>
+Instruction modifiers are appended to the instruction following a period.
+The only modifiers are <code>P</code> (postincrement) and <code>W</code>
+(preincrement):
+<code>MOVW.P</code>, <code>MOVW.W</code>
 </p>
 
 <p>
@@ -718,7 +736,7 @@ Addressing modes:
 <ul>
 
 <li>
-TODO
+<code>(R5, R6)</code>: Register pair for <code>LDP</code>/<code>STP</code>.
 </li>
 
 </ul>
@@ -726,7 +744,7 @@ TODO
 <h3 id="ppc64">Power64, a.k.a. ppc64</h3>
 
 <p>
-TODO
+The Power 64 port is in an experimental state.
 </p>
 
 <p>
@@ -737,7 +755,11 @@ Addressing modes:
 
 <li>
 <code>(R5)(R6*1)</code>: The location at <code>R5</code> plus <code>R6</code>. It is a scaled
-mode like on the x86, but the only scale allowed is <code>1</code>.
+mode as on the x86, but the only scale allowed is <code>1</code>.
+</li>
+
+<li>
+<code>(R5+R6)</code>: Alias for (R5)(R6*1)
 </li>
 
 </ul>
