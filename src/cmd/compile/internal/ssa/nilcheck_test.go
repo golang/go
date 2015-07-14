@@ -46,6 +46,7 @@ func benchmarkNilCheckDeep(b *testing.B, depth int) {
 	CheckFunc(fun.f)
 	b.SetBytes(int64(depth)) // helps for eyeballing linearity
 	b.ResetTimer()
+	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
 		nilcheckelim(fun.f)
@@ -55,3 +56,213 @@ func benchmarkNilCheckDeep(b *testing.B, depth int) {
 func blockn(n int) string { return "b" + strconv.Itoa(n) }
 func ptrn(n int) string   { return "p" + strconv.Itoa(n) }
 func booln(n int) string  { return "c" + strconv.Itoa(n) }
+
+func isNilCheck(b *Block) bool {
+	return b.Kind == BlockIf && b.Control.Op == OpIsNonNil
+}
+
+// TestNilcheckSimple verifies that a second repeated nilcheck is removed.
+func TestNilcheckSimple(t *testing.T) {
+	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+	c := NewConfig("amd64", DummyFrontend{t})
+	fun := Fun(c, "entry",
+		Bloc("entry",
+			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+			Valu("sb", OpSB, TypeInvalid, 0, nil),
+			Goto("checkPtr")),
+		Bloc("checkPtr",
+			Valu("ptr1", OpConstPtr, ptrType, 0, nil, "sb"),
+			Valu("bool1", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
+			If("bool1", "secondCheck", "exit")),
+		Bloc("secondCheck",
+			Valu("bool2", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
+			If("bool2", "extra", "exit")),
+		Bloc("extra",
+			Goto("exit")),
+		Bloc("exit",
+			Exit("mem")))
+
+	CheckFunc(fun.f)
+	nilcheckelim(fun.f)
+
+	// clean up the removed nil check
+	fuse(fun.f)
+	deadcode(fun.f)
+
+	CheckFunc(fun.f)
+	for _, b := range fun.f.Blocks {
+		if b == fun.blocks["secondCheck"] && isNilCheck(b) {
+			t.Errorf("secondCheck was not eliminated")
+		}
+	}
+}
+
+// TestNilcheckDomOrder ensures that the nil check elimination isn't dependant
+// on the order of the dominees.
+func TestNilcheckDomOrder(t *testing.T) {
+	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+	c := NewConfig("amd64", DummyFrontend{t})
+	fun := Fun(c, "entry",
+		Bloc("entry",
+			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+			Valu("sb", OpSB, TypeInvalid, 0, nil),
+			Goto("checkPtr")),
+		Bloc("checkPtr",
+			Valu("ptr1", OpConstPtr, ptrType, 0, nil, "sb"),
+			Valu("bool1", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
+			If("bool1", "secondCheck", "exit")),
+		Bloc("exit",
+			Exit("mem")),
+		Bloc("secondCheck",
+			Valu("bool2", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
+			If("bool2", "extra", "exit")),
+		Bloc("extra",
+			Goto("exit")))
+
+	CheckFunc(fun.f)
+	nilcheckelim(fun.f)
+
+	// clean up the removed nil check
+	fuse(fun.f)
+	deadcode(fun.f)
+
+	CheckFunc(fun.f)
+	for _, b := range fun.f.Blocks {
+		if b == fun.blocks["secondCheck"] && isNilCheck(b) {
+			t.Errorf("secondCheck was not eliminated")
+		}
+	}
+}
+
+//TODO: Disabled until we track OpAddr constructed values
+// TestNilcheckAddr verifies that nilchecks of OpAddr constructed values are removed.
+func DISABLETestNilcheckAddr(t *testing.T) {
+	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+	c := NewConfig("amd64", DummyFrontend{t})
+	fun := Fun(c, "entry",
+		Bloc("entry",
+			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+			Valu("sb", OpSB, TypeInvalid, 0, nil),
+			Goto("checkPtr")),
+		Bloc("checkPtr",
+			Valu("ptr1", OpAddr, ptrType, 0, nil, "sb"),
+			Valu("bool1", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
+			If("bool1", "extra", "exit")),
+		Bloc("extra",
+			Goto("exit")),
+		Bloc("exit",
+			Exit("mem")))
+
+	CheckFunc(fun.f)
+	nilcheckelim(fun.f)
+
+	// clean up the removed nil check
+	fuse(fun.f)
+	deadcode(fun.f)
+
+	CheckFunc(fun.f)
+	for _, b := range fun.f.Blocks {
+		if b == fun.blocks["checkPtr"] && isNilCheck(b) {
+			t.Errorf("checkPtr was not eliminated")
+		}
+	}
+}
+
+// TestNilcheckKeepRemove verifies that dupliate checks of the same pointer
+// are removed, but checks of different pointers are not.
+func TestNilcheckKeepRemove(t *testing.T) {
+	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+	c := NewConfig("amd64", DummyFrontend{t})
+	fun := Fun(c, "entry",
+		Bloc("entry",
+			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+			Valu("sb", OpSB, TypeInvalid, 0, nil),
+			Goto("checkPtr")),
+		Bloc("checkPtr",
+			Valu("ptr1", OpConstPtr, ptrType, 0, nil, "sb"),
+			Valu("bool1", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
+			If("bool1", "differentCheck", "exit")),
+		Bloc("differentCheck",
+			Valu("ptr2", OpConstPtr, ptrType, 0, nil, "sb"),
+			Valu("bool2", OpIsNonNil, TypeBool, 0, nil, "ptr2"),
+			If("bool2", "secondCheck", "exit")),
+		Bloc("secondCheck",
+			Valu("bool3", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
+			If("bool3", "extra", "exit")),
+		Bloc("extra",
+			Goto("exit")),
+		Bloc("exit",
+			Exit("mem")))
+
+	CheckFunc(fun.f)
+	nilcheckelim(fun.f)
+
+	// clean up the removed nil check
+	fuse(fun.f)
+	deadcode(fun.f)
+
+	CheckFunc(fun.f)
+	foundDifferentCheck := false
+	for _, b := range fun.f.Blocks {
+		if b == fun.blocks["secondCheck"] && isNilCheck(b) {
+			t.Errorf("secondCheck was not eliminated")
+		}
+		if b == fun.blocks["differentCheck"] && isNilCheck(b) {
+			foundDifferentCheck = true
+		}
+	}
+	if !foundDifferentCheck {
+		t.Errorf("removed differentCheck, but shouldn't have")
+	}
+}
+
+// TestNilcheckInFalseBranch tests that nil checks in the false branch of an nilcheck
+// block are *not* removed.
+func TestNilcheckInFalseBranch(t *testing.T) {
+	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+	c := NewConfig("amd64", DummyFrontend{t})
+	fun := Fun(c, "entry",
+		Bloc("entry",
+			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+			Valu("sb", OpSB, TypeInvalid, 0, nil),
+			Goto("checkPtr")),
+		Bloc("checkPtr",
+			Valu("ptr1", OpConstPtr, ptrType, 0, nil, "sb"),
+			Valu("bool1", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
+			If("bool1", "extra", "secondCheck")),
+		Bloc("secondCheck",
+			Valu("bool2", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
+			If("bool2", "extra", "thirdCheck")),
+		Bloc("thirdCheck",
+			Valu("bool3", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
+			If("bool3", "extra", "exit")),
+		Bloc("extra",
+			Goto("exit")),
+		Bloc("exit",
+			Exit("mem")))
+
+	CheckFunc(fun.f)
+	nilcheckelim(fun.f)
+
+	// clean up the removed nil check
+	fuse(fun.f)
+	deadcode(fun.f)
+
+	CheckFunc(fun.f)
+	foundSecondCheck := false
+	foundThirdCheck := false
+	for _, b := range fun.f.Blocks {
+		if b == fun.blocks["secondCheck"] && isNilCheck(b) {
+			foundSecondCheck = true
+		}
+		if b == fun.blocks["thirdCheck"] && isNilCheck(b) {
+			foundThirdCheck = true
+		}
+	}
+	if !foundSecondCheck {
+		t.Errorf("removed secondCheck, but shouldn't have [false branch]")
+	}
+	if !foundThirdCheck {
+		t.Errorf("removed thirdCheck, but shouldn't have [false branch]")
+	}
+}
