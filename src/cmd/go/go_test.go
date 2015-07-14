@@ -2077,3 +2077,20 @@ func TestGoInstallPkgdir(t *testing.T) {
 	_, err = os.Stat(filepath.Join(pkg, "runtime.a"))
 	tg.must(err)
 }
+
+func TestGoTestRaceInstallCgo(t *testing.T) {
+	// golang.org/issue/10500.
+	// This used to install a race-enabled cgo.
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.run("tool", "-n", "cgo")
+	cgo := strings.TrimSpace(tg.stdout.String())
+	old, err := os.Stat(cgo)
+	tg.must(err)
+	tg.run("test", "-race", "-i", "runtime/race")
+	new, err := os.Stat(cgo)
+	tg.must(err)
+	if new.ModTime() != old.ModTime() {
+		t.Fatalf("go test -i runtime/race reinstalled cmd/cgo")
+	}
+}
