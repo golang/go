@@ -557,7 +557,7 @@ const (
 // repoRootForImportPath analyzes importPath to determine the
 // version control system, and code repository to use.
 func repoRootForImportPath(importPath string, security securityMode) (*repoRoot, error) {
-	rr, err := repoRootForImportPathStatic(importPath, "", security)
+	rr, err := repoRootFromVCSPaths(importPath, "", security, vcsPaths)
 	if err == errUnknownSite {
 		// If there are wildcards, look up the thing before the wildcard,
 		// hoping it applies to the wildcarded parts too.
@@ -579,6 +579,13 @@ func repoRootForImportPath(importPath string, security securityMode) (*repoRoot,
 			err = fmt.Errorf("unrecognized import path %q", importPath)
 		}
 	}
+	if err != nil {
+		rr1, err1 := repoRootFromVCSPaths(importPath, "", security, vcsPathsAfterDynamic)
+		if err1 == nil {
+			rr = rr1
+			err = nil
+		}
+	}
 
 	if err == nil && strings.Contains(importPath, "...") && strings.Contains(rr.root, "...") {
 		// Do not allow wildcards in the repo root.
@@ -590,13 +597,10 @@ func repoRootForImportPath(importPath string, security securityMode) (*repoRoot,
 
 var errUnknownSite = errors.New("dynamic lookup required to find mapping")
 
-// repoRootForImportPathStatic attempts to map importPath to a
-// repoRoot using the commonly-used VCS hosting sites in vcsPaths
-// (github.com/user/dir), or from a fully-qualified importPath already
-// containing its VCS type (foo.com/repo.git/dir)
-//
+// repoRootFromVCSPaths attempts to map importPath to a repoRoot
+// using the mappings defined in vcsPaths.
 // If scheme is non-empty, that scheme is forced.
-func repoRootForImportPathStatic(importPath, scheme string, security securityMode) (*repoRoot, error) {
+func repoRootFromVCSPaths(importPath, scheme string, security securityMode, vcsPaths []*vcsPath) (*repoRoot, error) {
 	// A common error is to use https://packagepath because that's what
 	// hg and git require. Diagnose this helpfully.
 	if loc := httpPrefixRE.FindStringIndex(importPath); loc != nil {
@@ -831,7 +835,10 @@ func expand(match map[string]string, s string) string {
 	return s
 }
 
-// vcsPaths lists the known vcs paths.
+// vcsPaths defines the meaning of import paths referring to
+// commonly-used VCS hosting sites (github.com/user/dir)
+// and import paths referring to a fully-qualified importPath
+// containing a VCS type (foo.com/repo.git/dir)
 var vcsPaths = []*vcsPath{
 	// Google Code - new syntax
 	{
@@ -864,15 +871,6 @@ var vcsPaths = []*vcsPath{
 		check:  bitbucketVCS,
 	},
 
-	// Launchpad
-	{
-		prefix: "launchpad.net/",
-		re:     `^(?P<root>launchpad\.net/((?P<project>[A-Za-z0-9_.\-]+)(?P<series>/[A-Za-z0-9_.\-]+)?|~[A-Za-z0-9_.\-]+/(\+junk|[A-Za-z0-9_.\-]+)/[A-Za-z0-9_.\-]+))(/[A-Za-z0-9_.\-]+)*$`,
-		vcs:    "bzr",
-		repo:   "https://{root}",
-		check:  launchpadVCS,
-	},
-
 	// IBM DevOps Services (JazzHub)
 	{
 		prefix: "hub.jazz.net/git",
@@ -891,9 +889,25 @@ var vcsPaths = []*vcsPath{
 	},
 
 	// General syntax for any server.
+	// Must be last.
 	{
 		re:   `^(?P<root>(?P<repo>([a-z0-9.\-]+\.)+[a-z0-9.\-]+(:[0-9]+)?/[A-Za-z0-9_.\-/]*?)\.(?P<vcs>bzr|git|hg|svn))(/[A-Za-z0-9_.\-]+)*$`,
 		ping: true,
+	},
+}
+
+// vcsPathsAfterDynamic gives additional vcsPaths entries
+// to try after the dynamic HTML check.
+// This gives those sites a chance to introduce <meta> tags
+// as part of a graceful transition away from the hard-coded logic.
+var vcsPathsAfterDynamic = []*vcsPath{
+	// Launchpad. See golang.org/issue/11436.
+	{
+		prefix: "launchpad.net/",
+		re:     `^(?P<root>launchpad\.net/((?P<project>[A-Za-z0-9_.\-]+)(?P<series>/[A-Za-z0-9_.\-]+)?|~[A-Za-z0-9_.\-]+/(\+junk|[A-Za-z0-9_.\-]+)/[A-Za-z0-9_.\-]+))(/[A-Za-z0-9_.\-]+)*$`,
+		vcs:    "bzr",
+		repo:   "https://{root}",
+		check:  launchpadVCS,
 	},
 }
 
@@ -902,6 +916,9 @@ func init() {
 	// Doing this eagerly discovers invalid regexp syntax
 	// without having to run a command that needs that regexp.
 	for _, srv := range vcsPaths {
+		srv.regexp = regexp.MustCompile(srv.re)
+	}
+	for _, srv := range vcsPathsAfterDynamic {
 		srv.regexp = regexp.MustCompile(srv.re)
 	}
 }
