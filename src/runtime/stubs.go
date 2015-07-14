@@ -249,7 +249,6 @@ func time_now() (sec int64, nsec int32)
 
 // in asm_*.s
 // not called directly; definitions here supply type information for traceback.
-func call16(fn, arg unsafe.Pointer, n, retoffset uint32)
 func call32(fn, arg unsafe.Pointer, n, retoffset uint32)
 func call64(fn, arg unsafe.Pointer, n, retoffset uint32)
 func call128(fn, arg unsafe.Pointer, n, retoffset uint32)
