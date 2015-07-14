@@ -985,7 +985,7 @@ example.org/repo or repo.git.
 
 When a version control system supports multiple protocols,
 each is tried in turn when downloading.  For example, a Git
-download tries git://, then https://, then http://.
+download tries https://, then git+ssh://.
 
 If the import path is not a known code hosting site and also lacks a
 version control qualifier, the go tool attempts to fetch the import
@@ -1001,6 +1001,10 @@ root. It must be a prefix or an exact match of the package being
 fetched with "go get". If it's not an exact match, another http
 request is made at the prefix to verify the <meta> tags match.
 
+The meta tag should appear as early in the file as possible.
+In particular, it should appear before any raw JavaScript or CSS,
+to avoid confusing the go command's restricted parser.
+
 The vcs is one of "git", "hg", "svn", etc,
 
 The repo-root is the root of the version control system
@@ -1010,10 +1014,10 @@ For example,
 
 	import "example.org/pkg/foo"
 
-will result in the following request(s):
+will result in the following requests:
 
 	https://example.org/pkg/foo?go-get=1 (preferred)
-	http://example.org/pkg/foo?go-get=1  (fallback)
+	http://example.org/pkg/foo?go-get=1  (fallback, only with -insecure)
 
 If that page contains the meta tag
 
