@@ -199,6 +199,7 @@ func makeclosure(func_ *Node) *Node {
 	xfunc.Func.Nname.Name.Funcdepth = func_.Func.Depth
 	xfunc.Func.Depth = func_.Func.Depth
 	xfunc.Func.Endlineno = func_.Func.Endlineno
+	makefuncsym(xfunc.Func.Nname.Sym)
 
 	xfunc.Nbody = func_.Nbody
 	xfunc.Func.Dcl = concat(func_.Func.Dcl, xfunc.Func.Dcl)
