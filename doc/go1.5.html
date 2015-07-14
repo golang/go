@@ -465,15 +465,16 @@ A new <code>cmd</code> wildcard covers the commands.
 </li>
 
 <li>
-A new <code>-toolexec</code> flag for building
-allows substitution of a different command to invoke
-the compiler and so on.
-This acts as a custom replacement for <code>go tool</code>.
+A new <code>-asmflags</code> build option
+sets flags to pass to the assembler.
+However, 
+the <code>-ccflags</code> build option has been dropped;
+it was specific to the old, now deleted C compiler .
 </li>
 
 <li>
-The build subcommand has a <code>-buildmode</code> option tied to the linker,
-as described above.
+A new <code>-buildmode</code> build option
+sets the build mode, described above.
 </li>
 
 <li>
@@ -482,6 +483,19 @@ flags to the assembler.
 However,
 the <code>-ccflags</code> build option has been dropped;
 it was specific to the old, now deleted C compiler .
+</li>
+
+<li>
+A new <code>-pkgdir</code> build option
+sets the location of installed package archives,
+to help isolate custom builds.
+</li>
+
+<li>
+A new <code>-toolexec</code> build option
+allows substitution of a different command to invoke
+the compiler and so on.
+This acts as a custom replacement for <code>go tool</code>.
 </li>
 
 <li>
