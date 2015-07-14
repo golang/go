@@ -2128,3 +2128,32 @@ func TestGoTestImportErrorStack(t *testing.T) {
 		t.Fatal("did not give full import stack:\n\n%s", tg.stderr.String())
 	}
 }
+
+func TestGoGetUpdate(t *testing.T) {
+	// golang.org/issue/9224.
+	// The recursive updating was trying to walk to
+	// former dependencies, not current ones.
+	testenv.MustHaveExternalNetwork(t)
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.path("."))
+
+	rewind := func() {
+		tg.run("get", "github.com/rsc/go-get-issue-9224-cmd")
+		cmd := exec.Command("git", "reset", "--hard", "HEAD~")
+		cmd.Dir = tg.path("src/github.com/rsc/go-get-issue-9224-lib")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git: %v\n%s", err, out)
+		}
+	}
+
+	rewind()
+	tg.run("get", "-u", "github.com/rsc/go-get-issue-9224-cmd")
+
+	// Again with -d -u.
+	rewind()
+	tg.run("get", "-d", "-u", "github.com/rsc/go-get-issue-9224-cmd")
+}

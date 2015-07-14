@@ -277,9 +277,9 @@ func download(arg string, parent *Package, stk *importStack, getTestDeps bool) {
 		}
 
 		// Process dependencies, now that we know what they are.
-		for _, dep := range p.deps {
+		for _, path := range p.Imports {
 			// Don't get test dependencies recursively.
-			download(dep.ImportPath, p, stk, false)
+			download(path, p, stk, false)
 		}
 		if getTestDeps {
 			// Process test dependencies when -t is specified.
