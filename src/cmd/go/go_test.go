@@ -1184,6 +1184,22 @@ func TestGodocInstalls(t *testing.T) {
 	tg.wantExecutable(filepath.Join(goroot, "bin", "godoc"), "did not install godoc to $GOROOT/bin")
 }
 
+func TestGoGetNonPkg(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.tempDir("gobin")
+	tg.setenv("GOPATH", tg.path("."))
+	tg.setenv("GOBIN", tg.path("gobin"))
+	tg.runFail("get", "-d", "golang.org/x/tools")
+	tg.grepStderr("golang.org/x/tools: no buildable Go source files", "missing error")
+	tg.runFail("get", "-d", "-u", "golang.org/x/tools")
+	tg.grepStderr("golang.org/x/tools: no buildable Go source files", "missing error")
+	tg.runFail("get", "-d", "golang.org/x/tools")
+	tg.grepStderr("golang.org/x/tools: no buildable Go source files", "missing error")
+}
+
 func TestInstalls(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
