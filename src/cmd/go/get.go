@@ -96,12 +96,13 @@ func runGet(cmd *Command, args []string) {
 	}
 
 	args = importPaths(args)
+	packagesForBuild(args)
 
 	// Phase 3.  Install.
 	if *getD {
 		// Download only.
 		// Check delayed until now so that importPaths
-		// has a chance to print errors.
+		// and packagesForBuild have a chance to print errors.
 		return
 	}
 
