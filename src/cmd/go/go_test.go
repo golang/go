@@ -2133,6 +2133,7 @@ func TestGoGetUpdate(t *testing.T) {
 	// golang.org/issue/9224.
 	// The recursive updating was trying to walk to
 	// former dependencies, not current ones.
+
 	testenv.MustHaveExternalNetwork(t)
 
 	tg := testgo(t)
@@ -2156,4 +2157,30 @@ func TestGoGetUpdate(t *testing.T) {
 	// Again with -d -u.
 	rewind()
 	tg.run("get", "-d", "-u", "github.com/rsc/go-get-issue-9224-cmd")
+}
+
+func TestGoGetDomainRoot(t *testing.T) {
+	// golang.org/issue/9357.
+	// go get foo.io (not foo.io/subdir) was not working consistently.
+
+	testenv.MustHaveExternalNetwork(t)
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.path("."))
+
+	// go-get-issue-9357.appspot.com is running
+	// the code at github.com/rsc/go-get-issue-9357,
+	// a trivial Go on App Engine app that serves a
+	// <meta> tag for the domain root.
+	tg.run("get", "-d", "go-get-issue-9357.appspot.com")
+	tg.run("get", "go-get-issue-9357.appspot.com")
+	tg.run("get", "-u", "go-get-issue-9357.appspot.com")
+
+	tg.must(os.RemoveAll(tg.path("src/go-get-issue-9357.appspot.com")))
+	tg.run("get", "go-get-issue-9357.appspot.com")
+
+	tg.must(os.RemoveAll(tg.path("src/go-get-issue-9357.appspot.com")))
+	tg.run("get", "-u", "go-get-issue-9357.appspot.com")
 }
