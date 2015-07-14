@@ -2065,3 +2065,15 @@ func TestGoRunDirs(t *testing.T) {
 	tg.runFail("run", "sub/sub.go", "x.go")
 	tg.grepStderr("named files must all be in one directory; have sub/ and .", "wrong output")
 }
+
+func TestGoInstallPkgdir(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	pkg := tg.path(".")
+	tg.run("install", "-pkgdir", pkg, "errors")
+	_, err := os.Stat(filepath.Join(pkg, "errors.a"))
+	tg.must(err)
+	_, err = os.Stat(filepath.Join(pkg, "runtime.a"))
+	tg.must(err)
+}

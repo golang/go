@@ -96,11 +96,10 @@ and test commands:
 	-x
 		print the commands.
 
+	-asmflags 'flag list'
+		arguments to pass on each go tool asm invocation.
 	-buildmode mode
 		build mode to use. See 'go help buildmode' for more.
-	-linkshared
-		link against shared libraries previously created with
-		-buildmode=shared
 	-compiler name
 		name of compiler to use, as in runtime.Compiler (gccgo or gc).
 	-gccgoflags 'arg list'
@@ -115,8 +114,13 @@ and test commands:
 		option that requires non-default compile flags has a similar effect.
 	-ldflags 'flag list'
 		arguments to pass on each go tool link invocation.
-	-asmflags 'flag list'
-		arguments to pass on each go tool asm invocation.
+	-linkshared
+		link against shared libraries previously created with
+		-buildmode=shared
+	-pkgdir dir
+		install and load all packages from dir instead of the usual locations.
+		For example, when building with a non-standard configuration,
+		use -pkgdir to keep generated packages in a separate location.
 	-tags 'tag list'
 		a list of build tags to consider satisfied during the build.
 		For more information about build tags, see the description of
