@@ -180,6 +180,16 @@ func (c *Cmd) stdin() (f *os.File, err error) {
 	c.closeAfterWait = append(c.closeAfterWait, pw)
 	c.goroutine = append(c.goroutine, func() error {
 		_, err := io.Copy(pw, c.Stdin)
+
+		// Ignore EPIPE errors copying to stdin if the program
+		// completed successfully otherwise.
+		// See Issue 9173.
+		if pe, ok := err.(*os.PathError); ok &&
+			pe.Op == "write" && pe.Path == "|1" &&
+			pe.Err == syscall.EPIPE {
+			err = nil
+		}
+
 		if err1 := pw.Close(); err == nil {
 			err = err1
 		}

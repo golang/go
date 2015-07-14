@@ -765,3 +765,24 @@ func TestHelperProcess(*testing.T) {
 		os.Exit(2)
 	}
 }
+
+// Issue 9173: ignore stdin pipe writes if the program completes successfully.
+func TestIgnorePipeErrorOnSuccess(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	// We really only care about testing this on Unixy things.
+	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+		t.Skipf("skipping test on %q", runtime.GOOS)
+	}
+
+	cmd := helperCommand(t, "echo", "foo")
+	var out bytes.Buffer
+	cmd.Stdin = strings.NewReader(strings.Repeat("x", 10<<20))
+	cmd.Stdout = &out
+	if err := cmd.Run(); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := out.String(), "foo\n"; got != want {
+		t.Errorf("output = %q; want %q", got, want)
+	}
+}
