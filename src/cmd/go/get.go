@@ -77,6 +77,12 @@ func runGet(cmd *Command, args []string) {
 		fatalf("go get: cannot use -f flag without -u")
 	}
 
+	// Disable any prompting for passwords by Git.
+	// Only has an effect for 2.3.0 or later, but avoiding
+	// the prompt in earlier versions is just too hard.
+	// See golang.org/issue/9341.
+	os.Setenv("GIT_TERMINAL_PROMPT", "0")
+
 	// Phase 1.  Download/update.
 	var stk importStack
 	for _, arg := range downloadPaths(args) {
