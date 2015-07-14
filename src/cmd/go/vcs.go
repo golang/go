@@ -650,11 +650,11 @@ func repoRootForImportPathStatic(importPath, scheme string, security securityMod
 // repoRootForImportDynamic finds a *repoRoot for a custom domain that's not
 // statically known by repoRootForImportPathStatic.
 //
-// This handles custom import paths like "name.tld/pkg/foo".
+// This handles custom import paths like "name.tld/pkg/foo" or just "name.tld".
 func repoRootForImportDynamic(importPath string, security securityMode) (*repoRoot, error) {
 	slash := strings.Index(importPath, "/")
 	if slash < 0 {
-		return nil, errors.New("import path does not contain a slash")
+		slash = len(importPath)
 	}
 	host := importPath[:slash]
 	if !strings.Contains(host, ".") {
