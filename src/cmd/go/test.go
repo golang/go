@@ -578,7 +578,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		if p1.Error != nil {
 			return nil, nil, nil, p1.Error
 		}
-		if contains(p1.Deps, p.ImportPath) {
+		if contains(p1.Deps, p.ImportPath) || p1.ImportPath == p.ImportPath {
 			// Same error that loadPackage returns (via reusePackage) in pkg.go.
 			// Can't change that code, because that code is only for loading the
 			// non-test copy of a package.
