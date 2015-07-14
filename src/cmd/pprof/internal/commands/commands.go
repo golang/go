@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"runtime"
@@ -185,9 +186,26 @@ func saveSVGToFile() PostProcessor {
 	}
 }
 
+var vizTmpDir string
+
+func makeVizTmpDir() error {
+	if vizTmpDir != "" {
+		return nil
+	}
+	name, err := ioutil.TempDir("", "pprof-")
+	if err != nil {
+		return err
+	}
+	vizTmpDir = name
+	return nil
+}
+
 func invokeVisualizer(interactive **bool, format PostProcessor, suffix string, visualizers []string) PostProcessor {
 	return func(input *bytes.Buffer, output io.Writer, ui plugin.UI) error {
-		tempFile, err := tempfile.New(os.Getenv("PPROF_TMPDIR"), "pprof", "."+suffix)
+		if err := makeVizTmpDir(); err != nil {
+			return err
+		}
+		tempFile, err := tempfile.New(vizTmpDir, "pprof", "."+suffix)
 		if err != nil {
 			return err
 		}
