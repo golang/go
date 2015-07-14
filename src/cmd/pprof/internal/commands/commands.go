@@ -82,7 +82,10 @@ func PProf(c Completer, interactive **bool) Commands {
 // browsers returns a list of commands to attempt for web visualization
 // on the current platform
 func browsers() []string {
-	cmds := []string{"chrome", "google-chrome", "firefox"}
+	var cmds []string
+	if exe := os.Getenv("BROWSER"); exe != "" {
+		cmds = append(cmds, exe)
+	}
 	switch runtime.GOOS {
 	case "darwin":
 		cmds = append(cmds, "/usr/bin/open")
@@ -91,6 +94,7 @@ func browsers() []string {
 	default:
 		cmds = append(cmds, "xdg-open")
 	}
+	cmds = append(cmds, "chrome", "google-chrome", "firefox")
 	return cmds
 }
 
