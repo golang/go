@@ -110,6 +110,13 @@ type CoverVar struct {
 func (p *Package) copyBuild(pp *build.Package) {
 	p.build = pp
 
+	if pp.PkgTargetRoot != "" && buildPkgdir != "" {
+		old := pp.PkgTargetRoot
+		pp.PkgRoot = buildPkgdir
+		pp.PkgTargetRoot = buildPkgdir
+		pp.PkgObj = filepath.Join(buildPkgdir, strings.TrimPrefix(pp.PkgObj, old))
+	}
+
 	p.Dir = pp.Dir
 	p.ImportPath = pp.ImportPath
 	p.ImportComment = pp.ImportComment

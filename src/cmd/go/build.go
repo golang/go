@@ -76,11 +76,10 @@ and test commands:
 	-x
 		print the commands.
 
+	-asmflags 'flag list'
+		arguments to pass on each go tool asm invocation.
 	-buildmode mode
 		build mode to use. See 'go help buildmode' for more.
-	-linkshared
-		link against shared libraries previously created with
-		-buildmode=shared
 	-compiler name
 		name of compiler to use, as in runtime.Compiler (gccgo or gc).
 	-gccgoflags 'arg list'
@@ -95,8 +94,13 @@ and test commands:
 		option that requires non-default compile flags has a similar effect.
 	-ldflags 'flag list'
 		arguments to pass on each go tool link invocation.
-	-asmflags 'flag list'
-		arguments to pass on each go tool asm invocation.
+	-linkshared
+		link against shared libraries previously created with
+		-buildmode=shared
+	-pkgdir dir
+		install and load all packages from dir instead of the usual locations.
+		For example, when building with a non-standard configuration,
+		use -pkgdir to keep generated packages in a separate location.
 	-tags 'tag list'
 		a list of build tags to consider satisfied during the build.
 		For more information about build tags, see the description of
@@ -157,6 +161,7 @@ var buildRace bool           // -race flag
 var buildToolExec []string   // -toolexec flag
 var buildBuildmode string    // -buildmode flag
 var buildLinkshared bool     // -linkshared flag
+var buildPkgdir string       // -pkgdir flag
 
 var buildContext = build.Default
 var buildToolchain toolchain = noToolchain{}
@@ -196,21 +201,22 @@ func init() {
 // addBuildFlags adds the flags common to the build, clean, get,
 // install, list, run, and test commands.
 func addBuildFlags(cmd *Command) {
-	// NOTE: If you add flags here, also add them to testflag.go.
 	cmd.Flag.BoolVar(&buildA, "a", false, "")
 	cmd.Flag.BoolVar(&buildN, "n", false, "")
 	cmd.Flag.IntVar(&buildP, "p", buildP, "")
 	cmd.Flag.BoolVar(&buildV, "v", false, "")
 	cmd.Flag.BoolVar(&buildX, "x", false, "")
+
 	cmd.Flag.Var((*stringsFlag)(&buildAsmflags), "asmflags", "")
+	cmd.Flag.Var(buildCompiler{}, "compiler", "")
+	cmd.Flag.StringVar(&buildBuildmode, "buildmode", "default", "")
 	cmd.Flag.Var((*stringsFlag)(&buildGcflags), "gcflags", "")
-	cmd.Flag.Var((*stringsFlag)(&buildLdflags), "ldflags", "")
 	cmd.Flag.Var((*stringsFlag)(&buildGccgoflags), "gccgoflags", "")
 	cmd.Flag.StringVar(&buildContext.InstallSuffix, "installsuffix", "", "")
-	cmd.Flag.Var(buildCompiler{}, "compiler", "")
-	cmd.Flag.BoolVar(&buildRace, "race", false, "")
-	cmd.Flag.StringVar(&buildBuildmode, "buildmode", "default", "")
+	cmd.Flag.Var((*stringsFlag)(&buildLdflags), "ldflags", "")
 	cmd.Flag.BoolVar(&buildLinkshared, "linkshared", false, "")
+	cmd.Flag.StringVar(&buildPkgdir, "pkgdir", "", "")
+	cmd.Flag.BoolVar(&buildRace, "race", false, "")
 	cmd.Flag.Var((*stringsFlag)(&buildContext.BuildTags), "tags", "")
 	cmd.Flag.Var((*stringsFlag)(&buildToolExec), "toolexec", "")
 	cmd.Flag.BoolVar(&buildWork, "work", false, "")
