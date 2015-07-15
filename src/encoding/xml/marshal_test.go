@@ -1906,3 +1906,34 @@ func TestIsValidDirective(t *testing.T) {
 		}
 	}
 }
+
+// Issue 11719. EncodeToken used to silently eat tokens with an invalid type.
+func TestSimpleUseOfEncodeToken(t *testing.T) {
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+	if err := enc.EncodeToken(&StartElement{Name: Name{"", "object1"}}); err == nil {
+		t.Errorf("enc.EncodeToken: pointer type should be rejected")
+	}
+	if err := enc.EncodeToken(&EndElement{Name: Name{"", "object1"}}); err == nil {
+		t.Errorf("enc.EncodeToken: pointer type should be rejected")
+	}
+	if err := enc.EncodeToken(StartElement{Name: Name{"", "object2"}}); err != nil {
+		t.Errorf("enc.EncodeToken: StartElement %s", err)
+	}
+	if err := enc.EncodeToken(EndElement{Name: Name{"", "object2"}}); err != nil {
+		t.Errorf("enc.EncodeToken: EndElement %s", err)
+	}
+	if err := enc.EncodeToken(Universe{}); err == nil {
+		t.Errorf("enc.EncodeToken: invalid type not caught")
+	}
+	if err := enc.Flush(); err != nil {
+		t.Errorf("enc.Flush: %s", err)
+	}
+	if buf.Len() == 0 {
+		t.Errorf("enc.EncodeToken: empty buffer")
+	}
+	want := "<object2></object2>"
+	if buf.String() != want {
+		t.Errorf("enc.EncodeToken: expected %q; got %q", want, buf.String())
+	}
+}
