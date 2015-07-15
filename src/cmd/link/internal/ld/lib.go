@@ -980,6 +980,10 @@ func hostlink() {
 		argv = append(argv, "-Wl,-znow")
 	}
 
+	if Iself && len(buildinfo) > 0 {
+		argv = append(argv, fmt.Sprintf("-Wl,--build-id=0x%x", buildinfo))
+	}
+
 	argv = append(argv, "-o")
 	argv = append(argv, outfile)
 
