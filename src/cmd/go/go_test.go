@@ -2081,9 +2081,9 @@ func TestGoRunDirs(t *testing.T) {
 	defer tg.cleanup()
 	tg.cd("testdata/rundir")
 	tg.runFail("run", "x.go", "sub/sub.go")
-	tg.grepStderr("named files must all be in one directory; have . and sub/", "wrong output")
+	tg.grepStderr("named files must all be in one directory; have ./ and sub/", "wrong output")
 	tg.runFail("run", "sub/sub.go", "x.go")
-	tg.grepStderr("named files must all be in one directory; have sub/ and .", "wrong output")
+	tg.grepStderr("named files must all be in one directory; have sub/ and ./", "wrong output")
 }
 
 func TestGoInstallPkgdir(t *testing.T) {
@@ -2099,6 +2099,13 @@ func TestGoInstallPkgdir(t *testing.T) {
 }
 
 func TestGoTestRaceInstallCgo(t *testing.T) {
+	switch sys := runtime.GOOS + "/" + runtime.GOARCH; sys {
+	case "darwin/amd64", "freebsd/amd64", "linux/amd64", "windows/amd64":
+		// ok
+	default:
+		t.Skip("no race detector on %s", sys)
+	}
+
 	// golang.org/issue/10500.
 	// This used to install a race-enabled cgo.
 	tg := testgo(t)
