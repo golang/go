@@ -4721,3 +4721,16 @@ func TestTypeOfTypeOf(t *testing.T) {
 	check("PtrTo", PtrTo(TypeOf(T{})))
 	check("SliceOf", SliceOf(TypeOf(T{})))
 }
+
+type XM struct{}
+
+func (*XM) String() string { return "" }
+
+func TestPtrToMethods(t *testing.T) {
+	var y struct{ XM }
+	yp := New(TypeOf(y)).Interface()
+	_, ok := yp.(fmt.Stringer)
+	if !ok {
+		t.Fatal("does not implement Stringer, but should")
+	}
+}
