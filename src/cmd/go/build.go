@@ -719,7 +719,7 @@ func goFilesPackage(gofiles []string) *Package {
 		}
 		dir1, _ := filepath.Split(file)
 		if dir1 == "" {
-			dir1 = "."
+			dir1 = "./"
 		}
 		if dir == "" {
 			dir = dir1
