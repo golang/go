@@ -585,10 +585,6 @@ func funchdr(n *Node) {
 		Fatal("funchdr: dclcontext")
 	}
 
-	if importpkg == nil && n.Func.Nname != nil {
-		makefuncsym(n.Func.Nname.Sym)
-	}
-
 	dclcontext = PAUTO
 	markdcl()
 	Funcdepth++
@@ -1493,16 +1489,12 @@ func funcsym(s *Sym) *Sym {
 	}
 
 	s1 := Pkglookup(s.Name+"·f", s.Pkg)
-	s.Fsym = s1
-	return s1
-}
-
-func makefuncsym(s *Sym) {
-	if isblanksym(s) {
-		return
+	if s1.Def == nil {
+		s1.Def = newfuncname(s1)
+		s1.Def.Func.Shortname = newname(s)
+		funcsyms = list(funcsyms, s1.Def)
 	}
-	s1 := funcsym(s)
-	s1.Def = newfuncname(s1)
-	s1.Def.Func.Shortname = newname(s)
-	funcsyms = list(funcsyms, s1.Def)
+	s.Fsym = s1
+
+	return s1
 }
