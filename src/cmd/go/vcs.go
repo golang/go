@@ -140,10 +140,14 @@ var vcsGit = &vcsCmd{
 	// See golang.org/issue/9032.
 	tagSyncDefault: []string{"checkout master", "submodule update --init --recursive"},
 
-	scheme:     []string{"git", "https", "http", "git+ssh"},
+	scheme:     []string{"git", "https", "http", "git+ssh", "ssh"},
 	pingCmd:    "ls-remote {scheme}://{repo}",
 	remoteRepo: gitRemoteRepo,
 }
+
+// scpSyntaxRe matches the SCP-like addresses used by Git to access
+// repositories by SSH.
+var scpSyntaxRe = regexp.MustCompile(`^([a-zA-Z0-9_]+)@([a-zA-Z0-9._-]+):(.*)$`)
 
 func gitRemoteRepo(vcsGit *vcsCmd, rootDir string) (remoteRepo string, err error) {
 	cmd := "config remote.origin.url"
@@ -158,9 +162,24 @@ func gitRemoteRepo(vcsGit *vcsCmd, rootDir string) (remoteRepo string, err error
 		}
 		return "", err
 	}
-	repoURL, err := url.Parse(strings.TrimSpace(string(outb)))
-	if err != nil {
-		return "", err
+	out := strings.TrimSpace(string(outb))
+
+	var repoURL *url.URL
+	if m := scpSyntaxRe.FindStringSubmatch(out); m != nil {
+		// Match SCP-like syntax and convert it to a URL.
+		// Eg, "git@github.com:user/repo" becomes
+		// "ssh://git@github.com/user/repo".
+		repoURL = &url.URL{
+			Scheme:  "ssh",
+			User:    url.User(m[1]),
+			Host:    m[2],
+			RawPath: m[3],
+		}
+	} else {
+		repoURL, err = url.Parse(out)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	// Iterate over insecure schemes too, because this function simply
