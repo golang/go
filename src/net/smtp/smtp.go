@@ -41,7 +41,7 @@ type Client struct {
 }
 
 // Dial returns a new Client connected to an SMTP server at addr.
-// The addr must include a port number.
+// The addr must include a port, as in "mail.example.com:smtp".
 func Dial(addr string) (*Client, error) {
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
@@ -281,6 +281,7 @@ var testHookStartTLS func(*tls.Config) // nil, except for tests
 // possible, authenticates with the optional mechanism a if possible,
 // and then sends an email from address from, to addresses to, with
 // message msg.
+// The addr must include a port, as in "mail.example.com:smtp".
 //
 // The addresses in the to parameter are the SMTP RCPT addresses.
 //
