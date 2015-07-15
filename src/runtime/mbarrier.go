@@ -83,7 +83,8 @@ import "unsafe"
 // into to the stack. Don't do it! Mark termination only re-scans
 // frames that have potentially been active since the concurrent scan,
 // so it depends on write barriers to track changes to pointers in
-// stack frames that have not been active. go:nowritebarrier
+// stack frames that have not been active.
+//go:nowritebarrier
 func gcmarkwb_m(slot *uintptr, ptr uintptr) {
 	if writeBarrierEnabled {
 		if ptr != 0 && inheap(ptr) {
