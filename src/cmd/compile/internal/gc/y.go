@@ -2791,7 +2791,7 @@ yydefault:
 
 			var n *Node
 			l = yyDollar[1].list
-			if l == nil {
+			if l == nil || l.N.Sym.Name == "?" {
 				// ? symbol, during import (list1(nil) == nil)
 				n = yyDollar[2].node
 				if n.Op == OIND {
