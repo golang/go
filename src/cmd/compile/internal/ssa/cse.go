@@ -69,7 +69,10 @@ func cse(f *Func) {
 	for {
 		changed := false
 
-		for i, e := range partition {
+		// partition can grow in the loop. By not using a range loop here,
+		// we process new additions as they arrive, avoiding O(n^2) behavior.
+		for i := 0; i < len(partition); i++ {
+			e := partition[i]
 			v := e[0]
 			// all values in this equiv class that are not equivalent to v get moved
 			// into another equiv class q.
