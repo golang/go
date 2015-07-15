@@ -217,6 +217,9 @@ type XYZ struct {
 	Z interface{}
 }
 
+func sliceAddr(x []int) *[]int                 { return &x }
+func mapAddr(x map[string]int) *map[string]int { return &x }
+
 var unmarshalTests = []unmarshalTest{
 	// basic types
 	{in: `true`, ptr: new(bool), out: true},
@@ -302,6 +305,12 @@ var unmarshalTests = []unmarshalTest{
 	{in: `["X"]`, ptr: &umsliceT, out: umsliceT},
 	{in: `["X"]`, ptr: &umslicepT, out: &umsliceT},
 	{in: `{"M":"X"}`, ptr: &umstructT, out: umstructT},
+
+	// Overwriting of data.
+	// This is different from package xml, but it's what we've always done.
+	// Now documented and tested.
+	{in: `[2]`, ptr: sliceAddr([]int{1}), out: []int{2}},
+	{in: `{"key": 2}`, ptr: mapAddr(map[string]int{"old": 0, "key": 1}), out: map[string]int{"key": 2}},
 
 	{
 		in: `{
