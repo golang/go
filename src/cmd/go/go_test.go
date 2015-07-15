@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"go/build"
 	"go/format"
 	"internal/testenv"
 	"io/ioutil"
@@ -2104,6 +2105,10 @@ func TestGoTestRaceInstallCgo(t *testing.T) {
 		// ok
 	default:
 		t.Skip("no race detector on %s", sys)
+	}
+
+	if !build.Default.CgoEnabled {
+		t.Skip("no race detector without cgo")
 	}
 
 	// golang.org/issue/10500.
