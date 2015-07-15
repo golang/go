@@ -161,12 +161,8 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 	for last = ctxt.Cursym.Text; last.Link != nil; last = last.Link {
 	}
 
-	spfix := obj.Appendp(ctxt, last)
-	spfix.As = obj.ANOP
-	spfix.Spadj = -framesize
-
 	// MOV	LR, R3
-	movlr := obj.Appendp(ctxt, spfix)
+	movlr := obj.Appendp(ctxt, last)
 	movlr.As = AMOVD
 	movlr.From.Type = obj.TYPE_REG
 	movlr.From.Reg = REGLINK
@@ -205,10 +201,6 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 	jmp.As = AB
 	jmp.To.Type = obj.TYPE_BRANCH
 	jmp.Pcond = ctxt.Cursym.Text.Link
-
-	spfix = obj.Appendp(ctxt, jmp)
-	spfix.As = obj.ANOP
-	spfix.Spadj = +framesize
 
 	// placeholder for bls's jump target
 	// p = obj.Appendp(ctxt, p)
