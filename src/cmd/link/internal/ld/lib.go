@@ -44,6 +44,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -836,6 +837,7 @@ func hostlinksetup() {
 
 	// change our output to temporary object file
 	coutbuf.f.Close()
+	mayberemoveoutfile()
 
 	p := fmt.Sprintf("%s/go.o", tmpdir)
 	var err error
@@ -882,7 +884,7 @@ func archive() {
 		return
 	}
 
-	os.Remove(outfile)
+	mayberemoveoutfile()
 	argv := []string{"ar", "-q", "-c", "-s", outfile}
 	argv = append(argv, hostobjCopy()...)
 	argv = append(argv, fmt.Sprintf("%s/go.o", tmpdir))
@@ -984,8 +986,18 @@ func hostlink() {
 		argv = append(argv, fmt.Sprintf("-Wl,--build-id=0x%x", buildinfo))
 	}
 
+	// On Windows, given -o foo, GCC will append ".exe" to produce
+	// "foo.exe".  We have decided that we want to honor the -o
+	// option.  To make this work, we append a '.' so that GCC
+	// will decide that the file already has an extension.  We
+	// only want to do this when producing a Windows output file
+	// on a Windows host.
+	outopt := outfile
+	if goos == "windows" && runtime.GOOS == "windows" && filepath.Ext(outopt) == "" {
+		outopt += "."
+	}
 	argv = append(argv, "-o")
-	argv = append(argv, outfile)
+	argv = append(argv, outopt)
 
 	if rpath.val != "" {
 		argv = append(argv, fmt.Sprintf("-Wl,-rpath,%s", rpath.val))
