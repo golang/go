@@ -199,6 +199,7 @@ var (
 // elements (including the StartElement itself) will use the declared
 // prefix when encoding names with matching namespace URIs.
 func (enc *Encoder) EncodeToken(t Token) error {
+
 	p := &enc.p
 	switch t := t.(type) {
 	case StartElement:
@@ -245,6 +246,9 @@ func (enc *Encoder) EncodeToken(t Token) error {
 		p.WriteString("<!")
 		p.Write(t)
 		p.WriteString(">")
+	default:
+		return fmt.Errorf("xml: EncodeToken of invalid token type")
+
 	}
 	return p.cachedWriteError()
 }
