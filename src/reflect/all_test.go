@@ -1382,7 +1382,7 @@ func selectWatcher() {
 	for {
 		time.Sleep(1 * time.Second)
 		selectWatch.Lock()
-		if selectWatch.info != nil && time.Since(selectWatch.now) > 1*time.Second {
+		if selectWatch.info != nil && time.Since(selectWatch.now) > 10*time.Second {
 			fmt.Fprintf(os.Stderr, "TestSelect:\n%s blocked indefinitely\n", fmtSelect(selectWatch.info))
 			panic("select stuck")
 		}
