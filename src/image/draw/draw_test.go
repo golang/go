@@ -163,8 +163,8 @@ var drawTests = []drawTest{
 	// The source pixel is {0, 0, 136} in YCbCr-space, which is {11, 38, 0, 255} in RGB-space.
 	{"ycbcr", vgradCr(), fillAlpha(255), Over, color.RGBA{11, 38, 0, 255}},
 	{"ycbcrSrc", vgradCr(), fillAlpha(255), Src, color.RGBA{11, 38, 0, 255}},
-	{"ycbcrAlpha", vgradCr(), fillAlpha(192), Over, color.RGBA{42, 29, 0, 255}},
-	{"ycbcrAlphaSrc", vgradCr(), fillAlpha(192), Src, color.RGBA{8, 29, 0, 192}},
+	{"ycbcrAlpha", vgradCr(), fillAlpha(192), Over, color.RGBA{42, 28, 0, 255}},
+	{"ycbcrAlphaSrc", vgradCr(), fillAlpha(192), Src, color.RGBA{8, 28, 0, 192}},
 	{"ycbcrNil", vgradCr(), nil, Over, color.RGBA{11, 38, 0, 255}},
 	{"ycbcrNilSrc", vgradCr(), nil, Src, color.RGBA{11, 38, 0, 255}},
 	// Uniform mask (100%, 75%, nil) and variable Gray source.
