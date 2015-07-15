@@ -1632,7 +1632,7 @@ structdcl:
 
 		var n *Node
 		l = $1;
-		if l == nil {
+		if l == nil || l.N.Sym.Name == "?" {
 			// ? symbol, during import (list1(nil) == nil)
 			n = $2;
 			if n.Op == OIND {
