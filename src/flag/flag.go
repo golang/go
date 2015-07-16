@@ -235,6 +235,8 @@ func (d *durationValue) String() string { return (*time.Duration)(d).String() }
 // If a Value has an IsBoolFlag() bool method returning true,
 // the command-line parser makes -name equivalent to -name=true
 // rather than using the next command-line argument.
+//
+// Set is called once, in command line order, for each flag present.
 type Value interface {
 	String() string
 	Set(string) error
