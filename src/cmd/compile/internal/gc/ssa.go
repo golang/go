@@ -226,6 +226,11 @@ func (s *state) newValue1A(op ssa.Op, t ssa.Type, aux interface{}, arg *ssa.Valu
 	return s.curBlock.NewValue1A(s.peekLine(), op, t, aux, arg)
 }
 
+// newValue1I adds a new value with one argument and an auxint value to the current block.
+func (s *state) newValue1I(op ssa.Op, t ssa.Type, aux int64, arg *ssa.Value) *ssa.Value {
+	return s.curBlock.NewValue1I(s.peekLine(), op, t, aux, arg)
+}
+
 // newValue2 adds a new value with two arguments to the current block.
 func (s *state) newValue2(op ssa.Op, t ssa.Type, arg0, arg1 *ssa.Value) *ssa.Value {
 	return s.curBlock.NewValue2(s.peekLine(), op, t, arg0, arg1)
@@ -555,6 +560,10 @@ func (s *state) expr(n *Node) *ssa.Value {
 		p := s.expr(n.Left)
 		s.nilCheck(p)
 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
+
+	case ODOT:
+		v := s.expr(n.Left)
+		return s.newValue1I(ssa.OpStructSelect, n.Type, n.Xoffset, v)
 
 	case ODOTPTR:
 		p := s.expr(n.Left)

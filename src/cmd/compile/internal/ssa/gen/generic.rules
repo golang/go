@@ -34,6 +34,7 @@
 // Note: bounds check has already been done
 (ArrayIndex (Load ptr mem) idx) -> (Load (PtrIndex <v.Type.PtrTo()> ptr idx) mem)
 (PtrIndex <t> ptr idx) -> (Add ptr (Mul <config.Uintptr> idx (Const <config.Uintptr> [t.Elem().Size()])))
+(StructSelect [idx] (Load ptr mem)) -> (Load (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
 
 // big-object moves
 // TODO: fix size

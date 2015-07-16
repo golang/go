@@ -71,9 +71,10 @@ var genericOps = []opData{
 	{name: "IsInBounds"}, // 0 <= arg0 < arg1
 
 	// Indexing operations
-	{name: "ArrayIndex"}, // arg0=array, arg1=index.  Returns a[i]
-	{name: "PtrIndex"},   // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type
-	{name: "OffPtr"},     // arg0 + auxint (arg0 and result are pointers)
+	{name: "ArrayIndex"},   // arg0=array, arg1=index.  Returns a[i]
+	{name: "PtrIndex"},     // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type
+	{name: "OffPtr"},       // arg0 + auxint (arg0 and result are pointers)
+	{name: "StructSelect"}, // arg0=struct, auxint=field offset.  Returns field at that offset (size=size of result type)
 
 	// Slices
 	{name: "SliceMake"}, // arg0=ptr, arg1=len, arg2=cap

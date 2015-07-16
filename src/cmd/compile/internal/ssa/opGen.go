@@ -146,6 +146,7 @@ const (
 	OpArrayIndex
 	OpPtrIndex
 	OpOffPtr
+	OpStructSelect
 	OpSliceMake
 	OpSlicePtr
 	OpSliceLen
@@ -1225,6 +1226,15 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "OffPtr",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "StructSelect",
 		reg: regInfo{
 			inputs:   []regMask{},
 			clobbers: 0,
