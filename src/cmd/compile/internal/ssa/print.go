@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
 )
 
 func printFunc(f *Func) {
@@ -68,16 +69,22 @@ func fprintFunc(w io.Writer, f *Func) {
 				n++
 			}
 			if m == n {
-				fmt.Fprintln(w, "dependency cycle!")
+				fmt.Fprintln(os.Stderr, "dependency cycle in block", b)
 				for _, v := range b.Values {
 					if printed[v.ID] {
 						continue
 					}
-					fmt.Fprint(w, "    ")
-					fmt.Fprintln(w, v.LongString())
+					fmt.Fprintf(os.Stderr, "    %v\n", v.LongString())
 					printed[v.ID] = true
 					n++
 				}
+				// Things are going to go very badly from here;
+				// one of the optimization passes is likely to hang.
+				// Frustratingly, panics here get swallowed by fmt,
+				// and just we end up here again if we call Fatalf.
+				// Use our last resort.
+				os.Exit(1)
+				return
 			}
 		}
 
