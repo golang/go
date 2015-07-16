@@ -517,6 +517,42 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto endd23abe8d7061f11c260b162e24eec060
 	endd23abe8d7061f11c260b162e24eec060:
 		;
+		// match: (Const <t>)
+		// cond: t.IsBoolean() && !v.Aux.(bool)
+		// result: (MOVQconst [0])
+		{
+			t := v.Type
+			if !(t.IsBoolean() && !v.Aux.(bool)) {
+				goto end7b1347fd0902b990ee1e49145c7e8c31
+			}
+			v.Op = OpAMD64MOVQconst
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AuxInt = 0
+			return true
+		}
+		goto end7b1347fd0902b990ee1e49145c7e8c31
+	end7b1347fd0902b990ee1e49145c7e8c31:
+		;
+		// match: (Const <t>)
+		// cond: t.IsBoolean() && v.Aux.(bool)
+		// result: (MOVQconst [1])
+		{
+			t := v.Type
+			if !(t.IsBoolean() && v.Aux.(bool)) {
+				goto ende0d1c954b5ab5af7227bff9635774f1c
+			}
+			v.Op = OpAMD64MOVQconst
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AuxInt = 1
+			return true
+		}
+		goto ende0d1c954b5ab5af7227bff9635774f1c
+	ende0d1c954b5ab5af7227bff9635774f1c:
+		;
 	case OpConvNop:
 		// match: (ConvNop <t> x)
 		// cond: t == x.Type
