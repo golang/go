@@ -16,6 +16,10 @@
 // delivers signals based on the current PC, and that current PC
 // doesn't go into the Go runtime.
 // +build !windows
+//
+// arm64 gets "illegal instruction" (why is the data executable?)
+// and is unable to do the traceback correctly (why?).
+// +build !arm64
 
 package main
 
@@ -47,7 +51,7 @@ func main() {
 
 func f(n int) {
 	if n > 0 {
-		f(n-1)
+		f(n - 1)
 	}
 	var f struct {
 		x uintptr
