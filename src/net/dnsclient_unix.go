@@ -419,12 +419,12 @@ func goLookupIPFiles(name string) (addrs []IPAddr) {
 			addrs = append(addrs, addr)
 		}
 	}
+	sortByRFC6724(addrs)
 	return
 }
 
 // goLookupIP is the native Go implementation of LookupIP.
-// Used only if cgoLookupIP refuses to handle the request
-// (that is, only if cgoLookupIP is the stub in cgo_stub.go).
+// The libc versions are in cgo_*.go.
 func goLookupIP(name string) (addrs []IPAddr, err error) {
 	return goLookupIPOrder(name, hostLookupFilesDNS)
 }
@@ -458,6 +458,7 @@ func goLookupIPOrder(name string, order hostLookupOrder) (addrs []IPAddr, err er
 		}
 		addrs = append(addrs, addrRecordList(racer.rrs)...)
 	}
+	sortByRFC6724(addrs)
 	if len(addrs) == 0 {
 		if lastErr != nil {
 			return nil, lastErr
