@@ -5,7 +5,7 @@
 // license that can be found in the LICENSE file.
 
 // +build darwin
-// +build arm arm64
+// +build arm arm64 ios
 
 package x509
 
