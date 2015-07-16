@@ -68,7 +68,7 @@ func TestYCbCrToRGBConsistency(t *testing.T) {
 func TestYCbCrGray(t *testing.T) {
 	for i := 0; i < 256; i++ {
 		if err := eq(YCbCr{uint8(i), 0x80, 0x80}, Gray{uint8(i)}); err != nil {
-			t.Errorf("i=0x%02d:\n%v", i, err)
+			t.Errorf("i=0x%02x:\n%v", i, err)
 		}
 	}
 }
@@ -117,7 +117,7 @@ func TestCMYKToRGBConsistency(t *testing.T) {
 func TestCMYKGray(t *testing.T) {
 	for i := 0; i < 256; i++ {
 		if err := eq(CMYK{0x00, 0x00, 0x00, uint8(255 - i)}, Gray{uint8(i)}); err != nil {
-			t.Errorf("i=0x%02d:\n%v", i, err)
+			t.Errorf("i=0x%02x:\n%v", i, err)
 		}
 	}
 }
