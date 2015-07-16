@@ -1225,22 +1225,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		;
 		// match: (MULQconst [64] x)
 		// cond:
-		// result: (SHLQconst [5] x)
+		// result: (SHLQconst [6] x)
 		{
 			if v.AuxInt != 64 {
-				goto end75c0c250c703f89e6c43d718dd5ea3c0
+				goto end3e36a587d1e7c193048d489a0429692c
 			}
 			x := v.Args[0]
 			v.Op = OpAMD64SHLQconst
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v.AuxInt = 5
+			v.AuxInt = 6
 			v.AddArg(x)
 			return true
 		}
-		goto end75c0c250c703f89e6c43d718dd5ea3c0
-	end75c0c250c703f89e6c43d718dd5ea3c0:
+		goto end3e36a587d1e7c193048d489a0429692c
+	end3e36a587d1e7c193048d489a0429692c:
 		;
 	case OpMove:
 		// match: (Move [size] dst src mem)

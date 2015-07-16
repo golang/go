@@ -112,7 +112,7 @@
 // strength reduction
 // TODO: do this a lot more generically
 (MULQconst [8] x) -> (SHLQconst [3] x)
-(MULQconst [64] x) -> (SHLQconst [5] x)
+(MULQconst [64] x) -> (SHLQconst [6] x)
 
 // fold add/shift into leaq
 (ADDQ x (SHLQconst [3] y)) -> (LEAQ8 x y)
