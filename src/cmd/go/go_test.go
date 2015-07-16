@@ -751,6 +751,7 @@ func TestGoInstallErrorOnCrossCompileToBin(t *testing.T) {
 	tg.tempFile("src/mycmd/x.go", `package main
 		func main() {}`)
 	tg.setenv("GOPATH", tg.path("."))
+	tg.cd(tg.path("src/mycmd"))
 
 	tg.run("build", "mycmd")
 
