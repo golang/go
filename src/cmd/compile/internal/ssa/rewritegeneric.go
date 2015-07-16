@@ -383,6 +383,32 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		}
 		goto end061edc5d85c73ad909089af2556d9380
 	end061edc5d85c73ad909089af2556d9380:
+		;
+	case OpStructSelect:
+		// match: (StructSelect [idx] (Load ptr mem))
+		// cond:
+		// result: (Load (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
+		{
+			idx := v.AuxInt
+			if v.Args[0].Op != OpLoad {
+				goto end16fdb45e1dd08feb36e3cc3fb5ed8935
+			}
+			ptr := v.Args[0].Args[0]
+			mem := v.Args[0].Args[1]
+			v.Op = OpLoad
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v0 := v.Block.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+			v0.Type = v.Type.PtrTo()
+			v0.AuxInt = idx
+			v0.AddArg(ptr)
+			v.AddArg(v0)
+			v.AddArg(mem)
+			return true
+		}
+		goto end16fdb45e1dd08feb36e3cc3fb5ed8935
+	end16fdb45e1dd08feb36e3cc3fb5ed8935:
 	}
 	return false
 }
