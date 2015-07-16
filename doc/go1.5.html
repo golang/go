@@ -173,7 +173,8 @@ the drop in expected latency with the new collector may be important.
 </p>
 
 <p>
-Details of the new collector were presented in TODO: GopherCon talk.
+Details of the new collector were presented in a
+<a href="https://talks.golang.org/2015/go-gc.pdf">talk</a> at GopherCon 2015.
 </p>
 
 <h3 id="runtime">Runtime</h3>
@@ -531,10 +532,25 @@ more thorough validation of struct tags.
 
 <h3 id="trace_command">Trace command</h3>
 
+<p>
+A new tool is available for dynamic execution tracing of Go programs.
+The usage is analogous to how the test coverage tool works.
+Generation of traces is integrated into <code>go test</code>,
+and then a separate execution of the tracing tool itself analyzes the results:
+</p>
+
 <pre>
-TODO
-cmd/trace: new command to view traces (https://golang.org/cl/3601)
+$ go test -trace=trace.out path/to/package
+$ go tool trace [flags] pkg.test trace.out
 </pre>
+
+<p>
+The flags enable the output to be displayed in a browser window.
+For details, run <code>go tool trace -help</code>.
+There is also a description of the tracing facility in this
+<a href="https://talks.golang.org/2015/dynamic-tools.slide">talk</a>
+from GopherCon 2015.
+</p>
 
 <h3 id="doc_command">Go doc command</h3>
 
@@ -928,7 +944,8 @@ the new <a href="/pkg/go/types/#Qualifier"><code>Qualifier</code></a>
 function type as an argument to several functions. This is an API change for
 the package, but since it is new to the core, it is not breaking the Go 1 compatibility
 rules since code that uses the package must explicitly ask for it at its new location.
-TODO: There should be a gofix for this.
+To update, run
+<a href="https://golang.org/cmd/go/#hdr-Run_go_tool_fix_on_packages"><code>go fix</code></a> on your package.
 </li>
 
 <li>
