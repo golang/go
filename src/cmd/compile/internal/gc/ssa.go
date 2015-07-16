@@ -299,7 +299,12 @@ func (s *state) stmt(n *Node) {
 	case OBLOCK:
 		s.stmtList(n.List)
 
+	// No-ops
 	case OEMPTY, ODCLCONST, ODCLTYPE:
+
+	// Expression statements
+	case OCALLFUNC, OCALLMETH, OCALLINTER:
+		s.expr(n)
 
 	case ODCL:
 		if n.Left.Class&PHEAP == 0 {
@@ -433,9 +438,6 @@ func (s *state) stmt(n *Node) {
 			addEdge(b, bCond)
 		}
 		s.startBlock(bEnd)
-
-	case OCALLFUNC:
-		s.expr(n)
 
 	case OVARKILL:
 		// TODO(khr): ??? anything to do here?  Only for addrtaken variables?
