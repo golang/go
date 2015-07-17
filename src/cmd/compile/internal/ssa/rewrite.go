@@ -119,3 +119,18 @@ func mergeSym(x, y interface{}) interface{} {
 func inBounds(idx, len int64) bool {
 	return idx >= 0 && idx < len
 }
+
+// log2 returns logarithm in base of n.
+// expects n to be a power of 2.
+func log2(n int64) (l int64) {
+	for n > 1 {
+		l++
+		n >>= 1
+	}
+	return l
+}
+
+// isPowerOfTwo returns true if n is a power of 2.
+func isPowerOfTwo(n int64) bool {
+	return n > 0 && n&(n-1) == 0
+}
