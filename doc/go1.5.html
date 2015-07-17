@@ -1071,11 +1071,14 @@ package that implements the quoted-printable encoding defined by RFC 2045.
 </li>
 
 <li>
-Go 1.5's <a href="/pkg/net/"><code>net</code></a> package
-adds RFC-6555-compliant dialing for sites with multiple TCP
-addresses listed in DNS.
-A new <code>DualStack</code> field
-in <a href="/pkg/net/#Dialer"><code>Dialer</code></a> enables the feature.
+The <a href="/pkg/net/"><code>net</code></a> package will now
+<a href="/pkg/net/#Dial"><code>Dial</code></a> hostnames by trying each
+IP address in order until one succeeds.
+The <code><a href="/pkg/net/#Dialer">Dialer</a>.DualStack</code>
+mode now implements Happy Eyeballs
+(<a href="https://tools.ietf.org/html/rfc6555">RFC 6555</a>) by giving the
+first address family a 300ms head start; this value can be overridden by
+the new <code>Dialer.FallbackDelay</code>.
 </li>
 
 <li>
