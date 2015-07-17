@@ -711,6 +711,11 @@ system resources.
 The decision of how to run the resolver applies at run time, not build time.
 The <code>netgo</code> build tag that has been used to enforce the use
 of the Go resolver is no longer necessary, although it still works.
+A new <code>netcgo</code> build tag forces the use of the <code>cgo</code> resolver at
+build time.
+To force <code>cgo</code> resolution at run time set
+<code>GODEBUG=netdns=cgo</code> in the environment.
+More debug options are documented <a href="https://golang.org/cl/11584">here</a>.
 </p>
 
 <p>
