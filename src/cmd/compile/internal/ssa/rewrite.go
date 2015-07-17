@@ -42,7 +42,10 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool) 
 					if a.Op != OpCopy {
 						continue
 					}
-					for a.Op == OpCopy {
+					// Rewriting can generate OpCopy loops.
+					// They are harmless (see removePredecessor),
+					// but take care not to loop forever.
+					for a.Op == OpCopy && a != a.Args[0] {
 						a = a.Args[0]
 					}
 					v.Args[i] = a
