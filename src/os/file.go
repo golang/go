@@ -259,6 +259,7 @@ func Create(name string) (file *File, err error) {
 var lstat = Lstat
 
 // Rename renames (moves) a file. OS-specific restrictions might apply.
+// If there is an error, it will be of type *LinkError.
 func Rename(oldpath, newpath string) error {
 	return rename(oldpath, newpath)
 }
