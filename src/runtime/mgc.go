@@ -770,7 +770,7 @@ var work struct {
 	initialHeapLive uint64
 }
 
-// GC runs a garbage collection and blocks until the garbage
+// GC runs a garbage collection and blocks the entire program until the
 // collection is complete.
 func GC() {
 	startGC(gcForceBlockMode)
