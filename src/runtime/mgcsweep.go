@@ -170,7 +170,7 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 	cl := s.sizeclass
 	size := s.elemsize
 	res := false
-	nfree := 0 // Set to -1 for large span
+	nfree := 0
 
 	var head, end gclinkptr
 
