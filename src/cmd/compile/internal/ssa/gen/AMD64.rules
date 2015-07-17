@@ -131,9 +131,13 @@
 (CMPQ (MOVQconst [c]) x) -> (InvertFlags (CMPQconst <TypeFlags> x [c]))
 
 // strength reduction
-// TODO: do this a lot more generically
-(MULQconst [8] x) -> (SHLQconst [3] x)
-(MULQconst [64] x) -> (SHLQconst [6] x)
+(MULQconst [-1] x) -> (NEGQ x)
+(MULQconst [0] _) -> (MOVQconst [0])
+(MULQconst [1] x) -> (Copy x)
+(MULQconst [3] x) -> (LEAQ2 x x)
+(MULQconst [5] x) -> (LEAQ4 x x)
+(MULQconst [9] x) -> (LEAQ8 x x)
+(MULQconst [c] x) && isPowerOfTwo(c) -> (SHLQconst [log2(c)] x)
 
 // fold add/shift into leaq
 (ADDQ x (SHLQconst [3] y)) -> (LEAQ8 x y)
