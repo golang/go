@@ -328,11 +328,15 @@ func classifyScope(ip IP) scope {
 	if ip.IsLoopback() || ip.IsLinkLocalUnicast() {
 		return scopeLinkLocal
 	}
-	if len(ip) == IPv6len && ip.To4() == nil && ip.IsMulticast() {
+	ipv6 := len(ip) == IPv6len && ip.To4() == nil
+	if ipv6 && ip.IsMulticast() {
 		return scope(ip[1] & 0xf)
 	}
-	// TODO: are there unicast scopeAdminLocal, scopeSiteLocal,
-	// scopeOrgLocal? Better question: are those even used?
+	// Site-local addresses are defined in RFC 3513 section 2.5.6
+	// (and deprecated in RFC 3879).
+	if ipv6 && ip[0] == 0xfe && ip[1]&0xc0 == 0xc0 {
+		return scopeSiteLocal
+	}
 	return scopeGlobal
 }
 

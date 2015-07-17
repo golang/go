@@ -169,6 +169,7 @@ func TestRFC6724ClassifyScope(t *testing.T) {
 		{ParseIP("127.0.0.1"), scopeLinkLocal},   // rfc6724#section-3.2
 		{ParseIP("::1"), scopeLinkLocal},         // rfc4007#section-4
 		{ParseIP("169.254.1.2"), scopeLinkLocal}, // rfc6724#section-3.2
+		{ParseIP("fec0::1"), scopeSiteLocal},
 		{ParseIP("8.8.8.8"), scopeGlobal},
 
 		{ParseIP("ff02::"), scopeLinkLocal},  // IPv6 multicast
