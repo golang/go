@@ -40,13 +40,16 @@ func sortByRFC6724withSrcs(addrs []IPAddr, srcs []IP) {
 // number is irrelevant.
 func srcAddrs(addrs []IPAddr) []IP {
 	srcs := make([]IP, len(addrs))
+	dst := UDPAddr{Port: 9}
 	for i := range addrs {
-		conn, err := Dial("udp", JoinHostPort(addrs[i].IP.String(), "1234"))
+		dst.IP = addrs[i].IP
+		dst.Zone = addrs[i].Zone
+		c, err := DialUDP("udp", nil, &dst)
 		if err == nil {
-			if ua, ok := conn.LocalAddr().(*UDPAddr); ok {
-				srcs[i] = ua.IP
+			if src, ok := c.LocalAddr().(*UDPAddr); ok {
+				srcs[i] = src.IP
 			}
-			conn.Close()
+			c.Close()
 		}
 	}
 	return srcs
