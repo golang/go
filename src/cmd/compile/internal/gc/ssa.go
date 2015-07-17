@@ -108,18 +108,17 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 	// Link up variable uses to variable definitions
 	s.linkForwardReferences()
 
+	// Main call to ssa package to compile function
+	ssa.Compile(s.f)
+
 	// Calculate stats about what percentage of functions SSA handles.
 	if false {
-		defer func() { fmt.Printf("SSA implemented: %t\n", !e.unimplemented) }()
+		fmt.Printf("SSA implemented: %t\n", !e.unimplemented)
 	}
 
 	if e.unimplemented {
 		return nil, false
 	}
-
-	// Main call to ssa package to compile function.
-	ssa.Compile(s.f)
-
 	return s.f, usessa // TODO: return s.f, true once runtime support is in (gc maps, write barriers, etc.)
 }
 
