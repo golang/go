@@ -192,7 +192,7 @@ func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
 
 // WriteString is like Write, but writes the contents of string s rather than
 // a slice of bytes.
-func (f *File) WriteString(s string) (ret int, err error) {
+func (f *File) WriteString(s string) (n int, err error) {
 	if f == nil {
 		return 0, ErrInvalid
 	}
@@ -242,16 +242,16 @@ func (f *File) Chdir() error {
 // the returned file can be used for reading; the associated file
 // descriptor has mode O_RDONLY.
 // If there is an error, it will be of type *PathError.
-func Open(name string) (file *File, err error) {
+func Open(name string) (*File, error) {
 	return OpenFile(name, O_RDONLY, 0)
 }
 
-// Create creates the named file mode 0666 (before umask), truncating
-// it if it already exists.  If successful, methods on the returned
+// Create creates the named file with mode 0666 (before umask), truncating
+// it if it already exists. If successful, methods on the returned
 // File can be used for I/O; the associated file descriptor has mode
 // O_RDWR.
 // If there is an error, it will be of type *PathError.
-func Create(name string) (file *File, err error) {
+func Create(name string) (*File, error) {
 	return OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
 }
 
