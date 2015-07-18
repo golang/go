@@ -223,6 +223,13 @@ func pcvalue(f *_func, off int32, targetpc uintptr, strict bool) int32 {
 		return -1
 	}
 	datap := findmoduledatap(f.entry) // inefficient
+	if datap == nil {
+		if strict && panicking == 0 {
+			print("runtime: no module data for ", hex(f.entry), "\n")
+			throw("no module data")
+		}
+		return -1
+	}
 	p := datap.pclntable[off:]
 	pc := f.entry
 	val := int32(-1)
@@ -266,6 +273,9 @@ func cfuncname(f *_func) *byte {
 		return nil
 	}
 	datap := findmoduledatap(f.entry) // inefficient
+	if datap == nil {
+		return nil
+	}
 	return (*byte)(unsafe.Pointer(&datap.pclntable[f.nameoff]))
 }
 
@@ -275,6 +285,9 @@ func funcname(f *_func) string {
 
 func funcline1(f *_func, targetpc uintptr, strict bool) (file string, line int32) {
 	datap := findmoduledatap(f.entry) // inefficient
+	if datap == nil {
+		return "?", 0
+	}
 	fileno := int(pcvalue(f, f.pcfile, targetpc, strict))
 	line = pcvalue(f, f.pcln, targetpc, strict)
 	if fileno == -1 || line == -1 || fileno >= len(datap.filetab) {
