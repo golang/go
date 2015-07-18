@@ -206,6 +206,11 @@ func parseEvents(rawEvents []rawEvent) (events []*Event, err error) {
 					raw.off, size)
 				return
 			}
+			if uint64(len(raw.args)) != size+2 {
+				err = fmt.Errorf("EvStack has wrong number of arguments at offset 0x%x: want %v, got %v",
+					raw.off, size+2, len(raw.args))
+				return
+			}
 			id := raw.args[0]
 			if id != 0 && size > 0 {
 				stk := make([]*Frame, size)
@@ -244,6 +249,10 @@ func parseEvents(rawEvents []rawEvent) (events []*Event, err error) {
 			}
 			events = append(events, e)
 		}
+	}
+	if len(events) == 0 {
+		err = fmt.Errorf("trace is empty")
+		return
 	}
 
 	// Attach stack traces.
@@ -361,13 +370,16 @@ func postProcessTrace(events []*Event) error {
 	gs[0] = gdesc{state: gRunning}
 	var evGC *Event
 
-	checkRunning := func(p pdesc, g gdesc, ev *Event) error {
+	checkRunning := func(p pdesc, g gdesc, ev *Event, allowG0 bool) error {
 		name := EventDescriptions[ev.Type].Name
 		if g.state != gRunning {
 			return fmt.Errorf("g %v is not running while %v (offset %v, time %v)", ev.G, name, ev.Off, ev.Ts)
 		}
 		if p.g != ev.G {
 			return fmt.Errorf("p %v is not running g %v while %v (offset %v, time %v)", ev.P, ev.G, name, ev.Off, ev.Ts)
+		}
+		if !allowG0 && ev.G == 0 {
+			return fmt.Errorf("g 0 did %v (offset %v, time %v)", EventDescriptions[ev.Type].Name, ev.Off, ev.Ts)
 		}
 		return nil
 	}
@@ -438,7 +450,7 @@ func postProcessTrace(events []*Event) error {
 			g1.state = gWaiting
 			gs[ev.Args[0]] = g1
 		case EvGoCreate:
-			if err := checkRunning(p, g, ev); err != nil {
+			if err := checkRunning(p, g, ev, true); err != nil {
 				return err
 			}
 			if _, ok := gs[ev.Args[0]]; ok {
@@ -466,7 +478,7 @@ func postProcessTrace(events []*Event) error {
 				g.ev = nil
 			}
 		case EvGoEnd, EvGoStop:
-			if err := checkRunning(p, g, ev); err != nil {
+			if err := checkRunning(p, g, ev, false); err != nil {
 				return err
 			}
 			g.evStart.Link = ev
@@ -474,7 +486,7 @@ func postProcessTrace(events []*Event) error {
 			g.state = gDead
 			p.g = 0
 		case EvGoSched, EvGoPreempt:
-			if err := checkRunning(p, g, ev); err != nil {
+			if err := checkRunning(p, g, ev, false); err != nil {
 				return err
 			}
 			g.state = gRunnable
@@ -503,12 +515,12 @@ func postProcessTrace(events []*Event) error {
 			g1.ev = ev
 			gs[ev.Args[0]] = g1
 		case EvGoSysCall:
-			if err := checkRunning(p, g, ev); err != nil {
+			if err := checkRunning(p, g, ev, false); err != nil {
 				return err
 			}
 			g.ev = ev
 		case EvGoSysBlock:
-			if err := checkRunning(p, g, ev); err != nil {
+			if err := checkRunning(p, g, ev, false); err != nil {
 				return err
 			}
 			g.state = gWaiting
@@ -526,7 +538,7 @@ func postProcessTrace(events []*Event) error {
 			g.ev = ev
 		case EvGoSleep, EvGoBlock, EvGoBlockSend, EvGoBlockRecv,
 			EvGoBlockSelect, EvGoBlockSync, EvGoBlockCond, EvGoBlockNet:
-			if err := checkRunning(p, g, ev); err != nil {
+			if err := checkRunning(p, g, ev, false); err != nil {
 				return err
 			}
 			g.state = gWaiting
