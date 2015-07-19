@@ -13,14 +13,25 @@
 //    Unused portions are junk.
 
 // Lowering arithmetic
-(Add <t> x y) && (is64BitInt(t) || isPtr(t)) -> (ADDQ x y)
-(Add <t> x y) && is32BitInt(t) && !isSigned(t) -> (ADDL x y)
-(Add <t> x y) && is32BitInt(t) && isSigned(t) -> (MOVLQSX (ADDL <t> x y))
-(Add <t> x y) && is16BitInt(t) && !isSigned(t) -> (ADDW x y)
-(Add <t> x y) && is16BitInt(t) && isSigned(t) -> (MOVWQSX (ADDW <t> x y))
-(Add <t> x y) && is8BitInt(t) && !isSigned(t) -> (ADDB x y)
-(Add <t> x y) && is8BitInt(t) && isSigned(t) -> (MOVBQSX (ADDB <t> x y))
-(Sub <t> x y) && is64BitInt(t) -> (SUBQ x y)
+(Add64 x y) -> (ADDQ x y)
+(Add64U x y) -> (ADDQ x y)
+(AddPtr x y) -> (ADDQ x y)
+(Add32U x y) -> (ADDL x y)
+(Add32 x y) -> (MOVLQSX (ADDL <v.Type> x y))
+(Add16U x y) -> (ADDW x y)
+(Add16 x y) -> (MOVWQSX (ADDW <v.Type> x y))
+(Add8U x y) -> (ADDB x y)
+(Add8 x y) -> (MOVBQSX (ADDB <v.Type> x y))
+
+(Sub64 x y) -> (SUBQ x y)
+(Sub64U x y) -> (SUBQ x y)
+(Sub32U x y) -> (SUBL x y)
+(Sub32 x y) -> (MOVLQSX (SUBL <v.Type> x y))
+(Sub16U x y) -> (SUBW x y)
+(Sub16 x y) -> (MOVWQSX (SUBW <v.Type> x y))
+(Sub8U x y) -> (SUBB x y)
+(Sub8 x y) -> (MOVBQSX (SUBB <v.Type> x y))
+
 (Mul <t> x y) && is64BitInt(t) -> (MULQ x y)
 
 (MOVLstore ptr (MOVLQSX x) mem) -> (MOVLstore ptr x mem)
@@ -34,26 +45,26 @@
 // Note: unsigned shifts need to return 0 if shift amount is >= 64.
 //   mask = shift >= 64 ? 0 : 0xffffffffffffffff
 //   result = mask & arg << shift
-(Lsh <t> x y) && is64BitInt(t) ->
+(Lsh64 <t> x y) ->
 	(ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [64] y)))
-(Rsh <t> x y) && is64BitInt(t) && !t.IsSigned() ->
+(Rsh64U <t> x y) ->
 	(ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [64] y)))
 
 // Note: signed right shift needs to return 0/-1 if shift amount is >= 64.
 //   if shift > 63 { shift = 63 }
 //   result = arg >> shift
-(Rsh <t> x y) && is64BitInt(t) && t.IsSigned() ->
+(Rsh64 <t> x y) ->
 	(SARQ <t> x (CMOVQCC <t>
 			(CMPQconst <TypeFlags> [64] y)
 			(Const <t> [63])
 			y))
 
-(Less x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETL (CMPQ <TypeFlags> x y))
-(Leq x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETLE (CMPQ <TypeFlags> x y))
-(Greater x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETG (CMPQ <TypeFlags> x y))
-(Geq x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETGE (CMPQ <TypeFlags> x y))
-(Eq x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETEQ (CMPQ <TypeFlags> x y))
-(Neq x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETNE (CMPQ <TypeFlags> x y))
+(Less64 x y) -> (SETL (CMPQ <TypeFlags> x y))
+(Leq64 x y) -> (SETLE (CMPQ <TypeFlags> x y))
+(Greater64 x y) -> (SETG (CMPQ <TypeFlags> x y))
+(Geq64 x y) -> (SETGE (CMPQ <TypeFlags> x y))
+(Eq64 x y) -> (SETEQ (CMPQ <TypeFlags> x y))
+(Neq64 x y) -> (SETNE (CMPQ <TypeFlags> x y))
 
 (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) -> (MOVQload ptr mem)
 (Load <t> ptr mem) && is32BitInt(t) -> (MOVLload ptr mem)

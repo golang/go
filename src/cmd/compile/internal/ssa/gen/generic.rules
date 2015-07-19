@@ -20,20 +20,21 @@
 // For now, the generated successors must be a permutation of the matched successors.
 
 // constant folding
-(Add <t> (Const [c]) (Const [d])) && is64BitInt(t) -> (Const [c+d])
+(Add64 (Const [c]) (Const [d])) -> (Const [c+d])
+(Add64U (Const [c]) (Const [d])) -> (Const [c+d])
 (Mul <t> (Const [c]) (Const [d])) && is64BitInt(t) -> (Const [c*d])
 (IsInBounds (Const [c]) (Const [d])) -> (Const {inBounds(c,d)})
 
 // tear apart slices
 // TODO: anything that generates a slice needs to go in here.
 (SlicePtr (Load ptr mem)) -> (Load ptr mem)
-(SliceLen (Load ptr mem)) -> (Load (Add <ptr.Type> ptr (Const <config.Uintptr> [config.ptrSize])) mem)
-(SliceCap (Load ptr mem)) -> (Load (Add <ptr.Type> ptr (Const <config.Uintptr> [config.ptrSize*2])) mem)
+(SliceLen (Load ptr mem)) -> (Load (AddPtr <ptr.Type> ptr (Const <config.Uintptr> [config.PtrSize])) mem)
+(SliceCap (Load ptr mem)) -> (Load (AddPtr <ptr.Type> ptr (Const <config.Uintptr> [config.PtrSize*2])) mem)
 
 // indexing operations
 // Note: bounds check has already been done
 (ArrayIndex (Load ptr mem) idx) -> (Load (PtrIndex <v.Type.PtrTo()> ptr idx) mem)
-(PtrIndex <t> ptr idx) -> (Add ptr (Mul <config.Uintptr> idx (Const <config.Uintptr> [t.Elem().Size()])))
+(PtrIndex <t> ptr idx) -> (AddPtr ptr (Mul <config.Uintptr> idx (Const <config.Uintptr> [t.Elem().Size()])))
 (StructSelect [idx] (Load ptr mem)) -> (Load (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
 
 // big-object moves
@@ -41,11 +42,11 @@
 (Store dst (Load <t> src mem) mem) && t.Size() > 8 -> (Move [t.Size()] dst src mem)
 
 // string ops
-(Const <t> {s}) && t.IsString() -> (StringMake (OffPtr <TypeBytePtr> [2*config.ptrSize] (Addr <TypeBytePtr> {config.fe.StringSym(s.(string))} (SB <config.Uintptr>))) (Const <config.Uintptr> [int64(len(s.(string)))])) // TODO: ptr
-(Load <t> ptr mem) && t.IsString() -> (StringMake (Load <TypeBytePtr> ptr mem) (Load <config.Uintptr> (OffPtr <TypeBytePtr> [config.ptrSize] ptr) mem))
+(Const <t> {s}) && t.IsString() -> (StringMake (OffPtr <TypeBytePtr> [2*config.PtrSize] (Addr <TypeBytePtr> {config.fe.StringSym(s.(string))} (SB <config.Uintptr>))) (Const <config.Uintptr> [int64(len(s.(string)))])) // TODO: ptr
+(Load <t> ptr mem) && t.IsString() -> (StringMake (Load <TypeBytePtr> ptr mem) (Load <config.Uintptr> (OffPtr <TypeBytePtr> [config.PtrSize] ptr) mem))
 (StringPtr (StringMake ptr _)) -> ptr
 (StringLen (StringMake _ len)) -> len
-(Store dst str mem) && str.Type.IsString() -> (Store (OffPtr <TypeBytePtr> [config.ptrSize] dst) (StringLen <config.Uintptr> str) (Store <TypeMem> dst (StringPtr <TypeBytePtr> str) mem))
+(Store dst str mem) && str.Type.IsString() -> (Store (OffPtr <TypeBytePtr> [config.PtrSize] dst) (StringLen <config.Uintptr> str) (Store <TypeMem> dst (StringPtr <TypeBytePtr> str) mem))
 
 (If (Const {c}) yes no) && c.(bool) -> (Plain nil yes)
 (If (Const {c}) yes no) && !c.(bool) -> (Plain nil no)

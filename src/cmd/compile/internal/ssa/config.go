@@ -6,7 +6,7 @@ package ssa
 
 type Config struct {
 	arch       string // "amd64", etc.
-	ptrSize    int64  // 4 or 8
+	PtrSize    int64  // 4 or 8
 	Uintptr    Type   // pointer arithmetic type
 	Int        Type
 	lowerBlock func(*Block) bool          // lowering function
@@ -38,11 +38,11 @@ func NewConfig(arch string, fe Frontend) *Config {
 	c := &Config{arch: arch, fe: fe}
 	switch arch {
 	case "amd64":
-		c.ptrSize = 8
+		c.PtrSize = 8
 		c.lowerBlock = rewriteBlockAMD64
 		c.lowerValue = rewriteValueAMD64
 	case "386":
-		c.ptrSize = 4
+		c.PtrSize = 4
 		c.lowerBlock = rewriteBlockAMD64
 		c.lowerValue = rewriteValueAMD64 // TODO(khr): full 32-bit support
 	default:
@@ -52,7 +52,7 @@ func NewConfig(arch string, fe Frontend) *Config {
 	// cache the frequently-used types in the config
 	c.Uintptr = TypeUInt32
 	c.Int = TypeInt32
-	if c.ptrSize == 8 {
+	if c.PtrSize == 8 {
 		c.Uintptr = TypeUInt64
 		c.Int = TypeInt64
 	}

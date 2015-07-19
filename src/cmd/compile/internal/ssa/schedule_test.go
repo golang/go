@@ -19,7 +19,7 @@ func TestSchedule(t *testing.T) {
 				Valu("mem3", OpStore, TypeInt64, 0, nil, "ptr", "sum", "mem2"),
 				Valu("l1", OpLoad, TypeInt64, 0, nil, "ptr", "mem1"),
 				Valu("l2", OpLoad, TypeInt64, 0, nil, "ptr", "mem2"),
-				Valu("sum", OpAdd, TypeInt64, 0, nil, "l1", "l2"),
+				Valu("sum", OpAdd64, TypeInt64, 0, nil, "l1", "l2"),
 				Goto("exit")),
 			Bloc("exit",
 				Exit("mem3"))),
