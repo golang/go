@@ -111,19 +111,81 @@ const (
 	OpAMD64ADDL
 	OpAMD64ADDW
 	OpAMD64ADDB
+	OpAMD64SUBL
+	OpAMD64SUBW
+	OpAMD64SUBB
 	OpAMD64InvertFlags
 
-	OpAdd
-	OpSub
+	OpAdd8
+	OpAdd16
+	OpAdd32
+	OpAdd64
+	OpAdd8U
+	OpAdd16U
+	OpAdd32U
+	OpAdd64U
+	OpAddPtr
+	OpSub8
+	OpSub16
+	OpSub32
+	OpSub64
+	OpSub8U
+	OpSub16U
+	OpSub32U
+	OpSub64U
 	OpMul
-	OpLsh
-	OpRsh
-	OpEq
-	OpNeq
-	OpLess
-	OpLeq
-	OpGreater
-	OpGeq
+	OpLsh8
+	OpLsh16
+	OpLsh32
+	OpLsh64
+	OpRsh8
+	OpRsh8U
+	OpRsh16
+	OpRsh16U
+	OpRsh32
+	OpRsh32U
+	OpRsh64
+	OpRsh64U
+	OpEq8
+	OpEq16
+	OpEq32
+	OpEq64
+	OpNeq8
+	OpNeq16
+	OpNeq32
+	OpNeq64
+	OpLess8
+	OpLess8U
+	OpLess16
+	OpLess16U
+	OpLess32
+	OpLess32U
+	OpLess64
+	OpLess64U
+	OpLeq8
+	OpLeq8U
+	OpLeq16
+	OpLeq16U
+	OpLeq32
+	OpLeq32U
+	OpLeq64
+	OpLeq64U
+	OpGreater8
+	OpGreater8U
+	OpGreater16
+	OpGreater16U
+	OpGreater32
+	OpGreater32U
+	OpGreater64
+	OpGreater64U
+	OpGeq8
+	OpGeq8U
+	OpGeq16
+	OpGeq16U
+	OpGeq32
+	OpGeq32U
+	OpGeq64
+	OpGeq64U
 	OpNot
 	OpPhi
 	OpCopy
@@ -928,6 +990,48 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name: "SUBL",
+		asm:  x86.ASUBL,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			clobbers: 0,
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SUBW",
+		asm:  x86.ASUBW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			clobbers: 0,
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SUBB",
+		asm:  x86.ASUBB,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			clobbers: 0,
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
 		name: "InvertFlags",
 		reg: regInfo{
 			inputs:   []regMask{},
@@ -937,7 +1041,7 @@ var opcodeTable = [...]opInfo{
 	},
 
 	{
-		name: "Add",
+		name: "Add8",
 		reg: regInfo{
 			inputs:   []regMask{},
 			clobbers: 0,
@@ -946,7 +1050,142 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name: "Sub",
+		name: "Add16",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Add32",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Add64",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Add8U",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Add16U",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Add32U",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Add64U",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "AddPtr",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Sub8",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Sub16",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Sub32",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Sub64",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Sub8U",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Sub16U",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Sub32U",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Sub64U",
 		reg: regInfo{
 			inputs:   []regMask{},
 			clobbers: 0,
@@ -964,7 +1203,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name: "Lsh",
+		name: "Lsh8",
 		reg: regInfo{
 			inputs:   []regMask{},
 			clobbers: 0,
@@ -973,7 +1212,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name: "Rsh",
+		name: "Lsh16",
 		reg: regInfo{
 			inputs:   []regMask{},
 			clobbers: 0,
@@ -982,7 +1221,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name: "Eq",
+		name: "Lsh32",
 		reg: regInfo{
 			inputs:   []regMask{},
 			clobbers: 0,
@@ -991,7 +1230,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name: "Neq",
+		name: "Lsh64",
 		reg: regInfo{
 			inputs:   []regMask{},
 			clobbers: 0,
@@ -1000,7 +1239,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name: "Less",
+		name: "Rsh8",
 		reg: regInfo{
 			inputs:   []regMask{},
 			clobbers: 0,
@@ -1009,7 +1248,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name: "Leq",
+		name: "Rsh8U",
 		reg: regInfo{
 			inputs:   []regMask{},
 			clobbers: 0,
@@ -1018,7 +1257,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name: "Greater",
+		name: "Rsh16",
 		reg: regInfo{
 			inputs:   []regMask{},
 			clobbers: 0,
@@ -1027,7 +1266,403 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name: "Geq",
+		name: "Rsh16U",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Rsh32",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Rsh32U",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Rsh64",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Rsh64U",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Eq8",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Eq16",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Eq32",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Eq64",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Neq8",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Neq16",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Neq32",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Neq64",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Less8",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Less8U",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Less16",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Less16U",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Less32",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Less32U",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Less64",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Less64U",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Leq8",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Leq8U",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Leq16",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Leq16U",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Leq32",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Leq32U",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Leq64",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Leq64U",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Greater8",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Greater8U",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Greater16",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Greater16U",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Greater32",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Greater32U",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Greater64",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Greater64U",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Geq8",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Geq8U",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Geq16",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Geq16U",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Geq32",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Geq32U",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Geq64",
+		reg: regInfo{
+			inputs:   []regMask{},
+			clobbers: 0,
+			outputs:  []regMask{},
+		},
+		generic: true,
+	},
+	{
+		name: "Geq64U",
 		reg: regInfo{
 			inputs:   []regMask{},
 			clobbers: 0,

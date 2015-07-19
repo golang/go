@@ -446,19 +446,122 @@ func (s *state) stmt(n *Node) {
 	}
 }
 
-var binOpToSSA = [...]ssa.Op{
-	// Comparisons
-	OEQ: ssa.OpEq,
-	ONE: ssa.OpNeq,
-	OLT: ssa.OpLess,
-	OLE: ssa.OpLeq,
-	OGT: ssa.OpGreater,
-	OGE: ssa.OpGeq,
-	// Arithmetic
-	OADD: ssa.OpAdd,
-	OSUB: ssa.OpSub,
-	OLSH: ssa.OpLsh,
-	ORSH: ssa.OpRsh,
+type opAndType struct {
+	op    uint8
+	etype uint8
+}
+
+var opToSSA = map[opAndType]ssa.Op{
+	opAndType{OADD, TINT8}:   ssa.OpAdd8,
+	opAndType{OADD, TUINT8}:  ssa.OpAdd8U,
+	opAndType{OADD, TINT16}:  ssa.OpAdd16,
+	opAndType{OADD, TUINT16}: ssa.OpAdd16U,
+	opAndType{OADD, TINT32}:  ssa.OpAdd32,
+	opAndType{OADD, TUINT32}: ssa.OpAdd32U,
+	opAndType{OADD, TINT64}:  ssa.OpAdd64,
+	opAndType{OADD, TUINT64}: ssa.OpAdd64U,
+
+	opAndType{OSUB, TINT8}:   ssa.OpSub8,
+	opAndType{OSUB, TUINT8}:  ssa.OpSub8U,
+	opAndType{OSUB, TINT16}:  ssa.OpSub16,
+	opAndType{OSUB, TUINT16}: ssa.OpSub16U,
+	opAndType{OSUB, TINT32}:  ssa.OpSub32,
+	opAndType{OSUB, TUINT32}: ssa.OpSub32U,
+	opAndType{OSUB, TINT64}:  ssa.OpSub64,
+	opAndType{OSUB, TUINT64}: ssa.OpSub64U,
+
+	opAndType{OLSH, TINT8}:   ssa.OpLsh8,
+	opAndType{OLSH, TUINT8}:  ssa.OpLsh8,
+	opAndType{OLSH, TINT16}:  ssa.OpLsh16,
+	opAndType{OLSH, TUINT16}: ssa.OpLsh16,
+	opAndType{OLSH, TINT32}:  ssa.OpLsh32,
+	opAndType{OLSH, TUINT32}: ssa.OpLsh32,
+	opAndType{OLSH, TINT64}:  ssa.OpLsh64,
+	opAndType{OLSH, TUINT64}: ssa.OpLsh64,
+
+	opAndType{ORSH, TINT8}:   ssa.OpRsh8,
+	opAndType{ORSH, TUINT8}:  ssa.OpRsh8U,
+	opAndType{ORSH, TINT16}:  ssa.OpRsh16,
+	opAndType{ORSH, TUINT16}: ssa.OpRsh16U,
+	opAndType{ORSH, TINT32}:  ssa.OpRsh32,
+	opAndType{ORSH, TUINT32}: ssa.OpRsh32U,
+	opAndType{ORSH, TINT64}:  ssa.OpRsh64,
+	opAndType{ORSH, TUINT64}: ssa.OpRsh64U,
+
+	opAndType{OEQ, TINT8}:   ssa.OpEq8,
+	opAndType{OEQ, TUINT8}:  ssa.OpEq8,
+	opAndType{OEQ, TINT16}:  ssa.OpEq16,
+	opAndType{OEQ, TUINT16}: ssa.OpEq16,
+	opAndType{OEQ, TINT32}:  ssa.OpEq32,
+	opAndType{OEQ, TUINT32}: ssa.OpEq32,
+	opAndType{OEQ, TINT64}:  ssa.OpEq64,
+	opAndType{OEQ, TUINT64}: ssa.OpEq64,
+
+	opAndType{ONE, TINT8}:   ssa.OpNeq8,
+	opAndType{ONE, TUINT8}:  ssa.OpNeq8,
+	opAndType{ONE, TINT16}:  ssa.OpNeq16,
+	opAndType{ONE, TUINT16}: ssa.OpNeq16,
+	opAndType{ONE, TINT32}:  ssa.OpNeq32,
+	opAndType{ONE, TUINT32}: ssa.OpNeq32,
+	opAndType{ONE, TINT64}:  ssa.OpNeq64,
+	opAndType{ONE, TUINT64}: ssa.OpNeq64,
+
+	opAndType{OLT, TINT8}:   ssa.OpLess8,
+	opAndType{OLT, TUINT8}:  ssa.OpLess8U,
+	opAndType{OLT, TINT16}:  ssa.OpLess16,
+	opAndType{OLT, TUINT16}: ssa.OpLess16U,
+	opAndType{OLT, TINT32}:  ssa.OpLess32,
+	opAndType{OLT, TUINT32}: ssa.OpLess32U,
+	opAndType{OLT, TINT64}:  ssa.OpLess64,
+	opAndType{OLT, TUINT64}: ssa.OpLess64U,
+
+	opAndType{OGT, TINT8}:   ssa.OpGreater8,
+	opAndType{OGT, TUINT8}:  ssa.OpGreater8U,
+	opAndType{OGT, TINT16}:  ssa.OpGreater16,
+	opAndType{OGT, TUINT16}: ssa.OpGreater16U,
+	opAndType{OGT, TINT32}:  ssa.OpGreater32,
+	opAndType{OGT, TUINT32}: ssa.OpGreater32U,
+	opAndType{OGT, TINT64}:  ssa.OpGreater64,
+	opAndType{OGT, TUINT64}: ssa.OpGreater64U,
+
+	opAndType{OLE, TINT8}:   ssa.OpLeq8,
+	opAndType{OLE, TUINT8}:  ssa.OpLeq8U,
+	opAndType{OLE, TINT16}:  ssa.OpLeq16,
+	opAndType{OLE, TUINT16}: ssa.OpLeq16U,
+	opAndType{OLE, TINT32}:  ssa.OpLeq32,
+	opAndType{OLE, TUINT32}: ssa.OpLeq32U,
+	opAndType{OLE, TINT64}:  ssa.OpLeq64,
+	opAndType{OLE, TUINT64}: ssa.OpLeq64U,
+
+	opAndType{OGE, TINT8}:   ssa.OpGeq8,
+	opAndType{OGE, TUINT8}:  ssa.OpGeq8U,
+	opAndType{OGE, TINT16}:  ssa.OpGeq16,
+	opAndType{OGE, TUINT16}: ssa.OpGeq16U,
+	opAndType{OGE, TINT32}:  ssa.OpGeq32,
+	opAndType{OGE, TUINT32}: ssa.OpGeq32U,
+	opAndType{OGE, TINT64}:  ssa.OpGeq64,
+	opAndType{OGE, TUINT64}: ssa.OpGeq64U,
+}
+
+func (s *state) ssaOp(op uint8, t *Type) ssa.Op {
+	etype := t.Etype
+	switch etype {
+	case TINT:
+		etype = TINT32
+		if s.config.PtrSize == 8 {
+			etype = TINT64
+		}
+	case TUINT:
+		etype = TUINT32
+		if s.config.PtrSize == 8 {
+			etype = TUINT64
+		}
+	}
+	x, ok := opToSSA[opAndType{op, etype}]
+	if !ok {
+		s.Unimplementedf("unhandled binary op %s etype=%d", opnames[op], etype)
+	}
+	return x
 }
 
 // expr converts the expression n to ssa, adds it to s and returns the ssa result.
@@ -503,11 +606,11 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OLT, OEQ, ONE, OLE, OGE, OGT:
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
-		return s.newValue2(binOpToSSA[n.Op], ssa.TypeBool, a, b)
+		return s.newValue2(s.ssaOp(n.Op, n.Left.Type), ssa.TypeBool, a, b)
 	case OADD, OSUB, OLSH, ORSH:
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
-		return s.newValue2(binOpToSSA[n.Op], a.Type, a, b)
+		return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
 	case OANDAND, OOROR:
 		// To implement OANDAND (and OOROR), we introduce a
 		// new temporary variable to hold the result. The
@@ -569,7 +672,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case ODOTPTR:
 		p := s.expr(n.Left)
 		s.nilCheck(p)
-		p = s.newValue2(ssa.OpAdd, p.Type, p, s.constInt(s.config.Uintptr, n.Xoffset))
+		p = s.newValue2(ssa.OpAddPtr, p.Type, p, s.constInt(s.config.Uintptr, n.Xoffset))
 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
 
 	case OINDEX:
@@ -742,11 +845,11 @@ func (s *state) addr(n *Node) *ssa.Value {
 		return p
 	case ODOT:
 		p := s.addr(n.Left)
-		return s.newValue2(ssa.OpAdd, p.Type, p, s.constInt(s.config.Uintptr, n.Xoffset))
+		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constInt(s.config.Uintptr, n.Xoffset))
 	case ODOTPTR:
 		p := s.expr(n.Left)
 		s.nilCheck(p)
-		return s.newValue2(ssa.OpAdd, p.Type, p, s.constInt(s.config.Uintptr, n.Xoffset))
+		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constInt(s.config.Uintptr, n.Xoffset))
 	default:
 		s.Unimplementedf("addr: bad op %v", Oconv(int(n.Op), 0))
 		return nil

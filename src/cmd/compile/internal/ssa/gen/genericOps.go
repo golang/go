@@ -8,19 +8,89 @@ var genericOps = []opData{
 	// 2-input arithmetic
 	// Types must be consistent with Go typing.  Add, for example, must take two values
 	// of the same type and produces that same type.
-	{name: "Add"}, // arg0 + arg1
-	{name: "Sub"}, // arg0 - arg1
+	{name: "Add8"}, // arg0 + arg1
+	{name: "Add16"},
+	{name: "Add32"},
+	{name: "Add64"},
+	{name: "Add8U"},
+	{name: "Add16U"},
+	{name: "Add32U"},
+	{name: "Add64U"},
+	{name: "AddPtr"},
+	// TODO: Add32F, Add64F, Add64C, Add128C
+
+	{name: "Sub8"}, // arg0 - arg1
+	{name: "Sub16"},
+	{name: "Sub32"},
+	{name: "Sub64"},
+	{name: "Sub8U"},
+	{name: "Sub16U"},
+	{name: "Sub32U"},
+	{name: "Sub64U"},
+	// TODO: Sub32F, Sub64F, Sub64C, Sub128C
+
 	{name: "Mul"}, // arg0 * arg1
-	{name: "Lsh"}, // arg0 << arg1
-	{name: "Rsh"}, // arg0 >> arg1 (signed/unsigned depending on signedness of type)
+
+	{name: "Lsh8"}, // arg0 << arg1
+	{name: "Lsh16"},
+	{name: "Lsh32"},
+	{name: "Lsh64"},
+
+	{name: "Rsh8"}, // arg0 >> arg1
+	{name: "Rsh8U"},
+	{name: "Rsh16"},
+	{name: "Rsh16U"},
+	{name: "Rsh32"},
+	{name: "Rsh32U"},
+	{name: "Rsh64"},
+	{name: "Rsh64U"},
 
 	// 2-input comparisons
-	{name: "Eq"},      // arg0 == arg1
-	{name: "Neq"},     // arg0 != arg1
-	{name: "Less"},    // arg0 < arg1
-	{name: "Leq"},     // arg0 <= arg1
-	{name: "Greater"}, // arg0 > arg1
-	{name: "Geq"},     // arg0 <= arg1
+	{name: "Eq8"}, // arg0 == arg1
+	{name: "Eq16"},
+	{name: "Eq32"},
+	{name: "Eq64"},
+
+	{name: "Neq8"}, // arg0 != arg1
+	{name: "Neq16"},
+	{name: "Neq32"},
+	{name: "Neq64"},
+
+	{name: "Less8"}, // arg0 < arg1
+	{name: "Less8U"},
+	{name: "Less16"},
+	{name: "Less16U"},
+	{name: "Less32"},
+	{name: "Less32U"},
+	{name: "Less64"},
+	{name: "Less64U"},
+
+	{name: "Leq8"}, // arg0 <= arg1
+	{name: "Leq8U"},
+	{name: "Leq16"},
+	{name: "Leq16U"},
+	{name: "Leq32"},
+	{name: "Leq32U"},
+	{name: "Leq64"},
+	{name: "Leq64U"},
+
+	{name: "Greater8"}, // arg0 > arg1
+	{name: "Greater8U"},
+	{name: "Greater16"},
+	{name: "Greater16U"},
+	{name: "Greater32"},
+	{name: "Greater32U"},
+	{name: "Greater64"},
+	{name: "Greater64U"},
+
+	{name: "Geq8"}, // arg0 <= arg1
+	{name: "Geq8U"},
+	{name: "Geq16"},
+	{name: "Geq16U"},
+	{name: "Geq32"},
+	{name: "Geq32U"},
+	{name: "Geq64"},
+	{name: "Geq64U"},
 
 	// 1-input ops
 	{name: "Not"}, // !arg0

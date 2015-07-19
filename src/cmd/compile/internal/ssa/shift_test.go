@@ -10,17 +10,17 @@ import (
 
 func TestShiftConstAMD64(t *testing.T) {
 	c := NewConfig("amd64", DummyFrontend{t})
-	fun := makeConstShiftFunc(c, 18, OpLsh, TypeUInt64)
+	fun := makeConstShiftFunc(c, 18, OpLsh64, TypeUInt64)
 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SHLQconst: 1, OpAMD64CMPQconst: 0, OpAMD64ANDQconst: 0})
-	fun = makeConstShiftFunc(c, 66, OpLsh, TypeUInt64)
+	fun = makeConstShiftFunc(c, 66, OpLsh64, TypeUInt64)
 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SHLQconst: 0, OpAMD64CMPQconst: 0, OpAMD64ANDQconst: 0})
-	fun = makeConstShiftFunc(c, 18, OpRsh, TypeUInt64)
+	fun = makeConstShiftFunc(c, 18, OpRsh64U, TypeUInt64)
 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SHRQconst: 1, OpAMD64CMPQconst: 0, OpAMD64ANDQconst: 0})
-	fun = makeConstShiftFunc(c, 66, OpRsh, TypeUInt64)
+	fun = makeConstShiftFunc(c, 66, OpRsh64U, TypeUInt64)
 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SHRQconst: 0, OpAMD64CMPQconst: 0, OpAMD64ANDQconst: 0})
-	fun = makeConstShiftFunc(c, 18, OpRsh, TypeInt64)
+	fun = makeConstShiftFunc(c, 18, OpRsh64, TypeInt64)
 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SARQconst: 1, OpAMD64CMPQconst: 0})
-	fun = makeConstShiftFunc(c, 66, OpRsh, TypeInt64)
+	fun = makeConstShiftFunc(c, 66, OpRsh64, TypeInt64)
 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SARQconst: 1, OpAMD64CMPQconst: 0})
 }
 
