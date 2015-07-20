@@ -1207,6 +1207,10 @@ func TestGoGetNonPkg(t *testing.T) {
 }
 
 func TestInstalls(t *testing.T) {
+	if testing.Short() {
+		t.Skip("don't install into GOROOT in short mode")
+	}
+
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
