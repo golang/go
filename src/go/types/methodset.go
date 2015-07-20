@@ -62,11 +62,8 @@ func (s *MethodSet) Lookup(pkg *Package, name string) *Selection {
 // Shared empty method set.
 var emptyMethodSet MethodSet
 
-// NewMethodSet returns the method set for the given type T.  It
-// always returns a non-nil method set, even if it is empty.
-//
-// A MethodSetCache handles repeat queries more efficiently.
-//
+// NewMethodSet returns the method set for the given type T.
+// It always returns a non-nil method set, even if it is empty.
 func NewMethodSet(T Type) *MethodSet {
 	// WARNING: The code in this function is extremely subtle - do not modify casually!
 	//          This function and lookupFieldOrMethod should be kept in sync.
