@@ -506,6 +506,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "SETEQ",
+		asm:  x86.ASETEQ,
 		reg: regInfo{
 			inputs: []regMask{
 				8589934592, // .FLAGS
@@ -518,6 +519,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "SETNE",
+		asm:  x86.ASETNE,
 		reg: regInfo{
 			inputs: []regMask{
 				8589934592, // .FLAGS
@@ -530,6 +532,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "SETL",
+		asm:  x86.ASETLT,
 		reg: regInfo{
 			inputs: []regMask{
 				8589934592, // .FLAGS
@@ -542,6 +545,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "SETLE",
+		asm:  x86.ASETLE,
 		reg: regInfo{
 			inputs: []regMask{
 				8589934592, // .FLAGS
@@ -554,6 +558,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "SETG",
+		asm:  x86.ASETGT,
 		reg: regInfo{
 			inputs: []regMask{
 				8589934592, // .FLAGS
@@ -566,6 +571,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "SETGE",
+		asm:  x86.ASETGE,
 		reg: regInfo{
 			inputs: []regMask{
 				8589934592, // .FLAGS
@@ -578,6 +584,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "SETB",
+		asm:  x86.ASETCS,
 		reg: regInfo{
 			inputs: []regMask{
 				8589934592, // .FLAGS

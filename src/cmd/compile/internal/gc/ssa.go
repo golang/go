@@ -1376,6 +1376,13 @@ func genValue(v *ssa.Value) {
 		p.To.Reg = regnum(v.Args[0])
 	case ssa.OpSP, ssa.OpSB:
 		// nothing to do
+	case ssa.OpAMD64SETEQ, ssa.OpAMD64SETNE,
+		ssa.OpAMD64SETL, ssa.OpAMD64SETLE,
+		ssa.OpAMD64SETG, ssa.OpAMD64SETGE,
+		ssa.OpAMD64SETB:
+		p := Prog(v.Op.Asm())
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = regnum(v)
 	default:
 		v.Unimplementedf("value %s not implemented", v.LongString())
 	}
