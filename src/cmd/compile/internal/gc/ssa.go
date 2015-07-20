@@ -663,16 +663,7 @@ func (s *state) assign(op uint8, left *Node, right *Node) {
 			s.vars[&memvar] = s.newValue2I(ssa.OpZero, ssa.TypeMem, t.Size(), addr, s.mem())
 			return
 		}
-		switch {
-		case t.IsString():
-			val = s.entryNewValue0A(ssa.OpConst, left.Type, "")
-		case t.IsInteger() || t.IsPtr():
-			val = s.entryNewValue0(ssa.OpConst, left.Type)
-		case t.IsBoolean():
-			val = s.entryNewValue0A(ssa.OpConst, left.Type, false) // TODO: store bools as 0/1 in AuxInt?
-		default:
-			s.Unimplementedf("zero for type %v not implemented", t)
-		}
+		val = s.zeroVal(t)
 	} else {
 		val = s.expr(right)
 	}
@@ -684,6 +675,20 @@ func (s *state) assign(op uint8, left *Node, right *Node) {
 	// not ssa-able.  Treat as a store.
 	addr := s.addr(left)
 	s.vars[&memvar] = s.newValue3(ssa.OpStore, ssa.TypeMem, addr, val, s.mem())
+}
+
+// zeroVal returns the zero value for type t.
+func (s *state) zeroVal(t *Type) *ssa.Value {
+	switch {
+	case t.IsString():
+		return s.entryNewValue0A(ssa.OpConst, t, "")
+	case t.IsInteger() || t.IsPtr():
+		return s.entryNewValue0(ssa.OpConst, t)
+	case t.IsBoolean():
+		return s.entryNewValue0A(ssa.OpConst, t, false) // TODO: store bools as 0/1 in AuxInt?
+	}
+	s.Unimplementedf("zero for type %v not implemented", t)
+	return nil
 }
 
 // addr converts the address of the expression n to SSA, adds it to s and returns the SSA result.
