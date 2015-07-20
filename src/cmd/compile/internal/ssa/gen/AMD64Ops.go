@@ -121,13 +121,13 @@ func init() {
 
 		{name: "SBBQcarrymask", reg: flagsgp1, asm: "SBBQ"}, // (int64)(-1) if carry is set, 0 if carry is clear.
 
-		{name: "SETEQ", reg: flagsgp}, // extract == condition from arg0
-		{name: "SETNE", reg: flagsgp}, // extract != condition from arg0
-		{name: "SETL", reg: flagsgp},  // extract signed < condition from arg0
-		{name: "SETLE", reg: flagsgp}, // extract signed <= condition from arg0
-		{name: "SETG", reg: flagsgp},  // extract signed > condition from arg0
-		{name: "SETGE", reg: flagsgp}, // extract signed >= condition from arg0
-		{name: "SETB", reg: flagsgp},  // extract unsigned < condition from arg0
+		{name: "SETEQ", reg: flagsgp, asm: "SETEQ"}, // extract == condition from arg0
+		{name: "SETNE", reg: flagsgp, asm: "SETNE"}, // extract != condition from arg0
+		{name: "SETL", reg: flagsgp, asm: "SETLT"},  // extract signed < condition from arg0
+		{name: "SETLE", reg: flagsgp, asm: "SETLE"}, // extract signed <= condition from arg0
+		{name: "SETG", reg: flagsgp, asm: "SETGT"},  // extract signed > condition from arg0
+		{name: "SETGE", reg: flagsgp, asm: "SETGE"}, // extract signed >= condition from arg0
+		{name: "SETB", reg: flagsgp, asm: "SETCS"},  // extract unsigned < condition from arg0
 
 		{name: "CMOVQCC", reg: cmov}, // carry clear
 
