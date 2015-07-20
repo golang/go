@@ -767,7 +767,7 @@ func TestGoInstallErrorOnCrossCompileToBin(t *testing.T) {
 	tg.run("install", "cmd/pack")
 }
 
-func TestGoInstsallDetectsRemovedFilesInPackageMain(t *testing.T) {
+func TestGoInstallDetectsRemovedFilesInPackageMain(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -1422,35 +1422,37 @@ func TestLdflagsArgumentsWithSpacesIssue3941(t *testing.T) {
 func TestGoTestCpuprofileLeavesBinaryBehind(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
-	tg.creatingTemp("strings.prof")
-	tg.creatingTemp("strings.test" + exeSuffix)
-	tg.run("test", "-cpuprofile", "strings.prof", "strings")
-	tg.wantExecutable("strings.test"+exeSuffix, "go test -cpuprofile did not create strings.test")
+	tg.makeTempdir()
+	tg.cd(tg.path("."))
+	tg.run("test", "-cpuprofile", "errors.prof", "errors")
+	tg.wantExecutable("errors.test"+exeSuffix, "go test -cpuprofile did not create errors.test")
 }
 
-func TestGoTestCpuProfileDashOControlsBinaryLocation(t *testing.T) {
+func TestGoTestCpuprofileDashOControlsBinaryLocation(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
-	tg.creatingTemp("strings.prof")
-	tg.creatingTemp("mystrings.test" + exeSuffix)
-	tg.run("test", "-cpuprofile", "strings.prof", "-o", "mystrings.test"+exeSuffix, "strings")
-	tg.wantExecutable("mystrings.test"+exeSuffix, "go test -cpuprofile -o mystrings.test did not create mystrings.test")
+	tg.makeTempdir()
+	tg.cd(tg.path("."))
+	tg.run("test", "-cpuprofile", "errors.prof", "-o", "myerrors.test"+exeSuffix, "errors")
+	tg.wantExecutable("myerrors.test"+exeSuffix, "go test -cpuprofile -o myerrors.test did not create myerrors.test")
 }
 
 func TestGoTestDashCDashOControlsBinaryLocation(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
-	tg.creatingTemp("mystrings.test" + exeSuffix)
-	tg.run("test", "-c", "-o", "mystrings.test"+exeSuffix, "strings")
-	tg.wantExecutable("mystrings.test"+exeSuffix, "go test -c -o mystrings.test did not create mystrings.test")
+	tg.parallel()
+	tg.makeTempdir()
+	tg.run("test", "-c", "-o", tg.path("myerrors.test"+exeSuffix), "errors")
+	tg.wantExecutable(tg.path("myerrors.test"+exeSuffix), "go test -c -o myerrors.test did not create myerrors.test")
 }
 
 func TestGoTestDashOWritesBinary(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
-	tg.creatingTemp("mystrings.test" + exeSuffix)
-	tg.run("test", "-o", "mystrings.test"+exeSuffix, "strings")
-	tg.wantExecutable("mystrings.test"+exeSuffix, "go test -o mystrings.test did not create mystrings.test")
+	tg.parallel()
+	tg.makeTempdir()
+	tg.run("test", "-o", tg.path("myerrors.test"+exeSuffix), "errors")
+	tg.wantExecutable(tg.path("myerrors.test"+exeSuffix), "go test -o myerrors.test did not create myerrors.test")
 }
 
 // Issue 4568.
