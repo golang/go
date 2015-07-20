@@ -17,8 +17,7 @@ L1: // ERROR "label .*L1.* defined and not used"
 	for {
 	}
 L2: // ERROR "label .*L2.* defined and not used"
-	select {
-	}
+	select {}
 L3: // ERROR "label .*L3.* defined and not used"
 	switch {
 	}
