@@ -95,6 +95,7 @@
 
 // block rewrites
 (If (SETL cmp) yes no) -> (LT cmp yes no)
+(If (SETEQ cmp) yes no) -> (EQ cmp yes no)
 (If (SETNE cmp) yes no) -> (NE cmp yes no)
 (If (SETB cmp) yes no) -> (ULT cmp yes no)
 (If cond yes no) && cond.Op == OpAMD64MOVBload -> (NE (TESTB <TypeFlags> cond cond) yes no)
