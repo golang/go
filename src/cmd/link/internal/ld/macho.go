@@ -444,7 +444,7 @@ func Asmbmacho() {
 		ms = newMachoSeg("", 40)
 
 		ms.fileoffset = Segtext.Fileoff
-		if Thearch.Thechar == '5' {
+		if Thearch.Thechar == '5' || Buildmode == BuildmodeCArchive {
 			ms.filesize = Segdata.Fileoff + Segdata.Filelen - Segtext.Fileoff
 		} else {
 			ms.filesize = Segdwarf.Fileoff + Segdwarf.Filelen - Segtext.Fileoff
