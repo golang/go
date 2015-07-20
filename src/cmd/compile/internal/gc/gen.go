@@ -141,6 +141,8 @@ func newlab(n *Node) *Label {
 	return lab
 }
 
+// There is a copy of checkgoto in the new SSA backend.
+// Please keep them in sync.
 func checkgoto(from *Node, to *Node) {
 	if from.Sym == to.Sym {
 		return

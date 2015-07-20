@@ -50,6 +50,7 @@ type pass struct {
 var passes = [...]pass{
 	{"phielim", phielim},
 	{"copyelim", copyelim},
+	{"early deadcode", deadcode}, // remove generated dead code to avoid doing pointless work during opt
 	{"opt", opt},
 	{"opt deadcode", deadcode}, // remove any blocks orphaned during opt
 	{"generic cse", cse},

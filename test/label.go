@@ -58,4 +58,8 @@ L10:
 	default:
 		break L10
 	}
+
+	goto L10
+
+	goto go2 // ERROR "label go2 not defined"
 }
