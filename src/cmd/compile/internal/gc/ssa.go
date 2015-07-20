@@ -62,7 +62,8 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 
 	// Allocate starting values
 	s.vars = map[*Node]*ssa.Value{}
-	s.labels = map[string]*ssa.Block{}
+	s.labels = map[string]*ssaLabel{}
+	s.labeledNodes = map[*Node]*ssaLabel{}
 	s.startmem = s.entryNewValue0(ssa.OpArg, ssa.TypeMem)
 	s.sp = s.entryNewValue0(ssa.OpSP, s.config.Uintptr) // TODO: use generic pointer type (unsafe.Pointer?) instead
 	s.sb = s.entryNewValue0(ssa.OpSB, s.config.Uintptr)
@@ -105,6 +106,31 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 	s.exit.Control = s.mem()
 	s.endBlock()
 
+	// Check that we used all labels
+	for name, lab := range s.labels {
+		if !lab.used() && !lab.reported {
+			yyerrorl(int(lab.defNode.Lineno), "label %v defined and not used", name)
+			lab.reported = true
+		}
+		if lab.used() && !lab.defined() && !lab.reported {
+			yyerrorl(int(lab.useNode.Lineno), "label %v not defined", name)
+			lab.reported = true
+		}
+	}
+
+	// Check any forward gotos. Non-forward gotos have already been checked.
+	for _, n := range s.fwdGotos {
+		lab := s.labels[n.Left.Sym.Name]
+		// If the label is undefined, we have already have printed an error.
+		if lab.defined() {
+			s.checkgoto(n, lab.defNode)
+		}
+	}
+
+	if nerrors > 0 {
+		return nil, false
+	}
+
 	// Link up variable uses to variable definitions
 	s.linkForwardReferences()
 
@@ -132,8 +158,16 @@ type state struct {
 	// exit block that "return" jumps to (and panics jump to)
 	exit *ssa.Block
 
-	// the target block for each label in f
-	labels map[string]*ssa.Block
+	// labels and labeled control flow nodes (OFOR, OSWITCH, OSELECT) in f
+	labels       map[string]*ssaLabel
+	labeledNodes map[*Node]*ssaLabel
+
+	// gotos that jump forward; required for deferred checkgoto calls
+	fwdGotos []*Node
+
+	// unlabeled break and continue statement tracking
+	breakTo    *ssa.Block // current target for plain break statement
+	continueTo *ssa.Block // current target for plain continue statement
 
 	// current location where we're interpreting the AST
 	curBlock *ssa.Block
@@ -155,6 +189,34 @@ type state struct {
 
 	// line number stack.  The current line number is top of stack
 	line []int32
+}
+
+type ssaLabel struct {
+	target         *ssa.Block // block identified by this label
+	breakTarget    *ssa.Block // block to break to in control flow node identified by this label
+	continueTarget *ssa.Block // block to continue to in control flow node identified by this label
+	defNode        *Node      // label definition Node (OLABEL)
+	// Label use Node (OGOTO, OBREAK, OCONTINUE).
+	// Used only for error detection and reporting.
+	// There might be multiple uses, but we only need to track one.
+	useNode  *Node
+	reported bool // reported indicates whether an error has already been reported for this label
+}
+
+// defined reports whether the label has a definition (OLABEL node).
+func (l *ssaLabel) defined() bool { return l.defNode != nil }
+
+// used reports whether the label has a use (OGOTO, OBREAK, or OCONTINUE node).
+func (l *ssaLabel) used() bool { return l.useNode != nil }
+
+// label returns the label associated with sym, creating it if necessary.
+func (s *state) label(sym *Sym) *ssaLabel {
+	lab := s.labels[sym.Name]
+	if lab == nil {
+		lab = new(ssaLabel)
+		s.labels[sym.Name] = lab
+	}
+	return lab
 }
 
 func (s *state) Logf(msg string, args ...interface{})           { s.config.Logf(msg, args...) }
@@ -204,6 +266,10 @@ func (s *state) popLine() {
 // peekLine peek the top of the line number stack.
 func (s *state) peekLine() int32 {
 	return s.line[len(s.line)-1]
+}
+
+func (s *state) Error(msg string, args ...interface{}) {
+	yyerrorl(int(s.peekLine()), msg, args...)
 }
 
 // newValue0 adds a new value with no arguments to the current block.
@@ -293,6 +359,16 @@ func (s *state) stmt(n *Node) {
 	s.pushLine(n.Lineno)
 	defer s.popLine()
 
+	// If s.curBlock is nil, then we're about to generate dead code.
+	// We can't just short-circuit here, though,
+	// because we check labels and gotos as part of SSA generation.
+	// Provide a block for the dead code so that we don't have
+	// to add special cases everywhere else.
+	if s.curBlock == nil {
+		dead := s.f.NewBlock(ssa.BlockPlain)
+		s.startBlock(dead)
+	}
+
 	s.stmtList(n.Ninit)
 	switch n.Op {
 
@@ -325,31 +401,60 @@ func (s *state) stmt(n *Node) {
 		}
 		s.assign(OAS, n.Left.Name.Heapaddr, palloc)
 
-	case OLABEL, OGOTO:
-		if n.Op == OLABEL && isblanksym(n.Left.Sym) {
+	case OLABEL:
+		sym := n.Left.Sym
+
+		if isblanksym(sym) {
 			// Empty identifier is valid but useless.
 			// See issues 11589, 11593.
 			return
 		}
-		// get block at label, or make one
-		t := s.labels[n.Left.Sym.Name]
-		if t == nil {
-			t = s.f.NewBlock(ssa.BlockPlain)
-			s.labels[n.Left.Sym.Name] = t
-		}
-		// go to that label (we pretend "label:" is preceded by "goto label")
-		if b := s.endBlock(); b != nil {
-			addEdge(b, t)
+
+		lab := s.label(sym)
+
+		// Associate label with its control flow node, if any
+		if ctl := n.Name.Defn; ctl != nil {
+			switch ctl.Op {
+			case OFOR, OSWITCH, OSELECT:
+				s.labeledNodes[ctl] = lab
+			}
 		}
 
-		if n.Op == OLABEL {
-			// next we work on the label's target block
-			s.startBlock(t)
+		if !lab.defined() {
+			lab.defNode = n
+		} else {
+			s.Error("label %v already defined at %v", sym, Ctxt.Line(int(lab.defNode.Lineno)))
+			lab.reported = true
 		}
-		if n.Op == OGOTO && s.curBlock == nil {
-			s.Unimplementedf("goto at start of function; see test/goto.go")
-			panic("stop compiling here, on pain of infinite loops")
+		// The label might already have a target block via a goto.
+		if lab.target == nil {
+			lab.target = s.f.NewBlock(ssa.BlockPlain)
 		}
+
+		// go to that label (we pretend "label:" is preceded by "goto label")
+		b := s.endBlock()
+		addEdge(b, lab.target)
+		s.startBlock(lab.target)
+
+	case OGOTO:
+		sym := n.Left.Sym
+
+		lab := s.label(sym)
+		if lab.target == nil {
+			lab.target = s.f.NewBlock(ssa.BlockPlain)
+		}
+		if !lab.used() {
+			lab.useNode = n
+		}
+
+		if lab.defined() {
+			s.checkgoto(n, lab.defNode)
+		} else {
+			s.fwdGotos = append(s.fwdGotos, n)
+		}
+
+		b := s.endBlock()
+		addEdge(b, lab.target)
 
 	case OAS, OASWB:
 		s.assign(n.Op, n.Left, n.Right)
@@ -396,6 +501,58 @@ func (s *state) stmt(n *Node) {
 		b := s.endBlock()
 		addEdge(b, s.exit)
 
+	case OCONTINUE, OBREAK:
+		var op string
+		var to *ssa.Block
+		switch n.Op {
+		case OCONTINUE:
+			op = "continue"
+			to = s.continueTo
+		case OBREAK:
+			op = "break"
+			to = s.breakTo
+		}
+		if n.Left == nil {
+			// plain break/continue
+			if to == nil {
+				s.Error("%s is not in a loop", op)
+				return
+			}
+			// nothing to do; "to" is already the correct target
+		} else {
+			// labeled break/continue; look up the target
+			sym := n.Left.Sym
+			lab := s.label(sym)
+			if !lab.used() {
+				lab.useNode = n.Left
+			}
+			if !lab.defined() {
+				s.Error("%s label not defined: %v", op, sym)
+				lab.reported = true
+				return
+			}
+			switch n.Op {
+			case OCONTINUE:
+				to = lab.continueTarget
+			case OBREAK:
+				to = lab.breakTarget
+			}
+			if to == nil {
+				// Valid label but not usable with a break/continue here, e.g.:
+				// for {
+				// 	continue abc
+				// }
+				// abc:
+				// for {}
+				s.Error("invalid %s label %v", op, sym)
+				lab.reported = true
+				return
+			}
+		}
+
+		b := s.endBlock()
+		addEdge(b, to)
+
 	case OFOR:
 		// OFOR: for Ninit; Left; Right { Nbody }
 		bCond := s.f.NewBlock(ssa.BlockPlain)
@@ -422,9 +579,31 @@ func (s *state) stmt(n *Node) {
 		addEdge(b, bBody)
 		addEdge(b, bEnd)
 
+		// set up for continue/break in body
+		prevContinue := s.continueTo
+		prevBreak := s.breakTo
+		s.continueTo = bIncr
+		s.breakTo = bEnd
+		lab := s.labeledNodes[n]
+		if lab != nil {
+			// labeled for loop
+			lab.continueTarget = bIncr
+			lab.breakTarget = bEnd
+		}
+
 		// generate body
 		s.startBlock(bBody)
 		s.stmtList(n.Nbody)
+
+		// tear down continue/break
+		s.continueTo = prevContinue
+		s.breakTo = prevBreak
+		if lab != nil {
+			lab.continueTarget = nil
+			lab.breakTarget = nil
+		}
+
+		// done with body, goto incr
 		if b := s.endBlock(); b != nil {
 			addEdge(b, bIncr)
 		}
@@ -436,6 +615,32 @@ func (s *state) stmt(n *Node) {
 		}
 		if b := s.endBlock(); b != nil {
 			addEdge(b, bCond)
+		}
+		s.startBlock(bEnd)
+
+	case OSWITCH, OSELECT:
+		// These have been mostly rewritten by the front end into their Nbody fields.
+		// Our main task is to correctly hook up any break statements.
+		bEnd := s.f.NewBlock(ssa.BlockPlain)
+
+		prevBreak := s.breakTo
+		s.breakTo = bEnd
+		lab := s.labeledNodes[n]
+		if lab != nil {
+			// labeled
+			lab.breakTarget = bEnd
+		}
+
+		// generate body code
+		s.stmtList(n.Nbody)
+
+		s.breakTo = prevBreak
+		if lab != nil {
+			lab.breakTarget = nil
+		}
+
+		if b := s.endBlock(); b != nil {
+			addEdge(b, bEnd)
 		}
 		s.startBlock(bEnd)
 
@@ -924,14 +1129,66 @@ func (s *state) boundsCheck(idx, len *ssa.Value) {
 	s.startBlock(bNext)
 }
 
+// checkgoto checks that a goto from from to to does not
+// jump into a block or jump over variable declarations.
+// It is a copy of checkgoto in the pre-SSA backend,
+// modified only for line number handling.
+// TODO: document how this works and why it is designed the way it is.
+func (s *state) checkgoto(from *Node, to *Node) {
+	if from.Sym == to.Sym {
+		return
+	}
+
+	nf := 0
+	for fs := from.Sym; fs != nil; fs = fs.Link {
+		nf++
+	}
+	nt := 0
+	for fs := to.Sym; fs != nil; fs = fs.Link {
+		nt++
+	}
+	fs := from.Sym
+	for ; nf > nt; nf-- {
+		fs = fs.Link
+	}
+	if fs != to.Sym {
+		// decide what to complain about.
+		// prefer to complain about 'into block' over declarations,
+		// so scan backward to find most recent block or else dcl.
+		var block *Sym
+
+		var dcl *Sym
+		ts := to.Sym
+		for ; nt > nf; nt-- {
+			if ts.Pkg == nil {
+				block = ts
+			} else {
+				dcl = ts
+			}
+			ts = ts.Link
+		}
+
+		for ts != fs {
+			if ts.Pkg == nil {
+				block = ts
+			} else {
+				dcl = ts
+			}
+			ts = ts.Link
+			fs = fs.Link
+		}
+
+		lno := int(from.Left.Lineno)
+		if block != nil {
+			yyerrorl(lno, "goto %v jumps into block starting at %v", from.Left.Sym, Ctxt.Line(int(block.Lastlineno)))
+		} else {
+			yyerrorl(lno, "goto %v jumps over declaration of %v at %v", from.Left.Sym, dcl, Ctxt.Line(int(dcl.Lastlineno)))
+		}
+	}
+}
+
 // variable returns the value of a variable at the current location.
 func (s *state) variable(name *Node, t ssa.Type) *ssa.Value {
-	if s.curBlock == nil {
-		// Unimplemented instead of Fatal because fixedbugs/bug303.go
-		// demonstrates a case in which this appears to happen legitimately.
-		// TODO: decide on the correct behavior here.
-		s.Unimplementedf("nil curblock adding variable %v (%v)", name, t)
-	}
 	v := s.vars[name]
 	if v == nil {
 		// TODO: get type?  Take Sym as arg?
@@ -989,8 +1246,13 @@ func (s *state) lookupVarIncoming(b *ssa.Block, t ssa.Type, name *Node) *ssa.Val
 		vals = append(vals, s.lookupVarOutgoing(p, t, name))
 	}
 	if len(vals) == 0 {
-		s.Unimplementedf("TODO: Handle fixedbugs/bug076.go")
-		return nil
+		// This block is dead; we have no predecessors and we're not the entry block.
+		// It doesn't matter what we use here as long as it is well-formed,
+		// so use the default/zero value.
+		if name == &memvar {
+			return s.startmem
+		}
+		return s.zeroVal(name.Type)
 	}
 	v0 := vals[0]
 	for i := 1; i < len(vals); i++ {
