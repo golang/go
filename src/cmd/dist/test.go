@@ -259,7 +259,7 @@ func (t *tester) registerStdTest(pkg string) {
 				"test",
 				"-short",
 				t.tags(),
-				t.timeout(120),
+				t.timeout(180),
 				"-gcflags=" + os.Getenv("GO_GCFLAGS"),
 			}
 			if t.race {
