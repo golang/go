@@ -2143,6 +2143,26 @@ func rewriteBlockAMD64(b *Block) bool {
 		goto ende4d36879bb8e1bd8facaa8c91ba99dcc
 	ende4d36879bb8e1bd8facaa8c91ba99dcc:
 		;
+		// match: (If (SETEQ cmp) yes no)
+		// cond:
+		// result: (EQ cmp yes no)
+		{
+			v := b.Control
+			if v.Op != OpAMD64SETEQ {
+				goto endf113deb06abc88613840e6282942921a
+			}
+			cmp := v.Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockAMD64EQ
+			b.Control = cmp
+			b.Succs[0] = yes
+			b.Succs[1] = no
+			return true
+		}
+		goto endf113deb06abc88613840e6282942921a
+	endf113deb06abc88613840e6282942921a:
+		;
 		// match: (If (SETNE cmp) yes no)
 		// cond:
 		// result: (NE cmp yes no)
