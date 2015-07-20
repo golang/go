@@ -228,10 +228,19 @@ func slowDialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time) (*TCPCon
 	return c, err
 }
 
-func dialClosedPort() time.Duration {
+func dialClosedPort() (actual, expected time.Duration) {
+	// Estimate the expected time for this platform.
+	// On Windows, dialing a closed port takes roughly 1 second,
+	// but other platforms should be instantaneous.
+	if runtime.GOOS == "windows" {
+		expected = 1095 * time.Millisecond
+	} else {
+		expected = 95 * time.Millisecond
+	}
+
 	l, err := Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		return 999 * time.Hour
+		return 999 * time.Hour, expected
 	}
 	addr := l.Addr().String()
 	l.Close()
@@ -246,7 +255,7 @@ func dialClosedPort() time.Duration {
 		}
 		elapsed := time.Now().Sub(startTime)
 		if i == 2 {
-			return elapsed
+			return elapsed, expected
 		}
 	}
 }
@@ -259,16 +268,7 @@ func TestDialParallel(t *testing.T) {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
 
-	// Determine the time required to dial a closed port.
-	// On Windows, this takes roughly 1 second, but other platforms
-	// are expected to be instantaneous.
-	closedPortDelay := dialClosedPort()
-	var expectClosedPortDelay time.Duration
-	if runtime.GOOS == "windows" {
-		expectClosedPortDelay = 1095 * time.Millisecond
-	} else {
-		expectClosedPortDelay = 95 * time.Millisecond
-	}
+	closedPortDelay, expectClosedPortDelay := dialClosedPort()
 	if closedPortDelay > expectClosedPortDelay {
 		t.Errorf("got %v; want <= %v", closedPortDelay, expectClosedPortDelay)
 	}
@@ -551,8 +551,7 @@ func TestDialerPartialDeadline(t *testing.T) {
 		{now.Add(1 * time.Millisecond), now, 1, noDeadline, errTimeout},
 	}
 	for i, tt := range testCases {
-		d := Dialer{Deadline: tt.deadline}
-		deadline, err := d.partialDeadline(tt.now, tt.addrs)
+		deadline, err := partialDeadline(tt.now, tt.deadline, tt.addrs)
 		if err != tt.expectErr {
 			t.Errorf("#%d: got %v; want %v", i, err, tt.expectErr)
 		}
@@ -605,6 +604,11 @@ func TestDialerDualStack(t *testing.T) {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
 
+	closedPortDelay, expectClosedPortDelay := dialClosedPort()
+	if closedPortDelay > expectClosedPortDelay {
+		t.Errorf("got %v; want <= %v", closedPortDelay, expectClosedPortDelay)
+	}
+
 	origTestHookLookupIP := testHookLookupIP
 	defer func() { testHookLookupIP = origTestHookLookupIP }()
 	testHookLookupIP = lookupLocalhost
@@ -618,7 +622,7 @@ func TestDialerDualStack(t *testing.T) {
 		}
 	}
 
-	const T = 100 * time.Millisecond
+	var timeout = 100*time.Millisecond + closedPortDelay
 	for _, dualstack := range []bool{false, true} {
 		dss, err := newDualStackServer([]streamListener{
 			{network: "tcp4", address: "127.0.0.1"},
@@ -632,7 +636,7 @@ func TestDialerDualStack(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		d := &Dialer{DualStack: dualstack, Timeout: T}
+		d := &Dialer{DualStack: dualstack, Timeout: timeout}
 		for range dss.lns {
 			c, err := d.Dial("tcp", JoinHostPort("localhost", dss.port))
 			if err != nil {
@@ -648,7 +652,7 @@ func TestDialerDualStack(t *testing.T) {
 			c.Close()
 		}
 	}
-	time.Sleep(2 * T) // wait for the dial racers to stop
+	time.Sleep(timeout * 3 / 2) // wait for the dial racers to stop
 }
 
 func TestDialerKeepAlive(t *testing.T) {
