@@ -331,3 +331,11 @@ func issue11325() {
 	_ = 1. >> 1.
 	_ = 1.1 /* ERROR "must be integer" */ >> 1
 }
+
+func issue11594() {
+	var _ = complex64 /* ERROR "must be integer" */ (1) << 2 // example from issue 11594
+	_ = float32 /* ERROR "must be integer" */ (0) << 1
+	_ = float64 /* ERROR "must be integer" */ (0) >> 2
+	_ = complex64 /* ERROR "must be integer" */ (0) << 3
+	_ = complex64 /* ERROR "must be integer" */ (0) >> 4
+}
