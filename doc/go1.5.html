@@ -1098,6 +1098,17 @@ For details, see the documentation for
 </li>
 
 <li>
+There is a new method to cancel a <a href="/pkg/net/http/"><code>net/http</code></a>
+<code>Request</code> by setting the new
+<a href="/pkg/net/http/#Request"><code>Request.Cancel</code></a>
+field.
+It is supported by <code>http.Transport</code>.
+The <code>Cancel</code> field's type is compatible with the
+<a href="https://godoc.org/golang.org/x/net/context"><code>context.Context.Done</code></a>
+return value.
+</li>
+
+<li>
 Also in the <a href="/pkg/net/http/"><code>net/http</code></a> package,
 there is code to ignore the zero <a href="/pkg/time/#Time"><code>Time</code></a> value
 in the <a href="/pkg/net/#ServeContent"><code>ServeContent</code></a> function.
