@@ -831,6 +831,12 @@ This change guards against certain attacks.
 </li>
 
 <li>
+The <a href="/pkg/crypto/sha512/"><code>crypto/sha512</code></a>
+package now has support for the two truncated versions of
+the SHA-512 hash algorithm, SHA-512/224 and SHA-512/256.
+</li>
+
+<li>
 The <a href="/pkg/crypto/tls/"><code>crypto/tls</code></a> package
 minimum protocol version now defaults to TLS 1.0.
 The old default, SSLv3, is still available through <a href="/pkg/crypto/tls/#Config"><code>Config</code></a> if needed.
