@@ -1277,9 +1277,10 @@ func TestRejectRelativePathsInGOPATHCommandLinePackage(t *testing.T) {
 func TestGoTestWithPackageListedMultipleTimes(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
-	tg.run("test", "fmt", "fmt", "fmt", "fmt", "fmt")
+	tg.parallel()
+	tg.run("test", "errors", "errors", "errors", "errors", "errors")
 	if strings.Index(strings.TrimSpace(tg.getStdout()), "\n") != -1 {
-		t.Error("go test fmt fmt fmt fmt fmt tested the same package multiple times")
+		t.Error("go test errors errors errors errors errors tested the same package multiple times")
 	}
 }
 
@@ -1779,12 +1780,13 @@ func TestCgoHandlesWlORIGIN(t *testing.T) {
 	tg.run("build", "origin")
 }
 
-// "go test -c -test.bench=XXX fmt" should not hang'
+// "go test -c -test.bench=XXX errors" should not hang
 func TestIssue6480(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
-	tg.creatingTemp("fmt.test" + exeSuffix)
-	tg.run("test", "-c", "-test.bench=XXX", "fmt")
+	tg.makeTempdir()
+	tg.cd(tg.path("."))
+	tg.run("test", "-c", "-test.bench=XXX", "errors")
 }
 
 // cmd/cgo: undefined reference when linking a C-library using gccgo
