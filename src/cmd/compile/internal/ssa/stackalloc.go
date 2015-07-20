@@ -20,6 +20,7 @@ func stackalloc(f *Func) {
 			n = v.AuxInt
 		}
 	}
+	f.Logf("stackalloc: 0-%d for callee arguments/returns\n", n)
 
 	// TODO: group variables by ptr/nonptr, size, etc.  Emit ptr vars last
 	// so stackmap is smaller.
@@ -36,6 +37,7 @@ func stackalloc(f *Func) {
 				continue
 			}
 			n = align(n, v.Type.Alignment())
+			f.Logf("stackalloc: %d-%d for %v\n", n, n+v.Type.Size(), v)
 			loc := &LocalSlot{n}
 			n += v.Type.Size()
 			home = setloc(home, v, loc)
@@ -62,6 +64,7 @@ func stackalloc(f *Func) {
 				continue
 			}
 			n = align(n, v.Type.Alignment())
+			f.Logf("stackalloc: %d-%d for %v\n", n, n+v.Type.Size(), v)
 			loc := &LocalSlot{n}
 			n += v.Type.Size()
 			home = setloc(home, v, loc)
@@ -77,12 +80,14 @@ func stackalloc(f *Func) {
 			}
 			t := s.Typ
 			n = align(n, t.Alignment())
+			f.Logf("stackalloc: %d-%d for auto %v\n", n, n+t.Size(), v)
 			s.Offset = n
 			n += t.Size()
 		}
 	}
 
 	n = align(n, f.Config.PtrSize)
+	f.Logf("stackalloc: %d-%d for return address\n", n, n+f.Config.ptrSize)
 	n += f.Config.PtrSize // space for return address.  TODO: arch-dependent
 	f.RegAlloc = home
 	f.FrameSize = n
@@ -92,5 +97,8 @@ func stackalloc(f *Func) {
 
 // align increases n to the next multiple of a.  a must be a power of 2.
 func align(n int64, a int64) int64 {
+	if a == 0 {
+		return n
+	}
 	return (n + a - 1) &^ (a - 1)
 }
