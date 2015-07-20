@@ -1330,6 +1330,10 @@ func genValue(v *ssa.Value) {
 			p.To.Reg = y
 		}
 	case ssa.OpLoadReg8:
+		if v.Type.IsFlags() {
+			v.Unimplementedf("load flags not implemented: %v", v.LongString())
+			return
+		}
 		p := Prog(x86.AMOVQ)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = x86.REG_SP
@@ -1337,6 +1341,10 @@ func genValue(v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
 	case ssa.OpStoreReg8:
+		if v.Type.IsFlags() {
+			v.Unimplementedf("store flags not implemented: %v", v.LongString())
+			return
+		}
 		p := Prog(x86.AMOVQ)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = regnum(v.Args[0])
