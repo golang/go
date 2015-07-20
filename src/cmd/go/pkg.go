@@ -1637,7 +1637,7 @@ func readBuildID(p *Package) (id string, err error) {
 
 	// For commands, read build ID directly from binary.
 	if p.Name == "main" {
-		return readBuildIDFromBinary(p.Target)
+		return ReadBuildIDFromBinary(p.Target)
 	}
 
 	// Otherwise, we expect to have an archive (.a) file,
@@ -1715,7 +1715,7 @@ var (
 	elfPrefix = []byte("\x7fELF")
 )
 
-// readBuildIDFromBinary reads the build ID from a binary.
+// ReadBuildIDFromBinary reads the build ID from a binary.
 //
 // ELF binaries store the build ID in a proper PT_NOTE section.
 //
@@ -1724,7 +1724,7 @@ var (
 // of the text segment, which should appear near the beginning
 // of the file. This is clumsy but fairly portable. Custom locations
 // can be added for other binary types as needed, like we did for ELF.
-func readBuildIDFromBinary(filename string) (id string, err error) {
+func ReadBuildIDFromBinary(filename string) (id string, err error) {
 	if filename == "" {
 		return "", &os.PathError{Op: "parse", Path: filename, Err: errBuildIDUnknown}
 	}
