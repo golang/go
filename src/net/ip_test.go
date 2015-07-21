@@ -65,26 +65,28 @@ func TestLookupWithIP(t *testing.T) {
 	// Test that LookupHost and LookupIP, which normally
 	// expect host names, work with IP addresses.
 	for _, tt := range parseIPTests {
-		addrs, err := LookupHost(tt.in)
 		if tt.out != nil {
+			addrs, err := LookupHost(tt.in)
 			if len(addrs) != 1 || addrs[0] != tt.in || err != nil {
 				t.Errorf("LookupHost(%q) = %v, %v, want %v, nil", tt.in, addrs, err, []string{tt.in})
 			}
-		} else {
+		} else if !testing.Short() {
 			// We can't control what the host resolver does; if it can resolve, say,
 			// 127.0.0.256 or fe80::1%911 or a host named 'abc', who are we to judge?
 			// Warn about these discrepancies but don't fail the test.
+			addrs, err := LookupHost(tt.in)
 			if err == nil {
 				t.Logf("warning: LookupHost(%q) = %v, want error", tt.in, addrs)
 			}
 		}
 
-		ips, err := LookupIP(tt.in)
 		if tt.out != nil {
+			ips, err := LookupIP(tt.in)
 			if len(ips) != 1 || !reflect.DeepEqual(ips[0], tt.out) || err != nil {
 				t.Errorf("LookupIP(%q) = %v, %v, want %v, nil", tt.in, ips, err, []IP{tt.out})
 			}
-		} else {
+		} else if !testing.Short() {
+			ips, err := LookupIP(tt.in)
 			// We can't control what the host resolver does. See above.
 			if err == nil {
 				t.Logf("warning: LookupIP(%q) = %v, want error", tt.in, ips)
