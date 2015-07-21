@@ -359,7 +359,7 @@ func isDir(path string) bool {
 // If parent is x/y/z, then path might expand to x/y/z/vendor/path, x/y/vendor/path,
 // x/vendor/path, vendor/path, or else stay x/y/z if none of those exist.
 // vendoredImportPath returns the expanded path or, if no expansion is found, the original.
-// If no epxansion is found, vendoredImportPath also returns a list of vendor directories
+// If no expansion is found, vendoredImportPath also returns a list of vendor directories
 // it searched along the way, to help prepare a useful error message should path turn
 // out not to exist.
 func vendoredImportPath(parent *Package, path string) (found string, searched []string) {
