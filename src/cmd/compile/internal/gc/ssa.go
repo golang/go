@@ -22,6 +22,7 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 	usessa = strings.HasSuffix(name, "_ssa")
 
 	if usessa {
+		fmt.Println("generating SSA for", name)
 		dumplist("buildssa-enter", fn.Func.Enter)
 		dumplist("buildssa-body", fn.Nbody)
 	}
@@ -481,16 +482,14 @@ func (s *state) stmt(n *Node) {
 
 		s.startBlock(bThen)
 		s.stmtList(n.Nbody)
-		b = s.endBlock()
-		if b != nil {
+		if b := s.endBlock(); b != nil {
 			addEdge(b, bEnd)
 		}
 
 		if n.Rlist != nil {
 			s.startBlock(bElse)
 			s.stmtList(n.Rlist)
-			b = s.endBlock()
-			if b != nil {
+			if b := s.endBlock(); b != nil {
 				addEdge(b, bEnd)
 			}
 		}

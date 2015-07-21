@@ -27,6 +27,7 @@ Regalloc
  - Handle 2-address instructions.
  - Floating point registers
  - Make calls clobber all registers
+ - Make liveness analysis non-quadratic.
 
 StackAlloc:
  - Sort variables so all ptr-containing ones are first (so stack
@@ -60,3 +61,5 @@ Other
    expression subtrees in the output.
  - Implement memory zeroing with REPSTOSQ and DuffZero
  - make deadstore work with zeroing.
+ - Add a value range propagation optimization pass.
+   Use it for bounds check elimination and bitwidth reduction.
