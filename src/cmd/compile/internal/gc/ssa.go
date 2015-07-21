@@ -940,13 +940,30 @@ func (s *state) expr(n *Node) *ssa.Value {
 			return s.constInt(s.config.Int, n.Left.Type.Bound)
 		}
 
-	case OCALLFUNC:
-		static := n.Left.Op == ONAME && n.Left.Class == PFUNC
+	case OCALLFUNC, OCALLMETH:
+		left := n.Left
+		static := left.Op == ONAME && left.Class == PFUNC
+
+		if n.Op == OCALLMETH {
+			// Rewrite to an OCALLFUNC: (p.f)(...) becomes (f)(p, ...)
+			// Take care not to modify the original AST.
+			if left.Op != ODOTMETH {
+				Fatal("OCALLMETH: n.Left not an ODOTMETH: %v", left)
+			}
+
+			newLeft := *left.Right
+			newLeft.Type = left.Type
+			if newLeft.Op == ONAME {
+				newLeft.Class = PFUNC
+			}
+			left = &newLeft
+			static = true
+		}
 
 		// evaluate closure
 		var closure *ssa.Value
 		if !static {
-			closure = s.expr(n.Left)
+			closure = s.expr(left)
 		}
 
 		// run all argument assignments
@@ -955,13 +972,13 @@ func (s *state) expr(n *Node) *ssa.Value {
 		bNext := s.f.NewBlock(ssa.BlockPlain)
 		var call *ssa.Value
 		if static {
-			call = s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, n.Left.Sym, s.mem())
+			call = s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, left.Sym, s.mem())
 		} else {
 			entry := s.newValue2(ssa.OpLoad, s.config.Uintptr, closure, s.mem())
 			call = s.newValue3(ssa.OpClosureCall, ssa.TypeMem, entry, closure, s.mem())
 		}
-		dowidth(n.Left.Type)
-		call.AuxInt = n.Left.Type.Argwid // call operations carry the argsize of the callee along with them
+		dowidth(left.Type)
+		call.AuxInt = left.Type.Argwid // call operations carry the argsize of the callee along with them
 		b := s.endBlock()
 		b.Kind = ssa.BlockCall
 		b.Control = call
@@ -971,7 +988,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		// read result from stack at the start of the fallthrough block
 		s.startBlock(bNext)
 		var titer Iter
-		fp := Structfirst(&titer, Getoutarg(n.Left.Type))
+		fp := Structfirst(&titer, Getoutarg(left.Type))
 		if fp == nil {
 			// CALLFUNC has no return value. Continue with the next statement.
 			return nil
