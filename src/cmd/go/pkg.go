@@ -882,7 +882,13 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		deps[path] = p1
 		imports = append(imports, p1)
 		for _, dep := range p1.deps {
-			deps[dep.ImportPath] = dep
+			// Do not overwrite entries installed by direct import
+			// just above this loop. Those have stricter constraints
+			// about internal and vendor visibility and may contain
+			// errors that we need to preserve.
+			if deps[dep.ImportPath] == nil {
+				deps[dep.ImportPath] = dep
+			}
 		}
 		if p1.Incomplete {
 			p.Incomplete = true
