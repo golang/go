@@ -6,6 +6,7 @@ package trace_test
 
 import (
 	"bytes"
+	"internal/testenv"
 	"internal/trace"
 	"net"
 	"os"
@@ -21,13 +22,12 @@ import (
 // top uninteresting frames (runtime guts).
 func TestTraceSymbolize(t *testing.T) {
 	skipTraceTestsIfNeeded(t)
-	if runtime.GOOS == "nacl" {
-		t.Skip("skipping: nacl tests fail with 'failed to symbolize trace: failed to start addr2line'")
-	}
+	testenv.MustHaveExec(t)
 	buf := new(bytes.Buffer)
 	if err := Start(buf); err != nil {
 		t.Fatalf("failed to start tracing: %v", err)
 	}
+	defer Stop() // in case of early return
 
 	// Now we will do a bunch of things for which we verify stacks later.
 	// It is impossible to ensure that a goroutine has actually blocked
@@ -78,7 +78,7 @@ func TestTraceSymbolize(t *testing.T) {
 		cv.Wait()
 		cv.L.Unlock()
 	}()
-	ln, err := net.Listen("tcp", "localhost:0")
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("failed to listen: %v", err)
 	}
