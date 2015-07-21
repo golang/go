@@ -235,9 +235,6 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 			heapBitsForSpan(p).initSpan(s.layout())
 			s.needzero = 1
 
-			// important to set sweepgen before returning it to heap
-			atomicstore(&s.sweepgen, sweepgen)
-
 			// Free the span after heapBitsSweepSpan
 			// returns, since it's not done with the span.
 			freeToHeap = true
@@ -264,10 +261,7 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 	// But we need to set it before we make the span available for allocation
 	// (return it to heap or mcentral), because allocation code assumes that a
 	// span is already swept if available for allocation.
-	//
-	// TODO(austin): Clean this up by consolidating atomicstore in
-	// large span path above with this.
-	if !freeToHeap && nfree == 0 {
+	if freeToHeap || nfree == 0 {
 		// The span must be in our exclusive ownership until we update sweepgen,
 		// check for potential races.
 		if s.state != mSpanInUse || s.sweepgen != sweepgen-1 {
