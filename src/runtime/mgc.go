@@ -884,14 +884,7 @@ func gc(mode int) {
 	if debug.gctrace > 0 {
 		stwprocs, maxprocs = gcprocs(), gomaxprocs
 		tSweepTerm = now
-		if mode == gcBackgroundMode {
-			// We started GC when heap_live == next_gc,
-			// but the mutator may have allocated between
-			// then and now. Report heap when GC started.
-			heap0 = memstats.next_gc
-		} else {
-			heap0 = memstats.heap_live
-		}
+		heap0 = memstats.heap_live
 	}
 
 	pauseStart = now
