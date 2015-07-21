@@ -76,8 +76,9 @@ var predeclared = []types.Type{
 	types.Typ[types.UnsafePointer],
 
 	// aliases
-	types.UniverseByte,
-	types.UniverseRune,
+	types.Universe.Lookup("byte").Type(),
+	types.Universe.Lookup("rune").Type(),
 
+	// error
 	types.Universe.Lookup("error").Type(),
 }
