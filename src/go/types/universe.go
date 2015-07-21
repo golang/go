@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file implements the universe and unsafe package scopes.
+// This file sets up the universe scope and the unsafe package.
 
 package types
 
@@ -16,11 +16,11 @@ var (
 	Universe     *Scope
 	Unsafe       *Package
 	universeIota *Const
-	UniverseByte *Basic // uint8 alias, but has name "byte"
-	UniverseRune *Basic // int32 alias, but has name "rune"
+	universeByte *Basic // uint8 alias, but has name "byte"
+	universeRune *Basic // int32 alias, but has name "rune"
 )
 
-var Typ = [...]*Basic{
+var Typ = []*Basic{
 	Invalid: {Invalid, 0, "invalid type"},
 
 	Bool:          {Bool, IsBoolean, "bool"},
@@ -186,8 +186,8 @@ func init() {
 	defPredeclaredFuncs()
 
 	universeIota = Universe.Lookup("iota").(*Const)
-	UniverseByte = Universe.Lookup("byte").(*TypeName).typ.(*Basic)
-	UniverseRune = Universe.Lookup("rune").(*TypeName).typ.(*Basic)
+	universeByte = Universe.Lookup("byte").(*TypeName).typ.(*Basic)
+	universeRune = Universe.Lookup("rune").(*TypeName).typ.(*Basic)
 }
 
 // Objects with names containing blanks are internal and not entered into

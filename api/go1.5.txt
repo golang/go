@@ -712,10 +712,8 @@ pkg go/types, type TypeAndValue struct, Type Type
 pkg go/types, type TypeAndValue struct, Value constant.Value
 pkg go/types, type TypeName struct
 pkg go/types, type Var struct
-pkg go/types, var Typ [26]*Basic
+pkg go/types, var Typ []*Basic
 pkg go/types, var Universe *Scope
-pkg go/types, var UniverseByte *Basic
-pkg go/types, var UniverseRune *Basic
 pkg go/types, var Unsafe *Package
 pkg html/template, method (*Template) Option(...string) *Template
 pkg image, const YCbCrSubsampleRatio410 = 5
