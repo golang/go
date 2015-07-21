@@ -2229,3 +2229,18 @@ func TestGoInstallShadowedGOPATH(t *testing.T) {
 	tg.runFail("install")
 	tg.grepStderr("no install location for.*gopath2.src.test: hidden by .*gopath1.src.test", "missing error")
 }
+
+func TestIssue11709(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.tempFile("run.go", `
+		package main
+		import "os"
+		func main() {
+			if os.Getenv("TERM") != "" {
+				os.Exit(1)
+			}
+		}`)
+	tg.unsetenv("TERM")
+	tg.run("run", tg.path("run.go"))
+}
