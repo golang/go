@@ -746,6 +746,10 @@ func TestGoInstallDetectsRemovedFiles(t *testing.T) {
 }
 
 func TestGoInstallErrorOnCrossCompileToBin(t *testing.T) {
+	if testing.Short() {
+		t.Skip("don't install into GOROOT in short mode")
+	}
+
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.tempFile("src/mycmd/x.go", `package main
