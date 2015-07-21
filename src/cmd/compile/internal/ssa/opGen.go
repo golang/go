@@ -231,7 +231,6 @@ var opcodeTable = [...]opInfo{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -243,7 +242,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []regMask{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -257,7 +255,6 @@ var opcodeTable = [...]opInfo{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -270,7 +267,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []regMask{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -284,7 +280,6 @@ var opcodeTable = [...]opInfo{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -297,7 +292,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []regMask{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -311,7 +305,6 @@ var opcodeTable = [...]opInfo{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -324,7 +317,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []regMask{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -338,7 +330,6 @@ var opcodeTable = [...]opInfo{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				2,     // .CX
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -351,7 +342,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []regMask{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -365,7 +355,6 @@ var opcodeTable = [...]opInfo{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				2,     // .CX
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -378,7 +367,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []regMask{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -392,7 +380,6 @@ var opcodeTable = [...]opInfo{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				2,     // .CX
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -405,7 +392,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []regMask{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -417,7 +403,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []regMask{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -430,7 +415,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []regMask{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -444,7 +428,6 @@ var opcodeTable = [...]opInfo{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				8589934592, // .FLAGS
 			},
@@ -457,7 +440,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []regMask{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				8589934592, // .FLAGS
 			},
@@ -471,7 +453,6 @@ var opcodeTable = [...]opInfo{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				8589934592, // .FLAGS
 			},
@@ -485,7 +466,6 @@ var opcodeTable = [...]opInfo{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				8589934592, // .FLAGS
 			},
@@ -498,7 +478,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []regMask{
 				8589934592, // .FLAGS
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -511,7 +490,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []regMask{
 				8589934592, // .FLAGS
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -524,7 +502,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []regMask{
 				8589934592, // .FLAGS
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -537,7 +514,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []regMask{
 				8589934592, // .FLAGS
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -550,7 +526,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []regMask{
 				8589934592, // .FLAGS
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -563,7 +538,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []regMask{
 				8589934592, // .FLAGS
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -576,7 +550,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []regMask{
 				8589934592, // .FLAGS
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -589,7 +562,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []regMask{
 				8589934592, // .FLAGS
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -603,7 +575,6 @@ var opcodeTable = [...]opInfo{
 				65519,      // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				65519,      // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -616,7 +587,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []regMask{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -629,7 +599,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []regMask{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -642,7 +611,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []regMask{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -651,8 +619,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name: "MOVQconst",
 		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -664,7 +630,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []regMask{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -677,7 +642,6 @@ var opcodeTable = [...]opInfo{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
 				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -690,7 +654,6 @@ var opcodeTable = [...]opInfo{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
 				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -703,7 +666,6 @@ var opcodeTable = [...]opInfo{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
 				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -716,7 +678,6 @@ var opcodeTable = [...]opInfo{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
 				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -730,7 +691,6 @@ var opcodeTable = [...]opInfo{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
 				0,
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -743,7 +703,6 @@ var opcodeTable = [...]opInfo{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
 				0,
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -756,7 +715,6 @@ var opcodeTable = [...]opInfo{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
 				0,
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -770,7 +728,6 @@ var opcodeTable = [...]opInfo{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
 				0,
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -784,7 +741,6 @@ var opcodeTable = [...]opInfo{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
 				0,
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -798,7 +754,6 @@ var opcodeTable = [...]opInfo{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
 				0,
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -813,7 +768,6 @@ var opcodeTable = [...]opInfo{
 				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				0,
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -828,8 +782,6 @@ var opcodeTable = [...]opInfo{
 				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				0,
 			},
-			clobbers: 0,
-			outputs:  []regMask{},
 		},
 	},
 	{
@@ -841,8 +793,6 @@ var opcodeTable = [...]opInfo{
 				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				0,
 			},
-			clobbers: 0,
-			outputs:  []regMask{},
 		},
 	},
 	{
@@ -854,8 +804,6 @@ var opcodeTable = [...]opInfo{
 				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				0,
 			},
-			clobbers: 0,
-			outputs:  []regMask{},
 		},
 	},
 	{
@@ -867,8 +815,6 @@ var opcodeTable = [...]opInfo{
 				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				0,
 			},
-			clobbers: 0,
-			outputs:  []regMask{},
 		},
 	},
 	{
@@ -880,8 +826,6 @@ var opcodeTable = [...]opInfo{
 				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				0,
 			},
-			clobbers: 0,
-			outputs:  []regMask{},
 		},
 	},
 	{
@@ -891,8 +835,6 @@ var opcodeTable = [...]opInfo{
 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
 				0,
 			},
-			clobbers: 0,
-			outputs:  []regMask{},
 		},
 	},
 	{
@@ -903,32 +845,19 @@ var opcodeTable = [...]opInfo{
 				2,   // .CX
 			},
 			clobbers: 131, // .AX .CX .DI
-			outputs:  []regMask{},
 		},
 	},
 	{
 		name: "MOVQloadglobal",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		reg:  regInfo{},
 	},
 	{
 		name: "MOVQstoreglobal",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		reg:  regInfo{},
 	},
 	{
 		name: "CALLstatic",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		reg:  regInfo{},
 	},
 	{
 		name: "CALLclosure",
@@ -938,8 +867,6 @@ var opcodeTable = [...]opInfo{
 				4,     // .DX
 				0,
 			},
-			clobbers: 0,
-			outputs:  []regMask{},
 		},
 	},
 	{
@@ -951,7 +878,6 @@ var opcodeTable = [...]opInfo{
 				2,   // .CX
 			},
 			clobbers: 194, // .CX .SI .DI
-			outputs:  []regMask{},
 		},
 	},
 	{
@@ -962,7 +888,6 @@ var opcodeTable = [...]opInfo{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -976,7 +901,6 @@ var opcodeTable = [...]opInfo{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -990,7 +914,6 @@ var opcodeTable = [...]opInfo{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -1004,7 +927,6 @@ var opcodeTable = [...]opInfo{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -1018,7 +940,6 @@ var opcodeTable = [...]opInfo{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -1032,7 +953,6 @@ var opcodeTable = [...]opInfo{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
-			clobbers: 0,
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -1040,938 +960,419 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "InvertFlags",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		reg:  regInfo{},
 	},
 
 	{
-		name: "Add8",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Add8",
 		generic: true,
 	},
 	{
-		name: "Add16",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Add16",
 		generic: true,
 	},
 	{
-		name: "Add32",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Add32",
 		generic: true,
 	},
 	{
-		name: "Add64",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Add64",
 		generic: true,
 	},
 	{
-		name: "Add8U",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Add8U",
 		generic: true,
 	},
 	{
-		name: "Add16U",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Add16U",
 		generic: true,
 	},
 	{
-		name: "Add32U",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Add32U",
 		generic: true,
 	},
 	{
-		name: "Add64U",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Add64U",
 		generic: true,
 	},
 	{
-		name: "AddPtr",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "AddPtr",
 		generic: true,
 	},
 	{
-		name: "Sub8",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Sub8",
 		generic: true,
 	},
 	{
-		name: "Sub16",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Sub16",
 		generic: true,
 	},
 	{
-		name: "Sub32",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Sub32",
 		generic: true,
 	},
 	{
-		name: "Sub64",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Sub64",
 		generic: true,
 	},
 	{
-		name: "Sub8U",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Sub8U",
 		generic: true,
 	},
 	{
-		name: "Sub16U",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Sub16U",
 		generic: true,
 	},
 	{
-		name: "Sub32U",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Sub32U",
 		generic: true,
 	},
 	{
-		name: "Sub64U",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Sub64U",
 		generic: true,
 	},
 	{
-		name: "Mul",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Mul",
 		generic: true,
 	},
 	{
-		name: "Lsh8",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Lsh8",
 		generic: true,
 	},
 	{
-		name: "Lsh16",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Lsh16",
 		generic: true,
 	},
 	{
-		name: "Lsh32",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Lsh32",
 		generic: true,
 	},
 	{
-		name: "Lsh64",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Lsh64",
 		generic: true,
 	},
 	{
-		name: "Rsh8",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Rsh8",
 		generic: true,
 	},
 	{
-		name: "Rsh8U",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Rsh8U",
 		generic: true,
 	},
 	{
-		name: "Rsh16",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Rsh16",
 		generic: true,
 	},
 	{
-		name: "Rsh16U",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Rsh16U",
 		generic: true,
 	},
 	{
-		name: "Rsh32",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Rsh32",
 		generic: true,
 	},
 	{
-		name: "Rsh32U",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Rsh32U",
 		generic: true,
 	},
 	{
-		name: "Rsh64",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Rsh64",
 		generic: true,
 	},
 	{
-		name: "Rsh64U",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Rsh64U",
 		generic: true,
 	},
 	{
-		name: "Eq8",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Eq8",
 		generic: true,
 	},
 	{
-		name: "Eq16",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Eq16",
 		generic: true,
 	},
 	{
-		name: "Eq32",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Eq32",
 		generic: true,
 	},
 	{
-		name: "Eq64",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Eq64",
 		generic: true,
 	},
 	{
-		name: "Neq8",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Neq8",
 		generic: true,
 	},
 	{
-		name: "Neq16",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Neq16",
 		generic: true,
 	},
 	{
-		name: "Neq32",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Neq32",
 		generic: true,
 	},
 	{
-		name: "Neq64",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Neq64",
 		generic: true,
 	},
 	{
-		name: "Less8",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Less8",
 		generic: true,
 	},
 	{
-		name: "Less8U",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Less8U",
 		generic: true,
 	},
 	{
-		name: "Less16",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Less16",
 		generic: true,
 	},
 	{
-		name: "Less16U",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Less16U",
 		generic: true,
 	},
 	{
-		name: "Less32",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Less32",
 		generic: true,
 	},
 	{
-		name: "Less32U",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Less32U",
 		generic: true,
 	},
 	{
-		name: "Less64",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Less64",
 		generic: true,
 	},
 	{
-		name: "Less64U",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Less64U",
 		generic: true,
 	},
 	{
-		name: "Leq8",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Leq8",
 		generic: true,
 	},
 	{
-		name: "Leq8U",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Leq8U",
 		generic: true,
 	},
 	{
-		name: "Leq16",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Leq16",
 		generic: true,
 	},
 	{
-		name: "Leq16U",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Leq16U",
 		generic: true,
 	},
 	{
-		name: "Leq32",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Leq32",
 		generic: true,
 	},
 	{
-		name: "Leq32U",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Leq32U",
 		generic: true,
 	},
 	{
-		name: "Leq64",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Leq64",
 		generic: true,
 	},
 	{
-		name: "Leq64U",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Leq64U",
 		generic: true,
 	},
 	{
-		name: "Greater8",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Greater8",
 		generic: true,
 	},
 	{
-		name: "Greater8U",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Greater8U",
 		generic: true,
 	},
 	{
-		name: "Greater16",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Greater16",
 		generic: true,
 	},
 	{
-		name: "Greater16U",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Greater16U",
 		generic: true,
 	},
 	{
-		name: "Greater32",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Greater32",
 		generic: true,
 	},
 	{
-		name: "Greater32U",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Greater32U",
 		generic: true,
 	},
 	{
-		name: "Greater64",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Greater64",
 		generic: true,
 	},
 	{
-		name: "Greater64U",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Greater64U",
 		generic: true,
 	},
 	{
-		name: "Geq8",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Geq8",
 		generic: true,
 	},
 	{
-		name: "Geq8U",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Geq8U",
 		generic: true,
 	},
 	{
-		name: "Geq16",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Geq16",
 		generic: true,
 	},
 	{
-		name: "Geq16U",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Geq16U",
 		generic: true,
 	},
 	{
-		name: "Geq32",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Geq32",
 		generic: true,
 	},
 	{
-		name: "Geq32U",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Geq32U",
 		generic: true,
 	},
 	{
-		name: "Geq64",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Geq64",
 		generic: true,
 	},
 	{
-		name: "Geq64U",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Geq64U",
 		generic: true,
 	},
 	{
-		name: "Not",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Not",
 		generic: true,
 	},
 	{
-		name: "Phi",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Phi",
 		generic: true,
 	},
 	{
-		name: "Copy",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Copy",
 		generic: true,
 	},
 	{
-		name: "Const",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Const",
 		generic: true,
 	},
 	{
-		name: "Arg",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Arg",
 		generic: true,
 	},
 	{
-		name: "Addr",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Addr",
 		generic: true,
 	},
 	{
-		name: "SP",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "SP",
 		generic: true,
 	},
 	{
-		name: "SB",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "SB",
 		generic: true,
 	},
 	{
-		name: "Func",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Func",
 		generic: true,
 	},
 	{
-		name: "Load",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Load",
 		generic: true,
 	},
 	{
-		name: "Store",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Store",
 		generic: true,
 	},
 	{
-		name: "Move",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Move",
 		generic: true,
 	},
 	{
-		name: "Zero",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Zero",
 		generic: true,
 	},
 	{
-		name: "ClosureCall",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "ClosureCall",
 		generic: true,
 	},
 	{
-		name: "StaticCall",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "StaticCall",
 		generic: true,
 	},
 	{
-		name: "Convert",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "Convert",
 		generic: true,
 	},
 	{
-		name: "ConvNop",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "ConvNop",
 		generic: true,
 	},
 	{
-		name: "IsNonNil",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "IsNonNil",
 		generic: true,
 	},
 	{
-		name: "IsInBounds",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "IsInBounds",
 		generic: true,
 	},
 	{
-		name: "ArrayIndex",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "ArrayIndex",
 		generic: true,
 	},
 	{
-		name: "PtrIndex",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "PtrIndex",
 		generic: true,
 	},
 	{
-		name: "OffPtr",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "OffPtr",
 		generic: true,
 	},
 	{
-		name: "StructSelect",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "StructSelect",
 		generic: true,
 	},
 	{
-		name: "SliceMake",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "SliceMake",
 		generic: true,
 	},
 	{
-		name: "SlicePtr",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "SlicePtr",
 		generic: true,
 	},
 	{
-		name: "SliceLen",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "SliceLen",
 		generic: true,
 	},
 	{
-		name: "SliceCap",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "SliceCap",
 		generic: true,
 	},
 	{
-		name: "StringMake",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "StringMake",
 		generic: true,
 	},
 	{
-		name: "StringPtr",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "StringPtr",
 		generic: true,
 	},
 	{
-		name: "StringLen",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "StringLen",
 		generic: true,
 	},
 	{
-		name: "StoreReg8",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "StoreReg8",
 		generic: true,
 	},
 	{
-		name: "LoadReg8",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "LoadReg8",
 		generic: true,
 	},
 	{
-		name: "FwdRef",
-		reg: regInfo{
-			inputs:   []regMask{},
-			clobbers: 0,
-			outputs:  []regMask{},
-		},
+		name:    "FwdRef",
 		generic: true,
 	},
 }

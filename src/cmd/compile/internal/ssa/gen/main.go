@@ -112,26 +112,37 @@ func genOp() {
 		for _, v := range a.ops {
 			fmt.Fprintln(w, "{")
 			fmt.Fprintf(w, "name:\"%s\",\n", v.name)
+			if a.name == "generic" {
+				fmt.Fprintln(w, "generic:true,")
+				fmt.Fprintln(w, "},") // close op
+				// generic ops have no reg info or asm
+				continue
+			}
 			if v.asm != "" {
 				fmt.Fprintf(w, "asm: x86.A%s,\n", v.asm)
 			}
 			fmt.Fprintln(w, "reg:regInfo{")
-			fmt.Fprintln(w, "inputs: []regMask{")
-			for _, r := range v.reg.inputs {
-				fmt.Fprintf(w, "%d,%s\n", r, a.regMaskComment(r))
+			// reg inputs
+			if len(v.reg.inputs) > 0 {
+				fmt.Fprintln(w, "inputs: []regMask{")
+				for _, r := range v.reg.inputs {
+					fmt.Fprintf(w, "%d,%s\n", r, a.regMaskComment(r))
+				}
+				fmt.Fprintln(w, "},")
 			}
-			fmt.Fprintln(w, "},")
-			fmt.Fprintf(w, "clobbers: %d,%s\n", v.reg.clobbers, a.regMaskComment(v.reg.clobbers))
-			fmt.Fprintln(w, "outputs: []regMask{")
-			for _, r := range v.reg.outputs {
-				fmt.Fprintf(w, "%d,%s\n", r, a.regMaskComment(r))
+			if v.reg.clobbers > 0 {
+				fmt.Fprintf(w, "clobbers: %d,%s\n", v.reg.clobbers, a.regMaskComment(v.reg.clobbers))
 			}
-			fmt.Fprintln(w, "},")
-			fmt.Fprintln(w, "},")
-			if a.name == "generic" {
-				fmt.Fprintln(w, "generic:true,")
+			// reg outputs
+			if len(v.reg.outputs) > 0 {
+				fmt.Fprintln(w, "outputs: []regMask{")
+				for _, r := range v.reg.outputs {
+					fmt.Fprintf(w, "%d,%s\n", r, a.regMaskComment(r))
+				}
+				fmt.Fprintln(w, "},")
 			}
-			fmt.Fprintln(w, "},")
+			fmt.Fprintln(w, "},") // close reg info
+			fmt.Fprintln(w, "},") // close op
 		}
 	}
 	fmt.Fprintln(w, "}")
