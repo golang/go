@@ -420,9 +420,9 @@ func (t *tester) registerTests() {
 			})
 			switch t.goos {
 			case "darwin":
-				fmt.Println("Skipping misc/cgo/testsovar test. See issue 10360 for details.")
+				// Skipping misc/cgo/testsovar test. See issue 10360 for details.
 			case "netbsd":
-				fmt.Println("Skipping misc/cgo/testsovar test. See issue 11654 for details.")
+				// Skipping misc/cgo/testsovar test. See issue 11654 for details.
 			default:
 				t.tests = append(t.tests, distTest{
 					name:    "testsovar",
