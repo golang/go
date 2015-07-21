@@ -213,7 +213,7 @@ func internetAddrList(net, addr string, deadline time.Time) (addrList, error) {
 			if host, port, err = SplitHostPort(addr); err != nil {
 				return nil, err
 			}
-			if portnum, err = parsePort(net, port); err != nil {
+			if portnum, err = LookupPort(net, port); err != nil {
 				return nil, err
 			}
 		}
