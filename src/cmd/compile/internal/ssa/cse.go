@@ -17,6 +17,7 @@ func cse(f *Func) {
 	//   v.aux == w.aux
 	//   v.auxint == w.auxint
 	//   len(v.args) == len(w.args)
+	//   v.block == w.block if v.op == OpPhi
 	//   equivalent(v.args[i], w.args[i]) for i in 0..len(v.args)-1
 
 	// The algorithm searches for a partition of f's values into
@@ -24,18 +25,23 @@ func cse(f *Func) {
 	// It starts with a coarse partition and iteratively refines it
 	// until it reaches a fixed point.
 
-	// Make initial partition based on opcode/type-name/aux/auxint/nargs
+	// Make initial partition based on opcode/type-name/aux/auxint/nargs/phi-block
 	type key struct {
 		op     Op
 		typ    string
 		aux    interface{}
 		auxint int64
 		nargs  int
+		block  ID // block id for phi vars, -1 otherwise
 	}
 	m := map[key]eqclass{}
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			k := key{v.Op, v.Type.String(), v.Aux, v.AuxInt, len(v.Args)}
+			bid := ID(-1)
+			if v.Op == OpPhi {
+				bid = b.ID
+			}
+			k := key{v.Op, v.Type.String(), v.Aux, v.AuxInt, len(v.Args), bid}
 			m[k] = append(m[k], v)
 		}
 	}
@@ -45,6 +51,9 @@ func cse(f *Func) {
 	for _, v := range m {
 		partition = append(partition, v)
 	}
+	// TODO: Sort partition here for perfect reproducibility?
+	// Sort by what? Partition size?
+	// (Could that improve efficiency by discovering splits earlier?)
 
 	// map from value id back to eqclass id
 	valueEqClass := make([]int, f.NumValues())
