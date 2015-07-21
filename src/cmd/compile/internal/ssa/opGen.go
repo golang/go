@@ -64,6 +64,9 @@ const (
 	OpAMD64XORQconst
 	OpAMD64CMPQ
 	OpAMD64CMPQconst
+	OpAMD64CMPL
+	OpAMD64CMPW
+	OpAMD64CMPB
 	OpAMD64TESTQ
 	OpAMD64TESTB
 	OpAMD64SBBQcarrymask
@@ -406,6 +409,45 @@ var opcodeTable = [...]opInfo{
 		asm:  x86.ACMPQ,
 		reg: regInfo{
 			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				8589934592, // .FLAGS
+			},
+		},
+	},
+	{
+		name: "CMPL",
+		asm:  x86.ACMPL,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				8589934592, // .FLAGS
+			},
+		},
+	},
+	{
+		name: "CMPW",
+		asm:  x86.ACMPW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				8589934592, // .FLAGS
+			},
+		},
+	},
+	{
+		name: "CMPB",
+		asm:  x86.ACMPB,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			outputs: []regMask{

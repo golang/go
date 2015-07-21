@@ -1579,7 +1579,7 @@ func genValue(v *ssa.Value) {
 		addAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
-	case ssa.OpAMD64CMPQ, ssa.OpAMD64TESTB, ssa.OpAMD64TESTQ:
+	case ssa.OpAMD64CMPQ, ssa.OpAMD64CMPL, ssa.OpAMD64CMPW, ssa.OpAMD64CMPB, ssa.OpAMD64TESTB, ssa.OpAMD64TESTQ:
 		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = regnum(v.Args[0])

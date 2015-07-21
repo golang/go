@@ -615,6 +615,48 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto endcc7894224d4f6b0bcabcece5d0185912
 	endcc7894224d4f6b0bcabcece5d0185912:
 		;
+	case OpEq16:
+		// match: (Eq16 x y)
+		// cond:
+		// result: (SETEQ (CMPW <TypeFlags> x y))
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64SETEQ
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPW, TypeInvalid)
+			v0.Type = TypeFlags
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v.AddArg(v0)
+			return true
+		}
+		goto end66a03470b5b3e8457ba205ccfcaccea6
+	end66a03470b5b3e8457ba205ccfcaccea6:
+		;
+	case OpEq32:
+		// match: (Eq32 x y)
+		// cond:
+		// result: (SETEQ (CMPL <TypeFlags> x y))
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64SETEQ
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPL, TypeInvalid)
+			v0.Type = TypeFlags
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v.AddArg(v0)
+			return true
+		}
+		goto end4d77d0b016f93817fd6e5f60fa0e7ef2
+	end4d77d0b016f93817fd6e5f60fa0e7ef2:
+		;
 	case OpEq64:
 		// match: (Eq64 x y)
 		// cond:
@@ -635,6 +677,27 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		}
 		goto endae6c62e4e20b4f62694b6ee40dbd9211
 	endae6c62e4e20b4f62694b6ee40dbd9211:
+		;
+	case OpEq8:
+		// match: (Eq8 x y)
+		// cond:
+		// result: (SETEQ (CMPB <TypeFlags> x y))
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64SETEQ
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPB, TypeInvalid)
+			v0.Type = TypeFlags
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v.AddArg(v0)
+			return true
+		}
+		goto end84a692e769900e3adbfe00718d2169e0
+	end84a692e769900e3adbfe00718d2169e0:
 		;
 	case OpGeq64:
 		// match: (Geq64 x y)
@@ -1741,6 +1804,48 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto enda1ffb93a68702148c5fd18e2b72964d0
 	enda1ffb93a68702148c5fd18e2b72964d0:
 		;
+	case OpNeq16:
+		// match: (Neq16 x y)
+		// cond:
+		// result: (SETNE (CMPW <TypeFlags> x y))
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64SETNE
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPW, TypeInvalid)
+			v0.Type = TypeFlags
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v.AddArg(v0)
+			return true
+		}
+		goto endf177c3b3868606824e43e11da7804572
+	endf177c3b3868606824e43e11da7804572:
+		;
+	case OpNeq32:
+		// match: (Neq32 x y)
+		// cond:
+		// result: (SETNE (CMPL <TypeFlags> x y))
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64SETNE
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPL, TypeInvalid)
+			v0.Type = TypeFlags
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v.AddArg(v0)
+			return true
+		}
+		goto end39c4bf6d063f8a0b6f0064c96ce25173
+	end39c4bf6d063f8a0b6f0064c96ce25173:
+		;
 	case OpNeq64:
 		// match: (Neq64 x y)
 		// cond:
@@ -1761,6 +1866,27 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		}
 		goto end8ab0bcb910c0d3213dd8726fbcc4848e
 	end8ab0bcb910c0d3213dd8726fbcc4848e:
+		;
+	case OpNeq8:
+		// match: (Neq8 x y)
+		// cond:
+		// result: (SETNE (CMPB <TypeFlags> x y))
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64SETNE
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPB, TypeInvalid)
+			v0.Type = TypeFlags
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v.AddArg(v0)
+			return true
+		}
+		goto end4aaff28af59a65b3684f4f1897299932
+	end4aaff28af59a65b3684f4f1897299932:
 		;
 	case OpNot:
 		// match: (Not x)
