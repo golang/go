@@ -296,7 +296,7 @@ func defaultType(typ Type) Type {
 		case UntypedInt:
 			return Typ[Int]
 		case UntypedRune:
-			return UniverseRune // use 'rune' name
+			return universeRune // use 'rune' name
 		case UntypedFloat:
 			return Typ[Float64]
 		case UntypedComplex:
