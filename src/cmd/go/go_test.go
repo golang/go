@@ -967,6 +967,14 @@ func TestInternalPackageErrorsAreHandled(t *testing.T) {
 	tg.run("list", "./testdata/testinternal3")
 }
 
+func TestInternalCache(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata/testinternal4"))
+	tg.runFail("build", "p")
+	tg.grepStderr("internal", "did not fail to build p")
+}
+
 func TestMoveGit(t *testing.T) {
 	testMove(t, "git", "rsc.io/pdf", "pdf", "rsc.io/pdf/.git/config")
 }
