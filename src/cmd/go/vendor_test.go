@@ -142,3 +142,34 @@ func splitLines(s string) []string {
 	}
 	return x
 }
+
+func TestVendorGet(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.tempFile("src/v/m.go", `
+		package main
+		import ("fmt"; "vendor.org/p")
+		func main() {
+			fmt.Println(p.C)
+		}`)
+	tg.tempFile("src/v/m_test.go", `
+		package main
+		import ("fmt"; "testing"; "vendor.org/p")
+		func TestNothing(t *testing.T) {
+			fmt.Println(p.C)
+		}`)
+	tg.tempFile("src/v/vendor/vendor.org/p/p.go", `
+		package p
+		const C = 1`)
+	tg.setenv("GOPATH", tg.path("."))
+	tg.setenv("GO15VENDOREXPERIMENT", "1")
+	tg.cd(tg.path("src/v"))
+	tg.run("run", "m.go")
+	tg.run("test")
+	tg.run("list", "-f", "{{.Imports}}")
+	tg.grepStdout("v/vendor/vendor.org/p", "import not in vendor directory")
+	tg.run("list", "-f", "{{.TestImports}}")
+	tg.grepStdout("v/vendor/vendor.org/p", "test import not in vendor directory")
+	tg.run("get")
+	tg.run("get", "-t")
+}

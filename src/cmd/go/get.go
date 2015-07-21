@@ -287,10 +287,22 @@ func download(arg string, parent *Package, stk *importStack, getTestDeps bool) {
 		if getTestDeps {
 			// Process test dependencies when -t is specified.
 			// (Don't get test dependencies for test dependencies.)
+			//
+			// We apply vendoredImportPath here.  It's not
+			// needed for Imports, because it was done
+			// while loading the package.
 			for _, path := range p.TestImports {
+				if path == "C" {
+					continue
+				}
+				path, _ = vendoredImportPath(p, path)
 				download(path, p, stk, false)
 			}
 			for _, path := range p.XTestImports {
+				if path == "C" {
+					continue
+				}
+				path, _ = vendoredImportPath(p, path)
 				download(path, p, stk, false)
 			}
 		}
