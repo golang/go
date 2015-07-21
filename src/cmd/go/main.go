@@ -112,6 +112,8 @@ func setExitStatus(n int) {
 	exitMu.Unlock()
 }
 
+var origEnv []string
+
 func main() {
 	_ = go11tag
 	flag.Usage = usage
@@ -159,6 +161,7 @@ func main() {
 	// the same default computation of these as we do,
 	// but in practice there might be skew
 	// This makes sure we all agree.
+	origEnv = os.Environ()
 	for _, env := range mkEnv() {
 		if os.Getenv(env.name) != env.value {
 			os.Setenv(env.name, env.value)
