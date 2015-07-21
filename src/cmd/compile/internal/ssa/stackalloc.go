@@ -87,7 +87,7 @@ func stackalloc(f *Func) {
 	}
 
 	n = align(n, f.Config.PtrSize)
-	f.Logf("stackalloc: %d-%d for return address\n", n, n+f.Config.ptrSize)
+	f.Logf("stackalloc: %d-%d for return address\n", n, n+f.Config.PtrSize)
 	n += f.Config.PtrSize // space for return address.  TODO: arch-dependent
 	f.RegAlloc = home
 	f.FrameSize = n
