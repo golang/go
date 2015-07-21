@@ -1285,6 +1285,143 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto endfab0d598f376ecba45a22587d50f7aff
 	endfab0d598f376ecba45a22587d50f7aff:
 		;
+	case OpNeg16:
+		// match: (Neg16 x)
+		// cond:
+		// result: (MOVWQSX (NEGW <v.Type> x))
+		{
+			x := v.Args[0]
+			v.Op = OpAMD64MOVWQSX
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v0 := v.Block.NewValue0(v.Line, OpAMD64NEGW, TypeInvalid)
+			v0.Type = v.Type
+			v0.AddArg(x)
+			v.AddArg(v0)
+			return true
+		}
+		goto end089988d857b555c3065177bcad1eface
+	end089988d857b555c3065177bcad1eface:
+		;
+	case OpNeg16U:
+		// match: (Neg16U x)
+		// cond:
+		// result: (NEGW x)
+		{
+			x := v.Args[0]
+			v.Op = OpAMD64NEGW
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto end8f43be5b376227e92d70b382bded232b
+	end8f43be5b376227e92d70b382bded232b:
+		;
+	case OpNeg32:
+		// match: (Neg32 x)
+		// cond:
+		// result: (MOVLQSX (NEGL <v.Type> x))
+		{
+			x := v.Args[0]
+			v.Op = OpAMD64MOVLQSX
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v0 := v.Block.NewValue0(v.Line, OpAMD64NEGL, TypeInvalid)
+			v0.Type = v.Type
+			v0.AddArg(x)
+			v.AddArg(v0)
+			return true
+		}
+		goto end2217d3f168126b2ee157cb33befba76d
+	end2217d3f168126b2ee157cb33befba76d:
+		;
+	case OpNeg32U:
+		// match: (Neg32U x)
+		// cond:
+		// result: (NEGL x)
+		{
+			x := v.Args[0]
+			v.Op = OpAMD64NEGL
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto end1fe0112076c436ffceabac066776cd18
+	end1fe0112076c436ffceabac066776cd18:
+		;
+	case OpNeg64:
+		// match: (Neg64 x)
+		// cond:
+		// result: (NEGQ x)
+		{
+			x := v.Args[0]
+			v.Op = OpAMD64NEGQ
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto enda06c5b1718f2b96aba10bf5a5c437c6c
+	enda06c5b1718f2b96aba10bf5a5c437c6c:
+		;
+	case OpNeg64U:
+		// match: (Neg64U x)
+		// cond:
+		// result: (NEGQ x)
+		{
+			x := v.Args[0]
+			v.Op = OpAMD64NEGQ
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto endbc6beca972ff7f28273a1cdd146e3959
+	endbc6beca972ff7f28273a1cdd146e3959:
+		;
+	case OpNeg8:
+		// match: (Neg8 x)
+		// cond:
+		// result: (MOVBQSX (NEGB <v.Type> x))
+		{
+			x := v.Args[0]
+			v.Op = OpAMD64MOVBQSX
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v0 := v.Block.NewValue0(v.Line, OpAMD64NEGB, TypeInvalid)
+			v0.Type = v.Type
+			v0.AddArg(x)
+			v.AddArg(v0)
+			return true
+		}
+		goto end9cfacf0b7d826b85041092625ed494c1
+	end9cfacf0b7d826b85041092625ed494c1:
+		;
+	case OpNeg8U:
+		// match: (Neg8U x)
+		// cond:
+		// result: (NEGB x)
+		{
+			x := v.Args[0]
+			v.Op = OpAMD64NEGB
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto enda1ffb93a68702148c5fd18e2b72964d0
+	enda1ffb93a68702148c5fd18e2b72964d0:
+		;
 	case OpNeq64:
 		// match: (Neq64 x y)
 		// cond:

@@ -96,10 +96,6 @@ func init() {
 
 	// TODO: 2-address instructions.  Mark ops as needing matching input/output regs.
 	var AMD64ops = []opData{
-		{name: "ADDQ", reg: gp21},                    // arg0 + arg1
-		{name: "ADDQconst", reg: gp11},               // arg0 + auxint
-		{name: "SUBQ", reg: gp21, asm: "SUBQ"},       // arg0 - arg1
-		{name: "SUBQconst", reg: gp11, asm: "SUBQ"},  // arg0 - auxint
 		{name: "MULQ", reg: gp21, asm: "IMULQ"},      // arg0 * arg1
 		{name: "MULQconst", reg: gp11, asm: "IMULQ"}, // arg0 * auxint
 		{name: "ANDQ", reg: gp21, asm: "ANDQ"},       // arg0 & arg1
@@ -111,7 +107,6 @@ func init() {
 		{name: "SARQ", reg: gp21shift, asm: "SARQ"},  // signed arg0 >> arg1, shift amount is mod 64
 		{name: "SARQconst", reg: gp11, asm: "SARQ"},  // signed arg0 >> auxint, shift amount 0-63
 
-		{name: "NEGQ", reg: gp11},                   // -arg0
 		{name: "XORQconst", reg: gp11, asm: "XORQ"}, // arg0^auxint
 
 		{name: "CMPQ", reg: gp2flags, asm: "CMPQ"},      // arg0 compare to arg1
@@ -170,13 +165,22 @@ func init() {
 
 		{name: "REPMOVSB", reg: regInfo{[]regMask{buildReg("DI"), buildReg("SI"), buildReg("CX")}, buildReg("DI SI CX"), nil}}, // move arg2 bytes from arg1 to arg0.  arg3=mem, returns memory
 
-		{name: "ADDL", reg: gp21, asm: "ADDL"}, // arg0+arg1
-		{name: "ADDW", reg: gp21, asm: "ADDW"}, // arg0+arg1
-		{name: "ADDB", reg: gp21, asm: "ADDB"}, // arg0+arg1
+		{name: "ADDQ", reg: gp21},              // arg0 + arg1
+		{name: "ADDQconst", reg: gp11},         // arg0 + auxint
+		{name: "ADDL", reg: gp21, asm: "ADDL"}, // arg0 + arg1
+		{name: "ADDW", reg: gp21, asm: "ADDW"}, // arg0 + arg1
+		{name: "ADDB", reg: gp21, asm: "ADDB"}, // arg0 + arg1
 
-		{name: "SUBL", reg: gp21, asm: "SUBL"}, // arg0-arg1
-		{name: "SUBW", reg: gp21, asm: "SUBW"}, // arg0-arg1
-		{name: "SUBB", reg: gp21, asm: "SUBB"}, // arg0-arg1
+		{name: "SUBQ", reg: gp21, asm: "SUBQ"},      // arg0 - arg1
+		{name: "SUBQconst", reg: gp11, asm: "SUBQ"}, // arg0 - auxint
+		{name: "SUBL", reg: gp21, asm: "SUBL"},      // arg0 - arg1
+		{name: "SUBW", reg: gp21, asm: "SUBW"},      // arg0 - arg1
+		{name: "SUBB", reg: gp21, asm: "SUBB"},      // arg0 - arg1
+
+		{name: "NEGQ", reg: gp11, asm: "NEGQ"}, // -arg0
+		{name: "NEGL", reg: gp11, asm: "NEGL"}, // -arg0
+		{name: "NEGW", reg: gp11, asm: "NEGW"}, // -arg0
+		{name: "NEGB", reg: gp11, asm: "NEGB"}, // -arg0
 
 		// (InvertFlags (CMPQ a b)) == (CMPQ b a)
 		// So if we want (SETL (CMPQ a b)) but we can't do that because a is a constant,
