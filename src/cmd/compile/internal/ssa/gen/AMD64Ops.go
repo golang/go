@@ -111,8 +111,12 @@ func init() {
 
 		{name: "CMPQ", reg: gp2flags, asm: "CMPQ"},      // arg0 compare to arg1
 		{name: "CMPQconst", reg: gp1flags, asm: "CMPQ"}, // arg0 compare to auxint
-		{name: "TESTQ", reg: gp2flags, asm: "TESTQ"},    // (arg0 & arg1) compare to 0
-		{name: "TESTB", reg: gp2flags, asm: "TESTB"},    // (arg0 & arg1) compare to 0
+		{name: "CMPL", reg: gp2flags, asm: "CMPL"},      // arg0 compare to arg1
+		{name: "CMPW", reg: gp2flags, asm: "CMPW"},      // arg0 compare to arg1
+		{name: "CMPB", reg: gp2flags, asm: "CMPB"},      // arg0 compare to arg1
+
+		{name: "TESTQ", reg: gp2flags, asm: "TESTQ"}, // (arg0 & arg1) compare to 0
+		{name: "TESTB", reg: gp2flags, asm: "TESTB"}, // (arg0 & arg1) compare to 0
 
 		{name: "SBBQcarrymask", reg: flagsgp1, asm: "SBBQ"}, // (int64)(-1) if carry is set, 0 if carry is clear.
 
