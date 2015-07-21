@@ -11,7 +11,7 @@
 #    define VAR __declspec(dllimport)
 #endif
 #else
-#    define VAR
+#    define VAR extern
 #endif
 
 VAR const char *exported_var;
