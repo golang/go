@@ -471,6 +471,15 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OSUB, TINT64}:  ssa.OpSub64,
 	opAndType{OSUB, TUINT64}: ssa.OpSub64U,
 
+	opAndType{OMINUS, TINT8}:   ssa.OpNeg8,
+	opAndType{OMINUS, TUINT8}:  ssa.OpNeg8U,
+	opAndType{OMINUS, TINT16}:  ssa.OpNeg16,
+	opAndType{OMINUS, TUINT16}: ssa.OpNeg16U,
+	opAndType{OMINUS, TINT32}:  ssa.OpNeg32,
+	opAndType{OMINUS, TUINT32}: ssa.OpNeg32U,
+	opAndType{OMINUS, TINT64}:  ssa.OpNeg64,
+	opAndType{OMINUS, TUINT64}: ssa.OpNeg64U,
+
 	opAndType{OLSH, TINT8}:   ssa.OpLsh8,
 	opAndType{OLSH, TUINT8}:  ssa.OpLsh8,
 	opAndType{OLSH, TINT16}:  ssa.OpLsh16,
@@ -654,9 +663,9 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.variable(n, n.Type)
 
 	// unary ops
-	case ONOT:
+	case ONOT, OMINUS:
 		a := s.expr(n.Left)
-		return s.newValue1(ssa.OpNot, a.Type, a)
+		return s.newValue1(s.ssaOp(n.Op, n.Type), a.Type, a)
 
 	case OADDR:
 		return s.addr(n.Left)
@@ -1382,6 +1391,10 @@ func genValue(v *ssa.Value) {
 		p := Prog(x86.AXORQ)
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = regnum(v.Args[0])
+	case ssa.OpAMD64NEGQ, ssa.OpAMD64NEGL, ssa.OpAMD64NEGW, ssa.OpAMD64NEGB:
+		p := Prog(v.Op.Asm())
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v.Args[0])
 	case ssa.OpSP, ssa.OpSB:

@@ -32,6 +32,15 @@
 (Sub8U x y) -> (SUBB x y)
 (Sub8 x y) -> (MOVBQSX (SUBB <v.Type> x y))
 
+(Neg64 x) -> (NEGQ x)
+(Neg64U x) -> (NEGQ x)
+(Neg32U x) -> (NEGL x)
+(Neg32 x) -> (MOVLQSX (NEGL <v.Type> x))
+(Neg16U x) -> (NEGW x)
+(Neg16 x) -> (MOVWQSX (NEGW <v.Type> x))
+(Neg8U x) -> (NEGB x)
+(Neg8 x) -> (MOVBQSX (NEGB <v.Type> x))
+
 (Mul <t> x y) && is64BitInt(t) -> (MULQ x y)
 
 (MOVLstore ptr (MOVLQSX x) mem) -> (MOVLstore ptr x mem)

@@ -51,10 +51,6 @@ func (k BlockKind) String() string { return blockString[k] }
 const (
 	OpInvalid Op = iota
 
-	OpAMD64ADDQ
-	OpAMD64ADDQconst
-	OpAMD64SUBQ
-	OpAMD64SUBQconst
 	OpAMD64MULQ
 	OpAMD64MULQconst
 	OpAMD64ANDQ
@@ -65,7 +61,6 @@ const (
 	OpAMD64SHRQconst
 	OpAMD64SARQ
 	OpAMD64SARQconst
-	OpAMD64NEGQ
 	OpAMD64XORQconst
 	OpAMD64CMPQ
 	OpAMD64CMPQconst
@@ -108,12 +103,20 @@ const (
 	OpAMD64CALLstatic
 	OpAMD64CALLclosure
 	OpAMD64REPMOVSB
+	OpAMD64ADDQ
+	OpAMD64ADDQconst
 	OpAMD64ADDL
 	OpAMD64ADDW
 	OpAMD64ADDB
+	OpAMD64SUBQ
+	OpAMD64SUBQconst
 	OpAMD64SUBL
 	OpAMD64SUBW
 	OpAMD64SUBB
+	OpAMD64NEGQ
+	OpAMD64NEGL
+	OpAMD64NEGW
+	OpAMD64NEGB
 	OpAMD64InvertFlags
 
 	OpAdd8
@@ -187,6 +190,14 @@ const (
 	OpGeq64
 	OpGeq64U
 	OpNot
+	OpNeg8
+	OpNeg16
+	OpNeg32
+	OpNeg64
+	OpNeg8U
+	OpNeg16U
+	OpNeg32U
+	OpNeg64U
 	OpPhi
 	OpCopy
 	OpConst
@@ -224,54 +235,6 @@ const (
 var opcodeTable = [...]opInfo{
 	{name: "OpInvalid"},
 
-	{
-		name: "ADDQ",
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "ADDQconst",
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "SUBQ",
-		asm:  x86.ASUBQ,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "SUBQconst",
-		asm:  x86.ASUBQ,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
 	{
 		name: "MULQ",
 		asm:  x86.AIMULQ,
@@ -388,17 +351,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name: "SARQconst",
 		asm:  x86.ASARQ,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "NEGQ",
 		reg: regInfo{
 			inputs: []regMask{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -881,6 +833,29 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name: "ADDQ",
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ADDQconst",
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
 		name: "ADDL",
 		asm:  x86.AADDL,
 		reg: regInfo{
@@ -920,6 +895,31 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name: "SUBQ",
+		asm:  x86.ASUBQ,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SUBQconst",
+		asm:  x86.ASUBQ,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
 		name: "SUBL",
 		asm:  x86.ASUBL,
 		reg: regInfo{
@@ -951,6 +951,54 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []regMask{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "NEGQ",
+		asm:  x86.ANEGQ,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "NEGL",
+		asm:  x86.ANEGL,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "NEGW",
+		asm:  x86.ANEGW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "NEGB",
+		asm:  x86.ANEGB,
+		reg: regInfo{
+			inputs: []regMask{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			outputs: []regMask{
@@ -1245,6 +1293,38 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Not",
+		generic: true,
+	},
+	{
+		name:    "Neg8",
+		generic: true,
+	},
+	{
+		name:    "Neg16",
+		generic: true,
+	},
+	{
+		name:    "Neg32",
+		generic: true,
+	},
+	{
+		name:    "Neg64",
+		generic: true,
+	},
+	{
+		name:    "Neg8U",
+		generic: true,
+	},
+	{
+		name:    "Neg16U",
+		generic: true,
+	},
+	{
+		name:    "Neg32U",
+		generic: true,
+	},
+	{
+		name:    "Neg64U",
 		generic: true,
 	},
 	{

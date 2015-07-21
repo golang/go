@@ -95,6 +95,15 @@ var genericOps = []opData{
 	// 1-input ops
 	{name: "Not"}, // !arg0
 
+	{name: "Neg8"}, // - arg0
+	{name: "Neg16"},
+	{name: "Neg32"},
+	{name: "Neg64"},
+	{name: "Neg8U"},
+	{name: "Neg16U"},
+	{name: "Neg32U"},
+	{name: "Neg64U"},
+
 	// Data movement
 	{name: "Phi"},  // select an argument based on which predecessor block we came from
 	{name: "Copy"}, // output = arg0
