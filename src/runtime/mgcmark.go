@@ -160,6 +160,15 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 		return
 	}
 
+	// Don't assist in non-preemptible contexts. These are
+	// generally fragile and won't allow the assist to block.
+	if getg() == gp.m.g0 {
+		return
+	}
+	if mp := getg().m; mp.locks > 0 || mp.preemptoff != "" {
+		return
+	}
+
 	// Compute the amount of assist scan work we need to do.
 	scanWork := int64(gcController.assistRatio*float64(gp.gcalloc)) - gp.gcscanwork
 	// scanWork can be negative if the last assist scanned a large
