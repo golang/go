@@ -164,6 +164,7 @@ func signal_ignore(s uint32) {
 
 // This runs on a foreign stack, without an m or a g.  No stack split.
 //go:nosplit
+//go:norace
 func badsignal(sig uintptr) {
 	cgocallback(unsafe.Pointer(funcPC(badsignalgo)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
 }

@@ -37,6 +37,7 @@ var _runtime_cgo_panic_internal byte
 //go:cgo_export_static _cgo_panic
 //go:cgo_export_dynamic _cgo_panic
 //go:nosplit
+//go:norace
 func _cgo_panic(a unsafe.Pointer, n int32) {
 	_runtime_cgocallback(unsafe.Pointer(&_runtime_cgo_panic_internal), a, uintptr(n))
 }

@@ -1390,6 +1390,7 @@ xfndcl:
 		$$.Nbody = $3;
 		$$.Func.Endlineno = lineno;
 		$$.Noescape = noescape;
+		$$.Func.Norace = norace;
 		$$.Func.Nosplit = nosplit;
 		$$.Func.Nowritebarrier = nowritebarrier;
 		$$.Func.Systemstack = systemstack;
@@ -1579,6 +1580,7 @@ xdcl_list:
 		}
 		nointerface = false
 		noescape = false
+		norace = false
 		nosplit = false
 		nowritebarrier = false
 		systemstack = false

@@ -1612,6 +1612,11 @@ func getlinepragma() int {
 			return c
 		}
 
+		if verb == "go:norace" {
+			norace = true
+			return c
+		}
+
 		if verb == "go:nosplit" {
 			nosplit = true
 			return c
