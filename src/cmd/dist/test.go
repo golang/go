@@ -519,6 +519,9 @@ func (t *tester) dirCmd(dir string, bin string, args ...string) *exec.Cmd {
 	}
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	if vflag > 1 {
+		errprintf("%s\n", strings.Join(cmd.Args, " "))
+	}
 	return cmd
 }
 
