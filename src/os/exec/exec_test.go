@@ -786,3 +786,33 @@ func TestIgnorePipeErrorOnSuccess(t *testing.T) {
 		t.Errorf("output = %q; want %q", got, want)
 	}
 }
+
+type badWriter struct{}
+
+func (w *badWriter) Write(data []byte) (int, error) {
+	return 0, io.ErrUnexpectedEOF
+}
+
+func TestClosePipeOnCopyError(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+		t.Skipf("skipping test on %s - no yes command", runtime.GOOS)
+	}
+	cmd := exec.Command("yes")
+	cmd.Stdout = new(badWriter)
+	c := make(chan int, 1)
+	go func() {
+		err := cmd.Run()
+		if err == nil {
+			t.Errorf("yes completed successfully")
+		}
+		c <- 1
+	}()
+	select {
+	case <-c:
+		// ok
+	case <-time.After(5 * time.Second):
+		t.Fatalf("yes got stuck writing to bad writer")
+	}
+}

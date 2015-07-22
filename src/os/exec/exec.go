@@ -230,6 +230,7 @@ func (c *Cmd) writerDescriptor(w io.Writer) (f *os.File, err error) {
 	c.closeAfterWait = append(c.closeAfterWait, pr)
 	c.goroutine = append(c.goroutine, func() error {
 		_, err := io.Copy(w, pr)
+		pr.Close() // in case io.Copy stopped due to write error
 		return err
 	})
 	return pw, nil
