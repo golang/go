@@ -686,6 +686,15 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OMINUS, TINT64}:  ssa.OpNeg64,
 	opAndType{OMINUS, TUINT64}: ssa.OpNeg64U,
 
+	opAndType{OMUL, TINT8}:   ssa.OpMul8,
+	opAndType{OMUL, TUINT8}:  ssa.OpMul8U,
+	opAndType{OMUL, TINT16}:  ssa.OpMul16,
+	opAndType{OMUL, TUINT16}: ssa.OpMul16U,
+	opAndType{OMUL, TINT32}:  ssa.OpMul32,
+	opAndType{OMUL, TUINT32}: ssa.OpMul32U,
+	opAndType{OMUL, TINT64}:  ssa.OpMul64,
+	opAndType{OMUL, TUINT64}: ssa.OpMul64U,
+
 	opAndType{OLSH, TINT8}:   ssa.OpLsh8,
 	opAndType{OLSH, TUINT8}:  ssa.OpLsh8,
 	opAndType{OLSH, TINT16}:  ssa.OpLsh16,
@@ -825,7 +834,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
 		return s.newValue2(s.ssaOp(n.Op, n.Left.Type), ssa.TypeBool, a, b)
-	case OADD, OSUB, OLSH, ORSH:
+	case OADD, OSUB, OMUL, OLSH, ORSH:
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
 		return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
@@ -1387,7 +1396,7 @@ func genValue(v *ssa.Value) {
 		p.From.Index = regnum(v.Args[1])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
-	case ssa.OpAMD64ADDB, ssa.OpAMD64ANDQ:
+	case ssa.OpAMD64ADDB, ssa.OpAMD64ANDQ, ssa.OpAMD64MULQ, ssa.OpAMD64MULL, ssa.OpAMD64MULW:
 		r := regnum(v)
 		x := regnum(v.Args[0])
 		y := regnum(v.Args[1])
@@ -1417,18 +1426,25 @@ func genValue(v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
 	case ssa.OpAMD64MULQconst:
-		v.Unimplementedf("IMULQ doasm")
-		return
-		// TODO: this isn't right.  doasm fails on it.  I don't think obj
-		// has ever been taught to compile imul $c, r1, r2.
+		r := regnum(v)
+		x := regnum(v.Args[0])
+		if r != x {
+			p := Prog(x86.AMOVQ)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = x
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = r
+		}
 		p := Prog(x86.AIMULQ)
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
-		p.From3 = new(obj.Addr)
-		p.From3.Type = obj.TYPE_REG
-		p.From3.Reg = regnum(v.Args[0])
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v)
+		p.To.Reg = r
+		// TODO: Teach doasm to compile the three-address multiply imul $c, r1, r2
+		// instead of using the MOVQ above.
+		//p.From3 = new(obj.Addr)
+		//p.From3.Type = obj.TYPE_REG
+		//p.From3.Reg = regnum(v.Args[0])
 	case ssa.OpAMD64SUBQconst:
 		// This code compensates for the fact that the register allocator
 		// doesn't understand 2-address instructions yet.  TODO: fix that.

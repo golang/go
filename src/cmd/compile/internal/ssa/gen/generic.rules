@@ -22,7 +22,10 @@
 // constant folding
 (Add64 (Const [c]) (Const [d])) -> (Const [c+d])
 (Add64U (Const [c]) (Const [d])) -> (Const [c+d])
-(Mul <t> (Const [c]) (Const [d])) && is64BitInt(t) -> (Const [c*d])
+(AddPtr (Const [c]) (Const [d])) -> (Const [c+d])
+(Mul64 (Const [c]) (Const [d])) -> (Const [c*d])
+(Mul64U (Const [c]) (Const [d])) -> (Const [c*d])
+(MulPtr (Const [c]) (Const [d])) -> (Const [c*d])
 (IsInBounds (Const [c]) (Const [d])) -> (Const {inBounds(c,d)})
 
 // tear apart slices
@@ -34,7 +37,7 @@
 // indexing operations
 // Note: bounds check has already been done
 (ArrayIndex (Load ptr mem) idx) -> (Load (PtrIndex <v.Type.PtrTo()> ptr idx) mem)
-(PtrIndex <t> ptr idx) -> (AddPtr ptr (Mul <config.Uintptr> idx (Const <config.Uintptr> [t.Elem().Size()])))
+(PtrIndex <t> ptr idx) -> (AddPtr ptr (MulPtr <config.Uintptr> idx (Const <config.Uintptr> [t.Elem().Size()])))
 (StructSelect [idx] (Load ptr mem)) -> (Load (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
 
 // big-object moves
