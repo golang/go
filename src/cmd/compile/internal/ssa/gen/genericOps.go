@@ -29,7 +29,15 @@ var genericOps = []opData{
 	{name: "Sub64U"},
 	// TODO: Sub32F, Sub64F, Sub64C, Sub128C
 
-	{name: "Mul"}, // arg0 * arg1
+	{name: "Mul8"}, // arg0 * arg1
+	{name: "Mul16"},
+	{name: "Mul32"},
+	{name: "Mul64"},
+	{name: "Mul8U"},
+	{name: "Mul16U"},
+	{name: "Mul32U"},
+	{name: "Mul64U"},
+	{name: "MulPtr"}, // MulPtr is used for address calculations
 
 	{name: "Lsh8"}, // arg0 << arg1
 	{name: "Lsh16"},

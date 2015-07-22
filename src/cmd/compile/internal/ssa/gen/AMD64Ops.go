@@ -126,9 +126,12 @@ func init() {
 
 		{name: "CMOVQCC", reg: cmov}, // carry clear
 
-		{name: "MOVLQSX", reg: gp11, asm: "MOVLQSX"}, // extend arg0 from int32 to int64
-		{name: "MOVWQSX", reg: gp11, asm: "MOVWQSX"}, // extend arg0 from int16 to int64
-		{name: "MOVBQSX", reg: gp11, asm: "MOVBQSX"}, // extend arg0 from int8 to int64
+		{name: "MOVBQSX", reg: gp11, asm: "MOVBQSX"}, // sign extend arg0 from int8 to int64
+		{name: "MOVBQZX", reg: gp11, asm: "MOVBQZX"}, // zero extend arg0 from int8 to int64
+		{name: "MOVWQSX", reg: gp11, asm: "MOVWQSX"}, // sign extend arg0 from int16 to int64
+		{name: "MOVWQZX", reg: gp11, asm: "MOVWQZX"}, // zero extend arg0 from int16 to int64
+		{name: "MOVLQSX", reg: gp11, asm: "MOVLQSX"}, // sign extend arg0 from int32 to int64
+		{name: "MOVLQZX", reg: gp11, asm: "MOVLQZX"}, // zero extend arg0 from int32 to int64
 
 		{name: "MOVQconst", reg: gp01}, // auxint
 		{name: "LEAQ", reg: gp11sb},    // arg0 + auxint + offset encoded in aux
@@ -181,6 +184,9 @@ func init() {
 		{name: "NEGL", reg: gp11, asm: "NEGL"}, // -arg0
 		{name: "NEGW", reg: gp11, asm: "NEGW"}, // -arg0
 		{name: "NEGB", reg: gp11, asm: "NEGB"}, // -arg0
+
+		{name: "MULL", reg: gp21, asm: "IMULL"}, // arg0*arg1
+		{name: "MULW", reg: gp21, asm: "IMULW"}, // arg0*arg1
 
 		// (InvertFlags (CMPQ a b)) == (CMPQ b a)
 		// So if we want (SETL (CMPQ a b)) but we can't do that because a is a constant,

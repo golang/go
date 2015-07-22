@@ -41,11 +41,25 @@
 (Neg8U x) -> (NEGB x)
 (Neg8 x) -> (MOVBQSX (NEGB <v.Type> x))
 
-(Mul <t> x y) && is64BitInt(t) -> (MULQ x y)
+(Mul64 x y) -> (MULQ x y)
+(Mul64U x y) -> (MULQ x y)
+(MulPtr x y) -> (MULQ x y)
+(Mul32 x y) -> (MOVLQSX (MULL <v.Type> x y))
+(Mul32U x y) -> (MULL x y)
+(Mul16 x y) -> (MOVWQSX (MULW <v.Type> x y))
+(Mul16U x y) -> (MULW x y)
+// Note: we use 16-bit multiply instructions for 8-bit multiplies because
+// the 16-bit multiply instructions are more forgiving (they operate on
+// any register instead of just AX/DX).
+(Mul8 x y) -> (MOVBQSX (MULW <TypeInt16> x y))
+(Mul8U x y) -> (MOVBQZX (MULW <TypeUInt16> x y))
 
 (MOVLstore ptr (MOVLQSX x) mem) -> (MOVLstore ptr x mem)
 (MOVWstore ptr (MOVWQSX x) mem) -> (MOVWstore ptr x mem)
 (MOVBstore ptr (MOVBQSX x) mem) -> (MOVBstore ptr x mem)
+(MOVLstore ptr (MOVLQZX x) mem) -> (MOVLstore ptr x mem)
+(MOVWstore ptr (MOVWQZX x) mem) -> (MOVWstore ptr x mem)
+(MOVBstore ptr (MOVBQZX x) mem) -> (MOVBstore ptr x mem)
 
 (Convert <t> x) && t.IsInteger() && x.Type.IsInteger() -> (Copy x)
 (ConvNop <t> x) && t == x.Type -> (Copy x)

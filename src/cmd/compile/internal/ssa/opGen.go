@@ -75,9 +75,12 @@ const (
 	OpAMD64SETGE
 	OpAMD64SETB
 	OpAMD64CMOVQCC
-	OpAMD64MOVLQSX
-	OpAMD64MOVWQSX
 	OpAMD64MOVBQSX
+	OpAMD64MOVBQZX
+	OpAMD64MOVWQSX
+	OpAMD64MOVWQZX
+	OpAMD64MOVLQSX
+	OpAMD64MOVLQZX
 	OpAMD64MOVQconst
 	OpAMD64LEAQ
 	OpAMD64LEAQ1
@@ -117,6 +120,8 @@ const (
 	OpAMD64NEGL
 	OpAMD64NEGW
 	OpAMD64NEGB
+	OpAMD64MULL
+	OpAMD64MULW
 	OpAMD64InvertFlags
 
 	OpAdd8
@@ -136,7 +141,15 @@ const (
 	OpSub16U
 	OpSub32U
 	OpSub64U
-	OpMul
+	OpMul8
+	OpMul16
+	OpMul32
+	OpMul64
+	OpMul8U
+	OpMul16U
+	OpMul32U
+	OpMul64U
+	OpMulPtr
 	OpLsh8
 	OpLsh16
 	OpLsh32
@@ -533,8 +546,20 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "MOVLQSX",
-		asm:  x86.AMOVLQSX,
+		name: "MOVBQSX",
+		asm:  x86.AMOVBQSX,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "MOVBQZX",
+		asm:  x86.AMOVBQZX,
 		reg: regInfo{
 			inputs: []regMask{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -557,8 +582,32 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "MOVBQSX",
-		asm:  x86.AMOVBQSX,
+		name: "MOVWQZX",
+		asm:  x86.AMOVWQZX,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "MOVLQSX",
+		asm:  x86.AMOVLQSX,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "MOVLQZX",
+		asm:  x86.AMOVLQZX,
 		reg: regInfo{
 			inputs: []regMask{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1007,6 +1056,32 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name: "MULL",
+		asm:  x86.AIMULL,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "MULW",
+		asm:  x86.AIMULW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
 		name: "InvertFlags",
 		reg:  regInfo{},
 	},
@@ -1080,7 +1155,39 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "Mul",
+		name:    "Mul8",
+		generic: true,
+	},
+	{
+		name:    "Mul16",
+		generic: true,
+	},
+	{
+		name:    "Mul32",
+		generic: true,
+	},
+	{
+		name:    "Mul64",
+		generic: true,
+	},
+	{
+		name:    "Mul8U",
+		generic: true,
+	},
+	{
+		name:    "Mul16U",
+		generic: true,
+	},
+	{
+		name:    "Mul32U",
+		generic: true,
+	},
+	{
+		name:    "Mul64U",
+		generic: true,
+	},
+	{
+		name:    "MulPtr",
 		generic: true,
 	},
 	{
