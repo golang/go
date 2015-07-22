@@ -97,6 +97,7 @@ var redirects = map[string]string{
 	"/issue":      "https://github.com/golang/go/issues",
 	"/issue/new":  "https://github.com/golang/go/issues/new",
 	"/issues":     "https://github.com/golang/go/issues",
+	"/issues/new": "https://github.com/golang/go/issues/new",
 	"/play":       "http://play.golang.org",
 
 	// In Go 1.2 the references page is part of /doc/.
@@ -131,10 +132,11 @@ var redirects = map[string]string{
 }
 
 var prefixHelpers = map[string]string{
-	"issue": "https://github.com/golang/go/issues/",
-	"play":  "http://play.golang.org/",
-	"talks": "http://talks.golang.org/",
-	"wiki":  "https://github.com/golang/go/wiki/",
+	"issue":  "https://github.com/golang/go/issues/",
+	"issues": "https://github.com/golang/go/issues/",
+	"play":   "http://play.golang.org/",
+	"talks":  "http://talks.golang.org/",
+	"wiki":   "https://github.com/golang/go/wiki/",
 }
 
 func Handler(target string) http.Handler {
