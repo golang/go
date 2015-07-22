@@ -1083,16 +1083,16 @@ func hostlink() {
 				Ctxt.Cursym = nil
 				Exitf("%s: running dsymutil failed: %v\n%s", os.Args[0], err, out)
 			}
-			combinedOutput := fmt.Sprintf("%s/go.combined", tmpdir)
+			// For os.Rename to work reliably, must be in same directory as outfile.
+			combinedOutput := outfile + "~"
 			if err := machoCombineDwarf(outfile, dsym, combinedOutput); err != nil {
 				Ctxt.Cursym = nil
 				Exitf("%s: combining dwarf failed: %v", os.Args[0], err)
 			}
-			origOutput := fmt.Sprintf("%s/go.orig", tmpdir)
-			os.Rename(outfile, origOutput)
+			os.Remove(outfile)
 			if err := os.Rename(combinedOutput, outfile); err != nil {
 				Ctxt.Cursym = nil
-				Exitf("%s: rename(%s, %s) failed: %v", os.Args[0], combinedOutput, outfile, err)
+				Exitf("%s: %v", os.Args[0], err)
 			}
 		}
 	}
