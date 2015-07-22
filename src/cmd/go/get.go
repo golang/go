@@ -51,6 +51,10 @@ rule is that if the local installation is running version "go1", get
 searches for a branch or tag named "go1". If no such version exists it
 retrieves the most recent version of the package.
 
+If the vendoring experiment is enabled (see 'go help gopath'),
+then when go get checks out or updates a Git repository,
+it also updates any git submodules referenced by the repository.
+
 For more about specifying packages, see 'go help packages'.
 
 For more about how 'go get' finds source code to

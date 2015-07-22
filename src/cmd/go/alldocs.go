@@ -135,8 +135,8 @@ in an element in the list, surround it with either single or double quotes.
 
 For more about specifying packages, see 'go help packages'.
 For more about where packages and binaries are installed,
-run 'go help gopath'.  For more about calling between Go and C/C++,
-run 'go help c'.
+run 'go help gopath'.
+For more about calling between Go and C/C++, run 'go help c'.
 
 See also: go install, go get, go clean.
 
@@ -471,6 +471,10 @@ that matches the locally installed version of Go. The most important
 rule is that if the local installation is running version "go1", get
 searches for a branch or tag named "go1". If no such version exists it
 retrieves the most recent version of the package.
+
+If the vendoring experiment is enabled (see 'go help gopath'),
+then when go get checks out or updates a Git repository,
+it also updates any git submodules referenced by the repository.
 
 For more about specifying packages, see 'go help packages'.
 
@@ -838,10 +842,10 @@ standard Go tree.
 
 Each directory listed in GOPATH must have a prescribed structure:
 
-The src/ directory holds source code.  The path below 'src'
+The src directory holds source code.  The path below src
 determines the import path or executable name.
 
-The pkg/ directory holds installed package objects.
+The pkg directory holds installed package objects.
 As in the Go tree, each target operating system and
 architecture pair has its own subdirectory of pkg
 (pkg/GOOS_GOARCH).
@@ -850,11 +854,11 @@ If DIR is a directory listed in the GOPATH, a package with
 source in DIR/src/foo/bar can be imported as "foo/bar" and
 has its compiled form installed to "DIR/pkg/GOOS_GOARCH/foo/bar.a".
 
-The bin/ directory holds compiled commands.
+The bin directory holds compiled commands.
 Each command is named for its source directory, but only
 the final element, not the entire path.  That is, the
 command with source in DIR/src/foo/quux is installed into
-DIR/bin/quux, not DIR/bin/foo/quux.  The foo/ is stripped
+DIR/bin/quux, not DIR/bin/foo/quux.  The "foo/" prefix is stripped
 so that you can add DIR/bin to your PATH to get at the
 installed commands.  If the GOBIN environment variable is
 set, commands are installed to the directory it names instead
@@ -883,6 +887,91 @@ but new packages are always downloaded into the first directory
 in the list.
 
 See https://golang.org/doc/code.html for an example.
+
+Internal Directories
+
+Code in or below a directory named "internal" is importable only
+by code in the directory tree rooted at the parent of "internal".
+Here's an extended version of the directory layout above:
+
+    /home/user/gocode/
+        src/
+            crash/
+                bang/              (go code in package bang)
+                    b.go
+            foo/                   (go code in package foo)
+                f.go
+                bar/               (go code in package bar)
+                    x.go
+                internal/
+                    baz/           (go code in package baz)
+                        z.go
+                quux/              (go code in package main)
+                    y.go
+
+
+The code in z.go is imported as "foo/internal/baz", but that
+import statement can only appear in source files in the subtree
+rooted at foo. The source files foo/f.go, foo/bar/x.go, and
+foo/quux/y.go can all import "foo/internal/baz", but the source file
+crash/bang/b.go cannot.
+
+See https://golang.org/s/go14internal for details.
+
+Vendor Directories
+
+Go 1.5 includes experimental support for using local copies
+of external dependencies to satisfy imports of those dependencies,
+often referred to as vendoring. Setting the environment variable
+GO15VENDOREXPERIMENT=1 enables that experimental support.
+
+When the vendor experiment is enabled,
+code below a directory named "vendor" is importable only
+by code in the directory tree rooted at the parent of "vendor",
+and only using an import path that omits the prefix up to and
+including the vendor element.
+
+Here's the example from the previous section,
+but with the "internal" directory renamed to "vendor"
+and a new foo/vendor/crash/bang directory added:
+
+    /home/user/gocode/
+        src/
+            crash/
+                bang/              (go code in package bang)
+                    b.go
+            foo/                   (go code in package foo)
+                f.go
+                bar/               (go code in package bar)
+                    x.go
+                vendor/
+                    crash/
+                        bang/      (go code in package bang)
+                            b.go
+                    baz/           (go code in package baz)
+                        z.go
+                quux/              (go code in package main)
+                    y.go
+
+The same visibility rules apply as for internal, but the code
+in z.go is imported as "baz", not as "foo/vendor/baz".
+
+Code in vendor directories deeper in the source tree shadows
+code in higher directories. Within the subtree rooted at foo, an import
+of "crash/bang" resolves to "foo/vendor/crash/bang", not the
+top-level "crash/bang".
+
+Code in vendor directories is not subject to import path
+checking (see 'go help importpath').
+
+When the vendor experiment is enabled, 'go get' checks out
+submodules when checking out or updating a git repository
+(see 'go help get').
+
+The vendoring semantics are an experiment, and they may change
+in future releases. Once settled, they will be on by default.
+
+See https://golang.org/s/go15vendor for details.
 
 
 Import path syntax
@@ -1053,6 +1142,11 @@ The go command will refuse to install a package with an import comment
 unless it is being referred to by that import path. In this way, import comments
 let package authors make sure the custom import path is used and not a
 direct path to the underlying code hosting site.
+
+If the vendoring experiment is enabled (see 'go help gopath'),
+then import path checking is disabled for code found within vendor trees.
+This makes it possible to copy code into alternate locations in vendor trees
+without needing to update import comments.
 
 See https://golang.org/s/go14customimport for details.
 
