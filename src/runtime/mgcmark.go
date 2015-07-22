@@ -182,7 +182,7 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 		} else {
 			stolen = scanWork
 		}
-		xaddint64(&gcController.bgScanCredit, -scanWork)
+		xaddint64(&gcController.bgScanCredit, -stolen)
 
 		scanWork -= stolen
 		gp.gcscanwork += stolen
