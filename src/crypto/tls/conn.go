@@ -1025,5 +1025,8 @@ func (c *Conn) VerifyHostname(host string) error {
 	if !c.handshakeComplete {
 		return errors.New("tls: handshake has not yet been performed")
 	}
+	if len(c.verifiedChains) == 0 {
+		return errors.New("tls: handshake did not verify certificate chain")
+	}
 	return c.peerCertificates[0].VerifyHostname(host)
 }
