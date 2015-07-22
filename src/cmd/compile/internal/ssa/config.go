@@ -60,6 +60,8 @@ func NewConfig(arch string, fe Frontend) *Config {
 	return c
 }
 
+func (c *Config) Frontend() Frontend { return c.fe }
+
 // NewFunc returns a new, empty function object
 func (c *Config) NewFunc() *Func {
 	// TODO(khr): should this function take name, type, etc. as arguments?

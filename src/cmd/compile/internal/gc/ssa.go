@@ -6,6 +6,7 @@ package gc
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"cmd/compile/internal/ssa"
@@ -146,7 +147,10 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 	if e.unimplemented {
 		return nil, false
 	}
-	return s.f, usessa // TODO: return s.f, true once runtime support is in (gc maps, write barriers, etc.)
+
+	// TODO: enable codegen more broadly once the codegen stabilizes
+	// and runtime support is in (gc maps, write barriers, etc.)
+	return s.f, usessa || name == os.Getenv("GOSSAFUNC") || localpkg.Name == os.Getenv("GOSSAPKG")
 }
 
 type state struct {
@@ -1321,6 +1325,12 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 		return
 	}
 
+	e := f.Config.Frontend().(*ssaExport)
+	// We're about to emit a bunch of Progs.
+	// Since the only way to get here is to explicitly request it,
+	// just fail on unimplemented instead of trying to unwind our mess.
+	e.mustImplement = true
+
 	ptxt.To.Type = obj.TYPE_TEXTSIZE
 	ptxt.To.Val = int32(Rnd(Curfn.Type.Argwid, int64(Widthptr))) // arg size
 	ptxt.To.Offset = f.FrameSize - 8                             // TODO: arch-dependent
@@ -1688,7 +1698,7 @@ func genValue(v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
 	default:
-		v.Unimplementedf("value %s not implemented", v.LongString())
+		v.Unimplementedf("genValue not implemented: %s", v.LongString())
 	}
 }
 
@@ -1810,7 +1820,7 @@ func genBlock(b, next *ssa.Block, branches []branch) []branch {
 		}
 
 	default:
-		b.Unimplementedf("branch %s not implemented", b.LongString())
+		b.Unimplementedf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())
 	}
 	return branches
 }
@@ -1900,6 +1910,7 @@ func localOffset(v *ssa.Value) int64 {
 type ssaExport struct {
 	log           bool
 	unimplemented bool
+	mustImplement bool
 }
 
 // StringSym returns a symbol (a *Sym wrapped in an interface) which
@@ -1929,6 +1940,9 @@ func (e *ssaExport) Fatalf(msg string, args ...interface{}) {
 // Unimplemented reports that the function cannot be compiled.
 // It will be removed once SSA work is complete.
 func (e *ssaExport) Unimplementedf(msg string, args ...interface{}) {
+	if e.mustImplement {
+		Fatal(msg, args...)
+	}
 	const alwaysLog = false // enable to calculate top unimplemented features
 	if !e.unimplemented && (e.log || alwaysLog) {
 		// first implementation failure, print explanation
