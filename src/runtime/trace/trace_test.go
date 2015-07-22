@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package pprof_test
+package trace_test
 
 import (
 	"bytes"
@@ -11,7 +11,7 @@ import (
 	"net"
 	"os"
 	"runtime"
-	. "runtime/pprof"
+	. "runtime/trace"
 	"sync"
 	"testing"
 	"time"
@@ -39,10 +39,10 @@ func skipTraceTestsIfNeeded(t *testing.T) {
 func TestTraceStartStop(t *testing.T) {
 	skipTraceTestsIfNeeded(t)
 	buf := new(bytes.Buffer)
-	if err := StartTrace(buf); err != nil {
+	if err := Start(buf); err != nil {
 		t.Fatalf("failed to start tracing: %v", err)
 	}
-	StopTrace()
+	Stop()
 	size := buf.Len()
 	if size == 0 {
 		t.Fatalf("trace is empty")
@@ -55,25 +55,25 @@ func TestTraceStartStop(t *testing.T) {
 
 func TestTraceDoubleStart(t *testing.T) {
 	skipTraceTestsIfNeeded(t)
-	StopTrace()
+	Stop()
 	buf := new(bytes.Buffer)
-	if err := StartTrace(buf); err != nil {
+	if err := Start(buf); err != nil {
 		t.Fatalf("failed to start tracing: %v", err)
 	}
-	if err := StartTrace(buf); err == nil {
+	if err := Start(buf); err == nil {
 		t.Fatalf("succeed to start tracing second time")
 	}
-	StopTrace()
-	StopTrace()
+	Stop()
+	Stop()
 }
 
 func TestTrace(t *testing.T) {
 	skipTraceTestsIfNeeded(t)
 	buf := new(bytes.Buffer)
-	if err := StartTrace(buf); err != nil {
+	if err := Start(buf); err != nil {
 		t.Fatalf("failed to start tracing: %v", err)
 	}
-	StopTrace()
+	Stop()
 	_, err := trace.Parse(buf)
 	if err != nil {
 		t.Fatalf("failed to parse trace: %v", err)
@@ -126,7 +126,7 @@ func TestTraceStress(t *testing.T) {
 	time.Sleep(time.Millisecond) // give the goroutine above time to block
 
 	buf := new(bytes.Buffer)
-	if err := StartTrace(buf); err != nil {
+	if err := Start(buf); err != nil {
 		t.Fatalf("failed to start tracing: %v", err)
 	}
 
@@ -220,7 +220,7 @@ func TestTraceStress(t *testing.T) {
 
 	runtime.GOMAXPROCS(procs)
 
-	StopTrace()
+	Stop()
 	_, _, err = parseTrace(buf)
 	if err != nil {
 		t.Fatalf("failed to parse trace: %v", err)
@@ -356,11 +356,11 @@ func TestTraceStressStartStop(t *testing.T) {
 
 	for i := 0; i < 3; i++ {
 		buf := new(bytes.Buffer)
-		if err := StartTrace(buf); err != nil {
+		if err := Start(buf); err != nil {
 			t.Fatalf("failed to start tracing: %v", err)
 		}
 		time.Sleep(time.Millisecond)
-		StopTrace()
+		Stop()
 		if _, _, err := parseTrace(buf); err != nil {
 			t.Fatalf("failed to parse trace: %v", err)
 		}
@@ -377,7 +377,7 @@ func TestTraceFutileWakeup(t *testing.T) {
 	}
 
 	buf := new(bytes.Buffer)
-	if err := StartTrace(buf); err != nil {
+	if err := Start(buf); err != nil {
 		t.Fatalf("failed to start tracing: %v", err)
 	}
 
@@ -427,7 +427,7 @@ func TestTraceFutileWakeup(t *testing.T) {
 	}
 	done.Wait()
 
-	StopTrace()
+	Stop()
 	events, _, err := parseTrace(buf)
 	if err != nil {
 		t.Fatalf("failed to parse trace: %v", err)

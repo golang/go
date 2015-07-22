@@ -151,9 +151,10 @@ var pkgDeps = map[string][]string{
 	"regexp/syntax":  {"L2"},
 	"runtime/debug":  {"L2", "fmt", "io/ioutil", "os", "time"},
 	"runtime/pprof":  {"L2", "fmt", "text/tabwriter"},
+	"runtime/trace":  {"L0"},
 	"text/tabwriter": {"L2"},
 
-	"testing":        {"L2", "flag", "fmt", "os", "runtime/pprof", "time"},
+	"testing":        {"L2", "flag", "fmt", "os", "runtime/pprof", "runtime/trace", "time"},
 	"testing/iotest": {"L2", "log"},
 	"testing/quick":  {"L2", "flag", "fmt", "reflect"},
 
@@ -331,7 +332,7 @@ var pkgDeps = map[string][]string{
 	"net/http/fcgi":     {"L4", "NET", "OS", "net/http", "net/http/cgi"},
 	"net/http/httptest": {"L4", "NET", "OS", "crypto/tls", "flag", "net/http"},
 	"net/http/httputil": {"L4", "NET", "OS", "net/http", "net/http/internal"},
-	"net/http/pprof":    {"L4", "OS", "html/template", "net/http", "runtime/pprof"},
+	"net/http/pprof":    {"L4", "OS", "html/template", "net/http", "runtime/pprof", "runtime/trace"},
 	"net/rpc":           {"L4", "NET", "encoding/gob", "html/template", "net/http"},
 	"net/rpc/jsonrpc":   {"L4", "NET", "encoding/json", "net/rpc"},
 

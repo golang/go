@@ -58,6 +58,7 @@ import (
 	"os"
 	"runtime"
 	"runtime/pprof"
+	"runtime/trace"
 	"strconv"
 	"strings"
 	"time"
@@ -112,11 +113,11 @@ func Trace(w http.ResponseWriter, r *http.Request) {
 		sec = 1
 	}
 
-	// Set Content Type assuming StartTrace will work,
+	// Set Content Type assuming trace.Start will work,
 	// because if it does it starts writing.
 	w.Header().Set("Content-Type", "application/octet-stream")
-	if err := pprof.StartTrace(w); err != nil {
-		// StartTrace failed, so no writes yet.
+	if err := trace.Start(w); err != nil {
+		// trace.Start failed, so no writes yet.
 		// Can change header back to text content and send error code.
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -124,7 +125,7 @@ func Trace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	time.Sleep(time.Duration(sec) * time.Second)
-	pprof.StopTrace()
+	trace.Stop()
 }
 
 // Symbol looks up the program counters listed in the request,
