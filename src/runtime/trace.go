@@ -127,7 +127,7 @@ type traceBuf struct {
 // StartTrace enables tracing for the current process.
 // While tracing, the data will be buffered and available via ReadTrace.
 // StartTrace returns an error if tracing is already enabled.
-// Most clients should use the runtime/pprof package or the testing package's
+// Most clients should use the runtime/trace package or the testing package's
 // -test.trace flag instead of calling StartTrace directly.
 func StartTrace() error {
 	// Stop the world, so that we can take a consistent snapshot
@@ -347,7 +347,7 @@ func ReadTrace() []byte {
 		if raceenabled {
 			// Model synchronization on trace.shutdownSema, which race
 			// detector does not see. This is required to avoid false
-			// race reports on writer passed to pprof.StartTrace.
+			// race reports on writer passed to trace.Start.
 			racerelease(unsafe.Pointer(&trace.shutdownSema))
 		}
 		// trace.enabled is already reset, so can call traceable functions.
