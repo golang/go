@@ -219,7 +219,7 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT,$0-36
 	RET
 
 TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
-	MOVQ	sig+8(FP), DI
+	MOVL	sig+8(FP), DI
 	MOVQ	info+16(FP), SI
 	MOVQ	ctx+24(FP), DX
 	MOVQ	fn+0(FP), AX

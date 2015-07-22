@@ -304,6 +304,12 @@ func updatesigmask(m sigmask) {
 	sigprocmask(_SIG_SETMASK, &mask, nil)
 }
 
+func unblocksig(sig int32) {
+	var mask sigset
+	mask.__sigbits[(sig-1)/32] |= 1 << ((uint32(sig) - 1) & 31)
+	sigprocmask(_SIG_UNBLOCK, &mask, nil)
+}
+
 //go:nosplit
 func semacreate() uintptr {
 	var sem *semt

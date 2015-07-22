@@ -239,3 +239,8 @@ func signalstack(s *stack) {
 func updatesigmask(m sigmask) {
 	sigprocmask(_SIG_SETMASK, m[0])
 }
+
+func unblocksig(sig int32) {
+	mask := uint32(1) << (uint32(sig) - 1)
+	sigprocmask(_SIG_UNBLOCK, mask)
+}
