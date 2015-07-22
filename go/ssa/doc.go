@@ -23,7 +23,7 @@
 // such as multi-way branch can be reconstructed as needed; see
 // ssautil.Switches() for an example.
 //
-// To construct an SSA-form program, call ssa.Create on a
+// To construct an SSA-form program, call ssautil.CreateProgram on a
 // loader.Program, a set of type-checked packages created from
 // parsed Go source files.  The resulting ssa.Program contains all the
 // packages and their members, but SSA code is not created for
