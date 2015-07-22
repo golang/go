@@ -42,6 +42,7 @@ func ispkgin(pkgs []string) bool {
 	return false
 }
 
+// TODO(rsc): Remove. Put //go:norace on forkAndExecInChild instead.
 func isforkfunc(fn *Node) bool {
 	// Special case for syscall.forkAndExecInChild.
 	// In the child, this function must not acquire any locks, because
@@ -52,7 +53,7 @@ func isforkfunc(fn *Node) bool {
 }
 
 func racewalk(fn *Node) {
-	if ispkgin(omit_pkgs) || isforkfunc(fn) {
+	if ispkgin(omit_pkgs) || isforkfunc(fn) || fn.Func.Norace {
 		return
 	}
 

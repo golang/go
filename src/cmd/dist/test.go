@@ -822,6 +822,14 @@ func (t *tester) raceTest() error {
 	if err := t.dirCmd("src", "go", "test", "-race", "-short", "flag", "os/exec").Run(); err != nil {
 		return err
 	}
+	if t.cgoEnabled {
+		env := mergeEnvLists([]string{"GOTRACEBACK=2"}, os.Environ())
+		cmd := t.dirCmd("misc/cgo/test", "go", "test", "-race", "-short")
+		cmd.Env = env
+		if err := cmd.Run(); err != nil {
+			return err
+		}
+	}
 	if t.extLink() {
 		// Test with external linking; see issue 9133.
 		if err := t.dirCmd("src", "go", "test", "-race", "-short", "-ldflags=-linkmode=external", "flag", "os/exec").Run(); err != nil {
