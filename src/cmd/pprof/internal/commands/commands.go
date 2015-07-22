@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 
 	"cmd/pprof/internal/plugin"
 	"cmd/pprof/internal/report"
@@ -224,6 +225,11 @@ func invokeVisualizer(interactive **bool, format PostProcessor, suffix string, v
 			viewer := exec.Command(args[0], append(args[1:], tempFile.Name())...)
 			viewer.Stderr = os.Stderr
 			if err = viewer.Start(); err == nil {
+				// The viewer might just send a message to another program
+				// to open the file. Give that program a little time to open the
+				// file before we remove it.
+				time.Sleep(1 * time.Second)
+
 				if !**interactive {
 					// In command-line mode, wait for the viewer to be closed
 					// before proceeding
