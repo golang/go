@@ -874,8 +874,8 @@ pkg reflect, func FuncOf([]Type, []Type, bool) Type
 pkg runtime, func ReadTrace() []uint8
 pkg runtime, func StartTrace() error
 pkg runtime, func StopTrace()
-pkg runtime/pprof, func StartTrace(io.Writer) error
-pkg runtime/pprof, func StopTrace()
+pkg runtime/trace, func Start(io.Writer) error
+pkg runtime/trace, func Stop()
 pkg strings, func Compare(string, string) int
 pkg strings, func LastIndexByte(string, uint8) int
 pkg strings, method (*Reader) Size() int64

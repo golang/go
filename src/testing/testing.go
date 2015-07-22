@@ -150,6 +150,7 @@ import (
 	"os"
 	"runtime"
 	"runtime/pprof"
+	"runtime/trace"
 	"strconv"
 	"strings"
 	"sync"
@@ -180,7 +181,7 @@ var (
 	cpuProfile       = flag.String("test.cpuprofile", "", "write a cpu profile to the named file during execution")
 	blockProfile     = flag.String("test.blockprofile", "", "write a goroutine blocking profile to the named file after execution")
 	blockProfileRate = flag.Int("test.blockprofilerate", 1, "if >= 0, calls runtime.SetBlockProfileRate()")
-	trace            = flag.String("test.trace", "", "write an execution trace to the named file after execution")
+	traceFile        = flag.String("test.trace", "", "write an execution trace to the named file after execution")
 	timeout          = flag.Duration("test.timeout", 0, "if positive, sets an aggregate time limit for all tests")
 	cpuListStr       = flag.String("test.cpu", "", "comma-separated list of number of CPUs to use for each test")
 	parallel         = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "maximum test parallelism")
@@ -605,13 +606,13 @@ func before() {
 		}
 		// Could save f so after can call f.Close; not worth the effort.
 	}
-	if *trace != "" {
-		f, err := os.Create(toOutputDir(*trace))
+	if *traceFile != "" {
+		f, err := os.Create(toOutputDir(*traceFile))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "testing: %s", err)
 			return
 		}
-		if err := pprof.StartTrace(f); err != nil {
+		if err := trace.Start(f); err != nil {
 			fmt.Fprintf(os.Stderr, "testing: can't start tracing: %s", err)
 			f.Close()
 			return
@@ -632,8 +633,8 @@ func after() {
 	if *cpuProfile != "" {
 		pprof.StopCPUProfile() // flushes profile to disk
 	}
-	if *trace != "" {
-		pprof.StopTrace() // flushes trace to disk
+	if *traceFile != "" {
+		trace.Stop() // flushes trace to disk
 	}
 	if *memProfile != "" {
 		f, err := os.Create(toOutputDir(*memProfile))

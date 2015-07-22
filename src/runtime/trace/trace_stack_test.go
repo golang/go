@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package pprof_test
+package trace_test
 
 import (
 	"bytes"
@@ -10,7 +10,7 @@ import (
 	"net"
 	"os"
 	"runtime"
-	. "runtime/pprof"
+	. "runtime/trace"
 	"sync"
 	"testing"
 	"time"
@@ -25,7 +25,7 @@ func TestTraceSymbolize(t *testing.T) {
 		t.Skip("skipping: nacl tests fail with 'failed to symbolize trace: failed to start addr2line'")
 	}
 	buf := new(bytes.Buffer)
-	if err := StartTrace(buf); err != nil {
+	if err := Start(buf); err != nil {
 		t.Fatalf("failed to start tracing: %v", err)
 	}
 
@@ -124,7 +124,7 @@ func TestTraceSymbolize(t *testing.T) {
 	wp.Write(data[:])
 	<-pipeReadDone
 
-	StopTrace()
+	Stop()
 	events, _, err := parseTrace(buf)
 	if err != nil {
 		t.Fatalf("failed to parse trace: %v", err)
@@ -146,87 +146,87 @@ func TestTraceSymbolize(t *testing.T) {
 	want := []eventDesc{
 		eventDesc{trace.EvGCStart, []frame{
 			frame{"runtime.GC", 0},
-			frame{"runtime/pprof_test.TestTraceSymbolize", 106},
+			frame{"runtime/trace_test.TestTraceSymbolize", 106},
 			frame{"testing.tRunner", 0},
 		}},
 		eventDesc{trace.EvGoSched, []frame{
-			frame{"runtime/pprof_test.TestTraceSymbolize", 107},
+			frame{"runtime/trace_test.TestTraceSymbolize", 107},
 			frame{"testing.tRunner", 0},
 		}},
 		eventDesc{trace.EvGoCreate, []frame{
-			frame{"runtime/pprof_test.TestTraceSymbolize", 39},
+			frame{"runtime/trace_test.TestTraceSymbolize", 39},
 			frame{"testing.tRunner", 0},
 		}},
 		eventDesc{trace.EvGoStop, []frame{
 			frame{"runtime.block", 0},
-			frame{"runtime/pprof_test.TestTraceSymbolize.func1", 38},
+			frame{"runtime/trace_test.TestTraceSymbolize.func1", 38},
 		}},
 		eventDesc{trace.EvGoStop, []frame{
 			frame{"runtime.chansend1", 0},
-			frame{"runtime/pprof_test.TestTraceSymbolize.func2", 42},
+			frame{"runtime/trace_test.TestTraceSymbolize.func2", 42},
 		}},
 		eventDesc{trace.EvGoStop, []frame{
 			frame{"runtime.chanrecv1", 0},
-			frame{"runtime/pprof_test.TestTraceSymbolize.func3", 46},
+			frame{"runtime/trace_test.TestTraceSymbolize.func3", 46},
 		}},
 		eventDesc{trace.EvGoBlockRecv, []frame{
 			frame{"runtime.chanrecv1", 0},
-			frame{"runtime/pprof_test.TestTraceSymbolize.func4", 50},
+			frame{"runtime/trace_test.TestTraceSymbolize.func4", 50},
 		}},
 		eventDesc{trace.EvGoUnblock, []frame{
 			frame{"runtime.chansend1", 0},
-			frame{"runtime/pprof_test.TestTraceSymbolize", 109},
+			frame{"runtime/trace_test.TestTraceSymbolize", 109},
 			frame{"testing.tRunner", 0},
 		}},
 		eventDesc{trace.EvGoBlockSend, []frame{
 			frame{"runtime.chansend1", 0},
-			frame{"runtime/pprof_test.TestTraceSymbolize.func5", 54},
+			frame{"runtime/trace_test.TestTraceSymbolize.func5", 54},
 		}},
 		eventDesc{trace.EvGoUnblock, []frame{
 			frame{"runtime.chanrecv1", 0},
-			frame{"runtime/pprof_test.TestTraceSymbolize", 110},
+			frame{"runtime/trace_test.TestTraceSymbolize", 110},
 			frame{"testing.tRunner", 0},
 		}},
 		eventDesc{trace.EvGoBlockSelect, []frame{
 			frame{"runtime.selectgo", 0},
-			frame{"runtime/pprof_test.TestTraceSymbolize.func6", 59},
+			frame{"runtime/trace_test.TestTraceSymbolize.func6", 59},
 		}},
 		eventDesc{trace.EvGoUnblock, []frame{
 			frame{"runtime.selectgo", 0},
-			frame{"runtime/pprof_test.TestTraceSymbolize", 111},
+			frame{"runtime/trace_test.TestTraceSymbolize", 111},
 			frame{"testing.tRunner", 0},
 		}},
 		eventDesc{trace.EvGoBlockSync, []frame{
 			frame{"sync.(*Mutex).Lock", 0},
-			frame{"runtime/pprof_test.TestTraceSymbolize.func7", 67},
+			frame{"runtime/trace_test.TestTraceSymbolize.func7", 67},
 		}},
 		eventDesc{trace.EvGoUnblock, []frame{
 			frame{"sync.(*Mutex).Unlock", 0},
-			frame{"runtime/pprof_test.TestTraceSymbolize", 115},
+			frame{"runtime/trace_test.TestTraceSymbolize", 115},
 			frame{"testing.tRunner", 0},
 		}},
 		eventDesc{trace.EvGoBlockSync, []frame{
 			frame{"sync.(*WaitGroup).Wait", 0},
-			frame{"runtime/pprof_test.TestTraceSymbolize.func8", 73},
+			frame{"runtime/trace_test.TestTraceSymbolize.func8", 73},
 		}},
 		eventDesc{trace.EvGoUnblock, []frame{
 			frame{"sync.(*WaitGroup).Add", 0},
 			frame{"sync.(*WaitGroup).Done", 0},
-			frame{"runtime/pprof_test.TestTraceSymbolize", 116},
+			frame{"runtime/trace_test.TestTraceSymbolize", 116},
 			frame{"testing.tRunner", 0},
 		}},
 		eventDesc{trace.EvGoBlockCond, []frame{
 			frame{"sync.(*Cond).Wait", 0},
-			frame{"runtime/pprof_test.TestTraceSymbolize.func9", 78},
+			frame{"runtime/trace_test.TestTraceSymbolize.func9", 78},
 		}},
 		eventDesc{trace.EvGoUnblock, []frame{
 			frame{"sync.(*Cond).Signal", 0},
-			frame{"runtime/pprof_test.TestTraceSymbolize", 117},
+			frame{"runtime/trace_test.TestTraceSymbolize", 117},
 			frame{"testing.tRunner", 0},
 		}},
 		eventDesc{trace.EvGoSleep, []frame{
 			frame{"time.Sleep", 0},
-			frame{"runtime/pprof_test.TestTraceSymbolize", 108},
+			frame{"runtime/trace_test.TestTraceSymbolize", 108},
 			frame{"testing.tRunner", 0},
 		}},
 	}
@@ -237,14 +237,14 @@ func TestTraceSymbolize(t *testing.T) {
 				frame{"net.(*netFD).accept", 0},
 				frame{"net.(*TCPListener).AcceptTCP", 0},
 				frame{"net.(*TCPListener).Accept", 0},
-				frame{"runtime/pprof_test.TestTraceSymbolize.func10", 86},
+				frame{"runtime/trace_test.TestTraceSymbolize.func10", 86},
 			}},
 			eventDesc{trace.EvGoSysCall, []frame{
 				frame{"syscall.read", 0},
 				frame{"syscall.Read", 0},
 				frame{"os.(*File).read", 0},
 				frame{"os.(*File).Read", 0},
-				frame{"runtime/pprof_test.TestTraceSymbolize.func11", 101},
+				frame{"runtime/trace_test.TestTraceSymbolize.func11", 101},
 			}},
 		}...)
 	}
