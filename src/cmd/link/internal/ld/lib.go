@@ -1793,6 +1793,7 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 			obj.SSTRING,
 			obj.SGOSTRING,
 			obj.SGOFUNC,
+			obj.SGCBITS,
 			obj.SWINDOWS:
 			if !s.Reachable {
 				continue

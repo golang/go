@@ -373,6 +373,13 @@ func symtab() {
 	s.Reachable = true
 	symgofunc := s
 
+	s = Linklookup(Ctxt, "runtime.gcbits.*", 0)
+	s.Type = obj.SGCBITS
+	s.Local = true
+	s.Size = 0
+	s.Reachable = true
+	symgcbits := s
+
 	symtypelink := Linklookup(Ctxt, "runtime.typelink", 0)
 
 	symt = Linklookup(Ctxt, "runtime.symtab", 0)
@@ -409,6 +416,12 @@ func symtab() {
 			s.Type = obj.SGOSTRING
 			s.Hide = 1
 			s.Outer = symgostring
+		}
+
+		if strings.HasPrefix(s.Name, "runtime.gcbits.") {
+			s.Type = obj.SGCBITS
+			s.Hide = 1
+			s.Outer = symgcbits
 		}
 
 		if strings.HasPrefix(s.Name, "go.func.") {
