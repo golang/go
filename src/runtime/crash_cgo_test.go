@@ -82,6 +82,19 @@ func TestCgoExternalThreadSIGPROF(t *testing.T) {
 	}
 }
 
+func TestCgoExternalThreadSignal(t *testing.T) {
+	// issue 10139
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skipf("no pthreads on %s", runtime.GOOS)
+	}
+	got := executeTest(t, cgoExternalThreadSignalSource, nil)
+	want := "OK\n"
+	if got != want {
+		t.Fatalf("expected %q, but got %q", want, got)
+	}
+}
+
 func TestCgoDLLImports(t *testing.T) {
 	// test issue 9356
 	if runtime.GOOS != "windows" {
@@ -279,6 +292,60 @@ func main() {
 		runtime.Gosched()
 	}
 	println("OK")
+}
+`
+
+const cgoExternalThreadSignalSource = `
+package main
+
+/*
+#include <pthread.h>
+
+void **nullptr;
+
+void *crash(void *p) {
+	*nullptr = p;
+	return 0;
+}
+
+int start_crashing_thread(void) {
+	pthread_t tid;
+	return pthread_create(&tid, 0, crash, 0);
+}
+*/
+import "C"
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"time"
+)
+
+func main() {
+	if len(os.Args) > 1 && os.Args[1] == "crash" {
+		i := C.start_crashing_thread()
+		if i != 0 {
+			fmt.Println("pthread_create failed:", i)
+			// Exit with 0 because parent expects us to crash.
+			return
+		}
+
+		// We should crash immediately, but give it plenty of
+		// time before failing (by exiting 0) in case we are
+		// running on a slow system.
+		time.Sleep(5 * time.Second)
+		return
+	}
+
+	out, err := exec.Command(os.Args[0], "crash").CombinedOutput()
+	if err == nil {
+		fmt.Println("C signal did not crash as expected\n")
+		fmt.Printf("%s\n", out)
+		os.Exit(1)
+	}
+
+	fmt.Println("OK")
 }
 `
 

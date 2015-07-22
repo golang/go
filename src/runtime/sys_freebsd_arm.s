@@ -327,9 +327,9 @@ TEXT runtime·osyield(SB),NOSPLIT,$-4
 	RET
 
 TEXT runtime·sigprocmask(SB),NOSPLIT,$0
-	MOVW $3, R0	// arg 1 - how (SIG_SETMASK)
-	MOVW new+0(FP), R1	// arg 2 - set
-	MOVW old+4(FP), R2	// arg 3 - oset
+	MOVW how+0(FP), R0	// arg 1 - how
+	MOVW new+4(FP), R1	// arg 2 - set
+	MOVW old+8(FP), R2	// arg 3 - oset
 	MOVW $SYS_sigprocmask, R7
 	SWI $0
 	MOVW.CS $0, R8 // crash on syscall failure

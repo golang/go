@@ -307,9 +307,9 @@ TEXT runtime·osyield(SB),NOSPLIT,$-4
 	RET
 
 TEXT runtime·sigprocmask(SB),NOSPLIT,$0
-	MOVL	$3, DI			// arg 1 - how (SIG_SETMASK)
-	MOVQ	new+0(FP), SI		// arg 2 - set
-	MOVQ	old+8(FP), DX		// arg 3 - oset
+	MOVL	how+0(FP), DI		// arg 1 - how
+	MOVQ	new+8(FP), SI		// arg 2 - set
+	MOVQ	old+16(FP), DX		// arg 3 - oset
 	MOVL	$340, AX		// sys_sigprocmask
 	SYSCALL
 	JAE	2(PC)

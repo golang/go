@@ -140,6 +140,43 @@ func sigpipe() {
 	raise(_SIGPIPE)
 }
 
+// raisebadsignal is called when a signal is received on a non-Go
+// thread, and the Go program does not want to handle it (that is, the
+// program has not called os/signal.Notify for the signal).
+func raisebadsignal(sig int32) {
+	if sig == _SIGPROF {
+		// Ignore profiling signals that arrive on non-Go threads.
+		return
+	}
+
+	var handler uintptr
+	if sig >= _NSIG {
+		handler = _SIG_DFL
+	} else {
+		handler = fwdSig[sig]
+	}
+
+	// Reset the signal handler and raise the signal.
+	// We are currently running inside a signal handler, so the
+	// signal is blocked.  We need to unblock it before raising the
+	// signal, or the signal we raise will be ignored until we return
+	// from the signal handler.  We know that the signal was unblocked
+	// before entering the handler, or else we would not have received
+	// it.  That means that we don't have to worry about blocking it
+	// again.
+	unblocksig(sig)
+	setsig(sig, handler, false)
+	raise(sig)
+
+	// If the signal didn't cause the program to exit, restore the
+	// Go signal handler and carry on.
+	//
+	// We may receive another instance of the signal before we
+	// restore the Go handler, but that is not so bad: we know
+	// that the Go program has been ignoring the signal.
+	setsig(sig, funcPC(sighandler), true)
+}
+
 func crash() {
 	if GOOS == "darwin" {
 		// OS X core dumps are linear dumps of the mapped memory,

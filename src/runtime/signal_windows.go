@@ -203,6 +203,12 @@ func sigdisable(sig uint32) {
 func sigignore(sig uint32) {
 }
 
+func badsignal2()
+
+func raisebadsignal(sig int32) {
+	badsignal2()
+}
+
 func crash() {
 	// TODO: This routine should do whatever is needed
 	// to make the Windows program abort/crash as it

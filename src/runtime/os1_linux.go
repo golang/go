@@ -333,3 +333,9 @@ func updatesigmask(m sigmask) {
 	copy(mask[:], m[:])
 	rtsigprocmask(_SIG_SETMASK, &mask, nil, int32(unsafe.Sizeof(mask)))
 }
+
+func unblocksig(sig int32) {
+	var mask sigset
+	mask[(sig-1)/32] |= 1 << ((uint32(sig) - 1) & 31)
+	rtsigprocmask(_SIG_UNBLOCK, &mask, nil, int32(unsafe.Sizeof(mask)))
+}

@@ -254,6 +254,10 @@ func badsignal2() {
 	exits(&_badsignal[0])
 }
 
+func raisebadsignal(sig int32) {
+	badsignal2()
+}
+
 func _atoi(b []byte) int {
 	n := 0
 	for len(b) > 0 && '0' <= b[0] && b[0] <= '9' {
