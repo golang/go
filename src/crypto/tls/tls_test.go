@@ -7,6 +7,7 @@ package tls
 import (
 	"bytes"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"net"
 	"strings"
@@ -278,5 +279,31 @@ func TestTLSUniqueMatches(t *testing.T) {
 	}
 	if !bytes.Equal(conn.ConnectionState().TLSUnique, <-serverTLSUniques) {
 		t.Error("client and server channel bindings differ when session resumption is used")
+	}
+}
+
+func TestVerifyHostname(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
+	c, err := Dial("tcp", "www.google.com:https", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.VerifyHostname("www.google.com"); err != nil {
+		t.Fatalf("verify www.google.com: %v", err)
+	}
+	if err := c.VerifyHostname("www.yahoo.com"); err == nil {
+		t.Fatalf("verify www.yahoo.com succeeded")
+	}
+
+	c, err = Dial("tcp", "www.google.com:https", &Config{InsecureSkipVerify: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.VerifyHostname("www.google.com"); err == nil {
+		t.Fatalf("verify www.google.com succeeded with InsecureSkipVerify=true")
+	}
+	if err := c.VerifyHostname("www.yahoo.com"); err == nil {
+		t.Fatalf("verify www.google.com succeeded with InsecureSkipVerify=true")
 	}
 }
