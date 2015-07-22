@@ -177,6 +177,7 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 		return
 	}
 
+retry:
 	// Steal as much credit as we can from the background GC's
 	// scan credit. This is racy and may drop the background
 	// credit below 0 if two mutators steal at the same time. This
@@ -210,6 +211,9 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 			// would be a performance hit.
 			// Instead we recheck it here on the non-preemptable system
 			// stack to determine if we should preform an assist.
+
+			// GC is done, so ignore any remaining debt.
+			scanWork = 0
 			return
 		}
 		// Track time spent in this assist. Since we're on the
@@ -229,7 +233,9 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 		startScanWork := gcw.scanWork
 		gcDrainN(gcw, scanWork)
 		// Record that we did this much scan work.
-		gp.gcscanwork += gcw.scanWork - startScanWork
+		workDone := gcw.scanWork - startScanWork
+		gp.gcscanwork += workDone
+		scanWork -= workDone
 		// If we are near the end of the mark phase
 		// dispose of the gcw.
 		if gcBlackenPromptly {
@@ -271,6 +277,25 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 		// We called complete() above, so we should yield to
 		// the now-runnable GC coordinator.
 		Gosched()
+
+		// It's likely that this assist wasn't able to pay off
+		// its debt, but it's also likely that the Gosched let
+		// the GC finish this cycle and there's no point in
+		// waiting. If the GC finished, skip the delay below.
+		if atomicload(&gcBlackenEnabled) == 0 {
+			scanWork = 0
+		}
+	}
+
+	if scanWork > 0 {
+		// We were unable steal enough credit or perform
+		// enough work to pay off the assist debt. We need to
+		// do one of these before letting the mutator allocate
+		// more, so go around again after performing an
+		// interruptible sleep for 100 us (the same as the
+		// getfull barrier) to let other mutators run.
+		timeSleep(100 * 1000)
+		goto retry
 	}
 }
 
