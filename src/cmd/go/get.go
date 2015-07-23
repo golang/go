@@ -166,9 +166,9 @@ var downloadRootCache = map[string]bool{}
 func download(arg string, parent *Package, stk *importStack, getTestDeps bool) {
 	load := func(path string) *Package {
 		if parent == nil {
-			return loadPackage(arg, stk)
+			return loadPackage(path, stk)
 		}
-		return loadImport(arg, parent.Dir, nil, stk, nil)
+		return loadImport(path, parent.Dir, nil, stk, nil)
 	}
 
 	p := load(arg)
@@ -204,15 +204,17 @@ func download(arg string, parent *Package, stk *importStack, getTestDeps bool) {
 	wildcardOkay := len(*stk) == 0
 	isWildcard := false
 
-	stk.push(arg)
-	defer stk.pop()
+	// Note: Do not stk.push(arg) and defer stk.pop() here.
+	// The push/pop below are using updated values of arg in some cases.
 
 	// Download if the package is missing, or update if we're using -u.
 	if p.Dir == "" || *getU {
 		// The actual download.
+		stk.push(arg)
 		err := downloadPackage(p)
 		if err != nil {
 			errorf("%s", &PackageError{ImportStack: stk.copy(), Err: err.Error()})
+			stk.pop()
 			return
 		}
 
@@ -225,6 +227,7 @@ func download(arg string, parent *Package, stk *importStack, getTestDeps bool) {
 				fmt.Fprintf(os.Stderr, "warning: package %v\n", strings.Join(*stk, "\n\timports "))
 			}
 		}
+		stk.pop()
 
 		args := []string{arg}
 		// If the argument has a wildcard in it, re-evaluate the wildcard.
@@ -251,7 +254,9 @@ func download(arg string, parent *Package, stk *importStack, getTestDeps bool) {
 
 		pkgs = pkgs[:0]
 		for _, arg := range args {
+			stk.push(arg)
 			p := load(arg)
+			stk.pop()
 			if p.Error != nil {
 				errorf("%s", p.Error)
 				continue
