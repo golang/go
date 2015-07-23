@@ -1164,6 +1164,19 @@ WaitResponse:
 	for {
 		select {
 		case err := <-writeErrCh:
+			if isSyscallWriteError(err) {
+				// Issue 11745. If we failed to write the request
+				// body, it's possible the server just heard enough
+				// and already wrote to us. Prioritize the server's
+				// response over returning a body write error.
+				select {
+				case re = <-resc:
+					pc.close()
+					break WaitResponse
+				case <-time.After(50 * time.Millisecond):
+					// Fall through.
+				}
+			}
 			if err != nil {
 				re = responseAndError{nil, err}
 				pc.close()
@@ -1366,3 +1379,16 @@ type fakeLocker struct{}
 
 func (fakeLocker) Lock()   {}
 func (fakeLocker) Unlock() {}
+
+func isSyscallWriteError(err error) bool {
+	switch e := err.(type) {
+	case *url.Error:
+		return isSyscallWriteError(e.Err)
+	case *net.OpError:
+		return e.Op == "write" && isSyscallWriteError(e.Err)
+	case *os.SyscallError:
+		return e.Syscall == "write"
+	default:
+		return false
+	}
+}
