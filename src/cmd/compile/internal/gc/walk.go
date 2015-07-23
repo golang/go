@@ -609,8 +609,8 @@ func walkexpr(np **Node, init **NodeList) {
 			// Transform direct call of a closure to call of a normal function.
 			// transformclosure already did all preparation work.
 
-			// Append captured variables to argument list.
-			n.List = concat(n.List, n.Left.Func.Enter)
+			// Prepend captured variables to argument list.
+			n.List = concat(n.Left.Func.Enter, n.List)
 
 			n.Left.Func.Enter = nil
 
