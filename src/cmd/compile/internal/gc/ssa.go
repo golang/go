@@ -790,7 +790,7 @@ func (s *state) ssaOp(op uint8, t *Type) ssa.Op {
 	}
 	x, ok := opToSSA[opAndType{op, etype}]
 	if !ok {
-		s.Unimplementedf("unhandled binary op %s etype=%d", opnames[op], etype)
+		s.Unimplementedf("unhandled binary op %s etype=%s", opnames[op], Econv(int(etype), 0))
 	}
 	return x
 }
