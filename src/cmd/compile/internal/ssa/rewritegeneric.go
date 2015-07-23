@@ -27,29 +27,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		goto endd2f4bfaaf6c937171a287b73e5c2f73e
 	endd2f4bfaaf6c937171a287b73e5c2f73e:
 		;
-	case OpAdd64U:
-		// match: (Add64U (Const [c]) (Const [d]))
-		// cond:
-		// result: (Const [c+d])
-		{
-			if v.Args[0].Op != OpConst {
-				goto endfedc373d8be0243cb5dbbc948996fe3a
-			}
-			c := v.Args[0].AuxInt
-			if v.Args[1].Op != OpConst {
-				goto endfedc373d8be0243cb5dbbc948996fe3a
-			}
-			d := v.Args[1].AuxInt
-			v.Op = OpConst
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = c + d
-			return true
-		}
-		goto endfedc373d8be0243cb5dbbc948996fe3a
-	endfedc373d8be0243cb5dbbc948996fe3a:
-		;
 	case OpAddPtr:
 		// match: (AddPtr (Const [c]) (Const [d]))
 		// cond:
@@ -260,29 +237,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		}
 		goto endf4ba5346dc8a624781afaa68a8096a9a
 	endf4ba5346dc8a624781afaa68a8096a9a:
-		;
-	case OpMul64U:
-		// match: (Mul64U (Const [c]) (Const [d]))
-		// cond:
-		// result: (Const [c*d])
-		{
-			if v.Args[0].Op != OpConst {
-				goto end88b6638d23b281a90172e80ab26549cb
-			}
-			c := v.Args[0].AuxInt
-			if v.Args[1].Op != OpConst {
-				goto end88b6638d23b281a90172e80ab26549cb
-			}
-			d := v.Args[1].AuxInt
-			v.Op = OpConst
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = c * d
-			return true
-		}
-		goto end88b6638d23b281a90172e80ab26549cb
-	end88b6638d23b281a90172e80ab26549cb:
 		;
 	case OpMulPtr:
 		// match: (MulPtr (Const [c]) (Const [d]))

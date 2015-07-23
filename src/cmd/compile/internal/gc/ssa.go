@@ -662,51 +662,51 @@ type opAndType struct {
 
 var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OADD, TINT8}:   ssa.OpAdd8,
-	opAndType{OADD, TUINT8}:  ssa.OpAdd8U,
+	opAndType{OADD, TUINT8}:  ssa.OpAdd8,
 	opAndType{OADD, TINT16}:  ssa.OpAdd16,
-	opAndType{OADD, TUINT16}: ssa.OpAdd16U,
+	opAndType{OADD, TUINT16}: ssa.OpAdd16,
 	opAndType{OADD, TINT32}:  ssa.OpAdd32,
-	opAndType{OADD, TUINT32}: ssa.OpAdd32U,
+	opAndType{OADD, TUINT32}: ssa.OpAdd32,
 	opAndType{OADD, TINT64}:  ssa.OpAdd64,
-	opAndType{OADD, TUINT64}: ssa.OpAdd64U,
+	opAndType{OADD, TUINT64}: ssa.OpAdd64,
 
 	opAndType{OSUB, TINT8}:   ssa.OpSub8,
-	opAndType{OSUB, TUINT8}:  ssa.OpSub8U,
+	opAndType{OSUB, TUINT8}:  ssa.OpSub8,
 	opAndType{OSUB, TINT16}:  ssa.OpSub16,
-	opAndType{OSUB, TUINT16}: ssa.OpSub16U,
+	opAndType{OSUB, TUINT16}: ssa.OpSub16,
 	opAndType{OSUB, TINT32}:  ssa.OpSub32,
-	opAndType{OSUB, TUINT32}: ssa.OpSub32U,
+	opAndType{OSUB, TUINT32}: ssa.OpSub32,
 	opAndType{OSUB, TINT64}:  ssa.OpSub64,
-	opAndType{OSUB, TUINT64}: ssa.OpSub64U,
+	opAndType{OSUB, TUINT64}: ssa.OpSub64,
 
 	opAndType{ONOT, TBOOL}: ssa.OpNot,
 
 	opAndType{OMINUS, TINT8}:   ssa.OpNeg8,
-	opAndType{OMINUS, TUINT8}:  ssa.OpNeg8U,
+	opAndType{OMINUS, TUINT8}:  ssa.OpNeg8,
 	opAndType{OMINUS, TINT16}:  ssa.OpNeg16,
-	opAndType{OMINUS, TUINT16}: ssa.OpNeg16U,
+	opAndType{OMINUS, TUINT16}: ssa.OpNeg16,
 	opAndType{OMINUS, TINT32}:  ssa.OpNeg32,
-	opAndType{OMINUS, TUINT32}: ssa.OpNeg32U,
+	opAndType{OMINUS, TUINT32}: ssa.OpNeg32,
 	opAndType{OMINUS, TINT64}:  ssa.OpNeg64,
-	opAndType{OMINUS, TUINT64}: ssa.OpNeg64U,
+	opAndType{OMINUS, TUINT64}: ssa.OpNeg64,
 
 	opAndType{OMUL, TINT8}:   ssa.OpMul8,
-	opAndType{OMUL, TUINT8}:  ssa.OpMul8U,
+	opAndType{OMUL, TUINT8}:  ssa.OpMul8,
 	opAndType{OMUL, TINT16}:  ssa.OpMul16,
-	opAndType{OMUL, TUINT16}: ssa.OpMul16U,
+	opAndType{OMUL, TUINT16}: ssa.OpMul16,
 	opAndType{OMUL, TINT32}:  ssa.OpMul32,
-	opAndType{OMUL, TUINT32}: ssa.OpMul32U,
+	opAndType{OMUL, TUINT32}: ssa.OpMul32,
 	opAndType{OMUL, TINT64}:  ssa.OpMul64,
-	opAndType{OMUL, TUINT64}: ssa.OpMul64U,
+	opAndType{OMUL, TUINT64}: ssa.OpMul64,
 
 	opAndType{OAND, TINT8}:   ssa.OpAnd8,
-	opAndType{OAND, TUINT8}:  ssa.OpAnd8U,
+	opAndType{OAND, TUINT8}:  ssa.OpAnd8,
 	opAndType{OAND, TINT16}:  ssa.OpAnd16,
-	opAndType{OAND, TUINT16}: ssa.OpAnd16U,
+	opAndType{OAND, TUINT16}: ssa.OpAnd16,
 	opAndType{OAND, TINT32}:  ssa.OpAnd32,
-	opAndType{OAND, TUINT32}: ssa.OpAnd32U,
+	opAndType{OAND, TUINT32}: ssa.OpAnd32,
 	opAndType{OAND, TINT64}:  ssa.OpAnd64,
-	opAndType{OAND, TUINT64}: ssa.OpAnd64U,
+	opAndType{OAND, TUINT64}: ssa.OpAnd64,
 
 	opAndType{OLSH, TINT8}:   ssa.OpLsh8,
 	opAndType{OLSH, TUINT8}:  ssa.OpLsh8,
@@ -797,20 +797,31 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OGE, TUINT64}: ssa.OpGeq64U,
 }
 
-func (s *state) ssaOp(op uint8, t *Type) ssa.Op {
-	etype := t.Etype
-	switch etype {
+func (s *state) concreteEtype(t *Type) uint8 {
+	e := t.Etype
+	switch e {
+	default:
+		return e
 	case TINT:
-		etype = TINT32
-		if s.config.PtrSize == 8 {
-			etype = TINT64
+		if s.config.IntSize == 8 {
+			return TINT64
 		}
+		return TINT32
 	case TUINT:
-		etype = TUINT32
-		if s.config.PtrSize == 8 {
-			etype = TUINT64
+		if s.config.IntSize == 8 {
+			return TUINT64
 		}
+		return TUINT32
+	case TUINTPTR:
+		if s.config.PtrSize == 8 {
+			return TUINT64
+		}
+		return TUINT32
 	}
+}
+
+func (s *state) ssaOp(op uint8, t *Type) ssa.Op {
+	etype := s.concreteEtype(t)
 	x, ok := opToSSA[opAndType{op, etype}]
 	if !ok {
 		s.Unimplementedf("unhandled binary op %s etype=%s", opnames[op], Econv(int(etype), 0))
@@ -854,7 +865,71 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.newValue1(ssa.OpConvNop, n.Type, x)
 	case OCONV:
 		x := s.expr(n.Left)
-		return s.newValue1(ssa.OpConvert, n.Type, x)
+		ft := n.Left.Type // from type
+		tt := n.Type      // to type
+		if ft.IsInteger() && tt.IsInteger() {
+			var op ssa.Op
+			if tt.Size() == ft.Size() {
+				op = ssa.OpConvNop
+			} else if tt.Size() < ft.Size() {
+				// truncation
+				switch 10*ft.Size() + tt.Size() {
+				case 21:
+					op = ssa.OpTrunc16to8
+				case 41:
+					op = ssa.OpTrunc32to8
+				case 42:
+					op = ssa.OpTrunc32to16
+				case 81:
+					op = ssa.OpTrunc64to8
+				case 82:
+					op = ssa.OpTrunc64to16
+				case 84:
+					op = ssa.OpTrunc64to32
+				default:
+					s.Fatalf("weird integer truncation %s -> %s", ft, tt)
+				}
+			} else if ft.IsSigned() {
+				// sign extension
+				switch 10*ft.Size() + tt.Size() {
+				case 12:
+					op = ssa.OpSignExt8to16
+				case 14:
+					op = ssa.OpSignExt8to32
+				case 18:
+					op = ssa.OpSignExt8to64
+				case 24:
+					op = ssa.OpSignExt16to32
+				case 28:
+					op = ssa.OpSignExt16to64
+				case 48:
+					op = ssa.OpSignExt32to64
+				default:
+					s.Fatalf("bad integer sign extension %s -> %s", ft, tt)
+				}
+			} else {
+				// zero extension
+				switch 10*ft.Size() + tt.Size() {
+				case 12:
+					op = ssa.OpZeroExt8to16
+				case 14:
+					op = ssa.OpZeroExt8to32
+				case 18:
+					op = ssa.OpZeroExt8to64
+				case 24:
+					op = ssa.OpZeroExt16to32
+				case 28:
+					op = ssa.OpZeroExt16to64
+				case 48:
+					op = ssa.OpZeroExt32to64
+				default:
+					s.Fatalf("weird integer sign extension %s -> %s", ft, tt)
+				}
+			}
+			return s.newValue1(op, n.Type, x)
+		}
+		s.Unimplementedf("unhandled OCONV %s -> %s", n.Left.Type, n.Type)
+		return nil
 
 	// binary ops
 	case OLT, OEQ, ONE, OLE, OGE, OGT:
@@ -933,6 +1008,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		if n.Left.Type.Bound >= 0 { // array or string
 			a := s.expr(n.Left)
 			i := s.expr(n.Right)
+			i = s.extendIndex(i)
 			var elemtype *Type
 			var len *ssa.Value
 			if n.Left.Type.IsString() {
@@ -1099,6 +1175,7 @@ func (s *state) addr(n *Node) *ssa.Value {
 		if n.Left.Type.IsSlice() {
 			a := s.expr(n.Left)
 			i := s.expr(n.Right)
+			i = s.extendIndex(i)
 			len := s.newValue1(ssa.OpSliceLen, s.config.Uintptr, a)
 			s.boundsCheck(i, len)
 			p := s.newValue1(ssa.OpSlicePtr, Ptrto(n.Left.Type.Type), a)
@@ -1106,6 +1183,7 @@ func (s *state) addr(n *Node) *ssa.Value {
 		} else { // array
 			a := s.addr(n.Left)
 			i := s.expr(n.Right)
+			i = s.extendIndex(i)
 			len := s.constInt(s.config.Uintptr, n.Left.Type.Bound)
 			s.boundsCheck(i, len)
 			return s.newValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), a, i)
@@ -1623,7 +1701,7 @@ func genValue(v *ssa.Value) {
 		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x
-	case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVLload, ssa.OpAMD64MOVWload, ssa.OpAMD64MOVBload:
+	case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVLload, ssa.OpAMD64MOVWload, ssa.OpAMD64MOVBload, ssa.OpAMD64MOVBQSXload, ssa.OpAMD64MOVBQZXload:
 		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = regnum(v.Args[0])
@@ -1646,7 +1724,7 @@ func genValue(v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = regnum(v.Args[0])
 		addAux(&p.To, v)
-	case ssa.OpAMD64MOVLQSX, ssa.OpAMD64MOVWQSX, ssa.OpAMD64MOVBQSX:
+	case ssa.OpAMD64MOVLQSX, ssa.OpAMD64MOVWQSX, ssa.OpAMD64MOVBQSX, ssa.OpAMD64MOVLQZX, ssa.OpAMD64MOVWQZX, ssa.OpAMD64MOVBQZX:
 		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = regnum(v.Args[0])
@@ -1866,6 +1944,55 @@ func addAux(a *obj.Addr, v *ssa.Value) {
 	default:
 		v.Fatalf("aux in %s not implemented %#v", v, v.Aux)
 	}
+}
+
+// extendIndex extends v to a full pointer width.
+func (s *state) extendIndex(v *ssa.Value) *ssa.Value {
+	size := v.Type.Size()
+	if size == s.config.PtrSize {
+		return v
+	}
+	if size > s.config.PtrSize {
+		// TODO: truncate 64-bit indexes on 32-bit pointer archs.  We'd need to test
+		// the high word and branch to out-of-bounds failure if it is not 0.
+		s.Unimplementedf("64->32 index truncation not implemented")
+		return v
+	}
+
+	// Extend value to the required size
+	var op ssa.Op
+	if v.Type.IsSigned() {
+		switch 10*size + s.config.PtrSize {
+		case 14:
+			op = ssa.OpSignExt8to32
+		case 18:
+			op = ssa.OpSignExt8to64
+		case 24:
+			op = ssa.OpSignExt16to32
+		case 28:
+			op = ssa.OpSignExt16to64
+		case 48:
+			op = ssa.OpSignExt32to64
+		default:
+			s.Fatalf("bad signed index extension %s", v.Type)
+		}
+	} else {
+		switch 10*size + s.config.PtrSize {
+		case 14:
+			op = ssa.OpZeroExt8to32
+		case 18:
+			op = ssa.OpZeroExt8to64
+		case 24:
+			op = ssa.OpZeroExt16to32
+		case 28:
+			op = ssa.OpZeroExt16to64
+		case 48:
+			op = ssa.OpZeroExt32to64
+		default:
+			s.Fatalf("bad unsigned index extension %s", v.Type)
+		}
+	}
+	return s.newValue1(op, s.config.Uintptr, v)
 }
 
 // ssaRegToReg maps ssa register numbers to obj register numbers.

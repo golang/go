@@ -21,10 +21,8 @@
 
 // constant folding
 (Add64 (Const [c]) (Const [d])) -> (Const [c+d])
-(Add64U (Const [c]) (Const [d])) -> (Const [c+d])
 (AddPtr (Const [c]) (Const [d])) -> (Const [c+d])
 (Mul64 (Const [c]) (Const [d])) -> (Const [c*d])
-(Mul64U (Const [c]) (Const [d])) -> (Const [c*d])
 (MulPtr (Const [c]) (Const [d])) -> (Const [c*d])
 (IsInBounds (Const [c]) (Const [d])) -> (Const {inBounds(c,d)})
 
