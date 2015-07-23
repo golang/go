@@ -16,6 +16,10 @@ func TestCorruptedInputs(t *testing.T) {
 		"gotrace\x00Q00\x020",
 		"gotrace\x00T00\x020",
 		"gotrace\x00\xc3\x0200",
+		"go 1.5 trace\x00\x00\x00\x00\x020",
+		"go 1.5 trace\x00\x00\x00\x00Q00\x020",
+		"go 1.5 trace\x00\x00\x00\x00T00\x020",
+		"go 1.5 trace\x00\x00\x00\x00\xc3\x0200",
 	}
 	for _, data := range tests {
 		events, err := Parse(strings.NewReader(data))

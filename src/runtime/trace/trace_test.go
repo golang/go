@@ -75,13 +75,19 @@ func TestTrace(t *testing.T) {
 	}
 	Stop()
 	_, err := trace.Parse(buf)
+	if err == trace.ErrTimeOrder {
+		t.Skipf("skipping trace: %v", err)
+	}
 	if err != nil {
 		t.Fatalf("failed to parse trace: %v", err)
 	}
 }
 
-func parseTrace(r io.Reader) ([]*trace.Event, map[uint64]*trace.GDesc, error) {
+func parseTrace(t *testing.T, r io.Reader) ([]*trace.Event, map[uint64]*trace.GDesc, error) {
 	events, err := trace.Parse(r)
+	if err == trace.ErrTimeOrder {
+		t.Skipf("skipping trace: %v", err)
+	}
 	if err != nil {
 		return nil, nil, err
 	}
@@ -221,7 +227,7 @@ func TestTraceStress(t *testing.T) {
 	runtime.GOMAXPROCS(procs)
 
 	Stop()
-	_, _, err = parseTrace(buf)
+	_, _, err = parseTrace(t, buf)
 	if err != nil {
 		t.Fatalf("failed to parse trace: %v", err)
 	}
@@ -361,7 +367,7 @@ func TestTraceStressStartStop(t *testing.T) {
 		}
 		time.Sleep(time.Millisecond)
 		Stop()
-		if _, _, err := parseTrace(buf); err != nil {
+		if _, _, err := parseTrace(t, buf); err != nil {
 			t.Fatalf("failed to parse trace: %v", err)
 		}
 	}
@@ -428,7 +434,7 @@ func TestTraceFutileWakeup(t *testing.T) {
 	done.Wait()
 
 	Stop()
-	events, _, err := parseTrace(buf)
+	events, _, err := parseTrace(t, buf)
 	if err != nil {
 		t.Fatalf("failed to parse trace: %v", err)
 	}
