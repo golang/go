@@ -80,7 +80,7 @@ func initConfVal() {
 	_, localDomainDefined := syscall.Getenv("LOCALDOMAIN")
 	if os.Getenv("RES_OPTIONS") != "" ||
 		os.Getenv("HOSTALIASES") != "" ||
-		netCgo ||
+		confVal.netCgo ||
 		localDomainDefined {
 		confVal.forceCgoLookupHost = true
 		return
