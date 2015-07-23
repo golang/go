@@ -235,12 +235,35 @@ var documentationTemplate = `// Copyright 2011 The Go Authors.  All rights reser
 package main
 `
 
+// An errWriter wraps a writer, recording whether a write error occurred.
+type errWriter struct {
+	w   io.Writer
+	err error
+}
+
+func (w *errWriter) Write(b []byte) (int, error) {
+	n, err := w.w.Write(b)
+	if err != nil {
+		w.err = err
+	}
+	return n, err
+}
+
 // tmpl executes the given template text on data, writing the result to w.
 func tmpl(w io.Writer, text string, data interface{}) {
 	t := template.New("top")
 	t.Funcs(template.FuncMap{"trim": strings.TrimSpace, "capitalize": capitalize})
 	template.Must(t.Parse(text))
-	if err := t.Execute(w, data); err != nil {
+	ew := &errWriter{w: w}
+	err := t.Execute(ew, data)
+	if ew.err != nil {
+		// I/O error writing. Ignore write on closed pipe.
+		if strings.Contains(ew.err.Error(), "pipe") {
+			os.Exit(1)
+		}
+		fatalf("writing output: %v", ew.err)
+	}
+	if err != nil {
 		panic(err)
 	}
 }
