@@ -2094,7 +2094,7 @@ func TestIssue10193(t *testing.T) {
 	tg.parallel()
 	tg.tempDir("src")
 	tg.setenv("GOPATH", tg.path("."))
-	tg.runFail("get", "code.google.com/p/rsc-svn")
+	tg.runFail("get", "code.google.com/p/rsc/pdf")
 	tg.grepStderr("is shutting down", "missed warning about code.google.com")
 }
 
