@@ -134,11 +134,20 @@ func moduledataverify1(datap *moduledata) {
 			// The very end might be just padding that is not covered by the tables.
 			// No architecture rounds function entries to more than 16 bytes,
 			// but if one came along we'd need to subtract more here.
-			end := datap.ftab[i+1].entry - 16
-			if end < datap.ftab[i].entry {
-				end = datap.ftab[i].entry
-			}
+			// But don't use the next PC if it corresponds to a foreign object chunk
+			// (no pcln table, f2.pcln == 0). That chunk might have an alignment
+			// more than 16 bytes.
 			f := (*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[i].funcoff]))
+			end := f.entry
+			if i+1 < nftab {
+				f2 := (*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[i+1].funcoff]))
+				if f2.pcln != 0 {
+					end = f2.entry - 16
+					if end < f.entry {
+						end = f.entry
+					}
+				}
+			}
 			pcvalue(f, f.pcfile, end, true)
 			pcvalue(f, f.pcln, end, true)
 			pcvalue(f, f.pcsp, end, true)
