@@ -4,7 +4,7 @@
 
 // +build arm arm64
 
-package os
+package cgo
 
 /*
 #cgo CFLAGS: -x objective-c
