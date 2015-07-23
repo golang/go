@@ -202,6 +202,7 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 	}
 
 	// Perform assist work
+	completed := false
 	systemstack(func() {
 		if atomicload(&gcBlackenEnabled) == 0 {
 			// The gcBlackenEnabled check in malloc races with the
@@ -255,6 +256,7 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 			} else {
 				work.bgMark1.complete()
 			}
+			completed = true
 		}
 		duration := nanotime() - startTime
 		_p_ := gp.m.p.ptr()
@@ -264,6 +266,12 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 			_p_.gcAssistTime = 0
 		}
 	})
+
+	if completed {
+		// We called complete() above, so we should yield to
+		// the now-runnable GC coordinator.
+		Gosched()
+	}
 }
 
 //go:nowritebarrier

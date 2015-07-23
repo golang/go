@@ -706,6 +706,10 @@ func (s *bgMarkSignal) wait() {
 // complete signals the completion of this phase of marking. This can
 // be called multiple times during a cycle; only the first call has
 // any effect.
+//
+// The caller should arrange to deschedule itself as soon as possible
+// after calling complete in order to let the coordinator goroutine
+// run.
 func (s *bgMarkSignal) complete() {
 	if cas(&s.done, 0, 1) {
 		// This is the first worker to reach this completion point.
