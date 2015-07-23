@@ -419,13 +419,24 @@ func live(f *Func) [][]ID {
 
 	s := newSparseSet(f.NumValues())
 	t := newSparseSet(f.NumValues())
+
+	// Instead of iterating over f.Blocks, iterate over their postordering.
+	// Liveness information flows backward, so starting at the end
+	// increases the probability that we will stabilize quickly.
+	// TODO: Do a better job yet. Here's one possibility:
+	// Calculate the dominator tree and locate all strongly connected components.
+	// If a value is live in one block of an SCC, it is live in all.
+	// Walk the dominator tree from end to beginning, just once, treating SCC
+	// components as single blocks, duplicated calculated liveness information
+	// out to all of them.
+	po := postorder(f)
 	for {
-		for _, b := range f.Blocks {
+		for _, b := range po {
 			f.Logf("live %s %v\n", b, live[b.ID])
 		}
 		changed := false
 
-		for _, b := range f.Blocks {
+		for _, b := range po {
 			// Start with known live values at the end of the block
 			s.clear()
 			s.addAll(live[b.ID])
