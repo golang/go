@@ -41,6 +41,13 @@ import (
 // These predefined profiles maintain themselves and panic on an explicit
 // Add or Remove method call.
 //
+// The heap profile reports statistics as of the most recently completed
+// garbage collection; it elides more recent allocation to avoid skewing
+// the profile away from live data and toward garbage.
+// If there has been no garbage collection at all, the heap profile reports
+// all known allocations. This exception helps mainly in programs running
+// without garbage collection enabled, usually for debugging purposes.
+//
 // The CPU profile is not available as a Profile.  It has a special API,
 // the StartCPUProfile and StopCPUProfile functions, because it streams
 // output to a writer during profiling.
