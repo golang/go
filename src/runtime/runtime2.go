@@ -235,16 +235,17 @@ type g struct {
 	waitsince      int64  // approx time when the g become blocked
 	waitreason     string // if status==Gwaiting
 	schedlink      guintptr
-	preempt        bool  // preemption signal, duplicates stackguard0 = stackpreempt
-	paniconfault   bool  // panic (instead of crash) on unexpected fault address
-	preemptscan    bool  // preempted g does scan for gc
-	gcscandone     bool  // g has scanned stack; protected by _Gscan bit in status
-	gcscanvalid    bool  // false at start of gc cycle, true if G has not run since last scan
-	throwsplit     bool  // must not split stack
-	raceignore     int8  // ignore race detection events
-	sysblocktraced bool  // StartTrace has emitted EvGoInSyscall about this goroutine
-	sysexitticks   int64 // cputicks when syscall has returned (for tracing)
-	m              *m    // for debuggers, but offset not hard-coded
+	preempt        bool   // preemption signal, duplicates stackguard0 = stackpreempt
+	paniconfault   bool   // panic (instead of crash) on unexpected fault address
+	preemptscan    bool   // preempted g does scan for gc
+	gcscandone     bool   // g has scanned stack; protected by _Gscan bit in status
+	gcscanvalid    bool   // false at start of gc cycle, true if G has not run since last scan
+	throwsplit     bool   // must not split stack
+	raceignore     int8   // ignore race detection events
+	sysblocktraced bool   // StartTrace has emitted EvGoInSyscall about this goroutine
+	sysexitticks   int64  // cputicks when syscall has returned (for tracing)
+	sysexitseq     uint64 // trace seq when syscall has returned (for tracing)
+	m              *m     // for debuggers, but offset not hard-coded
 	lockedm        *m
 	sig            uint32
 	writebuf       []byte
