@@ -10,7 +10,9 @@ import "io"
 
 // Reader is a global, shared instance of a cryptographically
 // strong pseudo-random generator.
+//
 // On Unix-like systems, Reader reads from /dev/urandom.
+// On Linux, Reader uses getrandom(2) if available, /dev/urandom otherwise.
 // On Windows systems, Reader uses the CryptGenRandom API.
 var Reader io.Reader
 
