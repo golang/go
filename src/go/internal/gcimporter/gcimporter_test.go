@@ -6,7 +6,6 @@ package gcimporter
 
 import (
 	"fmt"
-	"go/build"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -33,23 +32,13 @@ func skipSpecialPlatforms(t *testing.T) {
 	}
 }
 
-var gcPath string // Go compiler path
-
-func init() {
-	if char, err := build.ArchChar(runtime.GOARCH); err == nil {
-		gcPath = filepath.Join(build.ToolDir, char+"g")
-		return
-	}
-	gcPath = "unknown-GOARCH-compiler"
-}
-
 func compile(t *testing.T, dirname, filename string) string {
-	cmd := exec.Command(gcPath, filename)
+	cmd := exec.Command("go", "tool", "compile", filename)
 	cmd.Dir = dirname
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Logf("%s", out)
-		t.Fatalf("%s %s failed: %s", gcPath, filename, err)
+		t.Fatalf("go tool compile %s failed: %s", filename, err)
 	}
 	// filename should end with ".go"
 	return filepath.Join(dirname, filename[:len(filename)-2]+"o")
@@ -106,12 +95,6 @@ func TestImport(t *testing.T) {
 	if runtime.Compiler != "gc" {
 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
 		return
-	}
-
-	// On cross-compile builds, the path will not exist.
-	// Need to use GOHOSTOS, which is not available.
-	if _, err := os.Stat(gcPath); err != nil {
-		t.Skipf("skipping test: %v", err)
 	}
 
 	if outFn := compile(t, "testdata", "exports.go"); outFn != "" {
