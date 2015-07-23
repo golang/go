@@ -675,6 +675,8 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OSUB, TINT64}:  ssa.OpSub64,
 	opAndType{OSUB, TUINT64}: ssa.OpSub64U,
 
+	opAndType{ONOT, TBOOL}: ssa.OpNot,
+
 	opAndType{OMINUS, TINT8}:   ssa.OpNeg8,
 	opAndType{OMINUS, TUINT8}:  ssa.OpNeg8U,
 	opAndType{OMINUS, TINT16}:  ssa.OpNeg16,
@@ -710,6 +712,7 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OEQ, TUINT32}: ssa.OpEq32,
 	opAndType{OEQ, TINT64}:  ssa.OpEq64,
 	opAndType{OEQ, TUINT64}: ssa.OpEq64,
+	opAndType{OEQ, TPTR64}:  ssa.OpEq64,
 
 	opAndType{ONE, TINT8}:   ssa.OpNeq8,
 	opAndType{ONE, TUINT8}:  ssa.OpNeq8,
@@ -719,6 +722,7 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{ONE, TUINT32}: ssa.OpNeq32,
 	opAndType{ONE, TINT64}:  ssa.OpNeq64,
 	opAndType{ONE, TUINT64}: ssa.OpNeq64,
+	opAndType{ONE, TPTR64}:  ssa.OpNeq64,
 
 	opAndType{OLT, TINT8}:   ssa.OpLess8,
 	opAndType{OLT, TUINT8}:  ssa.OpLess8U,
