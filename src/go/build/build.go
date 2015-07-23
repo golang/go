@@ -968,7 +968,7 @@ func (ctxt *Context) matchFile(dir, name string, returnImports bool, allTags map
 	}
 
 	if strings.HasSuffix(filename, ".go") {
-		data, err = readImports(f, false)
+		data, err = readImports(f, false, nil)
 	} else {
 		data, err = readComments(f)
 	}

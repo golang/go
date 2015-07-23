@@ -8,10 +8,14 @@
 package build
 
 import (
+	"bytes"
+	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -259,6 +263,9 @@ var pkgDeps = map[string][]string{
 	// that shows up in programs that use cgo.
 	"C": {},
 
+	// Race detector uses cgo.
+	"runtime/race": {"C"},
+
 	// Plan 9 alone needs io/ioutil and os.
 	"os/user": {"L4", "CGO", "io/ioutil", "os", "syscall"},
 
@@ -449,53 +456,65 @@ func TestDependencies(t *testing.T) {
 
 	test := func(mustImport bool) {
 		for _, pkg := range all {
-			if pkg == "runtime/cgo" && !ctxt.CgoEnabled {
-				continue
-			}
-			p, err := ctxt.Import(pkg, "", 0)
+			imports, err := findImports(pkg)
 			if err != nil {
-				if _, ok := err.(*NoGoError); ok {
-					continue
-				}
-				if allowedErrors[osPkg{ctxt.GOOS, pkg}] {
-					continue
-				}
-				if !ctxt.CgoEnabled && pkg == "runtime/cgo" {
-					continue
-				}
-				// Some of the combinations we try might not
-				// be reasonable (like arm,plan9,cgo), so ignore
-				// errors for the auto-generated combinations.
-				if !mustImport {
-					continue
-				}
-				t.Errorf("%s/%s/cgo=%v %v", ctxt.GOOS, ctxt.GOARCH, ctxt.CgoEnabled, err)
+				t.Error(err)
 				continue
 			}
 			ok := allowed(pkg)
 			var bad []string
-			for _, imp := range p.Imports {
+			for _, imp := range imports {
 				if !ok[imp] {
 					bad = append(bad, imp)
 				}
 			}
 			if bad != nil {
-				t.Errorf("%s/%s/cgo=%v unexpected dependency: %s imports %v", ctxt.GOOS, ctxt.GOARCH, ctxt.CgoEnabled, pkg, bad)
+				t.Errorf("unexpected dependency: %s imports %v", pkg, bad)
 			}
 		}
 	}
 	test(true)
+}
 
-	if testing.Short() {
-		t.Logf("skipping other systems")
-		return
+var buildIgnore = []byte("\n// +build ignore")
+
+func findImports(pkg string) ([]string, error) {
+	dir := filepath.Join(Default.GOROOT, "src", pkg)
+	files, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return nil, err
 	}
-
-	for _, ctxt.GOOS = range geese {
-		for _, ctxt.GOARCH = range goarches {
-			for _, ctxt.CgoEnabled = range bools {
-				test(false)
+	var imports []string
+	var haveImport = map[string]bool{}
+	for _, file := range files {
+		name := file.Name()
+		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		f, err := os.Open(filepath.Join(dir, name))
+		if err != nil {
+			return nil, err
+		}
+		var imp []string
+		data, err := readImports(f, false, &imp)
+		f.Close()
+		if err != nil {
+			return nil, fmt.Errorf("reading %v: %v", name, err)
+		}
+		if bytes.Contains(data, buildIgnore) {
+			continue
+		}
+		for _, quoted := range imp {
+			path, err := strconv.Unquote(quoted)
+			if err != nil {
+				continue
+			}
+			if !haveImport[path] {
+				haveImport[path] = true
+				imports = append(imports, path)
 			}
 		}
 	}
+	sort.Strings(imports)
+	return imports, nil
 }
