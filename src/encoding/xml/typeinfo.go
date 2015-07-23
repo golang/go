@@ -194,14 +194,6 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 		return finfo, nil
 	}
 
-	if finfo.xmlns == "" && finfo.flags&fAttr == 0 {
-		// If it's an element no namespace specified, get the default
-		// from the XMLName of enclosing struct if possible.
-		if xmlname := lookupXMLName(typ); xmlname != nil {
-			finfo.xmlns = xmlname.xmlns
-		}
-	}
-
 	// Prepare field name and parents.
 	parents := strings.Split(tag, ">")
 	if parents[0] == "" {
