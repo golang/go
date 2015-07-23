@@ -25,7 +25,7 @@ func cse(f *Func) {
 	// It starts with a coarse partition and iteratively refines it
 	// until it reaches a fixed point.
 
-	// Make initial partition based on opcode/type-name/aux/auxint/nargs/phi-block
+	// Make initial partition based on opcode, type-name, aux, auxint, nargs, phi-block, and the ops of v's first args
 	type key struct {
 		op     Op
 		typ    string
@@ -33,6 +33,8 @@ func cse(f *Func) {
 		auxint int64
 		nargs  int
 		block  ID // block id for phi vars, -1 otherwise
+		arg0op Op // v.Args[0].Op if len(v.Args) > 0, OpInvalid otherwise
+		arg1op Op // v.Args[1].Op if len(v.Args) > 1, OpInvalid otherwise
 	}
 	m := map[key]eqclass{}
 	for _, b := range f.Blocks {
@@ -41,7 +43,15 @@ func cse(f *Func) {
 			if v.Op == OpPhi {
 				bid = b.ID
 			}
-			k := key{v.Op, v.Type.String(), v.Aux, v.AuxInt, len(v.Args), bid}
+			arg0op := OpInvalid
+			if len(v.Args) > 0 {
+				arg0op = v.Args[0].Op
+			}
+			arg1op := OpInvalid
+			if len(v.Args) > 1 {
+				arg1op = v.Args[1].Op
+			}
+			k := key{v.Op, v.Type.String(), v.Aux, v.AuxInt, len(v.Args), bid, arg0op, arg1op}
 			m[k] = append(m[k], v)
 		}
 	}
