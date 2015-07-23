@@ -1205,6 +1205,9 @@ WaitResponse:
 				}
 			default:
 				re = responseAndError{err: errClosed}
+				if pc.isCanceled() {
+					re = responseAndError{err: errRequestCanceled}
+				}
 			}
 			break WaitResponse
 		case <-respHeaderTimer:
