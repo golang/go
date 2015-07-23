@@ -146,8 +146,8 @@ func init() {
 		{name: "LEAQ8", reg: gp21sb},   // arg0 + 8*arg1 + auxint
 
 		{name: "MOVBload", reg: gpload, asm: "MOVB"},        // load byte from arg0+auxint. arg1=mem
-		{name: "MOVBQZXload", reg: gpload},                  // ditto, extend to uint64
-		{name: "MOVBQSXload", reg: gpload},                  // ditto, extend to int64
+		{name: "MOVBQSXload", reg: gpload, asm: "MOVBQSX"},  // ditto, extend to int64
+		{name: "MOVBQZXload", reg: gpload, asm: "MOVBQZX"},  // ditto, extend to uint64
 		{name: "MOVWload", reg: gpload, asm: "MOVW"},        // load 2 bytes from arg0+auxint. arg1=mem
 		{name: "MOVLload", reg: gpload, asm: "MOVL"},        // load 4 bytes from arg0+auxint. arg1=mem
 		{name: "MOVQload", reg: gpload, asm: "MOVQ"},        // load 8 bytes from arg0+auxint. arg1=mem

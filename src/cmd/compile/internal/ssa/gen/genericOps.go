@@ -12,10 +12,6 @@ var genericOps = []opData{
 	{name: "Add16"},
 	{name: "Add32"},
 	{name: "Add64"},
-	{name: "Add8U"},
-	{name: "Add16U"},
-	{name: "Add32U"},
-	{name: "Add64U"},
 	{name: "AddPtr"},
 	// TODO: Add32F, Add64F, Add64C, Add128C
 
@@ -23,30 +19,18 @@ var genericOps = []opData{
 	{name: "Sub16"},
 	{name: "Sub32"},
 	{name: "Sub64"},
-	{name: "Sub8U"},
-	{name: "Sub16U"},
-	{name: "Sub32U"},
-	{name: "Sub64U"},
 	// TODO: Sub32F, Sub64F, Sub64C, Sub128C
 
 	{name: "Mul8"}, // arg0 * arg1
 	{name: "Mul16"},
 	{name: "Mul32"},
 	{name: "Mul64"},
-	{name: "Mul8U"},
-	{name: "Mul16U"},
-	{name: "Mul32U"},
-	{name: "Mul64U"},
 	{name: "MulPtr"}, // MulPtr is used for address calculations
 
 	{name: "And8"}, // arg0 & arg1
 	{name: "And16"},
 	{name: "And32"},
 	{name: "And64"},
-	{name: "And8U"},
-	{name: "And16U"},
-	{name: "And32U"},
-	{name: "And64U"},
 
 	{name: "Lsh8"}, // arg0 << arg1
 	{name: "Lsh16"},
@@ -120,10 +104,6 @@ var genericOps = []opData{
 	{name: "Neg16"},
 	{name: "Neg32"},
 	{name: "Neg64"},
-	{name: "Neg8U"},
-	{name: "Neg16U"},
-	{name: "Neg32U"},
-	{name: "Neg64U"},
 
 	// Data movement
 	{name: "Phi"},  // select an argument based on which predecessor block we came from
@@ -132,9 +112,9 @@ var genericOps = []opData{
 	// constants.  Constant values are stored in the aux field.
 	// booleans have a bool aux field, strings have a string aux
 	// field, and so on.  All integer types store their value
-	// in the aux field as an int64 (including int, uint64, etc.).
-	// We could store int8 as an int8, but that won't work for int,
-	// as it may be different widths on the host and target.
+	// in the AuxInt field as an int64 (including int, uint64, etc.).
+	// For integer types smaller than 64 bits, only the low-order
+	// bits of the AuxInt field matter.
 	{name: "Const"},
 
 	// Constant-like things
@@ -162,9 +142,27 @@ var genericOps = []opData{
 	{name: "ClosureCall"}, // arg0=code pointer, arg1=context ptr, arg2=memory.  Returns memory.
 	{name: "StaticCall"},  // call function aux.(*gc.Sym), arg0=memory.  Returns memory.
 
-	// Conversions
-	{name: "Convert"}, // convert arg0 to another type
-	{name: "ConvNop"}, // interpret arg0 as another type
+	// Conversions: signed extensions, zero (unsigned) extensions, truncations, and no-op (type only)
+	{name: "SignExt8to16"},
+	{name: "SignExt8to32"},
+	{name: "SignExt8to64"},
+	{name: "SignExt16to32"},
+	{name: "SignExt16to64"},
+	{name: "SignExt32to64"},
+	{name: "ZeroExt8to16"},
+	{name: "ZeroExt8to32"},
+	{name: "ZeroExt8to64"},
+	{name: "ZeroExt16to32"},
+	{name: "ZeroExt16to64"},
+	{name: "ZeroExt32to64"},
+	{name: "Trunc16to8"},
+	{name: "Trunc32to8"},
+	{name: "Trunc32to16"},
+	{name: "Trunc64to8"},
+	{name: "Trunc64to16"},
+	{name: "Trunc64to32"},
+
+	{name: "ConvNop"},
 
 	// Automatically inserted safety checks
 	{name: "IsNonNil"},   // arg0 != nil

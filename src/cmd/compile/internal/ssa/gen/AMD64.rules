@@ -3,10 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // x86 register conventions:
-//  - Integer types live in the low portion of registers.
-//    Upper portions are correctly extended.
-//    TODO: reconsider?  The current choice means we need no extension for indexing,
-//    but we do need extension for e.g. 32-bit signed adds.
+//  - Integer types live in the low portion of registers.  Upper portions are junk.
 //  - Boolean types use the low-order byte of a register.  Upper bytes are junk.
 //  - We do not use AH,BH,CH,DH registers.
 //  - Floating-point types will live in the low natural slot of an sse2 register.
@@ -14,78 +11,75 @@
 
 // Lowering arithmetic
 (Add64 x y) -> (ADDQ x y)
-(Add64U x y) -> (ADDQ x y)
 (AddPtr x y) -> (ADDQ x y)
-(Add32U x y) -> (ADDL x y)
-(Add32 x y) -> (MOVLQSX (ADDL <v.Type> x y))
-(Add16U x y) -> (ADDW x y)
-(Add16 x y) -> (MOVWQSX (ADDW <v.Type> x y))
-(Add8U x y) -> (ADDB x y)
-(Add8 x y) -> (MOVBQSX (ADDB <v.Type> x y))
+(Add32 x y) -> (ADDL x y)
+(Add16 x y) -> (ADDW x y)
+(Add8 x y) -> (ADDB x y)
 
 (And64 x y) -> (ANDQ x y)
-(And64U x y) -> (ANDQ x y)
-(And32U x y) -> (ANDL x y)
-(And32 x y) -> (MOVLQSX (ANDL <v.Type> x y))
-(And16U x y) -> (ANDW x y)
-(And16 x y) -> (MOVWQSX (ANDW <v.Type> x y))
-(And8U x y) -> (ANDB x y)
-(And8 x y) -> (MOVBQSX (ANDB <v.Type> x y))
+(And32 x y) -> (ANDL x y)
+(And16 x y) -> (ANDW x y)
+(And8 x y) -> (ANDB x y)
 
 (Sub64 x y) -> (SUBQ x y)
-(Sub64U x y) -> (SUBQ x y)
-(Sub32U x y) -> (SUBL x y)
-(Sub32 x y) -> (MOVLQSX (SUBL <v.Type> x y))
-(Sub16U x y) -> (SUBW x y)
-(Sub16 x y) -> (MOVWQSX (SUBW <v.Type> x y))
-(Sub8U x y) -> (SUBB x y)
-(Sub8 x y) -> (MOVBQSX (SUBB <v.Type> x y))
+(Sub32 x y) -> (SUBL x y)
+(Sub16 x y) -> (SUBW x y)
+(Sub8 x y) -> (SUBB x y)
 
 (Neg64 x) -> (NEGQ x)
-(Neg64U x) -> (NEGQ x)
-(Neg32U x) -> (NEGL x)
-(Neg32 x) -> (MOVLQSX (NEGL <v.Type> x))
-(Neg16U x) -> (NEGW x)
-(Neg16 x) -> (MOVWQSX (NEGW <v.Type> x))
-(Neg8U x) -> (NEGB x)
-(Neg8 x) -> (MOVBQSX (NEGB <v.Type> x))
+(Neg32 x) -> (NEGL x)
+(Neg16 x) -> (NEGW x)
+(Neg8 x) -> (NEGB x)
 
 (Mul64 x y) -> (MULQ x y)
-(Mul64U x y) -> (MULQ x y)
 (MulPtr x y) -> (MULQ x y)
-(Mul32 x y) -> (MOVLQSX (MULL <v.Type> x y))
-(Mul32U x y) -> (MULL x y)
-(Mul16 x y) -> (MOVWQSX (MULW <v.Type> x y))
-(Mul16U x y) -> (MULW x y)
+(Mul32 x y) -> (MULL x y)
+(Mul16 x y) -> (MULW x y)
 // Note: we use 16-bit multiply instructions for 8-bit multiplies because
 // the 16-bit multiply instructions are more forgiving (they operate on
 // any register instead of just AX/DX).
-(Mul8 x y) -> (MOVBQSX (MULW <TypeInt16> x y))
-(Mul8U x y) -> (MOVBQZX (MULW <TypeUInt16> x y))
+(Mul8 x y) -> (MULW x y)
 
-(MOVLstore ptr (MOVLQSX x) mem) -> (MOVLstore ptr x mem)
-(MOVWstore ptr (MOVWQSX x) mem) -> (MOVWstore ptr x mem)
-(MOVBstore ptr (MOVBQSX x) mem) -> (MOVBstore ptr x mem)
-(MOVLstore ptr (MOVLQZX x) mem) -> (MOVLstore ptr x mem)
-(MOVWstore ptr (MOVWQZX x) mem) -> (MOVWstore ptr x mem)
-(MOVBstore ptr (MOVBQZX x) mem) -> (MOVBstore ptr x mem)
+// Note: we always extend to 64 bits even though some ops don't need that many result bits.
+(SignExt8to16 x) -> (MOVBQSX x)
+(SignExt8to32 x) -> (MOVBQSX x)
+(SignExt8to64 x) -> (MOVBQSX x)
+(SignExt16to32 x) -> (MOVWQSX x)
+(SignExt16to64 x) -> (MOVWQSX x)
+(SignExt32to64 x) -> (MOVLQSX x)
 
-(Convert <t> x) && t.IsInteger() && x.Type.IsInteger() -> (Copy x)
+(ZeroExt8to16 x) -> (MOVBQZX x)
+(ZeroExt8to32 x) -> (MOVBQZX x)
+(ZeroExt8to64 x) -> (MOVBQZX x)
+(ZeroExt16to32 x) -> (MOVWQZX x)
+(ZeroExt16to64 x) -> (MOVWQZX x)
+(ZeroExt32to64 x) -> (MOVLQZX x)
+
+// Because we ignore high parts of registers, truncates are just copies.
+(Trunc16to8 x) -> (Copy x)
+(Trunc32to8 x) -> (Copy x)
+(Trunc32to16 x) -> (Copy x)
+(Trunc64to8 x) -> (Copy x)
+(Trunc64to16 x) -> (Copy x)
+(Trunc64to32 x) -> (Copy x)
+
 (ConvNop <t> x) && t == x.Type -> (Copy x)
+(ConvNop <t> x) && t.IsInteger() && x.Type.IsInteger() && t.Size() == x.Type.Size() -> (Copy x)
+// TODO: other ConvNops are safe?  Maybe all of them?
 
 // Lowering shifts
 // Note: unsigned shifts need to return 0 if shift amount is >= 64.
 //   mask = shift >= 64 ? 0 : 0xffffffffffffffff
 //   result = mask & arg << shift
-(Lsh64 <t> x y) ->
+(Lsh64 <t> x y) && y.Type.Size() == 8 ->
 	(ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [64] y)))
-(Rsh64U <t> x y) ->
+(Rsh64U <t> x y) && y.Type.Size() == 8 ->
 	(ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [64] y)))
 
 // Note: signed right shift needs to return 0/-1 if shift amount is >= 64.
 //   if shift > 63 { shift = 63 }
 //   result = arg >> shift
-(Rsh64 <t> x y) ->
+(Rsh64 <t> x y) && y.Type.Size() == 8 ->
 	(SARQ <t> x (CMOVQCC <t>
 			(CMPQconst <TypeFlags> [64] y)
 			(Const <t> [63])
@@ -186,6 +180,19 @@
 // reverse ordering of compare instruction
 (SETL (InvertFlags x)) -> (SETG x)
 (SETG (InvertFlags x)) -> (SETL x)
+
+// sign extended loads
+(MOVBQSX (MOVBload ptr mem)) -> (MOVBQSXload ptr mem)
+(MOVBQZX (MOVBload ptr mem)) -> (MOVBQZXload ptr mem)
+// TODO: more
+
+// Don't extend before storing
+(MOVLstore ptr (MOVLQSX x) mem) -> (MOVLstore ptr x mem)
+(MOVWstore ptr (MOVWQSX x) mem) -> (MOVWstore ptr x mem)
+(MOVBstore ptr (MOVBQSX x) mem) -> (MOVBstore ptr x mem)
+(MOVLstore ptr (MOVLQZX x) mem) -> (MOVLstore ptr x mem)
+(MOVWstore ptr (MOVWQZX x) mem) -> (MOVWstore ptr x mem)
+(MOVBstore ptr (MOVBQZX x) mem) -> (MOVBstore ptr x mem)
 
 // fold constants into memory operations
 // Note that this is not always a good idea because if not all the uses of
