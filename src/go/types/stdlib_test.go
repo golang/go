@@ -129,7 +129,7 @@ func TestStdTest(t *testing.T) {
 
 	// test/recover4.go is only built for Linux and Darwin.
 	// TODO(gri) Remove once tests consider +build tags (issue 10370).
-	if runtime.GOOS != "linux" || runtime.GOOS != "darwin" {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
 		return
 	}
 
