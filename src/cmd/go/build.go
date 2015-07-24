@@ -35,8 +35,8 @@ var cmdBuild = &Command{
 Build compiles the packages named by the import paths,
 along with their dependencies, but it does not install the results.
 
-If the arguments are a list of .go files, build treats them as a list
-of source files specifying a single package.
+If the arguments to build are a list of .go files, build treats
+them as a list of source files specifying a single package.
 
 When the command line specifies a single main package,
 build writes the resulting executable to output.
@@ -117,6 +117,13 @@ For more about specifying packages, see 'go help packages'.
 For more about where packages and binaries are installed,
 run 'go help gopath'.
 For more about calling between Go and C/C++, run 'go help c'.
+
+Note: Build adheres to certain conventions such as those described
+by 'go help gopath'. Not all projects can follow these conventions,
+however. Installations that have their own conventions or that use
+a separate software build system may choose to use lower-level
+invocations such as 'go tool compile' and 'go tool link' to avoid
+some of the overheads and design decisions of the build tool.
 
 See also: go install, go get, go clean.
 	`,
