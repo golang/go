@@ -340,7 +340,7 @@ func valueOrDefault(value, def string) string {
 // See https://codereview.appspot.com/7532043.
 const defaultUserAgent = "Go-http-client/1.1"
 
-// Write writes an HTTP/1.1 request -- header and body -- in wire format.
+// Write writes an HTTP/1.1 request, which is the header and body, in wire format.
 // This method consults the following fields of the request:
 //	Host
 //	URL
