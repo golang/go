@@ -1702,7 +1702,8 @@ func genValue(v *ssa.Value) {
 	case ssa.OpAMD64SETEQ, ssa.OpAMD64SETNE,
 		ssa.OpAMD64SETL, ssa.OpAMD64SETLE,
 		ssa.OpAMD64SETG, ssa.OpAMD64SETGE,
-		ssa.OpAMD64SETB:
+		ssa.OpAMD64SETB, ssa.OpAMD64SETBE,
+		ssa.OpAMD64SETA, ssa.OpAMD64SETAE:
 		p := Prog(v.Op.Asm())
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
@@ -1725,6 +1726,19 @@ func movZero(as int, width int64, nbytes int64, offset int64, regnum int16) (nle
 	return nleft, offset
 }
 
+var blockJump = [...]struct{ asm, invasm int }{
+	ssa.BlockAMD64EQ:  {x86.AJEQ, x86.AJNE},
+	ssa.BlockAMD64NE:  {x86.AJNE, x86.AJEQ},
+	ssa.BlockAMD64LT:  {x86.AJLT, x86.AJGE},
+	ssa.BlockAMD64GE:  {x86.AJGE, x86.AJLT},
+	ssa.BlockAMD64LE:  {x86.AJLE, x86.AJGT},
+	ssa.BlockAMD64GT:  {x86.AJGT, x86.AJLE},
+	ssa.BlockAMD64ULT: {x86.AJCS, x86.AJCC},
+	ssa.BlockAMD64UGE: {x86.AJCC, x86.AJCS},
+	ssa.BlockAMD64UGT: {x86.AJHI, x86.AJLS},
+	ssa.BlockAMD64ULE: {x86.AJLS, x86.AJHI},
+}
+
 func genBlock(b, next *ssa.Block, branches []branch) []branch {
 	lineno = b.Line
 	switch b.Kind {
@@ -1742,85 +1756,24 @@ func genBlock(b, next *ssa.Block, branches []branch) []branch {
 			p.To.Type = obj.TYPE_BRANCH
 			branches = append(branches, branch{p, b.Succs[0]})
 		}
-	case ssa.BlockAMD64EQ:
-		if b.Succs[0] == next {
-			p := Prog(x86.AJNE)
+	case ssa.BlockAMD64EQ, ssa.BlockAMD64NE,
+		ssa.BlockAMD64LT, ssa.BlockAMD64GE,
+		ssa.BlockAMD64LE, ssa.BlockAMD64GT,
+		ssa.BlockAMD64ULT, ssa.BlockAMD64UGT,
+		ssa.BlockAMD64ULE, ssa.BlockAMD64UGE:
+
+		jmp := blockJump[b.Kind]
+		switch next {
+		case b.Succs[0]:
+			p := Prog(jmp.invasm)
 			p.To.Type = obj.TYPE_BRANCH
 			branches = append(branches, branch{p, b.Succs[1]})
-		} else if b.Succs[1] == next {
-			p := Prog(x86.AJEQ)
+		case b.Succs[1]:
+			p := Prog(jmp.asm)
 			p.To.Type = obj.TYPE_BRANCH
 			branches = append(branches, branch{p, b.Succs[0]})
-		} else {
-			p := Prog(x86.AJEQ)
-			p.To.Type = obj.TYPE_BRANCH
-			branches = append(branches, branch{p, b.Succs[0]})
-			q := Prog(obj.AJMP)
-			q.To.Type = obj.TYPE_BRANCH
-			branches = append(branches, branch{q, b.Succs[1]})
-		}
-	case ssa.BlockAMD64NE:
-		if b.Succs[0] == next {
-			p := Prog(x86.AJEQ)
-			p.To.Type = obj.TYPE_BRANCH
-			branches = append(branches, branch{p, b.Succs[1]})
-		} else if b.Succs[1] == next {
-			p := Prog(x86.AJNE)
-			p.To.Type = obj.TYPE_BRANCH
-			branches = append(branches, branch{p, b.Succs[0]})
-		} else {
-			p := Prog(x86.AJNE)
-			p.To.Type = obj.TYPE_BRANCH
-			branches = append(branches, branch{p, b.Succs[0]})
-			q := Prog(obj.AJMP)
-			q.To.Type = obj.TYPE_BRANCH
-			branches = append(branches, branch{q, b.Succs[1]})
-		}
-	case ssa.BlockAMD64LT:
-		if b.Succs[0] == next {
-			p := Prog(x86.AJGE)
-			p.To.Type = obj.TYPE_BRANCH
-			branches = append(branches, branch{p, b.Succs[1]})
-		} else if b.Succs[1] == next {
-			p := Prog(x86.AJLT)
-			p.To.Type = obj.TYPE_BRANCH
-			branches = append(branches, branch{p, b.Succs[0]})
-		} else {
-			p := Prog(x86.AJLT)
-			p.To.Type = obj.TYPE_BRANCH
-			branches = append(branches, branch{p, b.Succs[0]})
-			q := Prog(obj.AJMP)
-			q.To.Type = obj.TYPE_BRANCH
-			branches = append(branches, branch{q, b.Succs[1]})
-		}
-	case ssa.BlockAMD64ULT:
-		if b.Succs[0] == next {
-			p := Prog(x86.AJCC)
-			p.To.Type = obj.TYPE_BRANCH
-			branches = append(branches, branch{p, b.Succs[1]})
-		} else if b.Succs[1] == next {
-			p := Prog(x86.AJCS)
-			p.To.Type = obj.TYPE_BRANCH
-			branches = append(branches, branch{p, b.Succs[0]})
-		} else {
-			p := Prog(x86.AJCS)
-			p.To.Type = obj.TYPE_BRANCH
-			branches = append(branches, branch{p, b.Succs[0]})
-			q := Prog(obj.AJMP)
-			q.To.Type = obj.TYPE_BRANCH
-			branches = append(branches, branch{q, b.Succs[1]})
-		}
-	case ssa.BlockAMD64UGT:
-		if b.Succs[0] == next {
-			p := Prog(x86.AJLS)
-			p.To.Type = obj.TYPE_BRANCH
-			branches = append(branches, branch{p, b.Succs[1]})
-		} else if b.Succs[1] == next {
-			p := Prog(x86.AJHI)
-			p.To.Type = obj.TYPE_BRANCH
-			branches = append(branches, branch{p, b.Succs[0]})
-		} else {
-			p := Prog(x86.AJHI)
+		default:
+			p := Prog(jmp.asm)
 			p.To.Type = obj.TYPE_BRANCH
 			branches = append(branches, branch{p, b.Succs[0]})
 			q := Prog(obj.AJMP)

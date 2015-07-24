@@ -74,6 +74,9 @@ const (
 	OpAMD64SETG
 	OpAMD64SETGE
 	OpAMD64SETB
+	OpAMD64SETBE
+	OpAMD64SETA
+	OpAMD64SETAE
 	OpAMD64CMOVQCC
 	OpAMD64MOVBQSX
 	OpAMD64MOVBQZX
@@ -523,6 +526,42 @@ var opcodeTable = [...]opInfo{
 	{
 		name: "SETB",
 		asm:  x86.ASETCS,
+		reg: regInfo{
+			inputs: []regMask{
+				8589934592, // .FLAGS
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SETBE",
+		asm:  x86.ASETLS,
+		reg: regInfo{
+			inputs: []regMask{
+				8589934592, // .FLAGS
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SETA",
+		asm:  x86.ASETHI,
+		reg: regInfo{
+			inputs: []regMask{
+				8589934592, // .FLAGS
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SETAE",
+		asm:  x86.ASETCC,
 		reg: regInfo{
 			inputs: []regMask{
 				8589934592, // .FLAGS

@@ -123,6 +123,9 @@ func init() {
 		{name: "SETG", reg: flagsgp, asm: "SETGT"},  // extract signed > condition from arg0
 		{name: "SETGE", reg: flagsgp, asm: "SETGE"}, // extract signed >= condition from arg0
 		{name: "SETB", reg: flagsgp, asm: "SETCS"},  // extract unsigned < condition from arg0
+		{name: "SETBE", reg: flagsgp, asm: "SETLS"}, // extract unsigned <= condition from arg0
+		{name: "SETA", reg: flagsgp, asm: "SETHI"},  // extract unsigned > condition from arg0
+		{name: "SETAE", reg: flagsgp, asm: "SETCC"}, // extract unsigned >= condition from arg0
 
 		{name: "CMOVQCC", reg: cmov}, // carry clear
 
