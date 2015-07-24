@@ -29,9 +29,7 @@ func gcscan_m() {
 	// Prepare flag indicating that the scan has not been completed.
 	local_allglen := gcResetGState()
 
-	work.nwait = 0
 	work.ndone = 0
-	work.nproc = 1
 	useOneP := uint32(1) // For now do not do this in parallel.
 	//	ackgcphase is not needed since we are not scanning running goroutines.
 	parforsetup(work.markfor, useOneP, uint32(_RootCount+local_allglen), false, markroot)

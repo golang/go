@@ -956,6 +956,15 @@ func gc(mode int) {
 			// boundaries where there are up-pointers.
 			setGCPhase(_GCscan)
 
+			gcBgMarkPrepare() // Must happen before assist enable.
+
+			// At this point all Ps have enabled the write
+			// barrier, thus maintaining the no white to
+			// black invariant. Enable mutator assists to
+			// put back-pressure on fast allocating
+			// mutators.
+			atomicstore(&gcBlackenEnabled, 1)
+
 			// Concurrent scan.
 			startTheWorldWithSema()
 			now = nanotime()
@@ -976,17 +985,13 @@ func gc(mode int) {
 			forEachP(func(*p) {})
 		})
 		// Concurrent mark.
-		gcBgMarkPrepare() // Must happen before assist enable.
-		// At this point all Ps have enabled the mark phase
-		// write barrier, thus maintaining the no white to
-		// black invariant. Mutator assists and mark workers
-		// can now be enabled to safely blacken grey objects.
-		atomicstore(&gcBlackenEnabled, 1)
 		if debug.gctrace > 0 {
 			tMark = nanotime()
 		}
 
-		// Wait for background mark completion.
+		// Enable background mark workers and wait for
+		// background mark completion.
+		gcController.bgMarkStartTime = nanotime()
 		work.bgMark1.clear()
 		work.bgMark1.wait()
 
@@ -1230,7 +1235,6 @@ func gcBgMarkPrepare() {
 	// Reset background mark completion points.
 	work.bgMark1.done = 1
 	work.bgMark2.done = 1
-	gcController.bgMarkStartTime = nanotime()
 }
 
 func gcBgMarkWorker(p *p) {
