@@ -125,8 +125,8 @@ TEXT runtime·raise(SB),NOSPLIT,$16
 	MOVL	$496, AX	// lwp_gettid
 	SYSCALL
 	MOVQ	$-1, DI		// arg 1 - pid
-	MOVQ	8(SP), DI	// arg 2 - tid
-	MOVL	sig+0(FP), SI	// arg 3 - signum
+	MOVQ	AX, SI		// arg 2 - tid
+	MOVL	sig+0(FP), DX	// arg 3 - signum
 	MOVL	$497, AX	// lwp_kill
 	SYSCALL
 	RET
