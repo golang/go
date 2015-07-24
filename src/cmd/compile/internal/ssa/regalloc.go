@@ -240,7 +240,7 @@ func regalloc(f *Func) {
 						c := regs[r].c
 						if regs[r].dirty && lastUse[x.ID] > idx {
 							// Write x back to home.  Its value is currently held in c.
-							x.Op = OpStoreReg8
+							x.Op = OpStoreReg
 							x.Aux = nil
 							x.resetArgs()
 							x.AddArg(c)
@@ -276,7 +276,7 @@ func regalloc(f *Func) {
 						c = b.NewValue1(w.Line, OpCopy, w.Type, regs[s].c)
 					} else {
 						// Load from home location
-						c = b.NewValue1(w.Line, OpLoadReg8, w.Type, w)
+						c = b.NewValue1(w.Line, OpLoadReg, w.Type, w)
 					}
 					home = setloc(home, c, &registers[r])
 					// Remember what we did
@@ -319,7 +319,7 @@ func regalloc(f *Func) {
 					c := regs[r].c
 					if regs[r].dirty && lastUse[x.ID] > idx {
 						// Write x back to home.  Its value is currently held in c.
-						x.Op = OpStoreReg8
+						x.Op = OpStoreReg
 						x.Aux = nil
 						x.resetArgs()
 						x.AddArg(c)
@@ -373,7 +373,7 @@ func regalloc(f *Func) {
 			}
 
 			// change v to be a copy of c
-			v.Op = OpStoreReg8
+			v.Op = OpStoreReg
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(c)

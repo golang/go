@@ -178,10 +178,8 @@ var genericOps = []opData{
 	// semantically identical to OpCopy; they do not take/return
 	// stores like regular memory ops do.  We can get away without memory
 	// args because we know there is no aliasing of spill slots on the stack.
-	// TODO: remove these, make them arch-specific ops stored
-	// in the fields of Config instead.
-	{name: "StoreReg8"},
-	{name: "LoadReg8"},
+	{name: "StoreReg"},
+	{name: "LoadReg"},
 
 	// Used during ssa construction.  Like Copy, but the arg has not been specified yet.
 	{name: "FwdRef"},
