@@ -1922,12 +1922,12 @@ type ssaExport struct {
 	mustImplement bool
 }
 
-// StringSym returns a symbol (a *Sym wrapped in an interface) which
-// is a global string constant containing s.
-func (*ssaExport) StringSym(s string) interface{} {
+// StringData returns a symbol (a *Sym wrapped in an interface) which
+// is the data component of a global string constant containing s.
+func (*ssaExport) StringData(s string) interface{} {
 	// TODO: is idealstring correct?  It might not matter...
-	hdr, _ := stringsym(s)
-	return &ssa.ExternSymbol{Typ: idealstring, Sym: hdr}
+	_, data := stringsym(s)
+	return &ssa.ExternSymbol{Typ: idealstring, Sym: data}
 }
 
 // Log logs a message from the compiler.
