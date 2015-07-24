@@ -644,8 +644,8 @@ func setNextBarrierPC(pc uintptr) {
 // credit exceeds flushScanCredit.
 //go:nowritebarrier
 func gcDrain(gcw *gcWork, flushScanCredit int64) {
-	if gcphase != _GCmark && gcphase != _GCmarktermination {
-		throw("scanblock phase incorrect")
+	if !writeBarrierEnabled {
+		throw("gcDrain phase incorrect")
 	}
 
 	var lastScanFlush, nextScanFlush int64
@@ -696,7 +696,7 @@ func gcDrain(gcw *gcWork, flushScanCredit int64) {
 // get work, even though there may be more work in the system.
 //go:nowritebarrier
 func gcDrainUntilPreempt(gcw *gcWork, flushScanCredit int64) {
-	if gcphase != _GCmark {
+	if !writeBarrierEnabled {
 		println("gcphase =", gcphase)
 		throw("gcDrainUntilPreempt phase incorrect")
 	}
@@ -750,6 +750,9 @@ func gcDrainUntilPreempt(gcw *gcWork, flushScanCredit int64) {
 // scanning is always done in whole object increments.
 //go:nowritebarrier
 func gcDrainN(gcw *gcWork, scanWork int64) {
+	if !writeBarrierEnabled {
+		throw("gcDrainN phase incorrect")
+	}
 	targetScanWork := gcw.scanWork + scanWork
 	for gcw.scanWork < targetScanWork {
 		// This might be a good place to add prefetch code...
