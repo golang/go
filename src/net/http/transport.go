@@ -1164,7 +1164,7 @@ WaitResponse:
 	for {
 		select {
 		case err := <-writeErrCh:
-			if isSyscallWriteError(err) {
+			if isNetWriteError(err) {
 				// Issue 11745. If we failed to write the request
 				// body, it's possible the server just heard enough
 				// and already wrote to us. Prioritize the server's
@@ -1383,14 +1383,12 @@ type fakeLocker struct{}
 func (fakeLocker) Lock()   {}
 func (fakeLocker) Unlock() {}
 
-func isSyscallWriteError(err error) bool {
+func isNetWriteError(err error) bool {
 	switch e := err.(type) {
 	case *url.Error:
-		return isSyscallWriteError(e.Err)
+		return isNetWriteError(e.Err)
 	case *net.OpError:
-		return e.Op == "write" && isSyscallWriteError(e.Err)
-	case *os.SyscallError:
-		return e.Syscall == "write"
+		return e.Op == "write"
 	default:
 		return false
 	}

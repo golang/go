@@ -3034,6 +3034,30 @@ Host: foo
 	}
 }
 
+// If a Handler finishes and there's an unread request body,
+// verify the server try to do implicit read on it before replying.
+func TestHandlerFinishSkipBigContentLengthRead(t *testing.T) {
+	conn := &testConn{closec: make(chan bool)}
+	conn.readBuf.Write([]byte(fmt.Sprintf(
+		"POST / HTTP/1.1\r\n" +
+			"Host: test\r\n" +
+			"Content-Length: 9999999999\r\n" +
+			"\r\n" + strings.Repeat("a", 1<<20))))
+
+	ls := &oneConnListener{conn}
+	var inHandlerLen int
+	go Serve(ls, HandlerFunc(func(rw ResponseWriter, req *Request) {
+		inHandlerLen = conn.readBuf.Len()
+		rw.WriteHeader(404)
+	}))
+	<-conn.closec
+	afterHandlerLen := conn.readBuf.Len()
+
+	if afterHandlerLen != inHandlerLen {
+		t.Errorf("unexpected implicit read. Read buffer went from %d -> %d", inHandlerLen, afterHandlerLen)
+	}
+}
+
 func BenchmarkClientServer(b *testing.B) {
 	b.ReportAllocs()
 	b.StopTimer()

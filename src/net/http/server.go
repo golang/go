@@ -874,8 +874,14 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	if w.req.ContentLength != 0 && !w.closeAfterReply {
 		ecr, isExpecter := w.req.Body.(*expectContinueReader)
 		if !isExpecter || ecr.resp.wroteContinue {
-			n, _ := io.CopyN(ioutil.Discard, w.req.Body, maxPostHandlerReadBytes+1)
-			if n >= maxPostHandlerReadBytes {
+			var tooBig bool
+			if reqBody, ok := w.req.Body.(*body); ok && reqBody.unreadDataSize() >= maxPostHandlerReadBytes {
+				tooBig = true
+			} else {
+				n, _ := io.CopyN(ioutil.Discard, w.req.Body, maxPostHandlerReadBytes+1)
+				tooBig = n >= maxPostHandlerReadBytes
+			}
+			if tooBig {
 				w.requestTooLarge()
 				delHeader("Connection")
 				setHeader.connection = "close"
@@ -1144,11 +1150,16 @@ func (w *response) shouldReuseConnection() bool {
 		return false
 	}
 
-	if body, ok := w.req.Body.(*body); ok && body.didEarlyClose() {
+	if w.closedRequestBodyEarly() {
 		return false
 	}
 
 	return true
+}
+
+func (w *response) closedRequestBodyEarly() bool {
+	body, ok := w.req.Body.(*body)
+	return ok && body.didEarlyClose()
 }
 
 func (w *response) Flush() {
@@ -1318,7 +1329,7 @@ func (c *conn) serve() {
 		}
 		w.finishRequest()
 		if !w.shouldReuseConnection() {
-			if w.requestBodyLimitHit {
+			if w.requestBodyLimitHit || w.closedRequestBodyEarly() {
 				c.closeWriteAndWait()
 			}
 			break
