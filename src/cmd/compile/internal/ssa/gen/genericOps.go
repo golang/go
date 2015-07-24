@@ -153,7 +153,7 @@ var genericOps = []opData{
 	{name: "Convert"}, // convert arg0 to another type
 	{name: "ConvNop"}, // interpret arg0 as another type
 
-	// Safety checks
+	// Automatically inserted safety checks
 	{name: "IsNonNil"},   // arg0 != nil
 	{name: "IsInBounds"}, // 0 <= arg0 < arg1
 
