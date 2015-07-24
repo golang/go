@@ -95,6 +95,7 @@ var commands = []*Command{
 	helpBuildmode,
 	helpFileType,
 	helpGopath,
+	helpEnvironment,
 	helpImportPath,
 	helpPackages,
 	helpTestflag,
