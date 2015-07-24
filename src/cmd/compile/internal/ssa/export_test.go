@@ -15,7 +15,7 @@ type DummyFrontend struct {
 	t testing.TB
 }
 
-func (DummyFrontend) StringSym(s string) interface{} {
+func (DummyFrontend) StringData(s string) interface{} {
 	return nil
 }
 

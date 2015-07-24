@@ -17,10 +17,8 @@ type Config struct {
 }
 
 type Frontend interface {
-	// StringSym returns a symbol pointing to the given string.
-	// Strings are laid out in read-only memory with one word of pointer,
-	// one word of length, then the contents of the string.
-	StringSym(string) interface{} // returns *gc.Sym
+	// StringData returns a symbol pointing to the given string's contents.
+	StringData(string) interface{} // returns *gc.Sym
 
 	// Log logs a message from the compiler.
 	Logf(string, ...interface{})
