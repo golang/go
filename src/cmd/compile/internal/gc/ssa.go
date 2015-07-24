@@ -1911,8 +1911,15 @@ func regnum(v *ssa.Value) int16 {
 // localOffset returns the offset below the frame pointer where
 // a stack-allocated local has been allocated.  Panics if v
 // is not assigned to a local slot.
+// TODO: Make this panic again once it stops happening routinely.
 func localOffset(v *ssa.Value) int64 {
-	return v.Block.Func.RegAlloc[v.ID].(*ssa.LocalSlot).Idx
+	reg := v.Block.Func.RegAlloc[v.ID]
+	slot, ok := reg.(*ssa.LocalSlot)
+	if !ok {
+		v.Unimplementedf("localOffset of non-LocalSlot value: %s", v.LongString())
+		return 0
+	}
+	return slot.Idx
 }
 
 // ssaExport exports a bunch of compiler services for the ssa backend.
