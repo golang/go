@@ -18,6 +18,8 @@
 #define SYS_write (SYS_BASE + 4)
 #define SYS_open (SYS_BASE + 5)
 #define SYS_close (SYS_BASE + 6)
+#define SYS_getpid (SYS_BASE + 20)
+#define SYS_kill (SYS_BASE + 37)
 #define SYS_sigaltstack (SYS_BASE + 53)
 #define SYS_munmap (SYS_BASE + 73)
 #define SYS_madvise (SYS_BASE + 75)
@@ -142,6 +144,17 @@ TEXT runtime·raise(SB),NOSPLIT,$8
 	MOVW 4(R13), R0	// arg 1 id
 	MOVW sig+0(FP), R1	// arg 2 - signal
 	MOVW $SYS_thr_kill, R7
+	SWI $0
+	RET
+
+TEXT runtime·raiseproc(SB),NOSPLIT,$0
+	// getpid
+	MOVW $SYS_getpid, R7
+	SWI $0
+	// kill(self, sig)
+				// arg 1 - pid, now in R0
+	MOVW sig+0(FP), R1	// arg 2 - signal
+	MOVW $SYS_kill, R7
 	SWI $0
 	RET
 

@@ -170,25 +170,21 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	}
 
 	if docrash {
-		// TODO(rsc): Implement raiseproc on other systems
-		// and then add to this if condition.
-		if GOOS == "linux" {
-			crashing++
-			if crashing < sched.mcount {
-				// There are other m's that need to dump their stacks.
-				// Relay SIGQUIT to the next m by sending it to the current process.
-				// All m's that have already received SIGQUIT have signal masks blocking
-				// receipt of any signals, so the SIGQUIT will go to an m that hasn't seen it yet.
-				// When the last m receives the SIGQUIT, it will fall through to the call to
-				// crash below. Just in case the relaying gets botched, each m involved in
-				// the relay sleeps for 5 seconds and then does the crash/exit itself.
-				// In expected operation, the last m has received the SIGQUIT and run
-				// crash/exit and the process is gone, all long before any of the
-				// 5-second sleeps have finished.
-				print("\n-----\n\n")
-				raiseproc(_SIGQUIT)
-				usleep(5 * 1000 * 1000)
-			}
+		crashing++
+		if crashing < sched.mcount {
+			// There are other m's that need to dump their stacks.
+			// Relay SIGQUIT to the next m by sending it to the current process.
+			// All m's that have already received SIGQUIT have signal masks blocking
+			// receipt of any signals, so the SIGQUIT will go to an m that hasn't seen it yet.
+			// When the last m receives the SIGQUIT, it will fall through to the call to
+			// crash below. Just in case the relaying gets botched, each m involved in
+			// the relay sleeps for 5 seconds and then does the crash/exit itself.
+			// In expected operation, the last m has received the SIGQUIT and run
+			// crash/exit and the process is gone, all long before any of the
+			// 5-second sleeps have finished.
+			print("\n-----\n\n")
+			raiseproc(_SIGQUIT)
+			usleep(5 * 1000 * 1000)
 		}
 		crash()
 	}

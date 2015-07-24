@@ -32,7 +32,9 @@
 #define SYS_getrlimit		163
 #define SYS_madvise		233
 #define SYS_mincore		232
+#define SYS_getpid		172
 #define SYS_gettid		178
+#define SYS_kill		129
 #define SYS_tkill		130
 #define SYS_futex		98
 #define SYS_sched_getaffinity	123
@@ -148,6 +150,15 @@ TEXT runtime·raise(SB),NOSPLIT,$-8
 	MOVW	R0, R0	// arg 1 tid
 	MOVW	sig+0(FP), R1	// arg 2
 	MOVD	$SYS_tkill, R8
+	SVC
+	RET
+
+TEXT runtime·raiseproc(SB),NOSPLIT,$-8
+	MOVD	$SYS_getpid, R8
+	SVC
+	MOVW	R0, R0		// arg 1 pid
+	MOVW	sig+0(FP), R1	// arg 2
+	MOVD	$SYS_kill, R8
 	SVC
 	RET
 

@@ -96,6 +96,15 @@ TEXT runtime·raise(SB),NOSPLIT,$12
 	SWI	$0
 	RET
 
+TEXT runtime·raiseproc(SB),NOSPLIT,$12
+	MOVW	$20, R12
+	SWI	$0			// sys_getpid
+					// arg 1 - pid, already in R0
+	MOVW	sig+0(FP), R1		// arg 2 - signum
+	MOVW	$37, R12		// sys_kill
+	SWI	$0
+	RET
+
 TEXT runtime·mmap(SB),NOSPLIT,$16
 	MOVW	addr+0(FP), R0		// arg 1 - addr
 	MOVW	len+4(FP), R1		// arg 2 - len

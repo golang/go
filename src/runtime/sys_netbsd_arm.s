@@ -127,6 +127,12 @@ TEXT runtime·raise(SB),NOSPLIT,$16
 	SWI $0xa0013e	// sys__lwp_kill
 	RET
 
+TEXT runtime·raiseproc(SB),NOSPLIT,$16
+	SWI $0xa00014	// sys_getpid, the returned R0 is arg 1
+	MOVW	sig+0(FP), R1	// arg 2 - signal
+	SWI $0xa00025	// sys_kill
+	RET
+
 TEXT runtime·setitimer(SB),NOSPLIT,$-4
 	MOVW mode+0(FP), R0	// arg 1 - which
 	MOVW new+4(FP), R1	// arg 2 - itv
