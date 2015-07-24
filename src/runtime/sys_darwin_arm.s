@@ -97,7 +97,12 @@ TEXT runtime·exit1(SB),NOSPLIT,$0
 	MOVW	$1003, R1
 	MOVW	R0, (R1)	// fail hard
 
-TEXT runtime·raise(SB),NOSPLIT,$24
+TEXT runtime·raise(SB),NOSPLIT,$0
+	// Ideally we'd send the signal to the current thread,
+	// not the whole process, but that's too hard on OS X.
+	JMP	runtime·raiseproc(SB)
+
+TEXT runtime·raiseproc(SB),NOSPLIT,$24
 	MOVW	$SYS_getpid, R12
 	SWI	$0x80
 	// arg 1 pid already in R0 from getpid
