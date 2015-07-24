@@ -76,13 +76,14 @@ func futexwakeup(addr *uint32, cnt uint32) {
 
 func getproccount() int32 {
 	// This buffer is huge (8 kB) but we are on the system stack
-	// and there should be plenty of space (64 kB).
+	// and there should be plenty of space (64 kB) -- except on ARM where
+	// the system stack itself is only 8kb (see golang.org/issue/11873).
 	// Also this is a leaf, so we're not holding up the memory for long.
 	// See golang.org/issue/11823.
 	// The suggested behavior here is to keep trying with ever-larger
 	// buffers, but we don't have a dynamic memory allocator at the
 	// moment, so that's a bit tricky and seems like overkill.
-	const maxCPUs = 64 * 1024
+	const maxCPUs = 64*1024*(1-goarch_arm) + 1024*goarch_arm
 	var buf [maxCPUs / (ptrSize * 8)]uintptr
 	r := sched_getaffinity(0, unsafe.Sizeof(buf), &buf[0])
 	n := int32(0)
