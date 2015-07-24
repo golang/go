@@ -594,6 +594,28 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 			// there are still assists tapering off. Don't
 			// bother running background mark because
 			// it'll just return immediately.
+			if work.nwait == work.nproc {
+				// There are also no workers, which
+				// means we've reached a completion point.
+				// There may not be any workers to
+				// signal it, so signal it here.
+				readied := false
+				if gcBlackenPromptly {
+					if work.bgMark1.done == 0 {
+						throw("completing mark 2, but bgMark1.done == 0")
+					}
+					readied = work.bgMark2.complete()
+				} else {
+					readied = work.bgMark1.complete()
+				}
+				if readied {
+					// complete just called ready,
+					// but we're inside the
+					// scheduler. Let it know that
+					// that's okay.
+					resetspinning()
+				}
+			}
 			return nil
 		}
 		if !decIfPositive(&c.fractionalMarkWorkersNeeded) {
@@ -710,7 +732,7 @@ func (s *bgMarkSignal) wait() {
 // The caller should arrange to deschedule itself as soon as possible
 // after calling complete in order to let the coordinator goroutine
 // run.
-func (s *bgMarkSignal) complete() {
+func (s *bgMarkSignal) complete() bool {
 	if cas(&s.done, 0, 1) {
 		// This is the first worker to reach this completion point.
 		// Signal the main GC goroutine.
@@ -722,7 +744,9 @@ func (s *bgMarkSignal) complete() {
 			ready(s.g, 0)
 		}
 		unlock(&s.lock)
+		return true
 	}
+	return false
 }
 
 func (s *bgMarkSignal) clear() {
@@ -963,6 +987,7 @@ func gc(mode int) {
 		}
 
 		// Wait for background mark completion.
+		work.bgMark1.clear()
 		work.bgMark1.wait()
 
 		// The global work list is empty, but there can still be work
@@ -978,16 +1003,10 @@ func gc(mode int) {
 			})
 		})
 
-		if atomicload64(&work.full) != 0 || atomicload64(&work.partial) != 0 {
-			if work.bgMark2.done != 0 {
-				throw("work.bgMark2.done != 0")
-			}
-			gcBlackenPromptly = true
-			// Wait for this more aggressive background mark to complete.
-			work.bgMark2.wait()
-		} else {
-			work.bgMark2.done = 1
-		}
+		gcBlackenPromptly = true
+		// Wait for this more aggressive background mark to complete.
+		work.bgMark2.clear()
+		work.bgMark2.wait()
 
 		// Begin mark termination.
 		now = nanotime()
@@ -1209,8 +1228,8 @@ func gcBgMarkPrepare() {
 	work.nwait = ^uint32(0)
 
 	// Reset background mark completion points.
-	work.bgMark1.clear()
-	work.bgMark2.clear()
+	work.bgMark1.done = 1
+	work.bgMark2.done = 1
 	gcController.bgMarkStartTime = nanotime()
 }
 
