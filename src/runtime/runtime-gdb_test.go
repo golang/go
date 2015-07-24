@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"testing"
 )
 
@@ -22,6 +23,23 @@ func checkGdbPython(t *testing.T) {
 	if string(out) != "go gdb python support\n" {
 		t.Skipf("skipping due to lack of python gdb support: %s", out)
 	}
+
+	// Issue 11214 reports various failures with older versions of gdb.
+	out, err = exec.Command("gdb", "--version").CombinedOutput()
+	re := regexp.MustCompile(`([0-9]+)\.([0-9]+)`)
+	matches := re.FindSubmatch(out)
+	if len(matches) < 3 {
+		t.Skipf("skipping: can't determine gdb version from\n%s\n", out)
+	}
+	major, err1 := strconv.Atoi(string(matches[1]))
+	minor, err2 := strconv.Atoi(string(matches[2]))
+	if err1 != nil || err2 != nil {
+		t.Skipf("skipping: can't determine gdb version: %v, %v", err1, err2)
+	}
+	if major < 7 || (major == 7 && minor < 7) {
+		t.Skipf("skipping: gdb version %d.%d too old", major, minor)
+	}
+	t.Logf("gdb version %d.%d", major, minor)
 }
 
 const helloSource = `
