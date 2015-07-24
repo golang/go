@@ -1639,23 +1639,23 @@ func genValue(v *ssa.Value) {
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = y
 		}
-	case ssa.OpLoadReg8:
+	case ssa.OpLoadReg:
 		if v.Type.IsFlags() {
 			v.Unimplementedf("load flags not implemented: %v", v.LongString())
 			return
 		}
-		p := Prog(x86.AMOVQ)
+		p := Prog(movSize(v.Type.Size()))
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = x86.REG_SP
 		p.From.Offset = localOffset(v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
-	case ssa.OpStoreReg8:
+	case ssa.OpStoreReg:
 		if v.Type.IsFlags() {
 			v.Unimplementedf("store flags not implemented: %v", v.LongString())
 			return
 		}
-		p := Prog(x86.AMOVQ)
+		p := Prog(movSize(v.Type.Size()))
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = regnum(v.Args[0])
 		p.To.Type = obj.TYPE_MEM
@@ -1709,6 +1709,23 @@ func genValue(v *ssa.Value) {
 	default:
 		v.Unimplementedf("genValue not implemented: %s", v.LongString())
 	}
+}
+
+// movSize returns the MOV instruction of the given width.
+func movSize(width int64) (asm int) {
+	switch width {
+	case 1:
+		asm = x86.AMOVB
+	case 2:
+		asm = x86.AMOVW
+	case 4:
+		asm = x86.AMOVL
+	case 8:
+		asm = x86.AMOVQ
+	default:
+		panic(fmt.Errorf("bad movSize %d", width))
+	}
+	return asm
 }
 
 // movZero generates a register indirect move with a 0 immediate and keeps track of bytes left and next offset

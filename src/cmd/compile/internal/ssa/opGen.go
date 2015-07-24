@@ -243,8 +243,8 @@ const (
 	OpStringMake
 	OpStringPtr
 	OpStringLen
-	OpStoreReg8
-	OpLoadReg8
+	OpStoreReg
+	OpLoadReg
 	OpFwdRef
 )
 
@@ -1590,11 +1590,11 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "StoreReg8",
+		name:    "StoreReg",
 		generic: true,
 	},
 	{
-		name:    "LoadReg8",
+		name:    "LoadReg",
 		generic: true,
 	},
 	{
