@@ -1538,11 +1538,20 @@ func genValue(v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-	case ssa.OpAMD64LEAQ1:
+	case ssa.OpAMD64LEAQ1, ssa.OpAMD64LEAQ2, ssa.OpAMD64LEAQ4, ssa.OpAMD64LEAQ8:
 		p := Prog(x86.ALEAQ)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = regnum(v.Args[0])
-		p.From.Scale = 1
+		switch v.Op {
+		case ssa.OpAMD64LEAQ1:
+			p.From.Scale = 1
+		case ssa.OpAMD64LEAQ2:
+			p.From.Scale = 2
+		case ssa.OpAMD64LEAQ4:
+			p.From.Scale = 4
+		case ssa.OpAMD64LEAQ8:
+			p.From.Scale = 8
+		}
 		p.From.Index = regnum(v.Args[1])
 		addAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
