@@ -118,9 +118,15 @@
 
 // block rewrites
 (If (SETL cmp) yes no) -> (LT cmp yes no)
+(If (SETLE cmp) yes no) -> (LE cmp yes no)
+(If (SETG cmp) yes no) -> (GT cmp yes no)
+(If (SETGE cmp) yes no) -> (GE cmp yes no)
 (If (SETEQ cmp) yes no) -> (EQ cmp yes no)
 (If (SETNE cmp) yes no) -> (NE cmp yes no)
 (If (SETB cmp) yes no) -> (ULT cmp yes no)
+(If (SETBE cmp) yes no) -> (ULE cmp yes no)
+(If (SETA cmp) yes no) -> (UGT cmp yes no)
+(If (SETAE cmp) yes no) -> (UGE cmp yes no)
 (If cond yes no) && cond.Op == OpAMD64MOVBload -> (NE (TESTB <TypeFlags> cond cond) yes no)
 
 (StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
