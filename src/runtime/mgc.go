@@ -1269,8 +1269,22 @@ func gcBgMarkWorker(p *p) {
 			// match the decrement above. It only returns
 			// at a mark completion point.
 			done = true
+			if !p.gcw.empty() {
+				throw("gcDrain returned with buffer")
+			}
 		case gcMarkWorkerFractionalMode, gcMarkWorkerIdleMode:
 			gcDrainUntilPreempt(&p.gcw, gcBgCreditSlack)
+
+			// If we are nearing the end of mark, dispose
+			// of the cache promptly. We must do this
+			// before signaling that we're no longer
+			// working so that other workers can't observe
+			// no workers and no work while we have this
+			// cached, and before we compute done.
+			if gcBlackenPromptly {
+				p.gcw.dispose()
+			}
+
 			// Was this the last worker and did we run out
 			// of work?
 			incnwait := xadd(&work.nwait, +1)
@@ -1280,10 +1294,6 @@ func gcBgMarkWorker(p *p) {
 				throw("work.nwait > work.nproc")
 			}
 			done = incnwait == work.nproc && work.full == 0 && work.partial == 0
-		}
-		// If we are near the end of the mark phase dispose of p.gcw.
-		if gcBlackenPromptly {
-			p.gcw.dispose()
 		}
 
 		// If this worker reached a background mark completion
