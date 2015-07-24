@@ -119,7 +119,7 @@ preempted.
 
 	//go:linkname localname importpath.name
 
-The //go:linkname directive instructs the compiler to use ``importpath.name' as the
+The //go:linkname directive instructs the compiler to use ``importpath.name'' as the
 object file symbol name for the variable or function declared as ``localname'' in the
 source code. Because this directive can subvert the type system and package
 modularity, it is only enabled in files that have imported "unsafe".
