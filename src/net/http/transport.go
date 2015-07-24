@@ -975,6 +975,7 @@ func (pc *persistConn) readLoop() {
 			// the underlying bufio reader.
 			select {
 			case <-rc.req.Cancel:
+				alive = false
 				pc.t.CancelRequest(rc.req)
 			case bodyEOF := <-waitForBodyRead:
 				pc.t.setReqCanceler(rc.req, nil) // before pc might return to idle pool
