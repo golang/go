@@ -2071,7 +2071,7 @@ In the absence of any formal way to specify interfaces in JavaScript,
 here's a skeleton implementation of a playground transport.
 
         function Transport() {
-                // Set up any transport state (eg, make a websocket connnection).
+                // Set up any transport state (eg, make a websocket connection).
                 return {
                         Run: function(body, output, options) {
                                 // Compile and run the program 'body' with 'options'.
