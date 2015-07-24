@@ -1114,6 +1114,8 @@ func canSSA(n *Node) bool {
 
 // nilCheck generates nil pointer checking code.
 // Starts a new block on return.
+// Used only for automatically inserted nil checks,
+// not for user code like 'x != nil'.
 func (s *state) nilCheck(ptr *ssa.Value) {
 	c := s.newValue1(ssa.OpIsNonNil, ssa.TypeBool, ptr)
 	b := s.endBlock()
@@ -1466,7 +1468,6 @@ func genValue(v *ssa.Value) {
 			p.From.Reg = x
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = r
-			x = r
 		}
 		p := Prog(x86.ASUBQ)
 		p.From.Type = obj.TYPE_CONST
@@ -1485,7 +1486,6 @@ func genValue(v *ssa.Value) {
 			p.From.Reg = x
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = r
-			x = r
 		}
 		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
@@ -1501,7 +1501,6 @@ func genValue(v *ssa.Value) {
 			p.From.Reg = x
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = r
-			x = r
 		}
 		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST

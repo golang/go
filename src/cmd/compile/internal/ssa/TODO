@@ -52,6 +52,9 @@ Common-Subexpression Elimination
  - Can we move control values out of their basic block?
    This would break nilcheckelim as currently implemented,
    but it could be replaced by a similar CFG simplication pass.
+ - Investigate type equality. During SSA generation, should we use n.Type or (say) TypeBool?
+   Should we get rid of named types in favor of underlying types during SSA generation?
+   Should we introduce a new type equality routine that is less strict than the frontend's?
 
 Other
  - Write barriers
@@ -63,3 +66,4 @@ Other
  - make deadstore work with zeroing.
  - Add a value range propagation optimization pass.
    Use it for bounds check elimination and bitwidth reduction.
+ - Branch prediction: Respect hints from the frontend, add our own.
