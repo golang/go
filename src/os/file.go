@@ -93,9 +93,6 @@ func (f *File) Read(b []byte) (n int, err error) {
 		return 0, ErrInvalid
 	}
 	n, e := f.read(b)
-	if n < 0 {
-		n = 0
-	}
 	if n == 0 && len(b) > 0 && e == nil {
 		return 0, io.EOF
 	}
