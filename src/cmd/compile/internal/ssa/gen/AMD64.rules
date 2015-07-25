@@ -136,12 +136,13 @@
 // TODO: Should this be a separate pass?
 
 // fold constants into instructions
-(ADDQ x (MOVQconst [c])) -> (ADDQconst [c] x) // TODO: restrict c to int32 range?
-(ADDQ (MOVQconst [c]) x) -> (ADDQconst [c] x)
+// TODO: restrict c to int32 range for all?
+(ADDQ x (MOVQconst [c])) && is32Bit(c) -> (ADDQconst [c] x)
+(ADDQ (MOVQconst [c]) x) && is32Bit(c) -> (ADDQconst [c] x)
 (SUBQ x (MOVQconst [c])) -> (SUBQconst x [c])
 (SUBQ <t> (MOVQconst [c]) x) -> (NEGQ (SUBQconst <t> x [c]))
-(MULQ x (MOVQconst [c])) && c == int64(int32(c)) -> (MULQconst [c] x)
-(MULQ (MOVQconst [c]) x) -> (MULQconst [c] x)
+(MULQ x (MOVQconst [c])) && is32Bit(c) -> (MULQconst [c] x)
+(MULQ (MOVQconst [c]) x) && is32Bit(c) -> (MULQconst [c] x)
 (ANDQ x (MOVQconst [c])) -> (ANDQconst [c] x)
 (ANDQ (MOVQconst [c]) x) -> (ANDQconst [c] x)
 (SHLQ x (MOVQconst [c])) -> (SHLQconst [c] x)

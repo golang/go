@@ -130,7 +130,12 @@ func log2(n int64) (l int64) {
 	return l
 }
 
-// isPowerOfTwo returns true if n is a power of 2.
+// isPowerOfTwo reports whether n is a power of 2.
 func isPowerOfTwo(n int64) bool {
 	return n > 0 && n&(n-1) == 0
+}
+
+// is32Bit reports whether n can be represented as a signed 32 bit integer.
+func is32Bit(n int64) bool {
+	return n == int64(int32(n))
 }

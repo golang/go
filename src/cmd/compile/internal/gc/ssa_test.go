@@ -42,3 +42,6 @@ func TestShortCircuit(t *testing.T) { runTest(t, "short_ssa.go") }
 
 // TestBreakContinue tests that continue and break statements do what they say.
 func TestBreakContinue(t *testing.T) { runTest(t, "break_ssa.go") }
+
+// TestArithmetic tests that both backends have the same result for arithmetic expressions.
+func TestArithmetic(t *testing.T) { runTest(t, "arith_ssa.go") }
