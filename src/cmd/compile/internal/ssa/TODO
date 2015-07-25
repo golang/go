@@ -28,6 +28,8 @@ Regalloc
  - Floating point registers
  - Make calls clobber all registers
  - Make liveness analysis non-quadratic.
+ - Handle in-place instructions (like XORQconst) directly:
+   Use XORQ AX, 1 rather than MOVQ AX, BX; XORQ BX, 1.
 
 StackAlloc:
  - Sort variables so all ptr-containing ones are first (so stack

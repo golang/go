@@ -1492,7 +1492,7 @@ func genValue(v *ssa.Value) {
 		p.From.Reg = regnum(v.Args[1]) // should be CX
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-	case ssa.OpAMD64SHLQconst, ssa.OpAMD64SHRQconst, ssa.OpAMD64SARQconst:
+	case ssa.OpAMD64SHLQconst, ssa.OpAMD64SHRQconst, ssa.OpAMD64SARQconst, ssa.OpAMD64XORQconst:
 		x := regnum(v.Args[0])
 		r := regnum(v)
 		if x != r {
@@ -1684,12 +1684,6 @@ func genValue(v *ssa.Value) {
 		p.To.Sym = Linksym(v.Aux.(*Sym))
 	case ssa.OpAMD64CALLclosure:
 		p := Prog(obj.ACALL)
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v.Args[0])
-	case ssa.OpAMD64XORQconst:
-		p := Prog(x86.AXORQ)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v.Args[0])
 	case ssa.OpAMD64NEGQ, ssa.OpAMD64NEGL, ssa.OpAMD64NEGW, ssa.OpAMD64NEGB:
