@@ -238,7 +238,7 @@ func regalloc(f *Func) {
 					if regs[r].v != nil {
 						x := regs[r].v
 						c := regs[r].c
-						if regs[r].dirty && lastUse[x.ID] > idx {
+						if regs[r].dirty && lastUse[x.ID] >= idx {
 							// Write x back to home.  Its value is currently held in c.
 							x.Op = OpStoreReg
 							x.Aux = nil
@@ -317,7 +317,7 @@ func regalloc(f *Func) {
 				if regs[r].v != nil {
 					x := regs[r].v
 					c := regs[r].c
-					if regs[r].dirty && lastUse[x.ID] > idx {
+					if regs[r].dirty && lastUse[x.ID] >= idx {
 						// Write x back to home.  Its value is currently held in c.
 						x.Op = OpStoreReg
 						x.Aux = nil
