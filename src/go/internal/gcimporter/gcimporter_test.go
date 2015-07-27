@@ -6,6 +6,7 @@ package gcimporter
 
 import (
 	"fmt"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -33,6 +34,7 @@ func skipSpecialPlatforms(t *testing.T) {
 }
 
 func compile(t *testing.T, dirname, filename string) string {
+	testenv.MustHaveGoBuild(t)
 	cmd := exec.Command("go", "tool", "compile", filename)
 	cmd.Dir = dirname
 	out, err := cmd.CombinedOutput()
