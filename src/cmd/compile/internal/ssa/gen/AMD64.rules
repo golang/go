@@ -100,11 +100,13 @@
 (Eq32 x y) -> (SETEQ (CMPL <TypeFlags> x y))
 (Eq16 x y) -> (SETEQ (CMPW <TypeFlags> x y))
 (Eq8 x y) -> (SETEQ (CMPB <TypeFlags> x y))
+(EqPtr x y) -> (SETEQ (CMPQ <TypeFlags> x y))
 
 (Neq64 x y) -> (SETNE (CMPQ <TypeFlags> x y))
 (Neq32 x y) -> (SETNE (CMPL <TypeFlags> x y))
 (Neq16 x y) -> (SETNE (CMPW <TypeFlags> x y))
 (Neq8 x y) -> (SETNE (CMPB <TypeFlags> x y))
+(NeqPtr x y) -> (SETNE (CMPQ <TypeFlags> x y))
 
 (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) -> (MOVQload ptr mem)
 (Load <t> ptr mem) && is32BitInt(t) -> (MOVLload ptr mem)
