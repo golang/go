@@ -1,5 +1,4 @@
 // +build linux
-// +build !ppc64,!ppc64le
 // run
 
 // Copyright 2015 The Go Authors. All rights reserved.
