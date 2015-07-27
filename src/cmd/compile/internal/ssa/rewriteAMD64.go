@@ -852,6 +852,27 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto end84a692e769900e3adbfe00718d2169e0
 	end84a692e769900e3adbfe00718d2169e0:
 		;
+	case OpEqPtr:
+		// match: (EqPtr x y)
+		// cond:
+		// result: (SETEQ (CMPQ <TypeFlags> x y))
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64SETEQ
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPQ, TypeInvalid)
+			v0.Type = TypeFlags
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v.AddArg(v0)
+			return true
+		}
+		goto end6de1d39c9d151e5e503d643bd835356e
+	end6de1d39c9d151e5e503d643bd835356e:
+		;
 	case OpGeq64:
 		// match: (Geq64 x y)
 		// cond:
@@ -2040,6 +2061,27 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		}
 		goto end4aaff28af59a65b3684f4f1897299932
 	end4aaff28af59a65b3684f4f1897299932:
+		;
+	case OpNeqPtr:
+		// match: (NeqPtr x y)
+		// cond:
+		// result: (SETNE (CMPQ <TypeFlags> x y))
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64SETNE
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPQ, TypeInvalid)
+			v0.Type = TypeFlags
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v.AddArg(v0)
+			return true
+		}
+		goto end6e180ffd9583cd55361ed3e465158a4c
+	end6e180ffd9583cd55361ed3e465158a4c:
 		;
 	case OpNot:
 		// match: (Not x)

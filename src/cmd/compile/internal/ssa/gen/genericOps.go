@@ -67,11 +67,15 @@ var genericOps = []opData{
 	{name: "Eq16"},
 	{name: "Eq32"},
 	{name: "Eq64"},
+	{name: "EqPtr"},
+	{name: "EqFat"}, // slice/interface; arg0 or arg1 is nil; other cases handled by frontend
 
 	{name: "Neq8"}, // arg0 != arg1
 	{name: "Neq16"},
 	{name: "Neq32"},
 	{name: "Neq64"},
+	{name: "NeqPtr"},
+	{name: "NeqFat"}, // slice/interface; arg0 or arg1 is nil; other cases handled by frontend
 
 	{name: "Less8"}, // arg0 < arg1
 	{name: "Less8U"},
