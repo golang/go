@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of July 23, 2015",
+	"Subtitle": "Version of July 30, 2015",
 	"Path": "/ref/spec"
 }-->
 
@@ -662,7 +662,7 @@ acts like a variable.
 </p>
 
 <p>
-The <i>static type</i> (or just <i>type</i>) of a variable is the	
+The <i>static type</i> (or just <i>type</i>) of a variable is the
 type given in its declaration, the type provided in the
 <code>new</code> call or composite literal, or the type of
 an element of a structured variable.
@@ -672,8 +672,8 @@ which is the concrete type of the value assigned to the variable at run time
 which has no type).
 The dynamic type may vary during execution but values stored in interface
 variables are always <a href="#Assignability">assignable</a>
-to the static type of the variable.	
-</p>	
+to the static type of the variable.
+</p>
 
 <pre>
 var x interface{}  // x is nil and has static type interface{}
@@ -4550,6 +4550,7 @@ In an expression switch, the cases contain expressions that are compared
 against the value of the switch expression.
 In a type switch, the cases contain types that are compared against the
 type of a specially annotated switch expression.
+The switch expression is evaluated exactly once in a switch statement.
 </p>
 
 <h4 id="Expression_switches">Expression switches</h4>
@@ -4577,6 +4578,27 @@ ExprSwitchCase = "case" ExpressionList | "default" .
 </pre>
 
 <p>
+If the switch expression evaluates to an untyped constant, it is first
+<a href="#Conversions">converted</a> to its <a href="#Constants">default type</a>;
+if it is an untyped boolean value, it is first converted to type <code>bool</code>.
+The predeclared untyped value <code>nil</code> cannot be used as a switch expression.
+</p>
+
+<p>
+If a case expression is untyped, it is first <a href="#Conversions">converted</a>
+to the type of the switch expression.
+For each (possibly converted) case expression <code>x</code> and the value <code>t</code>
+of the switch expression, <code>x == t</code> must be a valid <a href="#Comparison_operators">comparison</a>.
+</p>
+
+<p>
+In other words, the switch expression is treated as if it were used to declare and
+initialize a temporary variable <code>t</code> without explicit type; it is that
+value of <code>t</code> against which each case expression <code>x</code> is tested
+for equality.
+</p>
+
+<p>
 In a case or default clause, the last non-empty statement
 may be a (possibly <a href="#Labeled_statements">labeled</a>)
 <a href="#Fallthrough_statements">"fallthrough" statement</a> to
@@ -4588,7 +4610,7 @@ but the last clause of an expression switch.
 </p>
 
 <p>
-The expression may be preceded by a simple statement, which
+The switch expression may be preceded by a simple statement, which
 executes before the expression is evaluated.
 </p>
 
@@ -4610,6 +4632,13 @@ case x &lt; z: f2()
 case x == 4: f3()
 }
 </pre>
+
+<p>
+Implementation restriction: A compiler may disallow multiple case
+expressions evaluating to the same constant.
+For instance, the current compilers disallow duplicate integer,
+floating point, or string constants in case expressions.
+</p>
 
 <h4 id="Type_switches">Type switches</h4>
 
