@@ -16,7 +16,9 @@ import "unsafe"
 //go:cgo_import_dynamic libc_exit exit "libc.so"
 //go:cgo_import_dynamic libc_fstat fstat "libc.so"
 //go:cgo_import_dynamic libc_getcontext getcontext "libc.so"
+//go:cgo_import_dynamic libc_getpid getpid "libc.so"
 //go:cgo_import_dynamic libc_getrlimit getrlimit "libc.so"
+//go:cgo_import_dynamic libc_kill kill "libc.so"
 //go:cgo_import_dynamic libc_madvise madvise "libc.so"
 //go:cgo_import_dynamic libc_malloc malloc "libc.so"
 //go:cgo_import_dynamic libc_mmap mmap "libc.so"
@@ -449,7 +451,8 @@ func raise(sig int32) /* int32 */ {
 }
 
 func raiseproc(sig int32) /* int32 */ {
-	sysvicall1(&libc_raise, uintptr(sig))
+	pid := sysvicall0(&libc_getpid)
+	sysvicall2(&libc_kill, pid, uintptr(sig))
 }
 
 //go:nosplit
