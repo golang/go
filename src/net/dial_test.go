@@ -386,13 +386,15 @@ func TestDialParallel(t *testing.T) {
 
 		primaries := makeAddrs(tt.primaries, dss.port)
 		fallbacks := makeAddrs(tt.fallbacks, dss.port)
+		d := Dialer{
+			FallbackDelay: fallbackDelay,
+			Timeout:       slowTimeout,
+		}
 		ctx := &dialContext{
-			Dialer: Dialer{
-				FallbackDelay: fallbackDelay,
-				Timeout:       slowTimeout,
-			},
-			network: "tcp",
-			address: "?",
+			Dialer:        d,
+			network:       "tcp",
+			address:       "?",
+			finalDeadline: d.deadline(time.Now()),
 		}
 		startTime := time.Now()
 		c, err := dialParallel(ctx, primaries, fallbacks)
@@ -513,9 +515,12 @@ func TestDialSerialAsyncSpuriousConnection(t *testing.T) {
 	}
 	defer ln.Close()
 
+	d := Dialer{}
 	ctx := &dialContext{
-		network: "tcp",
-		address: "?",
+		Dialer:        d,
+		network:       "tcp",
+		address:       "?",
+		finalDeadline: d.deadline(time.Now()),
 	}
 
 	results := make(chan dialResult)
