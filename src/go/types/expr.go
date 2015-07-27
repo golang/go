@@ -1462,9 +1462,9 @@ func (check *Checker) expr(x *operand, e ast.Expr) {
 	x.mode = invalid
 }
 
-// exprWithHint typechecks expression e and initializes x with the expression value.
+// exprWithHint typechecks expression e and initializes x with the expression value;
+// hint is the type of a composite literal element.
 // If an error occurred, x.mode is set to invalid.
-// If hint != nil, it is the type of a composite literal element.
 //
 func (check *Checker) exprWithHint(x *operand, e ast.Expr, hint Type) {
 	assert(hint != nil)
