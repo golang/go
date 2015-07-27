@@ -1983,6 +1983,101 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto end4157ddea9c4f71bfabfd6fa50e1208ed
 	end4157ddea9c4f71bfabfd6fa50e1208ed:
 		;
+	case OpAMD64SETA:
+		// match: (SETA (InvertFlags x))
+		// cond:
+		// result: (SETB x)
+		{
+			if v.Args[0].Op != OpAMD64InvertFlags {
+				goto enda4ac36e94fc279d762b5a6c7c6cc665d
+			}
+			x := v.Args[0].Args[0]
+			v.Op = OpAMD64SETB
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto enda4ac36e94fc279d762b5a6c7c6cc665d
+	enda4ac36e94fc279d762b5a6c7c6cc665d:
+		;
+	case OpAMD64SETAE:
+		// match: (SETAE (InvertFlags x))
+		// cond:
+		// result: (SETBE x)
+		{
+			if v.Args[0].Op != OpAMD64InvertFlags {
+				goto end0468f5be6caf682fdea6b91d6648991e
+			}
+			x := v.Args[0].Args[0]
+			v.Op = OpAMD64SETBE
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto end0468f5be6caf682fdea6b91d6648991e
+	end0468f5be6caf682fdea6b91d6648991e:
+		;
+	case OpAMD64SETB:
+		// match: (SETB (InvertFlags x))
+		// cond:
+		// result: (SETA x)
+		{
+			if v.Args[0].Op != OpAMD64InvertFlags {
+				goto endc9eba7aa1e54a228570d2f5cc96f3565
+			}
+			x := v.Args[0].Args[0]
+			v.Op = OpAMD64SETA
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto endc9eba7aa1e54a228570d2f5cc96f3565
+	endc9eba7aa1e54a228570d2f5cc96f3565:
+		;
+	case OpAMD64SETBE:
+		// match: (SETBE (InvertFlags x))
+		// cond:
+		// result: (SETAE x)
+		{
+			if v.Args[0].Op != OpAMD64InvertFlags {
+				goto end9d9031643469798b14b8cad1f5a7a1ba
+			}
+			x := v.Args[0].Args[0]
+			v.Op = OpAMD64SETAE
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto end9d9031643469798b14b8cad1f5a7a1ba
+	end9d9031643469798b14b8cad1f5a7a1ba:
+		;
+	case OpAMD64SETEQ:
+		// match: (SETEQ (InvertFlags x))
+		// cond:
+		// result: (SETEQ x)
+		{
+			if v.Args[0].Op != OpAMD64InvertFlags {
+				goto end5d2039c9368d8c0cfba23b5a85b459e1
+			}
+			x := v.Args[0].Args[0]
+			v.Op = OpAMD64SETEQ
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto end5d2039c9368d8c0cfba23b5a85b459e1
+	end5d2039c9368d8c0cfba23b5a85b459e1:
+		;
 	case OpAMD64SETG:
 		// match: (SETG (InvertFlags x))
 		// cond:
@@ -2002,6 +2097,25 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto endf7586738694c9cd0b74ae28bbadb649f
 	endf7586738694c9cd0b74ae28bbadb649f:
 		;
+	case OpAMD64SETGE:
+		// match: (SETGE (InvertFlags x))
+		// cond:
+		// result: (SETLE x)
+		{
+			if v.Args[0].Op != OpAMD64InvertFlags {
+				goto end82c11eff6f842159f564f2dad3d2eedc
+			}
+			x := v.Args[0].Args[0]
+			v.Op = OpAMD64SETLE
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto end82c11eff6f842159f564f2dad3d2eedc
+	end82c11eff6f842159f564f2dad3d2eedc:
+		;
 	case OpAMD64SETL:
 		// match: (SETL (InvertFlags x))
 		// cond:
@@ -2020,6 +2134,44 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		}
 		goto ende33160cd86b9d4d3b77e02fb4658d5d3
 	ende33160cd86b9d4d3b77e02fb4658d5d3:
+		;
+	case OpAMD64SETLE:
+		// match: (SETLE (InvertFlags x))
+		// cond:
+		// result: (SETGE x)
+		{
+			if v.Args[0].Op != OpAMD64InvertFlags {
+				goto end9307d96753efbeb888d1c98a6aba7a29
+			}
+			x := v.Args[0].Args[0]
+			v.Op = OpAMD64SETGE
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto end9307d96753efbeb888d1c98a6aba7a29
+	end9307d96753efbeb888d1c98a6aba7a29:
+		;
+	case OpAMD64SETNE:
+		// match: (SETNE (InvertFlags x))
+		// cond:
+		// result: (SETNE x)
+		{
+			if v.Args[0].Op != OpAMD64InvertFlags {
+				goto endbc71811b789475308014550f638026eb
+			}
+			x := v.Args[0].Args[0]
+			v.Op = OpAMD64SETNE
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto endbc71811b789475308014550f638026eb
+	endbc71811b789475308014550f638026eb:
 		;
 	case OpAMD64SHLQ:
 		// match: (SHLQ x (MOVQconst [c]))

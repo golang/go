@@ -180,6 +180,14 @@
 // reverse ordering of compare instruction
 (SETL (InvertFlags x)) -> (SETG x)
 (SETG (InvertFlags x)) -> (SETL x)
+(SETB (InvertFlags x)) -> (SETA x)
+(SETA (InvertFlags x)) -> (SETB x)
+(SETLE (InvertFlags x)) -> (SETGE x)
+(SETGE (InvertFlags x)) -> (SETLE x)
+(SETBE (InvertFlags x)) -> (SETAE x)
+(SETAE (InvertFlags x)) -> (SETBE x)
+(SETEQ (InvertFlags x)) -> (SETEQ x)
+(SETNE (InvertFlags x)) -> (SETNE x)
 
 // sign extended loads
 (MOVBQSX (MOVBload ptr mem)) -> (MOVBQSXload ptr mem)
