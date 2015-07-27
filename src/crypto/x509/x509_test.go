@@ -1074,6 +1074,40 @@ func TestParseCertificateRequest(t *testing.T) {
 	}
 }
 
+func TestCriticalFlagInCSRRequestedExtensions(t *testing.T) {
+	// This CSR contains an extension request where the extensions have a
+	// critical flag in them. In the past we failed to handle this.
+	const csrBase64 = "MIICrTCCAZUCAQIwMzEgMB4GA1UEAwwXU0NFUCBDQSBmb3IgRGV2ZWxlciBTcmwxDzANBgNVBAsMBjQzNTk3MTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALFMAJ7Zy9YyfgbNlbUWAW0LalNRMPs7aXmLANsCpjhnw3lLlfDPaLeWyKh1nK5I5ojaJOW6KIOSAcJkDUe3rrE0wR0RVt3UxArqs0R/ND3u5Q+bDQY2X1HAFUHzUzcdm5JRAIA355v90teMckaWAIlkRQjDE22Lzc6NAl64KOd1rqOUNj8+PfX6fSo20jm94Pp1+a6mfk3G/RUWVuSm7owO5DZI/Fsi2ijdmb4NUar6K/bDKYTrDFkzcqAyMfP3TitUtBp19Mp3B1yAlHjlbp/r5fSSXfOGHZdgIvp0WkLuK2u5eQrX5l7HMB/5epgUs3HQxKY6ljhh5wAjDwz//LsCAwEAAaA1MDMGCSqGSIb3DQEJDjEmMCQwEgYDVR0TAQH/BAgwBgEB/wIBADAOBgNVHQ8BAf8EBAMCAoQwDQYJKoZIhvcNAQEFBQADggEBAAMq3bxJSPQEgzLYR/yaVvgjCDrc3zUbIwdOis6Go06Q4RnjH5yRaSZAqZQTDsPurQcnz2I39VMGEiSkFJFavf4QHIZ7QFLkyXadMtALc87tm17Ej719SbHcBSSZayR9VYJUNXRLayI6HvyUrmqcMKh+iX3WY3ICr59/wlM0tYa8DYN4yzmOa2Onb29gy3YlaF5A2AKAMmk003cRT9gY26mjpv7d21czOSSeNyVIoZ04IR9ee71vWTMdv0hu/af5kSjQ+ZG5/Qgc0+mnECLz/1gtxt1srLYbtYQ/qAY8oX1DCSGFS61tN/vl+4cxGMD/VGcGzADRLRHSlVqy2Qgss6Q="
+
+	csrBytes := fromBase64(csrBase64)
+	csr, err := ParseCertificateRequest(csrBytes)
+	if err != nil {
+		t.Fatalf("failed to parse CSR: %s", err)
+	}
+
+	expected := []struct{
+		Id asn1.ObjectIdentifier
+		Value []byte
+	}{
+		{oidExtensionBasicConstraints, fromBase64("MAYBAf8CAQA=")},
+		{oidExtensionKeyUsage, fromBase64("AwIChA==")},
+	}
+
+	if n := len(csr.Extensions); n != len(expected) {
+		t.Fatalf("expected to find %d extensions but found %d", len(expected), n)
+	}
+
+	for i, extension := range csr.Extensions {
+		if !extension.Id.Equal(expected[i].Id) {
+			t.Fatalf("extension #%d has unexpected type %v (expected %v)", i, extension.Id, expected[i].Id)
+		}
+
+		if !bytes.Equal(extension.Value, expected[i].Value) {
+			t.Fatalf("extension #%d has unexpected contents %x (expected %x)", i, extension.Value, expected[i].Value)
+		}
+	}
+}
+
 func TestMaxPathLen(t *testing.T) {
 	block, _ := pem.Decode([]byte(pemPrivateKey))
 	rsaPriv, err := ParsePKCS1PrivateKey(block.Bytes)
