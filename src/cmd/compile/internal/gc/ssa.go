@@ -1749,6 +1749,15 @@ func genValue(v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = regnum(v.Args[0])
 		addAux(&p.To, v)
+	case ssa.OpAMD64MOVQstoreidx8:
+		p := Prog(x86.AMOVQ)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = regnum(v.Args[2])
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = regnum(v.Args[0])
+		p.To.Scale = 8
+		p.To.Index = regnum(v.Args[1])
+		addAux(&p.To, v)
 	case ssa.OpAMD64MOVLQSX, ssa.OpAMD64MOVWQSX, ssa.OpAMD64MOVBQSX, ssa.OpAMD64MOVLQZX, ssa.OpAMD64MOVWQZX, ssa.OpAMD64MOVBQZX:
 		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
