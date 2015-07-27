@@ -945,7 +945,7 @@ func (s *parentStack) trim(parents []string) error {
 			return err
 		}
 	}
-	s.stack = parents[:split]
+	s.stack = s.stack[:split]
 	return nil
 }
 
