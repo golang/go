@@ -804,8 +804,10 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		recompileForTest(pmain, p, ptest, testDir)
 	}
 
-	if buildContext.GOOS == "darwin" && buildContext.GOARCH == "arm" {
-		t.NeedCgo = true
+	if buildContext.GOOS == "darwin" {
+		if buildContext.GOARCH == "arm" || buildContext.GOARCH == "arm64" {
+			t.NeedCgo = true
+		}
 	}
 
 	for _, cp := range pmain.imports {
