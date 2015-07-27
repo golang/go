@@ -418,20 +418,13 @@ func (t *tester) registerTests() {
 					return t.cgoTestSO("misc/cgo/testso")
 				},
 			})
-			switch t.goos {
-			case "darwin":
-				// Skipping misc/cgo/testsovar test. See issue 10360 for details.
-			case "netbsd":
-				// Skipping misc/cgo/testsovar test. See issue 11654 for details.
-			default:
-				t.tests = append(t.tests, distTest{
-					name:    "testsovar",
-					heading: "../misc/cgo/testsovar",
-					fn: func() error {
-						return t.cgoTestSO("misc/cgo/testsovar")
-					},
-				})
-			}
+			t.tests = append(t.tests, distTest{
+				name:    "testsovar",
+				heading: "../misc/cgo/testsovar",
+				fn: func() error {
+					return t.cgoTestSO("misc/cgo/testsovar")
+				},
+			})
 		}
 		if t.supportedBuildmode("c-archive") {
 			t.registerTest("testcarchive", "../misc/cgo/testcarchive", "./test.bash")
