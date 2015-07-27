@@ -124,7 +124,24 @@ func TestDialTimeoutFDLeak(t *testing.T) {
 		defer sw.Set(socktest.FilterConnect, nil)
 	}
 
-	before := sw.Sockets()
+	// Avoid tracking open-close jitterbugs between netFD and
+	// socket that leads to confusion of information inside
+	// socktest.Switch.
+	// It may happen when the Dial call bumps against TCP
+	// simultaneous open. See selfConnect in tcpsock_posix.go.
+	defer func() {
+		sw.Set(socktest.FilterClose, nil)
+		forceCloseSockets()
+	}()
+	var mu sync.Mutex
+	var attempts int
+	sw.Set(socktest.FilterClose, func(so *socktest.Status) (socktest.AfterFilter, error) {
+		mu.Lock()
+		attempts++
+		mu.Unlock()
+		return nil, errTimedout
+	})
+
 	const N = 100
 	var wg sync.WaitGroup
 	wg.Add(N)
@@ -142,9 +159,8 @@ func TestDialTimeoutFDLeak(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	after := sw.Sockets()
-	if len(after) != len(before) {
-		t.Errorf("got %d; want %d", len(after), len(before))
+	if attempts < N {
+		t.Errorf("got %d; want >= %d", attempts, N)
 	}
 }
 
