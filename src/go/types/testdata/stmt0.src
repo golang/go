@@ -512,6 +512,65 @@ func switches1() {
 	}
 }
 
+func switches2() {
+	// untyped nil is not permitted as switch expression
+	switch nil /* ERROR "use of untyped nil" */ {
+	case 1, 2, "foo": // don't report additional errors here
+	}
+
+	// untyped constants are converted to default types
+	switch 1<<63-1 {
+	}
+	switch 1 /* ERROR "overflows int" */ << 63 {
+	}
+	var x int
+	switch 1.0 {
+	case 1.0, 2.0, x /* ERROR "mismatched types int and float64" */ :
+	}
+	switch x {
+	case 1.0:
+	}
+
+	// untyped bools become of type bool
+	type B bool
+	var b B = true
+	switch x == x {
+	case b /* ERROR "mismatched types B and bool" */ :
+	}
+	switch {
+	case b /* ERROR "mismatched types B and bool" */ :
+	}
+}
+
+func issue11667() {
+	switch 9223372036854775808 /* ERROR "overflows int" */ {
+	}
+	switch 9223372036854775808 /* ERROR "overflows int" */ {
+	case 9223372036854775808:
+	}
+	var x int
+	switch x {
+	case 9223372036854775808 /* ERROR "overflows int" */ :
+	}
+	var y float64
+	switch y {
+	case 9223372036854775808:
+	}
+}
+
+func issue11687() {
+	f := func() (_, _ int) { return }
+	switch f /* ERROR "2-valued expression" */ () {
+	}
+	var x int
+	switch f /* ERROR "2-valued expression" */ () {
+	case x:
+	}
+	switch x {
+	case f /* ERROR "cannot compare" */ (): // TODO(gri) better error message (issue 11896)
+	}
+}
+
 type I interface {
 	m()
 }

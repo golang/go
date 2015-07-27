@@ -155,25 +155,20 @@ func (check *Checker) suspendedCall(keyword string, call *ast.CallExpr) {
 	check.errorf(x.pos(), "%s %s %s", keyword, msg, &x)
 }
 
-func (check *Checker) caseValues(x operand /* copy argument (not *operand!) */, values []ast.Expr) {
+func (check *Checker) caseValues(x *operand, values []ast.Expr) {
 	// No duplicate checking for now. See issue 4524.
 	for _, e := range values {
-		var y operand
-		check.expr(&y, e)
-		if y.mode == invalid {
-			return
+		var v operand
+		check.expr(&v, e)
+		if x.mode == invalid || v.mode == invalid {
+			continue
 		}
-		// TODO(gri) The convertUntyped call pair below appears in other places. Factor!
-		// Order matters: By comparing y against x, error positions are at the case values.
-		check.convertUntyped(&y, x.typ)
-		if y.mode == invalid {
-			return
+		check.convertUntyped(&v, x.typ)
+		if v.mode == invalid {
+			continue
 		}
-		check.convertUntyped(&x, y.typ)
-		if x.mode == invalid {
-			return
-		}
-		check.comparison(&y, &x, token.EQL)
+		// Order matters: By comparing v against x, error positions are at the case values.
+		check.comparison(&v, x, token.EQL)
 	}
 }
 
@@ -399,6 +394,9 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		var x operand
 		if s.Tag != nil {
 			check.expr(&x, s.Tag)
+			// By checking assignment of x to an invisible temporary
+			// (as a compiler would), we get all the relevant checks.
+			check.assignment(&x, nil)
 		} else {
 			// spec: "A missing switch expression is
 			// equivalent to the boolean value true."
@@ -416,9 +414,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 				check.invalidAST(c.Pos(), "incorrect expression switch case")
 				continue
 			}
-			if x.mode != invalid {
-				check.caseValues(x, clause.List)
-			}
+			check.caseValues(&x, clause.List)
 			check.openScope(clause, "case")
 			inner := inner
 			if i+1 < len(s.Body.List) {
