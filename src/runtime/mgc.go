@@ -1003,12 +1003,18 @@ func gc(mode int) {
 			// rescan global data and bss.
 			markroot(nil, _RootData)
 			markroot(nil, _RootBss)
+
+			// Disallow caching workbufs.
+			gcBlackenPromptly = true
+
+			// Flush all currently cached workbufs. This
+			// also forces any remaining background
+			// workers out of their loop.
 			forEachP(func(_p_ *p) {
 				_p_.gcw.dispose()
 			})
 		})
 
-		gcBlackenPromptly = true
 		// Wait for this more aggressive background mark to complete.
 		work.bgMark2.clear()
 		work.bgMark2.wait()
