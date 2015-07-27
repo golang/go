@@ -88,6 +88,9 @@ func genRules(arch arch) {
 		}
 		rule = ""
 	}
+	if unbalanced(rule) {
+		log.Fatalf("unbalanced rule: %v\n", rule)
+	}
 	if err := scanner.Err(); err != nil {
 		log.Fatalf("scanner failed: %v\n", err)
 	}
