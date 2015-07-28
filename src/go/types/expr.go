@@ -681,13 +681,24 @@ func (check *Checker) shift(x, y *operand, op token.Token) {
 			// constant is what it would be if the shift expression
 			// were replaced by its left operand alone.".
 			//
-			// Delay operand checking until we know the final type:
-			// The lhs expression must be in the untyped map, mark
-			// the entry as lhs shift operand.
-			info, found := check.untyped[x.expr]
-			assert(found)
-			info.isLhs = true
-			check.untyped[x.expr] = info
+			// Delay operand checking until we know the final type
+			// by marking the lhs expression as lhs shift operand.
+			//
+			// Usually (in correct programs), the lhs expression
+			// is in the untyped map. However, it is possible to
+			// create incorrect programs where the same expression
+			// is evaluated twice (via a declaration cycle) such
+			// that the lhs expression type is determined in the
+			// first round and thus deleted from the map, and then
+			// not found in the second round (double insertion of
+			// the same expr node still just leads to one entry for
+			// that node, and it can only be deleted once).
+			// Be cautious and check for presence of entry.
+			// Example: var e, f = int(1<<""[f]) // issue 11347
+			if info, found := check.untyped[x.expr]; found {
+				info.isLhs = true
+				check.untyped[x.expr] = info
+			}
 			// keep x's type
 			x.mode = value
 			return
