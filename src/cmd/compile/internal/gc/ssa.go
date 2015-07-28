@@ -462,6 +462,17 @@ func (s *state) stmt(n *Node) {
 		addEdge(b, lab.target)
 
 	case OAS, OASWB:
+		// Check whether we can generate static data rather than code.
+		// If so, ignore n and defer data generation until codegen.
+		// Failure to do this causes writes to readonly symbols.
+		if gen_as_init(n, true) {
+			var data []*Node
+			if s.f.StaticData != nil {
+				data = s.f.StaticData.([]*Node)
+			}
+			s.f.StaticData = append(data, n)
+			return
+		}
 		s.assign(n.Op, n.Left, n.Right)
 
 	case OIF:
@@ -1483,6 +1494,15 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	}
 
 	Pc.As = obj.ARET // overwrite AEND
+
+	// Emit static data
+	if f.StaticData != nil {
+		for _, n := range f.StaticData.([]*Node) {
+			if !gen_as_init(n, false) {
+				Fatal("non-static data marked as static: %v\n\n", n, f)
+			}
+		}
+	}
 
 	// TODO: liveness
 	// TODO: gcargs
