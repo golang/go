@@ -8,7 +8,10 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
+	"log"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"strings"
 	"testing"
@@ -314,4 +317,45 @@ func TestDecodeInStream(t *testing.T) {
 		}
 	}
 
+}
+
+const raw = `{ "foo": "bar" }`
+
+func makeHTTP() io.ReadCloser {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(raw))
+	})
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+	res, err := http.Get(ts.URL)
+	if err != nil {
+		log.Fatalf("GET failed: %v", err)
+	}
+	return res.Body
+}
+
+func TestHttpDecoding(t *testing.T) {
+
+	foo := struct {
+		Foo string
+	}{}
+
+	rc := makeHTTP()
+	defer rc.Close()
+
+	d := NewDecoder(rc)
+	err := d.Decode(&foo)
+	if err != nil {
+		t.Errorf("Unexpected error %v", err)
+	}
+	if foo.Foo != "bar" {
+		t.Errorf("Expected \"bar\", was %v", foo.Foo)
+	}
+
+	// make sure we get the EOF the second time
+	err = d.Decode(&foo)
+	if err != io.EOF {
+		t.Errorf("Expected io.EOF, was %v", err)
+	}
 }
