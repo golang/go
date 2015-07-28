@@ -9,6 +9,7 @@ package main_test
 import (
 	"bytes"
 	"fmt"
+	"internal/testenv"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -172,4 +173,16 @@ func TestVendorGet(t *testing.T) {
 	tg.grepStdout("v/vendor/vendor.org/p", "test import not in vendor directory")
 	tg.run("get")
 	tg.run("get", "-t")
+}
+
+func TestVendorGetUpdate(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.path("."))
+	tg.setenv("GO15VENDOREXPERIMENT", "1")
+	tg.run("get", "github.com/rsc/go-get-issue-11864")
+	tg.run("get", "-u", "github.com/rsc/go-get-issue-11864")
 }

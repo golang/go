@@ -583,7 +583,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	var stk importStack
 	stk.push(p.ImportPath + " (test)")
 	for i, path := range p.TestImports {
-		p1 := loadImport(path, p.Dir, p, &stk, p.build.TestImportPos[path])
+		p1 := loadImport(path, p.Dir, p, &stk, p.build.TestImportPos[path], useVendor)
 		if p1.Error != nil {
 			return nil, nil, nil, p1.Error
 		}
@@ -614,7 +614,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 			pxtestNeedsPtest = true
 			continue
 		}
-		p1 := loadImport(path, p.Dir, p, &stk, p.build.XTestImportPos[path])
+		p1 := loadImport(path, p.Dir, p, &stk, p.build.XTestImportPos[path], useVendor)
 		if p1.Error != nil {
 			return nil, nil, nil, p1.Error
 		}
@@ -749,7 +749,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		if dep == ptest.ImportPath {
 			pmain.imports = append(pmain.imports, ptest)
 		} else {
-			p1 := loadImport(dep, "", nil, &stk, nil)
+			p1 := loadImport(dep, "", nil, &stk, nil, 0)
 			if p1.Error != nil {
 				return nil, nil, nil, p1.Error
 			}
