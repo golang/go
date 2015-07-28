@@ -932,6 +932,16 @@ to which it is being unmarshaled.
 </li>
 
 <li>
+The <code>encoding/json</code>'s
+<a href="/pkg/encoding/json/#Decoder"><code>Decoder</code></a>
+type has a new method that provides a streaming interface for decoding
+a JSON document:
+<a href="/pkg/encoding/json/#Decoder.Token"><code>Token</code></a>.
+It also interoperates with the existing functionality of <code>Decode</code>,
+which will continue a decode operation already started with <code>Decoder.Token</code>.
+</li>
+
+<li>
 The <a href="/pkg/flag/"><code>flag</code></a> package
 has a new function, <a href="/pkg/flag/#UnquoteUsage"><code>UnquoteUsage</code></a>,
 to assist in the creation of usage messages using the new convention
