@@ -250,6 +250,13 @@ again:
 //	}
 	RET
 
+// More B/BL cases, and canonical names JMP, CALL.
+
+	B	foo(SB)
+	BL	foo(SB)
+	JMP	foo(SB)
+	CALL	foo(SB)
+
 // END
 //
 //	LTYPEE comma

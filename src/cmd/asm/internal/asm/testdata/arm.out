@@ -52,4 +52,8 @@
 266 00052 (testdata/arm.s:266)	PLD	(R1)
 267 00053 (testdata/arm.s:267)	PLD	4(R1)
 276 00054 (testdata/arm.s:276)	RET
-285 00055 (testdata/arm.s:285)	END
+280 00055 (testdata/arm.s:280)	JMP	foo(SB)
+281 00056 (testdata/arm.s:281)	CALL	foo(SB)
+282 00057 (testdata/arm.s:282)	JMP	foo(SB)
+283 00058 (testdata/arm.s:283)	CALL	foo(SB)
+292 00059 (testdata/arm.s:292)	END

@@ -704,6 +704,13 @@ label1:
 //	}
 	RET
 
+// More BR/BL cases, and canonical names JMP, CALL.
+
+	BR	foo(SB)
+	BL	foo(SB)
+	JMP	foo(SB)
+	CALL	foo(SB)
+
 // END
 //
 //	LEND	comma // asm doesn't support the trailing comma.
