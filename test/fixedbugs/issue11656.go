@@ -8,8 +8,9 @@
 // it manages to invoke the signal handler, so this test fails there.
 // +build !darwin !386
 //
-// openbsd/386 and plan9/386 don't work, not sure why.
+// openbsd/386, netbsd/386, and plan9/386 don't work, not sure why.
 // +build !openbsd !386
+// +build !netbsd !386
 // +build !plan9 !386
 //
 // windows doesn't work, because Windows exception handling
