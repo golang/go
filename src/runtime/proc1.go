@@ -414,7 +414,13 @@ func scang(gp *g) {
 			// the goroutine until we're done.
 			if castogscanstatus(gp, s, s|_Gscan) {
 				if !gp.gcscandone {
+					// Coordinate with traceback
+					// in sigprof.
+					for !cas(&gp.stackLock, 0, 1) {
+						osyield()
+					}
 					scanstack(gp)
+					atomicstore(&gp.stackLock, 0)
 					gp.gcscandone = true
 				}
 				restartg(gp)
@@ -2477,6 +2483,11 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	// Profiling runs concurrently with GC, so it must not allocate.
 	mp.mallocing++
 
+	// Coordinate with stack barrier insertion in scanstack.
+	for !cas(&gp.stackLock, 0, 1) {
+		osyield()
+	}
+
 	// Define that a "user g" is a user-created goroutine, and a "system g"
 	// is one that is m->g0 or m->gsignal.
 	//
@@ -2580,6 +2591,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 			}
 		}
 	}
+	atomicstore(&gp.stackLock, 0)
 
 	if prof.hz != 0 {
 		// Simple cas-lock to coordinate with setcpuprofilerate.

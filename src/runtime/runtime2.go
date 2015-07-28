@@ -230,6 +230,7 @@ type g struct {
 	stkbarPos      uintptr        // index of lowest stack barrier not hit
 	param          unsafe.Pointer // passed parameter on wakeup
 	atomicstatus   uint32
+	stackLock      uint32 // sigprof/scang lock; TODO: fold in to atomicstatus
 	goid           int64
 	waitsince      int64  // approx time when the g become blocked
 	waitreason     string // if status==Gwaiting
