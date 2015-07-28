@@ -1161,7 +1161,12 @@ func (s *state) addr(n *Node) *ssa.Value {
 		case PEXTERN:
 			// global variable
 			aux := &ssa.ExternSymbol{n.Type, n.Sym}
-			return s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sb)
+			v := s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sb)
+			// TODO: Make OpAddr use AuxInt as well as Aux.
+			if n.Xoffset != 0 {
+				v = s.entryNewValue1I(ssa.OpOffPtr, v.Type, n.Xoffset, v)
+			}
+			return v
 		case PPARAM, PPARAMOUT, PAUTO:
 			// parameter/result slot or local variable
 			v := s.decladdrs[n]
