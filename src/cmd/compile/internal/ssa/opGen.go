@@ -51,22 +51,96 @@ func (k BlockKind) String() string { return blockString[k] }
 const (
 	OpInvalid Op = iota
 
+	OpAMD64ADDQ
+	OpAMD64ADDL
+	OpAMD64ADDW
+	OpAMD64ADDB
+	OpAMD64ADDQconst
+	OpAMD64ADDLconst
+	OpAMD64ADDWconst
+	OpAMD64ADDBconst
+	OpAMD64SUBQ
+	OpAMD64SUBL
+	OpAMD64SUBW
+	OpAMD64SUBB
+	OpAMD64SUBQconst
+	OpAMD64SUBLconst
+	OpAMD64SUBWconst
+	OpAMD64SUBBconst
 	OpAMD64MULQ
+	OpAMD64MULL
+	OpAMD64MULW
 	OpAMD64MULQconst
-	OpAMD64SHLQ
-	OpAMD64SHLQconst
-	OpAMD64SHRQ
-	OpAMD64SHRQconst
-	OpAMD64SARQ
-	OpAMD64SARQconst
+	OpAMD64MULLconst
+	OpAMD64MULWconst
+	OpAMD64ANDQ
+	OpAMD64ANDL
+	OpAMD64ANDW
+	OpAMD64ANDB
+	OpAMD64ANDQconst
+	OpAMD64ANDLconst
+	OpAMD64ANDWconst
+	OpAMD64ANDBconst
+	OpAMD64ORQ
+	OpAMD64ORL
+	OpAMD64ORW
+	OpAMD64ORB
+	OpAMD64ORQconst
+	OpAMD64ORLconst
+	OpAMD64ORWconst
+	OpAMD64ORBconst
+	OpAMD64XORQ
+	OpAMD64XORL
+	OpAMD64XORW
+	OpAMD64XORB
 	OpAMD64XORQconst
+	OpAMD64XORLconst
+	OpAMD64XORWconst
+	OpAMD64XORBconst
 	OpAMD64CMPQ
-	OpAMD64CMPQconst
 	OpAMD64CMPL
 	OpAMD64CMPW
 	OpAMD64CMPB
+	OpAMD64CMPQconst
+	OpAMD64CMPLconst
+	OpAMD64CMPWconst
+	OpAMD64CMPBconst
 	OpAMD64TESTQ
+	OpAMD64TESTL
+	OpAMD64TESTW
 	OpAMD64TESTB
+	OpAMD64TESTQconst
+	OpAMD64TESTLconst
+	OpAMD64TESTWconst
+	OpAMD64TESTBconst
+	OpAMD64SHLQ
+	OpAMD64SHLL
+	OpAMD64SHLW
+	OpAMD64SHLB
+	OpAMD64SHLQconst
+	OpAMD64SHLLconst
+	OpAMD64SHLWconst
+	OpAMD64SHLBconst
+	OpAMD64SHRQ
+	OpAMD64SHRL
+	OpAMD64SHRW
+	OpAMD64SHRB
+	OpAMD64SHRQconst
+	OpAMD64SHRLconst
+	OpAMD64SHRWconst
+	OpAMD64SHRBconst
+	OpAMD64SARQ
+	OpAMD64SARL
+	OpAMD64SARW
+	OpAMD64SARB
+	OpAMD64SARQconst
+	OpAMD64SARLconst
+	OpAMD64SARWconst
+	OpAMD64SARBconst
+	OpAMD64NEGQ
+	OpAMD64NEGL
+	OpAMD64NEGW
+	OpAMD64NEGB
 	OpAMD64SBBQcarrymask
 	OpAMD64SETEQ
 	OpAMD64SETNE
@@ -108,37 +182,9 @@ const (
 	OpAMD64MOVQstoreidx8
 	OpAMD64MOVXzero
 	OpAMD64REPSTOSQ
-	OpAMD64MOVQloadglobal
-	OpAMD64MOVQstoreglobal
 	OpAMD64CALLstatic
 	OpAMD64CALLclosure
 	OpAMD64REPMOVSB
-	OpAMD64ADDQ
-	OpAMD64ADDQconst
-	OpAMD64ADDL
-	OpAMD64ADDW
-	OpAMD64ADDB
-	OpAMD64SUBQ
-	OpAMD64SUBQconst
-	OpAMD64SUBL
-	OpAMD64SUBW
-	OpAMD64SUBB
-	OpAMD64NEGQ
-	OpAMD64NEGL
-	OpAMD64NEGW
-	OpAMD64NEGB
-	OpAMD64MULL
-	OpAMD64MULW
-	OpAMD64ANDQ
-	OpAMD64ANDQconst
-	OpAMD64ANDL
-	OpAMD64ANDW
-	OpAMD64ANDB
-	OpAMD64ORQ
-	OpAMD64ORQconst
-	OpAMD64ORL
-	OpAMD64ORW
-	OpAMD64ORB
 	OpAMD64InvertFlags
 
 	OpAdd8
@@ -163,6 +209,10 @@ const (
 	OpOr16
 	OpOr32
 	OpOr64
+	OpXor8
+	OpXor16
+	OpXor32
+	OpXor64
 	OpLsh8
 	OpLsh16
 	OpLsh32
@@ -286,8 +336,234 @@ var opcodeTable = [...]opInfo{
 	{name: "OpInvalid"},
 
 	{
+		name: "ADDQ",
+		asm:  x86.AADDQ,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ADDL",
+		asm:  x86.AADDL,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ADDW",
+		asm:  x86.AADDW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ADDB",
+		asm:  x86.AADDB,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ADDQconst",
+		asm:  x86.AADDQ,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ADDLconst",
+		asm:  x86.AADDL,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ADDWconst",
+		asm:  x86.AADDW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ADDBconst",
+		asm:  x86.AADDB,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SUBQ",
+		asm:  x86.ASUBQ,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SUBL",
+		asm:  x86.ASUBL,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SUBW",
+		asm:  x86.ASUBW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SUBB",
+		asm:  x86.ASUBB,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SUBQconst",
+		asm:  x86.ASUBQ,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SUBLconst",
+		asm:  x86.ASUBL,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SUBWconst",
+		asm:  x86.ASUBW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SUBBconst",
+		asm:  x86.ASUBB,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
 		name: "MULQ",
 		asm:  x86.AIMULQ,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "MULL",
+		asm:  x86.AIMULL,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "MULW",
+		asm:  x86.AIMULW,
 		reg: regInfo{
 			inputs: []regMask{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -311,21 +587,8 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SHLQ",
-		asm:  x86.ASHLQ,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-				2,     // .CX
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "SHLQconst",
-		asm:  x86.ASHLQ,
+		name: "MULLconst",
+		asm:  x86.AIMULL,
 		reg: regInfo{
 			inputs: []regMask{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -336,21 +599,8 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SHRQ",
-		asm:  x86.ASHRQ,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-				2,     // .CX
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "SHRQconst",
-		asm:  x86.ASHRQ,
+		name: "MULWconst",
+		asm:  x86.AIMULW,
 		reg: regInfo{
 			inputs: []regMask{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -361,12 +611,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SARQ",
-		asm:  x86.ASARQ,
+		name: "ANDQ",
+		asm:  x86.AANDQ,
 		reg: regInfo{
 			inputs: []regMask{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-				2,     // .CX
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -374,10 +624,237 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SARQconst",
-		asm:  x86.ASARQ,
+		name: "ANDL",
+		asm:  x86.AANDL,
 		reg: regInfo{
 			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ANDW",
+		asm:  x86.AANDW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ANDB",
+		asm:  x86.AANDB,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ANDQconst",
+		asm:  x86.AANDQ,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ANDLconst",
+		asm:  x86.AANDL,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ANDWconst",
+		asm:  x86.AANDW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ANDBconst",
+		asm:  x86.AANDB,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ORQ",
+		asm:  x86.AORQ,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ORL",
+		asm:  x86.AORL,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ORW",
+		asm:  x86.AORW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ORB",
+		asm:  x86.AORB,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ORQconst",
+		asm:  x86.AORQ,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ORLconst",
+		asm:  x86.AORL,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ORWconst",
+		asm:  x86.AORW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ORBconst",
+		asm:  x86.AORB,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "XORQ",
+		asm:  x86.AXORQ,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "XORL",
+		asm:  x86.AXORL,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "XORW",
+		asm:  x86.AXORW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "XORB",
+		asm:  x86.AXORB,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			outputs: []regMask{
@@ -398,23 +875,47 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name: "XORLconst",
+		asm:  x86.AXORL,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "XORWconst",
+		asm:  x86.AXORW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "XORBconst",
+		asm:  x86.AXORB,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
 		name: "CMPQ",
 		asm:  x86.ACMPQ,
 		reg: regInfo{
 			inputs: []regMask{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				8589934592, // .FLAGS
-			},
-		},
-	},
-	{
-		name: "CMPQconst",
-		asm:  x86.ACMPQ,
-		reg: regInfo{
-			inputs: []regMask{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			outputs: []regMask{
@@ -462,8 +963,82 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name: "CMPQconst",
+		asm:  x86.ACMPQ,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				8589934592, // .FLAGS
+			},
+		},
+	},
+	{
+		name: "CMPLconst",
+		asm:  x86.ACMPL,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				8589934592, // .FLAGS
+			},
+		},
+	},
+	{
+		name: "CMPWconst",
+		asm:  x86.ACMPW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				8589934592, // .FLAGS
+			},
+		},
+	},
+	{
+		name: "CMPBconst",
+		asm:  x86.ACMPB,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				8589934592, // .FLAGS
+			},
+		},
+	},
+	{
 		name: "TESTQ",
 		asm:  x86.ATESTQ,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				8589934592, // .FLAGS
+			},
+		},
+	},
+	{
+		name: "TESTL",
+		asm:  x86.ATESTL,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				8589934592, // .FLAGS
+			},
+		},
+	},
+	{
+		name: "TESTW",
+		asm:  x86.ATESTW,
 		reg: regInfo{
 			inputs: []regMask{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -484,6 +1059,402 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []regMask{
 				8589934592, // .FLAGS
+			},
+		},
+	},
+	{
+		name: "TESTQconst",
+		asm:  x86.ATESTQ,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				8589934592, // .FLAGS
+			},
+		},
+	},
+	{
+		name: "TESTLconst",
+		asm:  x86.ATESTL,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				8589934592, // .FLAGS
+			},
+		},
+	},
+	{
+		name: "TESTWconst",
+		asm:  x86.ATESTW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				8589934592, // .FLAGS
+			},
+		},
+	},
+	{
+		name: "TESTBconst",
+		asm:  x86.ATESTB,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				8589934592, // .FLAGS
+			},
+		},
+	},
+	{
+		name: "SHLQ",
+		asm:  x86.ASHLQ,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				2,     // .CX
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SHLL",
+		asm:  x86.ASHLL,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				2,     // .CX
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SHLW",
+		asm:  x86.ASHLW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				2,     // .CX
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SHLB",
+		asm:  x86.ASHLB,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				2,     // .CX
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SHLQconst",
+		asm:  x86.ASHLQ,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SHLLconst",
+		asm:  x86.ASHLL,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SHLWconst",
+		asm:  x86.ASHLW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SHLBconst",
+		asm:  x86.ASHLB,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SHRQ",
+		asm:  x86.ASHRQ,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				2,     // .CX
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SHRL",
+		asm:  x86.ASHRL,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				2,     // .CX
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SHRW",
+		asm:  x86.ASHRW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				2,     // .CX
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SHRB",
+		asm:  x86.ASHRB,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				2,     // .CX
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SHRQconst",
+		asm:  x86.ASHRQ,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SHRLconst",
+		asm:  x86.ASHRL,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SHRWconst",
+		asm:  x86.ASHRW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SHRBconst",
+		asm:  x86.ASHRB,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SARQ",
+		asm:  x86.ASARQ,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				2,     // .CX
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SARL",
+		asm:  x86.ASARL,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				2,     // .CX
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SARW",
+		asm:  x86.ASARW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				2,     // .CX
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SARB",
+		asm:  x86.ASARB,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				2,     // .CX
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SARQconst",
+		asm:  x86.ASARQ,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SARLconst",
+		asm:  x86.ASARL,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SARWconst",
+		asm:  x86.ASARW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SARBconst",
+		asm:  x86.ASARB,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "NEGQ",
+		asm:  x86.ANEGQ,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "NEGL",
+		asm:  x86.ANEGL,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "NEGW",
+		asm:  x86.ANEGW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "NEGB",
+		asm:  x86.ANEGB,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 		},
 	},
@@ -967,14 +1938,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "MOVQloadglobal",
-		reg:  regInfo{},
-	},
-	{
-		name: "MOVQstoreglobal",
-		reg:  regInfo{},
-	},
-	{
 		name: "CALLstatic",
 		reg:  regInfo{},
 	},
@@ -997,334 +1960,6 @@ var opcodeTable = [...]opInfo{
 				2,   // .CX
 			},
 			clobbers: 194, // .CX .SI .DI
-		},
-	},
-	{
-		name: "ADDQ",
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "ADDQconst",
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "ADDL",
-		asm:  x86.AADDL,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "ADDW",
-		asm:  x86.AADDW,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "ADDB",
-		asm:  x86.AADDB,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "SUBQ",
-		asm:  x86.ASUBQ,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "SUBQconst",
-		asm:  x86.ASUBQ,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "SUBL",
-		asm:  x86.ASUBL,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "SUBW",
-		asm:  x86.ASUBW,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "SUBB",
-		asm:  x86.ASUBB,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "NEGQ",
-		asm:  x86.ANEGQ,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "NEGL",
-		asm:  x86.ANEGL,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "NEGW",
-		asm:  x86.ANEGW,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "NEGB",
-		asm:  x86.ANEGB,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "MULL",
-		asm:  x86.AIMULL,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "MULW",
-		asm:  x86.AIMULW,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "ANDQ",
-		asm:  x86.AANDQ,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "ANDQconst",
-		asm:  x86.AANDQ,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "ANDL",
-		asm:  x86.AANDL,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "ANDW",
-		asm:  x86.AANDW,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "ANDB",
-		asm:  x86.AANDB,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "ORQ",
-		asm:  x86.AORQ,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "ORQconst",
-		asm:  x86.AORQ,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "ORL",
-		asm:  x86.AORL,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "ORW",
-		asm:  x86.AORW,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "ORB",
-		asm:  x86.AORB,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
 		},
 	},
 	{
@@ -1418,6 +2053,22 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Or64",
+		generic: true,
+	},
+	{
+		name:    "Xor8",
+		generic: true,
+	},
+	{
+		name:    "Xor16",
+		generic: true,
+	},
+	{
+		name:    "Xor32",
+		generic: true,
+	},
+	{
+		name:    "Xor64",
 		generic: true,
 	},
 	{

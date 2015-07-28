@@ -16,6 +16,20 @@
 (Add16 x y) -> (ADDW x y)
 (Add8 x y) -> (ADDB x y)
 
+(Sub64 x y) -> (SUBQ x y)
+(Sub32 x y) -> (SUBL x y)
+(Sub16 x y) -> (SUBW x y)
+(Sub8 x y) -> (SUBB x y)
+
+(Mul64 x y) -> (MULQ x y)
+(MulPtr x y) -> (MULQ x y)
+(Mul32 x y) -> (MULL x y)
+(Mul16 x y) -> (MULW x y)
+// Note: we use 16-bit multiply instructions for 8-bit multiplies because
+// the 16-bit multiply instructions are more forgiving (they operate on
+// any register instead of just AX/DX).
+(Mul8 x y) -> (MULW x y)
+
 (And64 x y) -> (ANDQ x y)
 (And32 x y) -> (ANDL x y)
 (And16 x y) -> (ANDW x y)
@@ -26,24 +40,15 @@
 (Or16 x y) -> (ORW x y)
 (Or8 x y) -> (ORB x y)
 
-(Sub64 x y) -> (SUBQ x y)
-(Sub32 x y) -> (SUBL x y)
-(Sub16 x y) -> (SUBW x y)
-(Sub8 x y) -> (SUBB x y)
+(Xor64 x y) -> (XORQ x y)
+(Xor32 x y) -> (XORL x y)
+(Xor16 x y) -> (XORW x y)
+(Xor8 x y) -> (XORB x y)
 
 (Neg64 x) -> (NEGQ x)
 (Neg32 x) -> (NEGL x)
 (Neg16 x) -> (NEGW x)
 (Neg8 x) -> (NEGB x)
-
-(Mul64 x y) -> (MULQ x y)
-(MulPtr x y) -> (MULQ x y)
-(Mul32 x y) -> (MULL x y)
-(Mul16 x y) -> (MULW x y)
-// Note: we use 16-bit multiply instructions for 8-bit multiplies because
-// the 16-bit multiply instructions are more forgiving (they operate on
-// any register instead of just AX/DX).
-(Mul8 x y) -> (MULW x y)
 
 // Note: we always extend to 64 bits even though some ops don't need that many result bits.
 (SignExt8to16 x) -> (MOVBQSX x)
@@ -76,8 +81,43 @@
 // Note: unsigned shifts need to return 0 if shift amount is >= 64.
 //   mask = shift >= 64 ? 0 : 0xffffffffffffffff
 //   result = mask & arg << shift
+// TODO: define ops per right-hand side size, like Lsh64x32 for int64(x)<<uint32(y)?
 (Lsh64 <t> x y) && y.Type.Size() == 8 ->
 	(ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [64] y)))
+(Lsh64 <t> x y) && y.Type.Size() == 4 ->
+	(ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPLconst <TypeFlags> [64] y)))
+(Lsh64 <t> x y) && y.Type.Size() == 2 ->
+	(ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPWconst <TypeFlags> [64] y)))
+(Lsh64 <t> x y) && y.Type.Size() == 1 ->
+	(ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPBconst <TypeFlags> [64] y)))
+
+(Lsh32 <t> x y) && y.Type.Size() == 8 ->
+	(ANDL (SHLL <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [32] y)))
+(Lsh32 <t> x y) && y.Type.Size() == 4 ->
+	(ANDL (SHLL <t> x y) (SBBQcarrymask <t> (CMPLconst <TypeFlags> [32] y)))
+(Lsh32 <t> x y) && y.Type.Size() == 2 ->
+	(ANDL (SHLL <t> x y) (SBBQcarrymask <t> (CMPWconst <TypeFlags> [32] y)))
+(Lsh32 <t> x y) && y.Type.Size() == 1 ->
+	(ANDL (SHLL <t> x y) (SBBQcarrymask <t> (CMPBconst <TypeFlags> [32] y)))
+
+(Lsh16 <t> x y) && y.Type.Size() == 8 ->
+	(ANDW (SHLW <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [16] y)))
+(Lsh16 <t> x y) && y.Type.Size() == 4 ->
+	(ANDW (SHLW <t> x y) (SBBQcarrymask <t> (CMPLconst <TypeFlags> [16] y)))
+(Lsh16 <t> x y) && y.Type.Size() == 2 ->
+	(ANDW (SHLW <t> x y) (SBBQcarrymask <t> (CMPWconst <TypeFlags> [16] y)))
+(Lsh16 <t> x y) && y.Type.Size() == 1 ->
+	(ANDW (SHLW <t> x y) (SBBQcarrymask <t> (CMPBconst <TypeFlags> [16] y)))
+
+(Lsh8 <t> x y) && y.Type.Size() == 8 ->
+	(ANDB (SHLB <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [8] y)))
+(Lsh8 <t> x y) && y.Type.Size() == 4 ->
+	(ANDB (SHLB <t> x y) (SBBQcarrymask <t> (CMPLconst <TypeFlags> [8] y)))
+(Lsh8 <t> x y) && y.Type.Size() == 2 ->
+	(ANDB (SHLB <t> x y) (SBBQcarrymask <t> (CMPWconst <TypeFlags> [8] y)))
+(Lsh8 <t> x y) && y.Type.Size() == 1 ->
+	(ANDB (SHLB <t> x y) (SBBQcarrymask <t> (CMPBconst <TypeFlags> [8] y)))
+
 (Rsh64U <t> x y) && y.Type.Size() == 8 ->
 	(ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [64] y)))
 
@@ -158,7 +198,7 @@
 
 (Move [size] dst src mem) -> (REPMOVSB dst src (MOVQconst <TypeUInt64> [size]) mem)
 
-(Not x) -> (XORQconst [1] x)
+(Not x) -> (XORBconst [1] x)
 
 (OffPtr [off] ptr) -> (ADDQconst [off] ptr)
 
@@ -193,20 +233,86 @@
 // TODO: Should this be a separate pass?
 
 // fold constants into instructions
-// TODO: restrict c to int32 range for all?
 (ADDQ x (MOVQconst [c])) && is32Bit(c) -> (ADDQconst [c] x)
 (ADDQ (MOVQconst [c]) x) && is32Bit(c) -> (ADDQconst [c] x)
-(SUBQ x (MOVQconst [c])) -> (SUBQconst x [c])
-(SUBQ <t> (MOVQconst [c]) x) -> (NEGQ (SUBQconst <t> x [c]))
+(ADDL x (MOVLconst [c])) -> (ADDLconst [c] x)
+(ADDL (MOVLconst [c]) x) -> (ADDLconst [c] x)
+(ADDW x (MOVWconst [c])) -> (ADDWconst [c] x)
+(ADDW (MOVWconst [c]) x) -> (ADDWconst [c] x)
+(ADDB x (MOVBconst [c])) -> (ADDBconst [c] x)
+(ADDB (MOVBconst [c]) x) -> (ADDBconst [c] x)
+
+(SUBQ x (MOVQconst [c])) && is32Bit(c) -> (SUBQconst x [c])
+(SUBQ (MOVQconst [c]) x) && is32Bit(c) -> (NEGQ (SUBQconst <v.Type> x [c]))
+(SUBL x (MOVLconst [c])) -> (SUBLconst x [c])
+(SUBL (MOVLconst [c]) x) -> (NEGL (SUBLconst <v.Type> x [c]))
+(SUBW x (MOVWconst [c])) -> (SUBWconst x [c])
+(SUBW (MOVWconst [c]) x) -> (NEGW (SUBWconst <v.Type> x [c]))
+(SUBB x (MOVBconst [c])) -> (SUBBconst x [c])
+(SUBB (MOVBconst [c]) x) -> (NEGB (SUBBconst <v.Type> x [c]))
+
 (MULQ x (MOVQconst [c])) && is32Bit(c) -> (MULQconst [c] x)
 (MULQ (MOVQconst [c]) x) && is32Bit(c) -> (MULQconst [c] x)
-(ANDQ x (MOVQconst [c])) -> (ANDQconst [c] x)
-(ANDQ (MOVQconst [c]) x) -> (ANDQconst [c] x)
-(SHLQ x (MOVQconst [c])) -> (SHLQconst [c] x)
-(SHRQ x (MOVQconst [c])) -> (SHRQconst [c] x)
-(SARQ x (MOVQconst [c])) -> (SARQconst [c] x)
-(CMPQ x (MOVQconst [c])) -> (CMPQconst x [c])
-(CMPQ (MOVQconst [c]) x) -> (InvertFlags (CMPQconst <TypeFlags> x [c]))
+(MULL x (MOVLconst [c])) -> (MULLconst [c] x)
+(MULL (MOVLconst [c]) x) -> (MULLconst [c] x)
+(MULW x (MOVWconst [c])) -> (MULWconst [c] x)
+(MULW (MOVWconst [c]) x) -> (MULWconst [c] x)
+
+(ANDQ x (MOVQconst [c])) && is32Bit(c) -> (ANDQconst [c] x)
+(ANDQ (MOVQconst [c]) x) && is32Bit(c) -> (ANDQconst [c] x)
+(ANDL x (MOVLconst [c])) -> (ANDLconst [c] x)
+(ANDL (MOVLconst [c]) x) -> (ANDLconst [c] x)
+(ANDW x (MOVWconst [c])) -> (ANDWconst [c] x)
+(ANDW (MOVWconst [c]) x) -> (ANDWconst [c] x)
+(ANDB x (MOVBconst [c])) -> (ANDBconst [c] x)
+(ANDB (MOVBconst [c]) x) -> (ANDBconst [c] x)
+
+(ORQ x (MOVQconst [c])) && is32Bit(c) -> (ORQconst [c] x)
+(ORQ (MOVQconst [c]) x) && is32Bit(c) -> (ORQconst [c] x)
+(ORL x (MOVLconst [c])) -> (ORLconst [c] x)
+(ORL (MOVLconst [c]) x) -> (ORLconst [c] x)
+(ORW x (MOVWconst [c])) -> (ORWconst [c] x)
+(ORW (MOVWconst [c]) x) -> (ORWconst [c] x)
+(ORB x (MOVBconst [c])) -> (ORBconst [c] x)
+(ORB (MOVBconst [c]) x) -> (ORBconst [c] x)
+
+(XORQ x (MOVQconst [c])) && is32Bit(c) -> (XORQconst [c] x)
+(XORQ (MOVQconst [c]) x) && is32Bit(c) -> (XORQconst [c] x)
+(XORL x (MOVLconst [c])) -> (XORLconst [c] x)
+(XORL (MOVLconst [c]) x) -> (XORLconst [c] x)
+(XORW x (MOVWconst [c])) -> (XORWconst [c] x)
+(XORW (MOVWconst [c]) x) -> (XORWconst [c] x)
+(XORB x (MOVBconst [c])) -> (XORBconst [c] x)
+(XORB (MOVBconst [c]) x) -> (XORBconst [c] x)
+
+(SHLQ x (MOVQconst [c])) -> (SHLQconst [c&63] x)
+(SHLL x (MOVLconst [c])) -> (SHLLconst [c&31] x)
+(SHLW x (MOVWconst [c])) -> (SHLWconst [c&31] x)
+(SHLB x (MOVBconst [c])) -> (SHLBconst [c&31] x)
+
+(SHRQ x (MOVQconst [c])) -> (SHRQconst [c&63] x)
+(SHRL x (MOVLconst [c])) -> (SHRLconst [c&31] x)
+(SHRW x (MOVWconst [c])) -> (SHRWconst [c&31] x)
+(SHRB x (MOVBconst [c])) -> (SHRBconst [c&31] x)
+
+(SARQ x (MOVQconst [c])) -> (SARQconst [c&63] x)
+(SARL x (MOVLconst [c])) -> (SARLconst [c&31] x)
+(SARW x (MOVWconst [c])) -> (SARWconst [c&31] x)
+(SARB x (MOVBconst [c])) -> (SARBconst [c&31] x)
+
+// Note: the word and byte shifts keep the low 5 bits (not the low 4 or 3 bits)
+// because the x86 instructions are defined to use all 5 bits of the shift even
+// for the small shifts.  I don't think we'll ever generate a weird shift (e.g.
+// (SHLW x (MOVWconst [24])), but just in case.
+
+(CMPQ x (MOVQconst [c])) && is32Bit(c) -> (CMPQconst x [c])
+(CMPQ (MOVQconst [c]) x) && is32Bit(c) -> (InvertFlags (CMPQconst <TypeFlags> x [c]))
+(CMPL x (MOVLconst [c])) -> (CMPLconst x [c])
+(CMPL (MOVLconst [c]) x) -> (InvertFlags (CMPLconst <TypeFlags> x [c]))
+(CMPW x (MOVWconst [c])) -> (CMPWconst x [c])
+(CMPW (MOVWconst [c]) x) -> (InvertFlags (CMPWconst <TypeFlags> x [c]))
+(CMPB x (MOVBconst [c])) -> (CMPBconst x [c])
+(CMPB (MOVBconst [c]) x) -> (InvertFlags (CMPBconst <TypeFlags> x [c]))
 
 // strength reduction
 (MULQconst [-1] x) -> (NEGQ x)

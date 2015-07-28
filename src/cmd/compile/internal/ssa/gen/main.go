@@ -13,6 +13,7 @@ import (
 	"go/format"
 	"io/ioutil"
 	"log"
+	"regexp"
 )
 
 type arch struct {
@@ -163,6 +164,28 @@ func genOp() {
 	err = ioutil.WriteFile("../opGen.go", b, 0666)
 	if err != nil {
 		log.Fatalf("can't write output: %v\n", err)
+	}
+
+	// Check that ../gc/ssa.go handles all the arch-specific opcodes.
+	// This is very much a hack, but it is better than nothing.
+	ssa, err := ioutil.ReadFile("../../gc/ssa.go")
+	if err != nil {
+		log.Fatalf("can't read ../../gc/ssa.go: %v", err)
+	}
+	for _, a := range archs {
+		if a.name == "generic" {
+			continue
+		}
+		for _, v := range a.ops {
+			pattern := fmt.Sprintf("\\Wssa[.]Op%s%s\\W", a.name, v.name)
+			match, err := regexp.Match(pattern, ssa)
+			if err != nil {
+				log.Fatalf("bad opcode regexp %s: %v", pattern, err)
+			}
+			if !match {
+				log.Fatalf("Op%s%s has no code generation in ../../gc/ssa.go", a.name, v.name)
+			}
+		}
 	}
 }
 

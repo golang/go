@@ -37,6 +37,11 @@ var genericOps = []opData{
 	{name: "Or32"},
 	{name: "Or64"},
 
+	{name: "Xor8"}, // arg0 ^ arg1
+	{name: "Xor16"},
+	{name: "Xor32"},
+	{name: "Xor64"},
+
 	{name: "Lsh8"}, // arg0 << arg1
 	{name: "Lsh16"},
 	{name: "Lsh32"},

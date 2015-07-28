@@ -1628,10 +1628,12 @@ func genValue(v *ssa.Value) {
 		p.From.Index = regnum(v.Args[1])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
+	// 2-address opcode arithmetic, symmetric
 	case ssa.OpAMD64ADDB,
 		ssa.OpAMD64ANDQ, ssa.OpAMD64ANDL, ssa.OpAMD64ANDW, ssa.OpAMD64ANDB,
-		ssa.OpAMD64MULQ, ssa.OpAMD64MULL, ssa.OpAMD64MULW,
-		ssa.OpAMD64ORQ, ssa.OpAMD64ORL, ssa.OpAMD64ORW, ssa.OpAMD64ORB:
+		ssa.OpAMD64ORQ, ssa.OpAMD64ORL, ssa.OpAMD64ORW, ssa.OpAMD64ORB,
+		ssa.OpAMD64XORQ, ssa.OpAMD64XORL, ssa.OpAMD64XORW, ssa.OpAMD64XORB,
+		ssa.OpAMD64MULQ, ssa.OpAMD64MULL, ssa.OpAMD64MULW:
 		r := regnum(v)
 		x := regnum(v.Args[0])
 		y := regnum(v.Args[1])
@@ -1652,59 +1654,47 @@ func genValue(v *ssa.Value) {
 		} else {
 			p.From.Reg = x
 		}
-	case ssa.OpAMD64ADDQconst:
-		// TODO: use addq instead of leaq if target is in the right register.
-		p := Prog(x86.ALEAQ)
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = regnum(v.Args[0])
-		p.From.Offset = v.AuxInt
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v)
-	case ssa.OpAMD64MULQconst:
+	// 2-address opcode arithmetic, not symmetric
+	case ssa.OpAMD64SUBQ, ssa.OpAMD64SUBL, ssa.OpAMD64SUBW, ssa.OpAMD64SUBB:
 		r := regnum(v)
 		x := regnum(v.Args[0])
-		if r != x {
-			p := Prog(x86.AMOVQ)
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = x
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
+		y := regnum(v.Args[1])
+		var neg bool
+		if y == r {
+			// compute -(y-x) instead
+			x, y = y, x
+			neg = true
 		}
-		p := Prog(x86.AIMULQ)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = v.AuxInt
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
-		// TODO: Teach doasm to compile the three-address multiply imul $c, r1, r2
-		// instead of using the MOVQ above.
-		//p.From3 = new(obj.Addr)
-		//p.From3.Type = obj.TYPE_REG
-		//p.From3.Reg = regnum(v.Args[0])
-	case ssa.OpAMD64SUBQconst:
-		// This code compensates for the fact that the register allocator
-		// doesn't understand 2-address instructions yet.  TODO: fix that.
-		x := regnum(v.Args[0])
-		r := regnum(v)
 		if x != r {
-			p := Prog(x86.AMOVQ)
+			p := Prog(regMoveAMD64(v.Type.Size()))
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = x
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = r
 		}
-		p := Prog(x86.ASUBQ)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = v.AuxInt
+
+		p := Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-	case ssa.OpAMD64SHLQ, ssa.OpAMD64SHRQ, ssa.OpAMD64SARQ:
+		p.From.Reg = y
+		if neg {
+			p := Prog(x86.ANEGQ) // TODO: use correct size?  This is mostly a hack until regalloc does 2-address correctly
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = r
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = r
+		}
+	case ssa.OpAMD64SHLQ, ssa.OpAMD64SHLL, ssa.OpAMD64SHLW, ssa.OpAMD64SHLB,
+		ssa.OpAMD64SHRQ, ssa.OpAMD64SHRL, ssa.OpAMD64SHRW, ssa.OpAMD64SHRB,
+		ssa.OpAMD64SARQ, ssa.OpAMD64SARL, ssa.OpAMD64SARW, ssa.OpAMD64SARB:
 		x := regnum(v.Args[0])
 		r := regnum(v)
 		if x != r {
 			if r == x86.REG_CX {
 				v.Fatalf("can't implement %s, target and shift both in CX", v.LongString())
 			}
-			p := Prog(x86.AMOVQ)
+			p := Prog(regMoveAMD64(v.Type.Size()))
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = x
 			p.To.Type = obj.TYPE_REG
@@ -1715,11 +1705,57 @@ func genValue(v *ssa.Value) {
 		p.From.Reg = regnum(v.Args[1]) // should be CX
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-	case ssa.OpAMD64ANDQconst, ssa.OpAMD64SHLQconst, ssa.OpAMD64SHRQconst, ssa.OpAMD64SARQconst, ssa.OpAMD64XORQconst:
+	case ssa.OpAMD64ADDQconst, ssa.OpAMD64ADDLconst, ssa.OpAMD64ADDWconst:
+		// TODO: use addq instead of leaq if target is in the right register.
+		var asm int
+		switch v.Op {
+		case ssa.OpAMD64ADDQconst:
+			asm = x86.ALEAQ
+		case ssa.OpAMD64ADDLconst:
+			asm = x86.ALEAL
+		case ssa.OpAMD64ADDWconst:
+			asm = x86.ALEAW
+		}
+		p := Prog(asm)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = regnum(v.Args[0])
+		p.From.Offset = v.AuxInt
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = regnum(v)
+	case ssa.OpAMD64MULQconst, ssa.OpAMD64MULLconst, ssa.OpAMD64MULWconst:
+		r := regnum(v)
+		x := regnum(v.Args[0])
+		if r != x {
+			p := Prog(regMoveAMD64(v.Type.Size()))
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = x
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = r
+		}
+		p := Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+		// TODO: Teach doasm to compile the three-address multiply imul $c, r1, r2
+		// instead of using the MOVQ above.
+		//p.From3 = new(obj.Addr)
+		//p.From3.Type = obj.TYPE_REG
+		//p.From3.Reg = regnum(v.Args[0])
+	case ssa.OpAMD64ADDBconst,
+		ssa.OpAMD64ANDQconst, ssa.OpAMD64ANDLconst, ssa.OpAMD64ANDWconst, ssa.OpAMD64ANDBconst,
+		ssa.OpAMD64ORQconst, ssa.OpAMD64ORLconst, ssa.OpAMD64ORWconst, ssa.OpAMD64ORBconst,
+		ssa.OpAMD64XORQconst, ssa.OpAMD64XORLconst, ssa.OpAMD64XORWconst, ssa.OpAMD64XORBconst,
+		ssa.OpAMD64SUBQconst, ssa.OpAMD64SUBLconst, ssa.OpAMD64SUBWconst, ssa.OpAMD64SUBBconst,
+		ssa.OpAMD64SHLQconst, ssa.OpAMD64SHLLconst, ssa.OpAMD64SHLWconst, ssa.OpAMD64SHLBconst,
+		ssa.OpAMD64SHRQconst, ssa.OpAMD64SHRLconst, ssa.OpAMD64SHRWconst, ssa.OpAMD64SHRBconst,
+		ssa.OpAMD64SARQconst, ssa.OpAMD64SARLconst, ssa.OpAMD64SARWconst, ssa.OpAMD64SARBconst:
+		// This code compensates for the fact that the register allocator
+		// doesn't understand 2-address instructions yet.  TODO: fix that.
 		x := regnum(v.Args[0])
 		r := regnum(v)
 		if x != r {
-			p := Prog(x86.AMOVQ)
+			p := Prog(regMoveAMD64(v.Type.Size()))
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = x
 			p.To.Type = obj.TYPE_REG
@@ -1732,7 +1768,7 @@ func genValue(v *ssa.Value) {
 		p.To.Reg = r
 	case ssa.OpAMD64SBBQcarrymask:
 		r := regnum(v)
-		p := Prog(x86.ASBBQ)
+		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r
 		p.To.Type = obj.TYPE_REG
@@ -1785,14 +1821,16 @@ func genValue(v *ssa.Value) {
 		addAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
-	case ssa.OpAMD64CMPQ, ssa.OpAMD64CMPL, ssa.OpAMD64CMPW, ssa.OpAMD64CMPB, ssa.OpAMD64TESTB, ssa.OpAMD64TESTQ:
+	case ssa.OpAMD64CMPQ, ssa.OpAMD64CMPL, ssa.OpAMD64CMPW, ssa.OpAMD64CMPB,
+		ssa.OpAMD64TESTQ, ssa.OpAMD64TESTL, ssa.OpAMD64TESTW, ssa.OpAMD64TESTB:
 		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = regnum(v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v.Args[1])
-	case ssa.OpAMD64CMPQconst:
-		p := Prog(x86.ACMPQ)
+	case ssa.OpAMD64CMPQconst, ssa.OpAMD64CMPLconst, ssa.OpAMD64CMPWconst, ssa.OpAMD64CMPBconst,
+		ssa.OpAMD64TESTQconst, ssa.OpAMD64TESTLconst, ssa.OpAMD64TESTWconst, ssa.OpAMD64TESTBconst:
+		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = regnum(v.Args[0])
 		p.To.Type = obj.TYPE_CONST
@@ -1943,6 +1981,16 @@ func genValue(v *ssa.Value) {
 		p := Prog(v.Op.Asm())
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
+	case ssa.OpAMD64InvertFlags:
+		v.Fatalf("InvertFlags should never make it to codegen %v", v)
+	case ssa.OpAMD64REPSTOSQ:
+		Prog(x86.AREP)
+		Prog(x86.ASTOSQ)
+		v.Unimplementedf("REPSTOSQ clobbers not implemented: %s", v.LongString())
+	case ssa.OpAMD64REPMOVSB:
+		Prog(x86.AREP)
+		Prog(x86.AMOVSB)
+		v.Unimplementedf("REPMOVSB clobbers not implemented: %s", v.LongString())
 	default:
 		v.Unimplementedf("genValue not implemented: %s", v.LongString())
 	}
