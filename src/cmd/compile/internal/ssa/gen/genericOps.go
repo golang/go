@@ -203,7 +203,7 @@ var genericOps = []opData{
 	{name: "ClosureCall"}, // arg0=code pointer, arg1=context ptr, arg2=memory.  Returns memory.
 	{name: "StaticCall"},  // call function aux.(*gc.Sym), arg0=memory.  Returns memory.
 
-	// Conversions: signed extensions, zero (unsigned) extensions, truncations, and no-op (type only)
+	// Conversions: signed extensions, zero (unsigned) extensions, truncations
 	{name: "SignExt8to16"},
 	{name: "SignExt8to32"},
 	{name: "SignExt8to64"},
@@ -222,8 +222,6 @@ var genericOps = []opData{
 	{name: "Trunc64to8"},
 	{name: "Trunc64to16"},
 	{name: "Trunc64to32"},
-
-	{name: "ConvNop"},
 
 	// Automatically inserted safety checks
 	{name: "IsNonNil"},   // arg0 != nil

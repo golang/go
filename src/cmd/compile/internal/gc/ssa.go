@@ -1005,8 +1005,51 @@ func (s *state) expr(n *Node) *ssa.Value {
 			return nil
 		}
 	case OCONVNOP:
+		to := n.Type
+		from := n.Left.Type
+		if to.Etype == TFUNC {
+			s.Unimplementedf("CONVNOP closure %v -> %v", n.Type, n.Left.Type)
+			return nil
+		}
+
+		// Assume everything will work out, so set up our return value.
+		// Anything interesting that happens from here is a fatal.
 		x := s.expr(n.Left)
-		return s.newValue1(ssa.OpConvNop, n.Type, x)
+		v := s.newValue1(ssa.OpCopy, to, x) // ensure that v has the right type
+
+		// named <--> unnamed type or typed <--> untyped const
+		if from.Etype == to.Etype {
+			return v
+		}
+		// unsafe.Pointer <--> *T
+		if to.Etype == TUNSAFEPTR && from.IsPtr() || from.Etype == TUNSAFEPTR && to.IsPtr() {
+			return v
+		}
+
+		dowidth(from)
+		dowidth(to)
+		if from.Width != to.Width {
+			s.Fatalf("CONVNOP width mismatch %v (%d) -> %v (%d)\n", from, from.Width, to, to.Width)
+			return nil
+		}
+		if etypesign(from.Etype) != etypesign(to.Etype) {
+			s.Fatalf("CONVNOP sign mismatch %v (%s) -> %v (%s)\n", from, Econv(int(from.Etype), 0), to, Econv(int(to.Etype), 0))
+			return nil
+		}
+
+		if flag_race != 0 {
+			s.Unimplementedf("questionable CONVNOP from race detector %v -> %v\n", from, to)
+			return nil
+		}
+
+		if etypesign(from.Etype) == 0 {
+			s.Fatalf("CONVNOP unrecognized non-integer %v -> %v\n", from, to)
+			return nil
+		}
+
+		// integer, same width, same sign
+		return v
+
 	case OCONV:
 		x := s.expr(n.Left)
 		ft := n.Left.Type // from type
@@ -1014,7 +1057,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		if ft.IsInteger() && tt.IsInteger() {
 			var op ssa.Op
 			if tt.Size() == ft.Size() {
-				op = ssa.OpConvNop
+				op = ssa.OpCopy
 			} else if tt.Size() < ft.Size() {
 				// truncation
 				switch 10*ft.Size() + tt.Size() {
@@ -1308,6 +1351,18 @@ func (s *state) zeroVal(t *Type) *ssa.Value {
 	}
 	s.Unimplementedf("zero for type %v not implemented", t)
 	return nil
+}
+
+// etypesign returns the signed-ness of e, for integer/pointer etypes.
+// -1 means signed, +1 means unsigned, 0 means non-integer/non-pointer.
+func etypesign(e uint8) int8 {
+	switch e {
+	case TINT8, TINT16, TINT32, TINT64, TINT:
+		return -1
+	case TUINT8, TUINT16, TUINT32, TUINT64, TUINT, TUINTPTR, TUNSAFEPTR:
+		return +1
+	}
+	return 0
 }
 
 // addr converts the address of the expression n to SSA, adds it to s and returns the SSA result.

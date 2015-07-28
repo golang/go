@@ -167,7 +167,7 @@ func regalloc(f *Func) {
 			//   - definition of v.  c will be identical to v but will live in
 			//     a register.  v will be modified into a spill of c.
 			regspec := opcodeTable[v.Op].reg
-			if v.Op == OpCopy || v.Op == OpConvNop {
+			if v.Op == OpCopy {
 				// TODO: make this less of a hack
 				regspec = opcodeTable[OpAMD64ADDQconst].reg
 			}
