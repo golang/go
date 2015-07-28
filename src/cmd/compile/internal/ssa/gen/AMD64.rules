@@ -82,7 +82,7 @@
 (Rsh64 <t> x y) && y.Type.Size() == 8 ->
 	(SARQ <t> x (CMOVQCC <t>
 			(CMPQconst <TypeFlags> [64] y)
-			(Const <t> [63])
+			(MOVQconst <t> [63])
 			y))
 
 (Less64 x y) -> (SETL (CMPQ <TypeFlags> x y))
@@ -116,16 +116,20 @@
 (IsNonNil p) -> (SETNE (TESTQ <TypeFlags> p p))
 (IsInBounds idx len) -> (SETB (CMPQ <TypeFlags> idx len))
 
-(Move [size] dst src mem) -> (REPMOVSB dst src (Const <TypeUInt64> [size]) mem)
+(Move [size] dst src mem) -> (REPMOVSB dst src (MOVQconst <TypeUInt64> [size]) mem)
 
 (Not x) -> (XORQconst [1] x)
 
 (OffPtr [off] ptr) -> (ADDQconst [off] ptr)
 
-(Const <t> [val]) && t.IsInteger() -> (MOVQconst [val])
-(Const <t>) && t.IsPtr() -> (MOVQconst [0]) // nil is the only const pointer
-(Const <t>) && t.IsBoolean() && !v.Aux.(bool) -> (MOVQconst [0])
-(Const <t>) && t.IsBoolean() && v.Aux.(bool) -> (MOVQconst [1])
+(Const8 [val]) -> (MOVBconst [val])
+(Const16 [val]) -> (MOVWconst [val])
+(Const32 [val]) -> (MOVLconst [val])
+(Const64 [val]) -> (MOVQconst [val])
+(ConstPtr [val]) -> (MOVQconst [val])
+(ConstNil) -> (MOVQconst [0])
+(ConstBool {b}) && !b.(bool) -> (MOVBconst [0])
+(ConstBool {b}) && b.(bool) -> (MOVBconst [1])
 
 (Addr {sym} base) -> (LEAQ {sym} base)
 
@@ -226,15 +230,15 @@
 
 // lower Zero instructions with word sizes
 (Zero [0] _ mem) -> (Copy mem)
-(Zero [1] destptr mem) -> (MOVBstore destptr (Const <TypeInt8> [0]) mem)
-(Zero [2] destptr mem) -> (MOVWstore destptr (Const <TypeInt16> [0]) mem)
-(Zero [4] destptr mem) -> (MOVLstore destptr (Const <TypeInt32> [0]) mem)
-(Zero [8] destptr mem) -> (MOVQstore destptr (Const <TypeInt64> [0]) mem)
+(Zero [1] destptr mem) -> (MOVBstore destptr (MOVBconst <TypeInt8> [0]) mem)
+(Zero [2] destptr mem) -> (MOVWstore destptr (MOVWconst <TypeInt16> [0]) mem)
+(Zero [4] destptr mem) -> (MOVLstore destptr (MOVLconst <TypeInt32> [0]) mem)
+(Zero [8] destptr mem) -> (MOVQstore destptr (MOVQconst <TypeInt64> [0]) mem)
 
 // rewrite anything less than 4 words into a series of MOV[BWLQ] $0, ptr(off) instructions
 (Zero [size] destptr mem) && size < 4*8 -> (MOVXzero [size] destptr mem)
 // Use STOSQ to zero memory. Rewrite this into storing the words with REPSTOSQ and then filling in the remainder with linear moves
-(Zero [size] destptr mem) && size >= 4*8 -> (Zero [size%8] (OffPtr <TypeUInt64> [size-(size%8)] destptr) (REPSTOSQ  <TypeMem> destptr (Const <TypeUInt64> [size/8]) mem))
+(Zero [size] destptr mem) && size >= 4*8 -> (Zero [size%8] (OffPtr <TypeUInt64> [size-(size%8)] destptr) (REPSTOSQ  <TypeMem> destptr (MOVQconst <TypeUInt64> [size/8]) mem))
 
 // Absorb InvertFlags into branches.
 (LT (InvertFlags cmp) yes no) -> (GT cmp yes no)
@@ -249,8 +253,8 @@
 (NE (InvertFlags cmp) yes no) -> (NE cmp yes no)
 
 // get rid of >=64 code for constant shifts
-(SBBQcarrymask (CMPQconst [c] (MOVQconst [d]))) && inBounds(d, c) -> (Const [-1])
-(SBBQcarrymask (CMPQconst [c] (MOVQconst [d]))) && !inBounds(d, c) -> (Const [0])
+(SBBQcarrymask (CMPQconst [c] (MOVQconst [d]))) && inBounds(d, c) -> (MOVQconst [-1])
+(SBBQcarrymask (CMPQconst [c] (MOVQconst [d]))) && !inBounds(d, c) -> (MOVQconst [0])
 (ANDQconst [0] _) -> (MOVQconst [0])
 (ANDQconst [-1] x) -> (Copy x)
 (CMOVQCC (CMPQconst [c] (MOVQconst [d])) _ x) && inBounds(d, c) -> (Copy x)

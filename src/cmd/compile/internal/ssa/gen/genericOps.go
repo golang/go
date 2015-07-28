@@ -115,7 +115,15 @@ var genericOps = []opData{
 	// in the AuxInt field as an int64 (including int, uint64, etc.).
 	// For integer types smaller than 64 bits, only the low-order
 	// bits of the AuxInt field matter.
-	{name: "Const"},
+	{name: "ConstBool"},
+	{name: "ConstString"},
+	{name: "ConstNil"},
+	{name: "Const8"},
+	{name: "Const16"},
+	{name: "Const32"},
+	{name: "Const64"},
+	{name: "ConstPtr"}, // pointer-sized integer constant
+	// TODO: Const32F, ...
 
 	// Constant-like things
 	{name: "Arg"}, // memory input to the function.

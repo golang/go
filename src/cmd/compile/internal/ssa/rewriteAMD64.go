@@ -492,16 +492,44 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto endfd75d26316012d86cb71d0dd1214259b
 	endfd75d26316012d86cb71d0dd1214259b:
 		;
-	case OpConst:
-		// match: (Const <t> [val])
-		// cond: t.IsInteger()
+	case OpConst16:
+		// match: (Const16 [val])
+		// cond:
+		// result: (MOVWconst [val])
+		{
+			val := v.AuxInt
+			v.Op = OpAMD64MOVWconst
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AuxInt = val
+			return true
+		}
+		goto end2c6c92f297873b8ac12bd035d56d001e
+	end2c6c92f297873b8ac12bd035d56d001e:
+		;
+	case OpConst32:
+		// match: (Const32 [val])
+		// cond:
+		// result: (MOVLconst [val])
+		{
+			val := v.AuxInt
+			v.Op = OpAMD64MOVLconst
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AuxInt = val
+			return true
+		}
+		goto enddae5807662af67143a3ac3ad9c63bae5
+	enddae5807662af67143a3ac3ad9c63bae5:
+		;
+	case OpConst64:
+		// match: (Const64 [val])
+		// cond:
 		// result: (MOVQconst [val])
 		{
-			t := v.Type
 			val := v.AuxInt
-			if !(t.IsInteger()) {
-				goto end4c8bfe9df26fc5aa2bd76b211792732a
-			}
 			v.Op = OpAMD64MOVQconst
 			v.AuxInt = 0
 			v.Aux = nil
@@ -509,62 +537,92 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AuxInt = val
 			return true
 		}
-		goto end4c8bfe9df26fc5aa2bd76b211792732a
-	end4c8bfe9df26fc5aa2bd76b211792732a:
+		goto endc630434ae7f143ab69d5f482a9b52b5f
+	endc630434ae7f143ab69d5f482a9b52b5f:
 		;
-		// match: (Const <t>)
-		// cond: t.IsPtr()
-		// result: (MOVQconst [0])
+	case OpConst8:
+		// match: (Const8 [val])
+		// cond:
+		// result: (MOVBconst [val])
 		{
-			t := v.Type
-			if !(t.IsPtr()) {
-				goto endd23abe8d7061f11c260b162e24eec060
+			val := v.AuxInt
+			v.Op = OpAMD64MOVBconst
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AuxInt = val
+			return true
+		}
+		goto end200524c722ed14ca935ba47f8f30327d
+	end200524c722ed14ca935ba47f8f30327d:
+		;
+	case OpConstBool:
+		// match: (ConstBool {b})
+		// cond: !b.(bool)
+		// result: (MOVBconst [0])
+		{
+			b := v.Aux
+			if !(!b.(bool)) {
+				goto end876159ea073d2dcefcc251667c1a7780
 			}
-			v.Op = OpAMD64MOVQconst
+			v.Op = OpAMD64MOVBconst
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = 0
 			return true
 		}
-		goto endd23abe8d7061f11c260b162e24eec060
-	endd23abe8d7061f11c260b162e24eec060:
+		goto end876159ea073d2dcefcc251667c1a7780
+	end876159ea073d2dcefcc251667c1a7780:
 		;
-		// match: (Const <t>)
-		// cond: t.IsBoolean() && !v.Aux.(bool)
-		// result: (MOVQconst [0])
+		// match: (ConstBool {b})
+		// cond: b.(bool)
+		// result: (MOVBconst [1])
 		{
-			t := v.Type
-			if !(t.IsBoolean() && !v.Aux.(bool)) {
-				goto end7b1347fd0902b990ee1e49145c7e8c31
+			b := v.Aux
+			if !(b.(bool)) {
+				goto end0dacad3f7cad53905aad5303391447f6
 			}
-			v.Op = OpAMD64MOVQconst
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = 0
-			return true
-		}
-		goto end7b1347fd0902b990ee1e49145c7e8c31
-	end7b1347fd0902b990ee1e49145c7e8c31:
-		;
-		// match: (Const <t>)
-		// cond: t.IsBoolean() && v.Aux.(bool)
-		// result: (MOVQconst [1])
-		{
-			t := v.Type
-			if !(t.IsBoolean() && v.Aux.(bool)) {
-				goto ende0d1c954b5ab5af7227bff9635774f1c
-			}
-			v.Op = OpAMD64MOVQconst
+			v.Op = OpAMD64MOVBconst
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = 1
 			return true
 		}
-		goto ende0d1c954b5ab5af7227bff9635774f1c
-	ende0d1c954b5ab5af7227bff9635774f1c:
+		goto end0dacad3f7cad53905aad5303391447f6
+	end0dacad3f7cad53905aad5303391447f6:
+		;
+	case OpConstNil:
+		// match: (ConstNil)
+		// cond:
+		// result: (MOVQconst [0])
+		{
+			v.Op = OpAMD64MOVQconst
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AuxInt = 0
+			return true
+		}
+		goto endea557d921056c25b945a49649e4b9b91
+	endea557d921056c25b945a49649e4b9b91:
+		;
+	case OpConstPtr:
+		// match: (ConstPtr [val])
+		// cond:
+		// result: (MOVQconst [val])
+		{
+			val := v.AuxInt
+			v.Op = OpAMD64MOVQconst
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AuxInt = val
+			return true
+		}
+		goto endc395c0a53eeccf597e225a07b53047d1
+	endc395c0a53eeccf597e225a07b53047d1:
 		;
 	case OpConvNop:
 		// match: (ConvNop <t> x)
@@ -1527,7 +1585,7 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 	case OpMove:
 		// match: (Move [size] dst src mem)
 		// cond:
-		// result: (REPMOVSB dst src (Const <TypeUInt64> [size]) mem)
+		// result: (REPMOVSB dst src (MOVQconst <TypeUInt64> [size]) mem)
 		{
 			size := v.AuxInt
 			dst := v.Args[0]
@@ -1539,15 +1597,15 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(dst)
 			v.AddArg(src)
-			v0 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
+			v0 := v.Block.NewValue0(v.Line, OpAMD64MOVQconst, TypeInvalid)
 			v0.Type = TypeUInt64
 			v0.AuxInt = size
 			v.AddArg(v0)
 			v.AddArg(mem)
 			return true
 		}
-		goto end1b2d226705fd31dbbe74e3286af178ea
-	end1b2d226705fd31dbbe74e3286af178ea:
+		goto end2aab774aedae2c616ee88bfa87cdf30e
+	end2aab774aedae2c616ee88bfa87cdf30e:
 		;
 	case OpMul16:
 		// match: (Mul16 x y)
@@ -1846,13 +1904,13 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 	case OpRsh64:
 		// match: (Rsh64 <t> x y)
 		// cond: y.Type.Size() == 8
-		// result: (SARQ <t> x (CMOVQCC <t> 			(CMPQconst <TypeFlags> [64] y) 			(Const <t> [63]) 			y))
+		// result: (SARQ <t> x (CMOVQCC <t> 			(CMPQconst <TypeFlags> [64] y) 			(MOVQconst <t> [63]) 			y))
 		{
 			t := v.Type
 			x := v.Args[0]
 			y := v.Args[1]
 			if !(y.Type.Size() == 8) {
-				goto end16bda9bd1611d415969fdbec55ed4330
+				goto endd5f88a8c4f11e0e844b35fd8677bd940
 			}
 			v.Op = OpAMD64SARQ
 			v.AuxInt = 0
@@ -1867,7 +1925,7 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1.AuxInt = 64
 			v1.AddArg(y)
 			v0.AddArg(v1)
-			v2 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
+			v2 := v.Block.NewValue0(v.Line, OpAMD64MOVQconst, TypeInvalid)
 			v2.Type = t
 			v2.AuxInt = 63
 			v0.AddArg(v2)
@@ -1875,8 +1933,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(v0)
 			return true
 		}
-		goto end16bda9bd1611d415969fdbec55ed4330
-	end16bda9bd1611d415969fdbec55ed4330:
+		goto endd5f88a8c4f11e0e844b35fd8677bd940
+	endd5f88a8c4f11e0e844b35fd8677bd940:
 		;
 	case OpRsh64U:
 		// match: (Rsh64U <t> x y)
@@ -1935,53 +1993,53 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 	case OpAMD64SBBQcarrymask:
 		// match: (SBBQcarrymask (CMPQconst [c] (MOVQconst [d])))
 		// cond: inBounds(d, c)
-		// result: (Const [-1])
+		// result: (MOVQconst [-1])
 		{
 			if v.Args[0].Op != OpAMD64CMPQconst {
-				goto endf67d323ecef000dbcd15d7e031c3475e
+				goto end378de7e659770f877c08b6b269073069
 			}
 			c := v.Args[0].AuxInt
 			if v.Args[0].Args[0].Op != OpAMD64MOVQconst {
-				goto endf67d323ecef000dbcd15d7e031c3475e
+				goto end378de7e659770f877c08b6b269073069
 			}
 			d := v.Args[0].Args[0].AuxInt
 			if !(inBounds(d, c)) {
-				goto endf67d323ecef000dbcd15d7e031c3475e
+				goto end378de7e659770f877c08b6b269073069
 			}
-			v.Op = OpConst
+			v.Op = OpAMD64MOVQconst
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = -1
 			return true
 		}
-		goto endf67d323ecef000dbcd15d7e031c3475e
-	endf67d323ecef000dbcd15d7e031c3475e:
+		goto end378de7e659770f877c08b6b269073069
+	end378de7e659770f877c08b6b269073069:
 		;
 		// match: (SBBQcarrymask (CMPQconst [c] (MOVQconst [d])))
 		// cond: !inBounds(d, c)
-		// result: (Const [0])
+		// result: (MOVQconst [0])
 		{
 			if v.Args[0].Op != OpAMD64CMPQconst {
-				goto end4157ddea9c4f71bfabfd6fa50e1208ed
+				goto enda7bfd1974bf83ca79653c560a718a86c
 			}
 			c := v.Args[0].AuxInt
 			if v.Args[0].Args[0].Op != OpAMD64MOVQconst {
-				goto end4157ddea9c4f71bfabfd6fa50e1208ed
+				goto enda7bfd1974bf83ca79653c560a718a86c
 			}
 			d := v.Args[0].Args[0].AuxInt
 			if !(!inBounds(d, c)) {
-				goto end4157ddea9c4f71bfabfd6fa50e1208ed
+				goto enda7bfd1974bf83ca79653c560a718a86c
 			}
-			v.Op = OpConst
+			v.Op = OpAMD64MOVQconst
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = 0
 			return true
 		}
-		goto end4157ddea9c4f71bfabfd6fa50e1208ed
-	end4157ddea9c4f71bfabfd6fa50e1208ed:
+		goto enda7bfd1974bf83ca79653c560a718a86c
+	enda7bfd1974bf83ca79653c560a718a86c:
 		;
 	case OpAMD64SETA:
 		// match: (SETA (InvertFlags x))
@@ -2676,10 +2734,10 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		;
 		// match: (Zero [1] destptr mem)
 		// cond:
-		// result: (MOVBstore destptr (Const <TypeInt8> [0]) mem)
+		// result: (MOVBstore destptr (MOVBconst <TypeInt8> [0]) mem)
 		{
 			if v.AuxInt != 1 {
-				goto end09ec7b1fc5ad40534e0e25c896323f5c
+				goto end16839f51d2e9cf9548f216848406bd97
 			}
 			destptr := v.Args[0]
 			mem := v.Args[1]
@@ -2688,22 +2746,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(destptr)
-			v0 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
+			v0 := v.Block.NewValue0(v.Line, OpAMD64MOVBconst, TypeInvalid)
 			v0.Type = TypeInt8
 			v0.AuxInt = 0
 			v.AddArg(v0)
 			v.AddArg(mem)
 			return true
 		}
-		goto end09ec7b1fc5ad40534e0e25c896323f5c
-	end09ec7b1fc5ad40534e0e25c896323f5c:
+		goto end16839f51d2e9cf9548f216848406bd97
+	end16839f51d2e9cf9548f216848406bd97:
 		;
 		// match: (Zero [2] destptr mem)
 		// cond:
-		// result: (MOVWstore destptr (Const <TypeInt16> [0]) mem)
+		// result: (MOVWstore destptr (MOVWconst <TypeInt16> [0]) mem)
 		{
 			if v.AuxInt != 2 {
-				goto end2dee246789dbd305bb1eaec768bdae14
+				goto enddc4a090329efde9ca19983ad18174cbb
 			}
 			destptr := v.Args[0]
 			mem := v.Args[1]
@@ -2712,22 +2770,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(destptr)
-			v0 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
+			v0 := v.Block.NewValue0(v.Line, OpAMD64MOVWconst, TypeInvalid)
 			v0.Type = TypeInt16
 			v0.AuxInt = 0
 			v.AddArg(v0)
 			v.AddArg(mem)
 			return true
 		}
-		goto end2dee246789dbd305bb1eaec768bdae14
-	end2dee246789dbd305bb1eaec768bdae14:
+		goto enddc4a090329efde9ca19983ad18174cbb
+	enddc4a090329efde9ca19983ad18174cbb:
 		;
 		// match: (Zero [4] destptr mem)
 		// cond:
-		// result: (MOVLstore destptr (Const <TypeInt32> [0]) mem)
+		// result: (MOVLstore destptr (MOVLconst <TypeInt32> [0]) mem)
 		{
 			if v.AuxInt != 4 {
-				goto ende2bf4ecf21bc9e76700a9c5f62546e78
+				goto end365a027b67399ad8d5d2d5eca847f7d8
 			}
 			destptr := v.Args[0]
 			mem := v.Args[1]
@@ -2736,22 +2794,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(destptr)
-			v0 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
+			v0 := v.Block.NewValue0(v.Line, OpAMD64MOVLconst, TypeInvalid)
 			v0.Type = TypeInt32
 			v0.AuxInt = 0
 			v.AddArg(v0)
 			v.AddArg(mem)
 			return true
 		}
-		goto ende2bf4ecf21bc9e76700a9c5f62546e78
-	ende2bf4ecf21bc9e76700a9c5f62546e78:
+		goto end365a027b67399ad8d5d2d5eca847f7d8
+	end365a027b67399ad8d5d2d5eca847f7d8:
 		;
 		// match: (Zero [8] destptr mem)
 		// cond:
-		// result: (MOVQstore destptr (Const <TypeInt64> [0]) mem)
+		// result: (MOVQstore destptr (MOVQconst <TypeInt64> [0]) mem)
 		{
 			if v.AuxInt != 8 {
-				goto enda65d5d60783daf9b9405f04c44f7adaf
+				goto end5808a5e9c68555a82c3514db39017e56
 			}
 			destptr := v.Args[0]
 			mem := v.Args[1]
@@ -2760,15 +2818,15 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(destptr)
-			v0 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
+			v0 := v.Block.NewValue0(v.Line, OpAMD64MOVQconst, TypeInvalid)
 			v0.Type = TypeInt64
 			v0.AuxInt = 0
 			v.AddArg(v0)
 			v.AddArg(mem)
 			return true
 		}
-		goto enda65d5d60783daf9b9405f04c44f7adaf
-	enda65d5d60783daf9b9405f04c44f7adaf:
+		goto end5808a5e9c68555a82c3514db39017e56
+	end5808a5e9c68555a82c3514db39017e56:
 		;
 		// match: (Zero [size] destptr mem)
 		// cond: size < 4*8
@@ -2794,13 +2852,13 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		;
 		// match: (Zero [size] destptr mem)
 		// cond: size >= 4*8
-		// result: (Zero [size%8] (OffPtr <TypeUInt64> [size-(size%8)] destptr) (REPSTOSQ  <TypeMem> destptr (Const <TypeUInt64> [size/8]) mem))
+		// result: (Zero [size%8] (OffPtr <TypeUInt64> [size-(size%8)] destptr) (REPSTOSQ  <TypeMem> destptr (MOVQconst <TypeUInt64> [size/8]) mem))
 		{
 			size := v.AuxInt
 			destptr := v.Args[0]
 			mem := v.Args[1]
 			if !(size >= 4*8) {
-				goto end7a358169d20d6834b21f2e03fbf351b2
+				goto endb3058a90f909821d5689fb358519828b
 			}
 			v.Op = OpZero
 			v.AuxInt = 0
@@ -2815,7 +2873,7 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := v.Block.NewValue0(v.Line, OpAMD64REPSTOSQ, TypeInvalid)
 			v1.Type = TypeMem
 			v1.AddArg(destptr)
-			v2 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
+			v2 := v.Block.NewValue0(v.Line, OpAMD64MOVQconst, TypeInvalid)
 			v2.Type = TypeUInt64
 			v2.AuxInt = size / 8
 			v1.AddArg(v2)
@@ -2823,8 +2881,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(v1)
 			return true
 		}
-		goto end7a358169d20d6834b21f2e03fbf351b2
-	end7a358169d20d6834b21f2e03fbf351b2:
+		goto endb3058a90f909821d5689fb358519828b
+	endb3058a90f909821d5689fb358519828b:
 		;
 	case OpZeroExt16to32:
 		// match: (ZeroExt16to32 x)
