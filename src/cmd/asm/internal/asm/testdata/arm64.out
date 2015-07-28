@@ -48,4 +48,8 @@
 242 00048 (testdata/arm64.s:242)	LDAXRW	(R0), R2
 243 00049 (testdata/arm64.s:243)	STLXRW	R1, (R0), R3
 251 00050 (testdata/arm64.s:251)	RET
-259 00051 (testdata/arm64.s:259)	END
+255 00051 (testdata/arm64.s:255)	JMP	foo(SB)
+256 00052 (testdata/arm64.s:256)	CALL	foo(SB)
+257 00053 (testdata/arm64.s:257)	JMP	foo(SB)
+258 00054 (testdata/arm64.s:258)	CALL	foo(SB)
+266 00055 (testdata/arm64.s:266)	END

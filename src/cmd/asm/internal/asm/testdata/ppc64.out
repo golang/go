@@ -107,4 +107,8 @@
 691 00107 (testdata/ppc64.s:691)	NOP	F2
 697 00108 (testdata/ppc64.s:697)	NOP	$4
 705 00109 (testdata/ppc64.s:705)	RET
-713 00110 (testdata/ppc64.s:713)	END
+709 00110 (testdata/ppc64.s:709)	JMP	foo(SB)
+710 00111 (testdata/ppc64.s:710)	CALL	foo(SB)
+711 00112 (testdata/ppc64.s:711)	JMP	foo(SB)
+712 00113 (testdata/ppc64.s:712)	CALL	foo(SB)
+720 00114 (testdata/ppc64.s:720)	END
