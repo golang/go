@@ -249,11 +249,29 @@ func makeImportValid(r rune) rune {
 	return r
 }
 
+// Mode flags for loadImport and download (in get.go).
+const (
+	// useVendor means that loadImport should do vendor expansion
+	// (provided the vendoring experiment is enabled).
+	// That is, useVendor means that the import path came from
+	// a source file and has not been vendor-expanded yet.
+	// Every import path should be loaded initially with useVendor,
+	// and then the expanded version (with the /vendor/ in it) gets
+	// recorded as the canonical import path. At that point, future loads
+	// of that package must not pass useVendor, because
+	// disallowVendor will reject direct use of paths containing /vendor/.
+	useVendor = 1 << iota
+
+	// getTestDeps is for download (part of "go get") and indicates
+	// that test dependencies should be fetched too.
+	getTestDeps
+)
+
 // loadImport scans the directory named by path, which must be an import path,
 // but possibly a local import path (an absolute file system path or one beginning
 // with ./ or ../).  A local relative path is interpreted relative to srcDir.
 // It returns a *Package describing the package found in that directory.
-func loadImport(path, srcDir string, parent *Package, stk *importStack, importPos []token.Position) *Package {
+func loadImport(path, srcDir string, parent *Package, stk *importStack, importPos []token.Position, mode int) *Package {
 	stk.push(path)
 	defer stk.pop()
 
@@ -268,7 +286,7 @@ func loadImport(path, srcDir string, parent *Package, stk *importStack, importPo
 	var vendorSearch []string
 	if isLocal {
 		importPath = dirToImportPath(filepath.Join(srcDir, path))
-	} else {
+	} else if mode&useVendor != 0 {
 		path, vendorSearch = vendoredImportPath(parent, path)
 		importPath = path
 	}
@@ -277,8 +295,10 @@ func loadImport(path, srcDir string, parent *Package, stk *importStack, importPo
 		if perr := disallowInternal(srcDir, p, stk); perr != p {
 			return perr
 		}
-		if perr := disallowVendor(srcDir, origPath, p, stk); perr != p {
-			return perr
+		if mode&useVendor != 0 {
+			if perr := disallowVendor(srcDir, origPath, p, stk); perr != p {
+				return perr
+			}
 		}
 		return reusePackage(p, stk)
 	}
@@ -334,8 +354,10 @@ func loadImport(path, srcDir string, parent *Package, stk *importStack, importPo
 	if perr := disallowInternal(srcDir, p, stk); perr != p {
 		return perr
 	}
-	if perr := disallowVendor(srcDir, origPath, p, stk); perr != p {
-		return perr
+	if mode&useVendor != 0 {
+		if perr := disallowVendor(srcDir, origPath, p, stk); perr != p {
+			return perr
+		}
 	}
 
 	return p
@@ -851,7 +873,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		if path == "C" {
 			continue
 		}
-		p1 := loadImport(path, p.Dir, p, stk, p.build.ImportPos[path])
+		p1 := loadImport(path, p.Dir, p, stk, p.build.ImportPos[path], useVendor)
 		if p1.Name == "main" {
 			p.Error = &PackageError{
 				ImportStack: stk.copy(),
@@ -1524,7 +1546,7 @@ func loadPackage(arg string, stk *importStack) *Package {
 		}
 	}
 
-	return loadImport(arg, cwd, nil, stk, nil)
+	return loadImport(arg, cwd, nil, stk, nil, 0)
 }
 
 // packages returns the packages named by the

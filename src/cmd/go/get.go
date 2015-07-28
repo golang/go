@@ -89,8 +89,12 @@ func runGet(cmd *Command, args []string) {
 
 	// Phase 1.  Download/update.
 	var stk importStack
+	mode := 0
+	if *getT {
+		mode |= getTestDeps
+	}
 	for _, arg := range downloadPaths(args) {
-		download(arg, nil, &stk, *getT)
+		download(arg, nil, &stk, mode)
 	}
 	exitIfErrors()
 
@@ -163,15 +167,15 @@ var downloadRootCache = map[string]bool{}
 
 // download runs the download half of the get command
 // for the package named by the argument.
-func download(arg string, parent *Package, stk *importStack, getTestDeps bool) {
-	load := func(path string) *Package {
+func download(arg string, parent *Package, stk *importStack, mode int) {
+	load := func(path string, mode int) *Package {
 		if parent == nil {
 			return loadPackage(path, stk)
 		}
-		return loadImport(path, parent.Dir, nil, stk, nil)
+		return loadImport(path, parent.Dir, parent, stk, nil, mode)
 	}
 
-	p := load(arg)
+	p := load(arg, mode)
 	if p.Error != nil && p.Error.hard {
 		errorf("%s", p.Error)
 		return
@@ -195,7 +199,7 @@ func download(arg string, parent *Package, stk *importStack, getTestDeps bool) {
 	// Only process each package once.
 	// (Unless we're fetching test dependencies for this package,
 	// in which case we want to process it again.)
-	if downloadCache[arg] && !getTestDeps {
+	if downloadCache[arg] && mode&getTestDeps == 0 {
 		return
 	}
 	downloadCache[arg] = true
@@ -255,7 +259,7 @@ func download(arg string, parent *Package, stk *importStack, getTestDeps bool) {
 		pkgs = pkgs[:0]
 		for _, arg := range args {
 			stk.push(arg)
-			p := load(arg)
+			p := load(arg, mode)
 			stk.pop()
 			if p.Error != nil {
 				errorf("%s", p.Error)
@@ -291,28 +295,26 @@ func download(arg string, parent *Package, stk *importStack, getTestDeps bool) {
 				continue
 			}
 			// Don't get test dependencies recursively.
-			download(path, p, stk, false)
+			// Imports is already vendor-expanded.
+			download(path, p, stk, 0)
 		}
-		if getTestDeps {
+		if mode&getTestDeps != 0 {
 			// Process test dependencies when -t is specified.
 			// (Don't get test dependencies for test dependencies.)
-			//
-			// We apply vendoredImportPath here.  It's not
-			// needed for Imports, because it was done
-			// while loading the package.
+			// We pass useVendor here because p.load does not
+			// vendor-expand TestImports and XTestImports.
+			// The call to loadImport inside download needs to do that.
 			for _, path := range p.TestImports {
 				if path == "C" {
 					continue
 				}
-				path, _ = vendoredImportPath(p, path)
-				download(path, p, stk, false)
+				download(path, p, stk, useVendor)
 			}
 			for _, path := range p.XTestImports {
 				if path == "C" {
 					continue
 				}
-				path, _ = vendoredImportPath(p, path)
-				download(path, p, stk, false)
+				download(path, p, stk, useVendor)
 			}
 		}
 
