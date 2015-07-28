@@ -49,7 +49,7 @@ function HTTPTransport() {
 		var timeout;
 		output({Kind: 'start'});
 		function next() {
-			if (events.length === 0) {
+			if (!events || events.length === 0) {
 				output({Kind: 'end'});
 				return;
 			}
