@@ -49,20 +49,31 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 		memmove(unsafe.Pointer(_g_.m.notesig), unsafe.Pointer(note), uintptr(len(notestr)+1))
 		gp.sig = uint32(sig)
 		gp.sigpc = c.pc()
+
+		pc := uintptr(c.pc())
+		sp := uintptr(c.sp())
+
+		// If we don't recognize the PC as code
+		// but we do recognize the top pointer on the stack as code,
+		// then assume this was a call to non-code and treat like
+		// pc == 0, to make unwinding show the context.
+		if pc != 0 && findfunc(pc) == nil && findfunc(*(*uintptr)(unsafe.Pointer(sp))) != nil {
+			pc = 0
+		}
+
 		// Only push sigpanic if PC != 0.
 		//
 		// If PC == 0, probably panicked because of a call to a nil func.
 		// Not pushing that onto SP will make the trace look like a call
 		// to sigpanic instead. (Otherwise the trace will end at
 		// sigpanic and we won't get to see who faulted).
-		if c.pc() != 0 {
-			sp := c.sp()
+		if pc != 0 {
 			if regSize > ptrSize {
 				sp -= ptrSize
 				*(*uintptr)(unsafe.Pointer(sp)) = 0
 			}
 			sp -= ptrSize
-			*(*uintptr)(unsafe.Pointer(sp)) = c.pc()
+			*(*uintptr)(unsafe.Pointer(sp)) = pc
 			c.setsp(sp)
 		}
 		c.setpc(funcPC(sigpanic))
