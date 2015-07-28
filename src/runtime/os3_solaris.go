@@ -52,7 +52,9 @@ import "unsafe"
 //go:linkname libc_exit libc_exit
 //go:linkname libc_fstat libc_fstat
 //go:linkname libc_getcontext libc_getcontext
+//go:linkname libc_getpid libc_getpid
 //go:linkname libc_getrlimit libc_getrlimit
+//go:linkname libc_kill libc_kill
 //go:linkname libc_madvise libc_madvise
 //go:linkname libc_malloc libc_malloc
 //go:linkname libc_mmap libc_mmap
@@ -87,7 +89,9 @@ var (
 	libc_exit,
 	libc_fstat,
 	libc_getcontext,
+	libc_getpid,
 	libc_getrlimit,
+	libc_kill,
 	libc_madvise,
 	libc_malloc,
 	libc_mmap,
