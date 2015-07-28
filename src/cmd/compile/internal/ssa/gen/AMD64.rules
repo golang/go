@@ -23,6 +23,15 @@
 (Add8U x y) -> (ADDB x y)
 (Add8 x y) -> (MOVBQSX (ADDB <v.Type> x y))
 
+(And64 x y) -> (ANDQ x y)
+(And64U x y) -> (ANDQ x y)
+(And32U x y) -> (ANDL x y)
+(And32 x y) -> (MOVLQSX (ANDL <v.Type> x y))
+(And16U x y) -> (ANDW x y)
+(And16 x y) -> (MOVWQSX (ANDW <v.Type> x y))
+(And8U x y) -> (ANDB x y)
+(And8 x y) -> (MOVBQSX (ANDB <v.Type> x y))
+
 (Sub64 x y) -> (SUBQ x y)
 (Sub64U x y) -> (SUBQ x y)
 (Sub32U x y) -> (SUBL x y)

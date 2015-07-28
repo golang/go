@@ -53,8 +53,6 @@ const (
 
 	OpAMD64MULQ
 	OpAMD64MULQconst
-	OpAMD64ANDQ
-	OpAMD64ANDQconst
 	OpAMD64SHLQ
 	OpAMD64SHLQconst
 	OpAMD64SHRQ
@@ -128,6 +126,11 @@ const (
 	OpAMD64NEGB
 	OpAMD64MULL
 	OpAMD64MULW
+	OpAMD64ANDQ
+	OpAMD64ANDQconst
+	OpAMD64ANDL
+	OpAMD64ANDW
+	OpAMD64ANDB
 	OpAMD64InvertFlags
 
 	OpAdd8
@@ -156,6 +159,14 @@ const (
 	OpMul32U
 	OpMul64U
 	OpMulPtr
+	OpAnd8
+	OpAnd16
+	OpAnd32
+	OpAnd64
+	OpAnd8U
+	OpAnd16U
+	OpAnd32U
+	OpAnd64U
 	OpLsh8
 	OpLsh16
 	OpLsh32
@@ -270,31 +281,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name: "MULQconst",
 		asm:  x86.AIMULQ,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "ANDQ",
-		asm:  x86.AANDQ,
-		reg: regInfo{
-			inputs: []regMask{
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "ANDQconst",
-		asm:  x86.AANDQ,
 		reg: regInfo{
 			inputs: []regMask{
 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1163,6 +1149,70 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name: "ANDQ",
+		asm:  x86.AANDQ,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ANDQconst",
+		asm:  x86.AANDQ,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ANDL",
+		asm:  x86.AANDL,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ANDW",
+		asm:  x86.AANDW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ANDB",
+		asm:  x86.AANDB,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
 		name: "InvertFlags",
 		reg:  regInfo{},
 	},
@@ -1269,6 +1319,38 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "MulPtr",
+		generic: true,
+	},
+	{
+		name:    "And8",
+		generic: true,
+	},
+	{
+		name:    "And16",
+		generic: true,
+	},
+	{
+		name:    "And32",
+		generic: true,
+	},
+	{
+		name:    "And64",
+		generic: true,
+	},
+	{
+		name:    "And8U",
+		generic: true,
+	},
+	{
+		name:    "And16U",
+		generic: true,
+	},
+	{
+		name:    "And32U",
+		generic: true,
+	},
+	{
+		name:    "And64U",
 		generic: true,
 	},
 	{

@@ -382,6 +382,159 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto end53cad0c3c9daa5575680e77c14e05e72
 	end53cad0c3c9daa5575680e77c14e05e72:
 		;
+	case OpAnd16:
+		// match: (And16 x y)
+		// cond:
+		// result: (MOVWQSX (ANDW <v.Type> x y))
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64MOVWQSX
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v0 := v.Block.NewValue0(v.Line, OpAMD64ANDW, TypeInvalid)
+			v0.Type = v.Type
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v.AddArg(v0)
+			return true
+		}
+		goto end566a8c12ea6f1c18d200aaf3a911e2e5
+	end566a8c12ea6f1c18d200aaf3a911e2e5:
+		;
+	case OpAnd16U:
+		// match: (And16U x y)
+		// cond:
+		// result: (ANDW x y)
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64ANDW
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto end248cfb532a3bb6b244ed5e9124b35c13
+	end248cfb532a3bb6b244ed5e9124b35c13:
+		;
+	case OpAnd32:
+		// match: (And32 x y)
+		// cond:
+		// result: (MOVLQSX (ANDL <v.Type> x y))
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64MOVLQSX
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v0 := v.Block.NewValue0(v.Line, OpAMD64ANDL, TypeInvalid)
+			v0.Type = v.Type
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v.AddArg(v0)
+			return true
+		}
+		goto ende53f2add9b41c8a17440e9c72372c8c4
+	ende53f2add9b41c8a17440e9c72372c8c4:
+		;
+	case OpAnd32U:
+		// match: (And32U x y)
+		// cond:
+		// result: (ANDL x y)
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64ANDL
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto endaceb9ea4ffc888774cfa38ed13d860d6
+	endaceb9ea4ffc888774cfa38ed13d860d6:
+		;
+	case OpAnd64:
+		// match: (And64 x y)
+		// cond:
+		// result: (ANDQ x y)
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64ANDQ
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto enda0bde5853819d05fa2b7d3b723629552
+	enda0bde5853819d05fa2b7d3b723629552:
+		;
+	case OpAnd64U:
+		// match: (And64U x y)
+		// cond:
+		// result: (ANDQ x y)
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64ANDQ
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto end7d0ff84f3ba7cf7880e73176b38d0a4b
+	end7d0ff84f3ba7cf7880e73176b38d0a4b:
+		;
+	case OpAnd8:
+		// match: (And8 x y)
+		// cond:
+		// result: (MOVBQSX (ANDB <v.Type> x y))
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64MOVBQSX
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v0 := v.Block.NewValue0(v.Line, OpAMD64ANDB, TypeInvalid)
+			v0.Type = v.Type
+			v0.AddArg(x)
+			v0.AddArg(y)
+			v.AddArg(v0)
+			return true
+		}
+		goto endb570a5dfeea1414989cb9c8ab0b9c329
+	endb570a5dfeea1414989cb9c8ab0b9c329:
+		;
+	case OpAnd8U:
+		// match: (And8U x y)
+		// cond:
+		// result: (ANDB x y)
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64ANDB
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto end6a9db8b74df974171e72ce228b3e2c98
+	end6a9db8b74df974171e72ce228b3e2c98:
+		;
 	case OpAMD64CMOVQCC:
 		// match: (CMOVQCC (CMPQconst [c] (MOVQconst [d])) _ x)
 		// cond: inBounds(d, c)
