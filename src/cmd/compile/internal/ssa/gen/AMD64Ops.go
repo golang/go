@@ -96,25 +96,110 @@ func init() {
 
 	// TODO: 2-address instructions.  Mark ops as needing matching input/output regs.
 	var AMD64ops = []opData{
-		{name: "MULQ", reg: gp21, asm: "IMULQ"},      // arg0 * arg1
-		{name: "MULQconst", reg: gp11, asm: "IMULQ"}, // arg0 * auxint
-		{name: "SHLQ", reg: gp21shift, asm: "SHLQ"},  // arg0 << arg1, shift amount is mod 64
-		{name: "SHLQconst", reg: gp11, asm: "SHLQ"},  // arg0 << auxint, shift amount 0-63
-		{name: "SHRQ", reg: gp21shift, asm: "SHRQ"},  // unsigned arg0 >> arg1, shift amount is mod 64
-		{name: "SHRQconst", reg: gp11, asm: "SHRQ"},  // unsigned arg0 >> auxint, shift amount 0-63
-		{name: "SARQ", reg: gp21shift, asm: "SARQ"},  // signed arg0 >> arg1, shift amount is mod 64
-		{name: "SARQconst", reg: gp11, asm: "SARQ"},  // signed arg0 >> auxint, shift amount 0-63
+		// binary ops
+		{name: "ADDQ", reg: gp21, asm: "ADDQ"},      // arg0 + arg1
+		{name: "ADDL", reg: gp21, asm: "ADDL"},      // arg0 + arg1
+		{name: "ADDW", reg: gp21, asm: "ADDW"},      // arg0 + arg1
+		{name: "ADDB", reg: gp21, asm: "ADDB"},      // arg0 + arg1
+		{name: "ADDQconst", reg: gp11, asm: "ADDQ"}, // arg0 + auxint
+		{name: "ADDLconst", reg: gp11, asm: "ADDL"}, // arg0 + auxint
+		{name: "ADDWconst", reg: gp11, asm: "ADDW"}, // arg0 + auxint
+		{name: "ADDBconst", reg: gp11, asm: "ADDB"}, // arg0 + auxint
 
-		{name: "XORQconst", reg: gp11, asm: "XORQ"}, // arg0^auxint
+		{name: "SUBQ", reg: gp21, asm: "SUBQ"},      // arg0 - arg1
+		{name: "SUBL", reg: gp21, asm: "SUBL"},      // arg0 - arg1
+		{name: "SUBW", reg: gp21, asm: "SUBW"},      // arg0 - arg1
+		{name: "SUBB", reg: gp21, asm: "SUBB"},      // arg0 - arg1
+		{name: "SUBQconst", reg: gp11, asm: "SUBQ"}, // arg0 - auxint
+		{name: "SUBLconst", reg: gp11, asm: "SUBL"}, // arg0 - auxint
+		{name: "SUBWconst", reg: gp11, asm: "SUBW"}, // arg0 - auxint
+		{name: "SUBBconst", reg: gp11, asm: "SUBB"}, // arg0 - auxint
+
+		{name: "MULQ", reg: gp21, asm: "IMULQ"},      // arg0 * arg1
+		{name: "MULL", reg: gp21, asm: "IMULL"},      // arg0 * arg1
+		{name: "MULW", reg: gp21, asm: "IMULW"},      // arg0 * arg1
+		{name: "MULQconst", reg: gp11, asm: "IMULQ"}, // arg0 * auxint
+		{name: "MULLconst", reg: gp11, asm: "IMULL"}, // arg0 * auxint
+		{name: "MULWconst", reg: gp11, asm: "IMULW"}, // arg0 * auxint
+
+		{name: "ANDQ", reg: gp21, asm: "ANDQ"},      // arg0 & arg1
+		{name: "ANDL", reg: gp21, asm: "ANDL"},      // arg0 & arg1
+		{name: "ANDW", reg: gp21, asm: "ANDW"},      // arg0 & arg1
+		{name: "ANDB", reg: gp21, asm: "ANDB"},      // arg0 & arg1
+		{name: "ANDQconst", reg: gp11, asm: "ANDQ"}, // arg0 & auxint
+		{name: "ANDLconst", reg: gp11, asm: "ANDL"}, // arg0 & auxint
+		{name: "ANDWconst", reg: gp11, asm: "ANDW"}, // arg0 & auxint
+		{name: "ANDBconst", reg: gp11, asm: "ANDB"}, // arg0 & auxint
+
+		{name: "ORQ", reg: gp21, asm: "ORQ"},      // arg0 | arg1
+		{name: "ORL", reg: gp21, asm: "ORL"},      // arg0 | arg1
+		{name: "ORW", reg: gp21, asm: "ORW"},      // arg0 | arg1
+		{name: "ORB", reg: gp21, asm: "ORB"},      // arg0 | arg1
+		{name: "ORQconst", reg: gp11, asm: "ORQ"}, // arg0 | auxint
+		{name: "ORLconst", reg: gp11, asm: "ORL"}, // arg0 | auxint
+		{name: "ORWconst", reg: gp11, asm: "ORW"}, // arg0 | auxint
+		{name: "ORBconst", reg: gp11, asm: "ORB"}, // arg0 | auxint
+
+		{name: "XORQ", reg: gp21, asm: "XORQ"},      // arg0 ^ arg1
+		{name: "XORL", reg: gp21, asm: "XORL"},      // arg0 ^ arg1
+		{name: "XORW", reg: gp21, asm: "XORW"},      // arg0 ^ arg1
+		{name: "XORB", reg: gp21, asm: "XORB"},      // arg0 ^ arg1
+		{name: "XORQconst", reg: gp11, asm: "XORQ"}, // arg0 ^ auxint
+		{name: "XORLconst", reg: gp11, asm: "XORL"}, // arg0 ^ auxint
+		{name: "XORWconst", reg: gp11, asm: "XORW"}, // arg0 ^ auxint
+		{name: "XORBconst", reg: gp11, asm: "XORB"}, // arg0 ^ auxint
 
 		{name: "CMPQ", reg: gp2flags, asm: "CMPQ"},      // arg0 compare to arg1
-		{name: "CMPQconst", reg: gp1flags, asm: "CMPQ"}, // arg0 compare to auxint
 		{name: "CMPL", reg: gp2flags, asm: "CMPL"},      // arg0 compare to arg1
 		{name: "CMPW", reg: gp2flags, asm: "CMPW"},      // arg0 compare to arg1
 		{name: "CMPB", reg: gp2flags, asm: "CMPB"},      // arg0 compare to arg1
+		{name: "CMPQconst", reg: gp1flags, asm: "CMPQ"}, // arg0 compare to auxint
+		{name: "CMPLconst", reg: gp1flags, asm: "CMPL"}, // arg0 compare to auxint
+		{name: "CMPWconst", reg: gp1flags, asm: "CMPW"}, // arg0 compare to auxint
+		{name: "CMPBconst", reg: gp1flags, asm: "CMPB"}, // arg0 compare to auxint
 
-		{name: "TESTQ", reg: gp2flags, asm: "TESTQ"}, // (arg0 & arg1) compare to 0
-		{name: "TESTB", reg: gp2flags, asm: "TESTB"}, // (arg0 & arg1) compare to 0
+		{name: "TESTQ", reg: gp2flags, asm: "TESTQ"},      // (arg0 & arg1) compare to 0
+		{name: "TESTL", reg: gp2flags, asm: "TESTL"},      // (arg0 & arg1) compare to 0
+		{name: "TESTW", reg: gp2flags, asm: "TESTW"},      // (arg0 & arg1) compare to 0
+		{name: "TESTB", reg: gp2flags, asm: "TESTB"},      // (arg0 & arg1) compare to 0
+		{name: "TESTQconst", reg: gp1flags, asm: "TESTQ"}, // (arg0 & auxint) compare to 0
+		{name: "TESTLconst", reg: gp1flags, asm: "TESTL"}, // (arg0 & auxint) compare to 0
+		{name: "TESTWconst", reg: gp1flags, asm: "TESTW"}, // (arg0 & auxint) compare to 0
+		{name: "TESTBconst", reg: gp1flags, asm: "TESTB"}, // (arg0 & auxint) compare to 0
+
+		{name: "SHLQ", reg: gp21shift, asm: "SHLQ"}, // arg0 << arg1, shift amount is mod 64
+		{name: "SHLL", reg: gp21shift, asm: "SHLL"}, // arg0 << arg1, shift amount is mod 32
+		{name: "SHLW", reg: gp21shift, asm: "SHLW"}, // arg0 << arg1, shift amount is mod 32
+		{name: "SHLB", reg: gp21shift, asm: "SHLB"}, // arg0 << arg1, shift amount is mod 32
+		{name: "SHLQconst", reg: gp11, asm: "SHLQ"}, // arg0 << auxint, shift amount 0-63
+		{name: "SHLLconst", reg: gp11, asm: "SHLL"}, // arg0 << auxint, shift amount 0-31
+		{name: "SHLWconst", reg: gp11, asm: "SHLW"}, // arg0 << auxint, shift amount 0-31
+		{name: "SHLBconst", reg: gp11, asm: "SHLB"}, // arg0 << auxint, shift amount 0-31
+		// Note: x86 is weird, the 16 and 8 byte shifts still use all 5 bits of shift amount!
+
+		{name: "SHRQ", reg: gp21shift, asm: "SHRQ"}, // unsigned arg0 >> arg1, shift amount is mod 64
+		{name: "SHRL", reg: gp21shift, asm: "SHRL"}, // unsigned arg0 >> arg1, shift amount is mod 32
+		{name: "SHRW", reg: gp21shift, asm: "SHRW"}, // unsigned arg0 >> arg1, shift amount is mod 32
+		{name: "SHRB", reg: gp21shift, asm: "SHRB"}, // unsigned arg0 >> arg1, shift amount is mod 32
+		{name: "SHRQconst", reg: gp11, asm: "SHRQ"}, // unsigned arg0 >> auxint, shift amount 0-63
+		{name: "SHRLconst", reg: gp11, asm: "SHRL"}, // unsigned arg0 >> auxint, shift amount 0-31
+		{name: "SHRWconst", reg: gp11, asm: "SHRW"}, // unsigned arg0 >> auxint, shift amount 0-31
+		{name: "SHRBconst", reg: gp11, asm: "SHRB"}, // unsigned arg0 >> auxint, shift amount 0-31
+
+		{name: "SARQ", reg: gp21shift, asm: "SARQ"}, // signed arg0 >> arg1, shift amount is mod 64
+		{name: "SARL", reg: gp21shift, asm: "SARL"}, // signed arg0 >> arg1, shift amount is mod 32
+		{name: "SARW", reg: gp21shift, asm: "SARW"}, // signed arg0 >> arg1, shift amount is mod 32
+		{name: "SARB", reg: gp21shift, asm: "SARB"}, // signed arg0 >> arg1, shift amount is mod 32
+		{name: "SARQconst", reg: gp11, asm: "SARQ"}, // signed arg0 >> auxint, shift amount 0-63
+		{name: "SARLconst", reg: gp11, asm: "SARL"}, // signed arg0 >> auxint, shift amount 0-31
+		{name: "SARWconst", reg: gp11, asm: "SARW"}, // signed arg0 >> auxint, shift amount 0-31
+		{name: "SARBconst", reg: gp11, asm: "SARB"}, // signed arg0 >> auxint, shift amount 0-31
+
+		// unary ops
+		{name: "NEGQ", reg: gp11, asm: "NEGQ"}, // -arg0
+		{name: "NEGL", reg: gp11, asm: "NEGL"}, // -arg0
+		{name: "NEGW", reg: gp11, asm: "NEGW"}, // -arg0
+		{name: "NEGB", reg: gp11, asm: "NEGB"}, // -arg0
 
 		{name: "SBBQcarrymask", reg: flagsgp1, asm: "SBBQ"}, // (int64)(-1) if carry is set, 0 if carry is clear.
 
@@ -166,48 +251,11 @@ func init() {
 		// TODO: implement this when register clobbering works
 		{name: "REPSTOSQ", reg: regInfo{[]regMask{buildReg("DI"), buildReg("CX")}, buildReg("DI AX CX"), nil}}, // store arg1 8-byte words containing zero into arg0 using STOSQ. arg2=mem.
 
-		// Load/store from global. Same as the above loads, but arg0 is missing and
-		// aux is a GlobalOffset instead of an int64.
-		{name: "MOVQloadglobal"},  // Load from aux.(GlobalOffset).  arg0 = memory
-		{name: "MOVQstoreglobal"}, // store arg0 to aux.(GlobalOffset).  arg1=memory, returns memory.
-
 		//TODO: set register clobber to everything?
 		{name: "CALLstatic"},                                                            // call static function aux.(*gc.Sym).  arg0=mem, returns mem
 		{name: "CALLclosure", reg: regInfo{[]regMask{gpsp, buildReg("DX"), 0}, 0, nil}}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem returns mem
 
 		{name: "REPMOVSB", reg: regInfo{[]regMask{buildReg("DI"), buildReg("SI"), buildReg("CX")}, buildReg("DI SI CX"), nil}}, // move arg2 bytes from arg1 to arg0.  arg3=mem, returns memory
-
-		{name: "ADDQ", reg: gp21},              // arg0 + arg1
-		{name: "ADDQconst", reg: gp11},         // arg0 + auxint
-		{name: "ADDL", reg: gp21, asm: "ADDL"}, // arg0 + arg1
-		{name: "ADDW", reg: gp21, asm: "ADDW"}, // arg0 + arg1
-		{name: "ADDB", reg: gp21, asm: "ADDB"}, // arg0 + arg1
-
-		{name: "SUBQ", reg: gp21, asm: "SUBQ"},      // arg0 - arg1
-		{name: "SUBQconst", reg: gp11, asm: "SUBQ"}, // arg0 - auxint
-		{name: "SUBL", reg: gp21, asm: "SUBL"},      // arg0 - arg1
-		{name: "SUBW", reg: gp21, asm: "SUBW"},      // arg0 - arg1
-		{name: "SUBB", reg: gp21, asm: "SUBB"},      // arg0 - arg1
-
-		{name: "NEGQ", reg: gp11, asm: "NEGQ"}, // -arg0
-		{name: "NEGL", reg: gp11, asm: "NEGL"}, // -arg0
-		{name: "NEGW", reg: gp11, asm: "NEGW"}, // -arg0
-		{name: "NEGB", reg: gp11, asm: "NEGB"}, // -arg0
-
-		{name: "MULL", reg: gp21, asm: "IMULL"}, // arg0*arg1
-		{name: "MULW", reg: gp21, asm: "IMULW"}, // arg0*arg1
-
-		{name: "ANDQ", reg: gp21, asm: "ANDQ"},      // arg0 & arg1
-		{name: "ANDQconst", reg: gp11, asm: "ANDQ"}, // arg0 & auxint
-		{name: "ANDL", reg: gp21, asm: "ANDL"},      // arg0 & arg1
-		{name: "ANDW", reg: gp21, asm: "ANDW"},      // arg0 & arg1
-		{name: "ANDB", reg: gp21, asm: "ANDB"},      // arg0 & arg1
-
-		{name: "ORQ", reg: gp21, asm: "ORQ"},      // arg0 | arg1
-		{name: "ORQconst", reg: gp11, asm: "ORQ"}, // arg0 | auxint
-		{name: "ORL", reg: gp21, asm: "ORL"},      // arg0 | arg1
-		{name: "ORW", reg: gp21, asm: "ORW"},      // arg0 | arg1
-		{name: "ORB", reg: gp21, asm: "ORB"},      // arg0 | arg1
 
 		// (InvertFlags (CMPQ a b)) == (CMPQ b a)
 		// So if we want (SETL (CMPQ a b)) but we can't do that because a is a constant,
