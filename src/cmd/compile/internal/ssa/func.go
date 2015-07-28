@@ -248,9 +248,25 @@ func (b *Block) NewValue3(line int32, op Op, t Type, arg0, arg1, arg2 *Value) *V
 }
 
 // ConstInt returns an int constant representing its argument.
-func (f *Func) ConstInt(line int32, t Type, c int64) *Value {
+func (f *Func) ConstInt8(line int32, t Type, c int8) *Value {
 	// TODO: cache?
-	return f.Entry.NewValue0I(line, OpConst, t, c)
+	return f.Entry.NewValue0I(line, OpConst8, t, int64(c))
+}
+func (f *Func) ConstInt16(line int32, t Type, c int16) *Value {
+	// TODO: cache?
+	return f.Entry.NewValue0I(line, OpConst16, t, int64(c))
+}
+func (f *Func) ConstInt32(line int32, t Type, c int32) *Value {
+	// TODO: cache?
+	return f.Entry.NewValue0I(line, OpConst32, t, int64(c))
+}
+func (f *Func) ConstInt64(line int32, t Type, c int64) *Value {
+	// TODO: cache?
+	return f.Entry.NewValue0I(line, OpConst64, t, c)
+}
+func (f *Func) ConstIntPtr(line int32, t Type, c int64) *Value {
+	// TODO: cache?
+	return f.Entry.NewValue0I(line, OpConstPtr, t, c)
 }
 
 func (f *Func) Logf(msg string, args ...interface{})           { f.Config.Logf(msg, args...) }

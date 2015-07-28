@@ -347,9 +347,33 @@ func (s *state) entryNewValue2(op ssa.Op, t ssa.Type, arg0, arg1 *ssa.Value) *ss
 	return s.f.Entry.NewValue2(s.peekLine(), op, t, arg0, arg1)
 }
 
-// constInt adds a new const int value to the entry block.
+// constInt* routines add a new const int value to the entry block.
+func (s *state) constInt8(t ssa.Type, c int8) *ssa.Value {
+	return s.f.ConstInt8(s.peekLine(), t, c)
+}
+func (s *state) constInt16(t ssa.Type, c int16) *ssa.Value {
+	return s.f.ConstInt16(s.peekLine(), t, c)
+}
+func (s *state) constInt32(t ssa.Type, c int32) *ssa.Value {
+	return s.f.ConstInt32(s.peekLine(), t, c)
+}
+func (s *state) constInt64(t ssa.Type, c int64) *ssa.Value {
+	return s.f.ConstInt64(s.peekLine(), t, c)
+}
+func (s *state) constIntPtr(t ssa.Type, c int64) *ssa.Value {
+	if s.config.PtrSize == 4 && int64(int32(c)) != c {
+		s.Fatalf("pointer constant too big %d", c)
+	}
+	return s.f.ConstIntPtr(s.peekLine(), t, c)
+}
 func (s *state) constInt(t ssa.Type, c int64) *ssa.Value {
-	return s.f.ConstInt(s.peekLine(), t, c)
+	if s.config.IntSize == 8 {
+		return s.constInt64(t, c)
+	}
+	if int64(int32(c)) != c {
+		s.Fatalf("integer constant too big %d", c)
+	}
+	return s.constInt32(t, int32(c))
 }
 
 // ssaStmtList converts the statement n to SSA and adds it to s.
@@ -584,7 +608,7 @@ func (s *state) stmt(n *Node) {
 		if n.Left != nil {
 			cond = s.expr(n.Left)
 		} else {
-			cond = s.entryNewValue0A(ssa.OpConst, Types[TBOOL], true)
+			cond = s.entryNewValue0A(ssa.OpConstBool, Types[TBOOL], true)
 		}
 		b = s.endBlock()
 		b.Kind = ssa.BlockIf
@@ -862,11 +886,26 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OLITERAL:
 		switch n.Val().Ctype() {
 		case CTINT:
-			return s.constInt(n.Type, Mpgetfix(n.Val().U.(*Mpint)))
-		case CTSTR, CTBOOL:
-			return s.entryNewValue0A(ssa.OpConst, n.Type, n.Val().U)
+			i := Mpgetfix(n.Val().U.(*Mpint))
+			switch n.Type.Size() {
+			case 1:
+				return s.constInt8(n.Type, int8(i))
+			case 2:
+				return s.constInt16(n.Type, int16(i))
+			case 4:
+				return s.constInt32(n.Type, int32(i))
+			case 8:
+				return s.constInt64(n.Type, i)
+			default:
+				s.Fatalf("bad integer size %d", n.Type.Size())
+				return nil
+			}
+		case CTSTR:
+			return s.entryNewValue0A(ssa.OpConstString, n.Type, n.Val().U)
+		case CTBOOL:
+			return s.entryNewValue0A(ssa.OpConstBool, n.Type, n.Val().U)
 		case CTNIL:
-			return s.entryNewValue0(ssa.OpConst, n.Type)
+			return s.entryNewValue0(ssa.OpConstNil, n.Type)
 		default:
 			s.Unimplementedf("unhandled OLITERAL %v", n.Val().Ctype())
 			return nil
@@ -1020,7 +1059,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case ODOTPTR:
 		p := s.expr(n.Left)
 		s.nilCheck(p)
-		p = s.newValue2(ssa.OpAddPtr, p.Type, p, s.constInt(s.config.Uintptr, n.Xoffset))
+		p = s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(s.config.Uintptr, n.Xoffset))
 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
 
 	case OINDEX:
@@ -1031,10 +1070,10 @@ func (s *state) expr(n *Node) *ssa.Value {
 			var elemtype *Type
 			var len *ssa.Value
 			if n.Left.Type.IsString() {
-				len = s.newValue1(ssa.OpStringLen, s.config.Uintptr, a)
+				len = s.newValue1(ssa.OpStringLen, s.config.Int, a)
 				elemtype = Types[TUINT8]
 			} else {
-				len = s.constInt(s.config.Uintptr, n.Left.Type.Bound)
+				len = s.constInt(s.config.Int, n.Left.Type.Bound)
 				elemtype = n.Left.Type.Type
 			}
 			s.boundsCheck(i, len)
@@ -1149,12 +1188,25 @@ func (s *state) assign(op uint8, left *Node, right *Node) {
 // zeroVal returns the zero value for type t.
 func (s *state) zeroVal(t *Type) *ssa.Value {
 	switch {
+	case t.IsInteger():
+		switch t.Size() {
+		case 1:
+			return s.constInt8(t, 0)
+		case 2:
+			return s.constInt16(t, 0)
+		case 4:
+			return s.constInt32(t, 0)
+		case 8:
+			return s.constInt64(t, 0)
+		default:
+			s.Fatalf("bad sized integer type %s", t)
+		}
 	case t.IsString():
-		return s.entryNewValue0A(ssa.OpConst, t, "")
-	case t.IsInteger() || t.IsPtr():
-		return s.entryNewValue0(ssa.OpConst, t)
+		return s.entryNewValue0A(ssa.OpConstString, t, "")
+	case t.IsPtr():
+		return s.entryNewValue0(ssa.OpConstNil, t)
 	case t.IsBoolean():
-		return s.entryNewValue0A(ssa.OpConst, t, false) // TODO: store bools as 0/1 in AuxInt?
+		return s.entryNewValue0A(ssa.OpConstBool, t, false) // TODO: store bools as 0/1 in AuxInt?
 	}
 	s.Unimplementedf("zero for type %v not implemented", t)
 	return nil
@@ -1212,7 +1264,7 @@ func (s *state) addr(n *Node) *ssa.Value {
 			a := s.addr(n.Left)
 			i := s.expr(n.Right)
 			i = s.extendIndex(i)
-			len := s.constInt(s.config.Uintptr, n.Left.Type.Bound)
+			len := s.constInt(s.config.Int, n.Left.Type.Bound)
 			s.boundsCheck(i, len)
 			return s.newValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), a, i)
 		}
@@ -1222,11 +1274,11 @@ func (s *state) addr(n *Node) *ssa.Value {
 		return p
 	case ODOT:
 		p := s.addr(n.Left)
-		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constInt(s.config.Uintptr, n.Xoffset))
+		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(s.config.Uintptr, n.Xoffset))
 	case ODOTPTR:
 		p := s.expr(n.Left)
 		s.nilCheck(p)
-		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constInt(s.config.Uintptr, n.Xoffset))
+		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(s.config.Uintptr, n.Xoffset))
 	default:
 		s.Unimplementedf("addr: bad op %v", Oconv(int(n.Op), 0))
 		return nil
@@ -1570,7 +1622,7 @@ func genValue(v *ssa.Value) {
 		x := regnum(v.Args[0])
 		y := regnum(v.Args[1])
 		if x != r && y != r {
-			p := Prog(x86.AMOVQ)
+			p := Prog(regMoveAMD64(v.Type.Size()))
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = x
 			p.To.Type = obj.TYPE_REG
@@ -1731,11 +1783,22 @@ func genValue(v *ssa.Value) {
 		p.From.Reg = regnum(v.Args[0])
 		p.To.Type = obj.TYPE_CONST
 		p.To.Offset = v.AuxInt
-	case ssa.OpAMD64MOVQconst:
+	case ssa.OpAMD64MOVBconst, ssa.OpAMD64MOVWconst, ssa.OpAMD64MOVLconst, ssa.OpAMD64MOVQconst:
 		x := regnum(v)
-		p := Prog(x86.AMOVQ)
+		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = v.AuxInt
+		var i int64
+		switch v.Op {
+		case ssa.OpAMD64MOVBconst:
+			i = int64(int8(v.AuxInt))
+		case ssa.OpAMD64MOVWconst:
+			i = int64(int16(v.AuxInt))
+		case ssa.OpAMD64MOVLconst:
+			i = int64(int32(v.AuxInt))
+		case ssa.OpAMD64MOVQconst:
+			i = v.AuxInt
+		}
+		p.From.Offset = i
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x
 	case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVLload, ssa.OpAMD64MOVWload, ssa.OpAMD64MOVBload, ssa.OpAMD64MOVBQSXload, ssa.OpAMD64MOVBQZXload:
@@ -1836,7 +1899,7 @@ func genValue(v *ssa.Value) {
 				v.Fatalf("phi arg at different location than phi %v %v %v %v", v, loc, a, f.RegAlloc[a.ID])
 			}
 		}
-	case ssa.OpConst:
+	case ssa.OpConst8, ssa.OpConst16, ssa.OpConst32, ssa.OpConst64, ssa.OpConstString, ssa.OpConstNil, ssa.OpConstBool:
 		if v.Block.Func.RegAlloc[v.ID] != nil {
 			v.Fatalf("const value %v shouldn't have a location", v)
 		}
@@ -2077,6 +2140,23 @@ var ssaRegToReg = [...]int16{
 	x86.REG_X15,
 	0, // SB isn't a real register.  We fill an Addr.Reg field with 0 in this case.
 	// TODO: arch-dependent
+}
+
+// regMoveAMD64 returns the register->register move opcode for the given width.
+// TODO: generalize for all architectures?
+func regMoveAMD64(width int64) int {
+	switch width {
+	case 1:
+		return x86.AMOVB
+	case 2:
+		return x86.AMOVW
+	case 4:
+		return x86.AMOVL
+	case 8:
+		return x86.AMOVQ
+	default:
+		panic("bad register width")
+	}
 }
 
 // regnum returns the register (in cmd/internal/obj numbering) to

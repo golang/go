@@ -33,7 +33,7 @@ func makeConstShiftFunc(c *Config, amount int64, op Op, typ Type) fun {
 			Valu("argptr", OpOffPtr, ptyp, 8, nil, "SP"),
 			Valu("resptr", OpOffPtr, ptyp, 16, nil, "SP"),
 			Valu("load", OpLoad, typ, 0, nil, "argptr", "mem"),
-			Valu("c", OpConst, TypeUInt64, amount, nil),
+			Valu("c", OpConst64, TypeUInt64, amount, nil),
 			Valu("shift", op, typ, 0, nil, "load", "c"),
 			Valu("store", OpStore, TypeMem, 0, nil, "resptr", "shift", "mem"),
 			Exit("store")))

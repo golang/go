@@ -85,6 +85,9 @@ const (
 	OpAMD64MOVWQZX
 	OpAMD64MOVLQSX
 	OpAMD64MOVLQZX
+	OpAMD64MOVBconst
+	OpAMD64MOVWconst
+	OpAMD64MOVLconst
 	OpAMD64MOVQconst
 	OpAMD64LEAQ
 	OpAMD64LEAQ1
@@ -214,7 +217,14 @@ const (
 	OpNeg64
 	OpPhi
 	OpCopy
-	OpConst
+	OpConstBool
+	OpConstString
+	OpConstNil
+	OpConst8
+	OpConst16
+	OpConst32
+	OpConst64
+	OpConstPtr
 	OpArg
 	OpAddr
 	OpSP
@@ -686,7 +696,35 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name: "MOVBconst",
+		asm:  x86.AMOVB,
+		reg: regInfo{
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "MOVWconst",
+		asm:  x86.AMOVW,
+		reg: regInfo{
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "MOVLconst",
+		asm:  x86.AMOVL,
+		reg: regInfo{
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
 		name: "MOVQconst",
+		asm:  x86.AMOVQ,
 		reg: regInfo{
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1546,7 +1584,35 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "Const",
+		name:    "ConstBool",
+		generic: true,
+	},
+	{
+		name:    "ConstString",
+		generic: true,
+	},
+	{
+		name:    "ConstNil",
+		generic: true,
+	},
+	{
+		name:    "Const8",
+		generic: true,
+	},
+	{
+		name:    "Const16",
+		generic: true,
+	},
+	{
+		name:    "Const32",
+		generic: true,
+	},
+	{
+		name:    "Const64",
+		generic: true,
+	},
+	{
+		name:    "ConstPtr",
 		generic: true,
 	},
 	{

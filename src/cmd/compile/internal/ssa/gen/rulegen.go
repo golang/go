@@ -81,6 +81,9 @@ func genRules(arch arch) {
 			continue
 		}
 		op := strings.Split(rule, " ")[0][1:]
+		if op[len(op)-1] == ')' {
+			op = op[:len(op)-1] // rule has only opcode, e.g. (ConstNil) -> ...
+		}
 		if isBlock(op, arch) {
 			blockrules[op] = append(blockrules[op], rule)
 		} else {

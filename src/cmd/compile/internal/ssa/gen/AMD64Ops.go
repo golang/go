@@ -138,12 +138,16 @@ func init() {
 		{name: "MOVLQSX", reg: gp11, asm: "MOVLQSX"}, // sign extend arg0 from int32 to int64
 		{name: "MOVLQZX", reg: gp11, asm: "MOVLQZX"}, // zero extend arg0 from int32 to int64
 
-		{name: "MOVQconst", reg: gp01}, // auxint
-		{name: "LEAQ", reg: gp11sb},    // arg0 + auxint + offset encoded in aux
-		{name: "LEAQ1", reg: gp21sb},   // arg0 + arg1 + auxint
-		{name: "LEAQ2", reg: gp21sb},   // arg0 + 2*arg1 + auxint
-		{name: "LEAQ4", reg: gp21sb},   // arg0 + 4*arg1 + auxint
-		{name: "LEAQ8", reg: gp21sb},   // arg0 + 8*arg1 + auxint
+		{name: "MOVBconst", reg: gp01, asm: "MOVB"}, // 8 low bits of auxint
+		{name: "MOVWconst", reg: gp01, asm: "MOVW"}, // 16 low bits of auxint
+		{name: "MOVLconst", reg: gp01, asm: "MOVL"}, // 32 low bits of auxint
+		{name: "MOVQconst", reg: gp01, asm: "MOVQ"}, // auxint
+
+		{name: "LEAQ", reg: gp11sb},  // arg0 + auxint + offset encoded in aux
+		{name: "LEAQ1", reg: gp21sb}, // arg0 + arg1 + auxint
+		{name: "LEAQ2", reg: gp21sb}, // arg0 + 2*arg1 + auxint
+		{name: "LEAQ4", reg: gp21sb}, // arg0 + 4*arg1 + auxint
+		{name: "LEAQ8", reg: gp21sb}, // arg0 + 8*arg1 + auxint
 
 		{name: "MOVBload", reg: gpload, asm: "MOVB"},          // load byte from arg0+auxint. arg1=mem
 		{name: "MOVBQSXload", reg: gpload, asm: "MOVBQSX"},    // ditto, extend to int64
