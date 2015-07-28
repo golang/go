@@ -252,18 +252,25 @@ const (
 
 // advance tokenstate from a separator state to a value state
 func (dec *Decoder) tokenPrepareForDecode() error {
-	c, err := dec.peek()
-	if err != nil {
-		return err
-	}
+	// Note: Not calling peek before switch, to avoid
+	// putting peek into the standard Decode path.
+	// peek is only called when using the Token API.
 	switch dec.tokenState {
 	case tokenArrayComma:
+		c, err := dec.peek()
+		if err != nil {
+			return err
+		}
 		if c != ',' {
 			return &SyntaxError{"expected comma after array element", 0}
 		}
 		dec.scanp++
 		dec.tokenState = tokenArrayValue
 	case tokenObjectColon:
+		c, err := dec.peek()
+		if err != nil {
+			return err
+		}
 		if c != ':' {
 			return &SyntaxError{"expected colon after object key", 0}
 		}
