@@ -1000,6 +1000,14 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OADDR:
 		return s.addr(n.Left)
 
+	case OINDREG:
+		if int(n.Reg) != Thearch.REGSP {
+			s.Unimplementedf("OINDREG of non-SP register %s in expr: %v", obj.Rconv(int(n.Reg)), n)
+			return nil
+		}
+		addr := s.entryNewValue1I(ssa.OpOffPtr, Ptrto(n.Type), n.Xoffset, s.sp)
+		return s.newValue2(ssa.OpLoad, n.Type, addr, s.mem())
+
 	case OIND:
 		p := s.expr(n.Left)
 		s.nilCheck(p)
@@ -1184,8 +1192,12 @@ func (s *state) addr(n *Node) *ssa.Value {
 			return nil
 		}
 	case OINDREG:
-		// indirect off a register (TODO: always SP?)
+		// indirect off a register
 		// used for storing/loading arguments/returns to/from callees
+		if int(n.Reg) != Thearch.REGSP {
+			s.Unimplementedf("OINDREG of non-SP register %s in addr: %v", obj.Rconv(int(n.Reg)), n)
+			return nil
+		}
 		return s.entryNewValue1I(ssa.OpOffPtr, Ptrto(n.Type), n.Xoffset, s.sp)
 	case OINDEX:
 		if n.Left.Type.IsSlice() {
