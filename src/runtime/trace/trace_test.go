@@ -17,27 +17,7 @@ import (
 	"time"
 )
 
-func skipTraceTestsIfNeeded(t *testing.T) {
-	switch runtime.GOOS {
-	case "solaris":
-		t.Skip("skipping: solaris timer can go backwards (https://golang.org/issue/8976)")
-	case "darwin":
-		switch runtime.GOARCH {
-		case "arm", "arm64":
-			// TODO(rsc): What does this have to do with the trace tests?
-			// There is no forking here.
-			t.Skipf("skipping on %s/%s, cannot fork", runtime.GOOS, runtime.GOARCH)
-		}
-	}
-
-	switch runtime.GOARCH {
-	case "arm":
-		t.Skip("skipping: arm tests fail with 'failed to parse trace' (https://golang.org/issue/9725)")
-	}
-}
-
 func TestTraceStartStop(t *testing.T) {
-	skipTraceTestsIfNeeded(t)
 	buf := new(bytes.Buffer)
 	if err := Start(buf); err != nil {
 		t.Fatalf("failed to start tracing: %v", err)
@@ -54,7 +34,6 @@ func TestTraceStartStop(t *testing.T) {
 }
 
 func TestTraceDoubleStart(t *testing.T) {
-	skipTraceTestsIfNeeded(t)
 	Stop()
 	buf := new(bytes.Buffer)
 	if err := Start(buf); err != nil {
@@ -68,7 +47,6 @@ func TestTraceDoubleStart(t *testing.T) {
 }
 
 func TestTrace(t *testing.T) {
-	skipTraceTestsIfNeeded(t)
 	buf := new(bytes.Buffer)
 	if err := Start(buf); err != nil {
 		t.Fatalf("failed to start tracing: %v", err)
@@ -101,8 +79,6 @@ func parseTrace(t *testing.T, r io.Reader) ([]*trace.Event, map[uint64]*trace.GD
 }
 
 func TestTraceStress(t *testing.T) {
-	skipTraceTestsIfNeeded(t)
-
 	var wg sync.WaitGroup
 	done := make(chan bool)
 
@@ -236,8 +212,6 @@ func TestTraceStress(t *testing.T) {
 // Do a bunch of various stuff (timers, GC, network, etc) in a separate goroutine.
 // And concurrently with all that start/stop trace 3 times.
 func TestTraceStressStartStop(t *testing.T) {
-	skipTraceTestsIfNeeded(t)
-
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(8))
 	outerDone := make(chan bool)
 
@@ -375,13 +349,6 @@ func TestTraceStressStartStop(t *testing.T) {
 }
 
 func TestTraceFutileWakeup(t *testing.T) {
-	// The test generates a full-load of futile wakeups on channels,
-	// and ensures that the trace is consistent after their removal.
-	skipTraceTestsIfNeeded(t)
-	if runtime.GOOS == "linux" && runtime.GOARCH == "ppc64le" {
-		t.Skip("test is unreliable; issue #10512")
-	}
-
 	buf := new(bytes.Buffer)
 	if err := Start(buf); err != nil {
 		t.Fatalf("failed to start tracing: %v", err)

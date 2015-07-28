@@ -21,8 +21,8 @@ import (
 // In particular that we strip bottom uninteresting frames like goexit,
 // top uninteresting frames (runtime guts).
 func TestTraceSymbolize(t *testing.T) {
-	skipTraceTestsIfNeeded(t)
 	testenv.MustHaveExec(t)
+
 	buf := new(bytes.Buffer)
 	if err := Start(buf); err != nil {
 		t.Fatalf("failed to start tracing: %v", err)
