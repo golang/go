@@ -357,7 +357,6 @@ const (
 	OpTrunc64to8
 	OpTrunc64to16
 	OpTrunc64to32
-	OpConvNop
 	OpIsNonNil
 	OpIsInBounds
 	OpArrayIndex
@@ -2720,10 +2719,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Trunc64to32",
-		generic: true,
-	},
-	{
-		name:    "ConvNop",
 		generic: true,
 	},
 	{

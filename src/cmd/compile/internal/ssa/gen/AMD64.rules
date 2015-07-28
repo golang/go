@@ -78,10 +78,6 @@
 (Trunc64to16 x) -> (Copy x)
 (Trunc64to32 x) -> (Copy x)
 
-(ConvNop <t> x) && t == x.Type -> (Copy x)
-(ConvNop <t> x) && t.IsInteger() && x.Type.IsInteger() && t.Size() == x.Type.Size() -> (Copy x)
-// TODO: other ConvNops are safe?  Maybe all of them?
-
 // Lowering shifts
 // Unsigned shifts need to return 0 if shift amount is >= width of shifted value.
 //   result = (arg << shift) & (shift >= argbits ? 0 : 0xffffffffffffffff)
