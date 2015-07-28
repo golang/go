@@ -230,8 +230,13 @@ func selfConnect(fd *netFD, err error) bool {
 }
 
 func spuriousENOTAVAIL(err error) bool {
-	e, ok := err.(*OpError)
-	return ok && e.Err == syscall.EADDRNOTAVAIL
+	if op, ok := err.(*OpError); ok {
+		err = op.Err
+	}
+	if sys, ok := err.(*os.SyscallError); ok {
+		err = sys.Err
+	}
+	return err == syscall.EADDRNOTAVAIL
 }
 
 // TCPListener is a TCP network listener.  Clients should typically
