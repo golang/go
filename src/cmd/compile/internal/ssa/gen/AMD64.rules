@@ -86,9 +86,44 @@
 			y))
 
 (Less64 x y) -> (SETL (CMPQ <TypeFlags> x y))
+(Less32 x y) -> (SETL (CMPL <TypeFlags> x y))
+(Less16 x y) -> (SETL (CMPW <TypeFlags> x y))
+(Less8  x y) -> (SETL (CMPB <TypeFlags> x y))
+
+(Less64U x y) -> (SETB (CMPQ <TypeFlags> x y))
+(Less32U x y) -> (SETB (CMPL <TypeFlags> x y))
+(Less16U x y) -> (SETB (CMPW <TypeFlags> x y))
+(Less8U  x y) -> (SETB (CMPB <TypeFlags> x y))
+
 (Leq64 x y) -> (SETLE (CMPQ <TypeFlags> x y))
+(Leq32 x y) -> (SETLE (CMPL <TypeFlags> x y))
+(Leq16 x y) -> (SETLE (CMPW <TypeFlags> x y))
+(Leq8  x y) -> (SETLE (CMPB <TypeFlags> x y))
+
+(Leq64U x y) -> (SETBE (CMPQ <TypeFlags> x y))
+(Leq32U x y) -> (SETBE (CMPL <TypeFlags> x y))
+(Leq16U x y) -> (SETBE (CMPW <TypeFlags> x y))
+(Leq8U  x y) -> (SETBE (CMPB <TypeFlags> x y))
+
 (Greater64 x y) -> (SETG (CMPQ <TypeFlags> x y))
+(Greater32 x y) -> (SETG (CMPL <TypeFlags> x y))
+(Greater16 x y) -> (SETG (CMPW <TypeFlags> x y))
+(Greater8  x y) -> (SETG (CMPB <TypeFlags> x y))
+
+(Greater64U x y) -> (SETA (CMPQ <TypeFlags> x y))
+(Greater32U x y) -> (SETA (CMPL <TypeFlags> x y))
+(Greater16U x y) -> (SETA (CMPW <TypeFlags> x y))
+(Greater8U  x y) -> (SETA (CMPB <TypeFlags> x y))
+
 (Geq64 x y) -> (SETGE (CMPQ <TypeFlags> x y))
+(Geq32 x y) -> (SETGE (CMPL <TypeFlags> x y))
+(Geq16 x y) -> (SETGE (CMPW <TypeFlags> x y))
+(Geq8  x y) -> (SETGE (CMPB <TypeFlags> x y))
+
+(Geq64U x y) -> (SETAE (CMPQ <TypeFlags> x y))
+(Geq32U x y) -> (SETAE (CMPL <TypeFlags> x y))
+(Geq16U x y) -> (SETAE (CMPW <TypeFlags> x y))
+(Geq8U  x y) -> (SETAE (CMPB <TypeFlags> x y))
 
 (Eq64 x y) -> (SETEQ (CMPQ <TypeFlags> x y))
 (Eq32 x y) -> (SETEQ (CMPL <TypeFlags> x y))
