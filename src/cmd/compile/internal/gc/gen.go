@@ -853,7 +853,7 @@ func gen(n *Node) {
 		cgen_dcl(n.Left)
 
 	case OAS:
-		if gen_as_init(n) {
+		if gen_as_init(n, false) {
 			break
 		}
 		Cgen_as(n.Left, n.Right)
