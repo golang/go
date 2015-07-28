@@ -98,8 +98,6 @@ func init() {
 	var AMD64ops = []opData{
 		{name: "MULQ", reg: gp21, asm: "IMULQ"},      // arg0 * arg1
 		{name: "MULQconst", reg: gp11, asm: "IMULQ"}, // arg0 * auxint
-		{name: "ANDQ", reg: gp21, asm: "ANDQ"},       // arg0 & arg1
-		{name: "ANDQconst", reg: gp11, asm: "ANDQ"},  // arg0 & auxint
 		{name: "SHLQ", reg: gp21shift, asm: "SHLQ"},  // arg0 << arg1, shift amount is mod 64
 		{name: "SHLQconst", reg: gp11, asm: "SHLQ"},  // arg0 << auxint, shift amount 0-63
 		{name: "SHRQ", reg: gp21shift, asm: "SHRQ"},  // unsigned arg0 >> arg1, shift amount is mod 64
@@ -194,6 +192,12 @@ func init() {
 
 		{name: "MULL", reg: gp21, asm: "IMULL"}, // arg0*arg1
 		{name: "MULW", reg: gp21, asm: "IMULW"}, // arg0*arg1
+
+		{name: "ANDQ", reg: gp21, asm: "ANDQ"},      // arg0 & arg1
+		{name: "ANDQconst", reg: gp11, asm: "ANDQ"}, // arg0 & auxint
+		{name: "ANDL", reg: gp21, asm: "ANDL"},      // arg0 & arg1
+		{name: "ANDW", reg: gp21, asm: "ANDW"},      // arg0 & arg1
+		{name: "ANDB", reg: gp21, asm: "ANDB"},      // arg0 & arg1
 
 		// (InvertFlags (CMPQ a b)) == (CMPQ b a)
 		// So if we want (SETL (CMPQ a b)) but we can't do that because a is a constant,

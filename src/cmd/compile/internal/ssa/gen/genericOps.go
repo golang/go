@@ -39,6 +39,15 @@ var genericOps = []opData{
 	{name: "Mul64U"},
 	{name: "MulPtr"}, // MulPtr is used for address calculations
 
+	{name: "And8"}, // arg0 & arg1
+	{name: "And16"},
+	{name: "And32"},
+	{name: "And64"},
+	{name: "And8U"},
+	{name: "And16U"},
+	{name: "And32U"},
+	{name: "And64U"},
+
 	{name: "Lsh8"}, // arg0 << arg1
 	{name: "Lsh16"},
 	{name: "Lsh32"},
