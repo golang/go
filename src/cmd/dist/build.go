@@ -1053,7 +1053,7 @@ func cmdbootstrap() {
 		xprintf("\n")
 	}
 
-	xprintf("##### Building compilers and go_bootstrap for host, %s/%s.\n", gohostos, gohostarch)
+	xprintf("##### Building go_bootstrap for host, %s/%s.\n", gohostos, gohostarch)
 	for _, dir := range buildorder {
 		install(dir)
 	}
