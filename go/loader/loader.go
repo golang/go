@@ -406,6 +406,9 @@ func (ii *importInfo) awaitCompletion() {
 // Complete marks ii as complete.
 // Its info and err fields will not be subsequently updated.
 func (ii *importInfo) Complete(info *PackageInfo, err error) {
+	if info == nil && err == nil {
+		panic("Complete(nil, nil)")
+	}
 	ii.mu.Lock()
 	ii.info = info
 	ii.err = err
@@ -504,8 +507,39 @@ func (conf *Config) Load() (*Program, error) {
 			xtestPkgs = append(xtestPkgs, bp)
 		}
 
-		imp.importedMu.Lock()           // (unnecessary, we're sequential here)
-		info := imp.imported[path].info // must be non-nil, see above
+		imp.importedMu.Lock() // (unnecessary, we're sequential here)
+		ii, ok := imp.imported[path]
+		// Paranoid checks added due to issue #11012.
+		if !ok {
+			// Unreachable.
+			// The previous loop called loadAll and thus
+			// startLoad for each path in ImportPkgs, which
+			// populates imp.imported[path] with a non-zero value.
+			panic(fmt.Sprintf("imported[%q] not found", path))
+		}
+		if ii == nil {
+			// Unreachable.
+			// The ii values in this loop are the same as in
+			// the previous loop, which enforced the invariant
+			// that at least one of ii.err and ii.info is non-nil.
+			panic(fmt.Sprintf("imported[%q] == nil", path))
+		}
+		if ii.err != nil {
+			// The sole possible cause is failure of the
+			// FindPackage call in (*importer).load,
+			// but we rechecked that condition above.
+			// Perhaps the state of the file system changed
+			// in between?  Seems unlikely.
+			panic(fmt.Sprintf("imported[%q].err = %v", path, ii.err))
+		}
+		if ii.info == nil {
+			// Unreachable.
+			// Complete has this postcondition:
+			// 	ii.err != nil || ii.info != nil
+			// and we know that ii.err == nil here.
+			panic(fmt.Sprintf("imported[%q].info = nil", path))
+		}
+		info := ii.info
 		imp.importedMu.Unlock()
 
 		// Parse the in-package test files.
@@ -786,7 +820,6 @@ func (imp *importer) loadAll(fromPath string, paths map[string]bool) []*importIn
 			}
 		}
 		ii.awaitCompletion()
-
 	}
 	return result
 }
@@ -825,8 +858,6 @@ func (imp *importer) findPath(from, to string) []string {
 // fields.
 //
 // startLoad is concurrency-safe and idempotent.
-//
-// Precondition: path != "unsafe".
 //
 func (imp *importer) startLoad(path string) *importInfo {
 	imp.importedMu.Lock()
