@@ -21,7 +21,7 @@ import (
 // In particular that we strip bottom uninteresting frames like goexit,
 // top uninteresting frames (runtime guts).
 func TestTraceSymbolize(t *testing.T) {
-	testenv.MustHaveExec(t)
+	testenv.MustHaveGoBuild(t)
 
 	buf := new(bytes.Buffer)
 	if err := Start(buf); err != nil {
