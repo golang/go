@@ -36,6 +36,17 @@ func TestCgoTraceback(t *testing.T) {
 	}
 }
 
+func TestCgoCallbackGC(t *testing.T) {
+	if runtime.GOOS == "plan9" || runtime.GOOS == "windows" {
+		t.Skipf("no pthreads on %s", runtime.GOOS)
+	}
+	got := executeTest(t, cgoCallbackGCSource, nil)
+	want := "OK\n"
+	if got != want {
+		t.Fatalf("expected %q, but got %q", want, got)
+	}
+}
+
 func TestCgoExternalThreadPanic(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skipf("no pthreads on %s", runtime.GOOS)
@@ -187,6 +198,83 @@ func main() {
 	C.foo()
 	buf := make([]byte, 1)
 	runtime.Stack(buf, true)
+	fmt.Printf("OK\n")
+}
+`
+
+const cgoCallbackGCSource = `
+package main
+
+import "runtime"
+
+/*
+#include <pthread.h>
+
+void go_callback();
+
+static void *thr(void *arg) {
+    go_callback();
+    return 0;
+}
+
+static void foo() {
+    pthread_t th;
+    pthread_create(&th, 0, thr, 0);
+    pthread_join(th, 0);
+}
+*/
+import "C"
+import "fmt"
+
+//export go_callback
+func go_callback() {
+	runtime.GC()
+	grow()
+	runtime.GC()
+}
+
+var cnt int
+
+func grow() {
+	x := 10000
+	sum := 0
+	if grow1(&x, &sum) == 0 {
+		panic("bad")
+	}
+}
+
+func grow1(x, sum *int) int {
+	if *x == 0 {
+		return *sum + 1
+	}
+	*x--
+	sum1 := *sum + *x
+	return grow1(x, &sum1)
+}
+
+func main() {
+	const P = 100
+	done := make(chan bool)
+	// allocate a bunch of stack frames and spray them with pointers
+	for i := 0; i < P; i++ {
+		go func() {
+			grow()
+			done <- true
+		}()
+	}
+	for i := 0; i < P; i++ {
+		<-done
+	}
+	// now give these stack frames to cgo callbacks
+	for i := 0; i < P; i++ {
+		go func() {
+			C.foo()
+			done <- true
+		}()
+	}
+	for i := 0; i < P; i++ {
+		<-done
+	}
 	fmt.Printf("OK\n")
 }
 `
