@@ -299,8 +299,6 @@ type dbgVar struct {
 	value *int32
 }
 
-// TODO(rsc): Make GC respect debug.invalidptr.
-
 // Holds variables parsed from GODEBUG env var,
 // except for "memprofilerate" since there is an
 // existing int var for that value, which may
@@ -340,6 +338,9 @@ var dbgvars = []dbgVar{
 }
 
 func parsedebugvars() {
+	// defaults
+	debug.invalidptr = 1
+
 	for p := gogetenv("GODEBUG"); p != ""; {
 		field := ""
 		i := index(p, ",")

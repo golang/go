@@ -201,7 +201,7 @@ func heapBitsForObject(p uintptr) (base uintptr, hbits heapBits, s *mspan) {
 		// The following ensures that we are rigorous about what data
 		// structures hold valid pointers.
 		// TODO(rsc): Check if this still happens.
-		if true {
+		if debug.invalidptr != 0 {
 			// Still happens sometimes. We don't know why.
 			printlock()
 			print("runtime:objectstart Span weird: p=", hex(p), " k=", hex(k))
