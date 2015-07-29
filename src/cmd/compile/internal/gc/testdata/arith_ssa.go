@@ -53,6 +53,28 @@ func testRegallocCVSpill_ssa(a, b, c, d int8) int8 {
 	return a + -32 + b + 63*c*-87*d
 }
 
+func testBitwiseLogic() {
+	a, b := uint32(57623283), uint32(1314713839)
+	if want, got := uint32(38551779), testBitwiseAnd_ssa(a, b); want != got {
+		println("testBitwiseAnd failed, wanted", want, "got", got)
+	}
+	if want, got := uint32(1333785343), testBitwiseOr_ssa(a, b); want != got {
+		println("testBitwiseAnd failed, wanted", want, "got", got)
+	}
+}
+
+func testBitwiseAnd_ssa(a, b uint32) uint32 {
+	switch { // prevent inlining
+	}
+	return a & b
+}
+
+func testBitwiseOr_ssa(a, b uint32) uint32 {
+	switch { // prevent inlining
+	}
+	return a | b
+}
+
 var failed = false
 
 func main() {

@@ -203,6 +203,12 @@ func init() {
 		{name: "ANDW", reg: gp21, asm: "ANDW"},      // arg0 & arg1
 		{name: "ANDB", reg: gp21, asm: "ANDB"},      // arg0 & arg1
 
+		{name: "ORQ", reg: gp21, asm: "ORQ"},      // arg0 | arg1
+		{name: "ORQconst", reg: gp11, asm: "ORQ"}, // arg0 | auxint
+		{name: "ORL", reg: gp21, asm: "ORL"},      // arg0 | arg1
+		{name: "ORW", reg: gp21, asm: "ORW"},      // arg0 | arg1
+		{name: "ORB", reg: gp21, asm: "ORB"},      // arg0 | arg1
+
 		// (InvertFlags (CMPQ a b)) == (CMPQ b a)
 		// So if we want (SETL (CMPQ a b)) but we can't do that because a is a constant,
 		// then we do (SETL (InvertFlags (CMPQ b a))) instead.
