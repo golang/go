@@ -2180,11 +2180,6 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool, 
 	return ofile, output, err
 }
 
-// verifyAsm specifies whether to check the assemblers written in Go
-// against the assemblers written in C. If set, asm will run both asm and (say) 6a
-// and fail if the two produce different output files.
-const verifyAsm = true
-
 func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
 	inc := filepath.Join(goroot, "pkg", "include")
@@ -2193,31 +2188,12 @@ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 	if err := b.run(p.Dir, p.ImportPath, nil, args...); err != nil {
 		return err
 	}
-	// Disable checks when additional flags are passed, as the old assemblers
-	// don't implement some of them (e.g., -shared).
-	if verifyAsm && len(buildAsmflags) == 0 {
-		old := ""
-		switch goarch {
-		case "arm":
-			old = "old5a"
-		case "amd64", "amd64p32":
-			old = "old6a"
-		case "386":
-			old = "old8a"
-		case "ppc64", "ppc64le":
-			old = "old9a"
-		}
-		if old != "" {
-			if err := toolVerify(b, p, old, ofile, args); err != nil {
-				return err
-			}
-		}
-	}
 	return nil
 }
 
 // toolVerify checks that the command line args writes the same output file
 // if run using newTool instead.
+// Unused now but kept around for future use.
 func toolVerify(b *builder, p *Package, newTool string, ofile string, args []interface{}) error {
 	newArgs := make([]interface{}, len(args))
 	copy(newArgs, args)
