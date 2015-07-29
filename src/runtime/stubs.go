@@ -128,8 +128,15 @@ func breakpoint()
 func reflectcall(argtype *_type, fn, arg unsafe.Pointer, argsize uint32, retoffset uint32)
 
 func procyield(cycles uint32)
-func cgocallback_gofunc(fv *funcval, frame unsafe.Pointer, framesize uintptr)
 func goexit()
+
+// Not all cgocallback_gofunc frames are actually cgocallback_gofunc,
+// so not all have these arguments. Mark them uintptr so that the GC
+// does not misinterpret memory when the arguments are not present.
+// cgocallback_gofunc is not called from go, only from cgocallback,
+// so the arguments will be found via cgocallback's pointer-declared arguments.
+// See the assembly implementations for more details.
+func cgocallback_gofunc(fv uintptr, frame uintptr, framesize uintptr)
 
 //go:noescape
 func cas(ptr *uint32, old, new uint32) bool
