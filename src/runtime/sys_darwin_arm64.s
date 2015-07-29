@@ -151,7 +151,7 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0
 	SVC	$0x80
 	RET
 
-TEXT time·now(SB),NOSPLIT,$32-12
+TEXT time·now(SB),NOSPLIT,$40-12
 	MOVD	RSP, R0	// timeval
 	MOVD	R0, R9	// this is how dyld calls gettimeofday
 	MOVW	$0, R1	// zone
@@ -164,7 +164,7 @@ TEXT time·now(SB),NOSPLIT,$32-12
 	MOVW	R1, nsec+8(FP)
 	RET
 
-TEXT runtime·nanotime(SB),NOSPLIT,$32
+TEXT runtime·nanotime(SB),NOSPLIT,$40
 	MOVD	RSP, R0	// timeval
 	MOVD	R0, R9	// this is how dyld calls gettimeofday
 	MOVW	$0, R1	// zone
@@ -272,7 +272,7 @@ TEXT runtime·sigaction(SB),NOSPLIT,$0
 	BL	notok<>(SB)
 	RET
 
-TEXT runtime·usleep(SB),NOSPLIT,$12
+TEXT runtime·usleep(SB),NOSPLIT,$24
 	MOVW	usec+0(FP), R0
 	MOVW	R0, R1
 	MOVW	$1000000, R2
