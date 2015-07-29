@@ -7,6 +7,8 @@ package main
 import (
 	"bytes"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -27,7 +29,7 @@ import (
 // titanic.biz/foo	-- domain is sinking but package has no import comment yet
 
 func TestFixImports(t *testing.T) {
-	gopath := cwd + "/testdata"
+	gopath := filepath.Join(cwd, "testdata")
 	if err := os.Setenv("GOPATH", gopath); err != nil {
 		t.Fatalf("os.Setenv: %v", err)
 	}
@@ -107,8 +109,14 @@ import (
 		gotRewrite := make(map[string]string)
 		writeFile = func(filename string, content []byte, mode os.FileMode) error {
 			filename = strings.Replace(filename, gopath, "$GOPATH", 1)
+			filename = filepath.ToSlash(filename)
 			gotRewrite[filename] = string(bytes.TrimSpace(content))
 			return nil
+		}
+
+		if runtime.GOOS == "windows" {
+			test.wantStderr = strings.Replace(test.wantStderr, `testdata/src/old.com/bad/bad.go`, `testdata\src\old.com\bad\bad.go`, -1)
+			test.wantStderr = strings.Replace(test.wantStderr, `testdata/src/fruit.io/banana/banana.go`, `testdata\src\fruit.io\banana\banana.go`, -1)
 		}
 
 		// Check status code.
@@ -138,7 +146,7 @@ import (
 
 // TestDryRun tests that the -n flag suppresses calls to writeFile.
 func TestDryRun(t *testing.T) {
-	gopath := cwd + "/testdata"
+	gopath := filepath.Join(cwd, "testdata")
 	if err := os.Setenv("GOPATH", gopath); err != nil {
 		t.Fatalf("os.Setenv: %v", err)
 	}
