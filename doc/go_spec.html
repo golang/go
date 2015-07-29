@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of July 31, 2015",
+	"Subtitle": "Version of August 5, 2015",
 	"Path": "/ref/spec"
 }-->
 
@@ -5688,11 +5688,28 @@ The type of the arguments and return value correspond.
 For <code>complex</code>, the two arguments must be of the same
 floating-point type and the return type is the complex type
 with the corresponding floating-point constituents:
-<code>complex64</code> for <code>float32</code>,
-<code>complex128</code> for <code>float64</code>.
-The <code>real</code> and <code>imag</code> functions
-together form the inverse, so for a complex value <code>z</code>,
-<code>z</code> <code>==</code> <code>complex(real(z),</code> <code>imag(z))</code>.
+<code>complex64</code> for <code>float32</code> arguments, and
+<code>complex128</code> for <code>float64</code> arguments.
+If one of the arguments evaluates to an untyped constant, it is first
+<a href="#Conversions">converted</a> to the type of the other argument.
+If both arguments evaluate to untyped constants, they must be non-complex
+numbers or their imaginary parts must be zero, and the return value of
+the function is an untyped complex constant.
+</p>
+
+<p>
+For <code>real</code> and <code>imag</code>, the argument must be
+of complex type, and the return type is the corresponding floating-point
+type: <code>float32</code> for a <code>complex64</code> argument, and
+<code>float64</code> for a <code>complex128</code> argument.
+If the argument evaluates to an untyped constant, it must be a number,
+and the return value of the function is an untyped floating-point constant.
+</p>
+
+<p>
+The <code>real</code> and <code>imag</code> functions together form the inverse of
+<code>complex</code>, so for a value <code>z</code> of a complex type <code>Z</code>,
+<code>z&nbsp;==&nbsp;Z(complex(real(z),&nbsp;imag(z)))</code>.
 </p>
 
 <p>
@@ -5702,11 +5719,15 @@ value is a constant.
 
 <pre>
 var a = complex(2, -2)             // complex128
-var b = complex(1.0, -1.4)         // complex128
+const b = complex(1.0, -1.4)       // untyped complex constant 1 - 1.4i
 x := float32(math.Cos(math.Pi/2))  // float32
 var c64 = complex(5, -x)           // complex64
-var im = imag(b)                   // float64
+const s uint = complex(1, 0)       // untyped complex constant 1 + 0i can be converted to uint
+_ = complex(1, 2&lt;&lt;s)               // illegal: 2 has floating-point type, cannot shift
 var rl = real(c64)                 // float32
+var im = imag(a)                   // float64
+const c = imag(b)                  // untyped constant -1.4
+_ = imag(3 &lt;&lt; s)                   // illegal: 3 has complex type, cannot shift
 </pre>
 
 <h3 id="Handling_panics">Handling panics</h3>
