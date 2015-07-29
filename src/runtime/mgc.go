@@ -754,8 +754,9 @@ func (s *bgMarkSignal) clear() {
 }
 
 var work struct {
-	full    uint64                // lock-free list of full blocks workbuf
-	empty   uint64                // lock-free list of empty blocks workbuf
+	full  uint64 // lock-free list of full blocks workbuf
+	empty uint64 // lock-free list of empty blocks workbuf
+	// TODO(rlh): partial no longer used, remove. (issue #11922)
 	partial uint64                // lock-free list of partially filled blocks workbuf
 	pad0    [_CacheLineSize]uint8 // prevents false-sharing between full/empty and nproc/nwait
 	nproc   uint32
