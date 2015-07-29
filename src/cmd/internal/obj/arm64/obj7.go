@@ -576,7 +576,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				// that the frame size is 8 mod 16.
 				if ctxt.Autosize == 8 {
 					ctxt.Autosize += 8
-					ctxt.Locals += 8
+					cursym.Locals += 8
 				} else {
 					ctxt.Diag("%v: unaligned frame size %d - must be 8 mod 16 (or 0)", p, ctxt.Autosize-8)
 				}
