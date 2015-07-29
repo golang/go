@@ -21,6 +21,11 @@
 (And16 x y) -> (ANDW x y)
 (And8 x y) -> (ANDB x y)
 
+(Or64 x y) -> (ORQ x y)
+(Or32 x y) -> (ORL x y)
+(Or16 x y) -> (ORW x y)
+(Or8 x y) -> (ORB x y)
+
 (Sub64 x y) -> (SUBQ x y)
 (Sub32 x y) -> (SUBL x y)
 (Sub16 x y) -> (SUBW x y)

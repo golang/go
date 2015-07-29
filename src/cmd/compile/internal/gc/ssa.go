@@ -745,6 +745,15 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OAND, TINT64}:  ssa.OpAnd64,
 	opAndType{OAND, TUINT64}: ssa.OpAnd64,
 
+	opAndType{OOR, TINT8}:   ssa.OpOr8,
+	opAndType{OOR, TUINT8}:  ssa.OpOr8,
+	opAndType{OOR, TINT16}:  ssa.OpOr16,
+	opAndType{OOR, TUINT16}: ssa.OpOr16,
+	opAndType{OOR, TINT32}:  ssa.OpOr32,
+	opAndType{OOR, TUINT32}: ssa.OpOr32,
+	opAndType{OOR, TINT64}:  ssa.OpOr64,
+	opAndType{OOR, TUINT64}: ssa.OpOr64,
+
 	opAndType{OLSH, TINT8}:   ssa.OpLsh8,
 	opAndType{OLSH, TUINT8}:  ssa.OpLsh8,
 	opAndType{OLSH, TINT16}:  ssa.OpLsh16,
@@ -990,7 +999,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
 		return s.newValue2(s.ssaOp(n.Op, n.Left.Type), ssa.TypeBool, a, b)
-	case OADD, OSUB, OMUL, OLSH, ORSH, OAND:
+	case OADD, OAND, OLSH, OMUL, OOR, ORSH, OSUB:
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
 		return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
@@ -1621,7 +1630,8 @@ func genValue(v *ssa.Value) {
 		p.To.Reg = regnum(v)
 	case ssa.OpAMD64ADDB,
 		ssa.OpAMD64ANDQ, ssa.OpAMD64ANDL, ssa.OpAMD64ANDW, ssa.OpAMD64ANDB,
-		ssa.OpAMD64MULQ, ssa.OpAMD64MULL, ssa.OpAMD64MULW:
+		ssa.OpAMD64MULQ, ssa.OpAMD64MULL, ssa.OpAMD64MULW,
+		ssa.OpAMD64ORQ, ssa.OpAMD64ORL, ssa.OpAMD64ORW, ssa.OpAMD64ORB:
 		r := regnum(v)
 		x := regnum(v.Args[0])
 		y := regnum(v.Args[1])

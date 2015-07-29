@@ -134,6 +134,11 @@ const (
 	OpAMD64ANDL
 	OpAMD64ANDW
 	OpAMD64ANDB
+	OpAMD64ORQ
+	OpAMD64ORQconst
+	OpAMD64ORL
+	OpAMD64ORW
+	OpAMD64ORB
 	OpAMD64InvertFlags
 
 	OpAdd8
@@ -154,6 +159,10 @@ const (
 	OpAnd16
 	OpAnd32
 	OpAnd64
+	OpOr8
+	OpOr16
+	OpOr32
+	OpOr64
 	OpLsh8
 	OpLsh16
 	OpLsh32
@@ -1255,6 +1264,70 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name: "ORQ",
+		asm:  x86.AORQ,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ORQconst",
+		asm:  x86.AORQ,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ORL",
+		asm:  x86.AORL,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ORW",
+		asm:  x86.AORW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ORB",
+		asm:  x86.AORB,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
 		name: "InvertFlags",
 		reg:  regInfo{},
 	},
@@ -1329,6 +1402,22 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "And64",
+		generic: true,
+	},
+	{
+		name:    "Or8",
+		generic: true,
+	},
+	{
+		name:    "Or16",
+		generic: true,
+	},
+	{
+		name:    "Or32",
+		generic: true,
+	},
+	{
+		name:    "Or64",
 		generic: true,
 	},
 	{

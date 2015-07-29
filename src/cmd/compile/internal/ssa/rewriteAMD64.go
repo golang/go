@@ -2489,6 +2489,78 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto end0429f947ee7ac49ff45a243e461a5290
 	end0429f947ee7ac49ff45a243e461a5290:
 		;
+	case OpOr16:
+		// match: (Or16 x y)
+		// cond:
+		// result: (ORW x y)
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64ORW
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto end8fedf2c79d5607b7056b0ff015199cbd
+	end8fedf2c79d5607b7056b0ff015199cbd:
+		;
+	case OpOr32:
+		// match: (Or32 x y)
+		// cond:
+		// result: (ORL x y)
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64ORL
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto endea45bed9ca97d2995b68b53e6012d384
+	endea45bed9ca97d2995b68b53e6012d384:
+		;
+	case OpOr64:
+		// match: (Or64 x y)
+		// cond:
+		// result: (ORQ x y)
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64ORQ
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto end3a446becaf2461f4f1a41faeef313f41
+	end3a446becaf2461f4f1a41faeef313f41:
+		;
+	case OpOr8:
+		// match: (Or8 x y)
+		// cond:
+		// result: (ORB x y)
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64ORB
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto end6f8a8c559a167d1f0a5901d09a1fb248
+	end6f8a8c559a167d1f0a5901d09a1fb248:
+		;
 	case OpRsh64:
 		// match: (Rsh64 <t> x y)
 		// cond: y.Type.Size() == 8
