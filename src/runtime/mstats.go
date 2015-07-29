@@ -9,7 +9,7 @@ package runtime
 import "unsafe"
 
 // Statistics.
-// Shared with Go: if you edit this structure, also edit type MemStats in mem.go.
+// If you edit this structure, also edit type MemStats below.
 type mstats struct {
 	// General statistics.
 	alloc       uint64 // bytes allocated and not yet freed
@@ -42,14 +42,15 @@ type mstats struct {
 
 	// Statistics about garbage collector.
 	// Protected by mheap or stopping the world during GC.
-	next_gc        uint64 // next gc (in heap_alloc time)
-	last_gc        uint64 // last gc (in absolute time)
-	pause_total_ns uint64
-	pause_ns       [256]uint64 // circular buffer of recent gc pause lengths
-	pause_end      [256]uint64 // circular buffer of recent gc end times (nanoseconds since 1970)
-	numgc          uint32
-	enablegc       bool
-	debuggc        bool
+	next_gc         uint64 // next gc (in heap_alloc time)
+	last_gc         uint64 // last gc (in absolute time)
+	pause_total_ns  uint64
+	pause_ns        [256]uint64 // circular buffer of recent gc pause lengths
+	pause_end       [256]uint64 // circular buffer of recent gc end times (nanoseconds since 1970)
+	numgc           uint32
+	gc_cpu_fraction float64 // fraction of CPU time used by GC
+	enablegc        bool
+	debuggc         bool
 
 	// Statistics about allocation size classes.
 
@@ -119,14 +120,15 @@ type MemStats struct {
 	OtherSys    uint64 // other system allocations
 
 	// Garbage collector statistics.
-	NextGC       uint64 // next collection will happen when HeapAlloc ≥ this amount
-	LastGC       uint64 // end time of last collection (nanoseconds since 1970)
-	PauseTotalNs uint64
-	PauseNs      [256]uint64 // circular buffer of recent GC pause durations, most recent at [(NumGC+255)%256]
-	PauseEnd     [256]uint64 // circular buffer of recent GC pause end times
-	NumGC        uint32
-	EnableGC     bool
-	DebugGC      bool
+	NextGC        uint64 // next collection will happen when HeapAlloc ≥ this amount
+	LastGC        uint64 // end time of last collection (nanoseconds since 1970)
+	PauseTotalNs  uint64
+	PauseNs       [256]uint64 // circular buffer of recent GC pause durations, most recent at [(NumGC+255)%256]
+	PauseEnd      [256]uint64 // circular buffer of recent GC pause end times
+	NumGC         uint32
+	GCCPUFraction float64 // fraction of CPU time used by GC
+	EnableGC      bool
+	DebugGC       bool
 
 	// Per-size allocation statistics.
 	// 61 is NumSizeClasses in the C code.
