@@ -553,7 +553,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	var o int
 	var q2 *obj.Prog
 	var retjmp *obj.LSym
-	var stkadj int64
 	for p := cursym.Text; p != nil; p = p.Link {
 		o = int(p.As)
 		switch o {
@@ -567,9 +566,20 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			if (cursym.Text.Mark&LEAF != 0) && ctxt.Autosize <= 8 {
 				ctxt.Autosize = 0
 			} else if ctxt.Autosize&(16-1) != 0 {
-				stkadj = 16 - (int64(ctxt.Autosize) & (16 - 1))
-				ctxt.Autosize += int32(stkadj)
-				cursym.Locals += int32(stkadj)
+				// The frame includes an LR.
+				// If the frame size is 8, it's only an LR,
+				// so there's no potential for breaking references to
+				// local variables by growing the frame size,
+				// because there are no local variables.
+				// But otherwise, if there is a non-empty locals section,
+				// the author of the code is responsible for making sure
+				// that the frame size is 8 mod 16.
+				if ctxt.Autosize == 8 {
+					ctxt.Autosize += 8
+					ctxt.Locals += 8
+				} else {
+					ctxt.Diag("%v: unaligned frame size %d - must be 8 mod 16 (or 0)", p, ctxt.Autosize-8)
+				}
 			}
 			p.To.Offset = int64(ctxt.Autosize) - 8
 			if ctxt.Autosize == 0 && !(cursym.Text.Mark&LEAF != 0) {
