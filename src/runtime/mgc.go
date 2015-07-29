@@ -880,9 +880,11 @@ func backgroundgc() {
 }
 
 func gc(mode int) {
-	// debug.gctrace variables
+	// Timing/utilization tracking
 	var stwprocs, maxprocs int32
 	var tSweepTerm, tScan, tInstallWB, tMark, tMarkTerm int64
+
+	// debug.gctrace variables
 	var heap0, heap1, heap2, heapGoal uint64
 
 	// memstats statistics
@@ -910,11 +912,9 @@ func gc(mode int) {
 		gcBgMarkStartWorkers()
 	}
 	now = nanotime()
-	if debug.gctrace > 0 {
-		stwprocs, maxprocs = gcprocs(), gomaxprocs
-		tSweepTerm = now
-		heap0 = memstats.heap_live
-	}
+	stwprocs, maxprocs = gcprocs(), gomaxprocs
+	tSweepTerm = now
+	heap0 = memstats.heap_live
 
 	pauseStart = now
 	systemstack(stopTheWorldWithSema)
@@ -970,15 +970,11 @@ func gc(mode int) {
 			startTheWorldWithSema()
 			now = nanotime()
 			pauseNS += now - pauseStart
-			if debug.gctrace > 0 {
-				tScan = now
-			}
+			tScan = now
 			gcscan_m()
 
 			// Enter mark phase.
-			if debug.gctrace > 0 {
-				tInstallWB = nanotime()
-			}
+			tInstallWB = nanotime()
 			setGCPhase(_GCmark)
 			// Ensure all Ps have observed the phase
 			// change and have write barriers enabled
@@ -986,9 +982,7 @@ func gc(mode int) {
 			forEachP(func(*p) {})
 		})
 		// Concurrent mark.
-		if debug.gctrace > 0 {
-			tMark = nanotime()
-		}
+		tMark = nanotime()
 
 		// Enable background mark workers and wait for
 		// background mark completion.
@@ -1022,9 +1016,7 @@ func gc(mode int) {
 
 		// Begin mark termination.
 		now = nanotime()
-		if debug.gctrace > 0 {
-			tMarkTerm = now
-		}
+		tMarkTerm = now
 		pauseStart = now
 		systemstack(stopTheWorldWithSema)
 		// The gcphase is _GCmark, it will transition to _GCmarktermination
@@ -1043,11 +1035,9 @@ func gc(mode int) {
 		// such that mark termination scans all stacks.
 		gcResetGState()
 
-		if debug.gctrace > 0 {
-			t := nanotime()
-			tScan, tInstallWB, tMark, tMarkTerm = t, t, t, t
-			heapGoal = heap0
-		}
+		t := nanotime()
+		tScan, tInstallWB, tMark, tMarkTerm = t, t, t, t
+		heapGoal = heap0
 	}
 
 	// World is stopped.
@@ -1056,10 +1046,7 @@ func gc(mode int) {
 	gcBlackenPromptly = false
 	setGCPhase(_GCmarktermination)
 
-	if debug.gctrace > 0 {
-		heap1 = memstats.heap_live
-	}
-
+	heap1 = memstats.heap_live
 	startTime := nanotime()
 
 	mp := acquirem()
@@ -1077,9 +1064,7 @@ func gc(mode int) {
 	// need to switch to g0 so we can shrink the stack.
 	systemstack(func() {
 		gcMark(startTime)
-		if debug.gctrace > 0 {
-			heap2 = work.bytesMarked
-		}
+		heap2 = work.bytesMarked
 		if debug.gccheckmark > 0 {
 			// Run a full stop-the-world mark using checkmark bits,
 			// to check that we didn't forget to mark anything during
