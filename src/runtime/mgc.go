@@ -1121,6 +1121,21 @@ func gc(mode int) {
 	memstats.pause_end[memstats.numgc%uint32(len(memstats.pause_end))] = uint64(unixNow)
 	memstats.pause_total_ns += uint64(pauseNS)
 
+	// Update work.totaltime.
+	sweepTermCpu := int64(stwprocs) * (tScan - tSweepTerm)
+	scanCpu := tInstallWB - tScan
+	installWBCpu := int64(0)
+	// We report idle marking time below, but omit it from the
+	// overall utilization here since it's "free".
+	markCpu := gcController.assistTime + gcController.dedicatedMarkTime + gcController.fractionalMarkTime
+	markTermCpu := int64(stwprocs) * (now - tMarkTerm)
+	cycleCpu := sweepTermCpu + scanCpu + installWBCpu + markCpu + markTermCpu
+	work.totaltime += cycleCpu
+
+	// Compute overall GC CPU utilization.
+	totalCpu := sched.totaltime + (now-sched.procresizetime)*int64(gomaxprocs)
+	memstats.gc_cpu_fraction = float64(work.totaltime) / float64(totalCpu)
+
 	memstats.numgc++
 
 	systemstack(startTheWorldWithSema)
@@ -1130,22 +1145,8 @@ func gc(mode int) {
 	mp = nil
 
 	if debug.gctrace > 0 {
-		tEnd := nanotime()
-
-		// Update work.totaltime
-		sweepTermCpu := int64(stwprocs) * (tScan - tSweepTerm)
-		scanCpu := tInstallWB - tScan
-		installWBCpu := int64(0)
-		// We report idle marking time below, but omit it from
-		// the overall utilization here since it's "free".
-		markCpu := gcController.assistTime + gcController.dedicatedMarkTime + gcController.fractionalMarkTime
-		markTermCpu := int64(stwprocs) * (tEnd - tMarkTerm)
-		cycleCpu := sweepTermCpu + scanCpu + installWBCpu + markCpu + markTermCpu
-		work.totaltime += cycleCpu
-
-		// Compute overall utilization
-		totalCpu := sched.totaltime + (tEnd-sched.procresizetime)*int64(gomaxprocs)
-		util := work.totaltime * 100 / totalCpu
+		tEnd := now
+		util := int(memstats.gc_cpu_fraction * 100)
 
 		var sbuf [24]byte
 		printlock()
