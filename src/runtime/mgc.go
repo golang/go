@@ -1064,6 +1064,16 @@ func gc(mode int) {
 	// need to switch to g0 so we can shrink the stack.
 	systemstack(func() {
 		gcMark(startTime)
+		// Must return immediately.
+		// The outer function's stack may have moved
+		// during gcMark (it shrinks stacks, including the
+		// outer function's stack), so we must not refer
+		// to any of its variables. Return back to the
+		// non-system stack to pick up the new addresses
+		// before continuing.
+	})
+
+	systemstack(func() {
 		heap2 = work.bytesMarked
 		if debug.gccheckmark > 0 {
 			// Run a full stop-the-world mark using checkmark bits,
