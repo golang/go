@@ -5,6 +5,7 @@
 package runtime_test
 
 import (
+	"io"
 	"os"
 	"reflect"
 	"runtime"
@@ -411,4 +412,60 @@ func TestPrintGC(t *testing.T) {
 		}()
 	}
 	close(done)
+}
+
+// The implicit y, ok := x.(error) for the case error
+// in testTypeSwitch used to not initialize the result y
+// before passing &y to assertE2I2GC.
+// Catch this by making assertE2I2 call runtime.GC,
+// which will force a stack scan and failure if there are
+// bad pointers, and then fill the stack with bad pointers
+// and run the type switch.
+func TestAssertE2I2Liveness(t *testing.T) {
+	// Note that this flag is defined in export_test.go
+	// and is not available to ordinary imports of runtime.
+	*runtime.TestingAssertE2I2GC = true
+	defer func() {
+		*runtime.TestingAssertE2I2GC = false
+	}()
+
+	poisonStack()
+	testTypeSwitch(io.EOF)
+	poisonStack()
+	testAssert(io.EOF)
+	poisonStack()
+	testAssertVar(io.EOF)
+}
+
+func poisonStack() uintptr {
+	var x [1000]uintptr
+	for i := range x {
+		x[i] = 0xff
+	}
+	return x[123]
+}
+
+func testTypeSwitch(x interface{}) error {
+	switch y := x.(type) {
+	case nil:
+		// ok
+	case error:
+		return y
+	}
+	return nil
+}
+
+func testAssert(x interface{}) error {
+	if y, ok := x.(error); ok {
+		return y
+	}
+	return nil
+}
+
+func testAssertVar(x interface{}) error {
+	var y, ok = x.(error)
+	if ok {
+		return y
+	}
+	return nil
 }
