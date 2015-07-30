@@ -224,7 +224,6 @@ func TestLoad_ParseError_AllowErrors(t *testing.T) {
 	}
 	wantErr := filepath.Join("testdata", "badpkgdecl.go") + ":1:34: expected 'package', found 'EOF'"
 	if !hasError(badpkg.Errors, wantErr) {
-
 		t.Errorf("badpkg.Errors = %v, want %s", badpkg.Errors, wantErr)
 	}
 }
