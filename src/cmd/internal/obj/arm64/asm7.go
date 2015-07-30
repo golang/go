@@ -699,16 +699,16 @@ func flushpool(ctxt *obj.Link, p *obj.Prog, skip int) {
 		} else if p.Pc+int64(pool.size)-int64(pool.start) < 1024*1024 {
 			return
 		}
+
+		// The line number for constant pool entries doesn't really matter.
+		// We set it to the line number of the preceding instruction so that
+		// there are no deltas to encode in the pc-line tables.
+		for q := ctxt.Blitrl; q != nil; q = q.Link {
+			q.Lineno = p.Lineno
+		}
+
 		ctxt.Elitrl.Link = p.Link
 		p.Link = ctxt.Blitrl
-
-		// BUG(minux): how to correctly handle line number for constant pool entries?
-		// for now, we set line number to the last instruction preceding them at least
-		// this won't bloat the .debug_line tables
-		for ctxt.Blitrl != nil {
-			ctxt.Blitrl.Lineno = p.Lineno
-			ctxt.Blitrl = ctxt.Blitrl.Link
-		}
 
 		ctxt.Blitrl = nil /* BUG: should refer back to values until out-of-range */
 		ctxt.Elitrl = nil
