@@ -254,6 +254,13 @@ On Darwin, the use of the system X.509 certificate interface can be disabled
 with the <code>ios</code> build tag.
 </p>
 
+<p>
+The Solaris port now has full support for cgo and the packages
+<a href="/pkg/net/"><code>net</code></a> and
+<a href="/pkg/crypto/x509/"><code>crypto/x509</code></a>,
+as well as a number of other fixes and improvements.
+</p>
+
 <h2 id="tools">Tools</h2>
 
 <h3 id="translate">Translating</h3>
@@ -591,6 +598,10 @@ This allows options to be passed to the
 compiler and linker that involve file paths relative to the
 source code directory. Without the expansion the paths would be
 invalid when the current working directory changes.
+</p>
+
+<p>
+Solaris now has full cgo support.
 </p>
 
 <p>
