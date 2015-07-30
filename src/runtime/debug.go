@@ -31,7 +31,7 @@ func GOMAXPROCS(n int) int {
 	return ret
 }
 
-// NumCPU returns the number of logical CPUs on the local machine.
+// NumCPU returns the number of logical CPUs usable by the current process.
 func NumCPU() int {
 	return int(ncpu)
 }

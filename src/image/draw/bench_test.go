@@ -7,6 +7,7 @@ package draw
 import (
 	"image"
 	"image/color"
+	"reflect"
 	"testing"
 )
 
@@ -14,6 +15,11 @@ const (
 	dstw, dsth = 640, 480
 	srcw, srch = 400, 300
 )
+
+var palette = color.Palette{
+	color.Black,
+	color.White,
+}
 
 // bench benchmarks drawing src and mask images onto a dst image with the
 // given op and the color models to create those images from.
@@ -50,7 +56,19 @@ func bench(b *testing.B, dcm, scm, mcm color.Model, op Op) {
 		}
 		dst = dst1
 	default:
-		b.Fatal("unknown destination color model", dcm)
+		// The == operator isn't defined on a color.Palette (a slice), so we
+		// use reflection.
+		if reflect.DeepEqual(dcm, palette) {
+			dst1 := image.NewPaletted(image.Rect(0, 0, dstw, dsth), palette)
+			for y := 0; y < dsth; y++ {
+				for x := 0; x < dstw; x++ {
+					dst1.SetColorIndex(x, y, uint8(x^y)&1)
+				}
+			}
+			dst = dst1
+		} else {
+			b.Fatal("unknown destination color model", dcm)
+		}
 	}
 
 	var src image.Image
@@ -216,6 +234,10 @@ func BenchmarkGlyphOver(b *testing.B) {
 
 func BenchmarkRGBA(b *testing.B) {
 	bench(b, color.RGBAModel, color.RGBA64Model, nil, Src)
+}
+
+func BenchmarkPaletted(b *testing.B) {
+	bench(b, palette, color.RGBAModel, nil, Src)
 }
 
 // The BenchmarkGenericFoo functions exercise the generic, slow-path code.

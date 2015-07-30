@@ -1064,7 +1064,7 @@ func TestDriveLetterInEvalSymlinks(t *testing.T) {
 	}
 }
 
-func TestBug3486(t *testing.T) { // http://golang.org/issue/3486
+func TestBug3486(t *testing.T) { // https://golang.org/issue/3486
 	if runtime.GOOS == "darwin" {
 		switch runtime.GOARCH {
 		case "arm", "arm64":

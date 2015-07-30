@@ -312,7 +312,7 @@ const (
 	SHN_HIOS      SectionIndex = 0xff3f /* Last operating system-specific. */
 	SHN_ABS       SectionIndex = 0xfff1 /* Absolute values. */
 	SHN_COMMON    SectionIndex = 0xfff2 /* Common data. */
-	SHN_XINDEX    SectionIndex = 0xffff /* Escape -- index stored elsewhere. */
+	SHN_XINDEX    SectionIndex = 0xffff /* Escape; index stored elsewhere. */
 	SHN_HIRESERVE SectionIndex = 0xffff /* Last of reserved range. */
 )
 

@@ -95,7 +95,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// spec: "As a special case, append also accepts a first argument assignable
 		// to type []byte with a second argument of string type followed by ... .
 		// This form appends the bytes of the string.
-		if nargs == 2 && call.Ellipsis.IsValid() && x.assignableTo(check.conf, NewSlice(UniverseByte)) {
+		if nargs == 2 && call.Ellipsis.IsValid() && x.assignableTo(check.conf, NewSlice(universeByte)) {
 			arg(x, 1)
 			if x.mode == invalid {
 				return
@@ -288,7 +288,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		switch t := y.typ.Underlying().(type) {
 		case *Basic:
 			if isString(y.typ) {
-				src = UniverseByte
+				src = universeByte
 			}
 		case *Slice:
 			src = t.elem
@@ -502,7 +502,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		case *Func:
 			// TODO(gri) Using derefStructPtr may result in methods being found
 			// that don't actually exist. An error either way, but the error
-			// message is confusing. See: http://play.golang.org/p/al75v23kUy ,
+			// message is confusing. See: https://play.golang.org/p/al75v23kUy ,
 			// but go/types reports: "invalid argument: x.m is a method value".
 			check.invalidArg(arg0.Pos(), "%s is a method value", arg0)
 			return

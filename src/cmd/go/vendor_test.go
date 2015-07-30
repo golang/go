@@ -9,6 +9,7 @@ package main_test
 import (
 	"bytes"
 	"fmt"
+	"internal/testenv"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -29,6 +30,7 @@ func TestVendorImports(t *testing.T) {
 		vend/vendor/q []
 		vend/vendor/strings []
 		vend/x [vend/x/vendor/p vend/vendor/q vend/x/vendor/r]
+		vend/x/invalid [vend/x/invalid/vendor/foo]
 		vend/x/vendor/p []
 		vend/x/vendor/p/p [notfound]
 		vend/x/vendor/r []
@@ -53,6 +55,22 @@ func TestVendorRun(t *testing.T) {
 	tg.grepStdout("hello, world", "missing hello world output")
 }
 
+func TestVendorGOPATH(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	changeVolume := func(s string, f func(s string) string) string {
+		vol := filepath.VolumeName(s)
+		return f(vol) + s[len(vol):]
+	}
+	gopath := changeVolume(filepath.Join(tg.pwd(), "testdata"), strings.ToLower)
+	tg.setenv("GOPATH", gopath)
+	tg.setenv("GO15VENDOREXPERIMENT", "1")
+	cd := changeVolume(filepath.Join(tg.pwd(), "testdata/src/vend/hello"), strings.ToUpper)
+	tg.cd(cd)
+	tg.run("run", "hello.go")
+	tg.grepStdout("hello, world", "missing hello world output")
+}
+
 func TestVendorTest(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -62,6 +80,16 @@ func TestVendorTest(t *testing.T) {
 	tg.run("test", "-v")
 	tg.grepStdout("TestMsgInternal", "missing use in internal test")
 	tg.grepStdout("TestMsgExternal", "missing use in external test")
+}
+
+func TestVendorInvalid(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.setenv("GO15VENDOREXPERIMENT", "1")
+
+	tg.runFail("build", "vend/x/invalid")
+	tg.grepStderr("must be imported as foo", "missing vendor import error")
 }
 
 func TestVendorImportError(t *testing.T) {
@@ -114,4 +142,47 @@ func splitLines(s string) []string {
 		x = x[:len(x)-1]
 	}
 	return x
+}
+
+func TestVendorGet(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.tempFile("src/v/m.go", `
+		package main
+		import ("fmt"; "vendor.org/p")
+		func main() {
+			fmt.Println(p.C)
+		}`)
+	tg.tempFile("src/v/m_test.go", `
+		package main
+		import ("fmt"; "testing"; "vendor.org/p")
+		func TestNothing(t *testing.T) {
+			fmt.Println(p.C)
+		}`)
+	tg.tempFile("src/v/vendor/vendor.org/p/p.go", `
+		package p
+		const C = 1`)
+	tg.setenv("GOPATH", tg.path("."))
+	tg.setenv("GO15VENDOREXPERIMENT", "1")
+	tg.cd(tg.path("src/v"))
+	tg.run("run", "m.go")
+	tg.run("test")
+	tg.run("list", "-f", "{{.Imports}}")
+	tg.grepStdout("v/vendor/vendor.org/p", "import not in vendor directory")
+	tg.run("list", "-f", "{{.TestImports}}")
+	tg.grepStdout("v/vendor/vendor.org/p", "test import not in vendor directory")
+	tg.run("get")
+	tg.run("get", "-t")
+}
+
+func TestVendorGetUpdate(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.path("."))
+	tg.setenv("GO15VENDOREXPERIMENT", "1")
+	tg.run("get", "github.com/rsc/go-get-issue-11864")
+	tg.run("get", "-u", "github.com/rsc/go-get-issue-11864")
 }

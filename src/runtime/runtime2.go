@@ -222,6 +222,7 @@ type g struct {
 
 	_panic         *_panic // innermost panic - offset known to liblink
 	_defer         *_defer // innermost defer
+	m              *m      // current m; offset known to arm liblink
 	stackAlloc     uintptr // stack allocation is [stack.lo,stack.lo+stackAlloc)
 	sched          gobuf
 	syscallsp      uintptr        // if status==Gsyscall, syscallsp = sched.sp to use during gc
@@ -230,20 +231,21 @@ type g struct {
 	stkbarPos      uintptr        // index of lowest stack barrier not hit
 	param          unsafe.Pointer // passed parameter on wakeup
 	atomicstatus   uint32
+	stackLock      uint32 // sigprof/scang lock; TODO: fold in to atomicstatus
 	goid           int64
 	waitsince      int64  // approx time when the g become blocked
 	waitreason     string // if status==Gwaiting
 	schedlink      guintptr
-	preempt        bool  // preemption signal, duplicates stackguard0 = stackpreempt
-	paniconfault   bool  // panic (instead of crash) on unexpected fault address
-	preemptscan    bool  // preempted g does scan for gc
-	gcscandone     bool  // g has scanned stack; protected by _Gscan bit in status
-	gcscanvalid    bool  // false at start of gc cycle, true if G has not run since last scan
-	throwsplit     bool  // must not split stack
-	raceignore     int8  // ignore race detection events
-	sysblocktraced bool  // StartTrace has emitted EvGoInSyscall about this goroutine
-	sysexitticks   int64 // cputicks when syscall has returned (for tracing)
-	m              *m    // for debuggers, but offset not hard-coded
+	preempt        bool   // preemption signal, duplicates stackguard0 = stackpreempt
+	paniconfault   bool   // panic (instead of crash) on unexpected fault address
+	preemptscan    bool   // preempted g does scan for gc
+	gcscandone     bool   // g has scanned stack; protected by _Gscan bit in status
+	gcscanvalid    bool   // false at start of gc cycle, true if G has not run since last scan
+	throwsplit     bool   // must not split stack
+	raceignore     int8   // ignore race detection events
+	sysblocktraced bool   // StartTrace has emitted EvGoInSyscall about this goroutine
+	sysexitticks   int64  // cputicks when syscall has returned (for tracing)
+	sysexitseq     uint64 // trace seq when syscall has returned (for tracing)
 	lockedm        *m
 	sig            uint32
 	writebuf       []byte
@@ -271,8 +273,9 @@ type mscratch struct {
 }
 
 type m struct {
-	g0      *g    // goroutine with scheduling stack
-	morebuf gobuf // gobuf arg to morestack
+	g0      *g     // goroutine with scheduling stack
+	morebuf gobuf  // gobuf arg to morestack
+	divmod  uint32 // div/mod denominator for arm - known to liblink
 
 	// Fields not known to debuggers.
 	procid        uint64     // for debuggers, but offset not hard-coded
@@ -496,7 +499,7 @@ const (
 )
 
 // Layout of in-memory per-function information prepared by linker
-// See http://golang.org/s/go12symtab.
+// See https://golang.org/s/go12symtab.
 // Keep in sync with linker
 // and with package debug/gosym and with symtab.go in package runtime.
 type _func struct {

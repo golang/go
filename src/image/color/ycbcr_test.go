@@ -5,6 +5,7 @@
 package color
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -15,8 +16,18 @@ func delta(x, y uint8) uint8 {
 	return y - x
 }
 
+func eq(c0, c1 Color) error {
+	r0, g0, b0, a0 := c0.RGBA()
+	r1, g1, b1, a1 := c1.RGBA()
+	if r0 != r1 || g0 != g1 || b0 != b1 || a0 != a1 {
+		return fmt.Errorf("got  0x%04x 0x%04x 0x%04x 0x%04x\nwant 0x%04x 0x%04x 0x%04x 0x%04x",
+			r0, g0, b0, a0, r1, g1, b1, a1)
+	}
+	return nil
+}
+
 // TestYCbCrRoundtrip tests that a subset of RGB space can be converted to YCbCr
-// and back to within 1/256 tolerance.
+// and back to within 2/256 tolerance.
 func TestYCbCrRoundtrip(t *testing.T) {
 	for r := 0; r < 256; r += 7 {
 		for g := 0; g < 256; g += 5 {
@@ -24,8 +35,9 @@ func TestYCbCrRoundtrip(t *testing.T) {
 				r0, g0, b0 := uint8(r), uint8(g), uint8(b)
 				y, cb, cr := RGBToYCbCr(r0, g0, b0)
 				r1, g1, b1 := YCbCrToRGB(y, cb, cr)
-				if delta(r0, r1) > 1 || delta(g0, g1) > 1 || delta(b0, b1) > 1 {
-					t.Fatalf("\nr0, g0, b0 = %d, %d, %d\nr1, g1, b1 = %d, %d, %d", r0, g0, b0, r1, g1, b1)
+				if delta(r0, r1) > 2 || delta(g0, g1) > 2 || delta(b0, b1) > 2 {
+					t.Fatalf("\nr0, g0, b0 = %d, %d, %d\ny,  cb, cr = %d, %d, %d\nr1, g1, b1 = %d, %d, %d",
+						r0, g0, b0, y, cb, cr, r1, g1, b1)
 				}
 			}
 		}
@@ -52,6 +64,15 @@ func TestYCbCrToRGBConsistency(t *testing.T) {
 	}
 }
 
+// TestYCbCrGray tests that YCbCr colors are a superset of Gray colors.
+func TestYCbCrGray(t *testing.T) {
+	for i := 0; i < 256; i++ {
+		if err := eq(YCbCr{uint8(i), 0x80, 0x80}, Gray{uint8(i)}); err != nil {
+			t.Errorf("i=0x%02x:\n%v", i, err)
+		}
+	}
+}
+
 // TestCMYKRoundtrip tests that a subset of RGB space can be converted to CMYK
 // and back to within 1/256 tolerance.
 func TestCMYKRoundtrip(t *testing.T) {
@@ -62,7 +83,8 @@ func TestCMYKRoundtrip(t *testing.T) {
 				c, m, y, k := RGBToCMYK(r0, g0, b0)
 				r1, g1, b1 := CMYKToRGB(c, m, y, k)
 				if delta(r0, r1) > 1 || delta(g0, g1) > 1 || delta(b0, b1) > 1 {
-					t.Fatalf("\nr0, g0, b0 = %d, %d, %d\nr1, g1, b1 = %d, %d, %d", r0, g0, b0, r1, g1, b1)
+					t.Fatalf("\nr0, g0, b0 = %d, %d, %d\nc, m, y, k = %d, %d, %d, %d\nr1, g1, b1 = %d, %d, %d",
+						r0, g0, b0, c, m, y, k, r1, g1, b1)
 				}
 			}
 		}
@@ -87,6 +109,15 @@ func TestCMYKToRGBConsistency(t *testing.T) {
 					}
 				}
 			}
+		}
+	}
+}
+
+// TestCMYKGray tests that CMYK colors are a superset of Gray colors.
+func TestCMYKGray(t *testing.T) {
+	for i := 0; i < 256; i++ {
+		if err := eq(CMYK{0x00, 0x00, 0x00, uint8(255 - i)}, Gray{uint8(i)}); err != nil {
+			t.Errorf("i=0x%02x:\n%v", i, err)
 		}
 	}
 }

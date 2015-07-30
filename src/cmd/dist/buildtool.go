@@ -37,7 +37,6 @@ var bootstrapDirs = []string{
 	"compile/internal/ppc64",
 	"compile/internal/ssa",
 	"compile/internal/x86",
-	"internal/asm",
 	"internal/gcprog",
 	"internal/obj",
 	"internal/obj/arm",
@@ -51,10 +50,6 @@ var bootstrapDirs = []string{
 	"link/internal/ld",
 	"link/internal/ppc64",
 	"link/internal/x86",
-	"old5a",
-	"old6a",
-	"old8a",
-	"old9a",
 }
 
 func bootstrapBuildTools() {

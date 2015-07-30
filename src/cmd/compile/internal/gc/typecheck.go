@@ -2582,17 +2582,17 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Type {
 			}
 		}
 
+		pll := n
 		ll := n.Left
-		for ll.Left != nil {
+		for ll.Left != nil && (ll.Op == ODOT || ll.Op == ODOTPTR || ll.Op == OIND) {
+			pll = ll
 			ll = ll.Left
 		}
-		if ll.Implicit {
-			if Isptr[ll.Type.Etype] && ll.Type.Sym != nil && ll.Type.Sym.Def != nil && ll.Type.Sym.Def.Op == OTYPE {
-				// It is invalid to automatically dereference a named pointer type when selecting a method.
-				// Make n->left == ll to clarify error message.
-				n.Left = ll
-				return nil
-			}
+		if pll.Implicit && Isptr[ll.Type.Etype] && ll.Type.Sym != nil && ll.Type.Sym.Def != nil && ll.Type.Sym.Def.Op == OTYPE {
+			// It is invalid to automatically dereference a named pointer type when selecting a method.
+			// Make n->left == ll to clarify error message.
+			n.Left = ll
+			return nil
 		}
 
 		n.Right = methodname(n.Right, n.Left.Type)

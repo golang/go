@@ -75,8 +75,7 @@ func (d *Dialer) deadline(now time.Time) time.Time {
 
 // partialDeadline returns the deadline to use for a single address,
 // when multiple addresses are pending.
-func (d *Dialer) partialDeadline(now time.Time, addrsRemaining int) (time.Time, error) {
-	deadline := d.deadline(now)
+func partialDeadline(now, deadline time.Time, addrsRemaining int) (time.Time, error) {
 	if deadline.IsZero() {
 		return deadline, nil
 	}
@@ -198,6 +197,7 @@ func DialTimeout(network, address string, timeout time.Duration) (Conn, error) {
 type dialContext struct {
 	Dialer
 	network, address string
+	finalDeadline    time.Time
 }
 
 // Dial connects to the address on the named network.
@@ -205,15 +205,17 @@ type dialContext struct {
 // See func Dial for a description of the network and address
 // parameters.
 func (d *Dialer) Dial(network, address string) (Conn, error) {
-	addrs, err := resolveAddrList("dial", network, address, d.deadline(time.Now()))
+	finalDeadline := d.deadline(time.Now())
+	addrs, err := resolveAddrList("dial", network, address, finalDeadline)
 	if err != nil {
 		return nil, &OpError{Op: "dial", Net: network, Source: nil, Addr: nil, Err: err}
 	}
 
 	ctx := &dialContext{
-		Dialer:  *d,
-		network: network,
-		address: address,
+		Dialer:        *d,
+		network:       network,
+		address:       address,
+		finalDeadline: finalDeadline,
 	}
 
 	var primaries, fallbacks addrList
@@ -318,7 +320,7 @@ func dialSerial(ctx *dialContext, ras addrList, cancel <-chan struct{}) (Conn, e
 		default:
 		}
 
-		partialDeadline, err := ctx.partialDeadline(time.Now(), len(ras)-i)
+		partialDeadline, err := partialDeadline(time.Now(), ctx.finalDeadline, len(ras)-i)
 		if err != nil {
 			// Ran out of time.
 			if firstErr == nil {

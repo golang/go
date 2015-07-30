@@ -209,3 +209,19 @@ func efaceEscape2() {
 		mdoesnotescape(x)
 	}
 }
+
+type T1 struct {
+	p *int
+}
+
+type T2 struct {
+	T1 T1
+}
+
+func dotTypeEscape() *T2 { // #11931
+	var x interface{}
+	x = &T1{p: new(int)} // ERROR "new\(int\) escapes to heap" "&T1 literal does not escape"
+	return &T2{
+		T1: *(x.(*T1)), // ERROR "&T2 literal escapes to heap"
+	}
+}

@@ -412,17 +412,11 @@ func (t *test) run() {
 		t.err = skipError("starts with newline")
 		return
 	}
+
+	// Execution recipe stops at first blank line.
 	pos := strings.Index(t.src, "\n\n")
 	if pos == -1 {
 		t.err = errors.New("double newline not found")
-		return
-	}
-	// Check for build constraints only upto the first blank line.
-	if ok, why := shouldTest(t.src[:pos], goos, goarch); !ok {
-		t.action = "skip"
-		if *showSkips {
-			fmt.Printf("%-20s %-20s: %s\n", t.action, t.goFileName(), why)
-		}
 		return
 	}
 	action := t.src[:pos]
@@ -432,6 +426,19 @@ func (t *test) run() {
 	}
 	if strings.HasPrefix(action, "//") {
 		action = action[2:]
+	}
+
+	// Check for build constraints only up to the actual code.
+	pkgPos := strings.Index(t.src, "\npackage")
+	if pkgPos == -1 {
+		pkgPos = pos // some files are intentionally malformed
+	}
+	if ok, why := shouldTest(t.src[:pkgPos], goos, goarch); !ok {
+		t.action = "skip"
+		if *showSkips {
+			fmt.Printf("%-20s %-20s: %s\n", t.action, t.goFileName(), why)
+		}
+		return
 	}
 
 	var args, flags []string

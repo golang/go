@@ -6,7 +6,7 @@
 Trace is a tool for viewing trace files.
 
 Trace files can be generated with:
-	- runtime/pprof.StartTrace
+	- runtime/trace.Start
 	- net/http/pprof package
 	- go test -trace
 

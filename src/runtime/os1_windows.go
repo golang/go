@@ -26,7 +26,6 @@ import (
 //go:cgo_import_dynamic runtime._GetStdHandle GetStdHandle%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetSystemInfo GetSystemInfo%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetThreadContext GetThreadContext%2 "kernel32.dll"
-//go:cgo_import_dynamic runtime._GetVersion GetVersion%0 "kernel32.dll"
 //go:cgo_import_dynamic runtime._LoadLibraryW LoadLibraryW%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._LoadLibraryA LoadLibraryA%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._NtWaitForSingleObject NtWaitForSingleObject%3 "ntdll.dll"
@@ -68,7 +67,6 @@ var (
 	_GetStdHandle,
 	_GetSystemInfo,
 	_GetThreadContext,
-	_GetVersion,
 	_LoadLibraryW,
 	_LoadLibraryA,
 	_NtWaitForSingleObject,
@@ -137,12 +135,6 @@ const (
 	currentProcess = ^uintptr(0) // -1 = current process
 	currentThread  = ^uintptr(1) // -2 = current thread
 )
-
-func getVersion() (major, minor byte) {
-	v := uint32(stdcall0(_GetVersion))
-	low := uint16(v)
-	return byte(low), byte(low >> 8)
-}
 
 // in sys_windows_386.s and sys_windows_amd64.s
 func externalthreadhandler()

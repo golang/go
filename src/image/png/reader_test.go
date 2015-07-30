@@ -13,6 +13,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -317,6 +318,20 @@ func TestPalettedDecodeConfig(t *testing.T) {
 			t.Errorf("%s: palette not initialized", fn)
 			continue
 		}
+	}
+}
+
+func TestInterlaced(t *testing.T) {
+	a, err := readPNG("testdata/gray-gradient.png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := readPNG("testdata/gray-gradient.interlaced.png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(a, b) {
+		t.Fatalf("decodings differ:\nnon-interlaced:\n%#v\ninterlaced:\n%#v", a, b)
 	}
 }
 

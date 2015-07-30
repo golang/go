@@ -658,8 +658,8 @@ func lookupBuiltinType(typ int) types.Type {
 		gccgoBuiltinCOMPLEX64:  types.Typ[types.Complex64],
 		gccgoBuiltinCOMPLEX128: types.Typ[types.Complex128],
 		gccgoBuiltinERROR:      types.Universe.Lookup("error").Type(),
-		gccgoBuiltinBYTE:       types.Typ[types.Byte],
-		gccgoBuiltinRUNE:       types.Typ[types.Rune],
+		gccgoBuiltinBYTE:       types.Universe.Lookup("byte").Type(),
+		gccgoBuiltinRUNE:       types.Universe.Lookup("rune").Type(),
 	}[typ]
 }
 

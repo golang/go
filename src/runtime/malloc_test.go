@@ -32,7 +32,7 @@ func TestMemStats(t *testing.T) {
 		st.HeapIdle > 1e10 || st.HeapInuse > 1e10 || st.HeapObjects > 1e10 || st.StackInuse > 1e10 ||
 		st.StackSys > 1e10 || st.MSpanInuse > 1e10 || st.MSpanSys > 1e10 || st.MCacheInuse > 1e10 ||
 		st.MCacheSys > 1e10 || st.BuckHashSys > 1e10 || st.GCSys > 1e10 || st.OtherSys > 1e10 ||
-		st.NextGC > 1e10 || st.NumGC > 1e9 {
+		st.NextGC > 1e10 || st.NumGC > 1e9 || st.PauseTotalNs > 1e11 {
 		t.Fatalf("Insanely high value (overflow?): %+v", *st)
 	}
 
@@ -43,6 +43,25 @@ func TestMemStats(t *testing.T) {
 
 	if st.HeapIdle+st.HeapInuse != st.HeapSys {
 		t.Fatalf("HeapIdle(%d) + HeapInuse(%d) should be equal to HeapSys(%d), but isn't.", st.HeapIdle, st.HeapInuse, st.HeapSys)
+	}
+
+	if lpe := st.PauseEnd[int(st.NumGC+255)%len(st.PauseEnd)]; st.LastGC != lpe {
+		t.Fatalf("LastGC(%d) != last PauseEnd(%d)", st.LastGC, lpe)
+	}
+
+	var pauseTotal uint64
+	for _, pause := range st.PauseNs {
+		pauseTotal += pause
+	}
+	if int(st.NumGC) < len(st.PauseNs) {
+		// We have all pauses, so this should be exact.
+		if st.PauseTotalNs != pauseTotal {
+			t.Fatalf("PauseTotalNs(%d) != sum PauseNs(%d)", st.PauseTotalNs, pauseTotal)
+		}
+	} else {
+		if st.PauseTotalNs < pauseTotal {
+			t.Fatalf("PauseTotalNs(%d) < sum PauseNs(%d)", st.PauseTotalNs, pauseTotal)
+		}
 	}
 }
 

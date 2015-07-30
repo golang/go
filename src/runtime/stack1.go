@@ -425,7 +425,7 @@ func adjustpointers(scanp unsafe.Pointer, cbv *bitvector, adjinfo *adjustinfo, f
 	num := uintptr(bv.n)
 	for i := uintptr(0); i < num; i++ {
 		if stackDebug >= 4 {
-			print("        ", add(scanp, i*ptrSize), ":", ptrnames[ptrbit(&bv, i)], ":", hex(*(*uintptr)(add(scanp, i*ptrSize))), " # ", i, " ", bv.bytedata[i/4], "\n")
+			print("        ", add(scanp, i*ptrSize), ":", ptrnames[ptrbit(&bv, i)], ":", hex(*(*uintptr)(add(scanp, i*ptrSize))), " # ", i, " ", bv.bytedata[i/8], "\n")
 		}
 		if ptrbit(&bv, i) == 1 {
 			pp := (*uintptr)(add(scanp, i*ptrSize))

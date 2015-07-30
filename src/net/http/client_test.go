@@ -258,7 +258,7 @@ func TestClientRedirects(t *testing.T) {
 		t.Errorf("with redirects forbidden, expected a *url.Error with our 'no redirects allowed' error inside; got %#v (%q)", err, err)
 	}
 	if res == nil {
-		t.Fatalf("Expected a non-nil Response on CheckRedirect failure (http://golang.org/issue/3795)")
+		t.Fatalf("Expected a non-nil Response on CheckRedirect failure (https://golang.org/issue/3795)")
 	}
 	res.Body.Close()
 	if res.Header.Get("Location") == "" {
@@ -739,7 +739,7 @@ func TestResponseSetsTLSConnectionState(t *testing.T) {
 	}
 }
 
-// Verify Response.ContentLength is populated. http://golang.org/issue/4126
+// Verify Response.ContentLength is populated. https://golang.org/issue/4126
 func TestClientHeadContentLength(t *testing.T) {
 	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {

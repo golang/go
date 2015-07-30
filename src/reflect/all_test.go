@@ -1382,7 +1382,7 @@ func selectWatcher() {
 	for {
 		time.Sleep(1 * time.Second)
 		selectWatch.Lock()
-		if selectWatch.info != nil && time.Since(selectWatch.now) > 1*time.Second {
+		if selectWatch.info != nil && time.Since(selectWatch.now) > 10*time.Second {
 			fmt.Fprintf(os.Stderr, "TestSelect:\n%s blocked indefinitely\n", fmtSelect(selectWatch.info))
 			panic("select stuck")
 		}
@@ -4720,4 +4720,17 @@ func TestTypeOfTypeOf(t *testing.T) {
 	check("MapOf", MapOf(TypeOf(T{}), TypeOf(T{})))
 	check("PtrTo", PtrTo(TypeOf(T{})))
 	check("SliceOf", SliceOf(TypeOf(T{})))
+}
+
+type XM struct{}
+
+func (*XM) String() string { return "" }
+
+func TestPtrToMethods(t *testing.T) {
+	var y struct{ XM }
+	yp := New(TypeOf(y)).Interface()
+	_, ok := yp.(fmt.Stringer)
+	if !ok {
+		t.Fatal("does not implement Stringer, but should")
+	}
 }

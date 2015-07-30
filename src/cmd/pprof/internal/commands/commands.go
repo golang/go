@@ -9,10 +9,12 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 
 	"cmd/pprof/internal/plugin"
 	"cmd/pprof/internal/report"
@@ -82,7 +84,10 @@ func PProf(c Completer, interactive **bool) Commands {
 // browsers returns a list of commands to attempt for web visualization
 // on the current platform
 func browsers() []string {
-	cmds := []string{"chrome", "google-chrome", "firefox"}
+	var cmds []string
+	if exe := os.Getenv("BROWSER"); exe != "" {
+		cmds = append(cmds, exe)
+	}
 	switch runtime.GOOS {
 	case "darwin":
 		cmds = append(cmds, "/usr/bin/open")
@@ -91,6 +96,7 @@ func browsers() []string {
 	default:
 		cmds = append(cmds, "xdg-open")
 	}
+	cmds = append(cmds, "chrome", "google-chrome", "firefox")
 	return cmds
 }
 
@@ -181,9 +187,26 @@ func saveSVGToFile() PostProcessor {
 	}
 }
 
+var vizTmpDir string
+
+func makeVizTmpDir() error {
+	if vizTmpDir != "" {
+		return nil
+	}
+	name, err := ioutil.TempDir("", "pprof-")
+	if err != nil {
+		return err
+	}
+	vizTmpDir = name
+	return nil
+}
+
 func invokeVisualizer(interactive **bool, format PostProcessor, suffix string, visualizers []string) PostProcessor {
 	return func(input *bytes.Buffer, output io.Writer, ui plugin.UI) error {
-		tempFile, err := tempfile.New(os.Getenv("PPROF_TMPDIR"), "pprof", "."+suffix)
+		if err := makeVizTmpDir(); err != nil {
+			return err
+		}
+		tempFile, err := tempfile.New(vizTmpDir, "pprof", "."+suffix)
 		if err != nil {
 			return err
 		}
@@ -202,6 +225,11 @@ func invokeVisualizer(interactive **bool, format PostProcessor, suffix string, v
 			viewer := exec.Command(args[0], append(args[1:], tempFile.Name())...)
 			viewer.Stderr = os.Stderr
 			if err = viewer.Start(); err == nil {
+				// The viewer might just send a message to another program
+				// to open the file. Give that program a little time to open the
+				// file before we remove it.
+				time.Sleep(1 * time.Second)
+
 				if !**interactive {
 					// In command-line mode, wait for the viewer to be closed
 					// before proceeding

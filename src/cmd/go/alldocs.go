@@ -38,6 +38,7 @@ Additional help topics:
 	buildmode   description of build modes
 	filetype    file types
 	gopath      GOPATH environment variable
+	environment environment variables
 	importpath  import path syntax
 	packages    description of package lists
 	testflag    description of testing flags
@@ -55,8 +56,8 @@ Usage:
 Build compiles the packages named by the import paths,
 along with their dependencies, but it does not install the results.
 
-If the arguments are a list of .go files, build treats them as a list
-of source files specifying a single package.
+If the arguments to build are a list of .go files, build treats
+them as a list of source files specifying a single package.
 
 When the command line specifies a single main package,
 build writes the resulting executable to output.
@@ -96,11 +97,10 @@ and test commands:
 	-x
 		print the commands.
 
+	-asmflags 'flag list'
+		arguments to pass on each go tool asm invocation.
 	-buildmode mode
 		build mode to use. See 'go help buildmode' for more.
-	-linkshared
-		link against shared libraries previously created with
-		-buildmode=shared
 	-compiler name
 		name of compiler to use, as in runtime.Compiler (gccgo or gc).
 	-gccgoflags 'arg list'
@@ -115,24 +115,36 @@ and test commands:
 		option that requires non-default compile flags has a similar effect.
 	-ldflags 'flag list'
 		arguments to pass on each go tool link invocation.
-	-asmflags 'flag list'
-		arguments to pass on each go tool asm invocation.
+	-linkshared
+		link against shared libraries previously created with
+		-buildmode=shared
+	-pkgdir dir
+		install and load all packages from dir instead of the usual locations.
+		For example, when building with a non-standard configuration,
+		use -pkgdir to keep generated packages in a separate location.
 	-tags 'tag list'
 		a list of build tags to consider satisfied during the build.
 		For more information about build tags, see the description of
 		build constraints in the documentation for the go/build package.
 	-toolexec 'cmd args'
-		a program to use to invoke toolchain programs like 5a, 5g, and 5l.
-		For example, instead of running 5g, the go command will run
-		'cmd args /path/to/5g <arguments for 5g>'.
+		a program to use to invoke toolchain programs like vet and asm.
+		For example, instead of running asm, the go command will run
+		'cmd args /path/to/asm <arguments for asm>'.
 
 The list flags accept a space-separated list of strings. To embed spaces
 in an element in the list, surround it with either single or double quotes.
 
 For more about specifying packages, see 'go help packages'.
 For more about where packages and binaries are installed,
-run 'go help gopath'.  For more about calling between Go and C/C++,
-run 'go help c'.
+run 'go help gopath'.
+For more about calling between Go and C/C++, run 'go help c'.
+
+Note: Build adheres to certain conventions such as those described
+by 'go help gopath'. Not all projects can follow these conventions,
+however. Installations that have their own conventions or that use
+a separate software build system may choose to use lower-level
+invocations such as 'go tool compile' and 'go tool link' to avoid
+some of the overheads and design decisions of the build tool.
 
 See also: go install, go get, go clean.
 
@@ -192,8 +204,8 @@ Usage:
 
 Doc prints the documentation comments associated with the item identified by its
 arguments (a package, const, func, type, var, or method) followed by a one-line
-summary of each of the first-level items "under" that item (package-level declarations
-for a package, methods for a type, etc.).
+summary of each of the first-level items "under" that item (package-level
+declarations for a package, methods for a type, etc.).
 
 Doc accepts zero, one, or two arguments.
 
@@ -202,27 +214,30 @@ Given no arguments, that is, when run as
 	go doc
 
 it prints the package documentation for the package in the current directory.
+If the package is a command (package main), the exported symbols of the package
+are elided from the presentation unless the -cmd flag is provided.
 
-When run with one argument, the argument is treated as a Go-syntax-like representation
-of the item to be documented. What the argument selects depends on what is installed
-in GOROOT and GOPATH, as well as the form of the argument, which is schematically
-one of these:
+When run with one argument, the argument is treated as a Go-syntax-like
+representation of the item to be documented. What the argument selects depends
+on what is installed in GOROOT and GOPATH, as well as the form of the argument,
+which is schematically one of these:
 
 	go doc <pkg>
 	go doc <sym>[.<method>]
 	go doc [<pkg>].<sym>[.<method>]
 
-The first item in this list matched by the argument is the one whose documentation
-is printed. (See the examples below.) For packages, the order of scanning is
-determined lexically, but the GOROOT tree is always scanned before GOPATH.
+The first item in this list matched by the argument is the one whose
+documentation is printed. (See the examples below.) For packages, the order of
+scanning is determined lexically, but the GOROOT tree is always scanned before
+GOPATH.
 
-If there is no package specified or matched, the package in the current directory
-is selected, so "go doc Foo" shows the documentation for symbol Foo in the current
-package.
+If there is no package specified or matched, the package in the current
+directory is selected, so "go doc Foo" shows the documentation for symbol Foo in
+the current package.
 
-The package path must be either a qualified path or a proper suffix of a path. The
-go tool's usual package mechanism does not apply: package path elements like . and
-... are not implemented by go doc.
+The package path must be either a qualified path or a proper suffix of a
+path. The go tool's usual package mechanism does not apply: package path
+elements like . and ... are not implemented by go doc.
 
 When run with two arguments, the first must be a full package path (not just a
 suffix), and the second is a symbol or symbol and method; this is similar to the
@@ -240,7 +255,8 @@ Examples:
 		Show documentation for current package.
 	go doc Foo
 		Show documentation for Foo in the current package.
-		(Foo starts with a capital letter so it cannot match a package path.)
+		(Foo starts with a capital letter so it cannot match
+		a package path.)
 	go doc encoding/json
 		Show documentation for the encoding/json package.
 	go doc json
@@ -249,6 +265,10 @@ Examples:
 		Show documentation and method summary for json.Number.
 	go doc json.Number.Int64 (or go doc json.number.int64)
 		Show documentation for json.Number's Int64 method.
+	go doc cmd/doc
+		Show package docs for the doc command.
+	go doc -cmd cmd/doc
+		Show package docs and exported symbols within the doc command.
 	go doc template.new
 		Show documentation for html/template's New function.
 		(html/template is lexically before text/template)
@@ -260,6 +280,10 @@ Examples:
 Flags:
 	-c
 		Respect case when matching symbols.
+	-cmd
+		Treat a command (package main) like a regular package.
+		Otherwise package main's exported symbols are hidden
+		when showing the package's top-level documentation.
 	-u
 		Show documentation for unexported as well as exported
 		symbols and methods.
@@ -458,6 +482,10 @@ rule is that if the local installation is running version "go1", get
 searches for a branch or tag named "go1". If no such version exists it
 retrieves the most recent version of the package.
 
+If the vendoring experiment is enabled (see 'go help gopath'),
+then when go get checks out or updates a Git repository,
+it also updates any git submodules referenced by the repository.
+
 For more about specifying packages, see 'go help packages'.
 
 For more about how 'go get' finds source code to
@@ -595,7 +623,8 @@ Run compiles and runs the main package comprising the named Go source files.
 A Go source file is defined to be a file ending in a literal ".go" suffix.
 
 By default, 'go run' runs the compiled binary directly: 'a.out arguments...'.
-If the -exec flag is given, 'go run' invokes the binary using xprog: 'xprog a.out arguments...'.
+If the -exec flag is given, 'go run' invokes the binary using xprog:
+	'xprog a.out arguments...'.
 If the -exec flag is not given, GOOS or GOARCH is different from the system
 default, and a program named go_$GOOS_$GOARCH_exec can be found
 on the current search path, 'go run' invokes the binary using that program,
@@ -659,9 +688,8 @@ In addition to the build flags, the flags handled by 'go test' itself are:
 		Compile the test binary to the named file.
 		The test still runs (unless -c or -i is specified).
 
-
 The test binary also accepts flags that control execution of the test; these
-flags are also accessible by 'go test'.  See 'go help testflag' for details.
+flags are also accessible by 'go test'. See 'go help testflag' for details.
 
 If the test binary needs any other flags, they should be presented after the
 package names. The go tool treats as a flag the first argument that begins with
@@ -785,10 +813,9 @@ the extension of the file name. These extensions are:
 		Go source files.
 	.c, .h
 		C source files.
-		If the package uses cgo, these will be compiled with the
-		OS-native compiler (typically gcc); otherwise they will be
-		compiled with the Go-specific support compiler,
-		5c, 6c, or 8c, etc. as appropriate.
+		If the package uses cgo or SWIG, these will be compiled with the
+		OS-native compiler (typically gcc); otherwise they will
+		trigger an error.
 	.cc, .cpp, .cxx, .hh, .hpp, .hxx
 		C++ source files. Only useful with cgo or SWIG, and always
 		compiled with the OS-native compiler.
@@ -797,10 +824,9 @@ the extension of the file name. These extensions are:
 		compiled with the OS-native compiler.
 	.s, .S
 		Assembler source files.
-		If the package uses cgo, these will be assembled with the
+		If the package uses cgo or SWIG, these will be assembled with the
 		OS-native assembler (typically gcc (sic)); otherwise they
-		will be assembled with the Go-specific support assembler,
-		5a, 6a, or 8a, etc., as appropriate.
+		will be assembled with the Go assembler.
 	.swig, .swigcxx
 		SWIG definition files.
 	.syso
@@ -827,10 +853,10 @@ standard Go tree.
 
 Each directory listed in GOPATH must have a prescribed structure:
 
-The src/ directory holds source code.  The path below 'src'
+The src directory holds source code.  The path below src
 determines the import path or executable name.
 
-The pkg/ directory holds installed package objects.
+The pkg directory holds installed package objects.
 As in the Go tree, each target operating system and
 architecture pair has its own subdirectory of pkg
 (pkg/GOOS_GOARCH).
@@ -839,11 +865,11 @@ If DIR is a directory listed in the GOPATH, a package with
 source in DIR/src/foo/bar can be imported as "foo/bar" and
 has its compiled form installed to "DIR/pkg/GOOS_GOARCH/foo/bar.a".
 
-The bin/ directory holds compiled commands.
+The bin directory holds compiled commands.
 Each command is named for its source directory, but only
 the final element, not the entire path.  That is, the
 command with source in DIR/src/foo/quux is installed into
-DIR/bin/quux, not DIR/bin/foo/quux.  The foo/ is stripped
+DIR/bin/quux, not DIR/bin/foo/quux.  The "foo/" prefix is stripped
 so that you can add DIR/bin to your PATH to get at the
 installed commands.  If the GOBIN environment variable is
 set, commands are installed to the directory it names instead
@@ -872,6 +898,162 @@ but new packages are always downloaded into the first directory
 in the list.
 
 See https://golang.org/doc/code.html for an example.
+
+Internal Directories
+
+Code in or below a directory named "internal" is importable only
+by code in the directory tree rooted at the parent of "internal".
+Here's an extended version of the directory layout above:
+
+    /home/user/gocode/
+        src/
+            crash/
+                bang/              (go code in package bang)
+                    b.go
+            foo/                   (go code in package foo)
+                f.go
+                bar/               (go code in package bar)
+                    x.go
+                internal/
+                    baz/           (go code in package baz)
+                        z.go
+                quux/              (go code in package main)
+                    y.go
+
+
+The code in z.go is imported as "foo/internal/baz", but that
+import statement can only appear in source files in the subtree
+rooted at foo. The source files foo/f.go, foo/bar/x.go, and
+foo/quux/y.go can all import "foo/internal/baz", but the source file
+crash/bang/b.go cannot.
+
+See https://golang.org/s/go14internal for details.
+
+Vendor Directories
+
+Go 1.5 includes experimental support for using local copies
+of external dependencies to satisfy imports of those dependencies,
+often referred to as vendoring. Setting the environment variable
+GO15VENDOREXPERIMENT=1 enables that experimental support.
+
+When the vendor experiment is enabled,
+code below a directory named "vendor" is importable only
+by code in the directory tree rooted at the parent of "vendor",
+and only using an import path that omits the prefix up to and
+including the vendor element.
+
+Here's the example from the previous section,
+but with the "internal" directory renamed to "vendor"
+and a new foo/vendor/crash/bang directory added:
+
+    /home/user/gocode/
+        src/
+            crash/
+                bang/              (go code in package bang)
+                    b.go
+            foo/                   (go code in package foo)
+                f.go
+                bar/               (go code in package bar)
+                    x.go
+                vendor/
+                    crash/
+                        bang/      (go code in package bang)
+                            b.go
+                    baz/           (go code in package baz)
+                        z.go
+                quux/              (go code in package main)
+                    y.go
+
+The same visibility rules apply as for internal, but the code
+in z.go is imported as "baz", not as "foo/vendor/baz".
+
+Code in vendor directories deeper in the source tree shadows
+code in higher directories. Within the subtree rooted at foo, an import
+of "crash/bang" resolves to "foo/vendor/crash/bang", not the
+top-level "crash/bang".
+
+Code in vendor directories is not subject to import path
+checking (see 'go help importpath').
+
+When the vendor experiment is enabled, 'go get' checks out
+submodules when checking out or updating a git repository
+(see 'go help get').
+
+The vendoring semantics are an experiment, and they may change
+in future releases. Once settled, they will be on by default.
+
+See https://golang.org/s/go15vendor for details.
+
+
+Environment variables
+
+The go command, and the tools it invokes, examine a few different
+environment variables. For many of these, you can see the default
+value of on your system by running 'go env NAME', where NAME is the
+name of the variable.
+
+General-purpose environment variables:
+
+	GCCGO
+		The gccgo command to run for 'go build -compiler=gccgo'.
+	GOARCH
+		The architecture, or processor, for which to compile code.
+		Examples are amd64, 386, arm, ppc64.
+	GOBIN
+		The directory where 'go install' will install a command.
+	GOOS
+		The operating system for which to compile code.
+		Examples are linux, darwin, windows, netbsd.
+	GOPATH
+		See 'go help gopath'.
+	GORACE
+		Options for the race detector.
+		See https://golang.org/doc/articles/race_detector.html.
+	GOROOT
+		The root of the go tree.
+
+Environment variables for use with cgo:
+
+	CC
+		The command to use to compile C code.
+	CGO_ENABLED
+		Whether the cgo command is supported.  Either 0 or 1.
+	CGO_CFLAGS
+		Flags that cgo will pass to the compiler when compiling
+		C code.
+	CGO_CPPFLAGS
+		Flags that cgo will pass to the compiler when compiling
+		C or C++ code.
+	CGO_CXXFLAGS
+		Flags that cgo will pass to the compiler when compiling
+		C++ code.
+	CGO_LDFLAGS
+		Flags that cgo will pass to the compiler when linking.
+	CXX
+		The command to use to compile C++ code.
+
+Architecture-specific environment variables:
+
+	GOARM
+		For GOARCH=arm, the ARM architecture for which to compile.
+		Valid values are 5, 6, 7.
+	GO386
+		For GOARCH=386, the floating point instruction set.
+		Valid values are 387, sse2.
+
+Special-purpose environment variables:
+
+	GOROOT_FINAL
+		The root of the installed Go tree, when it is
+		installed in a location other than where it is built.
+		File names in stack traces are rewritten from GOROOT to
+		GOROOT_FINAL.
+	GO15VENDOREXPERIMENT
+		Set to 1 to enable the Go 1.5 vendoring experiment.
+	GO_EXTLINK_ENABLED
+		Whether the linker should use external linking mode
+		when using -linkmode=auto with code that uses cgo.
+		Set to 0 to disable external linking mode, 1 to enable it.
 
 
 Import path syntax
@@ -977,7 +1159,7 @@ example.org/repo or repo.git.
 
 When a version control system supports multiple protocols,
 each is tried in turn when downloading.  For example, a Git
-download tries git://, then https://, then http://.
+download tries https://, then git+ssh://.
 
 If the import path is not a known code hosting site and also lacks a
 version control qualifier, the go tool attempts to fetch the import
@@ -993,6 +1175,10 @@ root. It must be a prefix or an exact match of the package being
 fetched with "go get". If it's not an exact match, another http
 request is made at the prefix to verify the <meta> tags match.
 
+The meta tag should appear as early in the file as possible.
+In particular, it should appear before any raw JavaScript or CSS,
+to avoid confusing the go command's restricted parser.
+
 The vcs is one of "git", "hg", "svn", etc,
 
 The repo-root is the root of the version control system
@@ -1002,10 +1188,10 @@ For example,
 
 	import "example.org/pkg/foo"
 
-will result in the following request(s):
+will result in the following requests:
 
 	https://example.org/pkg/foo?go-get=1 (preferred)
-	http://example.org/pkg/foo?go-get=1  (fallback)
+	http://example.org/pkg/foo?go-get=1  (fallback, only with -insecure)
 
 If that page contains the meta tag
 
@@ -1038,6 +1224,11 @@ The go command will refuse to install a package with an import comment
 unless it is being referred to by that import path. In this way, import comments
 let package authors make sure the custom import path is used and not a
 direct path to the underlying code hosting site.
+
+If the vendoring experiment is enabled (see 'go help gopath'),
+then import path checking is disabled for code found within vendor trees.
+This makes it possible to copy code into alternate locations in vendor trees
+without needing to update import comments.
 
 See https://golang.org/s/go14customimport for details.
 

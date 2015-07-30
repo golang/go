@@ -70,14 +70,11 @@ TEXT runtime·write(SB),NOSPLIT,$-4
 
 TEXT runtime·usleep(SB),NOSPLIT,$16
 	MOVW	usec+0(FP), R0
-	MOVW	R0, R2
-	MOVW	$1000000, R1
-	DIV	R1, R0
+	CALL	runtime·usplitR0(SB)
 	MOVW	R0, 4(R13)		// tv_sec - l32
 	MOVW	$0, R0
 	MOVW	R0, 8(R13)		// tv_sec - h32
-	MOD	R1, R2
-	MOVW	$1000, R1
+	MOVW	$1000, R2
 	MUL	R1, R2
 	MOVW	R2, 12(R13)		// tv_nsec
 
@@ -90,6 +87,15 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 TEXT runtime·raise(SB),NOSPLIT,$12
 	MOVW	$0x12B, R12
 	SWI	$0			// sys_getthrid
+					// arg 1 - pid, already in R0
+	MOVW	sig+0(FP), R1		// arg 2 - signum
+	MOVW	$37, R12		// sys_kill
+	SWI	$0
+	RET
+
+TEXT runtime·raiseproc(SB),NOSPLIT,$12
+	MOVW	$20, R12
+	SWI	$0			// sys_getpid
 					// arg 1 - pid, already in R0
 	MOVW	sig+0(FP), R1		// arg 2 - signum
 	MOVW	$37, R12		// sys_kill

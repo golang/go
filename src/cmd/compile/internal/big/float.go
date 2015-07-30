@@ -1406,7 +1406,7 @@ func (x *Float) ucmp(y *Float) int {
 // sum (or difference) shall be −0. However, x+x = x−(−x) retains the same
 // sign as x even when x is zero.
 //
-// See also: http://play.golang.org/p/RtH3UCt5IH
+// See also: https://play.golang.org/p/RtH3UCt5IH
 
 // Add sets z to the rounded sum x+y and returns z. If z's precision is 0,
 // it is changed to the larger of x's or y's precision before the operation.

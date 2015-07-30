@@ -86,6 +86,17 @@ TEXT runtime·raise(SB),NOSPLIT,$12
 	INT	$0x80
 	RET
 
+TEXT runtime·raiseproc(SB),NOSPLIT,$12
+	MOVL	$20, AX			// sys_getpid
+	INT	$0x80
+	MOVL	$0, 0(SP)
+	MOVL	AX, 4(SP)		// arg 1 - pid
+	MOVL	sig+0(FP), AX
+	MOVL	AX, 8(SP)		// arg 2 - signo
+	MOVL	$37, AX			// sys_kill
+	INT	$0x80
+	RET
+
 TEXT runtime·mmap(SB),NOSPLIT,$36
 	LEAL	addr+0(FP), SI
 	LEAL	4(SP), DI

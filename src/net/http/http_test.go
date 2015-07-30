@@ -39,3 +39,20 @@ func TestForeachHeaderElement(t *testing.T) {
 		}
 	}
 }
+
+func TestCleanHost(t *testing.T) {
+	tests := []struct {
+		in, want string
+	}{
+		{"www.google.com", "www.google.com"},
+		{"www.google.com foo", "www.google.com"},
+		{"www.google.com/foo", "www.google.com"},
+		{" first character is a space", ""},
+	}
+	for _, tt := range tests {
+		got := cleanHost(tt.in)
+		if tt.want != got {
+			t.Errorf("cleanHost(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}

@@ -33,3 +33,6 @@ func rewindmorestack(buf *gobuf) {
 	print("runtime: pc=", hex(buf.pc), " ", hex(inst), "\n")
 	throw("runtime: misuse of rewindmorestack")
 }
+
+// for testing
+func usplit(x uint32) (q, r uint32)

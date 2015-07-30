@@ -1,3 +1,7 @@
+// Copyright 2015 The Go Authors.  All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // This input was created by taking the instruction productions in
 // the old assembler's (7a's) grammar and hand-writing complete
 // instructions for each rule, to guarantee we cover the same space.
@@ -245,6 +249,13 @@ again:
 //		outcode($1, &nullgen, NREG, &nullgen);
 //	}
 	RET
+
+// More B/BL cases, and canonical names JMP, CALL.
+
+	B	foo(SB)
+	BL	foo(SB)
+	JMP	foo(SB)
+	CALL	foo(SB)
 
 // END
 //

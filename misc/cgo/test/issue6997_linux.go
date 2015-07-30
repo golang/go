@@ -4,7 +4,7 @@
 
 // Test that pthread_cancel works as expected
 // (NPTL uses SIGRTMIN to implement thread cancellation)
-// See http://golang.org/issue/6997
+// See https://golang.org/issue/6997
 package cgotest
 
 /*

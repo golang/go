@@ -1182,7 +1182,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 				// (not a constant) even if the string and the
 				// index are constant
 				x.mode = value
-				x.typ = UniverseByte // use 'byte' name
+				x.typ = universeByte // use 'byte' name
 			}
 
 		case *Array:

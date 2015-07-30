@@ -60,7 +60,7 @@ type ResponseWriter interface {
 	// WriteHeader. Changing the header after a call to
 	// WriteHeader (or Write) has no effect unless the modified
 	// headers were declared as trailers by setting the
-	// "Trailer" header before the call to WriteHeader.
+	// "Trailer" header before the call to WriteHeader (see example).
 	// To suppress implicit response headers, set their value to nil.
 	Header() Header
 
@@ -554,6 +554,7 @@ type expectContinueReader struct {
 	resp       *response
 	readCloser io.ReadCloser
 	closed     bool
+	sawEOF     bool
 }
 
 func (ecr *expectContinueReader) Read(p []byte) (n int, err error) {
@@ -565,7 +566,11 @@ func (ecr *expectContinueReader) Read(p []byte) (n int, err error) {
 		ecr.resp.conn.buf.WriteString("HTTP/1.1 100 Continue\r\n\r\n")
 		ecr.resp.conn.buf.Flush()
 	}
-	return ecr.readCloser.Read(p)
+	n, err = ecr.readCloser.Read(p)
+	if err == io.EOF {
+		ecr.sawEOF = true
+	}
+	return
 }
 
 func (ecr *expectContinueReader) Close() error {
@@ -846,6 +851,22 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		w.closeAfterReply = true
 	}
 
+	// If the client wanted a 100-continue but we never sent it to
+	// them (or, more strictly: we never finished reading their
+	// request body), don't reuse this connection because it's now
+	// in an unknown state: we might be sending this response at
+	// the same time the client is now sending its request body
+	// after a timeout.  (Some HTTP clients send Expect:
+	// 100-continue but knowing that some servers don't support
+	// it, the clients set a timer and send the body later anyway)
+	// If we haven't seen EOF, we can't skip over the unread body
+	// because we don't know if the next bytes on the wire will be
+	// the body-following-the-timer or the subsequent request.
+	// See Issue 11549.
+	if ecr, ok := w.req.Body.(*expectContinueReader); ok && !ecr.sawEOF {
+		w.closeAfterReply = true
+	}
+
 	// Per RFC 2616, we should consume the request body before
 	// replying, if the handler hasn't already done so.  But we
 	// don't want to do an unbounded amount of reading here for
@@ -853,8 +874,14 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	if w.req.ContentLength != 0 && !w.closeAfterReply {
 		ecr, isExpecter := w.req.Body.(*expectContinueReader)
 		if !isExpecter || ecr.resp.wroteContinue {
-			n, _ := io.CopyN(ioutil.Discard, w.req.Body, maxPostHandlerReadBytes+1)
-			if n >= maxPostHandlerReadBytes {
+			var tooBig bool
+			if reqBody, ok := w.req.Body.(*body); ok && reqBody.unreadDataSize() >= maxPostHandlerReadBytes {
+				tooBig = true
+			} else {
+				n, _ := io.CopyN(ioutil.Discard, w.req.Body, maxPostHandlerReadBytes+1)
+				tooBig = n >= maxPostHandlerReadBytes
+			}
+			if tooBig {
 				w.requestTooLarge()
 				delHeader("Connection")
 				setHeader.connection = "close"
@@ -1123,11 +1150,16 @@ func (w *response) shouldReuseConnection() bool {
 		return false
 	}
 
-	if body, ok := w.req.Body.(*body); ok && body.didEarlyClose() {
+	if w.closedRequestBodyEarly() {
 		return false
 	}
 
 	return true
+}
+
+func (w *response) closedRequestBodyEarly() bool {
+	body, ok := w.req.Body.(*body)
+	return ok && body.didEarlyClose()
 }
 
 func (w *response) Flush() {
@@ -1183,7 +1215,7 @@ var _ closeWriter = (*net.TCPConn)(nil)
 // pause for a bit, hoping the client processes it before any
 // subsequent RST.
 //
-// See http://golang.org/issue/3595
+// See https://golang.org/issue/3595
 func (c *conn) closeWriteAndWait() {
 	c.finalFlush()
 	if tcp, ok := c.rwc.(closeWriter); ok {
@@ -1297,7 +1329,7 @@ func (c *conn) serve() {
 		}
 		w.finishRequest()
 		if !w.shouldReuseConnection() {
-			if w.requestBodyLimitHit {
+			if w.requestBodyLimitHit || w.closedRequestBodyEarly() {
 				c.closeWriteAndWait()
 			}
 			break

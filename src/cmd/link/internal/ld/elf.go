@@ -1668,7 +1668,7 @@ func doelf() {
 	// generate .tbss section (except for OpenBSD where it's not supported)
 	// for dynamic internal linker or external linking, so that various
 	// binutils could correctly calculate PT_TLS size.
-	// see http://golang.org/issue/5200.
+	// see https://golang.org/issue/5200.
 	if HEADTYPE != obj.Hopenbsd {
 		if Debug['d'] == 0 || Linkmode == LinkExternal {
 			Addstring(shstrtab, ".tbss")

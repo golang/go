@@ -51,6 +51,10 @@ rule is that if the local installation is running version "go1", get
 searches for a branch or tag named "go1". If no such version exists it
 retrieves the most recent version of the package.
 
+If the vendoring experiment is enabled (see 'go help gopath'),
+then when go get checks out or updates a Git repository,
+it also updates any git submodules referenced by the repository.
+
 For more about specifying packages, see 'go help packages'.
 
 For more about how 'go get' finds source code to
@@ -77,10 +81,20 @@ func runGet(cmd *Command, args []string) {
 		fatalf("go get: cannot use -f flag without -u")
 	}
 
+	// Disable any prompting for passwords by Git.
+	// Only has an effect for 2.3.0 or later, but avoiding
+	// the prompt in earlier versions is just too hard.
+	// See golang.org/issue/9341.
+	os.Setenv("GIT_TERMINAL_PROMPT", "0")
+
 	// Phase 1.  Download/update.
 	var stk importStack
+	mode := 0
+	if *getT {
+		mode |= getTestDeps
+	}
 	for _, arg := range downloadPaths(args) {
-		download(arg, &stk, *getT)
+		download(arg, nil, &stk, mode)
 	}
 	exitIfErrors()
 
@@ -96,12 +110,13 @@ func runGet(cmd *Command, args []string) {
 	}
 
 	args = importPaths(args)
+	packagesForBuild(args)
 
 	// Phase 3.  Install.
 	if *getD {
 		// Download only.
 		// Check delayed until now so that importPaths
-		// has a chance to print errors.
+		// and packagesForBuild have a chance to print errors.
 		return
 	}
 
@@ -152,8 +167,15 @@ var downloadRootCache = map[string]bool{}
 
 // download runs the download half of the get command
 // for the package named by the argument.
-func download(arg string, stk *importStack, getTestDeps bool) {
-	p := loadPackage(arg, stk)
+func download(arg string, parent *Package, stk *importStack, mode int) {
+	load := func(path string, mode int) *Package {
+		if parent == nil {
+			return loadPackage(path, stk)
+		}
+		return loadImport(path, parent.Dir, parent, stk, nil, mode)
+	}
+
+	p := load(arg, mode)
 	if p.Error != nil && p.Error.hard {
 		errorf("%s", p.Error)
 		return
@@ -177,7 +199,7 @@ func download(arg string, stk *importStack, getTestDeps bool) {
 	// Only process each package once.
 	// (Unless we're fetching test dependencies for this package,
 	// in which case we want to process it again.)
-	if downloadCache[arg] && !getTestDeps {
+	if downloadCache[arg] && mode&getTestDeps == 0 {
 		return
 	}
 	downloadCache[arg] = true
@@ -186,16 +208,30 @@ func download(arg string, stk *importStack, getTestDeps bool) {
 	wildcardOkay := len(*stk) == 0
 	isWildcard := false
 
+	// Note: Do not stk.push(arg) and defer stk.pop() here.
+	// The push/pop below are using updated values of arg in some cases.
+
 	// Download if the package is missing, or update if we're using -u.
 	if p.Dir == "" || *getU {
 		// The actual download.
-		stk.push(p.ImportPath)
+		stk.push(arg)
 		err := downloadPackage(p)
 		if err != nil {
 			errorf("%s", &PackageError{ImportStack: stk.copy(), Err: err.Error()})
 			stk.pop()
 			return
 		}
+
+		// Warn that code.google.com is shutting down.  We
+		// issue the warning here because this is where we
+		// have the import stack.
+		if strings.HasPrefix(p.ImportPath, "code.google.com") {
+			fmt.Fprintf(os.Stderr, "warning: code.google.com is shutting down; import path %v will stop working\n", p.ImportPath)
+			if len(*stk) > 1 {
+				fmt.Fprintf(os.Stderr, "warning: package %v\n", strings.Join(*stk, "\n\timports "))
+			}
+		}
+		stk.pop()
 
 		args := []string{arg}
 		// If the argument has a wildcard in it, re-evaluate the wildcard.
@@ -223,7 +259,7 @@ func download(arg string, stk *importStack, getTestDeps bool) {
 		pkgs = pkgs[:0]
 		for _, arg := range args {
 			stk.push(arg)
-			p := loadPackage(arg, stk)
+			p := load(arg, mode)
 			stk.pop()
 			if p.Error != nil {
 				errorf("%s", p.Error)
@@ -254,18 +290,31 @@ func download(arg string, stk *importStack, getTestDeps bool) {
 		}
 
 		// Process dependencies, now that we know what they are.
-		for _, dep := range p.deps {
+		for _, path := range p.Imports {
+			if path == "C" {
+				continue
+			}
 			// Don't get test dependencies recursively.
-			download(dep.ImportPath, stk, false)
+			// Imports is already vendor-expanded.
+			download(path, p, stk, 0)
 		}
-		if getTestDeps {
+		if mode&getTestDeps != 0 {
 			// Process test dependencies when -t is specified.
 			// (Don't get test dependencies for test dependencies.)
+			// We pass useVendor here because p.load does not
+			// vendor-expand TestImports and XTestImports.
+			// The call to loadImport inside download needs to do that.
 			for _, path := range p.TestImports {
-				download(path, stk, false)
+				if path == "C" {
+					continue
+				}
+				download(path, p, stk, useVendor)
 			}
 			for _, path := range p.XTestImports {
-				download(path, stk, false)
+				if path == "C" {
+					continue
+				}
+				download(path, p, stk, useVendor)
 			}
 		}
 

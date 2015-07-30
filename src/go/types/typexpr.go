@@ -151,7 +151,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 
 	if recvPar != nil {
 		// recv parameter list present (may be empty)
-		// spec: "The receiver is specified via an extra parameter section preceeding the
+		// spec: "The receiver is specified via an extra parameter section preceding the
 		// method name. That parameter section must declare a single parameter, the receiver."
 		var recv *Var
 		switch len(recvList) {

@@ -46,6 +46,7 @@ var isSecureScheme = map[string]bool{
 	"git+ssh": true,
 	"bzr+ssh": true,
 	"svn+ssh": true,
+	"ssh":     true,
 }
 
 func (v *vcsCmd) isSecure(repo string) bool {
@@ -139,10 +140,14 @@ var vcsGit = &vcsCmd{
 	// See golang.org/issue/9032.
 	tagSyncDefault: []string{"checkout master", "submodule update --init --recursive"},
 
-	scheme:     []string{"git", "https", "http", "git+ssh"},
+	scheme:     []string{"git", "https", "http", "git+ssh", "ssh"},
 	pingCmd:    "ls-remote {scheme}://{repo}",
 	remoteRepo: gitRemoteRepo,
 }
+
+// scpSyntaxRe matches the SCP-like addresses used by Git to access
+// repositories by SSH.
+var scpSyntaxRe = regexp.MustCompile(`^([a-zA-Z0-9_]+)@([a-zA-Z0-9._-]+):(.*)$`)
 
 func gitRemoteRepo(vcsGit *vcsCmd, rootDir string) (remoteRepo string, err error) {
 	cmd := "config remote.origin.url"
@@ -157,9 +162,24 @@ func gitRemoteRepo(vcsGit *vcsCmd, rootDir string) (remoteRepo string, err error
 		}
 		return "", err
 	}
-	repoURL, err := url.Parse(strings.TrimSpace(string(outb)))
-	if err != nil {
-		return "", err
+	out := strings.TrimSpace(string(outb))
+
+	var repoURL *url.URL
+	if m := scpSyntaxRe.FindStringSubmatch(out); m != nil {
+		// Match SCP-like syntax and convert it to a URL.
+		// Eg, "git@github.com:user/repo" becomes
+		// "ssh://git@github.com/user/repo".
+		repoURL = &url.URL{
+			Scheme:  "ssh",
+			User:    url.User(m[1]),
+			Host:    m[2],
+			RawPath: m[3],
+		}
+	} else {
+		repoURL, err = url.Parse(out)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	// Iterate over insecure schemes too, because this function simply
@@ -317,7 +337,7 @@ func (v *vcsCmd) run1(dir string, cmdline string, keyval []string, verbose bool)
 	_, err := exec.LookPath(v.cmd)
 	if err != nil {
 		fmt.Fprintf(os.Stderr,
-			"go: missing %s command. See http://golang.org/s/gogetcmd\n",
+			"go: missing %s command. See https://golang.org/s/gogetcmd\n",
 			v.name)
 		return nil, err
 	}
@@ -537,7 +557,7 @@ const (
 // repoRootForImportPath analyzes importPath to determine the
 // version control system, and code repository to use.
 func repoRootForImportPath(importPath string, security securityMode) (*repoRoot, error) {
-	rr, err := repoRootForImportPathStatic(importPath, "", security)
+	rr, err := repoRootFromVCSPaths(importPath, "", security, vcsPaths)
 	if err == errUnknownSite {
 		// If there are wildcards, look up the thing before the wildcard,
 		// hoping it applies to the wildcarded parts too.
@@ -559,6 +579,13 @@ func repoRootForImportPath(importPath string, security securityMode) (*repoRoot,
 			err = fmt.Errorf("unrecognized import path %q", importPath)
 		}
 	}
+	if err != nil {
+		rr1, err1 := repoRootFromVCSPaths(importPath, "", security, vcsPathsAfterDynamic)
+		if err1 == nil {
+			rr = rr1
+			err = nil
+		}
+	}
 
 	if err == nil && strings.Contains(importPath, "...") && strings.Contains(rr.root, "...") {
 		// Do not allow wildcards in the repo root.
@@ -570,13 +597,10 @@ func repoRootForImportPath(importPath string, security securityMode) (*repoRoot,
 
 var errUnknownSite = errors.New("dynamic lookup required to find mapping")
 
-// repoRootForImportPathStatic attempts to map importPath to a
-// repoRoot using the commonly-used VCS hosting sites in vcsPaths
-// (github.com/user/dir), or from a fully-qualified importPath already
-// containing its VCS type (foo.com/repo.git/dir)
-//
+// repoRootFromVCSPaths attempts to map importPath to a repoRoot
+// using the mappings defined in vcsPaths.
 // If scheme is non-empty, that scheme is forced.
-func repoRootForImportPathStatic(importPath, scheme string, security securityMode) (*repoRoot, error) {
+func repoRootFromVCSPaths(importPath, scheme string, security securityMode, vcsPaths []*vcsPath) (*repoRoot, error) {
 	// A common error is to use https://packagepath because that's what
 	// hg and git require. Diagnose this helpfully.
 	if loc := httpPrefixRE.FindStringIndex(importPath); loc != nil {
@@ -649,11 +673,11 @@ func repoRootForImportPathStatic(importPath, scheme string, security securityMod
 // repoRootForImportDynamic finds a *repoRoot for a custom domain that's not
 // statically known by repoRootForImportPathStatic.
 //
-// This handles custom import paths like "name.tld/pkg/foo".
+// This handles custom import paths like "name.tld/pkg/foo" or just "name.tld".
 func repoRootForImportDynamic(importPath string, security securityMode) (*repoRoot, error) {
 	slash := strings.Index(importPath, "/")
 	if slash < 0 {
-		return nil, errors.New("import path does not contain a slash")
+		slash = len(importPath)
 	}
 	host := importPath[:slash]
 	if !strings.Contains(host, ".") {
@@ -811,7 +835,10 @@ func expand(match map[string]string, s string) string {
 	return s
 }
 
-// vcsPaths lists the known vcs paths.
+// vcsPaths defines the meaning of import paths referring to
+// commonly-used VCS hosting sites (github.com/user/dir)
+// and import paths referring to a fully-qualified importPath
+// containing a VCS type (foo.com/repo.git/dir)
 var vcsPaths = []*vcsPath{
 	// Google Code - new syntax
 	{
@@ -844,15 +871,6 @@ var vcsPaths = []*vcsPath{
 		check:  bitbucketVCS,
 	},
 
-	// Launchpad
-	{
-		prefix: "launchpad.net/",
-		re:     `^(?P<root>launchpad\.net/((?P<project>[A-Za-z0-9_.\-]+)(?P<series>/[A-Za-z0-9_.\-]+)?|~[A-Za-z0-9_.\-]+/(\+junk|[A-Za-z0-9_.\-]+)/[A-Za-z0-9_.\-]+))(/[A-Za-z0-9_.\-]+)*$`,
-		vcs:    "bzr",
-		repo:   "https://{root}",
-		check:  launchpadVCS,
-	},
-
 	// IBM DevOps Services (JazzHub)
 	{
 		prefix: "hub.jazz.net/git",
@@ -862,10 +880,34 @@ var vcsPaths = []*vcsPath{
 		check:  noVCSSuffix,
 	},
 
+	// Git at Apache
+	{
+		prefix: "git.apache.org",
+		re:     `^(?P<root>git.apache.org/[a-z0-9_.\-]+\.git)(/[A-Za-z0-9_.\-]+)*$`,
+		vcs:    "git",
+		repo:   "https://{root}",
+	},
+
 	// General syntax for any server.
+	// Must be last.
 	{
 		re:   `^(?P<root>(?P<repo>([a-z0-9.\-]+\.)+[a-z0-9.\-]+(:[0-9]+)?/[A-Za-z0-9_.\-/]*?)\.(?P<vcs>bzr|git|hg|svn))(/[A-Za-z0-9_.\-]+)*$`,
 		ping: true,
+	},
+}
+
+// vcsPathsAfterDynamic gives additional vcsPaths entries
+// to try after the dynamic HTML check.
+// This gives those sites a chance to introduce <meta> tags
+// as part of a graceful transition away from the hard-coded logic.
+var vcsPathsAfterDynamic = []*vcsPath{
+	// Launchpad. See golang.org/issue/11436.
+	{
+		prefix: "launchpad.net/",
+		re:     `^(?P<root>launchpad\.net/((?P<project>[A-Za-z0-9_.\-]+)(?P<series>/[A-Za-z0-9_.\-]+)?|~[A-Za-z0-9_.\-]+/(\+junk|[A-Za-z0-9_.\-]+)/[A-Za-z0-9_.\-]+))(/[A-Za-z0-9_.\-]+)*$`,
+		vcs:    "bzr",
+		repo:   "https://{root}",
+		check:  launchpadVCS,
 	},
 }
 
@@ -874,6 +916,9 @@ func init() {
 	// Doing this eagerly discovers invalid regexp syntax
 	// without having to run a command that needs that regexp.
 	for _, srv := range vcsPaths {
+		srv.regexp = regexp.MustCompile(srv.re)
+	}
+	for _, srv := range vcsPathsAfterDynamic {
 		srv.regexp = regexp.MustCompile(srv.re)
 	}
 }

@@ -310,6 +310,9 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 		if err != nil && uint32(len(b)) < s.Size {
 			return nil, err
 		}
+		if 0 < s.VirtualSize && s.VirtualSize < s.Size {
+			b = b[:s.VirtualSize]
+		}
 		dat[i] = b
 	}
 

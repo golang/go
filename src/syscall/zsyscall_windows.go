@@ -240,7 +240,7 @@ func GetVersion() (ver uint32, err error) {
 	return
 }
 
-func FormatMessage(flags uint32, msgsrc uint32, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, err error) {
+func formatMessage(flags uint32, msgsrc uintptr, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, err error) {
 	var _p0 *uint16
 	if len(buf) > 0 {
 		_p0 = &buf[0]

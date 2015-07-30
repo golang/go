@@ -41,7 +41,7 @@ func answer(name, server string, dns *dnsMsg, qtype uint16) (cname string, addrs
 	addrs = make([]dnsRR, 0, len(dns.answer))
 
 	if dns.rcode == dnsRcodeNameError && dns.recursion_available {
-		return "", nil, &DNSError{Err: errNoSuchHost.Error(), Name: name}
+		return "", nil, &DNSError{Err: errNoSuchHost.Error(), Name: name, Server: server}
 	}
 	if dns.rcode != dnsRcodeSuccess {
 		// None of the error codes make sense

@@ -165,16 +165,18 @@ func (pr partReader) Read(d []byte) (n int, err error) {
 	if peek == nil {
 		panic("nil peek buf")
 	}
-
 	// Search the peek buffer for "\r\n--boundary". If found,
 	// consume everything up to the boundary. If not, consume only
 	// as much of the peek buffer as cannot hold the boundary
 	// string.
 	nCopy := 0
 	foundBoundary := false
-	if idx := bytes.Index(peek, p.mr.nlDashBoundary); idx != -1 {
+	if idx, isEnd := p.mr.peekBufferSeparatorIndex(peek); idx != -1 {
 		nCopy = idx
-		foundBoundary = true
+		foundBoundary = isEnd
+		if !isEnd && nCopy == 0 {
+			nCopy = 1 // make some progress.
+		}
 	} else if safeCount := len(peek) - len(p.mr.nlDashBoundary); safeCount > 0 {
 		nCopy = safeCount
 	} else if unexpectedEOF {
@@ -336,6 +338,33 @@ func (mr *Reader) peekBufferIsEmptyPart(peek []byte) bool {
 	rest := peek[len(mr.dashBoundary):]
 	rest = skipLWSPChar(rest)
 	return bytes.HasPrefix(rest, mr.nl)
+}
+
+// peekBufferSeparatorIndex returns the index of mr.nlDashBoundary in
+// peek and whether it is a real boundary (and not a prefix of an
+// unrelated separator). To be the end, the peek buffer must contain a
+// newline after the boundary.
+func (mr *Reader) peekBufferSeparatorIndex(peek []byte) (idx int, isEnd bool) {
+	idx = bytes.Index(peek, mr.nlDashBoundary)
+	if idx == -1 {
+		return
+	}
+	peek = peek[idx+len(mr.nlDashBoundary):]
+	if len(peek) > 1 && peek[0] == '-' && peek[1] == '-' {
+		return idx, true
+	}
+	peek = skipLWSPChar(peek)
+	// Don't have a complete line after the peek.
+	if bytes.IndexByte(peek, '\n') == -1 {
+		return -1, false
+	}
+	if len(peek) > 0 && peek[0] == '\n' {
+		return idx, true
+	}
+	if len(peek) > 1 && peek[0] == '\r' && peek[1] == '\n' {
+		return idx, true
+	}
+	return idx, false
 }
 
 // skipLWSPChar returns b with leading spaces and tabs removed.

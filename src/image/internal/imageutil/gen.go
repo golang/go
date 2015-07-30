@@ -95,9 +95,9 @@ const sratioCase = `
 			%s
 
 				// This is an inline version of image/color/ycbcr.go's func YCbCrToRGB.
-				yy1 := int(src.Y[yi])<<16 + 1<<15
-				cb1 := int(src.Cb[ci]) - 128
-				cr1 := int(src.Cr[ci]) - 128
+				yy1 := int32(src.Y[yi]) * 0x10100 // Convert 0x12 to 0x121200.
+				cb1 := int32(src.Cb[ci]) - 128
+				cr1 := int32(src.Cr[ci]) - 128
 				r := (yy1 + 91881*cr1) >> 16
 				g := (yy1 - 22554*cb1 - 46802*cr1) >> 16
 				b := (yy1 + 116130*cb1) >> 16

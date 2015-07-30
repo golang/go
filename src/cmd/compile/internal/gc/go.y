@@ -1390,6 +1390,7 @@ xfndcl:
 		$$.Nbody = $3;
 		$$.Func.Endlineno = lineno;
 		$$.Noescape = noescape;
+		$$.Func.Norace = norace;
 		$$.Func.Nosplit = nosplit;
 		$$.Func.Nowritebarrier = nowritebarrier;
 		$$.Func.Systemstack = systemstack;
@@ -1579,6 +1580,7 @@ xdcl_list:
 		}
 		nointerface = false
 		noescape = false
+		norace = false
 		nosplit = false
 		nowritebarrier = false
 		systemstack = false
@@ -1632,7 +1634,7 @@ structdcl:
 
 		var n *Node
 		l = $1;
-		if l == nil {
+		if l == nil || l.N.Sym.Name == "?" {
 			// ? symbol, during import (list1(nil) == nil)
 			n = $2;
 			if n.Op == OIND {

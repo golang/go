@@ -153,10 +153,18 @@ func (ww *gcWork) get() uintptr {
 }
 
 // dispose returns any cached pointers to the global queue.
+// The buffers are being put on the full queue so that the
+// write barriers will not simply reacquire them before the
+// GC can inspect them. This helps reduce the mutator's
+// ability to hide pointers during the concurrent mark phase.
+//
 //go:nowritebarrier
 func (w *gcWork) dispose() {
 	if wbuf := w.wbuf; wbuf != 0 {
-		putpartial(wbuf.ptr(), 167)
+		if wbuf.ptr().nobj == 0 {
+			throw("dispose: workbuf is empty")
+		}
+		putfull(wbuf.ptr(), 166)
 		w.wbuf = 0
 	}
 	if w.bytesMarked != 0 {

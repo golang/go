@@ -185,7 +185,7 @@ func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time) (*TCPConn, e
 	// see this happen, rather than expose the buggy effect to users, we
 	// close the fd and try again.  If it happens twice more, we relent and
 	// use the result.  See also:
-	//	http://golang.org/issue/2690
+	//	https://golang.org/issue/2690
 	//	http://stackoverflow.com/questions/4949858/
 	//
 	// The opposite can also happen: if we ask the kernel to pick an appropriate
@@ -230,8 +230,13 @@ func selfConnect(fd *netFD, err error) bool {
 }
 
 func spuriousENOTAVAIL(err error) bool {
-	e, ok := err.(*OpError)
-	return ok && e.Err == syscall.EADDRNOTAVAIL
+	if op, ok := err.(*OpError); ok {
+		err = op.Err
+	}
+	if sys, ok := err.(*os.SyscallError); ok {
+		err = sys.Err
+	}
+	return err == syscall.EADDRNOTAVAIL
 }
 
 // TCPListener is a TCP network listener.  Clients should typically

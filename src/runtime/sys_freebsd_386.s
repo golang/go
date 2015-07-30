@@ -112,6 +112,18 @@ TEXT runtime·raise(SB),NOSPLIT,$16
 	INT	$0x80
 	RET
 
+TEXT runtime·raiseproc(SB),NOSPLIT,$16
+	// getpid
+	MOVL	$20, AX
+	INT	$0x80
+	// kill(self, sig)
+	MOVL	AX, 4(SP)
+	MOVL	sig+0(FP), AX
+	MOVL	AX, 8(SP)
+	MOVL	$37, AX
+	INT	$0x80
+	RET
+
 TEXT runtime·mmap(SB),NOSPLIT,$32
 	LEAL addr+0(FP), SI
 	LEAL	4(SP), DI
@@ -355,10 +367,11 @@ TEXT runtime·osyield(SB),NOSPLIT,$-4
 
 TEXT runtime·sigprocmask(SB),NOSPLIT,$16
 	MOVL	$0, 0(SP)		// syscall gap
-	MOVL	$3, 4(SP)		// arg 1 - how (SIG_SETMASK)
-	MOVL	new+0(FP), AX
+	MOVL	how+0(FP), AX		// arg 1 - how
+	MOVL	AX, 4(SP)
+	MOVL	new+4(FP), AX
 	MOVL	AX, 8(SP)		// arg 2 - set
-	MOVL	old+4(FP), AX
+	MOVL	old+8(FP), AX
 	MOVL	AX, 12(SP)		// arg 3 - oset
 	MOVL	$340, AX		// sys_sigprocmask
 	INT	$0x80

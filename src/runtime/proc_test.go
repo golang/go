@@ -96,6 +96,10 @@ func TestYieldLocked(t *testing.T) {
 }
 
 func TestGoroutineParallelism(t *testing.T) {
+	if runtime.NumCPU() == 1 {
+		// Takes too long, too easy to deadlock, etc.
+		t.Skip("skipping on uniprocessor")
+	}
 	P := 4
 	N := 10
 	if testing.Short() {

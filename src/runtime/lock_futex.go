@@ -144,7 +144,11 @@ func notesleep(n *note) {
 	}
 }
 
+// May run with m.p==nil if called from notetsleep, so write barriers
+// are not allowed.
+//
 //go:nosplit
+//go:nowritebarrier
 func notetsleep_internal(n *note, ns int64) bool {
 	gp := getg()
 

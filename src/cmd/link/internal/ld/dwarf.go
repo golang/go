@@ -1419,6 +1419,9 @@ func defdwsymb(sym *LSym, s string, t int, v int64, size int64, ver int, gotype 
 	if strings.HasPrefix(s, "go.string.") {
 		return
 	}
+	if strings.HasPrefix(s, "runtime.gcbits.") {
+		return
+	}
 
 	if strings.HasPrefix(s, "type.") && s != "type.*" && !strings.HasPrefix(s, "type..") {
 		defgotype(sym)

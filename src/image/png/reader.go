@@ -340,7 +340,9 @@ func (d *decoder) decode() (image.Image, error) {
 			if err != nil {
 				return nil, err
 			}
-			d.mergePassInto(img, imagePass, pass)
+			if imagePass != nil {
+				d.mergePassInto(img, imagePass, pass)
+			}
 		}
 	}
 
@@ -382,6 +384,12 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 		// Add the multiplication factor and subtract one, effectively rounding up.
 		width = (width - p.xOffset + p.xFactor - 1) / p.xFactor
 		height = (height - p.yOffset + p.yFactor - 1) / p.yFactor
+		// A PNG image can't have zero width or height, but for an interlaced
+		// image, an individual pass might have zero width or height. If so, we
+		// shouldn't even read a per-row filter type byte, so return early.
+		if width == 0 || height == 0 {
+			return nil, nil
+		}
 	}
 	switch d.cb {
 	case cbG1, cbG2, cbG4, cbG8:
@@ -457,6 +465,9 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 				cdat[i] += p
 			}
 		case ftAverage:
+			// The first column has no column to the left of it, so it is a
+			// special case. We know that the first column exists because we
+			// check above that width != 0, and so len(cdat) != 0.
 			for i := 0; i < bytesPerPixel; i++ {
 				cdat[i] += pdat[i] / 2
 			}

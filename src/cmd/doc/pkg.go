@@ -20,6 +20,12 @@ import (
 	"unicode/utf8"
 )
 
+const (
+	punchedCardWidth = 80 // These things just won't leave us alone.
+	indentedWidth    = punchedCardWidth - len(indent)
+	indent           = "    "
+)
+
 type Package struct {
 	writer     io.Writer // Destination for output.
 	name       string    // Package name, json for encoding/json.
@@ -135,7 +141,7 @@ func (pkg *Package) emit(comment string, node ast.Node) {
 		}
 		if comment != "" {
 			pkg.newlines(2) // Guarantee blank line before comment.
-			doc.ToText(&pkg.buf, comment, "    ", "\t", 80)
+			doc.ToText(&pkg.buf, comment, "    ", indent, indentedWidth)
 		}
 		pkg.newlines(1)
 	}
@@ -200,16 +206,32 @@ func (pkg *Package) oneLineTypeDecl(spec *ast.TypeSpec) {
 // packageDoc prints the docs for the package (package doc plus one-liners of the rest).
 func (pkg *Package) packageDoc() {
 	defer pkg.flush()
-	pkg.packageClause(false)
+	if pkg.showInternals() {
+		pkg.packageClause(false)
+	}
 
-	doc.ToText(&pkg.buf, pkg.doc.Doc, "", "\t", 80)
-	pkg.newlines(2)
+	doc.ToText(&pkg.buf, pkg.doc.Doc, "", indent, indentedWidth)
+	pkg.newlines(1)
 
+	if !pkg.showInternals() {
+		// Show only package docs for commands.
+		return
+	}
+
+	pkg.newlines(1)
 	pkg.valueSummary(pkg.doc.Consts)
 	pkg.valueSummary(pkg.doc.Vars)
 	pkg.funcSummary(pkg.doc.Funcs)
 	pkg.typeSummary()
 	pkg.bugs()
+}
+
+// showInternals reports whether we should show the internals
+// of a package as opposed to just the package docs.
+// Used to decide whether to suppress internals for commands.
+// Called only by Package.packageDoc.
+func (pkg *Package) showInternals() bool {
+	return pkg.pkg.Name != "main" || showCmd
 }
 
 // packageClause prints the package clause.

@@ -770,7 +770,7 @@ func treecopy(n *Node, lineno int32) *Node {
 		m.Left = treecopy(n.Left, lineno)
 		m.Right = treecopy(n.Right, lineno)
 		m.List = listtreecopy(n.List, lineno)
-		if lineno != -1 {
+		if lineno != 0 {
 			m.Lineno = lineno
 		}
 		if m.Name != nil && n.Op != ODCLFIELD {
@@ -2145,10 +2145,8 @@ func adddot(n *Node) *Node {
 
 			// rebuild elided dots
 			for c := d - 1; c >= 0; c-- {
-				if n.Left.Type != nil && Isptr[n.Left.Type.Etype] {
-					n.Left.Implicit = true
-				}
 				n.Left = Nod(ODOT, n.Left, newname(dotlist[c].field.Sym))
+				n.Left.Implicit = true
 			}
 
 			return n

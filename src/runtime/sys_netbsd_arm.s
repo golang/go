@@ -104,15 +104,12 @@ TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
 
 TEXT runtime·usleep(SB),NOSPLIT,$16
 	MOVW usec+0(FP), R0
-	MOVW R0, R2
-	MOVW $1000000, R1
-	DIV R1, R0
+	CALL runtime·usplitR0(SB)
 	// 0(R13) is the saved LR, don't use it
 	MOVW R0, 4(R13) // tv_sec.low
 	MOVW $0, R0
 	MOVW R0, 8(R13) // tv_sec.high
-	MOD R1, R2
-	MOVW $1000, R1
+	MOVW $1000, R2
 	MUL R1, R2
 	MOVW R2, 12(R13) // tv_nsec
 
@@ -125,6 +122,12 @@ TEXT runtime·raise(SB),NOSPLIT,$16
 	SWI $0xa00137	// sys__lwp_self, the returned R0 is arg 1
 	MOVW	sig+0(FP), R1	// arg 2 - signal
 	SWI $0xa0013e	// sys__lwp_kill
+	RET
+
+TEXT runtime·raiseproc(SB),NOSPLIT,$16
+	SWI $0xa00014	// sys_getpid, the returned R0 is arg 1
+	MOVW	sig+0(FP), R1	// arg 2 - signal
+	SWI $0xa00025	// sys_kill
 	RET
 
 TEXT runtime·setitimer(SB),NOSPLIT,$-4

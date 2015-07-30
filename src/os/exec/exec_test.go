@@ -318,15 +318,15 @@ func closeUnexpectedFds(t *testing.T, m string) {
 }
 
 func TestExtraFilesFDShuffle(t *testing.T) {
-	t.Skip("flaky test; see http://golang.org/issue/5780")
+	t.Skip("flaky test; see https://golang.org/issue/5780")
 	switch runtime.GOOS {
 	case "darwin":
-		// TODO(cnicolaou): http://golang.org/issue/2603
+		// TODO(cnicolaou): https://golang.org/issue/2603
 		// leads to leaked file descriptors in this test when it's
 		// run from a builder.
 		closeUnexpectedFds(t, "TestExtraFilesFDShuffle")
 	case "netbsd":
-		// http://golang.org/issue/3955
+		// https://golang.org/issue/3955
 		closeUnexpectedFds(t, "TestExtraFilesFDShuffle")
 	case "windows":
 		t.Skip("no operating system support; skipping")
@@ -652,21 +652,21 @@ func TestHelperProcess(*testing.T) {
 			// file descriptors...
 		case "darwin":
 			// TODO(bradfitz): broken? Sometimes.
-			// http://golang.org/issue/2603
+			// https://golang.org/issue/2603
 			// Skip this additional part of the test for now.
 		case "netbsd":
 			// TODO(jsing): This currently fails on NetBSD due to
 			// the cloned file descriptors that result from opening
 			// /dev/urandom.
-			// http://golang.org/issue/3955
+			// https://golang.org/issue/3955
 		case "plan9":
 			// TODO(0intro): Determine why Plan 9 is leaking
 			// file descriptors.
-			// http://golang.org/issue/7118
+			// https://golang.org/issue/7118
 		case "solaris":
 			// TODO(aram): This fails on Solaris because libc opens
 			// its own files, as it sees fit. Darwin does the same,
-			// see: http://golang.org/issue/2603
+			// see: https://golang.org/issue/2603
 		default:
 			// Now verify that there are no other open fds.
 			var files []*os.File
@@ -763,5 +763,56 @@ func TestHelperProcess(*testing.T) {
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command %q\n", cmd)
 		os.Exit(2)
+	}
+}
+
+// Issue 9173: ignore stdin pipe writes if the program completes successfully.
+func TestIgnorePipeErrorOnSuccess(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	// We really only care about testing this on Unixy things.
+	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+		t.Skipf("skipping test on %q", runtime.GOOS)
+	}
+
+	cmd := helperCommand(t, "echo", "foo")
+	var out bytes.Buffer
+	cmd.Stdin = strings.NewReader(strings.Repeat("x", 10<<20))
+	cmd.Stdout = &out
+	if err := cmd.Run(); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := out.String(), "foo\n"; got != want {
+		t.Errorf("output = %q; want %q", got, want)
+	}
+}
+
+type badWriter struct{}
+
+func (w *badWriter) Write(data []byte) (int, error) {
+	return 0, io.ErrUnexpectedEOF
+}
+
+func TestClosePipeOnCopyError(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+		t.Skipf("skipping test on %s - no yes command", runtime.GOOS)
+	}
+	cmd := exec.Command("yes")
+	cmd.Stdout = new(badWriter)
+	c := make(chan int, 1)
+	go func() {
+		err := cmd.Run()
+		if err == nil {
+			t.Errorf("yes completed successfully")
+		}
+		c <- 1
+	}()
+	select {
+	case <-c:
+		// ok
+	case <-time.After(5 * time.Second):
+		t.Fatalf("yes got stuck writing to bad writer")
 	}
 }
