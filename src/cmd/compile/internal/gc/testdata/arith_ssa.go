@@ -57,9 +57,15 @@ func testBitwiseLogic() {
 	a, b := uint32(57623283), uint32(1314713839)
 	if want, got := uint32(38551779), testBitwiseAnd_ssa(a, b); want != got {
 		println("testBitwiseAnd failed, wanted", want, "got", got)
+		failed = true
 	}
 	if want, got := uint32(1333785343), testBitwiseOr_ssa(a, b); want != got {
-		println("testBitwiseAnd failed, wanted", want, "got", got)
+		println("testBitwiseOr failed, wanted", want, "got", got)
+		failed = true
+	}
+	if want, got := uint32(1295233564), testBitwiseXor_ssa(a, b); want != got {
+		println("testBitwiseXor failed, wanted", want, "got", got)
+		failed = true
 	}
 }
 
@@ -75,6 +81,12 @@ func testBitwiseOr_ssa(a, b uint32) uint32 {
 	return a | b
 }
 
+func testBitwiseXor_ssa(a, b uint32) uint32 {
+	switch { // prevent inlining
+	}
+	return a ^ b
+}
+
 // testSubqToNegq ensures that the SUBQ -> NEGQ translation works correctly.
 func testSubqToNegq(a, b, c, d, e, f, g, h, i, j, k int64) {
 	want := a + 8207351403619448057 - b - 1779494519303207690 + c*8810076340510052032*d - 4465874067674546219 - e*4361839741470334295 - f + 8688847565426072650*g*8065564729145417479
@@ -83,6 +95,7 @@ func testSubqToNegq(a, b, c, d, e, f, g, h, i, j, k int64) {
 		failed = true
 	}
 }
+
 func testSubqToNegq_ssa(a, b, c, d, e, f, g, h, i, j, k int64) int64 {
 	switch { // prevent inlining
 	}
@@ -97,6 +110,8 @@ func main() {
 	test64BitConstAdd(1, 2)
 	testRegallocCVSpill(1, 2, 3, 4)
 	testSubqToNegq(1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2)
+	testBitwiseLogic()
+
 	if failed {
 		panic("failed")
 	}
