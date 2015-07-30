@@ -9,7 +9,7 @@ import (
 )
 
 func TestDeadStore(t *testing.T) {
-	c := NewConfig("amd64", DummyFrontend{t})
+	c := testConfig(t)
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
 	fun := Fun(c, "entry",
 		Bloc("entry",
@@ -36,7 +36,7 @@ func TestDeadStore(t *testing.T) {
 }
 func TestDeadStorePhi(t *testing.T) {
 	// make sure we don't get into an infinite loop with phi values.
-	c := NewConfig("amd64", DummyFrontend{t})
+	c := testConfig(t)
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
 	fun := Fun(c, "entry",
 		Bloc("entry",
@@ -62,7 +62,7 @@ func TestDeadStoreTypes(t *testing.T) {
 	// stronger restriction, that one store can't shadow another unless the
 	// types of the address fields are identical (where identicalness is
 	// decided by the CSE pass).
-	c := NewConfig("amd64", DummyFrontend{t})
+	c := testConfig(t)
 	t1 := &TypeImpl{Size_: 8, Ptr: true, Name: "t1"}
 	t2 := &TypeImpl{Size_: 4, Ptr: true, Name: "t2"}
 	fun := Fun(c, "entry",

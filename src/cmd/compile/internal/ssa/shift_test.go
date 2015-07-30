@@ -9,7 +9,7 @@ import (
 )
 
 func TestShiftConstAMD64(t *testing.T) {
-	c := NewConfig("amd64", DummyFrontend{t})
+	c := testConfig(t)
 	fun := makeConstShiftFunc(c, 18, OpLsh64x64, TypeUInt64)
 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SHLQconst: 1, OpAMD64CMPQconst: 0, OpAMD64ANDQconst: 0})
 	fun = makeConstShiftFunc(c, 66, OpLsh64x64, TypeUInt64)

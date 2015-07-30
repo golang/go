@@ -7,7 +7,7 @@ package ssa
 import "testing"
 
 func TestDeadLoop(t *testing.T) {
-	c := NewConfig("amd64", DummyFrontend{t})
+	c := testConfig(t)
 	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
@@ -37,7 +37,7 @@ func TestDeadLoop(t *testing.T) {
 }
 
 func TestDeadValue(t *testing.T) {
-	c := NewConfig("amd64", DummyFrontend{t})
+	c := testConfig(t)
 	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
@@ -60,7 +60,7 @@ func TestDeadValue(t *testing.T) {
 }
 
 func TestNeverTaken(t *testing.T) {
-	c := NewConfig("amd64", DummyFrontend{t})
+	c := testConfig(t)
 	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("cond", OpConstBool, TypeBool, 0, false),
@@ -95,7 +95,7 @@ func TestNeverTaken(t *testing.T) {
 }
 
 func TestNestedDeadBlocks(t *testing.T) {
-	c := NewConfig("amd64", DummyFrontend{t})
+	c := testConfig(t)
 	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("mem", OpArg, TypeMem, 0, ".mem"),

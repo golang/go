@@ -5,11 +5,9 @@
 package ssa
 
 type Config struct {
-	arch       string // "amd64", etc.
-	IntSize    int64  // 4 or 8
-	PtrSize    int64  // 4 or 8
-	Uintptr    Type   // pointer arithmetic type
-	Int        Type
+	arch       string                     // "amd64", etc.
+	IntSize    int64                      // 4 or 8
+	PtrSize    int64                      // 4 or 8
 	lowerBlock func(*Block) bool          // lowering function
 	lowerValue func(*Value, *Config) bool // lowering function
 	fe         Frontend                   // callbacks into compiler frontend
@@ -17,7 +15,25 @@ type Config struct {
 	// TODO: more stuff.  Compiler flags of interest, ...
 }
 
+type TypeSource interface {
+	TypeBool() Type
+	TypeInt8() Type
+	TypeInt16() Type
+	TypeInt32() Type
+	TypeInt64() Type
+	TypeUInt8() Type
+	TypeUInt16() Type
+	TypeUInt32() Type
+	TypeUInt64() Type
+	TypeInt() Type
+	TypeUintptr() Type
+	TypeString() Type
+	TypeBytePtr() Type // TODO: use unsafe.Pointer instead?
+}
+
 type Frontend interface {
+	TypeSource
+
 	// StringData returns a symbol pointing to the given string's contents.
 	StringData(string) interface{} // returns *gc.Sym
 
@@ -48,16 +64,6 @@ func NewConfig(arch string, fe Frontend) *Config {
 		c.lowerValue = rewriteValueAMD64 // TODO(khr): full 32-bit support
 	default:
 		fe.Unimplementedf("arch %s not implemented", arch)
-	}
-
-	// cache the frequently-used types in the config
-	c.Uintptr = TypeUInt32
-	c.Int = TypeInt32
-	if c.PtrSize == 8 {
-		c.Uintptr = TypeUInt64
-	}
-	if c.IntSize == 8 {
-		c.Int = TypeInt64
 	}
 
 	return c

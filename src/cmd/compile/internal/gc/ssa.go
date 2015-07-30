@@ -67,8 +67,8 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 	s.labels = map[string]*ssaLabel{}
 	s.labeledNodes = map[*Node]*ssaLabel{}
 	s.startmem = s.entryNewValue0(ssa.OpArg, ssa.TypeMem)
-	s.sp = s.entryNewValue0(ssa.OpSP, s.config.Uintptr) // TODO: use generic pointer type (unsafe.Pointer?) instead
-	s.sb = s.entryNewValue0(ssa.OpSB, s.config.Uintptr)
+	s.sp = s.entryNewValue0(ssa.OpSP, Types[TUINTPTR]) // TODO: use generic pointer type (unsafe.Pointer?) instead
+	s.sb = s.entryNewValue0(ssa.OpSB, Types[TUINTPTR])
 
 	// Generate addresses of local declarations
 	s.decladdrs = map[*Node]*ssa.Value{}
@@ -90,8 +90,8 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 		}
 	}
 	// nodfp is a special argument which is the function's FP.
-	aux := &ssa.ArgSymbol{Typ: s.config.Uintptr, Offset: 0, Sym: nodfp.Sym}
-	s.decladdrs[nodfp] = s.entryNewValue1A(ssa.OpAddr, s.config.Uintptr, aux, s.sp)
+	aux := &ssa.ArgSymbol{Typ: Types[TUINTPTR], Offset: 0, Sym: nodfp.Sym}
+	s.decladdrs[nodfp] = s.entryNewValue1A(ssa.OpAddr, Types[TUINTPTR], aux, s.sp)
 
 	// Convert the AST-based IR to the SSA-based IR
 	s.startBlock(s.f.Entry)
@@ -1131,7 +1131,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OLT, OEQ, ONE, OLE, OGE, OGT:
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
-		return s.newValue2(s.ssaOp(n.Op, n.Left.Type), ssa.TypeBool, a, b)
+		return s.newValue2(s.ssaOp(n.Op, n.Left.Type), Types[TBOOL], a, b)
 	case OADD, OAND, OMUL, OOR, OSUB, OXOR:
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
@@ -1209,7 +1209,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case ODOTPTR:
 		p := s.expr(n.Left)
 		s.nilCheck(p)
-		p = s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(s.config.Uintptr, n.Xoffset))
+		p = s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(Types[TUINTPTR], n.Xoffset))
 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
 
 	case OINDEX:
@@ -1220,10 +1220,10 @@ func (s *state) expr(n *Node) *ssa.Value {
 			var elemtype *Type
 			var len *ssa.Value
 			if n.Left.Type.IsString() {
-				len = s.newValue1(ssa.OpStringLen, s.config.Int, a)
+				len = s.newValue1(ssa.OpStringLen, Types[TINT], a)
 				elemtype = Types[TUINT8]
 			} else {
-				len = s.constInt(s.config.Int, n.Left.Type.Bound)
+				len = s.constInt(Types[TINT], n.Left.Type.Bound)
 				elemtype = n.Left.Type.Type
 			}
 			s.boundsCheck(i, len)
@@ -1240,11 +1240,11 @@ func (s *state) expr(n *Node) *ssa.Value {
 			if n.Op == OCAP {
 				op = ssa.OpSliceCap
 			}
-			return s.newValue1(op, s.config.Int, s.expr(n.Left))
+			return s.newValue1(op, Types[TINT], s.expr(n.Left))
 		case n.Left.Type.IsString(): // string; not reachable for OCAP
-			return s.newValue1(ssa.OpStringLen, s.config.Int, s.expr(n.Left))
+			return s.newValue1(ssa.OpStringLen, Types[TINT], s.expr(n.Left))
 		default: // array
-			return s.constInt(s.config.Int, n.Left.Type.Bound)
+			return s.constInt(Types[TINT], n.Left.Type.Bound)
 		}
 
 	case OCALLFUNC, OCALLMETH:
@@ -1281,7 +1281,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		if static {
 			call = s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, left.Sym, s.mem())
 		} else {
-			entry := s.newValue2(ssa.OpLoad, s.config.Uintptr, closure, s.mem())
+			entry := s.newValue2(ssa.OpLoad, Types[TUINTPTR], closure, s.mem())
 			call = s.newValue3(ssa.OpClosureCall, ssa.TypeMem, entry, closure, s.mem())
 		}
 		dowidth(left.Type)
@@ -1418,7 +1418,7 @@ func (s *state) addr(n *Node) *ssa.Value {
 			a := s.expr(n.Left)
 			i := s.expr(n.Right)
 			i = s.extendIndex(i)
-			len := s.newValue1(ssa.OpSliceLen, s.config.Uintptr, a)
+			len := s.newValue1(ssa.OpSliceLen, Types[TUINTPTR], a)
 			s.boundsCheck(i, len)
 			p := s.newValue1(ssa.OpSlicePtr, Ptrto(n.Left.Type.Type), a)
 			return s.newValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), p, i)
@@ -1426,7 +1426,7 @@ func (s *state) addr(n *Node) *ssa.Value {
 			a := s.addr(n.Left)
 			i := s.expr(n.Right)
 			i = s.extendIndex(i)
-			len := s.constInt(s.config.Int, n.Left.Type.Bound)
+			len := s.constInt(Types[TINT], n.Left.Type.Bound)
 			s.boundsCheck(i, len)
 			return s.newValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), a, i)
 		}
@@ -1436,11 +1436,11 @@ func (s *state) addr(n *Node) *ssa.Value {
 		return p
 	case ODOT:
 		p := s.addr(n.Left)
-		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(s.config.Uintptr, n.Xoffset))
+		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(Types[TUINTPTR], n.Xoffset))
 	case ODOTPTR:
 		p := s.expr(n.Left)
 		s.nilCheck(p)
-		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(s.config.Uintptr, n.Xoffset))
+		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(Types[TUINTPTR], n.Xoffset))
 	default:
 		s.Unimplementedf("addr: bad op %v", Oconv(int(n.Op), 0))
 		return nil
@@ -1477,7 +1477,7 @@ func canSSA(n *Node) bool {
 // Used only for automatically inserted nil checks,
 // not for user code like 'x != nil'.
 func (s *state) nilCheck(ptr *ssa.Value) {
-	c := s.newValue1(ssa.OpIsNonNil, ssa.TypeBool, ptr)
+	c := s.newValue1(ssa.OpIsNonNil, Types[TBOOL], ptr)
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
 	b.Control = c
@@ -1496,7 +1496,7 @@ func (s *state) boundsCheck(idx, len *ssa.Value) {
 	// TODO: if index is 64-bit and we're compiling to 32-bit, check that high 32 bits are zero.
 
 	// bounds check
-	cmp := s.newValue2(ssa.OpIsInBounds, ssa.TypeBool, idx, len)
+	cmp := s.newValue2(ssa.OpIsInBounds, Types[TBOOL], idx, len)
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
 	b.Control = cmp
@@ -2288,7 +2288,7 @@ func (s *state) extendIndex(v *ssa.Value) *ssa.Value {
 			s.Fatalf("bad unsigned index extension %s", v.Type)
 		}
 	}
-	return s.newValue1(op, s.config.Uintptr, v)
+	return s.newValue1(op, Types[TUINTPTR], v)
 }
 
 // ssaRegToReg maps ssa register numbers to obj register numbers.
@@ -2373,6 +2373,20 @@ type ssaExport struct {
 	unimplemented bool
 	mustImplement bool
 }
+
+func (s *ssaExport) TypeBool() ssa.Type    { return Types[TBOOL] }
+func (s *ssaExport) TypeInt8() ssa.Type    { return Types[TINT8] }
+func (s *ssaExport) TypeInt16() ssa.Type   { return Types[TINT16] }
+func (s *ssaExport) TypeInt32() ssa.Type   { return Types[TINT32] }
+func (s *ssaExport) TypeInt64() ssa.Type   { return Types[TINT64] }
+func (s *ssaExport) TypeUInt8() ssa.Type   { return Types[TUINT8] }
+func (s *ssaExport) TypeUInt16() ssa.Type  { return Types[TUINT16] }
+func (s *ssaExport) TypeUInt32() ssa.Type  { return Types[TUINT32] }
+func (s *ssaExport) TypeUInt64() ssa.Type  { return Types[TUINT64] }
+func (s *ssaExport) TypeInt() ssa.Type     { return Types[TINT] }
+func (s *ssaExport) TypeUintptr() ssa.Type { return Types[TUINTPTR] }
+func (s *ssaExport) TypeString() ssa.Type  { return Types[TSTRING] }
+func (s *ssaExport) TypeBytePtr() ssa.Type { return Ptrto(Types[TUINT8]) }
 
 // StringData returns a symbol (a *Sym wrapped in an interface) which
 // is the data component of a global string constant containing s.

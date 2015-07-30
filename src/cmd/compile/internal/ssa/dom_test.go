@@ -220,7 +220,7 @@ func verifyDominators(t *testing.T, fut fun, domFn domFunc, doms map[string]stri
 }
 
 func TestDominatorsSingleBlock(t *testing.T) {
-	c := NewConfig("amd64", DummyFrontend{t})
+	c := testConfig(t)
 	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
@@ -235,7 +235,7 @@ func TestDominatorsSingleBlock(t *testing.T) {
 }
 
 func TestDominatorsSimple(t *testing.T) {
-	c := NewConfig("amd64", DummyFrontend{t})
+	c := testConfig(t)
 	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
@@ -263,7 +263,7 @@ func TestDominatorsSimple(t *testing.T) {
 }
 
 func TestDominatorsMultPredFwd(t *testing.T) {
-	c := NewConfig("amd64", DummyFrontend{t})
+	c := testConfig(t)
 	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
@@ -291,7 +291,7 @@ func TestDominatorsMultPredFwd(t *testing.T) {
 }
 
 func TestDominatorsDeadCode(t *testing.T) {
-	c := NewConfig("amd64", DummyFrontend{t})
+	c := testConfig(t)
 	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
@@ -314,7 +314,7 @@ func TestDominatorsDeadCode(t *testing.T) {
 }
 
 func TestDominatorsMultPredRev(t *testing.T) {
-	c := NewConfig("amd64", DummyFrontend{t})
+	c := testConfig(t)
 	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
@@ -342,7 +342,7 @@ func TestDominatorsMultPredRev(t *testing.T) {
 }
 
 func TestDominatorsMultPred(t *testing.T) {
-	c := NewConfig("amd64", DummyFrontend{t})
+	c := testConfig(t)
 	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
@@ -370,7 +370,7 @@ func TestDominatorsMultPred(t *testing.T) {
 }
 
 func TestPostDominators(t *testing.T) {
-	c := NewConfig("amd64", DummyFrontend{t})
+	c := testConfig(t)
 	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
@@ -396,7 +396,7 @@ func TestPostDominators(t *testing.T) {
 }
 
 func TestInfiniteLoop(t *testing.T) {
-	c := NewConfig("amd64", DummyFrontend{t})
+	c := testConfig(t)
 	// note lack of an exit block
 	fun := Fun(c, "entry",
 		Bloc("entry",

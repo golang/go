@@ -262,7 +262,7 @@ func addEdge(b, c *Block) {
 }
 
 func TestArgs(t *testing.T) {
-	c := NewConfig("amd64", DummyFrontend{t})
+	c := testConfig(t)
 	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("a", OpConst64, TypeInt64, 14, nil),
@@ -282,7 +282,7 @@ func TestArgs(t *testing.T) {
 }
 
 func TestEquiv(t *testing.T) {
-	c := NewConfig("amd64", DummyFrontend{t})
+	c := testConfig(t)
 	equivalentCases := []struct{ f, g fun }{
 		// simple case
 		{
