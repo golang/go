@@ -872,22 +872,55 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	// don't want to do an unbounded amount of reading here for
 	// DoS reasons, so we only try up to a threshold.
 	if w.req.ContentLength != 0 && !w.closeAfterReply {
-		ecr, isExpecter := w.req.Body.(*expectContinueReader)
-		if !isExpecter || ecr.resp.wroteContinue {
-			var tooBig bool
-			if reqBody, ok := w.req.Body.(*body); ok && reqBody.unreadDataSize() >= maxPostHandlerReadBytes {
+		var discard, tooBig bool
+
+		switch bdy := w.req.Body.(type) {
+		case *expectContinueReader:
+			if bdy.resp.wroteContinue {
+				discard = true
+			}
+		case *body:
+			switch {
+			case bdy.closed:
+				if !bdy.sawEOF {
+					// Body was closed in handler with non-EOF error.
+					w.closeAfterReply = true
+				}
+			case bdy.unreadDataSize() >= maxPostHandlerReadBytes:
 				tooBig = true
-			} else {
-				n, _ := io.CopyN(ioutil.Discard, w.req.Body, maxPostHandlerReadBytes+1)
-				tooBig = n >= maxPostHandlerReadBytes
+			default:
+				discard = true
 			}
-			if tooBig {
-				w.requestTooLarge()
-				delHeader("Connection")
-				setHeader.connection = "close"
-			} else {
-				w.req.Body.Close()
+		default:
+			discard = true
+		}
+
+		if discard {
+			_, err := io.CopyN(ioutil.Discard, w.req.Body, maxPostHandlerReadBytes+1)
+			switch err {
+			case nil:
+				// There must be even more data left over.
+				tooBig = true
+			case ErrBodyReadAfterClose:
+				// Body was already consumed and closed.
+			case io.EOF:
+				// The remaining body was just consumed, close it.
+				err = w.req.Body.Close()
+				if err != nil {
+					w.closeAfterReply = true
+				}
+			default:
+				// Some other kind of error occured, like a read timeout, or
+				// corrupt chunked encoding. In any case, whatever remains
+				// on the wire must not be parsed as another HTTP request.
+				w.closeAfterReply = true
 			}
+		}
+
+		if tooBig {
+			w.requestTooLarge()
+			delHeader("Connection")
+			setHeader.connection = "close"
 		}
 	}
 
