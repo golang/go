@@ -200,77 +200,93 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 
 	case _Complex:
-		// complex(x, y realT) complexT
-		if !check.complexArg(x) {
-			return
-		}
-
+		// complex(x, y floatT) complexT
 		var y operand
 		arg(&y, 1)
 		if y.mode == invalid {
 			return
 		}
-		if !check.complexArg(&y) {
+
+		// Convert or check untyped arguments.
+		d := 0
+		if isUntyped(x.typ) {
+			d |= 1
+		}
+		if isUntyped(y.typ) {
+			d |= 2
+		}
+		switch d {
+		case 0:
+			// x and y are typed => nothing to do
+		case 1:
+			// only x is untyped => convert to type of y
+			check.convertUntyped(x, y.typ)
+		case 2:
+			// only y is untyped => convert to type of x
+			check.convertUntyped(&y, x.typ)
+		case 3:
+			// x and y are untyped =>
+			// 1) if both are constants, convert them to untyped
+			//    floating-point numbers if possible,
+			// 2) if one of them is not constant (possible because
+			//    it contains a shift that is yet untyped), convert
+			//    both of them to float64 since they must have the
+			//    same type to succeed
+			if x.mode == constant_ && y.mode == constant_ {
+				toFloat := func(x *operand) {
+					if isNumeric(x.typ) && constant.Sign(constant.Imag(x.val)) == 0 {
+						x.typ = Typ[UntypedFloat]
+					}
+				}
+				toFloat(x)
+				toFloat(&y)
+			} else {
+				check.convertUntyped(x, Typ[Float64])
+				check.convertUntyped(&y, Typ[Float64])
+			}
+		}
+		if x.mode == invalid || y.mode == invalid {
 			return
 		}
 
-		check.convertUntyped(x, y.typ)
-		if x.mode == invalid {
-			return
-		}
-		check.convertUntyped(&y, x.typ)
-		if y.mode == invalid {
-			return
-		}
-
+		// both argument types must be identical
 		if !Identical(x.typ, y.typ) {
 			check.invalidArg(x.pos(), "mismatched types %s and %s", x.typ, y.typ)
 			return
 		}
 
+		// the argument types must be of floating-point type
+		if !isFloat(x.typ) {
+			check.invalidArg(x.pos(), "arguments have type %s, expected floating-point", x.typ)
+			return
+		}
+
+		// if both arguments are constant, the result is a constant
 		if x.mode == constant_ && y.mode == constant_ {
 			x.val = constant.BinaryOp(x.val, token.ADD, constant.MakeImag(y.val))
 		} else {
 			x.mode = value
 		}
 
-		realT := x.typ
-		complexT := Typ[Invalid]
-		switch realT.Underlying().(*Basic).kind {
+		// determine result type
+		var res BasicKind
+		switch x.typ.Underlying().(*Basic).kind {
 		case Float32:
-			complexT = Typ[Complex64]
+			res = Complex64
 		case Float64:
-			complexT = Typ[Complex128]
-		case UntypedInt, UntypedRune, UntypedFloat:
-			if x.mode == constant_ {
-				realT = defaultType(realT).(*Basic)
-				complexT = Typ[UntypedComplex]
-			} else {
-				// untyped but not constant; probably because one
-				// operand is a non-constant shift of untyped lhs
-				realT = Typ[Float64]
-				complexT = Typ[Complex128]
-			}
+			res = Complex128
+		case UntypedFloat:
+			res = UntypedComplex
 		default:
-			check.invalidArg(x.pos(), "float32 or float64 arguments expected")
-			return
+			unreachable()
 		}
+		resTyp := Typ[res]
 
-		x.typ = complexT
 		if check.Types != nil && x.mode != constant_ {
-			check.recordBuiltinType(call.Fun, makeSig(complexT, realT, realT))
+			check.recordBuiltinType(call.Fun, makeSig(resTyp, x.typ, x.typ))
 		}
 
-		if x.mode != constant_ {
-			// The arguments have now their final types, which at run-
-			// time will be materialized. Update the expression trees.
-			// If the current types are untyped, the materialized type
-			// is the respective default type.
-			// (If the result is constant, the arguments are never
-			// materialized and there is nothing to do.)
-			check.updateExprType(x.expr, realT, true)
-			check.updateExprType(y.expr, realT, true)
-		}
+		x.typ = resTyp
 
 	case _Copy:
 		// copy(x, y []T) int
@@ -333,8 +349,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 
 	case _Imag, _Real:
-		// imag(complexT) realT
-		// real(complexT) realT
+		// imag(complexT) floatT
+		// real(complexT) floatT
 		if !isComplex(x.typ) {
 			check.invalidArg(x.pos(), "%s must be a complex number", x)
 			return
@@ -615,13 +631,4 @@ func unparen(e ast.Expr) ast.Expr {
 		}
 		e = p.X
 	}
-}
-
-func (check *Checker) complexArg(x *operand) bool {
-	t, _ := x.typ.Underlying().(*Basic)
-	if t != nil && (t.info&IsFloat != 0 || t.kind == UntypedInt || t.kind == UntypedRune) {
-		return true
-	}
-	check.invalidArg(x.pos(), "%s must be a float32, float64, or an untyped non-complex numeric constant", x)
-	return false
 }
