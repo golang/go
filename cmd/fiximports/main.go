@@ -96,6 +96,8 @@ var (
 	dryrun     = flag.Bool("n", false, "dry run: show changes, but don't apply them")
 	badDomains = flag.String("baddomains", "code.google.com",
 		"a comma-separated list of domains from which packages should not be imported")
+	replaceFlag = flag.String("replace", "",
+		"a comma-separated list of noncanonical=canonical pairs of package paths.  If both items in a pair end with '...', they are treated as path prefixes.")
 )
 
 // seams for testing
@@ -132,6 +134,8 @@ func main() {
 	}
 }
 
+type canonicalName struct{ path, name string }
+
 // fiximports fixes imports in the specified packages.
 // Invariant: a false result implies an error was already printed.
 func fiximports(packages ...string) bool {
@@ -158,12 +162,40 @@ func fiximports(packages ...string) bool {
 		return false
 	}
 
-	// noncanonical maps each non-canonical package path to
-	// its canonical name.
+	// packageName maps each package's path to its name.
+	packageName := make(map[string]string)
+	for _, p := range pkgs {
+		packageName[p.ImportPath] = p.Package.Name
+	}
+
+	// canonical maps each non-canonical package path to
+	// its canonical path and name.
 	// A present nil value indicates that the canonical package
 	// is unknown: hosted on a bad domain with no redirect.
-	noncanonical := make(map[string]*build.Package)
+	canonical := make(map[string]canonicalName)
 	domains := strings.Split(*badDomains, ",")
+
+	type replaceItem struct {
+		old, new    string
+		matchPrefix bool
+	}
+	var replace []replaceItem
+	for _, pair := range strings.Split(*replaceFlag, ",") {
+		if pair == "" {
+			continue
+		}
+		words := strings.Split(pair, "=")
+		if len(words) != 2 {
+			fmt.Fprintf(stderr, "importfix: -replace: %q is not of the form \"canonical=noncanonical\".\n", pair)
+			return false
+		}
+		replace = append(replace, replaceItem{
+			old: strings.TrimSuffix(words[0], "..."),
+			new: strings.TrimSuffix(words[1], "..."),
+			matchPrefix: strings.HasSuffix(words[0], "...") &&
+				strings.HasSuffix(words[1], "..."),
+		})
+	}
 
 	// Find non-canonical packages and populate importedBy graph.
 	for _, p := range pkgs {
@@ -187,11 +219,41 @@ func fiximports(packages ...string) bool {
 			addEdge(&p.Package, imp)
 		}
 
+		// Does package have an explicit import comment?
 		if p.ImportComment != "" {
 			if p.ImportComment != p.ImportPath {
-				noncanonical[p.ImportPath] = &p.Package
+				canonical[p.ImportPath] = canonicalName{
+					path: p.Package.ImportComment,
+					name: p.Package.Name,
+				}
 			}
 		} else {
+			// Is package matched by a -replace item?
+			var newPath string
+			for _, item := range replace {
+				if item.matchPrefix {
+					if strings.HasPrefix(p.ImportPath, item.old) {
+						newPath = item.new + p.ImportPath[len(item.old):]
+						break
+					}
+				} else if p.ImportPath == item.old {
+					newPath = item.new
+					break
+				}
+			}
+			if newPath != "" {
+				newName := packageName[newPath]
+				if newName == "" {
+					newName = filepath.Base(newPath) // a guess
+				}
+				canonical[p.ImportPath] = canonicalName{
+					path: newPath,
+					name: newName,
+				}
+				continue
+			}
+
+			// Is package matched by a -baddomains item?
 			for _, domain := range domains {
 				slash := strings.Index(p.ImportPath, "/")
 				if slash < 0 {
@@ -200,7 +262,7 @@ func fiximports(packages ...string) bool {
 				if p.ImportPath[:slash] == domain {
 					// Package comes from bad domain and has no import comment.
 					// Report an error each time this package is imported.
-					noncanonical[p.ImportPath] = nil
+					canonical[p.ImportPath] = canonicalName{}
 
 					// TODO(adonovan): should we make an HTTP request to
 					// see if there's an HTTP redirect, a "go-import" meta tag,
@@ -212,10 +274,10 @@ func fiximports(packages ...string) bool {
 		}
 	}
 
-	// Find all clients (direct importers) of noncanonical packages.
+	// Find all clients (direct importers) of canonical packages.
 	// These are the packages that need fixing up.
 	clients := make(map[*build.Package]bool)
-	for path := range noncanonical {
+	for path := range canonical {
 		for client := range importedBy[path] {
 			clients[client] = true
 		}
@@ -244,7 +306,7 @@ func fiximports(packages ...string) bool {
 	// Rewrite selected client packages.
 	ok := true
 	for client := range clients {
-		if !rewritePackage(client, noncanonical) {
+		if !rewritePackage(client, canonical) {
 			ok = false
 
 			// There were errors.
@@ -291,7 +353,7 @@ func fiximports(packages ...string) bool {
 }
 
 // Invariant: false result => error already printed.
-func rewritePackage(client *build.Package, noncanonical map[string]*build.Package) bool {
+func rewritePackage(client *build.Package, canonical map[string]canonicalName) bool {
 	ok := true
 
 	used := make(map[string]bool)
@@ -305,7 +367,7 @@ func rewritePackage(client *build.Package, noncanonical map[string]*build.Packag
 			first = true
 			fmt.Fprintf(stderr, "%s\n", client.ImportPath)
 		}
-		err := rewriteFile(filepath.Join(client.Dir, filename), noncanonical, used)
+		err := rewriteFile(filepath.Join(client.Dir, filename), canonical, used)
 		if err != nil {
 			fmt.Fprintf(stderr, "\tERROR: %v\n", err)
 			ok = false
@@ -319,8 +381,8 @@ func rewritePackage(client *build.Package, noncanonical map[string]*build.Packag
 	}
 	sort.Strings(keys)
 	for _, key := range keys {
-		if p := noncanonical[key]; p != nil {
-			fmt.Fprintf(stderr, "\tfixed: %s -> %s\n", key, p.ImportComment)
+		if p := canonical[key]; p.path != "" {
+			fmt.Fprintf(stderr, "\tfixed: %s -> %s\n", key, p.path)
 		} else {
 			fmt.Fprintf(stderr, "\tERROR: %s has no import comment\n", key)
 			ok = false
@@ -331,10 +393,10 @@ func rewritePackage(client *build.Package, noncanonical map[string]*build.Packag
 }
 
 // rewrite reads, modifies, and writes filename, replacing all imports
-// of packages P in noncanonical by noncanonical[P].
-// It records in used which noncanonical packages were imported.
+// of packages P in canonical by canonical[P].
+// It records in used which canonical packages were imported.
 // used[P]=="" indicates that P was imported but its canonical path is unknown.
-func rewriteFile(filename string, noncanonical map[string]*build.Package, used map[string]bool) error {
+func rewriteFile(filename string, canonical map[string]canonicalName, used map[string]bool) error {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, filename, nil, parser.ParseComments)
 	if err != nil {
@@ -348,15 +410,15 @@ func rewriteFile(filename string, noncanonical map[string]*build.Package, used m
 				fset.Position(imp.Pos()), imp.Path.Value, err)
 			continue
 		}
-		p, ok := noncanonical[impPath]
+		canon, ok := canonical[impPath]
 		if !ok {
 			continue // import path is canonical
 		}
 
 		used[impPath] = true
 
-		if p == nil {
-			// The canonical path is unknown.
+		if canon.path == "" {
+			// The canonical path is unknown (a -baddomain).
 			// Show the offending import.
 			// TODO(adonovan): should we show the actual source text?
 			fmt.Fprintf(stderr, "\t%s:%d: import %q\n",
@@ -367,18 +429,16 @@ func rewriteFile(filename string, noncanonical map[string]*build.Package, used m
 
 		changed = true
 
-		imp.Path.Value = strconv.Quote(p.ImportComment)
+		imp.Path.Value = strconv.Quote(canon.path)
 
 		// Add a renaming import if necessary.
 		//
 		// This is a guess at best.  We can't see whether a 'go
 		// get' of the canonical import path would have the same
 		// name or not.  Assume it's the last segment.
-		//
-		// TODO(adonovan): should we make an HTTP request?
-		newBase := path.Base(p.ImportComment)
-		if imp.Name == nil && newBase != p.Name {
-			imp.Name = &ast.Ident{Name: p.Name}
+		newBase := path.Base(canon.path)
+		if imp.Name == nil && newBase != canon.name {
+			imp.Name = &ast.Ident{Name: canon.name}
 		}
 	}
 

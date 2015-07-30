@@ -40,11 +40,13 @@ func TestFixImports(t *testing.T) {
 	defer func() {
 		stderr = os.Stderr
 		*badDomains = "code.google.com"
+		*replaceFlag = ""
 	}()
 
 	for i, test := range []struct {
 		packages    []string // packages to rewrite, "go list" syntax
 		badDomains  string   // -baddomains flag
+		replaceFlag string   // -replace flag
 		wantOK      bool
 		wantStderr  string
 		wantRewrite map[string]string
@@ -106,8 +108,77 @@ import (
 )`,
 			},
 		},
+		// #3. The -replace flag lets user supply missing import comments.
+		{
+			packages:    []string{"all"},
+			replaceFlag: "titanic.biz/foo=new.com/foo",
+			wantOK:      true,
+			wantStderr: `
+testdata/src/old.com/bad/bad.go:2:43: expected 'package', found 'EOF'
+fruit.io/banana
+	fixed: old.com/one -> new.com/one
+	fixed: titanic.biz/bar -> new.com/bar
+	fixed: titanic.biz/foo -> new.com/foo
+`,
+			wantRewrite: map[string]string{
+				"$GOPATH/src/fruit.io/banana/banana.go": `package banana
+
+import (
+	_ "new.com/bar"
+	_ "new.com/foo"
+	_ "new.com/one"
+)`,
+			},
+		},
+		// #4. The -replace flag supports wildcards.
+		//     An explicit import comment takes precedence.
+		{
+			packages:    []string{"all"},
+			replaceFlag: "titanic.biz/...=new.com/...",
+			wantOK:      true,
+			wantStderr: `
+testdata/src/old.com/bad/bad.go:2:43: expected 'package', found 'EOF'
+fruit.io/banana
+	fixed: old.com/one -> new.com/one
+	fixed: titanic.biz/bar -> new.com/bar
+	fixed: titanic.biz/foo -> new.com/foo
+`,
+			wantRewrite: map[string]string{
+				"$GOPATH/src/fruit.io/banana/banana.go": `package banana
+
+import (
+	_ "new.com/bar"
+	_ "new.com/foo"
+	_ "new.com/one"
+)`,
+			},
+		},
+		// #5. The -replace flag trumps -baddomains.
+		{
+			packages:    []string{"all"},
+			badDomains:  "titanic.biz",
+			replaceFlag: "titanic.biz/foo=new.com/foo",
+			wantOK:      true,
+			wantStderr: `
+testdata/src/old.com/bad/bad.go:2:43: expected 'package', found 'EOF'
+fruit.io/banana
+	fixed: old.com/one -> new.com/one
+	fixed: titanic.biz/bar -> new.com/bar
+	fixed: titanic.biz/foo -> new.com/foo
+`,
+			wantRewrite: map[string]string{
+				"$GOPATH/src/fruit.io/banana/banana.go": `package banana
+
+import (
+	_ "new.com/bar"
+	_ "new.com/foo"
+	_ "new.com/one"
+)`,
+			},
+		},
 	} {
 		*badDomains = test.badDomains
+		*replaceFlag = test.replaceFlag
 
 		stderr = new(bytes.Buffer)
 		gotRewrite := make(map[string]string)
