@@ -378,10 +378,7 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT,$0
 
 TEXT runtime·usleep(SB),NOSPLIT,$12
 	MOVW	usec+0(FP), R0
-	MOVW	R0, R1
-	MOVW	$1000000, R2
-	DIV	R2, R0
-	MOD	R2, R1
+	CALL	runtime·usplitR0(SB)
 	MOVW	R0, 4(R13)
 	MOVW	R1, 8(R13)
 	MOVW	$0, R0
