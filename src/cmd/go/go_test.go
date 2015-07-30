@@ -765,7 +765,7 @@ func TestGoInstallErrorOnCrossCompileToBin(t *testing.T) {
 	}
 	tg.setenv("GOOS", "linux")
 	tg.setenv("GOARCH", goarch)
-	tg.runFail("install", "mycmd")
+	tg.run("install", "mycmd")
 	tg.setenv("GOBIN", tg.path("."))
 	tg.runFail("install", "mycmd")
 	tg.run("install", "cmd/pack")

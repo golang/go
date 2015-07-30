@@ -744,8 +744,8 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		} else if p.build.BinDir != "" {
 			// Install to GOBIN or bin of GOPATH entry.
 			p.target = filepath.Join(p.build.BinDir, elem)
-			if !p.Goroot && strings.Contains(elem, "/") {
-				// Do not create bin/goos_goarch/elem.
+			if !p.Goroot && strings.Contains(elem, "/") && gobin != "" {
+				// Do not create $GOBIN/goos_goarch/elem.
 				p.target = ""
 				p.gobinSubdir = true
 			}
