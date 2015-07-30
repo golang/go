@@ -211,7 +211,7 @@
 (IsNonNil p) -> (SETNE (TESTQ <TypeFlags> p p))
 (IsInBounds idx len) -> (SETB (CMPQ <TypeFlags> idx len))
 
-(Move [size] dst src mem) -> (REPMOVSB dst src (MOVQconst <TypeUInt64> [size]) mem)
+(Move [size] dst src mem) -> (REPMOVSB dst src (MOVQconst <config.Frontend().TypeUInt64()> [size]) mem)
 
 (Not x) -> (XORBconst [1] x)
 
@@ -391,15 +391,15 @@
 
 // lower Zero instructions with word sizes
 (Zero [0] _ mem) -> (Copy mem)
-(Zero [1] destptr mem) -> (MOVBstore destptr (MOVBconst <TypeInt8> [0]) mem)
-(Zero [2] destptr mem) -> (MOVWstore destptr (MOVWconst <TypeInt16> [0]) mem)
-(Zero [4] destptr mem) -> (MOVLstore destptr (MOVLconst <TypeInt32> [0]) mem)
-(Zero [8] destptr mem) -> (MOVQstore destptr (MOVQconst <TypeInt64> [0]) mem)
+(Zero [1] destptr mem) -> (MOVBstore destptr (MOVBconst <config.Frontend().TypeInt8()> [0]) mem)
+(Zero [2] destptr mem) -> (MOVWstore destptr (MOVWconst <config.Frontend().TypeInt16()> [0]) mem)
+(Zero [4] destptr mem) -> (MOVLstore destptr (MOVLconst <config.Frontend().TypeInt32()> [0]) mem)
+(Zero [8] destptr mem) -> (MOVQstore destptr (MOVQconst <config.Frontend().TypeInt64()> [0]) mem)
 
 // rewrite anything less than 4 words into a series of MOV[BWLQ] $0, ptr(off) instructions
 (Zero [size] destptr mem) && size < 4*8 -> (MOVXzero [size] destptr mem)
 // Use STOSQ to zero memory. Rewrite this into storing the words with REPSTOSQ and then filling in the remainder with linear moves
-(Zero [size] destptr mem) && size >= 4*8 -> (Zero [size%8] (OffPtr <TypeUInt64> [size-(size%8)] destptr) (REPSTOSQ  <TypeMem> destptr (MOVQconst <TypeUInt64> [size/8]) mem))
+(Zero [size] destptr mem) && size >= 4*8 -> (Zero [size%8] (OffPtr <config.Frontend().TypeUInt64()> [size-(size%8)] destptr) (REPSTOSQ  <TypeMem> destptr (MOVQconst <config.Frontend().TypeUInt64()> [size/8]) mem))
 
 // Absorb InvertFlags into branches.
 (LT (InvertFlags cmp) yes no) -> (GT cmp yes no)

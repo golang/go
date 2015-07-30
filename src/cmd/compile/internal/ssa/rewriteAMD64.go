@@ -3392,7 +3392,7 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 	case OpMove:
 		// match: (Move [size] dst src mem)
 		// cond:
-		// result: (REPMOVSB dst src (MOVQconst <TypeUInt64> [size]) mem)
+		// result: (REPMOVSB dst src (MOVQconst <config.Frontend().TypeUInt64()> [size]) mem)
 		{
 			size := v.AuxInt
 			dst := v.Args[0]
@@ -3405,14 +3405,14 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(dst)
 			v.AddArg(src)
 			v0 := v.Block.NewValue0(v.Line, OpAMD64MOVQconst, TypeInvalid)
-			v0.Type = TypeUInt64
+			v0.Type = config.Frontend().TypeUInt64()
 			v0.AuxInt = size
 			v.AddArg(v0)
 			v.AddArg(mem)
 			return true
 		}
-		goto end2aab774aedae2c616ee88bfa87cdf30e
-	end2aab774aedae2c616ee88bfa87cdf30e:
+		goto end4dd156b33beb9981378c91e46f055a56
+	end4dd156b33beb9981378c91e46f055a56:
 		;
 	case OpMul16:
 		// match: (Mul16 x y)
@@ -6919,10 +6919,10 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		;
 		// match: (Zero [1] destptr mem)
 		// cond:
-		// result: (MOVBstore destptr (MOVBconst <TypeInt8> [0]) mem)
+		// result: (MOVBstore destptr (MOVBconst <config.Frontend().TypeInt8()> [0]) mem)
 		{
 			if v.AuxInt != 1 {
-				goto end16839f51d2e9cf9548f216848406bd97
+				goto end56bcaef03cce4d15c03efff669bb5585
 			}
 			destptr := v.Args[0]
 			mem := v.Args[1]
@@ -6932,21 +6932,21 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(destptr)
 			v0 := v.Block.NewValue0(v.Line, OpAMD64MOVBconst, TypeInvalid)
-			v0.Type = TypeInt8
+			v0.Type = config.Frontend().TypeInt8()
 			v0.AuxInt = 0
 			v.AddArg(v0)
 			v.AddArg(mem)
 			return true
 		}
-		goto end16839f51d2e9cf9548f216848406bd97
-	end16839f51d2e9cf9548f216848406bd97:
+		goto end56bcaef03cce4d15c03efff669bb5585
+	end56bcaef03cce4d15c03efff669bb5585:
 		;
 		// match: (Zero [2] destptr mem)
 		// cond:
-		// result: (MOVWstore destptr (MOVWconst <TypeInt16> [0]) mem)
+		// result: (MOVWstore destptr (MOVWconst <config.Frontend().TypeInt16()> [0]) mem)
 		{
 			if v.AuxInt != 2 {
-				goto enddc4a090329efde9ca19983ad18174cbb
+				goto endf52f08f1f7b0ae220c4cfca6586a8586
 			}
 			destptr := v.Args[0]
 			mem := v.Args[1]
@@ -6956,21 +6956,21 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(destptr)
 			v0 := v.Block.NewValue0(v.Line, OpAMD64MOVWconst, TypeInvalid)
-			v0.Type = TypeInt16
+			v0.Type = config.Frontend().TypeInt16()
 			v0.AuxInt = 0
 			v.AddArg(v0)
 			v.AddArg(mem)
 			return true
 		}
-		goto enddc4a090329efde9ca19983ad18174cbb
-	enddc4a090329efde9ca19983ad18174cbb:
+		goto endf52f08f1f7b0ae220c4cfca6586a8586
+	endf52f08f1f7b0ae220c4cfca6586a8586:
 		;
 		// match: (Zero [4] destptr mem)
 		// cond:
-		// result: (MOVLstore destptr (MOVLconst <TypeInt32> [0]) mem)
+		// result: (MOVLstore destptr (MOVLconst <config.Frontend().TypeInt32()> [0]) mem)
 		{
 			if v.AuxInt != 4 {
-				goto end365a027b67399ad8d5d2d5eca847f7d8
+				goto end41c91e0c7a23e233de77812b5264fd10
 			}
 			destptr := v.Args[0]
 			mem := v.Args[1]
@@ -6980,21 +6980,21 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(destptr)
 			v0 := v.Block.NewValue0(v.Line, OpAMD64MOVLconst, TypeInvalid)
-			v0.Type = TypeInt32
+			v0.Type = config.Frontend().TypeInt32()
 			v0.AuxInt = 0
 			v.AddArg(v0)
 			v.AddArg(mem)
 			return true
 		}
-		goto end365a027b67399ad8d5d2d5eca847f7d8
-	end365a027b67399ad8d5d2d5eca847f7d8:
+		goto end41c91e0c7a23e233de77812b5264fd10
+	end41c91e0c7a23e233de77812b5264fd10:
 		;
 		// match: (Zero [8] destptr mem)
 		// cond:
-		// result: (MOVQstore destptr (MOVQconst <TypeInt64> [0]) mem)
+		// result: (MOVQstore destptr (MOVQconst <config.Frontend().TypeInt64()> [0]) mem)
 		{
 			if v.AuxInt != 8 {
-				goto end5808a5e9c68555a82c3514db39017e56
+				goto end157ad586af643d8dac6cc84a776000ca
 			}
 			destptr := v.Args[0]
 			mem := v.Args[1]
@@ -7004,14 +7004,14 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(destptr)
 			v0 := v.Block.NewValue0(v.Line, OpAMD64MOVQconst, TypeInvalid)
-			v0.Type = TypeInt64
+			v0.Type = config.Frontend().TypeInt64()
 			v0.AuxInt = 0
 			v.AddArg(v0)
 			v.AddArg(mem)
 			return true
 		}
-		goto end5808a5e9c68555a82c3514db39017e56
-	end5808a5e9c68555a82c3514db39017e56:
+		goto end157ad586af643d8dac6cc84a776000ca
+	end157ad586af643d8dac6cc84a776000ca:
 		;
 		// match: (Zero [size] destptr mem)
 		// cond: size < 4*8
@@ -7037,13 +7037,13 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		;
 		// match: (Zero [size] destptr mem)
 		// cond: size >= 4*8
-		// result: (Zero [size%8] (OffPtr <TypeUInt64> [size-(size%8)] destptr) (REPSTOSQ  <TypeMem> destptr (MOVQconst <TypeUInt64> [size/8]) mem))
+		// result: (Zero [size%8] (OffPtr <config.Frontend().TypeUInt64()> [size-(size%8)] destptr) (REPSTOSQ  <TypeMem> destptr (MOVQconst <config.Frontend().TypeUInt64()> [size/8]) mem))
 		{
 			size := v.AuxInt
 			destptr := v.Args[0]
 			mem := v.Args[1]
 			if !(size >= 4*8) {
-				goto endb3058a90f909821d5689fb358519828b
+				goto end84c39fe2e8d40e0042a10741a0ef16bd
 			}
 			v.Op = OpZero
 			v.AuxInt = 0
@@ -7051,7 +7051,7 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = size % 8
 			v0 := v.Block.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-			v0.Type = TypeUInt64
+			v0.Type = config.Frontend().TypeUInt64()
 			v0.AuxInt = size - (size % 8)
 			v0.AddArg(destptr)
 			v.AddArg(v0)
@@ -7059,15 +7059,15 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1.Type = TypeMem
 			v1.AddArg(destptr)
 			v2 := v.Block.NewValue0(v.Line, OpAMD64MOVQconst, TypeInvalid)
-			v2.Type = TypeUInt64
+			v2.Type = config.Frontend().TypeUInt64()
 			v2.AuxInt = size / 8
 			v1.AddArg(v2)
 			v1.AddArg(mem)
 			v.AddArg(v1)
 			return true
 		}
-		goto endb3058a90f909821d5689fb358519828b
-	endb3058a90f909821d5689fb358519828b:
+		goto end84c39fe2e8d40e0042a10741a0ef16bd
+	end84c39fe2e8d40e0042a10741a0ef16bd:
 		;
 	case OpZeroExt16to32:
 		// match: (ZeroExt16to32 x)

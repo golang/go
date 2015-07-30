@@ -7,7 +7,7 @@ package ssa
 import "testing"
 
 func TestSchedule(t *testing.T) {
-	c := NewConfig("amd64", DummyFrontend{t})
+	c := testConfig(t)
 	cases := []fun{
 		Fun(c, "entry",
 			Bloc("entry",
