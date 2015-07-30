@@ -5,6 +5,68 @@
 // The fiximports command fixes import declarations to use the canonical
 // import path for packages that have an "import comment" as defined by
 // https://golang.org/s/go14customimport.
+//
+//
+// Background
+//
+// The Go 1 custom import path mechanism lets the maintainer of a
+// package give it a stable name by which clients may import and "go
+// get" it, independent of the underlying version control system (such
+// as Git) or server (such as github.com) that hosts it.  Requests for
+// the custom name are redirected to the underlying name.  This allows
+// packages to be migrated from one underlying server or system to
+// another without breaking existing clients.
+//
+// Because this redirect mechanism creates aliases for existing
+// packages, it's possible for a single program to import the same
+// package by its canonical name and by an alias.  The resulting
+// executable will contain two copies of the package, which is wasteful
+// at best and incorrect at worst.
+//
+// To avoid this, "go build" reports an error if it encounters a special
+// comment like the one below, and if the import path in the comment
+// does not match the path of the enclosing package relative to
+// GOPATH/src:
+//
+//      $ grep ^package $GOPATH/src/github.com/bob/vanity/foo/foo.go
+// 	package foo // import "vanity.com/foo"
+//
+// The error from "go build" indicates that the package canonically
+// known as "vanity.com/foo" is locally installed under the
+// non-canonical name "github.com/bob/vanity/foo".
+//
+//
+// Usage
+//
+// When a package that you depend on introduces a custom import comment,
+// and your workspace imports it by the non-canonical name, your build
+// will stop working as soon as you update your copy of that package
+// using "go get -u".
+//
+// The purpose of the fiximports tool is to fix up all imports of the
+// non-canonical path within a Go workspace, replacing them with imports
+// of the canonical path.  Following a run of fiximports, the workspace
+// will no longer depend on the non-canonical copy of the package, so it
+// should be safe to delete.  It may be necessary to run "go get -u"
+// again to ensure that the package is locally installed under its
+// canonical path, if it was not already.
+//
+// The fiximports tool operates locally; it does not make HTTP requests
+// and does not discover new custom import comments.  It only operates
+// on non-canonical packages present in your workspace.
+//
+// The -baddomains flag is a list of domain names that should always be
+// considered non-canonical.  You can use this if you wish to make sure
+// that you no longer have any dependencies on packages from that
+// domain, even those that do not yet provide a canical import path
+// comment.  For example, the default value of -baddomains includes the
+// moribund code hosting site code.google.com, so fiximports will report
+// an error for each import of a package from this domain remaining
+// after canonicalization.
+//
+// To see the changes fiximports would make without applying them, use
+// the -n flag.
+//
 package main
 
 import (
@@ -49,6 +111,8 @@ Usage: fiximports [-n] package...
 The package... arguments specify a list of packages
 in the style of the go tool; see "go help packages".
 Hint: use "all" or "..." to match the entire workspace.
+
+For details, see http://godoc.org/golang.org/x/tools/cmd/fiximports.
 
 Flags:
   -n:	       dry run: show changes, but don't apply them
