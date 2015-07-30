@@ -76,6 +76,82 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		goto end4894dd7b58383fee5f8a92be08437c33
 	end4894dd7b58383fee5f8a92be08437c33:
 		;
+	case OpCom16:
+		// match: (Com16 (Com16 x))
+		// cond:
+		// result: (Copy x)
+		{
+			if v.Args[0].Op != OpCom16 {
+				goto end388d572e5a72fd87a07da5cab243ebdc
+			}
+			x := v.Args[0].Args[0]
+			v.Op = OpCopy
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto end388d572e5a72fd87a07da5cab243ebdc
+	end388d572e5a72fd87a07da5cab243ebdc:
+		;
+	case OpCom32:
+		// match: (Com32 (Com32 x))
+		// cond:
+		// result: (Copy x)
+		{
+			if v.Args[0].Op != OpCom32 {
+				goto end5b2b3834acc7313649923604f685e7c5
+			}
+			x := v.Args[0].Args[0]
+			v.Op = OpCopy
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto end5b2b3834acc7313649923604f685e7c5
+	end5b2b3834acc7313649923604f685e7c5:
+		;
+	case OpCom64:
+		// match: (Com64 (Com64 x))
+		// cond:
+		// result: (Copy x)
+		{
+			if v.Args[0].Op != OpCom64 {
+				goto end6d6312f25d06a327d92f028b1ce50566
+			}
+			x := v.Args[0].Args[0]
+			v.Op = OpCopy
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto end6d6312f25d06a327d92f028b1ce50566
+	end6d6312f25d06a327d92f028b1ce50566:
+		;
+	case OpCom8:
+		// match: (Com8 (Com8 x))
+		// cond:
+		// result: (Copy x)
+		{
+			if v.Args[0].Op != OpCom8 {
+				goto end70cbd85c4b8e82c170dba7c23f8bc0f3
+			}
+			x := v.Args[0].Args[0]
+			v.Op = OpCopy
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto end70cbd85c4b8e82c170dba7c23f8bc0f3
+	end70cbd85c4b8e82c170dba7c23f8bc0f3:
+		;
 	case OpConstString:
 		// match: (ConstString {s})
 		// cond:

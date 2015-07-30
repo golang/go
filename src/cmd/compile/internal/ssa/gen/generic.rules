@@ -34,6 +34,11 @@
 (Neq16 x x) -> (ConstBool {false})
 (Neq8 x x) -> (ConstBool {false})
 
+(Com8 (Com8 x)) -> (Copy x)
+(Com16 (Com16 x)) -> (Copy x)
+(Com32 (Com32 x)) -> (Copy x)
+(Com64 (Com64 x)) -> (Copy x)
+
 // tear apart slices
 // TODO: anything that generates a slice needs to go in here.
 (SlicePtr (Load ptr mem)) -> (Load ptr mem)

@@ -156,6 +156,21 @@ func testSubqToNegq_ssa(a, b, c, d, e, f, g, h, i, j, k int64) int64 {
 	return a + 8207351403619448057 - b - 1779494519303207690 + c*8810076340510052032*d - 4465874067674546219 - e*4361839741470334295 - f + 8688847565426072650*g*8065564729145417479
 }
 
+func testOcom() {
+	want1, want2 := int32(0x55555555), int32(-0x55555556)
+	if got1, got2 := testOcom_ssa(0x55555555, 0x55555555); want1 != got1 || want2 != got2 {
+		println("testSubqToNegq failed, wanted", want1, "and", want2,
+			"got", got1, "and", got2)
+		failed = true
+	}
+}
+
+func testOcom_ssa(a, b int32) (int32, int32) {
+	switch { // prevent inlining
+	}
+	return ^^^^a, ^^^^^b
+}
+
 var failed = false
 
 func main() {
@@ -165,6 +180,7 @@ func main() {
 	testRegallocCVSpill()
 	testSubqToNegq()
 	testBitwiseLogic()
+	testOcom()
 
 	if failed {
 		panic("failed")
