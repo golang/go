@@ -598,6 +598,12 @@ invalid when the current working directory changes.
 On Windows, cgo now uses external linking by default.
 </p>
 
+<p>
+When a C struct ends with a zero-sized field, but the struct itself is
+not zero-sized, Go code can no longer refer to the zero-sized field.
+Any such references will have to be rewritten.
+</p>
+
 <h2 id="performance">Performance</h2>
 
 <p>
