@@ -652,6 +652,9 @@ func (s *typeSwitch) typeone(t *Node) *Node {
 	} else {
 		name = t.Rlist.N
 		init = list1(Nod(ODCL, name, nil))
+		a := Nod(OAS, name, nil)
+		typecheck(&a, Etop)
+		init = list(init, a)
 	}
 
 	a := Nod(OAS2, nil, nil)

@@ -4,9 +4,7 @@
 
 package runtime
 
-import (
-	"unsafe"
-)
+import "unsafe"
 
 const (
 	hashSize = 1009
@@ -356,7 +354,12 @@ func assertE2I(inter *interfacetype, e interface{}, r *fInterface) {
 	rp.data = ep.data
 }
 
+var testingAssertE2I2GC bool
+
 func assertE2I2(inter *interfacetype, e interface{}, r *fInterface) bool {
+	if testingAssertE2I2GC {
+		GC()
+	}
 	ep := (*eface)(unsafe.Pointer(&e))
 	t := ep._type
 	if t == nil {
