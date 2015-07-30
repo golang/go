@@ -975,6 +975,7 @@ func (pc *persistConn) readLoop() {
 			// the underlying bufio reader.
 			select {
 			case <-rc.req.Cancel:
+				alive = false
 				pc.t.CancelRequest(rc.req)
 			case bodyEOF := <-waitForBodyRead:
 				pc.t.setReqCanceler(rc.req, nil) // before pc might return to idle pool
@@ -1134,11 +1135,11 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 		// Note that we don't request this for HEAD requests,
 		// due to a bug in nginx:
 		//   http://trac.nginx.org/nginx/ticket/358
-		//   http://golang.org/issue/5522
+		//   https://golang.org/issue/5522
 		//
 		// We don't request gzip if the request is for a range, since
 		// auto-decoding a portion of a gzipped document will just fail
-		// anyway. See http://golang.org/issue/8923
+		// anyway. See https://golang.org/issue/8923
 		requestedGzip = true
 		req.extraHeaders().Set("Accept-Encoding", "gzip")
 	}
@@ -1163,6 +1164,19 @@ WaitResponse:
 	for {
 		select {
 		case err := <-writeErrCh:
+			if isNetWriteError(err) {
+				// Issue 11745. If we failed to write the request
+				// body, it's possible the server just heard enough
+				// and already wrote to us. Prioritize the server's
+				// response over returning a body write error.
+				select {
+				case re = <-resc:
+					pc.close()
+					break WaitResponse
+				case <-time.After(50 * time.Millisecond):
+					// Fall through.
+				}
+			}
 			if err != nil {
 				re = responseAndError{nil, err}
 				pc.close()
@@ -1191,6 +1205,9 @@ WaitResponse:
 				}
 			default:
 				re = responseAndError{err: errClosed}
+				if pc.isCanceled() {
+					re = responseAndError{err: errRequestCanceled}
+				}
 			}
 			break WaitResponse
 		case <-respHeaderTimer:
@@ -1365,3 +1382,14 @@ type fakeLocker struct{}
 
 func (fakeLocker) Lock()   {}
 func (fakeLocker) Unlock() {}
+
+func isNetWriteError(err error) bool {
+	switch e := err.(type) {
+	case *url.Error:
+		return isNetWriteError(e.Err)
+	case *net.OpError:
+		return e.Op == "write"
+	default:
+		return false
+	}
+}

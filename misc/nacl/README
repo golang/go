@@ -11,7 +11,7 @@ Go 1.3 supports three architectures
    limited to a 4gb window.
  * nacl/arm which is 32-bit ARMv7A architecture with 1GB address space.
 
-For background it is recommended that you read http://golang.org/s/go13nacl.
+For background it is recommended that you read https://golang.org/s/go13nacl.
 
 Prerequisites
 -------------

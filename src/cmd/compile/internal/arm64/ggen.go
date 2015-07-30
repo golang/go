@@ -19,6 +19,13 @@ func defframe(ptxt *obj.Prog) {
 
 	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.Argwid, int64(gc.Widthptr)))
 	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
+
+	// arm64 requires that the frame size (not counting saved LR)
+	// be empty or be 8 mod 16. If not, pad it.
+	if frame != 0 && frame%16 != 8 {
+		frame += 8
+	}
+
 	ptxt.To.Offset = int64(frame)
 
 	// insert code to zero ambiguously live variables

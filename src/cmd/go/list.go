@@ -175,6 +175,18 @@ func runList(cmd *Command, args []string) {
 	}
 
 	for _, pkg := range load(args) {
+		// We apply vendoredImportPath here for test imports.
+		// It's not needed for regular imports, because it was
+		// done while loading the package.
+		for i, path := range pkg.TestImports {
+			path, _ = vendoredImportPath(pkg, path)
+			pkg.TestImports[i] = path
+		}
+		for i, path := range pkg.XTestImports {
+			path, _ = vendoredImportPath(pkg, path)
+			pkg.XTestImports[i] = path
+		}
+
 		do(pkg)
 	}
 }

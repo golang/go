@@ -295,3 +295,7 @@ func TestConfHostLookupOrder(t *testing.T) {
 	}
 
 }
+
+func TestSystemConf(t *testing.T) {
+	systemConf()
+}

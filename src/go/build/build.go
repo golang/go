@@ -256,6 +256,7 @@ func (ctxt *Context) SrcDirs() []string {
 // if set, or else the compiled code's GOARCH, GOOS, and GOROOT.
 var Default Context = defaultContext()
 
+// Also known to cmd/dist/build.go.
 var cgoEnabled = map[string]bool{
 	"darwin/386":      true,
 	"darwin/amd64":    true,
@@ -967,7 +968,7 @@ func (ctxt *Context) matchFile(dir, name string, returnImports bool, allTags map
 	}
 
 	if strings.HasSuffix(filename, ".go") {
-		data, err = readImports(f, false)
+		data, err = readImports(f, false, nil)
 	} else {
 		data, err = readComments(f)
 	}

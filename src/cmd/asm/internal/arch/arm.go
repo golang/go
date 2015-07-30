@@ -79,6 +79,7 @@ var armJump = map[string]bool{
 	"BGT":  true,
 	"BLE":  true,
 	"CALL": true,
+	"JMP":  true,
 }
 
 func jumpArm(word string) bool {

@@ -421,7 +421,7 @@ func TestServeMuxHandlerRedirects(t *testing.T) {
 	}
 }
 
-// Tests for http://golang.org/issue/900
+// Tests for https://golang.org/issue/900
 func TestMuxRedirectLeadingSlashes(t *testing.T) {
 	paths := []string{"//foo.txt", "///foo.txt", "/../../foo.txt"}
 	for _, path := range paths {
@@ -448,7 +448,7 @@ func TestMuxRedirectLeadingSlashes(t *testing.T) {
 
 func TestServerTimeouts(t *testing.T) {
 	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test; see http://golang.org/issue/7237")
+		t.Skip("skipping test; see https://golang.org/issue/7237")
 	}
 	defer afterTest(t)
 	reqNum := 0
@@ -527,7 +527,7 @@ func TestServerTimeouts(t *testing.T) {
 // request) that will never happen.
 func TestOnlyWriteTimeout(t *testing.T) {
 	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test; see http://golang.org/issue/7237")
+		t.Skip("skipping test; see https://golang.org/issue/7237")
 	}
 	defer afterTest(t)
 	var conn net.Conn
@@ -882,7 +882,7 @@ func TestHeadResponses(t *testing.T) {
 
 func TestTLSHandshakeTimeout(t *testing.T) {
 	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test; see http://golang.org/issue/7237")
+		t.Skip("skipping test; see https://golang.org/issue/7237")
 	}
 	defer afterTest(t)
 	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
@@ -1744,7 +1744,7 @@ func TestRequestBodyLimit(t *testing.T) {
 // side of their TCP connection, the server doesn't send a 400 Bad Request.
 func TestClientWriteShutdown(t *testing.T) {
 	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test; see http://golang.org/issue/7237")
+		t.Skip("skipping test; see https://golang.org/issue/7237")
 	}
 	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
@@ -1799,7 +1799,7 @@ func TestServerBufferedChunking(t *testing.T) {
 // Tests that the server flushes its response headers out when it's
 // ignoring the response body and waits a bit before forcefully
 // closing the TCP connection, causing the client to get a RST.
-// See http://golang.org/issue/3595
+// See https://golang.org/issue/3595
 func TestServerGracefulClose(t *testing.T) {
 	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -2291,7 +2291,7 @@ func TestDoubleHijack(t *testing.T) {
 	<-conn.closec
 }
 
-// http://golang.org/issue/5955
+// https://golang.org/issue/5955
 // Note that this does not test the "request too large"
 // exit path from the http server. This is intentional;
 // not sending Connection: close is just a minor wire
@@ -2988,6 +2988,73 @@ func TestTolerateCRLFBeforeRequestLine(t *testing.T) {
 	if numReq != 2 {
 		t.Errorf("num requests = %d; want 2", numReq)
 		t.Logf("Res: %s", buf.Bytes())
+	}
+}
+
+func TestIssue11549_Expect100(t *testing.T) {
+	req := reqBytes(`PUT /readbody HTTP/1.1
+User-Agent: PycURL/7.22.0
+Host: 127.0.0.1:9000
+Accept: */*
+Expect: 100-continue
+Content-Length: 10
+
+HelloWorldPUT /noreadbody HTTP/1.1
+User-Agent: PycURL/7.22.0
+Host: 127.0.0.1:9000
+Accept: */*
+Expect: 100-continue
+Content-Length: 10
+
+GET /should-be-ignored HTTP/1.1
+Host: foo
+
+`)
+	var buf bytes.Buffer
+	conn := &rwTestConn{
+		Reader: bytes.NewReader(req),
+		Writer: &buf,
+		closec: make(chan bool, 1),
+	}
+	ln := &oneConnListener{conn: conn}
+	numReq := 0
+	go Serve(ln, HandlerFunc(func(w ResponseWriter, r *Request) {
+		numReq++
+		if r.URL.Path == "/readbody" {
+			ioutil.ReadAll(r.Body)
+		}
+		io.WriteString(w, "Hello world!")
+	}))
+	<-conn.closec
+	if numReq != 2 {
+		t.Errorf("num requests = %d; want 2", numReq)
+	}
+	if !strings.Contains(buf.String(), "Connection: close\r\n") {
+		t.Errorf("expected 'Connection: close' in response; got: %s", buf.String())
+	}
+}
+
+// If a Handler finishes and there's an unread request body,
+// verify the server try to do implicit read on it before replying.
+func TestHandlerFinishSkipBigContentLengthRead(t *testing.T) {
+	conn := &testConn{closec: make(chan bool)}
+	conn.readBuf.Write([]byte(fmt.Sprintf(
+		"POST / HTTP/1.1\r\n" +
+			"Host: test\r\n" +
+			"Content-Length: 9999999999\r\n" +
+			"\r\n" + strings.Repeat("a", 1<<20))))
+
+	ls := &oneConnListener{conn}
+	var inHandlerLen int
+	go Serve(ls, HandlerFunc(func(rw ResponseWriter, req *Request) {
+		inHandlerLen = conn.readBuf.Len()
+		rw.WriteHeader(404)
+	}))
+	<-conn.closec
+	afterHandlerLen := conn.readBuf.Len()
+
+	if afterHandlerLen != inHandlerLen {
+		t.Errorf("unexpected implicit read. Read buffer went from %d -> %d", inHandlerLen, afterHandlerLen)
 	}
 }
 

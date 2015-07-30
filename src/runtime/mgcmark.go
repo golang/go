@@ -29,9 +29,7 @@ func gcscan_m() {
 	// Prepare flag indicating that the scan has not been completed.
 	local_allglen := gcResetGState()
 
-	work.nwait = 0
 	work.ndone = 0
-	work.nproc = 1
 	useOneP := uint32(1) // For now do not do this in parallel.
 	//	ackgcphase is not needed since we are not scanning running goroutines.
 	parforsetup(work.markfor, useOneP, uint32(_RootCount+local_allglen), false, markroot)
@@ -160,6 +158,15 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 		return
 	}
 
+	// Don't assist in non-preemptible contexts. These are
+	// generally fragile and won't allow the assist to block.
+	if getg() == gp.m.g0 {
+		return
+	}
+	if mp := getg().m; mp.locks > 0 || mp.preemptoff != "" {
+		return
+	}
+
 	// Compute the amount of assist scan work we need to do.
 	scanWork := int64(gcController.assistRatio*float64(gp.gcalloc)) - gp.gcscanwork
 	// scanWork can be negative if the last assist scanned a large
@@ -168,6 +175,7 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 		return
 	}
 
+retry:
 	// Steal as much credit as we can from the background GC's
 	// scan credit. This is racy and may drop the background
 	// credit below 0 if two mutators steal at the same time. This
@@ -182,7 +190,7 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 		} else {
 			stolen = scanWork
 		}
-		xaddint64(&gcController.bgScanCredit, -scanWork)
+		xaddint64(&gcController.bgScanCredit, -stolen)
 
 		scanWork -= stolen
 		gp.gcscanwork += stolen
@@ -193,6 +201,7 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 	}
 
 	// Perform assist work
+	completed := false
 	systemstack(func() {
 		if atomicload(&gcBlackenEnabled) == 0 {
 			// The gcBlackenEnabled check in malloc races with the
@@ -200,6 +209,9 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 			// would be a performance hit.
 			// Instead we recheck it here on the non-preemptable system
 			// stack to determine if we should preform an assist.
+
+			// GC is done, so ignore any remaining debt.
+			scanWork = 0
 			return
 		}
 		// Track time spent in this assist. Since we're on the
@@ -219,7 +231,9 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 		startScanWork := gcw.scanWork
 		gcDrainN(gcw, scanWork)
 		// Record that we did this much scan work.
-		gp.gcscanwork += gcw.scanWork - startScanWork
+		workDone := gcw.scanWork - startScanWork
+		gp.gcscanwork += workDone
+		scanWork -= workDone
 		// If we are near the end of the mark phase
 		// dispose of the gcw.
 		if gcBlackenPromptly {
@@ -246,6 +260,7 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 			} else {
 				work.bgMark1.complete()
 			}
+			completed = true
 		}
 		duration := nanotime() - startTime
 		_p_ := gp.m.p.ptr()
@@ -255,6 +270,31 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 			_p_.gcAssistTime = 0
 		}
 	})
+
+	if completed {
+		// We called complete() above, so we should yield to
+		// the now-runnable GC coordinator.
+		Gosched()
+
+		// It's likely that this assist wasn't able to pay off
+		// its debt, but it's also likely that the Gosched let
+		// the GC finish this cycle and there's no point in
+		// waiting. If the GC finished, skip the delay below.
+		if atomicload(&gcBlackenEnabled) == 0 {
+			scanWork = 0
+		}
+	}
+
+	if scanWork > 0 {
+		// We were unable steal enough credit or perform
+		// enough work to pay off the assist debt. We need to
+		// do one of these before letting the mutator allocate
+		// more, so go around again after performing an
+		// interruptible sleep for 100 us (the same as the
+		// getfull barrier) to let other mutators run.
+		timeSleep(100 * 1000)
+		goto retry
+	}
 }
 
 //go:nowritebarrier
@@ -602,8 +642,8 @@ func setNextBarrierPC(pc uintptr) {
 // credit exceeds flushScanCredit.
 //go:nowritebarrier
 func gcDrain(gcw *gcWork, flushScanCredit int64) {
-	if gcphase != _GCmark && gcphase != _GCmarktermination {
-		throw("scanblock phase incorrect")
+	if !writeBarrierEnabled {
+		throw("gcDrain phase incorrect")
 	}
 
 	var lastScanFlush, nextScanFlush int64
@@ -654,7 +694,7 @@ func gcDrain(gcw *gcWork, flushScanCredit int64) {
 // get work, even though there may be more work in the system.
 //go:nowritebarrier
 func gcDrainUntilPreempt(gcw *gcWork, flushScanCredit int64) {
-	if gcphase != _GCmark {
+	if !writeBarrierEnabled {
 		println("gcphase =", gcphase)
 		throw("gcDrainUntilPreempt phase incorrect")
 	}
@@ -708,6 +748,9 @@ func gcDrainUntilPreempt(gcw *gcWork, flushScanCredit int64) {
 // scanning is always done in whole object increments.
 //go:nowritebarrier
 func gcDrainN(gcw *gcWork, scanWork int64) {
+	if !writeBarrierEnabled {
+		throw("gcDrainN phase incorrect")
+	}
 	targetScanWork := gcw.scanWork + scanWork
 	for gcw.scanWork < targetScanWork {
 		// This might be a good place to add prefetch code...

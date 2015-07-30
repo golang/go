@@ -16,7 +16,7 @@ For example:
 		}()
 	}
 
-See: http://golang.org/doc/go_faq.html#closures_and_goroutines
+See: https://golang.org/doc/go_faq.html#closures_and_goroutines
 */
 
 package main

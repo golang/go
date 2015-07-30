@@ -467,12 +467,12 @@ func (p *Parser) register(name string, prefix rune) (r1, r2 int16, scale int8, o
 		switch p.next().ScanToken {
 		case ',':
 			if char != '5' && char != '7' {
-				p.errorf("illegal register pair syntax")
+				p.errorf("(register,register) not supported on this architecture")
 				return
 			}
 		case '+':
 			if char != '9' {
-				p.errorf("illegal register pair syntax")
+				p.errorf("(register+register) not supported on this architecture")
 				return
 			}
 		}
@@ -605,7 +605,7 @@ func (p *Parser) setPseudoRegister(addr *obj.Addr, reg string, isStatic bool, pr
 
 // registerIndirect parses the general form of a register indirection.
 // It is can be (R1), (R2*scale), or (R1)(R2*scale) where R1 may be a simple
-// register or register pair R:R or (R, R).
+// register or register pair R:R or (R, R) or (R+R).
 // Or it might be a pseudo-indirection like (FP).
 // We are sitting on the opening parenthesis.
 func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
@@ -648,9 +648,9 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 			return
 		}
 		if p.arch.Thechar == '9' {
-			// Special form for PPC64: register pair (R1+R2).
+			// Special form for PPC64: (R1+R2); alias for (R1)(R2*1).
 			if prefix != 0 || scale != 0 {
-				p.errorf("illegal address mode for register pair")
+				p.errorf("illegal address mode for register+register")
 				return
 			}
 			a.Type = obj.TYPE_MEM

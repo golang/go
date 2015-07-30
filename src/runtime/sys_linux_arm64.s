@@ -32,7 +32,9 @@
 #define SYS_getrlimit		163
 #define SYS_madvise		233
 #define SYS_mincore		232
+#define SYS_getpid		172
 #define SYS_gettid		178
+#define SYS_kill		129
 #define SYS_tkill		130
 #define SYS_futex		98
 #define SYS_sched_getaffinity	123
@@ -113,7 +115,7 @@ TEXT runtime·getrlimit(SB),NOSPLIT,$-8-20
 	MOVW	R0, ret+16(FP)
 	RET
 
-TEXT runtime·usleep(SB),NOSPLIT,$16-4
+TEXT runtime·usleep(SB),NOSPLIT,$24-4
 	MOVWU	usec+0(FP), R3
 	MOVD	R3, R5
 	MOVW	$1000000, R4
@@ -151,6 +153,15 @@ TEXT runtime·raise(SB),NOSPLIT,$-8
 	SVC
 	RET
 
+TEXT runtime·raiseproc(SB),NOSPLIT,$-8
+	MOVD	$SYS_getpid, R8
+	SVC
+	MOVW	R0, R0		// arg 1 pid
+	MOVW	sig+0(FP), R1	// arg 2
+	MOVD	$SYS_kill, R8
+	SVC
+	RET
+
 TEXT runtime·setitimer(SB),NOSPLIT,$-8-24
 	MOVW	mode+0(FP), R0
 	MOVD	new+8(FP), R1
@@ -169,7 +180,7 @@ TEXT runtime·mincore(SB),NOSPLIT,$-8-28
 	RET
 
 // func now() (sec int64, nsec int32)
-TEXT time·now(SB),NOSPLIT,$16-12
+TEXT time·now(SB),NOSPLIT,$24-12
 	MOVD	RSP, R0
 	MOVD	$0, R1
 	MOVD	$SYS_gettimeofday, R8
@@ -182,7 +193,7 @@ TEXT time·now(SB),NOSPLIT,$16-12
 	MOVW	R5, nsec+8(FP)
 	RET
 
-TEXT runtime·nanotime(SB),NOSPLIT,$16-8
+TEXT runtime·nanotime(SB),NOSPLIT,$24-8
 	MOVW	$1, R0 // CLOCK_MONOTONIC
 	MOVD	RSP, R1
 	MOVD	$SYS_clock_gettime, R8

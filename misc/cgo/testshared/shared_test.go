@@ -143,6 +143,10 @@ func testMain(m *testing.M) (int, error) {
 }
 
 func TestMain(m *testing.M) {
+	// Some of the tests install binaries into a custom GOPATH.
+	// That won't work if GOBIN is set.
+	os.Unsetenv("GOBIN")
+
 	flag.Parse()
 	exitCode, err := testMain(m)
 	if err != nil {

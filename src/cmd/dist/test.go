@@ -259,7 +259,7 @@ func (t *tester) registerStdTest(pkg string) {
 				"test",
 				"-short",
 				t.tags(),
-				t.timeout(120),
+				t.timeout(180),
 				"-gcflags=" + os.Getenv("GO_GCFLAGS"),
 			}
 			if t.race {
@@ -418,17 +418,13 @@ func (t *tester) registerTests() {
 					return t.cgoTestSO("misc/cgo/testso")
 				},
 			})
-			if t.goos == "darwin" {
-				fmt.Println("Skipping misc/cgo/testsovar test. See issue 10360 for details.")
-			} else {
-				t.tests = append(t.tests, distTest{
-					name:    "testsovar",
-					heading: "../misc/cgo/testsovar",
-					fn: func() error {
-						return t.cgoTestSO("misc/cgo/testsovar")
-					},
-				})
-			}
+			t.tests = append(t.tests, distTest{
+				name:    "testsovar",
+				heading: "../misc/cgo/testsovar",
+				fn: func() error {
+					return t.cgoTestSO("misc/cgo/testsovar")
+				},
+			})
 		}
 		if t.supportedBuildmode("c-archive") {
 			t.registerTest("testcarchive", "../misc/cgo/testcarchive", "./test.bash")
@@ -516,6 +512,9 @@ func (t *tester) dirCmd(dir string, bin string, args ...string) *exec.Cmd {
 	}
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	if vflag > 1 {
+		errprintf("%s\n", strings.Join(cmd.Args, " "))
+	}
 	return cmd
 }
 
@@ -731,7 +730,7 @@ func (t *tester) cgoTestSOSupported() bool {
 		// No exec facility on Android or iOS.
 		return false
 	}
-	if t.goos == "ppc64le" || t.goos == "ppc64" {
+	if t.goarch == "ppc64le" || t.goarch == "ppc64" {
 		// External linking not implemented on ppc64 (issue #8912).
 		return false
 	}
@@ -815,6 +814,14 @@ func (t *tester) raceTest() error {
 	}
 	if err := t.dirCmd("src", "go", "test", "-race", "-short", "flag", "os/exec").Run(); err != nil {
 		return err
+	}
+	if t.cgoEnabled {
+		env := mergeEnvLists([]string{"GOTRACEBACK=2"}, os.Environ())
+		cmd := t.dirCmd("misc/cgo/test", "go", "test", "-race", "-short")
+		cmd.Env = env
+		if err := cmd.Run(); err != nil {
+			return err
+		}
 	}
 	if t.extLink() {
 		// Test with external linking; see issue 9133.

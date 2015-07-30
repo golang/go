@@ -228,7 +228,7 @@ func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, path []*
 	// TODO(gri) It's easy to create pathological cases where the
 	// current approach is incorrect: In general we need to know
 	// and add all methods _before_ type-checking the type.
-	// See http://play.golang.org/p/WMpE0q2wK8
+	// See https://play.golang.org/p/WMpE0q2wK8
 	check.addMethodDecls(obj)
 }
 

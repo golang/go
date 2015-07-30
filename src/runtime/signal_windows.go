@@ -26,14 +26,10 @@ func firstcontinuetramp()
 func lastcontinuetramp()
 
 func initExceptionHandler() {
-	major, _ := getVersion()
 	stdcall2(_AddVectoredExceptionHandler, 1, funcPC(exceptiontramp))
-	if _AddVectoredContinueHandler == nil || unsafe.Sizeof(&_AddVectoredContinueHandler) == 4 || major < 6 {
+	if _AddVectoredContinueHandler == nil || unsafe.Sizeof(&_AddVectoredContinueHandler) == 4 {
 		// use SetUnhandledExceptionFilter for windows-386 or
-		// if VectoredContinueHandler is unavailable or
-		// if running windows-amd64 v5. V5 appears to fail to
-		// call the continue handlers if windows error reporting dialog
-		// is disabled.
+		// if VectoredContinueHandler is unavailable.
 		// note: SetUnhandledExceptionFilter handler won't be called, if debugging.
 		stdcall1(_SetUnhandledExceptionFilter, funcPC(lastcontinuetramp))
 	} else {
@@ -205,6 +201,12 @@ func sigdisable(sig uint32) {
 }
 
 func sigignore(sig uint32) {
+}
+
+func badsignal2()
+
+func raisebadsignal(sig int32) {
+	badsignal2()
 }
 
 func crash() {

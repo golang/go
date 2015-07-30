@@ -1403,13 +1403,6 @@ func TestUnaligned64(t *testing.T) {
 }
 
 func TestNilDeref(t *testing.T) {
-	switch runtime.GOOS {
-	case "darwin", "freebsd", "netbsd":
-		switch runtime.GOARCH {
-		case "arm", "arm64":
-			t.Skipf("issue 7338: skipping test on %s/%s", runtime.GOOS, runtime.GOARCH)
-		}
-	}
 	funcs := [...]func(){
 		func() { CompareAndSwapInt32(nil, 0, 0) },
 		func() { CompareAndSwapInt64(nil, 0, 0) },

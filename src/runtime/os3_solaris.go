@@ -17,6 +17,7 @@ import "unsafe"
 //go:cgo_import_dynamic libc_fstat fstat "libc.so"
 //go:cgo_import_dynamic libc_getcontext getcontext "libc.so"
 //go:cgo_import_dynamic libc_getrlimit getrlimit "libc.so"
+//go:cgo_import_dynamic libc_kill kill "libc.so"
 //go:cgo_import_dynamic libc_madvise madvise "libc.so"
 //go:cgo_import_dynamic libc_malloc malloc "libc.so"
 //go:cgo_import_dynamic libc_mmap mmap "libc.so"
@@ -51,6 +52,7 @@ import "unsafe"
 //go:linkname libc_fstat libc_fstat
 //go:linkname libc_getcontext libc_getcontext
 //go:linkname libc_getrlimit libc_getrlimit
+//go:linkname libc_kill libc_kill
 //go:linkname libc_madvise libc_madvise
 //go:linkname libc_malloc libc_malloc
 //go:linkname libc_mmap libc_mmap
@@ -86,6 +88,7 @@ var (
 	libc_fstat,
 	libc_getcontext,
 	libc_getrlimit,
+	libc_kill,
 	libc_madvise,
 	libc_malloc,
 	libc_mmap,
@@ -304,6 +307,12 @@ func updatesigmask(m sigmask) {
 	sigprocmask(_SIG_SETMASK, &mask, nil)
 }
 
+func unblocksig(sig int32) {
+	var mask sigset
+	mask.__sigbits[(sig-1)/32] |= 1 << ((uint32(sig) - 1) & 31)
+	sigprocmask(_SIG_UNBLOCK, &mask, nil)
+}
+
 //go:nosplit
 func semacreate() uintptr {
 	var sem *semt
@@ -443,7 +452,8 @@ func raise(sig int32) /* int32 */ {
 }
 
 func raiseproc(sig int32) /* int32 */ {
-	sysvicall1(&libc_raise, uintptr(sig))
+	pid := sysvicall0(&libc_getpid)
+	sysvicall2(&libc_kill, pid, uintptr(sig))
 }
 
 //go:nosplit

@@ -217,7 +217,7 @@ func passFDChild() {
 	defer os.Exit(0)
 
 	// Look for our fd. It should be fd 3, but we work around an fd leak
-	// bug here (http://golang.org/issue/2603) to let it be elsewhere.
+	// bug here (https://golang.org/issue/2603) to let it be elsewhere.
 	var uc *net.UnixConn
 	for fd := uintptr(3); fd <= 10; fd++ {
 		f := os.NewFile(fd, "unix-conn")

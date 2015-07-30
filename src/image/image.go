@@ -18,7 +18,7 @@
 // initialization side effects.
 //
 // See "The Go image package" for more details:
-// http://golang.org/doc/articles/image_package.html
+// https://golang.org/doc/articles/image_package.html
 package image
 
 import (

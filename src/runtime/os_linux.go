@@ -29,8 +29,8 @@ func rtsigprocmask(sig uint32, new, old *sigset, size int32)
 
 //go:noescape
 func getrlimit(kind int32, limit unsafe.Pointer) int32
-func raise(sig uint32)
-func raiseproc(sig uint32)
+func raise(sig int32)
+func raiseproc(sig int32)
 
 //go:noescape
 func sched_getaffinity(pid, len uintptr, buf *uintptr) int32

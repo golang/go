@@ -48,6 +48,13 @@ import (
 //	map[string]interface{}, for JSON objects
 //	nil for JSON null
 //
+// To unmarshal a JSON array into a slice, Unmarshal resets the slice to nil
+// and then appends each element to the slice.
+//
+// To unmarshal a JSON object into a map, Unmarshal replaces the map
+// with an empty map and then adds key-value pairs from the object to
+// the map.
+//
 // If a JSON value is not appropriate for a given target type,
 // or if a JSON number overflows the target type, Unmarshal
 // skips that field and completes the unmarshalling as best it can.
@@ -351,7 +358,7 @@ func (d *decodeState) indirect(v reflect.Value, decodingNull bool) (Unmarshaler,
 		if v.IsNil() {
 			v.Set(reflect.New(v.Type().Elem()))
 		}
-		if v.Type().NumMethod() > 0 {
+		if v.Type().NumMethod() > 0 && !decodingNull {
 			if u, ok := v.Interface().(Unmarshaler); ok {
 				return u, nil, reflect.Value{}
 			}
@@ -682,6 +689,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 			} else {
 				d.saveError(&UnmarshalTypeError{"string", v.Type(), int64(d.off)})
 			}
+			return
 		}
 		s, ok := unquoteBytes(item)
 		if !ok {

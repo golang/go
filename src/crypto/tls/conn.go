@@ -923,7 +923,7 @@ func (c *Conn) Read(b []byte) (n int, err error) {
 		// tried to reuse the HTTP connection for a new
 		// request.
 		// See https://codereview.appspot.com/76400046
-		// and http://golang.org/issue/3514
+		// and https://golang.org/issue/3514
 		if ri := c.rawInput; ri != nil &&
 			n != 0 && err == nil &&
 			c.input == nil && len(ri.data) > 0 && recordType(ri.data[0]) == recordTypeAlert {
@@ -1024,6 +1024,9 @@ func (c *Conn) VerifyHostname(host string) error {
 	}
 	if !c.handshakeComplete {
 		return errors.New("tls: handshake has not yet been performed")
+	}
+	if len(c.verifiedChains) == 0 {
+		return errors.New("tls: handshake did not verify certificate chain")
 	}
 	return c.peerCertificates[0].VerifyHostname(host)
 }

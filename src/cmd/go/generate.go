@@ -402,7 +402,7 @@ func (g *Generator) exec(words []string) {
 		"GOFILE=" + g.file,
 		"GOPACKAGE=" + g.pkg,
 	}
-	cmd.Env = mergeEnvLists(env, os.Environ())
+	cmd.Env = mergeEnvLists(env, origEnv)
 	err := cmd.Run()
 	if err != nil {
 		g.errorf("running %q: %s", words[0], err)

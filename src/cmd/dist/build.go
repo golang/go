@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -1012,7 +1013,7 @@ func cmdbootstrap() {
 			"*** %s still exists. ***\n"+
 			"It probably contains stale files that may confuse the build.\n"+
 			"Please (check what's there and) remove it and try again.\n"+
-			"See http://golang.org/s/go14nopkg\n",
+			"See https://golang.org/s/go14nopkg\n",
 			pathf("%s/src/pkg", goroot))
 	}
 
@@ -1022,6 +1023,7 @@ func cmdbootstrap() {
 
 	setup()
 
+	checkCC()
 	bootstrapBuildTools()
 
 	// For the main bootstrap, building for host os/arch.
@@ -1051,7 +1053,7 @@ func cmdbootstrap() {
 		xprintf("\n")
 	}
 
-	xprintf("##### Building compilers and go_bootstrap for host, %s/%s.\n", gohostos, gohostarch)
+	xprintf("##### Building go_bootstrap for host, %s/%s.\n", gohostos, gohostarch)
 	for _, dir := range buildorder {
 		install(dir)
 	}
@@ -1064,6 +1066,57 @@ func cmdbootstrap() {
 	// Build runtime for actual goos/goarch too.
 	if goos != gohostos || goarch != gohostarch {
 		install("runtime")
+	}
+}
+
+// Copied from go/build/build.go.
+// Cannot use go/build directly because cmd/dist for a new release
+// builds against an old release's go/build, which may be out of sync.
+var cgoEnabled = map[string]bool{
+	"darwin/386":      true,
+	"darwin/amd64":    true,
+	"darwin/arm":      true,
+	"darwin/arm64":    true,
+	"dragonfly/amd64": true,
+	"freebsd/386":     true,
+	"freebsd/amd64":   true,
+	"linux/386":       true,
+	"linux/amd64":     true,
+	"linux/arm":       true,
+	"linux/arm64":     true,
+	"linux/ppc64le":   true,
+	"android/386":     true,
+	"android/amd64":   true,
+	"android/arm":     true,
+	"netbsd/386":      true,
+	"netbsd/amd64":    true,
+	"netbsd/arm":      true,
+	"openbsd/386":     true,
+	"openbsd/amd64":   true,
+	"solaris/amd64":   true,
+	"windows/386":     true,
+	"windows/amd64":   true,
+}
+
+func needCC() bool {
+	switch os.Getenv("CGO_ENABLED") {
+	case "1":
+		return true
+	case "0":
+		return false
+	}
+	return cgoEnabled[gohostos+"/"+gohostarch]
+}
+
+func checkCC() {
+	if !needCC() {
+		return
+	}
+	if _, err := exec.Command(defaultcc, "--help").Output(); err != nil {
+		fatal("cannot invoke C compiler %q: %v\n\n"+
+			"Go needs a system C compiler for use with cgo.\n"+
+			"To set a C compiler, export CC=the-compiler.\n"+
+			"To disable cgo, export CGO_ENABLED=0.\n", defaultcc, err)
 	}
 }
 

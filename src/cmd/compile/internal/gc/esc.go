@@ -1735,6 +1735,7 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
 		}
 
 	case ODOT,
+		ODOTTYPE,
 		OSLICE,
 		OSLICEARR,
 		OSLICE3,

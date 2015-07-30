@@ -19,7 +19,7 @@ func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer)
 func sigaction(sig int32, new, old *sigactiont)
 
 //go:noescape
-func sigprocmask(new, old *sigset)
+func sigprocmask(how int32, new, old *sigset)
 
 //go:noescape
 func setitimer(mode int32, new, old *itimerval)

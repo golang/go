@@ -21,7 +21,7 @@ var (
 //     M must have an associated P to execute Go code, however it can be
 //     blocked or in a syscall w/o an associated P.
 //
-// Design doc at http://golang.org/s/go11sched.
+// Design doc at https://golang.org/s/go11sched.
 
 const (
 	// Number of goroutine ids to grab from sched.goidgen to local per-P cache at once.
@@ -414,7 +414,13 @@ func scang(gp *g) {
 			// the goroutine until we're done.
 			if castogscanstatus(gp, s, s|_Gscan) {
 				if !gp.gcscandone {
+					// Coordinate with traceback
+					// in sigprof.
+					for !cas(&gp.stackLock, 0, 1) {
+						osyield()
+					}
 					scanstack(gp)
+					atomicstore(&gp.stackLock, 0)
 					gp.gcscandone = true
 				}
 				restartg(gp)
@@ -1342,7 +1348,7 @@ func execute(gp *g, inheritTime bool) {
 		// GoSysExit has to happen when we have a P, but before GoStart.
 		// So we emit it here.
 		if gp.syscallsp != 0 && gp.sysblocktraced {
-			traceGoSysExit(gp.sysexitticks)
+			traceGoSysExit(gp.sysexitseq, gp.sysexitticks)
 		}
 		traceGoStart()
 	}
@@ -1828,15 +1834,17 @@ func reentersyscall(pc, sp uintptr) {
 		save(pc, sp)
 	}
 
+	if _g_.m.p.ptr().runSafePointFn != 0 {
+		// runSafePointFn may stack split if run on this stack
+		systemstack(runSafePointFn)
+		save(pc, sp)
+	}
+
 	_g_.m.syscalltick = _g_.m.p.ptr().syscalltick
 	_g_.sysblocktraced = true
 	_g_.m.mcache = nil
 	_g_.m.p.ptr().m = 0
 	atomicstore(&_g_.m.p.ptr().status, _Psyscall)
-	if _g_.m.p.ptr().runSafePointFn != 0 {
-		// runSafePointFn may stack split if run on this stack
-		systemstack(runSafePointFn)
-	}
 	if sched.gcwaiting != 0 {
 		systemstack(entersyscall_gcwait)
 		save(pc, sp)
@@ -1978,6 +1986,7 @@ func exitsyscall(dummy int32) {
 	}
 
 	_g_.sysexitticks = 0
+	_g_.sysexitseq = 0
 	if trace.enabled {
 		// Wait till traceGoSysBlock event is emitted.
 		// This ensures consistency of the trace (the goroutine is started after it is blocked).
@@ -1988,7 +1997,7 @@ func exitsyscall(dummy int32) {
 		// Tracing code can invoke write barriers that cannot run without a P.
 		// So instead we remember the syscall exit time and emit the event
 		// in execute when we have a P.
-		_g_.sysexitticks = cputicks()
+		_g_.sysexitseq, _g_.sysexitticks = tracestamp()
 	}
 
 	_g_.m.locks--
@@ -2036,7 +2045,7 @@ func exitsyscallfast() bool {
 					// Denote blocking of the new syscall.
 					traceGoSysBlock(_g_.m.p.ptr())
 					// Denote completion of the current syscall.
-					traceGoSysExit(0)
+					traceGoSysExit(tracestamp())
 				})
 			}
 			_g_.m.p.ptr().syscalltick++
@@ -2060,7 +2069,7 @@ func exitsyscallfast() bool {
 						osyield()
 					}
 				}
-				traceGoSysExit(0)
+				traceGoSysExit(tracestamp())
 			}
 		})
 		if ok {
@@ -2475,6 +2484,11 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	// Profiling runs concurrently with GC, so it must not allocate.
 	mp.mallocing++
 
+	// Coordinate with stack barrier insertion in scanstack.
+	for !cas(&gp.stackLock, 0, 1) {
+		osyield()
+	}
+
 	// Define that a "user g" is a user-created goroutine, and a "system g"
 	// is one that is m->g0 or m->gsignal.
 	//
@@ -2578,6 +2592,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 			}
 		}
 	}
+	atomicstore(&gp.stackLock, 0)
 
 	if prof.hz != 0 {
 		// Simple cas-lock to coordinate with setcpuprofilerate.
@@ -3004,7 +3019,7 @@ func sysmon() {
 		}
 		// check if we need to force a GC
 		lastgc := int64(atomicload64(&memstats.last_gc))
-		if lastgc != 0 && unixnow-lastgc > forcegcperiod && atomicload(&forcegc.idle) != 0 {
+		if lastgc != 0 && unixnow-lastgc > forcegcperiod && atomicload(&forcegc.idle) != 0 && atomicloaduint(&bggc.working) == 0 {
 			lock(&forcegc.lock)
 			forcegc.idle = 0
 			forcegc.g.schedlink = 0
@@ -3357,12 +3372,27 @@ func runqempty(_p_ *p) bool {
 	return _p_.runqhead == _p_.runqtail && _p_.runnext == 0
 }
 
+// To shake out latent assumptions about scheduling order,
+// we introduce some randomness into scheduling decisions
+// when running with the race detector.
+// The need for this was made obvious by changing the
+// (deterministic) scheduling order in Go 1.5 and breaking
+// many poorly-written tests.
+// With the randomness here, as long as the tests pass
+// consistently with -race, they shouldn't have latent scheduling
+// assumptions.
+const randomizeScheduler = raceenabled
+
 // runqput tries to put g on the local runnable queue.
 // If next if false, runqput adds g to the tail of the runnable queue.
 // If next is true, runqput puts g in the _p_.runnext slot.
 // If the run queue is full, runnext puts g on the global queue.
 // Executed only by the owner P.
 func runqput(_p_ *p, gp *g, next bool) {
+	if randomizeScheduler && next && fastrand1()%2 == 0 {
+		next = false
+	}
+
 	if next {
 	retryNext:
 		oldnext := _p_.runnext
@@ -3409,6 +3439,13 @@ func runqputslow(_p_ *p, gp *g, h, t uint32) bool {
 		return false
 	}
 	batch[n] = gp
+
+	if randomizeScheduler {
+		for i := uint32(1); i <= n; i++ {
+			j := fastrand1() % (i + 1)
+			batch[i], batch[j] = batch[j], batch[i]
+		}
+	}
 
 	// Link the goroutines.
 	for i := uint32(0); i < n; i++ {

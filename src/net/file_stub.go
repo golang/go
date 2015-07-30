@@ -11,8 +11,6 @@ import (
 	"syscall"
 )
 
-func fileConn(f *os.File) (Conn, error)                              { return nil, syscall.ENOPROTOOPT }
-func fileListener(f *os.File) (Listener, error)                      { return nil, syscall.ENOPROTOOPT }
-func filePacketConn(f *os.File) (PacketConn, error)                  { return nil, syscall.ENOPROTOOPT }
-func socketConn(f *os.File, sa SocketAddr) (Conn, error)             { return nil, syscall.ENOPROTOOPT }
-func socketPacketConn(f *os.File, sa SocketAddr) (PacketConn, error) { return nil, syscall.ENOPROTOOPT }
+func fileConn(f *os.File) (Conn, error)             { return nil, syscall.ENOPROTOOPT }
+func fileListener(f *os.File) (Listener, error)     { return nil, syscall.ENOPROTOOPT }
+func filePacketConn(f *os.File) (PacketConn, error) { return nil, syscall.ENOPROTOOPT }

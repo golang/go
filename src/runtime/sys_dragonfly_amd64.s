@@ -125,9 +125,18 @@ TEXT runtime·raise(SB),NOSPLIT,$16
 	MOVL	$496, AX	// lwp_gettid
 	SYSCALL
 	MOVQ	$-1, DI		// arg 1 - pid
-	MOVQ	8(SP), DI	// arg 2 - tid
-	MOVL	sig+0(FP), SI	// arg 3 - signum
+	MOVQ	AX, SI		// arg 2 - tid
+	MOVL	sig+0(FP), DX	// arg 3 - signum
 	MOVL	$497, AX	// lwp_kill
+	SYSCALL
+	RET
+
+TEXT runtime·raiseproc(SB),NOSPLIT,$0
+	MOVL	$20, AX		// getpid
+	SYSCALL
+	MOVQ	AX, DI		// arg 1 - pid
+	MOVL	sig+0(FP), SI	// arg 2 - signum
+	MOVL	$37, AX		// kill
 	SYSCALL
 	RET
 
@@ -307,9 +316,9 @@ TEXT runtime·osyield(SB),NOSPLIT,$-4
 	RET
 
 TEXT runtime·sigprocmask(SB),NOSPLIT,$0
-	MOVL	$3, DI			// arg 1 - how (SIG_SETMASK)
-	MOVQ	new+0(FP), SI		// arg 2 - set
-	MOVQ	old+8(FP), DX		// arg 3 - oset
+	MOVL	how+0(FP), DI		// arg 1 - how
+	MOVQ	new+8(FP), SI		// arg 2 - set
+	MOVQ	old+16(FP), DX		// arg 3 - oset
 	MOVL	$340, AX		// sys_sigprocmask
 	SYSCALL
 	JAE	2(PC)

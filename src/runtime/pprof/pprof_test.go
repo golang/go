@@ -164,6 +164,13 @@ func testCPUProfile(t *testing.T, need []string, f func()) {
 	})
 	t.Logf("total %d CPU profile samples collected", samples)
 
+	if samples < 10 && runtime.GOOS == "windows" {
+		// On some windows machines we end up with
+		// not enough samples due to coarse timer
+		// resolution. Let it go.
+		t.Skip("too few samples on Windows (golang.org/issue/10842)")
+	}
+
 	if len(need) == 0 {
 		return
 	}

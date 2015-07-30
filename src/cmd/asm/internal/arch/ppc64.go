@@ -12,7 +12,7 @@ import "cmd/internal/obj/ppc64"
 
 func jumpPPC64(word string) bool {
 	switch word {
-	case "BC", "BCL", "BEQ", "BGE", "BGT", "BL", "BLE", "BLT", "BNE", "BR", "BVC", "BVS", "CALL":
+	case "BC", "BCL", "BEQ", "BGE", "BGT", "BL", "BLE", "BLT", "BNE", "BR", "BVC", "BVS", "CALL", "JMP":
 		return true
 	}
 	return false

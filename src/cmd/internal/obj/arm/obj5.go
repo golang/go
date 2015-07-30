@@ -505,6 +505,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			}
 
 		case ADIV, ADIVU, AMOD, AMODU:
+			if cursym.Text.From3.Offset&obj.NOSPLIT != 0 {
+				ctxt.Diag("cannot divide in NOSPLIT function")
+			}
 			if ctxt.Debugdivmod != 0 {
 				break
 			}
@@ -514,22 +517,35 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			if p.To.Type != obj.TYPE_REG {
 				break
 			}
-			q1 = p
 
-			/* MOV a,4(SP) */
+			// Make copy because we overwrite p below.
+			q1 := *p
+			if q1.Reg == REGTMP || q1.Reg == 0 && q1.To.Reg == REGTMP {
+				ctxt.Diag("div already using REGTMP: %v", p)
+			}
+
+			/* MOV m(g),REGTMP */
+			p.As = AMOVW
+			p.Lineno = q1.Lineno
+			p.From.Type = obj.TYPE_MEM
+			p.From.Reg = REGG
+			p.From.Offset = 6 * 4 // offset of g.m
+			p.Reg = 0
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = REGTMP
+
+			/* MOV a,m_divmod(REGTMP) */
 			p = obj.Appendp(ctxt, p)
-
 			p.As = AMOVW
 			p.Lineno = q1.Lineno
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = q1.From.Reg
 			p.To.Type = obj.TYPE_MEM
-			p.To.Reg = REGSP
-			p.To.Offset = 4
+			p.To.Reg = REGTMP
+			p.To.Offset = 8 * 4 // offset of m.divmod
 
 			/* MOV b,REGTMP */
 			p = obj.Appendp(ctxt, p)
-
 			p.As = AMOVW
 			p.Lineno = q1.Lineno
 			p.From.Type = obj.TYPE_REG
@@ -543,7 +559,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 			/* CALL appropriate */
 			p = obj.Appendp(ctxt, p)
-
 			p.As = ABL
 			p.Lineno = q1.Lineno
 			p.To.Type = obj.TYPE_BRANCH
@@ -563,7 +578,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 			/* MOV REGTMP, b */
 			p = obj.Appendp(ctxt, p)
-
 			p.As = AMOVW
 			p.Lineno = q1.Lineno
 			p.From.Type = obj.TYPE_REG
@@ -571,44 +585,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			p.From.Offset = 0
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = q1.To.Reg
-
-			/* ADD $8,SP */
-			p = obj.Appendp(ctxt, p)
-
-			p.As = AADD
-			p.Lineno = q1.Lineno
-			p.From.Type = obj.TYPE_CONST
-			p.From.Reg = 0
-			p.From.Offset = 8
-			p.Reg = 0
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = REGSP
-			p.Spadj = -8
-
-			/* Keep saved LR at 0(SP) after SP change. */
-			/* MOVW 0(SP), REGTMP; MOVW REGTMP, -8!(SP) */
-			/* TODO: Remove SP adjustments; see issue 6699. */
-			q1.As = AMOVW
-
-			q1.From.Type = obj.TYPE_MEM
-			q1.From.Reg = REGSP
-			q1.From.Offset = 0
-			q1.Reg = 0
-			q1.To.Type = obj.TYPE_REG
-			q1.To.Reg = REGTMP
-
-			/* SUB $8,SP */
-			q1 = obj.Appendp(ctxt, q1)
-
-			q1.As = AMOVW
-			q1.From.Type = obj.TYPE_REG
-			q1.From.Reg = REGTMP
-			q1.Reg = 0
-			q1.To.Type = obj.TYPE_MEM
-			q1.To.Reg = REGSP
-			q1.To.Offset = -8
-			q1.Scond |= C_WBIT
-			q1.Spadj = 8
 
 		case AMOVW:
 			if (p.Scond&C_WBIT != 0) && p.To.Type == obj.TYPE_MEM && p.To.Reg == REGSP {

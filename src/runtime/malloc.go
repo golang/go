@@ -152,7 +152,7 @@ const (
 	// On Windows 64-bit we limit the arena to 32GB or 35 bits.
 	// Windows counts memory used by page table into committed memory
 	// of the process, so we can't reserve too much memory.
-	// See http://golang.org/issue/5402 and http://golang.org/issue/5236.
+	// See https://golang.org/issue/5402 and https://golang.org/issue/5236.
 	// On other 64-bit platforms, we limit the arena to 512GB, or 39 bits.
 	// On 32-bit, we don't bother limiting anything, so we use the full 32-bit address.
 	// On Darwin/arm64, we cannot reserve more than ~5GB of virtual memory,

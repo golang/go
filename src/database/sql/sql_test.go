@@ -497,7 +497,7 @@ func TestTxStmt(t *testing.T) {
 	}
 }
 
-// Issue: http://golang.org/issue/2784
+// Issue: https://golang.org/issue/2784
 // This test didn't fail before because we got lucky with the fakedb driver.
 // It was failing, and now not, in github.com/bradfitz/go-sql-test
 func TestTxQuery(t *testing.T) {

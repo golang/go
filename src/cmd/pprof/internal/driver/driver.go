@@ -894,7 +894,7 @@ var usageMsg = "Output file parameters (for file-based output formats):\n" +
 	"  -help             This message"
 
 var usageMsgVars = "Environment Variables:\n" +
-	"   PPROF_TMPDIR       Location for temporary files (default $HOME/pprof)\n" +
+	"   PPROF_TMPDIR       Location for saved profiles (default $HOME/pprof)\n" +
 	"   PPROF_TOOLS        Search path for object-level tools\n" +
 	"   PPROF_BINARY_PATH  Search path for local binary files\n" +
 	"                      default: $HOME/pprof/binaries\n" +

@@ -293,7 +293,7 @@ const (
 // This algorithm optimizes for heap growth to match GOGC and for CPU
 // utilization between assist and background marking to be 25% of
 // GOMAXPROCS. The high-level design of this algorithm is documented
-// at http://golang.org/s/go15gcpacing.
+// at https://golang.org/s/go15gcpacing.
 var gcController = gcControllerState{
 	// Initial trigger ratio guess.
 	triggerRatio: 7 / 8.0,
@@ -594,6 +594,28 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 			// there are still assists tapering off. Don't
 			// bother running background mark because
 			// it'll just return immediately.
+			if work.nwait == work.nproc {
+				// There are also no workers, which
+				// means we've reached a completion point.
+				// There may not be any workers to
+				// signal it, so signal it here.
+				readied := false
+				if gcBlackenPromptly {
+					if work.bgMark1.done == 0 {
+						throw("completing mark 2, but bgMark1.done == 0")
+					}
+					readied = work.bgMark2.complete()
+				} else {
+					readied = work.bgMark1.complete()
+				}
+				if readied {
+					// complete just called ready,
+					// but we're inside the
+					// scheduler. Let it know that
+					// that's okay.
+					resetspinning()
+				}
+			}
 			return nil
 		}
 		if !decIfPositive(&c.fractionalMarkWorkersNeeded) {
@@ -706,7 +728,11 @@ func (s *bgMarkSignal) wait() {
 // complete signals the completion of this phase of marking. This can
 // be called multiple times during a cycle; only the first call has
 // any effect.
-func (s *bgMarkSignal) complete() {
+//
+// The caller should arrange to deschedule itself as soon as possible
+// after calling complete in order to let the coordinator goroutine
+// run.
+func (s *bgMarkSignal) complete() bool {
 	if cas(&s.done, 0, 1) {
 		// This is the first worker to reach this completion point.
 		// Signal the main GC goroutine.
@@ -718,7 +744,9 @@ func (s *bgMarkSignal) complete() {
 			ready(s.g, 0)
 		}
 		unlock(&s.lock)
+		return true
 	}
+	return false
 }
 
 func (s *bgMarkSignal) clear() {
@@ -726,8 +754,9 @@ func (s *bgMarkSignal) clear() {
 }
 
 var work struct {
-	full    uint64                // lock-free list of full blocks workbuf
-	empty   uint64                // lock-free list of empty blocks workbuf
+	full  uint64 // lock-free list of full blocks workbuf
+	empty uint64 // lock-free list of empty blocks workbuf
+	// TODO(rlh): partial no longer used, remove. (issue #11922)
 	partial uint64                // lock-free list of partially filled blocks workbuf
 	pad0    [_CacheLineSize]uint8 // prevents false-sharing between full/empty and nproc/nwait
 	nproc   uint32
@@ -770,8 +799,9 @@ var work struct {
 	initialHeapLive uint64
 }
 
-// GC runs a garbage collection and blocks until the garbage
-// collection is complete.
+// GC runs a garbage collection and blocks the caller until the
+// garbage collection is complete. It may also block the entire
+// program.
 func GC() {
 	startGC(gcForceBlockMode)
 }
@@ -850,10 +880,15 @@ func backgroundgc() {
 }
 
 func gc(mode int) {
-	// debug.gctrace variables
+	// Timing/utilization tracking
 	var stwprocs, maxprocs int32
 	var tSweepTerm, tScan, tInstallWB, tMark, tMarkTerm int64
+
+	// debug.gctrace variables
 	var heap0, heap1, heap2, heapGoal uint64
+
+	// memstats statistics
+	var now, pauseStart, pauseNS int64
 
 	// Ok, we're doing it!  Stop everybody else
 	semacquire(&worldsema, false)
@@ -869,26 +904,19 @@ func gc(mode int) {
 		sweep.nbgsweep++
 	}
 
-	if mode == gcBackgroundMode {
-		gcBgMarkStartWorkers()
-	}
-	if debug.gctrace > 0 {
-		stwprocs, maxprocs = gcprocs(), gomaxprocs
-		tSweepTerm = nanotime()
-		if mode == gcBackgroundMode {
-			// We started GC when heap_live == next_gc,
-			// but the mutator may have allocated between
-			// then and now. Report heap when GC started.
-			heap0 = memstats.next_gc
-		} else {
-			heap0 = memstats.heap_live
-		}
-	}
-
 	if trace.enabled {
 		traceGCStart()
 	}
 
+	if mode == gcBackgroundMode {
+		gcBgMarkStartWorkers()
+	}
+	now = nanotime()
+	stwprocs, maxprocs = gcprocs(), gomaxprocs
+	tSweepTerm = now
+	heap0 = memstats.heap_live
+
+	pauseStart = now
 	systemstack(stopTheWorldWithSema)
 	systemstack(finishsweep_m) // finish sweep before we start concurrent scan.
 	// clearpools before we start the GC. If we wait they memory will not be
@@ -929,17 +957,24 @@ func gc(mode int) {
 			// boundaries where there are up-pointers.
 			setGCPhase(_GCscan)
 
+			gcBgMarkPrepare() // Must happen before assist enable.
+
+			// At this point all Ps have enabled the write
+			// barrier, thus maintaining the no white to
+			// black invariant. Enable mutator assists to
+			// put back-pressure on fast allocating
+			// mutators.
+			atomicstore(&gcBlackenEnabled, 1)
+
 			// Concurrent scan.
 			startTheWorldWithSema()
-			if debug.gctrace > 0 {
-				tScan = nanotime()
-			}
+			now = nanotime()
+			pauseNS += now - pauseStart
+			tScan = now
 			gcscan_m()
 
 			// Enter mark phase.
-			if debug.gctrace > 0 {
-				tInstallWB = nanotime()
-			}
+			tInstallWB = nanotime()
 			setGCPhase(_GCmark)
 			// Ensure all Ps have observed the phase
 			// change and have write barriers enabled
@@ -947,17 +982,12 @@ func gc(mode int) {
 			forEachP(func(*p) {})
 		})
 		// Concurrent mark.
-		gcBgMarkPrepare() // Must happen before assist enable.
-		// At this point all Ps have enabled the mark phase
-		// write barrier, thus maintaining the no white to
-		// black invariant. Mutator assists and mark workers
-		// can now be enabled to safely blacken grey objects.
-		atomicstore(&gcBlackenEnabled, 1)
-		if debug.gctrace > 0 {
-			tMark = nanotime()
-		}
+		tMark = nanotime()
 
-		// Wait for background mark completion.
+		// Enable background mark workers and wait for
+		// background mark completion.
+		gcController.bgMarkStartTime = nanotime()
+		work.bgMark1.clear()
 		work.bgMark1.wait()
 
 		// The global work list is empty, but there can still be work
@@ -968,26 +998,26 @@ func gc(mode int) {
 			// rescan global data and bss.
 			markroot(nil, _RootData)
 			markroot(nil, _RootBss)
+
+			// Disallow caching workbufs.
+			gcBlackenPromptly = true
+
+			// Flush all currently cached workbufs. This
+			// also forces any remaining background
+			// workers out of their loop.
 			forEachP(func(_p_ *p) {
 				_p_.gcw.dispose()
 			})
 		})
 
-		if atomicload64(&work.full) != 0 || atomicload64(&work.partial) != 0 {
-			if work.bgMark2.done != 0 {
-				throw("work.bgMark2.done != 0")
-			}
-			gcBlackenPromptly = true
-			// Wait for this more aggressive background mark to complete.
-			work.bgMark2.wait()
-		} else {
-			work.bgMark2.done = 1
-		}
+		// Wait for this more aggressive background mark to complete.
+		work.bgMark2.clear()
+		work.bgMark2.wait()
 
 		// Begin mark termination.
-		if debug.gctrace > 0 {
-			tMarkTerm = nanotime()
-		}
+		now = nanotime()
+		tMarkTerm = now
+		pauseStart = now
 		systemstack(stopTheWorldWithSema)
 		// The gcphase is _GCmark, it will transition to _GCmarktermination
 		// below. The important thing is that the wb remains active until
@@ -1005,11 +1035,9 @@ func gc(mode int) {
 		// such that mark termination scans all stacks.
 		gcResetGState()
 
-		if debug.gctrace > 0 {
-			t := nanotime()
-			tScan, tInstallWB, tMark, tMarkTerm = t, t, t, t
-			heapGoal = heap0
-		}
+		t := nanotime()
+		tScan, tInstallWB, tMark, tMarkTerm = t, t, t, t
+		heapGoal = heap0
 	}
 
 	// World is stopped.
@@ -1018,10 +1046,7 @@ func gc(mode int) {
 	gcBlackenPromptly = false
 	setGCPhase(_GCmarktermination)
 
-	if debug.gctrace > 0 {
-		heap1 = memstats.heap_live
-	}
-
+	heap1 = memstats.heap_live
 	startTime := nanotime()
 
 	mp := acquirem()
@@ -1039,9 +1064,7 @@ func gc(mode int) {
 	// need to switch to g0 so we can shrink the stack.
 	systemstack(func() {
 		gcMark(startTime)
-		if debug.gctrace > 0 {
-			heap2 = work.bytesMarked
-		}
+		heap2 = work.bytesMarked
 		if debug.gccheckmark > 0 {
 			// Run a full stop-the-world mark using checkmark bits,
 			// to check that we didn't forget to mark anything during
@@ -1090,34 +1113,44 @@ func gc(mode int) {
 		throw("gc done but gcphase != _GCoff")
 	}
 
+	// Update timing memstats
+	now, unixNow := nanotime(), unixnanotime()
+	pauseNS += now - pauseStart
+	atomicstore64(&memstats.last_gc, uint64(unixNow)) // must be Unix time to make sense to user
+	memstats.pause_ns[memstats.numgc%uint32(len(memstats.pause_ns))] = uint64(pauseNS)
+	memstats.pause_end[memstats.numgc%uint32(len(memstats.pause_end))] = uint64(unixNow)
+	memstats.pause_total_ns += uint64(pauseNS)
+
+	// Update work.totaltime.
+	sweepTermCpu := int64(stwprocs) * (tScan - tSweepTerm)
+	scanCpu := tInstallWB - tScan
+	installWBCpu := int64(0)
+	// We report idle marking time below, but omit it from the
+	// overall utilization here since it's "free".
+	markCpu := gcController.assistTime + gcController.dedicatedMarkTime + gcController.fractionalMarkTime
+	markTermCpu := int64(stwprocs) * (now - tMarkTerm)
+	cycleCpu := sweepTermCpu + scanCpu + installWBCpu + markCpu + markTermCpu
+	work.totaltime += cycleCpu
+
+	// Compute overall GC CPU utilization.
+	totalCpu := sched.totaltime + (now-sched.procresizetime)*int64(gomaxprocs)
+	memstats.gc_cpu_fraction = float64(work.totaltime) / float64(totalCpu)
+
+	memstats.numgc++
+
 	systemstack(startTheWorldWithSema)
 	semrelease(&worldsema)
 
 	releasem(mp)
 	mp = nil
 
-	memstats.numgc++
 	if debug.gctrace > 0 {
-		tEnd := nanotime()
-
-		// Update work.totaltime
-		sweepTermCpu := int64(stwprocs) * (tScan - tSweepTerm)
-		scanCpu := tInstallWB - tScan
-		installWBCpu := int64(0)
-		// We report idle marking time below, but omit it from
-		// the overall utilization here since it's "free".
-		markCpu := gcController.assistTime + gcController.dedicatedMarkTime + gcController.fractionalMarkTime
-		markTermCpu := int64(stwprocs) * (tEnd - tMarkTerm)
-		cycleCpu := sweepTermCpu + scanCpu + installWBCpu + markCpu + markTermCpu
-		work.totaltime += cycleCpu
-
-		// Compute overall utilization
-		totalCpu := sched.totaltime + (tEnd-sched.procresizetime)*int64(gomaxprocs)
-		util := work.totaltime * 100 / totalCpu
+		tEnd := now
+		util := int(memstats.gc_cpu_fraction * 100)
 
 		var sbuf [24]byte
 		printlock()
-		print("gc #", memstats.numgc,
+		print("gc ", memstats.numgc,
 			" @", string(itoaDiv(sbuf[:], uint64(tSweepTerm-runtimeInitTime)/1e6, 3)), "s ",
 			util, "%: ")
 		prev := tSweepTerm
@@ -1193,9 +1226,8 @@ func gcBgMarkPrepare() {
 	work.nwait = ^uint32(0)
 
 	// Reset background mark completion points.
-	work.bgMark1.clear()
-	work.bgMark2.clear()
-	gcController.bgMarkStartTime = nanotime()
+	work.bgMark1.done = 1
+	work.bgMark2.done = 1
 }
 
 func gcBgMarkWorker(p *p) {
@@ -1257,8 +1289,22 @@ func gcBgMarkWorker(p *p) {
 			// match the decrement above. It only returns
 			// at a mark completion point.
 			done = true
+			if !p.gcw.empty() {
+				throw("gcDrain returned with buffer")
+			}
 		case gcMarkWorkerFractionalMode, gcMarkWorkerIdleMode:
 			gcDrainUntilPreempt(&p.gcw, gcBgCreditSlack)
+
+			// If we are nearing the end of mark, dispose
+			// of the cache promptly. We must do this
+			// before signaling that we're no longer
+			// working so that other workers can't observe
+			// no workers and no work while we have this
+			// cached, and before we compute done.
+			if gcBlackenPromptly {
+				p.gcw.dispose()
+			}
+
 			// Was this the last worker and did we run out
 			// of work?
 			incnwait := xadd(&work.nwait, +1)
@@ -1268,10 +1314,6 @@ func gcBgMarkWorker(p *p) {
 				throw("work.nwait > work.nproc")
 			}
 			done = incnwait == work.nproc && work.full == 0 && work.partial == 0
-		}
-		// If we are near the end of the mark phase dispose of p.gcw.
-		if gcBlackenPromptly {
-			p.gcw.dispose()
 		}
 
 		// If this worker reached a background mark completion
@@ -1335,7 +1377,6 @@ func gcMark(start_time int64) {
 	if gcphase != _GCmarktermination {
 		throw("in gcMark expecting to see gcphase as _GCmarktermination")
 	}
-	t0 := start_time
 	work.tstart = start_time
 
 	gcCopySpans() // TODO(rlh): should this be hoisted and done only once? Right now it is done for normal marking and also for checkmarking.
@@ -1434,12 +1475,6 @@ func gcMark(start_time int64) {
 		traceHeapAlloc()
 		traceNextGC()
 	}
-
-	t4 := nanotime()
-	atomicstore64(&memstats.last_gc, uint64(unixnanotime())) // must be Unix time to make sense to user
-	memstats.pause_ns[memstats.numgc%uint32(len(memstats.pause_ns))] = uint64(t4 - t0)
-	memstats.pause_end[memstats.numgc%uint32(len(memstats.pause_end))] = uint64(t4)
-	memstats.pause_total_ns += uint64(t4 - t0)
 }
 
 func gcSweep(mode int) {

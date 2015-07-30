@@ -1,51 +1,55 @@
-5 00001 (testdata/arm64.s:5)	TEXT	foo(SB), 7, $-8
-16 00002 (testdata/arm64.s:16)	ADDW	$1, R2, R3
-17 00003 (testdata/arm64.s:17)	ADDW	R1, R2, R3
-18 00004 (testdata/arm64.s:18)	ADDW	R1, ZR, R3
-19 00005 (testdata/arm64.s:19)	ADD	$1, R2, R3
-20 00006 (testdata/arm64.s:20)	ADD	R1, R2, R3
-21 00007 (testdata/arm64.s:21)	ADD	R1, ZR, R3
-22 00008 (testdata/arm64.s:22)	ADD	$1, R2, R3
-32 00009 (testdata/arm64.s:32)	ADDW	$1, R2
-33 00010 (testdata/arm64.s:33)	ADDW	R1, R2
-34 00011 (testdata/arm64.s:34)	ADD	$1, R2
-35 00012 (testdata/arm64.s:35)	ADD	R1, R2
-44 00013 (testdata/arm64.s:44)	CLSW	R1, R2
-45 00014 (testdata/arm64.s:45)	CLS	R1, R2
-54 00015 (testdata/arm64.s:54)	MOVW	R1, R2
-55 00016 (testdata/arm64.s:55)	MOVW	ZR, R1
-56 00017 (testdata/arm64.s:56)	MOVW	R1, ZR
-57 00018 (testdata/arm64.s:57)	MOVW	$1, ZR
-58 00019 (testdata/arm64.s:58)	MOVW	$1, R1
-59 00020 (testdata/arm64.s:59)	MOVW	ZR, (R1)
-60 00021 (testdata/arm64.s:60)	MOVD	R1, R2
-61 00022 (testdata/arm64.s:61)	MOVD	ZR, R1
-62 00023 (testdata/arm64.s:62)	MOVD	$1, ZR
-63 00024 (testdata/arm64.s:63)	MOVD	$1, R1
-64 00025 (testdata/arm64.s:64)	MOVD	ZR, (R1)
-73 00026 (testdata/arm64.s:73)	MOVK	$1, R1
-82 00027 (testdata/arm64.s:82)	CALL	28(PC)
-88 00028 (testdata/arm64.s:88)	CALL	(R2)
-89 00029 (testdata/arm64.s:89)	CALL	foo(SB)
-90 00030 (testdata/arm64.s:90)	CALL	bar<>(SB)
-98 00031 (testdata/arm64.s:98)	BEQ	32(PC)
-106 00032 (testdata/arm64.s:106)	SVC
-115 00033 (testdata/arm64.s:115)	CMP	$3, R2
-116 00034 (testdata/arm64.s:116)	CMP	R1, R2
-126 00035 (testdata/arm64.s:126)	CBZ	R1
-135 00036 (testdata/arm64.s:135)	CSET	GT, R1
-143 00037 (testdata/arm64.s:143)	CSEL	LT, R1, R2, ZR
-144 00038 (testdata/arm64.s:144)	CSINC	GT, R1, ZR, R3
-145 00039 (testdata/arm64.s:145)	CSNEG	MI, R1, R2, R3
-146 00040 (testdata/arm64.s:146)	CSINV	0, R1, R2, R3
-152 00041 (testdata/arm64.s:152)	CSEL	LT, R1, R2
-160 00042 (testdata/arm64.s:160)	CCMN	MI, ZR, R1, $4
-169 00043 (testdata/arm64.s:169)	FADDD	$(0.5), F1
-170 00044 (testdata/arm64.s:170)	FADDD	F1, F2
-176 00045 (testdata/arm64.s:176)	FADDD	$(0.69999999999999996), F1, F2
-177 00046 (testdata/arm64.s:177)	FADDD	F1, F2, F3
-229 00047 (testdata/arm64.s:229)	DMB	$1
-238 00048 (testdata/arm64.s:238)	LDAXRW	(R0), R2
-239 00049 (testdata/arm64.s:239)	STLXRW	R1, (R0), R3
-247 00050 (testdata/arm64.s:247)	RET
-255 00051 (testdata/arm64.s:255)	END
+9 00001 (testdata/arm64.s:9)	TEXT	foo(SB), 7, $-8
+20 00002 (testdata/arm64.s:20)	ADDW	$1, R2, R3
+21 00003 (testdata/arm64.s:21)	ADDW	R1, R2, R3
+22 00004 (testdata/arm64.s:22)	ADDW	R1, ZR, R3
+23 00005 (testdata/arm64.s:23)	ADD	$1, R2, R3
+24 00006 (testdata/arm64.s:24)	ADD	R1, R2, R3
+25 00007 (testdata/arm64.s:25)	ADD	R1, ZR, R3
+26 00008 (testdata/arm64.s:26)	ADD	$1, R2, R3
+36 00009 (testdata/arm64.s:36)	ADDW	$1, R2
+37 00010 (testdata/arm64.s:37)	ADDW	R1, R2
+38 00011 (testdata/arm64.s:38)	ADD	$1, R2
+39 00012 (testdata/arm64.s:39)	ADD	R1, R2
+48 00013 (testdata/arm64.s:48)	CLSW	R1, R2
+49 00014 (testdata/arm64.s:49)	CLS	R1, R2
+58 00015 (testdata/arm64.s:58)	MOVW	R1, R2
+59 00016 (testdata/arm64.s:59)	MOVW	ZR, R1
+60 00017 (testdata/arm64.s:60)	MOVW	R1, ZR
+61 00018 (testdata/arm64.s:61)	MOVW	$1, ZR
+62 00019 (testdata/arm64.s:62)	MOVW	$1, R1
+63 00020 (testdata/arm64.s:63)	MOVW	ZR, (R1)
+64 00021 (testdata/arm64.s:64)	MOVD	R1, R2
+65 00022 (testdata/arm64.s:65)	MOVD	ZR, R1
+66 00023 (testdata/arm64.s:66)	MOVD	$1, ZR
+67 00024 (testdata/arm64.s:67)	MOVD	$1, R1
+68 00025 (testdata/arm64.s:68)	MOVD	ZR, (R1)
+77 00026 (testdata/arm64.s:77)	MOVK	$1, R1
+86 00027 (testdata/arm64.s:86)	CALL	28(PC)
+92 00028 (testdata/arm64.s:92)	CALL	(R2)
+93 00029 (testdata/arm64.s:93)	CALL	foo(SB)
+94 00030 (testdata/arm64.s:94)	CALL	bar<>(SB)
+102 00031 (testdata/arm64.s:102)	BEQ	32(PC)
+110 00032 (testdata/arm64.s:110)	SVC
+119 00033 (testdata/arm64.s:119)	CMP	$3, R2
+120 00034 (testdata/arm64.s:120)	CMP	R1, R2
+130 00035 (testdata/arm64.s:130)	CBZ	R1
+139 00036 (testdata/arm64.s:139)	CSET	GT, R1
+147 00037 (testdata/arm64.s:147)	CSEL	LT, R1, R2, ZR
+148 00038 (testdata/arm64.s:148)	CSINC	GT, R1, ZR, R3
+149 00039 (testdata/arm64.s:149)	CSNEG	MI, R1, R2, R3
+150 00040 (testdata/arm64.s:150)	CSINV	0, R1, R2, R3
+156 00041 (testdata/arm64.s:156)	CSEL	LT, R1, R2
+164 00042 (testdata/arm64.s:164)	CCMN	MI, ZR, R1, $4
+173 00043 (testdata/arm64.s:173)	FADDD	$(0.5), F1
+174 00044 (testdata/arm64.s:174)	FADDD	F1, F2
+180 00045 (testdata/arm64.s:180)	FADDD	$(0.69999999999999996), F1, F2
+181 00046 (testdata/arm64.s:181)	FADDD	F1, F2, F3
+233 00047 (testdata/arm64.s:233)	DMB	$1
+242 00048 (testdata/arm64.s:242)	LDAXRW	(R0), R2
+243 00049 (testdata/arm64.s:243)	STLXRW	R1, (R0), R3
+251 00050 (testdata/arm64.s:251)	RET
+255 00051 (testdata/arm64.s:255)	JMP	foo(SB)
+256 00052 (testdata/arm64.s:256)	CALL	foo(SB)
+257 00053 (testdata/arm64.s:257)	JMP	foo(SB)
+258 00054 (testdata/arm64.s:258)	CALL	foo(SB)
+266 00055 (testdata/arm64.s:266)	END

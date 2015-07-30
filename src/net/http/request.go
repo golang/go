@@ -340,7 +340,7 @@ func valueOrDefault(value, def string) string {
 // See https://codereview.appspot.com/7532043.
 const defaultUserAgent = "Go-http-client/1.1"
 
-// Write writes an HTTP/1.1 request -- header and body -- in wire format.
+// Write writes an HTTP/1.1 request, which is the header and body, in wire format.
 // This method consults the following fields of the request:
 //	Host
 //	URL
@@ -369,16 +369,22 @@ func (r *Request) WriteProxy(w io.Writer) error {
 
 // extraHeaders may be nil
 func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) error {
-	// According to RFC 6874, an HTTP client, proxy, or other
-	// intermediary must remove any IPv6 zone identifier attached
-	// to an outgoing URI.
-	host := removeZone(req.Host)
+	// Find the target host. Prefer the Host: header, but if that
+	// is not given, use the host from the request URL.
+	//
+	// Clean the host, in case it arrives with unexpected stuff in it.
+	host := cleanHost(req.Host)
 	if host == "" {
 		if req.URL == nil {
 			return errors.New("http: Request.Write on Request with no Host or URL set")
 		}
-		host = removeZone(req.URL.Host)
+		host = cleanHost(req.URL.Host)
 	}
+
+	// According to RFC 6874, an HTTP client, proxy, or other
+	// intermediary must remove any IPv6 zone identifier attached
+	// to an outgoing URI.
+	host = removeZone(host)
 
 	ruri := req.URL.RequestURI()
 	if usingProxy && req.URL.Scheme != "" && req.URL.Opaque == "" {
@@ -462,6 +468,22 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) err
 		return bw.Flush()
 	}
 	return nil
+}
+
+// cleanHost strips anything after '/' or ' '.
+// Ideally we'd clean the Host header according to the spec:
+//   https://tools.ietf.org/html/rfc7230#section-5.4 (Host = uri-host [ ":" port ]")
+//   https://tools.ietf.org/html/rfc7230#section-2.7 (uri-host -> rfc3986's host)
+//   https://tools.ietf.org/html/rfc3986#section-3.2.2 (definition of host)
+// But practically, what we are trying to avoid is the situation in
+// issue 11206, where a malformed Host header used in the proxy context
+// would create a bad request. So it is enough to just truncate at the
+// first offending character.
+func cleanHost(in string) string {
+	if i := strings.IndexAny(in, " /"); i != -1 {
+		return in[:i]
+	}
+	return in
 }
 
 // removeZone removes IPv6 zone identifer from host.
@@ -720,23 +742,52 @@ type maxBytesReader struct {
 	r       io.ReadCloser // underlying reader
 	n       int64         // max bytes remaining
 	stopped bool
+	sawEOF  bool
+}
+
+func (l *maxBytesReader) tooLarge() (n int, err error) {
+	if !l.stopped {
+		l.stopped = true
+		if res, ok := l.w.(*response); ok {
+			res.requestTooLarge()
+		}
+	}
+	return 0, errors.New("http: request body too large")
 }
 
 func (l *maxBytesReader) Read(p []byte) (n int, err error) {
-	if l.n <= 0 {
-		if !l.stopped {
-			l.stopped = true
-			if res, ok := l.w.(*response); ok {
-				res.requestTooLarge()
-			}
+	toRead := l.n
+	if l.n == 0 {
+		if l.sawEOF {
+			return l.tooLarge()
 		}
-		return 0, errors.New("http: request body too large")
+		// The underlying io.Reader may not return (0, io.EOF)
+		// at EOF if the requested size is 0, so read 1 byte
+		// instead. The io.Reader docs are a bit ambiguous
+		// about the return value of Read when 0 bytes are
+		// requested, and {bytes,strings}.Reader gets it wrong
+		// too (it returns (0, nil) even at EOF).
+		toRead = 1
 	}
-	if int64(len(p)) > l.n {
-		p = p[:l.n]
+	if int64(len(p)) > toRead {
+		p = p[:toRead]
 	}
 	n, err = l.r.Read(p)
+	if err == io.EOF {
+		l.sawEOF = true
+	}
+	if l.n == 0 {
+		// If we had zero bytes to read remaining (but hadn't seen EOF)
+		// and we get a byte here, that means we went over our limit.
+		if n > 0 {
+			return l.tooLarge()
+		}
+		return 0, err
+	}
 	l.n -= int64(n)
+	if l.n < 0 {
+		l.n = 0
+	}
 	return
 }
 

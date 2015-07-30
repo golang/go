@@ -221,6 +221,10 @@ var verifyTests = []verifyTest{
 		currentTime:   1397502195,
 		dnsName:       "api.moip.com.br",
 
+		// CryptoAPI can find alternative validation paths so we don't
+		// perform this test with system validation.
+		systemSkip: true,
+
 		sha2: true,
 		expectedChains: [][]string{
 			{

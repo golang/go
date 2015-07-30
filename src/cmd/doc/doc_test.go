@@ -299,7 +299,7 @@ var tests = []test{
 }
 
 func TestDoc(t *testing.T) {
-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
 		t.Skip("TODO: on darwin/arm, test fails: no such package cmd/doc/testdata")
 	}
 	for _, test := range tests {

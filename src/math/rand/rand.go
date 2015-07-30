@@ -9,6 +9,9 @@
 // sequence of values each time a program is run. Use the Seed function to
 // initialize the default Source if different behavior is required for each run.
 // The default Source is safe for concurrent use by multiple goroutines.
+//
+// For random numbers suitable for security-sensitive work, see the crypto/rand
+// package.
 package rand
 
 import "sync"

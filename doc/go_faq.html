@@ -92,13 +92,6 @@ portability and the addition of new functionality such as improved support for i
 There may well be a Go 2 one day, but not for a few years and it will be influenced by what we learn using Go 1 as it is today.
 </p>
 
-<h3 id="What_is_the_origin_of_the_name">
-What is the origin of the name?</h3>
-
-<p>
-&ldquo;Ogle&rdquo; would be a good name for a Go debugger.
-</p>
-
 <h3 id="Whats_the_origin_of_the_mascot">
 What's the origin of the mascot?</h3>
 
@@ -893,7 +886,7 @@ encourages you to be explicit.
 </p>
 
 <p>
-A blog post titled <a href="http://blog.golang.org/constants">Constants</a>
+A blog post titled <a href="https://blog.golang.org/constants">Constants</a>
 explores this topic in more detail.
 </p>
 
@@ -1591,6 +1584,51 @@ test cases. The standard Go library is full of illustrative examples, such as in
 <a href="/src/fmt/fmt_test.go">the formatting tests for the <code>fmt</code> package</a>.
 </p>
 
+<h3 id="x_in_std">
+Why isn't <i>X</i> in the standard library?</h3>
+
+<p>
+The standard library's purpose is to support the runtime, connect to
+the operating system, and provide key functionality that many Go
+programs require, such as formatted I/O and networking.
+It also contains elements important for web programming, including
+cryptography and support for standards like HTTP, JSON, and XML.
+</p>
+
+<p>
+There is no clear criterion that defines what is included because for
+a long time, this was the <i>only</i> Go library.
+There are criteria that define what gets added today, however.
+</p>
+
+<p>
+New additions to the standard library are rare and the bar for
+inclusion is high.
+Code included in the standard library bears a large ongoing maintenance cost
+(often borne by those other than the original author),
+is subject to the <a href="/doc/go1compat.html">Go 1 compatibility promise</a>
+(blocking fixes to any flaws in the API),
+and is subject to the Go
+<a href="https://golang.org/s/releasesched">release schedule</a>,
+preventing bug fixes from being available to users quickly.
+</p>
+
+<p>
+Most new code should live outside of the standard library and be accessible
+via the <a href="/cmd/go/"><code>go</code> tool</a>'s
+<code>go get</code> command.
+Such code can have its own maintainers, release cycle,
+and compatibility guarantees.
+Users can find packages and read their documentation at
+<a href="https://godoc.org/">godoc.org</a>.
+</p>
+
+<p>
+Although there are pieces in the standard library that don't really belong,
+such as <code>log/syslog</code>, we continue to maintain everything in the
+library because of the Go 1 compatibility promise.
+But we encourage most new code to live elsewhere.
+</p>
 
 <h2 id="Implementation">Implementation</h2>
 

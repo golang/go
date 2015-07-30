@@ -42,6 +42,7 @@ var arm64Jump = map[string]bool{
 	"CBZW":  true,
 	"CBNZ":  true,
 	"CBNZW": true,
+	"JMP":   true,
 }
 
 func jumpArm64(word string) bool {
