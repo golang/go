@@ -168,14 +168,14 @@ func complex1() {
 	var c128 complex128
 	_ = complex() // ERROR not enough arguments
 	_ = complex(1) // ERROR not enough arguments
-	_ = complex(true /* ERROR invalid argument */ , 0)
-	_ = complex(i32 /* ERROR invalid argument */ , 0)
-	_ = complex("foo" /* ERROR invalid argument */ , 0)
-	_ = complex(c64 /* ERROR invalid argument */ , 0)
-	_ = complex(0, true /* ERROR invalid argument */ )
-	_ = complex(0, i32 /* ERROR invalid argument */ )
-	_ = complex(0, "foo" /* ERROR invalid argument */ )
-	_ = complex(0, c64 /* ERROR invalid argument */ )
+	_ = complex(true /* ERROR mismatched types */ , 0)
+	_ = complex(i32 /* ERROR expected floating-point */ , 0)
+	_ = complex("foo" /* ERROR mismatched types */ , 0)
+	_ = complex(c64 /* ERROR expected floating-point */ , 0)
+	_ = complex(0 /* ERROR mismatched types */ , true)
+	_ = complex(0 /* ERROR expected floating-point */ , i32)
+	_ = complex(0 /* ERROR mismatched types */ , "foo")
+	_ = complex(0 /* ERROR expected floating-point */ , c64)
 	_ = complex(f32, f32)
 	_ = complex(f32, 1)
 	_ = complex(f32, 1.0)
@@ -202,6 +202,9 @@ func complex1() {
 	const _ float32 = complex(1, 0)
 	const _ complex64 = complex(1, 0)
 	const _ complex128 = complex(1, 0)
+	const _ = complex(0i, 0i)
+	const _ = complex(0i, 0)
+	const _ int = 1.0 + complex(1, 0i)
 
 	const _ int = complex /* ERROR int */ (1.1, 0)
 	const _ float32 = complex /* ERROR float32 */ (1, 2)
