@@ -249,7 +249,7 @@ func dialClosedPort() (actual, expected time.Duration) {
 	// On Windows, dialing a closed port takes roughly 1 second,
 	// but other platforms should be instantaneous.
 	if runtime.GOOS == "windows" {
-		expected = 1095 * time.Millisecond
+		expected = 1500 * time.Millisecond
 	} else {
 		expected = 95 * time.Millisecond
 	}
