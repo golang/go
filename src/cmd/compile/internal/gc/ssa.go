@@ -727,6 +727,15 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OMINUS, TINT64}:  ssa.OpNeg64,
 	opAndType{OMINUS, TUINT64}: ssa.OpNeg64,
 
+	opAndType{OCOM, TINT8}:   ssa.OpCom8,
+	opAndType{OCOM, TUINT8}:  ssa.OpCom8,
+	opAndType{OCOM, TINT16}:  ssa.OpCom16,
+	opAndType{OCOM, TUINT16}: ssa.OpCom16,
+	opAndType{OCOM, TINT32}:  ssa.OpCom32,
+	opAndType{OCOM, TUINT32}: ssa.OpCom32,
+	opAndType{OCOM, TINT64}:  ssa.OpCom64,
+	opAndType{OCOM, TUINT64}: ssa.OpCom64,
+
 	opAndType{OMUL, TINT8}:   ssa.OpMul8,
 	opAndType{OMUL, TUINT8}:  ssa.OpMul8,
 	opAndType{OMUL, TINT16}:  ssa.OpMul16,
@@ -753,24 +762,6 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OOR, TUINT32}: ssa.OpOr32,
 	opAndType{OOR, TINT64}:  ssa.OpOr64,
 	opAndType{OOR, TUINT64}: ssa.OpOr64,
-
-	opAndType{OLSH, TINT8}:   ssa.OpLsh8,
-	opAndType{OLSH, TUINT8}:  ssa.OpLsh8,
-	opAndType{OLSH, TINT16}:  ssa.OpLsh16,
-	opAndType{OLSH, TUINT16}: ssa.OpLsh16,
-	opAndType{OLSH, TINT32}:  ssa.OpLsh32,
-	opAndType{OLSH, TUINT32}: ssa.OpLsh32,
-	opAndType{OLSH, TINT64}:  ssa.OpLsh64,
-	opAndType{OLSH, TUINT64}: ssa.OpLsh64,
-
-	opAndType{ORSH, TINT8}:   ssa.OpRsh8,
-	opAndType{ORSH, TUINT8}:  ssa.OpRsh8U,
-	opAndType{ORSH, TINT16}:  ssa.OpRsh16,
-	opAndType{ORSH, TUINT16}: ssa.OpRsh16U,
-	opAndType{ORSH, TINT32}:  ssa.OpRsh32,
-	opAndType{ORSH, TUINT32}: ssa.OpRsh32U,
-	opAndType{ORSH, TINT64}:  ssa.OpRsh64,
-	opAndType{ORSH, TUINT64}: ssa.OpRsh64U,
 
 	opAndType{OEQ, TBOOL}:      ssa.OpEq8,
 	opAndType{OEQ, TINT8}:      ssa.OpEq8,
@@ -873,6 +864,96 @@ func (s *state) ssaOp(op uint8, t *Type) ssa.Op {
 	x, ok := opToSSA[opAndType{op, etype}]
 	if !ok {
 		s.Unimplementedf("unhandled binary op %s etype=%s", opnames[op], Econv(int(etype), 0))
+	}
+	return x
+}
+
+type opAndTwoTypes struct {
+	op     uint8
+	etype1 uint8
+	etype2 uint8
+}
+
+var shiftOpToSSA = map[opAndTwoTypes]ssa.Op{
+	opAndTwoTypes{OLSH, TINT8, TUINT8}:   ssa.OpLsh8x8,
+	opAndTwoTypes{OLSH, TUINT8, TUINT8}:  ssa.OpLsh8x8,
+	opAndTwoTypes{OLSH, TINT8, TUINT16}:  ssa.OpLsh8x16,
+	opAndTwoTypes{OLSH, TUINT8, TUINT16}: ssa.OpLsh8x16,
+	opAndTwoTypes{OLSH, TINT8, TUINT32}:  ssa.OpLsh8x32,
+	opAndTwoTypes{OLSH, TUINT8, TUINT32}: ssa.OpLsh8x32,
+	opAndTwoTypes{OLSH, TINT8, TUINT64}:  ssa.OpLsh8x64,
+	opAndTwoTypes{OLSH, TUINT8, TUINT64}: ssa.OpLsh8x64,
+
+	opAndTwoTypes{OLSH, TINT16, TUINT8}:   ssa.OpLsh16x8,
+	opAndTwoTypes{OLSH, TUINT16, TUINT8}:  ssa.OpLsh16x8,
+	opAndTwoTypes{OLSH, TINT16, TUINT16}:  ssa.OpLsh16x16,
+	opAndTwoTypes{OLSH, TUINT16, TUINT16}: ssa.OpLsh16x16,
+	opAndTwoTypes{OLSH, TINT16, TUINT32}:  ssa.OpLsh16x32,
+	opAndTwoTypes{OLSH, TUINT16, TUINT32}: ssa.OpLsh16x32,
+	opAndTwoTypes{OLSH, TINT16, TUINT64}:  ssa.OpLsh16x64,
+	opAndTwoTypes{OLSH, TUINT16, TUINT64}: ssa.OpLsh16x64,
+
+	opAndTwoTypes{OLSH, TINT32, TUINT8}:   ssa.OpLsh32x8,
+	opAndTwoTypes{OLSH, TUINT32, TUINT8}:  ssa.OpLsh32x8,
+	opAndTwoTypes{OLSH, TINT32, TUINT16}:  ssa.OpLsh32x16,
+	opAndTwoTypes{OLSH, TUINT32, TUINT16}: ssa.OpLsh32x16,
+	opAndTwoTypes{OLSH, TINT32, TUINT32}:  ssa.OpLsh32x32,
+	opAndTwoTypes{OLSH, TUINT32, TUINT32}: ssa.OpLsh32x32,
+	opAndTwoTypes{OLSH, TINT32, TUINT64}:  ssa.OpLsh32x64,
+	opAndTwoTypes{OLSH, TUINT32, TUINT64}: ssa.OpLsh32x64,
+
+	opAndTwoTypes{OLSH, TINT64, TUINT8}:   ssa.OpLsh64x8,
+	opAndTwoTypes{OLSH, TUINT64, TUINT8}:  ssa.OpLsh64x8,
+	opAndTwoTypes{OLSH, TINT64, TUINT16}:  ssa.OpLsh64x16,
+	opAndTwoTypes{OLSH, TUINT64, TUINT16}: ssa.OpLsh64x16,
+	opAndTwoTypes{OLSH, TINT64, TUINT32}:  ssa.OpLsh64x32,
+	opAndTwoTypes{OLSH, TUINT64, TUINT32}: ssa.OpLsh64x32,
+	opAndTwoTypes{OLSH, TINT64, TUINT64}:  ssa.OpLsh64x64,
+	opAndTwoTypes{OLSH, TUINT64, TUINT64}: ssa.OpLsh64x64,
+
+	opAndTwoTypes{ORSH, TINT8, TUINT8}:   ssa.OpRsh8x8,
+	opAndTwoTypes{ORSH, TUINT8, TUINT8}:  ssa.OpRsh8Ux8,
+	opAndTwoTypes{ORSH, TINT8, TUINT16}:  ssa.OpRsh8x16,
+	opAndTwoTypes{ORSH, TUINT8, TUINT16}: ssa.OpRsh8Ux16,
+	opAndTwoTypes{ORSH, TINT8, TUINT32}:  ssa.OpRsh8x32,
+	opAndTwoTypes{ORSH, TUINT8, TUINT32}: ssa.OpRsh8Ux32,
+	opAndTwoTypes{ORSH, TINT8, TUINT64}:  ssa.OpRsh8x64,
+	opAndTwoTypes{ORSH, TUINT8, TUINT64}: ssa.OpRsh8Ux64,
+
+	opAndTwoTypes{ORSH, TINT16, TUINT8}:   ssa.OpRsh16x8,
+	opAndTwoTypes{ORSH, TUINT16, TUINT8}:  ssa.OpRsh16Ux8,
+	opAndTwoTypes{ORSH, TINT16, TUINT16}:  ssa.OpRsh16x16,
+	opAndTwoTypes{ORSH, TUINT16, TUINT16}: ssa.OpRsh16Ux16,
+	opAndTwoTypes{ORSH, TINT16, TUINT32}:  ssa.OpRsh16x32,
+	opAndTwoTypes{ORSH, TUINT16, TUINT32}: ssa.OpRsh16Ux32,
+	opAndTwoTypes{ORSH, TINT16, TUINT64}:  ssa.OpRsh16x64,
+	opAndTwoTypes{ORSH, TUINT16, TUINT64}: ssa.OpRsh16Ux64,
+
+	opAndTwoTypes{ORSH, TINT32, TUINT8}:   ssa.OpRsh32x8,
+	opAndTwoTypes{ORSH, TUINT32, TUINT8}:  ssa.OpRsh32Ux8,
+	opAndTwoTypes{ORSH, TINT32, TUINT16}:  ssa.OpRsh32x16,
+	opAndTwoTypes{ORSH, TUINT32, TUINT16}: ssa.OpRsh32Ux16,
+	opAndTwoTypes{ORSH, TINT32, TUINT32}:  ssa.OpRsh32x32,
+	opAndTwoTypes{ORSH, TUINT32, TUINT32}: ssa.OpRsh32Ux32,
+	opAndTwoTypes{ORSH, TINT32, TUINT64}:  ssa.OpRsh32x64,
+	opAndTwoTypes{ORSH, TUINT32, TUINT64}: ssa.OpRsh32Ux64,
+
+	opAndTwoTypes{ORSH, TINT64, TUINT8}:   ssa.OpRsh64x8,
+	opAndTwoTypes{ORSH, TUINT64, TUINT8}:  ssa.OpRsh64Ux8,
+	opAndTwoTypes{ORSH, TINT64, TUINT16}:  ssa.OpRsh64x16,
+	opAndTwoTypes{ORSH, TUINT64, TUINT16}: ssa.OpRsh64Ux16,
+	opAndTwoTypes{ORSH, TINT64, TUINT32}:  ssa.OpRsh64x32,
+	opAndTwoTypes{ORSH, TUINT64, TUINT32}: ssa.OpRsh64Ux32,
+	opAndTwoTypes{ORSH, TINT64, TUINT64}:  ssa.OpRsh64x64,
+	opAndTwoTypes{ORSH, TUINT64, TUINT64}: ssa.OpRsh64Ux64,
+}
+
+func (s *state) ssaShiftOp(op uint8, t *Type, u *Type) ssa.Op {
+	etype1 := s.concreteEtype(t)
+	etype2 := s.concreteEtype(u)
+	x, ok := shiftOpToSSA[opAndTwoTypes{op, etype1, etype2}]
+	if !ok {
+		s.Unimplementedf("unhandled shift op %s etype=%s/%s", opnames[op], Econv(int(etype1), 0), Econv(int(etype2), 0))
 	}
 	return x
 }
@@ -999,10 +1080,14 @@ func (s *state) expr(n *Node) *ssa.Value {
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
 		return s.newValue2(s.ssaOp(n.Op, n.Left.Type), ssa.TypeBool, a, b)
-	case OADD, OAND, OLSH, OMUL, OOR, ORSH, OSUB:
+	case OADD, OSUB, OMUL, OAND, OOR:
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
 		return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
+	case OLSH, ORSH:
+		a := s.expr(n.Left)
+		b := s.expr(n.Right)
+		return s.newValue2(s.ssaShiftOp(n.Op, n.Type, n.Right.Type), a.Type, a, b)
 	case OANDAND, OOROR:
 		// To implement OANDAND (and OOROR), we introduce a
 		// new temporary variable to hold the result. The
@@ -1045,7 +1130,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.variable(n, n.Type)
 
 	// unary ops
-	case ONOT, OMINUS:
+	case ONOT, OMINUS, OCOM:
 		a := s.expr(n.Left)
 		return s.newValue1(s.ssaOp(n.Op, n.Type), a.Type, a)
 
@@ -1766,34 +1851,11 @@ func genValue(v *ssa.Value) {
 		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-	case ssa.OpAMD64SBBQcarrymask:
+	case ssa.OpAMD64SBBQcarrymask, ssa.OpAMD64SBBLcarrymask:
 		r := regnum(v)
 		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
-	case ssa.OpAMD64CMOVQCC:
-		r := regnum(v)
-		x := regnum(v.Args[1])
-		y := regnum(v.Args[2])
-		if x != r && y != r {
-			p := Prog(x86.AMOVQ)
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = x
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
-			x = r
-		}
-		var p *obj.Prog
-		if x == r {
-			p = Prog(x86.ACMOVQCS)
-			p.From.Reg = y
-		} else {
-			p = Prog(x86.ACMOVQCC)
-			p.From.Reg = x
-		}
-		p.From.Type = obj.TYPE_REG
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 	case ssa.OpAMD64LEAQ1, ssa.OpAMD64LEAQ2, ssa.OpAMD64LEAQ4, ssa.OpAMD64LEAQ8:
@@ -1967,7 +2029,8 @@ func genValue(v *ssa.Value) {
 		p := Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v.Args[0])
-	case ssa.OpAMD64NEGQ, ssa.OpAMD64NEGL, ssa.OpAMD64NEGW, ssa.OpAMD64NEGB:
+	case ssa.OpAMD64NEGQ, ssa.OpAMD64NEGL, ssa.OpAMD64NEGW, ssa.OpAMD64NEGB,
+		ssa.OpAMD64NOTQ, ssa.OpAMD64NOTL, ssa.OpAMD64NOTW, ssa.OpAMD64NOTB:
 		p := Prog(v.Op.Asm())
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v.Args[0])
