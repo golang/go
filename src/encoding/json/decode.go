@@ -358,7 +358,7 @@ func (d *decodeState) indirect(v reflect.Value, decodingNull bool) (Unmarshaler,
 		if v.IsNil() {
 			v.Set(reflect.New(v.Type().Elem()))
 		}
-		if v.Type().NumMethod() > 0 && !decodingNull {
+		if v.Type().NumMethod() > 0 {
 			if u, ok := v.Interface().(Unmarshaler); ok {
 				return u, nil, reflect.Value{}
 			}
