@@ -4,7 +4,10 @@
 
 package ssa
 
-import "log"
+import (
+	"log"
+	"runtime"
+)
 
 // Compile is the main entry point for this package.
 // Compile modifies f so that on return:
@@ -21,7 +24,11 @@ func Compile(f *Func) {
 	phaseName := "init"
 	defer func() {
 		if phaseName != "" {
-			f.Fatalf("panic during %s while compiling %s\n", phaseName, f.Name)
+			err := recover()
+			stack := make([]byte, 16384)
+			n := runtime.Stack(stack, false)
+			stack = stack[:n]
+			f.Fatalf("panic during %s while compiling %s:\n\n%v\n\n%s\n", phaseName, f.Name, err, stack)
 		}
 	}()
 
