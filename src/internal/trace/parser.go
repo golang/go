@@ -191,8 +191,10 @@ func parseEvents(rawEvents []rawEvent) (events []*Event, err error) {
 		case EvFrequency:
 			ticksPerSec = int64(raw.args[0])
 			if ticksPerSec <= 0 {
-				err = fmt.Errorf("EvFrequency contains invalid frequency %v at offset 0x%x",
-					ticksPerSec, raw.off)
+				// The most likely cause for this is tick skew on different CPUs.
+				// For example, solaris/amd64 seems to have wildly different
+				// ticks on different CPUs.
+				err = ErrTimeOrder
 				return
 			}
 		case EvTimerGoroutine:
