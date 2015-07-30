@@ -1029,3 +1029,24 @@ TEXT runtime·prefetcht2(SB),NOSPLIT,$0-4
 
 TEXT runtime·prefetchnta(SB),NOSPLIT,$0-4
 	RET
+
+// x -> x/1000000, x%1000000, called from Go with args, results on stack.
+TEXT runtime·usplit(SB),NOSPLIT,$0-12
+	MOVW	x+0(FP), R0
+	CALL	runtime·usplitR0(SB)
+	MOVW	R0, q+4(FP)
+	MOVW	R1, r+8(FP)
+	RET
+
+// R0, R1 = R0/1000000, R0%1000000
+TEXT runtime·usplitR0(SB),NOSPLIT,$0
+	// magic multiply to avoid software divide without available m.
+	// see output of go tool compile -S for x/1000000.
+	MOVW	R0, R3
+	MOVW	$1125899907, R1
+	MULLU	R1, R0, (R0, R1)
+	MOVW	R0>>18, R0
+	MOVW	$1000000, R1
+	MULU	R0, R1
+	SUB	R1, R3, R1
+	RET
