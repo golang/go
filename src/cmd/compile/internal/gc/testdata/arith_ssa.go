@@ -75,6 +75,20 @@ func testBitwiseOr_ssa(a, b uint32) uint32 {
 	return a | b
 }
 
+// testSubqToNegq ensures that the SUBQ -> NEGQ translation works correctly.
+func testSubqToNegq(a, b, c, d, e, f, g, h, i, j, k int64) {
+	want := a + 8207351403619448057 - b - 1779494519303207690 + c*8810076340510052032*d - 4465874067674546219 - e*4361839741470334295 - f + 8688847565426072650*g*8065564729145417479
+	if got := testSubqToNegq_ssa(a, b, c, d, e, f, g, h, i, j, k); want != got {
+		println("testSubqToNegq failed, wanted", want, "got", got)
+		failed = true
+	}
+}
+func testSubqToNegq_ssa(a, b, c, d, e, f, g, h, i, j, k int64) int64 {
+	switch { // prevent inlining
+	}
+	return a + 8207351403619448057 - b - 1779494519303207690 + c*8810076340510052032*d - 4465874067674546219 - e*4361839741470334295 - f + 8688847565426072650*g*8065564729145417479
+}
+
 var failed = false
 
 func main() {
@@ -82,7 +96,7 @@ func main() {
 	test64BitConstMult(1, 2)
 	test64BitConstAdd(1, 2)
 	testRegallocCVSpill(1, 2, 3, 4)
-
+	testSubqToNegq(1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2)
 	if failed {
 		panic("failed")
 	}

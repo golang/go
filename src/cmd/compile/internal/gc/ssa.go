@@ -1765,8 +1765,6 @@ func genValue(v *ssa.Value) {
 		p.From.Reg = y
 		if neg {
 			p := Prog(x86.ANEGQ) // TODO: use correct size?  This is mostly a hack until regalloc does 2-address correctly
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = r
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = r
 		}
