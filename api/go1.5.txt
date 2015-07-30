@@ -278,6 +278,11 @@ pkg encoding/base64, const StdPadding int32
 pkg encoding/base64, method (Encoding) WithPadding(int32) *Encoding
 pkg encoding/base64, var RawStdEncoding *Encoding
 pkg encoding/base64, var RawURLEncoding *Encoding
+pkg encoding/json, method (*Decoder) More() bool
+pkg encoding/json, method (*Decoder) Token() (Token, error)
+pkg encoding/json, method (Delim) String() string
+pkg encoding/json, type Delim int32
+pkg encoding/json, type Token interface {}
 pkg encoding/json, type UnmarshalTypeError struct, Offset int64
 pkg flag, func UnquoteUsage(*Flag) (string, string)
 pkg go/ast, type EmptyStmt struct, Implicit bool
@@ -874,6 +879,7 @@ pkg reflect, func FuncOf([]Type, []Type, bool) Type
 pkg runtime, func ReadTrace() []uint8
 pkg runtime, func StartTrace() error
 pkg runtime, func StopTrace()
+pkg runtime, type MemStats struct, GCCPUFraction float64
 pkg runtime/trace, func Start(io.Writer) error
 pkg runtime/trace, func Stop()
 pkg strings, func Compare(string, string) int
