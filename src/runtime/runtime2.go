@@ -222,6 +222,7 @@ type g struct {
 
 	_panic         *_panic // innermost panic - offset known to liblink
 	_defer         *_defer // innermost defer
+	m              *m      // current m; offset known to arm liblink
 	stackAlloc     uintptr // stack allocation is [stack.lo,stack.lo+stackAlloc)
 	sched          gobuf
 	syscallsp      uintptr        // if status==Gsyscall, syscallsp = sched.sp to use during gc
@@ -245,7 +246,6 @@ type g struct {
 	sysblocktraced bool   // StartTrace has emitted EvGoInSyscall about this goroutine
 	sysexitticks   int64  // cputicks when syscall has returned (for tracing)
 	sysexitseq     uint64 // trace seq when syscall has returned (for tracing)
-	m              *m     // for debuggers, but offset not hard-coded
 	lockedm        *m
 	sig            uint32
 	writebuf       []byte
@@ -273,8 +273,9 @@ type mscratch struct {
 }
 
 type m struct {
-	g0      *g    // goroutine with scheduling stack
-	morebuf gobuf // gobuf arg to morestack
+	g0      *g     // goroutine with scheduling stack
+	morebuf gobuf  // gobuf arg to morestack
+	divmod  uint32 // div/mod denominator for arm - known to liblink
 
 	// Fields not known to debuggers.
 	procid        uint64     // for debuggers, but offset not hard-coded
