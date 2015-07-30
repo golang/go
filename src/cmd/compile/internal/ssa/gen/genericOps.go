@@ -42,19 +42,57 @@ var genericOps = []opData{
 	{name: "Xor32"},
 	{name: "Xor64"},
 
-	{name: "Lsh8"}, // arg0 << arg1
-	{name: "Lsh16"},
-	{name: "Lsh32"},
-	{name: "Lsh64"},
+	// For shifts, AxB means the shifted value has A bits and the shift amount has B bits.
+	{name: "Lsh8x8"}, // arg0 << arg1
+	{name: "Lsh8x16"},
+	{name: "Lsh8x32"},
+	{name: "Lsh8x64"},
+	{name: "Lsh16x8"},
+	{name: "Lsh16x16"},
+	{name: "Lsh16x32"},
+	{name: "Lsh16x64"},
+	{name: "Lsh32x8"},
+	{name: "Lsh32x16"},
+	{name: "Lsh32x32"},
+	{name: "Lsh32x64"},
+	{name: "Lsh64x8"},
+	{name: "Lsh64x16"},
+	{name: "Lsh64x32"},
+	{name: "Lsh64x64"},
 
-	{name: "Rsh8"}, // arg0 >> arg1
-	{name: "Rsh8U"},
-	{name: "Rsh16"},
-	{name: "Rsh16U"},
-	{name: "Rsh32"},
-	{name: "Rsh32U"},
-	{name: "Rsh64"},
-	{name: "Rsh64U"},
+	{name: "Rsh8x8"}, // arg0 >> arg1, signed
+	{name: "Rsh8x16"},
+	{name: "Rsh8x32"},
+	{name: "Rsh8x64"},
+	{name: "Rsh16x8"},
+	{name: "Rsh16x16"},
+	{name: "Rsh16x32"},
+	{name: "Rsh16x64"},
+	{name: "Rsh32x8"},
+	{name: "Rsh32x16"},
+	{name: "Rsh32x32"},
+	{name: "Rsh32x64"},
+	{name: "Rsh64x8"},
+	{name: "Rsh64x16"},
+	{name: "Rsh64x32"},
+	{name: "Rsh64x64"},
+
+	{name: "Rsh8Ux8"}, // arg0 >> arg1, unsigned
+	{name: "Rsh8Ux16"},
+	{name: "Rsh8Ux32"},
+	{name: "Rsh8Ux64"},
+	{name: "Rsh16Ux8"},
+	{name: "Rsh16Ux16"},
+	{name: "Rsh16Ux32"},
+	{name: "Rsh16Ux64"},
+	{name: "Rsh32Ux8"},
+	{name: "Rsh32Ux16"},
+	{name: "Rsh32Ux32"},
+	{name: "Rsh32Ux64"},
+	{name: "Rsh64Ux8"},
+	{name: "Rsh64Ux16"},
+	{name: "Rsh64Ux32"},
+	{name: "Rsh64Ux64"},
 
 	// 2-input comparisons
 	{name: "Eq8"}, // arg0 == arg1
@@ -110,10 +148,15 @@ var genericOps = []opData{
 	// 1-input ops
 	{name: "Not"}, // !arg0
 
-	{name: "Neg8"}, // - arg0
+	{name: "Neg8"}, // -arg0
 	{name: "Neg16"},
 	{name: "Neg32"},
 	{name: "Neg64"},
+
+	{name: "Com8"}, // ^arg0
+	{name: "Com16"},
+	{name: "Com32"},
+	{name: "Com64"},
 
 	// Data movement
 	{name: "Phi"},  // select an argument based on which predecessor block we came from

@@ -141,7 +141,12 @@ const (
 	OpAMD64NEGL
 	OpAMD64NEGW
 	OpAMD64NEGB
+	OpAMD64NOTQ
+	OpAMD64NOTL
+	OpAMD64NOTW
+	OpAMD64NOTB
 	OpAMD64SBBQcarrymask
+	OpAMD64SBBLcarrymask
 	OpAMD64SETEQ
 	OpAMD64SETNE
 	OpAMD64SETL
@@ -152,7 +157,6 @@ const (
 	OpAMD64SETBE
 	OpAMD64SETA
 	OpAMD64SETAE
-	OpAMD64CMOVQCC
 	OpAMD64MOVBQSX
 	OpAMD64MOVBQZX
 	OpAMD64MOVWQSX
@@ -213,18 +217,54 @@ const (
 	OpXor16
 	OpXor32
 	OpXor64
-	OpLsh8
-	OpLsh16
-	OpLsh32
-	OpLsh64
-	OpRsh8
-	OpRsh8U
-	OpRsh16
-	OpRsh16U
-	OpRsh32
-	OpRsh32U
-	OpRsh64
-	OpRsh64U
+	OpLsh8x8
+	OpLsh8x16
+	OpLsh8x32
+	OpLsh8x64
+	OpLsh16x8
+	OpLsh16x16
+	OpLsh16x32
+	OpLsh16x64
+	OpLsh32x8
+	OpLsh32x16
+	OpLsh32x32
+	OpLsh32x64
+	OpLsh64x8
+	OpLsh64x16
+	OpLsh64x32
+	OpLsh64x64
+	OpRsh8x8
+	OpRsh8x16
+	OpRsh8x32
+	OpRsh8x64
+	OpRsh16x8
+	OpRsh16x16
+	OpRsh16x32
+	OpRsh16x64
+	OpRsh32x8
+	OpRsh32x16
+	OpRsh32x32
+	OpRsh32x64
+	OpRsh64x8
+	OpRsh64x16
+	OpRsh64x32
+	OpRsh64x64
+	OpRsh8Ux8
+	OpRsh8Ux16
+	OpRsh8Ux32
+	OpRsh8Ux64
+	OpRsh16Ux8
+	OpRsh16Ux16
+	OpRsh16Ux32
+	OpRsh16Ux64
+	OpRsh32Ux8
+	OpRsh32Ux16
+	OpRsh32Ux32
+	OpRsh32Ux64
+	OpRsh64Ux8
+	OpRsh64Ux16
+	OpRsh64Ux32
+	OpRsh64Ux64
 	OpEq8
 	OpEq16
 	OpEq32
@@ -274,6 +314,10 @@ const (
 	OpNeg16
 	OpNeg32
 	OpNeg64
+	OpCom8
+	OpCom16
+	OpCom32
+	OpCom64
 	OpPhi
 	OpCopy
 	OpConstBool
@@ -1459,8 +1503,68 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name: "NOTQ",
+		asm:  x86.ANOTQ,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "NOTL",
+		asm:  x86.ANOTL,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "NOTW",
+		asm:  x86.ANOTW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "NOTB",
+		asm:  x86.ANOTB,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
 		name: "SBBQcarrymask",
 		asm:  x86.ASBBQ,
+		reg: regInfo{
+			inputs: []regMask{
+				8589934592, // .FLAGS
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SBBLcarrymask",
+		asm:  x86.ASBBL,
 		reg: regInfo{
 			inputs: []regMask{
 				8589934592, // .FLAGS
@@ -1584,19 +1688,6 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []regMask{
 				8589934592, // .FLAGS
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
-		name: "CMOVQCC",
-		reg: regInfo{
-			inputs: []regMask{
-				8589934592, // .FLAGS
-				65519,      // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-				65519,      // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -2072,51 +2163,195 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "Lsh8",
+		name:    "Lsh8x8",
 		generic: true,
 	},
 	{
-		name:    "Lsh16",
+		name:    "Lsh8x16",
 		generic: true,
 	},
 	{
-		name:    "Lsh32",
+		name:    "Lsh8x32",
 		generic: true,
 	},
 	{
-		name:    "Lsh64",
+		name:    "Lsh8x64",
 		generic: true,
 	},
 	{
-		name:    "Rsh8",
+		name:    "Lsh16x8",
 		generic: true,
 	},
 	{
-		name:    "Rsh8U",
+		name:    "Lsh16x16",
 		generic: true,
 	},
 	{
-		name:    "Rsh16",
+		name:    "Lsh16x32",
 		generic: true,
 	},
 	{
-		name:    "Rsh16U",
+		name:    "Lsh16x64",
 		generic: true,
 	},
 	{
-		name:    "Rsh32",
+		name:    "Lsh32x8",
 		generic: true,
 	},
 	{
-		name:    "Rsh32U",
+		name:    "Lsh32x16",
 		generic: true,
 	},
 	{
-		name:    "Rsh64",
+		name:    "Lsh32x32",
 		generic: true,
 	},
 	{
-		name:    "Rsh64U",
+		name:    "Lsh32x64",
+		generic: true,
+	},
+	{
+		name:    "Lsh64x8",
+		generic: true,
+	},
+	{
+		name:    "Lsh64x16",
+		generic: true,
+	},
+	{
+		name:    "Lsh64x32",
+		generic: true,
+	},
+	{
+		name:    "Lsh64x64",
+		generic: true,
+	},
+	{
+		name:    "Rsh8x8",
+		generic: true,
+	},
+	{
+		name:    "Rsh8x16",
+		generic: true,
+	},
+	{
+		name:    "Rsh8x32",
+		generic: true,
+	},
+	{
+		name:    "Rsh8x64",
+		generic: true,
+	},
+	{
+		name:    "Rsh16x8",
+		generic: true,
+	},
+	{
+		name:    "Rsh16x16",
+		generic: true,
+	},
+	{
+		name:    "Rsh16x32",
+		generic: true,
+	},
+	{
+		name:    "Rsh16x64",
+		generic: true,
+	},
+	{
+		name:    "Rsh32x8",
+		generic: true,
+	},
+	{
+		name:    "Rsh32x16",
+		generic: true,
+	},
+	{
+		name:    "Rsh32x32",
+		generic: true,
+	},
+	{
+		name:    "Rsh32x64",
+		generic: true,
+	},
+	{
+		name:    "Rsh64x8",
+		generic: true,
+	},
+	{
+		name:    "Rsh64x16",
+		generic: true,
+	},
+	{
+		name:    "Rsh64x32",
+		generic: true,
+	},
+	{
+		name:    "Rsh64x64",
+		generic: true,
+	},
+	{
+		name:    "Rsh8Ux8",
+		generic: true,
+	},
+	{
+		name:    "Rsh8Ux16",
+		generic: true,
+	},
+	{
+		name:    "Rsh8Ux32",
+		generic: true,
+	},
+	{
+		name:    "Rsh8Ux64",
+		generic: true,
+	},
+	{
+		name:    "Rsh16Ux8",
+		generic: true,
+	},
+	{
+		name:    "Rsh16Ux16",
+		generic: true,
+	},
+	{
+		name:    "Rsh16Ux32",
+		generic: true,
+	},
+	{
+		name:    "Rsh16Ux64",
+		generic: true,
+	},
+	{
+		name:    "Rsh32Ux8",
+		generic: true,
+	},
+	{
+		name:    "Rsh32Ux16",
+		generic: true,
+	},
+	{
+		name:    "Rsh32Ux32",
+		generic: true,
+	},
+	{
+		name:    "Rsh32Ux64",
+		generic: true,
+	},
+	{
+		name:    "Rsh64Ux8",
+		generic: true,
+	},
+	{
+		name:    "Rsh64Ux16",
+		generic: true,
+	},
+	{
+		name:    "Rsh64Ux32",
+		generic: true,
+	},
+	{
+		name:    "Rsh64Ux64",
 		generic: true,
 	},
 	{
@@ -2313,6 +2548,22 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Neg64",
+		generic: true,
+	},
+	{
+		name:    "Com8",
+		generic: true,
+	},
+	{
+		name:    "Com16",
+		generic: true,
+	},
+	{
+		name:    "Com32",
+		generic: true,
+	},
+	{
+		name:    "Com64",
 		generic: true,
 	},
 	{

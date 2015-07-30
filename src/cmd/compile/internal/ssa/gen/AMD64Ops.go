@@ -89,7 +89,6 @@ func init() {
 	gpstoreconst := regInfo{[]regMask{gpspsb, 0}, 0, nil}
 	gpstoreidx := regInfo{[]regMask{gpspsb, gpsp, gpsp, 0}, 0, nil}
 	flagsgp := regInfo{[]regMask{flags}, 0, []regMask{gp}}
-	cmov := regInfo{[]regMask{flags, gp, gp}, 0, []regMask{gp}}
 
 	// Suffixes encode the bit width of various instructions.
 	// Q = 64 bit, L = 32 bit, W = 16 bit, B = 8 bit
@@ -201,7 +200,14 @@ func init() {
 		{name: "NEGW", reg: gp11, asm: "NEGW"}, // -arg0
 		{name: "NEGB", reg: gp11, asm: "NEGB"}, // -arg0
 
+		{name: "NOTQ", reg: gp11, asm: "NOTQ"}, // ^arg0
+		{name: "NOTL", reg: gp11, asm: "NOTL"}, // ^arg0
+		{name: "NOTW", reg: gp11, asm: "NOTW"}, // ^arg0
+		{name: "NOTB", reg: gp11, asm: "NOTB"}, // ^arg0
+
 		{name: "SBBQcarrymask", reg: flagsgp1, asm: "SBBQ"}, // (int64)(-1) if carry is set, 0 if carry is clear.
+		{name: "SBBLcarrymask", reg: flagsgp1, asm: "SBBL"}, // (int32)(-1) if carry is set, 0 if carry is clear.
+		// Note: SBBW and SBBB are subsumed by SBBL
 
 		{name: "SETEQ", reg: flagsgp, asm: "SETEQ"}, // extract == condition from arg0
 		{name: "SETNE", reg: flagsgp, asm: "SETNE"}, // extract != condition from arg0
@@ -213,8 +219,6 @@ func init() {
 		{name: "SETBE", reg: flagsgp, asm: "SETLS"}, // extract unsigned <= condition from arg0
 		{name: "SETA", reg: flagsgp, asm: "SETHI"},  // extract unsigned > condition from arg0
 		{name: "SETAE", reg: flagsgp, asm: "SETCC"}, // extract unsigned >= condition from arg0
-
-		{name: "CMOVQCC", reg: cmov}, // carry clear
 
 		{name: "MOVBQSX", reg: gp11, asm: "MOVBQSX"}, // sign extend arg0 from int8 to int64
 		{name: "MOVBQZX", reg: gp11, asm: "MOVBQZX"}, // zero extend arg0 from int8 to int64

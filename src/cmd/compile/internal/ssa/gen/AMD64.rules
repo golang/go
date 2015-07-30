@@ -50,6 +50,11 @@
 (Neg16 x) -> (NEGW x)
 (Neg8 x) -> (NEGB x)
 
+(Com64 x) -> (NOTQ x)
+(Com32 x) -> (NOTL x)
+(Com16 x) -> (NOTW x)
+(Com8 x) -> (NOTB x)
+
 // Note: we always extend to 64 bits even though some ops don't need that many result bits.
 (SignExt8to16 x) -> (MOVBQSX x)
 (SignExt8to32 x) -> (MOVBQSX x)
@@ -78,57 +83,71 @@
 // TODO: other ConvNops are safe?  Maybe all of them?
 
 // Lowering shifts
-// Note: unsigned shifts need to return 0 if shift amount is >= 64.
-//   mask = shift >= 64 ? 0 : 0xffffffffffffffff
-//   result = mask & arg << shift
-// TODO: define ops per right-hand side size, like Lsh64x32 for int64(x)<<uint32(y)?
-(Lsh64 <t> x y) && y.Type.Size() == 8 ->
-	(ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [64] y)))
-(Lsh64 <t> x y) && y.Type.Size() == 4 ->
-	(ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPLconst <TypeFlags> [64] y)))
-(Lsh64 <t> x y) && y.Type.Size() == 2 ->
-	(ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPWconst <TypeFlags> [64] y)))
-(Lsh64 <t> x y) && y.Type.Size() == 1 ->
-	(ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPBconst <TypeFlags> [64] y)))
+// Unsigned shifts need to return 0 if shift amount is >= width of shifted value.
+//   result = (arg << shift) & (shift >= argbits ? 0 : 0xffffffffffffffff)
+// Note: for small shifts we generate 32 bits of mask even when we don't need it all.
+(Lsh64x64 <t> x y) -> (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [64] y)))
+(Lsh64x32 <t> x y) -> (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPLconst <TypeFlags> [64] y)))
+(Lsh64x16 <t> x y) -> (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPWconst <TypeFlags> [64] y)))
+(Lsh64x8 <t> x y)  -> (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPBconst <TypeFlags> [64] y)))
 
-(Lsh32 <t> x y) && y.Type.Size() == 8 ->
-	(ANDL (SHLL <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [32] y)))
-(Lsh32 <t> x y) && y.Type.Size() == 4 ->
-	(ANDL (SHLL <t> x y) (SBBQcarrymask <t> (CMPLconst <TypeFlags> [32] y)))
-(Lsh32 <t> x y) && y.Type.Size() == 2 ->
-	(ANDL (SHLL <t> x y) (SBBQcarrymask <t> (CMPWconst <TypeFlags> [32] y)))
-(Lsh32 <t> x y) && y.Type.Size() == 1 ->
-	(ANDL (SHLL <t> x y) (SBBQcarrymask <t> (CMPBconst <TypeFlags> [32] y)))
+(Lsh32x64 <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPQconst <TypeFlags> [32] y)))
+(Lsh32x32 <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPLconst <TypeFlags> [32] y)))
+(Lsh32x16 <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPWconst <TypeFlags> [32] y)))
+(Lsh32x8 <t> x y)  -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPBconst <TypeFlags> [32] y)))
 
-(Lsh16 <t> x y) && y.Type.Size() == 8 ->
-	(ANDW (SHLW <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [16] y)))
-(Lsh16 <t> x y) && y.Type.Size() == 4 ->
-	(ANDW (SHLW <t> x y) (SBBQcarrymask <t> (CMPLconst <TypeFlags> [16] y)))
-(Lsh16 <t> x y) && y.Type.Size() == 2 ->
-	(ANDW (SHLW <t> x y) (SBBQcarrymask <t> (CMPWconst <TypeFlags> [16] y)))
-(Lsh16 <t> x y) && y.Type.Size() == 1 ->
-	(ANDW (SHLW <t> x y) (SBBQcarrymask <t> (CMPBconst <TypeFlags> [16] y)))
+(Lsh16x64 <t> x y) -> (ANDW (SHLW <t> x y) (SBBLcarrymask <t> (CMPQconst <TypeFlags> [16] y)))
+(Lsh16x32 <t> x y) -> (ANDW (SHLW <t> x y) (SBBLcarrymask <t> (CMPLconst <TypeFlags> [16] y)))
+(Lsh16x16 <t> x y) -> (ANDW (SHLW <t> x y) (SBBLcarrymask <t> (CMPWconst <TypeFlags> [16] y)))
+(Lsh16x8 <t> x y)  -> (ANDW (SHLW <t> x y) (SBBLcarrymask <t> (CMPBconst <TypeFlags> [16] y)))
 
-(Lsh8 <t> x y) && y.Type.Size() == 8 ->
-	(ANDB (SHLB <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [8] y)))
-(Lsh8 <t> x y) && y.Type.Size() == 4 ->
-	(ANDB (SHLB <t> x y) (SBBQcarrymask <t> (CMPLconst <TypeFlags> [8] y)))
-(Lsh8 <t> x y) && y.Type.Size() == 2 ->
-	(ANDB (SHLB <t> x y) (SBBQcarrymask <t> (CMPWconst <TypeFlags> [8] y)))
-(Lsh8 <t> x y) && y.Type.Size() == 1 ->
-	(ANDB (SHLB <t> x y) (SBBQcarrymask <t> (CMPBconst <TypeFlags> [8] y)))
+(Lsh8x64 <t> x y)  -> (ANDB (SHLB <t> x y) (SBBLcarrymask <t> (CMPQconst <TypeFlags> [8] y)))
+(Lsh8x32 <t> x y)  -> (ANDB (SHLB <t> x y) (SBBLcarrymask <t> (CMPLconst <TypeFlags> [8] y)))
+(Lsh8x16 <t> x y)  -> (ANDB (SHLB <t> x y) (SBBLcarrymask <t> (CMPWconst <TypeFlags> [8] y)))
+(Lsh8x8 <t> x y)   -> (ANDB (SHLB <t> x y) (SBBLcarrymask <t> (CMPBconst <TypeFlags> [8] y)))
 
-(Rsh64U <t> x y) && y.Type.Size() == 8 ->
-	(ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [64] y)))
+(Rsh64Ux64 <t> x y) -> (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [64] y)))
+(Rsh64Ux32 <t> x y) -> (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPLconst <TypeFlags> [64] y)))
+(Rsh64Ux16 <t> x y) -> (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPWconst <TypeFlags> [64] y)))
+(Rsh64Ux8 <t> x y)  -> (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPBconst <TypeFlags> [64] y)))
 
-// Note: signed right shift needs to return 0/-1 if shift amount is >= 64.
-//   if shift > 63 { shift = 63 }
-//   result = arg >> shift
-(Rsh64 <t> x y) && y.Type.Size() == 8 ->
-	(SARQ <t> x (CMOVQCC <t>
-			(CMPQconst <TypeFlags> [64] y)
-			(MOVQconst <t> [63])
-			y))
+(Rsh32Ux64 <t> x y) -> (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPQconst <TypeFlags> [32] y)))
+(Rsh32Ux32 <t> x y) -> (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPLconst <TypeFlags> [32] y)))
+(Rsh32Ux16 <t> x y) -> (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPWconst <TypeFlags> [32] y)))
+(Rsh32Ux8 <t> x y)  -> (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPBconst <TypeFlags> [32] y)))
+
+(Rsh16Ux64 <t> x y) -> (ANDW (SHRW <t> x y) (SBBLcarrymask <t> (CMPQconst <TypeFlags> [16] y)))
+(Rsh16Ux32 <t> x y) -> (ANDW (SHRW <t> x y) (SBBLcarrymask <t> (CMPLconst <TypeFlags> [16] y)))
+(Rsh16Ux16 <t> x y) -> (ANDW (SHRW <t> x y) (SBBLcarrymask <t> (CMPWconst <TypeFlags> [16] y)))
+(Rsh16Ux8 <t> x y)  -> (ANDW (SHRW <t> x y) (SBBLcarrymask <t> (CMPBconst <TypeFlags> [16] y)))
+
+(Rsh8Ux64 <t> x y)  -> (ANDB (SHRB <t> x y) (SBBLcarrymask <t> (CMPQconst <TypeFlags> [8] y)))
+(Rsh8Ux32 <t> x y)  -> (ANDB (SHRB <t> x y) (SBBLcarrymask <t> (CMPLconst <TypeFlags> [8] y)))
+(Rsh8Ux16 <t> x y)  -> (ANDB (SHRB <t> x y) (SBBLcarrymask <t> (CMPWconst <TypeFlags> [8] y)))
+(Rsh8Ux8 <t> x y)   -> (ANDB (SHRB <t> x y) (SBBLcarrymask <t> (CMPBconst <TypeFlags> [8] y)))
+
+// Signed right shift needs to return 0/-1 if shift amount is >= width of shifted value.
+// We implement this by setting the shift value to -1 (all ones) if the shift value is >= width.
+// Note: for small shift widths we generate 32 bits of mask even when we don't need it all.
+(Rsh64x64 <t> x y) -> (SARQ <t> x (ORQ <y.Type> y (NOTQ <y.Type> (SBBQcarrymask <y.Type> (CMPQconst <TypeFlags> [64] y)))))
+(Rsh64x32 <t> x y) -> (SARQ <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst <TypeFlags> [64] y)))))
+(Rsh64x16 <t> x y) -> (SARQ <t> x (ORW <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst <TypeFlags> [64] y)))))
+(Rsh64x8 <t> x y)  -> (SARQ <t> x (ORB <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst <TypeFlags> [64] y)))))
+
+(Rsh32x64 <t> x y) -> (SARL <t> x (ORQ <y.Type> y (NOTQ <y.Type> (SBBQcarrymask <y.Type> (CMPQconst <TypeFlags> [32] y)))))
+(Rsh32x32 <t> x y) -> (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst <TypeFlags> [32] y)))))
+(Rsh32x16 <t> x y) -> (SARL <t> x (ORW <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst <TypeFlags> [32] y)))))
+(Rsh32x8 <t> x y)  -> (SARL <t> x (ORB <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst <TypeFlags> [32] y)))))
+
+(Rsh16x64 <t> x y) -> (SARW <t> x (ORQ <y.Type> y (NOTQ <y.Type> (SBBQcarrymask <y.Type> (CMPQconst <TypeFlags> [16] y)))))
+(Rsh16x32 <t> x y) -> (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst <TypeFlags> [16] y)))))
+(Rsh16x16 <t> x y) -> (SARW <t> x (ORW <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst <TypeFlags> [16] y)))))
+(Rsh16x8 <t> x y)  -> (SARW <t> x (ORB <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst <TypeFlags> [16] y)))))
+
+(Rsh8x64 <t> x y)  -> (SARB <t> x (ORQ <y.Type> y (NOTQ <y.Type> (SBBQcarrymask <y.Type> (CMPQconst <TypeFlags> [8] y)))))
+(Rsh8x32 <t> x y)  -> (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst <TypeFlags> [8] y)))))
+(Rsh8x16 <t> x y)  -> (SARB <t> x (ORW <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst <TypeFlags> [8] y)))))
+(Rsh8x8 <t> x y)   -> (SARB <t> x (ORB <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst <TypeFlags> [8] y)))))
 
 (Less64 x y) -> (SETL (CMPQ <TypeFlags> x y))
 (Less32 x y) -> (SETL (CMPL <TypeFlags> x y))
@@ -398,10 +417,58 @@
 (EQ (InvertFlags cmp) yes no) -> (EQ cmp yes no)
 (NE (InvertFlags cmp) yes no) -> (NE cmp yes no)
 
-// get rid of >=64 code for constant shifts
+// get rid of overflow code for constant shifts
 (SBBQcarrymask (CMPQconst [c] (MOVQconst [d]))) && inBounds(d, c) -> (MOVQconst [-1])
 (SBBQcarrymask (CMPQconst [c] (MOVQconst [d]))) && !inBounds(d, c) -> (MOVQconst [0])
-(ANDQconst [0] _) -> (MOVQconst [0])
-(ANDQconst [-1] x) -> (Copy x)
-(CMOVQCC (CMPQconst [c] (MOVQconst [d])) _ x) && inBounds(d, c) -> (Copy x)
-(CMOVQCC (CMPQconst [c] (MOVQconst [d])) x _) && !inBounds(d, c) -> (Copy x)
+(SBBQcarrymask (CMPLconst [c] (MOVLconst [d]))) && inBounds(int64(int32(d)), int64(int32(c))) -> (MOVQconst [-1])
+(SBBQcarrymask (CMPLconst [c] (MOVLconst [d]))) && !inBounds(int64(int32(d)), int64(int32(c))) -> (MOVQconst [0])
+(SBBQcarrymask (CMPWconst [c] (MOVWconst [d]))) && inBounds(int64(int16(d)), int64(int16(c))) -> (MOVQconst [-1])
+(SBBQcarrymask (CMPWconst [c] (MOVWconst [d]))) && !inBounds(int64(int16(d)), int64(int16(c))) -> (MOVQconst [0])
+(SBBQcarrymask (CMPBconst [c] (MOVBconst [d]))) && inBounds(int64(int8(d)), int64(int8(c))) -> (MOVQconst [-1])
+(SBBQcarrymask (CMPBconst [c] (MOVBconst [d]))) && !inBounds(int64(int8(d)), int64(int8(c))) -> (MOVQconst [0])
+(ANDQconst [0] _)                 -> (MOVQconst [0])
+(ANDLconst [c] _) && int32(c)==0  -> (MOVLconst [0])
+(ANDWconst [c] _) && int16(c)==0  -> (MOVWconst [0])
+(ANDBconst [c] _) && int8(c)==0   -> (MOVBconst [0])
+(ANDQconst [-1] x)                -> (Copy x)
+(ANDLconst [c] x) && int32(c)==-1 -> (Copy x)
+(ANDWconst [c] x) && int16(c)==-1 -> (Copy x)
+(ANDBconst [c] x) && int8(c)==-1  -> (Copy x)
+(ORQconst [0] x)                  -> (Copy x)
+(ORLconst [c] x) && int32(c)==0   -> (Copy x)
+(ORWconst [c] x) && int16(c)==0   -> (Copy x)
+(ORBconst [c] x) && int8(c)==0    -> (Copy x)
+(ORQconst [-1] _)                 -> (MOVQconst [-1])
+(ORLconst [c] _) && int32(c)==-1  -> (MOVLconst [-1])
+(ORWconst [c] _) && int16(c)==-1  -> (MOVWconst [-1])
+(ORBconst [c] _) && int8(c)==-1   -> (MOVBconst [-1])
+
+// generic constant folding
+// TODO: more of this
+(ADDQconst [c] (MOVQconst [d])) -> (MOVQconst [c+d])
+(ADDLconst [c] (MOVLconst [d])) -> (MOVLconst [c+d])
+(ADDWconst [c] (MOVWconst [d])) -> (MOVWconst [c+d])
+(ADDBconst [c] (MOVBconst [d])) -> (MOVBconst [c+d])
+(SUBQconst [c] (MOVQconst [d])) -> (MOVQconst [c-d])
+(SUBLconst [c] (MOVLconst [d])) -> (MOVLconst [c-d])
+(SUBWconst [c] (MOVWconst [d])) -> (MOVWconst [c-d])
+(SUBBconst [c] (MOVBconst [d])) -> (MOVBconst [c-d])
+(MULQconst [c] (MOVQconst [d])) -> (MOVQconst [c*d])
+(MULLconst [c] (MOVLconst [d])) -> (MOVLconst [c*d])
+(MULWconst [c] (MOVWconst [d])) -> (MOVWconst [c*d])
+(ANDQconst [c] (MOVQconst [d])) -> (MOVQconst [c&d])
+(ANDLconst [c] (MOVLconst [d])) -> (MOVLconst [c&d])
+(ANDWconst [c] (MOVWconst [d])) -> (MOVWconst [c&d])
+(ANDBconst [c] (MOVBconst [d])) -> (MOVBconst [c&d])
+(ORQconst [c] (MOVQconst [d])) -> (MOVQconst [c|d])
+(ORLconst [c] (MOVLconst [d])) -> (MOVLconst [c|d])
+(ORWconst [c] (MOVWconst [d])) -> (MOVWconst [c|d])
+(ORBconst [c] (MOVBconst [d])) -> (MOVBconst [c|d])
+(XORQconst [c] (MOVQconst [d])) -> (MOVQconst [c^d])
+(XORLconst [c] (MOVLconst [d])) -> (MOVLconst [c^d])
+(XORWconst [c] (MOVWconst [d])) -> (MOVWconst [c^d])
+(XORBconst [c] (MOVBconst [d])) -> (MOVBconst [c^d])
+(NOTQ (MOVQconst [c])) -> (MOVQconst [^c])
+(NOTL (MOVLconst [c])) -> (MOVLconst [^c])
+(NOTW (MOVWconst [c])) -> (MOVWconst [^c])
+(NOTB (MOVBconst [c])) -> (MOVBconst [^c])
