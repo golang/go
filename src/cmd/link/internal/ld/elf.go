@@ -713,7 +713,7 @@ var Elfstrdat []byte
  * On FreeBSD, cannot be larger than a page.
  */
 const (
-	ELFRESERVE = 3072
+	ELFRESERVE = 4096
 )
 
 /*
