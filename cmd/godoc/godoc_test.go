@@ -303,6 +303,10 @@ func testWeb(t *testing.T, withIndex bool) {
 
 // Basic integration test for godoc -analysis=type (via HTTP interface).
 func TestTypeAnalysis(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping test on plan9 (issue #11974)") // see comment re: Plan 9 below
+	}
+
 	// Write a fake GOROOT/GOPATH.
 	tmpdir, err := ioutil.TempDir("", "godoc-analysis")
 	if err != nil {
@@ -360,7 +364,7 @@ func main() { print(lib.V) }
 	// Wait for type analysis to complete.
 	reader := bufio.NewReader(stderr)
 	for {
-		s, err := reader.ReadString('\n')
+		s, err := reader.ReadString('\n') // on Plan 9 this fails
 		if err != nil {
 			t.Fatal(err)
 		}
