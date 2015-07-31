@@ -146,21 +146,53 @@ func mapbucket(t *Type) *Type {
 
 	arr.Type = Types[TUINT8]
 	arr.Bound = BUCKETSIZE
-	var field [4]*Type
-	field[0] = makefield("topbits", arr)
+	field := make([]*Type, 0, 5)
+	field = append(field, makefield("topbits", arr))
 	arr = typ(TARRAY)
 	arr.Type = keytype
 	arr.Bound = BUCKETSIZE
-	field[1] = makefield("keys", arr)
+	field = append(field, makefield("keys", arr))
 	arr = typ(TARRAY)
 	arr.Type = valtype
 	arr.Bound = BUCKETSIZE
-	field[2] = makefield("values", arr)
-	field[3] = makefield("overflow", Ptrto(bucket))
+	field = append(field, makefield("values", arr))
+
+	// Make sure the overflow pointer is the last memory in the struct,
+	// because the runtime assumes it can use size-ptrSize as the
+	// offset of the overflow pointer. We double-check that property
+	// below once the offsets and size are computed.
+	//
+	// BUCKETSIZE is 8, so the struct is aligned to 64 bits to this point.
+	// On 32-bit systems, the max alignment is 32-bit, and the
+	// overflow pointer will add another 32-bit field, and the struct
+	// will end with no padding.
+	// On 64-bit systems, the max alignment is 64-bit, and the
+	// overflow pointer will add another 64-bit field, and the struct
+	// will end with no padding.
+	// On nacl/amd64p32, however, the max alignment is 64-bit,
+	// but the overflow pointer will add only a 32-bit field,
+	// so if the struct needs 64-bit padding (because a key or value does)
+	// then it would end with an extra 32-bit padding field.
+	// Preempt that by emitting the padding here.
+	if int(t.Type.Align) > Widthptr || int(t.Down.Align) > Widthptr {
+		field = append(field, makefield("pad", Types[TUINTPTR]))
+	}
+
+	// If keys and values have no pointers, the map implementation
+	// can keep a list of overflow pointers on the side so that
+	// buckets can be marked as having no pointers.
+	// Arrange for the bucket to have no pointers by changing
+	// the type of the overflow field to uintptr in this case.
+	// See comment on hmap.overflow in ../../../../runtime/hashmap.go.
+	otyp := Ptrto(bucket)
+	if !haspointers(t.Type) && !haspointers(t.Down) && t.Type.Width <= MAXKEYSIZE && t.Down.Width <= MAXVALSIZE {
+		otyp = Types[TUINTPTR]
+	}
+	ovf := makefield("overflow", otyp)
+	field = append(field, ovf)
 
 	// link up fields
 	bucket.Noalg = 1
-
 	bucket.Local = t.Local
 	bucket.Type = field[0]
 	for n := int32(0); n < int32(len(field)-1); n++ {
@@ -169,15 +201,10 @@ func mapbucket(t *Type) *Type {
 	field[len(field)-1].Down = nil
 	dowidth(bucket)
 
-	// Pad to the native integer alignment.
-	// This is usually the same as widthptr; the exception (as usual) is amd64p32.
-	if Widthreg > Widthptr {
-		bucket.Width += int64(Widthreg) - int64(Widthptr)
-	}
-
-	// See comment on hmap.overflow in ../../runtime/hashmap.go.
-	if !haspointers(t.Type) && !haspointers(t.Down) && t.Type.Width <= MAXKEYSIZE && t.Down.Width <= MAXVALSIZE {
-		bucket.Haspointers = 1 // no pointers
+	// Double-check that overflow field is final memory in struct,
+	// with no padding at end. See comment above.
+	if ovf.Width != bucket.Width-int64(Widthptr) {
+		Yyerror("bad math in mapbucket for %v", t)
 	}
 
 	t.Bucket = bucket
