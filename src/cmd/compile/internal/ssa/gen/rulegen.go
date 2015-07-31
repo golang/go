@@ -285,12 +285,12 @@ func genMatch(w io.Writer, arch arch, match, fail string) {
 
 func genMatch0(w io.Writer, arch arch, match, v, fail string, m map[string]string, top bool) {
 	if match[0] != '(' {
-		if x, ok := m[match]; ok {
+		if _, ok := m[match]; ok {
 			// variable already has a definition.  Check whether
 			// the old definition and the new definition match.
 			// For example, (add x x).  Equality is just pointer equality
 			// on Values (so cse is important to do before lowering).
-			fmt.Fprintf(w, "if %s != %s %s", v, x, fail)
+			fmt.Fprintf(w, "if %s != %s %s", v, match, fail)
 			return
 		}
 		// remember that this variable references the given value
