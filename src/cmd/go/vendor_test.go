@@ -186,3 +186,12 @@ func TestVendorGetUpdate(t *testing.T) {
 	tg.run("get", "github.com/rsc/go-get-issue-11864")
 	tg.run("get", "-u", "github.com/rsc/go-get-issue-11864")
 }
+
+func TestVendorCache(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata/testvendor"))
+	tg.setenv("GO15VENDOREXPERIMENT", "1")
+	tg.runFail("build", "p")
+	tg.grepStderr("must be imported as x", "did not fail to build p")
+}
