@@ -841,6 +841,14 @@ func startGC(mode int) {
 	// trigger concurrent GC
 	readied := false
 	lock(&bggc.lock)
+	// The trigger was originally checked speculatively, so
+	// recheck that this really should trigger GC. (For example,
+	// we may have gone through a whole GC cycle since the
+	// speculative check.)
+	if !shouldtriggergc() {
+		unlock(&bggc.lock)
+		return
+	}
 	if !bggc.started {
 		bggc.working = 1
 		bggc.started = true
