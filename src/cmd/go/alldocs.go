@@ -59,18 +59,20 @@ along with their dependencies, but it does not install the results.
 If the arguments to build are a list of .go files, build treats
 them as a list of source files specifying a single package.
 
-When the command line specifies a single main package,
-build writes the resulting executable to output.
-Otherwise build compiles the packages but discards the results,
+When compiling a single main package, build writes
+the resulting executable to an output file named after
+the first source file ('go build ed.go rx.go' writes 'ed' or 'ed.exe')
+or the source code directory ('go build unix/sam' writes 'sam' or 'sam.exe').
+The '.exe' suffix is added when writing a Windows executable.
+
+When compiling multiple packages or a single non-main package,
+build compiles the packages but discards the resulting object,
 serving only as a check that the packages can be built.
 
-The -o flag specifies the output file name. If not specified, the
-output file name depends on the arguments and derives from the name
-of the package, such as p.a for package p, unless p is 'main'. If
-the package is main and file names are provided, the file name
-derives from the first file name mentioned, such as f1 for 'go build
-f1.go f2.go'; with no files provided ('go build'), the output file
-name is the base name of the containing directory.
+The -o flag, only allowed when compiling a single package,
+forces build to write the resulting executable or object
+to the named output file, instead of the default behavior described
+in the last two paragraphs.
 
 The -i flag installs the packages that are dependencies of the target.
 

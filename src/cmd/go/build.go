@@ -38,18 +38,20 @@ along with their dependencies, but it does not install the results.
 If the arguments to build are a list of .go files, build treats
 them as a list of source files specifying a single package.
 
-When the command line specifies a single main package,
-build writes the resulting executable to output.
-Otherwise build compiles the packages but discards the results,
+When compiling a single main package, build writes
+the resulting executable to an output file named after
+the first source file ('go build ed.go rx.go' writes 'ed' or 'ed.exe')
+or the source code directory ('go build unix/sam' writes 'sam' or 'sam.exe').
+The '.exe' suffix is added when writing a Windows executable.
+
+When compiling multiple packages or a single non-main package,
+build compiles the packages but discards the resulting object,
 serving only as a check that the packages can be built.
 
-The -o flag specifies the output file name. If not specified, the
-output file name depends on the arguments and derives from the name
-of the package, such as p.a for package p, unless p is 'main'. If
-the package is main and file names are provided, the file name
-derives from the first file name mentioned, such as f1 for 'go build
-f1.go f2.go'; with no files provided ('go build'), the output file
-name is the base name of the containing directory.
+The -o flag, only allowed when compiling a single package,
+forces build to write the resulting executable or object
+to the named output file, instead of the default behavior described
+in the last two paragraphs.
 
 The -i flag installs the packages that are dependencies of the target.
 
@@ -445,14 +447,9 @@ func runBuild(cmd *Command, args []string) {
 			fatalf("no packages to build")
 		}
 		p := pkgs[0]
-		p.target = "" // must build - not up to date
+		p.target = *buildO
+		p.Stale = true // must build - not up to date
 		a := b.action(modeInstall, depMode, p)
-		a.target = *buildO
-		if p.local {
-			// If p.local, then b.action did not really install,
-			// so install the header file now if necessary.
-			a = b.maybeAddHeaderAction(a, false)
-		}
 		b.do(a)
 		return
 	}
@@ -764,11 +761,8 @@ func goFilesPackage(gofiles []string) *Package {
 		if gobin != "" {
 			pkg.target = filepath.Join(gobin, exe)
 		}
-	} else {
-		if *buildO == "" {
-			*buildO = pkg.Name + ".a"
-		}
 	}
+
 	pkg.Target = pkg.target
 	pkg.Stale = true
 
@@ -931,6 +925,13 @@ func (b *builder) action1(mode buildMode, depMode buildMode, p *Package, looksha
 			name := "a.out"
 			if p.exeName != "" {
 				name = p.exeName
+			} else if goos == "darwin" && buildBuildmode == "c-shared" && p.target != "" {
+				// On OS X, the linker output name gets recorded in the
+				// shared library's LC_ID_DYLIB load command.
+				// The code invoking the linker knows to pass only the final
+				// path element. Arrange that the path element matches what
+				// we'll install it as; otherwise the library is only loadable as "a.out".
+				_, name = filepath.Split(p.target)
 			}
 			a.target = a.objdir + filepath.Join("exe", name) + exeSuffix
 		}
@@ -2368,7 +2369,20 @@ func (gcToolchain) ld(b *builder, root *action, out string, allactions []*action
 		ldflags = append(ldflags, "-buildid="+root.p.buildID)
 	}
 	ldflags = append(ldflags, buildLdflags...)
-	return b.run(".", root.p.ImportPath, nil, buildToolExec, tool("link"), "-o", out, importArgs, ldflags, mainpkg)
+
+	// On OS X when using external linking to build a shared library,
+	// the argument passed here to -o ends up recorded in the final
+	// shared library in the LC_ID_DYLIB load command.
+	// To avoid putting the temporary output directory name there
+	// (and making the resulting shared library useless),
+	// run the link in the output directory so that -o can name
+	// just the final path element.
+	dir := "."
+	if goos == "darwin" && buildBuildmode == "c-shared" {
+		dir, out = filepath.Split(out)
+	}
+
+	return b.run(dir, root.p.ImportPath, nil, buildToolExec, tool("link"), "-o", out, importArgs, ldflags, mainpkg)
 }
 
 func (gcToolchain) ldShared(b *builder, toplevelactions []*action, out string, allactions []*action) error {
