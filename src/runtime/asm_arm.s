@@ -215,6 +215,9 @@ switch:
 	// save our state in g->sched.  Pretend to
 	// be systemstack_switch if the G stack is scanned.
 	MOVW	$runtime·systemstack_switch(SB), R3
+#ifdef GOOS_nacl
+	ADD	$4, R3, R3 // get past nacl-insert bic instruction
+#endif
 	ADD	$4, R3, R3 // get past push {lr}
 	MOVW	R3, (g_sched+gobuf_pc)(g)
 	MOVW	R13, (g_sched+gobuf_sp)(g)
