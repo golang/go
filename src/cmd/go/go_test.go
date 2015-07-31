@@ -1961,7 +1961,7 @@ func TestGoGenerateRunFlag(t *testing.T) {
 	tg.grepStdoutNot("no", "go generate -run yes ./testdata/generate/test4.go selected no")
 }
 
-func TestGoGetWorksWithVanityWildcards(t *testing.T) {
+func TestGoGetCustomDomainWildcard(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
 	tg := testgo(t)
@@ -1970,6 +1970,17 @@ func TestGoGetWorksWithVanityWildcards(t *testing.T) {
 	tg.setenv("GOPATH", tg.path("."))
 	tg.run("get", "-u", "rsc.io/pdf/...")
 	tg.wantExecutable(tg.path("bin/pdfpasswd"+exeSuffix), "did not build rsc/io/pdf/pdfpasswd")
+}
+
+func TestGoGetInternalWildcard(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.path("."))
+	// used to fail with errors about internal packages
+	tg.run("get", "github.com/rsc/go-get-issue-11960/...")
 }
 
 func TestGoVetWithExternalTests(t *testing.T) {
