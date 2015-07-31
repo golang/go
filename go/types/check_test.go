@@ -20,9 +20,6 @@
 //		_ = x /* ERROR "not declared" */ + 1
 //	}
 
-// TODO(gri) Also collect strict mode errors of the form /* STRICT ... */
-//           and test against strict mode.
-
 package types_test
 
 import (
@@ -33,6 +30,7 @@ import (
 	"go/token"
 	"io/ioutil"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -50,40 +48,47 @@ var (
 // positions relative to surrounding tokens.
 
 // Each tests entry is list of files belonging to the same package.
-var tests = [][]string{
-	{"testdata/errors.src"},
-	{"testdata/importdecl0a.src", "testdata/importdecl0b.src"},
-	{"testdata/importdecl1a.src", "testdata/importdecl1b.src"},
-	{"testdata/cycles.src"},
-	{"testdata/cycles1.src"},
-	{"testdata/cycles2.src"},
-	{"testdata/cycles3.src"},
-	{"testdata/cycles4.src"},
-	{"testdata/init0.src"},
-	{"testdata/init1.src"},
-	{"testdata/init2.src"},
-	{"testdata/decls0.src"},
-	{"testdata/decls1.src"},
-	{"testdata/decls2a.src", "testdata/decls2b.src"},
-	{"testdata/decls3.src"},
-	{"testdata/const0.src"},
-	{"testdata/const1.src"},
-	{"testdata/constdecl.src"},
-	{"testdata/vardecl.src"},
-	{"testdata/expr0.src"},
-	{"testdata/expr1.src"},
-	{"testdata/expr2.src"},
-	{"testdata/expr3.src"},
-	{"testdata/methodsets.src"},
-	{"testdata/shifts.src"},
-	{"testdata/builtins.src"},
-	{"testdata/conversions.src"},
-	{"testdata/stmt0.src"},
-	{"testdata/stmt1.src"},
-	{"testdata/gotos.src"},
-	{"testdata/labels.src"},
-	{"testdata/issues.src"},
-	{"testdata/blank.src"},
+var tests = []struct {
+	files string      // blank-separated list of file names
+	cond  func() bool // condition under which the test should be run; nil means always
+}{
+	{"testdata/errors.src", nil},
+	{"testdata/importdecl0a.src testdata/importdecl0b.src", nil},
+	{"testdata/importdecl1a.src testdata/importdecl1b.src", nil},
+	{"testdata/cycles.src", nil},
+	{"testdata/cycles1.src", nil},
+	{"testdata/cycles2.src", nil},
+	{"testdata/cycles3.src", nil},
+	{"testdata/cycles4.src", nil},
+	{"testdata/init0.src", nil},
+	{"testdata/init1.src", nil},
+	{"testdata/init2.src", nil},
+	{"testdata/decls0.src", nil},
+	{"testdata/decls1.src", nil},
+	{"testdata/decls2a.src testdata/decls2b.src", nil},
+	{"testdata/decls3.src", nil},
+	{"testdata/const0.src", nil},
+	{"testdata/const1.src", nil},
+	{"testdata/constdecl.src", notGo1_4}, // Go 1.4 parser doesn't report certain errors
+	{"testdata/vardecl.src", notGo1_4},   // Go 1.4 parser doesn't report certain errors
+	{"testdata/expr0.src", nil},
+	{"testdata/expr1.src", nil},
+	{"testdata/expr2.src", nil},
+	{"testdata/expr3.src", notGo1_4}, // Go 1.4 parser doesn't permit omitting key type in map literals
+	{"testdata/methodsets.src", nil},
+	{"testdata/shifts.src", nil},
+	{"testdata/builtins.src", nil},
+	{"testdata/conversions.src", nil},
+	{"testdata/stmt0.src", nil},
+	{"testdata/stmt1.src", nil},
+	{"testdata/gotos.src", nil},
+	{"testdata/labels.src", nil},
+	{"testdata/issues.src", nil},
+	{"testdata/blank.src", nil},
+}
+
+func notGo1_4() bool {
+	return !strings.HasPrefix(runtime.Version(), "go1.4")
 }
 
 var fset = token.NewFileSet()
@@ -104,10 +109,10 @@ func splitError(err error) (pos, msg string) {
 	return
 }
 
-func parseFiles(t *testing.T, filenames []string) ([]*ast.File, []error) {
+func parseFiles(t *testing.T, filenames string) ([]*ast.File, []error) {
 	var files []*ast.File
 	var errlist []error
-	for _, filename := range filenames {
+	for _, filename := range strings.Split(filenames, " ") {
 		file, err := parser.ParseFile(fset, filename, nil, parser.AllErrors)
 		if file == nil {
 			t.Fatalf("%s: %s", filename, err)
@@ -226,9 +231,9 @@ func eliminate(t *testing.T, errmap map[string][]string, errlist []error) {
 	}
 }
 
-func checkFiles(t *testing.T, testfiles []string) {
+func checkFiles(t *testing.T, filenames string) {
 	// parse files and collect parser errors
-	files, errlist := parseFiles(t, testfiles)
+	files, errlist := parseFiles(t, filenames)
 
 	pkgName := "<no package>"
 	if len(files) > 0 {
@@ -284,13 +289,15 @@ func TestCheck(t *testing.T) {
 	DefPredeclaredTestFuncs()
 
 	// If explicit test files are specified, only check those.
-	if files := *testFiles; files != "" {
-		checkFiles(t, strings.Split(files, " "))
+	if *testFiles != "" {
+		checkFiles(t, *testFiles)
 		return
 	}
 
 	// Otherwise, run all the tests.
-	for _, files := range tests {
-		checkFiles(t, files)
+	for _, test := range tests {
+		if test.cond == nil || test.cond() {
+			checkFiles(t, test.files)
+		}
 	}
 }
