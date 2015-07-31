@@ -208,9 +208,6 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
 	wildcardOkay := len(*stk) == 0
 	isWildcard := false
 
-	// Note: Do not stk.push(arg) and defer stk.pop() here.
-	// The push/pop below are using updated values of arg in some cases.
-
 	// Download if the package is missing, or update if we're using -u.
 	if p.Dir == "" || *getU {
 		// The actual download.
@@ -258,9 +255,10 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
 
 		pkgs = pkgs[:0]
 		for _, arg := range args {
-			stk.push(arg)
+			// Note: load calls loadPackage or loadImport,
+			// which push arg onto stk already.
+			// Do not push here too, or else stk will say arg imports arg.
 			p := load(arg, mode)
-			stk.pop()
 			if p.Error != nil {
 				errorf("%s", p.Error)
 				continue
