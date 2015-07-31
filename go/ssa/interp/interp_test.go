@@ -291,7 +291,12 @@ func success(exitcode int, output string) error {
 // TestTestdataFiles runs the interpreter on testdata/*.go.
 func TestTestdataFiles(t *testing.T) {
 	var failures []string
+	start := time.Now()
 	for _, input := range testdataTests {
+		if testing.Short() && time.Since(start) > 30*time.Second {
+			printFailures(failures)
+			t.Skipf("timeout - aborting test")
+		}
 		if !run(t, "testdata"+slash, input, success) {
 			failures = append(failures, input)
 		}
