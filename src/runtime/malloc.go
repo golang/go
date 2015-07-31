@@ -709,6 +709,18 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 		// inner working of malloc such as mcache refills that
 		// might happen while doing the gcAssistAlloc.
 		gcAssistAlloc(size, shouldhelpgc)
+	} else if shouldhelpgc && bggc.working != 0 {
+		// The GC is starting up or shutting down, so we can't
+		// assist, but we also can't allocate unabated. Slow
+		// down this G's allocation and help the GC stay
+		// scheduled by yielding.
+		//
+		// TODO: This is a workaround. Either help the GC make
+		// the transition or block.
+		gp := getg()
+		if gp != gp.m.g0 && gp.m.locks == 0 && gp.m.preemptoff == "" {
+			Gosched()
+		}
 	}
 
 	return x
