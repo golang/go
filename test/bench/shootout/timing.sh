@@ -247,3 +247,6 @@ do
 	$i
 	runonly echo
 done
+
+rm *.o *.$EXE # Clean up
+
