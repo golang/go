@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of July 30, 2015",
+	"Subtitle": "Version of July 31, 2015",
 	"Path": "/ref/spec"
 }-->
 
@@ -1918,7 +1918,7 @@ const (
 )
 
 func (tz TimeZone) String() string {
-	return fmt.Sprintf("GMT+%dh", tz)
+	return fmt.Sprintf("GMT%+dh", tz)
 }
 </pre>
 
@@ -2050,13 +2050,13 @@ a <a href="#Terminating_statements">terminating statement</a>.
 </p>
 
 <pre>
-func findMarker(c &lt;-chan int) int {
-	for i := range c {
-		if x := &lt;-c; isMarker(x) {
-			return x
+func IndexRune(s string, r rune) int {
+	for i, c := range s {
+		if c == r {
+			return i
 		}
 	}
-	// invalid: missing return statement.
+	// invalid: missing return statement
 }
 </pre>
 
@@ -2598,9 +2598,10 @@ p.x          // (*(*p).T0).x
 
 q.x          // (*(*q).T0).x        (*q).x is a valid field selector
 
-p.M2()       // p.M2()              M2 expects *T2 receiver
+p.M0()       // ((*p).T0).M0()      M0 expects *T0 receiver
 p.M1()       // ((*p).T1).M1()      M1 expects T1 receiver
-p.M0()       // ((&amp;(*p).T0)).M0()   M0 expects *T0 receiver, see section on Calls
+p.M2()       // p.M2()              M2 expects *T2 receiver
+t.M2()       // (&amp;t).M2()           M2 expects *T2 receiver, see section on Calls
 </pre>
 
 <p>
