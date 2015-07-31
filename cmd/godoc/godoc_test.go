@@ -134,30 +134,39 @@ func serverAddress(t *testing.T) string {
 	return ln.Addr().String()
 }
 
-const (
-	startTimeout = 5 * time.Minute
-	pollInterval = 200 * time.Millisecond
-)
+func waitForServerReady(t *testing.T, addr string) {
+	waitForServer(t,
+		fmt.Sprintf("http://%v/", addr),
+		"The Go Programming Language",
+		5*time.Second)
+}
 
-var indexingMsg = []byte("Indexing in progress: result may be inaccurate")
+func waitForSearchReady(t *testing.T, addr string) {
+	waitForServer(t,
+		fmt.Sprintf("http://%v/search?q=FALLTHROUGH", addr),
+		"The list of tokens.",
+		2*time.Minute)
+}
 
-func waitForServer(t *testing.T, address string) {
+const pollInterval = 200 * time.Millisecond
+
+func waitForServer(t *testing.T, url, match string, timeout time.Duration) {
 	// "health check" duplicated from x/tools/cmd/tipgodoc/tip.go
-	deadline := time.Now().Add(startTimeout)
+	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		time.Sleep(pollInterval)
-		res, err := http.Get(fmt.Sprintf("http://%v/search?q=FALLTHROUGH", address))
+		res, err := http.Get(url)
 		if err != nil {
 			continue
 		}
 		rbody, err := ioutil.ReadAll(res.Body)
 		res.Body.Close()
 		if err == nil && res.StatusCode == http.StatusOK &&
-			!bytes.Contains(rbody, indexingMsg) {
+			bytes.Contains(rbody, []byte(match)) {
 			return
 		}
 	}
-	t.Fatalf("Server %q failed to respond in %v", address, startTimeout)
+	t.Fatalf("Server failed to respond in %v", timeout)
 }
 
 func killAndWait(cmd *exec.Cmd) {
@@ -167,22 +176,47 @@ func killAndWait(cmd *exec.Cmd) {
 
 // Basic integration test for godoc HTTP interface.
 func TestWeb(t *testing.T) {
+	testWeb(t, false)
+}
+
+// Basic integration test for godoc HTTP interface.
+func TestWebIndex(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in -short mode")
+	}
+	testWeb(t, true)
+}
+
+// Basic integration test for godoc HTTP interface.
+func testWeb(t *testing.T, withIndex bool) {
 	bin, cleanup := buildGodoc(t)
 	defer cleanup()
 	addr := serverAddress(t)
-	cmd := exec.Command(bin, fmt.Sprintf("-http=%s", addr), "-index", "-index_interval=-1s")
+	args := []string{fmt.Sprintf("-http=%s", addr)}
+	if withIndex {
+		args = append(args, "-index", "-index_interval=-1s")
+	}
+	cmd := exec.Command(bin, args...)
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 	cmd.Args[0] = "godoc"
+	cmd.Env = godocEnv()
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("failed to start godoc: %s", err)
 	}
 	defer killAndWait(cmd)
-	waitForServer(t, addr)
+
+	if withIndex {
+		waitForSearchReady(t, addr)
+	} else {
+		waitForServerReady(t, addr)
+	}
+
 	tests := []struct {
 		path      string
 		match     []string
 		dontmatch []string
+		needIndex bool
 	}{
 		{
 			path:  "/",
@@ -230,9 +264,13 @@ func TestWeb(t *testing.T) {
 			dontmatch: []string{
 				"/pkg/bootstrap",
 			},
+			needIndex: true,
 		},
 	}
 	for _, test := range tests {
+		if test.needIndex && !withIndex {
+			continue
+		}
 		url := fmt.Sprintf("http://%s%s", addr, test.path)
 		resp, err := http.Get(url)
 		if err != nil {
@@ -317,7 +355,7 @@ func main() { print(lib.V) }
 		t.Fatalf("failed to start godoc: %s", err)
 	}
 	defer killAndWait(cmd)
-	waitForServer(t, addr)
+	waitForServerReady(t, addr)
 
 	// Wait for type analysis to complete.
 	reader := bufio.NewReader(stderr)
@@ -383,4 +421,16 @@ tryagain:
 				url, test.pattern, string(body))
 		}
 	}
+}
+
+// godocEnv returns the process environment without the GOPATH variable.
+// (We don't want the indexer looking at the local workspace during tests.)
+func godocEnv() (env []string) {
+	for _, v := range os.Environ() {
+		if strings.HasPrefix(v, "GOPATH=") {
+			continue
+		}
+		env = append(env, v)
+	}
+	return
 }
