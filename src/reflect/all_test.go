@@ -4576,7 +4576,7 @@ func TestGCBits(t *testing.T) {
 		_ [100]uintptr
 	}
 
-	var Tscalar, Tptr, Tscalarptr, Tptrscalar, Tbigptrscalar Type
+	var Tscalar, Tint64, Tptr, Tscalarptr, Tptrscalar, Tbigptrscalar Type
 	{
 		// Building blocks for types constructed by reflect.
 		// This code is in a separate block so that code below
@@ -4599,7 +4599,9 @@ func TestGCBits(t *testing.T) {
 			_ [100]*byte
 			_ [100]uintptr
 		}
+		type Int64 int64
 		Tscalar = TypeOf(Scalar{})
+		Tint64 = TypeOf(Int64(0))
 		Tptr = TypeOf(Ptr{})
 		Tscalarptr = TypeOf(Scalarptr{})
 		Tptrscalar = TypeOf(Ptrscalar{})
@@ -4687,14 +4689,53 @@ func TestGCBits(t *testing.T) {
 	verifyGCBits(t, SliceOf(ArrayOf(10000, Tscalar)), lit(1))
 
 	hdr := make([]byte, 8/PtrSize)
-	verifyGCBits(t, MapBucketOf(Tscalar, Tptr), join(hdr, rep(8, lit(0)), rep(8, lit(1)), lit(1)))
-	verifyGCBits(t, MapBucketOf(Tscalarptr, Tptr), join(hdr, rep(8, lit(0, 1)), rep(8, lit(1)), lit(1)))
-	verifyGCBits(t, MapBucketOf(Tscalar, Tscalar), empty)
-	verifyGCBits(t, MapBucketOf(ArrayOf(2, Tscalarptr), ArrayOf(3, Tptrscalar)), join(hdr, rep(8*2, lit(0, 1)), rep(8*3, lit(1, 0)), lit(1)))
-	verifyGCBits(t, MapBucketOf(ArrayOf(64/PtrSize, Tscalarptr), ArrayOf(64/PtrSize, Tptrscalar)), join(hdr, rep(8*64/PtrSize, lit(0, 1)), rep(8*64/PtrSize, lit(1, 0)), lit(1)))
-	verifyGCBits(t, MapBucketOf(ArrayOf(64/PtrSize+1, Tscalarptr), ArrayOf(64/PtrSize, Tptrscalar)), join(hdr, rep(8, lit(1)), rep(8*64/PtrSize, lit(1, 0)), lit(1)))
-	verifyGCBits(t, MapBucketOf(ArrayOf(64/PtrSize, Tscalarptr), ArrayOf(64/PtrSize+1, Tptrscalar)), join(hdr, rep(8*64/PtrSize, lit(0, 1)), rep(8, lit(1)), lit(1)))
-	verifyGCBits(t, MapBucketOf(ArrayOf(64/PtrSize+1, Tscalarptr), ArrayOf(64/PtrSize+1, Tptrscalar)), join(hdr, rep(8, lit(1)), rep(8, lit(1)), lit(1)))
+
+	verifyMapBucket := func(t *testing.T, k, e Type, m interface{}, want []byte) {
+		verifyGCBits(t, MapBucketOf(k, e), want)
+		verifyGCBits(t, CachedBucketOf(TypeOf(m)), want)
+	}
+	verifyMapBucket(t,
+		Tscalar, Tptr,
+		map[Xscalar]Xptr(nil),
+		join(hdr, rep(8, lit(0)), rep(8, lit(1)), lit(1)))
+	verifyMapBucket(t,
+		Tscalarptr, Tptr,
+		map[Xscalarptr]Xptr(nil),
+		join(hdr, rep(8, lit(0, 1)), rep(8, lit(1)), lit(1)))
+	verifyMapBucket(t, Tint64, Tptr,
+		map[int64]Xptr(nil),
+		join(hdr, rep(8, rep(8/PtrSize, lit(0))), rep(8, lit(1)), naclpad(), lit(1)))
+	verifyMapBucket(t,
+		Tscalar, Tscalar,
+		map[Xscalar]Xscalar(nil),
+		empty)
+	verifyMapBucket(t,
+		ArrayOf(2, Tscalarptr), ArrayOf(3, Tptrscalar),
+		map[[2]Xscalarptr][3]Xptrscalar(nil),
+		join(hdr, rep(8*2, lit(0, 1)), rep(8*3, lit(1, 0)), lit(1)))
+	verifyMapBucket(t,
+		ArrayOf(64/PtrSize, Tscalarptr), ArrayOf(64/PtrSize, Tptrscalar),
+		map[[64 / PtrSize]Xscalarptr][64 / PtrSize]Xptrscalar(nil),
+		join(hdr, rep(8*64/PtrSize, lit(0, 1)), rep(8*64/PtrSize, lit(1, 0)), lit(1)))
+	verifyMapBucket(t,
+		ArrayOf(64/PtrSize+1, Tscalarptr), ArrayOf(64/PtrSize, Tptrscalar),
+		map[[64/PtrSize + 1]Xscalarptr][64 / PtrSize]Xptrscalar(nil),
+		join(hdr, rep(8, lit(1)), rep(8*64/PtrSize, lit(1, 0)), lit(1)))
+	verifyMapBucket(t,
+		ArrayOf(64/PtrSize, Tscalarptr), ArrayOf(64/PtrSize+1, Tptrscalar),
+		map[[64 / PtrSize]Xscalarptr][64/PtrSize + 1]Xptrscalar(nil),
+		join(hdr, rep(8*64/PtrSize, lit(0, 1)), rep(8, lit(1)), lit(1)))
+	verifyMapBucket(t,
+		ArrayOf(64/PtrSize+1, Tscalarptr), ArrayOf(64/PtrSize+1, Tptrscalar),
+		map[[64/PtrSize + 1]Xscalarptr][64/PtrSize + 1]Xptrscalar(nil),
+		join(hdr, rep(8, lit(1)), rep(8, lit(1)), lit(1)))
+}
+
+func naclpad() []byte {
+	if runtime.GOARCH == "amd64p32" {
+		return lit(0)
+	}
+	return nil
 }
 
 func rep(n int, b []byte) []byte { return bytes.Repeat(b, n) }
