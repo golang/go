@@ -2093,9 +2093,18 @@ func genValue(v *ssa.Value) {
 		p.To.Reg = regnum(v.Args[0])
 	case ssa.OpAMD64NEGQ, ssa.OpAMD64NEGL, ssa.OpAMD64NEGW, ssa.OpAMD64NEGB,
 		ssa.OpAMD64NOTQ, ssa.OpAMD64NOTL, ssa.OpAMD64NOTW, ssa.OpAMD64NOTB:
+		x := regnum(v.Args[0])
+		r := regnum(v)
+		if x != r {
+			p := Prog(regMoveAMD64(v.Type.Size()))
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = x
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = r
+		}
 		p := Prog(v.Op.Asm())
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v.Args[0])
+		p.To.Reg = r
 	case ssa.OpSP, ssa.OpSB:
 		// nothing to do
 	case ssa.OpAMD64SETEQ, ssa.OpAMD64SETNE,
