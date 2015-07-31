@@ -25,6 +25,14 @@
 (Mul64 (Const64 [c]) (Const64 [d])) -> (Const64 [c*d])
 (MulPtr (ConstPtr [c]) (ConstPtr [d])) -> (ConstPtr [c*d])
 (IsInBounds (ConstPtr [c]) (ConstPtr [d])) -> (ConstPtr {inBounds(c,d)})
+(Eq64 x x) -> (ConstBool {true})
+(Eq32 x x) -> (ConstBool {true})
+(Eq16 x x) -> (ConstBool {true})
+(Eq8 x x) -> (ConstBool {true})
+(Neq64 x x) -> (ConstBool {false})
+(Neq32 x x) -> (ConstBool {false})
+(Neq16 x x) -> (ConstBool {false})
+(Neq8 x x) -> (ConstBool {false})
 
 // tear apart slices
 // TODO: anything that generates a slice needs to go in here.

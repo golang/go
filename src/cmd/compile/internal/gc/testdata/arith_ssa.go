@@ -67,6 +67,30 @@ func testBitwiseLogic() {
 		println("testBitwiseXor failed, wanted", want, "got", got)
 		failed = true
 	}
+	if want, got := int32(832), testBitwiseLsh_ssa(13, 4, 2); want != got {
+		println("testBitwiseXor failed, wanted", want, "got", got)
+		failed = true
+	}
+	if want, got := int32(0), testBitwiseLsh_ssa(13, 25, 15); want != got {
+		println("testBitwiseLsh failed, wanted", want, "got", got)
+		failed = true
+	}
+	if want, got := int32(0), testBitwiseLsh_ssa(-13, 25, 15); want != got {
+		println("testBitwiseLsh failed, wanted", want, "got", got)
+		failed = true
+	}
+	if want, got := int32(0), testBitwiseRsh_ssa(-13, 25, 15); want != got {
+		println("testBitwiseLsh failed, wanted", want, "got", got)
+		failed = true
+	}
+	if want, got := int32(0), testBitwiseRsh_ssa(13, 25, 15); want != got {
+		println("testBitwiseLsh failed, wanted", want, "got", got)
+		failed = true
+	}
+	if want, got := int32(-1), testBitwiseRsh_ssa(-13, 25, 15); want != got {
+		println("testBitwiseLsh failed, wanted", want, "got", got)
+		failed = true
+	}
 }
 
 func testBitwiseAnd_ssa(a, b uint32) uint32 {
@@ -85,6 +109,18 @@ func testBitwiseXor_ssa(a, b uint32) uint32 {
 	switch { // prevent inlining
 	}
 	return a ^ b
+}
+
+func testBitwiseLsh_ssa(a int32, b, c uint32) int32 {
+	switch { // prevent inlining
+	}
+	return a << b << c
+}
+
+func testBitwiseRsh_ssa(a int32, b, c uint32) int32 {
+	switch { // prevent inlining
+	}
+	return a >> b >> c
 }
 
 // testSubqToNegq ensures that the SUBQ -> NEGQ translation works correctly.
