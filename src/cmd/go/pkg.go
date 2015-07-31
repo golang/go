@@ -900,11 +900,10 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		deps[path] = p1
 		imports = append(imports, p1)
 		for _, dep := range p1.deps {
-			// Do not overwrite entries installed by direct import
-			// just above this loop. Those have stricter constraints
-			// about internal and vendor visibility and may contain
-			// errors that we need to preserve.
-			if deps[dep.ImportPath] == nil {
+			// The same import path could produce an error or not,
+			// depending on what tries to import it.
+			// Prefer to record entries with errors, so we can report them.
+			if deps[dep.ImportPath] == nil || dep.Error != nil {
 				deps[dep.ImportPath] = dep
 			}
 		}
@@ -1612,6 +1611,23 @@ func packagesForBuild(args []string) []*Package {
 		}
 	}
 	exitIfErrors()
+
+	// Check for duplicate loads of the same package.
+	// That should be impossible, but if it does happen then
+	// we end up trying to build the same package twice,
+	// usually in parallel overwriting the same files,
+	// which doesn't work very well.
+	seen := map[string]bool{}
+	reported := map[string]bool{}
+	for _, pkg := range packageList(pkgs) {
+		if seen[pkg.ImportPath] && !reported[pkg.ImportPath] {
+			reported[pkg.ImportPath] = true
+			errorf("internal error: duplicate loads of %s", pkg.ImportPath)
+		}
+		seen[pkg.ImportPath] = true
+	}
+	exitIfErrors()
+
 	return pkgs
 }
 
