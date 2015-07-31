@@ -522,6 +522,7 @@ func TestAddressParsingAndFormatting(t *testing.T) {
 		`<".john.doe"@example.com>`,
 		`<"."@example.com>`,
 		`<".."@example.com>`,
+		`<"0:"@0>`,
 	}
 
 	for _, test := range tests {
@@ -563,6 +564,8 @@ func TestAddressParsingAndFormatting(t *testing.T) {
 		`<test@.>`,
 		`< @example.com>`,
 		`<""test""blah""@example.com>`,
+		`<""@0>`,
+		"<\"\t0\"@0>",
 	}
 
 	for _, test := range badTests {

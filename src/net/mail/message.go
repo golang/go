@@ -419,7 +419,7 @@ Loop:
 			}
 			qsb = append(qsb, p.s[i+1])
 			i += 2
-		case isQtext(c), c == ' ' || c == '\t':
+		case isQtext(c), c == ' ':
 			// qtext (printable US-ASCII excluding " and \), or
 			// FWS (almost; we're ignoring CRLF)
 			qsb = append(qsb, c)
@@ -429,6 +429,9 @@ Loop:
 		}
 	}
 	p.s = p.s[i+1:]
+	if len(qsb) == 0 {
+		return "", errors.New("mail: empty quoted-string")
+	}
 	return string(qsb), nil
 }
 
