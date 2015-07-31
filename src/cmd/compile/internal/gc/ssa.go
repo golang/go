@@ -1704,19 +1704,41 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	// and where they would like to go
 	var branches []branch
 
+	var valueProgs map[*obj.Prog]*ssa.Value
+	var blockProgs map[*obj.Prog]*ssa.Block
+	const logProgs = true
+	if logProgs {
+		valueProgs = make(map[*obj.Prog]*ssa.Value, f.NumValues())
+		blockProgs = make(map[*obj.Prog]*ssa.Block, f.NumBlocks())
+		f.Logf("genssa %s\n", f.Name)
+		blockProgs[Pc] = f.Blocks[0]
+	}
+
 	// Emit basic blocks
 	for i, b := range f.Blocks {
 		bstart[b.ID] = Pc
 		// Emit values in block
 		for _, v := range b.Values {
+			x := Pc
 			genValue(v)
+			if logProgs {
+				for ; x != Pc; x = x.Link {
+					valueProgs[x] = v
+				}
+			}
 		}
 		// Emit control flow instructions for block
 		var next *ssa.Block
 		if i < len(f.Blocks)-1 {
 			next = f.Blocks[i+1]
 		}
+		x := Pc
 		branches = genBlock(b, next, branches)
+		if logProgs {
+			for ; x != Pc; x = x.Link {
+				blockProgs[x] = b
+			}
+		}
 	}
 
 	// Resolve branches
@@ -1725,6 +1747,20 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	}
 
 	Pc.As = obj.ARET // overwrite AEND
+
+	if logProgs {
+		for p := ptxt; p != nil; p = p.Link {
+			var s string
+			if v, ok := valueProgs[p]; ok {
+				s = v.String()
+			} else if b, ok := blockProgs[p]; ok {
+				s = b.String()
+			} else {
+				s = "   " // most value and branch strings are 2-3 characters long
+			}
+			f.Logf("%s\t%s\n", s, p)
+		}
+	}
 
 	// Emit static data
 	if f.StaticData != nil {
