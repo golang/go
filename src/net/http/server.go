@@ -1884,11 +1884,11 @@ func (s *Server) doKeepAlives() bool {
 // By default, keep-alives are always enabled. Only very
 // resource-constrained environments or servers in the process of
 // shutting down should disable them.
-func (s *Server) SetKeepAlivesEnabled(v bool) {
+func (srv *Server) SetKeepAlivesEnabled(v bool) {
 	if v {
-		atomic.StoreInt32(&s.disableKeepAlives, 0)
+		atomic.StoreInt32(&srv.disableKeepAlives, 0)
 	} else {
-		atomic.StoreInt32(&s.disableKeepAlives, 1)
+		atomic.StoreInt32(&srv.disableKeepAlives, 1)
 	}
 }
 
