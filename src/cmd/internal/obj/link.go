@@ -457,6 +457,11 @@ const (
 	// referenced (thread local) symbol from the GOT.
 	R_ARM64_TLS_IE
 
+	R_ARM64_LOAD8
+	R_ARM64_LOAD16
+	R_ARM64_LOAD32
+	R_ARM64_LOAD64
+
 	// PPC64.
 
 	// R_POWER_TLS_LE is used to implement the "local exec" model for tls
