@@ -953,6 +953,13 @@ func (pc *persistConn) readLoop() {
 				}
 				return err
 			}
+		} else {
+			// Before send on rc.ch, as client might re-use the
+			// same *Request pointer, and we don't want to set this
+			// on t from this persistConn while the Transport
+			// potentially spins up a different persistConn for the
+			// caller's subsequent request.
+			pc.t.setReqCanceler(rc.req, nil)
 		}
 
 		pc.lk.Lock()
@@ -991,7 +998,6 @@ func (pc *persistConn) readLoop() {
 				alive = false
 			}
 		} else {
-			pc.t.setReqCanceler(rc.req, nil) // before pc might return to idle pool
 			alive = alive &&
 				!pc.sawEOF &&
 				pc.wroteRequest() &&
