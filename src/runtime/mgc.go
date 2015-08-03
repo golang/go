@@ -348,6 +348,10 @@ type gcControllerState struct {
 	// that the background mark phase started.
 	bgMarkStartTime int64
 
+	// assistTime is the absolute start time in nanoseconds that
+	// mutator assists were enabled.
+	assistStartTime int64
+
 	// heapGoal is the goal memstats.heap_live for when this cycle
 	// ends. This is computed at the beginning of each cycle.
 	heapGoal uint64
@@ -500,15 +504,19 @@ func (c *gcControllerState) endCycle() {
 	// growth if we had the desired CPU utilization). The
 	// difference between this estimate and the GOGC-based goal
 	// heap growth is the error.
+	//
+	// TODO(austin): next_gc is based on heap_reachable, not
+	// heap_marked, which means the actual growth ratio
+	// technically isn't comparable to the trigger ratio.
 	goalGrowthRatio := float64(gcpercent) / 100
 	actualGrowthRatio := float64(memstats.heap_live)/float64(memstats.heap_marked) - 1
-	duration := nanotime() - c.bgMarkStartTime
+	assistDuration := nanotime() - c.assistStartTime
 
 	// Assume background mark hit its utilization goal.
 	utilization := gcGoalUtilization
 	// Add assist utilization; avoid divide by zero.
-	if duration > 0 {
-		utilization += float64(c.assistTime) / float64(duration*int64(gomaxprocs))
+	if assistDuration > 0 {
+		utilization += float64(c.assistTime) / float64(assistDuration*int64(gomaxprocs))
 	}
 
 	triggerError := goalGrowthRatio - c.triggerRatio - utilization/gcGoalUtilization*(actualGrowthRatio-c.triggerRatio)
@@ -979,6 +987,7 @@ func gc(mode int) {
 			now = nanotime()
 			pauseNS += now - pauseStart
 			tScan = now
+			gcController.assistStartTime = now
 			gcscan_m()
 
 			// Enter mark phase.
