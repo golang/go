@@ -498,7 +498,7 @@ func (c *gcControllerState) endCycle() {
 	// Compute next cycle trigger ratio. First, this computes the
 	// "error" for this cycle; that is, how far off the trigger
 	// was from what it should have been, accounting for both heap
-	// growth and GC CPU utilization. We computing the actual heap
+	// growth and GC CPU utilization. We compute the actual heap
 	// growth during this cycle and scale that by how far off from
 	// the goal CPU utilization we were (to estimate the heap
 	// growth if we had the desired CPU utilization). The
@@ -1475,7 +1475,7 @@ func gcMark(start_time int64) {
 	} else {
 		// This can happen if most of the allocation during
 		// the cycle never became reachable from the heap.
-		// Just set the reachable heap appropriation to 0 and
+		// Just set the reachable heap approximation to 0 and
 		// let the heapminimum kick in below.
 		memstats.heap_reachable = 0
 	}
