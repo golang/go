@@ -2783,7 +2783,7 @@ h2,
 h3,
 h4,
 .rootHeading {
-	margin: 40px 0 20px;
+	margin: 20px 0 20px;
 	padding: 0;
 	color: #375EAB;
 	font-weight: bold;
@@ -3483,5 +3483,6 @@ a.error {
 		border: 1px solid #BBB;
 		white-space: pre-wrap;
 	}
-}`,
+}
+`,
 }
