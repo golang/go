@@ -8,7 +8,7 @@ package types
 
 import (
 	"go/ast"
-	exact "go/constant" // Renamed to reduce diffs from x/tools.  TODO: remove
+	"go/constant"
 	"go/token"
 )
 
@@ -36,7 +36,7 @@ type exprInfo struct {
 	isLhs bool // expression is lhs operand of a shift with delayed type-check
 	mode  operandMode
 	typ   *Basic
-	val   exact.Value // constant value; or nil (if not a constant)
+	val   constant.Value // constant value; or nil (if not a constant)
 }
 
 // funcInfo stores the information required for type-checking a function.
@@ -49,12 +49,12 @@ type funcInfo struct {
 
 // A context represents the context within which an object is type-checked.
 type context struct {
-	decl          *declInfo   // package-level declaration whose init expression/function body is checked
-	scope         *Scope      // top-most scope for lookups
-	iota          exact.Value // value of iota in a constant declaration; nil otherwise
-	sig           *Signature  // function signature if inside a function; nil otherwise
-	hasLabel      bool        // set if a function makes use of labels (only ~1% of functions); unused outside functions
-	hasCallOrRecv bool        // set if an expression contains a function call or channel receive operation
+	decl          *declInfo      // package-level declaration whose init expression/function body is checked
+	scope         *Scope         // top-most scope for lookups
+	iota          constant.Value // value of iota in a constant declaration; nil otherwise
+	sig           *Signature     // function signature if inside a function; nil otherwise
+	hasLabel      bool           // set if a function makes use of labels (only ~1% of functions); unused outside functions
+	hasCallOrRecv bool           // set if an expression contains a function call or channel receive operation
 }
 
 // A Checker maintains the state of the type checker.
@@ -126,7 +126,7 @@ func (check *Checker) assocMethod(tname string, meth *Func) {
 	m[tname] = append(m[tname], meth)
 }
 
-func (check *Checker) rememberUntyped(e ast.Expr, lhs bool, mode operandMode, typ *Basic, val exact.Value) {
+func (check *Checker) rememberUntyped(e ast.Expr, lhs bool, mode operandMode, typ *Basic, val constant.Value) {
 	m := check.untyped
 	if m == nil {
 		m = make(map[ast.Expr]exprInfo)
@@ -257,14 +257,14 @@ func (check *Checker) recordUntyped() {
 	}
 }
 
-func (check *Checker) recordTypeAndValue(x ast.Expr, mode operandMode, typ Type, val exact.Value) {
+func (check *Checker) recordTypeAndValue(x ast.Expr, mode operandMode, typ Type, val constant.Value) {
 	assert(x != nil)
 	assert(typ != nil)
 	if mode == invalid {
 		return // omit
 	}
 	assert(typ != nil)
-	if mode == constant {
+	if mode == constant_ {
 		assert(val != nil)
 		assert(typ == Typ[Invalid] || isConstType(typ))
 	}

@@ -8,7 +8,7 @@ package types
 
 import (
 	"go/ast"
-	exact "go/constant" // Renamed to reduce diffs from x/tools.  TODO: remove
+	"go/constant"
 	"go/token"
 )
 
@@ -138,13 +138,13 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// len(x)
 		mode := invalid
 		var typ Type
-		var val exact.Value
+		var val constant.Value
 		switch typ = implicitArrayDeref(x.typ.Underlying()); t := typ.(type) {
 		case *Basic:
 			if isString(t) && id == _Len {
-				if x.mode == constant {
-					mode = constant
-					val = exact.MakeInt64(int64(len(exact.StringVal(x.val))))
+				if x.mode == constant_ {
+					mode = constant_
+					val = constant.MakeInt64(int64(len(constant.StringVal(x.val))))
 				} else {
 					mode = value
 				}
@@ -157,8 +157,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			// the expression s does not contain channel receives or
 			// function calls; in this case s is not evaluated."
 			if !check.hasCallOrRecv {
-				mode = constant
-				val = exact.MakeInt64(t.len)
+				mode = constant_
+				val = constant.MakeInt64(t.len)
 			}
 
 		case *Slice, *Chan:
@@ -178,7 +178,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		x.mode = mode
 		x.typ = Typ[Int]
 		x.val = val
-		if check.Types != nil && mode != constant {
+		if check.Types != nil && mode != constant_ {
 			check.recordBuiltinType(call.Fun, makeSig(x.typ, typ))
 		}
 
@@ -228,8 +228,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
-		if x.mode == constant && y.mode == constant {
-			x.val = exact.BinaryOp(x.val, token.ADD, exact.MakeImag(y.val))
+		if x.mode == constant_ && y.mode == constant_ {
+			x.val = constant.BinaryOp(x.val, token.ADD, constant.MakeImag(y.val))
 		} else {
 			x.mode = value
 		}
@@ -242,7 +242,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		case Float64:
 			complexT = Typ[Complex128]
 		case UntypedInt, UntypedRune, UntypedFloat:
-			if x.mode == constant {
+			if x.mode == constant_ {
 				realT = defaultType(realT).(*Basic)
 				complexT = Typ[UntypedComplex]
 			} else {
@@ -257,11 +257,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 
 		x.typ = complexT
-		if check.Types != nil && x.mode != constant {
+		if check.Types != nil && x.mode != constant_ {
 			check.recordBuiltinType(call.Fun, makeSig(complexT, realT, realT))
 		}
 
-		if x.mode != constant {
+		if x.mode != constant_ {
 			// The arguments have now their final types, which at run-
 			// time will be materialized. Update the expression trees.
 			// If the current types are untyped, the materialized type
@@ -339,11 +339,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			check.invalidArg(x.pos(), "%s must be a complex number", x)
 			return
 		}
-		if x.mode == constant {
+		if x.mode == constant_ {
 			if id == _Real {
-				x.val = exact.Real(x.val)
+				x.val = constant.Real(x.val)
 			} else {
-				x.val = exact.Imag(x.val)
+				x.val = constant.Imag(x.val)
 			}
 		} else {
 			x.mode = value
@@ -360,7 +360,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			unreachable()
 		}
 
-		if check.Types != nil && x.mode != constant {
+		if check.Types != nil && x.mode != constant_ {
 			check.recordBuiltinType(call.Fun, makeSig(Typ[k], x.typ))
 		}
 		x.typ = Typ[k]
@@ -471,8 +471,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
-		x.mode = constant
-		x.val = exact.MakeInt64(check.conf.alignof(x.typ))
+		x.mode = constant_
+		x.val = constant.MakeInt64(check.conf.alignof(x.typ))
 		x.typ = Typ[Uintptr]
 		// result is constant - no need to record signature
 
@@ -516,8 +516,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		check.recordSelection(selx, FieldVal, base, obj, index, false)
 
 		offs := check.conf.offsetof(base, index)
-		x.mode = constant
-		x.val = exact.MakeInt64(offs)
+		x.mode = constant_
+		x.val = constant.MakeInt64(offs)
 		x.typ = Typ[Uintptr]
 		// result is constant - no need to record signature
 
@@ -528,8 +528,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
-		x.mode = constant
-		x.val = exact.MakeInt64(check.conf.sizeof(x.typ))
+		x.mode = constant_
+		x.val = constant.MakeInt64(check.conf.sizeof(x.typ))
 		x.typ = Typ[Uintptr]
 		// result is constant - no need to record signature
 
@@ -537,15 +537,15 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// assert(pred) causes a typechecker error if pred is false.
 		// The result of assert is the value of pred if there is no error.
 		// Note: assert is only available in self-test mode.
-		if x.mode != constant || !isBoolean(x.typ) {
+		if x.mode != constant_ || !isBoolean(x.typ) {
 			check.invalidArg(x.pos(), "%s is not a boolean constant", x)
 			return
 		}
-		if x.val.Kind() != exact.Bool {
+		if x.val.Kind() != constant.Bool {
 			check.errorf(x.pos(), "internal error: value of %s should be a boolean constant", x)
 			return
 		}
-		if !exact.BoolVal(x.val) {
+		if !constant.BoolVal(x.val) {
 			check.errorf(call.Pos(), "%s failed", call)
 			// compile-time assertion failure - safe to continue
 		}
