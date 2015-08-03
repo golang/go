@@ -781,14 +781,14 @@ are:
 	-buildmode=c-archive
 		Build the listed main package, plus all packages it imports,
 		into a C archive file. The only callable symbols will be those
-		functions marked as exported. Requires exactly one main package
-		to be listed.
+		functions marked as exported by the cgo tool. Requires exactly
+		one main package to be listed.
 
 	-buildmode=c-shared
 		Build the listed main packages, plus all packages that they
 		import, into C shared libraries. The only callable symbols will
-		be those functions marked as exported. Non-main packages are
-		ignored.
+		be those functions marked as exported by the cgo tool. Non-main
+		packages are ignored.
 
 	-buildmode=default
 		Listed main packages are built into executables and listed
