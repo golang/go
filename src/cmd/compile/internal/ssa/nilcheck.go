@@ -53,6 +53,19 @@ func nilcheckelim(f *Func) {
 		var pushRecPtr bool
 		switch node.op {
 		case Work:
+			// a value resulting from taking the address of a
+			// value, or a value constructed from an offset of a
+			// non-nil ptr (OpAddPtr) implies it is non-nil
+			for _, v := range node.block.Values {
+				if v.Op == OpAddr || v.Op == OpAddPtr {
+					// set this immediately instead of
+					// using SetPtr so we can potentially
+					// remove an OpIsNonNil check in the
+					// current work block
+					nonNilValues[v.ID] = true
+				}
+			}
+
 			if node.ptr != nil {
 				// already have a nilcheck in the dominator path
 				if nonNilValues[node.ptr.ID] {
