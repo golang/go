@@ -420,6 +420,8 @@ func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan 
 	memstats.tinyallocs += uint64(_g_.m.mcache.local_tinyallocs)
 	_g_.m.mcache.local_tinyallocs = 0
 
+	gcController.revise()
+
 	s := mHeap_AllocSpanLocked(h, npage)
 	if s != nil {
 		// Record span info, because gc needs to be
@@ -694,6 +696,7 @@ func mHeap_Free(h *mheap, s *mspan, acct int32) {
 		if acct != 0 {
 			memstats.heap_objects--
 		}
+		gcController.revise()
 		mHeap_FreeSpanLocked(h, s, true, true, 0)
 		if trace.enabled {
 			traceHeapAlloc()
