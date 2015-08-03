@@ -369,7 +369,18 @@ func relocsym(s *LSym) {
 
 		switch r.Type {
 		default:
-			o = 0
+			switch siz {
+			default:
+				Diag("bad reloc size %#x for %s", uint32(siz), r.Sym.Name)
+			case 1:
+				o = int64(s.P[off])
+			case 2:
+				o = int64(Ctxt.Arch.ByteOrder.Uint16(s.P[off:]))
+			case 4:
+				o = int64(Ctxt.Arch.ByteOrder.Uint32(s.P[off:]))
+			case 8:
+				o = int64(Ctxt.Arch.ByteOrder.Uint64(s.P[off:]))
+			}
 			if Thearch.Archreloc(r, s, &o) < 0 {
 				Diag("unknown reloc %d", r.Type)
 			}
