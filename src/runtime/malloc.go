@@ -736,6 +736,12 @@ func largeAlloc(size uintptr, flag uint32) *mspan {
 	if size&_PageMask != 0 {
 		npages++
 	}
+
+	// Deduct credit for this span allocation and sweep if
+	// necessary. mHeap_Alloc will also sweep npages, so this only
+	// pays the debt down to npage pages.
+	deductSweepCredit(npages*_PageSize, npages)
+
 	s := mHeap_Alloc(&mheap_, npages, 0, true, flag&_FlagNoZero == 0)
 	if s == nil {
 		throw("out of memory")

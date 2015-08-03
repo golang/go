@@ -1563,6 +1563,7 @@ func gcSweep(mode int) {
 	lock(&mheap_.lock)
 	mheap_.sweepPagesPerByte = float64(pagesToSweep) / float64(heapDistance)
 	mheap_.pagesSwept = 0
+	mheap_.spanBytesAlloc = 0
 	unlock(&mheap_.lock)
 
 	// Background sweep.

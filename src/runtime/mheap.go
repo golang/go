@@ -29,6 +29,7 @@ type mheap struct {
 	spans_mapped uintptr
 
 	// Proportional sweep
+	spanBytesAlloc    uint64  // bytes of spans allocated this cycle; updated atomically
 	pagesSwept        uint64  // pages swept this cycle; updated atomically
 	sweepPagesPerByte float64 // proportional sweep ratio; written with lock, read without
 
