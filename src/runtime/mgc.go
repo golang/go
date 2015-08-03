@@ -360,7 +360,8 @@ type gcControllerState struct {
 
 	// assistRatio is the ratio of allocated bytes to scan work
 	// that should be performed by mutator assists. This is
-	// computed at the beginning of each cycle.
+	// computed at the beginning of each cycle and updated every
+	// time heap_scan is updated.
 	assistRatio float64
 
 	// fractionalUtilizationGoal is the fraction of wall clock
@@ -378,10 +379,6 @@ type gcControllerState struct {
 	// the heap size marked by the previous cycle. This is updated
 	// at the end of of each cycle.
 	triggerRatio float64
-
-	// reviseTimer is a timer that triggers periodic revision of
-	// control variables during the cycle.
-	reviseTimer timer
 
 	_ [_CacheLineSize]byte
 
@@ -449,19 +446,11 @@ func (c *gcControllerState) startCycle() {
 			" workers=", c.dedicatedMarkWorkersNeeded,
 			"+", c.fractionalMarkWorkersNeeded, "\n")
 	}
-
-	// Set up a timer to revise periodically
-	c.reviseTimer.f = func(interface{}, uintptr) {
-		gcController.revise()
-	}
-	c.reviseTimer.period = 10 * 1000 * 1000
-	c.reviseTimer.when = nanotime() + c.reviseTimer.period
-	addtimer(&c.reviseTimer)
 }
 
 // revise updates the assist ratio during the GC cycle to account for
-// improved estimates. This should be called periodically during
-// concurrent mark.
+// improved estimates. This should be called either under STW or
+// whenever memstats.heap_scan is updated (with mheap_.lock held).
 func (c *gcControllerState) revise() {
 	// Compute the expected scan work. This is a strict upper
 	// bound on the possible scan work in the current heap.
@@ -501,9 +490,6 @@ func (c *gcControllerState) endCycle() {
 	// react to phase changes quickly, but are more affected by
 	// transient changes. Values near 1 may be unstable.
 	const triggerGain = 0.5
-
-	// Stop the revise timer
-	deltimer(&c.reviseTimer)
 
 	// Compute next cycle trigger ratio. First, this computes the
 	// "error" for this cycle; that is, how far off the trigger
