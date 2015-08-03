@@ -416,8 +416,8 @@ by the environment variables <code>GOOS</code> and <code>GOARCH</code>.
 </p>
 
 <p>
-There are a couple of other changes.
-The more significant is the addition of a <code>-buildmode</code> option that
+There are several other changes.
+The most significant is the addition of a <code>-buildmode</code> option that
 expands the style of linking; it now supports
 situations such as building shared libraries and allowing other languages
 to call into Go libraries.
@@ -434,6 +434,29 @@ Another minor change is that the linker no longer records build time stamps in
 the header of Windows executables.
 Also, although this may be fixed, Windows cgo executables are missing some
 DWARF information.
+</p>
+
+<p>
+Finally, the <code>-X</code> flag, which takes two arguments,
+as in
+</p>
+
+<pre>
+-X importpath.name value
+</pre>
+
+<p>
+now also accepts a more common Go flag style with a single argument
+that is itself a <code>name=value</code> pair:
+</p>
+
+<pre>
+-X importpath.name=value
+</pre>
+
+<p>
+Although the old syntax still works, it is recommended that uses of this
+flag in scripts and the like be updated to the new form.
 </p>
 
 <h3 id="go_command">Go command</h3>
