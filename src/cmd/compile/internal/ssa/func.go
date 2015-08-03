@@ -18,6 +18,8 @@ type Func struct {
 	bid        idAlloc     // block ID allocator
 	vid        idAlloc     // value ID allocator
 
+	scheduled bool // Values in Blocks are in final order
+
 	// when register allocation is done, maps value ids to locations
 	RegAlloc []Location
 	// when stackalloc is done, the size of the stack frame

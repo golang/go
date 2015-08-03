@@ -34,9 +34,19 @@ func fprintFunc(w io.Writer, f *Func) {
 			}
 		}
 		io.WriteString(w, "\n")
-		n := 0
+
+		if f.scheduled {
+			// Order of Values has been decided - print in that order.
+			for _, v := range b.Values {
+				fmt.Fprint(w, "    ")
+				fmt.Fprintln(w, v.LongString())
+				printed[v.ID] = true
+			}
+			continue
+		}
 
 		// print phis first since all value cycles contain a phi
+		n := 0
 		for _, v := range b.Values {
 			if v.Op != OpPhi {
 				continue

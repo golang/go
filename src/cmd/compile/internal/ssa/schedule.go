@@ -6,121 +6,117 @@ package ssa
 
 // Schedule the Values in each Block.  After this phase returns, the
 // order of b.Values matters and is the order in which those values
-// will appear in the assembly output.  For now it generates an
-// arbitrary valid schedule using a topological sort.  TODO(khr):
+// will appear in the assembly output.  For now it generates a
+// reasonable valid schedule using a priority queue.  TODO(khr):
 // schedule smarter.
 func schedule(f *Func) {
-	const (
-		unmarked = 0
-		found    = 1
-		expanded = 2
-		done     = 3
-	)
-	state := make([]byte, f.NumValues())
-	var queue []*Value //stack-like worklist.  Contains found and expanded nodes.
+	// For each value, the number of times it is used in the block
+	// by values that have not been scheduled yet.
+	uses := make([]int, f.NumValues())
+
+	// "priority" for a value
+	score := make([]int, f.NumValues())
+
+	// scheduling order.  We queue values in this list in reverse order.
 	var order []*Value
 
-	nextMem := make([]*Value, f.NumValues()) // maps mem values to the next live value
-	additionalEdges := make([][]*Value, f.NumValues())
+	// priority queue of legally schedulable (0 unscheduled uses) values
+	var priq [4][]*Value
+
 	for _, b := range f.Blocks {
-		// Set the nextMem values for this block.  If the previous
-		// write is from a different block, then its nextMem entry
-		// might have already been set during processing of an earlier
-		// block.  This loop resets the nextMem entries to be correct
-		// for this block.
+		// Compute uses.
 		for _, v := range b.Values {
-			if v.Type.IsMemory() {
+			if v.Op != OpPhi {
+				// Note: if a value is used by a phi, it does not induce
+				// a scheduling edge because that use is from the
+				// previous iteration.
 				for _, w := range v.Args {
-					if w.Type.IsMemory() {
-						nextMem[w.ID] = v
+					if w.Block == b {
+						uses[w.ID]++
 					}
 				}
 			}
 		}
-		// Add a anti-dependency between each load v and the memory value n
-		// following the memory value that v loads from.
-		// This will enforce the single-live-mem restriction.
+		// Compute score.  Larger numbers are scheduled closer to the end of the block.
 		for _, v := range b.Values {
-			if v.Type.IsMemory() {
-				continue
-			}
-			for _, w := range v.Args {
-				if w.Type.IsMemory() && nextMem[w.ID] != nil {
-					// Filter for intra-block edges.
-					if n := nextMem[w.ID]; n.Block == b {
-						additionalEdges[n.ID] = append(additionalEdges[n.ID], v)
-					}
-				}
-			}
-		}
-
-		order = order[:0]
-
-		// Schedule phis first
-		for _, v := range b.Values {
-			if v.Op == OpPhi {
-				// TODO: what if a phi is also a control op?  It happens for
-				// mem ops all the time, which shouldn't matter.  But for
-				// regular ops we might be violating invariants about where
-				// control ops live.
-				if v == b.Control && !v.Type.IsMemory() {
-					f.Unimplementedf("phi is a control op %s %s", v, b)
-				}
-				order = append(order, v)
-			}
-		}
-
-		// Topologically sort the non-phi values in b.
-		for _, v := range b.Values {
-			if v.Op == OpPhi {
-				continue
-			}
-			if v == b.Control {
-				continue
-			}
-			if state[v.ID] != unmarked {
-				if state[v.ID] != done {
-					panic("bad state")
-				}
-				continue
-			}
-			state[v.ID] = found
-			queue = append(queue, v)
-			for len(queue) > 0 {
-				v = queue[len(queue)-1]
-				switch state[v.ID] {
-				case found:
-					state[v.ID] = expanded
-					// Note that v is not popped.  We leave it in place
-					// until all its children have been explored.
-					for _, w := range v.Args {
-						if w.Block == b && w.Op != OpPhi && w != b.Control && state[w.ID] == unmarked {
-							state[w.ID] = found
-							queue = append(queue, w)
-						}
-					}
-					for _, w := range additionalEdges[v.ID] {
-						if w.Block == b && w.Op != OpPhi && w != b.Control && state[w.ID] == unmarked {
-							state[w.ID] = found
-							queue = append(queue, w)
-						}
-					}
-				case expanded:
-					queue = queue[:len(queue)-1]
-					state[v.ID] = done
-					order = append(order, v)
-				default:
-					panic("bad state")
-				}
+			switch {
+			case v.Op == OpPhi:
+				// We want all the phis first.
+				score[v.ID] = 0
+			case v.Type.IsMemory():
+				// Schedule stores as late as possible.
+				// This makes sure that loads do not get scheduled
+				// after a following store (1-live-memory requirement).
+				score[v.ID] = 2
+			case v.Type.IsFlags():
+				// Schedule flag register generation as late as possible.
+				// This makes sure that we only have one live flags
+				// value at a time.
+				score[v.ID] = 2
+			default:
+				score[v.ID] = 1
 			}
 		}
 		if b.Control != nil {
-			order = append(order, b.Control)
+			// Force the control value to be scheduled at the end.
+			score[b.Control.ID] = 3
+			// TODO: some times control values are used by other values
+			// in the block.  So the control value will not appear at
+			// the very end.  Decide if this is a problem or not.
 		}
-		copy(b.Values, order)
+
+		// Initialize priority queue with schedulable values.
+		for i := range priq {
+			priq[i] = priq[i][:0]
+		}
+		for _, v := range b.Values {
+			if uses[v.ID] == 0 {
+				s := score[v.ID]
+				priq[s] = append(priq[s], v)
+			}
+		}
+
+		// Schedule highest priority value, update use counts, repeat.
+		order = order[:0]
+		for {
+			// Find highest priority schedulable value.
+			var v *Value
+			for i := len(priq) - 1; i >= 0; i-- {
+				n := len(priq[i])
+				if n == 0 {
+					continue
+				}
+				v = priq[i][n-1]
+				priq[i] = priq[i][:n-1]
+				break
+			}
+			if v == nil {
+				break
+			}
+
+			// Add it to the schedule.
+			order = append(order, v)
+
+			// Update use counts of arguments.
+			for _, w := range v.Args {
+				if w.Block != b {
+					continue
+				}
+				uses[w.ID]--
+				if uses[w.ID] == 0 {
+					// All uses scheduled, w is now schedulable.
+					s := score[w.ID]
+					priq[s] = append(priq[s], w)
+				}
+			}
+		}
+		if len(order) != len(b.Values) {
+			f.Fatalf("schedule does not include all values")
+		}
+		for i := 0; i < len(b.Values); i++ {
+			b.Values[i] = order[len(b.Values)-1-i]
+		}
 	}
-	// TODO: only allow one live flags type (x86)
-	// This restriction will force and any flag uses to appear before
-	// the next flag update.  This "anti-dependence" is not recorded
-	// explicitly in ssa form.
+
+	f.scheduled = true
 }

@@ -68,7 +68,7 @@ func testBitwiseLogic() {
 		failed = true
 	}
 	if want, got := int32(832), testBitwiseLsh_ssa(13, 4, 2); want != got {
-		println("testBitwiseXor failed, wanted", want, "got", got)
+		println("testBitwiseLsh failed, wanted", want, "got", got)
 		failed = true
 	}
 	if want, got := int32(0), testBitwiseLsh_ssa(13, 25, 15); want != got {
@@ -79,16 +79,28 @@ func testBitwiseLogic() {
 		println("testBitwiseLsh failed, wanted", want, "got", got)
 		failed = true
 	}
-	if want, got := int32(0), testBitwiseRsh_ssa(-13, 25, 15); want != got {
-		println("testBitwiseLsh failed, wanted", want, "got", got)
+	if want, got := int32(-13), testBitwiseRsh_ssa(-832, 4, 2); want != got {
+		println("testBitwiseRsh failed, wanted", want, "got", got)
 		failed = true
 	}
 	if want, got := int32(0), testBitwiseRsh_ssa(13, 25, 15); want != got {
-		println("testBitwiseLsh failed, wanted", want, "got", got)
+		println("testBitwiseRsh failed, wanted", want, "got", got)
 		failed = true
 	}
 	if want, got := int32(-1), testBitwiseRsh_ssa(-13, 25, 15); want != got {
-		println("testBitwiseLsh failed, wanted", want, "got", got)
+		println("testBitwiseRsh failed, wanted", want, "got", got)
+		failed = true
+	}
+	if want, got := uint32(0x3ffffff), testBitwiseRshU_ssa(0xffffffff, 4, 2); want != got {
+		println("testBitwiseRshU failed, wanted", want, "got", got)
+		failed = true
+	}
+	if want, got := uint32(0), testBitwiseRshU_ssa(13, 25, 15); want != got {
+		println("testBitwiseRshU failed, wanted", want, "got", got)
+		failed = true
+	}
+	if want, got := uint32(0), testBitwiseRshU_ssa(0x8aaaaaaa, 25, 15); want != got {
+		println("testBitwiseRshU failed, wanted", want, "got", got)
 		failed = true
 	}
 }
@@ -118,6 +130,12 @@ func testBitwiseLsh_ssa(a int32, b, c uint32) int32 {
 }
 
 func testBitwiseRsh_ssa(a int32, b, c uint32) int32 {
+	switch { // prevent inlining
+	}
+	return a >> b >> c
+}
+
+func testBitwiseRshU_ssa(a uint32, b, c uint32) uint32 {
 	switch { // prevent inlining
 	}
 	return a >> b >> c
