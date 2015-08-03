@@ -10,9 +10,9 @@ package main
 
 // test64BitConstMulti tests that rewrite rules don't fold 64 bit constants
 // into multiply instructions.
-func test64BitConstMult(a, b int64) {
-	want := 34359738369*a + b*34359738370
-	if got := test64BitConstMult_ssa(a, b); want != got {
+func test64BitConstMult() {
+	want := int64(103079215109)
+	if got := test64BitConstMult_ssa(1, 2); want != got {
 		println("test64BitConstMult failed, wanted", want, "got", got)
 		failed = true
 	}
@@ -25,30 +25,30 @@ func test64BitConstMult_ssa(a, b int64) int64 {
 
 // test64BitConstAdd tests that rewrite rules don't fold 64 bit constants
 // into add instructions.
-func test64BitConstAdd(a, b int64) {
-	want := a + 575815584948629622 + b + 2991856197886747025
-	if got := test64BitConstAdd_ssa(a, b); want != got {
+func test64BitConstAdd() {
+	want := int64(3567671782835376650)
+	if got := test64BitConstAdd_ssa(1, 2); want != got {
 		println("test64BitConstAdd failed, wanted", want, "got", got)
 		failed = true
 	}
 }
 func test64BitConstAdd_ssa(a, b int64) int64 {
-	switch {
+	switch { // prevent inlining
 	}
 	return a + 575815584948629622 + b + 2991856197886747025
 }
 
 // testRegallocCVSpill tests that regalloc spills a value whose last use is the
 // current value.
-func testRegallocCVSpill(a, b, c, d int8) {
-	want := a + -32 + b + 63*c*-87*d
-	if got := testRegallocCVSpill_ssa(a, b, c, d); want != got {
+func testRegallocCVSpill() {
+	want := int8(-9)
+	if got := testRegallocCVSpill_ssa(1, 2, 3, 4); want != got {
 		println("testRegallocCVSpill failed, wanted", want, "got", got)
 		failed = true
 	}
 }
 func testRegallocCVSpill_ssa(a, b, c, d int8) int8 {
-	switch {
+	switch { // prevent inlining
 	}
 	return a + -32 + b + 63*c*-87*d
 }
@@ -124,9 +124,9 @@ func testBitwiseRsh_ssa(a int32, b, c uint32) int32 {
 }
 
 // testSubqToNegq ensures that the SUBQ -> NEGQ translation works correctly.
-func testSubqToNegq(a, b, c, d, e, f, g, h, i, j, k int64) {
-	want := a + 8207351403619448057 - b - 1779494519303207690 + c*8810076340510052032*d - 4465874067674546219 - e*4361839741470334295 - f + 8688847565426072650*g*8065564729145417479
-	if got := testSubqToNegq_ssa(a, b, c, d, e, f, g, h, i, j, k); want != got {
+func testSubqToNegq() {
+	want := int64(-318294940372190156)
+	if got := testSubqToNegq_ssa(1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2); want != got {
 		println("testSubqToNegq failed, wanted", want, "got", got)
 		failed = true
 	}
@@ -142,10 +142,10 @@ var failed = false
 
 func main() {
 
-	test64BitConstMult(1, 2)
-	test64BitConstAdd(1, 2)
-	testRegallocCVSpill(1, 2, 3, 4)
-	testSubqToNegq(1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2)
+	test64BitConstMult()
+	test64BitConstAdd()
+	testRegallocCVSpill()
+	testSubqToNegq()
 	testBitwiseLogic()
 
 	if failed {
