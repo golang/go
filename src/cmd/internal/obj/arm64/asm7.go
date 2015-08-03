@@ -1899,7 +1899,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		rel.Off = int32(ctxt.Pc)
 		rel.Siz = 4
 		rel.Sym = p.To.Sym
-		rel.Add = int64(o1) | (p.To.Offset>>2)&0x3ffffff
+		rel.Add = p.To.Offset
 		rel.Type = obj.R_CALLARM64
 
 	case 6: /* b ,O(R); bl ,O(R) */

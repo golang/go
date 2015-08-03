@@ -191,17 +191,21 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 			}
 			r.Xsym = rs
 
-			// the first instruction is always at the lower address, this is endian neutral;
-			// but note that o0 and o1 should still use the target endian.
-			o0 := ld.Thelinkarch.ByteOrder.Uint32(s.P[r.Off : r.Off+4])
-			o1 := ld.Thelinkarch.ByteOrder.Uint32(s.P[r.Off+4 : r.Off+8])
-
 			// Note: ld64 currently has a bug that any non-zero addend for BR26 relocation
 			// will make the linking fail because it thinks the code is not PIC even though
 			// the BR26 relocation should be fully resolved at link time.
 			// That is the reason why the next if block is disabled. When the bug in ld64
 			// is fixed, we can enable this block and also enable duff's device in cmd/7g.
 			if false && ld.HEADTYPE == obj.Hdarwin {
+				var o0, o1 uint32
+
+				if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
+					o0 = uint32(*val >> 32)
+					o1 = uint32(*val)
+				} else {
+					o0 = uint32(*val)
+					o1 = uint32(*val >> 32)
+				}
 				// Mach-O wants the addend to be encoded in the instruction
 				// Note that although Mach-O supports ARM64_RELOC_ADDEND, it
 				// can only encode 24-bit of signed addend, but the instructions
@@ -210,13 +214,13 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 				o0 |= (uint32((r.Xadd>>12)&3) << 29) | (uint32((r.Xadd>>12>>2)&0x7ffff) << 5)
 				o1 |= uint32(r.Xadd&0xfff) << 10
 				r.Xadd = 0
-			}
 
-			// when laid out, the instruction order must always be o1, o2.
-			if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
-				*val = int64(o0)<<32 | int64(o1)
-			} else {
-				*val = int64(o1)<<32 | int64(o0)
+				// when laid out, the instruction order must always be o1, o2.
+				if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
+					*val = int64(o0)<<32 | int64(o1)
+				} else {
+					*val = int64(o1)<<32 | int64(o0)
+				}
 			}
 
 			return 0
@@ -224,9 +228,7 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 		case obj.R_CALLARM64:
 			r.Done = 0
 			r.Xsym = r.Sym
-			*val = int64(0xfc000000 & uint32(r.Add))
-			r.Xadd = int64((uint32(r.Add) &^ 0xfc000000) * 4)
-			r.Add = 0
+			r.Xadd = r.Add
 			return 0
 		}
 	}
@@ -246,10 +248,15 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 			ld.Diag("program too large, address relocation distance = %d", t)
 		}
 
-		// the first instruction is always at the lower address, this is endian neutral;
-		// but note that o0 and o1 should still use the target endian.
-		o0 := ld.Thelinkarch.ByteOrder.Uint32(s.P[r.Off : r.Off+4])
-		o1 := ld.Thelinkarch.ByteOrder.Uint32(s.P[r.Off+4 : r.Off+8])
+		var o0, o1 uint32
+
+		if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
+			o0 = uint32(*val >> 32)
+			o1 = uint32(*val)
+		} else {
+			o0 = uint32(*val)
+			o1 = uint32(*val >> 32)
+		}
 
 		o0 |= (uint32((t>>12)&3) << 29) | (uint32((t>>12>>2)&0x7ffff) << 5)
 		o1 |= uint32(t&0xfff) << 10
@@ -263,7 +270,11 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 		return 0
 
 	case obj.R_CALLARM64:
-		*val = int64((0xfc000000 & uint32(r.Add)) | uint32((ld.Symaddr(r.Sym)+r.Add*4-(s.Value+int64(r.Off)))/4))
+		t := (ld.Symaddr(r.Sym) + r.Add) - (s.Value + int64(r.Off))
+		if t >= 1<<27 || t < -1<<27 {
+			ld.Diag("program too large, call relocation distance = %d", t)
+		}
+		*val |= (t >> 2) & 0x03ffffff
 		return 0
 	}
 
