@@ -134,9 +134,8 @@ func TestNilcheckDomOrder(t *testing.T) {
 	}
 }
 
-//TODO: Disabled until we track OpAddr constructed values
 // TestNilcheckAddr verifies that nilchecks of OpAddr constructed values are removed.
-func DISABLETestNilcheckAddr(t *testing.T) {
+func TestNilcheckAddr(t *testing.T) {
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
 	c := NewConfig("amd64", DummyFrontend{t})
 	fun := Fun(c, "entry",
@@ -146,6 +145,39 @@ func DISABLETestNilcheckAddr(t *testing.T) {
 			Goto("checkPtr")),
 		Bloc("checkPtr",
 			Valu("ptr1", OpAddr, ptrType, 0, nil, "sb"),
+			Valu("bool1", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
+			If("bool1", "extra", "exit")),
+		Bloc("extra",
+			Goto("exit")),
+		Bloc("exit",
+			Exit("mem")))
+
+	CheckFunc(fun.f)
+	nilcheckelim(fun.f)
+
+	// clean up the removed nil check
+	fuse(fun.f)
+	deadcode(fun.f)
+
+	CheckFunc(fun.f)
+	for _, b := range fun.f.Blocks {
+		if b == fun.blocks["checkPtr"] && isNilCheck(b) {
+			t.Errorf("checkPtr was not eliminated")
+		}
+	}
+}
+
+// TestNilcheckAddPtr verifies that nilchecks of OpAddPtr constructed values are removed.
+func TestNilcheckAddPtr(t *testing.T) {
+	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+	c := NewConfig("amd64", DummyFrontend{t})
+	fun := Fun(c, "entry",
+		Bloc("entry",
+			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+			Valu("sb", OpSB, TypeInvalid, 0, nil),
+			Goto("checkPtr")),
+		Bloc("checkPtr",
+			Valu("ptr1", OpAddPtr, ptrType, 0, nil, "sb"),
 			Valu("bool1", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
 			If("bool1", "extra", "exit")),
 		Bloc("extra",
