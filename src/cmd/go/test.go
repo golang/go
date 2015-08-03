@@ -220,6 +220,7 @@ const testFlag2 = `
 
 	-timeout t
 	    If a test runs longer than t, panic.
+	    The default is 10 minutes (10m).
 
 	-trace trace.out
 	    Write an execution trace to the specified file before exiting.
