@@ -441,6 +441,15 @@ func (c *gcControllerState) startCycle() {
 	// throughout the cycle.
 	c.revise()
 
+	if debug.gcpacertrace > 0 {
+		print("pacer: assist ratio=", c.assistRatio,
+			" (scan ", memstats.heap_scan>>20, " MB in ",
+			work.initialHeapLive>>20, "->",
+			c.heapGoal>>20, " MB)",
+			" workers=", c.dedicatedMarkWorkersNeeded,
+			"+", c.fractionalMarkWorkersNeeded, "\n")
+	}
+
 	// Set up a timer to revise periodically
 	c.reviseTimer.f = func(interface{}, uintptr) {
 		gcController.revise()
