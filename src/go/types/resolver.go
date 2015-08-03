@@ -7,7 +7,7 @@ package types
 import (
 	"fmt"
 	"go/ast"
-	exact "go/constant" // Renamed to reduce diffs from x/tools.  TODO: remove
+	"go/constant"
 	"go/token"
 	pathLib "path"
 	"strconv"
@@ -256,7 +256,7 @@ func (check *Checker) collectObjects() {
 
 							// declare all constants
 							for i, name := range s.Names {
-								obj := NewConst(name.Pos(), pkg, name.Name, nil, exact.MakeInt64(int64(iota)))
+								obj := NewConst(name.Pos(), pkg, name.Name, nil, constant.MakeInt64(int64(iota)))
 
 								var init ast.Expr
 								if i < len(last.Values) {

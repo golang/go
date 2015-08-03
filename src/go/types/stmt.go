@@ -9,7 +9,7 @@ package types
 import (
 	"fmt"
 	"go/ast"
-	exact "go/constant" // Renamed to reduce diffs from x/tools.  TODO: remove
+	"go/constant"
 	"go/token"
 )
 
@@ -402,9 +402,9 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		} else {
 			// spec: "A missing switch expression is
 			// equivalent to the boolean value true."
-			x.mode = constant
+			x.mode = constant_
 			x.typ = Typ[Bool]
-			x.val = exact.MakeBool(true)
+			x.val = constant.MakeBool(true)
 			x.expr = &ast.Ident{NamePos: s.Body.Lbrace, Name: "true"}
 		}
 
