@@ -28,10 +28,5 @@ func statUnix(fi os.FileInfo, h *Header) error {
 	h.AccessTime = statAtime(sys)
 	h.ChangeTime = statCtime(sys)
 	// TODO(bradfitz): major/minor device numbers?
-	if fi.Mode().IsRegular() && sys.Nlink > 1 {
-		h.Typeflag = TypeLink
-		h.Size = 0
-		// TODO(vbatts): Linkname?
-	}
 	return nil
 }
