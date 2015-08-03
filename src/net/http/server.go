@@ -880,17 +880,19 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 				discard = true
 			}
 		case *body:
+			bdy.mu.Lock()
 			switch {
 			case bdy.closed:
 				if !bdy.sawEOF {
 					// Body was closed in handler with non-EOF error.
 					w.closeAfterReply = true
 				}
-			case bdy.unreadDataSize() >= maxPostHandlerReadBytes:
+			case bdy.unreadDataSizeLocked() >= maxPostHandlerReadBytes:
 				tooBig = true
 			default:
 				discard = true
 			}
+			bdy.mu.Unlock()
 		default:
 			discard = true
 		}
