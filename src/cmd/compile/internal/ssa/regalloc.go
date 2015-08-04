@@ -351,7 +351,7 @@ func regalloc(f *Func) {
 		if b.Kind == BlockCall {
 			call = b.Control
 			if call != b.Values[len(b.Values)-1] {
-				b.Fatalf("call not at end of block %b %v", b, call)
+				b.Fatalf("call not at end of block %v %v", b, call)
 			}
 			b.Values = b.Values[:len(b.Values)-1]
 			// TODO: do this for all control types?
