@@ -129,9 +129,10 @@ const (
 	_RootData        = 0
 	_RootBss         = 1
 	_RootFinalizers  = 2
-	_RootSpans       = 3
-	_RootFlushCaches = 4
-	_RootCount       = 5
+	_RootSpans0      = 3
+	_RootSpansShards = 128
+	_RootFlushCaches = _RootSpans0 + _RootSpansShards
+	_RootCount       = _RootFlushCaches + 1
 
 	// sweepMinHeapDistance is a lower bound on the heap distance
 	// (in bytes) reserved for concurrent sweeping between GC

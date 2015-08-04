@@ -74,41 +74,18 @@ func markroot(desc *parfor, i uint32) {
 			scanblock(uintptr(unsafe.Pointer(&fb.fin[0])), uintptr(fb.cnt)*unsafe.Sizeof(fb.fin[0]), &finptrmask[0], &gcw)
 		}
 
-	case _RootSpans:
-		// mark MSpan.specials
-		sg := mheap_.sweepgen
-		for spanidx := uint32(0); spanidx < uint32(len(work.spans)); spanidx++ {
-			s := work.spans[spanidx]
-			if s.state != mSpanInUse {
-				continue
-			}
-			if !useCheckmark && s.sweepgen != sg {
-				// sweepgen was updated (+2) during non-checkmark GC pass
-				print("sweep ", s.sweepgen, " ", sg, "\n")
-				throw("gc: unswept span")
-			}
-			for sp := s.specials; sp != nil; sp = sp.next {
-				if sp.kind != _KindSpecialFinalizer {
-					continue
-				}
-				// don't mark finalized object, but scan it so we
-				// retain everything it points to.
-				spf := (*specialfinalizer)(unsafe.Pointer(sp))
-				// A finalizer can be set for an inner byte of an object, find object beginning.
-				p := uintptr(s.start<<_PageShift) + uintptr(spf.special.offset)/s.elemsize*s.elemsize
-				if gcphase != _GCscan {
-					scanobject(p, &gcw) // scanned during mark termination
-				}
-				scanblock(uintptr(unsafe.Pointer(&spf.fn)), ptrSize, &oneptrmask[0], &gcw)
-			}
-		}
-
 	case _RootFlushCaches:
 		if gcphase != _GCscan { // Do not flush mcaches during GCscan phase.
 			flushallmcaches()
 		}
 
 	default:
+		if _RootSpans0 <= i && i < _RootSpans0+_RootSpansShards {
+			// mark MSpan.specials
+			markrootSpans(&gcw, int(i)-_RootSpans0)
+			break
+		}
+
 		// the rest is scanning goroutine stacks
 		if uintptr(i-_RootCount) >= allglen {
 			throw("markroot: bad index")
@@ -134,6 +111,41 @@ func markroot(desc *parfor, i uint32) {
 	}
 
 	gcw.dispose()
+}
+
+// markrootSpans marks roots for one shard (out of _RootSpansShards)
+// of work.spans.
+//
+//go:nowritebarrier
+func markrootSpans(gcw *gcWork, shard int) {
+	sg := mheap_.sweepgen
+	startSpan := shard * len(work.spans) / _RootSpansShards
+	endSpan := (shard + 1) * len(work.spans) / _RootSpansShards
+	for spanidx := startSpan; spanidx < endSpan; spanidx++ {
+		s := work.spans[spanidx]
+		if s.state != mSpanInUse {
+			continue
+		}
+		if !useCheckmark && s.sweepgen != sg {
+			// sweepgen was updated (+2) during non-checkmark GC pass
+			print("sweep ", s.sweepgen, " ", sg, "\n")
+			throw("gc: unswept span")
+		}
+		for sp := s.specials; sp != nil; sp = sp.next {
+			if sp.kind != _KindSpecialFinalizer {
+				continue
+			}
+			// don't mark finalized object, but scan it so we
+			// retain everything it points to.
+			spf := (*specialfinalizer)(unsafe.Pointer(sp))
+			// A finalizer can be set for an inner byte of an object, find object beginning.
+			p := uintptr(s.start<<_PageShift) + uintptr(spf.special.offset)/s.elemsize*s.elemsize
+			if gcphase != _GCscan {
+				scanobject(p, gcw) // scanned during mark termination
+			}
+			scanblock(uintptr(unsafe.Pointer(&spf.fn)), ptrSize, &oneptrmask[0], gcw)
+		}
+	}
 }
 
 // gcAssistAlloc records and allocation of size bytes and, if
