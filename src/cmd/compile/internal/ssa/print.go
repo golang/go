@@ -42,6 +42,7 @@ func fprintFunc(w io.Writer, f *Func) {
 				fmt.Fprintln(w, v.LongString())
 				printed[v.ID] = true
 			}
+			fmt.Fprintln(w, "    "+b.LongString())
 			continue
 		}
 
