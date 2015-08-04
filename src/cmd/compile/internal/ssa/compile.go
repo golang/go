@@ -65,6 +65,7 @@ var passes = [...]pass{
 	{"generic deadcode", deadcode},
 	{"dse", dse},
 	{"fuse", fuse},
+	{"tighten", tighten}, // move values closer to their uses
 	{"lower", lower},
 	{"lowered cse", cse},
 	{"lowered deadcode", deadcode},
@@ -94,6 +95,11 @@ var passOrder = [...]constraint{
 	{"nilcheckelim", "generic deadcode"},
 	// nilcheckelim generates sequences of plain basic blocks
 	{"nilcheckelim", "fuse"},
+	// tighten should happen before lowering to avoid splitting naturally paired instructions such as CMP/SET
+	{"tighten", "lower"},
+	// tighten will be most effective when as many values have been removed as possible
+	{"generic deadcode", "tighten"},
+	{"generic cse", "tighten"},
 	// don't layout blocks until critical edges have been removed
 	{"critical", "layout"},
 	// regalloc requires the removal of all critical edges
