@@ -104,6 +104,7 @@ func genRules(arch arch) {
 	fmt.Fprintln(w, "// generated with: cd gen; go run *.go")
 	fmt.Fprintln(w, "package ssa")
 	fmt.Fprintf(w, "func rewriteValue%s(v *Value, config *Config) bool {\n", arch.name)
+	fmt.Fprintln(w, "b := v.Block")
 
 	// generate code for each rule
 	fmt.Fprintf(w, "switch v.Op {\n")
@@ -238,7 +239,7 @@ func genRules(arch arch) {
 
 			// Modify predecessor lists for no-longer-reachable blocks
 			for succ := range m {
-				fmt.Fprintf(w, "v.Block.Func.removePredecessor(b, %s)\n", succ)
+				fmt.Fprintf(w, "b.Func.removePredecessor(b, %s)\n", succ)
 			}
 
 			fmt.Fprintf(w, "b.Kind = %s\n", blockName(t[0], arch))
@@ -397,7 +398,7 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool) str
 	} else {
 		v = fmt.Sprintf("v%d", *alloc)
 		*alloc++
-		fmt.Fprintf(w, "%s := v.Block.NewValue0(v.Line, %s, TypeInvalid)\n", v, opName(s[0], arch))
+		fmt.Fprintf(w, "%s := b.NewValue0(v.Line, %s, TypeInvalid)\n", v, opName(s[0], arch))
 	}
 	for _, a := range s[1:] {
 		if a[0] == '<' {
