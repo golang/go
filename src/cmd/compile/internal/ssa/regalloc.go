@@ -440,6 +440,9 @@ func live(f *Func) [][]ID {
 			// Start with known live values at the end of the block
 			s.clear()
 			s.addAll(live[b.ID])
+			if b.Control != nil {
+				s.add(b.Control.ID)
+			}
 
 			// Propagate backwards to the start of the block
 			// Assumes Values have been scheduled.
@@ -456,7 +459,7 @@ func live(f *Func) [][]ID {
 			}
 
 			// for each predecessor of b, expand its list of live-at-end values
-			// inv: s contains the values live at the start of b (excluding phi inputs)
+			// invariant: s contains the values live at the start of b (excluding phi inputs)
 			for i, p := range b.Preds {
 				t.clear()
 				t.addAll(live[p.ID])
