@@ -68,6 +68,7 @@ var passes = [...]pass{
 	{"lower", lower},
 	{"lowered cse", cse},
 	{"lowered deadcode", deadcode},
+	{"checkLower", checkLower},
 	{"critical", critical}, // remove critical edges
 	{"layout", layout},     // schedule blocks
 	{"schedule", schedule}, // schedule values
@@ -101,6 +102,9 @@ var passOrder = [...]constraint{
 	{"schedule", "regalloc"},
 	// stack allocation requires register allocation
 	{"regalloc", "stackalloc"},
+	// checkLower must run after lowering & subsequent dead code elim
+	{"lower", "checkLower"},
+	{"lowered deadcode", "checkLower"},
 }
 
 func init() {

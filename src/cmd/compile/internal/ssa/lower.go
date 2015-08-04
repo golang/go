@@ -8,8 +8,13 @@ package ssa
 func lower(f *Func) {
 	// repeat rewrites until we find no more rewrites
 	applyRewrite(f, f.Config.lowerBlock, f.Config.lowerValue)
+}
 
-	// Check for unlowered opcodes, fail if we find one.
+// checkLower checks for unlowered opcodes and fails if we find one.
+func checkLower(f *Func) {
+	// Needs to be a separate phase because it must run after both
+	// lowering and a subsequent dead code elimination (because lowering
+	// rules may leave dead generic ops behind).
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if opcodeTable[v.Op].generic && v.Op != OpSP && v.Op != OpSB && v.Op != OpArg && v.Op != OpCopy && v.Op != OpPhi {

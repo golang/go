@@ -370,6 +370,7 @@ const (
 	OpStringMake
 	OpStringPtr
 	OpStringLen
+	OpITab
 	OpStoreReg
 	OpLoadReg
 	OpFwdRef
@@ -2771,6 +2772,10 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "StringLen",
+		generic: true,
+	},
+	{
+		name:    "ITab",
 		generic: true,
 	},
 	{

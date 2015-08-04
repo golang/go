@@ -1247,6 +1247,10 @@ func (s *state) expr(n *Node) *ssa.Value {
 			return s.constInt(Types[TINT], n.Left.Type.Bound)
 		}
 
+	case OITAB:
+		a := s.expr(n.Left)
+		return s.newValue1(ssa.OpITab, n.Type, a)
+
 	case OCALLFUNC, OCALLMETH:
 		left := n.Left
 		static := left.Op == ONAME && left.Class == PFUNC

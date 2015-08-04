@@ -1972,6 +1972,27 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto end22eaafbcfe70447f79d9b3e6cc395bbd
 	end22eaafbcfe70447f79d9b3e6cc395bbd:
 		;
+	case OpITab:
+		// match: (ITab (Load ptr mem))
+		// cond:
+		// result: (MOVQload ptr mem)
+		{
+			if v.Args[0].Op != OpLoad {
+				goto enda49fcae3630a097c78aa58189c90a97a
+			}
+			ptr := v.Args[0].Args[0]
+			mem := v.Args[0].Args[1]
+			v.Op = OpAMD64MOVQload
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(ptr)
+			v.AddArg(mem)
+			return true
+		}
+		goto enda49fcae3630a097c78aa58189c90a97a
+	enda49fcae3630a097c78aa58189c90a97a:
+		;
 	case OpIsInBounds:
 		// match: (IsInBounds idx len)
 		// cond:

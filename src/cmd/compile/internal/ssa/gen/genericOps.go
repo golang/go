@@ -244,6 +244,9 @@ var genericOps = []opData{
 	{name: "StringPtr"},  // ptr(arg0)
 	{name: "StringLen"},  // len(arg0)
 
+	// Interfaces
+	{name: "ITab"}, // arg0=interface, returns itable field
+
 	// Spill&restore ops for the register allocator.  These are
 	// semantically identical to OpCopy; they do not take/return
 	// stores like regular memory ops do.  We can get away without memory
