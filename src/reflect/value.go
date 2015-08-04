@@ -281,7 +281,7 @@ func (v Value) CanAddr() bool {
 // A Value can be changed only if it is addressable and was not
 // obtained by the use of unexported struct fields.
 // If CanSet returns false, calling Set or any type-specific
-// setter (e.g., SetBool, SetInt64) will panic.
+// setter (e.g., SetBool, SetInt) will panic.
 func (v Value) CanSet() bool {
 	return v.flag&(flagAddr|flagRO) == flagAddr
 }
