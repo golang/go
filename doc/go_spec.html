@@ -3341,7 +3341,8 @@ var v float32 = 1&lt;&lt;s   // illegal: 1 has type float32, cannot shift
 var w int64 = 1.0&lt;&lt;33  // 1.0&lt;&lt;33 is a constant shift expression
 </pre>
 
-<h3 id="Operator_precedence">Operator precedence</h3>
+
+<h4 id="Operator_precedence">Operator precedence</h4>
 <p>
 Unary operators have the highest precedence.
 As the  <code>++</code> and <code>--</code> operators form
@@ -3383,9 +3384,9 @@ x == y+1 &amp;&amp; &lt;-chanPtr &gt; 0
 <p>
 Arithmetic operators apply to numeric values and yield a result of the same
 type as the first operand. The four standard arithmetic operators (<code>+</code>,
-<code>-</code>,  <code>*</code>, <code>/</code>) apply to integer,
-floating-point, and complex types; <code>+</code> also applies
-to strings. All other arithmetic operators apply to integers only.
+<code>-</code>, <code>*</code>, <code>/</code>) apply to integer,
+floating-point, and complex types; <code>+</code> also applies to strings.
+The bitwise logical and shift operators apply to integers only.
 </p>
 
 <pre class="grammar">
@@ -3404,19 +3405,9 @@ to strings. All other arithmetic operators apply to integers only.
 &gt;&gt;   right shift            integer &gt;&gt; unsigned integer
 </pre>
 
-<p>
-Strings can be concatenated using the <code>+</code> operator
-or the <code>+=</code> assignment operator:
-</p>
 
-<pre>
-s := "hi" + string(c)
-s += " and good bye"
-</pre>
+<h4 id="Integer_operators">Integer operators</h4>
 
-<p>
-String addition creates a new string by concatenating the operands.
-</p>
 <p>
 For two integer values <code>x</code> and <code>y</code>, the integer quotient
 <code>q = x / y</code> and remainder <code>r = x % y</code> satisfy the following
@@ -3493,16 +3484,8 @@ follows:
                                       and  m = -1 for signed x
 </pre>
 
-<p>
-For floating-point and complex numbers,
-<code>+x</code> is the same as <code>x</code>,
-while <code>-x</code> is the negation of <code>x</code>.
-The result of a floating-point or complex division by zero is not specified beyond the
-IEEE-754 standard; whether a <a href="#Run_time_panics">run-time panic</a>
-occurs is implementation-specific.
-</p>
 
-<h3 id="Integer_overflow">Integer overflow</h3>
+<h4 id="Integer_overflow">Integer overflow</h4>
 
 <p>
 For unsigned integer values, the operations <code>+</code>,
@@ -3520,6 +3503,35 @@ by the signed integer representation, the operation, and its operands.
 No exception is raised as a result of overflow. A
 compiler may not optimize code under the assumption that overflow does
 not occur. For instance, it may not assume that <code>x &lt; x + 1</code> is always true.
+</p>
+
+
+<h4 id="Floating_point_operators">Floating-point operators</h4>
+
+<p>
+For floating-point and complex numbers,
+<code>+x</code> is the same as <code>x</code>,
+while <code>-x</code> is the negation of <code>x</code>.
+The result of a floating-point or complex division by zero is not specified beyond the
+IEEE-754 standard; whether a <a href="#Run_time_panics">run-time panic</a>
+occurs is implementation-specific.
+</p>
+
+
+<h4 id="String_concatenation">String concatenation</h4>
+
+<p>
+Strings can be concatenated using the <code>+</code> operator
+or the <code>+=</code> assignment operator:
+</p>
+
+<pre>
+s := "hi" + string(c)
+s += " and good bye"
+</pre>
+
+<p>
+String addition creates a new string by concatenating the operands.
 </p>
 
 
