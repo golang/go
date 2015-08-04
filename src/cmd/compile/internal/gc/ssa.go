@@ -20,7 +20,7 @@ import (
 // it will never return nil, and the bool can be removed.
 func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 	name := fn.Func.Nname.Sym.Name
-	usessa = strings.HasSuffix(name, "_ssa")
+	usessa = strings.HasSuffix(name, "_ssa") || name == os.Getenv("GOSSAFUNC")
 
 	if usessa {
 		fmt.Println("generating SSA for", name)
@@ -150,7 +150,7 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 
 	// TODO: enable codegen more broadly once the codegen stabilizes
 	// and runtime support is in (gc maps, write barriers, etc.)
-	return s.f, usessa || name == os.Getenv("GOSSAFUNC") || localpkg.Name == os.Getenv("GOSSAPKG")
+	return s.f, usessa || localpkg.Name == os.Getenv("GOSSAPKG")
 }
 
 type state struct {
