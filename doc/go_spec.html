@@ -2006,12 +2006,12 @@ _, y, _ := coord(p)  // coord() returns three values; only interested in y coord
 </pre>
 
 <p>
-Unlike regular variable declarations, a short variable declaration may redeclare variables provided they
-were originally declared earlier in the same block with the same type, and at
-least one of the non-<a href="#Blank_identifier">blank</a> variables is new.  As a consequence, redeclaration
-can only appear in a multi-variable short declaration.
-Redeclaration does not introduce a new
-variable; it just assigns a new value to the original.
+Unlike regular variable declarations, a short variable declaration may <i>redeclare</i>
+variables provided they were originally declared earlier in the same block
+(or the parameter lists if the block is the function body) with the same type, 
+and at least one of the non-<a href="#Blank_identifier">blank</a> variables is new.
+As a consequence, redeclaration can only appear in a multi-variable short declaration.
+Redeclaration does not introduce a new variable; it just assigns a new value to the original.
 </p>
 
 <pre>
