@@ -1373,6 +1373,40 @@ func TestRequestBodyReadErrorClosesConnection(t *testing.T) {
 	}
 }
 
+func TestInvalidTrailerClosesConnection(t *testing.T) {
+	defer afterTest(t)
+	for _, handler := range testHandlerBodyConsumers {
+		conn := new(testConn)
+		conn.readBuf.WriteString("POST /public HTTP/1.1\r\n" +
+			"Host: test\r\n" +
+			"Trailer: hack\r\n" +
+			"Transfer-Encoding: chunked\r\n" +
+			"\r\n" +
+			"3\r\n" +
+			"hax\r\n" +
+			"0\r\n" +
+			"I'm not a valid trailer\r\n" +
+			"GET /secret HTTP/1.1\r\n" +
+			"Host: test\r\n" +
+			"\r\n")
+
+		conn.closec = make(chan bool, 1)
+		ln := &oneConnListener{conn}
+		var numReqs int
+		go Serve(ln, HandlerFunc(func(_ ResponseWriter, req *Request) {
+			numReqs++
+			if strings.Contains(req.URL.Path, "secret") {
+				t.Errorf("Handler %s, Request for /secret encountered, should not have happened.", handler.name)
+			}
+			handler.f(req.Body)
+		}))
+		<-conn.closec
+		if numReqs != 1 {
+			t.Errorf("Handler %s: got %d reqs; want 1", handler.name, numReqs)
+		}
+	}
+}
+
 // slowTestConn is a net.Conn that provides a means to simulate parts of a
 // request being received piecemeal. Deadlines can be set and enforced in both
 // Read and Write.

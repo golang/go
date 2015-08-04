@@ -637,6 +637,12 @@ func (b *body) readLocked(p []byte) (n int, err error) {
 		if b.hdr != nil {
 			if e := b.readTrailer(); e != nil {
 				err = e
+				// Something went wrong in the trailer, we must not allow any
+				// further reads of any kind to succeed from body, nor any
+				// subsequent requests on the server connection. See
+				// golang.org/issue/12027
+				b.sawEOF = false
+				b.closed = true
 			}
 			b.hdr = nil
 		} else {
