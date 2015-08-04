@@ -137,6 +137,13 @@ func checkFunc(f *Func) {
 		}
 	}
 
+	for _, b := range f.Blocks {
+		if b.Control != nil {
+			if !valueMark[b.Control.ID] {
+				f.Fatalf("control value for %s is missing: %v", b, b.Control)
+			}
+		}
+	}
 	for _, id := range f.bid.free {
 		if blockMark[id] {
 			f.Fatalf("used block b%d in free list", id)
