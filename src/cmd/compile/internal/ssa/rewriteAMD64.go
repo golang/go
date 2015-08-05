@@ -8068,16 +8068,13 @@ func rewriteBlockAMD64(b *Block) bool {
 	end9bea9963c3c5dfb97249a5feb8287f94:
 		;
 		// match: (If cond yes no)
-		// cond: cond.Op == OpAMD64MOVBload
+		// cond:
 		// result: (NE (TESTB <TypeFlags> cond cond) yes no)
 		{
 			v := b.Control
 			cond := v
 			yes := b.Succs[0]
 			no := b.Succs[1]
-			if !(cond.Op == OpAMD64MOVBload) {
-				goto end7e22019fb0effc80f85c05ea30bdb5d9
-			}
 			b.Kind = BlockAMD64NE
 			v0 := b.NewValue0(v.Line, OpAMD64TESTB, TypeInvalid)
 			v0.Type = TypeFlags
@@ -8088,8 +8085,8 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Succs[1] = no
 			return true
 		}
-		goto end7e22019fb0effc80f85c05ea30bdb5d9
-	end7e22019fb0effc80f85c05ea30bdb5d9:
+		goto end012351592edfc708bd3181d7e53f3993
+	end012351592edfc708bd3181d7e53f3993:
 		;
 	case BlockAMD64LE:
 		// match: (LE (InvertFlags cmp) yes no)
