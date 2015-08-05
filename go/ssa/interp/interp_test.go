@@ -307,7 +307,7 @@ func TestTestdataFiles(t *testing.T) {
 // TestGorootTest runs the interpreter on $GOROOT/test/*.go.
 func TestGorootTest(t *testing.T) {
 	if testing.Short() {
-		return // too slow (~30s)
+		t.Skip() // too slow (~30s)
 	}
 
 	var failures []string
@@ -327,6 +327,10 @@ func TestGorootTest(t *testing.T) {
 
 // TestTestmainPackage runs the interpreter on a synthetic "testmain" package.
 func TestTestmainPackage(t *testing.T) {
+	if testing.Short() {
+		t.Skip() // too slow on some platforms
+	}
+
 	success := func(exitcode int, output string) error {
 		if exitcode == 0 {
 			return fmt.Errorf("unexpected success")
