@@ -241,7 +241,7 @@
 (If (SETBE cmp) yes no) -> (ULE cmp yes no)
 (If (SETA cmp) yes no) -> (UGT cmp yes no)
 (If (SETAE cmp) yes no) -> (UGE cmp yes no)
-(If cond yes no) && cond.Op == OpAMD64MOVBload -> (NE (TESTB <TypeFlags> cond cond) yes no)
+(If cond yes no) -> (NE (TESTB <TypeFlags> cond cond) yes no)
 
 (StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
 (ClosureCall [argwid] entry closure mem) -> (CALLclosure [argwid] entry closure mem)
