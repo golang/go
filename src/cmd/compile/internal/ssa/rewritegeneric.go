@@ -80,78 +80,82 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 	case OpCom16:
 		// match: (Com16 (Com16 x))
 		// cond:
-		// result: (Copy x)
+		// result: x
 		{
 			if v.Args[0].Op != OpCom16 {
-				goto end388d572e5a72fd87a07da5cab243ebdc
+				goto end1ea17710dd4dd7ba4e710e0e4c7b5a56
 			}
 			x := v.Args[0].Args[0]
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = x.Type
 			v.AddArg(x)
 			return true
 		}
-		goto end388d572e5a72fd87a07da5cab243ebdc
-	end388d572e5a72fd87a07da5cab243ebdc:
+		goto end1ea17710dd4dd7ba4e710e0e4c7b5a56
+	end1ea17710dd4dd7ba4e710e0e4c7b5a56:
 		;
 	case OpCom32:
 		// match: (Com32 (Com32 x))
 		// cond:
-		// result: (Copy x)
+		// result: x
 		{
 			if v.Args[0].Op != OpCom32 {
-				goto end5b2b3834acc7313649923604f685e7c5
+				goto end9a04ed536496e292c27bef4414128cbf
 			}
 			x := v.Args[0].Args[0]
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = x.Type
 			v.AddArg(x)
 			return true
 		}
-		goto end5b2b3834acc7313649923604f685e7c5
-	end5b2b3834acc7313649923604f685e7c5:
+		goto end9a04ed536496e292c27bef4414128cbf
+	end9a04ed536496e292c27bef4414128cbf:
 		;
 	case OpCom64:
 		// match: (Com64 (Com64 x))
 		// cond:
-		// result: (Copy x)
+		// result: x
 		{
 			if v.Args[0].Op != OpCom64 {
-				goto end6d6312f25d06a327d92f028b1ce50566
+				goto ended44e29d5968f0f7b86972b7bf417ab3
 			}
 			x := v.Args[0].Args[0]
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = x.Type
 			v.AddArg(x)
 			return true
 		}
-		goto end6d6312f25d06a327d92f028b1ce50566
-	end6d6312f25d06a327d92f028b1ce50566:
+		goto ended44e29d5968f0f7b86972b7bf417ab3
+	ended44e29d5968f0f7b86972b7bf417ab3:
 		;
 	case OpCom8:
 		// match: (Com8 (Com8 x))
 		// cond:
-		// result: (Copy x)
+		// result: x
 		{
 			if v.Args[0].Op != OpCom8 {
-				goto end70cbd85c4b8e82c170dba7c23f8bc0f3
+				goto end4d92ff3ba567d9afd38fc9ca113602ad
 			}
 			x := v.Args[0].Args[0]
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = x.Type
 			v.AddArg(x)
 			return true
 		}
-		goto end70cbd85c4b8e82c170dba7c23f8bc0f3
-	end70cbd85c4b8e82c170dba7c23f8bc0f3:
+		goto end4d92ff3ba567d9afd38fc9ca113602ad
+	end4d92ff3ba567d9afd38fc9ca113602ad:
 		;
 	case OpConstString:
 		// match: (ConstString {s})
@@ -716,11 +720,12 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 				goto end0d922460b7e5ca88324034f4bd6c027c
 			}
 			len := v.Args[0].Args[1]
-			v.Op = len.Op
-			v.AuxInt = len.AuxInt
-			v.Aux = len.Aux
+			v.Op = OpCopy
+			v.AuxInt = 0
+			v.Aux = nil
 			v.resetArgs()
-			v.AddArgs(len.Args...)
+			v.Type = len.Type
+			v.AddArg(len)
 			return true
 		}
 		goto end0d922460b7e5ca88324034f4bd6c027c
@@ -735,11 +740,12 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 				goto end061edc5d85c73ad909089af2556d9380
 			}
 			ptr := v.Args[0].Args[0]
-			v.Op = ptr.Op
-			v.AuxInt = ptr.AuxInt
-			v.Aux = ptr.Aux
+			v.Op = OpCopy
+			v.AuxInt = 0
+			v.Aux = nil
 			v.resetArgs()
-			v.AddArgs(ptr.Args...)
+			v.Type = ptr.Type
+			v.AddArg(ptr)
 			return true
 		}
 		goto end061edc5d85c73ad909089af2556d9380

@@ -71,12 +71,12 @@
 (ZeroExt32to64 x) -> (MOVLQZX x)
 
 // Because we ignore high parts of registers, truncates are just copies.
-(Trunc16to8 x) -> (Copy x)
-(Trunc32to8 x) -> (Copy x)
-(Trunc32to16 x) -> (Copy x)
-(Trunc64to8 x) -> (Copy x)
-(Trunc64to16 x) -> (Copy x)
-(Trunc64to32 x) -> (Copy x)
+(Trunc16to8 x) -> x
+(Trunc32to8 x) -> x
+(Trunc32to16 x) -> x
+(Trunc64to8 x) -> x
+(Trunc64to16 x) -> x
+(Trunc64to32 x) -> x
 
 // Lowering shifts
 // Unsigned shifts need to return 0 if shift amount is >= width of shifted value.
@@ -338,7 +338,7 @@
 // strength reduction
 (MULQconst [-1] x) -> (NEGQ x)
 (MULQconst [0] _) -> (MOVQconst [0])
-(MULQconst [1] x) -> (Copy x)
+(MULQconst [1] x) -> x
 (MULQconst [3] x) -> (LEAQ2 x x)
 (MULQconst [5] x) -> (LEAQ4 x x)
 (MULQconst [9] x) -> (LEAQ8 x x)
@@ -393,10 +393,10 @@
 (MOVQloadidx8 [off1] (ADDQconst [off2] ptr) idx mem) -> (MOVQloadidx8 [addOff(off1, off2)] ptr idx mem)
 (MOVQstoreidx8 [off1] (ADDQconst [off2] ptr) idx val mem) -> (MOVQstoreidx8 [addOff(off1, off2)] ptr idx val mem)
 
-(ADDQconst [0] x) -> (Copy x)
+(ADDQconst [0] x) -> x
 
 // lower Zero instructions with word sizes
-(Zero [0] _ mem) -> (Copy mem)
+(Zero [0] _ mem) -> mem
 (Zero [1] destptr mem) -> (MOVBstore destptr (MOVBconst <config.Frontend().TypeInt8()> [0]) mem)
 (Zero [2] destptr mem) -> (MOVWstore destptr (MOVWconst <config.Frontend().TypeInt16()> [0]) mem)
 (Zero [4] destptr mem) -> (MOVLstore destptr (MOVLconst <config.Frontend().TypeInt32()> [0]) mem)
@@ -440,14 +440,14 @@
 (ANDLconst [c] _) && int32(c)==0  -> (MOVLconst [0])
 (ANDWconst [c] _) && int16(c)==0  -> (MOVWconst [0])
 (ANDBconst [c] _) && int8(c)==0   -> (MOVBconst [0])
-(ANDQconst [-1] x)                -> (Copy x)
-(ANDLconst [c] x) && int32(c)==-1 -> (Copy x)
-(ANDWconst [c] x) && int16(c)==-1 -> (Copy x)
-(ANDBconst [c] x) && int8(c)==-1  -> (Copy x)
-(ORQconst [0] x)                  -> (Copy x)
-(ORLconst [c] x) && int32(c)==0   -> (Copy x)
-(ORWconst [c] x) && int16(c)==0   -> (Copy x)
-(ORBconst [c] x) && int8(c)==0    -> (Copy x)
+(ANDQconst [-1] x)                -> x
+(ANDLconst [c] x) && int32(c)==-1 -> x
+(ANDWconst [c] x) && int16(c)==-1 -> x
+(ANDBconst [c] x) && int8(c)==-1  -> x
+(ORQconst [0] x)                  -> x
+(ORLconst [c] x) && int32(c)==0   -> x
+(ORWconst [c] x) && int16(c)==0   -> x
+(ORBconst [c] x) && int8(c)==0    -> x
 (ORQconst [-1] _)                 -> (MOVQconst [-1])
 (ORLconst [c] _) && int32(c)==-1  -> (MOVLconst [-1])
 (ORWconst [c] _) && int16(c)==-1  -> (MOVWconst [-1])
@@ -505,14 +505,14 @@
 (SUBL x x) -> (MOVLconst [0])
 (SUBW x x) -> (MOVWconst [0])
 (SUBB x x) -> (MOVBconst [0])
-(ANDQ x x) -> (Copy x)
-(ANDL x x) -> (Copy x)
-(ANDW x x) -> (Copy x)
-(ANDB x x) -> (Copy x)
-(ORQ x x) -> (Copy x)
-(ORL x x) -> (Copy x)
-(ORW x x) -> (Copy x)
-(ORB x x) -> (Copy x)
+(ANDQ x x) -> x
+(ANDL x x) -> x
+(ANDW x x) -> x
+(ANDB x x) -> x
+(ORQ x x) -> x
+(ORL x x) -> x
+(ORW x x) -> x
+(ORB x x) -> x
 (XORQ x x) -> (MOVQconst [0])
 (XORL x x) -> (MOVLconst [0])
 (XORW x x) -> (MOVWconst [0])
