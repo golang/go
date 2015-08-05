@@ -8,7 +8,8 @@ package ssa
 // This can reduce the amount of register spilling required,
 // if it doesn't also create more live values.
 // For now, it handles only the trivial case in which a
-// Value with one or fewer args is only used in a single Block.
+// Value with one or fewer args is only used in a single Block,
+// and not in a phi value.
 // TODO: Do something smarter.
 // A Value can be moved to any block that
 // dominates all blocks in which it is used.
@@ -16,6 +17,9 @@ package ssa
 func tighten(f *Func) {
 	// For each value, the number of blocks in which it is used.
 	uses := make([]int, f.NumValues())
+
+	// For each value, whether that value is ever an arg to a phi value.
+	phi := make([]bool, f.NumValues())
 
 	// For each value, one block in which that value is used.
 	home := make([]*Block, f.NumValues())
@@ -28,11 +32,15 @@ func tighten(f *Func) {
 		for i := range uses {
 			uses[i] = 0
 		}
-		// No need to reset home; any relevant values will be written anew anyway
+		// No need to reset home; any relevant values will be written anew anyway.
+		// No need to reset phi; once used in a phi, always used in a phi.
 
 		for _, b := range f.Blocks {
 			for _, v := range b.Values {
 				for _, w := range v.Args {
+					if v.Op == OpPhi {
+						phi[w.ID] = true
+					}
 					uses[w.ID]++
 					home[w.ID] = b
 				}
@@ -49,7 +57,7 @@ func tighten(f *Func) {
 				if v.Op == OpPhi {
 					continue
 				}
-				if uses[v.ID] == 1 && home[v.ID] != b && len(v.Args) < 2 {
+				if uses[v.ID] == 1 && !phi[v.ID] && home[v.ID] != b && len(v.Args) < 2 {
 					// v is used in exactly one block, and it is not b.
 					// Furthermore, it takes at most one input,
 					// so moving it will not increase the
