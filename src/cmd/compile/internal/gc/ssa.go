@@ -2398,8 +2398,14 @@ func regMoveAMD64(width int64) int {
 // regnum returns the register (in cmd/internal/obj numbering) to
 // which v has been allocated.  Panics if v is not assigned to a
 // register.
+// TODO: Make this panic again once it stops happening routinely.
 func regnum(v *ssa.Value) int16 {
-	return ssaRegToReg[v.Block.Func.RegAlloc[v.ID].(*ssa.Register).Num]
+	reg := v.Block.Func.RegAlloc[v.ID]
+	if reg == nil {
+		v.Unimplementedf("nil regnum for value: %s\n%s\n", v.LongString(), v.Block.Func)
+		return 0
+	}
+	return ssaRegToReg[reg.(*ssa.Register).Num]
 }
 
 // localOffset returns the offset below the frame pointer where
@@ -2410,7 +2416,7 @@ func localOffset(v *ssa.Value) int64 {
 	reg := v.Block.Func.RegAlloc[v.ID]
 	slot, ok := reg.(*ssa.LocalSlot)
 	if !ok {
-		v.Unimplementedf("localOffset of non-LocalSlot value: %s", v.LongString())
+		v.Unimplementedf("localOffset of non-LocalSlot value: %s\n%s\n", v.LongString(), v.Block.Func)
 		return 0
 	}
 	return slot.Idx
