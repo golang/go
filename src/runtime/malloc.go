@@ -702,7 +702,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 	}
 
 	if shouldhelpgc && shouldtriggergc() {
-		startGC(gcBackgroundMode)
+		startGC(gcBackgroundMode, false)
 	} else if gcBlackenEnabled != 0 {
 		// Assist garbage collector. We delay this until the
 		// epilogue so that it doesn't interfere with the

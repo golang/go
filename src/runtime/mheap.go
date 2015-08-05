@@ -836,7 +836,7 @@ func mHeap_Scavenge(k int32, now, limit uint64) {
 
 //go:linkname runtime_debug_freeOSMemory runtime/debug.freeOSMemory
 func runtime_debug_freeOSMemory() {
-	startGC(gcForceBlockMode)
+	startGC(gcForceBlockMode, false)
 	systemstack(func() { mHeap_Scavenge(-1, ^uint64(0), 0) })
 }
 
