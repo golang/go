@@ -811,7 +811,7 @@ var work struct {
 // garbage collection is complete. It may also block the entire
 // program.
 func GC() {
-	startGC(gcForceBlockMode)
+	startGC(gcForceBlockMode, false)
 }
 
 const (
@@ -820,7 +820,12 @@ const (
 	gcForceBlockMode        // stop-the-world GC now and wait for sweep
 )
 
-func startGC(mode int) {
+// startGC starts a GC cycle. If mode is gcBackgroundMode, this will
+// start GC in the background and return. Otherwise, this will block
+// until the new GC cycle is started and finishes. If forceTrigger is
+// true, it indicates that GC should be started regardless of the
+// current heap size.
+func startGC(mode int, forceTrigger bool) {
 	// The gc is turned off (via enablegc) until the bootstrap has completed.
 	// Also, malloc gets called in the guts of a number of libraries that might be
 	// holding locks. To avoid deadlocks during stop-the-world, don't bother
@@ -853,7 +858,7 @@ func startGC(mode int) {
 	// recheck that this really should trigger GC. (For example,
 	// we may have gone through a whole GC cycle since the
 	// speculative check.)
-	if !shouldtriggergc() {
+	if !(forceTrigger || shouldtriggergc()) {
 		unlock(&bggc.lock)
 		return
 	}
