@@ -245,6 +245,44 @@ function toggleHash() {
     }
 }
 
+function personalizeInstallInstructions() {
+  var prefix = '?download=';
+  var s = window.location.search;
+  if (!s.startsWith(prefix)) {
+    // No 'download' query string; bail.
+    return;
+  }
+
+  var filename = s.substr(prefix.length);
+  var filenameRE = /^go1\.\d+(\.\d+)?([a-z0-9]+)?\.([a-z0-9]+)-([a-z0-9]+)\.(.+)$/
+  $('.downloadFilename').text(filename);
+  $('.hideFromDownload').hide();
+  var m = filenameRE.exec(filename);
+  if (!m) {
+    // Can't interpret file name; bail.
+    return;
+  }
+
+  var os = m[3];
+  var ext = m[5];
+  if (ext != 'tar.gz') {
+    $('#tarballInstructions').hide();
+  }
+  if (os != 'darwin' || ext != 'pkg') {
+    $('#darwinPackageInstructions').hide();
+  }
+  if (os != 'windows') {
+    $('#windowsInstructions').hide();
+  } else {
+    if (ext != 'msi') {
+      $('#windowsInstallerInstructions').hide();
+    }
+    if (ext != 'zip') {
+      $('#windowsZipInstructions').hide();
+    }
+  }
+}
+
 $(document).ready(function() {
   bindSearchEvents();
   generateTOC();
@@ -260,6 +298,7 @@ $(document).ready(function() {
   setupTypeInfo();
   setupCallgraphs();
   toggleHash();
+  personalizeInstallInstructions();
 
   // godoc.html defines window.initFuncs in the <head> tag, and root.html and
   // codewalk.js push their on-page-ready functions to the list.
