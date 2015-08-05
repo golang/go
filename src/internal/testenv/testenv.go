@@ -11,10 +11,19 @@
 package testenv
 
 import (
+	"os"
 	"runtime"
 	"strings"
 	"testing"
 )
+
+// Builder reports the name of the builder running this test
+// (for example, "linux-amd64" or "windows-386-gce").
+// If the test is not running on the build infrastructure,
+// Builder returns the empty string.
+func Builder() string {
+	return os.Getenv("GO_BUILDER_NAME")
+}
 
 // HasGoBuild reports whether the current system can build programs with ``go build''
 // and then run them with os.StartProcess or exec.Command.
