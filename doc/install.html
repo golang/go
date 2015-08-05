@@ -3,10 +3,12 @@
 	"Path":  "/doc/install"
 }-->
 
+<div class="hideFromDownload">
+
 <h2 id="download">Download the Go distribution</h2>
 
 <p>
-<a href="https://golang.org/dl/" id="start" class="download" target="_blank">
+<a href="https://golang.org/dl/" id="start" class="download">
 <span class="big">Download Go</span>
 <span class="desc">Click here to visit the downloads page</span>
 </a>
@@ -60,6 +62,8 @@ installed Xcode 4.3+, you can install it from the Components tab of the
 Downloads preferences panel.
 </p>
 
+</div><!-- hideFromDownload -->
+
 
 <h2 id="install">Install the Go tools</h2>
 
@@ -67,6 +71,8 @@ Downloads preferences panel.
 If you are upgrading from an older version of Go you must
 first <a href="#uninstall">remove the existing version</a>.
 </p>
+
+<div id="tarballInstructions">
 
 <h3 id="tarball">Linux, Mac OS X, and FreeBSD tarballs</h3>
 
@@ -77,10 +83,10 @@ and extract it into <code>/usr/local</code>, creating a Go tree in
 </p>
 
 <pre>
-tar -C /usr/local -xzf go$VERSION.$OS-$ARCH.tar.gz
+tar -C /usr/local -xzf <span class="downloadFilename">go$VERSION.$OS-$ARCH.tar.gz</span>
 </pre>
 
-<p>
+<p class="hideFromDownload">
 Choose the archive file appropriate for your installation.
 For instance, if you are installing Go version 1.2.1 for 64-bit x86 on Linux,
 the archive you want is called <code>go1.2.1.linux-amd64.tar.gz</code>.
@@ -125,6 +131,10 @@ export PATH=$PATH:$GOROOT/bin
 location.
 </p>
 
+</div><!-- tarballInstructions -->
+
+<div id="darwinPackageInstructions">
+
 <h3 id="osx">Mac OS X package installer</h3>
 
 <p>
@@ -139,14 +149,20 @@ The package should put the <code>/usr/local/go/bin</code> directory in your
 Terminal sessions for the change to take effect.
 </p>
 
+</div><!-- darwinPackageInstructions -->
+
+<div id="windowsInstructions">
+
 <h3 id="windows">Windows</h3>
 
-<p>
+<p class="hideFromDownload">
 The Go project provides two installation options for Windows users
 (besides <a href="/doc/install/source">installing from source</a>):
 a zip archive that requires you to set some environment variables and an
 MSI installer that configures your installation automatically.
 </p>
+
+<div id="windowsInstallerInstructions">
 
 <h4 id="windows_msi">MSI installer</h4>
 
@@ -161,6 +177,10 @@ The installer should put the <code>c:\Go\bin</code> directory in your
 <code>PATH</code> environment variable. You may need to restart any open
 command prompts for the change to take effect.
 </p>
+
+</div><!-- windowsInstallerInstructions -->
+
+<div id="windowsZipInstructions">
 
 <h4 id="windows_zip">Zip archive</h4>
 
@@ -177,6 +197,8 @@ you must set the <code>GOROOT</code> environment variable to your chosen path.
 Add the <code>bin</code> subdirectory of your Go root (for example, <code>c:\Go\bin</code>) to your <code>PATH</code> environment variable.
 </p>
 
+</div><!-- windowsZipInstructions -->
+
 <h4 id="windows_env">Setting environment variables under Windows</h4>
 
 <p>
@@ -186,15 +208,38 @@ versions of Windows provide this control panel through the "Advanced System
 Settings" option inside the "System" control panel.
 </p>
 
+</div><!-- windowsInstructions -->
+
 
 <h2 id="testing">Test your installation</h2>
 
 <p>
-Check that Go is installed correctly by building a simple program, as follows.
+Check that Go is installed correctly by setting up a workspace
+and building a simple program, as follows.
 </p>
 
 <p>
-Create a file named <code>hello.go</code> and put the following program in it:
+Create a directory to contain your <a href="code.html#Workspaces">workspace</a>,
+<code>$HOME/work</code> for example, and set the <code>GOPATH</code> environment
+variable to point to that location.
+</p>
+
+<pre>
+$ <b>export GOPATH=$HOME/work</b>
+</pre>
+
+<p>
+You should put the above command in your shell startup script
+(<code>$HOME/.profile</code> for example) or, if you use Windows,
+follow the <a href="#windows_env">instructions above</a> to set the
+<code>GOPATH</code> environment variable on your system.
+</p>
+
+<p>
+Next, make the directories <code>src/github.com/user/hello</code> inside your
+workspace (if you use GitHub, substitute your user name for <code>user</code>),
+and inside the <code>hello</code> directory create a file named <code>hello.go</code>
+with the following contents:
 </p>
 
 <pre>
@@ -208,11 +253,21 @@ func main() {
 </pre>
 
 <p>
-Then run it with the <code>go</code> tool:
+Then compile it with the <code>go</code> tool:
 </p>
 
 <pre>
-$ go run hello.go
+$ <b>go install github.com/user/hello</b>
+</pre>
+
+<p>
+The above command will put an executable command named <code>hello</code> 
+(or <code>hello.exe</code>) inside the <code>bin</code> directory of your workspace.
+Execute the command to see the greeting:
+</p>
+
+<pre>
+$ <b>$GOPATH/bin/hello</b>
 hello, world
 </pre>
 
@@ -220,17 +275,10 @@ hello, world
 If you see the "hello, world" message then your Go installation is working.
 </p>
 
-
-<h2 id="gopath">Set up your work environment</h2>
-
 <p>
-You're almost done.
-You just need to set up your environment.
-</p>
-
-<p>
-Read the <a href="/doc/code.html">How to Write Go Code</a> document,
-which provides <b>essential setup instructions</b> for using the Go tools.
+Before rushing off to write Go code please read the
+<a href="/doc/code.html">How to Write Go Code</a> document,
+which describes some essential concepts about using the Go tools.
 </p>
 
 
