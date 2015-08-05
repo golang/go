@@ -24,17 +24,16 @@ import (
 	"time"
 )
 
-// Whether we can run go or ./testgo.
-var canRun = true
+var (
+	canRun  = true  // whether we can run go or ./testgo
+	canRace = false // whether we can run the race detector
+	canCgo  = false // whether we can use cgo
 
-// The suffix for executables, because Windows.
-var exeSuffix string
+	exeSuffix string // ".exe" on Windows
 
-// Whether we can run the race detector.
-var canRace bool
-
-// Whether we can use cgo.
-var canCgo bool
+	builder             = testenv.Builder()
+	skipExternalBuilder = false // skip external tests on this builder
+)
 
 func init() {
 	switch runtime.GOOS {
@@ -45,6 +44,11 @@ func init() {
 		case "arm", "arm64":
 			canRun = false
 		}
+	}
+
+	if strings.HasPrefix(builder+"-", "freebsd-arm-") {
+		skipExternalBuilder = true
+		canRun = false
 	}
 
 	switch runtime.GOOS {
@@ -133,6 +137,10 @@ type testgoData struct {
 // testgo sets up for a test that runs testgo.
 func testgo(t *testing.T) *testgoData {
 	testenv.MustHaveGoBuild(t)
+
+	if skipExternalBuilder {
+		t.Skip("skipping external tests on %s builder", builder)
+	}
 
 	return &testgoData{t: t}
 }
