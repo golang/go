@@ -5,13 +5,18 @@
 
 set -e
 
-eval $(go tool dist env)
+if [ ! -f run.bash ]; then
+	echo 'clean.bash must be run from $GOROOT/src' 1>&2
+	exit 1
+fi
+export GOROOT="$(cd .. && pwd)"
 
-if [ ! -x $GOTOOLDIR/dist ]; then
-	echo 'cannot find $GOTOOLDIR/dist; nothing to clean' >&2
+gobin="${GOBIN:-../bin}"
+if ! "$gobin"/go help >/dev/null 2>&1; then
+	echo 'cannot find go command; nothing to clean' >&2
 	exit 1
 fi
 
-"$GOBIN/go" clean -i std
-"$GOBIN/go" tool dist clean
-"$GOBIN/go" clean -i cmd
+"$gobin/go" clean -i std
+"$gobin/go" tool dist clean
+"$gobin/go" clean -i cmd
