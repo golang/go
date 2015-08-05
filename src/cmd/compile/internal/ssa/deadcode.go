@@ -6,7 +6,6 @@ package ssa
 
 // deadcode removes dead code from f.
 func deadcode(f *Func) {
-
 	// Find all reachable basic blocks.
 	reachable := make([]bool, f.NumBlocks())
 	reachable[f.Entry.ID] = true
@@ -85,6 +84,11 @@ func deadcode(f *Func) {
 			if len(b.Values) > 0 {
 				b.Fatalf("live values in unreachable block %v: %v", b, b.Values)
 			}
+			s := b.Succs
+			b.Succs = nil
+			for _, c := range s {
+				f.removePredecessor(b, c)
+			}
 			f.bid.put(b.ID)
 		}
 	}
@@ -108,13 +112,21 @@ func (f *Func) removePredecessor(b, c *Block) {
 		b, c := work[0][0], work[0][1]
 		work = work[1:]
 
-		// find index of b in c's predecessor list
+		// Find index of b in c's predecessor list
+		// TODO: This could conceivably cause O(n^2) work.  Imagine a very
+		// wide phi in (for example) the return block.  If we determine that
+		// lots of panics won't happen, we remove each edge at a cost of O(n) each.
 		var i int
+		found := false
 		for j, p := range c.Preds {
 			if p == b {
 				i = j
+				found = true
 				break
 			}
+		}
+		if !found {
+			f.Fatalf("can't find predecessor %v of %v\n", b, c)
 		}
 
 		n := len(c.Preds) - 1
