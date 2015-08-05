@@ -819,7 +819,7 @@ function personalizeInstallInstructions() {
   }
 
   var filename = s.substr(prefix.length);
-  var filenameRE = /^go1\.\d+(\.\d+)?([a-z0-9]+)?\.([a-z0-9]+)(-[a-z0-9-.]+)?\.([a-z.]+)$/;
+  var filenameRE = /^go1\.\d+(\.\d+)?([a-z0-9]+)?\.([a-z0-9]+)-([a-z0-9]+)(-osx10\.[68])?\.([a-z.]+)$/;
   $('.downloadFilename').text(filename);
   $('.hideFromDownload').hide();
   var m = filenameRE.exec(filename);
@@ -829,7 +829,7 @@ function personalizeInstallInstructions() {
   }
 
   var os = m[3];
-  var ext = m[5];
+  var ext = m[6];
   if (ext != 'tar.gz') {
     $('#tarballInstructions').hide();
   }
