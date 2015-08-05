@@ -199,6 +199,37 @@ func TestHugeGCInfo(t *testing.T) {
 	}
 }
 
+func TestPeriodicGC(t *testing.T) {
+	// Make sure we're not in the middle of a GC.
+	runtime.GC()
+
+	var ms1, ms2 runtime.MemStats
+	runtime.ReadMemStats(&ms1)
+
+	// Make periodic GC run continuously.
+	orig := *runtime.ForceGCPeriod
+	*runtime.ForceGCPeriod = 0
+
+	// Let some periodic GCs happen. In a heavily loaded system,
+	// it's possible these will be delayed, so this is designed to
+	// succeed quickly if things are working, but to give it some
+	// slack if things are slow.
+	var numGCs uint32
+	const want = 2
+	for i := 0; i < 20 && numGCs < want; i++ {
+		time.Sleep(5 * time.Millisecond)
+
+		// Test that periodic GC actually happened.
+		runtime.ReadMemStats(&ms2)
+		numGCs = ms2.NumGC - ms1.NumGC
+	}
+	*runtime.ForceGCPeriod = orig
+
+	if numGCs < want {
+		t.Fatalf("no periodic GC: got %v GCs, want >= 2", numGCs)
+	}
+}
+
 func BenchmarkSetTypePtr(b *testing.B) {
 	benchSetType(b, new(*byte))
 }
