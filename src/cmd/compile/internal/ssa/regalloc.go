@@ -101,7 +101,8 @@ func regalloc(f *Func) {
 
 	var oldSched []*Value
 
-	// Hack to find sp and sb Values and assign them a register. (TODO: make not so hacky)
+	// Hack to find sp and sb Values and assign them a register.
+	// TODO: make not so hacky; update the tighten pass when this is done
 	var sp, sb *Value
 	for _, v := range f.Entry.Values {
 		switch v.Op {
