@@ -164,7 +164,7 @@ var pkgDeps = map[string][]string{
 	"testing":          {"L2", "flag", "fmt", "os", "runtime/pprof", "runtime/trace", "time"},
 	"testing/iotest":   {"L2", "log"},
 	"testing/quick":    {"L2", "flag", "fmt", "reflect"},
-	"internal/testenv": {"L2", "testing"},
+	"internal/testenv": {"L2", "os", "testing"},
 
 	// L4 is defined as L3+fmt+log+time, because in general once
 	// you're using L3 packages, use of fmt, log, or time is not a big deal.
