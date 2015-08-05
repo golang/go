@@ -376,11 +376,15 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool) str
 	if result[0] != '(' {
 		// variable
 		if top {
-			fmt.Fprintf(w, "v.Op = %s.Op\n", result)
-			fmt.Fprintf(w, "v.AuxInt = %s.AuxInt\n", result)
-			fmt.Fprintf(w, "v.Aux = %s.Aux\n", result)
+			// It in not safe in general to move a variable between blocks
+			// (and particularly not a phi node).
+			// Introduce a copy.
+			fmt.Fprintf(w, "v.Op = OpCopy\n")
+			fmt.Fprintf(w, "v.AuxInt = 0\n")
+			fmt.Fprintf(w, "v.Aux = nil\n")
 			fmt.Fprintf(w, "v.resetArgs()\n")
-			fmt.Fprintf(w, "v.AddArgs(%s.Args...)\n", result)
+			fmt.Fprintf(w, "v.Type = %s.Type\n", result)
+			fmt.Fprintf(w, "v.AddArg(%s)\n", result)
 		}
 		return result
 	}

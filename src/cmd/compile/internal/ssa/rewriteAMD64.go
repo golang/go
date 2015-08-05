@@ -325,21 +325,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		;
 		// match: (ADDQconst [0] x)
 		// cond:
-		// result: (Copy x)
+		// result: x
 		{
 			if v.AuxInt != 0 {
-				goto end288952f259d4a1842f1e8d5c389b3f28
+				goto end03d9f5a3e153048b0afa781401e2a849
 			}
 			x := v.Args[0]
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = x.Type
 			v.AddArg(x)
 			return true
 		}
-		goto end288952f259d4a1842f1e8d5c389b3f28
-	end288952f259d4a1842f1e8d5c389b3f28:
+		goto end03d9f5a3e153048b0afa781401e2a849
+	end03d9f5a3e153048b0afa781401e2a849:
 		;
 		// match: (ADDQconst [c] (MOVQconst [d]))
 		// cond:
@@ -566,21 +567,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		;
 		// match: (ANDB x x)
 		// cond:
-		// result: (Copy x)
+		// result: x
 		{
 			x := v.Args[0]
 			if v.Args[1] != x {
-				goto end1c1e017efac06c84c72f2d09d6afadc0
+				goto endb8ff272a1456513da708603abe37541c
 			}
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = x.Type
 			v.AddArg(x)
 			return true
 		}
-		goto end1c1e017efac06c84c72f2d09d6afadc0
-	end1c1e017efac06c84c72f2d09d6afadc0:
+		goto endb8ff272a1456513da708603abe37541c
+	endb8ff272a1456513da708603abe37541c:
 		;
 	case OpAMD64ANDBconst:
 		// match: (ANDBconst [c] _)
@@ -603,22 +605,23 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		;
 		// match: (ANDBconst [c] x)
 		// cond: int8(c)==-1
-		// result: (Copy x)
+		// result: x
 		{
 			c := v.AuxInt
 			x := v.Args[0]
 			if !(int8(c) == -1) {
-				goto ende983ac58fd9834f2c8503e92e45d83db
+				goto enda0b78503c204c8225de1433949a71fe4
 			}
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = x.Type
 			v.AddArg(x)
 			return true
 		}
-		goto ende983ac58fd9834f2c8503e92e45d83db
-	ende983ac58fd9834f2c8503e92e45d83db:
+		goto enda0b78503c204c8225de1433949a71fe4
+	enda0b78503c204c8225de1433949a71fe4:
 		;
 		// match: (ANDBconst [c] (MOVBconst [d]))
 		// cond:
@@ -682,21 +685,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		;
 		// match: (ANDL x x)
 		// cond:
-		// result: (Copy x)
+		// result: x
 		{
 			x := v.Args[0]
 			if v.Args[1] != x {
-				goto end0ff7ad77f6811c422b0b588f48474ddc
+				goto enddfb08a0d0c262854db3905cb323388c7
 			}
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = x.Type
 			v.AddArg(x)
 			return true
 		}
-		goto end0ff7ad77f6811c422b0b588f48474ddc
-	end0ff7ad77f6811c422b0b588f48474ddc:
+		goto enddfb08a0d0c262854db3905cb323388c7
+	enddfb08a0d0c262854db3905cb323388c7:
 		;
 	case OpAMD64ANDLconst:
 		// match: (ANDLconst [c] _)
@@ -719,22 +723,23 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		;
 		// match: (ANDLconst [c] x)
 		// cond: int32(c)==-1
-		// result: (Copy x)
+		// result: x
 		{
 			c := v.AuxInt
 			x := v.Args[0]
 			if !(int32(c) == -1) {
-				goto enda670b6e074269a5e1fcbdaec05596a28
+				goto end0e852ae30bb8289d6ffee0c9267e3e0c
 			}
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = x.Type
 			v.AddArg(x)
 			return true
 		}
-		goto enda670b6e074269a5e1fcbdaec05596a28
-	enda670b6e074269a5e1fcbdaec05596a28:
+		goto end0e852ae30bb8289d6ffee0c9267e3e0c
+	end0e852ae30bb8289d6ffee0c9267e3e0c:
 		;
 		// match: (ANDLconst [c] (MOVLconst [d]))
 		// cond:
@@ -804,21 +809,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		;
 		// match: (ANDQ x x)
 		// cond:
-		// result: (Copy x)
+		// result: x
 		{
 			x := v.Args[0]
 			if v.Args[1] != x {
-				goto endb54d87d7a12ba29a9d19b808319ab055
+				goto end06b5ec19efdd4e79f03a5e4a2c3c3427
 			}
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = x.Type
 			v.AddArg(x)
 			return true
 		}
-		goto endb54d87d7a12ba29a9d19b808319ab055
-	endb54d87d7a12ba29a9d19b808319ab055:
+		goto end06b5ec19efdd4e79f03a5e4a2c3c3427
+	end06b5ec19efdd4e79f03a5e4a2c3c3427:
 		;
 	case OpAMD64ANDQconst:
 		// match: (ANDQconst [0] _)
@@ -840,21 +846,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		;
 		// match: (ANDQconst [-1] x)
 		// cond:
-		// result: (Copy x)
+		// result: x
 		{
 			if v.AuxInt != -1 {
-				goto end993d44ced14a02748f2d0e77230e8991
+				goto endb542c4b42ab94a7bedb32dec8f610d67
 			}
 			x := v.Args[0]
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = x.Type
 			v.AddArg(x)
 			return true
 		}
-		goto end993d44ced14a02748f2d0e77230e8991
-	end993d44ced14a02748f2d0e77230e8991:
+		goto endb542c4b42ab94a7bedb32dec8f610d67
+	endb542c4b42ab94a7bedb32dec8f610d67:
 		;
 		// match: (ANDQconst [c] (MOVQconst [d]))
 		// cond:
@@ -958,21 +965,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		;
 		// match: (ANDW x x)
 		// cond:
-		// result: (Copy x)
+		// result: x
 		{
 			x := v.Args[0]
 			if v.Args[1] != x {
-				goto end08c49eea4ac769acc212ebd833934be8
+				goto end3a26cf52dd1b77f07cc9e005760dbb11
 			}
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = x.Type
 			v.AddArg(x)
 			return true
 		}
-		goto end08c49eea4ac769acc212ebd833934be8
-	end08c49eea4ac769acc212ebd833934be8:
+		goto end3a26cf52dd1b77f07cc9e005760dbb11
+	end3a26cf52dd1b77f07cc9e005760dbb11:
 		;
 	case OpAMD64ANDWconst:
 		// match: (ANDWconst [c] _)
@@ -995,22 +1003,23 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		;
 		// match: (ANDWconst [c] x)
 		// cond: int16(c)==-1
-		// result: (Copy x)
+		// result: x
 		{
 			c := v.AuxInt
 			x := v.Args[0]
 			if !(int16(c) == -1) {
-				goto ende01402832ff041ac3e12fc077684125f
+				goto endfb111c3afa8c5c4040fa6000fadee810
 			}
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = x.Type
 			v.AddArg(x)
 			return true
 		}
-		goto ende01402832ff041ac3e12fc077684125f
-	ende01402832ff041ac3e12fc077684125f:
+		goto endfb111c3afa8c5c4040fa6000fadee810
+	endfb111c3afa8c5c4040fa6000fadee810:
 		;
 		// match: (ANDWconst [c] (MOVWconst [d]))
 		// cond:
@@ -3554,21 +3563,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		;
 		// match: (MULQconst [1] x)
 		// cond:
-		// result: (Copy x)
+		// result: x
 		{
 			if v.AuxInt != 1 {
-				goto endd7217a7c6311fc7a3e0736a1b0b5be73
+				goto end0b527e71db2b288b2841a1f757aa580d
 			}
 			x := v.Args[0]
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = x.Type
 			v.AddArg(x)
 			return true
 		}
-		goto endd7217a7c6311fc7a3e0736a1b0b5be73
-	endd7217a7c6311fc7a3e0736a1b0b5be73:
+		goto end0b527e71db2b288b2841a1f757aa580d
+	end0b527e71db2b288b2841a1f757aa580d:
 		;
 		// match: (MULQconst [3] x)
 		// cond:
@@ -4223,41 +4233,43 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		;
 		// match: (ORB x x)
 		// cond:
-		// result: (Copy x)
+		// result: x
 		{
 			x := v.Args[0]
 			if v.Args[1] != x {
-				goto endd53ede4886d67f4b4ae970316a2febb4
+				goto enddca5ce800a9eca157f243cb2fdb1408a
 			}
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = x.Type
 			v.AddArg(x)
 			return true
 		}
-		goto endd53ede4886d67f4b4ae970316a2febb4
-	endd53ede4886d67f4b4ae970316a2febb4:
+		goto enddca5ce800a9eca157f243cb2fdb1408a
+	enddca5ce800a9eca157f243cb2fdb1408a:
 		;
 	case OpAMD64ORBconst:
 		// match: (ORBconst [c] x)
 		// cond: int8(c)==0
-		// result: (Copy x)
+		// result: x
 		{
 			c := v.AuxInt
 			x := v.Args[0]
 			if !(int8(c) == 0) {
-				goto end3b9f6d1a1a523595d101f89410f453a1
+				goto end565f78e3a843dc73943b59227b39a1b3
 			}
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = x.Type
 			v.AddArg(x)
 			return true
 		}
-		goto end3b9f6d1a1a523595d101f89410f453a1
-	end3b9f6d1a1a523595d101f89410f453a1:
+		goto end565f78e3a843dc73943b59227b39a1b3
+	end565f78e3a843dc73943b59227b39a1b3:
 		;
 		// match: (ORBconst [c] _)
 		// cond: int8(c)==-1
@@ -4339,41 +4351,43 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		;
 		// match: (ORL x x)
 		// cond:
-		// result: (Copy x)
+		// result: x
 		{
 			x := v.Args[0]
 			if v.Args[1] != x {
-				goto end556b9151cacb9db2803373ce10829b2a
+				goto end2dd719b68f4938777ef0d820aab93659
 			}
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = x.Type
 			v.AddArg(x)
 			return true
 		}
-		goto end556b9151cacb9db2803373ce10829b2a
-	end556b9151cacb9db2803373ce10829b2a:
+		goto end2dd719b68f4938777ef0d820aab93659
+	end2dd719b68f4938777ef0d820aab93659:
 		;
 	case OpAMD64ORLconst:
 		// match: (ORLconst [c] x)
 		// cond: int32(c)==0
-		// result: (Copy x)
+		// result: x
 		{
 			c := v.AuxInt
 			x := v.Args[0]
 			if !(int32(c) == 0) {
-				goto end800adaf85f4201ebf7a0e38dc1768c86
+				goto end5b52623a724e8a7167c71289fb7192f1
 			}
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = x.Type
 			v.AddArg(x)
 			return true
 		}
-		goto end800adaf85f4201ebf7a0e38dc1768c86
-	end800adaf85f4201ebf7a0e38dc1768c86:
+		goto end5b52623a724e8a7167c71289fb7192f1
+	end5b52623a724e8a7167c71289fb7192f1:
 		;
 		// match: (ORLconst [c] _)
 		// cond: int32(c)==-1
@@ -4461,40 +4475,42 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		;
 		// match: (ORQ x x)
 		// cond:
-		// result: (Copy x)
+		// result: x
 		{
 			x := v.Args[0]
 			if v.Args[1] != x {
-				goto endcad306e115ea011a2a70f4e4e5440de4
+				goto end47a27d30b82db576978c5a3a57b520fb
 			}
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = x.Type
 			v.AddArg(x)
 			return true
 		}
-		goto endcad306e115ea011a2a70f4e4e5440de4
-	endcad306e115ea011a2a70f4e4e5440de4:
+		goto end47a27d30b82db576978c5a3a57b520fb
+	end47a27d30b82db576978c5a3a57b520fb:
 		;
 	case OpAMD64ORQconst:
 		// match: (ORQconst [0] x)
 		// cond:
-		// result: (Copy x)
+		// result: x
 		{
 			if v.AuxInt != 0 {
-				goto end98a286fc50bc6cf8ca9f5af523e2b5cd
+				goto end44534da6b9ce98d33fad7e20f0be1fbd
 			}
 			x := v.Args[0]
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = x.Type
 			v.AddArg(x)
 			return true
 		}
-		goto end98a286fc50bc6cf8ca9f5af523e2b5cd
-	end98a286fc50bc6cf8ca9f5af523e2b5cd:
+		goto end44534da6b9ce98d33fad7e20f0be1fbd
+	end44534da6b9ce98d33fad7e20f0be1fbd:
 		;
 		// match: (ORQconst [-1] _)
 		// cond:
@@ -4575,41 +4591,43 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		;
 		// match: (ORW x x)
 		// cond:
-		// result: (Copy x)
+		// result: x
 		{
 			x := v.Args[0]
 			if v.Args[1] != x {
-				goto end7c69794f4a3a6ada00bd868f743d86f8
+				goto endc6a23b64e541dc9cfc6a90fd7028e8c1
 			}
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = x.Type
 			v.AddArg(x)
 			return true
 		}
-		goto end7c69794f4a3a6ada00bd868f743d86f8
-	end7c69794f4a3a6ada00bd868f743d86f8:
+		goto endc6a23b64e541dc9cfc6a90fd7028e8c1
+	endc6a23b64e541dc9cfc6a90fd7028e8c1:
 		;
 	case OpAMD64ORWconst:
 		// match: (ORWconst [c] x)
 		// cond: int16(c)==0
-		// result: (Copy x)
+		// result: x
 		{
 			c := v.AuxInt
 			x := v.Args[0]
 			if !(int16(c) == 0) {
-				goto end61a4fd5308425b3eafd158f13aaf8f13
+				goto endbbbdec9091c8b4c58e587eac8a43402d
 			}
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = x.Type
 			v.AddArg(x)
 			return true
 		}
-		goto end61a4fd5308425b3eafd158f13aaf8f13
-	end61a4fd5308425b3eafd158f13aaf8f13:
+		goto endbbbdec9091c8b4c58e587eac8a43402d
+	endbbbdec9091c8b4c58e587eac8a43402d:
 		;
 		// match: (ORWconst [c] _)
 		// cond: int16(c)==-1
@@ -7326,98 +7344,104 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 	case OpTrunc16to8:
 		// match: (Trunc16to8 x)
 		// cond:
-		// result: (Copy x)
+		// result: x
 		{
 			x := v.Args[0]
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = x.Type
 			v.AddArg(x)
 			return true
 		}
-		goto end18a19bd8418f9079595720df0874e90a
-	end18a19bd8418f9079595720df0874e90a:
+		goto end8e2f5e0a6e3a06423c077747de6c2bdd
+	end8e2f5e0a6e3a06423c077747de6c2bdd:
 		;
 	case OpTrunc32to16:
 		// match: (Trunc32to16 x)
 		// cond:
-		// result: (Copy x)
+		// result: x
 		{
 			x := v.Args[0]
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = x.Type
 			v.AddArg(x)
 			return true
 		}
-		goto end217b00780a8b1139d068680ed9d61cb0
-	end217b00780a8b1139d068680ed9d61cb0:
+		goto end5bed0e3a3c1c6374d86beb5a4397708c
+	end5bed0e3a3c1c6374d86beb5a4397708c:
 		;
 	case OpTrunc32to8:
 		// match: (Trunc32to8 x)
 		// cond:
-		// result: (Copy x)
+		// result: x
 		{
 			x := v.Args[0]
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = x.Type
 			v.AddArg(x)
 			return true
 		}
-		goto end05d10e0a1c707d66b11b2d342634efd0
-	end05d10e0a1c707d66b11b2d342634efd0:
+		goto endef0b8032ce91979ce6cd0004260c04ee
+	endef0b8032ce91979ce6cd0004260c04ee:
 		;
 	case OpTrunc64to16:
 		// match: (Trunc64to16 x)
 		// cond:
-		// result: (Copy x)
+		// result: x
 		{
 			x := v.Args[0]
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = x.Type
 			v.AddArg(x)
 			return true
 		}
-		goto end4623ae65eb76feca3936354f22d45fa7
-	end4623ae65eb76feca3936354f22d45fa7:
+		goto endd32fd6e0ce970c212835e6f71c3dcbfd
+	endd32fd6e0ce970c212835e6f71c3dcbfd:
 		;
 	case OpTrunc64to32:
 		// match: (Trunc64to32 x)
 		// cond:
-		// result: (Copy x)
+		// result: x
 		{
 			x := v.Args[0]
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = x.Type
 			v.AddArg(x)
 			return true
 		}
-		goto end93e0b16b58a717a3e4f5c2ca67b6be87
-	end93e0b16b58a717a3e4f5c2ca67b6be87:
+		goto end1212c4e84153210aff7fd630fb3e1883
+	end1212c4e84153210aff7fd630fb3e1883:
 		;
 	case OpTrunc64to8:
 		// match: (Trunc64to8 x)
 		// cond:
-		// result: (Copy x)
+		// result: x
 		{
 			x := v.Args[0]
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = x.Type
 			v.AddArg(x)
 			return true
 		}
-		goto endc4c1a1b86edd0f082339d17eb5096ad0
-	endc4c1a1b86edd0f082339d17eb5096ad0:
+		goto end734f017d4b2810ca2288f7037365824c
+	end734f017d4b2810ca2288f7037365824c:
 		;
 	case OpAMD64XORB:
 		// match: (XORB x (MOVBconst [c]))
@@ -7816,21 +7840,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 	case OpZero:
 		// match: (Zero [0] _ mem)
 		// cond:
-		// result: (Copy mem)
+		// result: mem
 		{
 			if v.AuxInt != 0 {
-				goto endb85a34a7d102b0e0d801454f437db5bf
+				goto endc9a38a60f0322f93682daa824611272c
 			}
 			mem := v.Args[1]
 			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.Type = mem.Type
 			v.AddArg(mem)
 			return true
 		}
-		goto endb85a34a7d102b0e0d801454f437db5bf
-	endb85a34a7d102b0e0d801454f437db5bf:
+		goto endc9a38a60f0322f93682daa824611272c
+	endc9a38a60f0322f93682daa824611272c:
 		;
 		// match: (Zero [1] destptr mem)
 		// cond:
