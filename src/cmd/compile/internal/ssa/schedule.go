@@ -15,7 +15,7 @@ func schedule(f *Func) {
 	uses := make([]int, f.NumValues())
 
 	// "priority" for a value
-	score := make([]int, f.NumValues())
+	score := make([]uint8, f.NumValues())
 
 	// scheduling order.  We queue values in this list in reverse order.
 	var order []*Value
@@ -57,8 +57,9 @@ func schedule(f *Func) {
 				score[v.ID] = 1
 			}
 		}
-		if b.Control != nil {
-			// Force the control value to be scheduled at the end.
+		if b.Control != nil && b.Control.Op != OpPhi {
+			// Force the control value to be scheduled at the end,
+			// unless it is a phi value (which must be first).
 			score[b.Control.ID] = 3
 			// TODO: some times control values are used by other values
 			// in the block.  So the control value will not appear at
