@@ -137,11 +137,34 @@ func checkFunc(f *Func) {
 		}
 	}
 
+	// Check to make sure all Blocks referenced are in the function.
+	if !blockMark[f.Entry.ID] {
+		f.Fatalf("entry block %v is missing", f.Entry)
+	}
 	for _, b := range f.Blocks {
-		if b.Control != nil {
-			if !valueMark[b.Control.ID] {
-				f.Fatalf("control value for %s is missing: %v", b, b.Control)
+		for _, c := range b.Preds {
+			if !blockMark[c.ID] {
+				f.Fatalf("predecessor block %v for %v is missing", c, b)
 			}
+		}
+		for _, c := range b.Succs {
+			if !blockMark[c.ID] {
+				f.Fatalf("successor block %v for %v is missing", c, b)
+			}
+		}
+	}
+
+	// Check to make sure all Values referenced are in the function.
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			for i, a := range v.Args {
+				if !valueMark[a.ID] {
+					f.Fatalf("%v, arg %d of %v, is missing", a, i, v)
+				}
+			}
+		}
+		if b.Control != nil && !valueMark[b.Control.ID] {
+			f.Fatalf("control value for %s is missing: %v", b, b.Control)
 		}
 	}
 	for _, id := range f.bid.free {
