@@ -819,7 +819,7 @@ function personalizeInstallInstructions() {
   }
 
   var filename = s.substr(prefix.length);
-  var filenameRE = /^go1\.\d+(\.\d+)?([a-z0-9]+)?\.([a-z0-9]+)-([a-z0-9]+)\.(.+)$/
+  var filenameRE = /^go1\.\d+(\.\d+)?([a-z0-9]+)?\.([a-z0-9]+)(-[a-z0-9-.]+)?\.([a-z.]+)$/;
   $('.downloadFilename').text(filename);
   $('.hideFromDownload').hide();
   var m = filenameRE.exec(filename);
@@ -846,6 +846,16 @@ function personalizeInstallInstructions() {
       $('#windowsZipInstructions').hide();
     }
   }
+
+  var download = "https://storage.googleapis.com/golang/" + filename;
+
+  var message = $('<p class="downloading">'+
+    'Your download should begin shortly. '+
+    'If it does not, click <a>this link</a>.</p>');
+  message.find('a').attr('href', download);
+  message.insertAfter('#nav');
+
+  window.location = download;
 }
 
 $(document).ready(function() {
@@ -3397,6 +3407,13 @@ a.error {
 
 #heading-narrow {
 	display: none;
+}
+
+.downloading {
+	background: #F9F9BE;
+	padding: 10px;
+	text-align: center;
+	border-radius: 5px;
 }
 
 @media (max-width: 930px) {

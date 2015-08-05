@@ -643,6 +643,13 @@ a.error {
 	display: none;
 }
 
+.downloading {
+	background: #F9F9BE;
+	padding: 10px;
+	text-align: center;
+	border-radius: 5px;
+}
+
 @media (max-width: 930px) {
 	#heading-wide {
 		display: none;
