@@ -2962,10 +2962,14 @@ func checkdead() {
 	throw("all goroutines are asleep - deadlock!")
 }
 
-func sysmon() {
-	// If we go two minutes without a garbage collection, force one to run.
-	forcegcperiod := int64(2 * 60 * 1e9)
+// forcegcperiod is the maximum time in nanoseconds between garbage
+// collections. If we go this long without a garbage collection, one
+// is forced to run.
+//
+// This is a variable for testing purposes. It normally doesn't change.
+var forcegcperiod int64 = 2 * 60 * 1e9
 
+func sysmon() {
 	// If a heap span goes unused for 5 minutes after a garbage collection,
 	// we hand it back to the operating system.
 	scavengelimit := int64(5 * 60 * 1e9)
@@ -2978,12 +2982,6 @@ func sysmon() {
 
 	lastscavenge := nanotime()
 	nscavenge := 0
-
-	// Make wake-up period small enough for the sampling to be correct.
-	maxsleep := forcegcperiod / 2
-	if scavengelimit < forcegcperiod {
-		maxsleep = scavengelimit / 2
-	}
 
 	lasttrace := int64(0)
 	idle := 0 // how many cycles in succession we had not wokeup somebody
@@ -3003,6 +3001,12 @@ func sysmon() {
 			if atomicload(&sched.gcwaiting) != 0 || atomicload(&sched.npidle) == uint32(gomaxprocs) {
 				atomicstore(&sched.sysmonwait, 1)
 				unlock(&sched.lock)
+				// Make wake-up period small enough
+				// for the sampling to be correct.
+				maxsleep := forcegcperiod / 2
+				if scavengelimit < forcegcperiod {
+					maxsleep = scavengelimit / 2
+				}
 				notetsleep(&sched.sysmonnote, maxsleep)
 				lock(&sched.lock)
 				atomicstore(&sched.sysmonwait, 0)
