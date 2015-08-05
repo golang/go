@@ -195,3 +195,52 @@ func TestVendorCache(t *testing.T) {
 	tg.runFail("build", "p")
 	tg.grepStderr("must be imported as x", "did not fail to build p")
 }
+
+func TestVendorTest2(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.path("."))
+	tg.setenv("GO15VENDOREXPERIMENT", "1")
+	tg.run("get", "github.com/rsc/go-get-issue-11864")
+
+	// build -i should work
+	tg.run("build", "-i", "github.com/rsc/go-get-issue-11864")
+	tg.run("build", "-i", "github.com/rsc/go-get-issue-11864/t")
+
+	// test -i should work like build -i (golang.org/issue/11988)
+	tg.run("test", "-i", "github.com/rsc/go-get-issue-11864")
+	tg.run("test", "-i", "github.com/rsc/go-get-issue-11864/t")
+
+	// test should work too
+	tg.run("test", "github.com/rsc/go-get-issue-11864")
+	tg.run("test", "github.com/rsc/go-get-issue-11864/t")
+
+	// external tests should observe internal test exports (golang.org/issue/11977)
+	tg.run("test", "github.com/rsc/go-get-issue-11864/vendor/vendor.org/tx2")
+}
+
+func TestVendorList(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.path("."))
+	tg.setenv("GO15VENDOREXPERIMENT", "1")
+	tg.run("get", "github.com/rsc/go-get-issue-11864")
+
+	tg.run("list", "-f", `{{join .TestImports "\n"}}`, "github.com/rsc/go-get-issue-11864/t")
+	tg.grepStdout("go-get-issue-11864/vendor/vendor.org/p", "did not find vendor-expanded p")
+
+	tg.run("list", "-f", `{{join .XTestImports "\n"}}`, "github.com/rsc/go-get-issue-11864/tx")
+	tg.grepStdout("go-get-issue-11864/vendor/vendor.org/p", "did not find vendor-expanded p")
+
+	tg.run("list", "-f", `{{join .XTestImports "\n"}}`, "github.com/rsc/go-get-issue-11864/vendor/vendor.org/tx2")
+	tg.grepStdout("go-get-issue-11864/vendor/vendor.org/tx2", "did not find vendor-expanded tx2")
+
+	tg.run("list", "-f", `{{join .XTestImports "\n"}}`, "github.com/rsc/go-get-issue-11864/vendor/vendor.org/tx3")
+	tg.grepStdout("go-get-issue-11864/vendor/vendor.org/tx3", "did not find vendor-expanded tx3")
+}

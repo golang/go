@@ -384,10 +384,10 @@ func runTest(cmd *Command, args []string) {
 			for _, path := range p.Imports {
 				deps[path] = true
 			}
-			for _, path := range p.TestImports {
+			for _, path := range p.vendored(p.TestImports) {
 				deps[path] = true
 			}
-			for _, path := range p.XTestImports {
+			for _, path := range p.vendored(p.XTestImports) {
 				deps[path] = true
 			}
 		}
@@ -611,10 +611,6 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	stk.push(p.ImportPath + "_test")
 	pxtestNeedsPtest := false
 	for i, path := range p.XTestImports {
-		if path == p.ImportPath {
-			pxtestNeedsPtest = true
-			continue
-		}
 		p1 := loadImport(path, p.Dir, p, &stk, p.build.XTestImportPos[path], useVendor)
 		if p1.Error != nil {
 			return nil, nil, nil, p1.Error
@@ -624,7 +620,11 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 			err.Pos = "" // show full import stack
 			return nil, nil, nil, err
 		}
-		ximports = append(ximports, p1)
+		if p1.ImportPath == p.ImportPath {
+			pxtestNeedsPtest = true
+		} else {
+			ximports = append(ximports, p1)
+		}
 		p.XTestImports[i] = p1.ImportPath
 	}
 	stk.pop()
