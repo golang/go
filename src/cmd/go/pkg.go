@@ -101,6 +101,33 @@ type Package struct {
 	gobinSubdir  bool                 // install target would be subdir of GOBIN
 }
 
+// vendored returns the vendor-resolved version of imports,
+// which should be p.TestImports or p.XTestImports, NOT p.Imports.
+// The imports in p.TestImports and p.XTestImports are not recursively
+// loaded during the initial load of p, so they list the imports found in
+// the source file, but most processing should be over the vendor-resolved
+// import paths. We do this resolution lazily both to avoid file system work
+// and because the eventual real load of the test imports (during 'go test')
+// can produce better error messages if it starts with the original paths.
+// The initial load of p loads all the non-test imports and rewrites
+// the vendored paths, so nothing should ever call p.vendored(p.Imports).
+func (p *Package) vendored(imports []string) []string {
+	if len(imports) > 0 && len(p.Imports) > 0 && &imports[0] == &p.Imports[0] {
+		panic("internal error: p.vendored(p.Imports) called")
+	}
+	seen := make(map[string]bool)
+	var all []string
+	for _, path := range imports {
+		path, _ = vendoredImportPath(p, path)
+		if !seen[path] {
+			seen[path] = true
+			all = append(all, path)
+		}
+	}
+	sort.Strings(all)
+	return all
+}
+
 // CoverVar holds the name of the generated coverage variables targeting the named file.
 type CoverVar struct {
 	File string // local file name
