@@ -2111,8 +2111,8 @@ func genValue(v *ssa.Value) {
 		f := v.Block.Func
 		loc := f.RegAlloc[v.ID]
 		for _, a := range v.Args {
-			if f.RegAlloc[a.ID] != loc { // TODO: .Equal() instead?
-				v.Fatalf("phi arg at different location than phi %v %v %v %v", v, loc, a, f.RegAlloc[a.ID])
+			if aloc := f.RegAlloc[a.ID]; aloc != loc { // TODO: .Equal() instead?
+				v.Fatalf("phi arg at different location than phi: %v @ %v, but arg %v @ %v\n%s\n", v, loc, a, aloc, v.Block.Func)
 			}
 		}
 	case ssa.OpConst8, ssa.OpConst16, ssa.OpConst32, ssa.OpConst64, ssa.OpConstString, ssa.OpConstNil, ssa.OpConstBool:
