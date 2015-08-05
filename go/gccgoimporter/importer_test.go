@@ -100,6 +100,9 @@ var importerTests = [...]importerTest{
 }
 
 func TestGoxImporter(t *testing.T) {
+	if runtime.GOOS == "android" {
+		t.Skipf("no testdata directory on %s", runtime.GOOS)
+	}
 	initmap := make(map[*types.Package]InitData)
 	imp := GetImporter([]string{"testdata"}, initmap)
 

@@ -13,6 +13,7 @@ import (
 	"go/token"
 	"os"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -25,6 +26,10 @@ import (
 )
 
 func TestObjValueLookup(t *testing.T) {
+	if runtime.GOOS == "android" {
+		t.Skipf("no testdata directory on %s", runtime.GOOS)
+	}
+
 	conf := loader.Config{ParserMode: parser.ParseComments}
 	f, err := conf.ParseFile("testdata/objlookup.go", nil)
 	if err != nil {
@@ -189,6 +194,10 @@ func checkVarValue(t *testing.T, prog *ssa.Program, pkg *ssa.Package, ref []ast.
 // Ensure that, in debug mode, we can determine the ssa.Value
 // corresponding to every ast.Expr.
 func TestValueForExpr(t *testing.T) {
+	if runtime.GOOS == "android" {
+		t.Skipf("no testdata dir on %s", runtime.GOOS)
+	}
+
 	conf := loader.Config{ParserMode: parser.ParseComments}
 	f, err := conf.ParseFile("testdata/valueforexpr.go", nil)
 	if err != nil {

@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Incomplete source tree on Android.
+
+// +build !android
+
 package pointer
 
 // This file runs the pointer analysis on all packages and tests beneath

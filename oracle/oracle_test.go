@@ -198,6 +198,8 @@ func doQuery(out io.Writer, q *query, useJson bool) {
 
 func TestOracle(t *testing.T) {
 	switch runtime.GOOS {
+	case "android":
+		t.Skipf("skipping test on %q (no testdata dir)", runtime.GOOS)
 	case "windows":
 		t.Skipf("skipping test on %q (no /usr/bin/diff)", runtime.GOOS)
 	}

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -16,6 +17,10 @@ import (
 // Test that RepoRootForImportPath creates the correct RepoRoot for a given importPath.
 // TODO(cmang): Add tests for SVN and BZR.
 func TestRepoRootForImportPath(t *testing.T) {
+	if runtime.GOOS == "android" {
+		t.Skipf("incomplete source tree on %s", runtime.GOOS)
+	}
+
 	tests := []struct {
 		path string
 		want *RepoRoot

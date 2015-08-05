@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Incomplete std lib sources on Android.
+
+// +build !android
+
 package lexical
 
 import (

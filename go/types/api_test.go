@@ -25,7 +25,8 @@ import (
 // import.
 func skipSpecialPlatforms(t *testing.T) {
 	switch platform := runtime.GOOS + "-" + runtime.GOARCH; platform {
-	case "nacl-amd64p32",
+	case "android-arm",
+		"nacl-amd64p32",
 		"nacl-386",
 		"nacl-arm",
 		"darwin-arm",
