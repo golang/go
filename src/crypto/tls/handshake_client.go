@@ -547,6 +547,7 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
 		// Restore masterSecret and peerCerts from previous state
 		hs.masterSecret = hs.session.masterSecret
 		c.peerCertificates = hs.session.serverCertificates
+		c.verifiedChains = hs.session.verifiedChains
 		return true, nil
 	}
 	return false, nil
@@ -604,6 +605,7 @@ func (hs *clientHandshakeState) readSessionTicket() error {
 		cipherSuite:        hs.suite.id,
 		masterSecret:       hs.masterSecret,
 		serverCertificates: c.peerCertificates,
+		verifiedChains:     c.verifiedChains,
 	}
 
 	return nil

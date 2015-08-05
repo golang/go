@@ -406,10 +406,20 @@ func TestClientResumption(t *testing.T) {
 		CipherSuites: []uint16{TLS_RSA_WITH_RC4_128_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA},
 		Certificates: testConfig.Certificates,
 	}
+
+	issuer, err := x509.ParseCertificate(testRSACertificateIssuer)
+	if err != nil {
+		panic(err)
+	}
+
+	rootCAs := x509.NewCertPool()
+	rootCAs.AddCert(issuer)
+
 	clientConfig := &Config{
 		CipherSuites:       []uint16{TLS_RSA_WITH_RC4_128_SHA},
-		InsecureSkipVerify: true,
 		ClientSessionCache: NewLRUClientSessionCache(32),
+		RootCAs:            rootCAs,
+		ServerName:         "example.golang",
 	}
 
 	testResumeState := func(test string, didResume bool) {
@@ -419,6 +429,9 @@ func TestClientResumption(t *testing.T) {
 		}
 		if hs.DidResume != didResume {
 			t.Fatalf("%s resumed: %v, expected: %v", test, hs.DidResume, didResume)
+		}
+		if didResume && (hs.PeerCertificates == nil || hs.VerifiedChains == nil) {
+			t.Fatalf("expected non-nil certificates after resumption. Got peerCertificates: %#v, verifedCertificates: %#v", hs.PeerCertificates, hs.VerifiedChains)
 		}
 	}
 
