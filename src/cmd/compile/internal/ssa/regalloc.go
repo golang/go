@@ -394,11 +394,16 @@ func regalloc(f *Func) {
 // immediately preceding the phi's block.
 func addPhiCopies(f *Func) {
 	for _, b := range f.Blocks {
+		phis := true // all phis should appear first; confirm that as we go
 		for _, v := range b.Values {
-			if v.Op != OpPhi {
-				break // all phis should appear first
-			}
-			if v.Type.IsMemory() { // TODO: only "regallocable" types
+			switch {
+			case v.Op == OpPhi && !phis:
+				f.Fatalf("phi var %v not at beginning of block %v:\n%s\n", v, v.Block, f)
+				break
+			case v.Op != OpPhi:
+				phis = false
+				continue
+			case v.Type.IsMemory(): // TODO: only "regallocable" types
 				continue
 			}
 			for i, w := range v.Args {
