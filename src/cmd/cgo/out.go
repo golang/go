@@ -1193,9 +1193,11 @@ func (p *Package) cgoType(e ast.Expr) *Type {
 }
 
 const gccProlog = `
-// Usual nonsense: if x and y are not equal, the type will be invalid
-// (have a negative array count) and an inscrutable error will come
-// out of the compiler and hopefully mention "name".
+/*
+  If x and y are not equal, the type will be invalid
+  (have a negative array count) and an inscrutable error will come
+  out of the compiler and hopefully mention "name".
+*/
 #define __cgo_compile_assert_eq(x, y, name) typedef char name[(x-y)*(x-y)*-2+1];
 
 // Check at compile time that the sizes we use match our expectations.
@@ -1376,8 +1378,10 @@ typedef double GoFloat64;
 typedef __complex float GoComplex64;
 typedef __complex double GoComplex128;
 
-// static assertion to make sure the file is being used on architecture
-// at least with matching size of GoInt.
+/*
+  static assertion to make sure the file is being used on architecture
+  at least with matching size of GoInt.
+*/
 typedef char _check_for_GOINTBITS_bit_pointer_matching_GoInt[sizeof(void*)==GOINTBITS/8 ? 1:-1];
 
 typedef struct { char *p; GoInt n; } GoString;
