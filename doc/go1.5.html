@@ -1244,11 +1244,11 @@ but is otherwise unnecessary as strings support comparison natively.
 </li>
 
 <li>
-The <a href="/pkg/sync/#WaitGroup"><code>WaitGroup</code></a> function in
+The <a href="/pkg/sync/#WaitGroup"><code>WaitGroup</code></a> implementation in
 package <a href="/pkg/sync/"><code>sync</code></a>
 now diagnoses code that races a call to <a href="/pkg/sync/#WaitGroup.Add"><code>Add</code></a>
 against a return from <a href="/pkg/sync/#WaitGroup.Wait"><code>Wait</code></a>.
-If it detects this condition, <code>WaitGroup</code> panics.
+If it detects this condition, the implementation panics.
 </li>
 
 <li>
