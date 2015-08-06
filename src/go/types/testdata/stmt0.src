@@ -438,14 +438,85 @@ func switches0() {
 
 	switch x {
 	case 1:
-	case 1 /* DISABLED "duplicate case" */ :
+	case 1 /* ERROR "duplicate case" */ :
+	case ( /* ERROR "duplicate case" */ 1):
 	case 2, 3, 4:
-	case 1 /* DISABLED "duplicate case" */ :
+	case 5, 1 /* ERROR "duplicate case" */ :
 	}
 
 	switch uint64(x) {
-	case 1 /* DISABLED duplicate case */ <<64-1:
-	case 1 /* DISABLED duplicate case */ <<64-1:
+	case 1<<64 - 1:
+	case 1 /* ERROR duplicate case */ <<64 - 1:
+	case 2, 3, 4:
+	case 5, 1 /* ERROR duplicate case */ <<64 - 1:
+	}
+
+	var y32 float32
+	switch y32 {
+	case 1.1:
+	case 11/10: // integer division!
+	case 11. /* ERROR duplicate case */ /10:
+	case 2, 3.0, 4.1:
+	case 5.2, 1.10 /* ERROR duplicate case */ :
+	}
+
+	var y64 float64
+	switch y64 {
+	case 1.1:
+	case 11/10: // integer division!
+	case 11. /* ERROR duplicate case */ /10:
+	case 2, 3.0, 4.1:
+	case 5.2, 1.10 /* ERROR duplicate case */ :
+	}
+
+	var s string
+	switch s {
+	case "foo":
+	case "foo" /* ERROR duplicate case */ :
+	case "f" /* ERROR duplicate case */ + "oo":
+	case "abc", "def", "ghi":
+	case "jkl", "foo" /* ERROR duplicate case */ :
+	}
+
+	type T int
+	type F float64
+	type S string
+	type B bool
+	var i interface{}
+	switch i {
+	case nil:
+	case nil: // no duplicate detection
+	case (*int)(nil):
+	case (*int)(nil): // do duplicate detection
+	case 1:
+	case byte(1):
+	case int /* ERROR duplicate case */ (1):
+	case T(1):
+	case 1.0:
+	case F(1.0):
+	case F /* ERROR duplicate case */ (1.0):
+	case "hello":
+	case S("hello"):
+	case S /* ERROR duplicate case */ ("hello"):
+	case 1==1, B(false):
+	case false, B(2==2):
+	}
+
+	// switch on array
+	var a [3]int
+	switch a {
+	case [3]int{1, 2, 3}:
+	case [3]int{1, 2, 3}: // no duplicate detection
+	case [ /* ERROR "mismatched types */ 4]int{4, 5, 6}:
+	}
+
+	// switch on channel
+	var c1, c2 chan int
+	switch c1 {
+	case nil:
+	case c1:
+	case c2:
+	case c1, c2: // no duplicate detection
 	}
 }
 

@@ -155,20 +155,84 @@ func (check *Checker) suspendedCall(keyword string, call *ast.CallExpr) {
 	check.errorf(x.pos(), "%s %s %s", keyword, msg, &x)
 }
 
-func (check *Checker) caseValues(x *operand, values []ast.Expr) {
-	// No duplicate checking for now. See issue 4524.
+// goVal returns the Go value for val, or nil.
+func goVal(val constant.Value) interface{} {
+	// val should exist, but be conservative and check
+	if val == nil {
+		return nil
+	}
+	// Match implementation restriction of other compilers.
+	// gc only checks duplicates for integer, floating-point
+	// and string values, so only create Go values for these
+	// types.
+	switch val.Kind() {
+	case constant.Int:
+		if x, ok := constant.Int64Val(val); ok {
+			return x
+		}
+		if x, ok := constant.Uint64Val(val); ok {
+			return x
+		}
+	case constant.Float:
+		if x, ok := constant.Float64Val(val); ok {
+			return x
+		}
+	case constant.String:
+		return constant.StringVal(val)
+	}
+	return nil
+}
+
+// A valueMap maps a case value (of a basic Go type) to a list of positions
+// where the same case value appeared, together with the corresponding case
+// types.
+// Since two case values may have the same "underlying" value but different
+// types we need to also check the value's types (e.g., byte(1) vs myByte(1))
+// when the switch expression is of interface type.
+type (
+	valueMap  map[interface{}][]valueType // underlying Go value -> valueType
+	valueType struct {
+		pos token.Pos
+		typ Type
+	}
+)
+
+func (check *Checker) caseValues(x *operand, values []ast.Expr, seen valueMap) {
+L:
 	for _, e := range values {
 		var v operand
 		check.expr(&v, e)
 		if x.mode == invalid || v.mode == invalid {
-			continue
+			continue L
 		}
 		check.convertUntyped(&v, x.typ)
 		if v.mode == invalid {
-			continue
+			continue L
 		}
 		// Order matters: By comparing v against x, error positions are at the case values.
-		check.comparison(&v, x, token.EQL)
+		res := v // keep original v unchanged
+		check.comparison(&res, x, token.EQL)
+		if res.mode == invalid {
+			continue L
+		}
+		if v.mode != constant_ {
+			continue L // we're done
+		}
+		// look for duplicate values
+		if val := goVal(v.val); val != nil {
+			if list := seen[val]; list != nil {
+				// look for duplicate types for a given value
+				// (quadratic algorithm, but these lists tend to be very short)
+				for _, vt := range list {
+					if Identical(v.typ, vt.typ) {
+						check.errorf(v.pos(), "duplicate case %s in expression switch", &v)
+						check.error(vt.pos, "\tprevious case") // secondary error, \t indented
+						continue L
+					}
+				}
+			}
+			seen[val] = append(seen[val], valueType{v.pos(), v.typ})
+		}
 	}
 }
 
@@ -177,15 +241,19 @@ L:
 	for _, e := range types {
 		T = check.typOrNil(e)
 		if T == Typ[Invalid] {
-			continue
+			continue L
 		}
-		// complain about duplicate types
-		// TODO(gri) use a type hash to avoid quadratic algorithm
+		// look for duplicate types
+		// (quadratic algorithm, but type switches tend to be reasonably small)
 		for t, pos := range seen {
 			if T == nil && t == nil || T != nil && t != nil && Identical(T, t) {
 				// talk about "case" rather than "type" because of nil case
-				check.error(e.Pos(), "duplicate case in type switch")
-				check.errorf(pos, "\tprevious case %s", T) // secondary error, \t indented
+				Ts := "nil"
+				if T != nil {
+					Ts = T.String()
+				}
+				check.errorf(e.Pos(), "duplicate case %s in type switch", Ts)
+				check.error(pos, "\tprevious case") // secondary error, \t indented
 				continue L
 			}
 		}
@@ -408,13 +476,14 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 
 		check.multipleDefaults(s.Body.List)
 
+		seen := make(valueMap) // map of seen case values to positions and types
 		for i, c := range s.Body.List {
 			clause, _ := c.(*ast.CaseClause)
 			if clause == nil {
 				check.invalidAST(c.Pos(), "incorrect expression switch case")
 				continue
 			}
-			check.caseValues(&x, clause.List)
+			check.caseValues(&x, clause.List, seen)
 			check.openScope(clause, "case")
 			inner := inner
 			if i+1 < len(s.Body.List) {
