@@ -137,6 +137,10 @@ const (
 	OpAMD64SARLconst
 	OpAMD64SARWconst
 	OpAMD64SARBconst
+	OpAMD64ROLQconst
+	OpAMD64ROLLconst
+	OpAMD64ROLWconst
+	OpAMD64ROLBconst
 	OpAMD64NEGQ
 	OpAMD64NEGL
 	OpAMD64NEGW
@@ -265,6 +269,10 @@ const (
 	OpRsh64Ux16
 	OpRsh64Ux32
 	OpRsh64Ux64
+	OpLrot8
+	OpLrot16
+	OpLrot32
+	OpLrot64
 	OpEq8
 	OpEq16
 	OpEq32
@@ -1455,6 +1463,54 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name: "ROLQconst",
+		asm:  x86.AROLQ,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ROLLconst",
+		asm:  x86.AROLL,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ROLWconst",
+		asm:  x86.AROLW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "ROLBconst",
+		asm:  x86.AROLB,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
 		name: "NEGQ",
 		asm:  x86.ANEGQ,
 		reg: regInfo{
@@ -2352,6 +2408,22 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Rsh64Ux64",
+		generic: true,
+	},
+	{
+		name:    "Lrot8",
+		generic: true,
+	},
+	{
+		name:    "Lrot16",
+		generic: true,
+	},
+	{
+		name:    "Lrot32",
+		generic: true,
+	},
+	{
+		name:    "Lrot64",
 		generic: true,
 	},
 	{

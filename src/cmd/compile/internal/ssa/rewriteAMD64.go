@@ -2544,6 +2544,86 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto end8f83bf72293670e75b22d6627bd13f0b
 	end8f83bf72293670e75b22d6627bd13f0b:
 		;
+	case OpLrot16:
+		// match: (Lrot16 <t> x [c])
+		// cond:
+		// result: (ROLWconst <t> [c&15] x)
+		{
+			t := v.Type
+			x := v.Args[0]
+			c := v.AuxInt
+			v.Op = OpAMD64ROLWconst
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.Type = t
+			v.AuxInt = c & 15
+			v.AddArg(x)
+			return true
+		}
+		goto endb23dfa24c619d0068f925899d53ee7fd
+	endb23dfa24c619d0068f925899d53ee7fd:
+		;
+	case OpLrot32:
+		// match: (Lrot32 <t> x [c])
+		// cond:
+		// result: (ROLLconst <t> [c&31] x)
+		{
+			t := v.Type
+			x := v.Args[0]
+			c := v.AuxInt
+			v.Op = OpAMD64ROLLconst
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.Type = t
+			v.AuxInt = c & 31
+			v.AddArg(x)
+			return true
+		}
+		goto end38b2215c011896c36845f72ecb72b1b0
+	end38b2215c011896c36845f72ecb72b1b0:
+		;
+	case OpLrot64:
+		// match: (Lrot64 <t> x [c])
+		// cond:
+		// result: (ROLQconst <t> [c&63] x)
+		{
+			t := v.Type
+			x := v.Args[0]
+			c := v.AuxInt
+			v.Op = OpAMD64ROLQconst
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.Type = t
+			v.AuxInt = c & 63
+			v.AddArg(x)
+			return true
+		}
+		goto end5cb355e4f3ca387f252ef4f6a55f9f68
+	end5cb355e4f3ca387f252ef4f6a55f9f68:
+		;
+	case OpLrot8:
+		// match: (Lrot8 <t> x [c])
+		// cond:
+		// result: (ROLBconst <t> [c&7] x)
+		{
+			t := v.Type
+			x := v.Args[0]
+			c := v.AuxInt
+			v.Op = OpAMD64ROLBconst
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.Type = t
+			v.AuxInt = c & 7
+			v.AddArg(x)
+			return true
+		}
+		goto end26bfb3dd5b537cf13ac9f2978d94ed71
+	end26bfb3dd5b537cf13ac9f2978d94ed71:
+		;
 	case OpLsh16x16:
 		// match: (Lsh16x16 <t> x y)
 		// cond:
