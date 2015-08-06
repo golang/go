@@ -478,7 +478,6 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
 // information. That is, as host[:port].
 func parseHost(host string) (string, error) {
 	litOrName := host
-	var colonPort string // ":80" or ""
 	if strings.HasPrefix(host, "[") {
 		// Parse an IP-Literal in RFC 3986 and RFC 6874.
 		// E.g., "[fe80::1], "[fe80::1%25en0]"
@@ -490,7 +489,10 @@ func parseHost(host string) (string, error) {
 		if i < 0 {
 			return "", errors.New("missing ']' in host")
 		}
-		colonPort = host[i+1:]
+		colonPort := host[i+1:]
+		if !validOptionalPort(colonPort) {
+			return "", fmt.Errorf("invalid port %q after host", colonPort)
+		}
 		// Parse a host subcomponent without a ZoneID in RFC
 		// 6874 because the ZoneID is allowed to use the
 		// percent encoded form.
@@ -500,11 +502,8 @@ func parseHost(host string) (string, error) {
 		} else {
 			litOrName = host[1:j]
 		}
-	} else {
-		if i := strings.Index(host, ":"); i != -1 {
-			colonPort = host[i:]
-		}
 	}
+
 	// A URI containing an IP-Literal without a ZoneID or
 	// IPv4address in RFC 3986 and RFC 6847 must not be
 	// percent-encoded.
@@ -516,9 +515,6 @@ func parseHost(host string) (string, error) {
 	// See golang.org/issue/7991.
 	if strings.Contains(litOrName, "%") {
 		return "", errors.New("percent-encoded characters in host")
-	}
-	if !validOptionalPort(colonPort) {
-		return "", fmt.Errorf("invalid port %q after host", colonPort)
 	}
 	var err error
 	if host, err = unescape(host, encodeHost); err != nil {

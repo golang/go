@@ -1081,13 +1081,17 @@ func TestParseAuthority(t *testing.T) {
 		{"http://[::1]/", false},
 		{"http://[::1]a", true},
 		{"http://[::1]%23", true},
-		{"http://[::1%25en0]", false}, // valid zone id
-		{"http://[::1]:", true},       // colon, but no port
-		{"http://[::1]:%38%30", true}, // no hex in port
-		{"http://[::1%25%10]", false}, // TODO: reject the %10 after the valid zone %25 separator?
-		{"http://[%10::1]", true},     // no %xx escapes in IP address
-		{"http://[::1]/%48", false},   // %xx in path is fine
-		{"http://%41:8080/", true},    // TODO: arguably we should accept reg-name with %xx
+		{"http://[::1%25en0]", false},     // valid zone id
+		{"http://[::1]:", true},           // colon, but no port
+		{"http://[::1]:%38%30", true},     // no hex in port
+		{"http://[::1%25%10]", false},     // TODO: reject the %10 after the valid zone %25 separator?
+		{"http://[%10::1]", true},         // no %xx escapes in IP address
+		{"http://[::1]/%48", false},       // %xx in path is fine
+		{"http://%41:8080/", true},        // TODO: arguably we should accept reg-name with %xx
+		{"mysql://x@y(z:123)/foo", false}, // golang.org/issue/12023
+		{"mysql://x@y(1.2.3.4:123)/foo", false},
+		{"mysql://x@y([2001:db8::1]:123)/foo", false},
+		{"http://[]%20%48%54%54%50%2f%31%2e%31%0a%4d%79%48%65%61%64%65%72%3a%20%31%32%33%0a%0a/", true}, // golang.org/issue/11208
 	}
 	for _, tt := range tests {
 		u, err := Parse(tt.in)
