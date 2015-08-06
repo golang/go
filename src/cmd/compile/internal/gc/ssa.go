@@ -843,6 +843,11 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OGE, TUINT32}: ssa.OpGeq32U,
 	opAndType{OGE, TINT64}:  ssa.OpGeq64,
 	opAndType{OGE, TUINT64}: ssa.OpGeq64U,
+
+	opAndType{OLROT, TUINT8}:  ssa.OpLrot8,
+	opAndType{OLROT, TUINT16}: ssa.OpLrot16,
+	opAndType{OLROT, TUINT32}: ssa.OpLrot32,
+	opAndType{OLROT, TUINT64}: ssa.OpLrot64,
 }
 
 func (s *state) concreteEtype(t *Type) uint8 {
@@ -963,6 +968,15 @@ func (s *state) ssaShiftOp(op uint8, t *Type, u *Type) ssa.Op {
 	x, ok := shiftOpToSSA[opAndTwoTypes{op, etype1, etype2}]
 	if !ok {
 		s.Unimplementedf("unhandled shift op %s etype=%s/%s", opnames[op], Econv(int(etype1), 0), Econv(int(etype2), 0))
+	}
+	return x
+}
+
+func (s *state) ssaRotateOp(op uint8, t *Type) ssa.Op {
+	etype1 := s.concreteEtype(t)
+	x, ok := opToSSA[opAndType{op, etype1}]
+	if !ok {
+		s.Unimplementedf("unhandled rotate op %s etype=%s", opnames[op], Econv(int(etype1), 0))
 	}
 	return x
 }
@@ -1140,6 +1154,13 @@ func (s *state) expr(n *Node) *ssa.Value {
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
 		return s.newValue2(s.ssaShiftOp(n.Op, n.Type, n.Right.Type), a.Type, a, b)
+	case OLROT:
+		a := s.expr(n.Left)
+		i := n.Right.Int()
+		if i <= 0 || i >= n.Type.Size()*8 {
+			s.Fatalf("Wrong rotate distance for LROT, expected 1 through %d, saw %d", n.Type.Size()*8-1, i)
+		}
+		return s.newValue1I(s.ssaRotateOp(n.Op, n.Type), a.Type, i, a)
 	case OANDAND, OOROR:
 		// To implement OANDAND (and OOROR), we introduce a
 		// new temporary variable to hold the result. The
@@ -1936,7 +1957,8 @@ func genValue(v *ssa.Value) {
 		ssa.OpAMD64SUBQconst, ssa.OpAMD64SUBLconst, ssa.OpAMD64SUBWconst, ssa.OpAMD64SUBBconst,
 		ssa.OpAMD64SHLQconst, ssa.OpAMD64SHLLconst, ssa.OpAMD64SHLWconst, ssa.OpAMD64SHLBconst,
 		ssa.OpAMD64SHRQconst, ssa.OpAMD64SHRLconst, ssa.OpAMD64SHRWconst, ssa.OpAMD64SHRBconst,
-		ssa.OpAMD64SARQconst, ssa.OpAMD64SARLconst, ssa.OpAMD64SARWconst, ssa.OpAMD64SARBconst:
+		ssa.OpAMD64SARQconst, ssa.OpAMD64SARLconst, ssa.OpAMD64SARWconst, ssa.OpAMD64SARBconst,
+		ssa.OpAMD64ROLQconst, ssa.OpAMD64ROLLconst, ssa.OpAMD64ROLWconst, ssa.OpAMD64ROLBconst:
 		// This code compensates for the fact that the register allocator
 		// doesn't understand 2-address instructions yet.  TODO: fix that.
 		x := regnum(v.Args[0])

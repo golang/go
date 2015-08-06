@@ -102,6 +102,11 @@
 (Lsh8x16 <t> x y)  -> (ANDB (SHLB <t> x y) (SBBLcarrymask <t> (CMPWconst <TypeFlags> [8] y)))
 (Lsh8x8 <t> x y)   -> (ANDB (SHLB <t> x y) (SBBLcarrymask <t> (CMPBconst <TypeFlags> [8] y)))
 
+(Lrot64 <t> x [c]) -> (ROLQconst <t> [c&63] x)
+(Lrot32 <t> x [c]) -> (ROLLconst <t> [c&31] x)
+(Lrot16 <t> x [c]) -> (ROLWconst <t> [c&15] x)
+(Lrot8 <t> x [c])  -> (ROLBconst <t> [c&7] x)
+
 (Rsh64Ux64 <t> x y) -> (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [64] y)))
 (Rsh64Ux32 <t> x y) -> (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPLconst <TypeFlags> [64] y)))
 (Rsh64Ux16 <t> x y) -> (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPWconst <TypeFlags> [64] y)))

@@ -171,6 +171,57 @@ func testOcom_ssa(a, b int32) (int32, int32) {
 	return ^^^^a, ^^^^^b
 }
 
+func lrot1_ssa(w uint8, x uint16, y uint32, z uint64) (a uint8, b uint16, c uint32, d uint64) {
+	a = (w << 5) | (w >> 3)
+	b = (x << 13) | (x >> 3)
+	c = (y << 29) | (y >> 3)
+	d = (z << 61) | (z >> 3)
+	return
+}
+
+func lrot2_ssa(w, n uint32) uint32 {
+	// Want to be sure that a "rotate by 32" which
+	// is really 0 | (w >> 0) == w
+	// is correctly compiled.
+	switch { // prevents inlining
+	}
+	return (w << n) | (w >> (32 - n))
+}
+
+func lrot3_ssa(w uint32) uint32 {
+	// Want to be sure that a "rotate by 32" which
+	// is really 0 | (w >> 0) == w
+	// is correctly compiled.
+	switch { // prevents inlining
+	}
+	return (w << 32) | (w >> (32 - 32))
+}
+
+func testLrot() {
+	wantA, wantB, wantC, wantD := uint8(0xe1), uint16(0xe001),
+		uint32(0xe0000001), uint64(0xe000000000000001)
+	a, b, c, d := lrot1_ssa(0xf, 0xf, 0xf, 0xf)
+	if a != wantA || b != wantB || c != wantC || d != wantD {
+		println("lrot1_ssa(0xf, 0xf, 0xf, 0xf)=",
+			wantA, wantB, wantC, wantD, ", got", a, b, c, d)
+		failed = true
+	}
+	x := lrot2_ssa(0xb0000001, 32)
+	wantX := uint32(0xb0000001)
+	if x != wantX {
+		println("lrot2_ssa(0xb0000001, 32)=",
+			wantX, ", got", x)
+		failed = true
+	}
+	x = lrot3_ssa(0xb0000001)
+	if x != wantX {
+		println("lrot3_ssa(0xb0000001)=",
+			wantX, ", got", x)
+		failed = true
+	}
+
+}
+
 var failed = false
 
 func main() {
@@ -181,6 +232,7 @@ func main() {
 	testSubqToNegq()
 	testBitwiseLogic()
 	testOcom()
+	testLrot()
 
 	if failed {
 		panic("failed")
