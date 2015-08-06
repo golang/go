@@ -550,8 +550,22 @@ func (u *URL) EscapedPath() string {
 // It must not contain any bytes that require escaping during path encoding.
 func validEncodedPath(s string) bool {
 	for i := 0; i < len(s); i++ {
-		if s[i] != '%' && shouldEscape(s[i], encodePath) {
-			return false
+		// RFC 3986, Appendix A.
+		// pchar = unreserved / pct-encoded / sub-delims / ":" / "@".
+		// shouldEscape is not quite compliant with the RFC,
+		// so we check the sub-delims ourselves and let
+		// shouldEscape handle the others.
+		switch s[i] {
+		case '!', '$', '&', '\'', '(', ')', '*', '+', ',', ';', '=', ':', '@':
+			// ok
+		case '[', ']':
+			// ok - not specified in RFC 3986 but left alone by modern browsers
+		case '%':
+			// ok - percent encoded, will decode
+		default:
+			if shouldEscape(s[i], encodePath) {
+				return false
+			}
 		}
 	}
 	return true

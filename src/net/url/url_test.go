@@ -392,13 +392,35 @@ var urltests = []URLTest{
 		},
 		"",
 	},
-	// worst case host
+	// worst case host, still round trips
 	{
 		"scheme://!$&'()*+,;=hello!:port/path",
 		&URL{
 			Scheme: "scheme",
 			Host:   "!$&'()*+,;=hello!:port",
 			Path:   "/path",
+		},
+		"",
+	},
+	// worst case path, still round trips
+	{
+		"http://host/!$&'()*+,;=:@[hello]",
+		&URL{
+			Scheme:  "http",
+			Host:    "host",
+			Path:    "/!$&'()*+,;=:@[hello]",
+			RawPath: "/!$&'()*+,;=:@[hello]",
+		},
+		"",
+	},
+	// golang.org/issue/5684
+	{
+		"http://example.com/oid/[order_id]",
+		&URL{
+			Scheme:  "http",
+			Host:    "example.com",
+			Path:    "/oid/[order_id]",
+			RawPath: "/oid/[order_id]",
 		},
 		"",
 	},
