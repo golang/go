@@ -70,25 +70,40 @@ func init() {
 		return m
 	}
 
-	gp := buildReg("AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15")
-	gpsp := gp | buildReg("SP")
-	gpspsb := gpsp | buildReg("SB")
-	flags := buildReg("FLAGS")
-	gp01 := regInfo{[]regMask{}, 0, []regMask{gp}}
-	gp11 := regInfo{[]regMask{gpsp}, 0, []regMask{gp}}
-	gp11sb := regInfo{[]regMask{gpspsb}, 0, []regMask{gp}}
-	gp21 := regInfo{[]regMask{gpsp, gpsp}, 0, []regMask{gp}}
-	gp21sb := regInfo{[]regMask{gpspsb, gpsp}, 0, []regMask{gp}}
-	gp21shift := regInfo{[]regMask{gpsp, buildReg("CX")}, 0, []regMask{gp}}
-	gp2flags := regInfo{[]regMask{gpsp, gpsp}, 0, []regMask{flags}}
-	gp1flags := regInfo{[]regMask{gpsp}, 0, []regMask{flags}}
-	flagsgp1 := regInfo{[]regMask{flags}, 0, []regMask{gp}}
-	gpload := regInfo{[]regMask{gpspsb, 0}, 0, []regMask{gp}}
-	gploadidx := regInfo{[]regMask{gpspsb, gpsp, 0}, 0, []regMask{gp}}
-	gpstore := regInfo{[]regMask{gpspsb, gpsp, 0}, 0, nil}
-	gpstoreconst := regInfo{[]regMask{gpspsb, 0}, 0, nil}
-	gpstoreidx := regInfo{[]regMask{gpspsb, gpsp, gpsp, 0}, 0, nil}
-	flagsgp := regInfo{[]regMask{flags}, 0, []regMask{gp}}
+	// Common individual register masks
+	var (
+		gp     = buildReg("AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15")
+		gpsp   = gp | buildReg("SP")
+		gpspsb = gpsp | buildReg("SB")
+		flags  = buildReg("FLAGS")
+	)
+
+	// Common slices of register masks
+	var (
+		gponly    = []regMask{gp}
+		flagsonly = []regMask{flags}
+	)
+
+	// Common regInfo
+	var (
+		gp01      = regInfo{inputs: []regMask{}, outputs: gponly}
+		gp11      = regInfo{inputs: []regMask{gpsp}, outputs: gponly}
+		gp11sb    = regInfo{inputs: []regMask{gpspsb}, outputs: gponly}
+		gp21      = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: gponly}
+		gp21sb    = regInfo{inputs: []regMask{gpspsb, gpsp}, outputs: gponly}
+		gp21shift = regInfo{inputs: []regMask{gpsp, buildReg("CX")}, outputs: gponly}
+
+		gp2flags = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: flagsonly}
+		gp1flags = regInfo{inputs: []regMask{gpsp}, outputs: flagsonly}
+		flagsgp  = regInfo{inputs: flagsonly, outputs: gponly}
+
+		gpload    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: gponly}
+		gploadidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}, outputs: gponly}
+
+		gpstore      = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
+		gpstoreconst = regInfo{inputs: []regMask{gpspsb, 0}}
+		gpstoreidx   = regInfo{inputs: []regMask{gpspsb, gpsp, gpsp, 0}}
+	)
 
 	// Suffixes encode the bit width of various instructions.
 	// Q = 64 bit, L = 32 bit, W = 16 bit, B = 8 bit
@@ -205,8 +220,8 @@ func init() {
 		{name: "NOTW", reg: gp11, asm: "NOTW"}, // ^arg0
 		{name: "NOTB", reg: gp11, asm: "NOTB"}, // ^arg0
 
-		{name: "SBBQcarrymask", reg: flagsgp1, asm: "SBBQ"}, // (int64)(-1) if carry is set, 0 if carry is clear.
-		{name: "SBBLcarrymask", reg: flagsgp1, asm: "SBBL"}, // (int32)(-1) if carry is set, 0 if carry is clear.
+		{name: "SBBQcarrymask", reg: flagsgp, asm: "SBBQ"}, // (int64)(-1) if carry is set, 0 if carry is clear.
+		{name: "SBBLcarrymask", reg: flagsgp, asm: "SBBL"}, // (int32)(-1) if carry is set, 0 if carry is clear.
 		// Note: SBBW and SBBB are subsumed by SBBL
 
 		{name: "SETEQ", reg: flagsgp, asm: "SETEQ"}, // extract == condition from arg0
