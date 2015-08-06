@@ -327,7 +327,7 @@ func Goexit() {
 		freedefer(d)
 		// Note: we ignore recovers here because Goexit isn't a panic
 	}
-	goexit()
+	goexit1()
 }
 
 // Print all currently active panics.  Used when crashing.
