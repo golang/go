@@ -75,6 +75,18 @@ func shouldEscape(c byte, mode encoding) bool {
 		return false
 	}
 
+	if mode == encodeHost {
+		// §3.2.2 Host allows
+		//	sub-delims = "!" / "$" / "&" / "'" / "(" / ")" / "*" / "+" / "," / ";" / "="
+		// as part of reg-name.
+		// We add : because we include :port as part of host.
+		// We add [ ] because we include [ipv6]:port as part of host
+		switch c {
+		case '!', '$', '&', '\'', '(', ')', '*', '+', ',', ';', '=', ':', '[', ']':
+			return false
+		}
+	}
+
 	switch c {
 	case '-', '_', '.', '~': // §2.3 Unreserved characters (mark)
 		return false
@@ -97,10 +109,6 @@ func shouldEscape(c byte, mode encoding) bool {
 			// that too.
 			return c == '@' || c == '/' || c == '?' || c == ':'
 
-		case encodeHost: // §3.2.1
-			// The RFC allows ':'.
-			return c != ':'
-
 		case encodeQueryComponent: // §3.4
 			// The RFC reserves (so we must escape) everything.
 			return true
@@ -108,13 +116,6 @@ func shouldEscape(c byte, mode encoding) bool {
 		case encodeFragment: // §4.1
 			// The RFC text is silent but the grammar allows
 			// everything, so escape nothing.
-			return false
-		}
-
-	case '[', ']': // §2.2 Reserved characters (reserved)
-		switch mode {
-		case encodeHost: // §3.2.1
-			// The RFC allows '[', ']'.
 			return false
 		}
 	}
