@@ -382,6 +382,26 @@ var urltests = []URLTest{
 		},
 		"",
 	},
+	// issue 12036
+	{
+		"mysql://a,b,c/bar",
+		&URL{
+			Scheme: "mysql",
+			Host:   "a,b,c",
+			Path:   "/bar",
+		},
+		"",
+	},
+	// worst case host
+	{
+		"scheme://!$&'()*+,;=hello!:port/path",
+		&URL{
+			Scheme: "scheme",
+			Host:   "!$&'()*+,;=hello!:port",
+			Path:   "/path",
+		},
+		"",
+	},
 }
 
 // more useful string for debugging than fmt's struct printer
@@ -1130,6 +1150,7 @@ var shouldEscapeTests = []shouldEscapeTest{
 	{'a', encodeUserPassword, false},
 	{'a', encodeQueryComponent, false},
 	{'a', encodeFragment, false},
+	{'a', encodeHost, false},
 	{'z', encodePath, false},
 	{'A', encodePath, false},
 	{'Z', encodePath, false},
@@ -1154,6 +1175,29 @@ var shouldEscapeTests = []shouldEscapeTest{
 	{',', encodeUserPassword, false},
 	{';', encodeUserPassword, false},
 	{'=', encodeUserPassword, false},
+
+	// Host (IP address, IPv6 address, registered name, port suffix; §3.2.2)
+	{'!', encodeHost, false},
+	{'$', encodeHost, false},
+	{'&', encodeHost, false},
+	{'\'', encodeHost, false},
+	{'(', encodeHost, false},
+	{')', encodeHost, false},
+	{'*', encodeHost, false},
+	{'+', encodeHost, false},
+	{',', encodeHost, false},
+	{';', encodeHost, false},
+	{'=', encodeHost, false},
+	{':', encodeHost, false},
+	{'[', encodeHost, false},
+	{']', encodeHost, false},
+	{'0', encodeHost, false},
+	{'9', encodeHost, false},
+	{'A', encodeHost, false},
+	{'z', encodeHost, false},
+	{'_', encodeHost, false},
+	{'-', encodeHost, false},
+	{'.', encodeHost, false},
 }
 
 func TestShouldEscape(t *testing.T) {
