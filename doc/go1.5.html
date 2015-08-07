@@ -247,8 +247,8 @@ On FreeBSD, Go 1.5 requires FreeBSD 8-STABLE+ because of its new use of the <cod
 </p>
 
 <p>
-On NaCl, Go 1.5 requires SDK version pepper-39 or above because it now uses the
-<code>get_random_bytes</code> system call.
+On NaCl, Go 1.5 requires SDK version pepper-41. Later pepper versions are not
+compatible due to the removal of the sRPC subsystem from the NaCl runtime.
 </p>
 
 <p>
