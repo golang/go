@@ -31,8 +31,7 @@ var (
 
 	exeSuffix string // ".exe" on Windows
 
-	builder             = testenv.Builder()
-	skipExternalBuilder = false // skip external tests on this builder
+	skipExternal = false // skip external tests
 )
 
 func init() {
@@ -44,14 +43,21 @@ func init() {
 		case "arm", "arm64":
 			canRun = false
 		}
-	}
-
-	if strings.HasPrefix(builder+"-", "freebsd-arm-") {
-		skipExternalBuilder = true
-		canRun = false
-	}
-
-	switch runtime.GOOS {
+	case "linux":
+		switch runtime.GOARCH {
+		case "arm":
+			// many linux/arm machines are too slow to run
+			// the full set of external tests.
+			skipExternal = true
+		}
+	case "freebsd":
+		switch runtime.GOARCH {
+		case "arm":
+			// many freebsd/arm machines are too slow to run
+			// the full set of external tests.
+			skipExternal = true
+			canRun = false
+		}
 	case "windows":
 		exeSuffix = ".exe"
 	}
@@ -138,8 +144,8 @@ type testgoData struct {
 func testgo(t *testing.T) *testgoData {
 	testenv.MustHaveGoBuild(t)
 
-	if skipExternalBuilder {
-		t.Skip("skipping external tests on %s builder", builder)
+	if skipExternal {
+		t.Skip("skipping external tests on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 
 	return &testgoData{t: t}
