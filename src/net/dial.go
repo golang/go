@@ -329,7 +329,7 @@ func dialSerial(ctx *dialContext, ras addrList, cancel <-chan struct{}) (Conn, e
 			break
 		}
 
-		// dialTCP does not support cancelation (see golang.org/issue/11225),
+		// dialTCP does not support cancellation (see golang.org/issue/11225),
 		// so if cancel fires, we'll continue trying to connect until the next
 		// timeout, or return a spurious connection for the caller to close.
 		dialer := func(d time.Time) (Conn, error) {

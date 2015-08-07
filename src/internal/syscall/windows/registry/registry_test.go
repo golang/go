@@ -334,7 +334,7 @@ func testGetValue(t *testing.T, k registry.Key, test ValueTest, size int) {
 	// read data with short buffer
 	gotsize, gottype, err = k.GetValue(test.Name, make([]byte, size-1))
 	if err == nil {
-		t.Errorf("GetValue(%s, [%d]byte) should fail, but suceeded", test.Name, size-1)
+		t.Errorf("GetValue(%s, [%d]byte) should fail, but succeeded", test.Name, size-1)
 		return
 	}
 	if err != registry.ErrShortBuffer {

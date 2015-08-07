@@ -239,7 +239,7 @@ const (
 
 type A [iota /* ERROR "cannot use iota" */ ]int
 
-// constant expressions with operands accross different
+// constant expressions with operands across different
 // constant declarations must use the right iota values
 const (
 	_c0 = iota

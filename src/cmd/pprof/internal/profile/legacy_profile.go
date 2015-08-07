@@ -688,7 +688,7 @@ func scaleHeapSample(count, size, rate int64) (int64, int64) {
 	return int64(float64(count) * scale), int64(float64(size) * scale)
 }
 
-// parseContention parses a contentionz profile and returns a newly
+// parseContention parses a contentions profile and returns a newly
 // populated Profile.
 func parseContention(b []byte) (p *Profile, err error) {
 	r := bytes.NewBuffer(b)
@@ -755,10 +755,10 @@ func parseContention(b []byte) (p *Profile, err error) {
 			}
 			p.DurationNanos = ms * 1000 * 1000
 		case "format":
-			// CPP contentionz profiles don't have format.
+			// CPP contentions profiles don't have format.
 			return nil, errUnrecognized
 		case "resolution":
-			// CPP contentionz profiles don't have resolution.
+			// CPP contentions profiles don't have resolution.
 			return nil, errUnrecognized
 		case "discarded samples":
 		default:
@@ -1134,7 +1134,7 @@ func (p *Profile) addLegacyFrameInfo() {
 		isProfileType(p, heapzInUseSampleTypes) ||
 		isProfileType(p, heapzAllocSampleTypes):
 		p.DropFrames, p.KeepFrames = allocRxStr, allocSkipRxStr
-	case isProfileType(p, contentionzSampleTypes):
+	case isProfileType(p, contentionsSampleTypes):
 		p.DropFrames, p.KeepFrames = lockRxStr, ""
 	default:
 		p.DropFrames, p.KeepFrames = cpuProfilerRxStr, ""
@@ -1144,7 +1144,7 @@ func (p *Profile) addLegacyFrameInfo() {
 var heapzSampleTypes = []string{"allocations", "size"} // early Go pprof profiles
 var heapzInUseSampleTypes = []string{"inuse_objects", "inuse_space"}
 var heapzAllocSampleTypes = []string{"alloc_objects", "alloc_space"}
-var contentionzSampleTypes = []string{"contentions", "delay"}
+var contentionsSampleTypes = []string{"contentions", "delay"}
 
 func isProfileType(p *Profile, t []string) bool {
 	st := p.SampleType

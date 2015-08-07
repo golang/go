@@ -137,7 +137,7 @@ var errSeeker = errors.New("seeker can't seek")
 
 // if name is empty, filename is unknown. (used for mime type, before sniffing)
 // if modtime.IsZero(), modtime is unknown.
-// content must be seeked to the beginning of the file.
+// content must be sought to the beginning of the file.
 // The sizeFunc is called at most once. Its error, if any, is sent in the HTTP response.
 func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, sizeFunc func() (int64, error), content io.ReadSeeker) {
 	if checkLastModified(w, r, modtime) {

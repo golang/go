@@ -203,7 +203,7 @@ func shift(cell, dir int8) int8 {
 	return cell
 }
 
-/* Returns wether the specified cell and direction will land outside
+/* Returns whether the specified cell and direction will land outside
  * of the board.  Used to determine if a piece is at a legal board
  * location or not.
  */

@@ -19,7 +19,7 @@ EOF
 sub fmt {
 	my ($name, $num) = @_;
 	if($num > 999){
-		# ignore depricated syscalls that are no longer implemented
+		# ignore deprecated syscalls that are no longer implemented
 		# https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/include/uapi/asm-generic/unistd.h?id=refs/heads/master#n716
 		return;
 	}
