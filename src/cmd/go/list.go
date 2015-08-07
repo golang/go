@@ -21,9 +21,10 @@ List lists the packages named by the import paths, one per line.
 
 The default output shows the package import path:
 
-    code.google.com/p/google-api-go-client/books/v1
-    code.google.com/p/goauth2/oauth
-    code.google.com/p/sqlite
+    bytes
+    encoding/json
+    github.com/gorilla/mux
+    golang.org/x/net/html
 
 The -f flag specifies an alternate format for the list, using the
 syntax of package template.  The default output is equivalent to -f

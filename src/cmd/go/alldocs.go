@@ -521,9 +521,10 @@ List lists the packages named by the import paths, one per line.
 
 The default output shows the package import path:
 
-    code.google.com/p/google-api-go-client/books/v1
-    code.google.com/p/goauth2/oauth
-    code.google.com/p/sqlite
+    bytes
+    encoding/json
+    github.com/gorilla/mux
+    golang.org/x/net/html
 
 The -f flag specifies an alternate format for the list, using the
 syntax of package template.  The default output is equivalent to -f
@@ -1284,7 +1285,7 @@ By convention, this is arranged by starting each path with a
 unique prefix that belongs to you.  For example, paths used
 internally at Google all begin with 'google', and paths
 denoting remote repositories begin with the path to the code,
-such as 'code.google.com/p/project'.
+such as 'github.com/user/repo'.
 
 As a special case, if the package list is a list of .go files from a
 single directory, the command is applied to a single synthesized
