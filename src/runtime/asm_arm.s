@@ -752,6 +752,8 @@ TEXT runtime·atomicstoreuintptr(SB),NOSPLIT,$0-8
 	B	runtime·atomicstore(SB)
 
 // armPublicationBarrier is a native store/store barrier for ARMv7+.
+// On earlier ARM revisions, armPublicationBarrier is a no-op.
+// This will not work on SMP ARMv6 machines, if any are in use.
 // To implement publiationBarrier in sys_$GOOS_arm.s using the native
 // instructions, use:
 //
@@ -759,6 +761,9 @@ TEXT runtime·atomicstoreuintptr(SB),NOSPLIT,$0-8
 //		B	runtime·armPublicationBarrier(SB)
 //
 TEXT runtime·armPublicationBarrier(SB),NOSPLIT,$-4-0
+	MOVB	runtime·goarm(SB), R11
+	CMP	$7, R11
+	BLT	2(PC)
 	WORD $0xf57ff05e	// DMB ST
 	RET
 
