@@ -1175,7 +1175,7 @@ var opcodeTable = [...]opInfo{
 				2,     // .CX
 			},
 			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 		},
 	},
@@ -1188,7 +1188,7 @@ var opcodeTable = [...]opInfo{
 				2,     // .CX
 			},
 			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 		},
 	},
@@ -1201,7 +1201,7 @@ var opcodeTable = [...]opInfo{
 				2,     // .CX
 			},
 			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 		},
 	},
@@ -1214,7 +1214,7 @@ var opcodeTable = [...]opInfo{
 				2,     // .CX
 			},
 			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 		},
 	},
@@ -1275,7 +1275,7 @@ var opcodeTable = [...]opInfo{
 				2,     // .CX
 			},
 			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 		},
 	},
@@ -1288,7 +1288,7 @@ var opcodeTable = [...]opInfo{
 				2,     // .CX
 			},
 			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 		},
 	},
@@ -1301,7 +1301,7 @@ var opcodeTable = [...]opInfo{
 				2,     // .CX
 			},
 			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 		},
 	},
@@ -1314,7 +1314,7 @@ var opcodeTable = [...]opInfo{
 				2,     // .CX
 			},
 			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 		},
 	},
@@ -1375,7 +1375,7 @@ var opcodeTable = [...]opInfo{
 				2,     // .CX
 			},
 			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 		},
 	},
@@ -1388,7 +1388,7 @@ var opcodeTable = [...]opInfo{
 				2,     // .CX
 			},
 			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 		},
 	},
@@ -1401,7 +1401,7 @@ var opcodeTable = [...]opInfo{
 				2,     // .CX
 			},
 			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 		},
 	},
@@ -1414,7 +1414,7 @@ var opcodeTable = [...]opInfo{
 				2,     // .CX
 			},
 			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 		},
 	},
