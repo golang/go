@@ -45,6 +45,30 @@ func nilcheckelim(f *Func) {
 	// walkStates to maintain the known non-nil values.
 	nonNilValues := make([]bool, f.NumValues())
 
+	// make an initial pass identifying any non-nil values
+	for _, b := range f.Blocks {
+		// a value resulting from taking the address of a
+		// value, or a value constructed from an offset of a
+		// non-nil ptr (OpAddPtr) implies it is non-nil
+		for _, v := range b.Values {
+			if v.Op == OpAddr || v.Op == OpAddPtr {
+				nonNilValues[v.ID] = true
+			} else if v.Op == OpPhi {
+				// phis whose arguments are all non-nil
+				// are non-nil
+				argsNonNil := true
+				for _, a := range v.Args {
+					if !nonNilValues[a.ID] {
+						argsNonNil = false
+					}
+				}
+				if argsNonNil {
+					nonNilValues[v.ID] = true
+				}
+			}
+		}
+	}
+
 	// perform a depth first walk of the dominee tree
 	for len(work) > 0 {
 		node := work[len(work)-1]
@@ -53,19 +77,6 @@ func nilcheckelim(f *Func) {
 		var pushRecPtr bool
 		switch node.op {
 		case Work:
-			// a value resulting from taking the address of a
-			// value, or a value constructed from an offset of a
-			// non-nil ptr (OpAddPtr) implies it is non-nil
-			for _, v := range node.block.Values {
-				if v.Op == OpAddr || v.Op == OpAddPtr {
-					// set this immediately instead of
-					// using SetPtr so we can potentially
-					// remove an OpIsNonNil check in the
-					// current work block
-					nonNilValues[v.ID] = true
-				}
-			}
-
 			if node.ptr != nil {
 				// already have a nilcheck in the dominator path
 				if nonNilValues[node.ptr.ID] {
