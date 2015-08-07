@@ -72,6 +72,7 @@ func init() {
 
 	// Common individual register masks
 	var (
+		cx     = buildReg("CX")
 		gp     = buildReg("AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15")
 		gpsp   = gp | buildReg("SP")
 		gpspsb = gpsp | buildReg("SB")
@@ -91,7 +92,7 @@ func init() {
 		gp11sb    = regInfo{inputs: []regMask{gpspsb}, outputs: gponly}
 		gp21      = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: gponly}
 		gp21sb    = regInfo{inputs: []regMask{gpspsb, gpsp}, outputs: gponly}
-		gp21shift = regInfo{inputs: []regMask{gpsp, buildReg("CX")}, outputs: gponly}
+		gp21shift = regInfo{inputs: []regMask{gpsp, cx}, outputs: []regMask{gp &^ cx}}
 
 		gp2flags = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: flagsonly}
 		gp1flags = regInfo{inputs: []regMask{gpsp}, outputs: flagsonly}

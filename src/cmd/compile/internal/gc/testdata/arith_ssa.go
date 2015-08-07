@@ -141,6 +141,28 @@ func testBitwiseRshU_ssa(a uint32, b, c uint32) uint32 {
 	return a >> b >> c
 }
 
+func testShiftCX_ssa() int {
+	switch {
+	} // prevent inlining
+	v1 := uint8(3)
+	v4 := (v1 * v1) ^ v1 | v1 - v1 - v1&v1 ^ uint8(3+2) + v1*1>>0 - v1 | 1 | v1<<(2*3|0-0*0^1)
+	v5 := v4>>(3-0-uint(3)) | v1 | v1 + v1 ^ v4<<(0+1|3&1)<<(uint64(1)<<0*2*0<<0) ^ v1
+	v6 := v5 ^ (v1+v1)*v1 | v1 | v1*v1>>(v1&v1)>>(uint(1)<<0*uint(3)>>1)*v1<<2*v1<<v1 - v1>>2 | (v4 - v1) ^ v1 + v1 ^ v1>>1 | v1 + v1 - v1 ^ v1
+	v7 := v6 & v5 << 0
+	v1++
+	v11 := 2&1 ^ 0 + 3 | int(0^0)<<1>>(1*0*3) ^ 0*0 ^ 3&0*3&3 ^ 3*3 ^ 1 ^ int(2)<<(2*3) + 2 | 2 | 2 ^ 2 + 1 | 3 | 0 ^ int(1)>>1 ^ 2 // int
+	v7--
+	return int(uint64(2*1)<<(3-2)<<uint(3>>v7)-2)&v11 | v11 - int(2)<<0>>(2-1)*(v11*0&v11<<1<<(uint8(2)+v4))
+}
+
+func testShiftCX() {
+	want := 141
+	if got := testShiftCX_ssa(); want != got {
+		println("testShiftCX failed, wanted", want, "got", got)
+		failed = true
+	}
+}
+
 // testSubqToNegq ensures that the SUBQ -> NEGQ translation works correctly.
 func testSubqToNegq() {
 	want := int64(-318294940372190156)
@@ -263,6 +285,7 @@ func main() {
 	testBitwiseLogic()
 	testOcom()
 	testLrot()
+	testShiftCX()
 	testSubConst()
 
 	if failed {
