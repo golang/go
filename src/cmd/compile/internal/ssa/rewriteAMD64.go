@@ -8173,13 +8173,13 @@ func rewriteBlockAMD64(b *Block) bool {
 	endf60c0660b6a8aa9565c97fc87f04eb34:
 		;
 	case BlockIf:
-		// match: (If (SETL cmp) yes no)
+		// match: (If (SETL  cmp) yes no)
 		// cond:
-		// result: (LT cmp yes no)
+		// result: (LT  cmp yes no)
 		{
 			v := b.Control
 			if v.Op != OpAMD64SETL {
-				goto ende4d36879bb8e1bd8facaa8c91ba99dcc
+				goto end94277282f4b83f0c035b23711a075801
 			}
 			cmp := v.Args[0]
 			yes := b.Succs[0]
@@ -8190,16 +8190,16 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Succs[1] = no
 			return true
 		}
-		goto ende4d36879bb8e1bd8facaa8c91ba99dcc
-	ende4d36879bb8e1bd8facaa8c91ba99dcc:
+		goto end94277282f4b83f0c035b23711a075801
+	end94277282f4b83f0c035b23711a075801:
 		;
 		// match: (If (SETLE cmp) yes no)
 		// cond:
-		// result: (LE cmp yes no)
+		// result: (LE  cmp yes no)
 		{
 			v := b.Control
 			if v.Op != OpAMD64SETLE {
-				goto end40df18679690e8f9005d8642fab44654
+				goto enda84798dd797927b54a9a2987421b2ba2
 			}
 			cmp := v.Args[0]
 			yes := b.Succs[0]
@@ -8210,16 +8210,16 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Succs[1] = no
 			return true
 		}
-		goto end40df18679690e8f9005d8642fab44654
-	end40df18679690e8f9005d8642fab44654:
+		goto enda84798dd797927b54a9a2987421b2ba2
+	enda84798dd797927b54a9a2987421b2ba2:
 		;
-		// match: (If (SETG cmp) yes no)
+		// match: (If (SETG  cmp) yes no)
 		// cond:
-		// result: (GT cmp yes no)
+		// result: (GT  cmp yes no)
 		{
 			v := b.Control
 			if v.Op != OpAMD64SETG {
-				goto endb1faff07a84ae08a4b05a4a7e71eb740
+				goto end3434ef985979cbf394455ab5b559567c
 			}
 			cmp := v.Args[0]
 			yes := b.Succs[0]
@@ -8230,16 +8230,16 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Succs[1] = no
 			return true
 		}
-		goto endb1faff07a84ae08a4b05a4a7e71eb740
-	endb1faff07a84ae08a4b05a4a7e71eb740:
+		goto end3434ef985979cbf394455ab5b559567c
+	end3434ef985979cbf394455ab5b559567c:
 		;
 		// match: (If (SETGE cmp) yes no)
 		// cond:
-		// result: (GE cmp yes no)
+		// result: (GE  cmp yes no)
 		{
 			v := b.Control
 			if v.Op != OpAMD64SETGE {
-				goto enda9211ccfa5b0ab8eafc0017630c542b6
+				goto endee147d81d8620a5e23cb92bd9f13cf8d
 			}
 			cmp := v.Args[0]
 			yes := b.Succs[0]
@@ -8250,16 +8250,16 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Succs[1] = no
 			return true
 		}
-		goto enda9211ccfa5b0ab8eafc0017630c542b6
-	enda9211ccfa5b0ab8eafc0017630c542b6:
+		goto endee147d81d8620a5e23cb92bd9f13cf8d
+	endee147d81d8620a5e23cb92bd9f13cf8d:
 		;
 		// match: (If (SETEQ cmp) yes no)
 		// cond:
-		// result: (EQ cmp yes no)
+		// result: (EQ  cmp yes no)
 		{
 			v := b.Control
 			if v.Op != OpAMD64SETEQ {
-				goto endf113deb06abc88613840e6282942921a
+				goto ende7d85ccc850fc3963c50a91df096de17
 			}
 			cmp := v.Args[0]
 			yes := b.Succs[0]
@@ -8270,16 +8270,16 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Succs[1] = no
 			return true
 		}
-		goto endf113deb06abc88613840e6282942921a
-	endf113deb06abc88613840e6282942921a:
+		goto ende7d85ccc850fc3963c50a91df096de17
+	ende7d85ccc850fc3963c50a91df096de17:
 		;
 		// match: (If (SETNE cmp) yes no)
 		// cond:
-		// result: (NE cmp yes no)
+		// result: (NE  cmp yes no)
 		{
 			v := b.Control
 			if v.Op != OpAMD64SETNE {
-				goto end5ff1403aaf7b543bc454177ab584e4f5
+				goto endba4b54260ecda1b5731b129c0eb493d0
 			}
 			cmp := v.Args[0]
 			yes := b.Succs[0]
@@ -8290,16 +8290,16 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Succs[1] = no
 			return true
 		}
-		goto end5ff1403aaf7b543bc454177ab584e4f5
-	end5ff1403aaf7b543bc454177ab584e4f5:
+		goto endba4b54260ecda1b5731b129c0eb493d0
+	endba4b54260ecda1b5731b129c0eb493d0:
 		;
-		// match: (If (SETB cmp) yes no)
+		// match: (If (SETB  cmp) yes no)
 		// cond:
 		// result: (ULT cmp yes no)
 		{
 			v := b.Control
 			if v.Op != OpAMD64SETB {
-				goto end04935012db9defeafceef8175f803ea2
+				goto endf84eedfcd3f18f5c9c3f3d1045a24330
 			}
 			cmp := v.Args[0]
 			yes := b.Succs[0]
@@ -8310,8 +8310,8 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Succs[1] = no
 			return true
 		}
-		goto end04935012db9defeafceef8175f803ea2
-	end04935012db9defeafceef8175f803ea2:
+		goto endf84eedfcd3f18f5c9c3f3d1045a24330
+	endf84eedfcd3f18f5c9c3f3d1045a24330:
 		;
 		// match: (If (SETBE cmp) yes no)
 		// cond:
@@ -8333,13 +8333,13 @@ func rewriteBlockAMD64(b *Block) bool {
 		goto endfe0178f6f4406945ca8966817d04be60
 	endfe0178f6f4406945ca8966817d04be60:
 		;
-		// match: (If (SETA cmp) yes no)
+		// match: (If (SETA  cmp) yes no)
 		// cond:
 		// result: (UGT cmp yes no)
 		{
 			v := b.Control
 			if v.Op != OpAMD64SETA {
-				goto endbd22a7d56a98d85e4e132ff952dae262
+				goto end2b5a2d7756bdba01a732bf54d9acdb73
 			}
 			cmp := v.Args[0]
 			yes := b.Succs[0]
@@ -8350,8 +8350,8 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Succs[1] = no
 			return true
 		}
-		goto endbd22a7d56a98d85e4e132ff952dae262
-	endbd22a7d56a98d85e4e132ff952dae262:
+		goto end2b5a2d7756bdba01a732bf54d9acdb73
+	end2b5a2d7756bdba01a732bf54d9acdb73:
 		;
 		// match: (If (SETAE cmp) yes no)
 		// cond:
@@ -8437,6 +8437,236 @@ func rewriteBlockAMD64(b *Block) bool {
 	end6a408cde0fee0ae7b7da0443c8d902bf:
 		;
 	case BlockAMD64NE:
+		// match: (NE (TESTB (SETL  cmp)) yes no)
+		// cond:
+		// result: (LT  cmp yes no)
+		{
+			v := b.Control
+			if v.Op != OpAMD64TESTB {
+				goto end0b9ca165d6b395de676eebef94bc62f7
+			}
+			if v.Args[0].Op != OpAMD64SETL {
+				goto end0b9ca165d6b395de676eebef94bc62f7
+			}
+			cmp := v.Args[0].Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockAMD64LT
+			b.Control = cmp
+			b.Succs[0] = yes
+			b.Succs[1] = no
+			return true
+		}
+		goto end0b9ca165d6b395de676eebef94bc62f7
+	end0b9ca165d6b395de676eebef94bc62f7:
+		;
+		// match: (NE (TESTB (SETLE cmp)) yes no)
+		// cond:
+		// result: (LE  cmp yes no)
+		{
+			v := b.Control
+			if v.Op != OpAMD64TESTB {
+				goto endaaba0ee4d0ff8c66a1c3107d2a14c4bc
+			}
+			if v.Args[0].Op != OpAMD64SETLE {
+				goto endaaba0ee4d0ff8c66a1c3107d2a14c4bc
+			}
+			cmp := v.Args[0].Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockAMD64LE
+			b.Control = cmp
+			b.Succs[0] = yes
+			b.Succs[1] = no
+			return true
+		}
+		goto endaaba0ee4d0ff8c66a1c3107d2a14c4bc
+	endaaba0ee4d0ff8c66a1c3107d2a14c4bc:
+		;
+		// match: (NE (TESTB (SETG  cmp)) yes no)
+		// cond:
+		// result: (GT  cmp yes no)
+		{
+			v := b.Control
+			if v.Op != OpAMD64TESTB {
+				goto end1b689463137526b36ba9ceed1e76e512
+			}
+			if v.Args[0].Op != OpAMD64SETG {
+				goto end1b689463137526b36ba9ceed1e76e512
+			}
+			cmp := v.Args[0].Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockAMD64GT
+			b.Control = cmp
+			b.Succs[0] = yes
+			b.Succs[1] = no
+			return true
+		}
+		goto end1b689463137526b36ba9ceed1e76e512
+	end1b689463137526b36ba9ceed1e76e512:
+		;
+		// match: (NE (TESTB (SETGE cmp)) yes no)
+		// cond:
+		// result: (GE  cmp yes no)
+		{
+			v := b.Control
+			if v.Op != OpAMD64TESTB {
+				goto end99eefee595c658b997f41577ed853c2e
+			}
+			if v.Args[0].Op != OpAMD64SETGE {
+				goto end99eefee595c658b997f41577ed853c2e
+			}
+			cmp := v.Args[0].Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockAMD64GE
+			b.Control = cmp
+			b.Succs[0] = yes
+			b.Succs[1] = no
+			return true
+		}
+		goto end99eefee595c658b997f41577ed853c2e
+	end99eefee595c658b997f41577ed853c2e:
+		;
+		// match: (NE (TESTB (SETEQ cmp)) yes no)
+		// cond:
+		// result: (EQ  cmp yes no)
+		{
+			v := b.Control
+			if v.Op != OpAMD64TESTB {
+				goto end371b67d3d63e9b92d848b09c3324e8b9
+			}
+			if v.Args[0].Op != OpAMD64SETEQ {
+				goto end371b67d3d63e9b92d848b09c3324e8b9
+			}
+			cmp := v.Args[0].Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockAMD64EQ
+			b.Control = cmp
+			b.Succs[0] = yes
+			b.Succs[1] = no
+			return true
+		}
+		goto end371b67d3d63e9b92d848b09c3324e8b9
+	end371b67d3d63e9b92d848b09c3324e8b9:
+		;
+		// match: (NE (TESTB (SETNE cmp)) yes no)
+		// cond:
+		// result: (NE  cmp yes no)
+		{
+			v := b.Control
+			if v.Op != OpAMD64TESTB {
+				goto endd245f2aac2191d32e57cd2e321daa453
+			}
+			if v.Args[0].Op != OpAMD64SETNE {
+				goto endd245f2aac2191d32e57cd2e321daa453
+			}
+			cmp := v.Args[0].Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockAMD64NE
+			b.Control = cmp
+			b.Succs[0] = yes
+			b.Succs[1] = no
+			return true
+		}
+		goto endd245f2aac2191d32e57cd2e321daa453
+	endd245f2aac2191d32e57cd2e321daa453:
+		;
+		// match: (NE (TESTB (SETB  cmp)) yes no)
+		// cond:
+		// result: (ULT cmp yes no)
+		{
+			v := b.Control
+			if v.Op != OpAMD64TESTB {
+				goto end90c4bec851e734d37457d611b1a5ff28
+			}
+			if v.Args[0].Op != OpAMD64SETB {
+				goto end90c4bec851e734d37457d611b1a5ff28
+			}
+			cmp := v.Args[0].Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockAMD64ULT
+			b.Control = cmp
+			b.Succs[0] = yes
+			b.Succs[1] = no
+			return true
+		}
+		goto end90c4bec851e734d37457d611b1a5ff28
+	end90c4bec851e734d37457d611b1a5ff28:
+		;
+		// match: (NE (TESTB (SETBE cmp)) yes no)
+		// cond:
+		// result: (ULE cmp yes no)
+		{
+			v := b.Control
+			if v.Op != OpAMD64TESTB {
+				goto end3a68a28114e9b89ee0708823386bc1ee
+			}
+			if v.Args[0].Op != OpAMD64SETBE {
+				goto end3a68a28114e9b89ee0708823386bc1ee
+			}
+			cmp := v.Args[0].Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockAMD64ULE
+			b.Control = cmp
+			b.Succs[0] = yes
+			b.Succs[1] = no
+			return true
+		}
+		goto end3a68a28114e9b89ee0708823386bc1ee
+	end3a68a28114e9b89ee0708823386bc1ee:
+		;
+		// match: (NE (TESTB (SETA  cmp)) yes no)
+		// cond:
+		// result: (UGT cmp yes no)
+		{
+			v := b.Control
+			if v.Op != OpAMD64TESTB {
+				goto end16496f57185756e960d536b057c776c0
+			}
+			if v.Args[0].Op != OpAMD64SETA {
+				goto end16496f57185756e960d536b057c776c0
+			}
+			cmp := v.Args[0].Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockAMD64UGT
+			b.Control = cmp
+			b.Succs[0] = yes
+			b.Succs[1] = no
+			return true
+		}
+		goto end16496f57185756e960d536b057c776c0
+	end16496f57185756e960d536b057c776c0:
+		;
+		// match: (NE (TESTB (SETAE cmp)) yes no)
+		// cond:
+		// result: (UGE cmp yes no)
+		{
+			v := b.Control
+			if v.Op != OpAMD64TESTB {
+				goto endbd122fd599aeb9e60881a0fa735e2fde
+			}
+			if v.Args[0].Op != OpAMD64SETAE {
+				goto endbd122fd599aeb9e60881a0fa735e2fde
+			}
+			cmp := v.Args[0].Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockAMD64UGE
+			b.Control = cmp
+			b.Succs[0] = yes
+			b.Succs[1] = no
+			return true
+		}
+		goto endbd122fd599aeb9e60881a0fa735e2fde
+	endbd122fd599aeb9e60881a0fa735e2fde:
+		;
 		// match: (NE (InvertFlags cmp) yes no)
 		// cond:
 		// result: (NE cmp yes no)
