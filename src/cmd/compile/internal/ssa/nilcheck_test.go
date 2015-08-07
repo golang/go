@@ -200,7 +200,51 @@ func TestNilcheckAddPtr(t *testing.T) {
 	}
 }
 
-// TestNilcheckKeepRemove verifies that dupliate checks of the same pointer
+// TestNilcheckPhi tests that nil checks of phis, for which all values are known to be
+// non-nil are removed.
+func TestNilcheckPhi(t *testing.T) {
+	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+	c := NewConfig("amd64", DummyFrontend{t})
+	fun := Fun(c, "entry",
+		Bloc("entry",
+			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+			Valu("sb", OpSB, TypeInvalid, 0, nil),
+			Valu("sp", OpSP, TypeInvalid, 0, nil),
+			Valu("baddr", OpAddr, TypeBool, 0, "b", "sp"),
+			Valu("bool1", OpLoad, TypeBool, 0, nil, "baddr", "mem"),
+			If("bool1", "b1", "b2")),
+		Bloc("b1",
+			Valu("ptr1", OpAddr, ptrType, 0, nil, "sb"),
+			Goto("checkPtr")),
+		Bloc("b2",
+			Valu("ptr2", OpAddr, ptrType, 0, nil, "sb"),
+			Goto("checkPtr")),
+		// both ptr1 and ptr2 are guaranteed non-nil here
+		Bloc("checkPtr",
+			Valu("phi", OpPhi, ptrType, 0, nil, "ptr1", "ptr2"),
+			Valu("bool2", OpIsNonNil, TypeBool, 0, nil, "phi"),
+			If("bool2", "extra", "exit")),
+		Bloc("extra",
+			Goto("exit")),
+		Bloc("exit",
+			Exit("mem")))
+
+	CheckFunc(fun.f)
+	nilcheckelim(fun.f)
+
+	// clean up the removed nil check
+	fuse(fun.f)
+	deadcode(fun.f)
+
+	CheckFunc(fun.f)
+	for _, b := range fun.f.Blocks {
+		if b == fun.blocks["checkPtr"] && isNilCheck(b) {
+			t.Errorf("checkPtr was not eliminated")
+		}
+	}
+}
+
+// TestNilcheckKeepRemove verifies that duplicate checks of the same pointer
 // are removed, but checks of different pointers are not.
 func TestNilcheckKeepRemove(t *testing.T) {
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
