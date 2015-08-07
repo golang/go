@@ -709,6 +709,24 @@ var (
 )
 `,
 	},
+
+	// Unused named import is mistaken for unnamed import
+	// golang.org/issue/8149
+	{
+		name: "issue 8149",
+		in: `package main
+
+import foo "fmt"
+
+func main() { fmt.Println() }
+`,
+		out: `package main
+
+import "fmt"
+
+func main() { fmt.Println() }
+`,
+	},
 }
 
 func TestFixImports(t *testing.T) {

@@ -89,6 +89,21 @@ func fixImports(fset *token.FileSet, f *ast.File) (added []string, err error) {
 	})
 	ast.Walk(visitor, f)
 
+	// Nil out any unused ImportSpecs, to be removed in following passes
+	unusedImport := map[string]bool{}
+	for pkg, is := range decls {
+		if refs[pkg] == nil && pkg != "_" && pkg != "." {
+			unusedImport[strings.Trim(is.Path.Value, `"`)] = true
+		}
+	}
+	for ipath := range unusedImport {
+		if ipath == "C" {
+			// Don't remove cgo stuff.
+			continue
+		}
+		astutil.DeleteImport(fset, f, ipath)
+	}
+
 	// Search for imports matching potential package references.
 	searches := 0
 	type result struct {
@@ -124,21 +139,6 @@ func fixImports(fset *token.FileSet, f *ast.File) (added []string, err error) {
 			}
 			added = append(added, result.ipath)
 		}
-	}
-
-	// Nil out any unused ImportSpecs, to be removed in following passes
-	unusedImport := map[string]bool{}
-	for pkg, is := range decls {
-		if refs[pkg] == nil && pkg != "_" && pkg != "." {
-			unusedImport[strings.Trim(is.Path.Value, `"`)] = true
-		}
-	}
-	for ipath := range unusedImport {
-		if ipath == "C" {
-			// Don't remove cgo stuff.
-			continue
-		}
-		astutil.DeleteImport(fset, f, ipath)
 	}
 
 	return added, nil
