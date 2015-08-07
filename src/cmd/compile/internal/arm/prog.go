@@ -97,11 +97,11 @@ var progtable = [arm.ALAST]obj.ProgInfo{
 	arm.AMOVH: {gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
 	arm.AMOVW: {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
 
-	// In addtion, duffzero reads R0,R1 and writes R1.  This fact is
+	// In addition, duffzero reads R0,R1 and writes R1.  This fact is
 	// encoded in peep.c
 	obj.ADUFFZERO: {gc.Call, 0, 0, 0},
 
-	// In addtion, duffcopy reads R1,R2 and writes R0,R1,R2.  This fact is
+	// In addition, duffcopy reads R1,R2 and writes R0,R1,R2.  This fact is
 	// encoded in peep.c
 	obj.ADUFFCOPY: {gc.Call, 0, 0, 0},
 

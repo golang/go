@@ -52,7 +52,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$0
 // pipe(3c) wrapper that returns fds in AX, DX.
 // NOT USING GO CALLING CONVENTION.
 TEXT runtime·pipe1(SB),NOSPLIT,$0
-	SUBQ	$16, SP // 8 bytes will do, but stack has to be 16-byte alligned
+	SUBQ	$16, SP // 8 bytes will do, but stack has to be 16-byte aligned
 	MOVQ	SP, DI
 	LEAQ	libc_pipe(SB), AX
 	CALL	AX

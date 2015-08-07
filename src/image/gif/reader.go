@@ -210,7 +210,7 @@ func (d *decoder) decode(r io.Reader, configOnly bool) error {
 			// for an image". In practice, though, giflib (a widely used C
 			// library) does not enforce this, so we also accept lzwr returning
 			// io.ErrUnexpectedEOF (meaning that the encoded stream hit io.EOF
-			// before the LZW decoder saw an explict end code), provided that
+			// before the LZW decoder saw an explicit end code), provided that
 			// the io.ReadFull call above successfully read len(m.Pix) bytes.
 			// See https://golang.org/issue/9856 for an example GIF.
 			if n, err := lzwr.Read(d.tmp[:1]); n != 0 || (err != io.EOF && err != io.ErrUnexpectedEOF) {

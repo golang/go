@@ -847,7 +847,7 @@ func (b *builder) action1(mode buildMode, depMode buildMode, p *Package, looksha
 	for _, p1 := range p.imports {
 		ls := buildLinkshared
 		// If p1 is part of the same shared library as p, we need the action
-		// that builds p here, not the shared libary or we get action loops.
+		// that builds p here, not the shared library or we get action loops.
 		if p1.Shlib == p.Shlib {
 			ls = false
 		}

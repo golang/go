@@ -326,7 +326,7 @@ func TestInsertAfterUnknownMark(t *testing.T) {
 }
 
 // Test that a list l is not modified when calling MoveAfter or MoveBefore with a mark that is not an element of l.
-func TestMoveUnkownMark(t *testing.T) {
+func TestMoveUnknownMark(t *testing.T) {
 	var l1 List
 	e1 := l1.PushBack(1)
 

@@ -44,7 +44,7 @@ func Eval(fset *token.FileSet, pkg *Package, pos token.Pos, expr string) (tv Typ
 		scope = pkg.scope
 	} else {
 		// The package scope extent (position information) may be
-		// incorrect (files spread accross a wide range of fset
+		// incorrect (files spread across a wide range of fset
 		// positions) - ignore it and just consider its children
 		// (file scopes).
 		for _, fscope := range pkg.scope.children {

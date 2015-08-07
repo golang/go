@@ -396,7 +396,7 @@ const (
 	// R_TLS (only used on arm currently, and not on android and darwin where tlsg is
 	// a regular variable) resolves to data needed to access the thread-local g. It is
 	// interpreted differently depending on toolchain flags to implement either the
-	// "local exec" or "inital exec" model for tls access.
+	// "local exec" or "initial exec" model for tls access.
 	// TODO(mwhudson): change to use R_TLS_LE or R_TLS_IE as appropriate, not having
 	// R_TLS do double duty.
 	R_TLS

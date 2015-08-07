@@ -1548,7 +1548,7 @@ func TestCancelRequestWithChannelBeforeDo(t *testing.T) {
 
 	_, err := c.Do(req)
 	if err == nil || !strings.Contains(err.Error(), "canceled") {
-		t.Errorf("Do error = %v; want cancelation", err)
+		t.Errorf("Do error = %v; want cancellation", err)
 	}
 }
 
