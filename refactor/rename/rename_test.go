@@ -720,6 +720,57 @@ type _ struct{ *foo.U }
 			},
 		},
 
+		// Renaming of embedded field that is a qualified reference with the '-from' flag.
+		// (Regression test for bug 12038.)
+		{
+			ctxt: fakeContext(map[string][]string{
+				"foo": {`package foo; type T int`},
+				"main": {`package main
+
+import "foo"
+
+type V struct{ *foo.T }
+`},
+			}),
+			from: "(main.V).T", to: "U", // the "T" in *foo.T
+			want: map[string]string{
+				"/go/src/foo/0.go": `package foo
+
+type U int
+`,
+				"/go/src/main/0.go": `package main
+
+import "foo"
+
+type V struct{ *foo.U }
+`,
+			},
+		},
+		{
+			ctxt: fakeContext(map[string][]string{
+				"foo": {`package foo; type T int`},
+				"main": {`package main
+
+import "foo"
+
+type V struct{ foo.T }
+`},
+			}),
+			from: "(main.V).T", to: "U", // the "T" in *foo.T
+			want: map[string]string{
+				"/go/src/foo/0.go": `package foo
+
+type U int
+`,
+				"/go/src/main/0.go": `package main
+
+import "foo"
+
+type V struct{ foo.U }
+`,
+			},
+		},
+
 		// Interface method renaming.
 		{
 			ctxt: fakeContext(map[string][]string{
