@@ -30,6 +30,8 @@ func schedule(f *Func) {
 
 	for _, b := range f.Blocks {
 		// Find store chain for block.
+		// Store chains for different blocks overwrite each other, so
+		// the calculated store chain is good only for this block.
 		for _, v := range b.Values {
 			if v.Op != OpPhi && v.Type.IsMemory() {
 				for _, w := range v.Args {
