@@ -21,20 +21,47 @@ func schedule(f *Func) {
 	var order []*Value
 
 	// priority queue of legally schedulable (0 unscheduled uses) values
-	var priq [4][]*Value
+	var priq [5][]*Value
+
+	// maps mem values to the next live memory value
+	nextMem := make([]*Value, f.NumValues())
+	// additional pretend arguments for each Value.  Used to enforce load/store ordering.
+	additionalArgs := make([][]*Value, f.NumValues())
 
 	for _, b := range f.Blocks {
-		// Compute uses.
+		// Find store chain for block.
 		for _, v := range b.Values {
-			if v.Op != OpPhi {
-				// Note: if a value is used by a phi, it does not induce
-				// a scheduling edge because that use is from the
-				// previous iteration.
+			if v.Op != OpPhi && v.Type.IsMemory() {
 				for _, w := range v.Args {
-					if w.Block == b {
-						uses[w.ID]++
+					if w.Type.IsMemory() {
+						nextMem[w.ID] = v
 					}
 				}
+			}
+		}
+
+		// Compute uses.
+		for _, v := range b.Values {
+			if v.Op == OpPhi {
+				// If a value is used by a phi, it does not induce
+				// a scheduling edge because that use is from the
+				// previous iteration.
+				continue
+			}
+			for _, w := range v.Args {
+				if w.Block == b {
+					uses[w.ID]++
+				}
+				// Any load must come before the following store.
+				if v.Type.IsMemory() || !w.Type.IsMemory() {
+					continue // not a load
+				}
+				s := nextMem[w.ID]
+				if s == nil || s.Block != b {
+					continue
+				}
+				additionalArgs[s.ID] = append(additionalArgs[s.ID], v)
+				uses[v.ID]++
 			}
 		}
 		// Compute score.  Larger numbers are scheduled closer to the end of the block.
@@ -44,23 +71,22 @@ func schedule(f *Func) {
 				// We want all the phis first.
 				score[v.ID] = 0
 			case v.Type.IsMemory():
-				// Schedule stores as late as possible.
-				// This makes sure that loads do not get scheduled
-				// after a following store (1-live-memory requirement).
-				score[v.ID] = 2
+				// Schedule stores as early as possible.  This tends to
+				// reduce register pressure.
+				score[v.ID] = 1
 			case v.Type.IsFlags():
 				// Schedule flag register generation as late as possible.
 				// This makes sure that we only have one live flags
 				// value at a time.
-				score[v.ID] = 2
+				score[v.ID] = 3
 			default:
-				score[v.ID] = 1
+				score[v.ID] = 2
 			}
 		}
 		if b.Control != nil && b.Control.Op != OpPhi {
 			// Force the control value to be scheduled at the end,
 			// unless it is a phi value (which must be first).
-			score[b.Control.ID] = 3
+			score[b.Control.ID] = 4
 			// TODO: some times control values are used by other values
 			// in the block.  So the control value will not appear at
 			// the very end.  Decide if this is a problem or not.
@@ -103,6 +129,14 @@ func schedule(f *Func) {
 				if w.Block != b {
 					continue
 				}
+				uses[w.ID]--
+				if uses[w.ID] == 0 {
+					// All uses scheduled, w is now schedulable.
+					s := score[w.ID]
+					priq[s] = append(priq[s], w)
+				}
+			}
+			for _, w := range additionalArgs[v.ID] {
 				uses[w.ID]--
 				if uses[w.ID] == 0 {
 					// All uses scheduled, w is now schedulable.
