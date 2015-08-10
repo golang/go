@@ -699,18 +699,20 @@ outer:
 		}
 	}
 
-	// put out names of token names
+	// put out names of tokens
 	ftable.WriteRune('\n')
 	fmt.Fprintf(ftable, "var %sToknames = [...]string{\n", prefix)
 	for i := 1; i <= ntokens; i++ {
-		fmt.Fprintf(ftable, "\t\"%v\",\n", tokset[i].name)
+		fmt.Fprintf(ftable, "\t%q,\n", tokset[i].name)
 	}
 	fmt.Fprintf(ftable, "}\n")
 
-	// put out names of state names
+	// put out names of states.
+	// commented out to avoid a huge table just for debugging.
+	// re-enable to have the names in the binary.
 	fmt.Fprintf(ftable, "var %sStatenames = [...]string{", prefix)
 	//	for i:=TOKSTART; i<=ntokens; i++ {
-	//		fmt.Fprintf(ftable, "\t\"%v\",\n", tokset[i].name);
+	//		fmt.Fprintf(ftable, "\t%q,\n", tokset[i].name);
 	//	}
 	fmt.Fprintf(ftable, "}\n")
 
