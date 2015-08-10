@@ -5,7 +5,9 @@
 package gc
 
 import (
+	"bytes"
 	"fmt"
+	"html"
 	"os"
 	"strings"
 
@@ -39,6 +41,18 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 	s.config = ssa.NewConfig(Thearch.Thestring, &e)
 	s.f = s.config.NewFunc()
 	s.f.Name = name
+
+	if name == os.Getenv("GOSSAFUNC") {
+		// TODO: tempfile? it is handy to have the location
+		// of this file be stable, so you can just reload in the browser.
+		s.config.HTML = ssa.NewHTMLWriter("ssa.html", &s, name)
+		// TODO: generate and print a mapping from nodes to values and blocks
+	}
+	defer func() {
+		if !usessa {
+			s.config.HTML.Close()
+		}
+	}()
 
 	// If SSA support for the function is incomplete,
 	// assume that any panics are due to violated
@@ -1811,6 +1825,30 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 			}
 			f.Logf("%s\t%s\n", s, p)
 		}
+		if f.Config.HTML != nil {
+			saved := ptxt.Ctxt.LineHist.PrintFilenameOnly
+			ptxt.Ctxt.LineHist.PrintFilenameOnly = true
+			var buf bytes.Buffer
+			buf.WriteString("<code>")
+			buf.WriteString("<dl class=\"ssa-gen\">")
+			for p := ptxt; p != nil; p = p.Link {
+				buf.WriteString("<dt class=\"ssa-prog-src\">")
+				if v, ok := valueProgs[p]; ok {
+					buf.WriteString(v.HTML())
+				} else if b, ok := blockProgs[p]; ok {
+					buf.WriteString(b.HTML())
+				}
+				buf.WriteString("</dt>")
+				buf.WriteString("<dd class=\"ssa-prog\">")
+				buf.WriteString(html.EscapeString(p.String()))
+				buf.WriteString("</dd>")
+				buf.WriteString("</li>")
+			}
+			buf.WriteString("</dl>")
+			buf.WriteString("</code>")
+			f.Config.HTML.WriteColumn("genssa", buf.String())
+			ptxt.Ctxt.LineHist.PrintFilenameOnly = saved
+		}
 	}
 
 	// Emit static data
@@ -1834,6 +1872,8 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	ggloblsym(gcargs, 4, obj.RODATA|obj.DUPOK)
 	duint32(gclocals, 0, 0)
 	ggloblsym(gclocals, 4, obj.RODATA|obj.DUPOK)
+
+	f.Config.HTML.Close()
 }
 
 func genValue(v *ssa.Value) {

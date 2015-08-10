@@ -34,13 +34,16 @@ func Compile(f *Func) {
 
 	// Run all the passes
 	printFunc(f)
+	f.Config.HTML.WriteFunc("start", f)
 	checkFunc(f)
 	for _, p := range passes {
 		phaseName = p.name
 		f.Logf("  pass %s begin\n", p.name)
+		// TODO: capture logging during this pass, add it to the HTML
 		p.fn(f)
 		f.Logf("  pass %s end\n", p.name)
 		printFunc(f)
+		f.Config.HTML.WriteFunc("after "+phaseName, f)
 		checkFunc(f)
 	}
 

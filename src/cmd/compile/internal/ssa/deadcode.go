@@ -4,10 +4,10 @@
 
 package ssa
 
-// deadcode removes dead code from f.
-func deadcode(f *Func) {
+// findlive returns the reachable blocks and live values in f.
+func findlive(f *Func) (reachable []bool, live []bool) {
 	// Find all reachable basic blocks.
-	reachable := make([]bool, f.NumBlocks())
+	reachable = make([]bool, f.NumBlocks())
 	reachable[f.Entry.ID] = true
 	p := []*Block{f.Entry} // stack-like worklist
 	for len(p) > 0 {
@@ -24,8 +24,8 @@ func deadcode(f *Func) {
 	}
 
 	// Find all live values
-	live := make([]bool, f.NumValues()) // flag to set for each live value
-	var q []*Value                      // stack-like worklist of unscanned values
+	live = make([]bool, f.NumValues()) // flag to set for each live value
+	var q []*Value                     // stack-like worklist of unscanned values
 
 	// Starting set: all control values of reachable blocks are live.
 	for _, b := range f.Blocks {
@@ -53,6 +53,13 @@ func deadcode(f *Func) {
 			}
 		}
 	}
+
+	return reachable, live
+}
+
+// deadcode removes dead code from f.
+func deadcode(f *Func) {
+	reachable, live := findlive(f)
 
 	// Remove dead values from blocks' value list.  Return dead
 	// value ids to the allocator.
