@@ -93,7 +93,6 @@ var redirects = map[string]string{
 	"/change":     "https://go.googlesource.com/go",
 	"/cl":         "https://go-review.googlesource.com",
 	"/cmd/godoc/": "http://godoc.org/golang.org/x/tools/cmd/godoc/",
-	"/cmd/vet/":   "http://godoc.org/golang.org/x/tools/cmd/vet/",
 	"/issue":      "https://github.com/golang/go/issues",
 	"/issue/new":  "https://github.com/golang/go/issues/new",
 	"/issues":     "https://github.com/golang/go/issues",
