@@ -25,12 +25,13 @@ import (
 //	  together, so that given (only) calls Push(10, "x.go", 1) and Pop(15),
 //	  virtual line 12 corresponds to x.go line 3.
 type LineHist struct {
-	Top            *LineStack  // current top of stack
-	Ranges         []LineRange // ranges for lookup
-	Dir            string      // directory to qualify relative paths
-	TrimPathPrefix string      // remove leading TrimPath from recorded file names
-	GOROOT         string      // current GOROOT
-	GOROOT_FINAL   string      // target GOROOT
+	Top               *LineStack  // current top of stack
+	Ranges            []LineRange // ranges for lookup
+	Dir               string      // directory to qualify relative paths
+	TrimPathPrefix    string      // remove leading TrimPath from recorded file names
+	PrintFilenameOnly bool        // ignore path when pretty-printing a line; internal use only
+	GOROOT            string      // current GOROOT
+	GOROOT_FINAL      string      // target GOROOT
 }
 
 // A LineStack is an entry in the recorded line history.
@@ -221,20 +222,24 @@ func (h *LineHist) LineString(lineno int) string {
 		return "<unknown line number>"
 	}
 
-	text := fmt.Sprintf("%s:%d", stk.File, stk.fileLineAt(lineno))
+	filename := stk.File
+	if h.PrintFilenameOnly {
+		filename = filepath.Base(filename)
+	}
+	text := fmt.Sprintf("%s:%d", filename, stk.fileLineAt(lineno))
 	if stk.Directive && stk.Parent != nil {
 		stk = stk.Parent
-		text += fmt.Sprintf("[%s:%d]", stk.File, stk.fileLineAt(lineno))
+		text += fmt.Sprintf("[%s:%d]", filename, stk.fileLineAt(lineno))
 	}
 	const showFullStack = false // was used by old C compilers
 	if showFullStack {
 		for stk.Parent != nil {
 			lineno = stk.Lineno - 1
 			stk = stk.Parent
-			text += fmt.Sprintf(" %s:%d", stk.File, stk.fileLineAt(lineno))
+			text += fmt.Sprintf(" %s:%d", filename, stk.fileLineAt(lineno))
 			if stk.Directive && stk.Parent != nil {
 				stk = stk.Parent
-				text += fmt.Sprintf("[%s:%d]", stk.File, stk.fileLineAt(lineno))
+				text += fmt.Sprintf("[%s:%d]", filename, stk.fileLineAt(lineno))
 			}
 		}
 	}

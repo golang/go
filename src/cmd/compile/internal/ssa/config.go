@@ -11,6 +11,7 @@ type Config struct {
 	lowerBlock func(*Block) bool          // lowering function
 	lowerValue func(*Value, *Config) bool // lowering function
 	fe         Frontend                   // callbacks into compiler frontend
+	HTML       *HTMLWriter                // html writer, for debugging
 
 	// TODO: more stuff.  Compiler flags of interest, ...
 }
@@ -31,12 +32,7 @@ type TypeSource interface {
 	TypeBytePtr() Type // TODO: use unsafe.Pointer instead?
 }
 
-type Frontend interface {
-	TypeSource
-
-	// StringData returns a symbol pointing to the given string's contents.
-	StringData(string) interface{} // returns *gc.Sym
-
+type Logger interface {
 	// Log logs a message from the compiler.
 	Logf(string, ...interface{})
 
@@ -46,6 +42,14 @@ type Frontend interface {
 	// Unimplemented reports that the function cannot be compiled.
 	// It will be removed once SSA work is complete.
 	Unimplementedf(msg string, args ...interface{})
+}
+
+type Frontend interface {
+	TypeSource
+	Logger
+
+	// StringData returns a symbol pointing to the given string's contents.
+	StringData(string) interface{} // returns *gc.Sym
 }
 
 // NewConfig returns a new configuration object for the given architecture.
