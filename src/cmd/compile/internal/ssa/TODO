@@ -1,71 +1,70 @@
-This is a list of things that need to be worked on.  It is by no means complete.
+This is a list of things that need to be worked on.  It will hopefully
+be complete soon.
 
-Allocation
-- Allocation of decls in stackalloc.  Decls survive if they are
-  addrtaken or are too large for registerization.
+Coverage
+--------
+- Floating point numbers
+- Complex numbers
+- Integer division
+- Fat objects (strings/slices/interfaces) vs. Phi
+- Defer?
+- Closure args
+- PHEAP vars
 
-Scheduling
- - Make sure loads are scheduled correctly with respect to stores.
-   Same for flag type values.  We can't have more than one value of
-   mem or flag types live at once.
- - Reduce register pressure.  Schedule instructions which kill
-   variables first.
+Correctness
+-----------
+- GC maps
+- Write barriers
+- Debugging info
+- Handle flags register correctly (clobber/spill/restore)
+- Proper panic edges from checks & calls (+deferreturn)
+- Can/should we move control values out of their basic block?
+- Anything to do for the race detector?
+- Slicing details (avoid ptr to next object)
 
-Values
- - Store *Type instead of Type?  Keep an array of used Types in Func
-   and reference by id?  Unify with the type ../gc so we just use a
-   pointer instead of an interface?
- - Recycle dead values instead of using GC to do that.
- - A lot of Aux fields are just int64.  Add a separate AuxInt field?
-   If not that, then cache the interfaces that wrap int64s.
- - OpStore uses 3 args.  Increase the size of argstorage to 3?
+Optimizations (better compiled code)
+------------------------------------
+- Reduce register pressure in scheduler
+- More strength reduction: multiply -> shift/add combos (Worth doing?)
+- Strength reduction: constant divides -> multiply
+- Expand current optimizations to all bit widths
+- Nil/bounds check removal
+- Combining nil checks with subsequent load
+- Implement memory zeroing with REPSTOSQ and DuffZero
+- Implement memory copying with REPMOVSQ and DuffCopy
+- Make deadstore work with zeroing
+- Branch prediction: Respect hints from the frontend, add our own
+- Add a value range propagation pass (for bounds elim & bitwidth reduction)
+- Stackalloc: group pointer-containing variables & spill slots together
+- Stackalloc: organize values to allow good packing
+- Regalloc: use arg slots as the home for arguments (don't copy args to locals)
+- Reuse stack slots for noninterfering & compatible values (but see issue 8740)
+- (x86) Combine loads into other ops
+- (x86) More combining address arithmetic into loads/stores
+
+Optimizations (better compiler)
+-------------------------------
+- Smaller Value.Type (int32 or ptr)?  Get rid of types altogether?
+- Recycle dead Values (and Blocks) explicitly instead of using GC
+- OpStore uses 3 args.  Increase the size of Value.argstorage to 3?
+- Constant cache
+- Reuseable slices (e.g. []int of size NumValues()) cached in Func
 
 Regalloc
- - Make less arch-dependent
- - Don't spill everything at every basic block boundary.
- - Allow args and return values to be ssa-able.
- - Handle 2-address instructions.
- - Floating point registers
- - Make calls clobber all registers
- - Make liveness analysis non-quadratic.
- - Handle in-place instructions (like XORQconst) directly:
-   Use XORQ AX, 1 rather than MOVQ AX, BX; XORQ BX, 1.
+--------
+- Make less arch-dependent
+- Don't spill everything at every basic block boundary
+- Allow args and return values to be ssa-able
+- Handle 2-address instructions
+- Make calls clobber all registers
+- Make liveness analysis non-quadratic
+- Materialization of constants
 
-StackAlloc:
- - Sort variables so all ptr-containing ones are first (so stack
-   maps are smaller)
- - Reuse stack slots for noninterfering and type-compatible variables
-   (both AUTOs and spilled Values).  But see issue 8740 for what
-   "type-compatible variables" mean and what DWARF information provides.
-
-Rewrites
- - Strength reduction (both arch-indep and arch-dependent?)
- - Start another architecture (arm?)
- - 64-bit ops on 32-bit machines
- - <regwidth ops.  For example, x+y on int32s on amd64 needs (MOVLQSX (ADDL x y)).
-   Then add rewrites like (MOVLstore (MOVLQSX x) m) -> (MOVLstore x m)
-   to get rid of most of the MOVLQSX.
- - Determine which nil checks can be done implicitly (by faulting)
-   and which need code generated, and do the code generation.
-
-Common-Subexpression Elimination
- - Make better decision about which value in an equivalence class we should
-   choose to replace other values in that class.
- - Can we move control values out of their basic block?
-   This would break nilcheckelim as currently implemented,
-   but it could be replaced by a similar CFG simplication pass.
- - Investigate type equality. During SSA generation, should we use n.Type or (say) TypeBool?
-   Should we get rid of named types in favor of underlying types during SSA generation?
-   Should we introduce a new type equality routine that is less strict than the frontend's?
-
-Other
- - Write barriers
- - For testing, do something more sophisticated than
-   checkOpcodeCounts.  Michael Matloob suggests using a similar
-   pattern matcher to the rewrite engine to check for certain
-   expression subtrees in the output.
- - Implement memory zeroing with REPSTOSQ and DuffZero
- - make deadstore work with zeroing.
- - Add a value range propagation optimization pass.
-   Use it for bounds check elimination and bitwidth reduction.
- - Branch prediction: Respect hints from the frontend, add our own.
+Future/other
+------------
+- Start another architecture (arm?)
+- 64-bit ops on 32-bit machines
+- Investigate type equality. During SSA generation, should we use n.Type or (say) TypeBool?
+- Should we get rid of named types in favor of underlying types during SSA generation?
+- Should we introduce a new type equality routine that is less strict than the frontend's?
+- Infrastructure for enabling/disabling/configuring passes
