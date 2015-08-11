@@ -72,13 +72,14 @@ func init() {
 
 	// Common individual register masks
 	var (
-		cx     = buildReg("CX")
-		x15    = buildReg("X15")
-		gp     = buildReg("AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15")
-		fp     = buildReg("X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15")
-		gpsp   = gp | buildReg("SP")
-		gpspsb = gpsp | buildReg("SB")
-		flags  = buildReg("FLAGS")
+		cx         = buildReg("CX")
+		x15        = buildReg("X15")
+		gp         = buildReg("AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15")
+		fp         = buildReg("X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15")
+		gpsp       = gp | buildReg("SP")
+		gpspsb     = gpsp | buildReg("SB")
+		flags      = buildReg("FLAGS")
+		callerSave = gp | fp | flags
 	)
 
 	// Common slices of register masks
@@ -90,16 +91,16 @@ func init() {
 
 	// Common regInfo
 	var (
-		gp01      = regInfo{inputs: []regMask{}, outputs: gponly}
-		gp11      = regInfo{inputs: []regMask{gpsp}, outputs: gponly}
-		gp11sb    = regInfo{inputs: []regMask{gpspsb}, outputs: gponly}
-		gp21      = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: gponly}
-		gp21sb    = regInfo{inputs: []regMask{gpspsb, gpsp}, outputs: gponly}
-		gp21shift = regInfo{inputs: []regMask{gpsp, cx}, outputs: []regMask{gp &^ cx}}
+		gp01      = regInfo{inputs: []regMask{}, outputs: gponly, clobbers: flags}
+		gp11      = regInfo{inputs: []regMask{gpsp}, outputs: gponly, clobbers: flags}
+		gp11sb    = regInfo{inputs: []regMask{gpspsb}, outputs: gponly, clobbers: flags}
+		gp21      = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: gponly, clobbers: flags}
+		gp21sb    = regInfo{inputs: []regMask{gpspsb, gpsp}, outputs: gponly, clobbers: flags}
+		gp21shift = regInfo{inputs: []regMask{gpsp, cx}, outputs: []regMask{gp &^ cx}, clobbers: flags}
 
 		gp2flags = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: flagsonly}
 		gp1flags = regInfo{inputs: []regMask{gpsp}, outputs: flagsonly}
-		flagsgp  = regInfo{inputs: flagsonly, outputs: gponly}
+		flagsgp  = regInfo{inputs: flagsonly, outputs: gponly, clobbers: flags}
 
 		gpload    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: gponly}
 		gploadidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}, outputs: gponly}
@@ -122,6 +123,7 @@ func init() {
 		fpstore    = regInfo{inputs: []regMask{gpspsb, fp, 0}}
 		fpstoreidx = regInfo{inputs: []regMask{gpspsb, gpsp, fp, 0}}
 	)
+	// TODO: most ops clobber flags
 
 	// Suffixes encode the bit width of various instructions.
 	// Q = 64 bit, L = 32 bit, W = 16 bit, B = 8 bit
@@ -318,8 +320,8 @@ func init() {
 		{name: "REPSTOSQ", reg: regInfo{[]regMask{buildReg("DI"), buildReg("CX")}, buildReg("DI AX CX"), nil}}, // store arg1 8-byte words containing zero into arg0 using STOSQ. arg2=mem.
 
 		//TODO: set register clobber to everything?
-		{name: "CALLstatic"},                                                            // call static function aux.(*gc.Sym).  arg0=mem, returns mem
-		{name: "CALLclosure", reg: regInfo{[]regMask{gpsp, buildReg("DX"), 0}, 0, nil}}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem returns mem
+		{name: "CALLstatic", reg: regInfo{clobbers: callerSave}},                                 // call static function aux.(*gc.Sym).  arg0=mem, returns mem
+		{name: "CALLclosure", reg: regInfo{[]regMask{gpsp, buildReg("DX"), 0}, callerSave, nil}}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem returns mem
 
 		{name: "REPMOVSB", reg: regInfo{[]regMask{buildReg("DI"), buildReg("SI"), buildReg("CX")}, buildReg("DI SI CX"), nil}}, // move arg2 bytes from arg1 to arg0.  arg3=mem, returns memory
 

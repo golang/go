@@ -4,6 +4,15 @@
 
 package ssa
 
+// setloc sets the home location of v to loc.
+func setloc(home []Location, v *Value, loc Location) []Location {
+	for v.ID >= ID(len(home)) {
+		home = append(home, nil)
+	}
+	home[v.ID] = loc
+	return home
+}
+
 // stackalloc allocates storage in the stack frame for
 // all Values that did not get a register.
 func stackalloc(f *Func) {
@@ -26,7 +35,7 @@ func stackalloc(f *Func) {
 	// so stackmap is smaller.
 
 	// Assign stack locations to phis first, because we
-	// must also assign the same locations to the phi copies
+	// must also assign the same locations to the phi stores
 	// introduced during regalloc.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
@@ -36,12 +45,19 @@ func stackalloc(f *Func) {
 			if v.Type.IsMemory() { // TODO: only "regallocable" types
 				continue
 			}
+			if int(v.ID) < len(home) && home[v.ID] != nil {
+				continue // register-based phi
+			}
+			// stack-based phi
 			n = align(n, v.Type.Alignment())
 			f.Logf("stackalloc: %d-%d for %v\n", n, n+v.Type.Size(), v)
 			loc := &LocalSlot{n}
 			n += v.Type.Size()
 			home = setloc(home, v, loc)
 			for _, w := range v.Args {
+				if w.Op != OpStoreReg {
+					f.Fatalf("stack-based phi must have StoreReg args")
+				}
 				home = setloc(home, w, loc)
 			}
 		}

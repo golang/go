@@ -57,13 +57,6 @@ func tighten(f *Func) {
 				if v.Op == OpPhi {
 					continue
 				}
-				if v.Op == OpSB || v.Op == OpSP {
-					// regalloc expects OpSP and OpSB values to be in the entry block,
-					// so don't move them.
-					// TODO: Handle this more gracefully in regalloc and
-					// remove this restriction.
-					continue
-				}
 				if uses[v.ID] == 1 && !phi[v.ID] && home[v.ID] != b && len(v.Args) < 2 {
 					// v is used in exactly one block, and it is not b.
 					// Furthermore, it takes at most one input,
