@@ -287,6 +287,9 @@ func init() {
 		// Rewrites will convert this to (SETG (CMPQ b a)).
 		// InvertFlags is a pseudo-op which can't appear in assembly output.
 		{name: "InvertFlags"}, // reverse direction of arg0
+
+		// LoweredPanicNilCheck is a pseudo-op.
+		{name: "LoweredPanicNilCheck"},
 	}
 
 	var AMD64blocks = []blockData{

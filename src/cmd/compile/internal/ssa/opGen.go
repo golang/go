@@ -194,6 +194,7 @@ const (
 	OpAMD64CALLclosure
 	OpAMD64REPMOVSB
 	OpAMD64InvertFlags
+	OpAMD64LoweredPanicNilCheck
 
 	OpAdd8
 	OpAdd16
@@ -367,6 +368,7 @@ const (
 	OpTrunc64to32
 	OpIsNonNil
 	OpIsInBounds
+	OpPanicNilCheck
 	OpArrayIndex
 	OpPtrIndex
 	OpOffPtr
@@ -2113,6 +2115,10 @@ var opcodeTable = [...]opInfo{
 		name: "InvertFlags",
 		reg:  regInfo{},
 	},
+	{
+		name: "LoweredPanicNilCheck",
+		reg:  regInfo{},
+	},
 
 	{
 		name:    "Add8",
@@ -2800,6 +2806,10 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "IsInBounds",
+		generic: true,
+	},
+	{
+		name:    "PanicNilCheck",
 		generic: true,
 	},
 	{

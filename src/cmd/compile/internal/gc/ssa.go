@@ -1499,20 +1499,27 @@ func canSSA(n *Node) bool {
 }
 
 // nilCheck generates nil pointer checking code.
-// Starts a new block on return.
+// Starts a new block on return, unless nil checks are disabled.
 // Used only for automatically inserted nil checks,
 // not for user code like 'x != nil'.
 func (s *state) nilCheck(ptr *ssa.Value) {
+	if Disable_checknil != 0 {
+		return
+	}
 	c := s.newValue1(ssa.OpIsNonNil, Types[TBOOL], ptr)
 	b := s.endBlock()
-	b.Kind = ssa.BlockIf
+	b.Kind = ssa.BlockIf // TODO: likeliness hint
 	b.Control = c
 	bNext := s.f.NewBlock(ssa.BlockPlain)
+	bPanic := s.f.NewBlock(ssa.BlockPlain)
 	addEdge(b, bNext)
-	addEdge(b, s.exit)
-	s.startBlock(bNext)
-	// TODO(khr): Don't go directly to exit.  Go to a stub that calls panicmem first.
+	addEdge(b, bPanic)
+	addEdge(bPanic, s.exit)
+	s.startBlock(bPanic)
 	// TODO: implicit nil checks somehow?
+	s.vars[&memvar] = s.newValue2(ssa.OpPanicNilCheck, ssa.TypeMem, ptr, s.mem())
+	s.endBlock()
+	s.startBlock(bNext)
 }
 
 // boundsCheck generates bounds checking code.  Checks if 0 <= idx < len, branches to exit if not.
@@ -2145,6 +2152,25 @@ func genValue(v *ssa.Value) {
 	case ssa.OpArg:
 		// memory arg needs no code
 		// TODO: check that only mem arg goes here.
+	case ssa.OpAMD64LoweredPanicNilCheck:
+		if Debug_checknil != 0 && v.Line > 1 { // v.Line==1 in generated wrappers
+			Warnl(int(v.Line), "generated nil check")
+		}
+		// Write to memory address 0. It doesn't matter what we write; use AX.
+		// XORL AX, AX; MOVL AX, (AX) is shorter than MOVL AX, 0.
+		// TODO: If we had the pointer (v.Args[0]) in a register r,
+		// we could use MOVL AX, (r) instead of having to zero AX.
+		// But it isn't worth loading r just to accomplish that.
+		p := Prog(x86.AXORL)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = x86.REG_AX
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = x86.REG_AX
+		q := Prog(x86.AMOVL)
+		q.From.Type = obj.TYPE_REG
+		q.From.Reg = x86.REG_AX
+		q.To.Type = obj.TYPE_MEM
+		q.To.Reg = x86.REG_AX
 	case ssa.OpAMD64CALLstatic:
 		p := Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM

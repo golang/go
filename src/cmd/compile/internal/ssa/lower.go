@@ -17,9 +17,14 @@ func checkLower(f *Func) {
 	// rules may leave dead generic ops behind).
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			if opcodeTable[v.Op].generic && v.Op != OpSP && v.Op != OpSB && v.Op != OpArg && v.Op != OpCopy && v.Op != OpPhi {
-				f.Unimplementedf("%s not lowered", v.LongString())
+			if !opcodeTable[v.Op].generic {
+				continue // lowered
 			}
+			switch v.Op {
+			case OpSP, OpSB, OpArg, OpCopy, OpPhi:
+				continue // ok not to lower
+			}
+			f.Unimplementedf("%s not lowered", v.LongString())
 		}
 	}
 }

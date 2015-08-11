@@ -216,6 +216,8 @@
 (IsNonNil p) -> (SETNE (TESTQ <TypeFlags> p p))
 (IsInBounds idx len) -> (SETB (CMPQ <TypeFlags> idx len))
 
+(PanicNilCheck ptr mem) -> (LoweredPanicNilCheck ptr mem)
+
 (Move [size] dst src mem) -> (REPMOVSB dst src (MOVQconst <config.Frontend().TypeUInt64()> [size]) mem)
 
 (Not x) -> (XORBconst [1] x)

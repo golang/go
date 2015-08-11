@@ -4836,6 +4836,24 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto end6f8a8c559a167d1f0a5901d09a1fb248
 	end6f8a8c559a167d1f0a5901d09a1fb248:
 		;
+	case OpPanicNilCheck:
+		// match: (PanicNilCheck ptr mem)
+		// cond:
+		// result: (LoweredPanicNilCheck ptr mem)
+		{
+			ptr := v.Args[0]
+			mem := v.Args[1]
+			v.Op = OpAMD64LoweredPanicNilCheck
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(ptr)
+			v.AddArg(mem)
+			return true
+		}
+		goto enda02b1ad5a6f929b782190145f2c8628b
+	enda02b1ad5a6f929b782190145f2c8628b:
+		;
 	case OpRsh16Ux16:
 		// match: (Rsh16Ux16 <t> x y)
 		// cond:
