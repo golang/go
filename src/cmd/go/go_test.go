@@ -2294,6 +2294,21 @@ func TestIssue11709(t *testing.T) {
 	tg.run("run", tg.path("run.go"))
 }
 
+func TestIssue12096(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.tempFile("test_test.go", `
+		package main
+		import ("os"; "testing")
+		func TestEnv(t *testing.T) {
+			if os.Getenv("TERM") != "" {
+				t.Fatal("TERM is set")
+			}
+		}`)
+	tg.unsetenv("TERM")
+	tg.run("test", tg.path("test_test.go"))
+}
+
 func TestGoBuildOutput(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()

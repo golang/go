@@ -1880,7 +1880,7 @@ func (b *builder) runOut(dir string, desc string, env []string, cmdargs ...inter
 		cmd.Stdout = &buf
 		cmd.Stderr = &buf
 		cmd.Dir = dir
-		cmd.Env = mergeEnvLists(env, envForDir(cmd.Dir))
+		cmd.Env = mergeEnvLists(env, envForDir(cmd.Dir, os.Environ()))
 		err := cmd.Run()
 
 		// cmd.Run will fail on Unix if some other process has the binary
