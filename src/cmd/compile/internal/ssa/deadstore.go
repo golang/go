@@ -30,7 +30,7 @@ func dse(f *Func) {
 				for _, a := range v.Args {
 					if a.Block == b && a.Type.IsMemory() {
 						storeUse.add(a.ID)
-						if v.Op != OpStore {
+						if v.Op != OpStore && v.Op != OpZero {
 							// CALL, DUFFCOPY, etc. are both
 							// reads and writes.
 							loadUse.add(a.ID)
@@ -77,12 +77,24 @@ func dse(f *Func) {
 			// Clear all shadowed addresses.
 			shadowed.clear()
 		}
-		if v.Op == OpStore {
+		if v.Op == OpStore || v.Op == OpZero {
 			if shadowed.contains(v.Args[0].ID) {
 				// Modify store into a copy
-				v.Op = OpCopy
+				if v.Op == OpStore {
+					// store addr value mem
+					v.SetArgs1(v.Args[2])
+				} else {
+					// zero addr mem
+					sz := v.Args[0].Type.Elem().Size()
+					if v.AuxInt != sz {
+						f.Fatalf("mismatched zero/store sizes: %d and %d [%s]",
+							v.AuxInt, sz, v.LongString())
+					}
+					v.SetArgs1(v.Args[1])
+				}
 				v.Aux = nil
-				v.SetArgs1(v.Args[2])
+				v.AuxInt = 0
+				v.Op = OpCopy
 			} else {
 				shadowed.add(v.Args[0].ID)
 			}
