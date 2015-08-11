@@ -171,7 +171,14 @@ func (a *Address) String() string {
 
 	// Format address local@domain
 	at := strings.LastIndex(a.Address, "@")
-	local, domain := a.Address[:at], a.Address[at+1:]
+	var local, domain string
+	if at < 0 {
+		// This is a malformed address ("@" is required in addr-spec);
+		// treat the whole address as local-part.
+		local = a.Address
+	} else {
+		local, domain := a.Address[:at], a.Address[at+1:]
+	}
 
 	// Add quotes if needed
 	// TODO: rendering quoted local part and rendering printable name
