@@ -5,8 +5,10 @@
 package ssa
 
 import (
+	"fmt"
 	"log"
 	"runtime"
+	"time"
 )
 
 // Compile is the main entry point for this package.
@@ -36,14 +38,34 @@ func Compile(f *Func) {
 	printFunc(f)
 	f.Config.HTML.WriteFunc("start", f)
 	checkFunc(f)
+	const logMemStats = false
 	for _, p := range passes {
 		phaseName = p.name
 		f.Logf("  pass %s begin\n", p.name)
 		// TODO: capture logging during this pass, add it to the HTML
+		var mStart runtime.MemStats
+		if logMemStats {
+			runtime.ReadMemStats(&mStart)
+		}
+
+		tStart := time.Now()
 		p.fn(f)
-		f.Logf("  pass %s end\n", p.name)
+		tEnd := time.Now()
+
+		time := tEnd.Sub(tStart).Nanoseconds()
+		var stats string
+		if logMemStats {
+			var mEnd runtime.MemStats
+			runtime.ReadMemStats(&mEnd)
+			nAllocs := mEnd.TotalAlloc - mStart.TotalAlloc
+			stats = fmt.Sprintf("[%d ns %d bytes]", time, nAllocs)
+		} else {
+			stats = fmt.Sprintf("[%d ns]", time)
+		}
+
+		f.Logf("  pass %s end %s\n", p.name, stats)
 		printFunc(f)
-		f.Config.HTML.WriteFunc("after "+phaseName, f)
+		f.Config.HTML.WriteFunc(fmt.Sprintf("after %s %s", phaseName, stats), f)
 		checkFunc(f)
 	}
 
