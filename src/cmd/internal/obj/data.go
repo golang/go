@@ -63,6 +63,9 @@ func savedata(ctxt *Link, s *LSym, p *Prog, pn string) {
 	if ctxt.Enforce_data_order != 0 && off < int32(len(s.P)) {
 		ctxt.Diag("data out of order (already have %d)\n%v", len(s.P), p)
 	}
+	if s.Type == SBSS || s.Type == STLSBSS {
+		ctxt.Diag("cannot supply data for BSS var")
+	}
 	Symgrow(ctxt, s, int64(off+siz))
 
 	switch int(p.To.Type) {

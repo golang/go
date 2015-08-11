@@ -1508,7 +1508,9 @@ func elfshbits(sect *Section) *ElfShdr {
 	}
 	sh.addralign = uint64(sect.Align)
 	sh.size = sect.Length
-	sh.off = sect.Seg.Fileoff + sect.Vaddr - sect.Seg.Vaddr
+	if sect.Name != ".tbss" || goos == "android" {
+		sh.off = sect.Seg.Fileoff + sect.Vaddr - sect.Seg.Vaddr
+	}
 
 	return sh
 }
@@ -2287,12 +2289,20 @@ func Asmbelf(symo int64) {
 		// Do not emit PT_TLS for OpenBSD since ld.so(1) does
 		// not currently support it. This is handled
 		// appropriately in runtime/cgo.
-		if Ctxt.Tlsoffset != 0 && HEADTYPE != obj.Hopenbsd {
-			ph := newElfPhdr()
-			ph.type_ = PT_TLS
-			ph.flags = PF_R
-			ph.memsz = uint64(-Ctxt.Tlsoffset)
-			ph.align = uint64(Thearch.Regsize)
+		if HEADTYPE != obj.Hopenbsd {
+			tlssize := uint64(0)
+			for sect := Segdata.Sect; sect != nil; sect = sect.Next {
+				if sect.Name == ".tbss" {
+					tlssize = sect.Length
+				}
+			}
+			if tlssize != 0 {
+				ph := newElfPhdr()
+				ph.type_ = PT_TLS
+				ph.flags = PF_R
+				ph.memsz = tlssize
+				ph.align = uint64(Thearch.Regsize)
+			}
 		}
 	}
 
@@ -2348,16 +2358,6 @@ elfobj:
 		sh.type_ = SHT_PROGBITS
 		sh.addralign = 1
 		sh.flags = 0
-	}
-
-	// generate .tbss section for dynamic internal linking (except for OpenBSD)
-	// external linking generates .tbss in data.c
-	if Linkmode == LinkInternal && Debug['d'] == 0 && HEADTYPE != obj.Hopenbsd {
-		sh := elfshname(".tbss")
-		sh.type_ = SHT_NOBITS
-		sh.addralign = uint64(Thearch.Regsize)
-		sh.size = uint64(-Ctxt.Tlsoffset)
-		sh.flags = SHF_ALLOC | SHF_TLS | SHF_WRITE
 	}
 
 	if Debug['s'] == 0 {

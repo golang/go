@@ -35,4 +35,8 @@ const (
 
 	// When passed to ggloblsym, causes Local to be set to true on the LSym it creates.
 	LOCAL = 128
+
+	// Allocate a word of thread local storage and store the offset from the
+	// thread local base to the thread local storage in this variable.
+	TLSBSS = 256
 )

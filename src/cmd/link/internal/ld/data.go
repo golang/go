@@ -1401,26 +1401,25 @@ func dodata() {
 		Diag("data or bss segment too large")
 	}
 
-	if Iself && Linkmode == LinkExternal && s != nil && s.Type == obj.STLSBSS && HEADTYPE != obj.Hopenbsd {
-		sect := addsection(&Segdata, ".tbss", 06)
-		sect.Align = int32(Thearch.Ptrsize)
-		sect.Vaddr = 0
+	if s != nil && s.Type == obj.STLSBSS {
+		if Iself && (Linkmode == LinkExternal || Debug['d'] == 0) && HEADTYPE != obj.Hopenbsd {
+			sect = addsection(&Segdata, ".tbss", 06)
+			sect.Align = int32(Thearch.Ptrsize)
+			sect.Vaddr = 0
+		} else {
+			sect = nil
+		}
 		datsize = 0
+
 		for ; s != nil && s.Type == obj.STLSBSS; s = s.Next {
 			datsize = aligndatsize(datsize, s)
 			s.Sect = sect
-			s.Value = int64(uint64(datsize) - sect.Vaddr)
+			s.Value = datsize
 			growdatsize(&datsize, s)
 		}
 
-		sect.Length = uint64(datsize)
-	} else {
-		// Might be internal linking but still using cgo.
-		// In that case, the only possible STLSBSS symbol is runtime.tlsg.
-		// Give it offset 0, because it's the only thing here.
-		if s != nil && s.Type == obj.STLSBSS && s.Name == "runtime.tlsg" {
-			s.Value = 0
-			s = s.Next
+		if sect != nil {
+			sect.Length = uint64(datsize)
 		}
 	}
 
@@ -1690,8 +1689,11 @@ func address() {
 	var noptrbss *Section
 	var vlen int64
 	for s := Segdata.Sect; s != nil; s = s.Next {
+		if Iself && s.Name == ".tbss" {
+			continue
+		}
 		vlen = int64(s.Length)
-		if s.Next != nil {
+		if s.Next != nil && !(Iself && s.Next.Name == ".tbss") {
 			vlen = int64(s.Next.Vaddr - s.Vaddr)
 		}
 		s.Vaddr = va
