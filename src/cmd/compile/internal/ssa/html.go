@@ -362,7 +362,7 @@ func (v *Value) LongHTML() string {
 		s += fmt.Sprintf(" %s", a.HTML())
 	}
 	r := v.Block.Func.RegAlloc
-	if r != nil && r[v.ID] != nil {
+	if int(v.ID) < len(r) && r[v.ID] != nil {
 		s += " : " + r[v.ID].Name()
 	}
 

@@ -19,8 +19,13 @@ type opInfo struct {
 	generic bool // this is a generic (arch-independent) opcode
 }
 
+type inputInfo struct {
+	idx  int     // index in Args array
+	regs regMask // allowed input registers
+}
+
 type regInfo struct {
-	inputs   []regMask
+	inputs   []inputInfo // ordered in register allocation order
 	clobbers regMask
 	outputs  []regMask // NOTE: values can only have 1 output for now.
 }

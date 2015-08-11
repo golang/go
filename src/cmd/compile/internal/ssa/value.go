@@ -11,7 +11,7 @@ import "fmt"
 // if they preserve the value of the Value (e.g. changing a (mul 2 x) to an (add x x)).
 type Value struct {
 	// A unique identifier for the value.  For performance we allocate these IDs
-	// densely starting at 0.  There is no guarantee that there won't be occasional holes, though.
+	// densely starting at 1.  There is no guarantee that there won't be occasional holes, though.
 	ID ID
 
 	// The operation that computes this value.  See op.go.
@@ -69,7 +69,7 @@ func (v *Value) LongString() string {
 		s += fmt.Sprintf(" %v", a)
 	}
 	r := v.Block.Func.RegAlloc
-	if r != nil && r[v.ID] != nil {
+	if int(v.ID) < len(r) && r[v.ID] != nil {
 		s += " : " + r[v.ID].Name()
 	}
 	return s
