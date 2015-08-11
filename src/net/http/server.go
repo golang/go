@@ -473,7 +473,7 @@ func (srv *Server) newConn(rwc net.Conn) (c *conn, err error) {
 	if debugServerConnections {
 		c.rwc = newLoggingConn("server", c.rwc)
 	}
-	c.sr = liveSwitchReader{r: c.rwc}
+	c.sr.r = c.rwc
 	c.lr = io.LimitReader(&c.sr, noLimit).(*io.LimitedReader)
 	br := newBufioReader(c.lr)
 	bw := newBufioWriterSize(checkConnErrorWriter{c}, 4<<10)
@@ -2015,10 +2015,7 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
 	if addr == "" {
 		addr = ":https"
 	}
-	config := &tls.Config{}
-	if srv.TLSConfig != nil {
-		*config = *srv.TLSConfig
-	}
+	config := cloneTLSConfig(srv.TLSConfig)
 	if config.NextProtos == nil {
 		config.NextProtos = []string{"http/1.1"}
 	}
