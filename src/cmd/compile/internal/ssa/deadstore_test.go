@@ -4,9 +4,7 @@
 
 package ssa
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestDeadStore(t *testing.T) {
 	c := testConfig(t)
@@ -18,9 +16,12 @@ func TestDeadStore(t *testing.T) {
 			Valu("v", OpConstBool, TypeBool, 0, true),
 			Valu("addr1", OpAddr, ptrType, 0, nil, "sb"),
 			Valu("addr2", OpAddr, ptrType, 0, nil, "sb"),
-			Valu("store1", OpStore, TypeMem, 0, nil, "addr1", "v", "start"),
+			Valu("addr3", OpAddr, ptrType, 0, nil, "sb"),
+			Valu("zero1", OpZero, TypeMem, 8, nil, "addr3", "start"),
+			Valu("store1", OpStore, TypeMem, 0, nil, "addr1", "v", "zero1"),
 			Valu("store2", OpStore, TypeMem, 0, nil, "addr2", "v", "store1"),
 			Valu("store3", OpStore, TypeMem, 0, nil, "addr1", "v", "store2"),
+			Valu("store4", OpStore, TypeMem, 0, nil, "addr3", "v", "store3"),
 			Goto("exit")),
 		Bloc("exit",
 			Exit("store3")))
@@ -29,9 +30,14 @@ func TestDeadStore(t *testing.T) {
 	dse(fun.f)
 	CheckFunc(fun.f)
 
-	v := fun.values["store1"]
-	if v.Op != OpCopy {
+	v1 := fun.values["store1"]
+	if v1.Op != OpCopy {
 		t.Errorf("dead store not removed")
+	}
+
+	v2 := fun.values["zero1"]
+	if v2.Op != OpCopy {
+		t.Errorf("dead store (zero) not removed")
 	}
 }
 func TestDeadStorePhi(t *testing.T) {
