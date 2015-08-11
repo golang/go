@@ -446,11 +446,10 @@ func runOut(dir string, cmdargs ...interface{}) []byte {
 // The environment is the current process's environment
 // but with an updated $PWD, so that an os.Getwd in the
 // child will be faster.
-func envForDir(dir string) []string {
-	env := os.Environ()
+func envForDir(dir string, base []string) []string {
 	// Internally we only use rooted paths, so dir is rooted.
 	// Even if dir is not rooted, no harm done.
-	return mergeEnvLists([]string{"PWD=" + dir}, env)
+	return mergeEnvLists([]string{"PWD=" + dir}, base)
 }
 
 // mergeEnvLists merges the two environment lists such that
