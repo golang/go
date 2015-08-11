@@ -1319,6 +1319,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 
 		// read result from stack at the start of the fallthrough block
 		s.startBlock(bNext)
+		s.vars[&memvar] = call
 		var titer Iter
 		fp := Structfirst(&titer, Getoutarg(left.Type))
 		if fp == nil {
