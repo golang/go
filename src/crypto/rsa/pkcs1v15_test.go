@@ -160,7 +160,7 @@ func TestEncryptPKCS1v15DecrypterSessionKey(t *testing.T) {
 		}
 
 		if test.out != "FAIL" && !bytes.Equal(plaintext, []byte(test.out)) {
-			t.Errorf("#%d: incorrect plaintext: got %x, want %x", plaintext, test.out)
+			t.Errorf("#%d: incorrect plaintext: got %x, want %x", i, plaintext, test.out)
 		}
 	}
 }
