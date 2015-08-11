@@ -485,7 +485,7 @@ func TestAddressFormatting(t *testing.T) {
 		},
 		{ // https://golang.org/issue/12098
 			&Address{Name: "Rob", Address: ""},
-			`"Rob" <>`,
+			`"Rob" <@>`,
 		},
 		{ // https://golang.org/issue/12098
 			&Address{Name: "Rob", Address: "@"},
