@@ -2352,3 +2352,23 @@ func TestGoBuildOutput(t *testing.T) {
 	tg.runFail("build", "-o", "whatever", "cmd/gofmt", "sync/atomic")
 	tg.grepStderr("multiple packages", "did not reject -o with multiple packages")
 }
+
+func TestGoBuildARM(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping cross-compile in short mode")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+
+	tg.makeTempdir()
+	tg.cd(tg.path("."))
+
+	tg.setenv("GOARCH", "arm")
+	tg.setenv("GOOS", "linux")
+	tg.setenv("GOARM", "5")
+	tg.tempFile("hello.go", `package main
+		func main() {}`)
+	tg.run("build", "hello.go")
+	tg.grepStderrNot("unable to find math.a", "did not build math.a correctly")
+}

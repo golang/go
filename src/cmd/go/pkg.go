@@ -836,7 +836,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 			importPaths = append(importPaths, "runtime/race")
 		}
 		// On ARM with GOARM=5, everything depends on math for the link.
-		if p.ImportPath == "main" && goarch == "arm" {
+		if p.Name == "main" && goarch == "arm" {
 			importPaths = append(importPaths, "math")
 		}
 	}
