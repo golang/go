@@ -38,7 +38,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 #ifdef TLSG_IS_VARIABLE
 	MOVD	$runtime·tls_g(SB), R2 	// arg 2: &tls_g
 #else
-	MOVD	0, R2		        // arg 2: not used when using platform's TLS
+	MOVD	$0, R2		        // arg 2: not used when using platform's TLS
 #endif
 	MOVD	$setg_gcc<>(SB), R1	// arg 1: setg
 	MOVD	g, R0			// arg 0: G

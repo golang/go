@@ -18,13 +18,8 @@ TEXT runtime·load_g(SB),NOSPLIT,$0
 	// Darwin sometimes returns unaligned pointers
 	AND	$0xfffffffffffffff8, R0
 #endif
-#ifdef TLSG_IS_VARIABLE
 	MOVD	runtime·tls_g(SB), R27
 	ADD	R27, R0
-#else
-	// TODO(minux): use real TLS relocation, instead of hard-code for Linux
-	ADD	$0x10, R0
-#endif
 	MOVD	0(R0), g
 
 nocgo:
@@ -40,13 +35,8 @@ TEXT runtime·save_g(SB),NOSPLIT,$0
 	// Darwin sometimes returns unaligned pointers
 	AND	$0xfffffffffffffff8, R0
 #endif
-#ifdef TLSG_IS_VARIABLE
 	MOVD	runtime·tls_g(SB), R27
 	ADD	R27, R0
-#else
-	// TODO(minux): use real TLS relocation, instead of hard-code for Linux
-	ADD	$0x10, R0
-#endif
 	MOVD	g, 0(R0)
 
 nocgo:
@@ -54,4 +44,6 @@ nocgo:
 
 #ifdef TLSG_IS_VARIABLE
 GLOBL runtime·tls_g+0(SB), NOPTR, $8
+#else
+GLOBL runtime·tls_g+0(SB), TLSBSS, $8
 #endif
