@@ -483,6 +483,14 @@ func TestAddressFormatting(t *testing.T) {
 			&Address{Name: "Böb Jacöb", Address: "bob@example.com"},
 			`=?utf-8?q?B=C3=B6b_Jac=C3=B6b?= <bob@example.com>`,
 		},
+		{ // https://golang.org/issue/12098
+			&Address{Name: "Rob", Address: ""},
+			`"Rob" <>`,
+		},
+		{ // https://golang.org/issue/12098
+			&Address{Name: "Rob", Address: "@"},
+			`"Rob" <@>`,
+		},
 	}
 	for _, test := range tests {
 		s := test.addr.String()
