@@ -321,6 +321,7 @@ const (
 	C_LOREG
 
 	C_ADDR // TODO(aram): explain difference from C_VCONADDR
+	C_TLS  // TLS var, i.e. memory address containing offset for the var
 	C_ROFF // register offset (including register extended)
 
 	C_GOK
