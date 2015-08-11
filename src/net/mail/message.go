@@ -177,7 +177,7 @@ func (a *Address) String() string {
 		// treat the whole address as local-part.
 		local = a.Address
 	} else {
-		local, domain := a.Address[:at], a.Address[at+1:]
+		local, domain = a.Address[:at], a.Address[at+1:]
 	}
 
 	// Add quotes if needed
