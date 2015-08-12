@@ -797,6 +797,7 @@ func rewriteBlockgeneric(b *Block) bool {
 			b.Control = cond
 			b.Succs[0] = no
 			b.Succs[1] = yes
+			b.Likely *= -1
 			return true
 		}
 		goto endebe19c1c3c3bec068cdb2dd29ef57f96
@@ -821,6 +822,7 @@ func rewriteBlockgeneric(b *Block) bool {
 			b.Control = nil
 			b.Succs = b.Succs[:1]
 			b.Succs[0] = yes
+			b.Likely = BranchUnknown
 			return true
 		}
 		goto end9ff0273f9b1657f4afc287562ca889f0
@@ -845,6 +847,7 @@ func rewriteBlockgeneric(b *Block) bool {
 			b.Control = nil
 			b.Succs = b.Succs[:1]
 			b.Succs[0] = no
+			b.Likely = BranchUnknown
 			return true
 		}
 		goto endf401a4553c3c7c6bed64801da7bba076

@@ -33,7 +33,7 @@ Optimizations (better compiled code)
 - Implement memory zeroing with REPSTOSQ and DuffZero
 - Implement memory copying with REPMOVSQ and DuffCopy
 - Make deadstore work with zeroing
-- Branch prediction: Respect hints from the frontend, add our own
+- Add branch predictions
 - Add a value range propagation pass (for bounds elim & bitwidth reduction)
 - Stackalloc: group pointer-containing variables & spill slots together
 - Stackalloc: organize values to allow good packing
