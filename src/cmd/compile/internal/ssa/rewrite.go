@@ -6,11 +6,6 @@ package ssa
 
 import "fmt"
 
-// Set to true to log all rewrite rules as they occur.
-// This is useful for figuring out whether a rule is triggering
-// and which rules are most heavily used.
-const logRewriteRules = false
-
 func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool) {
 	// repeat rewrites until we find no more rewrites
 	var curb *Block

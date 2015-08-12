@@ -2,8 +2,6 @@
 // generated with: cd gen; go run *.go
 package ssa
 
-import "fmt"
-
 func rewriteValueAMD64(v *Value, config *Config) bool {
 	b := v.Block
 	switch v.Op {
@@ -23,9 +21,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:279")
-			}
 			return true
 		}
 		goto endab690db69bfd8192eea57a2f9f76bf84
@@ -46,9 +41,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:280")
-			}
 			return true
 		}
 		goto end28aa1a4abe7e1abcdd64135e9967d39d
@@ -69,9 +61,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:523")
-			}
 			return true
 		}
 		goto end9464509b8874ffb00b43b843da01f0bc
@@ -92,9 +81,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = c + d
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:481")
-			}
 			return true
 		}
 		goto enda9b1e9e31ccdf0af5f4fe57bf4b1343f
@@ -116,9 +102,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c + d
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:485")
-			}
 			return true
 		}
 		goto end9b1e6890adbf9d9e447d591b4148cbd0
@@ -140,9 +123,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:275")
-			}
 			return true
 		}
 		goto end8d6d3b99a7be8da6b7a254b7e709cc95
@@ -163,9 +143,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:276")
-			}
 			return true
 		}
 		goto end739561e08a561e26ce3634dc0d5ec733
@@ -186,9 +163,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:521")
-			}
 			return true
 		}
 		goto end9596df31f2685a49df67c6fb912a521d
@@ -209,9 +183,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = c + d
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:479")
-			}
 			return true
 		}
 		goto ende04850e987890abf1d66199042a19c23
@@ -233,9 +204,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c + d
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:483")
-			}
 			return true
 		}
 		goto endf1dd8673b2fef4950aec87aa7523a236
@@ -260,9 +228,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:273")
-			}
 			return true
 		}
 		goto end1de8aeb1d043e0dadcffd169a99ce5c0
@@ -286,9 +251,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:274")
-			}
 			return true
 		}
 		goto endca635e3bdecd9e3aeb892f841021dfaa
@@ -312,9 +274,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:368")
-			}
 			return true
 		}
 		goto endc02313d35a0525d1d680cd58992e820d
@@ -335,9 +294,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:520")
-			}
 			return true
 		}
 		goto endec8f899c6e175a0147a90750f9bfe0a2
@@ -362,9 +318,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AuxInt = addOff(c, d)
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:369")
-			}
 			return true
 		}
 		goto ende2cc681c9abf9913288803fb1b39e639
@@ -384,9 +337,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = x.Type
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:416")
-			}
 			return true
 		}
 		goto end03d9f5a3e153048b0afa781401e2a849
@@ -406,9 +356,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = c + d
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:478")
-			}
 			return true
 		}
 		goto end09dc54395b4e96e8332cf8e4e7481c52
@@ -430,9 +377,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c + d
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:482")
-			}
 			return true
 		}
 		goto endd4cb539641f0dc40bfd0cb7fbb9b0405
@@ -454,9 +398,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:277")
-			}
 			return true
 		}
 		goto end1aabd2317de77c7dfc4876fd7e4c5011
@@ -477,9 +418,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:278")
-			}
 			return true
 		}
 		goto ende3aede99966f388afc624f9e86676fd2
@@ -500,9 +438,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:522")
-			}
 			return true
 		}
 		goto end55cf2af0d75f3ec413528eeb799e94d5
@@ -523,9 +458,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = c + d
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:480")
-			}
 			return true
 		}
 		goto end32541920f2f5a920dfae41d8ebbef00f
@@ -547,9 +479,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c + d
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:484")
-			}
 			return true
 		}
 		goto end73944f6ddda7e4c050f11d17484ff9a5
@@ -571,9 +500,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:306")
-			}
 			return true
 		}
 		goto end01100cd255396e29bfdb130f4fbc9bbc
@@ -594,9 +520,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:307")
-			}
 			return true
 		}
 		goto end70830ce2834dc5f8d786fa6789460926
@@ -617,9 +540,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:308")
-			}
 			return true
 		}
 		goto endd275ec2e73768cb3d201478fc934e06c
@@ -640,9 +560,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:309")
-			}
 			return true
 		}
 		goto end4068edac2ae0f354cf581db210288b98
@@ -662,9 +579,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = x.Type
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:531")
-			}
 			return true
 		}
 		goto endb8ff272a1456513da708603abe37541c
@@ -684,9 +598,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = 0
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:462")
-			}
 			return true
 		}
 		goto end2106d410c949da14d7c00041f40eca76
@@ -707,9 +618,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = x.Type
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:466")
-			}
 			return true
 		}
 		goto enda0b78503c204c8225de1433949a71fe4
@@ -729,9 +637,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = c & d
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:504")
-			}
 			return true
 		}
 		goto end946312b1f216933da86febe293eb956f
@@ -753,9 +658,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:300")
-			}
 			return true
 		}
 		goto end0a4c49d9a26759c0fd21369dafcd7abb
@@ -776,9 +678,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:301")
-			}
 			return true
 		}
 		goto end0529ba323d9b6f15c41add401ef67959
@@ -798,9 +697,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = x.Type
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:529")
-			}
 			return true
 		}
 		goto enddfb08a0d0c262854db3905cb323388c7
@@ -820,9 +716,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = 0
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:460")
-			}
 			return true
 		}
 		goto end5efb241208aef28c950b7bcf8d85d5de
@@ -843,9 +736,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = x.Type
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:464")
-			}
 			return true
 		}
 		goto end0e852ae30bb8289d6ffee0c9267e3e0c
@@ -865,9 +755,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = c & d
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:502")
-			}
 			return true
 		}
 		goto end7bfd24059369753eadd235f07e2dd7b8
@@ -892,9 +779,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:298")
-			}
 			return true
 		}
 		goto end048fadc69e81103480015b84b9cafff7
@@ -918,9 +802,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:299")
-			}
 			return true
 		}
 		goto end3035a3bf650b708705fd27dd857ab0a4
@@ -940,9 +821,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = x.Type
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:528")
-			}
 			return true
 		}
 		goto end06b5ec19efdd4e79f03a5e4a2c3c3427
@@ -961,9 +839,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = 0
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:459")
-			}
 			return true
 		}
 		goto end57018c1d0f54fd721521095b4832bab2
@@ -983,9 +858,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = x.Type
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:463")
-			}
 			return true
 		}
 		goto endb542c4b42ab94a7bedb32dec8f610d67
@@ -1005,9 +877,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = c & d
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:501")
-			}
 			return true
 		}
 		goto end67ca66494705b0345a5f22c710225292
@@ -1029,9 +898,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:302")
-			}
 			return true
 		}
 		goto endce6f557823ee2fdd7a8f47b6f925fc7c
@@ -1052,9 +918,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:303")
-			}
 			return true
 		}
 		goto endc46af0d9265c08b09f1f1fba24feda80
@@ -1075,9 +938,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:304")
-			}
 			return true
 		}
 		goto enda77a39f65a5eb3436a5842eab69a3103
@@ -1098,9 +958,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:305")
-			}
 			return true
 		}
 		goto endea2a25eb525a5dbf6d5132d84ea4e7a5
@@ -1120,9 +977,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = x.Type
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:530")
-			}
 			return true
 		}
 		goto end3a26cf52dd1b77f07cc9e005760dbb11
@@ -1142,9 +996,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = 0
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:461")
-			}
 			return true
 		}
 		goto end336ece33b4f0fb44dfe1f24981df7b74
@@ -1165,9 +1016,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = x.Type
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:465")
-			}
 			return true
 		}
 		goto endfb111c3afa8c5c4040fa6000fadee810
@@ -1187,9 +1035,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = c & d
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:503")
-			}
 			return true
 		}
 		goto end250eb27fcac10bf6c0d96ce66a21726e
@@ -1208,9 +1053,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:16")
-			}
 			return true
 		}
 		goto ende604481c6de9fe4574cb2954ba2ddc67
@@ -1229,9 +1071,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:15")
-			}
 			return true
 		}
 		goto endc445ea2a65385445676cd684ae9a42b5
@@ -1250,9 +1089,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:13")
-			}
 			return true
 		}
 		goto endd88f18b3f39e3ccc201477a616f0abc0
@@ -1271,9 +1107,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:17")
-			}
 			return true
 		}
 		goto end6117c84a6b75c1b816b3fb095bc5f656
@@ -1292,9 +1125,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:14")
-			}
 			return true
 		}
 		goto enda1d5640788c7157996f9d4af602dec1c
@@ -1313,9 +1143,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Aux = sym
 			v.AddArg(base)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:237")
-			}
 			return true
 		}
 		goto end53cad0c3c9daa5575680e77c14e05e72
@@ -1334,9 +1161,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:35")
-			}
 			return true
 		}
 		goto end1c01f04a173d86ce1a6d1ef59e753014
@@ -1355,9 +1179,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:34")
-			}
 			return true
 		}
 		goto end6b9eb9375b3a859028a6ba6bf6b8ec88
@@ -1376,9 +1197,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:33")
-			}
 			return true
 		}
 		goto enda0bde5853819d05fa2b7d3b723629552
@@ -1397,9 +1215,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:36")
-			}
 			return true
 		}
 		goto end0f53bee6291f1229b43aa1b5f977b4f2
@@ -1421,9 +1236,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AuxInt = c
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:355")
-			}
 			return true
 		}
 		goto end52190c0b8759133aa6c540944965c4c0
@@ -1447,9 +1259,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AuxInt = c
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:356")
-			}
 			return true
 		}
 		goto end6798593f4f9a27e90de089b3248187fd
@@ -1471,9 +1280,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AuxInt = c
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:351")
-			}
 			return true
 		}
 		goto end49ff4559c4bdecb2aef0c905e2d9a6cf
@@ -1497,9 +1303,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AuxInt = c
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:352")
-			}
 			return true
 		}
 		goto end3c04e861f07a442be9e2f5e0e0d07cce
@@ -1524,9 +1327,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AuxInt = c
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:349")
-			}
 			return true
 		}
 		goto end3bbb2c6caa57853a7561738ce3c0c630
@@ -1553,9 +1353,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AuxInt = c
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:350")
-			}
 			return true
 		}
 		goto end5edbe48a495a51ecabd3b2c0ed44a3d3
@@ -1577,9 +1374,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AuxInt = c
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:353")
-			}
 			return true
 		}
 		goto end310a9ba58ac35c97587e08c63fe8a46c
@@ -1603,9 +1397,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AuxInt = c
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:354")
-			}
 			return true
 		}
 		goto end1ce191aaab0f4dd3b98dafdfbfac13ce
@@ -1628,9 +1419,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(entry)
 			v.AddArg(closure)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:267")
-			}
 			return true
 		}
 		goto endfd75d26316012d86cb71d0dd1214259b
@@ -1647,9 +1435,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:55")
-			}
 			return true
 		}
 		goto end1b14ba8d7d7aa585ec0a211827f280ae
@@ -1666,9 +1451,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:54")
-			}
 			return true
 		}
 		goto end6eb124ba3bdb3fd6031414370852feb6
@@ -1685,9 +1467,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:53")
-			}
 			return true
 		}
 		goto endf5f3b355a87779c347e305719dddda05
@@ -1704,9 +1483,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:56")
-			}
 			return true
 		}
 		goto end1c7c5c055d663ccf1f05fbc4883030c6
@@ -1723,9 +1499,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = val
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:229")
-			}
 			return true
 		}
 		goto end2c6c92f297873b8ac12bd035d56d001e
@@ -1742,9 +1515,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = val
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:230")
-			}
 			return true
 		}
 		goto enddae5807662af67143a3ac3ad9c63bae5
@@ -1761,9 +1531,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = val
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:231")
-			}
 			return true
 		}
 		goto endc630434ae7f143ab69d5f482a9b52b5f
@@ -1780,9 +1547,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = val
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:228")
-			}
 			return true
 		}
 		goto end200524c722ed14ca935ba47f8f30327d
@@ -1802,9 +1566,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = 0
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:234")
-			}
 			return true
 		}
 		goto end876159ea073d2dcefcc251667c1a7780
@@ -1823,9 +1584,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = 1
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:235")
-			}
 			return true
 		}
 		goto end0dacad3f7cad53905aad5303391447f6
@@ -1841,9 +1599,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = 0
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:233")
-			}
 			return true
 		}
 		goto endea557d921056c25b945a49649e4b9b91
@@ -1860,9 +1615,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = val
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:232")
-			}
 			return true
 		}
 		goto endc395c0a53eeccf597e225a07b53047d1
@@ -1884,9 +1636,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:195")
-			}
 			return true
 		}
 		goto end66a03470b5b3e8457ba205ccfcaccea6
@@ -1908,9 +1657,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:194")
-			}
 			return true
 		}
 		goto end4d77d0b016f93817fd6e5f60fa0e7ef2
@@ -1932,9 +1678,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:193")
-			}
 			return true
 		}
 		goto endae6c62e4e20b4f62694b6ee40dbd9211
@@ -1956,9 +1699,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:196")
-			}
 			return true
 		}
 		goto end84a692e769900e3adbfe00718d2169e0
@@ -1980,9 +1720,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:197")
-			}
 			return true
 		}
 		goto end6de1d39c9d151e5e503d643bd835356e
@@ -2004,9 +1741,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:185")
-			}
 			return true
 		}
 		goto end26084bf821f9e418934fee812632b774
@@ -2028,9 +1762,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:190")
-			}
 			return true
 		}
 		goto end20b00f850ca834cb2013414645c19ad9
@@ -2052,9 +1783,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:184")
-			}
 			return true
 		}
 		goto end713c3dfa0f7247dcc232bcfc916fb044
@@ -2076,9 +1804,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:189")
-			}
 			return true
 		}
 		goto endac2cde17ec6ab0107eabbda6407d1004
@@ -2100,9 +1825,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:183")
-			}
 			return true
 		}
 		goto end63f44e3fec8d92723b5bde42d6d7eea0
@@ -2124,9 +1846,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:188")
-			}
 			return true
 		}
 		goto endd8d2d9faa19457f6a7b0635a756d234f
@@ -2148,9 +1867,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:186")
-			}
 			return true
 		}
 		goto endb5f40ee158007e675b2113c3ce962382
@@ -2172,9 +1888,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:191")
-			}
 			return true
 		}
 		goto endd30ee67afc0284c419cef70261f61452
@@ -2189,9 +1902,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:220")
-			}
 			return true
 		}
 		goto endb17140e71dd641aa4d89e14479160260
@@ -2213,9 +1923,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:175")
-			}
 			return true
 		}
 		goto end5bc9fdb7e563a6b949e42d721903cb58
@@ -2237,9 +1944,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:180")
-			}
 			return true
 		}
 		goto endd5b646f04fd839d11082a9ff6adb4a3f
@@ -2261,9 +1965,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:174")
-			}
 			return true
 		}
 		goto endbf0b2b1368aadff48969a7386eee5795
@@ -2285,9 +1986,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:179")
-			}
 			return true
 		}
 		goto end033c944272dc0af6fafe33f667cf7485
@@ -2309,9 +2007,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:173")
-			}
 			return true
 		}
 		goto endaef0cfa5e27e23cf5e527061cf251069
@@ -2333,9 +2028,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:178")
-			}
 			return true
 		}
 		goto end2afc16a19fe1073dfa86770a78eba2b4
@@ -2357,9 +2049,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:176")
-			}
 			return true
 		}
 		goto endbdb1e5f6b760cf02e0fc2f474622e6be
@@ -2381,9 +2070,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:181")
-			}
 			return true
 		}
 		goto end22eaafbcfe70447f79d9b3e6cc395bbd
@@ -2405,9 +2091,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(ptr)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:239")
-			}
 			return true
 		}
 		goto enda49fcae3630a097c78aa58189c90a97a
@@ -2429,9 +2112,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(idx)
 			v0.AddArg(len)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:217")
-			}
 			return true
 		}
 		goto endb51d371171154c0f1613b687757e0576
@@ -2452,9 +2132,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(p)
 			v0.AddArg(p)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:216")
-			}
 			return true
 		}
 		goto endff508c3726edfb573abc6128c177e76c
@@ -2476,9 +2153,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:165")
-			}
 			return true
 		}
 		goto endc1916dfcb3eae58ab237e40a57e1ff16
@@ -2500,9 +2174,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:170")
-			}
 			return true
 		}
 		goto end627e261aea217b5d17177b52711b8c82
@@ -2524,9 +2195,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:164")
-			}
 			return true
 		}
 		goto endf422ecc8da0033e22242de9c67112537
@@ -2548,9 +2216,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:169")
-			}
 			return true
 		}
 		goto end1b39c9661896abdff8a29de509311b96
@@ -2572,9 +2237,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:163")
-			}
 			return true
 		}
 		goto endf03da5e28dccdb4797671f39e824fb10
@@ -2596,9 +2258,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:168")
-			}
 			return true
 		}
 		goto end37302777dd91a5d0c6f410a5444ccb38
@@ -2620,9 +2279,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:166")
-			}
 			return true
 		}
 		goto end03be536eea60fdd98d48b17681acaf5a
@@ -2644,9 +2300,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:171")
-			}
 			return true
 		}
 		goto end661377f6745450bb1fa7fd0608ef0a86
@@ -2668,9 +2321,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:155")
-			}
 			return true
 		}
 		goto endeb09704ef62ba2695a967b6fcb42e562
@@ -2692,9 +2342,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:160")
-			}
 			return true
 		}
 		goto end2209a57bd887f68ad732aa7da2bc7286
@@ -2716,9 +2363,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:154")
-			}
 			return true
 		}
 		goto end8da8d2030c0a323a84503c1240c566ae
@@ -2740,9 +2384,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:159")
-			}
 			return true
 		}
 		goto enddcfbbb482eb194146f4f7c8f12029a7a
@@ -2764,9 +2405,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:153")
-			}
 			return true
 		}
 		goto endf8e7a24c25692045bbcfd2c9356d1a8c
@@ -2788,9 +2426,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:158")
-			}
 			return true
 		}
 		goto end2fac0a2c2e972b5e04b5062d5786b87d
@@ -2812,9 +2447,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:156")
-			}
 			return true
 		}
 		goto end445ad05f8d23dfecf246ce083f1ea167
@@ -2836,9 +2468,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:161")
-			}
 			return true
 		}
 		goto end816d1dff858c45836dfa337262e04649
@@ -2861,9 +2490,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(ptr)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:205")
-			}
 			return true
 		}
 		goto end7c4c53acf57ebc5f03273652ba1d5934
@@ -2885,9 +2511,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(ptr)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:206")
-			}
 			return true
 		}
 		goto ende1cfcb15bfbcfd448ce303d0882a4057
@@ -2909,9 +2532,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(ptr)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:207")
-			}
 			return true
 		}
 		goto end2d0a1304501ed9f4e9e2d288505a9c7c
@@ -2933,9 +2553,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(ptr)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:208")
-			}
 			return true
 		}
 		goto end8f83bf72293670e75b22d6627bd13f0b
@@ -2956,9 +2573,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Type = t
 			v.AuxInt = c & 15
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:107")
-			}
 			return true
 		}
 		goto endb23dfa24c619d0068f925899d53ee7fd
@@ -2979,9 +2593,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Type = t
 			v.AuxInt = c & 31
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:106")
-			}
 			return true
 		}
 		goto end38b2215c011896c36845f72ecb72b1b0
@@ -3002,9 +2613,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Type = t
 			v.AuxInt = c & 63
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:105")
-			}
 			return true
 		}
 		goto end5cb355e4f3ca387f252ef4f6a55f9f68
@@ -3025,9 +2633,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Type = t
 			v.AuxInt = c & 7
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:108")
-			}
 			return true
 		}
 		goto end26bfb3dd5b537cf13ac9f2978d94ed71
@@ -3058,9 +2663,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:97")
-			}
 			return true
 		}
 		goto end5b63495f0e75ac68c4ce9d4afa1472d4
@@ -3091,9 +2693,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:96")
-			}
 			return true
 		}
 		goto end6384dd9bdcec3046732d7347250d49f6
@@ -3124,9 +2723,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:95")
-			}
 			return true
 		}
 		goto end0975ca28988350db0ad556c925d8af07
@@ -3157,9 +2753,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:98")
-			}
 			return true
 		}
 		goto endd17c913707f29d59cfcb5d57d5f5c6ff
@@ -3190,9 +2783,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:92")
-			}
 			return true
 		}
 		goto end027b6f888054cc1dd8911fe16a6315a1
@@ -3223,9 +2813,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:91")
-			}
 			return true
 		}
 		goto endbcc31e2bd8800d5ddb27c09d37f867b9
@@ -3256,9 +2843,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:90")
-			}
 			return true
 		}
 		goto end6797e3a3bbb0fe7eda819fe19a4d4b49
@@ -3289,9 +2873,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:93")
-			}
 			return true
 		}
 		goto end7dd2c717933f46750e8a0871aab6fc63
@@ -3322,9 +2903,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:87")
-			}
 			return true
 		}
 		goto end3a2fda1dddb29e49f46ccde6f5397222
@@ -3355,9 +2933,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:86")
-			}
 			return true
 		}
 		goto end147322aba732027ac2290fd8173d806a
@@ -3388,9 +2963,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:85")
-			}
 			return true
 		}
 		goto endeb8e78c9c960fa12e29ea07a8519649b
@@ -3421,9 +2993,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:88")
-			}
 			return true
 		}
 		goto end42cdc11c34c81bbd5e8b4ad19ceec1ef
@@ -3454,9 +3023,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:102")
-			}
 			return true
 		}
 		goto end60bf962bf5256e20b547e18e3c886aa5
@@ -3487,9 +3053,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:101")
-			}
 			return true
 		}
 		goto end8ed3445f6dbba1a87c80b140371445ce
@@ -3520,9 +3083,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:100")
-			}
 			return true
 		}
 		goto end0a03c9cc48ef1bfd74973de5f5fb02b0
@@ -3553,9 +3113,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:103")
-			}
 			return true
 		}
 		goto end781e3a47b186cf99fcb7137afd3432b9
@@ -3577,9 +3134,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(ptr)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:384")
-			}
 			return true
 		}
 		goto enda3a5eeb5767e31f42b0b6c1db8311ebb
@@ -3601,9 +3155,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(ptr)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:385")
-			}
 			return true
 		}
 		goto end9510a482da21d9945d53c4233b19e825
@@ -3627,9 +3178,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(ptr)
 			v.AddArg(x)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:391")
-			}
 			return true
 		}
 		goto endc356ef104095b9217b36b594f85171c6
@@ -3652,9 +3200,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(ptr)
 			v.AddArg(x)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:394")
-			}
 			return true
 		}
 		goto end25841a70cce7ac32c6d5e561b992d3df
@@ -3678,9 +3223,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(ptr)
 			v.AddArg(x)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:389")
-			}
 			return true
 		}
 		goto endf79c699f70cb356abb52dc28f4abf46b
@@ -3703,9 +3245,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(ptr)
 			v.AddArg(x)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:392")
-			}
 			return true
 		}
 		goto end67d1549d16d373e4ad6a89298866d1bc
@@ -3730,9 +3269,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AuxInt = addOff(off1, off2)
 			v.AddArg(ptr)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:401")
-			}
 			return true
 		}
 		goto end843d29b538c4483b432b632e5666d6e3
@@ -3762,9 +3298,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = mergeSym(sym1, sym2)
 			v.AddArg(base)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:405")
-			}
 			return true
 		}
 		goto end227426af95e74caddcf59fdcd30ca8bc
@@ -3790,9 +3323,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(ptr)
 			v.AddArg(idx)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:410")
-			}
 			return true
 		}
 		goto end02f5ad148292c46463e7c20d3b821735
@@ -3819,9 +3349,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(ptr)
 			v.AddArg(idx)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:413")
-			}
 			return true
 		}
 		goto ende81e44bcfb11f90916ccb440c590121f
@@ -3848,9 +3375,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(ptr)
 			v.AddArg(val)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:402")
-			}
 			return true
 		}
 		goto end2108c693a43c79aed10b9246c39c80aa
@@ -3882,9 +3406,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(base)
 			v.AddArg(val)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:407")
-			}
 			return true
 		}
 		goto end5061f48193268a5eb1e1740bdd23c43d
@@ -3912,9 +3433,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(idx)
 			v.AddArg(val)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:411")
-			}
 			return true
 		}
 		goto endce1db8c8d37c8397c500a2068a65c215
@@ -3943,9 +3461,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(idx)
 			v.AddArg(val)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:414")
-			}
 			return true
 		}
 		goto end01c970657b0fdefeab82458c15022163
@@ -3969,9 +3484,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(ptr)
 			v.AddArg(x)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:390")
-			}
 			return true
 		}
 		goto endcc13af07a951a61fcfec3299342f7e1f
@@ -3994,9 +3506,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(ptr)
 			v.AddArg(x)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:393")
-			}
 			return true
 		}
 		goto end4e7df15ee55bdd73d8ecd61b759134d4
@@ -4018,9 +3527,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:293")
-			}
 			return true
 		}
 		goto end893477a261bcad6c2821b77c83075c6c
@@ -4041,9 +3547,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:294")
-			}
 			return true
 		}
 		goto end8a0f957c528a54eecb0dbfc5d96e017a
@@ -4064,9 +3567,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = c * d
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:499")
-			}
 			return true
 		}
 		goto endd5732835ed1276ef8b728bcfc1289f73
@@ -4091,9 +3591,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:291")
-			}
 			return true
 		}
 		goto endb38c6e3e0ddfa25ba0ef9684ac1528c0
@@ -4117,9 +3614,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:292")
-			}
 			return true
 		}
 		goto end9cb4f29b0bd7141639416735dcbb3b87
@@ -4139,9 +3633,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:359")
-			}
 			return true
 		}
 		goto end82501cca6b5fb121a7f8b197e55f2fec
@@ -4159,9 +3650,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = 0
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:360")
-			}
 			return true
 		}
 		goto endcb9faa068e3558ff44daaf1d47d091b5
@@ -4181,9 +3669,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = x.Type
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:361")
-			}
 			return true
 		}
 		goto end0b527e71db2b288b2841a1f757aa580d
@@ -4203,9 +3688,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:362")
-			}
 			return true
 		}
 		goto end34a86f261671b5852bec6c57155fe0da
@@ -4225,9 +3707,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:363")
-			}
 			return true
 		}
 		goto end534601906c45a9171a9fec3e4b82b189
@@ -4247,9 +3726,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:364")
-			}
 			return true
 		}
 		goto end48a2280b6459821289c56073b8354997
@@ -4270,9 +3746,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = log2(c)
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:365")
-			}
 			return true
 		}
 		goto end75076953dbfe022526a153eda99b39b2
@@ -4292,9 +3765,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = c * d
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:498")
-			}
 			return true
 		}
 		goto end55c38c5c405101e610d7ba7fc702ddc0
@@ -4316,9 +3786,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:295")
-			}
 			return true
 		}
 		goto end542112cc08217d4bdffc1a645d290ffb
@@ -4339,9 +3806,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:296")
-			}
 			return true
 		}
 		goto endd97b4245ced2b3d27d8c555b06281de4
@@ -4362,9 +3826,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = c * d
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:500")
-			}
 			return true
 		}
 		goto end61dbc9d9e93dd6946a20a1f475b3f74b
@@ -4390,9 +3851,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AuxInt = size
 			v.AddArg(v0)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:222")
-			}
 			return true
 		}
 		goto end4dd156b33beb9981378c91e46f055a56
@@ -4411,9 +3869,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:27")
-			}
 			return true
 		}
 		goto end1addf5ea2c885aa1729b8f944859d00c
@@ -4432,9 +3887,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:26")
-			}
 			return true
 		}
 		goto ende144381f85808e5144782804768e2859
@@ -4453,9 +3905,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:24")
-			}
 			return true
 		}
 		goto end38da21e77ac329eb643b20e7d97d5853
@@ -4474,9 +3923,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:31")
-			}
 			return true
 		}
 		goto end861428e804347e8489a6424f2e6ce71c
@@ -4495,9 +3941,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:25")
-			}
 			return true
 		}
 		goto endbbedad106c011a93243e2062afdcc75f
@@ -4517,9 +3960,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = -c
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:497")
-			}
 			return true
 		}
 		goto end36d0300ba9eab8c9da86246ff653ca96
@@ -4539,9 +3979,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = -c
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:495")
-			}
 			return true
 		}
 		goto end7a245ec67e56bd51911e5ba2d0aa0a16
@@ -4561,9 +3998,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = -c
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:494")
-			}
 			return true
 		}
 		goto end04ddd98bc6724ecb85c80c2a4e2bca5a
@@ -4583,9 +4017,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = -c
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:496")
-			}
 			return true
 		}
 		goto end1db6636f0a51848d8a34f6561ecfe7ae
@@ -4605,9 +4036,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = ^c
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:516")
-			}
 			return true
 		}
 		goto end9e383a9ceb29a9e2bf890ec6a67212a8
@@ -4627,9 +4055,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = ^c
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:514")
-			}
 			return true
 		}
 		goto endcc73972c088d5e652a1370a96e56502d
@@ -4649,9 +4074,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = ^c
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:513")
-			}
 			return true
 		}
 		goto endb39ddb6bf7339d46f74114baad4333b6
@@ -4671,9 +4093,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = ^c
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:515")
-			}
 			return true
 		}
 		goto end35848095ebcf894c6957ad3be5f82c43
@@ -4690,9 +4109,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:50")
-			}
 			return true
 		}
 		goto end7a8c652f4ffeb49656119af69512edb2
@@ -4709,9 +4125,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:49")
-			}
 			return true
 		}
 		goto endce1f7e17fc193f6c076e47d5e401e126
@@ -4728,9 +4141,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:48")
-			}
 			return true
 		}
 		goto enda06c5b1718f2b96aba10bf5a5c437c6c
@@ -4747,9 +4157,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:51")
-			}
 			return true
 		}
 		goto end1e5f495a2ac6cdea47b1ae5ba62aa95d
@@ -4771,9 +4178,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:201")
-			}
 			return true
 		}
 		goto endf177c3b3868606824e43e11da7804572
@@ -4795,9 +4199,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:200")
-			}
 			return true
 		}
 		goto end39c4bf6d063f8a0b6f0064c96ce25173
@@ -4819,9 +4220,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:199")
-			}
 			return true
 		}
 		goto end8ab0bcb910c0d3213dd8726fbcc4848e
@@ -4843,9 +4241,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:202")
-			}
 			return true
 		}
 		goto end4aaff28af59a65b3684f4f1897299932
@@ -4867,9 +4262,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AddArg(y)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:203")
-			}
 			return true
 		}
 		goto end6e180ffd9583cd55361ed3e465158a4c
@@ -4887,9 +4279,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = 1
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:224")
-			}
 			return true
 		}
 		goto end73973101aad60079c62fa64624e21db1
@@ -4911,9 +4300,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:317")
-			}
 			return true
 		}
 		goto end7b63870decde2515cb77ec4f8f76817c
@@ -4934,9 +4320,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:318")
-			}
 			return true
 		}
 		goto end70b43d531e2097a4f6293f66256a642e
@@ -4956,9 +4339,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = x.Type
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:535")
-			}
 			return true
 		}
 		goto enddca5ce800a9eca157f243cb2fdb1408a
@@ -4980,9 +4360,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = x.Type
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:470")
-			}
 			return true
 		}
 		goto end565f78e3a843dc73943b59227b39a1b3
@@ -5001,9 +4378,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = -1
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:474")
-			}
 			return true
 		}
 		goto end6033c7910d8cd536b31446e179e4610d
@@ -5023,9 +4397,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = c | d
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:508")
-			}
 			return true
 		}
 		goto endbe5263f022dc10a5cf53c118937d79dd
@@ -5047,9 +4418,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:313")
-			}
 			return true
 		}
 		goto end1b883e30d860b6fac14ae98462c4f61a
@@ -5070,9 +4438,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:314")
-			}
 			return true
 		}
 		goto enda5bc49524a0cbd2241f792837d0a48a8
@@ -5092,9 +4457,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = x.Type
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:533")
-			}
 			return true
 		}
 		goto end2dd719b68f4938777ef0d820aab93659
@@ -5116,9 +4478,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = x.Type
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:468")
-			}
 			return true
 		}
 		goto end5b52623a724e8a7167c71289fb7192f1
@@ -5137,9 +4496,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = -1
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:472")
-			}
 			return true
 		}
 		goto end345a8ea439ef2ef54bd84fc8a0f73e97
@@ -5159,9 +4515,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = c | d
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:506")
-			}
 			return true
 		}
 		goto ende9ca05024248f782c88084715f81d727
@@ -5186,9 +4539,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:311")
-			}
 			return true
 		}
 		goto end601f2bb3ccda102e484ff60adeaf6d26
@@ -5212,9 +4562,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:312")
-			}
 			return true
 		}
 		goto end010afbebcd314e288509d79a16a6d5cc
@@ -5234,9 +4581,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = x.Type
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:532")
-			}
 			return true
 		}
 		goto end47a27d30b82db576978c5a3a57b520fb
@@ -5257,9 +4601,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = x.Type
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:467")
-			}
 			return true
 		}
 		goto end44534da6b9ce98d33fad7e20f0be1fbd
@@ -5277,9 +4618,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = -1
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:471")
-			}
 			return true
 		}
 		goto endcde9b9d7c4527eaa5d50b252f50b43c1
@@ -5299,9 +4637,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = c | d
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:505")
-			}
 			return true
 		}
 		goto enda2488509b71db9abcb06a5115c4ddc2c
@@ -5323,9 +4658,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:315")
-			}
 			return true
 		}
 		goto end9f98df10892dbf170b49aace86ee0d7f
@@ -5346,9 +4678,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:316")
-			}
 			return true
 		}
 		goto end96405942c9ceb5fcb0ddb85a8709d015
@@ -5368,9 +4697,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = x.Type
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:534")
-			}
 			return true
 		}
 		goto endc6a23b64e541dc9cfc6a90fd7028e8c1
@@ -5392,9 +4718,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = x.Type
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:469")
-			}
 			return true
 		}
 		goto endbbbdec9091c8b4c58e587eac8a43402d
@@ -5413,9 +4736,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = -1
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:473")
-			}
 			return true
 		}
 		goto ended87a5775f5e04b2d2a117a63d82dd9b
@@ -5435,9 +4755,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = c | d
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:507")
-			}
 			return true
 		}
 		goto endba9221a8462b5c62e8d7c686f64c2778
@@ -5456,9 +4773,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = off
 			v.AddArg(ptr)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:226")
-			}
 			return true
 		}
 		goto end0429f947ee7ac49ff45a243e461a5290
@@ -5477,9 +4791,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:40")
-			}
 			return true
 		}
 		goto end8fedf2c79d5607b7056b0ff015199cbd
@@ -5498,9 +4809,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:39")
-			}
 			return true
 		}
 		goto endea45bed9ca97d2995b68b53e6012d384
@@ -5519,9 +4827,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:38")
-			}
 			return true
 		}
 		goto end3a446becaf2461f4f1a41faeef313f41
@@ -5540,9 +4845,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:41")
-			}
 			return true
 		}
 		goto end6f8a8c559a167d1f0a5901d09a1fb248
@@ -5561,9 +4863,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(ptr)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:219")
-			}
 			return true
 		}
 		goto enda02b1ad5a6f929b782190145f2c8628b
@@ -5594,9 +4893,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:122")
-			}
 			return true
 		}
 		goto end73239750a306668023d2c49875ac442f
@@ -5627,9 +4923,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:121")
-			}
 			return true
 		}
 		goto end9951e3b2e92c892256feece722b32219
@@ -5660,9 +4953,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:120")
-			}
 			return true
 		}
 		goto end610d56d808c204abfa40d653447b2c17
@@ -5693,9 +4983,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:123")
-			}
 			return true
 		}
 		goto end45e76a8d2b004e6802d53cf12b4757b3
@@ -5730,9 +5017,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:145")
-			}
 			return true
 		}
 		goto endbcd8fd69ada08517f6f94f35da91e1c3
@@ -5767,9 +5051,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:144")
-			}
 			return true
 		}
 		goto endec3994083e7f82857ecec05906c29aa6
@@ -5804,9 +5085,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:143")
-			}
 			return true
 		}
 		goto end19da3883e21ffa3a45d7fc648ef38b66
@@ -5841,9 +5119,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:146")
-			}
 			return true
 		}
 		goto end3c989f6931d059ea04e4ba93601b6c51
@@ -5874,9 +5149,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:117")
-			}
 			return true
 		}
 		goto end056ede9885a9fc2f32615a2a03b35388
@@ -5907,9 +5179,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:116")
-			}
 			return true
 		}
 		goto end30439bdc3517479ea25ae7f54408ba7f
@@ -5940,9 +5209,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:115")
-			}
 			return true
 		}
 		goto end49b47fd18b54461d8eea51f6e5889cd2
@@ -5973,9 +5239,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:118")
-			}
 			return true
 		}
 		goto end46e045970a8b1afb9035605fc0e50c69
@@ -6010,9 +5273,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:140")
-			}
 			return true
 		}
 		goto end5d1b8d7e1d1e53e621d13bb0eafc9102
@@ -6047,9 +5307,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:139")
-			}
 			return true
 		}
 		goto end9c27383961c2161a9955012fce808cab
@@ -6084,9 +5341,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:138")
-			}
 			return true
 		}
 		goto end75dc7144497705c800e0c60dcd4a2828
@@ -6121,9 +5375,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:141")
-			}
 			return true
 		}
 		goto enda7b94b2fd5cbcd12bb2dcd576bdca481
@@ -6154,9 +5405,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:112")
-			}
 			return true
 		}
 		goto endc4bdfdc375a5c94978d936bd0db89cc5
@@ -6187,9 +5435,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:111")
-			}
 			return true
 		}
 		goto end217f32bca5f6744b9a7de052f4fae13e
@@ -6220,9 +5465,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:110")
-			}
 			return true
 		}
 		goto end530dee0bcadf1cf5d092894b6210ffcd
@@ -6253,9 +5495,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:113")
-			}
 			return true
 		}
 		goto endf09baf4e0005c5eb4905f71ce4c8b306
@@ -6290,9 +5529,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:135")
-			}
 			return true
 		}
 		goto endb370ee74ca256a604138321ddca9d543
@@ -6327,9 +5563,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:134")
-			}
 			return true
 		}
 		goto end3cc6edf5b286a449332757ea12d2d601
@@ -6364,9 +5597,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:133")
-			}
 			return true
 		}
 		goto end45de7b33396d9fd2ba377bd095f1d7a6
@@ -6401,9 +5631,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:136")
-			}
 			return true
 		}
 		goto ende03fa68104fd18bb9b2bb94370e0c8b3
@@ -6434,9 +5661,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:127")
-			}
 			return true
 		}
 		goto enda1adfc560334e10d5e83fbff27a8752f
@@ -6467,9 +5691,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:126")
-			}
 			return true
 		}
 		goto end17f63b4b712e715a33ac780193b59c2e
@@ -6500,9 +5721,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:125")
-			}
 			return true
 		}
 		goto end77d5c3ef9982ebd27c135d3461b7430b
@@ -6533,9 +5751,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2.AddArg(y)
 			v1.AddArg(v2)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:128")
-			}
 			return true
 		}
 		goto end206712ffbda924142afbf384aeb8f09e
@@ -6570,9 +5785,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:150")
-			}
 			return true
 		}
 		goto endd303f390b49d9716dc783d5c4d57ddd1
@@ -6607,9 +5819,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:149")
-			}
 			return true
 		}
 		goto ende12a524a6fc68eb245140c6919034337
@@ -6644,9 +5853,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:148")
-			}
 			return true
 		}
 		goto end6ee53459daa5458d163c86ea02dd2f31
@@ -6681,9 +5887,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:151")
-			}
 			return true
 		}
 		goto end07f447a7e25b048c41d412c242330ec0
@@ -6705,9 +5908,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c & 31
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:342")
-			}
 			return true
 		}
 		goto end3bf3d17717aa6c04462e56d1c87902ce
@@ -6729,9 +5929,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c & 31
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:340")
-			}
 			return true
 		}
 		goto ende586a72c1b232ee0b63e37c71eeb8470
@@ -6753,9 +5950,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c & 63
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:339")
-			}
 			return true
 		}
 		goto end25e720ab203be2745dded5550e6d8a7c
@@ -6777,9 +5971,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c & 31
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:341")
-			}
 			return true
 		}
 		goto endc46e3f211f94238f9a0aec3c498af490
@@ -6806,9 +5997,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = -1
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:451")
-			}
 			return true
 		}
 		goto enda9e02a887246381d02b3259b9df4050c
@@ -6834,9 +6022,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = 0
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:452")
-			}
 			return true
 		}
 		goto end3f8220527278b72a64148fcf9dc58bfe
@@ -6862,9 +6047,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = -1
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:453")
-			}
 			return true
 		}
 		goto end880a2b9a12ed4f551bbd46473b9439bc
@@ -6890,9 +6072,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = 0
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:454")
-			}
 			return true
 		}
 		goto end3f08080e0f55d51afca2a131ed0c672e
@@ -6918,9 +6097,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = -1
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:455")
-			}
 			return true
 		}
 		goto end91ed02166e0c0d696730e1704d0a682e
@@ -6946,9 +6122,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = 0
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:456")
-			}
 			return true
 		}
 		goto endc7edc3a13ec73ec4e6e87e7ab421a71a
@@ -6974,9 +6147,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = -1
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:457")
-			}
 			return true
 		}
 		goto end0fe2997fc76ce00b1d496f7289ab345a
@@ -7002,9 +6172,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = 0
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:458")
-			}
 			return true
 		}
 		goto end3a07121fcc82f1a19da4226b07a757ce
@@ -7031,9 +6198,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = -1
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:443")
-			}
 			return true
 		}
 		goto end378de7e659770f877c08b6b269073069
@@ -7059,9 +6223,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = 0
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:444")
-			}
 			return true
 		}
 		goto enda7bfd1974bf83ca79653c560a718a86c
@@ -7087,9 +6248,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = -1
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:445")
-			}
 			return true
 		}
 		goto end8c6d39847239120fa0fe953007eb40ae
@@ -7115,9 +6273,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = 0
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:446")
-			}
 			return true
 		}
 		goto end20885e855545e16ca77af2b9a2b69ea9
@@ -7143,9 +6298,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = -1
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:447")
-			}
 			return true
 		}
 		goto end16f61db69d07e67e9f408c2790a9de7c
@@ -7171,9 +6323,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = 0
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:448")
-			}
 			return true
 		}
 		goto end191ca427f7d5d2286bd290920c84a51d
@@ -7199,9 +6348,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = -1
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:449")
-			}
 			return true
 		}
 		goto end3fd3f1e9660b9050c6a41b4fc948f793
@@ -7227,9 +6373,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = 0
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:450")
-			}
 			return true
 		}
 		goto ende0d6edd92ae98e6dc041f65029d8b243
@@ -7249,9 +6392,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:375")
-			}
 			return true
 		}
 		goto enda4ac36e94fc279d762b5a6c7c6cc665d
@@ -7271,9 +6411,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:379")
-			}
 			return true
 		}
 		goto end0468f5be6caf682fdea6b91d6648991e
@@ -7293,9 +6430,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:374")
-			}
 			return true
 		}
 		goto endc9eba7aa1e54a228570d2f5cc96f3565
@@ -7315,9 +6449,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:378")
-			}
 			return true
 		}
 		goto end9d9031643469798b14b8cad1f5a7a1ba
@@ -7337,9 +6468,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:380")
-			}
 			return true
 		}
 		goto end5d2039c9368d8c0cfba23b5a85b459e1
@@ -7359,9 +6487,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:373")
-			}
 			return true
 		}
 		goto endf7586738694c9cd0b74ae28bbadb649f
@@ -7381,9 +6506,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:377")
-			}
 			return true
 		}
 		goto end82c11eff6f842159f564f2dad3d2eedc
@@ -7403,9 +6525,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:372")
-			}
 			return true
 		}
 		goto ende33160cd86b9d4d3b77e02fb4658d5d3
@@ -7425,9 +6544,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:376")
-			}
 			return true
 		}
 		goto end9307d96753efbeb888d1c98a6aba7a29
@@ -7447,9 +6563,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:381")
-			}
 			return true
 		}
 		goto endbc71811b789475308014550f638026eb
@@ -7471,9 +6584,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c & 31
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:332")
-			}
 			return true
 		}
 		goto end2d0d0111d831d8a575b5627284a6337a
@@ -7495,9 +6605,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c & 31
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:330")
-			}
 			return true
 		}
 		goto end633f9ddcfbb63374c895a5f78da75d25
@@ -7519,9 +6626,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c & 63
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:329")
-			}
 			return true
 		}
 		goto end4d7e3a945cacdd6b6c8c0de6f465d4ae
@@ -7543,9 +6647,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c & 31
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:331")
-			}
 			return true
 		}
 		goto endba96a52aa58d28b3357828051e0e695c
@@ -7567,9 +6668,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c & 31
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:337")
-			}
 			return true
 		}
 		goto enddb1cd5aaa826d43fa4f6d1b2b8795e58
@@ -7591,9 +6689,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c & 31
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:335")
-			}
 			return true
 		}
 		goto end344b8b9202e1925e8d0561f1c21412fc
@@ -7615,9 +6710,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c & 63
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:334")
-			}
 			return true
 		}
 		goto end699d35e2d5cfa08b8a3b1c8a183ddcf3
@@ -7639,9 +6731,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c & 31
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:336")
-			}
 			return true
 		}
 		goto endd75ff1f9b3e9ec9c942a39b6179da1b3
@@ -7663,9 +6752,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AuxInt = c
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:288")
-			}
 			return true
 		}
 		goto end9ca5d2a70e2df1a5a3ed6786bce1f7b2
@@ -7689,9 +6775,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AuxInt = c
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:289")
-			}
 			return true
 		}
 		goto endc288755d69b04d24a6aac32a73956411
@@ -7710,9 +6793,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = 0
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:527")
-			}
 			return true
 		}
 		goto ende8904403d937d95b0d6133d3ec92bb45
@@ -7733,9 +6813,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = c - d
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:489")
-			}
 			return true
 		}
 		goto end0e2d5c3e3c02001a20d5433daa9e8317
@@ -7757,9 +6834,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c - d
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:493")
-			}
 			return true
 		}
 		goto end48eccb421dfe0c678ea9c47113521d5a
@@ -7781,9 +6855,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AuxInt = c
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:284")
-			}
 			return true
 		}
 		goto end178c1d6c86f9c16f6497586c2f7d8625
@@ -7807,9 +6878,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AuxInt = c
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:285")
-			}
 			return true
 		}
 		goto endb0efe6e15ec20486b849534a00483ae2
@@ -7828,9 +6896,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = 0
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:525")
-			}
 			return true
 		}
 		goto end332f1f641f875c69bea7289191e69133
@@ -7851,9 +6916,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = c - d
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:487")
-			}
 			return true
 		}
 		goto endbe7466f3c09d9645544bdfc44c37c922
@@ -7875,9 +6937,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c - d
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:491")
-			}
 			return true
 		}
 		goto endb5106962a865bc4654b170c2e29a72c4
@@ -7902,9 +6961,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AuxInt = c
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:282")
-			}
 			return true
 		}
 		goto end9bbb7b20824a498752c605942fad89c2
@@ -7931,9 +6987,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AuxInt = c
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:283")
-			}
 			return true
 		}
 		goto end8beb96de3efee9206d1bd4b7d777d2cb
@@ -7952,9 +7005,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = 0
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:524")
-			}
 			return true
 		}
 		goto endd87d1d839d2dc54d9c90fa4f73383480
@@ -7975,9 +7025,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = c - d
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:486")
-			}
 			return true
 		}
 		goto end96c09479fb3c043e875d89d3eb92f1d8
@@ -7999,9 +7046,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c - d
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:490")
-			}
 			return true
 		}
 		goto enddd9d61b404480adb40cfd7fedd7e5ec4
@@ -8023,9 +7067,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AuxInt = c
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:286")
-			}
 			return true
 		}
 		goto end135aa9100b2f61d58b37cede37b63731
@@ -8049,9 +7090,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(x)
 			v0.AuxInt = c
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:287")
-			}
 			return true
 		}
 		goto end44d23f7e65a4b1c42d0e6463f8e493b6
@@ -8070,9 +7108,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = 0
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:526")
-			}
 			return true
 		}
 		goto endb970e7c318d04a1afe1dfe08a7ca0d9c
@@ -8093,9 +7128,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = c - d
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:488")
-			}
 			return true
 		}
 		goto end0e5079577fcf00f5925291dbd68306aa
@@ -8117,9 +7149,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c - d
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:492")
-			}
 			return true
 		}
 		goto endb628696cf5b329d03782b8093093269b
@@ -8136,9 +7165,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:62")
-			}
 			return true
 		}
 		goto end21e4271c2b48a5aa3561ccfa8fa67cd9
@@ -8155,9 +7181,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:63")
-			}
 			return true
 		}
 		goto endc6d242ee3a3e195ef0f9e8dae47ada75
@@ -8174,9 +7197,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:64")
-			}
 			return true
 		}
 		goto endb9f1a8b2d01eee44964a71a01bca165c
@@ -8193,9 +7213,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:59")
-			}
 			return true
 		}
 		goto end372869f08e147404b80634e5f83fd506
@@ -8212,9 +7229,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:60")
-			}
 			return true
 		}
 		goto end913e3575e5b4cf7f60585c108db40464
@@ -8231,9 +7245,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:61")
-			}
 			return true
 		}
 		goto endcef6d6001d3f25cf5dacee11a46e5c8c
@@ -8254,9 +7265,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AuxInt = argwid
 			v.Aux = target
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:266")
-			}
 			return true
 		}
 		goto end32c5cbec813d1c2ae94fc9b1090e4b2a
@@ -8280,9 +7288,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(ptr)
 			v.AddArg(val)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:209")
-			}
 			return true
 		}
 		goto endbaeb60123806948cd2433605820d5af1
@@ -8305,9 +7310,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(ptr)
 			v.AddArg(val)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:210")
-			}
 			return true
 		}
 		goto end582e895008657c728c141c6b95070de7
@@ -8330,9 +7332,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(ptr)
 			v.AddArg(val)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:211")
-			}
 			return true
 		}
 		goto enda3f6a985b6ebb277665f80ad30b178df
@@ -8355,9 +7354,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(ptr)
 			v.AddArg(val)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:212")
-			}
 			return true
 		}
 		goto ende2dee0bc82f631e3c6b0031bf8d224c1
@@ -8380,9 +7376,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(ptr)
 			v.AddArg(val)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:213")
-			}
 			return true
 		}
 		goto end6f343b676bf49740054e459f972b24f5
@@ -8401,9 +7394,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:21")
-			}
 			return true
 		}
 		goto end54adc5de883c0460ca71c6ee464d4244
@@ -8422,9 +7412,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:20")
-			}
 			return true
 		}
 		goto enddc3a2a488bda8c5856f93343e5ffe5f8
@@ -8443,9 +7430,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:19")
-			}
 			return true
 		}
 		goto endd88d5646309fd9174584888ecc8aca2c
@@ -8464,9 +7448,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:22")
-			}
 			return true
 		}
 		goto end7d33bf9bdfa505f96b930563eca7955f
@@ -8484,9 +7465,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = x.Type
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:74")
-			}
 			return true
 		}
 		goto end8e2f5e0a6e3a06423c077747de6c2bdd
@@ -8504,9 +7482,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = x.Type
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:76")
-			}
 			return true
 		}
 		goto end5bed0e3a3c1c6374d86beb5a4397708c
@@ -8524,9 +7499,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = x.Type
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:75")
-			}
 			return true
 		}
 		goto endef0b8032ce91979ce6cd0004260c04ee
@@ -8544,9 +7516,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = x.Type
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:78")
-			}
 			return true
 		}
 		goto endd32fd6e0ce970c212835e6f71c3dcbfd
@@ -8564,9 +7533,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = x.Type
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:79")
-			}
 			return true
 		}
 		goto end1212c4e84153210aff7fd630fb3e1883
@@ -8584,9 +7550,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = x.Type
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:77")
-			}
 			return true
 		}
 		goto end734f017d4b2810ca2288f7037365824c
@@ -8608,9 +7571,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:326")
-			}
 			return true
 		}
 		goto enda9ed9fdd115ffdffa8127c007c34d7b7
@@ -8631,9 +7591,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:327")
-			}
 			return true
 		}
 		goto endb02a07d9dc7b802c59f013116e952f3f
@@ -8652,9 +7609,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = 0
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:539")
-			}
 			return true
 		}
 		goto end2afddc39503d04d572a3a07878f6c9c9
@@ -8675,9 +7629,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = c ^ d
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:512")
-			}
 			return true
 		}
 		goto end6d8d1b612af9d253605c8bc69b822903
@@ -8699,9 +7650,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:322")
-			}
 			return true
 		}
 		goto enda9459d509d3416da67d13a22dd074a9c
@@ -8722,9 +7670,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:323")
-			}
 			return true
 		}
 		goto end9c1a0af00eeadd8aa325e55f1f3fb89c
@@ -8743,9 +7688,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = 0
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:537")
-			}
 			return true
 		}
 		goto end7bcf9cfeb69a0d7647389124eb53ce2a
@@ -8766,9 +7708,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = c ^ d
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:510")
-			}
 			return true
 		}
 		goto end71238075b10b68a226903cc453c4715c
@@ -8793,9 +7732,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:320")
-			}
 			return true
 		}
 		goto end452341f950062e0483f16438fb9ec500
@@ -8819,9 +7755,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:321")
-			}
 			return true
 		}
 		goto endd221a7e3daaaaa29ee385ad36e061b57
@@ -8840,9 +7773,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = 0
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:536")
-			}
 			return true
 		}
 		goto end10575a5d711cf14e6d4dffbb0e8dfaeb
@@ -8863,9 +7793,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = c ^ d
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:509")
-			}
 			return true
 		}
 		goto end3f404d4f07362319fbad2e1ba0827a9f
@@ -8887,9 +7814,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:324")
-			}
 			return true
 		}
 		goto end2ca109efd66c221a5691a4da95ec6c67
@@ -8910,9 +7834,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AuxInt = c
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:325")
-			}
 			return true
 		}
 		goto end51ee62a06d4301e5a4aed7a6639b1d53
@@ -8931,9 +7852,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = 0
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:538")
-			}
 			return true
 		}
 		goto end07f332e857be0c2707797ed480a2faf4
@@ -8954,9 +7872,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = c ^ d
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:511")
-			}
 			return true
 		}
 		goto ende24881ccdfa8486c4593fd9aa5df1ed6
@@ -8975,9 +7890,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:45")
-			}
 			return true
 		}
 		goto end20efdd5dfd5130abf818de5546a991a0
@@ -8996,9 +7908,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:44")
-			}
 			return true
 		}
 		goto end9da6bce98b437e2609488346116a75d8
@@ -9017,9 +7926,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:43")
-			}
 			return true
 		}
 		goto endc88cd189c2a6f07ecff324ed94809f8f
@@ -9038,9 +7944,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(x)
 			v.AddArg(y)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:46")
-			}
 			return true
 		}
 		goto end50f4434ef96916d3e65ad3cc236d1723
@@ -9061,9 +7964,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = mem.Type
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:419")
-			}
 			return true
 		}
 		goto endc9a38a60f0322f93682daa824611272c
@@ -9088,9 +7988,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AuxInt = 0
 			v.AddArg(v0)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:420")
-			}
 			return true
 		}
 		goto end56bcaef03cce4d15c03efff669bb5585
@@ -9115,9 +8012,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AuxInt = 0
 			v.AddArg(v0)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:421")
-			}
 			return true
 		}
 		goto endf52f08f1f7b0ae220c4cfca6586a8586
@@ -9142,9 +8036,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AuxInt = 0
 			v.AddArg(v0)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:422")
-			}
 			return true
 		}
 		goto end41c91e0c7a23e233de77812b5264fd10
@@ -9169,9 +8060,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AuxInt = 0
 			v.AddArg(v0)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:423")
-			}
 			return true
 		}
 		goto end157ad586af643d8dac6cc84a776000ca
@@ -9194,9 +8082,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AuxInt = size
 			v.AddArg(destptr)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:426")
-			}
 			return true
 		}
 		goto endf0a22f1506977610ac0a310eee152075
@@ -9231,9 +8116,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1.AddArg(v2)
 			v1.AddArg(mem)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:428")
-			}
 			return true
 		}
 		goto end84c39fe2e8d40e0042a10741a0ef16bd
@@ -9250,9 +8132,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:69")
-			}
 			return true
 		}
 		goto endbfff79412a2cc96095069c66812844b4
@@ -9269,9 +8148,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:70")
-			}
 			return true
 		}
 		goto end7a40262c5c856101058d2bd518ed0910
@@ -9288,9 +8164,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:71")
-			}
 			return true
 		}
 		goto enddf83bdc8cc6c5673a9ef7aca7affe45a
@@ -9307,9 +8180,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:66")
-			}
 			return true
 		}
 		goto endd03d53d2a585727e4107ae1a3cc55479
@@ -9326,9 +8196,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:67")
-			}
 			return true
 		}
 		goto endcbd33e965b3dab14fced5ae93d8949de
@@ -9345,9 +8212,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:68")
-			}
 			return true
 		}
 		goto end63ae7cc15db9d15189b2f1342604b2cb
@@ -9373,9 +8237,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:439")
-			}
 			return true
 		}
 		goto end6b8e9afc73b1c4d528f31a60d2575fae
@@ -9397,9 +8258,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:434")
-			}
 			return true
 		}
 		goto end0610f000a6988ee8310307ec2ea138f8
@@ -9421,9 +8279,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:432")
-			}
 			return true
 		}
 		goto endf60c0660b6a8aa9565c97fc87f04eb34
@@ -9445,9 +8300,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:242")
-			}
 			return true
 		}
 		goto end94277282f4b83f0c035b23711a075801
@@ -9468,9 +8320,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:243")
-			}
 			return true
 		}
 		goto enda84798dd797927b54a9a2987421b2ba2
@@ -9491,9 +8340,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:244")
-			}
 			return true
 		}
 		goto end3434ef985979cbf394455ab5b559567c
@@ -9514,9 +8360,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:245")
-			}
 			return true
 		}
 		goto endee147d81d8620a5e23cb92bd9f13cf8d
@@ -9537,9 +8380,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:246")
-			}
 			return true
 		}
 		goto ende7d85ccc850fc3963c50a91df096de17
@@ -9560,9 +8400,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:247")
-			}
 			return true
 		}
 		goto endba4b54260ecda1b5731b129c0eb493d0
@@ -9583,9 +8420,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:248")
-			}
 			return true
 		}
 		goto endf84eedfcd3f18f5c9c3f3d1045a24330
@@ -9606,9 +8440,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:249")
-			}
 			return true
 		}
 		goto endfe0178f6f4406945ca8966817d04be60
@@ -9629,9 +8460,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:250")
-			}
 			return true
 		}
 		goto end2b5a2d7756bdba01a732bf54d9acdb73
@@ -9652,9 +8480,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:251")
-			}
 			return true
 		}
 		goto end9bea9963c3c5dfb97249a5feb8287f94
@@ -9676,9 +8501,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = v0
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:253")
-			}
 			return true
 		}
 		goto end012351592edfc708bd3181d7e53f3993
@@ -9700,9 +8522,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:433")
-			}
 			return true
 		}
 		goto end0d49d7d087fe7578e8015cf13dae37e3
@@ -9724,9 +8543,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:431")
-			}
 			return true
 		}
 		goto end6a408cde0fee0ae7b7da0443c8d902bf
@@ -9751,9 +8567,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:255")
-			}
 			return true
 		}
 		goto end0b9ca165d6b395de676eebef94bc62f7
@@ -9777,9 +8590,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:256")
-			}
 			return true
 		}
 		goto endaaba0ee4d0ff8c66a1c3107d2a14c4bc
@@ -9803,9 +8613,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:257")
-			}
 			return true
 		}
 		goto end1b689463137526b36ba9ceed1e76e512
@@ -9829,9 +8636,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:258")
-			}
 			return true
 		}
 		goto end99eefee595c658b997f41577ed853c2e
@@ -9855,9 +8659,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:259")
-			}
 			return true
 		}
 		goto end371b67d3d63e9b92d848b09c3324e8b9
@@ -9881,9 +8682,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:260")
-			}
 			return true
 		}
 		goto endd245f2aac2191d32e57cd2e321daa453
@@ -9907,9 +8705,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:261")
-			}
 			return true
 		}
 		goto end90c4bec851e734d37457d611b1a5ff28
@@ -9933,9 +8728,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:262")
-			}
 			return true
 		}
 		goto end3a68a28114e9b89ee0708823386bc1ee
@@ -9959,9 +8751,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:263")
-			}
 			return true
 		}
 		goto end16496f57185756e960d536b057c776c0
@@ -9985,9 +8774,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:264")
-			}
 			return true
 		}
 		goto endbd122fd599aeb9e60881a0fa735e2fde
@@ -10008,9 +8794,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:440")
-			}
 			return true
 		}
 		goto end713001aba794e50b582fbff930e110af
@@ -10032,9 +8815,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:438")
-			}
 			return true
 		}
 		goto ende3e4ddc183ca1a46598b11c2d0d13966
@@ -10056,9 +8836,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:436")
-			}
 			return true
 		}
 		goto end49818853af2e5251175d06c62768cae7
@@ -10080,9 +8857,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:437")
-			}
 			return true
 		}
 		goto endd6698aac0d67261293b558c95ea17b4f
@@ -10104,9 +8878,6 @@ func rewriteBlockAMD64(b *Block) bool {
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
-			if logRewriteRules {
-				fmt.Println("rewrite AMD64.rules:435")
-			}
 			return true
 		}
 		goto end35105dbc9646f02577167e45ae2f2fd2

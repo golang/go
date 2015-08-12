@@ -2,8 +2,6 @@
 // generated with: cd gen; go run *.go
 package ssa
 
-import "fmt"
-
 func rewriteValuegeneric(v *Value, config *Config) bool {
 	b := v.Block
 	switch v.Op {
@@ -25,9 +23,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = c + d
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:23")
-			}
 			return true
 		}
 		goto end8c46df6f85a11cb1d594076b0e467908
@@ -51,9 +46,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = c + d
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:24")
-			}
 			return true
 		}
 		goto end145c1aec793b2befff34bc8983b48a38
@@ -80,9 +72,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v0.AddArg(idx)
 			v.AddArg(v0)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:59")
-			}
 			return true
 		}
 		goto end4894dd7b58383fee5f8a92be08437c33
@@ -103,9 +92,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = x.Type
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:38")
-			}
 			return true
 		}
 		goto end1ea17710dd4dd7ba4e710e0e4c7b5a56
@@ -126,9 +112,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = x.Type
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:39")
-			}
 			return true
 		}
 		goto end9a04ed536496e292c27bef4414128cbf
@@ -149,9 +132,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = x.Type
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:40")
-			}
 			return true
 		}
 		goto ended44e29d5968f0f7b86972b7bf417ab3
@@ -172,9 +152,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = x.Type
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:37")
-			}
 			return true
 		}
 		goto end4d92ff3ba567d9afd38fc9ca113602ad
@@ -201,9 +178,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v2.Type = config.Frontend().TypeUintptr()
 			v2.AuxInt = int64(len(s.(string)))
 			v.AddArg(v2)
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:68")
-			}
 			return true
 		}
 		goto end68cc91679848c7c30bd8b0a8ed533843
@@ -223,9 +197,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.Aux = true
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:30")
-			}
 			return true
 		}
 		goto enda503589f9b617e708a5ad3ddb047809f
@@ -245,9 +216,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.Aux = true
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:29")
-			}
 			return true
 		}
 		goto endc94ae3b97d0090257b02152e437b3e17
@@ -267,9 +235,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.Aux = true
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:28")
-			}
 			return true
 		}
 		goto end4d21cead60174989467a9c8202dbb91d
@@ -289,9 +254,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.Aux = true
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:31")
-			}
 			return true
 		}
 		goto end73dce8bba164e4f4a1dd701bf8cfb362
@@ -313,9 +275,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(y)
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:51")
-			}
 			return true
 		}
 		goto endcea7f7399afcff860c54d82230a9a934
@@ -346,9 +305,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v1.Type = config.Frontend().TypeUintptr()
 			v1.AuxInt = 0
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:54")
-			}
 			return true
 		}
 		goto end540dc8dfbc66adcd3db2d7e819c534f6
@@ -372,9 +328,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.Aux = inBounds(c, d)
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:27")
-			}
 			return true
 		}
 		goto enddfd340bc7103ca323354aec96b113c23
@@ -409,9 +362,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v1.AddArg(v2)
 			v1.AddArg(mem)
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:69")
-			}
 			return true
 		}
 		goto end18afa4a6fdd6d0b92ed292840898c8f6
@@ -435,9 +385,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = c * d
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:25")
-			}
 			return true
 		}
 		goto end7aea1048b5d1230974b97f17238380ae
@@ -461,9 +408,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.AuxInt = c * d
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:26")
-			}
 			return true
 		}
 		goto end808c190f346658bb1ad032bf37a1059f
@@ -483,9 +427,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.Aux = false
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:34")
-			}
 			return true
 		}
 		goto end192755dd3c2be992e9d3deb53794a8d2
@@ -505,9 +446,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.Aux = false
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:33")
-			}
 			return true
 		}
 		goto endeb23619fc85950a8df7b31126252c4dd
@@ -527,9 +465,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.Aux = false
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:32")
-			}
 			return true
 		}
 		goto endfc6eea780fb4056afb9e4287076da60c
@@ -549,9 +484,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v.Aux = false
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:35")
-			}
 			return true
 		}
 		goto endcccf700d93c6d57765b80f92f7b3fa81
@@ -573,9 +505,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(y)
 			v.AddArg(x)
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:52")
-			}
 			return true
 		}
 		goto end94c68f7dc30c66ed42e507e01c4e5dc7
@@ -606,9 +535,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v1.Type = config.Frontend().TypeUintptr()
 			v1.AuxInt = 0
 			v.AddArg(v1)
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:55")
-			}
 			return true
 		}
 		goto end67d723bb0f39a5c897816abcf411e5cf
@@ -635,9 +561,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v1.AuxInt = t.Elem().Size()
 			v0.AddArg(v1)
 			v.AddArg(v0)
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:60")
-			}
 			return true
 		}
 		goto endf7546737f42c76a99699f241d41f491a
@@ -666,9 +589,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v0.AddArg(v1)
 			v.AddArg(v0)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:46")
-			}
 			return true
 		}
 		goto end6696811bf6bd45e505d24c1a15c68e70
@@ -697,9 +617,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v0.AddArg(v1)
 			v.AddArg(v0)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:45")
-			}
 			return true
 		}
 		goto end9844ce3e290e81355493141e653e37d5
@@ -721,9 +638,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(ptr)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:44")
-			}
 			return true
 		}
 		goto end459613b83f95b65729d45c2ed663a153
@@ -755,9 +669,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.AddArg(dst)
 			v.AddArg(src)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:65")
-			}
 			return true
 		}
 		goto end324ffb6d2771808da4267f62c854e9c8
@@ -795,9 +706,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v2.AddArg(v3)
 			v2.AddArg(mem)
 			v.AddArg(v2)
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:72")
-			}
 			return true
 		}
 		goto enddf0c5a150f4b4bf6715fd2bd4bb4cc20
@@ -818,9 +726,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = len.Type
 			v.AddArg(len)
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:71")
-			}
 			return true
 		}
 		goto end0d922460b7e5ca88324034f4bd6c027c
@@ -841,9 +746,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.Type = ptr.Type
 			v.AddArg(ptr)
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:70")
-			}
 			return true
 		}
 		goto end061edc5d85c73ad909089af2556d9380
@@ -870,9 +772,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v0.AddArg(ptr)
 			v.AddArg(v0)
 			v.AddArg(mem)
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:61")
-			}
 			return true
 		}
 		goto end16fdb45e1dd08feb36e3cc3fb5ed8935
@@ -902,9 +801,6 @@ func rewriteBlockgeneric(b *Block) bool {
 			b.Succs = b.Succs[:1]
 			b.Succs[0] = yes
 			b.Likely = BranchUnknown
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:74")
-			}
 			return true
 		}
 		goto end0f2bb0111a86be0436b44210dbd83a90
@@ -926,9 +822,6 @@ func rewriteBlockgeneric(b *Block) bool {
 			b.Succs[0] = no
 			b.Succs[1] = yes
 			b.Likely *= -1
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:76")
-			}
 			return true
 		}
 		goto endebe19c1c3c3bec068cdb2dd29ef57f96
@@ -954,9 +847,6 @@ func rewriteBlockgeneric(b *Block) bool {
 			b.Succs = b.Succs[:1]
 			b.Succs[0] = yes
 			b.Likely = BranchUnknown
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:77")
-			}
 			return true
 		}
 		goto end9ff0273f9b1657f4afc287562ca889f0
@@ -982,9 +872,6 @@ func rewriteBlockgeneric(b *Block) bool {
 			b.Succs = b.Succs[:1]
 			b.Succs[0] = no
 			b.Likely = BranchUnknown
-			if logRewriteRules {
-				fmt.Println("rewrite generic.rules:78")
-			}
 			return true
 		}
 		goto endf401a4553c3c7c6bed64801da7bba076

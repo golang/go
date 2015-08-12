@@ -9,6 +9,7 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"go/format"
 	"io/ioutil"
@@ -59,6 +60,7 @@ func (a arch) regMaskComment(r regMask) string {
 var archs []arch
 
 func main() {
+	flag.Parse()
 	genOp()
 	genLower()
 }
