@@ -15,17 +15,26 @@
 (Add32 x y) -> (ADDL x y)
 (Add16 x y) -> (ADDW x y)
 (Add8 x y) -> (ADDB x y)
+(Add32F x y) -> (ADDSS x y)
+(Add64F x y) -> (ADDSD x y)
 
 (Sub64 x y) -> (SUBQ x y)
 (Sub32 x y) -> (SUBL x y)
 (Sub16 x y) -> (SUBW x y)
 (Sub8 x y) -> (SUBB x y)
+(Sub32F x y) -> (SUBSS x y)
+(Sub64F x y) -> (SUBSD x y)
 
 (Mul64 x y) -> (MULQ x y)
 (MulPtr x y) -> (MULQ x y)
 (Mul32 x y) -> (MULL x y)
 (Mul16 x y) -> (MULW x y)
 (Mul8 x y) -> (MULB x y)
+(Mul32F x y) -> (MULSS x y)
+(Mul64F x y) -> (MULSD x y)
+
+(Div32F x y) -> (DIVSS x y)
+(Div64F x y) -> (DIVSD x y)
 
 (And64 x y) -> (ANDQ x y)
 (And32 x y) -> (ANDL x y)
@@ -203,6 +212,13 @@
 (Load <t> ptr mem) && is32BitInt(t) -> (MOVLload ptr mem)
 (Load <t> ptr mem) && is16BitInt(t) -> (MOVWload ptr mem)
 (Load <t> ptr mem) && (t.IsBoolean() || is8BitInt(t)) -> (MOVBload ptr mem)
+(Load <t> ptr mem) && is32BitFloat(t) -> (MOVSSload ptr mem)
+(Load <t> ptr mem) && is64BitFloat(t) -> (MOVSDload ptr mem)
+
+// These more-specific FP versions of Store pattern should come first.
+(Store [8] ptr val mem) && is64BitFloat(val.Type) -> (MOVSDstore ptr val mem)
+(Store [4] ptr val mem) && is32BitFloat(val.Type) -> (MOVSSstore ptr val mem)
+
 (Store [8] ptr val mem) -> (MOVQstore ptr val mem)
 (Store [4] ptr val mem) -> (MOVLstore ptr val mem)
 (Store [2] ptr val mem) -> (MOVWstore ptr val mem)
@@ -225,6 +241,8 @@
 (Const16 [val]) -> (MOVWconst [val])
 (Const32 [val]) -> (MOVLconst [val])
 (Const64 [val]) -> (MOVQconst [val])
+(Const32F {val}) -> (MOVSSconst {val})
+(Const64F {val}) -> (MOVSDconst {val})
 (ConstPtr [val]) -> (MOVQconst [val])
 (ConstNil) -> (MOVQconst [0])
 (ConstBool {b}) && !b.(bool) -> (MOVBconst [0])
@@ -404,12 +422,38 @@
 (MOVQstore [off1] {sym1} (LEAQ [off2] {sym2} base) val mem) && (sym1 == nil || sym2 == nil) ->
 	   (MOVQstore [addOff(off1,off2)] {mergeSym(sym1,sym2)} base val mem)
 
+(MOVSSload [off1] (ADDQconst [off2] ptr) mem) -> (MOVSSload [addOff(off1, off2)] ptr mem)
+(MOVSSstore [off1] (ADDQconst [off2] ptr) val mem) -> (MOVSSstore [addOff(off1, off2)] ptr val mem)
+
+(MOVSSload [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && (sym1 == nil || sym2 == nil) ->
+	  (MOVSSload [addOff(off1,off2)] {mergeSym(sym1,sym2)} base mem)
+(MOVSSstore [off1] {sym1} (LEAQ [off2] {sym2} base) val mem) && (sym1 == nil || sym2 == nil) ->
+	   (MOVSSstore [addOff(off1,off2)] {mergeSym(sym1,sym2)} base val mem)
+
+(MOVSDload [off1] (ADDQconst [off2] ptr) mem) -> (MOVSDload [addOff(off1, off2)] ptr mem)
+(MOVSDstore [off1] (ADDQconst [off2] ptr) val mem) -> (MOVSDstore [addOff(off1, off2)] ptr val mem)
+
+(MOVSDload [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && (sym1 == nil || sym2 == nil) ->
+	  (MOVSDload [addOff(off1,off2)] {mergeSym(sym1,sym2)} base mem)
+(MOVSDstore [off1] {sym1} (LEAQ [off2] {sym2} base) val mem) && (sym1 == nil || sym2 == nil) ->
+	   (MOVSDstore [addOff(off1,off2)] {mergeSym(sym1,sym2)} base val mem)
+
 // indexed loads and stores
 (MOVQload [off1] (LEAQ8 [off2] ptr idx) mem) -> (MOVQloadidx8 [addOff(off1, off2)] ptr idx mem)
 (MOVQstore [off1] (LEAQ8 [off2] ptr idx) val mem) -> (MOVQstoreidx8 [addOff(off1, off2)] ptr idx val mem)
-
 (MOVQloadidx8 [off1] (ADDQconst [off2] ptr) idx mem) -> (MOVQloadidx8 [addOff(off1, off2)] ptr idx mem)
 (MOVQstoreidx8 [off1] (ADDQconst [off2] ptr) idx val mem) -> (MOVQstoreidx8 [addOff(off1, off2)] ptr idx val mem)
+
+(MOVSSload [off1] (LEAQ4 [off2] ptr idx) mem) -> (MOVSSloadidx4 [addOff(off1, off2)] ptr idx mem)
+(MOVSSstore [off1] (LEAQ4 [off2] ptr idx) val mem) -> (MOVSSstoreidx4 [addOff(off1, off2)] ptr idx val mem)
+(MOVSSloadidx4 [off1] (ADDQconst [off2] ptr) idx mem) -> (MOVSSloadidx4 [addOff(off1, off2)] ptr idx mem)
+(MOVSSstoreidx4 [off1] (ADDQconst [off2] ptr) idx val mem) -> (MOVSSstoreidx4 [addOff(off1, off2)] ptr idx val mem)
+
+(MOVSDload [off1] (LEAQ8 [off2] ptr idx) mem) -> (MOVSDloadidx8 [addOff(off1, off2)] ptr idx mem)
+(MOVSDstore [off1] (LEAQ8 [off2] ptr idx) val mem) -> (MOVSDstoreidx8 [addOff(off1, off2)] ptr idx val mem)
+(MOVSDloadidx8 [off1] (ADDQconst [off2] ptr) idx mem) -> (MOVSDloadidx8 [addOff(off1, off2)] ptr idx mem)
+(MOVSDstoreidx8 [off1] (ADDQconst [off2] ptr) idx val mem) -> (MOVSDstoreidx8 [addOff(off1, off2)] ptr idx val mem)
+
 
 (ADDQconst [0] x) -> x
 

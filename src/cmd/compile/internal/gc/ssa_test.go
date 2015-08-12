@@ -45,3 +45,6 @@ func TestBreakContinue(t *testing.T) { runTest(t, "break_ssa.go") }
 
 // TestArithmetic tests that both backends have the same result for arithmetic expressions.
 func TestArithmetic(t *testing.T) { runTest(t, "arith_ssa.go") }
+
+// TestFP tests that both backends have the same result for floating point expressions.
+func TestFP(t *testing.T) { runTest(t, "fp_ssa.go") }
