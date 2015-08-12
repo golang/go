@@ -1340,6 +1340,10 @@ func (s *state) expr(n *Node) *ssa.Value {
 		}
 		a := s.entryNewValue1I(ssa.OpOffPtr, Ptrto(fp.Type), fp.Width, s.sp)
 		return s.newValue2(ssa.OpLoad, fp.Type, a, call)
+
+	case OGETG:
+		return s.newValue0(ssa.OpGetG, n.Type)
+
 	default:
 		s.Unimplementedf("unhandled expr %s", opnames[n.Op])
 		return nil
@@ -2185,6 +2189,33 @@ func genValue(v *ssa.Value) {
 		q.From.Reg = x86.REG_AX
 		q.To.Type = obj.TYPE_MEM
 		q.To.Reg = x86.REG_AX
+	case ssa.OpAMD64LoweredGetG:
+		r := regnum(v)
+		// See the comments in cmd/internal/obj/x86/obj6.go
+		// near CanUse1InsnTLS for a detailed explanation of these instructions.
+		if x86.CanUse1InsnTLS(Ctxt) {
+			// MOVQ (TLS), r
+			p := Prog(x86.AMOVQ)
+			p.From.Type = obj.TYPE_MEM
+			p.From.Reg = x86.REG_TLS
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = r
+		} else {
+			// MOVQ TLS, r
+			// MOVQ (r)(TLS*1), r
+			p := Prog(x86.AMOVQ)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = x86.REG_TLS
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = r
+			q := Prog(x86.AMOVQ)
+			q.From.Type = obj.TYPE_MEM
+			q.From.Reg = r
+			q.From.Index = x86.REG_TLS
+			q.From.Scale = 1
+			q.To.Type = obj.TYPE_REG
+			q.To.Reg = r
+		}
 	case ssa.OpAMD64CALLstatic:
 		p := Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM

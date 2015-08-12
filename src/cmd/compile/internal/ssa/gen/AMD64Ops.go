@@ -288,8 +288,9 @@ func init() {
 		// InvertFlags is a pseudo-op which can't appear in assembly output.
 		{name: "InvertFlags"}, // reverse direction of arg0
 
-		// LoweredPanicNilCheck is a pseudo-op.
+		// Pseudo-ops
 		{name: "LoweredPanicNilCheck"},
+		{name: "LoweredGetG"},
 	}
 
 	var AMD64blocks = []blockData{

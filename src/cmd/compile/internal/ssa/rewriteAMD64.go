@@ -1893,6 +1893,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto endd30ee67afc0284c419cef70261f61452
 	endd30ee67afc0284c419cef70261f61452:
 		;
+	case OpGetG:
+		// match: (GetG)
+		// cond:
+		// result: (LoweredGetG)
+		{
+			v.Op = OpAMD64LoweredGetG
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			return true
+		}
+		goto endb17140e71dd641aa4d89e14479160260
+	endb17140e71dd641aa4d89e14479160260:
+		;
 	case OpGreater16:
 		// match: (Greater16 x y)
 		// cond:

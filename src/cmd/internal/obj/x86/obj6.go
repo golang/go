@@ -38,7 +38,7 @@ import (
 	"math"
 )
 
-func canuse1insntls(ctxt *obj.Link) bool {
+func CanUse1InsnTLS(ctxt *obj.Link) bool {
 	if ctxt.Arch.Regsize == 4 {
 		switch ctxt.Headtype {
 		case obj.Hlinux,
@@ -120,7 +120,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 	// rewriting the instructions more comprehensively, and it only does because
 	// we only support a single TLS variable (g).
 
-	if canuse1insntls(ctxt) {
+	if CanUse1InsnTLS(ctxt) {
 		// Reduce 2-instruction sequence to 1-instruction sequence.
 		// Sequences like
 		//	MOVQ TLS, BX

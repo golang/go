@@ -252,7 +252,9 @@ var genericOps = []opData{
 	{name: "IsNonNil"},   // arg0 != nil
 	{name: "IsInBounds"}, // 0 <= arg0 < arg1
 
+	// Pseudo-ops
 	{name: "PanicNilCheck"}, // trigger a dereference fault; arg0=nil ptr, arg1=mem
+	{name: "GetG"},          // runtime.getg() (read g pointer)
 
 	// Indexing operations
 	{name: "ArrayIndex"},   // arg0=array, arg1=index.  Returns a[i]
