@@ -8,7 +8,8 @@ import "testing"
 
 func TestDeadStore(t *testing.T) {
 	c := testConfig(t)
-	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+	elemType := &TypeImpl{Size_: 8, Name: "testtype"}
+	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr", Elem_: elemType} // dummy for testing
 	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("start", OpArg, TypeMem, 0, ".mem"),
