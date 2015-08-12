@@ -1268,6 +1268,14 @@ func (s *state) expr(n *Node) *ssa.Value {
 			return s.constInt(Types[TINT], n.Left.Type.Bound)
 		}
 
+	case OSPTR:
+		a := s.expr(n.Left)
+		if n.Left.Type.IsSlice() {
+			return s.newValue1(ssa.OpSlicePtr, n.Type, a)
+		} else {
+			return s.newValue1(ssa.OpStringPtr, n.Type, a)
+		}
+
 	case OITAB:
 		a := s.expr(n.Left)
 		return s.newValue1(ssa.OpITab, n.Type, a)
