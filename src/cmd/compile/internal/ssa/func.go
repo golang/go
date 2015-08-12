@@ -285,6 +285,16 @@ func (f *Func) ConstIntPtr(line int32, t Type, c int64) *Value {
 	// TODO: cache?
 	return f.Entry.NewValue0I(line, OpConstPtr, t, c)
 }
+func (f *Func) ConstFloat32(line int32, t Type, c float64) *Value {
+	// TODO: cache?
+	// For now stuff FP values into aux interface
+	return f.Entry.NewValue0A(line, OpConst32F, t, c)
+}
+func (f *Func) ConstFloat64(line int32, t Type, c float64) *Value {
+	// TODO: cache?
+	// For now stuff FP values into aux interface
+	return f.Entry.NewValue0A(line, OpConst64F, t, c)
+}
 
 func (f *Func) Logf(msg string, args ...interface{})           { f.Config.Logf(msg, args...) }
 func (f *Func) Fatalf(msg string, args ...interface{})         { f.Config.Fatalf(msg, args...) }

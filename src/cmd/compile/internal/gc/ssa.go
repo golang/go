@@ -379,6 +379,12 @@ func (s *state) constInt32(t ssa.Type, c int32) *ssa.Value {
 func (s *state) constInt64(t ssa.Type, c int64) *ssa.Value {
 	return s.f.ConstInt64(s.peekLine(), t, c)
 }
+func (s *state) constFloat32(t ssa.Type, c float64) *ssa.Value {
+	return s.f.ConstFloat32(s.peekLine(), t, c)
+}
+func (s *state) constFloat64(t ssa.Type, c float64) *ssa.Value {
+	return s.f.ConstFloat64(s.peekLine(), t, c)
+}
 func (s *state) constIntPtr(t ssa.Type, c int64) *ssa.Value {
 	if s.config.PtrSize == 4 && int64(int32(c)) != c {
 		s.Fatalf("pointer constant too big %d", c)
@@ -715,25 +721,29 @@ type opAndType struct {
 }
 
 var opToSSA = map[opAndType]ssa.Op{
-	opAndType{OADD, TINT8}:   ssa.OpAdd8,
-	opAndType{OADD, TUINT8}:  ssa.OpAdd8,
-	opAndType{OADD, TINT16}:  ssa.OpAdd16,
-	opAndType{OADD, TUINT16}: ssa.OpAdd16,
-	opAndType{OADD, TINT32}:  ssa.OpAdd32,
-	opAndType{OADD, TUINT32}: ssa.OpAdd32,
-	opAndType{OADD, TPTR32}:  ssa.OpAdd32,
-	opAndType{OADD, TINT64}:  ssa.OpAdd64,
-	opAndType{OADD, TUINT64}: ssa.OpAdd64,
-	opAndType{OADD, TPTR64}:  ssa.OpAdd64,
+	opAndType{OADD, TINT8}:    ssa.OpAdd8,
+	opAndType{OADD, TUINT8}:   ssa.OpAdd8,
+	opAndType{OADD, TINT16}:   ssa.OpAdd16,
+	opAndType{OADD, TUINT16}:  ssa.OpAdd16,
+	opAndType{OADD, TINT32}:   ssa.OpAdd32,
+	opAndType{OADD, TUINT32}:  ssa.OpAdd32,
+	opAndType{OADD, TPTR32}:   ssa.OpAdd32,
+	opAndType{OADD, TINT64}:   ssa.OpAdd64,
+	opAndType{OADD, TUINT64}:  ssa.OpAdd64,
+	opAndType{OADD, TPTR64}:   ssa.OpAdd64,
+	opAndType{OADD, TFLOAT32}: ssa.OpAdd32F,
+	opAndType{OADD, TFLOAT64}: ssa.OpAdd64F,
 
-	opAndType{OSUB, TINT8}:   ssa.OpSub8,
-	opAndType{OSUB, TUINT8}:  ssa.OpSub8,
-	opAndType{OSUB, TINT16}:  ssa.OpSub16,
-	opAndType{OSUB, TUINT16}: ssa.OpSub16,
-	opAndType{OSUB, TINT32}:  ssa.OpSub32,
-	opAndType{OSUB, TUINT32}: ssa.OpSub32,
-	opAndType{OSUB, TINT64}:  ssa.OpSub64,
-	opAndType{OSUB, TUINT64}: ssa.OpSub64,
+	opAndType{OSUB, TINT8}:    ssa.OpSub8,
+	opAndType{OSUB, TUINT8}:   ssa.OpSub8,
+	opAndType{OSUB, TINT16}:   ssa.OpSub16,
+	opAndType{OSUB, TUINT16}:  ssa.OpSub16,
+	opAndType{OSUB, TINT32}:   ssa.OpSub32,
+	opAndType{OSUB, TUINT32}:  ssa.OpSub32,
+	opAndType{OSUB, TINT64}:   ssa.OpSub64,
+	opAndType{OSUB, TUINT64}:  ssa.OpSub64,
+	opAndType{OSUB, TFLOAT32}: ssa.OpSub32F,
+	opAndType{OSUB, TFLOAT64}: ssa.OpSub64F,
 
 	opAndType{ONOT, TBOOL}: ssa.OpNot,
 
@@ -755,14 +765,19 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OCOM, TINT64}:  ssa.OpCom64,
 	opAndType{OCOM, TUINT64}: ssa.OpCom64,
 
-	opAndType{OMUL, TINT8}:   ssa.OpMul8,
-	opAndType{OMUL, TUINT8}:  ssa.OpMul8,
-	opAndType{OMUL, TINT16}:  ssa.OpMul16,
-	opAndType{OMUL, TUINT16}: ssa.OpMul16,
-	opAndType{OMUL, TINT32}:  ssa.OpMul32,
-	opAndType{OMUL, TUINT32}: ssa.OpMul32,
-	opAndType{OMUL, TINT64}:  ssa.OpMul64,
-	opAndType{OMUL, TUINT64}: ssa.OpMul64,
+	opAndType{OMUL, TINT8}:    ssa.OpMul8,
+	opAndType{OMUL, TUINT8}:   ssa.OpMul8,
+	opAndType{OMUL, TINT16}:   ssa.OpMul16,
+	opAndType{OMUL, TUINT16}:  ssa.OpMul16,
+	opAndType{OMUL, TINT32}:   ssa.OpMul32,
+	opAndType{OMUL, TUINT32}:  ssa.OpMul32,
+	opAndType{OMUL, TINT64}:   ssa.OpMul64,
+	opAndType{OMUL, TUINT64}:  ssa.OpMul64,
+	opAndType{OMUL, TFLOAT32}: ssa.OpMul32F,
+	opAndType{OMUL, TFLOAT64}: ssa.OpMul64F,
+
+	opAndType{ODIV, TFLOAT32}: ssa.OpDiv32F,
+	opAndType{ODIV, TFLOAT64}: ssa.OpDiv64F,
 
 	opAndType{OAND, TINT8}:   ssa.OpAnd8,
 	opAndType{OAND, TUINT8}:  ssa.OpAnd8,
@@ -1042,6 +1057,18 @@ func (s *state) expr(n *Node) *ssa.Value {
 			return s.entryNewValue0A(ssa.OpConstBool, n.Type, n.Val().U)
 		case CTNIL:
 			return s.entryNewValue0(ssa.OpConstNil, n.Type)
+		case CTFLT:
+			f := n.Val().U.(*Mpflt)
+			switch n.Type.Size() {
+			case 4:
+				return s.constFloat32(n.Type, mpgetflt32(f))
+			case 8:
+				return s.constFloat64(n.Type, mpgetflt(f))
+			default:
+				s.Fatalf("bad float size %d", n.Type.Size())
+				return nil
+			}
+
 		default:
 			s.Unimplementedf("unhandled OLITERAL %v", n.Val().Ctype())
 			return nil
@@ -1165,7 +1192,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
 		return s.newValue2(s.ssaOp(n.Op, n.Left.Type), Types[TBOOL], a, b)
-	case OADD, OAND, OMUL, OOR, OSUB, OXOR:
+	case OADD, OAND, OMUL, OOR, OSUB, ODIV, OXOR:
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
 		return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
@@ -1888,6 +1915,19 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	f.Config.HTML.Close()
 }
 
+// opregreg emits instructions for
+//     dest := dest op src
+// and also returns the created obj.Prog so it
+// may be further adjusted (offset, scale, etc).
+func opregreg(op int, dest, src int16) *obj.Prog {
+	p := Prog(op)
+	p.From.Type = obj.TYPE_REG
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = dest
+	p.From.Reg = src
+	return p
+}
+
 func genValue(v *ssa.Value) {
 	lineno = v.Line
 	switch v.Op {
@@ -1917,20 +1957,17 @@ func genValue(v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
 	// 2-address opcode arithmetic, symmetric
-	case ssa.OpAMD64ADDB,
+	case ssa.OpAMD64ADDB, ssa.OpAMD64ADDSS, ssa.OpAMD64ADDSD,
 		ssa.OpAMD64ANDQ, ssa.OpAMD64ANDL, ssa.OpAMD64ANDW, ssa.OpAMD64ANDB,
 		ssa.OpAMD64ORQ, ssa.OpAMD64ORL, ssa.OpAMD64ORW, ssa.OpAMD64ORB,
 		ssa.OpAMD64XORQ, ssa.OpAMD64XORL, ssa.OpAMD64XORW, ssa.OpAMD64XORB,
-		ssa.OpAMD64MULQ, ssa.OpAMD64MULL, ssa.OpAMD64MULW, ssa.OpAMD64MULB:
+		ssa.OpAMD64MULQ, ssa.OpAMD64MULL, ssa.OpAMD64MULW, ssa.OpAMD64MULB,
+		ssa.OpAMD64MULSS, ssa.OpAMD64MULSD:
 		r := regnum(v)
 		x := regnum(v.Args[0])
 		y := regnum(v.Args[1])
 		if x != r && y != r {
-			p := Prog(regMoveAMD64(v.Type.Size()))
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = x
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
+			opregreg(regMoveByTypeAMD64(v.Type), r, x)
 			x = r
 		}
 		p := Prog(v.Op.Asm())
@@ -1954,23 +1991,34 @@ func genValue(v *ssa.Value) {
 			neg = true
 		}
 		if x != r {
-			p := Prog(regMoveAMD64(v.Type.Size()))
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = x
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
+			opregreg(regMoveByTypeAMD64(v.Type), r, x)
 		}
+		opregreg(v.Op.Asm(), r, y)
 
-		p := Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
-		p.From.Reg = y
 		if neg {
 			p := Prog(x86.ANEGQ) // TODO: use correct size?  This is mostly a hack until regalloc does 2-address correctly
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = r
 		}
+	case ssa.OpAMD64SUBSS, ssa.OpAMD64SUBSD, ssa.OpAMD64DIVSS, ssa.OpAMD64DIVSD:
+		r := regnum(v)
+		x := regnum(v.Args[0])
+		y := regnum(v.Args[1])
+		if y == r && x != r {
+			// r/y := x op r/y, need to preserve x and rewrite to
+			// r/y := r/y op x15
+			x15 := int16(x86.REG_X15)
+			// register move y to x15
+			// register move x to y
+			// rename y with x15
+			opregreg(regMoveByTypeAMD64(v.Type), x15, y)
+			opregreg(regMoveByTypeAMD64(v.Type), r, x)
+			y = x15
+		} else if x != r {
+			opregreg(regMoveByTypeAMD64(v.Type), r, x)
+		}
+		opregreg(v.Op.Asm(), r, y)
+
 	case ssa.OpAMD64SHLQ, ssa.OpAMD64SHLL, ssa.OpAMD64SHLW, ssa.OpAMD64SHLB,
 		ssa.OpAMD64SHRQ, ssa.OpAMD64SHRL, ssa.OpAMD64SHRW, ssa.OpAMD64SHRB,
 		ssa.OpAMD64SARQ, ssa.OpAMD64SARL, ssa.OpAMD64SARW, ssa.OpAMD64SARB:
@@ -2117,15 +2165,22 @@ func genValue(v *ssa.Value) {
 		p.From.Offset = i
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x
-	case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVLload, ssa.OpAMD64MOVWload, ssa.OpAMD64MOVBload, ssa.OpAMD64MOVBQSXload, ssa.OpAMD64MOVBQZXload:
+	case ssa.OpAMD64MOVSSconst, ssa.OpAMD64MOVSDconst:
+		x := regnum(v)
+		p := Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_FCONST
+		p.From.Val = v.Aux.(float64)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = x
+	case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVSSload, ssa.OpAMD64MOVSDload, ssa.OpAMD64MOVLload, ssa.OpAMD64MOVWload, ssa.OpAMD64MOVBload, ssa.OpAMD64MOVBQSXload, ssa.OpAMD64MOVBQZXload:
 		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = regnum(v.Args[0])
 		addAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
-	case ssa.OpAMD64MOVQloadidx8:
-		p := Prog(x86.AMOVQ)
+	case ssa.OpAMD64MOVQloadidx8, ssa.OpAMD64MOVSDloadidx8:
+		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = regnum(v.Args[0])
 		addAux(&p.From, v)
@@ -2133,20 +2188,38 @@ func genValue(v *ssa.Value) {
 		p.From.Index = regnum(v.Args[1])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
-	case ssa.OpAMD64MOVQstore, ssa.OpAMD64MOVLstore, ssa.OpAMD64MOVWstore, ssa.OpAMD64MOVBstore:
+	case ssa.OpAMD64MOVSSloadidx4:
+		p := Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = regnum(v.Args[0])
+		addAux(&p.From, v)
+		p.From.Scale = 4
+		p.From.Index = regnum(v.Args[1])
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = regnum(v)
+	case ssa.OpAMD64MOVQstore, ssa.OpAMD64MOVSSstore, ssa.OpAMD64MOVSDstore, ssa.OpAMD64MOVLstore, ssa.OpAMD64MOVWstore, ssa.OpAMD64MOVBstore:
 		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = regnum(v.Args[1])
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = regnum(v.Args[0])
 		addAux(&p.To, v)
-	case ssa.OpAMD64MOVQstoreidx8:
-		p := Prog(x86.AMOVQ)
+	case ssa.OpAMD64MOVQstoreidx8, ssa.OpAMD64MOVSDstoreidx8:
+		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = regnum(v.Args[2])
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = regnum(v.Args[0])
 		p.To.Scale = 8
+		p.To.Index = regnum(v.Args[1])
+		addAux(&p.To, v)
+	case ssa.OpAMD64MOVSSstoreidx4:
+		p := Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = regnum(v.Args[2])
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = regnum(v.Args[0])
+		p.To.Scale = 4
 		p.To.Index = regnum(v.Args[1])
 		addAux(&p.To, v)
 	case ssa.OpAMD64MOVLQSX, ssa.OpAMD64MOVWQSX, ssa.OpAMD64MOVBQSX, ssa.OpAMD64MOVLQZX, ssa.OpAMD64MOVWQZX, ssa.OpAMD64MOVBQZX:
@@ -2178,29 +2251,26 @@ func genValue(v *ssa.Value) {
 		x := regnum(v.Args[0])
 		y := regnum(v)
 		if x != y {
-			p := Prog(x86.AMOVQ)
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = x
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = y
+			opregreg(regMoveByTypeAMD64(v.Type), y, x)
 		}
 	case ssa.OpLoadReg:
 		if v.Type.IsFlags() {
 			v.Unimplementedf("load flags not implemented: %v", v.LongString())
 			return
 		}
-		p := Prog(movSize(v.Type.Size()))
+		p := Prog(movSizeByType(v.Type))
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = x86.REG_SP
 		p.From.Offset = localOffset(v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
+
 	case ssa.OpStoreReg:
 		if v.Type.IsFlags() {
 			v.Unimplementedf("store flags not implemented: %v", v.LongString())
 			return
 		}
-		p := Prog(movSize(v.Type.Size()))
+		p := Prog(movSizeByType(v.Type))
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = regnum(v.Args[0])
 		p.To.Type = obj.TYPE_MEM
@@ -2215,10 +2285,12 @@ func genValue(v *ssa.Value) {
 				v.Fatalf("phi arg at different location than phi: %v @ %v, but arg %v @ %v\n%s\n", v, loc, a, aloc, v.Block.Func)
 			}
 		}
-	case ssa.OpConst8, ssa.OpConst16, ssa.OpConst32, ssa.OpConst64, ssa.OpConstString, ssa.OpConstNil, ssa.OpConstBool:
+	case ssa.OpConst8, ssa.OpConst16, ssa.OpConst32, ssa.OpConst64, ssa.OpConstString, ssa.OpConstNil, ssa.OpConstBool,
+		ssa.OpConst32F, ssa.OpConst64F:
 		if v.Block.Func.RegAlloc[v.ID] != nil {
 			v.Fatalf("const value %v shouldn't have a location", v)
 		}
+
 	case ssa.OpArg:
 		// memory arg needs no code
 		// TODO: check that only mem arg goes here.
@@ -2316,21 +2388,12 @@ func genValue(v *ssa.Value) {
 	}
 }
 
-// movSize returns the MOV instruction of the given width.
-func movSize(width int64) (asm int) {
-	switch width {
-	case 1:
-		asm = x86.AMOVB
-	case 2:
-		asm = x86.AMOVW
-	case 4:
-		asm = x86.AMOVL
-	case 8:
-		asm = x86.AMOVQ
-	default:
-		panic(fmt.Errorf("bad movSize %d", width))
-	}
-	return asm
+// movSizeByType returns the MOV instruction of the given type.
+func movSizeByType(t ssa.Type) (asm int) {
+	// For x86, there's no difference between reg move opcodes
+	// and memory move opcodes.
+	asm = regMoveByTypeAMD64(t)
+	return
 }
 
 // movZero generates a register indirect move with a 0 immediate and keeps track of bytes left and next offset
@@ -2553,8 +2616,37 @@ func regMoveAMD64(width int64) int {
 	case 8:
 		return x86.AMOVQ
 	default:
-		panic("bad register width")
+		panic("bad int register width")
 	}
+}
+
+func regMoveByTypeAMD64(t ssa.Type) int {
+	width := t.Size()
+	if t.IsFloat() {
+		switch width {
+		case 4:
+			return x86.AMOVSS
+		case 8:
+			return x86.AMOVSD
+		default:
+			panic("bad float register width")
+		}
+	} else {
+		switch width {
+		case 1:
+			return x86.AMOVB
+		case 2:
+			return x86.AMOVW
+		case 4:
+			return x86.AMOVL
+		case 8:
+			return x86.AMOVQ
+		default:
+			panic("bad int register width")
+		}
+	}
+
+	panic("bad register type")
 }
 
 // regnum returns the register (in cmd/internal/obj numbering) to

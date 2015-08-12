@@ -76,6 +76,14 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool) 
 
 // Common functions called from rewriting rules
 
+func is64BitFloat(t Type) bool {
+	return t.Size() == 8 && t.IsFloat()
+}
+
+func is32BitFloat(t Type) bool {
+	return t.Size() == 4 && t.IsFloat()
+}
+
 func is64BitInt(t Type) bool {
 	return t.Size() == 8 && t.IsInteger()
 }

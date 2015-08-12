@@ -13,19 +13,29 @@ var genericOps = []opData{
 	{name: "Add32"},
 	{name: "Add64"},
 	{name: "AddPtr"},
-	// TODO: Add32F, Add64F, Add64C, Add128C
+	{name: "Add32F"},
+	{name: "Add64F"},
+	// TODO: Add64C, Add128C
 
 	{name: "Sub8"}, // arg0 - arg1
 	{name: "Sub16"},
 	{name: "Sub32"},
 	{name: "Sub64"},
-	// TODO: Sub32F, Sub64F, Sub64C, Sub128C
+	{name: "Sub32F"},
+	{name: "Sub64F"},
+	// TODO: Sub64C, Sub128C
 
 	{name: "Mul8"}, // arg0 * arg1
 	{name: "Mul16"},
 	{name: "Mul32"},
 	{name: "Mul64"},
 	{name: "MulPtr"}, // MulPtr is used for address calculations
+	{name: "Mul32F"},
+	{name: "Mul64F"},
+
+	{name: "Div32F"}, // arg0 / arg1
+	{name: "Div64F"},
+	// TODO: Div8, Div16, Div32, Div64 and unsigned
 
 	{name: "And8"}, // arg0 & arg1
 	{name: "And16"},
@@ -200,6 +210,8 @@ var genericOps = []opData{
 	{name: "Const16"},
 	{name: "Const32"},
 	{name: "Const64"},
+	{name: "Const32F"},
+	{name: "Const64F"},
 	{name: "ConstPtr"}, // pointer-sized integer constant
 	// TODO: Const32F, ...
 

@@ -73,7 +73,9 @@ func init() {
 	// Common individual register masks
 	var (
 		cx     = buildReg("CX")
+		x15    = buildReg("X15")
 		gp     = buildReg("AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15")
+		fp     = buildReg("X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15")
 		gpsp   = gp | buildReg("SP")
 		gpspsb = gpsp | buildReg("SB")
 		flags  = buildReg("FLAGS")
@@ -82,6 +84,7 @@ func init() {
 	// Common slices of register masks
 	var (
 		gponly    = []regMask{gp}
+		fponly    = []regMask{fp}
 		flagsonly = []regMask{flags}
 	)
 
@@ -104,6 +107,20 @@ func init() {
 		gpstore      = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
 		gpstoreconst = regInfo{inputs: []regMask{gpspsb, 0}}
 		gpstoreidx   = regInfo{inputs: []regMask{gpspsb, gpsp, gpsp, 0}}
+
+		// fp11     = regInfo{inputs: fponly, outputs: fponly}
+		fp01    = regInfo{inputs: []regMask{}, outputs: fponly}
+		fp21    = regInfo{inputs: []regMask{fp, fp}, outputs: fponly}
+		fp21x15 = regInfo{inputs: []regMask{fp &^ x15, fp &^ x15},
+			clobbers: x15, outputs: []regMask{fp &^ x15}}
+		// fp2flags = regInfo{inputs: []regMask{fp, fp}, outputs: flagsonly}
+		// fp1flags = regInfo{inputs: fponly, outputs: flagsonly}
+
+		fpload    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: fponly}
+		fploadidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}, outputs: fponly}
+
+		fpstore    = regInfo{inputs: []regMask{gpspsb, fp, 0}}
+		fpstoreidx = regInfo{inputs: []regMask{gpspsb, gpsp, fp, 0}}
 	)
 
 	// Suffixes encode the bit width of various instructions.
@@ -111,6 +128,28 @@ func init() {
 
 	// TODO: 2-address instructions.  Mark ops as needing matching input/output regs.
 	var AMD64ops = []opData{
+		// fp ops
+		{name: "ADDSS", reg: fp21, asm: "ADDSS"},    // fp32 add
+		{name: "ADDSD", reg: fp21, asm: "ADDSD"},    // fp64 add
+		{name: "SUBSS", reg: fp21x15, asm: "SUBSS"}, // fp32 sub
+		{name: "SUBSD", reg: fp21x15, asm: "SUBSD"}, // fp64 sub
+		{name: "MULSS", reg: fp21, asm: "MULSS"},    // fp32 mul
+		{name: "MULSD", reg: fp21, asm: "MULSD"},    // fp64 mul
+		{name: "DIVSS", reg: fp21x15, asm: "DIVSS"}, // fp32 div
+		{name: "DIVSD", reg: fp21x15, asm: "DIVSD"}, // fp64 div
+
+		{name: "MOVSSload", reg: fpload, asm: "MOVSS"},        // fp32 load
+		{name: "MOVSDload", reg: fpload, asm: "MOVSD"},        // fp64 load
+		{name: "MOVSSconst", reg: fp01, asm: "MOVSS"},         // fp32 constant
+		{name: "MOVSDconst", reg: fp01, asm: "MOVSD"},         // fp64 constant
+		{name: "MOVSSloadidx4", reg: fploadidx, asm: "MOVSS"}, // fp32 load
+		{name: "MOVSDloadidx8", reg: fploadidx, asm: "MOVSD"}, // fp64 load
+
+		{name: "MOVSSstore", reg: fpstore, asm: "MOVSS"},        // fp32 store
+		{name: "MOVSDstore", reg: fpstore, asm: "MOVSD"},        // fp64 store
+		{name: "MOVSSstoreidx4", reg: fpstoreidx, asm: "MOVSS"}, // fp32 indexed by 4i store
+		{name: "MOVSDstoreidx8", reg: fpstoreidx, asm: "MOVSD"}, // fp64 indexed by 8i store
+
 		// binary ops
 		{name: "ADDQ", reg: gp21, asm: "ADDQ"},      // arg0 + arg1
 		{name: "ADDL", reg: gp21, asm: "ADDL"},      // arg0 + arg1
