@@ -311,27 +311,99 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 	end540dc8dfbc66adcd3db2d7e819c534f6:
 		;
 	case OpIsInBounds:
-		// match: (IsInBounds (ConstPtr [c]) (ConstPtr [d]))
+		// match: (IsInBounds (Const32 [c]) (Const32 [d]))
 		// cond:
-		// result: (ConstPtr {inBounds(c,d)})
+		// result: (ConstBool {inBounds32(c,d)})
 		{
-			if v.Args[0].Op != OpConstPtr {
-				goto enddfd340bc7103ca323354aec96b113c23
+			if v.Args[0].Op != OpConst32 {
+				goto endc3396bf88b56276e1691abe62811dba5
 			}
 			c := v.Args[0].AuxInt
-			if v.Args[1].Op != OpConstPtr {
-				goto enddfd340bc7103ca323354aec96b113c23
+			if v.Args[1].Op != OpConst32 {
+				goto endc3396bf88b56276e1691abe62811dba5
 			}
 			d := v.Args[1].AuxInt
-			v.Op = OpConstPtr
+			v.Op = OpConstBool
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v.Aux = inBounds(c, d)
+			v.Aux = inBounds32(c, d)
 			return true
 		}
-		goto enddfd340bc7103ca323354aec96b113c23
-	enddfd340bc7103ca323354aec96b113c23:
+		goto endc3396bf88b56276e1691abe62811dba5
+	endc3396bf88b56276e1691abe62811dba5:
+		;
+		// match: (IsInBounds (Const64 [c]) (Const64 [d]))
+		// cond:
+		// result: (ConstBool {inBounds64(c,d)})
+		{
+			if v.Args[0].Op != OpConst64 {
+				goto end0b4b8178a54662835b00bfa503cf879a
+			}
+			c := v.Args[0].AuxInt
+			if v.Args[1].Op != OpConst64 {
+				goto end0b4b8178a54662835b00bfa503cf879a
+			}
+			d := v.Args[1].AuxInt
+			v.Op = OpConstBool
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.Aux = inBounds64(c, d)
+			return true
+		}
+		goto end0b4b8178a54662835b00bfa503cf879a
+	end0b4b8178a54662835b00bfa503cf879a:
+		;
+		// match: (IsInBounds (ConstPtr [c]) (ConstPtr [d]))
+		// cond: config.PtrSize == 4
+		// result: (ConstBool {inBounds32(c,d)})
+		{
+			if v.Args[0].Op != OpConstPtr {
+				goto end2c6938f68a67e08dbd96edb1e693e549
+			}
+			c := v.Args[0].AuxInt
+			if v.Args[1].Op != OpConstPtr {
+				goto end2c6938f68a67e08dbd96edb1e693e549
+			}
+			d := v.Args[1].AuxInt
+			if !(config.PtrSize == 4) {
+				goto end2c6938f68a67e08dbd96edb1e693e549
+			}
+			v.Op = OpConstBool
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.Aux = inBounds32(c, d)
+			return true
+		}
+		goto end2c6938f68a67e08dbd96edb1e693e549
+	end2c6938f68a67e08dbd96edb1e693e549:
+		;
+		// match: (IsInBounds (ConstPtr [c]) (ConstPtr [d]))
+		// cond: config.PtrSize == 8
+		// result: (ConstBool {inBounds64(c,d)})
+		{
+			if v.Args[0].Op != OpConstPtr {
+				goto end84d6ae817944985f572ecaac51999d6c
+			}
+			c := v.Args[0].AuxInt
+			if v.Args[1].Op != OpConstPtr {
+				goto end84d6ae817944985f572ecaac51999d6c
+			}
+			d := v.Args[1].AuxInt
+			if !(config.PtrSize == 8) {
+				goto end84d6ae817944985f572ecaac51999d6c
+			}
+			v.Op = OpConstBool
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.Aux = inBounds64(c, d)
+			return true
+		}
+		goto end84d6ae817944985f572ecaac51999d6c
+	end84d6ae817944985f572ecaac51999d6c:
 		;
 	case OpLoad:
 		// match: (Load <t> ptr mem)

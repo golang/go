@@ -125,9 +125,10 @@ func mergeSym(x, y interface{}) interface{} {
 	return nil
 }
 
-func inBounds(idx, len int64) bool {
-	return idx >= 0 && idx < len
-}
+func inBounds8(idx, len int64) bool  { return int8(idx) >= 0 && int8(idx) < int8(len) }
+func inBounds16(idx, len int64) bool { return int16(idx) >= 0 && int16(idx) < int16(len) }
+func inBounds32(idx, len int64) bool { return int32(idx) >= 0 && int32(idx) < int32(len) }
+func inBounds64(idx, len int64) bool { return idx >= 0 && idx < len }
 
 // log2 returns logarithm in base of n.
 // expects n to be a power of 2.
