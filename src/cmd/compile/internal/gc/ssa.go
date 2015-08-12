@@ -1311,6 +1311,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		}
 		dowidth(left.Type)
 		call.AuxInt = left.Type.Argwid // call operations carry the argsize of the callee along with them
+		s.vars[&memvar] = call
 		b := s.endBlock()
 		b.Kind = ssa.BlockCall
 		b.Control = call
@@ -1319,7 +1320,6 @@ func (s *state) expr(n *Node) *ssa.Value {
 
 		// read result from stack at the start of the fallthrough block
 		s.startBlock(bNext)
-		s.vars[&memvar] = call
 		var titer Iter
 		fp := Structfirst(&titer, Getoutarg(left.Type))
 		if fp == nil {
