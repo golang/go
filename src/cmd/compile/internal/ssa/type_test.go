@@ -14,6 +14,7 @@ type TypeImpl struct {
 	Float   bool
 	Ptr     bool
 	string  bool
+	Elem_   Type
 
 	Name string
 }
@@ -29,7 +30,7 @@ func (t *TypeImpl) IsString() bool   { return t.string }
 func (t *TypeImpl) IsMemory() bool   { return false }
 func (t *TypeImpl) IsFlags() bool    { return false }
 func (t *TypeImpl) String() string   { return t.Name }
-func (t *TypeImpl) Elem() Type       { panic("not implemented") }
+func (t *TypeImpl) Elem() Type       { return t.Elem_ }
 func (t *TypeImpl) PtrTo() Type      { panic("not implemented") }
 
 func (t *TypeImpl) Equal(u Type) bool {
