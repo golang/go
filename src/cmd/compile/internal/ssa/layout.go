@@ -47,7 +47,21 @@ blockloop:
 
 		// Pick the next block to schedule
 		// Pick among the successor blocks that have not been scheduled yet.
-		// Just use degree for now.  TODO(khr): use likely direction hints.
+
+		// Use likely direction if we have it.
+		var likely *Block
+		switch b.Likely {
+		case BranchLikely:
+			likely = b.Succs[0]
+		case BranchUnlikely:
+			likely = b.Succs[1]
+		}
+		if likely != nil && !scheduled[likely.ID] {
+			bid = likely.ID
+			continue
+		}
+
+		// Use degree for now.
 		bid = 0
 		mindegree := f.NumBlocks()
 		for _, c := range order[len(order)-1].Succs {

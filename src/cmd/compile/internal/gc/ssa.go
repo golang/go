@@ -504,7 +504,7 @@ func (s *state) stmt(n *Node) {
 		b := s.endBlock()
 		b.Kind = ssa.BlockIf
 		b.Control = cond
-		// TODO(khr): likely direction
+		b.Likely = ssa.BranchPrediction(n.Likely) // gc and ssa both use -1/0/+1 for likeliness
 
 		bThen := s.f.NewBlock(ssa.BlockPlain)
 		bEnd := s.f.NewBlock(ssa.BlockPlain)
@@ -613,7 +613,7 @@ func (s *state) stmt(n *Node) {
 		b = s.endBlock()
 		b.Kind = ssa.BlockIf
 		b.Control = cond
-		// TODO(khr): likely direction
+		b.Likely = ssa.BranchLikely
 		addEdge(b, bBody)
 		addEdge(b, bEnd)
 
@@ -1181,6 +1181,10 @@ func (s *state) expr(n *Node) *ssa.Value {
 		b := s.endBlock()
 		b.Kind = ssa.BlockIf
 		b.Control = el
+		// In theory, we should set b.Likely here based on context.
+		// However, gc only gives us likeliness hints
+		// in a single place, for plain OIF statements,
+		// and passing around context is finnicky, so don't bother for now.
 
 		bRight := s.f.NewBlock(ssa.BlockPlain)
 		bResult := s.f.NewBlock(ssa.BlockPlain)
@@ -1516,8 +1520,9 @@ func (s *state) nilCheck(ptr *ssa.Value) {
 	}
 	c := s.newValue1(ssa.OpIsNonNil, Types[TBOOL], ptr)
 	b := s.endBlock()
-	b.Kind = ssa.BlockIf // TODO: likeliness hint
+	b.Kind = ssa.BlockIf
 	b.Control = c
+	b.Likely = ssa.BranchLikely
 	bNext := s.f.NewBlock(ssa.BlockPlain)
 	bPanic := s.f.NewBlock(ssa.BlockPlain)
 	addEdge(b, bNext)
@@ -1541,6 +1546,7 @@ func (s *state) boundsCheck(idx, len *ssa.Value) {
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
 	b.Control = cmp
+	b.Likely = ssa.BranchLikely
 	bNext := s.f.NewBlock(ssa.BlockPlain)
 	addEdge(b, bNext)
 	addEdge(b, s.exit)
@@ -2295,22 +2301,38 @@ func genBlock(b, next *ssa.Block, branches []branch) []branch {
 		ssa.BlockAMD64ULE, ssa.BlockAMD64UGE:
 
 		jmp := blockJump[b.Kind]
+		likely := b.Likely
+		var p *obj.Prog
 		switch next {
 		case b.Succs[0]:
-			p := Prog(jmp.invasm)
+			p = Prog(jmp.invasm)
+			likely *= -1
 			p.To.Type = obj.TYPE_BRANCH
 			branches = append(branches, branch{p, b.Succs[1]})
 		case b.Succs[1]:
-			p := Prog(jmp.asm)
+			p = Prog(jmp.asm)
 			p.To.Type = obj.TYPE_BRANCH
 			branches = append(branches, branch{p, b.Succs[0]})
 		default:
-			p := Prog(jmp.asm)
+			p = Prog(jmp.asm)
 			p.To.Type = obj.TYPE_BRANCH
 			branches = append(branches, branch{p, b.Succs[0]})
 			q := Prog(obj.AJMP)
 			q.To.Type = obj.TYPE_BRANCH
 			branches = append(branches, branch{q, b.Succs[1]})
+		}
+
+		// liblink reorders the instruction stream as it sees fit.
+		// Pass along what we know so liblink can make use of it.
+		// TODO: Once we've fully switched to SSA,
+		// make liblink leave our output alone.
+		switch likely {
+		case ssa.BranchUnlikely:
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = 0
+		case ssa.BranchLikely:
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = 1
 		}
 
 	default:

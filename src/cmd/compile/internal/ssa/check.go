@@ -103,6 +103,9 @@ func checkFunc(f *Func) {
 				f.Fatalf("exception edge from call block %s does not go to exit but %s", b, b.Succs[1])
 			}
 		}
+		if len(b.Succs) > 2 && b.Likely != BranchUnknown {
+			f.Fatalf("likeliness prediction %d for block %s with %d successors: %s", b.Likely, b, len(b.Succs))
+		}
 
 		for _, v := range b.Values {
 			for _, arg := range v.Args {

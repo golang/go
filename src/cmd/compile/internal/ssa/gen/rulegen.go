@@ -254,6 +254,19 @@ func genRules(arch arch) {
 			for i, a := range newsuccs {
 				fmt.Fprintf(w, "b.Succs[%d] = %s\n", i, a)
 			}
+			// Update branch prediction
+			switch {
+			case len(newsuccs) != 2:
+				fmt.Fprintln(w, "b.Likely = BranchUnknown")
+			case newsuccs[0] == succs[0] && newsuccs[1] == succs[1]:
+				// unchanged
+			case newsuccs[0] == succs[1] && newsuccs[1] == succs[0]:
+				// flipped
+				fmt.Fprintln(w, "b.Likely *= -1")
+			default:
+				// unknown
+				fmt.Fprintln(w, "b.Likely = BranchUnknown")
+			}
 
 			fmt.Fprintf(w, "return true\n")
 

@@ -40,6 +40,13 @@ type Block struct {
 
 	// Line number for block's control operation
 	Line int32
+
+	// Likely direction for branches.
+	// If BranchLikely, Succs[0] is the most likely branch taken.
+	// If BranchUnlikely, Succs[1] is the most likely branch taken.
+	// Ignored if len(Succs) < 2.
+	// Fatal if not BranchUnknown and len(Succs) > 2.
+	Likely BranchPrediction
 }
 
 //     kind           control    successors
@@ -67,9 +74,23 @@ func (b *Block) LongString() string {
 			s += " " + c.String()
 		}
 	}
+	switch b.Likely {
+	case BranchUnlikely:
+		s += " (unlikely)"
+	case BranchLikely:
+		s += " (likely)"
+	}
 	return s
 }
 
 func (b *Block) Logf(msg string, args ...interface{})           { b.Func.Logf(msg, args...) }
 func (b *Block) Fatalf(msg string, args ...interface{})         { b.Func.Fatalf(msg, args...) }
 func (b *Block) Unimplementedf(msg string, args ...interface{}) { b.Func.Unimplementedf(msg, args...) }
+
+type BranchPrediction int8
+
+const (
+	BranchUnlikely = BranchPrediction(-1)
+	BranchUnknown  = BranchPrediction(0)
+	BranchLikely   = BranchPrediction(+1)
+)
