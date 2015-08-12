@@ -586,7 +586,7 @@ var xtop *NodeList
 
 var externdcl *NodeList
 
-var exportlist *NodeList
+var exportlist []*Node
 
 var importlist *NodeList // imported functions and methods with inlinable bodies
 
