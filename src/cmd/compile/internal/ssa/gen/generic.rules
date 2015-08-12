@@ -71,6 +71,8 @@
 (StringLen (StringMake _ len)) -> len
 (Store dst str mem) && str.Type.IsString() -> (Store (OffPtr <config.Frontend().TypeBytePtr()> [config.PtrSize] dst) (StringLen <config.Frontend().TypeUintptr()> str) (Store <TypeMem> dst (StringPtr <config.Frontend().TypeBytePtr()> str) mem))
 
+(If (IsNonNil (GetG)) yes no) -> (Plain nil yes)
+
 (If (Not cond) yes no) -> (If cond no yes)
 (If (ConstBool {c}) yes no) && c.(bool) -> (Plain nil yes)
 (If (ConstBool {c}) yes no) && !c.(bool) -> (Plain nil no)

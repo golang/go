@@ -782,6 +782,30 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 func rewriteBlockgeneric(b *Block) bool {
 	switch b.Kind {
 	case BlockIf:
+		// match: (If (IsNonNil (GetG)) yes no)
+		// cond:
+		// result: (Plain nil yes)
+		{
+			v := b.Control
+			if v.Op != OpIsNonNil {
+				goto end0f2bb0111a86be0436b44210dbd83a90
+			}
+			if v.Args[0].Op != OpGetG {
+				goto end0f2bb0111a86be0436b44210dbd83a90
+			}
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Func.removePredecessor(b, no)
+			b.Kind = BlockPlain
+			b.Control = nil
+			b.Succs = b.Succs[:1]
+			b.Succs[0] = yes
+			b.Likely = BranchUnknown
+			return true
+		}
+		goto end0f2bb0111a86be0436b44210dbd83a90
+	end0f2bb0111a86be0436b44210dbd83a90:
+		;
 		// match: (If (Not cond) yes no)
 		// cond:
 		// result: (If cond no yes)

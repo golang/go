@@ -217,6 +217,7 @@
 (IsInBounds idx len) -> (SETB (CMPQ <TypeFlags> idx len))
 
 (PanicNilCheck ptr mem) -> (LoweredPanicNilCheck ptr mem)
+(GetG) -> (LoweredGetG)
 
 (Move [size] dst src mem) -> (REPMOVSB dst src (MOVQconst <config.Frontend().TypeUInt64()> [size]) mem)
 
