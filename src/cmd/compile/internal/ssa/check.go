@@ -157,6 +157,10 @@ func checkFunc(f *Func) {
 		}
 	}
 
+	if len(f.Entry.Preds) > 0 {
+		f.Fatalf("entry block %s of %s has predecessor(s) %v", f.Entry, f.Name, f.Entry.Preds)
+	}
+
 	// Check to make sure all Values referenced are in the function.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {

@@ -317,11 +317,13 @@ func TestDominatorsMultPredRev(t *testing.T) {
 	c := testConfig(t)
 	fun := Fun(c, "entry",
 		Bloc("entry",
+			Goto("first")),
+		Bloc("first",
 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
 			Valu("p", OpConstBool, TypeBool, 0, true),
 			Goto("a")),
 		Bloc("a",
-			If("p", "b", "entry")),
+			If("p", "b", "first")),
 		Bloc("b",
 			Goto("c")),
 		Bloc("c",
@@ -330,10 +332,11 @@ func TestDominatorsMultPredRev(t *testing.T) {
 			Exit("mem")))
 
 	doms := map[string]string{
-		"a":    "entry",
-		"b":    "a",
-		"c":    "b",
-		"exit": "c",
+		"first": "entry",
+		"a":     "first",
+		"b":     "a",
+		"c":     "b",
+		"exit":  "c",
 	}
 
 	CheckFunc(fun.f)
