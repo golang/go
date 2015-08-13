@@ -222,6 +222,36 @@ func testLrot() {
 
 }
 
+func sub1_ssa() uint64 {
+	switch {
+	} // prevent inlining
+	v1 := uint64(3) // uint64
+	return v1*v1 - (v1&v1)&v1
+}
+func sub2_ssa() uint8 {
+	switch {
+	}
+	v1 := uint8(0)
+	v3 := v1 + v1 + v1 ^ v1 | 3 + v1 ^ v1 | v1 ^ v1
+	v1-- // dev.ssa doesn't see this one
+	return v1 ^ v1*v1 - v3
+}
+
+func testSubConst() {
+	x1 := sub1_ssa()
+	want1 := uint64(6)
+	if x1 != want1 {
+		println("sub1_ssa()=", want1, ", got", x1)
+		failed = true
+	}
+	x2 := sub2_ssa()
+	want2 := uint8(251)
+	if x2 != want2 {
+		println("sub2_ssa()=", want2, ", got", x2)
+		failed = true
+	}
+}
+
 var failed = false
 
 func main() {
@@ -233,6 +263,7 @@ func main() {
 	testBitwiseLogic()
 	testOcom()
 	testLrot()
+	testSubConst()
 
 	if failed {
 		panic("failed")
