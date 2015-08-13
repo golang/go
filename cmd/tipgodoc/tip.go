@@ -1,4 +1,4 @@
-// Copyright 2014 The Go AUTHORS. All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by the Apache 2.0
 // license that can be found in the LICENSE file.
 
