@@ -35,11 +35,6 @@ EXT(crosscall_386):
 	popl %ebp
 	ret
 
-.globl EXT(__stack_chk_fail_local)
-EXT(__stack_chk_fail_local):
-1:
-	jmp 1b
-
 #ifdef __ELF__
 .section .note.GNU-stack,"",@progbits
 #endif
