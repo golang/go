@@ -624,7 +624,7 @@ func (tab *traceStackTable) put(pcs []uintptr) uint32 {
 	if len(pcs) == 0 {
 		return 0
 	}
-	hash := memhash(unsafe.Pointer(&pcs[0]), uintptr(len(pcs))*unsafe.Sizeof(pcs[0]), 0)
+	hash := memhash(unsafe.Pointer(&pcs[0]), 0, uintptr(len(pcs))*unsafe.Sizeof(pcs[0]))
 	// First, search the hashtable w/o the mutex.
 	if id := tab.find(pcs, hash); id != 0 {
 		return id
