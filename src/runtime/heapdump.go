@@ -247,7 +247,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 	if pc != f.entry {
 		pc--
 	}
-	pcdata := pcdatavalue(f, _PCDATA_StackMapIndex, pc)
+	pcdata := pcdatavalue(f, _PCDATA_StackMapIndex, pc, nil)
 	if pcdata == -1 {
 		// We do not have a valid pcdata value but there might be a
 		// stackmap for this function.  It is likely that we are looking
