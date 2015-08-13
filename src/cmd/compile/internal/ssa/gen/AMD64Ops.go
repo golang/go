@@ -290,7 +290,7 @@ func init() {
 
 		// Pseudo-ops
 		{name: "LoweredPanicNilCheck"},
-		{name: "LoweredGetG"},
+		{name: "LoweredGetG", reg: gp01},
 	}
 
 	var AMD64blocks = []blockData{
