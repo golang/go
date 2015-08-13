@@ -112,6 +112,7 @@ func moduledataverify1(datap *moduledata) {
 
 	// ftab is lookup table for function by program counter.
 	nftab := len(datap.ftab) - 1
+	var pcCache pcvalueCache
 	for i := 0; i < nftab; i++ {
 		// NOTE: ftab[nftab].entry is legal; it is the address beyond the final function.
 		if datap.ftab[i].entry > datap.ftab[i+1].entry {
@@ -147,9 +148,9 @@ func moduledataverify1(datap *moduledata) {
 					}
 				}
 			}
-			pcvalue(f, f.pcfile, end, true)
-			pcvalue(f, f.pcln, end, true)
-			pcvalue(f, f.pcsp, end, true)
+			pcvalue(f, f.pcfile, end, &pcCache, true)
+			pcvalue(f, f.pcln, end, &pcCache, true)
+			pcvalue(f, f.pcsp, end, &pcCache, true)
 		}
 	}
 
@@ -226,10 +227,42 @@ func findfunc(pc uintptr) *_func {
 	return (*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[idx].funcoff]))
 }
 
-func pcvalue(f *_func, off int32, targetpc uintptr, strict bool) int32 {
+type pcvalueCache struct {
+	entries [16]pcvalueCacheEnt
+}
+
+type pcvalueCacheEnt struct {
+	// targetpc and off together are the key of this cache entry.
+	targetpc uintptr
+	off      int32
+	// val is the value of this cached pcvalue entry.
+	val int32
+}
+
+func pcvalue(f *_func, off int32, targetpc uintptr, cache *pcvalueCache, strict bool) int32 {
 	if off == 0 {
 		return -1
 	}
+
+	// Check the cache. This speeds up walks of deep stacks, which
+	// tend to have the same recursive functions over and over.
+	//
+	// This cache is small enough that full associativity is
+	// cheaper than doing the hashing for a less associative
+	// cache.
+	if cache != nil {
+		for _, ent := range cache.entries {
+			// We check off first because we're more
+			// likely to have multiple entries with
+			// different offsets for the same targetpc
+			// than the other way around, so we'll usually
+			// fail in the first clause.
+			if ent.off == off && ent.targetpc == targetpc {
+				return ent.val
+			}
+		}
+	}
+
 	datap := findmoduledatap(f.entry) // inefficient
 	if datap == nil {
 		if strict && panicking == 0 {
@@ -248,6 +281,19 @@ func pcvalue(f *_func, off int32, targetpc uintptr, strict bool) int32 {
 			break
 		}
 		if targetpc < pc {
+			// Replace a random entry in the cache. Random
+			// replacement prevents a performance cliff if
+			// a recursive stack's cycle is slightly
+			// larger than the cache.
+			if cache != nil {
+				ci := fastrand1() % uint32(len(cache.entries))
+				cache.entries[ci] = pcvalueCacheEnt{
+					targetpc: targetpc,
+					off:      off,
+					val:      val,
+				}
+			}
+
 			return val
 		}
 	}
@@ -296,8 +342,8 @@ func funcline1(f *_func, targetpc uintptr, strict bool) (file string, line int32
 	if datap == nil {
 		return "?", 0
 	}
-	fileno := int(pcvalue(f, f.pcfile, targetpc, strict))
-	line = pcvalue(f, f.pcln, targetpc, strict)
+	fileno := int(pcvalue(f, f.pcfile, targetpc, nil, strict))
+	line = pcvalue(f, f.pcln, targetpc, nil, strict)
 	if fileno == -1 || line == -1 || fileno >= len(datap.filetab) {
 		// print("looking for ", hex(targetpc), " in ", funcname(f), " got file=", fileno, " line=", lineno, "\n")
 		return "?", 0
@@ -310,20 +356,20 @@ func funcline(f *_func, targetpc uintptr) (file string, line int32) {
 	return funcline1(f, targetpc, true)
 }
 
-func funcspdelta(f *_func, targetpc uintptr) int32 {
-	x := pcvalue(f, f.pcsp, targetpc, true)
+func funcspdelta(f *_func, targetpc uintptr, cache *pcvalueCache) int32 {
+	x := pcvalue(f, f.pcsp, targetpc, cache, true)
 	if x&(ptrSize-1) != 0 {
 		print("invalid spdelta ", funcname(f), " ", hex(f.entry), " ", hex(targetpc), " ", hex(f.pcsp), " ", x, "\n")
 	}
 	return x
 }
 
-func pcdatavalue(f *_func, table int32, targetpc uintptr) int32 {
+func pcdatavalue(f *_func, table int32, targetpc uintptr, cache *pcvalueCache) int32 {
 	if table < 0 || table >= f.npcdata {
 		return -1
 	}
 	off := *(*int32)(add(unsafe.Pointer(&f.nfuncdata), unsafe.Sizeof(f.nfuncdata)+uintptr(table)*4))
-	return pcvalue(f, off, targetpc, true)
+	return pcvalue(f, off, targetpc, cache, true)
 }
 
 func funcdata(f *_func, i int32) unsafe.Pointer {
