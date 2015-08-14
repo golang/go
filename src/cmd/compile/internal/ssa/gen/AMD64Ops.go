@@ -133,9 +133,11 @@ func init() {
 		{name: "MULQ", reg: gp21, asm: "IMULQ"},      // arg0 * arg1
 		{name: "MULL", reg: gp21, asm: "IMULL"},      // arg0 * arg1
 		{name: "MULW", reg: gp21, asm: "IMULW"},      // arg0 * arg1
+		{name: "MULB", reg: gp21, asm: "IMULW"},      // arg0 * arg1
 		{name: "MULQconst", reg: gp11, asm: "IMULQ"}, // arg0 * auxint
 		{name: "MULLconst", reg: gp11, asm: "IMULL"}, // arg0 * auxint
 		{name: "MULWconst", reg: gp11, asm: "IMULW"}, // arg0 * auxint
+		{name: "MULBconst", reg: gp11, asm: "IMULW"}, // arg0 * auxint
 
 		{name: "ANDQ", reg: gp21, asm: "ANDQ"},      // arg0 & arg1
 		{name: "ANDL", reg: gp21, asm: "ANDL"},      // arg0 & arg1
