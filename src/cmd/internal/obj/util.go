@@ -53,6 +53,10 @@ func Binitw(w io.Writer) *Biobuf {
 	return &Biobuf{w: bufio.NewWriter(w)}
 }
 
+func Binitr(r io.Reader) *Biobuf {
+	return &Biobuf{r: bufio.NewReader(r)}
+}
+
 func (b *Biobuf) Write(p []byte) (int, error) {
 	return b.w.Write(p)
 }

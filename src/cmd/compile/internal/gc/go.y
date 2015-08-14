@@ -254,6 +254,7 @@ import_stmt:
 			break;
 		}
 		if my.Name == "init" {
+			lineno = int32($1)
 			Yyerror("cannot import package as init - init must be a func");
 			break;
 		}

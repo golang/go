@@ -2605,6 +2605,8 @@ func hasddd(t *Type) bool {
 	return false
 }
 
+// downcount is the same as countfield
+// TODO decide if we want both (for semantic reasons)
 func downcount(t *Type) int {
 	n := 0
 	for tl := t.Type; tl != nil; tl = tl.Down {

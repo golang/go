@@ -12,6 +12,7 @@ import (
 	"go/build"
 	"go/token"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -149,12 +150,25 @@ func Import(packages map[string]*types.Package, path string) (pkg *types.Package
 		}
 	}()
 
+	var hdr string
 	buf := bufio.NewReader(f)
-	if err = FindExportData(buf); err != nil {
+	if hdr, err = FindExportData(buf); err != nil {
 		return
 	}
 
-	pkg, err = ImportData(packages, filename, id, buf)
+	switch hdr {
+	case "$$\n":
+		return ImportData(packages, filename, id, buf)
+	case "$$B\n":
+		var data []byte
+		data, err = ioutil.ReadAll(buf)
+		if err == nil {
+			_, pkg, err = BImportData(packages, data, path)
+			return
+		}
+	default:
+		err = fmt.Errorf("unknown export data header: %q", hdr)
+	}
 
 	return
 }
