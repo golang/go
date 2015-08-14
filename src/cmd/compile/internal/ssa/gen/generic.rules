@@ -37,6 +37,23 @@
 (Neq16 x x) -> (ConstBool {false})
 (Neq8 x x) -> (ConstBool {false})
 
+// simplifications
+(Or64 x x) -> x
+(Or32 x x) -> x
+(Or16 x x) -> x
+(Or8 x x) -> x
+(And64 x x) -> x
+(And32 x x) -> x
+(And16 x x) -> x
+(And8 x x) -> x
+(Xor64 x x) -> (Const64 [0])
+(Xor32 x x) -> (Const32 [0])
+(Xor16 x x) -> (Const16 [0])
+(Xor8 x x) -> (Const8 [0])
+(Sub64 x x) -> (Const64 [0])
+(Sub32 x x) -> (Const32 [0])
+(Sub16 x x) -> (Const16 [0])
+(Sub8 x x) -> (Const8 [0])
 (Com8 (Com8 x)) -> x
 (Com16 (Com16 x)) -> x
 (Com32 (Com32 x)) -> x
