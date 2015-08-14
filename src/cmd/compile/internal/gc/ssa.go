@@ -1909,7 +1909,7 @@ func genValue(v *ssa.Value) {
 		ssa.OpAMD64ANDQ, ssa.OpAMD64ANDL, ssa.OpAMD64ANDW, ssa.OpAMD64ANDB,
 		ssa.OpAMD64ORQ, ssa.OpAMD64ORL, ssa.OpAMD64ORW, ssa.OpAMD64ORB,
 		ssa.OpAMD64XORQ, ssa.OpAMD64XORL, ssa.OpAMD64XORW, ssa.OpAMD64XORB,
-		ssa.OpAMD64MULQ, ssa.OpAMD64MULL, ssa.OpAMD64MULW:
+		ssa.OpAMD64MULQ, ssa.OpAMD64MULL, ssa.OpAMD64MULW, ssa.OpAMD64MULB:
 		r := regnum(v)
 		x := regnum(v.Args[0])
 		y := regnum(v.Args[1])
@@ -1996,7 +1996,7 @@ func genValue(v *ssa.Value) {
 		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
-	case ssa.OpAMD64MULQconst, ssa.OpAMD64MULLconst, ssa.OpAMD64MULWconst:
+	case ssa.OpAMD64MULQconst, ssa.OpAMD64MULLconst, ssa.OpAMD64MULWconst, ssa.OpAMD64MULBconst:
 		r := regnum(v)
 		x := regnum(v.Args[0])
 		if r != x {

@@ -70,9 +70,11 @@ const (
 	OpAMD64MULQ
 	OpAMD64MULL
 	OpAMD64MULW
+	OpAMD64MULB
 	OpAMD64MULQconst
 	OpAMD64MULLconst
 	OpAMD64MULWconst
+	OpAMD64MULBconst
 	OpAMD64ANDQ
 	OpAMD64ANDL
 	OpAMD64ANDW
@@ -631,6 +633,19 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name: "MULB",
+		asm:  x86.AIMULW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
 		name: "MULQconst",
 		asm:  x86.AIMULQ,
 		reg: regInfo{
@@ -656,6 +671,18 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "MULWconst",
+		asm:  x86.AIMULW,
+		reg: regInfo{
+			inputs: []regMask{
+				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "MULBconst",
 		asm:  x86.AIMULW,
 		reg: regInfo{
 			inputs: []regMask{

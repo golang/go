@@ -25,10 +25,7 @@
 (MulPtr x y) -> (MULQ x y)
 (Mul32 x y) -> (MULL x y)
 (Mul16 x y) -> (MULW x y)
-// Note: we use 16-bit multiply instructions for 8-bit multiplies because
-// the 16-bit multiply instructions are more forgiving (they operate on
-// any register instead of just AX/DX).
-(Mul8 x y) -> (MULW x y)
+(Mul8 x y) -> (MULB x y)
 
 (And64 x y) -> (ANDQ x y)
 (And32 x y) -> (ANDL x y)
@@ -294,6 +291,8 @@
 (MULL (MOVLconst [c]) x) -> (MULLconst [c] x)
 (MULW x (MOVWconst [c])) -> (MULWconst [c] x)
 (MULW (MOVWconst [c]) x) -> (MULWconst [c] x)
+(MULB x (MOVBconst [c])) -> (MULBconst [c] x)
+(MULB (MOVBconst [c]) x) -> (MULBconst [c] x)
 
 (ANDQ x (MOVQconst [c])) && is32Bit(c) -> (ANDQconst [c] x)
 (ANDQ (MOVQconst [c]) x) && is32Bit(c) -> (ANDQconst [c] x)
@@ -498,6 +497,7 @@
 (MULQconst [c] (MOVQconst [d])) -> (MOVQconst [c*d])
 (MULLconst [c] (MOVLconst [d])) -> (MOVLconst [c*d])
 (MULWconst [c] (MOVWconst [d])) -> (MOVWconst [c*d])
+(MULBconst [c] (MOVBconst [d])) -> (MOVBconst [c*d])
 (ANDQconst [c] (MOVQconst [d])) -> (MOVQconst [c&d])
 (ANDLconst [c] (MOVLconst [d])) -> (MOVLconst [c&d])
 (ANDWconst [c] (MOVWconst [d])) -> (MOVWconst [c&d])

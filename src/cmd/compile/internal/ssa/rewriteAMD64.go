@@ -3511,6 +3511,67 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto end4e7df15ee55bdd73d8ecd61b759134d4
 	end4e7df15ee55bdd73d8ecd61b759134d4:
 		;
+	case OpAMD64MULB:
+		// match: (MULB x (MOVBconst [c]))
+		// cond:
+		// result: (MULBconst [c] x)
+		{
+			x := v.Args[0]
+			if v.Args[1].Op != OpAMD64MOVBconst {
+				goto end66c6419213ddeb52b1c53fb589a70e5f
+			}
+			c := v.Args[1].AuxInt
+			v.Op = OpAMD64MULBconst
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AuxInt = c
+			v.AddArg(x)
+			return true
+		}
+		goto end66c6419213ddeb52b1c53fb589a70e5f
+	end66c6419213ddeb52b1c53fb589a70e5f:
+		;
+		// match: (MULB (MOVBconst [c]) x)
+		// cond:
+		// result: (MULBconst [c] x)
+		{
+			if v.Args[0].Op != OpAMD64MOVBconst {
+				goto end7e82c8dbbba265b78035ca7df394bb06
+			}
+			c := v.Args[0].AuxInt
+			x := v.Args[1]
+			v.Op = OpAMD64MULBconst
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AuxInt = c
+			v.AddArg(x)
+			return true
+		}
+		goto end7e82c8dbbba265b78035ca7df394bb06
+	end7e82c8dbbba265b78035ca7df394bb06:
+		;
+	case OpAMD64MULBconst:
+		// match: (MULBconst [c] (MOVBconst [d]))
+		// cond:
+		// result: (MOVBconst [c*d])
+		{
+			c := v.AuxInt
+			if v.Args[0].Op != OpAMD64MOVBconst {
+				goto endf2db9f96016085f8cb4082b4af01b2aa
+			}
+			d := v.Args[0].AuxInt
+			v.Op = OpAMD64MOVBconst
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AuxInt = c * d
+			return true
+		}
+		goto endf2db9f96016085f8cb4082b4af01b2aa
+	endf2db9f96016085f8cb4082b4af01b2aa:
+		;
 	case OpAMD64MULL:
 		// match: (MULL x (MOVLconst [c]))
 		// cond:
@@ -3913,11 +3974,11 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 	case OpMul8:
 		// match: (Mul8 x y)
 		// cond:
-		// result: (MULW x y)
+		// result: (MULB x y)
 		{
 			x := v.Args[0]
 			y := v.Args[1]
-			v.Op = OpAMD64MULW
+			v.Op = OpAMD64MULB
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
@@ -3925,8 +3986,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(y)
 			return true
 		}
-		goto end861428e804347e8489a6424f2e6ce71c
-	end861428e804347e8489a6424f2e6ce71c:
+		goto endd876d6bc42a2285b801f42dadbd8757c
+	endd876d6bc42a2285b801f42dadbd8757c:
 		;
 	case OpMulPtr:
 		// match: (MulPtr x y)
