@@ -288,7 +288,7 @@ const (
 
 	TFUNC
 	TARRAY
-	T_old_DARRAY
+	T_old_DARRAY // Doesn't seem to be used in existing code. Used now for Isddd export (see bexport.go). TODO(gri) rename.
 	TSTRUCT
 	TCHAN
 	TMAP

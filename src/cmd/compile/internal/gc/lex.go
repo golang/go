@@ -58,6 +58,7 @@ var debugtab = []struct {
 	{"slice", &Debug_slice},           // print information about slice compilation
 	{"typeassert", &Debug_typeassert}, // print information about type assertion inlining
 	{"wb", &Debug_wb},                 // print information about write barriers
+	{"export", &Debug_export},         // print export data
 }
 
 const (
@@ -201,6 +202,7 @@ func Main() {
 	obj.Flagcount("live", "debug liveness analysis", &debuglive)
 	obj.Flagcount("m", "print optimization decisions", &Debug['m'])
 	obj.Flagcount("msan", "build code compatible with C/C++ memory sanitizer", &flag_msan)
+	obj.Flagcount("newexport", "use new export format", &newexport) // TODO remove eventually
 	obj.Flagcount("nolocalimports", "reject local (relative) imports", &nolocalimports)
 	obj.Flagstr("o", "write output to `file`", &outfile)
 	obj.Flagstr("p", "set expected package import `path`", &myimportpath)
@@ -655,6 +657,7 @@ func fakeimport() {
 	cannedimports("fake.o", "$$\n")
 }
 
+// TODO(gri) line argument doesn't appear to be used
 func importfile(f *Val, line int) {
 	if _, ok := f.U.(string); !ok {
 		Yyerror("import statement not a string")
@@ -786,39 +789,58 @@ func importfile(f *Val, line int) {
 	// so don't record the full path.
 	linehistpragma(file[len(file)-len(path_)-2:]) // acts as #pragma lib
 
-	/*
-	 * position the input right
-	 * after $$ and return
-	 */
-	pushedio = curio
+	// In the importfile, if we find:
+	// $$\n  (old format): position the input right after $$\n and return
+	// $$B\n (new format): import directly, then feed the lexer a dummy statement
 
-	curio.bin = imp
-	curio.peekc = 0
-	curio.peekc1 = 0
-	curio.infile = file
-	curio.nlsemi = false
-	typecheckok = true
-
+	// look for $$
+	var c int
 	for {
-		c := getc()
-		if c == EOF {
+		c = obj.Bgetc(imp)
+		if c < 0 {
 			break
 		}
-		if c != '$' {
-			continue
+		if c == '$' {
+			c = obj.Bgetc(imp)
+			if c == '$' || c < 0 {
+				break
+			}
 		}
-		c = getc()
-		if c == EOF {
-			break
-		}
-		if c != '$' {
-			continue
-		}
-		return
 	}
 
-	Yyerror("no import in %q", f.U.(string))
-	unimportfile()
+	// get character after $$
+	if c >= 0 {
+		c = obj.Bgetc(imp)
+	}
+
+	switch c {
+	case '\n':
+		// old export format
+		pushedio = curio
+
+		curio.bin = imp
+		curio.peekc = 0
+		curio.peekc1 = 0
+		curio.infile = file
+		curio.nlsemi = false
+		typecheckok = true
+
+	case 'B':
+		// new export format
+		obj.Bgetc(imp) // skip \n after $$B
+		Import(imp)
+
+		// continue as if the package was imported before (see above)
+		tag := ""
+		if importpkg.Safe {
+			tag = "safe"
+		}
+		p := fmt.Sprintf("package %s %s\n$$\n", importpkg.Name, tag)
+		cannedimports(file, p)
+
+	default:
+		Yyerror("no import in %q", f.U.(string))
+	}
 }
 
 func unimportfile() {
