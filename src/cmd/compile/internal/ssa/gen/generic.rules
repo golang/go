@@ -81,8 +81,7 @@
 (StructSelect [idx] (Load ptr mem)) -> (Load (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
 
 // big-object moves
-// TODO: fix size
-(Store dst (Load <t> src mem) mem) && t.Size() > 8 -> (Move [t.Size()] dst src mem)
+(Store [size] dst (Load src mem) mem) && size > config.IntSize -> (Move [size] dst src mem)
 
 // string ops
 (ConstString {s}) -> (StringMake (Addr <config.Frontend().TypeBytePtr()> {config.fe.StringData(s.(string))} (SB <config.Frontend().TypeUintptr()>)) (ConstPtr <config.Frontend().TypeUintptr()> [int64(len(s.(string)))]))

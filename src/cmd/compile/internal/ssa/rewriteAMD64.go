@@ -7412,16 +7412,16 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 	end32c5cbec813d1c2ae94fc9b1090e4b2a:
 		;
 	case OpStore:
-		// match: (Store ptr val mem)
-		// cond: (is64BitInt(val.Type) || isPtr(val.Type))
+		// match: (Store [8] ptr val mem)
+		// cond:
 		// result: (MOVQstore ptr val mem)
 		{
+			if v.AuxInt != 8 {
+				goto endd1eb7c3ea0c806e7a53ff3be86186eb7
+			}
 			ptr := v.Args[0]
 			val := v.Args[1]
 			mem := v.Args[2]
-			if !(is64BitInt(val.Type) || isPtr(val.Type)) {
-				goto endbaeb60123806948cd2433605820d5af1
-			}
 			v.Op = OpAMD64MOVQstore
 			v.AuxInt = 0
 			v.Aux = nil
@@ -7431,19 +7431,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(mem)
 			return true
 		}
-		goto endbaeb60123806948cd2433605820d5af1
-	endbaeb60123806948cd2433605820d5af1:
+		goto endd1eb7c3ea0c806e7a53ff3be86186eb7
+	endd1eb7c3ea0c806e7a53ff3be86186eb7:
 		;
-		// match: (Store ptr val mem)
-		// cond: is32BitInt(val.Type)
+		// match: (Store [4] ptr val mem)
+		// cond:
 		// result: (MOVLstore ptr val mem)
 		{
+			if v.AuxInt != 4 {
+				goto end44e3b22360da76ecd59be9a8c2dd1347
+			}
 			ptr := v.Args[0]
 			val := v.Args[1]
 			mem := v.Args[2]
-			if !(is32BitInt(val.Type)) {
-				goto end582e895008657c728c141c6b95070de7
-			}
 			v.Op = OpAMD64MOVLstore
 			v.AuxInt = 0
 			v.Aux = nil
@@ -7453,19 +7453,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(mem)
 			return true
 		}
-		goto end582e895008657c728c141c6b95070de7
-	end582e895008657c728c141c6b95070de7:
+		goto end44e3b22360da76ecd59be9a8c2dd1347
+	end44e3b22360da76ecd59be9a8c2dd1347:
 		;
-		// match: (Store ptr val mem)
-		// cond: is16BitInt(val.Type)
+		// match: (Store [2] ptr val mem)
+		// cond:
 		// result: (MOVWstore ptr val mem)
 		{
+			if v.AuxInt != 2 {
+				goto endd0342b7fd3d0713f3e26922660047c71
+			}
 			ptr := v.Args[0]
 			val := v.Args[1]
 			mem := v.Args[2]
-			if !(is16BitInt(val.Type)) {
-				goto enda3f6a985b6ebb277665f80ad30b178df
-			}
 			v.Op = OpAMD64MOVWstore
 			v.AuxInt = 0
 			v.Aux = nil
@@ -7475,19 +7475,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(mem)
 			return true
 		}
-		goto enda3f6a985b6ebb277665f80ad30b178df
-	enda3f6a985b6ebb277665f80ad30b178df:
+		goto endd0342b7fd3d0713f3e26922660047c71
+	endd0342b7fd3d0713f3e26922660047c71:
 		;
-		// match: (Store ptr val mem)
-		// cond: is8BitInt(val.Type)
+		// match: (Store [1] ptr val mem)
+		// cond:
 		// result: (MOVBstore ptr val mem)
 		{
+			if v.AuxInt != 1 {
+				goto end8e76e20031197ca875889d2b4d0eb1d1
+			}
 			ptr := v.Args[0]
 			val := v.Args[1]
 			mem := v.Args[2]
-			if !(is8BitInt(val.Type)) {
-				goto ende2dee0bc82f631e3c6b0031bf8d224c1
-			}
 			v.Op = OpAMD64MOVBstore
 			v.AuxInt = 0
 			v.Aux = nil
@@ -7497,30 +7497,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(mem)
 			return true
 		}
-		goto ende2dee0bc82f631e3c6b0031bf8d224c1
-	ende2dee0bc82f631e3c6b0031bf8d224c1:
-		;
-		// match: (Store ptr val mem)
-		// cond: val.Type.IsBoolean()
-		// result: (MOVBstore ptr val mem)
-		{
-			ptr := v.Args[0]
-			val := v.Args[1]
-			mem := v.Args[2]
-			if !(val.Type.IsBoolean()) {
-				goto end6f343b676bf49740054e459f972b24f5
-			}
-			v.Op = OpAMD64MOVBstore
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AddArg(ptr)
-			v.AddArg(val)
-			v.AddArg(mem)
-			return true
-		}
-		goto end6f343b676bf49740054e459f972b24f5
-	end6f343b676bf49740054e459f972b24f5:
+		goto end8e76e20031197ca875889d2b4d0eb1d1
+	end8e76e20031197ca875889d2b4d0eb1d1:
 		;
 	case OpSub16:
 		// match: (Sub16 x y)
