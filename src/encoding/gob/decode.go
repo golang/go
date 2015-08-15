@@ -29,8 +29,7 @@ type decoderState struct {
 	// The buffer is stored with an extra indirection because it may be replaced
 	// if we load a type during decode (when reading an interface value).
 	b        *decBuffer
-	fieldnum int // the last field number read.
-	buf      []byte
+	fieldnum int           // the last field number read.
 	next     *decoderState // for free list
 }
 
@@ -97,7 +96,6 @@ func (dec *Decoder) newDecoderState(buf *decBuffer) *decoderState {
 	if d == nil {
 		d = new(decoderState)
 		d.dec = dec
-		d.buf = make([]byte, uint64Size)
 	} else {
 		dec.freeList = d.next
 	}
@@ -160,15 +158,16 @@ func (state *decoderState) decodeUint() (x uint64) {
 	if n > uint64Size {
 		error_(errBadUint)
 	}
-	width, err := state.b.Read(state.buf[0:n])
-	if err != nil {
-		error_(err)
+	buf := state.b.Bytes()
+	if len(buf) < n {
+		errorf("invalid uint data length %d: exceeds input size %d", n, len(buf))
 	}
 	// Don't need to check error; it's safe to loop regardless.
 	// Could check that the high byte is zero but it's not worth it.
-	for _, b := range state.buf[0:width] {
+	for _, b := range buf[0:n] {
 		x = x<<8 | uint64(b)
 	}
+	state.b.Drop(n)
 	return x
 }
 
@@ -397,11 +396,13 @@ func decString(i *decInstr, state *decoderState, value reflect.Value) {
 		errorf("bad %s slice length: %d", value.Type(), n)
 	}
 	// Read the data.
-	data := make([]byte, n)
-	if _, err := state.b.Read(data); err != nil {
-		errorf("error decoding string: %s", err)
+	data := state.b.Bytes()
+	if len(data) < n {
+		errorf("invalid string length %d: exceeds input size %d", n, len(data))
 	}
-	value.SetString(string(data))
+	s := string(data[:n])
+	state.b.Drop(n)
+	value.SetString(s)
 }
 
 // ignoreUint8Array skips over the data for a byte slice value with no destination.
@@ -410,8 +411,11 @@ func ignoreUint8Array(i *decInstr, state *decoderState, value reflect.Value) {
 	if !ok {
 		errorf("slice length too large")
 	}
-	b := make([]byte, n)
-	state.b.Read(b)
+	bn := state.b.Len()
+	if bn < n {
+		errorf("invalid slice length %d: exceeds input size %d", n, bn)
+	}
+	state.b.Drop(n)
 }
 
 // Execution engine
@@ -640,9 +644,9 @@ func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, valu
 	if nr > uint64(state.b.Len()) {
 		errorf("invalid type name length %d: exceeds input size", nr)
 	}
-	b := make([]byte, nr)
-	state.b.Read(b)
-	name := string(b)
+	n := int(nr)
+	name := string(state.b.Bytes()[:n])
+	state.b.Drop(n)
 	// Allocate the destination interface value.
 	if name == "" {
 		// Copy the nil interface value to the target.
@@ -689,11 +693,11 @@ func (dec *Decoder) ignoreInterface(state *decoderState) {
 	if !ok {
 		errorf("bad interface encoding: name too large for buffer")
 	}
-	b := make([]byte, n)
-	_, err := state.b.Read(b)
-	if err != nil {
-		error_(err)
+	bn := state.b.Len()
+	if bn < n {
+		errorf("invalid interface value length %d: exceeds input size %d", n, bn)
 	}
+	state.b.Drop(n)
 	id := dec.decodeTypeSequence(true)
 	if id < 0 {
 		error_(dec.err)
@@ -714,11 +718,13 @@ func (dec *Decoder) decodeGobDecoder(ut *userTypeInfo, state *decoderState, valu
 	if !ok {
 		errorf("GobDecoder: length too large for buffer")
 	}
-	b := make([]byte, n)
-	_, err := state.b.Read(b)
-	if err != nil {
-		error_(err)
+	b := state.b.Bytes()
+	if len(b) < n {
+		errorf("GobDecoder: invalid data length %d: exceeds input size %d", n, len(b))
 	}
+	b = b[:n]
+	state.b.Drop(n)
+	var err error
 	// We know it's one of these.
 	switch ut.externalDec {
 	case xGob:
@@ -740,11 +746,11 @@ func (dec *Decoder) ignoreGobDecoder(state *decoderState) {
 	if !ok {
 		errorf("GobDecoder: length too large for buffer")
 	}
-	b := make([]byte, n)
-	_, err := state.b.Read(b)
-	if err != nil {
-		error_(err)
+	bn := state.b.Len()
+	if bn < n {
+		errorf("GobDecoder: invalid data length %d: exceeds input size %d", n, bn)
 	}
+	state.b.Drop(n)
 }
 
 // Index by Go types.
