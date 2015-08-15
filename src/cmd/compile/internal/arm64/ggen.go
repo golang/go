@@ -418,15 +418,12 @@ func clearfat(nl *gc.Node) {
 	c := uint64(w % 8) // bytes
 	q := uint64(w / 8) // dwords
 
-	if gc.GetReg(arm64.REGRT1) > 0 {
-		gc.Fatal("R%d in use during clearfat", arm64.REGRT1-arm64.REG_R0)
-	}
-
 	var r0 gc.Node
 	gc.Nodreg(&r0, gc.Types[gc.TUINT64], arm64.REGZERO)
 	var dst gc.Node
+
+	// REGRT1 is reserved on arm64, see arm64/gsubr.go.
 	gc.Nodreg(&dst, gc.Types[gc.Tptr], arm64.REGRT1)
-	gc.SetReg(arm64.REGRT1, gc.GetReg(arm64.REGRT1)+1)
 	gc.Agen(nl, &dst)
 
 	var boff uint64
@@ -484,8 +481,6 @@ func clearfat(nl *gc.Node) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Offset = int64(t + boff)
 	}
-
-	gc.SetReg(arm64.REGRT1, gc.GetReg(arm64.REGRT1)-1)
 }
 
 // Called after regopt and peep have run.
