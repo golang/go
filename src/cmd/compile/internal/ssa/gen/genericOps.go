@@ -218,7 +218,7 @@ var genericOps = []opData{
 
 	// Memory operations
 	{name: "Load"},  // Load from arg0.  arg1=memory
-	{name: "Store"}, // Store arg1 to arg0.  arg2=memory.  Returns memory.
+	{name: "Store"}, // Store arg1 to arg0.  arg2=memory, auxint=size.  Returns memory.
 	{name: "Move"},  // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size.  Returns memory.
 	{name: "Zero"},  // arg0=destptr, arg1=mem, auxint=size. Returns memory.
 

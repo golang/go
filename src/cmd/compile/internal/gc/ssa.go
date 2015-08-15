@@ -331,6 +331,11 @@ func (s *state) newValue3(op ssa.Op, t ssa.Type, arg0, arg1, arg2 *ssa.Value) *s
 	return s.curBlock.NewValue3(s.peekLine(), op, t, arg0, arg1, arg2)
 }
 
+// newValue3I adds a new value with three arguments and an auxint value to the current block.
+func (s *state) newValue3I(op ssa.Op, t ssa.Type, aux int64, arg0, arg1, arg2 *ssa.Value) *ssa.Value {
+	return s.curBlock.NewValue3I(s.peekLine(), op, t, aux, arg0, arg1, arg2)
+}
+
 // entryNewValue adds a new value with no arguments to the entry block.
 func (s *state) entryNewValue0(op ssa.Op, t ssa.Type) *ssa.Value {
 	return s.f.Entry.NewValue0(s.peekLine(), op, t)
@@ -1365,12 +1370,19 @@ func (s *state) expr(n *Node) *ssa.Value {
 }
 
 func (s *state) assign(op uint8, left *Node, right *Node) {
+	if left.Op == ONAME && isblank(left) {
+		if right != nil {
+			s.expr(right)
+		}
+		return
+	}
 	// TODO: do write barrier
 	// if op == OASWB
+	t := left.Type
+	dowidth(t)
 	var val *ssa.Value
 	if right == nil {
 		// right == nil means use the zero value of the assigned type.
-		t := left.Type
 		if !canSSA(left) {
 			// if we can't ssa this memory, treat it as just zeroing out the backing memory
 			addr := s.addr(left)
@@ -1388,7 +1400,7 @@ func (s *state) assign(op uint8, left *Node, right *Node) {
 	}
 	// not ssa-able.  Treat as a store.
 	addr := s.addr(left)
-	s.vars[&memvar] = s.newValue3(ssa.OpStore, ssa.TypeMem, addr, val, s.mem())
+	s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, t.Size(), addr, val, s.mem())
 }
 
 // zeroVal returns the zero value for type t.

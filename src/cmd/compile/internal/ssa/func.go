@@ -249,6 +249,21 @@ func (b *Block) NewValue3(line int32, op Op, t Type, arg0, arg1, arg2 *Value) *V
 	return v
 }
 
+// NewValue3I returns a new value in the block with three arguments and an auxint value.
+func (b *Block) NewValue3I(line int32, op Op, t Type, aux int64, arg0, arg1, arg2 *Value) *Value {
+	v := &Value{
+		ID:     b.Func.vid.get(),
+		Op:     op,
+		Type:   t,
+		AuxInt: aux,
+		Block:  b,
+		Line:   line,
+	}
+	v.Args = []*Value{arg0, arg1, arg2}
+	b.Values = append(b.Values, v)
+	return v
+}
+
 // ConstInt returns an int constant representing its argument.
 func (f *Func) ConstInt8(line int32, t Type, c int8) *Value {
 	// TODO: cache?

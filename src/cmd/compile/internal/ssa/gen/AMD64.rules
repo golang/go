@@ -203,11 +203,10 @@
 (Load <t> ptr mem) && is32BitInt(t) -> (MOVLload ptr mem)
 (Load <t> ptr mem) && is16BitInt(t) -> (MOVWload ptr mem)
 (Load <t> ptr mem) && (t.IsBoolean() || is8BitInt(t)) -> (MOVBload ptr mem)
-(Store ptr val mem) && (is64BitInt(val.Type) || isPtr(val.Type)) -> (MOVQstore ptr val mem)
-(Store ptr val mem) && is32BitInt(val.Type) -> (MOVLstore ptr val mem)
-(Store ptr val mem) && is16BitInt(val.Type) -> (MOVWstore ptr val mem)
-(Store ptr val mem) && is8BitInt(val.Type) -> (MOVBstore ptr val mem)
-(Store ptr val mem) && val.Type.IsBoolean() -> (MOVBstore ptr val mem)
+(Store [8] ptr val mem) -> (MOVQstore ptr val mem)
+(Store [4] ptr val mem) -> (MOVLstore ptr val mem)
+(Store [2] ptr val mem) -> (MOVWstore ptr val mem)
+(Store [1] ptr val mem) -> (MOVBstore ptr val mem)
 
 // checks
 (IsNonNil p) -> (SETNE (TESTQ <TypeFlags> p p))
