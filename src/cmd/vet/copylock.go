@@ -18,7 +18,7 @@ func init() {
 	register("copylocks",
 		"check that locks are not passed by value",
 		checkCopyLocks,
-		funcDecl, rangeStmt, funcLit)
+		funcDecl, rangeStmt, funcLit, assignStmt)
 }
 
 // checkCopyLocks checks whether node might
@@ -31,6 +31,18 @@ func checkCopyLocks(f *File, node ast.Node) {
 		checkCopyLocksFunc(f, node.Name.Name, node.Recv, node.Type)
 	case *ast.FuncLit:
 		checkCopyLocksFunc(f, "func", nil, node.Type)
+	case *ast.AssignStmt:
+		checkCopyLocksAssign(f, node)
+	}
+}
+
+// checkCopyLocksAssign checks whether an assignment
+// copies a lock.
+func checkCopyLocksAssign(f *File, as *ast.AssignStmt) {
+	for _, x := range as.Lhs {
+		if path := lockPath(f.pkg.typesPkg, f.pkg.types[x].Type); path != nil {
+			f.Badf(x.Pos(), "assignment copies lock value to %v: %v", f.gofmt(x), path)
+		}
 	}
 }
 
@@ -42,7 +54,7 @@ func checkCopyLocksFunc(f *File, name string, recv *ast.FieldList, typ *ast.Func
 	if recv != nil && len(recv.List) > 0 {
 		expr := recv.List[0].Type
 		if path := lockPath(f.pkg.typesPkg, f.pkg.types[expr].Type); path != nil {
-			f.Badf(expr.Pos(), "%s passes Lock by value: %v", name, path)
+			f.Badf(expr.Pos(), "%s passes lock by value: %v", name, path)
 		}
 	}
 
@@ -50,7 +62,7 @@ func checkCopyLocksFunc(f *File, name string, recv *ast.FieldList, typ *ast.Func
 		for _, field := range typ.Params.List {
 			expr := field.Type
 			if path := lockPath(f.pkg.typesPkg, f.pkg.types[expr].Type); path != nil {
-				f.Badf(expr.Pos(), "%s passes Lock by value: %v", name, path)
+				f.Badf(expr.Pos(), "%s passes lock by value: %v", name, path)
 			}
 		}
 	}
@@ -59,7 +71,7 @@ func checkCopyLocksFunc(f *File, name string, recv *ast.FieldList, typ *ast.Func
 		for _, field := range typ.Results.List {
 			expr := field.Type
 			if path := lockPath(f.pkg.typesPkg, f.pkg.types[expr].Type); path != nil {
-				f.Badf(expr.Pos(), "%s returns Lock by value: %v", name, path)
+				f.Badf(expr.Pos(), "%s returns lock by value: %v", name, path)
 			}
 		}
 	}
@@ -100,7 +112,7 @@ func checkCopyLocksRangeVar(f *File, rtok token.Token, e ast.Expr) {
 		return
 	}
 	if path := lockPath(f.pkg.typesPkg, typ); path != nil {
-		f.Badf(e.Pos(), "range var %s copies Lock: %v", f.gofmt(e), path)
+		f.Badf(e.Pos(), "range var %s copies lock: %v", f.gofmt(e), path)
 	}
 }
 
