@@ -10,13 +10,13 @@ package testdata
 import "sync"
 
 func OkFunc(*sync.Mutex) {}
-func BadFunc(sync.Mutex) {} // ERROR "BadFunc passes Lock by value: sync.Mutex"
+func BadFunc(sync.Mutex) {} // ERROR "BadFunc passes lock by value: sync.Mutex"
 func OkRet() *sync.Mutex {}
-func BadRet() sync.Mutex {} // ERROR "BadRet returns Lock by value: sync.Mutex"
+func BadRet() sync.Mutex {} // ERROR "BadRet returns lock by value: sync.Mutex"
 
 var (
 	OkClosure  = func(*sync.Mutex) {}
-	BadClosure = func(sync.Mutex) {} // ERROR "func passes Lock by value: sync.Mutex"
+	BadClosure = func(sync.Mutex) {} // ERROR "func passes lock by value: sync.Mutex"
 )
 
 type EmbeddedRWMutex struct {
@@ -24,20 +24,20 @@ type EmbeddedRWMutex struct {
 }
 
 func (*EmbeddedRWMutex) OkMeth() {}
-func (EmbeddedRWMutex) BadMeth() {} // ERROR "BadMeth passes Lock by value: testdata.EmbeddedRWMutex"
+func (EmbeddedRWMutex) BadMeth() {} // ERROR "BadMeth passes lock by value: testdata.EmbeddedRWMutex"
 func OkFunc(e *EmbeddedRWMutex)  {}
-func BadFunc(EmbeddedRWMutex)    {} // ERROR "BadFunc passes Lock by value: testdata.EmbeddedRWMutex"
+func BadFunc(EmbeddedRWMutex)    {} // ERROR "BadFunc passes lock by value: testdata.EmbeddedRWMutex"
 func OkRet() *EmbeddedRWMutex    {}
-func BadRet() EmbeddedRWMutex    {} // ERROR "BadRet returns Lock by value: testdata.EmbeddedRWMutex"
+func BadRet() EmbeddedRWMutex    {} // ERROR "BadRet returns lock by value: testdata.EmbeddedRWMutex"
 
 type FieldMutex struct {
 	s sync.Mutex
 }
 
 func (*FieldMutex) OkMeth()   {}
-func (FieldMutex) BadMeth()   {} // ERROR "BadMeth passes Lock by value: testdata.FieldMutex contains sync.Mutex"
+func (FieldMutex) BadMeth()   {} // ERROR "BadMeth passes lock by value: testdata.FieldMutex contains sync.Mutex"
 func OkFunc(*FieldMutex)      {}
-func BadFunc(FieldMutex, int) {} // ERROR "BadFunc passes Lock by value: testdata.FieldMutex contains sync.Mutex"
+func BadFunc(FieldMutex, int) {} // ERROR "BadFunc passes lock by value: testdata.FieldMutex contains sync.Mutex"
 
 type L0 struct {
 	L1
@@ -52,7 +52,7 @@ type L2 struct {
 }
 
 func (*L0) Ok() {}
-func (L0) Bad() {} // ERROR "Bad passes Lock by value: testdata.L0 contains testdata.L1 contains testdata.L2"
+func (L0) Bad() {} // ERROR "Bad passes lock by value: testdata.L0 contains testdata.L1 contains testdata.L2"
 
 type EmbeddedMutexPointer struct {
 	s *sync.Mutex // safe to copy this pointer
@@ -76,7 +76,7 @@ func (*CustomLock) Lock()   {}
 func (*CustomLock) Unlock() {}
 
 func Ok(*CustomLock) {}
-func Bad(CustomLock) {} // ERROR "Bad passes Lock by value: testdata.CustomLock"
+func Bad(CustomLock) {} // ERROR "Bad passes lock by value: testdata.CustomLock"
 
 // TODO: Unfortunate cases
 
@@ -85,7 +85,7 @@ func Bad(CustomLock) {} // ERROR "Bad passes Lock by value: testdata.CustomLock"
 // sync.Mutex gets called out, but without any reference to the sync.Once.
 type LocalOnce sync.Once
 
-func (LocalOnce) Bad() {} // ERROR "Bad passes Lock by value: testdata.LocalOnce contains sync.Mutex"
+func (LocalOnce) Bad() {} // ERROR "Bad passes lock by value: testdata.LocalOnce contains sync.Mutex"
 
 // False negative:
 // LocalMutex doesn't have a Lock method.
