@@ -72,7 +72,9 @@ func init() {
 
 	// Common individual register masks
 	var (
+		ax         = buildReg("AX")
 		cx         = buildReg("CX")
+		dx         = buildReg("DX")
 		x15        = buildReg("X15")
 		gp         = buildReg("AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15")
 		fp         = buildReg("X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15")
@@ -97,6 +99,8 @@ func init() {
 		gp21      = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: gponly, clobbers: flags}
 		gp21sb    = regInfo{inputs: []regMask{gpspsb, gpsp}, outputs: gponly, clobbers: flags}
 		gp21shift = regInfo{inputs: []regMask{gpsp, cx}, outputs: []regMask{gp &^ cx}, clobbers: flags}
+		gp11div   = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{ax},
+			clobbers: dx | flags}
 
 		gp2flags = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: flagsonly}
 		gp1flags = regInfo{inputs: []regMask{gpsp}, outputs: flagsonly}
@@ -179,6 +183,14 @@ func init() {
 		{name: "MULLconst", reg: gp11, asm: "IMULL"}, // arg0 * auxint
 		{name: "MULWconst", reg: gp11, asm: "IMULW"}, // arg0 * auxint
 		{name: "MULBconst", reg: gp11, asm: "IMULW"}, // arg0 * auxint
+
+		{name: "DIVQ", reg: gp11div, asm: "IDIVQ"}, // arg0 / arg1
+		{name: "DIVL", reg: gp11div, asm: "IDIVL"}, // arg0 / arg1
+		{name: "DIVW", reg: gp11div, asm: "IDIVW"}, // arg0 / arg1
+
+		{name: "DIVQU", reg: gp11div, asm: "DIVQ"}, // arg0 / arg1
+		{name: "DIVLU", reg: gp11div, asm: "DIVL"}, // arg0 / arg1
+		{name: "DIVWU", reg: gp11div, asm: "DIVW"}, // arg0 / arg1
 
 		{name: "ANDQ", reg: gp21, asm: "ANDQ"},      // arg0 & arg1
 		{name: "ANDL", reg: gp21, asm: "ANDL"},      // arg0 & arg1

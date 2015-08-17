@@ -1688,6 +1688,60 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto endc395c0a53eeccf597e225a07b53047d1
 	endc395c0a53eeccf597e225a07b53047d1:
 		;
+	case OpDiv16:
+		// match: (Div16 x y)
+		// cond:
+		// result: (DIVW x y)
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64DIVW
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto endb60a86e606726640c84d3e1e5a5ce890
+	endb60a86e606726640c84d3e1e5a5ce890:
+		;
+	case OpDiv16u:
+		// match: (Div16u x y)
+		// cond:
+		// result: (DIVWU x y)
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64DIVWU
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto end6af9e212a865593e506bfdf7db67c9ec
+	end6af9e212a865593e506bfdf7db67c9ec:
+		;
+	case OpDiv32:
+		// match: (Div32 x y)
+		// cond:
+		// result: (DIVL x y)
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64DIVL
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto endf20ac71407e57c2904684d3cc33cf697
+	endf20ac71407e57c2904684d3cc33cf697:
+		;
 	case OpDiv32F:
 		// match: (Div32F x y)
 		// cond:
@@ -1706,6 +1760,42 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto enddca0462c7b176c4138854d7d5627ab5b
 	enddca0462c7b176c4138854d7d5627ab5b:
 		;
+	case OpDiv32u:
+		// match: (Div32u x y)
+		// cond:
+		// result: (DIVLU x y)
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64DIVLU
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto enda22604d23eeb1298008c97b817f60bbd
+	enda22604d23eeb1298008c97b817f60bbd:
+		;
+	case OpDiv64:
+		// match: (Div64 x y)
+		// cond:
+		// result: (DIVQ x y)
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64DIVQ
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto end86490d9b337333dfc09a413e1e0120a9
+	end86490d9b337333dfc09a413e1e0120a9:
+		;
 	case OpDiv64F:
 		// match: (Div64F x y)
 		// cond:
@@ -1723,6 +1813,72 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		}
 		goto end12299d76db5144a60f564d34ba97eb43
 	end12299d76db5144a60f564d34ba97eb43:
+		;
+	case OpDiv64u:
+		// match: (Div64u x y)
+		// cond:
+		// result: (DIVQU x y)
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64DIVQU
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto endf871d8b397e5fad6a5b500cc0c759a8d
+	endf871d8b397e5fad6a5b500cc0c759a8d:
+		;
+	case OpDiv8:
+		// match: (Div8 x y)
+		// cond:
+		// result: (DIVW (SignExt8to16 <config.Frontend().TypeInt16()> x) (SignExt8to16 <config.Frontend().TypeInt16()> y))
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64DIVW
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v0 := b.NewValue0(v.Line, OpSignExt8to16, TypeInvalid)
+			v0.Type = config.Frontend().TypeInt16()
+			v0.AddArg(x)
+			v.AddArg(v0)
+			v1 := b.NewValue0(v.Line, OpSignExt8to16, TypeInvalid)
+			v1.Type = config.Frontend().TypeInt16()
+			v1.AddArg(y)
+			v.AddArg(v1)
+			return true
+		}
+		goto ende25a7899b9c7a869f74226b4b6033084
+	ende25a7899b9c7a869f74226b4b6033084:
+		;
+	case OpDiv8u:
+		// match: (Div8u x y)
+		// cond:
+		// result: (DIVWU (ZeroExt8to16 <config.Frontend().TypeUInt16()> x) (ZeroExt8to16 <config.Frontend().TypeUInt16()> y))
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64DIVWU
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v0 := b.NewValue0(v.Line, OpZeroExt8to16, TypeInvalid)
+			v0.Type = config.Frontend().TypeUInt16()
+			v0.AddArg(x)
+			v.AddArg(v0)
+			v1 := b.NewValue0(v.Line, OpZeroExt8to16, TypeInvalid)
+			v1.Type = config.Frontend().TypeUInt16()
+			v1.AddArg(y)
+			v.AddArg(v1)
+			return true
+		}
+		goto ende655b41d48feafc4d139b815a3b7b55c
+	ende655b41d48feafc4d139b815a3b7b55c:
 		;
 	case OpEq16:
 		// match: (Eq16 x y)
