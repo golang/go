@@ -389,6 +389,12 @@ func (b *Block) LongHTML() string {
 			s += " " + c.HTML()
 		}
 	}
+	switch b.Likely {
+	case BranchUnlikely:
+		s += " (unlikely)"
+	case BranchLikely:
+		s += " (likely)"
+	}
 	return s
 }
 
