@@ -37,6 +37,15 @@ var genericOps = []opData{
 	{name: "Div64F"},
 	// TODO: Div8, Div16, Div32, Div64 and unsigned
 
+	{name: "Div8"}, // arg0 / arg1
+	{name: "Div8u"},
+	{name: "Div16"},
+	{name: "Div16u"},
+	{name: "Div32"},
+	{name: "Div32u"},
+	{name: "Div64"},
+	{name: "Div64u"},
+
 	{name: "And8"}, // arg0 & arg1
 	{name: "And16"},
 	{name: "And32"},

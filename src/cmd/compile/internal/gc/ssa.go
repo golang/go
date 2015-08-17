@@ -779,6 +779,15 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{ODIV, TFLOAT32}: ssa.OpDiv32F,
 	opAndType{ODIV, TFLOAT64}: ssa.OpDiv64F,
 
+	opAndType{ODIV, TINT8}:   ssa.OpDiv8,
+	opAndType{ODIV, TUINT8}:  ssa.OpDiv8u,
+	opAndType{ODIV, TINT16}:  ssa.OpDiv16,
+	opAndType{ODIV, TUINT16}: ssa.OpDiv16u,
+	opAndType{ODIV, TINT32}:  ssa.OpDiv32,
+	opAndType{ODIV, TUINT32}: ssa.OpDiv32u,
+	opAndType{ODIV, TINT64}:  ssa.OpDiv64,
+	opAndType{ODIV, TUINT64}: ssa.OpDiv64u,
+
 	opAndType{OAND, TINT8}:   ssa.OpAnd8,
 	opAndType{OAND, TUINT8}:  ssa.OpAnd8,
 	opAndType{OAND, TINT16}:  ssa.OpAnd16,
@@ -2018,6 +2027,77 @@ func genValue(v *ssa.Value) {
 			opregreg(regMoveByTypeAMD64(v.Type), r, x)
 		}
 		opregreg(v.Op.Asm(), r, y)
+
+	case ssa.OpAMD64DIVQ, ssa.OpAMD64DIVL, ssa.OpAMD64DIVW,
+		ssa.OpAMD64DIVQU, ssa.OpAMD64DIVLU, ssa.OpAMD64DIVWU:
+
+		// Arg[0] is already in AX as it's the only register we allow
+		// and AX is the only output
+		x := regnum(v.Args[1])
+
+		// CPU faults upon signed overflow, which occurs when most
+		// negative int is divided by -1.  So we check for division
+		// by -1 and negate the input.
+		var j *obj.Prog
+		if v.Op == ssa.OpAMD64DIVQ || v.Op == ssa.OpAMD64DIVL ||
+			v.Op == ssa.OpAMD64DIVW {
+
+			var c *obj.Prog
+			switch v.Op {
+			case ssa.OpAMD64DIVQ:
+				c = Prog(x86.ACMPQ)
+			case ssa.OpAMD64DIVL:
+				c = Prog(x86.ACMPL)
+			case ssa.OpAMD64DIVW:
+				c = Prog(x86.ACMPW)
+			}
+			c.From.Type = obj.TYPE_REG
+			c.From.Reg = x
+			c.To.Type = obj.TYPE_CONST
+			c.To.Offset = -1
+
+			j = Prog(x86.AJEQ)
+			j.To.Type = obj.TYPE_BRANCH
+
+		}
+
+		// dividend is ax, so we sign extend to
+		// dx:ax for DIV input
+		switch v.Op {
+		case ssa.OpAMD64DIVQU:
+			fallthrough
+		case ssa.OpAMD64DIVLU:
+			fallthrough
+		case ssa.OpAMD64DIVWU:
+			c := Prog(x86.AXORQ)
+			c.From.Type = obj.TYPE_REG
+			c.From.Reg = x86.REG_DX
+			c.To.Type = obj.TYPE_REG
+			c.To.Reg = x86.REG_DX
+		case ssa.OpAMD64DIVQ:
+			Prog(x86.ACQO)
+		case ssa.OpAMD64DIVL:
+			Prog(x86.ACDQ)
+		case ssa.OpAMD64DIVW:
+			Prog(x86.ACWD)
+		}
+
+		p := Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = x
+
+		// signed division, rest of the check for -1 case
+		if j != nil {
+			j2 := Prog(obj.AJMP)
+			j2.To.Type = obj.TYPE_BRANCH
+
+			n := Prog(x86.ANEGQ)
+			n.To.Type = obj.TYPE_REG
+			n.To.Reg = x86.REG_AX
+
+			j.To.Val = n
+			j2.To.Val = Pc
+		}
 
 	case ssa.OpAMD64SHLQ, ssa.OpAMD64SHLL, ssa.OpAMD64SHLW, ssa.OpAMD64SHLB,
 		ssa.OpAMD64SHRQ, ssa.OpAMD64SHRL, ssa.OpAMD64SHRW, ssa.OpAMD64SHRB,

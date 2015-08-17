@@ -36,6 +36,15 @@
 (Div32F x y) -> (DIVSS x y)
 (Div64F x y) -> (DIVSD x y)
 
+(Div64 x y) -> (DIVQ x y)
+(Div64u x y) -> (DIVQU x y)
+(Div32 x y) -> (DIVL x y)
+(Div32u x y) -> (DIVLU x y)
+(Div16 x y) -> (DIVW x y)
+(Div16u x y) -> (DIVWU x y)
+(Div8 x y) ->  (DIVW (SignExt8to16 <config.Frontend().TypeInt16()> x) (SignExt8to16 <config.Frontend().TypeInt16()> y))
+(Div8u x y) ->  (DIVWU (ZeroExt8to16 <config.Frontend().TypeUInt16()> x) (ZeroExt8to16 <config.Frontend().TypeUInt16()> y))
+
 (And64 x y) -> (ANDQ x y)
 (And32 x y) -> (ANDL x y)
 (And16 x y) -> (ANDW x y)
