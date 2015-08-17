@@ -229,6 +229,10 @@ func (h *LineHist) LineString(lineno int) string {
 	text := fmt.Sprintf("%s:%d", filename, stk.fileLineAt(lineno))
 	if stk.Directive && stk.Parent != nil {
 		stk = stk.Parent
+		filename = stk.File
+		if h.PrintFilenameOnly {
+			filename = filepath.Base(filename)
+		}
 		text += fmt.Sprintf("[%s:%d]", filename, stk.fileLineAt(lineno))
 	}
 	const showFullStack = false // was used by old C compilers
