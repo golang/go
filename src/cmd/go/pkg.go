@@ -416,7 +416,7 @@ func vendoredImportPath(parent *Package, path string) (found string, searched []
 		return path, nil
 	}
 	dir := filepath.Clean(parent.Dir)
-	root := filepath.Clean(parent.Root)
+	root := filepath.Join(parent.Root, "src")
 	if !hasFilePathPrefix(dir, root) || len(dir) <= len(root) || dir[len(root)] != filepath.Separator {
 		fatalf("invalid vendoredImportPath: dir=%q root=%q separator=%q", dir, root, string(filepath.Separator))
 	}

@@ -244,3 +244,15 @@ func TestVendorList(t *testing.T) {
 	tg.run("list", "-f", `{{join .XTestImports "\n"}}`, "github.com/rsc/go-get-issue-11864/vendor/vendor.org/tx3")
 	tg.grepStdout("go-get-issue-11864/vendor/vendor.org/tx3", "did not find vendor-expanded tx3")
 }
+
+func TestVendor12156(t *testing.T) {
+	// Former index out of range panic.
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata/testvendor2"))
+	tg.setenv("GO15VENDOREXPERIMENT", "1")
+	tg.cd(filepath.Join(tg.pwd(), "testdata/testvendor2/src/p"))
+	tg.runFail("build", "p.go")
+	tg.grepStderrNot("panic", "panicked")
+	tg.grepStderr(`cannot find package "x"`, "wrong error")
+}
