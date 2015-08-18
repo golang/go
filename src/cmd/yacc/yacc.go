@@ -3473,6 +3473,7 @@ func ($$rcvr *$$ParserImpl) Parse($$lex $$Lexer) int {
 	var $$lval $$SymType
 	var $$VAL $$SymType
 	var $$Dollar []$$SymType
+	_ = $$Dollar // silence set and not used
 	$$S := make([]$$SymType, $$MaxDepth)
 
 	Nerrs := 0   /* number of errors */
