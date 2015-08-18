@@ -87,9 +87,9 @@ func processCgoFiles(bp *build.Package, fset *token.FileSet, DisplayPath func(pa
 		if err != nil {
 			return nil, err
 		}
-		defer rd.Close()
 		display := filepath.Join(bp.Dir, cgoDisplayFiles[i])
 		f, err := parser.ParseFile(fset, display, rd, mode)
+		rd.Close()
 		if err != nil {
 			return nil, err
 		}
